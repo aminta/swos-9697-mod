@@ -38,6 +38,7 @@ class LEPatch:
                 p += n
             assert p == stop
         self.old_end = le.fix_rec_tab + struct.unpack_from('<I', d, le.fix_page_tab + le.npages * 4)[0]
+        self.rel_sites = set()                       # (objn, off) of the self-relative fixups added (add_rel): put() guard
 
     @staticmethod
     def _rec_len(d, p):
@@ -53,6 +54,9 @@ class LEPatch:
 
     # --- object data -------------------------------------------------------
     def put(self, objn, off, data):
+        if self.rel_sites:                           # (4.0.6) never overwrite a cross-object rel32 without remove() first:
+            hit = [(objn, o) for o in range(off - 3, off + len(data)) if (objn, o) in self.rel_sites]   # its bytes are
+            assert not hit, ('put over a self-relative fixup', objn, hex(off), hit)   # the loader's, not a target
         for i, b in enumerate(data):
             fo = self.le.file_off(objn, off + i)
             assert fo is not None
@@ -67,6 +71,14 @@ class LEPatch:
         assert vsize <= o.npages * self.le.page_size + bss
         obj_tab = self.le.hdr + struct.unpack_from('<I', self.out, self.le.hdr + 0x40)[0]
         struct.pack_into('<I', self.out, obj_tab + (objn - 1) * 24, vsize)
+
+    def set_base_after(self, objn):
+        """Put objn's header base above every other object's end, 64 KB aligned (obj3 once obj1 / obj2 have their
+        final sizes; DOS/4GW relocates every object anyway, as the mod's overlapping obj1 / obj2 bases show)."""
+        obj_tab = self.le.hdr + struct.unpack_from('<I', self.out, self.le.hdr + 0x40)[0]
+        ent = [struct.unpack_from('<6I', self.out, obj_tab + 24 * i) for i in range(len(self.le.objs))]
+        top = max(e[1] + e[0] for i, e in enumerate(ent) if i != objn - 1)
+        struct.pack_into('<I', self.out, obj_tab + (objn - 1) * 24 + 4, (top + 0xffff) & ~0xffff)
 
     def add_flags(self, objn, flags):
         obj_tab = self.le.hdr + struct.unpack_from('<I', self.out, self.le.hdr + 0x40)[0]
@@ -114,6 +126,7 @@ class LEPatch:
 
     def remove(self, objn, off):
         """Drop the fixup at objn:off (before overwriting the instruction holding it)."""
+        self.rel_sites.discard((objn, off))
         gp, i = self._find(objn, off)
         po = struct.unpack_from('<h', self.recs[gp][i], 2)[0]
         del self.recs[gp][i]
@@ -134,6 +147,43 @@ class LEPatch:
             assert off // self.le.page_size + 1 < o.npages, 'pointer straddles the object end'
             self.recs[gp + 1].append(self._record(0x07, po - self.le.page_size, tobj, toff))
         self.put(objn, off, struct.pack('<I', toff))
+
+    def add_rel(self, objn, off, tobj, toff):
+        """Add a 32-bit self-relative fixup at objn:off (the rel32 of a call / jmp into another object: the loader
+        stores target - (source + 4), as for the game's own 42 obj1 <-> obj2 calls). The bytes there stay 0."""
+        gp, po = self._page(objn, off)
+        assert not any(not r[0] & 0x20 and struct.unpack_from('<h', r, 2)[0] == po for r in self.recs[gp])
+        self.put(objn, off, bytes(4))
+        self.recs[gp].append(self._record(0x08, po, tobj, toff))
+        if po > self.le.page_size - 4:
+            assert off // self.le.page_size + 1 < self.le.obj(objn).npages, 'rel32 straddles the object end'
+            self.recs[gp + 1].append(self._record(0x08, po - self.le.page_size, tobj, toff))
+        self.rel_sites.add((objn, off))
+
+    def rel_target(self, objn, off):
+        """(tobj, toff) of the self-relative fixup at objn:off, or None."""
+        gp, po = self._page(objn, off)
+        for r in self.recs[gp]:
+            if not r[0] & 0x20 and r[0] & 0xf == 8 and struct.unpack_from('<h', r, 2)[0] == po:
+                return self.target(objn, off)
+        return None
+
+    def call_target(self, objn, off):
+        """(obj, off) the call / jmp rel32 at objn:off (E8 / E9) goes to now: across objects through its self-relative
+        fixup, else within objn. Every hook that chains onto a call site reads its previous target with this."""
+        assert self.get(objn, off, 1) in (b'\xe8', b'\xe9'), (objn, hex(off))
+        return self.rel_target(objn, off + 1) or (objn, off + 5 + struct.unpack('<i', self.get(objn, off + 1, 4))[0])
+
+    def branch(self, objn, off, op, tobj, toff, n=5):
+        """Write `call` (op 0xE8) / `jmp` (0xE9) to tobj:toff at objn:off, padded to n bytes with nops: a plain rel32
+        within the object, a self-relative fixup across objects."""
+        if self.rel_target(objn, off + 1):
+            self.remove(objn, off + 1)
+        if tobj == objn:
+            self.put(objn, off, bytes([op]) + struct.pack('<i', toff - (off + 5)) + b'\x90' * (n - 5))
+        else:
+            self.put(objn, off, bytes([op]) + bytes(4) + b'\x90' * (n - 5))
+            self.add_rel(objn, off + 1, tobj, toff)
 
     # --- output ------------------------------------------------------------
     def save(self, path):
@@ -161,6 +211,39 @@ class LEPatch:
         struct.pack_into('<I', out, h + 0x80, new_data)
         open(path, 'wb').write(out)
         return delta, shift
+
+
+def add_object(data, flags=0x2047):
+    """Append an empty object (4.0.6: obj3, read + write + exec like obj1) to the object table; returns the new file
+    bytes. Its pages come from add_object_page(data, n), its size from LEPatch.set_vsize. The 24-byte entry comes out
+    of the padding before the data pages (or the pages move down, 512-byte aligned, as add_object_page does)."""
+    d = bytearray(data)
+    h = struct.unpack_from('<I', d, 0x3c)[0]
+    u = lambda off: struct.unpack_from('<I', d, h + off)[0]
+    setu = lambda off, v: struct.pack_into('<I', d, h + off, v)
+    npages, psize, last = u(0x14), u(0x28), u(0x2c)
+    assert len(d) == u(0x80) + (npages - 1) * psize + last, 'unexpected data after the pages'
+    obj_tab, nobj = h + u(0x40), u(0x44)
+    end_tab = obj_tab + 24 * nobj
+    for off in (0x48, 0x50, 0x58, 0x5c, 0x68, 0x6c, 0x70, 0x78):   # the tables after the object table
+        assert u(off) == 0 or h + u(off) >= end_tab, hex(off)
+    top = max(struct.unpack_from('<I', d, obj_tab + 24 * i + 4)[0] + struct.unpack_from('<I', d, obj_tab + 24 * i)[0]
+              for i in range(nobj))
+    d[end_tab:end_tab] = struct.pack('<6I', 0, (top + 0xffff) & ~0xffff, flags, npages + 1, 0, 0)
+    for off in (0x48, 0x50, 0x58, 0x5c, 0x68, 0x6c, 0x70, 0x78):
+        if u(off):
+            setu(off, u(off) + 24)
+    setu(0x44, nobj + 1)
+    setu(0x38, u(0x38) + 24)                                    # loader section size
+    data_pages = u(0x80)
+    end = h + u(0x70)
+    if end + 24 <= data_pages and not any(d[end:data_pages]):
+        del d[data_pages - 24:data_pages]
+    else:
+        new = (end + HARNESS_ROOM + ALIGN - 1) // ALIGN * ALIGN
+        d[data_pages + 24:data_pages + 24] = bytes(new - (data_pages + 24))
+        setu(0x80, new)
+    return bytes(d)
 
 
 def add_object_page(data, objn):

@@ -1837,7 +1837,8 @@ def table_asm(tab):
 
 
 def patch(p, at, ns_at, lang='it'):
-    """Code + data at obj1:at (a page of its own), namespr's pages at ns_at; returns the end."""
+    """Code + data at obj3:at (4.0.6: its own pages in obj3, CONVENTIONS 23; the game's sites reach it through
+    self-relative fixups), namespr's pages at ns_at (obj1); returns the end."""
     import sacups
     import xtra
     regs = sacups.regs(p.le.obj_bytes(1))
@@ -1872,7 +1873,7 @@ def patch(p, at, ns_at, lang='it'):
     s9 = sites9(p, regs, s4, s6, ct, cnp)
     sym.update({k: s9[k] for k in ('VSCOMMON', 'NTCOMMON', 'VSTEAM', 'VSROW', 'NTSEL')})
     vg = s9['gpi'][0]                               # (4.0.5) ViewSquadCommon's call: its current target (xbrowse's vs_pick,
-    sym['VWPREV'] = (1, vg + 5 + struct.unpack('<i', bytes(p.get(1, vg + 1, 4)))[0])   # else the game's) - chained
+    sym['VWPREV'] = p.call_target(1, vg)                                               # else the game's) - chained
     etc, sfet = sites10(p)
     sym['SFET'] = (1, sfet)
     s7 = sites7(p, regs)
@@ -1888,31 +1889,35 @@ def patch(p, at, ns_at, lang='it'):
                 'SLT': (careerworld.SITES or careerworld.sites(p))['slt'], 'WORLD_BYTE_': (0, careerworld.WORLD_BYTE),
                 'BXWORLD_': (0, BENCH_WORLD[0] if tab else 255)})
     asm = ASM + table_asm(tab)
-    code, fix = nasmcave.assemble(asm, at, sym)
+    code, fix, rel = nasmcave.assemble_obj(asm, at, sym, 3)
     lab = nasmcave.labels(asm, at, sym)
     LOG.append(f'benchx phase 2: {len(tab)} competitions with a real bench ({lang})')
-    assert not any(p.get(1, at, len(code)))
-    p.put(1, at, code)
+    assert not any(p.get(3, at, len(code)))
+    p.put(3, at, code)
     for o, t_obj, t_off in fix:
-        p.add_ptr(1, at + o, t_obj, t_off)
+        p.add_ptr(3, at + o, t_obj, t_off)
+    for o, t_obj, t_off in rel:                     # its calls / jmps into the game (obj1)
+        p.add_rel(3, at + o, t_obj, t_off)
+    def go(o, lbl, n=5, op=0xE8):                   # a game site -> call / jmp lbl (obj3) + nops
+        p.branch(1, o, op, 3, lab[lbl], n)
     # gameMaxSubstitutes store (6 bytes: 66 A3 addr) -> call bx_max + nop
     p.remove(1, store + 2)
-    p.put(1, store, b'\xe8' + struct.pack('<i', lab['bx_max'] - (store + 5)) + b'\x90')
+    go(store, 'bx_max', 6)
     p.remove(1, store - 12 + 2)                     # (phase 2) gameMinSubstitutes store -> call bx_min + nop
-    p.put(1, store - 12, b'\xe8' + struct.pack('<i', lab['bx_min'] - (store - 12 + 5)) + b'\x90')
+    go(store - 12, 'bx_min', 6)
     # the loop step (16 bytes: add word [D2], 1 / cmp word [D2], 16) -> call bx_next + 11 nops (the jnz stays)
     p.remove(1, lp + 3)
     p.remove(1, lp + 11)
-    p.put(1, lp, b'\xe8' + struct.pack('<i', lab['bx_next'] - (lp + 5)) + b'\x90' * 11)
+    go(lp, 'bx_next', 16)
     p.remove(1, s7['stadium'] + 2)                  # the line-ups screen: mov ax, [GMAX] (66 A1 addr) -> call bx_gmax5
-    p.put(1, s7['stadium'], b'\xe8' + struct.pack('<i', lab['bx_gmax5'] - (s7['stadium'] + 5)) + b'\x90')
+    go(s7['stadium'], 'bx_gmax5', 6)
                                                     # its end: jmp SetExitMenuFlag (rel32, no fixup) -> jmp bx_stad
-    p.put(1, s7['stend'], b'\xe9' + struct.pack('<i', lab['bx_stad'] - (s7['stend'] + 5)))
+    go(s7['stend'], 'bx_stad', op=0xE9)
     for c in c5:                                    # the game's 'bench over 5' branches: never
         p.put(1, c + 7, b'\x7f')
     def call9(o, n, lbl, fixat):                     # an n-byte instruction with an address at o + fixat -> call + nops
         p.remove(1, o + fixat)
-        p.put(1, o, b'\xe8' + struct.pack('<i', lab[lbl] - (o + 5)) + b'\x90' * (n - 5))
+        go(o, lbl, n)
     call9(s2['c5'], 8, 'bx_cmp_last', 3)            # cmp word [IDX], 5 (66 83 3D addr 05)
     call9(s2['c6'], 8, 'bx_cmp_last1', 3)
     call9(s2['arrow'], 6, 'bx_arrow', 2)            # mov ax, [IDX] (66 A1 addr)
@@ -1925,16 +1930,16 @@ def patch(p, at, ns_at, lang='it'):
         call9(s2[k], 9, 'bx_wcount', 3)
     for k, lbl in (('ord', 'bx_ord'), ('len', 'bx_len'), ('lenc', 'bx_lenc')):   # block 3: the name tables, 26 a team
         for objn, off, toff in s3['refs'][k]:
-            p.retarget(objn, off, 1, lab[lbl])
+            p.retarget(objn, off, 3, lab[lbl])
             p.put(objn, off, struct.pack('<I', lab[lbl]))
     for o in s3['imm']:                             # the team-2 offsets / the copy loop: 16 -> 26
         assert bytes(p.get(1, o, 1)) == b'\x10', hex(o)
         p.put(1, o, bytes([MAXP]))
-    p.put(1, s3['jmp'], b'\xe9' + struct.pack('<i', lab['bx_make'] - (s3['jmp'] + 5)))
+    go(s3['jmp'], 'bx_make', op=0xE9)
     rs = refs(p, 2, table, table + 32)
     assert 10 <= len(rs) <= 24, ('inGameTeamPlayerOffsets refs', len(rs))
     for objn, off, toff in rs:
-        p.retarget(objn, off, 1, lab['bx_table'] + toff - table)
+        p.retarget(objn, off, 3, lab['bx_table'] + toff - table)
         p.put(objn, off, struct.pack('<I', lab['bx_table'] + toff - table))
     call9(s4['row'], 8, 'sq_row', 3)                # task 1, the squad screen: sub word [D7], 1Ch
     call9(s4['cmp'], 8, 'sq_cmp', 3)                # cmp word [D7], 10h
@@ -1944,7 +1949,7 @@ def patch(p, at, ns_at, lang='it'):
         call9(c + 10, 8, 'sq_c4', 3)                # cmp word [D4], 10h
     call9(s4['bn'], 8, 'sq_bn', 3)                  # cmp word [D1], 16
     for k, lbl in (('gpi', 'sq_gpi'), ('rot', 'sq_rot')):   # call rel32 (no fixup)
-        p.put(1, s4[k], b'\xe8' + struct.pack('<i', lab[lbl] - (s4[k] + 5)))
+        go(s4[k], lbl)
     d1o = p.le.obj_bytes(1)
     for k, n in (('store', 6), ('row', 8), ('swap', 6), ('ready', 6)):   # nobody else patched them
         assert bytes(p.get(1, s5[k], n)) == d1o[s5[k]:s5[k] + n], k
@@ -1970,14 +1975,14 @@ def patch(p, at, ns_at, lang='it'):
         rcalls.append((s5['se'], 'pm_gpi2'))        # shirtedit's se_ctl (row -> place)
     for o, lbl in rcalls:                           # call rel32 (no fixup)
         assert bytes(p.get(1, o, 1)) == b'\xe8', hex(o)
-        p.put(1, o, b'\xe8' + struct.pack('<i', lab[lbl] - (o + 5)))
+        go(o, lbl)
     bf = int(os.environ.get('BENCH_FORCE', '0'))   # BENCH_FORCE=n (test / playtest builds only): every match's bench
     if bf:                                          # n (<= 15) until the per-competition rule (phase 2)
-        p.put(1, lab['bx_bench'], struct.pack('<H', min(bf, 15)))
+        p.put(3, lab['bx_bench'], struct.pack('<H', min(bf, 15)))
         print(f'exe: BENCH_FORCE={min(bf, 15)} (test build)')
     assert lab['bx_bench'] - lab['bx_ord'] == 4 + 6 * MAXP   # (the harness finds the tables from bx_bench)
     assert lab['bx_vw'] - lab['bx_bench'] == 114               # (bench_view reads the window there)
     LABELS.update(lab)
     print(f'exe: bench up to 15 (block 1: in-match teams of {MAXP}; GMAX obj2+{gmax:#x}, loop obj1+{lp:#x}, '
-          f'{len(rs)} offset-table refs moved; block 2: bench window of 5, cursor to 15, names of places 17+ on sprites {NB}.. (name tables 26 a team), 3 after-match loops to 11 + bench; code obj1+{at:#x}, {len(code)} B, bx_bench obj1+{lab["bx_bench"]:#x})')
+          f'{len(rs)} offset-table refs moved; block 2: bench window of 5, cursor to 15, names of places 17+ on sprites {NB}.. (name tables 26 a team), 3 after-match loops to 11 + bench; code obj3+{at:#x}, {len(code)} B, {len(rel)} rel32 into the game, bx_bench obj3+{lab["bx_bench"]:#x})')
     return at + len(code)

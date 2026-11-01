@@ -488,7 +488,9 @@ script:
     assert fx[st + 7][0] == 2, 'g_workingPalette'
     return {'pal': fx[st + 7][1], 'page': page, 'size2': min(le.obj(2).vsize, le.obj(2).npages * le.page_size), 'calls': page + lab['calls'], 'code': (fixed, c[fixed:fixed + 48]), 'menu': curmenu[1],
             'brk': page + code.index(b'\xcd\x03'), 'ptr': page + lab['ptr'], 'script': page + lab['script'],
-            'anchor': (anchor, d2[anchor:anchor + 64])}
+            'anchor': (anchor, d2[anchor:anchor + 64]),
+            'p3': next(((soff, toff) for sobj, soff, t, tobj, toff, *_ in le.fixups() if sobj == 1 and t == 7 and tobj == 3),
+                       None)}             # (4.0.6) an obj1 pointer into obj3: its value in memory gives obj3's base
 
 
 def bp_str(r):
@@ -719,6 +721,7 @@ class Result:
         self.run, self.game, self.outcome, self.eip = run, os.path.join(run, 'SWOS'), outcome, eip
         self.box, self.chunks, self._mem = box, [], None
         self.base1 = self.base2 = self.calls = None
+        self.p3, self._base3 = info.get('p3') if info else None, None
         if bases:
             self.base1, self.base2 = bases
         else:
@@ -762,6 +765,21 @@ class Result:
     def cached(self, lin, n):
         return self._mem is not None or any(a <= lin and lin + n <= a + len(d) for a, d in self.chunks)
 
+    @property
+    def base3(self):
+        """obj3's linear base (4.0.6 builds: benchx there), from an obj1 pointer into it; None without obj3."""
+        if self._base3 is None and self.p3 and self.base1 is not None:
+            self._base3 = struct.unpack('<I', self.read(self.base1 + self.p3[0], 4))[0] - self.p3[1]
+        return self._base3
+
+    def lin(self, a):
+        """The linear address of a (obj, offset) pair, or of a plain obj1 offset (older callers)."""
+        if isinstance(a, tuple):
+            return {1: self.base1, 2: self.base2, 3: self.base3}[a[0]] + a[1]
+        if isinstance(a, Off3):
+            return self.base3 + int(a)
+        return self.base1 + a
+
     def obj1(self, off, n):
         return self.read(self.base1 + off, n)
 
@@ -771,6 +789,8 @@ class Result:
     def where(self, lin):
         if self.base1 is None:
             return f'0x{lin:X}'
+        if self.base3 is not None and lin >= self.base3 and (self.base3 > self.base2 or lin < self.base1):
+            return f'obj3+0x{lin - self.base3:X}'
         if lin >= self.base2:
             return f'obj2+0x{lin - self.base2:X}'
         return f'obj1+0x{lin - self.base1:X}'
@@ -3200,11 +3220,11 @@ def world8485():
             nosack, poked = (nosack_off(os.path.join(exe, 'ITALIAN.EXE')) if os.environ.get('W8485_NOSACK') == '1'
                              else None), set()
 
-            def hexlog():                              # W8485_HEX: obj2 offset:bytes (o1/ prefix: obj1),
+            def hexlog():                              # W8485_HEX: obj2 offset:bytes (o1/ prefix: obj1, o3/: obj3),
                 for a in filter(None, os.environ.get('W8485_HEX', '').split(',')):   # logged when they change
                     o, n = a.split(':')
-                    if o.startswith('o1/'):
-                        v = s.result.read(s.result.base1 + int(o[3:], 16), int(n)).hex()
+                    if o[:3] in ('o1/', 'o3/'):
+                        v = s.result.read(s.result.lin((int(o[1]), int(o[3:], 16))), int(n)).hex()
                     else:
                         v = s.result.obj2(int(o, 16), int(n)).hex()
                     if hexseen.get(o) != v:
@@ -4886,7 +4906,8 @@ def bench_mem():
     b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
     p = lepatch.LEPatch(os.path.join(b, 'ITALIAN.EXE'))
     c = p.le.obj_bytes(1)
-    if re.search(rb'\x66\x83\x3d....\x00\x74.\x66\xa1....(?:\x66\x83\xf8\x0f|\xeb)', c, re.S):   # (bx_max, as
+    if any(re.search(rb'\x66\x83\x3d....\x00\x74.\x66\xa1....(?:\x66\x83\xf8\x0f|\xeb)', p.le.obj_bytes(o), re.S)
+           for o in range(1, len(p.le.objs) + 1) if o != 2):   # (bx_max in obj1, obj3 since 4.0.6, as
         return True, 'SKIP: a benchx build (the tails hold players 17..26: bench_world checks them)'   # bench_switch:
                                                 # 4.0.6 has a jmp after the switch's value - the old pattern missed it)
     m = re.search(rb'(?:\xc7\x05.{8}){4}\x66\xc7\x05.{4}\xa7\x06', c, re.S)     # InitGameSaveTeams' four pointers
@@ -4985,17 +5006,36 @@ def bench_mem():
     return not errs, '; '.join(errs + info)
 
 
+class Off3(int):
+    """An obj3 offset (4.0.6: benchx's variables): an int whose sums stay obj3 offsets; Result.lin() maps it."""
+    obj = 3
+
+    def __add__(self, k):
+        return Off3(int(self) + k)
+
+    def __sub__(self, k):
+        return Off3(int(self) - k)
+
+
 def bench_switch(exe):
-    """benchx's (bx_bench obj1 offset, gameMaxSubstitutes obj2 offset), from bx_max: cmp word [bx_bench], 0 / je /
-    mov ax, [bx_bench] / cmp ax, 15 / jbe / mov ax, 15 / mov [gameMaxSubstitutes], ax."""
+    """benchx's (bx_bench, gameMaxSubstitutes obj2 offset), from bx_max: cmp word [bx_bench], 0 / je /
+    mov ax, [bx_bench] / cmp ax, 15 / jbe / mov ax, 15 / mov [gameMaxSubstitutes], ax. bx_bench: an obj1 offset, or
+    an Off3 on a 4.0.6+ build (benchx in obj3); Result.lin() takes both."""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import lepatch
     p = lepatch.LEPatch(exe)
-    c = p.le.obj_bytes(1)
-    m = [x.start() for x in re.finditer(rb'\x66\x83\x3d....\x00\x74.\x66\xa1....(?:\x66\x83\xf8\x0f|\xeb)', c, re.S)]
+    for o in range(1, len(p.le.objs) + 1):
+        if o == 2:
+            continue
+        c = p.le.obj_bytes(o)
+        m = [x.start() for x in re.finditer(rb'\x66\x83\x3d....\x00\x74.\x66\xa1....(?:\x66\x83\xf8\x0f|\xeb)', c, re.S)]
+        if m:
+            break
     assert len(m) == 1, ('bx_max', m)        # (4.0.6: jmp .cap after the switch's value, the table's lookup between)
     g = re.compile(rb'\x66\x83\xf8\x0f\x76.\x66\xb8\x0f\x00\x66\xa3', re.S).search(c, m[0])
-    return p.target(1, m[0] + 3)[1], p.target(1, g.end())[1]
+    t = p.target(o, m[0] + 3)
+    assert t[0] == o, ('bx_bench', t)
+    return t[1] if o == 1 else Off3(t[1]), p.target(o, g.end())[1]
 
 
 def ingame_team(r, base):
@@ -5074,7 +5114,7 @@ def bench_sub(s, bx, place, errs, info, mark, key=None, gone=None, tag=''):
     w16 = lambda o, base: struct.unpack('<H', s.result.read(base + o, 2))[0]
     seen = []
     ns0 = (w16(v['NS1'], s.result.base2), w16(v['NS2'], s.result.base2))
-    ord0 = s.result.read(s.result.base1 + bx - 4 - 156, 52)   # (2 humans: the other team's half may hold its change)
+    ord0 = s.result.read(s.result.lin(bx) - 4 - 156, 52)   # (2 humans: the other team's half may hold its change)
     for call in range(12):
         r = s.send((key or ('pgup' if call % 2 == 0 else 'pgdn')) + ':0.3 dump:0.6')   # (key: one team's bench)
         if r.outcome != 'dump':
@@ -5086,7 +5126,7 @@ def bench_sub(s, bx, place, errs, info, mark, key=None, gone=None, tag=''):
             if r.outcome != 'dump':
                 errs.append(f'bench cursor: {r}')
                 return False
-            idx, win = w16(v['IDX'], r.base2), w16(bx - 4, r.base1)
+            idx, win = w16(v['IDX'], r.base2), w16(0, r.lin(bx - 4))
             if idx != last:
                 seen.append((idx, win))
                 if idx == 6:
@@ -5108,7 +5148,7 @@ def bench_sub(s, bx, place, errs, info, mark, key=None, gone=None, tag=''):
     ups = []                                # back up 6 places (the window starts at the cursor) and down again
     for key in ['up'] * 6 + ['down'] * 6:
         r = s.send(key + ':0.15 dump:0.3')
-        ups.append((w16(v['IDX'], r.base2), w16(bx - 4, r.base1)))
+        ups.append((w16(v['IDX'], r.base2), w16(0, r.lin(bx - 4))))
     info.append(f'up/down {ups}')
     up6 = ups[5]
     gone = {int(x.split(':')[0]) - 11 for x in os.environ.get('BENCH_INJ', '').split(',') if x} if gone is None else gone   # (4.0.6: left-out
@@ -5130,7 +5170,7 @@ def bench_sub(s, bx, place, errs, info, mark, key=None, gone=None, tag=''):
         r = s.send('fire:0.5 dump:1' if k < 6 else 'dump:1')
         if k < 6:
             s.shot(f'{tag}after_sub{k}')
-        ordt = r.read(r.base1 + bx - 4 - 156, 52)
+        ordt = r.read(r.lin(bx) - 4 - 156, 52)
         mine, other = list(ordt[26 * t:26 * t + 26]), list(ordt[26 * (1 - t):26 * (1 - t) + 26])
         moved = [(j, x) for j, x in enumerate(mine) if x != j]
         if moved or r.outcome != 'dump':
@@ -5174,7 +5214,7 @@ def hist_dist(a, b):
 def bench_eff(r, bx):
     """The bench the pre-match screens use (benchx sq_n): the test switch bx_bench, else the competition's real named
     substitutes bx_lkres (bx_bench + 14, what bx_look found: a real 9 in the Scottish Premiership), 5..15."""
-    b = struct.unpack('<H', r.read(r.base1 + bx, 2))[0] or r.read(r.base1 + bx + 14, 1)[0]
+    b = struct.unpack('<H', r.read(r.lin(bx), 2))[0] or r.read(r.lin(bx) + 14, 1)[0]
     return max(5, min(b, 15))
 
 
@@ -5222,7 +5262,7 @@ def bench_squad(s, scr, bx, cmp_, cnp, errs, info, mark, woff=4, box=30, row1=13
     states = []
     for k in range(n - 16 + 1):             # 0 .. n-17, then back to 0
         r = s.result
-        w = struct.unpack('<H', r.read(r.base1 + bx + woff, 2))[0]
+        w = struct.unpack('<H', r.read(r.lin(bx) + woff, 2))[0]
         h = squad_rows_hist(s.box.dump(0xA0000, 64000), geom)
         states.append((w, h[11:17]))
         if k in (0, 5, n - 17):
@@ -5256,11 +5296,11 @@ def bench_squad(s, scr, bx, cmp_, cnp, errs, info, mark, woff=4, box=30, row1=13
     wmoves = frozenset({(row1 + 11, 'up'), (row1 + 16, 'down')})
     for _ in range(20):                     # window 5: row 17 = place 22
         r = s.result
-        if struct.unpack('<H', r.read(r.base1 + bx + woff, 2))[0] == 5:
+        if struct.unpack('<H', r.read(r.lin(bx) + woff, 2))[0] == 5:
             break
         s.send('fire:0.3 dump:0.4')
     r = s.result
-    check(struct.unpack('<H', r.read(r.base1 + bx + woff, 2))[0] == 5, f'{tag}: window not at 5', errs)
+    check(struct.unpack('<H', r.read(r.lin(bx) + woff, 2))[0] == 5, f'{tag}: window not at 5', errs)
     check(goto(row1 + 16), f'{tag}: row 17 not reached', errs)
     s.send('fire:0.3 dump:0.4')
     check(goto(row1 + 10), f'{tag}: row 11 not reached', errs)
@@ -5274,7 +5314,7 @@ def bench_squad(s, scr, bx, cmp_, cnp, errs, info, mark, woff=4, box=30, row1=13
 
     def win():
         r_ = s.result
-        return struct.unpack('<H', r_.read(r_.base1 + bx + woff, 2))[0]
+        return struct.unpack('<H', r_.read(r_.lin(bx) + woff, 2))[0]
 
     def wrap():
         # (4.0.5, Davide 01/11) the wrap: down on row 17 to the window's end (n - 17), once more -> window 0, row 12; up
@@ -5375,7 +5415,7 @@ def bench_view(s, bx, cmp_, cnp, ct, errs, info, mark):
 
     def win():
         r_ = s.result
-        return struct.unpack('<H', r_.read(r_.base1 + bx + 114, 2))[0]
+        return struct.unpack('<H', r_.read(r_.lin(bx) + 114, 2))[0]
 
     def goto(t):
         for _ in range(24):
@@ -5446,7 +5486,7 @@ def bench_et(s, o, gmax, bx, errs, info, mark):
     s1, s2, t1, t2 = (o.target(1, g + k)[1] for k in (w.start() + 2, w.start() + 14, w.start(1), w.start(2)))
     r = s.result
     g0 = struct.unpack('<H', r.obj2(gmax - 2, 2))[0]
-    s.poke(r.base1 + bx + 117, b'\x01')
+    s.poke(r.lin(bx) + 117, b'\x01')
     s.poke(r.base2 + ets, struct.pack('<H', 1))
     for a in (s1, s2, t1, t2):
         s.poke(r.base2 + a, b'\0\0')
@@ -5481,7 +5521,7 @@ def bench_oppo(s, scr, bx, wants, errs, info, mark):
     xn = (wants['*'](name) if wants.get('*') else []) or []
     r = s.result
     n = min(16 + len(xn), 11 + bench_eff(r, bx))   # (at most 11 + the bench: 26 with 15, 20 with a real 9)
-    po = lambda: struct.unpack('<H', s.result.read(s.result.base1 + bx + 12, 2))[0]
+    po = lambda: struct.unpack('<H', s.result.read(s.result.lin(bx) + 12, 2))[0]
     rows = lambda q_: [q_.entries[k][1] for k in range(24, 30)]
     mark(f'oppo {name}: {n} places, sel {q.selected}, row 17 inv {q.entries[29][2]}, rows {rows(q)}')
     s.shot('oppo_win00')
@@ -5599,7 +5639,7 @@ def bench_hil_view(s, snap, spr, ega, top, bot, bx, errs, info, mark):
     place, the name tables reset): no trap, the bench 15 kept, every place's sprite = its kick-off one (the frames'
     name indices, 255 + ordinal as recorded, then show the match's names), places 17..26 included."""
     v = hil_vars()
-    ordt = s.result.read(s.result.base1 + bx - 4 - 156, 52)
+    ordt = s.result.read(s.result.lin(bx) - 4 - 156, 52)
     final = [list(ordt[26 * t:26 * t + 26]) for t in (0, 1)]
     seen = []
     for step in range(16):                  # career menu -> main menu -> HIGHLIGHTS -> its first entry (the view)
@@ -5774,7 +5814,7 @@ def bench_play(s, gmax, top, bot, wants, errs, info, mark, sub=None, icons=None,
         else:
             r = s.send('fire:0.5 dump:1')
     if stad is not None:                    # the line-ups pages (bx_stad: its loop reads the controls once a tick, so
-        lg = lambda: struct.unpack_from('<II', s.result.read(s.result.base1 + stad + 4, 8))   # the feeder's dumps land
+        lg = lambda: struct.unpack_from('<II', s.result.read(s.result.lin(stad) + 4, 8))   # the feeder's dumps land
         k, n = lg()                         # in it: 105 ticks = 105 GetKey calls a page = 3.5 s of the script)
         pages = []
         if n and k == 0 and os.environ.get('BENCH_STSKIP'):   # a key on the first page: straight into the match
@@ -5800,7 +5840,7 @@ def bench_play(s, gmax, top, bot, wants, errs, info, mark, sub=None, icons=None,
     gm = struct.unpack('<HH', r.obj2(gmax - 2, 4))      # (phase 2) gameMinSubstitutes, gameMaxSubstitutes
     info.append(f'kick-off named:used {gm[1]}:{gm[0]}')
     if sub:                                 # (4.0.5) the title bx_look looked up (bx_lkname = bx_bench + 18)
-        info.append('kick-off title ' + r.read(r.base1 + sub[0] + 18, 41).split(bytes(1))[0].decode('latin-1'))
+        info.append('kick-off title ' + r.read(r.lin(sub[0]) + 18, 41).split(bytes(1))[0].decode('latin-1'))
     if wants.get('_diy'):                   # (phase 2 study, BENCH_DIYDUMP) the current competition at the kick-off
         dv = r.obj2(wants['_diy'], 0x70)
         info.append(f'DIY name {dv[4:0x2d].split(bytes(1))[0]!r} id {dv[0x2d]:#x} +2Bh {dv[0x2b]:#x} +3Dh..+42h '
@@ -5829,7 +5869,7 @@ def bench_play(s, gmax, top, bot, wants, errs, info, mark, sub=None, icons=None,
             info.append(f'{name}: XTRA places 17..{want}: {got}')
             check(not bad, f'{name}: XTRA places {bad}', errs)
     if stad is not None:                    # the line-ups screen (benchx bx_stad's log after 'BXST'): row 16 (entries
-        lg = r.read(r.base1 + stad + 4, 4 + 4 + 2 + 40)   # 31 / 58) visible on the first page (the game's 5 - max hid it
+        lg = r.read(r.lin(stad) + 4, 4 + 4 + 2 + 40)   # 31 / 58) visible on the first page (the game's 5 - max hid it
         stk, stn, s16 = struct.unpack_from('<IIH', lg)    # for 15: Davide's PANpt3 photo), then pages of the places 17..
         ptrs = struct.unpack_from('<10I', lg, 10)
         last = [n for _, n in teams]
@@ -5929,7 +5969,7 @@ def bench_play(s, gmax, top, bot, wants, errs, info, mark, sub=None, icons=None,
         r = s.result
         old1 = r.read(r.base2 + oldt, 96)
         check(old1 == old0, f'the old name tables written: {[(k, a, b) for k, (a, b) in enumerate(zip(old0, old1)) if a != b][:8]}', errs)
-        lt = r.read(r.base1 + sub[0] - 4 - 104, 104)   # bx_len + bx_lenc: each team's copy = its lengths, swapped
+        lt = r.read(r.lin(sub[0]) - 4 - 104, 104)   # bx_len + bx_lenc: each team's copy = its lengths, swapped
         check(all(sorted(lt[52 + 26 * t:78 + 26 * t]) == sorted(lt[26 * t:26 * t + 26]) for t in (0, 1)),
               f'bx_lenc not a permutation of bx_len: {lt.hex()}', errs)
         info.append('old tables untouched, bx_lenc = bx_len permuted')
@@ -6041,7 +6081,7 @@ def bench_world():
         info.append(f'{club}: {n} players in the squad')
         real = os.environ.get('BENCH_REAL')   # (phase 2) 'named:used' wanted from the competition's real rule: no poke
         if not real:
-            s.poke(s.result.base1 + bx, b'\x0f\x00')
+            s.poke(s.result.lin(bx), b'\x0f\x00')
         r = s.result                        # 4.0.5's bald icons (blond.ICONBL 1910 / 1911, next to our name
         bn = r.read(r.base2 + ct + 76 + 38 + 3, 22).split(b'\0')[0]   # sprites): squad player 2 poked bald in every
         o2 = r.read(r.base2, 0x300000)      # copy of his record, so the squad screen builds them before the match
@@ -6119,8 +6159,11 @@ def bench_world():
         sq = {'args': (bx, cmp, cnp), 'tactics': os.environ['BENCH_SQUAD'] == '2'} \
             if os.environ.get('BENCH_SQUAD') in ('1', '2') else None   # (2: + the tactics editor)
         st = c.find(b'BXST')                # (benchx's line-ups log; builds before it: no check)
+        if st < 0 and len(p.le.objs) > 2:   # (4.0.6: benchx in obj3)
+            st = p.le.obj_bytes(3).find(b'BXST')
+            st = Off3(st) if st >= 0 else st
         bench_play(s, gmax, top, bot, wants, errs, info, mark, (bx, int(os.environ.get('BENCH_SUB', 21)), ct), {}, sq,
-                   st if st > 0 else None)
+                   st if st >= 0 else None)
     check(n == 30 or club != 'CELLE VARAZZE', f'{club}: {n} players (want 30)', errs)
     if real:                                # (phase 2) the competition's bench / substitutions at the kick-off
         k = [x for x in info if x.startswith('kick-off named:used')]
@@ -6146,13 +6189,14 @@ def bench_cup():
     if not b or not os.path.isdir(b):
         return True, 'SKIP: BENCH_BUILD not set'
     bx, _ = bench_switch(os.path.join(b, 'ITALIAN.EXE'))
+    ob, bx = getattr(bx, 'obj', 1), int(bx)        # (W8485_HEX: o1/ or o3/, benchx in obj3 since 4.0.6)
     team = os.environ.get('BENCH_CUP_TEAM', 'EUROPA,SCOZIA,SCOTTISH PREMIERSHIP,RANGERS')
     want = dict(x.split('=') for x in os.environ.get(
         'BENCH_CUP_WANT', 'SCOZIA SCOTTISH PREMIERSHIP=9:5;SCOZIA SCOTTISH CUP=9:5').split(';'))
     keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_ONE', 'W8485_HEX')
     keep = {k: os.environ.get(k) for k in keys}
     os.environ.update(W8485_BUILD=b, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='0+',
-                      W8485_NOSACK='1', W8485_ONE='1', W8485_HEX=f'o1/{bx + 14:x}:2,o1/{bx + 18:x}:41')
+                      W8485_NOSACK='1', W8485_ONE='1', W8485_HEX=f'o{ob}/{bx + 14:x}:2,o{ob}/{bx + 18:x}:41')
     try:
         ok, msg = world8485()
     finally:
@@ -6163,9 +6207,9 @@ def bench_cup():
                 os.environ[k] = v
     seen, res = {}, ''
     for ln in open(os.path.join(RUNS, w84_tag() + '_1', 'session.log'), errors='replace'):
-        if ln.startswith(f'HEX o1/{bx + 14:x} '):
+        if ln.startswith(f'HEX o{ob}/{bx + 14:x} '):
             res = ln.split()[2]
-        elif ln.startswith(f'HEX o1/{bx + 18:x} '):
+        elif ln.startswith(f'HEX o{ob}/{bx + 18:x} '):
             t = bytes.fromhex(ln.split()[2]).split(bytes(1))[0].decode('latin-1')
             if t:                           # (a contest without a country: ' ' + its name; stripped)
                 seen[t.strip()] = f'{int(res[:2], 16)}:{int(res[2:], 16)}' if res else '?'
@@ -6489,7 +6533,7 @@ def bench_lineup():
         nm21 = poke_all(20, 26, lambda v: v & 0x1F)    # place 21: a keeper (position bits 5-7 = 0)
         hurt = [poke_all(k, 27, lambda v: (v & 0x03) | 0x40) for k in (0, 10, 11)]
         info.append(f'place 21 {nm21[0]} a keeper (x{nm21[1]}); injured {[h[0] for h in hurt]}')
-        win = lambda: struct.unpack('<H', s.result.read(s.result.base1 + bx + 4, 2))[0]   # bx_pw
+        win = lambda: struct.unpack('<H', s.result.read(s.result.lin(bx) + 4, 2))[0]   # bx_pw
         ok, msg = advance(s, lambda q: 'MOD. TATTICA' in q.texts() and 'AVVERSARI' in q.texts(), 60)
         if not ok:
             return False, f'pre-match screen not reached: {msg}; ' + '; '.join(info)

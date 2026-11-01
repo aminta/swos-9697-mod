@@ -17,7 +17,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(__file__))
 from le import LE
-from lepatch import LEPatch, add_object_page
+from lepatch import LEPatch, add_object, add_object_page
 import c1c2
 import cafcups
 import countries
@@ -60,6 +60,10 @@ ROOT = os.path.join(os.path.dirname(__file__), '..')
 ITALY = 20
 ITALY_BASE = 1850          # free global numbers: ~1794..1999
 OBJ1_NEW_VSIZE = 0xa6000     # + five added pages (lepatch.add_object_page)
+OBJ3_ARENA = 0x20000         # 4.0.6 obj3 (mod code after obj2, CONVENTIONS 23): its file pages (mod pages, then the C
+                             # engine's code, PLAN §19 step O) stay below this; the engine arena + spec buffer go here,
+                             # zero-filled (vsize only, the engine zeroes it: DOS/4GW does not)
+BENCHX_PAGES = 2             # obj3+0: benchx (the long benches), code + data
 SA_CAVE = 0xa1000            # first added page: South American cups
 WORLD_CAVE = 0xa2000         # second added page: new countries, CAF cups (Roadmap 2)
 NZ_CAVE = 0xa4000            # fourth added page (2.1): NSSL shoot-out (the world cave may grow into page 3)
@@ -306,8 +310,7 @@ def patch_exe(src, dst, remap, lang='it'):
     ctl_pg = 1 + controls.DATA_PAGES                   # last pages (obj1: obj2's page count stays 4.0's, see controls.patch)
     import namespr                                     # 4.0.5: 14-character match names (namespr.py), after them
     ctl_pg += namespr.PAGES
-    bn_pg = 2                                          # 4.1: the bench of up to 15 (benchx.py), after the CONTROLS pages (4.0.6: + the per-competition table)
-    for _ in range((6 + cp + 2 + cdp + h2 // HIST2_PAGE - 1 if worlds else 6) + lpb + sp_pg + sc_pg + ct_pg + ctl_pg + bn_pg):  # (+1: the UEFA league phase's page, lp36)
+    for _ in range((6 + cp + 2 + cdp + h2 // HIST2_PAGE - 1 if worlds else 6) + lpb + sp_pg + sc_pg + ct_pg + ctl_pg):  # (+1: the UEFA league phase's page, lp36)
         data = add_object_page(data, 1)
     mkseason.CAREER_CAVE[0] = CAREER_CAVE if worlds else None
     mkseason.CAREER_DATA[0] = CAREER_DATA + 0x1000 * (cp - 2) if worlds else None
@@ -351,6 +354,10 @@ def patch_exe(src, dst, remap, lang='it'):
         o2pages += 2
         data = add_object_page(data, 2)
         data = add_object_page(data, 2)
+    data = add_object(data)                          # 4.0.6: obj3 after obj2 (obj1 <= 237 for SWOS++, obj2 = 213 for
+    for _ in range(BENCHX_PAGES):                    # old saves: CONVENTIONS 20 / 22 / 23), benchx's pages first
+        data = add_object_page(data, 3)
+    assert LE(data).obj(3).npages * 0x1000 <= OBJ3_ARENA
     open(grown, 'wb').write(data)
     p = LEPatch(grown)
     os.remove(grown)
@@ -693,20 +700,21 @@ def patch_exe(src, dst, remap, lang='it'):
     ctl_end = bplace.force(p, (ctl_end + 15) & ~15)          # (BPLACE_FORCE test builds only: such ties forced)
     assert ctl_end <= ctl_at + 0x1000, hex(ctl_end)        # (the code page; controls' data pages follow it)
     import benchx                                # 4.1: a bench of up to 15 (block 1: the in-match teams of 26)
-    bn_at = ctl_at + 0x1000 * ctl_pg
-    bn_end = benchx.patch(p, bn_at, ns_at, lang)
-    assert bn_end <= bn_at + 0x1000 * bn_pg, hex(bn_end)
-    p.set_vsize(1, OBJ1_NEW_VSIZE + (0x1000 * (cp + 2 + cdp) if worlds else 0) + h2 + 0x1000 * (lpb + sp_pg + sc_pg + ct_pg + ctl_pg
-                                                                                          + bn_pg))
+    bn_end = benchx.patch(p, 0, ns_at, lang)     # (4.0.6: in obj3)
+    assert bn_end <= 0x1000 * BENCHX_PAGES, hex(bn_end)
+    p.set_vsize(3, 0x1000 * BENCHX_PAGES)
+    p.set_vsize(1, OBJ1_NEW_VSIZE + (0x1000 * (cp + 2 + cdp) if worlds else 0) + h2 + 0x1000 * (lpb + sp_pg + sc_pg + ct_pg + ctl_pg))
     import teamstab                              # 4.0.2: teamsTable for 256 team ordinals (Serie D choice colours)
     teamstab.patch(p, num_bss + shirtnum.BSS_SIZE + blond.BSS_SIZE + menunum.BSS_SIZE + fmtpage.BSS_SIZE)
     tail = (careerworld.BSS_SIZE if bigw else 0) + shirtnum.BSS_SIZE + blond.BSS_SIZE + menunum.BSS_SIZE + fmtpage.BSS_SIZE \
         + teamstab.BSS_SIZE + blond.BSS2_SIZE + (lgreal_bss() if LG_ROOM else 0)   # obj2 tail (4.0.3: the second
                                                 # pair of variant sets; 4.0.5 lgreal's LGB last)
     p.set_vsize(2, obj2_free + o2pages * p.le.page_size + tail, bss=tail)
+    p.set_base_after(3)                          # (obj3's header base above obj2's final end)
     tailzero.patch(p, tz_at, obj2_free + o2pages * p.le.page_size, (tail + 3) & ~3, nasmcave)   # (DOS/4GW: not zeroed)
     o1n, o2n = p.le.obj(1).npages, p.le.obj(2).npages
-    print(f'exe: object pages: obj1 {o1n} (SWOS++ limit 237 with the harness page in obj1, CONVENTIONS 22), obj2 {o2n}'
+    print(f'exe: object pages: obj1 {o1n} (SWOS++ limit 237 with the harness page in obj1, CONVENTIONS 22), obj2 {o2n}, '
+          f'obj3 {p.le.obj(3).npages}'
           + ('' if o1n <= 237 else '  WARNING: obj1 over 237 pages: SWOS++ PLAY MATCH can stall'))
     p.add_flags(1, 0x2)            # writable: season end rewrites the SA cup team lists in the cave
     split.late(p)                                # split's after-stage routines (engine.after_stage)

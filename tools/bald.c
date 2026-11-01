@@ -4,7 +4,8 @@
      skin, and so do the second row's hair pixels with a pixel on both sides; the rest keeps the player's hair colour;
    - shape 1 = 'art' shaved (Marco 31/10, final): each frame's head drawn from shavedart.py's data (ART: the frame
      table, the light heads and the icons in namespr's spare tail; ARTD: the dark heads, before this code), raw
-     nibbles over the copied sprite: light skull 6 / shade 5, dark skull 6 (-> 4) / shade 13 (the dark tone 85).
+     nibbles over the copied sprite: light skull 13 (the light tone 84) / shade 5, dark skull 6 (-> 4) / shade 13
+     (the dark tone 85); Marco 01/11: every head of both skins his own.
    bald_c reshapes one copied RAW player sprite (1 quad = 16 pixels wide, 8 bytes per line, 4-bit pixels, high nibble
    first) in place, before the team's colour conversion: raw hair 13 / 9 / 12, raw skin 6 / 5 / 4. A skull colour 7 is
    the NEW skin tone: bald_c paints it in raw 13 (other hair 13 -> 9), the variant's own conversion table (blond.py:
@@ -25,7 +26,7 @@ typedef unsigned char u8;
 #define SK1 6
 #define EG1 6
 #define SH2 1
-#define SK2 6
+#define SK2 7
 #define EG2 6
 #define SH3 1
 #define SK3 7
@@ -62,11 +63,11 @@ static void pack(u8 *pix) {
 }
 
 /* shavedart.py's head record `head` of recs (skipping the ones before it) over px at the rectangle's origin oy, ox:
-   codes 1 skull, 2 shade, 3 alt (light: 0, or 4 with the flag), then the exceptions (cell, raw value). */
+   codes 1 / 2 / 3 = cv[0..2] (cv[3] for a 3 with the record's flag), then the exceptions (cell, raw value). */
 static void art_head(const u8 *r, int head, int oy, int ox, const u8 *cv) {
     for (; head > 0; head--) r += 2 + ((r[0] >> 4) * (r[0] & 15) + 3) / 4 + 2 * (r[1] & 127);
     int rh = r[0] >> 4, rw = r[0] & 15, n = r[1] & 127;
-    u8 alt = r[1] & 128 ? 4 : cv[2];
+    u8 alt = cv[2 + (r[1] >> 7)];
     const u8 *q = r + 2, *e = q + (rh * rw + 3) / 4;
     for (int c = 0; c < rh * rw; c++) {
         int code = q[c / 4] >> (6 - 2 * (c % 4)) & 3, y = oy + c / rw, x = ox + c % rw;
@@ -92,7 +93,7 @@ void bald_c(u8 *pix, int lines, int look, int ega, int k) {
     if (shape == 1) {
         if (k < 0 || k > 100) return;
         int dark = look & 1, o = ART[3 * k + 1 + !dark];
-        u8 cv[3] = {6, dark ? (u8)skull : 5, 0};    /* (dark: the shade is the tone) */
+        u8 cv[4] = {dark ? 6 : (u8)skull, dark ? (u8)skull : 5, 0, 6};   /* (the tone: light skull, dark shade) */
         art_head(dark ? ARTD : ART + ART_LIGHT, ART[3 * k], o >> 4, o & 15, cv);
         pack(pix);
         return;

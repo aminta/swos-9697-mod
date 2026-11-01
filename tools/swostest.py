@@ -15408,7 +15408,7 @@ def dkb_sets(r, spr, blond, info):
                 import shavedart                        # shade raw 13 = nibble 7, the half mode's EGA colour instead)
                 main_, lo_, io_, dark_ = shavedart.blobs()
                 conv = {'dark': {0: 0, 1: 1, 2: 2, 4: 3, 6: 4, 13: col if col != 6 else 4},
-                        'light': {0: 0, 2: 2, 4: 4, 5: 5, 6: 6}}[name]
+                        'light': {**{v: v for v in range(7)}, 13: col}}[name]
                 rm = (lambda v: v) if planar else \
                     (lambda v: [v[i // 2] if i % 2 == 0 else v[len(v) // 2 + i // 2] for i in range(len(v))])
                 for k in range(101):                    # (row-major pixels: nib() gives the high nibbles first)

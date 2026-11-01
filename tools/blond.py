@@ -30,9 +30,9 @@ addresses it); with all three a bald light player plays as face 1. The bald sets
 the back keep the hair, then the team's face 2 / face 0 conversion. In BSS2 (the obj2 tail's end: nothing before it
 moves). Menus: the bald face icons 1910 / 1911 (bald.c's bald_icon, the same look); goalkeepers keep their hair.
 4.0.5 (Davide 30/10, 'bald players done properly'): two looks, byte 25 bit 1 = shaved (packs/bald-looks-2627.csv):
-flags 2 / 3 receding dark / light (look E), 4 / 5 shaved dark / light (4.0.5 final, Marco 31/10: every frame's
-head drawn from shavedart.py's art; the dark shade in the NEW dark tone - palette index 85, drawn by DrawSprite16Pixels'
-table, pal_setup / pal_write; the art's own menu icons). copy_sets gives each team's
+flags 2 / 3 receding dark / light (look E), 4 / 5 shaved dark / light (4.0.5 final, Marco 01/11: every frame's
+head drawn from shavedart.py's art; the light skull in the NEW light tone 84, the dark shade in the NEW dark tone 85 -
+drawn by DrawSprite16Pixels' table, pal_setup / pal_write; the art's own menu icons). copy_sets gives each team's
 variants single-team set slots (1418, 1519, 1708, 1809, 1932: ORDER's priority, team 1 first) instead of the pairs
 above; a variant without a slot falls back (shaved -> the team's receding set, light -> face 1, else the normal face).
 Icons: receding 1910 / 1911, shaved 2033 / 2034. Under SWOS++ no bald look (Panchina's gate).
@@ -60,9 +60,9 @@ BALD_AT = 25                            # PlayerFile.field_19 (from the player r
 # shape 'E' (receding) or 'oval' (one colour, the face too), the skull's raw colour (7 = the variant's NEW palette tone,
 # drawn by DrawSprite16Pixels' table; 6 / 5 / 4 skin, 3 black) and the half / EGA mode's colour for a 7.
 LOOKS = {'receding': {'light': dict(shape='E', skull=6, ega=6), 'dark': dict(shape='E', skull=6, ega=6)},
-         'shaved': {'light': dict(shape='art', skull=6, ega=6), 'dark': dict(shape='art', skull=7, ega=6)}}
-# (4.0.5 final, Marco 31/10: 'art' = shavedart.py's per-frame heads; the dark shade in the dark tone 85 - raw 13 ->
-# nibble 7 - and in the half / EGA mode the skull's raw 6; the light one in skin 6 / 5, so the pink tone 84 is unused)
+         'shaved': {'light': dict(shape='art', skull=7, ega=6), 'dark': dict(shape='art', skull=7, ega=6)}}
+# (4.0.5 final, Marco 01/11: 'art' = shavedart.py's per-frame heads; the dark shade in the dark tone 85, the light
+# skull in the light tone 84 - raw 13 -> nibble 7 - and in the half / EGA mode both in the skull's raw 6)
 TONES = {'light': (84, (240, 150, 120)), 'dark': (85, (70, 30, 10))}   # palette index (free in every pitch), RGB
 # (Davide 30/10: the dark oval in the dark face's colour - raw 6, converted 4: head = face; index 85 stays spare). Variant flags (PlayerInfoHeader FLAG): 1 darkblond,
 # 2 / 3 receding dark / light, 4 / 5 shaved dark / light; bald.c's look = (flag - 2) xor 1.

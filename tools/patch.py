@@ -557,6 +557,8 @@ def patch_exe(src, dst, remap, lang='it'):
     joyfix.patch(p)                              # 4.0.1: ReadSetupDat -> VerifyJoypadControls (no pad + controls != 1 = frozen menus)
     import careerseed                            # (CAREER_SEED test builds only: a career's draw pinned)
     careerseed.patch(p)
+    import offerforce                            # (OFFER_FORCE test builds only: every transfer offer accepted)
+    offerforce.patch(p)
     import fullgfx                               # 4.0.2: full graphics always (no half mode from SETUP.DAT's speed)
     fullgfx.patch(p)
     cos = menumusic.patch(p, cos)                # 3.3.6: menu music when the main menu opens (SWOS++ options load late)

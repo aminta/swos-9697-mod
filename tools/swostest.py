@@ -6938,28 +6938,29 @@ def xtra_bid(s):
 def xtra_offer_plus():
     """4.0.5 (Enzo's report): the offer's '+' (a 2nd player of the same club in the deal: SELEZ. GIOCATORE PER OFFERTA,
     ShowSquad) pages the club's extras as the club browse does (xbrowse vs_offer / vs_init: PAG. SUCC. / PAG. PREC. right of
-    ESCI, the browse's geometry). On a RELEASE dir (XPLUS_BUILD, else foreign_exe()): a CHISOLA career (World 2026-27),
-    LIGORNA's list: (a) its third page-1 player, then '+' > PAG. SUCC. > its first extra: the offer names him (the deal's
-    2nd index 16 + his slot), bought: both in the squad by name, saved, reloaded with both; (b) a new career, the first
-    extra first (page 2), then '+' > page 1: the same third row, bought: both in the squad. (A bid 20% or more under
-    the pair's value is refused outright - 'non sono in vendita', the game's rule, as in 4.0.2 with two page-1 players -
-    so the bid is raised well over it first.)"""
-    exe = os.environ.get('XPLUS_BUILD') or foreign_exe()
-    if not exe:
-        return True, 'SKIP: no release SWOS dir (XPLUS_BUILD, or SWOSTEST_BUILD / W8485_BUILD with DATA/POOL05.DAT)'
+    ESCI, the browse's geometry; benchx's vw_gpiv chains to xbrowse's pick). A CHISOLA career (World 2026-27), LIGORNA's
+    list. Release pass (XPLUS_BUILD, else foreign_exe()): a page-1 player, '+' > PAG. SUCC. > the first extra: the offer
+    draws him and the deal's indexes are (page-1 index, 16 + his slot); not bought (the club's answer to a 2-player offer
+    is its own valuation, seeded by the running game: it moves from career to career). Purchase pass on an OFFER_FORCE
+    test build of the same world (W2627REL_DATA, else world5tm-403c11; every offer accepted: offerforce.py): (a) the same
+    deal bought: both in the squad by name, the extra in the sold list, saved, reloaded with both; (b) a new career, the
+    extra first (page 2), then '+' > page 1: bought, both in the squad."""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import lepatch
     import xtra
-    p = lepatch.LEPatch(os.path.join(exe, 'ITALIAN.EXE'))
-    _, cnp, ct, cmp, sel = xtra.sites(p)
-    blk = xtra_club_block(exe, 'LIGORNA')
-    if not blk or not blk[1]:
-        return False, f'LIGORNA: no XTRA block in {exe}'
-    team, names = blk
+    import sacups
+    from le import LE
     errs, info = [], []
     path = ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27', 'EUROPA', 'ITALIA', 'SERIE D GIRONE A', 'CHISOLA']
+    d0 = LE(open(os.path.join(ROOT, 'orig', 'ITALIAN.EXE'), 'rb').read()).obj_bytes(1)   # (the deal's index words:
+    D0 = sacups.regs(d0)['D7'] - 28                      # PlayerOffersOnSelect8's store, as xbrowse finds it)
+    pt = lambda a: re.escape(struct.pack('<I', a))
+    deal = [struct.unpack('<I', m.group(1))[0] - 2 for m in re.finditer(
+        rb'\x66\xc7\x05' + pt(D0 + 12) + rb'\xff\xff\x66\xc7\x05' + pt(D0 + 16) + rb'\xff\xff\xe8....\x78.\x66\xa1' + pt(D0) +
+        rb'\x66\xa3(....)', d0, re.S) if re.search(rb'\x66\xc7\x05' + re.escape(m.group(1)) + rb'\xff\xff', d0[m.start() - 0x80:m.start()])]
+    assert len(deal) == 1, deal
 
-    def squad(s):
+    def squad(s, cnp, ct):
         r = s.result
         n = struct.unpack('<H', r.obj2(cnp, 2))[0]
         return n, [r.obj2(ct + 76 + j * 38 + 3, 23).split(b'\0')[0].decode('latin1') for j in range(32)]
@@ -6997,28 +6998,63 @@ def xtra_offer_plus():
         sc = s.screen()
         for k in (sc.path(9) or []):                   # the amount (the cursor comes back on the '-')
             s.send(k + ' dump:0.5')
-        s.send(' '.join(['fire+right'] * 40) + ' dump:1')   # (two players: a bid well over 20% short is refused outright -
-        ans = xtra_bid(s)                              # 'non sono in vendita', cseg_584D7 - so bid high)
+        ans = xtra_bid(s)
         info.append(f'{tag}: answer {ans[:3]}')
         check(any("E' LIETO" in x for x in ans), f'{tag}: not sold {ans[:5]}', errs)
         leave(s)
 
-    car = None
-    with Session('xtra_offer_plus', exe, {}, 'dump:2', 600) as s:
+    def start(s):
         s.wait()
         if not pick_career(s, path):
-            return False, 'new career: ' + str(s.screen().texts()[:8])
+            return False
         s.send('fire dump:3')
         leave(s)
-        n0, _ = squad(s)
+        return True
+
+    rel = os.environ.get('XPLUS_BUILD') or foreign_exe()
+    if not rel:
+        info.append('release pass SKIP: no release SWOS dir (XPLUS_BUILD, or SWOSTEST_BUILD / W8485_BUILD with POOL05)')
+    else:
+        team, names = xtra_club_block(rel, 'LIGORNA') or (None, [])
+        check(names, f'LIGORNA: no XTRA block in {rel}', errs)
+        if names:
+            with Session('xtra_offer_plus_rel', rel, {}, 'dump:2', 600) as s:
+                if not start(s):
+                    return False, 'new career (release): ' + str(s.screen().texts()[:8])
+                xtra_browse_to(s, 'SERIE D GIRONE A', 'LIGORNA')
+                walk(s, 16, 4)                         # page 1's 14th row
+                first = drawn(s)
+                plus_menu(s, 'rel', True, 4)           # '+' > page 2's first row = LIGORNA's first extra
+                second = drawn(s)
+                idx = struct.unpack('<hh', s.result.obj2(deal[0], 4))
+                check(second == names[0] and idx[0] < 16 and idx[1] == 16, f'rel: 2nd player drawn {second!r} (LIGORNA\'s '
+                      f'first extra {names[0]!r}), deal indexes {idx}', errs)
+                info.append(f'release: {first} + {second}, deal indexes {idx}')
+    src = (os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-403c11')).rstrip('/')
+    if not os.path.isdir(src):
+        return not errs, '; '.join(errs + info + [f'purchase pass SKIP: private data {src} missing'])
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    exe = os.environ.get('XPLUS_FORCE_BUILD') or build('xtra_offer_plus_' + os.path.basename(src), env={
+        'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'OFFER_FORCE': '1'})
+    blk = xtra_club_block(exe, 'LIGORNA')
+    if not blk or not blk[1]:
+        return False, '; '.join(errs + [f'LIGORNA: no XTRA block in the test build {exe}'])
+    team, names = blk
+    p = lepatch.LEPatch(os.path.join(exe, 'ITALIAN.EXE'))
+    _, cnp, ct, cmp, sel = xtra.sites(p)
+    car = None
+    with Session('xtra_offer_plus', exe, {}, 'dump:2', 600) as s:
+        if not start(s):
+            return False, 'new career: ' + str(s.screen().texts()[:8])
+        n0, _ = squad(s, cnp, ct)
         xtra_browse_to(s, 'SERIE D GIRONE A', 'LIGORNA')
-        walk(s, 5, 4)                                  # (a) the third page-1 row
+        walk(s, 16, 4)                                 # (a) page 1's 14th row
         first = drawn(s)
         plus_menu(s, 'a', True, 4)                     # '+' > page 2's first row
         second = drawn(s)
         check(second == names[0], f'a: the 2nd player drawn {second!r}, LIGORNA\'s first extra {names[0]!r}', errs)
         buy(s, 'a')
-        n1, nm1 = squad(s)
+        n1, nm1 = squad(s, cnp, ct)
         check(n1 == n0 + 2 and first in nm1[:n1] and names[0] in nm1[:n1],
               f'a: squad {n0} -> {n1}, {first} {first in nm1[:n1]}, {names[0]} {names[0] in nm1[:n1]}', errs)
         info.append(f'a: {first} + {names[0]} (extra) bought, squad {n0} -> {n1}')
@@ -7033,25 +7069,22 @@ def xtra_offer_plus():
         with Session('xtra_offer_plus_reload', exe, {'XPLS.CAR': car}, 'dump:2', 600) as s:
             s.wait()
             s.send(LOAD1 + ' dump:3')
-            n2, nm2 = squad(s)
+            n2, nm2 = squad(s, cnp, ct)
             check(n2 == n1 and first in nm2[:n2] and names[0] in nm2[:n2], f'a: reloaded squad {n2}', errs)
             info.append(f'a: reloaded, squad {n2}')
     with Session('xtra_offer_plus_b', exe, {}, 'dump:2', 600) as s:
-        s.wait()
-        if not pick_career(s, path):
+        if not start(s):
             return False, 'new career (b): ' + str(s.screen().texts()[:8])
-        s.send('fire dump:3')
-        leave(s)
-        n0, _ = squad(s)
+        n0, _ = squad(s, cnp, ct)
         xtra_browse_to(s, 'SERIE D GIRONE A', 'LIGORNA')
         walk(s, 'PAG. SUCC.', 3)
         walk(s, 3, 4)                                  # (b) the first extra
         first = drawn(s)
         check(first == names[0], f'b: the 1st player drawn {first!r}, LIGORNA\'s first extra {names[0]!r}', errs)
-        plus_menu(s, 'b', False, 6)                    # '+' > page 1's third row
+        plus_menu(s, 'b', False, 17)                   # '+' > page 1's 14th row
         second = drawn(s)
         buy(s, 'b')
-        n1, nm1 = squad(s)
+        n1, nm1 = squad(s, cnp, ct)
         check(n1 == n0 + 2 and names[0] in nm1[:n1] and second in nm1[:n1],
               f'b: squad {n0} -> {n1}, {names[0]} {names[0] in nm1[:n1]}, {second} {second in nm1[:n1]}', errs)
         info.append(f'b: {names[0]} (extra) + {second} bought, squad {n0} -> {n1}')

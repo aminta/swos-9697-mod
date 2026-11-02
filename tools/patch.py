@@ -756,6 +756,9 @@ def patch_exe(src, dst, remap, lang='it'):
     split.late(p)                                # split's after-stage routines (engine.after_stage)
     trailer.late(p)                              # the engine block's late addresses (RS_STATE ...)
     delta, shift = p.save(dst)
+    dd = os.path.join(os.path.dirname(os.path.abspath(dst)), 'DATA')
+    if os.path.isdir(dd):                        # (the neutral finals' strings: exact in this exe / its DATA)
+        print(f'exe: stadium venues: {stadium.vcheck_exe(dst, lang, dd)} {lang} strings found')
     print(f'exe: fixups +{delta} bytes, data pages moved {shift:#x}, caves used up to obj1+{cave:#x} / +{world:#x}')
 
 
@@ -899,6 +902,10 @@ def write_new_teams(src_dir, dst_dir):
     import lgreal                                     # 4.0.5: the real league calendars of a world's first season
     for name, k in lgreal.write(dst_dir):
         print(f'{name}: real league calendars of {k} leagues')
+    import stadium                                    # 4.0.6: the World 2026-27 stadium names + neutral finals
+    sg = stadium.gen(dst_dir)
+    if sg:
+        print(f'STADTMW5.DAT: stadiums of {sg[0]} clubs, {sg[1]} venue rows')
     rename_clubs(src_dir, dst_dir)
     for f in sorted(os.listdir(src_dir)):             # 4.0.6: white-haired players in the original files too (the
         q = os.path.join(dst_dir, f)                  # build's DATA starts as their copy; byte 25 bit 2 is an OR:

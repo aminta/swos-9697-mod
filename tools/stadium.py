@@ -17,6 +17,7 @@ u16 count) by TEAM file; per file its club records sorted by ordinal: u8 teamOrd
 Code in obj3 after kbd2 (CONVENTIONS 23).
 """
 import re
+import os
 import struct
 
 import benchx
@@ -35,7 +36,8 @@ NS_STEM = '''    movzx ecx, byte [WCUR]               ; several worlds: the curr
     mov ax, [st_key]
 '''
 MAGIC = b'STAD'
-VERSION = 1
+VERSION = 2
+VROW = 114                              # competition[40] + round[40] + name[33] + u8 season
 REC = 34                                # u8 ordinal + 33-byte name
 NAME = 33
 WAIT = 105                              # ticks of menuCycleTimer (70 Hz): ~1.5 s
@@ -85,17 +87,53 @@ st_find:                                ; ZF = 0: st_name = the home club's stad
     int 21h
     jc .no
     mov ebx, eax
-    mov edx, st_rec                     ; the header: 'STAD', version
-    mov ecx, 8
+    mov edx, st_rec                     ; the header: 'STAD', version, venue rows, their offset
+    mov ecx, 12
     call .read
     jne .close
     cmp dword [st_rec], 'STAD'
     jne .close
-    cmp word [st_rec + 4], 1
+    cmp word [st_rec + 4], 2
     jne .close
-    movzx edx, byte [st_key]            ; its index entry: 8 + file x 6
+    movzx esi, word [st_rec + 6]        ; the venues first (a neutral round: the line-ups' competition + round)
+    test esi, esi
+    jz .club
+    mov edx, [st_rec + 8]
+    call .seek
+    jc .close
+.ven:
+    mov edx, st_vrow
+    mov ecx, VROW
+    call .read
+    jne .close
+    mov al, [st_vrow + 113]             ; its season: 0 = every one, else the career's (currentSeasonShowing + 1)
+    test al, al
+    jz .vs
+    movzx ecx, word [SSN]
+    inc ecx
+    cmp al, cl
+    jne .vn
+.vs:
+    push esi
+    mov esi, st_vrow
+    mov edi, GNAME
+    call .streq
+    jne .vp
+    mov esi, st_vrow + 40
+    mov edi, GROUND
+    call .streq
+.vp:
+    pop esi
+    jne .vn
+    mov esi, st_vrow + 80
+    jmp .copy
+.vn:
+    dec esi
+    jnz .ven
+.club:
+    movzx edx, byte [st_key]            ; the home club: its index entry, 12 + file x 6
     imul edx, 6
-    add edx, 8
+    add edx, 12
     call .seek
     jc .close
     mov edx, st_rec
@@ -121,13 +159,12 @@ st_find:                                ; ZF = 0: st_name = the home club's stad
     jnz .rec
     jmp .close
 .hit:
-    push esi
     mov esi, st_rec + 1
+.copy:
     mov edi, st_name
     mov ecx, 33
     rep movsb
     mov byte [st_name + 32], 0          ; (at most 32 chars)
-    pop esi
 .close:
     mov ah, 3Eh
     int 21h
@@ -145,6 +182,27 @@ st_find:                                ; ZF = 0: st_name = the home club's stad
     ret
 .rf:
     or ecx, ecx                         ; (ecx > 0: ZF = 0)
+    ret
+.streq:                                 ; ZF = 1: the row's string at esi = the game's at edi (to the NUL; the game's
+    push ecx                            ; '*' padding ends it too), at most 40
+    mov ecx, 40
+.sl:
+    mov al, [esi]
+    mov dl, [edi]
+    cmp dl, '*'
+    jne .s1
+    xor dl, dl
+.s1:
+    cmp al, dl
+    jne .se
+    test al, al
+    jz .se
+    inc esi
+    inc edi
+    dec ecx
+    jnz .sl
+.se:
+    pop ecx
     ret
 .seek:                                  ; to edx from the start
     mov ecx, edx
@@ -325,6 +383,7 @@ st_x: dd 0
 st_y: dd 0
 st_w: dd 0
 st_rec: times 34 db 0
+st_vrow: times VROW db 0                ; a venue row: competition[40], round[40], name[33], season
 align 4
 st_regs: times 15 dd 0
 """
@@ -366,8 +425,17 @@ def sites(p):
     gt = {tg(x.end() - 9) for x in re.finditer(rb'\x66\xc7\x05....\x00\x00' + st(D0) + st(D1) + st(D2) + st(D7 - 16)
                                                         + rb'\xa1' + pk(A1) + rb'\xa3....\xa1' + pk(A1 + 4), d, re.S)}
     assert len(gt) == 1, ('gameTeam1', gt)
+    # InitAndPlayGame: mov A1, offset gameName / call StringCopy / mov gameRound, 0
+    gn = [(tg(x.start() + 6), tg(x.start() + 17)) for x in re.finditer(rb'\xc7\x05' + pk(A1) + rb'....\xe8....\xc6\x05....\x00',
+                                                                    d, re.S)]
+    gn = [g for g in gn if g[0][0] == 2 and g[1][0] == 2 and g[1][1] - g[0][1] == 40]
+    assert len(set(gn)) == 1, ('gameName / gameRound', gn)
+    # InitCareerVariables: mov currentSeasonShowing, 0 / mov seasonPlaying, 94
+    ss = {tg(x.start() + 3) for x in re.finditer(rb'\x66\xc7\x05....\x00\x00\xc6\x05....\x5e', d, re.S)}
+    assert len(ss) == 1, ('currentSeasonShowing', ss)
     return {'end': end, 'FADEOUT': p.call_target(1, end), 'FADEIN': p.call_target(1, end + 15), 'LIN': lin,
-            'GTW': (1, gtw), 'DMT': (1, dmt), 'CHT': ct.pop(), 'GT1': gt.pop(), 'TOP': s7['TOP'], 'MCC': s7['MCC'],
+            'GTW': (1, gtw), 'DMT': (1, dmt), 'CHT': ct.pop(), 'GT1': gt.pop(), 'GNAME': gn[0][0], 'GROUND': gn[0][1],
+            'SSN': ss.pop(), 'TOP': s7['TOP'], 'MCC': s7['MCC'],
             'MCT': s7['MCT'], 'LASTKEY': s7['LASTKEY'], 'FIRE': s7['FIRE'], 'SHORTFIRE': s7['SHORTFIRE'],
             'D0': (2, D0), 'D1': (2, D1), 'D2': (2, D2), 'D3': (2, D7 - 16), 'D7': (2, D7), 'A0': (2, A0), 'A1': (2, A1)}
 
@@ -376,7 +444,7 @@ def patch(p, at):
     """st_* at obj3:at (after kbd2); returns the end."""
     s = sites(p)
     sym = {k: v for k, v in s.items() if k != 'end'}
-    sym.update(BIG_MAX=(0, BIG_MAX), WAIT_=(0, WAIT))
+    sym.update(BIG_MAX=(0, BIG_MAX), WAIT_=(0, WAIT), VROW=(0, VROW))
     import careerworld
     ns = 'WCUR' in careerworld.LABELS                   # (a build with several worlds: TMWn.nnn files)
     if ns:
@@ -397,20 +465,45 @@ def patch(p, at):
 
 
 def build(records, venues=()):
-    """A STAD<stem>.DAT: records = {(team file, ordinal): name}, venues = [name, ...] (venue id = index + 1)."""
+    """A STAD<stem>.DAT (v2): records = {(team file, ordinal): name}; venues = [(competition, round, name, season)]:
+    the exact line-ups strings (gameName / gameRound, one row per language), season 0 = every one, n = the career's
+    n-th (currentSeasonShowing + 1). Header 'STAD', u16 2, u16 V, u32 the venue table's offset; 256 x (u32 offset,
+    u16 count) by team file; the club records (u8 ordinal + 33-byte name); the V venue rows (VROW bytes)."""
     by = {}
     for (f, o), n in records.items():
         by.setdefault(f, []).append((o, n))
-    head = MAGIC + struct.pack('<HH', VERSION, len(venues))
     idx, body = bytearray(), bytearray()
-    off = len(head) + 256 * 6
+    off = 12 + 256 * 6
     for f in range(256):
         recs = sorted(by.get(f, []))
         idx += struct.pack('<IH', off + len(body) if recs else 0, len(recs))
         for o, n in recs:
             body += bytes([o]) + check(n).encode('ascii').ljust(NAME, b'\0')
-    ven = b''.join(check(v).encode('ascii').ljust(NAME, b'\0') for v in venues)
-    return head + bytes(idx) + bytes(body) + ven
+    ven = bytearray()
+    for c, r, n, sn in venues:
+        assert 0 < len(c) < 40 and 0 < len(r) < 40 and '*' not in c + r and 0 <= sn < 256, ('venue', c, r, sn)
+        ven += c.encode('latin-1').ljust(40, b'\0') + r.encode('latin-1').ljust(40, b'\0') \
+            + check(n).encode('ascii').ljust(NAME, b'\0') + bytes([sn])
+    assert len(ven) == len(venues) * VROW
+    return MAGIC + struct.pack('<HHI', VERSION, len(venues), off + len(body)) + bytes(idx) + bytes(body) + bytes(ven)
+
+
+def read(data):
+    """A STAD<stem>.DAT back (the harness): ({(team file, ordinal): name}, [(competition, round, name, season)]);
+    None if it is not a version-2 file (the game shows no banner then)."""
+    if len(data) < 12 + 256 * 6 or data[:4] != MAGIC or struct.unpack_from('<H', data, 4)[0] != VERSION:
+        return None
+    nv, voff = struct.unpack_from('<HI', data, 6)
+    z = lambda b: b.split(b'\0')[0].decode('latin-1')
+    recs = {}
+    for f in range(256):
+        off, n = struct.unpack_from('<IH', data, 12 + f * 6)
+        for k in range(n):
+            r = data[off + k * REC:off + (k + 1) * REC]
+            recs[(f, r[0])] = z(r[1:])
+    ven = [(z(v[:40]), z(v[40:80]), z(v[80:113]), v[113])
+           for v in (data[voff + k * VROW:voff + (k + 1) * VROW] for k in range(nv))]
+    return recs, ven
 
 
 CHARSET = set("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 -.'")
@@ -454,3 +547,96 @@ def from_world(world, csv_path):  # -> STADTMW5.DAT (World 2026-27's namespace)
             continue
         recs[w] = n
     return recs, bad
+
+
+LANGS = (('it', 'ITALIAN.EXE'), ('en', 'ENGLISH.EXE'), ('fr', 'FRENCH.EXE'), ('de', 'GERMAN.EXE'))
+HERE = os.path.dirname(os.path.abspath(__file__))
+CLUBS_CSV = os.path.join(HERE, 'stadium_tmw5_clubs.csv')    # Dati coppe 2026-11-02: file, ordinal, name, stadium
+VENUES_CSV = os.path.join(HERE, 'stadium_tmw5_venues.csv')  # the neutral finals: comp_xx, round_xx, venue, season
+
+
+def venues(csv_path=VENUES_CSV):
+    """[(competition, round, name, season)]: one row per language (identical strings once)."""
+    import csv
+    out = []
+    for r in csv.DictReader(open(csv_path, encoding='utf-8')):
+        n = fit(r['venue'])
+        assert n, ('venue over 32', r['venue'])
+        for lang, _ in LANGS:
+            v = (r[f'comp_{lang}'], r[f'round_{lang}'], n, int(r['season']))
+            if v not in out:
+                out.append(v)
+    return out
+
+
+def gen(data):
+    """DATA\\STADTMW5.DAT (4.0.6: World 2026-27 only, Davide 02/11) when the build has its team files: every club
+    row must still be that club (its TMW5.nnn name), else the build stops. No STADTEAM.DAT: no banner elsewhere."""
+    import csv
+    if not any(n.upper().startswith('TMW5.') for n in os.listdir(data)):
+        return None
+    recs, bad, files = {}, [], {}
+    for r in csv.DictReader(open(CLUBS_CSV, encoding='utf-8')):
+        f, o = int(r['file']), int(r['ordinal'])
+        if f not in files:
+            fn = os.path.join(data, 'TMW5.%03d' % f)
+            files[f] = open(fn, 'rb').read() if os.path.exists(fn) else b''
+        d = files[f]
+        nm = d[2 + 684 * o + 5:2 + 684 * o + 22].split(b'\0')[0].decode('latin-1') if 2 + 684 * (o + 1) <= len(d) else None
+        if nm != r['name']:
+            bad.append((f, o, r['name'], nm))
+            continue
+        recs[(f, o)] = check(r['stadium'])
+    assert not bad, (f'{len(bad)} stadium rows on another club now (world data changed: redo the club list)', bad[:5])
+    ven = venues()
+    open(os.path.join(data, 'STADTMW5.DAT'), 'wb').write(build(recs, ven))
+    return len(recs), len(ven)
+
+
+def vcheck_exe(exe, lang, data):
+    """The build's own check: this language's venue strings are strings of its exe or of a DATA file (gameName /
+    gameRound copy them), exact. Returns the rows checked; stops the build on a miss."""
+    if not os.path.exists(os.path.join(data, 'STADTMW5.DAT')):
+        return 0
+    import csv
+    import glob
+    blobs = [open(exe, 'rb').read()] + [open(f, 'rb').read() for f in sorted(glob.glob(os.path.join(data, '*')))
+                                        if os.path.isfile(f) and os.path.getsize(f) < 4 << 20]
+    miss, n = [], 0
+    for r in csv.DictReader(open(VENUES_CSV, encoding='utf-8')):
+        for fld in ('comp', 'round'):
+            s = r[f'{fld}_{lang}'].encode('latin-1')
+            n += 1
+            if not any(b'\0' + s + b'\0' in b or b'\0' + s + b'*' in b for b in blobs):
+                miss.append((fld, s))
+    assert not miss, ('venue strings not in the game', lang, miss)
+    return n
+
+
+def vcheck(csv_path, build):
+    """Dati coppe's venues_i18n.csv against a release build dir (SWOS/): every comp_xx / round_xx string must be a
+    NUL-terminated string of that language's exe or of a DATA file (the line-ups' gameName / gameRound are copies of
+    such strings). Returns [(row, lang, field, string, found in)]; '' = not found."""
+    import csv
+    import glob
+    import os
+    blobs = {lang: [(exe, open(os.path.join(build, exe), 'rb').read())] for lang, exe in LANGS
+             if os.path.exists(os.path.join(build, exe))}
+    data = [(os.path.basename(f), open(f, 'rb').read()) for f in sorted(glob.glob(os.path.join(build, 'DATA', '*')))
+            if os.path.isfile(f) and os.path.getsize(f) < 4 << 20]
+    out = []
+    for i, row in enumerate(csv.DictReader(open(csv_path, encoding='utf-8')), 2):
+        for lang in blobs:
+            for fld in ('comp', 'round'):
+                s = row[f'{fld}_{lang}'].encode('latin-1')
+                hit = next((n for n, b in blobs[lang] + data if b'\0' + s + b'\0' in b
+                            or b'\0' + s + b'*' in b), '')
+                out.append((i, lang, fld, s.decode('latin-1'), hit))
+    return out
+
+
+if __name__ == '__main__':
+    import sys
+    if sys.argv[1:2] == ['vcheck']:
+        for r in vcheck(sys.argv[2], sys.argv[3]):
+            print(f'row {r[0]} {r[1]} {r[2]:5} {r[3]!r:40} {r[4] or "NOT FOUND"}')

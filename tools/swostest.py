@@ -9565,6 +9565,153 @@ def stadium_world():
     return not errs, '; '.join(errs + info)
 
 
+def stadium_code(r, at):
+    """stadium.py's st_find in the running game: (its first byte, its `.no` end: cmp byte [st_name], 0 / ret) linear,
+    found by the runtime address of st_name (at = the STNM mark's Off3) in obj3's code."""
+    nm = struct.pack('<I', r.lin(at + STNM_NAME))
+    o3 = r.read(r.base3, int(at))
+    a = [m.start() for m in re.finditer(re.escape(b'\xc6\x05' + nm + b'\x00\xa1'), o3)]
+    b = [m.start() for m in re.finditer(re.escape(b'\x80\x3d' + nm + b'\x00\xc3'), o3)]
+    assert len(a) == 1 and len(b) == 1, ('st_find', a, b)
+    return r.base3 + a[0], r.base3 + b[0]
+
+
+@scenario
+def stadium_venues():
+    """4.0.6 neutral finals (Regia / Davide 02/11): STADTMW5.DAT's venue rows, matched by the line-ups' competition +
+    round (gameName / gameRound, exact) before the home club. A World 2026-27 career at ROMA (STADIUM_BUILD: a release
+    build, its own shipped STADTMW5.DAT) -> TRAINING -> GIOCA PARTITA: a breakpoint at st_find's end records the name
+    found, puts the next case's strings into gameName / gameRound (+ currentSeasonShowing) and runs st_find again
+    (EIP back to its start): every venue row of the file (all 4 languages) -> its venue; the wrong season, a cut
+    competition, another round -> ROMA's own stadium; the game's '*' padding ends a string; then the real strings
+    back -> the club's stadium on the banner, the line-ups after it. The strings themselves are the exes' own (the
+    build's stadium.vcheck_exe stops a build whose CSV string is not in that language's exe / DATA)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lepatch
+    import stadium
+    b = os.environ.get('STADIUM_BUILD') or os.environ.get('BENCH_BUILD')
+    if not b or not os.path.isdir(b):
+        return True, 'SKIP: STADIUM_BUILD not set'
+    b = nop_league_int3('stadium_venues_' + os.path.basename(RUNS.rstrip('/')), b)
+    p = lepatch.LEPatch(os.path.join(b, 'ITALIAN.EXE'))
+    at = p.le.obj_bytes(3).find(b'STNM') if len(p.le.objs) > 2 else -1
+    if at < 0:
+        return True, 'SKIP: no stadium.py in this build (no STNM in obj3)'
+    at = Off3(at)
+    dat = os.path.join(b, 'DATA', 'STADTMW5.DAT')
+    got = stadium.read(open(dat, 'rb').read()) if os.path.exists(dat) else None
+    if not got or not got[1]:
+        return False, f'no version-2 STADTMW5.DAT with venues in {b}'
+    recs, ven = got
+    d = open(os.path.join(b, 'DATA', 'TMW5.102'), 'rb').read()
+    roma = [(d[o], d[o + 1]) for o in (2 + t * 684 for t in range(struct.unpack('>H', d[:2])[0]))
+            if d[o + 5:o + 22].split(bytes(1))[0] == b'ROMA']
+    if len(roma) != 1 or roma[0] not in recs:
+        return False, f'ROMA in TMW5.102 / STADTMW5.DAT: {roma}'
+    club = recs[roma[0]]
+    st = stadium.sites(lepatch.LEPatch(os.path.join(ROOT, 'orig', 'ITALIAN.EXE')))
+    gname, ground, ssn = st['GNAME'][1], st['GROUND'][1], st['SSN'][1]
+    cases = [(c, r_, 0, n, f'{c} / {r_}') for c, r_, n, sn in ven]          # (season 1 = currentSeasonShowing 0)
+    c0, r0, n0, _ = ven[0]
+    cases += [(c0, r0, 1, club, 'season 2'), (c0[:-1], r0, 0, club, 'cut competition'),
+              (c0, r0 + 'X', 0, club, 'another round'), (c0 + '*', r0, 0, n0, "'*' padding")]
+    errs, info, hits, state = [], [], [], {}
+
+    def at_end(q):
+        hits.append(stadium_log(q, at)['name'])
+        k = len(hits) - 1                       # (hit 0: the real lookup; hit k: case k - 1)
+        if k == 0:
+            state['orig'] = (q.obj2(gname, 40), q.obj2(ground, 40), q.obj2(ssn, 2))
+        if k < len(cases):
+            c, r_, sn, _, _ = cases[k]
+            s.poke(q.base2 + gname, c.encode('latin-1') + b'\0')
+            s.poke(q.base2 + ground, r_.encode('latin-1') + b'\0')
+            s.poke(q.base2 + ssn, struct.pack('<H', sn))
+        elif k == len(cases):                   # the real strings back: the last run is the game's own
+            g, r_, sn = state['orig']
+            s.poke(q.base2 + gname, g)
+            s.poke(q.base2 + ground, r_)
+            s.poke(q.base2 + ssn, sn)
+        else:
+            return
+        s.box.cmd(f'SR EIP {state["start"]:X}', 0.3)
+
+    with Session('stadium_venues', b, {}, 'dump:2', 1200, match=True) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'START: no first pause ({s.result})'
+        if train_start(s, 'EUROPA,ITALIA,SERIE A,ROMA'.split(','), errs) is None:
+            return False, '; '.join(errs)
+        q = s.screen()
+        i = q.find(TRAIN_TXT[UI][2])
+        if i is None or se_goto(s, i).selected != i:
+            return False, f'training: {TRAIN_TXT[UI][2]} not reached ({q.texts()[:12]})'
+        state['start'], end = stadium_code(s.result, at)
+        s.bp(end, at_end)
+        s.send('fire dump:2')
+        g = stadium_log(s.result, at)
+        check(len(hits) == len(cases) + 2, f'st_find ran {len(hits)} times, want {len(cases) + 2}', errs)
+        for k, (c, r_, sn, want, tag) in enumerate(cases):
+            h = hits[k + 1] if k + 1 < len(hits) else None
+            check(h == want, f'{tag} (season {sn + 1}): {h!r}, want {want!r}', errs)
+        if len(hits) == len(cases) + 2:
+            check(hits[0] == club and hits[-1] == club, f'the real lookups: {hits[0]!r} / {hits[-1]!r}, want {club!r}', errs)
+        info.append(f'{len(ven)} venue rows, {len(cases) - len(ven)} near misses: '
+                    f'{sum(h == w for h, (_, _, _, w, _) in zip(hits[1:], cases))} of {len(cases)} as expected')
+        check(g['shown'] == 1 and g['name'] == club and g['key'] == roma[0], f'banner {g}', errs)
+        info.append(f'ROMA {roma[0]}: banner {g["name"]!r} shown {g["shown"]}')
+        if state.get('orig'):
+            check(s.result.obj2(gname, 40) == state['orig'][0], 'gameName not the game\'s own after the test', errs)
+        s.shot('roma')
+        r = stadium_wait(s, info) or s.result
+        r = s.send('dump:3')
+        check(r.outcome == 'dump', f'after the banner: {r}', errs)
+    return not errs, '; '.join(errs + info)
+
+
+@scenario
+def stadium_nofile():
+    """4.0.6 (Davide 02/11: names only in World 2026-27): outside it no STADTEAM.DAT ships, and an absent or an empty
+    file just means no banner. A friendly INTER v MILAN (TEAM.020: the 'team' namespace) on STADIUM_BUILD (a release
+    build, else the harness build): the build ships no DATA\\STADTEAM.DAT; with none, then with an empty one, then with
+    a version-1 file: st_find ran (the pair's key logged), no name, no banner, the match goes on."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lepatch
+    b = os.environ.get('STADIUM_BUILD') or builds()['it']
+    p = lepatch.LEPatch(os.path.join(b, 'ITALIAN.EXE'))
+    at = p.le.obj_bytes(3).find(b'STNM') if len(p.le.objs) > 2 else -1
+    if at < 0:
+        return False, 'no stadium.py in this build (no STNM in obj3)'
+    at = Off3(at)
+    errs, info = [], []
+    check(not any(n.upper() == 'STADTEAM.DAT' for n in os.listdir(os.path.join(b, 'DATA'))),
+          f'{b}: DATA\\STADTEAM.DAT ships', errs)
+    d = open(os.path.join(b, 'DATA', 'TEAM.020'), 'rb').read()
+    keys = {d[o + 5:o + 22].split(bytes(1))[0].decode('latin-1'): (d[o], d[o + 1])
+            for o in (2 + t * 684 for t in range(struct.unpack('>H', d[:2])[0]))}
+    os.makedirs(os.path.join(WORK, 'saves'), exist_ok=True)
+    empty = os.path.join(WORK, 'saves', 'STADTEAM_EMPTY.DAT')
+    open(empty, 'wb').close()
+    v1 = os.path.join(WORK, 'saves', 'STADTEAM_V1.DAT')         # (a 4.0.6-beta layout: 'STAD', 1, 0 + the index)
+    idx = bytearray(256 * 6)
+    struct.pack_into('<IH', idx, keys['INTER'][0] * 6, 8 + 256 * 6, 1)
+    open(v1, 'wb').write(b'STAD' + struct.pack('<HH', 1, 0) + bytes(idx) + bytes([keys['INTER'][1]]) + b'WEMBLEY'.ljust(33, b'\0'))
+    for tag, files in (('absent', {}), ('empty', {'DATA/STADTEAM.DAT': empty}), ('v1', {'DATA/STADTEAM.DAT': v1})):
+        with Session('stadium_nofile_' + tag, b, files, 'dump:3', 300, match=True) as s:
+            s.wait()
+            italy_friendly(s, 'INTER', 'MILAN')
+            for _ in range(22):
+                s.send('down dump:0.5')
+                if s.screen().selected == 9:
+                    break
+            s.send('fire dump:2')
+            g = stadium_log(s.result, at)
+            info.append(f'{tag}: {g["name"]!r} key {g["key"]} shown {g["shown"]}')
+            check(g['shown'] == 0 and g['name'] == '' and g['key'] in (keys['INTER'], keys['MILAN']), f'{tag}: {g}', errs)
+            r = s.send('dump:2')
+            check(r.outcome == 'dump', f'{tag}: {r}', errs)
+    return not errs, '; '.join(errs + info)
+
+
 @scenario
 def blond_faces():
     """3.3.0: face 3 = black skin + blond hair: FIORENTINA's outfield players set to face 3 (test copy of TEAM.020);

@@ -24,6 +24,7 @@ Played (promotion / playout play-offs whose entrants are all [div, place]; rules
 - gp_end: gp_played_c() gives gp_season the played winners. The state GP_ST (saved with the career by the engine's
   save block; gp_sync restores D8CBA / D8CB6 after a load), the season end's log GP_LOG (harness: 'GPLOGPTR').
 Test builds: GPLAY_FORCE=k puts the career club on place k of its division at the league end and the season end.
+USC_FORCE=1 (4.0.6): the career club is last season's Champions League holder for the UEFA Super Cup (usc_step).
 GPLAY_RLFORCE=code (signed) makes the career club's result in a play-off it is in that code for the season record lines
 only (club_res: 1 WINNERS, -100 FINALIST, -101 / -102 semi / quarter-final, -110 - n round n).
 
@@ -2612,6 +2613,7 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
                                 f"-DSEC_FORCE_B={int(os.environ.get('SEC_FORCE_B') or 0xFFFF)}",
                                 f"-DGP_RLFORCE={int(os.environ.get('GPLAY_RLFORCE') or 0)}",
                                 f"-DGP_KOFORCE={int(os.environ.get('GPLAY_KOFORCE') or 0)}",
+                                f"-DGP_USCFORCE={int(os.environ.get('USC_FORCE') or 0)}",   # (4.0.6 test builds: the UEFA Super Cup, the career club a holder)
                                 f"-DGP_GFFORCE={int(os.environ.get('GPLAY_GFFORCE') or 0)}",
                                 f"-DGP_S3DEFER={int(os.environ.get('GPLAY_S3DEFER') or 0)}",
                                 f"-DGP_GFREST={int(os.environ.get('GPLAY_GFREST') or 0)}",

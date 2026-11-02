@@ -34,9 +34,20 @@ CODE = {'cup': 1, 'next': 0x40, 'ap': 0x41, 'cl': 0x42}
 ALIAS = {'r1': 'first', 'playoffs': 'po'}   # (access files' round names -> the format's)
 
 
+FIXES = {('conmebol', 'rec'): {'month': 2, 'level': 'et_pens'},   # 4.0.6: the real editions (Recopa 2026: February,
+         ('caf', 'sc'): {'month': 10}}  # extra time then pens; CAF Super Cup 2025: October) - the data's month 8 / 9
+                                        # and 'pens' kept for older branches: internal/ is read live
+
+
 def _read(conf, kind):
     p = os.path.join(DATA, f'{conf}.{kind}.json')
-    return json.load(open(p)) if os.path.exists(p) else None
+    if not os.path.exists(p):
+        return None
+    d = json.load(open(p))
+    if kind == 'format':
+        for c in d.get('cups', []):
+            c['rounds'][0].update(FIXES.get((conf, c.get('key'))) or {})
+    return d
 
 
 def _draw(rd):

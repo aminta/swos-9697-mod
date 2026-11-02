@@ -739,6 +739,9 @@ def patch_exe(src, dst, remap, lang='it'):
     import kbd2                                  # 4.0.6 CONTROLS B (Marco): player 2's own key set on one keyboard,
     kb_end = kbd2.patch(p, (fi_end + 15) & ~15, lang)        # in obj3 after finance (bteam next: (kb_end + 15) & ~15)
     assert kb_end <= LT3_AT, hex(kb_end)
+    if sc_on:                                    # 4.0.6 the UEFA Super Cup: the holders' snapshot at the season end,
+        kb_end = supercup.patch_usc(p, (kb_end + 15) & ~15)   # obj3 after kbd2
+        assert kb_end <= LT3_AT, hex(kb_end)
     print(f'exe: obj3 end {kb_end:#x} ({LT3_AT - kb_end} B left before the longtable page obj3+{LT3_AT:#x})')
     p.set_vsize(3, 0x1000 * OBJ3_PAGES)
     p.set_vsize(1, OBJ1_NEW_VSIZE + (0x1000 * (cp + 2 + cdp) if worlds else 0) + h2 + 0x1000 * (lpb + sp_pg + sc_pg + ct_pg + ctl_pg))

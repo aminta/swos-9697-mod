@@ -1,5 +1,5 @@
 {
- "_doc": "4.0.5 national supercups of World 2026-27 (supercup.py table; internal/handoff/supercups.md). Per country: pack id suffix, names {lang: [long, short]}, article (FORMAT text: {lang: word} when not La / The / La), date (dd/mm, +1 = the next calendar year, the real 2026-27 edition), from_season (2 = summer: not in the world's first season), early (4.0.5: the career club's tie built at the season start - shown in its calendar and VISUAL. COMPETIZ. from the first day - and played at its week; only where nothing else of the club needs slot 4 before it), legs, level (pens | et_pens), host (neutral), rule [2 or 4 rules: e0 v e1 (and e2 v e3: semi-finals, then the final)] + if_double (one fallback for every rule after the first, or a list per rule: champion | second | third | fourth | cup_winner | cup_finalist | title0 | title1: last season's stage-title winners, the play-offs 'titles' [key0, key1]), final_date (4 clubs), first_entrants (pack club keys of the real 2026-27 edition: season 1), todo (what is not verified yet).",
+ "_doc": "4.0.5 national supercups of World 2026-27 (supercup.py table; internal/handoff/supercups.md). Per country: pack id suffix, names {lang: [long, short]}, article (FORMAT text: {lang: word} when not La / The / La), date (dd/mm, +1 = the next calendar year, the real 2026-27 edition), from_season (2 = summer: not in the world's first season), early (4.0.5: the career club's tie built at the season start - shown in its calendar and VISUAL. COMPETIZ. from the first day - and played at its week; only where nothing else of the club needs slot 4 before it), legs, level (pens | et_pens), host (neutral), rule [2 or 4 rules: e0 v e1 (and e2 v e3: semi-finals, then the final)] + if_double (one fallback for every rule after the first, or a list per rule: champion | second | third | fourth | cup_winner | cup_finalist | title0 | title1: last season's stage-title winners, the play-offs 'titles' [key0, key1]), final_date (4 clubs), first_entrants (pack club keys of the real 2026-27 edition: season 1), todo (what is not verified yet). 4.0.6 'uefa' (world-level, not a pack: the UEFA Super Cup; supercup.py table's last entry, league file 0xFF): rules uefa_cl / uefa_el / uefa_ecl = the game's own holders of last season's Champions League / Europa League / Conference League (HOLD_CC / HOLD_CWC / HOLD_UEFA); first_entrants as 'pack:club'.",
  "ita": {
   "names": {
    "it": [
@@ -359,5 +359,41 @@
    "corinthians"
   ],
   "todo": "Supercopa Rei 24 Jan 2027 (CBF calendar): Brasileirao 2026 champion v Copa do Brasil 2026 winner = the season before in the game too; the 2027 entrants are not known yet (both 2026 competitions end in December), so from season 2 (first_entrants = the 2026 edition's pair, unused); venue not seen (neutral); 90 minutes then penalties and the double fallback (league 2nd) not verified"
+ },
+ "uefa": {
+  "names": {
+   "it": [
+    "SUPERCOPPA UEFA",
+    "SUPERC. UEFA"
+   ],
+   "en": [
+    "UEFA SUPER CUP",
+    "UEFA S. CUP"
+   ],
+   "fr": [
+    "SUPERCOUPE DE L'UEFA",
+    "SUPERC. UEFA"
+   ],
+   "de": [
+    "UEFA-SUPERCUP",
+    "UEFA-SUPERCUP"
+   ]
+  },
+  "date": "12/08",
+  "from_season": 2,
+  "early": true,
+  "legs": 1,
+  "level": "pens",
+  "host": "neutral",
+  "rule": [
+   "uefa_cl",
+   "uefa_el"
+  ],
+  "if_double": "uefa_ecl",
+  "first_entrants": [
+   "fra:psg",
+   "eng:astonvilla"
+  ],
+  "todo": "real 2026 edition: 12 Aug 2026, Stadion Salzburg (neutral), PSG (CL 2025-26) 2-1 Aston Villa (EL 2025-26); since 2025 no extra time (2025: PSG v Tottenham 2-2, pens). From season 2: the world's first season starts after it. Double (one club holds both): the Conference League winner, else no edition (Davide 02/11, no real precedent)."
  }
 }

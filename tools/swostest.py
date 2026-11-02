@@ -882,6 +882,7 @@ class Screen:
         if out and max(out) - min(out) < 0x100000:     # texts outside the cached ranges: one dump for all
             r.read(min(out), max(out) + 64 - min(out))
         self.entries, self.nav, self.geom, self.colors = [], [], [], []
+        self.raw_texts = []                         # (4.0.6: the text as drawn - another language's - for widths)
         for i in range(n):
             e = 0x16 + i * 0x38
             inv, dis = struct.unpack_from('<HH', mem, e + 4)
@@ -896,6 +897,7 @@ class Screen:
                 elif raw and (UI_MAP or COLLECT) and all(b >= 32 for b in raw):   # (another language's umlauts /
                     q = ''.join(chr(b) if b < 127 else '?' for b in raw)   # accents: '?', only a known label: the
                     text = q if q in UI_MAP or COLLECT else ''             # squad rows' drawn texts stay empty)
+            self.raw_texts.append(text)
             self.entries.append((i, ui_it(text), inv, dis))
 
     def find(self, text, visible=True, exact=False):
@@ -14270,8 +14272,13 @@ def vc5_check(s, tag, want):
     check(order == want_order, f'{tag}: rows in order {order} (want {want_order})', errs)
     ys = [y for y, i, t in vis]
     hs = [sc.geom[i][3] for y, i, t in vis]
-    check(all(ys[k] + hs[k] <= ys[k + 1] for k in range(len(ys) - 1)) and ys[-1] + hs[-1] <= sc.geom[7][1],
-          f'{tag}: overlapping rows {ys} (ESCI at {sc.geom[7][1]})', errs)
+    check(all(ys[k] + hs[k] + 5 <= ys[k + 1] for k in range(len(ys) - 1)) and ys[-1] + hs[-1] + 5 <= sc.geom[7][1],
+          f'{tag}: rows less than 5 px apart {ys} (ESCI at {sc.geom[7][1]})', errs)   # (4.0.6: a gap, ESCI's too)
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import complist                                     # 4.0.6 (Davide): every entry's text within its button (the
+    wide = [(sc.raw_texts[i], complist.px(sc.raw_texts[i])) for y, i, t in vis   # drawn text: the exe's language)
+            if complist.px(sc.raw_texts[i]) > complist.VC_PX]
+    check(not wide, f'{tag}: entries wider than the button ({complist.VC_PX} px): {wide}', errs)
     if hit == [8]:
         press(s, sc, sc.entries[8][1], 4)
         s.shot(f'{tag}_view')
@@ -14427,8 +14434,8 @@ def world_vc5():
         return True, f'SKIP: private data {src} missing'
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
     exe = os.environ.get('VC5_BUILD') or os.environ.get('SC_BUILD') or build('world_sc_cups', env={
-        'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order])})
-    errs = []
+        'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order])}, lang=UI)   # (4.0.6: the
+    errs = []                                                   # language under test's exe - SWOSTEST_UI, own RUNS)
     mid1, mid2, msg = vc5_saves(exe)
     if not mid2:
         return False, msg

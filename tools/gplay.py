@@ -2243,7 +2243,7 @@ vc5_lay:                                ; entry 8 shown for a cup in slot 4 (SLO
     pushad                              ; start when unused; a played supercup stays) with the career club in it
     mov word [D0R], 8                   ; (gp_notin); a cup only: the view copies 443h of SLOT4 (a league 733h, a group
     call VC_CALC                        ; B52h would run past it). Shown: rows 1 2 3 4 8 5 6 (the visible ones) laid out
-    mov edi, [A0R]                      ; from entry 1's y, 25 px apart (23 with seven rows: ESCI, entry 7, keeps its
+    mov edi, [A0R]                      ; from entry 1's y, 25 px apart (22 with seven rows: ESCI, entry 7, keeps its
     mov word [edi + 4], 1               ; place), up / down links in that order, the last one's down = ESCI
     cmp word [GAMETYPE], 4
     jne .out
@@ -2285,11 +2285,11 @@ vc5_lay:                                ; entry 8 shown for a cup in slot 4 (SLO
     pop ecx
     pop esi
     mov edi, [A0R]
-    movzx edx, word [edi + 16h]         ; edx = y, ebp = step
-    mov ebp, 25
+    movzx edx, word [edi + 16h]         ; edx = y, ebp = step (4.0.6, Davide: seven rows 22 apart from y 30 - 8 px
+    mov ebp, 25                         ; before ESCI at y 185, 7 px between rows; 23 left 2 px)
     cmp ecx, 7
     jb .s
-    mov ebp, 23
+    mov ebp, 22
 .s: xor ecx, ecx                        ; ecx = the row above's entry address (0: none), [esp] its number
     push dword 0FFh
 .l: movzx eax, byte [esi]

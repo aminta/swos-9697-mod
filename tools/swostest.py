@@ -5314,6 +5314,16 @@ def bench_sub(s, bx, place, errs, info, mark, key=None, gone=None, tag=''):
     seen = []
     ns0 = (w16(v['NS1'], s.result.base2), w16(v['NS2'], s.result.base2))
     ord0 = s.result.read(s.result.lin(bx) - 4 - 156, 52)   # (2 humans: the other team's half may hold its change)
+
+    def ks(keys):                           # (BENCH_SAMPLE=secs, 02/11: in-match stalls under load - the dump never came
+        if not os.environ.get('BENCH_SAMPLE'):   # back after a cursor key: each key with sample(), the EIPs of a hang)
+            return s.send(keys)
+        hist, r = s.sample(keys, float(os.environ['BENCH_SAMPLE']))
+        if r.outcome != 'dump':
+            top = sorted(hist.items(), key=lambda x: -x[1])[:16]
+            errs.append(f'HANG after {keys!r}: obj1 EIPs {[(hex(o), n) for o, n in top]}')
+            mark(errs[-1])
+        return r
     for call in range(12):
         r = s.send((key or ('pgup' if call % 2 == 0 else 'pgdn')) + ':0.3 dump:0.6')   # (key: one team's bench)
         if r.outcome != 'dump':
@@ -5321,7 +5331,7 @@ def bench_sub(s, bx, place, errs, info, mark, key=None, gone=None, tag=''):
             return False
         last, still = w16(v['IDX'], r.base2), 0
         for j in range(24):
-            r = s.send('down:0.15 dump:0.3')
+            r = ks('down:0.15 dump:0.3')
             if r.outcome != 'dump':
                 errs.append(f'bench cursor: {r}')
                 return False
@@ -5346,7 +5356,10 @@ def bench_sub(s, bx, place, errs, info, mark, key=None, gone=None, tag=''):
     s.shot(tag + 'bench_window')
     ups = []                                # back up 6 places (the window starts at the cursor) and down again
     for key in ['up'] * 6 + ['down'] * 6:
-        r = s.send(key + ':0.15 dump:0.3')
+        r = ks(key + ':0.15 dump:0.3')
+        if r.outcome != 'dump':
+            errs.append(f'bench up / down: {r}')
+            return False
         ups.append((w16(v['IDX'], r.base2), w16(0, r.lin(bx - 4))))
     info.append(f'up/down {ups}')
     up6 = ups[5]

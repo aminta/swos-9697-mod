@@ -1864,6 +1864,20 @@ def advance(s, stop, max_steps=400):
         s.log.append(f'[{step}] {scr}')
         if os.environ.get('SWOSTEST_LABELS', '1') == '1' and scr.find('VISUAL. COMPETIZ.', exact=True) is not None:
             label_check(s, step)                         # (4.0.5: every competition name of the fixture list)
+        if os.environ.get('GP_CALTRACE'):              # (debug: the calendar from the cursor - slot week b4 b5 b6)
+            try:
+                cur = struct.unpack('<H', bytes(r.obj2(CAL_CUR_AT, 2)))[0]
+                cb = bytes(r.obj2(CAL_AT + cur, 64))
+                o, out = 0, []
+                while o + 8 <= len(cb) and len(out) < 4:
+                    out.append(f'{cb[o]}/{cb[o+1]}/{cb[o+4]}/{cb[o+5]}/{cb[o+6]}')
+                    ln = struct.unpack_from('<H', cb, o + 2)[0]
+                    if not ln:
+                        break
+                    o += ln
+                s.log.append(f'[calt] {step} cur {cur:x} ' + ' '.join(out))
+            except Exception:
+                pass
         if os.environ.get('W8485_CALDUMP') and not getattr(s, 'cald_done', 0) and \
                 scr.find('VISUAL. COMPETIZ.', exact=True) is not None:   # (4.0.5: the career calendar, once a season)
             s.log.append(f'CALD {step} {bytes(s.result.obj2(CAL_AT - 4, 0x2000)).hex()}')
@@ -3348,7 +3362,7 @@ def world8485():
                     texts = s.screen().texts()                                         # flag on its entries)
                     if not ('MOD. TATTICA' in texts and 'AVVERSARI' in texts):         # plays them first
                         break
-                    ok, m2 = advance(s, lambda scr: season_over(scr) and 'MOD. TATTICA' not in scr.texts(), 200)
+                    ok, m2 = advance(s, lambda scr: (hexlog(), season_over(scr) and 'MOD. TATTICA' not in scr.texts())[1], 200)   # (W8485_HEX: logged here too - 4.0.6 nzgf_defer)
                     msg += f', after FINISCI STAGIONE: {m2}'
                     if not ok:
                         return False, f"season {season}: {msg}"
@@ -18001,7 +18015,7 @@ def menu_levels():
 
 @scenario
 def world_gplay_nzchamp(force='1', team='OCEANIA,NUOVA ZELANDA,NORTHERN LGE|NORTHERN LEAGUE,WESTERN SPRINGS', gff='',
-                        kof='', two=False, kolose=False, real='', defer=False, rest=False):
+                        kof='', two=False, kolose=False, real='', defer=False, rest=False, idx=''):
     """New Zealand's National League Championship played (gplay: a 'title' group contest as the game's type 2 in slot
     3, one group): the data session's snapshot world5tm-nzchamp (TM_NZ_CHAMP=1); WESTERN SPRINGS forced 1st of the
     Northern League -> the Central / Southern leagues simulated now, 11 clubs (4 + 3 + 2 by place, the two A-League
@@ -18014,7 +18028,7 @@ def world_gplay_nzchamp(force='1', team='OCEANIA,NUOVA ZELANDA,NORTHERN LGE|NORT
     env = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'GPLAY_FORCE': force,
            **({'GPLAY_GFFORCE': gff} if gff else {}), **({'GPLAY_KOFORCE': kof} if kof else {}),
            **({'GPLAY_GOUT': '1'} if kolose else {}), **({'GPLAY_S3DEFER': '1'} if defer else {}),
-           **({'GPLAY_GFREST': '1'} if rest else {})}
+           **({'GPLAY_GFREST': '1'} if rest else {}), **({'GPLAY_GFIDX': idx} if idx else {})}
     exe = os.environ.get('GPLAY_BUILD') or build('world_gplay_nzchamp', env=env)
     log_at, st_at, log_n, st_n = gp_ptrs(exe)
     if real:                                                           # (the group's matches played for real)
@@ -18551,6 +18565,21 @@ def world_gplay_nzgf_rest():
     placeholder as the career club's day at once; the group is played to its end, the final built over it and played
     by the career club (its host, GPLAY_GFFORCE=2), the champion one of the two"""
     return world_gplay_nzchamp(gff='2', rest=True)
+
+
+@scenario
+def world_gplay_nzgf_restout():
+    """NZ Grand Final, 4.0.6 (the rc20 limit): the career club RESTS in the group's last round (GPLAY_GFIDX=3 test
+    build: index 2 of the 11, oddtables' circle) and misses the final (GPLAY_GFFORCE=1): the final decided without it,
+    no FINALE screen with it (before: a phantom final after PARTITA), the season ends normally"""
+    return world_gplay_nzchamp(gff='1', idx='3')
+
+
+@scenario
+def world_gplay_nzgf_restin():
+    """NZ Grand Final, 4.0.6: the career club RESTS in the group's last round (GPLAY_GFIDX=3) and hosts the final
+    (GPLAY_GFFORCE=2): the final its match, played (- PARTITA - on its screen), the champion one of the two"""
+    return world_gplay_nzchamp(gff='2', idx='3')
 
 
 @scenario

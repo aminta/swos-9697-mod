@@ -38,8 +38,54 @@
   - An install stopped half-way: nothing is lost. Choose the same folder again and the page finishes the job. To go back, the replaced files are in MOD_BACKUP.
 - All messages in Italian, English, French and German.
 
-#### Finances
-- [TO COMPLETE: Integratore, long text — why club finances were out of balance (running costs are about 3.2 times the wage bill, every week, while income did not follow the squad), what changed, with examples of big clubs; the 16-bit gate-receipts overflow fixed; thanks to Nicola for the report. Davide wants this explained at length.]
+#### Club finances closer to real football (thanks to Nicola)
+Nicola noticed that in a career with a big club you end every season deep in the red, even winning everything, and
+have to sell players to stay afloat. That is how the original game works:
+- **What the original charged.** At every match the club pays its players' wages and the club's *running costs*.
+  The game sets the running costs at the start of each season to about 3.2 times the wage bill, so a club
+  really pays about **4.2 times its wages**. A star squad has big wages, so it pays a lot.
+- **What the original paid in.** Gate receipts (based on your league position, not on the size of the club), the
+  prize money at the end of the season, and now and then a small random sponsorship. None of these grows with
+  the club: in our tests the gate per match of Manchester City and of Brentford was about the same.
+- **The result.** In the World 2026-27, where today's squads cost what they cost today, a big club lost
+  10 to 20 million a season (Real Madrid -16.9 M, Manchester City -18.5 M, Inter -10.9 M in the first season),
+  while a small club's books stayed roughly level.
+
+**What 4.0.6 changes.** With every match charge, your club now also receives its share of the season's
+**TV and commercial income**:
+- a **base** that depends on the division: 3.0 M a season in the top division, 1.2 M in the second, 0.5 M in the
+  third, 0.2 M in the fourth and below (a division played in parallel groups, such as Serie C or Serie D,
+  counts as one level);
+- plus **1.1 times your season's wage bill**: a bigger club earns more from TV and sponsors.
+The money arrives a little at a time, with each match charge, and shows under SPONSORSHIP on the finance screen.
+Expenses are exactly as in the original game.
+
+Why it is closer to real football:
+- In the big European leagues wages typically take well over half of a club's revenue (a general real-world figure, not something we measured): income that grows with the payroll
+  (1.1 times the wages, on top of the gate and the prizes) puts a well-run club in that range.
+- TV and commercial income grow with the size of the club. Domestic TV money, by contrast, is shared fairly evenly
+  within a division, and that is the base by division.
+- Clubs receive this money in instalments during the season, not in one lump. So you can't spend it all on the
+  first day of the transfer market.
+
+**The stadium bug.** The gate receipts of a single match were stored in a number that could not go above about
+1.05 million. Above that, the count started again from zero, so a bigger crowd could pay much less than a smaller
+one. It could happen to a club with a cheap squad and a big crowd, because the game divides the gate by the
+squad's average price. Now a gate stops at its maximum instead.
+
+What it looks like in a career (World 2026-27, first two seasons, a club that wins its matches):
+| Club (division) | 4.0.5: start / end of season 1 / end of season 2 (lowest) | 4.0.6: start / end of season 1 / end of season 2 (lowest) |
+|---|---|---|
+| Real Madrid (LaLiga) | 7.9 / -9.0 / -32.3 M (-34.4) | 10.4 / 15.3 / 10.3 M (3.5) |
+| Manchester City (Premier League) | 9.2 / -9.2 / -22.1 M (-27.9) | 7.8 / 5.2 / 7.8 M (-3.0) |
+| Inter (Serie A) | 6.1 / -4.8 / -15.5 M (-18.5) | 6.2 / 3.8 / -0.1 M (-1.9) |
+| Brentford (Premier League) | 5.6 / 2.5 / -2.9 M (-4.6) | 4.9 / 6.7 / 5.3 M (3.6) |
+| Ligorna (Serie D) | 0.29 / -0.14 / -0.43 M (-0.58) | 0.33 / 0.84 / 1.15 M (0.32) |
+| Catania (Serie C) | - | 0.61 / 0.35 / 0.89 M (0.07) |
+(The starting balance is set by the game and varies a little from career to career.)
+
+Old careers: nothing is stored in the save. A career started with an older version gets the new income from its
+next match.
 
 #### Coming in this version, text to come
 - **The opponent's squad during a match** [DRAFT: Panchina confirms after Davide approves the look]. During a match you can now look at the opponent's squad. Open the bench menu (where you make substitutions), put the cursor on your coach and press UP.
@@ -96,8 +142,56 @@ La 4.0.6 è un giro di richieste dei giocatori: **due giocatori sulla stessa tas
   - Un'installazione fermata a metà: non è perso niente. Scegli di nuovo la stessa cartella e la pagina finisce il lavoro. Per tornare indietro, i file sostituiti sono in MOD_BACKUP.
 - Tutti i messaggi in italiano, inglese, francese e tedesco.
 
-#### Finanze
-- [DA COMPLETARE: Integratore, testo lungo — perché le finanze dei club erano fuori equilibrio (i costi di gestione sono circa 3,2 volte il monte stipendi, ogni settimana, mentre gli incassi non seguivano la rosa), cosa è cambiato, con esempi di grandi club; il troncamento a 16 bit degli incassi della partita corretto; grazie a Nicola per la segnalazione. Davide vuole che sia spiegato a lungo.]
+#### Conti dei club più vicini al calcio vero (grazie a Nicola)
+Nicola ha notato un problema: in una carriera con un grande club si chiude ogni stagione in forte rosso, anche
+vincendo tutto, e bisogna vendere giocatori per restare a galla. È il funzionamento del gioco originale:
+- **Cosa addebitava l'originale.** A ogni partita il club paga gli stipendi dei giocatori e i *costi di gestione*.
+  A inizio stagione il gioco fissa i costi di gestione a circa 3,2 volte il monte stipendi, quindi un club paga
+  in tutto circa **4,2 volte gli stipendi**. Una rosa di campioni ha stipendi alti, quindi paga moltissimo.
+- **Cosa incassava l'originale.** Gli incassi dello stadio (legati alla posizione in classifica, non alla
+  grandezza del club), i premi di fine stagione e, ogni tanto, una piccola sponsorizzazione a caso. Nessuna di
+  queste voci cresce con il club: nelle nostre prove il Manchester City e il Brentford incassavano più o meno lo
+  stesso a partita.
+- **Il risultato.** Nel Mondo 2026-27, dove le rose costano quanto costano oggi, un grande club perdeva da 10 a
+  20 milioni a stagione: nella prima stagione Real Madrid −16,9 M, Manchester City −18,5 M, Inter −10,9 M. Un
+  club piccolo invece restava più o meno in pari.
+
+**Cosa cambia nella 4.0.6.** A ogni partita il tuo club riceve anche la sua quota degli **incassi da diritti TV e
+sponsor** della stagione:
+- una **base** che dipende dalla serie: 3,0 M a stagione nella massima serie, 1,2 M nella seconda, 0,5 M nella
+  terza, 0,2 M dalla quarta in giù (una serie a gironi paralleli, come la Serie C o la Serie D, conta come un
+  solo livello);
+- più **1,1 volte il monte stipendi della stagione**: un club più grande guadagna di più da TV e sponsor.
+I soldi arrivano un po' alla volta, partita dopo partita, e compaiono alla voce SPONSORIZZAZIONE nella schermata dei
+conti. Le spese restano esattamente quelle del gioco originale.
+
+Perché è più vicino al calcio vero:
+- Nei grandi campionati europei gli stipendi assorbono di solito ben più della metà dei ricavi di un club (è una cifra generale del calcio vero, non misurata da noi). Un incasso che cresce
+  con il monte stipendi (1,1 volte gli stipendi, oltre a stadio e premi) porta un club ben gestito in
+  quell'ordine di grandezza.
+- I ricavi da TV e sponsor crescono con la grandezza del club. I diritti TV nazionali invece si dividono in modo
+  abbastanza uniforme tra i club della stessa serie: è la base per serie.
+- I club ricevono questi soldi a rate durante la stagione, non tutti insieme. Quindi non si possono spendere tutti
+  il primo giorno di mercato.
+
+**Il difetto dello stadio.** L'incasso di una singola partita era conservato in un numero che non poteva superare
+circa 1,05 milioni. Oltre quel limite il conto ripartiva da zero, quindi un pubblico più numeroso poteva rendere
+molto meno di uno più piccolo. Poteva succedere a un club con una rosa economica e molto pubblico, perché il gioco
+divide l'incasso per il prezzo medio della rosa. Ora l'incasso si ferma al massimo.
+
+Come si vede in carriera (Mondo 2026-27, prime due stagioni, un club che vince le sue partite):
+| Club (serie) | 4.0.5: inizio / fine stagione 1 / fine stagione 2 (minimo) | 4.0.6: inizio / fine stagione 1 / fine stagione 2 (minimo) |
+|---|---|---|
+| Real Madrid (LaLiga) | 7,9 / -9,0 / -32,3 M (-34,4) | 10,4 / 15,3 / 10,3 M (3,5) |
+| Manchester City (Premier League) | 9,2 / -9,2 / -22,1 M (-27,9) | 7,8 / 5,2 / 7,8 M (-3,0) |
+| Inter (Serie A) | 6,1 / -4,8 / -15,5 M (-18,5) | 6,2 / 3,8 / -0,1 M (-1,9) |
+| Brentford (Premier League) | 5,6 / 2,5 / -2,9 M (-4,6) | 4,9 / 6,7 / 5,3 M (3,6) |
+| Ligorna (Serie D) | 0,29 / -0,14 / -0,43 M (-0,58) | 0,33 / 0,84 / 1,15 M (0,32) |
+| Catania (Serie C) | - | 0,61 / 0,35 / 0,89 M (0,07) |
+(Il saldo iniziale lo fissa il gioco e varia un po' da una carriera all'altra.)
+
+Carriere già iniziate: nel salvataggio non viene memorizzato niente. Una carriera iniziata con una versione
+precedente riceve i nuovi incassi dalla partita successiva.
 
 #### In arrivo in questa versione, testo da completare
 - **La rosa dell'avversario durante la partita** [BOZZA: Panchina conferma dopo l'ok di Davide sull'aspetto]. Durante la partita ora puoi vedere la rosa dell'avversario. Apri il menu della panchina (quello dei cambi), porta il cursore sull'allenatore e premi SU.

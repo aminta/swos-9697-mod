@@ -1147,9 +1147,15 @@ class Session:
         29/10), 16 bytes per SM, the echo read after each (many SMs at once filled the pty: both sides waited), then
         read back: a byte that did not land FAILs the scenario."""
         data = bytes(data)
-        for k in range(0, len(data), 16):
+        assert len(data) <= POKE_MAX, f'poke at {lin:#x}: {len(data)} B in one call (POKE_MAX {POKE_MAX}): split it'
+        k0 = 0
+        for i, k in enumerate(range(0, len(data), 16)):
             os.write(self.box.fd, f"SM 168:{lin + k:X} {hexb(data[k:k + 16])}\r".encode())
             self.box.pump(0.05)
+            if (i + 1) % POKE_SYNC == 0 and k + 16 < len(data):   # (4.0.6, Motore: ~25 SMs in a row stalled the
+                got = self.box.dump(lin + k0, k + 16 - k0)          # debugger mid-typing; a read every POKE_SYNC
+                assert got == data[k0:k + 16], f'poke at {lin + k0:#x}: wrote {data[k0:k + 16].hex()}, read {got.hex()}'
+                k0 = k + 16                                         # SMs lets it drain)
         if self.result:
             self.result.chunks = []
         got = self.box.dump(lin, len(data))
@@ -2127,6 +2133,8 @@ def builds():
     return builds.cache
 
 
+POKE_SYNC = 8                                         # Session.poke: SMs between sync reads
+POKE_MAX = 0x4000                                     # Session.poke: bytes in one call
 SAVES = os.path.join(MAIN, 'c', 'SWOS')               # read-only source of the reference saves (copied per run)
 
 
@@ -20447,6 +20455,34 @@ def modver_render(r, chars, gptr, text):
                     pts.setdefault(v, set()).add((x + xx, y))
         x += w + spacing
     return pts
+
+
+@scenario
+def poke_stress():
+    """4.0.6 Session.poke guard (Motore: ~25 debugger SMs in a row stalled the next command): at the main menu, in the
+    video memory's middle (A0000 + 16000, the paused frame: restored after), one 1 KB poke (64 SMs, synced every
+    POKE_SYNC), then 3 pokes of 640 B (40 SMs each) back to back, each read back by poke itself; the 1 KB read in one
+    dump = every byte landed; the original 4 KB put back in one poke (256 SMs); one more dump = the debugger answers"""
+    b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
+    errs, info = [], []
+    at = 0xA0000 + 16000
+    with Session('poke_stress', b, {}, 'dump:3', 200) as s:
+        s.wait()
+        s.send('dump:1')
+        keep = s.box.dump(at, 0x1000)
+        t = time.time()
+        pat = bytes((i * 7 + 3) & 255 for i in range(0x400))
+        s.poke(at, pat)
+        for j in range(3):
+            s.poke(at + 0x400 + j * 0x280, bytes((i + 41 * j) & 255 for i in range(0x280)))
+        got = s.box.dump(at, 0x400)
+        check(got == pat, f'1 KB pattern: {sum(x != y for x, y in zip(got, pat))} bytes differ', errs)
+        info.append(f'64 + 3 x 40 SMs in {time.time() - t:.1f} s')
+        s.poke(at, keep)
+        check(s.box.dump(at, 0x1000) == keep, 'the frame bytes not restored (a 256-SM poke)', errs)
+        r = s.send('dump:1')
+        check(r is not None and r.outcome == 'dump', f'after the pokes: {r}', errs)
+    return not errs, '; '.join(errs + info)
 
 
 @scenario

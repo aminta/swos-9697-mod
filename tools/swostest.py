@@ -309,7 +309,7 @@ def prepare(name, exe_dir, cars, steps, match=False, timer=False):
 
 
 SCAN = {'fire': 0x1D, 'up': 0x48, 'down': 0x50, 'left': 0x4B, 'right': 0x4D, 'esc': 0x01, 'enter': 0x1C,
-        'space': 0x39, 'bspace': 0x0E, 'semicolon': 0x27, 'pgup': 0x49, 'pgdn': 0x51, 'dump': 0xFF}
+        'space': 0x39, 'bspace': 0x0E, 'semicolon': 0x27, 'pgup': 0x49, 'pgdn': 0x51, 'lshift': 0x2A, 'dump': 0xFF}
 SCAN.update({ch: sc for row, base in (('1234567890', 0x02), ('qwertyuiop', 0x10), ('asdfghjkl', 0x1E),
                                       ('zxcvbnm', 0x2C)) for sc, ch in enumerate(row, base)})
 SCRIPT_MAX = 200                                       # steps a pause can write
@@ -453,7 +453,8 @@ stub:   pushad
         jz .held
         call emu
 .held:
-        mov word [hold], HOLD
+        mov ax, [holdn]                 ; (HOLD, or a scenario's poke: kbd2's player 2 keys held longer)
+        mov [hold], ax
 .go:    popad
         jmp GETKEY
 emu:    mov bx, [SCANCODE]
@@ -464,6 +465,7 @@ emu:    mov bx, [SCANCODE]
 ptr:    dd script
 calls:  dd 0                            ; GetKey calls (read from the dump)
 hold:   dw 0
+holdn:  dw HOLD
 cur:    db 0, 0
 script:
 """ + ''.join(f'        dw {k:#x}, {w}\n' for k, w in steps) + '        dw 0, 0\n' + f'        times {4 * SCRIPT_MAX} db 0\n'
@@ -486,7 +488,7 @@ script:
     # the menus' palette as the DAC has it once faded in (frames are rebuilt from memory, no screencapture)
     st = re.search(rb'\x81\xC6\x00\xFA\x00\x00\xBF....\xB9\x00\x03\x00\x00\xF3\xA4', c, re.S).start()
     assert fx[st + 7][0] == 2, 'g_workingPalette'
-    return {'pal': fx[st + 7][1], 'page': page, 'size2': min(le.obj(2).vsize, le.obj(2).npages * le.page_size), 'calls': page + lab['calls'], 'code': (fixed, c[fixed:fixed + 48]), 'menu': curmenu[1],
+    return {'pal': fx[st + 7][1], 'page': page, 'size2': min(le.obj(2).vsize, le.obj(2).npages * le.page_size), 'calls': page + lab['calls'], 'holdn': page + lab['holdn'], 'code': (fixed, c[fixed:fixed + 48]), 'menu': curmenu[1],
             'brk': page + code.index(b'\xcd\x03'), 'ptr': page + lab['ptr'], 'script': page + lab['script'],
             'anchor': (anchor, d2[anchor:anchor + 64]),
             'p3': next(((soff, toff) for sobj, soff, t, tobj, toff, *_ in le.fixups() if sobj == 1 and t == 7 and tobj == 3),
@@ -7966,6 +7968,91 @@ def controls_mode4():
             seen.append(dev)
             check(dev == want, f'device {dev} (want {want})', errs)
     return not errs, '; '.join(errs) or f"4 opens as 3, then {' -> '.join(map(str, seen))}"
+
+
+def kbd2_friendly_run(on):
+    """kbd2_friendly's run: a two-player friendly LAZIO v JUVENTUS on the KEYBOARD ONLY device (SETUP.DAT +6 = 1), with
+    CONTROL2.DAT's player 2 set on / off (W S A D, left SHIFT). Returns (errs, seen)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import kbd2
+    b = builds()['it']
+    tag = 'kbd2_friendly_' + ('on' if on else 'off')
+    tmp = os.path.join(RUNS, tag + '_files')
+    os.makedirs(tmp, exist_ok=True)
+    sd = bytearray(open(os.path.join(setup(), 'SETUP.DAT'), 'rb').read())
+    sd[6:8] = struct.pack('<H', 1)
+    open(os.path.join(tmp, 'SETUP.DAT'), 'wb').write(sd)
+    files = {'SETUP.DAT': os.path.join(tmp, 'SETUP.DAT')}
+    if on:
+        open(os.path.join(tmp, 'CONTROL2.DAT'), 'wb').write(kbd2.MAGIC + b'\x01' + bytes(kbd2.DEFAULT))
+        files['CONTROL2.DAT'] = os.path.join(tmp, 'CONTROL2.DAT')
+    seen, errs = [], []
+    return kbd2_friendly_session(tag, b, files, on, seen, errs)
+
+
+def kbd2_friendly_session(tag, b, files, on, seen, errs):
+    with Session(tag, b, files, 'dump:3', 300, match=True) as s:
+        s.wait()
+        for t in ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE A', 'LAZIO'):
+            walk(s, t, 2)
+        s.send('fire dump:2')                   # LAZIO: COMPUTER -> human
+        walk(s, 'JUVENTUS', 2)
+        s.send('fire dump:2')                   # JUVENTUS: COMPUTER -> human
+        for _ in range(12):
+            scr = s.screen()
+            if scr.selected == 55:
+                s.send('fire dump:4')
+                break
+            s.send(('right' if scr.selected in (56, 57) else 'down') + ' dump:0.5')
+        scr = s.screen()                        # team 1's PLAY MATCH screen: both players' controls
+        t1 = ' | '.join(x[1] for x in scr.entries[:4])
+        a = scr.selected
+        hold = lambda n: s.poke(s.result.base1 + s.info['holdn'], struct.pack('<H', n))
+        hold(4)                                 # (player 2's keys held 4 menu frames: its directions come from its key
+        s.send('w dump:0.5')                    # word only - the feeder's latched key is player 1's set) - its UP
+        moved = s.screen().selected != a        # (the screen opens on PLAY MATCH, its last row)
+        seen.append(f'team 1 ({t1}): row {a}, P2 up moved {moved} (row {s.screen().selected})')
+        check(moved == on, f'team 1 screen: player 2 up {"did not move" if on else "moved"} the selection', errs)
+        if not on:
+            return errs, seen
+        for _ in range(22):                     # down the rows to PLAY MATCH (9) with player 2's keys
+            if s.screen().selected == 9:
+                break
+            s.send('s dump:0.5')
+        check(s.screen().selected == 9, f'P2 keys to PLAY MATCH: row {s.screen().selected}', errs)
+        r = s.send('lshift dump:3')             # player 2's fire: team 1 is player 2's
+        hold(1)
+        scr = s.screen()
+        t2 = ' | '.join(x[1] for x in scr.entries[:4])
+        seen.append(f'after P2 fire: {t2}')
+        check(r.outcome == 'dump' and t2 != t1, f'player 2 fire on team 1: still {t1}', errs)
+        a = scr.selected                        # team 2's screen: player 1's controls only (3 xor 2)
+        s.send('w dump:0.5')
+        check(s.screen().selected == a, 'team 2 screen: player 2 up moved the selection (team 1 is player 2\'s)', errs)
+        for _ in range(22):
+            if s.screen().selected == 9:
+                break
+            s.send('down dump:0.5')
+        r = s.send('fire dump:3')
+        r = s.send('fire:3 ' * 10 + 'dump:2')
+        scr = s.screen()
+        left = scr.entries and any(x[1] in ('PARTITA', 'PLAY MATCH', 'ESCI', 'EXIT') for x in scr.entries[:12])
+        seen.append(f"after P1: outcome {r.outcome}, screen {' | '.join(x[1] for x in scr.entries[:4]) or '(no menu: the match)'}")
+        check(r.outcome == 'dump' and not left, 'player 1 PLAY MATCH on team 2: still a team screen', errs)
+    return errs, seen
+
+
+@scenario
+def kbd2_friendly():
+    """4.0.6 CONTROLS B (Marco): two humans on ONE keyboard. KEYBOARD ONLY + CONTROL2.DAT on: player 2's keys (W S A D,
+    left SHIFT) move team 1's PLAY MATCH screen and its fire takes team 1 for player 2; team 2's screen then answers
+    player 1's keys only; the match starts. Off (no CONTROL2.DAT): player 2's DOWN does nothing (the game's one set)"""
+    errs, seen = [], []
+    for on in (True, False):
+        e, sn = kbd2_friendly_run(on)
+        errs += [f'{"on" if on else "off"}: {x}' for x in e]
+        seen += sn
+    return not errs, '; '.join(errs + seen)
 
 
 @scenario

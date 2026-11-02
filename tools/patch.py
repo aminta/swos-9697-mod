@@ -708,6 +708,8 @@ def patch_exe(src, dst, remap, lang='it'):
     cc_end = cpucards.patch(p, (bn_end + 15) & ~15, lang)    # OPTIONS rows (ON by default), in obj3 after benchx
     cpucards.force(p)                                        # (CARDS_FORCE test builds only: last-man fouls forced)
     cpucards.force_inj(p)                                    # (INJ_FORCE test builds only: every tackle injures)
+    import kbd2                                  # 4.0.6 CONTROLS B (Marco): player 2's own key set on one keyboard,
+    cc_end = kbd2.patch(p, (cc_end + 15) & ~15, lang)        # in obj3 after the previous block's end
     assert cc_end <= 0x1000 * OBJ3_PAGES, hex(cc_end)
     p.set_vsize(3, 0x1000 * OBJ3_PAGES)
     p.set_vsize(1, OBJ1_NEW_VSIZE + (0x1000 * (cp + 2 + cdp) if worlds else 0) + h2 + 0x1000 * (lpb + sp_pg + sc_pg + ct_pg + ctl_pg))

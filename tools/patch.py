@@ -703,6 +703,8 @@ def patch_exe(src, dst, remap, lang='it'):
     bn_end = benchx.patch(p, 0, ns_at, lang)     # (4.0.6: in obj3)
     import kittrain                              # 4.0.6 (Marco): SELECT KITS in a training game (A / B: one name),
     bn_end = kittrain.patch(p, (bn_end + 15) & ~15)   # obj3 right after benchx
+    import squadnum                              # 4.0.6 (Marco): editable shirt numbers on the club's squad screen
+    bn_end = squadnum.patch(p, (bn_end + 15) & ~15)   # (shirtedit's editor), obj3 after kittrain
     assert bn_end <= 0x1000 * BENCHX_PAGES, hex(bn_end)
     p.set_vsize(3, 0x1000 * BENCHX_PAGES)
     p.set_vsize(1, OBJ1_NEW_VSIZE + (0x1000 * (cp + 2 + cdp) if worlds else 0) + h2 + 0x1000 * (lpb + sp_pg + sc_pg + ct_pg + ctl_pg))

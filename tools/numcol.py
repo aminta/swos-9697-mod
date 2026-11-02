@@ -4,11 +4,15 @@ a two-digit number (10.., the mod's 17..99) fills the 10 px and its right digit'
 by the name bar. Each menu's name template (x 23, width 82) and its list rows (the 17 position entries x 23 / 82)
 move to x 24, width 81: the shadow shows, single digits and the names' text start (+1 px) as before otherwise.
 shirtedit's lit number box is 11 px wide (se_hl) to cover that column too.
+4.0.6 (Marco): the club's squad screen (squadMenu: number x 13 / 10 px, name bar x 23, 134 px, its 17 rows the same)
+had the same covered shadow, and the number touched the name ("99MILE SVILAR"): its name template and rows move to
+x 25, width 132 (the shadow column x 23, then a 1 px gap).
 Data only (obj2 packed menus, the same bytes in every exe)."""
 import re
 
 TEMPLATE = (b'\x0d\x00\x00\x00\x0a\x00\x08\x00\x0c\x00\x00\x00\x00\x00\x00\x00'   # number: x 13, w 10, type 12
             b'\x17\x00\x00\x00\x52\x00\x08\x00\x04\x00\x0a\x00\x08\x00\x00\x80')  # name: x 23, w 82, red, text
+SQUAD = TEMPLATE[:20] + b'\x86' + TEMPLATE[21:]        # squadMenu: name w 134
 
 
 def patch(p):
@@ -26,4 +30,14 @@ def patch(p):
             p.put(2, r, b'\x18\x00')
             p.put(2, r + 4, b'\x51\x00')
         n += len(rows)
-    print(f'exe: squad lists\' number column 1 px wider (names x 24: 2 templates, {n} rows)')
+    h = [m.start() for m in re.finditer(re.escape(SQUAD), d2)]
+    assert len(h) == 1, ('numcol: the squad screen template', h)
+    h = h[0]
+    p.put(2, h + 16, b'\x19\x00')                       # 4.0.6: x 25, width 132
+    p.put(2, h + 20, b'\x84\x00')
+    rows = [h - 0x900 + m.start() for m in re.finditer(rb'\x17\x00.\x00\x86\x00\x08\x00\x02\x00', d2[h - 0x900:h], re.S)]
+    assert len(rows) == 17, ('numcol: squad screen rows', len(rows))
+    for r in rows:
+        p.put(2, r, b'\x19\x00')
+        p.put(2, r + 4, b'\x84\x00')
+    print(f'exe: squad lists\' number column 1 px wider (names x 24: 2 templates, {n} rows; the squad screen x 25)')

@@ -3844,6 +3844,166 @@ def shirt_edit():
     return not errs, '; '.join(errs + notes)
 
 
+def sq_vars():
+    """squadnum.sites() of the exe language's original (SADC obj1, SQT obj2)."""
+    if not hasattr(sq_vars, 'v'):
+        se_vars()
+        import lepatch
+        import squadnum
+        sq_vars.v = squadnum.sites(lepatch.LEPatch(os.path.join(ROOT, 'orig', UI_ORIG)))
+    return sq_vars.v
+
+
+def sq_team(s):
+    """(the squad screen's team, careerTeam's [shirt numbers by record slot (32)], its pin byte, squad slots in order)."""
+    v, r = se_vars(), s.result
+    t = struct.unpack('<I', r.read(r.base2 + sq_vars()['SQT'][1], 4))[0]
+    ct = r.base2 + v['CT'][1]
+    d = r.read(ct, 76 + 38 * 32)
+    n = struct.unpack('<H', r.read(r.base2 + v['CNP'][1], 2))[0]
+    return t, [d[76 + 38 * i + 2] for i in range(32)], d[23], list(r.read(r.base2 + v['CMP'][1], n))
+
+
+def sq_rows(s):
+    """The squad screen's player rows (after-draw SquadAfterDrawCommon)."""
+    r = s.result
+    m = r.base2 + s.info['menu']
+    return [i for i in range(s.screen().n)
+            if struct.unpack('<I', r.read(m + 0x16 + i * 0x38 + 0x34, 4))[0] == r.base1 + sq_vars()['SADC'][1]]
+
+
+def sq_open(s):
+    """Career menu -> SQUADRA (the club's squad screen); True when its rows are there."""
+    for _ in range(10):
+        scr = s.screen()
+        t = scr.texts()
+        if 'SQUADRA' in t and 'PARTITA' in t:
+            press(s, scr, 'SQUADRA', 2)
+            return bool(sq_rows(s))
+        s.send('fire dump:2')
+    return False
+
+
+@scenario
+def squad_numbers():
+    """4.0.6 (Marco) editable shirt numbers on the club's squad screen (squadnum.py: shirtedit's editor there): JUVEFIX3
+    career, SQUADRA: LEFT on a row lights the number, UP = next free, typed 23 (its holder swapped), ESC undoes, typed 7
+    + ENTER (swap, the pin bit), the cursor moves again, a starter <-> bench swap keeps the numbers; saved (.CAR
+    careerTeam at 56192) and reloaded: the squad screen shows the same numbers. Shots squad / lit / after (numcol: the
+    name bar x 25). Another club's squad there (VISUAL. COMPETIZ. > SERIE A > STAT > VIS. SQUADRE > CAGLIARI): LEFT, UP,
+    23 change nothing"""
+    car = os.path.join(SAVES, 'JUVEFIX3.CAR')
+    errs, notes = [], []
+    with Session('squad_numbers', builds()['it'], {'JUVEFIX3.CAR': car}, 'dump:2', 300) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'START: no first pause ({s.result})'
+        s.send('down down down down down fire dump:2')
+        s.send('fire dump:2')
+        if not sq_open(s):
+            return False, f'no squad screen ({s.screen()})'
+        ct = s.result.base2 + se_vars()['CT'][1]
+        team, n0, pin0, sq = sq_team(s)
+        rows = sq_rows(s)
+        check(team == ct and rows == list(range(28, 45)), f'squad screen: team {team:#x} (careerTeam {ct:#x}), rows {rows}',
+              errs)
+        notes.append(f'numbers {[n0[i] for i in sq]}, pin {pin0:#x}')
+        s.shot('squad')
+        scr = se_goto(s, 35)                           # row 7: LEFT, UP -> the next free number above
+        s.send('dump:1')
+        s.send('left dump:1')
+        s.shot('lit')
+        before = sq_team(s)[1]
+        check(len({before[i] for i in sq}) == len(sq), f'first edit: numbers not unique {[before[i] for i in sq]}', errs)
+        s.send('up dump:1')
+        after = sq_team(s)[1]
+        ch = [i for i in range(32) if before[i] != after[i]]
+        check(len(ch) == 1, f'UP: {len(ch)} numbers changed ({before[:20]} -> {after[:20]})', errs)
+        if len(ch) == 1:
+            k, o, nw = ch[0], before[ch[0]], after[ch[0]]
+            used = {before[i] for i in sq if i != k}
+            want = next(x for x in list(range(o + 1, 100)) + list(range(1, o)) if x not in used)
+            check(nw == want, f'UP: {o} -> {nw}, want {want} (next free)', errs)
+            notes.append(f'UP {o} -> {nw}')
+            holder = next((i for i in sq if after[i] == 23 and i != k), None)
+            s.send('2 3 dump:1')
+            t3 = sq_team(s)[1]
+            check(t3[k] == 23 and (holder is None or t3[holder] == nw), f'typed 23: {t3[:20]} (holder {holder})', errs)
+            s.shot('typed23')
+            s.send('esc dump:1')
+            t4 = sq_team(s)[1]
+            check(t4 == before, f'ESC: {[t4[i] for i in sq]} != {[before[i] for i in sq]}', errs)
+            check(s.screen().find('PRATICA', exact=True) is not None, f'ESC left the squad screen ({s.screen()})', errs)
+            s.send('left dump:1')
+            h7 = next((i for i in sq if before[i] == 7 and i != k), None)
+            s.send('7 dump:2')                         # (single digit: committed by the timer)
+            s.send('enter dump:1')
+            t5 = sq_team(s)[1]
+            check(t5[k] == 7 and (h7 is None or t5[h7] == before[k]), f'typed 7: {t5[:20]} (holder {h7})', errs)
+            check(len({t5[i] for i in sq}) == len(sq), f'duplicate numbers {[t5[i] for i in sq]}', errs)
+            notes.append(f'typed 7 (holder slot {h7} got {before[k]})')
+            check(sq_team(s)[2] & 0x80, f'pin bit not set ({sq_team(s)[2]:#x})', errs)
+            s.send('down dump:1')
+            check(s.screen().selected == 36, f'after ENTER, DOWN: selected {s.screen().selected}', errs)
+            nb = sq_team(s)[1]                         # starter (row 8) <-> bench (row 12): numbers stay
+            s.send('fire dump:1')
+            se_goto(s, 40)
+            s.send('fire dump:2')
+            na = sq_team(s)[1]
+            check(na == nb, f'swap with the bench: numbers {nb[:20]} -> {na[:20]}', errs)
+            s.shot('after')
+        final = sq_team(s)[1]
+        notes.append(f'final {[final[i] for i in sq]}')
+        for _ in range(10):                            # back to the career menu, then save from the main menu
+            scr = s.screen()
+            if 'FINISCI STAGIONE' in scr.texts() or 'PARTITA' in scr.texts() and 'TRASFERIMENTI' in scr.texts():
+                break
+            press(s, scr, 'ESCI') or s.send('fire dump:2')
+        press(s, s.screen(), 'ESCI', wait=2)
+        press(s, s.screen(), 'SALVA CARRIERA', wait=2)
+        s.send(name_entry('squadn1') + ' dump:3')
+        game = s.result.game
+    path = os.path.join(game, 'SQUADN1.CAR')
+    if not os.path.exists(path):
+        return False, '; '.join(errs + notes + [f'SQUADN1.CAR not saved ({sorted(os.listdir(game))})'])
+    d = open(path, 'rb').read()
+    saved = [d[56192 + 76 + 38 * i + 2] for i in range(32)]
+    check(saved == final, f'.CAR numbers {saved[:20]} != {final[:20]}', errs)
+    check(d[56192 + 23] & 0x80, f'.CAR pin byte {d[56192 + 23]:#x}', errs)
+    with Session('squad_numbers2', builds()['it'], {'SQUADN1.CAR': path}, 'dump:2', 300) as s:
+        s.wait()
+        s.send('down down down down down fire dump:2')
+        s.send('fire dump:2')
+        if not sq_open(s):
+            return False, '; '.join(errs + notes + [f'reloaded: no squad screen ({s.screen()})'])
+        again = sq_team(s)[1]
+        check(again == saved, f'reloaded: {again[:20]} != saved {saved[:20]}', errs)
+        s.shot('reloaded')
+        press(s, s.screen(), 'ESCI', 2)                # another club's squad on the same screen: read-only
+        vis = 'CAGLIARI'
+        for t in ('VISUAL. COMPETIZ.', 'ITALIA SERIE A', 'STAT', 'VIS. SQUADRE', vis):
+            if press(s, s.screen(), t, 2) is None:
+                errs.append(f'{t} not found ({s.screen()})')
+                break
+        else:
+            team, b0, _, _ = sq_team(s)
+            rows = sq_rows(s)
+            check(team != ct and rows, f'{vis} squad: team {team:#x}, rows {rows}', errs)
+            if rows:
+                se_goto(s, rows[7])
+                s.send('dump:1')
+                od = s.result.read(team, 76 + 38 * 16)
+                s.send('left dump:1')
+                s.send('up dump:1')
+                s.send('2 3 dump:2')
+                s.send('enter dump:1')
+                nd = s.result.read(team, 76 + 38 * 16)
+                check(nd == od, f'{vis} squad: LEFT / UP / 23 changed its record', errs)
+                check(sq_team(s)[1] == saved, f'{vis} squad: careerTeam changed', errs)
+                s.shot('opponent')
+                notes.append(f'{vis} squad: unchanged')
+    return not errs, '; '.join(errs + notes)
+
+
 def se_to_playmatch(s, tries=12):
     """From a season / career menu to the team screen before the next match (MOD. TATTICA + AVVERSARI); the screen."""
     for _ in range(tries):

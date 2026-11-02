@@ -540,6 +540,10 @@ def test(confs=('conmebol',), seasons=3, seed=7):
                 else:
                     v = rnd.randint(1, 4)
                     path.append(f'{cn}:{g[1]} groups ({g[3]}) place {v}')
+                if os.environ.get('CONTI_TEST_REPLAY'):   # 4.0.6 view: the replay leaves the state as it was
+                    snap = bytes(SEG), bytes(OUTB), bytes(IN)
+                    L.ct_resume()
+                    assert (bytes(SEG), bytes(OUTB), bytes(IN)) == snap, f'replay changed the state at {path[-1]}'
                 L.ct_result(v)
             print('    career club:', ' -> '.join(path) or 'no game')
             L.ct_season.restype = None

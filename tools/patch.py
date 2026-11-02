@@ -28,6 +28,7 @@ import weeks
 import purple
 import blond
 import xtra
+import xleft
 import pgroups
 import engine
 import menunum
@@ -231,6 +232,7 @@ def patch_exe(src, dst, remap, lang='it'):
         engine.save_item('SC', supercup.SC_SIZE, world_only=True)
     if xtra_on:
         engine.save_item('XS', xtra.XS_SIZE, world_only=True)    # 4.0.2 the XTRA players bought from other clubs (xtra.py)
+        engine.save_item('XL', xleft.XL_SIZE, world_only=True)   # 4.0.6 the XTRA players who left their club, XS's overflow (xleft.py)
     engine.save_item('CC', 4)                    # 4.0.6 the OPTIONS rows 'CPU red cards', 'CPU injuries' (cpucards.py: 0 = ON;
     engine.after_load('cc_load')                 # the session's value kept by a load / a new career)
     engine.after_new('cc_new')
@@ -734,6 +736,9 @@ def patch_exe(src, dst, remap, lang='it'):
     import kbd2                                  # 4.0.6 CONTROLS B (Marco): player 2's own key set on one keyboard,
     kb_end = kbd2.patch(p, (fi_end + 15) & ~15, lang)        # in obj3 after finance (bteam next: (kb_end + 15) & ~15)
     assert kb_end <= 0x1000 * OBJ3_PAGES, hex(kb_end)
+    if xtra_on:                                  # 4.0.6 (Enzo): XTRA players who left their club never come back with it,
+        kb_end = xleft.patch(p, (kb_end + 15) & ~15)         # in obj3 after kbd2
+        assert kb_end <= 0x1000 * OBJ3_PAGES, hex(kb_end)
     print(f'exe: obj3 end {kb_end:#x} ({0x1000 * OBJ3_PAGES - kb_end} B left)')
     p.set_vsize(3, 0x1000 * OBJ3_PAGES)
     p.set_vsize(1, OBJ1_NEW_VSIZE + (0x1000 * (cp + 2 + cdp) if worlds else 0) + h2 + 0x1000 * (lpb + sp_pg + sc_pg + ct_pg + ctl_pg))

@@ -19826,6 +19826,316 @@ def world_job_squad():
     info.append(f'next season: {name} with {sum(x in got for x in extras)}/{len(extras)} extras in slots 16.. ({len(got)} named)')
     return not errs, '; '.join(errs + info)
 
+
+def home_market_sites():
+    """obj2 offsets of numHomeMarketPlayers / homeMarketPlayers (AddPlayerToCareerContest) in the original IT exe."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import sacups
+    from le import LE
+    d1 = LE(open(os.path.join(ROOT, 'orig', 'ITALIAN.EXE'), 'rb').read()).obj_bytes(1)
+    a1 = sacups.regs(d1)['A1']
+    m = re.search(rb'\x66\x83\x3d(....)\x19\x74.\xc7\x05' + re.escape(struct.pack('<I', a1)) + rb'(....)', d1, re.S)
+    return struct.unpack('<I', m.group(1))[0], struct.unpack('<I', m.group(2))[0]
+
+
+def xtra_buy_first(s):
+    """Career menu -> TRASFERIMENTI > ACQUISTA GIOCATORE > VISUAL. MERCATO NAZIONALE > ELENCA, the first row, the offer
+    raised until accepted (xtra_market's way); back to the career menu. Returns the answer screen's texts."""
+    walk(s, 'TRASFERIMENTI', 3)
+    walk(s, 2, 3)
+    scr = s.screen()
+    walk(s, next(e[0] for e in scr.entries if e[1] and 'VISUAL. MERCATO NAZIONALE' in e[1]), 3)
+    walk(s, 7, 3)
+    scr = s.screen()
+    s.shot('list')
+    row = next(e[0] for e in scr.entries if 10 <= e[0] < 20 and not e[2])
+    for k in (scr.path(row) or []):
+        s.send(k + ' dump:0.5')
+    s.send('fire dump:4')
+    raise_n = 10
+    for _ in range(10):
+        scr = s.screen()
+        tx = scr.texts()
+        if "FAI UN'OFFERTA" in tx:
+            s.send(' '.join(['fire+right'] * raise_n) + ' dump:1')
+            walk(s, s.screen().find('CONFERMA OFFERTA', exact=True), 3)
+            raise_n = 0
+            continue
+        more = next((re.search(r'AUMENTI DI L([\d,]+)M', x) for x in tx if 'AUMENTI DI' in x), None)
+        if "OFFRI DI PIU'" in tx:
+            raise_n = (int(more.group(1).replace(',', '')) // 100000 + 1) if more else 5
+            walk(s, scr.find("OFFRI DI PIU'", exact=True), 3)
+            continue
+        break
+    tx = s.screen().texts()
+    for _ in range(8):
+        if 'PROSS. PARTITA' in s.screen().texts():
+            break
+        press(s, s.screen(), 'CONTINUA', 3) or press(s, s.screen(), 'ESCI', 3) or s.send('fire dump:2')
+    return tx
+
+
+def xleft_lists(s, exe):
+    """[(team, index)] of the build's 'XTRA players who left' lists in memory: xtra's XS (+ xleft's XL when built)."""
+    import lepatch
+    p = lepatch.LEPatch(os.path.join(exe, 'ITALIAN.EXE'))
+    r = s.result
+    xs = r.read(r.base1 + xtra_xsold(p), 2 + 3 * 128)
+    out = [struct.unpack_from('<HB', xs, 2 + 3 * i) for i in range(min(struct.unpack('<H', xs[:2])[0], 128))]
+    xl = b''
+    if len(p.le.objs) > 2:
+        d3 = p.le.obj_bytes(3)
+        k = d3.find(b'XLFT')
+        if k >= 0 and r.base3 is not None:
+            xl = r.read(r.base3 + k + 4, 5 + 3 * 32)
+            if xl[0]:
+                out += [struct.unpack_from('<HB', xl, 5 + 3 * i) for i in range(min(struct.unpack('<H', xl[1:3])[0], 32))]
+    return out, xs[:2 + 3 * 4].hex() + ('/' + xl[:5 + 3 * 2].hex() if xl else '/no XL')
+
+
+@scenario
+def xleft_job():
+    """4.0.6 (Enzo's duplicate): an XTRA player who left his club never comes back with it. World 2026-27 career at
+    ATALANTA (release recipe, SWOSTEST_BUILD); the home market poked with KUPS KUOPIO's first XTRA player (index 16),
+    bought; one of ATALANTA's own extras moved into the first 16 of the squad order (he is written back into its record at
+    the job change); KUPS's job offer forced (world_job_squad's way), the season played, ACCETTA, the next season saved.
+    PASS: KUPS's careerTeam without the bought player (base 4.0.5: he is in slots 16.. again = the duplicate), with its
+    other extras; ATALANTA's moved extra in the list (xl_job); the list the same after a reload. XLEFT_FULL=1: xtra's XS
+    list poked full (128) first, so the purchase goes to xleft's XL (the overflow list, its market blanking)."""
+    import lepatch
+    exe = builds()['it']
+    club, me = os.environ.get('JOB_CLUB', 'KUPS KUOPIO'), 'ATALANTA'
+    full = bool(os.environ.get('XLEFT_FULL'))
+    nojob = bool(os.environ.get('XLEFT_NOJOB'))         # (bisect: no job offer, the season end at ATALANTA)
+    seller = os.environ.get('XLEFT_SELLER', club)       # (bisect: buy another club's extra)
+    blk, mine = xtra_club_block(exe, seller), xtra_club_block(exe, me)
+    if not blk or not mine:
+        return False, f'no XTRA block: {seller} {bool(blk)}, {me} {bool(mine)}'
+    word, extras = blk
+    jword = xtra_club_block(exe, club)[0]
+    myword, myx = mine
+    bought = extras[0]
+    p = lepatch.LEPatch(os.path.join(exe, 'ITALIAN.EXE'))
+    import xtra
+    _, cnp, ct, cmp, sel = xtra.sites(p)
+    nh, hm = home_market_sites()
+    num, offers = job_offer_sites(exe)
+    path = ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27', 'EUROPA', 'ITALIA', 'SERIE A', me]
+    errs, info = [], []
+    names = lambda r: [r.obj2(ct + 76 + j * 38 + 3, 23).split(b'\0')[0].decode('latin1') for j in range(32)]
+
+    def leave(s):
+        for _ in range(8):
+            if 'PROSS. PARTITA' in s.screen().texts():
+                break
+            press(s, s.screen(), 'CONTINUA', 3) or press(s, s.screen(), 'ESCI', 3) or s.send('fire dump:2')
+
+    def consider(s, i):                                 # OFFERTE LAVORO -> the letter -> CONSIDERA (world_job_squad's
+        walk(s, i, 3)                                   # way: without it the new club is not cached at the season end,
+        letter = s.screen()                             # FindTeamInCache's int 3 at obj1+0x17064)
+        if letter.find('CONSIDERA', exact=True) is None:
+            rows = [j for j, g in enumerate(letter.geom) if g[0] == 8 and g[2] == 304 and not letter.entries[j][2]
+                    and not letter.entries[j][3]]
+            if rows:
+                walk(s, rows[0], 3)
+        press(s, s.screen(), 'CONSIDERA', 3)
+        for _ in range(6):
+            if 'TRASFERIMENTI' in s.screen().texts():
+                break
+            press(s, s.screen(), 'CONTINUA', 3) or press(s, s.screen(), 'ESCI', 3) or s.send('fire dump:2')
+
+    with Session('xleft_job', exe, {}, 'dump:2', 600) as s:
+        s.wait()
+        if not pick_career(s, path):
+            return False, 'new career: ' + str(s.screen().texts()[:8])
+        s.send('fire dump:3')
+        leave(s)
+        r = s.result
+        nobuy, noswap = bool(os.environ.get('XLEFT_NOBUY')), bool(os.environ.get('XLEFT_NOSWAP'))   # (bisect switches)
+        if full:                                        # XS counted full: its zero entries (team 0, index 0) never match
+            s.poke(r.base1 + xtra_xsold(p), struct.pack('<H', 128))     # an XTRA index (16..). (A 386-byte poke stalled the
+                                                                         # debugger on the next SM, twice: keep pokes short)
+        bidx = int(os.environ.get('XLEFT_IDX', 16))     # (bisect: a record player instead, index < 16)
+        s.poke(r.base2 + hm, struct.pack('<HBB', word, bidx, 0))
+        s.poke(r.base2 + nh, struct.pack('<H', 1))
+        n0, nm0 = struct.unpack('<H', s.result.obj2(cnp, 2))[0], names(s.result)
+        ans = xtra_buy_first(s) if not nobuy else []
+        r = s.result
+        n1, nm1 = struct.unpack('<H', r.obj2(cnp, 2))[0], names(r)
+        if bidx < 16:
+            bought = next((x for x in nm1[:n1] if x not in nm0), bought)
+        if bought not in nm1[:n1] and not nobuy:
+            return False, f'purchase of {bought} failed: squad {n0} -> {n1}, answer {ans[:6]}'
+        lst, raw = xleft_lists(s, exe)
+        info.append(f'bought {bought} ({club} 16): lists {raw}')
+        check((word, 16) in lst, f'after the purchase: ({word:#x}, 16) not listed {raw}', errs)
+        # one of ATALANTA's extras (slot 16.., an XTRA name) to squad position 15: written back at the job change
+        order = list(r.obj2(cmp, n1))
+        q = next((j for j in range(16, n1) if nm1[j] in myx), None)
+        if q is None:
+            return False, f'{me}: no extra in slots 16.. {nm1[16:n1]}'
+        qi, qn = order.index(q), nm1[q]
+        order[qi], order[15] = order[15], order[qi]
+        if not noswap:
+            s.poke(r.base2 + cmp, bytes(order))
+        idx_q = 16 + myx.index(qn)
+        if not nojob:
+            s.poke(r.base2 + offers, struct.pack('<H', jword) + b'\xff' + bytes(17) + struct.pack('<I', 500000) + bytes(2))
+            s.poke(r.base2 + num, struct.pack('<H', 1))
+            walk(s, s.screen().find('VISUAL. COMPETIZ.', exact=True), 3)    # (back: ContestMenuOnReturn -> CheckJobOffers)
+            press(s, s.screen(), 'ESCI', 3)
+            leave(s)
+        i = None if nojob else next((e[0] for e in s.screen().entries if e[1] and ('LAVORO' in e[1]) and not e[2] and not e[3]), None)
+        if i is None and not nojob:
+            return False, f'no job offer entry: {s.screen().texts()[:20]}'
+        if not nojob:
+            consider(s, i)
+        for _ in range(6):                              # career menu -> ESCI -> main menu: save
+            if s.screen().find('SALVA CARRIERA', exact=True) is not None:
+                break
+            press(s, s.screen(), 'ESCI', 3) or press(s, s.screen(), 'ABBANDONA', 3)
+        walk(s, 'SALVA CARRIERA', 2)
+        s.send(name_entry('XLJB') + ' dump:3')
+        car = os.path.join(s.run, 'SWOS', 'XLJB.CAR')
+    if not os.path.exists(car):
+        return False, '; '.join(errs + ['no XLJB.CAR'])
+    keys = ('W8485_BUILD', 'W8485_FROM', 'W8485_NOSACK', 'W8485_SAVE_END', 'SWOSTEST_SCENARIO')
+    keep = {k: os.environ.get(k) for k in keys}
+    try:                                                # the season to its end (saved before CONTINUA)
+        os.environ.update(W8485_BUILD=exe, W8485_FROM=car, W8485_NOSACK='1', W8485_SAVE_END='XLJE',
+                          SWOSTEST_SCENARIO='xleft_job_season')
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    if 'saved ' not in msg:
+        return False, '; '.join(errs + [f'season: {msg[:200]}'])
+    end = msg.split('saved ', 1)[1].strip()
+    with Session('xleft_job_next', exe, {'XLJE.CAR': end}, 'dump:2', 600) as s:
+        s.wait()
+        s.send(LOAD1 + ' dump:3')
+        if nojob:                                       # (bisect: the next season at ATALANTA)
+            nxt = next_season_save(s, 'XLJN')
+            return nxt.endswith('.CAR'), f'no job, next season: {nxt}'
+        if press(s, s.screen(), 'OFFERTE LAVORO', 3) is None:
+            return False, '; '.join(errs + [f'season end: no OFFERTE LAVORO {s.screen().texts()[:14]}'])
+        scr = s.screen()
+        row = next((e[0] for e in scr.entries if e[1] and club in e[1] and not e[2] and not e[3]), None)
+        if row is None:
+            return False, '; '.join(errs + [f'season end: no offer of {club}: {scr.texts()[:10]}'])
+        rows = [j for j, g in enumerate(scr.geom) if g[0] == 8 and g[2] == 304 and not scr.entries[j][2]
+                and not scr.entries[j][3]]
+        walk(s, next((j for j in rows if abs(scr.geom[j][1] - scr.geom[row][1]) <= 4), rows[-1] if rows else row), 3)
+        if press(s, s.screen(), 'ACCETTA', 3) is None:
+            return False, '; '.join(errs + [f'season end: no ACCETTA {s.screen().texts()[:14]}'])
+        nxt = next_season_save(s, 'XLJN')               # CONTINUA CARRIERA: the new job
+        if nxt.endswith('.CAR'):
+            lst2, raw2 = xleft_lists(s, exe)
+    if not nxt.endswith('.CAR'):
+        return False, '; '.join(errs + [f'next season: {nxt}'])
+    d = open(nxt, 'rb').read()[56192:56192 + 684 + 38 * 16]
+    name = d[5:22].split(b'\0')[0].decode('latin1')
+    rec = [d[76 + 38 * i + 3:76 + 38 * i + 26].split(b'\0')[0].decode('latin1') for i in range(16)]
+    got = [x for x in (d[684 + 38 * i + 3:684 + 38 * i + 26].split(b'\0')[0].decode('latin1') for i in range(16)) if x]
+    check(name == club, f'next season: careerTeam {name!r}', errs)
+    check(bought not in got and bought not in rec, f'DUPLICATE: {bought} (bought by {me}) back at {club}: slots 16.. {got}', errs)
+    check(all(x in got for x in extras[1:]), f'{club} extras missing: {[x for x in extras[1:] if x not in got]}', errs)
+    check((myword, idx_q) in lst2, f'{me} extra {qn} ({idx_q}) written back at the job change, not listed: {raw2}', errs)
+    check((word, 16) in lst2, f'the bought one ({word:#x}, 16) no longer listed: {raw2}', errs)
+    info.append(f'next season: {name}, slots 16.. {len(got)} named, {bought} absent: {bought not in got}; lists {raw2}')
+    with Session('xleft_job_reload', exe, {'XLJN.CAR': nxt}, 'dump:2', 600) as s:
+        s.wait()
+        s.send(LOAD1 + ' dump:3')
+        lst3, raw3 = xleft_lists(s, exe)
+        check(lst3 == lst2, f'after a reload: lists {raw3} != {raw2}', errs)
+    return not errs, '; '.join(errs + info)
+
+
+@scenario
+def xleft_oldsave():
+    """4.0.6: Enzo's own 4.0.5 save (internal/reports/enzo-dup-20261102/ENZO.CAR, COMO, a copy) on this build: it loads
+    (no 'XL' in it: the list empty), the squad is the saved one (27 players, LAHDO in it: no repair after a load,
+    CONVENTIONS 19), the lists' XS part as saved, a match day is played."""
+    exe = builds()['it']
+    src = os.path.join(MAIN, 'internal', 'reports', 'enzo-dup-20261102', 'ENZO.CAR')
+    if not os.path.exists(src):
+        return True, 'SKIP: no ENZO.CAR'
+    import lepatch
+    import xtra
+    _, cnp, ct, cmp, sel = xtra.sites(lepatch.LEPatch(os.path.join(exe, 'ITALIAN.EXE')))
+    errs, info = [], []
+    with Session('xleft_oldsave', exe, {'ENZO.CAR': src}, 'dump:2', 600) as s:
+        s.wait()
+        s.send(LOAD1 + ' dump:3')
+        r = s.result
+        n = struct.unpack('<H', r.obj2(cnp, 2))[0]
+        nm = [r.obj2(ct + 76 + j * 38 + 3, 23).split(b'\0')[0].decode('latin1') for j in range(32)]
+        check(n == 27 and 'ADRIAN LAHDO' in nm[:n], f'squad {n}: {nm[16:n]}', errs)
+        lst, raw = xleft_lists(s, exe)
+        info.append(f'ENZO.CAR loaded: {n} players, lists {raw} ({len(lst)} entries)')
+        seen = {'res': False}
+
+        def played(scr):
+            tx = scr.texts()
+            if '- RISULTATO -' in tx:
+                seen['res'] = True
+            return seen['res'] and 'PROSS. PARTITA' in tx and 'SQUADRA' in tx
+        ok, msg = advance(s, played, 600)
+        check(ok, f'a match day: {str(msg)[:120]}', errs)
+    return not errs, '; '.join(errs + info)
+
+
+
+def xleft_season(exe, car, tag):
+    """A save played to its season end (world8485, W8485_FROM) and into the next season (CONTINUA CARRIERA, saved):
+    (ok, message)."""
+    keys = ('W8485_BUILD', 'W8485_FROM', 'W8485_NOSACK', 'W8485_SAVE_END', 'SWOSTEST_SCENARIO')
+    keep = {k: os.environ.get(k) for k in keys}
+    try:
+        os.environ.update(W8485_BUILD=exe, W8485_FROM=car, W8485_NOSACK='1', W8485_SAVE_END=tag[:3] + 'E',
+                          SWOSTEST_SCENARIO=f'xleft_{tag.lower()}_season')
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    if 'saved ' not in msg:
+        return False, f'season: {msg[:200]}'
+    end = msg.split('saved ', 1)[1].strip()
+    with Session(f'xleft_{tag.lower()}_next', exe, {os.path.basename(end): end}, 'dump:2', 600) as s:
+        s.wait()
+        s.send(LOAD1 + ' dump:3')
+        nxt = next_season_save(s, tag[:3] + 'N')
+    return nxt.endswith('.CAR'), f'next season: {nxt}'
+
+
+@scenario
+def xleft_oldpool():
+    """4.0.6: saves made before the fix that already hold an XTRA purchase's replacement (index 16..) in the CPU squads'
+    change list play on across a season end (the appliers' guard, xleft gx_0..2; 4.0.5: FindTeamInCache's int 3 at
+    obj1+0x17064 at the next season): XLJB405.CAR (REL405, ATALANTA mid-season, KUPS KUOPIO's extra 16 bought) and
+    Enzo's ENZO.CAR (COMO, 6 XTRA purchases), both copies from internal/reports/enzo-dup-20261102."""
+    exe = builds()['it']
+    errs, info = [], []
+    only = os.environ.get('XLEFT_POOLSAVE')
+    for fn in ('XLJB405.CAR', 'ENZO.CAR'):
+        if only and fn != only:
+            continue
+        src = os.path.join(MAIN, 'internal', 'reports', 'enzo-dup-20261102', fn)
+        if not os.path.exists(src):
+            errs.append(f'no {fn}')
+            continue
+        ok, msg = xleft_season(exe, src, fn[:4])
+        check(ok, f'{fn}: {msg}', errs)
+        info.append(f'{fn}: {msg}')
+    return not errs, '; '.join(errs + info)
+
+
 N14_NAMES = (['ROBERTO_CARLOS', 'LUIS_ENRIQUE', 'SCHWEINSTEIGER', 'JAN STOECKLINGE', 'MUELLER',
               'BASTIAN SCHWEINSTEIGER'] * 3)[:16]
 

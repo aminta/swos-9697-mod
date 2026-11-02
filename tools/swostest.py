@@ -13952,7 +13952,7 @@ def world_conti_recopa():
 @scenario
 def world_conti_cafsc():
     """conti_month: PYRAMIDS forced into the CAF Super Cup (sc:final): played in October (week 72..79)"""
-    return conti_month('cafsc', 'sc:final', 'AFRICA,EGITTO,EGYPTIAN PREMIER LEAGUE,PYRAMIDS', 'CAF SUPER CUP', 72)
+    return conti_month('cafsc', 'sc:final', 'AFRICA,EGITTO,PYRAMIDS', 'CAF SUPER CUP', 72)
 
 
 @scenario

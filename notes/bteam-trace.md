@@ -50,3 +50,17 @@ hook. Nothing to clear at the return: the player leaves careerTeam, and the B re
   player's bytes back into the B record slot (replacing the generated one), removed from careerTeam.
 - guard: cseg_52588 surplus removal skips borrowed; feature off when isNationalSelector.
 - no new flag value (+71h is form, see above).
+
+## Data: birth years (Dati coppe, 02/11)
+players.csv column 'born' (yyyy) between 'skin' and 'pa', snapshots world5tm-403c10b and world5tm-403c11b (403c11 +
+that players.csv, the release recipe's base). mkseason reads players.csv by header, so the extra column is harmless.
+B teams: 577 rows, 34 empty (AUS sydneyii / westsydneyii / melbournecity2 27, ned utrechtu21 1, nzl 6): empty = age
+unknown -> callable, not counted as over-age (to state in the notes).
+
+## Davide's answers (via Regia, 02/11)
+- (a) Windows for the SEASON ATTACHMENT only = the real transfer windows per country, from the world calendar's
+  dates (Europe: summer to 1 Sep, winter 1 Jan - early Feb; AUS / NZ and others by their real dates). One table in one
+  place; the dates in the notes. The normal market and the one-match call-ups stay open all year (do not touch).
+- (b) Button on the club's squad screen; free entries to agree with Panchina (sqnum / benchx live there).
+- (c) Texts approved as proposed (IT/EN/FR/DE, list sent to Regia 02/11).
+- (d) Borrowed player marker: the fillers' colour AND a letter "B" next to the shirt number.

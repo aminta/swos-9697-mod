@@ -5537,11 +5537,19 @@ def bench_squad(s, scr, bx, cmp_, cnp, errs, info, mark, woff=4, box=30, row1=13
         d = (win(), s.screen().selected)
         check(d == (w0, want), f'{tag}: down on row 17 (window, selected) {d}, want {(w0, want)} ({below[0][1]!r})', errs)
         s.shot(f'{tag}_down17')
-        if tag == 'squad':                  # (4.0.6, Marco / Davide 02/11) the pre-match screen: PLAY MATCH (entry 9),
-            q = s.screen()                  # the player / coach line (entry 6) never reached by the keys
+        if tag == 'squad':                  # (4.0.6, Marco / Davide 02/11) the pre-match screen: PLAY MATCH (entry 9);
+            q = s.screen()                  # the player / coach line (entry 6) only by UP from it (Davide), then DOWN back
             check(d[1] == 9, f'{tag}: down on row 17 -> entry {d[1]} {q.entries[d[1]][1]!r}, want 9 (PLAY MATCH)', errs)
-            check(q.entries[6][2] or q.path(6) is None, f'{tag}: the player / coach line reachable: {q.path(6)}', errs)
-            info.append(f'{tag}: player / coach line {"hidden" if q.entries[6][2] else "visible, not reachable"}')
+            vis = not q.entries[6][2]
+            s.send('up:0.3 dump:0.4')
+            u6 = s.screen().selected
+            check(u6 == (6 if vis else row1 + 16), f'{tag}: up from PLAY MATCH -> {u6}, want {6 if vis else row1 + 16}', errs)
+            if vis:
+                s.shot(f'{tag}_up_coach')
+                s.send('down:0.3 dump:0.4')
+                d9 = s.screen().selected
+                check(d9 == 9, f'{tag}: down from the player / coach line -> {d9}, want 9', errs)
+            info.append(f'{tag}: up from PLAY MATCH -> {u6} ({"the player / coach line" if vis else "row 17: no coach line"})')
         check(goto(row1 + 11), f'{tag}: row 12 not reached', errs)
         s.send('up:0.3 dump:0.4')
         u = (win(), s.screen().selected)

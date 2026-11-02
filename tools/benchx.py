@@ -61,8 +61,8 @@ from 12 on, scrolled by the box left of row 17), 4.0.6 (Davide 31/10):
   screen's buttons, the tactics editor's next), UP on row 12 to row 11 - on every own-team list (pre-match, SQUADRA,
   the tactics editor, ViewSquad, the call-ups). (Gone: the 31/10 cursor scroll on rows 12 / 17 and its 4.0.5 wrap,
   174f34f.) bx_mdir stays for VIEW OPPONENT only.
-  (4.0.6, Marco / Davide 02/11) on the pre-match screen DOWN from the last name goes straight to PLAY MATCH and the
-  player / coach line is never reached by the keys (pm_links: the menu's own links).
+  (4.0.6, Marco / Davide 02/11) on the pre-match screen DOWN from the last name goes straight to PLAY MATCH; the
+  player / coach line only by UP from PLAY MATCH (pm_links: the menu's own links).
 - VIEW OPPONENT (the pre-match screen with viewingOpponentTeam; Davide's PANpt4 photo: a CPU BOLOGNA showed 11 + 5,
   its places 17.. out of sight): with a bench over 5 the opponent's places are 16 + its XTRA block's players (po_n, as
   bx_next: a career's CPU club), at most 11 + the bench; rows 12..17 a window bx_po on them (pm_row; row 17 = entry
@@ -1767,15 +1767,16 @@ def table_asm(tab):
     return '\n' + '\n'.join(lines) + '\n'
 
 
-PM_LINKS = {5: (3, 6, 9), 8: (2, 6, 5), 9: (2, 6, 5), 50: (0, 6, 29), 52: (0, 6, 29), 54: (0, 6, 29)}
+PM_LINKS = {5: (3, 6, 9), 8: (2, 6, 5), 50: (0, 6, 29), 52: (0, 6, 29), 54: (0, 6, 29)}
 
 
 def pm_links(p):
-    """(4.0.6, Marco / Davide 02/11) the pre-match screen (playMatchMenu): DOWN from the last name goes to PLAY MATCH,
-    the player / coach line (entry 6, TogglePlayerCoach) is never reached by the keys (the mouse still clicks it).
+    """(4.0.6, Marco / Davide 02/11) the pre-match screen (playMatchMenu): DOWN from the last name goes to PLAY MATCH;
+    the player / coach line (entry 6, TogglePlayerCoach) only by UP from PLAY MATCH (Davide 02/11: keyboard / joystick
+    players still switch GIOCA <-> ALLENA; hidden for a manager: on to row 17 as before) and the mouse.
     The game's links: row 17 (29) and its box (30) -> 5 (USE MATCH TEAM, hidden in a match) -> 6 -> 9 (PLAY MATCH),
-    ESCI (8) / PLAY MATCH (9) up -> 6, UTN A / C / E (50 / 52 / 54) left -> 6. Now 5 down -> 9, 8 / 9 up -> 5 (hidden:
-    on to row 17), 50 / 52 / 54 left -> 29. kitcolors' copy of the menu takes them from the original at every show
+    ESCI (8) / PLAY MATCH (9) up -> 6, UTN A / C / E (50 / 52 / 54) left -> 6. Now 5 down -> 9, 8 up -> 5 (hidden:
+    on to row 17), 50 / 52 / 54 left -> 29; 9 up -> 6 kept (6 hidden: its up, 5, then row 17). kitcolors' copy of the menu takes them from the original at every show
     (pm_show)."""
     import kitcolors
     import xbrowse

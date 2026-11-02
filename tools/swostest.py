@@ -959,7 +959,8 @@ class Session:
     def __init__(self, name, exe_dir, cars, keys, timeout=60, shots=0, match=False, timer=False):
         self.rate = TICKS if timer else None           # (timer: SWOS++, keys fed from TimerProc at 70 Hz)
         self.run, self.info = prepare(name, exe_dir, cars, steps_of(keys, self.rate), match, timer)
-        self.timeout = timeout
+        timeout = int(timeout * float(os.environ.get('SWOSTEST_TIMEOUT_MUL', 1)))   # (02/11: both Macs' slots full,
+        self.timeout = timeout                          # bench_world BENCH_VIEW ran out of its 900 s at 90 pauses)
         self.box = Dosbox(self.run, timeout, shots)
         self.result = None
         self.log = []
@@ -1354,6 +1355,28 @@ def lineup_mem(s, n=16):
         return recs[0][0] >> 5 == 0, [k for k, b in enumerate(recs) if b[1] & 0xC3]
     except Exception:
         return None
+
+
+def heal_first16(s):
+    """The career club's first 16 made fit again: the injury bits (cardsInjuries C0h) cleared in every copy of their
+    records (as BENCH_INJ sets them), so a result-dependent injury (a training game's) cannot hide PLAY MATCH. The
+    names healed; [] if none (or unreadable)."""
+    if lineup_mem(s) is None:               # (caches s.ctsites)
+        return []
+    _, ct, cmp_ = s.ctsites
+    r = s.result
+    o2 = r.read(r.base2, 0x300000)
+    healed = []
+    for q in r.obj2(cmp_, 16):
+        slot = ct + (76 + q * 38 if q < 16 else 684 + (q - 16) * 38)
+        if not r.obj2(slot + 27, 1)[0] & 0xC0:
+            continue
+        nm = r.obj2(slot + 3, 22).split(b'\0')[0]
+        for m_ in re.finditer(re.escape(nm) + b'\0', o2):
+            h = m_.start() - 3
+            s.poke(r.base2 + h + 27, bytes((o2[h + 27] & 0x3F,)))
+        healed.append(nm.decode('latin-1'))
+    return healed
 
 
 LINEUP_REFUSED = ('the game refuses the line-up: VIS. RISULTATI hidden with a fit goalkeeper in goal, no red row and '
@@ -5517,6 +5540,11 @@ def bench_squad(s, scr, bx, cmp_, cnp, errs, info, mark, woff=4, box=30, row1=13
         d = (win(), s.screen().selected)
         check(d == (w0, want), f'{tag}: down on row 17 (window, selected) {d}, want {(w0, want)} ({below[0][1]!r})', errs)
         s.shot(f'{tag}_down17')
+        if tag == 'squad':                  # (4.0.6, Marco / Davide 02/11) the pre-match screen: PLAY MATCH (entry 9),
+            q = s.screen()                  # the player / coach line (entry 6) never reached by the keys
+            check(d[1] == 9, f'{tag}: down on row 17 -> entry {d[1]} {q.entries[d[1]][1]!r}, want 9 (PLAY MATCH)', errs)
+            check(q.entries[6][2] or q.path(6) is None, f'{tag}: the player / coach line reachable: {q.path(6)}', errs)
+            info.append(f'{tag}: player / coach line {"hidden" if q.entries[6][2] else "visible, not reachable"}')
         check(goto(row1 + 11), f'{tag}: row 12 not reached', errs)
         s.send('up:0.3 dump:0.4')
         u = (win(), s.screen().selected)
@@ -6725,6 +6753,9 @@ def kits_training():
         check(k1 == k0, f'careerTeam kits {k0.hex(" ")} -> {k1.hex(" ")}', errs)
         if not train_out(s, errs):
             return False, '; '.join(errs + info)
+        hurt = heal_first16(s)              # (02/11 cl1: the training game injured a starter: GIOCA PARTITA hidden)
+        if hurt:
+            info.append(f'healed after the training game {hurt}')
         scr = to_league(s, top, bot, club, errs, prematch=True)
         if scr is not None:
             check(scr.entries[68][1] == 'MAGLIE AUTO', f'league: button {scr.entries[68][1]!r}', errs)
@@ -6734,7 +6765,11 @@ def kits_training():
             info.append(f'league SELECT KITS {sorted(names)}')
             check(club in names and len(names) == 2, f'league: SELECT KITS teams {names}', errs)
             press(s, scr, 'OK', 2)
-            press(s, s.screen(), TRAIN_TXT[UI][2], 3)
+            q = s.screen()
+            if press(s, q, TRAIN_TXT[UI][2], 3) is None:
+                s.shot('league_noplay')
+                errs.append(f'league: {TRAIN_TXT[UI][2]} not reached (selected {q.selected}, '
+                            f'{[(e[0], e[1], e[2]) for e in q.entries[:12]]}, path {q.path(9)}, nav {q.nav[:10]})')
             r = train_kickoff(s, top, bot, False)
             check(r is not None, f'league: no kick-off ({s.result})', errs)
             if r is not None:

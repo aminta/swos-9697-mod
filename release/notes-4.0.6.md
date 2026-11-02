@@ -17,6 +17,9 @@
 - **Two new OPTIONS rows, both ON by default:** the computer's clubs now get **red cards** (a sent-off player is suspended, like yours) and **injuries** (an injured player of a computer's club misses the following matches instead of being fit again at once). Turn a row OFF to get the original game behaviour back.
 - Under SWOS++ the two rows are hidden and the original behaviour applies.
 
+#### Stoppage time
+- **Stoppage time** (an idea of Davide and Marco): at 45:00 and 90:00 the clock stops and "+N" appears next to it, like the fourth official's board. The added minutes depend on what happened in the half (goals, substitutions, cards; in the World 2026-27 career also the time lost with the ball out of play), up to a maximum per era: 2 in the first half and 3 in the second in the 1996-97 game, 3 and 5 in the World 2026-27 career, 1 and 2 in the Europe 1984-85 career, at most 1 (often none) in the seasons and tournaments before 1970; each extra-time half gets up to 1. The added minutes always run at the pace of a 10-minute match, whatever length you chose, so they can really be played (about 15 seconds of play for +3, 26 for +5). The clock stops when the ball is out of play, and when the added time is over the referee still lets a running attack finish. A goal in added time shows as 45+2 or 90+3 in the scorers' list. Not with SWOS++.
+
 #### Long benches: scrolling as in the original game
 - **Long benches** (thanks to Marco): the player lists scroll as in the original game again.
   - Moving the cursor up and down the names never scrolls the list.
@@ -129,6 +132,9 @@ La 4.0.6 è un giro di richieste dei giocatori: **due giocatori sulla stessa tas
 #### Le squadre del computer giocano con le tue regole
 - **Due nuove righe in OPZIONI, entrambe attive di default:** le squadre del computer ora prendono **cartellini rossi** (un espulso è squalificato, come i tuoi) e **infortuni** (un infortunato di una squadra del computer salta le partite seguenti invece di essere subito di nuovo a posto). Metti una riga su NO per riavere il comportamento originale del gioco.
 - Con SWOS++ le due righe sono nascoste e vale il comportamento originale.
+
+#### Recupero
+- **Recupero** (un'idea di Davide e Marco): a 45:00 e a 90:00 l'orologio si ferma e accanto compare "+N", come il cartello del quarto uomo. I minuti di recupero dipendono da quello che è successo nel tempo (gol, sostituzioni, cartellini; nella carriera Mondo 2026-27 anche il tempo perso a palla non in gioco), fino a un massimo per epoca: 2 nel primo tempo e 3 nel secondo nel gioco 1996-97, 3 e 5 nella carriera Mondo 2026-27, 1 e 2 nella carriera Europa 1984-85, al massimo 1 (spesso nessuno) nelle stagioni e nei tornei prima del 1970; ogni tempo supplementare ne ha al massimo 1. I minuti di recupero scorrono sempre al ritmo di una partita da 10 minuti, qualunque durata tu abbia scelto, così si giocano davvero (circa 15 secondi di gioco per +3, 26 per +5). L'orologio si ferma a palla non in gioco, e finito il recupero l'arbitro lascia comunque finire l'azione in corso. Un gol nel recupero compare come 45+2 o 90+3 nell'elenco dei marcatori. Non con SWOS++.
 
 #### Panchine lunghe: si scorre come nel gioco originale
 - **Panchine lunghe** (grazie a Marco): gli elenchi dei giocatori tornano a scorrere come nel gioco originale.

@@ -870,7 +870,8 @@ UI_EN = {'CAREER': 'CARRIERA', 'CHOOSE TEAM': 'SCEGLI SQUADRA', 'CLASSIC CAREERS
          'TRANSFERS': 'TRASFERIMENTI', 'VIEW RESULT': 'VIS. RISULTATI', 'VIEW WORLD': 'VISUALIZZA MONDO',
          'SEASON': 'STAGIONE', 'CLASSIC SEASONS': 'STAG. STORICHE', 'VIEW COMPETITIONS': 'VISUAL. COMPETIZ.',
          '- MATCH -': '- PARTITA -', '- RESULT -': '- RISULTATO -', 'NEXT MATCH': 'PROSS. PARTITA', 'SQUAD': 'SQUADRA',
-         'ADD INTERNATIONAL PLAYER (HOME)': 'AGGIUNGI GIOCA. INTERNAZIONALE (CASA)', 'STATS': 'STAT', 'FORMAT': 'FORMULA'}
+         'ADD INTERNATIONAL PLAYER (HOME)': 'AGGIUNGI GIOCA. INTERNAZIONALE (CASA)', 'STATS': 'STAT', 'FORMAT': 'FORMULA',
+         'CHOOSE TEAMS': 'SCEGLI SQUADRE', 'CLUB TEAMS': 'SQUADRE CLUB', 'PLAY FRIENDLY': 'AMICHEVOLE'}
 
 
 UI = os.environ.get('SWOSTEST_UI') or os.environ.get('SWOSTEST_LANG') or 'it'   # (SWOSTEST_LANG: an alias)
@@ -5002,7 +5003,7 @@ def walk(s, target, w=3, tries=20, stays=48):
         scr = s.screen()
         i = scr.find(target) if isinstance(target, str) else target
         if i is None:
-            raise AssertionError(f'{target} not on screen')
+            raise AssertionError(f'{target} not on screen ({scr.texts()[:16]})')
         if scr.selected == i:
             s.send(f'fire dump:{w}')
             return s.screen()
@@ -6706,10 +6707,11 @@ def bench_world():
     return not errs, '; '.join(errs + info)
 
 
-TRAIN_TXT = {'it': ('SQUADRA', 'PRATICA', 'GIOCA PARTITA'), 'en': ('SQUAD', 'TRAINING', 'PLAY MATCH'),   # (career
-             'fr': ('SQUADRA', 'ENT.MENT', 'JOUER LE MATCH'), 'de': ('SQUADRA', 'TRAINING', 'NUR SPIEL.')}   # menu, the squad
-                                            # screen's TRAINING, the pre-match screen's play button; FR / DE: as UI_MAP
-                                            # reads them back)
+TRAIN_TXT = {'it': ('SQUADRA', 'PRATICA', 'GIOCA PARTITA'), 'en': ('SQUAD', 'TRAINING', 'PARTITA'),   # (career
+             'fr': ('SQUADRA', 'ENT.MENT', 'JOUER LE MATCH'), 'de': ('SQUADRA', 'TRAINING', 'NUR SPIEL.')}
+                                            # menu, the squad screen's TRAINING, the pre-match screen's play button;
+                                            # EN / FR / DE: as UI_MAP reads them back, next to the coach line's 'GIOCA :')
+ORIG_EXE = {'it': 'ITALIAN.EXE', 'en': 'ENGLISH.EXE', 'fr': 'FRENCH.EXE', 'de': 'GERMAN.EXE'}   # (the exe's language)
 
 
 def train_start(s, path, errs):
@@ -6723,15 +6725,14 @@ def train_start(s, path, errs):
         errs.append(f'new career: {path} not reached ({s.result})')
         return None
     s.send('fire dump:2')                       # (the chairman's note)
-    sq, tr, _ = TRAIN_TXT[UI]
-    if press(s, s.screen(), sq, 3) is None:
-        errs.append(f'career menu: {sq} not reached ({s.result})')
-        return None
-    if press(s, s.screen(), tr, 3) is None:
-        errs.append(f'squad screen: {tr} not reached ({s.result})')
-        return None
+    for k, where in ((0, 'career menu'), (1, 'squad screen')):     # (EN: the label as shown, or as UI_MAP reads it
+        scr = s.screen()                                             # back in Italian)
+        t = next((x for x in {TRAIN_TXT[UI][k], TRAIN_TXT['it'][k]} if scr.find(x, exact=True) is not None), None)
+        if t is None or press(s, scr, t, 3) is None:
+            errs.append(f'{where}: {TRAIN_TXT[UI][k]} not reached ({s.result})')
+            return None
     scr = s.screen()
-    if TRAIN_TXT[UI][2] not in scr.texts():
+    if not {TRAIN_TXT[UI][2], TRAIN_TXT['it'][2]} & set(scr.texts()):
         errs.append('training: no pre-match screen (' + ', '.join(scr.texts())[:120] + ')')
         return None
     return scr
@@ -9367,6 +9368,8 @@ def italy_friendly(s, home, away):
     for _ in range(12):
         scr = s.screen()
         i = scr.find('AMICHEVOLE', exact=True)
+        if i is None:
+            raise AssertionError(f'AMICHEVOLE not on screen ({scr.texts()[-10:]})')
         if scr.selected == i:
             s.send('fire dump:4')
             return s.screen()
@@ -9522,6 +9525,332 @@ def purple_stadium():
         r = s.send('fire ' + 'fire:3 ' * 4 + 'dump:2')
     ok = r.outcome == 'dump' and got and got[0] == PURPLE_RGB
     return ok, f'line-ups screen entry 12 {got} ({r.outcome})'
+
+
+STNM_NAME, STNM_SHOWN, STNM_KEY, STNM_Y = 4, 37, 38, 40          # stadium.py's log after its 'STNM' mark
+
+
+def stadium_log(r, at):
+    """stadium.py's variables (at = the Off3 of its 'STNM' mark): name, shown, (file, ordinal), the name's top row."""
+    v = r.read(r.lin(at), 48)
+    return {'name': v[STNM_NAME:STNM_NAME + 33].split(bytes(1))[0].decode('latin-1'), 'shown': v[STNM_SHOWN],
+            'key': (v[STNM_KEY], v[STNM_KEY + 1]), 'y': struct.unpack_from('<i', v, STNM_Y)[0]}
+
+
+def stadium_vs(s, at):
+    """A breakpoint after VersusInit's fade-in (its `mov ecx, 100`, stadium.sites' vs + 15, the exe language's
+    original): each hit appends {log, vga, title (entry 0 geometry), bar (entry 2)} to the returned list."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lepatch
+    import stadium
+    vs = stadium.sites(lepatch.LEPatch(os.path.join(ROOT, 'orig', ORIG_EXE[UI])))['vs']
+    got = []
+
+    def hit(q):
+        scr = Screen(q, s.info['menu'])
+        got.append({'log': stadium_log(q, at), 'vga': q.read(0xA0000, 64000), 'pal': q.obj2(s.info['pal'], 768),
+                    'title': scr.geom[0], 'bar': scr.geom[2]})
+    s.bp(s.result.base1 + vs + 15, hit)
+    return got
+
+
+def stadium_vs_check(h, want, errs, info, tag, s=None):
+    """The versus frame h (stadium_vs) with the name `want` ('' = none): under the bars the text ink colours (2 white,
+    8 shadow) only in the name's rows, starting stadium.GAP rows below the bars' last row, centred on the title's
+    centre (+-1), inside the screen; none at all without a name. Saves the frame as shot `tag`."""
+    import stadium
+    g, vga = h['log'], h['vga']
+    bx, by, bw, bh = h['bar']
+    tx, _, tw, _ = h['title']
+    below = by + bh                                  # the first row under the bars
+    ink = [(i % 320, i // 320) for i in range(below * 320, 64000) if vga[i] in (2, 8)]
+    if s is not None:
+        s.box.shot(tag, h['pal'], vga)
+    if not want:
+        check(not g['shown'] and not ink, f'{tag}: no name wanted, shown {g["shown"]}, {len(ink)} ink px under the bars', errs)
+        info.append(f'{tag}: no name, nothing under the bars')
+        return
+    check(g['shown'] == 1 and g['name'] == want, f'{tag}: {g["name"]!r} shown {g["shown"]}, want {want!r}', errs)
+    if not ink:
+        errs.append(f'{tag}: no ink under the bars')
+        return
+    x0, x1 = min(x for x, _ in ink), max(x for x, _ in ink)
+    y0, y1 = min(y for _, y in ink), max(y for _, y in ink)
+    c = tx + tw // 2
+    check(g['y'] == below + stadium.GAP and y0 >= g['y'] and y0 - below >= stadium.GAP,
+          f'{tag}: gap {y0 - below} rows (name row {g["y"]}, ink {y0}..{y1}), want >= {stadium.GAP}', errs)
+    check(y1 - y0 <= 9, f'{tag}: ink rows {y0}..{y1}: more than one text line', errs)
+    check(0 < x0 and x1 < 319 and abs((x0 + x1) / 2 - c) <= 1.5, f'{tag}: ink x {x0}..{x1}, centre {c}', errs)
+    info.append(f'{tag}: {want!r} rows {y0}..{y1} (gap {y0 - below}), x {x0}..{x1} (title centre {c})')
+
+
+@scenario
+def stadium_versus():
+    """4.0.6 (Davide 02/11): the home club's stadium (DATA\\STADTEAM.DAT, test file) on the versus screen, under the
+    two team bars (stadium.GAP rows clear), centred on the title, in the small font and the title's colour; nothing waits, the
+    match goes on. Friendlies in ITALIA SERIE A, the two clubs of each the same case (RandomlySwapTeams picks the home
+    side): INTER v MILAN (WEMBLEY / SAN SIRO), FIORENTINA v ROMA (32 chars: inside the screen), JUVENTUS v LAZIO (no
+    record): the screen as the game draws it (no title ink under the bars). The names in the game charset, <= 32."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lepatch
+    import stadium
+    os.environ['CORE'] = 'normal'               # (the versus breakpoint)
+    b = os.environ.get('STADIUM_BUILD') or builds()['it']
+    p = lepatch.LEPatch(os.path.join(b, 'ITALIAN.EXE'))
+    at = p.le.obj_bytes(3).find(b'STNM') if len(p.le.objs) > 2 else -1
+    if at < 0:
+        return False, 'no stadium.py in this build (no STNM in obj3)'
+    at = Off3(at)
+    d = open(os.path.join(b, 'DATA', 'TEAM.020'), 'rb').read()
+    keys = {}
+    for t in range(struct.unpack('>H', d[:2])[0]):
+        o = 2 + t * 684
+        keys[d[o + 5:o + 22].split(bytes(1))[0].decode('latin-1')] = (d[o], d[o + 1])
+    long = 'STADIO COMUNALE CARLO CASTELLANI'
+    assert len(long) == 32
+    dat = os.path.join(WORK, 'saves', 'STADIUM_TEST.DAT')
+    os.makedirs(os.path.dirname(dat), exist_ok=True)
+    names = {keys['INTER']: 'WEMBLEY', keys['MILAN']: 'SAN SIRO', keys['FIORENTINA']: long,  # (friendlies swap the
+             keys['ROMA']: long.replace('CARLO CASTELLANI', 'OLIMPICO DI ROMA')}             # teams at random,
+    open(dat, 'wb').write(stadium.build(names))     # RandomlySwapTeams: both clubs of a pair are the same case)
+    errs, info = [], []
+    for tag, home, away in (('inter', 'INTER', 'MILAN'), ('long', 'FIORENTINA', 'ROMA'), ('none', 'JUVENTUS', 'LAZIO')):
+        with Session('stadium_versus_' + tag, b, {'DATA/STADTEAM.DAT': dat}, 'dump:3', 300, match=True) as s:
+            s.wait()
+            italy_friendly(s, home, away)
+            for _ in range(22):
+                s.send('down dump:0.5')
+                if s.screen().selected == 9:
+                    break
+            got = stadium_vs(s, at)
+            r = s.send('fire dump:3')
+            check(len(got) == 1, f'{tag}: versus breakpoint hits {len(got)}', errs)
+            if got:
+                g = got[0]['log']
+                check(g['key'] in (keys[home], keys[away]), f'{tag}: key {g["key"]} not {home} / {away}', errs)
+                stadium_vs_check(got[0], names.get(g['key'], ''), errs, info, tag, s)
+            r = s.send('dump:2')
+            check(r.outcome == 'dump', f'{tag}: after the versus screen {r}', errs)
+    return not errs, '; '.join(errs + info)
+
+
+@scenario
+def stadium_world():
+    """4.0.6 stadium names per team-file namespace: a World 2026-27 career at ROMA (STADIUM_BUILD / BENCH_BUILD: a
+    release-style build with several worlds; ROMA = TMW5.102's record) -> SQUADRA -> TRAINING -> GIOCA PARTITA (no
+    RandomlySwapTeams: the club is gameTeam1): DATA\\STADTMW5.DAT names it STADIO OLIMPICO, DATA\\STADTEAM.DAT has the
+    same (file, ordinal) as WRONG NAMESPACE (TEAM.102 is another world's file): the versus screen shows the world's
+    name (stadium_vs_check: gap, centre)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lepatch
+    import stadium
+    b = os.environ.get('STADIUM_BUILD') or os.environ.get('BENCH_BUILD')
+    if not b or not os.path.isdir(b):
+        return True, 'SKIP: STADIUM_BUILD not set'
+    b = nop_league_int3('stadium_world_' + os.path.basename(RUNS.rstrip('/')), b)
+    p = lepatch.LEPatch(os.path.join(b, 'ITALIAN.EXE'))
+    at = p.le.obj_bytes(3).find(b'STNM')
+    if at < 0:
+        return True, 'SKIP: no stadium.py in this build (no STNM in obj3)'
+    at = Off3(at)
+    d = open(os.path.join(b, 'DATA', 'TMW5.102'), 'rb').read()
+    roma = [(d[o], d[o + 1]) for o in (2 + t * 684 for t in range(struct.unpack('>H', d[:2])[0]))
+            if d[o + 5:o + 22].split(bytes(1))[0] == b'ROMA']
+    if len(roma) != 1:
+        return False, f'ROMA in TMW5.102: {roma}'
+    w5 = os.path.join(WORK, 'saves', 'STADTMW5_TEST.DAT')
+    t0 = os.path.join(WORK, 'saves', 'STADTEAM_TEST.DAT')
+    os.makedirs(os.path.dirname(w5), exist_ok=True)
+    open(w5, 'wb').write(stadium.build({roma[0]: 'STADIO OLIMPICO'}))
+    open(t0, 'wb').write(stadium.build({roma[0]: 'WRONG NAMESPACE'}))
+    errs, info = [], []
+    os.environ['CORE'] = 'normal'               # (the versus breakpoint)
+    with Session('stadium_world', b, {'DATA/STADTMW5.DAT': w5, 'DATA/STADTEAM.DAT': t0}, 'dump:2', 900, match=True) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'START: no first pause ({s.result})'
+        if train_start(s, 'EUROPA,ITALIA,SERIE A,ROMA'.split(','), errs) is None:
+            return False, '; '.join(errs)
+        q = s.screen()
+        i = q.find(TRAIN_TXT[UI][2])
+        if i is None or se_goto(s, i).selected != i:
+            return False, f'training: {TRAIN_TXT[UI][2]} not reached ({q.texts()[:12]})'
+        got = stadium_vs(s, at)
+        s.send('fire dump:2')
+        check(len(got) == 1, f'versus breakpoint hits {len(got)}', errs)
+        if got:
+            g = got[0]['log']
+            check(g['key'] == roma[0], f'key {g["key"]}, want {roma[0]}', errs)
+            stadium_vs_check(got[0], 'STADIO OLIMPICO', errs, info, 'roma', s)
+        r = s.send('dump:3')
+        check(r.outcome == 'dump', f'after the versus screen: {r}', errs)
+    return not errs, '; '.join(errs + info)
+
+
+def stadium_code(r, at):
+    """stadium.py's st_find in the running game: (its first byte, its `.no` end: cmp byte [st_name], 0 / ret) linear,
+    found by the runtime address of st_name (at = the STNM mark's Off3) in obj3's code."""
+    nm = struct.pack('<I', r.lin(at + STNM_NAME))
+    o3 = r.read(r.base3, int(at))
+    a = [m.start() for m in re.finditer(re.escape(b'\xc6\x05' + nm + b'\x00\xa1'), o3)]
+    b = [m.start() for m in re.finditer(re.escape(b'\x80\x3d' + nm + b'\x00\xc3'), o3)]
+    assert len(a) == 1 and len(b) == 1, ('st_find', a, b)
+    return r.base3 + a[0], r.base3 + b[0]
+
+
+@scenario
+def stadium_venues():
+    """4.0.6 neutral finals (Regia / Davide 02/11): STADTMW5.DAT's venue rows, matched by the line-ups' competition +
+    round (gameName / gameRound, exact) before the home club. A World 2026-27 career at ROMA (STADIUM_BUILD: a release
+    build, its own shipped STADTMW5.DAT) -> TRAINING -> GIOCA PARTITA: a breakpoint at st_find's end records the name
+    found, puts the next case's strings into gameName / gameRound (+ currentSeasonShowing) and runs st_find again
+    (EIP back to its start): every venue row of the file (all 4 languages) -> its venue; the wrong season, a cut
+    competition, another round -> ROMA's own stadium; the game's '*' padding ends a string; then the real strings
+    back -> the club's stadium on the versus screen (stadium_vs_check), the line-ups after it. The strings themselves are the exes' own (the
+    build's stadium.vcheck_exe stops a build whose CSV string is not in that language's exe / DATA)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lepatch
+    import stadium
+    b = os.environ.get('STADIUM_BUILD') or os.environ.get('BENCH_BUILD')
+    if not b or not os.path.isdir(b):
+        return True, 'SKIP: STADIUM_BUILD not set'
+    b = nop_league_int3('stadium_venues_' + os.path.basename(RUNS.rstrip('/')), b)
+    p = lepatch.LEPatch(os.path.join(b, 'ITALIAN.EXE'))
+    at = p.le.obj_bytes(3).find(b'STNM') if len(p.le.objs) > 2 else -1
+    if at < 0:
+        return True, 'SKIP: no stadium.py in this build (no STNM in obj3)'
+    at = Off3(at)
+    dat = os.path.join(b, 'DATA', 'STADTMW5.DAT')
+    got = stadium.read(open(dat, 'rb').read()) if os.path.exists(dat) else None
+    if not got or not got[1]:
+        return False, f'no version-2 STADTMW5.DAT with venues in {b}'
+    recs, ven = got
+    d = open(os.path.join(b, 'DATA', 'TMW5.102'), 'rb').read()
+    roma = [(d[o], d[o + 1]) for o in (2 + t * 684 for t in range(struct.unpack('>H', d[:2])[0]))
+            if d[o + 5:o + 22].split(bytes(1))[0] == b'ROMA']
+    if len(roma) != 1 or roma[0] not in recs:
+        return False, f'ROMA in TMW5.102 / STADTMW5.DAT: {roma}'
+    club = recs[roma[0]]
+    st = stadium.sites(lepatch.LEPatch(os.path.join(ROOT, 'orig', ORIG_EXE[UI])))
+    gname, ground, ssn = st['GNAME'][1], st['GROUND'][1], st['SSN'][1]
+    cases = [(c, r_, 0, n, f'{c} / {r_}') for c, r_, n, sn in ven]          # (season 1 = currentSeasonShowing 0)
+    c0, r0, n0, _ = ven[0]
+    cases += [(c0, r0, 1, club, 'season 2'), (c0[:-1], r0, 0, club, 'cut competition'),
+              (c0, r0 + 'X', 0, club, 'another round'), (c0 + '*', r0, 0, n0, "'*' padding")]
+    errs, info, hits, state = [], [], [], {}
+    show = int(os.environ['STADIUM_SHOW']) if os.environ.get('STADIUM_SHOW') else None   # (the visual tour: case k's
+    final = cases[show][3] if show is not None else club                                  # strings on the screen)
+    showname = os.environ.get('STADIUM_SHOWNAME')   # (the tour: this name poked into st_name at the last lookup's end)
+    final = showname or final
+
+    def at_end(q):
+        hits.append(stadium_log(q, at)['name'])
+        k = len(hits) - 1                       # (hit 0: the real lookup; hit k: case k - 1)
+        if k == 0:
+            state['orig'] = (q.obj2(gname, 40), q.obj2(ground, 40), q.obj2(ssn, 2))
+        if k < len(cases):
+            c, r_, sn, _, _ = cases[k]
+            s.poke(q.base2 + gname, c.encode('latin-1') + b'\0')
+            s.poke(q.base2 + ground, r_.encode('latin-1') + b'\0')
+            s.poke(q.base2 + ssn, struct.pack('<H', sn))
+        elif k == len(cases) and show is not None:
+            c, r_, sn, _, _ = cases[show]
+            s.poke(q.base2 + gname, c.encode('latin-1') + b'\0')
+            s.poke(q.base2 + ground, r_.encode('latin-1') + b'\0')
+            s.poke(q.base2 + ssn, struct.pack('<H', sn))
+        elif k == len(cases):                   # the real strings back: the last run is the game's own
+            g, r_, sn = state['orig']
+            s.poke(q.base2 + gname, g)
+            s.poke(q.base2 + ground, r_)
+            s.poke(q.base2 + ssn, sn)
+        else:
+            if showname and k == len(cases) + 1:
+                s.poke(q.lin(at + STNM_NAME), showname.encode('ascii') + b'\0')
+            return
+        s.box.cmd(f'SR EIP {state["start"]:X}', 0.3)
+
+    os.environ['CORE'] = 'normal'               # (the versus breakpoint)
+    with Session('stadium_venues', b, {}, 'dump:2', 1200, match=True) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'START: no first pause ({s.result})'
+        if train_start(s, 'EUROPA,ITALIA,SERIE A,ROMA'.split(','), errs) is None:
+            return False, '; '.join(errs)
+        q = s.screen()
+        i = next((q.find(x) for x in (TRAIN_TXT[UI][2], TRAIN_TXT['it'][2]) if q.find(x) is not None), None)
+        if i is None or se_goto(s, i).selected != i:
+            return False, f'training: {TRAIN_TXT[UI][2]} not reached ({q.texts()[:12]})'
+        state['start'], end = stadium_code(s.result, at)
+        s.bp(end, at_end)
+        vsg = stadium_vs(s, at)
+        s.send('fire dump:2')
+        g = vsg[0]['log'] if vsg else stadium_log(s.result, at)
+        check(len(hits) == len(cases) + 2, f'st_find ran {len(hits)} times, want {len(cases) + 2}', errs)
+        if showname and len(hits) == len(cases) + 2:
+            hits[-1] = showname
+        for k, (c, r_, sn, want, tag) in enumerate(cases):
+            h = hits[k + 1] if k + 1 < len(hits) else None
+            check(h == want, f'{tag} (season {sn + 1}): {h!r}, want {want!r}', errs)
+        if len(hits) == len(cases) + 2:
+            check(hits[0] == club and hits[-1] == final, f'the real lookups: {hits[0]!r} / {hits[-1]!r}, want {club!r} / {final!r}', errs)
+        info.append(f'{len(ven)} venue rows, {len(cases) - len(ven)} near misses: '
+                    f'{sum(h == w for h, (_, _, _, w, _) in zip(hits[1:], cases))} of {len(cases)} as expected')
+        check(len(vsg) == 1 and g['key'] == roma[0], f'versus hits {len(vsg)}, key {g["key"]}', errs)
+        if vsg:
+            stadium_vs_check(vsg[0], final, errs, info, 'showname' if showname else 'roma' if show is None else f'show{show}', s)
+        if show is not None:
+            info.append(f'STADIUM_SHOW {show}: {cases[show][4]}')
+        if state.get('orig') and show is None:
+            check(s.result.obj2(gname, 40) == state['orig'][0], 'gameName not the game\'s own after the test', errs)
+        r = s.send('dump:3')
+        check(r.outcome == 'dump', f'after the versus screen: {r}', errs)
+    return not errs, '; '.join(errs + info)
+
+
+@scenario
+def stadium_nofile():
+    """4.0.6 (Davide 02/11: names only in World 2026-27): outside it no STADTEAM.DAT ships, and an absent or an empty
+    file just means nothing on the versus screen. A friendly INTER v MILAN (TEAM.020: the 'team' namespace) on STADIUM_BUILD (a release
+    build, else the harness build): the build ships no DATA\\STADTEAM.DAT; with none, then with an empty one, then with
+    a version-1 file: st_find ran (the pair's key logged), no name, no title ink under the bars, the match goes on."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lepatch
+    b = os.environ.get('STADIUM_BUILD') or builds()['it']
+    p = lepatch.LEPatch(os.path.join(b, 'ITALIAN.EXE'))
+    at = p.le.obj_bytes(3).find(b'STNM') if len(p.le.objs) > 2 else -1
+    if at < 0:
+        return False, 'no stadium.py in this build (no STNM in obj3)'
+    at = Off3(at)
+    os.environ['CORE'] = 'normal'               # (the versus breakpoint)
+    errs, info = [], []
+    check(not any(n.upper() == 'STADTEAM.DAT' for n in os.listdir(os.path.join(b, 'DATA'))),
+          f'{b}: DATA\\STADTEAM.DAT ships', errs)
+    d = open(os.path.join(b, 'DATA', 'TEAM.020'), 'rb').read()
+    keys = {d[o + 5:o + 22].split(bytes(1))[0].decode('latin-1'): (d[o], d[o + 1])
+            for o in (2 + t * 684 for t in range(struct.unpack('>H', d[:2])[0]))}
+    os.makedirs(os.path.join(WORK, 'saves'), exist_ok=True)
+    empty = os.path.join(WORK, 'saves', 'STADTEAM_EMPTY.DAT')
+    open(empty, 'wb').close()
+    v1 = os.path.join(WORK, 'saves', 'STADTEAM_V1.DAT')         # (a 4.0.6-beta layout: 'STAD', 1, 0 + the index)
+    idx = bytearray(256 * 6)
+    struct.pack_into('<IH', idx, keys['INTER'][0] * 6, 8 + 256 * 6, 1)
+    open(v1, 'wb').write(b'STAD' + struct.pack('<HH', 1, 0) + bytes(idx) + bytes([keys['INTER'][1]]) + b'WEMBLEY'.ljust(33, b'\0'))
+    for tag, files in (('absent', {}), ('empty', {'DATA/STADTEAM.DAT': empty}), ('v1', {'DATA/STADTEAM.DAT': v1})):
+        with Session('stadium_nofile_' + tag, b, files, 'dump:3', 300, match=True) as s:
+            s.wait()
+            italy_friendly(s, 'INTER', 'MILAN')
+            for _ in range(22):
+                s.send('down dump:0.5')
+                if s.screen().selected == 9:
+                    break
+            got = stadium_vs(s, at)
+            s.send('fire dump:2')
+            g = got[0]['log'] if got else stadium_log(s.result, at)
+            info.append(f'{tag}: {g["name"]!r} key {g["key"]} shown {g["shown"]}')
+            check(len(got) == 1 and g['name'] == '' and g['key'] in (keys['INTER'], keys['MILAN']), f'{tag}: {g}', errs)
+            if got:
+                stadium_vs_check(got[0], '', errs, info, tag, s)
+            r = s.send('dump:2')
+            check(r.outcome == 'dump', f'{tag}: {r}', errs)
+    return not errs, '; '.join(errs + info)
 
 
 @scenario

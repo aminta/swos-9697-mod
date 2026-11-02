@@ -711,8 +711,11 @@ def patch_exe(src, dst, remap, lang='it'):
     cpucards.force_inj(p)                                    # (INJ_FORCE test builds only: every tackle injures)
     assert cc_end <= 0x1000 * OBJ3_PAGES, hex(cc_end)
     wh_end = blond.late_patch(p, (cc_end + 15) & ~15)        # 4.0.6: white hair - blond's palette route + tables in
-    assert wh_end <= 0x1000 * OBJ3_PAGES, hex(wh_end)        # obj3 after cpucards (kbd2 next: (wh_end + 15) & ~15)
-    print(f'exe: obj3 end {wh_end:#x} ({0x1000 * OBJ3_PAGES - wh_end} B left)')
+    assert wh_end <= 0x1000 * OBJ3_PAGES, hex(wh_end)        # obj3 after cpucards
+    import finance                               # 4.0.6 (Nicola): sponsorship / TV at every season start, 2.3 x the
+    fi_end = finance.patch(p, (wh_end + 15) & ~15)           # wage bill, in obj3 after whitehair (kbd2 next:
+    assert fi_end <= 0x1000 * OBJ3_PAGES, hex(fi_end)        # (fi_end + 15) & ~15)
+    print(f'exe: obj3 end {fi_end:#x} ({0x1000 * OBJ3_PAGES - fi_end} B left)')
     p.set_vsize(3, 0x1000 * OBJ3_PAGES)
     p.set_vsize(1, OBJ1_NEW_VSIZE + (0x1000 * (cp + 2 + cdp) if worlds else 0) + h2 + 0x1000 * (lpb + sp_pg + sc_pg + ct_pg + ctl_pg))
     import teamstab                              # 4.0.2: teamsTable for 256 team ordinals (Serie D choice colours)

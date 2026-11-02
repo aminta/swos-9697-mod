@@ -88,7 +88,7 @@ Old careers: nothing is stored in the save. A career started with an older versi
 next match.
 
 #### Coming in this version, text to come
-- **The opponent's squad during a match** [DRAFT: Panchina confirms after Davide approves the look]. During a match you can now look at the opponent's squad. Open the bench menu (where you make substitutions), put the cursor on your coach and press UP.
+- **The opponent's squad during a match**. During a match you can now look at the opponent's squad. Open the bench menu (where you make substitutions), put the cursor on your coach and press UP. The list shows the opponent's name on top, in their colours.
   - The first page shows their 11 players on the pitch. Press DOWN for their substitutes, 11 a page, and UP to go back a page.
   - The list is read-only: you cannot pick or change anything in it. FIRE, LEFT or RIGHT closes it, and the cursor goes back to your coach.
   - With SWOS++ the list is switched off: UP on the coach works as before.
@@ -194,7 +194,7 @@ Carriere già iniziate: nel salvataggio non viene memorizzato niente. Una carrie
 precedente riceve i nuovi incassi dalla partita successiva.
 
 #### In arrivo in questa versione, testo da completare
-- **La rosa dell'avversario durante la partita** [BOZZA: Panchina conferma dopo l'ok di Davide sull'aspetto]. Durante la partita ora puoi vedere la rosa dell'avversario. Apri il menu della panchina (quello dei cambi), porta il cursore sull'allenatore e premi SU.
+- **La rosa dell'avversario durante la partita**. Durante la partita ora puoi vedere la rosa dell'avversario. Apri il menu della panchina (quello dei cambi), porta il cursore sull'allenatore e premi SU. In cima all'elenco c'è il nome della squadra avversaria, nei suoi colori.
   - La prima pagina mostra i loro 11 in campo. GIÙ mostra le loro riserve, 11 per pagina, e SU torna alla pagina prima.
   - L'elenco è in sola lettura: non si può scegliere né cambiare niente. FUOCO, SINISTRA o DESTRA lo chiudono, e il cursore torna sull'allenatore.
   - Con SWOS++ l'elenco è disattivato: SU sull'allenatore funziona come prima.

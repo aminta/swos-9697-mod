@@ -603,6 +603,10 @@ def patch(p, at):
     lab = nasmcave.labels(ASM, at, sym)
     assert not any(p.get(1, at, len(code)))
     p.put(1, at, code)
+    LABELS.update(lab)                              # (xleft.py: xtra_load, xtra_read, xtra_readto, xt_block, xblock...)
+    LABELS['GTP'] = mk['gp_target']                 # GetTeamPointer
+    LABELS['SOLD_SITE'] = mk['sold']                # cseg_56379's tail call (-> xt_sold)
+    LABELS['SITES'] = (s, cnp, ct, cmp, sel)        # (sites(p) reads the original bytes only)
     LABELS['XTRA_NAMEP'] = lab['xtra_namep']
     LABELS['xt_block'] = lab['xt_block']
     LABELS['CT'] = ct                               # careerTeam (obj2 offset)

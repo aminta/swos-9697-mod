@@ -28,6 +28,7 @@ import weeks
 import purple
 import blond
 import xtra
+import xleft
 import pgroups
 import engine
 import menunum
@@ -233,6 +234,7 @@ def patch_exe(src, dst, remap, lang='it'):
         engine.save_item('SC', supercup.SC_SIZE, world_only=True)
     if xtra_on:
         engine.save_item('XS', xtra.XS_SIZE, world_only=True)    # 4.0.2 the XTRA players bought from other clubs (xtra.py)
+        engine.save_item('XL', xleft.XL_SIZE, world_only=True)   # 4.0.6 the XTRA players who left their club, XS's overflow (xleft.py)
     engine.save_item('CC', 4)                    # 4.0.6 the OPTIONS rows 'CPU red cards', 'CPU injuries' (cpucards.py: 0 = ON;
     engine.after_load('cc_load')                 # the session's value kept by a load / a new career)
     engine.after_new('cc_new')
@@ -743,6 +745,9 @@ def patch_exe(src, dst, remap, lang='it'):
     st_end = stoppage.patch(p, (kb_end + 15) & ~15, lang,    # in obj3 after kbd2 (bteam between them when merged)
                             stoppage.career_worlds(), stoppage.pack_files())
     assert st_end <= LT3_AT, hex(st_end)
+    if xtra_on:                                  # 4.0.6 (Enzo): XTRA players who left their club never come back with it,
+        st_end = xleft.patch(p, (st_end + 15) & ~15)         # in obj3 after stoppage
+        assert st_end <= LT3_AT, hex(st_end)
     print(f'exe: obj3 end {st_end:#x} ({LT3_AT - st_end} B left before the longtable page obj3+{LT3_AT:#x})')
     p.set_vsize(3, 0x1000 * OBJ3_PAGES)
     p.set_vsize(1, OBJ1_NEW_VSIZE + (0x1000 * (cp + 2 + cdp) if worlds else 0) + h2 + 0x1000 * (lpb + sp_pg + sc_pg + ct_pg + ctl_pg))

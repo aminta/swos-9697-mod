@@ -881,14 +881,14 @@ class Screen:
         out = [p for p in ptrs if p and not r.cached(p, 64)]
         if out and max(out) - min(out) < 0x100000:     # texts outside the cached ranges: one dump for all
             r.read(min(out), max(out) + 64 - min(out))
-        self.entries, self.nav, self.geom, self.colors = [], [], [], []
+        self.entries, self.nav, self.geom, self.colors, self.raw = [], [], [], [], []   # (raw: the bytes, '£' too)
         for i in range(n):
             e = 0x16 + i * 0x38
             inv, dis = struct.unpack_from('<HH', mem, e + 4)
             self.nav.append((tuple(mem[e + 8:e + 12]), tuple(mem[e + 16:e + 20])))   # l/r/u/d, skip l/r/u/d
             self.geom.append(struct.unpack_from('<4h', mem, e + 0x14))                # x, y, width, height
             self.colors.append(struct.unpack_from('<H', mem, e + 0x1E)[0])            # bg.backAndFrameColor
-            text = ''
+            text, raw = '', b''
             if ptrs[i]:
                 raw = r.read(ptrs[i], 64).split(b'\0')[0]
                 if raw and all(32 <= b < 127 for b in raw):
@@ -897,6 +897,7 @@ class Screen:
                     q = ''.join(chr(b) if b < 127 else '?' for b in raw)   # accents: '?', only a known label: the
                     text = q if q in UI_MAP or COLLECT else ''             # squad rows' drawn texts stay empty)
             self.entries.append((i, ui_it(text), inv, dis))
+            self.raw.append(raw)
 
     def find(self, text, visible=True, exact=False):
         """Index of the first entry whose text starts with (exact: is) `text`, visible ones only by default."""
@@ -20435,6 +20436,84 @@ def cpu_inj():
             else:
                 check(not inj and not any(l2), f'{tag}: CPU injuries kept with INFORTUNI OFF {l1} / {l2}', errs)
     return not errs, '; '.join(errs + notes)
+
+
+@scenario
+def fin_statement():
+    """4.0.6 finance's row on the post-match statement (finance.py fi_stmt; Davide on the MiSTer, I3S: the club income was
+    credited with no row, old balance + total != new): SWOSTEST_BUILD (SWOSTEST_UI it / en / fr / de, that language's
+    exe as ITALIAN.EXE), a new career (JUVENTUS) and the old save JUVEFIX3.CAR, each advanced to the career menu after a
+    match charge (the sponsorship grown), ANDAMENTO CLUB = the in-season statement: label entry 6 = finance.ROW[lang],
+    visible, font characters only, within its entry's width, the label rows apart (no overlap: the rows below it moved
+    down) and above CONTINUA; value entry 16 = the sponsorship (obj2, finance.find's SPONS); old balance (12) + the
+    total (20) = the new balance (21); the shown rows (13..19) + the hidden D6B88 / competition bonuses = the total; a
+    screenshot of each"""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import complist
+    import finance
+    import lepatch
+    sym = finance.find(lepatch.LEPatch(os.path.join(MAIN, 'orig', UI_ORIG)))
+    row = finance.ROW[UI]
+    money = lambda t: (-1 if t.lstrip().startswith('-') else 1) * int(re.sub(r'\D', '', t) or 0)
+    word = lambda r, o: struct.unpack('<i', bytes(r.obj2(o, 4)))[0]
+    errs, info = [], []
+    for case in ('new', 'old'):
+        files = {'JUVEFIX3.CAR': os.path.join(SAVES, 'JUVEFIX3.CAR')} if case == 'old' else {}
+        with Session(f'fin_statement_{UI}_{case}', builds()['it'], files, 'dump:2', 300) as s:
+            if s.wait().outcome != 'dump':
+                errs.append(f'{case}: no first pause ({s.result})')
+                continue
+            if case == 'old':
+                s.send('down down down down down fire dump:2')
+                s.send('fire dump:2')
+            else:
+                new_career(s, 'ITALIA', 'SERIE A', 'JUVENTUS')
+            seen = []                                    # the sponsorship at the first career menu, then grown
+            def charged(scr):
+                if 'ANDAMENTO CLUB' not in scr.texts():
+                    return False
+                seen.append(word(s.result, sym['SPONS'][1]))
+                return seen[-1] != seen[0]
+            ok, msg = advance(s, charged, 150)
+            if not ok:
+                errs.append(f'{case}: no match charge: {msg}')
+                continue
+            press(s, s.screen(), 'ANDAMENTO CLUB', 3)
+            scr = s.screen()
+            if not any(e[0] == 6 and not e[2] and e[1] == row for e in scr.entries):
+                errs.append(f'{case}: no {row!r} row: {scr}')
+                continue
+            s.shot(f'statement_{case}')
+            e = {i: (t, inv) for i, t, inv, _ in scr.entries}
+            raw = {x[0]: scr.raw[j].decode('latin-1') for j, x in enumerate(scr.entries)}   # (the English '£' rows:
+            v = {i: money(raw[i]) for i in range(12, 22) if i in e and not e[i][1]}       # no text, the bytes read)
+            check(all(re.search(r'\d', raw[i]) for i in v), f'{case}: a value row without digits {raw}', errs)
+            w = scr.geom[[x[0] for x in scr.entries].index(6)][2]
+            check(set(row) <= set(complist.SMALL_W) | {' '}, f'{case}: {row!r} has non-font characters', errs)
+            check(complist.px(row) <= w, f'{case}: {row!r} {complist.px(row)} px > its entry {w} px', errs)
+            g = {x[0]: scr.geom[j] for j, x in enumerate(scr.entries) if not x[2]}
+            ys = sorted(g[i][1] for i in range(2, 12) if i in g)        # the visible labels: one row each, and the
+            check(all(b - a >= 8 for a, b in zip(ys, ys[1:])), f'{case}: label rows overlap {ys}', errs)   # last
+            ci = scr.find('CONTINUA', exact=True)                         # above CONTINUA
+            check(ci is None or g[21][1] + g[21][3] <= scr.geom[ci][1], f'{case}: new balance over CONTINUA', errs)
+            spons, nb = word(s.result, sym['SPONS'][1]), word(s.result, sym['NEWBAL'][1])
+            k = v[21] / nb if nb else 1                     # (the exe's currency: the Italian one shows lire, x 2)
+            check(k > 0 and abs(v.get(16, 0) - spons * k) <= k, f'{case}: row {raw.get(16)!r} != the sponsorship {spons} x {k:g}', errs)
+            check(spons > 0, f'{case}: no income after a match ({spons})', errs)
+            check(v[12] + v[20] == v[21], f'{case}: old {v[12]} + total {v[20]} != new {v[21]}', errs)
+            hid = round(k * (word(s.result, sym['D6B88'][1]) + word(s.result, sym['D6B88'][1] + 4)))
+            rows = sum(x for i, x in v.items() if 13 <= i <= 19)
+            check(abs(rows + hid - v[20]) <= 8 * k, f'{case}: rows {rows} + hidden {hid} != total {v[20]}', errs)
+            if ci is not None:                              # a second visit: the same rows (no drift of the
+                press(s, scr, 'CONTINUA', 2)                # moved rows: the menu is rebuilt at every show)
+                press(s, s.screen(), 'ANDAMENTO CLUB', 3)
+                scr2 = s.screen()
+                g2 = {x[0]: scr2.geom[j] for j, x in enumerate(scr2.entries) if not x[2]}
+                check(g2 == g, f'{case}: second visit rows moved {[(i, g[i][1], g2.get(i)) for i in g if g2.get(i) != g[i]]}',
+                      errs)
+            info.append(f'{case}: {row} {raw[16].strip()} (from {seen[0]}, x {k:g}), old {v[12]} + total {v[20]} = new {v[21]} ({msg})')
+    return not errs, '; '.join(errs) or '; '.join(info)
+
 
 
 if __name__ == '__main__':

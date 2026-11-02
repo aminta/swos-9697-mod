@@ -15,6 +15,12 @@ the career club's division (dseg_D6CDC) counted as the league's levels: a level 
 A-C, Serie D girone A-I, ...: menulevels' tables) is one level; a league without groups: division + 1. Levels past
 the table: its last value. Nothing is saved: an old save gets it from its next match charge.
 
+The post-match statement (ClubBusinessInit's in-season variant, Davide on the MiSTer) showed no row for it and left it
+out of its PROFITTI / PERDITE TOTALI (old balance + total != new balance): it now shows the hidden sponsorship row
+(label entry 6, value entry 16, as the season-start statement's Sensisoft deal) with ROW[lang], the rows below it
+15 px down as that statement does, and adds the sponsorship to its total. The season-start statements are the original's: a new club's (sponsorship 0 there) and
+the staying club's (the Sensisoft deal row, already counted).
+
 The gate receipts (cseg_3C4CE) were cut to 16 bits before x16 (`and D7, 0FFFFh`): a gate over 65535 x 16 wrapped to
 a few pounds. Saturated at 0FFFFh now.
 """
@@ -25,6 +31,8 @@ import struct
 import nasmcave
 
 BASE = (3000000, 1200000, 500000, 200000)   # a season's base income by level 1, 2, 3, 4 (deeper: the last)
+ROW = {'it': 'SPONSOR E DIRITTI TV:', 'en': 'SPONSORS + TV RIGHTS:', 'fr': 'SPONSORS + DROITS TV:',
+       'de': 'SPONSOREN + TV-RECHTE:'}           # the statement's row (Davide, 02/11)
 WAGE_MUL, WAGE_DIV = 11, 10                 # + 1.1 x the season's wage bill
 MAXDIV = 32                                 # (levels table: divisions per league)
 
@@ -85,6 +93,40 @@ GATE_FORCE
     and dword [D7], 0FFFFh
     jmp GATE_BACK
 
+fi_stmt:                                ; replaces `mov eax, [D6B88]; mov [D1], eax` (the in-season statement's total)
+    mov dword [D0], 6                   ; the label: ours, shown
+    call CALCMENU
+    mov esi, [A0]
+    mov word [esi + 4], 0
+    mov dword [esi + 38], FI_ROW
+    mov dword [D0], 16                  ; the value: the sponsorship, as the other rows
+    call CALCMENU
+    mov esi, [A0]
+    mov word [esi + 4], 0
+    mov eax, [esi + 38]
+    mov [A1], eax
+    mov eax, [SPONS]
+    mov [D0], eax
+    call WRITEBAL
+    mov dword [D0], 7                   ; the rows below it 15 px down, as the staying club's statement does
+    call .down                          ; for its Sensisoft row (cseg_5F0E7: labels 7..11, values 17..21)
+    mov dword [D0], 17
+    call .down
+    mov eax, [D6B88]                    ; the total with it
+    add eax, [SPONS]
+    mov [D1], eax
+    ret
+.down:
+    call CALCMENU
+    mov esi, [A0]
+    mov ecx, 5
+.dn:
+    add word [esi + 22], 15
+    add esi, 56
+    loop .dn
+    ret
+
+FI_ROW: ROW_DB
 FI_BASE: BASE_DD
 FI_LV: LV_DB
     dd 0
@@ -109,8 +151,17 @@ def find(p):
     assert len(cnt) == 1, 'the charge loop counter'
     g = [m.start() for m in re.finditer(rb'\x81\x25(....)\xff\xff\x00\x00\xc1\x25\1\x04\xa1\1\x01\x05', d, re.S)]
     assert len(g) == 1, g
+    st = [m.start() for m in re.finditer(rb'\xa1....\xa3(....)\xa1....\x01\x05\1\xa1....\x01\x05\1', d, re.S)]
+    assert len(st) == 3, st                             # the statement totals: in-season, new club, staying club
+    w = re.search(rb'\xc7\x05(....)\x13\x00\x00\x00\xe8(....)\x8f\x05\1\x8b\x35(....)\x8b\x46\x26\xa3(....)\xa1....'
+                  rb'\xa3\1\xf7\x1d\1\xe8(....)\Z', d[st[0] - 60:st[0]], re.S)
+    assert w, 'the wages row before the in-season total'
+    rel = lambda k: (1, st[0] - 60 + w.end(k) + struct.unpack('<i', w.group(k))[0])
+    s0 = st[0] - 60
     import gplay
-    return {'charge': cnt[0], 'C1750DA': p.target(1, cnt[0] + 3), 'gate': g[0], 'D7': p.target(1, g[0] + 2),
+    return {'stmt': st[0], 'D6B88': p.target(1, st[0] + 1), 'D1': p.target(1, st[0] + 6), 'D0': p.target(1, s0 + w.start(1)),
+            'A0': p.target(1, s0 + w.start(3)), 'A1': p.target(1, s0 + w.start(4)), 'CALCMENU': rel(2), 'WRITEBAL': rel(5),
+            'charge': cnt[0], 'C1750DA': p.target(1, cnt[0] + 3), 'gate': g[0], 'D7': p.target(1, g[0] + 2),
             'D6B9E': (2, b9a + 4), 'D6CA2': p.target(1, ca2[0] + 3), 'SPONS': (2, b9a - 0xA), 'NEWBAL': (2, b9a - 0x32),
             'D6CDC': (2, gplay._cardiv(p))}
 
@@ -134,11 +185,13 @@ def patch(p, at, lang):
     import sacups
     s = find(p)
     d = p.le.obj_bytes(1)
-    for k, n in (('charge', 8), ('gate', 10)):
+    assert s['SPONS'] == (2, s['D6B88'][1] + 8), (s['SPONS'], s['D6B88'])   # D6B88, competitionBonuses, sponsorship
+    for k, n in (('charge', 8), ('gate', 10), ('stmt', 10)):
         assert p.get(1, s[k], n) == d[s[k]:s[k] + n], ('finance site already patched', k)
     lv = levels(lang)
     rows = []
-    sym = {k: s[k] for k in ('C1750DA', 'D7', 'D6B9E', 'D6CA2', 'SPONS', 'NEWBAL', 'D6CDC')}
+    sym = {k: s[k] for k in ('C1750DA', 'D7', 'D6B9E', 'D6CA2', 'SPONS', 'NEWBAL', 'D6CDC', 'D6B88', 'D1', 'D0', 'A0', 'A1',
+                             'CALCMENU', 'WRITEBAL')}
     for j, (lat, row) in enumerate(lv):
         sym[f'LV{j}'] = lat
         rows.append(f'dd LV{j}')
@@ -149,6 +202,7 @@ def patch(p, at, lang):
     src = nasmcave.sub(ASM, 'GATE_FORCE', '    mov dword [D7], 12345h' if force else '')
     src = nasmcave.sub(nasmcave.sub(src, 'BASE_DD', 'dd ' + ', '.join(str(b) for b in BASE)),
                        'LV_DB', '\n    '.join(rows))
+    src = nasmcave.sub(src, 'ROW_DB', 'db ' + ', '.join(str(c) for c in ROW[lang].encode('ascii') + b'\0'))
     code, fix, rel = nasmcave.assemble_obj(src, at, sym, 3)
     lab = nasmcave.labels(src, at, sym)
     assert not any(p.get(3, at, len(code)))
@@ -161,7 +215,11 @@ def patch(p, at, lang):
     p.branch(1, s['charge'], 0xE9, 3, lab['fi_charge'], 8)
     p.remove(1, s['gate'] + 2)
     p.branch(1, s['gate'], 0xE9, 3, lab['fi_gate'], 10)
+    p.remove(1, s['stmt'] + 1)
+    p.remove(1, s['stmt'] + 6)
+    p.branch(1, s['stmt'], 0xE8, 3, lab['fi_stmt'], 10)
     print(f'exe: club income per match charge (base {[b // 1000 for b in BASE]} k by level + {WAGE_MUL}/{WAGE_DIV} x the '
-          f'wages; {len(lv)} leagues with levels of groups) + gate saturated: code obj3+{at:#x} ({len(code)} B), sites '
-          f'obj1+{s["charge"]:#x} / +{s["gate"]:#x}')
+          f'wages; {len(lv)} leagues with levels of groups) + gate saturated + statement row {ROW[lang]!r}: code '
+          f'obj3+{at:#x} ({len(code)} B), sites '
+          f'obj1+{s["charge"]:#x} / +{s["gate"]:#x} / +{s["stmt"]:#x}')
     return at + len(code)

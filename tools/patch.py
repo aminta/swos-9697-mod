@@ -612,7 +612,7 @@ def patch_exe(src, dst, remap, lang='it'):
         assert lt_end_ <= lt_room[1], (f'longtable + mainbtn: {lt_end_ - lt_room[0]} B from obj1+{lt_room[0]:#x}, past '
                                        f'the room end obj1+{lt_room[1]:#x} ({"gplay" if LT_SPACE else "the extra"}\'s pages; '
                                        f'a test build\'s bigger gplay: shrink it, as GP_KOSIZE)')   # 4.0.6: no other room
-        if xtra_pg and lt_room[0] == xp:                 # (in the extra pages: their code after it, lgreal on the
+        if xtra_pg and not LT_SPACE:                     # (in the extra pages: their code after it, lgreal on the
             xtra_at = (lt_end_ + 15) & ~15               # split page's tail)
             LG_ROOM[:] = [xtra_at, xtra_at]
         else:

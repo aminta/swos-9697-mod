@@ -6692,6 +6692,9 @@ def bench_training():
         s.send('left:0.3 left:0.3 dump:0.8')
         if not train_out(s, errs):
             return False, '; '.join(errs + info)
+        hurt = heal_first16(s)              # (02/11 I2/I3: the training game injured a starter: GIOCA PARTITA hidden)
+        if hurt:
+            info.append(f'healed after the training game {hurt}')
         r = to_league(s, top, bot, club, errs)
         if r is not None:
             names = (ingame_team(r, top)[0], ingame_team(r, bot)[0])

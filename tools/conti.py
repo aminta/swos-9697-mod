@@ -164,11 +164,17 @@ def fields(c, known, outside):
                     feed[key[t]] += r['groups'] * len(_places(q))
                 elif ':' not in t:
                     best[key[t]] = r['groups']
+    nties = lambda r: len(r['ties']) if isinstance(r.get('ties'), list) else r.get('ties')
+    for r in rounds:                                    # (4.0.6 a round whose winners go elsewhere, 'winners': its
+        if r.get('winners'):                            # ties' winners into that round, its own size from its ties)
+            feed[key[r['winners']]] += nties(r)
     field = [0] * n
     for j in range(n - 1, -1, -1):
         r = rounds[j]
         if r['kind'] in ('groups', 'league_stage'):
             field[j] = r.get('clubs') or r['groups'] * r['size']
+        elif r.get('winners'):
+            field[j] = 2 * nties(r)
         elif j == n - 1:
             field[j] = 2
         else:
@@ -423,9 +429,11 @@ def load(confs, files=None, words=None, s1=None):
     force = (0xFF, 0xFF)                                # CONTI_FORCE=<cup>:<round> (test builds only): the
     if os.environ.get('CONTI_FORCE'):                   # career club enters that round at every season end
         fk, fr = os.environ['CONTI_FORCE'].split(':')
+        rep = fr.endswith('!')                          # (4.0.6 '<round>!': the club takes the place of the round's
+        fr = fr.rstrip('!')                             # entrant of its confederation - a full one-tie round stays full)
         fc = next((i for i, (_, c, _) in enumerate(cups) if c['key'] == fk), None)
         if fc is not None:                              # (season1_native loads one confederation at a time)
-            force = (fc, rkey[fc][fr])
+            force = (fc, rkey[fc][fr] | (0x80 if rep else 0))
             print(f'exe: CONTI_FORCE={fk}:{fr} (test build)')
     spec = bytes((len(cups), len(assocs)) + force) + body
     spec += struct.pack('<H', len(access)) + b''.join(bytes(x) for x in access)

@@ -13946,17 +13946,17 @@ def conti_month(tag, force, team, word, week0):
 @scenario
 def world_conti_ic_dec():
     """4.0.6 the Intercontinental's real months (conti._ic_split): FLAMENGO forced into the Derby of the Americas
-    (CONTI_FORCE=ic:r2b) and winning its conti ties (CONTI_KOWIN). Season 2: the DERBY, then the CHALLENGER CUP,
+    (CONTI_FORCE=ic:r2b!) and winning its conti ties (CONTI_KOWIN). Season 2: the DERBY, then the CHALLENGER CUP,
     then the FINAL, each once, in that order, all in December (weeks 88..103: a tie never built into a week
-    already played); the calendar weeks from GP_CALTRACE's [calt]. (The forced club is a 3rd entrant of the Derby's
-    one tie: the Libertadores holder goes on unpaired, so the Challenger opponent is a CONMEBOL club, not the AAP Cup
-    winner - a test-build artefact; the natural routes: conti.py --test fifa.)"""
+    already played); the calendar weeks from GP_CALTRACE's [calt]. CONTI_FORCE 'r2b!': FLAMENGO takes the Libertadores
+    holder's place (its confederation's entrant; as a 3rd entrant of the one tie a club could go on unpaired, and in the
+    CONCACAF holder's place the Derby would be two Brazilian clubs)."""
     src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
     if not os.path.isdir(src):
         return True, f'SKIP: private data {src} missing'
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
     exe = build('conti_ic_dec', env={'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]),
-                                     'CONTI_FORCE': 'ic:r2b', 'CONTI_KOWIN': '1'})
+                                     'CONTI_FORCE': 'ic:r2b!', 'CONTI_KOWIN': '1'})
     keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_ONE',
             'W8485_FROM', 'W8485_TMO', 'GP_CALTRACE')
     keep = {k: os.environ.get(k) for k in keys}

@@ -17,6 +17,15 @@
 - **Two new OPTIONS rows, both ON by default:** the computer's clubs now get **red cards** (a sent-off player is suspended, like yours) and **injuries** (an injured player of a computer's club misses the following matches instead of being fit again at once). Turn a row OFF to get the original game behaviour back.
 - Under SWOS++ the two rows are hidden and the original behaviour applies.
 
+#### Long benches: scrolling as in the original game
+- **Long benches** (thanks to Marco): the player lists scroll as in the original game again.
+  - Moving the cursor up and down the names never scrolls the list.
+  - DOWN on the last name goes straight to the entry below. In a career that is the coach line (PLAY :), then PLAY MATCH. On the club squad screen it is the buttons; in the tactics editor, its own button.
+  - To see the other substitutes, put the cursor on the face next to the last player and press FIRE. Each press shows the next one, and after the last it starts again from the top.
+  - A player you have picked stays picked while you browse.
+  - Same on the pre-match screen, the club squad screen, the tactics editor, the squad view and the national team call-ups.
+  - VIEW OPPONENT is unchanged: there UP / DOWN still browse the opponent's substitutes (you can only look).
+
 #### Training, squad and market
 - **Training games: bench and kits** (thanks to Marco). Training games (career, squad screen > TRAINING) have the game's own rule again: 2 substitutes from 2 on the bench. In 4.0.5 a training game took the bench of your current league: at a Serie A club the dugout showed 5 players a team, and the training squad screen had a bench of 12. Your next real match has the full league bench again.
   - In a training game both teams are your club, so SELECT KITS lists them as "ROMA A" and "SQUADRA B". They now keep their own kits: team A in the kit you pick for A, team B in the kit you pick for B. Before, both teams wore team A's choice.
@@ -120,6 +129,15 @@ La 4.0.6 è un giro di richieste dei giocatori: **due giocatori sulla stessa tas
 #### Le squadre del computer giocano con le tue regole
 - **Due nuove righe in OPZIONI, entrambe attive di default:** le squadre del computer ora prendono **cartellini rossi** (un espulso è squalificato, come i tuoi) e **infortuni** (un infortunato di una squadra del computer salta le partite seguenti invece di essere subito di nuovo a posto). Metti una riga su NO per riavere il comportamento originale del gioco.
 - Con SWOS++ le due righe sono nascoste e vale il comportamento originale.
+
+#### Panchine lunghe: si scorre come nel gioco originale
+- **Panchine lunghe** (grazie a Marco): gli elenchi dei giocatori tornano a scorrere come nel gioco originale.
+  - Muovere il cursore su e giù sui nomi non fa più scorrere l'elenco.
+  - GIÙ sull'ultimo nome va subito alla voce sotto. In carriera è la riga dell'allenatore (GIOCA :), poi GIOCA PARTITA. Nella rosa del club sono i pulsanti; nell'editor tattico, il suo pulsante.
+  - Per vedere le altre riserve si mette il cursore sulla faccina accanto all'ultimo giocatore e si preme FUOCO. A ogni pressione compare la riserva successiva, e dopo l'ultima si riparte dall'inizio.
+  - Il giocatore già selezionato resta selezionato mentre si scorre.
+  - Vale per la schermata prepartita, la rosa del club, l'editor tattico, la visualizzazione della rosa e le convocazioni della nazionale.
+  - VISUALIZZA AVVERSARIO non cambia: lì SU / GIÙ scorrono ancora le riserve avversarie (si può solo guardare).
 
 #### Allenamento, rosa e mercato
 - **Allenamento: panchina e maglie** (grazie a Marco). Le partite di allenamento (carriera, schermata della rosa > PRATICA) tornano alla regola del gioco: 2 sostituti su 2 in panchina. In 4.0.5 l'allenamento prendeva la panchina del tuo campionato: con un club di Serie A la panchina mostrava 5 giocatori per squadra e la schermata della rosa in allenamento una panchina da 12. La partita vera successiva ha di nuovo la panchina intera del campionato.

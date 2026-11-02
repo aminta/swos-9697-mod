@@ -18,7 +18,9 @@
 - Under SWOS++ the two rows are hidden and the original behaviour applies.
 
 #### Training, squad and market
-- **Training match:** [TO COMPLETE: Panchina — the bench in a training match has 2 reserves + 2 substitutes; kits A and B in training].
+- **Training games: bench and kits** (thanks to Marco). Training games (career, squad screen > TRAINING) have the game's own rule again: 2 substitutes from 2 on the bench. In 4.0.5 a training game took the bench of your current league: at a Serie A club the dugout showed 5 players a team, and the training squad screen had a bench of 12. Your next real match has the full league bench again.
+  - In a training game both teams are your club, so SELECT KITS lists them as "ROMA A" and "SQUADRA B". They now keep their own kits: team A in the kit you pick for A, team B in the kit you pick for B. Before, both teams wore team A's choice.
+  - In a training game SELECT KITS hides the "this match only / always" choice, and your club's saved kits are never changed by a training game.
 - **Shirt numbers on the squad screen.** You can now edit your club's shirt numbers on the squad screen too, as you already could on the team screen before a match: press LEFT on a player, then UP / DOWN or type the number; ESC cancels. The number no longer touches the player's name, and its shadow shows.
 - **Transfer market keeps its place** (reported by Enzo). When you look at a player in the national or foreign market list (MAKE OFFER) and come back with EXIT, the list stays on the page you were on, with the cursor on that player, instead of jumping back to the first page.
 
@@ -40,7 +42,10 @@
 - [TO COMPLETE: Integratore, long text — why club finances were out of balance (running costs are about 3.2 times the wage bill, every week, while income did not follow the squad), what changed, with examples of big clubs; the 16-bit gate-receipts overflow fixed; thanks to Nicola for the report. Davide wants this explained at length.]
 
 #### Coming in this version, text to come
-- [TO COMPLETE: Panchina — opponent list in the match: UP on the coach in the bench menu shows the opponent's squad, read-only; not with SWOS++.]
+- **The opponent's squad during a match** [DRAFT: Panchina confirms after Davide approves the look]. During a match you can now look at the opponent's squad. Open the bench menu (where you make substitutions), put the cursor on your coach and press UP.
+  - The first page shows their 11 players on the pitch. Press DOWN for their substitutes, 11 a page, and UP to go back a page.
+  - The list is read-only: you cannot pick or change anything in it. FIRE, LEFT or RIGHT closes it, and the cursor goes back to your coach.
+  - With SWOS++ the list is switched off: UP on the coach works as before.
 - [TO COMPLETE: Motore — B-team call-ups: one match and season attachment, real rules per country, ages.]
 
 #### Fixes
@@ -71,7 +76,9 @@ La 4.0.6 è un giro di richieste dei giocatori: **due giocatori sulla stessa tas
 - Con SWOS++ le due righe sono nascoste e vale il comportamento originale.
 
 #### Allenamento, rosa e mercato
-- **Partita di allenamento:** [DA COMPLETARE: Panchina — la panchina in allenamento ha 2 riserve + 2 sostituti; maglie A e B in allenamento].
+- **Allenamento: panchina e maglie** (grazie a Marco). Le partite di allenamento (carriera, schermata della rosa > PRATICA) tornano alla regola del gioco: 2 sostituti su 2 in panchina. In 4.0.5 l'allenamento prendeva la panchina del tuo campionato: con un club di Serie A la panchina mostrava 5 giocatori per squadra e la schermata della rosa in allenamento una panchina da 12. La partita vera successiva ha di nuovo la panchina intera del campionato.
+  - In allenamento le due squadre sono entrambe il tuo club, e MAGLIE le mostra come "ROMA A" e "SQUADRA B". Ora ognuna tiene le sue maglie: la squadra A quella scelta per A, la squadra B quella scelta per B. Prima entrambe vestivano la scelta della squadra A.
+  - In allenamento MAGLIE nasconde la scelta SOLO PARTITA / SEMPRE, e le maglie salvate del tuo club non vengono mai cambiate da una partita di allenamento.
 - **Numeri di maglia nella schermata della rosa.** Ora puoi modificare i numeri di maglia del tuo club anche nella schermata della rosa, come già potevi nella schermata della squadra prima della partita: premi SINISTRA su un giocatore, poi SU / GIÙ o scrivi il numero; ESC annulla. Il numero non tocca più il nome del giocatore e se ne vede l'ombra.
 - **Il mercato ricorda la pagina** (segnalato da Enzo). Quando guardi un giocatore nell'elenco del mercato nazionale o estero (FAI OFFERTA) e torni con ESCI, l'elenco resta sulla pagina in cui eri, con il cursore su quel giocatore, invece di tornare alla prima pagina.
 
@@ -93,7 +100,10 @@ La 4.0.6 è un giro di richieste dei giocatori: **due giocatori sulla stessa tas
 - [DA COMPLETARE: Integratore, testo lungo — perché le finanze dei club erano fuori equilibrio (i costi di gestione sono circa 3,2 volte il monte stipendi, ogni settimana, mentre gli incassi non seguivano la rosa), cosa è cambiato, con esempi di grandi club; il troncamento a 16 bit degli incassi della partita corretto; grazie a Nicola per la segnalazione. Davide vuole che sia spiegato a lungo.]
 
 #### In arrivo in questa versione, testo da completare
-- [DA COMPLETARE: Panchina — elenco avversari in partita: SU sull'allenatore nel menu panchina mostra la rosa dell'avversario, sola lettura; non con SWOS++.]
+- **La rosa dell'avversario durante la partita** [BOZZA: Panchina conferma dopo l'ok di Davide sull'aspetto]. Durante la partita ora puoi vedere la rosa dell'avversario. Apri il menu della panchina (quello dei cambi), porta il cursore sull'allenatore e premi SU.
+  - La prima pagina mostra i loro 11 in campo. GIÙ mostra le loro riserve, 11 per pagina, e SU torna alla pagina prima.
+  - L'elenco è in sola lettura: non si può scegliere né cambiare niente. FUOCO, SINISTRA o DESTRA lo chiudono, e il cursore torna sull'allenatore.
+  - Con SWOS++ l'elenco è disattivato: SU sull'allenatore funziona come prima.
 - [DA COMPLETARE: Motore — convocazioni dalla squadra B: una partita e aggregazione stagionale, regole vere per paese, età.]
 
 #### Correzioni

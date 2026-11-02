@@ -227,7 +227,9 @@ def table(lang, name_off):
         ents = [word(k) for k in d['first_entrants']] + [0] * (4 - n)
         w1 = split.week_of(d['date'])
         w2 = split.week_of(d['final_date']) if n == 4 else w1
-        out.append(_entry(d, c, lang, name_off, lf, int(cup['id'], 16) if cup else 0, rules, ents, w1, w2, n, tix))
+        bn = pk.meta.get('button_names') or {}
+        country = (bn.get(lang) or pk.meta.get('button') or '').upper()
+        out.append(_entry(d, c, lang, name_off, lf, int(cup['id'], 16) if cup else 0, rules, ents, w1, w2, n, tix, country))
     if not out:
         return None
     d = spec.get('uefa')                             # 4.0.6 the UEFA Super Cup: the last entry (a world's European clubs)
@@ -242,8 +244,9 @@ def table(lang, name_off):
     return list(bytes([len(out)]) + b''.join(out))
 
 
-def _entry(d, c, lang, name_off, lf, cid, rules, ents, w1, w2, n, tix):
-    """One GP_SCT entry (SC_E = 36 bytes)."""
+def _entry(d, c, lang, name_off, lf, cid, rules, ents, w1, w2, n, tix, country=''):
+    """One GP_SCT entry (SC_E = 36 bytes). country: the pack's button name in lang (the slot's title '<country>
+    <long>': the long name fitted to TITLE_MAX and VISUAL. COMPETIZ.'s button, complist's rule - Davide 03/11)."""
     import complist
     import gplay                                    # (the season record's line: REGISTRO GESTIONE's column)
     import rnames
@@ -251,7 +254,14 @@ def _entry(d, c, lang, name_off, lf, cid, rules, ents, w1, w2, n, tix):
     e += bytes(rules) + struct.pack('<4H', *ents)
     nm = d['names'].get(lang) or d['names']['en']
     complist.cal_label(nm[1], f'supercup {c} {lang}')   # (the calendar's label: <= 70 px, font chars only)
-    e += struct.pack('<II', name_off(nm[0].encode('latin-1')), name_off(nm[1].encode('latin-1')))
+    lo = nm[0]
+    if country:
+        complist.LANG[:] = [lang]
+        lo = complist._fit(country, nm[0], nm[1])
+        t = f'{country} {lo}'
+        assert len(t) <= complist.TITLE_MAX and complist.px(t) <= complist.VC_PX and all(ch in complist.FONT for ch in t), \
+            ('supercup title', c, lang, t, len(t), complist.px(t))
+    e += struct.pack('<II', name_off(lo.encode('latin-1')), name_off(nm[1].encode('latin-1')))
     e += bytes([rnames.KEYS['SF'], rnames.KEYS['F'], tix[0], tix[1]])
     rec = nm[0] if complist.px(nm[0]) <= gplay.REC_PX else nm[1]
     e += struct.pack('<I', name_off(rec.encode('latin-1')))

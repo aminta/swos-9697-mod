@@ -2363,7 +2363,9 @@ def italy_advance():
             return False, f'START: no first pause ({s.result})'
         s.send('down down down down down fire dump:2')
         s.send('fire dump:2')
-        ok, msg = advance(s, lambda scr: scr.find('FINISCI STAGIONE', exact=True) is not None)
+        s.poke(s.result.base2 + nosack_off(os.path.join(builds()['it'], 'ITALIAN.EXE')), b'\x01\x00')   # 4.0.6: the
+        ok, msg = advance(s, lambda scr: scr.find('FINISCI STAGIONE', exact=True) is not None)   # chairman never sacks
+        # (finance's income moves the results' RNG: a sack by the league position is not what this case checks)
         if not ok:
             return False, 'advance: ' + msg
         press(s, s.screen(), 'FINISCI STAGIONE', wait=3)
@@ -15969,21 +15971,31 @@ def world_nats():
                     if i >= 10 and re.fullmatch(r'\([A-Z]{3}\)', t)]
             if not nats:
                 return False, f'market list empty: {[e[1] for e in scr.entries if e[1]]}'
-            y, _, nat_i, _ = max(nats, key=lambda n: n[1])        # the nationality: the row's rightmost (XXX)
-            row = sorted((scr.geom[i][0], t) for i, t, inv, _ in scr.entries
-                         if i >= 10 and t and scr.geom[i][1] == y and not t.startswith('('))
-            names = [t for _, t in row if len(t) > 3]
-            if not names:
-                return False, f'market: no name on the row of {scr.entries[nat_i][1]}: {row}'
-            first = names[0].encode()
             o2 = s.result.read(s.result.base2, s.info['size2'])
-            hits = [m.start() - 3 for m in re.finditer(re.escape(first) + b'\\0', o2)
-                    if m.start() >= 3 and o2[m.start() - 3] <= 155 + len(careerworld.WORLD_NATS)]
+            rows = {}                                    # 4.0.6: the bottom row whose name is the player's full
+            for ny, nx, ni, _ in nats:                   # record name (a long name shows as 'N. SURNAME': poking
+                rows[ny] = max(rows.get(ny, (nx, ni)), (nx, ni))   # that text's other copy changes nothing; the
+                                                         # list itself depends on the bank - finance's income)
+            first = hits = None
+            for y in sorted(rows, reverse=True):
+                nat_i = rows[y][1]
+                row = sorted((scr.geom[i][0], t) for i, t, inv, _ in scr.entries
+                             if i >= 10 and t and scr.geom[i][1] == y and not t.startswith('('))
+                names = [t for _, t in row if len(t) > 3]
+                if not names or re.match(r'[A-Z]\. ', names[0]):
+                    continue
+                first = names[0].encode()
+                hits = [m.start() - 3 for m in re.finditer(re.escape(first) + b'\\0', o2)
+                        if m.start() >= 3 and o2[m.start() - 3] <= 155 + len(careerworld.WORLD_NATS)]
+                if hits:
+                    break
+            if not first:
+                return False, f'market: no full name on any row: {[e[1] for e in scr.entries if e[1]]}'
             check(hits, f'market: {first} (nat {scr.entries[nat_i][1]}) not found in obj2', errs)
             for h in hits:                               # the market record(s) of the shown player: nationality
                 s.poke(s.result.base2 + h, [code])       # byte 3 B before the name
             for _ in range(8):                           # ELENCA again (a pager in some exes: LIST / MORE) until the
-                walk(s, 7, 3)                            # poked player's row is the last drawn again
+                walk(s, 7, 3)                            # poked player's row is drawn again
                 scr = s.screen()
                 if any(t == first.decode() and scr.geom[i][1] == y for i, t, inv, _ in scr.entries if i >= 10):
                     break

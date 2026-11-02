@@ -6567,13 +6567,15 @@ def train_kickoff(s, top, bot, both, steps=25):
 
 def train_out(s, errs, steps=300):
     """The training game played to its end (as bench_play: 3 fires a pause): back on the squad screen (its TRAINING
-    entry). False if not."""
+    entry), the first 16 healed (s.healed: a training game's random injury hides PLAY MATCH - 02/11, kits_training
+    and bench_training). False if not."""
     for _ in range(steps):
         if s.result.outcome != 'dump':
             errs.append(f'training: {s.result}')
             return False
         try:
             if TRAIN_TXT[UI][1] in s.screen().texts():
+                s.healed = heal_first16(s)
                 return True
         except Exception:                       # (in the match: no menu)
             pass
@@ -6676,6 +6678,8 @@ def bench_training():
         s.send('left:0.3 left:0.3 dump:0.8')
         if not train_out(s, errs):
             return False, '; '.join(errs + info)
+        if s.healed:
+            info.append(f'healed after the training game {s.healed}')
         r = to_league(s, top, bot, club, errs)
         if r is not None:
             names = (ingame_team(r, top)[0], ingame_team(r, bot)[0])
@@ -6737,7 +6741,7 @@ def kits_training():
         check(k1 == k0, f'careerTeam kits {k0.hex(" ")} -> {k1.hex(" ")}', errs)
         if not train_out(s, errs):
             return False, '; '.join(errs + info)
-        hurt = heal_first16(s)              # (02/11 cl1: the training game injured a starter: GIOCA PARTITA hidden)
+        hurt = s.healed                     # (02/11 cl1: the training game injured a starter: GIOCA PARTITA hidden)
         if hurt:
             info.append(f'healed after the training game {hurt}')
         scr = to_league(s, top, bot, club, errs, prematch=True)

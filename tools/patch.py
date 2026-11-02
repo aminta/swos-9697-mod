@@ -748,6 +748,9 @@ def patch_exe(src, dst, remap, lang='it'):
     if xtra_on:                                  # 4.0.6 (Enzo): XTRA players who left their club never come back with it,
         st_end = xleft.patch(p, (st_end + 15) & ~15)         # in obj3 after stoppage
         assert st_end <= LT3_AT, hex(st_end)
+    if sc_on:                                    # 4.0.6 the UEFA Super Cup: the holders' snapshot at the season end,
+        st_end = supercup.patch_usc(p, (st_end + 15) & ~15)   # obj3 after xleft
+        assert st_end <= LT3_AT, hex(st_end)
     print(f'exe: obj3 end {st_end:#x} ({LT3_AT - st_end} B left before the longtable page obj3+{LT3_AT:#x})')
     p.set_vsize(3, 0x1000 * OBJ3_PAGES)
     p.set_vsize(1, OBJ1_NEW_VSIZE + (0x1000 * (cp + 2 + cdp) if worlds else 0) + h2 + 0x1000 * (lpb + sp_pg + sc_pg + ct_pg + ctl_pg))

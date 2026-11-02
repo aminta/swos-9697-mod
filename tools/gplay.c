@@ -1918,6 +1918,7 @@ enum { K_SC = 10 };                     /* (4.0.5: a national supercup tie, sc_s
 struct gp_ko;
 void sc_done(const struct gp_ko *k);
 static u32 sc_rline(void);              /* (4.0.5: gp_rlines_c's supercup line) */
+static u32 usc_rline(void);             /* (4.0.6: the UEFA Super Cup's) */
 static void rl_put(void);
 int sc_busy(void);                      /* (4.0.5: the slot-4 guard) */   /* (CDP: preliminary ties at most, CDP + 2 x CD1 - 1 <= CDT) */
 struct cd_state { u16 magic; u8 season, round, built, bt, drawn, pad; u8 res[CDT], home[CDT]; u8 sd[4];
@@ -3006,6 +3007,8 @@ static int str_ok(const u8 *s) {        /* the start of a name string (the names
     return n >= 2 && !s[n];
 }
 static const u8 *sc_entry(void);
+static const u8 *usc_entry(void);
+static int usc_live(void);
 void gp_fixload_c(const u32 *nm, u8 *recs, u32 base, u8 *const *slots, u32 phase) {
     if (phase == 0) {
         for (int i = 0; i < 2; i++) {
@@ -3018,7 +3021,7 @@ void gp_fixload_c(const u32 *nm, u8 *recs, u32 base, u8 *const *slots, u32 phase
                                            (Ischia's: the strings moved since); never nm[3 * 255] ('SCENE
                                            PRESIDENZIALI') */
                 const u8 *src = k->kind == K_CUPD && GP_CDT && GP_CDNM ? (const u8 *)GP_CDNM :
-                                k->kind == K_SC ? sc_entry() : 0;
+                                k->kind == K_SC ? (usc_live() ? usc_entry() : sc_entry()) : 0;
                 if (src && k->kind == K_SC) src += 20;
                 if (src) for (int j = 0; j < 8; j++) names[j] = src[j];
                 continue;
@@ -3166,6 +3169,7 @@ u32 gp_rlines_c(void) {
         if (wmask & 1 << st) rl_add(wname[st], 1);
     if (kr) rl_add(kn, kr);
     { u32 sn = sc_rline(); if (sn) rl_add(sn, 1); }   /* (4.0.5: a national supercup won) */
+    { u32 sn = usc_rline(); if (sn) rl_add(sn, 1); }  /* (4.0.6: the UEFA Super Cup won) */
     rl_put();
     return rl_n;
 }
@@ -3174,6 +3178,7 @@ u32 sc_rlines_c(void) {                 /* 4.0.5 (gp_rl, a league with no gplay 
     rl_n = rl_w = 0;
     u32 sn = sc_rline();
     if (sn) rl_add(sn, 1);
+    if ((sn = usc_rline())) rl_add(sn, 1);   /* (4.0.6: the UEFA Super Cup won) */
     rl_put();
     return rl_n;
 }
@@ -3951,7 +3956,19 @@ u32 cf_member_c(u32 id, u32 season, u32 cteam) {        /* 2: not ours (the defi
    SC_ST +5 = 1: the career club won this season's (SC_ST +3) supercup -> its record line (sc_rline, gp_rlines_c). Only the career club's country's supercup is played: the career club in it -> its tie in slot 4 (as
    a Coppa D tie, kind K_SC); the other semi-final is decided at once (the better placed of last season wins 3 in 5). */
 enum { SC_E = 36, SC_NE = 16, SC_H = 12, SC_EARLY = 0x80 };   /* (entry byte 2: from_season | SC_EARLY) */
-enum { SCR_CHAMP = 1, SCR_SECOND, SCR_CUPW, SCR_CUPF, SCR_THIRD, SCR_FOURTH, SCR_TITLE0, SCR_TITLE1 };
+enum { SCR_CHAMP = 1, SCR_SECOND, SCR_CUPW, SCR_CUPF, SCR_THIRD, SCR_FOURTH, SCR_TITLE0, SCR_TITLE1,
+       SCR_UCL, SCR_UEL, SCR_UECL };   /* (4.0.6: the game's UEFA holders, the UEFA Super Cup) */
+/* 4.0.6 the UEFA Super Cup (internal/handoff/csup.md): GP_SCT's entry with league file SC_UEFA (world-level), its
+   entrants the game's own holders of last season's Champions / Europa / Conference League (HOLD_CC, CWC, UEFA), as
+   supercup.py's usc_snap copied them at the season end - right after the three European cups' season ends
+   (cseg_92D55 / 9307A / 9339D), before the qualifiers clear a holder that qualified through its league
+   (cseg_93BCE; the game does not save them either). Its state is SC_ST's last cup entry (supercup.py keeps the cups
+   below it): db the season handled, state (1 the career club's tie built, 3 done or not in it), won, the season of
+   the snapshot (the season byte at its end), dw the winner, dw the holders CL, EL, UECL (FFFFh none). Built first (early, at the season's first advance): a national early one waits for slot 4 and is built
+   at its own week, after the UEFA tie. The career club not a holder: nothing played or simulated (VINCITORI names
+   only the viewed league's rows, so no page could show a foreign winner). */
+enum { SC_UEFA = 0xFF };
+#define SC_U (SC_ST + SC_H + 12 * (SC_NE - 1))
 u8 SC_ST[SC_H + 12 * SC_NE];
 const u32 SC_STSZ = sizeof SC_ST;
 const u8 *GP_SCT;                       /* (the glue: the table, 0 = none) */
@@ -3985,6 +4002,11 @@ static u16 sc_rule(const u8 *e, int r) {
     case SCR_CUPF: return sc_cup(e[1], 1);
     case SCR_THIRD: return sc_place(e[0], 3);
     case SCR_FOURTH: return sc_place(e[0], 4);
+    case SCR_UCL: case SCR_UEL: case SCR_UECL: {   /* (4.0.6: last season's snapshot, SC_U +6) */
+        int i = (r & 15) - SCR_UCL;
+        u16 w = (u16)(SC_U[6 + 2 * i] | SC_U[7 + 2 * i] << 8);
+        return (u8)(SC_U[3] + 1) == GP_SEAS && w != 0xFFFF ? w : 0;
+    }
     case SCR_TITLE0: case SCR_TITLE1:   /* (4.0.5 MEX: last season's stage-title winner, play-off e[30] / e[31]: WN_ST) */
         if (WN_ST.magic != WN_MAGIC || (u8)(WN_ST.season + 1) != GP_SEAS) return 0;
         { u32 w = wn_find('K', e[30 + (r & 15) - SCR_TITLE0], 0); return w == 0xFFFE ? 0 : w; }
@@ -4006,8 +4028,39 @@ int sc_busy(void) {                     /* 4.0.5: slot 4 holds this season's sup
     return GP_ST.magic == MAGIC && GP_ST.ko[0].magic == MAGIC && GP_ST.ko[0].season == GP_SEAS &&
            GP_ST.ko[0].kind == K_SC && GP_ST.ko[0].tw[0] == NOC;
 }
+static const u8 *usc_entry(void) {     /* 4.0.6 the UEFA Super Cup's GP_SCT entry, 0 = none */
+    if (!GP_SCT) return 0;
+    for (int i = 0; i < GP_SCT[0]; i++)
+        if (GP_SCT[1 + SC_E * i] == SC_UEFA) return GP_SCT + 1 + SC_E * i;
+    return 0;
+}
+static int usc_live(void) {             /* 4.0.6: slot 4's supercup tie this season is the UEFA Super Cup's */
+    return SC_U[0] == GP_SEAS && SC_U[1] == 1;
+}
+static int usc_step(void) {             /* 4.0.6 the UEFA Super Cup at the advance: 1 = the career club's tie built,
+                                           -1 = its tie pending (slot 4 held), 0 = nothing (the national one next) */
+    const u8 *e = usc_entry();
+    if (!e) return 0;
+    if (SC_U[0] == GP_SEAS) return SC_U[1] == 1 ? -1 : 0;
+    if (!sc_free()) return 0;
+    SC_U[0] = GP_SEAS; SC_U[1] = 3; SC_U[2] = 0; SC_U[4] = SC_U[5] = 0;
+    if (GP_SCFIRST && (e[2] & 0x7F) > 1) { SC_TRACE = 0x91; return 0; }   /* (played before the world's first season) */
+    u16 c[2];
+    c[0] = sc_rule(e, e[8]);
+    c[1] = sc_rule(e, e[9]);
+#if GP_USCFORCE
+    if (c[1] != GP_MGR) c[0] = GP_MGR;  /* (test builds, USC_FORCE=1: the career club the Champions League holder) */
+#endif
+    if (c[1] && c[1] == c[0]) c[1] = sc_rule(e, e[9] >> 4);   /* (one club holds both: the Conference League's) */
+    if (!c[0] || !c[1] || c[0] == c[1]) { SC_TRACE = 0x92; return 0; }
+    if (c[0] != GP_MGR && c[1] != GP_MGR) { SC_TRACE = 0x94; return 0; }
+    sc_ko(&GP_ST.ko[0], e, c[0], c[1], 1);
+    SC_U[1] = 1; SC_TRACE = 0x11;
+    return 1;
+}
 u32 sc_step_c(void) {                   /* the calendar advance: 1 = the career club's tie built into ko[0] */
     if (!GP_SCT || !GP_MGR) return 0;
+    { int u = usc_step(); if (u) return u > 0; }   /* (4.0.6: the UEFA Super Cup first) */
     const u8 *e = 0;
     for (int i = 0; i < GP_SCT[0]; i++)
         if (GP_SCT[1 + SC_E * i] == (GP_MGR & 0xFF)) e = GP_SCT + 1 + SC_E * i;
@@ -4052,6 +4105,11 @@ static const u8 *sc_entry(void);
 void sc_done(const struct gp_ko *k) {  /* gp_rec_c: the career club's supercup tie decided */
     SC_TRACE |= 0x40;
     int won = k->tw[0] != NOC && k->team[k->tw[0]] == GP_MGR;
+    if (usc_live()) {                   /* (4.0.6 the UEFA Super Cup) */
+        SC_U[1] = 3; SC_U[2] = (u8)won;
+        if (k->tw[0] != NOC) { u16 w = k->team[k->tw[0]]; SC_U[4] = (u8)w; SC_U[5] = (u8)(w >> 8); }
+        return;
+    }
     if (SC_ST[4] == 1) {
         SC_ST[4] = won ? 2 : 3;
         u16 a = k->tw[0] != NOC ? k->team[k->tw[0]] : 0, b = (u16)(SC_ST[6] | SC_ST[7] << 8);
@@ -4096,4 +4154,8 @@ static u32 sc_rline(void) {             /* the career club's supercup won this s
     for (int i = 0; i < GP_SCT[0]; i++)
         if (GP_SCT[1 + SC_E * i] == (GP_MGR & 0xFF)) return *(const u32 *)(GP_SCT + 1 + SC_E * i + 32);
     return 0;
+}
+static u32 usc_rline(void) {            /* 4.0.6: the UEFA Super Cup won this season: its record name, else 0 */
+    const u8 *e = usc_entry();
+    return e && SC_U[0] == GP_SEAS && SC_U[1] == 3 && SC_U[2] == 1 ? *(const u32 *)(e + 32) : 0;
 }

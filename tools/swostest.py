@@ -13211,6 +13211,95 @@ int main(void) {
 
 
 @scenario
+def sc_rules_uefa():
+    """4.0.6 the UEFA Super Cup (gplay.c usc_step, internal/handoff/csup.md), compiled for this Mac with forced holders
+    (SC_U's season-end snapshot of the game's HOLD_CC / CWC / UEFA words), no exe run: (a) the career club the Champions League holder ->
+    its tie v the Europa League holder built at the season's first advance (early; kind K_SC, slot 4, trace 11h),
+    slot 4 held; (b) the career club also its country's early national supercup: the national one waits while the UEFA
+    tie is pending, the UEFA one decided (won: state 3, record line), then the national one built; (c) one club holds
+    both -> the Conference League holder; (d) ... and no Conference holder -> no edition (92h); (e) the career club not
+    a holder: nothing built (94h), its national one built at the same advance; (f) the world's first season: skipped
+    (91h); (g) lost -> no record line, another season -> none; (h) the reload's names follow the pending UEFA tie; (i) a snapshot of an older season (an older save) -> none."""
+    import tempfile
+    src = os.path.join(ROOT, 'tools', 'gplay.c')
+    main = r"""#include <stdio.h>
+#include "%s"
+u8 GP_SEAS;
+static u8 tab[1 + 2 * SC_E];
+static struct gp_ko kk;
+static void ent(u8 *t, int file, int from, int week) {
+    t[0] = file; t[1] = file == SC_UEFA ? 0 : 0x82; t[2] = from | SC_EARLY; t[3] = week; t[4] = 1; t[5] = LV_PENS; t[6] = 2; t[7] = week;
+    t[28] = 7; t[29] = 8;
+    if (file == SC_UEFA) { t[8] = SCR_UCL; t[9] = SCR_UEL | SCR_UECL << 4; t[32] = 0x78; t[33] = 0x56; }
+    else { t[8] = SCR_CHAMP; t[9] = SCR_CUPW | SCR_SECOND << 4; t[32] = 0x34; t[33] = 0x12; }
+}
+static void setup(int nat, u16 cl, u16 el, u16 ecl) {
+    for (int i = 0; i < (int)sizeof SC_ST; i++) SC_ST[i] = 0;
+    for (int i = 0; i < (int)sizeof GP_ST; i++) ((u8 *)&GP_ST)[i] = 0;
+    for (int i = 0; i < (int)sizeof tab; i++) tab[i] = 0;
+    CF_ST.magic = CF_MAGIC; CF_ST.file = 0x40;
+    for (int i = 0; i < 256; i++) CF_ST.rank[i] = 0;
+    CF_ST.rank[2] = 1; CF_ST.rank[5] = 2;                 /* (ENG: 0x0240 champion, 0x0540 2nd) */
+    SC_ST[0] = 0x53; SC_ST[1] = 0x43; SC_ST[2] = 1;
+    u8 *e = SC_ST + SC_H; e[0] = 0x40; e[1] = 0x82; e[4] = 0x40; e[5] = 0x03;   /* (cup winner 0x0340) */
+    tab[0] = nat ? 2 : 1;
+    ent(tab + 1, SC_UEFA, 2, 58);
+    if (nat) ent(tab + 1 + SC_E, 0x40, 2, 59);
+    SC_U[3] = 126; SC_U[6] = cl; SC_U[7] = cl >> 8; SC_U[8] = el; SC_U[9] = el >> 8; SC_U[10] = ecl; SC_U[11] = ecl >> 8;
+    GP_SCT = tab; GP_SEAS = 127; SC_TRACE = 0; GP_SCFIRST = 0; GP_WK = 10;
+}
+static void decide(int won) {
+    kk = GP_ST.ko[0]; kk.tw[0] = won ? (kk.team[0] == GP_MGR ? 0 : 1) : (kk.team[0] == GP_MGR ? 1 : 0);
+    sc_done(&kk); GP_ST.ko[0].tw[0] = kk.tw[0];
+}
+static void out(const char *tag, u32 r) {
+    printf("%%s %%u %%x %%x %%x %%d\n", tag, r, SC_TRACE, GP_ST.ko[0].team[0], GP_ST.ko[0].team[1], GP_ST.ko[0].kind);
+}
+int main(void) {
+    u16 psg = 0x0130, villa = 0x0240, x = 0x0731;
+    setup(0, psg, villa, x); GP_MGR = psg; out("a", sc_step_c());
+    printf("a2 %%d %%d %%d %%d\n", sc_busy(), usc_live(), GP_ST.ko[0].d1, sc_step_c());
+    setup(1, psg, villa, x); GP_MGR = villa; out("b", sc_step_c());
+    printf("b1 %%u\n", sc_step_c());
+    decide(1); printf("b2 %%d %%d %%x %%x %%d\n", SC_U[1], SC_U[2], SC_U[4] | SC_U[5] << 8, usc_rline(), usc_live());
+    GP_ST.ko[0].kind = 0; SC_TRACE = 0; GP_WK = 58; out("b3", sc_step_c());
+    setup(0, psg, psg, x); GP_MGR = x; out("c", sc_step_c());
+    setup(0, psg, psg, 0xFFFF); GP_MGR = psg; out("d", sc_step_c());
+    setup(1, psg, 0x0940, x); GP_MGR = villa; out("e", sc_step_c());
+    setup(1, psg, villa, x); GP_MGR = villa; GP_SCFIRST = 1; out("f", sc_step_c());
+    setup(0, psg, villa, x); GP_MGR = psg; sc_step_c(); decide(0); printf("g %%x %%d\n", usc_rline(), SC_U[1]);
+    setup(0, psg, villa, x); GP_MGR = psg; sc_step_c(); decide(1); GP_SEAS = 128; printf("g2 %%x\n", usc_rline());
+    setup(0, psg, villa, x); SC_U[3] = 125; GP_MGR = psg; out("i", sc_step_c());
+    setup(0, psg, villa, x); GP_MGR = psg; sc_step_c();
+    printf("h %%d %%d\n", usc_entry() == tab + 1, usc_live());
+    return 0;
+}
+""" % src
+    with tempfile.TemporaryDirectory() as d:
+        open(os.path.join(d, 't.c'), 'w').write(main)
+        r = subprocess.run(['clang', '-w', '-DSS_NB=1', '-c', 't.c', '-o', 't.o'], cwd=d, capture_output=True, text=True)
+        if r.returncode:
+            return False, 'clang: ' + r.stderr[-400:]
+        und = [x.strip().lstrip('_') for x in subprocess.run(['nm', '-u', 't.o'], cwd=d, capture_output=True,
+                                                              text=True).stdout.split()]
+        open(os.path.join(d, 's.c'), 'w').write(''.join(f'char {x}[65536];\n' for x in und
+                                                         if x and not x.startswith(('printf', 'memcpy', 'memset', 'dyld', '__'))))
+        r = subprocess.run(['clang', '-w', 't.o', 's.c', '-o', 't'], cwd=d, capture_output=True, text=True)
+        if r.returncode:
+            return False, 'link: ' + r.stderr[-400:]
+        got = {ln.split()[0]: ln.split()[1:] for ln in subprocess.run(['./t'], cwd=d, capture_output=True,
+                                                                     text=True).stdout.splitlines()}
+    want = {'a': ['1', '11', '130', '240', '10'], 'a2': ['1', '1', '58', '0'], 'b': ['1', '11', '130', '240', '10'],
+            'b1': ['0'], 'b2': ['3', '1', '240', '5678', '0'], 'b3': ['1', '1', '240', '340', '10'],
+            'c': ['1', '11', '130', '731', '10'], 'd': ['0', '92'], 'e': ['1', '1', '240', '340', '10'],
+            'f': ['0', '81'], 'g': ['0', '3'], 'g2': ['0'], 'h': ['1', '1'], 'i': ['0', '92']}
+    errs = [f'{k}: got {got.get(k)}, want {w}' for k, w in want.items() if (got.get(k) or [])[:len(w)] != w]
+    return not errs, '; '.join(errs) or 'a CL holder v EL holder built early, b the national one after it, the record ' \
+        'line, c double -> UECL holder, d no UECL -> none, e not a holder -> its national one, f season 1 skipped, ' \
+        'g lost / next season no line, h reload names: all as expected'
+
+
+@scenario
 def tail_zero():
     """4.0.2 tailzero (Davide's MiSTer b3/b4, the 23/10 GOG DOSBox 0.74 report: no number over a controlled player
     numbered 17..99): the mod's obj2 tail (its run-time buffers: shirtnum's 'built' flag + sprites, careerworld / gplay /
@@ -13902,6 +13991,113 @@ def world_conti_drop_acl():
     return conti_drop('acl', 'acle:pre', 'ASIA,GIAPPONE,J1 LEAGUE,KASHIWA REYSOL', 'TWO')
 
 
+def conti_month(tag, force, team, word, week0):
+    """4.0.6: a one-round conti cup in its real month (conti.FIXES): a test build with CONTI_FORCE=force (the career
+    club into that final at every season end); season 2 plays a match of it (word in a result screen's title) and the
+    calendar's current week at its first match (GP_CALTRACE's [calt]: slot/week of the cursor's entry) is in the
+    month: week0 (month x 8, conti._month) up to the month's end (a tie never built into a week already played, so a
+    later week of the month)"""
+    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    exe = build(f'conti_month_{tag}', env={'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]),
+                                          'CONTI_FORCE': force})
+    keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_ONE',
+            'W8485_FROM', 'W8485_TMO', 'GP_CALTRACE')
+    keep = {k: os.environ.get(k) for k in keys}
+    try:
+        for k in keys:
+            os.environ.pop(k, None)
+        os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5',
+                          W8485_K='108+', W8485_NOSACK='1', W8485_TMO='900', GP_CALTRACE='1')
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    log = os.path.join(RUNS, w84_tag() + '_2', 'session.log')
+    lines = open(log, errors='replace').read().splitlines() if os.path.exists(log) else []
+    week, last, played = None, None, []
+    for ln in lines:
+        if ln.startswith('[calt] ') and week is None:
+            cal = ln.split()
+            last = int(cal[4].split('/')[1]) if len(cal) > 4 else None
+        elif ln.startswith('[') and ('>- RISULTATO -' in ln or '>- PARTITA -' in ln) and word in ln.split('|')[0]:
+            played.append(re.sub(r'^\[\d+\] ', '', ln.split('|')[0].strip()))
+            if week is None:
+                week = last
+    errs = []
+    check(ok, msg[:300], errs)
+    check(played, f'season 2: no {word} match played', errs)
+    check(week is not None and week0 <= week < week0 + 8, f'season 2: {word} at week {week}, not in {week0}..{week0 + 7}', errs)
+    return not errs, '; '.join(errs + [f'season 2 {word} at week {week}: {sorted(set(played))}'])
+
+
+@scenario
+def world_conti_ic_dec():
+    """4.0.6 the Intercontinental's real months (conti._ic_split): FLAMENGO forced into the Derby of the Americas
+    (CONTI_FORCE=ic:r2b!) and winning its conti ties (CONTI_KOWIN). Season 2: the DERBY, then the CHALLENGER CUP,
+    then the FINAL, each once, in that order, all in December (weeks 88..103: a tie never built into a week
+    already played); the calendar weeks from GP_CALTRACE's [calt]. CONTI_FORCE 'r2b!': FLAMENGO takes the Libertadores
+    holder's place (its confederation's entrant; as a 3rd entrant of the one tie a club could go on unpaired, and in the
+    CONCACAF holder's place the Derby would be two Brazilian clubs)."""
+    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    exe = build('conti_ic_dec', env={'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]),
+                                     'CONTI_FORCE': 'ic:r2b!', 'CONTI_KOWIN': '1'})
+    keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_ONE',
+            'W8485_FROM', 'W8485_TMO', 'GP_CALTRACE')
+    keep = {k: os.environ.get(k) for k in keys}
+    try:
+        for k in keys:
+            os.environ.pop(k, None)
+        os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM='SUDAMERICA,BRASILE,BRASILEIRAO '
+                          'SERIE A,FLAMENGO', W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1', W8485_TMO='900',
+                          GP_CALTRACE='1')
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    log = os.path.join(RUNS, w84_tag() + '_2', 'session.log')
+    lines = open(log, errors='replace').read().splitlines() if os.path.exists(log) else []
+    last, seen = None, []                       # [(title, week)] of the Intercontinental's played matches, in order
+    for ln in lines:
+        if ln.startswith('[calt] '):
+            cal = ln.split()
+            last = int(cal[4].split('/')[1]) if len(cal) > 4 else None
+        elif ln.startswith('[') and '- RISULTATO -' in ln and 'INTERCONT' in ln.split('|')[0]:   # (the match screen,
+            # the cursor on PARTITA, RISULTATO or ESCI)
+            t = re.sub(r'^\[\d+\] ', '', ln.split('|')[0].strip())
+            if not seen or seen[-1][0] != t:
+                seen.append((t, last))
+    kinds = [k for t, _ in seen for k in ('DERBY', 'CHALLENGER', 'FINALE') if k in t]
+    errs = []
+    check(ok, msg[:300], errs)
+    check(kinds == ['DERBY', 'CHALLENGER', 'FINALE'], f'season 2: Intercontinental matches {seen}', errs)
+    check(all(w is not None and 88 <= w < 104 for _, w in seen), f'season 2: not all in December: {seen}', errs)
+    return not errs, '; '.join(errs + [f'season 2 Intercontinental {seen}'])
+
+
+@scenario
+def world_conti_recopa():
+    """conti_month: FLAMENGO forced into the Recopa Sudamericana (rec:final): played in February (week 104..111)"""
+    return conti_month('rec', 'rec:final', 'SUDAMERICA,BRASILE,BRASILEIRAO SERIE A,FLAMENGO', 'RECOPA', 104)
+
+
+@scenario
+def world_conti_cafsc():
+    """conti_month: PYRAMIDS forced into the CAF Super Cup (sc:final): played in October (week 72..79)"""
+    return conti_month('cafsc', 'sc:final', 'AFRICA,EGITTO,PYRAMIDS', 'CAF SUPER CUP', 72)
+
+
 @scenario
 def world_sc_bra_sud():
     """4.0.5 rc10 (world_sc_bra's stuck career, Davide's rc8 blocker): a club dropping from the Libertadores to the
@@ -13962,6 +14158,59 @@ def sc_from2(team, word, tag):
     return not errs, '; '.join(errs) or f'season 1: none; season 2: {m2}; {msg2[:80]}'
 
 
+
+
+@scenario
+def world_usc():
+    """4.0.6 the UEFA Super Cup in game (gplay.c usc_step, internal/handoff/csup.md): an ARSENAL career on a test build
+    with USC_FORCE=1 (the career club last season's Champions League holder) and GPLAY_FORCE=1 (the league's champion:
+    the FA COMMUNITY SHIELD too). Season 1: no SUPERCOPPA UEFA (played before the world); its end's snapshot of the
+    game's three holders in SC_ST's last entry (season byte, CL / EL / UECL words: none FFFFh, three clubs, reported by
+    name; the save reloaded); season 2 (from season 1's save): the SUPERCOPPA UEFA FINALE played once v the Europa
+    League holder of the snapshot, THEN the FA COMMUNITY SHIELD (its week after: slot 4 one at a time); the season ends"""
+    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    exe = os.environ.get('USC_BUILD') or build('world_usc', env={
+        'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'GPLAY_FORCE': '1',
+        'USC_FORCE': '1'})
+    at = sc_st(exe)
+    if at is None:
+        return False, 'no SC_ST in the exe'
+    team = 'EUROPA,INGHILTERRA,PREMIER LEAGUE,ARSENAL'
+    ok, msg, l1 = sc_season(team, dict(W8485_BUILD=exe))
+    car = os.path.join(RUNS, w84_tag() + '_1', 'SWOS', 'W84A.CAR')
+    if not ok or not os.path.exists(car):
+        return False, f'season 1: {msg}'
+    s2 = os.path.join(RUNS, 'usc_s2.CAR')
+    shutil.copy(car, s2)
+    with Session('world_usc_snap', exe, {'W84A.CAR': s2}, 'dump:2', 300) as s:
+        s.wait()
+        s.send(LOAD1 + ' dump:3')
+        u = bytes(s.result.obj2(at + 12 + 12 * 15, 12))         # (gplay.c SC_U: SC_H 12, SC_NE 16, the last entry)
+    hold = struct.unpack_from('<3H', u, 6)
+    errs = []
+    check(u[3] != 0 and all(h != 0xFFFF for h in hold) and len(set(hold)) == 3,
+          f'holders snapshot season {u[3]} words {[hex(h) for h in hold]}', errs)
+    names = [team_name(exe, h) if h != 0xFFFF else '-' for h in hold]
+    ok2, msg2, l2 = sc_season(team, dict(W8485_BUILD=exe, W8485_FROM=s2), 2)
+    def played(lines, word):
+        return [(i, re.sub(r'^\[\d+\] ', '', ln.split('|')[0].strip())) for i, ln in enumerate(lines) if ln.startswith('[')
+                and word in ln.split('|')[0] and '- PARTITA -' in ln and '>- RISULTATO -' in ln]
+    u1, u2, sh = played(l1, 'SUPERCOPPA UEFA'), played(l2, 'SUPERCOPPA UEFA'), played(l2, 'COMMUNITY')
+    check(ok2, f'season 2: {msg2}', errs)
+    check(not u1, f'season 1 played {u1}', errs)
+    check(len(u2) == 1 and 'FINALE' in u2[0][1], f'season 2 UEFA Super Cup matches {u2}', errs)
+    check(len(u2) == 1 and names[1] != '-' and any(names[1] in ln for ln in l2[u2[0][0]:u2[0][0] + 3]) if u2 else False,
+          f'the opponent is not the Europa League holder {names[1]}', errs)
+    check(len(sh) == 1 and u2 and sh[0][0] > u2[0][0], f'COMMUNITY SHIELD after it: {sh}', errs)
+    for e in sc_labels(l2):                     # (the career menu's next-match box: hidden items - an August tie never
+        errs.append(e)                          # shows there, as the COMMUNITY SHIELD: the calendar's rows instead)
+    rows = [ln.split() for ln in l2 if ln.startswith('[slot4row] ') and ln.endswith(' SUPERC. UEFA')]
+    check(rows and all(r[4] == '58' for r in rows), f"the calendar's SUPERC. UEFA row (week 58): {rows[:2]}", errs)
+    return not errs, '; '.join(errs) or (f'holders CL {names[0]}, EL {names[1]}, UECL {names[2]} (season {u[3]}); '
+                                         f'season 2: {u2[0][1]}, then {sh[0][1]}; {msg2[:60]}')
 
 # the game's extra-time simulation (cseg_2C0D3): the stronger side's margin per |rating difference| (32 rows x 4,
 # picked by Rand2 & 3) - zeroed by world_sc_tur so a level tie stays level after extra time and goes to penalties

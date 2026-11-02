@@ -253,7 +253,17 @@ static void access(void) {
         /* (a holder may hold places in two cups: the Recopa; own[]: CAF, its league place in the cup is its own) */
     }
     if (fcup < ncup && CT_IN.manager && !taken[CT_IN.manager]) {   /* (test builds: the forced place) */
-        enter(fcup, frnd, CT_IN.manager, 0, 0);
+        int fr = frnd & 15;
+        if (frnd & 0x80 && EN[fcup][fr]) {          /* ('!': the place of the entrant of its confederation - the */
+            int j = 0, bj = -1;                     /* most cups shared with its association; that club out) */
+            for (int i = 0; i < EN[fcup][fr]; i++) {
+                int n = 0;
+                for (int c = 0; c < ncup; c++) n += !in_cup(c, assoc(E[fcup][fr][i])) == !in_cup(c, assoc(CT_IN.manager));
+                if (n > bj) { bj = n; j = i; }
+            }
+            taken[E[fcup][fr][j]] = 0; E[fcup][fr][j] = CT_IN.manager; EV[fcup][fr][j] = 0;
+        } else
+            enter(fcup, fr, CT_IN.manager, 0, 0);
         taken[CT_IN.manager] = 1;
     }
     for (int i = 0; i < nacc; i++) {

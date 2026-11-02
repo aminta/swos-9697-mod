@@ -608,9 +608,12 @@ class Dosbox:
         self.pump(2, rb'Running', pre)                 # watch from the debugger's '(Running)' on
         i = self.screen.find(b'Running', pre)
         mark = i + 7 if i >= 0 else len(self.screen)
-        start, nshot = time.time(), 0
+        start, nshot, first = time.time(), 0, True
         while True:
             n = self.pump(0.25, b'')
+            if first:                                  # (a break right after F5 - the stadium's little players, ms
+                n, first = max(n, 1), False            # apart - can come in one read with '(Running)': look at
+                                                       # what is there once, else no new byte ever shows it)
             if n < 0 or not self.alive():
                 for _ in range(20):                    # keep how DOSBox-X ended (exit code / signal) for the log
                     if not self.alive() or getattr(self, 'status', None):
@@ -16881,6 +16884,8 @@ def world_darkblond():
     if 'DKB_POKE' not in os.environ:                  # (4.0.3: MALEN is bald in the data: darkblond again here;
         os.environ['DKB_POKE'] = 'DONYELL MALEN:unbald,DONYELL MALEN:darkblond,NAHUEL MOLINA:unbald'   # 4.0.5: MOLINA
                                                       # shaved light in the data (bald-looks-2627.csv) - plain here)
+    if os.environ.get('DKB_STADIUM') is not None:
+        os.environ['CORE'] = 'normal'             # (4.0.6 the stadium screen's breakpoints; one process per scenario)
     cars = {'SETUP.DAT': os.environ['DKB_SETUP']} if os.environ.get('DKB_SETUP') else {}   # (GOG's factory file:
     with Session(os.environ.get('DKB_NAME', 'world_darkblond'), b, cars, 'dump:2', 600, match=True) as s:   # (video
                                                                                          # speed 10 = half mode)
@@ -16927,8 +16932,11 @@ def world_darkblond():
                 px_ = [v for x in r.read(struct.unpack('<I', r.read(ps, 4))[0], 64) for v in (x >> 4, x & 15)]
                 hair = [i for i in range(48) if px_[i] == 3]  # three rows grey 1, its top row off)
                 wt = blond.WHITE_TONES[os.environ.get('WHITE_TONE', blond.WHITE_TONE)]
-                for i in hair:                          # (WHITE_TONES: the hair, its third row)
-                    px_[i] = 0 if i // 16 == hair[0] // 16 else wt[1] if i // 16 > hair[0] // 16 + 1 else wt[0]
+                top_ = [i for i in hair if i // 16 == hair[0] // 16]   # (4.0.6 MiSTer 02/11: the full silhouette,
+                for i in hair:                          # the top row's two ends off when it has 3 or more; WHITE_TONES:
+                    px_[i] = wt[1] if i // 16 > hair[0] // 16 + 1 else wt[0]   # the hair, its third row)
+                if len(top_) >= 3:
+                    px_[top_[0]] = px_[top_[-1]] = 0
                 ok_ = pb and hair and ib == bytes(px_[i] << 4 | px_[i + 1] for i in range(0, 128, 2))
             elif lk['shape'] == 'oval':                    # (oval: one colour - black for skull 3, else the skin)
                 want = 3 if lk['skull'] == 3 else 5
@@ -16978,7 +16986,10 @@ def world_darkblond():
             info.append(f'{nm_} {op_} x{len(hits)}')
         if not any(x[1] == 'GIOCA PARTITA' and not x[2] for x in s.screen().entries):
             return False, f'fixture {fx}: no GIOCA PARTITA on {s.screen()}'
-        press(s, s.screen(), 'GIOCA PARTITA', 3)
+        sw = stadium_watch(s, 'career') if os.environ.get('DKB_STADIUM') is not None else None   # 4.0.6 the
+        press(s, s.screen(), 'GIOCA PARTITA', 3)                                                  # stadium screen
+        if sw is not None:
+            errs += stadium_eval(s, sw, blond, info, {int(x) for x in os.environ['DKB_STADIUM'].split(',') if x})
         checked = False
         for k in range(10):                           # line-ups, the stadium screen, kick-off: a frame each
             r = s.send('fire dump:1.5')
@@ -17085,6 +17096,127 @@ def world_bald_looks():
     return bald_run('world_bald_looks', 'NAHUEL MOLINA:shaved,K. KOULIERAKIS:bald,MANU KONE:bald', '2,3,4,5')
 
 
+def stadium_teams(exe):
+    """(4.0.6) topTeamInGame / bottomTeamInGame (obj2 offsets): blond.topteam's pair, read in the original exe (obj2's
+    data does not move; exe: unused, kept for the callers)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lepatch
+    import sacups
+    p = lepatch.LEPatch(os.path.join(ROOT, 'orig', UI_ORIG))
+    d1 = p.le.obj_bytes(1)
+    a0 = sacups.regs(d1)['A0']
+    pat = rb'\xc7\x05' + re.escape(struct.pack('<I', a0 + 24)) + rb'....\xc7\x05' + re.escape(struct.pack('<I', a0 + 16))
+    m = [x.start() for x in re.finditer(pat, d1, re.S)]
+    pr = [(a, b) for a, b in zip(m, m[1:]) if b - a < 0x400]
+    return p.target(1, pr[0][0] + 16)[1], p.target(1, pr[0][1] + 16)[1]
+
+
+def stadium_sites():
+    """(4.0.6) The stadium (line-ups) screen in the original exe (its obj1 code stays in place): {'call': Stadium-
+    PlayerSpritesBeforeDraw's `call FillSkinColorConversionTable` (blond lp_face's site; + 5 = its retn), 'LPT':
+    littlePlayersColorTable, 'D1' / 'A5' (obj2), 'fade': ShowStadiumInit's FadeOutToBlack / DrawMenu / WaitRetrace /
+    FadeIn calls (+ 20: the jmp after them), 'pal': the working palette}."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lepatch
+    import sacups
+    p = lepatch.LEPatch(os.path.join(ROOT, 'orig', UI_ORIG))
+    d = p.le.obj_bytes(1)
+    rg = sacups.regs(d)
+    A0, D0 = rg['A0'], rg['D7'] - 28
+    rel = lambda o: o + 5 + struct.unpack_from('<i', d, o + 1)[0]
+    c = [x.start() for x in re.finditer(rb'\xC7\x05' + re.escape(struct.pack('<I', A0 + 4)) + rb'....\xE8....\xC3', d, re.S)]
+    c = [o for o in c if re.search(rb'\x66\xC7\x05....\xD5\x00', d[o - 0x200:o], re.S) and d[rel(o + 10)] == 0xA0]
+    assert len(c) == 1, [hex(o) for o in c]
+    f = [x.start() for x in re.finditer(rb'\xE8....\xE8....\xE8....\xE8....\xE9', d[c[0] - 0x800:c[0]], re.S)]
+    fp = re.search(rb'\xbf....\xbe....\xb9\x0f\x00\x00\x00', d, re.S)
+    return {'call': c[0] + 10, 'LPT': p.target(1, c[0] + 6)[1], 'D1': D0 + 4, 'A5': A0 + 20,
+            'fade': c[0] - 0x800 + f[-1], 'pal': p.target(1, fp.start() + 6)[1]}
+
+
+def stadium_watch(s, tag, bald=False):
+    """4.0.6 (Davide, MiSTer 02/11) the stadium (line-ups) screen's little players (blond lp_face), by breakpoints (set
+    before GIOCA PARTITA; the scenario runs CORE=normal): after each player's colour table (the hook's retn) his flag,
+    face and the table's hair / skin words; at the screen's fade the screen itself (shots/stadium_<tag>.png). bald: the
+    side without a look flag gets bald flags poked just before the screen is drawn (2 / 4 dark-skinned, 3 / 5 light;
+    test only, restored once it is up). stadium_eval checks what was collected."""
+    si = stadium_sites()
+    b1, b2 = s.result.base1, s.result.base2
+    w = {'hits': [], 'poked': [], 'shot': None, 'tag': tag}
+
+    def player(r):
+        a5 = struct.unpack('<I', r.read(b2 + si['A5'], 4))[0]
+        d1 = struct.unpack('<H', r.read(b2 + si['D1'], 2))[0]
+        rec = r.read(a5 + d1, 0x67)
+        tab = struct.unpack('<16H', r.read(b2 + si['LPT'], 32))
+        w['hits'].append((a5, d1 // 0x3D, rec[80:103].split(b'\0')[0].decode('latin-1'), rec[49], rec[79], tab))
+
+    def before(r):                                      # (the entries filled, nothing drawn yet)
+        if not bald:
+            return
+        tops = stadium_teams(None)
+        for base in tops:
+            rows = [(b2 + base + i * 0x3D, r.read(b2 + base + i * 0x3D, 0x67)) for i in range(1, 11)]
+            if any(2 <= rec[49] <= 7 for _, rec in rows):
+                continue
+            dark = [h for h, rec in rows if rec[79] == 2 and rec[49] == 0][:2]
+            light = [h for h, rec in rows if rec[79] == 0 and rec[49] == 0][:2]
+            for h, fl in zip(dark + light, [2, 4][:len(dark)] + [3, 5][:len(light)]):
+                s.poke(h + 49, bytes((fl,)))
+                w['poked'].append(h)
+            break
+
+    def after(r):                                       # (the screen up: its picture, then the flags back)
+        w['shot'] = (r.read(0xA0000, 64000), r.read(b2 + si['pal'], 768))
+        for h in w['poked']:
+            s.poke(h + 49, b'\0')
+        for lin in lins:                                # done: the wait re-arms only our int 3 (fewer debugger
+            s.bps.pop(lin, None)                        # round trips for the rest of the run - a local DOSBox-X
+            s.box.watch.discard(lin)                    # stalled once after a BPDEL)
+
+    lins = (b1 + si['call'] + 5, b1 + si['fade'], b1 + si['fade'] + 20)
+    for lin, cb in zip(lins, (player, before, after)):
+        if lin != lins[0] or not os.environ.get('STADIUM_SHOT_ONLY'):   # (the screen alone: one debugger stop -
+            s.bp(lin, cb)                                               # a "before" build's picture)
+    return w
+
+
+def stadium_eval(s, w, blond, info, want):
+    """stadium_watch's hits: every outfield player with a white flag (6 / 7) - hair raw 13 / 9 WHITE_TONES[0], raw 12
+    [1]; a bald one (2..5) - raw 13 = his skin (the table's raw 6); goalkeepers and the rest - the face's own table
+    (raw 13 not white, not changed). want: the flags that must be seen. The screen: shots/stadium_<tag>.png."""
+    from PIL import Image
+    errs, seen = [], set()
+    tag = w['tag']
+    wt = blond.WHITE_TONES[os.environ.get('WHITE_TONE', blond.WHITE_TONE)]
+    check(w['hits'], f'stadium {tag}: no little player drawn (breakpoints)', errs)
+    for a5, i, name, flag, face, tab in w['hits']:
+        if i == 0:
+            ok = flag < 6 or tab[13] not in wt
+            what = 'goalkeeper: own hair'
+        elif flag >= 6:
+            ok = (tab[13], tab[9], tab[12]) == (wt[0], wt[0], wt[1])
+            what = 'white'
+        elif flag >= 2:
+            ok = tab[13] == tab[6]
+            what = 'bald: top hair = skin'
+        else:
+            continue
+        seen.add(flag) if i else None
+        check(ok, f'stadium {tag}: {name} (#{i}, flag {flag}, face {face}) {what}: raw 13 / 9 / 12 / 6 -> '
+                  f'{tab[13]} / {tab[9]} / {tab[12]} / {tab[6]}', errs)
+        info.append(f'stadium {tag}: {name} flag {flag} face {face}: hair {tab[13]}/{tab[9]}/{tab[12]} skin {tab[6]}')
+    if w['shot']:
+        vga, pal = w['shot']
+        im = Image.frombytes('P', (320, 200), bytes(vga[:64000]))
+        im.putpalette(bytes((v & 63) * 255 // 63 for v in pal[:768]))
+        os.makedirs(os.path.join(s.run, 'shots'), exist_ok=True)
+        im.save(os.path.join(s.run, 'shots', f'stadium_{tag}.png'))
+    check(w['shot'], f'stadium {tag}: no screen captured', errs)
+    if want:
+        check(set(want) <= seen, f'stadium {tag}: flags seen {sorted(seen)}, want {sorted(want)}', errs)
+    return errs
+
+
 @scenario
 def world_white():
     """4.0.6 white hair (R2, blond.LOOKS 'white', byte 25 bit 2): ROMA with NAHUEL MOLINA white light (7) and MANU KONE
@@ -17139,6 +17271,7 @@ def white_ravanelli():
     b = builds()['it']
     spr = shirtnum.spr_index(lepatch.LEPatch(os.path.join(b, 'ITALIAN.EXE')))
     errs, info = [], []
+    os.environ['CORE'] = 'normal'               # (the stadium screen's breakpoints; one process per scenario)
     with Session('white_ravanelli', b, {}, 'dump:3', 400, match=True) as s:
         s.wait()
         for t in ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB', 'EUROPA', 'INGHILTERRA', 'PREMIER',
@@ -17162,7 +17295,10 @@ def white_ravanelli():
             s.send('down dump:0.5')
             if s.screen().selected == 9:
                 break
-        r = s.send('fire ' + 'fire:3 ' * 8 + 'dump:2')
+        sw = stadium_watch(s, 'friendly', bald=True)   # 4.0.6 the stadium screen (Davide, MiSTer 02/11): RAVANELLI's
+        s.send('fire dump:2')                       # little player white-haired, the opponent's bald ones (poked) bald
+        errs += stadium_eval(s, sw, blond, info, {7, 2, 3, 4, 5})
+        r = s.send('fire:3 ' * 8 + 'dump:2')
         check(r.outcome == 'dump', f'match {r}', errs)
         if r.outcome == 'dump':
             vs = variant_sets(r)
@@ -17172,12 +17308,13 @@ def white_ravanelli():
             tm = next((t for t, f in vs if f == 7), 0)
             bald_sheet(r, spr, blond, s.result.obj2(s.info['pal'], 768), os.path.join(s.run, 'shots', 'sets.png'), info,
                        tm)
-    return not errs, '; '.join(errs) or '; '.join(i for i in info if 'white' in i or 'variant' in i)
+    return not errs, '; '.join(errs) or '; '.join(i for i in info if 'white' in i or 'variant' in i or 'stadium' in i)
 
 
 def bald_run(name, poke, expect):
-    keep = {k: os.environ.get(k) for k in ('DKB_NAME', 'DKB_POKE', 'DKB_SHEET', 'DKB_EXPECT')}
-    os.environ.update(DKB_NAME=name, DKB_POKE=poke, DKB_SHEET='1', DKB_EXPECT=expect)
+    keep = {k: os.environ.get(k) for k in ('DKB_NAME', 'DKB_POKE', 'DKB_SHEET', 'DKB_EXPECT', 'DKB_STADIUM')}
+    os.environ.update(DKB_NAME=name, DKB_POKE=poke, DKB_SHEET='1', DKB_EXPECT=expect,   # (4.0.6: the stadium screen's
+                      DKB_STADIUM=','.join(x for x in expect.split('|')[0].split(',') if x != '1'))   # looks too)
     try:
         return world_darkblond()
     finally:
@@ -19493,7 +19630,9 @@ def main(argv):
                 print(f'BUILT {n} ({time.time() - t:.0f} s)', flush=True)
                 continue
             except Exception as e:                         # (one scenario's exception: a FAIL, the suite goes on)
-                ok, msg = False, f'exception {type(e).__name__}: {e}'
+                import traceback
+                at = [f'{os.path.basename(x.filename)}:{x.lineno} {x.name}' for x in traceback.extract_tb(e.__traceback__)][-3:]
+                ok, msg = False, f'exception {type(e).__name__}: {e} (at {" < ".join(reversed(at))})'
             bad += not ok
             print(f'{"PASS" if ok else "FAIL"} {n} ({time.time() - t:.0f} s) {msg}', flush=True)
         return 1 if bad else 0

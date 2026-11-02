@@ -641,6 +641,25 @@ LUTSL: db 0, 0, S2_, S3_, S4_, S5_, S6_, S7_ ; per flag: pal_init's table slot o
 ORDER: db 1, 5, 4, 3, 2, 7, 6           ; slot priority: darkblond, shaved light / dark, receding light / dark,
                                         ; white light / dark (4.0.6: last)
 ICONS: dw ICONBL_, ICONBL_ + 1, ICON3_, ICON3_ + 1, ICONW_, ICONW_ + 1
+
+lp_face:                                ; 4.0.6 the stadium screen's little players (StadiumPlayerSpritesBeforeDraw's
+    push dword [A0]                     ; `call FillSkinColorConversionTable`, A0 -> the player, A1 = littlePlayers-
+    call FILLSKIN                       ; ColorTable: a word per raw colour): Davide, MiSTer 02/11 - white hair (flags
+    pop esi                             ; 6 / 7) as in the match, raw 13 / 9 WH_HAIR, 12 WH_DARK; bald (2..5) the top
+    cmp word [LITTLE], LGOALIE_         ; hair (raw 13) in the face's skin (its raw 6); goalkeepers keep their hair
+    je .x                               ; (as in the match: their sprites are the game's)
+    mov al, [esi + FLAG_]
+    cmp al, 6
+    jb .b
+    mov word [LPT + 26], WHH_
+    mov word [LPT + 18], WHH_
+    mov word [LPT + 24], WHD_
+    ret
+.b: cmp al, 2
+    jb .x
+    mov ax, [LPT + 12]
+    mov [LPT + 26], ax
+.x: ret
 """
 
 def patch(p, area, at, bss, spr, bss2, art_at):
@@ -723,12 +742,29 @@ def patch(p, area, at, bss, spr, bss2, art_at):
     mmi = [m.start() for m in re.finditer(rb'\x66\xc7\x05.{4}\xff\xff\xe8.{4}\xe8.{4}\xeb\x00', d1, re.S)]
     assert len(mmi) == 2 and mmi[0] < 0x20000, [hex(x) for x in mmi]   # (SWOSMainMenuInit's `mov currentTeamNumber, -1`
                                                                        # is the first: SWOS++ makes its 66h a B8h)
+    # 4.0.6 the stadium screen: StadiumPlayerSpritesBeforeDraw's `mov [A1], littlePlayersColorTable / call
+    # FillSkinColorConversionTable / retn` (FillSkin: mov al, byte [D0] first); its goalkeeper's
+    # `mov stadiumMenuLittlePlayer, SPR_LITTLE_PLAYER_GOALIE` before it
+    lps = [x.start() for x in re.finditer(rb'\xC7\x05' + re.escape(struct.pack('<I', A0 + 4)) + rb'....\xE8....\xC3', d1, re.S)]
+    def tsafe(o):
+        try:
+            return t(o)
+        except AssertionError:
+            return None
+    lps = [o for o in lps if 0 <= rel(o + 10) < len(d1) - 5 and d1[rel(o + 10)] == 0xA0 and tsafe(rel(o + 10) + 1) == (2, D0)]
+    assert len(lps) == 1, lps
+    lg = [x.start() for x in re.finditer(rb'\x66\xC7\x05....\xD5\x00', d1[lps[0] - 0x200:lps[0]], re.S)]
+    assert len(lg) == 1, lg
+    LPS[:] = [lps[0] + 10, t(lps[0] + 6), t(lps[0] - 0x200 + lg[0] + 3), rel(lps[0] + 10)]
     sym = {'SPPMMI': (1, mmi[0]), 'D0': (2, D0), 'D1': (2, D1), 'A0': (2, A0), 'A6': (2, A6), 'SPRIDX': (2, spr), 'BUF': (2, bss),
            'A5': (2, A0 + 20), 'BUF2': (2, bss2), 'BALD_AT_': (0, BALD_AT), 'NEW3_': (0, NEW3), 'ICONBL_': (0, ICONBL), 'ICONBUF': (2, bss2 + SCR_OFF + 0x800), 'SCR': (2, bss2 + SCR_OFF), 'MARK': (2, bss2 + SCR_OFF + 0x200),
            'USEIND': useind, 'T1TAB': (2, t1tab), 'T2TAB': (2, t2tab), 'SKINTAB': (1, skintab), 'CONVSPR': (1, csc),
            'FACE_': (0, FACE), 'FLAG_': (0, FLAG), 'FACE_OFF': (0, face_off), 'NEW1_': (0, NEW1), 'NEW2_': (0, NEW2),
            'SET_': (0, SET_BYTES), 'NSLOT_': (0, NSLOT), 'SLOT5_': (0, SLOT5), 'ICON3_': (0, ICON3), 'ICONW_': (0, ICONW),
            'BUF3': (2, bss2 + BUF3_OFF), 'A4': (2, A0 + 16), 'TOPTEAM': topteam(p),
+           'LPT': LPS[1], 'LITTLE': LPS[2], 'FILLSKIN': (1, LPS[3]), 'LGOALIE_': (0, 213),
+           'WHH_': (0, WHITE_TONES[os.environ.get('WHITE_TONE', WHITE_TONE)][0]),
+           'WHD_': (0, WHITE_TONES[os.environ.get('WHITE_TONE', WHITE_TONE)][1]),
            **{f'F{f}_': (0, (5 if skin == 'dark' else 4) if LOOKS[look][skin]['skull'] == 7 else (2 if skin == 'dark' else 0))
               for f, (look, skin) in FLAGS.items()},
            **{f'S{f}_': (0, (4 if skin == 'dark' else 3) if LOOKS[look][skin]['skull'] == 7 else 0)
@@ -811,6 +847,7 @@ def patch(p, area, at, bss, spr, bss2, art_at):
         hook(c2 + 11, 6, 'conv2', (2,))
         hook(f1, 18, 'fo1', (2,))                         # mov ax,[D0] / mov bx,442 / sub bx,341 / mul bx
         hook(f2, 18, 'fo2', (2,))
+        hook(LPS[0], 5, 'lp_face', ())                    # 4.0.6 the stadium screen: call FillSkinColorConversionTable
         for s in icons:
             reg = t(s + 3)
             assert reg in ((2, D0), (2, D1)), (hex(s), reg)
@@ -827,6 +864,7 @@ def patch(p, area, at, bss, spr, bss2, art_at):
 
 
 LATE = []
+LPS = []                                # 4.0.6: the stadium screen's call site, littlePlayersColorTable, its sprite, FillSkin
 
 
 def late_patch(p, at3):

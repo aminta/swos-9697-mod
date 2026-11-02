@@ -1896,6 +1896,7 @@ def patch(p, at, ns_at, lang='it'):
     asm = ASM + table_asm(tab)
     code, fix, rel = nasmcave.assemble_obj(asm, at, sym, 3)
     lab = nasmcave.labels(asm, at, sym)
+    INFO.update(TABLE=(3, lab['bx_table']), GMAX=(2, gmax), SUBST=v2['SUBST'], IDX=v2['IDX'])   # (oppl.py, 4.0.6)
     LOG.append(f'benchx phase 2: {len(tab)} competitions with a real bench ({lang})')
     assert not any(p.get(3, at, len(code)))
     p.put(3, at, code)

@@ -5904,6 +5904,171 @@ def bench_hil_file(s, snap, final, spr, ega, errs, info, mark, name='HILB15'):
         check(g == 15 and not bad, info[-1], errs)
 
 
+def bench_oppl(s, bx, top, bot, errs, info, mark):
+    """oppl.py (4.0.6): in the bench, UP on the coach opens the opponent's list (g_subsState 5): page 0 its 11 on the
+    pitch (11 rows), DOWN its bench pages (11 a page: the places 12.. still available), UP back, nothing past either
+    end; FIRE / LEFT / RIGHT close it (state 0, the cursor on the coach); both in-match teams (1704 bytes each) and the
+    substitution counters unchanged by all of it; then a change made as usual (bench_sub, place BENCH_SUB)."""
+    v = bench_vars()
+    w16 = lambda r, o: struct.unpack('<H', r.read(r.base2 + o, 2))[0]
+    snap = lambda r: (r.read(r.base2 + top, 1704), r.read(r.base2 + bot, 1704), w16(r, v['NS1']), w16(r, v['NS2']))
+    exe3, gmax = bench_oppl.obj3, bench_oppl.gmax   # (bench_world: the run exe's obj3, gameMaxSubstitutes)
+    pg_off = Off3(exe3.find(b'OPPL') + 4) if exe3.find(b'OPPL') >= 0 else None
+    if pg_off is None:
+        errs.append('oppl: no OPPL marker in obj3 (a build without oppl.py)')
+        return
+    page = lambda r: struct.unpack('<H', r.read(r.lin(pg_off), 2))[0]
+    rows = lambda: oppl_rows(s.box.dump(0xA0000, 64000))
+    r = s.result
+    teams = [ingame_team(r, top), ingame_team(r, bot)]
+
+    def open_list():
+        for call in range(12):
+            r = s.send(('pgup' if call % 2 == 0 else 'pgdn') + ':0.3 dump:0.6')
+            r = s.send('up:0.15 dump:0.6')
+            if w16(r, v['SUBST']) == 5:
+                return r
+            s.send('left:0.3 left:0.3 dump:0.5')
+        return None
+    if os.environ.get('BENCH_SPP'):         # under SWOS++ (network play) the list stays shut: UP does what it did
+        r = open_list()
+        check(r is None, 'oppl: under SWOS++ UP on the coach opened the list', errs)
+        info.append('oppl: SWOS++, UP on the coach left g_subsState alone' if r is None else 'oppl: SWOS++ list OPENED')
+        mark(info[-1])
+        t = bench_sub(s, bx, int(os.environ.get('BENCH_SUB', 21)), errs, info, mark, tag='oppl_')
+        check(bool(t), 'oppl: no change made (SWOS++)', errs)
+        return
+    r = open_list()
+    check(r is not None, 'oppl: UP on the coach never opened the list (g_subsState 5)', errs)
+    if r is None:
+        return
+    s0 = snap(r)
+    ov = oppl_vars()
+    ptrs = lambda r: struct.unpack('<II', r.read(r.base2 + ov['BT'], 4) + r.read(r.base2 + ov['BTG'], 4))
+    p0, nchk = ptrs(r), [0]
+    check(p0[1] in (r.base2 + top, r.base2 + bot), f'oppl: benchTeamGame {p0[1]:#x} is not an in-match team', errs)
+
+    def same(r, where):                     # benchTeam / benchTeamGame: the bench team's own after every frame drawn
+        nchk[0] += 1
+        check(ptrs(r) == p0, f'oppl {where}: benchTeam / benchTeamGame {ptrs(r)}, want {p0} (the shadow leaked)', errs)
+    bt = p0[0]
+    mine = 0 if bt == r.base2 + oppl_vars()['TOPDATA'] else 1
+    opp = teams[1 - mine]
+    d = r.read(r.base2 + (bot if mine == 0 else top), 1704)
+    gm = 11 + max(5, struct.unpack('<H', r.obj2(gmax, 2))[0])
+    nb = len([i for i in range(11, gm) if d[42 + 61 * i] == 0 and d[42 + 61 * i + 4] < 0x80 and d[42 + 61 * i + 10] < 2])
+    npg = 1 + (nb + 10) // 11
+    info.append(f'oppl: {opp[0]} (team {2 - mine}), bench {nb} available, {npg} pages')
+    title = lambda: oppl_title(s.box.dump(0xA0000, 64000))
+    seen, titles = [(page(r), rows())], [title()]
+    s.shot('oppl_page0')
+    for k in range(npg + 1):                # down to the last page and once more
+        r = s.send('down:0.2 dump:0.6')
+        same(r, f'down {k + 1}')
+        seen.append((page(r), rows()))
+        titles.append(title())
+        s.shot(f'oppl_down{k + 1}')
+    for k in range(npg + 1):                # up to page 0 and once more
+        r = s.send('up:0.2 dump:0.6')
+        same(r, f'up {k + 1}')
+        seen.append((page(r), rows()))
+        titles.append(title())
+    rows_of = lambda q: 11 if q == 0 else min(11, nb - 11 * (q - 1))
+    want = [(0, 11)] + [(min(k, npg - 1), rows_of(min(k, npg - 1))) for k in range(1, npg + 2)]
+    want += [(max(npg - 1 - k, 0), rows_of(max(npg - 1 - k, 0))) for k in range(1, npg + 2)]
+    info.append(f'oppl pages (page, rows): {seen}')
+    check(seen == want, f'oppl pages (page, rows) {seen}, want {want}', errs)
+    info.append(f'oppl title row (frame, ink px) per frame: {titles}')
+    check(all(f and 40 <= n <= 900 for f, n in titles), f'oppl: the name row on top missing in a page: {titles}', errs)
+    check(snap(r) == s0, 'oppl: the in-match teams or the substitution counters changed while the list was open', errs)
+    for key in ('fire', 'left', 'right'):
+        if w16(r, v['SUBST']) != 5:
+            r = open_list()
+            if r is None:
+                errs.append(f'oppl: not reopened for {key}')
+                break
+        same(r, f'before {key}')
+        r = s.send(key + ':0.2 dump:0.6')
+        same(r, f'after {key}')
+        st, idx = w16(r, v['SUBST']), w16(r, v['IDX'])
+        info.append(f'oppl {key}: state {st}, cursor {idx}')
+        check(st == 0 and idx == 0, f'oppl {key}: state {st}, cursor {idx} (want 0, 0)', errs)
+        check(snap(r) == s0, f'oppl {key}: the in-match teams or the substitution counters changed', errs)
+        r = s.send('left:0.3 left:0.3 dump:0.5')
+    sp = r.base1 + ov['SWOSPP']             # SWOS++'s mark (DrawLittlePlayersAndBall+0x23: 0B8h when it runs, swospp_bench)
+    check(r.read(sp, 1) == b'\xff', f'oppl: the SWOS++ mark is {r.read(sp, 1).hex()} without SWOS++', errs)
+    s.poke(sp, b'\xb8')
+    shut = open_list() is None
+    check(shut, 'oppl: with the SWOS++ mark set UP on the coach opened the list', errs)
+    s.poke(s.result.base1 + ov['SWOSPP'], b'\xff')
+    r = s.send('left:0.3 left:0.3 dump:0.5')
+    info.append('oppl: SWOS++ mark set (0B8h): UP on the coach left the list shut' if shut else 'oppl: SWOS++ mark: OPENED')
+    info.append(f'oppl: benchTeam / benchTeamGame checked at {nchk[0]} dumps')
+    mark('oppl: ' + '; '.join(info[-5:]))
+    t = bench_sub(s, bx, int(os.environ.get('BENCH_SUB', 21)), errs, info, mark, tag='oppl_')   # a change as usual after it
+    check(bool(t), 'oppl: no change made after the list', errs)
+
+
+def oppl_span(vga):
+    """oppl's list box in a frame: (separator colour, left frame column, right one) from the line at y 60, or None."""
+    px = lambda x, y: vga[y * 320 + x]
+    c, best, cur = px(160, 60), None, None
+    for x in range(320):                    # the line at y 60 through x 160: the box's span
+        if px(x, 60) == c:
+            cur = (cur[0] if cur else x, x)
+            if best is None or cur[1] - cur[0] > best[1] - best[0]:
+                best = cur
+        else:
+            cur = None
+    if best is None or best[1] - best[0] < 100:
+        return None
+    return (c,) + best
+
+
+def oppl_title(vga):
+    """oppl's name row on top (the header's place: frame lines y 8 and 18, the columns of the list's frame) ->
+    (frame whole, ink pixels inside: the name)."""
+    sp = oppl_span(vga)
+    if sp is None:
+        return (False, 0)
+    c, a, b = sp
+    px = lambda x, y: vga[y * 320 + x]
+    frame = (all(px(x, y) == c for x in range(a, b + 1) for y in (8, 18))
+             and all(px(x, y) == c for x in (a, b) for y in range(8, 19)))
+    bg = px(a + 2, 10)
+    return (frame, sum(px(x, y) != bg for x in range(a + 2, b - 1) for y in range(10, 17)))
+
+
+def oppl_rows(vga):
+    """The rows of oppl's list in a frame (320x200 palette indices): its separators are one colour, every 10 lines from
+    y 60, from the box's left frame column to its right one (both that colour all the way down). subs_rows' columns 196..208
+    miss it: the box's width follows the names (page 0 of a short-named side ends at x 203)."""
+    sp = oppl_span(vga)
+    if sp is None:
+        return 0
+    c, a, b = sp
+    px = lambda x, y: vga[y * 320 + x]
+    n = 0
+    for k in range(1, 14):
+        y = 60 + 10 * k
+        if (all(px(x, y) == c for x in range(a, b + 1))
+                and all(px(a, yy) == c and px(b, yy) == c for yy in range(y - 10, y + 1))):
+            n = k
+        else:
+            break
+    return n
+
+
+def oppl_vars():
+    """oppl.sites' variables of the original exe (obj2 offsets) + topTeamData (team_data)."""
+    if not hasattr(oppl_vars, 'v'):
+        sys.path.insert(0, os.path.join(ROOT, 'tools'))
+        import oppl
+        s = oppl.sites(lepatch_orig())
+        oppl_vars.v = {'BT': s['BT'][1], 'BTG': s['BTG'][1], 'SWOSPP': s['SWOSPP'][1], 'TOPDATA': team_data()[0]}
+    return oppl_vars.v
+
+
 def bench_play(s, gmax, top, bot, wants, errs, info, mark, sub=None, icons=None, squad=None, stad=None):
     """benchx scenarios: from a career menu to a match played for real (PARTITA on the career menu and the squad
     screen: a player-coach), the kick-off checks (gameMaxSubstitutes = 15, each in-match team's named players =
@@ -6079,6 +6244,9 @@ def bench_play(s, gmax, top, bot, wants, errs, info, mark, sub=None, icons=None,
             check(b0 and all(p for p, _, _ in b0), f'the bald icons not built on the squad screen: {b0}', errs)
         check(icons['kickoff'] == b0, f'the bald icons changed at the kick-off: {b0} -> {icons["kickoff"]}', errs)
     s.shot('kickoff')
+    if os.environ.get('BENCH_OPPL') and sub:   # (4.0.6) the opponent's list in the bench menu (oppl.py)
+        bench_oppl(s, sub[0], top, bot, errs, info, mark)
+        return True
     if os.environ.get('BENCH_ET') and sub:  # (4.0.6) the extra-time substitute: the competition's et flag poked (bx_look's
         bench_et(s, o, gmax, sub[0], errs, info, mark)   # cache), the match forced into extra time
         return True                         # (BENCH_REAL's bench, often 5: the bench-15 checks below do not apply)
@@ -6220,11 +6388,12 @@ def bench_world():
     m = re.search(rb'(?:\xc7\x05.{8}){4}\x66\xc7\x05.{4}\xa7\x06', c, re.S)
     top, bot = p.target(1, m.start() + 6)[1], p.target(1, m.start() + 26)[1]
     errs, info = [], []
-    os.makedirs(os.path.join(RUNS, 'bench_world'), exist_ok=True)
+    tag = 'oppo_list' if os.environ.get('BENCH_OPPL') else 'bench_world'
+    os.makedirs(os.path.join(RUNS, tag), exist_ok=True)
 
     def mark(text):
-        open(os.path.join(RUNS, 'bench_world', 'progress.txt'), 'a').write(text + '\n')
-    with Session('bench_world', b, files, 'dump:2', 900, match=True, timer=bool(files)) as s:   # (SWOS++: keys from
+        open(os.path.join(RUNS, tag, 'progress.txt'), 'a').write(text + '\n')
+    with Session(tag, b, files, 'dump:2', 900, match=True, timer=bool(files)) as s:   # (SWOS++: keys from
                                                                                                  # the timer, as controls_swospp)
         if s.wait().outcome != 'dump':
             return False, f'START: no first pause ({s.result})'
@@ -6322,6 +6491,7 @@ def bench_world():
         if st < 0 and len(p.le.objs) > 2:   # (4.0.6: benchx in obj3)
             st = p.le.obj_bytes(3).find(b'BXST')
             st = Off3(st) if st >= 0 else st
+        bench_oppl.obj3, bench_oppl.gmax = (p.le.obj_bytes(3) if len(p.le.objs) > 2 else b''), gmax   # (BENCH_OPPL)
         bench_play(s, gmax, top, bot, wants, errs, info, mark, (bx, int(os.environ.get('BENCH_SUB', 21)), ct), {}, sq,
                    st if st >= 0 else None)
     check(n == 30 or club != 'CELLE VARAZZE', f'{club}: {n} players (want 30)', errs)
@@ -6426,6 +6596,24 @@ def to_league(s, top, bot, club, errs, prematch=False):
     errs.append('trail ' + ' '.join(s.trail))
     errs.append('league match: not reached (' + ', '.join(s.screen().texts())[:160] + ')')
     return None
+
+
+@scenario
+def oppo_list():
+    """4.0.6 (Davide's option b) the opponent's squad, read only, in the in-match bench menu (oppl.py): bench_world's
+    career match (CELLE VARAZZE, bench 15, the CPU opponent 16 + its XTRA players) with bench_oppl instead of the bench
+    loop: UP on the coach opens it, the pages (pitch, bench 11 a page) and their rows, nothing past either end, FIRE /
+    LEFT / RIGHT close it, both in-match teams + the substitution counters byte-identical throughout, then a change as
+    usual. Shots oppl_page0 / oppl_down1.. (Davide's look review)."""
+    keep = os.environ.get('BENCH_OPPL')
+    os.environ['BENCH_OPPL'] = '1'
+    try:
+        return bench_world()
+    finally:
+        if keep is None:
+            os.environ.pop('BENCH_OPPL', None)
+        else:
+            os.environ['BENCH_OPPL'] = keep
 
 
 @scenario

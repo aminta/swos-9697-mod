@@ -63,7 +63,7 @@ OBJ1_NEW_VSIZE = 0xa6000     # + five added pages (lepatch.add_object_page)
 OBJ3_ARENA = 0x20000         # 4.0.6 obj3 (mod code after obj2, CONVENTIONS 23): its file pages (mod pages, then the C
                              # engine's code, PLAN §19 step O) stay below this; the engine arena + spec buffer go here,
                              # zero-filled (vsize only, the engine zeroes it: DOS/4GW does not)
-BENCHX_PAGES = 2             # obj3+0: benchx (the long benches), code + data
+BENCHX_PAGES = 3             # obj3+0: benchx (the long benches), code + data (4.0.6: + kittrain, squadnum, mk_keep, oppl)
 SA_CAVE = 0xa1000            # first added page: South American cups
 WORLD_CAVE = 0xa2000         # second added page: new countries, CAF cups (Roadmap 2)
 NZ_CAVE = 0xa4000            # fourth added page (2.1): NSSL shoot-out (the world cave may grow into page 3)
@@ -707,6 +707,8 @@ def patch_exe(src, dst, remap, lang='it'):
     bn_end = squadnum.patch(p, (bn_end + 15) & ~15)   # (shirtedit's editor), obj3 after kittrain
     import mklist                                # 4.0.6 (Enzo): the market list keeps its page after an offer,
     bn_end = mklist.patch(p, (bn_end + 15) & ~15)     # obj3 after squadnum
+    import oppl                                  # 4.0.6 (Davide): the opponent squad, read only, in the in-match bench
+    bn_end = oppl.patch(p, (bn_end + 15) & ~15)       # menu (UP on the coach), obj3 after mk_keep
     assert bn_end <= 0x1000 * BENCHX_PAGES, hex(bn_end)
     p.set_vsize(3, 0x1000 * BENCHX_PAGES)
     p.set_vsize(1, OBJ1_NEW_VSIZE + (0x1000 * (cp + 2 + cdp) if worlds else 0) + h2 + 0x1000 * (lpb + sp_pg + sc_pg + ct_pg + ctl_pg))

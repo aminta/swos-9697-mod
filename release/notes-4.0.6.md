@@ -17,6 +17,18 @@
 - **Two new OPTIONS rows, both ON by default:** the computer's clubs now get **red cards** (a sent-off player is suspended, like yours) and **injuries** (an injured player of a computer's club misses the following matches instead of being fit again at once). Turn a row OFF to get the original game behaviour back.
 - Under SWOS++ the two rows are hidden and the original behaviour applies.
 
+#### Super Cups and intercontinental cups (World 2026-27)
+- **UEFA Super Cup.**
+  - It is played in mid-August (week of 12 August), before the national Super Cup: the Champions League winner against the Europa League winner of the season just ended.
+  - One match on neutral ground. If it is level after 90 minutes, it goes straight to penalties (no extra time, as in the real one since 2025).
+  - If the same club won both cups, its opponent is the Conference League winner. If there is no other winner, the match is not played.
+  - It starts from the second season: in the world's first season the real 2026 edition has already been played.
+  - You play it when your club is one of the two. It is in the calendar and in the season record.
+  - Its rules are on the Champions League's FORMAT page.
+- **Recopa Sudamericana** moves to February, as the real one. Two legs, with the Libertadores champion at home in the second. If the tie is level on aggregate: extra time, then penalties (2026 edition: Lanús won in Rio after extra time).
+- **CAF Super Cup** moves to October, as the 2025 edition. One match on neutral ground, straight to penalties.
+- **FIFA Intercontinental Cup.** The Derby of the Americas (the Libertadores winner against the CONCACAF champion) moves to December, as the real one, followed by the Challenger Cup and the final. The play-off stays at the end of August and the Africa-Asia-Pacific Cup in September.
+
 #### Stoppage time
 - **Stoppage time (an idea of Davide and Marco):** every half now has real added time. At 45:00 and 90:00 the clock stops and a "+N" appears next to it, like the fourth official's board: N added minutes, more when the half had goals, substitutions and cards (in the World 2026-27 career also the time lost with the ball out of play, as in today's football) - at most 3 in the 1996-97 game (2 in the first half), 5 in the World 2026-27 career (3 in the first half), 2 in the Europe 1984-85 career (1 in the first half); each extra-time half gets 1. The historic seasons and tournaments before 1970 (Italy 1947-48, World Cup 1934) give at most 1 and often none, as in those days. The added minutes always run at the pace of a 10-minute match, whatever match length you chose, so they can really be played: about 15 seconds of play for +3 and 26 for +5 (in a 3-minute match +3 would otherwise be gone in under 5 seconds). As always the clock stops when the ball is out of play, and when the added time is over the referee still lets a running attack finish. A goal in added time shows as 45+2 or 90+3 in the scorers' list. Not with SWOS++.
 
@@ -134,6 +146,18 @@ La 4.0.6 è un giro di richieste dei giocatori: **due giocatori sulla stessa tas
 #### Le squadre del computer giocano con le tue regole
 - **Due nuove righe in OPZIONI, entrambe attive di default:** le squadre del computer ora prendono **cartellini rossi** (un espulso è squalificato, come i tuoi) e **infortuni** (un infortunato di una squadra del computer salta le partite seguenti invece di essere subito di nuovo a posto). Metti una riga su NO per riavere il comportamento originale del gioco.
 - Con SWOS++ le due righe sono nascoste e vale il comportamento originale.
+
+#### Supercoppe e coppe intercontinentali (Mondo 2026-27)
+- **Supercoppa UEFA.**
+  - Si gioca a metà agosto (la settimana del 12 agosto), prima della Supercoppa nazionale: la vincitrice della Champions League contro la vincitrice dell'Europa League della stagione appena finita.
+  - Gara unica in campo neutro. In parità dopo 90 minuti si va subito ai rigori (niente supplementari, come nella vera dal 2025).
+  - Se la stessa squadra ha vinto entrambe le coppe, l'avversaria è la vincitrice della Conference League. Se manca anche questa, la partita non si gioca.
+  - Parte dalla seconda stagione: nella prima stagione del mondo l'edizione vera 2026 è già stata giocata.
+  - La giochi se la tua squadra è una delle due. È nel calendario e nel registro della stagione.
+  - Le regole sono nella pagina FORMAT della Champions League.
+- **Recopa Sudamericana** passa a febbraio, come la vera. Andata e ritorno, con la campione della Libertadores in casa al ritorno. In parità nel totale: supplementari, poi rigori (edizione 2026: il Lanús ha vinto a Rio ai supplementari).
+- **Supercoppa CAF** passa a ottobre, come l'edizione 2025. Gara unica in campo neutro, subito rigori.
+- **Coppa Intercontinentale FIFA.** Il Derby delle Americhe (la vincitrice della Libertadores contro la campione CONCACAF) passa a dicembre, come quello vero, seguito dalla Challenger Cup e dalla finale. Il play-off resta a fine agosto e la Coppa Africa-Asia-Pacifico a settembre.
 
 #### Recupero
 - **Recupero (un'idea di Davide e Marco):** ogni tempo ora ha il suo recupero vero. A 45:00 e a 90:00 l'orologio si ferma e accanto compare "+N", come il cartello del quarto uomo: N minuti di recupero, di più se nel tempo ci sono stati gol, sostituzioni e cartellini (nella carriera Mondo 2026-27 anche il tempo perso a palla non in gioco, come nel calcio di oggi) - al massimo 3 nel gioco 1996-97 (2 nel primo tempo), 5 nella carriera Mondo 2026-27 (3 nel primo tempo), 2 nella carriera Europa 1984-85 (1 nel primo tempo); ogni tempo supplementare ne ha 1. Le stagioni e i tornei storici prima del 1970 (Italia 1947-48, Mondiali 1934) danno al massimo 1 minuto, spesso nessuno, come allora. I minuti di recupero scorrono sempre al ritmo di una partita da 10 minuti, qualunque durata tu abbia scelto, così si giocano davvero: circa 15 secondi di gioco per +3 e 26 per +5 (in una partita da 3 minuti +3 durerebbe meno di 5 secondi). Come sempre l'orologio si ferma a palla non in gioco, e finito il recupero l'arbitro lascia comunque finire l'azione in corso. Un gol nel recupero compare come 45+2 o 90+3 nell'elenco dei marcatori. Non con SWOS++.

@@ -81,8 +81,9 @@ seen in real 2026-27 team sheets). bench_table() builds, per exe language, a tab
 with a known bench: title (the country's button name + ' ' + the competition's / division's first name: what the game
 shows, FORMAT's key; 40 characters at most), named substitutes, substitutions allowed, extra-time substitute (stored,
 used at extra time: bx_et), from tools/bench2627.json x the world's career packs in SEASON_PACKS (none: no table, the
-game's rule everywhere). bx_look (careers only) finds the current competition's title (DIY_competitionStart + 4, as at
-the kick-off of InitializeInGameTeamsAndStartGame: e.g. ITALIA SERIE D GIRONE A) in it, cached by title; bx_max takes
+game's rule everywhere). bx_look (careers only; not a training game, 4.0.6 Marco: the game's 2 from 2) finds the
+current competition's title (DIY_competitionStart + 4, as at the kick-off of InitializeInGameTeamsAndStartGame: e.g.
+ITALIA SERIE D GIRONE A) in it, cached by title; bx_max takes
 its bench (else the game's: a career league passes its record's +65h, 5), bx_min (`mov [gameMinSubstitutes], ax`) its
 substitutions (else the game's +63h, 3), sq_n its bench for the pre-match screens. The test switch bx_bench wins over
 both. Competitions not in the table keep the game's 3 from 5. (4.0.5, Davide 30/10) bench_table fills bench2627.json's
@@ -153,6 +154,8 @@ bx_look:                                ; (phase 2) [bx_lkres] = the current com
     mov byte [bx_lket], 0               ; [bx_lket] = its extra-time substitute (4.0.6)
     cmp word [GAMETYPE], 4
     jne .out
+    cmp word [TRAIN], 0                 ; (4.0.6, Marco) a training game (TRAINING on the squad screen) keeps the game's
+    jne .out                            ; 2 from 2 (PlayTrainingGame): no league bench in the dugout / squad lists
     cmp byte [SLT + WORLD_BYTE_], BXWORLD_   ; the career's world (careerworld's save byte): the 2026-27 one only (the
     jne .out                            ; 1996-97 base game and the historic worlds keep the game's rule, same titles)
     mov esi, DIYNAME

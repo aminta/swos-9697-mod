@@ -6176,6 +6176,154 @@ def bench_world():
     return not errs, '; '.join(errs + info)
 
 
+TRAIN_TXT = {'it': ('SQUADRA', 'PRATICA', 'GIOCA PARTITA'), 'en': ('SQUAD', 'TRAINING', 'PLAY MATCH')}   # (career
+                                            # menu, the squad screen's TRAINING, the pre-match screen's play button)
+
+
+def train_start(s, path, errs):
+    """(4.0.6, Marco) Main menu -> a new World 2026-27 career (the selector path) -> SQUADRA -> TRAINING: the training
+    pre-match screen (the club as team A, SQUADRA B). The screen, or None."""
+    for t in ('CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27'):
+        if press(s, s.screen(), t) is None:
+            errs.append(f'new career: {t} not reached ({s.result})')
+            return None
+    if not pick_career(s, path):
+        errs.append(f'new career: {path} not reached ({s.result})')
+        return None
+    s.send('fire dump:2')                       # (the chairman's note)
+    sq, tr, _ = TRAIN_TXT[UI]
+    if press(s, s.screen(), sq, 3) is None:
+        errs.append(f'career menu: {sq} not reached ({s.result})')
+        return None
+    if press(s, s.screen(), tr, 3) is None:
+        errs.append(f'squad screen: {tr} not reached ({s.result})')
+        return None
+    scr = s.screen()
+    if TRAIN_TXT[UI][2] not in scr.texts():
+        errs.append('training: no pre-match screen (' + ', '.join(scr.texts())[:120] + ')')
+        return None
+    return scr
+
+
+def train_kickoff(s, top, bot, both, steps=25):
+    """Fire through the line-ups to the kick-off: the in-match teams' names, a training pair (both: the club's
+    'X A' / 'X B') or not (a match against another club: a stale training pair is not taken). The Result, or None."""
+    for _ in range(steps):
+        r = s.result
+        if r.outcome != 'dump':
+            return None
+        names = (ingame_team(r, top)[0], ingame_team(r, bot)[0])
+        pair = names[0].endswith(' A') and names[1] == names[0][:-1] + 'B'
+        if all(names) and pair == both:
+            return r
+        s.send('fire:0.3 dump:1.5')
+    s.kick_names = names                        # (the last pair read: a failure's message)
+    return None
+
+
+def train_out(s, errs, steps=300):
+    """The training game played to its end (as bench_play: 3 fires a pause): back on the squad screen (its TRAINING
+    entry). False if not."""
+    for _ in range(steps):
+        if s.result.outcome != 'dump':
+            errs.append(f'training: {s.result}')
+            return False
+        try:
+            if TRAIN_TXT[UI][1] in s.screen().texts():
+                return True
+        except Exception:                       # (in the match: no menu)
+            pass
+        s.send('fire:3 ' * 3 + 'dump:1')
+    s.shot('train_out')
+    errs.append('training: not back on the squad screen')
+    return False
+
+
+def to_league(s, top, bot, club, errs, prematch=False):
+    """From the squad screen after a training game: ESCI -> the career menu -> PARTITA -> ... -> the league match's
+    kick-off (the in-match teams: club v another club; the Result), or its pre-match screen (prematch: the Screen).
+    None if not reached."""
+    for step in range(40):
+        r = s.result
+        if r.outcome != 'dump':
+            errs.append(f'to the league match, step {step}: {r}')
+            return None
+        names = (ingame_team(r, top)[0], ingame_team(r, bot)[0])
+        if not prematch and all(names) and names[0] != names[1] and club in names:
+            return r
+        scr = s.screen()
+        texts = scr.texts()
+        if prematch and 'MOD. TATTICA' in texts and len(scr.entries) > 68 and scr.entries[68][1].startswith('MAGLIE'):
+            return scr
+        act = next((a for a in ('PARTITA', '- PARTITA -', TRAIN_TXT[UI][2], 'PROSS. PARTITA') if a in texts), None)
+        if TRAIN_TXT[UI][1] in texts or 'VIS. SQUADRA' in texts:
+            act = 'ESCI'                            # (the career menu's SQUADRA, or the opponent's squad view: back)
+        elif act == 'PARTITA' and not ('TRASFERIMENTI' in texts or 'VISUALIZZA MONDO' in texts):
+            act = None
+        s.trail = getattr(s, 'trail', []) + [f'{step}:{act}:' + (scr.entries[68][1] if len(scr.entries) > 68 else '-')]
+        (press(s, scr, act, 3) if act else None) or s.send('fire:0.3 dump:1.5')
+    s.shot('to_league')
+    errs.append('trail ' + ' '.join(s.trail))
+    errs.append('league match: not reached (' + ', '.join(s.screen().texts())[:160] + ')')
+    return None
+
+
+@scenario
+def bench_training():
+    """(4.0.6, Marco on 4.0.5) A training game keeps the game's bench (PlayTrainingGame: 2 from 2), not the league's
+    (benchx phase 2's bx_look skips it: TRAINING set gameMaxSubstitutes 12 at ROMA, the dugout showed a window of 5 a
+    team, the squad lists a bench of 12): a World 2026-27 career at ROMA (BENCH_BUILD; TRAIN_PATH), SQUADRA ->
+    TRAINING: the pre-match screen shot; at the kick-off gameMinSubstitutes / gameMaxSubstitutes 2 / 2, both in-match
+    teams named 16 at most (places 17.. empty); the dugout shot; the training played out, then the league match: its
+    kick-off has the competition's real bench again (TRAIN_REAL, default '15:5' = ITALIA SERIE A: no stale flag)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lepatch
+    b = os.environ.get('BENCH_BUILD') or os.environ.get('XTRA30_BUILD')
+    if not b or not os.path.isdir(b):
+        return True, 'SKIP: BENCH_BUILD not set'
+    b = nop_league_int3('bench_training_' + os.path.basename(RUNS.rstrip('/')), b)
+    path = os.environ.get('TRAIN_PATH', 'EUROPA,ITALIA,SERIE A,ROMA').split(',')
+    club = path[-1]
+    want = os.environ.get('TRAIN_REAL', '15:5')
+    exe = os.path.join(b, 'ITALIAN.EXE')
+    p = lepatch.LEPatch(exe)
+    _, gmax = bench_switch(exe)
+    m = re.search(rb'(?:\xc7\x05.{8}){4}\x66\xc7\x05.{4}\xa7\x06', p.le.obj_bytes(1), re.S)
+    top, bot = p.target(1, m.start() + 6)[1], p.target(1, m.start() + 26)[1]
+    errs, info = [], []
+    with Session('bench_training', b, {}, 'dump:2', 900, match=True) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'START: no first pause ({s.result})'
+        scr = train_start(s, path, errs)
+        if scr is None:
+            return False, '; '.join(errs)
+        s.shot('train_prematch')
+        press(s, scr, TRAIN_TXT[UI][2], 3)
+        r = train_kickoff(s, top, bot, True)
+        if r is None:
+            return False, f'training: no kick-off ({s.result}; names {getattr(s, "kick_names", None)})'
+        gm = struct.unpack('<HH', r.obj2(gmax - 2, 4))
+        info.append(f'training kick-off named:used {gm[1]}:{gm[0]}')
+        check(gm == (2, 2), f'training: gameMin / MaxSubstitutes {gm[0]} / {gm[1]} (want 2 / 2)', errs)
+        for name, pl in (ingame_team(r, top), ingame_team(r, bot)):
+            named = [k for k, x in enumerate(pl) if x[0]]
+            check(named and max(named) < 16, f'training {name}: named places {named[-3:]} (want < 16)', errs)
+        s.send('pgup:0.3 dump:0.8')                 # the dugout (as bench_play): its list, then out
+        s.send('fire:1 dump:1.5')
+        s.shot('train_dugout')
+        s.send('left:0.3 left:0.3 dump:0.8')
+        if not train_out(s, errs):
+            return False, '; '.join(errs + info)
+        r = to_league(s, top, bot, club, errs)
+        if r is not None:
+            names = (ingame_team(r, top)[0], ingame_team(r, bot)[0])
+            gm = struct.unpack('<HH', r.obj2(gmax - 2, 4))
+            info.append(f'league kick-off {names[0]}-{names[1]} named:used {gm[1]}:{gm[0]}')
+            check(f'{gm[1]}:{gm[0]}' == want, f'league after training: {gm[1]}:{gm[0]} (want {want})', errs)
+    return not errs, '; '.join(errs + info)
+
+
+
 @scenario
 def bench_cup():
     """(4.0.5, Davide 30/10 on rc17: RANGERS with the long bench in the league, 5 in the SCOTTISH CUP) The real bench

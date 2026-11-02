@@ -63,7 +63,8 @@ OBJ1_NEW_VSIZE = 0xa6000     # + five added pages (lepatch.add_object_page)
 OBJ3_ARENA = 0x20000         # 4.0.6 obj3 (mod code after obj2, CONVENTIONS 23): its file pages (mod pages, then the C
                              # engine's code, PLAN §19 step O) stay below this; the engine arena + spec buffer go here,
                              # zero-filled (vsize only, the engine zeroes it: DOS/4GW does not)
-BENCHX_PAGES = 3             # obj3+0: benchx (the long benches), code + data (4.0.6: + kittrain, squadnum, mk_keep, oppl)
+OBJ3_PAGES = 5               # obj3+0: benchx (the long benches), code + data; then (4.0.6) kittrain, squadnum, mk_keep,
+                             # oppl, cpucards, whitehair, finance, kbd2 (bteam next)
 SA_CAVE = 0xa1000            # first added page: South American cups
 WORLD_CAVE = 0xa2000         # second added page: new countries, CAF cups (Roadmap 2)
 NZ_CAVE = 0xa4000            # fourth added page (2.1): NSSL shoot-out (the world cave may grow into page 3)
@@ -230,6 +231,9 @@ def patch_exe(src, dst, remap, lang='it'):
         engine.save_item('SC', supercup.SC_SIZE, world_only=True)
     if xtra_on:
         engine.save_item('XS', xtra.XS_SIZE, world_only=True)    # 4.0.2 the XTRA players bought from other clubs (xtra.py)
+    engine.save_item('CC', 4)                    # 4.0.6 the OPTIONS rows 'CPU red cards', 'CPU injuries' (cpucards.py: 0 = ON;
+    engine.after_load('cc_load')                 # the session's value kept by a load / a new career)
+    engine.after_new('cc_new')
     bigtables.ON[0] = bigtables.needed()         # a world numbering its clubs 2000+ (World 5.0; 4.0's world 0)
     bigtables.MOVED.clear()
     pg_tabs = mkseason.parallel_tables() + engine.parallel_tables()   # parallel groups (worlds' packs; world 0: engine)
@@ -355,7 +359,7 @@ def patch_exe(src, dst, remap, lang='it'):
         data = add_object_page(data, 2)
         data = add_object_page(data, 2)
     data = add_object(data)                          # 4.0.6: obj3 after obj2 (obj1 <= 237 for SWOS++, obj2 = 213 for
-    for _ in range(BENCHX_PAGES):                    # old saves: CONVENTIONS 20 / 22 / 23), benchx's pages first
+    for _ in range(OBJ3_PAGES):                    # old saves: CONVENTIONS 20 / 22 / 23), benchx's pages first
         data = add_object_page(data, 3)
     assert LE(data).obj(3).npages * 0x1000 <= OBJ3_ARENA
     open(grown, 'wb').write(data)
@@ -555,7 +559,8 @@ def patch_exe(src, dst, remap, lang='it'):
     bl_at = hist2 + h2 + 0x1000 * (lpb + sp_pg + sc_pg + ct_pg) + 0x2200   # 4.0.3: blond's code (bald: longer; the
     ns_at0 = hist2 + h2 + 0x1000 * (lpb + sp_pg + sc_pg + ct_pg + ctl_pg - namespr.PAGES)   # (namespr's pages, below:
     art_at = namespr.layout(ns_at0)[1] + namespr.CAP * namespr.DATA                            # the shaved art in their tail)
-    bl_end = blond.patch(p, area, bl_at, num_bss + shirtnum.BSS_SIZE, shirtnum.spr_index(p), bald_bss, art_at)   # cosmetics
+    bl_end = blond.patch(p, area, bl_at, num_bss + shirtnum.BSS_SIZE, shirtnum.spr_index(p), bald_bss, art_at)   # cos-
+                                                         # metics
     assert bl_end <= bl_at + 0xE00, hex(bl_end)          # cave is full) in controls' last data page, after its data
     cos = menunum.patch(p, cos, num_bss + shirtnum.BSS_SIZE + blond.BSS_SIZE)   # 3.3.4: menu numbers 17..99
     cos = avgprice.patch(p, cos)                 # 3.3.4: average player price >= 1 (divide error, 1984-85 Iceland)
@@ -709,8 +714,19 @@ def patch_exe(src, dst, remap, lang='it'):
     bn_end = mklist.patch(p, (bn_end + 15) & ~15)     # obj3 after squadnum
     import oppl                                  # 4.0.6 (Davide): the opponent squad, read only, in the in-match bench
     bn_end = oppl.patch(p, (bn_end + 15) & ~15)       # menu (UP on the coach), obj3 after mk_keep
-    assert bn_end <= 0x1000 * BENCHX_PAGES, hex(bn_end)
-    p.set_vsize(3, 0x1000 * BENCHX_PAGES)
+    assert bn_end <= 0x1000 * OBJ3_PAGES, hex(bn_end)
+    import cpucards                              # 4.0.6 (Davide): the CPU's cards / injuries by the human rules, two
+    cc_end = cpucards.patch(p, (bn_end + 15) & ~15, lang)    # OPTIONS rows (ON by default), in obj3 after oppl
+    cpucards.force(p)                                        # (CARDS_FORCE test builds only: last-man fouls forced)
+    cpucards.force_inj(p)                                    # (INJ_FORCE test builds only: every tackle injures)
+    assert cc_end <= 0x1000 * OBJ3_PAGES, hex(cc_end)
+    wh_end = blond.late_patch(p, (cc_end + 15) & ~15)        # 4.0.6: white hair - blond's palette route + tables in
+    assert wh_end <= 0x1000 * OBJ3_PAGES, hex(wh_end)        # obj3 after cpucards
+    import finance                               # 4.0.6 (Nicola): TV / commercial income with every match charge +
+    fi_end = finance.patch(p, (wh_end + 15) & ~15, lang)     # the gate wrap fix, in obj3 after whitehair (kbd2 next:
+    assert fi_end <= 0x1000 * OBJ3_PAGES, hex(fi_end)        # (fi_end + 15) & ~15)
+    print(f'exe: obj3 end {fi_end:#x} ({0x1000 * OBJ3_PAGES - fi_end} B left)')
+    p.set_vsize(3, 0x1000 * OBJ3_PAGES)
     p.set_vsize(1, OBJ1_NEW_VSIZE + (0x1000 * (cp + 2 + cdp) if worlds else 0) + h2 + 0x1000 * (lpb + sp_pg + sc_pg + ct_pg + ctl_pg))
     import teamstab                              # 4.0.2: teamsTable for 256 team ordinals (Serie D choice colours)
     teamstab.patch(p, num_bss + shirtnum.BSS_SIZE + blond.BSS_SIZE + menunum.BSS_SIZE + fmtpage.BSS_SIZE)
@@ -872,6 +888,13 @@ def write_new_teams(src_dir, dst_dir):
     for name, k in lgreal.write(dst_dir):
         print(f'{name}: real league calendars of {k} leagues')
     rename_clubs(src_dir, dst_dir)
+    for f in sorted(os.listdir(src_dir)):             # 4.0.6: white-haired players in the original files too (the
+        q = os.path.join(dst_dir, f)                  # build's DATA starts as their copy; byte 25 bit 2 is an OR:
+        if re.fullmatch(r'TEAM\.\d{3}', f) and os.path.exists(q):   # a file written above stays as team_fix made it)
+            data, hit = blond.white(open(q, 'rb').read())
+            if hit:
+                open(q, 'wb').write(data)
+                print(f'{f}: white hair {", ".join(hit)}')
 
 
 # 4.0 (Davide, 2026-10-18): the Milan clubs by the names they go by. Name fields are zero padded: the shorter name +

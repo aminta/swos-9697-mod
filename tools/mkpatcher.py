@@ -37,6 +37,9 @@ FILES = [  # (id, original path, patched path, file name in the game folder)
     ('EUROCUP.TMD', 'orig/DATA/EUROCUP.TMD', 'c/SWOS/DATA/EUROCUP.TMD', 'DATA/EUROCUP.TMD'),
     ('UEFACUP.TMD', 'orig/DATA/UEFACUP.TMD', 'c/SWOS/DATA/UEFACUP.TMD', 'DATA/UEFACUP.TMD'),
     ('POOLPLYR.DAT', 'orig/DATA/POOLPLYR.DAT', 'c/SWOS/DATA/POOLPLYR.DAT', 'DATA/POOLPLYR.DAT'),
+    # 4.0.6: white-haired players (packs/white-hair.csv: byte 25 bit 2) in original team files
+    ('TEAM.008', 'orig/DATA/TEAM.008', 'c/SWOS/DATA/TEAM.008', 'DATA/TEAM.008'),
+    ('TEAM.080', 'orig/DATA/TEAM.080', 'c/SWOS/DATA/TEAM.080', 'DATA/TEAM.080'),
     # 3.3.0: purple clubs (kit colour 10) in original team files the mod did not change before
     ('TEAM.001', 'orig/DATA/TEAM.001', 'c/SWOS/DATA/TEAM.001', 'DATA/TEAM.001'),
     ('TEAM.002', 'orig/DATA/TEAM.002', 'c/SWOS/DATA/TEAM.002', 'DATA/TEAM.002'),

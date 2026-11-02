@@ -41,7 +41,7 @@ How it works
   ones on demand; debugger commands are typed in one go, short forms (~1 ms per char), no fixed sleeps.
 - Oracles: saves written by the game, checked in Python (car_info, W1 block, cup lists), the outcome, the dump.
 """
-import glob, hashlib, json, os, pty, re, select, shutil, signal, struct, subprocess, sys, time
+import collections, glob, hashlib, json, os, pty, re, select, shutil, signal, struct, subprocess, sys, time
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 MAIN = os.path.expanduser('~/swos-mod')               # main checkout: c/, orig/, internal/ live there
@@ -8764,6 +8764,8 @@ def controls_swospp():
         check(sc.entries[0][1] == 'OPZIONI', f'not in OPTIONS: {sc}', errs)
         check(btn[1] == 1, f'entry 19 shown under SWOS++: {btn}', errs)
         check(sc.nav[17][0][3] != 19 and sc.nav[18][0][2] != 19, f'links to 19: {sc.nav[17][0]} {sc.nav[18][0]}', errs)
+        check(sc.n == 20, f'{sc.n} OPTIONS entries under SWOS++ (4.0.6 cpucards: its 2 rows hidden, 20 = the game\'s)',
+              errs)                             # (4.0.6: no ROSSI / INFORTUNI ALLA CPU rows - entries 20..23)
         s.shot('options')
     return not errs, '; '.join(errs) or 'no CONTROLS button under SWOS++'
 
@@ -16492,26 +16494,30 @@ def dkb_half(r):
 
 def variant_sets(r):
     """blond.copy_sets' allocation this match: {(team 0 / 1, flag): the slot's first sprite} (flag 1 darkblond, 2 / 3
-    receding dark / light, 4 / 5 shaved dark / light - 4.0.5 single-team slots), from its block after 'BLDSLOT5' in
-    obj1: SFL[5], STM[5], (align 2) VBT[2][4] words, VBT5[2] words."""
+    receding dark / light, 4 / 5 shaved dark / light - 4.0.5 single-team slots; 6 / 7 white hair dark / light,
+    4.0.6), from its block after 'BLDSLOT5' / 'BLDSLOT7' in obj1: SFL[5], STM[5], (align 2) VBT[2][4] words, VBT5 =
+    [2] words (flag 5 per team; '7': [3][2], flags 5, 6, 7)."""
     if not hasattr(r, '_vsig'):
         d1 = r.read(r.base1, 0x100000)
-        k = d1.find(b'BLDSLOT5')
+        k, r._vnx = d1.find(b'BLDSLOT7'), 3
+        if k < 0:
+            k, r._vnx = d1.find(b'BLDSLOT5'), 1
         r._vsig = k + 8 if k > 0 else None
     if r._vsig is None:
         return {}
-    b = r.read(r.base1 + r._vsig, 32)
+    b = r.read(r.base1 + r._vsig, 48)
     sfl, stm = b[0:5], b[5:10]
     o = 10 + ((r._vsig + 10) & 1)
     vbt = struct.unpack_from('<8H', b, o)
-    vb5 = struct.unpack_from('<2H', b, o + 16)
+    vb5 = struct.unpack_from(f'<{2 * r._vnx}H', b, o + 16)
     out = {}
     for t in (0, 1):
         for f in (1, 2, 3, 4):
             if vbt[t * 4 + f - 1]:
                 out[(t, f)] = vbt[t * 4 + f - 1]
-        if vb5[t]:
-            out[(t, 5)] = vb5[t]
+        for f in range(5, 5 + r._vnx):
+            if vb5[(f - 5) * 2 + t]:
+                out[(t, f)] = vb5[(f - 5) * 2 + t]
     assert sorted(out) == sorted((stm[i], sfl[i]) for i in range(5) if sfl[i]), (out, sfl, stm)
     return out
 
@@ -16557,6 +16563,35 @@ def dkb_sets(r, spr, blond, info):
             hair = {x for k in range(101) for x in frame(new + k)[2]}
             check(15 in hair and 5 not in hair, f'{tag}: darkblond colours {sorted(hair)} (yellow 15, no light skin 5)',
                   errs)
+        for f in (6, 7):                                # 4.0.6 white hair (R2): the hair pixels (where the light set
+            if (tm, f) not in vs:                       # and face 1's differ: only their hair colours do - the game
+                continue                                # converted the 'raw' sets in place) grey 1, the top hair row's
+            look, name = blond.FLAGS[f]                 # two end pixels off (3 or more), the rest as the face's set
+            ref = black if name == 'dark' else raw
+            rm = (lambda v: v) if planar else \
+                (lambda v: [v[i // 2] if i % 2 == 0 else v[len(v) // 2 + i // 2] for i in range(len(v))])
+            bad, grey = [], 0
+            for k in range(101):
+                h0, h1 = rm(frame(raw + k)[2]), rm(frame(raw + 101 + k)[2])
+                a, b_ = frame(ref + k), frame(vs[(tm, f)] + k)
+                a, b_ = (a[0], a[1], rm(a[2])), (b_[0], b_[1], rm(b_[2]))
+                hair = [i for i, (x, y) in enumerate(zip(h0, h1)) if x != y]
+                want = list(a[2])
+                wt = blond.WHITE_TONES[os.environ.get('WHITE_TONE', blond.WHITE_TONE)]
+                for i in hair:                          # (raw 12, the darkest shade, is not told apart in the
+                    want[i] = wt[0] if b_[2][i] not in wt else b_[2][i]   # converted sets: either colour)
+                top = [i for i in hair if hair and i // (16 * a[0]) == hair[0] // (16 * a[0])]
+                if len(top) >= 3:
+                    want[top[0]] = want[top[-1]] = 0
+                if a[:2] != b_[:2] or b_[2] != want:
+                    if not bad:
+                        info.append(f'{tag}: {look} {name} frame {k} (cell, want, got): '
+                                    f'{[(i, w, g) for i, (w, g) in enumerate(zip(want, b_[2])) if w != g][:12]}')
+                    bad.append(k)
+                grey += len(hair)
+            check(not bad and grey, f'{tag}: {look} {name} frames differing from R2: {bad[:12]} ({len(bad)})', errs)
+            if not bad:
+                info.append(f'{tag}: {look} {name}: all 101 frames = R2 ({grey} hair pixels white/grey)')
         for f in (2, 3, 4, 5):
             if (tm, f) not in vs:                       # 4.0.5 bald: the face's set reshaped by the variant's look
                 continue                                # (blond.LOOKS): E = its top hair (3) in skin colours, the rest
@@ -16665,7 +16700,7 @@ def world_darkblond():
                 for m_ in _re.finditer(_re.escape(nm_.encode()) + b'\0', o2):
                     h = m_.start() - 3
                     at_, v_ = (26, o2[h + 26] | 0x18) if op_ == 'darkblond' else \
-                        (25, o2[h + 25] & 0xFC | 1 if op_ == 'bald' else o2[h + 25] | 3 if op_ == 'shaved' else o2[h + 25] & 0xFC)
+                        (25, o2[h + 25] & 0xFC | 1 if op_ == 'bald' else o2[h + 25] | 3 if op_ == 'shaved' else o2[h + 25] & 0xF8 | 4 if op_ == 'white' else o2[h + 25] & 0xFC)
                     s.poke(r.base2 + h + at_, bytes((v_,)))
             s.send('dump:1')
         press(s, s.screen(), 'SQUADRA', 3)
@@ -16679,6 +16714,8 @@ def world_darkblond():
         icon_cases = [('shaved', 'dark', blond.ICON3 + 1)] if os.environ.get('DKB_NAME') == 'world_bald' else []
         if os.environ.get('DKB_NAME') == 'world_bald_looks' and os.environ.get('DKB_EARLY'):
             icon_cases = [('shaved', 'light', blond.ICON3), ('shaved', 'dark', blond.ICON3 + 1)]
+        if os.environ.get('DKB_NAME') == 'world_white' and os.environ.get('DKB_EARLY'):   # 4.0.6 white hair
+            icon_cases = [('white', 'light', blond.ICONW), ('white', 'dark', blond.ICONW + 1)]
         for look_, skin_, ii in icon_cases:
             pb =struct.unpack('<I', r.read(r.base2 + spr + ii * 4, 4))[0]
             ib = r.read(struct.unpack('<I', r.read(pb, 4))[0], 64) if pb else b''
@@ -16687,6 +16724,14 @@ def world_darkblond():
                 import shavedart
                 main_, lo_, io_, _ = shavedart.blobs()
                 ok_ = pb and ib == main_[io_ + (64 if skin_ == 'light' else 0):][:64]
+            elif lk['shape'] == 'white':                 # (R2: the face icon 186 / 188 with the hair 3 of its top
+                ps = struct.unpack('<I', r.read(r.base2 + spr + (186 if skin_ == 'light' else 188) * 4, 4))[0]
+                px_ = [v for x in r.read(struct.unpack('<I', r.read(ps, 4))[0], 64) for v in (x >> 4, x & 15)]
+                hair = [i for i in range(48) if px_[i] == 3]  # three rows grey 1, its top row off)
+                wt = blond.WHITE_TONES[os.environ.get('WHITE_TONE', blond.WHITE_TONE)]
+                for i in hair:                          # (WHITE_TONES: the hair, its third row)
+                    px_[i] = 0 if i // 16 == hair[0] // 16 else wt[1] if i // 16 > hair[0] // 16 + 1 else wt[0]
+                ok_ = pb and hair and ib == bytes(px_[i] << 4 | px_[i + 1] for i in range(0, 128, 2))
             elif lk['shape'] == 'oval':                    # (oval: one colour - black for skull 3, else the skin)
                 want = 3 if lk['skull'] == 3 else 5
                 ok_ = pb and want in nib(ib) and not (set(nib(ib)) - {0, want, 1, 2, 4, 8})
@@ -16730,7 +16775,7 @@ def world_darkblond():
             hits = [m_.start() - 3 for m_ in _re.finditer(_re.escape(nm_.encode()) + b'\0', o2)]
             for h in hits:
                 at_, v_ = (26, o2[h + 26] | 0x18) if op_ == 'darkblond' else \
-                    (25, o2[h + 25] & 0xFC | 1 if op_ == 'bald' else o2[h + 25] | 3 if op_ == 'shaved' else o2[h + 25] & 0xFC)
+                    (25, o2[h + 25] & 0xFC | 1 if op_ == 'bald' else o2[h + 25] | 3 if op_ == 'shaved' else o2[h + 25] & 0xF8 | 4 if op_ == 'white' else o2[h + 25] & 0xFC)
                 s.poke(r.base2 + h + at_, bytes((v_,)))
             info.append(f'{nm_} {op_} x{len(hits)}')
         if not any(x[1] == 'GIOCA PARTITA' and not x[2] for x in s.screen().entries):
@@ -16763,14 +16808,17 @@ def world_darkblond():
     return not errs, '; '.join(errs + info)
 
 
-def bald_sheet(r, spr, blond, pal, path, info):
-    """Team 1's (the home team's) match sprites as converted, frames 0..23 of the sets light (341..), bald light
-    (blond.NEW5..), face 1 (442..), black (543..), bald dark (blond.NEW3..), darkblond (blond.NEW1..): one row each,
-    6x, PNG; *_zoom.png: frames 0 / 7 / 16, hair vs bald, light and dark, 24x."""
+def bald_sheet(r, spr, blond, pal, path, info, tm=0):
+    """Team tm's (0: team 1, the home team) match sprites as converted, frames 0..23 of the sets light (341.. / 644..),
+    bald / shaved / white light (variant sets), face 1 (442.. / 745..), black (543.. / 846..), bald / shaved / white dark,
+    darkblond: one row each, 6x, PNG; *_zoom.png: frames 0 / 7 / 16, hair vs the team's first light / dark variant, 24x."""
     from PIL import Image
     idx = lambda i: struct.unpack('<I', r.read(r.base2 + spr + i * 4, 4))[0]
     vs = variant_sets(r)
-    rows = [341] + [vs[(0, f)] for f in (3, 5) if (0, f) in vs] + [442, 543] + [vs[(0, f)] for f in (2, 4, 1) if (0, f) in vs]
+    raw0 = 341 + 303 * tm
+    lt = [vs[(tm, f)] for f in (3, 5, 7) if (tm, f) in vs]
+    dk = [vs[(tm, f)] for f in (2, 4, 6, 1) if (tm, f) in vs]
+    rows = [raw0] + lt + [raw0 + 101, raw0 + 202] + dk
     raw = {}                                    # (the frames as JSON next to the PNG: offline mock-ups)
     cw, chh, z = 20, 24, 6
     img = Image.new('RGB', (24 * cw * z, len(rows) * chh * z), (40, 110, 40))
@@ -16792,7 +16840,7 @@ def bald_sheet(r, spr, blond, pal, path, info):
     img.save(path)
     zf, zz = (0, 7, 16), 24                     # x4 of the sheet's 6x: 3 frames each, light / bald light / dark / bald dark
     zimg = Image.new('RGB', (len(zf) * 2 * cw * zz, 2 * chh * zz), (40, 110, 40))
-    for ri, pair in enumerate([pr for pr in ((341, vs.get(3)), (543, vs.get(2))) if pr[1]]):
+    for ri, pair in enumerate([pr for pr in ((raw0, (lt or [0])[0]), (raw0 + 202, (dk or [0])[0])) if pr[1]]):
         for zi, k in enumerate(zf):
             for pj, base in enumerate(pair):
                 h = r.read(idx(base + k), 24)
@@ -16837,6 +16885,96 @@ def world_bald_looks():
     light player (the data) takes the fifth slot: every flag gets a set and dkb_sets checks each against its look (pink
     oval = nibble 7)"""
     return bald_run('world_bald_looks', 'NAHUEL MOLINA:shaved,K. KOULIERAKIS:bald,MANU KONE:bald', '2,3,4,5')
+
+
+@scenario
+def world_white():
+    """4.0.6 white hair (R2, blond.LOOKS 'white', byte 25 bit 2): ROMA with NAHUEL MOLINA white light (7) and MANU KONE
+    white dark (6) - poked, the bald bits cleared - next to MALEN shaved dark (4, the data): dkb_sets checks every frame
+    of the two white sets (the raw set's hair grey 1, the top hair row's ends off, the rest the face's set); with
+    DKB_EARLY the squad screen's white icons (blond.ICONW / + 1) too"""
+    return bald_run('world_white', 'NAHUEL MOLINA:white,MANU KONE:white', '4,6,7')
+
+
+@scenario
+def white_data():
+    """4.0.6 white hair in the build's data (packs/white-hair.csv, blond.WHITE): every record of a listed name in the
+    team files (the original 1996-97 TEAM.008 / TEAM.080 too: FABRIZIO RAVANELLI) has byte 25 bit 2 and no bald bit;
+    no other player of the TEAM.* files has bit 2 (no namesake, no stray bit)"""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import blond
+    d = os.path.join(builds()['it'], 'DATA')
+    found, bad = {}, []
+    for f in sorted(os.listdir(d)):
+        if not re.fullmatch(r'TEAM\.\d{3}|TMW\d\.\d{3}|XTW\d\.\d{3}|.*\.TMD', f):
+            continue
+        b = open(os.path.join(d, f), 'rb').read()
+        for n in blond.WHITE:                             # (every copy of a listed name: its byte 25)
+            for m in re.finditer(re.escape(n) + b'\0', b):
+                v = b[m.start() - 3 + blond.BALD_AT]
+                found.setdefault(n.decode('latin-1'), []).append(f)
+                if v & 7 != blond.WHITE_BIT:
+                    bad.append(f'{f} {n.decode("latin-1")} byte 25 = {v:#x}')
+        if f.startswith('TEAM.') and len(b) == 2 + 684 * struct.unpack('>H', b[:2])[0]:   # (any other player with
+            for k in range((len(b) - 2) // 684):                                           # bit 2: team records)
+                for j in range(16):
+                    p = 2 + k * 684 + 76 + j * 38
+                    nm = b[p + 3:p + 25].split(b'\0')[0]
+                    if b[p + 3:p + 25].count(b'\0') and b[p + blond.BALD_AT] & blond.WHITE_BIT and nm not in blond.WHITE:
+                        bad.append(f'{f} {nm.decode("latin-1")}: bit 2 not listed')
+    rav = found.get('FABRIZIO RAVANELLI', [])
+    check('TEAM.008' in rav and 'TEAM.080' in rav, f'RAVANELLI in {rav} (want TEAM.008 + TEAM.080)', bad)
+    missing = sorted(n.decode('latin-1') for n in blond.WHITE if n.decode('latin-1') not in found)
+    check(not missing, f'listed but in no team file: {missing}', bad)
+    return not bad, '; '.join(bad[:8]) or f'white hair in the data: {found}'
+
+
+@scenario
+def white_ravanelli():
+    """4.0.6 white hair from the 1996-97 data (no poke): a friendly MIDDLESBROUGH (FABRIZIO RAVANELLI, TEAM.008 byte 25
+    bit 2) v ARSENAL - his white icon (blond.ICONW) built for the pre-match screen, and in the match MIDDLESBROUGH's
+    white light set (flag 7) checked frame by frame (dkb_sets). Review shots: prematch.png, sets.png"""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lepatch
+    import shirtnum
+    import blond
+    b = builds()['it']
+    spr = shirtnum.spr_index(lepatch.LEPatch(os.path.join(b, 'ITALIAN.EXE')))
+    errs, info = [], []
+    with Session('white_ravanelli', b, {}, 'dump:3', 400, match=True) as s:
+        s.wait()
+        for t in ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB', 'EUROPA', 'INGHILTERRA', 'PREMIER',
+                  'MIDDLESBROUGH'):
+            walk(s, t, 2)
+        s.send('fire dump:2')                       # home: COMPUTER -> GIOCA-ALLENA (as italy_friendly)
+        walk(s, 'ARSENAL', 2)
+        for _ in range(12):
+            scr = s.screen()
+            i = scr.find('AMICHEVOLE', exact=True)
+            if scr.selected == i:
+                s.send('fire dump:4')
+                break
+            s.send(('right' if scr.selected in (i + 1, i + 2) else 'down') + ' dump:0.5')
+        s.shot('prematch')
+        r = s.result
+        pw = struct.unpack('<I', r.read(r.base2 + spr + blond.ICONW * 4, 4))[0]
+        check(pw, f'white icon {blond.ICONW} not built on the pre-match screen', errs)
+        info.append(f'white icon {blond.ICONW} ' + ('built' if pw else 'missing'))
+        for _ in range(22):
+            s.send('down dump:0.5')
+            if s.screen().selected == 9:
+                break
+        r = s.send('fire ' + 'fire:3 ' * 8 + 'dump:2')
+        check(r.outcome == 'dump', f'match {r}', errs)
+        if r.outcome == 'dump':
+            vs = variant_sets(r)
+            check(any(f == 7 for _, f in vs), f'no white light set for MIDDLESBROUGH ({vs})', errs)   # (either side:
+                                                                                                     # only he has it)
+            errs += dkb_sets(r, spr, blond, info)
+            tm = next((t for t, f in vs if f == 7), 0)
+            bald_sheet(r, spr, blond, s.result.obj2(s.info['pal'], 768), os.path.join(s.run, 'shots', 'sets.png'), info,
+                       tm)
+    return not errs, '; '.join(errs) or '; '.join(i for i in info if 'white' in i or 'variant' in i)
 
 
 def bald_run(name, poke, expect):
@@ -19777,6 +19915,301 @@ def career_homefirst():
         check((left == club) == (ha == '(C)') and (right == club) == (ha == '(F)'), f'row {ha} {left} .. {right}', errs)
     return not errs, '; '.join(errs + [f'{len(rows)} rows: {rows[:5]}'])
 
+
+def cc_sites(exe_dir):
+    """cpucards in a built exe: (CC_W obj1 offset, team1StatsData, team2StatsData, gameTeam1 (obj, off)) - CC_W from
+    cc_b's `cmp word [CC_W], 0` (the jmp at TryBookingThePlayer's second CPU exit), the stats as lp36._game_sites."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import cpucards
+    import lepatch
+    import lp36
+    import sacups
+    orig = lepatch.LEPatch(os.path.join(ROOT, 'orig', UI_ORIG))
+    site = cpucards.find(orig)['b']
+    p = lepatch.LEPatch(os.path.join(exe_dir, 'ITALIAN.EXE'))
+    so, stub = p.call_target(1, site)                  # (4.0.6: cc_b in obj3; cc_a's `cmp word [CC_W], 0` after its jz)
+    assert so == 3 and bytes(p.get(3, stub + 6, 3)) == b'\x66\x83\x3d', bytes(p.get(so, stub, 12)).hex()
+    cc = p.target(3, stub + 9)
+    _, (t1, t2, g1) = lp36._game_sites(orig, sacups.regs(orig.le.obj_bytes(1))['A0'])
+    gl = [orig.target(1, x.start() + 3) for x in re.finditer(rb'\x66\x83\x05(....)\x01\x66\x83\x3d\1\x04\x75.\x66\xc7'
+                                                             rb'\x05\1\x00\x00\xe9', orig.le.obj_bytes(1), re.S)]
+    assert len(gl) == 1, gl                            # (ChangeGameLength: g_gameLength)
+    a6 = re.escape(struct.pack('<I', sacups.regs(orig.le.obj_bytes(1))['A0'] + 24))
+    tops = collections.Counter(orig.target(1, x.start() + 6) for x in re.finditer(rb'\x81\x3d' + a6, orig.le.obj_bytes(1)))
+    top = tops.most_common(1)[0][0]                    # (`cmp A6, offset topTeamData`: its most frequent target)
+    od = orig.le.obj_bytes(1)                          # team1 / team2NumAllowedInjuries (TryBookingThePlayer after site
+    b = site + 6                                       #  b: `cmp [esi + teamNumber], 1 / jnz / mov ax, [team1..]`)
+    assert od[b + 21:b + 30] == bytes.fromhex('66837e1201751166a1'), od[b:b + 50].hex()
+    cc_sites.budget = (orig.target(1, b + 30), orig.target(1, b + 47))
+    return cc, t1, t2, g1, gl[0], top
+
+
+def cc_prime(s, top):
+    """In a match: every CPU team's players (TeamGeneralInfo +4 / +6 = 0) with Sprite.cards 0 (+66h) get 1 - booked
+    already, so the CPU's next foul goes through TryBookingThePlayer's second-yellow exit (cpucards site b). Returns
+    the sprites set."""
+    r = s.result
+    rd = lambda lin, n: r.read(lin, n)
+    t0 = r.base2 + top[1]
+    n = 0
+    for t in (t0, struct.unpack('<I', rd(t0, 4))[0]):
+        if not t or struct.unpack('<HH', rd(t + 4, 4)) != (0, 0):
+            continue
+        tab = struct.unpack('<I', rd(t + 0x14, 4))[0]
+        if not tab:
+            continue
+        k = 0
+        for sp in struct.unpack('<11I', rd(tab, 44)):
+            if sp and struct.unpack('<H', rd(sp + 0x66, 2))[0] == 0:
+                s.poke(sp + 0x66, b'\x01\x00')
+                k += 1
+        st = struct.unpack('<I', rd(t + 0x0E, 4))[0]     # (the team's bookings +k: a second yellow takes one back -
+        if k and st:                                     #  below 0 the statistics screen's PrintFormatted divides
+            b0 = struct.unpack('<H', rd(st + 6, 2))[0]   #  -2 by 1000: exit to DOS, harness-made)
+            s.poke(st + 6, struct.pack('<H', b0 + k))
+        n += k
+    return n
+
+
+def cc_play(scr):
+    """A squad screen's play button (GIOCA PARTITA / PARTITA, coach mode ALLENATORE / COACH MATCH ... - per exe
+    language): the visible entry right before MOD. TATTICA, unless that is ESCI / VIS. RISULTATI (no match to play)."""
+    mt = scr.find('MOD. TATTICA', exact=True)
+    if mt is None:
+        return None
+    prev = [e for e in scr.entries[:mt] if e[1] and not e[2]]
+    if not prev or prev[-1][1] in ('ESCI', 'VIS. RISULTATI', 'AVVERSARI'):
+        return None
+    return prev[-1][0]
+
+
+def cc_match(s, t1, t2, g1, tag, max_steps=200, top=None, kick=None):
+    """From a career menu: the next match played for real (idle keys: the CPU fouls), then its stats: [(controls,
+    fouls, bookings, sendings-off) of team 1, team 2] (controls 1 = TEAM_COMPUTER)."""
+    rd = lambda o, n: s.result.read((s.result.base1 if o[0] == 1 else s.result.base2) + o[1], n)
+    for _ in range(12):
+        texts = s.screen().texts()
+        s.log.append(f'[cc] {tag}: ' + ' | '.join(texts)[:300])
+        if cc_play(s.screen()) is not None:
+            break
+        if 'TRASFERIMENTI' in texts and 'PARTITA' in texts:
+            press(s, s.screen(), 'PARTITA', 2) or s.send('fire dump:2')
+        elif '- PARTITA -' in texts:                    # (the fixture screen: played, not '- RISULTATO -')
+            press(s, s.screen(), '- PARTITA -', 2) or s.send('fire dump:2')
+        elif 'MOD. TATTICA' in texts and not getattr(s, 'cc_subbed', False):   # (no play button: suspended /
+            s.cc_subbed = True                                               #  injured starters - fit ones in)
+            err = substitute(s, s.screen())
+            s.log.append(f'[cc] {tag}: line-up fixed: {err or "ok"}')
+        elif 'MOD. TATTICA' in texts:                   # (still no play button: back)
+            press(s, s.screen(), 'ESCI', 2) or s.send('fire dump:2')
+        else:
+            s.send('fire dump:2')
+    else:
+        s.cc_subbed = False
+        s.shot(f'{tag}_noteam')
+        raise AssertionError(f'{tag}: no team screen ({s.screen()})')
+    s.cc_subbed = False
+    scr = s.screen()
+    i = scr.find('GIOCA :', exact=True)              # player -> coach (the button reads ALLEN: then): the career
+    if i is not None:                                # club played by the AI too (more tackles on both sides than
+        scr = walk(s, i, 2)                          # an idle human team)
+        s.log.append(f'[cc] {tag}: GIOCA : -> {scr.entries[i][1]!r}; ' + ' | '.join(
+            f'{e[0]}:{e[1]}{"(inv)" if e[2] else ""}{"(dis)" if e[3] else ""}' for e in scr.entries[:12]))
+    r = press(s, scr, cc_play(scr) or 0)
+    s.log.append(f'[cc] {tag}: play pressed: {r}')
+    if r is None:
+        s.send('fire dump:2')
+    teams = []
+    for k in range(max_steps):
+        scr = s.screen()
+        if not scr.entries:
+            if not teams:
+                ptr = struct.unpack('<II', rd(g1, 8))
+                teams = [s.result.read(x + 4, 1)[0] for x in ptr]
+                s.cc_ptrs = ptr
+                if kick:                                # (the caller's reading at the kick-off)
+                    s.cc_kick = kick()
+            if top is not None and k % 3 == 2:          # (re-primed: a sprite whose card the game reset)
+                primed = cc_prime(s, top)
+                if primed:
+                    s.log.append(f'[cc] {tag}: step {k}: {primed} CPU sprites primed (cards 1)')
+            if k % 40 == 10:
+                s.shot(f'{tag}_{k:03d}')
+            s.send('fire:3 ' * 3 + 'dump:1')
+            continue
+        if teams:
+            break
+        s.send('fire dump:2')
+    else:
+        raise AssertionError(f'{tag}: the match did not end ({s.screen()})')
+    st = [struct.unpack('<5H', rd(t, 10))[2:5] for t in (t1, t2)]
+    s.cc_budget = [struct.unpack('<h', rd(x, 2))[0] for x in cc_sites.budget]   # (the sendings-off / injuries left)
+    s.shot(f'{tag}_after')
+    assert all(x[1] < 0x8000 and x[2] < 0x8000 for x in st), f'{tag}: negative team counters {st} (harness priming?)'
+    return [(teams[i],) + st[i] for i in range(2)]
+
+
+@scenario
+def cpu_cards():
+    """4.0.6 (Davide): the computer's teams booked / sent off by the human rule (cpucards.py) - OPTIONS row 20 / 21
+    (label, ON at start, fire -> OFF -> ON, CC_W 0 / 1); a career match on a CARDS_FORCE=red build (every foul a
+    last-man foul, a straight red): the CPU side is sent off (sendings-off > 0) with the option ON, never with OFF;
+    on a CARDS_FORCE=yellow build the CPU's second yellows send it off (ON) - OFF: no CPU red; an old career save
+    (JUVE2F) loads the option ON after it was set OFF"""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import cpucards
+    label = cpucards.LABEL[UI]
+    errs, notes = [], []
+    for mode in os.environ.get('CC_MODES', 'red,yellow').split(','):
+        b = nop_league_int3(f'cpu_cards_{mode}_{UI}', build(f'cpu_cards_{mode}_{UI}', env={'CARDS_FORCE': mode}, lang=UI))
+        cc, t1, t2, g1, gl, top = cc_sites(b)
+        for on in [x == 'on' for x in os.environ.get('CC_ONOFF', 'on,off').split(',')]:
+            tag = f'{mode}_{"on" if on else "off"}'
+            with Session(f'cpu_cards_{tag}', b, {}, 'dump:3', 900, match=True) as s:
+                s.wait()
+                if mode == 'red' and on:
+                    scr = walk(s, 'OPZIONI', 2)
+                    lab = scr.find(label, exact=True)
+                    lab_i = scr.find(cpucards.LABEL_I[UI], exact=True)
+                    check(lab == 20 and lab_i == 22 and scr.n == 24, f'OPTIONS: {label} at {lab}, '
+                          f'{cpucards.LABEL_I[UI]} at {lab_i}, {scr.n} entries', errs)
+                    s.shot('options')
+                    rw = lambda: struct.unpack('<HHHH', s.result.read(s.result.lin(cc), 8))   # CC_W, CC_I, the session copy
+                    w = [rw()]
+                    for e in (21, 23, 21, 23):
+                        walk(s, e, 2)
+                        w.append(rw())
+                        if len(w) == 3:
+                            s.shot('options_off')
+                    check(w == [(0, 0, 0, 0), (1, 0, 1, 0), (1, 1, 1, 1), (0, 1, 0, 1), (0, 0, 0, 0)],
+                          f'OPTIONS toggles (CC_W, CC_I, copies): {w}', errs)
+                    notes.append(f'OPTIONS {label} / {cpucards.LABEL_I[UI]}: toggles ok' if not errs else '')
+                    press(s, s.screen(), 'ESCI', 2) or walk(s, 18, 2)
+                if not on:                                   # (CC_W, CC_I, CC_SH: the session's copy too - a new
+                    s.poke(s.result.lin(cc), b'\x01\x00\x00\x00\x01\x00\x00\x00')   # career takes it)
+                s.poke(s.result.base2 + gl[1], b'\x03\x00')    # 10-minute matches: more fouls
+                new_career(s, 'ITALIA', 'SERIE A', 'JUVENTUS')
+                res = cc_match(s, t1, t2, g1, tag, top=top if mode == 'yellow' else None)
+                cpu = [r for r in res if r[0] == 1]
+                notes.append(f'{tag}: {res}')
+                if len(cpu) != 1:
+                    errs.append(f'{tag}: not one CPU team {res}')
+                    continue
+                _, fouls, book, off = cpu[0]
+                left = s.cc_budget[[r[0] for r in res].index(1)]
+                if on and off == 0 and left <= 0:                # (the game's rule, humans too: no card once the
+                    notes.append(f'{tag}: CPU no card - its budget left {left} (team1/2NumAllowedInjuries)')   # budget is 0)
+                elif on:
+                    check(off > 0, f'{tag}: CPU not sent off ({fouls} fouls, {book} bookings, budget left {left})', errs)
+                else:
+                    check(off == 0 and (mode == 'yellow' or book == 0), f'{tag}: CPU carded with the option OFF '
+                          f'({fouls} fouls, {book} bookings, {off} off)', errs)
+    with Session('cpu_cards_oldsave', builds()['it'] if UI == 'it' else build(f'cpu_cards_ui_{UI}', lang=UI),
+                 {'JUVE2F.CAR': juve2(True)}, 'dump:2', 120) as s:
+        s.wait()
+        ccb = cc_sites(builds()['it'] if UI == 'it' else build(f'cpu_cards_ui_{UI}', lang=UI))[0]
+        s.poke(s.result.lin(ccb), b'\x01\x00\x01\x00\x01\x00\x01\x00')
+        s.send(LOAD1 + ' dump:3')
+        w = struct.unpack('<HHHH', s.result.read(s.result.lin(ccb), 8))
+        check(w == (0, 0, 0, 0), f'old save JUVE2F: CC_W, CC_I, copies {w} after the load (want 0 = ON)', errs)
+    return not errs, '; '.join(errs + notes)
+
+
+@scenario
+def cpu_carry():
+    """4.0.6 step B (cpucards): a CPU red carried over - a career match on a CARDS_FORCE=red build (coach mode): with
+    ROSSI ALLA CPU ON the CPU team's records keep pending suspensions after it (cardsInjuries bits), the next match
+    day serves them (bits back to 0) and the CPU line-ups swapped suspended starters out (CB_SWAPS > 0); OFF: no
+    record bits, no swaps"""
+    errs, notes = [], []
+    b = nop_league_int3(f'cpu_carry_{UI}', build(f'cpu_cards_red_{UI}', env={'CARDS_FORCE': 'red'}, lang=UI))
+    cc, t1, t2, g1, gl, top = cc_sites(b)
+    for on in (True, False):
+        tag = 'on' if on else 'off'
+        with Session(f'cpu_carry_{tag}', b, {}, 'dump:3', 1200, match=True) as s:
+            s.wait()
+            if not on:
+                s.poke(s.result.lin(cc), b'\x01\x00\x01\x00\x01\x00\x01\x00')
+            s.poke(s.result.base2 + gl[1], b'\x03\x00')
+            new_career(s, 'ITALIA', 'SERIE A', 'JUVENTUS')
+            days = lambda: struct.unpack("<I", s.result.read(s.result.lin(cc) + 12, 4))[0]
+            res = cc_match(s, t1, t2, g1, f'{tag}1', kick=days)
+            dk = s.cc_kick
+            cpu = [p for p, r in zip(s.cc_ptrs, res) if r[0] == 1]
+            if len(cpu) != 1:
+                errs.append(f'{tag}: not one CPU team {res}')
+                continue
+            rec = lambda: [s.result.read(cpu[0] + 0x4C + i * 0x26 + 0x1B, 1)[0] for i in range(16)]
+            swaps = lambda: struct.unpack('<I', s.result.read(s.result.lin(cc) + 8, 4))[0]
+            b1, w1 = rec(), swaps()
+            d1 = days()
+            res2 = cc_match(s, t1, t2, g1, f'{tag}2')
+            b2, w2, d2 = rec(), swaps(), days()
+            notes.append(f'{tag}: match 1 {res}, CPU records {[hex(x) for x in b1]}, swaps {w1}; match 2 {res2}, '
+                         f'records {[hex(x) for x in b2]}, swaps {w2}')
+            bans1 = sum(1 for x in b1 if x & 0x1F)
+            bans2 = sum(1 for x in b2 if x & 0x1F)
+            if on:
+                check(res[[r[0] for r in res].index(1)][3] > 0, f'{tag}: no CPU red in match 1', errs)
+                check(bans1 > 0, f'{tag}: no suspension kept in the CPU records after match 1', errs)
+                ban = [i for i, x in enumerate(b1) if x & 3]             # (the reds of match 1: 2, one day less a
+                w1_ = max(0, 2 - (d1 - dk))                              #  day counted down since the kick-off)
+                check(ban and all(b1[i] & 3 == w1_ for i in ban), f'{tag}: after match 1 ({d1 - dk} day(s) since '
+                      f'the kick-off) the CPU bans {[hex(x) for x in b1]} (want {w1_} each)', errs)
+                want = max(0, 2 - (d2 - dk))                             # (match 2 may come the same day: 0 more)                             # one countdown a day, exactly
+                check(all(b2[i] & 3 == want for i in ban), f'{tag}: bans {ban} after {d2 - dk} day(s): '
+                      f'{[hex(b2[i]) for i in ban]} (want {want} each)', errs)
+                notes.append(f'{tag}: days {dk} (kick-off) -> {d1} -> {d2}, bans {ban}: {[hex(b1[i]) for i in ban]} -> '
+                             f'{[hex(b2[i]) for i in ban]}')
+            else:
+                check(bans1 == 0 and bans2 == 0 and w2 == 0 and d2 == 0, f'{tag}: CPU records / swaps / days with the '
+                      f'options OFF ({bans1}, {bans2}, {w2}, {d2})', errs)
+    return not errs, '; '.join(errs + notes)
+
+
+@scenario
+def cpu_inj():
+    """4.0.6 step B (cpucards): a CPU injury carried over - a career match on an INJ_FORCE build (every tackle injures
+    at level 3, coach mode): with INFORTUNI ALLA CPU ON the CPU team's records keep the injuries after it (bits 5-7),
+    counted down one level a calendar day from the kick-off (level 3 - days while above 1; at 1 the game's own coin
+    flip), injured CPU starters swapped out (CB_SWAPS); INFORTUNI OFF (ROSSI still ON): no CPU injury kept"""
+    errs, notes = [], []
+    b = nop_league_int3(f'cpu_inj_{UI}', build(f'cpu_inj_{UI}', env={'INJ_FORCE': '1'}, lang=UI))
+    cc, t1, t2, g1, gl, top = cc_sites(b)
+    for on in [x == 'on' for x in os.environ.get('CC_ONOFF', 'on,off').split(',')]:
+        tag = 'on' if on else 'off'
+        with Session(f'cpu_inj_{tag}', b, {}, 'dump:3', 1200, match=True) as s:
+            s.wait()
+            if not on:                                   # (INFORTUNI OFF, its session copy too; ROSSI stays ON)
+                s.poke(s.result.lin(cc) + 2, b'\x01\x00')
+                s.poke(s.result.lin(cc) + 6, b'\x01\x00')
+            s.poke(s.result.base2 + gl[1], b'\x03\x00')
+            new_career(s, 'ITALIA', 'SERIE A', 'JUVENTUS')
+            days = lambda: struct.unpack("<I", s.result.read(s.result.lin(cc) + 12, 4))[0]
+            res = cc_match(s, t1, t2, g1, f'{tag}1', kick=days)
+            dk = s.cc_kick
+            cpu = [p for p, r in zip(s.cc_ptrs, res) if r[0] == 1]
+            if len(cpu) != 1:
+                errs.append(f'{tag}: not one CPU team {res}')
+                continue
+            lvl = lambda: [s.result.read(cpu[0] + 0x4C + i * 0x26 + 0x1B, 1)[0] >> 5 for i in range(16)]
+            swaps = lambda: struct.unpack('<I', s.result.read(s.result.lin(cc) + 8, 4))[0]
+            l1, d1 = lvl(), days()
+            res2 = cc_match(s, t1, t2, g1, f'{tag}2')
+            l2, w2, d2 = lvl(), swaps(), days()
+            inj = [i for i, x in enumerate(l1) if x]
+            notes.append(f'{tag}: match 1 {res}, levels {l1}, days {dk} (kick-off) -> {d1}; match 2 {res2}, levels {l2}, '
+                         f'days {d2}, swaps {w2}')
+            if on:
+                w1 = 3 - (d1 - dk)
+                check(inj and all(l1[i] == w1 for i in inj), f'{tag}: after match 1 ({d1 - dk} day(s)) the CPU injury '
+                      f'levels {l1} (want {w1} each)', errs)
+                w2_ = 3 - (d2 - dk)
+                check(all((l2[i] == w2_) if w2_ > 1 else (l2[i] <= 1) for i in inj), f'{tag}: injuries {inj} after '
+                      f'{d2 - dk} day(s): {[l2[i] for i in inj]} (want {w2_ if w2_ > 1 else "<= 1"} each)', errs)
+            else:
+                check(not inj and not any(l2), f'{tag}: CPU injuries kept with INFORTUNI OFF {l1} / {l2}', errs)
+    return not errs, '; '.join(errs + notes)
 
 
 if __name__ == '__main__':

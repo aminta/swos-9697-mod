@@ -81,6 +81,20 @@ def after_process(name):
         AFTER_PROCESS.append(name)
 
 
+AFTER_NEW = []          # 4.0.6: callbacks after a new career's defaults (trailer new_career_defaults: the items zeroed)
+
+
+def after_new(name):
+    """Call CALL_AT[name] (pushad / popad around it) when a new career starts, after its engine items are zeroed: e.g.
+    a session setting kept in a saved item (cpucards: the OPTIONS row, not reset by a new career)."""
+    if name not in AFTER_NEW:
+        AFTER_NEW.append(name)
+
+
+def after_news():
+    return [(n, CALL_AT.get(n)) for n in AFTER_NEW]
+
+
 def after_processes():
     return [(n, CALL_AT.get(n)) for n in AFTER_PROCESS]
 

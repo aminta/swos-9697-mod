@@ -734,7 +734,11 @@ def patch_exe(src, dst, remap, lang='it'):
     import kbd2                                  # 4.0.6 CONTROLS B (Marco): player 2's own key set on one keyboard,
     kb_end = kbd2.patch(p, (fi_end + 15) & ~15, lang)        # in obj3 after finance (bteam next: (kb_end + 15) & ~15)
     assert kb_end <= 0x1000 * OBJ3_PAGES, hex(kb_end)
-    print(f'exe: obj3 end {kb_end:#x} ({0x1000 * OBJ3_PAGES - kb_end} B left)')
+    import stoppage                              # 4.0.6 (Davide + Marco): stoppage time, the clock's "+N", 45+2 goals;
+    st_end = stoppage.patch(p, (kb_end + 15) & ~15, lang,    # in obj3 after kbd2 (bteam between them when merged)
+                            stoppage.career_worlds(), stoppage.pack_files())
+    assert st_end <= 0x1000 * OBJ3_PAGES, hex(st_end)
+    print(f'exe: obj3 end {st_end:#x} ({0x1000 * OBJ3_PAGES - st_end} B left)')
     p.set_vsize(3, 0x1000 * OBJ3_PAGES)
     p.set_vsize(1, OBJ1_NEW_VSIZE + (0x1000 * (cp + 2 + cdp) if worlds else 0) + h2 + 0x1000 * (lpb + sp_pg + sc_pg + ct_pg + ctl_pg))
     import teamstab                              # 4.0.2: teamsTable for 256 team ordinals (Serie D choice colours)

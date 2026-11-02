@@ -2,14 +2,16 @@
 
 ShowStadiumInit (the line-ups screen, GameLoop's stadiumMenu) ends with FadeOutToBlack / DrawMenu /
 CallToWaitRetrace / FadeIn. Its `call FadeOutToBlack` -> st_fade (chained): when the home club (gameTeam1, the TeamFile
-of the left team: countryNumber = its TEAM file, teamOrdinal) has a name in DATA\\STADIUM.DAT, the stadium picture
+of the left team: countryNumber = its TEAM file, teamOrdinal) has a name in DATA\\STAD<stem>.DAT, the stadium picture
 (the title memory, stad.256) is shown alone with a framed banner (white frame, black fill) in the middle, the name in
 the line-ups' small font doubled when twice its width fits 290 px, in the normal size otherwise; it stays ~1.5 s
 (105 ticks of menuCycleTimer) or until a key / a new fire, fades out, and the game's line-ups follow as before.
 No file, no record or an empty name: no banner, the game's flow unchanged. The file is read with own DOS calls
 (LoadFile ends the program on a missing file).
 
-DATA\\STADIUM.DAT (agreed with Dati coppe, little-endian): 'STAD', u16 version 1, u16 venue count V; 256 x (u32 offset,
+DATA\\STAD<stem>.DAT, one per team-file namespace (stem = TEAM, or TMWn: a world of its own in a several-world build,
+numbers 101.. reused; picked as careerworld's w_ns_stem does: WCUR's WNSB set, WSTEM), e.g. STADTEAM.DAT, STADTMW5.DAT.
+Format (agreed with Dati coppe, little-endian): 'STAD', u16 version 1, u16 venue count V; 256 x (u32 offset,
 u16 count) by TEAM file; per file its club records sorted by ordinal: u8 teamOrdinal + 33-byte NUL-padded name (at most
 32 chars, the game charset A-Z 0-9 space - . '); then the venue table, V x 33 bytes (venue id 1..V).
 Code in obj3 after kbd2 (CONVENTIONS 23).
@@ -21,7 +23,17 @@ import benchx
 import nasmcave
 import sacups
 
-FILE = b'STADIUM.DAT'
+NS_STEM = '''    movzx ecx, byte [WCUR]               ; several worlds: the current world's stem if the file is in its set
+    movzx edx, al
+    shl ecx, 5
+    bt [WNSB + ecx], edx
+    jnc .stem
+    shr ecx, 3
+    mov ecx, [WSTEM + ecx]
+    mov [st_fn + 9], ecx
+.stem:
+    mov ax, [st_key]
+'''
 MAGIC = b'STAD'
 VERSION = 1
 REC = 34                                # u8 ordinal + 33-byte name
@@ -66,6 +78,8 @@ st_find:                                ; ZF = 0: st_name = the home club's stad
     je .no
     mov ax, [eax]                       ; al = countryNumber (the TEAM file), ah = teamOrdinal
     mov [st_key], ax
+    mov dword [st_fn + 9], 'team'       ; data\stad<stem>.dat: the team file's namespace (careerworld's w_ns_stem)
+;NS_STEM
     mov edx, st_fn
     mov eax, 3D00h
     int 21h
@@ -295,7 +309,7 @@ st_wait:                                ; ~1.5 s; a key or a new fire ends it (t
     mov byte [st_on], 0
     ret
 
-st_fn: db 'data\stadium.dat', 0
+st_fn: db 'data\stadteam.dat', 0
 st_mark: db 'STNM'                      ; (the harness finds these by the mark)
 st_name: times 33 db 0                  ; the name shown last ('' = none)
 st_shown: db 0                          ; 1 once the banner is on the display
@@ -361,8 +375,13 @@ def patch(p, at):
     s = sites(p)
     sym = {k: v for k, v in s.items() if k != 'end'}
     sym.update(BIG_MAX=(0, BIG_MAX), WAIT_=(0, WAIT))
-    code, fix, rel = nasmcave.assemble_obj(ASM, at, sym, 3)
-    lab = nasmcave.labels(ASM, at, sym)
+    import careerworld
+    ns = 'WCUR' in careerworld.LABELS                   # (a build with several worlds: TMWn.nnn files)
+    if ns:
+        sym.update({k: (1, careerworld.LABELS[k]) for k in ('WCUR', 'WNSB', 'WSTEM')})
+    asm = ASM.replace(';NS_STEM\n', NS_STEM if ns else '')
+    code, fix, rel = nasmcave.assemble_obj(asm, at, sym, 3)
+    lab = nasmcave.labels(asm, at, sym)
     assert not any(p.get(3, at, len(code))), hex(at)
     p.put(3, at, code)
     for o, t_obj, t_off in fix:
@@ -370,13 +389,13 @@ def patch(p, at):
     for o, t_obj, t_off in rel:
         p.add_rel(3, at + o, t_obj, t_off)
     p.branch(1, s['end'], 0xE8, 3, lab['st_fade'])
-    print(f'exe: stadium: the home club\'s stadium before the line-ups, obj3+{at:#x} ({len(code)} B), '
+    print(f'exe: stadium: the home club\'s stadium before the line-ups, obj3+{at:#x} ({len(code)} B{", namespaces" if ns else ""}), '
           f'ShowStadiumInit obj1+{s["end"]:#x}')
     return at + len(code)
 
 
 def build(records, venues=()):
-    """STADIUM.DAT: records = {(team file, ordinal): name}, venues = [name, ...] (venue id = index + 1)."""
+    """A STAD<stem>.DAT: records = {(team file, ordinal): name}, venues = [name, ...] (venue id = index + 1)."""
     by = {}
     for (f, o), n in records.items():
         by.setdefault(f, []).append((o, n))
@@ -398,3 +417,38 @@ CHARSET = set("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 -.'")
 def check(name):
     assert len(name) <= 32 and set(name) <= CHARSET, ('stadium name', name)
     return name
+
+
+def fit(name):
+    """A source name (any case, accents) in the font: upper case, accents dropped, other characters -> space, at most
+    32 (None if it does not fit: shortened by hand in the data, never cut)."""
+    import unicodedata
+    s = unicodedata.normalize('NFKD', name).encode('ascii', 'ignore').decode().upper().replace('`', "'")
+    s = ' '.join(''.join(c if c in CHARSET else ' ' for c in s).split())
+    return s if 0 < len(s) <= 32 else None
+
+
+def from_world(world, csv_path):  # -> STADTMW5.DAT (World 2026-27's namespace)
+    """The World 2026-27 clubs' stadiums: world = the release world dir (one pack per country), csv = Dati coppe's
+    world.csv (country, key, tm_id, stadium, ...). Returns ({(team file, ordinal): name}, [problems])."""
+    import csv
+    import os
+    import mkseason
+    where = {}
+    for c in sorted(os.listdir(world)):
+        if os.path.isfile(os.path.join(world, c, 'pack.json')):
+            pk = mkseason.Pack(os.path.join(world, c))
+            for k, w in pk.where.items():
+                if pk.clubs[k]['file'] != 'pool':       # (pool clubs: built from POOL05.DAT, no fixed key)
+                    where[(c.upper(), k)] = w
+    recs, bad = {}, []
+    for row in csv.DictReader(open(csv_path, encoding='utf-8')):
+        if not row['stadium'].strip():
+            continue
+        w = where.get((row['country'], row['key']))
+        n = fit(row['stadium'])
+        if w is None or n is None:
+            bad.append((row['country'], row['key'], row['stadium'], 'no club' if w is None else 'over 32'))
+            continue
+        recs[w] = n
+    return recs, bad

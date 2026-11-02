@@ -9346,11 +9346,12 @@ def stadium_frame(vga, title, box, errs, tag):
 
 @scenario
 def stadium_name():
-    """4.0.6 (Davide, look B): the home club's stadium (DATA\\STADIUM.DAT, test file) on the stadium picture before the
+    """4.0.6 (Davide, look B): the home club's stadium (DATA\\STADTEAM.DAT, test file) on the stadium picture before the
     line-ups, in a framed banner, ~1.5 s or until a key / a new fire, then the game's line-ups. Friendlies in ITALIA
-    SERIE A: INTER at home ('WEMBLEY': doubled font) waits its 105 ticks, then the line-ups screen (a breakpoint on
-    ShowStadiumInit's end: no banner box left); FIORENTINA at home (32 chars: normal size, inside the screen) skipped by
-    fire; JUVENTUS at home (no record): no banner, the match goes on. Every banner frame: the picture outside the box
+    SERIE A, the two clubs of each the same case (RandomlySwapTeams picks the home side): INTER v MILAN (WEMBLEY / SAN
+    SIRO: doubled font) waits its 105 ticks, then the line-ups screen (a breakpoint on ShowStadiumInit's end: no banner
+    box left); FIORENTINA v ROMA (32 chars: normal size, inside the screen) skipped by fire; JUVENTUS v LAZIO (no
+    record): no banner, the match goes on. Every banner frame: the picture outside the box
     untouched, white frame, the name's ink inside with its margin; the names in the game charset, at most 32 chars"""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import lepatch
@@ -9376,7 +9377,9 @@ def stadium_name():
     assert len(long) == 32
     dat = os.path.join(WORK, 'saves', 'STADIUM_TEST.DAT')
     os.makedirs(os.path.dirname(dat), exist_ok=True)
-    open(dat, 'wb').write(stadium.build({keys['INTER']: 'WEMBLEY', keys['FIORENTINA']: long}))
+    names = {keys['INTER']: 'WEMBLEY', keys['MILAN']: 'SAN SIRO', keys['FIORENTINA']: long,  # (friendlies swap the
+             keys['ROMA']: long.replace('CARLO CASTELLANI', 'OLIMPICO DI ROMA')}             # teams at random,
+    open(dat, 'wb').write(stadium.build(names))     # RandomlySwapTeams: both clubs of a pair are the same case)
     errs, info = [], []
 
     def go(home, away):
@@ -9388,9 +9391,11 @@ def stadium_name():
                 break
         return s.send('fire dump:2')                # (60 controls reads: inside the banner's 105)
 
-    def banner(tag, want, big):
+    def banner(tag, pair, big):
         r = s.result
         g = stadium_log(r, at)
+        check(g['key'] in [keys[x] for x in pair], f'{tag}: key {g["key"]} not {pair}', errs)
+        want = names.get(g['key'])
         info.append(f'{tag}: {g["name"]!r} key {g["key"]} shown {g["shown"]} big {g["big"]} box {g["box"]}')
         check(g['shown'] == 1 and g['name'] == want and g['big'] == big, f'{tag}: banner {g}', errs)
         if g['shown']:
@@ -9401,12 +9406,11 @@ def stadium_name():
             info.append(f'{tag}: ink {n} px, x {span}')
         return g
 
-    with Session('stadium_name', b, {'DATA/STADIUM.DAT': dat}, 'dump:3', 300, match=True) as s:
+    with Session('stadium_name', b, {'DATA/STADTEAM.DAT': dat}, 'dump:3', 300, match=True) as s:
         got = []
-        r = go('INTER', 'FIORENTINA')
+        r = go('INTER', 'MILAN')
         s.bp(s.result.base1 + s7['stend'], lambda q: got.append(q.read(0xA0000, 64000)))
-        g = banner('wembley', 'WEMBLEY', 1)
-        check(g['key'] == keys['INTER'], f'wembley: key {g["key"]} (INTER {keys["INTER"]})', errs)
+        g = banner('wembley', ('INTER', 'MILAN'), 1)
         r = s.send('dump:3')                        # (the rest of the 105 ticks, the line-ups, the match)
         g = stadium_log(s.result, at)
         check(g['skip'] == 0 and g['ticks'] == stadium.WAIT, f'wembley: ended skip {g["skip"]} after {g["ticks"]} ticks', errs)
@@ -9416,18 +9420,18 @@ def stadium_name():
             frame = sum(got[0][t * 320 + x] == 2 for x in range(l, rgt + 1))
             check(frame < (rgt - l) // 2, f'line-ups: the banner frame row still there ({frame} white)', errs)
             info.append(f'line-ups after the banner: frame row {frame} white of {rgt - l + 1}')
-    with Session('stadium_name_b', b, {'DATA/STADIUM.DAT': dat}, 'dump:3', 300, match=True) as s:
-        go('FIORENTINA', 'INTER')
-        g = banner('long', long, 0)
+    with Session('stadium_name_b', b, {'DATA/STADTEAM.DAT': dat}, 'dump:3', 300, match=True) as s:
+        go('FIORENTINA', 'ROMA')
+        g = banner('long', ('FIORENTINA', 'ROMA'), 0)
         r = s.send('fire:0.1 dump:0.5')
         g = stadium_log(s.result, at)
         info.append(f'long: fire after {g["ticks"]} ticks')
         check(g['skip'] == 1 and g['ticks'] < stadium.WAIT, f'long: fire did not skip ({g["skip"]}, {g["ticks"]})', errs)
-    with Session('stadium_name_c', b, {'DATA/STADIUM.DAT': dat}, 'dump:3', 300, match=True) as s:
-        go('JUVENTUS', 'INTER')
+    with Session('stadium_name_c', b, {'DATA/STADTEAM.DAT': dat}, 'dump:3', 300, match=True) as s:
+        go('JUVENTUS', 'LAZIO')
         g = stadium_log(s.result, at)
         info.append(f'juventus: {g["name"]!r} key {g["key"]} shown {g["shown"]}')
-        check(g['shown'] == 0 and g['name'] == '' and g['key'] == keys['JUVENTUS'], f'juventus: {g}', errs)
+        check(g['shown'] == 0 and g['name'] == '' and g['key'] in (keys['JUVENTUS'], keys['LAZIO']), f'juventus: {g}', errs)
         r = s.send('dump:2')
         check(r.outcome == 'dump', f'juventus: {r}', errs)
     return not errs, '; '.join(errs + info)

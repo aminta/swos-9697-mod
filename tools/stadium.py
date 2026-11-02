@@ -1,19 +1,26 @@
-"""The stadium's name before the line-ups (4.0.6, Davide's look B).
+"""The stadium's name on the versus screen (4.0.6, Davide 02/11: it replaces look B's stadium-picture screen).
 
-ShowStadiumInit (the line-ups screen, GameLoop's stadiumMenu) ends with FadeOutToBlack / DrawMenu /
-CallToWaitRetrace / FadeIn. Its `call FadeOutToBlack` -> st_fade (chained): when the home club (gameTeam1, the TeamFile
-of the left team: countryNumber = its TEAM file, teamOrdinal) has a name in DATA\\STAD<stem>.DAT, the stadium picture
-(the title memory, stad.256) is shown alone with a framed banner (white frame, black fill) in the middle, the name in
-the line-ups' small font doubled when twice its width fits 290 px, in the normal size otherwise; it stays ~1.5 s
-(105 ticks of menuCycleTimer) or until a key / a new fire, fades out, and the game's line-ups follow as before.
-No file, no record or an empty name: no banner, the game's flow unchanged. The file is read with own DOS calls
-(LoadFile ends the program on a missing file).
+VersusInit (the versus screen before the line-ups: the competition title over the two team bars) ends with
+FadeOutToBlack / DrawMenu / CallToWaitRetrace / FadeIn. Its `call DrawMenu` -> st_vs (chained): when the home club
+(gameTeam1, the TeamFile of the left team: countryNumber = its TEAM file, teamOrdinal) has a name in
+DATA\\STAD<stem>.DAT, the name is drawn centred under the bars (on the title's centre), GAP rows below their last row,
+in the small menu / list font (charTables[0], normal size; Davide: smaller than the title) and the title's colour,
+and the frame copied to the display before the game's fade-in. No file, no record or an empty name: the screen as the game draws it. Nothing waits and
+no controls are read (02/11: with look B's 1.5 s banner shown - its wait read the controls - bench_world's in-match
+bench cursor never moved; with the file read and no banner it did).
+The file is read with own DOS calls (LoadFile ends the program on a missing file).
 
 DATA\\STAD<stem>.DAT, one per team-file namespace (stem = TEAM, or TMWn: a world of its own in a several-world build,
 numbers 101.. reused; picked as careerworld's w_ns_stem does: WCUR's WNSB set, WSTEM), e.g. STADTEAM.DAT, STADTMW5.DAT.
-Format (agreed with Dati coppe, little-endian): 'STAD', u16 version 1, u16 venue count V; 256 x (u32 offset,
-u16 count) by TEAM file; per file its club records sorted by ordinal: u8 teamOrdinal + 33-byte NUL-padded name (at most
-32 chars, the game charset A-Z 0-9 space - . '); then the venue table, V x 33 bytes (venue id 1..V).
+Format v2 (agreed with Dati coppe 02/11, little-endian): 'STAD', u16 version 2, u16 venue rows V, u32 the venue
+table's offset; 256 x (u32 offset, u16 count) by TEAM file; per file its club records sorted by ordinal: u8 teamOrdinal
++ 33-byte NUL-padded name (at most 32 chars, the game charset A-Z 0-9 space - . '); then V venue rows of VROW bytes:
+competition[40] + round[40] + name[33] + u8 season. A neutral final: the line-ups' gameName / gameRound equal a row's
+competition / round (exact, to the NUL; the game's '*' padding ends a string) and its season is 0 or the career's
+(currentSeasonShowing + 1): the row's name, before the home club's. One row per language (the exes' own strings).
+4.0.6 ships only DATA\\STADTMW5.DAT (World 2026-27, Davide 02/11; gen() from stadium_tmw5_*.csv), no STADTEAM.DAT.
+Known limits: a final whose home side is a pool club (file 253, outside the world's namespace) shows no venue; the
+season of a row is compared with currentSeasonShowing outside careers too.
 Code in obj3 after kbd2 (CONVENTIONS 23).
 """
 import re
@@ -40,29 +47,46 @@ VERSION = 2
 VROW = 114                              # competition[40] + round[40] + name[33] + u8 season
 REC = 34                                # u8 ordinal + 33-byte name
 NAME = 33
-WAIT = 105                              # ticks of menuCycleTimer (70 Hz): ~1.5 s
-BIG_MAX = 290                           # doubled when 2 x the width fits this
+GAP = 25                                # rows clear between the team bars and the name (Davide's round-3 mock: 20 / 25)
 
 ASM = r"""
-st_fade:                                ; ShowStadiumInit's `call FadeOutToBlack` (the line-ups drawn next)
-    call FADEOUT
+st_vs:                                  ; VersusInit's `call DrawMenu` (the versus screen drawn and flipped, faded in next)
+    call DRAWMENU
     pushad
     mov byte [st_shown], 0
     call st_find
     jz .out
-    mov esi, D0                         ; (the game's pseudo-registers D0..A6, kept around the text calls)
+    mov esi, D0                         ; (the game's pseudo-registers D0..A6, kept around the text call)
     mov edi, st_regs
     mov ecx, 15
     rep movsd
-    call st_draw
-    mov esi, [LIN]                      ; the virtual screen -> the display
+    mov eax, [CHT]                      ; the small menu / list font (charTables[0], Davide 02/11)
+    mov [A1], eax
+    mov esi, CURMENU + 16h              ; entry 0, the title: its colour (as DrawMenuItem picks it), its centre
+    movzx eax, word [esi + 24h]         ; stringFlags
+    and eax, 0Fh
+    jnz .c
+    mov al, 2
+.c:
+    mov [D3], ax
+    movzx eax, word [esi + 14h]         ; x + width / 2
+    movzx ecx, word [esi + 18h]
+    shr ecx, 1
+    add eax, ecx
+    mov [D1], ax
+    mov esi, CURMENU + 16h + 2 * 38h    ; entry 2, the left team's bar: below its last row, the gap
+    movzx eax, word [esi + 16h]
+    add ax, [esi + 1Ah]
+    add eax, GAP_
+    mov [st_y], eax
+    mov [D2], ax
+    mov dword [A0], st_name
+    call DMTC
+    mov esi, [LIN]                      ; the virtual screen -> the display (DrawMenu flipped it before the name)
     mov edi, 0A0000h
     mov ecx, 16000
     rep movsd
-    call FADEIN
     mov byte [st_shown], 1
-    call st_wait
-    call FADEOUT
     mov esi, st_regs
     mov edi, D0
     mov ecx, 15
@@ -211,177 +235,12 @@ st_find:                                ; ZF = 0: st_name = the home club's stad
     int 21h
     ret
 
-st_draw:                                ; the stadium picture + the banner on the virtual screen
-    mov esi, [LIN]
-    lea esi, [esi + 20000h]             ; (the title memory: stad.256)
-    mov edi, [LIN]
-    mov ecx, 16000
-    rep movsd
-    mov eax, [CHT]                      ; (the line-ups' names' font: charTables[0])
-    mov [A1], eax
-    mov dword [A0], st_name
-    call GTW
-    movzx eax, word [D7]                ; the width
-    mov [st_w], eax
-    lea ecx, [eax + eax]
-    cmp ecx, BIG_MAX
-    setbe byte [st_big]
-    jbe .big
-    mov ebx, 160                        ; normal size: x = 160 - (w + 1) / 2, the box 12 px around it, y 90..108
-    lea ecx, [eax + 1]
-    shr ecx, 1
-    sub ebx, ecx
-    mov [st_x], ebx
-    mov edi, 90
-    mov edx, 108
-    mov ecx, 97
-    jmp .box
-.big:
-    mov ebx, 160                        ; doubled: x = 160 - w, y 86..112 (the text rows 94.. doubled)
-    sub ebx, eax
-    mov [st_x], ebx
-    mov edi, 86
-    mov edx, 112
-    mov ecx, 94
-.box:
-    mov [st_y], ecx
-    lea eax, [ebx - 12]                 ; eax = left, ebx = right, edi = top, edx = bottom
-    add ebx, [st_w]
-    cmp byte [st_big], 0
-    je .r
-    add ebx, [st_w]
-.r:
-    add ebx, 12
-    mov [st_box], eax
-    mov [st_box + 4], edi
-    mov [st_box + 8], ebx
-    mov [st_box + 12], edx
-    mov cl, 2                           ; the frame (white), the fill (black) 1 px inside
-    call st_rect
-    inc eax
-    inc edi
-    dec ebx
-    dec edx
-    mov cl, 3
-    call st_rect
-    mov eax, [CHT]
-    mov [A1], eax
-    mov dword [A0], st_name
-    mov eax, [st_x]
-    mov [D1], ax
-    mov eax, [st_y]
-    mov [D2], ax
-    mov word [D3], 2
-    call DMT
-    cmp byte [st_big], 0
-    je .ret
-    call st_double
-.ret:
-    ret
-
-st_rect:                                ; colour cl, x eax..ebx, y edi..edx (inclusive) on the virtual screen
-    pushad
-    mov esi, edi
-.y:
-    imul edi, esi, 320
-    add edi, [LIN]
-    add edi, eax
-    push eax
-    mov al, cl
-    mov ecx, ebx
-    sub ecx, [esp]
-    inc ecx
-    rep stosb
-    pop eax
-    mov cl, [esp + 24]                  ; (pushad's ecx)
-    inc esi
-    cmp esi, edx
-    jbe .y
-    popad
-    ret
-
-st_double:                              ; the text block (st_x, st_y, w + 2 x 8) x 2 in place, from its far corner
-    pushad                              ; (each target pixel lies at or after its source: nothing unread is overwritten)
-    mov ebp, 7                          ; j = 7..0
-.j:
-    mov ecx, [st_w]
-    inc ecx                             ; i = w + 1..0
-.i:
-    mov eax, [st_y]                     ; source (x + i, y + j)
-    add eax, ebp
-    imul eax, eax, 320
-    add eax, [st_x]
-    add eax, ecx
-    add eax, [LIN]
-    mov dl, [eax]
-    mov eax, ebp                        ; target (x + 2i, y + 2j), 2 x 2
-    add eax, eax
-    add eax, [st_y]
-    imul eax, eax, 320
-    add eax, [st_x]
-    add eax, ecx
-    add eax, ecx
-    add eax, [LIN]
-    mov dh, dl
-    mov [eax], dx
-    mov [eax + 320], dx
-    dec ecx
-    jns .i
-    dec ebp
-    jns .j
-    popad
-    ret
-
-st_wait:                                ; ~1.5 s; a key or a new fire ends it (the one that started the match is
-    mov byte [st_rel], 0                ; still held: not a new one)
-    mov byte [st_skip], 0
-    mov byte [st_on], 1
-    mov word [MCT], 0
-.l:
-    mov ax, [MCT]
-.w:
-    cmp ax, [MCT]                       ; (one controls read a tick)
-    je .w
-    pushad
-    call MCC
-    popad
-    cmp word [LASTKEY], 0
-    jne .skip
-    mov al, [FIRE]
-    or al, [SHORTFIRE]
-    jz .rel
-    cmp byte [st_rel], 0
-    jne .skip
-    jmp .t
-.rel:
-    mov byte [st_rel], 1
-.t:
-    cmp word [MCT], WAIT_
-    jb .l
-    jmp .out
-.skip:
-    mov byte [st_skip], 1
-.out:
-    mov ax, [MCT]
-    mov [st_ticks], ax
-    mov byte [st_on], 0
-    ret
-
 st_fn: db 'data\stadteam.dat', 0
 st_mark: db 'STNM'                      ; (the harness finds these by the mark)
 st_name: times 33 db 0                  ; the name shown last ('' = none)
-st_shown: db 0                          ; 1 once the banner is on the display
-st_big: db 0                            ; 1: doubled
-st_rel: db 0
-st_skip: db 0                           ; 1: ended by a key / fire
+st_shown: db 0                          ; 1 once the name is on the versus screen
 st_key: dw 0                            ; countryNumber, teamOrdinal (looked up last)
-st_ticks: dw 0                          ; the ticks it stayed
-st_on: db 0                             ; 1 while it waits (the harness: bench scenarios wait it out)
-align 4
-st_box: dd 0, 0, 0, 0                   ; left, top, right, bottom
-st_x: dd 0
-st_y: dd 0
-st_w: dd 0
+st_y: dd 0                              ; the name's top row
 st_rec: times 34 db 0
 st_vrow: times VROW db 0                ; a venue row: competition[40], round[40], name[33], season
 align 4
@@ -390,7 +249,8 @@ st_regs: times 15 dd 0
 
 
 def sites(p):
-    """The original obj1's sites and variables (benchx.sites7's for the line-ups screen and the controls)."""
+    """The original obj1's sites and variables (vs: VersusInit's `call DrawMenu`; its `mov ecx, 100` after the fade-in
+    at vs + 15)."""
     d = bytes(p.le.obj_bytes(1))
     r = sacups.regs(d)
     D7, A0, A1 = r['D7'], r['A0'], r['A1']
@@ -398,9 +258,12 @@ def sites(p):
     pk = lambda x: re.escape(struct.pack('<I', x))
     rel = lambda o: o + 5 + struct.unpack('<i', d[o + 1:o + 5])[0]
     s7 = benchx.INFO['S7'] if 'S7' in benchx.INFO else benchx.sites7(p, r)   # (a probe of the original: no INFO)
-    end = s7['stend'] - 20          # call FadeOutToBlack / DrawMenu / CallToWaitRetrace / FadeIn, jmp SetExitMenuFlag
-    assert all(d[end + k] == 0xE8 for k in (0, 5, 10, 15)), 'ShowStadiumInit end'
-    assert bytes(p.get(1, end, 5)) == d[end:end + 5], 'stadium: FadeOutToBlack call already patched'
+    # VersusInit's end: call FadeOutToBlack / DrawMenu / CallToWaitRetrace / FadeIn, mov ecx, 100 / push ecx / call
+    vs = [x.start() for x in re.finditer(rb'\xe8....\xe8....\xe8....\xe8....\xb9\x64\x00\x00\x00\x51\xe8', d, re.S)]
+    assert len(vs) == 1, ('VersusInit end', vs)
+    vs = vs[0] + 5                      # its `call DrawMenu`
+    assert rel(vs) == s7['DRAWMENU'][1], ('VersusInit: not DrawMenu', hex(rel(vs)))
+    assert bytes(p.get(1, vs, 5)) == d[vs:vs + 5], 'stadium: VersusInit\'s DrawMenu call already patched'
     fx = {f[1]: (f[3], f[4]) for f in p.le.fixups() if f[0] == 1 and f[1] is not None}
     tg = lambda o: fx[o]                # (the original's fixups: other modules hook some of these sites first - a
     lin = tg(s7["DRAWMENU"][1] + 2)     # release build's gameTeam1 store; DrawMenu: mov esi, [linAdr384k])
@@ -412,8 +275,7 @@ def sites(p):
                                          + rb'\x01\x66\xd1\x2d' + pk(D7) + rb'\x66\xa1' + pk(D7) + rb'\x66\x29\x05' + pk(D1)
                                          + rb'\xe9', d, re.S)]
     assert m, 'DrawMenuTextCentered'
-    gtw, dmt = rel(m[0] + 24), rel(m[0] + 24 + 5 + 24 + 8 + 7 + 6 + 7)
-    assert all(rel(x + 24) == gtw for x in m), ('GetTextWidth', [hex(rel(x + 24)) for x in m])
+    assert len(m) == 1, ('DrawMenuTextCentered', m)
     # DrawMenuItem: mov A1, offset charTables / mov esi, A1 / movzx eax, word [D0] ...
     ct = {tg(x.start() + 6) for x in re.finditer(rb'\xc7\x05' + pk(A1) + rb'....\x8b\x35' + pk(A1)
                                                            + rb'\x0f\xb7\x05' + pk(D0) + rb'\x03\xf0\x8b\x06\xa3' + pk(A1),
@@ -433,18 +295,22 @@ def sites(p):
     # InitCareerVariables: mov currentSeasonShowing, 0 / mov seasonPlaying, 94
     ss = {tg(x.start() + 3) for x in re.finditer(rb'\x66\xc7\x05....\x00\x00\xc6\x05....\x5e', d, re.S)}
     assert len(ss) == 1, ('currentSeasonShowing', ss)
-    return {'end': end, 'FADEOUT': p.call_target(1, end), 'FADEIN': p.call_target(1, end + 15), 'LIN': lin,
-            'GTW': (1, gtw), 'DMT': (1, dmt), 'CHT': ct.pop(), 'GT1': gt.pop(), 'GNAME': gn[0][0], 'GROUND': gn[0][1],
-            'SSN': ss.pop(), 'TOP': s7['TOP'], 'MCC': s7['MCC'],
-            'MCT': s7['MCT'], 'LASTKEY': s7['LASTKEY'], 'FIRE': s7['FIRE'], 'SHORTFIRE': s7['SHORTFIRE'],
+    # DrawMenu: ... mov drawSpritesWriteOnly, 80 / mov menuStatus, 0 / mov A6, offset g_currentMenu
+    dm = s7['DRAWMENU'][1]
+    cm = [x.start() for x in re.finditer(rb'\xc7\x05' + pk(A0 + 24) + rb'....', d[dm:dm + 0x60], re.S)]
+    assert cm, 'g_currentMenu'
+    cur = tg(dm + cm[0] + 6)
+    assert cur[0] == 2, ('g_currentMenu', cur)
+    return {'vs': vs, 'DRAWMENU': (1, dm), 'CURMENU': cur, 'LIN': lin, 'DMTC': (1, m[0]), 'CHT': ct.pop(),
+            'GT1': gt.pop(), 'GNAME': gn[0][0], 'GROUND': gn[0][1], 'SSN': ss.pop(), 'TOP': s7['TOP'],
             'D0': (2, D0), 'D1': (2, D1), 'D2': (2, D2), 'D3': (2, D7 - 16), 'D7': (2, D7), 'A0': (2, A0), 'A1': (2, A1)}
 
 
 def patch(p, at):
     """st_* at obj3:at (after kbd2); returns the end."""
     s = sites(p)
-    sym = {k: v for k, v in s.items() if k != 'end'}
-    sym.update(BIG_MAX=(0, BIG_MAX), WAIT_=(0, WAIT), VROW=(0, VROW))
+    sym = {k: v for k, v in s.items() if k != 'vs'}
+    sym.update(GAP_=(0, GAP), VROW=(0, VROW))
     import careerworld
     ns = 'WCUR' in careerworld.LABELS                   # (a build with several worlds: TMWn.nnn files)
     if ns:
@@ -458,9 +324,9 @@ def patch(p, at):
         p.add_ptr(3, at + o, t_obj, t_off)
     for o, t_obj, t_off in rel:
         p.add_rel(3, at + o, t_obj, t_off)
-    p.branch(1, s['end'], 0xE8, 3, lab['st_fade'])
-    print(f'exe: stadium: the home club\'s stadium before the line-ups, obj3+{at:#x} ({len(code)} B{", namespaces" if ns else ""}), '
-          f'ShowStadiumInit obj1+{s["end"]:#x}')
+    p.branch(1, s['vs'], 0xE8, 3, lab['st_vs'])
+    print(f'exe: stadium: the home club\'s stadium on the versus screen, obj3+{at:#x} ({len(code)} B'
+          f'{", namespaces" if ns else ""}), VersusInit obj1+{s["vs"]:#x}')
     return at + len(code)
 
 

@@ -734,8 +734,8 @@ def patch_exe(src, dst, remap, lang='it'):
     import kbd2                                  # 4.0.6 CONTROLS B (Marco): player 2's own key set on one keyboard,
     kb_end = kbd2.patch(p, (fi_end + 15) & ~15, lang)        # in obj3 after finance (bteam next: (kb_end + 15) & ~15)
     assert kb_end <= 0x1000 * OBJ3_PAGES, hex(kb_end)
-    import stadium                               # 4.0.6 (Davide, look B): the home club's stadium name on the stadium
-    kb_end = stadium.patch(p, (kb_end + 15) & ~15)           # picture before the line-ups, in obj3 after kbd2
+    import stadium                               # 4.0.6 (Davide 02/11): the home club's stadium name (a final: its
+    kb_end = stadium.patch(p, (kb_end + 15) & ~15)           # venue) on the versus screen, in obj3 after kbd2
     assert kb_end <= 0x1000 * OBJ3_PAGES, hex(kb_end)
     print(f'exe: obj3 end {kb_end:#x} ({0x1000 * OBJ3_PAGES - kb_end} B left)')
     p.set_vsize(3, 0x1000 * OBJ3_PAGES)

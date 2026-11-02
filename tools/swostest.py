@@ -5568,19 +5568,33 @@ def bench_squad(s, scr, bx, cmp_, cnp, errs, info, mark, woff=4, box=30, row1=13
         d = (win(), s.screen().selected)
         check(d == (w0, want), f'{tag}: down on row 17 (window, selected) {d}, want {(w0, want)} ({below[0][1]!r})', errs)
         s.shot(f'{tag}_down17')
-        if tag == 'squad':                  # (4.0.6, Marco / Davide 02/11) the pre-match screen: PLAY MATCH (entry 9);
-            q = s.screen()                  # the player / coach line (entry 6) only by UP from it (Davide), then DOWN back
-            check(d[1] == 9, f'{tag}: down on row 17 -> entry {d[1]} {q.entries[d[1]][1]!r}, want 9 (PLAY MATCH)', errs)
-            vis = not q.entries[6][2]
-            s.send('up:0.3 dump:0.4')
-            u6 = s.screen().selected
-            check(u6 == (6 if vis else row1 + 16), f'{tag}: up from PLAY MATCH -> {u6}, want {6 if vis else row1 + 16}', errs)
+        if tag == 'squad':                  # (4.0.6, Marco / Davide 02/11, as the original game) the pre-match screen:
+            q = s.screen()                  # row 17 -> the player / coach line (entry 6) -> PLAY MATCH (9), UP back;
+            vis = not q.entries[6][2]       # a manager (6 hidden): row 17 -> 9 -> row 17
+
+            want = [6, 9, 6, row1 + 16] if vis else [9, row1 + 16]
+            got = [d[1]]
             if vis:
-                s.shot(f'{tag}_up_coach')
-                s.send('down:0.3 dump:0.4')
-                d9 = s.screen().selected
-                check(d9 == 9, f'{tag}: down from the player / coach line -> {d9}, want 9', errs)
-            info.append(f'{tag}: up from PLAY MATCH -> {u6} ({"the player / coach line" if vis else "row 17: no coach line"})')
+                s.shot(f'{tag}_down_coach')
+                for k in ('down', 'up', 'up'):
+                    s.send(f'{k}:0.3 dump:0.4')
+                    got.append(s.screen().selected)
+            else:
+                s.send('up:0.3 dump:0.4')
+                got.append(s.screen().selected)
+            check(got == want, f'{tag}: row 17 down / down / up / up -> {got}, want {want}', errs)
+            info.append(f'{tag}: row 17 down -> {got} ({"the player / coach line" if vis else "no coach line"})')
+            if vis:                         # the manager's case: entry 6 hidden by a poke (its invisible word), then back
+                m6 = s.result.base2 + s.info['menu'] + 0x16 + 6 * 0x38 + 4
+                s.poke(m6, b'\x01\x00')
+                check(goto(row1 + 16), f'{tag}: row 17 not reached (coach line hidden)', errs)
+                h = []
+                for k in ('down', 'up'):
+                    s.send(f'{k}:0.3 dump:0.4')
+                    h.append(s.screen().selected)
+                s.poke(m6, b'\x00\x00')
+                check(h == [9, row1 + 16], f'{tag}: coach line hidden: row 17 down / up -> {h}, want {[9, row1 + 16]}', errs)
+                info.append(f'{tag}: coach line hidden (poked): row 17 down / up -> {h}')
         check(goto(row1 + 11), f'{tag}: row 12 not reached', errs)
         s.send('up:0.3 dump:0.4')
         u = (win(), s.screen().selected)

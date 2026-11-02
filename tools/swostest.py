@@ -20071,7 +20071,7 @@ def stoppage_time():
                     td0 = W16(si['TD'])
                     rate = run.rate = {'game': [], 'added': []}   # Davide's 10-minute rate: timeDelta poked to 1 and
                     goal = run.goal = {}                # the accumulator to 30000 -> its drop in one step = frames x the
-                    for i in range(240 if et else 80):  # rate used: frames in normal play, 9 x frames in added time
+                    for i in range(240 if et else 160):  # rate used: frames in normal play, 9 x frames in added time
                         meas = None
                         if et and W16(777158) == 100 and (gt0 is None and not any(rate['game']) and len(rate['game']) < 8
                                    or gt0 is not None and len([d for d in rate['added'] if d]) < 3 and len(rate['added']) < 12):
@@ -20083,10 +20083,16 @@ def stoppage_time():
                         if et:                      # (a draw at the whistle: a goal in the added time would end
                             for a in si['goals']:   # the match, and the next fire would start a new friendly)
                                 s.poke(r.base2 + a, bytes(2))
-                        if ph_last == 2 and ballp < 3 and W16(777158) == 100:   # the whistle wait held open: the ball
-                            ballp += 1                  # in the top penalty area (the game's end waits while it is there)
+                        last = ph_last == 1 and seen and seen[-1][4] >= seen[-1][3]   # (the last added minute: the
+                        if (last or ph_last == 2 and ballp < 3) and W16(777158) == 100:   # ball there already, else
+                            ballp += ph_last == 2       # the whistle can fall between two dumps - R1 / st105a 45')
+                            # the whistle wait held open: the ball in the top penalty area (the game's end waits while it is there)
                             for o, v in ((30, 0), (32, 234), (34, 0), (36, 180), (38, 0), (40, 0)):
                                 s.poke(r.base2 + 0x52c9a + o, struct.pack('<h', v))
+                        elif ph_last == 2 and W16(777158) == 100:   # held long enough: the ball to the centre spot (out
+                            for o, v in ((30, 0), (32, 336), (34, 0), (36, 449), (38, 0), (40, 0)):   # of both areas: the
+                                s.poke(r.base2 + 0x52c9a + o, struct.pack('<h', v))   # whistle now; 105' in R1 waited
+                                                                    # 80 steps in the area / restarts and ran out)
                         if tag == '45' and ph_last == 1 and not goal.get('k') and len(goal.get('tries', [])) < 6 and \
                                 W16(777158) == 100:     # (only with the ball in play: moved in a restart it hangs the match)
                             goal.setdefault('tries', []).append(1)   # a goal in the added time: the ball past the

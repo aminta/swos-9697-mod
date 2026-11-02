@@ -15811,26 +15811,30 @@ def dkb_half(r):
 
 def variant_sets(r):
     """blond.copy_sets' allocation this match: {(team 0 / 1, flag): the slot's first sprite} (flag 1 darkblond, 2 / 3
-    receding dark / light, 4 / 5 shaved dark / light - 4.0.5 single-team slots), from its block after 'BLDSLOT5' in
-    obj1: SFL[5], STM[5], (align 2) VBT[2][4] words, VBT5[2] words."""
+    receding dark / light, 4 / 5 shaved dark / light - 4.0.5 single-team slots; 6 / 7 white hair dark / light,
+    4.0.6), from its block after 'BLDSLOT5' / 'BLDSLOT7' in obj1: SFL[5], STM[5], (align 2) VBT[2][4] words, VBT5 =
+    [2] words (flag 5 per team; '7': [3][2], flags 5, 6, 7)."""
     if not hasattr(r, '_vsig'):
         d1 = r.read(r.base1, 0x100000)
-        k = d1.find(b'BLDSLOT5')
+        k, r._vnx = d1.find(b'BLDSLOT7'), 3
+        if k < 0:
+            k, r._vnx = d1.find(b'BLDSLOT5'), 1
         r._vsig = k + 8 if k > 0 else None
     if r._vsig is None:
         return {}
-    b = r.read(r.base1 + r._vsig, 32)
+    b = r.read(r.base1 + r._vsig, 48)
     sfl, stm = b[0:5], b[5:10]
     o = 10 + ((r._vsig + 10) & 1)
     vbt = struct.unpack_from('<8H', b, o)
-    vb5 = struct.unpack_from('<2H', b, o + 16)
+    vb5 = struct.unpack_from(f'<{2 * r._vnx}H', b, o + 16)
     out = {}
     for t in (0, 1):
         for f in (1, 2, 3, 4):
             if vbt[t * 4 + f - 1]:
                 out[(t, f)] = vbt[t * 4 + f - 1]
-        if vb5[t]:
-            out[(t, 5)] = vb5[t]
+        for f in range(5, 5 + r._vnx):
+            if vb5[(f - 5) * 2 + t]:
+                out[(t, f)] = vb5[(f - 5) * 2 + t]
     assert sorted(out) == sorted((stm[i], sfl[i]) for i in range(5) if sfl[i]), (out, sfl, stm)
     return out
 
@@ -15876,6 +15880,34 @@ def dkb_sets(r, spr, blond, info):
             hair = {x for k in range(101) for x in frame(new + k)[2]}
             check(15 in hair and 5 not in hair, f'{tag}: darkblond colours {sorted(hair)} (yellow 15, no light skin 5)',
                   errs)
+        for f in (6, 7):                                # 4.0.6 white hair (R2): the hair pixels (where the light set
+            if (tm, f) not in vs:                       # and face 1's differ: only their hair colours do - the game
+                continue                                # converted the 'raw' sets in place) grey 1, the top hair row's
+            look, name = blond.FLAGS[f]                 # two end pixels off (3 or more), the rest as the face's set
+            ref = black if name == 'dark' else raw
+            rm = (lambda v: v) if planar else \
+                (lambda v: [v[i // 2] if i % 2 == 0 else v[len(v) // 2 + i // 2] for i in range(len(v))])
+            bad, grey = [], 0
+            for k in range(101):
+                h0, h1 = rm(frame(raw + k)[2]), rm(frame(raw + 101 + k)[2])
+                a, b_ = frame(ref + k), frame(vs[(tm, f)] + k)
+                a, b_ = (a[0], a[1], rm(a[2])), (b_[0], b_[1], rm(b_[2]))
+                hair = [i for i, (x, y) in enumerate(zip(h0, h1)) if x != y]
+                want = list(a[2])
+                for i in hair:
+                    want[i] = 1
+                top = [i for i in hair if hair and i // (16 * a[0]) == hair[0] // (16 * a[0])]
+                if len(top) >= 3:
+                    want[top[0]] = want[top[-1]] = 0
+                if a[:2] != b_[:2] or b_[2] != want:
+                    if not bad:
+                        info.append(f'{tag}: {look} {name} frame {k} (cell, want, got): '
+                                    f'{[(i, w, g) for i, (w, g) in enumerate(zip(want, b_[2])) if w != g][:12]}')
+                    bad.append(k)
+                grey += len(hair)
+            check(not bad and grey, f'{tag}: {look} {name} frames differing from R2: {bad[:12]} ({len(bad)})', errs)
+            if not bad:
+                info.append(f'{tag}: {look} {name}: all 101 frames = R2 ({grey} hair pixels grey)')
         for f in (2, 3, 4, 5):
             if (tm, f) not in vs:                       # 4.0.5 bald: the face's set reshaped by the variant's look
                 continue                                # (blond.LOOKS): E = its top hair (3) in skin colours, the rest
@@ -15984,7 +16016,7 @@ def world_darkblond():
                 for m_ in _re.finditer(_re.escape(nm_.encode()) + b'\0', o2):
                     h = m_.start() - 3
                     at_, v_ = (26, o2[h + 26] | 0x18) if op_ == 'darkblond' else \
-                        (25, o2[h + 25] & 0xFC | 1 if op_ == 'bald' else o2[h + 25] | 3 if op_ == 'shaved' else o2[h + 25] & 0xFC)
+                        (25, o2[h + 25] & 0xFC | 1 if op_ == 'bald' else o2[h + 25] | 3 if op_ == 'shaved' else o2[h + 25] & 0xF8 | 4 if op_ == 'white' else o2[h + 25] & 0xFC)
                     s.poke(r.base2 + h + at_, bytes((v_,)))
             s.send('dump:1')
         press(s, s.screen(), 'SQUADRA', 3)
@@ -15998,6 +16030,8 @@ def world_darkblond():
         icon_cases = [('shaved', 'dark', blond.ICON3 + 1)] if os.environ.get('DKB_NAME') == 'world_bald' else []
         if os.environ.get('DKB_NAME') == 'world_bald_looks' and os.environ.get('DKB_EARLY'):
             icon_cases = [('shaved', 'light', blond.ICON3), ('shaved', 'dark', blond.ICON3 + 1)]
+        if os.environ.get('DKB_NAME') == 'world_white' and os.environ.get('DKB_EARLY'):   # 4.0.6 white hair
+            icon_cases = [('white', 'light', blond.ICONW), ('white', 'dark', blond.ICONW + 1)]
         for look_, skin_, ii in icon_cases:
             pb =struct.unpack('<I', r.read(r.base2 + spr + ii * 4, 4))[0]
             ib = r.read(struct.unpack('<I', r.read(pb, 4))[0], 64) if pb else b''
@@ -16006,6 +16040,13 @@ def world_darkblond():
                 import shavedart
                 main_, lo_, io_, _ = shavedart.blobs()
                 ok_ = pb and ib == main_[io_ + (64 if skin_ == 'light' else 0):][:64]
+            elif lk['shape'] == 'white':                 # (R2: the face icon 186 / 188 with the hair 3 of its top
+                ps = struct.unpack('<I', r.read(r.base2 + spr + (186 if skin_ == 'light' else 188) * 4, 4))[0]
+                px_ = [v for x in r.read(struct.unpack('<I', r.read(ps, 4))[0], 64) for v in (x >> 4, x & 15)]
+                hair = [i for i in range(48) if px_[i] == 3]  # three rows grey 1, its top row off)
+                for i in hair:
+                    px_[i] = 0 if i // 16 == hair[0] // 16 else 1
+                ok_ = pb and hair and ib == bytes(px_[i] << 4 | px_[i + 1] for i in range(0, 128, 2))
             elif lk['shape'] == 'oval':                    # (oval: one colour - black for skull 3, else the skin)
                 want = 3 if lk['skull'] == 3 else 5
                 ok_ = pb and want in nib(ib) and not (set(nib(ib)) - {0, want, 1, 2, 4, 8})
@@ -16049,7 +16090,7 @@ def world_darkblond():
             hits = [m_.start() - 3 for m_ in _re.finditer(_re.escape(nm_.encode()) + b'\0', o2)]
             for h in hits:
                 at_, v_ = (26, o2[h + 26] | 0x18) if op_ == 'darkblond' else \
-                    (25, o2[h + 25] & 0xFC | 1 if op_ == 'bald' else o2[h + 25] | 3 if op_ == 'shaved' else o2[h + 25] & 0xFC)
+                    (25, o2[h + 25] & 0xFC | 1 if op_ == 'bald' else o2[h + 25] | 3 if op_ == 'shaved' else o2[h + 25] & 0xF8 | 4 if op_ == 'white' else o2[h + 25] & 0xFC)
                 s.poke(r.base2 + h + at_, bytes((v_,)))
             info.append(f'{nm_} {op_} x{len(hits)}')
         if not any(x[1] == 'GIOCA PARTITA' and not x[2] for x in s.screen().entries):
@@ -16082,14 +16123,17 @@ def world_darkblond():
     return not errs, '; '.join(errs + info)
 
 
-def bald_sheet(r, spr, blond, pal, path, info):
-    """Team 1's (the home team's) match sprites as converted, frames 0..23 of the sets light (341..), bald light
-    (blond.NEW5..), face 1 (442..), black (543..), bald dark (blond.NEW3..), darkblond (blond.NEW1..): one row each,
-    6x, PNG; *_zoom.png: frames 0 / 7 / 16, hair vs bald, light and dark, 24x."""
+def bald_sheet(r, spr, blond, pal, path, info, tm=0):
+    """Team tm's (0: team 1, the home team) match sprites as converted, frames 0..23 of the sets light (341.. / 644..),
+    bald / shaved / white light (variant sets), face 1 (442.. / 745..), black (543.. / 846..), bald / shaved / white dark,
+    darkblond: one row each, 6x, PNG; *_zoom.png: frames 0 / 7 / 16, hair vs the team's first light / dark variant, 24x."""
     from PIL import Image
     idx = lambda i: struct.unpack('<I', r.read(r.base2 + spr + i * 4, 4))[0]
     vs = variant_sets(r)
-    rows = [341] + [vs[(0, f)] for f in (3, 5) if (0, f) in vs] + [442, 543] + [vs[(0, f)] for f in (2, 4, 1) if (0, f) in vs]
+    raw0 = 341 + 303 * tm
+    lt = [vs[(tm, f)] for f in (3, 5, 7) if (tm, f) in vs]
+    dk = [vs[(tm, f)] for f in (2, 4, 6, 1) if (tm, f) in vs]
+    rows = [raw0] + lt + [raw0 + 101, raw0 + 202] + dk
     raw = {}                                    # (the frames as JSON next to the PNG: offline mock-ups)
     cw, chh, z = 20, 24, 6
     img = Image.new('RGB', (24 * cw * z, len(rows) * chh * z), (40, 110, 40))
@@ -16111,7 +16155,7 @@ def bald_sheet(r, spr, blond, pal, path, info):
     img.save(path)
     zf, zz = (0, 7, 16), 24                     # x4 of the sheet's 6x: 3 frames each, light / bald light / dark / bald dark
     zimg = Image.new('RGB', (len(zf) * 2 * cw * zz, 2 * chh * zz), (40, 110, 40))
-    for ri, pair in enumerate([pr for pr in ((341, vs.get(3)), (543, vs.get(2))) if pr[1]]):
+    for ri, pair in enumerate([pr for pr in ((raw0, (lt or [0])[0]), (raw0 + 202, (dk or [0])[0])) if pr[1]]):
         for zi, k in enumerate(zf):
             for pj, base in enumerate(pair):
                 h = r.read(idx(base + k), 24)
@@ -16156,6 +16200,96 @@ def world_bald_looks():
     light player (the data) takes the fifth slot: every flag gets a set and dkb_sets checks each against its look (pink
     oval = nibble 7)"""
     return bald_run('world_bald_looks', 'NAHUEL MOLINA:shaved,K. KOULIERAKIS:bald,MANU KONE:bald', '2,3,4,5')
+
+
+@scenario
+def world_white():
+    """4.0.6 white hair (R2, blond.LOOKS 'white', byte 25 bit 2): ROMA with NAHUEL MOLINA white light (7) and MANU KONE
+    white dark (6) - poked, the bald bits cleared - next to MALEN shaved dark (4, the data): dkb_sets checks every frame
+    of the two white sets (the raw set's hair grey 1, the top hair row's ends off, the rest the face's set); with
+    DKB_EARLY the squad screen's white icons (blond.ICONW / + 1) too"""
+    return bald_run('world_white', 'NAHUEL MOLINA:white,MANU KONE:white', '4,6,7')
+
+
+@scenario
+def white_data():
+    """4.0.6 white hair in the build's data (packs/white-hair.csv, blond.WHITE): every record of a listed name in the
+    team files (the original 1996-97 TEAM.008 / TEAM.080 too: FABRIZIO RAVANELLI) has byte 25 bit 2 and no bald bit;
+    no other player of the TEAM.* files has bit 2 (no namesake, no stray bit)"""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import blond
+    d = os.path.join(builds()['it'], 'DATA')
+    found, bad = {}, []
+    for f in sorted(os.listdir(d)):
+        if not re.fullmatch(r'TEAM\.\d{3}|TMW\d\.\d{3}|XTW\d\.\d{3}|.*\.TMD', f):
+            continue
+        b = open(os.path.join(d, f), 'rb').read()
+        for n in blond.WHITE:                             # (every copy of a listed name: its byte 25)
+            for m in re.finditer(re.escape(n) + b'\0', b):
+                v = b[m.start() - 3 + blond.BALD_AT]
+                found.setdefault(n.decode('latin-1'), []).append(f)
+                if v & 7 != blond.WHITE_BIT:
+                    bad.append(f'{f} {n.decode("latin-1")} byte 25 = {v:#x}')
+        if f.startswith('TEAM.') and len(b) == 2 + 684 * struct.unpack('>H', b[:2])[0]:   # (any other player with
+            for k in range((len(b) - 2) // 684):                                           # bit 2: team records)
+                for j in range(16):
+                    p = 2 + k * 684 + 76 + j * 38
+                    nm = b[p + 3:p + 25].split(b'\0')[0]
+                    if b[p + 3:p + 25].count(b'\0') and b[p + blond.BALD_AT] & blond.WHITE_BIT and nm not in blond.WHITE:
+                        bad.append(f'{f} {nm.decode("latin-1")}: bit 2 not listed')
+    rav = found.get('FABRIZIO RAVANELLI', [])
+    check('TEAM.008' in rav and 'TEAM.080' in rav, f'RAVANELLI in {rav} (want TEAM.008 + TEAM.080)', bad)
+    missing = sorted(n.decode('latin-1') for n in blond.WHITE if n.decode('latin-1') not in found)
+    check(not missing, f'listed but in no team file: {missing}', bad)
+    return not bad, '; '.join(bad[:8]) or f'white hair in the data: {found}'
+
+
+@scenario
+def white_ravanelli():
+    """4.0.6 white hair from the 1996-97 data (no poke): a friendly MIDDLESBROUGH (FABRIZIO RAVANELLI, TEAM.008 byte 25
+    bit 2) v ARSENAL - his white icon (blond.ICONW) built for the pre-match screen, and in the match MIDDLESBROUGH's
+    white light set (flag 7) checked frame by frame (dkb_sets). Review shots: prematch.png, sets.png"""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lepatch
+    import shirtnum
+    import blond
+    b = builds()['it']
+    spr = shirtnum.spr_index(lepatch.LEPatch(os.path.join(b, 'ITALIAN.EXE')))
+    errs, info = [], []
+    with Session('white_ravanelli', b, {}, 'dump:3', 400, match=True) as s:
+        s.wait()
+        for t in ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB', 'EUROPA', 'INGHILTERRA', 'PREMIER',
+                  'MIDDLESBROUGH'):
+            walk(s, t, 2)
+        s.send('fire dump:2')                       # home: COMPUTER -> GIOCA-ALLENA (as italy_friendly)
+        walk(s, 'ARSENAL', 2)
+        for _ in range(12):
+            scr = s.screen()
+            i = scr.find('AMICHEVOLE', exact=True)
+            if scr.selected == i:
+                s.send('fire dump:4')
+                break
+            s.send(('right' if scr.selected in (i + 1, i + 2) else 'down') + ' dump:0.5')
+        s.shot('prematch')
+        r = s.result
+        pw = struct.unpack('<I', r.read(r.base2 + spr + blond.ICONW * 4, 4))[0]
+        check(pw, f'white icon {blond.ICONW} not built on the pre-match screen', errs)
+        info.append(f'white icon {blond.ICONW} ' + ('built' if pw else 'missing'))
+        for _ in range(22):
+            s.send('down dump:0.5')
+            if s.screen().selected == 9:
+                break
+        r = s.send('fire ' + 'fire:3 ' * 8 + 'dump:2')
+        check(r.outcome == 'dump', f'match {r}', errs)
+        if r.outcome == 'dump':
+            vs = variant_sets(r)
+            check(any(f == 7 for _, f in vs), f'no white light set for MIDDLESBROUGH ({vs})', errs)   # (either side:
+                                                                                                     # only he has it)
+            errs += dkb_sets(r, spr, blond, info)
+            tm = next((t for t, f in vs if f == 7), 0)
+            bald_sheet(r, spr, blond, s.result.obj2(s.info['pal'], 768), os.path.join(s.run, 'shots', 'sets.png'), info,
+                       tm)
+    return not errs, '; '.join(errs) or '; '.join(i for i in info if 'white' in i or 'variant' in i)
 
 
 def bald_run(name, poke, expect):

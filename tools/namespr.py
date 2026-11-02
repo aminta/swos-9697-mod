@@ -16,6 +16,8 @@ pixels (5 quads), and Text2Sprite draws nothing at all when the text is wider th
   names are drawn as they are in both modes.
 Code, headers and pixels live in obj1 pages of their own (PAGES; obj2's page count unchanged, nothing saved), sized
 for CAP sprites (26 per team) although the game has 32 (N).
+The tail past CAP x DATA (p6 + Integratore): ns_at+0x4A40..+0x4EF9 the shaved art (blond.art_patch, 4.0.5); the rest
+(ns_at+0x4EF9..+0x4FFF, 263 B) is free. More room for namespr = a new page.
 
 Fixed counts a bigger bench would touch (the game's, unchanged here): MakeSpritesFromPlayerNames `mov word [D6], 255`
 (the first sprite) and `mov word [D7], 15` twice (16 players per team); SetCurrentPlayerName's `add D1, 255` /

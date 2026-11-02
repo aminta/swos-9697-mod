@@ -558,7 +558,8 @@ def patch_exe(src, dst, remap, lang='it'):
     bl_at = hist2 + h2 + 0x1000 * (lpb + sp_pg + sc_pg + ct_pg) + 0x2200   # 4.0.3: blond's code (bald: longer; the
     ns_at0 = hist2 + h2 + 0x1000 * (lpb + sp_pg + sc_pg + ct_pg + ctl_pg - namespr.PAGES)   # (namespr's pages, below:
     art_at = namespr.layout(ns_at0)[1] + namespr.CAP * namespr.DATA                            # the shaved art in their tail)
-    bl_end = blond.patch(p, area, bl_at, num_bss + shirtnum.BSS_SIZE, shirtnum.spr_index(p), bald_bss, art_at)   # cosmetics
+    bl_end = blond.patch(p, area, bl_at, num_bss + shirtnum.BSS_SIZE, shirtnum.spr_index(p), bald_bss, art_at)   # cos-
+                                                         # metics
     assert bl_end <= bl_at + 0xE00, hex(bl_end)          # cave is full) in controls' last data page, after its data
     cos = menunum.patch(p, cos, num_bss + shirtnum.BSS_SIZE + blond.BSS_SIZE)   # 3.3.4: menu numbers 17..99
     cos = avgprice.patch(p, cos)                 # 3.3.4: average player price >= 1 (divide error, 1984-85 Iceland)
@@ -709,6 +710,9 @@ def patch_exe(src, dst, remap, lang='it'):
     cpucards.force(p)                                        # (CARDS_FORCE test builds only: last-man fouls forced)
     cpucards.force_inj(p)                                    # (INJ_FORCE test builds only: every tackle injures)
     assert cc_end <= 0x1000 * OBJ3_PAGES, hex(cc_end)
+    wh_end = blond.late_patch(p, (cc_end + 15) & ~15)        # 4.0.6: white hair - blond's palette route + tables in
+    assert wh_end <= 0x1000 * OBJ3_PAGES, hex(wh_end)        # obj3 after cpucards (kbd2 next: (wh_end + 15) & ~15)
+    print(f'exe: obj3 end {wh_end:#x} ({0x1000 * OBJ3_PAGES - wh_end} B left)')
     p.set_vsize(3, 0x1000 * OBJ3_PAGES)
     p.set_vsize(1, OBJ1_NEW_VSIZE + (0x1000 * (cp + 2 + cdp) if worlds else 0) + h2 + 0x1000 * (lpb + sp_pg + sc_pg + ct_pg + ctl_pg))
     import teamstab                              # 4.0.2: teamsTable for 256 team ordinals (Serie D choice colours)
@@ -871,6 +875,13 @@ def write_new_teams(src_dir, dst_dir):
     for name, k in lgreal.write(dst_dir):
         print(f'{name}: real league calendars of {k} leagues')
     rename_clubs(src_dir, dst_dir)
+    for f in sorted(os.listdir(src_dir)):             # 4.0.6: white-haired players in the original files too (the
+        q = os.path.join(dst_dir, f)                  # build's DATA starts as their copy; byte 25 bit 2 is an OR:
+        if re.fullmatch(r'TEAM\.\d{3}', f) and os.path.exists(q):   # a file written above stays as team_fix made it)
+            data, hit = blond.white(open(q, 'rb').read())
+            if hit:
+                open(q, 'wb').write(data)
+                print(f'{f}: white hair {", ".join(hit)}')
 
 
 # 4.0 (Davide, 2026-10-18): the Milan clubs by the names they go by. Name fields are zero padded: the shorter name +

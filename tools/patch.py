@@ -755,6 +755,10 @@ def patch_exe(src, dst, remap, lang='it'):
     import stadium                               # 4.0.6 (Davide 02/11): the home club's stadium name (a final: its
     st_end = stadium.patch(p, (st_end + 15) & ~15)           # venue) on the versus screen, in obj3 after usc_snap
     assert st_end <= LT3_AT, hex(st_end)
+    import ctview                                # 4.0.6 COPPE CONTINENTALI (Gianmarco): the other confederations'
+    if conti.enabled() and fmtpage.WN and 'CV9_VIS' in gplay.LABELS:   # cups viewed, the obj3 chain's end (<= 0x1800)
+        st_end = ctview.patch(p, (st_end + 15) & ~15, lang)
+        assert st_end <= LT3_AT, hex(st_end)
     print(f'exe: obj3 end {st_end:#x} ({LT3_AT - st_end} B left before the longtable page obj3+{LT3_AT:#x})')
     p.set_vsize(3, 0x1000 * OBJ3_PAGES)
     p.set_vsize(1, OBJ1_NEW_VSIZE + (0x1000 * (cp + 2 + cdp) if worlds else 0) + h2 + 0x1000 * (lpb + sp_pg + sc_pg + ct_pg + ctl_pg))

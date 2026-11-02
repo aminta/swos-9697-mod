@@ -664,6 +664,7 @@ def patch(p, at, lang, area, bss, world=None, wn=False):
         assert world, 'VINCITORI: a build with career worlds'
         assert any(o == wsel for o, _, _ in ptrs), 'VINCITORI select'
         WN.update(stpos=lab.get('fp_stpos'))          # (4.0.5: winners' onInit re-spaces the column after VINCITORI)
+        WN.update(exit=(exit_text[0], exit_fn[0]))   # (4.0.6 ctview's menu: ESCI as the statistics menu's)
         WN.update(sel=base + wsel, init=base + sm_at, ovinit=lab['fp_ovinit'], fill=lab['fp_fill'], menu=base + wm_at,
                   sym={k: sym[k] for k in ('DIYNAME', 'A6', 'SHOW_MENU', 'FNAME', 'TITLE', 'LINES_BUF', 'PAGE', 'FOUND',
                                            'FMTMENU', 'BUF', 'TXT', 'IDXMAX_', 'TXTMAX_', 'ENTRY_', 'NAME_', 'LINES_',

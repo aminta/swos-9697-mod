@@ -1150,7 +1150,7 @@ def patch(p, at, limit, bss_at, area):
     assert struct.unpack('<I', p.get(1, syms['CT_LAYOUT'][1] + 80, 4))[0] == ED_SIZE
     if 'CE' in engine.SAVE_ITEMS:
         engine.ITEM_AT['CE'] = syms['CT_ED']
-    LABELS.update(lab, syms=syms, assocs=assocs, cups=cups)
+    LABELS.update(lab, syms=syms, assocs=assocs, cups=cups, SPEC=symbols['SPEC'])   # (4.0.6 SPEC: ctview)
     print(f'exe: other confederations\' cups (conti.c): {len(cups)} cups of {", ".join(confs)}, '
           f'{len(assocs)} associations, spec {len(spec)} B; C obj1+{at:#x}..{end:#x}, glue ..{glue + len(code):#x}, '
           f'bss obj2+{bss_at:#x} ({bss} B); ct_gend C obj1+{syms["ct_gend"][1]:#x} glue {lab["ct_gend"]:#x}, '

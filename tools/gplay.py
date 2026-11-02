@@ -2241,22 +2241,41 @@ vc5_after:
     call VC_AFTER
 vc5_lay:                                ; entry 8 shown for a cup in slot 4 (SLOT4: this season's - cleared at a season
     pushad                              ; start when unused; a played supercup stays) with the career club in it
-    mov word [D0R], 8                   ; (gp_notin); a cup only: the view copies 443h of SLOT4 (a league 733h, a group
-    call VC_CALC                        ; B52h would run past it). Shown: rows 1 2 3 4 8 5 6 (the visible ones) laid out
-    mov edi, [A0R]                      ; from entry 1's y, 25 px apart (22 with seven rows: ESCI, entry 7, keeps its
-    mov word [edi + 4], 1               ; place), up / down links in that order, the last one's down = ESCI
+    mov byte [VC5_N], 0                 ; (gp_notin); a cup only: the view copies 443h of SLOT4 (a league 733h, a group
+    mov word [D0R], 9                   ; B52h would run past it). 4.0.6: entry 9 COPPE CONTINENTALI (ctview, obj3),
+    call VC_CALC                        ; shown when its check CV9_VIS (a World 2026-27 career) says ZF = 1. Shown:
+    mov edi, [A0R]                      ; rows 1 2 3 4 8 5 6 9 (the visible ones) laid out from entry 1's y, 25 px
+    mov word [edi + 4], 1               ; apart (22 with seven rows, 20 from 8 px higher with eight: ESCI keeps its place),
+    cmp word [GAMETYPE], 4              ; up / down links in that order, the last one's down = ESCI
+    jne .e8
+    mov eax, [CV9_VIS]
+    test eax, eax
+    jz .e8
+    call eax
+    jne .e8
+    mov word [edi + 4], 0
+    inc byte [VC5_N]
+.e8:
+    mov word [D0R], 8
+    call VC_CALC
+    mov edi, [A0R]
+    mov word [edi + 4], 1
     cmp word [GAMETYPE], 4
-    jne .out
+    jne .lay
     cmp dword [D8CAA + 16], 0
-    je .out
+    je .lay
     cmp word [SLOT4], 1
-    jne .out
+    jne .lay
     cmp byte [SLOT4 + 4], 0
-    je .out
+    je .lay
     mov al, 4
     call gp_notin
-    jnz .out
+    jnz .lay
     mov word [edi + 4], 0
+    inc byte [VC5_N]
+.lay:
+    cmp byte [VC5_N], 0
+    je .out
     call .o
 .o: pop esi
     add esi, vc5_order - .o
@@ -2277,7 +2296,7 @@ vc5_lay:                                ; entry 8 shown for a cup in slot 4 (SLO
     jne .c
     inc ecx
     jmp .c
-.cd:sub esi, 7
+.cd:sub esi, 8
     push esi
     push ecx
     mov word [D0R], 1
@@ -2285,11 +2304,15 @@ vc5_lay:                                ; entry 8 shown for a cup in slot 4 (SLO
     pop ecx
     pop esi
     mov edi, [A0R]
-    movzx edx, word [edi + 16h]         ; edx = y, ebp = step (4.0.6, Davide: seven rows 22 apart from y 30 - 8 px
-    mov ebp, 25                         ; before ESCI at y 185, 7 px between rows; 23 left 2 px)
+    movzx edx, word [edi + 16h]         ; edx = y, ebp = step (4.0.6, Davide: seven rows 22 apart from y 30, eight
+    mov ebp, 25                         ; 20 apart from y 22 - 8 px before ESCI at y 185, 7 / 5 px between rows)
     cmp ecx, 7
     jb .s
     mov ebp, 22
+    cmp ecx, 8
+    jb .s
+    mov ebp, 20
+    sub edx, 8
 .s: xor ecx, ecx                        ; ecx = the row above's entry address (0: none), [esp] its number
     push dword 0FFh
 .l: movzx eax, byte [esi]
@@ -2329,7 +2352,14 @@ vc5_go:                                 ; entry 8's on-select: the game's view o
     mov dword [A0R], SLOT4
     jmp VC_VIEW
 
-vc5_order: db 1, 2, 3, 4, 8, 5, 6, 0
+vc5_order: db 1, 2, 3, 4, 8, 5, 6, 9, 0
+VC5_N: db 0
+align 4
+CV9_VIS: dd 0                           ; 4.0.6 ctview (obj3): its entry 9 check and on-select (0: no view)
+CV9_GO: dd 0
+vc9_go:
+    jmp dword [CV9_GO]
+CV9_TXT: db 0                           ; (ctview points entry 9's text at its own label)
 """
 
 
@@ -2388,7 +2418,10 @@ def _vc5(p, a6):
             q += 1
     lines += ['    dw 48h, 82h, 0A0h, 0Fh            ; entry 8: as entries 1-4 (y and links set by vc5_lay)',
               '    dw 2', '    db 0FFh, 0FFh, 0FFh, 0FFh', '    dw 4, 0Eh', '    dw 8, 0', '    dd SLOT4 + 4',
-              '    dw 13', '    dd vc5_go', '    dw 0', '    dw -999']
+              '    dw 13', '    dd vc5_go', '    dw 0',
+              '    dw 48h, 82h, 0A0h, 0Fh            ; 4.0.6 entry 9: COPPE CONTINENTALI (ctview; shown by vc5_lay)',
+              '    dw 2', '    db 0FFh, 0FFh, 0FFh, 0FFh', '    dw 4, 0Eh', '    dw 8, 0', 'VC9_TXTP:', '    dd CV9_TXT',
+              '    dw 13', '    dd vc9_go', '    dw 0', '    dw -999']
     syms.update({'VC_INIT': hdr[0], 'VC_AFTER': hdr[1], 'VC_CALC': (1, calc), 'VC_VIEW': (1, view)})
     return '\n'.join(lines) + '\n', syms, a6sites
 
@@ -2910,6 +2943,7 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     assert struct.unpack('<I', p.get(1, syms['RI_STATE_SIZE'][1], 4))[0] == ripool.RI_SIZE   # (the engine block's 'RI')
     kolay = dict(zip(('st_ko', 'size', 'slot', 'ntie', 'tw', 'tl', 'team', 'n'),
                      struct.unpack('<8I', p.get(1, syms['GP_KOLAY'][1], 32))))   # (4.0's gp_build glue: GP_ST.ko[0])
+    LABELS.update(CAL=(2, ps['cal']), CAL_CUR=(2, ps['cal_cur']))   # (4.0.6 ctview: the career calendar's week)
     LABELS.update(lab, GP_TOPW=top_w, GP_TOPR=top_r, CD_ST=syms['CD_ST'], SC_ST=syms['SC_ST'], SC_TRACE=syms['SC_TRACE'], CF_ST=syms['CF_ST'], CN_ST=syms['CN_ST'], SEC_BQ=syms['SEC_BQ'], GP_GS=syms['GP_GS'], GP_KOLAY=kolay, GP_IN=syms['GP_IN'], GP_OUT=syms['GP_OUT'], GP_ST=syms['GP_ST'], GP_LOG=syms['GP_LOG'], layout=lay, pg_season=syms['pg_season'], pg_place=syms['pg_place'], rs_season=syms['rs_season'], gp_stage=syms['gp_stage'], gp_overall=syms['gp_overall'], F1_ST=syms['F1_ST'], f1_capture=syms['f1_capture'], f1_valid=syms['f1_valid'], f1_auto=syms['f1_auto'], f1_build=syms['f1_build'], ap_mask=syms['ap_mask'], ap_next=syms['ap_next'], ap_label=syms['ap_label'], ap_build=syms['ap_build'], CAREERTEAM=(2, ct), SEASONPLAYING=(2, s['season']), gp_stitle_c=syms['gp_stitle_c'], gp_hplan_c=syms['gp_hplan_c'], gp_hlabel_c=syms['gp_hlabel_c'], GP_HP=syms['GP_HP'], GP_HGP=syms['GP_HGP'], GP_HG=syms['GP_HG'], GP_HV=syms['GP_HV'], GP_HF=syms['GP_HF'], GP_HL=syms['GP_HL'], GP_HON=syms['GP_HON'], GP_OV_ORD=syms['GP_OV_ORD'], GP_OV_ROWS=syms['GP_OV_ROWS'], GP_OV_N=syms['GP_OV_N'], GP_OV_ANNUAL=syms['GP_OV_ANNUAL'], GP_SS=syms['GP_SSB'], GP_SHB=syms['GP_SHB'], CFB=(2, ps['cfb']), PR_STATE=syms['PR_STATE'],
                   RS_STATE=syms['RS_STATE'], ri_season=syms['ri_season'], ri_apply=syms['ri_apply'],
                   ri_cache=syms['ri_cache'], RI_STATE=syms['RI_STATE'], RI_MGR=syms['RI_MGR'],

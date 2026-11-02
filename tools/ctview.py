@@ -99,6 +99,196 @@ def table(lang, confs, files=None, words=None):
     return bytes(out + strs), spec
 
 
+CAP = 0x1800                            # obj3 room (the Integratore, 03/11)
+
+ASM = r"""
+cv_vis:                                 ; gplay's VISUAL. COMPETIZ. entry 9 check: ZF = 1 in a World 2026-27 career
+    pushad                              ; (a league-phase world: careerworld w_lpw)
+    call W_LPW
+    popad
+    ret
+
+cv_go:                                  ; entry 9 (fire): the confederations menu
+    mov dword [A6], CV_MENU
+    jmp SHOW_MENU
+
+cv_init:                                ; its onInit: the buttons in cv_confs' order (the career club's first)
+    pushad
+    push es
+    push ds
+    pop es
+    cld
+    mov dword [CT_SPEC], SPEC
+    push dword CV_ORD
+    movzx eax, word [CAREERTEAM]
+    push eax
+    call CV_CONFS
+    add esp, 8
+    xor ebx, ebx
+.l: movzx esi, byte [CV_ORD + ebx]
+    imul esi, esi, 12
+    add esi, CV_CN
+    imul edi, ebx, 12
+    add edi, CV_LBL
+    mov ecx, 12
+    rep movsb
+    inc ebx
+    cmp ebx, 6
+    jb .l
+    pop es
+    popad
+    ret
+
+cv_s0: mov eax, 0
+    jmp cv_open
+cv_s1: mov eax, 1
+    jmp cv_open
+cv_s2: mov eax, 2
+    jmp cv_open
+cv_s3: mov eax, 3
+    jmp cv_open
+cv_s4: mov eax, 4
+    jmp cv_open
+cv_s5: mov eax, 5
+
+cv_open:                                ; button eax: that confederation's cups on fmtpage's page
+    pushad
+    push es
+    push ds
+    pop es
+    cld
+    movzx eax, byte [CV_ORD + eax]
+    mov [CV_CUR], eax
+    mov dword [CT_SPEC], SPEC
+    call CT_LPF                         ; (conti's ct_lp: CT_LP, empty after a load - season 1's draws)
+    movzx ecx, word [CAL_CUR]           ; the career calendar's week (as gplay's O_WEEK)
+    movzx ecx, byte [CAL + ecx + 1]
+    push dword TXTMAX_
+    push dword TXT
+    push ecx
+    push dword [CV_CUR]
+    call CV_TEXT
+    add esp, 16
+    mov edi, TITLE                      ; 'COPPE CONTINENTALI - CONMEBOL'
+    mov esi, CV_LABEL
+.t: lodsb
+    test al, al
+    jz .t1
+    stosb
+    jmp .t
+.t1:mov eax, 202D20h
+    stosd
+    dec edi
+    imul esi, [CV_CUR], 12
+    add esi, CV_CN
+.t2:lodsb
+    stosb
+    test al, al
+    jnz .t2
+    mov byte [FOUND], 1
+    mov dword [PAGE], 0
+    call FP_FILL
+    pop es
+    popad
+    mov dword [A6], FMTMENU
+    jmp SHOW_MENU
+
+align 4
+CV_TRACE: db 'CVTRPTR', 0             ; (the harness: CT_SEG, CT_ED, CT_OUT, the calendar, its entry)
+    dd CT_SEG_, CT_ED_, CT_OUT_, CAL, CAL_CUR
+CV_CUR: dd 0
+CV_ORD: db 0, 1, 2, 3, 4, 5, 0, 0
+CV_LABEL: CV_LABEL_DB
+CV_CN: CV_CN_DB
+CV_LBL: times 72 db 0
+align 4
+CV_MENU:                                ; title, the 6 confederations, ESCI (fmtpage's packed menu format)
+    dd cv_init, 0, 0, 1
+    dw 0, 0, 304, 14
+    dw 4, 17h
+    dw 8, 0
+    dd CV_LABEL
+    dw 0
+CV_BUTTONS
+    dw 72, 180, 160, 15
+    dw 2
+    db 0FFh, 0FFh, 6, 0FFh
+    dw 4, 0Ch
+    dw 8, 0
+    dd EXIT_T
+    dw 13
+    dd EXIT_F
+    dw 0
+    dw -999
+"""
+
+
+def patch(p, at, lang):
+    """The view at obj3:at (the end of the obj3 chain): CV_TAB, ctview.c, the glue; gplay's entry 9 pointed at it.
+    Returns the end (asserted within CAP)."""
+    import careerworld
+    import cobj
+    import complist
+    import fmtpage
+    import gplay
+    import nasmcave
+    cl, wn = conti.LABELS, fmtpage.WN
+    assert cl.get('syms') and wn and 'CV9_VIS' in gplay.LABELS, 'ctview: conti, fmtpage VINCITORI and gplay vc5 first'
+    files, words = conti._world_maps(conti.ready())
+    tab, _ = table(lang, conti.ready(), files, words)
+    t0 = at = (at + 15) & ~15
+    p.put(3, at, tab)
+    tab_at, at = at, (at + len(tab) + 15) & ~15
+    cs = cl['syms']
+    ext = {k: cs[k] for k in ('CT_SPEC', 'CT_LP', 'CT_IN', 'CT_ST', 'CT_OUT', 'CT_ED', 'CT_SEG', 'ct_resume')}
+    ext['CV_TAB'] = (3, tab_at)
+    obj = cobj.compile_c(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'ctview.c'),
+                         ['-fno-zero-initialized-in-bss'])
+    c0 = at
+    syms, at, bss = cobj.link(p, obj, at, (3, 0), externs=ext, text_obj=3)
+    c1 = at
+    assert bss == 0, ('ctview.c: no .bss (statics in its data)', bss)
+    at = (at + 15) & ~15
+    order = [k for k in conti.CONFS]
+    assert len(order) == 6, order
+    T = TEXTS[lang]
+    assert complist.px(T[6].decode('latin1')) <= complist.VC_PX, ('ctview menu entry over VISUAL. COMPETIZ.', T[6])
+    btn = []
+    for i in range(6):
+        nav = f'0FFh, 0FFh, {i if i else 0xFF}, {i + 2 if i < 5 else 7}'
+        btn += [f'    dw 72, {40 + 22 * i}, 160, 15', '    dw 2', f'    db {nav}', '    dw 4, 0Eh', '    dw 8, 0',
+                f'    dd CV_LBL + {12 * i}', '    dw 13', f'    dd cv_s{i}', '    dw 0']
+    src = nasmcave.sub(ASM, 'CV_BUTTONS\n', '\n'.join(btn) + '\n')
+    src = nasmcave.sub(src, 'CV_LABEL_DB', 'db ' + ', '.join(str(b) for b in T[6] + b'\0'))
+    src = nasmcave.sub(src, 'CV_CN_DB', 'db ' + ', '.join(str(b) for k in order
+                                                          for b in CONF_NAMES[k].ljust(12, b'\0')))
+    ws = wn['sym']
+    sym = {k: ws[k] for k in ('A6', 'SHOW_MENU', 'TITLE', 'PAGE', 'FOUND', 'TXT', 'TXTMAX_', 'FMTMENU')}
+    sym.update(FP_FILL=(1, wn['fill']), EXIT_T=wn['exit'][0], EXIT_F=wn['exit'][1], CT_SPEC=cs['CT_SPEC'],
+               SPEC=cl['SPEC'], CT_LPF=(1, cl['ct_lp']), CV_CONFS=syms['cv_confs'], CV_TEXT=syms['cv_text'],
+               CAREERTEAM=gplay.LABELS['CAREERTEAM'], CAL=gplay.LABELS['CAL'], CAL_CUR=gplay.LABELS['CAL_CUR'],
+               W_LPW=(1, careerworld.LABELS['w_lpw']), CT_SEG_=cs['CT_SEG'], CT_ED_=cs['CT_ED'],
+               CT_OUT_=cs['CT_OUT'])
+    code, fix, rel = nasmcave.assemble_obj(src, at, sym, 3)
+    lab = nasmcave.labels(src, at, sym)
+    assert not any(p.get(3, at, len(code)))
+    p.put(3, at, code)
+    for o, t_obj, t_off in fix:
+        p.add_ptr(3, at + o, t_obj, t_off)
+    for o, t_obj, t_off in rel:
+        p.add_rel(3, at + o, t_obj, t_off)
+    end = at + len(code)
+    assert end - t0 <= CAP, ('ctview over its obj3 room', hex(end - t0), hex(CAP))
+    gl = gplay.LABELS                                   # gplay's entry 9: its check, on-select and text -> obj3
+    p.add_ptr(1, gl['CV9_VIS'], 3, lab['cv_vis'])
+    p.add_ptr(1, gl['CV9_GO'], 3, lab['cv_go'])
+    p.retarget(1, gl['VC9_TXTP'], 3, lab['CV_LABEL'])
+    p.put(1, gl['VC9_TXTP'], struct.pack('<I', lab['CV_LABEL']))
+    print(f'exe: COPPE CONTINENTALI view (ctview): obj3+{t0:#x}..{end:#x} ({end - t0} B of {CAP}: table {len(tab)}, '
+          f'C {c1 - c0}, glue {len(code)})')
+    return end
+
+
 def test(lang='it', confs=('conmebol',)):
     import ctypes
     L = conti._native(('ctview.c',))

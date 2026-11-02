@@ -14891,6 +14891,124 @@ def world_winners_sc():
 
 
 
+def cv_trace(exe):
+    """obj2 offsets of conti.c's CT_SEG, CT_ED, CT_OUT, the career calendar and its entry (ctview's 'CVTRPTR' block
+    in obj3), else None."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    from le import LE
+    le = LE(open(os.path.join(exe, 'ITALIAN.EXE'), 'rb').read())
+    if len(le.objs) < 3:
+        return None
+    d3 = le.obj_bytes(3)
+    k = d3.find(b'CVTRPTR\0')
+    return struct.unpack_from('<IIIII', d3, k + 8) if k >= 0 else None
+
+
+def contiview_open(s, k, pages=None):
+    """Career menu -> VISUAL. COMPETIZ. -> COPPE CONTINENTALI -> button k (1..6): (the menu's button texts, the page's
+    title, its lines; with pages: the next pages' lines too); then ESCI twice (back to VISUAL. COMPETIZ.'s list)."""
+    if s.screen().find('COPPE CONTINENTALI', exact=True) is None:   # (else already in its list)
+        walk(s, s.screen().find('VISUAL. COMPETIZ.', exact=True), 3)
+    i = s.screen().find('COPPE CONTINENTALI', exact=True)
+    if i is None:
+        return None, None, []
+    s.shot('contiview_list')
+    walk(s, i, 3)
+    s.shot('contiview_menu')
+    btn = [x[1] for x in s.screen().entries[1:7]]
+    walk(s, k, 3)
+    scr = s.screen()
+    s.shot(f'contiview_{k}')
+    title, lines = scr.entries[0][1], [x[1] for x in scr.entries[1:15]]
+    if pages is not None:
+        for n in range(8):
+            if s.screen().entries[15][2]:
+                break
+            walk(s, 15, 3)
+            s.shot(f'contiview_{k}_p{n + 2}')
+            pages.append([x[1] for x in s.screen().entries[1:15]])
+    walk(s, 16, 3)                                      # EXIT -> the confederations
+    walk(s, s.screen().find('ESCI', exact=True), 3)     # -> VISUAL. COMPETIZ.
+    return btn, title, lines
+
+
+@scenario
+def world_contiview():
+    """4.0.6 COPPE CONTINENTALI (Gianmarco; ctview.py): VISUAL. COMPETIZ.'s entry 9 in a World 2026-27 career, the
+    confederations (an INTER career: CONMEBOL first, no own one), each one's page. Season 1 (a new career): the build's
+    main-round draws (COPA LIBERTADORES, TURNI PRECEDENTI..., GRUPPO A: DA GIOCARE). Season 2 (season 1's save, CV_S2 /
+    RUNS cv_s2.CAR): CT_SEG / CT_ED / CT_OUT byte-identical before and after every page (the view's replay), each
+    confederation's page with its cups' names, no line over the font / page (the game's own text entries)
+    (W2627REL_DATA: the world's release data)"""
+    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    exe = os.environ.get('CV_BUILD') or build('world_contiview', env={
+        'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order])})
+    tr = cv_trace(exe)
+    if not tr:
+        return False, 'no CVTRPTR block (ctview not in the build)'
+    seg_at, ed_at, out_at, cal_at, calcur_at = tr
+
+    def week(s):                                        # (ctview's: the career calendar entry's +1)
+        cur = struct.unpack('<H', bytes(s.result.obj2(calcur_at, 2)))[0]
+        return cur, bytes(s.result.obj2(cal_at + cur, 1))[0], bytes(s.result.obj2(cal_at, 48)).hex()
+    errs, info = [], []
+    names = ['CONMEBOL', 'CONCACAF', 'AFC', 'CAF', 'OFC', 'FIFA']
+    with Session('world_contiview_s1', exe, {}, 'dump:2', 300) as s:
+        s.wait()
+        if not pick_career(s, ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27', 'EUROPA', 'ITALIA',
+                               'SERIE A', 'INTER']):
+            return False, 'season 1: career not reached'
+        s.send('fire dump:3')
+        for _ in range(6):
+            if s.screen().find('VISUAL. COMPETIZ.', exact=True) is not None:
+                break
+            press(s, s.screen(), 'CONTINUA', 3) or s.send('fire dump:2')
+        btn, title, lines = contiview_open(s, 1)
+        s.log.append(f'[cv] s1 week {week(s)} {btn} {title} {lines}')
+        check(btn == names, f'season 1 buttons {btn}', errs)
+        check(title == 'COPPE CONTINENTALI - CONMEBOL', f'season 1 title {title!r}', errs)
+        check(lines[:1] == ['COPA LIBERTADORES'] and 'TURNI PRECEDENTI GIOCATI PRIMA DELLA STAGIONE' in lines
+              and 'GRUPPO A: DA GIOCARE' in lines, f'season 1 page {lines}', errs)
+        info.append(f's1: {lines[:4]}')
+    s2 = os.environ.get('CV_S2') or os.path.join(RUNS, 'cv_s2.CAR')
+    if not os.path.exists(s2):
+        ok, msg, _ = sc_season('EUROPA,ITALIA,SERIE A,INTER', dict(W8485_BUILD=exe))
+        car = os.path.join(RUNS, w84_tag() + '_1', 'SWOS', 'W84A.CAR')
+        if not ok or not os.path.exists(car):
+            return False, f'season 1: {msg[:200]}'
+        shutil.copy(car, s2)
+    with Session('world_contiview_s2', exe, {'W84A.CAR': s2}, 'dump:2', 300) as s:
+        s.wait()
+        s.send(LOAD1 + ' dump:3')
+        for _ in range(6):
+            if s.screen().find('VISUAL. COMPETIZ.', exact=True) is not None:
+                break
+            press(s, s.screen(), 'CONTINUA', 3) or s.send('fire dump:2')
+        st = lambda: (bytes(s.result.obj2(seg_at, 72)), bytes(s.result.obj2(ed_at, 2260)))
+        b0 = st()
+        check(b0[1][:2] == b'CE', f'season 2: no edition in progress (CT_ED {b0[1][:8].hex()})', errs)
+        for k in range(1, 7):
+            pages = []
+            btn, title, lines = contiview_open(s, k, pages)
+            s.log.append(f'[cv] s2 {k} week {week(s)} {title} {lines} {pages}')
+            check(title == 'COPPE CONTINENTALI - ' + names[k - 1], f'season 2 page {k} title {title!r}', errs)
+            check(bool(lines) and lines[0], f'season 2 page {k}: {lines}', errs)
+            b1 = st()
+            dif = [(n, i, b0[j][i], b1[j][i]) for j, n in enumerate(('SEG', 'ED')) for i in range(len(b0[j]))
+                   if b0[j][i] != b1[j][i]]
+            fresh = not any(b0[0])                      # (CT_SEG still empty from the load: ct_pre - the season
+            check(not dif or fresh and not any(n == 'ED' for n, *_ in dif),   # start's chain - computes it from the
+                  f'season 2 page {k}: CT_SEG / CT_ED changed by the view: {dif[:12]} ({len(dif)})', errs)   # edition
+            if dif:                                     # as the view's replay does)
+                info.append(f'page {k}: CT_SEG computed from the load\'s empty one ({dif[:3]})')
+            b0 = b1
+            info.append(f'{names[k - 1]}: {lines[:3]} +{len(pages)} pages')
+    return not errs, '; '.join(errs) or '; '.join(info)
+
+
 @scenario
 def world_winners_sc_semi():
     """4.0.5 (Davide 29/10, choice 1): a final four's semi-final lost -> the final simulated (gplay.c sc_done: the better

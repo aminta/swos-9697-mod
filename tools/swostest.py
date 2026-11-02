@@ -15894,8 +15894,9 @@ def dkb_sets(r, spr, blond, info):
                 a, b_ = (a[0], a[1], rm(a[2])), (b_[0], b_[1], rm(b_[2]))
                 hair = [i for i, (x, y) in enumerate(zip(h0, h1)) if x != y]
                 want = list(a[2])
-                for i in hair:
-                    want[i] = 1
+                wt = blond.WHITE_TONES[os.environ.get('WHITE_TONE', blond.WHITE_TONE)]
+                for i in hair:                          # (raw 12, the darkest shade, is not told apart in the
+                    want[i] = wt[0] if b_[2][i] not in wt else b_[2][i]   # converted sets: either colour)
                 top = [i for i in hair if hair and i // (16 * a[0]) == hair[0] // (16 * a[0])]
                 if len(top) >= 3:
                     want[top[0]] = want[top[-1]] = 0
@@ -15907,7 +15908,7 @@ def dkb_sets(r, spr, blond, info):
                 grey += len(hair)
             check(not bad and grey, f'{tag}: {look} {name} frames differing from R2: {bad[:12]} ({len(bad)})', errs)
             if not bad:
-                info.append(f'{tag}: {look} {name}: all 101 frames = R2 ({grey} hair pixels grey)')
+                info.append(f'{tag}: {look} {name}: all 101 frames = R2 ({grey} hair pixels white/grey)')
         for f in (2, 3, 4, 5):
             if (tm, f) not in vs:                       # 4.0.5 bald: the face's set reshaped by the variant's look
                 continue                                # (blond.LOOKS): E = its top hair (3) in skin colours, the rest
@@ -16044,8 +16045,9 @@ def world_darkblond():
                 ps = struct.unpack('<I', r.read(r.base2 + spr + (186 if skin_ == 'light' else 188) * 4, 4))[0]
                 px_ = [v for x in r.read(struct.unpack('<I', r.read(ps, 4))[0], 64) for v in (x >> 4, x & 15)]
                 hair = [i for i in range(48) if px_[i] == 3]  # three rows grey 1, its top row off)
-                for i in hair:
-                    px_[i] = 0 if i // 16 == hair[0] // 16 else 1
+                wt = blond.WHITE_TONES[os.environ.get('WHITE_TONE', blond.WHITE_TONE)]
+                for i in hair:                          # (WHITE_TONES: the hair, its third row)
+                    px_[i] = 0 if i // 16 == hair[0] // 16 else wt[1] if i // 16 > hair[0] // 16 + 1 else wt[0]
                 ok_ = pb and hair and ib == bytes(px_[i] << 4 | px_[i + 1] for i in range(0, 128, 2))
             elif lk['shape'] == 'oval':                    # (oval: one colour - black for skull 3, else the skin)
                 want = 3 if lk['skull'] == 3 else 5

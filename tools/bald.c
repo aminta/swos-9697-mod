@@ -64,8 +64,12 @@ static void pack(u8 *pix) {
 }
 
 /* 4.0.6 white hair (R2, internal/design/white-hair-variant.md) over the first n cells of px: a sprite's hair (raw 13 /
-   9 / 12) grey 1 - no face conversion changes it - with its top row's two end pixels off (3 or more); an icon's hair
-   (menu colour 3, n = its top three rows) grey 1 (the menu's grey) with its top row off. */
+   9 / 12) WH_HAIR, raw 12 WH_DARK - no face conversion changes 1 / 2 - with its top row's two end pixels off (3 or
+   more); an icon's hair (menu colour 3, n = its top three rows) the same, its top row off, its third WH_DARK. */
+#ifndef WH_HAIR
+#define WH_HAIR 2                                   /* (blond.WHITE_TONES: the hair's colour; the darkest shade's - raw 12, */
+#define WH_DARK 1                                   /* an icon's third hair row) */
+#endif
 __attribute__((noinline)) static void whiten(int n, int icon) {
     u8 *q = &px[0][0];
     int mask = icon ? 1 << 3 : 1 << 13 | 1 << 9 | 1 << 12, f = -1, l = 0, c = 0;
@@ -74,7 +78,7 @@ __attribute__((noinline)) static void whiten(int n, int icon) {
             if (f < 0) f = i;
             int top = i / W == f / W;
             if (top) { l = i; c++; }
-            q[i] = !(icon && top);
+            q[i] = icon && top ? 0 : q[i] == 12 || i / W > f / W + 1 ? WH_DARK : WH_HAIR;
         }
     if (!icon && c >= 3) q[f] = q[l] = 0;
 }

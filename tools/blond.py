@@ -275,73 +275,6 @@ SIDX: dw NEW1_, NEW1_ + 101, NEW3_, NEW3_ + 101, SLOT5_
 align 4
 NEEDT: dd 0, 0
 
-conv1:                                  ; replaces mov ax, [useIndividualPlayerSkinColor] before team 1's goalkeepers
-    pushad
-    xor esi, esi
-    mov edi, T1TAB
-    call convp
-    popad
-    mov ax, [USEIND]
-    ret
-conv2:
-    pushad
-    mov esi, 1
-    mov edi, T2TAB
-    call convp
-    popad
-    mov ax, [USEIND]
-    ret
-convp:                                  ; the team's slots: esi = team (0 / 1), edi = its colour table
-    xor ebx, ebx
-.l:
-    movzx eax, byte [SFL + ebx]
-    test eax, eax
-    jz .n
-    movzx edx, byte [STM + ebx]
-    cmp edx, esi
-    jne .n
-    movzx eax, byte [FACEOF + eax]
-    push eax
-    movzx eax, word [SIDX + ebx * 2]
-    push eax
-    push edi
-    call conv
-.n:
-    inc ebx
-    cmp ebx, NSLOT_
-    jb .l
-    ret
-conv:                                   ; [esp+4] colour table, [esp+8] first new sprite, [esp+12] face table index
-    cmp word [USEIND], 0                ; one face for the whole team: the set is not used
-    je .out
-    pushad
-    mov ebx, [esp + 36]
-    mov eax, [esp + 44]
-    mov [D0], al
-    mov [A0 + 4], ebx                   ; A1 -> colour table
-    call SKINTAB
-    mov ecx, 101
-    mov edx, [esp + 40]
-.l:
-    push ecx
-    push edx
-    mov [D0], dx
-    mov ebx, [esp + 44]
-    mov [A0], ebx
-    push dword [A0 + 20]                ; A5, A6 (as the game around ConvertSpriteColors)
-    push dword [A0 + 24]
-    call CONVSPR
-    pop dword [A0 + 24]
-    pop dword [A0 + 20]
-    pop edx
-    pop ecx
-    inc edx
-    dec ecx
-    jnz .l
-    popad
-.out:
-    ret 12
-
 fo1:                                    ; replaces mov ax, [D0] / mov bx, 442 / sub bx, 341 / mul bx (team 1 player)
     mov ebx, [A0 + 8]                   ; A2 -> player
     push ecx
@@ -633,6 +566,73 @@ pal_write:                              ; 4.0.5 replaces InitGameRestoreTeams' m
     mov esi, WPAL
     ret
 
+conv1:                                  ; replaces mov ax, [useIndividualPlayerSkinColor] before team 1's goalkeepers
+    pushad
+    xor esi, esi
+    mov edi, T1TAB
+    call convp
+    popad
+    mov ax, [USEIND]
+    ret
+conv2:
+    pushad
+    mov esi, 1
+    mov edi, T2TAB
+    call convp
+    popad
+    mov ax, [USEIND]
+    ret
+convp:                                  ; the team's slots: esi = team (0 / 1), edi = its colour table
+    xor ebx, ebx
+.l:
+    movzx eax, byte [SFL + ebx]
+    test eax, eax
+    jz .n
+    movzx edx, byte [STM + ebx]
+    cmp edx, esi
+    jne .n
+    movzx eax, byte [FACEOF + eax]
+    push eax
+    movzx eax, word [SIDX + ebx * 2]
+    push eax
+    push edi
+    call conv
+.n:
+    inc ebx
+    cmp ebx, NSLOT_
+    jb .l
+    ret
+conv:                                   ; [esp+4] colour table, [esp+8] first new sprite, [esp+12] face table index
+    cmp word [USEIND], 0                ; one face for the whole team: the set is not used
+    je .out
+    pushad
+    mov ebx, [esp + 36]
+    mov eax, [esp + 44]
+    mov [D0], al
+    mov [A0 + 4], ebx                   ; A1 -> colour table
+    call SKINTAB
+    mov ecx, 101
+    mov edx, [esp + 40]
+.l:
+    push ecx
+    push edx
+    mov [D0], dx
+    mov ebx, [esp + 44]
+    mov [A0], ebx
+    push dword [A0 + 20]                ; A5, A6 (as the game around ConvertSpriteColors)
+    push dword [A0 + 24]
+    call CONVSPR
+    pop dword [A0 + 24]
+    pop dword [A0 + 20]
+    pop edx
+    pop ecx
+    inc edx
+    dec ecx
+    jnz .l
+    popad
+.out:
+    ret 12
+
 align 4
 SBUF: dd BUF, BUF + SET_, BUF2, BUF2 + SET_, BUF3
 FACEOF: db 0, FACE_, F2_, F3_, F4_, F5_, F6_, F7_ ; per flag: the face conversion table (darkblond 3; bald: face 2 / 0, or 5 / 4
@@ -763,7 +763,7 @@ def patch(p, area, at, bss, spr, bss2, art_at):
                **{f'T{v}{c}_': (0, x >> 2) for v, rgb in (('L', rgbl), ('D', rgbd)) for c, x in zip('RGB', rgb)})
     print(f'exe: bald.c obj1+{at:#x}..{cend:#x} (shaved dark art {len(dark)} B first), .bss {cbss} B')
     at = (cend + 15) & ~15                                # 4.0.6: XASM (the palette route + read-only tables) in
-    xnames = ('pal_setup', 'pal_write', 'SBUF', 'FACEOF', 'LUTSL', 'ORDER', 'ICONS')   # obj3 after cpucards (late_patch,
+    xnames = ('pal_setup', 'pal_write', 'conv1', 'conv2', 'SBUF', 'FACEOF', 'LUTSL', 'ORDER', 'ICONS')   # obj3 after cpucards (late_patch,
     dry = {**sym, **{n: (3, 0x1000) for n in xnames}}     # CONVENTIONS 23): ASM's size and labels with stand-ins
     code0, _, _ = nasmcave.assemble_obj(ASM, at, dry, 1)  # (absolute 32-bit operands either way: one size)
     lab0 = nasmcave.labels(ASM, at, dry)
@@ -772,7 +772,7 @@ def patch(p, area, at, bss, spr, bss2, art_at):
     p.put(1, at, code0)                                   # (the room held until late_patch writes the real code)
 
     def late(at3):
-        xsym = {**sym, 'SFL': (1, lab0['SFL'])}
+        xsym = {**sym, **{n: (1, v) for n, v in lab0.items() if '.' not in n and n not in xnames}}   # (ASM's labels)
         xcode, xfix, xrel = nasmcave.assemble_obj(XASM, at3, xsym, 3)
         xlab = nasmcave.labels(XASM, at3, xsym)
         assert not any(p.get(3, at3, len(xcode))), hex(at3)
@@ -784,7 +784,7 @@ def patch(p, area, at, bss, spr, bss2, art_at):
         sym.update({n: (3, xlab[n]) for n in xnames})
         code, cfix, crel = nasmcave.assemble_obj(ASM, at, sym, 1)
         lab = nasmcave.labels(ASM, at, sym)
-        assert len(code) == len(code0) and lab['SFL'] == lab0['SFL'], 'XASM: ASM moved'
+        assert len(code) == len(code0) and all(lab[n] == v for n, v in lab0.items() if n in lab), 'XASM: ASM moved'
         p.put(1, at, code)
         for o, t_obj, t_off in cfix:
             p.add_ptr(1, at + o, t_obj, t_off)
@@ -818,7 +818,7 @@ def patch(p, area, at, bss, spr, bss2, art_at):
             hook(s, 9, lab_, (3,))
         assert p.get(1, cyc + 15, 1) == b'\x03'
         p.put(1, cyc + 15, b'\x04')                       # Edit Teams face button: 0..3
-        print(f'exe: blond XASM obj3+{at3:#x} ({len(xcode)} B: palette route + tables, 4.0.6)')
+        print(f'exe: blond XASM obj3+{at3:#x} ({len(xcode)} B: palette route, colour conversion, tables; 4.0.6)')
         return at3 + len(xcode)
 
     LATE[:] = [late]
@@ -880,7 +880,15 @@ def look_flags():
         lk = LOOKS[look][skin]
         f += [f'-DSH{k}={dict(E=0, art=1)[lk["shape"]]}', f'-DSK{k}={lk["skull"]}', f'-DEG{k}={lk["ega"]}']
     main, lo, io, _ = shavedart.blobs()
-    return f + [f'-DTONE_L={TONES["light"][0]}', f'-DTONE_D={TONES["dark"][0]}', f'-DART_LIGHT={lo}', f'-DART_ICONS={io}']
+    wt = WHITE_TONES[os.environ.get('WHITE_TONE', WHITE_TONE)]
+    return f + [f'-DTONE_L={TONES["light"][0]}', f'-DTONE_D={TONES["dark"][0]}', f'-DART_LIGHT={lo}', f'-DART_ICONS={io}',
+                f'-DWH_HAIR={wt[0]}', f'-DWH_DARK={wt[1]}']
+
+
+# 4.0.6 white hair's colours (the hair; its darkest shade - raw 12, an icon's third hair row): 1 grey, 2 white (both
+# untouched by the face conversions, in the match and menu palettes alike). WHITE_TONE env: review builds only.
+WHITE_TONES = {'grey': (1, 1), 'a': (2, 1), 'b': (2, 2)}
+WHITE_TONE = 'a'
 
 
 def blond_free():

@@ -112,13 +112,13 @@ a{color:var(--accent)}
 <section>
   <h2 data-it="Installa con un clic" data-en="One-click install" data-fr="Installer en un clic" data-de="Installation mit einem Klick"></h2>
   <p data-it="Con Chrome o Edge basta scegliere la cartella del gioco: la pagina riconosce la versione (CD, GOG, eXoDOS / DOSBox; originale o una versione precedente della mod), mette una copia dei file che cambia in MOD_BACKUP e scrive la mod al loro posto. Puoi rifarlo per aggiornare. I file non lasciano il tuo computer." data-en="In Chrome or Edge just choose the game folder: the page recognises the version (CD, GOG, eXoDOS / DOSBox; original or an earlier release of the mod), keeps a copy of the files it changes in MOD_BACKUP and writes the mod in their place. Run it again to update. Your files never leave your computer." data-fr="Avec Chrome ou Edge, il suffit de choisir le dossier du jeu : la page reconnaît la version (CD, GOG, eXoDOS / DOSBox ; originale ou une version précédente du mod), garde une copie des fichiers qu&#x27;elle change dans MOD_BACKUP et écrit le mod à leur place. Relancez-la pour mettre à jour. Vos fichiers ne quittent pas votre ordinateur." data-de="Mit Chrome oder Edge wählen Sie einfach den Spielordner: Die Seite erkennt die Version (CD, GOG, eXoDOS / DOSBox; Original oder eine frühere Version des Mods), legt eine Kopie der geänderten Dateien in MOD_BACKUP ab und schreibt den Mod an ihre Stelle. Zum Aktualisieren einfach erneut ausführen. Ihre Dateien verlassen Ihren Computer nicht."></p>
-  <p class="sub" id="pfhint" data-it="Il gioco è in Program Files / Programmi (per esempio la cartella di GOG Galaxy, C:\Program Files (x86)\GOG Galaxy\Games)? Chrome ed Edge non aprono quella cartella («contiene file di sistema»). Usa i passi a mano qui sotto, oppure copia la cartella del gioco altrove (per esempio in Documenti), installa la mod nella copia con un clic, poi ricopia il suo contenuto sopra l&#x27;originale (Windows chiede il permesso di amministratore: accetta) e gioca come sempre." data-en="Is the game in Program Files (for example GOG Galaxy&#x27;s folder, C:\Program Files (x86)\GOG Galaxy\Games)? Chrome and Edge do not open that folder (&quot;contains system files&quot;). Use the manual steps below, or copy the game folder somewhere else (for example Documents), install the mod into the copy with one click, then copy its contents back over the original (Windows asks for administrator permission: accept) and play as usual." data-fr="Le jeu est dans Program Files / Programmes (par exemple le dossier de GOG Galaxy, C:\Program Files (x86)\GOG Galaxy\Games) ? Chrome et Edge n&#x27;ouvrent pas ce dossier (« contient des fichiers système »). Suivez les étapes à la main ci-dessous, ou copiez le dossier du jeu ailleurs (par exemple dans Documents), installez le mod dans la copie en un clic, puis recopiez son contenu par-dessus l&#x27;original (Windows demande l&#x27;autorisation d&#x27;administrateur : acceptez) et jouez comme d&#x27;habitude." data-de="Liegt das Spiel unter Programme / Program Files (zum Beispiel im Ordner von GOG Galaxy, C:\Program Files (x86)\GOG Galaxy\Games)? Chrome und Edge öffnen diesen Ordner nicht („enthält Systemdateien“). Folgen Sie den Schritten von Hand weiter unten, oder kopieren Sie den Spielordner woandershin (zum Beispiel nach Dokumente), installieren Sie den Mod mit einem Klick in die Kopie, kopieren Sie dann ihren Inhalt über das Original zurück (Windows fragt nach Administratorrechten: bestätigen) und spielen Sie wie gewohnt."></p>
+  <p class="sub" id="pfhint" data-it="Il gioco è in Program Files / Programmi (per esempio con GOG Galaxy) o su un CD? Lì il browser non può scrivere, e se scegli Program Files stessa Chrome risponde «contiene file di sistema». Usa il secondo pulsante, «Installa in una cartella nuova»: scegli la cartella del gioco, poi una cartella vuota fuori da Program Files (per esempio Documenti\SWOS 96-97 Mod: puoi crearla nella finestra di scelta). La pagina ci copia il gioco e installa la mod; poi giochi da lì. L&#x27;originale resta com&#x27;era, senza permessi di amministratore." data-en="Is the game in Program Files (for example with GOG Galaxy) or on a CD? The browser cannot write there, and if you choose Program Files itself Chrome answers &quot;contains system files&quot;. Use the second button, &quot;Install into a new folder&quot;: choose the game folder, then an empty folder outside Program Files (for example Documents\SWOS 96-97 Mod: you can create it in the picker). The page copies the game there and installs the mod; then you play from there. The original stays as it was, with no administrator permission." data-fr="Le jeu est dans Program Files / Programmes (par exemple avec GOG Galaxy) ou sur un CD ? Le navigateur ne peut pas y écrire, et si vous choisissez Program Files lui-même Chrome répond « contient des fichiers système ». Utilisez le deuxième bouton, « Installer dans un nouveau dossier » : choisissez le dossier du jeu, puis un dossier vide hors de Program Files (par exemple Documents\SWOS 96-97 Mod : vous pouvez le créer dans la fenêtre de choix). La page y copie le jeu et installe le mod ; vous jouez ensuite depuis ce dossier. L&#x27;original reste tel quel, sans autorisation d&#x27;administrateur." data-de="Liegt das Spiel unter Programme / Program Files (zum Beispiel mit GOG Galaxy) oder auf einer CD? Dort kann der Browser nicht schreiben, und wenn Sie Program Files selbst wählen, antwortet Chrome „enthält Systemdateien“. Nehmen Sie den zweiten Knopf, „In einen neuen Ordner installieren“: Wählen Sie den Spielordner, dann einen leeren Ordner außerhalb von Program Files (zum Beispiel Dokumente\SWOS 96-97 Mod; Sie können ihn im Auswahlfenster anlegen). Die Seite kopiert das Spiel dorthin und installiert den Mod; danach spielen Sie von dort. Das Original bleibt, wie es war, ohne Administratorrechte."></p>
   <p><button class="dl" type="button" id="pickdir" data-it="Scegli la cartella del gioco" data-en="Choose the game folder" data-fr="Choisir le dossier du jeu" data-de="Spielordner wählen"></button>
-     <button class="dl" type="button" id="pickcd" data-it="Dal CD: copia il gioco in una cartella nuova" data-en="From the CD: copy the game into a new folder" data-fr="Depuis le CD : copier le jeu dans un nouveau dossier" data-de="Von der CD: Spiel in einen neuen Ordner kopieren"></button></p>
+     <button class="dl" type="button" id="pickcd" data-it="Installa in una cartella nuova (Program Files, CD)" data-en="Install into a new folder (Program Files, CD)" data-fr="Installer dans un nouveau dossier (Program Files, CD)" data-de="In einen neuen Ordner installieren (Program Files, CD)"></button></p>
   <p><label><input type="checkbox" id="joyopt" checked> <span data-it="Versione GOG: ho un joypad / gamepad. Imposta il gioco per il joypad (giocatore 1) e la tastiera (giocatore 2) e configura DOSBox (joysticktype=fcs, timed=false, croce direzionale). Se non hai un joypad collegato si gioca comunque con la tastiera; togli la spunta solo se non vuoi questo." data-en="GOG version: I have a joypad / gamepad. Set the game up for the joypad (player 1) and the keyboard (player 2) and configure DOSBox (joysticktype=fcs, timed=false, d-pad). If no joypad is plugged in the game is still played with the keyboard; untick it only if you do not want this." data-fr="Version GOG : j'ai une manette / un gamepad. Régler le jeu pour la manette (joueur 1) et le clavier (joueur 2) et configurer DOSBox (joysticktype=fcs, timed=false, croix directionnelle). Sans manette branchée, le jeu se joue quand même au clavier ; décochez seulement si vous ne le voulez pas." data-de="GOG-Version: Ich habe ein Joypad / Gamepad. Das Spiel für Joypad (Spieler 1) und Tastatur (Spieler 2) einrichten und DOSBox konfigurieren (joysticktype=fcs, timed=false, Steuerkreuz). Ist kein Joypad angeschlossen, spielt man trotzdem mit der Tastatur; nur abwählen, wenn Sie das nicht möchten."></span></label></p>
   <p><label><input type="checkbox" id="joykey"> <span data-it="Versione GOG, joypad in modalità tastiera (con la prima spunta): spunta se il joypad va bene nei menu ma in partita il giocatore va solo in su e a sinistra, o se il tuo joystick non ha la croce direzionale. Stick, croce e pulsanti diventano i tasti freccia e Ctrl: nessuna calibrazione, va con qualsiasi joystick o joypad; joypad e tastiera comandano tutti e due il giocatore 1." data-en="GOG version, joypad in keyboard mode (with the first tick): tick this if the joypad works in the menus but in a match the player only goes up and left, or if your joystick has no d-pad. The stick, d-pad and buttons become the arrow keys and Ctrl: no calibration, it works with any joystick or joypad; joypad and keyboard both control player 1." data-fr="Version GOG, manette en mode clavier (avec la première case) : cochez si la manette marche dans les menus mais qu&#x27;en match le joueur ne va qu&#x27;en haut et à gauche, ou si votre joystick n&#x27;a pas de croix directionnelle. Le stick, la croix et les boutons deviennent les flèches et Ctrl : aucune calibration, cela marche avec n&#x27;importe quel joystick ou manette ; manette et clavier commandent tous les deux le joueur 1." data-de="GOG-Version, Joypad im Tastaturmodus (mit dem ersten Haken): anhaken, wenn das Joypad in den Menüs geht, der Spieler im Match aber nur nach oben und links läuft, oder wenn Ihr Joystick kein Steuerkreuz hat. Stick, Steuerkreuz und Knöpfe werden zu Pfeiltasten und Strg: keine Kalibrierung, geht mit jedem Joystick oder Joypad; Joypad und Tastatur steuern beide Spieler 1."></span></label></p>
   <p><label><input type="checkbox" id="joyown"> <span data-it="Usi un tuo DOSBox (CD, eXoDOS, altro)? Spunta se hai un joypad: cambio solo SETUP.DAT; nella configurazione del tuo DOSBox metti [joystick] timed=false (vedi la guida)." data-en="Using your own DOSBox (CD, eXoDOS, other)? Tick this if you have a joypad: I change only SETUP.DAT; in your DOSBox configuration set [joystick] timed=false (see the guide)." data-fr="Vous utilisez votre propre DOSBox (CD, eXoDOS, autre) ? Cochez si vous avez une manette : je ne change que SETUP.DAT ; dans la configuration de votre DOSBox mettez [joystick] timed=false (voir le guide)." data-de="Eigenes DOSBox (CD, eXoDOS, andere)? Anhaken, wenn Sie ein Joypad haben: ich ändere nur SETUP.DAT; in der Konfiguration Ihres DOSBox [joystick] timed=false setzen (siehe Anleitung)."></span></label></p>
-  <p class="sub" data-it="Il CD non si può modificare: con il secondo pulsante scegli prima la cartella del gioco sul CD (per esempio D:\SWOS), poi una cartella vuota sul disco (per esempio C:\SWOS); la pagina ci copia il gioco e installa la mod." data-en="The CD cannot be changed: with the second button choose first the game folder on the CD (for example D:\SWOS), then an empty folder on your disk (for example C:\SWOS); the page copies the game there and installs the mod." data-fr="Le CD ne peut pas être modifié : avec le deuxième bouton, choisissez d&#x27;abord le dossier du jeu sur le CD (par exemple D:\SWOS), puis un dossier vide sur votre disque (par exemple C:\SWOS) ; la page y copie le jeu et installe le mod." data-de="Die CD kann nicht geändert werden: Wählen Sie mit dem zweiten Knopf zuerst den Spielordner auf der CD (zum Beispiel D:\SWOS), dann einen leeren Ordner auf Ihrer Festplatte (zum Beispiel C:\SWOS); die Seite kopiert das Spiel dorthin und installiert den Mod."></p>
+  <p class="sub" data-it="Con il secondo pulsante: prima la cartella del gioco (per esempio C:\Program Files (x86)\GOG Galaxy\Games\Sensible World of Soccer 96-97, o sul CD D:\SWOS), poi una cartella vuota (per esempio Documenti\SWOS 96-97 Mod). Per aggiornare in seguito scegli di nuovo quelle due cartelle, o la cartella nuova con il primo pulsante." data-en="With the second button: first the game folder (for example C:\Program Files (x86)\GOG Galaxy\Games\Sensible World of Soccer 96-97, or on the CD D:\SWOS), then an empty folder (for example Documents\SWOS 96-97 Mod). To update later choose those two folders again, or the new folder with the first button." data-fr="Avec le deuxième bouton : d&#x27;abord le dossier du jeu (par exemple C:\Program Files (x86)\GOG Galaxy\Games\Sensible World of Soccer 96-97, ou sur le CD D:\SWOS), puis un dossier vide (par exemple Documents\SWOS 96-97 Mod). Pour mettre à jour plus tard, choisissez de nouveau ces deux dossiers, ou le nouveau dossier avec le premier bouton." data-de="Mit dem zweiten Knopf: zuerst den Spielordner (zum Beispiel C:\Program Files (x86)\GOG Galaxy\Games\Sensible World of Soccer 96-97, oder auf der CD D:\SWOS), dann einen leeren Ordner (zum Beispiel Dokumente\SWOS 96-97 Mod). Für ein späteres Update wählen Sie wieder diese beiden Ordner, oder den neuen Ordner mit dem ersten Knopf."></p>
   <p class="sub" data-it="Windows GOG: per esempio C:\GOG Games\Sensible World of Soccer 96-97. CD: per esempio C:\SWOS. Mac GOG: apri l'app con il tasto destro, Mostra contenuto pacchetto, e scegli Contents/Resources/game/…/Sensible World Of Soccer 96-97.boxer/C Sensible World of Soccer 96-97.harddisk." data-en="Windows GOG: for example C:\GOG Games\Sensible World of Soccer 96-97. CD: for example C:\SWOS. Mac GOG: right-click the app, Show Package Contents, and choose Contents/Resources/game/…/Sensible World Of Soccer 96-97.boxer/C Sensible World of Soccer 96-97.harddisk." data-fr="Windows GOG : par exemple C:\GOG Games\Sensible World of Soccer 96-97. CD : par exemple C:\SWOS. Mac GOG : clic droit sur l&#x27;app, Afficher le contenu du paquet, puis choisissez Contents/Resources/game/…/Sensible World Of Soccer 96-97.boxer/C Sensible World of Soccer 96-97.harddisk." data-de="Windows GOG: zum Beispiel C:\GOG Games\Sensible World of Soccer 96-97. CD: zum Beispiel C:\SWOS. Mac GOG: Rechtsklick auf die App, Paketinhalt zeigen, dann Contents/Resources/game/…/Sensible World Of Soccer 96-97.boxer/C Sensible World of Soccer 96-97.harddisk wählen."></p>
   <div id="dirmsg" class="msg" hidden></div>
 </section>
@@ -427,11 +427,15 @@ async function handle(files) {
 
 // ---- 4.0: one-click install into the game folder (File System Access API: Chrome / Edge) ----
 const DT = {
-  it: { pf: "Il gioco è in Program Files / Programmi (per esempio la cartella di GOG Galaxy, C:\\Program Files (x86)\\GOG Galaxy\\Games)? Chrome ed Edge non aprono quella cartella («contiene file di sistema»). Usa i passi a mano qui sotto, oppure copia la cartella del gioco altrove (per esempio in Documenti), installa la mod nella copia con un clic, poi ricopia il suo contenuto sopra l'originale (Windows chiede il permesso di amministratore: accetta) e gioca come sempre.",
+  it: { pf: "Nessuna cartella scelta. Se Chrome ha detto «contiene file di sistema», hai scelto Program Files (o una sua cartella di sistema): scegli la cartella del gioco stessa, oppure usa il secondo pulsante, «Installa in una cartella nuova».",
         nopicker: "Questo browser non può scrivere nella cartella del gioco: per l'installazione con un clic usa Chrome o Edge, oppure segui i passi a mano qui sotto.",
-        notfound: "In questa cartella non trovo il gioco (ITALIAN.EXE / ENGLISH.EXE / FRENCH.EXE / GERMAN.EXE e la cartella DATA con TEAM.020). Scegli la cartella dove è installato Sensible World of Soccer 96/97.",
-        cdnext: 'Ora scegli una cartella vuota sul disco dove copiare il gioco (per esempio C:\\SWOS).', copying: 'Copio il gioco dal CD…',
-        cd: "Questa cartella non si può modificare (è un CD?): usa il pulsante «Dal CD» per copiare il gioco su disco.",
+        notfound: "In questa cartella non trovo il gioco. Scegli la cartella che contiene ITALIAN.EXE (o ENGLISH.EXE, FRENCH.EXE, GERMAN.EXE) e la cartella DATA con TEAM.020: per esempio C:\\SWOS, oppure con GOG …\\Sensible World of Soccer 96-97. Va bene anche una cartella che la contiene: la pagina guarda nelle sottocartelle.",
+        newdst: "Ora scegli una cartella vuota fuori da Program Files (per esempio Documenti\\SWOS 96-97 Mod: puoi crearla nella finestra di scelta). La pagina ci copia il gioco.", copying: "Copio il gioco nella cartella nuova…",
+        nowrite: "Il browser non può scrivere in questa cartella (Program Files o un CD: Windows non lo permette). Non ho cambiato niente. Usa il secondo pulsante, «Installa in una cartella nuova»: la pagina copia il gioco in una cartella tua e installa la mod lì.",
+        dstno: "Non posso scrivere nella cartella nuova: scegline una fuori da Program Files (per esempio in Documenti). Il gioco originale non è cambiato.",
+        same: "La cartella nuova non può essere la cartella del gioco o una sua sottocartella: scegli una cartella vuota altrove (per esempio in Documenti).",
+        notempty: "La cartella nuova non è vuota e non contiene già il gioco: scegli o crea una cartella vuota.",
+        newplay: "La mod è nella cartella nuova: gioca da lì (con GOG usa i file «SWOS Mod - ….bat» di quella cartella). Il gioco originale e il collegamento di GOG Galaxy restano com'erano, senza la mod.",
         reading: 'Leggo i file…', saving: 'Salvo la copia di sicurezza e scrivo la mod…',
         kind: { gog: 'versione GOG', cd: 'versione CD' }, found: (k, l) => `Trovato: ${k}, lingue ${l}.`,
         bad: n => `Questi file non sono stati riconosciuti e restano com'erano: ${n}.`,
@@ -444,12 +448,17 @@ const DT = {
         done: n => `Fatto: ${n} / ${n} file scritti e verificati (la copia dei file sostituiti è in MOD_BACKUP\\{{VERSION}}). Avvia il gioco come sempre e inizia una carriera nuova.`,
         joy: { kdone: 'Modalità tastiera: SETUP.DAT riportato a quello di fabbrica (solo tastiera).', kalready: 'Modalità tastiera: SETUP.DAT già di fabbrica (solo tastiera).', kmap: 'mapper-SVN.map scritto: stick, croce direzionale e pulsanti del joypad = tasti freccia e Ctrl (la copia, se c\'era, è in mapper-SVN.map.bak).', conf: 'In dosbox_SWOS.conf: joysticktype=fcs e timed=false nella sezione [joystick] (copia in dosbox_SWOS.conf.bak).', map: 'Croce direzionale: mapper-SVN.map scritto (la copia, se c\'era, è in mapper-SVN.map.bak).', mapkeep: 'mapper-SVN.map è tuo: l\'ho lasciato com\'era (la croce direzionale non è mappata).', own: 'Il tuo DOSBox: metti [joystick] timed=false nella sua configurazione (vedi la guida).', cloud: 'Nella cartella cloud_saves di GOG:', done: 'Joypad: SETUP.DAT di fabbrica sostituito con quello calibrato (l\'originale è in SETUP.DAT.bak).', already: 'Joypad: SETUP.DAT già calibrato.', custom: 'Joypad: il tuo SETUP.DAT non è quello di fabbrica: l\'ho lasciato com\'era.', none: 'Joypad: SETUP.DAT non trovato, niente da cambiare.', undone: 'Joypad disattivato: SETUP.DAT (e dosbox_SWOS.conf) rimessi com\'erano dalle copie .bak.' },
         denied: 'La pagina non ha il permesso di scrivere nella cartella: riprova e conferma "Modifica file" / "Salva modifiche".',
-        error: m => `Errore: ${m}. Il gioco potrebbe essere a metà: rimetti i file di MOD_BACKUP\\{{VERSION}} e riprova.` },
-  en: { pf: "Is the game in Program Files (for example GOG Galaxy's folder, C:\\Program Files (x86)\\GOG Galaxy\\Games)? Chrome and Edge do not open that folder (\"contains system files\"). Use the manual steps below, or copy the game folder somewhere else (for example Documents), install the mod into the copy with one click, then copy its contents back over the original (Windows asks for administrator permission: accept) and play as usual.",
+        failnone: m => `Errore: ${m}. Non ho cambiato niente nel gioco.`,
+        error: m => `L'installazione si è fermata prima della fine (${m}). Non è perso niente: scegli di nuovo la stessa cartella e la pagina la completa. Per tornare a com'era, rimetti nella cartella del gioco i file di MOD_BACKUP\\{{VERSION}}.` },
+  en: { pf: "No folder chosen. If Chrome said \"contains system files\", you chose Program Files (or one of its system folders): choose the game's own folder, or use the second button, \"Install into a new folder\".",
         nopicker: 'This browser cannot write into the game folder: for the one-click install use Chrome or Edge, or follow the manual steps below.',
-        notfound: 'I cannot find the game in this folder (ITALIAN.EXE / ENGLISH.EXE / FRENCH.EXE / GERMAN.EXE and the DATA folder with TEAM.020). Choose the folder where Sensible World of Soccer 96/97 is installed.',
-        cdnext: 'Now choose an empty folder on your disk to copy the game into (for example C:\\SWOS).', copying: 'Copying the game from the CD…',
-        cd: 'This folder cannot be changed (is it a CD?): use the "From the CD" button to copy the game to your disk.',
+        notfound: "I cannot find the game in this folder. Choose the folder that holds ENGLISH.EXE (or ITALIAN.EXE, FRENCH.EXE, GERMAN.EXE) and the DATA folder with TEAM.020: for example C:\\SWOS, or with GOG …\\Sensible World of Soccer 96-97. A folder that contains it works too: the page looks in the subfolders.",
+        newdst: "Now choose an empty folder outside Program Files (for example Documents\\SWOS 96-97 Mod: you can create it in the picker). The page copies the game there.", copying: "Copying the game into the new folder…",
+        nowrite: "The browser cannot write into this folder (Program Files or a CD: Windows does not allow it). Nothing was changed. Use the second button, \"Install into a new folder\": the page copies the game into a folder of yours and installs the mod there.",
+        dstno: "I cannot write into the new folder: choose one outside Program Files (for example in Documents). The original game was not changed.",
+        same: "The new folder cannot be the game folder or a folder inside it: choose an empty folder somewhere else (for example in Documents).",
+        notempty: "The new folder is not empty and does not hold the game already: choose or create an empty folder.",
+        newplay: "The mod is in the new folder: play from there (with GOG use the \"SWOS Mod - ….bat\" files in that folder). The original game and the GOG Galaxy shortcut stay as they were, without the mod.",
         reading: 'Reading the files…', saving: 'Saving the backup and writing the mod…',
         kind: { gog: 'GOG version', cd: 'CD version' }, found: (k, l) => `Found: ${k}, languages ${l}.`,
         bad: n => `These files were not recognised and were left as they were: ${n}.`,
@@ -462,12 +471,17 @@ const DT = {
         done: n => `Done: ${n} / ${n} files written and verified (a copy of the replaced files is in MOD_BACKUP\\{{VERSION}}). Start the game as usual and start a new career.`,
         joy: { kdone: 'Keyboard mode: SETUP.DAT set back to the factory one (keyboard only).', kalready: 'Keyboard mode: SETUP.DAT already the factory one (keyboard only).', kmap: 'mapper-SVN.map written: the joypad\'s stick, d-pad and buttons = the arrow keys and Ctrl (the previous one, if any, is in mapper-SVN.map.bak).', conf: 'In dosbox_SWOS.conf: joysticktype=fcs and timed=false in the [joystick] section (a copy is in dosbox_SWOS.conf.bak).', map: 'D-pad: mapper-SVN.map written (the previous one, if any, is in mapper-SVN.map.bak).', mapkeep: 'mapper-SVN.map is yours: left as it was (the d-pad is not mapped).', own: 'Your own DOSBox: set [joystick] timed=false in its configuration (see the guide).', cloud: 'In GOG\'s cloud_saves folder:', done: 'Joypad: the factory SETUP.DAT was replaced by the calibrated one (the original is in SETUP.DAT.bak).', already: 'Joypad: SETUP.DAT is already calibrated.', custom: 'Joypad: your SETUP.DAT is not the factory one: left as it was.', none: 'Joypad: SETUP.DAT not found, nothing to change.', undone: 'Joypad switched off: SETUP.DAT (and dosbox_SWOS.conf) put back from the .bak copies.' },
         denied: 'The page has no permission to write into the folder: try again and confirm "Edit files" / "Save changes".',
-        error: m => `Error: ${m}. The game may be half updated: put back the files from MOD_BACKUP\\{{VERSION}} and try again.` },
-  fr: { pf: "Le jeu est dans Program Files / Programmes (par exemple le dossier de GOG Galaxy, C:\\Program Files (x86)\\GOG Galaxy\\Games) ? Chrome et Edge n'ouvrent pas ce dossier (« contient des fichiers système »). Suivez les étapes à la main ci-dessous, ou copiez le dossier du jeu ailleurs (par exemple dans Documents), installez le mod dans la copie en un clic, puis recopiez son contenu par-dessus l'original (Windows demande l'autorisation d'administrateur : acceptez) et jouez comme d'habitude.",
+        failnone: m => `Error: ${m}. Nothing was changed in the game.`,
+        error: m => `The install stopped before the end (${m}). Nothing is lost: choose the same folder again and the page finishes it. To go back to how it was, put the files from MOD_BACKUP\\{{VERSION}} back into the game folder.` },
+  fr: { pf: "Aucun dossier choisi. Si Chrome a dit « contient des fichiers système », vous avez choisi Program Files (ou un de ses dossiers système) : choisissez le dossier du jeu lui-même, ou utilisez le deuxième bouton, « Installer dans un nouveau dossier ».",
         nopicker: "Ce navigateur ne peut pas écrire dans le dossier du jeu : pour l'installation en un clic, utilisez Chrome ou Edge, ou suivez les étapes à la main ci-dessous.",
-        notfound: "Je ne trouve pas le jeu dans ce dossier (ITALIAN.EXE / ENGLISH.EXE / FRENCH.EXE / GERMAN.EXE et le dossier DATA avec TEAM.020). Choisissez le dossier où Sensible World of Soccer 96/97 est installé.",
-        cdnext: 'Choisissez maintenant un dossier vide sur votre disque où copier le jeu (par exemple C:\\SWOS).', copying: 'Copie du jeu depuis le CD…',
-        cd: "Ce dossier ne peut pas être modifié (est-ce un CD ?) : utilisez le bouton « Depuis le CD » pour copier le jeu sur votre disque.",
+        notfound: "Je ne trouve pas le jeu dans ce dossier. Choisissez le dossier qui contient FRENCH.EXE (ou ENGLISH.EXE, ITALIAN.EXE, GERMAN.EXE) et le dossier DATA avec TEAM.020 : par exemple C:\\SWOS, ou avec GOG …\\Sensible World of Soccer 96-97. Un dossier qui le contient convient aussi : la page cherche dans les sous-dossiers.",
+        newdst: "Choisissez maintenant un dossier vide hors de Program Files (par exemple Documents\\SWOS 96-97 Mod : vous pouvez le créer dans la fenêtre de choix). La page y copie le jeu.", copying: "Copie du jeu dans le nouveau dossier…",
+        nowrite: "Le navigateur ne peut pas écrire dans ce dossier (Program Files ou un CD : Windows ne le permet pas). Rien n'a été changé. Utilisez le deuxième bouton, « Installer dans un nouveau dossier » : la page copie le jeu dans un dossier à vous et y installe le mod.",
+        dstno: "Je ne peux pas écrire dans le nouveau dossier : choisissez-en un hors de Program Files (par exemple dans Documents). Le jeu original n'a pas changé.",
+        same: "Le nouveau dossier ne peut pas être le dossier du jeu ni un de ses sous-dossiers : choisissez un dossier vide ailleurs (par exemple dans Documents).",
+        notempty: "Le nouveau dossier n'est pas vide et ne contient pas déjà le jeu : choisissez ou créez un dossier vide.",
+        newplay: "Le mod est dans le nouveau dossier : jouez depuis celui-ci (avec GOG, utilisez les fichiers « SWOS Mod - ….bat » de ce dossier). Le jeu original et le raccourci de GOG Galaxy restent tels quels, sans le mod.",
         reading: 'Lecture des fichiers…', saving: 'Sauvegarde et écriture du mod…',
         kind: { gog: 'version GOG', cd: 'version CD' }, found: (k, l) => `Trouvé : ${k}, langues ${l}.`,
         bad: n => `Ces fichiers n'ont pas été reconnus et restent tels quels : ${n}.`,
@@ -480,12 +494,17 @@ const DT = {
         done: n => `Terminé : ${n} / ${n} fichiers écrits et vérifiés (la copie des fichiers remplacés est dans MOD_BACKUP\\{{VERSION}}). Lancez le jeu comme d'habitude et commencez une nouvelle carrière.`,
         joy: { kdone: 'Mode clavier : SETUP.DAT remis à celui d\'origine (clavier seul).', kalready: 'Mode clavier : SETUP.DAT déjà celui d\'origine (clavier seul).', kmap: 'mapper-SVN.map écrit : le stick, la croix directionnelle et les boutons de la manette = les flèches et Ctrl (l\'ancien, s\'il existait, est dans mapper-SVN.map.bak).', conf: 'Dans dosbox_SWOS.conf : joysticktype=fcs et timed=false dans la section [joystick] (copie dans dosbox_SWOS.conf.bak).', map: 'Croix directionnelle : mapper-SVN.map écrit (l\'ancien, s\'il existait, est dans mapper-SVN.map.bak).', mapkeep: 'mapper-SVN.map est le vôtre : laissé tel quel (la croix directionnelle n\'est pas mappée).', own: 'Votre propre DOSBox : mettez [joystick] timed=false dans sa configuration (voir le guide).', cloud: 'Dans le dossier cloud_saves de GOG :', done: 'Manette : le SETUP.DAT d\'usine a été remplacé par le fichier calibré (l\'original est dans SETUP.DAT.bak).', already: 'Manette : SETUP.DAT est déjà calibré.', custom: 'Manette : votre SETUP.DAT n\'est pas celui d\'usine : laissé tel quel.', none: 'Manette : SETUP.DAT introuvable, rien à changer.', undone: 'Manette désactivée : SETUP.DAT (et dosbox_SWOS.conf) remis comme avant depuis les copies .bak.' },
         denied: "La page n'a pas le droit d'écrire dans le dossier : réessayez et confirmez « Modifier les fichiers » / « Enregistrer les modifications ».",
-        error: m => `Erreur : ${m}. Le jeu est peut-être à moitié modifié : remettez les fichiers de MOD_BACKUP\\{{VERSION}} et réessayez.` },
-  de: { pf: "Liegt das Spiel unter Programme / Program Files (zum Beispiel im Ordner von GOG Galaxy, C:\\Program Files (x86)\\GOG Galaxy\\Games)? Chrome und Edge öffnen diesen Ordner nicht („enthält Systemdateien“). Folgen Sie den Schritten von Hand weiter unten, oder kopieren Sie den Spielordner woandershin (zum Beispiel nach Dokumente), installieren Sie den Mod mit einem Klick in die Kopie, kopieren Sie dann ihren Inhalt über das Original zurück (Windows fragt nach Administratorrechten: bestätigen) und spielen Sie wie gewohnt.",
+        failnone: m => `Erreur : ${m}. Rien n'a été changé dans le jeu.`,
+        error: m => `L'installation s'est arrêtée avant la fin (${m}). Rien n'est perdu : choisissez de nouveau le même dossier et la page la termine. Pour revenir à l'état d'avant, remettez dans le dossier du jeu les fichiers de MOD_BACKUP\\{{VERSION}}.` },
+  de: { pf: "Kein Ordner gewählt. Wenn Chrome „enthält Systemdateien“ gemeldet hat, haben Sie Program Files (oder einen seiner Systemordner) gewählt: Wählen Sie den Spielordner selbst, oder nehmen Sie den zweiten Knopf, „In einen neuen Ordner installieren“.",
         nopicker: 'Dieser Browser kann nicht in den Spielordner schreiben: Für die Installation mit einem Klick nutzen Sie Chrome oder Edge, oder folgen Sie den Schritten von Hand weiter unten.',
-        notfound: 'In diesem Ordner finde ich das Spiel nicht (ITALIAN.EXE / ENGLISH.EXE / FRENCH.EXE / GERMAN.EXE und den Ordner DATA mit TEAM.020). Wählen Sie den Ordner, in dem Sensible World of Soccer 96/97 installiert ist.',
-        cdnext: 'Wählen Sie jetzt einen leeren Ordner auf Ihrer Festplatte, in den das Spiel kopiert wird (zum Beispiel C:\\SWOS).', copying: 'Kopiere das Spiel von der CD…',
-        cd: 'Dieser Ordner kann nicht geändert werden (eine CD?): Nutzen Sie den Knopf „Von der CD“, um das Spiel auf die Festplatte zu kopieren.',
+        notfound: "In diesem Ordner finde ich das Spiel nicht. Wählen Sie den Ordner mit GERMAN.EXE (oder ENGLISH.EXE, ITALIAN.EXE, FRENCH.EXE) und dem Ordner DATA mit TEAM.020: zum Beispiel C:\\SWOS, oder mit GOG …\\Sensible World of Soccer 96-97. Ein Ordner, der ihn enthält, geht auch: Die Seite sucht in den Unterordnern.",
+        newdst: "Wählen Sie jetzt einen leeren Ordner außerhalb von Program Files (zum Beispiel Dokumente\\SWOS 96-97 Mod; Sie können ihn im Auswahlfenster anlegen). Die Seite kopiert das Spiel dorthin.", copying: "Kopiere das Spiel in den neuen Ordner…",
+        nowrite: "Der Browser kann in diesen Ordner nicht schreiben (Program Files oder eine CD: Windows erlaubt es nicht). Es wurde nichts geändert. Nehmen Sie den zweiten Knopf, „In einen neuen Ordner installieren“: Die Seite kopiert das Spiel in einen eigenen Ordner und installiert den Mod dort.",
+        dstno: "Ich kann in den neuen Ordner nicht schreiben: Wählen Sie einen außerhalb von Program Files (zum Beispiel unter Dokumente). Das Originalspiel ist unverändert.",
+        same: "Der neue Ordner darf nicht der Spielordner oder einer seiner Unterordner sein: Wählen Sie anderswo einen leeren Ordner (zum Beispiel unter Dokumente).",
+        notempty: "Der neue Ordner ist nicht leer und enthält das Spiel noch nicht: Wählen oder erstellen Sie einen leeren Ordner.",
+        newplay: "Der Mod ist im neuen Ordner: Spielen Sie von dort (mit GOG die Dateien „SWOS Mod - ….bat“ in diesem Ordner). Das Originalspiel und die Verknüpfung von GOG Galaxy bleiben, wie sie waren, ohne den Mod.",
         reading: 'Lese die Dateien…', saving: 'Sichere die Originale und schreibe den Mod…',
         kind: { gog: 'GOG-Version', cd: 'CD-Version' }, found: (k, l) => `Gefunden: ${k}, Sprachen ${l}.`,
         bad: n => `Diese Dateien wurden nicht erkannt und bleiben, wie sie sind: ${n}.`,
@@ -498,7 +517,8 @@ const DT = {
         done: n => `Fertig: ${n} / ${n} Dateien geschrieben und geprüft (die Kopie der ersetzten Dateien liegt in MOD_BACKUP\\{{VERSION}}). Starten Sie das Spiel wie gewohnt und beginnen Sie eine neue Karriere.`,
         joy: { kdone: 'Tastaturmodus: SETUP.DAT auf die Werksdatei zurückgesetzt (nur Tastatur).', kalready: 'Tastaturmodus: SETUP.DAT ist schon die Werksdatei (nur Tastatur).', kmap: 'mapper-SVN.map geschrieben: Stick, Steuerkreuz und Knöpfe des Joypads = Pfeiltasten und Strg (die vorherige, falls vorhanden, liegt in mapper-SVN.map.bak).', conf: 'In dosbox_SWOS.conf: joysticktype=fcs und timed=false im Abschnitt [joystick] (Kopie in dosbox_SWOS.conf.bak).', map: 'Steuerkreuz: mapper-SVN.map geschrieben (die vorherige, falls vorhanden, liegt in mapper-SVN.map.bak).', mapkeep: 'mapper-SVN.map ist Ihre eigene: so gelassen (das Steuerkreuz ist nicht zugeordnet).', own: 'Ihr eigenes DOSBox: setzen Sie [joystick] timed=false in dessen Konfiguration (siehe Anleitung).', cloud: 'Im GOG-Ordner cloud_saves:', done: 'Joypad: Die Werks-SETUP.DAT wurde durch die kalibrierte ersetzt (das Original liegt in SETUP.DAT.bak).', already: 'Joypad: SETUP.DAT ist schon kalibriert.', custom: 'Joypad: Ihre SETUP.DAT ist nicht die Werksdatei: so gelassen.', none: 'Joypad: SETUP.DAT nicht gefunden, nichts zu ändern.', undone: 'Joypad ausgeschaltet: SETUP.DAT (und dosbox_SWOS.conf) aus den .bak-Kopien zurückgesetzt.' },
         denied: 'Die Seite darf nicht in den Ordner schreiben: Versuchen Sie es erneut und bestätigen Sie „Dateien bearbeiten“ / „Änderungen speichern“.',
-        error: m => `Fehler: ${m}. Das Spiel ist vielleicht nur halb geändert: Legen Sie die Dateien aus MOD_BACKUP\\{{VERSION}} zurück und versuchen Sie es erneut.` },
+        failnone: m => `Fehler: ${m}. Am Spiel wurde nichts geändert.`,
+        error: m => `Die Installation hat vor dem Ende angehalten (${m}). Es ist nichts verloren: Wählen Sie denselben Ordner noch einmal, und die Seite schließt sie ab. Um zum vorherigen Stand zurückzukehren, legen Sie die Dateien aus MOD_BACKUP\\{{VERSION}} zurück in den Spielordner.` },
 };
 const EXES = ['ITALIAN.EXE', 'ENGLISH.EXE', 'FRENCH.EXE', 'GERMAN.EXE'];
 // 4.0.3: the community pack "SWOS 16/17" (sensiblesoccer.de, "PATCHED DEc11") is not the original game: its menu starts
@@ -651,10 +671,12 @@ async function joypadStep(g, D) {                   // the game folder, and GOG'
   }
   return notes.filter(Boolean).join(' ');
 }
-async function installDir(dir, say) {             // -> the number of files written; say(text) reports progress
-  const D = DT[lang];
+let GAMEWROTE = 0;                                // game files written by the last installDir (0: the game is unchanged)
+async function installDir(dir, say, tail = '') {  // -> the number of files written; say(text) reports progress; tail: added to
+  const D = DT[lang];                             //   the closing message (the new-folder install)
+  GAMEWROTE = 0;
   const g = await findGame(dir);
-  if (!g) { say(D.notfound + ' ' + D.pf, true); return 0; }
+  if (!g) { say(D.notfound, true); return 0; }
   if (await isPack(g)) { say(D.pack(g.m.has('MOD_BACKUP')), true); return 0; }
   say(D.reading);
   const dm = await childMap(g.data), have = new Map();      // target -> {file, bytes}
@@ -688,7 +710,7 @@ async function installDir(dir, say) {             // -> the number of files writ
   const head = D.found([...kinds].map(k => D.kind[k]).join(' + ') || D.kind.cd, langs) + (bad.length ? ' ' + D.bad(bad.join(', ')) : '') + (jnote ? ' ' + jnote : '');
   const lnote = async () => { const l = await launchers(g); const own = { it: 'Italiano', en: 'English', fr: 'Francais', de: 'Deutsch' }[lang];
                              return l.length ? ' ' + D.launch(l.filter(x => x !== own).join(' / ')) : ''; };
-  if (!out.size) { say(head + ' ' + D.current + await lnote()); return 0; }
+  if (!out.size) { say(head + ' ' + D.current + await lnote() + (tail ? ' ' + tail : '')); return 0; }
   say(head + ' ' + D.saving);
   const bdir = await (await g.root.getDirectoryHandle('MOD_BACKUP', { create: true })).getDirectoryHandle('{{VERSION}}', { create: true });
   for (const tgt of out.keys()) {                          // the files about to change, once per release
@@ -706,6 +728,7 @@ async function installDir(dir, say) {             // -> the number of files writ
     const [dname, fname] = tgt.includes('/') ? tgt.split('/') : [null, tgt];
     const ex = (dname ? dm : g.m).get(fname.toUpperCase());
     await writeFile(dname ? g.data : g.root, ex ? ex.name : fname, bytes);
+    GAMEWROTE++;
     if (++i % 10 === 0 || i === out.size) say(head + ' ' + D.writing(i, out.size));
   }
   const miss = [];                                         // read every written file back: an install stopped half way
@@ -719,8 +742,14 @@ async function installDir(dir, say) {             // -> the number of files writ
   }
   if (miss.length) { say(head + ' ' + D.incomplete(out.size - miss.length, out.size, miss.slice(0, 5).join(', ') + (miss.length > 5 ? '…' : '')), true);
                      return out.size - miss.length; }
-  say(head + ' ' + D.done(out.size) + await lnote());
+  say(head + ' ' + D.done(out.size) + await lnote() + (tail ? ' ' + tail : ''));
   return out.size;
+}
+function failMsg(e, D) {                         // an exception during an install -> the message for the user
+  const m = e && e.message || e, w = e && (e.name === 'NotAllowedError' || e.name === 'NoModificationAllowedError' ||
+                                           e.name === 'InvalidModificationError' || e.name === 'SecurityError');
+  if (GAMEWROTE) return D.error(m);               // some game files written: finish by choosing the folder again
+  return w ? D.nowrite : D.failnone(m);           // nothing written: Program Files / a CD, or another error
 }
 async function pickDir() {
   const box = document.getElementById('dirmsg');
@@ -729,41 +758,54 @@ async function pickDir() {
   let dir;
   try { dir = await window.showDirectoryPicker({ id: 'swos', mode: 'readwrite' }); }   // (cancelled, or a folder
   catch (e) { say(DT[lang].pf, true); return; }                                    // Chrome / Edge refuse: Program Files)
+  GAMEWROTE = 0;
   try {
     if (dir.requestPermission && await dir.requestPermission({ mode: 'readwrite' }) !== 'granted') { say(DT[lang].denied, true); return; }
     await installDir(dir, say);
-  } catch (e) {
-    say(e && e.name === 'NotAllowedError' ? DT[lang].denied : e && e.name === 'NoModificationAllowedError' ? DT[lang].cd :
-        DT[lang].error(e && e.message || e), true);
-  }
+  } catch (e) { say(failMsg(e, DT[lang]), true); }
 }
-async function copyTree(src, dst) {               // the CD's game folder into a folder on the disk (files + subfolders)
+async function copyTree(src, dst) {               // a game folder (CD, Program Files) into a new folder (files + subfolders)
   let n = 0;
   for await (const [name, h] of src.entries()) {
+    if (name.toUpperCase() === 'MOD_BACKUP') continue;
     if (h.kind === 'directory') n += await copyTree(h, await dst.getDirectoryHandle(name, { create: true }));
     else { const w = await (await dst.getFileHandle(name, { create: true })).createWritable();
            await w.write(new Uint8Array(await (await h.getFile()).arrayBuffer())); await w.close(); n++; }
   }
   return n;
 }
-async function pickCd() {
+async function inside(a, b) {                     // b is a, or inside a (null-safe for browsers without the calls)
+  try { if (a.isSameEntry && await a.isSameEntry(b)) return true; return !!(a.resolve && await a.resolve(b)); } catch (e) { return false; }
+}
+const IGNORE = ['DESKTOP.INI', '.DS_STORE', 'THUMBS.DB'];
+async function installCopy(src, dst, say) {       // 4.0.6: the game from src (Program Files, a CD) into dst, then the mod there
+  const D = DT[lang];
+  GAMEWROTE = 0;
+  const g = await findGame(src);
+  if (!g) { say(D.notfound, true); return 0; }
+  if (await isPack(g)) { say(D.pack(g.m.has('MOD_BACKUP')), true); return 0; }
+  if (await inside(src, dst) || await inside(g.root, dst)) { say(D.same, true); return 0; }
+  if (!await findGame(dst)) {                    // a game there already: a re-run / an update of an earlier new-folder install
+    for (const n of (await childMap(dst)).keys()) if (!IGNORE.includes(n)) { say(D.notempty, true); return 0; }
+    say(D.copying);
+    try { await copyTree(g.root, dst); }
+    catch (e) { say(e && (e.name === 'NotAllowedError' || e.name === 'NoModificationAllowedError') ? D.dstno : D.failnone(e && e.message || e), true); return 0; }
+  }
+  return await installDir(dst, say, D.newplay);
+}
+async function pickCd() {                         // the second button: install into a new folder (Program Files, a CD)
   const box = document.getElementById('dirmsg'), D = DT[lang];
   const say = (s, bad) => { box.hidden = false; box.textContent = s; box.classList.toggle('good', !bad); };
   if (!window.showDirectoryPicker) { say(D.nopicker, true); return; }
   let src, dst;
-  try { src = await window.showDirectoryPicker({ id: 'swoscd', mode: 'read' }); } catch (e) { return; }
+  try { src = await window.showDirectoryPicker({ id: 'swoscd', mode: 'read' }); } catch (e) { say(D.pf, true); return; }
+  GAMEWROTE = 0;
   try {
-    const g = await findGame(src);
-    if (!g) { say(D.notfound, true); return; }
-    if (await isPack(g)) { say(D.pack(g.m.has('MOD_BACKUP')), true); return; }
-    say(D.cdnext);
-    try { dst = await window.showDirectoryPicker({ id: 'swos', mode: 'readwrite' }); } catch (e) { return; }
-    say(D.copying);
-    await copyTree(g.root, dst);
-    await installDir(dst, say);
-  } catch (e) {
-    say(e && e.name === 'NotAllowedError' ? D.denied : D.error(e && e.message || e), true);
-  }
+    if (!await findGame(src)) { say(D.notfound, true); return; }
+    say(D.newdst);
+    try { dst = await window.showDirectoryPicker({ id: 'swos', mode: 'readwrite', startIn: 'documents' }); } catch (e) { return; }
+    await installCopy(src, dst, say);
+  } catch (e) { say(e && e.name === 'NotAllowedError' && !GAMEWROTE ? D.dstno : failMsg(e, D), true); }
 }
 document.getElementById('pickdir').onclick = pickDir;
 document.getElementById('pickcd').onclick = pickCd;

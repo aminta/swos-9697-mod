@@ -616,7 +616,7 @@ def patch_exe(src, dst, remap, lang='it'):
                                        f'past the room end obj{lt_obj}+{lt_room[1]:#x} ({"obj3 last page: OBJ3_PAGES + 1" if LT_SPACE else "the extra pages"})')
         if LT_SPACE:                                     # (in obj3: lgreal gets gplay's whole free tail)
             LG_ROOM[:] = LT_SPACE
-        elif xtra_pg and lt_room[0] == xp:               # (in the extra pages: their code after it, lgreal on the
+        elif xtra_pg:                                    # (in the extra pages: their code after it, lgreal on the
             xtra_at = (lt_end_ + 15) & ~15               # split page's tail)
             LG_ROOM[:] = [xtra_at, xtra_at]
         else:

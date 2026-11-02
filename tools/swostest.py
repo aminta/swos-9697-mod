@@ -1251,7 +1251,7 @@ POS_ROLE = {'P': 'G', 'TD': 'D', 'TS': 'D', 'D': 'D', 'MD': 'M', 'MS': 'M', 'M':
             'G': 'G', 'RB': 'D', 'LB': 'D', 'RW': 'M', 'LW': 'M'}    # (+ the ENGLISH exe's codes)
 
 
-SQ_WH = ((82, 8), (81, 8))                         # (4.0.5 numcol.py: the squad rows 1 px right, 81 wide)
+SQ_WH = ((82, 8), (81, 8), (80, 8))               # (numcol.py: 4.0.5 the rows 1 px right, 81 wide; 4.0.6 80)
 
 
 def row_x(scr):
@@ -3989,7 +3989,7 @@ def squad_numbers():
     career, SQUADRA: LEFT on a row lights the number, UP = next free, typed 23 (its holder swapped), ESC undoes, typed 7
     + ENTER (swap, the pin bit), the cursor moves again, a starter <-> bench swap keeps the numbers; saved (.CAR
     careerTeam at 56192) and reloaded: the squad screen shows the same numbers. Shots squad / lit / after (numcol: the
-    name bar x 25). Another club's squad there (VISUAL. COMPETIZ. > SERIE A > STAT > VIS. SQUADRE > CAGLIARI): LEFT, UP,
+    name bar x 26, the number column x 14). Another club's squad there (VISUAL. COMPETIZ. > SERIE A > STAT > VIS. SQUADRE > CAGLIARI): LEFT, UP,
     23 change nothing"""
     car = os.path.join(SAVES, 'JUVEFIX3.CAR')
     errs, notes = [], []
@@ -4189,6 +4189,81 @@ def shirt_marco():
               f'after the first edit (Nesta UP): {l1}, pin {p1:#x}', errs)
         notes.append(f'{l0} -> {l1}, pin {p0:#x} -> {p1:#x}')
     return not errs, '; '.join(errs + notes)
+
+
+def numgap_check(s, tag, errs, info):
+    """(4.0.6, Davide 02/11) the shirt-number column on the current squad list (squad screen, team screen, tactics
+    editor; numcol.py): in every row the number's ink (2 white, 8 shadow) keeps 1 column clear after the face box
+    (its template entry, 12 x 8, left of the number's 10 x 8) and stays off the name bar (the row entries; on the team
+    screen a two-digit number's shadow meets the bar, as in the approved mock); the frame saved as shot `tag`. Returns the rows checked and the two-digit ones (ink 9+ px wide)."""
+    scr = s.screen()
+    vga = s.result.read(0xA0000, 64000)
+    s.shot(tag)
+    num = [g for g in scr.geom if g[2:] == (10, 8)]
+    if not num:
+        errs.append(f'{tag}: no number column (10 x 8 entry)')
+        return 0, 0
+    nx = num[0][0]
+    face = [g[0] for g in scr.geom if g[2:] == (12, 8) and g[0] < nx]
+    names = [g for g in scr.geom if g[3] == 8 and g[2] in (80, 81, 82, 131, 132, 134) and g[0] > nx]
+    if not names:
+        errs.append(f'{tag}: no name rows')
+        return 0, 0
+    fr, mx = (max(face) + 11 if face else nx - 2), min(g[0] for g in names)   # (no face box: the column's left only)
+    bad, two, n, gaps = [], 0, 0, set()
+    for y in sorted({g[1] for g in names}):
+        ink = [x for x in range(fr + 1, mx) for yy in range(y, y + 8) if 0 <= yy < 200 and vga[yy * 320 + x] in (2, 8)]
+        if not ink:
+            continue
+        n += 1
+        two += max(ink) - min(ink) >= 8
+        gaps.add((min(ink) - fr - 1 if face else None, mx - 1 - max(ink)))
+        if (face and min(ink) < fr + 2) or max(ink) > mx - 1:
+            bad.append((y, min(ink), max(ink)))
+    check(n and not bad, f'{tag}: number ink touching the face box (last column {fr}) or on the name bar (x {mx}): '
+                         f'(row y, ink x0, x1) {bad[:6]} of {n} rows', errs)
+    info.append(f'{tag}: {n} numbered rows ({two} two-digit), face box ends x {fr if face else None}, number column x '
+                f'{nx}, names x {mx}' + f', columns clear (face, bar) {sorted(gaps, key=str)}')
+    return n, two
+
+
+@scenario
+def squad_numgap():
+    """4.0.6 (Davide 02/11, MiSTer): two-digit shirt numbers clear of the face box and the name bar (numcol.py: the
+    number column x 14, the names 1 px right) on the club's squad screen, the team screen and the tactics editor. A new
+    World 2026-27 ROMA career (99 SVILAR, 43, 86, 61...) on NUMGAP_BUILD (a release build, its ITALIAN.EXE = the
+    language's exe) -> SQUADRA (numgap_check) -> PRATICA/TRAINING (the team screen) -> MOD. TATTICA (the tactics
+    editor, the first user tactic: UTN A / USER_A / UTIL A / SPIEL A). Any SWOSTEST_UI (the labels as UI_MAP reads them back). Shots squad / team / tactics."""
+    b = os.environ.get('NUMGAP_BUILD')
+    if not b or not os.path.isdir(b):
+        return True, 'SKIP: NUMGAP_BUILD not set'
+    errs, info = [], []
+    lbl = lambda k: {TRAIN_TXT.get(UI, TRAIN_TXT['it'])[k], TRAIN_TXT['it'][k]}
+
+    def go(names, where):
+        scr = s.screen()
+        t = next((x for x in names if scr.find(x, exact=True) is not None), None)
+        if t is None or press(s, scr, t, 3) is None:
+            errs.append(f'{where}: {sorted(names)} not reached ({scr.texts()[:14]})')
+            return False
+        return True
+    with Session('squad_numgap', b, {}, 'dump:2', 600) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'START: no first pause ({s.result})'
+        for t in ('CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27'):
+            if press(s, s.screen(), t) is None:
+                return False, f'new career: {t} not reached ({s.result})'
+        if not pick_career(s, 'EUROPA,ITALIA,SERIE A,ROMA'.split(',')):
+            return False, f'new career: ROMA not reached ({s.result})'
+        s.send('fire dump:2')                   # (the chairman's note)
+        if go(lbl(0), 'career menu'):
+            n, two = numgap_check(s, 'squad', errs, info)
+            check(two >= 3, f'squad: {two} two-digit numbers seen (ROMA has 99, 43, 86...)', errs)
+            if go(lbl(1), 'squad screen'):
+                numgap_check(s, 'team', errs, info)
+                if go({'MOD. TATTICA'}, 'team screen') and go({'UTN A', 'USER_A', 'UTIL A', 'SPIEL A'}, 'tactics menu'):
+                    numgap_check(s, 'tactics', errs, info)
+    return not errs, '; '.join(errs + info)
 
 
 @scenario
@@ -6631,8 +6706,10 @@ def bench_world():
     return not errs, '; '.join(errs + info)
 
 
-TRAIN_TXT = {'it': ('SQUADRA', 'PRATICA', 'GIOCA PARTITA'), 'en': ('SQUAD', 'TRAINING', 'PLAY MATCH')}   # (career
-                                            # menu, the squad screen's TRAINING, the pre-match screen's play button)
+TRAIN_TXT = {'it': ('SQUADRA', 'PRATICA', 'GIOCA PARTITA'), 'en': ('SQUAD', 'TRAINING', 'PLAY MATCH'),   # (career
+             'fr': ('SQUADRA', 'ENT.MENT', 'JOUER LE MATCH'), 'de': ('SQUADRA', 'TRAINING', 'NUR SPIEL.')}   # menu, the squad
+                                            # screen's TRAINING, the pre-match screen's play button; FR / DE: as UI_MAP
+                                            # reads them back)
 
 
 def train_start(s, path, errs):

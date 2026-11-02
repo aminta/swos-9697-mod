@@ -342,7 +342,9 @@ def sites(p):
     end = s7['stend'] - 20          # call FadeOutToBlack / DrawMenu / CallToWaitRetrace / FadeIn, jmp SetExitMenuFlag
     assert all(d[end + k] == 0xE8 for k in (0, 5, 10, 15)), 'ShowStadiumInit end'
     assert bytes(p.get(1, end, 5)) == d[end:end + 5], 'stadium: FadeOutToBlack call already patched'
-    lin = p.target(1, s7['DRAWMENU'][1] + 2)              # DrawMenu: mov esi, [linAdr384k]
+    fx = {f[1]: (f[3], f[4]) for f in p.le.fixups() if f[0] == 1 and f[1] is not None}
+    tg = lambda o: fx[o]                # (the original's fixups: other modules hook some of these sites first - a
+    lin = tg(s7["DRAWMENU"][1] + 2)     # release build's gameTeam1 store; DrawMenu: mov esi, [linAdr384k])
     assert d[s7['DRAWMENU'][1]:s7['DRAWMENU'][1] + 2] == b'\x8b\x35' and lin[0] == 2, ('linAdr384k', lin)
     # DrawMenuTextCentered: push D1 / D2 / A0 / A1, call GetTextWidth, 4 pops, D7 = (D7 + 1) / 2, D1 -= it,
     # jmp DrawMenuText
@@ -354,14 +356,14 @@ def sites(p):
     gtw, dmt = rel(m[0] + 24), rel(m[0] + 24 + 5 + 24 + 8 + 7 + 6 + 7)
     assert all(rel(x + 24) == gtw for x in m), ('GetTextWidth', [hex(rel(x + 24)) for x in m])
     # DrawMenuItem: mov A1, offset charTables / mov esi, A1 / movzx eax, word [D0] ...
-    ct = {p.target(1, x.start() + 6) for x in re.finditer(rb'\xc7\x05' + pk(A1) + rb'....\x8b\x35' + pk(A1)
+    ct = {tg(x.start() + 6) for x in re.finditer(rb'\xc7\x05' + pk(A1) + rb'....\x8b\x35' + pk(A1)
                                                            + rb'\x0f\xb7\x05' + pk(D0) + rb'\x03\xf0\x8b\x06\xa3' + pk(A1),
                                                            d, re.S)}
     assert len(ct) == 1, ('charTables', ct)
     # InitializeInGameTeamsAndStartGame: hilStarted = 0 / plg_D0_param = D0 / gameMinSubstitutes = D1 /
     # gameMaxSubstitutes = D2 / plg_D3_param = D3 / gameTeam1 = A1 / gameTeam2 = A2
     st = lambda r: rb'\x66\xa1' + pk(r) + rb'\x66\xa3....'
-    gt = {p.target(1, x.end() - 9) for x in re.finditer(rb'\x66\xc7\x05....\x00\x00' + st(D0) + st(D1) + st(D2) + st(D7 - 16)
+    gt = {tg(x.end() - 9) for x in re.finditer(rb'\x66\xc7\x05....\x00\x00' + st(D0) + st(D1) + st(D2) + st(D7 - 16)
                                                         + rb'\xa1' + pk(A1) + rb'\xa3....\xa1' + pk(A1 + 4), d, re.S)}
     assert len(gt) == 1, ('gameTeam1', gt)
     return {'end': end, 'FADEOUT': p.call_target(1, end), 'FADEIN': p.call_target(1, end + 15), 'LIN': lin,

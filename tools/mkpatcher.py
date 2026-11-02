@@ -17,6 +17,7 @@ import base64
 import hashlib
 import json
 import os
+import re
 import struct
 import zlib
 
@@ -172,6 +173,8 @@ def world_entries(data_dir=None):
         names = sorted(set(names) | set(lgreal.file_names()))
     if os.path.exists(os.path.join(data_dir, 'KITFIX.DAT')):   # (4.0.5 kitfix.py: the kits shipped before that the
         names = sorted(set(names) | {'KITFIX.DAT'})          # build's team files changed - the career kit refresh)
+    names = sorted(set(names) | {n for n in os.listdir(data_dir)      # (4.0.6 stadium.py: the stadium names, one
+                                 if re.fullmatch(r'STAD(TEAM|TMW\d)\.DAT', n)})   # file per team-file namespace)
     rows = [(n, None, os.path.relpath(os.path.join(data_dir, n), ROOT), 'DATA/' + n) for n in names
             if 'DATA/' + n not in listed]
     missing = [r[0] for r in rows if not os.path.exists(os.path.join(ROOT, r[2]))]

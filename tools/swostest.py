@@ -9438,6 +9438,60 @@ def stadium_name():
 
 
 @scenario
+def stadium_world():
+    """4.0.6 stadium names per team-file namespace: a World 2026-27 career at ROMA (STADIUM_BUILD / BENCH_BUILD: a
+    release-style build with several worlds; ROMA = TMW5.102's record) -> SQUADRA -> TRAINING -> GIOCA PARTITA (no
+    RandomlySwapTeams: the club is gameTeam1): DATA\\STADTMW5.DAT names it STADIO OLIMPICO, DATA\\STADTEAM.DAT has the
+    same (file, ordinal) as WRONG NAMESPACE (TEAM.102 is another world's file): the banner shows the world's name."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lepatch
+    import stadium
+    b = os.environ.get('STADIUM_BUILD') or os.environ.get('BENCH_BUILD')
+    if not b or not os.path.isdir(b):
+        return True, 'SKIP: STADIUM_BUILD not set'
+    b = nop_league_int3('stadium_world_' + os.path.basename(RUNS.rstrip('/')), b)
+    p = lepatch.LEPatch(os.path.join(b, 'ITALIAN.EXE'))
+    at = p.le.obj_bytes(3).find(b'STNM')
+    if at < 0:
+        return True, 'SKIP: no stadium.py in this build (no STNM in obj3)'
+    at = Off3(at)
+    d = open(os.path.join(b, 'DATA', 'TMW5.102'), 'rb').read()
+    roma = [(d[o], d[o + 1]) for o in (2 + t * 684 for t in range(struct.unpack('>H', d[:2])[0]))
+            if d[o + 5:o + 22].split(bytes(1))[0] == b'ROMA']
+    if len(roma) != 1:
+        return False, f'ROMA in TMW5.102: {roma}'
+    w5 = os.path.join(WORK, 'saves', 'STADTMW5_TEST.DAT')
+    t0 = os.path.join(WORK, 'saves', 'STADTEAM_TEST.DAT')
+    os.makedirs(os.path.dirname(w5), exist_ok=True)
+    open(w5, 'wb').write(stadium.build({roma[0]: 'STADIO OLIMPICO'}))
+    open(t0, 'wb').write(stadium.build({roma[0]: 'WRONG NAMESPACE'}))
+    errs, info = [], []
+    with Session('stadium_world', b, {'DATA/STADTMW5.DAT': w5, 'DATA/STADTEAM.DAT': t0}, 'dump:2', 900, match=True) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'START: no first pause ({s.result})'
+        if train_start(s, 'EUROPA,ITALIA,SERIE A,ROMA'.split(','), errs) is None:
+            return False, '; '.join(errs)
+        q = s.screen()
+        i = q.find(TRAIN_TXT[UI][2])
+        if i is None or se_goto(s, i).selected != i:
+            return False, f'training: {TRAIN_TXT[UI][2]} not reached ({q.texts()[:12]})'
+        s.send('fire dump:2')
+        g = stadium_log(s.result, at)
+        info.append(f'ROMA {roma[0]}: {g["name"]!r} key {g["key"]} shown {g["shown"]} big {g["big"]} box {g["box"]}')
+        check(g['key'] == roma[0] and g['name'] == 'STADIO OLIMPICO' and g['shown'] == 1, f'banner {g}', errs)
+        if g['shown']:
+            s.shot('roma')
+            r = s.result
+            lin = stadium.sites(lepatch.LEPatch(os.path.join(ROOT, 'orig', 'ITALIAN.EXE')))['LIN'][1]
+            title = r.read(struct.unpack('<I', r.obj2(lin, 4))[0] + 0x20000, 64000)
+            n, span = stadium_frame(r.read(0xA0000, 64000), title, g['box'], errs, 'roma')
+            info.append(f'ink {n} px, x {span}')
+        r = s.send('dump:3')
+        check(r.outcome == 'dump', f'after the banner: {r}', errs)
+    return not errs, '; '.join(errs + info)
+
+
+@scenario
 def blond_faces():
     """3.3.0: face 3 = black skin + blond hair: FIORENTINA's outfield players set to face 3 (test copy of TEAM.020);
     pre-match face icon 189 built (yellow hair), in the match the new sprite set 1418.. is registered and has hair in

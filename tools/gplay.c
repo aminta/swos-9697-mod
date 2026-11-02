@@ -1002,7 +1002,8 @@ GP_KOSIZE void gp_season(void) {
                 if (club[i] < 0) club[i] = -2;  /* (rc18: not in this country's tables - another league's reserves:
                                                    left out of a group round, NZ's Championship simulated without
                                                    them - they never reach its Grand Final; anywhere else: not played) */
-            } else if (ty != 0 || d >= GP_IN.nd || p < 1 || p > GP_IN.n[d]) ok = 0;
+            } else if (ty != 0 || d >= GP_IN.nd || p < 1 || p > GP_IN.n[d]) { club[i] = -1; ok = 0; }   /* (4.0.6:
+                                           set - its stream's seed below read it; the play-off is not played then) */
             else if ((club[i] = place_club(d, p, kind)) < 0) ok = 0;
         }
         {                                       /* rc19: each play-off's own random stream, from its entrants' rows
@@ -1577,6 +1578,21 @@ static int ko_t2(struct gp_ko *k, const u8 *s, int pi, int cid, const struct t2s
         k->team[i] = row(c)->team; k->pts[i] = row(c)->pts;
         me |= k->team[i] == GP_IN.mgr;
     }
+#ifndef GP_GFIDX
+#define GP_GFIDX 0
+#endif
+#if GP_GFIDX                            /* (test builds, GPLAY_GFIDX=i+1: the career club at index i of the group - its
+                                           rest day: oddtables' circle, 11 clubs: index 2 rests in the last round) */
+    for (int i = 0; i < n; i++)
+        if (k->team[i] == GP_IN.mgr && i != GP_GFIDX - 1 && GP_GFIDX <= n) {
+            int j = GP_GFIDX - 1;
+            u16 c = k->code[j], t = k->team[j], q = k->pts[j];
+            u8 r = k->prio[j];
+            k->code[j] = k->code[i]; k->team[j] = k->team[i]; k->pts[j] = k->pts[i]; k->prio[j] = k->prio[i];
+            k->code[i] = c; k->team[i] = t; k->pts[i] = q; k->prio[i] = r;
+            break;
+        }
+#endif
     int gf = x->g == 1 && x->nk == 1 && x->kt[0] == 1;   /* 4.0.5 NZ: one group, then a one-match final (the
                                            game's type-2 knockout after a single group never put the career match
                                            in the calendar): the group alone here, the Grand Final ours (gf_step_c) */
@@ -2057,7 +2073,15 @@ void gf_hide_c(u8 *cal, u32 cur) {     /* gp_install, after a slot-4 install: th
     for (u32 i = 0; i < cnt; i++) {
         u32 len = *(const u16 *)(e + 2);
         if (!len) break;
-        if ((u32)(e - cal) >= cur && e[0] == 4) e[5] = 0;
+        if ((u32)(e - cal) >= cur && e[0] == 4) {
+            e[5] = 0;
+            if (!(GP_ST.s3wait & 1)) e[6] = 0;  /* (4.0.6: the group installed - gf_place_c's placeholder, not
+                                           gf_anchor_c's - no career day either: byte 6, cseg_8EC2B's flag. With the
+                                           club resting in the group's last round the menu offered PARTITA for it,
+                                           the final decided inside that day - a phantom final without the club. Now
+                                           FINISH SEASON: gplay.py gp_fin plays the days to the decision, back to
+                                           PARTITA if the club is in the final) */
+        }
         e += len;
     }
 }
@@ -2072,6 +2096,8 @@ u32 gf_unhide_c(u8 *cal, u32 cur) {    /* rc18 (Davide's MiSTer, rc17): gp_adv -
                                            the final never played. Its pairing shows from now until the final is built
                                            (the week after the group's last day) */
     const struct gp_ko *g = &GP_ST.ko[0], *f = &GP_ST.ko[1];
+    if (!GP_GFREST) return 0;           /* (4.0.6: gf_hide_c's placeholder is no career day - gp_fin's FINISH SEASON
+                                           plays to the decision; the test builds' pairing shown at once only) */
     if (!gf_live(g) || GF(g) != GF_WAIT || f->magic != MAGIC || f->kind != K_GF || f->slot != 4) return 0;
     u16 cnt = *(const u16 *)(cal - 4);
     u8 *e = cal, *ph = 0;
@@ -3312,7 +3338,10 @@ static int pg_room(int a, int n, const u8 *occ, const u8 *sz) {   /* group a, el
    Serie C's choices come from where the Lega Pro put each region's clubs in 2016-17..2025-26 (never north <-> south);
    the second teams went to any group and were moved to balance. Raw area bytes 0..8 (ripool's pool areas): 1st only. */
 #define A1(b) ((b) & 15)
-static int pg_a2(int b) { int h = b >> 4; return h == 0 || h == 15 ? 15 : h == 14 ? 14 : (h & 7) - 1; }
+static int pg_a2(int b) { int h = b >> 4; return h == 0 || h == 15 || !(h & 7) ? 15 : h == 14 ? 14 : (h & 7) - 1; }
+                                        /* (4.0.6: !(h & 7) - a 2nd choice H, or a ban with none, read as no 2nd choice:
+                                           (h & 7) - 1 = -1 indexed occ[tl][-1] - clang's analyzer; the data's 2nd
+                                           choices are A..C) */
 static int pg_ban(int b) { int h = b >> 4; return h != 0 && h < 14 && (h & 8); }
 
 /* A club placed in group a of level tl that can leave to make room: a second team first (to the group with room

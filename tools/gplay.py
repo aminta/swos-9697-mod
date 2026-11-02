@@ -2615,6 +2615,7 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
                                 f"-DGP_GFFORCE={int(os.environ.get('GPLAY_GFFORCE') or 0)}",
                                 f"-DGP_S3DEFER={int(os.environ.get('GPLAY_S3DEFER') or 0)}",
                                 f"-DGP_GFREST={int(os.environ.get('GPLAY_GFREST') or 0)}",
+                                f"-DGP_GFIDX={int(os.environ.get('GPLAY_GFIDX') or 0)}",
                                 f"-DGP_GOUT={int(os.environ.get('GPLAY_GOUT') or 0)}",
                                 f"-DGP_GSON={int(GS_ON[0])}",
                                 f"-DCF_SEED={__import__('cupsf').SEED}"]

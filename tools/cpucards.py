@@ -542,9 +542,29 @@ def patch(p, at, lang):
 LABELS = {}
 
 
+def force_inj(p):
+    """INJ_FORCE=1 (test builds only): PlayerTackled - every tackle that reaches its man injures him (the
+    kTackleInjuryProbability test gone) at level 0x60 (unavailable for the next matches; kInjuryLevels skipped), within
+    the game's own budget team1/2NumAllowedInjuries."""
+    if not os.environ.get('INJ_FORCE'):
+        return
+    d = p.le.obj_bytes(1)
+    a = [m.end() - 2 for m in re.finditer(rb'\xe8....\x8b\x35....\x0f\xb7\x1d....\x8a\x04\x1e\x38\x05....\x0f\x83', d,
+                                          re.S)]
+    assert len(a) == 1, a
+    b = [m for m in re.finditer(rb'\x66\x83\x25....\x3f\x66\xc7\x05....\x20\x00\x8b\x35....\x8a\x06\xff\x05....'
+                                rb'\x38\x05....\x0f\x82', d, re.S) if 0 < m.start() - a[0] < 0x100]
+    assert len(b) == 1, b
+    lvl, jb = b[0].start() + 15, b[0].end() - 2          # (`mov word [D1], 32`'s immediate; the first `jb set level`)
+    p.put(1, a[0], b'\x90' * 6)                          # every tackle injures
+    p.put(1, lvl, b'\x60')                               # the level 0x60 (3: out of the next matches)
+    p.put(1, jb, b'\x90\xe9' + d[jb + 2:jb + 6])          # straight to @@set_injury_level (the same rel32: +1 byte)
+    print(f'exe: INJ_FORCE (test build: every tackle injures, level 0x60) obj1+{a[0]:#x} / +{lvl:#x} / +{jb:#x}')
+
+
 def force(p):
-    """CARDS_FORCE=red / yellow (test builds only): every tackle that reaches its man is a foul, every foul outside the
-    penalty area takes PlayerTacklingTestFoul's last-man branch (cseg_79444: no card-chance test) and its card is always the straight red / the yellow."""
+    """CARDS_FORCE=red / yellow (test builds only): every tackle that reaches its man is a foul and gets a card (in the
+    box too: no card-chance test), every foul outside the penalty area takes PlayerTacklingTestFoul's last-man branch (cseg_79444: no card-chance test) and its card is always the straight red / the yellow."""
     mode = os.environ.get('CARDS_FORCE')
     if not mode:
         return
@@ -557,6 +577,12 @@ def force(p):
     jz = [i for i in range(lm - 0x80, lm) if d[i] == 0x74 and i + 2 + struct.unpack_from('<b', d, i + 1)[0] == lm]
     assert len(jz) == 1, jz
     jb = m[0].end()                                      # `jb yellow`
+    box = m[0].start()                                   # (the box / other fouls: `cmp D0, [chance] / jnb no card`,
+    assert d[box + 7] == 0x73 and d[box + 22] == 0x72, d[box:box + 24].hex()   # then `jb direct red`)
+    p.put(1, box + 7, b'\x90\x90')                       # always a card
+    p.put(1, box + 22, b'\xeb' if mode == 'red' else b'\x90')
+    if mode != 'red':
+        p.put(1, box + 23, b'\x90')
     p.put(1, jz[0], b'\xeb')
     p.put(1, jb - 1, b'\xeb' if mode == 'yellow' else b'\x90')
     if mode == 'red':

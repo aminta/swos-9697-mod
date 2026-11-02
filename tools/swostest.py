@@ -8200,6 +8200,8 @@ def controls_swospp():
         check(sc.entries[0][1] == 'OPZIONI', f'not in OPTIONS: {sc}', errs)
         check(btn[1] == 1, f'entry 19 shown under SWOS++: {btn}', errs)
         check(sc.nav[17][0][3] != 19 and sc.nav[18][0][2] != 19, f'links to 19: {sc.nav[17][0]} {sc.nav[18][0]}', errs)
+        check(sc.n == 20, f'{sc.n} OPTIONS entries under SWOS++ (4.0.6 cpucards: its 2 rows hidden, 20 = the game\'s)',
+              errs)                             # (4.0.6: no ROSSI / INFORTUNI ALLA CPU rows - entries 20..23)
         s.shot('options')
     return not errs, '; '.join(errs) or 'no CONTROLS button under SWOS++'
 
@@ -19116,6 +19118,10 @@ def cc_sites(exe_dir):
     a6 = re.escape(struct.pack('<I', sacups.regs(orig.le.obj_bytes(1))['A0'] + 24))
     tops = collections.Counter(orig.target(1, x.start() + 6) for x in re.finditer(rb'\x81\x3d' + a6, orig.le.obj_bytes(1)))
     top = tops.most_common(1)[0][0]                    # (`cmp A6, offset topTeamData`: its most frequent target)
+    od = orig.le.obj_bytes(1)                          # team1 / team2NumAllowedInjuries (TryBookingThePlayer after site
+    b = site + 6                                       #  b: `cmp [esi + teamNumber], 1 / jnz / mov ax, [team1..]`)
+    assert od[b + 21:b + 30] == bytes.fromhex('66837e1201751166a1'), od[b:b + 50].hex()
+    cc_sites.budget = (orig.target(1, b + 30), orig.target(1, b + 47))
     return cc, t1, t2, g1, gl[0], top
 
 
@@ -19146,6 +19152,18 @@ def cc_prime(s, top):
     return n
 
 
+def cc_play(scr):
+    """A squad screen's play button (GIOCA PARTITA / PARTITA, coach mode ALLENATORE / COACH MATCH ... - per exe
+    language): the visible entry right before MOD. TATTICA, unless that is ESCI / VIS. RISULTATI (no match to play)."""
+    mt = scr.find('MOD. TATTICA', exact=True)
+    if mt is None:
+        return None
+    prev = [e for e in scr.entries[:mt] if e[1] and not e[2]]
+    if not prev or prev[-1][1] in ('ESCI', 'VIS. RISULTATI', 'AVVERSARI'):
+        return None
+    return prev[-1][0]
+
+
 def cc_match(s, t1, t2, g1, tag, max_steps=200, top=None, kick=None):
     """From a career menu: the next match played for real (idle keys: the CPU fouls), then its stats: [(controls,
     fouls, bookings, sendings-off) of team 1, team 2] (controls 1 = TEAM_COMPUTER)."""
@@ -19153,7 +19171,7 @@ def cc_match(s, t1, t2, g1, tag, max_steps=200, top=None, kick=None):
     for _ in range(12):
         texts = s.screen().texts()
         s.log.append(f'[cc] {tag}: ' + ' | '.join(texts)[:300])
-        if 'MOD. TATTICA' in texts and ('GIOCA PARTITA' in texts or 'PARTITA' in texts or 'ALLENATORE' in texts):
+        if cc_play(s.screen()) is not None:
             break
         if 'TRASFERIMENTI' in texts and 'PARTITA' in texts:
             press(s, s.screen(), 'PARTITA', 2) or s.send('fire dump:2')
@@ -19178,7 +19196,7 @@ def cc_match(s, t1, t2, g1, tag, max_steps=200, top=None, kick=None):
         scr = walk(s, i, 2)                          # an idle human team)
         s.log.append(f'[cc] {tag}: GIOCA : -> {scr.entries[i][1]!r}; ' + ' | '.join(
             f'{e[0]}:{e[1]}{"(inv)" if e[2] else ""}{"(dis)" if e[3] else ""}' for e in scr.entries[:12]))
-    r = press(s, scr, next((t for t in ('ALLENATORE', 'GIOCA PARTITA', 'PARTITA') if t in scr.texts()), 'PARTITA'))
+    r = press(s, scr, cc_play(scr) or 0)
     s.log.append(f'[cc] {tag}: play pressed: {r}')
     if r is None:
         s.send('fire dump:2')
@@ -19206,6 +19224,7 @@ def cc_match(s, t1, t2, g1, tag, max_steps=200, top=None, kick=None):
     else:
         raise AssertionError(f'{tag}: the match did not end ({s.screen()})')
     st = [struct.unpack('<5H', rd(t, 10))[2:5] for t in (t1, t2)]
+    s.cc_budget = [struct.unpack('<h', rd(x, 2))[0] for x in cc_sites.budget]   # (the sendings-off / injuries left)
     s.shot(f'{tag}_after')
     assert all(x[1] < 0x8000 and x[2] < 0x8000 for x in st), f'{tag}: negative team counters {st} (harness priming?)'
     return [(teams[i],) + st[i] for i in range(2)]
@@ -19223,7 +19242,7 @@ def cpu_cards():
     label = cpucards.LABEL[UI]
     errs, notes = [], []
     for mode in os.environ.get('CC_MODES', 'red,yellow').split(','):
-        b = nop_league_int3(f'cpu_cards_{mode}', build(f'cpu_cards_{mode}', env={'CARDS_FORCE': mode}, lang=UI))
+        b = nop_league_int3(f'cpu_cards_{mode}_{UI}', build(f'cpu_cards_{mode}_{UI}', env={'CARDS_FORCE': mode}, lang=UI))
         cc, t1, t2, g1, gl, top = cc_sites(b)
         for on in [x == 'on' for x in os.environ.get('CC_ONOFF', 'on,off').split(',')]:
             tag = f'{mode}_{"on" if on else "off"}'
@@ -19258,15 +19277,18 @@ def cpu_cards():
                     errs.append(f'{tag}: not one CPU team {res}')
                     continue
                 _, fouls, book, off = cpu[0]
-                if on:
-                    check(off > 0, f'{tag}: CPU not sent off ({fouls} fouls, {book} bookings)', errs)
+                left = s.cc_budget[[r[0] for r in res].index(1)]
+                if on and off == 0 and left <= 0:                # (the game's rule, humans too: no card once the
+                    notes.append(f'{tag}: CPU no card - its budget left {left} (team1/2NumAllowedInjuries)')   # budget is 0)
+                elif on:
+                    check(off > 0, f'{tag}: CPU not sent off ({fouls} fouls, {book} bookings, budget left {left})', errs)
                 else:
                     check(off == 0 and (mode == 'yellow' or book == 0), f'{tag}: CPU carded with the option OFF '
                           f'({fouls} fouls, {book} bookings, {off} off)', errs)
-    with Session('cpu_cards_oldsave', builds()['it'] if UI == 'it' else build('cpu_cards_ui', lang=UI),
+    with Session('cpu_cards_oldsave', builds()['it'] if UI == 'it' else build(f'cpu_cards_ui_{UI}', lang=UI),
                  {'JUVE2F.CAR': juve2(True)}, 'dump:2', 120) as s:
         s.wait()
-        ccb = cc_sites(builds()['it'] if UI == 'it' else build('cpu_cards_ui', lang=UI))[0]
+        ccb = cc_sites(builds()['it'] if UI == 'it' else build(f'cpu_cards_ui_{UI}', lang=UI))[0]
         s.poke(s.result.lin(ccb), b'\x01\x00\x01\x00\x01\x00\x01\x00')
         s.send(LOAD1 + ' dump:3')
         w = struct.unpack('<HHHH', s.result.read(s.result.lin(ccb), 8))
@@ -19281,7 +19303,7 @@ def cpu_carry():
     day serves them (bits back to 0) and the CPU line-ups swapped suspended starters out (CB_SWAPS > 0); OFF: no
     record bits, no swaps"""
     errs, notes = [], []
-    b = nop_league_int3('cpu_carry', build('cpu_cards_red', env={'CARDS_FORCE': 'red'}, lang=UI))
+    b = nop_league_int3(f'cpu_carry_{UI}', build(f'cpu_cards_red_{UI}', env={'CARDS_FORCE': 'red'}, lang=UI))
     cc, t1, t2, g1, gl, top = cc_sites(b)
     for on in (True, False):
         tag = 'on' if on else 'off'
@@ -19315,8 +19337,7 @@ def cpu_carry():
                 w1_ = max(0, 2 - (d1 - dk))                              #  day counted down since the kick-off)
                 check(ban and all(b1[i] & 3 == w1_ for i in ban), f'{tag}: after match 1 ({d1 - dk} day(s) since '
                       f'the kick-off) the CPU bans {[hex(x) for x in b1]} (want {w1_} each)', errs)
-                check(d2 > d1, f'{tag}: no calendar day counted down between the matches ({d1} -> {d2})', errs)
-                want = max(0, 2 - (d2 - dk))                             # one countdown a day, exactly
+                want = max(0, 2 - (d2 - dk))                             # (match 2 may come the same day: 0 more)                             # one countdown a day, exactly
                 check(all(b2[i] & 3 == want for i in ban), f'{tag}: bans {ban} after {d2 - dk} day(s): '
                       f'{[hex(b2[i]) for i in ban]} (want {want} each)', errs)
                 notes.append(f'{tag}: days {dk} (kick-off) -> {d1} -> {d2}, bans {ban}: {[hex(b1[i]) for i in ban]} -> '
@@ -19324,6 +19345,51 @@ def cpu_carry():
             else:
                 check(bans1 == 0 and bans2 == 0 and w2 == 0 and d2 == 0, f'{tag}: CPU records / swaps / days with the '
                       f'options OFF ({bans1}, {bans2}, {w2}, {d2})', errs)
+    return not errs, '; '.join(errs + notes)
+
+
+@scenario
+def cpu_inj():
+    """4.0.6 step B (cpucards): a CPU injury carried over - a career match on an INJ_FORCE build (every tackle injures
+    at level 3, coach mode): with INFORTUNI ALLA CPU ON the CPU team's records keep the injuries after it (bits 5-7),
+    counted down one level a calendar day from the kick-off (level 3 - days while above 1; at 1 the game's own coin
+    flip), injured CPU starters swapped out (CB_SWAPS); INFORTUNI OFF (ROSSI still ON): no CPU injury kept"""
+    errs, notes = [], []
+    b = nop_league_int3(f'cpu_inj_{UI}', build(f'cpu_inj_{UI}', env={'INJ_FORCE': '1'}, lang=UI))
+    cc, t1, t2, g1, gl, top = cc_sites(b)
+    for on in [x == 'on' for x in os.environ.get('CC_ONOFF', 'on,off').split(',')]:
+        tag = 'on' if on else 'off'
+        with Session(f'cpu_inj_{tag}', b, {}, 'dump:3', 1200, match=True) as s:
+            s.wait()
+            if not on:                                   # (INFORTUNI OFF, its session copy too; ROSSI stays ON)
+                s.poke(s.result.lin(cc) + 2, b'\x01\x00')
+                s.poke(s.result.lin(cc) + 6, b'\x01\x00')
+            s.poke(s.result.base2 + gl[1], b'\x03\x00')
+            new_career(s, 'ITALIA', 'SERIE A', 'JUVENTUS')
+            days = lambda: struct.unpack("<I", s.result.read(s.result.lin(cc) + 12, 4))[0]
+            res = cc_match(s, t1, t2, g1, f'{tag}1', kick=days)
+            dk = s.cc_kick
+            cpu = [p for p, r in zip(s.cc_ptrs, res) if r[0] == 1]
+            if len(cpu) != 1:
+                errs.append(f'{tag}: not one CPU team {res}')
+                continue
+            lvl = lambda: [s.result.read(cpu[0] + 0x4C + i * 0x26 + 0x1B, 1)[0] >> 5 for i in range(16)]
+            swaps = lambda: struct.unpack('<I', s.result.read(s.result.lin(cc) + 8, 4))[0]
+            l1, d1 = lvl(), days()
+            res2 = cc_match(s, t1, t2, g1, f'{tag}2')
+            l2, w2, d2 = lvl(), swaps(), days()
+            inj = [i for i, x in enumerate(l1) if x]
+            notes.append(f'{tag}: match 1 {res}, levels {l1}, days {dk} (kick-off) -> {d1}; match 2 {res2}, levels {l2}, '
+                         f'days {d2}, swaps {w2}')
+            if on:
+                w1 = 3 - (d1 - dk)
+                check(inj and all(l1[i] == w1 for i in inj), f'{tag}: after match 1 ({d1 - dk} day(s)) the CPU injury '
+                      f'levels {l1} (want {w1} each)', errs)
+                w2_ = 3 - (d2 - dk)
+                check(all((l2[i] == w2_) if w2_ > 1 else (l2[i] <= 1) for i in inj), f'{tag}: injuries {inj} after '
+                      f'{d2 - dk} day(s): {[l2[i] for i in inj]} (want {w2_ if w2_ > 1 else "<= 1"} each)', errs)
+            else:
+                check(not inj and not any(l2), f'{tag}: CPU injuries kept with INFORTUNI OFF {l1} / {l2}', errs)
     return not errs, '; '.join(errs + notes)
 
 

@@ -7,24 +7,28 @@ a rare random sponsorship) does not grow with the squad, so a big squad loses 10
 everything (harness, 2026-27: REAL MADRID -16.9, MAN CITY -18.5, INTER -10.9; original JUVENTUS -3.1).
 
 Here, at every season start (cseg_3D204, right after the running costs are set: `mov [D6B9A], eax`), the club gets
-MUL / DIV (2.3) x its season wage bill (dseg_D6BA2 = the weekly wages x the season's weeks, computed just before) as
+CREDIT (now 1.5 x) its season wage bill (dseg_D6BA2 = the weekly wages x the season's weeks, computed just before) as
 sponsorship: added to sensisoftPlcSponsorship (the finance screen's SPONSORSHIP) and newBalance. InitializeNewSeason
 runs once a season (a new career's first season too); a save keeps the credited balance, so a loaded save is never
 credited again, and an old save gets it at its next season start. Only the career club has finances.
 """
 import nasmcave
 
-MUL, DIV = 23, 10
+MUL, DIV = 15, 10                       # the credit = MUL / DIV x the season's wage bill (Davide: 1.5)
+
+CREDIT = r"""
+    mov eax, [D6BA2]                    ; the credit in eax: the season's wage bill x MUL / DIV
+    imul eax, eax, MUL_
+    xor edx, edx
+    mov ecx, DIV_
+    div ecx
+"""                                     # (THE FORMULA: one place; any variant replaces this block, eax = the credit)
 
 ASM = r"""
 fi_go:                                  ; replaces `mov [D6B9A], eax` (cseg_3D204: the running costs per match)
     mov [D6B9A], eax
     pushad
-    mov eax, [D6BA2]                    ; the season's wage bill
-    imul eax, eax, MUL_
-    xor edx, edx
-    mov ecx, DIV_
-    div ecx
+""" + CREDIT + r"""
     add [SPONS], eax                    ; SPONSORSHIP
     add [NEWBAL], eax
     popad

@@ -60,8 +60,7 @@ DEFAULT_YEAR = 1996                     # the base game, friendlies of its teams
 
 def _year(pk):
     y = re.search(r'(1[89]|20)\d\d', pk.meta.get('id', ''))
-    assert y, ('stoppage: no year in the pack id', pk.meta.get('id'))
-    return int(y.group(0))
+    return int(y.group(0)) if y else DEFAULT_YEAR     # (a yearless pack - test packs, lp36: the base game's rules)
 
 
 def career_worlds():

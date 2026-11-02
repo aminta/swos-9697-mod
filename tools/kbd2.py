@@ -326,10 +326,10 @@ def menu_copy(lang, at, base, off, ptrs, m_at, data):
             b += b'\0\0\0\0'
         pg.extend(b + b'\0\0')
 
-    for x in (10, 154):                         # (Davide 02/11: the headers touched the device row's box - its row 4 px
+    for x in (10, 154):                         # (Davide 02/11: the headers touched the device row's box - its row 8 px
         o = [m.start() for m in re.finditer(re.escape(struct.pack('<hhhh', x, 30, controls.W, 11)), pg)]
-        assert len(o) == 1, (x, o)              # up, 26..37; headers 39..46; key rows from 48)
-        struct.pack_into('<h', pg, o[0] + 2, 26)
+        assert len(o) == 1, (x, o)              # up, 22..33: 6 px free under the title, 5 above the headers 39..45, 2 under
+        struct.pack_into('<h', pg, o[0] + 2, 22)  # them: key rows from 48)
     entry(COL_X[0], 39, COL_W, 7, text=('S_H1',))
     entry(COL_X[1], 39, COL_W, 7, text=('S_H2',))
     for i in range(5):

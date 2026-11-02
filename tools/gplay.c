@@ -982,6 +982,9 @@ GP_KOSIZE void gp_season(void) {
                                            round after a group - its last tie decides, NZ's Grand Final, the Poule) */
         for (int i = 0; i < n && i < GN; i++) {
             int ty = e[4 * i], d = e[4 * i + 1], p = e[4 * i + 2];
+            club[i] = -1;                       /* (4.0.6, Ben: an entrant refused below kept stack garbage, which
+                                                   rc19's seed loop then read through row(): San Marino's 'europe'
+                                                   entrants past its 6 clubs) */
             if (ty == 3) {
                 club[i] = stage_club(d, e[4 * i + 3], p);
                 if (club[i] < 0) ok = 0;

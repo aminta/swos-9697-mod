@@ -818,6 +818,7 @@ def button(p, at, lang, area, extra=None):
         for o, t_obj, t_off in xfix:
             p.add_ptr(1, xat + o, t_obj, t_off)
         extra[0] = xat + len(xcode)
+    INFO.update(find_slot=lab['find_slot'], slots=(2, base + 4), xat=xat)   # (4.0.6 kittrain.py: training's A / B)
     INFO['km_measure'] = lab['km_measure']          # purple.py: jmp pk_sim (purple vs maroon)
     INFO['km_fix'] = lab['km_fix']                  # purple.py: jmp pk_fix (manual kits)
     assert not any(d[at:at + len(code)])

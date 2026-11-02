@@ -6325,6 +6325,74 @@ def bench_training():
 
 
 @scenario
+def kits_training():
+    """(4.0.6, Marco on 4.0.5) SELECT KITS in a training game (kittrain.py): team A (careerTeam) and SQUADRA B
+    (currentTeam, the same name) kept apart by their team pointers: a World 2026-27 career at ROMA (BENCH_BUILD;
+    TRAIN_PATH), SQUADRA -> TRAINING -> MAGLIE (the automatic choice: A first kit, B second) -> OK; SOLO PARTITA /
+    SEMPRE hidden (entry 23); at the kick-off the two in-match teams wear different kits (TeamGame's worn colours;
+    4.0.5: both team A's first); careerTeam's kits unchanged. Then the league match: SELECT
+    KITS opens on the club and its opponent (no slot left from the training) and plays."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import careerworld
+    import lepatch
+    b = os.environ.get('BENCH_BUILD') or os.environ.get('XTRA30_BUILD')
+    if not b or not os.path.isdir(b):
+        return True, 'SKIP: BENCH_BUILD not set'
+    b = nop_league_int3('kits_training_' + os.path.basename(RUNS.rstrip('/')), b)
+    path = os.environ.get('TRAIN_PATH', 'EUROPA,ITALIA,SERIE A,ROMA').split(',')
+    club = path[-1]
+    p = lepatch.LEPatch(os.path.join(b, 'ITALIAN.EXE'))
+    m = re.search(rb'(?:\xc7\x05.{8}){4}\x66\xc7\x05.{4}\xa7\x06', p.le.obj_bytes(1), re.S)
+    top, bot = p.target(1, m.start() + 6)[1], p.target(1, m.start() + 26)[1]
+    kits = careerworld.sites(lepatch.LEPatch(os.path.join(MAIN, 'orig', 'ITALIAN.EXE')))['cfb'] + 0xDB80 + 0x1A
+    errs, info = [], []
+    with Session('kits_training', b, {}, 'dump:2', 900, match=True) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'START: no first pause ({s.result})'
+        if train_start(s, path, errs) is None:
+            return False, '; '.join(errs)
+        k0 = s.result.obj2(kits, 10)
+        if press(s, s.screen(), 68, 2) is None:     # MAGLIE AUTO -> SELECT KITS (press: the long list's window)
+            return False, f'training: MAGLIE not reached ({s.result})'
+        scr = s.screen()
+        s.shot('kits_select')
+        e = {i: (x, inv) for i, x, inv, _ in scr.entries}
+        info.append(f'SELECT KITS: {e[1][0]} / {e[3][0]}, entry 23 hidden {bool(e[23][1])}')
+        check(e[23][1], f'training: entry 23 ({e[23][0]!r}) shown', errs)
+        press(s, scr, 'OK', 2)
+        scr = s.screen()
+        check(scr.entries[68][1] == 'MAGLIE FISSE', f'after OK: {scr.entries[68][1]!r}', errs)
+        press(s, scr, TRAIN_TXT[UI][2], 3)
+        r = train_kickoff(s, top, bot, True)
+        if r is None:
+            return False, '; '.join(errs + [f'training: no kick-off ({s.result})'])
+        ta, tb = r.obj2(top, 20), r.obj2(bot, 20)
+        s.send('dump:1')
+        s.shot('kits_kickoff')
+        info.append(f'kick-off A {ta[:10].hex(" ")} / {ta[10:].hex(" ")}, B {tb[:10].hex(" ")} / {tb[10:].hex(" ")}')
+        check(ta[:10] != tb[:10], 'training: A and B wear the same kit', errs)
+        k1 = s.result.obj2(kits, 10)
+        check(k1 == k0, f'careerTeam kits {k0.hex(" ")} -> {k1.hex(" ")}', errs)
+        if not train_out(s, errs):
+            return False, '; '.join(errs + info)
+        scr = to_league(s, top, bot, club, errs, prematch=True)
+        if scr is not None:
+            check(scr.entries[68][1] == 'MAGLIE AUTO', f'league: button {scr.entries[68][1]!r}', errs)
+            press(s, scr, 68, 2)
+            scr = s.screen()
+            names = {scr.entries[1][1], scr.entries[3][1].split(':')[0]}
+            info.append(f'league SELECT KITS {sorted(names)}')
+            check(club in names and len(names) == 2, f'league: SELECT KITS teams {names}', errs)
+            press(s, scr, 'OK', 2)
+            press(s, s.screen(), TRAIN_TXT[UI][2], 3)
+            r = train_kickoff(s, top, bot, False)
+            check(r is not None, f'league: no kick-off ({s.result})', errs)
+            if r is not None:
+                ta, tb = r.obj2(top, 10), r.obj2(bot, 10)
+                info.append(f'league kick-off {ingame_team(r, top)[0]} {ta.hex(" ")} / {ingame_team(r, bot)[0]} {tb.hex(" ")}')
+    return not errs, '; '.join(errs + info)
+
+@scenario
 def bench_cup():
     """(4.0.5, Davide 30/10 on rc17: RANGERS with the long bench in the league, 5 in the SCOTTISH CUP) The real bench
     of every competition of a career club's season (tools/bench2627.json, its unknowns filled at build time:

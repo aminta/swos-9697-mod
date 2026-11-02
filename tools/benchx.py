@@ -117,6 +117,7 @@ assert (shirtnum.NEWBASE + 83 == blond.NEW1 and blond.NEW2 + 101 == menunum.NEWB
         and blond.NEW3 + 202 == blond.ICONBL and NB + 2 * (MAXP - 16) <= SPR_END), 'spritesIndex map overlaps'
 PI = 61                                 # sizeof PlayerInfo
 TABLE = struct.pack('<16H', *(i * PI for i in range(16)))     # 0, 61 .. 915
+INFO = {}                               # patch()'s sites for the modules after it (kittrain: TRAIN)
 
 ASM = r"""
 bx_max:                                 ; replaces `mov [GMAX], ax` (InitializeInGameTeamsAndStartGame)
@@ -1852,6 +1853,7 @@ def patch(p, at, ns_at, lang='it'):
     else:
         _, cnp, ct, _, _ = xtra.sites(p)
     s2, v2 = sites2(p, regs)
+    INFO['TRAIN'] = v2['TRAIN']                     # (kittrain.py, 4.0.6: g_trainingGame)
     s3 = sites3(p, regs, s2['n1'], s2['n2'])
     import namespr
     import shirtnum

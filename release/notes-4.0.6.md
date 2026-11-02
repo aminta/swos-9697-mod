@@ -4,7 +4,7 @@
 
 **SWOS 96/97 Mod 4.0.6**
 
-4.0.6 is a round of requests from players: **two players on one keyboard**, the computer's clubs now get red cards and injuries like you do, shirt numbers you can edit on the squad screen, an easier install, more realistic club finances, a smarter training match, and a good number of fixes. Everything in 4.0 to 4.0.5 stays as it was; careers saved with those versions load and play on.
+4.0.6 is a round of requests from players: **two players on one keyboard**, the computer's clubs now get red cards and injuries like you do, shirt numbers you can edit on the squad screen, an easier install (new patcher button and clearer messages), more realistic club finances, a smarter training match, and a good number of fixes. Everything in 4.0 to 4.0.5 stays as it was; careers saved with those versions load and play on.
 
 ### What's new
 
@@ -25,8 +25,16 @@
 #### Looks
 - **White hair for Ravanelli** (1996-97): his famous white hair is now white. More players can be added to the list in the future.
 
-#### Easier install
-- [TO COMPLETE: Integratore — the patcher now explains clearly what went wrong when something fails (4 kinds of errors), and can install the mod into a new folder, leaving your original game untouched].
+#### An easier install (thanks to Roman)
+- **Install into a new folder.** The patcher page has a second button, "Install into a new folder (Program Files, CD)". First pick the game's folder: your GOG install, a copy on disk, or the CD. Then pick (or create) an empty folder of your own outside Program Files, for example Documents\SWOS 96-97 Mod. The page copies the game there and installs the mod in the copy. The original game is not touched. Play from the new folder: the GOG shortcut still starts the original game.
+  - Why: Windows does not let a web page write inside Program Files or on a CD. This was the most common reason an install failed.
+- **Clearer messages.** When something goes wrong, the page now says what happened and what to do:
+  - The wrong folder: which files it looks for (ITALIAN.EXE, ENGLISH.EXE, FRENCH.EXE or GERMAN.EXE, and the DATA folder with TEAM.020). It also looks inside subfolders.
+  - A folder it cannot write to (Program Files, a CD): nothing was changed; use the second button.
+  - A system folder Chrome refuses: choose the game's own folder, or use the second button.
+  - A new folder that is not empty, or that is inside the game folder: choose an empty folder elsewhere.
+  - An install stopped half-way: nothing is lost. Choose the same folder again and the page finishes the job. To go back, the replaced files are in MOD_BACKUP.
+- All messages in Italian, English, French and German.
 
 #### Finances
 - [TO COMPLETE: Integratore, long text — why club finances were out of balance (running costs are about 3.2 times the wage bill, every week, while income did not follow the squad), what changed, with examples of big clubs; the 16-bit gate-receipts overflow fixed; thanks to Nicola for the report. Davide wants this explained at length.]
@@ -43,7 +51,7 @@
 - [TO COMPLETE when the items above are final: declared limits, list of what is off under SWOS++.]
 
 ### Thanks
-Thanks to Marco for the training, shirt-number and keyboard ideas, to Enzo for the market-list report, to Nicola for the finance report, to Francesco, and to Ben Baker for the San Marino report. [TO CHECK: exact credits per item with the owners.]
+Thanks to Roman for asking for an easier install, to Marco for the training, shirt-number and keyboard ideas, to Enzo for the market-list report, to Nicola for the finance report, to Francesco, and to Ben Baker for the San Marino report. [TO CHECK: exact credits per item with the owners.]
 
 ## Italiano
 
@@ -70,8 +78,16 @@ La 4.0.6 è un giro di richieste dei giocatori: **due giocatori sulla stessa tas
 #### Aspetto
 - **Capelli bianchi per Ravanelli** (1996-97): i suoi famosi capelli bianchi ora sono bianchi. In futuro si potranno aggiungere altri giocatori all'elenco.
 
-#### Installazione più facile
-- [DA COMPLETARE: Integratore — il patcher ora spiega chiaramente cosa è andato storto quando qualcosa fallisce (4 tipi di errore) e può installare la mod in una cartella nuova, lasciando intatto il tuo gioco originale].
+#### Installazione più semplice (grazie a Roman)
+- **Installa in una cartella nuova.** La pagina del patcher ha un secondo pulsante, «Installa in una cartella nuova (Program Files, CD)». Prima si sceglie la cartella del gioco: l'installazione GOG, una copia su disco o il CD. Poi si sceglie (o si crea) una cartella vuota propria fuori da Program Files, per esempio Documenti\SWOS 96-97 Mod. La pagina ci copia il gioco e installa la mod nella copia. Il gioco originale non viene toccato. Si gioca dalla cartella nuova: il collegamento GOG continua ad avviare il gioco originale.
+  - Perché: Windows non permette a una pagina web di scrivere dentro Program Files o su un CD. Era il motivo più comune per cui l'installazione non riusciva.
+- **Messaggi più chiari.** Quando qualcosa va storto, la pagina ora dice cosa è successo e cosa fare:
+  - La cartella sbagliata: quali file cerca (ITALIAN.EXE, ENGLISH.EXE, FRENCH.EXE o GERMAN.EXE, e la cartella DATA con TEAM.020). Cerca anche nelle sottocartelle.
+  - Una cartella in cui non può scrivere (Program Files, un CD): non è stato cambiato niente; usa il secondo pulsante.
+  - Una cartella di sistema che Chrome rifiuta: scegli la cartella del gioco stessa, oppure usa il secondo pulsante.
+  - Una cartella nuova non vuota, o dentro la cartella del gioco: scegli una cartella vuota altrove.
+  - Un'installazione fermata a metà: non è perso niente. Scegli di nuovo la stessa cartella e la pagina finisce il lavoro. Per tornare indietro, i file sostituiti sono in MOD_BACKUP.
+- Tutti i messaggi in italiano, inglese, francese e tedesco.
 
 #### Finanze
 - [DA COMPLETARE: Integratore, testo lungo — perché le finanze dei club erano fuori equilibrio (i costi di gestione sono circa 3,2 volte il monte stipendi, ogni settimana, mentre gli incassi non seguivano la rosa), cosa è cambiato, con esempi di grandi club; il troncamento a 16 bit degli incassi della partita corretto; grazie a Nicola per la segnalazione. Davide vuole che sia spiegato a lungo.]
@@ -88,4 +104,4 @@ La 4.0.6 è un giro di richieste dei giocatori: **due giocatori sulla stessa tas
 - [DA COMPLETARE a testi definitivi: limiti dichiarati, elenco di cosa è disattivato con SWOS++.]
 
 ### Ringraziamenti
-Grazie a Marco per le idee su allenamento, numeri di maglia e tastiera, a Enzo per la segnalazione sull'elenco del mercato, a Nicola per quella sulle finanze, a Francesco e a Ben Baker per la segnalazione su San Marino. [DA VERIFICARE: crediti esatti per voce con i proprietari.]
+Grazie a Roman per aver chiesto un'installazione più semplice, a Marco per le idee su allenamento, numeri di maglia e tastiera, a Enzo per la segnalazione sull'elenco del mercato, a Nicola per quella sulle finanze, a Francesco e a Ben Baker per la segnalazione su San Marino. [DA VERIFICARE: crediti esatti per voce con i proprietari.]

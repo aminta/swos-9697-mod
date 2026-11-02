@@ -1383,9 +1383,9 @@ def _ring_sym(p):
 BSKIP_LAB = None                # (bskip_patch: zb_eff, ZBP, ZBS)
 
 
-def bskip_patch(p, at, area):
-    """4.0.6 zb_eff / zb_is and the ZB table at obj1:at (the longtable room; the cosmetics page is full) - before
-    patch(); returns its end (at unchanged when no B team skips)"""
+def bskip_patch(p, at, area, obj=1):
+    """4.0.6 zb_eff / zb_is and the ZB table at obj:at (the longtable room: obj3's last page, else obj1; the cosmetics
+    page is full) - before patch(); returns its end (at unchanged when no B team skips)"""
     global BSKIP_LAB
     zb = bskip_entries()
     BSKIP_LAB = None
@@ -1407,30 +1407,34 @@ def bskip_patch(p, at, area):
     sym = {'ZBP': (2, zbv), 'ZBS': (2, zbv + 1), 'ZBP2': (2, zbv + 2), 'BSKIP_PO_': (0, BSKIP_PO),
            'SEC_BQ': gplay.LABELS['SEC_BQ'], 'SEASONP': season, 'SELTEAMS': (2, mkseason._hook_sites(p)[3]), 'D7': (2, s['A0'] - 4),
            'A1': (2, s['A0'] + 4), 'DIY': (2, s['DIY']), **({'OV_ON': (2, fmtpage.OV['on'])} if ov else {})}
-    code, cfix = nasmcave.assemble(src, at, sym)
-    assert not any(p.get(1, at, len(code)))
-    p.put(1, at, code)
-    for o, t_obj, t_off in cfix:
-        p.add_ptr(1, at + o, t_obj, t_off)
+    code = _put_obj(p, src, at, sym, obj)
     lab = nasmcave.labels(src, at, sym)
-    BSKIP_LAB = {'zb_eff': (1, lab['zb_eff']), 'zb_rng': (1, lab['zb_rng'])}
-    print(f'exe: zone places skip the {len(zb)} B teams that may not qualify (code obj1+{at:#x}, {len(code)} B; '
+    BSKIP_LAB = {'zb_eff': (obj, lab['zb_eff']), 'zb_rng': (obj, lab['zb_rng'])}
+    print(f'exe: zone places skip the {len(zb)} B teams that may not qualify (code obj{obj}+{at:#x}, {len(code)} B; '
           f'SEC_BQ obj2+{gplay.LABELS["SEC_BQ"][1]:#x}; SEASONP obj2+{season[1]:#x}; ZB ' + ' '.join(f'{w:x}:{i}:{f}' for w, i, f in zb) + ')')
     return at + len(code)
 
 
-def ring_patch(p, at):
-    """zn_ring at obj1:at (gplay's pages); returns its end."""
+def _put_obj(p, src, at, sym, obj):
+    """src assembled at obj:at (empty there), its absolute refs and rel32s out of obj fixed up; returns the code."""
+    code, fix, rel = nasmcave.assemble_obj(src, at, sym, obj)
+    assert not any(p.get(obj, at, len(code))), (obj, hex(at))
+    p.put(obj, at, code)
+    for o, t_obj, t_off in fix:
+        p.add_ptr(obj, at + o, t_obj, t_off)
+    for o, t_obj, t_off in rel:
+        p.add_rel(obj, at + o, t_obj, t_off)
+    return code
+
+
+def ring_patch(p, at, obj=1):
+    """zn_ring at obj:at (the longtable room: obj3's last page, else gplay's pages); returns its end."""
     global RING
     at = (at + 15) & ~15
     sym = _ring_sym(p)
-    code, cfix = nasmcave.assemble(RING_ASM, at, sym)
-    assert not any(p.get(1, at, len(code)))
-    p.put(1, at, code)
-    for o, t_obj, t_off in cfix:
-        p.add_ptr(1, at + o, t_obj, t_off)
+    code = _put_obj(p, RING_ASM, at, sym, obj)
     lab = nasmcave.labels(RING_ASM, at, sym)
-    RING = {k: (1, lab[k]) for k in ('zn_roff', 'zn_ron', 'zn_ring')}
+    RING = {k: (obj, lab[k]) for k in ('zn_roff', 'zn_ron', 'zn_ring')}
     return at + len(code)
 
 
@@ -1528,12 +1532,8 @@ def patch(p, at, area, lang, pack_dirs, bss, bss_len, world=None):
         src += RING_ASM
         sym.update(_ring_sym(p))
     at = (at + 15) & ~15
-    code, cfix = nasmcave.assemble(src, at, sym)
+    code = _put_obj(p, src, at, sym, 1)                  # (rel32s into obj3: the ring / bskip in the longtable room)
     lab = nasmcave.labels(src, at, sym)
-    assert not any(p.get(1, at, len(code)))
-    p.put(1, at, code)
-    for o, t_obj, t_off in cfix:
-        p.add_ptr(1, at + o, t_obj, t_off)
     p.retarget(1, menu_ref, 2, menu_new)
     p.put(1, menu_ref, struct.pack('<I', menu_new))
     if not lp:

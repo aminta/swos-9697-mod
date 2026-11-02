@@ -19,7 +19,7 @@ import struct
 import nasmcave
 
 LABEL = {'it': b'CARRIERA 2026-27', 'en': b'CAREER 2026-27', 'fr': b'CARRIERE 2026-27', 'de': b'KARRIERE 2026-27'}
-FLAG = [None]                                # obj1 offset of mb_flag (1: the career came from the button)
+FLAG = [None]                                # (obj, offset) of mb_flag (1: the career came from the button)
 X, W, H, GAP, GREEN = 162, 150, 16, 18, 14   # (x as the menu stores it: definition + 8)
 
 SRC = """
@@ -177,8 +177,8 @@ mb_lab: db LABEL_, 0
 """
 
 
-def patch(p, at, lang, wid, onsel=None):
-    """The button's code at obj1 offset at; wid = the world's list id (mkseason.WMENU + its number); onsel = (1, obj1 offset) of its on-select function (None: CAREER's).
+def patch(p, at, lang, wid, onsel=None, obj=1):
+    """The button's code at obj offset at (4.0.6: obj3's last page, else obj1); wid = the world's list id (mkseason.WMENU + its number); onsel = (1, obj1 offset) of its on-select function (None: CAREER's).
     Returns the end of the code."""
     c = p.le.obj_bytes(1)
     fx = {s: (t, o) for so, s, _, t, o, *_ in p.le.fixups() if so == 1}
@@ -215,15 +215,13 @@ def patch(p, at, lang, wid, onsel=None):
                                                  rb'\x01\x00\x66\xc7\x05....\x00\x00\x66\xc7\x05....\x00\x00\xe8', c, re.S)]
     st = [x for x in st if p.le.obj_bytes(2)[x[1]:x[1] + 1] != b'\0']
     sym.update({'HDR': hdr, 'STR': st[0], 'WID_': (0, wid)})
-    code, fix = nasmcave.assemble(src, at, sym)
+    import zones
+    code = zones._put_obj(p, src, at, sym, obj)
     lab = nasmcave.labels(src, at, sym)
-    p.put(1, at, code)
-    for o, tobj, toff in fix:
-        p.add_ptr(1, at + o, tobj, toff)
-    p.put(1, on + 6, b'\xe9' + struct.pack('<i', lab['mb_on'] - (on + 11)))
-    p.put(1, off + 6, b'\xe9' + struct.pack('<i', lab['mb_off'] - (off + 11)) + b'\x90\x90')
+    p.branch(1, on + 6, 0xE9, obj, lab['mb_on'])
+    p.branch(1, off + 6, 0xE9, obj, lab['mb_off'], n=7)
     p.remove(1, cs + 2)                              # (the overwritten instruction's fixup: [D0])
-    p.put(1, cs, b'\xe8' + struct.pack('<i', lab['mb_d0'] - (cs + 5)) + b'\x90\x90')
-    FLAG[0] = lab['mb_flag']                         # (4.0.3: careerworld's nat_init reads it: the coach's list)
-    print(f'exe: main menu button {LABEL[lang].decode()} at obj1+{at:#x} (hooks {on + 6:#x}, {off + 6:#x})')
+    p.branch(1, cs, 0xE8, obj, lab['mb_d0'], n=7)
+    FLAG[0] = (obj, lab['mb_flag'])                  # (4.0.3: careerworld's nat_init reads it: the coach's list)
+    print(f'exe: main menu button {LABEL[lang].decode()} at obj{obj}+{at:#x} (hooks {on + 6:#x}, {off + 6:#x})')
     return at + len(code)

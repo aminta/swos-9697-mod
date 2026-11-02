@@ -63,8 +63,10 @@ OBJ1_NEW_VSIZE = 0xa6000     # + five added pages (lepatch.add_object_page)
 OBJ3_ARENA = 0x20000         # 4.0.6 obj3 (mod code after obj2, CONVENTIONS 23): its file pages (mod pages, then the C
                              # engine's code, PLAN §19 step O) stay below this; the engine arena + spec buffer go here,
                              # zero-filled (vsize only, the engine zeroes it: DOS/4GW does not)
-OBJ3_PAGES = 5               # obj3+0: benchx (the long benches), code + data; then (4.0.6) kittrain, squadnum, mk_keep,
-                             # oppl, cpucards, whitehair, finance, kbd2 (bteam next)
+OBJ3_PAGES = 6               # obj3+0: benchx (the long benches), code + data; then (4.0.6) kittrain, squadnum, mk_keep,
+                             # oppl, cpucards, whitehair, finance, kbd2 (bteam next); the LAST page (LT3_AT): zones' ring +
+                             # bskip, longtable, mainbtn in a build with gplay (patched before the chain: gplay's room)
+LT3_AT = 0x1000 * OBJ3_PAGES - 0x1000
 SA_CAVE = 0xa1000            # first added page: South American cups
 WORLD_CAVE = 0xa2000         # second added page: new countries, CAF cups (Roadmap 2)
 NZ_CAVE = 0xa4000            # fourth added page (2.1): NSSL shoot-out (the world cave may grow into page 3)
@@ -584,16 +586,17 @@ def patch_exe(src, dst, remap, lang='it'):
     zones.RING = None                            # (per exe: a release build patches the four languages in one run)
     xp = hist2 + h2 + 0x1000 * (lpb - cos_pg - ri_pg - xpg) if xtra_pg else None   # (the extra pages)
     xtra_at = xp                                                 # (where their code starts)
-    lt_room = None                                               # zones' ring + bskip, longtable + mainbtn: in gplay's
-    if LT_SPACE:                                                 # pages (the extra pages are full in a world build),
-        lt_room = list(LT_SPACE)                                 # else at the extra pages' start (their code follows),
-    elif xtra_pg:                                                # else the cosmetics page as before
+    lt_room = None                                               # zones' ring + bskip, longtable + mainbtn: in obj3's
+    lt_obj = 1                                                   # last page with gplay (4.0.6: gplay's room for its
+    if LT_SPACE:                                                 # own code), else at the extra pages' start (their
+        lt_room, lt_obj = [LT3_AT, LT3_AT + 0x1000], 3           # code follows), else the cosmetics page as before
+    elif xtra_pg:
         lt_room = [xp, xp + 0x1000 * xpg]
     zones.BSKIP_LAB = None
     if lt_room:
-        lt_room[0] = zones.ring_patch(p, lt_room[0])
+        lt_room[0] = zones.ring_patch(p, lt_room[0], lt_obj)
         if worlds:                               # 4.0.6: qualifying places skip the B teams that may not qualify
-            lt_room[0] = zones.bskip_patch(p, lt_room[0], area)
+            lt_room[0] = zones.bskip_patch(p, lt_room[0], area, lt_obj)
     cos = zones.patch(p, cos, area, lang, [e if os.sep in e else os.path.join(mkseason.PACKS, e) for e in mkseason.ENABLED],
                       num_bss + shirtnum.BSS_SIZE + blond.BSS_SIZE + menunum.BSS_SIZE, fmtpage.BSS_SIZE,
                       careerworld.SITES if worlds else None)   # (the FORMAT page's buffer, shared)
@@ -602,22 +605,24 @@ def patch_exe(src, dst, remap, lang='it'):
         lpreal.patch(p, LR_ROOM[0], LR_ROOM[1], area, num_bss + shirtnum.BSS_SIZE + blond.BSS_SIZE + menunum.BSS_SIZE,
                      fmtpage.BSS_SIZE)
     if lt_room:
-        lt_end_ = longtable.patch(p, (lt_room[0] + 15) & ~15, area, lang)
+        lt_end_ = longtable.patch(p, (lt_room[0] + 15) & ~15, area, lang, lt_obj)
         if worlds and any(pk.meta.get('id', '').startswith('world-2026-27-') for pk in mkseason.packs()):
             import mainbtn                               # 4.0: the green CARRIERA 2026-27 button on the main menu
             w27 = min(pk.world for pk in mkseason.packs() if pk.meta.get('id', '').startswith('world-2026-27-'))
-            lt_end_ = mainbtn.patch(p, (lt_end_ + 15) & ~15, lang, mkseason.WMENU + w27)
+            lt_end_ = mainbtn.patch(p, (lt_end_ + 15) & ~15, lang, mkseason.WMENU + w27, obj=lt_obj)
             if careerworld.SITES.get('natflag'):     # 4.0.3: CAREER 2026-27's coach nationalities (careerworld nat_init)
-                p.add_ptr(1, careerworld.SITES['natflag'], 1, mainbtn.FLAG[0])
-        assert lt_end_ <= lt_room[1], (f'longtable + mainbtn: {lt_end_ - lt_room[0]} B from obj1+{lt_room[0]:#x}, past '
-                                       f'the room end obj1+{lt_room[1]:#x} ({"gplay" if LT_SPACE else "the extra"}\'s pages; '
-                                       f'a test build\'s bigger gplay: shrink it, as GP_KOSIZE)')   # 4.0.6: no other room
-        if xtra_pg and lt_room[0] == xp:                 # (in the extra pages: their code after it, lgreal on the
+                p.add_ptr(1, careerworld.SITES['natflag'], *mainbtn.FLAG[0])
+        assert lt_end_ <= lt_room[1], (f'longtable + mainbtn: {lt_end_ - lt_room[0]} B from obj{lt_obj}+{lt_room[0]:#x}, '
+                                       f'past the room end obj{lt_obj}+{lt_room[1]:#x} ({"obj3 last page: OBJ3_PAGES + 1" if LT_SPACE else "the extra pages"})')
+        if LT_SPACE:                                     # (in obj3: lgreal gets gplay's whole free tail)
+            LG_ROOM[:] = LT_SPACE
+        elif xtra_pg and lt_room[0] == xp:               # (in the extra pages: their code after it, lgreal on the
             xtra_at = (lt_end_ + 15) & ~15               # split page's tail)
             LG_ROOM[:] = [xtra_at, xtra_at]
         else:
             LG_ROOM[:] = [(lt_end_ + 15) & ~15, lt_room[1]]   # 4.0.5 lgreal's code (after split.patch: its hooks)
-        print(f'exe: longtable code obj1+{lt_room[0]:#x}..{lt_end_:#x} (free to {lt_room[1]:#x}: {lt_room[1] - lt_end_} B left)')
+        print(f'exe: longtable code obj{lt_obj}+{lt_room[0]:#x}..{lt_end_:#x} (free to {lt_room[1]:#x}: {lt_room[1] - lt_end_} B left)'
+              + (f'; gplay free obj1+{LT_SPACE[0]:#x}..{LT_SPACE[1]:#x}: {LT_SPACE[1] - LT_SPACE[0]} B' if LT_SPACE else ''))
     else:
         cos = longtable.patch(p, cos, area, lang)                # 4.0: tables over 24 clubs scroll (ARG / MLS 30: no drawing past the screen)
     if cos_pg:
@@ -720,21 +725,21 @@ def patch_exe(src, dst, remap, lang='it'):
     bn_end = mklist.patch(p, (bn_end + 15) & ~15)     # obj3 after squadnum
     import oppl                                  # 4.0.6 (Davide): the opponent squad, read only, in the in-match bench
     bn_end = oppl.patch(p, (bn_end + 15) & ~15)       # menu (UP on the coach), obj3 after mk_keep
-    assert bn_end <= 0x1000 * OBJ3_PAGES, hex(bn_end)
+    assert bn_end <= LT3_AT, hex(bn_end)
     import cpucards                              # 4.0.6 (Davide): the CPU's cards / injuries by the human rules, two
     cc_end = cpucards.patch(p, (bn_end + 15) & ~15, lang)    # OPTIONS rows (ON by default), in obj3 after oppl
     cpucards.force(p)                                        # (CARDS_FORCE test builds only: last-man fouls forced)
     cpucards.force_inj(p)                                    # (INJ_FORCE test builds only: every tackle injures)
-    assert cc_end <= 0x1000 * OBJ3_PAGES, hex(cc_end)
+    assert cc_end <= LT3_AT, hex(cc_end)
     wh_end = blond.late_patch(p, (cc_end + 15) & ~15)        # 4.0.6: white hair - blond's palette route + tables in
-    assert wh_end <= 0x1000 * OBJ3_PAGES, hex(wh_end)        # obj3 after cpucards
+    assert wh_end <= LT3_AT, hex(wh_end)        # obj3 after cpucards
     import finance                               # 4.0.6 (Nicola): TV / commercial income with every match charge +
     fi_end = finance.patch(p, (wh_end + 15) & ~15, lang)     # the gate wrap fix, in obj3 after whitehair
-    assert fi_end <= 0x1000 * OBJ3_PAGES, hex(fi_end)
+    assert fi_end <= LT3_AT, hex(fi_end)
     import kbd2                                  # 4.0.6 CONTROLS B (Marco): player 2's own key set on one keyboard,
     kb_end = kbd2.patch(p, (fi_end + 15) & ~15, lang)        # in obj3 after finance (bteam next: (kb_end + 15) & ~15)
-    assert kb_end <= 0x1000 * OBJ3_PAGES, hex(kb_end)
-    print(f'exe: obj3 end {kb_end:#x} ({0x1000 * OBJ3_PAGES - kb_end} B left)')
+    assert kb_end <= LT3_AT, hex(kb_end)
+    print(f'exe: obj3 end {kb_end:#x} ({LT3_AT - kb_end} B left before the longtable page obj3+{LT3_AT:#x})')
     p.set_vsize(3, 0x1000 * OBJ3_PAGES)
     p.set_vsize(1, OBJ1_NEW_VSIZE + (0x1000 * (cp + 2 + cdp) if worlds else 0) + h2 + 0x1000 * (lpb + sp_pg + sc_pg + ct_pg + ctl_pg))
     import teamstab                              # 4.0.2: teamsTable for 256 team ordinals (Serie D choice colours)

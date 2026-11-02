@@ -476,8 +476,9 @@ ZSTAGE_ASM = """    push esi                            ; 4.0.5 the zone key of 
 """
 
 
-def patch(p, at, area=None, lang='it'):
-    """Code at obj1:at; returns its end. area / lang: the overall tables' titles (STAT > CLASSIFICA GENERALE)."""
+def patch(p, at, area=None, lang='it', obj=1):
+    """Code at obj:at (4.0.6: obj3's last page in a world build, else obj1); returns its end. area / lang: the overall
+    tables' titles (STAT > CLASSIFICA GENERALE)."""
     import lp36
     d1 = p.le.obj_bytes(1)
     a0 = lp36._sites(p)['A0']                     # the pseudo registers: Dn = A0 - 32 + 4n
@@ -574,17 +575,13 @@ def patch(p, at, area=None, lang='it'):
     src = src.replace('ZSTAGE\n', ZSTAGE_ASM if zst else '')
     if zst:
         sym.update({'ZSKEY': (2, zones.STG['key']), 'ZSTG': (2, zones.STG['flag']), 'ZNAME_': (0, zones.NAME)})
-    code, cfix = nasmcave.assemble(src, at, sym)
+    code = zones._put_obj(p, src, at, sym, obj)
     lab = nasmcave.labels(src, at, sym)
-    assert not any(p.get(1, at, len(code)))
-    p.put(1, at, code)
-    for off, t_obj, t_off in cfix:
-        p.add_ptr(1, at + off, t_obj, t_off)
 
     def hook(site, length, label, fix):
         for f in fix:
             p.remove(1, site + f)
-        p.put(1, site, b'\xE8' + struct.pack('<i', lab[label] - (site + 5)) + b'\x90' * (length - 5))
+        p.branch(1, site, 0xE8, obj, lab[label], n=length)
     hook(h1, 10, 'lt_d3', (6,))
     hook(h2, 9, 'lt_d5', (3,))
     hook(h3, 11, 'lt_end', (7,))
@@ -600,7 +597,7 @@ def patch(p, at, area=None, lang='it'):
         hook(row, 13, 'lt_row', (2, 9))
     LABELS.update(lab)
     print(f'exe: league tables over {ROWS} clubs scroll ({ROWS} rows shown; OnRestore obj1+{h1:#x}, row loop '
-          f'obj1+{h2:#x} / {h3:#x}, ScrollDown obj1+{h4:#x}; code obj1+{at:#x}, {len(code)} B' +
+          f'obj1+{h2:#x} / {h3:#x}, ScrollDown obj1+{h4:#x}; code obj{obj}+{at:#x}, {len(code)} B' +
           (f'; overall tables: Init obj1+{init:#x}, Apertura {apn()} days)' if ov else
            f'; no overall tables: flag {fmtpage.OV.get("flag")}, gp_overall {"gp_overall" in gplay.LABELS})'))
     return at + len(code)

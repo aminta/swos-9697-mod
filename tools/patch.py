@@ -570,12 +570,13 @@ def patch_exe(src, dst, remap, lang='it'):
     titlelegs.patch(p, area, lang)
     import zones                                 # 4.0: zone colours in the league tables (light blue, green, ...)
     zones.RING = None                            # (per exe: a release build patches the four languages in one run)
-    lt_room = None                                               # zones' ring + longtable + mainbtn (~0x5A0 B): in
-    if LT_SPACE and LT_SPACE[1] - LT_SPACE[0] >= 0x600:          # gplay's pages, else the extra pages' last 0x600 B
-        lt_room = list(LT_SPACE)                                 # (a test build's gplay is bigger), else the
-    elif xtra_pg:                                                # cosmetics page as before (full in a world build)
-        xtop = hist2 + h2 + 0x1000 * (lpb - cos_pg - ri_pg)
-        lt_room = [xtop - 0x600, xtop]
+    xp = hist2 + h2 + 0x1000 * (lpb - cos_pg - ri_pg - xpg) if xtra_pg else None   # (the extra pages)
+    xtra_at = xp                                                 # (where their code starts)
+    lt_room = None                                               # zones' ring + bskip, longtable + mainbtn: in gplay's
+    if LT_SPACE:                                                 # pages (the extra pages are full in a world build),
+        lt_room = list(LT_SPACE)                                 # else at the extra pages' start (their code follows),
+    elif xtra_pg:                                                # else the cosmetics page as before
+        lt_room = [xp, xp + 0x1000 * xpg]
     zones.BSKIP_LAB = None
     if lt_room:
         lt_room[0] = zones.ring_patch(p, lt_room[0])
@@ -596,9 +597,15 @@ def patch_exe(src, dst, remap, lang='it'):
             lt_end_ = mainbtn.patch(p, (lt_end_ + 15) & ~15, lang, mkseason.WMENU + w27)
             if careerworld.SITES.get('natflag'):     # 4.0.3: CAREER 2026-27's coach nationalities (careerworld nat_init)
                 p.add_ptr(1, careerworld.SITES['natflag'], 1, mainbtn.FLAG[0])
-        assert lt_end_ <= lt_room[1], hex(lt_end_)
-        LG_ROOM[:] = [(lt_end_ + 15) & ~15, lt_room[1]]   # 4.0.5 lgreal's code (after split.patch: its hooks)
-        print(f'exe: longtable code obj1+{lt_room[0]:#x}..{lt_end_:#x} (free to {lt_room[1]:#x})')
+        assert lt_end_ <= lt_room[1], (f'longtable + mainbtn: {lt_end_ - lt_room[0]} B from obj1+{lt_room[0]:#x}, past '
+                                       f'the room end obj1+{lt_room[1]:#x} ({"gplay" if LT_SPACE else "the extra"}\'s pages; '
+                                       f'a test build\'s bigger gplay: shrink it, as GP_KOSIZE)')   # 4.0.6: no other room
+        if xtra_pg and lt_room[0] == xp:                 # (in the extra pages: their code after it, lgreal on the
+            xtra_at = (lt_end_ + 15) & ~15               # split page's tail)
+            LG_ROOM[:] = [xtra_at, xtra_at]
+        else:
+            LG_ROOM[:] = [(lt_end_ + 15) & ~15, lt_room[1]]   # 4.0.5 lgreal's code (after split.patch: its hooks)
+        print(f'exe: longtable code obj1+{lt_room[0]:#x}..{lt_end_:#x} (free to {lt_room[1]:#x}: {lt_room[1] - lt_end_} B left)')
     else:
         cos = longtable.patch(p, cos, area, lang)                # 4.0: tables over 24 clubs scroll (ARG / MLS 30: no drawing past the screen)
     if cos_pg:
@@ -606,8 +613,7 @@ def patch_exe(src, dst, remap, lang='it'):
     else:
         world = cos
     if xtra_pg:                                                  # extended career squads (packs with "extra";
-        xp = hist2 + h2 + 0x1000 * (lpb - cos_pg - ri_pg - xpg)  # XTRA_HOOK=1: test builds): DATA\XTRA.nnn players;
-        xe = xtra.patch(p, xp) if xtra_on else xp
+        xe = xtra.patch(p, xtra_at) if xtra_on else xtra_at      # XTRA_HOOK=1: test builds): DATA\XTRA.nnn players;
         if xtra_on:
             import xbrowse                                       # 4.0.2: the extras in the club browse (a 2nd page)
             xe = xbrowse.patch(p, xe, lang)                # the extra page in a build with worlds, with the
@@ -632,8 +638,8 @@ def patch_exe(src, dst, remap, lang='it'):
             xe = quietend.patch(p, (xe + 15) & ~15, min(w27s), lang)   # the season end + a progress line (World 2026-27)
         if sc_on:                                        # 4.0.5: the season end's cup winners / finalists (supercups)
             xe = supercup.patch(p, xe)
-        xlim = xp + 0x1000 * xpg - (0x600 if lt_room and lt_room[1] == xp + 0x1000 * xpg else 0)   # (longtable's)
-        assert xe <= xlim, hex(xe)
+        assert xe <= xp + 0x1000 * xpg, hex(xe)
+        print(f'exe: extra pages obj1+{xp:#x}..{xe:#x} (free to {xp + 0x1000 * xpg:#x}: {xp + 0x1000 * xpg - xe} B left)')
     elif xtra_on:
         world = xtra.patch(p, world)
         import xbrowse

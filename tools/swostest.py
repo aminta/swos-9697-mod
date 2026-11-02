@@ -5330,6 +5330,16 @@ def bench_sub(s, bx, place, errs, info, mark, key=None, gone=None, tag=''):
     seen = []
     ns0 = (w16(v['NS1'], s.result.base2), w16(v['NS2'], s.result.base2))
     ord0 = s.result.read(s.result.lin(bx) - 4 - 156, 52)   # (2 humans: the other team's half may hold its change)
+
+    def ks(keys):                           # (BENCH_SAMPLE=secs, 02/11: in-match stalls under load - the dump never came
+        if not os.environ.get('BENCH_SAMPLE'):   # back after a cursor key: each key with sample(), the EIPs of a hang)
+            return s.send(keys)
+        hist, r = s.sample(keys, float(os.environ['BENCH_SAMPLE']))
+        if r.outcome != 'dump':
+            top = sorted(hist.items(), key=lambda x: -x[1])[:16]
+            errs.append(f'HANG after {keys!r}: obj1 EIPs {[(hex(o), n) for o, n in top]}')
+            mark(errs[-1])
+        return r
     for call in range(12):
         r = s.send((key or ('pgup' if call % 2 == 0 else 'pgdn')) + ':0.3 dump:0.6')   # (key: one team's bench)
         if r.outcome != 'dump':
@@ -5337,7 +5347,7 @@ def bench_sub(s, bx, place, errs, info, mark, key=None, gone=None, tag=''):
             return False
         last, still = w16(v['IDX'], r.base2), 0
         for j in range(24):
-            r = s.send('down:0.15 dump:0.3')
+            r = ks('down:0.15 dump:0.3')
             if r.outcome != 'dump':
                 errs.append(f'bench cursor: {r}')
                 return False
@@ -5362,7 +5372,10 @@ def bench_sub(s, bx, place, errs, info, mark, key=None, gone=None, tag=''):
     s.shot(tag + 'bench_window')
     ups = []                                # back up 6 places (the window starts at the cursor) and down again
     for key in ['up'] * 6 + ['down'] * 6:
-        r = s.send(key + ':0.15 dump:0.3')
+        r = ks(key + ':0.15 dump:0.3')
+        if r.outcome != 'dump':
+            errs.append(f'bench up / down: {r}')
+            return False
         ups.append((w16(v['IDX'], r.base2), w16(0, r.lin(bx - 4))))
     info.append(f'up/down {ups}')
     up6 = ups[5]
@@ -6169,6 +6182,7 @@ def bench_play(s, gmax, top, bot, wants, errs, info, mark, sub=None, icons=None,
         else:
             r = s.send('fire:0.5 dump:1')
     if stad is not None:                    # the line-ups pages (bx_stad: its loop reads the controls once a tick, so
+        r = stadium_wait(s, info) or r      # (4.0.6: the stadium banner first, when the home club has a name)
         lg = lambda: struct.unpack_from('<II', s.result.read(s.result.lin(stad) + 4, 8))   # the feeder's dumps land
         k, n = lg()                         # in it: 105 ticks = 105 GetKey calls a page = 3.5 s of the script)
         pages = []
@@ -9364,6 +9378,27 @@ def stadium_log(r, at):
             'big': v[STNM_BIG], 'skip': v[STNM_SKIP], 'key': (v[STNM_KEY], v[STNM_KEY + 1]),
             'ticks': struct.unpack_from('<H', v, STNM_TICKS)[0], 'on': v[STNM_ON],
             'box': struct.unpack('<4i', r.read(r.lin(Off3(box)), 16))}
+
+
+def stadium_wait(s, info=None, steps=12):
+    """The stadium banner (stadium.py, a release build with STAD<stem>.DAT) waited out before the line-ups: dump:1
+    while st_on (its 105 ticks read the controls: the feeder's dumps land in it). The Result after it, or None if the
+    exe has no stadium code or no banner is up."""
+    if not hasattr(s, 'stnm'):
+        import lepatch
+        le = lepatch.LEPatch(os.path.join(s.run, 'SWOS', 'ITALIAN.EXE')).le
+        at = le.obj_bytes(3).find(b'STNM') if len(le.objs) > 2 else -1
+        s.stnm = Off3(at) if at >= 0 else None
+    if s.stnm is None or not stadium_log(s.result, s.stnm)['on']:
+        return None
+    for _ in range(steps):
+        r = s.send('dump:1')
+        g = stadium_log(r, s.stnm)
+        if r.outcome != 'dump' or not g['on']:
+            break
+    if info is not None:
+        info.append(f'stadium banner {g["name"]!r} waited out ({g["ticks"]} ticks)')
+    return r
 
 
 def stadium_frame(vga, title, box, errs, tag):

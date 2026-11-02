@@ -8086,7 +8086,7 @@ def controls_menu():
         press(s, sc, 19, 2)
         r = s.result
         sc = s.screen()
-        check(sc.n == 19 and ct_entry(r, menu, 0)[0] == enc(T['title']), f'page not open ({sc.n} entries)', errs)
+        check(sc.n in (19, 26) and ct_entry(r, menu, 0)[0] == enc(T['title']), f'page not open ({sc.n} entries)', errs)
         if errs:
             return False, '; '.join(errs)
         check(sc.selected == 2, f'selected {sc.selected}, want the device row', errs)
@@ -8094,17 +8094,25 @@ def controls_menu():
         s.shot('page')
         work = lambda: s.result.read(ct_base(s.result, v) + v['work'], 105)
         seen = []
-        for want in (3, 5, 1, 3):
+        import kbd2                                     # (4.0.6 CONTROLS B: 1 -> 3 -> 5 -> P1 AND P2 ON KEYBOARD -> 1)
+        k2 = sc.n == 26
+        for want in ((3, 5, kbd2.K2_DEV, 1, 3) if k2 else (3, 5, 1, 3)):
             s.send('fire dump:0.5')
             r = s.result
             dev = struct.unpack_from('<H', work(), 6)[0]
             vis = (not ct_entry(r, menu, 13)[1], not ct_entry(r, menu, 14)[1])
             seen.append(dev)
-            check(dev == want and vis == (want != 1, want == 5), f'device {dev} (want {want}), CALIBRA shown {vis}', errs)
-            check(ct_entry(r, menu, 2)[0] == enc(T['devs'][(0, 0, 1, 2, 3)[want - 1]]), f'device text {ct_entry(r, menu, 2)[0]}', errs)
+            check(dev == want and vis == (want not in (1, kbd2.K2_DEV), want == 5), f'device {dev} (want {want}), CALIBRA shown {vis}', errs)
+            dt = kbd2.TEXTS[UI][0] if want == kbd2.K2_DEV else T['devs'][(0, 0, 1, 2, 3)[want - 1]]
+            check(ct_entry(r, menu, 2)[0] == enc(dt), f'device text {ct_entry(r, menu, 2)[0]}', errs)
+            g2 = [not ct_entry(r, menu, i)[1] for i in range(19, 26)] if k2 else []
+            check(all(g2) if want == kbd2.K2_DEV else not any(g2), f'device {want}: G2 column shown {g2}', errs)
             if want == 5:
                 ct_check_texts(r, menu, range(19), errs, 'two joypads')
                 s.shot('two_joypads')
+            if want == kbd2.K2_DEV:
+                ct_check_texts(r, menu, range(26), errs, 'two key sets')
+                s.shot('two_key_sets')
         notes.append('device ' + ' -> '.join(map(str, seen)))
         press(s, s.screen(), 12, 1)                     # FUOCO: wait for a key
         r = s.result
@@ -8143,7 +8151,7 @@ def controls_menu():
         check(mem[100] == 0x39 and mem[6] == 1, f'game: fire {mem[100]:#x}, device {mem[6]} (no stick: 1)', errs)
         s.send(' '.join(sc.path(19)) + ' space dump:2')   # the new fire key opens COMANDI; ANNULLA drops a change
         r = s.result
-        check(s.screen().n == 19, 'SPACE as fire: COMANDI not opened', errs)
+        check(s.screen().n in (19, 26), 'SPACE as fire: COMANDI not opened', errs)
         s.send('space dump:0.5')
         check(struct.unpack_from('<H', work(), 6)[0] == 3, 'device after one fire', errs)
         sc = s.screen()

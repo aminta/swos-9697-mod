@@ -11349,8 +11349,8 @@ def world_statesim(team='SUDAMERICA,BRASILE,BRASILEIRAO SERIE A,ATHLETICO-PR'):
             check(False, 'no block 0 (st_rec) seen', errs)
         champs = [struct.unpack('<13H', b) for b in hexes.get(f'o1/{champ_at:x}', []) if any(b)]
         if champs:                               # (statesim's champions: one of each simulated state's clubs)
-            byk = [ws for _, ws in L]
-            order = sorted(byk, key=lambda ws: 0)
+            byk = [ws for x in lasts for _, ws in x]   # (any season's blocks: a club promoted into a state in
+            order = sorted(byk, key=lambda ws: 0)        # season 2 can be season 2's champion, 406i1)
             check(all(c == 0 or any(c in ws for ws in byk) for c in champs[-1]) and sum(1 for c in champs[-1] if c)
                   >= len(L) - 1, f'champions {[hex(c) for c in champs[-1]]}', errs)
         else:

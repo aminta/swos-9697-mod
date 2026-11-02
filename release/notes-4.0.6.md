@@ -108,6 +108,7 @@ next match.
 
 #### Fixes
 - **New Zealand, last round of the Championship group.** If your club rests in the last round of the Championship group, the menu now offers FINISH SEASON. Press it: if your club reached the Grand Final, MATCH comes back and you play it; otherwise the season ends. (Before, the menu could offer a match on the rest day.) The real champion was already right; this removes the confusing final that did not count mentioned in the 4.0.5 notes.
+- **Buying a club's extra squad players** (thanks to Enzo). Fixed: after taking over a club, a player you had bought from it (one of its extra squad players) could reappear in its squad, so he was in two clubs at once. Fixed: buying one of another club's extra squad players (players 17 to 30) could make the career crash at the start of a later season, or spoil another club's squad. Careers saved with 4.0.2 to 4.0.5 play on safely.
 - **A play-off entrant that refuses the place** no longer makes the game read wrong data at the season end (it showed up with San Marino; found by Ben Baker).
 
 ### Good to know
@@ -226,6 +227,7 @@ precedente riceve i nuovi incassi dalla partita successiva.
 
 #### Correzioni
 - **Nuova Zelanda, ultima giornata del gruppo del Championship.** Se il tuo club riposa nell'ultima giornata del gruppo del Championship, il menu ora offre FINISCI STAGIONE. Premilo: se il tuo club è arrivato alla Grand Final torna PARTITA e la giochi; altrimenti la stagione finisce. (Prima il menu poteva offrire una partita nel giorno di riposo.) Il campione vero era già giusto; questo toglie la finale confusa che non contava, citata nelle note della 4.0.5.
+- **Acquisto dei giocatori extra di una squadra** (grazie a Enzo). Corretto: prendendo una squadra, un giocatore che le avevi comprato (uno dei suoi giocatori extra della rosa) poteva ricomparire nella sua rosa, quindi in due squadre insieme. Corretto: comprare uno dei giocatori extra della rosa di un'altra squadra (dal 17° al 30°) poteva bloccare la carriera all'inizio di una stagione successiva o rovinare la rosa di un'altra squadra. Le carriere salvate con le versioni 4.0.2-4.0.5 proseguono senza problemi.
 - **Una squadra di play-off che rifiuta il posto** non fa più leggere al gioco dati sbagliati a fine stagione (si vedeva con San Marino; trovato da Ben Baker).
 
 ### Da sapere

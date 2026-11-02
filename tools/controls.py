@@ -993,11 +993,13 @@ def patch(p, at, lang):
     p.put(2, hdr, struct.pack('<I', lab['ct_optinit']))
     p.put(2, hdr + 4, struct.pack('<I', lab['ct_optret']))
     p.add_ptr(2, hdr + 4, 1, lab['ct_optret'])
+    LAST.update(lab=lab, base=base, off=off, ptrs=ptrs, m_at=m_at, data=bytes(data), code_at=at, code_len=len(code))
     print(f'exe: CONTROLS page ({T["title"]}): code obj1+{at:#x} ({len(code)} B), page obj1+{base + m_at:#x}, '
           f'options menu obj2+{hdr:#x}')
     return at + len(code)
 
 
+LAST = {}                             # (the last patch's labels and data block: kbd2's CONTROLS B page builds on them)
 LABEL_COL, VALUE_COL = 0x09, 0x0D     # (the OPTIONS rows: labels 9, values 13)
 BTN_Y, QUIT_Y = 168, 151              # the button between EXIT TO DOS (151 + 15) and EXIT (185): 2 px gaps (4.0.5 Marco;
                                       # EXIT ends on the screen's last row, EXIT TO DOS moves up 1 px)

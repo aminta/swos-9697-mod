@@ -723,9 +723,12 @@ def patch_exe(src, dst, remap, lang='it'):
     wh_end = blond.late_patch(p, (cc_end + 15) & ~15)        # 4.0.6: white hair - blond's palette route + tables in
     assert wh_end <= 0x1000 * OBJ3_PAGES, hex(wh_end)        # obj3 after cpucards
     import finance                               # 4.0.6 (Nicola): TV / commercial income with every match charge +
-    fi_end = finance.patch(p, (wh_end + 15) & ~15, lang)     # the gate wrap fix, in obj3 after whitehair (kbd2 next:
-    assert fi_end <= 0x1000 * OBJ3_PAGES, hex(fi_end)        # (fi_end + 15) & ~15)
-    print(f'exe: obj3 end {fi_end:#x} ({0x1000 * OBJ3_PAGES - fi_end} B left)')
+    fi_end = finance.patch(p, (wh_end + 15) & ~15, lang)     # the gate wrap fix, in obj3 after whitehair
+    assert fi_end <= 0x1000 * OBJ3_PAGES, hex(fi_end)
+    import kbd2                                  # 4.0.6 CONTROLS B (Marco): player 2's own key set on one keyboard,
+    kb_end = kbd2.patch(p, (fi_end + 15) & ~15, lang)        # in obj3 after finance (bteam next: (kb_end + 15) & ~15)
+    assert kb_end <= 0x1000 * OBJ3_PAGES, hex(kb_end)
+    print(f'exe: obj3 end {kb_end:#x} ({0x1000 * OBJ3_PAGES - kb_end} B left)')
     p.set_vsize(3, 0x1000 * OBJ3_PAGES)
     p.set_vsize(1, OBJ1_NEW_VSIZE + (0x1000 * (cp + 2 + cdp) if worlds else 0) + h2 + 0x1000 * (lpb + sp_pg + sc_pg + ct_pg + ctl_pg))
     import teamstab                              # 4.0.2: teamsTable for 256 team ordinals (Serie D choice colours)

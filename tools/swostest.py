@@ -309,7 +309,7 @@ def prepare(name, exe_dir, cars, steps, match=False, timer=False):
 
 
 SCAN = {'fire': 0x1D, 'up': 0x48, 'down': 0x50, 'left': 0x4B, 'right': 0x4D, 'esc': 0x01, 'enter': 0x1C,
-        'space': 0x39, 'bspace': 0x0E, 'semicolon': 0x27, 'pgup': 0x49, 'pgdn': 0x51, 'dump': 0xFF}
+        'space': 0x39, 'bspace': 0x0E, 'semicolon': 0x27, 'pgup': 0x49, 'pgdn': 0x51, 'lshift': 0x2A, 'dump': 0xFF}
 SCAN.update({ch: sc for row, base in (('1234567890', 0x02), ('qwertyuiop', 0x10), ('asdfghjkl', 0x1E),
                                       ('zxcvbnm', 0x2C)) for sc, ch in enumerate(row, base)})
 SCRIPT_MAX = 200                                       # steps a pause can write
@@ -453,7 +453,8 @@ stub:   pushad
         jz .held
         call emu
 .held:
-        mov word [hold], HOLD
+        mov ax, [holdn]                 ; (HOLD, or a scenario's poke: kbd2's player 2 keys held longer)
+        mov [hold], ax
 .go:    popad
         jmp GETKEY
 emu:    mov bx, [SCANCODE]
@@ -464,6 +465,7 @@ emu:    mov bx, [SCANCODE]
 ptr:    dd script
 calls:  dd 0                            ; GetKey calls (read from the dump)
 hold:   dw 0
+holdn:  dw HOLD
 cur:    db 0, 0
 script:
 """ + ''.join(f'        dw {k:#x}, {w}\n' for k, w in steps) + '        dw 0, 0\n' + f'        times {4 * SCRIPT_MAX} db 0\n'
@@ -486,7 +488,7 @@ script:
     # the menus' palette as the DAC has it once faded in (frames are rebuilt from memory, no screencapture)
     st = re.search(rb'\x81\xC6\x00\xFA\x00\x00\xBF....\xB9\x00\x03\x00\x00\xF3\xA4', c, re.S).start()
     assert fx[st + 7][0] == 2, 'g_workingPalette'
-    return {'pal': fx[st + 7][1], 'page': page, 'size2': min(le.obj(2).vsize, le.obj(2).npages * le.page_size), 'calls': page + lab['calls'], 'code': (fixed, c[fixed:fixed + 48]), 'menu': curmenu[1],
+    return {'pal': fx[st + 7][1], 'page': page, 'size2': min(le.obj(2).vsize, le.obj(2).npages * le.page_size), 'calls': page + lab['calls'], 'holdn': page + lab['holdn'], 'code': (fixed, c[fixed:fixed + 48]), 'menu': curmenu[1],
             'brk': page + code.index(b'\xcd\x03'), 'ptr': page + lab['ptr'], 'script': page + lab['script'],
             'anchor': (anchor, d2[anchor:anchor + 64]),
             'p3': next(((soff, toff) for sobj, soff, t, tobj, toff, *_ in le.fixups() if sobj == 1 and t == 7 and tobj == 3),
@@ -8533,6 +8535,159 @@ def controls_mode4():
 
 
 @scenario
+def kbd2_page():
+    """4.0.6 CONTROLS B page (SWOSTEST_UI's exe): COMANDI's device row 1 -> 3 -> 5 -> P1 AND P2 ON KEYBOARD (the G2
+    column shown); P2 FIRE = CTRL (P1's fire) refused, = Q taken; P1 UP = W (P2's up) refused; SALVA writes
+    CONTROL2.DAT ('K2', 1, on, W S A D Q) and SETUP.DAT +6 = 1; COMANDI again shows the mode and Q; back to KEYBOARD ONLY
+    + SALVA: CONTROL2.DAT off"""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import controls
+    import kbd2
+    b, v = ct_build()
+    T = controls.TEXTS[UI]
+    enc = lambda x: x.encode('latin-1')
+    names = controls.key_names(UI)
+    errs, notes = [], []
+    with Session('kbd2_page_' + UI, b, {}, 'dump:2', 300) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'START: no first pause ({s.result})'
+        menu = s.info['menu']
+        work = lambda: s.result.read(ct_base(s.result, v) + v['work'], 108)
+        f2 = os.path.join(s.run, 'SWOS', 'CONTROL2.DAT')
+
+        def open_page():
+            press(s, s.screen(), 'OPZIONI', 2)
+            press(s, s.screen(), 19, 2)
+            return s.screen().n == 26
+
+        check(open_page(), f'page not open ({s.screen().n} entries)', errs)
+        if errs:
+            return False, '; '.join(errs)
+        for _ in range(3):
+            s.send('fire dump:0.5')
+        r = s.result
+        w = work()
+        check(struct.unpack_from('<H', w, 6)[0] == kbd2.K2_DEV and ct_entry(r, menu, 2)[0] == enc(kbd2.TEXTS[UI][0]),
+              f'device {struct.unpack_from("<H", w, 6)[0]} {ct_entry(r, menu, 2)[0]}', errs)
+        check(list(w[101:106]) == list(kbd2.DEFAULT), f'P2 keys {w[101:106].hex()}', errs)
+        press(s, s.screen(), 25, 1)                     # P2 FUOCO: CTRL (P1's) refused, Q taken
+        s.send('fire dump:1')
+        r = s.result
+        check(ct_vars(r, v)['DUP'] == 1 and work()[105] == kbd2.DEFAULT[4], f"P2 fire = CTRL: dup {ct_vars(r, v)['DUP']}, "
+              f'key {work()[105]:#x}', errs)
+        s.send('q dump:1')
+        r = s.result
+        check(work()[105] == 0x10 and ct_entry(r, menu, 25)[0] == enc(names[0x10]),
+              f'P2 fire = Q: key {work()[105]:#x}, text {ct_entry(r, menu, 25)[0]}', errs)
+        s.shot('k2_q')
+        press(s, s.screen(), 8, 1)                      # P1 SU: W (P2's up) refused, ESC keeps
+        s.send('w dump:1')
+        check(ct_vars(s.result, v)['DUP'] == 1 and work()[96] == 0x48, f'P1 up = W: key {work()[96]:#x}', errs)
+        s.send('esc dump:1')
+        press(s, s.screen(), 17, 2)                     # SALVA
+        got = open(f2, 'rb').read() if os.path.exists(f2) else b''
+        want = kbd2.MAGIC + b'\x01' + bytes(kbd2.DEFAULT[:4]) + b'\x10'
+        check(got == want, f'CONTROL2.DAT {got.hex()} (want {want.hex()})', errs)
+        sd = open(os.path.join(s.run, 'SWOS', 'SETUP.DAT'), 'rb').read()
+        check(struct.unpack_from('<H', sd, 6)[0] == 1, f'SETUP.DAT device {struct.unpack_from("<H", sd, 6)[0]}', errs)
+        check(open_page(), 'page not open again', errs)
+        r = s.result
+        check(struct.unpack_from('<H', work(), 6)[0] == kbd2.K2_DEV and ct_entry(r, menu, 25)[0] == enc(names[0x10]),
+              f'reopened: device {struct.unpack_from("<H", work(), 6)[0]}, P2 fire {ct_entry(r, menu, 25)[0]}', errs)
+        s.send('fire dump:0.5')                         # -> KEYBOARD ONLY, SALVA: off
+        press(s, s.screen(), 17, 2)
+        got = open(f2, 'rb').read() if os.path.exists(f2) else b''
+        check(got[:4] == kbd2.MAGIC + b'\x00', f'CONTROL2.DAT after KEYBOARD ONLY: {got.hex()}', errs)
+        notes.append(f'CONTROL2.DAT {got.hex()}')
+    return not errs, '; '.join(errs + notes)
+
+
+def kbd2_friendly_run(on):
+    """kbd2_friendly's run: a two-player friendly LAZIO v JUVENTUS on the KEYBOARD ONLY device (SETUP.DAT +6 = 1), with
+    CONTROL2.DAT's player 2 set on / off (W S A D, left SHIFT). Returns (errs, seen)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import kbd2
+    b = builds()['it']
+    tag = 'kbd2_friendly_' + ('on' if on else 'off')
+    tmp = os.path.join(RUNS, tag + '_files')
+    os.makedirs(tmp, exist_ok=True)
+    sd = bytearray(open(os.path.join(setup(), 'SETUP.DAT'), 'rb').read())
+    sd[6:8] = struct.pack('<H', 1)
+    open(os.path.join(tmp, 'SETUP.DAT'), 'wb').write(sd)
+    files = {'SETUP.DAT': os.path.join(tmp, 'SETUP.DAT')}
+    if on:
+        open(os.path.join(tmp, 'CONTROL2.DAT'), 'wb').write(kbd2.MAGIC + b'\x01' + bytes(kbd2.DEFAULT))
+        files['CONTROL2.DAT'] = os.path.join(tmp, 'CONTROL2.DAT')
+    seen, errs = [], []
+    return kbd2_friendly_session(tag, b, files, on, seen, errs)
+
+
+def kbd2_friendly_session(tag, b, files, on, seen, errs):
+    with Session(tag, b, files, 'dump:3', 300, match=True) as s:
+        s.wait()
+        for t in ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE A', 'LAZIO'):
+            walk(s, t, 2)
+        s.send('fire dump:2')                   # LAZIO: COMPUTER -> human
+        walk(s, 'JUVENTUS', 2)
+        s.send('fire dump:2')                   # JUVENTUS: COMPUTER -> human
+        for _ in range(12):
+            scr = s.screen()
+            if scr.selected == 55:
+                s.send('fire dump:4')
+                break
+            s.send(('right' if scr.selected in (56, 57) else 'down') + ' dump:0.5')
+        scr = s.screen()                        # team 1's PLAY MATCH screen: both players' controls
+        t1 = ' | '.join(x[1] for x in scr.entries[:4])
+        a = scr.selected
+        hold = lambda n: s.poke(s.result.base1 + s.info['holdn'], struct.pack('<H', n))
+        hold(4)                                 # (player 2's keys held 4 menu frames: its directions come from its key
+        s.send('w dump:0.5')                    # word only - the feeder's latched key is player 1's set) - its UP
+        moved = s.screen().selected != a        # (the screen opens on PLAY MATCH, its last row)
+        seen.append(f'team 1 ({t1}): row {a}, P2 up moved {moved} (row {s.screen().selected})')
+        check(moved == on, f'team 1 screen: player 2 up {"did not move" if on else "moved"} the selection', errs)
+        if not on:
+            return errs, seen
+        for _ in range(22):                     # down the rows to PLAY MATCH (9) with player 2's keys
+            if s.screen().selected == 9:
+                break
+            s.send('s dump:0.5')
+        check(s.screen().selected == 9, f'P2 keys to PLAY MATCH: row {s.screen().selected}', errs)
+        r = s.send('lshift dump:3')             # player 2's fire: team 1 is player 2's
+        hold(1)
+        scr = s.screen()
+        t2 = ' | '.join(x[1] for x in scr.entries[:4])
+        seen.append(f'after P2 fire: {t2}')
+        check(r.outcome == 'dump' and t2 != t1, f'player 2 fire on team 1: still {t1}', errs)
+        a = scr.selected                        # team 2's screen: player 1's controls only (3 xor 2)
+        s.send('w dump:0.5')
+        check(s.screen().selected == a, 'team 2 screen: player 2 up moved the selection (team 1 is player 2\'s)', errs)
+        for _ in range(22):
+            if s.screen().selected == 9:
+                break
+            s.send('down dump:0.5')
+        r = s.send('fire dump:3')
+        r = s.send('fire:3 ' * 10 + 'dump:2')
+        scr = s.screen()
+        left = scr.entries and any(x[1] in ('PARTITA', 'PLAY MATCH', 'ESCI', 'EXIT') for x in scr.entries[:12])
+        seen.append(f"after P1: outcome {r.outcome}, screen {' | '.join(x[1] for x in scr.entries[:4]) or '(no menu: the match)'}")
+        check(r.outcome == 'dump' and not left, 'player 1 PLAY MATCH on team 2: still a team screen', errs)
+    return errs, seen
+
+
+@scenario
+def kbd2_friendly():
+    """4.0.6 CONTROLS B (Marco): two humans on ONE keyboard. KEYBOARD ONLY + CONTROL2.DAT on: player 2's keys (W S A D,
+    left SHIFT) move team 1's PLAY MATCH screen and its fire takes team 1 for player 2; team 2's screen then answers
+    player 1's keys only; the match starts. Off (no CONTROL2.DAT): player 2's DOWN does nothing (the game's one set)"""
+    errs, seen = [], []
+    for on in (True, False):
+        e, sn = kbd2_friendly_run(on)
+        errs += [f'{"on" if on else "off"}: {x}' for x in e]
+        seen += sn
+    return not errs, '; '.join(errs + seen)
+
+
+@scenario
 def controls_menu():
     """4.0.2 OPZIONI > COMANDI (controls.py), SWOSTEST_UI's exe: the button between ESCI A DOS and ESCI; the page's
     texts in the font and their boxes; device 1 -> 3 -> 5 -> 1 (4.0.5: no 4 - the game never honoured it; CALIBRA 1 / 2
@@ -8563,7 +8718,7 @@ def controls_menu():
         press(s, sc, 19, 2)
         r = s.result
         sc = s.screen()
-        check(sc.n == 19 and ct_entry(r, menu, 0)[0] == enc(T['title']), f'page not open ({sc.n} entries)', errs)
+        check(sc.n in (19, 26) and ct_entry(r, menu, 0)[0] == enc(T['title']), f'page not open ({sc.n} entries)', errs)
         if errs:
             return False, '; '.join(errs)
         check(sc.selected == 2, f'selected {sc.selected}, want the device row', errs)
@@ -8571,17 +8726,25 @@ def controls_menu():
         s.shot('page')
         work = lambda: s.result.read(ct_base(s.result, v) + v['work'], 105)
         seen = []
-        for want in (3, 5, 1, 3):
+        import kbd2                                     # (4.0.6 CONTROLS B: 1 -> 3 -> 5 -> P1 AND P2 ON KEYBOARD -> 1)
+        k2 = sc.n == 26
+        for want in ((3, 5, kbd2.K2_DEV, 1, 3) if k2 else (3, 5, 1, 3)):
             s.send('fire dump:0.5')
             r = s.result
             dev = struct.unpack_from('<H', work(), 6)[0]
             vis = (not ct_entry(r, menu, 13)[1], not ct_entry(r, menu, 14)[1])
             seen.append(dev)
-            check(dev == want and vis == (want != 1, want == 5), f'device {dev} (want {want}), CALIBRA shown {vis}', errs)
-            check(ct_entry(r, menu, 2)[0] == enc(T['devs'][(0, 0, 1, 2, 3)[want - 1]]), f'device text {ct_entry(r, menu, 2)[0]}', errs)
+            check(dev == want and vis == (want not in (1, kbd2.K2_DEV), want == 5), f'device {dev} (want {want}), CALIBRA shown {vis}', errs)
+            dt = kbd2.TEXTS[UI][0] if want == kbd2.K2_DEV else T['devs'][(0, 0, 1, 2, 3)[want - 1]]
+            check(ct_entry(r, menu, 2)[0] == enc(dt), f'device text {ct_entry(r, menu, 2)[0]}', errs)
+            g2 = [not ct_entry(r, menu, i)[1] for i in range(19, 26)] if k2 else []
+            check(all(g2) if want == kbd2.K2_DEV else not any(g2), f'device {want}: G2 column shown {g2}', errs)
             if want == 5:
                 ct_check_texts(r, menu, range(19), errs, 'two joypads')
                 s.shot('two_joypads')
+            if want == kbd2.K2_DEV:
+                ct_check_texts(r, menu, range(26), errs, 'two key sets')
+                s.shot('two_key_sets')
         notes.append('device ' + ' -> '.join(map(str, seen)))
         press(s, s.screen(), 12, 1)                     # FUOCO: wait for a key
         r = s.result
@@ -8620,7 +8783,7 @@ def controls_menu():
         check(mem[100] == 0x39 and mem[6] == 1, f'game: fire {mem[100]:#x}, device {mem[6]} (no stick: 1)', errs)
         s.send(' '.join(sc.path(19)) + ' space dump:2')   # the new fire key opens COMANDI; ANNULLA drops a change
         r = s.result
-        check(s.screen().n == 19, 'SPACE as fire: COMANDI not opened', errs)
+        check(s.screen().n in (19, 26), 'SPACE as fire: COMANDI not opened', errs)
         s.send('space dump:0.5')
         check(struct.unpack_from('<H', work(), 6)[0] == 3, 'device after one fire', errs)
         sc = s.screen()

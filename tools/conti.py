@@ -47,7 +47,41 @@ def _read(conf, kind):
     if kind == 'format':
         for c in d.get('cups', []):
             c['rounds'][0].update(FIXES.get((conf, c.get('key'))) or {})
+    if conf == 'fifa':
+        _ic_split(d, kind)
     return d
+
+
+def _ic_split(d, kind):
+    """4.0.6: the Intercontinental's second round as two rounds, each in its real month (2026: the African-Asian-
+    Pacific Cup 19 Sep, the Derby of the Americas 9 Dec, after the Libertadores final): r2a (the CAF holder v the r1
+    winner, slots 1-2, month 9, its winner straight to the Challenger Cup) and r2b (the Libertadores v the CONCACAF
+    holders, slots 3-4, month 12: then the Challenger Cup and the final, in round order). internal/conti keeps one r2
+    (older branches read it live and have no 'winners' route)."""
+    for c in d.get('cups', []):
+        if c.get('key') != 'ic':
+            continue
+        if kind == 'format':
+            rs = c['rounds']
+            j = next((i for i, r in enumerate(rs) if r['key'] == 'r2'), None)
+            if j is None:
+                continue
+            r2, tn = rs[j], rs[j].get('tie_names') or {}
+            a = dict(r2, key='r2a', month=9, winners='playoff', ties=r2['ties'][:1])
+            b = dict(r2, key='r2b', month=12, host='neutral', ties=r2['ties'][1:])
+            for x, t in ((a, tn.get('aap')), (b, tn.get('americas'))):
+                x.pop('tie_names', None)
+                if t:
+                    x['names'] = {lg: [t[lg], r2['names'][lg][1]] for lg in t}
+            rs[j:j + 1] = [a, b]
+        else:
+            h = (c.get('access') or {}).get('holders') or {}
+            for k, rk in h.items():
+                if rk == 'r2':
+                    h[k] = 'r2b' if k in ('lib', 'ccc') else 'r2a'
+            for side in (c.get('rotation') or {}).values():
+                if 'r2' in side:
+                    side['r2a'] = side.pop('r2')
 
 
 def _draw(rd):
@@ -315,6 +349,8 @@ def load(confs, files=None, words=None, s1=None):
                                                 # ct_structs past the end: the trap after the Challenger Cup)
             b[18] = min(size[j], 255)                   # (the round's places: byes when the world cannot fill it)
             b[10] = CHAMP if j == len(rounds) - 1 else (ci << 4 | (j + 1))
+            if rd.get('winners'):                       # (4.0.6: the winners to a later round - the Intercontinental's
+                b[10] = target(conf, ci, rd['winners'])  # r2a past r2b to the Challenger Cup)
             b[11] = OUT
             for q in range(4):
                 b[12 + q] = OUT

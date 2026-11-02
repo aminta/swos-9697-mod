@@ -13944,6 +13944,56 @@ def conti_month(tag, force, team, word, week0):
 
 
 @scenario
+def world_conti_ic_dec():
+    """4.0.6 the Intercontinental's real months (conti._ic_split): FLAMENGO forced into the Derby of the Americas
+    (CONTI_FORCE=ic:r2b) and winning its conti ties (CONTI_KOWIN). Season 2: the DERBY, then the CHALLENGER CUP,
+    then the FINAL, each once, in that order, all in December (weeks 88..103: a tie never built into a week
+    already played); the calendar weeks from GP_CALTRACE's [calt]. (The forced club is a 3rd entrant of the Derby's
+    one tie: the Libertadores holder goes on unpaired, so the Challenger opponent is a CONMEBOL club, not the AAP Cup
+    winner - a test-build artefact; the natural routes: conti.py --test fifa.)"""
+    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    exe = build('conti_ic_dec', env={'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]),
+                                     'CONTI_FORCE': 'ic:r2b', 'CONTI_KOWIN': '1'})
+    keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_ONE',
+            'W8485_FROM', 'W8485_TMO', 'GP_CALTRACE')
+    keep = {k: os.environ.get(k) for k in keys}
+    try:
+        for k in keys:
+            os.environ.pop(k, None)
+        os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM='SUDAMERICA,BRASILE,BRASILEIRAO '
+                          'SERIE A,FLAMENGO', W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1', W8485_TMO='900',
+                          GP_CALTRACE='1')
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    log = os.path.join(RUNS, w84_tag() + '_2', 'session.log')
+    lines = open(log, errors='replace').read().splitlines() if os.path.exists(log) else []
+    last, seen = None, []                       # [(title, week)] of the Intercontinental's played matches, in order
+    for ln in lines:
+        if ln.startswith('[calt] '):
+            cal = ln.split()
+            last = int(cal[4].split('/')[1]) if len(cal) > 4 else None
+        elif ln.startswith('[') and '- RISULTATO -' in ln and 'INTERCONT' in ln.split('|')[0]:   # (the match screen,
+            # the cursor on PARTITA, RISULTATO or ESCI)
+            t = re.sub(r'^\[\d+\] ', '', ln.split('|')[0].strip())
+            if not seen or seen[-1][0] != t:
+                seen.append((t, last))
+    kinds = [k for t, _ in seen for k in ('DERBY', 'CHALLENGER', 'FINALE') if k in t]
+    errs = []
+    check(ok, msg[:300], errs)
+    check(kinds == ['DERBY', 'CHALLENGER', 'FINALE'], f'season 2: Intercontinental matches {seen}', errs)
+    check(all(w is not None and 88 <= w < 104 for _, w in seen), f'season 2: not all in December: {seen}', errs)
+    return not errs, '; '.join(errs + [f'season 2 Intercontinental {seen}'])
+
+
+@scenario
 def world_conti_recopa():
     """conti_month: FLAMENGO forced into the Recopa Sudamericana (rec:final): played in February (week 104..111)"""
     return conti_month('rec', 'rec:final', 'SUDAMERICA,BRASILE,BRASILEIRAO SERIE A,FLAMENGO', 'RECOPA', 104)

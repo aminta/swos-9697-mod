@@ -9313,6 +9313,126 @@ def purple_stadium():
     return ok, f'line-ups screen entry 12 {got} ({r.outcome})'
 
 
+STNM_NAME, STNM_SHOWN, STNM_BIG, STNM_SKIP, STNM_KEY, STNM_TICKS, STNM_ON = 4, 37, 38, 40, 41, 43, 45   # stadium.py's log
+
+
+def stadium_log(r, at):
+    """stadium.py's variables (at = the Off3 of its 'STNM' mark): name, shown, doubled, skipped, (file, ordinal), ticks,
+    the banner box (left, top, right, bottom)."""
+    v = r.read(r.lin(at), 64)
+    box = (int(at) + 46 + 3) & ~3                    # (align 4 after st_on: obj3 offsets, its base page-aligned)
+    return {'name': v[STNM_NAME:STNM_NAME + 33].split(bytes(1))[0].decode('latin-1'), 'shown': v[STNM_SHOWN],
+            'big': v[STNM_BIG], 'skip': v[STNM_SKIP], 'key': (v[STNM_KEY], v[STNM_KEY + 1]),
+            'ticks': struct.unpack_from('<H', v, STNM_TICKS)[0], 'on': v[STNM_ON],
+            'box': struct.unpack('<4i', r.read(r.lin(Off3(box)), 16))}
+
+
+def stadium_frame(vga, title, box, errs, tag):
+    """The banner frame: outside the box the stadium picture (title memory) untouched, the box's 1-px frame white (2),
+    inside black (3) but the name's ink (2 / its shadow), which keeps 4 px off the frame on every side."""
+    l, t, rgt, b = box
+    check(0 <= l < rgt <= 319 and 0 <= t < b <= 199, f'{tag}: box {box} off the screen', errs)
+    out = [i for i in range(64000) if not (l <= i % 320 <= rgt and t <= i // 320 <= b) and vga[i] != title[i]]
+    check(not out, f'{tag}: {len(out)} pixels outside the box differ from the stadium picture (first {out[:3]})', errs)
+    edge = [(x, y) for y in range(t, b + 1) for x in range(l, rgt + 1)
+            if (x in (l, rgt) or y in (t, b)) and vga[y * 320 + x] != 2]
+    check(not edge, f'{tag}: frame not white at {edge[:3]} ({len(edge)})', errs)
+    ink = [(x, y) for y in range(t + 1, b) for x in range(l + 1, rgt) if vga[y * 320 + x] != 3]
+    check(ink, f'{tag}: no name in the box', errs)
+    near = [(x, y) for x, y in ink if x < l + 5 or x > rgt - 5 or y < t + 4 or y > b - 4]
+    check(not near, f'{tag}: name ink within 4 px of the frame at {near[:3]}', errs)
+    return len(ink), (min(x for x, _ in ink), max(x for x, _ in ink)) if ink else None
+
+
+@scenario
+def stadium_name():
+    """4.0.6 (Davide, look B): the home club's stadium (DATA\\STADIUM.DAT, test file) on the stadium picture before the
+    line-ups, in a framed banner, ~1.5 s or until a key / a new fire, then the game's line-ups. Friendlies in ITALIA
+    SERIE A: INTER at home ('WEMBLEY': doubled font) waits its 105 ticks, then the line-ups screen (a breakpoint on
+    ShowStadiumInit's end: no banner box left); FIORENTINA at home (32 chars: normal size, inside the screen) skipped by
+    fire; JUVENTUS at home (no record): no banner, the match goes on. Every banner frame: the picture outside the box
+    untouched, white frame, the name's ink inside with its margin; the names in the game charset, at most 32 chars"""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lepatch
+    import benchx
+    import sacups
+    import stadium
+    os.environ['CORE'] = 'normal'               # (the line-ups breakpoint)
+    b = builds()['it']
+    p = lepatch.LEPatch(os.path.join(b, 'ITALIAN.EXE'))
+    at = p.le.obj_bytes(3).find(b'STNM')
+    if at < 0:
+        return False, 'no stadium.py in this build (no STNM in obj3)'
+    at = Off3(at)
+    po = lepatch.LEPatch(os.path.join(ROOT, 'orig', 'ITALIAN.EXE'))     # (obj1 offsets: the original's)
+    s7 = benchx.sites7(po, sacups.regs(bytes(po.le.obj_bytes(1))))
+    lin = stadium.sites(po)['LIN'][1]
+    d = open(os.path.join(b, 'DATA', 'TEAM.020'), 'rb').read()
+    keys = {}
+    for t in range(struct.unpack('>H', d[:2])[0]):
+        o = 2 + t * 684
+        keys[d[o + 5:o + 22].split(bytes(1))[0].decode('latin-1')] = (d[o], d[o + 1])
+    long = 'STADIO COMUNALE CARLO CASTELLANI'
+    assert len(long) == 32
+    dat = os.path.join(WORK, 'saves', 'STADIUM_TEST.DAT')
+    os.makedirs(os.path.dirname(dat), exist_ok=True)
+    open(dat, 'wb').write(stadium.build({keys['INTER']: 'WEMBLEY', keys['FIORENTINA']: long}))
+    errs, info = [], []
+
+    def go(home, away):
+        s.wait()
+        italy_friendly(s, home, away)
+        for _ in range(22):
+            s.send('down dump:0.5')
+            if s.screen().selected == 9:
+                break
+        return s.send('fire dump:2')                # (60 controls reads: inside the banner's 105)
+
+    def banner(tag, want, big):
+        r = s.result
+        g = stadium_log(r, at)
+        info.append(f'{tag}: {g["name"]!r} key {g["key"]} shown {g["shown"]} big {g["big"]} box {g["box"]}')
+        check(g['shown'] == 1 and g['name'] == want and g['big'] == big, f'{tag}: banner {g}', errs)
+        if g['shown']:
+            s.shot(tag)
+            vga = r.read(0xA0000, 64000)
+            title = r.read(struct.unpack('<I', r.obj2(lin, 4))[0] + 0x20000, 64000)
+            n, span = stadium_frame(vga, title, g['box'], errs, tag)
+            info.append(f'{tag}: ink {n} px, x {span}')
+        return g
+
+    with Session('stadium_name', b, {'DATA/STADIUM.DAT': dat}, 'dump:3', 300, match=True) as s:
+        got = []
+        r = go('INTER', 'FIORENTINA')
+        s.bp(s.result.base1 + s7['stend'], lambda q: got.append(q.read(0xA0000, 64000)))
+        g = banner('wembley', 'WEMBLEY', 1)
+        check(g['key'] == keys['INTER'], f'wembley: key {g["key"]} (INTER {keys["INTER"]})', errs)
+        r = s.send('dump:3')                        # (the rest of the 105 ticks, the line-ups, the match)
+        g = stadium_log(s.result, at)
+        check(g['skip'] == 0 and g['ticks'] == stadium.WAIT, f'wembley: ended skip {g["skip"]} after {g["ticks"]} ticks', errs)
+        check(len(got) == 1, f'line-ups breakpoint hits {len(got)}', errs)
+        if got:
+            l, t, rgt, bt = g['box']
+            frame = sum(got[0][t * 320 + x] == 2 for x in range(l, rgt + 1))
+            check(frame < (rgt - l) // 2, f'line-ups: the banner frame row still there ({frame} white)', errs)
+            info.append(f'line-ups after the banner: frame row {frame} white of {rgt - l + 1}')
+    with Session('stadium_name_b', b, {'DATA/STADIUM.DAT': dat}, 'dump:3', 300, match=True) as s:
+        go('FIORENTINA', 'INTER')
+        g = banner('long', long, 0)
+        r = s.send('fire:0.1 dump:0.5')
+        g = stadium_log(s.result, at)
+        info.append(f'long: fire after {g["ticks"]} ticks')
+        check(g['skip'] == 1 and g['ticks'] < stadium.WAIT, f'long: fire did not skip ({g["skip"]}, {g["ticks"]})', errs)
+    with Session('stadium_name_c', b, {'DATA/STADIUM.DAT': dat}, 'dump:3', 300, match=True) as s:
+        go('JUVENTUS', 'INTER')
+        g = stadium_log(s.result, at)
+        info.append(f'juventus: {g["name"]!r} key {g["key"]} shown {g["shown"]}')
+        check(g['shown'] == 0 and g['name'] == '' and g['key'] == keys['JUVENTUS'], f'juventus: {g}', errs)
+        r = s.send('dump:2')
+        check(r.outcome == 'dump', f'juventus: {r}', errs)
+    return not errs, '; '.join(errs + info)
+
+
 @scenario
 def blond_faces():
     """3.3.0: face 3 = black skin + blond hair: FIORENTINA's outfield players set to face 3 (test copy of TEAM.020);

@@ -18,6 +18,7 @@ the table: its last value. Nothing is saved: an old save gets it from its next m
 The gate receipts (cseg_3C4CE) were cut to 16 bits before x16 (`and D7, 0FFFFh`): a gate over 65535 x 16 wrapped to
 a few pounds. Saturated at 0FFFFh now.
 """
+import os
 import re
 import struct
 
@@ -76,6 +77,7 @@ fi_charge:                              ; replaces `add word [C1750DA], 1` in cs
     jmp CHARGE_BACK
 
 fi_gate:                                ; replaces `and dword [D7], 0FFFFh` (cseg_3C4CE's gate receipts, a jump target)
+GATE_FORCE
     cmp dword [D7], 0FFFFh
     jle .and
     mov dword [D7], 0FFFFh              ; saturated, not wrapped
@@ -143,7 +145,9 @@ def patch(p, at, lang):
         rows.append('db ' + ', '.join(str(x) for x in row + [row[-1]] * (MAXDIV - len(row))))
     sym.update({'D8CAA': (2, sacups.COMP_SLOTS[0]), 'CHARGE_BACK': (1, s['charge'] + 8), 'GATE_BACK': (1, s['gate'] + 10),
                 'MAXDIV_': (0, MAXDIV), 'NBASE_': (0, len(BASE)), 'WAGE_MUL_': (0, WAGE_MUL), 'WAGE_DIV_': (0, WAGE_DIV)})
-    src = nasmcave.sub(nasmcave.sub(ASM, 'BASE_DD', 'dd ' + ', '.join(str(b) for b in BASE)),
+    force = os.environ.get('FIN_GATE_FORCE')              # (test builds only: every gate forced over the 16 bits)
+    src = nasmcave.sub(ASM, 'GATE_FORCE', '    mov dword [D7], 12345h' if force else '')
+    src = nasmcave.sub(nasmcave.sub(src, 'BASE_DD', 'dd ' + ', '.join(str(b) for b in BASE)),
                        'LV_DB', '\n    '.join(rows))
     code, fix, rel = nasmcave.assemble_obj(src, at, sym, 3)
     lab = nasmcave.labels(src, at, sym)

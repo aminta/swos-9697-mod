@@ -64,8 +64,9 @@ OBJ1_NEW_VSIZE = 0xa6000     # + five added pages (lepatch.add_object_page)
 OBJ3_ARENA = 0x20000         # 4.0.6 obj3 (mod code after obj2, CONVENTIONS 23): its file pages (mod pages, then the C
                              # engine's code, PLAN §19 step O) stay below this; the engine arena + spec buffer go here,
                              # zero-filled (vsize only, the engine zeroes it: DOS/4GW does not)
-OBJ3_PAGES = 6               # obj3+0: benchx (the long benches), code + data; then (4.0.6) kittrain, squadnum, mk_keep,
-                             # oppl, cpucards, whitehair, finance, kbd2 (bteam next); the LAST page (LT3_AT): zones' ring +
+OBJ3_PAGES = 7               # obj3+0: benchx (the long benches), code + data; then (4.0.6) kittrain, squadnum, mk_keep,
+                             # oppl, cpucards, whitehair, finance, kbd2, stoppage, xleft, usc_snap (bteam, then ctview:
+                             # the COPPE CONTINENTALI view, <= 0x1200; 7 here, the Integratore sets the final count); the LAST page (LT3_AT): zones' ring +
                              # bskip, longtable, mainbtn in a build with gplay (patched before the chain: gplay's room)
 LT3_AT = 0x1000 * OBJ3_PAGES - 0x1000
 SA_CAVE = 0xa1000            # first added page: South American cups

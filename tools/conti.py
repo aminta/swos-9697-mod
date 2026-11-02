@@ -474,21 +474,23 @@ def load(confs, files=None, words=None, s1=None):
 
 
 # --- native test ------------------------------------------------------------------------------------------------------
-def _native():
+def _native(extra=()):
     import ctypes
     import subprocess
     import tempfile
     d = tempfile.mkdtemp()
     lib = os.path.join(d, 'conti.dylib')
-    subprocess.run(['clang', '-O1', '-shared', '-fPIC', '-o', lib, os.path.join(ROOT, 'tools', 'conti.c')], check=True)
+    subprocess.run(['clang', '-O1', '-shared', '-fPIC', '-DNATIVE', '-o', lib, os.path.join(ROOT, 'tools', 'conti.c')] +
+                   [os.path.join(ROOT, 'tools', x) for x in extra], check=True)   # (4.0.6: + ctview.c, the view's test)
     return ctypes.CDLL(lib)
 
 
-def test(confs=('conmebol',), seasons=3, seed=7):
+def test(confs=('conmebol',), seasons=3, seed=7, L=None, hook=None):
+    """hook(L, names, step) (4.0.6 ctview's test): after the season end and after each career club game."""
     import ctypes
     import random
     spec, assocs, cups = load(list(confs))
-    L = _native()
+    L = L or _native()
     lay = (ctypes.c_uint32 * 20).in_dll(L, 'CT_LAYOUT')
     s_in, s_st, s_out = lay[0], lay[1], lay[2]
     o_league, o_cup, o_ap, o_cl, o_club = lay[3], lay[4], lay[5], lay[6], lay[7]
@@ -525,6 +527,8 @@ def test(confs=('conmebol',), seasons=3, seed=7):
         L.ct_finish()                               # (the game: ct_begin, the season end's first country)
         ctypes.memmove(IN, bytes(b), s_in)
         L.ct_season()
+        if hook:
+            hook(L, names, f's{season + 1} start')
         if os.environ.get('CONTI_TEST_MANAGER'):    # phase B: the career club's games, one by one (random results)
             SEG = (ctypes.c_ubyte * 72).in_dll(L, 'CT_SEG')
             path = []
@@ -545,6 +549,8 @@ def test(confs=('conmebol',), seasons=3, seed=7):
                     L.ct_resume()
                     assert (bytes(SEG), bytes(OUTB), bytes(IN)) == snap, f'replay changed the state at {path[-1]}'
                 L.ct_result(v)
+                if hook:
+                    hook(L, names, f's{season + 1} after {path[-1]}')
             print('    career club:', ' -> '.join(path) or 'no game')
             L.ct_season.restype = None
         o = bytes(OUTB)

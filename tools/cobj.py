@@ -82,9 +82,10 @@ def _elf(o):
     return secs
 
 
-def link(p, obj, text_at, bss_at, externs=None, limit=None):
-    """obj = compile_c() bytes; text_at = obj1 offset of the cave; bss_at = (obj, offset) of the zero-filled area;
-    externs = {name: (obj, offset)}. Returns ({global symbol: (obj, offset)}, end of the obj1 part, bss size)."""
+def link(p, obj, text_at, bss_at, externs=None, limit=None, text_obj=1):
+    """obj = compile_c() bytes; text_at = offset of the cave in object text_obj (obj1; 4.0.6: obj3 too); bss_at =
+    (obj, offset) of the zero-filled area; externs = {name: (obj, offset)}. Returns ({global symbol: (obj, offset)},
+    end of the code part, bss size). A call into another object (obj3 -> obj1's C) gets a self-relative fixup."""
     externs = externs or {}
     secs = _elf(obj)
     base = {}                                       # section index -> (obj, offset)
@@ -100,7 +101,7 @@ def link(p, obj, text_at, bss_at, externs=None, limit=None):
         else:
             assert s['type'] == 1, (s['name'], s['type'])
             at = (at + al - 1) // al * al
-            base[i] = (1, at)
+            base[i] = (text_obj, at)
             at += s['size']
     if limit is not None:
         assert at <= limit, (hex(at), hex(limit))
@@ -126,7 +127,7 @@ def link(p, obj, text_at, bss_at, externs=None, limit=None):
         syms[-1] = syms[-1] if syms[-1] is None else syms[-1] + (nm, info >> 4)
     image = {i: bytearray(obj[s['offset']:s['offset'] + s['size']]) for i, s in enumerate(secs)
              if i in base and s['type'] == 1}
-    fixups = []
+    fixups, rels = [], []
     for s in secs:
         if s['type'] != 9 or s['info'] not in image:    # SHT_REL for an allocated progbits section
             continue
@@ -137,18 +138,23 @@ def link(p, obj, text_at, bss_at, externs=None, limit=None):
             tobj, toff = syms[sym][:2]
             a, = struct.unpack_from('<i', img, off)
             if typ == 1:                            # R_386_32: S + A, an LE fixup
-                assert tobj in (1, 2), (syms[sym], off)
+                assert tobj in (1, 2, 3), (syms[sym], off)
                 struct.pack_into('<I', img, off, toff + a)
                 fixups.append((base[tgt][1] + off, tobj, toff + a))
             elif typ == 2:                          # R_386_PC32: S + A - P
-                assert tobj == 1, syms[sym]
+                if tobj != text_obj:                # (another object's routine: the loader's rel32, a call's -4)
+                    assert a == -4, (syms[sym], a)
+                    rels.append((base[tgt][1] + off, tobj, toff))
+                    continue
                 struct.pack_into('<i', img, off, toff + a - (base[tgt][1] + off))
             else:
                 raise ValueError(f'relocation type {typ}')
     for i, img in image.items():
-        p.put(1, base[i][1], bytes(img))
+        p.put(text_obj, base[i][1], bytes(img))
     for off, tobj, toff in fixups:
-        add_ptr(p, off, tobj, toff)
+        add_ptr(p, off, tobj, toff, text_obj)
+    for off, tobj, toff in rels:
+        p.add_rel(text_obj, off, tobj, toff)
     out = {}
     for s in syms:
         if s is not None and s[3] == 1 and s[2]:   # STB_GLOBAL
@@ -156,14 +162,14 @@ def link(p, obj, text_at, bss_at, externs=None, limit=None):
     return out, at, bss
 
 
-def add_ptr(p, off, tobj, toff):
-    """lepatch.add_ptr for obj1, also when the dword straddles two pages (a record in each, the second one with a
+def add_ptr(p, off, tobj, toff, objn=1):
+    """lepatch.add_ptr for obj1 (or objn), also when the dword straddles two pages (a record in each, the second one with a
     negative source offset)."""
     ps = p.le.page_size
     if off % ps <= ps - 4:
-        p.add_ptr(1, off, tobj, toff)
+        p.add_ptr(objn, off, tobj, toff)
         return
-    gp, po = p._page(1, off)
+    gp, po = p._page(objn, off)
     p.recs[gp].append(p._record(0x07, po, tobj, toff))
     p.recs[gp + 1].append(p._record(0x07, po - ps, tobj, toff))
-    p.put(1, off, struct.pack('<I', toff))
+    p.put(objn, off, struct.pack('<I', toff))

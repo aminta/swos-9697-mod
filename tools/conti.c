@@ -11,57 +11,11 @@
    ranking, matches simulated by strength; the winners become the next edition's holders (CT_ST, in the save). The
    career club's own rounds (segments in slot 3) use the same round steps (ct_round) later. */
 
-typedef unsigned char u8;
-typedef unsigned short u16;
-typedef unsigned int u32;
-typedef int s32;
+#include "conti.h"
 
 /* the compiler's own calls (zeroing / copying loops): freestanding, no library in the exe */
 void *memset(void *d, int c, unsigned n) { u8 *p = d; while (n--) *p++ = (u8)c; return d; }
 void *memcpy(void *d, const void *s, unsigned n) { u8 *p = d; const u8 *q = s; while (n--) *p++ = *q++; return d; }
-
-#define NA 128                          /* associations (countries) of the confederations in the world */
-#define NL 32                           /* league clubs kept per association (the final table; J1 20, ARG 30) */
-#define NC 1024                         /* clubs seen + the guest clubs */
-#define NCUP 16
-#define NRD 8                           /* rounds per cup (the Libertadores: 8) */
-#define NE 64                           /* entrants of a round (CAF q1: 52) */
-#define RB 24                           /* bytes per round in the spec */
-#define OUT 0xFF
-#define CHAMP 0xFE
-
-/* round kinds, draws, association rules (spec byte values) */
-enum { K_KO, K_GROUPS };
-enum { D_ORDER, D_POTS2, D_SAMEPAIRS, D_SEED12, D_BRACKET, D_GROUPS, D_CROSS, D_SLOT, D_PLACE };
-enum { A_ANY, A_NO, A_NOVIA };
-/* access codes: 0 champion, 1 cup winner, 2..10 the k-th place, NEXT the best club not yet in, AP / CL a split
-   season's stage champions (else as NEXT) */
-enum { C_NEXT = 0x40, C_AP = 0x41, C_CL = 0x42 };
-
-struct ct_in {                          /* filled by the caller */
-    u32 seed;
-    u16 nclub;
-    u16 manager;                        /* the career club: index + 1 (0 = none) */
-    u16 league[NA][NL];                 /* club indices + 1, final table order (0 = none) */
-    u16 cup[NA];                        /* the national cup winner */
-    u16 ap[NA], cl[NA];                 /* stage champions (Argentina) */
-    struct { u16 id; u8 assoc; u8 pad; u32 str; u32 pts; } club[NC];   /* team word, association, strength, ranking */
-};
-struct ct_state {                       /* kept in the save */
-    u16 mark;                           /* 'CT' */
-    u16 season;
-    struct { u16 id; u8 assoc; u8 pad; u32 str; u32 pts; } hold[NCUP];  /* each cup's holder (id 0 = none) */
-};
-struct ct_out {
-    u8 ncup;
-    u8 pad[3];
-    u16 winner[NCUP], second[NCUP];     /* club indices + 1 */
-    u8 last[NC];                        /* the last round reached by each club: cup << 4 | round, OUT none */
-    u8 out_of[NC];                      /* how it left that round: 0 lost / eliminated, 1 won the cup */
-    u8 nent[NCUP][NRD];                 /* entrants per round (after its draw) */
-    u16 ent[NCUP][NRD][NE];             /* in draw order: ties (a, b) / groups of gsize */
-    u8 res[NCUP][NRD][NE];              /* ko: 1 = the first club of the tie went through; groups: final place */
-};
 
 const u8 *CT_SPEC;
 u16 *CT_LP[NCUP];                       /* each cup's contest team list in the exe (its main round, drawn order: the
@@ -69,29 +23,6 @@ u16 *CT_LP[NCUP];                       /* each cup's contest team list in the e
 struct ct_in CT_IN;
 struct ct_state CT_ST;
 struct ct_out CT_OUT;
-
-/* phase B: the edition being played, kept in the save (engine item 'CE'): its entrants (the access result), the
-   career club's results so far; every step re-runs it from the start (same seed), the club's games forced, up to
-   the club's next game: its segment (CT_SEG) goes into slot 3 */
-#define NED 440                         /* (the save's room: the item must leave 80 team records; 384 used with
-                                           all six confederations, reserves included) */
-struct ct_ed {
-    u16 mark;                           /* 'CE' */
-    u16 ne;                             /* entries */
-    u32 seed;
-    u16 mgr;                            /* the career club's team word (0 = none) */
-    u8 nf, pad;
-    struct { u8 c, r, v; } f[16];       /* the club's results: ko 1 won / 0 lost, groups the place */
-    struct { u8 id0, id1, cr, s0, s1; } e[NED];   /* an entrant: team word, cup << 4 | round (0xFF: a reserve
-                                           club for group fills), strength / 16 (12 bits) | its slot << 12; the
-                                           association from the team file (the guests' table), the ranking from
-                                           the spec */
-};
-struct ct_seg {                         /* the career club's next game (CT_SEG.kind 0xFF: none) */
-    u8 cup, round, kind, n;             /* kind: K_KO a tie (club[0] v club[1]), K_GROUPS the drawn groups */
-    u8 legs, level, month, pos;         /* pos: the club's place in the list */
-    u16 club[32];                       /* team words */
-};
 struct ct_ed CT_ED;
 struct ct_seg CT_SEG;
 static int g_stop, g_fv;

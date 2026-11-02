@@ -12,17 +12,24 @@ decided from what happened in it - no Rand (an extra draw would shift the game's
   capped by the era's cap for that half (ST_CAPS: first half, second half, each extra-time half; 0 = none); era():
   per career world (world byte) or pack (team 1's file), default 1996-97.
 - st_chk (check_game_end's `cmp dword [gameTime], 1000000h`, a jmp): minute 1 resets the state; at the end minute
-  ST_PH = 1, the clock stays there and the code skips to @@no_update_to_time; when the added minutes are over the
-  game's own end runs (its 55 ticks and the ball out of the areas: an attack in progress is played out).
-- st_min (the minute roll `add byte [gameTime+3], 1`): in added time ST_K + 1 instead (units 5 / 0: never 10).
+  ST_PH = 1, the clock stays there and the code skips to @@no_update_to_time; when the added minutes are over,
+  ST_PH = 2 and the game's own end runs (its 55 ticks and the ball out of the areas: an attack in progress is played
+  out) with our clock still up (Davide, MiSTer 02/11: the '+1' had gone back to a plain 45 for that wait).
+- st_wh (PlayEndGameWhistleSample's `mov edx, [linAdr982k]`, only UpdateTime's four end-of-half whistles call it):
+  ST_PH = 0, the game's clock again from the whistle (half time, full time, extra time, the next kick-off).
+- st_min (the minute roll `add byte [gameTime+3], 1`): in added time ST_K + 1 instead (units 5 / 0: never 10), and
+  the clock redrawn (its minute runs).
 - st_delta (`mov ax, [timeDelta]`): in added time 9, the 10-minute game's rate (Davide: playable added time at any
   game length - 5 minutes ~26 s of play).
-- st_img (the clock render's `mov ax, [D3] / mov esi, [A0]`): in added time the clock sprite is ours, ST_IDX, 64 px
-  wide: the game's clock picture (CopySprite: chunky or, half / EGA mode, planar), a '+' and the big digit N (the
-  fourth official's board: the total, as Davide chose).
+- st_img (the clock render's `mov ax, [D3] / mov esi, [A0]`): with ST_PH 1 / 2 the clock sprite is ours, ST_IDX,
+  64 px wide: the game's clock picture (CopySprite: chunky or, half / EGA mode, planar) with its minute running (Davide:
+  a TV clock, the units digit = the end minute's + K - 1 in added minute K: 90, 91 .. 94 for +5, then + N waiting for
+  the whistle, 95; gameTime itself stays at the end minute), a '+' and the big digit N (the fourth official's board:
+  the total, as Davide chose). The era caps keep the units <= 9 (rows() asserts it): only the units digit moves.
 - st_reset (ResetTime's `mov dword [gameTime], 0`): a new match, no added time pending.
 - st_goal (GoalScored's `mov eax, [gameTime]`): in added time the goal's time byte +0 (unused by the game) = ST_K;
-  st_fmt (the scorer list's `mov esi, [A0] / mov [esi], eax`): such a time printed 45+2, 90+3(PEN).
+  waiting for the whistle N; st_fmt (the scorer list's `mov esi, [A0] / mov [esi], eax`): such a time printed 45+2,
+  90+3(PEN).
 Off under SWOS++ (it changes UpdateTime and keeps its own clock in its highlights).
 spritesIndex[ST_IDX] points at ST_HDR from the start (a blank 64 x 11 sprite): a highlight replayed from a file draws
 it blank, never a stray pointer.
@@ -151,10 +158,12 @@ st_chk:                                 ; check_game_end: `cmp dword [GT], 10000
     popad
     jmp NOUPD
 .added:
+    cmp byte [ST_PH], 1
+    jne .orig                           ; (2: the game's own end of half, our clock up until the whistle)
     mov al, [ST_K]
     cmp al, [ST_N]
     jbe .skip
-    mov byte [ST_PH], 0                 ; over: the game's own end of half
+    mov byte [ST_PH], 2                 ; over: the game's own end of half
     mov word [COPYT], 1
 .orig:
     popad
@@ -231,6 +240,7 @@ st_min:                                 ; the minute roll: `add byte [GT + 3], 1
     add byte [GT + 3], 1
     ret
 .k: inc byte [ST_K]
+    mov word [COPYT], 1                 ; (the clock's minute runs)
     ret
 
 st_delta:                               ; `mov ax, [TDELTA]`: the added minutes at the 10-minute game's rate
@@ -247,11 +257,20 @@ st_reset:                               ; ResetTime: `mov dword [GT], 0`
     ret
 
 st_goal:                                ; GoalScored: `mov eax, [GT]`; in added time byte +0 = the added minute
-    mov eax, [GT]
-    cmp byte [ST_PH], 1
-    jne .x
+    mov eax, [GT]                       ; (waiting for the whistle: N)
+    cmp byte [ST_PH], 0
+    je .x
     mov al, [ST_K]
+    cmp byte [ST_PH], 1
+    je .x
+    mov al, [ST_N]
 .x: ret
+
+st_wh:                                  ; PlayEndGameWhistleSample: `mov edx, [LINADR]` (the end-of-half whistles)
+    mov byte [ST_PH], 0                 ; (the game's clock again: UpdateTime renders it right after)
+    mov word [COPYT], 1
+    mov edx, [LINADR]
+    ret
 
 st_fmt:                                 ; the scorer list: `mov esi, [A0] / mov [esi], eax` (eax = the goal's time)
     mov esi, [A0]
@@ -280,14 +299,30 @@ st_fmt:                                 ; the scorer list: `mov esi, [A0] / mov 
 .x: ret
 
 st_img:                                 ; the clock render: `mov ax, [D3] / mov esi, [A0]` (then imageIndex = ax)
-    cmp byte [ST_PH], 1
-    jne .x
+    cmp byte [ST_PH], 0
+    je .x
     pushad
     mov esi, D0                         ; (the game's D0..A6, CopySprite's)
     mov edi, ST_SAVE
     mov ecx, 60
     rep movsb
-    movzx ebx, word [D3]
+    movzx ebx, word [D3]                ; the game's picture (SPR_8 / 88 / 118_MINS, its digits in): the minute runs
+    mov al, [ST_N]                      ; (Davide): its units digit = the end minute's + K - 1 in added minute K (a
+    cmp byte [ST_PH], 2                 ; TV clock: 90, 91 .. 94 for +5), + N waiting for the whistle (95)
+    je .u
+    mov al, [ST_K]
+    dec al
+.u: add al, [GT + 3]
+    movzx eax, al
+    add eax, 331                        ; (SPR_TIME_BIG_0, the game's own clock digits)
+    mov [D0], eax
+    lea eax, [ebx - 328]
+    imul eax, eax, 6                    ; (the units' x: the game's 6 px a digit)
+    mov [D1], eax
+    mov dword [D2], 0
+    mov [D3], ebx
+    call COPYSPR
+    movzx ebx, word [ST_SAVE + 12]
     mov esi, [SPRIDX + ebx * 4]
     mov edi, ST_HDR
     mov ecx, 24
@@ -392,6 +427,7 @@ def find(p):
     g90 = one(rb'\x81\x3d....\x00\x00\x09\x00\x0f\x85', 'cmp gameTime, 90')
     GT = t(g90 + 2)
     gt = GT[1]
+    g45 = one(rb'\x81\x3d' + P(gt) + rb'\x00\x00\x04\x05\x75', 'cmp gameTime, 45')
     s = {'roll': one(rb'\x80\x05' + P(gt + 3) + rb'\x01\x80\x3d' + P(gt + 3) + rb'\x0a', 'minute roll'),
          'chk': one(rb'\x81\x3d' + P(gt) + rb'\x00\x00\x00\x01\x75', 'cmp gameTime, 1000000h'),
          'reset': one(rb'\xc7\x05' + P(gt) + rb'\x00\x00\x00\x00\x66\xc7\x05', 'ResetTime'),
@@ -403,6 +439,10 @@ def find(p):
          if s['roll'] - 0x60 < x.start() < s['roll']]
     assert len(m) == 1, ('timeDelta', m)
     s['delta'] = m[0]
+    # PlayEndGameWhistleSample: the 45' block's `mov stateGoal, 0 / call` (its entry: mov edx, [linAdr982k])
+    m = re.search(rb'\x66\xc7\x05....\x00\x00\xe8(....)', d[g45:g45 + 0x40], re.S)
+    s['wh'] = g45 + m.start() + 14 + struct.unpack('<i', m.group(1))[0]
+    assert d[s['wh']:s['wh'] + 2] == b'\x8b\x15', d[s['wh']:s['wh'] + 8].hex()
     # @@no_update_to_time: the jl after cmp gameSeconds, 60
     m = [x for x in re.finditer(rb'\x66\x83\x3d(....)\x3c\x0f\x8c(....)', d[s['delta']:s['roll']], re.S)]
     assert len(m) == 1, ('cmp gameSeconds, 60', m)
@@ -430,7 +470,7 @@ def find(p):
     cw = careerworld.SITES or careerworld.sites(o)
     import benchx
     sym = {'GT': GT, 'GSEC': gsec, 'TDELTA': t(s['delta'] + 2), 'COPYT': copyt, 'NOUPD': (1, noupd),
-           'CHKRET': (1, s['chk'] + 10), 'COPYSPR': (1, copyspr), 'EGA': t(ega + 3),
+           'CHKRET': (1, s['chk'] + 10), 'LINADR': t(s['wh'] + 2), 'COPYSPR': (1, copyspr), 'EGA': t(ega + 3),
            'SG1': t(g90 + w.start(1)), 'SG2': t(g90 + w.start(2)), 'TS1': ts1, 'TS2': ts2,
            'NS1': t(ns[0].start(1)), 'NS2': t(ns[0].start(3)), 'SPT': t(s['dead'] + 3), 'GTEAM1': gteam1,
            'D0': (2, D0), 'D1': (2, D0 + 4), 'D2': (2, D0 + 8), 'D3': (2, D0 + 12), 'A0': (2, A0),
@@ -451,7 +491,7 @@ def patch(p, at, lang, worlds=(), files=()):
     [(key, era(year))]. Returns the end."""
     s, sym = find(p)
     d = p.le.obj_bytes(1)
-    for k, n in (('roll', 7), ('chk', 10), ('reset', 10), ('goal', 5), ('fmt', 8), ('img', 12), ('delta', 6), ('dead', 7)):
+    for k, n in (('roll', 7), ('chk', 10), ('reset', 10), ('goal', 5), ('fmt', 8), ('img', 12), ('delta', 6), ('dead', 7), ('wh', 6)):
         assert p.get(1, s[k], n) == d[s[k]:s[k] + n], ('stoppage: site already patched', k)
     src = source(worlds, files)
     code, fix, rel = nasmcave.assemble_obj(src, at, sym, 3)
@@ -468,7 +508,7 @@ def patch(p, at, lang, worlds=(), files=()):
     p.add_ptr(spr[0], slot, 3, lab['ST_HDR'])
     for k, n, lb, op in (('chk', 10, 'st_chk', 0xE9), ('roll', 7, 'st_min', 0xE8), ('reset', 10, 'st_reset', 0xE8),
                          ('goal', 5, 'st_goal', 0xE8), ('fmt', 8, 'st_fmt', 0xE8), ('img', 12, 'st_img', 0xE8),
-                         ('delta', 6, 'st_delta', 0xE8), ('dead', 7, 'st_dead', 0xE8)):
+                         ('delta', 6, 'st_delta', 0xE8), ('dead', 7, 'st_dead', 0xE8), ('wh', 6, 'st_wh', 0xE8)):
         o = s[k]
         for f in range(o, o + n):                       # (the overwritten instructions' fixups)
             try:
@@ -487,6 +527,7 @@ def rows(tab):
     """Table bytes: count, then [key, cap1, cap2, capET, base, 0, KD (word)] per row."""
     out = [len(tab)]
     for k, (c1, c2, ce, base, kd) in tab:
+        assert 5 + max(c1, ce) <= 9 and c2 <= 9, ('the running minute moves only its units digit', k, c1, c2, ce)
         out += [k, c1, c2, ce, base, 0, kd & 255, kd >> 8]
     return out
 
@@ -504,7 +545,7 @@ def source(worlds, files=()):
                   f'ST_BUF: times {NL * WQ * 8} db 0\n')
 
 
-SYMS = ('GT', 'GSEC', 'TDELTA', 'COPYT', 'NOUPD', 'CHKRET', 'COPYSPR', 'EGA', 'SG1', 'SG2', 'TS1', 'TS2', 'NS1', 'NS2',
+SYMS = ('GT', 'GSEC', 'TDELTA', 'COPYT', 'NOUPD', 'CHKRET', 'LINADR', 'COPYSPR', 'EGA', 'SG1', 'SG2', 'TS1', 'TS2', 'NS1', 'NS2',
         'D0', 'D1', 'D2', 'D3', 'A0', 'SPRIDX', 'SWOSPP', 'SLT', 'GAMETYPE', 'SPT', 'GTEAM1')
 
 

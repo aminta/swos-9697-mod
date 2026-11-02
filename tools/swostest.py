@@ -19927,7 +19927,9 @@ def stoppage_sites(b):
     w = re.search(rb'\x66\xa1....\x66\xa3....\x66\xa1....\x66\xa3....\x66\xa1(....)\x66\xa3....\x66\xa1(....)\x66\x39\x05',
                   c[g:g + 0x80], re.S)
     goals = [orig.target(1, g + k)[1] for k in (w.start() + 2, w.start() + 14, w.start(1), w.start(2))]
-    return {'GT': sym['GT'][1], 'GSEC': sym['GSEC'][1], 'ETS': orig.target(1, m[0] + 3)[1], 'goals': goals,
+    cts = [x.start() for x in re.finditer(rb'\xc7\x05' + re.escape(struct.pack('<I', sym['A0'][1])),
+                                          c[st['img'] - 0x30:st['img']])]       # (mov A0, offset currentTimeSprite)
+    return {'CTS': orig.target(1, st['img'] - 0x30 + cts[-1] + 6)[1],'GT': sym['GT'][1], 'GSEC': sym['GSEC'][1], 'ETS': orig.target(1, m[0] + 3)[1], 'goals': goals,
             'at': t[1], 'spr': sym['SPRIDX'][1], 'NS1': sym['NS1'][1], 'NS2': sym['NS2'][1], 'TD': sym['TDELTA'][1],
             'ACC': orig.target(1, st['delta'] + 21)[1]}      # (secondsSwitchAccumulator: sub [acc], ax after the step)
 
@@ -19962,9 +19964,15 @@ def stoppage_time():
       the clock frozen at 90, the half ends only after all N (ST_K = N + 1), then extra time; the 10-minute rate:
       timeDelta poked 1 + the accumulator 30000, its drop per step = frames in normal play, 9 x frames in added time
       (whatever the game length's value);
-    - 104' (snapshot at 91): base 0, KD 100, 600 dead-ball ticks -> +1 from the dead-ball term alone (= the cap).
+    - 104' (extra time under way; the events' snapshot = the 90' end's): base 0, KD 100, 600 dead-ball ticks -> +1
+      from the dead-ball term alone (= the cap).
     Every half: the clock sprite ours (spritesIndex[2037]: the game's picture + '+' + the big digit N, the total,
-    read back chunky / as bit planes) and the game's own end of half. Pictures: runs/stoppage_time_*/clock_*.png and
+    read back chunky / as bit planes) and the game's own end of half. Davide's MiSTer notes (02/11), on every dump from
+    the first added minute to the whistle: the clock is ours (currentTimeSprite's imageIndex) and its minute runs - the
+    picture's units digit = the end minute's + K - 1 (90, 91, 92 for +3), every added minute read back (short steps);
+    the whistle wait held open (the ball poked into the top penalty area: the game waits while it is there) shows
+    end + N with the '+N' still up; after the whistle the game's own picture at its end minute, and at the next
+    kick-off ST_PH 0 and the game's clock (45: the second half, 90: extra time). Pictures: runs/stoppage_time_*/clock_*.png and
     shots/<mode>_<tag>.png (vga: the screen; /H's planar screen can't be read back - its sprite is)."""
     from PIL import Image
     b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
@@ -20047,9 +20055,8 @@ def stoppage_time():
                         run.f = {'snap': I32(L('ST_SNAP')), 'ns': (W16(si['NS1']), W16(si['NS2']))}
                         s.poke(r.base2 + si['NS1'], struct.pack('<h', W16(si['NS1']) + 2))
                     elif tag == '105':                  # the dead-ball term alone: base 0, KD 100, 600 dead-ball ticks
-                        if not snap((0, 0, 9, 0)):      # since the snapshot at 91 -> 6 units = +1 (= the cap)
-                            return None, [], f'{tag}: no snapshot at minute 91 (gameTime, gameSeconds, gameStatePl {snap.why})'
-                        s.poke(drow + 3, b'\0')
+                        s.poke(drow + 3, b'\0')        # -> 6 units = +1 (= the cap); the events' snapshot = the 90' end's
+                        # (extra time under way: no minute poke to 90 - an end minute, it started its added time there)
                         s.poke(drow + 5, struct.pack('<H', 100))
                         s.poke(L('ST_DSNAP'), struct.pack('<i', I32(L('ST_DEAD')) - 600))
                     else:
@@ -20058,6 +20065,9 @@ def stoppage_time():
                     if et:
                         s.poke(r.base2 + si['ETS'], struct.pack('<H', 1))
                     seen, gt0, shot = [], None, False
+                    clock = run.clock = []              # (ph, k, units shown, digit ok, ours) every added-time dump
+                    run.after = run.wait = None
+                    ph_last, ballp = 0, 0
                     td0 = W16(si['TD'])
                     rate = run.rate = {'game': [], 'added': []}   # Davide's 10-minute rate: timeDelta poked to 1 and
                     goal = run.goal = {}                # the accumulator to 30000 -> its drop in one step = frames x the
@@ -20073,7 +20083,11 @@ def stoppage_time():
                         if et:                      # (a draw at the whistle: a goal in the added time would end
                             for a in si['goals']:   # the match, and the next fire would start a new friendly)
                                 s.poke(r.base2 + a, bytes(2))
-                        if tag == '45' and gt0 is not None and not goal.get('k') and len(goal.get('tries', [])) < 6 and \
+                        if ph_last == 2 and ballp < 3 and W16(777158) == 100:   # the whistle wait held open: the ball
+                            ballp += 1                  # in the top penalty area (the game's end waits while it is there)
+                            for o, v in ((30, 0), (32, 234), (34, 0), (36, 180), (38, 0), (40, 0)):
+                                s.poke(r.base2 + 0x52c9a + o, struct.pack('<h', v))
+                        if tag == '45' and ph_last == 1 and not goal.get('k') and len(goal.get('tries', [])) < 6 and \
                                 W16(777158) == 100:     # (only with the ball in play: moved in a restart it hangs the match)
                             goal.setdefault('tries', []).append(1)   # a goal in the added time: the ball past the
                             goal['g0'] = sum(W16(a) for a in si['goals'][:2])   # top goal line between the posts
@@ -20081,7 +20095,8 @@ def stoppage_time():
                             for o, v in ((30, 0), (32, 334), (34, 0), (36, 120), (38, 0), (40, 0)):
                                 s.poke(r.base2 + 0x52c9a + o, struct.pack('<h', v))   # (ballSprite x, y, z)
                         wait = W16(777158) == 102       # (gameStatePl 102: a restart waits for the human team's player -
-                        rr = s.send('fire:0.5 dump:0.5' if et and not wait else 'fire:2 dump:1')   # a long press)
+                        rr = s.send('fire:0.5 dump:0.5' if (et or ph_last) and not wait else 'fire:2 dump:1')   # a long press;
+                        # short steps in added time: every added minute's clock read back)
                         # (et: short steps, the score level before every one - EGA's long steps let a goal end it)
                         if rr.outcome != 'dump':
                             return rr, seen, f'{tag}: {rr.outcome}'
@@ -20097,6 +20112,24 @@ def stoppage_time():
                             goal['k'], goal['str'] = k, rr.read(L('ST_STR'), 16).split(b'\0')[0]
                         if ph == 1 and gt0 is None:
                             gt0 = gt
+                        img_i = struct.unpack('<H', rr.read(rr.base2 + si['CTS'] + 0x46, 2))[0]
+                        if ph:                          # the running minute (Davide): the picture's units digit =
+                            u = gt[3] + (k - 1 if ph == 1 else n)   # end + K - 1, waiting for the whistle end + N
+                            rows = stoppage_sprite(rr, L('ST_HDR'), ega)[1]
+                            xu = 12 if gt[1] else 6     # (the game's 6 px a digit: 2 or 3 digits)
+                            ok = all(rows[y][xu + x] == digit(rr, u)[y][x] for y in range(10) for x in range(6)) and \
+                                all(rows[y][x] == digit(rr, gt[2])[y][x - xu + 6] for y in range(10) for x in range(xu - 6, xu))
+                            clock.append((ph, k, u, ok, img_i == stoppage.ST_IDX))
+                            if ph == 2 and run.wait is None and ok:
+                                s.shot(f'{mode}_{tag}_wait')
+                                run.wait = True
+                        elif clock and run.after is None:   # the whistle: the game's own clock again, its digits
+                            pic = struct.unpack('<I', rr.read(rr.base2 + si['spr'] + img_i * 4, 4))[0]
+                            rows = stoppage_sprite(rr, pic, ega)[1]
+                            xu = 12 if gt0[1] else 6
+                            run.after = (img_i, img_i != stoppage.ST_IDX and all(
+                                rows[y][xu + x] == digit(rr, gt0[3])[y][x] for y in range(10) for x in range(6)))
+                        ph_last = ph
                         if ph == 1 and not shot:
                             w, rows = stoppage_sprite(rr, L('ST_HDR'), ega)
                             pal = {0: (40, 110, 40), 2: (252, 252, 252), 8: (0, 0, 0)}
@@ -20114,7 +20147,7 @@ def stoppage_time():
                                   f'{["".join("%x" % c for c in rw) for rw in dig]})', errs)
                             shot = True
                             s.shot(f'{mode}_{tag}')     # (the screen: the clock in the match's corner)
-                        if gt0 is not None and (ph == 0 and gs < 0 or gt != gt0):
+                        if gt0 is not None and (ph == 0 or gt != gt0):
                             break           # (the end of the half; or, a dump that spans it (EGA, a kick-off wait),
                                             # the clock already in the next half)
                     s.poke(r.base2 + si['TD'], struct.pack('<h', td0))
@@ -20122,6 +20155,20 @@ def stoppage_time():
                     if goal.get('k'):
                         goal['d1'] = I32(L('ST_DEAD'))
                     return None, seen, None
+
+                def kick(rr, tag):                      # the next half under way: the game's own clock
+                    img_i = struct.unpack('<H', rr.read(rr.base2 + si['CTS'] + 0x46, 2))[0]
+                    ph = rr.read(L('ST_PH'), 1)[0]
+                    check(ph == 0 and img_i != stoppage.ST_IDX, f'{mode} {tag}: the next kick-off: ST_PH {ph}, clock '
+                          f'imageIndex {img_i}', errs)
+                    info.append(f'{mode} {tag}: next half on the game\'s clock (imageIndex {img_i})')
+
+                digs = {}
+
+                def digit(rr, u):                       # the game's big clock digit u (SPR_TIME_BIG_0 + u)
+                    if u not in digs:
+                        digs[u] = stoppage_sprite(rr, struct.unpack('<I', rr.read(rr.base2 + si['spr'] + (331 + u) * 4, 4))[0], ega)[1]
+                    return digs[u]
 
                 for start, want, tag, et in (((0, 0, 4, 4), 1, '45', False), ((0, 0, 8, 9), 3, '90', True),
                                              ((0, 1, 0, 4), 1, '105', False)):
@@ -20141,11 +20188,27 @@ def stoppage_time():
                     check(add[0][3] == want, f'{mode} {tag}: N {add[0][3]}, want {want}'
                           + (f' (units: snapshot {run.f["snap"]} -> {I32(L("ST_SNAP"))}, subs {run.f["ns"]})'
                              if tag == '45' else ''), errs)
-                    end = [x for x in seen[seen.index(add[-1]):] if x[2] == 0 and x[1] < 0 or x[0] != add[0][0]]
+                    end = [x for x in seen[seen.index(add[-1]):] if x[2] == 0 or x[0] != add[0][0]]
                     check(end and end[0][4] == want + 1, f'{mode} {tag}: added minutes played: ST_K {end[:1]} at the '
                           f'end, want {want + 1} (N + 1: the half ends only after all N)', errs)
                     check(end, f'{mode} {tag}: no end of half after the added time {seen[-4:]}', errs)
                     info.append(f'{mode} {tag}: +{add[0][3]} ({len(add)} dumps), then the end of half')
+                    cl = run.clock                      # A + B (Davide, MiSTer 02/11): our clock up to the whistle,
+                    end_u = int(add[0][0][6:8], 16)     # its minute running, the game's own clock after it
+                    check(cl and all(c[3] and c[4] for c in cl), f'{mode} {tag}: the clock in added time (ph, k, units, '
+                          f'digit ok, ours) {cl}', errs)
+                    check({c[1] for c in cl if c[0] == 1} == set(range(1, want + 1)), f'{mode} {tag}: not every added '
+                          f'minute read back {cl}', errs)
+                    check([c for c in cl if c[0] == 2 and c[2] == end_u + want], f'{mode} {tag}: no whistle wait with our '
+                          f'clock at {end_u + want} {cl[-4:]}', errs)
+                    check(run.after and run.after[1], f'{mode} {tag}: after the whistle (imageIndex, the game\'s clock '
+                          f'at its end minute) {run.after}', errs)
+                    seq = []
+                    for c in cl:
+                        if not seq or seq[-1] != (c[0], c[2]):
+                            seq.append((c[0], c[2]))
+                    info.append(f'{mode} {tag}: the clock\'s units (phase, digit) {seq}, after the whistle imageIndex '
+                                f'{run.after and run.after[0]}')
                     if tag == '45':                     # the goal minute: 45+k in the scorers' list (GoalScored's
                         g = run.goal                    # time byte 0 = k, the list's string = ST_STR)
                         m = re.search(rb'45\+(\d)', g.get('str', b''))
@@ -20167,6 +20230,7 @@ def stoppage_time():
                             rr = s.send('fire:2 dump:1')
                             if struct.unpack('<h', rr.obj2(si['GSEC'], 2))[0] > 0:
                                 break
+                        kick(rr, tag)
                     if tag == '90':
                         for _ in range(60):             # (extra time starts: extraTimeState -1)
                             for a in si['goals']:
@@ -20175,6 +20239,7 @@ def stoppage_time():
                             if struct.unpack('<h', rr.obj2(si['ETS'], 2))[0] == -1 and \
                                     struct.unpack('<h', rr.obj2(si['GSEC'], 2))[0] > 0:
                                 break
+                        kick(rr, tag)
                         ets = struct.unpack('<h', rr.obj2(si['ETS'], 2))[0]
                         check(ets == -1, f'{mode} 90: no extra time (extraTimeState {ets}, gameTime '
                                          f'{rr.obj2(si["GT"], 4).hex()}, gameSeconds '

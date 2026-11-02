@@ -61,8 +61,9 @@ from 12 on, scrolled by the box left of row 17), 4.0.6 (Davide 31/10):
   screen's buttons, the tactics editor's next), UP on row 12 to row 11 - on every own-team list (pre-match, SQUADRA,
   the tactics editor, ViewSquad, the call-ups). (Gone: the 31/10 cursor scroll on rows 12 / 17 and its 4.0.5 wrap,
   174f34f.) bx_mdir stays for VIEW OPPONENT only.
-  (4.0.6, Marco / Davide 02/11) on the pre-match screen DOWN from the last name goes to the player / coach line, then
-  PLAY MATCH, as the original game (a manager: straight to PLAY MATCH; pm_links: the menu's own links).
+  (4.0.6, Marco / Davide 02/11) the pre-match screen's links are the original game's (its own playMatchMenu, no
+  pm_links any more): DOWN from the last name -> the player / coach line -> PLAY MATCH, ESCI up / UTN A, C, E left ->
+  the player / coach line; a manager (the line hidden): the game's own skip, on to PLAY MATCH / row 17.
 - VIEW OPPONENT (the pre-match screen with viewingOpponentTeam; Davide's PANpt4 photo: a CPU BOLOGNA showed 11 + 5,
   its places 17.. out of sight): with a bench over 5 the opponent's places are 16 + its XTRA block's players (po_n, as
   bx_next: a career's CPU club), at most 11 + the bench; rows 12..17 a window bx_po on them (pm_row; row 17 = entry
@@ -1767,30 +1768,6 @@ def table_asm(tab):
     return '\n' + '\n'.join(lines) + '\n'
 
 
-PM_LINKS = {8: (2, 6, 5), 50: (0, 6, 29), 52: (0, 6, 29), 54: (0, 6, 29)}
-
-
-def pm_links(p):
-    """(4.0.6, Marco / Davide 02/11) the pre-match screen (playMatchMenu), as the original game: DOWN from the last name
-    -> the player / coach line (entry 6, TogglePlayerCoach) -> DOWN -> PLAY MATCH, UP retraces it (Marco / Davide 02/11,
-    second round); a manager (6 hidden): the game's own skip, DOWN from the last name -> PLAY MATCH.
-    The game's links: row 17 (29) and its box (30) -> 5 (USE MATCH TEAM, hidden in a match) -> 6 -> 9 (PLAY MATCH),
-    ESCI (8) / PLAY MATCH (9) up -> 6, UTN A / C / E (50 / 52 / 54) left -> 6. Kept: 5 down -> 6, 9 up -> 6; now 8 up
-    -> 5 (on to row 17), 50 / 52 / 54 left -> 29. kitcolors' copy of the menu takes them from the original at every
-    show (pm_show)."""
-    import kitcolors
-    import xbrowse
-    d2 = p.le.obj_bytes(2)
-    hs = [x.start() - 8 for x in re.finditer(re.escape(kitcolors.PM_MENU_HEAD), d2)]
-    assert len(hs) == 1, ('playMatchMenu', hs)
-    _, ents = xbrowse.menu_parse(d2, hs[0])
-    assert len(ents) == 68, len(ents)
-    for n, (k, old, new) in PM_LINKS.items():
-        at = ents[n][1] + k
-        assert d2[at] == old and bytes(p.get(2, at, 1)) == bytes((old,)), ('playMatchMenu link', n, k, d2[at])
-        p.put(2, at, bytes((new,)))
-
-
 def patch(p, at, ns_at, lang='it'):
     """Code + data at obj3:at (4.0.6: its own pages in obj3, CONVENTIONS 23; the game's sites reach it through
     self-relative fixups), namespr's pages at ns_at (obj1); returns the end."""
@@ -1937,7 +1914,6 @@ def patch(p, at, ns_at, lang='it'):
     if bf:                                          # n (<= 15) until the per-competition rule (phase 2)
         p.put(3, lab['bx_bench'], struct.pack('<H', min(bf, 15)))
         print(f'exe: BENCH_FORCE={min(bf, 15)} (test build)')
-    pm_links(p)
     assert lab['bx_bench'] - lab['bx_ord'] == 4 + 6 * MAXP   # (the harness finds the tables from bx_bench)
     assert lab['bx_vw'] - lab['bx_bench'] == 114               # (bench_view reads the window there)
     LABELS.update(lab)

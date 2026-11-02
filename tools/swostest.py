@@ -5584,6 +5584,20 @@ def bench_squad(s, scr, bx, cmp_, cnp, errs, info, mark, woff=4, box=30, row1=13
                 got.append(s.screen().selected)
             check(got == want, f'{tag}: row 17 down / down / up / up -> {got}, want {want}', errs)
             info.append(f'{tag}: row 17 down -> {got} ({"the player / coach line" if vis else "no coach line"})')
+            def others(c):                  # ESCI (8) up, UTN A / C / E (50 / 52 / 54) left -> the coach line (as the
+                got = {}                    # original game; hidden: on to row 17)
+                for e, k in ((8, 'up'), (50, 'left'), (52, 'left'), (54, 'left')):
+                    if s.screen().entries[e][2] or not goto(e):
+                        got[e] = None
+                        continue
+                    s.send(f'{k}:0.3 dump:0.4')
+                    got[e] = s.screen().selected
+                want_ = {e: (c if got[e] is not None else None) for e in got}
+                check(got == want_, f'{tag}: ESCI up / UTN left -> {got}, want {want_}', errs)
+                return got
+            if vis:
+                o = others(6)
+                info.append(f'{tag}: ESCI up / UTN A, C, E left -> {o}')
             if vis:                         # the manager's case: entry 6 hidden by a poke (its invisible word), then back
                 m6 = s.result.base2 + s.info['menu'] + 0x16 + 6 * 0x38 + 4
                 s.poke(m6, b'\x01\x00')
@@ -5592,9 +5606,10 @@ def bench_squad(s, scr, bx, cmp_, cnp, errs, info, mark, woff=4, box=30, row1=13
                 for k in ('down', 'up'):
                     s.send(f'{k}:0.3 dump:0.4')
                     h.append(s.screen().selected)
+                o = others(row1 + 16)
                 s.poke(m6, b'\x00\x00')
                 check(h == [9, row1 + 16], f'{tag}: coach line hidden: row 17 down / up -> {h}, want {[9, row1 + 16]}', errs)
-                info.append(f'{tag}: coach line hidden (poked): row 17 down / up -> {h}')
+                info.append(f'{tag}: coach line hidden (poked): row 17 down / up -> {h}; ESCI up / UTN left -> {o}')
         check(goto(row1 + 11), f'{tag}: row 12 not reached', errs)
         s.send('up:0.3 dump:0.4')
         u = (win(), s.screen().selected)

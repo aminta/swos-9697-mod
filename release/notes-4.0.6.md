@@ -28,6 +28,7 @@
   - A player you have picked stays picked while you browse.
   - Same on the pre-match screen, the club squad screen, the tactics editor, the squad view and the national team call-ups.
   - VIEW OPPONENT is unchanged: there UP / DOWN still browse the opponent's substitutes (you can only look).
+  - On the pre-match screen the cursor goes from the last substitute to the coach/player choice, then to PLAY MATCH, as in the original game (thanks to Marco). The original UP move from EXIT and LEFT move from the columns are back too [TO COMPLETE: exact wording from Panchina].
 
 #### Training, squad and market
 - **Training games: bench and kits** (thanks to Marco). Training games (career, squad screen > TRAINING) have the game's own rule again: 2 substitutes from 2 on the bench. In 4.0.5 a training game took the bench of your current league: at a Serie A club the dugout showed 5 players a team, and the training squad screen had a bench of 12. Your next real match has the full league bench again.
@@ -145,6 +146,7 @@ La 4.0.6 è un giro di richieste dei giocatori: **due giocatori sulla stessa tas
   - Il giocatore già selezionato resta selezionato mentre si scorre.
   - Vale per la schermata prepartita, la rosa del club, l'editor tattico, la visualizzazione della rosa e le convocazioni della nazionale.
   - VISUALIZZA AVVERSARIO non cambia: lì SU / GIÙ scorrono ancora le riserve avversarie (si può solo guardare).
+  - Nella schermata prima della partita il cursore passa dall'ultima riserva alla scelta allenatore/giocatore, poi a GIOCA PARTITA, come nel gioco originale (grazie a Marco). Tornano anche il movimento originale SU da ESCI e SINISTRA dalle colonne [DA COMPLETARE: formulazione esatta da Panchina].
 
 #### Allenamento, rosa e mercato
 - **Allenamento: panchina e maglie** (grazie a Marco). Le partite di allenamento (carriera, schermata della rosa > PRATICA) tornano alla regola del gioco: 2 sostituti su 2 in panchina. In 4.0.5 l'allenamento prendeva la panchina del tuo campionato: con un club di Serie A la panchina mostrava 5 giocatori per squadra e la schermata della rosa in allenamento una panchina da 12. La partita vera successiva ha di nuovo la panchina intera del campionato.

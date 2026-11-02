@@ -326,8 +326,12 @@ def menu_copy(lang, at, base, off, ptrs, m_at, data):
             b += b'\0\0\0\0'
         pg.extend(b + b'\0\0')
 
-    entry(COL_X[0], 40, COL_W, 7, text=('S_H1',))
-    entry(COL_X[1], 40, COL_W, 7, text=('S_H2',))
+    for x in (10, 154):                         # (Davide 02/11: the headers touched the device row's box - its row 4 px
+        o = [m.start() for m in re.finditer(re.escape(struct.pack('<hhhh', x, 30, controls.W, 11)), pg)]
+        assert len(o) == 1, (x, o)              # up, 26..37; headers 39..46; key rows from 48)
+        struct.pack_into('<h', pg, o[0] + 2, 26)
+    entry(COL_X[0], 39, COL_W, 7, text=('S_H1',))
+    entry(COL_X[1], 39, COL_W, 7, text=('S_H2',))
     for i in range(5):
         entry(COL_X[1], 48 + 12 * i, COL_W, 11, nav=(8 + i, -1, 20 + i if i else 2, 22 + i if i < 4 else 17),
               color=controls.VALUE_COL, text='empty', select=f'kc_k{5 + i}')

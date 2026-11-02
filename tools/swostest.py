@@ -1239,12 +1239,6 @@ def row_entries(scr):
                                  if g[0] == rx and (g[2], g[3]) in SQ_WH and not scr.entries[i][1])]
 
 
-def win_moves(rows):
-    """The moves that scroll the long bench's window (benchx, a bench over 5: rows 12..17 a window on the places from
-    12 on; up on row 12 / down on row 17 move it, the cursor stays) - the paths of the line-up fixer avoid them."""
-    return frozenset({(rows[11], 'up'), (rows[16], 'down')}) if len(rows) == 17 else frozenset()
-
-
 def to_entry(s, i, tries=24):
     """The cursor to entry i (no fire): the path again after each send (a key the window took)."""
     for _ in range(tries):
@@ -1257,18 +1251,41 @@ def to_entry(s, i, tries=24):
     return False
 
 
-def window_home(s):
-    """The long bench's window back to the top, so that rows 12..16 are places 12..16 again (benchx: up on row 12
-    scrolls the window while it is not at the top, the cursor stays; at the top - and with the game's bench of 5 -
-    the cursor moves to row 11). False if the squad screen is not there."""
+WIN_OFF = {13: 4, 28: 2, 11: 8}            # the rows' first entry -> benchx's window word: bx_pw (the pre-match
+                                            # screen), bx_sq (SQUADRA), bx_tw (the tactics editor); the box = row 17 + 1
+
+
+def bx_window(s):
+    """benchx's window on the screen shown ((value, the box's entry)), or None: no benchx (bx_bench not found), not a
+    17-row player list, or the game's bench of 5 (no window: the box rotates the reserves)."""
     rows = row_entries(s.screen())
-    if len(rows) != 17 or not to_entry(s, rows[11]):
+    if len(rows) != 17 or rows[0] not in WIN_OFF:
+        return None
+    if not hasattr(s, 'bx'):
+        try:
+            s.bx = bench_switch(os.path.join(s.run, 'SWOS', 'ITALIAN.EXE'))[0]
+        except AssertionError:
+            s.bx = None
+    if s.bx is None:
+        return None
+    r = s.result
+    if bench_eff(r, s.bx) <= 5:
+        return None
+    return struct.unpack('<H', r.read(r.lin(s.bx) + WIN_OFF[rows[0]], 2))[0], rows[16] + 1
+
+
+def window_home(s, tries=40):
+    """The long bench's window back to the top, so that rows 12..16 are places 12..16 again: FIRE on the box (4.0.6,
+    Marco: only the box moves it, one place on, back to the top after the last; the name rows never scroll). True
+    with no window (the game's bench of 5); False if the squad screen is not there."""
+    if len(row_entries(s.screen())) != 17:
         return False
-    for _ in range(20):
-        if s.send('up dump:0.5').outcome != 'dump':
-            return False
-        if s.screen().selected != rows[11]:
+    for _ in range(tries):
+        w = bx_window(s)
+        if w is None or w[0] == 0:
             return True
+        if not to_entry(s, w[1]) or s.send(f'{PRESS_FIRE} dump:0.5').outcome != 'dump':
+            return False
     return False
 
 
@@ -1276,24 +1293,24 @@ def swap_in(s, slot, rows, reserve, ry, want, tries=40):
     """Row `slot` (0-based, rows = squad_rows' list or row_entries) <-> the reserve the 17th row shows now (named
     want). The game swaps by place (benchx 4.0.6: the mark is the player's place, kept while the window scrolls), so
     a row that never moves (1..11) is pressed after the reserve: the reserve first, then the row; a bench row (12..16:
-    a window row with a bench over 5) needs the window at the top: home, the row first, then down on row 17 (it
-    scrolls the window, the cursor stays) until the 17th row shows want again. (Up to rc14p the harness marked the row
-    first and went back to row 17: with the long bench the way up to rows 1..11 had scrolled the window back - up on
-    row 12 - so row 17 showed another player and he went in; world_full_eng 30/10: a reserve keeper 'in' x384, 3 h.)
-    True if done."""
+    a window row with a bench over 5) needs the window at the top: home, the row first, then FIRE on the box until
+    the 17th row shows want again (4.0.6, Marco: only the box scrolls). (Up to rc14p the harness marked the row first
+    and went back to row 17 while the cursor scrolled the window: row 17 showed another player and he went in;
+    world_full_eng 30/10: a reserve keeper 'in' x384, 3 h.) True if done."""
     ent = [r[0] if isinstance(r, tuple) else r for r in rows]
-    avoid = win_moves(ent)
-    if slot < 11:                                       # (to_entry, not press: press gives up on a move that
-        return press(s, s.screen(), reserve, wait=1, avoid=avoid) is not None and \
-            to_entry(s, ent[slot]) and s.send(f'{PRESS_FIRE} dump:1').outcome == 'dump'   # stays put - up on row
-                                                        # 12 while the window scrolls back, rc14p world_full_eng)
-    if not window_home(s) or press(s, s.screen(), ent[slot], wait=1, avoid=avoid) is None or not to_entry(s, reserve):
+    if slot < 11:
+        return press(s, s.screen(), reserve, wait=1) is not None and \
+            to_entry(s, ent[slot]) and s.send(f'{PRESS_FIRE} dump:1').outcome == 'dump'
+    if not window_home(s) or press(s, s.screen(), ent[slot], wait=1) is None:
         return False
     for _ in range(tries):
         if reserve_info(s.screen(), ry)[0] == want:
             return press(s, s.screen(), reserve, wait=1) is not None
-        if s.send('down dump:0.5').outcome != 'dump' or s.screen().selected != reserve:
-            return False                                # (the game's bench of 5: down leaves row 17)
+        w = bx_window(s)
+        if w is None:
+            return False                                # (the game's bench of 5: no window to move)
+        if not to_entry(s, w[1]) or s.send(f'{PRESS_FIRE} dump:0.5').outcome != 'dump':
+            return False
     return False
 
 
@@ -1303,8 +1320,7 @@ def swap_rows(s, rows, a, b):
     ent = [r[0] if isinstance(r, tuple) else r for r in rows]
     if b >= 11 and not window_home(s):
         return False
-    avoid = win_moves(ent)
-    return press(s, s.screen(), ent[b], wait=1, avoid=avoid) is not None and \
+    return press(s, s.screen(), ent[b], wait=1) is not None and \
         to_entry(s, ent[a]) and s.send(f'{PRESS_FIRE} dump:1').outcome == 'dump'
 
 
@@ -5446,14 +5462,13 @@ def bench_squad(s, scr, bx, cmp_, cnp, errs, info, mark, woff=4, box=30, row1=13
     info.append(f'{tag} rows: bench / out distance {hist_dist(ref_b, ref_o):.2f}, {len(bad)} rows off ({bad[:6]})')
     check(hist_dist(ref_b, ref_o) > 0.5 and not bad, f'{tag} row colours (window, row, place, seen): {bad[:12]}', errs)
 
-    def goto(t, bad=frozenset()):           # (bad: moves not taken while another way exists - the window's)
-        for _ in range(24):                 # (4.0.6: up on row 12 scrolls the window first, one round each)
+    def goto(t):
+        for _ in range(24):
             q = s.screen()
             if q.selected == t:
                 return True
-            s.send(' '.join(k + ':0.15' for k in (q.path(t, bad) or q.path(t) or [])) + ' dump:0.4')
+            s.send(' '.join(k + ':0.15' for k in (q.path(t) or [])) + ' dump:0.4')
         return False
-    wmoves = frozenset({(row1 + 11, 'up'), (row1 + 16, 'down')})
     for _ in range(20):                     # window 5: row 17 = place 22
         r = s.result
         if struct.unpack('<H', r.read(r.lin(bx) + woff, 2))[0] == 5:
@@ -5476,85 +5491,57 @@ def bench_squad(s, scr, bx, cmp_, cnp, errs, info, mark, woff=4, box=30, row1=13
         r_ = s.result
         return struct.unpack('<H', r_.read(r_.lin(bx) + woff, 2))[0]
 
-    def wrap():
-        # (4.0.5, Davide 01/11) the wrap: down on row 17 to the window's end (n - 17), once more -> window 0, row 12; up
-        # on row 12 at the top -> row 11 (the game's move, no scroll); the entries below row 17 another way (real keys)
-        check(goto(row1 + 16, wmoves), f'{tag}: row 17 not reached for the wrap', errs)
-        w0, wr = win(), []
-        want = [(w_, row1 + 16) for w_ in range(w0 + 1, n - 16)] + [(0, row1 + 11)]
-        for _ in want:
-            s.send('down:0.3 dump:0.4')
-            wr.append((win(), s.screen().selected))
-        check(wr == want, f'{tag}: the wrap from window {w0} (window, selected) {wr}', errs)
-        s.shot(f'{tag}_wrap')
+    def nav():
+        # (4.0.6, Marco 02/11, as the original game) the name rows never scroll: DOWN on row 17 -> the game's next
+        # entry (wrap_reach), UP on row 12 -> row 11, the window unchanged both ways
+        check(goto(row1 + 16), f'{tag}: row 17 not reached', errs)
+        w0 = win()
+        want = below[0][0] if below[0][0] is not None else row1 + 16
+        s.send('down:0.3 dump:0.4')
+        d = (win(), s.screen().selected)
+        check(d == (w0, want), f'{tag}: down on row 17 (window, selected) {d}, want {(w0, want)} ({below[0][1]!r})', errs)
+        s.shot(f'{tag}_down17')
+        check(goto(row1 + 11), f'{tag}: row 12 not reached', errs)
         s.send('up:0.3 dump:0.4')
-        w2, sel2 = win(), s.screen().selected
-        check((w2, sel2) == (0, row1 + 10), f'{tag}: up on row 12 at the top (window, selected) {(w2, sel2)}', errs)
-        s.shot(f'{tag}_wrapup')             # (tour sheet 11: up from row 12 at the top -> row 11, the starters)
-        info.append(f'{tag} wrap: down {wr}, then up -> {(w2, sel2)}')
+        u = (win(), s.screen().selected)
+        check(u == (w0, row1 + 10), f'{tag}: up on row 12 (window, selected) {u}, want {(w0, row1 + 10)}', errs)
+        info.append(f'{tag} name rows: down on row 17 -> {d} ({below[0][1]!r}), up on row 12 -> {u}, window {w0} kept')
         mark(info[-1])
-        tests = list(below[1])              # (those only down on row 17 reached: fail; else the entry below it)
-        if below[0][0] is not None and below[0][0] not in [i for i, _ in tests]:
-            tests.append(below[0])
-        for i, txt in tests:
-            q = s.screen()
-            if q.selected != row1 + 16:
-                goto(row1 + 16, wmoves)
-                q = s.screen()
-            steps = q.path(i, frozenset({(row1 + 16, 'down')}))
-            if steps is None:
-                check(False, f'{tag}: {txt!r} (entry {i}) not reachable without down on row 17', errs)
-                continue
-            s.send(' '.join(k + ':0.15' for k in steps) + ' dump:0.4')
-            got = s.screen().selected
-            check(got == i, f'{tag}: {txt!r} (entry {i}) by {steps}: selected {got}', errs)
-            info.append(f'{tag} below row 17: {txt!r} by {steps} ' + ('ok' if got == i else 'FAIL'))
-            mark(info[-1])
-        goto(row1 + 11, wmoves)
 
-    if n < 30:                              # (4.0.6, Davide 31/10) needs places up to 29: a 30-player squad
-        wrap()                              # (the wrap: any squad longer than the 17 rows - RANGERS' 28)
+    if n < 30:                              # (4.0.6, Davide 31/10) the marked swap needs places up to 29
+        nav()
         return
-    # the cursor scrolls the window (rows 12 / 17, as the dugout) and a marked player stays marked: place 22 marked
-    # (window 5, row 17), 7 x down on row 17 -> window 12 (places 23..28: the mark out of sight), 5 x up -> row 12
-    # (the cursor moves, no scroll), fire: place 22 <-> 24 swapped; up once more on row 12 -> window 11
-    goto(box)                               # (the way to row 11 above scrolled the window to 0: up on row 12)
+    # a marked player stays marked while the box scrolls: place 22 marked (window 5, row 17), the box x7 -> window
+    # 12 (places 23..28: the mark out of sight), row 12 (place 24), fire: places 22 <-> 24 swapped
+    check(goto(box), f'{tag}: the box not reached', errs)
     for _ in range(20):
         if win() == 5:
             break
         s.send('fire:0.3 dump:0.4')
     check(goto(row1 + 16) and win() == 5, f'{tag}: row 17 at window 5 not reached ({win()})', errs)
     s.send('fire:0.3 dump:0.4')
+    check(goto(box), f'{tag}: the box not reached with the mark', errs)
     seen = []
     for _ in range(7):
-        s.send('down:0.3 dump:0.4')
-        seen.append((win(), s.screen().selected))
-    check(seen == [(6 + k, row1 + 16) for k in range(7)], f'{tag}: down on row 17 (window, selected) {seen}', errs)
-    s.shot(f'{tag}_curdown')
-    up = []
-    for _ in range(5):
-        s.send('up:0.3 dump:0.4')
-        up.append((win(), s.screen().selected))
-    check(up == [(12, row1 + 15 - k) for k in range(5)], f'{tag}: up from row 17 (window, selected) {up}', errs)
+        s.send('fire:0.3 dump:0.4')
+        seen.append(win())
+    check(seen == list(range(6, 13)), f'{tag}: the box with a mark: windows {seen}', errs)
+    s.shot(f'{tag}_boxmark')
+    check(goto(row1 + 11) and win() == 12, f'{tag}: row 12 at window 12 not reached ({win()})', errs)
     r = s.send('fire:0.3 dump:0.6')
     s.shot(f'{tag}_markswap')
     o2 = r.obj2(cmp_, n)
     exp2 = bytearray(o1)
     exp2[21], exp2[23] = o1[23], o1[21]
     check(o2 == bytes(exp2), f'{tag} marked place 22 (out of sight) <-> 24: {list(o1)} -> {list(o2)}', errs)
-    s.send('up:0.3 dump:0.4')
-    w1, sel1 = win(), s.screen().selected
-    check((w1, sel1) == (11, row1 + 11), f'{tag}: up on row 12 (window, selected) {(w1, sel1)}', errs)
-    info.append(f'{tag} cursor scroll: down {[w for w, _ in seen]}, up on row 12 -> {w1}; marked swap 22<->24 '
-                + ('ok' if o2 == bytes(exp2) else 'FAIL'))
+    info.append(f'{tag} box with a mark: windows {seen}; marked swap 22<->24 ' + ('ok' if o2 == bytes(exp2) else 'FAIL'))
     mark(info[-1])
-    wrap()
-    for _ in range(20):                     # the window back to 0 by the cursor itself (up on row 12): the way out
-        if win() == 0:                      # of the screen may go up through row 12, which would scroll it first
+    nav()
+    check(goto(box), f'{tag}: the box not reached at the end', errs)
+    for _ in range(20):                     # the window back to 0 by the box
+        if win() == 0:
             break
-        if s.screen().selected != row1 + 11:
-            goto(row1 + 11)
-        s.send('up:0.3 dump:0.4')
+        s.send('fire:0.3 dump:0.4')
     check(win() == 0, f'{tag}: window not back to 0 ({win()})', errs)
 
 
@@ -5562,8 +5549,8 @@ def bench_view(s, bx, cmp_, cnp, ct, errs, info, mark):
     """(4.0.6) ViewSquad with the managed club (TRASFERIMENTI > AGG. GIOCATORE AL CALCIOMERC.: the game's own squad
     view, rows = entries 4..20, the box = entry 21): with a bench over 5 rows 12..17 are a window (bx_vw =
     bx_bench + 114) on places 12..: the box moves it one down (0 .. players - 17, then back to 0), the order is not
-    rotated; down on row 17 / up on row 12 move it too (the cursor stays); fire on row 17 at window 5 picks place 22
-    (the next screen shows his name)."""
+    rotated; the name rows never scroll it (4.0.6, Marco: down on row 17 leaves the list, up on row 12 goes to row
+    11, the window kept); fire on row 17 at window 5 picks place 22 (the next screen shows his name)."""
     r = s.result
     n = struct.unpack('<H', r.obj2(cnp, 2))[0]
     order0 = r.obj2(cmp_, n)
@@ -5599,23 +5586,22 @@ def bench_view(s, bx, cmp_, cnp, ct, errs, info, mark):
     check(steps == list(range(n - 16)) + [0], f'view window steps {steps}', errs)
     check(s.result.obj2(cmp_, n) == order0, 'view: the order changed by the window (a rotation?)', errs)
     check(goto(20), 'view: row 17 not reached', errs)
-    w0 = win()                              # (the box loop's last fire moved it once more)
-    seen = []
-    for _ in range(3):
-        s.send('down:0.3 dump:0.4')
-        seen.append((win(), s.screen().selected))
-    check(seen == [(w0 + k, 20) for k in (1, 2, 3)], f'view: down on row 17 from {w0} (window, selected) {seen}', errs)
-    for _ in range(5):
-        s.send('up:0.3 dump:0.4')
+    w0 = win()
+    s.send('down:0.3 dump:0.4')
+    d = (win(), s.screen().selected)
+    check(d[0] == w0 and d[1] != 20, f'view: down on row 17 from {w0} (window, selected) {d}: want the window kept, '
+          f'the cursor out of the list', errs)
+    check(goto(15), 'view: row 12 not reached', errs)
     s.send('up:0.3 dump:0.4')
-    w1, sel1 = win(), s.screen().selected
-    check((w1, sel1) == (w0 + 2, 15), f'view: up on row 12 (window, selected) {(w1, sel1)}', errs)
-    info.append(f'view cursor scroll: down {[w for w, _ in seen]}, up on row 12 -> {w1}')
-    for _ in range(3):                      # window 5 by the cursor: row 17 = place 22
-        goto(20)
-        while win() < 5:
-            s.send('down:0.3 dump:0.4')
-    check(win() == 5 and s.screen().selected == 20, f'view: window 5 on row 17 ({win()}, {s.screen().selected})', errs)
+    u = (win(), s.screen().selected)
+    check(u == (w0, 14), f'view: up on row 12 (window, selected) {u}, want {(w0, 14)}', errs)
+    info.append(f'view name rows: down on row 17 -> {d}, up on row 12 -> {u}, window {w0} kept')
+    check(goto(21), 'view: the box not reached again', errs)
+    for _ in range(n):                      # window 5 by the box: row 17 = place 22
+        if win() == 5:
+            break
+        s.send('fire:0.3 dump:0.4')
+    check(goto(20) and win() == 5, f'view: window 5 on row 17 ({win()}, {s.screen().selected})', errs)
     s.shot('view_pick')
     want = name(21)
     s.send('fire:0.3 dump:1')
@@ -7049,14 +7035,14 @@ def bench_lineup():
     players; BENCH_BUILD; BENCH_PATH = a club with the game's bench of 5: step 1 only), places 1 (keeper), 11 and 12
     (the bench keeper) injured, place 21 a keeper (poked):
     1. the fixer (substitute, the default min mode): VIS. RISULTATI within a few swaps, place 1 a fit keeper, place 11
-       fit; then swap_in from deep (window 11: row 17 = place 28) into row 5 - the way up scrolls the window 11 times
-       (world_full_eng's second rc14p run: press gave up there, the swap was never made): places 5 <-> 28;
-    2. a player's keys, the reserve first: the box to window 4 (row 17 = place 21), fire, up to row 1 (the window
-       scrolls back), fire: places 1 <-> 21;
-    3. the slot first: row 11, then row 17 and down on it (the window scrolls, the mark stays) to place 23, fire:
-       places 11 <-> 23;
-    4. the old fixer's order (the cause): the box to window 4, row 1 marked (the way up scrolls the window to 0),
-       fire on row 17: places 1 <-> 17 - not 21."""
+       fit; then swap_in from deep (window 11: row 17 = place 28) into row 5: places 5 <-> 28;
+    2. a player's keys, the reserve first: the box to window 4 (row 17 = place 21), fire, up to row 1, fire: places
+       1 <-> 21;
+    3. the slot first: row 11, then the box (the mark stays) to window 6 (row 17 = place 23), row 17, fire: places
+       11 <-> 23;
+    4. the old fixer's order: the box to window 4, row 1 marked, fire on row 17: places 1 <-> 21. (Up to 4.0.6 the
+       way up from row 17 scrolled the window back to 0 - the cursor scroll on rows 12 / 17 - and this swapped 1 <-> 17;
+       4.0.6, Marco: only the box scrolls, so the window stays where the player left it.)"""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import lepatch
     import xtra
@@ -7166,15 +7152,12 @@ def bench_lineup():
         info.append(f'reserve first: marked at window {w_mark}, window {w_up} at row 1; '
                     f'{"1 <-> 21" if o2_ == swapped(o, 0, 20) else "order " + str(list(o)) + " -> " + str(list(o2_))}')
         check(w_mark == 4 and o2_ == swapped(o, 0, 20), info[-1], errs)
-        # 3. the slot first, then down on row 17
+        # 3. the slot first, then the box
         window_home(s)
         o = s.result.obj2(cmp_, n)
         press(s, s.screen(), rows[10], wait=0.6)
+        to_win(6)
         to_entry(s, rows[16])
-        for _ in range(12):
-            if win() == 6:
-                break
-            s.send('down dump:0.5')
         w_fire, sel = win(), s.screen().selected
         press(s, s.screen(), rows[16], wait=1)
         o3 = s.result.obj2(cmp_, n)
@@ -7190,8 +7173,8 @@ def bench_lineup():
         press(s, s.screen(), rows[16], wait=1)
         o4 = s.result.obj2(cmp_, n)
         got = next((c for c in range(n) if c and o4 == swapped(o, 0, c)), None)
-        info.append(f'old order: window {w_slot} after row 1, place 1 <-> {got + 1 if got is not None else "?"} (not 21)')
-        check(got is not None and got != 20, info[-1], errs)   # (17, or 18 if the way to row 17 took a down on it)
+        info.append(f'old order: window {w_slot} after row 1, place 1 <-> {got + 1 if got is not None else "?"}')
+        check(w_slot == 4 and got == 20, info[-1] + ' (want window 4, 1 <-> 21)', errs)
         s.shot('lineup_end')
     return not errs, '; '.join(errs + info)
 

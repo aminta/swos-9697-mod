@@ -56,13 +56,11 @@ from 12 on, scrolled by the box left of row 17), 4.0.6 (Davide 31/10):
 - a marked player stays marked when the window scrolls: the game keeps the mark as his place (selectedPlayerPosition /
   dseg_16F48C / dseg_17994A = GetPlayerInfoBreakPosition's D1, not a row), draws it wherever he shows and swaps by
   place, so pm_rot / et_rot no longer cancel it (sq_rot never did);
-- the cursor scrolls the window as in the dugout: MenuProc's `mov [D6], ax` (the move, 2 up / 3 down, before it looks
-  for the next entry) -> bx_mdir: on row 17 down / row 12 up, while the window can move (0 .. players - 17, as the
-  box), the window moves one place and the cursor stays (the menu redrawn, no entry search). The screen is told by the
-  selected entry's onSelect (OnSwapPlayer, SquadCommon, EditTacticsPlayerNamesCommon) and its ordinal.
-  (4.0.5, Davide 01/11 on Marco's feedback) down on row 17 with the window at its end goes back to the top of the
-  bench (window 0, the cursor on row 12), as the box; up on row 12 at the top keeps the game's move (row 11, the
-  starters). The entries below row 17 stay reachable another way (swostest wrap_reach). ViewSquad / the call-ups: no wrap.
+- only the box scrolls the window (4.0.6, Marco 02/11: as the original game, whose box rotates the reserves): the
+  cursor on the name rows moves as in the game - DOWN on row 17 to the game's next entry (PLAY MATCH, the squad
+  screen's buttons, the tactics editor's next), UP on row 12 to row 11 - on every own-team list (pre-match, SQUADRA,
+  the tactics editor, ViewSquad, the call-ups). (Gone: the 31/10 cursor scroll on rows 12 / 17 and its 4.0.5 wrap,
+  174f34f.) bx_mdir stays for VIEW OPPONENT only.
 - VIEW OPPONENT (the pre-match screen with viewingOpponentTeam; Davide's PANpt4 photo: a CPU BOLOGNA showed 11 + 5,
   its places 17.. out of sight): with a bench over 5 the opponent's places are 16 + its XTRA block's players (po_n, as
   bx_next: a career's CPU club), at most 11 + the bench; rows 12..17 a window bx_po on them (pm_row; row 17 = entry
@@ -73,7 +71,7 @@ from 12 on, scrolled by the box left of row 17), 4.0.6 (Davide 31/10):
   tables there, dseg_D6F48 / dseg_D6F98, hold 20): rows 12..17 a window bx_vw on the places from 12 on, as SQUADRA.
   vw_cmp (their AfterDrawCommon's `cmp word [D1], 10h`: row -> place in D1 / D6, no number from 11 + bench on),
   vw_gpi (their Common's GetPlayerInfoBreakPosition: the picked row -> its place), vw_rot (the box: the window one down
-  with a bench over 5, else the game's rotation), bx_mdir (the cursor on rows 12 / 17), vw_vinit (ViewSquad's entry:
+  with a bench over 5, else the game's rotation), vw_vinit (ViewSquad's entry:
   the window kept only when it comes back to a bench row of the managed club) and vw_ninit (the call-ups: at the top).
 
 Phase 2 (4.0.6): each competition's real rule (internal/panchina/fase2.md: official 2026-27 texts or the largest bench
@@ -1052,19 +1050,19 @@ et_rot:                                 ; EditTacticsOnSelect28's `call RotatePl
     pop eax
     ret
 
-bx_mdir:                                ; MenuProc's `mov [D6], ax` (the move in menu notion: 2 up, 3 down; [A0] = the
-    mov [D6], ax                        ; selected entry): a bench over 5, the cursor on the window's first / last row
-    push eax                            ; (12 / 17) moving up / down scrolls the window instead, the cursor stays (as
-    push ebx                            ; the dugout); on the pre-match screen, SQUADRA and the tactics editor
+bx_mdir:                                ; MenuProc's `mov [D6], ax` (the move in menu notion: 2 up, 3 down): VIEW
+    mov [D6], ax                        ; OPPONENT of a CPU club with a bench over 5 (read-only): up / down anywhere
+    push eax                            ; move its window one place, wrapping as the box. (4.0.6, Marco) Own lists:
+    push ebx                            ; the game's move, only the box scrolls.
     push esi
     call sq_n
     cmp ax, 16
     jbe .no
-    cmp word [VOPP], 0                  ; (VIEW OPPONENT, a CPU club: read-only) up / down move its window, any entry
-    je .own
+    cmp word [VOPP], 0
+    je .no
     mov esi, [PMT2]
     cmp byte [esi + 4], 1               ; teamControls: TEAM_COMPUTER
-    jne .own
+    jne .no
     call po_n
     cmp ax, 16
     jbe .no
@@ -1085,62 +1083,6 @@ bx_mdir:                                ; MenuProc's `mov [D6], ax` (the move in
     mov bx, ax
 .oset:
     mov [bx_po], bx
-    jmp .scroll
-.own:
-    mov esi, [A0]
-    mov eax, [esi + 42]                 ; its onSelect: the screen
-    movzx ebx, word [esi + 2]           ; its ordinal
-    cmp eax, ONSWAP
-    jne .sq
-    cmp word [VOPP], 0
-    jne .no
-    sub ebx, 13                         ; rows = entries 13..29
-    mov esi, bx_pw
-    movzx eax, word [NPS]
-    jmp .w
-.sq:
-    cmp eax, SQCOMMON
-    jne .et
-    sub ebx, 28                         ; entries 28..44
-    mov esi, bx_sq
-    movzx eax, word [SQCNT]
-    jmp .w
-.et:
-    cmp eax, ETCOMMON
-    jne .vs
-    sub ebx, 11                         ; entries 11..27
-    mov esi, bx_tw
-    movzx eax, word [ETNP]
-.w:                                     ; ebx = the row (0..16), esi -> the window, eax = the squad's players
-    sub eax, 17                         ; the window's last start (as the box: *_rot)
-    cmp word [D6], 3
-    jne .up
-    cmp ebx, 16
-    jne .no
-    cmp [esi], ax
-    jge .wrap
-    inc word [esi]
-    jmp .scroll
-.wrap:                                  ; (4.0.5, Davide 01/11) the window at its end: back to the top of the bench,
-    cmp esi, bx_vw                      ; window 0 and the cursor on row 12 (ViewSquad / the call-ups: as the game)
-    je .no
-    mov eax, [A0]
-    sub eax, 5 * 38h                    ; row 12's entry (the rows are consecutive entries)
-    cmp dword [eax + 4], 0              ; isInvisible / isDisabled: as the game
-    jne .no
-    mov word [esi], 0
-    mov esi, [A6]
-    mov [esi + 0Ch], eax                ; Menu.selectedEntry (the whole menu redrawn below)
-    jmp .scroll
-.up:
-    cmp word [D6], 2
-    jne .no
-    cmp ebx, 11
-    jne .no
-    cmp word [esi], 0
-    jle .no
-    dec word [esi]
-.scroll:
     pop esi
     pop ebx
     pop eax
@@ -1151,23 +1093,6 @@ bx_mdir:                                ; MenuProc's `mov [D6], ax` (the move in
     pop ebx
     pop eax
     ret
-.vs:                                    ; (4.0.6) ViewSquad: entries 4..20, the managed club's players (else 16)
-    cmp eax, VSCOMMON
-    jne .nt
-    sub ebx, 4
-    mov esi, bx_vw
-    mov eax, 16
-    cmp dword [VSTEAM], CT
-    jne .w
-    movzx eax, word [CNP]
-    jmp .w
-.nt:                                    ; SelectNationalTeam: entries 8..24, careerTeam (at most 20)
-    cmp eax, NTCOMMON
-    jne .no
-    sub ebx, 8
-    mov esi, bx_vw
-    movzx eax, word [CNP]
-    jmp .w
 
 rot_d0:                                 ; ViewSquadOnSelect21 / SelectNationalTeamOnSelect25: replaces `mov word [D0], 5`
     push eax                            ; (RotatePlayersLeft's first place - 11): with a bench over 5 the rotation starts

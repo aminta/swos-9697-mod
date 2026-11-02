@@ -512,6 +512,16 @@ def bp_str(r):
     return out + ' ' + r.read(p, 24).split(b'\0')[0].decode('latin-1')
 
 
+def dosbox_cpu(pid):
+    """The process's CPU seconds so far (ps), None if unreadable."""
+    try:
+        v = subprocess.run(['ps', '-o', 'time=', '-p', str(pid)], capture_output=True, text=True, timeout=5).stdout.strip()
+        p = [float(x) for x in v.replace('-', ':').split(':')]
+        return sum(x * 60 ** k for k, x in enumerate(reversed(p)))
+    except Exception:
+        return None
+
+
 ANSI = re.compile(rb'\x1b\[[0-9;?]*[a-zA-Z]|\x1b\(B')
 MEMSIZE = 0x2000000                                   # memsize=32: linear 0..32 MB
 
@@ -602,7 +612,13 @@ class Dosbox:
             for x in ('00', '06', '0D', '0E'):                 # the DOS exit (int 21h, AH 4Ch) and on CPU
                 self.cmd('BPINT ' + x, 0.5)                        # exceptions (any break: SWOSTEST_BP4C only)
             self.bp4c = True
-        os.write(self.fd, b'C 160:0\r')        # move the code view away: the next break must redraw it
+        self.probe_at, self.probe_cpu = 0, None
+        for _ in range(3):                             # move the code view away: the next break must redraw it
+            pre = len(self.screen)                     # (02/11: under load the command can be lost, then a break at
+            os.write(self.fd, b'C 160:0\r')            # the same stub address is not redrawn and never seen: a
+            self.pump(0.3, rb'160:0', pre)             # 'hang' with DOSBox-X idle in its debugger)
+            if re.search(rb'160:0', ANSI.sub(b' ', self.screen[pre:])):
+                break
         pre = len(self.screen)
         os.write(self.fd, b'\x1b[15~')                 # F5 = run
         self.pump(2, rb'Running', pre)                 # watch from the debugger's '(Running)' on
@@ -637,6 +653,20 @@ class Dosbox:
                     self.eip = int(m.group(1), 16)
                     return self.stat('run', t, 'break')
             el = time.time() - start
+            if el >= (getattr(self, 'probe_at', 0) or 20) and self.eip is not None:
+                cpu = dosbox_cpu(self.pid)             # stall probe: DOSBox-X idle (in its debugger) for 10 s while we
+                last = getattr(self, 'probe_cpu', None)  # wait for a break = a break we did not see: the code view
+                self.probe_cpu, self.probe_at = cpu, el + 10    # redrawn away and back on the last stub address
+                if last is not None and cpu is not None and cpu - last < 0.5:
+                    with open(os.path.join(self.run, 'stall.txt'), 'a') as fh:
+                        fh.write(f'{time.strftime("%H:%M:%S")} no break seen, DOSBox-X idle {cpu - last:.2f} s CPU '
+                                 f'in 10 s: code view redrawn at {self.eip:08X}\n')
+                    os.write(self.fd, b'C 160:0\r')
+                    self.pump(0.5)
+                    mark = len(self.screen)
+                    os.write(self.fd, f'C 160:{self.eip:X}\r'.encode())
+                    self.probe_cpu = None
+                    continue
             if self.shots and el >= nshot * self.shots:
                 self.shot('t%04d' % int(time.time() - self.t0))
                 nshot += 1
@@ -5333,6 +5363,17 @@ def bench_sub(s, bx, place, errs, info, mark, key=None, gone=None, tag=''):
     seen = []
     ns0 = (w16(v['NS1'], s.result.base2), w16(v['NS2'], s.result.base2))
     ord0 = s.result.read(s.result.lin(bx) - 4 - 156, 52)   # (2 humans: the other team's half may hold its change)
+
+    def ks(keys):                           # (BENCH_SAMPLE=secs, 02/11: in-match stalls under load - the dump never came
+        if not os.environ.get('BENCH_SAMPLE'):   # back after a cursor key: each key with sample(), the EIPs of a hang)
+            return s.send(keys)
+        hist, r = s.sample(keys, float(os.environ['BENCH_SAMPLE']))
+        if r.outcome != 'dump':
+            top = sorted(hist.items(), key=lambda x: -x[1])[:16]
+            errs.append(f'HANG after {keys!r}: obj1 EIPs {[(hex(o), n) for o, n in top]}')
+            mark(errs[-1])
+            s.box.kill()                    # (Regia 02/11: no DOSBox-X left spinning once the HANG is recorded)
+        return r
     for call in range(12):
         r = s.send((key or ('pgup' if call % 2 == 0 else 'pgdn')) + ':0.3 dump:0.6')   # (key: one team's bench)
         if r.outcome != 'dump':
@@ -5340,7 +5381,7 @@ def bench_sub(s, bx, place, errs, info, mark, key=None, gone=None, tag=''):
             return False
         last, still = w16(v['IDX'], r.base2), 0
         for j in range(24):
-            r = s.send('down:0.15 dump:0.3')
+            r = ks('down:0.15 dump:0.3')
             if r.outcome != 'dump':
                 errs.append(f'bench cursor: {r}')
                 return False
@@ -5365,7 +5406,10 @@ def bench_sub(s, bx, place, errs, info, mark, key=None, gone=None, tag=''):
     s.shot(tag + 'bench_window')
     ups = []                                # back up 6 places (the window starts at the cursor) and down again
     for key in ['up'] * 6 + ['down'] * 6:
-        r = s.send(key + ':0.15 dump:0.3')
+        r = ks(key + ':0.15 dump:0.3')
+        if r.outcome != 'dump':
+            errs.append(f'bench up / down: {r}')
+            return False
         ups.append((w16(v['IDX'], r.base2), w16(0, r.lin(bx - 4))))
     info.append(f'up/down {ups}')
     up6 = ups[5]
@@ -5543,11 +5587,48 @@ def bench_squad(s, scr, bx, cmp_, cnp, errs, info, mark, woff=4, box=30, row1=13
         d = (win(), s.screen().selected)
         check(d == (w0, want), f'{tag}: down on row 17 (window, selected) {d}, want {(w0, want)} ({below[0][1]!r})', errs)
         s.shot(f'{tag}_down17')
-        if tag == 'squad':                  # (4.0.6, Marco / Davide 02/11) the pre-match screen: PLAY MATCH (entry 9),
-            q = s.screen()                  # the player / coach line (entry 6) never reached by the keys
-            check(d[1] == 9, f'{tag}: down on row 17 -> entry {d[1]} {q.entries[d[1]][1]!r}, want 9 (PLAY MATCH)', errs)
-            check(q.entries[6][2] or q.path(6) is None, f'{tag}: the player / coach line reachable: {q.path(6)}', errs)
-            info.append(f'{tag}: player / coach line {"hidden" if q.entries[6][2] else "visible, not reachable"}')
+        if tag == 'squad':                  # (4.0.6, Marco / Davide 02/11, as the original game) the pre-match screen:
+            q = s.screen()                  # row 17 -> the player / coach line (entry 6) -> PLAY MATCH (9), UP back;
+            vis = not q.entries[6][2]       # a manager (6 hidden): row 17 -> 9 -> row 17
+
+            want = [6, 9, 6, row1 + 16] if vis else [9, row1 + 16]
+            got = [d[1]]
+            if vis:
+                s.shot(f'{tag}_down_coach')
+                for k in ('down', 'up', 'up'):
+                    s.send(f'{k}:0.3 dump:0.4')
+                    got.append(s.screen().selected)
+            else:
+                s.send('up:0.3 dump:0.4')
+                got.append(s.screen().selected)
+            check(got == want, f'{tag}: row 17 down / down / up / up -> {got}, want {want}', errs)
+            info.append(f'{tag}: row 17 down -> {got} ({"the player / coach line" if vis else "no coach line"})')
+            def others(c):                  # ESCI (8) up, UTN A / C / E (50 / 52 / 54) left -> the coach line (as the
+                got = {}                    # original game; hidden: on to row 17)
+                for e, k in ((8, 'up'), (50, 'left'), (52, 'left'), (54, 'left')):
+                    if s.screen().entries[e][2] or not goto(e):
+                        got[e] = None
+                        continue
+                    s.send(f'{k}:0.3 dump:0.4')
+                    got[e] = s.screen().selected
+                want_ = {e: (c if got[e] is not None else None) for e in got}
+                check(got == want_, f'{tag}: ESCI up / UTN left -> {got}, want {want_}', errs)
+                return got
+            if vis:
+                o = others(6)
+                info.append(f'{tag}: ESCI up / UTN A, C, E left -> {o}')
+            if vis:                         # the manager's case: entry 6 hidden by a poke (its invisible word), then back
+                m6 = s.result.base2 + s.info['menu'] + 0x16 + 6 * 0x38 + 4
+                s.poke(m6, b'\x01\x00')
+                check(goto(row1 + 16), f'{tag}: row 17 not reached (coach line hidden)', errs)
+                h = []
+                for k in ('down', 'up'):
+                    s.send(f'{k}:0.3 dump:0.4')
+                    h.append(s.screen().selected)
+                o = others(row1 + 16)
+                s.poke(m6, b'\x00\x00')
+                check(h == [9, row1 + 16], f'{tag}: coach line hidden: row 17 down / up -> {h}, want {[9, row1 + 16]}', errs)
+                info.append(f'{tag}: coach line hidden (poked): row 17 down / up -> {h}; ESCI up / UTN left -> {o}')
         check(goto(row1 + 11), f'{tag}: row 12 not reached', errs)
         s.send('up:0.3 dump:0.4')
         u = (win(), s.screen().selected)
@@ -6586,13 +6667,15 @@ def train_kickoff(s, top, bot, both, steps=25):
 
 def train_out(s, errs, steps=300):
     """The training game played to its end (as bench_play: 3 fires a pause): back on the squad screen (its TRAINING
-    entry). False if not."""
+    entry), the first 16 healed (s.healed: a training game's random injury hides PLAY MATCH - 02/11, kits_training
+    and bench_training). False if not."""
     for _ in range(steps):
         if s.result.outcome != 'dump':
             errs.append(f'training: {s.result}')
             return False
         try:
             if TRAIN_TXT[UI][1] in s.screen().texts():
+                s.healed = heal_first16(s)
                 return True
         except Exception:                       # (in the match: no menu)
             pass
@@ -6695,9 +6778,8 @@ def bench_training():
         s.send('left:0.3 left:0.3 dump:0.8')
         if not train_out(s, errs):
             return False, '; '.join(errs + info)
-        hurt = heal_first16(s)              # (02/11 I2/I3: the training game injured a starter: GIOCA PARTITA hidden)
-        if hurt:
-            info.append(f'healed after the training game {hurt}')
+        if s.healed:
+            info.append(f'healed after the training game {s.healed}')
         r = to_league(s, top, bot, club, errs)
         if r is not None:
             names = (ingame_team(r, top)[0], ingame_team(r, bot)[0])
@@ -6759,7 +6841,7 @@ def kits_training():
         check(k1 == k0, f'careerTeam kits {k0.hex(" ")} -> {k1.hex(" ")}', errs)
         if not train_out(s, errs):
             return False, '; '.join(errs + info)
-        hurt = heal_first16(s)              # (02/11 cl1: the training game injured a starter: GIOCA PARTITA hidden)
+        hurt = s.healed                     # (02/11 cl1: the training game injured a starter: GIOCA PARTITA hidden)
         if hurt:
             info.append(f'healed after the training game {hurt}')
         scr = to_league(s, top, bot, club, errs, prematch=True)

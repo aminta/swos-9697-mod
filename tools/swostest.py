@@ -7970,6 +7970,74 @@ def controls_mode4():
     return not errs, '; '.join(errs) or f"4 opens as 3, then {' -> '.join(map(str, seen))}"
 
 
+@scenario
+def kbd2_page():
+    """4.0.6 CONTROLS B page (SWOSTEST_UI's exe): COMANDI's device row 1 -> 3 -> 5 -> P1 AND P2 ON KEYBOARD (the G2
+    column shown); P2 FIRE = CTRL (P1's fire) refused, = Q taken; P1 UP = W (P2's up) refused; SALVA writes
+    CONTROL2.DAT ('K2', 1, on, W S A D Q) and SETUP.DAT +6 = 1; COMANDI again shows the mode and Q; back to KEYBOARD ONLY
+    + SALVA: CONTROL2.DAT off"""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import controls
+    import kbd2
+    b, v = ct_build()
+    T = controls.TEXTS[UI]
+    enc = lambda x: x.encode('latin-1')
+    names = controls.key_names(UI)
+    errs, notes = [], []
+    with Session('kbd2_page_' + UI, b, {}, 'dump:2', 300) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'START: no first pause ({s.result})'
+        menu = s.info['menu']
+        work = lambda: s.result.read(ct_base(s.result, v) + v['work'], 108)
+        f2 = os.path.join(s.run, 'SWOS', 'CONTROL2.DAT')
+
+        def open_page():
+            press(s, s.screen(), 'OPZIONI', 2)
+            press(s, s.screen(), 19, 2)
+            return s.screen().n == 26
+
+        check(open_page(), f'page not open ({s.screen().n} entries)', errs)
+        if errs:
+            return False, '; '.join(errs)
+        for _ in range(3):
+            s.send('fire dump:0.5')
+        r = s.result
+        w = work()
+        check(struct.unpack_from('<H', w, 6)[0] == kbd2.K2_DEV and ct_entry(r, menu, 2)[0] == enc(kbd2.TEXTS[UI][0]),
+              f'device {struct.unpack_from("<H", w, 6)[0]} {ct_entry(r, menu, 2)[0]}', errs)
+        check(list(w[101:106]) == list(kbd2.DEFAULT), f'P2 keys {w[101:106].hex()}', errs)
+        press(s, s.screen(), 25, 1)                     # P2 FUOCO: CTRL (P1's) refused, Q taken
+        s.send('fire dump:1')
+        r = s.result
+        check(ct_vars(r, v)['DUP'] == 1 and work()[105] == kbd2.DEFAULT[4], f"P2 fire = CTRL: dup {ct_vars(r, v)['DUP']}, "
+              f'key {work()[105]:#x}', errs)
+        s.send('q dump:1')
+        r = s.result
+        check(work()[105] == 0x10 and ct_entry(r, menu, 25)[0] == enc(names[0x10]),
+              f'P2 fire = Q: key {work()[105]:#x}, text {ct_entry(r, menu, 25)[0]}', errs)
+        s.shot('k2_q')
+        press(s, s.screen(), 8, 1)                      # P1 SU: W (P2's up) refused, ESC keeps
+        s.send('w dump:1')
+        check(ct_vars(s.result, v)['DUP'] == 1 and work()[96] == 0x48, f'P1 up = W: key {work()[96]:#x}', errs)
+        s.send('esc dump:1')
+        press(s, s.screen(), 17, 2)                     # SALVA
+        got = open(f2, 'rb').read() if os.path.exists(f2) else b''
+        want = kbd2.MAGIC + b'\x01' + bytes(kbd2.DEFAULT[:4]) + b'\x10'
+        check(got == want, f'CONTROL2.DAT {got.hex()} (want {want.hex()})', errs)
+        sd = open(os.path.join(s.run, 'SWOS', 'SETUP.DAT'), 'rb').read()
+        check(struct.unpack_from('<H', sd, 6)[0] == 1, f'SETUP.DAT device {struct.unpack_from("<H", sd, 6)[0]}', errs)
+        check(open_page(), 'page not open again', errs)
+        r = s.result
+        check(struct.unpack_from('<H', work(), 6)[0] == kbd2.K2_DEV and ct_entry(r, menu, 25)[0] == enc(names[0x10]),
+              f'reopened: device {struct.unpack_from("<H", work(), 6)[0]}, P2 fire {ct_entry(r, menu, 25)[0]}', errs)
+        s.send('fire dump:0.5')                         # -> KEYBOARD ONLY, SALVA: off
+        press(s, s.screen(), 17, 2)
+        got = open(f2, 'rb').read() if os.path.exists(f2) else b''
+        check(got[:4] == kbd2.MAGIC + b'\x00', f'CONTROL2.DAT after KEYBOARD ONLY: {got.hex()}', errs)
+        notes.append(f'CONTROL2.DAT {got.hex()}')
+    return not errs, '; '.join(errs + notes)
+
+
 def kbd2_friendly_run(on):
     """kbd2_friendly's run: a two-player friendly LAZIO v JUVENTUS on the KEYBOARD ONLY device (SETUP.DAT +6 = 1), with
     CONTROL2.DAT's player 2 set on / off (W S A D, left SHIFT). Returns (errs, seen)."""

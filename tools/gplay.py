@@ -2820,7 +2820,13 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
         cd_src += CUP12 + cds1_src(p, cds[0], rl, rs)
         if sct and not os.environ.get('NO_VC5'):            # 4.0.5: VISUAL. COMPETIZ.'s 5th entry (slot 4; gp_notin)
             vsrc, vsym, VC5_SITES[:] = _vc5(p, r['A0'] + 24)
-            cd_src += VC5_ASM + vsrc
+            va = VC5_ASM
+            if os.environ.get('VC5_ALL_FORCE'):             # (test builds only: entries 5 and 6 shown too - the list's
+                print('exe: VC5_ALL_FORCE (test build: VISUAL. COMPETIZ. entries 5, 6 shown)')   # eight rows)
+                va = nasmcave.sub(va, '.lay:\n', '.lay:\n' + ''.join(
+                    f'    mov word [D0R], {k}\n    call VC_CALC\n    mov edi, [A0R]\n    mov word [edi + 4], 0\n'
+                    for k in (5, 6)))
+            cd_src += va + vsrc
             symbols.update(vsym)
         symbols.update({f'C_S1_{k}': (1, c) for k, c in enumerate(CDS1_CALLS)})
     import cupsf                                              # 4.0.1: the World 2026-27 cups follow promotions

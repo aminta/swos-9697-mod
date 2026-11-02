@@ -12420,6 +12420,125 @@ def world_national_buy_9697():
     return foreign_buy(exe, '9697', 'NAZIONALE')
 
 
+@scenario
+def market_keep_page():
+    """4.0.6 (Enzo) the market list keeps its page after an offer (mklist.py), on a RELEASE exe (foreign_exe: the
+    World 2026-27 career at INTER, its own markets). NATIONAL market (VISUAL. MERCATO NAZIONALE; filled to 25, the
+    game's most, when it has fewer than 21): ELENCA (found, page 0, 10 rows), ALTRI (page 10), the 4th row picked ->
+    the offer screen -> ESCI: page 10 again, the same found count and the same 10 rows (the list's pointers), the
+    cursor on the picked row, the label ALTRI; ALTRI -> page 20. On page 20 a row picked, the market cut to 20
+    players under the offer screen (a poke, as if they had gone): ESCI -> the emptied page gives way to page 10.
+    FOREIGN market (VISUAL. MERCATO STRANIERO): ELENCA, ALTRI to its last page (page 20, or 10: INTER's has 12), its
+    first row picked, ESCI: the same page and rows. Shots nat_p2 / nat_back / nat_p3 / nat_emptied / for_page /
+    for_back. The original (4.0.5) gives page 0, an
+    empty list."""
+    exe = foreign_exe()
+    if not exe:
+        return True, 'SKIP: no release SWOS dir (FOREIGNBUY_BUILD, or SWOSTEST_BUILD / W8485_BUILD with DATA/POOL05.DAT)'
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lepatch
+    import mklist
+    import sacups
+    from le import LE
+    st = mklist.sites(lepatch.LEPatch(os.path.join(ROOT, 'orig', 'ITALIAN.EXE')))
+    found, onpage, pg = st['FOUND'][1], st['ONPAGE'][1], st['PG'][1]
+    d1 = LE(open(os.path.join(ROOT, 'orig', 'ITALIAN.EXE'), 'rb').read()).obj_bytes(1)
+    a1 = sacups.regs(d1)['A1']
+    m = re.search(rb'\x66\x83\x3d(....)\x19\x74.\xc7\x05' + re.escape(struct.pack('<I', a1)) + rb'(....)', d1, re.S)
+    nh, hm = struct.unpack('<I', m.group(1))[0], struct.unpack('<I', m.group(2))[0]
+    errs, info = [], []
+
+    def state(s):
+        r = s.result
+        w = lambda o: struct.unpack('<H', r.obj2(o, 2))[0]
+        return w(found), w(pg), w(onpage), r.obj2(found + 4, 40)
+
+    def market(s, which):
+        walk(s, 'TRASFERIMENTI', 3)
+        walk(s, 2, 3)                              # ACQUISTA GIOCATORE
+        scr = s.screen()
+        walk(s, next(e[0] for e in scr.entries if e[1] and ('VISUAL. MERCATO ' + which) in e[1]), 3)
+        walk(s, 7, 3)                              # ELENCA
+
+    def pick(s, row):
+        scr = s.screen()
+        for k in (scr.path(row) or []):
+            s.send(k + ' dump:0.5')
+        s.send('fire dump:4')
+        tx = s.screen().texts()
+        check("FAI UN'OFFERTA" in tx, f'row {row}: no offer screen {tx[:6]}', errs)
+
+    def leave(s):
+        for _ in range(8):
+            if 'PROSS. PARTITA' in s.screen().texts():
+                break
+            press(s, s.screen(), 'CONTINUA', 3) or press(s, s.screen(), 'ESCI', 3) or s.send('fire dump:2')
+
+    with Session('market_keep_page', exe, {}, 'dump:2', 600) as s:
+        s.wait()
+        for t in ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27', 'EUROPA', 'ITALIA', 'SERIE A', 'INTER']:
+            if press(s, s.screen(), t, 3) is None:
+                return False, f'new career: {t} not reached'
+        s.send('fire dump:3')
+        leave(s)
+        n0 = struct.unpack('<H', s.result.obj2(nh, 2))[0]
+        if n0 < 21:                                # (the national market holds 25 at most: repeat its entries)
+            ent = s.result.obj2(hm, 4 * n0)
+            s.poke(s.result.base2 + hm, (ent * (25 // max(n0, 1) + 1))[:100])
+            s.poke(s.result.base2 + nh, struct.pack('<H', 25))
+        info.append(f'national market {n0}' + (' -> 25' if n0 < 21 else ''))
+        market(s, 'NAZIONALE')
+        f0, p0, o0, _ = state(s)
+        check(p0 == 0 and o0 == 10 and f0 >= 21, f'ELENCA: found {f0} page {p0} rows {o0}', errs)
+        walk(s, 7, 3)                              # ALTRI
+        f1, p1, o1, rows1 = state(s)
+        s.shot('nat_p2')
+        check(p1 == 10 and o1 == 10, f'ALTRI: page {p1} rows {o1}', errs)
+        pick(s, 13)
+        press(s, s.screen(), 'ESCI', 3)
+        f2, p2, o2, rows2 = state(s)
+        sc = s.screen()
+        s.shot('nat_back')
+        info.append(f'national back: found {f2} page {p2} rows {o2} cursor {sc.selected}')
+        check((f2, p2, o2) == (f1, 10, 10), f'back from the offer: found {f2} page {p2} rows {o2} (was {f1} 10 10)', errs)
+        check(rows2 == rows1, 'back from the offer: other rows', errs)
+        check(sc.selected == 13, f'cursor on {sc.selected}, not the picked row 13', errs)
+        check(sc.find('ALTRI', exact=True) is not None, f'label {sc.texts()[:12]}', errs)
+        walk(s, 7, 3)                              # ALTRI: page 3
+        f3, p3, o3, _ = state(s)
+        s.shot('nat_p3')
+        check(p3 == 20 and o3 == f3 - 20, f'ALTRI after the offer: page {p3} rows {o3} (found {f3})', errs)
+        pick(s, 10)
+        s.poke(s.result.base2 + nh, struct.pack('<H', 20))   # (the page's players gone under the offer screen)
+        press(s, s.screen(), 'ESCI', 3)
+        f4, p4, o4, _ = state(s)
+        s.shot('nat_emptied')
+        info.append(f'emptied page: found {f4} page {p4} rows {o4} cursor {s.screen().selected}')
+        check((f4, p4, o4) == (20, 10, 10), f'emptied page: found {f4} page {p4} rows {o4} (want 20 10 10)', errs)
+        leave(s)
+        market(s, 'STRANIERO')
+        f5, _, _, _ = state(s)
+        if f5 < 11:
+            errs.append(f'foreign market: only {f5} found')
+        else:
+            want = 20 if f5 >= 21 else 10
+            for _ in range(want // 10):
+                walk(s, 7, 3)                      # ALTRI: page 20 (page 10 on a short list)
+            f6, p6, o6, rows6 = state(s)
+            s.shot('for_page')
+            check(p6 == want, f'foreign ALTRI: page {p6}, not {want}', errs)
+            pick(s, 10)
+            press(s, s.screen(), 'ESCI', 3)
+            f7, p7, o7, rows7 = state(s)
+            s.shot('for_back')
+            info.append(f'foreign: found {f7} page {p7} rows {o7} cursor {s.screen().selected}')
+            check((f7, p7, o7) == (f6, p6, o6) and rows7 == rows6,
+                  f'foreign back: found {f7} page {p7} rows {o7} (was {f6} {p6} {o6})', errs)
+            check(s.screen().selected == 10, f'foreign cursor {s.screen().selected}', errs)
+        leave(s)
+    return not errs, '; '.join(errs + info)
+
+
 def club_colours(scr):
     """{button colour: [club names]} of a team list (the club buttons: 100 x 9 px)."""
     out = {}

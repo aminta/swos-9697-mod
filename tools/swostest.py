@@ -510,6 +510,16 @@ def bp_str(r):
     return out + ' ' + r.read(p, 24).split(b'\0')[0].decode('latin-1')
 
 
+def dosbox_cpu(pid):
+    """The process's CPU seconds so far (ps), None if unreadable."""
+    try:
+        v = subprocess.run(['ps', '-o', 'time=', '-p', str(pid)], capture_output=True, text=True, timeout=5).stdout.strip()
+        p = [float(x) for x in v.replace('-', ':').split(':')]
+        return sum(x * 60 ** k for k, x in enumerate(reversed(p)))
+    except Exception:
+        return None
+
+
 ANSI = re.compile(rb'\x1b\[[0-9;?]*[a-zA-Z]|\x1b\(B')
 MEMSIZE = 0x2000000                                   # memsize=32: linear 0..32 MB
 
@@ -600,7 +610,13 @@ class Dosbox:
             for x in ('00', '06', '0D', '0E'):                 # the DOS exit (int 21h, AH 4Ch) and on CPU
                 self.cmd('BPINT ' + x, 0.5)                        # exceptions (any break: SWOSTEST_BP4C only)
             self.bp4c = True
-        os.write(self.fd, b'C 160:0\r')        # move the code view away: the next break must redraw it
+        self.probe_at, self.probe_cpu = 0, None
+        for _ in range(3):                             # move the code view away: the next break must redraw it
+            pre = len(self.screen)                     # (02/11: under load the command can be lost, then a break at
+            os.write(self.fd, b'C 160:0\r')            # the same stub address is not redrawn and never seen: a
+            self.pump(0.3, rb'160:0', pre)             # 'hang' with DOSBox-X idle in its debugger)
+            if re.search(rb'160:0', ANSI.sub(b' ', self.screen[pre:])):
+                break
         pre = len(self.screen)
         os.write(self.fd, b'\x1b[15~')                 # F5 = run
         self.pump(2, rb'Running', pre)                 # watch from the debugger's '(Running)' on
@@ -635,6 +651,20 @@ class Dosbox:
                     self.eip = int(m.group(1), 16)
                     return self.stat('run', t, 'break')
             el = time.time() - start
+            if el >= (getattr(self, 'probe_at', 0) or 20) and self.eip is not None:
+                cpu = dosbox_cpu(self.pid)             # stall probe: DOSBox-X idle (in its debugger) for 10 s while we
+                last = getattr(self, 'probe_cpu', None)  # wait for a break = a break we did not see: the code view
+                self.probe_cpu, self.probe_at = cpu, el + 10    # redrawn away and back on the last stub address
+                if last is not None and cpu is not None and cpu - last < 0.5:
+                    with open(os.path.join(self.run, 'stall.txt'), 'a') as fh:
+                        fh.write(f'{time.strftime("%H:%M:%S")} no break seen, DOSBox-X idle {cpu - last:.2f} s CPU '
+                                 f'in 10 s: code view redrawn at {self.eip:08X}\n')
+                    os.write(self.fd, b'C 160:0\r')
+                    self.pump(0.5)
+                    mark = len(self.screen)
+                    os.write(self.fd, f'C 160:{self.eip:X}\r'.encode())
+                    self.probe_cpu = None
+                    continue
             if self.shots and el >= nshot * self.shots:
                 self.shot('t%04d' % int(time.time() - self.t0))
                 nshot += 1
@@ -5323,6 +5353,7 @@ def bench_sub(s, bx, place, errs, info, mark, key=None, gone=None, tag=''):
             top = sorted(hist.items(), key=lambda x: -x[1])[:16]
             errs.append(f'HANG after {keys!r}: obj1 EIPs {[(hex(o), n) for o, n in top]}')
             mark(errs[-1])
+            s.box.kill()                    # (Regia 02/11: no DOSBox-X left spinning once the HANG is recorded)
         return r
     for call in range(12):
         r = s.send((key or ('pgup' if call % 2 == 0 else 'pgdn')) + ':0.3 dump:0.6')   # (key: one team's bench)

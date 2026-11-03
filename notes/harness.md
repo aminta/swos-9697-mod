@@ -284,7 +284,11 @@ played on CGG_A (the release recipe) and on CGG_B (the same + CONTI_CGVIEW=1: co
 round a day, does to it what the game's view does - cseg_8B71C / cseg_8B7EA - and closes it): the two season-2
 .CARs byte-identical, B's CG_G with views opened, no bad sum, no sticky fallback, no failed build (CGG_TEAM, default
 HAMRUN SPARTANS). On the release recipe per language: the language's exe as ITALIAN.EXE in c/CGG_<A|B>_<lang>/SWOS,
-SWOSTEST_UI=<lang>. Tier B (test_ctgame.py, fixtures with ct_daily + save_trailer hits): test_cg_guard_close (the
+SWOSTEST_UI=<lang>. B is NEVER made with buildrel.sh: it clears every modver.BUILD_SWITCHES entry, CONTI_CGVIEW too
+("test switches cleared: CONTI_CGVIEW"), so its B = A (same md5) and the guard passes proving nothing (I7, 03/11).
+Make B from A's release dir: copy it, then `CONTI_CGVIEW=1 MODVER_TAG=.. python3 internal/release-tools/bfull.py
+orig/ITALIAN.EXE <B>/SWOS/ITALIAN.EXE it <B>/SWOS/DATA` with buildrel's SEASON_PACKS exported; check A's and B's
+md5 differ. Tier B (test_ctgame.py, fixtures with ct_daily + save_trailer hits): test_cg_guard_close (the
 saved state - fixed part, the cache's N records, CG_GTAB's kept and summed ranges, work area, D0..A6 - byte-identical
 after open + a view's changes + close, also with the scratch 5Ah first; a saved byte changed while open -> bad sum,
 sticky, the next open refused: E_GUARD 7), test_cg_guard_daily / test_cg_guard_save (a view left open at ct_daily /

@@ -744,6 +744,9 @@ def patch_exe(src, dst, remap, lang='it'):
     import kbd2                                  # 4.0.6 CONTROLS B (Marco): player 2's own key set on one keyboard,
     kb_end = kbd2.patch(p, (fi_end + 15) & ~15, lang)        # in obj3 after finance (bteam next: (kb_end + 15) & ~15)
     assert kb_end <= LT3_AT, hex(kb_end)
+    import kbfirst                               # 4.0.6 fix A (Davide 04/11): a held keyboard direction beats the stick's
+    kb_end = kbfirst.patch(p, (kb_end + 15) & ~15)           # axis (menus, player 1), in obj3 after kbd2
+    assert kb_end <= LT3_AT, hex(kb_end)
     import stoppage                              # 4.0.6 (Davide + Marco): stoppage time, the clock's "+N", 45+2 goals;
     st_end = stoppage.patch(p, (kb_end + 15) & ~15, lang,    # in obj3 after kbd2 (bteam between them when merged)
                             stoppage.career_worlds(), stoppage.pack_files())

@@ -15483,13 +15483,19 @@ def world_cgame_view():
             i = sc.find('TRASFERIMENTI', exact=True)    # view from VIEW WORLD left dseg_DF4F4 set, transfers closed
             if i is None or own:                        # till the next match - as on 4.0.5; contestMenu's entry 5,
                 return                                  # job offers, below it: its text changes - NO JOB OFFERS ...)
-            j = i + 1
             check(not sc.entries[i][3], f'{tag}: TRASFERIMENTI disabled', errs)
-            for k in (sc.path(j) or []):
-                s.send(k + ' dump:0.5')
+            j = i + 1                                   # (job offers - NESS. OFF. LAVORO disabled: the game skips
+            if sc.entries[j][3] or sc.entries[j][2]:    #  it, up from the next one lands on TRASFERIMENTI)
+                j += 1
+            for _ in range(8):                          # (a key at a time: a move onto a disabled entry skips it)
+                c_ = s.screen()
+                if c_.selected == j or not c_.path(j):
+                    break
+                s.send(c_.path(j)[0] + ' dump:0.5')
+            check(s.screen().selected == j, f'{tag}: not on entry {j} ({s.screen().selected})', errs)
             s.send('up dump:0.5')
             got = s.screen().selected
-            check(got == i, f'{tag}: up from entry {j} (job offers) -> entry {got}, not TRASFERIMENTI', errs)
+            check(got == i, f'{tag}: up from entry {j} -> entry {got}, not TRASFERIMENTI', errs)
             info.append(f'{tag}: menu ok')
         tr_ok('after load')
         if not own:                                     # (the foreign market's club picker, careerworld w_buy: the

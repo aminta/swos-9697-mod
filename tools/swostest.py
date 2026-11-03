@@ -14904,6 +14904,30 @@ def cv_trace(exe):
     return struct.unpack_from('<IIIII', d3, k + 8) if k >= 0 else None
 
 
+LIST_BAD = []
+
+
+def vc_list_check(scr):
+    """VISUAL. COMPETIZ.'s list (Davide 03/11): every visible entry's text within its button (complist.VC_PX, the
+    game's font), rows and ESCI apart (>= 5 px between buttons, none overlapping). Returns the problems."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import complist
+    bad, rows = [], []
+    raw = scr.raw_texts
+    for (i, text, inv, dis), (x, y, w, h) in zip(scr.entries, scr.geom):
+        if i == 0 or inv or not text:
+            continue
+        t = raw[i] if raw else text
+        if complist.px(t) > complist.VC_PX:
+            bad.append(f'{t!r} {complist.px(t)} px > {complist.VC_PX}')
+        rows.append((y, h, t))
+    rows.sort()
+    for (y0, h0, t0), (y1, h1, t1) in zip(rows, rows[1:]):
+        if y1 - (y0 + h0) < 5:
+            bad.append(f'{t0!r} y {y0} .. {t1!r} y {y1}: gap {y1 - (y0 + h0)} px')
+    return bad
+
+
 def contiview_open(s, k, pages=None):
     """Career menu -> VISUAL. COMPETIZ. -> COPPE CONTINENTALI -> button k (1..6): (the menu's button texts, the page's
     title, its lines; with pages: the next pages' lines too); then ESCI twice (back to VISUAL. COMPETIZ.'s list)."""
@@ -14913,6 +14937,7 @@ def contiview_open(s, k, pages=None):
     if i is None:
         return None, None, []
     s.shot('contiview_list')
+    LIST_BAD[:] = vc_list_check(s.screen())
     walk(s, i, 3)
     s.shot('contiview_menu')
     btn = [x[1] for x in s.screen().entries[1:7]]
@@ -14944,8 +14969,11 @@ def world_contiview():
     if not os.path.isdir(src):
         return True, f'SKIP: private data {src} missing'
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
-    exe = os.environ.get('CV_BUILD') or build('world_contiview', env={
-        'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order])})
+    env = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order])}
+    if os.environ.get('CV_ALL'):                        # (CV_ALL=1: VC5_ALL_FORCE - the list's eight rows - and
+        env.update(VC5_ALL_FORCE='1', GPLAY_FORCE='1')  # GPLAY_FORCE: the career club champion, its supercup in slot 4)
+    exe = os.environ.get('CV_BUILD') or build('world_contiview' + ('_all' if os.environ.get('CV_ALL') else ''), env=env,
+                                                 lang=UI)
     tr = cv_trace(exe)
     if not tr:
         return False, 'no CVTRPTR block (ctview not in the build)'
@@ -14956,6 +14984,8 @@ def world_contiview():
         return cur, bytes(s.result.obj2(cal_at + cur, 1))[0], bytes(s.result.obj2(cal_at, 48)).hex()
     errs, info = [], []
     names = ['CONMEBOL', 'CONCACAF', 'AFC', 'CAF', 'OFC', 'FIFA']
+    import ctview                                       # (the exe's language: its texts)
+    T = [x.decode('latin1') for x in ctview.TEXTS[UI]]
     with Session('world_contiview_s1', exe, {}, 'dump:2', 300) as s:
         s.wait()
         if not pick_career(s, ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27', 'EUROPA', 'ITALIA',
@@ -14969,13 +14999,14 @@ def world_contiview():
         btn, title, lines = contiview_open(s, 1)
         s.log.append(f'[cv] s1 week {week(s)} {btn} {title} {lines}')
         check(btn == names, f'season 1 buttons {btn}', errs)
-        check(title == 'COPPE CONTINENTALI - CONMEBOL', f'season 1 title {title!r}', errs)
-        check(lines[:1] == ['COPA LIBERTADORES'] and 'TURNI PRECEDENTI GIOCATI PRIMA DELLA STAGIONE' in lines
-              and 'GRUPPO A: DA GIOCARE' in lines, f'season 1 page {lines}', errs)
+        check(title == T[6] + ' - CONMEBOL', f'season 1 title {title!r}', errs)
+        check(lines[:1] == ['COPA LIBERTADORES'] and T[4] in lines and f'{T[3]} A: {T[1]}' in lines,
+              f'season 1 page {lines}', errs)
+        check(not LIST_BAD, f'season 1 VISUAL. COMPETIZ. list: {LIST_BAD}', errs)
         info.append(f's1: {lines[:4]}')
-    s2 = os.environ.get('CV_S2') or os.path.join(RUNS, 'cv_s2.CAR')
-    if not os.path.exists(s2):
-        ok, msg, _ = sc_season('EUROPA,ITALIA,SERIE A,INTER', dict(W8485_BUILD=exe))
+    s2 = os.environ.get('CV_S2') or os.path.join(RUNS, f'cv_s2_{UI}.CAR')   # (this build's own season 1: a slot's
+    if not os.path.exists(s2):                          # title is in the save - CV_TEAM, default ARSENAL: the list's most rows)
+        ok, msg, _ = sc_season(os.environ.get('CV_TEAM', 'EUROPA,INGHILTERRA,PREMIER LEAGUE,ARSENAL'), dict(W8485_BUILD=exe))
         car = os.path.join(RUNS, w84_tag() + '_1', 'SWOS', 'W84A.CAR')
         if not ok or not os.path.exists(car):
             return False, f'season 1: {msg[:200]}'
@@ -14994,7 +15025,9 @@ def world_contiview():
             pages = []
             btn, title, lines = contiview_open(s, k, pages)
             s.log.append(f'[cv] s2 {k} week {week(s)} {title} {lines} {pages}')
-            check(title == 'COPPE CONTINENTALI - ' + names[k - 1], f'season 2 page {k} title {title!r}', errs)
+            check(title == T[6] + ' - ' + names[k - 1], f'season 2 page {k} title {title!r}', errs)
+            if k == 1:
+                check(not LIST_BAD, f'season 2 VISUAL. COMPETIZ. list: {LIST_BAD}', errs)
             check(bool(lines) and lines[0], f'season 2 page {k}: {lines}', errs)
             b1 = st()
             dif = [(n, i, b0[j][i], b1[j][i]) for j, n in enumerate(('SEG', 'ED')) for i in range(len(b0[j]))

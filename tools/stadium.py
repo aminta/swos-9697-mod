@@ -435,9 +435,28 @@ def venues(csv_path=VENUES_CSV):
     return out
 
 
+def unmatched(data):
+    """The club rows whose (file, ordinal) is not that club in the build's TMW5.nnn (another name, or no such club /
+    file): [(file, ordinal, csv name, name there or None)]. 0 on the release data (the harness: stadium_clublist)."""
+    import csv
+    bad, files = [], {}
+    for r in csv.DictReader(open(CLUBS_CSV, encoding='utf-8')):
+        f, o = int(r['file']), int(r['ordinal'])
+        if f not in files:
+            fn = os.path.join(data, 'TMW5.%03d' % f)
+            files[f] = open(fn, 'rb').read() if os.path.exists(fn) else b''
+        d = files[f]
+        nm = d[2 + 684 * o + 5:2 + 684 * o + 22].split(b'\0')[0].decode('latin-1') if 2 + 684 * (o + 1) <= len(d) else None
+        if nm != r['name']:
+            bad.append((f, o, r['name'], nm))
+    return bad
+
+
 def gen(data):
-    """DATA\\STADTMW5.DAT (4.0.6: World 2026-27 only, Davide 02/11) when the build has its team files: every club
-    row must still be that club (its TMW5.nnn name), else the build stops. No STADTEAM.DAT: no banner elsewhere."""
+    """DATA\\STADTMW5.DAT (4.0.6: World 2026-27 only, Davide 02/11) when the build has its team files. A club row
+    that is not that club in this build's data (an older world snapshot - the old-save scenarios build on the released
+    4.0's -, a partial world: world_ns's first 20 files) gets no stadium: its line stays hidden, never another club's
+    name; the count is printed. On the release data every row matches (stadium_clublist)."""
     import csv
     if not any(n.upper().startswith('TMW5.') for n in os.listdir(data)):
         return None
@@ -453,7 +472,8 @@ def gen(data):
             bad.append((f, o, r['name'], nm))
             continue
         recs[(f, o)] = check(r['stadium'])
-    assert not bad, (f'{len(bad)} stadium rows on another club now (world data changed: redo the club list)', bad[:5])
+    if bad:
+        print(f'STADTMW5.DAT: {len(bad)} club rows not in this world data, no stadium for them: {bad[:3]}')
     ven = venues()
     open(os.path.join(data, 'STADTMW5.DAT'), 'wb').write(build(recs, ven))
     return len(recs), len(ven)
@@ -461,9 +481,19 @@ def gen(data):
 
 def vcheck_exe(exe, lang, data):
     """The build's own check: this language's venue strings are strings of its exe or of a DATA file (gameName /
-    gameRound copy them), exact. Returns the rows checked; stops the build on a miss."""
+    gameRound copy them), exact. Returns the strings checked; prints the misses (a partial world - world_ns's first 20
+    files - has not every competition: those venue rows just never match); stadium_clublist wants none on a release
+    build (venue_misses)."""
     if not os.path.exists(os.path.join(data, 'STADTMW5.DAT')):
         return 0
+    miss, n = venue_misses(exe, lang, data)
+    if miss:
+        print(f'exe: stadium venues: {len(miss)} {lang} strings not in this build (rows never matched): {miss[:3]}')
+    return n
+
+
+def venue_misses(exe, lang, data):
+    """([(field, string)] of this language's venue rows not in its exe / DATA, strings checked)."""
     import csv
     import glob
     blobs = [open(exe, 'rb').read()] + [open(f, 'rb').read() for f in sorted(glob.glob(os.path.join(data, '*')))
@@ -475,8 +505,7 @@ def vcheck_exe(exe, lang, data):
             n += 1
             if not any(b'\0' + s + b'\0' in b or b'\0' + s + b'*' in b for b in blobs):
                 miss.append((fld, s))
-    assert not miss, ('venue strings not in the game', lang, miss)
-    return n
+    return miss, n
 
 
 def vcheck(csv_path, build):

@@ -102,8 +102,12 @@ career starts with INVENTED. Older saves load with INVENTED.
 - **Shirt numbers on the squad screen.** You can now edit your club's shirt numbers on the squad screen too, as you already could on the team screen before a match: press LEFT on a player, then UP / DOWN or type the number; ESC cancels. The number no longer touches the player's name, and its shadow shows.
 - **Transfer market keeps its place** (reported by Enzo). When you look at a player in the national or foreign market list (MAKE OFFER) and come back with EXIT, the list stays on the page you were on, with the cursor on that player, instead of jumping back to the first page.
 
-#### Looks
-- **White hair for Ravanelli** (1996-97): his famous white hair is now white. More players can be added to the list in the future.
+#### New looks: white hair
+**White hair.** A new look joins the blond, bald and shaved ones: grey-white hair. The first player to wear it is
+Fabrizio Ravanelli at Middlesbrough in the 1996-97 game, as he really looked. On the pitch his hair is white with a
+darker grey on its shaded side; on the squad screen his face icon shows the whole white hairline. The line-ups screen
+before the kick-off (the little players lined up in the stadium) now also shows white hair and bald heads as they are
+on the pitch - before, those little players always had normal hair.
 
 #### An easier install (thanks to Roman)
 - **Install into a new folder.** The patcher page has a second button, "Install into a new folder (Program Files, CD)". First pick the game's folder: your GOG install, a copy on disk, or the CD. Then pick (or create) an empty folder of your own outside Program Files, for example Documents\SWOS 96-97 Mod. The page copies the game there and installs the mod in the copy. The original game is not touched. Play from the new folder: the GOG shortcut still starts the original game.
@@ -165,12 +169,25 @@ What it looks like in a career (World 2026-27, first two seasons, a club that wi
 Old careers: nothing is stored in the save. A career started with an older version gets the new income from its
 next match.
 
-#### Coming in this version, text to come
+#### B-team call-ups (World 2026-27)
 - **The opponent's squad during a match**. During a match you can now look at the opponent's squad. Open the bench menu (where you make substitutions), put the cursor on your coach and press UP. The list shows the opponent's name on top, in their colours.
   - The first page shows their 11 players on the pitch. Press DOWN for their substitutes, 11 a page, and UP to go back a page.
   - The list is read-only: you cannot pick or change anything in it. FIRE, LEFT or RIGHT closes it, and the cursor goes back to your coach.
   - With SWOS++ the list is switched off: UP on the coach works as before.
-- [TO COMPLETE: Shaved — B-team call-ups (full squad incl. places 17+): one match and season attachment, real rules per country, ages.]
+**Call up your B team** [first draft: the screen wording follows]. In a World 2026-27 career, a club that has a B team (Juventus, Atalanta, Inter and Milan in
+Italy, and 16 more clubs in Spain, Germany, Portugal, the Netherlands, Australia and New Zealand) can now bring its
+young players up to the first team. On the squad screen a new button opens the B team's squad. Pick a player and
+choose:
+- *Next match only*: he plays for you in the next match and goes back to the B team right after it. Players under 23
+  and goalkeepers can always be called; older ones only up to the country's limit (4 in Italy, Spain and Portugal, 3 in
+  Germany, no limit in the Netherlands). At most 4 a match. He costs nothing and earns no wages from your club.
+- *For the season*: he joins your squad until the end of the season, paid his normal wages, and the B team takes a
+  youth player in his place. At most 3 in each transfer window, and only while the window is open (in Europe from
+  1 July to 1 September and in January).
+Called-up players appear in the colour of the reserve fill-ins, with a "B" next to their shirt number, and cannot be
+sold or listed. Everyone goes back to the B team at the end of the season, or when you take a job at another club.
+Your squad can still hold at most 30 players.
+- [TO COMPLETE: Australia and New Zealand: over-age limit and transfer windows are still being checked against the real rules; until then 4 over-age players and 1 July to 30 September plus January are placeholders.]
 
 #### Fixes
 - **New Zealand, last round of the Championship group.** If your club rests in the last round of the Championship group, the menu now offers FINISH SEASON. Press it: if your club reached the Grand Final, MATCH comes back and you play it; otherwise the season ends. (Before, the menu could offer a match on the rest day.) The real champion was already right; this removes the confusing final that did not count mentioned in the 4.0.5 notes.
@@ -291,8 +308,12 @@ carriera nuova parte da INVENTATI. I salvataggi precedenti si caricano con INVEN
 - **Numeri di maglia nella schermata della rosa.** Ora puoi modificare i numeri di maglia del tuo club anche nella schermata della rosa, come già potevi nella schermata della squadra prima della partita: premi SINISTRA su un giocatore, poi SU / GIÙ o scrivi il numero; ESC annulla. Il numero non tocca più il nome del giocatore e se ne vede l'ombra.
 - **Il mercato ricorda la pagina** (segnalato da Enzo). Quando guardi un giocatore nell'elenco del mercato nazionale o estero (FAI OFFERTA) e torni con ESCI, l'elenco resta sulla pagina in cui eri, con il cursore su quel giocatore, invece di tornare alla prima pagina.
 
-#### Aspetto
-- **Capelli bianchi per Ravanelli** (1996-97): i suoi famosi capelli bianchi ora sono bianchi. In futuro si potranno aggiungere altri giocatori all'elenco.
+#### Nuovi look: capelli bianchi
+**Capelli bianchi.** Un nuovo look si aggiunge a biondi, calvi e rasati: i capelli grigio-bianchi. Il primo giocatore
+che li porta è Fabrizio Ravanelli del Middlesbrough nel gioco 1996-97, com'era davvero. In campo ha i capelli bianchi
+con un grigio più scuro sul lato in ombra; nella schermata della rosa la sua faccina mostra tutta la capigliatura
+bianca. Anche la schermata delle formazioni prima del calcio d'inizio (gli omini schierati nello stadio) ora mostra i
+capelli bianchi e le teste calve come in campo - prima quegli omini avevano sempre i capelli normali.
 
 #### Installazione più semplice (grazie a Roman)
 - **Installa in una cartella nuova.** La pagina del patcher ha un secondo pulsante, «Installa in una cartella nuova (Program Files, CD)». Prima si sceglie la cartella del gioco: l'installazione GOG, una copia su disco o il CD. Poi si sceglie (o si crea) una cartella vuota propria fuori da Program Files, per esempio Documenti\SWOS 96-97 Mod. La pagina ci copia il gioco e installa la mod nella copia. Il gioco originale non viene toccato. Si gioca dalla cartella nuova: il collegamento GOG continua ad avviare il gioco originale.
@@ -356,12 +377,26 @@ Come si vede in carriera (Mondo 2026-27, prime due stagioni, un club che vince l
 Carriere già iniziate: nel salvataggio non viene memorizzato niente. Una carriera iniziata con una versione
 precedente riceve i nuovi incassi dalla partita successiva.
 
-#### In arrivo in questa versione, testo da completare
+#### Convocazioni dalla squadra B (Mondo 2026-27)
 - **La rosa dell'avversario durante la partita**. Durante la partita ora puoi vedere la rosa dell'avversario. Apri il menu della panchina (quello dei cambi), porta il cursore sull'allenatore e premi SU. In cima all'elenco c'è il nome della squadra avversaria, nei suoi colori.
   - La prima pagina mostra i loro 11 in campo. GIÙ mostra le loro riserve, 11 per pagina, e SU torna alla pagina prima.
   - L'elenco è in sola lettura: non si può scegliere né cambiare niente. FUOCO, SINISTRA o DESTRA lo chiudono, e il cursore torna sull'allenatore.
   - Con SWOS++ l'elenco è disattivato: SU sull'allenatore funziona come prima.
-- [DA COMPLETARE: Shaved — convocazioni (rosa intera, posti 17+) dalla squadra B: una partita e aggregazione stagionale, regole vere per paese, età.]
+**Convoca dalla squadra B** [prima bozza: i nomi sullo schermo seguiranno]. In una carriera nel Mondo 2026-27, un club che ha una squadra B (Juventus, Atalanta, Inter e
+Milan in Italia, e altri 16 club in Spagna, Germania, Portogallo, Olanda, Australia e Nuova Zelanda) ora può portare i
+suoi giovani in prima squadra. Nella schermata della rosa un nuovo pulsante apre la rosa della squadra B. Scegli un
+giocatore e poi:
+- *Solo la prossima partita*: gioca con te la prossima partita e torna alla squadra B subito dopo. Gli under 23 e i
+  portieri si possono sempre convocare; i più grandi solo fino al limite del paese (4 in Italia, Spagna e Portogallo, 3
+  in Germania, nessun limite in Olanda). Al massimo 4 a partita. Non costa nulla e il tuo club non gli paga lo
+  stipendio.
+- *Per la stagione*: resta nella tua rosa fino alla fine della stagione, con il suo stipendio normale, e la squadra B
+  prende un giovane al suo posto. Al massimo 3 per ogni finestra di mercato, e solo a mercato aperto (in Europa dal 1°
+  luglio al 1° settembre e a gennaio).
+I convocati compaiono nel colore delle riserve di ripiego, con una "B" accanto al numero di maglia, e non si possono
+vendere né mettere in lista. Tutti tornano alla squadra B a fine stagione, o quando accetti un lavoro in un altro club.
+La rosa resta di massimo 30 giocatori.
+- [DA COMPLETARE: Australia e Nuova Zelanda: limite di età e finestre di mercato sono ancora da verificare sulle regole vere; per ora 4 fuoriquota e dal 1° luglio al 30 settembre più gennaio sono segnaposto.]
 
 #### Correzioni
 - **Nuova Zelanda, ultima giornata del gruppo del Championship.** Se il tuo club riposa nell'ultima giornata del gruppo del Championship, il menu ora offre FINISCI STAGIONE. Premilo: se il tuo club è arrivato alla Grand Final torna PARTITA e la giochi; altrimenti la stagione finisce. (Prima il menu poteva offrire una partita nel giorno di riposo.) Il campione vero era già giusto; questo toglie la finale confusa che non contava, citata nelle note della 4.0.5.

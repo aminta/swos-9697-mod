@@ -30,21 +30,32 @@ substituted). The buffers' tail (bytes 1018..1703) is free (harness bench_mem, 2
   compare with 127: never taken.
 
 Block 2 (the bench graphic): 4.1 kept the dugout's art and 5 places, a window of 5 that scrolled with the cursor;
-4.0.6 (Davide 03/11, option A) has long dugouts (dugout.py: PITCH1-5 6 tile rows longer each, 18 seats) and every
-bench place seated, both benches.
+4.0.6 (Davide 03/11, two-row V1) has two-row dugouts (dugout.py: PITCH1-5 2 tile rows longer and one column wider
+each) and every bench place seated, both benches: the back row the coach + places 1..7, the front row places 8..15.
 - BenchMenuHandleControls' `cmp [g_benchPlayerIndex], 5` / `, 6` (the cursor's last place / one past it) ->
   bx_cmp_last / bx_cmp_last1: the last place is max(5, gameMaxSubstitutes) <= 15 (5 in a training game); empty
   places are skipped by IsThisPlayerOkToSelect as the game's own substituted players.
 - DrawBenchPlayersAndCoach's `cmp word [D7], 6` -> bx_win_end: places 1 .. that last place (the arrow's row and the
   first place are the game's: the index, place 1), the opponent's bench (g_subsState -1) the same; an empty place is
   an empty seat (the game's own skip, y still moves on).
-- BenchCheckControls' `mov word [D1], 389` (the top bench's y) -> bx_benchy: 389 - 16 x dugout.ADD = 293, the top
+- BenchCheckControls' `mov word [D1], 389` (the top bench's y) -> bx_benchy: 389 - 16 x dugout.ADD = 357, the top
   dugout grew upwards (a training game: 389, PITCH6 unchanged); the bottom one grew downwards (485 stays).
-- MoveCamera's bench destination `mov word [D4], 449` -> bx_camy: the own dugout's middle (benchY + 67: y 360 top,
-  552 bottom; 176 px, one 200-row screen shows the whole dugout, the cursor always in view), 449 as before while a
-  substitute goes on (g_substituteInProgress / g_waitForPlayerToGoInTimer) and in a training game; its arrival
-  window `cmp [g_cameraY], 339` / `, 359` (the x limit 0: the dugout at the screen's left edge) -> bx_camlo /
-  bx_camhi: the destination - 110 / - 90.
+- MoveCamera's bench destination `mov word [D4], 449` -> bx_camy: dugout.CAM_MID 440, the halfway line between the
+  two-row dugouts (their span y 340..539: both in one 200-row screen, the opponent's bench too), 449 as before in a
+  training game; its arrival window `cmp [g_cameraY], 339` / `, 359` (the x limit 0: the dugout at the screen's left
+  edge) -> bx_camlo / bx_camhi: the destination - 110 / - 90. bx_camlo also sets g_cameraY on the destination when
+  it is 1..3 px above it: there the game's step (delta / 4 x 0.25 px) is 0, the camera never stands still
+  (cameraCoordinatesValid stays 0) and the bench takes no keys (the camera stops above it coming from the top half).
+- (two rows) DrawBenchPlayersAndCoach's players' `call DrawSpriteInCameraView` -> bx_seat: a place over dugout.BACK
+  (7) at x + 9, y - 53 (= one row of 8 seats back up, + 3: place 8 level with the coach); a standing back-row figure
+  (the cursor's in the subs menu: sprites 1316..1321) at x + 9 too, in front of the front row (exit option e: the
+  game has no walk out of the seat, he appears standing). The caller pushes / pops D1 and D2, so the stub moves them
+  freely. Both benches (the opponent's through DrawOpponentsBench), not in a training game.
+- The arrow's `call DrawSpriteInCameraView` (DrawBenchAndSubsMenu) -> bx_arrow: on a front-row place the game's
+  arrow (sprite 1284) mirrored, right of the front row pointing left, y as its seat: bx_mirror mirrors the sprite in
+  place (centerX = width - 1 - centerX; VGA: 2 pixels a byte, high nibble first -> each line's bytes reversed,
+  nibbles swapped; EGA, unchained at the match's start: each plane's line's bytes reversed, bits reversed), the
+  game draws it, bx_mirror again gives the game's arrow back (no buffer: obj3 is nearly full).
   (bx_win / bx_cur stay as 0 words: the harness finds the tables from bx_bench.)
 - Block 3, the names (on namespr's 112 px sprites, 4.0.5): plOrdinalsTable / plNamesLengthTable /
   plNamesLengthTableCopy (obj2, 16 bytes a team) move here at 26 a team (bx_ord / bx_len / bx_lenc, every reference
@@ -575,17 +586,102 @@ bx_benchy:                              ; (4.0.6) replaces `mov word [D1], 389` 
 .t:
     ret
 
-bx_camdest:                             ; (4.0.6) ax = the bench camera's destination y: the own dugout's middle, 449
-    mov ax, 449                         ; while a substitute goes on and in a training game
+bx_camdest:                             ; (4.0.6) ax = the bench camera's destination y: the halfway line of the
+    mov ax, 449                         ; two-row dugouts (both in view), 449 (the game's) in a training game
     cmp word [TRAIN], 0
     jne .x
-    cmp word [SIP], 0
-    jne .x
-    cmp word [WAITGO], 0
-    jne .x
-    mov ax, [BENCHY]
-    add ax, 67
+    mov ax, CAMMID_
 .x:
+    ret
+
+bx_seat:                                ; (4.0.6 two rows) replaces DrawBenchPlayersAndCoach's players' `call
+    cmp word [TRAIN], 0                 ; DrawSpriteInCameraView` (D1 / D2 = the seat, pushed by the caller)
+    jne .go
+    cmp word [D7], BACK_
+    jbe .back
+    add word [D1], FRONTX_              ; places 8..: the front row, towards the pitch, 3 px lower
+    sub word [D2], 7 * (BACK_ + 1) - FRONTY_
+    jmp .go
+.back:
+    push eax
+    mov ax, [D0]
+    sub ax, [D6]
+    sub ax, 1316                        ; standing (SPR_BENCH_STANDING_GOALIE_WHITE .. _PLAYER_BLACK)?
+    cmp ax, 5
+    pop eax
+    ja .go
+    add word [D1], FRONTX_              ; exit (e): he stands up in front of the front row
+.go:
+    jmp DRAWSPR
+
+bx_arrow:                               ; (4.0.6 two rows) replaces the bench arrow's `call DrawSpriteInCameraView`
+    cmp word [TRAIN], 0                 ; (DrawBenchAndSubsMenu, D0 = the arrow, D1 pushed by the caller)
+    jne .game
+    cmp word [IDX], BACK_
+    ja .front
+.game:
+    jmp DRAWSPR
+.front:                                 ; the front row: the game's arrow mirrored, right of the row, pointing left
+    call bx_mirror
+    add word [D1], ARROWDX_             ; mirrored around the middle between the rows' figures
+    sub word [D2], 7 * (BACK_ + 1) - FRONTY_
+    call DRAWSPR
+    jmp bx_mirror                       ; (mirrored again = the game's arrow)
+
+bx_mirror:                              ; the arrow sprite mirrored in place: its pixels and centerX (width - 1 - it)
+    pushad
+    mov edi, [SPRIDX + ARROW_ * 4]
+    movzx eax, word [edi + 14]          ; wquads
+    movzx edx, word [edi + 12]          ; nlines
+    imul edx, eax
+    shl edx, 3                          ; the pixels' bytes
+    mov ecx, eax
+    shl ecx, 4
+    dec ecx
+    sub cx, [edi + 16]
+    mov [edi + 16], cx
+    mov esi, [edi]
+    add edx, esi                        ; their end
+    lea ebx, [eax * 8]                  ; a chunk = a line: 2 pixels a byte, high nibble first (VGA)
+    cmp word [EGA], -1
+    jne .ch
+    shr ebx, 2                          ; EGA (unchained at the match's start): a plane's line, 8 pixels a byte
+.ch:
+    push esi
+    lea edi, [esi + ebx - 1]
+.sw:                                    ; (a chunk is an even number of bytes)
+    mov al, [esi]
+    call bx_mbyte
+    mov cl, al
+    mov al, [edi]
+    call bx_mbyte
+    mov [esi], al
+    mov [edi], cl
+    inc esi
+    dec edi
+    cmp esi, edi
+    jb .sw
+    pop esi
+    add esi, ebx
+    cmp esi, edx
+    jb .ch
+    popad
+    ret
+
+bx_mbyte:                               ; al mirrored: nibbles swapped (VGA), bits reversed (EGA)
+    cmp word [EGA], -1
+    je .b
+    rol al, 4
+    ret
+.b:
+    push ecx
+    mov ah, al
+    mov ecx, 8
+.r:
+    shr ah, 1
+    rcl al, 1
+    loop .r
+    pop ecx
     ret
 
 bx_camy:                                ; replaces `mov word [D4], 449` (MoveCamera @@set_bench_camera_params)
@@ -597,6 +693,15 @@ bx_camy:                                ; replaces `mov word [D4], 449` (MoveCam
 
 bx_camlo:                               ; replaces `cmp word [CAMY], 339` (its flags): the arrival window's top
     push eax
+    cmp word [TRAIN], 0
+    jne .w
+    call bx_camdest                     ; (two rows) 1..3 px above its destination the game's step (delta / 4 x
+    sub ax, 100                         ; 0.25) is 0: the camera never stands still (cameraCoordinatesValid 0, the
+    sub ax, [CAMY]                      ; bench takes no keys) - there it is set on the destination
+    cmp ax, 3
+    ja .w
+    add [CAMY], ax
+.w:
     call bx_camdest
     sub ax, 110
     cmp [CAMY], ax
@@ -1378,6 +1483,25 @@ def sites11(p, regs):
                 'WAITGO': tg(wt[0].start() + 2), 'D4': (2, d4)}
 
 
+def sites12(p, regs, s2):
+    """(4.0.6 two rows) {name: obj1 offset} of the two `call DrawSpriteInCameraView` the bench rows change: the
+    arrow's (`mov word [D0], 1284; push dword [D1]; call`) and the bench players' (7 pushes, then the call, in the
+    loop after s2's d7i), and the symbols DRAWSPR (its target) and EGA (EGA_graphics, its first `cmp word [x], -1`)."""
+    d = p.le.obj_bytes(1)
+    pk = lambda x: re.escape(struct.pack('<I', x))
+    d0, d1 = regs['D7'] - 28, regs['D7'] - 24
+    ar = [m.start() + 15 for m in re.finditer(rb'\x66\xc7\x05' + pk(d0) + rb'\x04\x05\xff\x35' + pk(d1) + rb'\xe8', d)]
+    pl = [m.end() - 1 for m in re.finditer(rb'(?:\xff\x35....){7}\xe8', d, re.S) if 0 < m.start() - s2['d7i'] < 0x300]
+    assert len(ar) == 1 and len(pl) == 1, ('the bench arrow / players calls', ar, pl)
+    ds = p.call_target(1, ar[0])
+    assert ds == p.call_target(1, pl[0]) and ds[0] == 1, ('DrawSpriteInCameraView', ds)
+    assert d[ds[1]:ds[1] + 3] == b'\x66\x83\x3d' and d[ds[1] + 7] == 0xff, 'EGA_graphics'
+    at = {'arrowcall': ar[0], 'seatcall': pl[0]}
+    for k, o in at.items():                     # (no other hook there)
+        assert bytes(p.get(1, o, 5)) == d[o:o + 5], ('two-row site already patched', k, hex(o))
+    return at, {'DRAWSPR': ds, 'EGA': p.target(1, ds[1] + 3)}
+
+
 def sites3(p, regs, n1, n2):
     """Block 3: the three name tables (obj2) and their references, the +16 team offsets, MakeSpritesFromPlayerNames'
     record fields (shortName, shirtNumber) and MakePlayerNameSprite, ns_make's tail jump (namespr's code)."""
@@ -1816,6 +1940,7 @@ def patch(p, at, ns_at, lang='it'):
         _, cnp, ct, _, _ = xtra.sites(p)
     s2, v2 = sites2(p, regs)
     s11, v11 = sites11(p, regs)
+    s12, v12 = sites12(p, regs, s2)
     INFO['TRAIN'] = v2['TRAIN']                     # (kittrain.py, 4.0.6: g_trainingGame)
     s3 = sites3(p, regs, s2['n1'], s2['n2'])
     import namespr
@@ -1829,7 +1954,9 @@ def patch(p, at, ns_at, lang='it'):
     at = (at + 15) & ~15
     import dugout
     sym = {**v2, **v3, 'BENCHY': v11['BENCHY'], 'CAMY': v11['CAMY'], 'SIP': v11['SIP'], 'WAITGO': v11['WAITGO'],
-           'DUGUP_': (0, 16 * dugout.ADD), 'D7': (2, regs['D7']), 'D1': (2, regs['D7'] - 24), 'A0': (2, regs['A0']), 'GMAX': (2, gmax), 'D2': (2, d2), 'A2': (2, regs['A0'] + 8), 'A6': (2, regs['A0'] + 24),
+           'DUGUP_': (0, 16 * dugout.ADD), **v12, 'CAMMID_': (0, dugout.CAM_MID), 'BACK_': (0, dugout.BACK),
+           'FRONTX_': (0, dugout.FRONT_X), 'FRONTY_': (0, dugout.FRONT_Y), 'ARROWDX_': (0, dugout.ARROW_DX),
+           'ARROW_': (0, 1284), 'D7': (2, regs['D7']), 'D1': (2, regs['D7'] - 24), 'A0': (2, regs['A0']), 'GMAX': (2, gmax), 'D2': (2, d2), 'A2': (2, regs['A0'] + 8), 'A6': (2, regs['A0'] + 24),
            'CT': (2, ct), 'CNP': (2, cnp), 'MAXP': (0, MAXP), 'PI': (0, PI)}
     s4 = sites4(p, regs)
     assert s4['D4'] == v11['D4'][1], 'D4'
@@ -1898,6 +2025,8 @@ def patch(p, at, ns_at, lang='it'):
     call9(s11['cy'], 9, 'bx_camy', 3)               # mov word [D4], 449
     call9(s11['clo'], 9, 'bx_camlo', 3)             # cmp word [g_cameraY], 339 (66 81 3D addr 53 01)
     call9(s11['chi'], 9, 'bx_camhi', 3)
+    for k, lbl in (('arrowcall', 'bx_arrow'), ('seatcall', 'bx_seat')):   # (two rows) call rel32 (no fixup)
+        go(s12[k], lbl)
     call9(s2['n1'], 9, 'bx_name1', 3)               # add word [D1], 255 (66 81 05 addr FF 00)
     call9(s2['n2'], 9, 'bx_name2', 3)
     for k in ('wb0', 'wb1', 'wb2'):                 # mov word [D2], 15 (66 C7 05 addr 0F 00)
@@ -1958,5 +2087,5 @@ def patch(p, at, ns_at, lang='it'):
     assert lab['bx_vw'] - lab['bx_bench'] == 114               # (bench_view reads the window there)
     LABELS.update(lab)
     print(f'exe: bench up to 15 (block 1: in-match teams of {MAXP}; GMAX obj2+{gmax:#x}, loop obj1+{lp:#x}, '
-          f'{len(rs)} offset-table refs moved; block 2: long dugouts (top bench y 293, every place seated, the camera on the own dugout), cursor to 15, names of places 17+ on sprites {NB}.. (name tables 26 a team), 3 after-match loops to 11 + bench; code obj3+{at:#x}, {len(code)} B, {len(rel)} rel32 into the game, bx_bench obj3+{lab["bx_bench"]:#x})')
+          f'{len(rs)} offset-table refs moved; block 2: two-row dugouts (top bench y 357, back coach + 1..7, front 8..15, mirrored arrow, the camera at the halfway line), cursor to 15, names of places 17+ on sprites {NB}.. (name tables 26 a team), 3 after-match loops to 11 + bench; code obj3+{at:#x}, {len(code)} B, {len(rel)} rel32 into the game, bx_bench obj3+{lab["bx_bench"]:#x})')
     return at + len(code)

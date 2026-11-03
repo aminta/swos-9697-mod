@@ -5452,21 +5452,17 @@ DUG_SPR = 17                                # (4.0.6) the seated sprite's last r
 
 
 def opp_dugout_shot(s, errs, info, tag=''):
-    """(DUG_OPP, Davide 03/11: the opponent's dugout) with the own bench open (camera on the own dugout) g_cameraY is
-    poked to the other dugout's middle (its benchY + 67 - 100) and the game runs ~2 frames (the camera moves 5 px a
-    frame back towards the own dugout): shot <tag>opp_dugout, the frame fitted to the run's PITCHn maps, the other
-    bench's seated sprites (x 27..35) followed down to their last place. Then the camera back (cam_settle)."""
+    """(DUG_OPP, Davide 03/11: the opponent's dugout; 4.0.6 two rows: both dugouts in one frame at the halfway line)
+    with the bench open: shot <tag>both_dugouts, the frame fitted to the run's PITCHn maps, both benches' rows
+    (dugout_rows) reported, each with its back row seen (the coach at least)."""
+    import dugout
     v = bench_vars()
     w16 = lambda r, o: struct.unpack('<H', r.read(r.base2 + o, 2))[0]
     r = s.result
-    own, opp = w16(r, 0xb16d0), w16(r, 0xb16d2)
-    s.poke(r.base2 + v['CAMY'], struct.pack('<H', opp + 67 - 100))
-    r = s.send('dump:0.03')
-    if r.outcome != 'dump':
-        errs.append(f'{tag}opponent dugout: {r}')
-        return
+    b0, b1 = sorted((w16(r, 0xb16d0), w16(r, 0xb16d2)))
     cx, cy = (w16(r, v['CAMY'] - 4), w16(r, v['CAMY']))
-    s.shot(tag + 'opp_dugout')
+    s.shot(tag + 'both_dugouts')
+    check(abs(cy - (dugout.CAM_MID - 100)) <= 10, f'{tag}both dugouts: camera y {cy}', errs)
     f = r.read(0xA0000, 64000)
     samp = [(x, y) for y in range(0, 200, 3) for x in range(60, 320, 5)]
     fit = []
@@ -5479,23 +5475,37 @@ def opp_dugout_shot(s, errs, info, tag=''):
         px = lambda x, y, dat=dat, blk=blk: blk[dat[(y // 16) * 42 + x // 16] + (y % 16) * 16 + x % 16]
         fit.append((sum(px(x + cx, y + cy) != f[y * 320 + x] for x, y in samp), k, px))
     bad, k, px = min(fit, key=lambda t: t[0])
-    ink = [y + cy for y in range(200) if any(px(x + cx, y + cy) != f[y * 320 + x] for x in range(max(0, 27 - cx),
-                                                                                            max(0, 36 - cx)))
-           and opp - 15 < y + cy < opp + 160]
-    seen = ink and round((ink[-1] - DUG_SPR - opp + 15) / 7)
-    check(bad * 20 < len(samp), f'{tag}opponent dugout: no pitch map fits (best PITCH{k}: {bad} of {len(samp)})', errs)
-    info.append(f'{tag}opponent dugout: benchY {opp} (own {own}), camera ({cx}, {cy}), PITCH{k}, seated down to place '
-                f'{seen} (y {ink[-1] if ink else None})')
-    cam_settle(s)
+    check(bad * 20 < len(samp), f'{tag}both dugouts: no pitch map fits (best PITCH{k}: {bad} of {len(samp)})', errs)
+    top, bot = dugout_rows(px, f, cx, cy, b0, b1), dugout_rows(px, f, cx, cy, b1)
+    check(top[0] is not None and bot[0] is not None, f'{tag}both dugouts: a bench missing {top} {bot}', errs)
+    info.append(f'{tag}both dugouts: camera ({cx}, {cy}), PITCH{k}, rows (back, front) top {b0} {top}, bottom {b1} {bot}')
+
+
+def dugout_rows(px, f, cx, cy, by, opp=None):
+    """(4.0.6 two rows) the last seated place of each row of the bench at benchY `by` in frame f (the pitch map px at
+    camera (cx, cy)): the back row's ink in x 27..35 (coach 0, places 1..BACK at by - 15 + 7 i), the front row's in
+    x 36..44 (places BACK+1.. at by - 15 + FRONT_Y + 7 (i - BACK - 1)), each down to DUG_SPR rows below its seat;
+    the clock's corner (screen x < 46, y < 28) is not looked at, nor the other dugout (y >= opp - 15). (back, front):
+    the last place seen, None for a row with no ink."""
+    import dugout
+    lo, hi = by - 15, min(by + 7 * 9 + DUG_SPR, (opp or 9999) - 15)
+    out = []
+    for x0, x1, y0, p0 in ((27, 36, by - 15, 0), (36, 45, by - 15 + dugout.FRONT_Y, dugout.BACK + 1)):
+        ink = [y + cy for y in range(28, 200) if lo <= y + cy < hi and any(
+            px(x + cx, y + cy) != f[y * 320 + x] for x in range(max(0, x0 - cx), max(0, x1 - cx)))]
+        out.append(p0 + round((ink[-1] - DUG_SPR - y0) / 7) if ink else None)
+    return tuple(out)
 
 
 def dugout_check(s, n, gone, errs, info, tag=''):
-    """4.0.6 long dugouts (dugout.py, benchx block 2) with the bench open (subs menu, cursor moved): benchY 293 (the
-    top dugout, grown upwards) or 485; the camera arrived on the own dugout (g_cameraY = benchY + 67 - 100, the arrival
-    window +-10); the frame = the run's own PITCHn map at (g_cameraX, g_cameraY) but the bench's sprites (the pitch
-    found as the one that fits), and the seated sprites right of the box (x 27..35) end DUG_SPR rows below the last
-    filled place's y (benchY - 15 + 7 x place: places 1..n but `gone`, the left-out ones = empty seats): every place
-    seated, none past it. Returns (pitch, camera y, last place seen) or None."""
+    """4.0.6 two-row dugouts (dugout.py, benchx block 2) with the bench open (subs menu, cursor moved): benchY 357 (the
+    top dugout, grown upwards) or 485; the camera arrived at the halfway line between them (g_cameraY = CAM_MID - 100,
+    +-10: both dugouts in one frame); the frame = the run's own PITCHn map at (g_cameraX, g_cameraY) but the benches'
+    sprites (the pitch found as the one that fits); per row (dugout_rows) the seated sprites end at the last filled
+    place's seat + DUG_SPR: back row coach + places 1..BACK, front row the rest (places 1..n but `gone`, the left-out
+    ones = empty seats): every place seated in its row, none past it. The other bench: its rows reported. Returns
+    (pitch, camera y, last place seen) or None."""
+    import dugout
     v = bench_vars()
     w16 = lambda r, o: struct.unpack('<H', r.read(r.base2 + o, 2))[0]
     r, cam = cam_settle(s)
@@ -5503,8 +5513,10 @@ def dugout_check(s, n, gone, errs, info, tag=''):
         errs.append(f'{tag}dugout: {r}')
         return None
     by, (cx, cy) = w16(r, v['BENCHY']), cam
-    check(by in (293, 485), f'{tag}dugout: benchY {by} (want 293 top / 485 bottom)', errs)
-    check(abs(cy - (by + 67 - 100)) <= 10, f'{tag}dugout: camera y {cy}, not on the dugout (benchY {by}: {by - 33})', errs)
+    ob = w16(r, 0xb16d2) if by == w16(r, 0xb16d0) else w16(r, 0xb16d0)   # (benchY / opponentBenchY)
+    check(by in (357, 485), f'{tag}dugout: benchY {by} (want 357 top / 485 bottom)', errs)
+    check(abs(cy - (dugout.CAM_MID - 100)) <= 10, f'{tag}dugout: camera y {cy}, not at the halfway line '
+                                                   f'({dugout.CAM_MID - 100})', errs)
     o = lepatch_orig()                      # (16-colour mode: the screen is 4 bit planes, no linear frame to compare)
     eg = [m.start() for m in re.finditer(rb'\x66\x83\x3d....\xff\x0f\x84....\x66\x81\x3d....\x33\x01',
                                          o.le.obj_bytes(1), re.S)]
@@ -5526,18 +5538,17 @@ def dugout_check(s, n, gone, errs, info, tag=''):
     if bad * 20 >= len(samp):               # (kept for decoding: the frame and the camera)
         open(os.path.join(s.run, tag + 'dugout_frame.bin'), 'wb').write(f + struct.pack('<hh', cx, cy))
     check(bad * 20 < len(samp), f'{tag}dugout: no pitch map fits the frame (best PITCH{k}: {bad} of {len(samp)} differ)', errs)
-    ink = [y + cy for y in range(200) if any(px(x + cx, y + cy) != f[y * 320 + x] for x in range(max(0, 27 - cx), max(0, 36 - cx)))
-           and y + cy > by - 15]
     filled = [i for i in range(1, n + 1) if i not in gone]
-    want = by - 15 + 7 * filled[-1] + DUG_SPR if filled else None
-    seen = ink and round((ink[-1] - DUG_SPR - by + 15) / 7)
-    check(ink and want is not None and abs(ink[-1] - want) <= 2,
-          f'{tag}dugout: seated sprites end at y {ink[-1] if ink else None} (place {seen}), want {want} (place '
-          f'{filled[-1] if filled else None} of {n})', errs)
-    info.append(f'{tag}dugout: benchY {by}, camera ({cx}, {cy}), PITCH{k} ({bad} of {len(samp)} differ), seated down to '
-                f'place {seen} of {n}')
+    want = (max([0] + [i for i in filled if i <= dugout.BACK]), max([i for i in filled if i > dugout.BACK], default=None))
+    seen = dugout_rows(px, f, cx, cy, by, ob if ob > by else None)
+    check(seen == want, f'{tag}dugout: last seated place per row (back, front) {seen}, want {want} ({n} places, '
+                        f'gone {sorted(gone)})', errs)
+    oseen = dugout_rows(px, f, cx, cy, ob, by if by > ob else None)
+    check(oseen[0] is not None, f'{tag}dugout: the other bench (benchY {ob}) not in the frame', errs)
+    info.append(f'{tag}dugout: benchY {by}, camera ({cx}, {cy}), PITCH{k} ({bad} of {len(samp)} differ), seated per row '
+                f'{seen} of {n}; the other bench (benchY {ob}) {oseen}')
     s.shot(tag + 'dugout')
-    return k, cy, seen
+    return k, cy, max(x for x in seen if x is not None) if seen[0] is not None else None
 
 
 def team_data():
@@ -5559,8 +5570,8 @@ def team_data():
 
 def bench_sub(s, bx, place, errs, info, mark, key=None, gone=None, tag=''):
     """benchx block 2: the bench called, its cursor moved down to the squad's place `place` (12..26, g_benchPlayerIndex
-    = place - 11: index 1 = in-match player 11 = place 12; 4.0.6 long dugouts: every place seated, no window - bx_win,
-    obj1 at bx - 4, stays 0 - and the camera on the own dugout, dugout_check); fire picks him
+    = place - 11: index 1 = in-match player 11 = place 12; 4.0.6 two-row dugouts: every place seated, no window - bx_win,
+    obj1 at bx - 4, stays 0 - and the camera at the halfway line, both dugouts in view, dugout_check); fire picks him
     (g_subsState 1, plToEnterGameIndex = place - 1), fire again makes the change (the team's NumSubs + 1)."""
     v = bench_vars()
     want = place - 11
@@ -5627,7 +5638,7 @@ def bench_sub(s, bx, place, errs, info, mark, key=None, gone=None, tag=''):
     check(all(w == 0 for i, w in seen), f'bx_win moved (4.0.6 long dugouts: no window): {seen}', errs)
     gone = {int(x.split(':')[0]) - 11 for x in os.environ.get('BENCH_INJ', '').split(',') if x} if gone is None else gone
     dugout_check(s, bench_eff(s.result, bx), gone, errs, info, tag)
-    if os.environ.get('DUG_OPP') and not tag:
+    if os.environ.get('DUG_OPP') and not tag:      # (two rows: dugout_check saw both benches already; the shot)
         opp_dugout_shot(s, errs, info, 'h1_')
     s.shot(tag + 'bench_window')
     ups = []                                # back up 6 places (the window starts at the cursor) and down again

@@ -17,7 +17,9 @@ The 3rd column (x 32..47, was grass): the floor goes on, each dugout row's colum
 grass. The box is 48 px wide, both rows of figures sit on its floor (x 27..35 and 36..44). The new patterns go at the
 end of the BLK file.
 
-The exe side (benchx.py block 2): the top bench's y 389 -> 357, the two rows, the cursor, the camera at the halfway
+The exe side (benchx.py block 2): the top bench's y 389 -> 357, the two rows (back: the coach + places 1..BACK at the
+game's seats; front: places BACK+1.. at x + FRONT_X, y + FRONT_Y, the first level with the coach), a standing back-row
+figure in front of the front row (exit e), the front row's arrow mirrored on its right, the camera at the halfway
 line (both dugouts in one screen).
 
 The 16-colour mode (EGA graphics, ReadPitchFile) reads SWCPICHn.P16 instead: the same 55 x 42 map (a dword per
@@ -38,6 +40,11 @@ ADD = 2                                     # tile rows added to each dugout (tw
 TOP = (23, 24, 25, 26, 27)                  # cap, middle, middle, end, steps
 BOT = (29, 30, 31, 32, 33)
 MAX_PATTERNS = 296                          # the game's PITCHn.BLK buffer (75776 bytes)
+BACK = 7                                    # (the exe, benchx) places in the back row, after the coach (V1)
+FRONT_X, FRONT_Y = 9, 3                     # the front row (places 8..): towards the pitch, a little lower
+ARROW_DX = 41                               # the front row's arrow: the game's (x 15..23 at D1 = benchXLimit - 12,
+                                            # tip 3 px from the figure) mirrored around x 35.5 (+ 41 on D1)
+CAM_MID = 440                               # the bench camera's y (- 100 = its top): both dugouts' span 340..539 in one screen
 COLS = 42
 
 

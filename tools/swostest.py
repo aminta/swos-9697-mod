@@ -15032,6 +15032,8 @@ def world_contiview():
             import complist                             # (every character one the menu font draws)
             odd = sorted({ch for x in lines + [x for p in pages for x in p] + [title] for ch in x.upper()} - complist.FONT)
             check(not odd, f'season 2 page {k}: characters outside the menu font {odd}', errs)
+            wide = [x for x in lines + [x for p in pages for x in p] if complist.px(x.upper()) > 298]   # (ctview PXMAX)
+            check(not wide, f'season 2 page {k}: lines over 298 px {wide}', errs)
             b1 = st()
             dif = [(n, i, b0[j][i], b1[j][i]) for j, n in enumerate(('SEG', 'ED')) for i in range(len(b0[j]))
                    if b0[j][i] != b1[j][i]]
@@ -15079,7 +15081,7 @@ def world_contiview_tie():
     CONTI_FORCE=lib:q1 (the club into the Libertadores' first qualifying round at every season end) and CONTI_KOWIN (it
     wins its conti ties). Season 1 played; season 2 (its save) saved at its 5th Libertadores result screen (q3's first
     leg, September: q1 and q2, August, are over). The view (CONMEBOL first, the club's own): q1 and q2 list FLAMENGO's
-    ties with its '>' (through), q3 its tie without one (the next game: the opponent of that result screen), the
+    ties with it in brackets (through), q3 its tie without them (the next game: the opponent of that result screen), the
     groups DA GIOCARE; CT_SEG / CT_ED unchanged by the view (CV_TIE_S2: a cached season-2 save)"""
     src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
     if not os.path.isdir(src):
@@ -15130,6 +15132,8 @@ def world_contiview_tie():
         import complist                                 # (every character one the menu font draws: '>' was a box)
         odd = sorted({ch for x in allx + [title] for ch in x.upper()} - complist.FONT)
         check(not odd, f'characters outside the menu font {odd}', errs)
+        wide = [x for x in allx if complist.px(x.upper()) > 298]   # (ctview PXMAX: a long tie wraps)
+        check(not wide, f'lines over 298 px {wide}', errs)
         check(btn and btn[0] == 'CONMEBOL', f'buttons {btn}', errs)
         check(not LIST_BAD, f'VISUAL. COMPETIZ. list: {LIST_BAD}', errs)
         check(not any(b0[1][i] != b1[1][i] for i in range(len(b0[1]))) and (b0[0] == b1[0] or not any(b0[0])),
@@ -15144,9 +15148,9 @@ def world_contiview_tie():
         info.append(f'FLAMENGO lines {fl}')
         check(len(fl) >= 3, f'FLAMENGO in fewer than 3 Libertadores rounds: {lib}', errs)
         if len(fl) >= 3:
-            check(all('>FLAMENGO' in x for x in fl[:2]), f"q1 / q2 without FLAMENGO's '>': {fl[:2]}", errs)
-            check('>' not in fl[2], f"q3 (its next game) with a '>': {fl[2]}", errs)
-            other = [x.strip(' >') for x in fl[2].split(' - ') if 'FLAMENGO' not in x]
+            check(all('(FLAMENGO)' in x for x in fl[:2]), f"q1 / q2 without FLAMENGO in brackets: {fl[:2]}", errs)
+            check('(' not in fl[2], f"q3 (its next game) with brackets: {fl[2]}", errs)
+            other = [x.strip(' ()') for x in fl[2].split(' - ') if 'FLAMENGO' not in x]
             if opp is not None:                         # (its other club exactly one of that screen's texts)
                 check(len(other) == 1 and other[0] in opp, f'q3 tie {fl[2]!r} is not the result screen\'s', errs)
             later = lib[lib.index(fl[2]) + 1:]

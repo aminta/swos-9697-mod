@@ -125,7 +125,7 @@ static void word(const char *s, int indent) {   /* s whole on this line, else on
 }
 static void head(const char *rname, const char *tail) { add(rname); add(":"); if (tail) { add(" "); add(tail); } }
 
-/* one round: ko ties (a winner's '>' once played), groups by final place (draw order before) */
+/* one round: ko ties (the club through in brackets once played), groups by final place (draw order before) */
 static void round_lines(int c, int r, int played) {
     const u8 *R = RD(c, r);
     const u8 *ct = cuptab(c);
@@ -163,11 +163,18 @@ static void round_lines(int c, int r, int played) {
     endline();
     for (int i = 0; i + 1 < n; i += 2) {
         int w = CT_OUT.res[c][r][i];
-        add(played && w ? "  >" : "  ");
+        char b[44];                     /* the club through in brackets; its tie wraps if over the bar */
+        int m = 0, wb = played && !w;
+        add("  ");
+        if (played && w) add("(");
         add(cname(CT_OUT.ent[c][r][i]));
-        add(" - ");
-        if (played && !w) add(">");
-        add(cname(CT_OUT.ent[c][r][i + 1]));
+        add(played && w ? ") -" : " -");
+        b[m++] = ' ';
+        if (wb) b[m++] = '(';
+        for (const char *t = cname(CT_OUT.ent[c][r][i + 1]); *t && m < 40; ) b[m++] = *t++;
+        if (wb) b[m++] = ')';
+        b[m] = 0;
+        word(b, 4);
         endline();
     }
 }

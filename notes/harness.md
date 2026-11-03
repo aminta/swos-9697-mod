@@ -324,3 +324,24 @@ round in progress (runs-cgslot3/boca_libgr_it.CAR: BOCA JUNIORS on a CONTI_FORCE
 Libertadores match): its round shown with no ctgame view opened (CG_G[3] unchanged) = the game's slot 3. Tier B
 fixture now cw_uru6 (the cg_uru2 recipe on c/HTcw6: careerworld's w_choose grew, the older snapshots' layout no
 longer maps).
+
+Option C P4 (the fallbacks: a round the game's screen can't show -> cg_view 0 -> ctview's cr_go shows version A's
+page, the state as it was): Tier B test_cg_fallback (HT_CODE=c/HTcw7 or newer on cw_uru6) - each reason once on a
+played knockout round, cg_view 0 with its CG_ERR, nothing left open, no bad sum, the saved state byte-identical:
+E_GUEST 10 (a club in no team file of the world - CG_FCNT, ctgame.py fcnt: each file's last ordinal + a bitmap of the
+files the world loads, asserted at the build against every pack club and guest; poked as an unloaded file and as an
+ordinal past its file's clubs: GetTeamPointer's search of a file has no end, the game would hang), E_NOREC 11 (a played
+round with no goals kept: CG_ROOM poked to 4), E_CACHE 4 (CG_NUMSEL 159; the count put back), E_GUARD 7 (CG_G[6]
+sticky), E_KIND 5 (ACL Elite's league stage); plus the replay record's real use under 3/4 of its room (1437 of 3836 B:
+P4 moved it to the scratch's end, CG_REC 3280h, 4 KB - it had 1852 B at 17C0h). test_cg_view accepts E_NOREC only for
+a round with no record (a week past the snapshot's). DOSBox `world_cgame_fallback` (CV_BUILD = world_cgame_view's
+build, CV_S2): CG_G[6] poked sticky -> each round button shows the very page RIEPILOGO shows, CG_G[3] unchanged, back
+on the rounds menu with its links, CT_SEG / CT_ED unchanged; poked back -> a view again; then a new career's season
+1 (CGF_TEAM, default ROMA: no 'CE' edition) - every COPPE CONTINENTALI button the page at once, VIEW WORLD's
+SUDAMERICA cup the page, no view opened. `world_cgame_swospp` (SWOSTEST_UI=en, CV_BUILD = the English release exe):
+world_cgame_view with SWOS++ 1.9.2.2 installed (CGV_SWOSPP: its loader files, timer keys; swospp_on asserted); the
+save loaded by name - under SWOS++ the list opens on ABBANDONA and the load ends on the day's league table, ESCI ->
+the chairman's note -> the career menu, 4.0.5 + SWOS++ the same; SLOW_FIRE 3 s after walk / gwalk's fire; no foreign
+market part). Status 03/11: up to 13 rounds opened and closed in a row under SWOS++ (legs, aggregate, groups), but
+the run does not reach its end - SWOS++'s timer-fed keys come late or twice (a view's ESCI not taken, a fire into
+NEW ZEALAND's leagues): a harness limit, not a view fault seen so far.

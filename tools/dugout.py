@@ -22,11 +22,14 @@ game's seats; front: places BACK+1.. at x + FRONT_X, y + FRONT_Y, the first leve
 figure in front of the front row (exit e), the front row's arrow mirrored on its right, the camera at the halfway
 line (both dugouts in one screen).
 
-The 16-colour mode (EGA graphics, ReadPitchFile) reads SWCPICHn.P16 instead: the same 55 x 42 map (a dword per
-tile: the tile in the high word, bit 15 of it a drawing flag, then 128-byte 4-bit patterns), the dugouts in the same
-rows and stripe phases. Its map gets the same rows, the tiles taken whole (flag included); no new patterns: where a
-phase has no middle tile (PITCH5) the original itself draws one middle tile in every phase it has (asserted), and
-that one is used. (Its 3rd column: to do, the 4-bit patterns.)
+The 16-colour mode (EGA graphics, ReadPitchFile) reads SWCPICHn.P16 instead: the same 55 x 42 map, then 128-byte
+16 x 16 patterns (the file read whole into 65535 bytes: 511 patterns at most). A map dword's high word is the
+pattern's byte offset stored big-endian (EGA's fixup swaps the bytes): pattern p = word 0x8000 x (p & 1) + p >> 1.
+A pattern is 16 rows of 4 bit planes of 2 bytes (16 pixels, the first the most significant bit), the pixels the
+same colour numbers as the VGA tiles' grass. Its map gets the same rows, the tiles taken whole; where a phase has no
+middle tile (PITCH5) the original itself draws one middle tile in every phase it has (asserted), and that one is
+used. The 3rd column as in VGA (column 1's x 15 repeated, the grass pixels the row's column-2 grass), new patterns
+at the end of the file.
 
 gen(dst_dir) writes PITCH1-5.DAT (and a BLK that grew) and SWCPICH1-5.P16 from orig/ into dst_dir (beside the exe,
 as kitfix's KITFIX.DAT); the patcher ships them (mkpatcher FILES).
@@ -78,16 +81,51 @@ def phases(T, n):
     return per, grass, have
 
 
+MAX_P16 = 511                               # SWCPICHn.P16's patterns: ReadPitchFile reads 65535 bytes
+
+
+def p16_word(p):
+    """the map's high word for 16-colour pattern p (its byte offset p x 128, big-endian)"""
+    return ((p & 1) << 15) | (p >> 1)
+
+
+def p16_pat(w):
+    """the 16-colour pattern of a map high word"""
+    return ((w & 0x7fff) << 1) | (w >> 15)
+
+
+def p16_pixels(b):
+    """a 128-byte 16-colour pattern -> 256 pixels (row-major)"""
+    return [sum(((b[y * 8 + q * 2 + x // 8] >> (7 - x % 8)) & 1) << q for q in range(4)) for y in range(16) for x in range(16)]
+
+
+def p16_bytes(px):
+    """256 pixels -> a 128-byte 16-colour pattern"""
+    out = bytearray(128)
+    for y in range(16):
+        for x in range(16):
+            for q in range(4):
+                if px[y * 16 + x] >> q & 1:
+                    out[y * 8 + q * 2 + x // 8] |= 0x80 >> (x % 8)
+    return bytes(out)
+
+
 def p16(n, src=None):
-    """(new SWCPICHn.P16 bytes, info): the 16-colour map with the long dugouts, its patterns unchanged."""
+    """(new SWCPICHn.P16 bytes, info): the 16-colour map with the long dugouts and their 3rd column."""
     src = src or os.path.join(ROOT, 'orig')
     raw = open(os.path.join(src, f'SWCPICH{n}.P16'), 'rb').read()
     dat = list(struct.unpack('<2310I', raw[:9240]))
-    assert (len(raw) - 9240) % 128 == 0 and all(v & 0xffff == 0 for v in dat), n
-    T = lambda r, c: dat[r * COLS + c] >> 16
+    pats = bytearray(raw[9240:])
+    assert len(pats) % 128 == 0 and all(v & 0xffff == 0 for v in dat), n
+    T = lambda r, c: p16_pat(dat[r * COLS + c] >> 16)
+    px = lambda i: p16_pixels(pats[i * 128:(i + 1) * 128])
+    new = layout()
     per, grass, have = phases(T, n)
-    same = 0
-    for r, k in sorted(layout().items()):
+    orig = dict(have)                       # (the original's tiles per (kind, column, stripe phase))
+    o = tuple(dat)
+    g = lambda r, c: p16_pat(o[next(q for q in grass if (q - r) % per == 0 and q not in new) * COLS + c] >> 16)
+    same, made = 0, []
+    for r, k in sorted(new.items()):
         for c in (0, 1):
             key = (k, c, r % per)
             if key not in have:             # the original's one tile for this kind and column, whatever the phase
@@ -95,9 +133,26 @@ def p16(n, src=None):
                 assert len(ts) == 1, (n, key, ts)
                 have[key] = ts.pop()
                 same += 1
-            dat[r * COLS + c] = have[key] << 16
-    return (struct.pack('<2310I', *dat) + raw[9240:],
-            f'SWCPICH{n}: period {per}, {len(layout())} rows, {same} phases with the one middle tile')
+            dat[r * COLS + c] = p16_word(have[key]) << 16
+    for r in sorted(new):                   # the 3rd column: the floor goes on (column 1's x 15 repeated)
+        ph = r % per                        # g1: the grass of the stripe phase column 1's tile comes from (PITCH5's
+        if orig.get((new[r], 1, ph)) != T(r, 1):    # one tile for every phase: its own phase's grass)
+            ph = min(p for (k, c, p), t in orig.items() if k == new[r] and c == 1 and t == T(r, 1))
+        t1, g1, g2 = px(T(r, 1)), px(g(ph, 1)), px(g(r, 2))
+        assert sum(a != b for a, b in zip(px(T(r, 2)), g2)) <= 32, (n, r)   # (it was grass: SWCPICH1 rows 34-37
+                                                                            # have a variant, 205: a few pixels)
+        tile = p16_bytes([g2[y * 16 + x] if t1[y * 16 + 15] == g1[y * 16 + 15] else t1[y * 16 + 15]
+                          for y in range(16) for x in range(16)])
+        old = [i for i in range(len(pats) // 128) if pats[i * 128:(i + 1) * 128] == tile]
+        if not old:
+            made.append(len(pats) // 128)
+            pats.extend(tile)
+        dat[r * COLS + 2] = p16_word(old[0] if old else made[-1]) << 16
+    npat = len(pats) // 128
+    assert npat <= MAX_P16, (n, npat)
+    return (struct.pack('<2310I', *dat) + bytes(pats),
+            f'SWCPICH{n}: period {per}, {len(new)} rows x 3 columns, {same} phases with the one middle tile, '
+            f'{len(made)} new patterns ({npat} of {MAX_P16})')
 
 
 def pitch(n, src=None):

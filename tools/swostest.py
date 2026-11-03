@@ -5467,6 +5467,12 @@ def dugout_check(s, n, gone, errs, info, tag=''):
     by, (cx, cy) = w16(r, v['BENCHY']), cam
     check(by in (293, 485), f'{tag}dugout: benchY {by} (want 293 top / 485 bottom)', errs)
     check(abs(cy - (by + 67 - 100)) <= 10, f'{tag}dugout: camera y {cy}, not on the dugout (benchY {by}: {by - 33})', errs)
+    o = lepatch_orig()                      # (16-colour mode: the screen is 4 bit planes, no linear frame to compare)
+    eg = [m.start() for m in re.finditer(rb'\x66\x83\x3d....\xff\x0f\x84....\x66\x81\x3d....\x33\x01',
+                                         o.le.obj_bytes(1), re.S)]
+    if r.obj2(o.target(1, eg[0] + 3)[1], 2) == b'\xff\xff':
+        info.append(f'{tag}dugout (16 colours): benchY {by}, camera ({cx}, {cy})')
+        return None, cy, None
     f = r.read(0xA0000, 64000)
     samp = [(x, y) for y in range(0, 200, 3) for x in range(60, 320, 5)]
     fit = []
@@ -5479,6 +5485,8 @@ def dugout_check(s, n, gone, errs, info, tag=''):
         px = lambda x, y, dat=dat, blk=blk: blk[dat[(y // 16) * 42 + x // 16] + (y % 16) * 16 + x % 16]
         fit.append((sum(px(x + cx, y + cy) != f[y * 320 + x] for x, y in samp), k, px))
     bad, k, px = min(fit, key=lambda t: t[0])
+    if bad * 20 >= len(samp):               # (kept for decoding: the frame and the camera)
+        open(os.path.join(s.run, tag + 'dugout_frame.bin'), 'wb').write(f + struct.pack('<hh', cx, cy))
     check(bad * 20 < len(samp), f'{tag}dugout: no pitch map fits the frame (best PITCH{k}: {bad} of {len(samp)} differ)', errs)
     ink = [y + cy for y in range(200) if any(px(x + cx, y + cy) != f[y * 320 + x] for x in range(max(0, 27 - cx), max(0, 36 - cx)))
            and y + cy > by - 15]
@@ -5527,22 +5535,35 @@ def bench_sub(s, bx, place, errs, info, mark, key=None, gone=None, tag=''):
         if not os.environ.get('BENCH_SAMPLE'):   # back after a cursor key: each key with sample(), the EIPs of a hang)
             return s.send(keys)
         hist, r = s.sample(keys, float(os.environ['BENCH_SAMPLE']))
+        if os.environ.get('BENCH_DIAG') and len(info) < 40:
+            info.append(f'{keys}: obj1 EIPs {[(hex(o), n) for o, n in sorted(hist.items(), key=lambda x: -x[1])[:10]]}')
         if r.outcome != 'dump':
             top = sorted(hist.items(), key=lambda x: -x[1])[:16]
             errs.append(f'HANG after {keys!r}: obj1 EIPs {[(hex(o), n) for o, n in top]}')
             mark(errs[-1])
             s.box.kill()                    # (Regia 02/11: no DOSBox-X left spinning once the HANG is recorded)
         return r
+    cams = []                               # (each call: the camera and benchY once settled, for a FAIL's message)
+    if os.environ.get('BENCH_RNG') and not getattr(s, 'rng_pinned', False):   # (bisects: both random generators
+        rv = bytes.fromhex(os.environ['BENCH_RNG'])  # pinned at the first bench call, as W8485_RNG)
+        for at, part in zip(rng_sites(os.path.join(s.run, 'SWOS', 'ITALIAN.EXE')), (rv[:3], rv[3:6])):
+            s.poke(s.result.base2 + at, part)
+        s.log.append(f'[rng] {rv.hex()}')
+        s.rng_pinned = True
     for call in range(12):
         r = s.send((key or ('pgup' if call % 2 == 0 else 'pgdn')) + ':0.3 dump:0.6')   # (key: one team's bench)
         if r.outcome == 'dump':
-            r = cam_settle(s)[0]            # (4.0.6 long dugouts: the bench takes keys once the camera is there)
+            r, cam = cam_settle(s)          # (4.0.6 long dugouts: the bench takes keys once the camera is there)
+            cams.append((cam, w16(v['BENCHY'], r.base2), {hex(o)[-3:]: w16(o, r.base2) for o in (
+                0xb16b6, 0xb16b8, 0xb16be, 0xb16c4, 0xb16c6, 0xb16ca, 0xb16cc, 0xb16e8, 0xb16f2, 0xb16f4, 0xb1718, 0xb171a, 0xb1722, 0xb16fe, 0xb1702, 0xb1714, 0xb170c,
+                0xb1720)}) if r.outcome == 'dump' and os.environ.get('BENCH_DIAG') else
+                        (cam, w16(v['BENCHY'], r.base2)) if r.outcome == 'dump' else None)
         if r.outcome != 'dump':
             errs.append(f'bench call: {r}')
             return False
         last, still = w16(v['IDX'], r.base2), 0
         for j in range(24):
-            r = ks('down:0.15 dump:0.3')
+            r = ks(f"down:{os.environ.get('BENCH_KEYHOLD', '0.15')} dump:0.3")
             if r.outcome != 'dump':
                 errs.append(f'bench cursor: {r}')
                 return False
@@ -5558,8 +5579,11 @@ def bench_sub(s, bx, place, errs, info, mark, key=None, gone=None, tag=''):
         if last == want:
             break
     mark(f'bench cursor (index, window): {seen}')
+    if os.environ.get('BENCH_DIAG'):
+        info.append(f'bench calls (camera, benchY, state): {cams}')
     info.append(f'cursor/window {seen}')
-    check(last == want, f'the cursor never reached index {want} (place {place}): {seen}', errs)
+    check(last == want, f'the cursor never reached index {want} (place {place}): {seen} (camera, benchY per call: '
+                        f'{cams})', errs)
     if last != want:
         return False
     check(all(w == 0 for i, w in seen), f'bx_win moved (4.0.6 long dugouts: no window): {seen}', errs)

@@ -10,13 +10,19 @@ Here the top dugout grows upwards (cap row 17, middle rows 18-25, end 26, steps 
 the original dugouts in the same grass-stripe phase (the row's place in the stripes' period: 1 row on PITCH1, 4 on
 PITCH2-4, 6 on PITCH5); a middle tile missing in a phase (PITCH5's left column: the diagonal stripes, 4 of 6 phases)
 is made from one that exists, its grass pixels swapped for the phase's grass (the box's own pixels are a clean block
-of columns: asserted). The new patterns go at the end of the BLK file (PITCH5: 269 -> 273).
+of columns: asserted). The new patterns go at the end of the BLK file (PITCH5: 269 -> 272).
 
 The exe side (benchx.py block 2): the top bench's y 389 -> 293, every bench place seated (no window), the camera on
 the own dugout in the subs menu.
 
-gen(dst_dir) writes PITCH1-5.DAT (and a BLK that grew) from orig/ into dst_dir (beside the exe, as kitfix's
-KITFIX.DAT); the patcher ships them (mkpatcher FILES).
+The 16-colour mode (EGA graphics, ReadPitchFile) reads SWCPICHn.P16 instead: the same 55 x 42 map (a dword per
+tile: the tile in the high word, bit 15 of it a drawing flag, then 128-byte 4-bit patterns), the dugouts in the same
+rows and stripe phases. Its map gets the same rows, the tiles taken whole (flag included); no new patterns: where a
+phase has no middle tile (PITCH5) the original itself draws one middle tile in every phase it has (asserted), and
+that one is used.
+
+gen(dst_dir) writes PITCH1-5.DAT (and a BLK that grew) and SWCPICH1-5.P16 from orig/ into dst_dir (beside the exe,
+as kitfix's KITFIX.DAT); the patcher ships them (mkpatcher FILES).
 """
 import os
 import struct
@@ -47,6 +53,41 @@ def kinds(r):
     return ('cap', 'mid', 'mid', 'end', 'steps')[(TOP if r in TOP else BOT).index(r)]
 
 
+def phases(T, n):
+    """(grass-stripe period, grass rows, {(kind, column, phase): tile}) of a map read through T(row, column)."""
+    grass = [r for r in range(10, 47) if r not in TOP and r not in BOT]
+    assert all(r in grass for r in layout() if r not in TOP and r not in BOT), n
+    per = next(p for p in range(1, 9) if all(T(r, c) == T(q, c) for c in (0, 1) for r in grass for q in grass
+                                             if (q - r) % p == 0))
+    have = {}
+    for r in TOP + BOT:
+        for c in (0, 1):
+            have.setdefault((kinds(r), c, r % per), T(r, c))
+    return per, grass, have
+
+
+def p16(n, src=None):
+    """(new SWCPICHn.P16 bytes, info): the 16-colour map with the long dugouts, its patterns unchanged."""
+    src = src or os.path.join(ROOT, 'orig')
+    raw = open(os.path.join(src, f'SWCPICH{n}.P16'), 'rb').read()
+    dat = list(struct.unpack('<2310I', raw[:9240]))
+    assert (len(raw) - 9240) % 128 == 0 and all(v & 0xffff == 0 for v in dat), n
+    T = lambda r, c: dat[r * COLS + c] >> 16
+    per, grass, have = phases(T, n)
+    same = 0
+    for r, k in sorted(layout().items()):
+        for c in (0, 1):
+            key = (k, c, r % per)
+            if key not in have:             # the original's one tile for this kind and column, whatever the phase
+                ts = {t for (kk, cc, p), t in have.items() if kk == k and cc == c}
+                assert len(ts) == 1, (n, key, ts)
+                have[key] = ts.pop()
+                same += 1
+            dat[r * COLS + c] = have[key] << 16
+    return (struct.pack('<2310I', *dat) + raw[9240:],
+            f'SWCPICH{n}: period {per}, {len(layout())} rows, {same} phases with the one middle tile')
+
+
 def pitch(n, src=None):
     """(new DAT bytes, new BLK bytes or None when unchanged, info) for PITCHn."""
     src = src or os.path.join(ROOT, 'orig')
@@ -56,15 +97,8 @@ def pitch(n, src=None):
     T = lambda r, c: dat[r * COLS + c] // 256
     pat = lambda i: bytes(blk[i * 256:(i + 1) * 256])
     new = layout()
-    grass = [r for r in range(8, 47) if r not in TOP and r not in BOT]
-    assert all(r in grass for r in new if r not in TOP and r not in BOT), n
-    per = next(p for p in range(1, 9) if all(T(r, c) == T(q, c) for c in (0, 1) for r in grass for q in grass
-                                             if (q - r) % p == 0))
+    per, grass, have = phases(T, n)
     g = lambda r, c: T(next(q for q in grass if (q - r) % per == 0), c)
-    have = {}                               # (kind, column, phase) -> tile
-    for r in TOP + BOT:
-        for c in (0, 1):
-            have.setdefault((kinds(r), c, r % per), T(r, c))
     made = []
     for r, k in sorted(new.items()):
         for c in (0, 1):
@@ -98,6 +132,9 @@ def gen(dst_dir, src=None):
         open(os.path.join(dst_dir, f'PITCH{n}.DAT'), 'wb').write(d)
         if b:
             open(os.path.join(dst_dir, f'PITCH{n}.BLK'), 'wb').write(b)
+        out.append(info)
+        d, info = p16(n, src)
+        open(os.path.join(dst_dir, f'SWCPICH{n}.P16'), 'wb').write(d)
         out.append(info)
     return '; '.join(out)
 

@@ -74,6 +74,9 @@ def record(conf, i, c, base):
     n = FILES[conf]
     c = {k: v if isinstance(v, (list, dict)) or v is None else str(v) for k, v in c.items()}   # (the csv helpers)
     mkseason._need(0 < len(c['name']) <= 16 and c['name'] == c['name'].upper(), f'{where}: name 1-16 upper case')
+    import complist                                # (4.0.6: shown by ctview / ctgame - the menu fonts' characters only)
+    mkseason._need(not complist.font_odd(c['name']), f'{where}: name {c["name"]!r} has characters the game cannot '
+                                                     f'draw: {complist.font_odd(c["name"])}')
     r = bytearray(TEAM_SIZE)
     r[0], r[1] = n, i
     struct.pack_into('>H', r, 2, base + i)

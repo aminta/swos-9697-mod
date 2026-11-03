@@ -385,7 +385,18 @@ def fit_titles(m):
     return m
 
 
-FONT = set(" &'()-./0123456789:,!?+ABCDEFGHIJKLMNOPQRSTUVWXYZ")   # the characters the game's menu fonts draw (4.0)
+FONT = set(" '()-./0123456789:,?+ABCDEFGHIJKLMNOPQRSTUVWXYZ")   # the characters the game's menu fonts draw (4.0;
+# 4.0.6: no '&' / '!' - both fonts' conversionTable (smallCharsTable / bigCharsTable) map them, as '"#$<=>@', to sprite
+# 0: not a glyph - Davide's MiSTer, 'O&M' in the CONCACAF page)
+FONT_EXCEPT = {   # shipped names outside FONT, known and with their data owner (each one shows a broken glyph): the
+}   # (the checks report them, never fail; 04/11: O&M -> O Y M, TREFELIN B & G -> TREFELIN BGC in world5tm-403c12 / 12b,
+    #  SELLIER & BELLOT -> SB VLASIM in 403c13 / 13b, HARLAND & WOLFF -> HARLAND WOLFF in europe-1984-85: none left)
+
+
+def font_odd(name):
+    """The characters of name the menu fonts cannot draw (upper-cased), none for a FONT_EXCEPT name."""
+    u = name.upper()
+    return [] if u in FONT_EXCEPT else sorted(set(u) - FONT)
 
 
 def check_titles(m, clubs=()):
@@ -440,7 +451,7 @@ def check_titles(m, clubs=()):
         for i, dv in enumerate(c.get('divisions', []) or []):
             stage_titles((dv or {}).get('split'), f"{c.get('key')} division {i}")
     for name in clubs:
-        odd = sorted(set(name.upper()) - FONT)
+        odd = font_odd(name)
         if odd:
             bad.append(f"{m.get('id')} club {name!r}: characters {odd}")
     return bad

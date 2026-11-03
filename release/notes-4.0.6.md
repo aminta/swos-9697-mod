@@ -17,6 +17,21 @@
 - **Two new OPTIONS rows, both ON by default:** the computer's clubs now get **red cards** (a sent-off player is suspended, like yours) and **injuries** (an injured player of a computer's club misses the following matches instead of being fit again at once). Turn a row OFF to get the original game behaviour back.
 - Under SWOS++ the two rows are hidden and the original behaviour applies.
 
+#### Continental cups page (World 2026-27)
+In a 2026-27 career, VIEW COMPETITIONS has a new entry, CONTINENTAL CUPS. It shows how the other continents' club
+cups are going: the Copa Libertadores and the other CONMEBOL cups, CONCACAF, AFC, CAF, OFC and FIFA. Pick a
+confederation to see its cups. If your club plays in one of them, its confederation is listed first.
+
+- Each cup shows its holder, then its rounds in calendar order.
+- In a knockout round, the club that went through is shown in brackets, e.g. CARABOBO - (FLAMENGO).
+- A group shows its clubs in their final order once it has been played.
+- A round that has not been played yet says TO BE PLAYED. Rounds only appear once their draw is due in the
+  season, so the page never gives away what is still to come.
+- The page lists who went through, not the scores.
+- In the first season of a career, the early qualifying rounds were played before your career began. They show as
+  one line, EARLIER ROUNDS PLAYED BEFORE THE SEASON, and the page starts from the main round's draw.
+- Opening the page changes nothing in your career. Careers saved with 4.0.5 load and show the page as normal.
+
 #### Super Cups and intercontinental cups (World 2026-27)
 - **UEFA Super Cup.**
   - It is played in mid-August (week of 12 August), before the national Super Cup: the Champions League winner against the Europa League winner of the season just ended.
@@ -146,6 +161,24 @@ La 4.0.6 è un giro di richieste dei giocatori: **due giocatori sulla stessa tas
 #### Le squadre del computer giocano con le tue regole
 - **Due nuove righe in OPZIONI, entrambe attive di default:** le squadre del computer ora prendono **cartellini rossi** (un espulso è squalificato, come i tuoi) e **infortuni** (un infortunato di una squadra del computer salta le partite seguenti invece di essere subito di nuovo a posto). Metti una riga su NO per riavere il comportamento originale del gioco.
 - Con SWOS++ le due righe sono nascoste e vale il comportamento originale.
+
+#### Pagina COPPE CONTINENTALI (Mondo 2026-27)
+Nelle carriere del mondo 2026-27, VISUAL. COMPETIZ. ha una nuova voce: COPPE CONTINENTALI. Mostra come vanno le
+coppe per club degli altri continenti: la Copa Libertadores e le altre coppe CONMEBOL, CONCACAF, AFC, CAF, OFC e FIFA.
+Scegli una confederazione per vedere le sue coppe. Se il tuo club gioca in una di queste coppe, la sua
+confederazione è la prima della lista.
+
+- Per ogni coppa: il detentore, poi i turni in ordine di calendario.
+- Nei turni a eliminazione diretta, chi passa il turno è tra parentesi, per esempio CARABOBO - (FLAMENGO).
+- Un girone già giocato mostra le squadre nell'ordine della classifica finale.
+- Un turno non ancora giocato è indicato DA GIOCARE. I turni compaiono solo quando, nella stagione, arriva il loro
+  sorteggio: la pagina non anticipa mai quello che deve ancora succedere.
+- La pagina dice chi è passato, non i punteggi.
+- Nella prima stagione di una carriera, i turni preliminari si sono giocati prima che la carriera iniziasse.
+  Compaiono come una sola riga, TURNI PRECEDENTI GIOCATI PRIMA DELLA STAGIONE, e la pagina parte dal sorteggio del
+  turno principale.
+- Aprire la pagina non cambia niente nella carriera. Le carriere salvate con la 4.0.5 si caricano e mostrano la
+  pagina normalmente.
 
 #### Supercoppe e coppe intercontinentali (Mondo 2026-27)
 - **Supercoppa UEFA.**

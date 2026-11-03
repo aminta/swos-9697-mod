@@ -20,10 +20,9 @@
   match, each team's goalkeeper has a 1 in 25 chance of an injury. You see it afterwards, on the team screen, not
   during the match. He misses the next match or the next two, then he is fit again like any injured player. It is
   the goalkeeper on the pitch at the final whistle, and matches you only view the result of count too. The
-  computer's goalkeepers get injured only while CPU INJURIES is ON. To switch it off: OPTIONS > GOALKEEPER INJURIES
+  computer's goalkeepers get injured only in a career, while CPU INJURIES is ON. To switch it off: OPTIONS > GOALKEEPER INJURIES
   (IT INFORTUNI PORTIERI, FR BLESSURES DES GARDIENS, DE TORWARTVERLETZUNGEN). It is ON by default and saved with
   the career; an older career loads it ON. Not with SWOS++.
-
 #### Continental cups in the game's own screens (World 2026-27)
 - **CONTINENTAL CUPS** (VIEW COMPETITIONS): pick a confederation and you get a menu of its rounds already drawn,
   in the order they are played. Each round opens in the game's own cup screen, exactly as far as your career has got:
@@ -225,10 +224,9 @@ La 4.0.6 è un giro di richieste dei giocatori: **due giocatori sulla stessa tas
   partita, il portiere di ogni squadra ha 1 probabilità su 25 di infortunarsi. Lo vedi dopo, nella schermata della
   squadra, non durante la partita. Salta la partita successiva o le due successive, poi torna disponibile come
   qualunque infortunato. Conta il portiere in campo al fischio finale, e valgono anche le partite di cui guardi solo
-  il risultato. I portieri del computer si infortunano solo con INFORTUNI ALLA CPU attivato. Per spegnerlo:
+  il risultato. I portieri del computer si infortunano solo in carriera, con INFORTUNI ALLA CPU attivato. Per spegnerlo:
   OPZIONI > INFORTUNI PORTIERI (EN GOALKEEPER INJURIES, FR BLESSURES DES GARDIENS, DE TORWARTVERLETZUNGEN). È
   attivato all'inizio e si salva con la carriera; una carriera più vecchia lo carica attivato. Non con SWOS++.
-
 #### Coppe continentali nelle schermate del gioco (Mondo 2026-27)
 - **COPPE CONTINENTALI** (VISUAL. COMPETIZ.): scegli una confederazione e trovi un menu dei suoi turni già
   sorteggiati, nell'ordine in cui si giocano. Ogni turno si apre nella schermata di coppa del gioco, esattamente fin

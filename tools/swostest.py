@@ -23308,11 +23308,15 @@ def cpu_inj_preset():
         numsel = s.result.base2 + career[1] + 95151
 
         def snap(tag):
-            n = struct.unpack('<H', s.result.read(numsel, 2))[0]
-            buf = s.result.read(numsel + 2, 684 * min(n, 120))
-            inj = 0
-            for t in range(min(n, 120)):
+            # (a preset leaves g_numSelectedTeams 0 but keeps its clubs in g_selectedTeams all the same - selTeamsPtr has
+            # one value, cseg_28E76 adds [team+343h] to it: scan all 100 slots, a slot counts when it has a name)
+            buf = s.result.read(numsel + 2, 684 * 100)
+            inj, n = 0, 0
+            for t in range(100):
                 name = buf[684 * t + 5:684 * t + 22].split(b'\0')[0].decode('latin1')
+                if not name.strip() or not all(32 <= ord(c) < 127 for c in name):
+                    continue
+                n += 1
                 for i in range(16):
                     lv = buf[684 * t + 76 + 38 * i + 0x1B] >> 5
                     k = (name, i)
@@ -23338,8 +23342,8 @@ def cpu_inj_preset():
                 break
             press(s, scr, i, wait=3)
         snap('end')
-    if not any(n for _, n, _ in rounds):             # (the preset's clubs are not in g_selectedTeams: nothing read)
-        return False, f'NOT MEASURED: no team in the cache g_numSelectedTeams at any snapshot {rounds[:4]}'
+    if not any(n for _, n, _ in rounds):             # (no named slot at any snapshot: nothing read)
+        return False, f'NOT MEASURED: no named team in g_selectedTeams at any snapshot {rounds[:4]}'
     res = 'heals' if downs else 'never heals'
     return True, (f'RESULT: {res} ({len(downs)} level decreases; injured records per snapshot '
                   f'{[(t, n, j) for t, n, j in rounds][:30]}; decreases {downs[:8]})')

@@ -331,6 +331,10 @@ vs_init:                                ; 4.0.5 viewSquadMenu's init (ShowSquad)
     movzx eax, byte [ebp + 2]
     mov cl, [ebp + 1]
     mov [esi + eax], cl
+    cmp ebp, vs_of                      ; (4.0.6) the offer's: ESCI up -> the 16th row (its up went to entry 20, the
+    jne .lk                             ; 17th row, hidden: the cursor stayed on ESCI)
+    mov byte [esi + 0Ah], 19
+.lk:
     mov eax, [esi + 14h]                ; x, y
     add ax, [ebp + 4]
     mov [xs_xy], eax
@@ -421,8 +425,8 @@ vs_lt: db 3, 2, 8, 0                    ; the letter: anchor CONTINUA, button en
     dw -80, 76
     dd 0FFFF03FFh
 vs_of: db 2, 3, 9, 0                    ; the offer: anchor ESCI, button entry 3 at its right, the club browse's geometry
-    dw 74, 90                           ; (x 204, width 90)
-    dd 0FF14FF02h
+    dw 74, 90                           ; (x 204, width 90; 4.0.6 up -> the 16th row, as ESCI)
+    dd 0FF13FF02h
 vs_lay: dd 0
 vs_ofr: db 0
 align 4

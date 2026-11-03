@@ -261,6 +261,10 @@ static void cup_lines(int c, u32 week, int live) {
     if (live && done && CT_OUT.winner[c]) { head(txt(T_WIN), cname(CT_OUT.winner[c])); endline(); }
 }
 
+/* 4.0.6 P3 (VIEW WORLD's cup buttons): CV_ONLY = one cup (its page part, its rounds), 0xFF every cup of conf */
+u32 CV_ONLY = 0xFF;
+#define ONLY(c) (CV_ONLY == 0xFF || CV_ONLY == (u32)(c))
+
 u32 cv_text(u32 conf, u32 week, char *out, u32 room) {
     o = out; oend = out + room - 1; nline = 0; clen = cpx = 0;
     if (!CT_SPEC) { add(txt(T_NONE)); endline(); *o = 0; return (u32)(o - out); }
@@ -269,7 +273,7 @@ u32 cv_text(u32 conf, u32 week, char *out, u32 room) {
     if (live) ct_resume();              /* (the replay: CT_OUT as it stands, CT_SEG unchanged) */
     int any = 0;
     for (int c = 0; c < ncup; c++)
-        if (cuptab(c)[0] == conf) { cup_lines(c, week, live); any = 1; }
+        if (cuptab(c)[0] == conf && ONLY(c)) { cup_lines(c, week, live); any = 1; }
     if (!any) { add(txt(T_NONE)); endline(); }
     if (clen) endline();
     *o = 0;
@@ -303,7 +307,7 @@ u32 cv_rounds(u32 conf, u32 week, u8 *out) {
     u8 all[NCUP * NRD];
     u32 k = 0;
     for (int c = 0; c < ncup; c++) {
-        if (cuptab(c)[0] != conf) continue;
+        if (cuptab(c)[0] != conf || !ONLY(c)) continue;
         for (int mo = 0; mo < 12; mo++) {
             int m = (mo + 7) % 12 + 1;
             for (int r = 0; r < nr[c]; r++) {

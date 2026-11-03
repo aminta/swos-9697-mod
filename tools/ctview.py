@@ -42,9 +42,9 @@ def round_name(r, lang):
     return rnames.NAMES[lang][rnames.CT_KEYS[r['key']] - rnames.N_OLD][0]
 
 
-CR_N, CR_W, CR_LW = 16, 150, 20         # P3's rounds menu: buttons, their width, a label's bytes (NUL-ended)
+CR_N, CR_W, CR_LW = 16, 150, 30         # P3's rounds menu: buttons, their width, a label's bytes (NUL-ended)
 CR_SCR_AT = 0x3000                      # (ctgame's scratch: its CG_END; CR_SCR_N bytes there, ctgame.CG_BSS covers them)
-CR_SCR_N = 0x200
+CR_SCR_N = 0x280                        # (labels 16 x 30, nav, title)
 CR_PTRS = {}                            # its pointers into ctgame (cg_view, cg_close, the scratch): ctgame.patch sets them
 
 
@@ -58,6 +58,17 @@ def round_short(r, lang):
     if r['key'] in rnames.CT_NEW[lang]:
         return rnames.CT_NEW[lang][r['key']][1]
     return rnames.NAMES[lang][rnames.CT_KEYS[r['key']] - rnames.N_OLD][1]
+
+
+def round_long(r, lang):
+    """A format round's long name (its own, else rnames'), upper case."""
+    import rnames
+    own = r.get('names')
+    if own:
+        return (own.get(lang) or own['en'])[0].upper()
+    if r['key'] in rnames.CT_NEW[lang]:
+        return rnames.CT_NEW[lang][r['key']][0].upper()
+    return rnames.NAMES[lang][rnames.CT_KEYS[r['key']] - rnames.N_OLD][0].upper()
 
 
 def round_labels(lang, cupkeys):
@@ -74,7 +85,7 @@ def round_labels(lang, cupkeys):
             at[t] = len(pool)
             pool.extend(t.encode('latin1') + b'\0')
         return at[t]
-    co, ro, first = [], [], []
+    co, ro, first, lo = [], [], [], []
     for k in cupkeys:
         c = fmt[k]
         cs = (c['names'].get(lang) or c['names']['en'])[1].upper()
@@ -87,9 +98,12 @@ def round_labels(lang, cupkeys):
         first.append(len(ro))
         co.append(put(a))
         ro += [put(rn) for rn in rns]
+        for r, rn in zip(c['rounds'], rns):             # (VIEW WORLD's one cup: the round alone - its long name when
+            ln = round_long(r, lang)                    #  it fits the button, else the medium one)
+            lo.append(put(ln if complist.px(ln) <= CR_W - 6 and len(ln) < CR_LW and set(ln) <= complist.FONT else rn))
     assert len(co) <= 16 and len(ro) < 256
     return bytes(pool), struct.pack(f'<{16}H', *(co + [0] * (16 - len(co)))), struct.pack(f'<{len(ro)}H', *ro), \
-        bytes(first).ljust(16, b'\0')
+        bytes(first).ljust(16, b'\0'), struct.pack(f'<{len(lo)}H', *lo)
 
 
 def _spec_access(spec):
@@ -150,7 +164,8 @@ def table(lang, confs, files=None, words=None):
     return bytes(out + strs), spec
 
 
-CAP = 0x2400                            # obj3 room (the Integratore, 03/11; P3's rounds menu: OBJ3_PAGES 10)
+CAP = 0x2800                            # obj3 room (the Integratore, 03/11; P3's rounds menu + VIEW WORLD's cups:
+                                        # OBJ3_PAGES 10, the chain's end <= LT3_AT)
 CUPKEYS = []                            # table()'s cups: (conf, key) in the spec's order
 
 ASM = r"""
@@ -227,6 +242,89 @@ cv_open:                                ; button eax: that confederation (P3): i
     mov dword [A6], CR_MENU
     jmp SHOW_MENU
 
+cw_title:                               ; edi = a title: VIEW WORLD's one cup (CV_ONLY) -> its name copied, CF = 0;
+    cmp dword [CV_ONLY_], 0FFh          ; every cup -> CF = 1 (the caller's 'COPPE CONTINENTALI - conf')
+    stc
+    je .r
+    mov eax, [CV_ONLY_]
+    mov esi, [CW_NAME + 4 * eax]
+.c: lodsb
+    stosb
+    test al, al
+    jnz .c
+    clc
+.r: ret
+
+cw_after:                               ; careerworld w_choose (VIEW WORLD's picker returned): one of our cup buttons
+    pushad                              ; (selectedContest = a CW_MARK) -> that cup's rounds menu (no round yet: its
+    cmp word [CTRES], 0                 ; page part), chooseTeamsResult cleared (ViewWorldMenu then goes out)
+    je .x
+    mov eax, [SELCONT]
+    xor ebx, ebx
+.f: cmp ebx, CW_N_
+    jae .x
+    cmp eax, [CW_MARK + 4 * ebx]
+    je .h
+    inc ebx
+    jmp .f
+.h: mov word [CTRES], 0
+    mov [CV_ONLY_], ebx
+    movzx eax, byte [CW_CONF + ebx]
+    mov [CV_CUR], eax
+    push es
+    push ds
+    pop es
+    cld
+    mov dword [CT_SPEC], SPEC
+    call CT_LPF
+    call cv_week
+    push dword CR_LIST
+    push ecx
+    push dword [CV_CUR]
+    call CV_ROUNDS
+    add esp, 12
+    mov [CR_CNT], eax
+    pop es
+    test eax, eax
+    jnz .m
+    call cv_page
+    jmp .e
+.m: mov dword [A6], CR_MENU
+    call SHOW_MENU
+.e: mov dword [CV_ONLY_], 0FFh
+.x: popad
+    ret
+
+cw_on:                                  ; VIEW WORLD's picker: each CW_SW slot holding its plain list -> the list with
+    pushad                              ; the cup buttons (a continent's competitionsTable entry; COMP254 / COMP99 =
+    mov esi, CW_SW                      ; the world's MONDO table, careerworld W_SWAP); cw_off puts the plain ones back
+    mov ecx, CW_SW_N
+.l: mov edi, [esi]
+    mov eax, [esi + 4]
+    cmp [edi], eax
+    jne .n
+    mov eax, [esi + 8]
+    mov [edi], eax
+.n: add esi, 12
+    loop .l
+    popad
+    ret
+
+cw_off:
+    pushad
+    mov esi, CW_SW
+    mov ecx, CW_SW_N
+.l: mov edi, [esi]
+    mov eax, [esi + 8]
+    cmp [edi], eax
+    jne .n
+    mov eax, [esi + 4]
+    mov [edi], eax
+.n: add esi, 12
+    loop .l
+    popad
+    ret
+
 cv_week:                                ; ecx = the career calendar's week (as gplay's O_WEEK)
     movzx ecx, word [CAL_CUR]
     movzx ecx, byte [CAL + ecx + 1]
@@ -248,6 +346,8 @@ cv_page:                                ; CV_CUR's cups on fmtpage's page (the s
     call CV_TEXT
     add esp, 16
     mov edi, TITLE                      ; 'COPPE CONTINENTALI - CONMEBOL'
+    call cw_title
+    jnc .t3
     mov esi, CV_LABEL
 .t: lodsb
     test al, al
@@ -263,7 +363,7 @@ cv_page:                                ; CV_CUR's cups on fmtpage's page (the s
     stosb
     test al, al
     jnz .t2
-    mov byte [FOUND], 1
+.t3:mov byte [FOUND], 1
     mov dword [PAGE], 0
     call FP_FILL
     pop es
@@ -278,6 +378,8 @@ cr_init:                                ; the rounds menu's onInit: title, label
     pop es
     cld
     mov edi, CR_TITLE                   ; 'COPPE CONTINENTALI - CONMEBOL'
+    call cw_title                       ; (VIEW WORLD's one cup: its name)
+    jnc .t3
     mov esi, CV_LABEL
 .t: lodsb
     test al, al
@@ -293,7 +395,7 @@ cr_init:                                ; the rounds menu's onInit: title, label
     stosb
     test al, al
     jnz .t2
-    xor ebx, ebx
+.t3:xor ebx, ebx
 .l: cmp ebx, [CR_CNT]
     jae .l1
     movzx eax, byte [CR_LIST + ebx]
@@ -306,6 +408,8 @@ cr_init:                                ; the rounds menu's onInit: title, label
     add edi, CR_LBL
     movzx esi, word [CR_CUPS + 2 * edx]
     add esi, CR_STR
+    cmp dword [CV_ONLY_], 0FFh          ; (one cup: the round's name alone, CR_RNDL)
+    jne .c3
 .c: lodsb
     test al, al
     jz .c1
@@ -314,6 +418,9 @@ cr_init:                                ; the rounds menu's onInit: title, label
 .c1:mov al, ' '
     stosb
     movzx esi, word [CR_RNDS + 2 * ecx]
+    jmp .c4
+.c3:movzx esi, word [CR_RNDL + 2 * ecx]
+.c4:
     add esi, CR_STR
 .r: lodsb
     stosb
@@ -408,9 +515,16 @@ CR_CNT: dd 0
 CR_C: dd 0
 CR_R: dd 0
 CR_LIST: times 16 db 0
+align 4
+CW_MARK: CW_MARK_DD
+CW_NAME: CW_NAME_DD
+CW_CONF: CW_CONF_DB
+align 4
+CW_SW: CW_SW_DD
 CR_FIRST: CR_FIRST_DB
 CR_CUPS: CR_CUPS_DB
 CR_RNDS: CR_RNDS_DB
+CR_RNDL: CR_RNDL_DB
 CR_STR: CR_STR_DB
 align 4
 CR_MENU:                                ; title, the round buttons (two columns), RIEPILOGO, ESCI
@@ -484,6 +598,7 @@ def patch(p, at, lang, scr_at):
     at = (at + 15) & ~15
     order = [k for k in conti.CONFS]
     assert len(order) == 6, order
+    at, cw = world_cups(p, at)                          # (P3: VIEW WORLD's green cup buttons)
     T = TEXTS[lang]
     assert complist.px(T[6].decode('latin1')) <= complist.VC_PX, ('ctview menu entry over VISUAL. COMPETIZ.', T[6])
     btn = []
@@ -492,7 +607,7 @@ def patch(p, at, lang, scr_at):
         btn += [f'    dw 72, {40 + 22 * i}, 160, 15', '    dw 2', f'    db {nav}', '    dw 4, 0Eh', '    dw 8, 0',
                 f'    dd CV_LBL + {12 * i}', '    dw 13', f'    dd cv_s{i}', '    dw 0']
     src = nasmcave.sub(ASM, 'CV_BUTTONS\n', '\n'.join(btn) + '\n')
-    pool, cups_o, rnds_o, first = round_labels(lang, CUPKEYS)
+    pool, cups_o, rnds_o, first, rndl_o = round_labels(lang, CUPKEYS)
     h = CR_N // 2
     rb = []
     for k in range(CR_N):
@@ -506,7 +621,12 @@ def patch(p, at, lang, scr_at):
     src = nasmcave.sub(src, 'CR_STUBS\n', ''.join(f'cr_s{k}: mov eax, {k}\n    jmp cr_go\n' for k in range(CR_N))
                        + 'CR_SUMT: db ' + ', '.join(str(b) for b in T[7] + b'\0') + '\n')
     src = nasmcave.sub(src, 'CR_FIRST_DB', 'db ' + ', '.join(str(b) for b in first))
-    for k, b in (('CR_CUPS_DB', cups_o), ('CR_RNDS_DB', rnds_o), ('CR_STR_DB', pool)):
+    src = nasmcave.sub(src, 'CW_MARK_DD', 'dd ' + ', '.join(f'CW_M{c}' for c in range(len(cw['marks']))))
+    src = nasmcave.sub(src, 'CW_NAME_DD', 'dd ' + ', '.join(f'CW_S{c}' for c in range(len(cw['marks']))))
+    src = nasmcave.sub(src, 'CW_CONF_DB', 'db ' + ', '.join(str(x) for x in cw['conf']))
+    assert cw['swaps'], 'VIEW WORLD: no list to swap'
+    src = nasmcave.sub(src, 'CW_SW_DD', 'dd ' + ', '.join(f'CW_W{k}{x}' for k in range(len(cw['swaps'])) for x in 'SOA'))
+    for k, b in (('CR_CUPS_DB', cups_o), ('CR_RNDS_DB', rnds_o), ('CR_RNDL_DB', rndl_o), ('CR_STR_DB', pool)):
         src = nasmcave.sub(src, k, 'db ' + ', '.join(str(x) for x in b))
     assert complist.px(T[7].decode('latin1')) <= CR_W - 6, ('summary button', T[7])
     src = nasmcave.sub(src, 'CV_LABEL_DB', 'db ' + ', '.join(str(b) for b in T[6] + b'\0'))
@@ -521,6 +641,13 @@ def patch(p, at, lang, scr_at):
                CT_OUT_=cs['CT_OUT'], CV_ROUNDS=syms['cv_rounds'], CR_LAYOUT=syms['cr_layout'], VC_CALC=gplay.LABELS['VC_CALC'],
                VC_VIEW=gplay.LABELS['VC_VIEW'], SLOT3=__import__('uefaq').SYMS['SLOT3'], D0R=__import__('uefaq').SYMS['D0R'],
                A0R=__import__('uefaq').SYMS['A0R'], CR_N_=(0, CR_N), CR_LW_=(0, CR_LW))
+    sym.update({f'CW_M{c}': (3, m) for c, m in enumerate(cw['marks'])})
+    sym.update({f'CW_W{k}{x}': v for k, w in enumerate(cw['swaps']) for x, v in zip('SOA', w)})
+    sym.update(CW_SW_N=(0, len(cw['swaps'])))
+    sym.update({f'CW_S{c}': nm for c, nm in enumerate(cw['names'])})
+    sym.update(CW_N_=(0, len(cw['marks'])), CV_ONLY_=syms['CV_ONLY'], CTRES=careerworld.LABELS['sites']['ctres'],
+               SELCONT=careerworld.LABELS['sites']['selcont'])
+    assert CR_N * CR_LW + 4 * CR_N + 4 + 48 <= CR_SCR_N, 'rounds menu buffers over CR_SCR_N'   # (48: the title)
     scr = scr_at + CR_SCR_AT                            # (the menu's buffers: ctgame's zero-fill scratch, past its own)
     sym.update(CR_LBL=(3, scr), CR_NAV=(3, scr + CR_N * CR_LW), CR_TITLE=(3, scr + CR_N * CR_LW + 4 * CR_N + 4))
     code, fix, rel = nasmcave.assemble_obj(src, at, sym, 3)
@@ -536,6 +663,9 @@ def patch(p, at, lang, scr_at):
     gl = gplay.LABELS                                   # gplay's entry 9: its check, on-select and text -> obj3
     p.add_ptr(1, gl['CV9_VIS'], 3, lab['cv_vis'])
     p.add_ptr(1, gl['CV9_GO'], 3, lab['cv_go'])
+    p.add_ptr(1, careerworld.LABELS['WV_AFTER'], 3, lab['cw_after'])   # (careerworld w_choose -> cw_after, the
+    p.add_ptr(1, careerworld.LABELS['WV_ON'], 3, lab['cw_on'])         #  cup-button lists in / out around its picker)
+    p.add_ptr(1, careerworld.LABELS['WV_OFF'], 3, lab['cw_off'])
     CR_PTRS.clear()
     CR_PTRS.update(view=lab['CR_VIEW'], close=lab['CR_CLOSE'], scr=lab['CR_SCR'])
     p.retarget(1, gl['VC9_TXTP'], 3, lab['CV_LABEL'])
@@ -543,6 +673,76 @@ def patch(p, at, lang, scr_at):
     print(f'exe: COPPE CONTINENTALI view (ctview): obj3+{t0:#x}..{end:#x} ({end - t0} B of {CAP}: table {len(tab)}, '
           f'C {c1 - c0}, glue {len(code)})')
     return end
+
+
+CONT_CONF = {'south_america': 'conmebol', 'north_america': 'concacaf', 'asia': 'afc', 'africa': 'caf',
+             'oceania': 'ofc'}                  # (mkseason's continents -> their confederation; FIFA: the world's MONDO)
+CW = {}                                         # world_cups' result (the harness: the cup buttons it put where)
+
+
+def world_cups(p, at):
+    """4.0.6 P3 (Davide, 03/11): VIEW WORLD's confederation screens as the MONDO one - the confederation's cups as
+    green buttons above its nations, FIFA's below the UEFA cups. A marker contest per cup at obj3:at (conti's ties
+    contest header with the cup's names: the picker draws its name; cw_after knows it by its address); each continent
+    list of a world (mkseason WCONT_IDS, top level) with cups: a new table [markers, -1, its countries] in obj3; the
+    world record's MONDO table (careerworld W<n>_CONT) the same + FIFA's. The game's pointers stay as they are (the
+    new career's club picker, the foreign market: the plain lists): cw_on / cw_off swap them in only around VIEW
+    WORLD's picker. Returns (at, {'marks': obj3 offsets per cup, 'names': (obj, off) of each cup's name, 'conf': its
+    CONFS index, 'swaps': [(slot, plain list, list with the buttons)] as (obj, off)})."""
+    import careerworld
+    import mkseason
+    import sacups
+    assert len(conti.NAMES) == len(CUPKEYS) and conti.TIE[0], (len(conti.NAMES), len(CUPKEYS))
+    tie = bytearray(p.get(1, conti.TIE[0], 28))
+    assert tie[5] + 5 == 16, tie[:8].hex()
+    marks, names, conf, swaps = [], [], [], []
+    for c, (cf, key) in enumerate(CUPKEYS):
+        b = bytearray(tie)
+        struct.pack_into('<II', b, 16, conti.NAMES[c], conti.SNAMES[c])
+        p.put(3, at, bytes(b))
+        marks.append(at)
+        names.append((2, sacups.STR_BASE + conti.NAMES[c]))
+        conf.append(conti.CONFS.index(cf))
+        at += 28
+    comp = sacups.COMP_TABLE[0]
+    CW.clear()
+
+    def table(cups, head, tail):                # [head pointers, markers, -1, tail bytes]
+        nonlocal at
+        t = at
+        for i, tg in enumerate(head + [(3, marks[c]) for c in cups]):
+            p.add_ptr(3, at + 4 * i, *tg)
+        at += 4 * (len(head) + len(cups))
+        p.put(3, at, b'\xff' * 4 + tail)
+        at = (at + 4 + len(tail) + 3) & ~3
+        return t
+    for n, ids in sorted(mkseason.WCONT_IDS.items()):
+        for lid, _, top in ids:
+            k = CONT_CONF.get(mkseason.WCONT_KEY.get(lid))
+            cups = [c for c, (cf, _) in enumerate(CUPKEYS) if cf == k]
+            if not top or not cups:
+                continue
+            o = p.target(2, comp + 4 * lid)
+            old = p.get(*o, 4 + 256)
+            assert old[:4] == b'\xff' * 4, (lid, old[:8].hex())
+            t = table(cups, [], old[4:old.index(0xFF, 4) + 1])
+            swaps.append(((2, comp + 4 * lid), o, (3, t)))
+            CW.setdefault(n, {})[lid] = [CUPKEYS[c][1] for c in cups]
+        wc = careerworld.LABELS.get(f'W{n}_CONT')
+        fifa = [c for c, (cf, _) in enumerate(CUPKEYS) if cf == 'fifa']
+        if wc is None or not fifa:
+            continue
+        head = []
+        while p.get(1, wc + 4 * len(head), 4) != b'\xff' * 4:
+            head.append(p.target(1, wc + 4 * len(head)))
+        old = p.get(1, wc + 4 * len(head), 4 + 64)
+        t = table(fifa, head, old[4:old.index(0xFF, 4) + 1])
+        wp = careerworld.LABELS[f'W{n}_CONTP']          # (the record's MONDO pointer: W_SWAP puts it in both)
+        assert p.target(1, wp) == (1, wc), (n, p.target(1, wp))
+        swaps += [((2, comp + 4 * k), (1, wc), (3, t)) for k in (254, careerworld.WCONT)]
+        CW.setdefault(n, {})['MONDO'] = [CUPKEYS[c][1] for c in fifa]
+    print(f'exe: VIEW WORLD cup buttons: {len(marks)} cups, {CW}')
+    return at, {'marks': marks, 'names': names, 'conf': conf, 'swaps': swaps}
 
 
 def test(lang='it', confs=('conmebol',)):

@@ -5004,6 +5004,24 @@ def world_uq_early():
     return not errs, '; '.join(errs) or f'{msg[:160]}; ties played {ties}; slot 3 on the menus {seen} ({len(menus)} menus)'
 
 
+def gwalk(s, text, w=3, tries=40):
+    """Select the entry showing text by geometry, then fire (the team / competition picker: its links pass through
+    hidden entries the game skips by position - walk's planner finds no path to the cup buttons above the nations,
+    the stock MONDO screen's UEFA cups too); returns the new screen."""
+    for _ in range(tries):
+        scr = s.screen()
+        i = scr.find(text, exact=True)
+        if i is None:
+            raise AssertionError(f'{text} not on screen ({scr.texts()[:16]})')
+        if scr.selected == i:
+            s.send(f'fire dump:{w}')
+            return s.screen()
+        (x0, y0, w0, h0), (x1, y1, w1, h1) = scr.geom[scr.selected], scr.geom[i]
+        k = 'up' if y1 + h1 <= y0 else 'down' if y1 >= y0 + h0 else 'left' if x1 < x0 else 'right'
+        s.send(k + ' dump:0.5')
+    raise AssertionError(f'gwalk: {text} not reached ({s.screen()})')
+
+
 def walk(s, target, w=3, tries=20, stays=48):
     """Select entry `target` (text or number) one key at a time, re-planning after each move (menus where a planned
     path drifts: two-column lists, moves taken twice), then fire; returns the new screen. A key that leaves the cursor
@@ -15079,7 +15097,12 @@ def world_cgame_view():
     cg_view: knockout legs + aggregate + pens / away goals, group tables + fixtures, as at the career's week). On
     world_contiview's build and season-2 save (CV_BUILD, CV_S2 / RUNS cv_s2_<ui>.CAR): every confederation's rounds menu
     (labels within 144 px, menu font), each visible round opened (shot cgv_<k>_<j>, its texts in the menu font and within
-    their boxes), ESCI back to the rounds menu; CT_SEG / CT_ED byte-identical before and after (the view closed)"""
+    their boxes), ESCI back to the rounds menu; CT_SEG / CT_ED byte-identical before and after (the view closed).
+    4.0.6 continent screens (Davide GO 03/11): VISUALIZZA MONDO - MONDO's FIFA cup after the UEFA cups, every continent
+    (gwalk) its green cup buttons above its nations (none on EUROPA), names in the font and within their buttons;
+    each cup button -> its rounds menu (title = the cup, the rounds' own labels), every round opened and back,
+    RIEPILOGO = that cup's part only, ESCI -> the career menu, CT state unchanged. CV_OWN=<club>: a save with the club
+    in a conti round in progress - its round on screen through the game's slot 3 (CG_G's opens unchanged)"""
     src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
     if not os.path.isdir(src) and not os.environ.get('CV_BUILD'):
         return True, f'SKIP: private data {src} missing'
@@ -15102,23 +15125,20 @@ def world_cgame_view():
     errs, info = [], []
     with Session('world_cgame_view', exe, {'W84A.CAR': s2}, 'dump:2', 600) as s:
         s.wait()
+        plain = {}
         s.send(LOAD1 + ' dump:3')
         for _ in range(6):
             if s.screen().find('VISUAL. COMPETIZ.', exact=True) is not None:
                 break
             press(s, s.screen(), 'CONTINUA', 3) or s.send('fire dump:2')
         st = lambda: (bytes(s.result.obj2(seg_at, 72)), bytes(s.result.obj2(ed_at, 2260)))
-        walk(s, s.screen().find('VISUAL. COMPETIZ.', exact=True), 3)
-        walk(s, s.screen().find('COPPE CONTINENTALI', exact=True), 3)
-        for k in range(1, 7):
-            conf = s.screen().entries[k][1]
-            walk(s, k, 3)
-            if s.screen().find(summ, exact=True) is None:
-                info.append(f'{conf}: no rounds')
-                walk(s, 16, 3)
-                continue
+        gtr = cg_trace(exe)                             # (ctgame's CG_G[3]: the views opened - none for the career
+        opens = lambda: struct.unpack('<I', bytes(s.result.read(s.result.lin((3, gtr[3] + 12)), 4)))[0]   # club's own
+        own, own_seen = os.environ.get('CV_OWN'), []    #  round in progress: the game's slot 3, CV_OWN = its name)
+
+        def rounds(tag, conf):                          # (a rounds menu on screen: every round opened and back)
             sc = s.screen()
-            s.shot(f'cgv_{k}_rounds')
+            s.shot(f'{tag}_rounds')
             btns = [(i, sc.raw_texts[i] if sc.raw_texts else t) for i, t, inv, dis in sc.entries[1:1 + ctview.CR_N + 1]
                     if not inv and t]
             odd = sorted({ch for i, t in btns for ch in t.upper()} - complist.FONT)
@@ -15130,11 +15150,15 @@ def world_cgame_view():
             for j, (i, label) in enumerate(btns):
                 if i > ctview.CR_N:
                     continue
-                b0 = st()
+                b0, o0 = st(), opens()
                 walk(s, i, 4)
                 v = s.screen()
-                s.shot(f'cgv_{k}_{j}')
+                s.shot(f'{tag}_{j}')
                 texts = v.texts()
+                if own and opens() == o0 and texts and v.find(summ, exact=True) is None:
+                    own_seen.append(f'{conf} {label}')  # (no ctgame view opened, a screen shown: the game's slot 3 -
+                    check(v.find('PASSA') is not None,  #  the club's group stage, its names drawn in the table rows)
+                          f'{conf} {label}: shown without a view, not a group stage ({texts[:6]})', errs)
                 s.log.append(f'[cgv] {conf} {label}: {texts[:24]}')
                 check(v.find(summ, exact=True) is None and texts, f'{conf} {label}: no view ({texts[:6]})', errs)
                 raw = v.raw_texts or texts
@@ -15150,7 +15174,7 @@ def world_cgame_view():
                         check(int(a) > int(b), f'{conf} {label}: winner first but {a}-{b} in {t.strip()!r}', errs)
                 if v.find('PASSA') is not None:         # (a group stage: the game's next-stage button - its view, back)
                     press(s, v, v.entries[v.find('PASSA')][1], 4)
-                    s.shot(f'cgv_{k}_{j}_passa')
+                    s.shot(f'{tag}_{j}_passa')
                     s.log.append(f'[cgv] {conf} {label} PASSA: {s.screen().texts()[:16]}')
                 for _ in range(6):
                     if s.screen().find(summ, exact=True) is not None:
@@ -15159,16 +15183,128 @@ def world_cgame_view():
                 check(s.screen().find(summ, exact=True) is not None, f'{conf} {label}: not back on the rounds menu',
                       errs)
                 s.log.append(f'[cgv] back: {s.screen()} nav {s.screen().nav[1:4]}')
-                s.shot(f'cgv_{k}_{j}_back')
+                s.shot(f'{tag}_{j}_back')
                 b1 = st()
                 check(b0 == b1, f'{conf} {label}: CT_SEG / CT_ED changed by the view', errs)
                 opened.append(label)
+            return opened
+
+        walk(s, s.screen().find('VISUAL. COMPETIZ.', exact=True), 3)
+        walk(s, s.screen().find('COPPE CONTINENTALI', exact=True), 3)
+        for k in range(1, 7):
+            conf = s.screen().entries[k][1]
+            walk(s, k, 3)
+            if s.screen().find(summ, exact=True) is None:
+                info.append(f'{conf}: no rounds')
+                walk(s, 16, 3)
+                continue
+            opened = rounds(f'cgv_{k}', conf)
             info.append(f'{conf}: {len(opened)} rounds {opened[:3]}')
             walk(s, ctview.CR_N + 1, 3)                 # (RIEPILOGO and back: the links again)
             walk(s, 16, 3)
             check(s.screen().find(summ, exact=True) is not None and s.screen().path(ctview.CR_N + 2),
                   f'{conf}: rounds menu after RIEPILOGO: {s.screen()}', errs)
             walk(s, ctview.CR_N + 2, 3)                 # (the rounds menu's ESCI -> the confederations)
+
+        def career_menu():
+            for _ in range(5):
+                if s.screen().find('VISUALIZZA MONDO', exact=True) is not None:
+                    return True
+                sc = s.screen()                         # (the picker's ESCI: by geometry, walk finds no path)
+                b = [t for t in ('ESCI', 'ABBANDONA') if sc.find(t, exact=True) is not None]
+                if b:                                   # (a continent's ESCI -> MONDO, MONDO's ABBANDONA -> the menu)
+                    gwalk(s, b[0], 3)
+                else:
+                    s.send('fire dump:2')
+            return s.screen().find('VISUALIZZA MONDO', exact=True) is not None
+
+        def picker(tag, want_cups):                     # (VIEW WORLD's picker on screen: its green cup buttons -
+            sc = s.screen()                             #  the competitions, entries 1..20 - and the rest)
+            s.shot(tag)
+            raw = sc.raw_texts or [t for _, t, _, _ in sc.entries]
+            cups = [(i, raw[i]) for i, t, inv, _ in sc.entries if 1 <= i <= 20 and t and not inv]
+            rest = [raw[i] for i, t, inv, _ in sc.entries if 21 <= i <= 86 and t and not inv]
+            check(bool(rest), f'{tag}: no nations / continents ({sc.texts()[:8]})', errs)
+            if want_cups:
+                check(len(cups) >= want_cups, f'{tag}: {len(cups)} cup buttons, want >= {want_cups}', errs)
+                y_n = min(sc.geom[i][1] for i, t, inv, _ in sc.entries if 21 <= i <= 86 and t and not inv)
+                check(all(sc.geom[i][1] < y_n for i, _ in cups), f'{tag}: cup buttons not above the list', errs)
+            odd = sorted({ch for _, t in cups for ch in t.upper()} - complist.FONT)
+            check(not odd, f'{tag}: cup buttons characters outside the font {odd}', errs)
+            wide = [(t, complist.px(t.upper()), sc.geom[i][2]) for i, t in cups if complist.px(t.upper()) > sc.geom[i][2] - 2]
+            check(not wide, f'{tag}: cup names wider than their buttons {wide}', errs)
+            s.log.append(f'[cgw] {tag}: cups {cups} list {rest[:12]}')
+            return [t for _, t in cups], rest
+        check(career_menu(), f'VIEW WORLD: not back on the career menu ({s.screen()})', errs)
+        walk(s, 'VISUALIZZA MONDO', 3)
+        mcups, mrest = picker('cgw_mondo', 4)
+        fifa = mcups[3:]                                # (after the 3 UEFA cups: FIFA's)
+        conts = [t for t in s.screen().texts() if t in ('EUROPA', 'SUDAMERICA', 'NORDAMERICA', 'ASIA', 'AFRICA', 'OCEANIA')]
+        check(len(conts) == 6 and len(fifa) >= 1, f'MONDO: continents {conts}, FIFA cups {fifa}', errs)
+        todo = [(None, c) for c in fifa]
+        for cont in conts:
+            gwalk(s, cont, 3)
+            cups, rest = picker(f'cgw_{cont.lower()}', 0 if cont == 'EUROPA' else 1)
+            if cont == 'EUROPA':
+                check(not cups, f'EUROPA: cup buttons {cups} (its nations only)', errs)
+            todo += [(cont, c) for c in cups]
+            info.append(f'{cont}: {cups} + {len(rest)} nations')
+            check(career_menu(), f'{cont}: not back on the career menu ({s.screen()})', errs)
+            walk(s, 'VISUALIZZA MONDO', 3)
+        career_menu()
+        for q, (cont, cup) in enumerate(todo):
+            walk(s, 'VISUALIZZA MONDO', 3)
+            if cont:
+                gwalk(s, cont, 3)
+            b0 = st()
+            gwalk(s, cup, 4)
+            sc = s.screen()
+            title = (sc.raw_texts or [sc.entries[0][1]])[0]
+            if sc.find(summ, exact=True) is None:      # (no round drawn: the cup's page part)
+                check(cup in title, f'{cup}: page title {title!r}', errs)
+                info.append(f'{cup}: page')
+            else:
+                check(title == cup, f'{cup}: rounds menu title {title!r}', errs)
+                opened = rounds(f'cgw_{q}', cup)
+                walk(s, ctview.CR_N + 1, 3)             # (RIEPILOGO: the cup's part only)
+                pg = s.screen()
+                s.shot(f'cgw_{q}_sum')
+                s.log.append(f'[cgw] {cup} RIEPILOGO: {pg.texts()[:16]}')
+                check(cup in (pg.raw_texts or pg.texts())[0], f'{cup}: RIEPILOGO title {pg.texts()[:2]}', errs)
+                walk(s, 16, 3)
+                check(s.screen().find(summ, exact=True) is not None, f'{cup}: rounds menu after RIEPILOGO', errs)
+                info.append(f'{cup}: {len(opened)} rounds')
+            check(st() == b0, f'{cup}: CT_SEG / CT_ED changed', errs)
+            check(career_menu(), f'{cup}: not back on the career menu ({s.screen()})', errs)
+        if not own:                                     # (the foreign market's club picker, careerworld w_buy: the
+            walk(s, 'TRASFERIMENTI', 3)                 #  plain lists too; CV_OWN's save: its week has no market)
+            walk(s, 2, 3)
+            walk(s, 5, 3)                               # ACQ. ALTRO GIOCAT. STRANIERO
+            plain['foreign market MONDO'] = s.screen().texts()
+            for cont in ('SUDAMERICA', 'NORDAMERICA', 'ASIA', 'AFRICA', 'OCEANIA'):
+                gwalk(s, cont, 3)
+                plain[f'foreign market {cont}'] = s.screen().texts()
+                s.shot(f'cgw_buy_{cont.lower()}')
+                gwalk(s, 'ESCI', 3)
+            career_menu()
+        if own:
+            check(own_seen, f'{own}: its own round never on screen', errs)
+            info.insert(0, f'{own} from slot 3: {own_seen}')
+    with Session('world_cgame_view_pick', exe, {'W84A.CAR': s2}, 'dump:2', 300) as s:
+        s.wait()                                        # (the new career's club picker: the plain lists, no cup
+        for t in ('CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27'):   # buttons - ctview cw_on /
+            press(s, s.screen(), t, 3)                  #  cw_off swap them in for VIEW WORLD only)
+        plain['new career MONDO'] = s.screen().texts()
+        for cont in ('SUDAMERICA', 'NORDAMERICA', 'ASIA', 'AFRICA', 'OCEANIA'):
+            gwalk(s, cont, 3)
+            plain[f'new career {cont}'] = s.screen().texts()
+            s.shot(f'cgw_new_{cont.lower()}')
+            gwalk(s, 'ESCI', 3)
+        allcups = {c for _, c in todo} | set(mcups)
+        for k, tx in plain.items():
+            s.log.append(f'[cgw] {k}: {tx}')
+            check(len(tx) >= 2 and not allcups & set(tx), f'{k}: cup buttons {sorted(allcups & set(tx))} ({tx[:6]})', errs)
+        info.append(f'pickers plain: {len(plain)} screens')
     return not errs, '; '.join(errs[:12]) or '; '.join(info)
 
 

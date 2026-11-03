@@ -20,7 +20,7 @@ import subprocess
 import tempfile
 
 CG_MAX = 0x2400                         # the code + table (obj3 chain room; P3: OBJ3_PAGES 10, the Integratore 03/11)
-CG_BSS = 0x3200                         # the scratch (ctgame.c CG_END) + ctview's rounds menu buffers (CR_SCR_N)
+CG_BSS = 0x3280                         # the scratch (ctgame.c CG_END) + ctview's rounds menu buffers (CR_SCR_N)
 CG_TAB_MAX = 0x400
 NRD = 8                                 # (conti.h)
 LABELS = {}

@@ -29,16 +29,23 @@ substituted). The buffers' tail (bytes 1018..1703) is free (harness bench_mem, 2
   goalkeeper's only, in FirePressedInSubsMenu, UpdateSubstitutePlayerIndices and DrawBenchPlayersAndCoach twice)
   compare with 127: never taken.
 
-Block 2 (the bench graphic, 4.1): the dugout keeps its art and 5 places; with a bigger bench they are a window of 5
-that scrolls with the cursor (Davide's choice B).
+Block 2 (the bench graphic): 4.1 kept the dugout's art and 5 places, a window of 5 that scrolled with the cursor;
+4.0.6 (Davide 03/11, option A) has long dugouts (dugout.py: PITCH1-5 6 tile rows longer each, 18 seats) and every
+bench place seated, both benches.
 - BenchMenuHandleControls' `cmp [g_benchPlayerIndex], 5` / `, 6` (the cursor's last place / one past it) ->
   bx_cmp_last / bx_cmp_last1: the last place is max(5, gameMaxSubstitutes) <= 15 (5 in a training game); empty
   places are skipped by IsThisPlayerOkToSelect as the game's own substituted players.
-- DrawBenchAndSubsMenu's `mov ax, [g_benchPlayerIndex]` (the arrow's row) -> bx_arrow: the window start bx_win
-  follows the cursor (the coach or a training game: 0), the arrow's row = index - bx_win; (4.0.6, two humans) the
-  bench's entry (BenchCheckControls' `mov word [g_benchPlayerIndex], 0`) -> bx_bentry: the window back at the top.
-- DrawBenchPlayersAndCoach's `mov word [D7], 1` / `cmp word [D7], 6` -> bx_win_init / bx_win_end: places
-  bx_win + 1 .. bx_win + 5 (A0 moved on by bx_win players); the opponent's bench (g_subsState -1) its first 5.
+- DrawBenchPlayersAndCoach's `cmp word [D7], 6` -> bx_win_end: places 1 .. that last place (the arrow's row and the
+  first place are the game's: the index, place 1), the opponent's bench (g_subsState -1) the same; an empty place is
+  an empty seat (the game's own skip, y still moves on).
+- BenchCheckControls' `mov word [D1], 389` (the top bench's y) -> bx_benchy: 389 - 16 x dugout.ADD = 293, the top
+  dugout grew upwards (a training game: 389, PITCH6 unchanged); the bottom one grew downwards (485 stays).
+- MoveCamera's bench destination `mov word [D4], 449` -> bx_camy: the own dugout's middle (benchY + 67: y 360 top,
+  552 bottom; 176 px, one 200-row screen shows the whole dugout, the cursor always in view), 449 as before while a
+  substitute goes on (g_substituteInProgress / g_waitForPlayerToGoInTimer) and in a training game; its arrival
+  window `cmp [g_cameraY], 339` / `, 359` (the x limit 0: the dugout at the screen's left edge) -> bx_camlo /
+  bx_camhi: the destination - 110 / - 90.
+  (bx_win / bx_cur stay as 0 words: the harness finds the tables from bx_bench.)
 - Block 3, the names (on namespr's 112 px sprites, 4.0.5): plOrdinalsTable / plNamesLengthTable /
   plNamesLengthTableCopy (obj2, 16 bytes a team) move here at 26 a team (bx_ord / bx_len / bx_lenc, every reference
   retargeted; the team-2 offsets +16 -> +26 in SwapPlayerNameData, SetCurrentPlayerName, CopyPlayerNameLengths and
@@ -552,60 +559,55 @@ bx_cmp_last1:                           ; replaces `cmp word [IDX], 6`
     pop eax
     ret
 
-bx_arrow:                               ; replaces `mov ax, [IDX]` (the arrow's row): ax = IDX - bx_win
-    push ebx
-    movzx eax, word [IDX]
-    xor ebx, ebx
-    cmp word [TRAIN], 0
-    jne .set
-    or eax, eax
-    jz .set                             ; (the coach: the first 5)
-    movzx ebx, word [bx_win]
-    dec eax                             ; the cursor's place - 1
-    cmp eax, ebx
-    jae .down
-    mov ebx, eax                        ; above the window: it starts there
-    jmp .set
-.down:
-    sub eax, 4
-    cmp eax, ebx
-    jle .set
-    mov ebx, eax                        ; below it: it ends there
-.set:
-    mov [bx_win], bx
-    movzx eax, word [IDX]
-    sub eax, ebx
-    pop ebx
-    ret
-
-bx_bentry:                              ; (4.0.6, two humans) replaces BenchCheckControls' `mov word [IDX], 0` (a bench
-    mov word [IDX], 0                   ; entered, @@init_bench_vars): the window back at the top too, before the dugout
-    mov word [bx_win], 0                ; is drawn (the other team's bench showed the window where the first one left it)
-    ret
-
-bx_win_init:                            ; replaces `mov word [D7], 1` (DrawBenchPlayersAndCoach, A0 -> place 11)
-    push eax
-    xor eax, eax
-    cmp word [SUBST], 0
-    jl .w                               ; (the opponent's bench: its first 5)
-    cmp word [TRAIN], 0
-    jne .w
-    mov ax, [bx_win]
-.w:
-    mov [bx_cur], ax
-    inc eax
-    mov [D7], ax
-    dec eax
-    imul eax, eax, PI
-    add [A0], eax
+bx_win_end:                             ; replaces `cmp word [D7], 6` (DrawBenchPlayersAndCoach): every place seated
+    push eax                            ; (4.0.6 long dugouts), both benches
+    call bx_lastw
+    inc ax
+    cmp [D7], ax
     pop eax
     ret
 
-bx_win_end:                             ; replaces `cmp word [D7], 6`
+bx_benchy:                              ; (4.0.6) replaces `mov word [D1], 389` (BenchCheckControls: the top bench's y)
+    mov word [D1], 389
+    cmp word [TRAIN], 0
+    jne .t
+    sub word [D1], DUGUP_               ; the top dugout grew upwards
+.t:
+    ret
+
+bx_camdest:                             ; (4.0.6) ax = the bench camera's destination y: the own dugout's middle, 449
+    mov ax, 449                         ; while a substitute goes on and in a training game
+    cmp word [TRAIN], 0
+    jne .x
+    cmp word [SIP], 0
+    jne .x
+    cmp word [WAITGO], 0
+    jne .x
+    mov ax, [BENCHY]
+    add ax, 67
+.x:
+    ret
+
+bx_camy:                                ; replaces `mov word [D4], 449` (MoveCamera @@set_bench_camera_params)
     push eax
-    mov ax, [bx_cur]
-    add ax, 6
-    cmp [D7], ax
+    call bx_camdest
+    mov [D4], ax
+    pop eax
+    ret
+
+bx_camlo:                               ; replaces `cmp word [CAMY], 339` (its flags): the arrival window's top
+    push eax
+    call bx_camdest
+    sub ax, 110
+    cmp [CAMY], ax
+    pop eax
+    ret
+
+bx_camhi:                               ; replaces `cmp word [CAMY], 359`
+    push eax
+    call bx_camdest
+    sub ax, 90
+    cmp [CAMY], ax
     pop eax
     ret
 
@@ -1344,6 +1346,38 @@ def sites2(p, regs):
     return at, {'IDX': (2, idx), 'TRAIN': (2, train), 'SUBST': (2, subst), 'HIDE': (1, hd[0])}
 
 
+def sites11(p, regs):
+    """(4.0.6 long dugouts) {name: obj1 offset} of BenchCheckControls' bench y (`mov word [D1], 389` / `[D2], 485`)
+    and MoveCamera's bench destination (`mov word [D4], 449` after `mov [D3], ax`) + its arrival window (`cmp word
+    [g_cameraY], 339` / `359`), and the variables BENCHY, CAMY, SIP (g_substituteInProgress), WAITGO
+    (g_waitForPlayerToGoInTimer)."""
+    d = p.le.obj_bytes(1)
+    pk = lambda x: re.escape(struct.pack('<I', x))
+    d1, d2, d4 = regs['D7'] - 24, regs['D7'] - 20, regs['D7'] - 12
+    by = [x.start() for x in re.finditer(rb'\x66\xc7\x05' + pk(d1) + rb'\x85\x01\x66\xc7\x05' + pk(d2) + rb'\xe5\x01', d)]
+    assert len(by) == 1, ('the bench y', by)
+    bv = [x for x in re.finditer(rb'\x66\xa1' + pk(d1) + rb'\x66\xa3(....)\x66\xa1' + pk(d2) + rb'\x66\xa3....\x66\xc7\x05....'
+                                 rb'\xc1\x01', d, re.S) if 0 < x.start() - by[0] < 0x100]
+    assert len(bv) == 1, ('benchY', bv)
+    lo = list(re.finditer(rb'\x66\x81\x3d(....)\x53\x01\x0f\x82', d, re.S))
+    assert len(lo) == 1, ('the bench camera window', lo)
+    hi = [x.start() for x in re.finditer(rb'\x66\x81\x3d' + re.escape(lo[0].group(1)) + rb'\x67\x01\x77', d)]
+    cy = [x.start() + 6 for x in re.finditer(rb'\x66\xa3....\x66\xc7\x05' + pk(d4) + rb'\xc1\x01', d, re.S)
+          if 0 < x.start() - lo[0].start() < 0x100]
+    assert len(hi) == 1 and len(cy) == 1, ('the bench camera', hi, cy)
+    wt = list(re.finditer(rb'\x66\xa1(....)\x66\x0b\xc0\x0f\x85....\x66\xa1....\x66\x0b\xc0\x74.\x66\xc7\x05' + pk(d1)
+                          + rb'\x25\x00', d, re.S))
+    sp = [x for x in re.finditer(rb'\x66\xa1(....)\x66\x0b\xc0\x75.\x66\xc7\x05' + pk(d1) + rb'\x00\x00', d, re.S)
+          if 0 < x.start() - hi[0] < 0x80]
+    assert len(wt) == 1 and 0 < lo[0].start() - wt[0].start() < 0x80 and len(sp) == 1, ('the bench camera states', wt, sp)
+    at = {'by': by[0], 'clo': lo[0].start(), 'chi': hi[0], 'cy': cy[0]}
+    for k, o in at.items():                     # (no other hook there)
+        assert bytes(p.get(1, o, 9)) == d[o:o + 9], ('dugout site already patched', k, hex(o))
+    tg = lambda o: p.target(1, o)
+    return at, {'BENCHY': tg(bv[0].start() + 8), 'CAMY': tg(lo[0].start() + 3), 'SIP': tg(sp[0].start() + 2),
+                'WAITGO': tg(wt[0].start() + 2), 'D4': (2, d4)}
+
+
 def sites3(p, regs, n1, n2):
     """Block 3: the three name tables (obj2) and their references, the +16 team offsets, MakeSpritesFromPlayerNames'
     record fields (shortName, shirtNumber) and MakePlayerNameSprite, ns_make's tail jump (namespr's code)."""
@@ -1781,6 +1815,7 @@ def patch(p, at, ns_at, lang='it'):
     else:
         _, cnp, ct, _, _ = xtra.sites(p)
     s2, v2 = sites2(p, regs)
+    s11, v11 = sites11(p, regs)
     INFO['TRAIN'] = v2['TRAIN']                     # (kittrain.py, 4.0.6: g_trainingGame)
     s3 = sites3(p, regs, s2['n1'], s2['n2'])
     import namespr
@@ -1792,9 +1827,12 @@ def patch(p, at, ns_at, lang='it'):
           'SHIRT_': (0, s3['shirt']), 'NB_': (0, NB), 'D6': (2, regs['D7'] - 4), 'D0': (2, regs['D7'] - 28),
           'A4': (2, regs['A0'] + 16), 'A5': (2, regs['A0'] + 20)}
     at = (at + 15) & ~15
-    sym = {**v2, **v3, 'D7': (2, regs['D7']), 'D1': (2, regs['D7'] - 24), 'A0': (2, regs['A0']), 'GMAX': (2, gmax), 'D2': (2, d2), 'A2': (2, regs['A0'] + 8), 'A6': (2, regs['A0'] + 24),
+    import dugout
+    sym = {**v2, **v3, 'BENCHY': v11['BENCHY'], 'CAMY': v11['CAMY'], 'SIP': v11['SIP'], 'WAITGO': v11['WAITGO'],
+           'DUGUP_': (0, 16 * dugout.ADD), 'D7': (2, regs['D7']), 'D1': (2, regs['D7'] - 24), 'A0': (2, regs['A0']), 'GMAX': (2, gmax), 'D2': (2, d2), 'A2': (2, regs['A0'] + 8), 'A6': (2, regs['A0'] + 24),
            'CT': (2, ct), 'CNP': (2, cnp), 'MAXP': (0, MAXP), 'PI': (0, PI)}
     s4 = sites4(p, regs)
+    assert s4['D4'] == v11['D4'][1], 'D4'
     sym.update({'GPI': (1, s4['gpi_t']), 'ROTATE': (1, s4['rot_t']), 'DRAWMENU': (1, s4['drawmenu']),
                 'SQCNT': (2, s4['tp'] - 2), 'S490': (2, s4['tp'] + 10), 'D3': (2, s4['D3']), 'D4': (2, s4['D4'])})
     s5 = sites5(p, regs, s4)
@@ -1855,10 +1893,11 @@ def patch(p, at, ns_at, lang='it'):
         go(o, lbl, n)
     call9(s2['c5'], 8, 'bx_cmp_last', 3)            # cmp word [IDX], 5 (66 83 3D addr 05)
     call9(s2['c6'], 8, 'bx_cmp_last1', 3)
-    call9(s2['arrow'], 6, 'bx_arrow', 2)            # mov ax, [IDX] (66 A1 addr)
-    call9(s2['bentry'], 9, 'bx_bentry', 3)          # (4.0.6) mov word [IDX], 0 (66 C7 05 addr 00 00): a bench entered
-    call9(s2['d7i'], 9, 'bx_win_init', 3)           # mov word [D7], 1 (66 C7 05 addr 01 00)
     call9(s2['d7e'], 8, 'bx_win_end', 3)            # cmp word [D7], 6 (66 83 3D addr 06)
+    call9(s11['by'], 9, 'bx_benchy', 3)             # (4.0.6 long dugouts) mov word [D1], 389 (66 C7 05 addr 85 01)
+    call9(s11['cy'], 9, 'bx_camy', 3)               # mov word [D4], 449
+    call9(s11['clo'], 9, 'bx_camlo', 3)             # cmp word [g_cameraY], 339 (66 81 3D addr 53 01)
+    call9(s11['chi'], 9, 'bx_camhi', 3)
     call9(s2['n1'], 9, 'bx_name1', 3)               # add word [D1], 255 (66 81 05 addr FF 00)
     call9(s2['n2'], 9, 'bx_name2', 3)
     for k in ('wb0', 'wb1', 'wb2'):                 # mov word [D2], 15 (66 C7 05 addr 0F 00)
@@ -1919,5 +1958,5 @@ def patch(p, at, ns_at, lang='it'):
     assert lab['bx_vw'] - lab['bx_bench'] == 114               # (bench_view reads the window there)
     LABELS.update(lab)
     print(f'exe: bench up to 15 (block 1: in-match teams of {MAXP}; GMAX obj2+{gmax:#x}, loop obj1+{lp:#x}, '
-          f'{len(rs)} offset-table refs moved; block 2: bench window of 5, cursor to 15, names of places 17+ on sprites {NB}.. (name tables 26 a team), 3 after-match loops to 11 + bench; code obj3+{at:#x}, {len(code)} B, {len(rel)} rel32 into the game, bx_bench obj3+{lab["bx_bench"]:#x})')
+          f'{len(rs)} offset-table refs moved; block 2: long dugouts (top bench y 293, every place seated, the camera on the own dugout), cursor to 15, names of places 17+ on sprites {NB}.. (name tables 26 a team), 3 after-match loops to 11 + bench; code obj3+{at:#x}, {len(code)} B, {len(rel)} rel32 into the game, bx_bench obj3+{lab["bx_bench"]:#x})')
     return at + len(code)

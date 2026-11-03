@@ -5423,7 +5423,63 @@ def bench_vars():
         assert len(f) == 1 and len(m) == 1, ('bench_vars', len(f), len(m))
         t = lambda x, g: p.target(1, x.start(g))[1]
         bench_vars.v = {'IDX': t(f[0], 2), 'SUBST': t(f[0], 1), 'ENTER': t(f[0], 4), 'NS1': t(m[0], 1), 'NS2': t(m[0], 3)}
+        import benchx                                   # (4.0.6 long dugouts: benchY, g_cameraY; g_cameraX 4 before it)
+        import sacups
+        v11 = benchx.sites11(p, sacups.regs(d))[1]
+        bench_vars.v.update(BENCHY=v11['BENCHY'][1], CAMY=v11['CAMY'][1])
     return bench_vars.v
+
+
+DUG_SPR = 17                                # (4.0.6) the seated sprite's last row below its place's y (bench_world 03/11)
+
+
+def dugout_check(s, n, gone, errs, info, tag=''):
+    """4.0.6 long dugouts (dugout.py, benchx block 2) with the bench open (subs menu, cursor moved): benchY 293 (the
+    top dugout, grown upwards) or 485; the camera arrived on the own dugout (g_cameraY = benchY + 67 - 100, the arrival
+    window +-10); the frame = the run's own PITCHn map at (g_cameraX, g_cameraY) but the bench's sprites (the pitch
+    found as the one that fits), and the seated sprites right of the box (x 27..35) end DUG_SPR rows below the last
+    filled place's y (benchY - 15 + 7 x place: places 1..n but `gone`, the left-out ones = empty seats): every place
+    seated, none past it. Returns (pitch, camera y, last place seen) or None."""
+    v = bench_vars()
+    w16 = lambda r, o: struct.unpack('<H', r.read(r.base2 + o, 2))[0]
+    r, last = s.result, None
+    for _ in range(12):                     # (the camera moves 5 px a frame at most: wait until it stands still)
+        r = s.send('dump:0.3')
+        if r.outcome != 'dump':
+            errs.append(f'{tag}dugout: {r}')
+            return None
+        cam = (w16(r, v['CAMY'] - 4), w16(r, v['CAMY']))
+        if cam == last:
+            break
+        last = cam
+    by, (cx, cy) = w16(r, v['BENCHY']), cam
+    check(by in (293, 485), f'{tag}dugout: benchY {by} (want 293 top / 485 bottom)', errs)
+    check(abs(cy - (by + 67 - 100)) <= 10, f'{tag}dugout: camera y {cy}, not on the dugout (benchY {by}: {by - 33})', errs)
+    f = r.read(0xA0000, 64000)
+    samp = [(x, y) for y in range(0, 200, 3) for x in range(60, 320, 5)]
+    fit = []
+    for k in range(1, 6):
+        try:
+            dat = struct.unpack('<2310I', open(os.path.join(s.run, 'SWOS', f'PITCH{k}.DAT'), 'rb').read())
+            blk = open(os.path.join(s.run, 'SWOS', f'PITCH{k}.BLK'), 'rb').read()
+        except OSError:
+            continue
+        px = lambda x, y, dat=dat, blk=blk: blk[dat[(y // 16) * 42 + x // 16] + (y % 16) * 16 + x % 16]
+        fit.append((sum(px(x + cx, y + cy) != f[y * 320 + x] for x, y in samp), k, px))
+    bad, k, px = min(fit, key=lambda t: t[0])
+    check(bad * 20 < len(samp), f'{tag}dugout: no pitch map fits the frame (best PITCH{k}: {bad} of {len(samp)} differ)', errs)
+    ink = [y + cy for y in range(200) if any(px(x + cx, y + cy) != f[y * 320 + x] for x in range(max(0, 27 - cx), max(0, 36 - cx)))
+           and y + cy > by - 15]
+    filled = [i for i in range(1, n + 1) if i not in gone]
+    want = by - 15 + 7 * filled[-1] + DUG_SPR if filled else None
+    seen = ink and round((ink[-1] - DUG_SPR - by + 15) / 7)
+    check(ink and want is not None and abs(ink[-1] - want) <= 2,
+          f'{tag}dugout: seated sprites end at y {ink[-1] if ink else None} (place {seen}), want {want} (place '
+          f'{filled[-1] if filled else None} of {n})', errs)
+    info.append(f'{tag}dugout: benchY {by}, camera ({cx}, {cy}), PITCH{k} ({bad} of {len(samp)} differ), seated down to '
+                f'place {seen} of {n}')
+    s.shot(tag + 'dugout')
+    return k, cy, seen
 
 
 def team_data():
@@ -5445,7 +5501,8 @@ def team_data():
 
 def bench_sub(s, bx, place, errs, info, mark, key=None, gone=None, tag=''):
     """benchx block 2: the bench called, its cursor moved down to the squad's place `place` (12..26, g_benchPlayerIndex
-    = place - 11: index 1 = in-match player 11 = place 12), the window of 5 (bx_win, obj1 at bx - 4) following it; fire picks him
+    = place - 11: index 1 = in-match player 11 = place 12; 4.0.6 long dugouts: every place seated, no window - bx_win,
+    obj1 at bx - 4, stays 0 - and the camera on the own dugout, dugout_check); fire picks him
     (g_subsState 1, plToEnterGameIndex = place - 1), fire again makes the change (the team's NumSubs + 1)."""
     v = bench_vars()
     want = place - 11
@@ -5491,8 +5548,9 @@ def bench_sub(s, bx, place, errs, info, mark, key=None, gone=None, tag=''):
     check(last == want, f'the cursor never reached index {want} (place {place}): {seen}', errs)
     if last != want:
         return False
-    check(all(i - w in range(1, 6) for i, w in seen if i), f'cursor out of the window: {seen}', errs)
-    check(any(w > 0 for i, w in seen), f'the window never scrolled: {seen}', errs)
+    check(all(w == 0 for i, w in seen), f'bx_win moved (4.0.6 long dugouts: no window): {seen}', errs)
+    gone = {int(x.split(':')[0]) - 11 for x in os.environ.get('BENCH_INJ', '').split(',') if x} if gone is None else gone
+    dugout_check(s, bench_eff(s.result, bx), gone, errs, info, tag)
     s.shot(tag + 'bench_window')
     ups = []                                # back up 6 places (the window starts at the cursor) and down again
     for key in ['up'] * 6 + ['down'] * 6:
@@ -5503,10 +5561,9 @@ def bench_sub(s, bx, place, errs, info, mark, key=None, gone=None, tag=''):
         ups.append((w16(v['IDX'], r.base2), w16(0, r.lin(bx - 4))))
     info.append(f'up/down {ups}')
     up6 = ups[5]
-    gone = {int(x.split(':')[0]) - 11 for x in os.environ.get('BENCH_INJ', '').split(',') if x} if gone is None else gone   # (4.0.6: left-out
-    up_i = [i for i in range(want - 1, 0, -1) if i not in gone][5]     # places are empty: the cursor skips them)
-    check(up6[0] == up_i and up6[1] == min(up6[0] - 1, max(0, want - 5)), f'up 6: (index, window) {up6} (index {up_i})', errs)
-    check(ups[-1] == (want, want - 5) if want > 5 else ups[-1][0] == want, f'down again: {ups[-1]}', errs)
+    up_i = [i for i in range(want - 1, 0, -1) if i not in gone][5]     # (left-out places: empty, the cursor skips them)
+    check(up6 == (up_i, 0), f'up 6: (index, window) {up6} (index {up_i})', errs)
+    check(ups[-1] == (want, 0), f'down again: {ups[-1]}', errs)
     s.shot(tag + 'bench_up')
     r = s.send('fire:0.2 dump:0.6')
     st, ent = w16(v['SUBST'], r.base2), w16(v['ENTER'], r.base2)

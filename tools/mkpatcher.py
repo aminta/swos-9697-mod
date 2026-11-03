@@ -126,6 +126,13 @@ FILES = [  # (id, original path, patched path, file name in the game folder)
     ('TEAM.183', None, 'c/SWOS/DATA/TEAM.183', 'DATA/TEAM.183'),
     ('TEAM.184', None, 'c/SWOS/DATA/TEAM.184', 'DATA/TEAM.184'),
     ('TEAM.185', None, 'c/SWOS/DATA/TEAM.185', 'DATA/TEAM.185'),
+    # 4.0.6: the long dugouts (dugout.py, benchx block 2): the match pitches' maps, PITCH5's patterns (3 new ones)
+    ('PITCH1.DAT', 'orig/PITCH1.DAT', 'c/SWOS/PITCH1.DAT', 'PITCH1.DAT'),
+    ('PITCH2.DAT', 'orig/PITCH2.DAT', 'c/SWOS/PITCH2.DAT', 'PITCH2.DAT'),
+    ('PITCH3.DAT', 'orig/PITCH3.DAT', 'c/SWOS/PITCH3.DAT', 'PITCH3.DAT'),
+    ('PITCH4.DAT', 'orig/PITCH4.DAT', 'c/SWOS/PITCH4.DAT', 'PITCH4.DAT'),
+    ('PITCH5.DAT', 'orig/PITCH5.DAT', 'c/SWOS/PITCH5.DAT', 'PITCH5.DAT'),
+    ('PITCH5.BLK', 'orig/PITCH5.BLK', 'c/SWOS/PITCH5.BLK', 'PITCH5.BLK'),
     # GOG release (2013): same files, 2 bytes changed in each exe (a national cup's months); TEAM.020 identical.
     # Originals in orig/gog/, built with patch.patch_exe(orig/gog/X, c/gog/X, ...)
     ('ITALIAN.EXE (GOG)', 'orig/gog/ITALIAN.EXE', 'c/gog/ITALIAN.EXE', 'ITALIAN.EXE'),

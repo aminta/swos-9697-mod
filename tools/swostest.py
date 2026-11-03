@@ -3789,6 +3789,20 @@ def world8485_nat():
     return not errs, '; '.join(errs + notes)
 
 
+def font_odd_all(texts):
+    """The characters of texts the game's menu fonts cannot draw (complist.FONT; 4.0.6: no '&' / '!'), the known
+    shipped names of complist.FONT_EXCEPT left out (known, each with its data owner)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import complist
+    out = set()
+    for t in texts:
+        u = t.upper()
+        for n in complist.FONT_EXCEPT:
+            u = u.replace(n, '')
+        out |= set(u) - complist.FONT
+    return sorted(out)
+
+
 def nop_league_int3(name, src=None):
     """A test copy of src (default builds()['it']; builds-x/<name>_<build>) whose DIYLeagueTournamentMatch `int 3` (the game's own,
     at its start: harmless on a real PC, a trap under the harness's BPINT 3 - a season / league fixture's
@@ -15414,7 +15428,7 @@ def world_contiview():
                 check(not LIST_BAD, f'season 2 VISUAL. COMPETIZ. list: {LIST_BAD}', errs)
             check(bool(lines) and lines[0], f'season 2 page {k}: {lines}', errs)
             import complist                             # (every character one the menu font draws)
-            odd = sorted({ch for x in lines + [x for p in pages for x in p] + [title] for ch in x.upper()} - complist.FONT)
+            odd = font_odd_all(lines + [x for p in pages for x in p] + [title])
             check(not odd, f'season 2 page {k}: characters outside the menu font {odd}', errs)
             wide = [x for x in lines + [x for p in pages for x in p] if complist.px(x.upper()) > 298]   # (ctview PXMAX)
             check(not wide, f'season 2 page {k}: lines over 298 px {wide}', errs)
@@ -15521,7 +15535,7 @@ def world_cgame_view():
             s.shot(f'{tag}_rounds')
             btns = [(i, sc.raw_texts[i] if sc.raw_texts else t) for i, t, inv, dis in sc.entries[1:1 + ctview.CR_N + 1]
                     if not inv and t]
-            odd = sorted({ch for i, t in btns for ch in t.upper()} - complist.FONT)
+            odd = font_odd_all(t for i, t in btns)
             check(not odd, f'{conf}: rounds menu characters outside the font {odd}', errs)
             wide = [(t, complist.px(t.upper())) for i, t in btns if complist.px(t.upper()) > 144]
             check(not wide, f'{conf}: rounds menu labels over 144 px {wide}', errs)
@@ -15542,7 +15556,7 @@ def world_cgame_view():
                 s.log.append(f'[cgv] {conf} {label}: {texts[:24]}')
                 check(v.find(summ, exact=True) is None and texts, f'{conf} {label}: no view ({texts[:6]})', errs)
                 raw = v.raw_texts or texts
-                bad = sorted({ch for t, e in zip(raw, v.entries) if not e[2] for ch in t.upper()} - complist.FONT)
+                bad = font_odd_all(t for t, e in zip(raw, v.entries) if not e[2])
                 check(not bad, f'{conf} {label}: characters outside the font {bad}', errs)
                 over = [(t, complist.px(t.upper()), g[2]) for t, g, e in zip(raw, v.geom, v.entries) if t and g[2] > 0
                         and not e[2] and complist.px(t.upper()) > g[2]]   # (visible entries: the game's own hidden
@@ -15618,7 +15632,7 @@ def world_cgame_view():
                 check(len(cups) >= want_cups, f'{tag}: {len(cups)} cup buttons, want >= {want_cups}', errs)
                 y_n = min(sc.geom[i][1] for i, t, inv, _ in sc.entries if 21 <= i <= 86 and t and not inv)
                 check(all(sc.geom[i][1] < y_n for i, _ in cups), f'{tag}: cup buttons not above the list', errs)
-            odd = sorted({ch for _, t in cups for ch in t.upper()} - complist.FONT)
+            odd = font_odd_all(t for _, t in cups)
             check(not odd, f'{tag}: cup buttons characters outside the font {odd}', errs)
             wide = [(t, complist.px(t.upper()), sc.geom[i][2]) for i, t in cups if complist.px(t.upper()) > sc.geom[i][2] - 2]
             check(not wide, f'{tag}: cup names wider than their buttons {wide}', errs)
@@ -15777,7 +15791,7 @@ def world_contiview_tie():
         s.log.append(f'[cv] tie {btn} {title} {allx}')
         sys.path.insert(0, os.path.join(ROOT, 'tools'))
         import complist                                 # (every character one the menu font draws: '>' was a box)
-        odd = sorted({ch for x in allx + [title] for ch in x.upper()} - complist.FONT)
+        odd = font_odd_all(allx + [title])
         check(not odd, f'characters outside the menu font {odd}', errs)
         wide = [x for x in allx if complist.px(x.upper()) > 298]   # (ctview PXMAX: a long tie wraps)
         check(not wide, f'lines over 298 px {wide}', errs)

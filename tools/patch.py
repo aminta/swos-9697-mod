@@ -241,6 +241,9 @@ def patch_exe(src, dst, remap, lang='it'):
     if xtra_on:
         engine.save_item('XS', xtra.XS_SIZE, world_only=True)    # 4.0.2 the XTRA players bought from other clubs (xtra.py)
         engine.save_item('XL', xleft.XL_SIZE, world_only=True)   # 4.0.6 the XTRA players who left their club, XS's overflow (xleft.py)
+        if worlds:
+            import bteam
+            engine.save_item('BU', bteam.BU_SIZE, world_only=True)   # 4.0.6 the B-team call-ups (bteam.py)
     engine.save_item('CC', 4)                    # 4.0.6 the OPTIONS rows 'CPU red cards', 'CPU injuries' (cpucards.py: 0 = ON;
     engine.after_load('cc_load')                 # the session's value kept by a load / a new career)
     engine.after_new('cc_new')
@@ -770,6 +773,13 @@ def patch_exe(src, dst, remap, lang='it'):
         cg_bss = ctgame.CG_BSS
     else:
         cg_bss = 0
+    if xtra_on and worlds:                       # 4.0.6 B-team call-ups (Davide 02/11 + 03/11): the runtime at the obj3
+        import bteam                             # chain's end (after ctview / ctgame)
+        bt_at = (st_end + 15) & ~15
+        st_end = bteam.patch(p, bt_at)
+        assert st_end <= LT3_AT, hex(st_end)
+        if st_end - bt_at > 0x1200:
+            print(f'exe: WARNING bteam {st_end - bt_at} B > 0x1200 (Regia: tell the Integratore)')
     print(f'exe: obj3 end {st_end:#x} ({LT3_AT - st_end} B left before the longtable page obj3+{LT3_AT:#x})')
     p.set_vsize(3, 0x1000 * OBJ3_PAGES + cg_bss, bss=cg_bss)
     assert 0x1000 * OBJ3_PAGES + cg_bss <= OBJ3_ARENA

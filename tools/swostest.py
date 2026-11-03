@@ -22100,6 +22100,181 @@ def xleft_lists(s, exe):
     return out, xs[:2 + 3 * 4].hex() + ('/' + xl[:5 + 3 * 2].hex() if xl else '/no XL')
 
 
+def bteam_vars(exe):
+    """bteam in a built exe: the obj3 mailbox (BTRQ, BTEAM_FORCE builds) and BU list (BTBU) offsets, careerTeam & co
+    (xtra.sites), the wage table, the change list (xleft.sites), the world's BAGE rows {parent word: (B word, ages)}."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lepatch
+    import sacups
+    import xleft
+    import xtra
+    p = lepatch.LEPatch(os.path.join(exe, 'ITALIAN.EXE'))
+    d3 = bytes(p.get(3, 0, 0x1000 * p.le.obj(3).npages))
+    _, cnp, ct, cmp, sel = xtra.sites(p)
+    orig = lepatch.LEPatch(os.path.join(ROOT, 'orig', UI_ORIG))
+    xs = xleft.sites(orig, sacups.regs(orig.le.obj_bytes(1)))
+    d = open(os.path.join(exe, 'DATA', 'BAGE.005'), 'rb').read()
+    rows, o = {}, 4
+    for _ in range(d[3]):
+        bw, pw, ri, k = struct.unpack_from('<HHBB', d, o)
+        rows[pw] = (bw, list(d[o + 6:o + 6 + k]), ri)
+        o += 6 + k
+    mb = d3.find(b'BTRQ')
+    return {'mb': (3, mb + 4) if mb >= 0 else None, 'bu': (3, d3.index(b'BTBU') + 4), 'cnp': cnp, 'ct': ct, 'cmp': cmp,
+            'sel': sel, 'wage': xtra.wage_table(p), 'nfm2': xs['nfm2'], 'cfmp': xs['cfmp'], 'rows': rows}
+
+
+def bteam_names(exe, word):
+    """The B team's player names: record places 1..16 (TMW5.nnn) + its XTRA block (XTW5.nnn)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import xtra
+    f, o = word & 0xFF, word >> 8
+    d = open(os.path.join(exe, 'DATA', 'TMW5.%03d' % f), 'rb').read()
+    r = d[2 + o * 684:2 + (o + 1) * 684]
+    out = [r[76 + i * 38 + 3:76 + i * 38 + 25].split(b'\0')[0].decode('latin1') for i in range(16)]
+    xf = os.path.join(exe, 'DATA', 'XTW5.%03d' % f)
+    if os.path.exists(xf):
+        out += [x[3:25].split(b'\0')[0].decode('latin1') for x in xtra.read(open(xf, 'rb').read()).get(o, [])]
+    return out
+
+
+def bteam_state(s, v):
+    """(careerNumPlayers, [names of the squad order], {slot: (name, byte 26, wage)}, BU entries [(kind, idx, word)])"""
+    r = s.result
+    n = struct.unpack('<H', bytes(r.obj2(v['cnp'], 2)))[0]
+    order = list(r.obj2(v['cmp'], n))
+    slots = {}
+    for k in order:
+        b = bytes(r.obj2(v['ct'] + 76 + k * 38, 38))
+        slots[k] = (b[3:25].split(b'\0')[0].decode('latin1'), b[0x1A], struct.unpack('<I', bytes(r.obj2(v['wage'] + 4 * k, 4)))[0])
+    bu = r.read(r.lin(v['bu']), 84)
+    ents = [(bu[4 + 8 * i], bu[5 + 8 * i], struct.unpack_from('<H', bu, 6 + 8 * i)[0]) for i in range(min(bu[0], 10))]
+    return n, [slots[k][0] for k in order], slots, ents
+
+
+@scenario
+def bteam_rt():
+    """4.0.6 B-team call-ups, M2 runtime (BTEAM_FORCE release-recipe build, SWOSTEST_BUILD): a World 2026-27 career at
+    ATALANTA (B team ATALANTA U23); at the first squad screen the harness's mailbox calls up 4 for one match (record
+    places 1-3 + an XTRA place), a 5th (refused: max 4), one again (already called), 2 for the season (a record
+    place: its generated replacement in the change list; an XTRA place), an index past the squad (no such player).
+    PASS: the codes; each called-up player in careerTeam + the squad order with the 'generated' bit, wage 0 for one
+    match, > 0 for the season; after the match played the one-match ones gone (squad = before + the season ones), BU =
+    the 2 season entries; the same after SALVA CARRIERA + CARICA (BU saved in the engine block)."""
+    exe = builds()['it']
+    v = bteam_vars(exe)
+    if v['mb'] is None:
+        return False, f'{exe}: no BTRQ mailbox (not a BTEAM_FORCE build)'
+    b = nop_league_int3('bteam_rt', exe)
+    t1, t2, g1 = cc_sites(b)[1:4]
+    me = os.environ.get('BT_CLUB', 'ATALANTA')
+    path = ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27', 'EUROPA', 'ITALIA', 'SERIE A', me]
+    errs, info = [], []
+
+    def leave(s):
+        for _ in range(8):
+            if 'PROSS. PARTITA' in s.screen().texts():
+                break
+            press(s, s.screen(), 'CONTINUA', 3) or press(s, s.screen(), 'ESCI', 3) or s.send('fire dump:2')
+
+    def to_squad(s):
+        for _ in range(10):
+            texts = s.screen().texts()
+            if 'MOD. TATTICA' in texts:
+                return True
+            if 'TRASFERIMENTI' in texts and 'PARTITA' in texts:
+                press(s, s.screen(), 'PARTITA', 2) or s.send('fire dump:2')
+            elif '- PARTITA -' in texts:
+                press(s, s.screen(), '- PARTITA -', 2) or s.send('fire dump:2')
+            else:
+                s.send('fire dump:2')
+        return False
+
+    with Session('bteam_rt', b, {}, 'dump:2', 1500, match=True) as s:
+        s.wait()
+        if not pick_career(s, path):
+            return False, 'new career: ' + str(s.screen().texts()[:8])
+        s.send('fire dump:3')
+        leave(s)
+        r = s.result
+        selw = struct.unpack('<H', bytes(r.obj2(v['sel'], 2)))[0]
+        if selw not in v['rows']:
+            return False, f'{me} ({selw:#x}): no B team in BAGE {[hex(k) for k in v["rows"]]}'
+        bw, ages, ri = v['rows'][selw]
+        bn = bteam_names(exe, bw)
+        n0, order0, _, _ = bteam_state(s, v)
+        info.append(f'{me} {selw:#x}: B {bw:#x} ({len(bn)} players, rules {ri}), squad {n0}')
+        x = 16 if len(bn) > 16 else 3
+        reqs = [(1, 0), (1, 1), (1, x), (1, 2), (1, 4), (1, 0), (2, 5), (2, x + 1 if x == 16 else 6)]
+        want, inbu, n, k1 = [], set(), n0, 0             # (bt_can's order: index, already called, squad full, kind)
+        for k, i in reqs:
+            c = 8 if i >= len(ages) or not bn[i] else 6 if i in inbu else 4 if n >= 30 else 1 if k == 1 and k1 >= 4 else 0
+            want.append(c)
+            if c == 0:
+                inbu.add(i)
+                n += 1
+                k1 += k == 1
+        s.poke(r.lin(v['mb']) + 1, b''.join(bytes(q) for q in reqs) + b'\xff' * 8)
+        s.poke(r.lin(v['mb']), bytes([len(reqs)]))
+        if not to_squad(s):
+            return False, f'no squad screen: {s.screen().texts()[:12]}'
+        r = s.result
+        mb = r.read(r.lin(v['mb']), 26)
+        res = list(mb[17:25])
+        check(mb[0] == 0 and mb[25] == 1, f'mailbox not done once: count {mb[0]}, runs {mb[25]}', errs)
+        check(res == want, f'codes {res} (want {want})', errs)
+        n1, order1, slots1, bu1 = bteam_state(s, v)
+        s.shot('squad_called')
+        called = [bn[i] for (k, i), c in zip(reqs, res) if c == 0]
+        info.append(f'codes {res}; squad {n0} -> {n1}; BU {bu1}')
+        check(n1 == n0 + len(called), f'squad {n0} -> {n1}, want +{len(called)}', errs)
+        for (k, i), c in zip(reqs, res):
+            if c:
+                continue
+            sl = [q for q, (nm, f, w) in slots1.items() if nm == bn[i]]
+            if not sl:
+                errs.append(f'{bn[i]} ({k}, {i}) not in the squad order')
+                continue
+            nm, f, w = slots1[sl[0]]
+            check(f & 2, f'{nm}: byte 26 {f:#x} without the generated bit', errs)
+            check((w == 0) if k == 1 else (w > 0), f'{nm} (kind {k}): wage {w}', errs)
+        nf = struct.unpack('<H', bytes(r.obj2(v['nfm2'], 2)))[0]
+        cl = [struct.unpack_from('<HB', bytes(r.obj2(v['cfmp'] + 42 * j, 3))) for j in range(nf)]
+        check((bw, 5) in cl, f'change list without ({bw:#x}, 5): {[(hex(a), b_) for a, b_ in cl[-4:]]}', errs)
+        info.append(f'change list {nf}: last {[(hex(a), b_) for a, b_ in cl[-3:]]}')
+        try:
+            cc_match(s, t1, t2, g1, 'bt1')
+        except AssertionError as e:
+            errs.append(str(e))
+            return False, '; '.join(errs + info)
+        leave(s)
+        n2, order2, slots2, bu2 = bteam_state(s, v)
+        season = [bn[i] for (k, i), c in zip(reqs, res) if k == 2 and c == 0]
+        gone = [bn[i] for (k, i), c in zip(reqs, res) if k == 1 and c == 0]
+        info.append(f'after the match: squad {n2}, BU {bu2}')
+        check(n2 == n0 + len(season), f'after the match: squad {n2}, want {n0 + len(season)}', errs)
+        check(not any(g in order2 for g in gone), f'one-match players still in: {[g for g in gone if g in order2]}', errs)
+        check(all(g in order2 for g in season), f'season players gone: {[g for g in season if g not in order2]}', errs)
+        check(len(bu2) == len(season) and all(e[0] & 3 == 2 for e in bu2), f'BU after the match {bu2} (before {bu1})', errs)
+        for _ in range(6):                              # career menu -> ESCI -> main menu: save, load
+            if s.screen().find('SALVA CARRIERA', exact=True) is not None:
+                break
+            press(s, s.screen(), 'ESCI', 3) or press(s, s.screen(), 'ABBANDONA', 3)
+        walk(s, 'SALVA CARRIERA', 2)
+        s.send(name_entry('BTRT') + ' dump:3')
+        car = os.path.join(s.run, 'SWOS', 'BTRT.CAR')
+    if not os.path.exists(car):
+        return False, '; '.join(errs + info + ['no BTRT.CAR'])
+    with Session('bteam_rt_load', b, {'BTRT.CAR': car}, 'dump:2', 600) as s:
+        s.wait()
+        s.send(LOAD1 + ' dump:3')
+        leave(s)
+        n3, order3, _, bu3 = bteam_state(s, v)
+        check((n3, order3, bu3) == (n2, order2, bu2), f'after the load: squad {n3}, BU {bu3} (saved {n2}, {bu2})', errs)
+        info.append(f'loaded: squad {n3}, BU {bu3}')
+    return not errs, '; '.join(errs + info)
+
+
 @scenario
 def xleft_job():
     """4.0.6 (Enzo's duplicate): an XTRA player who left his club never comes back with it. World 2026-27 career at

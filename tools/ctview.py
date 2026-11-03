@@ -164,7 +164,7 @@ def table(lang, confs, files=None, words=None):
     return bytes(out + strs), spec
 
 
-CAP = 0x2800                            # obj3 room (the Integratore, 03/11; P3's rounds menu + VIEW WORLD's cups:
+CAP = 0x2900                            # obj3 room (the Integratore, 03/11; +0x100 4.0.6 B2's season 1, MC 04/11; P3's rounds menu + VIEW WORLD's cups:
                                         # OBJ3_PAGES 10, the chain's end <= LT3_AT)
 CUPKEYS = []                            # table()'s cups: (conf, key) in the spec's order
 

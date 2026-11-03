@@ -9517,8 +9517,8 @@ def controls_swospp():
         check(sc.entries[0][1] == 'OPZIONI', f'not in OPTIONS: {sc}', errs)
         check(btn[1] == 1, f'entry 19 shown under SWOS++: {btn}', errs)
         check(sc.nav[17][0][3] != 19 and sc.nav[18][0][2] != 19, f'links to 19: {sc.nav[17][0]} {sc.nav[18][0]}', errs)
-        check(sc.n == 20, f'{sc.n} OPTIONS entries under SWOS++ (4.0.6 cpucards: its 2 rows hidden, 20 = the game\'s)',
-              errs)                             # (4.0.6: no ROSSI / INFORTUNI ALLA CPU rows - entries 20..23)
+        check(sc.n == 20, f'{sc.n} OPTIONS entries under SWOS++ (4.0.6 cpucards / gkinj: their 3 rows hidden, 20 = the '
+              'game\'s)', errs)                # (4.0.6: no ROSSI / INFORTUNI ALLA CPU / INFORTUNI PORTIERI rows - 20..25)
         s.shot('options')
     return not errs, '; '.join(errs) or 'no CONTROLS button under SWOS++'
 
@@ -23078,13 +23078,16 @@ def cc_play(scr):
     return prev[-1][0]
 
 
-def cc_match(s, t1, t2, g1, tag, max_steps=200, top=None, kick=None):
+def cc_match(s, t1, t2, g1, tag, max_steps=200, top=None, kick=None, squad=None):
     """From a career menu: the next match played for real (idle keys: the CPU fouls), then its stats: [(controls,
     fouls, bookings, sendings-off) of team 1, team 2] (controls 1 = TEAM_COMPUTER)."""
     rd = lambda o, n: s.result.read((s.result.base1 if o[0] == 1 else s.result.base2) + o[1], n)
     for _ in range(12):
         texts = s.screen().texts()
         s.log.append(f'[cc] {tag}: ' + ' | '.join(texts)[:300])
+        if squad and 'MOD. TATTICA' in texts and not getattr(s, 'cc_sq', False):   # (the caller's reading at the
+            s.cc_sq = True                                                    #  first squad screen)
+            squad()
         if cc_play(s.screen()) is not None:
             break
         if 'TRASFERIMENTI' in texts and 'PARTITA' in texts:
@@ -23103,7 +23106,7 @@ def cc_match(s, t1, t2, g1, tag, max_steps=200, top=None, kick=None):
         s.cc_subbed = False
         s.shot(f'{tag}_noteam')
         raise AssertionError(f'{tag}: no team screen ({s.screen()})')
-    s.cc_subbed = False
+    s.cc_subbed = s.cc_sq = False
     scr = s.screen()
     i = scr.find('GIOCA :', exact=True)              # player -> coach (the button reads ALLEN: then): the career
     if i is not None:                                # club played by the AI too (more tackles on both sides than
@@ -23305,6 +23308,125 @@ def cpu_inj():
             else:
                 check(not inj and not any(l2), f'{tag}: CPU injuries kept with INFORTUNI OFF {l1} / {l2}', errs)
     return not errs, '; '.join(errs + notes)
+
+
+def gk_sites(exe_dir):
+    """gkinj in a built exe: its data block (obj3: GK_ROLLS, GK_HITS, GK_LAST, GK_SEED, GI_W, GI_SH after the tag) and
+    careerTeam / currentMatchPlayers (gkinj.find on the exe language's original)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import gkinj
+    import lepatch
+    p = lepatch.LEPatch(os.path.join(exe_dir, 'ITALIAN.EXE'))
+    d3 = bytes(p.get(3, 0, 0x1000 * p.le.obj(3).npages))
+    assert d3.count(gkinj.TAG) == 1, d3.count(gkinj.TAG)
+    f = gkinj.find(lepatch.LEPatch(os.path.join(ROOT, 'orig', UI_ORIG)))
+    return (3, d3.index(gkinj.TAG) + 4), f['CAREER'], f['CMPL']
+
+
+def gk_read(s, gk):
+    """(rolls, hits, last record, seed, GI_W, GI_SH)"""
+    return struct.unpack('<IIIIHH', s.result.read(s.result.lin(gk), 20))
+
+
+@scenario
+def gk_inj():
+    """4.0.6 (Davide): goalkeeper injuries (gkinj.py). OPTIONS: INFORTUNI PORTIERI entry 24 / value 25 (26 entries),
+    above ROSSI ALLA CPU (20), below the title, within 138 px, font characters; fire -> OFF -> ON (GI_W, GI_SH). A
+    career (JUVENTUS) on a GKINJ_FORCE=1m / 2m build (every roll hits at LVL1 / LVL2): after match 1 the career
+    club's keeper (currentMatchPlayers[0]) has that level; his level at each later squad screen (where the game
+    decides the line-up) - unavailable (> 20h) for exactly 1 / 2 matches, the CPU's keeper (INFORTUNI ALLA CPU ON) at
+    that level too; off: the row OFF, no roll; cpu: INFORTUNI ALLA CPU OFF - the human keeper only; oldsave: JUVE2F (no
+    'GI') loads the row ON after it was set OFF (GK_MODES: the cases, default all)"""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import gkinj
+    from complist import px, SMALL_W
+    errs, notes = [], []
+    label = gkinj.LABEL[UI]
+    for mode in os.environ.get('GK_MODES', '1m,2m,off,cpu,oldsave').split(','):
+        if mode == 'oldsave':                        # (an old save - no 'GI' - loads the row ON)
+            b = builds()['it'] if UI == 'it' else build(f'gk_inj_ui_{UI}', lang=UI)
+            gk = gk_sites(b)[0]
+            with Session(f'gk_inj_oldsave_{UI}', b, {'JUVE2F.CAR': juve2(True)}, 'dump:2', 120) as s:
+                s.wait()
+                s.poke(s.result.lin(gk) + 16, b'\x01\x00\x01\x00')
+                s.send(LOAD1 + ' dump:3')
+                w = gk_read(s, gk)[4:]
+                check(w == (0, 0), f'old save JUVE2F: GI_W, GI_SH {w} after the load (want 0 = ON)', errs)
+                notes.append(f'oldsave: GI {w}')
+            continue
+        env = {'GKINJ_FORCE': '1m' if mode in ('off', 'cpu') else mode}
+        b = nop_league_int3(f'gk_inj_{mode}_{UI}', build(f'gk_inj_{env["GKINJ_FORCE"]}_{UI}', env=env, lang=UI))
+        cc, t1, t2, g1, gl, top = cc_sites(b)
+        gk, career, cmpl = gk_sites(b)
+        with Session(f'gk_inj_{mode}_{UI}', b, {}, 'dump:3', 1500, match=True) as s:
+            s.wait()
+            if mode == '1m':
+                scr = walk(s, 'OPZIONI', 2)
+                lab, lab_r = scr.find(label, exact=True), scr.find(cpucards_label(), exact=True)
+                check(lab == 24 and lab_r == 20 and scr.n == 26, f'OPTIONS: {label} at {lab}, red cards at {lab_r}, '
+                      f'{scr.n} entries', errs)
+                if lab == 24:
+                    g = {e[0]: scr.geom[j] for j, e in enumerate(scr.entries)}
+                    check(g[24][1] >= 15 and g[24][1] + g[24][3] <= g[20][1] and g[25][1] == g[24][1],
+                          f'OPTIONS rows: 24 {g[24]}, 25 {g[25]}, 20 {g[20]}', errs)
+                    check(px(label) <= g[24][2] and set(label) <= set(SMALL_W) | {' '}, f'{label!r}: '
+                          f'{px(label)} px in {g[24][2]}', errs)
+                s.shot('options')
+                w = [gk_read(s, gk)[4:]]
+                for _ in range(2):
+                    walk(s, 25, 2)
+                    w.append(gk_read(s, gk)[4:])
+                    if len(w) == 2:
+                        s.shot('options_off')
+                check(w == [(0, 0), (1, 1), (0, 0)], f'OPTIONS toggles (GI_W, GI_SH): {w}', errs)
+                press(s, s.screen(), 'ESCI', 2) or walk(s, 18, 2)
+            if mode == 'off':
+                s.poke(s.result.lin(gk) + 16, b'\x01\x00\x01\x00')
+            if mode == 'cpu':                        # (INFORTUNI ALLA CPU OFF, its session copy too)
+                s.poke(s.result.lin(cc) + 2, b'\x01\x00')
+                s.poke(s.result.lin(cc) + 6, b'\x01\x00')
+            s.poke(s.result.base2 + gl[1], b'\x03\x00')
+            new_career(s, 'ITALIA', 'SERIE A', 'JUVENTUS')
+            rec = []
+            lvl = lambda: s.result.read(rec[0] + 0x1B, 1)[0] & 0xE0 if rec else None
+            seen = []
+            res = cc_match(s, t1, t2, g1, f'{mode}1')
+            k = s.result.read(s.result.lin(cmpl), 1)[0]
+            rec.append(s.result.lin(career) + 0x4C + k * 0x26)
+            st = gk_read(s, gk)
+            seen.append(('after1', lvl()))
+            notes.append(f'{mode}: match 1 {res}, keeper record {k}, rolls {st[0]}, hits {st[1]}, level {lvl():#x}')
+            cpu = [p for p, r in zip(s.cc_ptrs, res) if r[0] == 1]
+            ck = cpu and s.result.read(cpu[0] + 0x4C + s.result.read(cpu[0] + 0x3C, 1)[0] * 0x26 + 0x1B, 1)[0] & 0xE0
+            notes.append(f'{mode}: CPU keeper level {ck:#x}' if cpu else f'{mode}: no CPU team {res}')
+            if mode == 'off':
+                check(st[0] == 0 and st[1] == 0 and lvl() == 0 and not ck, f'off: rolls {st[:2]}, level {lvl():#x}, '
+                      f'CPU {ck}', errs)
+                continue
+            lv = gkinj.LVL1 if mode in ('1m', 'cpu') else gkinj.LVL2   # (the CPU's level after cpucards' day
+            ok_ck = {0} if mode == 'cpu' else {lv, lv - 0x20, 0x20, 0}    #  countdowns: the post-match days pass)
+            check(len(cpu) == 1 and ck in ok_ck and (st[0] == 1 if mode == 'cpu' else st[0] > 2),
+                  f'{mode}: CPU keeper level {ck:#x}, rolls {st[0]} (INFORTUNI ALLA CPU '
+                  f'{"OFF: the human keeper only" if mode == "cpu" else "ON: the CPU keepers too"})', errs)
+            if mode == 'cpu':
+                check(lvl() == gkinj.LVL1, f'cpu: the human keeper {lvl():#x} (want {gkinj.LVL1:#x})', errs)
+                continue
+            want = gkinj.LVL1 if mode == '1m' else gkinj.LVL2
+            check(st[1] >= 1 and lvl() == want, f'{mode}: keeper level {lvl():#x} after match 1 (want {want:#x})', errs)
+            for m in range(2, 4 if mode == '1m' else 5):          # (the squad screens up to the first fit one)
+                cc_match(s, t1, t2, g1, f'{mode}{m}', squad=lambda m=m: seen.append((f'squad{m}', lvl())),
+                         kick=lambda m=m: seen.append((f'kick{m}', lvl())))
+                seen.append((f'after{m}', lvl()))
+            out = [w for w, v in seen if w.startswith('squad') and v > 0x20]
+            notes.append(f'{mode}: levels {[(w, hex(v)) for w, v in seen]}')
+            check(len(out) == (1 if mode == '1m' else 2), f'{mode}: out of {out} (want {mode[0]} match(es))', errs)
+    return not errs, '; '.join(errs + notes)
+
+
+def cpucards_label():
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import cpucards
+    return cpucards.LABEL[UI]
 
 
 @scenario

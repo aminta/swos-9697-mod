@@ -1,7 +1,7 @@
 """4.0.6 option C, P1 + P2 (Tier B): ctgame.c's builder and save guards on the real code. Fixtures cg_uru2: snapshots
 of a NACIONAL career's season 2 (snapshot.py c/HTcg2/SWOS conti.ct_daily,lp36.lp_sort,gplay.gp_draw,gplay.gp_cap,
 trailer.save_trailer cg_uru2 --car h_uru/save_s1.CAR --max 2 --every 40; c/HTcg2 = 406-cgame P2 on the release
-recipe, HOSTTEST_SYMS=1; P1's cg_uru: c/HTcg1, HT_CG=cg_uru). Default now cw_uru4: the same recipe on c/HTcw4 (the
+recipe, HOSTTEST_SYMS=1; P1's cg_uru: c/HTcg1, HT_CG=cg_uru). Default now cw_uru6: the same recipe on c/HTcw6 (the
 continent screens: careerworld's w_choose grew, the older snapshots' layout no longer maps).
 
 cg_replay: CT_SEG / CT_OUT / CT_IN / CT_ED byte-identical after it (the view's replay changes nothing: after the
@@ -23,7 +23,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
 from emu import Machine  # noqa: E402
 
-FIX = os.path.join(os.path.expanduser('~'), 'swos-mod', 'internal', 'hosttest', 'fixtures', os.environ.get('HT_CG', 'cw_uru4'))
+FIX = os.path.join(os.path.expanduser('~'), 'swos-mod', 'internal', 'hosttest', 'fixtures', os.environ.get('HT_CG', 'cw_uru6'))
 MEM, PAGE = 0x2000000, 0x1000
 SCR, SCR_N, REC = 0xA000, 0x3280, 0x17C0        # (ctgame.py: the scratch at obj3 + 0x1000 * pages; ctgame.c CG_REC)
 NCUP, NRD, NE, RB = 16, 8, 64, 24

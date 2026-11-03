@@ -15477,6 +15477,21 @@ def world_cgame_view():
         gtr = cg_trace(exe)                             # (ctgame's CG_G[3]: the views opened - none for the career
         opens = lambda: struct.unpack('<I', bytes(s.result.read(s.result.lin((3, gtr[3] + 12)), 4)))[0]   # club's own
         own, own_seen = os.environ.get('CV_OWN'), []    #  round in progress: the game's slot 3, CV_OWN = its name)
+
+        def tr_ok(tag):                                 # (the career menu: TRASFERIMENTI enabled, up from OFFERTE
+            sc = s.screen()                             #  LAVORO lands on it - 4.0.6 careerworld w_vcup: a cup's own
+            i = sc.find('TRASFERIMENTI', exact=True)    # view from VIEW WORLD left dseg_DF4F4 set, transfers closed
+            if i is None or own:                        # till the next match - as on 4.0.5; contestMenu's entry 5,
+                return                                  # job offers, below it: its text changes - NO JOB OFFERS ...)
+            j = i + 1
+            check(not sc.entries[i][3], f'{tag}: TRASFERIMENTI disabled', errs)
+            for k in (sc.path(j) or []):
+                s.send(k + ' dump:0.5')
+            s.send('up dump:0.5')
+            got = s.screen().selected
+            check(got == i, f'{tag}: up from entry {j} (job offers) -> entry {got}, not TRASFERIMENTI', errs)
+            info.append(f'{tag}: menu ok')
+        tr_ok('after load')
         if not own:                                     # (the foreign market's club picker, careerworld w_buy: the
             walk(s, 'TRASFERIMENTI', 3)                 #  plain lists too - first: after a game's own cup view the
                                                         #  menu's links go through its fixtures; CV_OWN's save:
@@ -15549,6 +15564,15 @@ def world_cgame_view():
             return opened
 
         walk(s, s.screen().find('VISUAL. COMPETIZ.', exact=True), 3)
+        vc = next((e[0] for e in s.screen().entries if e[1] and 'UEFA' in e[1] and not e[2]), None)
+        if vc is not None:                              # (a stock VISUAL. COMPETIZ. cup view: the menu stays as it was)
+            walk(s, vc, 4)
+            for _ in range(5):
+                if s.screen().find('VISUALIZZA MONDO', exact=True) is not None:
+                    break
+                press(s, s.screen(), 'ESCI', 3) or s.send('fire dump:2')
+            tr_ok('after VISUAL. COMPETIZ.')
+            walk(s, s.screen().find('VISUAL. COMPETIZ.', exact=True), 3)
         walk(s, s.screen().find('COPPE CONTINENTALI', exact=True), 3)
         for k in range(1, 7):
             conf = s.screen().entries[k][1]
@@ -15638,6 +15662,8 @@ def world_cgame_view():
                 info.append(f'{cup}: {len(opened)} rounds')
             check(st() == b0, f'{cup}: CT_SEG / CT_ED changed', errs)
             check(career_menu(), f'{cup}: not back on the career menu ({s.screen()})', errs)
+            if cont == 'EUROPA':
+                tr_ok(f'after {cup}')
         if own:
             check(own_seen, f'{own}: its own round never on screen', errs)
             info.insert(0, f'{own} from slot 3: {own_seen}')

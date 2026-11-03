@@ -79,7 +79,7 @@
   - **Cursor on the team screen before a match, as in the original game** (thanks to Marco). When you are a player-coach, the line where you choose to play or only coach is reached exactly as in the original 1996-97 game:
     - DOWN from the last player name goes to that line, DOWN again to PLAY MATCH; UP goes back the same way;
     - UP from EXIT goes to that line;
-    - LEFT from the tactics column (the user-tactics rows A, C, E) goes to that line.
+    - LEFT from the tactics column (the rows USER_A, USER_C, USER_E) goes to that line.
     As a plain manager that line is not shown, and the cursor skips it as before (from the last name straight to PLAY MATCH).
 
 #### CPU replacements when you buy a player (thanks to Nicola)
@@ -187,7 +187,7 @@ choose:
 Called-up players appear in the colour of the reserve fill-ins, with a "B" next to their shirt number, and cannot be
 sold or listed. Everyone goes back to the B team at the end of the season, or when you take a job at another club.
 Your squad can still hold at most 30 players.
-- [TO COMPLETE: Australia and New Zealand: over-age limit and transfer windows are still being checked against the real rules; until then 4 over-age players and 1 July to 30 September plus January are placeholders.]
+- **Australia and New Zealand.** The B sides of the A-League clubs (their NPL teams) take only players under 23: no over-age players and no goalkeeper exception. Transfer windows follow the Football Australia 2026-27 calendar: 24 June to 15 September 2026 and 12 January to 8 February 2027. Auckland and Wellington, who play in the A-League, use the same windows. For New Zealand the age rule is an approximation: we found no official age rule for their reserves, so we use Australia's (pure under 23). If you can show us the real rule, we will change it.
 
 #### Fixes
 - **New Zealand, last round of the Championship group.** If your club rests in the last round of the Championship group, the menu now offers FINISH SEASON. Press it: if your club reached the Grand Final, MATCH comes back and you play it; otherwise the season ends. (Before, the menu could offer a match on the rest day.) The real champion was already right; this removes the confusing final that did not count mentioned in the 4.0.5 notes.
@@ -396,7 +396,7 @@ giocatore e poi:
 I convocati compaiono nel colore delle riserve di ripiego, con una "B" accanto al numero di maglia, e non si possono
 vendere né mettere in lista. Tutti tornano alla squadra B a fine stagione, o quando accetti un lavoro in un altro club.
 La rosa resta di massimo 30 giocatori.
-- [DA COMPLETARE: Australia e Nuova Zelanda: limite di età e finestre di mercato sono ancora da verificare sulle regole vere; per ora 4 fuoriquota e dal 1° luglio al 30 settembre più gennaio sono segnaposto.]
+- **Australia e Nuova Zelanda.** Le squadre B dei club dell'A-League (le loro squadre NPL) prendono solo giocatori under 23: niente fuoriquota e niente eccezione per i portieri. Le finestre di mercato seguono il calendario della Football Australia 2026-27: dal 24 giugno al 15 settembre 2026 e dal 12 gennaio all'8 febbraio 2027. Auckland e Wellington, che giocano nell'A-League, usano le stesse finestre. Per la Nuova Zelanda la regola sull'età è un'approssimazione: non abbiamo trovato una regola ufficiale per le loro riserve, quindi usiamo quella australiana (solo under 23). Se ci mostri la regola vera, la cambiamo.
 
 #### Correzioni
 - **Nuova Zelanda, ultima giornata del gruppo del Championship.** Se il tuo club riposa nell'ultima giornata del gruppo del Championship, il menu ora offre FINISCI STAGIONE. Premilo: se il tuo club è arrivato alla Grand Final torna PARTITA e la giochi; altrimenti la stagione finisce. (Prima il menu poteva offrire una partita nel giorno di riposo.) Il campione vero era già giusto; questo toglie la finale confusa che non contava, citata nelle note della 4.0.5.

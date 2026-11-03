@@ -229,3 +229,27 @@ EIP (obj1 offset) and runs on, for `secs` seconds.
   offset + 0x101AC ~ the cseg label in most of the code: check a known site first).
 - First use (2026-10-22, NZ championship, 4.0.1): the 10th match day's 25 s were spent in DrawChar /
   ConvertSpriteColors / FlipInMenu - an endless menu draw, not a fixtures loop.
+
+## Host tests (tools/hosttest, 4.0.5 rc20+): the exe's code in an emulator, from a real snapshot
+For logic bugs, seconds instead of a career run. Unicorn (x86) in internal/hosttest/.venv (`python3 -m venv` +
+`pip install unicorn`, not the system Python); `python3 tools/hosttest/run.py [-k name]` re-runs itself there.
+1. Build with symbols: `HOSTTEST_SYMS=1` on any build (patch.py writes ITALIAN.syms.json next to the exe: every
+   module's LABELS / SYMS / C symbols, `[obj, offset]`; obj 0 = an asm label's obj1 offset). The exe is unchanged.
+2. Fixtures: `python3 tools/hosttest/snapshot.py BUILD_DIR module.label OUT_DIR [--car SAVE] [--team PATH]`: a career
+   (world_uru_nacional / world8485) with a breakpoint at the label; every hit dumps the whole memory (32 MB) + the obj
+   bases (internal/hosttest/fixtures/<name>/<k>.bin / .json; private, not in the repo). CORE=normal.
+3. Tests: tools/hosttest/tests/test_*.py, functions test_*() -> (ok, message). emu.Machine(dir, k) loads a snapshot
+   (flat GDT with the game's selectors 160h / 168h), m.call('module.label') runs a routine to its return (a sentinel),
+   m.read / u8 / u16 / u32 / write by symbol or linear address; INTs stop the run (InterruptError with the EIP) unless
+   m.on_int[n] handles them; m.watch = [(lo, hi)] makes writes there StrayWrite (catches stray writes).
+First test (test_conti): conti.py ct_prep must never put the career club's next tie in a week already reached -
+the control build (rc19, before adce370) FAILS on the Libertadores q2 after a won q1 (week 56 built at week 59), the
+fixed one PASSES (60). Builds c/HT19 / c/HT20 (HT_CONTROL / HT_FIX).
+New code on old fixtures: `Machine(dir, k, code_from=BUILD_DIR)` relocates that build's obj1 / obj2 onto the snapshot
+(LE fixups at the snapshot's bases; the snapshot's run.EXE = the exe as run, with the harness's page) and keeps the
+state: bytes the game changed at run time stay; a changed byte of a named label that moved goes to its new place;
+anything else = LayoutChanged (re-snapshot). test_ct_prep_overlay: the rc19 q2 snapshot + the fixed code -> week 60.
+Fixtures from ANY world8485-based run (e.g. a sweep config that reproduces a bug): add `HT_SNAP_LABELS=module.label,..`
+(+ `HT_SNAP_OUT`, `HT_SNAP_WEEKMIN`, `HT_SNAP_MAX`) and point W8485_BUILD / the scenario's build at a HOSTTEST_SYMS
+build of the same exe (e.g. c/HT19R = c/REL405rc19 byte for byte, with ITALIAN.syms.json). Scenario `ht_snapshot`
+(HT_BUILD, HT_LABELS, HT_NAME, HT_SCEN, HT_TEAM...) does the same with the dumps in its run dir (remote_run brings them back).

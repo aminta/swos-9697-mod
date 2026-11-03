@@ -389,10 +389,8 @@ FONT = set(" '()-./0123456789:,?+ABCDEFGHIJKLMNOPQRSTUVWXYZ")   # the characters
 # 4.0.6: no '&' / '!' - both fonts' conversionTable (smallCharsTable / bigCharsTable) map them, as '"#$<=>@', to sprite
 # 0: not a glyph - Davide's MiSTer, 'O&M' in the CONCACAF page)
 FONT_EXCEPT = {   # shipped names outside FONT, known and with their data owner (each one shows a broken glyph): the
-    'O&M': 'concacaf.guests.json om (DOM): display form pending (Davide)',          # checks report them, never fail
-    'HARLAND & WOLFF': 'packs/europe-1984-85/nir/clubs.csv harlandwolff',
-    'TREFELIN B & G': 'world2526 wal/clubs.csv trefelinbg',
-}
+    'HARLAND & WOLFF': 'packs/europe-1984-85/nir/clubs.csv harlandwolff (HARLAND AND WOLFF is 17 > 16: pending)',
+}   # (the checks report them, never fail; 04/11: O&M -> O Y M, TREFELIN B & G -> TREFELIN BGC in world5tm-403c12 / 12b)
 
 
 def font_odd(name):

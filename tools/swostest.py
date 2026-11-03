@@ -15098,8 +15098,8 @@ def world_cgame_view():
     world_contiview's build and season-2 save (CV_BUILD, CV_S2 / RUNS cv_s2_<ui>.CAR): every confederation's rounds menu
     (labels within 144 px, menu font), each visible round opened (shot cgv_<k>_<j>, its texts in the menu font and within
     their boxes), ESCI back to the rounds menu; CT_SEG / CT_ED byte-identical before and after (the view closed).
-    4.0.6 continent screens (Davide GO 03/11): VISUALIZZA MONDO - MONDO's FIFA cup after the UEFA cups, every continent
-    (gwalk) its green cup buttons above its nations (none on EUROPA), names in the font and within their buttons;
+    4.0.6 continent screens (Davide GO 03/11): VISUALIZZA MONDO - MONDO's FIFA cup above the continents, every continent
+    (gwalk) its green cup buttons above its nations (EUROPA: the UEFA cups, the game's own views), names in the font and within their buttons;
     each cup button -> its rounds menu (title = the cup, the rounds' own labels), every round opened and back,
     RIEPILOGO = that cup's part only, ESCI -> the career menu, CT state unchanged. CV_OWN=<club>: a save with the club
     in a conti round in progress - its round on screen through the game's slot 3 (CG_G's opens unchanged)"""
@@ -15135,6 +15135,23 @@ def world_cgame_view():
         gtr = cg_trace(exe)                             # (ctgame's CG_G[3]: the views opened - none for the career
         opens = lambda: struct.unpack('<I', bytes(s.result.read(s.result.lin((3, gtr[3] + 12)), 4)))[0]   # club's own
         own, own_seen = os.environ.get('CV_OWN'), []    #  round in progress: the game's slot 3, CV_OWN = its name)
+        if not own:                                     # (the foreign market's club picker, careerworld w_buy: the
+            walk(s, 'TRASFERIMENTI', 3)                 #  plain lists too - first: after a game's own cup view the
+                                                        #  menu's links go through its fixtures; CV_OWN's save:
+                                                        #  its week has no market)
+            walk(s, 2, 3)
+            walk(s, 5, 3)                               # ACQ. ALTRO GIOCAT. STRANIERO
+            plain['foreign market MONDO'] = s.screen().texts()
+            for cont in ('EUROPA', 'SUDAMERICA', 'NORDAMERICA', 'ASIA', 'AFRICA', 'OCEANIA'):
+                gwalk(s, cont, 3)
+                plain[f'foreign market {cont}'] = s.screen().texts()
+                s.shot(f'cgw_buy_{cont.lower()}')
+                gwalk(s, 'ESCI', 3)
+            for _ in range(6):                          # (ABBANDONA, then the market menus' ESCI)
+                if s.screen().find('VISUALIZZA MONDO', exact=True) is not None:
+                    break
+                sc = s.screen()
+                gwalk(s, 'ABBANDONA' if sc.find('ABBANDONA', exact=True) is not None else 'ESCI', 3)
 
         def rounds(tag, conf):                          # (a rounds menu on screen: every round opened and back)
             sc = s.screen()
@@ -15237,16 +15254,14 @@ def world_cgame_view():
             return [t for _, t in cups], rest
         check(career_menu(), f'VIEW WORLD: not back on the career menu ({s.screen()})', errs)
         walk(s, 'VISUALIZZA MONDO', 3)
-        mcups, mrest = picker('cgw_mondo', 4)
-        fifa = mcups[3:]                                # (after the 3 UEFA cups: FIFA's)
+        mcups, mrest = picker('cgw_mondo', 1)
+        fifa = mcups                                    # (FIFA's only: the UEFA cups on EUROPA, Davide 03/11)
         conts = [t for t in s.screen().texts() if t in ('EUROPA', 'SUDAMERICA', 'NORDAMERICA', 'ASIA', 'AFRICA', 'OCEANIA')]
         check(len(conts) == 6 and len(fifa) >= 1, f'MONDO: continents {conts}, FIFA cups {fifa}', errs)
         todo = [(None, c) for c in fifa]
         for cont in conts:
             gwalk(s, cont, 3)
-            cups, rest = picker(f'cgw_{cont.lower()}', 0 if cont == 'EUROPA' else 1)
-            if cont == 'EUROPA':
-                check(not cups, f'EUROPA: cup buttons {cups} (its nations only)', errs)
+            cups, rest = picker(f'cgw_{cont.lower()}', 3 if cont == 'EUROPA' else 1)
             todo += [(cont, c) for c in cups]
             info.append(f'{cont}: {cups} + {len(rest)} nations')
             check(career_menu(), f'{cont}: not back on the career menu ({s.screen()})', errs)
@@ -15260,9 +15275,14 @@ def world_cgame_view():
             gwalk(s, cup, 4)
             sc = s.screen()
             title = (sc.raw_texts or [sc.entries[0][1]])[0]
-            if sc.find(summ, exact=True) is None:      # (no round drawn: the cup's page part)
-                check(cup in title, f'{cup}: page title {title!r}', errs)
-                info.append(f'{cup}: page')
+            if sc.find(summ, exact=True) is None:      # (no round drawn: the cup's page part; a UEFA cup:
+                check(any(cup in t for t in [title] + (sc.raw_texts or []) + sc.texts()) or   # the game's own
+                      (cont == 'EUROPA' and not title and 'STAT' in sc.texts()),               #  view: its title
+                      f'{cup}: page title {title!r}', errs)     # (DE's long ones - 'UEFA EUROPA LEAGUE VIERTELFINALE
+                                                                #  RUCKSP.' - read empty: shot cgw_<q>_view)
+                s.shot(f'cgw_{q}_view')
+                s.log.append(f'[cgw] {cup} view: {sc.texts()[:8]}')
+                info.append(f'{cup}: {"view" if cont == "EUROPA" else "page"}')
             else:
                 check(title == cup, f'{cup}: rounds menu title {title!r}', errs)
                 opened = rounds(f'cgw_{q}', cup)
@@ -15276,17 +15296,6 @@ def world_cgame_view():
                 info.append(f'{cup}: {len(opened)} rounds')
             check(st() == b0, f'{cup}: CT_SEG / CT_ED changed', errs)
             check(career_menu(), f'{cup}: not back on the career menu ({s.screen()})', errs)
-        if not own:                                     # (the foreign market's club picker, careerworld w_buy: the
-            walk(s, 'TRASFERIMENTI', 3)                 #  plain lists too; CV_OWN's save: its week has no market)
-            walk(s, 2, 3)
-            walk(s, 5, 3)                               # ACQ. ALTRO GIOCAT. STRANIERO
-            plain['foreign market MONDO'] = s.screen().texts()
-            for cont in ('SUDAMERICA', 'NORDAMERICA', 'ASIA', 'AFRICA', 'OCEANIA'):
-                gwalk(s, cont, 3)
-                plain[f'foreign market {cont}'] = s.screen().texts()
-                s.shot(f'cgw_buy_{cont.lower()}')
-                gwalk(s, 'ESCI', 3)
-            career_menu()
         if own:
             check(own_seen, f'{own}: its own round never on screen', errs)
             info.insert(0, f'{own} from slot 3: {own_seen}')
@@ -15295,7 +15304,7 @@ def world_cgame_view():
         for t in ('CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27'):   # buttons - ctview cw_on /
             press(s, s.screen(), t, 3)                  #  cw_off swap them in for VIEW WORLD only)
         plain['new career MONDO'] = s.screen().texts()
-        for cont in ('SUDAMERICA', 'NORDAMERICA', 'ASIA', 'AFRICA', 'OCEANIA'):
+        for cont in ('EUROPA', 'SUDAMERICA', 'NORDAMERICA', 'ASIA', 'AFRICA', 'OCEANIA'):
             gwalk(s, cont, 3)
             plain[f'new career {cont}'] = s.screen().texts()
             s.shot(f'cgw_new_{cont.lower()}')

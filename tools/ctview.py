@@ -682,10 +682,10 @@ CW = {}                                         # world_cups' result (the harnes
 
 def world_cups(p, at):
     """4.0.6 P3 (Davide, 03/11): VIEW WORLD's confederation screens as the MONDO one - the confederation's cups as
-    green buttons above its nations, FIFA's below the UEFA cups. A marker contest per cup at obj3:at (conti's ties
+    green buttons above its nations (EUROPA: the world's UEFA cups, moved from MONDO - Davide 03/11), FIFA's on MONDO. A marker contest per cup at obj3:at (conti's ties
     contest header with the cup's names: the picker draws its name; cw_after knows it by its address); each continent
     list of a world (mkseason WCONT_IDS, top level) with cups: a new table [markers, -1, its countries] in obj3; the
-    world record's MONDO table (careerworld W<n>_CONT) the same + FIFA's. The game's pointers stay as they are (the
+    world record's MONDO table (careerworld W<n>_CONT): FIFA's marker + the continents. The game's pointers stay as they are (the
     new career's club picker, the foreign market: the plain lists): cw_on / cw_off swap them in only around VIEW
     WORLD's picker. Returns (at, {'marks': obj3 offsets per cup, 'names': (obj, off) of each cup's name, 'conf': its
     CONFS index, 'swaps': [(slot, plain list, list with the buttons)] as (obj, off)})."""
@@ -717,26 +717,28 @@ def world_cups(p, at):
         at = (at + 4 + len(tail) + 3) & ~3
         return t
     for n, ids in sorted(mkseason.WCONT_IDS.items()):
+        wc = careerworld.LABELS.get(f'W{n}_CONT')
+        uefa = []                                       # (Davide 03/11: the world's UEFA cups - MONDO's head in the
+        while wc is not None and p.get(1, wc + 4 * len(uefa), 4) != b'\xff' * 4:   # record - on EUROPA's screen)
+            uefa.append(p.target(1, wc + 4 * len(uefa)))
         for lid, _, top in ids:
-            k = CONT_CONF.get(mkseason.WCONT_KEY.get(lid))
+            key = mkseason.WCONT_KEY.get(lid)
+            k = CONT_CONF.get(key)
             cups = [c for c, (cf, _) in enumerate(CUPKEYS) if cf == k]
-            if not top or not cups:
+            head = uefa if key == 'europe' else []
+            if not top or not (cups or head):
                 continue
             o = p.target(2, comp + 4 * lid)
             old = p.get(*o, 4 + 256)
             assert old[:4] == b'\xff' * 4, (lid, old[:8].hex())
-            t = table(cups, [], old[4:old.index(0xFF, 4) + 1])
+            t = table(cups, head, old[4:old.index(0xFF, 4) + 1])
             swaps.append(((2, comp + 4 * lid), o, (3, t)))
-            CW.setdefault(n, {})[lid] = [CUPKEYS[c][1] for c in cups]
-        wc = careerworld.LABELS.get(f'W{n}_CONT')
+            CW.setdefault(n, {})[lid] = [CUPKEYS[c][1] for c in cups] + (['uefa'] * len(head))
         fifa = [c for c, (cf, _) in enumerate(CUPKEYS) if cf == 'fifa']
         if wc is None or not fifa:
             continue
-        head = []
-        while p.get(1, wc + 4 * len(head), 4) != b'\xff' * 4:
-            head.append(p.target(1, wc + 4 * len(head)))
-        old = p.get(1, wc + 4 * len(head), 4 + 64)
-        t = table(fifa, head, old[4:old.index(0xFF, 4) + 1])
+        old = p.get(1, wc + 4 * len(uefa), 4 + 64)
+        t = table(fifa, [], old[4:old.index(0xFF, 4) + 1])
         wp = careerworld.LABELS[f'W{n}_CONTP']          # (the record's MONDO pointer: W_SWAP puts it in both)
         assert p.target(1, wp) == (1, wc), (n, p.target(1, wp))
         swaps += [((2, comp + 4 * k), (1, wc), (3, t)) for k in (254, careerworld.WCONT)]

@@ -94,11 +94,15 @@ gk_new:                                 ; after a new career's defaults (its ite
     mov [GI_W], ax
     ret
 
-gk_rng:                                 ; eax = the next xorshift32 (seeded at the first roll from the BIOS tick)
-    mov eax, [GK_SEED]
-    test eax, eax
-    jnz .s
-    mov eax, [46Ch]
+gk_rng:                                 ; eax = the next xorshift32, seeded at the first roll from the game's two
+    mov eax, [GK_SEED]                  ;  random generators' states (read, not drawn: a run the harness makes
+    test eax, eax                       ;  reproducible - same start, W8485_RNG - rolls the same keepers; the BIOS
+    jnz .s                              ;  tick split the guard's A / B seasons, Integratore I9)
+    mov eax, [RNG1]
+    and eax, 0FFFFFFh
+    mov edx, [RNG2]
+    shl edx, 8
+    xor eax, edx
     xor eax, 9E3779B9h
     jnz .s
     inc eax
@@ -248,7 +252,10 @@ def find(p):
     c6 = b['guards'][6][0] - 6
     assert d[c6 + 16:c6 + 18] == b'\x81\x3d' and d[c6 + 26:c6 + 28] == b'\x0f\x85' and d[c6 + 32:c6 + 34] == b'\xc7\x05', \
         'cseg_2CDC6'
-    return dict(UPI=upi, calls=calls, GETPLAYER=rel(upi + gp[0] + 6, 5), TRG=p.target(1, b['F903'] + 2),
+    rng = [m.start() for m in re.finditer(rb'\xa0....\xa2....\x66\x81\x25....\xff\x00\x75.\x80\x05....\x01\xa0', d, re.S)]
+    rng = [p.target(1, o + 1) for o in rng if p.target(1, o + 23) == (2, p.target(1, o + 1)[1] + 1)]
+    assert len(rng) == 2, rng                            # (Rand / Rand2's states: seed, randXorIndex, randXorKey)
+    return dict(UPI=upi, calls=calls, RNG1=rng[0], RNG2=rng[1], GETPLAYER=rel(upi + gp[0] + 6, 5), TRG=p.target(1, b['F903'] + 2),
                 CAREER=p.target(1, c6 + 22), CMPL=p.target(1, c6 + 38), calls903=b['calls903'],
                 GT=p.target(1, b['F903'] + gt[0] + 3))
 
@@ -287,7 +294,8 @@ def patch(p, at, lang):
            'DRAWITEM': (1, cpucards.find(p)['DRAWITEM']), 'S_ON': on, 'S_OFF': off, 'CC_I': (3, cpucards.LABELS['CC_I']),
            'A0_': (2, regs['A0']), 'A1_': (2, regs['A0'] + 4), 'A2_': (2, regs['A0'] + 8), 'D0_': (2, d0),
            'D1_': (2, d0 + 4), 'UPI': tu[0], 'GETPLAYER': (1, s['GETPLAYER']), 'TRG': s['TRG'], 'F903': tg[0],
-           'CAREER': s['CAREER'], 'CMPL': s['CMPL'], 'GT': s['GT']}
+           'CAREER': s['CAREER'], 'CMPL': s['CMPL'], 'GT': s['GT'],
+           'RNG1': s['RNG1'], 'RNG2': s['RNG2']}
     code, fix, rel = nasmcave.assemble_obj(src, at, sym, 3)
     lab = nasmcave.labels(src, at, sym)
     assert not any(p.get(3, at, len(code)))

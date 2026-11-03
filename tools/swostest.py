@@ -688,7 +688,7 @@ class Dosbox:
         if os.path.exists(path):
             os.remove(path)
         for attempt in range(3):                       # a command typed while the debugger redraws can be lost
-            os.write(self.fd, f'MEMDUMPBIN 168:{lin:X} {n:X}\r'.encode())
+            os.write(self.fd, f'MEMDUMPBIN 168:{lin:X} 0{n:X}\r'.encode())   # (4.0.6: a bare AC / CF.. length is a flag name)
             end = time.time() + 10 + n / 0x200000
             while not (os.path.exists(path) and os.path.getsize(path) >= n) and time.time() < end:
                 self.pump(0.01)
@@ -22279,6 +22279,98 @@ def bteam_rt():
         n3, order3, _, bu3 = bteam_state(s, v)
         check((n3, order3, bu3) == (n2, order2, bu2), f'after the load: squad {n3}, BU {bu3} (saved {n2}, {bu2})', errs)
         info.append(f'loaded: squad {n3}, BU {bu3}')
+    return not errs, '; '.join(errs + info)
+
+
+@scenario
+def bteam_ui():
+    """4.0.6 B-team call-ups, M3 UI (a build with bteam's UI, SWOSTEST_BUILD): a World 2026-27 career at ATALANTA,
+    SQUADRA: the SQ. B button left of ESCI; fire: the B team's squad (ShowSquad); the selected row picked: the call-up
+    page with his name; SOLO PROSSIMA PARTITA -> CONVOCATO PER LA PROSSIMA PARTITA, again -> GIA' CONVOCATO; ESCI: the
+    squad screen with him in it (+1, BU kind 1). Then SQ. B, PAG. SUCC., the first extra, PER LA STAGIONE (the summer
+    window): CONVOCATO PER LA STAGIONE, squad +1, BU kind 2 on index >= 16. Shots squad_btn, bsquad, page, page_ok,
+    bsquad2, squad_after."""
+    exe = builds()['it']
+    v = bteam_vars(exe)
+    me = os.environ.get('BT_CLUB', 'ATALANTA')
+    path = ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27', 'EUROPA', 'ITALIA', 'SERIE A', me]
+    errs, info = [], []
+    with Session('bteam_ui', exe, {}, 'dump:2', 900) as s:
+        s.wait()
+        if not pick_career(s, path):
+            return False, 'new career: ' + str(s.screen().texts()[:8])
+        s.send('fire dump:3')
+        for _ in range(8):
+            if 'PROSS. PARTITA' in s.screen().texts():
+                break
+            press(s, s.screen(), 'CONTINUA', 3) or press(s, s.screen(), 'ESCI', 3) or s.send('fire dump:2')
+        r = s.result
+        selw = struct.unpack('<H', bytes(r.obj2(v['sel'], 2)))[0]
+        if selw not in v['rows']:
+            return False, f'{me} ({selw:#x}): no B team in BAGE'
+        bw = v['rows'][selw][0]
+        bn = bteam_names(exe, bw)
+        if not sq_open(s):
+            return False, f'no squad screen: {s.screen()}'
+        n0, _, _, bu0 = bteam_state(s, v)
+        scr = s.screen()
+        s.shot('squad_btn')
+        check(scr.find('SQ. B', exact=True) is not None, f'no SQ. B on the squad screen: {scr}', errs)
+        info.append(f'squad {n0}, BU {bu0}')
+
+        def page(kind_text, extra):
+            r = press(s, s.screen(), 'SQ. B', 3)
+            if r is None:
+                return f'SQ. B not reachable: {s.screen()}'
+            s.shot('bsquad2' if extra else 'bsquad')
+            if extra:
+                press(s, s.screen(), 'PAG. SUCC.', 2)
+            info.append(f'B squad: {str(s.screen())[:300]}')
+            if extra:
+                s.send('up dump:1' + ' up dump:0.5' * 2)   # (PAG. PREC. -> the 16th row -> the 14th: the last extra)
+                info.append(f'page 2: {str(s.screen())[:300]}')
+            s.send('fire dump:3')
+            s.shot('picked')
+            r = s.result
+            info.append(f'menu ptr {struct.unpack("<I", r.read(r.base2 + s.info["menu"], 4))[0]:#x}')
+            try:
+                scr = s.screen()
+            except RuntimeError as x:
+                return f'after the pick: {x}'
+            info.append(f'page: {scr}')
+            if scr.find(kind_text, exact=True) is None:
+                return f'no call-up page: {scr}'
+            s.shot('page2' if extra else 'page')
+            press(s, scr, kind_text, 2)
+            return None
+
+        e = page('SOLO PROSSIMA PARTITA', False)
+        if e:
+            return False, e + '; ' + '; '.join(info)
+        t = s.screen().texts()
+        check('CONVOCATO PER LA PROSSIMA PARTITA' in t, f'after the call-up: {t}', errs)
+        press(s, s.screen(), 'SOLO PROSSIMA PARTITA', 2)
+        t = s.screen().texts()
+        check("GIA' CONVOCATO" in t, f'the same again: {t}', errs)
+        s.shot('page_ok')
+        press(s, s.screen(), 'ESCI', 3)
+        n1, _, _, bu1 = bteam_state(s, v)
+        check(n1 == n0 + 1 and len(bu1) == len(bu0) + 1 and bu1[-1][0] & 0x7F == 1, f'squad {n0} -> {n1}, BU {bu1}', errs)
+        check(s.screen().find('SQ. B', exact=True) is not None, f'back: no SQ. B ({s.screen()})', errs)
+        s.shot('squad_after')
+        info.append(f'one match: squad {n1}, BU {bu1}')
+        if len(bn) > 16:
+            e = page('PER LA STAGIONE', True)
+            if e:
+                errs.append(e)
+            else:
+                t = s.screen().texts()
+                check('CONVOCATO PER LA STAGIONE' in t, f'after the season call-up: {t}', errs)
+                press(s, s.screen(), 'ESCI', 3)
+                n2, _, _, bu2 = bteam_state(s, v)
+                check(n2 == n1 + 1 and bu2 and bu2[-1][1] >= 16, f'season extra: squad {n1} -> {n2}, BU {bu2}', errs)
+                info.append(f'season: squad {n2}, BU {bu2}')
+                s.shot('squad_after2')
     return not errs, '; '.join(errs + info)
 
 

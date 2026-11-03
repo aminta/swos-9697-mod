@@ -776,7 +776,7 @@ def patch_exe(src, dst, remap, lang='it'):
     if xtra_on and worlds:                       # 4.0.6 B-team call-ups (Davide 02/11 + 03/11): the runtime at the obj3
         import bteam                             # chain's end (after ctview / ctgame)
         bt_at = (st_end + 15) & ~15
-        st_end = bteam.patch(p, bt_at)
+        st_end = bteam.patch(p, bt_at, lang=lang)
         assert st_end <= LT3_AT, hex(st_end)
         if st_end - bt_at > 0x1200:
             print(f'exe: WARNING bteam {st_end - bt_at} B > 0x1200 (Regia: tell the Integratore)')

@@ -994,7 +994,315 @@ def sites(p):
     return s
 
 
-def patch(p, at, force=None):
+
+# ---- step 3 (M3): the UI - the squad screen's SQ. B button, the B squad (ShowSquad), the call-up page ---------------
+# The career squad screen (squadMenu, obj2: 64 packed entries, ESCI = 9 at x 167 y 185) is shown from a copy made at
+# each show (bt_sqshow replaces both `mov dword [A6], squadMenu`; a copy at run time keeps what SWOS++ patched in the
+# original, as kitcolors' pm_show): + entry 64 SQ. B (45 x 15, left of ESCI, hidden), its init / onReturn the game's
+# then bt_vis (shown, ESCI's left -> it: the career club's own squad, not a national team, with a B team). Fire:
+# ShowSquad on the B team's record (squadTeamPtr; xbrowse's offer mode vs_ofr: page 2 = its extras 17..30 pickable),
+# then the call-up page for the picked player: NEXT MATCH ONLY / FOR THE SEASON (bt_add) / EXIT, the result in a line
+# (TEXTS: the codes' words per language).
+SQ_ENTRY = 64
+SQ_BUTTON = (121, 185, 45, 15)          # menu x, y, w, h (the screen adds 8): ESCI's left, the coach's name below 121
+TEXTS = {
+    'it': dict(head='SQUADRA B: SCEGLI UN GIOCATORE', btn='SQ. B', c1='SOLO PROSSIMA PARTITA', c2='PER LA STAGIONE', exit='ESCI',
+               ok1='CONVOCATO PER LA PROSSIMA PARTITA', ok2='CONVOCATO PER LA STAGIONE',
+               codes=('', 'MASSIMO 4 A PARTITA', 'TROPPI FUORI QUOTA', 'MERCATO CHIUSO', 'ROSA PIENA (30)',
+                      'MASSIMO 3 PER FINESTRA', "GIA' CONVOCATO", 'NESSUNA SQUADRA B', 'GIOCATORE NON VALIDO',
+                      'TROPPI CONVOCATI')),
+    'en': dict(head='B TEAM: CHOOSE A PLAYER', btn='B TEAM', c1='NEXT MATCH ONLY', c2='FOR THE SEASON', exit='EXIT',
+               ok1='CALLED UP FOR THE NEXT MATCH', ok2='CALLED UP FOR THE SEASON',
+               codes=('', 'AT MOST 4 A MATCH', 'TOO MANY OVER-AGE PLAYERS', 'TRANSFER WINDOW CLOSED',
+                      'SQUAD FULL (30)', 'AT MOST 3 A WINDOW', 'ALREADY CALLED UP', 'NO B TEAM', 'NOT A VALID PLAYER',
+                      'TOO MANY CALLED UP')),
+    'fr': dict(head='EQUIPE B: CHOISIS UN JOUEUR', btn='EQ. B', c1='LE PROCHAIN MATCH', c2='POUR LA SAISON', exit='QUITTER',
+               ok1='APPELE POUR LE PROCHAIN MATCH', ok2='APPELE POUR LA SAISON',
+               codes=('', 'MAXIMUM 4 PAR MATCH', 'TROP DE JOUEURS HORS AGE', 'MERCATO FERME', 'EFFECTIF COMPLET (30)',
+                      'MAXIMUM 3 PAR MERCATO', 'DEJA APPELE', "PAS D'EQUIPE B", 'JOUEUR NON VALABLE',
+                      "TROP D'APPELES")),
+    'de': dict(head='B-TEAM: SPIELER WAEHLEN', btn='B-TEAM', c1='NUR NAECHSTES SPIEL', c2='FUER DIE SAISON', exit='ENDE',
+               ok1='FUER DAS NAECHSTE SPIEL BERUFEN', ok2='FUER DIE SAISON BERUFEN',
+               codes=('', 'HOECHSTENS 4 PRO SPIEL', 'ZU VIELE UEBER 23', 'TRANSFERFENSTER ZU', 'KADER VOLL (30)',
+                      'HOECHSTENS 3 PRO FENSTER', 'SCHON BERUFEN', 'KEIN B-TEAM', 'KEIN GUELTIGER SPIELER',
+                      'ZU VIELE BERUFEN')),
+}
+MSG = 40                                # the result line's buffer
+
+UI_ASM = r"""
+bt_sqshow:                              ; the 2 `mov dword [A6], squadMenu`: a copy with SQ. B (entry 64)
+    pushad
+    mov esi, SQM
+    mov edi, btsq
+    mov ecx, SQLEN_                     ; (the original without its -999)
+    rep movsb
+    mov esi, btent
+    mov ecx, btent_end - btent
+    rep movsb
+    mov eax, [SQM]
+    mov [bt_oinit], eax
+    mov eax, [SQM + 4]
+    mov [bt_oret], eax
+    mov dword [btsq], bt_sqinit
+    mov dword [btsq + 4], bt_sqret
+    popad
+    mov dword [A6], btsq
+    ret
+
+bt_sqinit:                              ; the copy's init: the game's, then the button
+    mov eax, [bt_oinit]
+    test eax, eax
+    jz bt_vis
+    call eax
+    jmp bt_vis
+
+bt_sqret:                               ; on return (from the B squad, the call-up page...): the game's, the button
+    mov eax, [bt_oret]
+    test eax, eax
+    jz bt_vis
+    call eax
+
+bt_vis:                                 ; SQ. B shown (and ESCI's left -> it) for the career club's own squad, not a
+    pushad                              ; national team, with a B team in this world
+    mov eax, [D0]
+    push eax
+    mov eax, [A0]
+    push eax
+    mov eax, [SQT]
+    cmp eax, CT
+    jne .x
+    cmp word [ISNAT], 0
+    jne .x
+    call bt_load
+    jz .x
+    mov ax, [SEL]
+    call bt_team
+    test esi, esi
+    jz .x
+    mov dword [D0], SQE_
+    call CALC
+    mov edi, [A0]
+    mov word [edi + 4], 0               ; (isInvisible)
+    mov dword [D0], 9
+    call CALC
+    mov edi, [A0]
+    mov byte [edi + 8], SQE_            ; ESCI: left -> SQ. B
+.x: pop eax
+    mov [A0], eax
+    pop eax
+    mov [D0], eax
+    popad
+    ret
+
+bt_open:                                ; fire on SQ. B: the B squad (pick a player), then the call-up page
+    pushad
+    call bt_load
+    jz .x
+    mov ax, [SEL]
+    call bt_team
+    test esi, esi
+    jz .x
+    mov ax, [esi]
+    mov [bt_bw2], ax
+    mov [D0], ax
+    call GETTEAM                        ; A0 = the B team's record
+    mov eax, [SQTP]
+    mov [bt_sqtp], eax
+    xor ebx, ebx                        ; ShowSquad: A0 the team, A1 the title, D0 the rows shown disabled (bit =
+    xor ecx, ecx                        ; index: the ones already called up), D1 none lit, D2 0 (rows pickable, ESCI),
+.m: mov ax, [bt_bw2]                    ; D3 the first row selected
+    call bt_inbu
+    test eax, eax
+    jz .mn
+    bts ebx, ecx
+.mn:
+    inc ecx
+    cmp ecx, 30
+    jb .m
+    mov [D0], ebx
+    mov dword [D0 + 4], 0
+    mov word [D0 + 8], 0
+    mov word [D0 + 12], 0
+    mov dword [A0 + 4], bt_hd
+    mov byte [VS_OFR], 1
+    call SHOWSQ
+    mov byte [VS_OFR], 0
+    js .back                            ; (ESCI: nothing picked)
+    mov ax, [D0]
+    mov [bt_pick], al
+    mov eax, [bt_sqtp]
+    mov [SQTP], eax
+    mov ax, [bt_bw2]                    ; the page's title: the player's name
+    mov cl, [bt_pick]
+    call bt_src
+    test esi, esi
+    jz .x
+    add esi, 3
+    mov edi, bt_title
+    mov ecx, 22
+    rep movsb
+    mov byte [edi], 0
+    mov byte [bt_msg], 0
+    mov dword [A6], btmenu
+    call SHOW_MENU
+    jmp .x
+.back:
+    mov eax, [bt_sqtp]
+    mov [SQTP], eax
+.x: popad
+    ret
+
+bt_c1:                                  ; NEXT MATCH ONLY
+    mov al, 1
+    jmp bt_cc
+bt_c2:                                  ; FOR THE SEASON
+    mov al, 2
+bt_cc:
+    pushad
+    mov cl, [bt_pick]
+    movzx ebx, al
+    call bt_add
+    movzx eax, al
+    mov esi, [bt_codes + eax * 4]
+    test eax, eax
+    jnz .m
+    mov esi, [bt_oks + ebx * 4 - 4]
+.m: mov edi, bt_msg
+    mov ecx, MSG_ - 1
+.c: lodsb
+    stosb
+    test al, al
+    jz .d
+    loop .c
+    mov byte [edi], 0
+.d: popad
+    jmp DRAWMENU
+
+bt_cx:                                  ; EXIT
+    mov word [EXITM], 1
+bt_dinit:
+    ret
+
+align 4
+bt_oinit: dd 0
+bt_oret: dd 0
+bt_sqtp: dd 0
+bt_bw2: dw 0
+bt_pick: db 0
+align 4
+bt_title: times 24 db 0
+bt_msg: times MSG_ db 0
+align 4
+BT_TEXTS
+align 4
+btmenu:                                 ; the call-up page: 0 the player, 1 / 2 the two call-ups, 3 EXIT, 4 the result
+    dd bt_dinit, 0, 0, 1
+    dw 0, 30, 304, 14
+    dw 4, 17h
+    dw 8, 0
+    dd bt_title
+    dw 0
+    dw 52, 70, 200, 15
+    dw 2
+    db 0FFh, 0FFh, 3, 2
+    dw 4, 0Eh
+    dw 8, 0
+    dd bt_t1
+    dw 13
+    dd bt_c1
+    dw 0
+    dw 52, 92, 200, 15
+    dw 2
+    db 0FFh, 0FFh, 1, 3
+    dw 4, 0Eh
+    dw 8, 0
+    dd bt_t2
+    dw 13
+    dd bt_c2
+    dw 0
+    dw 102, 170, 100, 15
+    dw 2
+    db 0FFh, 0FFh, 2, 1
+    dw 4, 0Ch
+    dw 8, 0
+    dd bt_tx
+    dw 13
+    dd bt_cx
+    dw 0
+    dw 0, 130, 304, 10
+    dw 8, 0
+    dd bt_msg
+    dw 0
+    dw -999
+align 4
+btent:                                  ; entry 64 (an origin reset first: menu coordinates), then the end mark
+    dw -998, 0, 0
+    dw BX_, BY_, BW_, BH_
+    dw 1
+    dw 2
+    db 2Ch, 9, 2Ch, 0FFh
+    dw 4, 0Eh
+    dw 8, 0
+    dd bt_lbl
+    dw 13
+    dd bt_open
+    dw 0
+    dw -999
+btent_end:
+align 4
+btsq: times SQLEN_ + 64 db 0
+"""
+
+
+def _db(b):
+    return 'db ' + ', '.join(str(x) for x in b + b'\0')
+
+
+def ui_texts(lang):
+    """BT_TEXTS: the button, the page's words and the codes' lines (pointer tables bt_codes / bt_oks)."""
+    T = TEXTS[lang]
+    enc = lambda t: t.encode('latin-1')
+    for t in (T['ok1'], T['ok2']) + T['codes']:
+        assert len(t) < MSG, t
+    out = [f'bt_lbl: {_db(enc(T["btn"]))}', f'bt_t1: {_db(enc(T["c1"]))}', f'bt_t2: {_db(enc(T["c2"]))}',
+           f'bt_tx: {_db(enc(T["exit"]))}', f'bt_hd: {_db(enc(T["head"]))}', f'bt_ok1: {_db(enc(T["ok1"]))}', f'bt_ok2: {_db(enc(T["ok2"]))}']
+    out += [f'bt_cd{i}: {_db(enc(t))}' for i, t in enumerate(T['codes'])]
+    out += ['align 4', 'bt_oks: dd bt_ok1, bt_ok2', 'bt_codes: dd ' + ', '.join(f'bt_cd{i}' for i in range(len(T['codes'])))]
+    return '\n'.join(out)
+
+
+def ui_sites(p):
+    """The squad screen's menu (obj2 offset, packed length without its -999) and its two `mov dword [A6], squadMenu`;
+    ShowMenu / A6 / g_exitMenu (fmtpage, controls' pattern)."""
+    import re
+    import fmtpage
+    import squadnum
+    import xbrowse
+    d1, d2 = p.le.obj_bytes(1), p.le.obj_bytes(2)
+    sadc = squadnum.sites(p)['SADC'][1]
+    ref = [s for so, s, _, t, o, *_ in p.le.fixups() if so == 2 and t == 1 and o == sadc]
+    assert len(ref) == 1, ref
+    _, _, _, show, a6 = fmtpage.locate(p)
+    fx = {s: (t, o) for so, s, _, t, o, *_ in p.le.fixups() if so == 1}
+    users = [s - 2 for s, to in fx.items() if to == tuple(a6) and d1[s - 2:s] == b'\xc7\x05' and fx.get(s + 4)
+             and fx[s + 4][0] == 2 and fx[s + 4][1] is not None and 0 < ref[0] - fx[s + 4][1] < 0x400]
+    m = max(fx[x + 6][1] for x in users)                # (the menu just before SquadAfterDrawCommon's reference;
+    users = [x for x in users if fx[x + 6][1] == m]     # the one before it is another menu)
+    assert len(users) == 2, users
+    pay = dict(xbrowse.PAYLOAD)
+    pay[7] = 4                                          # (type 7: a dword - xbrowse's parser has no 7)
+    saved, xbrowse.PAYLOAD = xbrowse.PAYLOAD, pay
+    try:
+        end, ents = xbrowse.menu_parse(d2, m)
+    finally:
+        xbrowse.PAYLOAD = saved
+    assert len(ents) == SQ_ENTRY, len(ents)
+    assert d2[ents[9][1]:ents[9][1] + 4] == bytes((0x2C, 8, 0x2C, 0xFF)), d2[ents[9][1]:ents[9][1] + 4].hex()
+    e = re.search(rb'\x66\xc7\x05....\x00\x00\xe8', d1[show:show + 0x80], re.S)   # mov g_exitMenu, 0 / call ActivateMenu
+    return {'menu': m, 'len': end - m, 'users': users, 'show': show, 'a6': a6, 'exitm': fx[show + e.start() + 3]}
+
+
+def patch(p, at, force=None, lang='it'):
     """obj3 code + data at `at` (the obj3 chain's end: after xleft, ctview / ctgame); returns the end. Needs xtra, xleft,
     careerworld (and gplay for the windows) patched first. force: the BTEAM_FORCE test mailbox (default: the env)."""
     import os
@@ -1031,7 +1339,21 @@ def patch(p, at, force=None):
            'PREV_READTO': p.call_target(1, rd[0]), 'PLAYER_': (0, xtra.PLAYER), 'MAXE_': (0, xtra.MAX_EXTRA),
            'BUMAX_': (0, BU_MAX), 'BUSZ_': (0, BU_SIZE), 'BUFSZ_': (0, BUF_SIZE), 'MAXM_': (0, MAX_MATCH),
            'MAXW_': (0, MAX_WINDOW)}
-    src = ASM
+    import squadnum
+    import xbrowse
+    u = ui_sites(p)
+    import lepatch
+    xb = xbrowse.find(lepatch.LEPatch(bytes(p.le.data)))   # (its sites' fixups: xbrowse.patch removed some)
+    assert d1[xb['init'] + 12] == 0xE8, 'BuyOtherPlayersInit: call GetTeamPointer'
+    for x in u['users']:
+        assert p.get(1, x, 10) == d1[x:x + 10], ('bteam: squadMenu user already patched', hex(x))
+    x, y, w, h = SQ_BUTTON
+    sym.update({'SQM': (2, u['menu']), 'SQLEN_': (0, u['len']), 'SQE_': (0, SQ_ENTRY), 'BX_': (0, x), 'BY_': (0, y),
+                'BW_': (0, w), 'BH_': (0, h), 'SQT': squadnum.sites(p)['SQT'], 'CALC': (1, xb['calc']),
+                'DRAWMENU': (1, xb['drawmenu']), 'GETTEAM': (1, xb['init'] + 17 + struct.unpack_from('<i', d1, xb['init'] + 13)[0]),
+                'SQTP': (2, xb['sqtp']), 'SHOWSQ': (1, xb['showsq']), 'VS_OFR': (1, xbrowse.LABELS['vs_ofr']),
+                'SHOW_MENU': (1, u['show']), 'A6': u['a6'], 'EXITM': u['exitm'], 'MSG_': (0, MSG)})
+    src = ASM + UI_ASM.replace('BT_TEXTS', ui_texts(lang))
     if 'CAL' in gplay.LABELS and 'CAL_CUR' in gplay.LABELS:
         sym['CAL'], sym['CAL_CUR'] = gplay.LABELS['CAL'], gplay.LABELS['CAL_CUR']
     else:
@@ -1056,6 +1378,10 @@ def patch(p, at, force=None):
         p.remove(1, g + 2)                              # mov esi, [A0]
         p.branch(1, g, 0xE8, 3, lab['bt_gen'], 10)
     p.branch(1, s['wst'], 0xE8, 3, lab['bt_wst'])
+    for x in u['users']:                                # M3: mov dword [A6], squadMenu -> the copy with SQ. B
+        p.remove(1, x + 2)
+        p.remove(1, x + 6)
+        p.branch(1, x, 0xE8, 3, lab['bt_sqshow'], 10)
     if force:
         p.remove(1, s['smm'] + 2)                       # mov ax, [isNationalSelector]
         p.branch(1, s['smm'], 0xE8, 3, lab['bt_smm'], 6)

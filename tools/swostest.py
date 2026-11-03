@@ -13805,7 +13805,9 @@ def world_sc_bra():
     (the champion). Season 1: no SUPERCOPPA DEL BRASILE (the 2027 edition's clubs are not known); season 2 (from
     season 1's save): its FINALE played once in January v the COPA DO BRASIL winner (or the league's 2nd after a
     double) - Brazil's cup 2 (its cup 1 is the state contest), recorded by sc_cup2 at cseg_92A63; both seasons end"""
-    return sc_from2('SUDAMERICA,BRASILE,BRASILEIRAO SERIE A,FLAMENGO', 'SUPERCOPPA DEL BRASILE', 'bra')
+    word = {'en': 'BRAZILIAN SUPER CUP', 'fr': 'SUPERCOUPE DU BRESIL', 'de': 'BRASILIANISCHER SUPERCUP'}.get(
+        UI, 'SUPERCOPPA DEL BRASILE')               # (the exe's language: tools/supercups2627.json's names)
+    return sc_from2('SUDAMERICA,BRASILE,BRASILEIRAO SERIE A,FLAMENGO', word, 'bra')
 
 
 def conti_drop(tag, force, team, word):

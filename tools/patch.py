@@ -217,6 +217,8 @@ def patch_exe(src, dst, remap, lang='it'):
         nkf = kitfix.gen(os.path.join(os.path.dirname(os.path.abspath(dst)), 'DATA'))
         print(f'exe: career club kits refresh: {nkf} shipped pairs in DATA\\KITFIX.DAT' if nkf is not None else
               'exe: career club kits refresh: no team files beside the exe (no KITFIX.DAT)')
+    import dugout                                      # 4.0.6: PITCH1-5 with the long dugouts beside the exe (benchx)
+    print('exe: long dugouts: ' + dugout.gen(os.path.dirname(os.path.abspath(dst))))
     mkseason.register_states()                         # the career worlds' state championships (statespec.py)
     import statespec
     statespec.register_test()                          # STATESPEC_TEST=1: a world-0 test state (harness)

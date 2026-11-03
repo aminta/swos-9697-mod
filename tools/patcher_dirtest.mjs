@@ -50,6 +50,8 @@ function game(dir, gog) {                                    // a game folder fr
   fs.rmSync(dir, { recursive: true, force: true }); fs.mkdirSync(path.join(dir, 'DATA'), { recursive: true });
   for (const x of ['ITALIAN.EXE', 'ENGLISH.EXE', 'FRENCH.EXE', 'GERMAN.EXE']) fs.copyFileSync(path.join(M, gog ? 'orig/gog' : 'orig', x), path.join(dir, x));
   for (const x of fs.readdirSync(path.join(M, 'orig/DATA'))) fs.copyFileSync(path.join(M, 'orig/DATA', x), path.join(dir, 'DATA', x));
+  for (const x of fs.readdirSync(path.join(M, 'orig')).filter(x => /^(PITCH\d\.(DAT|BLK)|SWCPICH\d\.P16)$/.test(x)))   // (4.0.6: the long dugouts)
+    fs.copyFileSync(path.join(M, 'orig', x), path.join(dir, x));
   if (gog) { fs.mkdirSync(path.join(dir, 'DOSBOX'));                 // GOG's DOSBox confs (contents not read by the page)
     for (const c of ['dosbox_SWOS.conf', 'dosbox_SWOS_single.conf', 'dosbox_SWOS_single_italian.conf', 'dosbox_SWOS_single_french.conf',
                      'dosbox_SWOS_single_german.conf']) fs.writeFileSync(path.join(dir, c), '[autoexec]\r\n'); }

@@ -3255,6 +3255,13 @@ def zone_colours():
 def world8485():
     """Europe 1984-85 world (world 4): new career at Liverpool, two seasons (save, reload, save), checkw1 on both"""
     exe = os.environ.get('W8485_BUILD') or builds()['it']       # (builds/w8485 was a stale 3.0-era build)
+    global W84_HOOK
+    if os.environ.get('HT_SNAP_LABELS') and W84_HOOK is None:  # tools/hosttest fixtures from ANY world8485 run: a
+        sys.path.insert(0, os.path.join(ROOT, 'tools', 'hosttest'))   # breakpoint at each label (the exe's
+        import snapshot                                        # ITALIAN.syms.json: HOSTTEST_SYMS=1 build), dumps
+        W84_HOOK = snapshot.make_hook(sys.modules[__name__], exe, os.environ['HT_SNAP_LABELS'],   # into HT_SNAP_OUT
+                                      os.environ.get('HT_SNAP_OUT') or os.path.join(RUNS, 'ht_snap'),
+                                      int(os.environ.get('HT_SNAP_WEEKMIN', 0)), int(os.environ.get('HT_SNAP_MAX', 12)))[0]
     out, msgs = [], []
     first = os.environ.get('W8485_FROM')                   # resume from a season-1 save (W84A.CAR)
     if first:
@@ -3316,6 +3323,8 @@ def world8485():
                     return True, 'calendar ' + bytes(s.result.obj2(CAL_AT - 4, 0x2000)).hex()
             else:
                 s.send('down down down down down fire dump:2')
+                if W84_HOOK is not None and getattr(W84_HOOK, 'pre_load', False):   # (tools/hosttest: breakpoints
+                    W84_HOOK(s, season, s.screen())                                     #  in the load itself)
                 s.send('fire dump:3')
                 if W84_HOOK is not None and getattr(W84_HOOK, 'at_load', False):   # (the loaded career's first
                     W84_HOOK(s, season, s.screen())                                    #  menu, before advance)
@@ -4993,6 +5002,24 @@ def world_uq_early():
           f'ahead: {[tuple(hex(x) for x in menus[i]) for i in qs if menus[i][2] == 0xFFFF and not menus[i][3]][:3]}', errs)
     seen = list(dict.fromkeys((hex(m[0]), hex(m[1])) for m in menus))
     return not errs, '; '.join(errs) or f'{msg[:160]}; ties played {ties}; slot 3 on the menus {seen} ({len(menus)} menus)'
+
+
+def gwalk(s, text, w=3, tries=40):
+    """Select the entry showing text by geometry, then fire (the team / competition picker: its links pass through
+    hidden entries the game skips by position - walk's planner finds no path to the cup buttons above the nations,
+    the stock MONDO screen's UEFA cups too); returns the new screen."""
+    for _ in range(tries):
+        scr = s.screen()
+        i = scr.find(text, exact=True)
+        if i is None:
+            raise AssertionError(f'{text} not on screen ({scr.texts()[:16]})')
+        if scr.selected == i:
+            s.send(f'fire dump:{w}')
+            return s.screen()
+        (x0, y0, w0, h0), (x1, y1, w1, h1) = scr.geom[scr.selected], scr.geom[i]
+        k = 'up' if y1 + h1 <= y0 else 'down' if y1 >= y0 + h0 else 'left' if x1 < x0 else 'right'
+        s.send(k + ' dump:0.5')
+    raise AssertionError(f'gwalk: {text} not reached ({s.screen()})')
 
 
 def walk(s, target, w=3, tries=20, stays=48):
@@ -15042,6 +15069,15 @@ def contiview_open(s, k, pages=None):
     s.shot('contiview_menu')
     btn = [x[1] for x in s.screen().entries[1:7]]
     walk(s, k, 3)
+    import ctview                                       # (4.0.6 P3: a confederation with drawn rounds opens its
+    summ = ctview.TEXTS[UI][7].decode('latin1')         # rounds menu: the page is its RIEPILOGO)
+    rounds_menu = s.screen().find(summ, exact=True) is not None
+    if rounds_menu:
+        s.shot(f'contiview_{k}_rounds')
+        CR_LAST[:] = [x[1] for x in s.screen().entries[1:1 + ctview.CR_N] if not x[2]]
+        walk(s, s.screen().find(summ, exact=True), 3)
+    else:
+        CR_LAST[:] = []
     scr = s.screen()
     s.shot(f'contiview_{k}')
     title, lines = scr.entries[0][1], [x[1] for x in scr.entries[1:15]]
@@ -15052,9 +15088,14 @@ def contiview_open(s, k, pages=None):
             walk(s, 15, 3)
             s.shot(f'contiview_{k}_p{n + 2}')
             pages.append([x[1] for x in s.screen().entries[1:15]])
-    walk(s, 16, 3)                                      # EXIT -> the confederations
+    walk(s, 16, 3)                                      # EXIT -> the rounds menu / the confederations
+    if rounds_menu:
+        walk(s, ctview.CR_N + 2, 3)                     # (the rounds menu's ESCI)
     walk(s, s.screen().find('ESCI', exact=True), 3)     # -> VISUAL. COMPETIZ.
     return btn, title, lines
+
+
+CR_LAST = []                                            # (contiview_open: the last rounds menu's visible buttons)
 
 
 @scenario
@@ -15151,6 +15192,232 @@ def world_contiview():
 
 
 @scenario
+def world_cgame_view():
+    """4.0.6 option C P3: COPPE CONTINENTALI's rounds menu -> the round in the game's own competition screen (ctgame
+    cg_view: knockout legs + aggregate + pens / away goals, group tables + fixtures, as at the career's week). On
+    world_contiview's build and season-2 save (CV_BUILD, CV_S2 / RUNS cv_s2_<ui>.CAR): every confederation's rounds menu
+    (labels within 144 px, menu font), each visible round opened (shot cgv_<k>_<j>, its texts in the menu font and within
+    their boxes), ESCI back to the rounds menu; CT_SEG / CT_ED byte-identical before and after (the view closed).
+    4.0.6 continent screens (Davide GO 03/11): VISUALIZZA MONDO - MONDO's FIFA cup above the continents, every continent
+    (gwalk) its green cup buttons above its nations (EUROPA: the UEFA cups, the game's own views), names in the font and within their buttons;
+    each cup button -> its rounds menu (title = the cup, the rounds' own labels), every round opened and back,
+    RIEPILOGO = that cup's part only, ESCI -> the career menu, CT state unchanged. CV_OWN=<club>: a save with the club
+    in a conti round in progress - its round on screen through the game's slot 3 (CG_G's opens unchanged)"""
+    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    if not os.path.isdir(src) and not os.environ.get('CV_BUILD'):
+        return True, f'SKIP: private data {src} missing'
+    exe = os.environ.get('CV_BUILD')
+    if not exe:
+        order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+        exe = build('world_contiview', env={'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x)
+                                                                                          for x in order])}, lang=UI)
+    s2 = os.environ.get('CV_S2') or os.path.join(RUNS, f'cv_s2_{UI}.CAR')
+    if not os.path.exists(s2):
+        return False, f'no season-2 save {s2} (run world_contiview first)'
+    tr = cv_trace(exe)
+    if not tr:
+        return False, 'no CVTRPTR block (ctview not in the build)'
+    seg_at, ed_at = tr[0], tr[1]
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import complist
+    import ctview
+    summ = ctview.TEXTS[UI][7].decode('latin1')
+    errs, info = [], []
+    with Session('world_cgame_view', exe, {'W84A.CAR': s2}, 'dump:2', 600) as s:
+        s.wait()
+        plain = {}
+        s.send(LOAD1 + ' dump:3')
+        for _ in range(6):
+            if s.screen().find('VISUAL. COMPETIZ.', exact=True) is not None:
+                break
+            press(s, s.screen(), 'CONTINUA', 3) or s.send('fire dump:2')
+        st = lambda: (bytes(s.result.obj2(seg_at, 72)), bytes(s.result.obj2(ed_at, 2260)))
+        gtr = cg_trace(exe)                             # (ctgame's CG_G[3]: the views opened - none for the career
+        opens = lambda: struct.unpack('<I', bytes(s.result.read(s.result.lin((3, gtr[3] + 12)), 4)))[0]   # club's own
+        own, own_seen = os.environ.get('CV_OWN'), []    #  round in progress: the game's slot 3, CV_OWN = its name)
+        if not own:                                     # (the foreign market's club picker, careerworld w_buy: the
+            walk(s, 'TRASFERIMENTI', 3)                 #  plain lists too - first: after a game's own cup view the
+                                                        #  menu's links go through its fixtures; CV_OWN's save:
+                                                        #  its week has no market)
+            walk(s, 2, 3)
+            walk(s, 5, 3)                               # ACQ. ALTRO GIOCAT. STRANIERO
+            plain['foreign market MONDO'] = s.screen().texts()
+            for cont in ('EUROPA', 'SUDAMERICA', 'NORDAMERICA', 'ASIA', 'AFRICA', 'OCEANIA'):
+                gwalk(s, cont, 3)
+                plain[f'foreign market {cont}'] = s.screen().texts()
+                s.shot(f'cgw_buy_{cont.lower()}')
+                gwalk(s, 'ESCI', 3)
+            for _ in range(6):                          # (ABBANDONA, then the market menus' ESCI)
+                if s.screen().find('VISUALIZZA MONDO', exact=True) is not None:
+                    break
+                sc = s.screen()
+                gwalk(s, 'ABBANDONA' if sc.find('ABBANDONA', exact=True) is not None else 'ESCI', 3)
+
+        def rounds(tag, conf):                          # (a rounds menu on screen: every round opened and back)
+            sc = s.screen()
+            s.shot(f'{tag}_rounds')
+            btns = [(i, sc.raw_texts[i] if sc.raw_texts else t) for i, t, inv, dis in sc.entries[1:1 + ctview.CR_N + 1]
+                    if not inv and t]
+            odd = sorted({ch for i, t in btns for ch in t.upper()} - complist.FONT)
+            check(not odd, f'{conf}: rounds menu characters outside the font {odd}', errs)
+            wide = [(t, complist.px(t.upper())) for i, t in btns if complist.px(t.upper()) > 144]
+            check(not wide, f'{conf}: rounds menu labels over 144 px {wide}', errs)
+            opened = []
+            s.log.append(f'[cgv] {conf} rounds menu: {btns} nav {sc.nav[1:4]} {sc.nav[ctview.CR_N + 1:ctview.CR_N + 3]}')
+            for j, (i, label) in enumerate(btns):
+                if i > ctview.CR_N:
+                    continue
+                b0, o0 = st(), opens()
+                walk(s, i, 4)
+                v = s.screen()
+                s.shot(f'{tag}_{j}')
+                texts = v.texts()
+                if own and opens() == o0 and texts and v.find(summ, exact=True) is None:
+                    own_seen.append(f'{conf} {label}')  # (no ctgame view opened, a screen shown: the game's slot 3 -
+                    check(v.find('PASSA') is not None,  #  the club's group stage, its names drawn in the table rows)
+                          f'{conf} {label}: shown without a view, not a group stage ({texts[:6]})', errs)
+                s.log.append(f'[cgv] {conf} {label}: {texts[:24]}')
+                check(v.find(summ, exact=True) is None and texts, f'{conf} {label}: no view ({texts[:6]})', errs)
+                raw = v.raw_texts or texts
+                bad = sorted({ch for t, e in zip(raw, v.entries) if not e[2] for ch in t.upper()} - complist.FONT)
+                check(not bad, f'{conf} {label}: characters outside the font {bad}', errs)
+                over = [(t, complist.px(t.upper()), g[2]) for t, g, e in zip(raw, v.geom, v.entries) if t and g[2] > 0
+                        and not e[2] and complist.px(t.upper()) > g[2]]   # (visible entries: the game's own hidden
+                                                                          #  texts - FR's tooltips - aside)
+                check(not over, f'{conf} {label}: texts wider than their boxes {over[:4]}', errs)
+                win = {'it': r'VINCE', 'en': r'WIN', 'fr': r'VICT(?:OIRE DE)?', 'de': r'GEWINNT'}[UI]
+                for t in raw:                           # (the game's tie line: the winner's score first - the
+                    for a, b in re.findall(win + r'\D*?(\d+)-(\d+)', t.upper()):   # aggregate, the shoot-out)
+                        check(int(a) > int(b), f'{conf} {label}: winner first but {a}-{b} in {t.strip()!r}', errs)
+                if v.find('PASSA') is not None:         # (a group stage: the game's next-stage button - its view, back)
+                    press(s, v, v.entries[v.find('PASSA')][1], 4)
+                    s.shot(f'{tag}_{j}_passa')
+                    s.log.append(f'[cgv] {conf} {label} PASSA: {s.screen().texts()[:16]}')
+                for _ in range(6):
+                    if s.screen().find(summ, exact=True) is not None:
+                        break
+                    press(s, s.screen(), 'ESCI', 3) or s.send('fire dump:2')
+                check(s.screen().find(summ, exact=True) is not None, f'{conf} {label}: not back on the rounds menu',
+                      errs)
+                s.log.append(f'[cgv] back: {s.screen()} nav {s.screen().nav[1:4]}')
+                s.shot(f'{tag}_{j}_back')
+                b1 = st()
+                check(b0 == b1, f'{conf} {label}: CT_SEG / CT_ED changed by the view', errs)
+                opened.append(label)
+            return opened
+
+        walk(s, s.screen().find('VISUAL. COMPETIZ.', exact=True), 3)
+        walk(s, s.screen().find('COPPE CONTINENTALI', exact=True), 3)
+        for k in range(1, 7):
+            conf = s.screen().entries[k][1]
+            walk(s, k, 3)
+            if s.screen().find(summ, exact=True) is None:
+                info.append(f'{conf}: no rounds')
+                walk(s, 16, 3)
+                continue
+            opened = rounds(f'cgv_{k}', conf)
+            info.append(f'{conf}: {len(opened)} rounds {opened[:3]}')
+            walk(s, ctview.CR_N + 1, 3)                 # (RIEPILOGO and back: the links again)
+            walk(s, 16, 3)
+            check(s.screen().find(summ, exact=True) is not None and s.screen().path(ctview.CR_N + 2),
+                  f'{conf}: rounds menu after RIEPILOGO: {s.screen()}', errs)
+            walk(s, ctview.CR_N + 2, 3)                 # (the rounds menu's ESCI -> the confederations)
+
+        def career_menu():
+            for _ in range(5):
+                if s.screen().find('VISUALIZZA MONDO', exact=True) is not None:
+                    return True
+                sc = s.screen()                         # (the picker's ESCI: by geometry, walk finds no path)
+                b = [t for t in ('ESCI', 'ABBANDONA') if sc.find(t, exact=True) is not None]
+                if b:                                   # (a continent's ESCI -> MONDO, MONDO's ABBANDONA -> the menu)
+                    gwalk(s, b[0], 3)
+                else:
+                    s.send('fire dump:2')
+            return s.screen().find('VISUALIZZA MONDO', exact=True) is not None
+
+        def picker(tag, want_cups):                     # (VIEW WORLD's picker on screen: its green cup buttons -
+            sc = s.screen()                             #  the competitions, entries 1..20 - and the rest)
+            s.shot(tag)
+            raw = sc.raw_texts or [t for _, t, _, _ in sc.entries]
+            cups = [(i, raw[i]) for i, t, inv, _ in sc.entries if 1 <= i <= 20 and t and not inv]
+            rest = [raw[i] for i, t, inv, _ in sc.entries if 21 <= i <= 86 and t and not inv]
+            check(bool(rest), f'{tag}: no nations / continents ({sc.texts()[:8]})', errs)
+            if want_cups:
+                check(len(cups) >= want_cups, f'{tag}: {len(cups)} cup buttons, want >= {want_cups}', errs)
+                y_n = min(sc.geom[i][1] for i, t, inv, _ in sc.entries if 21 <= i <= 86 and t and not inv)
+                check(all(sc.geom[i][1] < y_n for i, _ in cups), f'{tag}: cup buttons not above the list', errs)
+            odd = sorted({ch for _, t in cups for ch in t.upper()} - complist.FONT)
+            check(not odd, f'{tag}: cup buttons characters outside the font {odd}', errs)
+            wide = [(t, complist.px(t.upper()), sc.geom[i][2]) for i, t in cups if complist.px(t.upper()) > sc.geom[i][2] - 2]
+            check(not wide, f'{tag}: cup names wider than their buttons {wide}', errs)
+            s.log.append(f'[cgw] {tag}: cups {cups} list {rest[:12]}')
+            return [t for _, t in cups], rest
+        check(career_menu(), f'VIEW WORLD: not back on the career menu ({s.screen()})', errs)
+        walk(s, 'VISUALIZZA MONDO', 3)
+        mcups, mrest = picker('cgw_mondo', 1)
+        fifa = mcups                                    # (FIFA's only: the UEFA cups on EUROPA, Davide 03/11)
+        conts = [t for t in s.screen().texts() if t in ('EUROPA', 'SUDAMERICA', 'NORDAMERICA', 'ASIA', 'AFRICA', 'OCEANIA')]
+        check(len(conts) == 6 and len(fifa) >= 1, f'MONDO: continents {conts}, FIFA cups {fifa}', errs)
+        todo = [(None, c) for c in fifa]
+        for cont in conts:
+            gwalk(s, cont, 3)
+            cups, rest = picker(f'cgw_{cont.lower()}', 3 if cont == 'EUROPA' else 1)
+            todo += [(cont, c) for c in cups]
+            info.append(f'{cont}: {cups} + {len(rest)} nations')
+            check(career_menu(), f'{cont}: not back on the career menu ({s.screen()})', errs)
+            walk(s, 'VISUALIZZA MONDO', 3)
+        career_menu()
+        for q, (cont, cup) in enumerate(todo):
+            walk(s, 'VISUALIZZA MONDO', 3)
+            if cont:
+                gwalk(s, cont, 3)
+            b0 = st()
+            gwalk(s, cup, 4)
+            sc = s.screen()
+            title = (sc.raw_texts or [sc.entries[0][1]])[0]
+            if sc.find(summ, exact=True) is None:      # (no round drawn: the cup's page part; a UEFA cup:
+                check(any(cup in t for t in [title] + (sc.raw_texts or []) + sc.texts()) or   # the game's own
+                      (cont == 'EUROPA' and not title and 'STAT' in sc.texts()),               #  view: its title
+                      f'{cup}: page title {title!r}', errs)     # (DE's long ones - 'UEFA EUROPA LEAGUE VIERTELFINALE
+                                                                #  RUCKSP.' - read empty: shot cgw_<q>_view)
+                s.shot(f'cgw_{q}_view')
+                s.log.append(f'[cgw] {cup} view: {sc.texts()[:8]}')
+                info.append(f'{cup}: {"view" if cont == "EUROPA" else "page"}')
+            else:
+                check(title == cup, f'{cup}: rounds menu title {title!r}', errs)
+                opened = rounds(f'cgw_{q}', cup)
+                walk(s, ctview.CR_N + 1, 3)             # (RIEPILOGO: the cup's part only)
+                pg = s.screen()
+                s.shot(f'cgw_{q}_sum')
+                s.log.append(f'[cgw] {cup} RIEPILOGO: {pg.texts()[:16]}')
+                check(cup in (pg.raw_texts or pg.texts())[0], f'{cup}: RIEPILOGO title {pg.texts()[:2]}', errs)
+                walk(s, 16, 3)
+                check(s.screen().find(summ, exact=True) is not None, f'{cup}: rounds menu after RIEPILOGO', errs)
+                info.append(f'{cup}: {len(opened)} rounds')
+            check(st() == b0, f'{cup}: CT_SEG / CT_ED changed', errs)
+            check(career_menu(), f'{cup}: not back on the career menu ({s.screen()})', errs)
+        if own:
+            check(own_seen, f'{own}: its own round never on screen', errs)
+            info.insert(0, f'{own} from slot 3: {own_seen}')
+    with Session('world_cgame_view_pick', exe, {'W84A.CAR': s2}, 'dump:2', 300) as s:
+        s.wait()                                        # (the new career's club picker: the plain lists, no cup
+        for t in ('CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27'):   # buttons - ctview cw_on /
+            press(s, s.screen(), t, 3)                  #  cw_off swap them in for VIEW WORLD only)
+        plain['new career MONDO'] = s.screen().texts()
+        for cont in ('EUROPA', 'SUDAMERICA', 'NORDAMERICA', 'ASIA', 'AFRICA', 'OCEANIA'):
+            gwalk(s, cont, 3)
+            plain[f'new career {cont}'] = s.screen().texts()
+            s.shot(f'cgw_new_{cont.lower()}')
+            gwalk(s, 'ESCI', 3)
+        allcups = {c for _, c in todo} | set(mcups)
+        for k, tx in plain.items():
+            s.log.append(f'[cgw] {k}: {tx}')
+            check(len(tx) >= 2 and not allcups & set(tx), f'{k}: cup buttons {sorted(allcups & set(tx))} ({tx[:6]})', errs)
+        info.append(f'pickers plain: {len(plain)} screens')
+    return not errs, '; '.join(errs[:12]) or '; '.join(info)
+
+
+@scenario
 def world_contiview_old():
     """4.0.6 COPPE CONTINENTALI on an older career (M4): season 1 of an INTER career on the 4.0.5 release exe (CV_OLD,
     default c/REL405/SWOS: no view), its save loaded by this build as world_contiview's season 2 (CV_S2): every
@@ -15185,7 +15452,9 @@ def world_contiview_tie():
     wins its conti ties). Season 1 played; season 2 (its save) saved at its 5th Libertadores result screen (q3's first
     leg, September: q1 and q2, August, are over). The view (CONMEBOL first, the club's own): q1 and q2 list FLAMENGO's
     ties with it in brackets (through), q3 its tie without them (the next game: the opponent of that result screen), the
-    groups DA GIOCARE; CT_SEG / CT_ED unchanged by the view (CV_TIE_S2: a cached season-2 save)"""
+    groups DA GIOCARE; CT_SEG / CT_ED unchanged by the view (CV_TIE_S2: a cached season-2 save). On a release exe
+    (CV_TIE_BUILD=<release dir>: no CONTI_FORCE / CONTI_KOWIN) set CV_TIE_S2 to the test build's season-2 save - its
+    'CE' item has FLAMENGO through q1 / q2 and the release exe only replays it (the names from TMW5.nnn)"""
     src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
     if not os.path.isdir(src):
         return True, f'SKIP: private data {src} missing'
@@ -15262,6 +15531,153 @@ def world_contiview_tie():
             later = lib[lib.index(fl[2]) + 1:]
             check(any(T[1] in x for x in later), f'no {T[1]} round after q3: {later}', errs)
     return not errs, '; '.join(errs) or '; '.join(info)
+
+
+def cg_trace(exe):
+    """obj3 offsets of ctgame.c's CG_T, its scratch, CG_ERR and CG_G (P2's guard; the 'CGTRPTR' block), else None."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    from le import LE
+    f = next(os.path.join(exe, x) for x in ('ITALIAN.EXE', 'ENGLISH.EXE', 'FRENCH.EXE', 'GERMAN.EXE')
+             if os.path.exists(os.path.join(exe, x)))
+    le = LE(open(f, 'rb').read())
+    if len(le.objs) < 3:
+        return None
+    d3 = le.obj_bytes(3)
+    k = d3.find(b'CGTRPTR\0')
+    return struct.unpack_from('<IIII', d3, k + 8) if k >= 0 else None
+
+
+@scenario
+def world_cgame_guard():
+    """4.0.6 option C, P2 gate (GO/NO-GO 2): a view opened and closed leaves the career exactly as it was. Two exes of
+    one recipe (CGG_A: without, CGG_B: with CONTI_CGVIEW=1 - a test build: conti's ct_daily opens one drawn conti round
+    every day (cg_open: the state kept, cg_build), does to it what the game's view does (cseg_8B71C / cseg_8B7EA on the
+    contest) and closes it (cg_close: put back, the saved state's sum checked)). Season 1 on A (CGG_S1: a cached save),
+    then season 2 from its save on A and on B: the two season-2 .CARs byte-identical, B's guard (CG_G) opened views,
+    no bad sum, no fallback, no failed build. CGG_TEAM (default HAMRUN SPARTANS: a short league)."""
+    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    if not os.path.isdir(src) and not (os.environ.get('CGG_A') and os.environ.get('CGG_B')):
+        return True, f'SKIP: private data {src} missing'
+    exes = {}
+    for k, env in (('A', {}), ('B', {'CONTI_CGVIEW': '1'})):
+        exes[k] = os.environ.get('CGG_' + k)
+        if not exes[k]:
+            order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+            env['SEASON_PACKS'] = ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order])
+            exes[k] = build('world_cgame_guard_' + k.lower(), env=env, lang=UI)
+    tr = cg_trace(exes['B'])
+    if not tr or len(tr) < 4:
+        return False, 'no CGTRPTR block with CG_G in B (ctgame not in the build)'
+    g_at = tr[3]
+    team = os.environ.get('CGG_TEAM', 'EUROPA,MALTA,?MALTESE PREMIER LEAGUE|PREMIER LEAGUE,HAMRUN SPARTANS')
+    s1 = os.environ.get('CGG_S1') or os.path.join(RUNS, f'cgg_s1_{UI}.CAR')
+    if not os.path.exists(s1):
+        ok, msg, _ = sc_season(team, dict(W8485_BUILD=exes['A']))
+        car = os.path.join(RUNS, w84_tag() + '_1', 'SWOS', 'W84A.CAR')
+        if not ok or not os.path.exists(car):
+            return False, f'season 1: {msg[:200]}'
+        shutil.copy(car, s1)
+    seen = {}
+    global W84_HOOK
+
+    def hook(s, season, scr):
+        r = s.result
+        if r is None or r.base3 is None:
+            return
+        g = struct.unpack('<12I', r.read(r.base3 + g_at, 48))
+        if g != seen.get('last'):
+            seen['last'] = g
+    errs, cars, info = [], {}, []
+    for k in ('A', 'B'):
+        seen.clear()
+        W84_HOOK = hook if k == 'B' else None
+        try:
+            ok, msg, _ = sc_season(team, dict(W8485_BUILD=exes[k], W8485_FROM=s1), 2)
+        finally:
+            W84_HOOK = None
+        car = os.path.join(RUNS, w84_tag() + '_2', 'SWOS', 'W84B.CAR')
+        check(ok and os.path.exists(car), f'season 2 on {k}: {msg[:150]}', errs)
+        if os.path.exists(car):
+            cars[k] = os.path.join(RUNS, f'cgg_s2_{k}_{UI}.CAR')
+            shutil.copy(car, cars[k])
+            os.remove(car)
+    if len(cars) == 2:
+        a, b = (open(cars[x], 'rb').read() for x in ('A', 'B'))
+        diff = [i for i in range(min(len(a), len(b))) if a[i] != b[i]]
+        check(a == b, f'season-2 .CAR with the view != without: {len(a)} / {len(b)} B, {len(diff)} bytes differ, '
+              f'first {[hex(i) for i in diff[:8]]}', errs)
+        info.append(f'.CAR {len(a)} B identical' if a == b else '')
+    g = seen.get('last')
+    if not g:
+        errs.append('B: CG_G never read')
+    else:
+        info.append(f'CG_G opens {g[3]} vtest builds {g[8]} fails {g[9]} trips {g[4]} bad {g[5]} sticky {g[6]} '
+                    f'last err {g[7]}')
+        check(g[3] > 0 and g[8] > 0, f'B: no view opened ({g[:10]})', errs)
+        check(g[0] == 0 and g[5] == 0 and g[6] == 0 and g[9] == 0, f'B: guard {g[:10]}', errs)
+    return not errs, '; '.join(errs + info) or '; '.join(info)
+
+
+@scenario
+def world_cgame_self():
+    """4.0.6 option C, P1 gate: the builder (ctgame.c - the view's contests by the game's own code into the scratch)
+    against the game's own slot-3 contests. A FLAMENGO career on a CONTI_FORCE=lib:q1 + CONTI_KOWIN + CONTI_CGTEST
+    test build: in season 2 every contest conti's ct_build puts in slot 3 from the daily (the Libertadores' q2, q3 ties,
+    its group stage; q1 is built at the season start) is rebuilt at once by cg_build from conti.c's replay and must be byte-identical to slot 3 (cg_selftest:
+    CG_T builds / mismatches / first diff), the team cache unchanged by it (every club already in). CG_FILL=1: the
+    scratch filled with 5Ah first (DOS/4GW leaves it as it was - the builder must clear what it uses)."""
+    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    fill = os.environ.get('CG_FILL')
+    env = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]),
+           'CONTI_FORCE': 'lib:q1', 'CONTI_KOWIN': '1', 'CONTI_CGTEST': '1'}
+    if fill:
+        env['CG_FILL_TEST'] = '5A'
+    exe = os.environ.get('CG_BUILD') or build('world_cgame_self' + ('_fill' if fill else ''), env=env, lang=UI)
+    tr = cg_trace(exe)
+    if not tr:
+        return False, 'no CGTRPTR block (ctgame not in the build)'
+    t_at = tr[0]
+    team = 'SUDAMERICA,BRASILE,BRASILEIRAO SERIE A,FLAMENGO'
+    s1 = os.environ.get('CG_S1') or os.path.join(RUNS, f'cg_self_s1_{UI}.CAR')
+    if not os.path.exists(s1):
+        ok, msg, _ = sc_season(team, dict(W8485_BUILD=exe))
+        car = os.path.join(RUNS, w84_tag() + '_1', 'SWOS', 'W84A.CAR')
+        if not ok or not os.path.exists(car):
+            return False, f'season 1: {msg[:200]}'
+        shutil.copy(car, s1)
+    seen = {}
+    global W84_HOOK
+
+    def hook(s, season, scr):
+        r = s.result
+        if r is None or r.base3 is None:
+            return
+        t = struct.unpack('<8I', r.read(r.base3 + t_at, 32))
+        if t[0] and t != seen.get('last'):
+            seen['last'] = t
+            seen.setdefault('lens', set()).add(t[4])
+            s.log.append(f'[cg] builds {t[0]} mismatches {t[1]} first {t[2]:#x} last cup/round/tie {t[3]:#x} '
+                         f'len {t[4]:#x} cache {t[5]}->{t[6]} err {t[7]}')
+    W84_HOOK = hook
+    try:
+        ok, msg, lines = sc_season(team, dict(W8485_BUILD=exe, W8485_FROM=s1), 2)
+    finally:
+        W84_HOOK = None
+    t = seen.get('last')
+    if not t:
+        return False, f'no cg_selftest build seen; season 2: {ok} {msg[:150]}'
+    errs = []
+    lens = seen.get('lens', set())                       # (q1 goes into slot 3 at the season start, not from the
+    check(t[0] >= 3 and {0x443, 0xB52} <= lens,          #  daily: q2, q3 and the group stage here)
+          f'{t[0]} slot-3 contests rebuilt, kinds {sorted(hex(x) for x in lens)} (ties 443h and a group stage B52h)', errs)
+    check(t[1] == 0, f'{t[1]} rebuilt contests differ from slot 3 (first at {t[2] & 0xFFFF:#x}, err {t[7]})', errs)
+    check(t[5] == t[6], f'the team cache changed {t[5]} -> {t[6]}', errs)
+    check(ok, f'season 2: {msg[:150]}', errs)
+    cg = [ln for ln in lines if ln.startswith('[cg]')]
+    return not errs, '; '.join(errs + cg[-3:]) or '; '.join(cg[-4:])
 
 
 @scenario
@@ -17524,6 +17940,22 @@ def world_uru_nacional():
             else:
                 os.environ[k] = v
     return ok, msg
+
+
+@scenario
+def ht_snapshot():
+    """tools/hosttest fixtures in this run's dir (so remote_run brings them back): HT_BUILD (a build with
+    HOSTTEST_SYMS=1), HT_LABELS (module.label,..), HT_NAME (-> RUNS/ht_<name>/<k>.bin + .json), HT_SCEN (a world8485
+    scenario, default world_uru_nacional), HT_TEAM (its URU_TEAM path), HT_CAR, HT_WEEKMIN, HT_MAX"""
+    if not os.environ.get('HT_BUILD'):
+        return True, 'SKIP: HT_BUILD not set'
+    sys.path.insert(0, os.path.join(ROOT, 'tools', 'hosttest'))
+    import snapshot
+    e = os.environ
+    out = os.path.join(RUNS, 'ht_' + e.get('HT_NAME', 'snap'))
+    n, ok, msg = snapshot.take(e['HT_BUILD'], e['HT_LABELS'], out, e.get('HT_SCEN', 'world_uru_nacional'),
+                               e.get('HT_TEAM'), e.get('HT_CAR'), int(e.get('HT_WEEKMIN', 0)), int(e.get('HT_MAX', 12)))
+    return n > 0, f'{n} snapshots in {out}; career {ok}: {msg[:200]}'
 
 
 @scenario

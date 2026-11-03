@@ -71,4 +71,16 @@ struct ct_seg {                         /* the career club's next game (CT_SEG.k
     u8 legs, level, month, pos;         /* pos: the club's place in the list */
     u16 club[32];                       /* team words */
 };
+/* 4.0.6 option C (ctgame.c, obj3): the goals of a replay, kept only while CT_GREC points at one (the view's own
+   replay; NULL in the season end's, a load's and the daily's runs - the same RNG calls either way). A played round's
+   bytes from off[cup][round] - 1 (0: not kept): a knockout 3 per tie (D[2i] v D[2i+1]: the first leg, the second
+   leg - D[2i+1] at home -, extra time; a one-legged tie its match in the first), a group stage its groups' matches
+   in conti.c group()'s order. A byte: home goals + 1 | (away goals + 1) << 4 (extra time: its third); 0 no match,
+   GR_OWN a game the career club played in the game (its goals not in the replay) */
+#define GR_OWN 0xFF
+struct ct_grec {
+    u16 used, room;                     /* bytes of b[] used / available */
+    u16 off[NCUP][NRD];
+    u8 b[];
+};
 #endif

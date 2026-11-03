@@ -532,7 +532,21 @@ w_mrec:                                 ; replaces `add word [D1], 1996; add wor
     pop ebx
     jmp %2
 %endmacro
-W_SWAP w_view, CHOOSECOMP, 1               ; (4.0.2, Davide: VIEW WORLD as well - no one-entry CLASSIC CAREERS menu)
+W_SWAP w_view, w_choose, 1                 ; (4.0.2, Davide: VIEW WORLD as well - no one-entry CLASSIC CAREERS menu)
+w_choose:                               ; 4.0.6 P3: the picker, then ctview's cw_after (a confederation's cup button:
+    cmp dword [WV_ON], 0                ; its rounds menu - chooseTeamsResult cleared, ViewWorldMenu goes out); the
+    je .c                               ; lists with the cup buttons only while it runs (cw_on / cw_off: the other
+    call [WV_ON]                        ; pickers - a new career's club, the foreign market - keep the plain ones)
+.c: call CHOOSECOMP
+    cmp dword [WV_ON], 0
+    je .r
+    call [WV_OFF]
+    call [WV_AFTER]
+.r: ret
+align 4
+WV_ON: dd 0                             ; (ctview.patch)
+WV_OFF: dd 0
+WV_AFTER: dd 0
 W_SWAP w_buy, CHOOSETEAMS, 1
 
 w_nat:                                  ; replaces `mov ax, [D0]; mov [lastNationalityCall], ax`: no national team
@@ -1570,6 +1584,7 @@ def sites(p):
              + rb'\xe8', d1, 'ViewWorldMenu')
     s['view'] = m.start()
     s['choosecomp'] = m.start() + 5 + struct.unpack('<i', m.group(1))[0]
+    s['ctres'], s['selcont'] = p.target(1, m.start() + 7), p.target(1, m.start() + 17)   # (4.0.6 P3: ctview cw_after)
     # BuyOtherForeignPlayer: ... D2 = 1, D3 = D4 = 0, call ChooseTeamsDialog; cmp word [D0], -1
     m = _one(rb'\xc7\x05' + pk(A1) + rb'\x00\x00\x00\x00\x66\xc7\x05' + pk(D7 - 20) + rb'\x01\x00\x66\xc7\x05' + pk(D7 - 16)
              + rb'\x00\x00\x66\xc7\x05' + pk(D7 - 12) + rb'\x00\x00\xe8(.{4})\x66\x83\x3d' + pk(D0) + rb'\xff\x74', d1,
@@ -1885,7 +1900,7 @@ def patch(p, worlds, at, nasmcave, comp, ct, cont_rec):
         import mkseason                         # world 2025-26: several continents -> VIEW WORLD / foreign browser
         conts = [c for c, _, top in mkseason.WCONT_IDS.get(n, []) if top]
         view = conts or w['countries']          # the continents, then theirs
-        data.append(f'    dd W{n}_CONT, {int(bw)}')
+        data.append(f'W{n}_CONTP: dd W{n}_CONT, {int(bw)}')   # (4.0.6 P3: ctview.world_cups checks it)
         extra.append(f'W{n}_CONT: dd ' + ('WCC, WCWC, WUEFA' if bw else 'CCCOPY, CWCCOPY, UEFACOPY') + ', -1')
         extra.append('    db ' + ', '.join(map(str, view + [0xff])))
         for key, euro in zip(('cc', 'cwc', 'uefa'), s['euro']):

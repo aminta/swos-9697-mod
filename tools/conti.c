@@ -25,6 +25,13 @@ struct ct_state CT_ST;
 struct ct_out CT_OUT;
 struct ct_ed CT_ED;
 struct ct_seg CT_SEG;
+#ifdef NATIVE
+struct ct_grec *CT_GREC;
+#else
+struct ct_grec *CT_GREC __attribute__((section(".data"))) = 0;   /* (ctgame.c's replay only: obj1 data, not obj2) */
+#endif
+static u8 *g_gr;                        /* the round being kept (NULL: none) */
+static int g_gk;                        /* its first byte of the tie / group in play */
 static int g_stop, g_fv;
 
 /* --- the spec ----------------------------------------------------------------------------------------------------- */
@@ -95,22 +102,33 @@ static void match(int h, int a, int neutral, int *gh, int *ga) {
     *gh = goals(mh > 63 ? 63 : mh);
     *ga = goals(ma > 63 ? 63 : ma);
 }
+static void gput(int k, int x, int y) { if (g_gr) g_gr[g_gk + k] = (u8)((x + 1) | (y + 1) << 4); }
+static void grec_round(int c, int r, int need) {     /* the view's replay: room for round (c, r)'s bytes */
+    g_gr = 0;
+    if (!CT_GREC || need <= 0) return;
+    if (CT_GREC->used + need > CT_GREC->room) { CT_GREC->off[c][r] = 0; return; }
+    CT_GREC->off[c][r] = (u16)(CT_GREC->used + 1);
+    g_gr = CT_GREC->b + CT_GREC->used;
+    for (int i = 0; i < need; i++) g_gr[i] = 0;
+    CT_GREC->used = (u16)(CT_GREC->used + need);
+}
 /* a tie a v b (b at home in the second leg when legs = 2): 1 if a goes through. level: 0 penalties, 1 extra time +
    penalties, 2 away goals then penalties (CAF), 3 away goals, then extra time (no away goals in it), then penalties
    (CONCACAF, 4.0.2) */
 static int tie(int a, int b, int legs, int level, int neutral) {
     int x, y, ga = 0, gb = 0, awa = 0, awb = 0;
     if (legs == 2) {
-        match(a, b, 0, &x, &y); ga += x; gb += y; awb = y;
-        match(b, a, 0, &x, &y); gb += x; ga += y; awa = y;
+        match(a, b, 0, &x, &y); ga += x; gb += y; awb = y; gput(0, x, y);
+        match(b, a, 0, &x, &y); gb += x; ga += y; awa = y; gput(1, x, y);
     } else {
-        match(a, b, neutral, &x, &y); ga += x; gb += y;
+        match(a, b, neutral, &x, &y); ga += x; gb += y; gput(0, x, y);
     }
     if (ga != gb) return ga > gb;
     if ((level == 2 || level == 3) && legs == 2 && awa != awb) return awa > awb;
     if (level == 1 || level == 3) {     /* extra time */
         match(a, b, 1, &x, &y);
         x /= 3; y /= 3;
+        gput(2, x, y);
         if (x != y) return x > y;
     }
     return below(100) < 50;             /* penalties */
@@ -466,13 +484,14 @@ static void reached(int club, int c, int r) { CT_OUT.last[club - 1] = c << 4 | r
 
 /* a group: double / single round robin of D[base .. base + gs) -> places into P */
 static void group(int base, int gs, int grounds, int *P) {
-    int pt[16] = {0}, gd[16] = {0}, gf[16] = {0};
+    int pt[16] = {0}, gd[16] = {0}, gf[16] = {0}, m = 0;
     for (int leg = 0; leg < grounds; leg++)
         for (int i = 0; i < gs; i++)
-            for (int j = i + 1; j < gs; j++) {
+            for (int j = i + 1; j < gs; j++, m++) {
                 int h = leg ? j : i, a = leg ? i : j, x, y;
                 if (!D[base + h] || !D[base + a]) continue;
                 match(D[base + h], D[base + a], 0, &x, &y);
+                gput(m, x, y);
                 gf[h] += x; gf[a] += y; gd[h] += x - y; gd[a] += y - x;
                 if (x > y) pt[h] += 3; else if (x < y) pt[a] += 3; else { pt[h]++; pt[a]++; }
             }
@@ -562,9 +581,14 @@ static int ct_round(int c, int r) {
         /* every group, then each place's clubs ranked across the groups by record (the rank keys of the next draw) */
         static u16 byplace[16][16];
         static s32 key[16][16];
+        int gm = gs * (gs - 1) / 2 * R[8];              /* (the view's replay: each group's matches) */
+        grec_round(c, r, ng * gm);
         for (int g = 0; g < ng; g++) {
             int P[32];
+            g_gk = g * gm;
             group(g * gs, gs, R[8], P);
+            if (g_gr && pm >= 0 && g_fv > 0 && pm / gs == g)   /* (its place as played: not these goals) */
+                for (int i = 0; i < gm; i++) g_gr[g_gk + i] = GR_OWN;
             if (pm >= 0 && g_fv > 0 && g_fv <= gs && pm / gs == g) {   /* (the career club's place, as played) */
                 int loc = pm - g * gs, q0 = 0;
                 while (q0 < gs && P[q0] != loc) q0++;
@@ -592,13 +616,19 @@ static int ct_round(int c, int r) {
                     EV[to >> 4][to & 15][EN[to >> 4][to & 15] - 1] = 1 | (ord[i] + 1) << 1;
             }
         }
+        g_gr = 0;
         return 0;
     }
     /* knockout: D[2i] v D[2i+1] */
+    grec_round(c, r, 3 * (n / 2));
     for (int i = 0; i + 1 < n; i += 2) {
         int a = D[i], b = D[i + 1];
+        g_gk = 3 * (i / 2);
         int w = tie(a, b, R[1], R[2], R[3]);
-        if (g_fv >= 0 && (i == pm || i + 1 == pm)) w = (i == pm) ? g_fv : !g_fv;   /* (the career club's tie) */
+        if (g_fv >= 0 && (i == pm || i + 1 == pm)) {    /* (the career club's tie: as played) */
+            w = (i == pm) ? g_fv : !g_fv;
+            if (g_gr) g_gr[g_gk] = g_gr[g_gk + 1] = g_gr[g_gk + 2] = GR_OWN;
+        }
         CT_OUT.res[c][r][i] = w;
         int win = w ? a : b, los = w ? b : a;
         if (R[10] == CHAMP) {
@@ -609,6 +639,7 @@ static int ct_round(int c, int r) {
         route(c, R[11], los, i / 2 + 1);
     }
     if (n & 1) route(c, R[10], D[n - 1], 0x7F);         /* (an odd one goes through) */
+    g_gr = 0;
     return 0;
 }
 

@@ -261,6 +261,10 @@ static void cup_lines(int c, u32 week, int live) {
     if (live && done && CT_OUT.winner[c]) { head(txt(T_WIN), cname(CT_OUT.winner[c])); endline(); }
 }
 
+/* 4.0.6 P3 (VIEW WORLD's cup buttons): CV_ONLY = one cup (its page part, its rounds), 0xFF every cup of conf */
+u32 CV_ONLY = 0xFF;
+#define ONLY(c) (CV_ONLY == 0xFF || CV_ONLY == (u32)(c))
+
 u32 cv_text(u32 conf, u32 week, char *out, u32 room) {
     o = out; oend = out + room - 1; nline = 0; clen = cpx = 0;
     if (!CT_SPEC) { add(txt(T_NONE)); endline(); *o = 0; return (u32)(o - out); }
@@ -269,7 +273,7 @@ u32 cv_text(u32 conf, u32 week, char *out, u32 room) {
     if (live) ct_resume();              /* (the replay: CT_OUT as it stands, CT_SEG unchanged) */
     int any = 0;
     for (int c = 0; c < ncup; c++)
-        if (cuptab(c)[0] == conf) { cup_lines(c, week, live); any = 1; }
+        if (cuptab(c)[0] == conf && ONLY(c)) { cup_lines(c, week, live); any = 1; }
     if (!any) { add(txt(T_NONE)); endline(); }
     if (clen) endline();
     *o = 0;
@@ -287,4 +291,51 @@ u32 cv_confs(u32 word, u8 *order) {     /* the confederations with a cup (ctview
             if (!seen) order[k++] = (u8)f;
         }
     return (u32)k;
+}
+
+/* --- 4.0.6 option C P3: the rounds a confederation's menu opens in the game's own screens ---------------------------
+   cv_rounds(conf, week, out): the rounds of conf's cups with a draw at the week (as cup_lines: its month come, drawn
+   - or the career club's round in progress), cup by cup in calendar order, the latest CR_N; out[k] = cup << 4 |
+   round; returns their number (0: season 1, no edition - the text page only). cr_layout(n, nav): the menu's links
+   (left, right, up, down a button, entries 1..CR_N in two columns of CR_N / 2; CR_N + 1 the summary page, CR_N + 2
+   ESCI; FF none) - nav[4 * CR_N .. + 3] the summary's up / ESCI's up. */
+#define CR_N 16
+u32 cv_rounds(u32 conf, u32 week, u8 *out) {
+    if (!CT_SPEC || CT_ED.mark != 0x4543) return 0;
+    spec();
+    ct_resume();
+    u8 all[NCUP * NRD];
+    u32 k = 0;
+    for (int c = 0; c < ncup; c++) {
+        if (cuptab(c)[0] != conf || !ONLY(c)) continue;
+        for (int mo = 0; mo < 12; mo++) {
+            int m = (mo + 7) % 12 + 1;
+            for (int r = 0; r < nr[c]; r++) {
+                const u8 *R = RD(c, r);
+                if (R[9] != m) continue;
+                int n = CT_OUT.nent[c][r];
+                int drawn = n && seg_before(c, r, mo) ? 2 : (CT_SEG.kind != 0xFF && CT_SEG.cup == c && CT_SEG.round == r);
+                if (R[0] == K_KO && R[18] && n && 2 * n <= R[18]) continue;
+                if (!drawn || week < mweek(m) || !n) continue;
+                all[k++] = (u8)(c << 4 | r);
+            }
+        }
+    }
+    u32 s = k > CR_N ? k - CR_N : 0;
+    for (u32 i = s; i < k; i++) out[i - s] = all[i];
+    return k - s;
+}
+
+void cr_layout(u32 n, u8 *nav) {
+    int h = CR_N / 2, n0 = (int)n < h ? (int)n : h, n1 = (int)n - n0;
+    for (int k = 0; k < CR_N; k++) {
+        u8 *v = nav + 4 * k;
+        int col = k / h, row = k % h, e = k + 1, last = col ? row == n1 - 1 : row == n0 - 1;
+        v[0] = col && row < n0 ? (u8)(e - h) : 0xFF;
+        v[1] = !col && row < n1 ? (u8)(e + h) : 0xFF;
+        v[2] = row ? (u8)(e - 1) : 0xFF;
+        v[3] = last ? (u8)(col ? CR_N + 2 : CR_N + 1) : (u8)(e + 1);
+    }
+    nav[4 * CR_N] = n0 ? (u8)n0 : 0xFF;                 /* the summary's up: column 1's last */
+    nav[4 * CR_N + 1] = n1 ? (u8)(h + n1) : n0 ? (u8)n0 : 0xFF;   /* ESCI's up */
 }

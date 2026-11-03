@@ -50,6 +50,7 @@ SEASONS_REC = [None]                    # obj2 offset of its countriesTable reco
 CAREERS = 98                            # pseudo-continent 'classic careers' of the career team selector
 CAREERS_NAMES = {'it': b'CARR. STORICHE', 'en': b'CLASSIC CAREERS', 'fr': b"CARR. D'ANTAN", 'de': b'KLASS. KARRIERE'}
 CAREERS_REC = [None]
+WCONT_KEY = {}                          # (4.0.6 P3) a continent list's menu id -> its continent key (CONT_ORDER)
 WCONT_IDS = {}                          # world 2025-26: world n -> [(menu id, [country files], top level)] when the world
 CONT_ORDER = ['europe', 'south_america', 'north_america', 'asia', 'africa', 'oceania']   # spans several continents
 OTHER_NAMES = {'it': b'ALTRE NAZIONI', 'en': b'OTHER NATIONS', 'fr': b'AUTRES PAYS', 'de': b'WEITERE LAENDER'}
@@ -2330,6 +2331,7 @@ def patch(p, lang, area, cave):
                     at = (at + len(cl) + 3) & ~3
                 for c in sorted(wconts, key=CONT_ORDER.index):
                     files, lid, top = wconts[c], take_id(), True
+                    WCONT_KEY[lid] = c
                     p.add_ptr(2, ct + 4 * lid, *p.target(2, ct + 4 * CONT_NAT[c]))
                     while True:
                         if len(files) <= WCONT_MAX:

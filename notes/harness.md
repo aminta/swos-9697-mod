@@ -229,3 +229,95 @@ EIP (obj1 offset) and runs on, for `secs` seconds.
   offset + 0x101AC ~ the cseg label in most of the code: check a known site first).
 - First use (2026-10-22, NZ championship, 4.0.1): the 10th match day's 25 s were spent in DrawChar /
   ConvertSpriteColors / FlipInMenu - an endless menu draw, not a fixtures loop.
+
+## Host tests (tools/hosttest, 4.0.5 rc20+): the exe's code in an emulator, from a real snapshot
+For logic bugs, seconds instead of a career run. Unicorn (x86) in internal/hosttest/.venv (`python3 -m venv` +
+`pip install unicorn`, not the system Python); `python3 tools/hosttest/run.py [-k name]` re-runs itself there.
+1. Build with symbols: `HOSTTEST_SYMS=1` on any build (patch.py writes ITALIAN.syms.json next to the exe: every
+   module's LABELS / SYMS / C symbols, `[obj, offset]`; obj 0 = an asm label's obj1 offset). The exe is unchanged.
+2. Fixtures: `python3 tools/hosttest/snapshot.py BUILD_DIR module.label OUT_DIR [--car SAVE] [--team PATH]`: a career
+   (world_uru_nacional / world8485) with a breakpoint at the label; every hit dumps the whole memory (32 MB) + the obj
+   bases (internal/hosttest/fixtures/<name>/<k>.bin / .json; private, not in the repo). CORE=normal.
+3. Tests: tools/hosttest/tests/test_*.py, functions test_*() -> (ok, message). emu.Machine(dir, k) loads a snapshot
+   (flat GDT with the game's selectors 160h / 168h), m.call('module.label') runs a routine to its return (a sentinel),
+   m.read / u8 / u16 / u32 / write by symbol or linear address; INTs stop the run (InterruptError with the EIP) unless
+   m.on_int[n] handles them; m.watch = [(lo, hi)] makes writes there StrayWrite (catches stray writes).
+First test (test_conti): conti.py ct_prep must never put the career club's next tie in a week already reached -
+the control build (rc19, before adce370) FAILS on the Libertadores q2 after a won q1 (week 56 built at week 59), the
+fixed one PASSES (60). Builds c/HT19 / c/HT20 (HT_CONTROL / HT_FIX).
+New code on old fixtures: `Machine(dir, k, code_from=BUILD_DIR)` relocates that build's obj1 / obj2 onto the snapshot
+(LE fixups at the snapshot's bases; the snapshot's run.EXE = the exe as run, with the harness's page) and keeps the
+state: bytes the game changed at run time stay; a changed byte of a named label that moved goes to its new place;
+anything else = LayoutChanged (re-snapshot). test_ct_prep_overlay: the rc19 q2 snapshot + the fixed code -> week 60.
+Fixtures from ANY world8485-based run (e.g. a sweep config that reproduces a bug): add `HT_SNAP_LABELS=module.label,..`
+(+ `HT_SNAP_OUT`, `HT_SNAP_WEEKMIN`, `HT_SNAP_MAX`) and point W8485_BUILD / the scenario's build at a HOSTTEST_SYMS
+build of the same exe (e.g. c/HT19R = c/REL405rc19 byte for byte, with ITALIAN.syms.json). Scenario `ht_snapshot`
+(HT_BUILD, HT_LABELS, HT_NAME, HT_SCEN, HT_TEAM...) does the same with the dumps in its run dir (remote_run brings them back).
+Engine step H (PLAN §19.3, 4.0.6): test_hooks.py = one Tier B test per bridge hook of PLAN §3.6 on today's code, the
+contract the engine keeps when it takes a hook over. Fixtures h_uru (a NACIONAL career, two seasons) and h_uru_load
+(its season-2 load) from c/HTI4 (406-i4 b0c5e07, release recipe + HOSTTEST_SYMS=1): gp_draw, gp_cap, gp_end,
+w_season_end, ct_daily, ct_prep, lp_sort, save_trailer, load_trailer. Each call returns, is deterministic (same pages on
+a second run), < 1 s, and writes only pages of its golden footprint (footprint.json; `HT_REGOLD=1` rewrites it after a
+deliberate change). test_save_bytes: the emulated save_trailer writes the game's own .CAR byte for byte;
+test_finish_season_flag: the game's next-day scan (cseg_8EC2B) says FINISH SEASON exactly when no career-club day is
+left. test_rules_lib.py (Tier A): the rules library's own `make test` (HT_ENGINE checkout). Emulator: the VGA status
+port 3DAh toggles (vsync waits), INT 21h create / write into memory (m.files_written, `dos_files(root, writes=True)`),
+the write hook only while m.watch has ranges. snapshot.py: --max per label; a trailer.load_* label arms before the
+load's key (W84_HOOK.pre_load). Open for step P: save(load(x)) differs from x in the trailer (5083 of 16192 B after the
+after-load callbacks) - classify it before P's persistence work.
+Option C P1 (4.0.6, the competition screens' builder, tools/ctgame.c): `world_cgame_self` (DOSBox) - a FLAMENGO
+career on CONTI_FORCE=lib:q1 + CONTI_KOWIN + CONTI_CGTEST: after every contest conti's ct_build puts in slot 3 (the
+q1 / q2 / q3 ties, the group stage) cg_selftest rebuilds it with the view's builder into the scratch and compares it
+with slot 3 byte for byte (CG_T through the 'CGTRPTR' block: builds, mismatches, first diff, cache count before /
+after). CG_FILL=1 builds with CG_FILL_TEST=5A (the scratch filled with 5Ah first, as DOS/4GW may leave it). CG_S1: a
+cached season-1 save. Tier B test_ctgame.py on fixtures cg_uru (`snapshot.py c/HTcg1/SWOS conti.ct_daily cg_uru
+--car h_uru/save_s1.CAR --max 8 --every 6`: one ct_daily hit in 6 of NACIONAL's season 2): cg_replay changes no
+conti state and its goals give CT_OUT's results (conti.grec_check, also CONTI_TEST_GREC=1 in `conti.py --test`);
+cg_build of every drawn round (and a first tie) deterministic, < 1 s, work area + D0..A6 put back, pages outside the
+scratch within the golden footprint; a full team cache -> 0, CG_ERR 4, nothing written. emu.Machine.base3: obj3 from
+an obj1 pointer (run.EXE's fixups). snapshot.py --every N.
+
+Option C P2 (the save guards: ctgame.c cg_open / cg_close / cg_guard, CG_G through the 'CGTRPTR' block's 4th dword):
+`world_cgame_guard` (DOSBox, the GO/NO-GO 2 gate) - one season-1 save (CGG_S1, else season 1 on A), its season 2
+played on CGG_A (the release recipe) and on CGG_B (the same + CONTI_CGVIEW=1: conti's ct_daily opens one drawn conti
+round a day, does to it what the game's view does - cseg_8B71C / cseg_8B7EA - and closes it): the two season-2
+.CARs byte-identical, B's CG_G with views opened, no bad sum, no sticky fallback, no failed build (CGG_TEAM, default
+HAMRUN SPARTANS). On the release recipe per language: the language's exe as ITALIAN.EXE in c/CGG_<A|B>_<lang>/SWOS,
+SWOSTEST_UI=<lang>. Tier B (test_ctgame.py, fixtures with ct_daily + save_trailer hits): test_cg_guard_close (the
+saved state - fixed part, the cache's N records, CG_GTAB's kept and summed ranges, work area, D0..A6 - byte-identical
+after open + a view's changes + close, also with the scratch 5Ah first; a saved byte changed while open -> bad sum,
+sticky, the next open refused: E_GUARD 7), test_cg_guard_daily / test_cg_guard_save (a view left open at ct_daily /
+save_trailer: closed first - CG_G trips 1 - and the day's state / the .CAR byte-identical to the one with no view).
+What a build writes in the saved state was measured on 330 builds (the unicorn write hook): the cache count,
+careerFileBuffer + 16ABCh, statespec's ST_RANK (an 'EN' item: a type-2 init sorts its table through lp36), lib97's
+NC_DW; the rest (team file buffer + its name and file globals, careerworld WTPHYS / w_tcache, 32E15's club flags,
+gplay's GP_SLT) is not saved and the game sets it before it reads it.
+
+Option C P3 (the rounds in the game's own competition screen: ctview's rounds menu -> ctgame cg_view -> cseg_37B74 ->
+cg_close): `world_cgame_view` (DOSBox) - on world_contiview's build and a season-2 save (CV_BUILD, CV_S2; a
+mid-season one: W8485_MIDTEXT='PREMIER:31' on an ARSENAL season 2 from cv_s2): every confederation's rounds menu
+(labels in the menu font, <= 144 px), each visible round opened (shot cgv_<k>_<j>; its visible texts in the font and
+within their boxes - the game's hidden texts, FR's tooltips, aside), a group stage's PASSA legend pressed, ESCI back
+to the rounds menu with its links (cr_init again: the game puts the menu back from its packed data, links FF),
+RIEPILOGO and back; CT_SEG / CT_ED byte-identical around every view. Per language: SWOSTEST_UI=<lang> + the
+language's exe as ITALIAN.EXE (the IT save is fine: the screens' names come from the exe). Tier B test_cg_view
+(HT_CODE=<a newer HOSTTEST_SYMS build>: its code over the fixture's snapshots - emu.overlay now covers obj3; HT_CG
+picks the fixture): every drawn round at weeks mo+1, mo+4, 250 - each tie's winner flag = conti's result, the
+legs' scores the replay's, a level aggregate only with away goals / pens; a group's P = W+D+L, pts = 3W+D, the
+matches played = the record's at 250, an empty slot (rows from n: a group short of a club) last in its order and
+playing nothing; the close leaves the saved state byte-identical; deterministic. snapshot.py takes one hit per run
+(the counter keeps the first week's hits): one run per week with --week-min (fixtures cg_w60, cg_w106).
+4.0.6 continent screens (VISUALIZZA MONDO: each continent's cups as green buttons above its nations - EUROPA the
+world's UEFA cups, moved from MONDO (Davide 03/11): the game's own views -, FIFA's on MONDO; ctview world_cups / cw_after, careerworld w_choose; the lists with the buttons swapped in
+only around VIEW WORLD's picker - ctview cw_on / cw_off - the new career's club picker and the foreign market keep the
+plain ones): world_cgame_view goes on after the COPPE CONTINENTALI part - MONDO + every continent (gwalk: the picker's
+links pass through hidden entries, walk finds no path), button names in the font and within their buttons, each cup
+button -> its rounds menu (title = the cup) -> every round -> RIEPILOGO (that cup only) -> ESCI to the career menu, CT
+state unchanged; the foreign market's picker (ACQ. ALTRO GIOCAT. STRANIERO) first - after the game's own cup view opened from VIEW
+WORLD (cseg_3AA17: a UEFA cup) the career menu's up from OFFERTE LAVORO goes into the fixture rows, as on the
+released 4.0.5 (runs-cgnav2-405); our rounds menu / ctgame views leave it as it was - and, in a second session, the new
+career's (CARR. STORICHE - MONDO 2026-27): no cup names on them. CV_OWN=<club> with a save of that club in a conti
+round in progress (runs-cgslot3/boca_libgr_it.CAR: BOCA JUNIORS on a CONTI_FORCE=lib:groups build, after its 2nd
+Libertadores match): its round shown with no ctgame view opened (CG_G[3] unchanged) = the game's slot 3. Tier B
+fixture now cw_uru4 (the cg_uru2 recipe on c/HTcw4: careerworld's w_choose grew, the older snapshots' layout no
+longer maps).

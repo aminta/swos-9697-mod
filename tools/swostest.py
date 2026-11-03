@@ -15138,10 +15138,11 @@ def world_cgame_view():
                 s.log.append(f'[cgv] {conf} {label}: {texts[:24]}')
                 check(v.find(summ, exact=True) is None and texts, f'{conf} {label}: no view ({texts[:6]})', errs)
                 raw = v.raw_texts or texts
-                bad = sorted({ch for t in raw for ch in t.upper()} - complist.FONT)
+                bad = sorted({ch for t, e in zip(raw, v.entries) if not e[2] for ch in t.upper()} - complist.FONT)
                 check(not bad, f'{conf} {label}: characters outside the font {bad}', errs)
-                over = [(t, complist.px(t.upper()), g[2]) for t, g in zip(raw, v.geom) if t and g[2] > 0
-                        and complist.px(t.upper()) > g[2]]
+                over = [(t, complist.px(t.upper()), g[2]) for t, g, e in zip(raw, v.geom, v.entries) if t and g[2] > 0
+                        and not e[2] and complist.px(t.upper()) > g[2]]   # (visible entries: the game's own hidden
+                                                                          #  texts - FR's tooltips - aside)
                 check(not over, f'{conf} {label}: texts wider than their boxes {over[:4]}', errs)
                 if v.find('PASSA') is not None:         # (a group stage: the game's next-stage button - its view, back)
                     press(s, v, v.entries[v.find('PASSA')][1], 4)

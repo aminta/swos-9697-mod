@@ -292,3 +292,18 @@ What a build writes in the saved state was measured on 330 builds (the unicorn w
 careerFileBuffer + 16ABCh, statespec's ST_RANK (an 'EN' item: a type-2 init sorts its table through lp36), lib97's
 NC_DW; the rest (team file buffer + its name and file globals, careerworld WTPHYS / w_tcache, 32E15's club flags,
 gplay's GP_SLT) is not saved and the game sets it before it reads it.
+
+Option C P3 (the rounds in the game's own competition screen: ctview's rounds menu -> ctgame cg_view -> cseg_37B74 ->
+cg_close): `world_cgame_view` (DOSBox) - on world_contiview's build and a season-2 save (CV_BUILD, CV_S2; a
+mid-season one: W8485_MIDTEXT='PREMIER:31' on an ARSENAL season 2 from cv_s2): every confederation's rounds menu
+(labels in the menu font, <= 144 px), each visible round opened (shot cgv_<k>_<j>; its visible texts in the font and
+within their boxes - the game's hidden texts, FR's tooltips, aside), a group stage's PASSA legend pressed, ESCI back
+to the rounds menu with its links (cr_init again: the game puts the menu back from its packed data, links FF),
+RIEPILOGO and back; CT_SEG / CT_ED byte-identical around every view. Per language: SWOSTEST_UI=<lang> + the
+language's exe as ITALIAN.EXE (the IT save is fine: the screens' names come from the exe). Tier B test_cg_view
+(HT_CODE=<a newer HOSTTEST_SYMS build>: its code over the fixture's snapshots - emu.overlay now covers obj3; HT_CG
+picks the fixture): every drawn round at weeks mo+1, mo+4, 250 - each tie's winner flag = conti's result, the
+legs' scores the replay's, a level aggregate only with away goals / pens; a group's P = W+D+L, pts = 3W+D, the
+matches played = the record's at 250, an empty slot (rows from n: a group short of a club) last in its order and
+playing nothing; the close leaves the saved state byte-identical; deterministic. snapshot.py takes one hit per run
+(the counter keeps the first week's hits): one run per week with --week-min (fixtures cg_w60, cg_w106).

@@ -339,6 +339,20 @@ static int gr_fill(int c, int r, u32 week) {
     for (int i = 0; i < 64; i++) g_seen[i] = 0;
     CG_GPLAY(CG_SCR + CG_BUF, week);
     g_rec = 0;
+    /* (a group short of a club: its empty slot - the draw's 0xFFFF, a team pointer the game made of it, not in the
+       cache - last in its table, not above a real club on goal difference) */
+    u8 *o = CG_SCR + CG_BUF + 0x41F + 0x6D, *rows = CG_SCR + CG_BUF + 0x41F + 0x2B3;
+    for (int g = 0; g < R[6]; g++) {
+        u8 *w = o + 2 * g * g_gs;
+        for (int k = 0, e = g_gs - 1; k < e; ) {
+            if (w32(rows + w16(w + 2 * k)) >> 24) {
+                u32 x = w16(w + 2 * k);
+                for (int j = k; j < g_gs - 1; j++) p16(w + 2 * j, w16(w + 2 * j + 2));
+                p16(w + 2 * (g_gs - 1), x);
+                e--;
+            } else k++;
+        }
+    }
     return 1;
 }
 

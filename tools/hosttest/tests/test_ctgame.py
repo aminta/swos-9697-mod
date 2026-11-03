@@ -455,6 +455,14 @@ def test_cg_view():
                 else:
                     b_, pl = _gr_check(buf, R, g, wk, key)
                     gm = R[7] * (R[7] - 1) // 2 * (R[8] or 2)
+                    D = buf[0x41F:]
+                    empty = {q for q in range(R[6] * R[7]) if struct.unpack_from('<I', D, 0x2B3 + 18 * q)[0] >> 24}
+                    for gi in range(R[6]):                 # (an empty slot - no team - last in its group, all zero)
+                        o = [struct.unpack_from('<H', D, 0x6D + 2 * (gi * R[7] + x))[0] // 18 for x in range(R[7])]
+                        if o != [x for x in o if x not in empty] + [x for x in o if x in empty]:
+                            b_.append(f'{key}: group {gi} order {o} (empty {sorted(empty)})')
+                        if any(any(struct.unpack_from('<7H', D, 0x2B3 + 18 * x + 4)) for x in o if x in empty):
+                            b_.append(f'{key}: group {gi}: an empty slot with matches')
                     if wk == 250 and g and pl != sum(1 for x in g[:R[6] * gm] if x):
                         b_.append(f'{key}: {pl} played, {sum(1 for x in g[:R[6] * gm] if x)} recorded')
                     what = f'gr {pl} matches'

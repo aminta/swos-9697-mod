@@ -64,3 +64,28 @@ unknown -> callable, not counted as over-age (to state in the notes).
 - (b) Button on the club's squad screen; free entries to agree with Panchina (sqnum / benchx live there).
 - (c) Texts approved as proposed (IT/EN/FR/DE, list sent to Regia 02/11).
 - (d) Borrowed player marker: the fillers' colour AND a letter "B" next to the shirt number.
+
+## Re-base onto 406-i7c acaff0d (Shaved, 2026-11-03)
+Trace commits moved onto branch 406-bteam2 (off 406-i7c). Hook points re-checked against i7c's tools:
+- **obj3**: the chain ends at stoppage -> xleft -> usc_snap -> stadium -> (conti view); REL406i7c build.log: obj3 end
+  0x885c..0x897c, **1668-1956 B left** before LT3_AT (OBJ3_PAGES = 10). Panchina's cpurefill (uncommitted) also goes at
+  the chain's end, then MC's ctgame. bteam (code + the squad-screen menu copy + tables, ~4-5 KB) does NOT fit:
+  **OBJ3_PAGES 10 -> 11** (or 12 with ctgame + cpurefill), a single constant; Integratore to set the order.
+- **Purchase tail (conflict)**: cseg_56379's last call (SOLD_SITE -> cseg_56615, the invented replacement) is now a
+  chain: xtra (xt_sold) -> xleft (xl_sold) -> cpurefill (cr_sold, FROM SQUAD swaps an XTRA player in). Attachment (2)
+  must NOT run through cseg_56379 as a purchase: own copy routine + a direct call of cseg_56615 for the replacement in
+  the B record (AddCareerPoolPlayer entry kept, so the B club keeps it at reloads), with a 'bteam' flag the chain
+  members skip (no XS/XL entry, no cpurefill swap, no money, no xt_sold mark). The return (2) writes the original back
+  into the record slot AND that change-list entry.
+- **XTRA B players (places 17+)**: they live in xtra/xleft (XS bought / XL left lists, 32 entries). Calling one up
+  needs XS/XL bookkeeping both ways. Option: callable = the B team's 16 + its XTRA block (full spec), or the 16 only.
+- **xleft**: cseg_52EA6 (xl_rm, removal + compaction) and cseg_942F2 (xl_job) are hooked; return (1) by our own removal
+  must keep xl_rm's bookkeeping right (a borrowed player is not an XTRA leaver); return (2) before cseg_942F2 chains
+  in front of xl_job. 4.0.2 idx>=16 overflow fix (cseg_243BD) is in i7c: our copy never goes through idx>=16 slots.
+- **Wages**: cseg_5E345 is hooked by finance.py (and xtra): (1) wage 0 = a chained check in front of finance's hook.
+- **Save**: BU as an engine item (engine.save_item('BU', ~84 B: 10 entries x 8 B + count), world_only), not a raw
+  trailer chunk. i7c EN block 15244 B, "EN saved with up to 97 cached teams": +84 B may cost one cached team (check).
+- **Squad screen**: button (a) 45x15 left of ESCI (x = live ESCI.x - 46) still valid; sqnum / benchx after-draws are
+  chained there (squadnum HL_SITE marker + the 'B' letter) - re-measure ESCI in the 4 languages at step 1.
+- Unchanged: cseg_52588 (filler surplus) unhooked; gp_adv chain (gplay) for return (1); InitializeNewSeason chain
+  (xtra, sacups, ...) for return (2).

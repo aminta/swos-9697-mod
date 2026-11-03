@@ -57,8 +57,8 @@
 #### Stoppage time
 - **Stoppage time (an idea of Davide and Marco):** every half now has real added time. At 45:00 and 90:00 the clock stops and a "+N" appears next to it, like the fourth official's board: N added minutes, more when the half had goals, substitutions and cards (in the World 2026-27 career also the time lost with the ball out of play, as in today's football) - at most 3 in the 1996-97 game (2 in the first half), 5 in the World 2026-27 career (3 in the first half), 2 in the Europe 1984-85 career (1 in the first half); each extra-time half gets 1. The historic seasons and tournaments before 1970 (Italy 1947-48, World Cup 1934) give at most 1 and often none, as in those days. The added minutes always run at the pace of a 10-minute match, whatever match length you chose, so they can really be played: about 15 seconds of play for +3 and 26 for +5 (in a 3-minute match +3 would otherwise be gone in under 5 seconds). As always the clock stops when the ball is out of play, and when the added time is over the referee still lets a running attack finish. A goal in added time shows as 45+2 or 90+3 in the scorers' list. Not with SWOS++.
 
-#### Stadium on the versus screen (World 2026-27)
-- **Stadium names on the versus screen** [TO COMPLETE: Panchina — exact wording; World 2026-27 only]: the screen shown before the match now names the stadium, and a neutral-ground final (cups, Super Cups) shows its real venue.
+#### Stadium names (World 2026-27)
+- **Stadium names.** In World 2026-27 the match intro screen (the one with the two teams) now shows where the match is played: the home club's stadium, under the two team names. Cup finals played at a neutral ground show that ground instead - for example the Champions League final at the Metropolitano, the FA Cup final at Wembley, the Coppa Italia final at the Olimpico. When the stadium of a club is not known, no line is shown: a name is never made up. The intro screen does not wait any longer than before. The other worlds and the original 1996-97 game are unchanged.
 
 #### Two-row benches in the match
 - **Two-row benches.** With a long bench (more than 5 substitutes) every substitute now has a seat: the coach and substitutes 1-7 sit in the back row, substitutes 8-15 in the front row. The dugouts are a little longer and wider to make room, on every pitch and in 16-colour mode too.
@@ -76,7 +76,11 @@
   - A player you have picked stays picked while you browse.
   - Same on the pre-match screen, the club squad screen, the tactics editor, the squad view and the national team call-ups.
   - VIEW OPPONENT is unchanged: there UP / DOWN still browse the opponent's substitutes (you can only look).
-  - On the pre-match screen the cursor goes from the last substitute to the coach/player choice, then to PLAY MATCH, as in the original game (thanks to Marco). The original UP move from EXIT and LEFT move from the columns are back too [TO COMPLETE: exact wording from Panchina].
+  - **Cursor on the team screen before a match, as in the original game** (thanks to Marco). When you are a player-coach, the line where you choose to play or only coach is reached exactly as in the original 1996-97 game:
+    - DOWN from the last player name goes to that line, DOWN again to PLAY MATCH; UP goes back the same way;
+    - UP from EXIT goes to that line;
+    - LEFT from the tactics column (the user-tactics rows A, C, E) goes to that line.
+    As a plain manager that line is not shown, and the cursor skips it as before (from the last name straight to PLAY MATCH).
 
 #### CPU replacements when you buy a player (thanks to Nicola)
 **CPU replacements (World 2026-27).** When you buy one of the first 16 players of a computer-controlled club, the club
@@ -94,6 +98,7 @@ career starts with INVENTED. Older saves load with INVENTED.
 - **Training games: bench and kits** (thanks to Marco). Training games (career, squad screen > TRAINING) have the game's own rule again: 2 substitutes from 2 on the bench. In 4.0.5 a training game took the bench of your current league: at a Serie A club the dugout showed 5 players a team, and the training squad screen had a bench of 12. Your next real match has the full league bench again.
   - In a training game both teams are your club, so SELECT KITS lists them as "ROMA A" and "SQUADRA B". They now keep their own kits: team A in the kit you pick for A, team B in the kit you pick for B. Before, both teams wore team A's choice.
   - In a training game SELECT KITS hides the "this match only / always" choice, and your club's saved kits are never changed by a training game.
+- **Easier-to-read numbers.** In the team screen before a match and in the tactics editor the player names now start 2 pixels further right, so a two-digit shirt number no longer touches the face box or the name: there is a clear gap on both sides. The squad screen already had that gap and is unchanged.
 - **Shirt numbers on the squad screen.** You can now edit your club's shirt numbers on the squad screen too, as you already could on the team screen before a match: press LEFT on a player, then UP / DOWN or type the number; ESC cancels. The number no longer touches the player's name, and its shadow shows.
 - **Transfer market keeps its place** (reported by Enzo). When you look at a player in the national or foreign market list (MAKE OFFER) and come back with EXIT, the list stays on the page you were on, with the cursor on that player, instead of jumping back to the first page.
 
@@ -172,6 +177,7 @@ next match.
 - **Buying a club's extra squad players** (thanks to Enzo). Fixed: after taking over a club, a player you had bought from it (one of its extra squad players) could reappear in its squad, so he was in two clubs at once. Fixed: buying one of another club's extra squad players (players 17 to 30) could make the career crash at the start of a later season, or spoil another club's squad. Careers saved with 4.0.2 to 4.0.5 play on safely.
 - **TRANSFERS stays available after viewing a cup.** After looking at a cup from VIEW WORLD, TRANSFERS was greyed out until the next match and the menu cursor jumped
   into the fixtures (since 4.0.5). Now the career menu stays as it was.
+- **The DOWN arrow in the match** (thanks to Salvatore) [TO COMPLETE: final wording once Panchina has the cause]: the DOWN arrow stopped working in the match after loading another career, or after leaving a started match with ESC. Fixed.
 - **A play-off entrant that refuses the place** no longer makes the game read wrong data at the season end (it showed up with San Marino; found by Ben Baker).
 
 ### Good to know
@@ -240,8 +246,8 @@ La 4.0.6 è un giro di richieste dei giocatori: **due giocatori sulla stessa tas
 #### Recupero
 - **Recupero (un'idea di Davide e Marco):** ogni tempo ora ha il suo recupero vero. A 45:00 e a 90:00 l'orologio si ferma e accanto compare "+N", come il cartello del quarto uomo: N minuti di recupero, di più se nel tempo ci sono stati gol, sostituzioni e cartellini (nella carriera Mondo 2026-27 anche il tempo perso a palla non in gioco, come nel calcio di oggi) - al massimo 3 nel gioco 1996-97 (2 nel primo tempo), 5 nella carriera Mondo 2026-27 (3 nel primo tempo), 2 nella carriera Europa 1984-85 (1 nel primo tempo); ogni tempo supplementare ne ha 1. Le stagioni e i tornei storici prima del 1970 (Italia 1947-48, Mondiali 1934) danno al massimo 1 minuto, spesso nessuno, come allora. I minuti di recupero scorrono sempre al ritmo di una partita da 10 minuti, qualunque durata tu abbia scelto, così si giocano davvero: circa 15 secondi di gioco per +3 e 26 per +5 (in una partita da 3 minuti +3 durerebbe meno di 5 secondi). Come sempre l'orologio si ferma a palla non in gioco, e finito il recupero l'arbitro lascia comunque finire l'azione in corso. Un gol nel recupero compare come 45+2 o 90+3 nell'elenco dei marcatori. Non con SWOS++.
 
-#### Stadio nella schermata dello scontro (Mondo 2026-27)
-- **Nomi degli stadi nella schermata dello scontro** [DA COMPLETARE: Panchina — formulazione esatta; solo Mondo 2026-27]: la schermata prima della partita ora indica il nome dello stadio, e una finale in campo neutro (coppe, Supercoppe) mostra la sede vera.
+#### Nomi degli stadi (Mondo 2026-27)
+- **Nomi degli stadi.** Nel Mondo 2026-27 la schermata che presenta la partita (quella con le due squadre) ora dice dove si gioca: lo stadio del club di casa, sotto i nomi delle due squadre. Le finali di coppa in campo neutro mostrano quello stadio - per esempio la finale di Champions League al Metropolitano, la finale di FA Cup a Wembley, la finale di Coppa Italia all'Olimpico. Se lo stadio di un club non è noto la riga non compare: un nome non viene mai inventato. La schermata non resta ferma più a lungo di prima. Gli altri mondi e il gioco originale 1996-97 non cambiano.
 
 #### Panchine su due file in partita
 - **Panchine su due file.** Con una panchina lunga (più di 5 riserve) ogni riserva ha il suo posto: l'allenatore e le riserve 1-7 nella fila dietro, le riserve 8-15 nella fila davanti. Per fare spazio i dugout sono un po' più lunghi e larghi, su tutti i campi e anche nella modalità a 16 colori.
@@ -259,7 +265,11 @@ La 4.0.6 è un giro di richieste dei giocatori: **due giocatori sulla stessa tas
   - Il giocatore già selezionato resta selezionato mentre si scorre.
   - Vale per la schermata prepartita, la rosa del club, l'editor tattico, la visualizzazione della rosa e le convocazioni della nazionale.
   - VISUALIZZA AVVERSARIO non cambia: lì SU / GIÙ scorrono ancora le riserve avversarie (si può solo guardare).
-  - Nella schermata prima della partita il cursore passa dall'ultima riserva alla scelta allenatore/giocatore, poi a GIOCA PARTITA, come nel gioco originale (grazie a Marco). Tornano anche il movimento originale SU da ESCI e SINISTRA dalle colonne [DA COMPLETARE: formulazione esatta da Panchina].
+  - **Cursore nella schermata della squadra prima della partita, come nel gioco originale** (grazie a Marco). Quando sei giocatore-allenatore la riga in cui scegli se giocare o solo allenare si raggiunge esattamente come nel gioco originale 1996-97:
+    - GIÙ dall'ultimo nome della lista va su quella riga, ancora GIÙ su GIOCA PARTITA; SU torna indietro allo stesso modo;
+    - SU da ESCI va su quella riga;
+    - SINISTRA dalla colonna delle tattiche (le righe UTN A, C, E) va su quella riga.
+    Da semplice allenatore quella riga non c'è e il cursore la salta come prima (dall'ultimo nome direttamente a GIOCA PARTITA).
 
 #### Rimpiazzi della CPU quando compri un giocatore (grazie a Nicola)
 **Rimpiazzi della CPU (Mondo 2026-27).** Quando compri uno dei primi 16 giocatori di un club guidato dal computer, il
@@ -277,6 +287,7 @@ carriera nuova parte da INVENTATI. I salvataggi precedenti si caricano con INVEN
 - **Allenamento: panchina e maglie** (grazie a Marco). Le partite di allenamento (carriera, schermata della rosa > PRATICA) tornano alla regola del gioco: 2 sostituti su 2 in panchina. In 4.0.5 l'allenamento prendeva la panchina del tuo campionato: con un club di Serie A la panchina mostrava 5 giocatori per squadra e la schermata della rosa in allenamento una panchina da 12. La partita vera successiva ha di nuovo la panchina intera del campionato.
   - In allenamento le due squadre sono entrambe il tuo club, e MAGLIE le mostra come "ROMA A" e "SQUADRA B". Ora ognuna tiene le sue maglie: la squadra A quella scelta per A, la squadra B quella scelta per B. Prima entrambe vestivano la scelta della squadra A.
   - In allenamento MAGLIE nasconde la scelta SOLO PARTITA / SEMPRE, e le maglie salvate del tuo club non vengono mai cambiate da una partita di allenamento.
+- **Numeri più leggibili.** Nella schermata della squadra prima della partita e nell'editor delle tattiche i nomi dei giocatori partono 2 pixel più a destra, così un numero di maglia a due cifre non tocca più il riquadro della faccia né il nome: c'è uno spazio libero da entrambi i lati. La schermata della rosa aveva già quello spazio e non cambia.
 - **Numeri di maglia nella schermata della rosa.** Ora puoi modificare i numeri di maglia del tuo club anche nella schermata della rosa, come già potevi nella schermata della squadra prima della partita: premi SINISTRA su un giocatore, poi SU / GIÙ o scrivi il numero; ESC annulla. Il numero non tocca più il nome del giocatore e se ne vede l'ombra.
 - **Il mercato ricorda la pagina** (segnalato da Enzo). Quando guardi un giocatore nell'elenco del mercato nazionale o estero (FAI OFFERTA) e torni con ESCI, l'elenco resta sulla pagina in cui eri, con il cursore su quel giocatore, invece di tornare alla prima pagina.
 
@@ -357,6 +368,7 @@ precedente riceve i nuovi incassi dalla partita successiva.
 - **Acquisto dei giocatori extra di una squadra** (grazie a Enzo). Corretto: prendendo una squadra, un giocatore che le avevi comprato (uno dei suoi giocatori extra della rosa) poteva ricomparire nella sua rosa, quindi in due squadre insieme. Corretto: comprare uno dei giocatori extra della rosa di un'altra squadra (dal 17° al 30°) poteva bloccare la carriera all'inizio di una stagione successiva o rovinare la rosa di un'altra squadra. Le carriere salvate con le versioni 4.0.2-4.0.5 proseguono senza problemi.
 - **TRASFERIMENTI resta disponibile dopo aver guardato una coppa.** Dopo aver guardato una coppa da VISUALIZZA MONDO, TRASFERIMENTI restava grigio fino alla partita successiva e il
   cursore del menu saltava nelle partite (dalla 4.0.5). Ora il menu della carriera resta com'era.
+- **La freccia GIÙ in partita** (grazie a Salvatore) [DA COMPLETARE: formulazione definitiva quando Panchina ha la causa]: la freccia GIÙ smetteva di funzionare in partita dopo aver caricato un'altra carriera, o dopo essere usciti con ESC da una partita iniziata. Corretto.
 - **Una squadra di play-off che rifiuta il posto** non fa più leggere al gioco dati sbagliati a fine stagione (si vedeva con San Marino; trovato da Ben Baker).
 
 ### Da sapere

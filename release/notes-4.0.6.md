@@ -65,6 +65,18 @@ confederation to see its cups. If your club plays in one of them, its confederat
   - VIEW OPPONENT is unchanged: there UP / DOWN still browse the opponent's substitutes (you can only look).
   - On the pre-match screen the cursor goes from the last substitute to the coach/player choice, then to PLAY MATCH, as in the original game (thanks to Marco). The original UP move from EXIT and LEFT move from the columns are back too [TO COMPLETE: exact wording from Panchina].
 
+#### CPU replacements when you buy a player (thanks to Nicola)
+**CPU replacements (World 2026-27).** When you buy one of the first 16 players of a computer-controlled club, the club
+fills his place at once. Until now the game always invented a new player for it (a made-up name). A new button in
+TRANSFERS > BUY PLAYER, right of EXIT, lets you choose:
+- **CPU REPL.: INVENTED** - as before (the default);
+- **CPU REPL.: FROM SQUAD** - one of the club's own players from place 17 on takes the place instead: the most valuable
+  one in the same role (goalkeeper, defender, midfielder, forward); if there is none, the most valuable outfield
+  player. A goalkeeper is only ever replaced by a goalkeeper, and a goalkeeper never fills an outfield place. A player on
+  the transfer list is not used. If nobody fits, the game invents one as before.
+Buying a player from place 17 on never brings a replacement (as before). The choice is saved with the career; a new
+career starts with INVENTED. Older saves load with INVENTED.
+
 #### Training, squad and market
 - **Training games: bench and kits** (thanks to Marco). Training games (career, squad screen > TRAINING) have the game's own rule again: 2 substitutes from 2 on the bench. In 4.0.5 a training game took the bench of your current league: at a Serie A club the dugout showed 5 players a team, and the training squad screen had a bench of 12. Your next real match has the full league bench again.
   - In a training game both teams are your club, so SELECT KITS lists them as "ROMA A" and "SQUADRA B". They now keep their own kits: team A in the kit you pick for A, team B in the kit you pick for B. Before, both teams wore team A's choice.
@@ -220,6 +232,18 @@ confederazione è la prima della lista.
   - Vale per la schermata prepartita, la rosa del club, l'editor tattico, la visualizzazione della rosa e le convocazioni della nazionale.
   - VISUALIZZA AVVERSARIO non cambia: lì SU / GIÙ scorrono ancora le riserve avversarie (si può solo guardare).
   - Nella schermata prima della partita il cursore passa dall'ultima riserva alla scelta allenatore/giocatore, poi a GIOCA PARTITA, come nel gioco originale (grazie a Marco). Tornano anche il movimento originale SU da ESCI e SINISTRA dalle colonne [DA COMPLETARE: formulazione esatta da Panchina].
+
+#### Rimpiazzi della CPU quando compri un giocatore (grazie a Nicola)
+**Rimpiazzi della CPU (Mondo 2026-27).** Quando compri uno dei primi 16 giocatori di un club guidato dal computer, il
+club copre subito il suo posto. Finora il gioco inventava sempre un giocatore nuovo (un nome di fantasia). Un nuovo
+pulsante in TRASFERIMENTI > ACQUISTA GIOCATORE, a destra di ESCI, permette di scegliere:
+- **RIMP. CPU: INVENTATI** - come prima (il valore iniziale);
+- **RIMP. CPU: DALLA ROSA** - al suo posto sale uno dei giocatori del club dal 17° in poi: quello di valore più alto nello
+  stesso ruolo (portiere, difensore, centrocampista, attaccante); se non c'è, il giocatore di movimento di valore più alto.
+  Un portiere è sostituito solo da un portiere, e un portiere non prende mai il posto di un giocatore di movimento. Chi è
+  sul mercato dei trasferimenti non viene usato. Se nessuno va bene, il gioco ne inventa uno come prima.
+Comprando un giocatore dal 17° in poi non arriva mai un rimpiazzo (come prima). La scelta si salva con la carriera; una
+carriera nuova parte da INVENTATI. I salvataggi precedenti si caricano con INVENTATI.
 
 #### Allenamento, rosa e mercato
 - **Allenamento: panchina e maglie** (grazie a Marco). Le partite di allenamento (carriera, schermata della rosa > PRATICA) tornano alla regola del gioco: 2 sostituti su 2 in panchina. In 4.0.5 l'allenamento prendeva la panchina del tuo campionato: con un club di Serie A la panchina mostrava 5 giocatori per squadra e la schermata della rosa in allenamento una panchina da 12. La partita vera successiva ha di nuovo la panchina intera del campionato.

@@ -363,9 +363,11 @@ def patch_exe(src, dst, remap, lang='it'):
         o2pages += 2
         data = add_object_page(data, 2)
         data = add_object_page(data, 2)
-    data = add_object(data)                          # 4.0.6: obj3 after obj2 (obj1 <= 237 for SWOS++, obj2 = 213 for
-    for _ in range(OBJ3_PAGES):                    # old saves: CONVENTIONS 20 / 22 / 23), benchx's pages first
-        data = add_object_page(data, 3)
+    import ctgame
+    cg_pg = ctgame.CG_PAGES if ct_pg else 0          # 4.0.6 option C: the builder's page after the chain's (+ its
+    data = add_object(data)                          # zero-fill scratch); obj3 after obj2 (obj1 <= 237 for SWOS++,
+    for _ in range(OBJ3_PAGES + cg_pg):              # obj2 = 213 for old saves: CONVENTIONS 20 / 22 / 23), benchx's
+        data = add_object_page(data, 3)              # pages first
     assert LE(data).obj(3).npages * 0x1000 <= OBJ3_ARENA
     open(grown, 'wb').write(data)
     p = LEPatch(grown)
@@ -760,7 +762,13 @@ def patch_exe(src, dst, remap, lang='it'):
         st_end = ctview.patch(p, (st_end + 15) & ~15, lang)
         assert st_end <= LT3_AT, hex(st_end)
     print(f'exe: obj3 end {st_end:#x} ({LT3_AT - st_end} B left before the longtable page obj3+{LT3_AT:#x})')
-    p.set_vsize(3, 0x1000 * OBJ3_PAGES)
+    cg_bss = 0
+    if cg_pg and fmtpage.WN and 'CV9_VIS' in gplay.LABELS:   # 4.0.6 option C (P1): the builder, its own page
+        cg_at = 0x1000 * OBJ3_PAGES
+        cg_bss = ctgame.CG_BSS
+        ctgame.patch(p, cg_at, 0x1000 * (OBJ3_PAGES + cg_pg), lang)
+    p.set_vsize(3, 0x1000 * (OBJ3_PAGES + cg_pg) + cg_bss, bss=cg_bss)
+    assert 0x1000 * (OBJ3_PAGES + cg_pg) + cg_bss <= OBJ3_ARENA
     p.set_vsize(1, OBJ1_NEW_VSIZE + (0x1000 * (cp + 2 + cdp) if worlds else 0) + h2 + 0x1000 * (lpb + sp_pg + sc_pg + ct_pg + ctl_pg))
     import teamstab                              # 4.0.2: teamsTable for 256 team ordinals (Serie D choice colours)
     teamstab.patch(p, num_bss + shirtnum.BSS_SIZE + blond.BSS_SIZE + menunum.BSS_SIZE + fmtpage.BSS_SIZE)

@@ -548,6 +548,15 @@ def test(confs=('conmebol',), seasons=3, seed=7, L=None, hook=None):
                     snap = bytes(SEG), bytes(OUTB), bytes(IN)
                     L.ct_resume()
                     assert (bytes(SEG), bytes(OUTB), bytes(IN)) == snap, f'replay changed the state at {path[-1]}'
+                if os.environ.get('CONTI_TEST_GREC'):     # 4.0.6 option C: the replay keeping the goals - the same
+                    snap = bytes(SEG), bytes(OUTB), bytes(IN)   # state, goals that give its results
+                    gb = ctypes.create_string_buffer(4 + 2 * NCUP * NRD + 0x1400)
+                    struct.pack_into('<HH', gb, 0, 0, 0x1400)
+                    ctypes.c_void_p.in_dll(L, 'CT_GREC').value = ctypes.addressof(gb)
+                    L.ct_resume()
+                    ctypes.c_void_p.in_dll(L, 'CT_GREC').value = None
+                    assert (bytes(SEG), bytes(OUTB), bytes(IN)) == snap, f'goal replay changed the state at {path[-1]}'
+                    grec_check(spec, bytes(gb), bytes(OUTB), lay, struct.unpack_from('<H', bytes(IN), 6)[0], path[-1])
                 L.ct_result(v)
                 if hook:
                     hook(L, names, f's{season + 1} after {path[-1]}')
@@ -566,6 +575,87 @@ def test(confs=('conmebol',), seasons=3, seed=7, L=None, hook=None):
                     if counts[r]:
                         es = struct.unpack_from(f'<{counts[r]}H', o, o_ent + 2 * (ci * NRD * NE + r * NE))
                         print('   ', r, [nm(x) for x in es])
+
+
+def grec_check(spec, gb, o, lay, mgr, where):
+    """CONTI_TEST_GREC: every kept round's goals give CT_OUT's result (ko: the aggregate's winner, else away goals /
+    extra time / penalties as the round's level allows; groups: the places in points order), the career club's games
+    GR_OWN; returns the bytes used."""
+    NCUP, NRD, NE = lay[17:20]
+    o_nent, o_ent, o_res = lay[11], lay[12], lay[13]
+    used, room = struct.unpack_from('<HH', gb, 0)
+    assert used <= room
+    off = struct.unpack_from(f'<{NCUP * NRD}H', gb, 4)
+    b = gb[4 + 2 * NCUP * NRD:]
+    p, kept = 4, 0
+    for c in range(spec[0]):
+        nr = spec[p]
+        for r in range(nr):
+            R = spec[p + 4 + r * RB:p + 4 + (r + 1) * RB]
+            k = off[c * NRD + r]
+            n = o[o_nent + c * NRD + r]
+            if not k:
+                continue
+            kept += 1
+            ent = struct.unpack_from(f'<{NE}H', o, o_ent + 2 * ((c * NRD + r) * NE))
+            res = o[o_res + (c * NRD + r) * NE:o_res + (c * NRD + r + 1) * NE]
+            g = lambda x: ((x & 15) - 1, (x >> 4) - 1)
+            if R[0] == 0:                           # (K_KO)
+                for t in range(n // 2):
+                    x = b[k - 1 + 3 * t:k + 2 + 3 * t]
+                    own = mgr and mgr in (ent[2 * t], ent[2 * t + 1])
+                    if x[0] == 0xFF:
+                        assert own, (where, c, r, t, 'GR_OWN not the career club')
+                        continue
+                    assert not own or not mgr, (where, c, r, t)
+                    assert x[0], (where, c, r, t, 'no first leg')
+                    a1, b1 = g(x[0])
+                    ga, gb_, awa, awb = a1, b1, 0, b1
+                    if R[1] == 2:
+                        assert x[1], (where, c, r, t, 'no second leg')
+                        b2, a2 = g(x[1])
+                        ga += a2; gb_ += b2; awa = a2
+                    w = res[2 * t]
+                    if ga != gb_:
+                        assert w == (ga > gb_), (where, c, r, t, x.hex(), w)
+                    elif R[2] in (2, 3) and R[1] == 2 and awa != awb:
+                        assert w == (awa > awb), (where, c, r, t, 'away', x.hex(), w)
+                    elif R[2] in (1, 3):
+                        assert x[2], (where, c, r, t, 'no extra time')
+                        e1, e2 = g(x[2])
+                        if e1 != e2:
+                            assert w == (e1 > e2), (where, c, r, t, 'et', x.hex(), w)
+            else:
+                ng, gs, gr = R[6], R[7], R[8]
+                gm = gs * (gs - 1) // 2 * gr
+                for q in range(ng):
+                    x = b[k - 1 + q * gm:k - 1 + (q + 1) * gm]
+                    grp = ent[q * gs:(q + 1) * gs]
+                    if x and x[0] == 0xFF:
+                        assert mgr in grp, (where, c, r, q, 'GR_OWN not the career club\'s group')
+                        continue
+                    pt, m = [0] * gs, 0
+                    for leg in range(gr):
+                        for i in range(gs):
+                            for j in range(i + 1, gs):
+                                h, a = (j, i) if leg else (i, j)
+                                if grp[h] and grp[a]:
+                                    hg, ag = g(x[m])
+                                    pt[h] += 3 if hg > ag else 1 if hg == ag else 0
+                                    pt[a] += 3 if ag > hg else 1 if hg == ag else 0
+                                else:
+                                    assert not x[m]
+                                m += 1
+                    pl = res[q * gs:(q + 1) * gs]
+                    order = sorted(range(gs), key=lambda i: pl[i])
+                    assert all(pt[order[i]] >= pt[order[i + 1]] for i in range(gs - 1) if grp[order[i + 1]]), \
+                        (where, c, r, q, pt, list(pl))
+        p += 4 + nr * RB
+    GREC_STAT.append((used, kept))
+    return used
+
+
+GREC_STAT = []
 
 
 # --- the game ---------------------------------------------------------------------------------------------------------
@@ -939,6 +1029,17 @@ ct_build:                               ; [A0R] -> slot 3, as uefaq's .build: th
     mov word [D2R], 0
     call C8B2D3
     mov word [SLOT3 + 39h], 0FFFFh
+%if CGTEST_
+    mov eax, [cg_testp]                 ; (CONTI_CGTEST test builds only: ctgame's cg_selftest - the same contest
+    test eax, eax                       ; built by the view's builder must be slot 3's, byte for byte)
+    jz .nt
+    movzx ecx, word [CAL_CUR]
+    movzx ecx, byte [CAL + ecx + 1]
+    push ecx
+    call eax
+    add esp, 4
+.nt:
+%endif
     popad
     ret
 
@@ -1003,6 +1104,7 @@ ct_newcup:                              ; 4.0.5 (world_sc_bra, FLAMENGO 3rd in i
 .x: popad
     ret
 
+cg_testp: dd 0                          ; (ctgame.patch: cg_selftest in CONTI_CGTEST test builds)
 ct_on: db 0
 ct_live: db 0
 ct_gplace: db 0
@@ -1090,6 +1192,7 @@ def patch(p, at, limit, bss_at, area):
     symbols['STR_BASE_'] = (2, sacups.STR_BASE)
     symbols['KOLOSE_'] = (0, int(bool(os.environ.get('CONTI_KOLOSE'))))   # (test builds only)
     symbols['KOWIN_'] = (0, int(bool(os.environ.get('CONTI_KOWIN'))))     # (test builds only)
+    symbols['CGTEST_'] = (0, int(bool(os.environ.get('CONTI_CGTEST'))))   # (test builds only: ctgame's self-test)
     if os.environ.get('CONTI_KOLOSE'):
         print('exe: CONTI_KOLOSE (test build: the career club loses its conti ties)')
     symbols.update(NEXT_DAILY=u['uq_daily'], TIE=(1, TIE[0]), TIE_ID=(0, p.get(1, TIE[0], 1)[0]),
@@ -1400,6 +1503,28 @@ def _league_cal(ng):
     return [(h + 16 * g, a + 16 * g) for d in days for (h, a) in d for g in range(ng)]
 
 
+def groups_body(euro, cid, rounds, j, key=''):
+    """A group stage (round j) as a type-2 contest's header (the game's Champions Cup's, euro = its 47 bytes): the
+    groups, then the cup's last <= 4 knockout rounds after it as stages; -> (39 bytes + name pointers to come, clubs).
+    conti.structs' main rounds; 4.0.6 ctgame's other group stages (the view's contests)."""
+    rd, last = rounds[j], rounds[-1].get('month') or 5
+    body = bytearray(euro)
+    body[0] = cid
+    n = rd['groups'] * rd['size']
+    ko = [r for r in rounds[j + 1:] if r['kind'] == 'ko'][-4:]
+    kn = len(ko)                                # (stages: the groups, then kn knockout rounds of
+    st = [1 + kn, n, rd['groups'], rd['size']]  # 2^kn .. 2 clubs; the winners count; a round byte per
+    for t in range(kn):                         # stage from +22h: the groups' 0, then the knockouts')
+        st += [2 ** (kn - t), 0, 2 ** (kn - t)]
+    st += [1] + [0] * (20 - len(st) - 1)
+    st += [0] + [_legs(r) for r in ko] + [0] * (4 - kn)
+    assert len(st) == 0x27 - 0x0e and 1 <= kn <= 4, (key, kn, len(st))
+    body[0x0e:0x27] = bytes(st)
+    body[9] = 0                                 # (every round through the game's own draw: our list order)
+    body[3], body[4] = _month((rd.get('months') or [10])[0]), _month(last)
+    return body, n
+
+
 def structs(p, area, lang, at):
     """The career club's contests (one per cup: its main round as the game's own contest) at obj1:at; returns (end,
     [(1, struct offset)], [euro rank per struct]) for sacups' slot-3 chain (D7 / E092F = 6 + index)."""
@@ -1442,20 +1567,8 @@ def structs(p, area, lang, at):
                 import lp36                             # calendar - lp36's fixture contests, any first club)
                 lp36.FIXTURES[(cid, (0xFF, 0xFF))] = (rd['groups'], rd['size'], 8, _league_cal(rd['groups']))
             if rd['kind'] in ('groups', 'league_stage'):
-                body = bytearray(d2[euro:euro + 47])
-                body[0] = cid
-                n = rd['groups'] * rd['size']
+                body, n = groups_body(d2[euro:euro + 47], cid, rounds, j0, c['key'])
                 ko = [r for r in rounds[j0 + 1:] if r['kind'] == 'ko'][-4:]
-                kn = len(ko)                                # (stages: the groups, then kn knockout rounds of
-                st = [1 + kn, n, rd['groups'], rd['size']]  # 2^kn .. 2 clubs; the winners count; a round byte per
-                for t in range(kn):                         # stage from +22h: the groups' 0, then the knockouts')
-                    st += [2 ** (kn - t), 0, 2 ** (kn - t)]
-                st += [1] + [0] * (20 - len(st) - 1)
-                st += [0] + [_legs(r) for r in ko] + [0] * (4 - kn)
-                assert len(st) == 0x27 - 0x0e and 1 <= kn <= 4, (c['key'], kn, len(st))
-                body[0x0e:0x27] = bytes(st)
-                body[9] = 0                                 # (every round through the game's own draw: our list order)
-                body[3], body[4] = _month((rd.get('months') or [10])[0]), _month(last)
                 name_at = 39
             else:
                 ko = rounds[j0:]

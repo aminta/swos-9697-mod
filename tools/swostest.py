@@ -15166,6 +15166,77 @@ def world_contiview_tie():
     return not errs, '; '.join(errs) or '; '.join(info)
 
 
+def cg_trace(exe):
+    """obj3 offsets of ctgame.c's CG_T, its scratch and CG_ERR (the 'CGTRPTR' block), else None."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    from le import LE
+    le = LE(open(os.path.join(exe, 'ITALIAN.EXE'), 'rb').read())
+    if len(le.objs) < 3:
+        return None
+    d3 = le.obj_bytes(3)
+    k = d3.find(b'CGTRPTR\0')
+    return struct.unpack_from('<III', d3, k + 8) if k >= 0 else None
+
+
+@scenario
+def world_cgame_self():
+    """4.0.6 option C, P1 gate: the builder (ctgame.c - the view's contests by the game's own code into the scratch)
+    against the game's own slot-3 contests. A FLAMENGO career on a CONTI_FORCE=lib:q1 + CONTI_KOWIN + CONTI_CGTEST
+    test build: in season 2 every contest conti's ct_build puts in slot 3 (the Libertadores' q1, q2, q3 ties, its group
+    stage) is rebuilt at once by cg_build from conti.c's replay and must be byte-identical to slot 3 (cg_selftest:
+    CG_T builds / mismatches / first diff), the team cache unchanged by it (every club already in). CG_FILL=1: the
+    scratch filled with 5Ah first (DOS/4GW leaves it as it was - the builder must clear what it uses)."""
+    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    fill = os.environ.get('CG_FILL')
+    env = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]),
+           'CONTI_FORCE': 'lib:q1', 'CONTI_KOWIN': '1', 'CONTI_CGTEST': '1'}
+    if fill:
+        env['CG_FILL_TEST'] = '5A'
+    exe = os.environ.get('CG_BUILD') or build('world_cgame_self' + ('_fill' if fill else ''), env=env, lang=UI)
+    tr = cg_trace(exe)
+    if not tr:
+        return False, 'no CGTRPTR block (ctgame not in the build)'
+    t_at = tr[0]
+    team = 'SUDAMERICA,BRASILE,BRASILEIRAO SERIE A,FLAMENGO'
+    s1 = os.environ.get('CG_S1') or os.path.join(RUNS, f'cg_self_s1_{UI}.CAR')
+    if not os.path.exists(s1):
+        ok, msg, _ = sc_season(team, dict(W8485_BUILD=exe))
+        car = os.path.join(RUNS, w84_tag() + '_1', 'SWOS', 'W84A.CAR')
+        if not ok or not os.path.exists(car):
+            return False, f'season 1: {msg[:200]}'
+        shutil.copy(car, s1)
+    seen = {}
+    global W84_HOOK
+
+    def hook(s, season, scr):
+        r = s.result
+        if r is None or r.base3 is None:
+            return
+        t = struct.unpack('<8I', r.read(r.base3 + t_at, 32))
+        if t[0] and t != seen.get('last'):
+            seen['last'] = t
+            s.log.append(f'[cg] builds {t[0]} mismatches {t[1]} first {t[2]:#x} last cup/round/tie {t[3]:#x} '
+                         f'len {t[4]:#x} cache {t[5]}->{t[6]} err {t[7]}')
+    W84_HOOK = hook
+    try:
+        ok, msg, lines = sc_season(team, dict(W8485_BUILD=exe, W8485_FROM=s1), 2)
+    finally:
+        W84_HOOK = None
+    t = seen.get('last')
+    if not t:
+        return False, f'no cg_selftest build seen; season 2: {ok} {msg[:150]}'
+    errs = []
+    check(t[0] >= 4, f'only {t[0]} slot-3 contests rebuilt (q1, q2, q3, the groups)', errs)
+    check(t[1] == 0, f'{t[1]} rebuilt contests differ from slot 3 (first at {t[2] & 0xFFFF:#x}, err {t[7]})', errs)
+    check(t[5] == t[6], f'the team cache changed {t[5]} -> {t[6]}', errs)
+    check(ok, f'season 2: {msg[:150]}', errs)
+    cg = [ln for ln in lines if ln.startswith('[cg]')]
+    return not errs, '; '.join(errs + cg[-3:]) or '; '.join(cg[-4:])
+
+
 @scenario
 def world_winners_sc_semi():
     """4.0.5 (Davide 29/10, choice 1): a final four's semi-final lost -> the final simulated (gplay.c sc_done: the better

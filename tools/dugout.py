@@ -1,5 +1,6 @@
 """4.0.6 two-row dugouts (Davide 03/11, two-row V1): both in-match dugouts 2 tile rows longer and one tile column
-wider, two rows of 8 figures each (coach + 7, then 8 in front).
+wider, two rows of 8 figures each (coach + 7, then 8 in front). (03/11 evening, Davide: both dugouts whole on the
+screen: 1 tile row longer, not 2.)
 
 The dugouts are pitch-map tiles: PITCHn.DAT (55 rows x 42 dword offsets into PITCHn.BLK, 256-byte 16 x 16 patterns,
 296 at most) for the five match pitches (PITCH6, the training pitch, is not touched). Each dugout is 5 tile rows in
@@ -7,8 +8,8 @@ columns 0-1: the roof cap, 2 middle rows (the seats), the seat end, the steps; t
 368..447), the bottom one rows 29-33 (464..543), the halfway line between them (y 449, row 28). Across: the roof
 (x 11..26), then the floor in the roof's shadow (x 27..31) where the bench sits.
 
-Here the top dugout grows upwards (cap row 21, middle rows 22-25, end 26, steps 27) and the bottom one downwards
-(cap 29, middle 30-33, end 34, steps 35): 4 middle rows. Every tile comes from the original dugouts in the same
+Here the top dugout grows upwards (cap row 22, middle rows 23-25, end 26, steps 27) and the bottom one downwards
+(cap 29, middle 30-32, end 33, steps 34): 3 middle rows (ADD). Their ink: y 352..547 (INK), 196 rows. Every tile comes from the original dugouts in the same
 grass-stripe phase (the row's place in the stripes' period: 1 row on PITCH1, 4 on PITCH2-4, 6 on PITCH5); a tile
 missing in a phase (PITCH5's diagonal stripes) is made from one that exists, its grass pixels (those equal to that
 phase's grass) swapped for the phase's grass, pixel by pixel.
@@ -17,10 +18,10 @@ The 3rd column (x 32..47, was grass): the floor goes on, each dugout row's colum
 grass. The box is 48 px wide, both rows of figures sit on its floor (x 27..35 and 36..44). The new patterns go at the
 end of the BLK file.
 
-The exe side (benchx.py block 2): the top bench's y 389 -> 357, the two rows (back: the coach + places 1..BACK at the
+The exe side (benchx.py block 2): the top bench's y 389 -> 373, the two rows (back: the coach + places 1..BACK at the
 game's seats; front: places BACK+1.. at x + FRONT_X, y + FRONT_Y, the first level with the coach), a standing back-row
 figure in front of the front row (exit e), the front row's arrow mirrored on its right, the camera at the halfway
-line (both dugouts in one screen).
+line (both dugouts whole in one screen), the clock at the top right while the bench is open.
 
 The 16-colour mode (EGA graphics, ReadPitchFile) reads SWCPICHn.P16 instead: the same 55 x 42 map, then 128-byte
 16 x 16 patterns (the file read whole into 65535 bytes: 511 patterns at most). A map dword's high word is the
@@ -39,7 +40,9 @@ import struct
 
 ROOT = os.path.join(os.path.dirname(__file__), '..')
 PITCHES = (1, 2, 3, 4, 5)
-ADD = 2                                     # tile rows added to each dugout (two rows of 8 figures)
+ADD = 1                                     # tile rows added to each dugout (two rows of 8 figures: 7 px a figure,
+                                            # 2 more than the game's 6 a row = 14 px; 2 rows: the bottom dugout off
+                                            # the screen, Davide 03/11)
 TOP = (23, 24, 25, 26, 27)                  # cap, middle, middle, end, steps
 BOT = (29, 30, 31, 32, 33)
 MAX_PATTERNS = 296                          # the game's PITCHn.BLK buffer (75776 bytes)
@@ -47,7 +50,11 @@ BACK = 7                                    # (the exe, benchx) places in the ba
 FRONT_X, FRONT_Y = 9, 3                     # the front row (places 8..): towards the pitch, a little lower
 ARROW_DX = 41                               # the front row's arrow: the game's (x 15..23 at D1 = benchXLimit - 12,
                                             # tip 3 px from the figure) mirrored around x 35.5 (+ 41 on D1)
-CAM_MID = 440                               # the bench camera's y (- 100 = its top): both dugouts' span 340..539 in one screen
+INK0 = (368, 531)                           # the game's dugouts: the top one's first row of ink (the roof cap), the
+                                            # bottom one's last (its steps; their tiles below: grass), PITCH1-5
+INK = (INK0[0] - 16 * ADD, INK0[1] + 16 * ADD)  # the long dugouts': 352..547, 196 rows
+CAM_MID = 450                               # the bench camera's y (- 100 = its top, 350): both dugouts whole in one
+                                            # 200-row screen (rows 2..197), the opponent's bench too
 COLS = 42
 
 
@@ -125,14 +132,28 @@ def p16(n, src=None):
     o = tuple(dat)
     g = lambda r, c: p16_pat(o[next(q for q in grass if (q - r) % per == 0 and q not in new) * COLS + c] >> 16)
     same, made = 0, []
+
+    def add(tile):
+        """the pattern's index: an existing one with the same pixels, or a new one at the end"""
+        old = [i for i in range(len(pats) // 128) if pats[i * 128:(i + 1) * 128] == tile]
+        if old:
+            return old[0]
+        made.append(len(pats) // 128)
+        pats.extend(tile)
+        return made[-1]
     for r, k in sorted(new.items()):
         for c in (0, 1):
             key = (k, c, r % per)
             if key not in have:             # the original's one tile for this kind and column, whatever the phase
                 ts = {t for (kk, cc, p), t in have.items() if kk == k and cc == c}
-                assert len(ts) == 1, (n, key, ts)
-                have[key] = ts.pop()
-                same += 1
+                if len(ts) == 1:
+                    have[key] = ts.pop()
+                    same += 1
+                else:                       # (ADD 1: the top cap's phase on PITCH2-4) as VGA: from a phase that has
+                    ph, t = min((p, t) for (kk, cc, p), t in orig.items() if kk == k and cc == c)   # it, its grass
+                    sp, g0, g1 = px(t), px(g(ph, c)), px(g(r, c))                   # pixels swapped for this phase's
+                    assert sp != g0, (n, key)
+                    have[key] = orig[key] = add(p16_bytes([b if a == z else a for a, z, b in zip(sp, g0, g1)]))
             dat[r * COLS + c] = p16_word(have[key]) << 16
     for r in sorted(new):                   # the 3rd column: the floor goes on (column 1's x 15 repeated)
         ph = r % per                        # g1: the grass of the stripe phase column 1's tile comes from (PITCH5's
@@ -141,13 +162,8 @@ def p16(n, src=None):
         t1, g1, g2 = px(T(r, 1)), px(g(ph, 1)), px(g(r, 2))
         assert sum(a != b for a, b in zip(px(T(r, 2)), g2)) <= 32, (n, r)   # (it was grass: SWCPICH1 rows 34-37
                                                                             # have a variant, 205: a few pixels)
-        tile = p16_bytes([g2[y * 16 + x] if t1[y * 16 + 15] == g1[y * 16 + 15] else t1[y * 16 + 15]
-                          for y in range(16) for x in range(16)])
-        old = [i for i in range(len(pats) // 128) if pats[i * 128:(i + 1) * 128] == tile]
-        if not old:
-            made.append(len(pats) // 128)
-            pats.extend(tile)
-        dat[r * COLS + 2] = p16_word(old[0] if old else made[-1]) << 16
+        dat[r * COLS + 2] = p16_word(add(p16_bytes([g2[y * 16 + x] if t1[y * 16 + 15] == g1[y * 16 + 15] else t1[y * 16 + 15]
+                                                    for y in range(16) for x in range(16)]))) << 16
     npat = len(pats) // 128
     assert npat <= MAX_P16, (n, npat)
     return (struct.pack('<2310I', *dat) + bytes(pats),
@@ -167,6 +183,9 @@ def pitch(n, src=None):
     per, grass, have = phases(T, n)
     o = tuple(dat)                          # (the grass from the original map: the new rows were grass rows)
     g = lambda r, c: o[next(q for q in grass if (q - r) % per == 0 and q not in new) * COLS + c] // 256
+    ink = [r * 16 + y for r in TOP + BOT for c in (0, 1) for y in range(16)
+           if pat(T(r, c))[y * 16:y * 16 + 16] != pat(g(r, c))[y * 16:y * 16 + 16]]
+    assert (min(ink), max(ink)) == INK0 and CAM_MID - 100 <= INK[0] and INK[1] < CAM_MID + 100, (n, min(ink), max(ink))
     made = []
 
     def add(tile):

@@ -38,10 +38,11 @@ each) and every bench place seated, both benches: the back row the coach + place
 - DrawBenchPlayersAndCoach's `cmp word [D7], 6` -> bx_win_end: places 1 .. that last place (the arrow's row and the
   first place are the game's: the index, place 1), the opponent's bench (g_subsState -1) the same; an empty place is
   an empty seat (the game's own skip, y still moves on).
-- BenchCheckControls' `mov word [D1], 389` (the top bench's y) -> bx_benchy: 389 - 16 x dugout.ADD = 357, the top
+- BenchCheckControls' `mov word [D1], 389` (the top bench's y) -> bx_benchy: 389 - 16 x dugout.ADD = 373, the top
   dugout grew upwards (a training game: 389, PITCH6 unchanged); the bottom one grew downwards (485 stays).
-- MoveCamera's bench destination `mov word [D4], 449` -> bx_camy: dugout.CAM_MID 440, the halfway line between the
-  two-row dugouts (their span y 340..539: both in one 200-row screen, the opponent's bench too), 449 as before in a
+- MoveCamera's bench destination `mov word [D4], 449` -> bx_camy: dugout.CAM_MID 450, the halfway line between the
+  two-row dugouts (their ink y 352..547, roof cap to steps: both whole in one 200-row screen from y 350, the
+  opponent's bench too), 449 as before in a
   training game; its arrival window `cmp [g_cameraY], 339` / `, 359` (the x limit 0: the dugout at the screen's left
   edge) -> bx_camlo / bx_camhi: the destination - 110 / - 90. bx_camlo also sets g_cameraY on the destination when
   it is 1..3 px above it: there the game's step (delta / 4 x 0.25 px) is 0, the camera never stands still
@@ -56,6 +57,10 @@ each) and every bench place seated, both benches: the back row the coach + place
   place (centerX = width - 1 - centerX; VGA: 2 pixels a byte, high nibble first -> each line's bytes reversed,
   nibbles swapped; EGA, unchained at the match's start: each plane's line's bytes reversed, bits reversed), the
   game draws it, bx_mirror again gives the game's arrow back (no buffer: obj3 is nearly full).
+- (two rows) UpdateTime's `mov word [currentTimeSprite.z], 10000 / ret` -> jmp bx_clock: with the bench open
+  (g_inSubstitutesMenu) the clock at the screen's top right (x = camera + 289 - its picture's width: its right edge
+  at x 288, left of the game's spinning S at camera + 285, ink from x 295), off the top dugout's coach and first
+  seats; not in a training game. (The game itself moves the clock only 8 px down, with currentPlayerIndicatorPosition 4.)
   (bx_win / bx_cur stay as 0 words: the harness finds the tables from bx_bench.)
 - Block 3, the names (on namespr's 112 px sprites, 4.0.5): plOrdinalsTable / plNamesLengthTable /
   plNamesLengthTableCopy (obj2, 16 bytes a team) move here at 26 a team (bx_ord / bx_len / bx_lenc, every reference
@@ -706,6 +711,26 @@ bx_camlo:                               ; replaces `cmp word [CAMY], 339` (its f
     sub ax, 110
     cmp [CAMY], ax
     pop eax
+    ret
+
+bx_clock:                               ; (two rows) replaces UpdateTime's `mov word [esi + z + 2], 10000 / ret`
+    mov word [esi + 40], 10000          ; (esi = currentTimeSprite): with the bench open (g_inSubstitutesMenu) the
+    cmp word [TRAIN], 0                 ; clock goes to the screen's top right, its right edge at x 288, left of
+    jne .x                              ; the spinning S (SpinBig_S_Sprite: camera + 285, ink from x 295), off
+                                        ; the top dugout
+    cmp word [INSUBS], 0
+    je .x
+    push eax
+    push ebx
+    movzx ebx, word [esi + 70]          ; (its picture's width, whatever the clock shows)
+    mov ebx, [SPRIDX + ebx * 4]
+    mov ax, [CAMX]
+    add ax, 289
+    sub ax, [ebx + 10]
+    mov [esi + 32], ax
+    pop ebx
+    pop eax
+.x:
     ret
 
 bx_camhi:                               ; replaces `cmp word [CAMY], 359`
@@ -1486,7 +1511,9 @@ def sites11(p, regs):
 def sites12(p, regs, s2):
     """(4.0.6 two rows) {name: obj1 offset} of the two `call DrawSpriteInCameraView` the bench rows change: the
     arrow's (`mov word [D0], 1284; push dword [D1]; call`) and the bench players' (7 pushes, then the call, in the
-    loop after s2's d7i), and the symbols DRAWSPR (its target) and EGA (EGA_graphics, its first `cmp word [x], -1`)."""
+    loop after s2's d7i), UpdateTime's last two instructions (`mov word [esi + z + 2], 10000 / ret`, esi = the clock
+    sprite, after `add word [esi + y + 2], 8`), and the symbols DRAWSPR (its target) and EGA (EGA_graphics, its first
+    `cmp word [x], -1`)."""
     d = p.le.obj_bytes(1)
     pk = lambda x: re.escape(struct.pack('<I', x))
     d0, d1 = regs['D7'] - 28, regs['D7'] - 24
@@ -1496,9 +1523,11 @@ def sites12(p, regs, s2):
     ds = p.call_target(1, ar[0])
     assert ds == p.call_target(1, pl[0]) and ds[0] == 1, ('DrawSpriteInCameraView', ds)
     assert d[ds[1]:ds[1] + 3] == b'\x66\x83\x3d' and d[ds[1] + 7] == 0xff, 'EGA_graphics'
-    at = {'arrowcall': ar[0], 'seatcall': pl[0]}
+    ck = [m.end() - 7 for m in re.finditer(rb'\x66\x83\x46\x24\x08\x8b\x35....\x66\xc7\x46\x28\x10\x27\xc3', d, re.S)]
+    assert len(ck) == 1, ('the clock sprite z', ck)
+    at = {'arrowcall': ar[0], 'seatcall': pl[0], 'clock': ck[0]}
     for k, o in at.items():                     # (no other hook there)
-        assert bytes(p.get(1, o, 5)) == d[o:o + 5], ('two-row site already patched', k, hex(o))
+        assert bytes(p.get(1, o, 7)) == d[o:o + 7], ('two-row site already patched', k, hex(o))
     return at, {'DRAWSPR': ds, 'EGA': p.target(1, ds[1] + 3)}
 
 
@@ -1956,7 +1985,7 @@ def patch(p, at, ns_at, lang='it'):
     sym = {**v2, **v3, 'BENCHY': v11['BENCHY'], 'CAMY': v11['CAMY'], 'SIP': v11['SIP'], 'WAITGO': v11['WAITGO'],
            'DUGUP_': (0, 16 * dugout.ADD), **v12, 'CAMMID_': (0, dugout.CAM_MID), 'BACK_': (0, dugout.BACK),
            'FRONTX_': (0, dugout.FRONT_X), 'FRONTY_': (0, dugout.FRONT_Y), 'ARROWDX_': (0, dugout.ARROW_DX),
-           'ARROW_': (0, 1284), 'D7': (2, regs['D7']), 'D1': (2, regs['D7'] - 24), 'A0': (2, regs['A0']), 'GMAX': (2, gmax), 'D2': (2, d2), 'A2': (2, regs['A0'] + 8), 'A6': (2, regs['A0'] + 24),
+           'ARROW_': (0, 1284), 'CAMX': (2, v11['CAMY'][1] - 4), 'INSUBS': (2, v11['BENCHY'][1] - 0x12), 'D7': (2, regs['D7']), 'D1': (2, regs['D7'] - 24), 'A0': (2, regs['A0']), 'GMAX': (2, gmax), 'D2': (2, d2), 'A2': (2, regs['A0'] + 8), 'A6': (2, regs['A0'] + 24),
            'CT': (2, ct), 'CNP': (2, cnp), 'MAXP': (0, MAXP), 'PI': (0, PI)}
     s4 = sites4(p, regs)
     assert s4['D4'] == v11['D4'][1], 'D4'
@@ -2027,6 +2056,7 @@ def patch(p, at, ns_at, lang='it'):
     call9(s11['chi'], 9, 'bx_camhi', 3)
     for k, lbl in (('arrowcall', 'bx_arrow'), ('seatcall', 'bx_seat')):   # (two rows) call rel32 (no fixup)
         go(s12[k], lbl)
+    go(s12['clock'], 'bx_clock', 7, op=0xE9)        # mov word [esi + 40], 10000 / ret (no address) -> jmp bx_clock
     call9(s2['n1'], 9, 'bx_name1', 3)               # add word [D1], 255 (66 81 05 addr FF 00)
     call9(s2['n2'], 9, 'bx_name2', 3)
     for k in ('wb0', 'wb1', 'wb2'):                 # mov word [D2], 15 (66 C7 05 addr 0F 00)
@@ -2087,5 +2117,5 @@ def patch(p, at, ns_at, lang='it'):
     assert lab['bx_vw'] - lab['bx_bench'] == 114               # (bench_view reads the window there)
     LABELS.update(lab)
     print(f'exe: bench up to 15 (block 1: in-match teams of {MAXP}; GMAX obj2+{gmax:#x}, loop obj1+{lp:#x}, '
-          f'{len(rs)} offset-table refs moved; block 2: two-row dugouts (top bench y 357, back coach + 1..7, front 8..15, mirrored arrow, the camera at the halfway line), cursor to 15, names of places 17+ on sprites {NB}.. (name tables 26 a team), 3 after-match loops to 11 + bench; code obj3+{at:#x}, {len(code)} B, {len(rel)} rel32 into the game, bx_bench obj3+{lab["bx_bench"]:#x})')
+          f'{len(rs)} offset-table refs moved; block 2: two-row dugouts (top bench y 373, back coach + 1..7, front 8..15, mirrored arrow, the camera at the halfway line, the clock top right), cursor to 15, names of places 17+ on sprites {NB}.. (name tables 26 a team), 3 after-match loops to 11 + bench; code obj3+{at:#x}, {len(code)} B, {len(rel)} rel32 into the game, bx_bench obj3+{lab["bx_bench"]:#x})')
     return at + len(code)

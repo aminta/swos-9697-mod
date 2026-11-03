@@ -22294,9 +22294,15 @@ def bteam_ui():
     v = bteam_vars(exe)
     me = os.environ.get('BT_CLUB', 'ATALANTA')
     path = ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27', 'EUROPA', 'ITALIA', 'SERIE A', me]
+    import bteam
     import finance
     import lepatch
-    nbo = finance.find(lepatch.LEPatch(os.path.join(MAIN, 'orig', 'ITALIAN.EXE')))['NEWBAL'][1]
+    if UI != 'it':                                      # (SWOSTEST_UI: bteam's own texts read back as the Italian ones)
+        for k, t in bteam.TEXTS[UI].items():
+            for x, y in zip(t if isinstance(t, (list, tuple)) else [t], bteam.TEXTS['it'][k] if isinstance(t, (list, tuple)) else [bteam.TEXTS['it'][k]]):
+                if x:
+                    UI_MAP.setdefault(x, y)
+    nbo = finance.find(lepatch.LEPatch(os.path.join(MAIN, 'orig', UI_ORIG)))['NEWBAL'][1]
     bank = lambda: struct.unpack('<i', bytes(s.result.obj2(nbo, 4)))[0]     # newBalance: no money for a call-up
     errs, info = [], []
     with Session('bteam_ui', exe, {}, 'dump:2', 900) as s:
@@ -22328,8 +22334,9 @@ def bteam_ui():
             if r is None:
                 return f'SQ. B not reachable: {s.screen()}'
             s.shot('bsquad2' if extra else 'bsquad')
-            if extra:
-                press(s, s.screen(), 'PAG. SUCC.', 2)
+            if extra:                                   # (xbrowse's label as read back: DE WEITER -> CONTINUA)
+                import xbrowse
+                press(s, s.screen(), ui_it(xbrowse.TEXTS[UI][0].decode('latin-1')), 2)
             info.append(f'B squad: {str(s.screen())[:300]}')
             if extra:
                 for _ in range(3):                      # (PAG. PREC. -> the 16th row -> the 14th: the last extra)

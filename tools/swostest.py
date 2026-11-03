@@ -23348,9 +23348,11 @@ def cpu_inj_preset(gt=None):
         if gt:                                       # (DIY: g_gameType 1 from the first match on)
             s.poke(s.result.lin(gt_at), struct.pack('<H', gt))
             s.log.append(f'[gt] {gt} at {gt_at}')
+        gts = set()                                  # (g_gameType at every step: the DIY poke held)
         for k in range(300):
             scr = s.screen()
             snap(f'step{k}:{scr.entries[0][1].strip()[-16:]}')
+            gts.add(struct.unpack('<H', s.result.read(s.result.lin(gt_at), 2))[0])
             if k in (12, 36) and os.environ.get('CPU_INJ_DUMP'):    # (find where a preset keeps its clubs: the whole
                 open(os.path.join(s.run, f'MEM_{k}.BIN'), 'wb').write(s.result.mem)   # 32 MB, analysed offline)
                 s.log.append(f'[dump] MEM_{k}.BIN numsel {numsel - s.result.base2:#x} base2 {s.result.base2:#x}')
@@ -23364,11 +23366,13 @@ def cpu_inj_preset(gt=None):
         snap('end')
     if not any(n for _, n, _ in rounds):             # (no named slot at any snapshot: nothing read)
         return False, f'NOT MEASURED: no named team in g_selectedTeams at any snapshot {rounds[:4]}'
+    if (gt or 2) not in gts:
+        return False, f'g_gameType {gt or 2} never seen during the competition ({sorted(gts)})'
     res = 'heals' if downs else 'never heals'
     inj_end = sorted((k[0], k[1], v) for k, v in seen.items() if v)
     if not downs:                                    # (4.0.6 option 1: they must heal - CPU INJURIES ON)
         return False, f'CPU injuries never heal (g_gameType {gt or 2}): injured at the end {inj_end}; {rounds[-6:]}'
-    return True, (f'RESULT: {res} ({len(downs)} level decreases, e.g. {downs[:4]}; injured at the end (team, player, level) {inj_end}; '
+    return True, (f'RESULT: g_gameType {sorted(gts)}, {res} ({len(downs)} level decreases, e.g. {downs[:4]}; injured at the end (team, player, level) {inj_end}; '
                   f'injured records per snapshot '
                   f'{[(t, n, j) for t, n, j in rounds][:30]}; decreases {downs[:8]})')
 

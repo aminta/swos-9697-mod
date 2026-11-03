@@ -1211,7 +1211,7 @@ POS_ROLE = {'P': 'G', 'TD': 'D', 'TS': 'D', 'D': 'D', 'MD': 'M', 'MS': 'M', 'M':
             'G': 'G', 'RB': 'D', 'LB': 'D', 'RW': 'M', 'LW': 'M'}    # (+ the ENGLISH exe's codes)
 
 
-SQ_WH = ((82, 8), (81, 8), (80, 8))               # (numcol.py: 4.0.5 the rows 1 px right, 81 wide; 4.0.6 80)
+SQ_WH = ((82, 8), (81, 8), (80, 8), (79, 8))     # (numcol.py: 4.0.5 the rows 1 px right, 81 wide; 4.0.6 79)
 
 
 def row_x(scr):
@@ -4152,8 +4152,8 @@ def shirt_marco():
 def numgap_check(s, tag, errs, info):
     """(4.0.6, Davide 02/11) the shirt-number column on the current squad list (squad screen, team screen, tactics
     editor; numcol.py): in every row the number's ink (2 white, 8 shadow) keeps 1 column clear after the face box
-    (its template entry, 12 x 8, left of the number's 10 x 8) and stays off the name bar (the row entries; on the team
-    screen a two-digit number's shadow meets the bar, as in the approved mock); the frame saved as shot `tag`. Returns the rows checked and the two-digit ones (ink 9+ px wide)."""
+    (its template entry, 12 x 8, left of the number's 10 x 8) and 1 before the name bar (the row entries; Davide 03/11:
+    names +2 px on the lists); the frame saved as shot `tag`. Returns the rows checked and the two-digit ones (ink 9+ px wide)."""
     scr = s.screen()
     vga = s.result.read(0xA0000, 64000)
     s.shot(tag)
@@ -4163,7 +4163,7 @@ def numgap_check(s, tag, errs, info):
         return 0, 0
     nx = num[0][0]
     face = [g[0] for g in scr.geom if g[2:] == (12, 8) and g[0] < nx]
-    names = [g for g in scr.geom if g[3] == 8 and g[2] in (80, 81, 82, 131, 132, 134) and g[0] > nx]
+    names = [g for g in scr.geom if g[3] == 8 and g[2] in (79, 80, 81, 82, 131, 132, 134) and g[0] > nx]
     if not names:
         errs.append(f'{tag}: no name rows')
         return 0, 0
@@ -4176,9 +4176,9 @@ def numgap_check(s, tag, errs, info):
         n += 1
         two += max(ink) - min(ink) >= 8
         gaps.add((min(ink) - fr - 1 if face else None, mx - 1 - max(ink)))
-        if (face and min(ink) < fr + 2) or max(ink) > mx - 1:
+        if (face and min(ink) < fr + 2) or max(ink) > mx - 2:
             bad.append((y, min(ink), max(ink)))
-    check(n and not bad, f'{tag}: number ink touching the face box (last column {fr}) or on the name bar (x {mx}): '
+    check(n and not bad, f'{tag}: number ink touching the face box (last column {fr}) or the name bar (x {mx}): '
                          f'(row y, ink x0, x1) {bad[:6]} of {n} rows', errs)
     info.append(f'{tag}: {n} numbered rows ({two} two-digit), face box ends x {fr if face else None}, number column x '
                 f'{nx}, names x {mx}' + f', columns clear (face, bar) {sorted(gaps, key=str)}')
@@ -4188,7 +4188,7 @@ def numgap_check(s, tag, errs, info):
 @scenario
 def squad_numgap():
     """4.0.6 (Davide 02/11, MiSTer): two-digit shirt numbers clear of the face box and the name bar (numcol.py: the
-    number column x 14, the names 1 px right) on the club's squad screen, the team screen and the tactics editor. A new
+    number column x 14, the names 2 px right on the lists) on the club's squad screen, the team screen and the tactics editor. A new
     World 2026-27 ROMA career (99 SVILAR, 43, 86, 61...) on NUMGAP_BUILD (a release build, its ITALIAN.EXE = the
     language's exe) -> SQUADRA (numgap_check) -> PRATICA/TRAINING (the team screen) -> MOD. TATTICA (the tactics
     editor, the first user tactic: UTN A / USER_A / UTIL A / SPIEL A). Any SWOSTEST_UI (the labels as UI_MAP reads them back). Shots squad / team / tactics."""

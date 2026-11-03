@@ -8,8 +8,9 @@ shirtedit's lit number box is 11 px wide (se_hl) to cover that column too.
 had the same covered shadow, and the number touched the name ("99MILE SVILAR"): its name template and rows move to
 x 25, width 132 (the shadow column x 23, then a 1 px gap).
 4.0.6 (Davide 02/11, MiSTer): a centred two-digit number (11 px with its shadow in the 10 px column) started on the
-face box's last column. The number column moves 1 px right (x 14) on all three, the names 1 px right too (the lists
-x 25 / width 80, the squad screen x 26 / 131): 1 px clear on both sides of a two-digit number. shirtedit's lit box
+face box's last column. The number column moves 1 px right (x 14) on all three; the names 2 px right on the lists
+(x 26 / width 79, Davide 03/11: with +1 a two-digit number's shadow met the name bar) and the squad screen's x 26 / 131:
+names 2 px after the number column everywhere, 1 px clear on both sides of a two-digit number. shirtedit's lit box
 (se_hl: the entry's own x, 11 px) follows the entry.
 Data only (obj2 packed menus, the same bytes in every exe)."""
 import re
@@ -26,14 +27,14 @@ def patch(p):
     n = 0
     for h in hits:
         p.put(2, h, b'\x0e\x00')                         # 4.0.6: number x 14
-        p.put(2, h + 16, b'\x19\x00')                    # name template: x 25 (4.0.5: 24)
-        p.put(2, h + 20, b'\x50\x00')                    # width 80 (4.0.5: 81)
+        p.put(2, h + 16, b'\x1a\x00')                    # name template: x 26 (4.0.5: 24)
+        p.put(2, h + 20, b'\x4f\x00')                    # width 79 (4.0.5: 81)
         rows = [h - 0x900 + m.start() for m in re.finditer(rb'\x17\x00.\x00\x52\x00\x08\x00\x02\x00',
                                                             d2[h - 0x900:h], re.S)]
         assert len(rows) == 17, ('numcol: list rows', len(rows))
         for r in rows:
-            p.put(2, r, b'\x19\x00')
-            p.put(2, r + 4, b'\x50\x00')
+            p.put(2, r, b'\x1a\x00')
+            p.put(2, r + 4, b'\x4f\x00')
         n += len(rows)
     h = [m.start() for m in re.finditer(re.escape(SQUAD), d2)]
     assert len(h) == 1, ('numcol: the squad screen template', h)
@@ -46,4 +47,4 @@ def patch(p):
     for r in rows:
         p.put(2, r, b'\x1a\x00')
         p.put(2, r + 4, b'\x83\x00')
-    print(f'exe: squad lists\' number column x 14 (names x 25: 2 templates, {n} rows; the squad screen x 26)')
+    print(f'exe: squad lists\' number column x 14 (names x 26: 2 templates, {n} rows; the squad screen x 26)')

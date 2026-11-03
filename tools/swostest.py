@@ -23390,13 +23390,14 @@ def gk_inj():
     club's keeper (currentMatchPlayers[0]) has that level; his level at each later squad screen (where the game
     decides the line-up) - unavailable (> 20h) for exactly 1 / 2 matches, the CPU's keeper (INFORTUNI ALLA CPU ON) at
     that level too; off: the row OFF, no roll; cpu: INFORTUNI ALLA CPU OFF - the human keeper only; oldsave: JUVE2F (no
-    'GI') loads the row ON after it was set OFF (GK_MODES: the cases, default all)"""
+    'GI') loads the row ON after it was set OFF; season: a SEASON (Italy 1947-48, JUVENTUS) - the human keeper and the CPU
+    keepers rolled (GT 3) (GK_MODES: the cases, default all)"""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import gkinj
     from complist import px, SMALL_W
     errs, notes = [], []
     label = gkinj.LABEL[UI]
-    for mode in os.environ.get('GK_MODES', '1m,2m,off,cpu,oldsave').split(','):
+    for mode in os.environ.get('GK_MODES', '1m,2m,off,cpu,oldsave,season').split(','):
         if mode == 'oldsave':                        # (an old save - no 'GI' - loads the row ON)
             b = builds()['it'] if UI == 'it' else build(f'gk_inj_ui_{UI}', lang=UI)
             gk = gk_sites(b)[0]
@@ -23407,6 +23408,35 @@ def gk_inj():
                 w = gk_read(s, gk)[4:]
                 check(w == (0, 0), f'old save JUVE2F: GI_W, GI_SH {w} after the load (want 0 = ON)', errs)
                 notes.append(f'oldsave: GI {w}')
+            continue
+        if mode == 'season':                         # (a SEASON: the CPU keepers rolled too, GT 3; Italy 1947-48)
+            b = nop_league_int3(f'gk_inj_1m_{UI}', build(f'gk_inj_1m_{UI}', env={'GKINJ_FORCE': '1m'}, lang=UI))
+            cc, t1, t2, g1, gl, top = cc_sites(b)
+            gk, career, cmpl = gk_sites(b)
+            with Session(f'gk_inj_season_{UI}', b, {}, 'dump:2', 900, match=True) as s:
+                s.wait()
+                s.poke(s.result.base2 + gl[1], b'\x03\x00')
+                for t in ('STAGIONE', 'STAG. STORICHE', 'ITALIA 1947-48', 'JUVENTUS'):
+                    if press(s, s.screen(), t, 2) is None:
+                        errs.append(f'season: {t} not reached')
+                        break
+                else:
+                    for _ in range(14):
+                        scr = s.screen()
+                        if scr.entries[scr.selected][1] == 'STAGIONE':
+                            break
+                        s.send(('right' if scr.entries[scr.selected][1] == 'ABBANDONA' else 'down') + ' dump:0.5')
+                    s.send('fire dump:3')
+                    res = cc_match(s, t1, t2, g1, 'season1')
+                    st = gk_read(s, gk)
+                    hum = [p for p, r in zip(s.cc_ptrs, res) if r[0] != 1]
+                    cpu = [p for p, r in zip(s.cc_ptrs, res) if r[0] == 1]
+                    kl = lambda t: s.result.read(t + 0x4C + s.result.read(t + 0x3C, 1)[0] * 0x26 + 0x1B, 1)[0] & 0xE0
+                    hk, ck = (kl(hum[0]) if hum else None), (kl(cpu[0]) if cpu else None)
+                    notes.append(f'season: match 1 {res}, rolls {st[0]}, hits {st[1]}, human keeper {hk}, CPU keeper {ck}')
+                    check(len(hum) == 1 and len(cpu) == 1 and hk == gkinj.LVL1 and ck in {gkinj.LVL1, 0x20, 0}
+                          and st[0] > 2, f'season: human keeper {hk}, CPU keeper {ck}, rolls {st[0]} (want the CPU '
+                          f'keepers rolled too: rolls > 2)', errs)
             continue
         env = {'GKINJ_FORCE': '1m' if mode in ('off', 'cpu') else mode}
         b = nop_league_int3(f'gk_inj_{mode}_{UI}', build(f'gk_inj_{env["GKINJ_FORCE"]}_{UI}', env=env, lang=UI))
@@ -23475,6 +23505,117 @@ def gk_inj():
             notes.append(f'{mode}: levels {[(w, hex(v)) for w, v in seen]}')
             check(len(out) == (1 if mode == '1m' else 2), f'{mode}: out of {out} (want {mode[0]} match(es))', errs)
     return not errs, '; '.join(errs + notes)
+
+
+@scenario
+def cpu_inj_season():
+    """MEASUREMENT (4.0.6 cpucards, Regia 04/11): outside a career, does a CPU player injured in a match ever heal? An
+    INJ_FORCE build (every tackle injures at level 3), INFORTUNI ALLA CPU ON (default), a SEASON (CLASSIC SEASONS
+    Italy 1947-48, JUVENTUS human): match 1, the CPU opponent's injury levels (its team record by pointer), then
+    CIS_MATCHES more matches (default 4): that team's levels after each. Reports only (PASS = measured)."""
+    n_more = int(os.environ.get('CIS_MATCHES', 4))
+    b = nop_league_int3(f'cpu_inj_season_{UI}', build(f'cpu_inj_{UI}', env={'INJ_FORCE': '1'}, lang=UI))
+    cc, t1, t2, g1, gl, top = cc_sites(b)
+    notes = []
+    with Session(f'cpu_inj_season_{UI}', b, {}, 'dump:2', 1500, match=True) as s:
+        s.wait()
+        s.poke(s.result.base2 + gl[1], b'\x03\x00')
+        for t in ('STAGIONE', 'STAG. STORICHE', 'ITALIA 1947-48', 'JUVENTUS'):
+            if press(s, s.screen(), t, 2) is None:
+                return False, f'{t} not reached ({s.result})'
+        for _ in range(14):
+            scr = s.screen()
+            if scr.entries[scr.selected][1] == 'STAGIONE':
+                break
+            s.send(('right' if scr.entries[scr.selected][1] == 'ABBANDONA' else 'down') + ' dump:0.5')
+        s.send('fire dump:3')
+        res = cc_match(s, t1, t2, g1, 'cis1')
+        cpu = [p for p, r in zip(s.cc_ptrs, res) if r[0] == 1]
+        if len(cpu) != 1:
+            return False, f'not one CPU team in match 1: {res}'
+        lvl = lambda: [s.result.read(cpu[0] + 0x4C + i * 0x26 + 0x1B, 1)[0] >> 5 for i in range(16)]
+        days = lambda: struct.unpack('<I', s.result.read(s.result.lin(cc) + 12, 4))[0]
+        seq = [('after1', lvl(), days())]
+        name = s.result.read(cpu[0] + 5, 17).split(b'\0')[0].decode('latin1')
+        for m in range(2, 2 + n_more):
+            r = cc_match(s, t1, t2, g1, f'cis{m}')
+            seq.append((f'after{m}', lvl(), days()))
+            notes.append(f'match {m}: {r}')
+        inj = [i for i, x in enumerate(seq[0][1]) if x]
+        notes.insert(0, f'CPU {name}: injured {inj}; levels per point ' + '; '.join(
+            f'{w} {[l[i] for i in inj]} (cb_day days {d})' for w, l, d in seq))
+        healed = [i for i in inj if seq[-1][1][i] < seq[0][1][i]]
+        notes.insert(0, f'RESULT: {"heals" if healed else "never heals"} ({len(healed)}/{len(inj)} counted down after '
+                        f'{n_more} more matches)' if inj else 'RESULT: no CPU injury in match 1 (rerun)')
+    return True, '; '.join(notes)
+
+
+@scenario
+def cpu_inj_preset():
+    """MEASUREMENT (4.0.6 cpucards, Regia 04/11): in a PRESET competition (CLASSIC TOURNEYS > COPPA MONDIALE 1934, every
+    team by the computer, results only: cseg_903B1's injuries, cpucards' guard 13 open), does a CPU injury ever count
+    down? Every cached team's records (g_numSelectedTeams = careerTeam + 95151, the cache after it, 684 B a team) read
+    at each round: an injury level that goes down = heals. Reports only (PASS = measured)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import gkinj
+    import lepatch
+    b = build(f'cpu_inj_{UI}', env={'INJ_FORCE': '1'}, lang=UI)
+    career = gkinj.find(lepatch.LEPatch(os.path.join(ROOT, 'orig', UI_ORIG)))['CAREER']
+    seen, downs, rounds = {}, [], []
+    with Session(f'cpu_inj_preset_{UI}', b, {}, 'dump:2', 900) as s:
+        s.wait()
+        numsel = s.result.base2 + career[1] + 95151
+
+        def snap(tag):
+            # (a preset keeps its clubs neither in g_selectedTeams nor counted by g_numSelectedTeams: the 1934 dumps (MC
+            # 04/11) found them at obj2+20A87h. Located here by TEAM.146's first name, the 16 records from there)
+            if not hasattr(snap, 'at'):
+                first = open(os.path.join(b, 'DATA', 'TEAM.146'), 'rb').read()[2 + 5:2 + 22].split(b'\0')[0] + b'\0'
+                lo = s.result.obj2(0, 0x60000)
+                k = lo.find(first)
+                snap.at = s.result.base2 + k - 5 if k >= 5 else numsel + 2
+                s.log.append(f'[preset teams] obj2+{snap.at - s.result.base2:#x}')
+            buf = s.result.read(snap.at, 684 * 100)
+            inj, n = 0, 0
+            for t in range(16 if snap.at != numsel + 2 else 100):
+                name = buf[684 * t + 5:684 * t + 22].split(b'\0')[0].decode('latin1')
+                if not name.strip() or not all(32 <= ord(c) < 127 for c in name):
+                    continue
+                n += 1
+                for i in range(16):
+                    lv = buf[684 * t + 76 + 38 * i + 0x1B] >> 5
+                    k = (name, i)
+                    if lv:
+                        inj += 1
+                    if k in seen and lv < seen[k] and seen[k] > 1:
+                        downs.append((tag, name, i, seen[k], lv))
+                    seen[k] = lv
+            rounds.append((tag, n, inj))
+
+        for t in ('COMP. PREDEFINITA', 'TORNEI STORICI', 'COPPA MONDIALE 1934', 'TORNEO'):
+            if press(s, s.screen(), t) is None:
+                return False, f'{t} not reached'
+        for k in range(300):
+            scr = s.screen()
+            snap(f'step{k}:{scr.entries[0][1].strip()[-16:]}')
+            if k in (12, 36) and os.environ.get('CPU_INJ_DUMP'):    # (find where a preset keeps its clubs: the whole
+                open(os.path.join(s.run, f'MEM_{k}.BIN'), 'wb').write(s.result.mem)   # 32 MB, analysed offline)
+                s.log.append(f'[dump] MEM_{k}.BIN numsel {numsel - s.result.base2:#x} base2 {s.result.base2:#x}')
+            for want in ('VIS. RISULTATI', 'REPLAY', 'PROSS. PARTITA', 'PROSSIMO TURNO', 'TURNO RITORNO', 'CONTINUA', 'OK'):
+                i = scr.find(want, exact=True)
+                if i is not None:
+                    break
+            else:
+                break
+            press(s, scr, i, wait=3)
+        snap('end')
+    if not any(n for _, n, _ in rounds):             # (no named slot at any snapshot: nothing read)
+        return False, f'NOT MEASURED: no named team in g_selectedTeams at any snapshot {rounds[:4]}'
+    res = 'heals' if downs else 'never heals'
+    inj_end = sorted((k[0], k[1], v) for k, v in seen.items() if v)
+    return True, (f'RESULT: {res} ({len(downs)} level decreases; injured at the end (team, player, level) {inj_end}; '
+                  f'injured records per snapshot '
+                  f'{[(t, n, j) for t, n, j in rounds][:30]}; decreases {downs[:8]})')
 
 
 def cpucards_label():

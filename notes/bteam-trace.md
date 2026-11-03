@@ -89,3 +89,31 @@ Trace commits moved onto branch 406-bteam2 (off 406-i7c). Hook points re-checked
   chained there (squadnum HL_SITE marker + the 'B' letter) - re-measure ESCI in the 4 languages at step 1.
 - Unchanged: cseg_52588 (filler surplus) unhooked; gp_adv chain (gplay) for return (1); InitializeNewSeason chain
   (xtra, sacups, ...) for return (2).
+
+## Design for M2 / M3 (Shaved, 2026-11-03, after Davide's GO: full spec, places 17+ too)
+- **Purchase copy, as the game does it (cseg_56379)**: GetPlayer(seller D0, D1) -> A1; the lowest free careerTeam slot
+  D1 (not in currentMatchPlayers); GetPlayer(selTeamNumber, slot) -> A0; cseg_63919; A1+66h |= 4; A1+6Dh..70h = 0;
+  38 bytes A1+4Ch -> A0+4Ch; the slot inserted in currentMatchPlayers after the match's 11 + bench (competition
+  file's +65h / +4Dh, + 0Bh); SetBenchPlayersNumbers; careerNumPlayers++; cseg_5E345 (wage); cseg_56615 (the
+  seller's invented replacement, SOLD_SITE = the chain xt_sold -> xl_sold -> cr_sold). bteam's bt_add = this copy
+  without the money / chain: bit 1 (generated) set instead of bit 2, the wage hook (1: 0; 2: the game's).
+- **Places 17+** (an XTRA block, static DATA\\XTWn.nnn): read through xtra's xt_block (the market's block cache,
+  xl_readto blanks XL entries). A borrowed XTRA player needs no replacement (as the market: no invented one for 17+)
+  and nothing at his return (the block is static). While borrowed he must not be buyable from the B club's block:
+  xt_block chained -> names in BU blanked (as XS / XL).
+- **BU entry (8 B)**: db kind (1 match / 2 season), db B index (0..29), dw B team word, dd name hash (22-byte name,
+  before bit / stat changes). 10 entries (4 + 2 windows x 3). Return finds the careerTeam slot by the hash.
+- **Return (2), index < 16**: the B record holds the generated replacement (cseg_56615 called directly, D0 = B word,
+  D1 = index: AddCareerPoolPlayer entry (team, index) in careerForeignMarketPlayers). Back: the careerTeam copy (bit 1
+  cleared) overwrites that change-list entry's 38 bytes AND the cached record slot (if cached); then cseg_52EA6-style
+  removal from careerTeam (xl_rm told: not an XTRA leaver - bteam flag).
+- **Age**: U23 = age code (birth - 1900) >= season's first year - 1900 - U23 limit (season year from the career's
+  season counter); 0 = unknown -> callable, not over-age. GK: any age, not counted as over-age.
+- **Windows**: current week = CAL[CAL_CUR].week (gplay gp_week); open if first <= week <= last for a window of the
+  B team's rules (BAGE 'BR'); per-window count of (2) kept in BU (entries of kind 2 with their window number in the
+  high bit of kind).
+- **UI (M3)**: squad screen (squadMenu, the career club only, not a national selector, the club has a B team):
+  'SQ. B' 45x15 left of ESCI -> the B page (menu copy in obj3 as kbd2 / cpurefill): the B squad (name, role, age,
+  'U23' / over-age mark), select -> 'SOLO PROSSIMA PARTITA' / 'PER LA STAGIONE'; refusals: MAX 4 PER PARTITA, TROPPI
+  FUORI QUOTA, MERCATO CHIUSO, ROSA PIENA (careerNumPlayers >= 30: the game's own trial cap), ANCORA %d PER LA
+  STAGIONE. Marker on the squad screen: fillers' colour (bit 1) + a 'B' after the shirt number (se_hl chain).

@@ -321,6 +321,7 @@ def patch_exe(src, dst, remap, lang='it'):
         engine.save_item('CT', conti.ST_SIZE, world_only=True)
         engine.save_item('CE', conti.ED_SIZE, world_only=True)          # (phase B: the edition being played, conti.c CT_ED)
         engine.after_new('ct_new')                                      # (4.0.6 B2: season 1's edition, conti.ct_new)
+        engine.after_load('ct_load')                                    # (B2 M3: an older season-1 save: built at load)
     import controls                                    # 4.0.2: the CONTROLS page (controls.py): code + its data pages, the
     ctl_pg = 1 + controls.DATA_PAGES                   # last pages (obj1: obj2's page count stays 4.0's, see controls.patch)
     import namespr                                     # 4.0.5: 14-character match names (namespr.py), after them

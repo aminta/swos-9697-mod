@@ -13246,6 +13246,12 @@ def world_winners_oldsave():
     nxt = os.path.join(RUNS, w84_tag() + '_2', 'SWOS', 'W84B.CAR')
     if not os.path.exists(nxt) or 'trap' in msg:        # (checkw1: a 1984-85 world check, FAIL on rc7's own build too)
         return False, f'the old save played on: {msg}'
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import conti                                        # (4.0.6 B2 M3: season 1's edition built at the load -> every
+    st = car_item(nxt, 'CT', conti.ST_SIZE)             # cup has a holder at its first season end)
+    hold = [struct.unpack_from('<H', st, 4 + 12 * i)[0] for i in range(16)] if st and st[:2] == b'CT' else []
+    if not hold or not any(hold):
+        return False, f'the old save\'s season end: no conti holders (CT {st[:16].hex() if st else None})'
     with Session('world_winners_oldsave', exe, {'W84B.CAR': nxt}, 'dump:2', 300) as s:
         s.wait()
         s.send(LOAD1 + ' dump:3')
@@ -15505,6 +15511,42 @@ def world_s1conti():
     check(not ce[11] & 1, f'season 2: the season-1 bit still set (CT_ED {ce[:12].hex()})', errs)
     info.append(f'holders = season 1\'s winners: {[(cu, h) for cu, _, h in want]}')
     return not errs, '; '.join(errs) or '; '.join(info)
+
+
+@scenario
+def world_s1conti_oldsave():
+    """4.0.6 B2 M3 (Davide: old saves built at load): Davide's rc7 season-1 career PHILA.CAR (no 'CE', no 'CT') on a
+    release-like build (world_winners_oldsave's recipe) gets season 1's edition at the load (conti.c ct_load1): CT_ED
+    'CE', the season-1 bit, the entries of the build's block, the career club's word (its season end: world_winners_oldsave)"""
+    car = os.environ.get('WINNERS_OLDSAVE') or os.path.join(MAIN, 'internal', 'davide-mister-20261021', 'PHILA.CAR')
+    if not os.path.exists(car):
+        return True, f'SKIP: no {car}'
+    check_ce = car_item(car, 'CE', 2260)
+    if check_ce is not None and check_ce[:2] == b'CE':
+        return False, f'{car} already has an edition: not an old save'
+    exe = os.environ.get('WINNERS_W27')
+    if not exe:
+        src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+        if not os.path.isdir(src):
+            return True, f'SKIP: private data {src} missing'
+        order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+        w4 = os.path.join(ROOT, 'packs', 'europe-1984-85')     # (world_winners_oldsave's build: the save's numbering)
+        packs = ['ddr-1988-89', 'italia-1947-48', 'world-cup-1934'] + \
+            [os.path.join(w4, c) for c in sorted(os.listdir(w4)) if not c.startswith('.')] + \
+            [os.path.join(src, x) for x in order]
+        exe = build('winners_w27', env={'SEASON_PACKS': ','.join(packs)})
+    tr = cv_trace(exe)
+    if not tr:
+        return False, 'no CVTRPTR block (ctview not in the build)'
+    errs, eds = [], []
+    with Session('world_s1conti_oldsave', exe, {'PHILA.CAR': car}, 'dump:2', 300) as s:
+        s.wait()
+        s.send(LOAD1 + ' dump:3')
+        eds.append(bytes(s.result.obj2(tr[1], 2260)))
+    ed = eds[0]
+    ne, mgr = struct.unpack_from('<H', ed, 2)[0], struct.unpack_from('<H', ed, 8)[0]
+    check(ed[:2] == b'CE' and ed[11] & 1 and ne > 100, f'old save: no season-1 edition at the load (CT_ED {ed[:12].hex()})', errs)
+    return not errs, '; '.join(errs) or f'CT_ED {ed[:12].hex()}: {ne} entries, club {mgr:#x}'
 
 
 @scenario

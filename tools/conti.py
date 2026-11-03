@@ -807,6 +807,23 @@ ct_new:                                 ; 4.0.6 B2, engine after_new (a new care
     pop es
     ret
 
+ct_load:                                ; 4.0.6 B2 M3, engine after_load: an older World 2026-27 save still in season 1
+    push es                             ; (no 'CE', no 'CT' yet) -> season 1's edition built now (conti.c ct_load1)
+    push ds
+    pop es
+    cld
+    mov dword [CT_SPEC], SPEC
+    call W_LPW
+    jne .r
+    call ct_lp
+    movzx eax, word [SEL]
+    push eax
+    call CT_LOAD1
+    add esp, 4
+.r:
+    pop es
+    ret
+
 ct_pre:                                 ; the season start's slot-3 chain, before conti's checks: after a load the
     push es                             ; exe's lists, CT_SEG empty -> both again from the saved edition
     push ds
@@ -1272,7 +1289,7 @@ def patch(p, at, limit, bss_at, area):
     symbols.update(NEXT_DAILY=u['uq_daily'], TIE=(1, TIE[0]), TIE_ID=(0, p.get(1, TIE[0], 1)[0]),
                    TIE_D7=(0, D7_BASE[0] + len(STRUCTS)), CT_D7=(0, D7_BASE[0]), CT_SEG=syms['CT_SEG'], CT_NS=(0, len(STRUCTS)),
                    CT_ED=syms['CT_ED'], CT_RESULT=syms['ct_result'], CT_RESUME=syms['ct_resume'],
-                   CT_NEW1=syms['ct_new1'], W_LPW=(1, cw.LABELS['w_lpw']))
+                   CT_NEW1=syms['ct_new1'], CT_LOAD1=syms['ct_load1'], W_LPW=(1, cw.LABELS['w_lpw']))
     import lp36
     ls = lp36.LABELS['symbols']
     ids = [p.get(1, off, 1)[0] for _, off, _, _ in STRUCTS] + [p.get(1, TIE[0], 1)[0]]
@@ -1329,6 +1346,7 @@ def patch(p, at, limit, bss_at, area):
     if 'CE' in engine.SAVE_ITEMS:
         engine.ITEM_AT['CE'] = syms['CT_ED']
     engine.CALL_AT['ct_new'] = (1, lab['ct_new'])       # (4.0.6 B2: patch.py registers it, engine.after_new)
+    engine.CALL_AT['ct_load'] = (1, lab['ct_load'])     # (B2 M3: engine.after_load)
     LABELS.update(lab, syms=syms, assocs=assocs, cups=cups, SPEC=symbols['SPEC'])   # (4.0.6 SPEC: ctview)
     print(f'exe: other confederations\' cups (conti.c): {len(cups)} cups of {", ".join(confs)}, '
           f'{len(assocs)} associations, spec {len(spec)} B; C obj1+{at:#x}..{end:#x}, glue ..{glue + len(code):#x}, '

@@ -922,6 +922,11 @@ u32 ct_new1(u32 mgr) {                  /* 4.0.6 B2: a new career (or a season-1
     CT_ED.mark = 0x4543;
     return 1;
 }
+u32 ct_load1(u32 mgr) {                 /* 4.0.6 B2 M3, after a load: a season-1 save from before B2 (no edition, no
+                                           first season end yet) gets the season-1 edition, as a new career. 1: built */
+    if (CT_ED.mark == 0x4543 || CT_ST.mark == 0x5443) return 0;
+    return ct_new1(mgr);
+}
 void ct_resume(void) {                  /* after a load: CT_SEG again from the saved edition */
     if (!CT_SPEC || CT_ED.mark != 0x4543) { CT_SEG.kind = 0xFF; return; }
     parse();

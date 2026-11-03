@@ -15085,7 +15085,9 @@ def world_contiview_tie():
     wins its conti ties). Season 1 played; season 2 (its save) saved at its 5th Libertadores result screen (q3's first
     leg, September: q1 and q2, August, are over). The view (CONMEBOL first, the club's own): q1 and q2 list FLAMENGO's
     ties with it in brackets (through), q3 its tie without them (the next game: the opponent of that result screen), the
-    groups DA GIOCARE; CT_SEG / CT_ED unchanged by the view (CV_TIE_S2: a cached season-2 save)"""
+    groups DA GIOCARE; CT_SEG / CT_ED unchanged by the view (CV_TIE_S2: a cached season-2 save). On a release exe
+    (CV_TIE_BUILD=<release dir>: no CONTI_FORCE / CONTI_KOWIN) set CV_TIE_S2 to the test build's season-2 save - its
+    'CE' item has FLAMENGO through q1 / q2 and the release exe only replays it (the names from TMW5.nnn)"""
     src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
     if not os.path.isdir(src):
         return True, f'SKIP: private data {src} missing'

@@ -22294,6 +22294,10 @@ def bteam_ui():
     v = bteam_vars(exe)
     me = os.environ.get('BT_CLUB', 'ATALANTA')
     path = ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27', 'EUROPA', 'ITALIA', 'SERIE A', me]
+    import finance
+    import lepatch
+    nbo = finance.find(lepatch.LEPatch(os.path.join(MAIN, 'orig', 'ITALIAN.EXE')))['NEWBAL'][1]
+    bank = lambda: struct.unpack('<i', bytes(s.result.obj2(nbo, 4)))[0]     # newBalance: no money for a call-up
     errs, info = [], []
     with Session('bteam_ui', exe, {}, 'dump:2', 900) as s:
         s.wait()
@@ -22313,6 +22317,7 @@ def bteam_ui():
         if not sq_open(s):
             return False, f'no squad screen: {s.screen()}'
         n0, _, _, bu0 = bteam_state(s, v)
+        b0 = bank()
         scr = s.screen()
         s.shot('squad_btn')
         check(scr.find('SQ. B', exact=True) is not None, f'no SQ. B on the squad screen: {scr}', errs)
@@ -22327,7 +22332,11 @@ def bteam_ui():
                 press(s, s.screen(), 'PAG. SUCC.', 2)
             info.append(f'B squad: {str(s.screen())[:300]}')
             if extra:
-                s.send('up dump:1' + ' up dump:0.5' * 2)   # (PAG. PREC. -> the 16th row -> the 14th: the last extra)
+                for _ in range(3):                      # (PAG. PREC. -> the 16th row -> the 14th: the last extra)
+                    s.send('up dump:0.5')
+                q = s.screen()
+                s.shot('page2_sel')
+                info.append(f'page 2 selected {q.selected}, links {q.nav[3][0] if len(q.nav) > 3 else None}')
                 info.append(f'page 2: {str(s.screen())[:300]}')
             s.send('fire dump:3')
             s.shot('picked')
@@ -22341,7 +22350,10 @@ def bteam_ui():
             if scr.find(kind_text, exact=True) is None:
                 return f'no call-up page: {scr}'
             s.shot('page2' if extra else 'page')
+            info.append(f'bank at the page {bank()}')
             press(s, scr, kind_text, 2)
+            s.screen()
+            info.append(f'bank after {kind_text} {bank()}')
             return None
 
         e = page('SOLO PROSSIMA PARTITA', False)
@@ -22355,6 +22367,8 @@ def bteam_ui():
         s.shot('page_ok')
         press(s, s.screen(), 'ESCI', 3)
         n1, _, _, bu1 = bteam_state(s, v)
+        b1 = bank()
+        check(b1 == b0, f'one match: bank {b0} -> {b1}', errs)
         check(n1 == n0 + 1 and len(bu1) == len(bu0) + 1 and bu1[-1][0] & 0x7F == 1, f'squad {n0} -> {n1}, BU {bu1}', errs)
         check(s.screen().find('SQ. B', exact=True) is not None, f'back: no SQ. B ({s.screen()})', errs)
         s.shot('squad_after')
@@ -22368,6 +22382,8 @@ def bteam_ui():
                 check('CONVOCATO PER LA STAGIONE' in t, f'after the season call-up: {t}', errs)
                 press(s, s.screen(), 'ESCI', 3)
                 n2, _, _, bu2 = bteam_state(s, v)
+                b2 = bank()
+                check(b2 == b1, f'season: bank {b1} -> {b2} (wages only, no fee)', errs)
                 check(n2 == n1 + 1 and bu2 and bu2[-1][1] >= 16, f'season extra: squad {n1} -> {n2}, BU {bu2}', errs)
                 info.append(f'season: squad {n2}, BU {bu2}')
                 s.shot('squad_after2')

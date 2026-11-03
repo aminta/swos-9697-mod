@@ -1183,6 +1183,62 @@ bt_cx:                                  ; EXIT
 bt_dinit:
     ret
 
+bt_hl:                                  ; squadnum's number entry (esi = it, [A6] + 4Ch = his record): "12B" for a borrowed one
+    call SE_HL
+    cmp word [esi + 22h], 2             ; a "12B" last time: the number's own x and colour back
+    jne .k
+    add word [esi + 14h], 2
+    and word [esi + 24h], 0FFF0h
+    push eax
+    mov al, [bt_nc]
+    or [esi + 24h], al
+    pop eax
+.k:
+    mov word [esi + 22h], 6             ; ENTRY_NUMBER (the game's)
+    pushad
+    cmp dword [SQT], CT                 ; the career club's squad only
+    jne .r
+    mov edi, [A6]
+    add edi, 4Ch
+    test byte [edi + 1Ah], 2            ; (bit 1: borrowed or the game's generated filler)
+    jz .r
+    push esi
+    lea esi, [edi + 3]
+    call bt_isb
+    pop esi
+    test eax, eax
+    jz .r
+    movzx ebx, word [esi + 2]           ; a buffer per row (ordinal)
+    and ebx, 31
+    lea ebx, [bt_nb + ebx * 4]
+    mov edi, ebx
+    movzx eax, word [esi + 26h]
+    mov cl, 10
+    div cl
+    test al, al
+    jz .one
+    add al, '0'
+    stosb
+.one:
+    mov al, ah
+    add al, '0'
+    stosb
+    mov ax, 'B'
+    stosw
+    mov word [esi + 22h], 2             ; ENTRY_STRING, drawn with the number's flags
+    mov [esi + 26h], ebx
+    mov al, [esi + 24h]
+    and al, 0Fh
+    mov [bt_nc], al
+    or byte [esi + 24h], 0Fh            ; in the yellow of his PRES. (SquadAfterDrawCommon's colour 0Fh for bit 1)
+    sub word [esi + 14h], 2             ; 2 px left: the B clear of the name bar
+.r:
+    popad
+    ret
+
+align 4
+bt_nb: times 32 * 4 db 0
+bt_nc: db 0
 align 4
 bt_oinit: dd 0
 bt_oret: dd 0
@@ -1353,6 +1409,9 @@ def patch(p, at, force=None, lang='it'):
                 'DRAWMENU': (1, xb['drawmenu']), 'GETTEAM': (1, xb['init'] + 17 + struct.unpack_from('<i', d1, xb['init'] + 13)[0]),
                 'SQTP': (2, xb['sqtp']), 'SHOWSQ': (1, xb['showsq']), 'VS_OFR': (1, xbrowse.LABELS['vs_ofr']),
                 'SHOW_MENU': (1, u['show']), 'A6': u['a6'], 'EXITM': u['exitm'], 'MSG_': (0, MSG)})
+    hl = squadnum.sites(p)['HL_SITE']                   # squadnum's `call se_hl` on the number entry
+    assert p.get(1, hl, 1) == b'\xe8', 'bteam: squadnum before bteam'
+    sym['SE_HL'] = p.call_target(1, hl)
     src = ASM + UI_ASM.replace('BT_TEXTS', ui_texts(lang))
     if 'CAL' in gplay.LABELS and 'CAL_CUR' in gplay.LABELS:
         sym['CAL'], sym['CAL_CUR'] = gplay.LABELS['CAL'], gplay.LABELS['CAL_CUR']
@@ -1378,6 +1437,7 @@ def patch(p, at, force=None, lang='it'):
         p.remove(1, g + 2)                              # mov esi, [A0]
         p.branch(1, g, 0xE8, 3, lab['bt_gen'], 10)
     p.branch(1, s['wst'], 0xE8, 3, lab['bt_wst'])
+    p.branch(1, hl, 0xE8, 3, lab['bt_hl'])              # the 'B' after a borrowed player's number
     for x in u['users']:                                # M3: mov dword [A6], squadMenu -> the copy with SQ. B
         p.remove(1, x + 2)
         p.remove(1, x + 6)

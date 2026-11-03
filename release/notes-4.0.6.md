@@ -47,6 +47,14 @@ confederation to see its cups. If your club plays in one of them, its confederat
 #### Stoppage time
 - **Stoppage time (an idea of Davide and Marco):** every half now has real added time. At 45:00 and 90:00 the clock stops and a "+N" appears next to it, like the fourth official's board: N added minutes, more when the half had goals, substitutions and cards (in the World 2026-27 career also the time lost with the ball out of play, as in today's football) - at most 3 in the 1996-97 game (2 in the first half), 5 in the World 2026-27 career (3 in the first half), 2 in the Europe 1984-85 career (1 in the first half); each extra-time half gets 1. The historic seasons and tournaments before 1970 (Italy 1947-48, World Cup 1934) give at most 1 and often none, as in those days. The added minutes always run at the pace of a 10-minute match, whatever match length you chose, so they can really be played: about 15 seconds of play for +3 and 26 for +5 (in a 3-minute match +3 would otherwise be gone in under 5 seconds). As always the clock stops when the ball is out of play, and when the added time is over the referee still lets a running attack finish. A goal in added time shows as 45+2 or 90+3 in the scorers' list. Not with SWOS++.
 
+#### Two-row benches in the match
+- **Two-row benches.** With a long bench (more than 5 substitutes) every substitute now has a seat: the coach and substitutes 1-7 sit in the back row, substitutes 8-15 in the front row. The dugouts are a little longer and wider to make room, on every pitch and in 16-colour mode too.
+- **Both benches in view.** When you call your bench, the camera stops at the halfway line, so you see your own bench and your opponent's together, top to bottom.
+- The cursor arrow follows you onto the front row (it points the other way there). A player you pick from the back row stands up in front of the front row, so nobody walks through his team-mates.
+- **The match clock steps aside.** While the bench is open, the clock moves to the top right, next to the spinning S, so it no longer covers the coach and the first seats. It goes back to its place when you close the bench.
+- Fixed a bug of the original game: when you called the bench with the ball in the top half of the pitch, the bench sometimes ignored the cursor keys and you couldn't pick anyone. The camera now settles properly and the bench always responds.
+- Training matches keep the original one-row bench and clock.
+
 #### Long benches: scrolling as in the original game
 - **Long benches** (thanks to Marco): the player lists scroll as in the original game again.
   - Moving the cursor up and down the names never scrolls the list.
@@ -194,6 +202,14 @@ confederazione è la prima della lista.
 
 #### Recupero
 - **Recupero (un'idea di Davide e Marco):** ogni tempo ora ha il suo recupero vero. A 45:00 e a 90:00 l'orologio si ferma e accanto compare "+N", come il cartello del quarto uomo: N minuti di recupero, di più se nel tempo ci sono stati gol, sostituzioni e cartellini (nella carriera Mondo 2026-27 anche il tempo perso a palla non in gioco, come nel calcio di oggi) - al massimo 3 nel gioco 1996-97 (2 nel primo tempo), 5 nella carriera Mondo 2026-27 (3 nel primo tempo), 2 nella carriera Europa 1984-85 (1 nel primo tempo); ogni tempo supplementare ne ha 1. Le stagioni e i tornei storici prima del 1970 (Italia 1947-48, Mondiali 1934) danno al massimo 1 minuto, spesso nessuno, come allora. I minuti di recupero scorrono sempre al ritmo di una partita da 10 minuti, qualunque durata tu abbia scelto, così si giocano davvero: circa 15 secondi di gioco per +3 e 26 per +5 (in una partita da 3 minuti +3 durerebbe meno di 5 secondi). Come sempre l'orologio si ferma a palla non in gioco, e finito il recupero l'arbitro lascia comunque finire l'azione in corso. Un gol nel recupero compare come 45+2 o 90+3 nell'elenco dei marcatori. Non con SWOS++.
+
+#### Panchine su due file in partita
+- **Panchine su due file.** Con una panchina lunga (più di 5 riserve) ogni riserva ha il suo posto: l'allenatore e le riserve 1-7 nella fila dietro, le riserve 8-15 nella fila davanti. Per fare spazio i dugout sono un po' più lunghi e larghi, su tutti i campi e anche nella modalità a 16 colori.
+- **Tutte e due le panchine in vista.** Quando chiami la panchina la telecamera si ferma sulla linea di metà campo: vedi insieme la tua panchina e quella degli avversari, dall'alto in basso.
+- La freccia del cursore ti segue anche sulla fila davanti (lì punta dall'altra parte). Il giocatore scelto dalla fila dietro si alza davanti alla fila anteriore, senza passare in mezzo ai compagni.
+- **L'orologio si sposta.** Con la panchina aperta il tempo di gioco va in alto a destra, accanto alla S che gira, così non copre più l'allenatore e i primi posti. Quando chiudi la panchina torna al suo posto.
+- Corretto un difetto del gioco originale: se chiamavi la panchina con la palla nella metà campo in alto, a volte la panchina non rispondeva ai tasti del cursore e non potevi scegliere nessuno. Ora la telecamera si ferma bene e la panchina risponde sempre.
+- Le partite di allenamento mantengono la panchina e l'orologio originali, su una sola fila.
 
 #### Panchine lunghe: si scorre come nel gioco originale
 - **Panchine lunghe** (grazie a Marco): gli elenchi dei giocatori tornano a scorrere come nel gioco originale.

@@ -645,20 +645,49 @@ ICONS: dw ICONBL_, ICONBL_ + 1, ICON3_, ICON3_ + 1, ICONW_, ICONW_ + 1
 lp_face:                                ; 4.0.6 the stadium screen's little players (StadiumPlayerSpritesBeforeDraw's
     push dword [A0]                     ; `call FillSkinColorConversionTable`, A0 -> the player, A1 = littlePlayers-
     call FILLSKIN                       ; ColorTable: a word per raw colour): Davide, MiSTer 02/11 - white hair (flags
-    pop esi                             ; 6 / 7) as in the match, raw 13 / 9 WH_HAIR, 12 WH_DARK; bald (2..5) the top
-    cmp word [LITTLE], LGOALIE_         ; hair (raw 13) in the face's skin (its raw 6); goalkeepers keep their hair
-    je .x                               ; (as in the match: their sprites are the game's)
-    mov al, [esi + FLAG_]
+    pop esi                             ; 6 / 7) as in the match, raw 13 / 9 WH_HAIR, 12 WH_DARK; goalkeepers keep their
+    cmp word [LITTLE], LGOALIE_         ; hair (as in the match: their sprites are the game's). Bald (Davide 03/11: the
+    je .x                               ; squad screen's look): the outfield sprites 210..212 share one 9 x 12 head
+    mov al, [esi + FLAG_]               ; (hair raw 13 / 9 / 12 in rows 0..2 only), drawn right after this call: shaved
+    mov edx, LPH0_                      ; (4 / 5) all the hair in the skin (12, the back, its shade 5); receding (2 / 3)
+    mov ecx, LPH1_                      ; the head's top (row 0, row 1's middle) in the skin in the sprites' pixels,
+    cmp al, 2                           ; the sides and the back keep the hair - put back for everyone else
+    jb .px
+    cmp al, 3
+    ja .px
+    mov edx, LPR0_
+    mov ecx, LPR1_
+.px:
+    push eax
+    mov ebx, LSPR_
+.s: mov edi, [SPRIDX + ebx * 4]
+    mov edi, [edi]                      ; its pixels (16 a row, 4 bits each: 8 bytes)
+    mov ax, [edi + 1]
+    cmp ax, LPH0_                       ; (only over the game's own head or ours)
+    je .w
+    cmp ax, LPR0_
+    jne .n
+.w: mov [edi + 1], dx
+    mov [edi + 9], cx
+.n: inc ebx
+    cmp ebx, LSPR_ + 2
+    jbe .s
+    pop eax
     cmp al, 6
     jb .b
     mov word [LPT + 26], WHH_
     mov word [LPT + 18], WHH_
     mov word [LPT + 24], WHD_
     ret
-.b: cmp al, 2
+.b: cmp al, 4
     jb .x
+    cmp al, 5
+    ja .x
     mov ax, [LPT + 12]
     mov [LPT + 26], ax
+    mov [LPT + 18], ax
+    mov ax, [LPT + 10]
+    mov [LPT + 24], ax
 .x: ret
 """
 
@@ -763,6 +792,7 @@ def patch(p, area, at, bss, spr, bss2, art_at):
            'SET_': (0, SET_BYTES), 'NSLOT_': (0, NSLOT), 'SLOT5_': (0, SLOT5), 'ICON3_': (0, ICON3), 'ICONW_': (0, ICONW),
            'BUF3': (2, bss2 + BUF3_OFF), 'A4': (2, A0 + 16), 'TOPTEAM': topteam(p),
            'LPT': LPS[1], 'LITTLE': LPS[2], 'FILLSKIN': (1, LPS[3]), 'LGOALIE_': (0, 213),
+           'LSPR_': (0, 210), 'LPH0_': (0, 0x990D), 'LPH1_': (0, 0x9CD9), 'LPR0_': (0, 0x6606), 'LPR1_': (0, 0x66D6),
            'WHH_': (0, WHITE_TONES[os.environ.get('WHITE_TONE', WHITE_TONE)][0]),
            'WHD_': (0, WHITE_TONES[os.environ.get('WHITE_TONE', WHITE_TONE)][1]),
            **{f'F{f}_': (0, (5 if skin == 'dark' else 4) if LOOKS[look][skin]['skull'] == 7 else (2 if skin == 'dark' else 0))

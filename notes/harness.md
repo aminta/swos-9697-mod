@@ -265,3 +265,14 @@ port 3DAh toggles (vsync waits), INT 21h create / write into memory (m.files_wri
 the write hook only while m.watch has ranges. snapshot.py: --max per label; a trailer.load_* label arms before the
 load's key (W84_HOOK.pre_load). Open for step P: save(load(x)) differs from x in the trailer (5083 of 16192 B after the
 after-load callbacks) - classify it before P's persistence work.
+Option C P1 (4.0.6, the competition screens' builder, tools/ctgame.c): `world_cgame_self` (DOSBox) - a FLAMENGO
+career on CONTI_FORCE=lib:q1 + CONTI_KOWIN + CONTI_CGTEST: after every contest conti's ct_build puts in slot 3 (the
+q1 / q2 / q3 ties, the group stage) cg_selftest rebuilds it with the view's builder into the scratch and compares it
+with slot 3 byte for byte (CG_T through the 'CGTRPTR' block: builds, mismatches, first diff, cache count before /
+after). CG_FILL=1 builds with CG_FILL_TEST=5A (the scratch filled with 5Ah first, as DOS/4GW may leave it). CG_S1: a
+cached season-1 save. Tier B test_ctgame.py on fixtures cg_uru (`snapshot.py c/HTcg1/SWOS conti.ct_daily cg_uru
+--car h_uru/save_s1.CAR --max 8 --every 6`: one ct_daily hit in 6 of NACIONAL's season 2): cg_replay changes no
+conti state and its goals give CT_OUT's results (conti.grec_check, also CONTI_TEST_GREC=1 in `conti.py --test`);
+cg_build of every drawn round (and a first tie) deterministic, < 1 s, work area + D0..A6 put back, pages outside the
+scratch within the golden footprint; a full team cache -> 0, CG_ERR 4, nothing written. emu.Machine.base3: obj3 from
+an obj1 pointer (run.EXE's fixups). snapshot.py --every N.

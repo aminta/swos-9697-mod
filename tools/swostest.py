@@ -15191,8 +15191,8 @@ def cg_trace(exe):
 def world_cgame_self():
     """4.0.6 option C, P1 gate: the builder (ctgame.c - the view's contests by the game's own code into the scratch)
     against the game's own slot-3 contests. A FLAMENGO career on a CONTI_FORCE=lib:q1 + CONTI_KOWIN + CONTI_CGTEST
-    test build: in season 2 every contest conti's ct_build puts in slot 3 (the Libertadores' q1, q2, q3 ties, its group
-    stage) is rebuilt at once by cg_build from conti.c's replay and must be byte-identical to slot 3 (cg_selftest:
+    test build: in season 2 every contest conti's ct_build puts in slot 3 from the daily (the Libertadores' q2, q3 ties,
+    its group stage; q1 is built at the season start) is rebuilt at once by cg_build from conti.c's replay and must be byte-identical to slot 3 (cg_selftest:
     CG_T builds / mismatches / first diff), the team cache unchanged by it (every club already in). CG_FILL=1: the
     scratch filled with 5Ah first (DOS/4GW leaves it as it was - the builder must clear what it uses)."""
     src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
@@ -15227,6 +15227,7 @@ def world_cgame_self():
         t = struct.unpack('<8I', r.read(r.base3 + t_at, 32))
         if t[0] and t != seen.get('last'):
             seen['last'] = t
+            seen.setdefault('lens', set()).add(t[4])
             s.log.append(f'[cg] builds {t[0]} mismatches {t[1]} first {t[2]:#x} last cup/round/tie {t[3]:#x} '
                          f'len {t[4]:#x} cache {t[5]}->{t[6]} err {t[7]}')
     W84_HOOK = hook
@@ -15238,7 +15239,9 @@ def world_cgame_self():
     if not t:
         return False, f'no cg_selftest build seen; season 2: {ok} {msg[:150]}'
     errs = []
-    check(t[0] >= 4, f'only {t[0]} slot-3 contests rebuilt (q1, q2, q3, the groups)', errs)
+    lens = seen.get('lens', set())                       # (q1 goes into slot 3 at the season start, not from the
+    check(t[0] >= 3 and {0x443, 0xB52} <= lens,          #  daily: q2, q3 and the group stage here)
+          f'{t[0]} slot-3 contests rebuilt, kinds {sorted(hex(x) for x in lens)} (ties 443h and a group stage B52h)', errs)
     check(t[1] == 0, f'{t[1]} rebuilt contests differ from slot 3 (first at {t[2] & 0xFFFF:#x}, err {t[7]})', errs)
     check(t[5] == t[6], f'the team cache changed {t[5]} -> {t[6]}', errs)
     check(ok, f'season 2: {msg[:150]}', errs)

@@ -275,7 +275,21 @@ class Machine:
             return name_or_lin
         mod, lab = name_or_lin.split('.', 1)
         obj, off = self.syms[mod][lab]
-        return (self.base2 if obj == 2 else self.base1) + off
+        return (self.base3 if obj == 3 else self.base2 if obj == 2 else self.base1) + off
+
+    @property
+    def base3(self):
+        """obj3's linear base (4.0.6), from an obj1 pointer into it (as the harness's Result.base3)."""
+        if getattr(self, '_base3', None) is None:
+            import sys
+            sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
+            from le import LE
+            exe = os.path.join(self.snap_dir, 'run.EXE')
+            le = LE(open(exe, 'rb').read())
+            soff, toff = next((soff, toff) for sobj, soff, t, tobj, toff, *_ in le.fixups()
+                              if sobj == 1 and t == 7 and tobj == 3)
+            self._base3 = struct.unpack('<I', self.read(self.base1 + soff, 4))[0] - toff
+        return self._base3
 
     # --- memory ---------------------------------------------------------------------------------------------------
     def read(self, where, n, off=0):

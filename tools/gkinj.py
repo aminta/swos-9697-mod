@@ -13,8 +13,9 @@ human's VIEW RESULT) - after its cseg_903B1 (chained after cpucards' cb_903), th
 (currentMatchPlayers for the career club, the file's order at +3Ch for any other). Never a keeper whose record already
 has an injury level (20h included).
 
-Who: human teams always (row ON); a computer team only when INFORTUNI ALLA CPU is ON too (cpucards' CC_I = 0: the CPU's
-injuries are then kept and counted down by cpucards step B). Off under SWOS++ (controls' rule: its own options).
+Who: human teams always (row ON); a computer team only in a career and when INFORTUNI ALLA CPU is ON too (cpucards'
+CC_I = 0: the CPU's injuries are then kept and counted down by cpucards step B, cb_day - a career's calendar days only:
+outside a career a CPU keeper would never heal). Off under SWOS++ (controls' rule: its own options).
 
 The levels (cseg_2CED3, one tick per match day before the line-up's check... measured by the harness): LVL1 = out of
 the next match, LVL2 = out of the next two.
@@ -117,9 +118,11 @@ gk_apply:                               ; ebx = the keeper's record, esi = his t
     jne .x
     cmp byte [SWOSPP], 0FFh
     jne .x
-    cmp byte [esi + 4], 1               ; (a computer team: only with INFORTUNI ALLA CPU ON)
-    jne .h
+    cmp byte [esi + 4], 1               ; (a computer team: only with INFORTUNI ALLA CPU ON, in a career - the
+    jne .h                              ;  only mode where cpucards counts the CPU's injuries down: cb_day)
     cmp word [CC_I], 0
+    jne .x
+    cmp word [GT], 4
     jne .x
 .h: test byte [ebx + 1Bh], 0E0h         ; (already injured: no roll)
     jnz .x
@@ -239,11 +242,14 @@ def find(p):
     assert len(calls) == 4, calls
     gp = [m.start() for m in re.finditer(rb'\x66\xa3....\xe8', d[upi:upi + 0xB0], re.S)]
     assert len(gp) == 1, gp
+    gt = [m.start() for m in re.finditer(rb'\x66\x83\x3d....\x04', d[b['F903']:b['F903'] + 0x80], re.S)]
+    assert len(gt) == 1, gt                              # (g_gameType: cseg_903B1's `cmp g_gameType, 4`)
     c6 = b['guards'][6][0] - 6
     assert d[c6 + 16:c6 + 18] == b'\x81\x3d' and d[c6 + 26:c6 + 28] == b'\x0f\x85' and d[c6 + 32:c6 + 34] == b'\xc7\x05', \
         'cseg_2CDC6'
     return dict(UPI=upi, calls=calls, GETPLAYER=rel(upi + gp[0] + 6, 5), TRG=p.target(1, b['F903'] + 2),
-                CAREER=p.target(1, c6 + 22), CMPL=p.target(1, c6 + 38), calls903=b['calls903'])
+                CAREER=p.target(1, c6 + 22), CMPL=p.target(1, c6 + 38), calls903=b['calls903'],
+                GT=p.target(1, b['F903'] + gt[0] + 3))
 
 
 def patch(p, at, lang):
@@ -280,7 +286,7 @@ def patch(p, at, lang):
            'DRAWITEM': (1, cpucards.find(p)['DRAWITEM']), 'S_ON': on, 'S_OFF': off, 'CC_I': (3, cpucards.LABELS['CC_I']),
            'A0_': (2, regs['A0']), 'A1_': (2, regs['A0'] + 4), 'A2_': (2, regs['A0'] + 8), 'D0_': (2, d0),
            'D1_': (2, d0 + 4), 'UPI': tu[0], 'GETPLAYER': (1, s['GETPLAYER']), 'TRG': s['TRG'], 'F903': tg[0],
-           'CAREER': s['CAREER'], 'CMPL': s['CMPL']}
+           'CAREER': s['CAREER'], 'CMPL': s['CMPL'], 'GT': s['GT']}
     code, fix, rel = nasmcave.assemble_obj(src, at, sym, 3)
     lab = nasmcave.labels(src, at, sym)
     assert not any(p.get(3, at, len(code)))

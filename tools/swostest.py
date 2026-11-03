@@ -23308,11 +23308,17 @@ def cpu_inj_preset():
         numsel = s.result.base2 + career[1] + 95151
 
         def snap(tag):
-            # (a preset leaves g_numSelectedTeams 0 but keeps its clubs in g_selectedTeams all the same - selTeamsPtr has
-            # one value, cseg_28E76 adds [team+343h] to it: scan all 100 slots, a slot counts when it has a name)
-            buf = s.result.read(numsel + 2, 684 * 100)
+            # (a preset keeps its clubs neither in g_selectedTeams nor counted by g_numSelectedTeams: the 1934 dumps (MC
+            # 04/11) found them at obj2+20A87h. Located here by TEAM.146's first name, the 16 records from there)
+            if not hasattr(snap, 'at'):
+                first = open(os.path.join(b, 'DATA', 'TEAM.146'), 'rb').read()[2 + 5:2 + 22].split(b'\0')[0] + b'\0'
+                lo = s.result.obj2(0, 0x60000)
+                k = lo.find(first)
+                snap.at = s.result.base2 + k - 5 if k >= 5 else numsel + 2
+                s.log.append(f'[preset teams] obj2+{snap.at - s.result.base2:#x}')
+            buf = s.result.read(snap.at, 684 * 100)
             inj, n = 0, 0
-            for t in range(100):
+            for t in range(16 if snap.at != numsel + 2 else 100):
                 name = buf[684 * t + 5:684 * t + 22].split(b'\0')[0].decode('latin1')
                 if not name.strip() or not all(32 <= ord(c) < 127 for c in name):
                     continue
@@ -23332,8 +23338,10 @@ def cpu_inj_preset():
                 return False, f'{t} not reached'
         for k in range(300):
             scr = s.screen()
-            if k % 3 == 0:
-                snap(f'step{k}:{scr.entries[0][1].strip()[-16:]}')
+            snap(f'step{k}:{scr.entries[0][1].strip()[-16:]}')
+            if k in (12, 36) and os.environ.get('CPU_INJ_DUMP'):    # (find where a preset keeps its clubs: the whole
+                open(os.path.join(s.run, f'MEM_{k}.BIN'), 'wb').write(s.result.mem)   # 32 MB, analysed offline)
+                s.log.append(f'[dump] MEM_{k}.BIN numsel {numsel - s.result.base2:#x} base2 {s.result.base2:#x}')
             for want in ('VIS. RISULTATI', 'REPLAY', 'PROSS. PARTITA', 'PROSSIMO TURNO', 'TURNO RITORNO', 'CONTINUA', 'OK'):
                 i = scr.find(want, exact=True)
                 if i is not None:

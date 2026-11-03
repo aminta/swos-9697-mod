@@ -26,12 +26,13 @@ void ct_resume(void);
    struct (obj1, 0 none), u16 groups[NRD] (a non-main group stage's header from the table, 0 none) */
 #ifdef NATIVE
 u8 CG_TAB[4096];
-u8 CG_SCR[0x3000];
+u8 CG_SCR[0x4280];
 u16 CG_NUMSEL_[1];
 u8 CG_SLOT3[0xB52];
 u8 CG_CAREER[0x17400], CG_WORK[0xB52], CG_DREG[60], CG_SELB[684 * 160];
 u8 *CG_SELBASEV = CG_SELB;
 u8 CG_GTAB[4];
+u8 CG_FCNT[288];
 #define CG_FIXED 95153
 static void cg_nat0(const u8 *st, u8 *buf) { (void)st; (void)buf; }
 void (*CG_NAT)(const u8 *, u8 *) = cg_nat0;
@@ -45,19 +46,28 @@ void (*CG_NAT)(const u8 *, u8 *) = 0;   /* ctgame.py's glue cg_native: cseg_8B2D
 #endif
 #ifndef NATIVE
 extern u8 CG_SLOT3[];                   /* (cg_selftest: conti's slot 3) */
+extern const u8 CG_FCNT[];              /* P4: each team file's last club ordinal, then a bitmap of the files the
+                                           world loads (ctgame.py fcnt) - a word past its file's clubs would never be found (GetTeamPointer's search of the
+                                           file has no end: the game hangs) */
 #endif
 
 #define SEL_CAP 160                     /* (careerworld SEL_N: a World 2026-27 career's team cache) */
 #define CG_BUF 0x0000                   /* the contest (B52h: a type-2's) */
 #define CG_ST 0x0B60                    /* its struct (<= 0x100) */
 #define CG_SAVE 0x0C60                  /* the game's work area while the glue runs (B52h) */
-#define CG_REC 0x17C0                   /* the goals (struct ct_grec) */
+#define CG_CLR 0x17C0                   /* (a build's cleared part: buffer, struct, save area) */
 #define CG_WSAVE 0x2000                 /* P2's guard: the game's work area while a view is open (B52h) */
 #define CG_DSAVE 0x2B60                 /* D0..A6 (60) */
 #define CG_KEEP 0x2BA0                  /* the guard table's kept bytes (ST_RANK...) */
 #define CG_END 0x3000
+                                        /* (0x3000..0x3280: ctview's rounds menu buffers) */
+#define CG_REC 0x3280                   /* the goals (struct ct_grec; P4: 4 KB, the scratch's end - a season used 1437 B
+                                           of the 2 KB it had at 17C0h) */
+#define CG_RECEND 0x4280
 
 enum { E_OK, E_NOSPEC, E_ROUND, E_TIE, E_CACHE, E_KIND, E_NONE, E_GUARD, E_OPEN };
+enum { E_GUEST = 10, E_NOREC = 11 };   /* (P4: a club no team file of the world has; a round played, its goals not
+                                           kept - the replay's record full)  E_OWN 9 below */
 u32 CG_ERR = 0;
 u32 CG_T[8] = {0};                      /* cg_selftest: builds, mismatches, first diff, its cup | round << 8 | tie << 16,
                                            the length compared, the cache count before / after, the last error */
@@ -82,6 +92,7 @@ static void spec(void) {
 
 static const u8 *cupent(int c) { return CG_TAB + 16 + 32 * c; }   /* (32 bytes a cup) */
 static u8 g_view = 0;                   /* (P3: a view's build - the round's own month, its days over the month) */
+static int g_nw = 0;                      /* (mkstruct: its club words, the struct's last 2 g_nw bytes) */
 static u32 id(int x) { return x ? CT_IN.club[x - 1].id : 0xFFFF; }
 
 /* the struct of round (c, r) - tie t, or the round - at st; returns its length */
@@ -94,6 +105,7 @@ static u32 mkstruct(int c, int r, int t, u32 week, u8 *st) {
         int h = ce[9], m = ce[10];
         copy(st, s, h);
         for (int i = 0; i < m; i++) p16(st + h + 2 * i, i < n && i < NE ? id(e[i]) : 0xFFFF);
+        g_nw = m;
         return h + 2 * m;
     }
     if (R[0] == K_KO) {                                /* a type-1 cup: the ties' contest header, its clubs */
@@ -116,6 +128,7 @@ static u32 mkstruct(int c, int r, int t, u32 week, u8 *st) {
         p32(st + h, w32(ce)); p32(st + h + 4, w32(ce + 4));
         h += 8;
         for (int i = 0; i < k; i++) p16(st + h + 2 * i, id(e[(t >= 0 ? 2 * t : 0) + i]));
+        g_nw = k;
         return h + 2 * k;
     }
     u32 g = w16(ce + 16 + 2 * r);                      /* a group stage not the main round: its own header */
@@ -124,6 +137,7 @@ static u32 mkstruct(int c, int r, int t, u32 week, u8 *st) {
     int h = b[0], m = b[1];
     copy(st, b + 2, h);
     for (int i = 0; i < m; i++) p16(st + h + 2 * i, i < n && i < NE ? id(e[i]) : 0xFFFF);
+    g_nw = m;
     return h + 2 * m;
 }
 
@@ -133,20 +147,28 @@ u32 cg_build(u32 c, u32 r, s32 t, u32 week) {
     if (!CT_SPEC) { CG_ERR = E_NOSPEC; return 0; }
     spec();
     if (c >= ncup || r >= nr[c]) { CG_ERR = E_ROUND; return 0; }
-    zero(CG_SCR, CG_REC);                              /* (buffer, struct, the save area: never trusted) */
+    zero(CG_SCR, CG_CLR);                              /* (buffer, struct, the save area: never trusted) */
     u32 n = mkstruct((int)c, (int)r, t, week, st);
     if (!n) return 0;
     u32 k = st[1] == 1 ? st[10] : st[15];              /* (its clubs: type 1 [0Ah], type 2 [0Fh]) */
     if (CG_NUMSEL + k > SEL_CAP) { CG_ERR = E_CACHE; return 0; }   /* (each club at most once more) */
+    for (int i = 0; i < g_nw; i++) {                   /* (P4: every club in a team file of the world) */
+        u32 w = w16(st + n - 2 * (u32)g_nw + 2 * (u32)i);
+        if (w != 0xFFFF && (!(CG_FCNT[256 + ((w & 0xFF) >> 3)] >> (w & 7) & 1) || (w >> 8) > CG_FCNT[w & 0xFF])) {
+            CG_ERR = E_GUEST;
+            return 0;
+        }
+    }
     CG_NAT(st, buf);
     p16(buf + 0x39, 0xFFFF);                           /* (ct_build: no winner yet) */
     return n;
 }
 
+u32 CG_ROOM = CG_RECEND - CG_REC - sizeof(struct ct_grec);   /* (the record's room: Tier B lowers it - E_NOREC) */
 void cg_replay(void) {
     struct ct_grec *g = (struct ct_grec *)(CG_SCR + CG_REC);
     zero((u8 *)g, sizeof *g);
-    g->room = (u16)(CG_WSAVE - CG_REC - sizeof *g);
+    g->room = (u16)CG_ROOM;
     CT_GREC = g;
     ct_resume();
     CT_GREC = 0;
@@ -257,6 +279,7 @@ static int ko_fill(int c, int r, int t0, u32 week) {
     int legs = R[1] == 2, nt = w16(b + 0x51);
     u32 d1 = b[0x337], d2 = legs ? b[0x338] : d1;
     int rs = week > d1 ? (legs && week <= d2 ? 1 : 2) : 0;   /* (the round's legs played by the week) */
+    if (rs && !g) { CG_ERR = E_NOREC; return 0; }       /* (P4: played, no goals kept) */
     int all2 = 1, any1 = 0;
     for (int i = 0; i < nt; i++) {
         int k = (t0 >= 0 ? t0 : i);     /* (the tie in the round's draw) */
@@ -332,7 +355,12 @@ void (*CG_GPLAY)(u8 *, u32) = cg_gp0;
 static int gr_fill(int c, int r, u32 week) {
     const u8 *R = RD(c, r);
     g_rec = recof(c, r);
-    if (!g_rec) return 1;               /* (not played yet: the draw) */
+    if (!g_rec) {                       /* not played yet: the draw - played (its first match day before the week),
+                                           no goals kept: E_NOREC (P4) */
+        const u8 *D = CG_SCR + CG_BUF + 0x41F;
+        if (D[0x1CD + w16(D + 0x1C1)] < week) { CG_ERR = E_NOREC; return 0; }
+        return 1;
+    }
     g_gs = R[7]; g_grd = R[8] ? R[8] : 2;
     g_gm = g_gs * (g_gs - 1) / 2 * g_grd;
     for (int i = 0; i < R[6] * g_gm; i++) if (g_rec[i] == GR_OWN) { CG_ERR = E_OWN; return 0; }
@@ -481,7 +509,7 @@ u32 cg_selftest(u32 week) {             /* (test builds) the career club's slot-
     int c = CT_SEG.cup, r = CT_SEG.round, t = -1;
 #ifdef CG_FILL
     static u8 filled = 0;               /* (CG_FILL_TEST: the scratch as DOS/4GW may leave it - garbage - first) */
-    if (!filled) { for (u32 i = 0; i < CG_END; i++) CG_SCR[i] = CG_FILL; filled = 1; }
+    if (!filled) { for (u32 i = 0; i < CG_RECEND; i++) CG_SCR[i] = CG_FILL; filled = 1; }
 #endif
     if (CT_SEG.kind == 0xFF) return 0;
     if (!(CT_SEG.kind & 0x80)) {                       /* a tie: its index in the round's draw */

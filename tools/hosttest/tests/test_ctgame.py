@@ -25,7 +25,7 @@ from emu import Machine  # noqa: E402
 
 FIX = os.path.join(os.path.expanduser('~'), 'swos-mod', 'internal', 'hosttest', 'fixtures', os.environ.get('HT_CG', 'cw_uru6'))
 MEM, PAGE = 0x2000000, 0x1000
-SCR, SCR_N, REC = 0xA000, 0x3280, 0x17C0        # (ctgame.py: the scratch at obj3 + 0x1000 * pages; ctgame.c CG_REC)
+SCR, SCR_N, REC = 0xD000, 0x4280, 0x3280        # (ctgame.py: the scratch at obj3 + 0x1000 * pages - read from the syms; ctgame.c CG_REC)
 NCUP, NRD, NE, RB = 16, 8, 64, 24
 
 
@@ -445,7 +445,7 @@ def test_cg_view():
                 ln = a.call('ctgame.cg_view', c, r, -1, wk, max_insn=600_000_000)
                 err = a.u32('ctgame.CG_ERR')
                 if not ln:
-                    if err not in (5, 9):
+                    if err not in (5, 9) and not (err == 11 and not off):
                         bad.append(f'{key}: no view, err {err}')
                     out.append(f'{key} err{err}')
                     continue
@@ -480,3 +480,98 @@ def test_cg_view():
                     bad.append(f'{key}: not deterministic')
                 out.append(f'{key} {what}')
     return not bad and bool(out), ('; '.join(bad[:10]) + ' | ' if bad else '') + f'{len(out)} views: ' + ', '.join(out[:16])
+
+
+# --- P4: the fallbacks (version A's page: cg_view 0, the state as it was) ---------------------------------------------
+def _fb(m, c, r, wk, want, key, bad):
+    """cg_view refused with CG_ERR want: nothing open, no bad sum / sticky (but E_GUARD's own), the saved state as before"""
+    s0 = _saved(m)
+    ln = m.call('ctgame.cg_view', c, r, -1, wk, max_insn=600_000_000)
+    err, gl = m.u32('ctgame.CG_ERR'), _gl(m)
+    if ln or err != want:
+        bad.append(f'{key}: returned {ln}, err {err} (want {want})')
+    if gl[0] == G_OPEN or gl[5] or (gl[6] and want != 7):
+        bad.append(f'{key}: open {gl[0]:#x} bad {gl[5]} sticky {gl[6]}')
+    if _saved(m) != s0:
+        bad.append(f'{key}: the saved state changed')
+
+
+def test_cg_fallback():
+    """P4: every case the game's screen can't show -> cg_view 0 with its reason, nothing left open, the saved state
+    byte-identical (ctview's cr_go then shows version A's page): a club in no team file of the world (E_GUEST 10: an
+    unloaded file, an ordinal past its file's clubs - GetTeamPointer would never find it: the game hung), a played round
+    with no goals kept (E_NOREC 11: CG_ROOM lowered), a full team cache (E_CACHE 4), the sticky guard (E_GUARD 7), the
+    AFC Champions League Elite league stage (E_KIND 5: not a contest type); the record's real use with room to spare"""
+    bad, done, used = [], set(), []
+    for k, meta in _snaps():
+        m = _m(k)
+        if m.u16('conti.syms.CT_ED') != 0x4543:
+            continue
+        m.call('ctgame.cg_replay')
+        g_all = m.read(m.base3 + SCR + REC, 4)
+        used.append(struct.unpack('<HH', g_all))
+        s, lay = _state(m)
+        spec = _spec(m)
+        rounds = _rounds(spec, s[1], lay)
+        ko = [x for x in rounds if x[2] == 0]
+        if not ko:
+            continue
+        c, r, kind, n = ko[0]
+        p, R = 4, None
+        for cc in range(spec[0]):
+            if cc == c:
+                R = spec[p + 4 + r * RB:p + 4 + (r + 1) * RB]
+            p += 4 + spec[p] * RB
+        wk = (R[9] - 1 + (12 if R[9] < 8 else 0)) * 8 + 4 + 8 * R[1]     # (its legs played)
+        o_ent = lay[12]
+        x = struct.unpack_from('<H', s[1], o_ent + 2 * (c * NRD + r) * NE)[0]   # (the round's first club)
+        w0 = m.u16(m.lin('conti.syms.CT_IN') + lay[7] + 12 * (x - 1))   # (its team word, after the replay)
+        f0, o0 = w0 & 0xFF, w0 >> 8
+        for what in ('unloaded file', 'past its clubs'):     # (CG_FCNT as if the world had no such file / club)
+            a = _m(k)
+            fa = a.lin('ctgame.CG_FCNT')
+            fct = bytearray(a.read(fa, 288))
+            if not fct[256 + (f0 >> 3)] >> (f0 & 7) & 1 or o0 > fct[f0]:
+                bad.append(f'{k}: {w0:#06x} not in CG_FCNT')
+            if what == 'unloaded file':
+                fct[256 + (f0 >> 3)] &= ~(1 << (f0 & 7)) & 0xFF
+            elif o0:
+                fct[f0] = o0 - 1
+            else:
+                continue
+            a.write(fa, bytes(fct))
+            _fb(a, c, r, wk, 10, f'{k}:{c}.{r} {what} {w0:#06x}', bad)
+            done.add('guest')
+        a = _m(k)
+        a.write('ctgame.CG_ROOM', struct.pack('<I', 4))
+        _fb(a, c, r, wk, 11, f'{k}:{c}.{r} no record', bad)
+        done.add('norec')
+        a = _m(k)
+        a.write('ctgame.CG_NUMSEL', struct.pack('<H', 159))
+        _fb(a, c, r, wk, 4, f'{k}:{c}.{r} cache full', bad)
+        if a.u16('ctgame.CG_NUMSEL') != 159:
+            bad.append(f'{k}: cache count {a.u16("ctgame.CG_NUMSEL")} after')
+        done.add('cache')
+        a = _m(k)
+        gl = list(_gl(a))
+        gl[6] = 1
+        a.write('ctgame.CG_G', struct.pack('<12I', *gl))
+        _fb(a, c, r, wk, 7, f'{k}:{c}.{r} sticky', bad)
+        done.add('guard')
+        for cc, rr, kd, nn in rounds:
+            if 'kind' in done:
+                break
+            a = _m(k)
+            ln = a.call('ctgame.cg_view', cc, rr, -1, 250, max_insn=600_000_000)
+            if not ln and a.u32('ctgame.CG_ERR') == 5:
+                _fb(_m(k), cc, rr, 250, 5, f'{k}:{cc}.{rr} league stage', bad)
+                done.add('kind')
+            elif ln:
+                a.call('ctgame.cg_close')
+        if len(done) >= 5:
+            break
+    if used and max(u for u, _ in used) * 4 > 3 * used[0][1]:
+        bad.append(f'the record {max(u for u, _ in used)} of {used[0][1]} B: under a quarter to spare')
+    miss = {'guest', 'norec', 'cache', 'guard', 'kind'} - done
+    return not bad and not miss, ('; '.join(bad[:8]) + ' | ' if bad else '') + (f'not reached {sorted(miss)}; ' if miss else '') + \
+        f'cases {sorted(done)}; record used {max(u for u, _ in used) if used else "-"} of {used[0][1] if used else "-"} B'

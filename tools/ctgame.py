@@ -20,7 +20,8 @@ import subprocess
 import tempfile
 
 CG_MAX = 0x2400                         # the code + table (obj3 chain room; P3: OBJ3_PAGES 10, the Integratore 03/11)
-CG_BSS = 0x3280                         # the scratch (ctgame.c CG_END) + ctview's rounds menu buffers (CR_SCR_N)
+CG_BSS = 0x4280                         # the scratch (ctgame.c CG_END) + ctview's rounds menu buffers (CR_SCR_N) + the
+                                        # replay's goals (CG_REC 3280h, 4 KB: P4)
 CG_TAB_MAX = 0x400
 NRD = 8                                 # (conti.h)
 LABELS = {}
@@ -309,6 +310,36 @@ def table(p):
     return tab, ptrs
 
 
+def fcnt():
+    """P4: CG_FCNT, 288 bytes - each team file's last club ordinal in the world the conti cups play (its packs' files,
+    the guests' files; Italy's league file holds 256), then a bitmap of the files it loads (32 bytes). Every team word
+    conti can draw (the packs' clubs, the guests) must pass: asserted here."""
+    import guests
+    import mkseason
+    w = guests.world()
+    n = [0] * 256
+    for pk in mkseason.packs():
+        if pk.world != w or w is None:
+            continue
+        for key, (f, _) in pk.files.items():
+            n[f] = max(n[f], pk.count.get(key, 0))
+    for f, k in guests.counts().items():
+        n[f] = max(n[f], k)
+    assert max(n) <= 256, max(n)
+    t = bytearray(288)
+    for f in range(256):
+        if n[f]:
+            t[f] = n[f] - 1
+            t[256 + (f >> 3)] |= 1 << (f & 7)
+    ok = lambda x: t[256 + ((x & 0xFF) >> 3)] >> (x & 7) & 1 and (x >> 8) <= t[x & 0xFF]
+    import conti
+    _, words = conti._world_maps(conti.ready())
+    gw = [guests.FILES[c] | i << 8 for c in guests.ready() for i in range(len(guests.load(c)['clubs']))]
+    bad = [hex(x) for x in list(words.values()) + gw if x is not None and not ok(x)]
+    assert not bad, ('ctgame fcnt: team words outside the table', bad[:8])
+    return bytes(t)
+
+
 def rng_sites(p):
     """obj2 offsets of the game's two random generators' states, 3 bytes each (swostest.rng_sites' pattern: Rand and
     Rand2 - `mov al, [seed]; mov [D0], al; and word [D0], 0FFh; jnz; add byte [randXorIndex], 1; mov al, [...]`)."""
@@ -393,10 +424,13 @@ def patch(p, at, scr_at, lang):
     for o, t_obj, t_off in gptrs:
         p.add_ptr(3, at + o, t_obj, t_off)
     gtab_at, at = at, (at + len(gtab) + 15) & ~15
+    fc = fcnt()                                         # (P4: the world's team files' club counts)
+    p.put(3, at, fc)
+    fc_at, at = at, (at + len(fc) + 15) & ~15
     cs = cl['syms']
     ext = {k: cs[k] for k in ('CT_SPEC', 'CT_IN', 'CT_OUT', 'CT_SEG', 'CT_GREC', 'ct_resume')}
     ext.update(CG_TAB=(3, tab_at), CG_SCR=(3, scr_at), CG_NUMSEL=trailer.INFO['NUMSEL'], CG_SLOT3=u['SLOT3'],
-               CG_GTAB=(3, gtab_at), CG_CAREER=trailer.INFO['CAREER'], CG_SELBASEV=(1, trailer.INFO['selbasev']),
+               CG_GTAB=(3, gtab_at), CG_FCNT=(3, fc_at), CG_CAREER=trailer.INFO['CAREER'], CG_SELBASEV=(1, trailer.INFO['selbasev']),
                CG_WORK=lp36.LABELS['symbols']['DIYCOPY'], CG_DREG=u['D0R'], CG_CAL=u['CAL'],
                CG_RNTIE=rn_tie(), CG_CTRN=(1, cl['ct_rn']))
     flags = ['-fno-zero-initialized-in-bss', f'-DCG_FIXED={trailer.INFO["FIXED"][1]}']
@@ -447,9 +481,9 @@ def patch(p, at, scr_at, lang):
     p.add_ptr(1, cl['cg_guardp'], 3, syms['cg_daily'][1])          # (P2: a day / a save closes an open view first)
     p.add_ptr(1, trailer.INFO['cg_guardp'], 3, syms['cg_guard'][1])
     LABELS.clear()
-    LABELS.update(syms, tab=(3, tab_at), scr=(3, scr_at))
+    LABELS.update(syms, tab=(3, tab_at), scr=(3, scr_at), fcnt=(3, fc_at))
     print(f'exe: option C builder (ctgame): obj3+{t0:#x}..{end:#x} ({end - t0} B: table {len(tab)}, C {c1 - c0}, '
-          f'glue {len(code)}), scratch obj3+{scr_at:#x}..+{CG_BSS:#x} (zero-fill)'
+          f'glue {len(code)}, files {sum(bin(x).count('1') for x in fc[256:])}), scratch obj3+{scr_at:#x}..+{CG_BSS:#x} (zero-fill)'
           + f'; guard: {w16(gtab, 0)} kept ({room} B), {w16(gtab, 2)} summed' + (f' (late, not summed: {late})' if late else '')
           + (' CGTEST' if os.environ.get('CONTI_CGTEST') else '') + (' CG_FILL' if os.environ.get('CG_FILL_TEST') else '')
           + (f' CGVIEW={os.environ["CONTI_CGVIEW"]}' if os.environ.get('CONTI_CGVIEW') else ''))

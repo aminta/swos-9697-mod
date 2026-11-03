@@ -198,7 +198,9 @@ Your squad can still hold at most 30 players.
 - **A play-off entrant that refuses the place** no longer makes the game read wrong data at the season end (it showed up with San Marino; found by Ben Baker).
 
 ### Good to know
-- [TO COMPLETE when the items above are final: declared limits, list of what is off under SWOS++.]
+- **With SWOS++** (SWOS++ has its own controls and its own match code) these 4.0.6 features are off or hidden: the "P1 AND P2 ON KEYBOARD" device, the OPTIONS rows for the computer's cards and injuries and for goalkeeper injuries, the opponent's squad list in the match and stoppage time. [TO CHECK with the owners: the full list, including the B-team button and the two-row benches.]
+- **New Zealand, B-team call-ups:** the age rule for the New Zealand clubs' reserves is an approximation (see above).
+- **Finances:** the new income applies to every career from its next match, including older ones; it changes the money, not the squads.
 
 ### Thanks
 Thanks to Roman for asking for an easier install, to Marco for the training, shirt-number and keyboard ideas, to Enzo for the market-list report, to Nicola for the finance report, to Francesco, and to Ben Baker for the San Marino report. [TO CHECK: exact credits per item with the owners.]
@@ -407,7 +409,9 @@ La rosa resta di massimo 30 giocatori.
 - **Una squadra di play-off che rifiuta il posto** non fa più leggere al gioco dati sbagliati a fine stagione (si vedeva con San Marino; trovato da Ben Baker).
 
 ### Da sapere
-- [DA COMPLETARE a testi definitivi: limiti dichiarati, elenco di cosa è disattivato con SWOS++.]
+- **Con SWOS++** (SWOS++ ha i suoi comandi e il suo codice di partita) queste novità della 4.0.6 sono disattivate o nascoste: il dispositivo "G1 E G2 SU TASTIERA", le righe di OPZIONI per cartellini e infortuni del computer e per gli infortuni dei portieri, l'elenco della rosa avversaria in partita e il recupero. [DA VERIFICARE con i proprietari: l'elenco completo, compresi il pulsante della squadra B e le panchine su due file.]
+- **Nuova Zelanda, convocazioni dalla squadra B:** la regola sull'età per le riserve dei club neozelandesi è un'approssimazione (vedi sopra).
+- **Finanze:** i nuovi incassi valgono per ogni carriera dalla partita successiva, anche per quelle già iniziate; cambiano i soldi, non le rose.
 
 ### Ringraziamenti
 Grazie a Roman per aver chiesto un'installazione più semplice, a Marco per le idee su allenamento, numeri di maglia e tastiera, a Enzo per la segnalazione sull'elenco del mercato, a Nicola per quella sulle finanze, a Francesco e a Ben Baker per la segnalazione su San Marino. [DA VERIFICARE: crediti esatti per voce con i proprietari.]

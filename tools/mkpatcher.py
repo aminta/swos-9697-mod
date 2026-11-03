@@ -126,13 +126,18 @@ FILES = [  # (id, original path, patched path, file name in the game folder)
     ('TEAM.183', None, 'c/SWOS/DATA/TEAM.183', 'DATA/TEAM.183'),
     ('TEAM.184', None, 'c/SWOS/DATA/TEAM.184', 'DATA/TEAM.184'),
     ('TEAM.185', None, 'c/SWOS/DATA/TEAM.185', 'DATA/TEAM.185'),
-    # 4.0.6: the long dugouts (dugout.py, benchx block 2): the match pitches' maps, PITCH5's patterns (3 new ones),
-    # the 16-colour maps
+    # 4.0.6: the long dugouts (dugout.py, benchx block 2): the match pitches' maps, their patterns (the 3rd column's
+    # new ones in every BLK: PITCH1-4.BLK were missing until 4.0.6 I8 - a disk with the new maps and the old BLKs
+    # drew the tiles past the file's end from RAM, noise on z486), the 16-colour maps
     ('PITCH1.DAT', 'orig/PITCH1.DAT', 'c/SWOS/PITCH1.DAT', 'PITCH1.DAT'),
     ('PITCH2.DAT', 'orig/PITCH2.DAT', 'c/SWOS/PITCH2.DAT', 'PITCH2.DAT'),
     ('PITCH3.DAT', 'orig/PITCH3.DAT', 'c/SWOS/PITCH3.DAT', 'PITCH3.DAT'),
     ('PITCH4.DAT', 'orig/PITCH4.DAT', 'c/SWOS/PITCH4.DAT', 'PITCH4.DAT'),
     ('PITCH5.DAT', 'orig/PITCH5.DAT', 'c/SWOS/PITCH5.DAT', 'PITCH5.DAT'),
+    ('PITCH1.BLK', 'orig/PITCH1.BLK', 'c/SWOS/PITCH1.BLK', 'PITCH1.BLK'),
+    ('PITCH2.BLK', 'orig/PITCH2.BLK', 'c/SWOS/PITCH2.BLK', 'PITCH2.BLK'),
+    ('PITCH3.BLK', 'orig/PITCH3.BLK', 'c/SWOS/PITCH3.BLK', 'PITCH3.BLK'),
+    ('PITCH4.BLK', 'orig/PITCH4.BLK', 'c/SWOS/PITCH4.BLK', 'PITCH4.BLK'),
     ('PITCH5.BLK', 'orig/PITCH5.BLK', 'c/SWOS/PITCH5.BLK', 'PITCH5.BLK'),
     ('SWCPICH1.P16', 'orig/SWCPICH1.P16', 'c/SWOS/SWCPICH1.P16', 'SWCPICH1.P16'),
     ('SWCPICH2.P16', 'orig/SWCPICH2.P16', 'c/SWOS/SWCPICH2.P16', 'SWCPICH2.P16'),
@@ -197,6 +202,20 @@ def world_entries(data_dir=None):
 
 _k = next(i for i, f in enumerate(FILES) if f[0].endswith('(GOG)'))
 FILES[_k:_k] = world_entries()
+
+
+def root_unlisted(build_dir=None):
+    """The game folder's files of the build (c/SWOS) that differ from their original in orig/ and no FILES row ships
+    (4.0.6: PITCH1-4.BLK grew with the 3rd dugout column, the list kept PITCH5.BLK only)."""
+    d = os.path.join(ROOT, build_dir or os.path.join(BUILD or 'c', 'SWOS'))
+    listed = {t.upper() for _, _, p, t in FILES if '/' not in t and os.path.normpath(os.path.dirname(os.path.join(ROOT, p))) == os.path.normpath(d)}
+    out = []
+    for n in sorted(os.listdir(d)):
+        o = os.path.join(ROOT, 'orig', n)
+        if os.path.isfile(os.path.join(d, n)) and os.path.isfile(o) and n.upper() not in listed and \
+                open(o, 'rb').read() != open(os.path.join(d, n), 'rb').read():
+            out.append(n)
+    return out
 
 
 def varint(n):
@@ -457,4 +476,6 @@ def build():
 
 
 if __name__ == '__main__':
+    _u = root_unlisted()
+    assert not _u, f'changed game-folder files no FILES row ships: {_u}'
     build()

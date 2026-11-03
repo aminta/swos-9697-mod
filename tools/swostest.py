@@ -23353,7 +23353,9 @@ def cpu_inj_preset():
     if not any(n for _, n, _ in rounds):             # (no named slot at any snapshot: nothing read)
         return False, f'NOT MEASURED: no named team in g_selectedTeams at any snapshot {rounds[:4]}'
     res = 'heals' if downs else 'never heals'
-    return True, (f'RESULT: {res} ({len(downs)} level decreases; injured records per snapshot '
+    inj_end = sorted((k[0], k[1], v) for k, v in seen.items() if v)
+    return True, (f'RESULT: {res} ({len(downs)} level decreases; injured at the end (team, player, level) {inj_end}; '
+                  f'injured records per snapshot '
                   f'{[(t, n, j) for t, n, j in rounds][:30]}; decreases {downs[:8]})')
 
 

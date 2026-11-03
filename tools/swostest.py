@@ -5459,7 +5459,7 @@ def opp_dugout_shot(s, errs, info, tag=''):
     v = bench_vars()
     w16 = lambda r, o: struct.unpack('<H', r.read(r.base2 + o, 2))[0]
     r = s.result
-    b0, b1 = sorted((w16(r, 0xb16d0), w16(r, 0xb16d2)))
+    b0, b1 = sorted((w16(r, bench_vars()['BENCHY']), w16(r, bench_vars()['BENCHY'] + 2)))
     cx, cy = (w16(r, v['CAMY'] - 4), w16(r, v['CAMY']))
     s.shot(tag + 'both_dugouts')
     check(abs(cy - (dugout.CAM_MID - 100)) <= 10, f'{tag}both dugouts: camera y {cy}', errs)
@@ -5513,7 +5513,7 @@ def dugout_check(s, n, gone, errs, info, tag=''):
         errs.append(f'{tag}dugout: {r}')
         return None
     by, (cx, cy) = w16(r, v['BENCHY']), cam
-    ob = w16(r, 0xb16d2) if by == w16(r, 0xb16d0) else w16(r, 0xb16d0)   # (benchY / opponentBenchY)
+    ob = w16(r, bench_vars()['BENCHY'] + 2) if by == w16(r, bench_vars()['BENCHY']) else w16(r, bench_vars()['BENCHY'])   # (benchY / opponentBenchY)
     check(by in (357, 485), f'{tag}dugout: benchY {by} (want 357 top / 485 bottom)', errs)
     check(abs(cy - (dugout.CAM_MID - 100)) <= 10, f'{tag}dugout: camera y {cy}, not at the halfway line '
                                                    f'({dugout.CAM_MID - 100})', errs)
@@ -6675,15 +6675,15 @@ def bench_play(s, gmax, top, bot, wants, errs, info, mark, sub=None, icons=None,
             errs.append(f'play on {k}: {r}')
             break
         if os.environ.get('DUG_OPP') and benches != 'done':
-            bp = tuple(struct.unpack('<H', r.read(r.base2 + o, 2))[0] for o in (0xb16d0, 0xb16d2))
+            bp = tuple(struct.unpack('<H', r.read(r.base2 + o, 2))[0] for o in (bench_vars()['BENCHY'], bench_vars()['BENCHY'] + 2))
             benches = benches or bp
             if bp != benches or k >= int(os.environ.get('DUG_OPP_K', 40)):   # (the second half: the own bench
                 info.append(f'play on {k}: benchY own / other {benches} -> {bp}')   # called again, both shots;
                 for key in ('pgup', 'pgdn'):                                        # each step until it opens)
                     s.send(key + ':0.3 dump:0.6')
                     r, cam = cam_settle(s)
-                    if r.outcome == 'dump' and struct.unpack('<H', r.read(r.base2 + 0xb16be, 2))[0] == 30:
-                        info.append(f'h2 own dugout: camera {cam}, benchY {struct.unpack("<H", r.read(r.base2 + 0xb16d0, 2))[0]}')
+                    if r.outcome == 'dump' and struct.unpack('<H', r.read(r.base2 + bench_vars()['BENCHY'] - 0x12, 2))[0] == 30:
+                        info.append(f'h2 own dugout: camera {cam}, benchY {struct.unpack("<H", r.read(r.base2 + bench_vars()['BENCHY'], 2))[0]}')
                         s.shot('h2_own_dugout')
                         opp_dugout_shot(s, errs, info, 'h2_')
                         s.send('left:0.3 left:0.3 dump:0.5')
@@ -7702,7 +7702,7 @@ def ega_bench_cursor():
                     if r.outcome != 'dump':
                         errs.append(f'bench call {call}: {r}')
                         break
-                    opened = w16(r, 0xb16be)
+                    opened = w16(r, bench_vars()['BENCHY'] - 0x12)
                     idx = None
                     if opened == 30:
                         for _ in range(3):

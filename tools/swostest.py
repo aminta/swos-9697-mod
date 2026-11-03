@@ -23218,6 +23218,49 @@ def gk_inj():
     return not errs, '; '.join(errs + notes)
 
 
+@scenario
+def cpu_inj_season():
+    """MEASUREMENT (4.0.6 cpucards, Regia 04/11): outside a career, does a CPU player injured in a match ever heal? An
+    INJ_FORCE build (every tackle injures at level 3), INFORTUNI ALLA CPU ON (default), a SEASON (CLASSIC SEASONS
+    Italy 1947-48, JUVENTUS human): match 1, the CPU opponent's injury levels (its team record by pointer), then
+    CIS_MATCHES more matches (default 4): that team's levels after each. Reports only (PASS = measured)."""
+    n_more = int(os.environ.get('CIS_MATCHES', 4))
+    b = nop_league_int3(f'cpu_inj_season_{UI}', build(f'cpu_inj_{UI}', env={'INJ_FORCE': '1'}, lang=UI))
+    cc, t1, t2, g1, gl, top = cc_sites(b)
+    notes = []
+    with Session(f'cpu_inj_season_{UI}', b, {}, 'dump:2', 1500, match=True) as s:
+        s.wait()
+        s.poke(s.result.base2 + gl[1], b'\x03\x00')
+        for t in ('STAGIONE', 'STAG. STORICHE', 'ITALIA 1947-48', 'JUVENTUS'):
+            if press(s, s.screen(), t, 2) is None:
+                return False, f'{t} not reached ({s.result})'
+        for _ in range(14):
+            scr = s.screen()
+            if scr.entries[scr.selected][1] == 'STAGIONE':
+                break
+            s.send(('right' if scr.entries[scr.selected][1] == 'ABBANDONA' else 'down') + ' dump:0.5')
+        s.send('fire dump:3')
+        res = cc_match(s, t1, t2, g1, 'cis1')
+        cpu = [p for p, r in zip(s.cc_ptrs, res) if r[0] == 1]
+        if len(cpu) != 1:
+            return False, f'not one CPU team in match 1: {res}'
+        lvl = lambda: [s.result.read(cpu[0] + 0x4C + i * 0x26 + 0x1B, 1)[0] >> 5 for i in range(16)]
+        days = lambda: struct.unpack('<I', s.result.read(s.result.lin(cc) + 12, 4))[0]
+        seq = [('after1', lvl(), days())]
+        name = s.result.read(cpu[0] + 5, 17).split(b'\0')[0].decode('latin1')
+        for m in range(2, 2 + n_more):
+            r = cc_match(s, t1, t2, g1, f'cis{m}')
+            seq.append((f'after{m}', lvl(), days()))
+            notes.append(f'match {m}: {r}')
+        inj = [i for i, x in enumerate(seq[0][1]) if x]
+        notes.insert(0, f'CPU {name}: injured {inj}; levels per point ' + '; '.join(
+            f'{w} {[l[i] for i in inj]} (cb_day days {d})' for w, l, d in seq))
+        healed = [i for i in inj if seq[-1][1][i] < seq[0][1][i]]
+        notes.insert(0, f'RESULT: {"heals" if healed else "never heals"} ({len(healed)}/{len(inj)} counted down after '
+                        f'{n_more} more matches)' if inj else 'RESULT: no CPU injury in match 1 (rerun)')
+    return True, '; '.join(notes)
+
+
 def cpucards_label():
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import cpucards

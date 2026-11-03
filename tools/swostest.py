@@ -19033,7 +19033,7 @@ def world_darkblond():
             info.append(f'{nm_} {op_} x{len(hits)}')
         if not any(x[1] == 'GIOCA PARTITA' and not x[2] for x in s.screen().entries):
             return False, f'fixture {fx}: no GIOCA PARTITA on {s.screen()}'
-        sw = stadium_watch(s, 'career') if os.environ.get('DKB_STADIUM') is not None else None   # 4.0.6 the
+        sw = stadium_watch(s, 'career', spr=spr) if os.environ.get('DKB_STADIUM') is not None else None   # 4.0.6 the
         press(s, s.screen(), 'GIOCA PARTITA', 3)                                                  # stadium screen
         if sw is not None:
             errs += stadium_eval(s, sw, blond, info, {int(x) for x in os.environ['DKB_STADIUM'].split(',') if x})
@@ -19180,7 +19180,7 @@ def stadium_sites():
             'fade': c[0] - 0x800 + f[-1], 'pal': p.target(1, fp.start() + 6)[1]}
 
 
-def stadium_watch(s, tag, bald=False):
+def stadium_watch(s, tag, bald=False, spr=None):
     """4.0.6 (Davide, MiSTer 02/11) the stadium (line-ups) screen's little players (blond lp_face), by breakpoints (set
     before GIOCA PARTITA; the scenario runs CORE=normal): after each player's colour table (the hook's retn) his flag,
     face and the table's hair / skin words; at the screen's fade the screen itself (shots/stadium_<tag>.png). bald: the
@@ -19189,13 +19189,23 @@ def stadium_watch(s, tag, bald=False):
     si = stadium_sites()
     b1, b2 = s.result.base1, s.result.base2
     w = {'hits': [], 'poked': [], 'shot': None, 'tag': tag}
+    def heads(r):                                       # (4.0.6 receding: sprites 210..212's head rows 0 / 1, the
+        out = []                                        # words at +1 / +9 of their 16-pixel rows; spr: spritesIndex)
+        if spr is None:
+            return None
+        for i in (210, 211, 212):
+            h = struct.unpack('<I', r.read(b2 + spr + i * 4, 4))[0]
+            px = r.read(struct.unpack('<I', r.read(h, 4))[0], 16)
+            out.append(struct.unpack_from('<H', px, 1) + struct.unpack_from('<H', px, 9))
+        return out
 
     def player(r):
         a5 = struct.unpack('<I', r.read(b2 + si['A5'], 4))[0]
         d1 = struct.unpack('<H', r.read(b2 + si['D1'], 2))[0]
         rec = r.read(a5 + d1, 0x67)
         tab = struct.unpack('<16H', r.read(b2 + si['LPT'], 32))
-        w['hits'].append((a5, d1 // 0x3D, rec[80:103].split(b'\0')[0].decode('latin-1'), rec[49], rec[79], tab))
+        w['hits'].append((a5, d1 // 0x3D, rec[80:103].split(b'\0')[0].decode('latin-1'), rec[49], rec[79], tab,
+                          heads(r)))
 
     def before(r):                                      # (the entries filled, nothing drawn yet)
         if not bald:
@@ -19229,28 +19239,37 @@ def stadium_watch(s, tag, bald=False):
 
 def stadium_eval(s, w, blond, info, want):
     """stadium_watch's hits: every outfield player with a white flag (6 / 7) - hair raw 13 / 9 WHITE_TONES[0], raw 12
-    [1]; a bald one (2..5) - raw 13 = his skin (the table's raw 6); goalkeepers and the rest - the face's own table
-    (raw 13 not white, not changed). want: the flags that must be seen. The screen: shots/stadium_<tag>.png."""
+    [1]; shaved (4 / 5, Davide 03/11: the squad screen's look) - raw 13 / 9 = his skin (raw 6), 12 = its shade (raw 5),
+    the head's pixels the game's; receding (2 / 3) - the table the face's own, sprites 210..212's head top in the skin
+    (blond LPR0_ / LPR1_); goalkeepers and the rest - the face's own table (raw 13 not white), the game's head. want: the flags that must be seen. The screen: shots/stadium_<tag>.png."""
     from PIL import Image
     errs, seen = [], set()
     tag = w['tag']
     wt = blond.WHITE_TONES[os.environ.get('WHITE_TONE', blond.WHITE_TONE)]
     check(w['hits'], f'stadium {tag}: no little player drawn (breakpoints)', errs)
-    for a5, i, name, flag, face, tab in w['hits']:
+    game, rec = [(0x990D, 0x9CD9)] * 3, [(0x6606, 0x66D6)] * 3
+    hok = lambda hd, want: hd is None or hd == want
+    for a5, i, name, flag, face, tab, hd in w['hits']:
         if i == 0:
             ok = flag < 6 or tab[13] not in wt
             what = 'goalkeeper: own hair'
         elif flag >= 6:
-            ok = (tab[13], tab[9], tab[12]) == (wt[0], wt[0], wt[1])
+            ok = (tab[13], tab[9], tab[12]) == (wt[0], wt[0], wt[1]) and hok(hd, game)
             what = 'white'
+        elif flag >= 4:
+            ok = (tab[13], tab[9], tab[12]) == (tab[6], tab[6], tab[5]) and hok(hd, game)
+            what = 'shaved: all the hair = skin, 12 its shade'
         elif flag >= 2:
-            ok = tab[13] == tab[6]
-            what = 'bald: top hair = skin'
+            ok = tab[13] != tab[6] and hok(hd, rec)
+            what = 'receding: head top = skin (pixels), sides keep the hair'
         else:
-            continue
+            ok = hok(hd, game)
+            what = 'the game\'s head'
+            if ok:
+                continue
         seen.add(flag) if i else None
-        check(ok, f'stadium {tag}: {name} (#{i}, flag {flag}, face {face}) {what}: raw 13 / 9 / 12 / 6 -> '
-                  f'{tab[13]} / {tab[9]} / {tab[12]} / {tab[6]}', errs)
+        check(ok, f'stadium {tag}: {name} (#{i}, flag {flag}, face {face}) {what}: raw 13 / 9 / 12 / 6 / 5 -> '
+                  f'{tab[13]} / {tab[9]} / {tab[12]} / {tab[6]} / {tab[5]}, head {[f"{a:04x}/{b:04x}" for a, b in hd or ()]}', errs)
         info.append(f'stadium {tag}: {name} flag {flag} face {face}: hair {tab[13]}/{tab[9]}/{tab[12]} skin {tab[6]}')
     if w['shot']:
         vga, pal = w['shot']
@@ -19342,7 +19361,7 @@ def white_ravanelli():
             s.send('down dump:0.5')
             if s.screen().selected == 9:
                 break
-        sw = stadium_watch(s, 'friendly', bald=True)   # 4.0.6 the stadium screen (Davide, MiSTer 02/11): RAVANELLI's
+        sw = stadium_watch(s, 'friendly', bald=True, spr=spr)   # 4.0.6 the stadium screen (Davide, MiSTer 02/11): RAVANELLI's
         s.send('fire dump:2')                       # little player white-haired, the opponent's bald ones (poked) bald
         errs += stadium_eval(s, sw, blond, info, {7, 2, 3, 4, 5})
         r = s.send('fire:3 ' * 8 + 'dump:2')

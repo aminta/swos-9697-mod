@@ -30,15 +30,19 @@ import split
 #   NED: Jong / U21 in the Eerste Divisie - count-only (no cap in the game: the real rule counts appearances, <15
 #        apps, which SWOS does not keep - approximate); windows 1 Jul - 1 Sep, 2 Jan - 2 Feb.
 #   POR: Liga 2 B teams - generic U23 + 4 over-age; windows 1 Jul - 1 Sep, 2 Jan - 2 Feb.
-#   AUS / NZL: A-League youth / reserves - generic U23 + 4 (TO CONFIRM); windows A-League 2026-27 (TO CONFIRM).
+#   AUS: the A-League clubs' NPL sides are U23 squads, no over-age player (Football NSW 2026 3.2, Football Victoria
+#        2026 6.1.8, Football Queensland 2026 f; sources in notes/bteam-trace.md); windows = Football Australia's
+#        2026/27 men's windows: 24 Jun - 15 Sep 2026, 12 Jan - 8 Feb 2027 (Domestic Match Calendar 2026/27).
+#   NZL: AUCKLAND / WELLINGTON are A-League clubs: the same FA windows; the reserves' over-age cap NOT FOUND in an
+#        official source (placeholder 4, asked to Regia 03/11).
 RULES = {
     'ita': (4, 23, (('1/7', '1/9'), ('2/1+1', '2/2+1'))),
     'ger': (3, 23, (('1/7', '1/9'), ('1/1+1', '1/2+1'))),
     'esp': (4, 23, (('1/7', '1/9'), ('2/1+1', '2/2+1'))),
     'ned': (0xFF, 23, (('1/7', '1/9'), ('2/1+1', '2/2+1'))),
     'por': (4, 23, (('1/7', '1/9'), ('2/1+1', '2/2+1'))),
-    'aus': (4, 23, (('1/7', '30/9'), ('1/1+1', '31/1+1'))),
-    'nzl': (4, 23, (('1/7', '30/9'), ('1/1+1', '31/1+1'))),
+    'aus': (0, 23, (('24/6', '15/9'), ('12/1+1', '8/2+1'))),
+    'nzl': (4, 23, (('24/6', '15/9'), ('12/1+1', '8/2+1'))),
 }
 RULE_IDS = list(RULES)
 MAX_MATCH = 4                   # (1) at most 4 called up for one match

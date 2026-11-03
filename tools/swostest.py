@@ -22112,6 +22112,7 @@ def bteam_vars(exe):
     d3 = bytes(p.get(3, 0, 0x1000 * p.le.obj(3).npages))
     _, cnp, ct, cmp, sel = xtra.sites(p)
     orig = lepatch.LEPatch(os.path.join(ROOT, 'orig', UI_ORIG))
+    xtra.LABELS.setdefault('SITES', xtra.sites(orig))     # (xleft.sites reads it: set by xtra.patch in a build)
     xs = xleft.sites(orig, sacups.regs(orig.le.obj_bytes(1)))
     d = open(os.path.join(exe, 'DATA', 'BAGE.005'), 'rb').read()
     rows, o = {}, 4
@@ -22247,7 +22248,12 @@ def bteam_rt():
         except AssertionError as e:
             errs.append(str(e))
             return False, '; '.join(errs + info)
-        leave(s)
+        for _ in range(12):                             # to the career menu itself (the calendar advance: after the
+            t = s.screen().texts()                      # day's results screens)
+            s.log.append('[bt] after: ' + ' | '.join(t)[:200])
+            if 'TRASFERIMENTI' in t and 'PARTITA' in t:
+                break
+            press(s, s.screen(), 'CONTINUA', 3) or press(s, s.screen(), 'ESCI', 3) or s.send('fire dump:2')
         n2, order2, slots2, bu2 = bteam_state(s, v)
         season = [bn[i] for (k, i), c in zip(reqs, res) if k == 2 and c == 0]
         gone = [bn[i] for (k, i), c in zip(reqs, res) if k == 1 and c == 0]

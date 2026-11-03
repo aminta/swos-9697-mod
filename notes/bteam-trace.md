@@ -117,3 +117,26 @@ Trace commits moved onto branch 406-bteam2 (off 406-i7c). Hook points re-checked
   'U23' / over-age mark), select -> 'SOLO PROSSIMA PARTITA' / 'PER LA STAGIONE'; refusals: MAX 4 PER PARTITA, TROPPI
   FUORI QUOTA, MERCATO CHIUSO, ROSA PIENA (careerNumPlayers >= 30: the game's own trial cap), ANCORA %d PER LA
   STAGIONE. Marker on the squad screen: fillers' colour (bit 1) + a 'B' after the shirt number (se_hl chain).
+
+## AUS / NZ rules, researched (Shaved, 2026-11-03, Regia: "look up the real 2026-27 rules")
+- **Windows, Australia (A-League + NPL men), exact**: Football Australia Domestic Match Calendar 2026/27, "Men's Transfer
+  Windows": 12-week window 24 June - 15 September 2026; 4-week window 12 January - 8 February 2027.
+  Source: https://footballaustralia.com.au/sites/default/files/2026-07/260526%20-%20DMC%2026-27%20-%20For%20Public%20Release.pdf
+- **Windows, New Zealand clubs**: AUCKLAND and WELLINGTON are A-League clubs (registered through Football Australia), so
+  their first-team call-ups follow the same FA windows as above. No NZ Football 2026 National League registration
+  window was found (nzfootball.co.nz: no 2026 regulations page found).
+- **Over-age, Australia: none allowed (cap 0)** - the A-League clubs' NPL sides are U23 squads:
+  - NSW (SYDNEY II, WEST SYDNEY II): Football NSW 2026 Competitions Regulations, section 3.2 "A-League Men's (ALM)
+    Academy Clubs": 1st grade players born between 1 January 2003 and 31 December 2010; 3.2.c the goalkeeper
+    exception applies only to the U20 competition.
+    https://footballnsw.com.au/wp-content/uploads/sites/33/2025/12/20251219-LEG-2026-Competition-Regulations-Official-v1.pdf
+  - VIC (MELBOURNE CITY 2): Football Victoria 2026 Advanced Competitions Rules of Competition, 6.1.8 "The A-League
+    Club's Senior (NPL/VPL) side must consist of players no older than the age of 23 (born in 2003)".
+    https://footballvictoria.com.au/sites/ffv/files/2026-02/2026%20Advanced%20Competitions%20Rules%20of%20Competition%20-%20FINAL.pdf
+  - QLD (BRISBANE ROAR 2): Football Queensland 2026 Advanced Leagues Rules of Competition, f) "Players registering
+    to Brisbane Roar NPL Men's Team must be under the age of 23 (born 2003 or later)"; exemptions only on application.
+    https://footballqueensland.com.au/wp-content/uploads/2025/10/2026-Football-Queensland-Advanced-Leagues-Rules-of-Competition.pdf
+  - No goalkeeper exception in the three (the engine gives a goalkeeper any age: a difference, asked to Regia).
+- **Over-age, New Zealand reserves (AUCKLAND FC RES, PHOENIX RES.)**: NOT FOUND in an official 2026 source. Only
+  Wikipedia (Wellington Phoenix FC Reserves): "up to four professional players are eligible to play for the reserves"
+  + two U20s by agreement - a limit on first-team pros playing down, not an age cap. Asked to Regia before choosing.

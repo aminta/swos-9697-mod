@@ -314,10 +314,13 @@ plain ones): world_cgame_view goes on after the COPPE CONTINENTALI part - MONDO 
 links pass through hidden entries, walk finds no path), button names in the font and within their buttons, each cup
 button -> its rounds menu (title = the cup) -> every round -> RIEPILOGO (that cup only) -> ESCI to the career menu, CT
 state unchanged; the foreign market's picker (ACQ. ALTRO GIOCAT. STRANIERO) first - after the game's own cup view opened from VIEW
-WORLD (cseg_3AA17: a UEFA cup) the career menu's up from OFFERTE LAVORO goes into the fixture rows, as on the
-released 4.0.5 (runs-cgnav2-405); our rounds menu / ctgame views leave it as it was - and, in a second session, the new
+WORLD (cseg_3AA17: a UEFA cup) the career menu's up from OFFERTE LAVORO goes into the fixture rows, on the
+released 4.0.5 (runs-cgnav2-405: its loaders cseg_3ABB2 / 3ADAE set dseg_DF4F4, CheckTransfers' 'transfers closed
+till the next match' flag, so TRASFERIMENTI was disabled and skipped). FIXED in 4.0.6: careerworld w_vcup puts
+dseg_DF4F4 / dseg_E0052 back after that view; world_cgame_view's tr_ok asserts TRASFERIMENTI enabled and up from
+entry 5 (job offers) landing on it after the load, a stock VISUAL. COMPETIZ. view and each UEFA cup from EUROPA - and, in a second session, the new
 career's (CARR. STORICHE - MONDO 2026-27): no cup names on them. CV_OWN=<club> with a save of that club in a conti
 round in progress (runs-cgslot3/boca_libgr_it.CAR: BOCA JUNIORS on a CONTI_FORCE=lib:groups build, after its 2nd
 Libertadores match): its round shown with no ctgame view opened (CG_G[3] unchanged) = the game's slot 3. Tier B
-fixture now cw_uru4 (the cg_uru2 recipe on c/HTcw4: careerworld's w_choose grew, the older snapshots' layout no
+fixture now cw_uru6 (the cg_uru2 recipe on c/HTcw6: careerworld's w_choose grew, the older snapshots' layout no
 longer maps).

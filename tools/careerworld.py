@@ -549,6 +549,14 @@ WV_OFF: dd 0
 WV_AFTER: dd 0
 W_SWAP w_buy, CHOOSETEAMS, 1
 
+w_vcup:                                 ; 4.0.6 (Davide): ViewWorldMenu's call cseg_3AA17 - a cup's own view. Its
+    push word [DF4F4]                   ; loaders (cseg_3ABB2 / 3ADAE) set dseg_DF4F4 - CheckTransfers' 'transfers
+    push word [E0052]                   ; closed' flag, cleared by the next match only: TRASFERIMENTI disabled,
+    call VCUP                           ; skipped by the menu's links - and dseg_E0052: both put back as they were
+    pop word [E0052]
+    pop word [DF4F4]
+    ret
+
 w_nat:                                  ; replaces `mov ax, [D0]; mov [lastNationalityCall], ax`: no national team
     mov ax, [D0R]                       ; job in a world (-1 = none) unless the world has its national teams (3.1)
     push ebx
@@ -1585,6 +1593,14 @@ def sites(p):
     s['view'] = m.start()
     s['choosecomp'] = m.start() + 5 + struct.unpack('<i', m.group(1))[0]
     s['ctres'], s['selcont'] = p.target(1, m.start() + 7), p.target(1, m.start() + 17)   # (4.0.6 P3: ctview cw_after)
+    s['vcup'] = m.end() - 1                     # its call cseg_3AA17 (the chosen contest's own view)
+    s['vcup_to'] = s['vcup'] + 5 + struct.unpack('<i', d1[s['vcup'] + 1:s['vcup'] + 5])[0]
+    # cseg_3ABB2 / cseg_3ADAE (that view's loaders): mov word [dseg_E0052], 1; mov ax, [10E848]; or ax, ax; jnz;
+    # mov ax, [10E846]; or ax, ax; jnz; mov word [dseg_DF4F4], 1 - CheckTransfers' 'transfers closed' flag
+    vf = {(p.target(1, x.start() + 3), p.target(1, x.end() - 6)) for x in re.finditer(
+        rb'\x66\xc7\x05.{4}\x01\x00\x66\xa1.{4}\x66\x0b\xc0\x75.\x66\xa1.{4}\x66\x0b\xc0\x75.\x66\xc7\x05.{4}\x01\x00', d1, re.S)}
+    assert len(vf) == 1, vf
+    s['e0052'], s['df4f4'] = vf.pop()
     # BuyOtherForeignPlayer: ... D2 = 1, D3 = D4 = 0, call ChooseTeamsDialog; cmp word [D0], -1
     m = _one(rb'\xc7\x05' + pk(A1) + rb'\x00\x00\x00\x00\x66\xc7\x05' + pk(D7 - 20) + rb'\x01\x00\x66\xc7\x05' + pk(D7 - 16)
              + rb'\x00\x00\x66\xc7\x05' + pk(D7 - 12) + rb'\x00\x00\xe8(.{4})\x66\x83\x3d' + pk(D0) + rb'\xff\x74', d1,
@@ -2053,6 +2069,7 @@ def patch(p, worlds, at, nasmcave, comp, ct, cont_rec):
                 'CCTAB': (2, s['tabs'][0][2]), 'CWCTAB': (2, s['tabs'][1][2]), 'UEFATAB': (2, s['tabs'][3][2]),
                 'WCONT': (0, WCONT), 'SEASONPLAYING': (2, s['season']), 'COMP254': (2, comp + 4 * 254),
                 'COMP99': (2, comp + 4 * WCONT), 'VIEWFIRST': p.target(vobj, vtab), 'CHOOSECOMP': (1, s['choosecomp']),
+                'VCUP': (1, s['vcup_to']), 'DF4F4': s['df4f4'], 'E0052': s['e0052'],
                 'CHOOSETEAMS': (1, s['chooseteams']), 'LASTNAT': (2, s['lastnat']), 'HOLDERS': (1, s['holders']),
                 'ADDREC': (1, s['addrec']), 'CLEARHOLD': (1, s['clearhold']),
                 'LOOP_CWC': (1, s['pick'][1][2]), 'LOOP_UEFA': (1, s['pick'][2][2]),
@@ -2104,6 +2121,7 @@ def patch(p, worlds, at, nasmcave, comp, ct, cont_rec):
     hook(s['away3'], 5, 'w_away3', ())              # and simulated two-legged ties
     hook(s['away4'], 7, 'w_away4', ())
     hook(s['view'], 5, 'w_view', ())
+    hook(s['vcup'], 5, 'w_vcup', ())
     hook(s['buy'], 5, 'w_buy', ())
     hook(s['nat'], 12, 'w_nat', (2, 8))
     hook(s['tfile'], 10, 'w_tfile', (2,))

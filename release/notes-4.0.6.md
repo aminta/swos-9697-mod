@@ -16,21 +16,31 @@
 #### The computer's clubs play by the same rules as you
 - **Two new OPTIONS rows, both ON by default:** the computer's clubs now get **red cards** (a sent-off player is suspended, like yours) and **injuries** (an injured player of a computer's club misses the following matches instead of being fit again at once). Turn a row OFF to get the original game behaviour back.
 - Under SWOS++ the two rows are hidden and the original behaviour applies.
+- **Goalkeepers get injured too.** In the original game a goalkeeper almost never gets injured. Now, after every
+  match, each team's goalkeeper has a 1 in 25 chance of an injury. You see it afterwards, on the team screen, not
+  during the match. He misses the next match or the next two, then he is fit again like any injured player. It is
+  the goalkeeper on the pitch at the final whistle, and matches you only view the result of count too. The
+  computer's goalkeepers get injured only while CPU INJURIES is ON. To switch it off: OPTIONS > GOALKEEPER INJURIES
+  (IT INFORTUNI PORTIERI, FR BLESSURES DES GARDIENS, DE TORWARTVERLETZUNGEN). It is ON by default and saved with
+  the career; an older career loads it ON. Not with SWOS++.
 
-#### Continental cups page (World 2026-27)
-In a 2026-27 career, VIEW COMPETITIONS has a new entry, CONTINENTAL CUPS. It shows how the other continents' club
-cups are going: the Copa Libertadores and the other CONMEBOL cups, CONCACAF, AFC, CAF, OFC and FIFA. Pick a
-confederation to see its cups. If your club plays in one of them, its confederation is listed first.
-
-- Each cup shows its holder, then its rounds in calendar order.
-- In a knockout round, the club that went through is shown in brackets, e.g. CARABOBO - (FLAMENGO).
-- A group shows its clubs in their final order once it has been played.
-- A round that has not been played yet says TO BE PLAYED. Rounds only appear once their draw is due in the
-  season, so the page never gives away what is still to come.
-- The page lists who went through, not the scores.
-- In the first season of a career, the early qualifying rounds were played before your career began. They show as
-  one line, EARLIER ROUNDS PLAYED BEFORE THE SEASON, and the page starts from the main round's draw.
-- Opening the page changes nothing in your career. Careers saved with 4.0.5 load and show the page as normal.
+#### Continental cups in the game's own screens (World 2026-27)
+- **CONTINENTAL CUPS** (VIEW COMPETITIONS): pick a confederation and you get a menu of its rounds already drawn,
+  in the order they are played. Each round opens in the game's own cup screen, exactly as far as your career has got:
+  - knockout rounds with both legs, the aggregate, extra time, away goals and penalties;
+  - group stages with their tables and the fixtures match day by match day (NEXT shows the next stage, as in any
+    cup of the game).
+  - **SUMMARY** shows all the confederation's cups on one text page, as before.
+- **VIEW WORLD**: every continent now shows its continental cups as green buttons above its nations - SOUTH AMERICA
+  the Libertadores, the Sudamericana and the Recopa, EUROPE the Champions League, Europa League and Conference League,
+  WORLD the Intercontinental, and so on. A button opens the same menu of rounds for that cup.
+- When the game's own screen can't show a round, you get the text page instead:
+  - in the first season of a career;
+  - for the AFC Champions League Elite league stage, a format the game's screens don't have;
+  - in the rare cases where it couldn't be shown safely (too many clubs loaded at once, a club missing from the data).
+- Looking at the cups never changes your career or its save: everything is put back exactly as it was when you leave
+  the screen.
+- If your club is playing a continental group stage, its round shows the real group you are playing in.
 
 #### Super Cups and intercontinental cups (World 2026-27)
 - **UEFA Super Cup.**
@@ -46,6 +56,9 @@ confederation to see its cups. If your club plays in one of them, its confederat
 
 #### Stoppage time
 - **Stoppage time (an idea of Davide and Marco):** every half now has real added time. At 45:00 and 90:00 the clock stops and a "+N" appears next to it, like the fourth official's board: N added minutes, more when the half had goals, substitutions and cards (in the World 2026-27 career also the time lost with the ball out of play, as in today's football) - at most 3 in the 1996-97 game (2 in the first half), 5 in the World 2026-27 career (3 in the first half), 2 in the Europe 1984-85 career (1 in the first half); each extra-time half gets 1. The historic seasons and tournaments before 1970 (Italy 1947-48, World Cup 1934) give at most 1 and often none, as in those days. The added minutes always run at the pace of a 10-minute match, whatever match length you chose, so they can really be played: about 15 seconds of play for +3 and 26 for +5 (in a 3-minute match +3 would otherwise be gone in under 5 seconds). As always the clock stops when the ball is out of play, and when the added time is over the referee still lets a running attack finish. A goal in added time shows as 45+2 or 90+3 in the scorers' list. Not with SWOS++.
+
+#### Stadium on the versus screen (World 2026-27)
+- **Stadium names on the versus screen** [TO COMPLETE: Panchina — exact wording; World 2026-27 only]: the screen shown before the match now names the stadium, and a neutral-ground final (cups, Super Cups) shows its real venue.
 
 #### Two-row benches in the match
 - **Two-row benches.** With a long bench (more than 5 substitutes) every substitute now has a seat: the coach and substitutes 1-7 sit in the back row, substitutes 8-15 in the front row. The dugouts are a little longer and wider to make room, on every pitch and in 16-colour mode too.
@@ -152,11 +165,13 @@ next match.
   - The first page shows their 11 players on the pitch. Press DOWN for their substitutes, 11 a page, and UP to go back a page.
   - The list is read-only: you cannot pick or change anything in it. FIRE, LEFT or RIGHT closes it, and the cursor goes back to your coach.
   - With SWOS++ the list is switched off: UP on the coach works as before.
-- [TO COMPLETE: Motore — B-team call-ups: one match and season attachment, real rules per country, ages.]
+- [TO COMPLETE: Shaved — B-team call-ups (full squad incl. places 17+): one match and season attachment, real rules per country, ages.]
 
 #### Fixes
 - **New Zealand, last round of the Championship group.** If your club rests in the last round of the Championship group, the menu now offers FINISH SEASON. Press it: if your club reached the Grand Final, MATCH comes back and you play it; otherwise the season ends. (Before, the menu could offer a match on the rest day.) The real champion was already right; this removes the confusing final that did not count mentioned in the 4.0.5 notes.
 - **Buying a club's extra squad players** (thanks to Enzo). Fixed: after taking over a club, a player you had bought from it (one of its extra squad players) could reappear in its squad, so he was in two clubs at once. Fixed: buying one of another club's extra squad players (players 17 to 30) could make the career crash at the start of a later season, or spoil another club's squad. Careers saved with 4.0.2 to 4.0.5 play on safely.
+- **TRANSFERS stays available after viewing a cup.** After looking at a cup from VIEW WORLD, TRANSFERS was greyed out until the next match and the menu cursor jumped
+  into the fixtures (since 4.0.5). Now the career menu stays as it was.
 - **A play-off entrant that refuses the place** no longer makes the game read wrong data at the season end (it showed up with San Marino; found by Ben Baker).
 
 ### Good to know
@@ -181,24 +196,34 @@ La 4.0.6 è un giro di richieste dei giocatori: **due giocatori sulla stessa tas
 #### Le squadre del computer giocano con le tue regole
 - **Due nuove righe in OPZIONI, entrambe attive di default:** le squadre del computer ora prendono **cartellini rossi** (un espulso è squalificato, come i tuoi) e **infortuni** (un infortunato di una squadra del computer salta le partite seguenti invece di essere subito di nuovo a posto). Metti una riga su NO per riavere il comportamento originale del gioco.
 - Con SWOS++ le due righe sono nascoste e vale il comportamento originale.
+- **Anche i portieri si infortunano.** Nel gioco originale un portiere non si infortuna quasi mai. Ora, dopo ogni
+  partita, il portiere di ogni squadra ha 1 probabilità su 25 di infortunarsi. Lo vedi dopo, nella schermata della
+  squadra, non durante la partita. Salta la partita successiva o le due successive, poi torna disponibile come
+  qualunque infortunato. Conta il portiere in campo al fischio finale, e valgono anche le partite di cui guardi solo
+  il risultato. I portieri del computer si infortunano solo con INFORTUNI ALLA CPU attivato. Per spegnerlo:
+  OPZIONI > INFORTUNI PORTIERI (EN GOALKEEPER INJURIES, FR BLESSURES DES GARDIENS, DE TORWARTVERLETZUNGEN). È
+  attivato all'inizio e si salva con la carriera; una carriera più vecchia lo carica attivato. Non con SWOS++.
 
-#### Pagina COPPE CONTINENTALI (Mondo 2026-27)
-Nelle carriere del mondo 2026-27, VISUAL. COMPETIZ. ha una nuova voce: COPPE CONTINENTALI. Mostra come vanno le
-coppe per club degli altri continenti: la Copa Libertadores e le altre coppe CONMEBOL, CONCACAF, AFC, CAF, OFC e FIFA.
-Scegli una confederazione per vedere le sue coppe. Se il tuo club gioca in una di queste coppe, la sua
-confederazione è la prima della lista.
-
-- Per ogni coppa: il detentore, poi i turni in ordine di calendario.
-- Nei turni a eliminazione diretta, chi passa il turno è tra parentesi, per esempio CARABOBO - (FLAMENGO).
-- Un girone già giocato mostra le squadre nell'ordine della classifica finale.
-- Un turno non ancora giocato è indicato DA GIOCARE. I turni compaiono solo quando, nella stagione, arriva il loro
-  sorteggio: la pagina non anticipa mai quello che deve ancora succedere.
-- La pagina dice chi è passato, non i punteggi.
-- Nella prima stagione di una carriera, i turni preliminari si sono giocati prima che la carriera iniziasse.
-  Compaiono come una sola riga, TURNI PRECEDENTI GIOCATI PRIMA DELLA STAGIONE, e la pagina parte dal sorteggio del
-  turno principale.
-- Aprire la pagina non cambia niente nella carriera. Le carriere salvate con la 4.0.5 si caricano e mostrano la
-  pagina normalmente.
+#### Coppe continentali nelle schermate del gioco (Mondo 2026-27)
+- **COPPE CONTINENTALI** (VISUAL. COMPETIZ.): scegli una confederazione e trovi un menu dei suoi turni già
+  sorteggiati, nell'ordine in cui si giocano. Ogni turno si apre nella schermata di coppa del gioco, esattamente fin
+  dove è arrivata la tua carriera:
+  - turni a eliminazione diretta con andata e ritorno, il totale, i supplementari, i gol in trasferta e i rigori;
+  - fasi a gironi con le classifiche e le partite giornata per giornata (PASSA mostra la fase successiva, come in ogni
+    coppa del gioco).
+  - **RIEPILOGO** mostra tutte le coppe della confederazione in una pagina di testo, come prima.
+- **VISUALIZZA MONDO**: ogni continente ora mostra le sue coppe continentali come pulsanti verdi sopra le nazioni -
+  SUDAMERICA la Libertadores, la Sudamericana e la Recopa, EUROPA Champions League, Europa League e Conference League,
+  MONDO l'Intercontinentale, e così via. Un pulsante apre lo stesso menu dei turni di quella coppa.
+- Quando la schermata del gioco non può mostrare un turno, compare invece la pagina di testo:
+  - nella prima stagione della carriera;
+  - per la fase campionato della AFC Champions League Elite, una formula che le schermate del gioco non hanno;
+  - nei rari casi in cui non si potrebbe mostrare in sicurezza (troppe squadre caricate insieme, un club che manca nei
+    dati).
+- Guardare le coppe non cambia mai la carriera né il suo salvataggio: quando esci dalla schermata tutto torna
+  esattamente com'era.
+- Se la tua squadra sta giocando una fase a gironi continentale, il suo turno mostra il girone vero in cui stai
+  giocando.
 
 #### Supercoppe e coppe intercontinentali (Mondo 2026-27)
 - **Supercoppa UEFA.**
@@ -214,6 +239,9 @@ confederazione è la prima della lista.
 
 #### Recupero
 - **Recupero (un'idea di Davide e Marco):** ogni tempo ora ha il suo recupero vero. A 45:00 e a 90:00 l'orologio si ferma e accanto compare "+N", come il cartello del quarto uomo: N minuti di recupero, di più se nel tempo ci sono stati gol, sostituzioni e cartellini (nella carriera Mondo 2026-27 anche il tempo perso a palla non in gioco, come nel calcio di oggi) - al massimo 3 nel gioco 1996-97 (2 nel primo tempo), 5 nella carriera Mondo 2026-27 (3 nel primo tempo), 2 nella carriera Europa 1984-85 (1 nel primo tempo); ogni tempo supplementare ne ha 1. Le stagioni e i tornei storici prima del 1970 (Italia 1947-48, Mondiali 1934) danno al massimo 1 minuto, spesso nessuno, come allora. I minuti di recupero scorrono sempre al ritmo di una partita da 10 minuti, qualunque durata tu abbia scelto, così si giocano davvero: circa 15 secondi di gioco per +3 e 26 per +5 (in una partita da 3 minuti +3 durerebbe meno di 5 secondi). Come sempre l'orologio si ferma a palla non in gioco, e finito il recupero l'arbitro lascia comunque finire l'azione in corso. Un gol nel recupero compare come 45+2 o 90+3 nell'elenco dei marcatori. Non con SWOS++.
+
+#### Stadio nella schermata dello scontro (Mondo 2026-27)
+- **Nomi degli stadi nella schermata dello scontro** [DA COMPLETARE: Panchina — formulazione esatta; solo Mondo 2026-27]: la schermata prima della partita ora indica il nome dello stadio, e una finale in campo neutro (coppe, Supercoppe) mostra la sede vera.
 
 #### Panchine su due file in partita
 - **Panchine su due file.** Con una panchina lunga (più di 5 riserve) ogni riserva ha il suo posto: l'allenatore e le riserve 1-7 nella fila dietro, le riserve 8-15 nella fila davanti. Per fare spazio i dugout sono un po' più lunghi e larghi, su tutti i campi e anche nella modalità a 16 colori.
@@ -322,11 +350,13 @@ precedente riceve i nuovi incassi dalla partita successiva.
   - La prima pagina mostra i loro 11 in campo. GIÙ mostra le loro riserve, 11 per pagina, e SU torna alla pagina prima.
   - L'elenco è in sola lettura: non si può scegliere né cambiare niente. FUOCO, SINISTRA o DESTRA lo chiudono, e il cursore torna sull'allenatore.
   - Con SWOS++ l'elenco è disattivato: SU sull'allenatore funziona come prima.
-- [DA COMPLETARE: Motore — convocazioni dalla squadra B: una partita e aggregazione stagionale, regole vere per paese, età.]
+- [DA COMPLETARE: Shaved — convocazioni (rosa intera, posti 17+) dalla squadra B: una partita e aggregazione stagionale, regole vere per paese, età.]
 
 #### Correzioni
 - **Nuova Zelanda, ultima giornata del gruppo del Championship.** Se il tuo club riposa nell'ultima giornata del gruppo del Championship, il menu ora offre FINISCI STAGIONE. Premilo: se il tuo club è arrivato alla Grand Final torna PARTITA e la giochi; altrimenti la stagione finisce. (Prima il menu poteva offrire una partita nel giorno di riposo.) Il campione vero era già giusto; questo toglie la finale confusa che non contava, citata nelle note della 4.0.5.
 - **Acquisto dei giocatori extra di una squadra** (grazie a Enzo). Corretto: prendendo una squadra, un giocatore che le avevi comprato (uno dei suoi giocatori extra della rosa) poteva ricomparire nella sua rosa, quindi in due squadre insieme. Corretto: comprare uno dei giocatori extra della rosa di un'altra squadra (dal 17° al 30°) poteva bloccare la carriera all'inizio di una stagione successiva o rovinare la rosa di un'altra squadra. Le carriere salvate con le versioni 4.0.2-4.0.5 proseguono senza problemi.
+- **TRASFERIMENTI resta disponibile dopo aver guardato una coppa.** Dopo aver guardato una coppa da VISUALIZZA MONDO, TRASFERIMENTI restava grigio fino alla partita successiva e il
+  cursore del menu saltava nelle partite (dalla 4.0.5). Ora il menu della carriera resta com'era.
 - **Una squadra di play-off che rifiuta il posto** non fa più leggere al gioco dati sbagliati a fine stagione (si vedeva con San Marino; trovato da Ben Baker).
 
 ### Da sapere

@@ -15442,6 +15442,71 @@ def world_contiview():
     return not errs, '; '.join(errs) or '; '.join(info)
 
 
+def car_item(car, name, size):
+    """An engine item's bytes in a .CAR (trailer's 'EN' block: word id = crc32(name) & FFFFh, word length, bytes)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import engine
+    d = open(car, 'rb').read()
+    k = d.find(struct.pack('<HH', engine.item_id(name), size))
+    return d[k + 4:k + 4 + size] if k >= 0 else None
+
+
+@scenario
+def world_s1conti():
+    """4.0.6 B2 (Davide: option C season 1 = B2): season 1's continental editions are played. A new World 2026-27
+    career (INTER) starts with the season-1 edition (CT_ED 'CE', the season-1 bit, the career club's word); after
+    season 1 (world_contiview's season-2 save, ARSENAL: in no conti cup) every holder (CT_ST) is the winner conti.c
+    gives natively on the same packs (conti.py --test-s1: the same edition, deterministic), the season-1 bit cleared.
+    (W2627REL_DATA: the world's release data; CV_BUILD / CV_S2 as world_contiview)"""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import conti
+    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    if not os.path.isdir(src) and not os.environ.get('CV_BUILD'):
+        return True, f'SKIP: private data {src} missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    packs = ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order])
+    exe = os.environ.get('CV_BUILD') or build('world_contiview', env={'SEASON_PACKS': packs}, lang=UI)
+    tr = cv_trace(exe)
+    if not tr:
+        return False, 'no CVTRPTR block (ctview not in the build)'
+    ed_at = tr[1]
+    r = subprocess.run([sys.executable, os.path.join(ROOT, 'tools', 'conti.py'), '--test-s1'], capture_output=True,
+                       text=True, env=dict(os.environ, SEASON_PACKS=packs))
+    want = re.findall(r'^  (\S+) winner (0x[0-9a-f]+) holder (0x[0-9a-f]+)', r.stdout, re.M)
+    if r.returncode or 'PASS' not in r.stdout or not want:
+        return False, f'native --test-s1: {(r.stdout + r.stderr)[-400:]}'
+    errs, info = [], []
+    with Session('world_s1conti_s1', exe, {}, 'dump:2', 300) as s:
+        s.wait()
+        if not pick_career(s, ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27', 'EUROPA', 'ITALIA',
+                               'SERIE A', 'INTER']):
+            return False, 'season 1: career not reached'
+        s.send('fire dump:3')
+        for _ in range(6):
+            if s.screen().find('VISUAL. COMPETIZ.', exact=True) is not None:
+                break
+            press(s, s.screen(), 'CONTINUA', 3) or s.send('fire dump:2')
+        ed = bytes(s.result.obj2(ed_at, 12))
+        check(ed[:2] == b'CE' and ed[11] & 1, f'season 1: no season-1 edition (CT_ED {ed.hex()})', errs)
+        info.append(f's1 CT_ED {ed.hex()} (entries {struct.unpack_from("<H", ed, 2)[0]}, club {struct.unpack_from("<H", ed, 8)[0]:#x})')
+    s2 = os.environ.get('CV_S2') or os.path.join(RUNS, f'cv_s2_{UI}.CAR')
+    if not os.path.exists(s2):
+        ok, msg, _ = sc_season(os.environ.get('CV_TEAM', 'EUROPA,INGHILTERRA,PREMIER LEAGUE,ARSENAL'), dict(W8485_BUILD=exe))
+        car = os.path.join(RUNS, w84_tag() + '_1', 'SWOS', 'W84A.CAR')
+        if not ok or not os.path.exists(car):
+            return False, f'season 1: {msg[:200]}'
+        shutil.copy(car, s2)
+    st, ce = car_item(s2, 'CT', conti.ST_SIZE), car_item(s2, 'CE', conti.ED_SIZE)
+    if st is None or ce is None:
+        return False, f'season-2 save {s2}: no CT / CE item'
+    got = [struct.unpack_from('<H', st, 4 + 12 * i)[0] for i in range(len(want))]
+    bad = [(cu, w, h, hex(g)) for (cu, w, h), g in zip(want, got) if int(h, 16) != g]
+    check(not bad, f'season 2: holders not season 1\'s winners (cup, native winner, native holder, game) {bad}', errs)
+    check(not ce[11] & 1, f'season 2: the season-1 bit still set (CT_ED {ce[:12].hex()})', errs)
+    info.append(f'holders = season 1\'s winners: {[(cu, h) for cu, _, h in want]}')
+    return not errs, '; '.join(errs) or '; '.join(info)
+
+
 @scenario
 def world_cgame_view():
     """4.0.6 option C P3: COPPE CONTINENTALI's rounds menu -> the round in the game's own competition screen (ctgame

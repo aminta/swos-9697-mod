@@ -246,12 +246,18 @@ static void cup_lines(int c, u32 week, int live) {
                 }
                 continue;
             }
+            if (CT_ED.pad & 1) {        /* (4.0.6 B2: season 1 played from its main round - the build's draw; the
+                                           rounds before it were played before the season: one line, as page A) */
+                if (!R[17] && !main_after(c, r)) continue;
+                if (R[17] && r) { add(txt(T_BEFORE)); endline(); }
+            }
             int n = CT_OUT.nent[c][r];
             int drawn = n && seg_before(c, r, mo) ? 2 : (CT_SEG.kind != 0xFF && CT_SEG.cup == c && CT_SEG.round == r);
             if (R[0] == K_KO && R[18] && n && 2 * n <= R[18]) continue;   /* (all through without playing: no ties) */
             if (!n && seg_before(c, r, mo)) continue;                 /* (no entrants: not played this season) */
             const char *rn = (const char *)CV_TAB + w16(ct + 4 + 2 * r);
-            if (week < mweek(m) || !drawn) {   /* not drawn yet */
+            int s1m = (CT_ED.pad & 1) && R[17] && n;   /* (B2: season 1's main round, drawn before the season) */
+            if (!s1m && (week < mweek(m) || !drawn)) {   /* not drawn yet */
                 head(rn, txt(T_TBP)); endline(); done = 0;
                 continue;
             }

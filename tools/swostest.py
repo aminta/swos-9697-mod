@@ -5376,6 +5376,26 @@ def bench_switch(exe):
     return t[1] if o == 1 else Off3(t[1]), p.target(o, g.end())[1]
 
 
+def cpu_out(r, name, info):
+    """The places (0..15) of a CPU club's first 16 that are unavailable (cardsInjuries & C3h: injured, suspended) in its
+    team record (playMatchTeam1Ptr / playMatchTeam2Ptr, the dword after it); empty set if not found."""
+    pm = se_vars()['PM1'][1]
+    for k in (0, 4):
+        t = struct.unpack('<I', r.read(r.base2 + pm + k, 4))[0]
+        try:
+            d = r.read(t, 76 + 38 * 16)
+        except Exception:
+            continue
+        if d[5:22].split(b'\0')[0].decode('latin-1') == name:
+            out = {i for i in range(16) if d[76 + 38 * i + 27] & 0xC3}
+            if out:
+                info.append(f'{name}: unavailable in its record ' + ', '.join(
+                    f'{i}:{d[76 + 38 * i + 3:76 + 38 * i + 25].split(bytes(1))[0].decode("latin-1")}/{d[76 + 38 * i + 27]:#04x}'
+                    for i in sorted(out)))
+            return out
+    return set()
+
+
 def ingame_team(r, base):
     """An in-match team (TeamGame 42 + PlayerInfo 61 each): (name, [(short name, position, substituted)] x 26)."""
     d = r.read(r.base2 + base, 1704)
@@ -6443,8 +6463,9 @@ def bench_play(s, gmax, top, bot, wants, errs, info, mark, sub=None, icons=None,
             texts, scr = [], None
         if ('TRASFERIMENTI' in texts or 'VISUALIZZA MONDO' in texts) and 'PARTITA' in texts:
             act = 'PARTITA'
-        elif 'MOD. TATTICA' in texts and ('PARTITA' in texts or 'GIOCA PARTITA' in texts):
-            act = 'GIOCA PARTITA' if 'GIOCA PARTITA' in texts else 'PARTITA'   # (a player-coach: 'GIOCA :', not
+        elif 'MOD. TATTICA' in texts and ({'PARTITA', 'GIOCA PARTITA', TRAIN_TXT[UI][2]} & set(texts)):
+            act = next(t for t in ('GIOCA PARTITA', 'PARTITA', TRAIN_TXT[UI][2]) if t in texts)   # (FR / DE: JOUER LE
+                                            # MATCH / NUR SPIEL. on the squad screen; a player-coach: 'GIOCA :', not
             info.append('squad screen: ' + act)                                 #  'ALLEN:'; VIS. RISULTATI simulates)
             if icons is not None:           # the bald icons as the squad screen built them (a player poked bald)
                 icons['squad'] = bald_icons(r)
@@ -6540,6 +6561,11 @@ def bench_play(s, gmax, top, bot, wants, errs, info, mark, sub=None, icons=None,
         if xn:
             xn = xn[:want - 16]
         out = wants.get('-', set()) if name in wants else set()   # (2) unavailable bench players: empty places
+        if name not in wants:               # a CPU club's own injured / suspended (a career): the game fields fit bench
+            n_out = len(cpu_out(r, name, info))   # players in their place and leaves as many bench places (11..15) empty
+            ben = [i for i in empty if 11 <= i < 16]
+            if n_out and len(ben) == n_out:
+                out = set(ben)
         check(len(named) == want - len(out) and empty == sorted(out | set(range(want, cap))),
               f'{name}: {len(named)} named, empty {empty}' + (f' (left out {sorted(out)})' if out else ''), errs)
         if xn:

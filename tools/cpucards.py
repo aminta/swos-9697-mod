@@ -387,11 +387,15 @@ REGSAV: times 15 dd 0
 """
 
 
-GUARDS = {5: 'inj', 6: 'day', 7: 'day', 8: 'cards', 9: 'inj', 13: 'any'}   # the 14 `cmp byte [esi + 4], 1 / jz` (a
+GUARDS = {5: 'inj', 6: 'dayi', 7: 'dayc', 8: 'cards', 9: 'inj', 13: 'any'}   # the 14 `cmp byte [esi + 4], 1 / jz` (a
 # team file's controls = TEAM_COMPUTER): 5 cseg_2C9D9 pre-match injuries, 6 cseg_2CDC6 injury countdown, 7 cseg_2D7B7
 # card countdown, 8 cseg_2F194 the match's cards into the records, 9 UpdatePlayerInjuries, 13 cseg_903B1 a simulated
 # result's cards / injuries (the same order in the 4 exes)
-STUB = {'day': "    cmp byte [CB_DAY], 0\n    jne CONT{k}\n    jmp OUT{k}\n",
+# (4.0.6, Davide 04/11 option 1: a DIY / preset competition - g_gameType 1 / 2, no calendar day - counts a CPU club's
+# injuries / suspensions down after each of its matches, as the human's: the per-match countdowns open for it there)
+DAYSTUB = ("    cmp byte [CB_DAY], 0\n    jne CONT{k}\n    cmp word [{w}], 0\n    jne OUT{k}\n    cmp word [GT], 1\n"
+           "    je CONT{k}\n    cmp word [GT], 2\n    je CONT{k}\n    jmp OUT{k}\n")
+STUB = {'dayi': DAYSTUB.replace('{w}', 'CC_I'), 'dayc': DAYSTUB.replace('{w}', 'CC_W'),
         'cards': "    cmp word [CC_W], 0\n    jne OUT{k}\n    jmp CONT{k}\n",
         'inj': "    cmp word [CC_I], 0\n    jne OUT{k}\n    jmp CONT{k}\n",
         'any': "    push eax\n    mov ax, [CC_W]\n    and ax, [CC_I]\n    pop eax\n    jnz OUT{k}\n    jmp CONT{k}\n"}

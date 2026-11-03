@@ -241,6 +241,9 @@ def patch_exe(src, dst, remap, lang='it'):
     engine.save_item('CC', 4)                    # 4.0.6 the OPTIONS rows 'CPU red cards', 'CPU injuries' (cpucards.py: 0 = ON;
     engine.after_load('cc_load')                 # the session's value kept by a load / a new career)
     engine.after_new('cc_new')
+    engine.save_item('GI', 2)                    # 4.0.6 the OPTIONS row 'goalkeeper injuries' (gkinj.py: 0 = ON; the session's
+    engine.after_load('gk_load')                 # value kept by a load / a new career)
+    engine.after_new('gk_new')
     bigtables.ON[0] = bigtables.needed()         # a world numbering its clubs 2000+ (World 5.0; 4.0's world 0)
     bigtables.MOVED.clear()
     pg_tabs = mkseason.parallel_tables() + engine.parallel_tables()   # parallel groups (worlds' packs; world 0: engine)
@@ -767,6 +770,9 @@ def patch_exe(src, dst, remap, lang='it'):
         cg_bss = ctgame.CG_BSS
     else:
         cg_bss = 0
+    import gkinj                                 # 4.0.6 (Davide): goalkeeper injuries after a match (an OPTIONS row,
+    st_end = gkinj.patch(p, (st_end + 15) & ~15, lang)       # ON by default), the obj3 chain's end
+    assert st_end <= LT3_AT, hex(st_end)
     print(f'exe: obj3 end {st_end:#x} ({LT3_AT - st_end} B left before the longtable page obj3+{LT3_AT:#x})')
     p.set_vsize(3, 0x1000 * OBJ3_PAGES + cg_bss, bss=cg_bss)
     assert 0x1000 * OBJ3_PAGES + cg_bss <= OBJ3_ARENA

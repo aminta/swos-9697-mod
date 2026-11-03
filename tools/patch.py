@@ -790,6 +790,40 @@ def patch_exe(src, dst, remap, lang='it'):
     if os.path.isdir(dd):                        # (the neutral finals' strings: exact in this exe / its DATA)
         print(f'exe: stadium venues: {stadium.vcheck_exe(dst, lang, dd)} {lang} strings found')
     print(f'exe: fixups +{delta} bytes, data pages moved {shift:#x}, caves used up to obj1+{cave:#x} / +{world:#x}')
+    if os.environ.get('HOSTTEST_SYMS'):           # (tools/hosttest: every module's labels, (obj, offset) or obj1
+        hosttest_syms(dst)                       # offsets, next to the exe - the exe itself unchanged)
+
+
+def hosttest_syms(dst):
+    import json
+    import sys as _sys
+    out = {}
+    for name, mod in list(_sys.modules.items()):
+        ours = mod is not None and getattr(mod, '__file__', '') and \
+            os.path.dirname(os.path.abspath(mod.__file__)) == os.path.dirname(os.path.abspath(__file__))
+        lab = getattr(mod, 'LABELS', None) if ours else None
+        sy = getattr(mod, 'SYMS', None) if ours else None       # (uefaq.SYMS: the game's sites, CAL / CAL_CUR...)
+        if not isinstance(lab, dict) and not isinstance(sy, dict):
+            continue
+        d = {}
+        items = list(lab.items()) if isinstance(lab, dict) else []
+        items += [('SYMS.' + k, v) for k, v in sy.items()] if isinstance(sy, dict) else []
+        for k, v in list(items):                 # (one level down: e.g. conti.LABELS['syms'], the C symbols)
+            if isinstance(v, dict):
+                items += [(f'{k}.{kk}', vv) for kk, vv in v.items()]
+        for k, v in items:
+            if isinstance(v, int) and not isinstance(v, bool):
+                d[k] = [0, v]                   # (a bare int: an obj1 offset for asm labels; check per use)
+            elif isinstance(v, tuple) and len(v) == 2 and all(isinstance(x, int) for x in v):
+                d[k] = list(v)
+        for k in dir(mod):                       # module constants: TIE = [obj1 offset], ...
+            v = getattr(mod, k)
+            if k.isupper() and isinstance(v, list) and len(v) == 1 and isinstance(v[0], int):
+                d.setdefault('@' + k, [0, v[0]])
+        if d:
+            out[name] = d
+    json.dump(out, open(os.path.splitext(dst)[0] + '.syms.json', 'w'), indent=0, sort_keys=True)
+    print(f'exe: hosttest symbols {sum(len(v) for v in out.values())} in {len(out)} modules')
 
 
 def team(rec, ordinal, league, name=None):

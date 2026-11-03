@@ -22269,6 +22269,7 @@ def bteam_rt():
         walk(s, 'SALVA CARRIERA', 2)
         s.send(name_entry('BTRT') + ' dump:3')
         car = os.path.join(s.run, 'SWOS', 'BTRT.CAR')
+        bteam_rt.car = (car, bw, [bn[i] for (k, i), c in zip(reqs, res) if k == 2 and c == 0])
     if not os.path.exists(car):
         return False, '; '.join(errs + info + ['no BTRT.CAR'])
     with Session('bteam_rt_load', b, {'BTRT.CAR': car}, 'dump:2', 600) as s:
@@ -22278,6 +22279,69 @@ def bteam_rt():
         n3, order3, _, bu3 = bteam_state(s, v)
         check((n3, order3, bu3) == (n2, order2, bu2), f'after the load: squad {n3}, BU {bu3} (saved {n2}, {bu2})', errs)
         info.append(f'loaded: squad {n3}, BU {bu3}')
+    return not errs, '; '.join(errs + info)
+
+
+@scenario
+def bteam_season():
+    """4.0.6 B-team call-ups, M2 return (2): bteam_rt's save (ATALANTA, players called up for the season) played to
+    the season's end (world8485: W8485_FROM, saved before CONTINUA), CONTINUA CARRIERA, the next season saved and
+    loaded. PASS: the season players out of ATALANTA's squad, BU empty, the B team's change-list entry for each
+    (when the list still holds one) back to his own name; reported: the squad sizes"""
+    exe = builds()['it']
+    v = bteam_vars(exe)
+    errs, info = [], []
+    if not getattr(bteam_rt, 'car', None):
+        ok, msg = bteam_rt()
+        if not getattr(bteam_rt, 'car', None):
+            return False, f'bteam_rt: {msg[:300]}'
+    car, bw, season = bteam_rt.car
+    if not season:
+        return False, 'bteam_rt called nobody up for the season'
+    keys = ('W8485_BUILD', 'W8485_FROM', 'W8485_NOSACK', 'W8485_SAVE_END', 'SWOSTEST_SCENARIO')
+    keep = {k: os.environ.get(k) for k in keys}
+    try:
+        os.environ.update(W8485_BUILD=exe, W8485_FROM=car, W8485_NOSACK='1', W8485_SAVE_END='BTSE',
+                          SWOSTEST_SCENARIO='bteam_season_run')
+        ok, msg = world8485()
+    finally:
+        for k, x in keep.items():
+            if x is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = x
+    if 'saved ' not in msg:
+        return False, f'season: {msg[:300]}'
+    end = msg.split('saved ', 1)[1].strip()
+    with Session('bteam_season_end', exe, {'BTSE.CAR': end}, 'dump:2', 900) as s:
+        s.wait()
+        s.send(LOAD1 + ' dump:3')
+        n, order, _, bu = bteam_state(s, v)
+        info.append(f'season end: squad {n}, BU {bu}')
+        check(all(g in order for g in season), f'season players gone before the end: {season}', errs)
+        nxt = next_season_save(s, 'BTNS')
+    if not nxt.endswith('.CAR'):
+        return False, '; '.join(errs + info + [f'next season: {nxt}'])
+    with Session('bteam_season_next', exe, {'BTNS.CAR': nxt}, 'dump:2', 600) as s:
+        s.wait()
+        s.send(LOAD1 + ' dump:3')
+        for _ in range(8):
+            if 'PROSS. PARTITA' in s.screen().texts():
+                break
+            press(s, s.screen(), 'CONTINUA', 3) or press(s, s.screen(), 'ESCI', 3) or s.send('fire dump:2')
+        r = s.result
+        n, order, _, bu = bteam_state(s, v)
+        info.append(f'next season: squad {n}, BU {bu}')
+        check(not bu, f'next season: BU {bu}', errs)
+        check(not any(g in order for g in season), f'next season: still in the squad {[g for g in season if g in order]}', errs)
+        nf = struct.unpack('<H', bytes(r.obj2(v['nfm2'], 2)))[0]
+        ents = [bytes(r.obj2(v['cfmp'] + 42 * j, 42)) for j in range(nf)]
+        mine = [(e[2], e[7:29].split(b'\0')[0].decode('latin1')) for e in ents if struct.unpack_from('<H', e)[0] == bw]
+        info.append(f'change list {nf}: B entries {mine}')
+        bn = bteam_names(exe, bw)
+        for i, nm in mine:
+            if i < len(bn) and bn[i] in season:
+                check(nm == bn[i], f'change list ({bw:#x}, {i}): {nm!r}, want {bn[i]!r} back', errs)
     return not errs, '; '.join(errs + info)
 
 

@@ -13,9 +13,10 @@ human's VIEW RESULT) - after its cseg_903B1 (chained after cpucards' cb_903), th
 (currentMatchPlayers for the career club, the file's order at +3Ch for any other). Never a keeper whose record already
 has an injury level (20h included).
 
-Who: human teams always (row ON); a computer team only in a career and when INFORTUNI ALLA CPU is ON too (cpucards'
-CC_I = 0: the CPU's injuries are then kept and counted down by cpucards step B, cb_day - a career's calendar days only:
-outside a career a CPU keeper would never heal). Off under SWOS++ (controls' rule: its own options).
+Who: human teams always (row ON); a computer team only in a season or a career and when INFORTUNI ALLA CPU is ON too
+(cpucards' CC_I = 0: the CPU's injuries are then kept and counted down by cpucards step B, cb_day - on the calendar days
+of the PLAY MATCH menu, seasons and careers: harness cpu_inj_season; a DIY / preset competition has no such day, so a
+CPU keeper there would never heal). Off under SWOS++ (controls' rule: its own options).
 
 The levels (cseg_2CED3, one tick per match day before the line-up's check... measured by the harness): LVL1 = out of
 the next match, LVL2 = out of the next two.
@@ -118,12 +119,12 @@ gk_apply:                               ; ebx = the keeper's record, esi = his t
     jne .x
     cmp byte [SWOSPP], 0FFh
     jne .x
-    cmp byte [esi + 4], 1               ; (a computer team: only with INFORTUNI ALLA CPU ON, in a career - the
-    jne .h                              ;  only mode where cpucards counts the CPU's injuries down: cb_day)
-    cmp word [CC_I], 0
+    cmp byte [esi + 4], 1               ; (a computer team: only with INFORTUNI ALLA CPU ON, in a season or a
+    jne .h                              ;  career - the modes whose calendar days run cpucards' cb_day, the CPU's
+    cmp word [CC_I], 0                  ;  countdown: GT 3 / 4; DIY and preset competitions, friendlies none)
     jne .x
-    cmp word [GT], 4
-    jne .x
+    cmp word [GT], 3
+    jb .x
 .h: test byte [ebx + 1Bh], 0E0h         ; (already injured: no roll)
     jnz .x
     inc dword [GK_ROLLS]

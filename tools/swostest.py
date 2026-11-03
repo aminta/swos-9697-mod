@@ -23131,13 +23131,14 @@ def gk_inj():
     club's keeper (currentMatchPlayers[0]) has that level; his level at each later squad screen (where the game
     decides the line-up) - unavailable (> 20h) for exactly 1 / 2 matches, the CPU's keeper (INFORTUNI ALLA CPU ON) at
     that level too; off: the row OFF, no roll; cpu: INFORTUNI ALLA CPU OFF - the human keeper only; oldsave: JUVE2F (no
-    'GI') loads the row ON after it was set OFF (GK_MODES: the cases, default all)"""
+    'GI') loads the row ON after it was set OFF; season: a SEASON (Italy 1947-48, JUVENTUS) - the human keeper and the CPU
+    keepers rolled (GT 3) (GK_MODES: the cases, default all)"""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import gkinj
     from complist import px, SMALL_W
     errs, notes = [], []
     label = gkinj.LABEL[UI]
-    for mode in os.environ.get('GK_MODES', '1m,2m,off,cpu,oldsave').split(','):
+    for mode in os.environ.get('GK_MODES', '1m,2m,off,cpu,oldsave,season').split(','):
         if mode == 'oldsave':                        # (an old save - no 'GI' - loads the row ON)
             b = builds()['it'] if UI == 'it' else build(f'gk_inj_ui_{UI}', lang=UI)
             gk = gk_sites(b)[0]
@@ -23148,6 +23149,35 @@ def gk_inj():
                 w = gk_read(s, gk)[4:]
                 check(w == (0, 0), f'old save JUVE2F: GI_W, GI_SH {w} after the load (want 0 = ON)', errs)
                 notes.append(f'oldsave: GI {w}')
+            continue
+        if mode == 'season':                         # (a SEASON: the CPU keepers rolled too, GT 3; Italy 1947-48)
+            b = nop_league_int3(f'gk_inj_1m_{UI}', build(f'gk_inj_1m_{UI}', env={'GKINJ_FORCE': '1m'}, lang=UI))
+            cc, t1, t2, g1, gl, top = cc_sites(b)
+            gk, career, cmpl = gk_sites(b)
+            with Session(f'gk_inj_season_{UI}', b, {}, 'dump:2', 900, match=True) as s:
+                s.wait()
+                s.poke(s.result.base2 + gl[1], b'\x03\x00')
+                for t in ('STAGIONE', 'STAG. STORICHE', 'ITALIA 1947-48', 'JUVENTUS'):
+                    if press(s, s.screen(), t, 2) is None:
+                        errs.append(f'season: {t} not reached')
+                        break
+                else:
+                    for _ in range(14):
+                        scr = s.screen()
+                        if scr.entries[scr.selected][1] == 'STAGIONE':
+                            break
+                        s.send(('right' if scr.entries[scr.selected][1] == 'ABBANDONA' else 'down') + ' dump:0.5')
+                    s.send('fire dump:3')
+                    res = cc_match(s, t1, t2, g1, 'season1')
+                    st = gk_read(s, gk)
+                    hum = [p for p, r in zip(s.cc_ptrs, res) if r[0] != 1]
+                    cpu = [p for p, r in zip(s.cc_ptrs, res) if r[0] == 1]
+                    kl = lambda t: s.result.read(t + 0x4C + s.result.read(t + 0x3C, 1)[0] * 0x26 + 0x1B, 1)[0] & 0xE0
+                    hk, ck = (kl(hum[0]) if hum else None), (kl(cpu[0]) if cpu else None)
+                    notes.append(f'season: match 1 {res}, rolls {st[0]}, hits {st[1]}, human keeper {hk}, CPU keeper {ck}')
+                    check(len(hum) == 1 and len(cpu) == 1 and hk == gkinj.LVL1 and ck in {gkinj.LVL1, 0x20, 0}
+                          and st[0] > 2, f'season: human keeper {hk}, CPU keeper {ck}, rolls {st[0]} (want the CPU '
+                          f'keepers rolled too: rolls > 2)', errs)
             continue
         env = {'GKINJ_FORCE': '1m' if mode in ('off', 'cpu') else mode}
         b = nop_league_int3(f'gk_inj_{mode}_{UI}', build(f'gk_inj_{env["GKINJ_FORCE"]}_{UI}', env=env, lang=UI))
@@ -23259,6 +23289,58 @@ def cpu_inj_season():
         notes.insert(0, f'RESULT: {"heals" if healed else "never heals"} ({len(healed)}/{len(inj)} counted down after '
                         f'{n_more} more matches)' if inj else 'RESULT: no CPU injury in match 1 (rerun)')
     return True, '; '.join(notes)
+
+
+@scenario
+def cpu_inj_preset():
+    """MEASUREMENT (4.0.6 cpucards, Regia 04/11): in a PRESET competition (CLASSIC TOURNEYS > COPPA MONDIALE 1934, every
+    team by the computer, results only: cseg_903B1's injuries, cpucards' guard 13 open), does a CPU injury ever count
+    down? Every cached team's records (g_numSelectedTeams = careerTeam + 95151, the cache after it, 684 B a team) read
+    at each round: an injury level that goes down = heals. Reports only (PASS = measured)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import gkinj
+    import lepatch
+    b = build(f'cpu_inj_{UI}', env={'INJ_FORCE': '1'}, lang=UI)
+    career = gkinj.find(lepatch.LEPatch(os.path.join(ROOT, 'orig', UI_ORIG)))['CAREER']
+    seen, downs, rounds = {}, [], []
+    with Session(f'cpu_inj_preset_{UI}', b, {}, 'dump:2', 900) as s:
+        s.wait()
+        numsel = s.result.base2 + career[1] + 95151
+
+        def snap(tag):
+            n = struct.unpack('<H', s.result.read(numsel, 2))[0]
+            buf = s.result.read(numsel + 2, 684 * min(n, 120))
+            inj = 0
+            for t in range(min(n, 120)):
+                name = buf[684 * t + 5:684 * t + 22].split(b'\0')[0].decode('latin1')
+                for i in range(16):
+                    lv = buf[684 * t + 76 + 38 * i + 0x1B] >> 5
+                    k = (name, i)
+                    if lv:
+                        inj += 1
+                    if k in seen and lv < seen[k] and seen[k] > 1:
+                        downs.append((tag, name, i, seen[k], lv))
+                    seen[k] = lv
+            rounds.append((tag, n, inj))
+
+        for t in ('COMP. PREDEFINITA', 'TORNEI STORICI', 'COPPA MONDIALE 1934', 'TORNEO'):
+            if press(s, s.screen(), t) is None:
+                return False, f'{t} not reached'
+        for k in range(300):
+            scr = s.screen()
+            if k % 3 == 0:
+                snap(f'step{k}:{scr.entries[0][1].strip()[-16:]}')
+            for want in ('VIS. RISULTATI', 'REPLAY', 'PROSS. PARTITA', 'PROSSIMO TURNO', 'TURNO RITORNO', 'CONTINUA', 'OK'):
+                i = scr.find(want, exact=True)
+                if i is not None:
+                    break
+            else:
+                break
+            press(s, scr, i, wait=3)
+        snap('end')
+    res = 'heals' if downs else 'never heals'
+    return True, (f'RESULT: {res} ({len(downs)} level decreases; injured records per snapshot '
+                  f'{[(t, n, j) for t, n, j in rounds][:30]}; decreases {downs[:8]})')
 
 
 def cpucards_label():

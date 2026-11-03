@@ -15144,6 +15144,10 @@ def world_cgame_view():
                         and not e[2] and complist.px(t.upper()) > g[2]]   # (visible entries: the game's own hidden
                                                                           #  texts - FR's tooltips - aside)
                 check(not over, f'{conf} {label}: texts wider than their boxes {over[:4]}', errs)
+                win = {'it': r'VINCE', 'en': r'WIN', 'fr': r'VICT(?:OIRE DE)?', 'de': r'GEWINNT'}[UI]
+                for t in raw:                           # (the game's tie line: the winner's score first - the
+                    for a, b in re.findall(win + r'\D*?(\d+)-(\d+)', t.upper()):   # aggregate, the shoot-out)
+                        check(int(a) > int(b), f'{conf} {label}: winner first but {a}-{b} in {t.strip()!r}', errs)
                 if v.find('PASSA') is not None:         # (a group stage: the game's next-stage button - its view, back)
                     press(s, v, v.entries[v.find('PASSA')][1], 4)
                     s.shot(f'cgv_{k}_{j}_passa')

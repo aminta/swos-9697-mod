@@ -22398,6 +22398,100 @@ def bteam_ui():
 
 
 @scenario
+def bteam_rules():
+    """4.0.6 B-team call-ups, M4 rules (BTEAM_FORCE build, SWOSTEST_BUILD): a World 2026-27 career at an A-League club
+    (BT_RULES_CLUB, default BRISBANE ROAR: B team BRISBANE ROAR 2, AUS rules = no over-age player at all, the keeper
+    included, season windows 24/6-15/9 and 12/1-8/2). At the first squad screen the harness's mailbox asks: an U23
+    for one match (ok), an over-age outfield player (over-age cap), an over-age keeper (over-age cap: AUS has no keeper
+    exception), an U23 for the season with the calendar's week poked to 1/11 for the run (window closed). PASS: the codes
+    as bteam's rules give them from BAGE's ages; squad +1; the bank unchanged."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import bteam
+    import finance
+    import lepatch
+    exe = builds()['it']
+    v = bteam_vars(exe)
+    if v['mb'] is None:
+        return False, f'{exe}: no BTRQ mailbox (not a BTEAM_FORCE build)'
+    me = os.environ.get('BT_RULES_CLUB', 'BRISBANE ROAR')
+    path = ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27', 'ASIA', 'AUSTRALIA', 'A-LEAGUE MEN', me]
+    nbo = finance.find(lepatch.LEPatch(os.path.join(MAIN, 'orig', UI_ORIG)))['NEWBAL'][1]
+    errs, info = [], []
+    b = nop_league_int3('bteam_rules', exe)             # (the '- PARTITA -' screen's int 3, as bteam_rt)
+    with Session('bteam_rules', b, {}, 'dump:2', 900) as s:
+        s.wait()
+        if not pick_career(s, path):
+            return False, 'new career: ' + str(s.screen().texts()[:8])
+        s.send('fire dump:3')
+        for _ in range(8):
+            if 'PROSS. PARTITA' in s.screen().texts():
+                break
+            press(s, s.screen(), 'CONTINUA', 3) or press(s, s.screen(), 'ESCI', 3) or s.send('fire dump:2')
+        r = s.result
+        selw = struct.unpack('<H', bytes(r.obj2(v['sel'], 2)))[0]
+        if selw not in v['rows']:
+            return False, f'{me} ({selw:#x}): no B team in BAGE'
+        bw, ages, ri = v['rows'][selw]
+        cap, u23, gk_any, _ = bteam.RULES[bteam.RULE_IDS[ri]]
+        bn = bteam_names(exe, bw)
+        d = open(os.path.join(exe, 'DATA', 'TMW5.%03d' % (bw & 0xFF)), 'rb').read()[2 + (bw >> 8) * 684:]
+        gk = [d[76 + i * 38 + 0x1A] >> 5 == 0 for i in range(16)]
+        y0 = 126                                         # (the 2026-27 season: born 2003 on = U23, age code 103)
+        young = [a == 0 or a >= y0 - u23 for a in ages]
+        pick = lambda want_young, want_gk: next((i for i in range(16) if bn[i] and young[i] == want_young
+                                                 and gk[i] == want_gk), None)
+        cases = [('U23', 1, pick(True, False), 0), ('over-age', 1, pick(False, False), 2),
+                 ('over-age keeper', 1, pick(False, True), 0 if gk_any else 2), ('U23 season', 2, None, 3)]
+        used = {c[2] for c in cases if c[2] is not None}
+        cases[3] = cases[3][:2] + (next(i for i in range(16) if bn[i] and young[i] and i not in used), 3)
+        if any(c[2] is None for c in cases):
+            return False, f'{me}: B team {bw:#x} lacks a case {[(c[0], c[2]) for c in cases]} (ages {ages})'
+        info.append(f'{me} {selw:#x}: B {bw:#x} rules {bteam.RULE_IDS[ri]} (cap {cap}, U{u23}, keeper any age {gk_any})')
+        n0, _, _, _ = bteam_state(s, v)
+        b0 = struct.unpack('<i', bytes(s.result.obj2(nbo, 4)))[0]
+        reqs = [(k, i) for _, k, i, _ in cases]
+        import split                                    # the week forced out of the windows (1/11) for the mailbox run
+        d3 = bytes(lepatch.LEPatch(os.path.join(exe, 'ITALIAN.EXE')).get(3, 0, v['mb'][1]))
+        bw_at = [m.start() for m in re.finditer(rb'\x0f\xb7\x05....\x0f\xb6\x80....\xc3', d3, re.S)]
+        check(len(bw_at) >= 1, 'bt_week not found', errs)
+        q = r.read(r.lin((3, bw_at[-1])), 14)
+        cur_lin, cal1_lin = struct.unpack_from('<I', q, 3)[0], struct.unpack_from('<I', q, 10)[0]
+        wk_lin = cal1_lin + struct.unpack('<H', bytes(r.read(cur_lin, 2)))[0]
+        wk0, closed = r.read(wk_lin, 1)[0], split.week_of('1/11')
+        info.append(f'week {wk0} -> {closed} for the requests')
+        s.poke(wk_lin, bytes([closed]))
+        s.poke(r.lin(v['mb']) + 1, b''.join(bytes(q) for q in reqs) + b'\xff' * (16 - 2 * len(reqs)))
+        s.poke(r.lin(v['mb']), bytes([len(reqs)]))
+        for _ in range(10):                             # PARTITA: ShowPlayMatchMenu (cseg_52588) runs the mailbox
+            texts = s.screen().texts()
+            if 'MOD. TATTICA' in texts:
+                break
+            if 'TRASFERIMENTI' in texts and 'PARTITA' in texts:
+                press(s, s.screen(), 'PARTITA', 2) or s.send('fire dump:2')
+            elif '- PARTITA -' in texts:
+                press(s, s.screen(), '- PARTITA -', 2) or s.send('fire dump:2')
+            else:
+                s.send('fire dump:2')
+        else:
+            return False, f'no play-match screen: {s.screen().texts()[:12]}'
+        s.poke(wk_lin, bytes([wk0]))
+        r = s.result
+        mb = r.read(r.lin(v['mb']), 26)
+        res = list(mb[17:17 + len(reqs)])
+        check(mb[0] == 0, f'mailbox not run: count {mb[0]}', errs)
+        for (what, k, i, want), c in zip(cases, res):
+            info.append(f'{what} {bn[i]} (idx {i}, age {ages[i]}, kind {k}): {bteam.CODES[c] if c < len(bteam.CODES) else c}')
+            check(c == want, f'{what} {bn[i]}: code {c} (want {want} {bteam.CODES[want]})', errs)
+        n1, _, _, bu1 = bteam_state(s, v)
+        b1 = struct.unpack('<i', bytes(r.obj2(nbo, 4)))[0]
+        check(n1 == n0 + sum(1 for c in res if c == 0), f'squad {n0} -> {n1}', errs)
+        check(b1 == b0, f'bank {b0} -> {b1}', errs)
+        info.append(f'squad {n0} -> {n1}, BU {bu1}')
+        s.shot('rules_squad')
+    return not errs, '; '.join(errs + info)
+
+
+@scenario
 def bteam_season():
     """4.0.6 B-team call-ups, M2 return (2): bteam_rt's save (ATALANTA, players called up for the season) played to
     the season's end (world8485: W8485_FROM, saved before CONTINUA), CONTINUA CARRIERA, the next season saved and

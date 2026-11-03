@@ -5430,6 +5430,24 @@ def bench_vars():
     return bench_vars.v
 
 
+def cam_settle(s, tries=20):
+    """(4.0.6 long dugouts) dumps until the camera (g_cameraX, g_cameraY) is at the bench and stands still: on the way to
+    a dugout away from the halfway line the bench is drawn (and takes keys) only once the camera's y is in the arrival
+    window (MoveCamera's x limit 37 before it; DrawBenchAndSubsMenu wants g_cameraX < g_benchXLimit + 8 = 35); the
+    camera does not move during g_goToSubsTimer either. Returns (the last result, (x, y))."""
+    v = bench_vars()
+    r, last, cam = s.result, None, None
+    for _ in range(tries):                  # (the camera moves 5 px a frame at most, slower near its destination)
+        r = s.send('dump:0.3')
+        if r.outcome != 'dump':
+            return r, None
+        cam = tuple(struct.unpack('<H', r.read(r.base2 + v['CAMY'] + o, 2))[0] for o in (-4, 0))
+        if cam == last and cam[0] < 35:
+            break
+        last = cam
+    return r, cam
+
+
 DUG_SPR = 17                                # (4.0.6) the seated sprite's last row below its place's y (bench_world 03/11)
 
 
@@ -5442,16 +5460,10 @@ def dugout_check(s, n, gone, errs, info, tag=''):
     seated, none past it. Returns (pitch, camera y, last place seen) or None."""
     v = bench_vars()
     w16 = lambda r, o: struct.unpack('<H', r.read(r.base2 + o, 2))[0]
-    r, last = s.result, None
-    for _ in range(12):                     # (the camera moves 5 px a frame at most: wait until it stands still)
-        r = s.send('dump:0.3')
-        if r.outcome != 'dump':
-            errs.append(f'{tag}dugout: {r}')
-            return None
-        cam = (w16(r, v['CAMY'] - 4), w16(r, v['CAMY']))
-        if cam == last:
-            break
-        last = cam
+    r, cam = cam_settle(s)
+    if r.outcome != 'dump':
+        errs.append(f'{tag}dugout: {r}')
+        return None
     by, (cx, cy) = w16(r, v['BENCHY']), cam
     check(by in (293, 485), f'{tag}dugout: benchY {by} (want 293 top / 485 bottom)', errs)
     check(abs(cy - (by + 67 - 100)) <= 10, f'{tag}dugout: camera y {cy}, not on the dugout (benchY {by}: {by - 33})', errs)
@@ -5523,6 +5535,8 @@ def bench_sub(s, bx, place, errs, info, mark, key=None, gone=None, tag=''):
         return r
     for call in range(12):
         r = s.send((key or ('pgup' if call % 2 == 0 else 'pgdn')) + ':0.3 dump:0.6')   # (key: one team's bench)
+        if r.outcome == 'dump':
+            r = cam_settle(s)[0]            # (4.0.6 long dugouts: the bench takes keys once the camera is there)
         if r.outcome != 'dump':
             errs.append(f'bench call: {r}')
             return False
@@ -6186,9 +6200,10 @@ def bench_oppl(s, bx, top, bot, errs, info, mark):
     def open_list():
         for call in range(12):
             r = s.send(('pgup' if call % 2 == 0 else 'pgdn') + ':0.3 dump:0.6')
+            cam_settle(s)                   # (4.0.6 long dugouts: the bench takes keys once the camera is there)
             r = s.send('up:0.15 dump:0.6')
             if w16(r, v['SUBST']) == 5:
-                return r
+                return cam_settle(s)[0]     # (4.0.6 long dugouts: the list drawn once the camera is at the dugout)
             s.send('left:0.3 left:0.3 dump:0.5')
         return None
     if os.environ.get('BENCH_SPP'):         # under SWOS++ (network play) the list stays shut: UP does what it did
@@ -6247,14 +6262,18 @@ def bench_oppl(s, bx, top, bot, errs, info, mark):
             r = open_list()
             if r is None:
                 errs.append(f'oppl: not reopened for {key}')
-                break
-        same(r, f'before {key}')
+                return
+            s0 = snap(r)                    # (the match ran between closing and reopening: its minutes counters at
+        same(r, f'before {key}')            # PlayerInfo + 36 move on; 4.0.6 long dugouts: the longer camera wait)
         r = s.send(key + ':0.2 dump:0.6')
         same(r, f'after {key}')
         st, idx = w16(r, v['SUBST']), w16(r, v['IDX'])
         info.append(f'oppl {key}: state {st}, cursor {idx}')
         check(st == 0 and idx == 0, f'oppl {key}: state {st}, cursor {idx} (want 0, 0)', errs)
-        check(snap(r) == s0, f'oppl {key}: the in-match teams or the substitution counters changed', errs)
+        s1 = snap(r)
+        check(s1 == s0, f'oppl {key}: the in-match teams or the substitution counters changed: '
+                        f'{[(t, [o for o in range(1704) if s1[t][o] != s0[t][o]][:12]) for t in (0, 1)]}, NS {s1[2:]} '
+                        f'(was {s0[2:]})', errs)
         r = s.send('left:0.3 left:0.3 dump:0.5')
     sp = r.base1 + ov['SWOSPP']             # SWOS++'s mark (DrawLittlePlayersAndBall+0x23: 0B8h when it runs, swospp_bench)
     check(r.read(sp, 1) == b'\xff', f'oppl: the SWOS++ mark is {r.read(sp, 1).hex()} without SWOS++', errs)

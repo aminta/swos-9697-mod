@@ -253,3 +253,15 @@ Fixtures from ANY world8485-based run (e.g. a sweep config that reproduces a bug
 (+ `HT_SNAP_OUT`, `HT_SNAP_WEEKMIN`, `HT_SNAP_MAX`) and point W8485_BUILD / the scenario's build at a HOSTTEST_SYMS
 build of the same exe (e.g. c/HT19R = c/REL405rc19 byte for byte, with ITALIAN.syms.json). Scenario `ht_snapshot`
 (HT_BUILD, HT_LABELS, HT_NAME, HT_SCEN, HT_TEAM...) does the same with the dumps in its run dir (remote_run brings them back).
+Engine step H (PLAN §19.3, 4.0.6): test_hooks.py = one Tier B test per bridge hook of PLAN §3.6 on today's code, the
+contract the engine keeps when it takes a hook over. Fixtures h_uru (a NACIONAL career, two seasons) and h_uru_load
+(its season-2 load) from c/HTI4 (406-i4 b0c5e07, release recipe + HOSTTEST_SYMS=1): gp_draw, gp_cap, gp_end,
+w_season_end, ct_daily, ct_prep, lp_sort, save_trailer, load_trailer. Each call returns, is deterministic (same pages on
+a second run), < 1 s, and writes only pages of its golden footprint (footprint.json; `HT_REGOLD=1` rewrites it after a
+deliberate change). test_save_bytes: the emulated save_trailer writes the game's own .CAR byte for byte;
+test_finish_season_flag: the game's next-day scan (cseg_8EC2B) says FINISH SEASON exactly when no career-club day is
+left. test_rules_lib.py (Tier A): the rules library's own `make test` (HT_ENGINE checkout). Emulator: the VGA status
+port 3DAh toggles (vsync waits), INT 21h create / write into memory (m.files_written, `dos_files(root, writes=True)`),
+the write hook only while m.watch has ranges. snapshot.py: --max per label; a trailer.load_* label arms before the
+load's key (W84_HOOK.pre_load). Open for step P: save(load(x)) differs from x in the trailer (5083 of 16192 B after the
+after-load callbacks) - classify it before P's persistence work.

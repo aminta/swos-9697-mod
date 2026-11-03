@@ -3323,6 +3323,8 @@ def world8485():
                     return True, 'calendar ' + bytes(s.result.obj2(CAL_AT - 4, 0x2000)).hex()
             else:
                 s.send('down down down down down fire dump:2')
+                if W84_HOOK is not None and getattr(W84_HOOK, 'pre_load', False):   # (tools/hosttest: breakpoints
+                    W84_HOOK(s, season, s.screen())                                     #  in the load itself)
                 s.send('fire dump:3')
                 if W84_HOOK is not None and getattr(W84_HOOK, 'at_load', False):   # (the loaded career's first
                     W84_HOOK(s, season, s.screen())                                    #  menu, before advance)

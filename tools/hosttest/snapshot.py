@@ -5,7 +5,7 @@
 
 Runs a World 2026-27 career (world8485; --car: one season from that save) on BUILD_DIR (a build made with
 HOSTTEST_SYMS=1: its ITALIAN.syms.json), a breakpoint at the label's entry (obj1); at each hit the whole linear memory
-(MEMDUMP, 32 MB) -> OUT_DIR/<n>.bin and <n>.json (obj bases, the hit's EIP, the build, the label). Up to --max hits."""
+(MEMDUMP, 32 MB) -> OUT_DIR/<n>.bin and <n>.json (obj bases, the hit's EIP, the build, the label). Up to --max hits per label."""
 import argparse
 import json
 import os
@@ -34,7 +34,7 @@ def make_hook(T, build, label, out, week_min=0, max_=12):
         labs.append((lab, off))
     cal, cur = sym(sy, 'uefaq.SYMS.CAL'), sym(sy, 'uefaq.SYMS.CAL_CUR')
     os.makedirs(out, exist_ok=True)
-    st = {'n': 0, 'armed': False}
+    st = {'n': 0, 'armed': False, 'per': {lab: 0 for lab, _ in labs}}   # (max_: per label)
 
     def hook(s, season, scr):
         if st['armed'] or scr is None:
@@ -45,7 +45,7 @@ def make_hook(T, build, label, out, week_min=0, max_=12):
         def hit(r, lab):
             c = int.from_bytes(r.obj2(cur[1], 2), 'little')
             week = r.obj2(cal[1] + c + 1, 1)[0]
-            if st['n'] >= max_ or week < week_min:
+            if st['per'][lab] >= max_ or week < week_min:
                 return
             mem = s.box.dump(0, T.MEMSIZE)
             k = st['n']
@@ -57,7 +57,8 @@ def make_hook(T, build, label, out, week_min=0, max_=12):
                        'season': season, 'week': week}, open(os.path.join(out, f'{k}.json'), 'w'))
             s.log.append(f'[snapshot] {lab} hit {k} week {week}')
             st['n'] += 1
-            if st['n'] >= max_:                          # (done: no more breaks - the harness re-arms what bps holds)
+            st['per'][lab] += 1
+            if all(v >= max_ for v in st['per'].values()):                          # (done: no more breaks - the harness re-arms what bps holds)
                 s.bps.clear()
                 s.box.watch.clear()
                 s.box.cmd('BPDEL *', 0.3)
@@ -65,6 +66,7 @@ def make_hook(T, build, label, out, week_min=0, max_=12):
         for lab, off in labs:
             s.bp(base1 + off, lambda r, lab=lab: hit(r, lab))
     hook.at_load = True
+    hook.pre_load = any(lab.startswith('trailer.load') for lab, _ in labs)   # (armed before the load's key)
     return hook, st
 
 

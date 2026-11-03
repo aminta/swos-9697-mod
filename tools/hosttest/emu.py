@@ -15,11 +15,11 @@ import os
 import struct
 
 from unicorn import Uc, UcError, UC_ARCH_X86, UC_MODE_32, UC_HOOK_CODE, UC_HOOK_INTR, UC_HOOK_MEM_WRITE, \
-    UC_HOOK_MEM_INVALID
+    UC_HOOK_MEM_INVALID, UC_HOOK_INSN
 from unicorn.x86_const import (UC_X86_REG_EAX, UC_X86_REG_EBX, UC_X86_REG_ECX, UC_X86_REG_EDX, UC_X86_REG_ESI,
                                UC_X86_REG_EDI, UC_X86_REG_EBP, UC_X86_REG_ESP, UC_X86_REG_EIP, UC_X86_REG_CS,
                                UC_X86_REG_DS, UC_X86_REG_ES, UC_X86_REG_SS, UC_X86_REG_FS, UC_X86_REG_GS,
-                               UC_X86_REG_GDTR, UC_X86_REG_EFLAGS)
+                               UC_X86_REG_GDTR, UC_X86_REG_EFLAGS, UC_X86_INS_IN)
 
 MEMSIZE = 0x2000000                     # the snapshot: linear 0..32 MB
 EXTRA = 0x2000000                       # ours above it: GDT, stack, the sentinel
@@ -105,8 +105,11 @@ class Machine:
         self.watch = []                               # [(lo, hi)]: writes there raise StrayWrite
         self.steps = 0
         uc.hook_add(UC_HOOK_INTR, self._intr)
+        self.ports = {}                               # IN reads per port (0x3DA: the VGA status, bit 3 toggled)
+        uc.hook_add(UC_HOOK_INSN, self._in, None, 1, 0, UC_X86_INS_IN)
         uc.hook_add(UC_HOOK_CODE, self._code, begin=SENTINEL, end=SENTINEL)
-        uc.hook_add(UC_HOOK_MEM_WRITE, self._write)
+        self._wh = None                               # (the write hook: only while watch has ranges - a
+                                                      #  Python callback per write doubles a long call)
 
     def overlay(self, mem, old_build, new_build):
         """The new build's obj1 / obj2 over the snapshot, its state kept: the bytes the game changed at run time (snapshot
@@ -176,11 +179,12 @@ class Machine:
                     best = (v[1], f'{m}.{k}')
         return (best[1], off - best[0]) if best else (None, 0)
 
-    def dos_files(self, root):
+    def dos_files(self, root, writes=False):
         """INT 21h file services from a game dir (the build's: ITALIAN.EXE's dir, DATA under it): open (3Dh), read
         (3Fh), seek (42h), close (3Eh); paths case-insensitive, relative to root; a write (40h) or any other function
-        stops the run. self.files_read: the paths opened."""
-        self.files, self.files_read = {}, []
+        stops the run. self.files_read: the paths opened. writes=True: create (3Ch) and write (40h) too, into memory
+        only (self.files_written: path -> bytes; a later open reads that copy), never on disk."""
+        self.files, self.files_read, self.files_written = {}, [], {}
         names = {}
         for dp, dn, fn in os.walk(root):
             for f in fn:
@@ -197,12 +201,19 @@ class Machine:
                 key = raw.replace('\\', '/').lstrip('/').lower()
                 key = key[2:] if len(key) > 1 and key[1] == ':' else key
                 path = names.get(key)
+                if key in m.files_written:
+                    h = 5 + len(m.files)
+                    m.files[h] = [bytearray(m.files_written[key]), 0, key]
+                    m.files_read.append(key)
+                    m.reg('eax', h)
+                    cf(0)
+                    return True
                 if not path:
                     m.reg('eax', 2)
                     cf(1)
                     return True
                 h = 5 + len(m.files)
-                m.files[h] = [open(path, 'rb').read(), 0]
+                m.files[h] = [bytearray(open(path, 'rb').read()), 0, key]
                 m.files_read.append(key)
                 m.reg('eax', h)
                 cf(0)
@@ -214,7 +225,7 @@ class Machine:
                     return True
                 n = m.reg('ecx')
                 data = f[0][f[1]:f[1] + n]
-                m.uc.mem_write(m.reg('edx'), data)
+                m.uc.mem_write(m.reg('edx'), bytes(data))
                 f[1] += len(data)
                 m.reg('eax', len(data))
                 cf(0)
@@ -226,6 +237,29 @@ class Machine:
                 f[1] = off if al == 0 else f[1] + off if al == 1 else len(f[0]) + off
                 m.reg('eax', f[1] & 0xFFFF)
                 m.reg('edx', f[1] >> 16)
+                cf(0)
+                return True
+            if ah == 0x3C and writes:
+                raw = bytes(m.uc.mem_read(m.reg('edx'), 128)).split(b'\0')[0].decode('latin-1')
+                key = raw.replace('\\', '/').lstrip('/').lower()
+                key = key[2:] if len(key) > 1 and key[1] == ':' else key
+                h = 5 + len(m.files)
+                m.files[h] = [bytearray(), 0, key]
+                m.files_written[key] = b''
+                m.reg('eax', h)
+                cf(0)
+                return True
+            if ah == 0x40 and writes:
+                f = m.files.get(m.reg('ebx') & 0xFFFF)
+                if not f:
+                    cf(1)
+                    return True
+                n = m.reg('ecx')
+                data = bytes(m.uc.mem_read(m.reg('edx'), n)) if n else b''
+                f[0][f[1]:f[1] + n] = data
+                f[1] += n
+                m.files_written[f[2]] = bytes(f[0])
+                m.reg('eax', n)
                 cf(0)
                 return True
             if ah == 0x3E:
@@ -276,6 +310,11 @@ class Machine:
         self.uc.reg_write(UC_X86_REG_ESP, esp)
         for k, v in (regs or {}).items():
             self.reg(k, v)
+        if self.watch and self._wh is None:
+            self._wh = self.uc.hook_add(UC_HOOK_MEM_WRITE, self._write)
+        elif not self.watch and self._wh is not None:
+            self.uc.hook_del(self._wh)
+            self._wh = None
         self._err = None
         try:
             self.uc.emu_start(self.lin(where), SENTINEL, count=max_insn)
@@ -298,6 +337,12 @@ class Machine:
 
     def _code(self, uc, addr, size, data):
         uc.emu_stop()
+
+    def _in(self, uc, port, size, data):
+        """IN: the VGA input status (3DAh) alternates retrace / display at every read (the game's vsync waits),
+        any other port reads 0"""
+        n = self.ports[port] = self.ports.get(port, 0) + 1
+        return (8 | 1) if port == 0x3DA and n & 1 else 0
 
     def _intr(self, uc, intno, data):
         eip = uc.reg_read(UC_X86_REG_EIP)

@@ -21831,16 +21831,20 @@ def kbfirst():
 
             a = state(s.result)
             kcf(s, 2)                                   # DOWN held
-            s.send('dump:0.3')
-            b = state(s.result)
-            s.send('dump:1')
-            c = state(s.result)
+            seq = []
+            for _ in range(8):                          # (no controlled player while the ball is out - a corner, a
+                s.send('dump:0.5')                      #  throw-in: sampled until two readings in play show the move)
+                seq.append(state(s.result))
+                ys = [x[2] for x in seq[-2:]]
+                if len(ys) == 2 and None not in ys and ys[1] > ys[0]:
+                    break
             kcf(s, 0)
             info.append(f'match (playerNumber {pn}): stick UP pl1Direction / team direction / player y {a}; DOWN held '
-                        f'{b} -> {c}')
+                        f'{seq}')
             check(a[:2] == (0, 0), f'match: the stick UP not read: {a}', errs)
-            check(b[:2] == (4, 4) and c[:2] == (4, 4), f'match: DOWN held: {b}, {c}', errs)
-            check(None not in (b[2], c[2]) and c[2] > b[2], f'match: the controlled player did not go down: y {b[2]} -> {c[2]}',
+            check(all(x[:2] == (4, 4) for x in seq), f'match: DOWN held: {seq}', errs)
+            ys = [x[2] for x in seq[-2:]]
+            check(len(ys) == 2 and None not in ys and ys[1] > ys[0], f'match: the controlled player did not go down: {seq}',
                   errs)
             s.shot('match_down')
     finally:

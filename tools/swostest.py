@@ -15029,6 +15029,9 @@ def world_contiview():
             if k == 1:
                 check(not LIST_BAD, f'season 2 VISUAL. COMPETIZ. list: {LIST_BAD}', errs)
             check(bool(lines) and lines[0], f'season 2 page {k}: {lines}', errs)
+            import complist                             # (every character one the menu font draws)
+            odd = sorted({ch for x in lines + [x for p in pages for x in p] + [title] for ch in x.upper()} - complist.FONT)
+            check(not odd, f'season 2 page {k}: characters outside the menu font {odd}', errs)
             b1 = st()
             dif = [(n, i, b0[j][i], b1[j][i]) for j, n in enumerate(('SEG', 'ED')) for i in range(len(b0[j]))
                    if b0[j][i] != b1[j][i]]
@@ -15039,6 +15042,115 @@ def world_contiview():
                 info.append(f'page {k}: CT_SEG computed from the load\'s empty one ({dif[:3]})')
             b0 = b1
             info.append(f'{names[k - 1]}: {lines[:3]} +{len(pages)} pages')
+    return not errs, '; '.join(errs) or '; '.join(info)
+
+
+@scenario
+def world_contiview_old():
+    """4.0.6 COPPE CONTINENTALI on an older career (M4): season 1 of an INTER career on the 4.0.5 release exe (CV_OLD,
+    default c/REL405/SWOS: no view), its save loaded by this build as world_contiview's season 2 (CV_S2): every
+    confederation's page opens, its texts in the font, CT_SEG / CT_ED unchanged by the view (ct_resume on the old
+    edition), no hang"""
+    old = os.environ.get('CV_OLD') or os.path.join(MAIN, 'c', 'REL405', 'SWOS')
+    if not os.path.isdir(old):
+        return True, f'SKIP: old release {old} missing'
+    s2 = os.path.join(RUNS, f'cv_old_{UI}.CAR')
+    if not os.path.exists(s2):
+        ok, msg, _ = sc_season('EUROPA,ITALIA,SERIE A,INTER', dict(W8485_BUILD=old))
+        car = os.path.join(RUNS, w84_tag() + '_1', 'SWOS', 'W84A.CAR')
+        if not ok or not os.path.exists(car):
+            return False, f'old season 1: {msg[:200]}'
+        shutil.copy(car, s2)
+    keep = os.environ.get('CV_S2')
+    os.environ['CV_S2'] = s2
+    try:
+        ok, msg = world_contiview()
+    finally:
+        if keep is None:
+            os.environ.pop('CV_S2', None)
+        else:
+            os.environ['CV_S2'] = keep
+    return ok, f'4.0.5 save: {msg}'
+
+
+@scenario
+def world_contiview_tie():
+    """4.0.6 COPPE CONTINENTALI with the career club in a conti cup (M4): a FLAMENGO career on a test build with
+    CONTI_FORCE=lib:q1 (the club into the Libertadores' first qualifying round at every season end) and CONTI_KOWIN (it
+    wins its conti ties). Season 1 played; season 2 (its save) saved at its 5th Libertadores result screen (q3's first
+    leg, September: q1 and q2, August, are over). The view (CONMEBOL first, the club's own): q1 and q2 list FLAMENGO's
+    ties with its '>' (through), q3 its tie without one (the next game: the opponent of that result screen), the
+    groups DA GIOCARE; CT_SEG / CT_ED unchanged by the view (CV_TIE_S2: a cached season-2 save)"""
+    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    exe = os.environ.get('CV_TIE_BUILD') or build('world_contiview_tie', env={
+        'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]),
+        'CONTI_FORCE': 'lib:q1', 'CONTI_KOWIN': '1'}, lang=UI)
+    tr = cv_trace(exe)
+    if not tr:
+        return False, 'no CVTRPTR block (ctview not in the build)'
+    seg_at, ed_at = tr[0], tr[1]
+    import ctview
+    T = [x.decode('latin1') for x in ctview.TEXTS[UI]]
+    team = 'SUDAMERICA,BRASILE,BRASILEIRAO SERIE A,FLAMENGO'
+    mid = os.environ.get('CV_TIE_S2') or os.path.join(RUNS, f'cv_tie_{UI}.CAR')
+    opp = None
+    if not os.path.exists(mid):
+        ok, msg, _ = sc_season(team, dict(W8485_BUILD=exe))
+        car = os.path.join(RUNS, w84_tag() + '_1', 'SWOS', 'W84A.CAR')
+        if not ok or not os.path.exists(car):
+            return False, f'season 1: {msg[:200]}'
+        s1 = os.path.join(RUNS, f'cv_tie_s1_{UI}.CAR')
+        shutil.copy(car, s1)
+        ok, msg, l2 = sc_season(team, dict(W8485_BUILD=exe, W8485_FROM=s1, W8485_MIDTEXT='LIBERTADORES:5'), 2)
+        if not ok or 'saved mid-season' not in msg:
+            return False, f'season 2 to q3\'s first leg: {msg[:200]}'
+        shutil.copy(msg.split(': ', 1)[1], mid)
+        res = [ln for ln in l2 if ln.startswith('[') and 'LIBERTADORES' in ln.split('|')[0] and '- RISULTATO -' in ln]
+        if res:                                         # (the last one: q3's first leg - its two clubs)
+            opp = [t for t in (x.strip() for x in res[-1].split('|')) if t and t != 'FLAMENGO']
+    errs, info = [], []
+    with Session('world_contiview_tie', exe, {'W84A.CAR': mid}, 'dump:2', 300) as s:
+        s.wait()
+        s.send(LOAD1 + ' dump:3')
+        for _ in range(6):
+            if s.screen().find('VISUAL. COMPETIZ.', exact=True) is not None:
+                break
+            press(s, s.screen(), 'CONTINUA', 3) or s.send('fire dump:2')
+        st = lambda: (bytes(s.result.obj2(seg_at, 72)), bytes(s.result.obj2(ed_at, 2260)))
+        b0 = st()
+        pages = []
+        btn, title, lines = contiview_open(s, 1, pages)
+        b1 = st()
+        allx = lines + [x for p in pages for x in p]
+        s.log.append(f'[cv] tie {btn} {title} {allx}')
+        sys.path.insert(0, os.path.join(ROOT, 'tools'))
+        import complist                                 # (every character one the menu font draws: '>' was a box)
+        odd = sorted({ch for x in allx + [title] for ch in x.upper()} - complist.FONT)
+        check(not odd, f'characters outside the menu font {odd}', errs)
+        check(btn and btn[0] == 'CONMEBOL', f'buttons {btn}', errs)
+        check(not LIST_BAD, f'VISUAL. COMPETIZ. list: {LIST_BAD}', errs)
+        check(not any(b0[1][i] != b1[1][i] for i in range(len(b0[1]))) and (b0[0] == b1[0] or not any(b0[0])),
+              'CT_SEG / CT_ED changed by the view', errs)
+        lib = []
+        for x in allx:                                  # (the Libertadores' lines: up to the next cup's title)
+            if lib and x and not x.startswith(' ') and ':' not in x:
+                break
+            if x == 'COPA LIBERTADORES' or lib:
+                lib.append(x)
+        fl = [x for x in lib if 'FLAMENGO' in x]
+        info.append(f'FLAMENGO lines {fl}')
+        check(len(fl) >= 3, f'FLAMENGO in fewer than 3 Libertadores rounds: {lib}', errs)
+        if len(fl) >= 3:
+            check(all('>FLAMENGO' in x for x in fl[:2]), f"q1 / q2 without FLAMENGO's '>': {fl[:2]}", errs)
+            check('>' not in fl[2], f"q3 (its next game) with a '>': {fl[2]}", errs)
+            other = [x.strip(' >') for x in fl[2].split(' - ') if 'FLAMENGO' not in x]
+            if opp is not None:                         # (its other club exactly one of that screen's texts)
+                check(len(other) == 1 and other[0] in opp, f'q3 tie {fl[2]!r} is not the result screen\'s', errs)
+            later = lib[lib.index(fl[2]) + 1:]
+            check(any(T[1] in x for x in later), f'no {T[1]} round after q3: {later}', errs)
     return not errs, '; '.join(errs) or '; '.join(info)
 
 

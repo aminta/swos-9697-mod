@@ -108,7 +108,8 @@ Trace commits moved onto branch 406-bteam2 (off 406-i7c). Hook points re-checked
   cleared) overwrites that change-list entry's 38 bytes AND the cached record slot (if cached); then cseg_52EA6-style
   removal from careerTeam (xl_rm told: not an XTRA leaver - bteam flag).
 - **Age**: U23 = age code (birth - 1900) >= season's first year - 1900 - U23 limit (season year from the career's
-  season counter); 0 = unknown -> callable, not over-age. GK: any age, not counted as over-age.
+  season counter); 0 = unknown -> callable, not over-age. GK: any age, not counted as over-age, where the
+  country's rules have the GK flag (BR flags bit 0, BAGE version 2: on in Europe, off in AUS / NZL - Davide 03/11).
 - **Windows**: current week = CAL[CAL_CUR].week (gplay gp_week); open if first <= week <= last for a window of the
   B team's rules (BAGE 'BR'); per-window count of (2) kept in BU (entries of kind 2 with their window number in the
   high bit of kind).
@@ -136,7 +137,10 @@ Trace commits moved onto branch 406-bteam2 (off 406-i7c). Hook points re-checked
   - QLD (BRISBANE ROAR 2): Football Queensland 2026 Advanced Leagues Rules of Competition, f) "Players registering
     to Brisbane Roar NPL Men's Team must be under the age of 23 (born 2003 or later)"; exemptions only on application.
     https://footballqueensland.com.au/wp-content/uploads/2025/10/2026-Football-Queensland-Advanced-Leagues-Rules-of-Competition.pdf
-  - No goalkeeper exception in the three (the engine gives a goalkeeper any age: a difference, asked to Regia).
+  - No goalkeeper exception in the three. DECIDED (Davide A = (b), 03/11): per-country flag "GK any age" in
+    bteam.RULES, OFF for AUS, so an Australian keeper over 23 counts as over-age (cap 0: refused).
 - **Over-age, New Zealand reserves (AUCKLAND FC RES, PHOENIX RES.)**: NOT FOUND in an official 2026 source. Only
   Wikipedia (Wellington Phoenix FC Reserves): "up to four professional players are eligible to play for the reserves"
   + two U20s by agreement - a limit on first-team pros playing down, not an age cap. Asked to Regia before choosing.
+  DECIDED (Davide B = (b), 03/11): APPROXIMATION - cap 0 and no keeper exception, like Australia (the reserves play
+  in the Australian-style U23 model); the release notes say it is an approximation.

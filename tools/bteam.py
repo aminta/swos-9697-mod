@@ -4,13 +4,14 @@ over-age cap, at most 4 a match, back to the B team after the match, no money), 
 window, in the country's real transfer windows, a generated replacement in the B record, the game's wages).
 
 This file, step 1: the data. DATA\\BAGE.nnn (nnn = the world) is read by the exe when the call-up page opens:
-  'BA', db version 1, db teams
+  'BA', db version 2, db teams
   per team (the career club = parent):  dw B team word, dw parent team word (file | ordinal << 8), db rules index,
                                         db players (record places 1..16, then its XTRA places 17..), db age codes
                                         (birth year - 1900; 0 = unknown: callable, never over-age)
   'BR', db rules
   per rules:                            db over-age cap (one-match call-ups: players older than U23 among those
-                                        called; 0FFh = no cap), db U23 age limit,
+                                        called; 0FFh = no cap), db U23 age limit, db flags (bit 0: a goalkeeper
+                                        is callable at any age; off in Australia / New Zealand),
                                         db windows, (db first week, db last week) x windows (split.week_of: the
                                         career calendar's week byte, 8 a month from January of the season's first
                                         year, +96 the next year)
@@ -34,15 +35,17 @@ import split
 #        2026 6.1.8, Football Queensland 2026 f; sources in notes/bteam-trace.md); windows = Football Australia's
 #        2026/27 men's windows: 24 Jun - 15 Sep 2026, 12 Jan - 8 Feb 2027 (Domestic Match Calendar 2026/27).
 #   NZL: AUCKLAND / WELLINGTON are A-League clubs: the same FA windows; the reserves' over-age cap NOT FOUND in an
-#        official source (placeholder 4, asked to Regia 03/11).
+#        official source: APPROXIMATION (Davide B = (b), 03/11): no over-age player, like Australia.
+#   GK flag (Davide A = (b), 03/11): Europe's B-team rules let a goalkeeper of any age play; AUS has no keeper
+#        exception (U23 squads), NZL follows AUS.
 RULES = {
-    'ita': (4, 23, (('1/7', '1/9'), ('2/1+1', '2/2+1'))),
-    'ger': (3, 23, (('1/7', '1/9'), ('1/1+1', '1/2+1'))),
-    'esp': (4, 23, (('1/7', '1/9'), ('2/1+1', '2/2+1'))),
-    'ned': (0xFF, 23, (('1/7', '1/9'), ('2/1+1', '2/2+1'))),
-    'por': (4, 23, (('1/7', '1/9'), ('2/1+1', '2/2+1'))),
-    'aus': (0, 23, (('24/6', '15/9'), ('12/1+1', '8/2+1'))),
-    'nzl': (4, 23, (('24/6', '15/9'), ('12/1+1', '8/2+1'))),
+    'ita': (4, 23, True, (('1/7', '1/9'), ('2/1+1', '2/2+1'))),
+    'ger': (3, 23, True, (('1/7', '1/9'), ('1/1+1', '1/2+1'))),
+    'esp': (4, 23, True, (('1/7', '1/9'), ('2/1+1', '2/2+1'))),
+    'ned': (0xFF, 23, True, (('1/7', '1/9'), ('2/1+1', '2/2+1'))),
+    'por': (4, 23, True, (('1/7', '1/9'), ('2/1+1', '2/2+1'))),
+    'aus': (0, 23, False, (('24/6', '15/9'), ('12/1+1', '8/2+1'))),
+    'nzl': (0, 23, False, (('24/6', '15/9'), ('12/1+1', '8/2+1'))),
 }
 RULE_IDS = list(RULES)
 MAX_MATCH = 4                   # (1) at most 4 called up for one match
@@ -97,14 +100,14 @@ def bage(packs):
         by_world.setdefault(w, []).append((team_word(pk, k), team_word(ppk, par), RULE_IDS.index(r), ages(pk, k)))
     out = {}
     for w, rows in sorted(by_world.items()):
-        d = b'BA' + bytes((1, len(rows)))
+        d = b'BA' + bytes((2, len(rows)))
         for bw, pw, ri, a in rows:
             assert len(a) <= 30, (w, bw, len(a))
             d += struct.pack('<HHBB', bw, pw, ri, len(a)) + bytes(a)
         d += b'BR' + bytes((len(RULE_IDS),))
         for r in RULE_IDS:
-            cap, u, wins = RULES[r]
-            d += bytes((cap, u, len(wins))) + b''.join(bytes((split.week_of(a), split.week_of(b))) for a, b in wins)
+            cap, u, gk, wins = RULES[r]
+            d += bytes((cap, u, int(gk), len(wins))) + b''.join(bytes((split.week_of(a), split.week_of(b))) for a, b in wins)
         out['BAGE.%03d' % w] = d
     return out
 
@@ -118,6 +121,8 @@ def files():
 def write(data_dir):
     """patch.py: the BAGE files into the build's DATA; a summary line."""
     fs = files()
+    if not os.path.isdir(data_dir):                 # (a GOG exe of a release build: its DATA is SWOS/DATA, written there)
+        return 'no DATA beside the exe (not written)'
     for n, d in fs.items():
         with open(os.path.join(data_dir, n), 'wb') as f:
             f.write(d)
@@ -270,7 +275,7 @@ bt_load:                                ; ZF = 0 when this career world's DATA\\
     jb .close
     cmp word [btbuf], 'BA'
     jne .close
-    cmp byte [btbuf + 2], 1
+    cmp byte [btbuf + 2], 2
     jne .close
     mov byte [btok], 1
 .close:
@@ -308,7 +313,7 @@ bt_team:                                ; ax = the parent's team word -> esi = i
     pop ecx
     ret
 
-bt_rules:                               ; al = rules index -> esi = its BR row (cap, U23 limit, windows, (first, last)..)
+bt_rules:                               ; al = rules index -> esi = its BR row (cap, U23 limit, flags, windows, (first, last)..)
     push eax
     push ecx
     push edx
@@ -327,8 +332,8 @@ bt_rules:                               ; al = rules index -> esi = its BR row (
 .r:
     test edx, edx
     jz .o
-    movzx eax, byte [esi + 2]
-    lea esi, [esi + 3 + eax * 2]
+    movzx eax, byte [esi + 3]
+    lea esi, [esi + 4 + eax * 2]
     dec edx
     jmp .r
 .o:
@@ -451,8 +456,11 @@ bt_can:                                 ; al kind (1 / 2), cl B index -> eax = 0
     mov edi, esi                        ; edi = the rules
     test edx, edx
     jz .young
-    test byte [ebx + 1Ah], 0E0h         ; a goalkeeper: any age
+    test byte [edi + 2], 1              ; the country lets a goalkeeper play at any age?
+    jz .gkage
+    test byte [ebx + 1Ah], 0E0h
     jz .young
+.gkage:
     call bt_yr
     movzx ecx, byte [edi + 1]
     sub eax, ecx
@@ -495,14 +503,14 @@ bt_can:                                 ; al kind (1 / 2), cl B index -> eax = 0
 .k2:
     mov ebp, 3
     call bt_week
-    movzx ecx, byte [edi + 2]
+    movzx ecx, byte [edi + 3]
     xor ebx, ebx
 .w:
     cmp ebx, ecx
     jae .r
-    cmp al, [edi + 3 + ebx * 2]
-    jb .wn
     cmp al, [edi + 4 + ebx * 2]
+    jb .wn
+    cmp al, [edi + 5 + ebx * 2]
     jbe .win
 .wn:
     inc ebx

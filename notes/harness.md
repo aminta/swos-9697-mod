@@ -313,8 +313,9 @@ only around VIEW WORLD's picker - ctview cw_on / cw_off - the new career's club 
 plain ones): world_cgame_view goes on after the COPPE CONTINENTALI part - MONDO + every continent (gwalk: the picker's
 links pass through hidden entries, walk finds no path), button names in the font and within their buttons, each cup
 button -> its rounds menu (title = the cup) -> every round -> RIEPILOGO (that cup only) -> ESCI to the career menu, CT
-state unchanged; the foreign market's picker (ACQ. ALTRO GIOCAT. STRANIERO) first - after a game's own cup view the career menu's
-links go through its fixture rows - and, in a second session, the new
+state unchanged; the foreign market's picker (ACQ. ALTRO GIOCAT. STRANIERO) first - after the game's own cup view opened from VIEW
+WORLD (cseg_3AA17: a UEFA cup) the career menu's up from OFFERTE LAVORO goes into the fixture rows, as on the
+released 4.0.5 (runs-cgnav2-405); our rounds menu / ctgame views leave it as it was - and, in a second session, the new
 career's (CARR. STORICHE - MONDO 2026-27): no cup names on them. CV_OWN=<club> with a save of that club in a conti
 round in progress (runs-cgslot3/boca_libgr_it.CAR: BOCA JUNIORS on a CONTI_FORCE=lib:groups build, after its 2nd
 Libertadores match): its round shown with no ctgame view opened (CG_G[3] unchanged) = the game's slot 3. Tier B

@@ -46,6 +46,16 @@ breakpoints), `W84NAT_REDO=1` (remake the cached national-team saves).
    pause (cup and group team lists, holders, flags), the outcome (pause reached / trap / timeout / DOSBox exited).
 6. **Timeouts**: each Session has its own (scenario-set) timeout; `SWOSTEST_TIMEOUT_MUL=2` (or 3) scales them all when
    both Macs are saturated (load 50-250: DOSBox crawls, a dump can take minutes).
+7. **Dirty RAM** (4.0.6, Davide's I8 two-row noise on the MiSTer z486): DOSBox-X starts with zeroed RAM.
+   `SWOSTEST_DIRTY=5A` runs tools/dirty/DIRTY.COM before the game. It fills free conventional memory above its own
+   64 KB and every free XMS block with that byte, and prints `DIRTY 5A: conv .. para, xms .. KB in .. blocks, found
+   xx` into the run's DIRTY.TXT, where `found` is the block's byte before the fill. It also sets `ems=false`
+   (`SWOSTEST_DIRTY_EMS=1` keeps EMS), so DOS/4GW takes XMS.
+   - Measured on REL401rc3 at the first pause: 16 / 30 MB and the game's free heap hold 5Ah. The game's malloc'd
+     buffers start dirty, as on real hardware.
+   - What it does NOT cover: an object's BSS tail (obj2 +0xd5000.., obj3's CG_BSS) still reads 00, because DOS/4GW
+     under DOSBox-X zero-fills it at load. So tail_zero's MiSTer case (REL401rc3 / 402b4 without the stub) still
+     passes shirt_numbers dirty: prove BSS clearing with the in-exe fills (TAILZERO_FILL_TEST, CG_FILL_TEST) instead.
 
 ## 3. Driving the game
 

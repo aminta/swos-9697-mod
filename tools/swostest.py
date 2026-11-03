@@ -542,6 +542,12 @@ class Dosbox:
         conf = CONF if not os.environ.get('SWOSTEST_NOEXIT') else CONF.replace('{exe}\nexit\n', '{exe}\n')
         if os.environ.get('SWOSTEST_MEMSIZE'):         # (experiments: DOSBox-X memory in MB; dumps still read 32 MB)
             conf = conf.replace('memsize=32', 'memsize=' + os.environ['SWOSTEST_MEMSIZE'])
+        if os.environ.get('SWOSTEST_DIRTY'):           # (4.0.6) free conventional + XMS memory filled with that byte before
+            shutil.copy(os.path.join(ROOT, 'tools', 'dirty', 'DIRTY.COM'), run)   # the game starts (tools/dirty:
+            conf = conf.replace('c:\ncd \\SWOS\n', 'c:\nDIRTY.COM ' + os.environ['SWOSTEST_DIRTY'] + ' > DIRTY.TXT\ncd \\SWOS\n')
+            assert 'DIRTY.COM' in conf                 # real hardware's RAM is not zero: DOSBox-X's is)
+            if os.environ.get('SWOSTEST_DIRTY_EMS') != '1':   # (no EMS: DOS/4GW then takes XMS - the filled pages -
+                conf = conf.replace('[mixer]', '[dos]\nems=false\n[mixer]')   # instead of VCPI's)
         exe = exe + (' ' + os.environ['SWOSTEST_EXEARGS'] if os.environ.get('SWOSTEST_EXEARGS') else '')   # (e.g. /H)
         conf = conf.format(cputype=os.environ.get('SWOSTEST_CPUTYPE', 'pentium'), cycles=os.environ.get('CYCLES', 'max'), core=os.environ.get('CORE', 'dynamic'), iso=ISO,
                            exe=exe, turbo='false' if os.environ.get('TURBO') == '0' else 'true',

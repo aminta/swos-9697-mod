@@ -255,7 +255,8 @@ def build(name, env=None, branch=None, lang='it'):
         for d in ('orig', 'ref', 'c', 'internal'):
             if not os.path.exists(os.path.join(src, d)):
                 os.symlink(os.path.join(MAIN, d), os.path.join(src, d))
-    out, done = unique_out(name, build_key(src, env))
+    out, done = unique_out(name, build_key(src, env, b'' if lang == 'it' else lang.encode()))   # (4.0.6: the
+    # language in the key - an FR world_vc5 reused the IT exe of the same name and env, typing AZERTY into it)
     if os.environ.get('SWOSTEST_BUILT_LOG'):         # (remote_run.sh's local pre-build: the dirs whose inputs to sync)
         open(os.environ['SWOSTEST_BUILT_LOG'], 'a').write(out + '\n')
     if done:
@@ -14048,8 +14049,9 @@ def sc_from2(team, word, tag):
         return True, f'SKIP: private data {src} missing'
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
     exe = os.environ.get('SC_F1_BUILD') or build('world_sc_eng', env={
-        'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'GPLAY_FORCE': '1'})
-    ok, msg, l1 = sc_season(team, dict(W8485_BUILD=exe))
+        'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'GPLAY_FORCE': '1'},
+        lang=UI)                                    # (the exe's language = SWOSTEST_UI: fill_check reads linAdr384k at
+    ok, msg, l1 = sc_season(team, dict(W8485_BUILD=exe))   # that original's offset - an IT exe failed it 4000/4000)
     car = os.path.join(RUNS, w84_tag() + '_1', 'SWOS', 'W84A.CAR')
     if not ok or not os.path.exists(car):
         return False, f'season 1: {msg}'
@@ -14063,7 +14065,7 @@ def sc_from2(team, word, tag):
     errs = []
     check(ok2, f'season 2: {msg2}', errs)
     check(not m1, f'season 1 played {m1}', errs)
-    check(len(m2) == 1 and 'FINALE' in m2[0], f'season 2 supercup matches {m2}', errs)
+    check(len(m2) == 1 and 'FINAL' in m2[0], f'season 2 supercup matches {m2}', errs)   # (FINALE; EN FINAL)
     return not errs, '; '.join(errs) or f'season 1: none; season 2: {m2}; {msg2[:80]}'
 
 
@@ -14443,7 +14445,7 @@ def world_vc5():
         with Session('world_vc5_' + tag, exe, {'W84A.CAR': car}, 'dump:2', 300) as s:
             s.wait()
             s.send(LOAD1 + ' dump:3')
-            errs += vc5_check(s, tag, 'SUPERCOPPA')
+            errs += vc5_check(s, tag, {'en': 'SUPER CUP', 'fr': 'SUPERCOUPE', 'de': 'SUPERCUP'}.get(UI, 'SUPERCOPPA'))
     return not errs, '; '.join(errs) or 'the 5th entry before / after the supercup: shown, in order, opened'
 
 

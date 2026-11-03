@@ -29,6 +29,10 @@ u8 CG_TAB[4096];
 u8 CG_SCR[0x3000];
 u16 CG_NUMSEL_[1];
 u8 CG_SLOT3[0xB52];
+u8 CG_CAREER[0x17400], CG_WORK[0xB52], CG_DREG[60], CG_SELB[684 * 160];
+u8 *CG_SELBASEV = CG_SELB;
+u8 CG_GTAB[4];
+#define CG_FIXED 95153
 static void cg_nat0(const u8 *st, u8 *buf) { (void)st; (void)buf; }
 void (*CG_NAT)(const u8 *, u8 *) = cg_nat0;
 #define CG_NUMSEL (CG_NUMSEL_[0])
@@ -48,9 +52,12 @@ extern u8 CG_SLOT3[];                   /* (cg_selftest: conti's slot 3) */
 #define CG_ST 0x0B60                    /* its struct (<= 0x100) */
 #define CG_SAVE 0x0C60                  /* the game's work area while the glue runs (B52h) */
 #define CG_REC 0x17C0                   /* the goals (struct ct_grec) */
+#define CG_WSAVE 0x2000                 /* P2's guard: the game's work area while a view is open (B52h) */
+#define CG_DSAVE 0x2B60                 /* D0..A6 (60) */
+#define CG_KEEP 0x2BA0                  /* the guard table's kept bytes (ST_RANK...) */
 #define CG_END 0x3000
 
-enum { E_OK, E_NOSPEC, E_ROUND, E_TIE, E_CACHE, E_KIND, E_NONE };
+enum { E_OK, E_NOSPEC, E_ROUND, E_TIE, E_CACHE, E_KIND, E_NONE, E_GUARD, E_OPEN };
 u32 CG_ERR = 0;
 u32 CG_T[8] = {0};                      /* cg_selftest: builds, mismatches, first diff, its cup | round << 8 | tie << 16,
                                            the length compared, the cache count before / after, the last error */
@@ -138,10 +145,115 @@ u32 cg_build(u32 c, u32 r, s32 t, u32 week) {
 void cg_replay(void) {
     struct ct_grec *g = (struct ct_grec *)(CG_SCR + CG_REC);
     zero((u8 *)g, sizeof *g);
-    g->room = (u16)(CG_END - CG_REC - sizeof *g);
+    g->room = (u16)(CG_WSAVE - CG_REC - sizeof *g);
     CT_GREC = g;
     ct_resume();
     CT_GREC = 0;
+}
+
+/* --- P2: the save guards (Davide GO 03/11) ------------------------------------------------------------------------
+   A view borrows the game's state the .CAR is made of: cg_open snapshots it, builds, cg_close puts it back.
+   Put back: the team cache's count (a build adds its clubs past it: never saved), the game's work area and D0..A6
+   (the view's cseg_8B71C), both random generators, and the guard table's kept ranges (CG_GTAB: what a build was seen
+   to write in the saved state - careerFileBuffer + 16ABCh, statespec's ST_RANK, lib97's NC_WDON..NC_RD). Checked:
+   a sum of everything the save writes (the fixed part, the cache's N records, every trailer / 'EN' item: CG_GTAB's
+   summed ranges) the same at the close as at the open - else CG_G[5] (bad) and no view again this run (fallback A).
+   Never a save or a day while one is open: save_trailer and ct_daily call cg_guard first (closes it: CG_G[4]). */
+#ifndef NATIVE
+extern u8 CG_CAREER[];                  /* careerFileBuffer: the .CAR's fixed part (CG_FIXED bytes, the count last) */
+extern u8 *CG_SELBASEV;                 /* trailer's SELBASEV: the career's team cache (a big world's) */
+extern u8 CG_WORK[];                    /* diyFileBufferCopy + DIY_competitionStart (B52h) */
+extern u8 CG_DREG[];                    /* D0..D7, A0..A6 */
+extern const u8 CG_GTAB[];              /* ctgame.py: u16 nkeep, nsum; then (u32 address, u32 length) x nkeep + nsum */
+#endif
+u32 CG_G[12] = {0};                     /* open, its count, its sum, opens, trips (closed by a save / day), bad sums,
+                                           sticky (no view: fallback A), the last error, vtest builds, vtest fails */
+#define CG_OPEN 0x4E45504Fu             /* ('OPEN': CG_G[0] - in the file page, zero at the start) */
+
+static u32 gsum(void) {                 /* FNV-1a over the saved state */
+    u32 h = 0x811C9DC5u;
+    const u8 *p = CG_CAREER;
+    for (u32 i = 0; i < CG_FIXED; i++) h = (h ^ p[i]) * 0x01000193u;
+    p = CG_SELBASEV;
+    for (u32 i = 0, n = (u32)CG_NUMSEL * 684; i < n; i++) h = (h ^ p[i]) * 0x01000193u;
+    u32 nk = w16(CG_GTAB), ns = w16(CG_GTAB + 2);
+    for (u32 k = nk; k < nk + ns; k++) {
+        const u8 *q = (const u8 *)w32(CG_GTAB + 4 + 8 * k);
+        for (u32 i = 0, n = w32(CG_GTAB + 8 + 8 * k); i < n; i++) h = (h ^ q[i]) * 0x01000193u;
+    }
+    return h;
+}
+
+static void keep(int out) {             /* the kept ranges <-> CG_KEEP */
+    u8 *d = CG_SCR + CG_KEEP;
+    for (u32 k = 0, nk = w16(CG_GTAB); k < nk; k++) {
+        u8 *q = (u8 *)w32(CG_GTAB + 4 + 8 * k);
+        u32 n = w32(CG_GTAB + 8 + 8 * k);
+        if (out) copy(d, q, n); else copy(q, d, n);
+        d += n;
+    }
+}
+
+static void close_(int regs) {
+    CG_NUMSEL = (u16)CG_G[1];
+    copy(CG_WORK, CG_SCR + CG_WSAVE, 0xB52);
+    if (regs) copy(CG_DREG, CG_SCR + CG_DSAVE, 60);
+    keep(0);
+    CG_G[0] = 0;
+    if (gsum() != CG_G[2]) { CG_G[5]++; CG_G[6] = 1; }
+}
+
+/* cg_open(cup, round, tie, week): the state kept, round (c, r) built (cg_build); its length, 0 none (CG_ERR) */
+u32 cg_open(u32 c, u32 r, s32 t, u32 week) {
+    if (CG_G[0] == CG_OPEN) { close_(0); CG_G[4]++; }
+    if (CG_G[6]) { CG_ERR = E_GUARD; CG_G[7] = E_GUARD; return 0; }
+    CG_G[1] = CG_NUMSEL;
+    copy(CG_SCR + CG_WSAVE, CG_WORK, 0xB52);
+    copy(CG_SCR + CG_DSAVE, CG_DREG, 60);
+    keep(1);
+    CG_G[2] = gsum();
+    CG_G[0] = CG_OPEN;
+    CG_G[3]++;
+    u32 n = cg_build(c, r, t, week);
+    if (!n) { CG_G[7] = CG_ERR; close_(1); }
+    return n;
+}
+
+void cg_close(void) { if (CG_G[0] == CG_OPEN) close_(1); }
+
+void cg_guard(void) { if (CG_G[0] == CG_OPEN) { close_(0); CG_G[4]++; } }   /* (a save / a day: the caller's D0..A6) */
+
+#ifdef CGVIEW
+void (*CG_VSIM)(u8 *) = 0;              /* ctgame.py's glue cg_vsim: the view's cseg_8B71C / cseg_8B7EA on buf */
+static u32 vk = 0;
+static void vtest(u32 week) {           /* (CONTI_CGVIEW test builds) one drawn round opened, viewed, closed a day */
+    if (!CT_SPEC) return;
+    spec();
+    u32 m = 0;
+    for (int c = 0; c < ncup; c++)
+        for (int r = 0; r < nr[c]; r++) m += CT_OUT.nent[c][r] ? 1 : 0;
+    if (!m) return;
+    u32 j = vk++ % m;
+    for (int c = 0; c < ncup; c++)
+        for (int r = 0; r < nr[c]; r++)
+            if (CT_OUT.nent[c][r] && !j--) {
+                s32 t = (vk & 1) && RD(c, r)[0] == K_KO ? 0 : -1;
+                if (cg_open((u32)c, (u32)r, t, week)) { CG_G[8]++; CG_VSIM(CG_SCR + CG_BUF); }
+                else if (CG_ERR != E_KIND) CG_G[9]++;
+                cg_close();
+                return;
+            }
+}
+#endif
+
+void cg_daily(u32 week) {               /* conti's ct_daily, first: a view still open closed, then (CONTI_CGVIEW test
+                                           builds) a view opened and closed */
+    cg_guard();
+#ifdef CGVIEW
+    vtest(week);
+#else
+    (void)week;
+#endif
 }
 
 #ifdef CGTEST

@@ -64,9 +64,9 @@ OBJ1_NEW_VSIZE = 0xa6000     # + five added pages (lepatch.add_object_page)
 OBJ3_ARENA = 0x20000         # 4.0.6 obj3 (mod code after obj2, CONVENTIONS 23): its file pages (mod pages, then the C
                              # engine's code, PLAN §19 step O) stay below this; the engine arena + spec buffer go here,
                              # zero-filled (vsize only, the engine zeroes it: DOS/4GW does not)
-OBJ3_PAGES = 7               # obj3+0: benchx (the long benches), code + data; then (4.0.6) kittrain, squadnum, mk_keep,
+OBJ3_PAGES = 8               # obj3+0: benchx (the long benches), code + data; then (4.0.6) kittrain, squadnum, mk_keep,
                              # oppl, cpucards, whitehair, finance, kbd2, stoppage, xleft, usc_snap (bteam, then ctview:
-                             # the COPPE CONTINENTALI view, <= 0x1200; 7 here, the Integratore sets the final count); the LAST page (LT3_AT): zones' ring +
+                             # the COPPE CONTINENTALI view, <= 0x1200; then option C's builder, ctgame; 8 here, the Integratore sets the final count); the LAST page (LT3_AT): zones' ring +
                              # bskip, longtable, mainbtn in a build with gplay (patched before the chain: gplay's room)
 LT3_AT = 0x1000 * OBJ3_PAGES - 0x1000
 SA_CAVE = 0xa1000            # first added page: South American cups
@@ -363,10 +363,8 @@ def patch_exe(src, dst, remap, lang='it'):
         o2pages += 2
         data = add_object_page(data, 2)
         data = add_object_page(data, 2)
-    import ctgame
-    cg_pg = ctgame.CG_PAGES if ct_pg else 0          # 4.0.6 option C: the builder's page after the chain's (+ its
-    data = add_object(data)                          # zero-fill scratch); obj3 after obj2 (obj1 <= 237 for SWOS++,
-    for _ in range(OBJ3_PAGES + cg_pg):              # obj2 = 213 for old saves: CONVENTIONS 20 / 22 / 23), benchx's
+    data = add_object(data)                          # obj3 after obj2 (obj1 <= 237 for SWOS++,
+    for _ in range(OBJ3_PAGES):                      # obj2 = 213 for old saves: CONVENTIONS 20 / 22 / 23), benchx's
         data = add_object_page(data, 3)              # pages first
     assert LE(data).obj(3).npages * 0x1000 <= OBJ3_ARENA
     open(grown, 'wb').write(data)
@@ -761,14 +759,15 @@ def patch_exe(src, dst, remap, lang='it'):
     if conti.enabled() and fmtpage.WN and 'CV9_VIS' in gplay.LABELS:   # cups viewed, the obj3 chain's end (<= 0x1800)
         st_end = ctview.patch(p, (st_end + 15) & ~15, lang)
         assert st_end <= LT3_AT, hex(st_end)
-    print(f'exe: obj3 end {st_end:#x} ({LT3_AT - st_end} B left before the longtable page obj3+{LT3_AT:#x})')
-    cg_bss = 0
-    if cg_pg and fmtpage.WN and 'CV9_VIS' in gplay.LABELS:   # 4.0.6 option C (P1): the builder, its own page
-        cg_at = 0x1000 * OBJ3_PAGES
+        import ctgame                            # 4.0.6 option C: the builder after the view (its zero-fill
+        st_end = ctgame.patch(p, (st_end + 15) & ~15, 0x1000 * OBJ3_PAGES, lang)   # scratch above the file pages)
+        assert st_end <= LT3_AT, hex(st_end)
         cg_bss = ctgame.CG_BSS
-        ctgame.patch(p, cg_at, 0x1000 * (OBJ3_PAGES + cg_pg), lang)
-    p.set_vsize(3, 0x1000 * (OBJ3_PAGES + cg_pg) + cg_bss, bss=cg_bss)
-    assert 0x1000 * (OBJ3_PAGES + cg_pg) + cg_bss <= OBJ3_ARENA
+    else:
+        cg_bss = 0
+    print(f'exe: obj3 end {st_end:#x} ({LT3_AT - st_end} B left before the longtable page obj3+{LT3_AT:#x})')
+    p.set_vsize(3, 0x1000 * OBJ3_PAGES + cg_bss, bss=cg_bss)
+    assert 0x1000 * OBJ3_PAGES + cg_bss <= OBJ3_ARENA
     p.set_vsize(1, OBJ1_NEW_VSIZE + (0x1000 * (cp + 2 + cdp) if worlds else 0) + h2 + 0x1000 * (lpb + sp_pg + sc_pg + ct_pg + ctl_pg))
     import teamstab                              # 4.0.2: teamsTable for 256 team ordinals (Serie D choice colours)
     teamstab.patch(p, num_bss + shirtnum.BSS_SIZE + blond.BSS_SIZE + menunum.BSS_SIZE + fmtpage.BSS_SIZE)

@@ -1,7 +1,7 @@
 """4.0.6 option C, P1 (Davide GO 03/11): the continental rounds as the game's own contests (ctgame.c) - the builder
-P3's competition screens will open. obj3, a page of its own (CG_AT, after the obj3 chain's pages; the Integratore
-places it at integration) + a zero-fill scratch of CG_BSS above obj3's file pages (vsize only: no file or save
-bytes; DOS/4GW does not zero it, ctgame.c clears what it uses).
+P3's competition screens will open. obj3, the chain's end after ctview (patch.py: <= LT3_AT) + a zero-fill scratch
+of CG_BSS at 0x1000 * patch.OBJ3_PAGES, above obj3's file pages (vsize only: no file or save bytes; DOS/4GW does
+not zero it, ctgame.c clears what it uses).
 
 The glue cg_native(st, buf) is cseg_8B2D3's first half - slot index 3 (D0), D1 = D2 = 0 as conti's ct_build: the
 slot buffer into the work area (cseg_8B71C), the team list (cseg_31F58: the clubs into the team cache, as the game
@@ -19,11 +19,15 @@ import struct
 import subprocess
 import tempfile
 
-CG_PAGES = 1                            # obj3 file pages of the code + table
+CG_MAX = 0x1000                         # the code + table (obj3 chain room)
 CG_BSS = 0x3000                         # the scratch (ctgame.c CG_END)
 CG_TAB_MAX = 0x400
 NRD = 8                                 # (conti.h)
 LABELS = {}
+
+
+def w16(b, o):
+    return struct.unpack_from('<H', b, o)[0]
 
 ASM = r"""
 cg_native:                              ; cdecl (st, buf): cseg_8B2D3's first half into buf (slot index 3)
@@ -80,7 +84,21 @@ cg_native:                              ; cdecl (st, buf): cseg_8B2D3's first ha
     pop es
     popad
     ret
-.regs:
+cg_vsim:                                ; cdecl (buf): (CONTI_CGVIEW test builds) what the game's view does to the state
+    pushad                              ; - buf into the work area (cseg_8B71C), the work area back into buf (cseg_8B7EA)
+    mov eax, [esp + 36]
+    mov [cg_buf], eax
+    mov [cg_st], eax
+    call cg_native.regs
+    call C8B71C
+    call cg_native.regs
+    mov eax, [cg_buf]
+    mov [A0R], eax
+    call C8B7EA
+    popad
+    ret
+
+cg_native.regs:
     mov dword [D0R], 3
     mov dword [D0R + 4], 0
     mov dword [D0R + 8], 0
@@ -94,7 +112,7 @@ align 4
 cg_st: dd 0
 cg_buf: dd 0
 CG_TRACE: db 'CGTRPTR', 0             ; (the harness: CG_T, the scratch, CG_ERR)
-    dd CG_T_, CG_SCR_, CG_ERR_
+    dd CG_T_, CG_SCR_, CG_ERR_, CG_G_
 """
 
 
@@ -173,8 +191,61 @@ def table(p):
     return tab, ptrs
 
 
+def rng_sites(p):
+    """obj2 offsets of the game's two random generators' states, 3 bytes each (swostest.rng_sites' pattern: Rand and
+    Rand2 - `mov al, [seed]; mov [D0], al; and word [D0], 0FFh; jnz; add byte [randXorIndex], 1; mov al, [...]`)."""
+    c = p.le.obj_bytes(1)
+    fx = {f[1]: f[4] for f in p.le.fixups() if f[0] == 1 and f[3] == 2}
+    out = []
+    for m in re.finditer(rb'\xa0....\xa2....\x66\x81\x25....\xff\x00\x75.\x80\x05....\x01\xa0', c, re.S):
+        o = m.start()
+        sd, ix = fx.get(o + 1), fx.get(o + 23)
+        if sd is not None and ix == sd + 1 and fx.get(o + 29) == ix:
+            out.append(sd)
+    assert len(out) == 2, out
+    return out
+
+
+def guard_table(p):
+    """CG_GTAB (ctgame.c P2): u16 nkeep, nsum, then (address, length) x nkeep (put back at a view's close) + nsum
+    (summed: the saved state besides the fixed part and the cache) - [(obj, offset, length)] for the pointers."""
+    import engine
+    import lib97
+    import statespec
+    import trailer
+    career = trailer.INFO['CAREER'][1]
+    c = p.le.obj_bytes(1)                       # careerFileBuffer + 16ABCh: cseg_87DA0 / the type-2 init's copy of
+    fx = {f[1]: f[4] for f in p.le.fixups() if f[0] == 1 and f[3] == 2}   # the contest's [2Eh] (`mov al, [esi +
+    hits = {fx.get(m.start() + 4) for m in re.finditer(rb'\x8a\x46\x2e\xa2', c)}   # 2Eh]; mov [..], al`), saved
+    assert career + 0x16ABC in hits, ([hex(x) for x in hits if x is not None], hex(career))
+    keep = [(2, career + 0x16ABC, 1)]
+    keep += [(2, o, 3) for o in rng_sites(p)]
+    if 'SR' in engine.ITEM_AT and engine.ITEM_AT['SR']:
+        keep.append(engine.ITEM_AT['SR'] + (statespec.SR_SIZE,))
+    if 'NC_WDON' in lib97.LABELS:
+        keep.append((1, lib97.LABELS['NC_WDON'], 5))   # (NC_WDON, NC_DW, NC_RD, NC_DC: the national-cup chain's)
+    sizes = {n: sz for n, _, sz, _, _ in engine.save_items()}
+    summed = [(1, o, n) for o, n in trailer.INFO['items']]
+    late = []
+    for n, sz in sorted(sizes.items()):
+        at = engine.ITEM_AT.get(n)
+        if at:
+            summed.append(tuple(at) + (sz,))
+        else:
+            late.append(n)
+    rows = keep + summed
+    tab = bytearray(struct.pack('<HH', len(keep), len(summed)))
+    ptrs = []
+    for o, off, n in rows:
+        ptrs.append((len(tab), o, off))
+        tab += struct.pack('<II', 0, n)
+    room = sum(n for _, _, n in keep)
+    assert room <= 0x3000 - 0x2BA0, ('ctgame CG_KEEP room', room)
+    return bytes(tab), ptrs, late, room
+
+
 def patch(p, at, scr_at, lang):
-    """The builder at obj3:at (its own page), the scratch at obj3:scr_at (zero-fill, CG_BSS). Returns the end."""
+    """The builder at obj3:at (the chain's end), the scratch at obj3:scr_at (zero-fill, CG_BSS). Returns the end."""
     import cobj
     import conti
     import lp36
@@ -191,10 +262,19 @@ def patch(p, at, scr_at, lang):
     for o, off in ptrs:
         p.add_ptr(3, at + o, 1, off)
     tab_at, at = at, (at + len(tab) + 15) & ~15
+    gtab, gptrs, late, room = guard_table(p)
+    p.put(3, at, gtab)
+    for o, t_obj, t_off in gptrs:
+        p.add_ptr(3, at + o, t_obj, t_off)
+    gtab_at, at = at, (at + len(gtab) + 15) & ~15
     cs = cl['syms']
     ext = {k: cs[k] for k in ('CT_SPEC', 'CT_IN', 'CT_OUT', 'CT_SEG', 'CT_GREC', 'ct_resume')}
-    ext.update(CG_TAB=(3, tab_at), CG_SCR=(3, scr_at), CG_NUMSEL=trailer.INFO['NUMSEL'], CG_SLOT3=u['SLOT3'])
-    flags = ['-fno-zero-initialized-in-bss']
+    ext.update(CG_TAB=(3, tab_at), CG_SCR=(3, scr_at), CG_NUMSEL=trailer.INFO['NUMSEL'], CG_SLOT3=u['SLOT3'],
+               CG_GTAB=(3, gtab_at), CG_CAREER=trailer.INFO['CAREER'], CG_SELBASEV=(1, trailer.INFO['selbasev']),
+               CG_WORK=lp36.LABELS['symbols']['DIYCOPY'], CG_DREG=u['D0R'])
+    flags = ['-fno-zero-initialized-in-bss', f'-DCG_FIXED={trailer.INFO["FIXED"][1]}']
+    if os.environ.get('CONTI_CGVIEW'):
+        flags.append(f'-DCGVIEW={int(os.environ["CONTI_CGVIEW"])}')
     if os.environ.get('CONTI_CGTEST'):
         flags.append('-DCGTEST')
     if os.environ.get('CG_FILL_TEST'):
@@ -207,7 +287,8 @@ def patch(p, at, scr_at, lang):
     at = (at + 15) & ~15
     ls = lp36.LABELS['symbols']
     sym = {'DIYCOPY': ls['DIYCOPY'], 'D0R': u['D0R'], 'A0R': u['A0R'], 'W10EAB5': (2, w1), 'W10EED4': (2, w2),
-           'CG_SAVE_': (3, scr_at + 0x0C60), 'CG_T_': syms['CG_T'], 'CG_SCR_': (3, scr_at), 'CG_ERR_': syms['CG_ERR']}
+           'CG_SAVE_': (3, scr_at + 0x0C60), 'CG_T_': syms['CG_T'], 'CG_SCR_': (3, scr_at), 'CG_ERR_': syms['CG_ERR'],
+           'CG_G_': syms['CG_G']}
     sym.update({k: (1, v) for k, v in fn.items()})
     assert ls['DIY'][1] == ls['DIYCOPY'][1] + 0x41F, (ls['DIY'], ls['DIYCOPY'])   # (one B52h work area)
     code, fix, rel = nasmcave.assemble_obj(ASM, at, sym, 3)
@@ -219,14 +300,20 @@ def patch(p, at, scr_at, lang):
     for o, t_obj, t_off in rel:
         p.add_rel(3, at + o, t_obj, t_off)
     end = at + len(code)
-    assert end - t0 <= 0x1000 * CG_PAGES, ('ctgame over its page', hex(end - t0))
+    assert end - t0 <= CG_MAX, ('ctgame over its room', hex(end - t0))
     syms['cg_native'] = (3, lab['cg_native'])
     p.add_ptr(3, syms['CG_NAT'][1], 3, lab['cg_native'])
     if os.environ.get('CONTI_CGTEST'):                  # (test builds: conti's ct_build -> cg_selftest)
         p.add_ptr(1, cl['cg_testp'], 3, syms['cg_selftest'][1])
+    if os.environ.get('CONTI_CGVIEW'):
+        p.add_ptr(3, syms['CG_VSIM'][1], 3, lab['cg_vsim'])
+    p.add_ptr(1, cl['cg_guardp'], 3, syms['cg_daily'][1])          # (P2: a day / a save closes an open view first)
+    p.add_ptr(1, trailer.INFO['cg_guardp'], 3, syms['cg_guard'][1])
     LABELS.clear()
     LABELS.update(syms, tab=(3, tab_at), scr=(3, scr_at))
     print(f'exe: option C builder (ctgame): obj3+{t0:#x}..{end:#x} ({end - t0} B: table {len(tab)}, C {c1 - c0}, '
           f'glue {len(code)}), scratch obj3+{scr_at:#x}..+{CG_BSS:#x} (zero-fill)'
-          + (' CGTEST' if os.environ.get('CONTI_CGTEST') else '') + (' CG_FILL' if os.environ.get('CG_FILL_TEST') else ''))
+          + f'; guard: {w16(gtab, 0)} kept ({room} B), {w16(gtab, 2)} summed' + (f' (late, not summed: {late})' if late else '')
+          + (' CGTEST' if os.environ.get('CONTI_CGTEST') else '') + (' CG_FILL' if os.environ.get('CG_FILL_TEST') else '')
+          + (f' CGVIEW={os.environ["CONTI_CGVIEW"]}' if os.environ.get('CONTI_CGVIEW') else ''))
     return end

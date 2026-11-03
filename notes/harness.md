@@ -276,3 +276,19 @@ conti state and its goals give CT_OUT's results (conti.grec_check, also CONTI_TE
 cg_build of every drawn round (and a first tie) deterministic, < 1 s, work area + D0..A6 put back, pages outside the
 scratch within the golden footprint; a full team cache -> 0, CG_ERR 4, nothing written. emu.Machine.base3: obj3 from
 an obj1 pointer (run.EXE's fixups). snapshot.py --every N.
+
+Option C P2 (the save guards: ctgame.c cg_open / cg_close / cg_guard, CG_G through the 'CGTRPTR' block's 4th dword):
+`world_cgame_guard` (DOSBox, the GO/NO-GO 2 gate) - one season-1 save (CGG_S1, else season 1 on A), its season 2
+played on CGG_A (the release recipe) and on CGG_B (the same + CONTI_CGVIEW=1: conti's ct_daily opens one drawn conti
+round a day, does to it what the game's view does - cseg_8B71C / cseg_8B7EA - and closes it): the two season-2
+.CARs byte-identical, B's CG_G with views opened, no bad sum, no sticky fallback, no failed build (CGG_TEAM, default
+HAMRUN SPARTANS). On the release recipe per language: the language's exe as ITALIAN.EXE in c/CGG_<A|B>_<lang>/SWOS,
+SWOSTEST_UI=<lang>. Tier B (test_ctgame.py, fixtures with ct_daily + save_trailer hits): test_cg_guard_close (the
+saved state - fixed part, the cache's N records, CG_GTAB's kept and summed ranges, work area, D0..A6 - byte-identical
+after open + a view's changes + close, also with the scratch 5Ah first; a saved byte changed while open -> bad sum,
+sticky, the next open refused: E_GUARD 7), test_cg_guard_daily / test_cg_guard_save (a view left open at ct_daily /
+save_trailer: closed first - CG_G trips 1 - and the day's state / the .CAR byte-identical to the one with no view).
+What a build writes in the saved state was measured on 330 builds (the unicorn write hook): the cache count,
+careerFileBuffer + 16ABCh, statespec's ST_RANK (an 'EN' item: a type-2 init sorts its table through lp36), lib97's
+NC_DW; the rest (team file buffer + its name and file globals, careerworld WTPHYS / w_tcache, 32E15's club flags,
+gplay's GP_SLT) is not saved and the game sets it before it reads it.

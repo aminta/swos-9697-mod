@@ -908,6 +908,15 @@ ct_daily:                               ; before the next match (uefaq's uq_dail
     push ds
     pop es
     cld
+    mov eax, [cg_guardp]                ; (4.0.6 option C: a contest view left open is closed first, ctgame cg_guard;
+    test eax, eax                       ; CONTI_CGVIEW test builds: cg_vtest opens / closes one)
+    jz .g0
+    movzx ecx, word [CAL_CUR]
+    movzx ecx, byte [CAL + ecx + 1]
+    push ecx
+    call eax
+    add esp, 4
+.g0:
     mov dword [CT_SPEC], SPEC
     mov eax, [CT_ED + 4]                ; (a load / another career: CT_SEG again from the saved edition)
     mov dx, [CT_ED]
@@ -1105,6 +1114,7 @@ ct_newcup:                              ; 4.0.5 (world_sc_bra, FLAMENGO 3rd in i
     ret
 
 cg_testp: dd 0                          ; (ctgame.patch: cg_selftest in CONTI_CGTEST test builds)
+cg_guardp: dd 0                         ; (ctgame.patch: cg_daily - cg_guard, + cg_vtest in CONTI_CGVIEW builds)
 ct_on: db 0
 ct_live: db 0
 ct_gplace: db 0

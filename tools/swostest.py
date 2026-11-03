@@ -15176,15 +15176,88 @@ def world_contiview_tie():
 
 
 def cg_trace(exe):
-    """obj3 offsets of ctgame.c's CG_T, its scratch and CG_ERR (the 'CGTRPTR' block), else None."""
+    """obj3 offsets of ctgame.c's CG_T, its scratch, CG_ERR and CG_G (P2's guard; the 'CGTRPTR' block), else None."""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     from le import LE
-    le = LE(open(os.path.join(exe, 'ITALIAN.EXE'), 'rb').read())
+    f = next(os.path.join(exe, x) for x in ('ITALIAN.EXE', 'ENGLISH.EXE', 'FRENCH.EXE', 'GERMAN.EXE')
+             if os.path.exists(os.path.join(exe, x)))
+    le = LE(open(f, 'rb').read())
     if len(le.objs) < 3:
         return None
     d3 = le.obj_bytes(3)
     k = d3.find(b'CGTRPTR\0')
-    return struct.unpack_from('<III', d3, k + 8) if k >= 0 else None
+    return struct.unpack_from('<IIII', d3, k + 8) if k >= 0 else None
+
+
+@scenario
+def world_cgame_guard():
+    """4.0.6 option C, P2 gate (GO/NO-GO 2): a view opened and closed leaves the career exactly as it was. Two exes of
+    one recipe (CGG_A: without, CGG_B: with CONTI_CGVIEW=1 - a test build: conti's ct_daily opens one drawn conti round
+    every day (cg_open: the state kept, cg_build), does to it what the game's view does (cseg_8B71C / cseg_8B7EA on the
+    contest) and closes it (cg_close: put back, the saved state's sum checked)). Season 1 on A (CGG_S1: a cached save),
+    then season 2 from its save on A and on B: the two season-2 .CARs byte-identical, B's guard (CG_G) opened views,
+    no bad sum, no fallback, no failed build. CGG_TEAM (default HAMRUN SPARTANS: a short league)."""
+    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    if not os.path.isdir(src) and not (os.environ.get('CGG_A') and os.environ.get('CGG_B')):
+        return True, f'SKIP: private data {src} missing'
+    exes = {}
+    for k, env in (('A', {}), ('B', {'CONTI_CGVIEW': '1'})):
+        exes[k] = os.environ.get('CGG_' + k)
+        if not exes[k]:
+            order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+            env['SEASON_PACKS'] = ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order])
+            exes[k] = build('world_cgame_guard_' + k.lower(), env=env, lang=UI)
+    tr = cg_trace(exes['B'])
+    if not tr or len(tr) < 4:
+        return False, 'no CGTRPTR block with CG_G in B (ctgame not in the build)'
+    g_at = tr[3]
+    team = os.environ.get('CGG_TEAM', 'EUROPA,MALTA,?MALTESE PREMIER LEAGUE|PREMIER LEAGUE,HAMRUN SPARTANS')
+    s1 = os.environ.get('CGG_S1') or os.path.join(RUNS, f'cgg_s1_{UI}.CAR')
+    if not os.path.exists(s1):
+        ok, msg, _ = sc_season(team, dict(W8485_BUILD=exes['A']))
+        car = os.path.join(RUNS, w84_tag() + '_1', 'SWOS', 'W84A.CAR')
+        if not ok or not os.path.exists(car):
+            return False, f'season 1: {msg[:200]}'
+        shutil.copy(car, s1)
+    seen = {}
+    global W84_HOOK
+
+    def hook(s, season, scr):
+        r = s.result
+        if r is None or r.base3 is None:
+            return
+        g = struct.unpack('<12I', r.read(r.base3 + g_at, 48))
+        if g != seen.get('last'):
+            seen['last'] = g
+    errs, cars, info = [], {}, []
+    for k in ('A', 'B'):
+        seen.clear()
+        W84_HOOK = hook if k == 'B' else None
+        try:
+            ok, msg, _ = sc_season(team, dict(W8485_BUILD=exes[k], W8485_FROM=s1), 2)
+        finally:
+            W84_HOOK = None
+        car = os.path.join(RUNS, w84_tag() + '_2', 'SWOS', 'W84B.CAR')
+        check(ok and os.path.exists(car), f'season 2 on {k}: {msg[:150]}', errs)
+        if os.path.exists(car):
+            cars[k] = os.path.join(RUNS, f'cgg_s2_{k}_{UI}.CAR')
+            shutil.copy(car, cars[k])
+            os.remove(car)
+    if len(cars) == 2:
+        a, b = (open(cars[x], 'rb').read() for x in ('A', 'B'))
+        diff = [i for i in range(min(len(a), len(b))) if a[i] != b[i]]
+        check(a == b, f'season-2 .CAR with the view != without: {len(a)} / {len(b)} B, {len(diff)} bytes differ, '
+              f'first {[hex(i) for i in diff[:8]]}', errs)
+        info.append(f'.CAR {len(a)} B identical' if a == b else '')
+    g = seen.get('last')
+    if not g:
+        errs.append('B: CG_G never read')
+    else:
+        info.append(f'CG_G opens {g[3]} vtest builds {g[8]} fails {g[9]} trips {g[4]} bad {g[5]} sticky {g[6]} '
+                    f'last err {g[7]}')
+        check(g[3] > 0 and g[8] > 0, f'B: no view opened ({g[:10]})', errs)
+        check(g[0] == 0 and g[5] == 0 and g[6] == 0 and g[9] == 0, f'B: guard {g[:10]}', errs)
+    return not errs, '; '.join(errs + info) or '; '.join(info)
 
 
 @scenario

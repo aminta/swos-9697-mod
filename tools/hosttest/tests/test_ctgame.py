@@ -24,7 +24,7 @@ from emu import Machine  # noqa: E402
 
 FIX = os.path.join(os.path.expanduser('~'), 'swos-mod', 'internal', 'hosttest', 'fixtures', os.environ.get('HT_CG', 'cg_uru2'))
 MEM, PAGE = 0x2000000, 0x1000
-SCR, SCR_N, REC = 0x8000, 0x3000, 0x17C0        # (ctgame.py: the scratch at obj3 + 0x1000 * pages; ctgame.c CG_REC)
+SCR, SCR_N, REC = 0xA000, 0x3200, 0x17C0        # (ctgame.py: the scratch at obj3 + 0x1000 * pages; ctgame.c CG_REC)
 NCUP, NRD, NE, RB = 16, 8, 64, 24
 
 
@@ -34,7 +34,9 @@ def _snaps():
 
 
 def _m(k):
-    m = Machine(FIX, k)
+    global SCR
+    m = Machine(FIX, k, code_from=os.environ.get('HT_CODE'))   # (HT_CODE: a newer build's code over the snapshots)
+    SCR = m.syms.get('ctgame', {}).get('scr', (3, SCR))[1]
     b = m.meta['build']
     if not os.path.isdir(b):
         b = os.path.join(os.path.expanduser('~'), b[b.find('/swos-mod/') + 1:])
@@ -149,8 +151,10 @@ def test_cg_build():
                     bad.append(f'{key}: [31h] {struct.unpack_from("<H", buf, 0x31)[0]} clubs, struct {ncl}')
                 if a.read(work, 0xB52) != w0 or a.read(regs, 60) != r0:
                     bad.append(f'{key}: work area / D0..A6 not put back')
+                lo = a.base3 + a.syms['ctgame'].get('tab', (3, SCR))[1]   # (ctgame's own statics: its image's pages)
                 pg = sorted(p for p in _pages(before, after)
-                            if not (a.base3 + SCR) // PAGE <= p < (a.base3 + SCR + SCR_N + PAGE - 1) // PAGE)
+                            if not (a.base3 + SCR) // PAGE <= p < (a.base3 + SCR + SCR_N + PAGE - 1) // PAGE
+                            and not lo // PAGE <= p < (a.base3 + SCR) // PAGE)
                 b2 = _m(k)
                 b2.call('ctgame.cg_replay')
                 b2.call('ctgame.cg_build', c, r, t, week, max_insn=200_000_000)
@@ -350,3 +354,120 @@ def test_cg_guard_save():
             bad.append(f'{k}: guard {g[:8]}')
         out.append(f'{k}: {len(fa)} B, trips {g[4]}')
     return not bad and any('trips' in x for x in out), ('; '.join(bad) + ' | ' if bad else '') + ', '.join(out)
+
+
+# --- P3: the round's results in the game's contest (cg_view) ----------------------------------------------------------
+def _ko_check(buf, spec_r, g, res, nent, week, key):
+    """a type-1 view's ties against the replay's goals: each played tie's winner flag = conti's result, its leg scores
+    the record's, the aggregate (+ extra time) level only with away goals / penalties"""
+    bad = []
+    legs = spec_r[1] == 2
+    d1, d2 = buf[0x337], buf[0x338] if legs else buf[0x337]
+    rs = 0 if week <= d1 else 1 if legs and week <= d2 else 2
+    for i in range(nent // 2):
+        f, gk = buf[0x89 + i], g[3 * i:3 * i + 3] if g else b''
+        if not gk or gk[0] == 0xFF:
+            continue
+        if rs == 0:
+            if f:
+                bad.append(f'{key} tie {i}: flag {f:#x} before its first leg')
+            continue
+        x, y = (gk[0] & 15) - 1, (gk[0] >> 4) - 1
+        if legs:
+            a1, b1 = buf[0x14D + 2 * i], buf[0x14E + 2 * i]          # (lo = a, hi = b: the pair swapped)
+            if (a1, b1) != (x, y) or not f & 0x20 or buf[0x2CD + 2 * i] != 2 * i + 1:
+                bad.append(f'{key} tie {i}: first leg {b1}-{a1} flag {f:#x}, record {x}-{y}')
+            if rs == 2:
+                win_a = bool(f & 1)
+                if win_a != bool(res[2 * i]) or not f & 0x80:
+                    bad.append(f'{key} tie {i}: flag {f:#x}, conti {res[2 * i]}')
+                la, lb = buf[0xC9 + 2 * i], buf[0xCA + 2 * i]
+                if (f & 0x1C) == 0 and (x + la == y + lb or (x + la > y + lb) != win_a):
+                    bad.append(f'{key} tie {i}: aggregate {x + la}-{y + lb} with no tie-break, flag {f:#x}')
+        else:
+            if rs == 2:
+                win_a = not f & 1
+                if win_a != bool(res[2 * i]) or not f & 0x80:
+                    bad.append(f'{key} tie {i}: flag {f:#x}, conti {res[2 * i]}')
+                fa, fb = buf[0xCA + 2 * i], buf[0xC9 + 2 * i]
+                if not f & 4 and (fa, fb) != (x, y):
+                    bad.append(f'{key} tie {i}: {fa}-{fb}, record {x}-{y}')
+                if not f & 8 and (fa == fb or (fa > fb) != win_a):
+                    bad.append(f'{key} tie {i}: {fa}-{fb} flag {f:#x} conti {res[2 * i]}')
+    return bad, rs
+
+
+def _gr_check(buf, R, g, week, key):
+    """a type-2 view's table: the matches played = the days before the week's, each row's sums consistent"""
+    D = buf[0x41F:]
+    bad, played = [], 0
+    n = R[6] * R[7]
+    for q in range(n):
+        p_, w, d, l, gf, ga, pts = struct.unpack_from('<7H', D, 0x2B3 + 18 * q + 4)
+        played += p_
+        if p_ != w + d + l or pts != 3 * w + d:
+            bad.append(f'{key} row {q}: P{p_} W{w} D{d} L{l} pts {pts}')
+    return bad, played // 2
+
+
+def test_cg_view():
+    """cg_view of every drawn round at three weeks (its first day, mid, the season's end): built, filled, closed - the
+    ties / table consistent with the replay's goals and conti's results, the saved state byte-identical after the
+    close, no bad sum, deterministic"""
+    out, bad = [], []
+    for k, meta in _snaps():
+        m = _m(k)
+        if m.u16('conti.syms.CT_ED') != 0x4543:
+            continue
+        m.call('ctgame.cg_replay')
+        s, lay = _state(m)
+        spec = _spec(m)
+        rounds = _rounds(spec, s[1], lay)
+        o_ent, o_res = lay[12], lay[13]
+        g_all = m.read(m.base3 + SCR + REC, 4 + 2 * NCUP * NRD + 0x1000)
+        p, rd = 4, {}
+        for c in range(spec[0]):
+            nr = spec[p]
+            for r in range(nr):
+                rd[c, r] = spec[p + 4 + r * RB:p + 4 + (r + 1) * RB]
+            p += 4 + nr * RB
+        for c, r, kind, n in rounds:
+            R = rd[c, r]
+            mo = (R[9] - 1 + (12 if R[9] < 8 else 0)) * 8
+            off = struct.unpack_from('<H', g_all, 4 + 2 * (c * NRD + r))[0]
+            g = g_all[4 + 2 * NCUP * NRD + off - 1:] if off else None
+            res = s[1][o_res + (c * NRD + r) * NE:o_res + (c * NRD + r + 1) * NE]
+            for wk in (mo + 1, mo + 4, 250):
+                key = f'{k}:{c}.{r}@{wk}'
+                a = _m(k)
+                s0 = _saved(a)
+                ln = a.call('ctgame.cg_view', c, r, -1, wk, max_insn=600_000_000)
+                err = a.u32('ctgame.CG_ERR')
+                if not ln:
+                    if err not in (5, 9):
+                        bad.append(f'{key}: no view, err {err}')
+                    out.append(f'{key} err{err}')
+                    continue
+                buf = a.read(a.base3 + SCR, 0xB52)
+                if buf[0] == 1:
+                    b_, rs = _ko_check(buf, R, g, res, n, wk, key)
+                    what = f'ko rs{rs}'
+                else:
+                    b_, pl = _gr_check(buf, R, g, wk, key)
+                    gm = R[7] * (R[7] - 1) // 2 * (R[8] or 2)
+                    if wk == 250 and g and pl != sum(1 for x in g[:R[6] * gm] if x):
+                        b_.append(f'{key}: {pl} played, {sum(1 for x in g[:R[6] * gm] if x)} recorded')
+                    what = f'gr {pl} matches'
+                bad += b_
+                a.call('ctgame.cg_close')
+                gl = _gl(a)
+                if gl[5] or gl[6]:
+                    bad.append(f'{key}: guard bad {gl[5]} sticky {gl[6]}')
+                if _saved(a) != s0:
+                    bad.append(f'{key}: the saved state changed')
+                b2 = _m(k)
+                b2.call('ctgame.cg_view', c, r, -1, wk, max_insn=600_000_000)
+                if b2.read(b2.base3 + SCR, 0xB52) != buf:
+                    bad.append(f'{key}: not deterministic')
+                out.append(f'{key} {what}')
+    return not bad and bool(out), ('; '.join(bad[:10]) + ' | ' if bad else '') + f'{len(out)} views: ' + ', '.join(out[:16])

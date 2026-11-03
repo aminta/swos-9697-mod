@@ -46,17 +46,21 @@ class LayoutChanged(Exception):
     pass
 
 
-def relocate(exe, base1, base2):
+def relocate(exe, base1, base2, base3=None):
     """(obj1, obj2) images of an LE exe loaded at those linear bases: initialized bytes + zeroed tail (vsize), every
-    internal fixup applied (32-bit offset, self-relative, selector, 16:32 pointer, 16-bit offset)"""
+    internal fixup applied (32-bit offset, self-relative, selector, 16:32 pointer, 16-bit offset). base3 (4.0.6, an
+    exe with obj3): its image too, le.img3 (file pages only: the zero-fill tail is not the image's)"""
     import sys as _s
     _s.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
     from le import LE
     le = LE(open(exe, 'rb').read())
-    bases = {1: base1, 2: base2}
-    img = {n: bytearray(le.obj_bytes(n)).ljust(le.obj(n).vsize, b'\0') for n in (1, 2)}
-    sel = {1: CODE_SEL, 2: DATA_SEL}
+    objs = (1, 2, 3) if base3 is not None and len(le.objs) > 2 else (1, 2)
+    bases = {1: base1, 2: base2, 3: base3}
+    img = {n: bytearray(le.obj_bytes(n)).ljust(le.obj(n).vsize if n < 3 else 0, b'\0') for n in objs}
+    sel = {1: CODE_SEL, 2: DATA_SEL, 3: CODE_SEL}
     for sobj, soff, typ, tobj, toff, _r, _f, _t32 in le.fixups():
+        if sobj not in img or bases.get(tobj) is None:
+            continue
         b = img[sobj]
         if soff < 0 or soff >= len(b):
             continue
@@ -71,6 +75,7 @@ def relocate(exe, base1, base2):
             struct.pack_into('<IH', b, soff, tgt & 0xFFFFFFFF, sel[tobj])
         elif typ == 5:
             struct.pack_into('<H', b, soff, tgt & 0xFFFF)
+    le.img3 = bytes(img[3]) if 3 in img else None
     return bytes(img[1]), bytes(img[2]), le
 
 
@@ -117,9 +122,10 @@ class Machine:
         a run-time byte (a state variable moved or got another initial value: take a new snapshot) or its objects'
         sizes differ (the obj2 base would move)."""
         run_exe = os.path.join(self.snap_dir, 'run.EXE')   # (the exe as run: the harness's page in obj1)
-        o1, o2, ole = relocate(run_exe if os.path.exists(run_exe) else os.path.join(old_build, 'ITALIAN.EXE'),
-                               self.base1, self.base2)
-        n1, n2, nle = relocate(os.path.join(new_build, 'ITALIAN.EXE'), self.base1, self.base2)
+        old_exe = run_exe if os.path.exists(run_exe) else os.path.join(old_build, 'ITALIAN.EXE')
+        b3 = self._base3_of(mem, old_exe)               # (4.0.6: obj3, where DOS/4GW put it in the snapshot)
+        o1, o2, ole = relocate(old_exe, self.base1, self.base2, b3)
+        n1, n2, nle = relocate(os.path.join(new_build, 'ITALIAN.EXE'), self.base1, self.base2, b3)
         if len(n1) > len(o1) or len(n2) != len(o2):
             raise LayoutChanged(f'object sizes {len(o1):#x}/{len(o2):#x} -> {len(n1):#x}/{len(n2):#x}')
         o1 = o1[:len(n1)]                             # (the harness page past the build's obj1 stays as run)
@@ -162,11 +168,33 @@ class Machine:
                     out[nb] = mem[b]
                     continue
             left.append(b)
+        if b3 is not None and nle.img3 is not None:     # obj3: the new image; a byte the run changed stays where
+            o3, n3 = ole.img3 or b'', nle.img3            # the two images agree there (its layout unchanged)
+            if len(n3) > ole.obj(3).vsize:
+                raise LayoutChanged(f'obj3 file {len(n3):#x} past the old vsize {ole.obj(3).vsize:#x}')
+            snap = mem[b3:b3 + len(n3)]
+            out[b3:b3 + len(n3)] = n3
+            for q in range(min(len(o3), len(n3))):
+                if o3[q] == n3[q] and snap[q] != o3[q]:
+                    out[b3 + q] = snap[q]
+            self._base3 = b3
         if left:
             raise LayoutChanged(f'{len(left)} run-time bytes with no place in the new exe, first '
                                 f'{[self.where(b) for b in left[:3]]}')
         self.overlaid, self.migrated = new_build, len(bad)
         return bytes(out), nsyms
+
+    def _base3_of(self, mem, exe):
+        """obj3's base in a snapshot's memory (from an obj1 pointer into it, as base3), None without obj3"""
+        import sys
+        sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
+        from le import LE
+        le = LE(open(exe, 'rb').read())
+        hit = next(((soff, toff) for sobj, soff, t, tobj, toff, *_ in le.fixups() if sobj == 1 and t == 7 and tobj == 3),
+                   None)
+        if hit is None:
+            return None
+        return struct.unpack_from('<I', mem, self.base1 + hit[0])[0] - hit[1]
 
     def _label_at(self, lin, syms):
         """(module.label, offset) of the nearest label at or below a linear address (obj1 / obj2), else (None, 0)"""

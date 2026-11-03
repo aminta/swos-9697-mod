@@ -14951,6 +14951,15 @@ def contiview_open(s, k, pages=None):
     s.shot('contiview_menu')
     btn = [x[1] for x in s.screen().entries[1:7]]
     walk(s, k, 3)
+    import ctview                                       # (4.0.6 P3: a confederation with drawn rounds opens its
+    summ = ctview.TEXTS[UI][7].decode('latin1')         # rounds menu: the page is its RIEPILOGO)
+    rounds_menu = s.screen().find(summ, exact=True) is not None
+    if rounds_menu:
+        s.shot(f'contiview_{k}_rounds')
+        CR_LAST[:] = [x[1] for x in s.screen().entries[1:1 + ctview.CR_N] if not x[2]]
+        walk(s, s.screen().find(summ, exact=True), 3)
+    else:
+        CR_LAST[:] = []
     scr = s.screen()
     s.shot(f'contiview_{k}')
     title, lines = scr.entries[0][1], [x[1] for x in scr.entries[1:15]]
@@ -14961,9 +14970,14 @@ def contiview_open(s, k, pages=None):
             walk(s, 15, 3)
             s.shot(f'contiview_{k}_p{n + 2}')
             pages.append([x[1] for x in s.screen().entries[1:15]])
-    walk(s, 16, 3)                                      # EXIT -> the confederations
+    walk(s, 16, 3)                                      # EXIT -> the rounds menu / the confederations
+    if rounds_menu:
+        walk(s, ctview.CR_N + 2, 3)                     # (the rounds menu's ESCI)
     walk(s, s.screen().find('ESCI', exact=True), 3)     # -> VISUAL. COMPETIZ.
     return btn, title, lines
+
+
+CR_LAST = []                                            # (contiview_open: the last rounds menu's visible buttons)
 
 
 @scenario
@@ -15057,6 +15071,100 @@ def world_contiview():
             b0 = b1
             info.append(f'{names[k - 1]}: {lines[:3]} +{len(pages)} pages')
     return not errs, '; '.join(errs) or '; '.join(info)
+
+
+@scenario
+def world_cgame_view():
+    """4.0.6 option C P3: COPPE CONTINENTALI's rounds menu -> the round in the game's own competition screen (ctgame
+    cg_view: knockout legs + aggregate + pens / away goals, group tables + fixtures, as at the career's week). On
+    world_contiview's build and season-2 save (CV_BUILD, CV_S2 / RUNS cv_s2_<ui>.CAR): every confederation's rounds menu
+    (labels within 144 px, menu font), each visible round opened (shot cgv_<k>_<j>, its texts in the menu font and within
+    their boxes), ESCI back to the rounds menu; CT_SEG / CT_ED byte-identical before and after (the view closed)"""
+    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    if not os.path.isdir(src) and not os.environ.get('CV_BUILD'):
+        return True, f'SKIP: private data {src} missing'
+    exe = os.environ.get('CV_BUILD')
+    if not exe:
+        order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+        exe = build('world_contiview', env={'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x)
+                                                                                          for x in order])}, lang=UI)
+    s2 = os.environ.get('CV_S2') or os.path.join(RUNS, f'cv_s2_{UI}.CAR')
+    if not os.path.exists(s2):
+        return False, f'no season-2 save {s2} (run world_contiview first)'
+    tr = cv_trace(exe)
+    if not tr:
+        return False, 'no CVTRPTR block (ctview not in the build)'
+    seg_at, ed_at = tr[0], tr[1]
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import complist
+    import ctview
+    summ = ctview.TEXTS[UI][7].decode('latin1')
+    errs, info = [], []
+    with Session('world_cgame_view', exe, {'W84A.CAR': s2}, 'dump:2', 600) as s:
+        s.wait()
+        s.send(LOAD1 + ' dump:3')
+        for _ in range(6):
+            if s.screen().find('VISUAL. COMPETIZ.', exact=True) is not None:
+                break
+            press(s, s.screen(), 'CONTINUA', 3) or s.send('fire dump:2')
+        st = lambda: (bytes(s.result.obj2(seg_at, 72)), bytes(s.result.obj2(ed_at, 2260)))
+        walk(s, s.screen().find('VISUAL. COMPETIZ.', exact=True), 3)
+        walk(s, s.screen().find('COPPE CONTINENTALI', exact=True), 3)
+        for k in range(1, 7):
+            conf = s.screen().entries[k][1]
+            walk(s, k, 3)
+            if s.screen().find(summ, exact=True) is None:
+                info.append(f'{conf}: no rounds')
+                walk(s, 16, 3)
+                continue
+            sc = s.screen()
+            s.shot(f'cgv_{k}_rounds')
+            btns = [(i, sc.raw_texts[i] if sc.raw_texts else t) for i, t, inv, dis in sc.entries[1:1 + ctview.CR_N + 1]
+                    if not inv and t]
+            odd = sorted({ch for i, t in btns for ch in t.upper()} - complist.FONT)
+            check(not odd, f'{conf}: rounds menu characters outside the font {odd}', errs)
+            wide = [(t, complist.px(t.upper())) for i, t in btns if complist.px(t.upper()) > 144]
+            check(not wide, f'{conf}: rounds menu labels over 144 px {wide}', errs)
+            opened = []
+            s.log.append(f'[cgv] {conf} rounds menu: {btns} nav {sc.nav[1:4]} {sc.nav[ctview.CR_N + 1:ctview.CR_N + 3]}')
+            for j, (i, label) in enumerate(btns):
+                if i > ctview.CR_N:
+                    continue
+                b0 = st()
+                walk(s, i, 4)
+                v = s.screen()
+                s.shot(f'cgv_{k}_{j}')
+                texts = v.texts()
+                s.log.append(f'[cgv] {conf} {label}: {texts[:24]}')
+                check(v.find(summ, exact=True) is None and texts, f'{conf} {label}: no view ({texts[:6]})', errs)
+                raw = v.raw_texts or texts
+                bad = sorted({ch for t in raw for ch in t.upper()} - complist.FONT)
+                check(not bad, f'{conf} {label}: characters outside the font {bad}', errs)
+                over = [(t, complist.px(t.upper()), g[2]) for t, g in zip(raw, v.geom) if t and g[2] > 0
+                        and complist.px(t.upper()) > g[2]]
+                check(not over, f'{conf} {label}: texts wider than their boxes {over[:4]}', errs)
+                if v.find('PASSA') is not None:         # (a group stage: the game's next-stage button - its view, back)
+                    press(s, v, v.entries[v.find('PASSA')][1], 4)
+                    s.shot(f'cgv_{k}_{j}_passa')
+                    s.log.append(f'[cgv] {conf} {label} PASSA: {s.screen().texts()[:16]}')
+                for _ in range(6):
+                    if s.screen().find(summ, exact=True) is not None:
+                        break
+                    press(s, s.screen(), 'ESCI', 3) or s.send('fire dump:2')
+                check(s.screen().find(summ, exact=True) is not None, f'{conf} {label}: not back on the rounds menu',
+                      errs)
+                s.log.append(f'[cgv] back: {s.screen()} nav {s.screen().nav[1:4]}')
+                s.shot(f'cgv_{k}_{j}_back')
+                b1 = st()
+                check(b0 == b1, f'{conf} {label}: CT_SEG / CT_ED changed by the view', errs)
+                opened.append(label)
+            info.append(f'{conf}: {len(opened)} rounds {opened[:3]}')
+            walk(s, ctview.CR_N + 1, 3)                 # (RIEPILOGO and back: the links again)
+            walk(s, 16, 3)
+            check(s.screen().find(summ, exact=True) is not None and s.screen().path(ctview.CR_N + 2),
+                  f'{conf}: rounds menu after RIEPILOGO: {s.screen()}', errs)
+            walk(s, ctview.CR_N + 2, 3)                 # (the rounds menu's ESCI -> the confederations)
+    return not errs, '; '.join(errs[:12]) or '; '.join(info)
 
 
 @scenario

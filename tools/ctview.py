@@ -19,13 +19,13 @@ import conti        # noqa: E402
 
 TEXTS = {   # holder, to be played, winner, group, earlier rounds (season 1), none; the menu entry
     'it': (b'DETENTORE', b'DA GIOCARE', b'VINCITORE', b'GRUPPO', b'TURNI PRECEDENTI GIOCATI PRIMA DELLA STAGIONE',
-           b'NESSUNA COPPA IN CORSO', b'COPPE CONTINENTALI'),
+           b'NESSUNA COPPA IN CORSO', b'COPPE CONTINENTALI', b'RIEPILOGO'),
     'en': (b'HOLDER', b'TO BE PLAYED', b'WINNER', b'GROUP', b'EARLIER ROUNDS PLAYED BEFORE THE SEASON',
-           b'NO CUP IN PROGRESS', b'CONTINENTAL CUPS'),
+           b'NO CUP IN PROGRESS', b'CONTINENTAL CUPS', b'SUMMARY'),
     'fr': (b'TENANT', b'A JOUER', b'VAINQUEUR', b'GROUPE', b'TOURS PRECEDENTS JOUES AVANT LA SAISON',
-           b'AUCUNE COUPE EN COURS', b'COUPES CONTINENTALES'),
+           b'AUCUNE COUPE EN COURS', b'COUPES CONTINENTALES', b'RESUME'),
     'de': (b'TITELVERTEIDIGER', b'NOCH OFFEN', b'SIEGER', b'GRUPPE', b'FRUHERE RUNDEN VOR DER SAISON GESPIELT',
-           b'KEIN POKAL IM GANGE', b'KONTINENTALPOKALE'),
+           b'KEIN POKAL IM GANGE', b'KONTINENTALPOKALE', b'UBERSICHT'),
 }
 CONF_NAMES = {'conmebol': b'CONMEBOL', 'concacaf': b'CONCACAF', 'afc': b'AFC', 'caf': b'CAF', 'ofc': b'OFC',
               'fifa': b'FIFA'}
@@ -42,6 +42,56 @@ def round_name(r, lang):
     return rnames.NAMES[lang][rnames.CT_KEYS[r['key']] - rnames.N_OLD][0]
 
 
+CR_N, CR_W, CR_LW = 16, 150, 20         # P3's rounds menu: buttons, their width, a label's bytes (NUL-ended)
+CR_SCR_AT = 0x3000                      # (ctgame's scratch: its CG_END; CR_SCR_N bytes there, ctgame.CG_BSS covers them)
+CR_SCR_N = 0x200
+CR_PTRS = {}                            # its pointers into ctgame (cg_view, cg_close, the scratch): ctgame.patch sets them
+
+
+def round_short(r, lang):
+    """A format round's medium name (the career game list's) in the exe's language."""
+    import rnames
+    own = r.get('names')
+    if own:
+        n = own.get(lang) or own['en']
+        return n[1 if len(n) > 1 else 0].upper()
+    if r['key'] in rnames.CT_NEW[lang]:
+        return rnames.CT_NEW[lang][r['key']][1]
+    return rnames.NAMES[lang][rnames.CT_KEYS[r['key']] - rnames.N_OLD][1]
+
+
+def round_labels(lang, cupkeys):
+    """P3: the rounds' button labels '<cup short> <round>' (each cup's short name cut so that its longest round fits
+    CR_W - 6 px in the menu font), pooled: (strings, u16 offsets of the cups' names [16], u16 offsets of every round's
+    name in the spec's order, the cups' first round indices [16])."""
+    import complist
+    fmt = {(conf, c['key']): c for conf in {k for k, _ in cupkeys} for c in conti._read(conf, 'format')['cups']}
+    pool, at = bytearray(), {}
+
+    def put(t):
+        if t not in at:
+            assert set(t) <= complist.FONT, ('round label charset', t)
+            at[t] = len(pool)
+            pool.extend(t.encode('latin1') + b'\0')
+        return at[t]
+    co, ro, first = [], [], []
+    for k in cupkeys:
+        c = fmt[k]
+        cs = (c['names'].get(lang) or c['names']['en'])[1].upper()
+        rns = [round_short(r, lang) for r in c['rounds']]
+        fits = lambda a: all(complist.px(f'{a} {rn}') <= CR_W - 6 and len(f'{a} {rn}') < CR_LW for rn in rns)
+        a = cs
+        while not fits(a) and len(a) > 4:
+            a = a[:-2].rstrip(' .') + '.'
+        assert fits(a), ('round label over its button', lang, cs, rns)
+        first.append(len(ro))
+        co.append(put(a))
+        ro += [put(rn) for rn in rns]
+    assert len(co) <= 16 and len(ro) < 256
+    return bytes(pool), struct.pack(f'<{16}H', *(co + [0] * (16 - len(co)))), struct.pack(f'<{len(ro)}H', *ro), \
+        bytes(first).ljust(16, b'\0')
+
+
 def _spec_access(spec):
     """(nrd per cup, [(assoc, cup)] of the access entries) from conti.load()'s spec (conti.c parse())."""
     ncup, p = spec[0], 4
@@ -55,7 +105,7 @@ def _spec_access(spec):
 
 
 def table(lang, confs, files=None, words=None):
-    """CV_TAB's bytes (ctview.c's layout) and the confederations' order numbers."""
+    """CV_TAB's bytes (ctview.c's layout) and the cups' (conf, key) in the spec's order."""
     import complist
     spec, assocs, cups = conti.load(list(confs), files, words)
     nrd, acc = _spec_access(spec)
@@ -96,10 +146,12 @@ def table(lang, confs, files=None, words=None):
     for cf, n, nmo, ro in body:
         out += bytes((cf, n)) + struct.pack('<H', head + nmo) + b''.join(struct.pack('<H', head + o) for o in ro)
     assert len(out) == head
+    CUPKEYS[:] = cups
     return bytes(out + strs), spec
 
 
-CAP = 0x1800                            # obj3 room (the Integratore, 03/11)
+CAP = 0x2400                            # obj3 room (the Integratore, 03/11; P3's rounds menu: OBJ3_PAGES 10)
+CUPKEYS = []                            # table()'s cups: (conf, key) in the spec's order
 
 ASM = r"""
 cv_vis:                                 ; gplay's VISUAL. COMPETIZ. entry 9 check: ZF = 1 in a World 2026-27 career
@@ -151,7 +203,7 @@ cv_s4: mov eax, 4
     jmp cv_open
 cv_s5: mov eax, 5
 
-cv_open:                                ; button eax: that confederation's cups on fmtpage's page
+cv_open:                                ; button eax: that confederation (P3): its rounds menu, none (season 1) the page
     pushad
     push es
     push ds
@@ -161,8 +213,34 @@ cv_open:                                ; button eax: that confederation's cups 
     mov [CV_CUR], eax
     mov dword [CT_SPEC], SPEC
     call CT_LPF                         ; (conti's ct_lp: CT_LP, empty after a load - season 1's draws)
-    movzx ecx, word [CAL_CUR]           ; the career calendar's week (as gplay's O_WEEK)
+    call cv_week
+    push dword CR_LIST
+    push ecx
+    push dword [CV_CUR]
+    call CV_ROUNDS
+    add esp, 12
+    mov [CR_CNT], eax
+    pop es
+    popad
+    cmp dword [CR_CNT], 0
+    je cv_page
+    mov dword [A6], CR_MENU
+    jmp SHOW_MENU
+
+cv_week:                                ; ecx = the career calendar's week (as gplay's O_WEEK)
+    movzx ecx, word [CAL_CUR]
     movzx ecx, byte [CAL + ecx + 1]
+    ret
+
+cv_page:                                ; CV_CUR's cups on fmtpage's page (the summary: version A)
+    pushad
+    push es
+    push ds
+    pop es
+    cld
+    mov dword [CT_SPEC], SPEC
+    call CT_LPF
+    call cv_week
     push dword TXTMAX_
     push dword TXT
     push ecx
@@ -192,6 +270,158 @@ cv_open:                                ; button eax: that confederation's cups 
     popad
     mov dword [A6], FMTMENU
     jmp SHOW_MENU
+
+cr_init:                                ; the rounds menu's onInit: title, labels, links; the unused buttons hidden
+    pushad
+    push es
+    push ds
+    pop es
+    cld
+    mov edi, CR_TITLE                   ; 'COPPE CONTINENTALI - CONMEBOL'
+    mov esi, CV_LABEL
+.t: lodsb
+    test al, al
+    jz .t1
+    stosb
+    jmp .t
+.t1:mov eax, 202D20h
+    stosd
+    dec edi
+    imul esi, [CV_CUR], 12
+    add esi, CV_CN
+.t2:lodsb
+    stosb
+    test al, al
+    jnz .t2
+    xor ebx, ebx
+.l: cmp ebx, [CR_CNT]
+    jae .l1
+    movzx eax, byte [CR_LIST + ebx]
+    mov edx, eax
+    shr edx, 4
+    and eax, 15
+    movzx ecx, byte [CR_FIRST + edx]
+    add ecx, eax                        ; (ecx: the round's label - lodsb below takes al)
+    imul edi, ebx, CR_LW_
+    add edi, CR_LBL
+    movzx esi, word [CR_CUPS + 2 * edx]
+    add esi, CR_STR
+.c: lodsb
+    test al, al
+    jz .c1
+    stosb
+    jmp .c
+.c1:mov al, ' '
+    stosb
+    movzx esi, word [CR_RNDS + 2 * ecx]
+    add esi, CR_STR
+.r: lodsb
+    stosb
+    test al, al
+    jnz .r
+    inc ebx
+    jmp .l
+.l1:push dword CR_NAV
+    push dword [CR_CNT]
+    call CR_LAYOUT
+    add esp, 8
+    mov ebx, 1
+.e: mov [D0R], ebx                      ; entry ebx (CalcMenuEntryAddress -> A0)
+    pushad
+    call VC_CALC
+    popad
+    mov edi, [A0R]
+    cmp ebx, CR_N_
+    ja .e2
+    lea eax, [ebx - 1]
+    cmp eax, [CR_CNT]
+    jb .e1
+    mov word [edi + 4], 1
+    jmp .e3
+.e1:mov eax, [CR_NAV + 4 * ebx - 4]
+    mov [edi + 8], eax
+    jmp .e3
+.e2:mov al, [CR_NAV + 4 * CR_N_ + ebx - CR_N_ - 1]
+    mov [edi + 0Ah], al
+.e3:inc ebx
+    cmp ebx, CR_N_ + 2
+    jbe .e
+    pop es
+    popad
+    ret
+
+cr_sum:                                 ; RIEPILOGO: the summary page, then the rounds menu's labels and links again
+    call cv_page
+    jmp cr_init
+
+CR_STUBS
+cr_go:                                  ; round button eax: the game's own screen of that round (ctgame cg_view), the
+    pushad                              ; career club's group stage in progress the real one (slot 3); a round the
+    push es                             ; screens can't show (cg_view 0) -> the summary page
+    push ds
+    pop es
+    cld
+    movzx eax, byte [CR_LIST + eax]
+    mov ebx, eax
+    shr ebx, 4
+    and eax, 15
+    mov [CR_C], ebx
+    mov [CR_R], eax
+    cmp byte [CT_SEG_ + 2], 0FFh
+    je .b
+    cmp [CT_SEG_], bl
+    jne .b
+    cmp [CT_SEG_ + 1], al
+    jne .b
+    test byte [CT_SEG_ + 2], 1
+    jz .b
+    mov dword [A0R], SLOT3
+    call VC_VIEW
+    jmp .x
+.b: call cv_week
+    push ecx
+    push dword -1
+    push dword [CR_R]
+    push dword [CR_C]
+    call [CR_VIEW]
+    add esp, 16
+    test eax, eax
+    jz .t
+    mov eax, [CR_SCR]
+    mov [A0R], eax
+    call VC_VIEW
+    call [CR_CLOSE]
+.x: call cr_init                        ; (the menu as it came back: its labels and links again)
+    pop es
+    popad
+    ret
+.t: pop es
+    popad
+    call cv_page                        ; (the summary page, then the menu as it came back: labels and links again)
+    jmp cr_init
+
+align 4
+CR_VIEW: dd 0                           ; (ctgame.patch: cg_view, cg_close, its scratch)
+CR_CLOSE: dd 0
+CR_SCR: dd 0
+CR_CNT: dd 0
+CR_C: dd 0
+CR_R: dd 0
+CR_LIST: times 16 db 0
+CR_FIRST: CR_FIRST_DB
+CR_CUPS: CR_CUPS_DB
+CR_RNDS: CR_RNDS_DB
+CR_STR: CR_STR_DB
+align 4
+CR_MENU:                                ; title, the round buttons (two columns), RIEPILOGO, ESCI
+    dd cr_init, 0, 0, 1
+    dw 0, 0, 304, 14
+    dw 4, 17h
+    dw 8, 0
+    dd CR_TITLE
+    dw 0
+CR_BUTTONS
+    dw -999
 
 align 4
 CV_TRACE: db 'CVTRPTR', 0             ; (the harness: CT_SEG, CT_ED, CT_OUT, the calendar, its entry)
@@ -223,7 +453,7 @@ CV_BUTTONS
 """
 
 
-def patch(p, at, lang):
+def patch(p, at, lang, scr_at):
     """The view at obj3:at (the end of the obj3 chain): CV_TAB, ctview.c, the glue; gplay's entry 9 pointed at it.
     Returns the end (asserted within CAP)."""
     import careerworld
@@ -262,6 +492,23 @@ def patch(p, at, lang):
         btn += [f'    dw 72, {40 + 22 * i}, 160, 15', '    dw 2', f'    db {nav}', '    dw 4, 0Eh', '    dw 8, 0',
                 f'    dd CV_LBL + {12 * i}', '    dw 13', f'    dd cv_s{i}', '    dw 0']
     src = nasmcave.sub(ASM, 'CV_BUTTONS\n', '\n'.join(btn) + '\n')
+    pool, cups_o, rnds_o, first = round_labels(lang, CUPKEYS)
+    h = CR_N // 2
+    rb = []
+    for k in range(CR_N):
+        rb += [f'    dw {8 + 154 * (k // h)}, {22 + 18 * (k % h)}, {CR_W}, 15', '    dw 2', '    db 0FFh, 0FFh, 0FFh, 0FFh',
+               '    dw 4, 0Eh', '    dw 8, 0', f'    dd CR_LBL + {CR_LW * k}', '    dw 13', f'    dd cr_s{k}', '    dw 0']
+    rb += [f'    dw 8, 172, {CR_W}, 15', '    dw 2', f'    db 0FFh, {CR_N + 2}, 0FFh, 0FFh', '    dw 4, 0Eh', '    dw 8, 0',
+           '    dd CR_SUMT', '    dw 13', '    dd cr_sum', '    dw 0',
+           f'    dw 162, 172, {CR_W}, 15', '    dw 2', f'    db {CR_N + 1}, 0FFh, 0FFh, 0FFh', '    dw 4, 0Ch', '    dw 8, 0',
+           '    dd EXIT_T', '    dw 13', '    dd EXIT_F', '    dw 0']
+    src = nasmcave.sub(src, 'CR_BUTTONS\n', '\n'.join(rb) + '\n')
+    src = nasmcave.sub(src, 'CR_STUBS\n', ''.join(f'cr_s{k}: mov eax, {k}\n    jmp cr_go\n' for k in range(CR_N))
+                       + 'CR_SUMT: db ' + ', '.join(str(b) for b in T[7] + b'\0') + '\n')
+    src = nasmcave.sub(src, 'CR_FIRST_DB', 'db ' + ', '.join(str(b) for b in first))
+    for k, b in (('CR_CUPS_DB', cups_o), ('CR_RNDS_DB', rnds_o), ('CR_STR_DB', pool)):
+        src = nasmcave.sub(src, k, 'db ' + ', '.join(str(x) for x in b))
+    assert complist.px(T[7].decode('latin1')) <= CR_W - 6, ('summary button', T[7])
     src = nasmcave.sub(src, 'CV_LABEL_DB', 'db ' + ', '.join(str(b) for b in T[6] + b'\0'))
     src = nasmcave.sub(src, 'CV_CN_DB', 'db ' + ', '.join(str(b) for k in order
                                                           for b in CONF_NAMES[k].ljust(12, b'\0')))
@@ -271,7 +518,11 @@ def patch(p, at, lang):
                SPEC=cl['SPEC'], CT_LPF=(1, cl['ct_lp']), CV_CONFS=syms['cv_confs'], CV_TEXT=syms['cv_text'],
                CAREERTEAM=gplay.LABELS['CAREERTEAM'], CAL=gplay.LABELS['CAL'], CAL_CUR=gplay.LABELS['CAL_CUR'],
                W_LPW=(1, careerworld.LABELS['w_lpw']), CT_SEG_=cs['CT_SEG'], CT_ED_=cs['CT_ED'],
-               CT_OUT_=cs['CT_OUT'])
+               CT_OUT_=cs['CT_OUT'], CV_ROUNDS=syms['cv_rounds'], CR_LAYOUT=syms['cr_layout'], VC_CALC=gplay.LABELS['VC_CALC'],
+               VC_VIEW=gplay.LABELS['VC_VIEW'], SLOT3=__import__('uefaq').SYMS['SLOT3'], D0R=__import__('uefaq').SYMS['D0R'],
+               A0R=__import__('uefaq').SYMS['A0R'], CR_N_=(0, CR_N), CR_LW_=(0, CR_LW))
+    scr = scr_at + CR_SCR_AT                            # (the menu's buffers: ctgame's zero-fill scratch, past its own)
+    sym.update(CR_LBL=(3, scr), CR_NAV=(3, scr + CR_N * CR_LW), CR_TITLE=(3, scr + CR_N * CR_LW + 4 * CR_N + 4))
     code, fix, rel = nasmcave.assemble_obj(src, at, sym, 3)
     lab = nasmcave.labels(src, at, sym)
     assert not any(p.get(3, at, len(code)))
@@ -285,6 +536,8 @@ def patch(p, at, lang):
     gl = gplay.LABELS                                   # gplay's entry 9: its check, on-select and text -> obj3
     p.add_ptr(1, gl['CV9_VIS'], 3, lab['cv_vis'])
     p.add_ptr(1, gl['CV9_GO'], 3, lab['cv_go'])
+    CR_PTRS.clear()
+    CR_PTRS.update(view=lab['CR_VIEW'], close=lab['CR_CLOSE'], scr=lab['CR_SCR'])
     p.retarget(1, gl['VC9_TXTP'], 3, lab['CV_LABEL'])
     p.put(1, gl['VC9_TXTP'], struct.pack('<I', lab['CV_LABEL']))
     print(f'exe: COPPE CONTINENTALI view (ctview): obj3+{t0:#x}..{end:#x} ({end - t0} B of {CAP}: table {len(tab)}, '

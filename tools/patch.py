@@ -64,7 +64,7 @@ OBJ1_NEW_VSIZE = 0xa6000     # + five added pages (lepatch.add_object_page)
 OBJ3_ARENA = 0x20000         # 4.0.6 obj3 (mod code after obj2, CONVENTIONS 23): its file pages (mod pages, then the C
                              # engine's code, PLAN §19 step O) stay below this; the engine arena + spec buffer go here,
                              # zero-filled (vsize only, the engine zeroes it: DOS/4GW does not)
-OBJ3_PAGES = 8               # obj3+0: benchx (the long benches), code + data; then (4.0.6) kittrain, squadnum, mk_keep,
+OBJ3_PAGES = 10              # obj3+0: benchx (the long benches), code + data; then (4.0.6) kittrain, squadnum, mk_keep,
                              # oppl, cpucards, whitehair, finance, kbd2, stoppage, xleft, usc_snap (bteam, then ctview:
                              # the COPPE CONTINENTALI view, <= 0x1200; then option C's builder, ctgame; 8 here, the Integratore sets the final count); the LAST page (LT3_AT): zones' ring +
                              # bskip, longtable, mainbtn in a build with gplay (patched before the chain: gplay's room)
@@ -757,7 +757,7 @@ def patch_exe(src, dst, remap, lang='it'):
     assert st_end <= LT3_AT, hex(st_end)
     import ctview                                # 4.0.6 COPPE CONTINENTALI (Gianmarco): the other confederations'
     if conti.enabled() and fmtpage.WN and 'CV9_VIS' in gplay.LABELS:   # cups viewed, the obj3 chain's end (<= 0x1800)
-        st_end = ctview.patch(p, (st_end + 15) & ~15, lang)
+        st_end = ctview.patch(p, (st_end + 15) & ~15, lang, 0x1000 * OBJ3_PAGES)
         assert st_end <= LT3_AT, hex(st_end)
         import ctgame                            # 4.0.6 option C: the builder after the view (its zero-fill
         st_end = ctgame.patch(p, (st_end + 15) & ~15, 0x1000 * OBJ3_PAGES, lang)   # scratch above the file pages)

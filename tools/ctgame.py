@@ -19,8 +19,8 @@ import struct
 import subprocess
 import tempfile
 
-CG_MAX = 0x1000                         # the code + table (obj3 chain room)
-CG_BSS = 0x3000                         # the scratch (ctgame.c CG_END)
+CG_MAX = 0x2400                         # the code + table (obj3 chain room; P3: OBJ3_PAGES 10, the Integratore 03/11)
+CG_BSS = 0x3200                         # the scratch (ctgame.c CG_END) + ctview's rounds menu buffers (CR_SCR_N)
 CG_TAB_MAX = 0x400
 NRD = 8                                 # (conti.h)
 LABELS = {}
@@ -98,6 +98,104 @@ cg_vsim:                                ; cdecl (buf): (CONTI_CGVIEW test builds
     popad
     ret
 
+cg_gplay:                               ; cdecl (buf, week): P3, a group stage's match days before week played in buf by
+    pushad                              ; the game's own routines with the replay's goals (ctgame.c cg_ggoal): buf into
+    push es                             ; the work area (cseg_8B71C); a day at a time while the stage runs and its week
+    push ds                             ; (+1CDh[+1C1h]) is before week: cseg_89758 (the pairing -> A1 / A2 rows),
+    pop es                              ; cseg_88A12's sums (+2B9h won, +2BBh drawn, +2BDh lost, +2BFh / +2C1h goals,
+    cld                                 ; +2C3h points, [61h] a win's), cseg_8922B (played, the counters, the day),
+    sub esp, 60                         ; cseg_883DD (the order); the work area into buf (cseg_8B7EA). D0..A6 and
+    mov esi, D0R                        ; cseg_8922B's week byte put back.
+    mov edi, esp
+    mov ecx, 15
+    rep movsd
+    mov al, [WK2E]
+    mov [cg_wk], al
+    mov eax, [esp + 60 + 40]
+    mov [cg_buf], eax
+    mov [cg_st], eax
+    call cg_native.regs
+    call C8B71C
+    mov dword [cg_n], 4000              ; (never more matches than that)
+.d: cmp word [DIY + 5Fh], 0
+    je .x
+    movzx eax, word [DIY + 1C1h]
+    movzx eax, byte [DIY + 1CDh + eax]
+    cmp eax, [esp + 60 + 44]
+    jae .x
+    dec dword [cg_n]
+    jz .x
+    call C89758
+    mov eax, [A1R]
+    sub eax, DIY
+    xor edx, edx
+    mov ecx, 18
+    div ecx
+    mov ebx, eax
+    mov eax, [A2R]
+    sub eax, DIY
+    xor edx, edx
+    div ecx
+    push eax
+    push ebx
+    call CG_GGOAL_
+    add esp, 8
+    test eax, eax
+    jz .z
+    mov esi, [A1R]
+    mov edi, [A2R]
+    movzx ecx, al
+    and ecx, 15
+    dec ecx                             ; home goals
+    movzx edx, al
+    shr edx, 4
+    dec edx                             ; away goals
+    add [esi + 2BFh], cx
+    add [esi + 2C1h], dx
+    add [edi + 2BFh], dx
+    add [edi + 2C1h], cx
+    mov ax, [DIY + 61h]
+    cmp ecx, edx
+    je .dr
+    jb .aw
+    inc word [esi + 2B9h]
+    inc word [edi + 2BDh]
+    add [esi + 2C3h], ax
+    jmp .c
+.aw:inc word [edi + 2B9h]
+    inc word [esi + 2BDh]
+    add [edi + 2C3h], ax
+    jmp .c
+.dr:inc word [esi + 2BBh]
+    inc word [edi + 2BBh]
+    inc word [esi + 2C3h]
+    inc word [edi + 2C3h]
+.c: call C8922B
+    call C883DD
+    jmp .d
+.z: push dword [A1R]                    ; (no result: a 3-club group's empty slot - the day goes on, not played)
+    push dword [A2R]
+    call C8922B
+    pop edi
+    pop esi
+    dec word [esi + 2B7h]
+    dec word [edi + 2B7h]
+    call C883DD
+    jmp .d
+.x: mov eax, [cg_buf]
+    mov [A0R], eax
+    call C8B7EA
+    mov al, [cg_wk]
+    mov [WK2E], al
+    mov esi, esp
+    mov edi, D0R
+    mov ecx, 15
+    rep movsd
+    add esp, 60
+    pop es
+    popad
+    ret
+
 cg_native.regs:
     mov dword [D0R], 3
     mov dword [D0R + 4], 0
@@ -111,6 +209,8 @@ cg_native.regs:
 align 4
 cg_st: dd 0
 cg_buf: dd 0
+cg_n: dd 0
+cg_wk: db 0, 0, 0, 0
 CG_TRACE: db 'CGTRPTR', 0             ; (the harness: CG_T, the scratch, CG_ERR)
     dd CG_T_, CG_SCR_, CG_ERR_, CG_G_
 """
@@ -146,6 +246,24 @@ def native_parts(p, c8b2d3):
     assert len(stores) == 2, [hex(x) for x in stores]
     names = ('C8B71C', 'C31F58', 'C8C607', 'C883B8', 'C8B7EA')
     return dict(zip(names, [calls[i] for i in (0, 2, 3, 4, 5)])), stores
+
+
+def gplay_parts(p):
+    """P3's group-stage routines: cseg_89758 (the pairing) and cseg_883DD (the sort) from lp36, cseg_8922B (its start:
+    mov [A0], DIY; mov esi, [A1]; add word [esi+2B7h], 1; mov esi, [A2]) and the week byte it sets from [2Eh]."""
+    import lp36
+    s = lp36._sites(p)
+    d1 = p.le.obj_bytes(1)
+    A = lambda x: struct.pack('<I', x)
+    a0 = s['A0']
+    m = [x.start() for x in re.finditer(rb'\xc7\x05' + re.escape(A(a0) + A(s['DIY'])) + rb'\x8b\x35' + re.escape(A(a0 + 4))
+                                        + rb'\x66(?:\x83\x86\xb7\x02\x00\x00\x01|\x81\x86\xb7\x02\x00\x00\x01\x00)\x8b\x35'
+                                        + re.escape(A(a0 + 8)), d1, re.S)]
+    assert len(m) == 1, ('cseg_8922B', [hex(x) for x in m])
+    k = d1.find(b'\x8a\x46\x2e\xa2', m[0], m[0] + 0x200)
+    fx = {f[1]: f[4] for f in p.le.fixups() if f[0] == 1 and f[3] == 2}
+    assert k > 0 and k + 4 in fx, 'cseg_8922B week byte'
+    return dict(A0=a0, pair=s['pair'], sort=s['sort'], C8922B=m[0], wk=fx[k + 4])
 
 
 def table(p):
@@ -206,6 +324,13 @@ def rng_sites(p):
     return out
 
 
+def rn_tie():
+    """the ties' contest's round name byte: rnames' RN_TIE, else conti's own ct_rntie"""
+    import conti
+    import rnames
+    return (1, rnames.LABELS['RN_TIE']) if 'RN_TIE' in rnames.LABELS else (1, conti.LABELS['ct_rntie'])
+
+
 def guard_table(p):
     """CG_GTAB (ctgame.c P2): u16 nkeep, nsum, then (address, length) x nkeep (put back at a view's close) + nsum
     (summed: the saved state besides the fixed part and the cache) - [(obj, offset, length)] for the pointers."""
@@ -220,6 +345,7 @@ def guard_table(p):
     assert career + 0x16ABC in hits, ([hex(x) for x in hits if x is not None], hex(career))
     keep = [(2, career + 0x16ABC, 1)]
     keep += [(2, o, 3) for o in rng_sites(p)]
+    keep.append(rn_tie() + (1,))                # (P3: a view sets the ties' round name)
     if 'SR' in engine.ITEM_AT and engine.ITEM_AT['SR']:
         keep.append(engine.ITEM_AT['SR'] + (statespec.SR_SIZE,))
     if 'NC_WDON' in lib97.LABELS:
@@ -271,7 +397,8 @@ def patch(p, at, scr_at, lang):
     ext = {k: cs[k] for k in ('CT_SPEC', 'CT_IN', 'CT_OUT', 'CT_SEG', 'CT_GREC', 'ct_resume')}
     ext.update(CG_TAB=(3, tab_at), CG_SCR=(3, scr_at), CG_NUMSEL=trailer.INFO['NUMSEL'], CG_SLOT3=u['SLOT3'],
                CG_GTAB=(3, gtab_at), CG_CAREER=trailer.INFO['CAREER'], CG_SELBASEV=(1, trailer.INFO['selbasev']),
-               CG_WORK=lp36.LABELS['symbols']['DIYCOPY'], CG_DREG=u['D0R'])
+               CG_WORK=lp36.LABELS['symbols']['DIYCOPY'], CG_DREG=u['D0R'], CG_CAL=u['CAL'],
+               CG_RNTIE=rn_tie(), CG_CTRN=(1, cl['ct_rn']))
     flags = ['-fno-zero-initialized-in-bss', f'-DCG_FIXED={trailer.INFO["FIXED"][1]}']
     if os.environ.get('CONTI_CGVIEW'):
         flags.append(f'-DCGVIEW={int(os.environ["CONTI_CGVIEW"])}')
@@ -290,6 +417,9 @@ def patch(p, at, scr_at, lang):
            'CG_SAVE_': (3, scr_at + 0x0C60), 'CG_T_': syms['CG_T'], 'CG_SCR_': (3, scr_at), 'CG_ERR_': syms['CG_ERR'],
            'CG_G_': syms['CG_G']}
     sym.update({k: (1, v) for k, v in fn.items()})
+    gp = gplay_parts(p)                                 # (P3: the group stage's match days)
+    sym.update(DIY=ls['DIY'], A1R=(2, gp['A0'] + 4), A2R=(2, gp['A0'] + 8), C89758=(1, gp['pair']),
+               C883DD=(1, gp['sort']), C8922B=(1, gp['C8922B']), WK2E=(2, gp['wk']), CG_GGOAL_=syms['cg_ggoal'])
     assert ls['DIY'][1] == ls['DIYCOPY'][1] + 0x41F, (ls['DIY'], ls['DIYCOPY'])   # (one B52h work area)
     code, fix, rel = nasmcave.assemble_obj(ASM, at, sym, 3)
     lab = nasmcave.labels(ASM, at, sym)
@@ -307,6 +437,13 @@ def patch(p, at, scr_at, lang):
         p.add_ptr(1, cl['cg_testp'], 3, syms['cg_selftest'][1])
     if os.environ.get('CONTI_CGVIEW'):
         p.add_ptr(3, syms['CG_VSIM'][1], 3, lab['cg_vsim'])
+    p.add_ptr(3, syms['CG_GPLAY'][1], 3, lab['cg_gplay'])
+    import ctview                                       # (P3: the rounds menu's buttons -> cg_view / cg_close)
+    if ctview.CR_PTRS:
+        cp = ctview.CR_PTRS
+        p.add_ptr(3, cp['view'], 3, syms['cg_view'][1])
+        p.add_ptr(3, cp['close'], 3, syms['cg_close'][1])
+        p.add_ptr(3, cp['scr'], 3, scr_at)
     p.add_ptr(1, cl['cg_guardp'], 3, syms['cg_daily'][1])          # (P2: a day / a save closes an open view first)
     p.add_ptr(1, trailer.INFO['cg_guardp'], 3, syms['cg_guard'][1])
     LABELS.clear()

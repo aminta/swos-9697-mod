@@ -5403,6 +5403,26 @@ def bench_switch(exe):
     return t[1] if o == 1 else Off3(t[1]), p.target(o, g.end())[1]
 
 
+def cpu_out(r, name, info):
+    """The places (0..15) of a CPU club's first 16 that are unavailable (cardsInjuries & C3h: injured, suspended) in its
+    team record (playMatchTeam1Ptr / playMatchTeam2Ptr, the dword after it); empty set if not found."""
+    pm = se_vars()['PM1'][1]
+    for k in (0, 4):
+        t = struct.unpack('<I', r.read(r.base2 + pm + k, 4))[0]
+        try:
+            d = r.read(t, 76 + 38 * 16)
+        except Exception:
+            continue
+        if d[5:22].split(b'\0')[0].decode('latin-1') == name:
+            out = {i for i in range(16) if d[76 + 38 * i + 27] & 0xC3}
+            if out:
+                info.append(f'{name}: unavailable in its record ' + ', '.join(
+                    f'{i}:{d[76 + 38 * i + 3:76 + 38 * i + 25].split(bytes(1))[0].decode("latin-1")}/{d[76 + 38 * i + 27]:#04x}'
+                    for i in sorted(out)))
+            return out
+    return set()
+
+
 def ingame_team(r, base):
     """An in-match team (TeamGame 42 + PlayerInfo 61 each): (name, [(short name, position, substituted)] x 26)."""
     d = r.read(r.base2 + base, 1704)
@@ -5454,6 +5474,9 @@ def bench_vars():
         import sacups
         v11 = benchx.sites11(p, sacups.regs(d))[1]
         bench_vars.v.update(BENCHY=v11['BENCHY'][1], CAMY=v11['CAMY'][1])
+        gs = [x for x in re.finditer(rb'\x66\x83\x3d(....)\x03\x0f\x84....\x66\xc7\x05....\x01\x00\x66\x83\x3d', d, re.S)]
+        assert len(gs) == 1, ('gameState', len(gs))     # (BenchMenuHandleControls: cmp gameState, ST_KEEPER_HOLDS_BALL /
+        bench_vars.v['GSTATE'] = t(gs[0], 1)            # jz / mov [subsBlockDirections], 1 / cmp [g_benchPlayerIndex], 5)
     return bench_vars.v
 
 
@@ -5478,13 +5501,106 @@ def cam_settle(s, tries=20):
 DUG_SPR = 17                                # (4.0.6) the seated sprite's last row below its place's y (bench_world 03/11)
 
 
+def clock_box(r):
+    """(4.0.6 two rows) the match clock (currentTimeSprite, ResetTime's `mov [A0], offset` / `mov word [esi +
+    imageIndex], SPR_8_MINS`) on the screen: (x0, y0, x1, y1) as DrawSprites places it (x - centerX - g_cameraX, y -
+    centerY - g_cameraY - z; its picture's pixWidth x nlines), None when it is not shown."""
+    if not hasattr(clock_box, 'at'):
+        import sacups
+        import shirtnum
+        o = lepatch_orig()
+        d = o.le.obj_bytes(1)
+        A0 = sacups.regs(d)['A0']
+        P = lambda x: re.escape(struct.pack('<I', x))
+        m = [x.start() for x in re.finditer(rb'\xc7\x05' + P(A0) + rb'(....)\x8b\x35' + P(A0) + rb'\x66\xc7\x46\x46\x48\x01',
+                                            d, re.S)]
+        assert len(m) == 1, ('currentTimeSprite', m)
+        clock_box.at, clock_box.spr = o.target(1, m[0] + 6)[1], shirtnum.spr_index(o)
+    v = bench_vars()
+    sp = r.read(r.base2 + clock_box.at, 0x48)
+    x, y, z = (struct.unpack('<h', sp[k:k + 2])[0] for k in (32, 36, 40))
+    vis, img = struct.unpack('<Hh', sp[0x44:0x48])
+    if not vis or img < 0:
+        return None
+    h = r.read(struct.unpack('<I', r.read(r.base2 + clock_box.spr + img * 4, 4))[0], 24)
+    w, nl, cx0, cy0 = (struct.unpack('<h', h[k:k + 2])[0] for k in (10, 12, 16, 18))
+    cam = [struct.unpack('<h', r.read(r.base2 + v['CAMY'] + k, 2))[0] for k in (-4, 0)]
+    x0, y0 = x - cx0 - cam[0], y - cy0 - cam[1] - z
+    return x0, y0, x0 + w - 1, y0 + nl - 1
+
+
+def dugout_frame(r, cx, cy, errs, tag):
+    """(4.0.6 two rows, Davide 03/11) both dugouts whole on the screen (their ink rows dugout.INK, roof cap to steps,
+    in camera y .. y + 199) and the clock (clock_box) on the screen, off both dugouts (right of x 47, the boxes' 3rd
+    column) and left of the game's spinning S (SpinBig_S_Sprite, camera x + 285: its ink from screen x 295).
+    Returns a report string."""
+    import dugout
+    check(cy <= dugout.INK[0] and dugout.INK[1] <= cy + 199, f'{tag}both dugouts: their rows {dugout.INK} not whole in '
+                                                             f'the screen (camera y {cy})', errs)
+    b = clock_box(r)
+    check(b is not None and 0 <= b[0] and b[2] < 295 and 0 <= b[1] and b[3] < 200
+          and (b[0] > 47 - cx or b[3] < dugout.INK[0] - cy), f'{tag}the clock {b} over a dugout, the spinning S (x 295..) '
+                                                             f'or off the screen', errs)
+    return f'dugouts y {dugout.INK[0] - cy}..{dugout.INK[1] - cy} on the screen, the clock at {b}'
+
+
+def opp_dugout_shot(s, errs, info, tag=''):
+    """(DUG_OPP, Davide 03/11: the opponent's dugout; 4.0.6 two rows: both dugouts in one frame at the halfway line)
+    with the bench open: shot <tag>both_dugouts, the frame fitted to the run's PITCHn maps, both benches' rows
+    (dugout_rows) reported, each with its back row seen (the coach at least)."""
+    import dugout
+    v = bench_vars()
+    w16 = lambda r, o: struct.unpack('<H', r.read(r.base2 + o, 2))[0]
+    r = s.result
+    b0, b1 = sorted((w16(r, bench_vars()['BENCHY']), w16(r, bench_vars()['BENCHY'] + 2)))
+    cx, cy = (w16(r, v['CAMY'] - 4), w16(r, v['CAMY']))
+    s.shot(tag + 'both_dugouts')
+    check(abs(cy - (dugout.CAM_MID - 100)) <= 10, f'{tag}both dugouts: camera y {cy}', errs)
+    fr = dugout_frame(r, cx, cy, errs, tag)
+    f = r.read(0xA0000, 64000)
+    samp = [(x, y) for y in range(0, 200, 3) for x in range(60, 320, 5)]
+    fit = []
+    for k in range(1, 6):
+        try:
+            dat = struct.unpack('<2310I', open(os.path.join(s.run, 'SWOS', f'PITCH{k}.DAT'), 'rb').read())
+            blk = open(os.path.join(s.run, 'SWOS', f'PITCH{k}.BLK'), 'rb').read()
+        except OSError:
+            continue
+        px = lambda x, y, dat=dat, blk=blk: blk[dat[(y // 16) * 42 + x // 16] + (y % 16) * 16 + x % 16]
+        fit.append((sum(px(x + cx, y + cy) != f[y * 320 + x] for x, y in samp), k, px))
+    bad, k, px = min(fit, key=lambda t: t[0])
+    check(bad * 20 < len(samp), f'{tag}both dugouts: no pitch map fits (best PITCH{k}: {bad} of {len(samp)})', errs)
+    top, bot = dugout_rows(px, f, cx, cy, b0, b1), dugout_rows(px, f, cx, cy, b1)
+    check(top[0] is not None and bot[0] is not None, f'{tag}both dugouts: a bench missing {top} {bot}', errs)
+    info.append(f'{tag}both dugouts: camera ({cx}, {cy}), PITCH{k}, rows (back, front) top {b0} {top}, bottom {b1} {bot}; '
+                f'{fr}')
+
+
+def dugout_rows(px, f, cx, cy, by, opp=None):
+    """(4.0.6 two rows) the last seated place of each row of the bench at benchY `by` in frame f (the pitch map px at
+    camera (cx, cy)): the back row's ink in x 27..35 (coach 0, places 1..BACK at by - 15 + 7 i), the front row's in
+    x 36..44 (places BACK+1.. at by - 15 + FRONT_Y + 7 (i - BACK - 1)), each down to DUG_SPR rows below its seat;
+    the other dugout (y >= opp - 15) is not looked at (the clock is off the dugouts with the bench open, bx_clock).
+    (back, front): the last place seen, None for a row with no ink."""
+    import dugout
+    lo, hi = by - 15, min(by + 7 * 9 + DUG_SPR, (opp or 9999) - 15)
+    out = []
+    for x0, x1, y0, p0 in ((27, 36, by - 15, 0), (36, 45, by - 15 + dugout.FRONT_Y, dugout.BACK + 1)):
+        ink = [y + cy for y in range(200) if lo <= y + cy < hi and any(
+            px(x + cx, y + cy) != f[y * 320 + x] for x in range(max(0, x0 - cx), max(0, x1 - cx)))]
+        out.append(p0 + round((ink[-1] - DUG_SPR - y0) / 7) if ink else None)
+    return tuple(out)
+
+
 def dugout_check(s, n, gone, errs, info, tag=''):
-    """4.0.6 long dugouts (dugout.py, benchx block 2) with the bench open (subs menu, cursor moved): benchY 293 (the
-    top dugout, grown upwards) or 485; the camera arrived on the own dugout (g_cameraY = benchY + 67 - 100, the arrival
-    window +-10); the frame = the run's own PITCHn map at (g_cameraX, g_cameraY) but the bench's sprites (the pitch
-    found as the one that fits), and the seated sprites right of the box (x 27..35) end DUG_SPR rows below the last
-    filled place's y (benchY - 15 + 7 x place: places 1..n but `gone`, the left-out ones = empty seats): every place
-    seated, none past it. Returns (pitch, camera y, last place seen) or None."""
+    """4.0.6 two-row dugouts (dugout.py, benchx block 2) with the bench open (subs menu, cursor moved): benchY 373 (the
+    top dugout, grown upwards: 389 - 16 x ADD) or 485; both dugouts whole and the clock off them (dugout_frame); the camera arrived at the halfway line between them (g_cameraY = CAM_MID - 100,
+    +-10: both dugouts in one frame); the frame = the run's own PITCHn map at (g_cameraX, g_cameraY) but the benches'
+    sprites (the pitch found as the one that fits); per row (dugout_rows) the seated sprites end at the last filled
+    place's seat + DUG_SPR: back row coach + places 1..BACK, front row the rest (places 1..n but `gone`, the left-out
+    ones = empty seats): every place seated in its row, none past it. The other bench: its rows reported. Returns
+    (pitch, camera y, last place seen) or None."""
+    import dugout
     v = bench_vars()
     w16 = lambda r, o: struct.unpack('<H', r.read(r.base2 + o, 2))[0]
     r, cam = cam_settle(s)
@@ -5492,13 +5608,17 @@ def dugout_check(s, n, gone, errs, info, tag=''):
         errs.append(f'{tag}dugout: {r}')
         return None
     by, (cx, cy) = w16(r, v['BENCHY']), cam
-    check(by in (293, 485), f'{tag}dugout: benchY {by} (want 293 top / 485 bottom)', errs)
-    check(abs(cy - (by + 67 - 100)) <= 10, f'{tag}dugout: camera y {cy}, not on the dugout (benchY {by}: {by - 33})', errs)
+    ob = w16(r, bench_vars()['BENCHY'] + 2) if by == w16(r, bench_vars()['BENCHY']) else w16(r, bench_vars()['BENCHY'])   # (benchY / opponentBenchY)
+    ty = 389 - 16 * dugout.ADD
+    check(by in (ty, 485), f'{tag}dugout: benchY {by} (want {ty} top / 485 bottom)', errs)
+    check(abs(cy - (dugout.CAM_MID - 100)) <= 10, f'{tag}dugout: camera y {cy}, not at the halfway line '
+                                                   f'({dugout.CAM_MID - 100})', errs)
+    fr = dugout_frame(r, cx, cy, errs, tag)
     o = lepatch_orig()                      # (16-colour mode: the screen is 4 bit planes, no linear frame to compare)
     eg = [m.start() for m in re.finditer(rb'\x66\x83\x3d....\xff\x0f\x84....\x66\x81\x3d....\x33\x01',
                                          o.le.obj_bytes(1), re.S)]
     if r.obj2(o.target(1, eg[0] + 3)[1], 2) == b'\xff\xff':
-        info.append(f'{tag}dugout (16 colours): benchY {by}, camera ({cx}, {cy})')
+        info.append(f'{tag}dugout (16 colours): benchY {by}, camera ({cx}, {cy}); {fr}')
         return None, cy, None
     f = r.read(0xA0000, 64000)
     samp = [(x, y) for y in range(0, 200, 3) for x in range(60, 320, 5)]
@@ -5515,18 +5635,17 @@ def dugout_check(s, n, gone, errs, info, tag=''):
     if bad * 20 >= len(samp):               # (kept for decoding: the frame and the camera)
         open(os.path.join(s.run, tag + 'dugout_frame.bin'), 'wb').write(f + struct.pack('<hh', cx, cy))
     check(bad * 20 < len(samp), f'{tag}dugout: no pitch map fits the frame (best PITCH{k}: {bad} of {len(samp)} differ)', errs)
-    ink = [y + cy for y in range(200) if any(px(x + cx, y + cy) != f[y * 320 + x] for x in range(max(0, 27 - cx), max(0, 36 - cx)))
-           and y + cy > by - 15]
     filled = [i for i in range(1, n + 1) if i not in gone]
-    want = by - 15 + 7 * filled[-1] + DUG_SPR if filled else None
-    seen = ink and round((ink[-1] - DUG_SPR - by + 15) / 7)
-    check(ink and want is not None and abs(ink[-1] - want) <= 2,
-          f'{tag}dugout: seated sprites end at y {ink[-1] if ink else None} (place {seen}), want {want} (place '
-          f'{filled[-1] if filled else None} of {n})', errs)
-    info.append(f'{tag}dugout: benchY {by}, camera ({cx}, {cy}), PITCH{k} ({bad} of {len(samp)} differ), seated down to '
-                f'place {seen} of {n}')
+    want = (max([0] + [i for i in filled if i <= dugout.BACK]), max([i for i in filled if i > dugout.BACK], default=None))
+    seen = dugout_rows(px, f, cx, cy, by, ob if ob > by else None)
+    check(seen == want, f'{tag}dugout: last seated place per row (back, front) {seen}, want {want} ({n} places, '
+                        f'gone {sorted(gone)})', errs)
+    oseen = dugout_rows(px, f, cx, cy, ob, by if by > ob else None)
+    check(oseen[0] is not None, f'{tag}dugout: the other bench (benchY {ob}) not in the frame', errs)
+    info.append(f'{tag}dugout: benchY {by}, camera ({cx}, {cy}), PITCH{k} ({bad} of {len(samp)} differ), seated per row '
+                f'{seen} of {n}; the other bench (benchY {ob}) {oseen}; {fr}')
     s.shot(tag + 'dugout')
-    return k, cy, seen
+    return k, cy, max(x for x in seen if x is not None) if seen[0] is not None else None
 
 
 def team_data():
@@ -5546,10 +5665,27 @@ def team_data():
     return team_data.v
 
 
+def keeper_let_go(s, errs):
+    """(03/11) the game's bench takes no cursor key while a keeper holds the ball (BenchMenuHandleControls: gameState
+    ST_KEEPER_HOLDS_BALL, bench_vars GSTATE) and the match stands still with the bench open: with it shut (the other
+    key's call) play on until he lets it go - the human club's keeper on a long fire, as stoppage_time's restarts.
+    False (an error added) when a dump does not come back."""
+    v = bench_vars()
+    w16 = lambda o: struct.unpack('<H', s.result.read(s.result.base2 + o, 2))[0]
+    for k in range(12):
+        if w16(v['GSTATE']) != 3 or w16(v['BENCHY'] - 0x12):
+            return True
+        r = s.send('fire:2 dump:1' if k % 2 else 'dump:1')
+        if r.outcome != 'dump':
+            errs.append(f'bench call (keeper holds the ball): {r}')
+            return False
+    return True
+
+
 def bench_sub(s, bx, place, errs, info, mark, key=None, gone=None, tag=''):
     """benchx block 2: the bench called, its cursor moved down to the squad's place `place` (12..26, g_benchPlayerIndex
-    = place - 11: index 1 = in-match player 11 = place 12; 4.0.6 long dugouts: every place seated, no window - bx_win,
-    obj1 at bx - 4, stays 0 - and the camera on the own dugout, dugout_check); fire picks him
+    = place - 11: index 1 = in-match player 11 = place 12; 4.0.6 two-row dugouts: every place seated, no window - bx_win,
+    obj1 at bx - 4, stays 0 - and the camera at the halfway line, both dugouts in view, dugout_check); fire picks him
     (g_subsState 1, plToEnterGameIndex = place - 1), fire again makes the change (the team's NumSubs + 1)."""
     v = bench_vars()
     want = place - 11
@@ -5578,11 +5714,13 @@ def bench_sub(s, bx, place, errs, info, mark, key=None, gone=None, tag=''):
         s.log.append(f'[rng] {rv.hex()}')
         s.rng_pinned = True
     for call in range(12):
+        if not keeper_let_go(s, errs):
+            return False
         r = s.send((key or ('pgup' if call % 2 == 0 else 'pgdn')) + ':0.3 dump:0.6')   # (key: one team's bench)
         if r.outcome == 'dump':
             r, cam = cam_settle(s)          # (4.0.6 long dugouts: the bench takes keys once the camera is there)
             cams.append((cam, w16(v['BENCHY'], r.base2), {hex(o)[-3:]: w16(o, r.base2) for o in (
-                0xb16b6, 0xb16b8, 0xb16be, 0xb16c4, 0xb16c6, 0xb16ca, 0xb16cc, 0xb16e8, 0xb16f2, 0xb16f4, 0xb1718, 0xb171a, 0xb1722, 0xb16fe, 0xb1702, 0xb1714, 0xb170c,
+                0xb16b6, 0xb16b8, 0xb16be, 0xb16c4, 0xb16c6, 0xb16ca, 0xb16cc, 0xb16e8, 0xb16f2, 0xb16f4, 0xb1718, 0xb171a, 0xb1722, 0xb16fe, 0xb1702, 0xb1714, 0xb170c, 0x72942, 0xb16c8, 0xbdbc8,
                 0xb1720)}) if r.outcome == 'dump' and os.environ.get('BENCH_DIAG') else
                         (cam, w16(v['BENCHY'], r.base2)) if r.outcome == 'dump' else None)
         if r.outcome != 'dump':
@@ -5616,6 +5754,8 @@ def bench_sub(s, bx, place, errs, info, mark, key=None, gone=None, tag=''):
     check(all(w == 0 for i, w in seen), f'bx_win moved (4.0.6 long dugouts: no window): {seen}', errs)
     gone = {int(x.split(':')[0]) - 11 for x in os.environ.get('BENCH_INJ', '').split(',') if x} if gone is None else gone
     dugout_check(s, bench_eff(s.result, bx), gone, errs, info, tag)
+    if os.environ.get('DUG_OPP') and not tag:      # (two rows: dugout_check saw both benches already; the shot)
+        opp_dugout_shot(s, errs, info, 'h1_')
     s.shot(tag + 'bench_window')
     ups = []                                # back up 6 places (the window starts at the cursor) and down again
     for key in ['up'] * 6 + ['down'] * 6:
@@ -6419,8 +6559,9 @@ def bench_play(s, gmax, top, bot, wants, errs, info, mark, sub=None, icons=None,
             texts, scr = [], None
         if ('TRASFERIMENTI' in texts or 'VISUALIZZA MONDO' in texts) and 'PARTITA' in texts:
             act = 'PARTITA'
-        elif 'MOD. TATTICA' in texts and ('PARTITA' in texts or 'GIOCA PARTITA' in texts):
-            act = 'GIOCA PARTITA' if 'GIOCA PARTITA' in texts else 'PARTITA'   # (a player-coach: 'GIOCA :', not
+        elif 'MOD. TATTICA' in texts and ({'PARTITA', 'GIOCA PARTITA', TRAIN_TXT[UI][2]} & set(texts)):
+            act = next(t for t in ('GIOCA PARTITA', 'PARTITA', TRAIN_TXT[UI][2]) if t in texts)   # (FR / DE: JOUER LE
+                                            # MATCH / NUR SPIEL. on the squad screen; a player-coach: 'GIOCA :', not
             info.append('squad screen: ' + act)                                 #  'ALLEN:'; VIS. RISULTATI simulates)
             if icons is not None:           # the bald icons as the squad screen built them (a player poked bald)
                 icons['squad'] = bald_icons(r)
@@ -6516,6 +6657,11 @@ def bench_play(s, gmax, top, bot, wants, errs, info, mark, sub=None, icons=None,
         if xn:
             xn = xn[:want - 16]
         out = wants.get('-', set()) if name in wants else set()   # (2) unavailable bench players: empty places
+        if name not in wants:               # a CPU club's own injured / suspended (a career): the game fields fit bench
+            n_out = len(cpu_out(r, name, info))   # players in their place and leaves as many bench places (11..15) empty
+            ben = [i for i in empty if 11 <= i < 16]
+            if n_out and len(ben) == n_out:
+                out = set(ben)
         check(len(named) == want - len(out) and empty == sorted(out | set(range(want, cap))),
               f'{name}: {len(named)} named, empty {empty}' + (f' (left out {sorted(out)})' if out else ''), errs)
         if xn:
@@ -6644,11 +6790,27 @@ def bench_play(s, gmax, top, bot, wants, errs, info, mark, sub=None, icons=None,
                 s.poke(r.base2 + o + 0x2c, b'\x01')   # a goal of his (before going off): the after-match loop of
                 mark(f'goal poked: {goal[0]} (squad {q}) at in-match place {sub[1]}')   # 26 must count it
     end = False
+    benches = None                          # (DUG_OPP: the two benchY each step - a change = the ends swapped)
     for k in range(300):                    # (3 fires a pause: 10 ran past the result screens into the next
         r = s.send('fire:3 ' * 3 + 'dump:1')  #  match day's squad screen, stuck there with an injured player)
         if r.outcome != 'dump':
             errs.append(f'play on {k}: {r}')
             break
+        if os.environ.get('DUG_OPP') and benches != 'done':
+            bp = tuple(struct.unpack('<H', r.read(r.base2 + o, 2))[0] for o in (bench_vars()['BENCHY'], bench_vars()['BENCHY'] + 2))
+            benches = benches or bp
+            if bp != benches or k >= int(os.environ.get('DUG_OPP_K', 40)):   # (the second half: the own bench
+                info.append(f'play on {k}: benchY own / other {benches} -> {bp}')   # called again, both shots;
+                for key in ('pgup', 'pgdn'):                                        # each step until it opens)
+                    s.send(key + ':0.3 dump:0.6')
+                    r, cam = cam_settle(s)
+                    if r.outcome == 'dump' and struct.unpack('<H', r.read(r.base2 + bench_vars()['BENCHY'] - 0x12, 2))[0] == 30:
+                        info.append(f'h2 own dugout: camera {cam}, benchY {struct.unpack("<H", r.read(r.base2 + bench_vars()['BENCHY'], 2))[0]}')
+                        s.shot('h2_own_dugout')
+                        opp_dugout_shot(s, errs, info, 'h2_')
+                        s.send('left:0.3 left:0.3 dump:0.5')
+                        benches = 'done'
+                        break
         if k % 10 == 0:
             mark(f'play on {k}')
         if os.environ.get('BENCH_PLAYSHOTS'):
@@ -7602,6 +7764,86 @@ def shirt_numbers_ega():
                     check(rows == want, f'{n}: {rows}', errs)
                 if not errs:
                     info.append('16-colour mode on; 17 / 20 / 41 / 99 built as bit planes, digits as in 256 colours')
+    finally:
+        if keep is None:
+            os.environ.pop('SWOSTEST_MEMSIZE', None)
+        else:
+            os.environ['SWOSTEST_MEMSIZE'] = keep
+    return not errs, '; '.join(errs + info)
+
+
+@scenario
+def ega_bench_cursor():
+    """(03/11, Regia / Davide) the bench cursor that never moves in the 16-colour mode on the dynamic core (bench_world
+    on I4 with BENCH_RNG=000000000000): the game's or the mod's? EGA_BUILD = a game folder (c/ORIGCD/SWOS, the CD
+    as it is, or a release's SWOS), DOSBox-X memsize=8 (the 16-colour mode, as shirt_numbers_ega), a friendly HAMBURG v
+    SCHALKE; both random generators pinned at kick-off (EGA_SEED, 6 bytes hex, default 000000000000); then up to 10
+    bench calls (PgUp / PgDn alternately, as bench_sub), each after the camera stands at the bench (cam_settle): with
+    the bench open (0xb16be = 30) 3 x down, the cursor index read. PASS = the cursor moved on an open bench; the
+    message lists every call (camera, open flag, index after the downs, gameState). Before each call keeper_let_go (a
+    bench opened while a keeper holds the ball takes no key: the game's rule). EGA_MEMSIZE 6 runs only the CD exe (a
+    release exe exits at once: 8)."""
+    b = os.environ.get('EGA_BUILD') or builds()['it']
+    seed = bytes.fromhex(os.environ.get('EGA_SEED', '000000000000'))
+    v = bench_vars()
+    errs, info, calls = [], [], []
+    keep = os.environ.get('SWOSTEST_MEMSIZE')
+    os.environ['SWOSTEST_MEMSIZE'] = os.environ.get('EGA_MEMSIZE', '8')   # (the CD exe needs less: 6)
+    o = lepatch_orig()
+    eg = [m.start() for m in re.finditer(rb'\x66\x83\x3d....\xff\x0f\x84....\x66\x81\x3d....\x33\x01',
+                                         o.le.obj_bytes(1), re.S)]
+    ega = o.target(1, eg[0] + 3)[1]
+    w16 = lambda r, off: struct.unpack('<H', r.read(r.base2 + off, 2))[0]
+    try:
+        with Session('ega_bench_cursor', b, {}, 'dump:3', 600, match=True) as s:
+            s.wait()
+            for t in ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB', 'EUROPA', 'GERMANIA', '1. LIGA', 'HAMBURG'):
+                walk(s, t, 2)
+            s.send('fire dump:2')
+            walk(s, 'SCHALKE', 2)
+            for _ in range(12):
+                scr = s.screen()
+                if scr.selected == 55:
+                    s.send('fire dump:4')
+                    break
+                s.send(('right' if scr.selected in (56, 57) else 'down') + ' dump:0.5')
+            for _ in range(22):
+                s.send('down dump:0.5')
+                if s.screen().selected == 9:
+                    break
+            r = s.send('fire ' + 'fire:3 ' * 30 + 'dump:2')
+            check(r.outcome == 'dump', f'match: {r}', errs)
+            if r.outcome == 'dump':
+                check(r.obj2(ega, 2) == b'\xff\xff', f'not the 16-colour mode (EGA_graphics {r.obj2(ega, 2).hex()})', errs)
+                for at, part in zip(rng_sites(os.path.join(s.run, 'SWOS', 'ITALIAN.EXE')), (seed[:3], seed[3:6])):
+                    s.poke(r.base2 + at, part)
+                s.log.append(f'[rng] {seed.hex()}')
+                moved = False
+                for call in range(10):
+                    if not keeper_let_go(s, errs):
+                        break
+                    r = s.send(('pgup' if call % 2 == 0 else 'pgdn') + ':0.3 dump:0.6')
+                    if r.outcome == 'dump':
+                        r, cam = cam_settle(s)
+                    if r.outcome != 'dump':
+                        errs.append(f'bench call {call}: {r}')
+                        break
+                    opened = w16(r, bench_vars()['BENCHY'] - 0x12)
+                    idx = None
+                    if opened == 30:
+                        for _ in range(3):
+                            r = s.send('down:0.15 dump:0.3')
+                            if r.outcome != 'dump':
+                                break
+                        idx = w16(r, v['IDX']) if r.outcome == 'dump' else None
+                        moved = moved or bool(idx)
+                    calls.append((call, cam, opened, idx, w16(r, v['GSTATE']) if r.outcome == 'dump' else None))
+                    if moved:
+                        s.shot('bench_moved')
+                        break
+                check(any(c[2] == 30 for c in calls), f'the bench never opened: {calls}', errs)
+                check(moved, f'the cursor never moved on an open bench: {calls}', errs)
+                info.append(f'16 colours, seed {seed.hex()}: calls (n, camera, open, index, gameState) {calls}')
     finally:
         if keep is None:
             os.environ.pop('SWOSTEST_MEMSIZE', None)

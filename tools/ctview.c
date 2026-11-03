@@ -64,7 +64,10 @@ static void spec(void) {
 static u32 mweek(int m) { return (u32)((m - 1 + (m < 8 ? 12 : 0)) * 8); }   /* (x 8 from January, as CT_SEG.month) */
 
 /* --- names ---------------------------------------------------------------------------------------------------------- */
-static char fname[] = "data\\team.000";
+#ifndef CV_STEM
+#define CV_STEM "team"                  /* the world's team file stem (ctview.py: mkseason.ns_stem - tmw5 in a release) */
+#endif
+static char fname[] = "data\\" CV_STEM ".000";
 static char nbuf[18];
 #ifdef NATIVE
 const char *(*cv_native_name)(u32);
@@ -77,7 +80,8 @@ static int dos(u32 ax, u32 bx, u32 cx, u32 dx) {
 }
 static const char *name(u32 w) {        /* team word: file w & FF, record w >> 8 (2 + 684 x n, teamName at +5) */
     u32 f = w & 0xFF, off = 2 + 684 * ((w >> 8) & 0xFF) + 5;
-    fname[10] = (char)('0' + f / 100); fname[11] = (char)('0' + f / 10 % 10); fname[12] = (char)('0' + f % 10);
+    char *d = fname + sizeof fname - 4;
+    d[0] = (char)('0' + f / 100); d[1] = (char)('0' + f / 10 % 10); d[2] = (char)('0' + f % 10);
     nbuf[0] = '?'; nbuf[1] = 0;
     int h = dos(0x3D00, 0, 0, (u32)fname);
     if (h < 0) return nbuf;

@@ -15003,6 +15003,7 @@ def world_contiview():
         check(lines[:1] == ['COPA LIBERTADORES'] and T[4] in lines and f'{T[3]} A: {T[1]}' in lines,
               f'season 1 page {lines}', errs)
         check(not LIST_BAD, f'season 1 VISUAL. COMPETIZ. list: {LIST_BAD}', errs)
+        check(not any('?' in x for x in lines), f'season 1 unread club names {lines[:4]}', errs)
         info.append(f's1: {lines[:4]}')
     s2 = os.environ.get('CV_S2') or os.path.join(RUNS, f'cv_s2_{UI}.CAR')   # (this build's own season 1: a slot's
     if not os.path.exists(s2):                          # title is in the save - CV_TEAM, default ARSENAL: the list's most rows)
@@ -15034,6 +15035,8 @@ def world_contiview():
             check(not odd, f'season 2 page {k}: characters outside the menu font {odd}', errs)
             wide = [x for x in lines + [x for p in pages for x in p] if complist.px(x.upper()) > 298]   # (ctview PXMAX)
             check(not wide, f'season 2 page {k}: lines over 298 px {wide}', errs)
+            unk = [x for x in lines + [x for p in pages for x in p] if '?' in x]   # (ctview name(): a team file not
+            check(not unk, f'season 2 page {k}: unread club names {unk[:4]}', errs)   # opened - TEAM vs TMW5.nnn)
             b1 = st()
             dif = [(n, i, b0[j][i], b1[j][i]) for j, n in enumerate(('SEG', 'ED')) for i in range(len(b0[j]))
                    if b0[j][i] != b1[j][i]]
@@ -15106,7 +15109,8 @@ def world_contiview_tie():
             return False, f'season 1: {msg[:200]}'
         s1 = os.path.join(RUNS, f'cv_tie_s1_{UI}.CAR')
         shutil.copy(car, s1)
-        ok, msg, l2 = sc_season(team, dict(W8485_BUILD=exe, W8485_FROM=s1, W8485_MIDTEXT='LIBERTADORES:5'), 2)
+        ok, msg, l2 = sc_season(team, dict(W8485_BUILD=exe, W8485_FROM=s1, W8485_MIDTEXT=f'LIBERTADORES:{3 if UI == "de" else 5}'), 2)   # (DE: the 2nd legs' 'R\x9aCKSP.'
+        # titles read empty - Screen keeps umlaut texts only for known labels - so q3's first leg is its 3rd screen)
         if not ok or 'saved mid-season' not in msg:
             return False, f'season 2 to q3\'s first leg: {msg[:200]}'
         shutil.copy(msg.split(': ', 1)[1], mid)
@@ -15134,6 +15138,8 @@ def world_contiview_tie():
         check(not odd, f'characters outside the menu font {odd}', errs)
         wide = [x for x in allx if complist.px(x.upper()) > 298]   # (ctview PXMAX: a long tie wraps)
         check(not wide, f'lines over 298 px {wide}', errs)
+        unk = [x for x in allx if '?' in x]             # (ctview name(): a team file not opened - TEAM vs TMW5.nnn)
+        check(not unk, f'unread club names {unk[:4]}', errs)
         check(btn and btn[0] == 'CONMEBOL', f'buttons {btn}', errs)
         check(not LIST_BAD, f'VISUAL. COMPETIZ. list: {LIST_BAD}', errs)
         check(not any(b0[1][i] != b1[1][i] for i in range(len(b0[1]))) and (b0[0] == b1[0] or not any(b0[0])),

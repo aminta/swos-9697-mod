@@ -242,8 +242,11 @@ def patch(p, at, lang):
     cs = cl['syms']
     ext = {k: cs[k] for k in ('CT_SPEC', 'CT_LP', 'CT_IN', 'CT_ST', 'CT_OUT', 'CT_ED', 'CT_SEG', 'ct_resume')}
     ext['CV_TAB'] = (3, tab_at)
-    obj = cobj.compile_c(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'ctview.c'),
-                         ['-fno-zero-initialized-in-bss'])
+    import guests
+    import mkseason
+    stem = mkseason.ns_stem(guests.world()) if guests.world() is not None else 'team'   # (4.0.6: a release's world
+    obj = cobj.compile_c(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'ctview.c'),   # 2026-27 is TMW5.nnn)
+                         ['-fno-zero-initialized-in-bss', f'-DCV_STEM="{stem}"'])
     c0 = at
     syms, at, bss = cobj.link(p, obj, at, (3, 0), externs=ext, text_obj=3)
     c1 = at

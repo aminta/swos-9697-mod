@@ -10081,7 +10081,7 @@ def stadium_venues():
     (EIP back to its start): every venue row of the file (all 4 languages) -> its venue; the wrong season, a cut
     competition, another round -> ROMA's own stadium; the game's '*' padding ends a string; then the real strings
     back -> the club's stadium on the versus screen (stadium_vs_check), the line-ups after it. The strings themselves are the exes' own (the
-    build's stadium.vcheck_exe stops a build whose CSV string is not in that language's exe / DATA)."""
+    build's stadium.vcheck_exe prints a CSV string not in that language's exe / DATA; stadium_clublist fails on it)."""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import lepatch
     import stadium
@@ -10178,6 +10178,27 @@ def stadium_venues():
         r = s.send('dump:3')
         check(r.outcome == 'dump', f'after the versus screen: {r}', errs)
     return not errs, '; '.join(errs + info)
+
+
+@scenario
+def stadium_clublist():
+    """4.0.6 the stadium club list against a release build's World 2026-27 data (STADIUM_BUILD, else W2627FULL: the
+    release recipe): every tools/stadium_tmw5_clubs.csv row is that club in DATA\\TMW5.nnn (stadium.unmatched: 0 - the
+    build itself tolerates an older snapshot, dropping the row), every venue string is in each exe present / DATA
+    (stadium.venue_misses: none - the build only prints them), DATA\\STADTMW5.DAT is there. No DOSBox."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import stadium
+    b = os.environ.get('STADIUM_BUILD') or os.environ.get('W2627FULL')
+    if not b or not os.path.isdir(os.path.join(b, 'DATA')):
+        return True, 'SKIP: STADIUM_BUILD / W2627FULL not set'
+    bad = stadium.unmatched(os.path.join(b, 'DATA'))
+    n = sum(1 for _ in open(stadium.CLUBS_CSV, encoding='utf-8')) - 1
+    vm = {lang: stadium.venue_misses(os.path.join(b, exe), lang, os.path.join(b, 'DATA'))[0]
+          for lang, exe in stadium.LANGS if os.path.exists(os.path.join(b, exe))}
+    vm = {k: v for k, v in vm.items() if v}
+    ok = not bad and not vm and os.path.exists(os.path.join(b, 'DATA', 'STADTMW5.DAT'))
+    return ok, f'{n} club rows, {len(bad)} not that club in {b}: {bad[:5]}; venue strings missing {vm}; STADTMW5.DAT ' + \
+        ('there' if os.path.exists(os.path.join(b, 'DATA', 'STADTMW5.DAT')) else 'MISSING')
 
 
 @scenario

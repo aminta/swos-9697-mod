@@ -219,7 +219,9 @@ static void cup_lines(int c, u32 week, int live) {
                     continue;
                 }
                 int gs = R[0] == K_GROUPS ? R[7] : 2, n = R[0] == K_GROUPS ? R[6] * R[7] : 0;
-                if (!n) while (n < 32 && CT_LP[c][n] != 0xFFFF && CT_LP[c][n]) n++;
+                int lim = R[18] && R[18] < 32 ? R[18] : 32;   /* (its places, as conti's lp_size: the next cup's
+                                           struct follows the list - CONCACAF's 16, then 3 '? - ?' ties, P5) */
+                if (!n) while (n < lim && CT_LP[c][n] != 0xFFFF && CT_LP[c][n]) n++;
                 if (r) { add(txt(T_BEFORE)); endline(); }
                 const char *rn = (const char *)CV_TAB + w16(ct + 4 + 2 * r);
                 for (int g = 0; g * gs < n; g++) {

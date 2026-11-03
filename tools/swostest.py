@@ -15490,6 +15490,8 @@ def world_cgame_fallback():
             s.shot(f'cgf_s1_{k}')
             s.log.append(f'[cgf] season 1 {c}: {v.texts()[:10]}')
             check(v.find(summ, exact=True) is None and v.texts(), f'season 1 {c}: a rounds menu ({v.texts()[:6]})', errs)
+            q = [t for t in v.texts() if '?' in t]      # (an unknown name: the list read past the round's places)
+            check(not q, f'season 1 {c}: unknown names {q[:3]}', errs)
             pages += 1
             walk(s, 16, 3)
         check(back_to(s, 'VISUALIZZA MONDO'), f'season 1: not back on the career menu ({s.screen()})', errs)

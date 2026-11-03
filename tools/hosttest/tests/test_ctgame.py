@@ -25,7 +25,7 @@ from emu import Machine  # noqa: E402
 
 FIX = os.path.join(os.path.expanduser('~'), 'swos-mod', 'internal', 'hosttest', 'fixtures', os.environ.get('HT_CG', 'cw_uru6'))
 MEM, PAGE = 0x2000000, 0x1000
-SCR, SCR_N, REC = 0xA000, 0x4280, 0x3280        # (ctgame.py: the scratch at obj3 + 0x1000 * pages; ctgame.c CG_REC)
+SCR, SCR_N, REC = 0xD000, 0x4280, 0x3280        # (ctgame.py: the scratch at obj3 + 0x1000 * pages - read from the syms; ctgame.c CG_REC)
 NCUP, NRD, NE, RB = 16, 8, 64, 24
 
 

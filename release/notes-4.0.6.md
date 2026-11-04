@@ -12,6 +12,12 @@
 - **CONTROLS: new device "P1 AND P2 ON KEYBOARD".** Two people can now play on the same keyboard. Player 2 has a second set of keys, by default **W / S / A / D** to move and **left SHIFT** to fire; you can change them in OPTIONS > CONTROLS like the first set, and they are saved in a file of their own (CONTROL2.DAT). Player 1 keeps his usual keys.
 - Good to know: many keyboards cannot read too many keys pressed at once (this is called *ghosting*: the keyboard "forgets" a key when several others are held down). If a direction or the fire key does not answer when both players press a lot at once, choose other keys for player 2 that are far from player 1's.
 - With SWOS++ this device is not offered (SWOS++ has its own controls).
+- **The keyboard is never blocked by the joypad.** When the controls are set to a joypad for player 1 and the keyboard for
+player 2 (the default when the patcher's "I have a joypad" is ticked), a joypad that is not centred - not calibrated,
+worn, or reading a corner - used to win over the keyboard: in the menus a direction held on the keyboard could do
+nothing (for example DOWN, with a stick leaning up). Now a direction held on the keyboard always counts, in the menus
+and for your team in a match, as long as nobody else is playing on the keyboard in that match. With KEYBOARD ONLY, TWO
+JOYPADS or SWOS++ nothing changes.
 
 #### The computer's clubs play by the same rules as you
 - **Two new OPTIONS rows, both ON by default:** the computer's clubs now get **red cards** (a sent-off player is suspended, like yours) and **injuries** (an injured player of a computer's club misses the following matches instead of being fit again at once). Turn a row OFF to get the original game behaviour back.
@@ -20,7 +26,9 @@
   match, each team's goalkeeper has a 1 in 25 chance of an injury. You see it afterwards, on the team screen, not
   during the match. He misses the next match or the next two, then he is fit again like any injured player. It is
   the goalkeeper on the pitch at the final whistle, and matches you only view the result of count too. The
-  computer's goalkeepers get injured only in a career, while CPU INJURIES is ON. To switch it off: OPTIONS > GOALKEEPER INJURIES
+  computer's goalkeepers get injured in every competition except friendlies, while CPU INJURIES is ON.
+  In a DIY or preset competition the computer's injured and suspended players now get better after each match,
+  like yours (before, they stayed out for the whole competition). To switch it off: OPTIONS > GOALKEEPER INJURIES
   (IT INFORTUNI PORTIERI, FR BLESSURES DES GARDIENS, DE TORWARTVERLETZUNGEN). It is ON by default and saved with
   the career; an older career loads it ON. Not with SWOS++.
 #### Continental cups in the game's own screens (World 2026-27)
@@ -204,6 +212,8 @@ With the new button in place, a long coach's name on the squad screen is shown s
 - **TRANSFERS stays available after viewing a cup.** After looking at a cup from VIEW WORLD, TRANSFERS was greyed out until the next match and the menu cursor jumped
   into the fixtures (since 4.0.5). Now the career menu stays as it was.
 - **The DOWN arrow in the match** (thanks to Salvatore) [TO COMPLETE: final wording once Panchina has the cause]: the DOWN arrow stopped working in the match after loading another career, or after leaving a started match with ESC. Fixed.
+- **Two-row benches drew stray pieces.** The patcher used to install only one of the five pitch picture files, so the new two-row benches showed dirty pieces on some pitches. It now installs all five.
+- **Club names without the "&" sign:** O Y M, TREFELIN BGC, SB VLASIM and HARLAND WOLFF.
 - **A play-off entrant that refuses the place** no longer makes the game read wrong data at the season end (it showed up with San Marino; found by Ben Baker).
 
 ### Good to know
@@ -226,6 +236,12 @@ La 4.0.6 è un giro di richieste dei giocatori: **due giocatori sulla stessa tas
 - **COMANDI: nuovo dispositivo "G1 E G2 SU TASTIERA".** Due persone possono giocare sulla stessa tastiera. Il giocatore 2 ha un secondo gruppo di tasti, di default **W / S / A / D** per muoversi e **MAIUSC sinistro** per il fuoco; si cambiano in OPZIONI > COMANDI come il primo gruppo e si salvano in un file a parte (CONTROL2.DAT). Il giocatore 1 tiene i suoi tasti di sempre.
 - Da sapere: molte tastiere non riescono a leggere troppi tasti premuti insieme (si chiama *ghosting*: la tastiera "dimentica" un tasto quando ne sono premuti molti altri). Se una direzione o il fuoco non risponde quando i due giocatori premono tanto insieme, scegli per il giocatore 2 altri tasti lontani da quelli del giocatore 1.
 - Con SWOS++ questo dispositivo non c'è (SWOS++ ha i suoi comandi).
+- **La tastiera non viene mai bloccata dal joypad.** Con i comandi impostati su joypad per il giocatore 1 e tastiera per il
+giocatore 2 (il valore che si ottiene spuntando "Ho un joypad" nel patcher), un joypad non centrato - non calibrato,
+consumato o che legge un angolo - vinceva sulla tastiera: nei menu una direzione tenuta sulla tastiera poteva non fare
+nulla (per esempio GIÙ, con la leva che pende in alto). Ora una direzione tenuta sulla tastiera conta sempre, nei menu e
+per la tua squadra in partita, purché nessun altro giochi con la tastiera in quella partita. Con SOLO TASTIERA, DUE
+JOYPAD o SWOS++ non cambia nulla.
 
 #### Le squadre del computer giocano con le tue regole
 - **Due nuove righe in OPZIONI, entrambe attive di default:** le squadre del computer ora prendono **cartellini rossi** (un espulso è squalificato, come i tuoi) e **infortuni** (un infortunato di una squadra del computer salta le partite seguenti invece di essere subito di nuovo a posto). Metti una riga su NO per riavere il comportamento originale del gioco.
@@ -234,7 +250,9 @@ La 4.0.6 è un giro di richieste dei giocatori: **due giocatori sulla stessa tas
   partita, il portiere di ogni squadra ha 1 probabilità su 25 di infortunarsi. Lo vedi dopo, nella schermata della
   squadra, non durante la partita. Salta la partita successiva o le due successive, poi torna disponibile come
   qualunque infortunato. Conta il portiere in campo al fischio finale, e valgono anche le partite di cui guardi solo
-  il risultato. I portieri del computer si infortunano solo in carriera, con INFORTUNI ALLA CPU attivato. Per spegnerlo:
+  il risultato. I portieri del computer si infortunano in ogni competizione tranne le amichevoli, con INFORTUNI ALLA CPU attivato.
+  In una competizione personalizzata o predefinita anche infortunati e squalificati del computer ora guariscono
+  dopo ogni partita, come i tuoi (prima restavano fuori per tutta la competizione). Per spegnerlo:
   OPZIONI > INFORTUNI PORTIERI (EN GOALKEEPER INJURIES, FR BLESSURES DES GARDIENS, DE TORWARTVERLETZUNGEN). È
   attivato all'inizio e si salva con la carriera; una carriera più vecchia lo carica attivato. Non con SWOS++.
 #### Coppe continentali nelle schermate del gioco (Mondo 2026-27)
@@ -425,6 +443,8 @@ resta quello).
 - **TRASFERIMENTI resta disponibile dopo aver guardato una coppa.** Dopo aver guardato una coppa da VISUALIZZA MONDO, TRASFERIMENTI restava grigio fino alla partita successiva e il
   cursore del menu saltava nelle partite (dalla 4.0.5). Ora il menu della carriera resta com'era.
 - **La freccia GIÙ in partita** (grazie a Salvatore) [DA COMPLETARE: formulazione definitiva quando Panchina ha la causa]: la freccia GIÙ smetteva di funzionare in partita dopo aver caricato un'altra carriera, o dopo essere usciti con ESC da una partita iniziata. Corretto.
+- **Le panchine su due file mostravano pezzi sporchi.** Il patcher installava solo uno dei cinque file con le immagini dei campi, quindi le nuove panchine su due file mostravano pezzi sporchi su alcuni campi. Ora li installa tutti e cinque.
+- **Nomi di club senza il segno "&":** O Y M, TREFELIN BGC, SB VLASIM e HARLAND WOLFF.
 - **Una squadra di play-off che rifiuta il posto** non fa più leggere al gioco dati sbagliati a fine stagione (si vedeva con San Marino; trovato da Ben Baker).
 
 ### Da sapere

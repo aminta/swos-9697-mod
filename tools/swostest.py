@@ -9615,6 +9615,62 @@ def engine_obj4():
 
 
 @scenario
+def engine_registry():
+    """engine step W: the world registry (swreg.py) in obj4 and the game's first call into the engine. DOS/4GW
+    relocates the manifest ('SWRG', worlds 0 / 4 / 5 on a release-recipe exe, its pointers into obj1 / obj2); a
+    FRIENDLY goes through GoGetTeamsForPlay's picker, now via obj4's swe_sel_tramp: inside the picker (EUROPA list)
+    SEL_MODE = M_FRIENDLY, competitionsTable[254] as in the main menu; after it (HAMBURG - SCHALKE, the pre-match
+    screen) SEL_MODE = ~0, competitionsTable[254] the same, REG_PREV = ~0 and WCUR the base world (no namespace left
+    entered). The registry lists nothing new in step W: the picker shows the game's own continents."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import swreg
+    errs, info = [], []
+    with Session('engine_registry', builds()['it'], {}, 'dump:3', 300) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'no first pause ({s.result})'
+        r = s.result
+        b4 = r.base4
+        if b4 is None:
+            return False, 'obj4 header not in memory'
+        reg, enter, leave, selmode, regprev = struct.unpack('<5I', r.read(b4 + 32, 20))
+        m = r.read(reg, swreg.HDR)
+        nw, nsbase = m[6], m[7]
+        wcur, c254 = struct.unpack_from('<2I', m, 8)
+        ws = [r.read(reg + swreg.HDR + swreg.REC * k, swreg.REC) for k in range(nw)]
+        check(m[:4] == swreg.MAGIC and struct.unpack_from('<H', m, 4)[0] == swreg.VERSION and b4 < reg < b4 + 0x1000,
+              f'manifest at {reg:#x}: {m[:8]!r}', errs)
+        check([w[0] for w in ws] == [0, 4, 5] and ws[2][8:12] == b'tmw5', f'worlds {[(w[0], w[8:12]) for w in ws]}', errs)
+        rd32 = lambda a: struct.unpack('<I', s.result.read(a, 4))[0]
+        menu254 = rd32(c254)
+        check(rd32(selmode) == 0xFFFFFFFF and r.read(wcur, 1)[0] == nsbase, f'main menu: SEL_MODE {rd32(selmode):#x} '
+              f'WCUR {r.read(wcur, 1)[0]}', errs)
+        for t in ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB'):
+            walk(s, t, 2)
+        scr = s.screen()
+        check(scr.find('EUROPA') is not None, f'the picker\'s continents: {scr.texts()[:12]}', errs)
+        check(rd32(selmode) == swreg.M_FRIENDLY and rd32(c254) == menu254, f'in the picker: SEL_MODE '
+              f'{rd32(selmode):#x}, competitionsTable[254] {rd32(c254):#x} (main menu {menu254:#x})', errs)
+        s.shot('picker')
+        for t in ('EUROPA', 'GERMANIA', '1. LIGA', 'HAMBURG', 'SCHALKE'):
+            walk(s, t, 2)
+        for _ in range(12):
+            scr = s.screen()
+            if scr.selected == 55:
+                s.send('fire dump:4')
+                break
+            s.send(('right' if scr.selected in (56, 57) else 'down') + ' dump:0.5')
+        scr = s.screen()
+        check(scr.find('HAMBURG') is not None or any('HAMBURG' in e[1] for e in scr.entries), f'pre-match: '
+              f'{scr.texts()[:12]}', errs)
+        check(rd32(selmode) == 0xFFFFFFFF and rd32(c254) == menu254 and rd32(regprev) == 0xFFFFFFFF
+              and s.result.read(wcur, 1)[0] == nsbase, f'after the picker: SEL_MODE {rd32(selmode):#x} C254 '
+              f'{rd32(c254):#x} REG_PREV {rd32(regprev):#x} WCUR {s.result.read(wcur, 1)[0]}', errs)
+        s.shot('prematch')
+        info.append(f'obj4 {b4:#x}, manifest {reg:#x} ({nw} worlds), picker SEL_MODE {swreg.M_FRIENDLY} then ~0')
+    return not errs, '; '.join(errs + info)
+
+
+@scenario
 def swospp_menu():
     """4.0.5 (Davide 30/10, option 2): under SWOS++ the green CAREER 2026-27 button keeps entry 4 and SWOS++'s own entry
     is shown through entry 11 (SAVE) while no contest is loaded, at SWOS++'s place (top). SWOSPP_BUILD (a World 2026-27

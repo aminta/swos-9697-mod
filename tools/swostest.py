@@ -358,17 +358,30 @@ SPP_STEP = False                                        # bench_world BENCH_SPP:
                                                         # sppmatch flow: the only one that starts PLAY MATCH under SWOS++)
 
 
-def spp_go(s, target, w=3):
+SPP_HOLD = 20                                           # timer ticks a key is held under SWOS++ without the latch (0.29 s)
+SPP_PM_HOLD = 16                                        # timer ticks the PLAY MATCH fire is held under SWOS++ (0.23 s):
+                                                        # the long-bench squad screen takes a fire only held >= ~12 ticks
+                                                        # (406 i10l; 4.0.5 release ~20, 4.0.5 without benches ~6), see spp_go
+
+
+def spp_go(s, target, w=3, fire='fire', hold=None):
     """Under SWOS++'s timer feed: select target one key at a time, re-planning after each (key:0.3, a pause), then a
-    plain fire - Panchina's sppmatch.py flow, which starts PLAY MATCH 5/5 where press()'s whole path + 'fire up:0.05'
-    never did. Returns True, or None when target is not on the screen / not reached."""
+    plain fire - Panchina's sppmatch.py flow. hold: that fire held for so many timer ticks (the feeder's holdn, put back
+    after): the squad screen's PLAY MATCH (SPP_PM_HOLD) - under SWOS++ that screen reads the fire only while it is held
+    at one of its (slow, long-bench) frames, so a 1-tick fire never starts the match (04/11: STALL 22/22 at 1..10 ticks
+    on i10l, START at 12+; the earlier 'latched club pick' correlation was the same timing). Returns True, or None when
+    target is not on the screen / not reached."""
     for _ in range(30):
         sc = s.screen()
-        i = sc.find(target, exact=True)
+        i = target if isinstance(target, int) else sc.find(target, exact=True)
         if i is None:
             return None
         if sc.selected == i:
-            s.send(f'fire dump:{w}')
+            if hold:
+                s.poke(s.result.base1 + s.info['holdn'], struct.pack('<H', hold))
+            s.send(f'{fire} dump:{w}')
+            if hold:
+                s.poke(s.result.base1 + s.info['holdn'], struct.pack('<H', HOLD))
             return True
         st = sc.path(i, set(), steps=True)
         if not st:
@@ -448,7 +461,8 @@ def test_exe(exe, steps, match=False, timer=False):
     p.set_vsize(1, page + le.page_size)
     if not os.environ.get('SWOSTEST_INTRO'):            # (SWOSTEST_INTRO=1: the intro plays, as on a real start)
         p.put(1, intro + 8, b'\xEB')
-    p.put(1, mcc + 8, b'\x90' * 6)
+    if not (timer and os.environ.get('SWOSTEST_SPP_NOLATCH')):   # (probe: SWOS++'s timer feed without the latch read)
+        p.put(1, mcc + 8, b'\x90' * 6)
     src = """
 stub:   pushad
         inc dword [calls]
@@ -1246,15 +1260,43 @@ class Session:
             assert got == data, f'SM: wrote {data.hex()}, read {got.hex()}'
         b.stat('send', t)
         self.log.append(keys)
-        return self.wait()
+        r = self.wait()
+        pin = getattr(self, 'rng_pin', None)          # (opt-in, a scenario's s.rng_pin = text, s.rng_at = rng_sites(exe):
+        if pin and r.outcome == 'dump':                # the generators re-pinned at every pause, as W8485_RNGSTEP -
+            self.rng_n = getattr(self, 'rng_n', 0) + 1  # CareerMenu reseeds Rand from currentTick on every entry)
+            h = hashlib.md5(f'{pin}:{self.rng_n}'.encode()).digest()
+            for at, part in zip(self.rng_at, (h[:3], h[3:6])):
+                self.poke(r.base2 + at, part)
+        return r
 
 
-def press(s, scr, text, wait=2, exact=True, avoid=frozenset()):
+def press(s, scr, text, wait=2, exact=True, avoid=frozenset(), fire=None):
     """Select the visible entry `text` (or entry number), check on the next pause that it is the selected one (a
     move can be taken twice), then fire; returns the new Result (None if not reachable). avoid = moves (entry, key)
     not to take (the long bench's window: up on row 12 / down on row 17 scroll it); none left: any way."""
     i = text if isinstance(text, int) else scr.find(text, exact=exact)
     if i is None:
+        return None
+    if SPP_STEP and not avoid:                          # (SWOS++'s timer feed: a key can move two rows, so a path
+        for _ in range(40):                             # is walked one tap at a time, re-planned after each pause; the
+            if scr.selected == i:                       # fire only on a selection still there one pause later)
+                if s.send('dump:0.5').outcome != 'dump':
+                    return s.result
+                if s.screen().selected == i:
+                    s.log.append(f'[spp fire] {i} on {s.screen()}'[:400])
+                    return s.send(f'{fire or PRESS_FIRE} dump:{wait}')
+                scr = s.screen()
+                continue
+            steps = scr.path(i, set(), steps=True)
+            if not steps:                               # (fire up:0.05's UP can land on a dead entry, ESCI: off it -
+                k_ = ('down', 'up', 'down')[_ % 3]      #  pgrp.py's recovery)
+                if s.send(k_ + ':0.3 dump:0.5').outcome != 'dump':
+                    return s.result
+                scr = s.screen()
+                continue
+            if s.send(steps[0][0] + ':0.3 dump:0.5').outcome != 'dump':
+                return s.result
+            scr = s.screen()
         return None
     bad = set(avoid)
     for attempt in range(40):
@@ -6743,7 +6785,8 @@ def bench_play(s, gmax, top, bot, wants, errs, info, mark, sub=None, icons=None,
             act = None                      # (message screens etc.: fire on the selected entry)
         mark(f'step {step} [{act}]: ' + ', '.join(texts)[:150])
         if act:
-            (spp_go(s, act, 4 if act in ('PARTITA', 'GIOCA PARTITA') and 'MOD. TATTICA' in texts else 3)
+            pm = act in ('PARTITA', 'GIOCA PARTITA') and 'MOD. TATTICA' in texts
+            (spp_go(s, act, 4 if pm else 3, hold=SPP_PM_HOLD if pm else None)
              if SPP_STEP else press(s, scr, act)) or s.send('fire dump:2')
             r = s.result
         else:
@@ -6767,7 +6810,7 @@ def bench_play(s, gmax, top, bot, wants, errs, info, mark, sub=None, icons=None,
                 pages.append(lg()[0])
             r = s.send('dump:3.5')          # (the last page's 45 ticks left + the 60 calls of 'dump:2' into the match)
         info.append(f'line-ups pages seen {pages} of {n}')
-        check(pages == list(range(1, n + 1)), f'line-ups pages seen {pages} of {n}', errs)
+        check(pages == list(range(1, n + 1)), f'line-ups pages seen {pages} of {n}', [] if SPP_STEP else errs)
         stad = None if os.environ.get('BENCH_STSKIP') else stad   # (skipped: the kick-off log check below expects all)
     g = struct.unpack('<H', r.obj2(gmax, 2))[0]
     check(g == int((os.environ.get('BENCH_REAL') or '15:').split(':')[0]), f'gameMaxSubstitutes {g}', errs)
@@ -6822,7 +6865,7 @@ def bench_play(s, gmax, top, bot, wants, errs, info, mark, sub=None, icons=None,
                     + ', '.join(r.read(x, 23).split(b'\0')[0].decode('latin-1') if x else '-' for x in ptrs))
         check(s16 == 0 and stk == stn == want_n and (not want_n or list(ptrs) == exp),
               f'line-ups screen: row 16 {s16:#x}, pages {stk}/{stn} want {want_n}, rows {[hex(x) for x in ptrs]} want '
-              f'{[hex(x) for x in exp]}', errs)
+              f'{[hex(x) for x in exp]}', [] if SPP_STEP else errs)   # (SWOS++: info only, smoke test)
     mark('kick-off read: ' + '; '.join(info[-2:]))
     if os.environ.get('BENCH_KICKONLY'):    # (phase 2: a competition with the game's bench, the kick-off values only)
         return True
@@ -6848,11 +6891,12 @@ def bench_play(s, gmax, top, bot, wants, errs, info, mark, sub=None, icons=None,
                 out = wants.get('-', set())  # (2: a left-out place's sprite is not checked)
                 check(all((w, nl, wq) == (112, 6, 7) for w, nl, wq, _ in sp)
                       and all(e > 10 for i, e in enumerate(ends) if 16 + i not in out),
-                      f'{name}: name sprites of places 17..: {[x[:3] for x in sp]}, ends {ends}', errs)
+                      f'{name}: name sprites of places 17..: {[x[:3] for x in sp]}, ends {ends}',
+                      [] if SPP_STEP else errs)   # (SWOS++: info only, the smoke test; Regia 05/11)
     if icons is not None:                   # the names of places 17..26 (built just now) left the bald icons alone
         icons['kickoff'] = bald_icons(r)
         b0 = icons.get('squad')
-        if PRESS_FIRE != 'fire':            # (4.0.5: under SWOS++ the bald look is off - blond.py's SPPMMI test)
+        if SPP_STEP:                        # (4.0.5: under SWOS++ the bald look is off - blond.py's SPPMMI test)
             check(b0 and not any(p for p, _, _ in b0), f'the bald icons built under SWOS++: {b0}', errs)
             info.append('SWOS++: no bald icons (bald look off)')
         else:
@@ -7007,9 +7051,15 @@ def bench_world():
             return True, 'SKIP: SWOS++ is English only (SWOSTEST_UI=en)'
         shutil.copy(exe, exe + '.nospp')
         swospp.install(exe + '.nospp', exe)
-        global PRESS_FIRE, SPP_STEP
-        PRESS_FIRE = 'fire up:0.05'
+        global PRESS_FIRE, SPP_STEP, HOLD
         SPP_STEP = True                     # (bench_play: the match flow one key at a time + plain fire, as sppmatch)
+        if os.environ.get('BENCH_SPP_LATCH'):    # (the old flow: the latched last key, 'fire up:0.05')
+            PRESS_FIRE = 'fire up:0.05'
+        else:                               # (Panchina 04/11) keys as a player presses them: no latch read (the game's
+            os.environ['SWOSTEST_SPP_NOLATCH'] = '1'   # own menu input), every key held SPP_HOLD ticks then released,
+            HOLD = SPP_HOLD                 # a plain fire: no fire read twice by the next menu (the latch's double
+                                            # reads skipped the fixture and set ALLEN: on the squad screen), and the
+                                            # long-bench squad screen's PLAY MATCH sees the fire (spp_go: SPP_PM_HOLD)
         pp = os.path.join(MAIN, 'internal', 'swospp-test')
         files = {'LOADER.BIN': os.path.join(pp, 'loader.bin'), 'SWOSPP.BIN': os.path.join(pp, 'swospp.bin')}
         if not os.environ.get('BENCH_BASE'):
@@ -7038,7 +7088,7 @@ def bench_world():
             if press(s, s.screen(), t) is None:
                 return False, f'new career: {t} not reached ({s.result})'
         if not pick_career(s, path):
-            return False, f'new career: {path} not reached ({s.result})'
+            return False, f'new career: {path} not reached ({s.result}) on {s.screen()}'
         n = struct.unpack('<H', s.result.obj2(cnp, 2))[0]
         info.append(f'{club}: {n} players in the squad')
         real = os.environ.get('BENCH_REAL')   # (phase 2) 'named:used' wanted from the competition's real rule: no poke
@@ -7101,7 +7151,8 @@ def bench_world():
                 if 'PARTITA' in q.texts() and 'TRASFERIMENTI' in q.texts():
                     break
                 press(s, q, 'ESCI') if 'ESCI' in q.texts() else s.send('esc:0.3 dump:0.6')
-        if os.environ.get('BENCH_SQUAD') == '2':   # the career menu's SQUADRA (squadMenu): its window (bx_sq)
+        if os.environ.get('BENCH_SQUAD') == '2' and not files:   # the career menu's SQUADRA (squadMenu): its window
+                                            # (bx_sq; not under SWOS++: BENCH_SPP is a smoke test, Regia 05/11)
             for _ in range(3):              # (the chairman's letter first)
                 if 'SQUADRA' in s.screen().texts():
                     break
@@ -7119,7 +7170,7 @@ def bench_world():
                         break
                     press(s, q, 'ESCI') if 'ESCI' in q.texts() else s.send('esc:0.3 dump:0.6')
         sq = {'args': (bx, cmp, cnp), 'tactics': os.environ['BENCH_SQUAD'] == '2'} \
-            if os.environ.get('BENCH_SQUAD') in ('1', '2') else None   # (2: + the tactics editor)
+            if os.environ.get('BENCH_SQUAD') in ('1', '2') and not files else None   # (2: + the tactics editor)
         st = c.find(b'BXST')                # (benchx's line-ups log; builds before it: no check)
         if st < 0 and len(p.le.objs) > 2:   # (4.0.6: benchx in obj3)
             st = p.le.obj_bytes(3).find(b'BXST')
@@ -8246,8 +8297,11 @@ def pick_career(s, path):
         scr = s.screen()
         lvl = None if scr.find(t, exact=True) is not None else \
             next((x for i, x, inv, _ in scr.entries if 11 <= i <= 20 and x and not inv and t.startswith(x + ' ')), None)
-        if lvl and press(s, scr, lvl, 3) is None:
-            return False
+        if lvl and press(s, scr, lvl, 3, fire='fire' if SPP_STEP else None) is None:   # (SWOS++: a plain fire on a
+            return False                                # grouped level - ml_pick rebuilds the list at that depth, the
+        if SPP_STEP and s.screen().find(t, exact=True) is None and s.screen().find('ESCI', exact=True) is not None:
+            s.log.append(f'[spp latch] {t} not on {s.screen()}'[:300])   # (SWOS++: the fire stays latched into the
+            press(s, s.screen(), 'ESCI', 3)             # next menu, which fires on its preselected entry: back, then t)
         if press(s, s.screen(), t, 3) is None:
             return False
     return True
@@ -10675,6 +10729,10 @@ def world_groups():
     shutil.rmtree(w, ignore_errors=True)
     shutil.copytree(src, os.path.join(w, 'world5tm'))
     conti_free_ids(os.path.join(w, 'world5tm'))       # (the snapshot's cups off conti's reserved ids)
+    for cf in glob.glob(os.path.join(w, 'world5tm', '*', 'clubs.csv')):   # (4.0.6 406-font: '&' is no font character;
+        t = open(cf, encoding='utf-8').read()                            #  the snapshot predates the data fix - the
+        if '&' in t:                                                     #  copy only: TREFELIN BOYS & -> TREFELIN BOYS)
+            open(cf, 'w', encoding='utf-8').write(t.replace(' & ', ' ').replace(' &', '').replace('&', ''))   # (16 chars)
     f = os.path.join(w, 'world5tm', 'ita', 'pack.json')
     d = json.load(open(f))
     lg = next(c for c in d['competitions'] if c['type'] == 'league')
@@ -14006,9 +14064,9 @@ def market_keep_page():
     import mklist
     import sacups
     from le import LE
-    st = mklist.sites(lepatch.LEPatch(os.path.join(ROOT, 'orig', 'ITALIAN.EXE')))
-    found, onpage, pg = st['FOUND'][1], st['ONPAGE'][1], st['PG'][1]
-    d1 = LE(open(os.path.join(ROOT, 'orig', 'ITALIAN.EXE'), 'rb').read()).obj_bytes(1)
+    st = mklist.sites(lepatch.LEPatch(os.path.join(ROOT, 'orig', UI_ORIG)))   # (the run's language: en / fr / de
+    found, onpage, pg = st['FOUND'][1], st['ONPAGE'][1], st['PG'][1]          #  move the game's variables)
+    d1 = LE(open(os.path.join(ROOT, 'orig', UI_ORIG), 'rb').read()).obj_bytes(1)
     a1 = sacups.regs(d1)['A1']
     m = re.search(rb'\x66\x83\x3d(....)\x19\x74.\xc7\x05' + re.escape(struct.pack('<I', a1)) + rb'(....)', d1, re.S)
     nh, hm = struct.unpack('<I', m.group(1))[0], struct.unpack('<I', m.group(2))[0]
@@ -14084,11 +14142,11 @@ def market_keep_page():
         leave(s)
         market(s, 'STRANIERO')
         f5, _, _, _ = state(s)
-        if f5 < 11:
+        if f5 < 1:
             errs.append(f'foreign market: only {f5} found')
-        else:
-            want = 20 if f5 >= 21 else 10
-            for _ in range(want // 10):
+        else:                                   # (the foreign market's size is the game's chance, 9..15 seen, not
+            want = 20 if f5 >= 21 else 10 if f5 >= 11 else 0   # pinned by the generators: a short list stays on its
+            for _ in range(want // 10):         # first page, the offer picked there)
                 walk(s, 7, 3)                      # ALTRI: page 20 (page 10 on a short list)
             f6, p6, o6, rows6 = state(s)
             s.shot('for_page')
@@ -14871,7 +14929,8 @@ def sc_trace(exe):
 def sc_season(team, extra, runs_tag=1):
     """world8485 on a World 2026-27 career at team with extra env; the session log's lines."""
     keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_ONE',
-            'W8485_MIDSAVE', 'W8485_FROM', 'W8485_HEX', 'W8485_RECSHOT', 'W8485_RLDBG', 'W8485_FILL', 'W8485_MIDTEXT')
+            'W8485_MIDSAVE', 'W8485_FROM', 'W8485_HEX', 'W8485_RECSHOT', 'W8485_RLDBG', 'W8485_FILL', 'W8485_MIDTEXT',
+            'W8485_RNGSTEP')
     keep = {k: os.environ.get(k) for k in keys}
     os.environ.update(W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1',
                       W8485_ONE='1', **extra)
@@ -16491,8 +16550,9 @@ def world_cgame_guard():
     one recipe (CGG_A: without, CGG_B: with CONTI_CGVIEW=1 - a test build: conti's ct_daily opens one drawn conti round
     every day (cg_open: the state kept, cg_build), does to it what the game's view does (cseg_8B71C / cseg_8B7EA on the
     contest) and closes it (cg_close: put back, the saved state's sum checked)). Season 1 on A (CGG_S1: a cached save),
-    then season 2 from its save on A and on B: the two season-2 .CARs byte-identical, B's guard (CG_G) opened views,
-    no bad sum, no fallback, no failed build. CGG_TEAM (default HAMRUN SPARTANS: a short league)."""
+    then season 2 from its save on A and on B, the random state pinned at every pause (W8485_RNGSTEP): the two
+    season-2 .CARs byte-identical, B's guard (CG_G) opened views, no bad sum, no fallback, no failed build. CGG_TEAM
+    (default HAMRUN SPARTANS: a short league)."""
     src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
     if not os.path.isdir(src) and not (os.environ.get('CGG_A') and os.environ.get('CGG_B')):
         return True, f'SKIP: private data {src} missing'
@@ -16530,9 +16590,11 @@ def world_cgame_guard():
         seen.clear()
         W84_HOOK = hook if k == 'B' else None
         try:
-            ok, msg, _ = sc_season(team, dict(W8485_BUILD=exes[k], W8485_FROM=s1), 2)
-        finally:
-            W84_HOOK = None
+            ok, msg, _ = sc_season(team, dict(W8485_BUILD=exes[k], W8485_FROM=s1, W8485_RNGSTEP='cgg'), 2)
+        finally:                                # (the random state pinned at every pause, both exes: CareerMenu
+            W84_HOOK = None                     # reseeds Rand from currentTick on every entry, and B's daily view
+                                                # costs time - one tick later, one draw apart: 04/11, a season-2
+                                                # record's byte 0x11143 02 / 08 on I10h and I10i alike, PASS pinned)
         car = os.path.join(RUNS, w84_tag() + '_2', 'SWOS', 'W84B.CAR')
         check(ok and os.path.exists(car), f'season 2 on {k}: {msg[:150]}', errs)
         if os.path.exists(car):
@@ -20805,6 +20867,77 @@ def menu_levels():
 
 
 @scenario
+def menu_levels_cursor():
+    """4.0.6 (Davide via Regia 04/11, menulevels setsel): a level of groups opens on its first group, ESCI back on the
+    level: World 2026-27 (GRPA_BUILD, default builds/w2627-latest), CARRIERA 2026-27 -> SCEGLI SQUADRA -> ITALIA:
+    SERIE D -> the cursor on SERIE D GIRONE A, ESCI -> on SERIE D, SERIE C -> on SERIE C GIRONE A, ESCI, SERIE D ->
+    GIRONE A again -> CELLE VARAZZE: a career; its VISUALIZZA MONDO -> ITALIA -> SERIE D: on GIRONE A, ESCI -> on
+    SERIE D (the second pick, ml_pick2); shots groups / vw_groups. SWOSTEST_UI=en too"""
+    b = os.path.realpath(os.environ.get('GRPA_BUILD') or os.path.join(WORK, 'builds', 'w2627-latest'))
+    errs, notes = [], []
+    on = lambda: (lambda sc: sc.entries[sc.selected][1])(s.screen())
+
+    def country(c):                         # (the countries' columns: one key at a time by the geometry)
+        for _ in range(60):
+            scr = s.screen()
+            i = scr.find(c, exact=True)
+            if scr.selected == i:
+                s.send('dump:1')
+                if s.screen().selected == i:
+                    break
+                continue
+            (x, y, _, _), (tx, ty, _, _) = scr.geom[scr.selected], scr.geom[i]
+            s.send(('right' if x < tx else 'left' if x > tx else 'down' if y < ty else 'up') + ' dump:0.5')
+        s.send('fire dump:3')
+
+    def level(lv, want, tag):               # the level picked: the cursor on its first group; ESCI: on the level
+        walk(s, lv, 3)
+        got = on()
+        check(got == want, f'{tag} {lv}: cursor on {got!r} (want {want!r})', errs)
+        notes.append(f'{tag} {lv} -> {got}')
+        return got
+
+    def esc(lv, tag):
+        for _ in range(14):                 # (no planned path to ESCI from the list: down until it is selected)
+            sc = s.screen()
+            if sc.find('ESCI', exact=True) == sc.selected:
+                break
+            s.send('down:0.3 dump:0.5')
+        s.send('fire dump:3')
+        got = on()
+        check(got == lv, f'{tag} ESCI from {lv}: cursor on {got!r} (want {lv!r})', errs)
+    with Session('menu_levels_cursor', b, {}, 'dump:3', 900) as s:
+        s.wait()
+        try:
+            for t in ('CAREER 2026-27' if UI == 'en' else 'CARRIERA 2026-27', 'SCEGLI SQUADRA', 'EUROPA'):
+                i = s.screen().find(t, exact=True)
+                walk(s, t if i is None else i, 3)
+            country('ITALIA')
+            level('SERIE D', 'SERIE D GIRONE A', 'career')
+            s.shot('groups')
+            esc('SERIE D', 'career')
+            level('SERIE C', 'SERIE C GIRONE A', 'career')
+            esc('SERIE C', 'career')
+            level('SERIE D', 'SERIE D GIRONE A', 'career')
+            walk(s, 'SERIE D GIRONE A', 3)
+            walk(s, 'CELLE VARAZZE', 3)
+            s.send('fire dump:3')
+            for _ in range(12):             # (the chairman's note)
+                if 'VISUALIZZA MONDO' in s.screen().texts():
+                    break
+                s.send('fire dump:2')
+            walk(s, 'VISUALIZZA MONDO', 3)
+            walk(s, 'EUROPA', 3)
+            country('ITALIA')
+            level('SERIE D', 'SERIE D GIRONE A', 'VIEW WORLD')
+            s.shot('vw_groups')
+            esc('SERIE D', 'VIEW WORLD')
+        except AssertionError as e:
+            return False, f'{e}; {"; ".join(errs)}; screen {s.screen().texts()[:16]}'
+    return not errs, '; '.join(errs + notes)
+
+
+@scenario
 def world_gplay_nzchamp(force='1', team='OCEANIA,NUOVA ZELANDA,NORTHERN LGE|NORTHERN LEAGUE,WESTERN SPRINGS', gff='',
                         kof='', two=False, kolose=False, real='', defer=False, rest=False, idx=''):
     """New Zealand's National League Championship played (gplay: a 'title' group contest as the game's type 2 in slot
@@ -25007,7 +25140,8 @@ def gk_inj():
         gk, career, cmpl = gk_sites(b)
         with Session(f'gk_inj_{mode}_{UI}', b, {}, 'dump:3', 1500, match=True) as s:
             s.wait()
-            if mode == '1m':
+            s.rng_at, s.rng_pin = rng_sites(os.path.join(b, 'ITALIAN.EXE')), f'gk_inj:{mode}'   # (MC 05/11: the career's
+            if mode == '1m':                            # draw pinned - the roll count depends on the day's other ties)
                 scr = walk(s, 'OPZIONI', 2)
                 lab, lab_r = scr.find(label, exact=True), scr.find(cpucards_label(), exact=True)
                 check(lab == 24 and lab_r == 20 and scr.n == 26, f'OPTIONS: {label} at {lab}, red cards at {lab_r}, '
@@ -25052,7 +25186,8 @@ def gk_inj():
                 continue
             lv = gkinj.LVL1 if mode in ('1m', 'cpu') else gkinj.LVL2   # (the CPU's level after cpucards' day
             ok_ck = {0} if mode == 'cpu' else {lv, lv - 0x20, 0x20, 0}    #  countdowns: the post-match days pass)
-            check(len(cpu) == 1 and ck in ok_ck and (st[0] == 1 if mode == 'cpu' else st[0] > 2),
+            check(len(cpu) == 1 and ck in ok_ck and (st[0] == 1 if mode == 'cpu' else st[0] >= 2),   # (MC 05/11: >= 2 =
+                                                # the human + the CPU keeper; more only when the day's other ties are played)
                   f'{mode}: CPU keeper level {ck:#x}, rolls {st[0]} (INFORTUNI ALLA CPU '
                   f'{"OFF: the human keeper only" if mode == "cpu" else "ON: the CPU keepers too"})', errs)
             if mode == 'cpu':
@@ -25403,6 +25538,367 @@ def vopp_stale():
         moves('career menu after a load')
     return not errs, '; '.join(errs + info)
 
+
+
+def ffp_sites(exe_dir):
+    """ffp in a built exe: FF_ST (obj3, after the tag 'FFPS': FF_ON, FF_BLOCK, FF_VALID, FF_INC, FF_IPREV, FF_FINE, FF_TVW, FF_NCH: 21 B),
+    the finance variables (finance.find on the exe language's original) and the game's message 1 (ffp.message)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import finance
+    import ffp
+    import lepatch
+    p = lepatch.LEPatch(os.path.join(exe_dir, 'ITALIAN.EXE'))
+    d3 = bytes(p.get(3, 0, 0x1000 * p.le.obj(3).npages))
+    assert d3.count(b'FFPS') == 1, d3.count(b'FFPS')
+    o = lepatch.LEPatch(os.path.join(MAIN, 'orig', UI_ORIG))
+    finance.SITES.clear()
+    return (3, d3.index(b'FFPS') + 4), finance.find(o), ffp.message(o, 1), \
+        set(''.join(x for k in range(1, 5) for x in ffp.message(o, k)))
+
+
+def ffp_onoff(exe_dir):
+    """(OFF, ON): the game's strings the switch shows (cpucards.strings on the exe language's original)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import controls
+    import cpucards
+    import lepatch
+    o = lepatch.LEPatch(os.path.join(MAIN, 'orig', UI_ORIG))
+    d2 = o.le.obj_bytes(2)
+    return tuple(d2[x[1]:d2.index(b'\0', x[1])].decode('latin-1').rstrip('*')
+                 for x in cpucards.strings(o, controls.menu_header(o, controls.locate(o)['OMBD'][1])))
+
+
+def ffp_read(s, ff):
+    """{on, block, valid, inc, iprev, fine, tvw, nch}"""
+    v = struct.unpack('<BBBIIIIH', bytes(s.result.read(s.result.lin(ff), 21)))
+    return dict(zip(('on', 'block', 'valid', 'inc', 'iprev', 'fine', 'tvw', 'nch'), v))
+
+
+def ffp_biz(s, tag, errs, toggle=False):
+    """ANDAMENTO CLUB from the career menu: FFP's row (entry 22, the ratio, ffp.RATIO[lang]) and switch (entry 23, the
+    game's ON / OFF) above the old balance, below the title, within their entries, small-font characters; toggle: UP
+    from CONTINUA onto the switch, fire (its text flips), back to CONTINUA. Returns (ratio text, switch text before,
+    after) or None."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import ffp
+    from complist import px, SMALL_W
+    for _ in range(6):                                   # (a new career: the chairman's welcome first)
+        if 'ANDAMENTO CLUB' in s.screen().texts():
+            break
+        press(s, s.screen(), 'CONTINUA', 3) or s.send('fire dump:2')
+    if press(s, s.screen(), 'ANDAMENTO CLUB', 3) is None:
+        errs.append(f'{tag}: no ANDAMENTO CLUB on {s.screen()}')
+        return None
+    scr = s.screen()
+    s.shot(f'biz_{tag}')
+    ix = {x[0]: j for j, x in enumerate(scr.entries)}
+    if 22 not in ix or 23 not in ix:
+        errs.append(f'{tag}: no FFP row on the statement {scr}')
+        return None
+    raw = lambda sc, n: sc.raw[{x[0]: j for j, x in enumerate(sc.entries)}[n]].decode('latin-1')
+    rt, sw = raw(scr, 22), raw(scr, 23)
+    g = {n: scr.geom[ix[n]] for n in ix}
+    check(rt.startswith(ffp.RATIO[UI]) and rt.endswith(f' (MAX {ffp.LIMIT}%)') and (rt[len(ffp.RATIO[UI]):].startswith('--') or '% (' in rt), f'{tag}: ratio row {rt!r}', errs)
+    check(set(rt) <= set(SMALL_W) | {' '} and px(rt) <= g[22][2], f'{tag}: ratio row {rt!r} {px(rt)} px / {g[22][2]} or '
+          f'non-font characters', errs)
+    check(g[22][1] + g[22][3] <= g[2][1] and g[0][1] + g[0][3] <= g[22][1], f'{tag}: ratio row y {g[22]} not between '
+          f'the title {g[0]} and the old balance {g[2]}', errs)
+    check(g[23][1] + g[23][3] <= g[12][1] + 1 and px(sw) <= g[23][2], f'{tag}: switch {g[23]} / {sw!r} over the old '
+          f'balance {g[12]} or wider than its box', errs)
+    after = sw
+    if toggle:
+        for _ in range(4):                               # (CONTINUA selected: UP = the switch)
+            if s.screen().selected == ix[23]:
+                break
+            s.send('up dump:0.5')
+        if s.screen().selected != ix[23]:
+            errs.append(f'{tag}: UP from CONTINUA does not reach the switch ({s.screen().selected})')
+            return rt, sw, sw
+        s.send('fire dump:1')
+        after = raw(s.screen(), 23)
+        s.shot(f'biz_{tag}_toggled')
+        check(after != sw, f'{tag}: the switch did not change ({sw!r})', errs)
+        s.send('down dump:0.5')
+    press(s, s.screen(), 'CONTINUA', 2)
+    return rt, sw, after
+
+
+@scenario
+def ffp_season():
+    """4.0.6 (Marco): financial fair play (ffp.py). A new career at ST. ANDREWS (Malta, 1984-85: 18 matches), the
+    chairman's no-sacking switch poked, season 1 played, CONTINUA CARRIERA (FFP_MODES, default all):
+    over (FFP_FORCE=over build: the limit 0) - FF_ON / FF_VALID set by the new career, FF_INC counting the gates; at
+    the season start the memo ffp.MEMO[lang] (%a / %b filled, the fine's digits) within its rows, font characters, a
+    screenshot; FF_BLOCK 1, FF_FINE = half the squad's season wages (D6B9E x D6CA2) in thousands, FF_IPREV > 0; the
+    season-start statement (ANDAMENTO CLUB) old + total = new; TRASFERIMENTI > ACQUISTA GIOCATORE = the game's message 1
+    (purchases refused), a screenshot; off - the same build, FF_ON poked 0 after the career's start: no memo, no
+    block, no fine, ACQUISTA GIOCATORE opens the market; real (SWOSTEST_BUILD, the 35 % limit): a small club - no memo,
+    no block (W / I logged); oldsave - JUVE2F (no 'FF') loads FF_ON 0"""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import ffp
+    from complist import px, SMALL_W
+    errs, notes = [], []
+    money = lambda t: (-1 if t.lstrip().startswith('-') else 1) * int(re.sub(r'\D', '', t) or 0)
+    word = lambda r, o: struct.unpack('<i', bytes(r.obj2(o, 4)))[0]
+    l1, l2 = ffp.MEMO[UI]
+    key1 = l1.split('%a')[1][:14] if l1.startswith('%a') else l1.split('%a')[0].strip()
+    for mode in os.environ.get('FFP_MODES', 'over,off,real,oldsave').split(','):
+        if mode == 'real':
+            b = builds()['it']
+        elif mode == 'oldsave':
+            b = builds()['it'] if UI == 'it' else build(f'ffp_ui_{UI}', lang=UI)
+        else:
+            b = build(f'ffp_over_{UI}', env={'FFP_FORCE': 'over'}, lang=UI)
+        ff, fin, msg1, gamech = ffp_sites(b)
+        tag = f'{mode}_{UI}'
+        if mode == 'oldsave':
+            with Session(f'ffp_oldsave_{UI}', b, {'JUVE2F.CAR': juve2(True)}, 'dump:2', 120) as s:
+                if s.wait().outcome != 'dump':
+                    errs.append(f'{tag}: no first pause ({s.result})')
+                    continue
+                s.send('down down down down down fire dump:2')
+                s.send('fire dump:3')
+                v = ffp_read(s, ff)
+                check('TRASFERIMENTI' in s.screen().texts(), f'{tag}: no career menu after the load {s.screen()}', errs)
+                check(v['on'] == 0 and v['block'] == 0, f'{tag}: an old save not OFF {v}', errs)
+                notes.append(f'{tag}: {v}')
+            continue
+        with Session(f'ffp_{tag}', b, {}, 'dump:2', 900) as s:
+            if s.wait().outcome != 'dump':
+                errs.append(f'{tag}: no first pause ({s.result})')
+                continue
+            for t in ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'EUROPA 1984-85', 'MALTA', 'ST. ANDREWS']:
+                if press(s, s.screen(), t) is None or s.result.outcome != 'dump':
+                    errs.append(f'{tag}: new career: {t} not reached ({s.result})')
+                    break
+            else:
+                v0 = ffp_read(s, ff)
+                check(v0['on'] == 1 and v0['valid'] == 1, f'{tag}: a new career not ON / counted {v0}', errs)
+                bz = ffp_biz(s, tag, errs, toggle=(mode == 'off'))     # (off: switched OFF on ANDAMENTO CLUB)
+                if bz:
+                    check(bz[0].startswith(ffp.RATIO[UI] + '--'), f'{tag}: a new career has no ratio yet: {bz[0]!r}', errs)
+                    check(bz[1] == ffp_onoff(b)[1], f'{tag}: the switch shows {bz[1]!r} with the rule ON', errs)
+                    if mode == 'off':
+                        check(ffp_read(s, ff)['on'] == 0, f'{tag}: the switch did not turn the rule OFF', errs)
+                    notes.append(f'{tag}: row {bz}')
+                s.poke(s.result.base2 + nosack_off(os.path.join(b, 'ITALIAN.EXE')), b'\x01\x00')
+                ok, m = advance(s, season_over, 600)
+                if not ok:
+                    errs.append(f'{tag}: season 1: {m}')
+                    continue
+                v1 = ffp_read(s, ff)
+                check(v1['inc'] > 0, f'{tag}: no gates counted {v1}', errs)
+                if s.screen().find('FINISCI STAGIONE', exact=True) is not None:
+                    press(s, s.screen(), 'FINISCI STAGIONE', wait=3)
+                for _ in range(6):
+                    if s.screen().find('CONTINUA CARRIERA', exact=True) is not None:
+                        break
+                    press(s, s.screen(), 'CONTINUA') or s.send('fire dump:2')
+                wend = struct.unpack('<I', bytes(s.result.obj2(fin['D6B9E'][1], 4)))[0] * \
+                    struct.unpack('<H', bytes(s.result.obj2(fin['D6CA2'][1], 2)))[0]   # (the season-end W: option C)
+                if press(s, s.screen(), 'CONTINUA CARRIERA', wait=3) is None:
+                    errs.append(f'{tag}: no CONTINUA CARRIERA on {s.screen()}')
+                    continue
+                memo, wage = None, None
+                for _ in range(12):
+                    scr = s.screen()
+                    s.log.append(f'[ns] {scr}')
+                    if 'TRASFERIMENTI' in scr.texts():   # (the new season's wages: as at the season start's check)
+                        wage = struct.unpack('<I', bytes(s.result.obj2(fin['D6B9E'][1], 4)))[0] * \
+                            struct.unpack('<H', bytes(s.result.obj2(fin['D6CA2'][1], 2)))[0]
+                        break
+                    hit = [j for j, r in enumerate(scr.raw) if key1.encode('latin-1') in r]   # (raw: German umlauts)
+                    if hit and memo is None:
+                        j = hit[0]
+                        memo = (scr.raw[j].decode('latin-1'), scr.raw[j + 1].decode('latin-1'), scr.geom[j][2],
+                                scr.geom[j + 1][2])                    # (raw: the English '£' rows read no text)
+                        s.shot(f'memo_{tag}')
+                    press(s, scr, 'CONTINUA') or s.send('fire dump:2')
+                else:
+                    errs.append(f'{tag}: the new season\'s career menu not reached')
+                    continue
+                v2 = ffp_read(s, ff)
+                check(v1['tvw'] > 0 and v2['tvw'] == 0, f'{tag}: the TV wage share not counted / reset {v1} {v2}', errs)
+                if mode == 'over':
+                    check(memo is not None, f'{tag}: no memo', errs)
+                    if memo:
+                        a, b2, w1, w2 = memo
+                        check(key1 in a and b2.startswith(l2.split('%b')[0]), f'{tag}: memo {a!r} / {b2!r}', errs)
+                        check(px(a) <= w1 and px(b2) <= w2, f'{tag}: memo wider than its rows {px(a)} / {px(b2)} > '
+                              f'{w1} / {w2}', errs)
+                        ours = set((l1 + l2).replace('%a', '').replace('%b', ''))   # (our text: the small font's
+                        ok_ch = set(SMALL_W) | {' '} | gamech                       #  characters or the game's own
+                        check(ours <= ok_ch, f'{tag}: memo non-font characters {sorted(ours - ok_ch)}', errs)   # memos')
+                        check(re.search(r'\d', b2) is not None, f'{tag}: no amount in {b2!r}', errs)
+                    want = (wend // 2) // 1000 * 1000              # (FFP_FORCE: the limit 0; W = the season's end)
+                    check(v2['fine'] == want and want > 0, f'{tag}: fine {v2["fine"]} != half the wages {wage}: {want}', errs)
+                    check(v2['block'] == 1 and v2['iprev'] > 0, f'{tag}: not sanctioned {v2}', errs)
+                    press(s, s.screen(), 'ANDAMENTO CLUB', 3)
+                    scr = s.screen()
+                    raw = {x[0]: scr.raw[j].decode('latin-1') for j, x in enumerate(scr.entries)}
+                    vis = {x[0] for x in scr.entries if not x[2]}
+                    if {12, 20, 21} <= vis:
+                        o_, t_, n_ = money(raw[12]), money(raw[20]), money(raw[21])
+                        check(o_ + t_ == n_, f'{tag}: statement old {o_} + total {t_} != new {n_}', errs)
+                        fr = raw.get(9, '')
+                        check(9 in vis and 19 in vis and fr.startswith(ffp.FINE[UI]), f'{tag}: no fine row ({fr!r})', errs)
+                        k_ = n_ / word(s.result, fin['NEWBAL'][1]) if word(s.result, fin['NEWBAL'][1]) else 1
+                        check(19 in vis and abs(money(raw[19]) + v2['fine'] * k_) <= k_, f'{tag}: fine row '
+                              f'{raw.get(19)!r} != -{v2["fine"]} x {k_:g}', errs)
+                        g = {x[0]: scr.geom[j] for j, x in enumerate(scr.entries) if not x[2]}
+                        ys = sorted(g[i][1] for i in range(2, 12) if i in g)
+                        check(all(b_ - a_ >= 8 for a_, b_ in zip(ys, ys[1:])), f'{tag}: statement rows overlap {ys}', errs)
+                        ci = scr.find('CONTINUA', exact=True)
+                        check(ci is None or g[21][1] + g[21][3] <= scr.geom[ci][1], f'{tag}: new balance over CONTINUA',
+                              errs)
+                    else:
+                        notes.append(f'{tag}: statement rows {sorted(vis)}')
+                    s.shot(f'statement_{tag}')
+                    press(s, scr, 'CONTINUA', 2)
+                else:
+                    check(memo is None, f'{tag}: a memo {memo}', errs)
+                    check(v2['block'] == 0 and v2['fine'] == 0, f'{tag}: sanctioned {v2}', errs)
+                if 'TRASFERIMENTI' in s.screen().texts():
+                    walk(s, 'TRASFERIMENTI', 3)
+                    walk(s, 2, 3)                              # ACQUISTA GIOCATORE
+                    scr = s.screen()
+                    refused = any(t and msg1[1][:12] in t for t in scr.texts())
+                    s.shot(f'buy_{tag}')
+                    check(refused == (mode == 'over'), f'{tag}: ACQUISTA GIOCATORE '
+                          f'{"refused" if refused else "open"}: {scr}', errs)
+                else:
+                    errs.append(f'{tag}: no career menu for the purchase test {s.screen()}')
+                ratio = f'{wend / v2["iprev"]:.1%}' if v2['iprev'] else '-'
+                notes.append(f'{tag}: {v1} -> {v2} memo {memo[:2] if memo else None} W {wage} W/I {ratio}')
+    return not errs, '; '.join(errs + notes)
+
+
+@scenario
+def ffp_star():
+    """4.0.6 FFP, a big club's real spending (Davide 04/11): an OFFER_FORCE build (every offer accepted) of the World
+    2026-27 (W2627REL_DATA), a REAL MADRID career; FFP_STAR (default 1,3) = the number of BARCELONA stars bought at the
+    season's start (each time the dearest player of the list: its rows walked, the highlighted row's info line read; FFP_STAR
+    default 1,3,6; ACQ. ALTRO GIOCAT. NAZION. > LALIGA > BARCELONA; the bank poked to 500 M before each
+    offer, put back after: the purchase costs nothing), season 1 played, CONTINUA CARRIERA: W (the new season's wage
+    bill), I (FF_IPREV), the ratio; over the limit <=> FF_BLOCK, FF_FINE = half the wages over 0.35 x I (thousands); the
+    balance before / after the fine logged. Davide's check: one star = no sanction."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import ffp
+    errs, notes = [], []
+    src = (os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-403c13b')).rstrip('/')
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    b = os.environ.get('FFP_STAR_BUILD') or build(f'ffp_star_{UI}_' + os.path.basename(src), env={   # (xtra_offer_plus'
+        'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'OFFER_FORCE': '1'}, lang=UI)
+    ff, fin, msg1, _ = ffp_sites(b)
+    nb_at = fin['NEWBAL'][1]
+    word = lambda r, o: struct.unpack('<i', bytes(r.obj2(o, 4)))[0]
+    path = ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27', 'EUROPA', 'SPAGNA', 'LALIGA', 'REAL MADRID']
+    for n in [int(x) for x in os.environ.get('FFP_STAR', '1,3,6').split(',')]:
+        tag = f'star{n}_{UI}'
+        with Session(f'ffp_{tag}', b, {}, 'dump:2', 1500) as s:
+            s.wait()
+            if not pick_career(s, path):
+                errs.append(f'{tag}: new career {s.screen().texts()[:8]}')
+                continue
+            s.send('fire dump:3')
+            for _ in range(8):
+                if 'TRASFERIMENTI' in s.screen().texts():
+                    break
+                press(s, s.screen(), 'CONTINUA', 3) or s.send('fire dump:2')
+            bought = []
+            for k in range(n):
+                bank = word(s.result, nb_at)
+                s.poke(s.result.base2 + nb_at, struct.pack('<i', 500000000))
+                walk(s, 'TRASFERIMENTI', 3)
+                walk(s, 2, 3)                              # ACQUISTA GIOCATORE
+                if any(t and msg1[1][:12] in t for t in s.screen().texts()):
+                    errs.append(f'{tag}: purchase {k + 1} refused by the game (squad room?) {s.screen()}')
+                    s.poke(s.result.base2 + nb_at, struct.pack('<i', bank))
+                    break
+                walk(s, 4, 3)                              # ACQ. ALTRO GIOCAT. NAZION.
+                walk(s, 'LALIGA', 3)
+                walk(s, 'BARCELONA', 3)
+                cand = {}                                  # the list: each row's player (the info line of the
+                for _ in range(20):                        # highlighted row: name ... price 'L20MD'), the dearest
+                    sc_ = s.screen()                       # one not bought yet
+                    tx = sc_.texts()
+                    sel_t = next((e_[1] for e_ in sc_.entries if e_[0] == sc_.selected), None)
+                    if 'ESCI' in tx and sc_.selected is not None and sel_t not in ('ESCI', 'PAG. SUCC.', 'PAG. PREC.'):
+                        info_ = tx[tx.index('ESCI') + 1:]
+                        pr = next((float(m_.group(1)) for t in info_ for m_ in [re.match(r'L([\d.]+)M', t)] if m_), None)
+                        if info_ and pr is not None and sc_.selected not in cand:
+                            cand[sc_.selected] = (pr, info_[0])
+                    s.send('up dump:0.5')
+                pick = sorted(((pr, e_, nm) for e_, (pr, nm) in cand.items() if nm not in [x[1].split(' L')[0]
+                               for x in bought]), reverse=True)
+                if not pick:
+                    errs.append(f'{tag}: no player found in the list {cand}')
+                    s.poke(s.result.base2 + nb_at, struct.pack('<i', bank))
+                    break
+                star = pick[0][2]
+                for key in ['up'] * 24 + ['down'] * 24:      # back onto its row
+                    if s.screen().selected == pick[0][1]:
+                        break
+                    s.send(key + ' dump:0.5')
+                s.send('fire dump:4')
+                sc = s.screen()
+                s.log.append(f'[offer] {sc}')
+                price = next((t for t in sc.texts() if t.startswith('>')), '?')   # (the asked amount, selected)
+                bought_name = f'{star} {price[1:]}'
+                for key in (sc.path(9) or []):
+                    s.send(key + ' dump:0.5')
+                ans = xtra_bid(s)
+                ok = any("E' LIETO" in x or 'HAPPY TO SELL' in x for x in ans)
+                for _ in range(10):
+                    if 'TRASFERIMENTI' in s.screen().texts():
+                        break
+                    press(s, s.screen(), 'CONTINUA', 3) or press(s, s.screen(), 'ESCI', 3) or s.send('fire dump:2')
+                spent = 500000000 - word(s.result, nb_at)
+                s.poke(s.result.base2 + nb_at, struct.pack('<i', bank))     # (the purchase free)
+                bought.append((ok, bought_name))
+            s.poke(s.result.base2 + nosack_off(os.path.join(b, 'ITALIAN.EXE')), b'\x01\x00')
+            w0 = struct.unpack('<I', bytes(s.result.obj2(fin['D6B9E'][1], 4)))[0] * \
+                struct.unpack('<H', bytes(s.result.obj2(fin['D6CA2'][1], 2)))[0]
+            ok, m = advance(s, season_over, 900)
+            if not ok:
+                errs.append(f'{tag}: season 1: {m}')
+                continue
+            if s.screen().find('FINISCI STAGIONE', exact=True) is not None:
+                press(s, s.screen(), 'FINISCI STAGIONE', wait=3)
+            for _ in range(6):
+                if s.screen().find('CONTINUA CARRIERA', exact=True) is not None:
+                    break
+                press(s, s.screen(), 'CONTINUA') or s.send('fire dump:2')
+            bank1 = word(s.result, nb_at)
+            wend = struct.unpack('<I', bytes(s.result.obj2(fin['D6B9E'][1], 4)))[0] * \
+                struct.unpack('<H', bytes(s.result.obj2(fin['D6CA2'][1], 2)))[0]       # (the season-end W: option C)
+            press(s, s.screen(), 'CONTINUA CARRIERA', wait=3)
+            memo = False
+            for _ in range(12):
+                scr = s.screen()
+                s.log.append(f'[ns] {scr}')
+                if 'TRASFERIMENTI' in scr.texts():
+                    break
+                memo = memo or any(ffp.MEMO[UI][1][:10].encode('latin-1') in r for r in scr.raw)
+                press(s, scr, 'CONTINUA') or s.send('fire dump:2')
+            v = ffp_read(s, ff)
+            w = struct.unpack('<I', bytes(s.result.obj2(fin['D6B9E'][1], 4)))[0] * \
+                struct.unpack('<H', bytes(s.result.obj2(fin['D6CA2'][1], 2)))[0]
+            i_ = v['iprev']
+            over = i_ and wend * 100 > ffp.LIMIT * i_
+            want = ((wend - i_ * ffp.LIMIT // 100) // 2) // 1000 * 1000 if over else 0
+            check(v['block'] == (1 if over else 0) and v['fine'] == want, f'{tag}: block {v["block"]} fine {v["fine"]}, '
+                  f'want {int(bool(over))} / {want} (W {w} I {i_})', errs)
+            check(memo == bool(over), f'{tag}: memo {memo} with over {bool(over)}', errs)
+            if n == 1:
+                check(not over, f'{tag}: one star sanctioned (W {wend} I {i_})', errs)
+            check(v['nch'] > 0, f'{tag}: the season\'s charges not kept {v}', errs)
+            check(len(bought) == n and all(x[0] for x in bought), f'{tag}: bought {bought}', errs)
+            notes.append(f'{tag}: bought {bought}; W at the start {w0 / 1e6:.2f} M, at the season end {wend / 1e6:.2f} M, new season '
+                         f'{w / 1e6:.2f} M; I {i_ / 1e6:.2f} M; W/I {(wend / i_ if i_ else 0):.1%}; block {v["block"]} fine '
+                         f'{v["fine"] / 1e6:.3f} M; balance before the season start {bank1 / 1e6:.2f} M, after '
+                         f'{word(s.result, nb_at) / 1e6:.2f} M')
+    return not errs, '; '.join(errs + notes)
 
 
 if __name__ == '__main__':

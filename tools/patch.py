@@ -251,6 +251,9 @@ def patch_exe(src, dst, remap, lang='it'):
     engine.save_item('GI', 2)                    # 4.0.6 the OPTIONS row 'goalkeeper injuries' (gkinj.py: 0 = ON; the session's
     engine.after_load('gk_load')                 # value kept by a load / a new career)
     engine.after_new('gk_new')
+    import finance
+    engine.save_item('FF', finance.FF_SIZE)      # 4.0.6 financial fair play (ffp.py: finance's FF_ST; a save without it:
+    engine.after_new('ff_new')                   # the rule OFF, a new career: ON)
     bigtables.ON[0] = bigtables.needed()         # a world numbering its clubs 2000+ (World 5.0; 4.0's world 0)
     bigtables.MOVED.clear()
     pg_tabs = mkseason.parallel_tables() + engine.parallel_tables()   # parallel groups (worlds' packs; world 0: engine)
@@ -806,6 +809,9 @@ def patch_exe(src, dst, remap, lang='it'):
         import cpurefill                         # 2026-27): an extra of the seller instead of the invented player; the
         st_end = cpurefill.patch(p, (st_end + 15) & ~15, lang)   # obj3 chain's end (Integratore 03/11)
         assert st_end <= LT3_AT, hex(st_end)
+    import ffp                                   # 4.0.6 (Marco): financial fair play - the season-start check, the
+    st_end = ffp.patch(p, (st_end + 15) & ~15, lang)         # purchase block, the chairman's memo; obj3 chain's end
+    assert st_end <= LT3_AT, hex(st_end)
     print(f'exe: obj3 end {st_end:#x} ({LT3_AT - st_end} B left before the longtable page obj3+{LT3_AT:#x})')
     p.set_vsize(3, 0x1000 * OBJ3_PAGES + cg_bss, bss=cg_bss)
     assert 0x1000 * OBJ3_PAGES + cg_bss <= OBJ3_ARENA

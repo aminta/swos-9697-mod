@@ -189,6 +189,8 @@ def world_entries(data_dir=None):
         names = sorted(set(names) | set(lpreal.file_names()))
         import lgreal                                        # 4.0.5: the real league calendars (season 1)
         names = sorted(set(names) | set(lgreal.file_names()))
+        import bteam                                         # 4.0.6: the B teams' links + birth years (BAGE.nnn)
+        names = sorted(set(names) | set(bteam.files()))
     if os.path.exists(os.path.join(data_dir, 'KITFIX.DAT')):   # (4.0.5 kitfix.py: the kits shipped before that the
         names = sorted(set(names) | {'KITFIX.DAT'})          # build's team files changed - the career kit refresh)
     names = sorted(set(names) | {n for n in os.listdir(data_dir)      # (4.0.6 stadium.py: the stadium names, one

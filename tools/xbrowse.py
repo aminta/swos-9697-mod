@@ -331,8 +331,8 @@ vs_init:                                ; 4.0.5 viewSquadMenu's init (ShowSquad)
     movzx eax, byte [ebp + 2]
     mov cl, [ebp + 1]
     mov [esi + eax], cl
-    cmp ebp, vs_of                      ; (4.0.6) the offer's: ESCI up -> the 16th row (its up went to entry 20, the
-    jne .lk                             ; 17th row, hidden: the cursor stayed on ESCI)
+    cmp ebp, vs_of                      ; (4.0.6) the offer's (and bteam's B squad): ESCI up -> the 16th row (its up
+    jne .lk                             ; went to entry 20, the 17th row, hidden: the cursor stayed on ESCI)
     mov byte [esi + 0Ah], 19
 .lk:
     mov eax, [esi + 14h]                ; x, y
@@ -451,6 +451,9 @@ xb_d0: dd 0
 xb_txt: dd 0, 0
 xb_buf: times 16 db 0
 """
+
+
+LABELS = {}
 
 
 def _u32(b, o):
@@ -651,5 +654,6 @@ def patch(p, at, lang):
     call(s['offer8'], lab['vs_offer'], 5)               # 4.0.5 the offer's '+' (Enzo): its SELEZ. GIOCATORE PER OFFERTA paged
     p.retarget(2, s['vmenu'], 1, lab['vs_init'])        # (viewSquadMenu's init pointer)
     p.put(2, s['vmenu'], struct.pack('<I', lab['vs_init']))
+    LABELS.update(lab)                                  # (4.0.6 bteam: vs_ofr, the B page's picks of the extras)
     print(f'exe: club browse pages: menu copy obj1+{mat:#x} ({len(copy)} B), code obj1+{at:#x} ({len(code)} B)')
     return (mat + len(copy) + 15) & ~15

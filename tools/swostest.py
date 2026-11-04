@@ -16133,6 +16133,33 @@ def cg_trace(exe):
     return struct.unpack_from('<IIII', d3, k + 8) if k >= 0 else None
 
 
+def cg_relocated(a, b, diff, exes):
+    """world_cgame_guard: A and B are two exes, and DOS/4GW may load B's objects a page higher (a longer fixup
+    section): the game's own absolute pointers in the .CAR (the contests' pointers ProcessCareerFile rebuilds) then
+    differ by that page delta. Both exes booted once for their object bases; a differing byte is excused only inside
+    a dword whose A value lies in A's objects and whose B value is exactly A's + the delta. (excused count, the rest)"""
+    bases = {}
+    for k in ('A', 'B'):
+        with Session(f'cgg_base_{k.lower()}', exes[k], {}, 'dump:2', 60) as s:
+            s.wait()
+            r = s.result
+            bases[k] = (r.base1, r.base2, r.base3 or r.base2)
+    d = bases['B'][1] - bases['A'][1]
+    cg_relocated.delta = d
+    if not d or any(bases['B'][i] - bases['A'][i] != d for i in range(3)):
+        return 0, diff
+    lo, hi = bases['A'][0], bases['A'][2] + 0x100000
+    ok = set()
+    for i in diff:
+        for j in range(max(0, i - 3), i + 1):
+            va, vb = struct.unpack_from('<I', a, j)[0], struct.unpack_from('<I', b, j)[0]
+            if lo <= va < hi and vb - va == d:
+                ok.update(range(j, j + 4))
+                break
+    left = [i for i in diff if i not in ok]
+    return len(diff) - len(left), left
+
+
 @scenario
 def world_cgame_guard():
     """4.0.6 option C, P2 gate (GO/NO-GO 2): a view opened and closed leaves the career exactly as it was. Two exes of
@@ -16190,9 +16217,11 @@ def world_cgame_guard():
     if len(cars) == 2:
         a, b = (open(cars[x], 'rb').read() for x in ('A', 'B'))
         diff = [i for i in range(min(len(a), len(b))) if a[i] != b[i]]
-        check(a == b, f'season-2 .CAR with the view != without: {len(a)} / {len(b)} B, {len(diff)} bytes differ, '
-              f'first {[hex(i) for i in diff[:8]]}', errs)
-        info.append(f'.CAR {len(a)} B identical' if a == b else '')
+        rel, left = cg_relocated(a, b, diff, exes) if diff and len(a) == len(b) else (0, diff)
+        check(len(a) == len(b) and not left, f'season-2 .CAR with the view != without: {len(a)} / {len(b)} B, '
+              f'{len(left)} bytes differ, first {[hex(i) for i in left[:8]]}', errs)
+        info.append(f'.CAR {len(a)} B identical' + (f' (but {rel} of the game\'s absolute pointers, B loaded '
+                    f'{cg_relocated.delta:#x} higher)' if rel else '') if not left else '')
     g = seen.get('last')
     if not g:
         errs.append('B: CG_G never read')

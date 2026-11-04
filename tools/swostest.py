@@ -24694,8 +24694,8 @@ def ffp_season():
 def ffp_star():
     """4.0.6 FFP, a big club's real spending (Davide 04/11): an OFFER_FORCE build (every offer accepted) of the World
     2026-27 (W2627REL_DATA), a REAL MADRID career; FFP_STAR (default 1,3) = the number of BARCELONA stars bought at the
-    season's start (the first n of FFP_STAR_NAMES, default YAMAL, PEDRI, RAPHINHA, KOUNDE, OLMO, GORDON - price index 42-46;
-    FFP_STAR default 1,3,6; ACQ. ALTRO GIOCAT. NAZION. > LALIGA > BARCELONA; the bank poked to 500 M before each
+    season's start (each time the dearest player of the list: its rows walked, the highlighted row's info line read; FFP_STAR
+    default 1,3,6; ACQ. ALTRO GIOCAT. NAZION. > LALIGA > BARCELONA; the bank poked to 500 M before each
     offer, put back after: the purchase costs nothing), season 1 played, CONTINUA CARRIERA: W (the new season's wage
     bill), I (FF_IPREV), the ratio; over the limit <=> FF_BLOCK, FF_FINE = half the wages over 0.35 x I (thousands); the
     balance before / after the fine logged. Davide's check: one star = no sanction."""
@@ -24710,7 +24710,6 @@ def ffp_star():
     nb_at = fin['NEWBAL'][1]
     word = lambda r, o: struct.unpack('<i', bytes(r.obj2(o, 4)))[0]
     path = ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27', 'EUROPA', 'SPAGNA', 'LALIGA', 'REAL MADRID']
-    STARS = os.environ.get('FFP_STAR_NAMES', 'LAMINE YAMAL,PEDRI,RAPHINHA,JULES KOUNDE,DANI OLMO,ANTHONY GORDON').split(',')
     for n in [int(x) for x in os.environ.get('FFP_STAR', '1,3,6').split(',')]:
         tag = f'star{n}_{UI}'
         with Session(f'ffp_{tag}', b, {}, 'dump:2', 1500) as s:
@@ -24731,15 +24730,34 @@ def ffp_star():
                 walk(s, 2, 3)                              # ACQUISTA GIOCATORE
                 if any(t and msg1[1][:12] in t for t in s.screen().texts()):
                     errs.append(f'{tag}: purchase {k + 1} refused by the game (squad room?) {s.screen()}')
+                    s.poke(s.result.base2 + nb_at, struct.pack('<i', bank))
                     break
                 walk(s, 4, 3)                              # ACQ. ALTRO GIOCAT. NAZION.
                 walk(s, 'LALIGA', 3)
                 walk(s, 'BARCELONA', 3)
-                star = STARS[k]                            # (by name: the list's order is not players.csv's)
-                if s.screen().find(star, exact=True) is None:
-                    errs.append(f'{tag}: {star} not in the list {s.screen()}')
+                cand = {}                                  # the list: each row's player (the info line of the
+                for _ in range(20):                        # highlighted row: name ... price 'L20MD'), the dearest
+                    sc_ = s.screen()                       # one not bought yet
+                    tx = sc_.texts()
+                    sel_t = next((e_[1] for e_ in sc_.entries if e_[0] == sc_.selected), None)
+                    if 'ESCI' in tx and sc_.selected is not None and sel_t not in ('ESCI', 'PAG. SUCC.', 'PAG. PREC.'):
+                        info_ = tx[tx.index('ESCI') + 1:]
+                        pr = next((float(m_.group(1)) for t in info_ for m_ in [re.match(r'L([\d.]+)M', t)] if m_), None)
+                        if info_ and pr is not None and sc_.selected not in cand:
+                            cand[sc_.selected] = (pr, info_[0])
+                    s.send('up dump:0.5')
+                pick = sorted(((pr, e_, nm) for e_, (pr, nm) in cand.items() if nm not in [x[1].split(' L')[0]
+                               for x in bought]), reverse=True)
+                if not pick:
+                    errs.append(f'{tag}: no player found in the list {cand}')
+                    s.poke(s.result.base2 + nb_at, struct.pack('<i', bank))
                     break
-                walk(s, star, 4)
+                star = pick[0][2]
+                for key in ['up'] * 24 + ['down'] * 24:      # back onto its row
+                    if s.screen().selected == pick[0][1]:
+                        break
+                    s.send(key + ' dump:0.5')
+                s.send('fire dump:4')
                 sc = s.screen()
                 s.log.append(f'[offer] {sc}')
                 price = next((t for t in sc.texts() if t.startswith('>')), '?')   # (the asked amount, selected)

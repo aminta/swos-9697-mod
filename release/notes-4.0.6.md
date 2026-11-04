@@ -82,7 +82,7 @@
   - To see the other substitutes, put the cursor on the face next to the last player and press FIRE. Each press shows the next one, and after the last it starts again from the top.
   - A player you have picked stays picked while you browse.
   - Same on the pre-match screen, the club squad screen, the tactics editor, the squad view and the national team call-ups.
-  - VIEW OPPONENT is unchanged: there UP / DOWN still browse the opponent's substitutes (you can only look).
+  - VIEW OPPO is unchanged: there UP / DOWN still browse the opponent's substitutes (you can only look).
   - **Cursor on the team screen before a match, as in the original game** (thanks to Marco). When you are a player-coach, the line where you choose to play or only coach is reached exactly as in the original 1996-97 game:
     - DOWN from the last player name goes to that line, DOWN again to PLAY MATCH; UP goes back the same way;
     - UP from EXIT goes to that line;
@@ -211,7 +211,7 @@ With the new button in place, a long coach's name on the squad screen is shown s
 - **Buying a club's extra squad players** (thanks to Enzo). Fixed: after taking over a club, a player you had bought from it (one of its extra squad players) could reappear in its squad, so he was in two clubs at once. Fixed: buying one of another club's extra squad players (players 17 to 30) could make the career crash at the start of a later season, or spoil another club's squad. Careers saved with 4.0.2 to 4.0.5 play on safely.
 - **TRANSFERS stays available after viewing a cup.** After looking at a cup from VIEW WORLD, TRANSFERS was greyed out until the next match and the menu cursor jumped
   into the fixtures (since 4.0.5). Now the career menu stays as it was.
-- **The UP and DOWN arrows stopped working after a match** (thanks to Salvatore). In 4.0.5 the UP and DOWN arrows could stop working in every menu after a match. It happened if you looked at the opponent's squad (VIEW OPPONENT) on the pre-match screen and started the match from there: the arrows stayed dead until the next pre-match screen, even after loading another career (LEFT and RIGHT still worked). Now they always work, and on the pre-match screen UP and DOWN still scroll the opponent's long squad as before.
+- **The UP and DOWN arrows stopped working after a match** (thanks to Salvatore). In 4.0.5 the UP and DOWN arrows could stop working in every menu after a match. It happened if you pressed VIEW OPPO on the pre-match screen and started the match from there (PLAY MATCH): the arrows stayed dead until the next pre-match screen, even after loading another career (LEFT and RIGHT still worked). Now they always work, and on the pre-match screen UP and DOWN still scroll the opponent's long squad as before.
 - **Two-row benches drew stray pieces.** The patcher used to install only one of the five pitch picture files, so the new two-row benches showed dirty pieces on some pitches. It now installs all five.
 - **Club names without the "&" sign:** O Y M, TREFELIN BGC, SB VLASIM and HARLAND WOLFF.
 - **A play-off entrant that refuses the place** no longer makes the game read wrong data at the season end (it showed up with San Marino; found by Ben Baker).

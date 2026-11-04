@@ -24461,7 +24461,7 @@ def fin_statement():
 
 
 def ffp_sites(exe_dir):
-    """ffp in a built exe: FF_ST (obj3, after the tag 'FFPS': FF_ON, FF_BLOCK, FF_VALID, FF_INC, FF_IPREV, FF_FINE, FF_TVW: 19 B),
+    """ffp in a built exe: FF_ST (obj3, after the tag 'FFPS': FF_ON, FF_BLOCK, FF_VALID, FF_INC, FF_IPREV, FF_FINE, FF_TVW, FF_NCH: 21 B),
     the finance variables (finance.find on the exe language's original) and the game's message 1 (ffp.message)."""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import finance
@@ -24489,9 +24489,9 @@ def ffp_onoff(exe_dir):
 
 
 def ffp_read(s, ff):
-    """{on, block, valid, inc, iprev, fine, tvw}"""
-    v = struct.unpack('<BBBIIII', bytes(s.result.read(s.result.lin(ff), 19)))
-    return dict(zip(('on', 'block', 'valid', 'inc', 'iprev', 'fine', 'tvw'), v))
+    """{on, block, valid, inc, iprev, fine, tvw, nch}"""
+    v = struct.unpack('<BBBIIIIH', bytes(s.result.read(s.result.lin(ff), 21)))
+    return dict(zip(('on', 'block', 'valid', 'inc', 'iprev', 'fine', 'tvw', 'nch'), v))
 
 
 def ffp_biz(s, tag, errs, toggle=False):
@@ -24614,6 +24614,8 @@ def ffp_season():
                     if s.screen().find('CONTINUA CARRIERA', exact=True) is not None:
                         break
                     press(s, s.screen(), 'CONTINUA') or s.send('fire dump:2')
+                wend = struct.unpack('<I', bytes(s.result.obj2(fin['D6B9E'][1], 4)))[0] * \
+                    struct.unpack('<H', bytes(s.result.obj2(fin['D6CA2'][1], 2)))[0]   # (the season-end W: option C)
                 if press(s, s.screen(), 'CONTINUA CARRIERA', wait=3) is None:
                     errs.append(f'{tag}: no CONTINUA CARRIERA on {s.screen()}')
                     continue
@@ -24648,7 +24650,7 @@ def ffp_season():
                         ok_ch = set(SMALL_W) | {' '} | gamech                       #  characters or the game's own
                         check(ours <= ok_ch, f'{tag}: memo non-font characters {sorted(ours - ok_ch)}', errs)   # memos')
                         check(re.search(r'\d', b2) is not None, f'{tag}: no amount in {b2!r}', errs)
-                    want = (wage // 2) // 1000 * 1000
+                    want = (wend // 2) // 1000 * 1000              # (FFP_FORCE: the limit 0; W = the season's end)
                     check(v2['fine'] == want and want > 0, f'{tag}: fine {v2["fine"]} != half the wages {wage}: {want}', errs)
                     check(v2['block'] == 1 and v2['iprev'] > 0, f'{tag}: not sanctioned {v2}', errs)
                     press(s, s.screen(), 'ANDAMENTO CLUB', 3)
@@ -24686,7 +24688,7 @@ def ffp_season():
                           f'{"refused" if refused else "open"}: {scr}', errs)
                 else:
                     errs.append(f'{tag}: no career menu for the purchase test {s.screen()}')
-                ratio = f'{wage / v2["iprev"]:.1%}' if wage and v2['iprev'] else '-'
+                ratio = f'{wend / v2["iprev"]:.1%}' if v2['iprev'] else '-'
                 notes.append(f'{tag}: {v1} -> {v2} memo {memo[:2] if memo else None} W {wage} W/I {ratio}')
     return not errs, '; '.join(errs + notes)
 
@@ -24788,6 +24790,8 @@ def ffp_star():
                     break
                 press(s, s.screen(), 'CONTINUA') or s.send('fire dump:2')
             bank1 = word(s.result, nb_at)
+            wend = struct.unpack('<I', bytes(s.result.obj2(fin['D6B9E'][1], 4)))[0] * \
+                struct.unpack('<H', bytes(s.result.obj2(fin['D6CA2'][1], 2)))[0]       # (the season-end W: option C)
             press(s, s.screen(), 'CONTINUA CARRIERA', wait=3)
             memo = False
             for _ in range(12):
@@ -24801,16 +24805,17 @@ def ffp_star():
             w = struct.unpack('<I', bytes(s.result.obj2(fin['D6B9E'][1], 4)))[0] * \
                 struct.unpack('<H', bytes(s.result.obj2(fin['D6CA2'][1], 2)))[0]
             i_ = v['iprev']
-            over = i_ and w * 100 > ffp.LIMIT * i_
-            want = ((w - i_ * ffp.LIMIT // 100) // 2) // 1000 * 1000 if over else 0
+            over = i_ and wend * 100 > ffp.LIMIT * i_
+            want = ((wend - i_ * ffp.LIMIT // 100) // 2) // 1000 * 1000 if over else 0
             check(v['block'] == (1 if over else 0) and v['fine'] == want, f'{tag}: block {v["block"]} fine {v["fine"]}, '
                   f'want {int(bool(over))} / {want} (W {w} I {i_})', errs)
             check(memo == bool(over), f'{tag}: memo {memo} with over {bool(over)}', errs)
             if n == 1:
-                check(not over, f'{tag}: one star sanctioned (W {w} I {i_})', errs)
+                check(not over, f'{tag}: one star sanctioned (W {wend} I {i_})', errs)
+            check(v['nch'] > 0, f'{tag}: the season\'s charges not kept {v}', errs)
             check(len(bought) == n and all(x[0] for x in bought), f'{tag}: bought {bought}', errs)
-            notes.append(f'{tag}: bought {bought}; W at the start {w0 / 1e6:.2f} M, new season {w / 1e6:.2f} M; '
-                         f'I {i_ / 1e6:.2f} M; W/I {(w / i_ if i_ else 0):.1%}; block {v["block"]} fine '
+            notes.append(f'{tag}: bought {bought}; W at the start {w0 / 1e6:.2f} M, at the season end {wend / 1e6:.2f} M, new season '
+                         f'{w / 1e6:.2f} M; I {i_ / 1e6:.2f} M; W/I {(wend / i_ if i_ else 0):.1%}; block {v["block"]} fine '
                          f'{v["fine"] / 1e6:.3f} M; balance before the season start {bank1 / 1e6:.2f} M, after '
                          f'{word(s.result, nb_at) / 1e6:.2f} M')
     return not errs, '; '.join(errs + notes)

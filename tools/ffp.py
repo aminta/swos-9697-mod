@@ -22,7 +22,7 @@ The purchases (BuyPlayerMenu's `cmp word [D2], 2 / jnb`: the game's own refusal,
 player purchases this season' - message 1 in every language): also when FF_BLOCK and the current squad's W is over
 the limit of FF_IPREV (sold back under it: buying again).
 
-State: finance.py's FF_ST (FF_ON, FF_BLOCK, FF_VALID, FF_INC, FF_IPREV, FF_FINE, FF_TVW), the engine item 'FF' (19 bytes).
+State: finance.py's FF_ST (FF_ON, FF_BLOCK, FF_VALID, FF_INC, FF_IPREV, FF_FINE, FF_TVW, FF_NCH), the engine item 'FF' (21 bytes).
 FFP_FORCE=over (test builds only, modver TEST_VARS): the limit 0 (every evaluated season over).
 """
 import os
@@ -49,6 +49,20 @@ MEMO = {'it': ('SPIACENTE %a, GLI STIPENDI SUPERANO IL 35 PER CENTO',
 ASM = r"""
 ff_season:                              ; replaces InitializeNewSeason's `call cseg_5DEB9`
     push dword [SPONS]                  ; (the ending season's sponsorship: cseg_5DEB9 resets it)
+    pushad                              ; W = the wage bill at the season's end, before cseg_5DEB9 prices the squad again
+    movzx ecx, word [FF_NCH]            ; (Davide 04/11, C): its wages per charge x ITS charges (D6CA2 is the new season's
+    test ecx, ecx                       ; by now; an older save: no count kept - the new one)
+    jnz .nch
+    movzx ecx, word [D6CA2]
+.nch:
+    mov eax, [D6B9E]
+    mul ecx
+    test edx, edx
+    jz .wend
+    mov eax, 7FFFFFFFh
+.wend:
+    mov [FF_WEND], eax
+    popad
     call PREV5DEB9
     pushad
     mov esi, REGS
@@ -72,7 +86,8 @@ ff_season:                              ; replaces InitializeNewSeason's `call c
     mov [FF_IPREV], ebx
     cmp byte [FF_ON], 0
     je .done
-    call ff_over
+    mov eax, [FF_WEND]
+    call ff_overw
     jle .done
     mov byte [FF_BLOCK], 1
     shr eax, 1                          ; the fine: half the wages over the limit, in thousands
@@ -88,6 +103,8 @@ ff_season:                              ; replaces InitializeNewSeason's `call c
     mov [FF_IPREV], ecx
 .done:
     mov byte [FF_VALID], 1
+    mov ax, [D6CA2]                     ; (this season's charges: next season start's W)
+    mov [FF_NCH], ax
     mov esi, FF_REGS
     mov edi, REGS
     mov ecx, 15
@@ -101,9 +118,10 @@ ff_over:                                ; eax = W - LIMIT / 100 x FF_IPREV, flag
     movzx ecx, word [D6CA2]
     mul ecx
     test edx, edx
-    jnz .big
+    jnz ff_big
+ff_overw:                               ; (W given in eax)
     cmp eax, 7FFFFFFFh
-    ja .big
+    ja ff_big
     mov esi, eax
     mov eax, [FF_IPREV]
     mov ecx, LIMIT_
@@ -114,7 +132,7 @@ ff_over:                                ; eax = W - LIMIT / 100 x FF_IPREV, flag
     mov eax, esi
     test eax, eax
     ret
-.big:
+ff_big:
     mov eax, 7FFFFFFFh
     test eax, eax
     ret
@@ -340,6 +358,7 @@ ff_ratio:                               ; FF_RATIO = RATIO[lang] + W x 100 / las
     ret
 
 align 4
+FF_WEND: dd 0                           ; (the season-end W, between ff_season's two halves)
 FF_REGS: times 15 dd 0
 FF_AMT: times 24 db 0
 FF_L1: L1_DB
@@ -449,7 +468,7 @@ def patch(p, at, lang):
     sym['PREV5DEB9'] = p.call_target(1, s['season'])
     assert sym['PREV5DEB9'] == (1, s['F5DEB9']), ('InitializeNewSeason: cseg_5DEB9 call already hooked', sym['PREV5DEB9'])
     sym['LIMIT_'] = (0, 0 if os.environ.get('FFP_FORCE') == 'over' else LIMIT)
-    for k in ('FF_ON', 'FF_BLOCK', 'FF_VALID', 'FF_INC', 'FF_IPREV', 'FF_FINE', 'FF_TVW'):
+    for k in ('FF_ON', 'FF_BLOCK', 'FF_VALID', 'FF_INC', 'FF_IPREV', 'FF_FINE', 'FF_TVW', 'FF_NCH'):
         sym[k] = (3, finance.LABELS[k])
     code, fix, rel = nasmcave.assemble_obj(src, at, sym, 3)
     lab = nasmcave.labels(src, at, sym)

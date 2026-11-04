@@ -257,7 +257,7 @@ With the new button in place, a long coach's name on the squad screen is shown s
 - **Finances:** the new income applies to every career from its next match, including older ones; it changes the money, not the squads.
 
 ### Thanks
-Thanks to Roman for asking for an easier install, to Marco for the financial fair play idea, the training, shirt-number and keyboard ideas, to Enzo for the market-list report, to Nicola for the finance and CPU-replacements reports, to Salvatore for the arrows report, to Francesco, and to Ben Baker for the San Marino report. Marco and Davide had the idea of the stoppage time.
+Thanks to Roman for asking for an easier install, to Marco for the financial fair play idea, the training, shirt-number and keyboard ideas, to Enzo for the market-list report, to Nicola for the finance and CPU-replacements reports, to Salvatore for the arrows report and to Ben Baker for the San Marino report. Marco and Davide had the idea of the stoppage time.
 
 ## Italiano
 
@@ -523,4 +523,4 @@ resta quello).
 - **Finanze:** i nuovi incassi valgono per ogni carriera dalla partita successiva, anche per quelle già iniziate; cambiano i soldi, non le rose.
 
 ### Ringraziamenti
-Grazie a Roman per aver chiesto un'installazione più semplice, a Marco per l'idea del fair play finanziario, le idee su allenamento, numeri di maglia e tastiera, a Enzo per la segnalazione sull'elenco del mercato, a Nicola per quelle sulle finanze e sui rimpiazzi della CPU, a Salvatore per quella sulle frecce, a Francesco e a Ben Baker per la segnalazione su San Marino. L'idea del recupero è di Marco e Davide.
+Grazie a Roman per aver chiesto un'installazione più semplice, a Marco per l'idea del fair play finanziario, le idee su allenamento, numeri di maglia e tastiera, a Enzo per la segnalazione sull'elenco del mercato, a Nicola per quelle sulle finanze e sui rimpiazzi della CPU, a Salvatore per quella sulle frecce e a Ben Baker per la segnalazione su San Marino. L'idea del recupero è di Marco e Davide.

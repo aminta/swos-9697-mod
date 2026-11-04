@@ -1197,7 +1197,14 @@ class Session:
             assert got == data, f'SM: wrote {data.hex()}, read {got.hex()}'
         b.stat('send', t)
         self.log.append(keys)
-        return self.wait()
+        r = self.wait()
+        pin = getattr(self, 'rng_pin', None)          # (opt-in, a scenario's s.rng_pin = text, s.rng_at = rng_sites(exe):
+        if pin and r.outcome == 'dump':                # the generators re-pinned at every pause, as W8485_RNGSTEP -
+            self.rng_n = getattr(self, 'rng_n', 0) + 1  # CareerMenu reseeds Rand from currentTick on every entry)
+            h = hashlib.md5(f'{pin}:{self.rng_n}'.encode()).digest()
+            for at, part in zip(self.rng_at, (h[:3], h[3:6])):
+                self.poke(r.base2 + at, part)
+        return r
 
 
 def press(s, scr, text, wait=2, exact=True, avoid=frozenset(), fire=None):
@@ -10474,6 +10481,10 @@ def world_groups():
     shutil.rmtree(w, ignore_errors=True)
     shutil.copytree(src, os.path.join(w, 'world5tm'))
     conti_free_ids(os.path.join(w, 'world5tm'))       # (the snapshot's cups off conti's reserved ids)
+    for cf in glob.glob(os.path.join(w, 'world5tm', '*', 'clubs.csv')):   # (4.0.6 406-font: '&' is no font character;
+        t = open(cf, encoding='utf-8').read()                            #  the snapshot predates the data fix - the
+        if '&' in t:                                                     #  copy only: TREFELIN BOYS & -> TREFELIN BOYS)
+            open(cf, 'w', encoding='utf-8').write(t.replace(' & ', ' ').replace(' &', '').replace('&', ''))   # (16 chars)
     f = os.path.join(w, 'world5tm', 'ita', 'pack.json')
     d = json.load(open(f))
     lg = next(c for c in d['competitions'] if c['type'] == 'league')
@@ -24808,7 +24819,8 @@ def gk_inj():
         gk, career, cmpl = gk_sites(b)
         with Session(f'gk_inj_{mode}_{UI}', b, {}, 'dump:3', 1500, match=True) as s:
             s.wait()
-            if mode == '1m':
+            s.rng_at, s.rng_pin = rng_sites(os.path.join(b, 'ITALIAN.EXE')), f'gk_inj:{mode}'   # (MC 05/11: the career's
+            if mode == '1m':                            # draw pinned - the roll count depends on the day's other ties)
                 scr = walk(s, 'OPZIONI', 2)
                 lab, lab_r = scr.find(label, exact=True), scr.find(cpucards_label(), exact=True)
                 check(lab == 24 and lab_r == 20 and scr.n == 26, f'OPTIONS: {label} at {lab}, red cards at {lab_r}, '
@@ -24853,7 +24865,8 @@ def gk_inj():
                 continue
             lv = gkinj.LVL1 if mode in ('1m', 'cpu') else gkinj.LVL2   # (the CPU's level after cpucards' day
             ok_ck = {0} if mode == 'cpu' else {lv, lv - 0x20, 0x20, 0}    #  countdowns: the post-match days pass)
-            check(len(cpu) == 1 and ck in ok_ck and (st[0] == 1 if mode == 'cpu' else st[0] > 2),
+            check(len(cpu) == 1 and ck in ok_ck and (st[0] == 1 if mode == 'cpu' else st[0] >= 2),   # (MC 05/11: >= 2 =
+                                                # the human + the CPU keeper; more only when the day's other ties are played)
                   f'{mode}: CPU keeper level {ck:#x}, rolls {st[0]} (INFORTUNI ALLA CPU '
                   f'{"OFF: the human keeper only" if mode == "cpu" else "ON: the CPU keepers too"})', errs)
             if mode == 'cpu':

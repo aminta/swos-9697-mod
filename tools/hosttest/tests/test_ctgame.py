@@ -88,9 +88,9 @@ def test_cg_replay():
             continue
         m.call('conti.syms.ct_resume')                 # (as ct_daily after a load: the state the view sees)
         s0, lay = _state(m)
-        t = time.time()
-        m.call('ctgame.cg_replay')
-        dt = time.time() - t
+        t = time.process_time()                        # (CPU time: a loaded Mac's wall clock is no limit - as
+        m.call('ctgame.cg_replay')                     # test_hooks_contract)
+        dt = time.process_time() - t
         s1, _ = _state(m)
         g = m.read(m.base3 + SCR + REC, 4 + 2 * NCUP * NRD + 0x1000)
         if s0 != s1:
@@ -133,9 +133,9 @@ def test_cg_build():
                 a.call('ctgame.cg_replay')
                 before = bytes(a.uc.mem_read(0, MEM))
                 w0, r0 = a.read(work, 0xB52), a.read(regs, 60)
-                t0 = time.time()
+                t0 = time.process_time()
                 ln = a.call('ctgame.cg_build', c, r, t, week, max_insn=200_000_000)
-                dt = time.time() - t0
+                dt = time.process_time() - t0
                 err = a.u32('ctgame.CG_ERR')
                 after = bytes(a.uc.mem_read(0, MEM))
                 if not ln:

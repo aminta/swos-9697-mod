@@ -127,7 +127,9 @@ def test_wmodes():
     pre, post = _e8(rd, cs[0]), _e8(rd, cs[2])
     into4 = [a for a in range(B1, B1 + sizes[0] - 5) if rd(a, 1) == b'\xe8' and B4 <= _e8(rd, a) < B4 + swreg.REG_AT]
     nstr = [_e8(rd, a) for a in into4 if a - B1 not in (site,) + tuple(c for c, _ in calls)]
-    if len(nstr) != 1 or rd(nstr[0] + 1, 3) != b'\x0f\xb6\xc0':
+    car = [t for t in nstr if rd(t, 2) == b'\x60\xe8']       # (M3: the career's team choice, swe_car_tramp)
+    nstr = [t for t in nstr if t not in car]
+    if len(nstr) != 1 or len(car) != 1 or rd(nstr[0] + 1, 3) != b'\x0f\xb6\xc0':
         return False, f'obj1 calls into obj4: {[hex(a - B1) for a in into4]} (the picker, DIY save / load, w_ns_menu)'
     ns = _e8(rd, nstr[0] + 4 + 1)
     import re
@@ -233,6 +235,32 @@ def test_wmodes():
     run(0, 1, [(1, 0)])                           # (a 1996-97 contest: the base namespace again)
     if rd(wcur, 1)[0] != 4:
         errs.append(f'a 1996-97 contest left namespace {rd(wcur, 1)[0]}')
+    # M3: the career's picker (swe_car_tramp -> swe_sel_pre(M_CAREER)): the same lists, whatever teamsType, no lock
+    def run_car(setting, steps):
+        uc.mem_write(wdef, bytes((setting,)))
+        w16(TTYPE, 0)
+        uc.mem_write(D0, b'\xff')
+        w16(NUMSEL, 0)
+        before = tr._snap(uc, sizes)
+        tr._call(uc, pre, swreg.M_CAREER)
+        d0 = rd(D0, 1)[0]
+        seen = [(ids(u32(slot(98))), ids(u32(slot(d0))) if d0 != 255 else ids(cwt))]
+        for n, w in steps:
+            w16(NUMSEL, n)
+            tr._call(uc, ns, w)
+            seen.append((ids(u32(slot(98))), ids(u32(slot(d0))) if d0 != 255 else ids(cwt), u32(selcw_p)))
+        return d0, seen, before
+    for setting, d0w, want in ((0, 205, [([200, 204], o205 + [98]), ([200, 204], o205 + [98], 0)]),
+                               (1, 255, [([204], ctop + [205, 98]), ([204], ctop + [205, 98], 0)]),
+                               (2, 204, [([200], o204 + [205, 98]), ([200], o204 + [205, 98], 0)])):
+        d0, seen, before = run_car(setting, [(1, 5)])
+        tr._call(uc, post)                        # (the lists back; the friendly's post: the namespace is the test's)
+        uc.mem_write(D0, b'\xff')
+        if d0 != d0w or seen != want:
+            errs.append(f'career picker, setting {setting}: D0 {d0}, lists {seen}')
+        if ids(cwt) != ctop + [98] or ids(u32(slot(98))) != o98:
+            errs.append(f'career picker, setting {setting}: lists not restored {ids(cwt)} {ids(u32(slot(98)))}')
+    tr._call(uc, guard)
     for tt in (0, 2, 3):
         d0, seen, cw, same = run(0, tt, [])
         if d0 != 255 or seen[0][0] != o98 or seen[0][2] or seen[-1] != ('ns', 4, 4) or not same:

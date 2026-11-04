@@ -20,6 +20,7 @@ typedef unsigned int u32;
 #define REG_REC 24
 #define F_NS 2
 #define M_FRIENDLY 1                    /* (swreg.py M_*) */
+#define M_CAREER 8
 
 u8 SWE_ARENA_AT[SWE_ARENA];
 u32 SWE_STATE;                          /* 0 = not initialised, 1 = swe_init ran */
@@ -128,10 +129,10 @@ static const u8 *list_ids(u32 l)        /* a list's menu ids: after its dd entri
     return p + 4;
 }
 
-static int friendly_world(u32 n)        /* world n is listed by the friendly / DIY picker */
+static int friendly_world(u32 n)        /* world n is listed by this picker (its mode: friendly / DIY, career) */
 {
     const u8 *r = reg_world(n);
-    return r && (r[6] & M_FRIENDLY);
+    return r && (r[6] & (SEL_MODE == M_CAREER ? M_CAREER : M_FRIENDLY));
 }
 
 static int locked(u32 n) { return SEL_CW && n && n != SEL_CW; }
@@ -271,7 +272,7 @@ void swe_sel_pre(u32 mode)
     SEL_C254 = *c254;
     SEL_ON = 0;
     u32 cw = rd32(SWE_REG + 16), set = rd32(SWE_REG + 28);
-    if (!cw || !set || *(u16 *)SWE_TTYPE != CLUB_TEAMS || !*comp_slot(CAREERS))
+    if (!cw || !set || (mode != M_CAREER && *(u16 *)SWE_TTYPE != CLUB_TEAMS) || !*comp_slot(CAREERS))
         return;
     u32 s = *(u8 *)set, dw = s < sizeof SET_W ? SET_W[s] : 0;
     if (dw && !friendly_world(dw))
@@ -288,7 +289,7 @@ void swe_sel_pre(u32 mode)
         SEL_SLOTD = comp_slot(WMENU + dw);
         SEL_OD = *SEL_SLOTD;
         *SEL_SLOTD = (u32)L_DEF;
-        SWE_D0[0] = WMENU + dw;         /* (GoGetTeamsForPlay's 255: the top list) */
+        SWE_D0[0] = WMENU + dw;         /* (GoGetTeamsForPlay's 255 / mainbtn mb_d0's: the top list) */
     } else {
         u8 *t = (u8 *)list_ids(cw);
         while (*t != 0xFF && *t != CAREERS)
@@ -303,6 +304,8 @@ void swe_sel_ns(u32 w)                  /* careerworld w_ns_menu, every list: w 
     if (SEL_MODE == 0xFFFFFFFF || !SEL_ON)
         return;
     u32 n = *(u16 *)SWE_NUMSEL;
+    if (SEL_MODE == M_CAREER)           /* (one club: no lock) */
+        n = 0;
     if (!n)
         SEL_CW = 0;
     else if (n > SEL_N && !SEL_CW && w)
@@ -311,7 +314,7 @@ void swe_sel_ns(u32 w)                  /* careerworld w_ns_menu, every list: w 
     sel_lists();
 }
 
-void swe_sel_post(void)
+static void sel_restore(void)           /* the game's lists back */
 {
     *(u32 *)rd32(SWE_REG + 12) = SEL_C254;
     if (SEL_ON) {
@@ -320,11 +323,50 @@ void swe_sel_post(void)
             *SEL_SLOTD = SEL_OD;
         top_restore();
         title_restore();
+    }
+}
+
+void swe_sel_post(void)
+{
+    sel_restore();
+    if (SEL_ON) {
         SWE_CWORLD = *(u16 *)SWE_NUMSEL ? SEL_CW : 0;
         ns_left(SWE_CWORLD);
     }
     SEL_ON = 0;
     SEL_MODE = 0xFFFFFFFF;
+}
+
+/* W-modes M3: the career's team choice (ChooseTeamsDialog's SelectTeamsFinalMenu call after mainbtn's mb_d0, only for
+   SELECT TEAM TO MANAGE: a player purchase's team choice stays the game's) lists the worlds as the friendly picker
+   (the default world's list, MONDO 2026-27 next to STORICO), with no lock (one club). The namespace stays the one the
+   path left (careerworld w_ns_menu): InitCareer's w_load1 reads it for the career's world. */
+extern u8 MB_HDR[], MB_STR[];
+u32 CAR_ON DATA = 0;
+
+void swe_car_pre(void)
+{
+    CAR_ON = rd32(MB_HDR) == (u32)MB_STR;
+    if (!CAR_ON)
+        return;
+    NS_LEFT = 0;                        /* (the career's picker owns the namespace: no guard after it) */
+    swe_sel_pre(M_CAREER);
+}
+
+void swe_car_post(void)
+{
+    if (!CAR_ON)
+        return;
+    sel_restore();
+    SEL_ON = 0;
+    SEL_MODE = 0xFFFFFFFF;
+    CAR_ON = 0;
+}
+
+__attribute__((naked)) void swe_car_tramp(void)
+{
+    __asm__ volatile("pushal\n\tcall swe_car_pre\n\tpopal\n\tcall SWE_CARPICK\n\t"
+                     "pushfl\n\tpushal\n\tcall swe_car_post\n\tpopal\n\tpopfl\n\tret");
 }
 
 /* GoGetTeamsForPlay's picker call (swe.py pick_site) lands here: SWE_PICK = what that call reached before (chained) */

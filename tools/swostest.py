@@ -10112,6 +10112,65 @@ def engine_wmodes_def():
     return not errs, '; '.join(errs + info)
 
 
+@scenario
+def engine_wmodes_car():
+    """W-modes M3: the career's team choice (CARRIERA > SCEGLI SQUADRA, swe.c swe_car_tramp) lists the worlds as the
+    friendly picker, with no lock, and the career takes the world of the path. (1) Default 2026-27: its continents +
+    STORICO (= MONDO 1996-97 + EUROPA 1984-85, no MONDO 2026-27); STORICO > MONDO 1996-97 > EUROPA > ITALIA > SERIE A >
+    INTER starts a 1996-97 career (1996/97, WCUR = base). (2) Default 1996-97: the game's continents + MONDO 2026-27
+    (GREEN) + STORICO (= EUROPA 1984-85); MONDO 2026-27 > EUROPA > ITALIA > SERIE A > INTER: a 2026-27 career
+    (2026/27, WCUR 5). (3) Default 1984-85: its countries + MONDO 2026-27 + STORICO (= MONDO 1996-97); ISLANDA >
+    VOLSUNGUR: a 1984-85 career (1984/85). No lock line in the career's title bar."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import swreg
+    import swe
+    errs, info = [], []
+    hist, cur, w0 = 'CARR. STORICHE', 'MONDO 2026-27', 'MONDO 1996-97'
+    lock = swe.LOCK_LINE[UI if UI in swe.LOCK_LINE else 'it']
+    b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
+    cases = [(0, ('EUROPA', hist), (w0, 'EUROPA 1984-85'), (cur,), [hist, w0, 'EUROPA', 'ITALIA', 'SERIE A', 'INTER'],
+              ('INTER', '1996/97'), 'base'),
+             (1, ('AFRICA', cur, hist), ('EUROPA 1984-85',), (cur, w0), [cur, 'EUROPA', 'ITALIA', 'SERIE A', 'INTER'],
+              ('INTER', '2026/27'), 5),
+             (2, ('ISLANDA', cur, hist), (w0,), (cur, 'EUROPA 1984-85'), ['ISLANDA', 'VOLSUNGUR'],
+              ('VOLSUNGUR', '1984/85'), 'base')]
+    for setting, first, inh, notinh, path, want, ns_want in cases:
+        tag = f'engine_wmodes_car{setting}'
+        with Session(tag, b, {'SETUP.DAT': setup_file(tag, setting)}, 'dump:3', 400) as s:
+            if s.wait().outcome != 'dump':
+                return False, f'{tag}: no first pause ({s.result})'
+            r = s.result
+            reg = struct.unpack('<I', r.read(r.base4 + 32, 4))[0]
+            m = r.read(reg, swreg.HDR)
+            nsbase, wcur = m[7], struct.unpack_from('<I', m, 8)[0]
+            walk(s, s.screen().find('CARRIERA', exact=True), 3)
+            press(s, s.screen(), 'SCEGLI SQUADRA', 3)
+            sc = s.screen()
+            tx = sc.texts()
+            s.shot(f'set{setting}_first')
+            col = next((c for (j, t, *_), c in zip(sc.entries, sc.colors) if t == cur), None)
+            check(all(t in tx for t in first) and (cur not in first or col == 14) and sc.raw_texts[0] != lock,
+                  f'default {setting}: the first list {tx[:12]}.. {tx[-6:]} ({cur} colour {col}, title '
+                  f'{sc.raw_texts[0]!r})', errs)
+            sc = walk(s, hist, 2)
+            s.shot(f'set{setting}_storico')
+            check(all(t in sc.texts() for t in inh) and not any(t in sc.texts() for t in notinh),
+                  f'default {setting}: STORICO {sc.texts()[:8]}', errs)
+            wm_up(s, first[-1])
+            for t in path:
+                if t == hist and s.screen().find(hist) is None:
+                    wm_up(s, hist)
+                walk(s, t, 2)
+            s.send('fire dump:3')
+            got = str(s.screen())
+            ns = s.result.read(wcur, 1)[0]
+            s.shot(f'set{setting}_career')
+            check(all(w in got for w in want) and ns == (nsbase if ns_want == 'base' else ns_want),
+                  f'default {setting}: the career {got[:90]} (WCUR {ns})', errs)
+            info.append(f'default {setting}: {got[:40]} WCUR {ns}')
+    return not errs, '; '.join(errs + info)
+
+
 def pick_done(s, e=55, w=4):
     """The team picker's done entry (`e`, the bottom row's left: PLAY / CUP / ...): down past the team rows, right off
     56 / 57, then fire (engine_registry's way: the path planner finds no link from a team row to it)"""

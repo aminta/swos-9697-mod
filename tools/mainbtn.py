@@ -33,6 +33,8 @@ WORLD = {'it': (b'MONDO: 2026-27', b'MONDO: 1996-97', b'EUROPA 1984-85'),
          'de': (b'WELT: 2026-27', b'WELT: 1996-97', b'EUROPA 1984-85')}
 SET_OFF = 105                                # the default world's byte in SETUP.DAT / setupDatBuffer
 LAB_W = 17                                   # (a label's slot: 16 chars + 0)
+CHOOSE = [None]                              # (W-modes M3) {'site': obj1 offset of ChooseTeamsDialog's picker call,
+                                             # 'HDR' / 'STR': (obj, off) as mb_d0's check} (swe.py)
 FLAG = [None]                                # (obj, offset) of mb_flag (the career's world: 0 the game's, 1 World
 SETTING = [None]                             # 2026-27, 2 Europe 1984-85); SETTING: (obj, offset) of the byte
 X, W, H, GAP, GREEN = 162, 150, 16, 18, 14   # (x as the menu stores it: definition + 8)
@@ -340,6 +342,7 @@ def patch(p, at, lang, wid, onsel=None, obj=1, wid84=None):
     p.branch(1, off + 6, 0xE9, obj, lab['mb_off'], n=7)
     p.remove(1, cs + 2)                              # (the overwritten instruction's fixup: [D0])
     p.branch(1, cs, 0xE8, obj, lab['mb_d0'], n=7)
+    CHOOSE[0] = {'site': cs + 7, 'HDR': hdr, 'STR': st[0]}
     FLAG[0] = (obj, lab['mb_flag'])                  # (4.0.3: careerworld's nat_init reads it: the coach's list)
     SETTING[0] = (sym['BUF'][0], sym['BUF'][1] + SET_OFF)   # (W-modes: the registry's pointer, swreg)
     print(f'exe: main menu world switch {" / ".join(t.decode() for t in labs)} at obj{obj}+{at:#x} '

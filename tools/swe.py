@@ -96,6 +96,12 @@ def m2_sites(p, site):
         stfm = p.call_target(1, site)               # SelectTeamsFinalMenu's entry: an earlier patch's jmp (chained)
         assert p.get(*stfm, 1) == b'\xe9' and stfm[0] == 1, ('SelectTeamsFinalMenu entry', stfm, p.get(*stfm, 5))
         calls.append((stfm[1], 'swe_stfm_tramp'))
+    import mainbtn                                  # (M3) the career's team choice: ChooseTeamsDialog's picker call
+    if mainbtn.CHOOSE[0]:                           # after mb_d0 (a build with the main menu's world switch)
+        ch = mainbtn.CHOOSE[0]
+        assert p.get(1, ch['site'], 1) == b'\xe8', ('ChooseTeamsDialog picker call', hex(ch['site']))
+        ext['MB_HDR'], ext['MB_STR'] = ch['HDR'], ch['STR']
+        calls.append((ch['site'], 'swe_car_tramp'))
     import historic                                 # SelectTeamsReinit's names call (historic's hist_names, chained)
     ext['SWE_CT'] = (2, countries.CT[0])
     if 'EF_VARS' in historic.LBL:                   # (hist_names: the first entry in EF_VARS; host tests: no build)
@@ -157,7 +163,7 @@ def patch(p):
     m2, calls = m2_sites(p, site)                   # (W-modes M2: chained, as the picker call)
     ext.update(m2)
     chain = {'swe_diy_save_tramp': 'SWE_SAVEDIY', 'swe_diy_load_tramp': 'SWE_LOADDIY', 'swe_ns_tramp': 'SWE_NSSET',
-             'swe_stfm_tramp': 'SWE_STFM', 'swe_names_tramp': 'SWE_NAMES'}
+             'swe_stfm_tramp': 'SWE_STFM', 'swe_names_tramp': 'SWE_NAMES', 'swe_car_tramp': 'SWE_CARPICK'}
     for cs, tr in calls:
         ext[chain[tr]] = p.call_target(1, cs)
     if not ns:

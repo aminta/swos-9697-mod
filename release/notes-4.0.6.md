@@ -67,7 +67,13 @@
 - **Stoppage time (an idea of Davide and Marco):** every half now has real added time. At 45:00 and 90:00 the clock stops and a "+N" appears next to it, like the fourth official's board: N added minutes, more when the half had goals, substitutions and cards (in the World 2026-27 career also the time lost with the ball out of play, as in today's football) - at most 3 in the 1996-97 game (2 in the first half), 5 in the World 2026-27 career (3 in the first half), 2 in the Europe 1984-85 career (1 in the first half); each extra-time half gets 1. The historic seasons and tournaments before 1970 (Italy 1947-48, World Cup 1934) give at most 1 and often none, as in those days. The added minutes always run at the pace of a 10-minute match, whatever match length you chose, so they can really be played: about 15 seconds of play for +3 and 26 for +5 (in a 3-minute match +3 would otherwise be gone in under 5 seconds). As always the clock stops when the ball is out of play, and when the added time is over the referee still lets a running attack finish. A goal in added time shows as 45+2 or 90+3 in the scorers' list. Not with SWOS++.
 
 #### Stadium names (World 2026-27)
-- **Stadium names.** In World 2026-27 the match intro screen (the one with the two teams) now shows where the match is played: the home club's stadium, under the two team names. Cup finals played at a neutral ground show that ground instead - for example the Champions League final at the Metropolitano, the FA Cup final at Wembley, the Coppa Italia final at the Olimpico. When the stadium of a club is not known, no line is shown: a name is never made up. The intro screen does not wait any longer than before. The other worlds and the original 1996-97 game are unchanged.
+**Full stadium names.** The stadium line now shows the ground's full official name in its own language - STADIO
+GIUSEPPE MEAZZA IN SAN SIRO, ESTADIO SANTIAGO BERNABEU, STADION FEIJENOORD DE KUIP - up to 48 letters, always whole,
+never cut. Where the official name is a sponsor's, the name the newspapers use stays (METROPOLITANO, CAMP NOU). Accents
+are dropped, as in the club names. Clubs that share a ground show the same name. Grounds known everywhere by a nickname
+show it too, after the name: ESTADIO ALBERTO J. ARMANDO - ''LA BOMBONERA'', STADION RAJKO MITIC - ''MARAKANA'',
+ESTADIO JORNALISTA MARIO FILHO - ''MARACANA'' (26 grounds; the game has no double quote, two apostrophes stand in for
+it). Cup finals: the FA Cup final at WEMBLEY STADIUM, the Coppa Italia final at the STADIO OLIMPICO.
 
 #### Two-row benches in the match
 - **Two-row benches.** With a long bench (more than 5 substitutes) every substitute now has a seat: the coach and substitutes 1-7 sit in the back row, substitutes 8-15 in the front row. The dugouts are a little longer and wider to make room, on every pitch and in 16-colour mode too.
@@ -181,6 +187,32 @@ What it looks like in a career (World 2026-27, first two seasons, a club that wi
 Old careers: nothing is stored in the save. A career started with an older version gets the new income from its
 next match.
 
+#### Financial fair play (thanks to Marco)
+**Financial fair play** (idea: Marco). In a career, your chairman now watches the wage bill. At the start of every
+season he compares the squad's wages at the end of the season with what the club earned in the season just ended (gate
+receipts, sponsors, prize money, the board's yearly money and the TV rights - but not the part of the TV money that
+grows with your own wage bill, or buying stars would raise your "income" too). If the wages are more than 40% of that
+income:
+
+- you cannot buy players until the wages are back under 40% (sell someone and the market opens again);
+- the club pays a fine: half of the wages over the limit;
+- the chairman tells you so in a memo, and the season-start statement shows the FINANCIAL FAIR PLAY FINE row.
+
+Why only half? The real punishment is the closed market, which makes you sell. The fine is a warning, not meant to
+sink the club; a full fine would make you pay the excess wages twice (during the season and again at its end). Real
+football works the same way: UEFA's fines are a fraction of the overspending, the bite is the limit on the market and
+the squad.
+
+What it means in practice (measured in the game, World 2026-27 Real Madrid, several seasons: the income depends on
+the season's results): their squad costs about 30% of their income; with one top star (Rodri) about 37% - still
+allowed; three big signings in one summer take them to 41-49%: the market closes for the season and the club pays a
+fine of 0.1-1.4 million, depending on how far over it is. So a big club can sign a star, but not keep piling them up;
+a club paying far more than it earns gets stopped.
+
+It is an option: ON for a new career, OFF for a career saved with an older version; you can switch it at any time
+on the club statement (ANDAMENTO CLUB / CLUB BUSINESS: the box at the top right, UP from CONTINUE). The same row shows
+your wages as a share of last season's income, against the 40% limit. Nothing is checked in your first season at a club.
+
 #### B-team call-ups (World 2026-27)
 **Call up your B team.** In a World 2026-27 career, a club that has a B team (its second team or under-23 side) can
 now bring its young players up to the first team. That is 20 clubs: Juventus (Juventus Next Gen), Atalanta (Atalanta
@@ -224,7 +256,7 @@ With the new button in place, a long coach's name on the squad screen is shown s
 - **Finances:** the new income applies to every career from its next match, including older ones; it changes the money, not the squads.
 
 ### Thanks
-Thanks to Roman for asking for an easier install, to Marco for the training, shirt-number and keyboard ideas, to Enzo for the market-list report, to Nicola for the finance report, to Francesco, and to Ben Baker for the San Marino report. [TO CHECK: exact credits per item with the owners.]
+Thanks to Roman for asking for an easier install, to Marco for the financial fair play idea, the training, shirt-number and keyboard ideas, to Enzo for the market-list report, to Nicola for the finance report, to Francesco, and to Ben Baker for the San Marino report. [TO CHECK: exact credits per item with the owners.]
 
 ## Italiano
 
@@ -296,7 +328,14 @@ La 4.0.6 è un giro di richieste dei giocatori: **due giocatori sulla stessa tas
 - **Recupero (un'idea di Davide e Marco):** ogni tempo ora ha il suo recupero vero. A 45:00 e a 90:00 l'orologio si ferma e accanto compare "+N", come il cartello del quarto uomo: N minuti di recupero, di più se nel tempo ci sono stati gol, sostituzioni e cartellini (nella carriera Mondo 2026-27 anche il tempo perso a palla non in gioco, come nel calcio di oggi) - al massimo 3 nel gioco 1996-97 (2 nel primo tempo), 5 nella carriera Mondo 2026-27 (3 nel primo tempo), 2 nella carriera Europa 1984-85 (1 nel primo tempo); ogni tempo supplementare ne ha 1. Le stagioni e i tornei storici prima del 1970 (Italia 1947-48, Mondiali 1934) danno al massimo 1 minuto, spesso nessuno, come allora. I minuti di recupero scorrono sempre al ritmo di una partita da 10 minuti, qualunque durata tu abbia scelto, così si giocano davvero: circa 15 secondi di gioco per +3 e 26 per +5 (in una partita da 3 minuti +3 durerebbe meno di 5 secondi). Come sempre l'orologio si ferma a palla non in gioco, e finito il recupero l'arbitro lascia comunque finire l'azione in corso. Un gol nel recupero compare come 45+2 o 90+3 nell'elenco dei marcatori. Non con SWOS++.
 
 #### Nomi degli stadi (Mondo 2026-27)
-- **Nomi degli stadi.** Nel Mondo 2026-27 la schermata che presenta la partita (quella con le due squadre) ora dice dove si gioca: lo stadio del club di casa, sotto i nomi delle due squadre. Le finali di coppa in campo neutro mostrano quello stadio - per esempio la finale di Champions League al Metropolitano, la finale di FA Cup a Wembley, la finale di Coppa Italia all'Olimpico. Se lo stadio di un club non è noto la riga non compare: un nome non viene mai inventato. La schermata non resta ferma più a lungo di prima. Gli altri mondi e il gioco originale 1996-97 non cambiano.
+**Nomi completi degli stadi.** La riga dello stadio mostra ora il nome ufficiale completo nella sua lingua - STADIO
+GIUSEPPE MEAZZA IN SAN SIRO, ESTADIO SANTIAGO BERNABEU, STADION FEIJENOORD DE KUIP - fino a 48 lettere, sempre intero,
+mai tagliato. Dove il nome ufficiale è quello di uno sponsor resta il nome usato dai giornali (METROPOLITANO, CAMP NOU).
+Gli accenti cadono, come nei nomi dei club. I club che giocano nello stesso stadio mostrano lo stesso nome. Gli stadi
+conosciuti ovunque per un soprannome lo mostrano dopo il nome: ESTADIO ALBERTO J. ARMANDO - ''LA BOMBONERA'', STADION
+RAJKO MITIC - ''MARAKANA'', ESTADIO JORNALISTA MARIO FILHO - ''MARACANA'' (26 stadi; il gioco non ha le virgolette
+doppie, al loro posto due apostrofi). Finali di coppa: la finale di FA Cup al WEMBLEY STADIUM, la finale di Coppa
+Italia allo STADIO OLIMPICO.
 
 #### Panchine su due file in partita
 - **Panchine su due file.** Con una panchina lunga (più di 5 riserve) ogni riserva ha il suo posto: l'allenatore e le riserve 1-7 nella fila dietro, le riserve 8-15 nella fila davanti. Per fare spazio i dugout sono un po' più lunghi e larghi, su tutti i campi e anche nella modalità a 16 colori.
@@ -413,6 +452,31 @@ Come si vede in carriera (Mondo 2026-27, prime due stagioni, un club che vince l
 Carriere già iniziate: nel salvataggio non viene memorizzato niente. Una carriera iniziata con una versione
 precedente riceve i nuovi incassi dalla partita successiva.
 
+#### Fair play finanziario (grazie a Marco)
+**Fair play finanziario** (idea di Marco). In carriera il presidente ora controlla il monte ingaggi. All'inizio di ogni
+stagione confronta gli stipendi della rosa a fine stagione con quanto il club ha incassato in quella appena
+finita. Se gli stipendi superano il 40% di questi ricavi (incassi, sponsor, premi, i soldi annuali della società e i diritti TV - ma non la parte dei
+soldi TV che cresce con il tuo monte ingaggi, altrimenti comprare campioni farebbe salire anche i "ricavi"):
+
+- non puoi acquistare giocatori finché gli stipendi non tornano sotto il 40% (vendi qualcuno e il mercato si riapre);
+- il club paga una multa: metà degli stipendi oltre il limite;
+- il presidente te lo comunica con una nota, e l'estratto conto di inizio stagione mostra la riga MULTA FAIR PLAY FINANZ.
+
+Perché solo metà? La vera punizione è il mercato chiuso, che ti costringe a vendere. La multa è un avvertimento, non
+deve affondare il club; una multa piena ti farebbe pagare due volte gli stipendi in eccesso (durante la stagione e di
+nuovo alla fine). Nel calcio vero funziona così: le multe UEFA sono una parte dello sforamento, quello che conta sono i
+limiti al mercato e alla rosa.
+
+Cosa vuol dire in pratica (misurato nel gioco, Mondo 2026-27, Real Madrid, su più stagioni: i ricavi dipendono dai
+risultati): la rosa costa circa il 30% dei ricavi; con un grande campione (Rodri) circa il 37% - ancora permesso; tre
+grandi acquisti in un'estate lo portano al 41-49%: il mercato si chiude per la stagione e il club paga una multa da 0,1 a
+1,4 milioni, a seconda di quanto ha sforato. Quindi un grande club può prendere un campione, ma non accumularli; un club
+che paga molto più di quanto incassa viene fermato.
+
+È un'opzione: ATTIVA per una nuova carriera, DISATTIVA per una carriera salvata con una versione precedente; puoi
+cambiarla quando vuoi da ANDAMENTO CLUB (il riquadro in alto a destra, SU da CONTINUA). La stessa riga mostra gli
+stipendi in percentuale sui ricavi della stagione scorsa, contro il limite del 40%. Nella prima stagione in un club non viene controllato nulla.
+
 #### Convocazioni dalla squadra B (Mondo 2026-27)
 **Convoca dalla squadra B.** In una carriera nel Mondo 2026-27, un club che ha una squadra B (la seconda squadra o
 l'under 23) ora può portare i suoi giovani in prima squadra. Sono 20 club: Juventus (Juventus Next Gen), Atalanta
@@ -457,4 +521,4 @@ resta quello).
 - **Finanze:** i nuovi incassi valgono per ogni carriera dalla partita successiva, anche per quelle già iniziate; cambiano i soldi, non le rose.
 
 ### Ringraziamenti
-Grazie a Roman per aver chiesto un'installazione più semplice, a Marco per le idee su allenamento, numeri di maglia e tastiera, a Enzo per la segnalazione sull'elenco del mercato, a Nicola per quella sulle finanze, a Francesco e a Ben Baker per la segnalazione su San Marino. [DA VERIFICARE: crediti esatti per voce con i proprietari.]
+Grazie a Roman per aver chiesto un'installazione più semplice, a Marco per l'idea del fair play finanziario, le idee su allenamento, numeri di maglia e tastiera, a Enzo per la segnalazione sull'elenco del mercato, a Nicola per quella sulle finanze, a Francesco e a Ben Baker per la segnalazione su San Marino. [DA VERIFICARE: crediti esatti per voce con i proprietari.]

@@ -24493,6 +24493,128 @@ def fin_statement():
     return not errs, '; '.join(errs) or '; '.join(info)
 
 
+@scenario
+def vopp_stale():
+    """4.0.6 (Salvatore / Davide, the 4.0.5 DOWN bug): AVVERSARI then GIOCA PARTITA leaves the game's viewingOpponentTeam
+    set until the next pre-match screen; benchx's bx_mdir (VIEW OPPONENT: up / down move the opponent's window) took
+    UP / DOWN in every menu meanwhile. SWOSTEST_BUILD (SWOSTEST_UI it / en / fr / de, that language's exe as
+    ITALIAN.EXE): a World 2026-27 career at VOPP_CLUB (INTER: a bench over 5, a CPU opponent over 16 players), saved
+    (VOPPA), loaded; the first match's pre-match screen, AVVERSARI: DOWN / UP scroll the opponent's rows 12..17, the
+    cursor stays; GIOCA PARTITA from that view, ESC out of the match, ESCI: the career menu with the flag still set
+    (the stale state, else the case is not reached): DOWN / UP move the cursor; ESCI, CARICA VECCHIA COMPETIZIONE VOPPA
+    (Salvatore's path: another career loaded, the flag still set): DOWN / UP move the cursor."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lepatch
+    o = lepatch.LEPatch(os.path.join(MAIN, 'orig', UI_ORIG))
+    d = o.le.obj_bytes(1)                               # PlayMatchMenuReinit: ... mov word [viewingOpponentTeam], 0
+    m = [x.start() for x in re.finditer(rb'\x66\xa1....\x66\xa3....\xc7\x05....\x00\x00\x00\x00\x66\xc7\x05'
+                                        rb'....\x00\x00\x66\xc7\x05....\xff\xff', d, re.S)]
+    assert len(m) == 1, ('PlayMatchMenuReinit', m)
+    vo = o.target(1, m[0] + 25)[1]
+    me = os.environ.get('VOPP_CLUB', 'INTER')
+    path = ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27', 'EUROPA', 'ITALIA', 'SERIE A', me]
+    errs, info = [], []
+    exe = nop_league_int3(f'vopp_stale_{UI}', builds()['it'])      # (per language: parallel runs)
+
+    def moves(tag):                                     # DOWN then UP: the cursor moves both times
+        s.send('dump:1')
+        a = s.screen().selected
+        s.send('down dump:1')
+        b = s.screen().selected
+        s.send('up dump:1')
+        c = s.screen().selected
+        check(b != a and c != b, f'{tag}: DOWN {a} -> {b}, UP -> {c} (flag {vopp()})', errs)
+        info.append(f'{tag}: flag {vopp()}, DOWN {a} -> {b}, UP -> {c}')
+
+    def career_menu():
+        for _ in range(10):
+            if 'TRASFERIMENTI' in s.screen().texts():
+                return True
+            press(s, s.screen(), 'CONTINUA', 3) or press(s, s.screen(), 'ESCI', 3) or s.send('fire dump:2')
+        return 'TRASFERIMENTI' in s.screen().texts()
+
+    with Session(f'vopp_stale_{UI}', exe, {}, 'dump:2', 900, match=True) as s:
+        vopp = lambda: struct.unpack('<H', bytes(s.result.obj2(vo, 2)))[0]
+        s.wait()
+        if not pick_career(s, path):
+            return False, 'new career: ' + str(s.screen().texts()[:8])
+        s.send('fire dump:3')
+        if not career_menu():
+            return False, f'no career menu: {s.screen()}'
+        press(s, s.screen(), 'ESCI', 3)                 # saved as VOPPA, then loaded (the main menu's load)
+        if press(s, s.screen(), 'SALVA CARRIERA') is None:
+            return False, f'no SALVA CARRIERA on {s.screen()}'
+        s.send(name_entry('VOPPA') + ' dump:3')        # (the cursor on SALVA; any exe language / keyboard layout)
+        if not os.path.exists(os.path.join(s.run, 'SWOS', 'VOPPA.CAR')):
+            return False, f'VOPPA.CAR not written ({s.result})'
+        for _ in range(4):
+            if press(s, s.screen(), 'CARICA VECCHIA COMPETIZIONE') is not None or \
+                    s.screen().find('CARICA VECCHIA COMPETIZIONE', exact=True) is not None:
+                break
+            press(s, s.screen(), 'ESCI', 2) or s.send('esc dump:2')
+        s.send('dump:1')
+        if 'TRASFERIMENTI' not in ns_load(s, 'VOPPA'):
+            return False, f'VOPPA not loaded: {s.screen()}'
+        press(s, s.screen(), 'PROSS. PARTITA', 3)
+        for _ in range(10):                             # the fixture screen -> the pre-match screen
+            tx = s.screen().texts()
+            if 'MOD. TATTICA' in tx and 'AVVERSARI' in tx:
+                break
+            press(s, s.screen(), '- PARTITA -', 3) or s.send('fire dump:2')
+        else:
+            return False, f'no pre-match screen: {s.screen()}'
+        play = next((s.screen().find(t, exact=True) for t in ('GIOCA PARTITA', 'PARTITA', 'JOUER LE MATCH', 'NUR SPIEL.')
+                     if t in s.screen().texts()), None)  # (the play button: FR / DE labels not in UI_MAP)
+        press(s, s.screen(), 'AVVERSARI', 3)
+        scr = s.screen()
+        def rows(q):                                    # (the names are drawn by DrawPlayerEntries: the pixels of
+            g = [q.geom[j] for j, x in enumerate(q.entries) if 24 <= x[0] <= 29 and not x[2]]    # rows 12..17)
+            if not g:
+                return b''
+            v = s.box.dump(0xA0000, 64000)
+            y0, y1 = min(y for _, y, _, _ in g), max(y + h for _, y, _, h in g)
+            x0, x1 = min(x for x, _, _, _ in g), max(x + w for x, _, w, _ in g)
+            return b''.join(bytes(v[y * 320 + x0:y * 320 + x1]) for y in range(y0, min(y1, 200)))
+        s.shot('opponent')
+        r0, a = rows(scr), scr.selected
+        s.send('down dump:1')
+        q = s.screen()
+        r1, b = rows(q), q.selected
+        s.shot('opponent_down')
+        s.send('up dump:1')
+        r2 = rows(s.screen())
+        check(vopp() == 1, f'AVVERSARI: flag {vopp()}', errs)
+        check(r0 and r1 != r0 and b == a and r2 == r0, f'VIEW OPPONENT window: DOWN rows 12..17 changed {r1 != r0}, '
+              f'UP back {r2 == r0} (cursor {a} -> {b}, {len(r0)} bytes)', errs)
+        info.append(f'VIEW OPPONENT: DOWN rows 12..17 changed {r1 != r0}, UP back {r2 == r0}, cursor {a} -> {b}')
+        try:                                            # (the same entry on the view, its text per language:
+            walk(s, play, 3)                            # FR JOUER LE MATCH, DE NUR SPIEL.)
+        except AssertionError as x:
+            return False, f'no play button {play} on the opponent view: {x}'
+        for _ in range(10):                             # ESC out of the match (forfeit), back to the career menu
+            s.send('esc dump:3')
+            if s.screen().texts():
+                break
+        for _ in range(8):
+            if 'TRASFERIMENTI' in s.screen().texts():
+                break
+            if s.screen().find('ESCI', exact=True) is not None and '- PARTITA -' in s.screen().texts():
+                press(s, s.screen(), 'ESCI', 3)
+            else:
+                press(s, s.screen(), 'CONTINUA', 3) or s.send('fire dump:2')
+        if 'TRASFERIMENTI' not in s.screen().texts():
+            return False, f'no career menu after the match: {s.screen()}; ' + '; '.join(errs + info)
+        check(vopp() == 1, f'after the match: flag {vopp()} (the stale case not reached)', errs)
+        s.shot('career_after')
+        moves('career menu after the match')
+        press(s, s.screen(), 'ESCI', 3)
+        if 'TRASFERIMENTI' not in ns_load(s, 'VOPPA'):
+            return False, f'VOPPA not reloaded: {s.screen()}; ' + '; '.join(errs + info)
+        check(vopp() == 1, f'after the load: flag {vopp()}', errs)
+        moves('career menu after a load')
+    return not errs, '; '.join(errs + info)
+
+
 
 if __name__ == '__main__':
     sys.exit(main(sys.argv[1:]))

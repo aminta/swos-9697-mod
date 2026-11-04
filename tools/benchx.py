@@ -91,7 +91,9 @@ from 12 on, scrolled by the box left of row 17), 4.0.6 (Davide 31/10):
   its places 17.. out of sight): with a bench over 5 the opponent's places are 16 + its XTRA block's players (po_n, as
   bx_next: a career's CPU club), at most 11 + the bench; rows 12..17 a window bx_po on them (pm_row; row 17 = entry
   29 made visible, the game shows it by the own team's count), read-only: on a CPU club's view up / down anywhere move
-  the window one place (bx_mdir, wrapping as the box), nothing else changes.
+  the window one place (bx_mdir, wrapping as the box), nothing else changes. (4.0.6, Salvatore / Davide) only while the
+  pre-match screen shows (g_currentMenu's onInit = PlayMatchMenuInit): AVVERSARI then GIOCA PARTITA leaves the game's
+  viewingOpponentTeam set until the next pre-match screen, and up / down were dead in every menu after the match.
 - (4.0.6) ViewSquad (the game's squad view: AGG. GIOCATORE AL CALCIOMERC., offers, ...; the box and row 17 only for the
   managed club) and SelectNationalTeam (the national call-ups, careerTeam, at most 20 players: the game's per-player
   tables there, dseg_D6F48 / dseg_D6F98, hold 20): rows 12..17 a window bx_vw on the places from 12 on, as SQUADRA.
@@ -1195,6 +1197,8 @@ bx_mdir:                                ; MenuProc's `mov [D6], ax` (the move in
     jbe .no
     cmp word [VOPP], 0
     je .no
+    cmp dword [MENU], PMINIT            ; (4.0.6, Salvatore / Davide) the pre-match screen itself: the game keeps
+    jne .no                             ; viewingOpponentTeam set from AVVERSARI + GIOCA PARTITA to the next one
     mov esi, [PMT2]
     cmp byte [esi + 4], 1               ; teamControls: TEAM_COMPUTER
     jne .no
@@ -1632,6 +1636,12 @@ def sites5(p, regs, s4):
                                             + pk(d7 - 20) + rb'\x66\xa3....\x66\xa3', d, re.S)]
     assert len(m) == 1, ('ShowPlayMatchMenu', m)
     out = dict(store=m[0], MAXSUB=t(m[0] + 2))
+    # its mov dword [A6], playMatchMenu: the menu's onInit (PlayMatchMenuInit; the header's first dword at g_currentMenu
+    # while it shows, also with VIEW OPPONENT)
+    a = [m[0] + x.start() for x in re.finditer(rb'\xc7\x05' + pk(a0 + 24), d[m[0]:m[0] + 0x60])]
+    assert len(a) == 1, ('ShowPlayMatchMenu playMatchMenu', a)
+    out['PMINIT'] = p.target(2, t(a[0] + 6)[1])
+    assert out['PMINIT'][0] == 1, out['PMINIT']
     mx = pk(out['MAXSUB'][1])
     # PlayMatchMenuReinit: mov ax, [D0] / mov [numPlayersToShowInMenu], ax / mov dword [pmSelectedPlayerEntry], 0 /
     # mov word [viewingOpponentTeam], 0 / mov word [selectedPlayerPosition], -1
@@ -1992,7 +2002,7 @@ def patch(p, at, ns_at, lang='it'):
     sym.update({'GPI': (1, s4['gpi_t']), 'ROTATE': (1, s4['rot_t']), 'DRAWMENU': (1, s4['drawmenu']),
                 'SQCNT': (2, s4['tp'] - 2), 'S490': (2, s4['tp'] + 10), 'D3': (2, s4['D3']), 'D4': (2, s4['D4'])})
     s5 = sites5(p, regs, s4)
-    sym.update({k: s5[k] for k in ('MAXSUB', 'NPS', 'PMSEL', 'VOPP', 'SELPOS')})
+    sym.update({k: s5[k] for k in ('MAXSUB', 'NPS', 'PMSEL', 'VOPP', 'SELPOS', 'PMINIT')})
     s6 = sites6(p, regs, s4)
     sym.update({k: s6[k] for k in ('ETSEL', 'ETSELE', 'ETNP')})
     s8 = sites8(p, regs, s4, s5, s6)

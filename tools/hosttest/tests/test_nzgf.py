@@ -1,6 +1,7 @@
 """NZ National League Championship -> Grand Final (gplay.c gf_*): fixtures = snapshots of gf_unhide_c / gf_anchor_c /
 gf_step_c from week 125 of a world_gplay_nzchamp career (snapshot.py ... --scenario world_gplay_nzchamp --week-min
-125), dir nz_gf. The first gf_step_c at or after the group's last day must build the final (2, GP_GFT 1) or decide it
+125), dir nz_gf2 (05/11: build ht_nzchamp-f104efaf6257 = world_gplay_nzchamp's env + HOSTTEST_SYMS=1 on the 403c13b data -
+the NZ competitions as world5tm-nzchamp's, whose '&' names 406-font rejects; nz_gf's build is gone). The first gf_step_c at or after the group's last day must build the final (2, GP_GFT 1) or decide it
 (4); a 0 there names its reason in GP_GFT (0x81 a row not ours, 0x82 a club short of games, 0x83 < 2 qualifiers,
 0x84 the buffer not the group)."""
 import glob
@@ -9,7 +10,7 @@ import os
 
 from emu import Machine
 
-FIX = os.path.join(os.path.expanduser('~'), 'swos-mod', 'internal', 'hosttest', 'fixtures', os.environ.get('HT_NZ', 'nz_gf'))
+FIX = os.path.join(os.path.expanduser('~'), 'swos-mod', 'internal', 'hosttest', 'fixtures', os.environ.get('HT_NZ', 'nz_gf2'))
 
 
 def test_gf_step_builds_final():

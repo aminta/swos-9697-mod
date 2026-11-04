@@ -933,7 +933,7 @@ def run_case(name, exe_dir, cars, keys, timeout, shots=0, match=False, timer=Fal
 # season end); other texts stay as shown. Prefixes / suffixes: '<club> SQUAD' -> 'SQUADRA DEL <club>', '... END SEASON'
 # -> 'FINE CAMP. ...'.
 UI_EN = {'CAREER': 'CARRIERA', 'CHOOSE TEAM': 'SCEGLI SQUADRA', 'CLASSIC CAREERS': 'CARR. STORICHE',
-         'WORLD 2026-27': 'MONDO 2026-27', 'EUROPE 1984-85': 'EUROPA 1984-85', 'EUROPE': 'EUROPA',
+         'WORLD 2026-27': 'MONDO 2026-27', 'WORLD 1996-97': 'MONDO 1996-97', 'EUROPE 1984-85': 'EUROPA 1984-85', 'EUROPE': 'EUROPA',
          'SOUTH AMERICA': 'SUDAMERICA', 'NORTH AMERICA': 'NORDAMERICA', 'ENGLAND': 'INGHILTERRA', 'ITALY': 'ITALIA',
          'CONTINUE': 'CONTINUA', 'CONTINUE CAREER': 'CONTINUA CARRIERA', 'EXIT': 'ESCI', 'FINISH SEASON': 'FINISCI STAGIONE',
          'EDIT TACTICS': 'MOD. TATTICA', 'VIEW OPPO': 'AVVERSARI', 'FIRST ROUND': 'PRIMO TURNO',
@@ -957,7 +957,11 @@ UI_ORIG_OF = {k: v + '.EXE' for k, v in {'it': 'ITALIAN', 'en': 'ENGLISH', 'fr':
 COLLECT = os.environ.get('SWOSTEST_COLLECT') == '1'    # (collecting the labels: raw texts, umlauts as '?')
 
 
+HIST_BOX = {'STORICO', 'HISTORIC', 'HISTORIQUE', 'HISTORISCH'}   # (W-modes M2: mkseason.CAREERS_NAMES, was
+                                                                  # CARR. STORICHE: the scenarios keep that label)
 def ui_it(text):
+    if text in HIST_BOX and not COLLECT:
+        return 'CARR. STORICHE'
     if UI == 'it' or not text or COLLECT:
         return text
     if UI == 'en' and text in UI_EN:
@@ -9873,10 +9877,10 @@ def engine_wmodes():
                     s.send('fire dump:2')
         check(rd32(selcw) == 5, f'after INTER: SEL_CW {rd32(selcw)}', errs)
         scr = walk(s, hist, 2)
-        check(scr.find('1996-97') is not None and scr.find('EUROPA 1984-85') is None and
+        check(scr.find('MONDO 1996-97') is not None and scr.find('EUROPA 1984-85') is None and
               scr.find('MONDO 2026-27') is None, f'STORICO with a 2026-27 club picked: {scr.texts()[:10]}', errs)
         s.shot('storico')
-        for t in ('1996-97', 'EUROPA', 'GERMANIA', '1. LIGA', 'HAMBURG'):
+        for t in ('MONDO 1996-97', 'EUROPA', 'GERMANIA', '1. LIGA', 'HAMBURG'):
             walk(s, t, 2)
         s.shot('hamburg')
         for _ in range(16):
@@ -9928,7 +9932,7 @@ def wm_mixed(s, hist):
     for t in ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE A', 'INTER'):
         walk(s, t, 2)
     wm_up(s, hist)
-    for t in (hist, '1996-97', 'EUROPA', 'GERMANIA', '1. LIGA', 'HAMBURG'):
+    for t in (hist, 'MONDO 1996-97', 'EUROPA', 'GERMANIA', '1. LIGA', 'HAMBURG'):
         walk(s, t, 2)
     return pick_done(s)
 
@@ -10021,12 +10025,22 @@ def engine_wmodes_def():
     MONDO 2026-27 as its own GREEN entry (colour 14) next to the STORICO box, and STORICO holds the historic worlds
     only. (1) Default 1996-97: the game's continents + MONDO 2026-27 + STORICO (= EUROPA 1984-85 only); INTER from
     MONDO 2026-27 > EUROPA > ITALIA > SERIE A locks the contest to 2026-27: the box (now empty) is left out, MONDO
-    2026-27 stays; HAMBURG from the game's EUROPA > GERMANIA > 1. LIGA: INTER (ITALIA) - HAMBURG (GERMANIA).
+    2026-27 stays, the title bar shows the lock line (swe.LOCK_LINE: fits the bar, font chars), not in the lists
+    below; HAMBURG from the game's EUROPA > GERMANIA > 1. LIGA: INTER (ITALIA) - HAMBURG (GERMANIA).
     (2) Default 1984-85: its countries + MONDO 2026-27 + STORICO (= 1996-97 only); VOLSUNGUR (ISLANDA) locks it to
     1984-85: MONDO 2026-27 left out."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import swe
+    import complist
     errs, info = [], []
-    hist = 'CARR. STORICHE'                      # (the careers' box label: STORICO's until Davide's texts)
+    hist = 'CARR. STORICHE'                      # (the purple box: STORICO, ui_it's HIST_BOX)
     cur = 'MONDO 2026-27'
+    lock = swe.LOCK_LINE[UI if UI in swe.LOCK_LINE else 'it']
+
+    def title(sc, want, tag):                   # the lock line in the title bar (entry 0): fits, font chars only
+        t, w = sc.raw_texts[0], sc.geom[0][2]
+        ok = (t == lock) == want and (not want or (complist.px(t) <= w and set(t) <= complist.FONT))
+        check(ok, f'{tag}: title {t!r} ({complist.px(t)} px, bar {w}), the lock line wanted {want}', errs)
     b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
 
     def colour(sc, t):
@@ -10044,21 +10058,25 @@ def engine_wmodes_def():
         sc = first(s)
         tx = sc.texts()
         s.shot('d9697_first')
+        title(sc, False, 'default 1996-97, the first list')
         check(all(t in tx for t in ('EUROPA', 'AFRICA', cur, hist)) and colour(sc, cur) == 14 and
               tx.index(cur) < tx.index(hist), f'default 1996-97, the first list {tx[:12]}, {cur} colour '
               f'{colour(sc, cur)}', errs)
         sc = walk(s, hist, 2)
         s.shot('d9697_storico')
-        check('EUROPA 1984-85' in sc.texts() and cur not in sc.texts() and '1996-97' not in sc.texts(),
+        check('EUROPA 1984-85' in sc.texts() and cur not in sc.texts() and 'MONDO 1996-97' not in sc.texts(),
               f'default 1996-97, STORICO {sc.texts()[:8]}', errs)
         wm_up(s, cur)
         for t in (cur, 'EUROPA', 'ITALIA', 'SERIE A', 'INTER'):
             walk(s, t, 2)
         sc = wm_up(s, cur)                       # (the top list: 2026-27's own lists AFRICA too)
         s.shot('d9697_locked')
+        title(sc, True, 'default 1996-97 after INTER')
         check(cur in sc.texts() and hist not in sc.texts(), f'default 1996-97 after INTER: {sc.texts()[:12]} (the '
               f'empty STORICO left out)', errs)
-        for t in ('EUROPA', 'GERMANIA', '1. LIGA', 'HAMBURG'):
+        sc = walk(s, 'EUROPA', 2)
+        title(sc, False, 'default 1996-97, the game\'s EUROPA (no world listed)')
+        for t in ('GERMANIA', '1. LIGA', 'HAMBURG'):
             walk(s, t, 2)
         sc = pick_done(s)
         tx = sc.texts()
@@ -10079,13 +10097,14 @@ def engine_wmodes_def():
               f'{colour(sc, cur)}', errs)
         sc = walk(s, hist, 2)
         s.shot('d8485_storico')
-        check('1996-97' in sc.texts() and cur not in sc.texts() and 'EUROPA 1984-85' not in sc.texts(),
+        check('MONDO 1996-97' in sc.texts() and cur not in sc.texts() and 'EUROPA 1984-85' not in sc.texts(),
               f'default 1984-85, STORICO {sc.texts()[:8]}', errs)
         wm_up(s, cur)
         for t in ('ISLANDA', 'VOLSUNGUR'):
             walk(s, t, 2)
         sc = wm_up(s, hist)
         s.shot('d8485_locked')
+        title(sc, True, 'default 1984-85 after VOLSUNGUR')
         check(cur not in sc.texts() and 'ISLANDA' in sc.texts(), f'default 1984-85 after VOLSUNGUR: '
               f'{sc.texts()[-8:]} ({cur} left out)', errs)
         info.append(f'1984-85 default locked: {sc.texts()[-4:]}')
@@ -10142,7 +10161,7 @@ def engine_wmodes_diy():
         for t in ('EUROPA', 'ITALIA', 'SERIE A', 'INTER'):
             walk(s, t, 2)
         up_to(s, hist)
-        for t in (hist, '1996-97', 'EUROPA', 'GERMANIA', '1. LIGA', 'HAMBURG'):
+        for t in (hist, 'MONDO 1996-97', 'EUROPA', 'GERMANIA', '1. LIGA', 'HAMBURG'):
             walk(s, t, 2)
         pick_done(s, 55)
         s.shot('cup')

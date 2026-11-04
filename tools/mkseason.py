@@ -48,7 +48,8 @@ SEASONS = 97                            # pseudo-continent 'classic seasons' of 
 SEASONS_NAMES = {'it': b'STAG. STORICHE', 'en': b'CLASSIC SEASONS', 'fr': b"SAISONS D'ANTAN", 'de': b'SAISONKLASSIKER'}
 SEASONS_REC = [None]                    # obj2 offset of its countriesTable record (historic.hist_names colours it)
 CAREERS = 98                            # pseudo-continent 'classic careers' of the career team selector
-CAREERS_NAMES = {'it': b'CARR. STORICHE', 'en': b'CLASSIC CAREERS', 'fr': b"CARR. D'ANTAN", 'de': b'KLASS. KARRIERE'}
+CAREERS_NAMES = {'it': b'STORICO', 'en': b'HISTORIC', 'fr': b'HISTORIQUE', 'de': b'HISTORISCH'}   # (W-modes M2, Davide
+                                        # 2026-11-04: the purple box of the friendly / DIY / career pickers; was CARR. STORICHE)
 CAREERS_REC = [None]
 WCONT_KEY = {}                          # (4.0.6 P3) a continent list's menu id -> its continent key (CONT_ORDER)
 WCONT_IDS = {}                          # world 2025-26: world n -> [(menu id, [country files], top level)] when the world
@@ -57,7 +58,7 @@ OTHER_NAMES = {'it': b'ALTRE NAZIONI', 'en': b'OTHER NATIONS', 'fr': b'AUTRES PA
 WCONT_MAX = int(os.environ.get('WCONT_MAX', 44))                             # countries a continent list of a world holds (more exits to DOS)
 CONT_NAT = {'europe': 80, 'africa': 81, 'south_america': 82, 'north_america': 83, 'asia': 84, 'oceania': 85}
 WMENU = 200                             # a world's entry in the CLASSIC CAREERS list: pseudo-continent 200 + world number
-WORLD0_NAMES = {k: b'1996-97' for k in ('it', 'en', 'fr', 'de')}   # W-modes M2: the 1996-97 game's entry (WMENU + 0)
+WORLD0_NAMES = {'it': b'MONDO 1996-97', 'en': b'WORLD 1996-97', 'fr': b'MONDE 1996-97', 'de': b'WELT 1996-97'}   # W-modes M2: the 1996-97 game's entry (WMENU + 0)
                                         # in the friendly / DIY STORICO box (TEXT PENDING: Davide's Q1-Q3 via Regia)
 W0_IDS = []                             # (W-modes M2) its continents' proxies: (menu id, the game's continent 80..85)
                                         # (its countries), named by the root pack's world_cups.name

@@ -112,6 +112,10 @@ u8 L_DEF[88] DATA = {0};
 u8 *SEL_TOP DATA = 0;                   /* the 1996-97 default: CAREER_WORLD's 98, FF, FF (spare) */
 extern u8 SWE_CT[], SWE_EFV[];
 #define GREEN 14                        /* (mainbtn GREEN) */
+u8 LOCK_TXT[48] DATA = {0};             /* the lock line (swe.py LOCK_LINE, the exe's language) */
+u8 LOCK_BUF[48] DATA = {0};             /* what the title shows (a copy: the game may write its title through it) */
+u32 *TITLE_P DATA = 0;                  /* the title entry's text pointer while it shows the lock line */
+u32 TITLE_O DATA = 0;                   /* its own text */
 static const u8 SET_W[3] = {5, 0, 4};   /* SETUP.DAT +105 -> world (mainbtn: 2026-27, 1996-97, 1984-85) */
 
 static u32 *comp_slot(u32 id) { return (u32 *)(rd32(SWE_REG + 12) - 4 * 254 + 4 * id); }
@@ -175,6 +179,13 @@ static void sel_lists(void)
     *d = 0xFF;
 }
 
+static void title_restore(void)
+{
+    if (TITLE_P && *TITLE_P == (u32)LOCK_BUF)
+        *TITLE_P = TITLE_O;
+    TITLE_P = 0;
+}
+
 static void top_restore(void)
 {
     if (SEL_TOP) {
@@ -185,16 +196,44 @@ static void top_restore(void)
 }
 
 /* SelectTeamsReinit's names call (swe.py, chained: historic's hist_names, which leaves the first entry in its
-   EF_VARS): MONDO 2026-27 GREEN in the lists of a friendly / DIY picker. */
+   EF_VARS): MONDO 2026-27 GREEN in the lists of a friendly / DIY picker; while the lock applies, the lists of worlds
+   (an entry of a world or the STORICO box) show the lock line in the title bar (entry 0). */
+static int world_name(u32 t)
+{
+    for (u32 k = 0; k < 10; k++)
+        if (rd32(SWE_CT + 4 * (WMENU + k)) && t == rd32(SWE_CT + 4 * (WMENU + k)) + 1)
+            return 1;
+    return t == rd32(SWE_CT + 4 * CAREERS) + 1;
+}
+
 void swe_names_post(void)
 {
     u32 nm = rd32(SWE_CT + 4 * (WMENU + SET_W[0]));
-    u8 *e = (u8 *)rd32(SWE_EFV);
+    u8 *e0 = (u8 *)rd32(SWE_EFV), *e = e0;
     if (!SEL_ON || !nm || !e)
         return;
-    for (int k = 0; k < 64 && *(u16 *)(e + 2) != 87; k++, e += 56)   /* (ordinal 87: the end of the entries) */
-        if (!*(u16 *)(e + 4) && rd32(e + 0x26) == nm + 1)
+    int worlds = 0;
+    for (int k = 0; k < 64 && *(u16 *)(e + 2) != 87; k++, e += 56) {   /* (ordinal 87: the end of the entries) */
+        if (*(u16 *)(e + 4))
+            continue;
+        if (rd32(e + 0x26) == nm + 1)
             *(u16 *)(e + 0x1E) = GREEN;
+        worlds |= world_name(rd32(e + 0x26));
+    }
+    u8 *t0 = e0 - 21 * 56;              /* (EF_VARS = entry 21: the title is entry 0) */
+    u32 *pp = (u32 *)(t0 + 0x26);
+    if (*(u16 *)(t0 + 2) != 0 || !LOCK_TXT[0])
+        return;
+    if (SEL_CW && worlds) {
+        if (*pp != (u32)LOCK_BUF) {
+            TITLE_P = pp;
+            TITLE_O = *pp;
+        }
+        for (u32 k = 0; k < sizeof LOCK_BUF; k++)
+            LOCK_BUF[k] = LOCK_TXT[k];
+        *pp = (u32)LOCK_BUF;
+    } else if (TITLE_P == pp)
+        title_restore();
 }
 
 /* The contest's namespace (W-modes M2): the game reads a picked club's country NAME by its number after the picker
@@ -280,6 +319,7 @@ void swe_sel_post(void)
         if (SEL_DW)
             *SEL_SLOTD = SEL_OD;
         top_restore();
+        title_restore();
         SWE_CWORLD = *(u16 *)SWE_NUMSEL ? SEL_CW : 0;
         ns_left(SWE_CWORLD);
     }

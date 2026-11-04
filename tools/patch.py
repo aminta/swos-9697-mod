@@ -823,6 +823,7 @@ def patch_exe(src, dst, remap, lang='it'):
                                                 # pair of variant sets; 4.0.5 lgreal's LGB last)
     p.set_vsize(2, obj2_free + o2pages * p.le.page_size + tail, bss=tail)
     p.set_base_after(3)                          # (obj3's header base above obj2's final end)
+    swe.LANG[0] = lang
     swe.patch(p)                                 # (obj4: the engine, its base above obj3's)
     tailzero.patch(p, tz_at, obj2_free + o2pages * p.le.page_size, (tail + 3) & ~3, nasmcave)   # (DOS/4GW: not zeroed)
     o1n, o2n = p.le.obj(1).npages, p.le.obj(2).npages

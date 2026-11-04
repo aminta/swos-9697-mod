@@ -18,6 +18,9 @@ picker lists what it listed before (W-modes adds World 2026-27). obj1 changes by
 import os
 import struct
 
+LANG = ['it']                  # (patch.py: the exe's language, for LOCK_LINE)
+LOCK_LINE = {'it': 'UN SOLO MONDO PER COMPETIZIONE', 'en': 'ONE WORLD PER COMPETITION',   # W-modes M2's lock line
+             'fr': 'UN SEUL MONDE PAR COMPETITION', 'de': 'NUR EINE WELT PRO WETTBEWERB'}  # (Davide 2026-11-04)
 OBJ4_PAGES = 2                 # (M2: 2 pages, the registry moved to swreg.REG_AT = 0x1800)
 MAGIC = b'SWOS-ENG'
 VERSION = 3                    # (swe.c SWE_VERSION; 2 = step W, the registry; 3 = W-modes M2, the pickers' worlds)
@@ -163,6 +166,10 @@ def patch(p):
     syms, end, bss = cobj.link(p, cobj.compile_c(SRC, flags), CODE_AT, (4, room), externs=ext, limit=swreg.REG_AT,
                                text_obj=4)
     arena = syms['SWE_ARENA_AT']
+    import complist
+    lk = LOCK_LINE[LANG[0]]
+    assert set(lk) <= complist.FONT and complist.px(lk) <= 280 and len(lk) < 48, ('lock line', lk, complist.px(lk))
+    p.put(*syms['LOCK_TXT'], lk.encode('latin-1') + b'\0')
     assert arena[0] == 4 and bss >= ARENA
     p.put(4, 0, MAGIC + struct.pack('<I', VERSION))
     cobj.add_ptr(p, 12, 4, 0, 4)

@@ -24,6 +24,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'
 from emu import Machine  # noqa: E402
 
 FIX = os.path.join(os.path.expanduser('~'), 'swos-mod', 'internal', 'hosttest', 'fixtures', os.environ.get('HT_CG', 'cw_uru6'))
+FIX_P4 = os.path.join(os.path.dirname(FIX), os.environ.get('HT_CG_P4', 'cw_uru10j'))   # (P4's fallbacks read CG_FCNT, which
+                                        # cw_uru6's build predates: cw_uru10j = the same recipe on c/HTI10j, 2026-11-04)
 MEM, PAGE = 0x2000000, 0x1000
 SCR, SCR_N, REC = 0xD000, 0x4280, 0x3280        # (ctgame.py: the scratch at obj3 + 0x1000 * pages - read from the syms; ctgame.c CG_REC)
 NCUP, NRD, NE, RB = 16, 8, 64, 24
@@ -497,6 +499,15 @@ def _fb(m, c, r, wk, want, key, bad):
 
 
 def test_cg_fallback():
+    global FIX
+    fix, FIX = FIX, FIX_P4
+    try:
+        return _cg_fallback()
+    finally:
+        FIX = fix
+
+
+def _cg_fallback():
     """P4: every case the game's screen can't show -> cg_view 0 with its reason, nothing left open, the saved state
     byte-identical (ctview's cr_go then shows version A's page): a club in no team file of the world (E_GUEST 10: an
     unloaded file, an ordinal past its file's clubs - GetTeamPointer would never find it: the game hung), a played round

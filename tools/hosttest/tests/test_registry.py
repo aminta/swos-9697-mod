@@ -21,7 +21,7 @@ import swreg  # noqa: E402
 
 HOME = os.path.expanduser('~')
 EXE = os.environ.get('HT_REG_EXE') or os.path.join(HOME, 'swos-mod', 'c', 'HTW', 'SWOS', 'ITALIAN.EXE')
-ORIG = os.path.join(HOME, 'swos-mod', 'orig', 'ITALIAN.EXE')
+ORIG = os.environ.get('HT_REG_ORIG') or os.path.join(HOME, 'swos-mod', 'orig', 'ITALIAN.EXE')   # (the same language / edition)
 B1, B2, B4 = 0x1000000, 0x2000000, 0x3000000
 STACK, RET = 0x5000000, 0x4FF0000
 

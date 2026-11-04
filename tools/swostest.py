@@ -2888,11 +2888,30 @@ def coach_nat():
     """4.0.3: the coach's nationalities per career button (careerworld nat_init), Italian release-like build
     (COACHNAT_BUILD, else SWOSTEST_BUILD; a full 2026-27 build): CARRIERA keeps the era list (YUG, RFT, URS, RDT);
     CARRIERA 2026-27 lists today's nations (the World 2026-27 codes, MNE..TGA, and FIJ etc.) and none of the era
-    ones; a nationality the era list lacks becomes ENG there; a TGA coach starts the World 2026-27's INTER career"""
+    ones; a nationality the era list lacks becomes ENG there; a TGA coach starts the World 2026-27's INTER career.
+    4.0.6 (careerworld NAT_TODAY): the renamed nations' codes show today's letters under CARRIERA 2026-27 and in its
+    career (SRB CZE MKD COD SWZ, in the list too), the exe's own (YUG TCH MAC ZAI SWA) under CARRIERA"""
     b = os.environ.get('COACHNAT_BUILD') or os.environ.get('SWOSTEST_BUILD')
     if not b:
         return True, 'SKIP: COACHNAT_BUILD (a full 2026-27 build) not set'
     era, errs, info = {'YUG', 'RFT', 'URS', 'RDT'}, [], []
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import careerworld
+    import lepatch
+    o1 = bytes(lepatch.LEPatch(os.path.join(b, 'ITALIAN.EXE')).le.obj_bytes(1))
+    nshort = o1.find(b'ALBAUTBELBUL')                       # (careerworld's NATSHORT: the one table, in obj1)
+    gone = {'TCH', 'MAC', 'ZAI', 'SWA'}
+
+    def letters(s, tag, want):
+        got = {c: s.result.obj1(nshort + 3 * c, 3).decode('latin-1') for c in careerworld.NAT_TODAY}
+        check(nshort >= 0 and got == want, f'{tag}: nation letters {got} (want {want})', errs)
+    era_l = {c: o1[nshort + 3 * c:nshort + 3 * c + 3].decode('latin-1') for c in careerworld.NAT_TODAY}
+    today_l = dict(careerworld.NAT_TODAY)
+    tw = b''.join(open(x, 'rb').read() for x in glob.glob(os.path.join(b, 'DATA', 'TMW5.08[0-5]')))
+    tg = b''.join(open(os.path.join(b, 'DATA', 'TEAM.%03d' % f), 'rb').read() for f in range(80, 86))
+    for old, new in careerworld.NAT_TEAM_TODAY.items():       # (the 2026-27 national teams: renamed copies)
+        check(b'\0' + new.encode() + b'\0' in tw and b'\0' + old.encode() + b'\0' not in tw
+              and b'\0' + old.encode() + b'\0' in tg, f'national team {old} -> {new}: TMW5 / TEAM files', errs)
 
     def to_main(s):
         for _ in range(4):
@@ -2920,11 +2939,20 @@ def coach_nat():
         _, seen = cycle(s, 'left', 5)
         check(era <= set(seen), f'CARRIERA: era nationalities {seen}', errs)
         info.append(f'CARRIERA {seen}')
+        letters(s, 'CARRIERA', era_l)
         to_main(s)
         walk(s, s.screen().find('CARRIERA 2026-27', exact=True), 3)
+        letters(s, 'CARRIERA 2026-27', today_l)
         i, seen = cycle(s, 'left', 62)
         check({'TGA', 'SAM', 'MNE', 'FIJ'} <= set(seen) and not era & set(seen),
               f'CARRIERA 2026-27: {seen}', errs)
+        _, more = cycle(s, 'left', 160)                     # (the whole list: today's letters in, the era's out)
+        check(set(today_l.values()) <= set(seen + more) and not (gone | era) & set(seen + more),
+              f'CARRIERA 2026-27 list: {sorted(set(seen + more))}', errs)
+        for _ in range(222):                                # (back to the 62nd, a nation the era list lacks: the
+            if s.screen().entries[i][1] == seen[-1]:        # case below)
+                break
+            s.send('fire+left dump:0.3')
         info.append(f'2026-27 {seen[:4]}..{seen[-3:]}')
         last = seen[-1]
         to_main(s)
@@ -2948,6 +2976,7 @@ def coach_nat():
         s.send('fire dump:3')
         got = str(s.screen())
         check('CAMP. 2026/27' in got and 'INTER' in got, f'the TGA coach career: {got[:80]}', errs)
+        letters(s, 'the 2026-27 career', today_l)
     return not errs, '; '.join(errs) or '; '.join(info)
 
 

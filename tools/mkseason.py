@@ -1297,7 +1297,44 @@ def ns_files(w):
     """Team file numbers of world w (its packs and its national pack): the files named by its stem."""
     import guests
     return sorted({f for pk in packs() + nationals() if pk.world == w for _, (f, _) in pk.team_file_items()}
-                  | set(guests.files() if guests.world() == w else ()))   # (the guest clubs' files: guests.py)
+                  | set(guests.files() if guests.world() == w else ())   # (the guest clubs' files: guests.py)
+                  | set(nat_today_files(w)))
+
+
+def nat_today_names():
+    """The renamed national files' names (TMWn.08x) of every world (mkpatcher's DATA list)."""
+    return sorted('%s.%03d' % (ns_stem(w).upper(), f) for w in worlds() for f in nat_today_files(w))
+
+
+def nat_today_files(w, src=None):
+    """4.0.6 (Davide 05/11): {file: data} - a world from 2019 on with a namespace of its own and no national pack
+    plays the game's national teams (TEAM.080..085); the ones whose nation changed name (careerworld.NAT_TEAM_TODAY:
+    YUGOSLAVIA -> SERBIA ...) get renamed copies under the world's stem, the others stay the game's. src: the DATA
+    dir to copy from - patch.py passes the build's own, after its last TEAM pass (white hair, club names...)."""
+    import careerworld
+    if not multi_ns() or ns_stem(w) == 'team' or any(x.world == w for x in nationals()):
+        return {}
+    roots = [pk for pk in worlds().get(w, []) if 'world_cups' in pk.meta]
+    if not roots or roots[0].meta['world_cups'].get('start_year', 0) < 2019:
+        return {}
+    out = {}
+    for f in range(80, 86):
+        d = bytearray(open(os.path.join(src or os.path.join(ROOT, 'orig', 'DATA'), 'TEAM.%03d' % f), 'rb').read())
+        n = struct.unpack('>H', d[:2])[0]
+        hit = False
+        for k in range(n):
+            o = 2 + 684 * k + 5                           # (a record's team name, 17 bytes NUL-padded)
+            nm = bytes(d[o:o + 17]).split(b'\0')[0].decode('latin-1')
+            if nm in careerworld.NAT_TEAM_TODAY:
+                new = careerworld.NAT_TEAM_TODAY[nm].encode('latin-1')
+                _need(len(new) <= 16, f'national team name {new} over 16 characters')
+                d[o:o + 17] = new.ljust(17, b'\0')
+                hit = True
+        if hit:
+            out[f] = bytes(d)
+    found = {x for f in out for x in careerworld.NAT_TEAM_TODAY.values() if x.encode() + b'\0' in out[f]}
+    _need(found == set(careerworld.NAT_TEAM_TODAY.values()), f'national renames not all found: {found}')
+    return out
 
 
 def draws():

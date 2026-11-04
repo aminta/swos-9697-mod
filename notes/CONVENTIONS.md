@@ -78,7 +78,7 @@ new rule. If a rule seems wrong for a case, ask the regia session; don't silentl
     (world_cuplist_mestre + world_winners_oldsave on a release-recipe dir) before its sha.
 21. The career save's engine block ('EN' after the trailer, trailer.py) shares careerworld.SEL_ROOM with the 160-team
     cache: SEL_N x 684 + main block + engine block <= SEL_ROOM (trailer.py asserts it). Room left, release recipe:
-    93 B on 406-i10j, 74 B with FFP's FF (15 + 4) (engine block 15343 B, 25 items, main block 948 B; measured by the engine's P0, item by item in
+    93 B on 406-i10j, 70 B with FFP's FF (19 + 4) (engine block 15343 B, 25 items, main block 948 B; measured by the engine's P0, item by item in
     notes/engine/save-ledger.md). A new item costs 4 + its size; past the room the build fails - plan any 4.0.6+ item
     against this figure, add its line to the ledger and update it here.
 22. obj1 has a ceiling too: 237 pages in the release build (4.0.5, Panchina's SWOS++ probe: obj1 in memory <= 238 pages

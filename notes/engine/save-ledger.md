@@ -39,7 +39,7 @@ SEL_N 160 × 684 = 109440, main block 948, 'EN' block 15343 (25 items) → 12573
 | CC | 4 | cpucards | 4.0.6 | OPTIONS: CPU red cards / injuries |
 | GI | 2 | gkinj | 4.0.6 | OPTIONS: goalkeeper injuries |
 | CR | 1 | cpurefill | 4.0.6 | CPU replacements switch |
-| FF | 15 | ffp (Integratore; state in finance.py FF_ST) | 4.0.6 (after I10j) | financial fair play: FF_ON, FF_BLOCK, FF_VALID (1 B each), FF_INC (the season's gates), FF_IPREV (last season's income), FF_FINE (dd each). Plain bytes, no pointers, clear: an older save loads it zeroed = the rule OFF; a new career sets ON + VALID (after_new). With its header 19 B: **74 B left** on I10j + FFP |
+| FF | 19 | ffp (Integratore; state in finance.py FF_ST) | 4.0.6 (after I10j) | financial fair play: FF_ON, FF_BLOCK, FF_VALID (1 B each), FF_INC (the season's gates), FF_IPREV (last season's income), FF_FINE, FF_TVW (the season's TV credit share paid for the wages, left out of FFP's income) (dd each). Plain bytes, no pointers, clear: an older save loads it zeroed = the rule OFF; a new career sets ON + VALID (after_new). With its header 23 B: **70 B left** on I10j + FFP |
 
 ## The round trip (test_roundtrip.py, Tier B)
 

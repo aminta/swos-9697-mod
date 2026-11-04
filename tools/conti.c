@@ -101,13 +101,29 @@ static int assoc(int c) { return CT_IN.club[c - 1].assoc; }
 
 /* goals of one side: binomial(8, m / 8), m in eighths */
 static int goals(u32 m8) { int g = 0; for (int i = 0; i < 8; i++) if (below(64) < m8) g++; return g; }
-/* a match: home h v away a -> goals; mean 0.5 .. 2.5 by the strengths' square ratio, a home bonus */
+/* a match: home h v away a -> goals; mean 0.5 .. 2.5 by the strengths' square ratio, a home bonus (5.25 a match).
+   4.0.6 (Davide 04/11, option c): an edition with ED_G2 in CT_ED.pad (every edition made from 4.0.6 on) half that -
+   0.25 .. 1.25 a side, about 2.6 a match; an older save's edition plays on to its end as it began (its results the
+   same). */
+#ifdef CONTI_G1
+#define ED_G2 0                         /* (CONTI_G1_TEST=1 test builds: every edition on the old model, as before 4.0.6 -
+                                           world_ctgoals' exe A) */
+#else
+#define ED_G2 2
+#endif
+#ifdef NATIVE
+u32 CT_GSTAT[2];                        /* (conti.py --test-goals: matches, goals) */
+#endif
 static void match(int h, int a, int neutral, int *gh, int *ga) {
     u32 sh = sq(h), sa = sq(a);
     u32 r = (u32)(((unsigned long long)sh * 64) / (sh + sa));             /* 0..64 */
     u32 mh = 4 + r / 2 + (neutral ? 0 : 2), ma = 4 + (64 - r) / 2;         /* eighths of a goal: 4..36 */
+    if (CT_ED.pad & ED_G2) { mh = 2 + r / 4 + (neutral ? 0 : 1); ma = 2 + (64 - r) / 4; }   /* (2..18) */
     *gh = goals(mh > 63 ? 63 : mh);
     *ga = goals(ma > 63 ? 63 : ma);
+#ifdef NATIVE
+    CT_GSTAT[0]++; CT_GSTAT[1] += (u32)(*gh + *ga);
+#endif
 }
 static void gput(int k, int x, int y) { if (g_gr) g_gr[g_gk + k] = (u8)((x + 1) | (y + 1) << 4); }
 static void grec_round(int c, int r, int need) {     /* the view's replay: room for round (c, r)'s bytes */
@@ -787,7 +803,7 @@ static int assoc_of(u16 id) {           /* a team word's association: its file's
 static void snapshot(void) {            /* the edition's entrants (after access) + the reserve clubs for group fills */
     static u8 seen[NC + 1];
     for (int i = 0; i <= NC; i++) seen[i] = 0;
-    CT_ED.ne = 0; CT_ED.nf = 0; CT_ED.pad = 0;
+    CT_ED.ne = 0; CT_ED.nf = 0; CT_ED.pad = ED_G2;
     CT_ED.seed = rng;
     CT_ED.mgr = CT_IN.manager ? CT_IN.club[CT_IN.manager - 1].id : 0;
     for (int c = 0; c < ncup; c++)
@@ -912,7 +928,7 @@ u32 ct_new1(u32 mgr) {                  /* 4.0.6 B2: a new career (or a season-1
     if (!s1e) return 0;
     u32 n = s1e[2] | s1e[3] << 8;
     if (n > NED) n = NED;
-    CT_ED.mark = 0; CT_ED.ne = (u16)n; CT_ED.nf = 0; CT_ED.pad = 1;
+    CT_ED.mark = 0; CT_ED.ne = (u16)n; CT_ED.nf = 0; CT_ED.pad = 1 | ED_G2;
     CT_ED.seed = s1e[4] | s1e[5] << 8 | s1e[6] << 16 | (u32)s1e[7] << 24;
     CT_ED.mgr = (u16)mgr == 0xFFFF ? 0 : (u16)mgr;
     const u8 *e = s1e + 8;

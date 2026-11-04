@@ -521,15 +521,20 @@ def s1_block(cups, gl, words):
 
 
 # --- native test ------------------------------------------------------------------------------------------------------
-def _native(extra=()):
+NATIVE_FLAGS = ()                       # (test_goals: -DCONTI_G1 for the old goals model)
+
+
+def _native(extra=(), flags=()):
     import ctypes
     import subprocess
     import tempfile
     d = tempfile.mkdtemp()
     lib = os.path.join(d, 'conti.dylib')
-    subprocess.run(['clang', '-O1', '-shared', '-fPIC', '-DNATIVE', '-o', lib, os.path.join(ROOT, 'tools', 'conti.c')] +
+    subprocess.run(['clang', '-O1', '-shared', '-fPIC', '-DNATIVE', *(flags or NATIVE_FLAGS), '-o', lib,
+                    os.path.join(ROOT, 'tools', 'conti.c')] +
                    [os.path.join(ROOT, 'tools', x) for x in extra], check=True)   # (4.0.6: + ctview.c, the view's test)
-    return ctypes.CDLL(lib)
+    _native.last = ctypes.CDLL(lib)
+    return _native.last
 
 
 def test(confs=('conmebol',), seasons=3, seed=7, L=None, hook=None):
@@ -1259,7 +1264,8 @@ def patch(p, at, limit, bss_at, area):
     calls = lambda t: [i for i in range(len(d1) - 5) if d1[i] == 0xE8 and i + 5 + struct.unpack_from('<i', d1, i + 1)[0] == t]
     c927, c939 = calls(t927[0]), calls(t939[0])
     assert len(c927) == 2 and len(c939) == 2, (c927, c939)
-    obj = cobj.compile_c(os.path.join(ROOT, 'tools', 'conti.c'))
+    obj = cobj.compile_c(os.path.join(ROOT, 'tools', 'conti.c'),
+                         ['-DCONTI_G1'] if os.environ.get('CONTI_G1_TEST') else [])   # (test builds: the old goals model)
     syms, end, bss = cobj.link(p, obj, at, (2, bss_at), limit=limit)
     assert bss <= BSS, hex(bss)
     q = cw._qual_sites(d1, p)
@@ -1748,6 +1754,30 @@ def structs(p, area, lang, at):
     return at, out, kinds
 
 
+def test_goals():
+    """4.0.6 option c (Davide 04/11): the conti matches' goals natively, every edition from 4.0.6 on (ED_G2) and the
+    old model (CONTI_G1, older saves' editions): season 1 on the world's data (test_s1) and three test() seasons ->
+    {(model, run): (matches, mean goals a match)}"""
+    import contextlib
+    import ctypes
+    import io
+    global NATIVE_FLAGS
+    out = {}
+    try:
+        for model, fl in (('new', ()), ('old', ('-DCONTI_G1',))):
+            NATIVE_FLAGS = fl
+            for run, f in (('s1', test_s1), ('test', test)):
+                with contextlib.redirect_stdout(io.StringIO()):
+                    f()
+                n, g = (ctypes.c_uint32 * 2).in_dll(_native.last, 'CT_GSTAT')
+                out[(model, run)] = (n, g / n if n else 0)
+    finally:
+        NATIVE_FLAGS = ()
+    for k, (n, m) in out.items():
+        print(f'{k[0]:3} {k[1]:4}: {n} matches, {m:.2f} goals a match')
+    return out
+
+
 def test_s1(mgr_key=None, seed=3):
     """4.0.6 B2 native test on the world's own data (SEASON_PACKS as a build): the season-1 edition (ct_new1) keeps
     every main round as the build drew it (the exe lists, even when they hold junk: the block's lists win), plays
@@ -1825,7 +1855,9 @@ def test_s1(mgr_key=None, seed=3):
 
 if __name__ == '__main__':
     import sys
-    if sys.argv[1:2] == ['--test-s1']:
+    if sys.argv[1:2] == ['--test-goals']:
+        test_goals()
+    elif sys.argv[1:2] == ['--test-s1']:
         test_s1(*(sys.argv[2:3] or [None]))
     elif sys.argv[1:2] == ['--test']:
         test(sys.argv[2:] or ['conmebol'])

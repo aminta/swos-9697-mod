@@ -15572,6 +15572,7 @@ def world_s1conti():
             press(s, s.screen(), 'CONTINUA', 3) or s.send('fire dump:2')
         ed = bytes(s.result.obj2(ed_at, 12))
         check(ed[:2] == b'CE' and ed[11] & 1, f'season 1: no season-1 edition (CT_ED {ed.hex()})', errs)
+        check(ed[11] & 2, f'season 1: not on the 4.0.6 goals model (CT_ED {ed.hex()})', errs)
         info.append(f's1 CT_ED {ed.hex()} (entries {struct.unpack_from("<H", ed, 2)[0]}, club {struct.unpack_from("<H", ed, 8)[0]:#x})')
     s2 = os.environ.get('CV_S2') or os.path.join(RUNS, f'cv_s2_{UI}.CAR')
     if not os.path.exists(s2):
@@ -15587,6 +15588,7 @@ def world_s1conti():
     bad = [(cu, w, h, hex(g)) for (cu, w, h), g in zip(want, got) if int(h, 16) != g]
     check(not bad, f'season 2: holders not season 1\'s winners (cup, native winner, native holder, game) {bad}', errs)
     check(not ce[11] & 1, f'season 2: the season-1 bit still set (CT_ED {ce[:12].hex()})', errs)
+    check(ce[11] & 2, f'season 2: its edition not on the 4.0.6 goals model (CT_ED {ce[:12].hex()})', errs)
     info.append(f'holders = season 1\'s winners: {[(cu, h) for cu, _, h in want]}')
     return not errs, '; '.join(errs) or '; '.join(info)
 
@@ -15623,7 +15625,8 @@ def world_s1conti_oldsave():
         eds.append(bytes(s.result.obj2(tr[1], 2260)))
     ed = eds[0]
     ne, mgr = struct.unpack_from('<H', ed, 2)[0], struct.unpack_from('<H', ed, 8)[0]
-    check(ed[:2] == b'CE' and ed[11] & 1 and ne > 100, f'old save: no season-1 edition at the load (CT_ED {ed[:12].hex()})', errs)
+    check(ed[:2] == b'CE' and ed[11] & 3 == 3 and ne > 100,   # (built at the load: the 4.0.6 goals model too)
+          f'old save: no season-1 edition at the load (CT_ED {ed[:12].hex()})', errs)
     return not errs, '; '.join(errs) or f'CT_ED {ed[:12].hex()}: {ne} entries, club {mgr:#x}'
 
 
@@ -16309,6 +16312,80 @@ def world_cgame_guard():
         check(g[3] > 0 and g[8] > 0, f'B: no view opened ({g[:10]})', errs)
         check(g[0] == 0 and g[5] == 0 and g[6] == 0 and g[9] == 0, f'B: guard {g[:10]}', errs)
     return not errs, '; '.join(errs + info) or '; '.join(info)
+
+
+@scenario
+def world_ctgoals():
+    """4.0.6 option c (Davide 04/11): the conti goals model by edition. Natively (conti.py test_goals): every edition
+    made from 4.0.6 on (CT_ED.pad ED_G2) about 2.6 goals a match, the old model (CONTI_G1) about 5.2. In the game, two
+    exes of one recipe (CTG_A: CONTI_G1_TEST=1 - every edition on the old model, as the exes before it; CTG_B: the 4.0.6
+    one): season 1 on A (CTG_S1: a cached save - its season-2 edition made by A, the old model), then season 2 from
+    that save on A and on B. The old edition plays on as it began: the two season-2 .CARs byte-identical outside the
+    'CE' item (season 3's edition, made at the season end), the holders (season 2's winners) the same and changed
+    from season 1's; B's season-3 edition has the bit, A's not. CTG_TEAM (default HAMRUN SPARTANS: a short league,
+    in no conti cup)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import conti
+    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    packs = ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order])
+    errs, info = [], []
+    r = subprocess.run([sys.executable, os.path.join(ROOT, 'tools', 'conti.py'), '--test-goals'], cwd=ROOT,
+                       capture_output=True, text=True, env=dict(os.environ, SEASON_PACKS=packs))
+    got = dict(re.findall(r'^(\w+ +\w+) *: \d+ matches, ([\d.]+)', r.stdout, re.M))
+    got = {' '.join(k.split()): float(v) for k, v in got.items()}
+    want = {'new s1': (2.2, 3.0), 'new test': (2.2, 3.0), 'old s1': (4.6, 5.6), 'old test': (4.6, 5.6)}
+    check(set(got) == set(want) and all(want[k][0] <= got[k] <= want[k][1] for k in want),
+          f'native goals a match {got} (want {want}) {r.stderr[-300:] if not got else ""}', errs)
+    info.append(f'native goals a match {got}')
+    exes = {}
+    for k, env in (('A', {'CONTI_G1_TEST': '1'}), ('B', {})):
+        exes[k] = os.environ.get('CTG_' + k) or build('world_ctgoals_' + k.lower(), env=dict(env, SEASON_PACKS=packs),
+                                                      lang=UI)
+    team = os.environ.get('CTG_TEAM', 'EUROPA,MALTA,?MALTESE PREMIER LEAGUE|PREMIER LEAGUE,HAMRUN SPARTANS')
+    s1 = os.environ.get('CTG_S1') or os.path.join(RUNS, f'ctg_s1_{UI}.CAR')
+    if not os.path.exists(s1):
+        ok, msg, _ = sc_season(team, dict(W8485_BUILD=exes['A']))
+        car = os.path.join(RUNS, w84_tag() + '_1', 'SWOS', 'W84A.CAR')
+        if not ok or not os.path.exists(car):
+            return False, f'season 1 on A: {msg[:200]}'
+        shutil.copy(car, s1)
+    ce1, st1 = car_item(s1, 'CE', conti.ED_SIZE), car_item(s1, 'CT', conti.ST_SIZE)
+    if ce1 is None or st1 is None:
+        return False, f'season-1 save {s1}: no CE / CT item'
+    check(ce1[:2] == b'CE' and not ce1[11] & 2, f'season 1 on A: the season-2 edition {ce1[:12].hex()} not old', errs)
+    cars = {}
+    for k in ('A', 'B'):
+        ok, msg, _ = sc_season(team, dict(W8485_BUILD=exes[k], W8485_FROM=s1), 2)
+        car = os.path.join(RUNS, w84_tag() + '_2', 'SWOS', 'W84B.CAR')
+        check(ok and os.path.exists(car), f'season 2 on {k}: {msg[:150]}', errs)
+        if os.path.exists(car):
+            cars[k] = os.path.join(RUNS, f'ctg_s2_{k}_{UI}.CAR')
+            shutil.copy(car, cars[k])
+            os.remove(car)
+    if len(cars) == 2:
+        a, b = (open(cars[x], 'rb').read() for x in ('A', 'B'))
+        sys.path.insert(0, os.path.join(ROOT, 'tools'))
+        import engine
+        hd = struct.pack('<HH', engine.item_id('CE'), conti.ED_SIZE)
+        ka, kb = a.find(hd), b.find(hd)
+        diff = [i for i in range(min(len(a), len(b))) if a[i] != b[i]]
+        out = [i for i in diff if not (ka >= 0 and ka == kb and ka + 4 <= i < ka + 4 + conti.ED_SIZE)]
+        rel, left = cg_relocated(a, b, out, exes) if out and len(a) == len(b) else (0, out)
+        check(len(a) == len(b) and not left, f'season-2 .CAR A / B: {len(a)} / {len(b)} B, {len(left)} bytes differ '
+              f'outside CE, first {[hex(i) for i in left[:8]]}', errs)
+        info.append(f'.CAR {len(a)} B: {len(diff) - len(out)} bytes differ in CE only' +
+                    (f' (+ {rel} relocated pointers)' if rel else ''))
+        ca, cb = car_item(cars['A'], 'CE', conti.ED_SIZE), car_item(cars['B'], 'CE', conti.ED_SIZE)
+        sa = car_item(cars['A'], 'CT', conti.ST_SIZE)
+        hold = lambda st: [struct.unpack_from('<H', st, 4 + 12 * i)[0] for i in range(16)]
+        check(ca and cb and not ca[11] & 2 and cb[11] & 2, f'season 3 editions: A {ca[:12].hex() if ca else None} '
+              f'B {cb[:12].hex() if cb else None} (want the bit on B only)', errs)
+        check(sa and hold(sa) != hold(st1), f'season 2 changed no holder ({[hex(x) for x in hold(st1)[:12]]})', errs)
+        info.append(f'season 2 holders {[hex(x) for x in hold(sa)[:12]] if sa else None}')
+    return not errs, '; '.join(errs + info)
 
 
 @scenario

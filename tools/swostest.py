@@ -24476,6 +24476,18 @@ def ffp_sites(exe_dir):
         set(''.join(x for k in range(1, 5) for x in ffp.message(o, k)))
 
 
+def ffp_onoff(exe_dir):
+    """(OFF, ON): the game's strings the switch shows (cpucards.strings on the exe language's original)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import controls
+    import cpucards
+    import lepatch
+    o = lepatch.LEPatch(os.path.join(MAIN, 'orig', UI_ORIG))
+    d2 = o.le.obj_bytes(2)
+    return tuple(d2[x[1]:d2.index(b'\0', x[1])].decode('latin-1').rstrip('*')
+                 for x in cpucards.strings(o, controls.menu_header(o, controls.locate(o)['OMBD'][1])))
+
+
 def ffp_read(s, ff):
     """{on, block, valid, inc, iprev, fine}"""
     v = struct.unpack('<BBBxIII', bytes(s.result.read(s.result.lin(ff), 16)))
@@ -24506,7 +24518,7 @@ def ffp_biz(s, tag, errs, toggle=False):
     raw = lambda sc, n: sc.raw[{x[0]: j for j, x in enumerate(sc.entries)}[n]].decode('latin-1')
     rt, sw = raw(scr, 22), raw(scr, 23)
     g = {n: scr.geom[ix[n]] for n in ix}
-    check(rt.startswith(ffp.RATIO[UI]) and rt.endswith(f'% (MAX {ffp.LIMIT}%)'), f'{tag}: ratio row {rt!r}', errs)
+    check(rt.startswith(ffp.RATIO[UI]) and rt.endswith(f' (MAX {ffp.LIMIT}%)') and (rt[len(ffp.RATIO[UI]):].startswith('--') or '% (' in rt), f'{tag}: ratio row {rt!r}', errs)
     check(set(rt) <= set(SMALL_W) | {' '} and px(rt) <= g[22][2], f'{tag}: ratio row {rt!r} {px(rt)} px / {g[22][2]} or '
           f'non-font characters', errs)
     check(g[22][1] + g[22][3] <= g[2][1] and g[0][1] + g[0][3] <= g[22][1], f'{tag}: ratio row y {g[22]} not between '
@@ -24585,6 +24597,7 @@ def ffp_season():
                 bz = ffp_biz(s, tag, errs, toggle=(mode == 'off'))     # (off: switched OFF on ANDAMENTO CLUB)
                 if bz:
                     check(bz[0].startswith(ffp.RATIO[UI] + '--'), f'{tag}: a new career has no ratio yet: {bz[0]!r}', errs)
+                    check(bz[1] == ffp_onoff(b)[1], f'{tag}: the switch shows {bz[1]!r} with the rule ON', errs)
                     if mode == 'off':
                         check(ffp_read(s, ff)['on'] == 0, f'{tag}: the switch did not turn the rule OFF', errs)
                     notes.append(f'{tag}: row {bz}')

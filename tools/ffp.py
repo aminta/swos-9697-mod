@@ -284,7 +284,7 @@ ff_tog:                                 ; fire on the switch: the rule ON / OFF 
     popad
     jmp DRAWITEM
 
-ff_ratio:                               ; FF_RATIO = RATIO[lang] + W x 100 / last season's I + '% (MAX 35%)'
+ff_ratio:                               ; FF_RATIO = RATIO[lang] + W x 100 / last season's I '%' (or '--') + ' (MAX 35%)'
     mov edi, FF_RATIO
     mov esi, FF_RPRE
 .p: lodsb
@@ -322,6 +322,8 @@ ff_ratio:                               ; FF_RATIO = RATIO[lang] + W x 100 / las
     add al, '0'
     stosb
     loop .o
+    mov al, '%'
+    stosb
     jmp .suf
 .none:
     mov ax, '--'
@@ -425,7 +427,7 @@ def patch(p, at, lang):
     l1, l2 = MEMO[lang]
     db = lambda x: 'db ' + ', '.join(str(c) for c in x.encode('latin1') + b'\0')
     src = nasmcave.sub(nasmcave.sub(ASM, 'L1_DB', db(l1)), 'L2_DB', db(l2))
-    for k, t in (('FL_DB', FINE[lang]), ('RP_DB', RATIO[lang]), ('RS_DB', f'% (MAX {LIMIT}%)')):
+    for k, t in (('FL_DB', FINE[lang]), ('RP_DB', RATIO[lang]), ('RS_DB', f' (MAX {LIMIT}%)')):
         src = nasmcave.sub(src, k, db(t))
     sym = {k: s[k] for k in ('D2_', 'UNWILLING', 'BUYOK', 'CURMSG', 'SCM', 'STAY', 'PLNAME', 'TBL', 'INT2POUNDS', 'D0_',
                              'A1_', 'REGS', 'NEWBAL', 'OLDBAL', 'D6B88', 'CBON', 'SPONS', 'D6B9E', 'D6CA2', 'BIZINIT',
@@ -437,7 +439,7 @@ def patch(p, at, lang):
     sym['MENU_'] = zones._current_menu(p)
     sym['MENUSZ_'] = (0, 6500)                           # (g_currentMenu's size: cpucards)
     sym['DRAWITEM'] = (1, cpucards.find(p)['DRAWITEM'])
-    sym['S_ON'], sym['S_OFF'] = cpucards.strings(p, controls.menu_header(p, controls.locate(p)['OMBD'][1]))
+    sym['S_OFF'], sym['S_ON'] = cpucards.strings(p, controls.menu_header(p, controls.locate(p)['OMBD'][1]))
     assert p.target(2, s['bizhdr']) == s['BIZINIT'], ('clubBusinessMenu init already hooked', p.target(2, s['bizhdr']))
     for t in (RATIO[lang], FINE[lang]):
         assert re.fullmatch(r"[A-Z0-9 /.:'-]+", t), t

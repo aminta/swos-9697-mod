@@ -9908,6 +9908,89 @@ def engine_wmodes():
     return not errs, '; '.join(errs + info)
 
 
+def pick_done(s, e=55, w=4):
+    """The team picker's done entry (`e`, the bottom row's left: PLAY / CUP / ...): down past the team rows, right off
+    56 / 57, then fire (engine_registry's way: the path planner finds no link from a team row to it)"""
+    for _ in range(16):
+        scr = s.screen()
+        if scr.selected == e:
+            s.send(f'fire dump:{w}')
+            return s.screen()
+        s.send(('right' if scr.selected in (56, 57) else 'down') + ' dump:0.5')
+    raise AssertionError(f'the picker\'s entry {e} not reached ({s.screen().selected})')
+
+
+@scenario
+def engine_wmodes_diy():
+    """W-modes M2, the DIY contest's world ('WM', notes/engine/save-ledger.md). (1) Default World 2026-27: a DIY cup
+    of one round (COPPA, TURNI x3 = FINALE) with INTER (2026-27: EUROPA > ITALIA > SERIE A) and HAMBURG (STORICO >
+    1996-97 > EUROPA > GERMANIA > 1. LIGA), saved as WM5: the file = the game's part + 'WM' 1 5. (2) Default 1996-97
+    (the harness's): CARICA VECCHIA COMPETIZIONE > WM5: SWE_CWORLD 5 and namespace 5 (the contest's), the cup menu
+    shows INTER and HAMBURG."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import swreg
+    errs, info = [], []
+    hist = 'CARR. STORICHE'                      # (the careers' box label: STORICO's until Davide's texts)
+    b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
+
+    def hdr(s):
+        r = s.result
+        reg, _, _, selmode, _, cworld, selcw = struct.unpack('<7I', r.read(r.base4 + 32, 28))
+        wcur = struct.unpack('<I', r.read(reg + 8, 4))[0]
+        return struct.unpack('<I', r.read(cworld, 4))[0], wcur
+
+    def up_to(s, t):
+        for _ in range(6):
+            sc = s.screen()
+            if sc.find(t) is not None:
+                return
+            out = sc.find('ESCI', exact=True)
+            if out is None or press(s, sc, out, 2) is None:
+                s.send('down ' * 12 + 'dump:1')
+                if out is not None and s.screen().selected == out:
+                    s.send('fire dump:2')
+        raise AssertionError(f'{t} not reached ({s.screen().texts()[:10]})')
+    with Session('engine_wmodes_diy1', b, {'SETUP.DAT': setup_file('engine_wmodes_diy1', 0)}, 'dump:3', 400) as s:
+        if s.wait().outcome != 'dump' or s.result.base4 is None:
+            return False, f'no first pause / obj4 ({s.result})'
+        for t in ('COMPET. PERSONAL.', 'COPPA', 11, 11, 11, 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB'):
+            walk(s, t, 2)
+        for t in ('EUROPA', 'ITALIA', 'SERIE A', 'INTER'):
+            walk(s, t, 2)
+        up_to(s, hist)
+        for t in (hist, '1996-97', 'EUROPA', 'GERMANIA', '1. LIGA', 'HAMBURG'):
+            walk(s, t, 2)
+        pick_done(s, 55)
+        s.shot('cup')
+        walk(s, 'ESCI', 3)
+        cw, wcur = hdr(s)
+        check(cw == 5 and s.result.read(wcur, 1)[0] == 5, f'after the picker: SWE_CWORLD {cw}, WCUR '
+              f'{s.result.read(wcur, 1)[0]}', errs)
+        walk(s, 'SALVA COPPA PERSONAL.', 3)
+        s.send(name_entry('wm5') + ' dump:3')
+        game = s.result.game
+    f = [x for x in os.listdir(game) if x.upper() == 'WM5.DIY']
+    if not f:
+        return False, '; '.join(errs + [f'no WM5.DIY saved ({sorted(os.listdir(game))[:20]})'])
+    path = os.path.join(game, f[0])
+    data = open(path, 'rb').read()
+    check(data[-4:] == b'WM\x01\x05', f'WM5.DIY tail {data[-8:].hex()} ({len(data)} B)', errs)
+    info.append(f'WM5.DIY {len(data)} B, tail {data[-4:]!r}')
+    with Session('engine_wmodes_diy2', b, {'WM5.DIY': path}, 'dump:3', 300) as s:
+        s.wait()
+        walk(s, 'CARICA VECCHIA COMPETIZIONE', 3)
+        if press(s, s.screen(), 'WM5', 3, exact=False) is None:
+            return False, '; '.join(errs + [f'WM5 not listed ({s.screen().texts()[:12]})'])
+        sc = s.screen()
+        cw, wcur = hdr(s)
+        check(cw == 5 and s.result.read(wcur, 1)[0] == 5, f'loaded: SWE_CWORLD {cw}, WCUR {s.result.read(wcur, 1)[0]}',
+              errs)
+        check(sc.find('INTER') is not None and sc.find('HAMBURG') is not None, f'the cup menu: {sc.texts()[:14]}', errs)
+        s.shot('loaded')
+        info.append(f'loaded: SWE_CWORLD {cw}, WCUR {s.result.read(wcur, 1)[0]}')
+    return not errs, '; '.join(errs + info)
+
+
 @scenario
 def swospp_menu():
     """4.0.5 (Davide 30/10, option 2): under SWOS++ the green button (W-modes: the world switch, fired once here) keeps entry 4 and SWOS++'s own entry

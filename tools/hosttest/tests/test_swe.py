@@ -28,8 +28,8 @@ def test_swe_init():
     img = bytearray(le.obj_bytes(4)).ljust(o.vsize, b'\xAA')      # (the tail: garbage, as DOS/4GW may leave it)
     file_n = 0x1000 * o.npages
     for sobj, soff, t, tobj, toff, *_ in le.fixups():
-        if sobj == 4:
-            assert t == 7 and tobj == 4, (soff, t, tobj)              # (the empty engine: only pointers into obj4)
+        if sobj == 4 and tobj == 4:                                   # (step W: obj4 also reaches obj1 - the registry
+            assert t == 7, (soff, t, tobj)                            # loader, the picker - which swe_init never uses)
             struct.pack_into('<I', img, soff, BASE + toff)
     hdr = bytes(img[:32])
     assert hdr[:8] == swe.MAGIC, hdr[:8]

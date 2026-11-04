@@ -46,18 +46,21 @@ class LayoutChanged(Exception):
     pass
 
 
-def relocate(exe, base1, base2, base3=None):
+def relocate(exe, base1, base2, base3=None, base4=None):
     """(obj1, obj2) images of an LE exe loaded at those linear bases: initialized bytes + zeroed tail (vsize), every
     internal fixup applied (32-bit offset, self-relative, selector, 16:32 pointer, 16-bit offset). base3 (4.0.6, an
-    exe with obj3): its image too, le.img3 (file pages only: the zero-fill tail is not the image's)"""
+    exe with obj3): its image too, le.img3 (file pages only: the zero-fill tail is not the image's); base4 (engine
+    step W, obj4 = the engine): le.img4 the same way"""
     import sys as _s
     _s.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
     from le import LE
     le = LE(open(exe, 'rb').read())
     objs = (1, 2, 3) if base3 is not None and len(le.objs) > 2 else (1, 2)
-    bases = {1: base1, 2: base2, 3: base3}
+    if base4 is not None and len(le.objs) > 3:
+        objs += (4,)
+    bases = {1: base1, 2: base2, 3: base3, 4: base4}
     img = {n: bytearray(le.obj_bytes(n)).ljust(le.obj(n).vsize if n < 3 else 0, b'\0') for n in objs}
-    sel = {1: CODE_SEL, 2: DATA_SEL, 3: CODE_SEL}
+    sel = {1: CODE_SEL, 2: DATA_SEL, 3: CODE_SEL, 4: CODE_SEL}
     for sobj, soff, typ, tobj, toff, _r, _f, _t32 in le.fixups():
         if sobj not in img or bases.get(tobj) is None:
             continue
@@ -76,6 +79,7 @@ def relocate(exe, base1, base2, base3=None):
         elif typ == 5:
             struct.pack_into('<H', b, soff, tgt & 0xFFFF)
     le.img3 = bytes(img[3]) if 3 in img else None
+    le.img4 = bytes(img[4]) if 4 in img else None
     return bytes(img[1]), bytes(img[2]), le
 
 

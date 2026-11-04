@@ -296,8 +296,10 @@ an obj1 pointer (run.EXE's fixups). snapshot.py --every N.
 Option C P2 (the save guards: ctgame.c cg_open / cg_close / cg_guard, CG_G through the 'CGTRPTR' block's 4th dword):
 `world_cgame_guard` (DOSBox, the GO/NO-GO 2 gate) - one season-1 save (CGG_S1, else season 1 on A), its season 2
 played on CGG_A (the release recipe) and on CGG_B (the same + CONTI_CGVIEW=1: conti's ct_daily opens one drawn conti
-round a day, does to it what the game's view does - cseg_8B71C / cseg_8B7EA - and closes it): the two season-2
-.CARs byte-identical, B's CG_G with views opened, no bad sum, no sticky fallback, no failed build (CGG_TEAM, default
+round a day, does to it what the game's view does - cseg_8B71C / cseg_8B7EA - and closes it), the random state
+pinned at every pause on both (W8485_RNGSTEP: CareerMenu reseeds Rand from currentTick on every entry, and B's views
+cost time - unpinned, a one-tick shift moved one draw, a season-2 record's byte 0x11143, on I10h and I10i alike,
+04/11): the two season-2 .CARs byte-identical, B's CG_G with views opened, no bad sum, no sticky fallback, no failed build (CGG_TEAM, default
 HAMRUN SPARTANS). On the release recipe per language: the language's exe as ITALIAN.EXE in c/CGG_<A|B>_<lang>/SWOS,
 SWOSTEST_UI=<lang>. B is NEVER made with buildrel.sh: it clears every modver.BUILD_SWITCHES entry, CONTI_CGVIEW too
 ("test switches cleared: CONTI_CGVIEW"), so its B = A (same md5) and the guard passes proving nothing (I7, 03/11).

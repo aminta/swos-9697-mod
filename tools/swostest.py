@@ -14644,7 +14644,8 @@ def sc_trace(exe):
 def sc_season(team, extra, runs_tag=1):
     """world8485 on a World 2026-27 career at team with extra env; the session log's lines."""
     keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_ONE',
-            'W8485_MIDSAVE', 'W8485_FROM', 'W8485_HEX', 'W8485_RECSHOT', 'W8485_RLDBG', 'W8485_FILL', 'W8485_MIDTEXT')
+            'W8485_MIDSAVE', 'W8485_FROM', 'W8485_HEX', 'W8485_RECSHOT', 'W8485_RLDBG', 'W8485_FILL', 'W8485_MIDTEXT',
+            'W8485_RNGSTEP')
     keep = {k: os.environ.get(k) for k in keys}
     os.environ.update(W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1',
                       W8485_ONE='1', **extra)
@@ -16264,8 +16265,9 @@ def world_cgame_guard():
     one recipe (CGG_A: without, CGG_B: with CONTI_CGVIEW=1 - a test build: conti's ct_daily opens one drawn conti round
     every day (cg_open: the state kept, cg_build), does to it what the game's view does (cseg_8B71C / cseg_8B7EA on the
     contest) and closes it (cg_close: put back, the saved state's sum checked)). Season 1 on A (CGG_S1: a cached save),
-    then season 2 from its save on A and on B: the two season-2 .CARs byte-identical, B's guard (CG_G) opened views,
-    no bad sum, no fallback, no failed build. CGG_TEAM (default HAMRUN SPARTANS: a short league)."""
+    then season 2 from its save on A and on B, the random state pinned at every pause (W8485_RNGSTEP): the two
+    season-2 .CARs byte-identical, B's guard (CG_G) opened views, no bad sum, no fallback, no failed build. CGG_TEAM
+    (default HAMRUN SPARTANS: a short league)."""
     src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
     if not os.path.isdir(src) and not (os.environ.get('CGG_A') and os.environ.get('CGG_B')):
         return True, f'SKIP: private data {src} missing'
@@ -16303,9 +16305,11 @@ def world_cgame_guard():
         seen.clear()
         W84_HOOK = hook if k == 'B' else None
         try:
-            ok, msg, _ = sc_season(team, dict(W8485_BUILD=exes[k], W8485_FROM=s1), 2)
-        finally:
-            W84_HOOK = None
+            ok, msg, _ = sc_season(team, dict(W8485_BUILD=exes[k], W8485_FROM=s1, W8485_RNGSTEP='cgg'), 2)
+        finally:                                # (the random state pinned at every pause, both exes: CareerMenu
+            W84_HOOK = None                     # reseeds Rand from currentTick on every entry, and B's daily view
+                                                # costs time - one tick later, one draw apart: 04/11, a season-2
+                                                # record's byte 0x11143 02 / 08 on I10h and I10i alike, PASS pinned)
         car = os.path.join(RUNS, w84_tag() + '_2', 'SWOS', 'W84B.CAR')
         check(ok and os.path.exists(car), f'season 2 on {k}: {msg[:150]}', errs)
         if os.path.exists(car):

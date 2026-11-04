@@ -1083,10 +1083,68 @@ bt_vis:                                 ; SQ. B shown (and ESCI's left -> it) fo
     call CALC
     mov edi, [A0]
     mov word [edi + 4], 0               ; (isInvisible)
+    movzx ebp, word [edi + 14h]         ; (SQ. B's x)
     mov dword [D0], 9
     call CALC
     mov edi, [A0]
     mov byte [edi + 8], SQE_            ; ESCI: left -> SQ. B
+    mov dword [D0], 5                   ; the coach's name: shown cut at SQ. B (Davide 02/11 (a)), the name untouched
+    call CALC
+    mov edi, [A0]
+    mov esi, [edi + 26h]
+    cmp esi, bt_coach
+    je .x
+    test esi, esi
+    jz .x
+    movzx eax, word [edi + 14h]
+    sub ebp, eax                        ; the free width: SQ. B's x - the entry's x - 2 (- 2 more with a background)
+    sub ebp, 2
+    cmp word [edi + 1Ch], 0
+    je .bg
+    sub ebp, 2
+.bg:
+    mov dword [edi + 26h], bt_coach
+    mov ebx, bt_coach
+    mov ecx, 23
+.ch:
+    lodsb
+    test al, al
+    jz .end
+    mov dl, 6                           ; the menus' small font (complist.SMALL_W)
+    cmp al, ' '
+    jne .c1
+    mov dl, 3
+.c1:
+    cmp al, '-'
+    jne .c2
+    mov dl, 4
+.c2:
+    cmp al, '('
+    je .w3
+    cmp al, ')'
+    jne .c3
+.w3:
+    mov dl, 3
+.c3:
+    push edi
+    mov edi, bt_w2
+    push ecx
+    mov ecx, 7
+    repne scasb
+    pop ecx
+    pop edi
+    jne .c4
+    mov dl, 2
+.c4:
+    movzx edx, dl
+    sub ebp, edx
+    js .end
+    mov [ebx], al
+    inc ebx
+    dec ecx
+    jnz .ch
+.end:
+    mov byte [ebx], 0
 .x: pop eax
     mov [A0], eax
     pop eax
@@ -1237,6 +1295,8 @@ bt_hl:                                  ; squadnum's number entry (esi = it, [A6
     ret
 
 align 4
+bt_coach: times 24 db 0
+bt_w2: db "I1',.:", 0                   ; 2 px wide
 bt_nb: times 32 * 4 db 0
 bt_nc: db 0
 align 4

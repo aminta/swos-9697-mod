@@ -22324,6 +22324,24 @@ def bteam_ui():
             return False, f'no squad screen: {s.screen()}'
         n0, _, _, bu0 = bteam_state(s, v)
         b0 = bank()
+        import complist                                 # a long coach name: shown cut at SQ. B (Davide 02/11 (a))
+        scr = s.screen()
+        cn = next((t for i, t, inv, _ in scr.entries if i == 5), '')
+        ctb = bytes(s.result.obj2(v['ct'], 76))
+        long_name = os.environ.get('BT_COACH', 'ALEXANDER MACPHERSON-SMYTHE')[:22]
+        if cn and cn.encode('latin-1') + b'\0' in ctb:
+            s.poke(s.result.lin((2, v['ct'] + ctb.index(cn.encode('latin-1') + b'\0'))), long_name.encode() + b'\0')
+            walk(s, 'ESCI', 3)
+            sq_open(s)
+            scr = s.screen()
+            shown = next((t for i, t, inv, _ in scr.entries if i == 5), '')
+            g = {x[0]: scr.geom[j] for j, x in enumerate(scr.entries)}
+            free = g[64][0] - g[5][0] - 2 if 64 in g else 999
+            check(long_name.startswith(shown) and 0 < complist.px(shown) <= free,
+                  f'coach {long_name!r} shown {shown!r} ({complist.px(shown)} px, free {free})', errs)
+            info.append(f'coach {long_name!r} shown {shown!r} ({complist.px(shown)} px of {free})')
+        else:
+            errs.append(f'coach name {cn!r} not in careerTeam')
         scr = s.screen()
         s.shot('squad_btn')
         check(scr.find('SQ. B', exact=True) is not None, f'no SQ. B on the squad screen: {scr}', errs)

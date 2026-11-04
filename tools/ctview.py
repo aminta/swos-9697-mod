@@ -43,6 +43,8 @@ def round_name(r, lang):
 
 
 CR_N, CR_W, CR_LW = 16, 150, 30         # P3's rounds menu: buttons, their width, a label's bytes (NUL-ended)
+CR_X = (0, 154)                         # its two columns (the bottom pair too): centred in the menu's 304 px frame
+                                        # (screen x + 8, the title 0..304), 8 px both sides, 4 between (Davide 05/11)
 CR_SCR_AT = 0x3000                      # (ctgame's scratch: its CG_END; CR_SCR_N bytes there, ctgame.CG_BSS covers them)
 CR_SCR_N = 0x280                        # (labels 16 x 30, nav, title)
 CR_PTRS = {}                            # its pointers into ctgame (cg_view, cg_close, the scratch): ctgame.patch sets them
@@ -611,11 +613,11 @@ def patch(p, at, lang, scr_at):
     h = CR_N // 2
     rb = []
     for k in range(CR_N):
-        rb += [f'    dw {8 + 154 * (k // h)}, {22 + 18 * (k % h)}, {CR_W}, 15', '    dw 2', '    db 0FFh, 0FFh, 0FFh, 0FFh',
+        rb += [f'    dw {CR_X[k // h]}, {22 + 18 * (k % h)}, {CR_W}, 15', '    dw 2', '    db 0FFh, 0FFh, 0FFh, 0FFh',
                '    dw 4, 0Eh', '    dw 8, 0', f'    dd CR_LBL + {CR_LW * k}', '    dw 13', f'    dd cr_s{k}', '    dw 0']
-    rb += [f'    dw 8, 172, {CR_W}, 15', '    dw 2', f'    db 0FFh, {CR_N + 2}, 0FFh, 0FFh', '    dw 4, 0Eh', '    dw 8, 0',
+    rb += [f'    dw {CR_X[0]}, 172, {CR_W}, 15', '    dw 2', f'    db 0FFh, {CR_N + 2}, 0FFh, 0FFh', '    dw 4, 0Eh', '    dw 8, 0',
            '    dd CR_SUMT', '    dw 13', '    dd cr_sum', '    dw 0',
-           f'    dw 162, 172, {CR_W}, 15', '    dw 2', f'    db {CR_N + 1}, 0FFh, 0FFh, 0FFh', '    dw 4, 0Ch', '    dw 8, 0',
+           f'    dw {CR_X[1]}, 172, {CR_W}, 15', '    dw 2', f'    db {CR_N + 1}, 0FFh, 0FFh, 0FFh', '    dw 4, 0Ch', '    dw 8, 0',
            '    dd EXIT_T', '    dw 13', '    dd EXIT_F', '    dw 0']
     src = nasmcave.sub(src, 'CR_BUTTONS\n', '\n'.join(rb) + '\n')
     src = nasmcave.sub(src, 'CR_STUBS\n', ''.join(f'cr_s{k}: mov eax, {k}\n    jmp cr_go\n' for k in range(CR_N))

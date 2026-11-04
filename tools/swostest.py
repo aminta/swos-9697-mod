@@ -320,17 +320,17 @@ SPP_STEP = False                                        # bench_world BENCH_SPP:
                                                         # sppmatch flow: the only one that starts PLAY MATCH under SWOS++)
 
 
-def spp_go(s, target, w=3):
+def spp_go(s, target, w=3, fire='fire'):
     """Under SWOS++'s timer feed: select target one key at a time, re-planning after each (key:0.3, a pause), then a
     plain fire - Panchina's sppmatch.py flow, which starts PLAY MATCH 5/5 where press()'s whole path + 'fire up:0.05'
     never did. Returns True, or None when target is not on the screen / not reached."""
     for _ in range(30):
         sc = s.screen()
-        i = sc.find(target, exact=True)
+        i = target if isinstance(target, int) else sc.find(target, exact=True)
         if i is None:
             return None
         if sc.selected == i:
-            s.send(f'fire dump:{w}')
+            s.send(f'{fire} dump:{w}')
             return True
         st = sc.path(i, set(), steps=True)
         if not st:
@@ -410,7 +410,8 @@ def test_exe(exe, steps, match=False, timer=False):
     p.set_vsize(1, page + le.page_size)
     if not os.environ.get('SWOSTEST_INTRO'):            # (SWOSTEST_INTRO=1: the intro plays, as on a real start)
         p.put(1, intro + 8, b'\xEB')
-    p.put(1, mcc + 8, b'\x90' * 6)
+    if not (timer and os.environ.get('SWOSTEST_SPP_NOLATCH')):   # (probe: SWOS++'s timer feed without the latch read)
+        p.put(1, mcc + 8, b'\x90' * 6)
     src = """
 stub:   pushad
         inc dword [calls]
@@ -1205,6 +1206,23 @@ def press(s, scr, text, wait=2, exact=True, avoid=frozenset()):
     not to take (the long bench's window: up on row 12 / down on row 17 scroll it); none left: any way."""
     i = text if isinstance(text, int) else scr.find(text, exact=exact)
     if i is None:
+        return None
+    if SPP_STEP and not avoid:                          # (SWOS++'s timer feed: a key can move two rows, so a path
+        for _ in range(40):                             # is walked one tap at a time, re-planned after each pause; the
+            if scr.selected == i:                       # fire only on a selection still there one pause later)
+                if s.send('dump:0.5').outcome != 'dump':
+                    return s.result
+                if s.screen().selected == i:
+                    s.log.append(f'[spp fire] {i} on {s.screen()}'[:400])
+                    return s.send(f'{PRESS_FIRE} dump:{wait}')
+                scr = s.screen()
+                continue
+            steps = scr.path(i, set(), steps=True)
+            if not steps:
+                return None
+            if s.send(steps[0][0] + ' dump:0.5').outcome != 'dump':
+                return s.result
+            scr = s.screen()
         return None
     bad = set(avoid)
     for attempt in range(40):
@@ -5913,8 +5931,8 @@ def bench_squad(s, scr, bx, cmp_, cnp, errs, info, mark, woff=4, box=30, row1=13
         states.append((w, h[11:17]))
         if k in (0, 5, n - 17):
             s.shot(f'{tag}_win{w:02d}')
-        r = s.send('fire:0.3 dump:0.6')
-    info.append(f'{tag} window {[w for w, _ in states]}')
+        r = s.send(('fire:0.3' if not SPP_STEP else 'dump:0.3 ' + PRESS_FIRE) + ' dump:0.6')   # (SWOS++: the latch
+    info.append(f'{tag} window {[w for w, _ in states]}')                                      # cleared, as press())
     check([w for w, _ in states] == list(range(n - 16)) + [0], f'{tag} window steps {[w for w, _ in states]}', errs)
     check(r.obj2(cmp_, n) == order0, f'{tag}: the order changed by the window (a rotation?)', errs)
     ref_b = states[0][1][0]                 # window 0, row 12 = place 12: bench
@@ -6902,7 +6920,7 @@ def bench_world():
         shutil.copy(exe, exe + '.nospp')
         swospp.install(exe + '.nospp', exe)
         global PRESS_FIRE, SPP_STEP
-        PRESS_FIRE = 'fire up:0.05'
+        PRESS_FIRE = 'fire q:0.01'
         SPP_STEP = True                     # (bench_play: the match flow one key at a time + plain fire, as sppmatch)
         pp = os.path.join(MAIN, 'internal', 'swospp-test')
         files = {'LOADER.BIN': os.path.join(pp, 'loader.bin'), 'SWOSPP.BIN': os.path.join(pp, 'swospp.bin')}
@@ -6930,7 +6948,7 @@ def bench_world():
             if press(s, s.screen(), t) is None:
                 return False, f'new career: {t} not reached ({s.result})'
         if not pick_career(s, path):
-            return False, f'new career: {path} not reached ({s.result})'
+            return False, f'new career: {path} not reached ({s.result}) on {s.screen()}'
         n = struct.unpack('<H', s.result.obj2(cnp, 2))[0]
         info.append(f'{club}: {n} players in the squad')
         real = os.environ.get('BENCH_REAL')   # (phase 2) 'named:used' wanted from the competition's real rule: no poke
@@ -8140,6 +8158,9 @@ def pick_career(s, path):
             next((x for i, x, inv, _ in scr.entries if 11 <= i <= 20 and x and not inv and t.startswith(x + ' ')), None)
         if lvl and press(s, scr, lvl, 3) is None:
             return False
+        if SPP_STEP and s.screen().find(t, exact=True) is None and s.screen().find('ESCI', exact=True) is not None:
+            s.log.append(f'[spp latch] {t} not on {s.screen()}'[:300])   # (SWOS++: the fire stays latched into the
+            press(s, s.screen(), 'ESCI', 3)             # next menu, which fires on its preselected entry: back, then t)
         if press(s, s.screen(), t, 3) is None:
             return False
     return True

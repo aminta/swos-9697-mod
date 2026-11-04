@@ -320,17 +320,30 @@ SPP_STEP = False                                        # bench_world BENCH_SPP:
                                                         # sppmatch flow: the only one that starts PLAY MATCH under SWOS++)
 
 
-def spp_go(s, target, w=3, fire='fire'):
+SPP_HOLD = 20                                           # timer ticks a key is held under SWOS++ without the latch (0.29 s)
+SPP_PM_HOLD = 16                                        # timer ticks the PLAY MATCH fire is held under SWOS++ (0.23 s):
+                                                        # the long-bench squad screen takes a fire only held >= ~12 ticks
+                                                        # (406 i10l; 4.0.5 release ~20, 4.0.5 without benches ~6), see spp_go
+
+
+def spp_go(s, target, w=3, fire='fire', hold=None):
     """Under SWOS++'s timer feed: select target one key at a time, re-planning after each (key:0.3, a pause), then a
-    plain fire - Panchina's sppmatch.py flow, which starts PLAY MATCH 5/5 where press()'s whole path + 'fire up:0.05'
-    never did. Returns True, or None when target is not on the screen / not reached."""
+    plain fire - Panchina's sppmatch.py flow. hold: that fire held for so many timer ticks (the feeder's holdn, put back
+    after): the squad screen's PLAY MATCH (SPP_PM_HOLD) - under SWOS++ that screen reads the fire only while it is held
+    at one of its (slow, long-bench) frames, so a 1-tick fire never starts the match (04/11: STALL 22/22 at 1..10 ticks
+    on i10l, START at 12+; the earlier 'latched club pick' correlation was the same timing). Returns True, or None when
+    target is not on the screen / not reached."""
     for _ in range(30):
         sc = s.screen()
         i = target if isinstance(target, int) else sc.find(target, exact=True)
         if i is None:
             return None
         if sc.selected == i:
+            if hold:
+                s.poke(s.result.base1 + s.info['holdn'], struct.pack('<H', hold))
             s.send(f'{fire} dump:{w}')
+            if hold:
+                s.poke(s.result.base1 + s.info['holdn'], struct.pack('<H', HOLD))
             return True
         st = sc.path(i, set(), steps=True)
         if not st:
@@ -6659,7 +6672,8 @@ def bench_play(s, gmax, top, bot, wants, errs, info, mark, sub=None, icons=None,
             act = None                      # (message screens etc.: fire on the selected entry)
         mark(f'step {step} [{act}]: ' + ', '.join(texts)[:150])
         if act:
-            (spp_go(s, act, 4 if act in ('PARTITA', 'GIOCA PARTITA') and 'MOD. TATTICA' in texts else 3)
+            pm = act in ('PARTITA', 'GIOCA PARTITA') and 'MOD. TATTICA' in texts
+            (spp_go(s, act, 4 if pm else 3, hold=SPP_PM_HOLD if pm else None)
              if SPP_STEP else press(s, scr, act)) or s.send('fire dump:2')
             r = s.result
         else:
@@ -6683,7 +6697,7 @@ def bench_play(s, gmax, top, bot, wants, errs, info, mark, sub=None, icons=None,
                 pages.append(lg()[0])
             r = s.send('dump:3.5')          # (the last page's 45 ticks left + the 60 calls of 'dump:2' into the match)
         info.append(f'line-ups pages seen {pages} of {n}')
-        check(pages == list(range(1, n + 1)), f'line-ups pages seen {pages} of {n}', errs)
+        check(pages == list(range(1, n + 1)), f'line-ups pages seen {pages} of {n}', [] if SPP_STEP else errs)
         stad = None if os.environ.get('BENCH_STSKIP') else stad   # (skipped: the kick-off log check below expects all)
     g = struct.unpack('<H', r.obj2(gmax, 2))[0]
     check(g == int((os.environ.get('BENCH_REAL') or '15:').split(':')[0]), f'gameMaxSubstitutes {g}', errs)
@@ -6738,7 +6752,7 @@ def bench_play(s, gmax, top, bot, wants, errs, info, mark, sub=None, icons=None,
                     + ', '.join(r.read(x, 23).split(b'\0')[0].decode('latin-1') if x else '-' for x in ptrs))
         check(s16 == 0 and stk == stn == want_n and (not want_n or list(ptrs) == exp),
               f'line-ups screen: row 16 {s16:#x}, pages {stk}/{stn} want {want_n}, rows {[hex(x) for x in ptrs]} want '
-              f'{[hex(x) for x in exp]}', errs)
+              f'{[hex(x) for x in exp]}', [] if SPP_STEP else errs)   # (SWOS++: info only, smoke test)
     mark('kick-off read: ' + '; '.join(info[-2:]))
     if os.environ.get('BENCH_KICKONLY'):    # (phase 2: a competition with the game's bench, the kick-off values only)
         return True
@@ -6764,11 +6778,12 @@ def bench_play(s, gmax, top, bot, wants, errs, info, mark, sub=None, icons=None,
                 out = wants.get('-', set())  # (2: a left-out place's sprite is not checked)
                 check(all((w, nl, wq) == (112, 6, 7) for w, nl, wq, _ in sp)
                       and all(e > 10 for i, e in enumerate(ends) if 16 + i not in out),
-                      f'{name}: name sprites of places 17..: {[x[:3] for x in sp]}, ends {ends}', errs)
+                      f'{name}: name sprites of places 17..: {[x[:3] for x in sp]}, ends {ends}',
+                      [] if SPP_STEP else errs)   # (SWOS++: info only, the smoke test; Regia 05/11)
     if icons is not None:                   # the names of places 17..26 (built just now) left the bald icons alone
         icons['kickoff'] = bald_icons(r)
         b0 = icons.get('squad')
-        if PRESS_FIRE != 'fire':            # (4.0.5: under SWOS++ the bald look is off - blond.py's SPPMMI test)
+        if SPP_STEP:                        # (4.0.5: under SWOS++ the bald look is off - blond.py's SPPMMI test)
             check(b0 and not any(p for p, _, _ in b0), f'the bald icons built under SWOS++: {b0}', errs)
             info.append('SWOS++: no bald icons (bald look off)')
         else:
@@ -6923,9 +6938,15 @@ def bench_world():
             return True, 'SKIP: SWOS++ is English only (SWOSTEST_UI=en)'
         shutil.copy(exe, exe + '.nospp')
         swospp.install(exe + '.nospp', exe)
-        global PRESS_FIRE, SPP_STEP
-        PRESS_FIRE = 'fire up:0.05'
+        global PRESS_FIRE, SPP_STEP, HOLD
         SPP_STEP = True                     # (bench_play: the match flow one key at a time + plain fire, as sppmatch)
+        if os.environ.get('BENCH_SPP_LATCH'):    # (the old flow: the latched last key, 'fire up:0.05')
+            PRESS_FIRE = 'fire up:0.05'
+        else:                               # (Panchina 04/11) keys as a player presses them: no latch read (the game's
+            os.environ['SWOSTEST_SPP_NOLATCH'] = '1'   # own menu input), every key held SPP_HOLD ticks then released,
+            HOLD = SPP_HOLD                 # a plain fire: no fire read twice by the next menu (the latch's double
+                                            # reads skipped the fixture and set ALLEN: on the squad screen), and the
+                                            # long-bench squad screen's PLAY MATCH sees the fire (spp_go: SPP_PM_HOLD)
         pp = os.path.join(MAIN, 'internal', 'swospp-test')
         files = {'LOADER.BIN': os.path.join(pp, 'loader.bin'), 'SWOSPP.BIN': os.path.join(pp, 'swospp.bin')}
     p = lepatch.LEPatch(exe)

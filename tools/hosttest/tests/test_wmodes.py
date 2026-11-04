@@ -261,6 +261,31 @@ def test_wmodes():
         if ids(cwt) != ctop + [98] or ids(u32(slot(98))) != o98:
             errs.append(f'career picker, setting {setting}: lists not restored {ids(cwt)} {ids(u32(slot(98)))}')
     tr._call(uc, guard)
+    # M3: swe_car_tramp's own pre / post (its calls: pushal; call pre; popal; call the picker; ..; call post): only for
+    # SELECT TEAM TO MANAGE (mainbtn mb_d0's check: the title pointer = its string); after it the namespace stays
+    import mainbtn
+    _, hdr_s, str_s = mainbtn.choose_sites(o)
+    HDR, STR = ((B1 if x[0] == 1 else B2) + x[1] for x in (hdr_s, str_s))
+    cc = [a for a in range(car[0], car[0] + 40) if rd(a, 1) == b'\xe8']
+    cpre, cpost = _e8(rd, cc[0]), _e8(rd, cc[2])
+    uc.mem_write(wdef, b'\x00')
+    keep_hdr = rd(HDR, 4)
+    for title, on in ((STR + 1, False), (STR, True)):
+        uc.mem_write(HDR, struct.pack('<I', title))
+        uc.mem_write(D0, b'\xcd')                # (mb_d0's: World 2026-27's list)
+        tr._call(uc, cpre)
+        got = (ids(u32(slot(98))), u32(selmode), rd(D0, 1)[0])
+        want = ([200, 204], swreg.M_CAREER, 205) if on else (o98, 0xFFFFFFFF, 0xCD)
+        uc.mem_write(wcur, b'\x05')              # (the path's namespace, as the picker left it)
+        tr._call(uc, cpost)
+        if got != want or ids(u32(slot(98))) != o98 or u32(selmode) != 0xFFFFFFFF or rd(wcur, 1)[0] != 5:
+            errs.append(f'career tramp ({"SELECT TEAM TO MANAGE" if on else "another team choice"}): {got} want '
+                        f'{want}; after: 98 {ids(u32(slot(98)))} SEL_MODE {u32(selmode):#x} WCUR {rd(wcur, 1)[0]}')
+    uc.mem_write(HDR, keep_hdr)
+    uc.mem_write(D0, b'\xff')
+    w16(GTYPE, 0)
+    tr._call(uc, guard)
+    run(0, 1, [(1, 0)])                           # (the base namespace back for the cases below)
     for tt in (0, 2, 3):
         d0, seen, cw, same = run(0, tt, [])
         if d0 != 255 or seen[0][0] != o98 or seen[0][2] or seen[-1] != ('ns', 4, 4) or not same:
@@ -305,6 +330,6 @@ def test_wmodes():
     if res != want or odd != 0:
         errs.append(f'DIY save / load {res} (want {want}), a file of another size -> {odd}')
     return not errs, '; '.join(errs) or (
-        f'default 2026-27 / 1996-97 / 1984-85 lists, lock both ways, national / custom untouched, memory restored; '
+        f'default 2026-27 / 1996-97 / 1984-85 lists, lock both ways, national / custom untouched, memory restored; career picker (M3): the same lists, no lock, only for SELECT TEAM TO MANAGE, namespace kept; '
         f'200 = 6 proxies = the game continents; DIY: WM 5 / 4 round trip, 1996-97 alone = the game file '
         f'({game} B), other size -> 0')

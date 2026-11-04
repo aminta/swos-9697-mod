@@ -13826,9 +13826,9 @@ def market_keep_page():
     import mklist
     import sacups
     from le import LE
-    st = mklist.sites(lepatch.LEPatch(os.path.join(ROOT, 'orig', 'ITALIAN.EXE')))
-    found, onpage, pg = st['FOUND'][1], st['ONPAGE'][1], st['PG'][1]
-    d1 = LE(open(os.path.join(ROOT, 'orig', 'ITALIAN.EXE'), 'rb').read()).obj_bytes(1)
+    st = mklist.sites(lepatch.LEPatch(os.path.join(ROOT, 'orig', UI_ORIG)))   # (the run's language: en / fr / de
+    found, onpage, pg = st['FOUND'][1], st['ONPAGE'][1], st['PG'][1]          #  move the game's variables)
+    d1 = LE(open(os.path.join(ROOT, 'orig', UI_ORIG), 'rb').read()).obj_bytes(1)
     a1 = sacups.regs(d1)['A1']
     m = re.search(rb'\x66\x83\x3d(....)\x19\x74.\xc7\x05' + re.escape(struct.pack('<I', a1)) + rb'(....)', d1, re.S)
     nh, hm = struct.unpack('<I', m.group(1))[0], struct.unpack('<I', m.group(2))[0]
@@ -13904,11 +13904,11 @@ def market_keep_page():
         leave(s)
         market(s, 'STRANIERO')
         f5, _, _, _ = state(s)
-        if f5 < 11:
+        if f5 < 1:
             errs.append(f'foreign market: only {f5} found')
-        else:
-            want = 20 if f5 >= 21 else 10
-            for _ in range(want // 10):
+        else:                                   # (the foreign market's size is the game's chance, 9..15 seen, not
+            want = 20 if f5 >= 21 else 10 if f5 >= 11 else 0   # pinned by the generators: a short list stays on its
+            for _ in range(want // 10):         # first page, the offer picked there)
                 walk(s, 7, 3)                      # ALTRI: page 20 (page 10 on a short list)
             f6, p6, o6, rows6 = state(s)
             s.shot('for_page')

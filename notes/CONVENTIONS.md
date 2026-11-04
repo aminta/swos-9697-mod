@@ -101,3 +101,17 @@ new rule. If a rule seems wrong for a case, ask the regia session; don't silentl
       rel32 (behind a type-8 fixup it is 0 until load); put() asserts over an existing type-8 rel32.
     - DOS/4GW loads obj3 apart from obj1 + obj2 (below obj1 in DOSBox-X): the harness reads it at Result.base3 (an obj1
       pointer into obj3), obj3 offsets as swostest.Off3, any (obj, off) through Result.lin().
+23bis. **obj4 is the competition engine's, and only the engine's** (engine step O, 04/11, Regia GO after the SWOS++ /
+    DOS/4GW probe). No 4.0.x minor ever adds code, data or pages to obj4; their code stays in obj3 (rule 23).
+    - Layout (tools/swe.py): obj4+0 the header ('SWOS-ENG', version, a self pointer, -> swe_init, -> the arena, the
+      .bss size, -> SWE_STATE); obj4+0x40 the engine's code + data (swe.OBJ4_PAGES file pages); the arena = the C
+      .bss, zero-filled vsize. patch.py adds obj4 right after obj3's pages; swe.patch() links it and puts its base
+      above obj3's end. buildrel.sh fails a build with a 5th object.
+    - **DOS/4GW zeroes no tail: the engine zeroes its own arena** (swe_init, before any other engine call). Never rely
+      on a zero obj4 byte that the engine did not write.
+    - No obj4 address is ever stored in a save (engine state = 'EN' items, rule 21), so obj4 may grow and move freely.
+    - Calls between the game / obj3 and obj4: self-relative fixups (type 8) as rule 23; cobj.link(text_obj=4).
+    - The harness finds obj4 by its header (Result.base4: the magic + the self pointer), not by a game pointer.
+    - Gates for any obj4 change: engine_obj4 (IT, and SWOSTEST_UI=en for SWOS++ 1.9.2.2), bench_world with
+      BENCH_SPP=1 (a match under SWOS++), host tests test_swe + test_roundtrip; before a minor ships, a MiSTer
+      z486 / ao486 boot of the obj4 exe.

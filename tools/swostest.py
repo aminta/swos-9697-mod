@@ -814,10 +814,22 @@ class Result:
             self._base3 = struct.unpack('<I', self.read(self.base1 + self.p3[0], 4))[0] - self.p3[1]
         return self._base3
 
+    @property
+    def base4(self):
+        """obj4's linear base (engine step O: the engine's object), found by its header (swe.py: 'SWOS-ENG', then at
+        +12 a pointer to itself); None without obj4 (no game pointer into it before step W)."""
+        if getattr(self, '_base4', None) is None:
+            m = self.read(0, MEMSIZE)
+            k = m.find(b'SWOS-ENG')
+            while k >= 0 and struct.unpack_from('<I', m, k + 12)[0] != k:
+                k = m.find(b'SWOS-ENG', k + 1)
+            self._base4 = k if k >= 0 else None
+        return self._base4
+
     def lin(self, a):
         """The linear address of a (obj, offset) pair, or of a plain obj1 offset (older callers)."""
         if isinstance(a, tuple):
-            return {1: self.base1, 2: self.base2, 3: self.base3}[a[0]] + a[1]
+            return (self.base4 if a[0] == 4 else {1: self.base1, 2: self.base2, 3: self.base3}[a[0]]) + a[1]
         if isinstance(a, Off3):
             return self.base3 + int(a)
         return self.base1 + a
@@ -9545,6 +9557,61 @@ def controls_swospp():
               'game\'s)', errs)                # (4.0.6: no ROSSI / INFORTUNI ALLA CPU / INFORTUNI PORTIERI rows - 20..25)
         s.shot('options')
     return not errs, '; '.join(errs) or 'no CONTROLS button under SWOS++'
+
+
+@scenario
+def engine_obj4():
+    """engine step O (CONVENTIONS 23bis): the exe has a 4th LE object, obj4 = the engine's (swe.py), and DOS/4GW loads
+    it: its header found in memory ('SWOS-ENG', the self pointer relocated), its pointers to swe_init and the arena
+    relocated to obj4's base, the version and arena size as built; the main menu up. SWOSTEST_UI=en: the same under
+    SWOS++ 1.9.2.2 (loader files, timer keys; swospp_on). A match under SWOS++: bench_world with BENCH_SPP=1."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import swe
+    from le import LE
+    b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
+    exe = os.path.join(b, 'ITALIAN.EXE')
+    le = LE(open(exe, 'rb').read())
+    if len(le.objs) < 4:
+        return False, f'{len(le.objs)} objects: no obj4'
+    hdr = le.obj_bytes(4)[:32]
+    ver, arena_n = struct.unpack_from('<I', hdr, 8)[0], struct.unpack_from('<I', hdr, 24)[0]
+    fx = {soff: toff for sobj, soff, t, tobj, toff, *_ in le.fixups() if sobj == 4 and t == 7 and tobj == 4}
+    errs, info = [], [f'obj4 {le.obj(4).npages} page(s), vsize {le.obj(4).vsize:#x}, v{ver}, arena {arena_n:#x} B']
+    check(hdr[:8] == swe.MAGIC and ver == swe.VERSION and set(fx) >= {12, 16, 20} and fx[12] == 0,
+          f'header {hdr.hex()} fixups {fx}', errs)
+    runs = [('dos4gw', b, {})]
+    if UI == 'en':
+        import swospp
+        pp = os.path.join(MAIN, 'internal', 'swospp-test')
+        out = os.path.join(WORK, 'builds-x', 'engine_obj4')
+        shutil.rmtree(out, ignore_errors=True)
+        shutil.copytree(b, out)
+        swospp.install(exe, os.path.join(out, 'ITALIAN.EXE'))
+        runs.append(('swospp', out, {'LOADER.BIN': os.path.join(pp, 'loader.bin'),
+                                     'SWOSPP.BIN': os.path.join(pp, 'swospp.bin')}))
+    for tag, d, files in runs:
+        with Session(f'engine_obj4_{tag}', d, files, 'dump:3', 200, timer=bool(files)) as s:
+            if s.wait().outcome != 'dump':
+                errs.append(f'{tag}: no first pause ({s.result})')
+                continue
+            r = s.result
+            b4 = r.base4
+            if b4 is None:
+                errs.append(f'{tag}: obj4 header not in memory')
+                continue
+            m = r.read(b4, 28)
+            got = struct.unpack_from('<3I', m, 12)
+            want = (b4, b4 + fx.get(16, -1), b4 + fx.get(20, -1))
+            check(got == want, f'{tag}: pointers {[hex(x) for x in got]} != {[hex(x) for x in want]}', errs)
+            sc = s.screen()
+            check(any(e[1].endswith('2026-27') for e in sc.entries), f'{tag}: not the main menu: {sc}', errs)
+            if files:
+                on, why = swospp_on(r, os.path.join(d, 'ITALIAN.EXE'))
+                check(on, f'SWOS++ not running: {why}', errs)
+            info.append(f'{tag}: obj4 at {b4:#x} (obj1 {r.base1:#x}, obj2 {r.base2:#x}, obj3 '
+                        f'{r.base3 if r.base3 is None else hex(r.base3)})')
+            s.shot(f'menu_{tag}')
+    return not errs, '; '.join(errs + info)
 
 
 @scenario

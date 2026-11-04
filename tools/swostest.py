@@ -20246,6 +20246,30 @@ def world_full_uefa():
     return not errs, '; '.join(errs + notes)
 
 
+def uq_pins():
+    """UQ_BSS / UQ_BP / UQ_LAYOUT for world_uefa_double, each one not set: from the 'UQ_HARNESS' line (uefaq.py) of the
+    exe's release build.log (W2627FULL / SWOSTEST_BUILD = c/RELxx/SWOS: c/RELxx/build.log; the n-th line = SWOSTEST_UI's
+    exe in buildrel's order it, en, fr, de). Returns what it set, or why not."""
+    if all(os.environ.get(k) for k in ('UQ_BSS', 'UQ_BP', 'UQ_LAYOUT')):
+        return 'pinned'
+    exe = os.environ.get('W2627FULL') or os.environ.get('SWOSTEST_BUILD') or ''
+    log = os.path.join(os.path.dirname(os.path.abspath(exe)), 'build.log') if exe else ''
+    try:
+        rows = [ln.split('UQ_HARNESS ', 1)[1].split() for ln in open(log, errors='replace') if 'UQ_HARNESS ' in ln]
+    except OSError:
+        return f'no {log or "build dir"}'
+    k = ('it', 'en', 'fr', 'de').index(UI) if UI in ('it', 'en', 'fr', 'de') else 0
+    if len(rows) <= k:
+        return f'no UQ_HARNESS line in {log} (a build before 4.0.6 406-uqlog: pin them by hand)'
+    got = dict(x.split('=', 1) for x in rows[k])
+    done = []
+    for key, v in got.items():
+        if not os.environ.get(key):
+            os.environ[key] = v
+            done.append(key)
+    return f'{log}: set {done}'
+
+
 @scenario
 def world_uefa_double():
     """4.0.2 (user Pietro, MILAN 2027-28: Serie A + Conference League winner, placed in the Europa League 2028-29): the
@@ -20255,8 +20279,9 @@ def world_uefa_double():
     three lists of the season end exactly 36 clubs with no club in two of them, and Italy's per-list counts in
     checkw1 equal the qualifying model's (UQ_OUT.ls): the holder is appended by nobody (uq_fill cleared its word).
     Needs the full world as world_full_uefa (W2627FULL, W2627FULL_DATA) and UQ_BSS / UQ_BP of the build's log."""
-    if not (os.environ.get('UQ_BSS') and os.environ.get('UQ_BP')):
-        return True, 'SKIP: UQ_BSS / UQ_BP (the build log: bss obj2+X, uq_season obj1+Y) not set'
+    pins = uq_pins()                                   # (4.0.6: from the release's build.log when not pinned by hand -
+    if not (os.environ.get('UQ_BSS') and os.environ.get('UQ_BP')):   # the gate's old pins went stale unseen)
+        return True, f'SKIP: UQ_BSS / UQ_BP not set and not in the build log ({pins})'
     keep = {k: os.environ.get(k) for k in ('UQ_HOLD', 'CORE')}
     os.environ['UQ_HOLD'] = os.environ.get('UQ_HOLD_CASE', 'x,x,2:0')
     os.environ['CORE'] = 'normal'

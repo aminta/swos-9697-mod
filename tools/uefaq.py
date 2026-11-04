@@ -854,6 +854,8 @@ def patch(p, at, limit, sites):
     print(f'exe: UEFA qualifying rounds: C obj1+{at:#x}..{end:#x}, glue ..{glue + len(code):#x}, '
           f'bss obj2+{bss_at:#x} ({bss} B + {cw.UQ_RECS} records), UQ_IN obj{syms["UQ_IN"][0]}+{syms["UQ_IN"][1]:#x} '
           f'UQ_OUT obj{syms["UQ_OUT"][0]}+{syms["UQ_OUT"][1]:#x} uq_season obj{syms["uq_season"][0]}+{syms["uq_season"][1]:#x}')   # (the harness's UQ_BSS dumps)
+    print(f'exe: UQ_HARNESS UQ_BSS={bss_at:x} UQ_BP={syms["uq_season"][1]:x} UQ_LAYOUT='   # (world_uefa_double reads this
+          + ','.join(f'{k}={lay[k]:x}' for k in ('O_STATUS', 'O_HKEEP', 'O_N', 'O_LS', 'O_GN', 'O_GL', 'L_LEAGUE')))   # line)
     return glue + len(code)
 
 

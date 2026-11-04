@@ -898,6 +898,8 @@ def ui_it(text):
         return 'SQUADRA DEL ' + text[:-6]
     if UI == 'en' and 'END SEASON' in text:
         return 'FINE CAMP. ' + text
+    if text in ("SAISONS D'ANTAN", 'SAISONKLASSIKER'):   # (mkseason.SEASONS_NAMES: the historic seasons' button)
+        return 'STAG. STORICHE'
     m = re.fullmatch(r'(ITALY|ITALIE|ITALIEN) (\d{4}-\d{2})', text)   # (the historic season's own button: Italy 1947-48)
     if m:
         return 'ITALIA ' + m.group(2)

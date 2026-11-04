@@ -694,7 +694,7 @@ class Dosbox:
         if os.path.exists(path):
             os.remove(path)
         for attempt in range(3):                       # a command typed while the debugger redraws can be lost
-            os.write(self.fd, f'MEMDUMPBIN 168:{lin:X} {n:X}\r'.encode())
+            os.write(self.fd, f'MEMDUMPBIN 168:{lin:X} 0{n:X}\r'.encode())   # (4.0.6: a bare AC / CF.. length is a flag name)
             end = time.time() + 10 + n / 0x200000
             while not (os.path.exists(path) and os.path.getsize(path) >= n) and time.time() < end:
                 self.pump(0.01)

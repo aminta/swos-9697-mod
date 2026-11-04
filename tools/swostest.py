@@ -24481,7 +24481,7 @@ def vopp_stale():
     me = os.environ.get('VOPP_CLUB', 'INTER')
     path = ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27', 'EUROPA', 'ITALIA', 'SERIE A', me]
     errs, info = [], []
-    exe = nop_league_int3('vopp_stale', builds()['it'])
+    exe = nop_league_int3(f'vopp_stale_{UI}', builds()['it'])      # (per language: parallel runs)
 
     def moves(tag):                                     # DOWN then UP: the cursor moves both times
         s.send('dump:1')
@@ -24511,10 +24511,7 @@ def vopp_stale():
         press(s, s.screen(), 'ESCI', 3)                 # saved as VOPPA, then loaded (the main menu's load)
         if press(s, s.screen(), 'SALVA CARRIERA') is None:
             return False, f'no SALVA CARRIERA on {s.screen()}'
-        scr = s.screen()
-        k = [e[0] for e in scr.entries].index(scr.find('NOME FILE:', exact=True))
-        walk(s, scr.entries[k + 1][0], 1)
-        s.send('bspace ' * 8 + ' '.join('voppa') + ' enter:1 dump:3')
+        s.send(name_entry('VOPPA') + ' dump:3')        # (the cursor on SALVA; any exe language / keyboard layout)
         if not os.path.exists(os.path.join(s.run, 'SWOS', 'VOPPA.CAR')):
             return False, f'VOPPA.CAR not written ({s.result})'
         for _ in range(4):
@@ -24533,7 +24530,8 @@ def vopp_stale():
             press(s, s.screen(), '- PARTITA -', 3) or s.send('fire dump:2')
         else:
             return False, f'no pre-match screen: {s.screen()}'
-        play = 'GIOCA PARTITA' if 'GIOCA PARTITA' in s.screen().texts() else 'PARTITA'
+        play = next((s.screen().find(t, exact=True) for t in ('GIOCA PARTITA', 'PARTITA', 'JOUER LE MATCH', 'NUR SPIEL.')
+                     if t in s.screen().texts()), None)  # (the play button: FR / DE labels not in UI_MAP)
         press(s, s.screen(), 'AVVERSARI', 3)
         scr = s.screen()
         def rows(q):                                    # (the names are drawn by DrawPlayerEntries: the pixels of
@@ -24556,8 +24554,10 @@ def vopp_stale():
         check(r0 and r1 != r0 and b == a and r2 == r0, f'VIEW OPPONENT window: DOWN rows 12..17 changed {r1 != r0}, '
               f'UP back {r2 == r0} (cursor {a} -> {b}, {len(r0)} bytes)', errs)
         info.append(f'VIEW OPPONENT: DOWN rows 12..17 changed {r1 != r0}, UP back {r2 == r0}, cursor {a} -> {b}')
-        if press(s, s.screen(), play, 3) is None:
-            return False, f'no {play} on the opponent view: {s.screen()}'
+        try:                                            # (the same entry on the view, its text per language:
+            walk(s, play, 3)                            # FR JOUER LE MATCH, DE NUR SPIEL.)
+        except AssertionError as x:
+            return False, f'no play button {play} on the opponent view: {x}'
         for _ in range(10):                             # ESC out of the match (forfeit), back to the career menu
             s.send('esc dump:3')
             if s.screen().texts():

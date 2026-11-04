@@ -66,7 +66,7 @@ OBJ3_ARENA = 0x20000         # 4.0.6 obj3 (mod code after obj2, CONVENTIONS 23):
                              # zero-filled (vsize only, the engine zeroes it: DOS/4GW does not)
 OBJ3_PAGES = 13              # obj3+0: benchx (the long benches), code + data; then (4.0.6) kittrain, squadnum, mk_keep,
                              # oppl, cpucards, whitehair, finance, kbd2, stoppage, xleft, usc_snap (bteam, then ctview:
-                             # the COPPE CONTINENTALI view, <= 0x1200; then option C's builder, ctgame; 13 for every branch, the Integratore 03/11); the LAST page (LT3_AT): zones' ring +
+                             # the COPPE CONTINENTALI view, <= 0x1200; then option C's builder, ctgame; then gkinj, s1, bteam, cpurefill (the chain's end); 13 for every branch, the Integratore 03/11); the LAST page (LT3_AT): zones' ring +
                              # bskip, longtable, mainbtn in a build with gplay (patched before the chain: gplay's room)
 LT3_AT = 0x1000 * OBJ3_PAGES - 0x1000
 SA_CAVE = 0xa1000            # first added page: South American cups
@@ -244,6 +244,7 @@ def patch_exe(src, dst, remap, lang='it'):
         if worlds:
             import bteam
             engine.save_item('BU', bteam.BU_SIZE, world_only=True)   # 4.0.6 the B-team call-ups (bteam.py)
+        engine.save_item('CR', 1, world_only=True)               # 4.0.6 the CPU replacements switch (cpurefill.py: 0 = invented)
     engine.save_item('CC', 4)                    # 4.0.6 the OPTIONS rows 'CPU red cards', 'CPU injuries' (cpucards.py: 0 = ON;
     engine.after_load('cc_load')                 # the session's value kept by a load / a new career)
     engine.after_new('cc_new')
@@ -793,6 +794,10 @@ def patch_exe(src, dst, remap, lang='it'):
         assert st_end <= LT3_AT, hex(st_end)
         if st_end - bt_at > 0x1200:
             print(f'exe: WARNING bteam {st_end - bt_at} B > 0x1200 (Regia: tell the Integratore)')
+    if xtra_on:                                  # 4.0.6 (Davide 03/11): the CPU replacements switch (ACQUISTA GIOCATORE, World
+        import cpurefill                         # 2026-27): an extra of the seller instead of the invented player; the
+        st_end = cpurefill.patch(p, (st_end + 15) & ~15, lang)   # obj3 chain's end (Integratore 03/11)
+        assert st_end <= LT3_AT, hex(st_end)
     print(f'exe: obj3 end {st_end:#x} ({LT3_AT - st_end} B left before the longtable page obj3+{LT3_AT:#x})')
     p.set_vsize(3, 0x1000 * OBJ3_PAGES + cg_bss, bss=cg_bss)
     assert 0x1000 * OBJ3_PAGES + cg_bss <= OBJ3_ARENA

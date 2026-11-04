@@ -131,6 +131,25 @@ def main_round(c, size=None):
 
 
 S1_HOLD = {}                            # (conf, cup key) -> the 2027 edition's winner (word, association, strength)
+S1_ED = {}                              # 4.0.6 B2: (conf, cup key) -> {'main': [main-round words, drawn], 'later':
+                                        # [(round, word, slot)] (clubs entering after the main round)} - season1_native
+S1_BLOCK = [b'']                        # its bytes for the exe (load(); s1_patch)
+S1_SEED = 0x20270801                    # (the season-1 edition's fixed seed: every new career plays the same one, its
+                                        # career club's games aside - an old season-1 save rebuilds it the same way)
+
+
+def _prices(words):
+    """{team word: the sum of its 16 players' prices} from the World 2026-27 packs (the season end's strength,
+    conti.c rstr(), on the starting squads)."""
+    import mkseason
+    out = {}
+    for pk in mkseason.packs():
+        if not pk.meta.get('id', '').startswith('world-2026-27-'):
+            continue
+        for k, (fl, n) in getattr(pk, 'where', {}).items():
+            rows = pk.prows.get(k, [])[:16]
+            out[fl | n << 8] = sum(int(r.get('price') or 0) for r in rows)
+    return out
 FIELDS = {}                             # (conf, cup key) -> (round sizes, outside places, known places): load()'s
 
 
@@ -470,7 +489,35 @@ def load(confs, files=None, words=None, s1=None):
     if gp:                                              # at every group stage's end is n (the 3rd's move, forced)
         print(f'exe: CONTI_GPLACE={gp} (test build)')
     spec += bytes((gp,))
+    if s1 is None:                                      # (4.0.6 B2: the season-1 block, conti.s1_patch puts it
+        S1_BLOCK[0] = s1_block(cups, gl, words) if S1_ED and os.environ.get('CONTI_S1', '1') == '1' else b''   # in obj3)
     return spec, assocs, [(conf, c['key']) for conf, c, _ in cups]
+
+
+def s1_block(cups, gl, words):
+    """4.0.6 B2: the season-1 edition (conti.c ct_new1): 'S1', entries, the fixed seed, then each cup's main-round
+    list as the build drew it (the exe's contest list: the career club's own contest). Entries as CT_ED's: team word,
+    cup << 4 | round, strength / 16 (the squad's prices) | slot << 12."""
+    pr = _prices(words or {})
+    gst = {w: st for w, _, st in gl}
+    ents, lists = [], []
+    for gi, (conf, c, _) in enumerate(cups):
+        e = S1_ED.get((conf, c['key'])) or {'main': [], 'later': []}
+        mr = main_round(c)
+        st = lambda w: min((pr.get(w) or gst.get(w) or 0) // 16, 0xFFF)
+        for w in e['main']:
+            if w != 0xFFFF:
+                ents.append((w, gi << 4 | mr, st(w)))
+        for r, w, slot in e['later']:
+            ents.append((w, gi << 4 | r, st(w) | (slot & 15) << 12))
+        assert len(e['main']) <= 32 and gi < 16, (c['key'], len(e['main']))
+        lists.append(e['main'])
+    assert len(ents) <= 440, ('conti B2: season-1 entries > NED', len(ents))
+    b = b'S1' + struct.pack('<HI', len(ents), S1_SEED) + b''.join(struct.pack('<HBH', w, cr, sv) for w, cr, sv in ents)
+    b += b''.join(bytes((len(l),)) + struct.pack(f'<{len(l)}H', *l) for l in lists)
+    print(f'exe: conti B2 season-1 edition: {len(ents)} entries, {sum(1 for l in lists if l)} main-round lists, '
+          f'{len(b)} B')
+    return b
 
 
 # --- native test ------------------------------------------------------------------------------------------------------
@@ -741,6 +788,40 @@ ct_fill:                                ; careerworld w_ct_fill (the season end'
 ; round byte, level, month x 8, pos, the clubs) -----------------------------------------------------------------
 ct_lp:                                  ; the contests' team lists for conti.c (CT_LP: BSS, empty after a load)
     ;CT_LP
+    ret
+
+ct_new:                                 ; 4.0.6 B2, engine after_new (a new career, before the season start's slot-3
+    push es                             ; chain): a World 2026-27 career plays season 1's edition (conti.c ct_new1:
+    push ds                             ; the build's main rounds, the clubs after them, a fixed seed)
+    pop es
+    cld
+    mov dword [CT_SPEC], SPEC
+    call W_LPW
+    jne .r
+    call ct_lp
+    movzx eax, word [SEL]
+    push eax
+    call CT_NEW1
+    add esp, 4
+.r:
+    pop es
+    ret
+
+ct_load:                                ; 4.0.6 B2 M3, engine after_load: an older World 2026-27 save still in season 1
+    push es                             ; (no 'CE', no 'CT' yet) -> season 1's edition built now (conti.c ct_load1)
+    push ds
+    pop es
+    cld
+    mov dword [CT_SPEC], SPEC
+    call W_LPW
+    jne .r
+    call ct_lp
+    movzx eax, word [SEL]
+    push eax
+    call CT_LOAD1
+    add esp, 4
+.r:
+    pop es
     ret
 
 ct_pre:                                 ; the season start's slot-3 chain, before conti's checks: after a load the
@@ -1207,7 +1288,8 @@ def patch(p, at, limit, bss_at, area):
         print('exe: CONTI_KOLOSE (test build: the career club loses its conti ties)')
     symbols.update(NEXT_DAILY=u['uq_daily'], TIE=(1, TIE[0]), TIE_ID=(0, p.get(1, TIE[0], 1)[0]),
                    TIE_D7=(0, D7_BASE[0] + len(STRUCTS)), CT_D7=(0, D7_BASE[0]), CT_SEG=syms['CT_SEG'], CT_NS=(0, len(STRUCTS)),
-                   CT_ED=syms['CT_ED'], CT_RESULT=syms['ct_result'], CT_RESUME=syms['ct_resume'])
+                   CT_ED=syms['CT_ED'], CT_RESULT=syms['ct_result'], CT_RESUME=syms['ct_resume'],
+                   CT_NEW1=syms['ct_new1'], CT_LOAD1=syms['ct_load1'], W_LPW=(1, cw.LABELS['w_lpw']))
     import lp36
     ls = lp36.LABELS['symbols']
     ids = [p.get(1, off, 1)[0] for _, off, _, _ in STRUCTS] + [p.get(1, TIE[0], 1)[0]]
@@ -1263,6 +1345,8 @@ def patch(p, at, limit, bss_at, area):
     assert struct.unpack('<I', p.get(1, syms['CT_LAYOUT'][1] + 80, 4))[0] == ED_SIZE
     if 'CE' in engine.SAVE_ITEMS:
         engine.ITEM_AT['CE'] = syms['CT_ED']
+    engine.CALL_AT['ct_new'] = (1, lab['ct_new'])       # (4.0.6 B2: patch.py registers it, engine.after_new)
+    engine.CALL_AT['ct_load'] = (1, lab['ct_load'])     # (B2 M3: engine.after_load)
     LABELS.update(lab, syms=syms, assocs=assocs, cups=cups, SPEC=symbols['SPEC'])   # (4.0.6 SPEC: ctview)
     print(f'exe: other confederations\' cups (conti.c): {len(cups)} cups of {", ".join(confs)}, '
           f'{len(assocs)} associations, spec {len(spec)} B; C obj1+{at:#x}..{end:#x}, glue ..{glue + len(code):#x}, '
@@ -1272,6 +1356,22 @@ def patch(p, at, limit, bss_at, area):
 
 
 # --- season 1: the 2027 editions' main rounds at build time ---------------------------------------------------------
+def s1_patch(p, at):
+    """4.0.6 B2: the season-1 block at obj3:at (the chain's end), conti.c's CT_S1 pointing at it; returns the end."""
+    b = S1_BLOCK[0]
+    if not b or 'syms' not in LABELS:
+        return at
+    import cobj
+    assert not any(p.get(3, at, len(b)))
+    p.put(3, at, b)
+    cs = LABELS['syms']['CT_S1']
+    assert cs[0] == 1 and p.get(1, cs[1], 4) == b'\0' * 4, cs
+    p.put(1, cs[1], struct.pack('<I', at))
+    cobj.add_ptr(p, cs[1], 3, at)
+    print(f'exe: conti B2 season-1 block obj3+{at:#x} ({len(b)} B)')
+    return at + len(b)
+
+
 def season1(confs, files, words, seed=2027, stand_ins_only=False):
     """{(conf, cup key): [team words of the main round, in the drawn order]} from the access files' entrants_season1
     (data: the real 2027 entrants where known, else the access list on the starting tables). Rounds before the main
@@ -1448,6 +1548,18 @@ def season1_native(confs, files, words):
             lp[i] = ctypes.addressof(lists[i]) if i < len(cups) else None
         L.ct_season()
         o, ib = bytes((ctypes.c_ubyte * lay[2]).in_dll(L, 'CT_OUT')), bytes((ctypes.c_ubyte * lay[0]).in_dll(L, 'CT_IN'))
+        ed = bytes((ctypes.c_ubyte * lay[20]).in_dll(L, 'CT_ED'))
+        ne = struct.unpack_from('<H', ed, 2)[0]
+        for cf, ck in cups:                             # (B2: the clubs entering after the main round, as built)
+            S1_ED[(cf, ck)] = {'main': [], 'later': []}
+        for k in range(ne):
+            w, cr, sv = struct.unpack_from('<HBH', ed, 60 + 5 * k)
+            if cr == 0xFF or (cr >> 4) >= len(cups):
+                continue
+            cf, ck = cups[cr >> 4]
+            c = next(x for x in fm['cups'] if x['key'] == ck)
+            if c.get('stepladder') or (cr & 15) > main_round(c):
+                S1_ED[(cf, ck)]['later'].append((cr & 15, w, sv >> 12))
         for i, (cf, ck) in enumerate(cups):             # (the 2027 editions' winners: the first season end's holders)
             w = struct.unpack_from('<H', o, lay[8] + 2 * i)[0]
             if w:
@@ -1460,6 +1572,7 @@ def season1_native(confs, files, words):
             ws = list(lists[i])[:n]
             if any(w != 0xFFFF for w in ws):
                 out[(cf, ck)] = ws
+                S1_ED[(cf, ck)]['main'] = ws
         for i in range(16):
             lp[i] = None
     return out
@@ -1635,7 +1748,84 @@ def structs(p, area, lang, at):
     return at, out, kinds
 
 
+def test_s1(mgr_key=None, seed=3):
+    """4.0.6 B2 native test on the world's own data (SEASON_PACKS as a build): the season-1 edition (ct_new1) keeps
+    every main round as the build drew it (the exe lists, even when they hold junk: the block's lists win), plays
+    every cup to a winner, is deterministic, and the first season end makes its winners the holders (the cups
+    season 1 does not play: the build's 2027 winner). mgr_key: a club key (its games random, as test())."""
+    import ctypes
+    import random
+    confs = ready()
+    files, words = _world_maps(confs)
+    season1_native(confs, files, words)
+    spec, assocs, cups = load(confs, files, words)
+    assert S1_BLOCK[0][:2] == b'S1', 'no season-1 block'
+    L = _native()
+    s1b = ctypes.create_string_buffer(S1_BLOCK[0], len(S1_BLOCK[0]))
+    ctypes.c_void_p.in_dll(L, 'CT_S1').value = ctypes.addressof(s1b)
+    lay = (ctypes.c_uint32 * 22).in_dll(L, 'CT_LAYOUT')
+    buf = ctypes.create_string_buffer(spec, len(spec))
+    ctypes.c_void_p.in_dll(L, 'CT_SPEC').value = ctypes.addressof(buf)
+    lists = [(ctypes.c_uint16 * 32)(*([0x1234] * 32)) for _ in cups]
+    lp = (ctypes.c_void_p * 16).in_dll(L, 'CT_LP')
+    for i in range(16):
+        lp[i] = ctypes.addressof(lists[i]) if i < len(cups) else None
+    mgr = words.get(mgr_key, 0) if mgr_key else 0
+    if mgr_key:
+        assert mgr, ('no such club', mgr_key)
+    SEG = (ctypes.c_ubyte * 72).in_dll(L, 'CT_SEG')
+    o_win = lay[8]
+    rnd = random.Random(seed)
+
+    def season():
+        for z in ('CT_ED', 'CT_ST', 'CT_OUT', 'CT_IN'):
+            n = {'CT_ED': lay[20], 'CT_ST': lay[1], 'CT_OUT': lay[2], 'CT_IN': lay[0]}[z]
+            ctypes.memset(ctypes.addressof(ctypes.c_ubyte.in_dll(L, z)), 0, n)
+        L.ct_new1.restype = ctypes.c_uint32
+        assert L.ct_new1(mgr) == 1
+        L.ct_resume()
+        path = []
+        for _ in range(20):
+            g = bytes(SEG)
+            if g[2] == 0xFF:
+                break
+            v = rnd.randint(0, 1) if g[2] == 0 else rnd.randint(1, 4)
+            path.append(f'{cups[g[0]][1]}:{g[1]} kind {g[2]:#x} -> {v}')
+            L.ct_result(v)
+        o = bytes((ctypes.c_ubyte * lay[2]).in_dll(L, 'CT_OUT'))
+        ib = bytes((ctypes.c_ubyte * lay[0]).in_dll(L, 'CT_IN'))
+        win = {}
+        for ci, cu in enumerate(cups):
+            w = struct.unpack_from('<H', o, o_win + 2 * ci)[0]
+            win[cu] = struct.unpack_from('<H', ib, lay[7] + 12 * (w - 1))[0] if w else 0
+        bad = []
+        for ci, cu in enumerate(cups):
+            want = (S1_ED.get(cu) or {}).get('main') or []
+            if want and list(lists[ci])[:len(want)] != want:
+                bad.append(cu)
+        L.ct_finish()
+        st = bytes((ctypes.c_ubyte * lay[1]).in_dll(L, 'CT_ST'))
+        hold = {cu: struct.unpack_from('<H', st, 4 + 12 * ci)[0] for ci, cu in enumerate(cups)}
+        return win, bad, hold, path
+
+    w1, bad, hold, path = season()
+    w2, _, _, path2 = season() if not mgr_key else (w1, None, None, path)
+    print('career club:', ' -> '.join(path) or 'no game')
+    for cu in cups:
+        s1w = S1_HOLD.get(cu, (0,))[0]
+        print(f'  {cu[0]}:{cu[1]} winner {w1[cu]:#06x} holder {hold[cu]:#06x} (build s1h {s1w:#06x})')
+    assert not bad, ('main-round lists not as built', bad)
+    assert w1 == w2, 'not deterministic'
+    for cu in cups:
+        assert hold[cu] == (w1[cu] or S1_HOLD.get(cu, (0,))[0]), ('holder', cu)
+    played = [cu for cu in cups if w1[cu]]
+    print(f'PASS: {len(played)}/{len(cups)} cups played to a winner, lists as built, deterministic, holders = winners')
+    return w1
+
+
 if __name__ == '__main__':
     import sys
-    if sys.argv[1:2] == ['--test']:
+    if sys.argv[1:2] == ['--test-s1']:
+        test_s1(*(sys.argv[2:3] or [None]))
+    elif sys.argv[1:2] == ['--test']:
         test(sys.argv[2:] or ['conmebol'])

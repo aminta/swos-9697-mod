@@ -28,7 +28,7 @@ import nasmcave
 HL_COLOR = 0x0E                 # the lit number box's background colour (menu palette)
 WAIT = 28                       # menu frames for a second digit (~1 s)
 DWELL = 8                       # menu frames on a row before LEFT lights its number (~0.3 s)
-INFO = {}                       # patch()'s labels and sites for squadnum.py (4.0.6: the squad screen)
+INFO = {}                       # patch()'s labels and sites for squadnum.py (4.0.6: the squad screen) and edteam.py
 
 ASM = r"""
 se_ctl:                                 ; MenuProc: replaces `call MenuCheckControls`
@@ -535,7 +535,8 @@ def patch(p, cave):
     rc = [cave + m.start() for m in re.finditer(rb'\xe8', code)
           if cave + m.start() + 5 + struct.unpack_from('<i', code, m.start() + 1)[0] == lab['se_row']]
     assert len(rc) == 1, ('call se_row', rc)
-    INFO.update(se_row=lab['se_row'], se_hl=lab['se_hl'], row_call=rc[0], GPIBP=s['GPIBP'],
+    INFO.update(se_row=lab['se_row'], se_hl=lab['se_hl'], row_call=rc[0], GPIBP=s['GPIBP'], se_on=lab['se_on'],
+                se_rec=lab['se_rec'],
                 **{k: sym[k] for k in ('CT', 'A0', 'D1')})
     print(f'exe: editable shirt numbers (MenuProc obj1+{mc:#x}, DrawPlayerEntries number obj1+{hl:#x}, '
           f'code obj1+{cave:#x}..{cave + len(code):#x})')

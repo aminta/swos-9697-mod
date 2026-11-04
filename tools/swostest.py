@@ -4187,6 +4187,314 @@ def squad_numbers():
     return not errs, '; '.join(errs + notes)
 
 
+ET_LABELS = {'edit': {'it': 'MODIFICA SQUADRE', 'en': 'EDIT CUSTOM TEAMS', 'fr': 'MODIF EQUIPES PERS', 'de': 'EIGENE MANNS VER'},
+             'edited': {'it': 'SQUADRE MODIFICATE', 'en': 'EDITED CUSTOM TEAMS', 'fr': 'EQUIPES PERS. MODIF', 'de': 'NDRT EIGENE MANNS'}}
+ET_LOOKS = ('white', 'ginger', 'black', 'darkblond', 'receding light', 'receding dark', 'shaved light', 'shaved dark',
+            'white hair light', 'white hair dark')
+
+
+def et_label(kind):
+    """The menu label as screen() shows it (UI_MAP's Italian where it has the language's text)."""
+    t = ET_LABELS[kind][UI]
+    return UI_MAP.get(t) or next((v for k, v in UI_MAP.items() if k.startswith(t)), t)
+
+
+def et_vars():
+    """edteam.sites() of the exe language's original (EPBD obj1, ETT obj2)."""
+    if not hasattr(et_vars, 'v'):
+        sys.path.insert(0, os.path.join(ROOT, 'tools'))
+        import edteam
+        import lepatch
+        et_vars.v = edteam.sites(lepatch.LEPatch(os.path.join(ROOT, 'orig', UI_ORIG)))
+    return et_vars.v
+
+
+def et_look(rec):
+    """A player record's look 0..9 (edteam's order: the four faces, then receding / shaved / white hair, light / dark)."""
+    face, b = (rec[26] >> 3) & 3, rec[25]
+    if not b & 5:
+        return face
+    dark = face >= 2
+    return (4 if b & 1 and not b & 2 else 6 if b & 1 else 8) + dark
+
+
+def et_icon(look):
+    """The face button's icon of a look (blond: 186.. the faces, ICONBL / ICON3 / ICONW light, dark + 1)."""
+    import blond
+    return 186 + look if look < 4 else (blond.ICONBL, blond.ICON3, blond.ICONW)[(look - 4) // 2] + (look & 1)
+
+
+def et_team(s):
+    """editTeamsTeam: (its 684 bytes, [the 16 records])."""
+    d = s.result.read(s.result.base2 + et_vars()['ETT'][1], 684)
+    return d, [d[76 + 38 * i:76 + 38 * i + 38] for i in range(16)]
+
+
+def et_editor(s):
+    """True when the current menu is the editor (its face buttons' before-draw)."""
+    r, m = s.result, s.info['menu']
+    want = r.base1 + et_vars()['EPBD'][1]
+    return struct.unpack('<I', r.read(r.base2 + m + 0x16 + 23 * 0x38 + 0x30, 4))[0] == want
+
+
+def et_sprite(s, i):
+    r, m = s.result, s.info['menu']
+    return struct.unpack('<H', r.read(r.base2 + m + 0x16 + i * 0x38 + 0x26, 2))[0]
+
+
+def et_open(s, team, errs):
+    """Main menu -> EDIT CUSTOM TEAMS -> (continue) -> `team` -> the editor; True when there."""
+    lab = et_label('edit')
+    if press(s, s.screen(), lab, 2, exact=False) is None:
+        errs.append(f'{lab} not on the main menu ({s.screen()})')
+        return False
+    for _ in range(8):
+        if et_editor(s):
+            return True
+        scr = s.screen()
+        if scr.find(team, exact=True) is not None:
+            press(s, scr, team, 3)
+        elif scr.find('CONTINUA') is not None:
+            press(s, scr, 'CONTINUA', 2, exact=False)
+        else:
+            s.send('fire dump:2')
+    errs.append(f'editor not reached ({s.screen()})')
+    return False
+
+
+@scenario
+def edit_custom_teams():
+    """4.0.6 (Marco) EDIT CUSTOM TEAMS (edteam.py): the release CUSTOMS.EDT's first team (90 MINUTES XI). (1) Looks:
+    FIRE on a face button cycles ten looks (the record's face bits + byte 25, the button's icon each time; shots
+    look0..9); three outfield starters left shaved dark / white hair light / receding light. (2) Numbers: LEFT on a face
+    lights the number (shot lit), UP = next free, typed 23 (its holder swapped), ESC undoes, typed 7 + ENTER (swap, the
+    pin bit in byte 23), FIRE ends an edit without a look change, DOWN moves again. (3) OK, exit, SAVE: CUSTOMS.EDT
+    holds the numbers, looks and pin. (4) A friendly with SQUADRE MODIFICATE: the team screen's numbers and face icons,
+    in the match the three players' look flags (blond: shaved dark 4, white light 7, receding light 3). SWOSPP_BUILD
+    (SWOSTEST_UI=en, SWOS++ 1.9.2.2): the four faces only, byte 25 untouched, the number box the same"""
+    import blond
+    spp = bool(os.environ.get('SWOSPP_BUILD'))
+    if spp and UI != 'en':
+        return True, 'SKIP: SWOS++ is English only (SWOSTEST_UI=en)'
+    b, extra, timer = builds()['it'], {}, False
+    if spp:
+        import swospp
+        pp = os.path.join(MAIN, 'internal', 'swospp-test')
+        b = os.path.join(WORK, 'builds-x', 'edit_custom_teams')
+        shutil.rmtree(b, ignore_errors=True)
+        shutil.copytree(os.environ['SWOSPP_BUILD'], b)
+        swospp.install(os.path.join(os.environ['SWOSPP_BUILD'], 'ITALIAN.EXE'), os.path.join(b, 'ITALIAN.EXE'))
+        extra = {'LOADER.BIN': os.path.join(pp, 'loader.bin'), 'SWOSPP.BIN': os.path.join(pp, 'swospp.bin')}
+        timer = True
+    nlooks = 4 if spp else 10
+    team = '90 MINUTES XI'
+    errs, notes = [], []
+    with Session('edit_custom_teams', b, extra, 'dump:3', 400, timer=timer) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'START: no first pause ({s.result})'
+        if spp:
+            on, why = swospp_on(s.result, os.path.join(b, 'ITALIAN.EXE'))
+            check(on, f'SWOS++ not running: {why}', errs)
+        if not et_open(s, team, errs):
+            return False, '; '.join(errs)
+        d0, recs = et_team(s)
+        order = list(d0[60:76])
+        notes.append(f'{d0[5:22].split(chr(0).encode())[0].decode()}: numbers {[r[2] for r in recs]}, pin {d0[23]:#x}')
+        s.shot('editor')
+        # (1) looks on row 0 (entry 23): ten FIREs, each the next look and its icon
+        se_goto(s, 23)
+        l0 = et_look(recs[0])
+        b25 = recs[0][25]
+        seen = []
+        for k in range(1, nlooks + 1):
+            s.send('fire dump:1')
+            rec = et_team(s)[1][0]
+            ic = et_sprite(s, 23)
+            if spp:                                    # (SWOS++: the faces, byte 25 kept - and no look icons there)
+                lk, want = (rec[26] >> 3) & 3, ((recs[0][26] >> 3 & 3) + k) % 4
+            else:
+                lk, want = et_look(rec), (l0 + k) % nlooks
+            seen.append(lk)
+            check(lk == want and ic == et_icon(lk), f'FIRE {k}: look {lk} icon {ic} (want look {want} icon {et_icon(want)})',
+                  errs)
+            check(rec[25] & 0xF8 == b25 & 0xF8, f'FIRE {k}: byte 25 high bits {rec[25]:#x} (was {b25:#x})', errs)
+            if spp:
+                check(rec[25] == b25, f'SWOS++: byte 25 changed {b25:#x} -> {rec[25]:#x}', errs)
+            s.shot(f'look{lk}')
+        notes.append(f'row 0 looks {seen}')
+        # three outfield starters (file order rows): shaved dark, white hair light, receding light
+        pick = [order[1], order[2], order[3]]
+        targets = [7, 8, 4] if not spp else [2, 3, 1]
+        for row, tg in zip(pick, targets):
+            se_goto(s, 23 + row)
+            for _ in range(10):
+                if et_look(et_team(s)[1][row]) == tg or spp and (et_team(s)[1][row][26] >> 3) & 3 == tg:
+                    break
+                s.send('fire dump:1')
+            rec = et_team(s)[1][row]
+            got = et_look(rec) if not spp else (rec[26] >> 3) & 3
+            check(got == tg, f'row {row}: look {got}, want {tg}', errs)
+        s.shot('looks')
+        # (2) numbers on row 4's face (entry 27)
+        k = order[4]
+        scr = se_goto(s, 23 + k)
+        s.send('dump:1')
+        s.send('left dump:1')
+        s.shot('lit')
+        before = [r[2] for r in et_team(s)[1]]
+        check(len(set(before)) == 16, f'first edit: numbers not unique {before}', errs)
+        look_k = et_look(et_team(s)[1][k])
+        s.send('up dump:1')
+        after = [r[2] for r in et_team(s)[1]]
+        ch = [i for i in range(16) if before[i] != after[i]]
+        check(ch == [k], f'UP: changed {ch} ({before} -> {after})', errs)
+        if ch == [k]:
+            o, nw = before[k], after[k]
+            used = {before[i] for i in range(16) if i != k}
+            want = next(x for x in list(range(o + 1, 100)) + list(range(1, o)) if x not in used)
+            check(nw == want, f'UP: {o} -> {nw}, want {want}', errs)
+            holder = next((i for i in range(16) if after[i] == 23 and i != k), None)
+            s.send('2 3 dump:1')
+            t3 = [r[2] for r in et_team(s)[1]]
+            check(t3[k] == 23 and (holder is None or t3[holder] == nw), f'typed 23: {t3} (holder {holder})', errs)
+            s.shot('typed23')
+            s.send('esc dump:1')
+            t4 = [r[2] for r in et_team(s)[1]]
+            check(t4 == before, f'ESC: {t4} != {before}', errs)
+            check(et_editor(s), f'ESC left the editor ({s.screen()})', errs)
+            s.send('left dump:1')
+            h7 = next((i for i in range(16) if before[i] == 7 and i != k), None)
+            s.send('7 dump:2')
+            s.send('enter dump:1')
+            t5 = [r[2] for r in et_team(s)[1]]
+            check(t5[k] == 7 and (h7 is None or t5[h7] == before[k]), f'typed 7: {t5} (holder {h7})', errs)
+            check(len(set(t5)) == 16, f'duplicate numbers {t5}', errs)
+            check(et_team(s)[0][23] & 0x80, f'pin bit not set ({et_team(s)[0][23]:#x})', errs)
+            s.send('left dump:1')                      # FIRE ends an edit; the look stays
+            s.send('down dump:1')
+            s.send('fire dump:1')
+            t6 = et_team(s)[1]
+            check(et_look(t6[k]) == look_k, f'FIRE to end an edit changed the look {look_k} -> {et_look(t6[k])}', errs)
+            s.send('down dump:1')
+            check(s.screen().selected == 24 + k, f'after the edit, DOWN: selected {s.screen().selected}', errs)
+            notes.append(f'UP {o} -> {nw}, typed 23 / 7 (holder {h7}), DOWN + FIRE {t5[k]} -> {t6[k][2]}')
+        s.shot('after')
+        final = et_team(s)[0]
+        press(s, s.screen(), 21, 3)                   # OK
+        for _ in range(8):                            # out of the team list: the save prompt (SAVE / ABORT)
+            scr = s.screen()
+            t = scr.texts()
+            sv = next((x for x in t if x.startswith(('SALVA', 'SAVE', 'SAUV', 'ENREG', 'SPEICH'))), None)
+            if sv and len(t) < 8:
+                press(s, scr, sv, 3)
+                break
+            if scr.find('ESCI') is not None:
+                press(s, scr, 'ESCI', 2)
+            else:
+                s.send('esc dump:2')
+        else:
+            errs.append(f'no save prompt ({s.screen()})')
+        game = s.result.game
+    path = os.path.join(game, 'CUSTOMS.EDT')
+    d = open(path, 'rb').read() if os.path.exists(path) else b''
+    slot = next((2 + i * 684 for i in range((len(d) - 2) // 684) if d[2 + i * 684 + 5:2 + i * 684 + 22].split(b'\0')[0]
+                 == team.encode()), None)
+    check(slot is not None, f'{team} not in the saved CUSTOMS.EDT ({len(d)} B)', errs)
+    if slot is None:
+        return False, '; '.join(errs + notes)
+    sd = d[slot:slot + 684]
+    check(sd == final, f'CUSTOMS.EDT {team} != the edited team ({[i for i in range(684) if sd[i] != final[i]][:12]})', errs)
+    keep = os.path.join(WORK, 'saves', f'ET_CUSTOMS_{UI}{"_spp" if spp else ""}.EDT')
+    shutil.copy(path, keep)
+    # (4) a friendly: the team screen, then the match's look flags
+    srecs = [sd[76 + 38 * i:76 + 38 * i + 38] for i in range(16)]
+    with Session('edit_custom_teams2', b, {**extra, 'CUSTOMS.EDT': keep}, 'dump:3', 400, match=True, timer=timer) as s:
+        s.wait()
+        for t in ('AMICHEVOLE', 'OK'):
+            walk(s, t, 2)
+        scr = s.screen()                               # SCEGLI SQUADRE (FR / DE: not in UI_MAP)
+        ch = scr.find({'fr': 'CHOISIR LES EQUIPES', 'de': 'MANNSCHAFTEN W'}.get(UI, 'SCEGLI SQUADRE'))
+        if ch is None and UI == 'de' and scr.find('ESCI', exact=True):   # (its umlaut: no text read; the entry
+            ch = scr.find('ESCI', exact=True) - 1                         # before ESCI, as FR's)
+        if ch is None:
+            return False, '; '.join(errs + notes + [f'no team choice entry ({scr})'])
+        walk(s, ch, 2)
+        lab, scr = et_label('edited'), s.screen()        # (DE: an umlaut before NDRT: contained, not a prefix)
+        ie = next((i for i, t, inv, _ in scr.entries if lab in t and not inv), None)
+        if ie is None and UI == 'de' and scr.find('ESCI', exact=True):   # (GEAENDERTE...: its umlaut, no text read;
+            ie = scr.find('ESCI', exact=True) - 1                         # the entry before ESCI)
+        if ie is None or press(s, scr, ie, 3) is None:
+            return False, '; '.join(errs + notes + [f'{lab} not in the team choice ({s.screen()})'])
+        scr = s.screen()                               # the legend's colour boxes (entries 1..3, no text: COMPUTER 10,
+        leg = [i for i in range(1, 8) if not scr.entries[i][1]][:3]   # GIOCA-ALLENA 11, ALLENA 13)
+        human = scr.colors[leg[1]] if len(leg) == 3 else None
+        walk(s, team, 2)
+        for _ in range(4):                             # COMPUTER -> the human (GIOCA-ALLENA's colour)
+            scr = s.screen()
+            i = scr.find(team, exact=True)
+            if i is None or scr.colors[i] == human:
+                break
+            s.send('fire dump:2')
+        check(human is not None and scr.colors[scr.find(team, exact=True)] == human,
+              f'{team} not human-controlled (colour {scr.colors[scr.find(team, exact=True)]}, legend {leg})', errs)
+        walk(s, 'A C ARTISAN', 2)                      # the opponent (walk's fire: COMPUTER)
+        scr = s.screen()
+        play = {'fr': 'MATCHS AMICAUX'}.get(UI, 'AMICHEVOLE')   # (FR: not UI_MAP's MATCH AMICAL)
+        if scr.find(play) is None:                       # (shown once two teams are chosen)
+            return False, '; '.join(errs + notes + [f'no play button after the team choice (colours '
+                                                    f'{[(t, scr.colors[i]) for i, t, _, _ in scr.entries[:8]]}; {scr})'])
+        walk(s, play, 4)
+        if not se_rows(s):
+            return False, '; '.join(errs + notes + [f'no team screen after the team choice ({s.screen()})'])
+        tm, nums, pin, _ = se_team(s)
+        check(nums[:16] == [r[2] for r in srecs], f'team screen numbers {nums[:16]} != {[r[2] for r in srecs]}', errs)
+        rows = se_rows(s)
+        v_, scr = s.box.dump(0xA0000, 64000), s.screen()   # the face icons are drawn by DrawPlayerEntries (its rows
+        pics = collections.Counter()                     # follow the formation, not the records): the pixels of each
+        for i in rows[:16]:                              # row's face (x 2..12, the icons' colours only: < 32; the
+            x_, y_, w_, h_ = scr.geom[i]                 # box's gradient is 200.., the menu's 33..), counted
+            pics[bytes(c if c < 32 else 0 for c in (v_[(y_ + j) * 320 + c] for j in range(h_) for c in range(2, 13)))] += 1
+        looks = collections.Counter(et_look(r) if not spp else (r[26] >> 3) & 3
+                                    for r in (s.result.read(tm + 76 + 38 * j, 38) for j in range(16)))
+        check(sorted(pics.values()) == sorted(looks.values()),       # one picture per look: as many rows each
+              f'team screen faces: {sorted(pics.values())} rows per picture, {sorted(looks.values())} per look '
+              f'({dict(looks)})', errs)
+        faces = looks
+        notes.append(f'team screen: {len(faces)} looks, one face picture each')
+        s.shot('prematch')
+        if len(rows) >= 13:                            # a starter <-> bench swap: the pinned numbers stay with the players
+            by = lambda n: {bytes(r[3:25]).split(b'\0')[0]: r[2] for r in
+                            [s.result.read(tm + 76 + 38 * i, 38) for i in range(16)]}
+            nb = by(0)
+            se_goto(s, rows[7])
+            s.send('fire dump:1')
+            se_goto(s, rows[12])
+            s.send('fire dump:2')
+            na = by(0)
+            check(na == nb, f'swap with the bench: numbers {nb} -> {na}', errs)
+        for _ in range(22):
+            s.send('down dump:0.5')
+            if s.screen().selected == 9:
+                break
+        r = s.send('fire ' + 'fire:3 ' * 8 + 'dump:2')
+        check(r.outcome == 'dump', f'match: {r}', errs)
+        if r.outcome == 'dump':
+            s.shot('match')
+            fl = {}
+            for base in stadium_teams(None):
+                for i in range(16):
+                    rec = r.read(r.base2 + base + i * 0x3D, 0x67)
+                    fl[rec[80:103].split(b'\0')[0]] = rec[49]
+            wantf = {4: 3, 5: 2, 6: 5, 7: 4, 8: 7, 9: 6}
+            for row, tg in zip(pick, targets):              # (SWOS++: its own in-match teams - not read; its four
+                nm = srecs[row][3:25].split(b'\0')[0]           # faces / byte 25 untouched are checked in the editor)
+                f = fl.get(nm)
+                check(spp or f == wantf[tg], f'match: {nm.decode()} flag {f} (look {tg})', errs)
+            notes.append('match flags ' + ', '.join(f'{srecs[row][3:25].split(chr(0).encode())[0].decode()} '
+                                                     f'{fl.get(srecs[row][3:25].split(chr(0).encode())[0])}' for row in pick))
+    return not errs, '; '.join(errs + notes)
+
+
 def se_to_playmatch(s, tries=12):
     """From a season / career menu to the team screen before the next match (MOD. TATTICA + AVVERSARI); the screen."""
     for _ in range(tries):

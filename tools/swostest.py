@@ -22969,7 +22969,9 @@ def cpu_cards():
                     scr = walk(s, 'OPZIONI', 2)
                     lab = scr.find(label, exact=True)
                     lab_i = scr.find(cpucards.LABEL_I[UI], exact=True)
-                    check(lab == 20 and lab_i == 22 and scr.n == 24, f'OPTIONS: {label} at {lab}, '
+                    import gkinj                     # (4.0.6 gkinj: its row's two entries 24 / 25 after ours)
+                    n_opt = 24 + 2 * (scr.find(gkinj.LABEL[UI], exact=True) is not None)
+                    check(lab == 20 and lab_i == 22 and scr.n == n_opt, f'OPTIONS: {label} at {lab}, '
                           f'{cpucards.LABEL_I[UI]} at {lab_i}, {scr.n} entries', errs)
                     s.shot('options')
                     rw = lambda: struct.unpack('<HHHH', s.result.read(s.result.lin(cc), 8))   # CC_W, CC_I, the session copy

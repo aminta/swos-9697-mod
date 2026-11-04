@@ -94,7 +94,7 @@ def test_registry():
         rows, fp, cp = struct.unpack_from('<3I', r, 12)
         worlds[n] = dict(fl=fl, menu=menu, nf=nf, year=year, modes=modes, nc=nc, stem=stem, rows=rows, fp=fp, cp=cp)
         for p_, ln in ((fp, nf), (cp, 2 * nc)):
-            if ln and not B4 + swreg.REG_AT <= p_ and p_ + ln <= B4 + 0x1000:
+            if ln and not (B4 + swreg.REG_AT <= p_ and p_ + ln <= B4 + swreg.OBJ4_END):
                 errs.append(f'world {n}: a list at {p_:#x} outside the manifest')
     if sorted(worlds) != [0, 4, 5]:
         return False, f'worlds {sorted(worlds)} (a release-recipe exe has 0, 4, 5)'

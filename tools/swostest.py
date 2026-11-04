@@ -9133,7 +9133,7 @@ def bench_numbers():
             for _ in range(4):
                 if 'TRASFERIMENTI' in s.screen().texts():
                     break
-                press(s, s.screen(), 'ESCI', wait=2) or s.send('escape dump:2')
+                press(s, s.screen(), 'ESCI', wait=2) or s.send('esc dump:2')
         ok, msg = advance(s, season_over, 900)
         if not ok:
             return False, 'advance: ' + msg + '; ' + '; '.join(errs + info)
@@ -9788,7 +9788,7 @@ def engine_registry():
         nw, nsbase = m[6], m[7]
         wcur, c254 = struct.unpack_from('<2I', m, 8)
         ws = [r.read(reg + swreg.HDR + swreg.REC * k, swreg.REC) for k in range(nw)]
-        check(m[:4] == swreg.MAGIC and struct.unpack_from('<H', m, 4)[0] == swreg.VERSION and b4 < reg < b4 + 0x1000,
+        check(m[:4] == swreg.MAGIC and struct.unpack_from('<H', m, 4)[0] == swreg.VERSION and b4 < reg < b4 + swreg.OBJ4_END,
               f'manifest at {reg:#x}: {m[:8]!r}', errs)
         check([w[0] for w in ws] == [0, 4, 5] and ws[2][8:12] == b'tmw5', f'worlds {[(w[0], w[8:12]) for w in ws]}', errs)
         rd32 = lambda a: struct.unpack('<I', s.result.read(a, 4))[0]
@@ -9905,6 +9905,190 @@ def engine_wmodes():
               f'{rd32(comp + 4 * 98):#x} SWE_CWORLD {rd32(cworld)} WCUR {s.result.read(wcur, 1)[0]}', errs)
         info.append(f'pre-match {[t for t in scr.texts() if t][:4]} / {[t for t in sc2.texts() if t][:4]}, WCUR '
                     f'{s.result.read(wcur, 1)[0]}')
+    return not errs, '; '.join(errs + info)
+
+
+def wm_up(s, label, n=6):
+    """Up the team picker's lists to the one showing `label` (each list's ESCI entry; a team list's past its rows)"""
+    for _ in range(n):
+        sc = s.screen()
+        if sc.find(label) is not None:
+            return sc
+        out = sc.find('ESCI', exact=True)
+        if out is None or press(s, sc, out, 2) is None:
+            s.send('down ' * 12 + 'dump:1')
+            if out is not None and s.screen().selected == out:
+                s.send('fire dump:2')
+    return s.screen()
+
+
+def wm_mixed(s, hist):
+    """W-modes M2: a mixed friendly from the main menu (default World 2026-27): INTER (EUROPA > ITALIA > SERIE A),
+    HAMBURG (STORICO > 1996-97 > EUROPA > GERMANIA > 1. LIGA), the picker done. Returns the pre-match screen."""
+    for t in ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE A', 'INTER'):
+        walk(s, t, 2)
+    wm_up(s, hist)
+    for t in (hist, '1996-97', 'EUROPA', 'GERMANIA', '1. LIGA', 'HAMBURG'):
+        walk(s, t, 2)
+    return pick_done(s)
+
+
+def wm_to_main(s, mark='COMP. PREDEFINITA'):
+    for _ in range(10):
+        sc = s.screen()
+        if sc.find(mark, exact=True) is not None and sc.find('AMICHEVOLE', exact=True) is not None:
+            return True
+        out = [sc.find(t, exact=True) for t in ('ABBANDONA', 'ESCI') if sc.find(t, exact=True) is not None]
+        if not out:                              # (as world_mainbtn's to_main: a list's exit is down past its rows)
+            s.send('esc dump:2')
+        elif press(s, sc, out[0], 2) is None:
+            s.send('down ' * 12 + 'dump:1')
+            if s.screen().selected == out[0]:
+                s.send('fire dump:2')
+    return False
+
+
+@scenario
+def engine_wmodes_next():
+    """W-modes M2: the next team picker of another kind after a mixed friendly (wm_mixed: INTER of World 2026-27 +
+    HAMBURG of the 1996-97 game, which leaves namespace 5, the contest's) gets the base namespace back (swe.c
+    swe_stfm_guard at SelectTeamsFinalMenu's entry): a preset's picker, MODIFICA SQUADRE's (SQUADRE ORIGINALI: the custom
+    teams' list), STAGIONE's - WCUR = the base one at their first list. A new career (CARRIERA > SCEGLI SQUADRA, the default
+    World 2026-27's selector > EUROPA > ITALIA > SERIE A > INTER): the career's own namespace (careerworld, by the
+    path), never the guard's: WCUR 5 and INTER (ITALIA) on its squad screen, not (SCOZIA). A fresh mixed friendly
+    before each."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import swreg
+    errs, info = [], []
+    hist = 'CARR. STORICHE'                      # (the careers' box label: STORICO's until Davide's texts)
+    files = {'SETUP.DAT': setup_file('engine_wmodes_next', 0)}
+    paths = {'preset': ['COMP. PREDEFINITA'], 'edit': ['MODIFICA SQUADRE', 'SQUADRE CLUB', 'SQUADRE ORIGINALI'], 'season': ['STAGIONE'],
+             'career': ['CARRIERA', 'SCEGLI SQUADRA']}
+    with Session('engine_wmodes_next', os.environ.get('SWOSTEST_BUILD') or builds()['it'], files, 'dump:3', 900) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'no first pause ({s.result})'
+        r = s.result
+        reg = struct.unpack('<I', r.read(r.base4 + 32, 4))[0]
+        m = r.read(reg, swreg.HDR)
+        nsbase, wcur = m[7], struct.unpack_from('<I', m, 8)[0]
+        for k, path in paths.items():
+            scr = wm_mixed(s, hist)
+            ns = s.result.read(wcur, 1)[0]
+            check(ns == 5, f'{k}: after the mixed friendly WCUR {ns} (the contest\'s 5)', errs)
+            if not wm_to_main(s):
+                errs.append(f'{k}: no way back to the main menu ({s.screen().texts()[:6]})')
+                break
+            seen = []
+            for t in path + ['SQUADRE CLUB', 'SCEGLI SQUADRA', 'SCEGLI SQUADRE']:
+                sc = s.screen()
+                if sc.find('EUROPA', exact=True) is not None or sc.find(hist) is not None:
+                    break
+                if sc.find(t, exact=False) is not None:
+                    press(s, sc, sc.find(t, exact=False), 3)
+                    seen.append(t)
+            sc = s.screen()
+            ns = s.result.read(wcur, 1)[0]
+            s.shot(k)
+            info.append(f'{k}: {" > ".join(seen)}: WCUR {ns}, {[e[1] for e in sc.entries if e[1]][:4]}')
+            if k != 'career':
+                opened = sc.find('EUROPA', exact=True) is not None or (k == 'edit' and sc.entries and   # (edit: the
+                                                                       sc.entries[0][1].startswith('SELEZ. SQ.'))  # CUSTOM list)
+                check(ns == nsbase and opened, f'{k}: WCUR {ns} at the picker\'s '
+                      f'first list (base {nsbase}) {sc.texts()[:8]}', errs)
+                wm_to_main(s)
+                continue
+            for t in ('EUROPA', 'ITALIA', 'SERIE A', 'INTER'):
+                walk(s, t, 2)
+            for _ in range(8):                   # (the career's confirmations, as world_s1conti's start)
+                sc = s.screen()
+                if 'INTER' in sc.texts() and '(ITALIA)' in sc.texts():
+                    break
+                ok = sc.find('OK', exact=True)
+                if ok is None or press(s, sc, ok, 3) is None:
+                    s.send('fire dump:3')
+            sc = s.screen()
+            ns = s.result.read(wcur, 1)[0]
+            s.shot('career')
+            check(ns == 5 and 'INTER' in sc.texts() and '(ITALIA)' in sc.texts(), f'career: WCUR {ns}, '
+                  f'{sc.texts()[:8]}', errs)
+            info.append(f'career start: WCUR {ns}, {sc.texts()[:3]}')
+    return not errs, '; '.join(errs + info)
+
+
+@scenario
+def engine_wmodes_def():
+    """W-modes M2, Q1 (b) (Davide 2026-11-04): under the 1996-97 / Europe 1984-85 default the friendly picker lists
+    MONDO 2026-27 as its own GREEN entry (colour 14) next to the STORICO box, and STORICO holds the historic worlds
+    only. (1) Default 1996-97: the game's continents + MONDO 2026-27 + STORICO (= EUROPA 1984-85 only); INTER from
+    MONDO 2026-27 > EUROPA > ITALIA > SERIE A locks the contest to 2026-27: the box (now empty) is left out, MONDO
+    2026-27 stays; HAMBURG from the game's EUROPA > GERMANIA > 1. LIGA: INTER (ITALIA) - HAMBURG (GERMANIA).
+    (2) Default 1984-85: its countries + MONDO 2026-27 + STORICO (= 1996-97 only); VOLSUNGUR (ISLANDA) locks it to
+    1984-85: MONDO 2026-27 left out."""
+    errs, info = [], []
+    hist = 'CARR. STORICHE'                      # (the careers' box label: STORICO's until Davide's texts)
+    cur = 'MONDO 2026-27'
+    b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
+
+    def colour(sc, t):
+        i = sc.find(t, exact=True)
+        return None if i is None else next(c for (j, *_), c in zip(sc.entries, sc.colors) if j == i)
+
+    def first(s):
+        for t in ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB'):
+            walk(s, t, 2)
+        return s.screen()
+
+    with Session('engine_wmodes_def', b, {'SETUP.DAT': setup_file('engine_wmodes_def', 1)}, 'dump:3', 400) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'no first pause ({s.result})'
+        sc = first(s)
+        tx = sc.texts()
+        s.shot('d9697_first')
+        check(all(t in tx for t in ('EUROPA', 'AFRICA', cur, hist)) and colour(sc, cur) == 14 and
+              tx.index(cur) < tx.index(hist), f'default 1996-97, the first list {tx[:12]}, {cur} colour '
+              f'{colour(sc, cur)}', errs)
+        sc = walk(s, hist, 2)
+        s.shot('d9697_storico')
+        check('EUROPA 1984-85' in sc.texts() and cur not in sc.texts() and '1996-97' not in sc.texts(),
+              f'default 1996-97, STORICO {sc.texts()[:8]}', errs)
+        wm_up(s, cur)
+        for t in (cur, 'EUROPA', 'ITALIA', 'SERIE A', 'INTER'):
+            walk(s, t, 2)
+        sc = wm_up(s, cur)                       # (the top list: 2026-27's own lists AFRICA too)
+        s.shot('d9697_locked')
+        check(cur in sc.texts() and hist not in sc.texts(), f'default 1996-97 after INTER: {sc.texts()[:12]} (the '
+              f'empty STORICO left out)', errs)
+        for t in ('EUROPA', 'GERMANIA', '1. LIGA', 'HAMBURG'):
+            walk(s, t, 2)
+        sc = pick_done(s)
+        tx = sc.texts()
+        press(s, sc, 'AVVERSARI', 3)
+        tx2 = s.screen().texts()
+        nat = {t: (x + [''])[x.index(t) + 1] for t in ('INTER', 'HAMBURG') for x in (tx, tx2) if t in x}
+        check(nat == {'INTER': '(ITALIA)', 'HAMBURG': '(GERMANIA)'}, f'default 1996-97, pre-match countries {nat}',
+              errs)
+        info.append(f'1996-97 default: {nat}')
+    with Session('engine_wmodes_def2', b, {'SETUP.DAT': setup_file('engine_wmodes_def2', 2)}, 'dump:3', 400) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'no first pause ({s.result})'
+        sc = first(s)
+        tx = sc.texts()
+        s.shot('d8485_first')
+        check(all(t in tx for t in ('ISLANDA', cur, hist)) and colour(sc, cur) == 14 and
+              tx.index(cur) < tx.index(hist), f'default 1984-85, the first list {tx[-8:]}, {cur} colour '
+              f'{colour(sc, cur)}', errs)
+        sc = walk(s, hist, 2)
+        s.shot('d8485_storico')
+        check('1996-97' in sc.texts() and cur not in sc.texts() and 'EUROPA 1984-85' not in sc.texts(),
+              f'default 1984-85, STORICO {sc.texts()[:8]}', errs)
+        wm_up(s, cur)
+        for t in ('ISLANDA', 'VOLSUNGUR'):
+            walk(s, t, 2)
+        sc = wm_up(s, hist)
+        s.shot('d8485_locked')
+        check(cur not in sc.texts() and 'ISLANDA' in sc.texts(), f'default 1984-85 after VOLSUNGUR: '
+              f'{sc.texts()[-8:]} ({cur} left out)', errs)
+        info.append(f'1984-85 default locked: {sc.texts()[-4:]}')
     return not errs, '; '.join(errs + info)
 
 

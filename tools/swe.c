@@ -90,7 +90,10 @@ int reg_leave(void)                     /* back to the namespace reg_enter left 
    (the 1996-97 game as WMENU + 0, its continents proxies of the game's). The 1996-97 default = the game's top list
    + STORICO. Mixing A: one career world per contest besides the 1996-97 game's clubs. The first club picked under a
    career world sets the contest's world (SEL_CW), and the lists then leave the other career worlds out, until no
-   club is selected. All the lists are copies in obj4; swe_sel_post puts the game's back. */
+   club is selected. All the lists are copies in obj4; swe_sel_post puts the game's back.
+   Q1 (b), Davide 2026-11-04: MONDO 2026-27 (the current world, SET_W[0]) is never in STORICO: under another default it
+   is its own GREEN entry next to the box (the 1996-97 default: in the game's top list, CAREER_WORLD's spare byte, as
+   careerworld's w_ns_menu needs COMP254 = CAREER_WORLD), and STORICO lists the historic worlds only. */
 #define WMENU 200                       /* (mkseason WMENU, CAREERS) */
 #define CAREERS 98
 #define CLUB_TEAMS 1
@@ -106,6 +109,9 @@ u32 *SEL_SLOT98 DATA = 0, *SEL_SLOTD DATA = 0;
 u32 SEL_O98 DATA = 0, SEL_OD DATA = 0;  /* the game's list pointers */
 u8 L_HIST[24] DATA = {0};
 u8 L_DEF[88] DATA = {0};
+u8 *SEL_TOP DATA = 0;                   /* the 1996-97 default: CAREER_WORLD's 98, FF, FF (spare) */
+extern u8 SWE_CT[], SWE_EFV[];
+#define GREEN 14                        /* (mainbtn GREEN) */
 static const u8 SET_W[3] = {5, 0, 4};   /* SETUP.DAT +105 -> world (mainbtn: 2026-27, 1996-97, 1984-85) */
 
 static u32 *comp_slot(u32 id) { return (u32 *)(rd32(SWE_REG + 12) - 4 * 254 + 4 * id); }
@@ -126,6 +132,11 @@ static int friendly_world(u32 n)        /* world n is listed by the friendly / D
 
 static int locked(u32 n) { return SEL_CW && n && n != SEL_CW; }
 
+static int cur_entry(void)              /* MONDO 2026-27 is an entry of the default world's list */
+{
+    return SEL_DW != SET_W[0] && friendly_world(SET_W[0]) && !locked(SET_W[0]);
+}
+
 static void put_ff(u8 *l) { l[0] = l[1] = l[2] = l[3] = 0xFF; }
 
 static void sel_lists(void)
@@ -136,20 +147,54 @@ static void sel_lists(void)
         *h++ = WMENU;
     for (const u8 *p = list_ids(SEL_O98); *p != 0xFF && h < L_HIST + sizeof L_HIST - 1; p++) {
         u32 w = *p >= WMENU && *p < WMENU + 10 ? *p - WMENU : 0;
-        if (*p == WMENU + SEL_DW || (w && (!friendly_world(w) || locked(w))))
+        if (*p == WMENU + SEL_DW || *p == WMENU + SET_W[0] || (w && (!friendly_world(w) || locked(w))))
             continue;
         *h++ = *p;
     }
     *h = 0xFF;
-    if (!SEL_DW)
+    int hist = h > L_HIST + 4;          /* (an empty STORICO is left out) */
+    if (!SEL_DW) {
+        if (SEL_TOP) {
+            u8 *t = SEL_TOP;
+            t[1] = t[2] = 0xFF;
+            if (cur_entry())
+                *t++ = WMENU + SET_W[0];
+            *t = hist ? CAREERS : 0xFF;
+        }
         return;
+    }
     u8 *d = L_DEF + 4;
     put_ff(L_DEF);
     if (!locked(SEL_DW))
-        for (const u8 *p = list_ids(SEL_OD); *p != 0xFF && d < L_DEF + sizeof L_DEF - 2; p++)
+        for (const u8 *p = list_ids(SEL_OD); *p != 0xFF && d < L_DEF + sizeof L_DEF - 3; p++)
             *d++ = *p;
-    *d++ = CAREERS;
+    if (cur_entry())
+        *d++ = WMENU + SET_W[0];
+    if (hist)
+        *d++ = CAREERS;
     *d = 0xFF;
+}
+
+static void top_restore(void)
+{
+    if (SEL_TOP) {
+        SEL_TOP[0] = CAREERS;
+        SEL_TOP[1] = SEL_TOP[2] = 0xFF;
+    }
+    SEL_TOP = 0;
+}
+
+/* SelectTeamsReinit's names call (swe.py, chained: historic's hist_names, which leaves the first entry in its
+   EF_VARS): MONDO 2026-27 GREEN in the lists of a friendly / DIY picker. */
+void swe_names_post(void)
+{
+    u32 nm = rd32(SWE_CT + 4 * (WMENU + SET_W[0]));
+    u8 *e = (u8 *)rd32(SWE_EFV);
+    if (!SEL_ON || !nm || !e)
+        return;
+    for (int k = 0; k < 64 && *(u16 *)(e + 2) != 87; k++, e += 56)   /* (ordinal 87: the end of the entries) */
+        if (!*(u16 *)(e + 4) && rd32(e + 0x26) == nm + 1)
+            *(u16 *)(e + 0x1E) = GREEN;
 }
 
 /* The contest's namespace (W-modes M2): the game reads a picked club's country NAME by its number after the picker
@@ -205,6 +250,11 @@ void swe_sel_pre(u32 mode)
         SEL_OD = *SEL_SLOTD;
         *SEL_SLOTD = (u32)L_DEF;
         SWE_D0[0] = WMENU + dw;         /* (GoGetTeamsForPlay's 255: the top list) */
+    } else {
+        u8 *t = (u8 *)list_ids(cw);
+        while (*t != 0xFF && *t != CAREERS)
+            t++;
+        SEL_TOP = t[0] == CAREERS && t[1] == 0xFF && t[2] == 0xFF ? t : 0;
     }
     sel_lists();
 }
@@ -229,6 +279,7 @@ void swe_sel_post(void)
         *SEL_SLOT98 = SEL_O98;
         if (SEL_DW)
             *SEL_SLOTD = SEL_OD;
+        top_restore();
         SWE_CWORLD = *(u16 *)SWE_NUMSEL ? SEL_CW : 0;
         ns_left(SWE_CWORLD);
     }
@@ -329,6 +380,11 @@ __attribute__((naked)) void swe_stfm_tramp(void)
     __asm__ volatile("pushfl\n\tpushal\n\tcall swe_stfm_guard\n\tpopal\n\tpopfl\n\tjmp SWE_STFM");
 }
 #endif
+
+__attribute__((naked)) void swe_names_tramp(void)
+{
+    __asm__ volatile("call SWE_NAMES\n\tpushfl\n\tpushal\n\tcall swe_names_post\n\tpopal\n\tpopfl\n\tret");
+}
 
 __attribute__((naked)) void swe_diy_save_tramp(void)
 {

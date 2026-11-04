@@ -24,7 +24,8 @@ in CAREER); W-modes M2 adds M_FRIENDLY for the career worlds (the friendly / DIY
 id WMENU + 0 (mkseason: the 1996-97 game's entry in their STORICO box). Presets wait for 4.1."""
 import struct
 
-REG_AT = 0x800                          # obj4: swe.c's code + data below it, the manifest up to the page end
+REG_AT = 0x1800                         # obj4: swe.c's code + data below it, the manifest up to the object end
+OBJ4_END = 0x2000                       # (swe.OBJ4_PAGES pages)
 MAGIC = b'SWRG'
 VERSION = 2
 HDR = 32
@@ -70,7 +71,7 @@ def patch(p, add_ptr):
         lists += bytes(-len(lists) % 4)
         recs.append((n, flags, menu, len(files), year, modes, len(comps), stem.encode(), fl, cl))
     end = at + len(lists)
-    assert end <= 0x1000, f'world registry: {end - REG_AT:#x} B past obj4\'s page'
+    assert end <= OBJ4_END, f'world registry: {end - REG_AT:#x} B past obj4'
     base = ns['base'] if ns else 0
     p.put(4, REG_AT, MAGIC + struct.pack('<HBB', VERSION, len(ws), base) + bytes(16)
           + struct.pack('<I', len(ns['numbers']) if ns else 0) + bytes(4))

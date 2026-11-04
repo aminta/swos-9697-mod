@@ -2384,8 +2384,8 @@ def patch(p, lang, area, cave):
         at = (at + len(lst) + 3) & ~3
         cworld = at
         p.add_ptr(1, at, *p.target(wobj, world))
-        p.put(1, at + 4, b'\xff' * 4 + conts + bytes((CAREERS, 0xff)))
-        at = (at + 8 + len(conts) + 2 + 3) & ~3
+        p.put(1, at + 4, b'\xff' * 4 + conts + bytes((CAREERS, 0xff, 0xff)))   # (W-modes M2: a spare byte, swe.c
+        at = (at + 8 + len(conts) + 3 + 3) & ~3                              # lists MONDO 2026-27 next to the box)
     d1 = p.le.obj_bytes(1)
     d7 = sacups.regs(d1)['D7']                  # continent range check: cmp word [D7], 85; ja last -> ja cont_check
     ms = [x.start() for x in re.finditer(rb'\x66\x83\x3d' + re.escape(struct.pack('<I', d7)) + rb'\x55\x0f\x87', d1)]

@@ -853,6 +853,7 @@ def patch(p, lang, area, cave, draw_pre=None, leagues=(), cave2=None, lp=None, c
     at2 = cave2                                            # 3.2 page: ESCI fix, then the tourney packs' contests
     ecode, efix = nasmcave.assemble(ESCI_ASM, at2, {})
     elab = nasmcave.labels(ESCI_ASM, at2, {})
+    LBL['EF_VARS'] = elab['EF_VARS']                       # (swe.c swe_names_post: the first entry)
     p.put(1, at2, ecode)
     for off, tobj, toff in efix:
         p.add_ptr(1, at2 + off, tobj, toff)

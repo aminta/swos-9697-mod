@@ -18,7 +18,7 @@ picker lists what it listed before (W-modes adds World 2026-27). obj1 changes by
 import os
 import struct
 
-OBJ4_PAGES = 1
+OBJ4_PAGES = 2                 # (M2: 2 pages, the registry moved to swreg.REG_AT = 0x1800)
 MAGIC = b'SWOS-ENG'
 VERSION = 3                    # (swe.c SWE_VERSION; 2 = step W, the registry; 3 = W-modes M2, the pickers' worlds)
 CODE_AT = 0x40
@@ -46,6 +46,7 @@ def m2_sites(p, site):
     import re
     import sacups
     import careerworld
+    import countries
     d1 = p.le.obj_bytes(1)
     rg = sacups.regs(d1)
     pk = lambda x: re.escape(struct.pack('<I', x))
@@ -92,6 +93,11 @@ def m2_sites(p, site):
         stfm = p.call_target(1, site)               # SelectTeamsFinalMenu's entry: an earlier patch's jmp (chained)
         assert p.get(*stfm, 1) == b'\xe9' and stfm[0] == 1, ('SelectTeamsFinalMenu entry', stfm, p.get(*stfm, 5))
         calls.append((stfm[1], 'swe_stfm_tramp'))
+    import historic                                 # SelectTeamsReinit's names call (historic's hist_names, chained)
+    ext['SWE_CT'] = (2, countries.CT[0])
+    if 'EF_VARS' in historic.LBL:                   # (hist_names: the first entry in EF_VARS; host tests: no build)
+        ext['SWE_EFV'] = (1, historic.LBL['EF_VARS'])
+    calls.append((historic._names_call(p)[0], 'swe_names_tramp'))
     if 'w_ns_menu' in careerworld.LABELS:           # careerworld w_ns_menu: mov eax, ecx; call w_ns_set
         wm = careerworld.LABELS['w_ns_menu']
         code = p.get(1, wm, 0x80)                   # (the mod's code: the patched bytes)
@@ -138,6 +144,7 @@ def patch(p):
     import swreg
     assert len(p.le.objs) == 4 and p.le.obj(4).npages == OBJ4_PAGES, 'obj4 not added (patch.py)'
     room = 0x1000 * OBJ4_PAGES
+    assert room == swreg.OBJ4_END
     site = pick_site(p)
     pick = p.call_target(1, site)                   # (chained: the picker call as earlier patches left it)
     ns = 'w_ns_set' in careerworld.LABELS and careerworld.NS.get('info')
@@ -147,7 +154,7 @@ def patch(p):
     m2, calls = m2_sites(p, site)                   # (W-modes M2: chained, as the picker call)
     ext.update(m2)
     chain = {'swe_diy_save_tramp': 'SWE_SAVEDIY', 'swe_diy_load_tramp': 'SWE_LOADDIY', 'swe_ns_tramp': 'SWE_NSSET',
-             'swe_stfm_tramp': 'SWE_STFM'}
+             'swe_stfm_tramp': 'SWE_STFM', 'swe_names_tramp': 'SWE_NAMES'}
     for cs, tr in calls:
         ext[chain[tr]] = p.call_target(1, cs)
     if not ns:

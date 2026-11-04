@@ -181,11 +181,11 @@ def test_wmodes():
         before = tr._snap(uc, sizes)
         tr._call(uc, pre, swreg.M_FRIENDLY)
         d0 = rd(D0, 1)[0]
-        seen = [(ids(u32(slot(98))), ids(u32(slot(d0))) if d0 != 255 else None, u32(c254) == cwt)]
+        seen = [(ids(u32(slot(98))), ids(u32(slot(d0))) if d0 != 255 else ids(cwt), u32(c254) == cwt)]
         for n, w in steps:
             w16(NUMSEL, n)
             tr._call(uc, ns, w)
-            seen.append((ids(u32(slot(98))), ids(u32(slot(d0))) if d0 != 255 else None, u32(selcw_p)))
+            seen.append((ids(u32(slot(98))), ids(u32(slot(d0))) if d0 != 255 else ids(cwt), u32(selcw_p)))
         tr._call(uc, post)
         cw = u32(cworld_p)
         ns_after = rd(wcur, 1)[0]
@@ -210,14 +210,23 @@ def test_wmodes():
             ([200, 204], o205 + [98], 0), ([200, 204], [98], 4), ([200, 204], [98], 4), ('ns', 4, 4)]
     if d0 != 205 or seen != want or cw != 4 or not same:
         errs.append(f'default 2026-27: D0 {d0}, lists {seen}, contest world {cw}, memory restored {same}')
-    d0, seen, cw, same = run(1, 1, [(1, 0)])
-    if d0 != 255 or seen != [([204, 205], None, True), ([204, 205], None, 0), ('ns', 4, 4)] or cw != 0 or \
-            not same:
+    # Q1 (b): MONDO 2026-27 never in STORICO; under another default its own entry next to the box (the 1996-97
+    # default: the top list = CAREER_WORLD, its spare byte), the box left out when the lock empties it
+    ctop = top                                    # (the game's continents, as CAREER_WORLD lists them)
+    d0, seen, cw, same = run(1, 1, [(1, 0), (2, 5), (0, 0), (1, 4)])
+    want = [([204], ctop + [205, 98], True), ([204], ctop + [205, 98], 0), ([], ctop + [205], 5),
+            ([204], ctop + [205, 98], 0), ([204], ctop + [98], 4), ('ns', 4, 4)]
+    if d0 != 255 or seen != want or cw != 4 or not same:
         errs.append(f'default 1996-97: D0 {d0}, lists {seen}, contest world {cw}, memory restored {same}')
+    if ids(cwt) != ctop + [98] or rd(cwt + 8 + len(ctop), 3) != b'\x62\xff\xff':
+        errs.append(f'CAREER_WORLD after the picker {ids(cwt)} {rd(cwt + 8 + len(ctop), 3).hex()}')
     d0, seen, cw, same = run(2, 1, [(1, 5)])
-    if d0 != 204 or seen != [([200, 205], o204 + [98], True), ([200, 205], [98], 5), ('ns', 5, 4)] or \
+    if d0 != 204 or seen != [([200], o204 + [205, 98], True), ([200], [205, 98], 5), ('ns', 5, 4)] or \
             cw != 5 or not same:   # (a 2026-27 club: its namespace kept after the picker, the base one at the next)
-        errs.append(f'default 1984-85: D0 {d0}, lists {seen[:1]}.., contest world {cw}, memory restored {same}')
+        errs.append(f'default 1984-85: D0 {d0}, lists {seen}, contest world {cw}, memory restored {same}')
+    d0, seen, cw, same = run(2, 1, [(1, 4)])
+    if seen[:2] != [([200], o204 + [205, 98], True), ([200], o204 + [98], 4)] or cw != 4 or not same:
+        errs.append(f'default 1984-85, a 1984-85 club: lists {seen}, contest world {cw}, memory restored {same}')
     d0, seen, cw, same = run(2, 1, [(1, 5)], career=True)
     if seen[-1] != ('ns', 5, 5):
         errs.append(f'a career\'s picker after a 2026-27 contest: namespace {seen[-1]} (kept 5)')

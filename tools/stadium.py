@@ -12,10 +12,12 @@ The file is read with own DOS calls (LoadFile ends the program on a missing file
 
 DATA\\STAD<stem>.DAT, one per team-file namespace (stem = TEAM, or TMWn: a world of its own in a several-world build,
 numbers 101.. reused; picked as careerworld's w_ns_stem does: WCUR's WNSB set, WSTEM), e.g. STADTEAM.DAT, STADTMW5.DAT.
-Format v2 (agreed with Dati coppe 02/11, little-endian): 'STAD', u16 version 2, u16 venue rows V, u32 the venue
-table's offset; 256 x (u32 offset, u16 count) by TEAM file; per file its club records sorted by ordinal: u8 teamOrdinal
-+ 33-byte NUL-padded name (at most 32 chars, the game charset A-Z 0-9 space - . '); then V venue rows of VROW bytes:
-competition[40] + round[40] + name[33] + u8 season. A neutral final: the line-ups' gameName / gameRound equal a row's
+Format v3 (4.0.6 full official names, Davide 05/11; v2 = 02/11 with Dati coppe, still read), little-endian: 'STAD',
+u16 version 3, u16 venue rows V, u32 the venue table's offset; 256 x (u32 offset, u16 count) by TEAM file; per file
+its club records sorted by ordinal: u8 teamOrdinal + 49-byte NUL-padded name (at most 48 chars, the game charset A-Z
+0-9 space - . '; v2: 33 bytes, 32 chars); then V venue rows of VROW bytes: competition[40] + round[40] + name[49] +
+u8 season (v2: name[33]). 48 small-font characters are at most 288 px: always inside the 320-px screen.
+A neutral final: the line-ups' gameName / gameRound equal a row's
 competition / round (exact, to the NUL; the game's '*' padding ends a string) and its season is 0 or the career's
 (currentSeasonShowing + 1): the row's name, before the home club's. One row per language (the exes' own strings).
 4.0.6 ships only DATA\\STADTMW5.DAT (World 2026-27, Davide 02/11; gen() from stadium_tmw5_*.csv), no STADTEAM.DAT.
@@ -43,10 +45,11 @@ NS_STEM = '''    movzx ecx, byte [WCUR]               ; several worlds: the curr
     mov ax, [st_key]
 '''
 MAGIC = b'STAD'
-VERSION = 2
-VROW = 114                              # competition[40] + round[40] + name[33] + u8 season
-REC = 34                                # u8 ordinal + 33-byte name
-NAME = 33
+VERSION = 3
+NAME = 49                               # 48 chars + NUL (v2: 33)
+VROW = 80 + NAME + 1                    # competition[40] + round[40] + name + u8 season
+REC = 1 + NAME                          # u8 ordinal + name
+OLD = {2: 33, 3: NAME}                  # the name field by file version (the game reads both)
 GAP = 25                                # rows clear between the team bars and the name (Davide's round-3 mock: 20 / 25)
 
 ASM = r"""
@@ -117,8 +120,16 @@ st_find:                                ; ZF = 0: st_name = the home club's stad
     jne .close
     cmp dword [st_rec], 'STAD'
     jne .close
+    mov eax, 34                         ; the record and venue-row sizes by version: v2 names 33 B, v3 49 B
     cmp word [st_rec + 4], 2
+    je .v
+    cmp word [st_rec + 4], 3
     jne .close
+    mov al, 50
+.v:
+    mov [st_rsz], eax
+    add eax, 80
+    mov [st_vsz], eax
     movzx esi, word [st_rec + 6]        ; the venues first (a neutral round: the line-ups' competition + round)
     test esi, esi
     jz .club
@@ -127,10 +138,10 @@ st_find:                                ; ZF = 0: st_name = the home club's stad
     jc .close
 .ven:
     mov edx, st_vrow
-    mov ecx, VROW
+    mov ecx, [st_vsz]
     call .read
     jne .close
-    mov al, [st_vrow + 113]             ; its season: 0 = every one, else the career's (currentSeasonShowing + 1)
+    mov al, [st_vrow + ecx - 1]         ; its season: 0 = every one, else the career's (currentSeasonShowing + 1)
     test al, al
     jz .vs
     movzx ecx, word [SSN]
@@ -172,7 +183,7 @@ st_find:                                ; ZF = 0: st_name = the home club's stad
     jc .close
 .rec:
     mov edx, st_rec
-    mov ecx, 34
+    mov ecx, [st_rsz]
     call .read
     jne .close
     mov al, [st_rec]
@@ -186,9 +197,10 @@ st_find:                                ; ZF = 0: st_name = the home club's stad
     mov esi, st_rec + 1
 .copy:
     mov edi, st_name
-    mov ecx, 33
+    mov ecx, [st_rsz]
+    dec ecx
     rep movsb
-    mov byte [st_name + 32], 0          ; (at most 32 chars)
+    mov byte [st_name + 48], 0          ; (at most 48 chars)
 .close:
     mov ah, 3Eh
     int 21h
@@ -237,13 +249,15 @@ st_find:                                ; ZF = 0: st_name = the home club's stad
 
 st_fn: db 'data\stadteam.dat', 0
 st_mark: db 'STNM'                      ; (the harness finds these by the mark)
-st_name: times 33 db 0                  ; the name shown last ('' = none)
+st_name: times 49 db 0                  ; the name shown last ('' = none)
 st_shown: db 0                          ; 1 once the name is on the versus screen
 st_key: dw 0                            ; countryNumber, teamOrdinal (looked up last)
 st_y: dd 0                              ; the name's top row
-st_rec: times 34 db 0
-st_vrow: times VROW db 0                ; a venue row: competition[40], round[40], name[33], season
+st_rec: times 50 db 0
+st_vrow: times VROW db 0                ; a venue row: competition[40], round[40], name[49], season
 align 4
+st_rsz: dd 0                            ; this file's record / venue-row size (v2 34 / 114, v3 50 / 130)
+st_vsz: dd 0
 st_regs: times 15 dd 0
 """
 
@@ -330,11 +344,14 @@ def patch(p, at):
     return at + len(code)
 
 
-def build(records, venues=()):
-    """A STAD<stem>.DAT (v2): records = {(team file, ordinal): name}; venues = [(competition, round, name, season)]:
+def build(records, venues=(), version=VERSION):
+    """A STAD<stem>.DAT (v3): records = {(team file, ordinal): name}; venues = [(competition, round, name, season)]:
     the exact line-ups strings (gameName / gameRound, one row per language), season 0 = every one, n = the career's
-    n-th (currentSeasonShowing + 1). Header 'STAD', u16 2, u16 V, u32 the venue table's offset; 256 x (u32 offset,
-    u16 count) by team file; the club records (u8 ordinal + 33-byte name); the V venue rows (VROW bytes)."""
+    n-th (currentSeasonShowing + 1). Header 'STAD', u16 3, u16 V, u32 the venue table's offset; 256 x (u32 offset,
+    u16 count) by team file; the club records (u8 ordinal + 49-byte name); the V venue rows (VROW bytes).
+    version=2: the 4.0.6-I10 layout (33-byte names, names <= 32), for the harness's old-file case."""
+    nm = OLD[version]
+    lim = nm - 1
     by = {}
     for (f, o), n in records.items():
         by.setdefault(f, []).append((o, n))
@@ -344,49 +361,51 @@ def build(records, venues=()):
         recs = sorted(by.get(f, []))
         idx += struct.pack('<IH', off + len(body) if recs else 0, len(recs))
         for o, n in recs:
-            body += bytes([o]) + check(n).encode('ascii').ljust(NAME, b'\0')
+            body += bytes([o]) + check(n, lim).encode('ascii').ljust(nm, b'\0')
     ven = bytearray()
     for c, r, n, sn in venues:
         assert 0 < len(c) < 40 and 0 < len(r) < 40 and '*' not in c + r and 0 <= sn < 256, ('venue', c, r, sn)
         ven += c.encode('latin-1').ljust(40, b'\0') + r.encode('latin-1').ljust(40, b'\0') \
-            + check(n).encode('ascii').ljust(NAME, b'\0') + bytes([sn])
-    assert len(ven) == len(venues) * VROW
-    return MAGIC + struct.pack('<HHI', VERSION, len(venues), off + len(body)) + bytes(idx) + bytes(body) + bytes(ven)
+            + check(n, lim).encode('ascii').ljust(nm, b'\0') + bytes([sn])
+    assert len(ven) == len(venues) * (81 + nm)
+    return MAGIC + struct.pack('<HHI', version, len(venues), off + len(body)) + bytes(idx) + bytes(body) + bytes(ven)
 
 
 def read(data):
     """A STAD<stem>.DAT back (the harness): ({(team file, ordinal): name}, [(competition, round, name, season)]);
-    None if it is not a version-2 file (the game shows no banner then)."""
-    if len(data) < 12 + 256 * 6 or data[:4] != MAGIC or struct.unpack_from('<H', data, 4)[0] != VERSION:
+    None if it is not a version-2 / 3 file (the game shows no name then)."""
+    if len(data) < 12 + 256 * 6 or data[:4] != MAGIC or struct.unpack_from('<H', data, 4)[0] not in OLD:
         return None
+    nm = OLD[struct.unpack_from('<H', data, 4)[0]]
+    rec, vrow = 1 + nm, 81 + nm
     nv, voff = struct.unpack_from('<HI', data, 6)
     z = lambda b: b.split(b'\0')[0].decode('latin-1')
     recs = {}
     for f in range(256):
         off, n = struct.unpack_from('<IH', data, 12 + f * 6)
         for k in range(n):
-            r = data[off + k * REC:off + (k + 1) * REC]
+            r = data[off + k * rec:off + (k + 1) * rec]
             recs[(f, r[0])] = z(r[1:])
-    ven = [(z(v[:40]), z(v[40:80]), z(v[80:113]), v[113])
-           for v in (data[voff + k * VROW:voff + (k + 1) * VROW] for k in range(nv))]
+    ven = [(z(v[:40]), z(v[40:80]), z(v[80:80 + nm]), v[80 + nm])
+           for v in (data[voff + k * vrow:voff + (k + 1) * vrow] for k in range(nv))]
     return recs, ven
 
 
 CHARSET = set("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 -.'")
 
 
-def check(name):
-    assert len(name) <= 32 and set(name) <= CHARSET, ('stadium name', name)
+def check(name, lim=NAME - 1):
+    assert len(name) <= lim and set(name) <= CHARSET, ('stadium name', name)
     return name
 
 
 def fit(name):
     """A source name (any case, accents) in the font: upper case, accents dropped, other characters -> space, at most
-    32 (None if it does not fit: shortened by hand in the data, never cut)."""
+    48 (None if it does not fit: the short official form or today's name in the data, never a cut)."""
     import unicodedata
     s = unicodedata.normalize('NFKD', name).encode('ascii', 'ignore').decode().upper().replace('`', "'")
     s = ' '.join(''.join(c if c in CHARSET else ' ' for c in s).split())
-    return s if 0 < len(s) <= 32 else None
+    return s if 0 < len(s) <= NAME - 1 else None
 
 
 def from_world(world, csv_path):  # -> STADTMW5.DAT (World 2026-27's namespace)
@@ -409,7 +428,7 @@ def from_world(world, csv_path):  # -> STADTMW5.DAT (World 2026-27's namespace)
         w = where.get((row['country'], row['key']))
         n = fit(row['stadium'])
         if w is None or n is None:
-            bad.append((row['country'], row['key'], row['stadium'], 'no club' if w is None else 'over 32'))
+            bad.append((row['country'], row['key'], row['stadium'], 'no club' if w is None else 'over 48'))
             continue
         recs[w] = n
     return recs, bad
@@ -427,7 +446,7 @@ def venues(csv_path=VENUES_CSV):
     out = []
     for r in csv.DictReader(open(csv_path, encoding='utf-8')):
         n = fit(r['venue'])
-        assert n, ('venue over 32', r['venue'])
+        assert n, ('venue over 48', r['venue'])
         for lang, _ in LANGS:
             v = (r[f'comp_{lang}'], r[f'round_{lang}'], n, int(r['season']))
             if v not in out:

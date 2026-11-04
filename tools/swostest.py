@@ -9932,13 +9932,13 @@ def purple_stadium():
     return ok, f'line-ups screen entry 12 {got} ({r.outcome})'
 
 
-STNM_NAME, STNM_SHOWN, STNM_KEY, STNM_Y = 4, 37, 38, 40          # stadium.py's log after its 'STNM' mark
+STNM_NAME, STNM_SHOWN, STNM_KEY, STNM_Y = 4, 53, 54, 56          # stadium.py's log after its 'STNM' mark (v3: name[49])
 
 
 def stadium_log(r, at):
     """stadium.py's variables (at = the Off3 of its 'STNM' mark): name, shown, (file, ordinal), the name's top row."""
-    v = r.read(r.lin(at), 48)
-    return {'name': v[STNM_NAME:STNM_NAME + 33].split(bytes(1))[0].decode('latin-1'), 'shown': v[STNM_SHOWN],
+    v = r.read(r.lin(at), 64)
+    return {'name': v[STNM_NAME:STNM_NAME + 49].split(bytes(1))[0].decode('latin-1'), 'shown': v[STNM_SHOWN],
             'key': (v[STNM_KEY], v[STNM_KEY + 1]), 'y': struct.unpack_from('<i', v, STNM_Y)[0]}
 
 
@@ -9994,8 +9994,10 @@ def stadium_versus():
     """4.0.6 (Davide 02/11): the home club's stadium (DATA\\STADTEAM.DAT, test file) on the versus screen, under the
     two team bars (stadium.GAP rows clear), centred on the title, in the small font and the title's colour; nothing waits, the
     match goes on. Friendlies in ITALIA SERIE A, the two clubs of each the same case (RandomlySwapTeams picks the home
-    side): INTER v MILAN (WEMBLEY / SAN SIRO), FIORENTINA v ROMA (32 chars: inside the screen), JUVENTUS v LAZIO (no
-    record): the screen as the game draws it (no title ink under the bars). The names in the game charset, <= 32."""
+    side): INTER v MILAN (WEMBLEY / SAN SIRO), FIORENTINA v ROMA (48 chars, the widest World 2026-27 name: inside the
+    screen, centred), JUVENTUS v LAZIO (no record): the screen as the game draws it (no title ink under the bars);
+    INTER v MILAN again from a version-2 file (4.0.6-I10's 33-byte names: still read). The names in the game charset,
+    <= 48 (v2 <= 32)."""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import lepatch
     import stadium
@@ -10011,16 +10013,22 @@ def stadium_versus():
     for t in range(struct.unpack('>H', d[:2])[0]):
         o = 2 + t * 684
         keys[d[o + 5:o + 22].split(bytes(1))[0].decode('latin-1')] = (d[o], d[o + 1])
-    long = 'STADIO COMUNALE CARLO CASTELLANI'
-    assert len(long) == 32
+    long = 'WEST COAST UNIVERSITY CITY SPORTS CENTER STADIUM'        # (QD WEST COAST's: 48 chars, 254 px)
+    assert len(long) == 48
     dat = os.path.join(WORK, 'saves', 'STADIUM_TEST.DAT')
+    old = os.path.join(WORK, 'saves', 'STADIUM_TEST_V2.DAT')
     os.makedirs(os.path.dirname(dat), exist_ok=True)
     names = {keys['INTER']: 'WEMBLEY', keys['MILAN']: 'SAN SIRO', keys['FIORENTINA']: long,  # (friendlies swap the
-             keys['ROMA']: long.replace('CARLO CASTELLANI', 'OLIMPICO DI ROMA')}             # teams at random,
+             keys['ROMA']: 'STADIO OLIMPICO DI ROMA ' + 'X' * 24}                            # teams at random,
     open(dat, 'wb').write(stadium.build(names))     # RandomlySwapTeams: both clubs of a pair are the same case)
+    v2 = {keys['INTER']: 'GIUSEPPE MEAZZA V2', keys['MILAN']: 'STADIO COMUNALE CARLO CASTELLANI'}
+    open(old, 'wb').write(stadium.build(v2, version=2))
     errs, info = [], []
-    for tag, home, away in (('inter', 'INTER', 'MILAN'), ('long', 'FIORENTINA', 'ROMA'), ('none', 'JUVENTUS', 'LAZIO')):
-        with Session('stadium_versus_' + tag, b, {'DATA/STADTEAM.DAT': dat}, 'dump:3', 300, match=True) as s:
+    for tag, home, away in (('inter', 'INTER', 'MILAN'), ('long', 'FIORENTINA', 'ROMA'), ('none', 'JUVENTUS', 'LAZIO'),
+                            ('v2', 'INTER', 'MILAN')):
+        nm = v2 if tag == 'v2' else names
+        with Session('stadium_versus_' + tag, b, {'DATA/STADTEAM.DAT': old if tag == 'v2' else dat}, 'dump:3', 300,
+                     match=True) as s:
             s.wait()
             italy_friendly(s, home, away)
             for _ in range(22):
@@ -10033,7 +10041,7 @@ def stadium_versus():
             if got:
                 g = got[0]['log']
                 check(g['key'] in (keys[home], keys[away]), f'{tag}: key {g["key"]} not {home} / {away}', errs)
-                stadium_vs_check(got[0], names.get(g['key'], ''), errs, info, tag, s)
+                stadium_vs_check(got[0], nm.get(g['key'], ''), errs, info, tag, s)
             r = s.send('dump:2')
             check(r.outcome == 'dump', f'{tag}: after the versus screen {r}', errs)
     return not errs, '; '.join(errs + info)
@@ -10215,7 +10223,8 @@ def stadium_clublist():
     """4.0.6 the stadium club list against a release build's World 2026-27 data (STADIUM_BUILD, else W2627FULL: the
     release recipe): every tools/stadium_tmw5_clubs.csv row is that club in DATA\\TMW5.nnn (stadium.unmatched: 0 - the
     build itself tolerates an older snapshot, dropping the row), every venue string is in each exe present / DATA
-    (stadium.venue_misses: none - the build only prints them), DATA\\STADTMW5.DAT is there. No DOSBox."""
+    (stadium.venue_misses: none - the build only prints them), DATA\\STADTMW5.DAT is there; every name (clubs,
+    venues) 1..48 characters of the game charset and at most 318 px in the small font (4.0.6 full names). No DOSBox."""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import stadium
     b = os.environ.get('STADIUM_BUILD') or os.environ.get('W2627FULL')
@@ -10226,9 +10235,17 @@ def stadium_clublist():
     vm = {lang: stadium.venue_misses(os.path.join(b, exe), lang, os.path.join(b, 'DATA'))[0]
           for lang, exe in stadium.LANGS if os.path.exists(os.path.join(b, exe))}
     vm = {k: v for k, v in vm.items() if v}
-    ok = not bad and not vm and os.path.exists(os.path.join(b, 'DATA', 'STADTMW5.DAT'))
-    return ok, f'{n} club rows, {len(bad)} not that club in {b}: {bad[:5]}; venue strings missing {vm}; STADTMW5.DAT ' + \
-        ('there' if os.path.exists(os.path.join(b, 'DATA', 'STADTMW5.DAT')) else 'MISSING')
+    import complist                             # 4.0.6 full names: every name (clubs, venues) <= 48 font characters
+    import csv                                  # (A-Z 0-9 space - . ') and inside the screen in the small font
+    nms = [r['stadium'] for r in csv.DictReader(open(stadium.CLUBS_CSV, encoding='utf-8'))] + \
+        [v[2] for v in stadium.venues()]
+    wide = [(x, len(x), complist.px(x)) for x in nms
+            if not x or len(x) > 48 or not set(x) <= stadium.CHARSET or complist.px(x) > 318]
+    top = max(nms, key=complist.px)
+    ok = not bad and not vm and not wide and os.path.exists(os.path.join(b, 'DATA', 'STADTMW5.DAT'))
+    return ok, f'{n} club rows, {len(bad)} not that club in {b}: {bad[:5]}; venue strings missing {vm}; ' \
+        f'names over 48 / off-charset / wider than 318 px: {wide[:5]} (widest {top!r} {complist.px(top)} px); ' \
+        'STADTMW5.DAT ' + ('there' if os.path.exists(os.path.join(b, 'DATA', 'STADTMW5.DAT')) else 'MISSING')
 
 
 @scenario

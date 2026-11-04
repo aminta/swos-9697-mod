@@ -745,6 +745,8 @@ def patch_exe(src, dst, remap, lang='it'):
     bn_end = mklist.patch(p, (bn_end + 15) & ~15)     # obj3 after squadnum
     import oppl                                  # 4.0.6 (Davide): the opponent squad, read only, in the in-match bench
     bn_end = oppl.patch(p, (bn_end + 15) & ~15)       # menu (UP on the coach), obj3 after mk_keep
+    import formwide                              # 4.0.6 (Marco, B2): the bench menu rows 14 px wider (card left of the
+    bn_end = formwide.patch(p, (bn_end + 15) & ~15)   # face, the injury cross its own column), obj3 after oppl
     assert bn_end <= LT3_AT, hex(bn_end)
     import cpucards                              # 4.0.6 (Davide): the CPU's cards / injuries by the human rules, two
     cc_end = cpucards.patch(p, (bn_end + 15) & ~15, lang)    # OPTIONS rows (ON by default), in obj3 after oppl

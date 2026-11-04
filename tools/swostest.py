@@ -5263,6 +5263,73 @@ def subs_rows(vga):
     return rows
 
 
+def fw_rows(vga):
+    """4.0.6 formwide (Marco's B2) in a frame of the bench menus: every row DrawSubstitutesMenuEntry drew (subs_rows'
+    bands) with the wide geometry measured on it -> (rows, problems). The frame line above a row runs from fl to
+    fl + 125 + WIDE (fl = the face's x - 2 - LEFT); inside: column fl+1 and the face's x - 1 background (a card, 7 px +
+    shadow, between them only), the name / cross gap (face x + 109, + 110) background, red cross pixels only in its column
+    (face x + CROSS .. + CROSS + 7), the column before the right frame background. ([], []) when the frame has no
+    wide rows (a build without formwide)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import formwide
+    L, W, X = formwide.LEFT, formwide.WIDE, formwide.CROSS
+    px = lambda x, y: vga[y * 320 + x]
+    rows, bad = [], []
+    for y0, y1, c, seg in subs_rows(vga):
+        f = px(150, y0 - 1)
+        a = b = 150
+        while a > 0 and px(a - 1, y0 - 1) == f:
+            a -= 1
+        while b < 319 and px(b + 1, y0 - 1) == f:
+            b += 1
+        if b - a != 125 + W:
+            continue
+        x0 = a + 2 + L
+        rows.append(y0)
+        col = lambda x: [px(x, y) for y in range(y0, y1 + 1)]
+        bgcol = lambda x: all(v == c for v in col(x))
+        for x, what in ((a + 1, 'frame / card gap'), (x0 - 1, 'card / face gap'), (x0 + 109, 'name / cross gap'),
+                        (x0 + 110, 'name / cross gap'), (b - 1, 'right frame gap')):
+            if not bgcol(x):
+                bad.append(f'y {y0}: x {x} ({what}) not background')
+        if px(a, y0 + 4) != f or px(b, y0 + 4) != f:
+            bad.append(f'y {y0}: side frames ({a}, {b}) not the frame colour')
+        card = [x for x in range(a + 2, x0 - 1) if not bgcol(x)]
+        if card and (card[0] != a + 2 or card[-1] != x0 - 2):
+            bad.append(f'y {y0}: card columns {card[0]}..{card[-1]}, want {a + 2}..{x0 - 2}')
+    return rows, bad
+
+
+def formwide_build(r):
+    """The run exe's bench rows: 'wide' (formwide), 'spp' (formwide, SWOS++ running: its own rows, the game's x) or ''
+    (a build without formwide: the card x byte 9)."""
+    if not hasattr(formwide_build, 'v'):
+        sys.path.insert(0, os.path.join(ROOT, 'tools'))
+        import formwide
+        s = formwide.sites(lepatch_orig())
+        formwide_build.v = (s['X0'], s['SWOSPP'][1])
+    if r.base1 is None or r.obj1(formwide_build.v[0], 1)[0] != 0xE8:
+        return ''
+    return 'spp' if r.obj1(formwide_build.v[1], 1)[0] != 0xFF else 'wide'
+
+
+def fw_want(r, rows, n, where, errs):
+    """formwide rows in a frame: n or more ('wide'), none under SWOS++ ('spp': SWOS++'s own rows)."""
+    m = formwide_build(r)
+    if m == 'wide':
+        check(len(rows) >= n, f'formwide: {len(rows)} wide rows in the {where} (want {n}+)', errs)
+    elif m == 'spp':
+        check(not rows, f'formwide under SWOS++: {len(rows)} wide rows in the {where} (want SWOS++\'s own)', errs)
+
+
+def fw_check(vga, where, errs, info):
+    """fw_rows on a frame: a FAIL line per problem; info: the rows checked."""
+    rows, bad = fw_rows(vga)
+    info.append(f'formwide {where}: {len(rows)} wide rows, {len(bad)} problems')
+    check(not bad, f'formwide {where}: {bad[:6]}', errs)
+    return rows
+
+
 @scenario
 def subs_numbers():
     """4.0.2 subsnum (Davide's MiSTer b5: '99M. SVILAR' in the in-match bench list): friendly, human HAMBURG numbered
@@ -5756,6 +5823,26 @@ def keeper_let_go(s, errs):
     return True
 
 
+def fw_probe(s):
+    """Both teams' starters 2 / 3 booked (Sprite.cards +66h: 1 yellow, -1 red), the record-injury byte
+    (PlayerInfoHeader.injuriesBitfield, 42 + 61 i + 35) 0x20 (a cross drawn every frame) for starters 2 and 4: the bench
+    menu's card and cross columns on the screen (formwide.py). Returns what was poked."""
+    r = s.result
+    out = []
+    for t in team_data():
+        t = r.base2 + t
+        tab, game = struct.unpack('<I', r.read(t + 0x14, 4))[0], struct.unpack('<I', r.read(t + 0x0A, 4))[0]
+        if not tab or not game:
+            continue
+        sp = struct.unpack('<11I', r.read(tab, 44))
+        s.poke(sp[1] + 0x66, b'\x01\x00')
+        s.poke(sp[2] + 0x66, b'\xff\xff')
+        for i in (1, 3):
+            s.poke(game + 42 + 61 * i + 35, b'\x20')
+        out.append(ingame_team(r, game - r.base2)[0])
+    return out
+
+
 def bench_sub(s, bx, place, errs, info, mark, key=None, gone=None, tag=''):
     """benchx block 2: the bench called, its cursor moved down to the squad's place `place` (12..26, g_benchPlayerIndex
     = place - 11: index 1 = in-match player 11 = place 12; 4.0.6 two-row dugouts: every place seated, no window - bx_win,
@@ -5844,9 +5931,12 @@ def bench_sub(s, bx, place, errs, info, mark, key=None, gone=None, tag=''):
     check(up6 == (up_i, 0), f'up 6: (index, window) {up6} (index {up_i})', errs)
     check(ups[-1] == (want, 0), f'down again: {ups[-1]}', errs)
     s.shot(tag + 'bench_up')
+    if os.environ.get('BENCH_FWPROBE'):     # (4.0.6 formwide) cards / record crosses on the rows: their pixels in the shot
+        info.append(f'fw probe: {fw_probe(s)}')
     r = s.send('fire:0.2 dump:0.6')
     st, ent = w16(v['SUBST'], r.base2), w16(v['ENTER'], r.base2)
     s.shot(tag + 'subs_menu')
+    fw_want(r, fw_check(s.box.dump(0xA0000, 64000), tag + 'subs menu', errs, info), 12, 'subs menu', errs)
     check(st == 1 and ent == place - 1, f'after fire: g_subsState {st}, plToEnterGameIndex {ent} (want 1, {place - 1})', errs)
     r = s.send('fire:0.2 dump:0.6')
     ns = (w16(v['NS1'], r.base2), w16(v['NS2'], r.base2))
@@ -6503,12 +6593,15 @@ def bench_oppl(s, bx, top, bot, errs, info, mark):
     title = lambda: oppl_title(s.box.dump(0xA0000, 64000))
     seen, titles = [(page(r), rows())], [title()]
     s.shot('oppl_page0')
+    fw = fw_check(s.box.dump(0xA0000, 64000), 'oppl page 0', errs, info)
     for k in range(npg + 1):                # down to the last page and once more
         r = s.send('down:0.2 dump:0.6')
         same(r, f'down {k + 1}')
         seen.append((page(r), rows()))
         titles.append(title())
         s.shot(f'oppl_down{k + 1}')
+        fw += fw_check(s.box.dump(0xA0000, 64000), f'oppl down {k + 1}', errs, info)
+    fw_want(r, fw, 11, 'oppl pages', errs)
     for k in range(npg + 1):                # up to page 0 and once more
         r = s.send('up:0.2 dump:0.6')
         same(r, f'up {k + 1}')
@@ -6817,6 +6910,8 @@ def bench_play(s, gmax, top, bot, wants, errs, info, mark, sub=None, icons=None,
                 lists += 1
                 if lists == 1:
                     s.shot('bench_list')
+                    fwr = fw_check(s.box.dump(0xA0000, 64000), 'bench list', errs, info)
+                    fw_want(r, fwr, min(11, g), 'bench list', errs)
             s.send('left:0.3 left:0.3 dump:0.5')   # (left twice leaves the bench)
             if lists >= 3:
                 break
@@ -9754,7 +9849,12 @@ def swospp_bench():
         spp, mr = ranges(pp_), ranges(mod)
         info.append(f'SWOS++ run-time sites in obj1: {len(spp)} ({len(pp_)} bytes); mod changes: {len(mr)} ranges')
         over, near, known = [], [], []
+        import formwide                                 # (4.0.6: the bench rows' four width / x immediates, the ones
+        fwi = {x for x, _, _ in formwide._bytes(formwide.sites(orig))}   # SWOS++ writes its own values into: by design)
         for a, z in spp:
+            if a == z and a in fwi and exe[a - 7:a - 4] == o0[a - 7:a - 4]:   # (still the game's instruction)
+                known.append(hex(a) + ' formwide')
+                continue
             if (z <= a + 6 and o0[a:a + 3] == b'\x66\x01\x05' and exe[a] == 0xe8 and exe[a + 5:a + 7] == b'\x90\x90'
                     and exe[a + 7] == 0xe8):            # (shirtnum, 3.2.6: SWOS++'s DrawControlledPlayerNumbers+0x184
                 known.append(hex(a))                    # hook takes our `call num_sprite; nop; nop` = the game's add,
@@ -9767,7 +9867,7 @@ def swospp_bench():
         open(os.path.join(RUNS, 'swospp_bench', 'sites.txt'), 'w').write(
             '\n'.join(f'{a:#x}..{z:#x} mem {mem[a:z + 1].hex()} exe {exe[a:z + 1].hex()}' for a, z in spp) + '\n\nnear:\n'
             + '\n'.join(map(str, near)) + '\n')
-        info.append(f'overlaps {over[:8]}; by design (shirtnum) {known}; near {len(near)}: {near[:12]}')
+        info.append(f'overlaps {over[:8]}; by design (shirtnum, formwide) {known}; near {len(near)}: {near[:12]}')
         check(not over, f'SWOS++ sites overlap mod changes: {over[:12]}', errs)
     return not errs, '; '.join(errs + info)
 

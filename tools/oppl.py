@@ -179,35 +179,36 @@ op_ttl:                                 ; the opponent's name in the header's pl
     push dword [A1]
     mov ax, [SMX]
     sub ax, [CAMX]
+    sub ax, FW_LEFT                     ; (formwide.py: the rows FW_WIDE px wider, FW_LEFT of it on the left)
     mov [D0], ax
     mov word [D1], 10
-    mov word [D2], 126
+    mov word [D2], 126 + FW_WIDE
     mov word [D3], 11
     mov word [D4], 8                    ; the shadow
     call FILL                           ; (FillRectangle wrecks D0..D3: all set again for each)
     mov ax, [SMX]
     sub ax, [CAMX]
-    sub ax, 2
+    sub ax, 2 + FW_LEFT
     mov [D0], ax
     mov word [D1], 8
-    mov word [D2], 126
+    mov word [D2], 126 + FW_WIDE
     mov word [D3], 11
     mov ax, [FRAMEC]
     mov [D4], ax                        ; the frame
     call FILL
     mov ax, [SMX]
     sub ax, [CAMX]
-    dec ax
+    sub ax, 1 + FW_LEFT
     mov [D0], ax
     mov word [D1], 9
-    mov word [D2], 124
+    mov word [D2], 124 + FW_WIDE
     mov word [D3], 9
     mov ax, [BGC]
     mov [D4], ax                        ; the background
     call FILL
     mov ax, [SMX]
     sub ax, [CAMX]
-    add ax, 63
+    add ax, 63 + FW_TXT
     mov [D1], ax
     mov word [D2], 11
     mov word [D3], 2
@@ -389,6 +390,8 @@ def patch(p, at):
                              'PL1T', 'PL2T', 'POSTAB', 'SWOSPP', 'D7', 'TOP', 'BOTTOM', 'BGC', 'FRAMEC', 'SCH', 'SMX',
                              'CAMX', 'FILL', 'PCS', 'D0', 'D1', 'D2', 'D3', 'D4', 'A0', 'A1')}
     sym.update(TABLE=benchx.INFO['TABLE'], GMAX=benchx.INFO['GMAX'], GI_=(0, GI_SIZE), SPR_=(0, SPR_SIZE), PI_=(0, PI))
+    import formwide
+    sym.update(FW_LEFT=(0, formwide.LEFT), FW_WIDE=(0, formwide.WIDE), FW_TXT=(0, (formwide.RIGHT - formwide.LEFT) // 2))
     code, fix, rel = nasmcave.assemble_obj(ASM, at, sym, 3)
     lab = nasmcave.labels(ASM, at, sym)
     assert not any(p.get(3, at, len(code))), hex(at)

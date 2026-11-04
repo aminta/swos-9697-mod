@@ -118,6 +118,7 @@ career starts with INVENTED. Older saves load with INVENTED.
 - **Shirt numbers on the squad screen.** You can now edit your club's shirt numbers on the squad screen too, as you already could on the team screen before a match: press LEFT on a player, then UP / DOWN or type the number; ESC cancels. The number no longer touches the player's name, and its shadow shows.
 - **Transfer market keeps its place** (reported by Enzo). When you look at a player in the national or foreign market list (MAKE OFFER) and come back with EXIT, the list stays on the page you were on, with the cursor on that player, instead of jumping back to the first page.
 - **Groups list.** When you pick a division split into groups (Serie C, Serie D, Argentina's Zona A / B, El Salvador's Segunda / Tercera, ...) the list of groups now opens on the first group (GIRONE A), both when you choose your club and in VIEW WORLD. EXIT still takes you back with the cursor on the division you came from.
+- **Version label** (idea of Marco). The "MOD 4.0.6" label on the main menu moved to the bottom-left corner, in grey: still readable, less in the way. With a competition loaded (CONTINUE on the menu) there is no free corner, so it is not shown, as before.
 
 #### New looks: white hair and bald heads before the kick-off
 **White hair.** A new look joins the blond, bald and shaved ones: grey-white hair. The first player to wear it is
@@ -382,6 +383,7 @@ carriera nuova parte da INVENTATI. I salvataggi precedenti si caricano con INVEN
 - **Numeri di maglia nella schermata della rosa.** Ora puoi modificare i numeri di maglia del tuo club anche nella schermata della rosa, come già potevi nella schermata della squadra prima della partita: premi SINISTRA su un giocatore, poi SU / GIÙ o scrivi il numero; ESC annulla. Il numero non tocca più il nome del giocatore e se ne vede l'ombra.
 - **Il mercato ricorda la pagina** (segnalato da Enzo). Quando guardi un giocatore nell'elenco del mercato nazionale o estero (FAI UN'OFFERTA) e torni con ESCI, l'elenco resta sulla pagina in cui eri, con il cursore su quel giocatore, invece di tornare alla prima pagina.
 - **Lista dei gironi.** Quando scegli una divisione divisa in gironi (Serie C, Serie D, le Zone A / B dell'Argentina, Segunda / Tercera di El Salvador, ...) la lista dei gironi ora si apre sul primo girone (GIRONE A), sia quando scegli il club sia in VISUALIZZA MONDO. ESCI riporta come prima alla divisione da cui eri entrato, con il cursore su di essa.
+- **Etichetta della versione** (idea di Marco). La scritta "MOD 4.0.6" sul menu principale è passata nell'angolo in basso a sinistra, in grigio: si legge ancora, ma dà meno nell'occhio. Con una competizione caricata (CONTINUA nel menu) non c'è un angolo libero, quindi non compare, come prima.
 
 #### Nuovi look: capelli bianchi e teste calve prima del calcio d'inizio
 **Capelli bianchi.** Un nuovo look si aggiunge a biondi, calvi e rasati: i capelli grigio-bianchi. Il primo giocatore

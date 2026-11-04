@@ -13,11 +13,11 @@
 - Good to know: many keyboards cannot read too many keys pressed at once (this is called *ghosting*: the keyboard "forgets" a key when several others are held down). If a direction or the fire key does not answer when both players press a lot at once, choose other keys for player 2 that are far from player 1's.
 - With SWOS++ this device is not offered (SWOS++ has its own controls).
 - **The keyboard is never blocked by the joypad.** When the controls are set to a joypad for player 1 and the keyboard for
-player 2 (the default when the patcher's "I have a joypad" is ticked), a joypad that is not centred - not calibrated,
-worn, or reading a corner - used to win over the keyboard: in the menus a direction held on the keyboard could do
-nothing (for example DOWN, with a stick leaning up). Now a direction held on the keyboard always counts, in the menus
-and for your team in a match, as long as nobody else is playing on the keyboard in that match. With KEYBOARD ONLY, TWO
-JOYPADS or SWOS++ nothing changes.
+  player 2 (the default when the patcher's "I have a joypad" is ticked), a joypad that is not centred - not calibrated,
+  worn, or reading a corner - used to win over the keyboard: in the menus a direction held on the keyboard could do
+  nothing (for example DOWN, with a stick leaning up). Now a direction held on the keyboard always counts, in the menus
+  and for your team in a match, as long as nobody else is playing on the keyboard in that match. With KEYBOARD ONLY, TWO
+  JOYPADS or SWOS++ nothing changes.
 
 #### The computer's clubs play by the same rules as you
 - **Two new OPTIONS rows, both ON by default:** the computer's clubs now get **red cards** (a sent-off player is suspended, like yours) and **injuries** (an injured player of a computer's club misses the following matches instead of being fit again at once). Turn a row OFF to get the original game behaviour back.
@@ -237,11 +237,11 @@ La 4.0.6 è un giro di richieste dei giocatori: **due giocatori sulla stessa tas
 - Da sapere: molte tastiere non riescono a leggere troppi tasti premuti insieme (si chiama *ghosting*: la tastiera "dimentica" un tasto quando ne sono premuti molti altri). Se una direzione o il fuoco non risponde quando i due giocatori premono tanto insieme, scegli per il giocatore 2 altri tasti lontani da quelli del giocatore 1.
 - Con SWOS++ questo dispositivo non c'è (SWOS++ ha i suoi comandi).
 - **La tastiera non viene mai bloccata dal joypad.** Con i comandi impostati su joypad per il giocatore 1 e tastiera per il
-giocatore 2 (il valore che si ottiene spuntando "Ho un joypad" nel patcher), un joypad non centrato - non calibrato,
-consumato o che legge un angolo - vinceva sulla tastiera: nei menu una direzione tenuta sulla tastiera poteva non fare
-nulla (per esempio GIÙ, con la leva che pende in alto). Ora una direzione tenuta sulla tastiera conta sempre, nei menu e
-per la tua squadra in partita, purché nessun altro giochi con la tastiera in quella partita. Con SOLO TASTIERA, DUE
-JOYPAD o SWOS++ non cambia nulla.
+  giocatore 2 (il valore che si ottiene spuntando "Ho un joypad" nel patcher), un joypad non centrato - non calibrato,
+  consumato o che legge un angolo - vinceva sulla tastiera: nei menu una direzione tenuta sulla tastiera poteva non fare
+  nulla (per esempio GIÙ, con la leva che pende in alto). Ora una direzione tenuta sulla tastiera conta sempre, nei menu e
+  per la tua squadra in partita, purché nessun altro giochi con la tastiera in quella partita. Con SOLO TASTIERA, DUE
+  JOYPAD o SWOS++ non cambia nulla.
 
 #### Le squadre del computer giocano con le tue regole
 - **Due nuove righe in OPZIONI, entrambe attive di default:** le squadre del computer ora prendono **cartellini rossi** (un espulso è squalificato, come i tuoi) e **infortuni** (un infortunato di una squadra del computer salta le partite seguenti invece di essere subito di nuovo a posto). Metti una riga su NO per riavere il comportamento originale del gioco.

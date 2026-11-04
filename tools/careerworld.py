@@ -1394,8 +1394,8 @@ w_ns_menu:                              ; replaces `and word [D7], 0FFh` at the 
     popad
     ret
 .isw:
-    cmp eax, WMENU_N + 1
-    jb .n
+    cmp eax, WMENU_N                    ; (W-modes M2: WMENU + 0, the 1996-97 game's entry under the friendly / DIY
+    jb .n                               ; pickers' STORICO, is the base namespace: 0, the last world on the path wins)
     cmp eax, WMENU_N + NSMAXW
     ja .n
     lea ecx, [eax - WMENU_N]

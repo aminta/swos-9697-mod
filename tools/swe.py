@@ -87,6 +87,11 @@ def m2_sites(p, site):
               if p.call_target(1, m.start() + 6) == (1, fn)]
         assert len(cs) == 1, (tr, cs)
         calls.append((cs[0], tr))
+    if 'gametype' in careerworld.SITES and 'w_ns_menu' in careerworld.LABELS:
+        ext['SWE_GTYPE'] = careerworld.SITES['gametype']
+        stfm = p.call_target(1, site)               # SelectTeamsFinalMenu's entry: an earlier patch's jmp (chained)
+        assert p.get(*stfm, 1) == b'\xe9' and stfm[0] == 1, ('SelectTeamsFinalMenu entry', stfm, p.get(*stfm, 5))
+        calls.append((stfm[1], 'swe_stfm_tramp'))
     if 'w_ns_menu' in careerworld.LABELS:           # careerworld w_ns_menu: mov eax, ecx; call w_ns_set
         wm = careerworld.LABELS['w_ns_menu']
         code = p.get(1, wm, 0x80)                   # (the mod's code: the patched bytes)
@@ -141,11 +146,12 @@ def patch(p):
         ext['w_ns_set'] = (1, careerworld.LABELS['w_ns_set'])
     m2, calls = m2_sites(p, site)                   # (W-modes M2: chained, as the picker call)
     ext.update(m2)
-    chain = {'swe_diy_save_tramp': 'SWE_SAVEDIY', 'swe_diy_load_tramp': 'SWE_LOADDIY', 'swe_ns_tramp': 'SWE_NSSET'}
+    chain = {'swe_diy_save_tramp': 'SWE_SAVEDIY', 'swe_diy_load_tramp': 'SWE_LOADDIY', 'swe_ns_tramp': 'SWE_NSSET',
+             'swe_stfm_tramp': 'SWE_STFM'}
     for cs, tr in calls:
         ext[chain[tr]] = p.call_target(1, cs)
     if not ns:
-        calls = [c for c in calls if c[1] != 'swe_ns_tramp']
+        calls = [c for c in calls if c[1] not in ('swe_ns_tramp', 'swe_stfm_tramp')]
     flags = ('-DNS',) if ns else ()
     syms, end, bss = cobj.link(p, cobj.compile_c(SRC, flags), CODE_AT, (4, room), externs=ext, limit=swreg.REG_AT,
                                text_obj=4)

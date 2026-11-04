@@ -152,6 +152,34 @@ static void sel_lists(void)
     *d = 0xFF;
 }
 
+/* The contest's namespace (W-modes M2): the game reads a picked club's country NAME by its number after the picker
+   (the pre-match screen), so a friendly / DIY with a World 2026-27 club keeps that world's namespace (the 1996-97
+   game's numbers, < 100, are the same in every namespace). The next team picker of another kind (season, preset, edit,
+   a new career) puts the base one back: swe_stfm_guard at SelectTeamsFinalMenu's entry, outside a career and only
+   while the namespace is still the one left here. */
+u32 NS_LEFT DATA = 0;                   /* the namespace swe left after a contest's picker / DIY load, 0 = none */
+extern u8 SWE_GTYPE[];
+#define GAME_TYPE_CAREER 4
+
+static void ns_left(u32 w)
+{
+    u8 *wcur = (u8 *)rd32(SWE_REG + 8);
+    ns_set(w);
+    NS_LEFT = w && wcur ? *wcur : 0;
+}
+
+#ifdef NS
+void swe_stfm_guard(void)
+{
+    u8 *wcur = (u8 *)rd32(SWE_REG + 8);
+    if (!NS_LEFT || SEL_MODE != 0xFFFFFFFF || !wcur)
+        return;
+    if (*wcur == NS_LEFT && *(u16 *)SWE_GTYPE != GAME_TYPE_CAREER)
+        ns_set(0);
+    NS_LEFT = 0;
+}
+#endif
+
 void swe_sel_pre(u32 mode)
 {
     SEL_MODE = mode;
@@ -202,6 +230,7 @@ void swe_sel_post(void)
         if (SEL_DW)
             *SEL_SLOTD = SEL_OD;
         SWE_CWORLD = *(u16 *)SWE_NUMSEL ? SEL_CW : 0;
+        ns_left(SWE_CWORLD);
     }
     SEL_ON = 0;
     SEL_MODE = 0xFFFFFFFF;
@@ -274,11 +303,14 @@ void swe_diy_saved(void)                /* after SaveDIYFile (A0 = the file name
 
 void swe_diy_name(void) { DIY_NAME = rd32(SWE_A0); }
 
-void swe_diy_loaded(void)               /* after LoadDIYFile: the block only on a file of the game's size + 4 */
+/* after LoadDIYFile: the block only on a file of the game's size + 4; then the contest's namespace */
+void swe_diy_loaded(void)
 {
     SWE_CWORLD = 0;
-    if (*(u16 *)SWE_D0 || !DIY_NAME)
+    if (*(u16 *)SWE_D0 || !DIY_NAME) {
+        ns_left(0);
         return;
+    }
     int h = dos_open(DIY_NAME, 0);
     if (h < 0)
         return;
@@ -287,7 +319,16 @@ void swe_diy_loaded(void)               /* after LoadDIYFile: the block only on 
     const u8 *b = SWE_NUMSEL + 2 + 684 * *(u16 *)SWE_NDIY;
     if (n == diy_size() + 4 && b[0] == 'W' && b[1] == 'M' && b[2] == 1 && b[3] && reg_world(b[3]))
         SWE_CWORLD = b[3];
+    ns_left(SWE_CWORLD);
 }
+
+#ifdef NS
+/* SelectTeamsFinalMenu's entry (a jmp of an earlier patch there, chained: SWE_STFM) */
+__attribute__((naked)) void swe_stfm_tramp(void)
+{
+    __asm__ volatile("pushfl\n\tpushal\n\tcall swe_stfm_guard\n\tpopal\n\tpopfl\n\tjmp SWE_STFM");
+}
+#endif
 
 __attribute__((naked)) void swe_diy_save_tramp(void)
 {

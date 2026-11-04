@@ -114,7 +114,7 @@ def test_wmodes():
     if hdr[:8] != swe.MAGIC or struct.unpack_from('<I', hdr, 8)[0] != swe.VERSION:
         return False, f'obj4 header {hdr[:12]!r} (want version {swe.VERSION})'
     reg, _, _, selmode, _, cworld_p, selcw_p = struct.unpack_from('<7I', hdr, 32)
-    _, c254, cwt, _, _, wdef = struct.unpack_from('<6I', rd(reg + 8, 24))
+    wcur, c254, cwt, _, _, wdef = struct.unpack_from('<6I', rd(reg + 8, 24))
     errs = []
     o = lepatch.LEPatch(tr.ORIG)                    # (the game's addresses: the original exe of the same language)
     site = swe.pick_site(o)
@@ -130,6 +130,18 @@ def test_wmodes():
     if len(nstr) != 1 or rd(nstr[0] + 1, 3) != b'\x0f\xb6\xc0':
         return False, f'obj1 calls into obj4: {[hex(a - B1) for a in into4]} (the picker, DIY save / load, w_ns_menu)'
     ns = _e8(rd, nstr[0] + 4 + 1)
+    import re
+    import sacups                                 # (careerworld's gametype site: the career menu's `cmp [g_gameType], 4`)
+    d1o = o.le.obj_bytes(1)
+    gt = {o.target(1, x.start() + 14) for x in re.finditer(rb'\x66\xa1.{4}\x66\x0b\xc0\x75.\x66\x83\x3d.{4}\x04\x75',
+                                                           d1o, re.S)}
+    assert len(gt) == 1, gt
+    GTYPE = (B1 if list(gt)[0][0] == 1 else B2) + list(gt)[0][1]
+    entry = _e8(rd, cs[1])                        # (the picker's own: SelectTeamsFinalMenu, its entry a jmp -> obj4)
+    stfm = _e8(rd, entry) if rd(entry, 1) == b'\xe9' else 0
+    guard = _e8(rd, stfm + 2) if stfm and B4 <= stfm < B4 + swreg.REG_AT and rd(stfm + 2, 1) == b'\xe8' else 0
+    if not guard:
+        return False, f'SelectTeamsFinalMenu\'s entry does not reach obj4\'s guard ({stfm:#x})'
     slot = lambda i: B2 + comp + 4 * i
 
     def ids(lp):                                  # a list's menu ids (after its dd entries, -1)
@@ -160,7 +172,7 @@ def test_wmodes():
         errs.append(f'proxies differing from the game continents {bad}')
     boot = tr._snap(uc, sizes)
 
-    def run(setting, ttype, steps):
+    def run(setting, ttype, steps, career=False):
         """steps = [(NUMSEL, the path's world)]: lists after each; returns (D0, [(hist, def)], SWE_CWORLD, mem ok)"""
         uc.mem_write(wdef, bytes((setting,)))
         w16(TTYPE, ttype)
@@ -176,28 +188,45 @@ def test_wmodes():
             seen.append((ids(u32(slot(98))), ids(u32(slot(d0))) if d0 != 255 else None, u32(selcw_p)))
         tr._call(uc, post)
         cw = u32(cworld_p)
+        ns_after = rd(wcur, 1)[0]
+        w16(GTYPE, 4 if career else 0)            # (the next team picker: in a career the namespace is kept, else
+        tr._call(uc, guard)                       # the base one is back)
+        seen.append(('ns', ns_after, rd(wcur, 1)[0]))
+        w16(GTYPE, 0)
         uc.mem_write(D0, b'\xff')
         last = steps[-1][0] if steps else 0
         w16(NUMSEL, 0)
         after = tr._snap(uc, sizes)
         w16(NUMSEL, last)
-        same = after == before and u32(selmode) == 0xFFFFFFFF
+        a1 = bytearray(after[0])                  # (careerworld XNAMEW keeps a tmwN world's digit after the base
+        xw = before[0].find(b'data\\xtw0.000\0')  # namespace is back: harmless, test_registry's whitelist too)
+        if xw >= 0 and a1[xw + 8] == ord('5'):
+            a1[xw + 8] = ord('0')
+        same = (bytes(a1), after[1]) == before and u32(selmode) == 0xFFFFFFFF
         return d0, seen, cw, same
 
     d0, seen, cw, same = run(0, 1, [(1, 5), (2, 0), (0, 0), (1, 4), (2, 5)])
     want = [([200, 204], o205 + [98], True), ([200], o205 + [98], 5), ([200], o205 + [98], 5),
-            ([200, 204], o205 + [98], 0), ([200, 204], [98], 4), ([200, 204], [98], 4)]
+            ([200, 204], o205 + [98], 0), ([200, 204], [98], 4), ([200, 204], [98], 4), ('ns', 4, 4)]
     if d0 != 205 or seen != want or cw != 4 or not same:
         errs.append(f'default 2026-27: D0 {d0}, lists {seen}, contest world {cw}, memory restored {same}')
     d0, seen, cw, same = run(1, 1, [(1, 0)])
-    if d0 != 255 or seen != [([204, 205], None, True), ([204, 205], None, 0)] or cw != 0 or not same:
+    if d0 != 255 or seen != [([204, 205], None, True), ([204, 205], None, 0), ('ns', 4, 4)] or cw != 0 or \
+            not same:
         errs.append(f'default 1996-97: D0 {d0}, lists {seen}, contest world {cw}, memory restored {same}')
     d0, seen, cw, same = run(2, 1, [(1, 5)])
-    if d0 != 204 or seen != [([200, 205], o204 + [98], True), ([200, 205], [98], 5)] or cw != 5 or not same:
+    if d0 != 204 or seen != [([200, 205], o204 + [98], True), ([200, 205], [98], 5), ('ns', 5, 4)] or \
+            cw != 5 or not same:   # (a 2026-27 club: its namespace kept after the picker, the base one at the next)
         errs.append(f'default 1984-85: D0 {d0}, lists {seen[:1]}.., contest world {cw}, memory restored {same}')
+    d0, seen, cw, same = run(2, 1, [(1, 5)], career=True)
+    if seen[-1] != ('ns', 5, 5):
+        errs.append(f'a career\'s picker after a 2026-27 contest: namespace {seen[-1]} (kept 5)')
+    run(0, 1, [(1, 0)])                           # (a 1996-97 contest: the base namespace again)
+    if rd(wcur, 1)[0] != 4:
+        errs.append(f'a 1996-97 contest left namespace {rd(wcur, 1)[0]}')
     for tt in (0, 2, 3):
         d0, seen, cw, same = run(0, tt, [])
-        if d0 != 255 or seen[0][0] != o98 or seen[0][2] or not same:
+        if d0 != 255 or seen[0][0] != o98 or seen[0][2] or seen[-1] != ('ns', 4, 4) or not same:
             errs.append(f'teams type {tt}: D0 {d0}, 98 {seen[0][0]}, COMP254 swapped {seen[0][2]}, restored {same}')
 
     # DIY: the game's own SaveDIYFile / LoadDIYFile through the tramps, a fake DOS

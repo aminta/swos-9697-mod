@@ -9771,7 +9771,8 @@ def engine_registry():
     FRIENDLY goes through GoGetTeamsForPlay's picker, now via obj4's swe_sel_tramp: inside the picker (EUROPA list)
     SEL_MODE = M_FRIENDLY, competitionsTable[254] as in the main menu; after it (HAMBURG - SCHALKE, the pre-match
     screen) SEL_MODE = ~0, competitionsTable[254] the same, REG_PREV = ~0 and WCUR the base world (no namespace left
-    entered). The registry lists nothing new in step W: the picker shows the game's own continents."""
+    entered). The registry lists nothing new in step W: the picker shows the game's own continents (W-modes M2, the
+    harness's default world 1996-97: + the STORICO entry, on the careers' world table; engine_wmodes for 2026-27)."""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import swreg
     errs, info = [], []
@@ -9798,8 +9799,10 @@ def engine_registry():
             walk(s, t, 2)
         scr = s.screen()
         check(scr.find('EUROPA') is not None, f'the picker\'s continents: {scr.texts()[:12]}', errs)
-        check(rd32(selmode) == swreg.M_FRIENDLY and rd32(c254) == menu254, f'in the picker: SEL_MODE '
-              f'{rd32(selmode):#x}, competitionsTable[254] {rd32(c254):#x} (main menu {menu254:#x})', errs)
+        cwt = struct.unpack_from('<I', m, 16)[0]  # (W-modes M2: the picker runs on the careers' world table, the
+        check(rd32(selmode) == swreg.M_FRIENDLY and rd32(c254) == cwt and scr.find('CARR. STORICHE') is not None,
+              f'in the picker: SEL_MODE {rd32(selmode):#x}, competitionsTable[254] {rd32(c254):#x} (the careers\' '
+              f'{cwt:#x}), STORICO shown {scr.find("CARR. STORICHE") is not None}', errs)   # 1996-97 default: + STORICO)
         s.shot('picker')
         for t in ('EUROPA', 'GERMANIA', '1. LIGA', 'HAMBURG', 'SCHALKE'):
             walk(s, t, 2)
@@ -9810,13 +9813,98 @@ def engine_registry():
                 break
             s.send(('right' if scr.selected in (56, 57) else 'down') + ' dump:0.5')
         scr = s.screen()
-        check(scr.find('HAMBURG') is not None or any('HAMBURG' in e[1] for e in scr.entries), f'pre-match: '
+        check(any(scr.find(t) is not None or any(t in e[1] for e in scr.entries) for t in ('HAMBURG', 'SCHALKE')),
+              f'pre-match: '
               f'{scr.texts()[:12]}', errs)
         check(rd32(selmode) == 0xFFFFFFFF and rd32(c254) == menu254 and rd32(regprev) == 0xFFFFFFFF
               and s.result.read(wcur, 1)[0] == nsbase, f'after the picker: SEL_MODE {rd32(selmode):#x} C254 '
               f'{rd32(c254):#x} REG_PREV {rd32(regprev):#x} WCUR {s.result.read(wcur, 1)[0]}', errs)
         s.shot('prematch')
         info.append(f'obj4 {b4:#x}, manifest {reg:#x} ({nw} worlds), picker SEL_MODE {swreg.M_FRIENDLY} then ~0')
+    return not errs, '; '.join(errs + info)
+
+
+@scenario
+def engine_wmodes():
+    """W-modes M2: the FRIENDLY picker lists the worlds (swe.c, release-recipe exe, fresh SETUP.DAT = default World
+    2026-27). It opens on World 2026-27's continents + the STORICO entry (98; its label = the careers' box until
+    Davide's texts). INTER (EUROPA > ITALIA > SERIE A) picked there sets the contest's world (SEL_CW 5); STORICO then
+    lists the 1996-97 game (WMENU + 0) but not Europe 1984-85 (mixing A: one career world per contest). HAMBURG from
+    STORICO > 1996-97 > EUROPA > GERMANIA > 1. LIGA: the pre-match screen shows INTER (ITALIA) - HAMBURG (GERMANIA),
+    SWE_CWORLD 5, WCUR 5 (the contest's namespace: the countries' names are read by number), the game's lists back
+    (competitionsTable[254], [98]). SWOSTEST_UI fr/de/en: the same through the menus' own names."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import swreg
+    errs, info = [], []
+    hist = 'CARR. STORICHE'                      # (the careers' box label: STORICO's until Davide's texts)
+    files = {'SETUP.DAT': setup_file('engine_wmodes', 0)}     # (the default World 2026-27: a fresh install's)
+    with Session('engine_wmodes', os.environ.get('SWOSTEST_BUILD') or builds()['it'], files, 'dump:3', 400) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'no first pause ({s.result})'
+        r = s.result
+        b4 = r.base4
+        if b4 is None:
+            return False, 'obj4 header not in memory'
+        reg, _, _, selmode, _, cworld, selcw = struct.unpack('<7I', r.read(b4 + 32, 28))
+        m = r.read(reg, swreg.HDR)
+        wcur, c254, cwt = struct.unpack_from('<3I', m, 8)
+        rd32 = lambda a: struct.unpack('<I', s.result.read(a, 4))[0]
+        comp = c254 - 4 * 254
+        menu254, menu98 = rd32(c254), rd32(comp + 4 * 98)
+        for t in ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB'):
+            walk(s, t, 2)
+        scr = s.screen()
+        check(scr.find(hist) is not None and scr.find('EUROPA') is not None and
+              scr.find('NORDAMERICA') is not None, f'the picker\'s first list: {scr.texts()[:14]}', errs)
+        check(rd32(selmode) == swreg.M_FRIENDLY and rd32(c254) == cwt, f'in the picker: SEL_MODE {rd32(selmode):#x}, '
+              f'competitionsTable[254] {rd32(c254):#x} (the careers\' table {cwt:#x})', errs)
+        s.shot('first')
+        for t in ('EUROPA', 'ITALIA', 'SERIE A', 'INTER'):
+            walk(s, t, 2)
+        s.shot('inter')
+        for _ in range(6):                       # (up: the lists' ESCI entry, one level each; a team list's is
+            sc = s.screen()                      # reached down past its rows, as world_mainbtn's to_main)
+            if sc.find(hist) is not None:
+                break
+            out = sc.find('ESCI', exact=True)
+            if out is None or press(s, sc, out, 2) is None:
+                s.send('down ' * 12 + 'dump:1')
+                if out is not None and s.screen().selected == out:
+                    s.send('fire dump:2')
+        check(rd32(selcw) == 5, f'after INTER: SEL_CW {rd32(selcw)}', errs)
+        scr = walk(s, hist, 2)
+        check(scr.find('1996-97') is not None and scr.find('EUROPA 1984-85') is None and
+              scr.find('MONDO 2026-27') is None, f'STORICO with a 2026-27 club picked: {scr.texts()[:10]}', errs)
+        s.shot('storico')
+        for t in ('1996-97', 'EUROPA', 'GERMANIA', '1. LIGA', 'HAMBURG'):
+            walk(s, t, 2)
+        s.shot('hamburg')
+        for _ in range(16):
+            scr = s.screen()
+            if scr.selected == 55:
+                s.send('fire dump:4')
+                break
+            s.send(('right' if scr.selected in (56, 57) else 'down') + ' dump:0.5')
+        scr = s.screen()
+        tx = ' '.join(scr.texts()) + ' '.join(e[1] for e in scr.entries)
+        s.shot('prematch')
+        press(s, scr, 'AVVERSARI', 3)            # (the other team's squad)
+        sc2 = s.screen()
+        tx += ' '.join(sc2.texts()) + ' '.join(e[1] for e in sc2.entries)
+        check('INTER' in tx and 'HAMBURG' in tx, f'pre-match: {scr.texts()[:6]} / {sc2.texts()[:6]}', errs)
+        nat = {}
+        for t in ('INTER', 'HAMBURG'):           # (each squad screen: the club's name, then its country's)
+            for x in (scr, sc2):
+                if t in x.texts():
+                    nat[t] = (x.texts() + [''])[x.texts().index(t) + 1]
+        check(nat.get('INTER') == '(ITALIA)' and nat.get('HAMBURG') == '(GERMANIA)', f'countries {nat} (the contest '
+              f'world\'s namespace kept after the picker: the game reads a club\'s country name by number)', errs)
+        s.shot('opponent')
+        check(rd32(selmode) == 0xFFFFFFFF and rd32(c254) == menu254 and rd32(comp + 4 * 98) == menu98 and
+              rd32(cworld) == 5 and s.result.read(wcur, 1)[0] == 5, f'after the picker: SEL_MODE {rd32(selmode):#x} C254 {rd32(c254):#x} 98 '
+              f'{rd32(comp + 4 * 98):#x} SWE_CWORLD {rd32(cworld)} WCUR {s.result.read(wcur, 1)[0]}', errs)
+        info.append(f'pre-match {[t for t in scr.texts() if t][:4]} / {[t for t in sc2.texts() if t][:4]}, WCUR '
+                    f'{s.result.read(wcur, 1)[0]}')
     return not errs, '; '.join(errs + info)
 
 

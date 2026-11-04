@@ -309,7 +309,7 @@ La 4.0.6 è un giro di richieste dei giocatori: **due giocatori sulla stessa tas
   - Per vedere le altre riserve si mette il cursore sulla faccina accanto all'ultimo giocatore e si preme FUOCO. A ogni pressione compare la riserva successiva, e dopo l'ultima si riparte dall'inizio.
   - Il giocatore già selezionato resta selezionato mentre si scorre.
   - Vale per la schermata prepartita, la rosa del club, l'editor tattico, la visualizzazione della rosa e le convocazioni della nazionale.
-  - VISUALIZZA AVVERSARIO non cambia: lì SU / GIÙ scorrono ancora le riserve avversarie (si può solo guardare).
+  - AVVERSARI non cambia: lì SU / GIÙ scorrono ancora le riserve avversarie (si può solo guardare).
   - **Cursore nella schermata della squadra prima della partita, come nel gioco originale** (grazie a Marco). Quando sei giocatore-allenatore la riga in cui scegli se giocare o solo allenare si raggiunge esattamente come nel gioco originale 1996-97:
     - GIÙ dall'ultimo nome della lista va su quella riga, ancora GIÙ su GIOCA PARTITA; SU torna indietro allo stesso modo;
     - SU da ESCI va su quella riga;

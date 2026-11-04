@@ -24694,8 +24694,8 @@ def ffp_season():
 def ffp_star():
     """4.0.6 FFP, a big club's real spending (Davide 04/11): an OFFER_FORCE build (every offer accepted) of the World
     2026-27 (W2627REL_DATA), a REAL MADRID career; FFP_STAR (default 1,3) = the number of BARCELONA stars bought at the
-    season's start (FFP_STAR_ROWS<n>: squad rows, default 6 = YAMAL / 10, 8, 6 = RAPHINHA, PEDRI, YAMAL; ACQ. ALTRO
-    GIOCAT. NAZION. > LALIGA > BARCELONA; the bank poked to 500 M before each
+    season's start (the first n of FFP_STAR_NAMES, default YAMAL, PEDRI, RAPHINHA, KOUNDE, OLMO, GORDON - price index 42-46;
+    FFP_STAR default 1,3,6; ACQ. ALTRO GIOCAT. NAZION. > LALIGA > BARCELONA; the bank poked to 500 M before each
     offer, put back after: the purchase costs nothing), season 1 played, CONTINUA CARRIERA: W (the new season's wage
     bill), I (FF_IPREV), the ratio; over the limit <=> FF_BLOCK, FF_FINE = half the wages over 0.35 x I (thousands); the
     balance before / after the fine logged. Davide's check: one star = no sanction."""
@@ -24710,7 +24710,8 @@ def ffp_star():
     nb_at = fin['NEWBAL'][1]
     word = lambda r, o: struct.unpack('<i', bytes(r.obj2(o, 4)))[0]
     path = ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27', 'EUROPA', 'SPAGNA', 'LALIGA', 'REAL MADRID']
-    for n in [int(x) for x in os.environ.get('FFP_STAR', '1,3').split(',')]:
+    STARS = os.environ.get('FFP_STAR_NAMES', 'LAMINE YAMAL,PEDRI,RAPHINHA,JULES KOUNDE,DANI OLMO,ANTHONY GORDON').split(',')
+    for n in [int(x) for x in os.environ.get('FFP_STAR', '1,3,6').split(',')]:
         tag = f'star{n}_{UI}'
         with Session(f'ffp_{tag}', b, {}, 'dump:2', 1500) as s:
             s.wait()
@@ -24734,12 +24735,15 @@ def ffp_star():
                 walk(s, 4, 3)                              # ACQ. ALTRO GIOCAT. NAZION.
                 walk(s, 'LALIGA', 3)
                 walk(s, 'BARCELONA', 3)
-                rows = [int(x) for x in os.environ.get(f'FFP_STAR_ROWS{n}', {1: '6', 3: '10,8,6'}.get(n, '6')).split(',')]
-                walk(s, 3 + rows[k], 4)                    # squad row r = entry 3 + r: the stars (YAMAL 6, PEDRI 8,
-                sc = s.screen()                            # RAPHINHA 10 - price index 45-46), the last row first
+                star = STARS[k]                            # (by name: the list's order is not players.csv's)
+                if s.screen().find(star, exact=True) is None:
+                    errs.append(f'{tag}: {star} not in the list {s.screen()}')
+                    break
+                walk(s, star, 4)
+                sc = s.screen()
                 s.log.append(f'[offer] {sc}')
-                bought_name = next((t for t in sc.texts() if t and t.isupper() and ' ' in t and len(t) > 6
-                                    and t not in ("FAI UN'OFFERTA",)), '?')
+                price = next((t for t in sc.texts() if t.startswith('>')), '?')   # (the asked amount, selected)
+                bought_name = f'{star} {price[1:]}'
                 for key in (sc.path(9) or []):
                     s.send(key + ' dump:0.5')
                 ans = xtra_bid(s)
@@ -24785,6 +24789,7 @@ def ffp_star():
             check(memo == bool(over), f'{tag}: memo {memo} with over {bool(over)}', errs)
             if n == 1:
                 check(not over, f'{tag}: one star sanctioned (W {w} I {i_})', errs)
+            check(len(bought) == n and all(x[0] for x in bought), f'{tag}: bought {bought}', errs)
             notes.append(f'{tag}: bought {bought}; W at the start {w0 / 1e6:.2f} M, new season {w / 1e6:.2f} M; '
                          f'I {i_ / 1e6:.2f} M; W/I {(w / i_ if i_ else 0):.1%}; block {v["block"]} fine '
                          f'{v["fine"] / 1e6:.3f} M; balance before the season start {bank1 / 1e6:.2f} M, after '

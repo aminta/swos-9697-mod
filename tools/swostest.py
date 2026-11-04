@@ -1264,6 +1264,9 @@ def squad_rows(s, scr, tag):
 SLOT_ROLE = 'GDDDDMMMMAAGDMA'                     # record order of a SWOS squad: G RB LB D D RW LW M M A A, bench G D M A
 POS_ROLE = {'P': 'G', 'TD': 'D', 'TS': 'D', 'D': 'D', 'MD': 'M', 'MS': 'M', 'M': 'M', 'A': 'A',
             'G': 'G', 'RB': 'D', 'LB': 'D', 'RW': 'M', 'LW': 'M'}    # (+ the ENGLISH exe's codes)
+POS_ROLE_UI = {'fr': {'DD': 'D', 'DG': 'D', 'MG': 'M'},  # (the exes' own codes: FR G DD DG D MD MG M A;
+               'de': {'T': 'G', 'RV': 'D', 'LV': 'D', 'A': 'D', 'RA': 'M', 'LA': 'M', 'S': 'A'}}   # DE T RV LV A RA LA M S -
+                                                  # A = Abwehr there, a defender: the German squad screens' reserve keeper)
 
 
 SQ_WH = ((82, 8), (81, 8), (80, 8), (79, 8))     # (numcol.py: 4.0.5 the rows 1 px right, 81 wide; 4.0.6 79)
@@ -1282,7 +1285,8 @@ def reserve_info(cur, y):
                and cur.geom[j][0] < 180)
     x0 = min((x for x, tx in t), default=25)            # the name column: 25 (31 in the ENGLISH exe)
     name = next((tx for x, tx in t if x == x0), '')
-    role = next((POS_ROLE.get(tx, '') for x, tx in t if 95 + x0 - 25 <= x <= 125 + x0 - 25), '')
+    pr = dict(POS_ROLE, **POS_ROLE_UI.get(os.environ.get('SWOSTEST_UI', 'it'), {}))
+    role = next((pr.get(tx, '') for x, tx in t if 95 + x0 - 25 <= x <= 125 + x0 - 25), '')
     price = next((tx for x, tx in t if x >= 138), '')
     m = re.fullmatch(r'L([0-9.]+)(K|MN|MD)', price)
     value = (float(m.group(1)) * {'K': 0.001, 'MN': 1, 'MD': 1000}[m.group(2)] if m else

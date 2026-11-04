@@ -123,11 +123,11 @@ gk_apply:                               ; ebx = the keeper's record, esi = his t
     jne .x
     cmp byte [SWOSPP], 0FFh
     jne .x
-    cmp byte [esi + 4], 1               ; (a computer team: only with INFORTUNI ALLA CPU ON, in a season or a
-    jne .h                              ;  career - the modes whose calendar days run cpucards' cb_day, the CPU's
-    cmp word [CC_I], 0                  ;  countdown: GT 3 / 4; DIY and preset competitions, friendlies none)
-    jne .x
-    cmp word [GT], 3
+    cmp byte [esi + 4], 1               ; (a computer team: only with INFORTUNI ALLA CPU ON, in a competition -
+    jne .h                              ;  the modes that count the CPU's injuries down: cpucards' cb_day in a
+    cmp word [CC_I], 0                  ;  season / career, after each match in DIY / preset (4.0.6 option 1);
+    jne .x                              ;  GT 1..4 - a friendly, GT 0, has no next match)
+    cmp word [GT], 1
     jb .x
 .h: test byte [ebx + 1Bh], 0E0h         ; (already injured: no roll)
     jnz .x

@@ -904,6 +904,11 @@ def ui_it(text):
         return 'SQUADRA DEL ' + text[:-6]
     if UI == 'en' and 'END SEASON' in text:
         return 'FINE CAMP. ' + text
+    if text in ("SAISONS D'ANTAN", 'SAISONKLASSIKER'):   # (mkseason.SEASONS_NAMES: the historic seasons' button)
+        return 'STAG. STORICHE'
+    m = re.fullmatch(r'(ITALY|ITALIE|ITALIEN) (\d{4}-\d{2})', text)   # (the historic season's own button: Italy 1947-48)
+    if m:
+        return 'ITALIA ' + m.group(2)
     return text
 
 
@@ -23345,7 +23350,9 @@ def cpu_cards():
                     scr = walk(s, 'OPZIONI', 2)
                     lab = scr.find(label, exact=True)
                     lab_i = scr.find(cpucards.LABEL_I[UI], exact=True)
-                    check(lab == 20 and lab_i == 22 and scr.n == 24, f'OPTIONS: {label} at {lab}, '
+                    import gkinj                     # (4.0.6 gkinj: its row's two entries 24 / 25 after ours)
+                    n_opt = 24 + 2 * (scr.find(gkinj.LABEL[UI], exact=True) is not None)
+                    check(lab == 20 and lab_i == 22 and scr.n == n_opt, f'OPTIONS: {label} at {lab}, '
                           f'{cpucards.LABEL_I[UI]} at {lab_i}, {scr.n} entries', errs)
                     s.shot('options')
                     rw = lambda: struct.unpack('<HHHH', s.result.read(s.result.lin(cc), 8))   # CC_W, CC_I, the session copy
@@ -23673,7 +23680,15 @@ def cpu_inj_season():
 
 
 @scenario
-def cpu_inj_preset():
+def cpu_inj_diy():
+    """4.0.6 option 1 (Davide 04/11): a DIY competition counts the computer teams' injuries down after each of their
+    matches - cpu_inj_preset's tournament with g_gameType poked to 1 (DIY: the gates read it alone; the matches go
+    through the same cseg_28E76 as a DIY competition's)."""
+    return cpu_inj_preset(gt=1)
+
+
+@scenario
+def cpu_inj_preset(gt=None):
     """MEASUREMENT (4.0.6 cpucards, Regia 04/11): in a PRESET competition (CLASSIC TOURNEYS > COPPA MONDIALE 1934, every
     team by the computer, results only: cseg_903B1's injuries, cpucards' guard 13 open), does a CPU injury ever count
     down? Every cached team's records (g_numSelectedTeams = careerTeam + 95151, the cache after it, 684 B a team) read
@@ -23684,7 +23699,8 @@ def cpu_inj_preset():
     b = build(f'cpu_inj_{UI}', env={'INJ_FORCE': '1'}, lang=UI)
     career = gkinj.find(lepatch.LEPatch(os.path.join(ROOT, 'orig', UI_ORIG)))['CAREER']
     seen, downs, rounds = {}, [], []
-    with Session(f'cpu_inj_preset_{UI}', b, {}, 'dump:2', 900) as s:
+    gt_at = gkinj.find(lepatch.LEPatch(os.path.join(ROOT, 'orig', UI_ORIG)))['GT']
+    with Session(f'cpu_inj_{"diy" if gt else "preset"}_{UI}', b, {}, 'dump:2', 900) as s:
         s.wait()
         numsel = s.result.base2 + career[1] + 95151
 
@@ -23717,9 +23733,14 @@ def cpu_inj_preset():
         for t in ('COMP. PREDEFINITA', 'TORNEI STORICI', 'COPPA MONDIALE 1934', 'TORNEO'):
             if press(s, s.screen(), t) is None:
                 return False, f'{t} not reached'
+        if gt:                                       # (DIY: g_gameType 1 from the first match on)
+            s.poke(s.result.lin(gt_at), struct.pack('<H', gt))
+            s.log.append(f'[gt] {gt} at {gt_at}')
+        gts = set()                                  # (g_gameType at every step: the DIY poke held)
         for k in range(300):
             scr = s.screen()
             snap(f'step{k}:{scr.entries[0][1].strip()[-16:]}')
+            gts.add(struct.unpack('<H', s.result.read(s.result.lin(gt_at), 2))[0])
             if k in (12, 36) and os.environ.get('CPU_INJ_DUMP'):    # (find where a preset keeps its clubs: the whole
                 open(os.path.join(s.run, f'MEM_{k}.BIN'), 'wb').write(s.result.mem)   # 32 MB, analysed offline)
                 s.log.append(f'[dump] MEM_{k}.BIN numsel {numsel - s.result.base2:#x} base2 {s.result.base2:#x}')
@@ -23733,9 +23754,13 @@ def cpu_inj_preset():
         snap('end')
     if not any(n for _, n, _ in rounds):             # (no named slot at any snapshot: nothing read)
         return False, f'NOT MEASURED: no named team in g_selectedTeams at any snapshot {rounds[:4]}'
+    if (gt or 2) not in gts:
+        return False, f'g_gameType {gt or 2} never seen during the competition ({sorted(gts)})'
     res = 'heals' if downs else 'never heals'
     inj_end = sorted((k[0], k[1], v) for k, v in seen.items() if v)
-    return True, (f'RESULT: {res} ({len(downs)} level decreases; injured at the end (team, player, level) {inj_end}; '
+    if not downs:                                    # (4.0.6 option 1: they must heal - CPU INJURIES ON)
+        return False, f'CPU injuries never heal (g_gameType {gt or 2}): injured at the end {inj_end}; {rounds[-6:]}'
+    return True, (f'RESULT: g_gameType {sorted(gts)}, {res} ({len(downs)} level decreases, e.g. {downs[:4]}; injured at the end (team, player, level) {inj_end}; '
                   f'injured records per snapshot '
                   f'{[(t, n, j) for t, n, j in rounds][:30]}; decreases {downs[:8]})')
 

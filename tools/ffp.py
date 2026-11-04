@@ -160,11 +160,16 @@ ff_biz:                                 ; clubBusinessMenu's init (ANDAMENTO CLU
     call BIZINIT
     pushad
     mov ebx, MENU_
-    cmp word [ebx + 10h], 22            ; (the game's 22 entries, nothing after them)
+    cmp word [ebx + 10h], 22            ; (the game's 22 entries, then their texts - STDMENUTEXT - up to the end pointer)
     jne .x
     lea eax, [ebx + 16h + 22 * 38h]
-    cmp [ebx + 12h], eax
-    jne .x
+    mov edx, [ebx + 12h]
+    cmp edx, eax
+    jb .x
+    add edx, 2 * 38h
+    lea ecx, [ebx + MENUSZ_]
+    cmp edx, ecx
+    ja .x                               ; (no room for two more entries)
     cmp word [D6CA0], 0                 ; a season-start statement of the club staying, with a fine: its row
     jne .row
     cmp word [STAY], 0
@@ -204,6 +209,29 @@ ff_biz:                                 ; clubBusinessMenu's init (ANDAMENTO CLU
     call WRITEBAL
     mov ebx, MENU_
 .row:
+    lea eax, [ebx + 16h + 22 * 38h]     ; the texts 2 entries further: room for entries 22 / 23
+    mov ecx, [ebx + 12h]
+    sub ecx, eax
+    jz .moved
+    mov esi, [ebx + 12h]
+    dec esi
+    lea edi, [esi + 2 * 38h]
+    std
+    rep movsb
+    cld
+    lea esi, [ebx + 16h]                ; (the entries' text pointers into the moved area: moved too)
+    mov ecx, 22
+.fix:
+    mov edx, [esi + 26h]
+    cmp edx, eax
+    jb .nf
+    cmp edx, [ebx + 12h]
+    jae .nf
+    add dword [esi + 26h], 2 * 38h
+.nf:
+    add esi, 38h
+    loop .fix
+.moved:
     lea edi, [ebx + 16h + 22 * 38h]     ; entry 22: the ratio (a copy of the old balance's label, 15 px above it)
     lea esi, [ebx + 16h + 2 * 38h]
     mov ecx, 38h
@@ -407,6 +435,7 @@ def patch(p, at, lang):
     import zones
     sym['WRITEBAL'] = finance.SITES['WRITEBAL']
     sym['MENU_'] = zones._current_menu(p)
+    sym['MENUSZ_'] = (0, 6500)                           # (g_currentMenu's size: cpucards)
     sym['DRAWITEM'] = (1, cpucards.find(p)['DRAWITEM'])
     sym['S_ON'], sym['S_OFF'] = cpucards.strings(p, controls.menu_header(p, controls.locate(p)['OMBD'][1]))
     assert p.target(2, s['bizhdr']) == s['BIZINIT'], ('clubBusinessMenu init already hooked', p.target(2, s['bizhdr']))

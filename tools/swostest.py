@@ -24490,6 +24490,10 @@ def ffp_biz(s, tag, errs, toggle=False):
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import ffp
     from complist import px, SMALL_W
+    for _ in range(6):                                   # (a new career: the chairman's welcome first)
+        if 'ANDAMENTO CLUB' in s.screen().texts():
+            break
+        press(s, s.screen(), 'CONTINUA', 3) or s.send('fire dump:2')
     if press(s, s.screen(), 'ANDAMENTO CLUB', 3) is None:
         errs.append(f'{tag}: no ANDAMENTO CLUB on {s.screen()}')
         return None
@@ -24670,6 +24674,103 @@ def ffp_season():
                     errs.append(f'{tag}: no career menu for the purchase test {s.screen()}')
                 ratio = f'{wage / v2["iprev"]:.1%}' if wage and v2['iprev'] else '-'
                 notes.append(f'{tag}: {v1} -> {v2} memo {memo[:2] if memo else None} W {wage} W/I {ratio}')
+    return not errs, '; '.join(errs + notes)
+
+
+@scenario
+def ffp_star():
+    """4.0.6 FFP, a big club's real spending (Davide 04/11): an OFFER_FORCE build (every offer accepted) of the World
+    2026-27 (W2627REL_DATA), a REAL MADRID career; FFP_STAR (default 1,3) = the number of BARCELONA players bought at the
+    season's start (squad rows 1.., ACQ. ALTRO GIOCAT. NAZION. > LALIGA > BARCELONA; the bank poked to 500 M before each
+    offer, put back after: the purchase costs nothing), season 1 played, CONTINUA CARRIERA: W (the new season's wage
+    bill), I (FF_IPREV), the ratio; over the limit <=> FF_BLOCK, FF_FINE = half the wages over 0.35 x I (thousands); the
+    balance before / after the fine logged. Davide's check: one star = no sanction."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import ffp
+    errs, notes = [], []
+    src = (os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-403c13b')).rstrip('/')
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    b = os.environ.get('FFP_STAR_BUILD') or build(f'ffp_star_{UI}_' + os.path.basename(src), env={   # (xtra_offer_plus'
+        'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'OFFER_FORCE': '1'}, lang=UI)
+    ff, fin, msg1, _ = ffp_sites(b)
+    nb_at = fin['NEWBAL'][1]
+    word = lambda r, o: struct.unpack('<i', bytes(r.obj2(o, 4)))[0]
+    path = ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27', 'EUROPA', 'SPAGNA', 'LALIGA', 'REAL MADRID']
+    for n in [int(x) for x in os.environ.get('FFP_STAR', '1,3').split(',')]:
+        tag = f'star{n}_{UI}'
+        with Session(f'ffp_{tag}', b, {}, 'dump:2', 1500) as s:
+            s.wait()
+            if not pick_career(s, path):
+                errs.append(f'{tag}: new career {s.screen().texts()[:8]}')
+                continue
+            s.send('fire dump:3')
+            for _ in range(8):
+                if 'TRASFERIMENTI' in s.screen().texts():
+                    break
+                press(s, s.screen(), 'CONTINUA', 3) or s.send('fire dump:2')
+            bought = []
+            for k in range(n):
+                bank = word(s.result, nb_at)
+                s.poke(s.result.base2 + nb_at, struct.pack('<i', 500000000))
+                walk(s, 'TRASFERIMENTI', 3)
+                walk(s, 2, 3)                              # ACQUISTA GIOCATORE
+                if any(t and msg1[1][:12] in t for t in s.screen().texts()):
+                    errs.append(f'{tag}: purchase {k + 1} refused by the game (squad room?) {s.screen()}')
+                    break
+                walk(s, 4, 3)                              # ACQ. ALTRO GIOCAT. NAZION.
+                walk(s, 'LALIGA', 3)
+                walk(s, 'BARCELONA', 3)
+                walk(s, 4 + k, 4)                          # its (k+1)-th player row
+                sc = s.screen()
+                for key in (sc.path(9) or []):
+                    s.send(key + ' dump:0.5')
+                ans = xtra_bid(s)
+                ok = any("E' LIETO" in x or 'HAPPY TO SELL' in x for x in ans)
+                for _ in range(10):
+                    if 'TRASFERIMENTI' in s.screen().texts():
+                        break
+                    press(s, s.screen(), 'CONTINUA', 3) or press(s, s.screen(), 'ESCI', 3) or s.send('fire dump:2')
+                spent = 500000000 - word(s.result, nb_at)
+                s.poke(s.result.base2 + nb_at, struct.pack('<i', bank))     # (the purchase free)
+                bought.append((ok, spent))
+            s.poke(s.result.base2 + nosack_off(os.path.join(b, 'ITALIAN.EXE')), b'\x01\x00')
+            w0 = struct.unpack('<I', bytes(s.result.obj2(fin['D6B9E'][1], 4)))[0] * \
+                struct.unpack('<H', bytes(s.result.obj2(fin['D6CA2'][1], 2)))[0]
+            ok, m = advance(s, season_over, 900)
+            if not ok:
+                errs.append(f'{tag}: season 1: {m}')
+                continue
+            if s.screen().find('FINISCI STAGIONE', exact=True) is not None:
+                press(s, s.screen(), 'FINISCI STAGIONE', wait=3)
+            for _ in range(6):
+                if s.screen().find('CONTINUA CARRIERA', exact=True) is not None:
+                    break
+                press(s, s.screen(), 'CONTINUA') or s.send('fire dump:2')
+            bank1 = word(s.result, nb_at)
+            press(s, s.screen(), 'CONTINUA CARRIERA', wait=3)
+            memo = False
+            for _ in range(12):
+                scr = s.screen()
+                s.log.append(f'[ns] {scr}')
+                if 'TRASFERIMENTI' in scr.texts():
+                    break
+                memo = memo or any(ffp.MEMO[UI][1][:10].encode('latin-1') in r for r in scr.raw)
+                press(s, scr, 'CONTINUA') or s.send('fire dump:2')
+            v = ffp_read(s, ff)
+            w = struct.unpack('<I', bytes(s.result.obj2(fin['D6B9E'][1], 4)))[0] * \
+                struct.unpack('<H', bytes(s.result.obj2(fin['D6CA2'][1], 2)))[0]
+            i_ = v['iprev']
+            over = i_ and w * 100 > ffp.LIMIT * i_
+            want = ((w - i_ * ffp.LIMIT // 100) // 2) // 1000 * 1000 if over else 0
+            check(v['block'] == (1 if over else 0) and v['fine'] == want, f'{tag}: block {v["block"]} fine {v["fine"]}, '
+                  f'want {int(bool(over))} / {want} (W {w} I {i_})', errs)
+            check(memo == bool(over), f'{tag}: memo {memo} with over {bool(over)}', errs)
+            if n == 1:
+                check(not over, f'{tag}: one star sanctioned (W {w} I {i_})', errs)
+            notes.append(f'{tag}: bought {bought}; W at the start {w0 / 1e6:.2f} M, new season {w / 1e6:.2f} M; '
+                         f'I {i_ / 1e6:.2f} M; W/I {(w / i_ if i_ else 0):.1%}; block {v["block"]} fine '
+                         f'{v["fine"] / 1e6:.3f} M; balance before the season start {bank1 / 1e6:.2f} M, after '
+                         f'{word(s.result, nb_at) / 1e6:.2f} M')
     return not errs, '; '.join(errs + notes)
 
 

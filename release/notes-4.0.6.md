@@ -48,6 +48,8 @@
 - Looking at the cups never changes your career or its save: everything is put back exactly as it was when you leave
   the screen.
 - If your club is playing a continental group stage, its round shows the real group you are playing in.
+- **Continental cups, first season:** in a new World 2026-27 career, CONTINENTAL CUPS now shows each cup's drawn round from the very first week: open it to see the groups or ties still to be played. The Intercontinental Cup, whose clubs are the first season's winners, lists its rounds still to be played.
+- **More realistic scores in the continental cups:** about 2.6 goals a match instead of more than 5. A career saved with an earlier version finishes its current continental season with the old scores; from the next season on it uses the new ones.
 
 #### Super Cups and intercontinental cups (World 2026-27)
 - **UEFA Super Cup.**
@@ -275,6 +277,8 @@ La 4.0.6 è un giro di richieste dei giocatori: **due giocatori sulla stessa tas
   esattamente com'era.
 - Se la tua squadra sta giocando una fase a gironi continentale, il suo turno mostra il girone vero in cui stai
   giocando.
+- **Coppe continentali, prima stagione:** in una nuova carriera Mondo 2026-27, COPPE CONTINENTALI mostra fin dalla prima settimana il turno sorteggiato di ogni coppa: aprilo per vedere i gironi o gli accoppiamenti da giocare. La Coppa Intercontinentale, che riunisce le vincitrici della prima stagione, elenca i suoi turni da giocare.
+- **Risultati più realistici nelle coppe continentali:** circa 2,6 gol a partita invece di oltre 5. Una carriera salvata con una versione precedente finisce la stagione continentale in corso con i punteggi di prima; dalla stagione successiva usa quelli nuovi.
 
 #### Supercoppe e coppe intercontinentali (Mondo 2026-27)
 - **Supercoppa UEFA.**

@@ -15916,13 +15916,14 @@ def world_cgame_view():
             check(not odd, f'{conf}: rounds menu characters outside the font {odd}', errs)
             wide = [(t, complist.px(t.upper())) for i, t in btns if complist.px(t.upper()) > 144]
             check(not wide, f'{conf}: rounds menu labels over 144 px {wide}', errs)
-            vis = [i for i, t, inv, dis in sc.entries[1:1 + ctview.CR_N + 2] if not inv and t]   # (the menu frame: x + 8)
-            rect = [sc.geom[i] for i in vis]
-            lm, rm = min(g[0] for g in rect) + 8, 320 - max(g[0] + g[2] for g in rect) - 8
+            vis = [i for i, t, inv, dis in sc.entries[1:1 + ctview.CR_N + 2] if not inv and t]   # (screen x: the
+            rect = [sc.geom[i] for i in vis]                                                     # menu's +8 in)
+            lm, rm = min(g[0] for g in rect), 320 - max(g[0] + g[2] for g in rect)
             check(lm >= 0 and rm >= 0 and abs(lm - rm) <= 1, f'{conf}: rounds menu not centred: margins {lm} / {rm}', errs)
             bot = [g for g in rect if g[1] == max(r[1] for r in rect)]
-            check(len(bot) == 2 and abs(bot[0][0] + 8 - (320 - bot[1][0] - bot[1][2] - 8)) <= 1,
+            check(len(bot) == 2 and abs(bot[0][0] - (320 - bot[1][0] - bot[1][2])) <= 1,
                   f'{conf}: RIEPILOGO / ESCI not centred: {bot}', errs)
+            s.log.append(f'[cgv] {conf} rounds menu margins {lm} / {rm}, bottom pair {bot}')
             opened = []
             s.log.append(f'[cgv] {conf} rounds menu: {btns} nav {sc.nav[1:4]} {sc.nav[ctview.CR_N + 1:ctview.CR_N + 3]}')
             for j, (i, label) in enumerate(btns):

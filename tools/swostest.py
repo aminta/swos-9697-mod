@@ -14321,7 +14321,7 @@ def tail_zero():
     numbered 17..99): the mod's obj2 tail (its run-time buffers: shirtnum's 'built' flag + sprites, careerworld / gplay /
     conti .bss ...) is not zeroed by the game's startup nor by DOS/4GW; DOSBox-X happens to give zeros. Every exe of the
     build dir (SWOSTEST_BUILD, else the test build) must route start's `call __CMain` through a stub that stores zero
-    over exactly obj2's non-file part. (Negative control by hand: TAILZERO_FILL_TEST=5A builds a stub filling 5Ah, the
+    over exactly obj2's non-file part, then (4.0.6, the I10o MiSTer panel hunt) over exactly obj3's (ctgame's scratch). (Negative control by hand: TAILZERO_FILL_TEST=5A builds a stub filling 5Ah, the
     MiSTer-like start: shirt_numbers then FAILs, spritesIndex[1335..] = 0.) No exe is run."""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import lepatch
@@ -14348,7 +14348,16 @@ def tail_zero():
         fill = struct.unpack_from('<I', c, i + 11)[0] if ok else None
         check(ok and tgt == (2, start) and n * 4 >= size and n * 4 - size < 4 and fill == 0,
               f'{nm}: stub obj1+{stub:#x} {c[stub:stub + 24].hex()} -> {tgt} x{n} fill {fill}; tail obj2+{start:#x}+{size:#x}', errs)
-        info.append(f'{nm}: obj2+{start:#x}..+{size:#x} zeroed')
+        j = i + 18                                      # 4.0.6: then obj3's tail (ctgame's scratch, the replay's goals)
+        o3 = p.le.obj(3)
+        s3, z3 = o3.npages * p.le.page_size, o3.vsize - o3.npages * p.le.page_size
+        ok3 = ok and c[j] == 0xBF and c[j + 5] == 0xB9 and c[j + 10] == 0xB8 and c[j + 15:j + 17] == b'\xf3\xab'
+        t3 = p.target(1, j + 1) if ok3 else None
+        n3 = struct.unpack_from('<I', c, j + 6)[0] if ok3 else 0
+        f3 = struct.unpack_from('<I', c, j + 11)[0] if ok3 else None
+        check(ok3 and t3 == (3, s3) and n3 * 4 >= z3 and n3 * 4 - z3 < 4 and f3 == 0,
+              f'{nm}: obj3 part {c[j:j + 17].hex()} -> {t3} x{n3} fill {f3}; tail obj3+{s3:#x}+{z3:#x}', errs)
+        info.append(f'{nm}: obj2+{start:#x}..+{size:#x}, obj3+{s3:#x}..+{z3:#x} zeroed')
     if not exes:
         return False, f'no exe in {d}'
     return not errs, '; '.join(errs or info)

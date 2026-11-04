@@ -24461,7 +24461,7 @@ def fin_statement():
 
 
 def ffp_sites(exe_dir):
-    """ffp in a built exe: FF_ST (obj3, after the tag 'FFPS': FF_ON, FF_BLOCK, FF_VALID, -, FF_INC, FF_IPREV, FF_FINE),
+    """ffp in a built exe: FF_ST (obj3, after the tag 'FFPS': FF_ON, FF_BLOCK, FF_VALID, FF_INC, FF_IPREV, FF_FINE: 15 B),
     the finance variables (finance.find on the exe language's original) and the game's message 1 (ffp.message)."""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import finance
@@ -24490,7 +24490,7 @@ def ffp_onoff(exe_dir):
 
 def ffp_read(s, ff):
     """{on, block, valid, inc, iprev, fine}"""
-    v = struct.unpack('<BBBxIII', bytes(s.result.read(s.result.lin(ff), 16)))
+    v = struct.unpack('<BBBIII', bytes(s.result.read(s.result.lin(ff), 15)))
     return dict(zip(('on', 'block', 'valid', 'inc', 'iprev', 'fine'), v))
 
 

@@ -21,7 +21,7 @@ The purchases (BuyPlayerMenu's `cmp word [D2], 2 / jnb`: the game's own refusal,
 player purchases this season' - message 1 in every language): also when FF_BLOCK and the current squad's W is over
 the limit of FF_IPREV (sold back under it: buying again).
 
-State: finance.py's FF_ST (FF_ON, FF_BLOCK, FF_VALID, FF_INC, FF_IPREV, FF_FINE), the engine item 'FF' (16 bytes).
+State: finance.py's FF_ST (FF_ON, FF_BLOCK, FF_VALID, FF_INC, FF_IPREV, FF_FINE), the engine item 'FF' (15 bytes).
 FFP_FORCE=over (test builds only, modver TEST_VARS): the limit 0 (every evaluated season over).
 """
 import os

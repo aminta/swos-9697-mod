@@ -9102,7 +9102,8 @@ def ct_check_texts(r, menu, entries, errs, tag):
 def controls_mode4():
     """4.0.5 (Marco: 'P1 KEYBOARD, P2 JOYPAD' swapped the devices - the game reads stick 1 for P1 unless keyboard only and
     the keyboard for P2 unless two joypads, so mode 4 always behaved as 3): a game buffer holding 4 (INSTALL's choice,
-    poked) opens the CONTROLS page as 3 (P1 JOYPAD, P2 KEYBOARD) and the device row cycles 3 -> 5 -> 1 -> 3, never 4"""
+    poked) opens the CONTROLS page as 3 (P1 JOYPAD, P2 KEYBOARD) and the device row cycles 3 -> 5 -> 7 -> 1 -> 3, never 4
+    (4.0.6 kbd2: 7 = P1 AND P2 ON KEYBOARD, between 5 and 1)"""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import controls
     b, v = ct_build()
@@ -9130,7 +9131,7 @@ def controls_mode4():
         dev = struct.unpack_from('<H', work(), 6)[0]
         check(dev == 3 and ct_entry(r, menu, 2)[0] == enc(T['devs'][1]),
               f'opened with 4: device {dev}, text {ct_entry(r, menu, 2)[0]}', errs)
-        for want in (5, 1, 3, 5):
+        for want in (5, 7, 1, 3, 5):
             s.send('fire dump:0.5')
             dev = struct.unpack_from('<H', work(), 6)[0]
             seen.append(dev)

@@ -43,7 +43,6 @@
   the Libertadores, the Sudamericana and the Recopa, EUROPE the Champions League, Europa League and Conference League,
   WORLD the Intercontinental, and so on. A button opens the same menu of rounds for that cup.
 - When the game's own screen can't show a round, you get the text page instead:
-  - in the first season of a career;
   - for the AFC Champions League Elite league stage, a format the game's screens don't have;
   - in the rare cases where it couldn't be shown safely (too many clubs loaded at once, a club missing from the data).
 - Looking at the cups never changes your career or its save: everything is put back exactly as it was when you leave
@@ -271,7 +270,6 @@ La 4.0.6 è un giro di richieste dei giocatori: **due giocatori sulla stessa tas
   SUDAMERICA la Libertadores, la Sudamericana e la Recopa, EUROPA Champions League, Europa League e Conference League,
   MONDO l'Intercontinentale, e così via. Un pulsante apre lo stesso menu dei turni di quella coppa.
 - Quando la schermata del gioco non può mostrare un turno, compare invece la pagina di testo:
-  - nella prima stagione della carriera;
   - per la fase campionato della AFC Champions League Elite, una formula che le schermate del gioco non hanno;
   - nei rari casi in cui non si potrebbe mostrare in sicurezza (troppe squadre caricate insieme, un club che manca nei
     dati).

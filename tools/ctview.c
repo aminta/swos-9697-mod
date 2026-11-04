@@ -200,6 +200,8 @@ static int main_after(int c, int r) {   /* round r comes after cup c's main roun
     return 0;
 }
 
+static int has_main(int c) { for (int k = 0; k < nr[c]; k++) if (RD(c, k)[17]) return 1; return 0; }
+
 static void cup_lines(int c, u32 week, int live) {
     const u8 *ct = cuptab(c);
     newpage();
@@ -248,13 +250,15 @@ static void cup_lines(int c, u32 week, int live) {
             }
             if (CT_ED.pad & 1) {        /* (4.0.6 B2: season 1 played from its main round - the build's draw; the
                                            rounds before it were played before the season: one line, as page A) */
-                if (!R[17] && !main_after(c, r)) continue;
+                if (!R[17] && !main_after(c, r) && has_main(c)) continue;   /* (no main round - the
+                                           Intercontinental, its clubs season 1's winners: every round to be played) */
                 if (R[17] && r) { add(txt(T_BEFORE)); endline(); }
             }
             int n = CT_OUT.nent[c][r];
             int drawn = n && seg_before(c, r, mo) ? 2 : (CT_SEG.kind != 0xFF && CT_SEG.cup == c && CT_SEG.round == r);
             if (R[0] == K_KO && R[18] && n && 2 * n <= R[18]) continue;   /* (all through without playing: no ties) */
-            if (!n && seg_before(c, r, mo)) continue;                 /* (no entrants: not played this season) */
+            if (!n && seg_before(c, r, mo) && !((CT_ED.pad & 1) && !has_main(c)))
+                continue;                                             /* (no entrants: not played this season) */
             const char *rn = (const char *)CV_TAB + w16(ct + 4 + 2 * r);
             int s1m = (CT_ED.pad & 1) && R[17] && n;   /* (B2: season 1's main round, drawn before the season) */
             if (!s1m && (week < mweek(m) || !drawn)) {   /* not drawn yet */
@@ -303,9 +307,9 @@ u32 cv_confs(u32 word, u8 *order) {     /* the confederations with a cup (ctview
 
 /* --- 4.0.6 option C P3: the rounds a confederation's menu opens in the game's own screens ---------------------------
    cv_rounds(conf, week, out): the rounds of conf's cups with a draw at the week (as cup_lines: its month come, drawn
-   - or the career club's round in progress), cup by cup in calendar order, the latest CR_N; out[k] = cup << 4 |
-   round; returns their number (0: season 1, no edition - the text page only). cr_layout(n, nav): the menu's links
-   (left, right, up, down a button, entries 1..CR_N in two columns of CR_N / 2; CR_N + 1 the summary page, CR_N + 2
+   - or the career club's round in progress; B2's season 1: its main round from the start), cup by cup in calendar
+   order, the latest CR_N; out[k] = cup << 4 | round; returns their number (0: no edition - the text page only).
+   cr_layout(n, nav): the menu's links (left, right, up, down a button, entries 1..CR_N in two columns of CR_N / 2; CR_N + 1 the summary page, CR_N + 2
    ESCI; FF none) - nav[4 * CR_N .. + 3] the summary's up / ESCI's up. */
 #define CR_N 16
 u32 cv_rounds(u32 conf, u32 week, u8 *out) {
@@ -324,7 +328,9 @@ u32 cv_rounds(u32 conf, u32 week, u8 *out) {
                 int n = CT_OUT.nent[c][r];
                 int drawn = n && seg_before(c, r, mo) ? 2 : (CT_SEG.kind != 0xFF && CT_SEG.cup == c && CT_SEG.round == r);
                 if (R[0] == K_KO && R[18] && n && 2 * n <= R[18]) continue;
-                if (!drawn || week < mweek(m) || !n) continue;
+                int s1m = (CT_ED.pad & 1) && R[17] && n;   /* (B2: season 1's main round, drawn before the season:
+                                           in the menu from the start, its stock draw - Davide 04/11) */
+                if (!s1m && (!drawn || week < mweek(m) || !n)) continue;
                 all[k++] = (u8)(c << 4 | r);
             }
         }

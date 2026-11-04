@@ -15448,6 +15448,39 @@ def world_contiview():
         check(not LIST_BAD, f'season 1 VISUAL. COMPETIZ. list: {LIST_BAD}', errs)
         check(not any('?' in x for x in lines), f'season 1 unread club names {lines[:4]}', errs)
         info.append(f's1: {lines[:4]}')
+        st = lambda: (bytes(s.result.obj2(seg_at, 72)), bytes(s.result.obj2(ed_at, 2260)))
+        walk(s, s.screen().find('COPPE CONTINENTALI', exact=True), 3)
+        for k in range(1, 7):                           # (B2 + Davide 04/11: season 1's drawn main round in every
+            walk(s, k, 3)                               #  rounds menu from the season start - never the text page -
+            sc = s.screen()                             #  its game screen the stock draw, no results)
+            if sc.find(T[7], exact=True) is None:      # (the Intercontinental: its clubs season 1's winners -
+                tx = [x[1] for x in sc.entries[1:15] if x[1]]   # its page, every round to be played)
+                s.shot(f'cv_s1_{k}_page')
+                s.log.append(f'[cv] s1 {names[k - 1]} page: {tx}')
+                check(names[k - 1] == 'FIFA' and len(tx) > 2 and all(T[1] in x for x in tx[1:] if ':' in x),
+                      f'season 1 {names[k - 1]}: the text page, no rounds menu ({tx[:4]})', errs)
+                info.append(f's1 {names[k - 1]}: page {tx[:3]}')
+                walk(s, 16, 3)
+                continue
+            labels = [x[1] for x in sc.entries[1:1 + ctview.CR_N] if not x[2] and x[1]]
+            s.shot(f'cv_s1_{k}_rounds')
+            b0 = st()
+            walk(s, 1, 4)
+            v = s.screen()
+            s.shot(f'cv_s1_{k}_round')
+            texts = v.texts()
+            s.log.append(f'[cv] s1 {names[k - 1]} {labels}: {texts[:24]}')
+            check(v.find(T[7], exact=True) is None and texts, f'season 1 {names[k - 1]} {labels[:1]}: no view', errs)
+            for _ in range(6):
+                if s.screen().find(T[7], exact=True) is not None:
+                    break
+                press(s, s.screen(), 'ESCI', 3) or s.send('fire dump:2')
+            check(s.screen().find(T[7], exact=True) is not None, f'season 1 {names[k - 1]}: not back on the menu',
+                  errs)
+            check(st() == b0, f'season 1 {names[k - 1]}: CT_SEG / CT_ED changed by the view', errs)
+            info.append(f's1 {names[k - 1]}: {labels}')
+            walk(s, ctview.CR_N + 2, 3)
+        walk(s, s.screen().find('ESCI', exact=True), 3)
     s2 = os.environ.get('CV_S2') or os.path.join(RUNS, f'cv_s2_{UI}.CAR')   # (this build's own season 1: a slot's
     if not os.path.exists(s2):                          # title is in the save - CV_TEAM, default ARSENAL: the list's most rows)
         ok, msg, _ = sc_season(os.environ.get('CV_TEAM', 'EUROPA,INGHILTERRA,PREMIER LEAGUE,ARSENAL'), dict(W8485_BUILD=exe))

@@ -15629,7 +15629,7 @@ def world_cgame_view():
             check(got == i, f'{tag}: up from entry {j} -> entry {got}, not TRASFERIMENTI', errs)
             info.append(f'{tag}: menu ok')
         tr_ok('after load')
-        if not own and not pp:                          # (the foreign market's club picker, careerworld w_buy: the
+        if not own and not pp and not os.environ.get('CGV_NOMARKET'):   # (the foreign market's club picker, careerworld w_buy: the
             walk(s, 'TRASFERIMENTI', 3)                 #  plain lists too - first: after a game's own cup view the
                                                         #  menu's links go through its fixtures; CV_OWN's save:
                                                         #  its week has no market)

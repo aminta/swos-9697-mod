@@ -82,6 +82,7 @@ it). Cup finals: the FA Cup final at WEMBLEY STADIUM, the Coppa Italia final at 
 - **The match clock steps aside.** While the bench is open, the clock moves to the top right, next to the spinning S, so it no longer covers the coach and the first seats. It goes back to its place when you close the bench.
 - Fixed a bug of the original game: when you called the bench with the ball in the top half of the pitch, the bench sometimes ignored the cursor keys and you couldn't pick anyone. The camera now settles properly and the bench always responds.
 - Training matches keep the original one-row bench and clock.
+- **Wider rows in the bench menu** (layout by Marco). In a match, the substitutes list, FORMATION, the opponent's list and the long-bench pages have wider rows. The yellow / red card now sits in its own space left of the face, at the same distance from the edge of the menu as from the face. The injury cross has its own column before the position, so it no longer covers the end of a long name. (With SWOS++ the menu keeps SWOS++'s own look.)
 
 #### Long benches: scrolling as in the original game
 - **Long benches** (thanks to Marco): the player lists scroll as in the original game again.
@@ -345,6 +346,7 @@ Italia allo STADIO OLIMPICO.
 - **L'orologio si sposta.** Con la panchina aperta il tempo di gioco va in alto a destra, accanto alla S che gira, così non copre più l'allenatore e i primi posti. Quando chiudi la panchina torna al suo posto.
 - Corretto un difetto del gioco originale: se chiamavi la panchina con la palla nella metà campo in alto, a volte la panchina non rispondeva ai tasti del cursore e non potevi scegliere nessuno. Ora la telecamera si ferma bene e la panchina risponde sempre.
 - Le partite di allenamento mantengono la panchina e l'orologio originali, su una sola fila.
+- **Righe più larghe nel menu panchina** (layout di Marco). In partita, la lista delle sostituzioni, FORMAZIONE, la lista dell'avversario e le pagine della panchina lunga hanno righe più larghe. Il cartellino giallo / rosso ora ha il suo spazio a sinistra della faccia, alla stessa distanza dal bordo del menu e dalla faccia. La croce degli infortuni ha una colonna sua prima del ruolo, così non copre più la fine dei nomi lunghi. (Con SWOS++ il menu resta come lo disegna SWOS++.)
 
 #### Panchine lunghe: si scorre come nel gioco originale
 - **Panchine lunghe** (grazie a Marco): gli elenchi dei giocatori tornano a scorrere come nel gioco originale.

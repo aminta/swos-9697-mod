@@ -9,7 +9,7 @@ not x on the trailer (5083 of 16192 B differ after the after-load callbacks): st
 
 Hooks: cup draw (gp_draw), stage end (gp_cap), season end (w_season_end, gp_end), table order (lp_sort), the day
 before a match (ct_daily), new season (ct_prep), save / load (save_trailer / load_trailer), FINISH SEASON (the game's
-next-day scan). Each: returns within its budget, < 1 s, the same bytes on a second run, and writes only the pages it
+next-day scan). Each: returns within its budget, < 1 s of CPU time, the same bytes on a second run, and writes only the pages it
 wrote when the golden was taken (footprint.json next to the fixture; HT_REGOLD=1 rewrites it)."""
 import glob
 import hashlib
@@ -49,9 +49,9 @@ def _run(d, k, meta):
     """(changed pages {page: md5}, files written, seconds) of one call of the snapshot's label"""
     m = _machine(d, k, meta)
     before = bytes(m.uc.mem_read(0, MEM))
-    t = time.time()
+    t = time.process_time()                         # (CPU time: other runs on the Mac do not count, Regia 04/11)
     m.call(meta['label'], max_insn=300_000_000)
-    dt = time.time() - t
+    dt = time.process_time() - t
     after = bytes(m.uc.mem_read(0, MEM))
     pages = {i // PAGE: hashlib.md5(after[i:i + PAGE]).hexdigest() for i in range(0, MEM, PAGE)
              if before[i:i + PAGE] != after[i:i + PAGE]}

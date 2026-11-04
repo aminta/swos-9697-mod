@@ -16,7 +16,7 @@ typedef unsigned int u32;
 #define SWE_VERSION 2
 #define SWE_ARENA 0x8000
 
-#define REG_HDR 28                      /* (swreg.py HDR, REC, F_*) */
+#define REG_HDR 32                      /* (swreg.py HDR, REC, F_*) */
 #define REG_REC 24
 #define F_NS 2
 #define M_FRIENDLY 1                    /* (swreg.py M_*) */

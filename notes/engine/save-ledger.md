@@ -58,3 +58,12 @@ SEL_N 160 × 684 = 109440, main block 948, 'EN' block 15343 (25 items) → 12573
   - fold legacy items into SWC1 as the engine absorbs their modules: GP + GS + SS + SS2 + CD + CF + WN + F1 + CN + BQ ≈ 9.3 KB are gplay's and become the engine's. That frees what the engine state needs, as long as it stays within their sum;
   - grow SEL_ROOM by moving B_STAGE, a change of the old-save-trap class that needs its own old-save gate.
 - **The rule from now on:** a new item in a 4.0.x minor gets a line here, and a P import entry when the engine starts, before its sha.
+
+## Not save room: the default world (W-modes M1, 2026-11-04)
+
+- **SETUP.DAT +105** (1 B, config, no .CAR room): the main menu's world switch (mainbtn). 0 = World 2026-27 (also a
+  105-B file: a fresh install, INSTALL.EXE, the patcher's factory file), 1 = the 1996-97 game, 2 = Europe 1984-85; a
+  value the build has no world for reads as 0.
+- The game reads SETUP.DAT whole into setupDatBuffer: +105 is the first of 6 padding bytes nobody references, so a
+  106-B file is safe for every exe, the original included. controls' SAVE now writes 106 B and keeps it.
+- The registry header's +28 (swreg v2) points at it, for the W-modes pickers.

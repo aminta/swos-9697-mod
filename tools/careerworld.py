@@ -1008,8 +1008,8 @@ nat_init:                               ; 4.0.3: replaces `mov dword [A0], natio
     mov eax, [NATFLAG]                  ; has no end check)
     test eax, eax
     jz .set
-    cmp byte [eax], 0
-    je .set
+    cmp byte [eax], 1                   ; (W-modes: 1 = World 2026-27's career, 2 = Europe 1984-85's)
+    jne .set
     mov esi, NATORD27
     mov ecx, N_27
 .set:

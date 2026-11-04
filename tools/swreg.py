@@ -11,7 +11,9 @@ at run time, the rows from careerworld's NSWT.
             +8   u32 -> WCUR (obj1; 0 = one namespace)       +12  u32 -> competitionsTable[254] (obj2)
             +16  u32 -> the CLASSIC CAREERS world table (obj1; 0 = none)   +20  u32 -> the namespace numbers
                  (careerworld NSLIST, obj1; 0 = none)   +24  u32 their count (a row = 10 B each: ct, comp, tcn)
-            +28  per world REC bytes: u8 n, u8 flags (F_*), u8 its menu id (mkseason WMENU + n; 0 = world 0),
+            +28  u32 -> the default world byte (v2, W-modes: setupDatBuffer + 105, obj2, mainbtn's switch: 0 World
+                 2026-27, 1 the 1996-97 game, 2 Europe 1984-85; 0 = no switch in the build)
+            +32  per world REC bytes: u8 n, u8 flags (F_*), u8 its menu id (mkseason WMENU + n; 0 = world 0),
                  u8 countries, u16 first season, u8 modes (M_*), u8 competitions, 4 B team file stem,
                  u32 -> its namespace rows (obj1; 0 = the static tables), u32 -> u8 league files (countries),
                  u32 -> (u8 file, u8 contest id) per competition
@@ -23,8 +25,8 @@ import struct
 
 REG_AT = 0x800                          # obj4: swe.c's code + data below it, the manifest up to the page end
 MAGIC = b'SWRG'
-VERSION = 1
-HDR = 28
+VERSION = 2
+HDR = 32
 REC = 24
 F_BASE, F_NS, F_XTRA = 1, 2, 4
 M_FRIENDLY, M_PRESET, M_SEASON, M_CAREER = 1, 2, 4, 8        # M_FRIENDLY: friendly + the 3 DIY editors (GoGetTeamsForPlay)
@@ -70,7 +72,10 @@ def patch(p, add_ptr):
     assert end <= 0x1000, f'world registry: {end - REG_AT:#x} B past obj4\'s page'
     base = ns['base'] if ns else 0
     p.put(4, REG_AT, MAGIC + struct.pack('<HBB', VERSION, len(ws), base) + bytes(16)
-          + struct.pack('<I', len(ns['numbers']) if ns else 0))
+          + struct.pack('<I', len(ns['numbers']) if ns else 0) + bytes(4))
+    import mainbtn
+    if mainbtn.SETTING[0]:
+        add_ptr(REG_AT + 28, *mainbtn.SETTING[0])
     if ns:
         add_ptr(REG_AT + 8, 1, lab['WCUR'])
     import countries

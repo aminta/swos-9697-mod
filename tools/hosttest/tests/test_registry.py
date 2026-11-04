@@ -10,6 +10,7 @@ base world).
 - the picker: GoGetTeamsForPlay's call reaches swe_sel_tramp, which calls the previous target (stubbed by a `ret`
   here) with SEL_MODE = M_FRIENDLY, then leaves competitionsTable[254] and every other byte as they were."""
 import os
+import re
 import struct
 import sys
 
@@ -85,7 +86,7 @@ def test_registry():
     if m[:4] != swreg.MAGIC or struct.unpack_from('<H', m, 4)[0] != swreg.VERSION:
         return False, f'manifest {m[:6]!r}'
     nw, nsbase = m[6], m[7]
-    wcur, c254, cworld, nslist, nsn = struct.unpack_from('<5I', m, 8)
+    wcur, c254, cworld, nslist, nsn, wdef = struct.unpack_from('<6I', m, 8)
     worlds = {}
     for k in range(nw):
         r = rd(reg + swreg.HDR + swreg.REC * k, swreg.REC)
@@ -108,6 +109,15 @@ def test_registry():
         errs.append(f"modes {[worlds[n]['modes'] for n in (0, 4, 5)]} (step W: nothing new listed)")
     if not (B1 <= wcur < B1 + sizes[0] and c254 == B2 + comp + 4 * 254 and B1 <= nslist < B1 + sizes[0] and nsn):
         errs.append(f'header pointers WCUR {wcur:#x} C254 {c254:#x} NSLIST {nslist:#x} ({nsn})')
+    import joyfix                                 # (v2, W-modes: -> setupDatBuffer + 105, the default world byte)
+    from le import LE
+    o = LE(open(ORIG, 'rb').read())
+    d1 = o.obj_bytes(1)
+    rs = [x.start() for x in re.finditer(joyfix.RSD_PAT, d1, re.S)]
+    fx = {s_: (t, o_) for so, s_, _, t, o_, *_ in o.fixups() if so == 1}
+    if len(rs) != 1 or fx[rs[0] + 17][0] != 2 or wdef != B2 + fx[rs[0] + 17][1] + 105:
+        errs.append(f'header default-world pointer {wdef:#x} (setupDatBuffer + 105 = obj2+{fx[rs[0] + 17][1] + 105:#x})'
+                    if len(rs) == 1 else f'ReadSetupDat {rs}')
     if rd(wcur, 1)[0] != nsbase or nsbase != 4:
         errs.append(f'boot WCUR {rd(wcur, 1)[0]} base {nsbase}')
     if errs:

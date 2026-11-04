@@ -655,12 +655,13 @@ ct_cancel:                              ; CANCEL: the copy dropped
     ret
 
 ct_save:                                ; SAVE: SETUP.DAT (as it is on disk, our fields replaced) and the game
+                                        ; (106 B: +105 = mainbtn's default world, W-modes)
     cmp byte [MODE], 0
     jne .x
     pushad
     mov esi, BUF                        ; (no file: the game's buffer)
     mov edi, FBUF
-    mov ecx, 105
+    mov ecx, 106
     rep movsb
     mov edx, FNAME
     mov eax, 3D00h
@@ -668,7 +669,7 @@ ct_save:                                ; SAVE: SETUP.DAT (as it is on disk, our
     jc .nofile
     mov ebx, eax
     mov edx, FBUF
-    mov ecx, 105
+    mov ecx, 106
     mov ah, 3Fh
     int 21h
     mov ah, 3Eh
@@ -685,7 +686,7 @@ ct_save:                                ; SAVE: SETUP.DAT (as it is on disk, our
     jc .nowrite
     mov ebx, eax
     mov edx, FBUF
-    mov ecx, 105
+    mov ecx, 106
     mov ah, 40h
     int 21h
     mov ah, 3Eh

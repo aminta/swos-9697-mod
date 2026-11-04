@@ -625,12 +625,16 @@ def patch_exe(src, dst, remap, lang='it'):
         import lpreal
         lpreal.patch(p, LR_ROOM[0], LR_ROOM[1], area, num_bss + shirtnum.BSS_SIZE + blond.BSS_SIZE + menunum.BSS_SIZE,
                      fmtpage.BSS_SIZE)
+    import mainbtn
+    mainbtn.SETTING[0] = None                    # (per exe: the registry's pointer to the world switch's byte)
     if lt_room:
         lt_end_ = longtable.patch(p, (lt_room[0] + 15) & ~15, area, lang, lt_obj)
         if worlds and any(pk.meta.get('id', '').startswith('world-2026-27-') for pk in mkseason.packs()):
-            import mainbtn                               # 4.0: the green CARRIERA 2026-27 button on the main menu
+            import mainbtn                               # 4.0: the green main-menu button (W-modes: the world switch)
             w27 = min(pk.world for pk in mkseason.packs() if pk.meta.get('id', '').startswith('world-2026-27-'))
-            lt_end_ = mainbtn.patch(p, (lt_end_ + 15) & ~15, lang, mkseason.WMENU + w27, obj=lt_obj)
+            w84 = [pk.world for pk in mkseason.packs() if pk.meta.get('id', '').startswith('europe-1984-85-')]
+            lt_end_ = mainbtn.patch(p, (lt_end_ + 15) & ~15, lang, mkseason.WMENU + w27, obj=lt_obj,
+                                    wid84=mkseason.WMENU + min(w84) if w84 else None)   # (W-modes: the world switch)
             if careerworld.SITES.get('natflag'):     # 4.0.3: CAREER 2026-27's coach nationalities (careerworld nat_init)
                 p.add_ptr(1, careerworld.SITES['natflag'], *mainbtn.FLAG[0])
         assert lt_end_ <= lt_room[1], (f'longtable + mainbtn: {lt_end_ - lt_room[0]} B from obj{lt_obj}+{lt_room[0]:#x}, '

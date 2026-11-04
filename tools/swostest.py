@@ -24472,7 +24472,8 @@ def ffp_sites(exe_dir):
     assert d3.count(b'FFPS') == 1, d3.count(b'FFPS')
     o = lepatch.LEPatch(os.path.join(MAIN, 'orig', UI_ORIG))
     finance.SITES.clear()
-    return (3, d3.index(b'FFPS') + 4), finance.find(o), ffp.message(o, 1)
+    return (3, d3.index(b'FFPS') + 4), finance.find(o), ffp.message(o, 1), \
+        set(''.join(x for k in range(1, 5) for x in ffp.message(o, k)))
 
 
 def ffp_read(s, ff):
@@ -24506,7 +24507,7 @@ def ffp_season():
             b = builds()['it'] if UI == 'it' else build(f'ffp_ui_{UI}', lang=UI)
         else:
             b = build(f'ffp_over_{UI}', env={'FFP_FORCE': 'over'}, lang=UI)
-        ff, fin, msg1 = ffp_sites(b)
+        ff, fin, msg1, gamech = ffp_sites(b)
         tag = f'{mode}_{UI}'
         if mode == 'oldsave':
             with Session(f'ffp_oldsave_{UI}', b, {'JUVE2F.CAR': juve2(True)}, 'dump:2', 120) as s:
@@ -24560,7 +24561,8 @@ def ffp_season():
                     hit = [j for j, (_, t, inv, _) in enumerate(scr.entries) if t and key1 in t]
                     if hit and memo is None:
                         j = hit[0]
-                        memo = (scr.entries[j][1], scr.entries[j + 1][1], scr.geom[j][2], scr.geom[j + 1][2])
+                        memo = (scr.raw[j].decode('latin-1'), scr.raw[j + 1].decode('latin-1'), scr.geom[j][2],
+                                scr.geom[j + 1][2])                    # (raw: the English '£' rows read no text)
                         s.shot(f'memo_{tag}')
                     press(s, scr, 'CONTINUA') or s.send('fire dump:2')
                 else:
@@ -24574,8 +24576,9 @@ def ffp_season():
                         check(key1 in a and b2.startswith(l2.split('%b')[0]), f'{tag}: memo {a!r} / {b2!r}', errs)
                         check(px(a) <= w1 and px(b2) <= w2, f'{tag}: memo wider than its rows {px(a)} / {px(b2)} > '
                               f'{w1} / {w2}', errs)
-                        check(set(a + b2) <= set(SMALL_W) | {' '}, f'{tag}: memo non-font characters '
-                              f'{sorted(set(a + b2) - set(SMALL_W) - {" "})}', errs)
+                        ours = set((l1 + l2).replace('%a', '').replace('%b', ''))   # (our text: the small font's
+                        ok_ch = set(SMALL_W) | {' '} | gamech                       #  characters or the game's own
+                        check(ours <= ok_ch, f'{tag}: memo non-font characters {sorted(ours - ok_ch)}', errs)   # memos')
                         check(re.search(r'\d', b2) is not None, f'{tag}: no amount in {b2!r}', errs)
                     want = (wage // 2) // 1000 * 1000
                     check(v2['fine'] == want and want > 0, f'{tag}: fine {v2["fine"]} != half the wages {wage}: {want}', errs)

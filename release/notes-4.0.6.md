@@ -1,10 +1,10 @@
-<!-- DRAFT 4.0.6 (Note session, 02/11). Items marked [TO COMPLETE: owner] wait for the owner's text. Not merged, not published. -->
+<!-- DRAFT 4.0.6 (Note session). Not merged, not published. -->
 
 ## English
 
 **SWOS 96/97 Mod 4.0.6**
 
-4.0.6 is a round of requests from players: **two players on one keyboard**, the computer's clubs now get red cards and injuries like you do, shirt numbers you can edit on the squad screen, an easier install (new patcher button and clearer messages), more realistic club finances, a smarter training match, and a good number of fixes. Everything in 4.0 to 4.0.5 stays as it was; careers saved with those versions load and play on.
+4.0.6 brings **two players on one keyboard**, the computer's clubs playing by your rules (red cards, injuries, and goalkeeper injuries for everyone), **club finances closer to real football** and a **financial fair play** option, **B-team call-ups** for 20 clubs, the **continental cups** of the other continents in the game's own screens, **two-row benches** you can see in the match with the opponent's squad one key away, **stoppage time**, the UEFA Super Cup and the other intercontinental matches, full **stadium names**, white hair for Ravanelli, an easier install (a new patcher button and clearer messages) and a good number of fixes. Everything in 4.0 to 4.0.5 stays as it was; careers saved with those versions load and play on.
 
 ### What's new
 
@@ -252,18 +252,18 @@ With the new button in place, a long coach's name on the squad screen is shown s
 - **A play-off entrant that refuses the place** no longer makes the game read wrong data at the season end (it showed up with San Marino; found by Ben Baker).
 
 ### Good to know
-- **With SWOS++** (SWOS++ has its own controls and its own match code) these 4.0.6 features are off or hidden: the "P1 AND P2 ON KEYBOARD" device, the OPTIONS rows for the computer's cards and injuries and for goalkeeper injuries, the opponent's squad list in the match and stoppage time. [TO CHECK with the owners: the full list, including the B-team button and the two-row benches.]
+- **With SWOS++** (SWOS++ has its own controls and its own match code) these 4.0.6 features are off or hidden: the "P1 AND P2 ON KEYBOARD" device, the OPTIONS rows CPU RED CARDS, CPU INJURIES and GOALKEEPER INJURIES, the opponent's squad list in the match, stoppage time, and the bald and white-hair looks (the players keep their normal look). The other new features work as without SWOS++. A very quick tap on PLAY MATCH may be ignored under SWOS++: press it normally.
 - **New Zealand, B-team call-ups:** the age rule for the New Zealand clubs' reserves is an approximation (see above).
 - **Finances:** the new income applies to every career from its next match, including older ones; it changes the money, not the squads.
 
 ### Thanks
-Thanks to Roman for asking for an easier install, to Marco for the financial fair play idea, the training, shirt-number and keyboard ideas, to Enzo for the market-list report, to Nicola for the finance report, to Francesco, and to Ben Baker for the San Marino report. [TO CHECK: exact credits per item with the owners.]
+Thanks to Roman for asking for an easier install, to Marco for the financial fair play idea, the training, shirt-number and keyboard ideas, to Enzo for the market-list report, to Nicola for the finance and CPU-replacements reports, to Salvatore for the arrows report, to Francesco, and to Ben Baker for the San Marino report. Marco and Davide had the idea of the stoppage time.
 
 ## Italiano
 
 **SWOS 96/97 Mod 4.0.6**
 
-La 4.0.6 è un giro di richieste dei giocatori: **due giocatori sulla stessa tastiera**, le squadre del computer ora subiscono espulsioni e infortuni come te, i numeri di maglia modificabili anche nella schermata della rosa, un'installazione più facile, finanze dei club più realistiche, un allenamento più furbo e diverse correzioni. Tutto ciò che c'è dalla 4.0 alla 4.0.5 resta com'era; le carriere salvate con quelle versioni si caricano e si giocano.
+La 4.0.6 porta **due giocatori sulla stessa tastiera**, le squadre del computer che giocano con le tue regole (rossi, infortuni e infortuni dei portieri per tutti), **finanze dei club più vicine al calcio vero** e un'opzione di **fair play finanziario**, le **convocazioni dalla squadra B** per 20 club, le **coppe continentali** degli altri continenti nelle schermate del gioco, le **panchine su due file** visibili in partita con la rosa avversaria a un tasto di distanza, il **recupero**, la Supercoppa UEFA e le altre partite intercontinentali, i **nomi completi degli stadi**, i capelli bianchi di Ravanelli, un'installazione più facile (un nuovo pulsante del patcher e messaggi più chiari) e diverse correzioni. Tutto ciò che c'è dalla 4.0 alla 4.0.5 resta com'era; le carriere salvate con quelle versioni si caricano e si giocano.
 
 ### Novità
 
@@ -518,9 +518,9 @@ resta quello).
 - **Una squadra di play-off che rifiuta il posto** non fa più leggere al gioco dati sbagliati a fine stagione (si vedeva con San Marino; trovato da Ben Baker).
 
 ### Da sapere
-- **Con SWOS++** (SWOS++ ha i suoi comandi e il suo codice di partita) queste novità della 4.0.6 sono disattivate o nascoste: il dispositivo "G1 E G2 SU TASTIERA", le righe di OPZIONI per cartellini e infortuni del computer e per gli infortuni dei portieri, l'elenco della rosa avversaria in partita e il recupero. [DA VERIFICARE con i proprietari: l'elenco completo, compresi il pulsante della squadra B e le panchine su due file.]
+- **Con SWOS++** (SWOS++ ha i suoi comandi e il suo codice di partita) queste novità della 4.0.6 sono disattivate o nascoste: il dispositivo "G1 E G2 SU TASTIERA", le righe di OPZIONI ROSSI ALLA CPU, INFORTUNI ALLA CPU e INFORTUNI PORTIERI, l'elenco della rosa avversaria in partita, il recupero, e i look calvo e a capelli bianchi (i giocatori mantengono il loro aspetto normale). Le altre novità funzionano come senza SWOS++. Un tocco velocissimo su GIOCA PARTITA con SWOS++ può essere ignorato: premilo normalmente.
 - **Nuova Zelanda, convocazioni dalla squadra B:** la regola sull'età per le riserve dei club neozelandesi è un'approssimazione (vedi sopra).
 - **Finanze:** i nuovi incassi valgono per ogni carriera dalla partita successiva, anche per quelle già iniziate; cambiano i soldi, non le rose.
 
 ### Ringraziamenti
-Grazie a Roman per aver chiesto un'installazione più semplice, a Marco per l'idea del fair play finanziario, le idee su allenamento, numeri di maglia e tastiera, a Enzo per la segnalazione sull'elenco del mercato, a Nicola per quella sulle finanze, a Francesco e a Ben Baker per la segnalazione su San Marino. [DA VERIFICARE: crediti esatti per voce con i proprietari.]
+Grazie a Roman per aver chiesto un'installazione più semplice, a Marco per l'idea del fair play finanziario, le idee su allenamento, numeri di maglia e tastiera, a Enzo per la segnalazione sull'elenco del mercato, a Nicola per quelle sulle finanze e sui rimpiazzi della CPU, a Salvatore per quella sulle frecce, a Francesco e a Ben Baker per la segnalazione su San Marino. L'idea del recupero è di Marco e Davide.

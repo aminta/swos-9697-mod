@@ -1200,7 +1200,7 @@ class Session:
         return self.wait()
 
 
-def press(s, scr, text, wait=2, exact=True, avoid=frozenset()):
+def press(s, scr, text, wait=2, exact=True, avoid=frozenset(), fire=None):
     """Select the visible entry `text` (or entry number), check on the next pause that it is the selected one (a
     move can be taken twice), then fire; returns the new Result (None if not reachable). avoid = moves (entry, key)
     not to take (the long bench's window: up on row 12 / down on row 17 scroll it); none left: any way."""
@@ -1214,13 +1214,17 @@ def press(s, scr, text, wait=2, exact=True, avoid=frozenset()):
                     return s.result
                 if s.screen().selected == i:
                     s.log.append(f'[spp fire] {i} on {s.screen()}'[:400])
-                    return s.send(f'{PRESS_FIRE} dump:{wait}')
+                    return s.send(f'{fire or PRESS_FIRE} dump:{wait}')
                 scr = s.screen()
                 continue
             steps = scr.path(i, set(), steps=True)
-            if not steps:
-                return None
-            if s.send(steps[0][0] + ' dump:0.5').outcome != 'dump':
+            if not steps:                               # (fire up:0.05's UP can land on a dead entry, ESCI: off it -
+                k_ = ('down', 'up', 'down')[_ % 3]      #  pgrp.py's recovery)
+                if s.send(k_ + ':0.3 dump:0.5').outcome != 'dump':
+                    return s.result
+                scr = s.screen()
+                continue
+            if s.send(steps[0][0] + ':0.3 dump:0.5').outcome != 'dump':
                 return s.result
             scr = s.screen()
         return None
@@ -5931,8 +5935,8 @@ def bench_squad(s, scr, bx, cmp_, cnp, errs, info, mark, woff=4, box=30, row1=13
         states.append((w, h[11:17]))
         if k in (0, 5, n - 17):
             s.shot(f'{tag}_win{w:02d}')
-        r = s.send(('fire:0.3' if not SPP_STEP else 'dump:0.3 ' + PRESS_FIRE) + ' dump:0.6')   # (SWOS++: the latch
-    info.append(f'{tag} window {[w for w, _ in states]}')                                      # cleared, as press())
+        r = s.send('fire:0.3 dump:0.6')
+    info.append(f'{tag} window {[w for w, _ in states]}')
     check([w for w, _ in states] == list(range(n - 16)) + [0], f'{tag} window steps {[w for w, _ in states]}', errs)
     check(r.obj2(cmp_, n) == order0, f'{tag}: the order changed by the window (a rotation?)', errs)
     ref_b = states[0][1][0]                 # window 0, row 12 = place 12: bench
@@ -6920,7 +6924,7 @@ def bench_world():
         shutil.copy(exe, exe + '.nospp')
         swospp.install(exe + '.nospp', exe)
         global PRESS_FIRE, SPP_STEP
-        PRESS_FIRE = 'fire q:0.01'
+        PRESS_FIRE = 'fire up:0.05'
         SPP_STEP = True                     # (bench_play: the match flow one key at a time + plain fire, as sppmatch)
         pp = os.path.join(MAIN, 'internal', 'swospp-test')
         files = {'LOADER.BIN': os.path.join(pp, 'loader.bin'), 'SWOSPP.BIN': os.path.join(pp, 'swospp.bin')}
@@ -7011,7 +7015,8 @@ def bench_world():
                 if 'PARTITA' in q.texts() and 'TRASFERIMENTI' in q.texts():
                     break
                 press(s, q, 'ESCI') if 'ESCI' in q.texts() else s.send('esc:0.3 dump:0.6')
-        if os.environ.get('BENCH_SQUAD') == '2':   # the career menu's SQUADRA (squadMenu): its window (bx_sq)
+        if os.environ.get('BENCH_SQUAD') == '2' and not files:   # the career menu's SQUADRA (squadMenu): its window
+                                            # (bx_sq; not under SWOS++: BENCH_SPP is a smoke test, Regia 05/11)
             for _ in range(3):              # (the chairman's letter first)
                 if 'SQUADRA' in s.screen().texts():
                     break
@@ -7029,7 +7034,7 @@ def bench_world():
                         break
                     press(s, q, 'ESCI') if 'ESCI' in q.texts() else s.send('esc:0.3 dump:0.6')
         sq = {'args': (bx, cmp, cnp), 'tactics': os.environ['BENCH_SQUAD'] == '2'} \
-            if os.environ.get('BENCH_SQUAD') in ('1', '2') else None   # (2: + the tactics editor)
+            if os.environ.get('BENCH_SQUAD') in ('1', '2') and not files else None   # (2: + the tactics editor)
         st = c.find(b'BXST')                # (benchx's line-ups log; builds before it: no check)
         if st < 0 and len(p.le.objs) > 2:   # (4.0.6: benchx in obj3)
             st = p.le.obj_bytes(3).find(b'BXST')
@@ -8156,8 +8161,8 @@ def pick_career(s, path):
         scr = s.screen()
         lvl = None if scr.find(t, exact=True) is not None else \
             next((x for i, x, inv, _ in scr.entries if 11 <= i <= 20 and x and not inv and t.startswith(x + ' ')), None)
-        if lvl and press(s, scr, lvl, 3) is None:
-            return False
+        if lvl and press(s, scr, lvl, 3, fire='fire' if SPP_STEP else None) is None:   # (SWOS++: a plain fire on a
+            return False                                # grouped level - ml_pick rebuilds the list at that depth, the
         if SPP_STEP and s.screen().find(t, exact=True) is None and s.screen().find('ESCI', exact=True) is not None:
             s.log.append(f'[spp latch] {t} not on {s.screen()}'[:300])   # (SWOS++: the fire stays latched into the
             press(s, s.screen(), 'ESCI', 3)             # next menu, which fires on its preselected entry: back, then t)

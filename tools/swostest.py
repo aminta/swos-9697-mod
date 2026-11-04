@@ -20607,6 +20607,77 @@ def menu_levels():
 
 
 @scenario
+def menu_levels_cursor():
+    """4.0.6 (Davide via Regia 04/11, menulevels setsel): a level of groups opens on its first group, ESCI back on the
+    level: World 2026-27 (GRPA_BUILD, default builds/w2627-latest), CARRIERA 2026-27 -> SCEGLI SQUADRA -> ITALIA:
+    SERIE D -> the cursor on SERIE D GIRONE A, ESCI -> on SERIE D, SERIE C -> on SERIE C GIRONE A, ESCI, SERIE D ->
+    GIRONE A again -> CELLE VARAZZE: a career; its VISUALIZZA MONDO -> ITALIA -> SERIE D: on GIRONE A, ESCI -> on
+    SERIE D (the second pick, ml_pick2); shots groups / vw_groups. SWOSTEST_UI=en too"""
+    b = os.path.realpath(os.environ.get('GRPA_BUILD') or os.path.join(WORK, 'builds', 'w2627-latest'))
+    errs, notes = [], []
+    on = lambda: (lambda sc: sc.entries[sc.selected][1])(s.screen())
+
+    def country(c):                         # (the countries' columns: one key at a time by the geometry)
+        for _ in range(60):
+            scr = s.screen()
+            i = scr.find(c, exact=True)
+            if scr.selected == i:
+                s.send('dump:1')
+                if s.screen().selected == i:
+                    break
+                continue
+            (x, y, _, _), (tx, ty, _, _) = scr.geom[scr.selected], scr.geom[i]
+            s.send(('right' if x < tx else 'left' if x > tx else 'down' if y < ty else 'up') + ' dump:0.5')
+        s.send('fire dump:3')
+
+    def level(lv, want, tag):               # the level picked: the cursor on its first group; ESCI: on the level
+        walk(s, lv, 3)
+        got = on()
+        check(got == want, f'{tag} {lv}: cursor on {got!r} (want {want!r})', errs)
+        notes.append(f'{tag} {lv} -> {got}')
+        return got
+
+    def esc(lv, tag):
+        for _ in range(14):                 # (no planned path to ESCI from the list: down until it is selected)
+            sc = s.screen()
+            if sc.find('ESCI', exact=True) == sc.selected:
+                break
+            s.send('down:0.3 dump:0.5')
+        s.send('fire dump:3')
+        got = on()
+        check(got == lv, f'{tag} ESCI from {lv}: cursor on {got!r} (want {lv!r})', errs)
+    with Session('menu_levels_cursor', b, {}, 'dump:3', 900) as s:
+        s.wait()
+        try:
+            for t in ('CAREER 2026-27' if UI == 'en' else 'CARRIERA 2026-27', 'SCEGLI SQUADRA', 'EUROPA'):
+                i = s.screen().find(t, exact=True)
+                walk(s, t if i is None else i, 3)
+            country('ITALIA')
+            level('SERIE D', 'SERIE D GIRONE A', 'career')
+            s.shot('groups')
+            esc('SERIE D', 'career')
+            level('SERIE C', 'SERIE C GIRONE A', 'career')
+            esc('SERIE C', 'career')
+            level('SERIE D', 'SERIE D GIRONE A', 'career')
+            walk(s, 'SERIE D GIRONE A', 3)
+            walk(s, 'CELLE VARAZZE', 3)
+            s.send('fire dump:3')
+            for _ in range(12):             # (the chairman's note)
+                if 'VISUALIZZA MONDO' in s.screen().texts():
+                    break
+                s.send('fire dump:2')
+            walk(s, 'VISUALIZZA MONDO', 3)
+            walk(s, 'EUROPA', 3)
+            country('ITALIA')
+            level('SERIE D', 'SERIE D GIRONE A', 'VIEW WORLD')
+            s.shot('vw_groups')
+            esc('SERIE D', 'VIEW WORLD')
+        except AssertionError as e:
+            return False, f'{e}; {"; ".join(errs)}; screen {s.screen().texts()[:16]}'
+    return not errs, '; '.join(errs + notes)
+
+
+@scenario
 def world_gplay_nzchamp(force='1', team='OCEANIA,NUOVA ZELANDA,NORTHERN LGE|NORTHERN LEAGUE,WESTERN SPRINGS', gff='',
                         kof='', two=False, kolose=False, real='', defer=False, rest=False, idx=''):
     """New Zealand's National League Championship played (gplay: a 'title' group contest as the game's type 2 in slot

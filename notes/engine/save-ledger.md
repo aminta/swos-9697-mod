@@ -67,3 +67,15 @@ SEL_N 160 × 684 = 109440, main block 948, 'EN' block 15343 (25 items) → 12573
 - The game reads SETUP.DAT whole into setupDatBuffer: +105 is the first of 6 padding bytes nobody references, so a
   106-B file is safe for every exe, the original included. controls' SAVE now writes 106 B and keeps it.
 - The registry header's +28 (swreg v2) points at it, for the W-modes pickers.
+
+## Not save room: the DIY contest's world, block 'WM' (W-modes M2, 2026-11-05)
+
+- **A .DIY file's tail** (4 B, no .CAR room, no 'EN' item): `'W' 'M'`, u8 length (1), u8 the contest's world (swreg's
+  world number: 4 = Europe 1984-85, 5 = World 2026-27). Mixing A: one career world per contest, plus the 1996-97 game's
+  clubs. A contest of 1996-97 clubs alone writes no block, so its file is byte-identical to the game's.
+- Written by obj4 after the game's SaveDIYFile (SaveContest's call, retargeted): the file is opened again and the block
+  appended at its end. The game's own part (competitionFileBuffer .. the last 684-B record + 2) is unchanged.
+- Read by obj4 after LoadDIYFile (LoadOldCompetitionMenu's call, retargeted). The block counts only when the file's
+  size is exactly the game's part + 4 and the tag matches. Any other file (the game's, an older mod's, a preset) reads
+  as world 0. An older exe loads a file with the block whole: the 4 B land past the last record and nobody reads them.
+- Presets (.PRE) and seasons (.SEA) get no block in W-modes. Their worlds come at 4.1 (engine P: SWC1 in those saves).

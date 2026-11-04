@@ -20,7 +20,7 @@
   JOYPADS or SWOS++ nothing changes.
 
 #### The computer's clubs play by the same rules as you
-- **Two new OPTIONS rows, both ON by default:** the computer's clubs now get **red cards** (a sent-off player is suspended, like yours) and **injuries** (an injured player of a computer's club misses the following matches instead of being fit again at once). Turn a row OFF to get the original game behaviour back.
+- **Two new OPTIONS rows, CPU RED CARDS and CPU INJURIES, both ON by default:** the computer's clubs now get **red cards** (a sent-off player is suspended, like yours) and **injuries** (an injured player of a computer's club misses the following matches instead of being fit again at once). Turn a row OFF to get the original game behaviour back.
 - Under SWOS++ the two rows are hidden and the original behaviour applies.
 - **Goalkeepers get injured too.** In the original game a goalkeeper almost never gets injured. Now, after every
   match, each team's goalkeeper has a 1 in 25 chance of an injury. You see it afterwards, on the team screen, not
@@ -246,7 +246,7 @@ La 4.0.6 è un giro di richieste dei giocatori: **due giocatori sulla stessa tas
   JOYPAD o SWOS++ non cambia nulla.
 
 #### Le squadre del computer giocano con le tue regole
-- **Due nuove righe in OPZIONI, entrambe attive di default:** le squadre del computer ora prendono **cartellini rossi** (un espulso è squalificato, come i tuoi) e **infortuni** (un infortunato di una squadra del computer salta le partite seguenti invece di essere subito di nuovo a posto). Metti una riga su NO per riavere il comportamento originale del gioco.
+- **Due nuove righe in OPZIONI, ROSSI ALLA CPU e INFORTUNI ALLA CPU, entrambe attive di default:** le squadre del computer ora prendono **cartellini rossi** (un espulso è squalificato, come i tuoi) e **infortuni** (un infortunato di una squadra del computer salta le partite seguenti invece di essere subito di nuovo a posto). Metti una riga su NO per riavere il comportamento originale del gioco.
 - Con SWOS++ le due righe sono nascoste e vale il comportamento originale.
 - **Anche i portieri si infortunano.** Nel gioco originale un portiere non si infortuna quasi mai. Ora, dopo ogni
   partita, il portiere di ogni squadra ha 1 probabilità su 25 di infortunarsi. Lo vedi dopo, nella schermata della
@@ -338,7 +338,7 @@ carriera nuova parte da INVENTATI. I salvataggi precedenti si caricano con INVEN
   - In allenamento MAGLIE nasconde la scelta SOLO PARTITA / SEMPRE, e le maglie salvate del tuo club non vengono mai cambiate da una partita di allenamento.
 - **Numeri più leggibili.** Nella schermata della squadra prima della partita e nell'editor delle tattiche i nomi dei giocatori partono 2 pixel più a destra, così un numero di maglia a due cifre non tocca più il riquadro della faccia né il nome: c'è uno spazio libero da entrambi i lati. La schermata della rosa aveva già quello spazio e non cambia.
 - **Numeri di maglia nella schermata della rosa.** Ora puoi modificare i numeri di maglia del tuo club anche nella schermata della rosa, come già potevi nella schermata della squadra prima della partita: premi SINISTRA su un giocatore, poi SU / GIÙ o scrivi il numero; ESC annulla. Il numero non tocca più il nome del giocatore e se ne vede l'ombra.
-- **Il mercato ricorda la pagina** (segnalato da Enzo). Quando guardi un giocatore nell'elenco del mercato nazionale o estero (FAI OFFERTA) e torni con ESCI, l'elenco resta sulla pagina in cui eri, con il cursore su quel giocatore, invece di tornare alla prima pagina.
+- **Il mercato ricorda la pagina** (segnalato da Enzo). Quando guardi un giocatore nell'elenco del mercato nazionale o estero (FAI UN'OFFERTA) e torni con ESCI, l'elenco resta sulla pagina in cui eri, con il cursore su quel giocatore, invece di tornare alla prima pagina.
 
 #### Nuovi look: capelli bianchi e teste calve prima del calcio d'inizio
 **Capelli bianchi.** Un nuovo look si aggiunge a biondi, calvi e rasati: i capelli grigio-bianchi. Il primo giocatore
@@ -382,7 +382,7 @@ sponsor** della stagione:
   terza, 0,2 M dalla quarta in giù (una serie a gironi paralleli, come la Serie C o la Serie D, conta come un
   solo livello);
 - più **1,1 volte il monte stipendi della stagione**: un club più grande guadagna di più da TV e sponsor.
-I soldi arrivano un po' alla volta, partita dopo partita, e compaiono alla voce SPONSORIZZAZIONE nella schermata dei
+I soldi arrivano un po' alla volta, partita dopo partita, e compaiono alla voce SPONSORIZZ. nella schermata dei
 conti. Le spese restano esattamente quelle del gioco originale.
 
 Perché è più vicino al calcio vero:

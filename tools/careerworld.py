@@ -106,6 +106,39 @@ WORLD_NATS = ('MNE KOS AND GIB KAZ KGZ BLZ HAI CUW ARU DOM CUB PUR GRN GLP MTQ G
 MENU_NATS = [153, 154, 155, 37]                      # added to the career menu's nationalities (Davide: the coach can be
                                                      # East/West German, Soviet, Yugoslav; YUG existed, not offered)
 NAT_GONE = {37}                                      # 4.0.3: the game's codes of no nation today (YUG; TCH 6 = Czechia)
+# W-modes M3 (Davide 04/11, via Regia): a career's coach nationality when the list changes after the team choice (era
+# list <-> today's, swe.c swe_nat_fix): kept if in the new list, else its era counterpart, ENG last. The one table: era
+# code -> (its successor today, or None: no code of its own; the states after it). era -> today: the successor;
+# today -> era: the era code of any state after it. English codes (the game's numbers: nat_codes()).
+NAT_ERA = {'GDR': ('GER', ['GER']), 'FRG': ('GER', ['GER']),
+           'URS': ('RUS', ['RUS', 'UKR', 'BLS', 'EST', 'LAT', 'LIT', 'MOL', 'ARM', 'AZB', 'GEO', 'KAZ', 'KGZ', 'TAD',
+                           'UZB', 'TRK']),
+           'YUG': (None, ['CRO', 'SLO', 'BOS', 'MAC', 'MNE', 'KOS']),   # (Serbia: no code - the world's Serbians
+           'TCH': ('TCH', ['TCH', 'SVK'])}                               # carry YUG 37, out of today's coach list)
+NAT_ENG = 8
+
+
+def nat_codes(exe):
+    """{English code: the game's nationality number} from an English exe's table + NEW_NATS + WORLD_NATS."""
+    from le import LE
+    d2 = LE(open(exe, 'rb').read()).obj_bytes(2)
+    a = d2.index(b'ALBAUTBELBULCROCYPTCH')
+    t = d2[a:d2.index(b'\0', a)].decode('latin-1')
+    codes = [t[i:i + 3] for i in range(0, len(t), 3)] + NEW_NATS['en'] + list(WORLD_NATS)
+    return {c: i for i, c in enumerate(codes)}
+
+
+def nat_maps(code, era, today):
+    """(to today's list, to the era list): [(from, to)] for the codes of one list missing from the other."""
+    to27, toera = [], []
+    for e, (succ, states) in NAT_ERA.items():
+        if code[e] not in today and succ and code[succ] in today:
+            to27.append((code[e], code[succ]))
+        for st in states:
+            if code[st] not in era and code[e] in era and code[st] not in [f for f, _ in toera]:
+                toera.append((code[st], code[e]))
+    return to27, toera
+
 
 
 def nat_order27(game63, ncodes):
@@ -2151,6 +2184,9 @@ def patch(p, worlds, at, nasmcave, comp, ct, cont_rec):
     p.put(1, s['nat_wrap'][0], bytes((63 + len(MENU_NATS),)))   # (nat_init sets them for the chosen list)
     p.put(1, s['nat_wrap'][1], bytes((64 + len(MENU_NATS),)))
     SITES['natflag'] = labels['NATFLAG']
+    SITES['nat'] = {'PLNAT': s['plnat'], 'WRAPD': (1, s['nat_wrap'][0]), 'WRAPI': (1, s['nat_wrap'][1]),   # (swe.c
+                    'NATPTR': (1, labels['NATPTR']), 'NATORD': (1, labels['NATORD']),                 # swe_nat_fix)
+                    'NATORD27': (1, labels['NATORD27'])}
     hook(s['tcache'], 5, 'w_tcache', (1,))
     if ns:
         hook(NS['menu_site'], 9, 'w_ns_menu', (3,))

@@ -344,6 +344,40 @@ void swe_sel_post(void)
 extern u8 MB_HDR[], MB_STR[];
 u32 CAR_ON DATA = 0;
 
+/* M3 (Davide 04/11): the coach's nationality list follows the career's world, chosen with the team (careerworld nat_init
+   picked it at CareerMenuInit from the default world): today's list for World 2026-27, else the era list. A
+   nationality not in the new list -> its era counterpart (careerworld.NAT_ERA, swe.py writes the pairs), else ENG. */
+#ifdef NAT
+extern u8 CW_PLNAT[], CW_NATPTR[], CW_NATORD[], CW_NATORD27[], CW_WRAPD[], CW_WRAPI[];
+u8 NATMAP27[32] DATA = {0xFF};          /* (from, to) pairs to today's list, FF */
+u8 NATMAPERA[64] DATA = {0xFF};         /* to the era list */
+#define NAT_ENG 8
+
+u32 swe_nat_fix(u32 today)
+{
+    const u8 *l = today ? CW_NATORD27 : CW_NATORD, *m = today ? NATMAP27 : NATMAPERA;
+    u32 n = 0;
+    while (l[n] != 0xFF)
+        n++;
+    n++;                                /* (OTHER, FF, is the list's last entry: ChangeNationality wraps after it) */
+    *(u32 *)CW_NATPTR = (u32)l;
+    *CW_WRAPI = (u8)n;
+    *CW_WRAPD = (u8)(n - 1);
+    u8 c = *CW_PLNAT;
+    for (u32 k = 0; k < n; k++)
+        if (l[k] == c)
+            return c;
+    for (const u8 *p = m; *p != 0xFF; p += 2)
+        if (p[0] == c)
+            return *CW_PLNAT = p[1];
+    return *CW_PLNAT = NAT_ENG;
+}
+
+/* (obj4 header +60) */
+const u32 NAT_X[6] = {(u32)swe_nat_fix, (u32)CW_PLNAT, (u32)NATMAP27, (u32)NATMAPERA, (u32)CW_NATORD,
+                      (u32)CW_NATORD27};
+#endif
+
 void swe_car_pre(void)
 {
     CAR_ON = rd32(MB_HDR) == (u32)MB_STR;
@@ -358,6 +392,11 @@ void swe_car_post(void)
     if (!CAR_ON)
         return;
     sel_restore();
+#ifdef NAT
+    u8 *wcur = (u8 *)rd32(SWE_REG + 8);
+    if (wcur)
+        swe_nat_fix(*wcur == SET_W[0]);   /* (the namespace the path left: World 2026-27's = its number) */
+#endif
     SEL_ON = 0;
     SEL_MODE = 0xFFFFFFFF;
     CAR_ON = 0;

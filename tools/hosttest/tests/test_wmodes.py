@@ -286,6 +286,43 @@ def test_wmodes():
     w16(GTYPE, 0)
     tr._call(uc, guard)
     run(0, 1, [(1, 0)])                           # (the base namespace back for the cases below)
+    # M3: the coach nationality after the team choice (swe_nat_fix, careerworld.NAT_ERA): every pair, both ways
+    natx = u32(B4 + 60)
+    if not natx:
+        errs.append('obj4 header +60: no NAT_X (the coach nationality fix)')
+    else:
+        import careerworld
+        fix, plnat, m27, mera, lera, l27 = struct.unpack('<6I', rd(natx, 24))
+        code = careerworld.nat_codes(os.path.join(os.path.dirname(TOOLS), 'orig', 'ENGLISH.EXE'))
+        name = {v: k for k, v in code.items()}
+        lst = lambda a: list(rd(a, 256)[:rd(a, 256).index(0xFF)])
+        era, today = lst(lera), lst(l27)
+        keep = rd(plnat, 1)
+        bad = []
+
+        def got(c, t):
+            uc.mem_write(plnat, bytes((c,)))
+            tr._call(uc, fix, t)
+            return rd(plnat, 1)[0]
+        want = {}                                 # (from, to today?) -> expected, from the table itself
+        for e, (succ, states) in careerworld.NAT_ERA.items():
+            want[(code[e], 1)] = code[e] if code[e] in today else (code[succ] if succ else careerworld.NAT_ENG)
+            for st in states:
+                want.setdefault((code[st], 0), code[st] if code[st] in era else code[e])
+        for (c, t), w in want.items():
+            if got(c, t) != w:
+                bad.append(f'{name[c]} -> {"today" if t else "era"}: {name.get(got(c, t))} (want {name[w]})')
+        for t, l in ((1, today), (0, era)):       # (a nationality in the list is kept; FF = OTHER too)
+            bad += [f'{name.get(c, c)} not kept ({"today" if t else "era"})' for c in l + [0xFF] if got(c, t) != c]
+        for c, t, w in ((code['GDR'], 1, code['GER']), (code['FRG'], 1, code['GER']), (code['URS'], 1, code['RUS']),
+                        (code['UKR'], 0, code['UKR']), (code['KAZ'], 0, code['URS']), (code['MNE'], 0, code['YUG']),
+                        (code['BOS'], 0, code['YUG']), (code['YUG'], 1, careerworld.NAT_ENG),
+                        (code['USA'], 0, careerworld.NAT_ENG)):   # (hand-written: GDR -> GER ... USA -> ENG)
+            if got(c, t) != w:
+                bad.append(f'{name[c]}: {name.get(got(c, t))} want {name[w]}')
+        uc.mem_write(plnat, keep)
+        if bad:
+            errs.append(f'coach nationality: {bad[:8]}')
     for tt in (0, 2, 3):
         d0, seen, cw, same = run(0, tt, [])
         if d0 != 255 or seen[0][0] != o98 or seen[0][2] or seen[-1] != ('ns', 4, 4) or not same:
@@ -332,4 +369,4 @@ def test_wmodes():
     return not errs, '; '.join(errs) or (
         f'default 2026-27 / 1996-97 / 1984-85 lists, lock both ways, national / custom untouched, memory restored; career picker (M3): the same lists, no lock, only for SELECT TEAM TO MANAGE, namespace kept; '
         f'200 = 6 proxies = the game continents; DIY: WM 5 / 4 round trip, 1996-97 alone = the game file '
-        f'({game} B), other size -> 0')
+        f'({game} B), other size -> 0; coach nationality: kept in the list, era <-> today pairs both ways, ENG last')

@@ -102,6 +102,9 @@ def m2_sites(p, site):
         assert p.get(1, ch['site'], 1) == b'\xe8', ('ChooseTeamsDialog picker call', hex(ch['site']))
         ext['MB_HDR'], ext['MB_STR'] = ch['HDR'], ch['STR']
         calls.append((ch['site'], 'swe_car_tramp'))
+        nat = careerworld.SITES.get('nat')
+        if nat:                                     # (M3: the coach nationality list after the team choice)
+            ext.update({'CW_' + k: v for k, v in nat.items()})
     import historic                                 # SelectTeamsReinit's names call (historic's hist_names, chained)
     ext['SWE_CT'] = (2, countries.CT[0])
     if 'EF_VARS' in historic.LBL:                   # (hist_names: the first entry in EF_VARS; host tests: no build)
@@ -168,10 +171,20 @@ def patch(p):
         ext[chain[tr]] = p.call_target(1, cs)
     if not ns:
         calls = [c for c in calls if c[1] not in ('swe_ns_tramp', 'swe_stfm_tramp')]
-    flags = ('-DNS',) if ns else ()
+    flags = (('-DNS',) if ns else ()) + (('-DNAT',) if 'CW_PLNAT' in ext else ())
     syms, end, bss = cobj.link(p, cobj.compile_c(SRC, flags), CODE_AT, (4, room), externs=ext, limit=swreg.REG_AT,
                                text_obj=4)
     arena = syms['SWE_ARENA_AT']
+    if 'NAT_X' in syms:                             # M3: careerworld.NAT_ERA's pairs for the two lists
+        import careerworld
+        code = careerworld.nat_codes(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'orig',
+                                                  'ENGLISH.EXE'))
+        era, today = (set(bytes(p.get(*ext[k], 256)).split(b'\xff')[0]) for k in ('CW_NATORD', 'CW_NATORD27'))
+        to27, toera = careerworld.nat_maps(code, era, today)
+        for nm, pairs, cap in (('NATMAP27', to27, 32), ('NATMAPERA', toera, 64)):
+            assert 2 * len(pairs) + 1 <= cap, (nm, pairs)
+            p.put(*syms[nm], bytes(x for pr in pairs for x in pr) + b'\xff')
+        cobj.add_ptr(p, 60, *syms['NAT_X'], 4)
     import complist
     lk = LOCK_LINE[LANG[0]]
     assert set(lk) <= complist.FONT and complist.px(lk) <= 280 and len(lk) < 48, ('lock line', lk, complist.px(lk))

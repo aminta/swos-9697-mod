@@ -32,6 +32,10 @@ import nasmcave
 
 LIMIT = 35                                   # W / I > 35 %
 # the memo: two lines, as message 1 (%a = the manager, %b = the fine); the game's own font (German umlauts as its strings)
+# ANDAMENTO CLUB's row (ratio W / last season's I) and the season-start statement's fine row (Davide 04/11)
+RATIO = {'it': 'STIPENDI/RICAVI ', 'en': 'WAGES/INCOME ', 'fr': 'SALAIRES/RECETTES ', 'de': 'GEHAELTER/EINNAHMEN '}
+FINE = {'it': 'MULTA FAIR PLAY FINANZ.:', 'en': 'FINANCIAL FAIR PLAY FINE:', 'fr': 'AMENDE FAIR-PLAY FINANCIER:',
+        'de': 'STRAFE FINANZ. FAIRPLAY:'}
 MEMO = {'it': ('SPIACENTE %a, GLI STIPENDI SUPERANO IL 35 PER CENTO',
                'DEI RICAVI: MULTA DI %b E STOP AGLI ACQUISTI'),
         'en': ('SORRY %a, OUR WAGES ARE OVER 35 PER CENT OF',
@@ -74,8 +78,7 @@ ff_season:                              ; replaces InitializeNewSeason's `call c
     div ecx
     imul eax, eax, 1000
     mov [FF_FINE], eax
-    sub [NEWBAL], eax
-    sub [OLDBAL], eax
+    sub [NEWBAL], eax                   ; (the season-start statement's own row: ff_biz)
     call ff_memo
     jmp .done
 .none:
@@ -153,11 +156,165 @@ ff_new:                                 ; a new career (engine.after_new, its it
     mov byte [FF_VALID], 1
     ret
 
+ff_biz:                                 ; clubBusinessMenu's init (ANDAMENTO CLUB, every statement): the game's, then ours
+    call BIZINIT
+    pushad
+    mov ebx, MENU_
+    cmp word [ebx + 10h], 22            ; (the game's 22 entries, nothing after them)
+    jne .x
+    lea eax, [ebx + 16h + 22 * 38h]
+    cmp [ebx + 12h], eax
+    jne .x
+    cmp word [D6CA0], 0                 ; a season-start statement of the club staying, with a fine: its row
+    jne .row
+    cmp word [STAY], 0
+    je .row
+    cmp dword [FF_FINE], 0
+    je .row
+    lea esi, [ebx + 16h + 9 * 38h]      ; entries 9 / 19 (the wages, hidden here): the fine, a row under the purchases
+    mov word [esi + 4], 0
+    mov dword [esi + 26h], FF_FL
+    mov ax, [ebx + 16h + 8 * 38h + 16h]
+    add ax, 15
+    mov [esi + 16h], ax
+    lea esi, [ebx + 16h + 19 * 38h]
+    mov word [esi + 4], 0
+    mov ax, [ebx + 16h + 18 * 38h + 16h]
+    add ax, 15
+    mov [esi + 16h], ax
+    mov eax, [esi + 26h]
+    mov [A1_], eax
+    mov eax, [FF_FINE]
+    neg eax
+    mov [D0_], eax
+    call WRITEBAL
+    mov ebx, MENU_
+    add word [ebx + 16h + 10 * 38h + 16h], 10    ; the total and the new balance 10 px down
+    add word [ebx + 16h + 11 * 38h + 16h], 10
+    add word [ebx + 16h + 20 * 38h + 16h], 10
+    add word [ebx + 16h + 21 * 38h + 16h], 10
+    mov eax, [NEWBAL]                   ; the total with the fine: new - old
+    sub eax, [OLDBAL]
+    jns .tot
+    mov dword [ebx + 16h + 10 * 38h + 26h], TOTLOSS
+.tot:
+    mov ecx, [ebx + 16h + 20 * 38h + 26h]
+    mov [A1_], ecx
+    mov [D0_], eax
+    call WRITEBAL
+    mov ebx, MENU_
+.row:
+    lea edi, [ebx + 16h + 22 * 38h]     ; entry 22: the ratio (a copy of the old balance's label, 15 px above it)
+    lea esi, [ebx + 16h + 2 * 38h]
+    mov ecx, 38h
+    rep movsb
+    lea edi, [ebx + 16h + 22 * 38h]
+    mov word [edi + 2], 22
+    mov word [edi + 4], 0
+    sub word [edi + 16h], 15
+    mov dword [edi + 26h], FF_RATIO
+    lea edi, [ebx + 16h + 23 * 38h]     ; entry 23: the switch (a copy of CONTINUA, in the new balance's box)
+    lea esi, [ebx + 16h + 1 * 38h]
+    mov ecx, 38h
+    rep movsb
+    lea edi, [ebx + 16h + 23 * 38h]
+    mov word [edi + 2], 23
+    mov word [edi + 4], 0
+    mov ax, [ebx + 16h + 21 * 38h + 14h]
+    mov [edi + 14h], ax
+    mov ax, [ebx + 16h + 22 * 38h + 16h]
+    dec ax
+    mov [edi + 16h], ax
+    mov ax, [ebx + 16h + 21 * 38h + 18h]
+    mov [edi + 18h], ax
+    mov ax, [ebx + 16h + 21 * 38h + 1Ah]
+    mov [edi + 1Ah], ax
+    mov dword [edi + 2Ah], ff_tog
+    mov word [edi + 0Ah], 01FFh         ; (up: none, down: CONTINUA)
+    mov word [edi + 12h], 01FFh
+    mov byte [ebx + 16h + 1 * 38h + 0Ah], 23    ; (CONTINUA's up: the switch)
+    mov byte [ebx + 16h + 1 * 38h + 12h], 23
+    call ff_sval
+    mov word [ebx + 10h], 24
+    add dword [ebx + 12h], 2 * 38h
+    call ff_ratio
+.x: popad
+    ret
+
+ff_sval:                                ; the switch's text: the game's ON / OFF
+    mov eax, S_OFF
+    cmp byte [FF_ON], 0
+    je .s
+    mov eax, S_ON
+.s: mov [MENU_ + 16h + 23 * 38h + 26h], eax
+    ret
+
+ff_tog:                                 ; fire on the switch: the rule ON / OFF for this career
+    xor byte [FF_ON], 1
+    pushad
+    call ff_sval
+    popad
+    jmp DRAWITEM
+
+ff_ratio:                               ; FF_RATIO = RATIO[lang] + W x 100 / last season's I + '% (MAX 35%)'
+    mov edi, FF_RATIO
+    mov esi, FF_RPRE
+.p: lodsb
+    test al, al
+    jz .n
+    stosb
+    jmp .p
+.n: mov ecx, [FF_IPREV]
+    test ecx, ecx
+    jz .none
+    mov eax, [D6B9E]
+    movzx ebx, word [D6CA2]
+    mul ebx
+    mov ebx, 100
+    test edx, edx
+    jnz .cap
+    mul ebx                             ; edx:eax = W x 100
+    cmp edx, ecx
+    jae .cap
+    div ecx
+    cmp eax, 999
+    jbe .num
+.cap:
+    mov eax, 999
+.num:
+    xor ecx, ecx                        ; the digits, most significant first
+    mov ebx, 10
+.d: xor edx, edx
+    div ebx
+    push edx
+    inc ecx
+    test eax, eax
+    jnz .d
+.o: pop eax
+    add al, '0'
+    stosb
+    loop .o
+    jmp .suf
+.none:
+    mov ax, '--'
+    stosw
+.suf:
+    mov esi, FF_RSUF
+.q: lodsb
+    stosb
+    test al, al
+    jnz .q
+    ret
+
 align 4
 FF_REGS: times 15 dd 0
 FF_AMT: times 24 db 0
 FF_L1: L1_DB
 FF_L2: L2_DB
+FF_FL: FL_DB
+FF_RPRE: RP_DB
+FF_RSUF: RS_DB
+FF_RATIO: times 48 db 0
 """
 
 
@@ -205,6 +362,18 @@ def find(p):
     nb = s['NEWBAL']
     out.update({'NEWBAL': nb, 'OLDBAL': (2, nb[1] + 4), 'D6B88': s['D6B88'], 'CBON': (2, s['D6B88'][1] + 4),
                 'SPONS': s['SPONS'], 'D6B9E': s['D6B9E'], 'D6CA2': s['D6CA2']})
+    stay = struct.pack('<I', out['STAY'][1])
+    bz = [m.start() for m in re.finditer(rb'\x66\xa1(....)\x66\x0b\xc0\x75.\x66\xa1' + re.escape(stay) +
+                                         rb'\x66\x0b\xc0\x0f\x84', d, re.S)]
+    bz = [x for x in bz if p.target(1, x + 13) == out['STAY']]
+    assert len(bz) == 1, bz                              # ClubBusinessInit: `mov ax, [D6CA0] / or / jnz / mov ax,
+    out['BIZINIT'] = (1, bz[0])                          # [stayingInOldClub] / or / jz new club`
+    out['D6CA0'] = p.target(1, bz[0] + 2)
+    hdr = [s_ for so, s_, _, t, o, *_ in p.le.fixups() if so == 2 and t == 1 and o == bz[0]]
+    assert len(hdr) == 1, hdr                            # clubBusinessMenu's init pointer
+    out['bizhdr'] = hdr[0]
+    tl = [i for i in range(bz[0], bz[0] + 0x300) if d[i:i + 3] == b'\xc7\x46\x26']
+    out['TOTLOSS'] = p.target(1, tl[0] + 3)              # (the first `mov [esi+38], offset aTotalLoss`)
     return out
 
 
@@ -228,8 +397,21 @@ def patch(p, at, lang):
     l1, l2 = MEMO[lang]
     db = lambda x: 'db ' + ', '.join(str(c) for c in x.encode('latin1') + b'\0')
     src = nasmcave.sub(nasmcave.sub(ASM, 'L1_DB', db(l1)), 'L2_DB', db(l2))
+    for k, t in (('FL_DB', FINE[lang]), ('RP_DB', RATIO[lang]), ('RS_DB', f'% (MAX {LIMIT}%)')):
+        src = nasmcave.sub(src, k, db(t))
     sym = {k: s[k] for k in ('D2_', 'UNWILLING', 'BUYOK', 'CURMSG', 'SCM', 'STAY', 'PLNAME', 'TBL', 'INT2POUNDS', 'D0_',
-                             'A1_', 'REGS', 'NEWBAL', 'OLDBAL', 'D6B88', 'CBON', 'SPONS', 'D6B9E', 'D6CA2')}
+                             'A1_', 'REGS', 'NEWBAL', 'OLDBAL', 'D6B88', 'CBON', 'SPONS', 'D6B9E', 'D6CA2', 'BIZINIT',
+                             'D6CA0', 'TOTLOSS')}
+    import controls
+    import cpucards
+    import zones
+    sym['WRITEBAL'] = finance.SITES['WRITEBAL']
+    sym['MENU_'] = zones._current_menu(p)
+    sym['DRAWITEM'] = (1, cpucards.find(p)['DRAWITEM'])
+    sym['S_ON'], sym['S_OFF'] = cpucards.strings(p, controls.menu_header(p, controls.locate(p)['OMBD'][1]))
+    assert p.target(2, s['bizhdr']) == s['BIZINIT'], ('clubBusinessMenu init already hooked', p.target(2, s['bizhdr']))
+    for t in (RATIO[lang], FINE[lang]):
+        assert re.fullmatch(r"[A-Z0-9 /.:'-]+", t), t
     sym['PREV5DEB9'] = p.call_target(1, s['season'])
     assert sym['PREV5DEB9'] == (1, s['F5DEB9']), ('InitializeNewSeason: cseg_5DEB9 call already hooked', sym['PREV5DEB9'])
     sym['LIMIT_'] = (0, 0 if os.environ.get('FFP_FORCE') == 'over' else LIMIT)
@@ -246,6 +428,8 @@ def patch(p, at, lang):
     p.remove(1, s['buy'] + 3)                            # (the overwritten `cmp word [D2], 2`'s fixup)
     p.branch(1, s['buy'], 0xE9, 3, lab['ff_buy'], 10)
     p.branch(1, s['season'], 0xE8, 3, lab['ff_season'])
+    p.retarget(2, s['bizhdr'], 3, lab['ff_biz'])
+    p.put(2, s['bizhdr'], struct.pack('<I', lab['ff_biz']))
     engine.ITEM_AT['FF'] = (3, finance.LABELS['FF_ST'])
     engine.CALL_AT['ff_new'] = (3, lab['ff_new'])
     LABELS.clear()

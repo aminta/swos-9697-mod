@@ -24482,6 +24482,51 @@ def ffp_read(s, ff):
     return dict(zip(('on', 'block', 'valid', 'inc', 'iprev', 'fine'), v))
 
 
+def ffp_biz(s, tag, errs, toggle=False):
+    """ANDAMENTO CLUB from the career menu: FFP's row (entry 22, the ratio, ffp.RATIO[lang]) and switch (entry 23, the
+    game's ON / OFF) above the old balance, below the title, within their entries, small-font characters; toggle: UP
+    from CONTINUA onto the switch, fire (its text flips), back to CONTINUA. Returns (ratio text, switch text before,
+    after) or None."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import ffp
+    from complist import px, SMALL_W
+    if press(s, s.screen(), 'ANDAMENTO CLUB', 3) is None:
+        errs.append(f'{tag}: no ANDAMENTO CLUB on {s.screen()}')
+        return None
+    scr = s.screen()
+    s.shot(f'biz_{tag}')
+    ix = {x[0]: j for j, x in enumerate(scr.entries)}
+    if 22 not in ix or 23 not in ix:
+        errs.append(f'{tag}: no FFP row on the statement {scr}')
+        return None
+    raw = lambda sc, n: sc.raw[{x[0]: j for j, x in enumerate(sc.entries)}[n]].decode('latin-1')
+    rt, sw = raw(scr, 22), raw(scr, 23)
+    g = {n: scr.geom[ix[n]] for n in ix}
+    check(rt.startswith(ffp.RATIO[UI]) and rt.endswith(f'% (MAX {ffp.LIMIT}%)'), f'{tag}: ratio row {rt!r}', errs)
+    check(set(rt) <= set(SMALL_W) | {' '} and px(rt) <= g[22][2], f'{tag}: ratio row {rt!r} {px(rt)} px / {g[22][2]} or '
+          f'non-font characters', errs)
+    check(g[22][1] + g[22][3] <= g[2][1] and g[0][1] + g[0][3] <= g[22][1], f'{tag}: ratio row y {g[22]} not between '
+          f'the title {g[0]} and the old balance {g[2]}', errs)
+    check(g[23][1] + g[23][3] <= g[12][1] + 1 and px(sw) <= g[23][2], f'{tag}: switch {g[23]} / {sw!r} over the old '
+          f'balance {g[12]} or wider than its box', errs)
+    after = sw
+    if toggle:
+        for _ in range(4):                               # (CONTINUA selected: UP = the switch)
+            if s.screen().selected == ix[23]:
+                break
+            s.send('up dump:0.5')
+        if s.screen().selected != ix[23]:
+            errs.append(f'{tag}: UP from CONTINUA does not reach the switch ({s.screen().selected})')
+            return rt, sw, sw
+        s.send('fire dump:1')
+        after = raw(s.screen(), 23)
+        s.shot(f'biz_{tag}_toggled')
+        check(after != sw, f'{tag}: the switch did not change ({sw!r})', errs)
+        s.send('down dump:0.5')
+    press(s, s.screen(), 'CONTINUA', 2)
+    return rt, sw, after
+
+
 @scenario
 def ffp_season():
     """4.0.6 (Marco): financial fair play (ffp.py). A new career at ST. ANDREWS (Malta, 1984-85: 18 matches), the
@@ -24498,6 +24543,7 @@ def ffp_season():
     from complist import px, SMALL_W
     errs, notes = [], []
     money = lambda t: (-1 if t.lstrip().startswith('-') else 1) * int(re.sub(r'\D', '', t) or 0)
+    word = lambda r, o: struct.unpack('<i', bytes(r.obj2(o, 4)))[0]
     l1, l2 = ffp.MEMO[UI]
     key1 = l1.split('%a')[1][:14] if l1.startswith('%a') else l1.split('%a')[0].strip()
     for mode in os.environ.get('FFP_MODES', 'over,off,real,oldsave').split(','):
@@ -24532,8 +24578,12 @@ def ffp_season():
             else:
                 v0 = ffp_read(s, ff)
                 check(v0['on'] == 1 and v0['valid'] == 1, f'{tag}: a new career not ON / counted {v0}', errs)
-                if mode == 'off':
-                    s.poke(s.result.lin(ff), b'\0')
+                bz = ffp_biz(s, tag, errs, toggle=(mode == 'off'))     # (off: switched OFF on ANDAMENTO CLUB)
+                if bz:
+                    check(bz[0].startswith(ffp.RATIO[UI] + '--'), f'{tag}: a new career has no ratio yet: {bz[0]!r}', errs)
+                    if mode == 'off':
+                        check(ffp_read(s, ff)['on'] == 0, f'{tag}: the switch did not turn the rule OFF', errs)
+                    notes.append(f'{tag}: row {bz}')
                 s.poke(s.result.base2 + nosack_off(os.path.join(b, 'ITALIAN.EXE')), b'\x01\x00')
                 ok, m = advance(s, season_over, 600)
                 if not ok:
@@ -24590,6 +24640,17 @@ def ffp_season():
                     if {12, 20, 21} <= vis:
                         o_, t_, n_ = money(raw[12]), money(raw[20]), money(raw[21])
                         check(o_ + t_ == n_, f'{tag}: statement old {o_} + total {t_} != new {n_}', errs)
+                        fr = raw.get(9, '')
+                        check(9 in vis and 19 in vis and fr.startswith(ffp.FINE[UI]), f'{tag}: no fine row ({fr!r})', errs)
+                        k_ = n_ / word(s.result, fin['NEWBAL'][1]) if word(s.result, fin['NEWBAL'][1]) else 1
+                        check(19 in vis and abs(money(raw[19]) + v2['fine'] * k_) <= k_, f'{tag}: fine row '
+                              f'{raw.get(19)!r} != -{v2["fine"]} x {k_:g}', errs)
+                        g = {x[0]: scr.geom[j] for j, x in enumerate(scr.entries) if not x[2]}
+                        ys = sorted(g[i][1] for i in range(2, 12) if i in g)
+                        check(all(b_ - a_ >= 8 for a_, b_ in zip(ys, ys[1:])), f'{tag}: statement rows overlap {ys}', errs)
+                        ci = scr.find('CONTINUA', exact=True)
+                        check(ci is None or g[21][1] + g[21][3] <= scr.geom[ci][1], f'{tag}: new balance over CONTINUA',
+                              errs)
                     else:
                         notes.append(f'{tag}: statement rows {sorted(vis)}')
                     s.shot(f'statement_{tag}')

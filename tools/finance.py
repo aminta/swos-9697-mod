@@ -35,7 +35,7 @@ ROW = {'it': 'SPONSOR E DIRITTI TV:', 'en': 'SPONSORS + TV RIGHTS:', 'fr': 'SPON
        'de': 'SPONSOREN + TV-RECHTE:'}           # the statement's row (Davide, 02/11)
 WAGE_MUL, WAGE_DIV = 11, 10                 # + 1.1 x the season's wage bill
 MAXDIV = 32                                 # (levels table: divisions per league)
-FF_SIZE = 15                                # 4.0.6 FFP's saved item (FF_ST .. FF_FINE, ffp.py; the save ledger)
+FF_SIZE = 19                                # 4.0.6 FFP's saved item (FF_ST .. FF_FINE, ffp.py; the save ledger)
 LABELS = {}
 SITES = {}
 
@@ -81,6 +81,7 @@ fi_charge:                              ; replaces `add word [C1750DA], 1` in cs
     xor edx, edx
     mov ebx, WAGE_DIV_
     div ebx
+    add [FF_TVW], eax                   ; (4.0.6 FFP: the season's wage-linked share, not income for its ratio)
     add eax, ecx
     add [SPONS], eax                    ; SPONSORSHIP
     add [NEWBAL], eax
@@ -141,13 +142,14 @@ FI_LV: LV_DB
 
 align 4
     db 'FFPS'                           ; (the harness's tag)
-FF_ST:                                  ; 4.0.6 FFP (ffp.py): the engine item 'FF', 15 bytes
+FF_ST:                                  ; 4.0.6 FFP (ffp.py): the engine item 'FF', 19 bytes
 FF_ON: db 0                             ; 1 = the rule is on (a new career; an old save: 0 = off)
 FF_BLOCK: db 0                          ; 1 = sanctioned this season: purchases refused while over the limit
 FF_VALID: db 0                          ; 1 = FF_INC covers the whole season (0: an old save loaded mid-season)
 FF_INC: dd 0                            ; the season's gate receipts so far (the weekly statement resets its own)
 FF_IPREV: dd 0                          ; last season's income I (0: none of ours)
 FF_FINE: dd 0                           ; the fine taken at this season's start
+FF_TVW: dd 0                            ; the season's TV credit share paid for the wages (1.1 x W: Davide 04/11 B)
 """
 
 

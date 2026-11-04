@@ -24461,7 +24461,7 @@ def fin_statement():
 
 
 def ffp_sites(exe_dir):
-    """ffp in a built exe: FF_ST (obj3, after the tag 'FFPS': FF_ON, FF_BLOCK, FF_VALID, FF_INC, FF_IPREV, FF_FINE: 15 B),
+    """ffp in a built exe: FF_ST (obj3, after the tag 'FFPS': FF_ON, FF_BLOCK, FF_VALID, FF_INC, FF_IPREV, FF_FINE, FF_TVW: 19 B),
     the finance variables (finance.find on the exe language's original) and the game's message 1 (ffp.message)."""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import finance
@@ -24489,9 +24489,9 @@ def ffp_onoff(exe_dir):
 
 
 def ffp_read(s, ff):
-    """{on, block, valid, inc, iprev, fine}"""
-    v = struct.unpack('<BBBIII', bytes(s.result.read(s.result.lin(ff), 15)))
-    return dict(zip(('on', 'block', 'valid', 'inc', 'iprev', 'fine'), v))
+    """{on, block, valid, inc, iprev, fine, tvw}"""
+    v = struct.unpack('<BBBIIII', bytes(s.result.read(s.result.lin(ff), 19)))
+    return dict(zip(('on', 'block', 'valid', 'inc', 'iprev', 'fine', 'tvw'), v))
 
 
 def ffp_biz(s, tag, errs, toggle=False):
@@ -24636,6 +24636,7 @@ def ffp_season():
                     errs.append(f'{tag}: the new season\'s career menu not reached')
                     continue
                 v2 = ffp_read(s, ff)
+                check(v1['tvw'] > 0 and v2['tvw'] == 0, f'{tag}: the TV wage share not counted / reset {v1} {v2}', errs)
                 if mode == 'over':
                     check(memo is not None, f'{tag}: no memo', errs)
                     if memo:

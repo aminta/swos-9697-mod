@@ -5,7 +5,8 @@ The ratio: W / I, W = the season's wage bill of the squad at the season start (d
 charge, x dseg_D6CA2, the season's charges: what cseg_3D204 stores as dseg_D6BA2), I = the income of the season just
 ended: its gate receipts (finance.py's fi_gate adds them to FF_INC: the game's gateReceipts is reset with every weekly
 statement, cseg_5E2E0) + its sponsorship (sensisoftPlcSponsorship: the season-start deal + finance's TV / commercial
-credit of every match charge; reset only by cseg_5DEB9) + the competition bonuses and the chairman's money
+credit of every match charge; reset only by cseg_5DEB9) less that credit's wage-linked share (1.1 x the wages: it
+grows with every purchase, so W / I would hardly move - Davide 04/11, option B; FF_TVW counts it) + the competition bonuses and the chairman's money
 (dseg_D6B88 = startingBalance) that cseg_5DEB9 pays for it. The limit: W x 100 > LIMIT x I.
 
 The season start (InitializeNewSeason's `call cseg_5DEB9`, chained): the sponsorship is read before the call, the rest
@@ -21,7 +22,7 @@ The purchases (BuyPlayerMenu's `cmp word [D2], 2 / jnb`: the game's own refusal,
 player purchases this season' - message 1 in every language): also when FF_BLOCK and the current squad's W is over
 the limit of FF_IPREV (sold back under it: buying again).
 
-State: finance.py's FF_ST (FF_ON, FF_BLOCK, FF_VALID, FF_INC, FF_IPREV, FF_FINE), the engine item 'FF' (15 bytes).
+State: finance.py's FF_ST (FF_ON, FF_BLOCK, FF_VALID, FF_INC, FF_IPREV, FF_FINE, FF_TVW), the engine item 'FF' (19 bytes).
 FFP_FORCE=over (test builds only, modver TEST_VARS): the limit 0 (every evaluated season over).
 """
 import os
@@ -56,10 +57,12 @@ ff_season:                              ; replaces InitializeNewSeason's `call c
     rep movsd                           ; (the game's D0..A6 kept: the memo's menu uses them)
     mov ebx, [esp + 32]
     add ebx, [FF_INC]
+    sub ebx, [FF_TVW]                   ; (Davide 04/11, B: not the TV share that pays for the wages)
     add ebx, [CBON]
     add ebx, [D6B88]                    ; ebx = I
     xor ecx, ecx
     mov [FF_INC], ecx
+    mov [FF_TVW], ecx
     mov [FF_FINE], ecx
     mov byte [FF_BLOCK], 0
     cmp word [STAY], 0
@@ -446,7 +449,7 @@ def patch(p, at, lang):
     sym['PREV5DEB9'] = p.call_target(1, s['season'])
     assert sym['PREV5DEB9'] == (1, s['F5DEB9']), ('InitializeNewSeason: cseg_5DEB9 call already hooked', sym['PREV5DEB9'])
     sym['LIMIT_'] = (0, 0 if os.environ.get('FFP_FORCE') == 'over' else LIMIT)
-    for k in ('FF_ON', 'FF_BLOCK', 'FF_VALID', 'FF_INC', 'FF_IPREV', 'FF_FINE'):
+    for k in ('FF_ON', 'FF_BLOCK', 'FF_VALID', 'FF_INC', 'FF_IPREV', 'FF_FINE', 'FF_TVW'):
         sym[k] = (3, finance.LABELS[k])
     code, fix, rel = nasmcave.assemble_obj(src, at, sym, 3)
     lab = nasmcave.labels(src, at, sym)

@@ -25180,6 +25180,367 @@ def vopp_stale():
 
 
 
+def ffp_sites(exe_dir):
+    """ffp in a built exe: FF_ST (obj3, after the tag 'FFPS': FF_ON, FF_BLOCK, FF_VALID, FF_INC, FF_IPREV, FF_FINE, FF_TVW, FF_NCH: 21 B),
+    the finance variables (finance.find on the exe language's original) and the game's message 1 (ffp.message)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import finance
+    import ffp
+    import lepatch
+    p = lepatch.LEPatch(os.path.join(exe_dir, 'ITALIAN.EXE'))
+    d3 = bytes(p.get(3, 0, 0x1000 * p.le.obj(3).npages))
+    assert d3.count(b'FFPS') == 1, d3.count(b'FFPS')
+    o = lepatch.LEPatch(os.path.join(MAIN, 'orig', UI_ORIG))
+    finance.SITES.clear()
+    return (3, d3.index(b'FFPS') + 4), finance.find(o), ffp.message(o, 1), \
+        set(''.join(x for k in range(1, 5) for x in ffp.message(o, k)))
+
+
+def ffp_onoff(exe_dir):
+    """(OFF, ON): the game's strings the switch shows (cpucards.strings on the exe language's original)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import controls
+    import cpucards
+    import lepatch
+    o = lepatch.LEPatch(os.path.join(MAIN, 'orig', UI_ORIG))
+    d2 = o.le.obj_bytes(2)
+    return tuple(d2[x[1]:d2.index(b'\0', x[1])].decode('latin-1').rstrip('*')
+                 for x in cpucards.strings(o, controls.menu_header(o, controls.locate(o)['OMBD'][1])))
+
+
+def ffp_read(s, ff):
+    """{on, block, valid, inc, iprev, fine, tvw, nch}"""
+    v = struct.unpack('<BBBIIIIH', bytes(s.result.read(s.result.lin(ff), 21)))
+    return dict(zip(('on', 'block', 'valid', 'inc', 'iprev', 'fine', 'tvw', 'nch'), v))
+
+
+def ffp_biz(s, tag, errs, toggle=False):
+    """ANDAMENTO CLUB from the career menu: FFP's row (entry 22, the ratio, ffp.RATIO[lang]) and switch (entry 23, the
+    game's ON / OFF) above the old balance, below the title, within their entries, small-font characters; toggle: UP
+    from CONTINUA onto the switch, fire (its text flips), back to CONTINUA. Returns (ratio text, switch text before,
+    after) or None."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import ffp
+    from complist import px, SMALL_W
+    for _ in range(6):                                   # (a new career: the chairman's welcome first)
+        if 'ANDAMENTO CLUB' in s.screen().texts():
+            break
+        press(s, s.screen(), 'CONTINUA', 3) or s.send('fire dump:2')
+    if press(s, s.screen(), 'ANDAMENTO CLUB', 3) is None:
+        errs.append(f'{tag}: no ANDAMENTO CLUB on {s.screen()}')
+        return None
+    scr = s.screen()
+    s.shot(f'biz_{tag}')
+    ix = {x[0]: j for j, x in enumerate(scr.entries)}
+    if 22 not in ix or 23 not in ix:
+        errs.append(f'{tag}: no FFP row on the statement {scr}')
+        return None
+    raw = lambda sc, n: sc.raw[{x[0]: j for j, x in enumerate(sc.entries)}[n]].decode('latin-1')
+    rt, sw = raw(scr, 22), raw(scr, 23)
+    g = {n: scr.geom[ix[n]] for n in ix}
+    check(rt.startswith(ffp.RATIO[UI]) and rt.endswith(f' (MAX {ffp.LIMIT}%)') and (rt[len(ffp.RATIO[UI]):].startswith('--') or '% (' in rt), f'{tag}: ratio row {rt!r}', errs)
+    check(set(rt) <= set(SMALL_W) | {' '} and px(rt) <= g[22][2], f'{tag}: ratio row {rt!r} {px(rt)} px / {g[22][2]} or '
+          f'non-font characters', errs)
+    check(g[22][1] + g[22][3] <= g[2][1] and g[0][1] + g[0][3] <= g[22][1], f'{tag}: ratio row y {g[22]} not between '
+          f'the title {g[0]} and the old balance {g[2]}', errs)
+    check(g[23][1] + g[23][3] <= g[12][1] + 1 and px(sw) <= g[23][2], f'{tag}: switch {g[23]} / {sw!r} over the old '
+          f'balance {g[12]} or wider than its box', errs)
+    after = sw
+    if toggle:
+        for _ in range(4):                               # (CONTINUA selected: UP = the switch)
+            if s.screen().selected == ix[23]:
+                break
+            s.send('up dump:0.5')
+        if s.screen().selected != ix[23]:
+            errs.append(f'{tag}: UP from CONTINUA does not reach the switch ({s.screen().selected})')
+            return rt, sw, sw
+        s.send('fire dump:1')
+        after = raw(s.screen(), 23)
+        s.shot(f'biz_{tag}_toggled')
+        check(after != sw, f'{tag}: the switch did not change ({sw!r})', errs)
+        s.send('down dump:0.5')
+    press(s, s.screen(), 'CONTINUA', 2)
+    return rt, sw, after
+
+
+@scenario
+def ffp_season():
+    """4.0.6 (Marco): financial fair play (ffp.py). A new career at ST. ANDREWS (Malta, 1984-85: 18 matches), the
+    chairman's no-sacking switch poked, season 1 played, CONTINUA CARRIERA (FFP_MODES, default all):
+    over (FFP_FORCE=over build: the limit 0) - FF_ON / FF_VALID set by the new career, FF_INC counting the gates; at
+    the season start the memo ffp.MEMO[lang] (%a / %b filled, the fine's digits) within its rows, font characters, a
+    screenshot; FF_BLOCK 1, FF_FINE = half the squad's season wages (D6B9E x D6CA2) in thousands, FF_IPREV > 0; the
+    season-start statement (ANDAMENTO CLUB) old + total = new; TRASFERIMENTI > ACQUISTA GIOCATORE = the game's message 1
+    (purchases refused), a screenshot; off - the same build, FF_ON poked 0 after the career's start: no memo, no
+    block, no fine, ACQUISTA GIOCATORE opens the market; real (SWOSTEST_BUILD, the 35 % limit): a small club - no memo,
+    no block (W / I logged); oldsave - JUVE2F (no 'FF') loads FF_ON 0"""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import ffp
+    from complist import px, SMALL_W
+    errs, notes = [], []
+    money = lambda t: (-1 if t.lstrip().startswith('-') else 1) * int(re.sub(r'\D', '', t) or 0)
+    word = lambda r, o: struct.unpack('<i', bytes(r.obj2(o, 4)))[0]
+    l1, l2 = ffp.MEMO[UI]
+    key1 = l1.split('%a')[1][:14] if l1.startswith('%a') else l1.split('%a')[0].strip()
+    for mode in os.environ.get('FFP_MODES', 'over,off,real,oldsave').split(','):
+        if mode == 'real':
+            b = builds()['it']
+        elif mode == 'oldsave':
+            b = builds()['it'] if UI == 'it' else build(f'ffp_ui_{UI}', lang=UI)
+        else:
+            b = build(f'ffp_over_{UI}', env={'FFP_FORCE': 'over'}, lang=UI)
+        ff, fin, msg1, gamech = ffp_sites(b)
+        tag = f'{mode}_{UI}'
+        if mode == 'oldsave':
+            with Session(f'ffp_oldsave_{UI}', b, {'JUVE2F.CAR': juve2(True)}, 'dump:2', 120) as s:
+                if s.wait().outcome != 'dump':
+                    errs.append(f'{tag}: no first pause ({s.result})')
+                    continue
+                s.send('down down down down down fire dump:2')
+                s.send('fire dump:3')
+                v = ffp_read(s, ff)
+                check('TRASFERIMENTI' in s.screen().texts(), f'{tag}: no career menu after the load {s.screen()}', errs)
+                check(v['on'] == 0 and v['block'] == 0, f'{tag}: an old save not OFF {v}', errs)
+                notes.append(f'{tag}: {v}')
+            continue
+        with Session(f'ffp_{tag}', b, {}, 'dump:2', 900) as s:
+            if s.wait().outcome != 'dump':
+                errs.append(f'{tag}: no first pause ({s.result})')
+                continue
+            for t in ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'EUROPA 1984-85', 'MALTA', 'ST. ANDREWS']:
+                if press(s, s.screen(), t) is None or s.result.outcome != 'dump':
+                    errs.append(f'{tag}: new career: {t} not reached ({s.result})')
+                    break
+            else:
+                v0 = ffp_read(s, ff)
+                check(v0['on'] == 1 and v0['valid'] == 1, f'{tag}: a new career not ON / counted {v0}', errs)
+                bz = ffp_biz(s, tag, errs, toggle=(mode == 'off'))     # (off: switched OFF on ANDAMENTO CLUB)
+                if bz:
+                    check(bz[0].startswith(ffp.RATIO[UI] + '--'), f'{tag}: a new career has no ratio yet: {bz[0]!r}', errs)
+                    check(bz[1] == ffp_onoff(b)[1], f'{tag}: the switch shows {bz[1]!r} with the rule ON', errs)
+                    if mode == 'off':
+                        check(ffp_read(s, ff)['on'] == 0, f'{tag}: the switch did not turn the rule OFF', errs)
+                    notes.append(f'{tag}: row {bz}')
+                s.poke(s.result.base2 + nosack_off(os.path.join(b, 'ITALIAN.EXE')), b'\x01\x00')
+                ok, m = advance(s, season_over, 600)
+                if not ok:
+                    errs.append(f'{tag}: season 1: {m}')
+                    continue
+                v1 = ffp_read(s, ff)
+                check(v1['inc'] > 0, f'{tag}: no gates counted {v1}', errs)
+                if s.screen().find('FINISCI STAGIONE', exact=True) is not None:
+                    press(s, s.screen(), 'FINISCI STAGIONE', wait=3)
+                for _ in range(6):
+                    if s.screen().find('CONTINUA CARRIERA', exact=True) is not None:
+                        break
+                    press(s, s.screen(), 'CONTINUA') or s.send('fire dump:2')
+                wend = struct.unpack('<I', bytes(s.result.obj2(fin['D6B9E'][1], 4)))[0] * \
+                    struct.unpack('<H', bytes(s.result.obj2(fin['D6CA2'][1], 2)))[0]   # (the season-end W: option C)
+                if press(s, s.screen(), 'CONTINUA CARRIERA', wait=3) is None:
+                    errs.append(f'{tag}: no CONTINUA CARRIERA on {s.screen()}')
+                    continue
+                memo, wage = None, None
+                for _ in range(12):
+                    scr = s.screen()
+                    s.log.append(f'[ns] {scr}')
+                    if 'TRASFERIMENTI' in scr.texts():   # (the new season's wages: as at the season start's check)
+                        wage = struct.unpack('<I', bytes(s.result.obj2(fin['D6B9E'][1], 4)))[0] * \
+                            struct.unpack('<H', bytes(s.result.obj2(fin['D6CA2'][1], 2)))[0]
+                        break
+                    hit = [j for j, r in enumerate(scr.raw) if key1.encode('latin-1') in r]   # (raw: German umlauts)
+                    if hit and memo is None:
+                        j = hit[0]
+                        memo = (scr.raw[j].decode('latin-1'), scr.raw[j + 1].decode('latin-1'), scr.geom[j][2],
+                                scr.geom[j + 1][2])                    # (raw: the English '£' rows read no text)
+                        s.shot(f'memo_{tag}')
+                    press(s, scr, 'CONTINUA') or s.send('fire dump:2')
+                else:
+                    errs.append(f'{tag}: the new season\'s career menu not reached')
+                    continue
+                v2 = ffp_read(s, ff)
+                check(v1['tvw'] > 0 and v2['tvw'] == 0, f'{tag}: the TV wage share not counted / reset {v1} {v2}', errs)
+                if mode == 'over':
+                    check(memo is not None, f'{tag}: no memo', errs)
+                    if memo:
+                        a, b2, w1, w2 = memo
+                        check(key1 in a and b2.startswith(l2.split('%b')[0]), f'{tag}: memo {a!r} / {b2!r}', errs)
+                        check(px(a) <= w1 and px(b2) <= w2, f'{tag}: memo wider than its rows {px(a)} / {px(b2)} > '
+                              f'{w1} / {w2}', errs)
+                        ours = set((l1 + l2).replace('%a', '').replace('%b', ''))   # (our text: the small font's
+                        ok_ch = set(SMALL_W) | {' '} | gamech                       #  characters or the game's own
+                        check(ours <= ok_ch, f'{tag}: memo non-font characters {sorted(ours - ok_ch)}', errs)   # memos')
+                        check(re.search(r'\d', b2) is not None, f'{tag}: no amount in {b2!r}', errs)
+                    want = (wend // 2) // 1000 * 1000              # (FFP_FORCE: the limit 0; W = the season's end)
+                    check(v2['fine'] == want and want > 0, f'{tag}: fine {v2["fine"]} != half the wages {wage}: {want}', errs)
+                    check(v2['block'] == 1 and v2['iprev'] > 0, f'{tag}: not sanctioned {v2}', errs)
+                    press(s, s.screen(), 'ANDAMENTO CLUB', 3)
+                    scr = s.screen()
+                    raw = {x[0]: scr.raw[j].decode('latin-1') for j, x in enumerate(scr.entries)}
+                    vis = {x[0] for x in scr.entries if not x[2]}
+                    if {12, 20, 21} <= vis:
+                        o_, t_, n_ = money(raw[12]), money(raw[20]), money(raw[21])
+                        check(o_ + t_ == n_, f'{tag}: statement old {o_} + total {t_} != new {n_}', errs)
+                        fr = raw.get(9, '')
+                        check(9 in vis and 19 in vis and fr.startswith(ffp.FINE[UI]), f'{tag}: no fine row ({fr!r})', errs)
+                        k_ = n_ / word(s.result, fin['NEWBAL'][1]) if word(s.result, fin['NEWBAL'][1]) else 1
+                        check(19 in vis and abs(money(raw[19]) + v2['fine'] * k_) <= k_, f'{tag}: fine row '
+                              f'{raw.get(19)!r} != -{v2["fine"]} x {k_:g}', errs)
+                        g = {x[0]: scr.geom[j] for j, x in enumerate(scr.entries) if not x[2]}
+                        ys = sorted(g[i][1] for i in range(2, 12) if i in g)
+                        check(all(b_ - a_ >= 8 for a_, b_ in zip(ys, ys[1:])), f'{tag}: statement rows overlap {ys}', errs)
+                        ci = scr.find('CONTINUA', exact=True)
+                        check(ci is None or g[21][1] + g[21][3] <= scr.geom[ci][1], f'{tag}: new balance over CONTINUA',
+                              errs)
+                    else:
+                        notes.append(f'{tag}: statement rows {sorted(vis)}')
+                    s.shot(f'statement_{tag}')
+                    press(s, scr, 'CONTINUA', 2)
+                else:
+                    check(memo is None, f'{tag}: a memo {memo}', errs)
+                    check(v2['block'] == 0 and v2['fine'] == 0, f'{tag}: sanctioned {v2}', errs)
+                if 'TRASFERIMENTI' in s.screen().texts():
+                    walk(s, 'TRASFERIMENTI', 3)
+                    walk(s, 2, 3)                              # ACQUISTA GIOCATORE
+                    scr = s.screen()
+                    refused = any(t and msg1[1][:12] in t for t in scr.texts())
+                    s.shot(f'buy_{tag}')
+                    check(refused == (mode == 'over'), f'{tag}: ACQUISTA GIOCATORE '
+                          f'{"refused" if refused else "open"}: {scr}', errs)
+                else:
+                    errs.append(f'{tag}: no career menu for the purchase test {s.screen()}')
+                ratio = f'{wend / v2["iprev"]:.1%}' if v2['iprev'] else '-'
+                notes.append(f'{tag}: {v1} -> {v2} memo {memo[:2] if memo else None} W {wage} W/I {ratio}')
+    return not errs, '; '.join(errs + notes)
+
+
+@scenario
+def ffp_star():
+    """4.0.6 FFP, a big club's real spending (Davide 04/11): an OFFER_FORCE build (every offer accepted) of the World
+    2026-27 (W2627REL_DATA), a REAL MADRID career; FFP_STAR (default 1,3) = the number of BARCELONA stars bought at the
+    season's start (each time the dearest player of the list: its rows walked, the highlighted row's info line read; FFP_STAR
+    default 1,3,6; ACQ. ALTRO GIOCAT. NAZION. > LALIGA > BARCELONA; the bank poked to 500 M before each
+    offer, put back after: the purchase costs nothing), season 1 played, CONTINUA CARRIERA: W (the new season's wage
+    bill), I (FF_IPREV), the ratio; over the limit <=> FF_BLOCK, FF_FINE = half the wages over 0.35 x I (thousands); the
+    balance before / after the fine logged. Davide's check: one star = no sanction."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import ffp
+    errs, notes = [], []
+    src = (os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-403c13b')).rstrip('/')
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    b = os.environ.get('FFP_STAR_BUILD') or build(f'ffp_star_{UI}_' + os.path.basename(src), env={   # (xtra_offer_plus'
+        'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'OFFER_FORCE': '1'}, lang=UI)
+    ff, fin, msg1, _ = ffp_sites(b)
+    nb_at = fin['NEWBAL'][1]
+    word = lambda r, o: struct.unpack('<i', bytes(r.obj2(o, 4)))[0]
+    path = ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27', 'EUROPA', 'SPAGNA', 'LALIGA', 'REAL MADRID']
+    for n in [int(x) for x in os.environ.get('FFP_STAR', '1,3,6').split(',')]:
+        tag = f'star{n}_{UI}'
+        with Session(f'ffp_{tag}', b, {}, 'dump:2', 1500) as s:
+            s.wait()
+            if not pick_career(s, path):
+                errs.append(f'{tag}: new career {s.screen().texts()[:8]}')
+                continue
+            s.send('fire dump:3')
+            for _ in range(8):
+                if 'TRASFERIMENTI' in s.screen().texts():
+                    break
+                press(s, s.screen(), 'CONTINUA', 3) or s.send('fire dump:2')
+            bought = []
+            for k in range(n):
+                bank = word(s.result, nb_at)
+                s.poke(s.result.base2 + nb_at, struct.pack('<i', 500000000))
+                walk(s, 'TRASFERIMENTI', 3)
+                walk(s, 2, 3)                              # ACQUISTA GIOCATORE
+                if any(t and msg1[1][:12] in t for t in s.screen().texts()):
+                    errs.append(f'{tag}: purchase {k + 1} refused by the game (squad room?) {s.screen()}')
+                    s.poke(s.result.base2 + nb_at, struct.pack('<i', bank))
+                    break
+                walk(s, 4, 3)                              # ACQ. ALTRO GIOCAT. NAZION.
+                walk(s, 'LALIGA', 3)
+                walk(s, 'BARCELONA', 3)
+                cand = {}                                  # the list: each row's player (the info line of the
+                for _ in range(20):                        # highlighted row: name ... price 'L20MD'), the dearest
+                    sc_ = s.screen()                       # one not bought yet
+                    tx = sc_.texts()
+                    sel_t = next((e_[1] for e_ in sc_.entries if e_[0] == sc_.selected), None)
+                    if 'ESCI' in tx and sc_.selected is not None and sel_t not in ('ESCI', 'PAG. SUCC.', 'PAG. PREC.'):
+                        info_ = tx[tx.index('ESCI') + 1:]
+                        pr = next((float(m_.group(1)) for t in info_ for m_ in [re.match(r'L([\d.]+)M', t)] if m_), None)
+                        if info_ and pr is not None and sc_.selected not in cand:
+                            cand[sc_.selected] = (pr, info_[0])
+                    s.send('up dump:0.5')
+                pick = sorted(((pr, e_, nm) for e_, (pr, nm) in cand.items() if nm not in [x[1].split(' L')[0]
+                               for x in bought]), reverse=True)
+                if not pick:
+                    errs.append(f'{tag}: no player found in the list {cand}')
+                    s.poke(s.result.base2 + nb_at, struct.pack('<i', bank))
+                    break
+                star = pick[0][2]
+                for key in ['up'] * 24 + ['down'] * 24:      # back onto its row
+                    if s.screen().selected == pick[0][1]:
+                        break
+                    s.send(key + ' dump:0.5')
+                s.send('fire dump:4')
+                sc = s.screen()
+                s.log.append(f'[offer] {sc}')
+                price = next((t for t in sc.texts() if t.startswith('>')), '?')   # (the asked amount, selected)
+                bought_name = f'{star} {price[1:]}'
+                for key in (sc.path(9) or []):
+                    s.send(key + ' dump:0.5')
+                ans = xtra_bid(s)
+                ok = any("E' LIETO" in x or 'HAPPY TO SELL' in x for x in ans)
+                for _ in range(10):
+                    if 'TRASFERIMENTI' in s.screen().texts():
+                        break
+                    press(s, s.screen(), 'CONTINUA', 3) or press(s, s.screen(), 'ESCI', 3) or s.send('fire dump:2')
+                spent = 500000000 - word(s.result, nb_at)
+                s.poke(s.result.base2 + nb_at, struct.pack('<i', bank))     # (the purchase free)
+                bought.append((ok, bought_name))
+            s.poke(s.result.base2 + nosack_off(os.path.join(b, 'ITALIAN.EXE')), b'\x01\x00')
+            w0 = struct.unpack('<I', bytes(s.result.obj2(fin['D6B9E'][1], 4)))[0] * \
+                struct.unpack('<H', bytes(s.result.obj2(fin['D6CA2'][1], 2)))[0]
+            ok, m = advance(s, season_over, 900)
+            if not ok:
+                errs.append(f'{tag}: season 1: {m}')
+                continue
+            if s.screen().find('FINISCI STAGIONE', exact=True) is not None:
+                press(s, s.screen(), 'FINISCI STAGIONE', wait=3)
+            for _ in range(6):
+                if s.screen().find('CONTINUA CARRIERA', exact=True) is not None:
+                    break
+                press(s, s.screen(), 'CONTINUA') or s.send('fire dump:2')
+            bank1 = word(s.result, nb_at)
+            wend = struct.unpack('<I', bytes(s.result.obj2(fin['D6B9E'][1], 4)))[0] * \
+                struct.unpack('<H', bytes(s.result.obj2(fin['D6CA2'][1], 2)))[0]       # (the season-end W: option C)
+            press(s, s.screen(), 'CONTINUA CARRIERA', wait=3)
+            memo = False
+            for _ in range(12):
+                scr = s.screen()
+                s.log.append(f'[ns] {scr}')
+                if 'TRASFERIMENTI' in scr.texts():
+                    break
+                memo = memo or any(ffp.MEMO[UI][1][:10].encode('latin-1') in r for r in scr.raw)
+                press(s, scr, 'CONTINUA') or s.send('fire dump:2')
+            v = ffp_read(s, ff)
+            w = struct.unpack('<I', bytes(s.result.obj2(fin['D6B9E'][1], 4)))[0] * \
+                struct.unpack('<H', bytes(s.result.obj2(fin['D6CA2'][1], 2)))[0]
+            i_ = v['iprev']
+            over = i_ and wend * 100 > ffp.LIMIT * i_
+            want = ((wend - i_ * ffp.LIMIT // 100) // 2) // 1000 * 1000 if over else 0
+            check(v['block'] == (1 if over else 0) and v['fine'] == want, f'{tag}: block {v["block"]} fine {v["fine"]}, '
+                  f'want {int(bool(over))} / {want} (W {w} I {i_})', errs)
+            check(memo == bool(over), f'{tag}: memo {memo} with over {bool(over)}', errs)
+            if n == 1:
+                check(not over, f'{tag}: one star sanctioned (W {wend} I {i_})', errs)
+            check(v['nch'] > 0, f'{tag}: the season\'s charges not kept {v}', errs)
+            check(len(bought) == n and all(x[0] for x in bought), f'{tag}: bought {bought}', errs)
+            notes.append(f'{tag}: bought {bought}; W at the start {w0 / 1e6:.2f} M, at the season end {wend / 1e6:.2f} M, new season '
+                         f'{w / 1e6:.2f} M; I {i_ / 1e6:.2f} M; W/I {(wend / i_ if i_ else 0):.1%}; block {v["block"]} fine '
+                         f'{v["fine"] / 1e6:.3f} M; balance before the season start {bank1 / 1e6:.2f} M, after '
+                         f'{word(s.result, nb_at) / 1e6:.2f} M')
+    return not errs, '; '.join(errs + notes)
+
+
 if __name__ == '__main__':
     sys.exit(main(sys.argv[1:]))
 

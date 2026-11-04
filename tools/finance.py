@@ -35,6 +35,9 @@ ROW = {'it': 'SPONSOR E DIRITTI TV:', 'en': 'SPONSORS + TV RIGHTS:', 'fr': 'SPON
        'de': 'SPONSOREN + TV-RECHTE:'}           # the statement's row (Davide, 02/11)
 WAGE_MUL, WAGE_DIV = 11, 10                 # + 1.1 x the season's wage bill
 MAXDIV = 32                                 # (levels table: divisions per league)
+FF_SIZE = 21                                # 4.0.6 FFP's saved item (FF_ST .. FF_FINE, ffp.py; the save ledger)
+LABELS = {}
+SITES = {}
 
 ASM = r"""
 fi_charge:                              ; replaces `add word [C1750DA], 1` in cseg_94DB1's charge loop
@@ -78,6 +81,7 @@ fi_charge:                              ; replaces `add word [C1750DA], 1` in cs
     xor edx, edx
     mov ebx, WAGE_DIV_
     div ebx
+    add [FF_TVW], eax                   ; (4.0.6 FFP: the season's wage-linked share, not income for its ratio)
     add eax, ecx
     add [SPONS], eax                    ; SPONSORSHIP
     add [NEWBAL], eax
@@ -91,6 +95,11 @@ GATE_FORCE
     mov dword [D7], 0FFFFh              ; saturated, not wrapped
 .and:
     and dword [D7], 0FFFFh
+    push eax                            ; (4.0.6 FFP: the season's gates, ffp.py)
+    mov eax, [D7]
+    shl eax, 4
+    add [FF_INC], eax
+    pop eax
     jmp GATE_BACK
 
 fi_stmt:                                ; replaces `mov eax, [D6B88]; mov [D1], eax` (the in-season statement's total)
@@ -130,6 +139,18 @@ FI_ROW: ROW_DB
 FI_BASE: BASE_DD
 FI_LV: LV_DB
     dd 0
+
+align 4
+    db 'FFPS'                           ; (the harness's tag)
+FF_ST:                                  ; 4.0.6 FFP (ffp.py): the engine item 'FF', 21 bytes
+FF_ON: db 0                             ; 1 = the rule is on (a new career; an old save: 0 = off)
+FF_BLOCK: db 0                          ; 1 = sanctioned this season: purchases refused while over the limit
+FF_VALID: db 0                          ; 1 = FF_INC covers the whole season (0: an old save loaded mid-season)
+FF_INC: dd 0                            ; the season's gate receipts so far (the weekly statement resets its own)
+FF_IPREV: dd 0                          ; last season's income I (0: none of ours)
+FF_FINE: dd 0                           ; the fine taken at this season's start
+FF_TVW: dd 0                            ; the season's TV credit share paid for the wages (1.1 x W: Davide 04/11 B)
+FF_NCH: dw 0                            ; the season's match charges (D6CA2): the season-end W (Davide 04/11 C)
 """
 
 
@@ -184,6 +205,8 @@ def patch(p, at, lang):
     """Code + tables at obj3:at; returns the end."""
     import sacups
     s = find(p)
+    SITES.clear()
+    SITES.update(s)                                     # (ffp.py: the variables, found before these sites change)
     d = p.le.obj_bytes(1)
     assert s['SPONS'] == (2, s['D6B88'][1] + 8), (s['SPONS'], s['D6B88'])   # D6B88, competitionBonuses, sponsorship
     for k, n in (('charge', 8), ('gate', 10), ('stmt', 10)):
@@ -205,6 +228,8 @@ def patch(p, at, lang):
     src = nasmcave.sub(src, 'ROW_DB', 'db ' + ', '.join(str(c) for c in ROW[lang].encode('ascii') + b'\0'))
     code, fix, rel = nasmcave.assemble_obj(src, at, sym, 3)
     lab = nasmcave.labels(src, at, sym)
+    LABELS.clear()
+    LABELS.update(lab)
     assert not any(p.get(3, at, len(code)))
     p.put(3, at, code)
     for o, t_obj, t_off in fix:

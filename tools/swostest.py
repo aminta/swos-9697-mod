@@ -24693,8 +24693,9 @@ def ffp_season():
 @scenario
 def ffp_star():
     """4.0.6 FFP, a big club's real spending (Davide 04/11): an OFFER_FORCE build (every offer accepted) of the World
-    2026-27 (W2627REL_DATA), a REAL MADRID career; FFP_STAR (default 1,3) = the number of BARCELONA players bought at the
-    season's start (squad rows 1.., ACQ. ALTRO GIOCAT. NAZION. > LALIGA > BARCELONA; the bank poked to 500 M before each
+    2026-27 (W2627REL_DATA), a REAL MADRID career; FFP_STAR (default 1,3) = the number of BARCELONA stars bought at the
+    season's start (FFP_STAR_ROWS<n>: squad rows, default 6 = YAMAL / 10, 8, 6 = RAPHINHA, PEDRI, YAMAL; ACQ. ALTRO
+    GIOCAT. NAZION. > LALIGA > BARCELONA; the bank poked to 500 M before each
     offer, put back after: the purchase costs nothing), season 1 played, CONTINUA CARRIERA: W (the new season's wage
     bill), I (FF_IPREV), the ratio; over the limit <=> FF_BLOCK, FF_FINE = half the wages over 0.35 x I (thousands); the
     balance before / after the fine logged. Davide's check: one star = no sanction."""
@@ -24733,8 +24734,12 @@ def ffp_star():
                 walk(s, 4, 3)                              # ACQ. ALTRO GIOCAT. NAZION.
                 walk(s, 'LALIGA', 3)
                 walk(s, 'BARCELONA', 3)
-                walk(s, 4 + k, 4)                          # its (k+1)-th player row
-                sc = s.screen()
+                rows = [int(x) for x in os.environ.get(f'FFP_STAR_ROWS{n}', {1: '6', 3: '10,8,6'}.get(n, '6')).split(',')]
+                walk(s, 3 + rows[k], 4)                    # squad row r = entry 3 + r: the stars (YAMAL 6, PEDRI 8,
+                sc = s.screen()                            # RAPHINHA 10 - price index 45-46), the last row first
+                s.log.append(f'[offer] {sc}')
+                bought_name = next((t for t in sc.texts() if t and t.isupper() and ' ' in t and len(t) > 6
+                                    and t not in ("FAI UN'OFFERTA",)), '?')
                 for key in (sc.path(9) or []):
                     s.send(key + ' dump:0.5')
                 ans = xtra_bid(s)
@@ -24745,7 +24750,7 @@ def ffp_star():
                     press(s, s.screen(), 'CONTINUA', 3) or press(s, s.screen(), 'ESCI', 3) or s.send('fire dump:2')
                 spent = 500000000 - word(s.result, nb_at)
                 s.poke(s.result.base2 + nb_at, struct.pack('<i', bank))     # (the purchase free)
-                bought.append((ok, spent))
+                bought.append((ok, bought_name))
             s.poke(s.result.base2 + nosack_off(os.path.join(b, 'ITALIAN.EXE')), b'\x01\x00')
             w0 = struct.unpack('<I', bytes(s.result.obj2(fin['D6B9E'][1], 4)))[0] * \
                 struct.unpack('<H', bytes(s.result.obj2(fin['D6CA2'][1], 2)))[0]

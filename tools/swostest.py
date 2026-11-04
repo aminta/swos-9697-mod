@@ -21877,6 +21877,447 @@ def xtra_buy_first(s):
     return tx
 
 
+def cpurefill_vars(exe):
+    """cpurefill.py's variables in the build's obj3 (after its 'CRFL' mark): (cr_mode, cr_count) as Off3, or None."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lepatch
+    p = lepatch.LEPatch(os.path.join(exe, 'ITALIAN.EXE'))
+    if len(p.le.objs) < 3:
+        return None
+    k = p.le.obj_bytes(3).find(b'CRFL')
+    return (Off3(k + 4), Off3(k - 15 * 4 - 4)) if k >= 0 else None
+
+
+NEW_BALANCE = 0x16cb2            # newBalance (obj2, dd; cseg_580EF's 'mov eax, newBalance'), the IT CD exe: our club's money
+
+
+def cpurefill_cl_sites():
+    """obj2 offsets of the CPU squads' change list (AddCareerPoolPlayer: numForeignMarketPlayers2, careerForeignMarketPlayers)
+    in the original IT exe, as xleft.sites finds them: {'nfm2', 'cfmp'}."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import sacups
+    from le import LE
+    d1 = LE(open(os.path.join(ROOT, 'orig', 'ITALIAN.EXE'), 'rb').read()).obj_bytes(1)
+    a6 = sacups.regs(d1)['A0'] + 24
+    m = [x for x in re.finditer(rb'\x66\x83\x05(....)\x01\x66\x83\x05(....)\x01\xc6\x05....\xff\xc3', d1, re.S)]
+    assert len(m) == 1, ('AddCareerPoolPlayer', m)
+    k = d1.rfind(b'\xc7\x05' + struct.pack('<I', a6), m[0].start() - 0xc0, m[0].start())
+    return {'nfm2': struct.unpack('<I', m[0].group(1))[0], 'cfmp': struct.unpack_from('<I', d1, k + 6)[0]}
+
+
+def cpurefill_club(exe, club):
+    """(team word, [its 16 record players], [its XTRA block, 38 bytes each, blanks kept]) from the build's DATA."""
+    team, _ = xtra_club_block(exe, club)
+    nnn, k = team & 255, team >> 8
+    d = open(os.path.join(exe, 'DATA', 'TMW5.%03d' % nnn), 'rb').read()
+    rec = [d[2 + k * 684 + 76 + 38 * j:2 + k * 684 + 76 + 38 * (j + 1)] for j in range(16)]
+    x = open(os.path.join(exe, 'DATA', 'XTW5.%03d' % nnn), 'rb').read()
+    e = x[2]
+    blk = [x[3 + (k * e + j) * 38:3 + (k * e + j + 1) * 38] for j in range(e)]
+    return team, rec, blk
+
+
+def cpurefill_pick(rec, blk, idx, gone=()):
+    """cpurefill.py's FROM SQUAD rule in Python: the extra index (16..) that replaces record place idx, or None. gone =
+    extra indexes not there (bought / promoted / on the home market)."""
+    grp = lambda q: 0 if q == 0 else 1 if q <= 3 else 2 if q <= 6 else 3
+    nm = lambda b: b[3:26].split(b'\0')[0]
+    pos = rec[idx][0x1A] >> 5
+    best, key = None, -1
+    for k, b in enumerate(blk):
+        q = b[0x1A] >> 5
+        if not b[3] or 16 + k in gone or (pos == 0) != (q == 0) or nm(b) in [nm(x) for x in rec]:
+            continue
+        kk = (0x100 if grp(q) == grp(pos) else 0) + b[0x20]
+        if kk > key:
+            best, key = 16 + k, kk
+    return best
+
+
+def cpurefill_names(exe):
+    """Every player name of the build's World 2026-27 data (TMW5 records + XTW5 blocks): an invented one is in none."""
+    out = set()
+    for fn in os.listdir(os.path.join(exe, 'DATA')):
+        d = open(os.path.join(exe, 'DATA', fn), 'rb').read()
+        if fn.startswith('TMW5.') and fn[5:].isdigit():
+            for k in range(struct.unpack('>H', d[:2])[0]):
+                out |= {d[2 + k * 684 + 76 + 38 * j + 3:2 + k * 684 + 76 + 38 * j + 26].split(b'\0')[0] for j in range(16)}
+        elif fn.startswith('XTW5.') and fn[5:].isdigit():
+            out |= {d[3 + 38 * j + 3:3 + 38 * j + 26].split(b'\0')[0] for j in range((len(d) - 3) // 38)}
+    return out
+
+
+def cpurefill_button(scr):
+    """The ACQUISTA GIOCATORE menu's switch (entry 8): (the text as drawn, invisible, (x, y, w, h)) or None."""
+    if len(scr.entries) <= 8:
+        return None
+    return scr.raw_texts[8], bool(scr.entries[8][2]), scr.geom[8]
+
+
+@scenario
+def xtra_cpu_refill():
+    """4.0.6 the CPU replacements switch (cpurefill.py, Davide 03/11 after Nicola's MILAN purchases), the release recipe
+    (SWOSTEST_BUILD, World 2026-27). A new INTER career: TRASFERIMENTI > ACQUISTA GIOCATORE shows the switch right of ESCI,
+    INVENTED (cr_mode 0); fire -> FROM SQUAD (1). The home market poked with MILAN's best extra for place 11; CAMARDA (place
+    11, A) bought through ACQ. ALTRO GIOCAT. NAZION. > SERIE A > MILAN: the CPU change list's last entry (MILAN, 10) and the
+    record slot hold the rule's NEXT pick (cpurefill_pick: no attacker among the extras -> the best outfield one; the market
+    one skipped), listed as gone (XS), cr_count 1; MAIGNAN (place 1, P) bought: a goalkeeper extra replaces him. Saved,
+    reloaded: cr_mode 1, the change list kept, MILAN's record (browsed again) holds both; then a NEW career at INTER:
+    cr_mode 0, CAMARDA bought -> an invented name (in no World 2026-27 data file), no new XS entry, cr_count unchanged.
+    Shots of the menu (both values) and of MILAN's pages before / after (the visual tour)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import cpurefill
+    import lepatch
+    import xtra
+    exe = builds()['it']
+    v = cpurefill_vars(exe)
+    if not v:
+        return False, 'no CRFL mark in obj3 (a build without cpurefill.py)'
+    mode_at, count_at = v
+    p = lepatch.LEPatch(os.path.join(exe, 'ITALIAN.EXE'))
+    _, cnp, ct, cmp, sel = xtra.sites(p)
+    xs = cpurefill_cl_sites()
+    nh, hm = home_market_sites()
+    team, rec, blk = cpurefill_club(exe, 'MILAN')
+    nm = lambda b: b[3:26].split(b'\0')[0].decode('latin1')
+    t0, t1 = cpurefill.TEXTS['it']
+    path = ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27', 'EUROPA', 'ITALIA', 'SERIE A', 'INTER']
+    errs, info = [], []
+    b8 = lambda r, a: r.read(r.lin(a), 1)[0]
+    d32 = lambda r, a: struct.unpack('<I', r.read(r.lin(a), 4))[0]
+
+    def last_change(r):                                 # (team, index, name) of the CPU change list's last entry
+        n = struct.unpack('<H', r.obj2(xs['nfm2'], 2))[0]
+        e = r.obj2(xs['cfmp'] + (n - 1) * 42, 42) if n else bytes(42)
+        return n, struct.unpack_from('<H', e)[0], e[2], nm(e[4:])
+
+    def changes(r):
+        n = struct.unpack('<H', r.obj2(xs['nfm2'], 2))[0]
+        d = r.obj2(xs['cfmp'], 42 * n)
+        return [(struct.unpack_from('<H', d, 42 * i)[0], d[42 * i + 2], nm(d[42 * i + 4:])) for i in range(n)]
+
+    def leave(s):
+        for _ in range(10):
+            if 'PROSS. PARTITA' in s.screen().texts():
+                return
+            press(s, s.screen(), 'CONTINUA', 3) or press(s, s.screen(), 'ESCI', 3) or s.send('fire dump:2')
+
+    def start(s):
+        p_ = path
+        if 'ABBANDONA' in s.screen().texts() or (press(s, s.screen(), 'CARRIERA', 3) is not None and
+                                                  'ABBANDONA' in s.screen().texts()):
+            press(s, s.screen(), 'ABBANDONA', 3)        # (a career loaded: CARRIERA asks CONTINUA / ABBANDONA first)
+            for _ in range(4):
+                if 'SCEGLI SQUADRA' in s.screen().texts():
+                    break
+                press(s, s.screen(), 'SI', 3) or press(s, s.screen(), 'CONTINUA', 3) or s.send('fire dump:2')
+            p_ = path[1:]
+        elif 'SCEGLI SQUADRA' in s.screen().texts():
+            p_ = path[1:]
+        if not pick_career(s, p_):
+            return False
+        s.send('fire dump:3')
+        leave(s)
+        return True
+
+    def buy_menu(s):
+        walk(s, 'TRASFERIMENTI', 3)
+        walk(s, 2, 3)
+        return s.screen()
+
+    def milan(s, tag):                                  # career menu -> MILAN's club browse, both pages shot, back
+        scr = buy_menu(s)
+        walk(s, 4, 3)
+        walk(s, 'SERIE A', 3)
+        walk(s, 'MILAN', 3)
+        s.shot(tag + '_p1')
+        if press(s, s.screen(), 'PAG. SUCC.', 3) is not None:
+            s.shot(tag + '_p2')
+            press(s, s.screen(), 'PAG. PREC.', 3)
+
+    def buy(s, place, tag):                             # place 1..16 of MILAN's page 1
+        milan(s, tag + '_pre')
+        walk(s, 2 + place, 4)
+        tx = s.screen().texts()
+        if "FAI UN'OFFERTA" not in tx:
+            leave(s)
+            return f'no offer screen: {tx[:6]}'
+        s.poke(s.result.base2 + NEW_BALANCE, struct.pack('<I', 100000000))   # (forced: the offer is capped at our balance
+        # - cseg_580EF - and MILAN refuses one 20% under its price - cseg_584D7: MAIGNAN after CAMARDA, cr2's draw)
+        ans = xtra_bid(s)
+        s.shot(tag + '_answer')
+        leave(s)
+        return ans
+
+    def to_main(s):
+        for _ in range(6):
+            if s.screen().find('SALVA CARRIERA', exact=True) is not None:
+                return
+            press(s, s.screen(), 'ESCI', 3) or press(s, s.screen(), 'ABBANDONA', 3)
+
+    car = None
+    with Session('cpurefill_on', exe, {}, 'dump:2', 900) as s:
+        s.wait()
+        if not start(s):
+            return False, 'new career: ' + str(s.screen().texts()[:8])
+        r = s.result
+        check(b8(r, mode_at) == 0, f'new career: cr_mode {b8(r, mode_at)}', errs)
+        scr = buy_menu(s)
+        b = cpurefill_button(scr)
+        s.shot('menu_invented')
+        check(b is not None and b[0] == t0 and not b[1], f'the switch: {b}', errs)
+        walk(s, 8, 3)
+        b = cpurefill_button(s.screen())
+        s.shot('menu_squad')
+        r = s.result
+        check(b is not None and b[0] == t1 and b8(r, mode_at) == 1, f'after fire: {b}, cr_mode {b8(r, mode_at)}', errs)
+        leave(s)
+        k1 = cpurefill_pick(rec, blk, 10)
+        r = s.result
+        s.poke(r.base2 + hm, struct.pack('<HBB', team, k1, 0))       # MILAN's best for place 11 on the home market
+        s.poke(r.base2 + nh, struct.pack('<H', 1))
+        k2 = cpurefill_pick(rec, blk, 10, {k1})
+        info.append(f'place 11 (A): best {nm(blk[k1 - 16])} ({k1}, on the market), so {nm(blk[k2 - 16])} ({k2})')
+        ans = buy(s, 11, 'camarda')
+        r = s.result
+        n, tm, ix, who = last_change(r)
+        check((tm, ix, who) == (team, 10, nm(blk[k2 - 16])), f'CAMARDA: change list last ({tm:#x}, {ix}, {who}) '
+              f'!= ({team:#x}, 10, {nm(blk[k2 - 16])}); answer {str(ans)[:80]}', errs)
+        lst, raw = xleft_lists(s, exe)
+        check((team, k2) in lst and (team, k1) not in lst, f'XS / XL after CAMARDA: {raw}', errs)
+        check(d32(r, count_at) == 1, f'cr_count {d32(r, count_at)}', errs)
+        sq = [r.obj2(ct + 76 + j * 38 + 3, 23).split(b'\0')[0].decode('latin1') for j in range(32)]
+        check('FRANCESCO CAMARDA' in sq, 'CAMARDA not in our squad', errs)
+        kg = cpurefill_pick(rec, blk, 0, {k2})
+        ans = buy(s, 1, 'maignan')
+        r = s.result
+        n, tm, ix, who = last_change(r)
+        if kg is None:
+            check(who not in [nm(x) for x in blk], f'MAIGNAN: no goalkeeper extra, yet {who}', errs)
+        else:
+            check((tm, ix, who) == (team, 0, nm(blk[kg - 16])) and blk[kg - 16][0x1A] >> 5 == 0,
+                  f'MAIGNAN: change list last ({tm:#x}, {ix}, {who}), expected the goalkeeper {nm(blk[kg - 16])}; '
+                  f'answer {str(ans)[:80]}', errs)
+        info.append(f'place 1 (P): {who}')
+        milan(s, 'after')
+        before = changes(s.result)
+        to_main(s)
+        walk(s, 'SALVA CARRIERA', 2)
+        s.send(name_entry('CRON') + ' dump:3')
+        car = os.path.join(s.run, 'SWOS', 'CRON.CAR')
+    if not car or not os.path.exists(car):
+        return False, '; '.join(errs + ['no CRON.CAR'])
+    names = cpurefill_names(exe)
+    with Session('cpurefill_reload', exe, {'CRON.CAR': car}, 'dump:2', 900) as s:
+        s.wait()
+        s.send(LOAD1 + ' dump:3')
+        r = s.result
+        check(b8(r, mode_at) == 1, f'reload: cr_mode {b8(r, mode_at)}', errs)
+        check(changes(r) == before, f'reload: change list {changes(r)[-3:]} != {before[-3:]}', errs)
+        milan(s, 'reload')
+        mem = s.result.mem
+        got = []
+        a = mem.find(b'MILAN\0')
+        while a >= 0:
+            q = a - 5
+            if struct.unpack_from('<H', mem, q)[0] == team:
+                got.append((nm(mem[q + 76 + 380:q + 76 + 418]), nm(mem[q + 76:q + 76 + 38])))
+            a = mem.find(b'MILAN\0', a + 1)
+        check((nm(blk[k2 - 16]), nm(blk[kg - 16]) if kg else got[0][1] if got else '') in got,
+              f'reload: MILAN record copies (place 11, place 1) {got}', errs)
+        info.append(f'reload: MILAN copies {got}')
+        to_main(s)
+        if not start(s):
+            return False, '; '.join(errs + ['second career: ' + str(s.screen().texts()[:8])])
+        r = s.result
+        check(b8(r, mode_at) == 0, f'a new career after a FROM SQUAD one: cr_mode {b8(r, mode_at)}', errs)
+        scr = buy_menu(s)
+        b = cpurefill_button(scr)
+        check(b is not None and b[0] == t0, f'new career: the switch {b}', errs)
+        leave(s)
+        c0 = d32(s.result, count_at)
+        lst0, _ = xleft_lists(s, exe)
+        ans = buy(s, 11, 'invented')
+        r = s.result
+        n, tm, ix, who = last_change(r)
+        lst1, raw1 = xleft_lists(s, exe)
+        check((tm, ix) == (team, 10) and who not in [nm(x) for x in blk] and who != 'FRANCESCO CAMARDA',
+              f'INVENTED: change list last ({tm:#x}, {ix}, {who}) - expected an invented player, not an extra; answer '
+              f'{str(ans)[:80]}', errs)                 # (cseg_52B6A: a first name and a surname of random players - the
+        info.append(f'invented name in the data: {who.encode("latin1") in names}')   # same one twice = a real name)
+        check([x for x in lst1 if x[0] == team] == [x for x in lst0 if x[0] == team], f'INVENTED: XS changed {raw1}', errs)
+        check(d32(r, count_at) == c0, f'INVENTED: cr_count {c0} -> {d32(r, count_at)}', errs)
+        info.append(f'invented: {who}')
+        milan(s, 'invented_after')
+    return not errs, '; '.join(errs + info)
+
+
+@scenario
+def xtra_cpu_refill_labels():
+    """4.0.6 the CPU replacements switch's labels (cpurefill.TEXTS), SWOSTEST_UI's exe (it / en / fr / de: that language's exe
+    as ITALIAN.EXE in SWOSTEST_BUILD): a World 2026-27 INTER career, TRASFERIMENTI > ACQUISTA GIOCATORE: entry 8 visible, its
+    text = the language's INVENTED label in the small font's characters within the button (121 px, 4 px margins), right of
+    ESCI (entry 7) on its row; fire: the FROM SQUAD label, same checks; shots menu_<lang>_0 / _1. Then (it only) a real
+    1996-97 career (JUVENTUS) and a Europe 1984-85 one (LIVERPOOL): the switch hidden (not World 2026-27)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import complist
+    import cpurefill
+    exe = builds()['it']
+    if not cpurefill_vars(exe):
+        return False, 'no CRFL mark in obj3 (a build without cpurefill.py)'
+    errs, info = [], []
+    font = set(complist.SMALL_W)
+    path = ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27', 'EUROPA', 'ITALIA', 'SERIE A', 'INTER']
+
+    def leave(s):
+        for _ in range(10):
+            if 'PROSS. PARTITA' in s.screen().texts():
+                return
+            press(s, s.screen(), 'CONTINUA', 3) or press(s, s.screen(), 'ESCI', 3) or s.send('fire dump:2')
+
+    def look(scr, want, tag):
+        b = cpurefill_button(scr)
+        if b is None:
+            errs.append(f'{tag}: no entry 8')
+            return
+        txt, inv, (x, y, w, h) = b
+        ex = scr.geom[7]
+        check(not inv and txt == want, f'{tag}: {txt!r} (invisible {inv}), want {want!r}', errs)
+        check(all(c in font for c in txt) and complist.px(txt) <= w - 8, f'{tag}: {txt!r} {complist.px(txt)} px in {w}', errs)
+        check(y == ex[1] and x >= ex[0] + ex[2], f'{tag}: geometry {(x, y, w, h)} vs ESCI {ex}', errs)
+        info.append(f'{tag} {txt!r} {complist.px(txt)}/{w} px')
+
+    with Session('cpurefill_labels_' + UI, exe, {}, 'dump:2', 600) as s:
+        s.wait()
+        if not pick_career(s, path):
+            return False, 'new career: ' + str(s.screen().texts()[:8])
+        s.send('fire dump:3')
+        leave(s)
+        walk(s, 'TRASFERIMENTI', 3)
+        walk(s, 2, 3)
+        s.shot(f'menu_{UI}_0')
+        look(s.screen(), cpurefill.TEXTS[UI][0], 'INVENTED')
+        walk(s, 8, 3)
+        s.shot(f'menu_{UI}_1')
+        look(s.screen(), cpurefill.TEXTS[UI][1], 'FROM SQUAD')
+    if UI == 'it':
+        with Session('cpurefill_labels_9697', exe, {}, 'dump:2', 600) as s:
+            s.wait()
+            walk0 = walk
+
+            def walk9(s_, t, w=3, *a, **k):            # (the main menu's CARRIERA = entry 9; the green 2026-27 button is 4)
+                return walk0(s_, 9 if t == 'CARRIERA' else t, w, *a, **k)
+            globals()['walk'] = walk9
+            try:
+                new_career(s, 'ITALIA', 'SERIE A', 'JUVENTUS')
+            finally:
+                globals()['walk'] = walk0
+            leave(s)
+            walk(s, 'TRASFERIMENTI', 3)
+            walk(s, 2, 3)
+            s.shot('menu_9697')
+            b = cpurefill_button(s.screen())
+            check(b is not None and b[1], f'1996-97 career: the switch {b} (want hidden)', errs)
+            info.append(f'1996-97: hidden {b[1] if b else None}')
+        with Session('cpurefill_labels_8485', exe, {}, 'dump:2', 600) as s:
+            s.wait()
+            for t in ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'EUROPA 1984-85', 'INGHILTERRA', 'FIRST DIVISION',
+                      'LIVERPOOL']:
+                if press(s, s.screen(), t) is None:
+                    return False, '; '.join(errs + [f'1984-85 career: {t} not reached'])
+            s.send('fire dump:3')
+            leave(s)
+            walk(s, 'TRASFERIMENTI', 3)
+            walk(s, 2, 3)
+            s.shot('menu_8485')
+            b = cpurefill_button(s.screen())
+            check(b is not None and b[1], f'1984-85 career: the switch {b} (want hidden)', errs)
+            info.append(f'1984-85: hidden {b[1] if b else None}')
+    return not errs, '; '.join(errs + info)
+
+
+@scenario
+def xtra_cpu_refill_spp():
+    """4.0.6 the CPU replacements switch under SWOS++ 1.9.2.2 (SWOSTEST_UI=en; SWOSPP_BUILD = a World 2026-27 release-recipe
+    dir whose ITALIAN.EXE is the English exe): SWOS++ running; CAREER 2026-27 > INTER (sppm17's one-key-at-a-time feed);
+    TRANSFERS > BUY PLAYER: the switch (entry 8) visible, 'CPU REPL.: INVENTED'; fire -> 'CPU REPL.: FROM SQUAD', cr_mode 1.
+    Shots spp_menu_0 / _1. (No purchase: the timer feed does not raise an offer - see the note at its end.)"""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import cpurefill
+    import swospp
+    if UI != 'en':
+        return True, 'SKIP: SWOS++ is English only (SWOSTEST_UI=en)'
+    b = os.environ.get('SWOSPP_BUILD')
+    if not b or not os.path.isdir(b):
+        return True, 'SKIP: SWOSPP_BUILD not set'
+    v = cpurefill_vars(b)
+    if not v:
+        return False, 'no CRFL mark in obj3 (a build without cpurefill.py)'
+    mode_at, _ = v
+    xs = cpurefill_cl_sites()
+    team, rec, blk = cpurefill_club(b, 'MILAN')
+    nm = lambda x: x[3:26].split(b'\0')[0].decode('latin1')
+    pp = os.path.join(MAIN, 'internal', 'swospp-test')
+    out = os.path.join(WORK, 'builds-x', 'cpurefill_spp' + os.environ.get('SWOSTEST_TAG', ''))
+    shutil.rmtree(out, ignore_errors=True)
+    shutil.copytree(b, out)
+    swospp.install(os.path.join(b, 'ITALIAN.EXE'), os.path.join(out, 'ITALIAN.EXE'))
+    t0, t1 = cpurefill.TEXTS['en']
+    errs, info = [], []
+
+    def go(s, t, w=3):
+        ok = spp_go(s, t, w)
+        if not ok:
+            errs.append(f'{t} not reached: {s.screen().texts()[:10]}')
+        return ok
+
+    def go_i(s, i, w=3):                                # an entry by its index, one key at a time, then fire
+        for _ in range(30):
+            sc = s.screen()
+            if sc.selected == i:
+                s.send(f'fire dump:{w}')
+                return True
+            st = sc.path(i, set(), steps=True)
+            if not st:
+                return None
+            s.send(st[0][0] + ':0.3 dump:0.5')
+        return None
+
+    def leave(s):
+        for _ in range(10):
+            tx = s.screen().texts()
+            if 'PROSS. PARTITA' in tx:
+                return
+            spp_go(s, 'CONTINUA', 3) or spp_go(s, 'ESCI', 3) or s.send('fire dump:2')
+
+    with Session('cpurefill_spp', out, {'LOADER.BIN': os.path.join(pp, 'loader.bin'),
+                                        'SWOSPP.BIN': os.path.join(pp, 'swospp.bin')}, 'dump:3', 900, timer=True) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'START: no first pause ({s.result})'
+        on, why = swospp_on(s.result, os.path.join(out, 'ITALIAN.EXE'))
+        check(on, f'SWOS++ not running: {why}', errs)
+        for t in ['CAREER 2026-27', 'SCEGLI SQUADRA', 'EUROPA', 'ITALIA', 'SERIE A', 'INTER']:
+            if not go(s, t):
+                return False, '; '.join(errs)
+        s.send('fire dump:3')
+        leave(s)
+        go(s, 'TRASFERIMENTI')
+        go_i(s, 2)
+        s.shot('spp_menu_0')
+        bt = cpurefill_button(s.screen())
+        check(bt is not None and bt[0] == t0 and not bt[1], f'the switch under SWOS++: {bt}', errs)
+        go_i(s, 8)
+        s.shot('spp_menu_1')
+        bt = cpurefill_button(s.screen())
+        r = s.result
+        check(bt is not None and bt[0] == t1 and r.read(r.lin(mode_at), 1)[0] == 1,
+              f'after fire: {bt}, cr_mode {r.read(r.lin(mode_at), 1)[0]}', errs)
+        info.append(f'SWOS++: switch {t0!r} -> {t1!r}, cr_mode 1')   # (the purchase itself: not driven here - under
+        # SWOS++'s timer feed the offer's fire+right raise does not register and MILAN refuses the asked price;
+        # the promotion runs in the purchase's tail, the same code with or without SWOS++: xtra_cpu_refill)
+    return not errs, '; '.join(errs + info)
+
+
 def xleft_lists(s, exe):
     """[(team, index)] of the build's 'XTRA players who left' lists in memory: xtra's XS (+ xleft's XL when built)."""
     import lepatch

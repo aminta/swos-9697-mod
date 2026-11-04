@@ -24460,6 +24460,154 @@ def fin_statement():
     return not errs, '; '.join(errs) or '; '.join(info)
 
 
+def ffp_sites(exe_dir):
+    """ffp in a built exe: FF_ST (obj3, after the tag 'FFPS': FF_ON, FF_BLOCK, FF_VALID, -, FF_INC, FF_IPREV, FF_FINE),
+    the finance variables (finance.find on the exe language's original) and the game's message 1 (ffp.message)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import finance
+    import ffp
+    import lepatch
+    p = lepatch.LEPatch(os.path.join(exe_dir, 'ITALIAN.EXE'))
+    d3 = bytes(p.get(3, 0, 0x1000 * p.le.obj(3).npages))
+    assert d3.count(b'FFPS') == 1, d3.count(b'FFPS')
+    o = lepatch.LEPatch(os.path.join(MAIN, 'orig', UI_ORIG))
+    finance.SITES.clear()
+    return (3, d3.index(b'FFPS') + 4), finance.find(o), ffp.message(o, 1)
+
+
+def ffp_read(s, ff):
+    """{on, block, valid, inc, iprev, fine}"""
+    v = struct.unpack('<BBBxIII', bytes(s.result.read(s.result.lin(ff), 16)))
+    return dict(zip(('on', 'block', 'valid', 'inc', 'iprev', 'fine'), v))
+
+
+@scenario
+def ffp_season():
+    """4.0.6 (Marco): financial fair play (ffp.py). A new career at ST. ANDREWS (Malta, 1984-85: 18 matches), the
+    chairman's no-sacking switch poked, season 1 played, CONTINUA CARRIERA (FFP_MODES, default all):
+    over (FFP_FORCE=over build: the limit 0) - FF_ON / FF_VALID set by the new career, FF_INC counting the gates; at
+    the season start the memo ffp.MEMO[lang] (%a / %b filled, the fine's digits) within its rows, font characters, a
+    screenshot; FF_BLOCK 1, FF_FINE = half the squad's season wages (D6B9E x D6CA2) in thousands, FF_IPREV > 0; the
+    season-start statement (ANDAMENTO CLUB) old + total = new; TRASFERIMENTI > ACQUISTA GIOCATORE = the game's message 1
+    (purchases refused), a screenshot; off - the same build, FF_ON poked 0 after the career's start: no memo, no
+    block, no fine, ACQUISTA GIOCATORE opens the market; real (SWOSTEST_BUILD, the 35 % limit): a small club - no memo,
+    no block (W / I logged); oldsave - JUVE2F (no 'FF') loads FF_ON 0"""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import ffp
+    from complist import px, SMALL_W
+    errs, notes = [], []
+    money = lambda t: (-1 if t.lstrip().startswith('-') else 1) * int(re.sub(r'\D', '', t) or 0)
+    l1, l2 = ffp.MEMO[UI]
+    key1 = l1.split('%a')[1][:14] if l1.startswith('%a') else l1.split('%a')[0].strip()
+    for mode in os.environ.get('FFP_MODES', 'over,off,real,oldsave').split(','):
+        if mode == 'real':
+            b = builds()['it']
+        elif mode == 'oldsave':
+            b = builds()['it'] if UI == 'it' else build(f'ffp_ui_{UI}', lang=UI)
+        else:
+            b = build(f'ffp_over_{UI}', env={'FFP_FORCE': 'over'}, lang=UI)
+        ff, fin, msg1 = ffp_sites(b)
+        tag = f'{mode}_{UI}'
+        if mode == 'oldsave':
+            with Session(f'ffp_oldsave_{UI}', b, {'JUVE2F.CAR': juve2(True)}, 'dump:2', 120) as s:
+                if s.wait().outcome != 'dump':
+                    errs.append(f'{tag}: no first pause ({s.result})')
+                    continue
+                s.send('down down down down down fire dump:2')
+                s.send('fire dump:3')
+                v = ffp_read(s, ff)
+                check('TRASFERIMENTI' in s.screen().texts(), f'{tag}: no career menu after the load {s.screen()}', errs)
+                check(v['on'] == 0 and v['block'] == 0, f'{tag}: an old save not OFF {v}', errs)
+                notes.append(f'{tag}: {v}')
+            continue
+        with Session(f'ffp_{tag}', b, {}, 'dump:2', 900) as s:
+            if s.wait().outcome != 'dump':
+                errs.append(f'{tag}: no first pause ({s.result})')
+                continue
+            for t in ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'EUROPA 1984-85', 'MALTA', 'ST. ANDREWS']:
+                if press(s, s.screen(), t) is None or s.result.outcome != 'dump':
+                    errs.append(f'{tag}: new career: {t} not reached ({s.result})')
+                    break
+            else:
+                v0 = ffp_read(s, ff)
+                check(v0['on'] == 1 and v0['valid'] == 1, f'{tag}: a new career not ON / counted {v0}', errs)
+                if mode == 'off':
+                    s.poke(s.result.lin(ff), b'\0')
+                s.poke(s.result.base2 + nosack_off(os.path.join(b, 'ITALIAN.EXE')), b'\x01\x00')
+                ok, m = advance(s, season_over, 600)
+                if not ok:
+                    errs.append(f'{tag}: season 1: {m}')
+                    continue
+                v1 = ffp_read(s, ff)
+                check(v1['inc'] > 0, f'{tag}: no gates counted {v1}', errs)
+                if s.screen().find('FINISCI STAGIONE', exact=True) is not None:
+                    press(s, s.screen(), 'FINISCI STAGIONE', wait=3)
+                for _ in range(6):
+                    if s.screen().find('CONTINUA CARRIERA', exact=True) is not None:
+                        break
+                    press(s, s.screen(), 'CONTINUA') or s.send('fire dump:2')
+                if press(s, s.screen(), 'CONTINUA CARRIERA', wait=3) is None:
+                    errs.append(f'{tag}: no CONTINUA CARRIERA on {s.screen()}')
+                    continue
+                memo, wage = None, None
+                for _ in range(12):
+                    scr = s.screen()
+                    s.log.append(f'[ns] {scr}')
+                    if 'TRASFERIMENTI' in scr.texts():   # (the new season's wages: as at the season start's check)
+                        wage = struct.unpack('<I', bytes(s.result.obj2(fin['D6B9E'][1], 4)))[0] * \
+                            struct.unpack('<H', bytes(s.result.obj2(fin['D6CA2'][1], 2)))[0]
+                        break
+                    hit = [j for j, (_, t, inv, _) in enumerate(scr.entries) if t and key1 in t]
+                    if hit and memo is None:
+                        j = hit[0]
+                        memo = (scr.entries[j][1], scr.entries[j + 1][1], scr.geom[j][2], scr.geom[j + 1][2])
+                        s.shot(f'memo_{tag}')
+                    press(s, scr, 'CONTINUA') or s.send('fire dump:2')
+                else:
+                    errs.append(f'{tag}: the new season\'s career menu not reached')
+                    continue
+                v2 = ffp_read(s, ff)
+                if mode == 'over':
+                    check(memo is not None, f'{tag}: no memo', errs)
+                    if memo:
+                        a, b2, w1, w2 = memo
+                        check(key1 in a and b2.startswith(l2.split('%b')[0]), f'{tag}: memo {a!r} / {b2!r}', errs)
+                        check(px(a) <= w1 and px(b2) <= w2, f'{tag}: memo wider than its rows {px(a)} / {px(b2)} > '
+                              f'{w1} / {w2}', errs)
+                        check(set(a + b2) <= set(SMALL_W) | {' '}, f'{tag}: memo non-font characters '
+                              f'{sorted(set(a + b2) - set(SMALL_W) - {" "})}', errs)
+                        check(re.search(r'\d', b2) is not None, f'{tag}: no amount in {b2!r}', errs)
+                    want = (wage // 2) // 1000 * 1000
+                    check(v2['fine'] == want and want > 0, f'{tag}: fine {v2["fine"]} != half the wages {wage}: {want}', errs)
+                    check(v2['block'] == 1 and v2['iprev'] > 0, f'{tag}: not sanctioned {v2}', errs)
+                    press(s, s.screen(), 'ANDAMENTO CLUB', 3)
+                    scr = s.screen()
+                    raw = {x[0]: scr.raw[j].decode('latin-1') for j, x in enumerate(scr.entries)}
+                    vis = {x[0] for x in scr.entries if not x[2]}
+                    if {12, 20, 21} <= vis:
+                        o_, t_, n_ = money(raw[12]), money(raw[20]), money(raw[21])
+                        check(o_ + t_ == n_, f'{tag}: statement old {o_} + total {t_} != new {n_}', errs)
+                    else:
+                        notes.append(f'{tag}: statement rows {sorted(vis)}')
+                    s.shot(f'statement_{tag}')
+                    press(s, scr, 'CONTINUA', 2)
+                else:
+                    check(memo is None, f'{tag}: a memo {memo}', errs)
+                    check(v2['block'] == 0 and v2['fine'] == 0, f'{tag}: sanctioned {v2}', errs)
+                if 'TRASFERIMENTI' in s.screen().texts():
+                    walk(s, 'TRASFERIMENTI', 3)
+                    walk(s, 2, 3)                              # ACQUISTA GIOCATORE
+                    scr = s.screen()
+                    refused = any(t and msg1[1][:12] in t for t in scr.texts())
+                    s.shot(f'buy_{tag}')
+                    check(refused == (mode == 'over'), f'{tag}: ACQUISTA GIOCATORE '
+                          f'{"refused" if refused else "open"}: {scr}', errs)
+                else:
+                    errs.append(f'{tag}: no career menu for the purchase test {s.screen()}')
+                ratio = f'{wage / v2["iprev"]:.1%}' if wage and v2['iprev'] else '-'
+                notes.append(f'{tag}: {v1} -> {v2} memo {memo[:2] if memo else None} W {wage} W/I {ratio}')
+    return not errs, '; '.join(errs + notes)
+
 
 if __name__ == '__main__':
     sys.exit(main(sys.argv[1:]))

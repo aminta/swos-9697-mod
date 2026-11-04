@@ -119,6 +119,13 @@ career starts with INVENTED. Older saves load with INVENTED.
 - **Transfer market keeps its place** (reported by Enzo). When you look at a player in the national or foreign market list (MAKE OFFER) and come back with EXIT, the list stays on the page you were on, with the cursor on that player, instead of jumping back to the first page.
 - **Groups list.** When you pick a division split into groups (Serie C, Serie D, Argentina's Zona A / B, El Salvador's Segunda / Tercera, ...) the list of groups now opens on the first group (GIRONE A), both when you choose your club and in VIEW WORLD. EXIT still takes you back with the cursor on the division you came from.
 - **Version label** (idea of Marco). The "MOD 4.0.6" label on the main menu moved to the bottom-left corner, in grey: still readable, less in the way. With a competition loaded (CONTINUE on the menu) there is no free corner, so it is not shown, as before.
+- **Edit Custom Teams: looks and shirt numbers.** In EDIT CUSTOM TEAMS the face button next to each player now has ten looks. Press FIRE on it to go through them: white, ginger, black and dark blond, then receding hairline, shaved head and white hair, each with light or dark skin. The button shows the look you picked. Press LEFT on the face button to light up the player's shirt number. UP / DOWN move it to the next / previous number nobody else in the team wears. You can also type the number with the number keys (1 to 99). If another player already wears that number, the two swap. FIRE, ENTER, LEFT or RIGHT confirm, and ESC puts the numbers back as they were. From your first change, the numbers stay with the players, even when you change the line-up. They show on every squad screen and in the match. Everything is saved with the team in CUSTOMS.EDT, and older files load as before. Thanks to Marco for the idea. With SWOS++ the button offers the four faces only (the other looks need the mod's own drawing). The numbers work the same. A player whose name has the full 22 letters keeps the four faces. In the original game the new looks show as the plain face.
+- **Special characters in names** (idea of Marco). In every name you type (tactics, players, teams, coach) you can now enter special characters: each language has its keyboard punctuation, and SHIFT works as a shift layer. **This changes how SHIFT behaves**: it no longer moves the text cursor; use the LEFT / RIGHT arrows for that. An underscore is shown as a space (for example "FWRD_3-2" shows as "FWRD 3-2"). Save-file names still take only letters, digits, # and -.
+<!-- check with Shaved: exact characters per language -->
+- **CONTINENTAL CUPS menu centred.** The rounds menu (SUMMARY and EXIT buttons) is now centred on the screen.
+- **Serbia, Czechia, North Macedonia, DR Congo, Eswatini in the World 2026-27.** The country codes now show the modern nations (SRB, CZE, MKD, COD, SWZ instead of the old ones), and the national teams are called SERBIA, NORTH MACEDONIA, CZECHIA and ESWATINI. Their squads are still the 1996-97 ones until version 4.1.
+<!-- check with MC: the full list of renamed codes and teams -->
+- **Seven Polish kits** corrected (thanks to a player's report, passed on by Ben).
 
 #### New looks: white hair and bald heads before the kick-off
 **White hair.** A new look joins the blond, bald and shaved ones: grey-white hair. The first player to wear it is
@@ -237,7 +244,7 @@ On your squad screen a new **B TEAM** button, next to EXIT, opens the B team's s
 
 There is never a transfer fee: calling a player up does not touch your bank balance. If a call-up is not allowed, the
 page tells you why (for example "already called up" or "transfer window closed"). On your squad screen a called-up
-player's shirt number shows a B, in yellow (for example 12B), and his value reads LOAN: he cannot be sold or put on
+player's shirt number shows a yellow number (it no longer carries a B), and his value reads LOAN: he cannot be sold or put on
 the transfer list. Everyone goes back to the B team at the end of the season, or when you take a job at another club.
 Your squad still holds at most 30 players. A player whose year of birth we do not know counts as under 23.
 For New Zealand we found no official rule for the reserves' ages, so they follow the Australian one: an approximation.
@@ -384,6 +391,13 @@ carriera nuova parte da INVENTATI. I salvataggi precedenti si caricano con INVEN
 - **Il mercato ricorda la pagina** (segnalato da Enzo). Quando guardi un giocatore nell'elenco del mercato nazionale o estero (FAI UN'OFFERTA) e torni con ESCI, l'elenco resta sulla pagina in cui eri, con il cursore su quel giocatore, invece di tornare alla prima pagina.
 - **Lista dei gironi.** Quando scegli una divisione divisa in gironi (Serie C, Serie D, le Zone A / B dell'Argentina, Segunda / Tercera di El Salvador, ...) la lista dei gironi ora si apre sul primo girone (GIRONE A), sia quando scegli il club sia in VISUALIZZA MONDO. ESCI riporta come prima alla divisione da cui eri entrato, con il cursore su di essa.
 - **Etichetta della versione** (idea di Marco). La scritta "MOD 4.0.6" sul menu principale è passata nell'angolo in basso a sinistra, in grigio: si legge ancora, ma dà meno nell'occhio. Con una competizione caricata (CONTINUA nel menu) non c'è un angolo libero, quindi non compare, come prima.
+- **Modifica squadre: aspetto e numeri di maglia.** In MODIFICA SQUADRE il pulsante della faccia accanto a ogni giocatore ha ora dieci aspetti. Premi FUOCO su di esso per passarli in rassegna: bianco, rosso, nero e nero biondo, poi stempiato, testa rasata e capelli bianchi, ciascuno con la pelle chiara o scura. Il pulsante mostra l'aspetto scelto. Premi SINISTRA sul pulsante della faccia per accendere il numero di maglia del giocatore. SU / GIÙ lo portano al numero libero successivo / precedente, cioè uno che nessun altro della squadra ha. Puoi anche scriverlo con i tasti dei numeri (da 1 a 99). Se un altro giocatore ha già quel numero, i due se lo scambiano. FUOCO, INVIO, SINISTRA o DESTRA confermano, ESC rimette i numeri com'erano. Dalla prima modifica i numeri restano ai giocatori, anche quando cambi la formazione. Compaiono in ogni schermata della rosa e in partita. Tutto viene salvato con la squadra in CUSTOMS.EDT, e i file più vecchi si caricano come prima. Grazie a Marco per l'idea. Con SWOS++ il pulsante offre solo le quattro facce (gli altri aspetti richiedono il disegno della mod). I numeri funzionano allo stesso modo. Un giocatore con un nome di 22 lettere (il massimo) resta alle quattro facce. Nel gioco originale i nuovi aspetti compaiono come la faccia normale.
+- **Caratteri speciali nei nomi** (idea di Marco). In ogni nome che scrivi (tattiche, giocatori, squadre, allenatore) ora puoi inserire caratteri speciali: ogni lingua ha la sua punteggiatura da tastiera, e SHIFT funziona come livello maiuscolo. **Cambia il comportamento di SHIFT**: non sposta più il cursore del testo; per quello usa le frecce SINISTRA / DESTRA. Il trattino basso si vede come uno spazio (per esempio "FWRD_3-2" appare "FWRD 3-2"). I nomi dei file di salvataggio accettano ancora solo lettere, cifre, # e -.
+<!-- da verificare con Shaved: caratteri esatti per lingua -->
+- **Menu COPPE CONTINENTALI centrato.** Il menu dei turni (pulsanti RIEPILOGO ed ESCI) ora è centrato sullo schermo.
+- **Serbia, Cechia, Macedonia del Nord, RD Congo, Eswatini nel Mondo 2026-27.** I codici dei paesi ora mostrano le nazioni moderne (SRB, CZE, MKD, COD, SWZ al posto dei vecchi), e le nazionali si chiamano SERBIA, NORTH MACEDONIA, CZECHIA ed ESWATINI. Le loro rose sono ancora quelle del 1996-97 fino alla versione 4.1.
+<!-- da verificare con MC: elenco completo di codici e nazionali rinominati -->
+- **Sette maglie polacche** corrette (grazie alla segnalazione di un giocatore, girata da Ben).
 
 #### Nuovi look: capelli bianchi e teste calve prima del calcio d'inizio
 **Capelli bianchi.** Un nuovo look si aggiunge a biondi, calvi e rasati: i capelli grigio-bianchi. Il primo giocatore
@@ -503,7 +517,7 @@ la rosa, fino a 30 giocatori). I giocatori già convocati sono in grigio. Scegli
 
 Non c'è mai un costo di cartellino: convocare un giocatore non tocca la tua banca. Se una convocazione non è permessa,
 la pagina ti dice perché (per esempio "già convocato" o "mercato chiuso"). Nella schermata della rosa il numero di
-maglia di un convocato ha una B, in giallo (per esempio 12B), e il suo valore dice PRES.: non si può vendere né mettere
+maglia di un convocato è in giallo (non porta più la B), e il suo valore dice PRES.: non si può vendere né mettere
 in lista. Tutti tornano alla squadra B a fine stagione, o quando accetti un lavoro in un altro club. La rosa resta di
 massimo 30 giocatori. Un giocatore di cui non conosciamo l'anno di nascita conta come under 23.
 Per la Nuova Zelanda non abbiamo trovato una regola ufficiale sull'età delle riserve, quindi vale quella australiana:

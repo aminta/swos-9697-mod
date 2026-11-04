@@ -31,19 +31,19 @@ import struct
 
 import nasmcave
 
-LIMIT = 35                                   # W / I > 35 %
+LIMIT = 40                                   # W / I > 40 % (Davide 05/11; 35 % sanctioned one star at a big club)
 # the memo: two lines, as message 1 (%a = the manager, %b = the fine); the game's own font (German umlauts as its strings)
 # ANDAMENTO CLUB's row (ratio W / last season's I) and the season-start statement's fine row (Davide 04/11)
 RATIO = {'it': 'STIPENDI/RICAVI ', 'en': 'WAGES/INCOME ', 'fr': 'SALAIRES/RECETTES ', 'de': 'GEHAELTER/EINNAHMEN '}
 FINE = {'it': 'MULTA FAIR PLAY FINANZ.:', 'en': 'FINANCIAL FAIR PLAY FINE:', 'fr': 'AMENDE FAIR-PLAY FINANCIER:',
         'de': 'STRAFE FINANZ. FAIRPLAY:'}
-MEMO = {'it': ('SPIACENTE %a, GLI STIPENDI SUPERANO IL 35 PER CENTO',
+MEMO = {'it': ('SPIACENTE %a, GLI STIPENDI SUPERANO IL 40 PER CENTO',
                'DEI RICAVI: MULTA DI %b E STOP AGLI ACQUISTI'),
-        'en': ('SORRY %a, OUR WAGES ARE OVER 35 PER CENT OF',
+        'en': ('SORRY %a, OUR WAGES ARE OVER 40 PER CENT OF',
                'INCOME: WE ARE FINED %b AND CANNOT BUY PLAYERS'),
-        'fr': ('DESOLE %a, LES SALAIRES DEPASSENT 35 POUR CENT',
+        'fr': ('DESOLE %a, LES SALAIRES DEPASSENT 40 POUR CENT',
                "DES RECETTES: AMENDE DE %b ET PLUS D'ACHATS"),
-        'de': ('%a, DIE GEH\x8eLTER LIEGEN \x9aBER 35 PROZENT DER',
+        'de': ('%a, DIE GEH\x8eLTER LIEGEN \x9aBER 40 PROZENT DER',
                'EINNAHMEN: %b STRAFE UND KEINE NEUEN SPIELER')}
 
 ASM = r"""
@@ -305,7 +305,7 @@ ff_tog:                                 ; fire on the switch: the rule ON / OFF 
     popad
     jmp DRAWITEM
 
-ff_ratio:                               ; FF_RATIO = RATIO[lang] + W x 100 / last season's I '%' (or '--') + ' (MAX 35%)'
+ff_ratio:                               ; FF_RATIO = RATIO[lang] + W x 100 / last season's I '%' (or '--') + ' (MAX nn%)'
     mov edi, FF_RATIO
     mov esi, FF_RPRE
 .p: lodsb

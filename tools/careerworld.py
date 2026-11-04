@@ -1389,7 +1389,7 @@ w_ns_menu:                              ; replaces `and word [D7], 0FFh` at the 
     jmp .s
 .d:
     mov eax, ecx
-    call w_ns_set
+    call w_ns_set                       ; (W-modes M2: swe.py retargets this call to obj4 swe_sel_ns, which chains it)
 .r:
     popad
     ret

@@ -20,7 +20,8 @@ at run time, the rows from careerworld's NSWT.
             then the lists
 
 modes = where a picker lists the world. Step W turns on only what exists today (world 0 everywhere, the career worlds
-in CAREER); W-modes adds M_FRIENDLY / M_PRESET for World 2026-27 with its picker texts."""
+in CAREER); W-modes M2 adds M_FRIENDLY for the career worlds (the friendly / DIY pickers, swe.c), and world 0's menu
+id WMENU + 0 (mkseason: the 1996-97 game's entry in their STORICO box). Presets wait for 4.1."""
 import struct
 
 REG_AT = 0x800                          # obj4: swe.c's code + data below it, the manifest up to the page end
@@ -38,7 +39,7 @@ def worlds():
     import careerworld
     import mkseason
     ns = careerworld.NS.get('info')
-    out = [(0, F_BASE | (F_NS if ns else 0), 0, 1996, M_FRIENDLY | M_PRESET | M_SEASON | M_CAREER, 'team', [], [])]
+    out = [(0, F_BASE | (F_NS if ns else 0), mkseason.WMENU if mkseason.W0_IDS else 0, 1996, M_FRIENDLY | M_PRESET | M_SEASON | M_CAREER, 'team', [], [])]
     for n, pks in sorted(mkseason.worlds().items()):
         root = [pk for pk in pks if 'world_cups' in pk.meta][0].meta['world_cups']
         files = [pk.files[pk.league['clubs']][0] for pk in pks]
@@ -47,7 +48,7 @@ def worlds():
         stem = mkseason.ns_stem(n)
         if stem != 'team':
             flags |= F_XTRA
-        out.append((n, flags, mkseason.WMENU + n, root['start_year'], M_CAREER, stem, files, comps))
+        out.append((n, flags, mkseason.WMENU + n, root['start_year'], M_CAREER | M_FRIENDLY, stem, files, comps))
     return out
 
 

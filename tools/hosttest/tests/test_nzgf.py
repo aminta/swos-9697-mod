@@ -63,9 +63,10 @@ def nz_stall_case(code):
 def test_nz_stall():
     """the release NZ Grand Final stall (Panchina's save, rc19 = c/HT19R): after gp_gf drops the career club from the
     final at its rest day the menu must offer FINISCI STAGIONE (flag 1 as gp_gf leaves it) and no career-club day may
-    follow (a phantom final). rc19: flag left 0 (PARTITA on nothing: the stall); HT_NZFIX's code must pass"""
-    res = {name: nz_stall_case(code) for name, code in (('rc19', None), ('fix', os.environ.get('HT_NZFIX', 'HTPRE22')))}
+    follow (a phantom final). rc19: flag left 0 (PARTITA on nothing: the stall); HT_NZFIX's code must pass (default
+    HTMOT25 = the shipped 4.0.5 fix MOT25 + symbols; HTPRE22 was the rejected 'hide only' candidate: it fails by design)"""
+    res = {name: nz_stall_case(code) for name, code in (('rc19', None), ('fix', os.environ.get('HT_NZFIX', 'HTMOT25')))}
     good = lambda r: r[1] == 1 and r[2] == 1 and not r[3]
     ok = not good(res['rc19']) and good(res['fix'])
     return ok, (f'(GP_GFT, flag left, flag re-scanned, career days ahead): rc19 {res["rc19"]}, '
-                f'{os.environ.get("HT_NZFIX", "HTPRE22")} {res["fix"]}')
+                f'{os.environ.get("HT_NZFIX", "HTMOT25")} {res["fix"]}')

@@ -21794,6 +21794,127 @@ def setup_nojoy():
     return not errs, '; '.join(errs + info) or 'ok'
 
 @scenario
+def kbfirst():
+    """4.0.6 fix A (tools/kbfirst.py, Davide 04/11): a held keyboard direction beats a stick that reads off centre. NO
+    joystick (DOSBox-X joysticktype none: the port reads all ones, ReadGamePort counts g_numLoopsJoy1), the factory
+    SETUP.DAT; then g_inputControls poked 3 (P1 joypad + P2 keyboard) with stick 1 read as held UP: g_numLoopsJoy1 166 =
+    the count, centre x 166 (x 0), centre y 300 / min y 200 (Joy1NormalizeY clips to full up, no divide).
+    DOWN held = keyboardControlFlags poked 2, what Int9KeyboardHandler holds while the key is down (the feeder's typed key
+    is released before the next dump, and on release the stick takes the cursor back up at once).
+    - menu: the stick takes the cursor to the top entry; DOWN held moves it down (the original: DOWN dead, player 1's
+      direction wins); with SWOS++'s mark poked (kbfirst off) the cursor stays;
+    - match (friendly HAMBURG - SCHALKE, HAMBURG human = player 1: its fire came in KEYBOARD ONLY; the device poked 3 on
+      the pitch): pl1Direction and the team's direction 0 (UP, the stick), then DOWN held: 4, and the controlled
+      player's y grows."""
+    import kbfirst
+    import controls
+    exe = builds()['it']
+    _, k = kbfirst.find(lepatch_orig())
+    spp = controls.locate(lepatch_orig())['SWOSPP'][1]
+    buf = k['INCTL'][1] - 6
+    dat = os.path.join(MAIN, 'orig', 'setup-factory', 'CD.DAT')
+    errs, info = [], []
+
+    def stick_up(s):
+        s.poke(s.result.base2 + buf + 92, struct.pack('<H', 166))               # g_numLoopsJoy1
+        s.poke(s.result.base2 + buf + 30, struct.pack('<HH', 166, 300))         # centre x, y
+        s.poke(s.result.base2 + buf + 38, struct.pack('<HH', 200, 0))           # min y, min x
+        s.poke(s.result.base2 + buf + 6, struct.pack('<H', 3))                  # g_inputControls: P1 joypad + P2 keyboard
+
+    def w(r, sym):
+        return struct.unpack('<h', r.obj2(k[sym][1], 2))[0]
+
+    kcf = lambda s, v: s.poke(s.result.base2 + k['KCF'][1], struct.pack('<H', v))
+    keep = os.environ.get('SWOSTEST_JOY')
+    os.environ['SWOSTEST_JOY'] = 'none'
+    try:
+        with Session('kbfirst', exe, {'SETUP.DAT': dat}, 'dump:3', 400, match=True) as s:
+            r = s.wait()
+            if r.outcome != 'dump':
+                return False, f'the first menu not reached: {r}'
+            stick_up(s)
+            ys = []
+            for _ in range(3):
+                s.send('dump:1')
+                scr = s.screen()
+                ys.append((scr.selected, scr.geom[scr.selected][1] if scr.selected is not None else None))
+            raw = struct.unpack('<HH', s.result.obj2(buf + 22, 4))
+            info.append(f'stick 1 raw {raw}, pl1Direction {w(s.result, "PL1DIR")}; menu under the stick {ys}')
+            check(raw == (166, 166) and w(s.result, 'PL1DIR') == 0 and len(set(ys)) == 1,
+                  f'stick UP not set up: raw {raw}, pl1Direction {w(s.result, "PL1DIR")}, cursor {ys}', errs)
+            for mark in (0xFF, 0xB8):                   # (0B8h: SWOS++ runs - kbfirst off, the original)
+                s.poke(s.result.base1 + spp, bytes([mark]))
+                s.send('dump:1')
+                scr = s.screen()
+                y0 = scr.geom[scr.selected][1]
+                kcf(s, 2)
+                s.send('dump:0.5')
+                scr = s.screen()
+                y1 = scr.geom[scr.selected][1]
+                kcf(s, 0)
+                s.send('dump:1')
+                tag = 'SWOS++' if mark != 0xFF else 'kbfirst'
+                info.append(f'{tag}: DOWN held: cursor y {y0} -> {y1} ({scr.texts()[:1]})')
+                check((y1 > y0) if mark == 0xFF else (y1 == y0), f'{tag}: DOWN under a stick held UP: y {y0} -> {y1}', errs)
+            s.poke(s.result.base1 + spp, b'\xff')
+            s.poke(s.result.base2 + buf + 6, struct.pack('<H', 1))  # (the friendly's menus as KEYBOARD ONLY: HAMBURG
+            s.send('dump:1')                                        #  is player 1's)
+            for t in ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB', 'EUROPA', 'GERMANIA', '1. LIGA', 'HAMBURG'):
+                walk(s, t, 2)
+            s.send('fire dump:2')                       # HAMBURG: COMPUTER -> human
+            walk(s, 'SCHALKE', 2)
+            for _ in range(12):                         # (friendly_prematch's way to AMICHEVOLE)
+                scr = s.screen()
+                if scr.selected == 55:
+                    s.send('fire dump:4')
+                    break
+                s.send(('right' if scr.selected in (56, 57) else 'down') + ' dump:0.5')
+            for _ in range(22):
+                s.send('down dump:0.5')
+                if s.screen().selected == 9:
+                    break
+            info.append(f'pre-match row 9 {s.screen().entries[9][1]!r}')
+            r = s.send('fire ' + 'fire:3 ' * 30 + 'dump:2')
+            if r.outcome != 'dump':
+                return False, f'match: {r}'
+            top, bot = k['TOP_PN'][1] - 4, k['BOT_PN'][1] - 4
+            pn = [struct.unpack('<H', s.result.obj2(t + 4, 2))[0] for t in (top, bot)]
+            team = top if pn[0] == 1 else bot
+            check(1 in pn and 2 not in pn, f'match: playerNumber top / bottom {pn}', errs)
+            stick_up(s)
+            s.send('dump:0.5')
+
+            def state(r):
+                cp = struct.unpack('<I', r.obj2(team + 0x20, 4))[0]
+                y = struct.unpack('<i', r.read(cp + 0x22, 4))[0] >> 16 if cp else None
+                return w(r, 'PL1DIR'), struct.unpack('<h', r.obj2(team + 0x2E, 2))[0], y
+
+            a = state(s.result)
+            kcf(s, 2)                                   # DOWN held
+            seq = []
+            for _ in range(8):                          # (no controlled player while the ball is out - a corner, a
+                s.send('dump:0.5')                      #  throw-in: sampled until two readings in play show the move)
+                seq.append(state(s.result))
+                ys = [x[2] for x in seq[-2:]]
+                if len(ys) == 2 and None not in ys and ys[1] > ys[0]:
+                    break
+            kcf(s, 0)
+            info.append(f'match (playerNumber {pn}): stick UP pl1Direction / team direction / player y {a}; DOWN held '
+                        f'{seq}')
+            check(a[:2] == (0, 0), f'match: the stick UP not read: {a}', errs)
+            check(all(x[:2] == (4, 4) for x in seq), f'match: DOWN held: {seq}', errs)
+            ys = [x[2] for x in seq[-2:]]
+            check(len(ys) == 2 and None not in ys and ys[1] > ys[0], f'match: the controlled player did not go down: {seq}',
+                  errs)
+            s.shot('match_down')
+    finally:
+        if keep is None:
+            os.environ.pop('SWOSTEST_JOY', None)
+        else:
+            os.environ['SWOSTEST_JOY'] = keep
+    return not errs, '; '.join(errs + info) or 'ok'
+
+@scenario
 def world_kits_always():
     """4.0.5 SELEZIONA MAGLIE's SOLO PARTITA / SEMPRE (kitcolors km_keep): a World 2026-27 career at ATALANTA, the
     first match's pre-match screen > MAGLIE AUTO > the career club's first shirt colour changed > OK. SOLO PARTITA

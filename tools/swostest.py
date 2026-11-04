@@ -24558,7 +24558,7 @@ def ffp_season():
                         wage = struct.unpack('<I', bytes(s.result.obj2(fin['D6B9E'][1], 4)))[0] * \
                             struct.unpack('<H', bytes(s.result.obj2(fin['D6CA2'][1], 2)))[0]
                         break
-                    hit = [j for j, (_, t, inv, _) in enumerate(scr.entries) if t and key1 in t]
+                    hit = [j for j, r in enumerate(scr.raw) if key1.encode('latin-1') in r]   # (raw: German umlauts)
                     if hit and memo is None:
                         j = hit[0]
                         memo = (scr.raw[j].decode('latin-1'), scr.raw[j + 1].decode('latin-1'), scr.geom[j][2],

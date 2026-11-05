@@ -11236,6 +11236,65 @@ def engine_registry():
     return not errs, '; '.join(errs + info)
 
 
+WM_SPP = None                                   # engine_wmodes_swospp: the SWOS++ build dir (engine_wmodes / _diy's runs)
+
+
+def wm_build(tag, b):
+    """(exe dir, extra run files, Session kwargs) for engine_wmodes / _diy: b as it is, or under engine_wmodes_swospp
+    WM_SPP's copy with SWOS++ 1.9.2.2 installed (loader + swospp.bin, keys from the timer)."""
+    if not WM_SPP:
+        return b, {}, {}
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import swospp
+    pp = os.path.join(MAIN, 'internal', 'swospp-test')
+    out = os.path.join(WORK, 'builds-x', f'{tag}_spp_' + os.path.basename(RUNS.rstrip('/')))   # (one a run dir)
+    shutil.rmtree(out, ignore_errors=True)
+    shutil.copytree(WM_SPP, out)
+    swospp.install(os.path.join(WM_SPP, 'ITALIAN.EXE'), os.path.join(out, 'ITALIAN.EXE'))
+    return out, {'LOADER.BIN': os.path.join(pp, 'loader.bin'), 'SWOSPP.BIN': os.path.join(pp, 'swospp.bin')}, \
+        {'timer': True}
+
+
+def wm_go(s, t, w=2, nxt=()):
+    """walk(), or under engine_wmodes_swospp press() (SPP_STEP: one tap at a time, the fire on a selection that
+    stays). A fire carried into the next list (SWOS++'s latch): a later step of the same path (nxt) already on the
+    screen -> that one is next (returns its index in nxt); else ESCI back once and t again."""
+    if not WM_SPP:
+        walk(s, t, w)
+        return 0
+    for _ in range(4):
+        scr = s.screen()
+        if (scr.find(t) if isinstance(t, str) else t) is None:
+            k = next((j for j, x in enumerate(nxt) if isinstance(x, str) and scr.find(x) is not None), None)
+            if k is not None:
+                s.log.append(f'[spp carried] {t} -> {nxt[k]} on {scr}'[:300])
+                return k
+            if scr.find('ESCI', exact=True) is None:
+                break
+            s.log.append(f'[spp latch] {t} not on {scr}'[:300])
+            press(s, scr, 'ESCI', w)
+            continue
+        if press(s, scr, t, w) is None:
+            raise AssertionError(f'{t} not reached ({s.screen().texts()[:16]})')
+        return 0
+    raise AssertionError(f'{t} not on screen ({s.screen().texts()[:16]})')
+
+
+def wm_seq(s, path, w=2):
+    """wm_go along a menu path (steps a carried fire took are skipped)."""
+    i = 0
+    while i < len(path):
+        i += 1 + wm_go(s, path[i], w, path[i + 1:])
+
+
+def wm_spp_check(s, ex, errs, info):
+    """engine_wmodes_swospp: SWOS++ running in that session (checked once, at its first pause)."""
+    if WM_SPP:
+        on, why = swospp_on(s.result, os.path.join(ex, 'ITALIAN.EXE'))
+        check(on, f'SWOS++ not running: {why}', errs)
+        info.append(f'SWOS++ {"on" if on else "OFF"}')
+
+
 @scenario
 def engine_wmodes():
     """W-modes M2: the FRIENDLY picker lists the worlds (swe.c, release-recipe exe, fresh SETUP.DAT = default World
@@ -11250,9 +11309,11 @@ def engine_wmodes():
     errs, info = [], []
     hist = 'CARR. STORICHE'                      # (the careers' box label: STORICO's until Davide's texts)
     files = {'SETUP.DAT': setup_file('engine_wmodes', 0)}     # (the default World 2026-27: a fresh install's)
-    with Session('engine_wmodes', os.environ.get('SWOSTEST_BUILD') or builds()['it'], files, 'dump:3', 400) as s:
+    ex, xf, kw = wm_build('engine_wmodes', os.environ.get('SWOSTEST_BUILD') or builds()['it'])
+    with Session('engine_wmodes', ex, {**files, **xf}, 'dump:3', 400, **kw) as s:
         if s.wait().outcome != 'dump':
             return False, f'no first pause ({s.result})'
+        wm_spp_check(s, ex, errs, info)
         r = s.result
         b4 = r.base4
         if b4 is None:
@@ -11263,16 +11324,14 @@ def engine_wmodes():
         rd32 = lambda a: struct.unpack('<I', s.result.read(a, 4))[0]
         comp = c254 - 4 * 254
         menu254, menu98 = rd32(c254), rd32(comp + 4 * 98)
-        for t in ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB'):
-            walk(s, t, 2)
+        wm_seq(s, ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB'))
         scr = s.screen()
         check(scr.find(hist) is not None and scr.find('EUROPA') is not None and
               scr.find('NORDAMERICA') is not None, f'the picker\'s first list: {scr.texts()[:14]}', errs)
         check(rd32(selmode) == swreg.M_FRIENDLY and rd32(c254) == cwt, f'in the picker: SEL_MODE {rd32(selmode):#x}, '
               f'competitionsTable[254] {rd32(c254):#x} (the careers\' table {cwt:#x})', errs)
         s.shot('first')
-        for t in ('EUROPA', 'ITALIA', 'SERIE A', 'INTER'):
-            walk(s, t, 2)
+        wm_seq(s, ('EUROPA', 'ITALIA', 'SERIE A', 'INTER'))
         s.shot('inter')
         for _ in range(6):                       # (up: the lists' ESCI entry, one level each; a team list's is
             sc = s.screen()                      # reached down past its rows, as world_mainbtn's to_main)
@@ -11284,12 +11343,12 @@ def engine_wmodes():
                 if out is not None and s.screen().selected == out:
                     s.send('fire dump:2')
         check(rd32(selcw) == 5, f'after INTER: SEL_CW {rd32(selcw)}', errs)
-        scr = walk(s, hist, 2)
+        wm_go(s, hist, 2)
+        scr = s.screen()
         check(scr.find('MONDO 1996-97') is not None and scr.find('EUROPA 1984-85') is None and
               scr.find('MONDO 2026-27') is None, f'STORICO with a 2026-27 club picked: {scr.texts()[:10]}', errs)
         s.shot('storico')
-        for t in ('MONDO 1996-97', 'EUROPA', 'GERMANIA', '1. LIGA', 'HAMBURG'):
-            walk(s, t, 2)
+        wm_seq(s, ('MONDO 1996-97', 'EUROPA', 'GERMANIA', '1. LIGA', 'HAMBURG'))
         s.shot('hamburg')
         for _ in range(16):
             scr = s.screen()
@@ -11756,23 +11815,33 @@ def engine_wmodes_diy():
                 if out is not None and s.screen().selected == out:
                     s.send('fire dump:2')
         raise AssertionError(f'{t} not reached ({s.screen().texts()[:10]})')
-    with Session('engine_wmodes_diy1', b, {'SETUP.DAT': setup_file('engine_wmodes_diy1', 0)}, 'dump:3', 400) as s:
+    b, xf, kw = wm_build('engine_wmodes_diy', b)
+    with Session('engine_wmodes_diy1', b, {'SETUP.DAT': setup_file('engine_wmodes_diy1', 0), **xf}, 'dump:3', 400,
+                 **kw) as s:
         if s.wait().outcome != 'dump' or s.result.base4 is None:
             return False, f'no first pause / obj4 ({s.result})'
-        for t in ('COMPET. PERSONAL.', 'COPPA', 11, 11, 11, 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB'):
-            walk(s, t, 2)
-        for t in ('EUROPA', 'ITALIA', 'SERIE A', 'INTER'):
-            walk(s, t, 2)
+        wm_spp_check(s, b, errs, info)
+        if WM_SPP:                               # (SWOS++: ROUNDS cycles 2..6, never 1 - fired until the semi-finals
+            wm_seq(s, ('COMPET. PERSONAL.', 'COPPA'))       # + the final: 4 teams, 2 a world)
+            later = ('PRIMO TURNO', 'SECONDO TURNO', 'THIRD ROUND', 'QUARTER-FINAL')
+            for _ in range(12):
+                tx = s.screen().texts()
+                if 'SEMI-FINAL' in tx and not any(x in tx for x in later):
+                    break
+                wm_go(s, 11, 2)
+            wm_seq(s, ('OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB'))
+        else:
+            wm_seq(s, ('COMPET. PERSONAL.', 'COPPA', 11, 11, 11, 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB'))
+        wm_seq(s, ('EUROPA', 'ITALIA', 'SERIE A', 'INTER') + (('MILAN',) if WM_SPP else ()))
         up_to(s, hist)
-        for t in (hist, 'MONDO 1996-97', 'EUROPA', 'GERMANIA', '1. LIGA', 'HAMBURG'):
-            walk(s, t, 2)
+        wm_seq(s, (hist, 'MONDO 1996-97', 'EUROPA', 'GERMANIA', '1. LIGA', 'HAMBURG') + (('SCHALKE',) if WM_SPP else ()))
         pick_done(s, 55)
         s.shot('cup')
-        walk(s, 'ESCI', 3)
+        wm_go(s, 'ESCI', 3)
         cw, wcur = hdr(s)
         check(cw == 5 and s.result.read(wcur, 1)[0] == 5, f'after the picker: SWE_CWORLD {cw}, WCUR '
               f'{s.result.read(wcur, 1)[0]}', errs)
-        walk(s, 'SALVA COPPA PERSONAL.', 3)
+        wm_go(s, 'SALVA COPPA PERSONAL.', 3)
         s.send(name_entry('wm5') + ' dump:3')
         game = s.result.game
     f = [x for x in os.listdir(game) if x.upper() == 'WM5.DIY']
@@ -11782,9 +11851,9 @@ def engine_wmodes_diy():
     data = open(path, 'rb').read()
     check(data[-4:] == b'WM\x01\x05', f'WM5.DIY tail {data[-8:].hex()} ({len(data)} B)', errs)
     info.append(f'WM5.DIY {len(data)} B, tail {data[-4:]!r}')
-    with Session('engine_wmodes_diy2', b, {'WM5.DIY': path}, 'dump:3', 300) as s:
+    with Session('engine_wmodes_diy2', b, {'WM5.DIY': path, **xf}, 'dump:3', 300, **kw) as s:
         s.wait()
-        walk(s, 'CARICA VECCHIA COMPETIZIONE', 3)
+        wm_go(s, 'CARICA VECCHIA COMPETIZIONE', 3)
         if press(s, s.screen(), 'WM5', 3, exact=False) is None:
             return False, '; '.join(errs + [f'WM5 not listed ({s.screen().texts()[:12]})'])
         sc = s.screen()
@@ -11795,6 +11864,37 @@ def engine_wmodes_diy():
         s.shot('loaded')
         info.append(f'loaded: SWE_CWORLD {cw}, WCUR {s.result.read(wcur, 1)[0]}')
     return not errs, '; '.join(errs + info)
+
+
+@scenario
+def engine_wmodes_swospp():
+    """(4.1, Regia 05/11) W-modes M2's one-world-per-contest lock under SWOS++ 1.9.2.2: engine_wmodes (FRIENDLY: INTER
+    from World 2026-27 fixes the contest's world, STORICO then lists the 1996-97 game only, HAMBURG mixes) and
+    engine_wmodes_diy (a DIY cup: the same pick, saved with its world, loaded back) on SWOSPP_BUILD (a World 2026-27
+    release-recipe dir whose ITALIAN.EXE is the English exe, SWOSTEST_UI=en) with SWOS++ installed, keys from the
+    timer (SPP_STEP: one key at a time; PRESS_FIRE 'fire up:0.05', as the latched feed needs; a fire carried into the
+    next list skips that step - wm_seq). Under SWOS++ the DIY cup's ROUNDS cycles 2..6 (never 1): semi-finals + final,
+    INTER + MILAN (2026-27) and HAMBURG + SCHALKE (1996-97)."""
+    global WM_SPP, SPP_STEP, PRESS_FIRE
+    if UI != 'en':
+        return True, 'SKIP: SWOS++ is English only (SWOSTEST_UI=en)'
+    b = os.environ.get('SWOSPP_BUILD')
+    if not b or not os.path.isdir(b):
+        return True, 'SKIP: SWOSPP_BUILD not set'
+    WM_SPP, SPP_STEP, old, fire0 = b, True, SPP_STEP, PRESS_FIRE
+    PRESS_FIRE = 'fire up:0.05'                         # (the latched feed: a plain fire is read again by the next
+                                                        # menu - carried fires skipped list levels and picked clubs)
+    def part(f):
+        try:
+            return f()
+        except AssertionError as x:
+            return False, f'exception {x}'
+    try:
+        ok1, m1 = part(engine_wmodes)
+        ok2, m2 = part(engine_wmodes_diy)
+    finally:
+        WM_SPP, SPP_STEP, PRESS_FIRE = None, old, fire0
+    return ok1 and ok2, f'friendly: {"PASS" if ok1 else "FAIL"} {m1}; diy: {"PASS" if ok2 else "FAIL"} {m2}'
 
 
 @scenario

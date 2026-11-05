@@ -535,9 +535,12 @@ def patch(p, cave):
     rc = [cave + m.start() for m in re.finditer(rb'\xe8', code)
           if cave + m.start() + 5 + struct.unpack_from('<i', code, m.start() + 1)[0] == lab['se_row']]
     assert len(rc) == 1, ('call se_row', rc)
+    dc = [cave + m.start() for m in re.finditer(re.escape(b'\x66\x83\x3d' + struct.pack('<I', sym['MCD'][1]) + b'\x06'),
+                                                 code)]
+    assert len(dc) == 1, ('cmp word [MCD], 6', dc)     # (se_ctl's idle: the direction that opens the box - edteam's)
     INFO.update(se_row=lab['se_row'], se_hl=lab['se_hl'], row_call=rc[0], GPIBP=s['GPIBP'], se_on=lab['se_on'],
-                se_rec=lab['se_rec'],
-                **{k: sym[k] for k in ('CT', 'A0', 'D1')})
+                se_rec=lab['se_rec'], se_ent=lab['se_ent'], dir_at=dc[0],
+                **{k: sym[k] for k in ('CT', 'A0', 'D1', 'MCD', 'CURMENU')})
     print(f'exe: editable shirt numbers (MenuProc obj1+{mc:#x}, DrawPlayerEntries number obj1+{hl:#x}, '
           f'code obj1+{cave:#x}..{cave + len(code):#x})')
     return (cave + len(code) + 3) & ~3

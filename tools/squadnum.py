@@ -35,7 +35,10 @@ sq_row:                                 ; se_ctl's `call se_row` (ebx = the sele
     jb .no
     cmp eax, 16
     jae .no
-    mov [A0], ebp
+    cmp eax, 11                         ; 4.0.6 (Davide, RC3): bench rows 12.. show places 11 + benchx's window
+    jb .p                               ; (bx_sq, moved by the box) - as its sq_gpi; the row alone edited the
+    add ax, [BX_SQ]                     ; player that many places above
+.p: mov [A0], ebp
     mov [D1], ax
     push ebp
     push ebx
@@ -82,7 +85,8 @@ def patch(p, at):
     if 'se_row' not in info:
         return at
     s = sites(p)
-    sym = {'SE_ROW': (1, info['se_row']), 'SADC': s['SADC'], 'SQT': s['SQT']}
+    import benchx
+    sym = {'SE_ROW': (1, info['se_row']), 'SADC': s['SADC'], 'SQT': s['SQT'], 'BX_SQ': (3, benchx.LABELS['bx_sq'])}
     sym.update({k: info[k] for k in ('CT', 'A0', 'D1', 'GPIBP')})
     code, fix, rel = nasmcave.assemble_obj(ASM, at, sym, 3)
     assert not any(p.get(3, at, len(code))), hex(at)

@@ -9,7 +9,9 @@ name (39..54), the position. The team being edited is editTeamsTeam (684 bytes; 
   icon is blond's (icon_d1a / bicon read byte 25). Under SWOS++ (blond's SPPMMI gate: no looks there) and for a
   22-letter name (byte 25 is its terminator) the four faces only, byte 25 untouched;
 - numbers: shirtedit's number box: se_ctl's `call se_row` (squadnum's sq_row, chained) -> et_row: an editor face button
-  is a row (edi = its record, ebp = editTeamsTeam), so LEFT on the face lights the number; UP / DOWN, digits, swap,
+  is a row (edi = its record, ebp = editTeamsTeam); se_ctl's direction test -> et_dir: RIGHT on the face lights the
+  number (drawn right of the face; 4.0.6 RC3, Davide), LEFT goes nowhere, the next RIGHT after the box is the move
+  to the name; UP / DOWN, digits, swap,
   FIRE / ENTER / LEFT / RIGHT done, ESC undo, the first edit pins the team (benchnum.PIN_BIT in editTeamsTeam's byte 23,
   saved with it); EditTeamsPlayersBeforeDraw's `mov [esi + 26h], ax / mov ax, [D7]` (entry 55's number) -> et_hl: the
   lit box's background on the edited row (entry 55 is one entry drawn for every row: plain on the others).
@@ -44,6 +46,44 @@ et_row:                                 ; se_ctl's `call se_row` (ebx = the sele
     stc
 .r:
     ret
+
+et_dir:                                 ; se_ctl's idle `cmp word [MCD], 6` (jnz: no box): ZF = 1 opens the number box.
+    push ebx                            ; 4.0.6 (Davide, RC3): on an editor face button RIGHT opens it (the number is
+    mov ebx, [CURMENU + 0Ch]            ; drawn right of the face), LEFT goes nowhere; once the box was used on this
+    test ebx, ebx                       ; row, the next RIGHT is the menu's move (to the name). Elsewhere LEFT, as before
+    jz .game
+    cmp dword [ebx + 30h], EPBD
+    jne .game
+    cmp word [ebx + 2], 23
+    jb .game
+    cmp word [ebx + 2], 38
+    ja .game
+    cmp ebx, [et_sel]                   ; just arrived on this face: a box used here before does not count
+    je .same
+    mov [et_sel], ebx
+    cmp ebx, [SE_ENT]
+    jne .same
+    mov dword [SE_ENT], 0
+.same:
+    cmp word [MCD], 2                   ; RIGHT
+    jne .no
+    cmp ebx, [SE_ENT]                   ; the box was used on this row: RIGHT moves on (and forgets it: back on this
+    je .on                              ; face, RIGHT opens it again - also when no idle frame saw the cursor away,
+    cmp eax, eax                        ; SWOS++'s timer-fed keys)
+    pop ebx
+    ret
+.on:
+    mov dword [SE_ENT], 0
+.no:
+    test esp, esp
+    pop ebx
+    ret
+.game:
+    mov dword [et_sel], 0               ; (off the faces: back on one = arrived again)
+    cmp word [MCD], 6
+    pop ebx
+    ret
+et_sel: dd 0
 
 et_hl:                                  ; EditTeamsPlayersBeforeDraw: replaces `mov [esi + 26h], ax / mov ax, [D7]`
     mov [esi + 26h], ax
@@ -158,7 +198,8 @@ def patch(p, at):
     cs = info['row_call']                               # se_ctl's `call se_row` (squadnum's sq_row by now)
     prev = p.call_target(1, cs)
     sym = {k: v for k, v in s.items() if not k.endswith('_SITE')}
-    sym.update(PREV=prev, SE_ON=(1, info['se_on']), SE_REC=(1, info['se_rec']), HL=(0, shirtedit.HL_COLOR))
+    sym.update(PREV=prev, SE_ON=(1, info['se_on']), SE_REC=(1, info['se_rec']), HL=(0, shirtedit.HL_COLOR),
+               SE_ENT=(1, info['se_ent']), MCD=info['MCD'], CURMENU=info['CURMENU'])
     code, fix, rel = nasmcave.assemble_obj(ASM, at, sym, 3)
     lab = nasmcave.labels(ASM, at, sym)
     assert not any(p.get(3, at, len(code))), hex(at)
@@ -172,6 +213,10 @@ def patch(p, at):
         assert bytes(p.get(1, site, n)) == d[site:site + n], ('edteam: site already patched', name, hex(site))
         p.remove(1, site + fx)
         p.branch(1, site, 0xE8, 3, lab[name], n)
+    da = info['dir_at']                                 # se_ctl's `cmp word [MCD], 6` (8 bytes, its MCD fixup at +3)
+    assert bytes(p.get(1, da, 3)) == b'\x66\x83\x3d' and p.get(1, da + 7, 1) == b'\x06', ('edteam: dir site', hex(da))
+    p.remove(1, da + 3)
+    p.branch(1, da, 0xE8, 3, lab['et_dir'], 8)
     print(f'exe: edteam: EDIT CUSTOM TEAMS looks (10) + number box, obj3+{at:#x}..{at + len(code):#x} ({len(code)} B), '
           f'face obj1+{s["CYC_SITE"]:#x}, number obj1+{s["HL_SITE"]:#x}')
     return at + len(code)

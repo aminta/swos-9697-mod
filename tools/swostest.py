@@ -27935,6 +27935,94 @@ def ffp_star():
     return not errs, '; '.join(errs + notes)
 
 
+def sa_block(exe_dir):
+    """sella's data block in a built exe: (3, offset of SL_TRY) - after the tag 'SELA'."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lepatch
+    import sella
+    p = lepatch.LEPatch(os.path.join(exe_dir, 'ITALIAN.EXE'))
+    d3 = bytes(p.get(3, 0, 0x1000 * p.le.obj(3).npages))
+    assert d3.count(sella.TAG) == 1, d3.count(sella.TAG)
+    return (3, d3.index(sella.TAG) + 4)
+
+
+def sa_read(r, blk):
+    """(tries, dropped, made, (N, MARGIN, RING, RULE), ring [(buyer, player index, amount, value byte, buyer's count
+    above value + MARGIN, buyer's name - 8 letters)])"""
+    b = r.read(r.lin(blk), 18 + 16 * 64)
+    t, dr, m = struct.unpack_from('<III', b)
+    parm = tuple(b[14:18])
+    ring = [struct.unpack_from('<HHHBB', b, 18 + 16 * k) + (b[26 + 16 * k:34 + 16 * k].split(b'\0')[0].decode('latin-1'),)
+            for k in range(parm[2])]
+    return t, dr, m, parm, ring
+
+
+@scenario
+def sell_offers():
+    """4.0.6 outgoing transfers rule A (sella.py, Francesco: ROMA bid for his Serie D player): a World 2026-27 season
+    at a weak club (SA_TEAM, default CELLE VARAZZE, Serie D girone A) on SA_BUILD - a SELLOFF_FORCE build (every
+    scanned player gets an offer attempt). Each offer the game makes is logged (sella's ring: buyer, player, amount,
+    value byte, the buyer's name and its count above the player - from its record in memory at the offer: a world's
+    team numbers are not its DATA files'): fewer than N of its 16 players priced above the player's value + MARGIN
+    (rule A; SA_EXPECT=off on a SELLA_OFF build: only logged). SA_FROM: a save to play one season from. PASS = offers made,
+    rule A held by every buyer, the rule dropped candidates."""
+    b = os.environ.get('SA_BUILD')
+    if not b or not os.path.isdir(b):
+        return True, 'SKIP: SA_BUILD not set'
+    team = os.environ.get('SA_TEAM', 'EUROPA,ITALIA,SERIE D GIRONE A,CELLE VARAZZE')
+    blk = sa_block(b)
+    seen, offers, last = {}, [], {}
+
+    def hook(s, season, scr):
+        t, dr, m, parm, ring = sa_read(s.result, blk)
+        last.update(t=t, d=dr, m=m, parm=parm)
+        for k in range(max(seen.get('m', 0), m - parm[2]), m):
+            offers.append(ring[k % parm[2]])
+        seen['m'] = m
+
+    global W84_HOOK
+    keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_ONE', 'W8485_FROM')
+    keep = {k: os.environ.get(k) for k in keys}
+    os.environ.update(W8485_BUILD=b, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+',
+                      W8485_NOSACK='1', W8485_ONE='1')
+    os.environ.pop('W8485_FROM', None)
+    keep['W8485_PATH'] = os.environ.get('W8485_PATH')
+    if os.environ.get('SA_PATH'):                  # (a real 1996-97 career: SA_PATH=EUROPA,ITALIA,SERIE B,..., SA_WNUM,
+        os.environ.update(W8485_PATH=os.environ['SA_PATH'], W8485_WNUM=os.environ.get('SA_WNUM', '0'),   # SA_K)
+                          W8485_K=os.environ.get('SA_K', '0+'))
+    if os.environ.get('SA_FROM'):
+        os.environ['W8485_FROM'] = os.environ['SA_FROM']
+        os.environ.pop('W8485_ONE')
+    W84_HOOK = hook
+    try:
+        ok, msg = world8485()
+    finally:
+        W84_HOOK = None
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    errs, notes = [], []
+    if not last:
+        return False, f'no step read sella\'s block; {msg[:200]}'
+    n_, mg, _, rule = last['parm']
+    bad, lines = [], []
+    for buyer, pidx, amt, val, above, name in offers:
+        lines.append(f'{name}(v{val} above {above} amt {amt})')
+        if rule and above >= n_:
+            bad.append(lines[-1])
+    check(ok or os.environ.get('SA_SEASONOK') == '0', f'season: {msg[:200]}', errs)   # (SA_SEASONOK=0: balance runs)
+    check(len(offers) > 0, f'no offer made (tries {last["t"]})', errs)
+    if os.environ.get('SA_EXPECT', 'on') != 'off' and rule:
+        check(not bad, f'rule A broken (N {n_} margin {mg}): {bad[:8]}', errs)
+        check(last['d'] > 0, 'rule A dropped no candidate', errs)
+    notes.append(f'rule {"N " + str(n_) + " margin " + str(mg) if rule else "OFF"}: tries {last["t"]}, candidates '
+                 f'dropped {last["d"]}, offers {last["m"]} (logged {len(offers)}): ' + ', '.join(lines[:40]))
+    open(os.path.join(RUNS, f'sell_offers_{os.environ.get("SWOSTEST_TAG", "")}.txt'), 'w').write('\n'.join(lines) + '\n')
+    return not errs, '; '.join(errs + notes)
+
+
 if __name__ == '__main__':
     sys.exit(main(sys.argv[1:]))
 

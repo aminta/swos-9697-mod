@@ -191,6 +191,18 @@ static int seg_before(int c, int r, int mo) {   /* round (mo, c, r) runs before 
     return r < CT_SEG.round;
 }
 
+/* round (c, r), calendar slot mo, at the week: 0 not drawn yet, 1 drawn, 2 played (drawn, its month over) - the
+   summary page's rule (cup_lines), the rounds menu's too (cv_rounds: its buttons, its cursor). B2's season 1: its main
+   round drawn before the season (its stock draw), in from the start. */
+static int rstate(int c, int r, int mo, u32 week) {
+    const u8 *R = RD(c, r);
+    int n = CT_OUT.nent[c][r], m = R[9];
+    int drawn = n && seg_before(c, r, mo) ? 2 : (CT_SEG.kind != 0xFF && CT_SEG.cup == c && CT_SEG.round == r);
+    int s1m = (CT_ED.pad & 1) && R[17] && n;
+    if (!s1m && (week < mweek(m) || !drawn)) return 0;
+    return drawn == 2 && week >= mweek(m) + 8 ? 2 : 1;
+}
+
 static int main_after(int c, int r) {   /* round r comes after cup c's main round (calendar order) */
     for (int k = 0; k < nr[c]; k++)
         if (RD(c, k)[17]) {
@@ -255,17 +267,16 @@ static void cup_lines(int c, u32 week, int live) {
                 if (R[17] && r) { add(txt(T_BEFORE)); endline(); }
             }
             int n = CT_OUT.nent[c][r];
-            int drawn = n && seg_before(c, r, mo) ? 2 : (CT_SEG.kind != 0xFF && CT_SEG.cup == c && CT_SEG.round == r);
             if (R[0] == K_KO && R[18] && n && 2 * n <= R[18]) continue;   /* (all through without playing: no ties) */
             if (!n && seg_before(c, r, mo) && !((CT_ED.pad & 1) && !has_main(c)))
                 continue;                                             /* (no entrants: not played this season) */
             const char *rn = (const char *)CV_TAB + w16(ct + 4 + 2 * r);
-            int s1m = (CT_ED.pad & 1) && R[17] && n;   /* (B2: season 1's main round, drawn before the season) */
-            if (!s1m && (week < mweek(m) || !drawn)) {   /* not drawn yet */
+            int st = rstate(c, r, mo, week);
+            if (!st) {                  /* not drawn yet */
                 head(rn, txt(T_TBP)); endline(); done = 0;
                 continue;
             }
-            int played = drawn == 2 && week >= mweek(m) + 8;
+            int played = st == 2;
             if (!played) done = 0;
             round_lines(c, r, played);
         }
@@ -309,8 +320,8 @@ u32 cv_confs(u32 word, u8 *order) {     /* the confederations with a cup (ctview
    cv_rounds(conf, week, out): the rounds of conf's cups with a draw at the week (as cup_lines: its month come, drawn
    - or the career club's round in progress; B2's season 1: its main round from the start), cup by cup in calendar
    order, the latest CR_N; out[k] = cup << 4 | round; returns their number (0: no edition - the text page only).
-   CR_SEL: the menu's cursor (Davide 05/11, variant a): the first of them not played yet (as cup_lines: drawn, its
-   month over), every one played (after the final) the last.
+   CR_SEL: the menu's cursor (Davide 05/11, variant a): the first of them not played yet (rstate, the summary page's
+   rule), every one played (after the final) the last.
    cr_layout(n, nav): the menu's links (left, right, up, down a button, entries 1..CR_N in two columns of CR_N / 2; CR_N + 1 the summary page, CR_N + 2
    ESCI; FF none) - nav[4 * CR_N .. + 3] the summary's up / ESCI's up. */
 #define CR_N 16
@@ -329,13 +340,11 @@ u32 cv_rounds(u32 conf, u32 week, u8 *out) {
             for (int r = 0; r < nr[c]; r++) {
                 const u8 *R = RD(c, r);
                 if (R[9] != m) continue;
-                int n = CT_OUT.nent[c][r];
-                int drawn = n && seg_before(c, r, mo) ? 2 : (CT_SEG.kind != 0xFF && CT_SEG.cup == c && CT_SEG.round == r);
+                int n = CT_OUT.nent[c][r], st = rstate(c, r, mo, week);   /* (B2's season 1: its main
+                                           round in the menu from the start, its stock draw - Davide 04/11) */
                 if (R[0] == K_KO && R[18] && n && 2 * n <= R[18]) continue;
-                int s1m = (CT_ED.pad & 1) && R[17] && n;   /* (B2: season 1's main round, drawn before the season:
-                                           in the menu from the start, its stock draw - Davide 04/11) */
-                if (!s1m && (!drawn || week < mweek(m) || !n)) continue;
-                pl[k] = drawn == 2 && week >= mweek(m) + 8;
+                if (!st || !n) continue;
+                pl[k] = st == 2;
                 all[k++] = (u8)(c << 4 | r);
             }
         }

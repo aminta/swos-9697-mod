@@ -95,6 +95,42 @@ def setup():
     return base
 
 
+WORLD = int(os.environ.get('SWOSTEST_WORLD', 1))   # W-modes: the default world in every run's SETUP.DAT +105 (0 World
+                                                    # 2026-27 = a fresh install's, 1 the 1996-97 game: the plain CAREER
+                                                    # the scenarios were written for, 2 Europe 1984-85)
+
+
+def setup_dat(world=None):
+    """The SETUP.DAT a run gets (a scenario's own file aside): base's 105 B + the default world byte."""
+    d = open(os.path.join(setup(), 'SETUP.DAT'), 'rb').read()[:105]
+    return d + bytes([WORLD if world is None else world])
+
+
+def setup_file(tag, world):
+    """A SETUP.DAT for a run's files: setup_dat(world) in runs/<tag>_files."""
+    path = os.path.join(RUNS, tag + '_files', 'SETUP.DAT')
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    open(path, 'wb').write(setup_dat(world))
+    return path
+
+
+def set_world(s, w, lang=None):
+    """W-modes: fire the main menu's world switch (mainbtn, entry 4) until its label is world w's (mainbtn.WORLD: 0
+    World 2026-27, 1 the 1996-97 game, 2 Europe 1984-85). Returns the screen."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import mainbtn
+    labs = [t.decode('latin-1') for t in mainbtn.WORLD[lang or UI]]
+    for _ in range(4):
+        sc = s.screen()
+        now = [k for k, t in enumerate(labs) if sc.find(t, exact=True) is not None]
+        if not now:
+            raise AssertionError(f'no world switch on the main menu ({sc.texts()[:16]})')
+        if now[0] == w:
+            return sc
+        walk(s, sc.find(labs[now[0]], exact=True), 1)
+    raise AssertionError(f'world switch: {labs[w]} not reached')
+
+
 BUILD_KEEP_DAYS = 3        # build() / unique_out(): <name>-<key> dirs unused this long are removed (other names untouched)
 _ENV_RE = re.compile(r"""(?:environ(?:\.get)?\s*[\[(]\s*|getenv\(\s*)['"]([A-Z][A-Z0-9_]*)['"]""")
 
@@ -344,6 +380,8 @@ def prepare(name, exe_dir, cars, steps, match=False, timer=False):
         shutil.copytree(exe_dir, game, dirs_exist_ok=True, ignore=shutil.ignore_patterns('log.txt', 'INPUTS.txt', 'COBJ_MISSING.txt'))
     for dos, src in cars.items():
         shutil.copy(src, os.path.join(game, dos))
+    if 'SETUP.DAT' not in cars:                        # (W-modes: the default world byte, SETUP.DAT +105)
+        open(os.path.join(game, 'SETUP.DAT'), 'wb').write(setup_dat())
     if not os.path.exists(os.path.join(game, 'ITALIAN.EXE')):      # e.g. an English SWOS++ bundle
         shutil.copy(os.path.join(game, 'ENGLISH.EXE'), os.path.join(game, 'ITALIAN.EXE'))
     return run, test_exe(os.path.join(game, 'ITALIAN.EXE'), steps, match, timer)
@@ -873,10 +911,22 @@ class Result:
             self._base3 = struct.unpack('<I', self.read(self.base1 + self.p3[0], 4))[0] - self.p3[1]
         return self._base3
 
+    @property
+    def base4(self):
+        """obj4's linear base (engine step O: the engine's object), found by its header (swe.py: 'SWOS-ENG', then at
+        +12 a pointer to itself); None without obj4 (no game pointer into it before step W)."""
+        if getattr(self, '_base4', None) is None:
+            m = self.read(0, MEMSIZE)
+            k = m.find(b'SWOS-ENG')
+            while k >= 0 and struct.unpack_from('<I', m, k + 12)[0] != k:
+                k = m.find(b'SWOS-ENG', k + 1)
+            self._base4 = k if k >= 0 else None
+        return self._base4
+
     def lin(self, a):
         """The linear address of a (obj, offset) pair, or of a plain obj1 offset (older callers)."""
         if isinstance(a, tuple):
-            return {1: self.base1, 2: self.base2, 3: self.base3}[a[0]] + a[1]
+            return (self.base4 if a[0] == 4 else {1: self.base1, 2: self.base2, 3: self.base3}[a[0]]) + a[1]
         if isinstance(a, Off3):
             return self.base3 + int(a)
         return self.base1 + a
@@ -928,7 +978,7 @@ def run_case(name, exe_dir, cars, keys, timeout, shots=0, match=False, timer=Fal
 # season end); other texts stay as shown. Prefixes / suffixes: '<club> SQUAD' -> 'SQUADRA DEL <club>', '... END SEASON'
 # -> 'FINE CAMP. ...'.
 UI_EN = {'CAREER': 'CARRIERA', 'CHOOSE TEAM': 'SCEGLI SQUADRA', 'CLASSIC CAREERS': 'CARR. STORICHE',
-         'WORLD 2026-27': 'MONDO 2026-27', 'EUROPE 1984-85': 'EUROPA 1984-85', 'EUROPE': 'EUROPA',
+         'WORLD 2026-27': 'MONDO 2026-27', 'WORLD 1996-97': 'MONDO 1996-97', 'EUROPE 1984-85': 'EUROPA 1984-85', 'EUROPE': 'EUROPA',
          'SOUTH AMERICA': 'SUDAMERICA', 'NORTH AMERICA': 'NORDAMERICA', 'ENGLAND': 'INGHILTERRA', 'ITALY': 'ITALIA',
          'CONTINUE': 'CONTINUA', 'CONTINUE CAREER': 'CONTINUA CARRIERA', 'EXIT': 'ESCI', 'FINISH SEASON': 'FINISCI STAGIONE',
          'EDIT TACTICS': 'MOD. TATTICA', 'VIEW OPPO': 'AVVERSARI', 'FIRST ROUND': 'PRIMO TURNO',
@@ -952,7 +1002,11 @@ UI_ORIG_OF = {k: v + '.EXE' for k, v in {'it': 'ITALIAN', 'en': 'ENGLISH', 'fr':
 COLLECT = os.environ.get('SWOSTEST_COLLECT') == '1'    # (collecting the labels: raw texts, umlauts as '?')
 
 
+HIST_BOX = {'STORICO', 'HISTORIC', 'HISTORIQUE', 'HISTORISCH'}   # (W-modes M2: mkseason.CAREERS_NAMES, was
+                                                                  # CARR. STORICHE: the scenarios keep that label)
 def ui_it(text):
+    if text in HIST_BOX and not COLLECT:
+        return 'CARR. STORICHE'
     if UI == 'it' or not text or COLLECT:
         return text
     if UI == 'en' and text in UI_EN:
@@ -3008,43 +3062,86 @@ def zone_rows(s, tag, n):
 
 @scenario
 def main_button():
-    """4.0: the main menu's green CARRIERA 2026-27 button (mainbtn.py), in a full 2026-27 build (MAINBTN_BUILD; EN too
-    with MAINBTN_EN = an English build, its exe as ITALIAN.EXE): the plain CAREER > SELECT TEAM still opens the top
-    list; the button (right of CAREER: 4 x down from FRIENDLY) opens CAREER's menu whose SELECT TEAM opens the World
-    2026-27's list (its continents) at once; EUROPE > ITALY > SERIE A > INTER starts that world's career (2026/27)"""
-    cases = [('it', os.environ.get('MAINBTN_BUILD'), 'CARRIERA 2026-27', 'SCEGLI SQUADRA', 'MONDO 2026-27',
-              ['EUROPA', 'ITALIA', 'SERIE A', 'INTER'], 'CAMP. 2026/27'),
-             ('en', os.environ.get('MAINBTN_EN'), 'CAREER 2026-27', 'CHOOSE TEAM', 'WORLD 2026-27',
+    """W-modes M1 (Davide 04/11): the main menu's green button is the default-world switch (mainbtn.py), in a full
+    2026-27 build (MAINBTN_BUILD, else SWOSTEST_BUILD; EN too with MAINBTN_EN = an English build, its exe as
+    ITALIAN.EXE). A fresh install's 105-B SETUP.DAT shows WORLD: 2026-27 (right of CAREER: 4 x down from FRIENDLY) and
+    CAREER > SELECT TEAM opens the World 2026-27's list at once; fire -> WORLD: 1996-97, SETUP.DAT +105 = 1 at once
+    (the other 105 B as on disk), CAREER > SELECT TEAM at the top (the game's); fire -> EUROPE 1984-85 (+105 = 2),
+    SELECT TEAM opens that world's list; fire -> back to 2026-27 (0). Then a restart with +105 = 2 shows EUROPE
+    1984-85, and with 2026-27 EUROPE > ITALY > SERIE A > INTER starts that world's career (2026/27)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import mainbtn
+    cases = [('it', os.environ.get('MAINBTN_BUILD') or os.environ.get('SWOSTEST_BUILD'), 'CARRIERA', 'SCEGLI SQUADRA',
+              'MONDO 2026-27', 'EUROPA 1984-85', ['EUROPA', 'ITALIA', 'SERIE A', 'INTER'], 'CAMP. 2026/27'),
+             ('en', os.environ.get('MAINBTN_EN'), 'CAREER', 'CHOOSE TEAM', 'WORLD 2026-27', 'EUROPE 1984-85',
               ['EUROPE', 'ITALY', 'SERIE A', 'INTER'], '2026/27')]
     errs, info = [], []
     if not cases[0][1]:
-        return True, 'SKIP: MAINBTN_BUILD (a full 2026-27 build) not set'
-    for lang, b, btn, pick, world, path, season in cases:
+        return True, 'SKIP: MAINBTN_BUILD / SWOSTEST_BUILD (a full 2026-27 build) not set'
+    fresh = os.path.join(RUNS, 'main_button_files', 'SETUP.DAT')
+    os.makedirs(os.path.dirname(fresh), exist_ok=True)
+    base = setup_dat()[:105]
+    open(fresh, 'wb').write(base)                       # (a fresh install / INSTALL.EXE's: 105 B, no world byte)
+    for lang, b, car, pick, world, w84, path, season in cases:
         if not b:
             continue
-        with Session(f'main_button_{lang}', b, {}, 'dump:2', 1500) as s:
+        labs = [t.decode('latin-1') for t in mainbtn.WORLD[lang]]
+
+        def to_main(s):
+            for _ in range(8):
+                sc = s.screen()
+                if any(sc.find(t, exact=True) is not None for t in labs):
+                    return sc
+                out = [sc.find(t, exact=True) for t in ('ABBANDONA', 'ESCI', 'ABORT', 'EXIT') if sc.find(t, exact=True) is not None]
+                if not out:                                 # (the team list / career menu: ESC does not leave)
+                    s.send('esc dump:2')
+                elif press(s, sc, out[0], 2) is None:       # (the world's list: down past the hidden rows)
+                    s.send('down ' * 12 + 'dump:1')
+                    if s.screen().selected == out[0]:
+                        s.send('fire dump:2')
+            raise AssertionError(f'{lang}: not back on the main menu ({s.screen().texts()[:12]})')
+
+        def team_head(s):
+            walk(s, s.screen().find(car, exact=True), 3)
+            press(s, s.screen(), pick, 3)
+            return str(s.screen()).split('|')[0]
+
+        def disk(s):
+            return open(os.path.join(s.run, 'SWOS', 'SETUP.DAT'), 'rb').read()
+
+        with Session(f'main_button_{lang}', b, {'SETUP.DAT': fresh}, 'dump:2', 1500) as s:
             s.wait()
             sc = s.screen()
-            i = next((k for k, e in enumerate(sc.entries) if e[1] == btn), None)
-            check(i is not None, f'{lang}: {btn} on the main menu', errs)
+            i = sc.find(labs[0], exact=True)
+            check(i is not None, f'{lang}: {labs[0]} on the main menu of a fresh install ({sc.texts()[:14]})', errs)
             if i is None:
                 continue
+            check(sc.entries[i][0] == 4, f'{lang}: the switch is entry {sc.entries[i][0]}, not 4', errs)
             s.send('down down down down dump:1')
-            check(s.screen().selected == i, f'{lang}: 4 x down from FRIENDLY reaches {btn}', errs)
-            s.send('left dump:1 fire dump:3')               # the plain CAREER first: SELECT TEAM at the top
-            press(s, s.screen(), pick, 3)
-            top = str(s.screen())
-            check(world not in top.split('|')[0], f'{lang}: plain CAREER > {pick} at the top ({top[:60]})', errs)
-            s.send('esc dump:2 esc dump:2')
-            for _ in range(3):
-                if s.screen().find(btn, exact=True) is not None:
-                    break
-                s.send('esc dump:2')
-            walk(s, s.screen().find(btn, exact=True), 3)
-            s.send('fire dump:3')
-            press(s, s.screen(), pick, 3)
-            head = str(s.screen()).split('|')[0]
-            check(world in head, f'{lang}: the button > {pick}: {head}', errs)
+            check(s.screen().selected == i, f'{lang}: 4 x down from FRIENDLY reaches {labs[0]}', errs)
+            head = team_head(s)
+            check(world in head, f'{lang}: 2026-27 default: CAREER > {pick}: {head[:60]}', errs)
+            to_main(s)
+            for w, want_in, want_out in ((1, None, (world, w84)), (2, w84, (world,)), (0, world, (w84,))):
+                set_world(s, w, lang)
+                d = disk(s)
+                check(len(d) == 106 and d[:105] == base and d[105] == w,
+                      f'{lang}: {labs[w]}: SETUP.DAT {len(d)} B, +105 = {d[105:106].hex()}', errs)
+                head = team_head(s)
+                check((want_in is None or want_in in head) and not any(x in head for x in want_out),
+                      f'{lang}: {labs[w]}: CAREER > {pick}: {head[:60]}', errs)
+                info.append(f'{lang} {labs[w]}: {head[:28]}')
+                to_main(s)
+            set_world(s, 2, lang)
+            saved = os.path.join(RUNS, 'main_button_files', f'SETUP_{lang}.DAT')
+            shutil.copy(os.path.join(s.run, 'SWOS', 'SETUP.DAT'), saved)
+        with Session(f'main_button_restart_{lang}', b, {'SETUP.DAT': saved}, 'dump:2', 600) as s:
+            s.wait()
+            sc = s.screen()
+            check(sc.find(labs[2], exact=True) is not None and sc.find(labs[0], exact=True) is None,
+                  f'{lang}: restart: {labs[2]} kept ({sc.texts()[:14]})', errs)
+            set_world(s, 0, lang)
+            head = team_head(s)
             for x in path:
                 if press(s, s.screen(), x, 3) is None:
                     errs.append(f'{lang}: {x} not reached')
@@ -3058,12 +3155,13 @@ def main_button():
 
 @scenario
 def coach_nat():
-    """4.0.3: the coach's nationalities per career button (careerworld nat_init), Italian release-like build
-    (COACHNAT_BUILD, else SWOSTEST_BUILD; a full 2026-27 build): CARRIERA keeps the era list (YUG, RFT, URS, RDT);
-    CARRIERA 2026-27 lists today's nations (the World 2026-27 codes, MNE..TGA, and FIJ etc.) and none of the era
-    ones; a nationality the era list lacks becomes ENG there; a TGA coach starts the World 2026-27's INTER career.
-    4.0.6 (careerworld NAT_TODAY): the renamed nations' codes show today's letters under CARRIERA 2026-27 and in its
-    career (SRB CZE MKD COD SWZ, in the list too), the exe's own (YUG TCH MAC ZAI SWA) under CARRIERA"""
+    """4.0.3: the coach's nationalities per career world (careerworld nat_init), Italian release-like build
+    (COACHNAT_BUILD, else SWOSTEST_BUILD; a full 2026-27 build). W-modes M1: CARRIERA's world = the main menu's switch.
+    MONDO: 1996-97 and EUROPA 1984-85 keep the era list (YUG, RFT, URS, RDT); MONDO: 2026-27 lists today's nations
+    (the World 2026-27 codes, MNE..TGA, and FIJ etc.) and none of the era ones; a nationality the era list lacks
+    becomes ENG there; a TGA coach starts the World 2026-27's INTER career.
+    4.0.6 (careerworld NAT_TODAY): the renamed nations' codes show today's letters under MONDO: 2026-27 and in its
+    career (SRB CZE MKD COD SWZ, in the list too), the exe's own (YUG TCH MAC ZAI SWA) under 1996-97"""
     b = os.environ.get('COACHNAT_BUILD') or os.environ.get('SWOSTEST_BUILD')
     if not b:
         return True, 'SKIP: COACHNAT_BUILD (a full 2026-27 build) not set'
@@ -3088,13 +3186,10 @@ def coach_nat():
         check(b'\0' + new.encode() + b'\0' in tw and b'\0' + old.encode() + b'\0' not in tw
               and b'\0' + old.encode() + b'\0' in tg, f'national team {old} -> {new}: TMW5 / TEAM files', errs)
 
-    def car27(sc):                                          # (the green button: CAREER / CARRIERE / KARRIERE 2026-27)
-        return next((i for i, t, *_ in sc.entries if t and t.endswith(' 2026-27')), None)
-
     def to_main(s):
         for _ in range(4):
             sc = s.screen()
-            if car27(sc) is not None:
+            if sc.find('CARRIERA', exact=True) is not None and sc.find('OPZIONI', exact=True) is not None:
                 return
             if sc.find('ESCI', exact=True) is None or press(s, sc, 'ESCI', 2) is None:   # (the career menu: ESC
                 s.send('esc dump:2')                                                     # does not leave it)
@@ -3103,8 +3198,11 @@ def coach_nat():
         sc = s.screen()
         if i is None:
             i = sc.find('ENG', exact=True)
+            if i is None:                               # (W-modes: 1996-97 then 1984-85, both era lists: the
+                k = sc.find("NAZIONALITA'", exact=True) # nationality the first cycle left stays)
+                i = next((j for j, t, inv, _ in sc.entries if k is not None and j > k and t and not inv), None)
             if i is None:
-                raise AssertionError(f'no ENG field: {sc}')
+                raise AssertionError(f'no nationality field: {sc}')
             walk(s, i, 1)
         seen = []
         for _ in range(n):
@@ -3114,32 +3212,41 @@ def coach_nat():
 
     with Session('coach_nat', b, {}, 'dump:2', 900) as s:
         s.wait()
+        set_world(s, 1)
         walk(s, s.screen().find('CARRIERA', exact=True), 3)
         _, seen = cycle(s, 'left', 5)
-        check(era <= set(seen), f'CARRIERA: era nationalities {seen}', errs)
+        check(era <= set(seen), f'CARRIERA (1996-97): era nationalities {seen}', errs)
         info.append(f'CARRIERA {seen}')
         letters(s, 'CARRIERA', era_l)
         to_main(s)
-        walk(s, car27(s.screen()), 3)
-        letters(s, 'CARRIERA 2026-27', today_l)
-        i, seen = cycle(s, 'left', 62)
+        set_world(s, 2)
+        walk(s, s.screen().find('CARRIERA', exact=True), 3)
+        _, seen = cycle(s, 'left', 90)                      # (from the nationality 1996-97 left: the whole list)
+        check(era <= set(seen) and 'TGA' not in seen, f'CARRIERA (1984-85): era nationalities {seen}', errs)
+        to_main(s)
+        set_world(s, 0)
+        walk(s, s.screen().find('CARRIERA', exact=True), 3)
+        letters(s, 'CARRIERA (2026-27)', today_l)
+        i, seen = cycle(s, 'left', 130)                     # (from where 1984-85 left it)
         check({'TGA', 'SAM', 'MNE', 'FIJ'} <= set(seen) and not era & set(seen),
-              f'CARRIERA 2026-27: {seen}', errs)
+              f'CARRIERA (2026-27): {seen}', errs)
         _, more = cycle(s, 'left', 160, i)                     # (the whole list: today's letters in, the era's out)
         check(set(today_l.values()) <= set(seen + more) and not (gone | era) & set(seen + more),
-              f'CARRIERA 2026-27 list: {sorted(set(seen + more))}', errs)
-        for _ in range(222):                                # (back to the 62nd, a nation the era list lacks: the
-            if s.screen().entries[i][1] == seen[-1]:        # case below)
+              f'CARRIERA (2026-27) list: {sorted(set(seen + more))}', errs)
+        for _ in range(300):                                # (back to the 130th, the case below)
+            if s.screen().entries[i][1] == seen[-1]:
                 break
             s.send('fire+left dump:0.3')
         info.append(f'2026-27 {seen[:4]}..{seen[-3:]}')
         last = seen[-1]
         to_main(s)
+        set_world(s, 1)
         walk(s, s.screen().find('CARRIERA', exact=True), 3)
         sc = s.screen()
         check(sc.find('ENG', exact=True) is not None, f'CARRIERA after {last}: not ENG ({sc})', errs)
         to_main(s)
-        walk(s, car27(s.screen()), 3)
+        set_world(s, 0)
+        walk(s, s.screen().find('CARRIERA', exact=True), 3)
         i, seen = cycle(s, 'left', 1)
         for _ in range(5):                                  # (the walk's fire may move the field once)
             if seen[-1] == 'TGA':
@@ -5658,8 +5765,8 @@ def walk(s, target, w=3, tries=20, stays=48):
 
 
 def career_entry(s, t):
-    """walk() target for a menu label: the main menu's original CARRIERA (1996-97 career) when a release build also
-    has the green 'CARRIERA 2026-27' button (4.0 mainbtn), which a plain 'CARRIERA' would pick first."""
+    """walk() target for a menu label: the main menu's CARRIERA exactly (4.0's green 'CARRIERA 2026-27' button would
+    match a plain 'CARRIERA' first; W-modes: the button is the world switch, CARRIERA's world the harness's WORLD)."""
     if t == 'CARRIERA':
         i = s.screen().find('CARRIERA', exact=True)
         return t if i is None else i
@@ -7585,6 +7692,8 @@ def bench_world():
                                             # long-bench squad screen's PLAY MATCH sees the fire (spp_go: SPP_PM_HOLD)
         pp = os.path.join(MAIN, 'internal', 'swospp-test')
         files = {'LOADER.BIN': os.path.join(pp, 'loader.bin'), 'SWOSPP.BIN': os.path.join(pp, 'swospp.bin')}
+        if not os.environ.get('BENCH_BASE'):
+            files['SETUP.DAT'] = setup_file('bench_world_spp', 0)   # (W-modes: CAREER opens the World 2026-27)
     p = lepatch.LEPatch(exe)
     _, cnp, ct, cmp, sel = xtra.sites(p)
     bx, gmax = bench_switch(exe)
@@ -7602,9 +7711,9 @@ def bench_world():
         if s.wait().outcome != 'dump':
             return False, f'START: no first pause ({s.result})'
         scr = s.screen()
-        car = 'CAREER 2026-27' if files and not os.environ.get('BENCH_BASE') else 'CARRIERA'   # (under SWOS++ the plain
-        if press(s, scr, car) is None:      # CAREER > SELECT TEAM opens the base game's list, no CLASSIC CAREERS -
-            return False, f'{car} not reached ({s.result})'   # 4.0.2 too: the main menu's 2026-27 button instead)
+        car = 'CARRIERA'                    # (under SWOS++ the plain CAREER > SELECT TEAM opens the base game's list,
+        if press(s, scr, car) is None:      # no CLASSIC CAREERS - 4.0.2 too: W-modes, SETUP.DAT's default world
+            return False, f'{car} not reached ({s.result})'   # 2026-27 instead, its list at once)
         for t in ['SCEGLI SQUADRA'] + ([] if os.environ.get('BENCH_BASE') or files else ['CARR. STORICHE', 'MONDO 2026-27']):
             if press(s, s.screen(), t) is None:
                 return False, f'new career: {t} not reached ({s.result})'
@@ -9654,7 +9763,7 @@ def bench_numbers():
             for _ in range(4):
                 if 'TRASFERIMENTI' in s.screen().texts():
                     break
-                press(s, s.screen(), 'ESCI', wait=2) or s.send('escape dump:2')
+                press(s, s.screen(), 'ESCI', wait=2) or s.send('esc dump:2')
         ok, msg = advance(s, season_over, 900)
         if not ok:
             return False, 'advance: ' + msg + '; ' + '; '.join(errs + info)
@@ -10203,7 +10312,7 @@ def kbd2_friendly_run(on):
     tag = 'kbd2_friendly_' + ('on' if on else 'off')
     tmp = os.path.join(RUNS, tag + '_files')
     os.makedirs(tmp, exist_ok=True)
-    sd = bytearray(open(os.path.join(setup(), 'SETUP.DAT'), 'rb').read())
+    sd = bytearray(setup_dat())
     sd[6:8] = struct.pack('<H', 1)
     open(os.path.join(tmp, 'SETUP.DAT'), 'wb').write(sd)
     files = {'SETUP.DAT': os.path.join(tmp, 'SETUP.DAT')}
@@ -10293,7 +10402,7 @@ def controls_menu():
     T = controls.TEXTS[UI]
     enc = lambda x: x.encode('latin-1')
     errs, notes = [], []
-    base = open(os.path.join(setup(), 'SETUP.DAT'), 'rb').read()
+    base = setup_dat()
     with Session('controls_menu_' + UI, b, {}, 'dump:2', 300) as s:
         if s.wait().outcome != 'dump':
             return False, f'START: no first pause ({s.result})'
@@ -10416,7 +10525,7 @@ def controls_calib():
     p.put(1, v['rgp'], b'\xc3')                         # ReadGamePort: ret (the harness pokes the readings)
     p.save(os.path.join(rb, 'ITALIAN.EXE'))
     errs, notes = [], []
-    base = open(os.path.join(setup(), 'SETUP.DAT'), 'rb').read()
+    base = setup_dat()
     jx = lambda r: r.base2 + v['buf'] + 22
     with Session('controls_calib_' + UI, rb, {}, 'dump:2', 300) as s:
         if s.wait().outcome != 'dump':
@@ -10526,8 +10635,489 @@ def controls_swospp():
 
 
 @scenario
+def engine_obj4():
+    """engine step O (CONVENTIONS 23bis): the exe has a 4th LE object, obj4 = the engine's (swe.py), and DOS/4GW loads
+    it: its header found in memory ('SWOS-ENG', the self pointer relocated), its pointers to swe_init and the arena
+    relocated to obj4's base, the version and arena size as built; the main menu up. SWOSTEST_UI=en: the same under
+    SWOS++ 1.9.2.2 (loader files, timer keys; swospp_on). A match under SWOS++: bench_world with BENCH_SPP=1."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import swe
+    from le import LE
+    b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
+    exe = os.path.join(b, 'ITALIAN.EXE')
+    le = LE(open(exe, 'rb').read())
+    if len(le.objs) < 4:
+        return False, f'{len(le.objs)} objects: no obj4'
+    hdr = le.obj_bytes(4)[:32]
+    ver, arena_n = struct.unpack_from('<I', hdr, 8)[0], struct.unpack_from('<I', hdr, 24)[0]
+    fx = {soff: toff for sobj, soff, t, tobj, toff, *_ in le.fixups() if sobj == 4 and t == 7 and tobj == 4}
+    errs, info = [], [f'obj4 {le.obj(4).npages} page(s), vsize {le.obj(4).vsize:#x}, v{ver}, arena {arena_n:#x} B']
+    check(hdr[:8] == swe.MAGIC and ver == swe.VERSION and set(fx) >= {12, 16, 20} and fx[12] == 0,
+          f'header {hdr.hex()} fixups {fx}', errs)
+    runs = [('dos4gw', b, {})]
+    if UI == 'en':
+        import swospp
+        pp = os.path.join(MAIN, 'internal', 'swospp-test')
+        out = os.path.join(WORK, 'builds-x', 'engine_obj4')
+        shutil.rmtree(out, ignore_errors=True)
+        shutil.copytree(b, out)
+        swospp.install(exe, os.path.join(out, 'ITALIAN.EXE'))
+        runs.append(('swospp', out, {'LOADER.BIN': os.path.join(pp, 'loader.bin'),
+                                     'SWOSPP.BIN': os.path.join(pp, 'swospp.bin')}))
+    for tag, d, files in runs:
+        with Session(f'engine_obj4_{tag}', d, files, 'dump:3', 200, timer=bool(files)) as s:
+            if s.wait().outcome != 'dump':
+                errs.append(f'{tag}: no first pause ({s.result})')
+                continue
+            r = s.result
+            b4 = r.base4
+            if b4 is None:
+                errs.append(f'{tag}: obj4 header not in memory')
+                continue
+            m = r.read(b4, 28)
+            got = struct.unpack_from('<3I', m, 12)
+            want = (b4, b4 + fx.get(16, -1), b4 + fx.get(20, -1))
+            check(got == want, f'{tag}: pointers {[hex(x) for x in got]} != {[hex(x) for x in want]}', errs)
+            sc = s.screen()
+            check(any(e[1].endswith(('2026-27', '1996-97', '1984-85')) for e in sc.entries), f'{tag}: not the main menu: {sc}', errs)
+            if files:
+                on, why = swospp_on(r, os.path.join(d, 'ITALIAN.EXE'))
+                check(on, f'SWOS++ not running: {why}', errs)
+            info.append(f'{tag}: obj4 at {b4:#x} (obj1 {r.base1:#x}, obj2 {r.base2:#x}, obj3 '
+                        f'{r.base3 if r.base3 is None else hex(r.base3)})')
+            s.shot(f'menu_{tag}')
+    return not errs, '; '.join(errs + info)
+
+
+@scenario
+def engine_registry():
+    """engine step W: the world registry (swreg.py) in obj4 and the game's first call into the engine. DOS/4GW
+    relocates the manifest ('SWRG', worlds 0 / 4 / 5 on a release-recipe exe, its pointers into obj1 / obj2); a
+    FRIENDLY goes through GoGetTeamsForPlay's picker, now via obj4's swe_sel_tramp: inside the picker (EUROPA list)
+    SEL_MODE = M_FRIENDLY, competitionsTable[254] as in the main menu; after it (HAMBURG - SCHALKE, the pre-match
+    screen) SEL_MODE = ~0, competitionsTable[254] the same, REG_PREV = ~0 and WCUR the base world (no namespace left
+    entered). The registry lists nothing new in step W: the picker shows the game's own continents (W-modes M2, the
+    harness's default world 1996-97: + the STORICO entry, on the careers' world table; engine_wmodes for 2026-27)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import swreg
+    errs, info = [], []
+    with Session('engine_registry', builds()['it'], {}, 'dump:3', 300) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'no first pause ({s.result})'
+        r = s.result
+        b4 = r.base4
+        if b4 is None:
+            return False, 'obj4 header not in memory'
+        reg, enter, leave, selmode, regprev = struct.unpack('<5I', r.read(b4 + 32, 20))
+        m = r.read(reg, swreg.HDR)
+        nw, nsbase = m[6], m[7]
+        wcur, c254 = struct.unpack_from('<2I', m, 8)
+        ws = [r.read(reg + swreg.HDR + swreg.REC * k, swreg.REC) for k in range(nw)]
+        check(m[:4] == swreg.MAGIC and struct.unpack_from('<H', m, 4)[0] == swreg.VERSION and b4 < reg < b4 + swreg.OBJ4_END,
+              f'manifest at {reg:#x}: {m[:8]!r}', errs)
+        check([w[0] for w in ws] == [0, 4, 5] and ws[2][8:12] == b'tmw5', f'worlds {[(w[0], w[8:12]) for w in ws]}', errs)
+        rd32 = lambda a: struct.unpack('<I', s.result.read(a, 4))[0]
+        menu254 = rd32(c254)
+        check(rd32(selmode) == 0xFFFFFFFF and r.read(wcur, 1)[0] == nsbase, f'main menu: SEL_MODE {rd32(selmode):#x} '
+              f'WCUR {r.read(wcur, 1)[0]}', errs)
+        for t in ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB'):
+            walk(s, t, 2)
+        scr = s.screen()
+        check(scr.find('EUROPA') is not None, f'the picker\'s continents: {scr.texts()[:12]}', errs)
+        cwt = struct.unpack_from('<I', m, 16)[0]  # (W-modes M2: the picker runs on the careers' world table, the
+        check(rd32(selmode) == swreg.M_FRIENDLY and rd32(c254) == cwt and scr.find('CARR. STORICHE') is not None,
+              f'in the picker: SEL_MODE {rd32(selmode):#x}, competitionsTable[254] {rd32(c254):#x} (the careers\' '
+              f'{cwt:#x}), STORICO shown {scr.find("CARR. STORICHE") is not None}', errs)   # 1996-97 default: + STORICO)
+        s.shot('picker')
+        for t in ('EUROPA', 'GERMANIA', '1. LIGA', 'HAMBURG', 'SCHALKE'):
+            walk(s, t, 2)
+        for _ in range(12):
+            scr = s.screen()
+            if scr.selected == 55:
+                s.send('fire dump:4')
+                break
+            s.send(('right' if scr.selected in (56, 57) else 'down') + ' dump:0.5')
+        scr = s.screen()
+        check(any(scr.find(t) is not None or any(t in e[1] for e in scr.entries) for t in ('HAMBURG', 'SCHALKE')),
+              f'pre-match: '
+              f'{scr.texts()[:12]}', errs)
+        check(rd32(selmode) == 0xFFFFFFFF and rd32(c254) == menu254 and rd32(regprev) == 0xFFFFFFFF
+              and s.result.read(wcur, 1)[0] == nsbase, f'after the picker: SEL_MODE {rd32(selmode):#x} C254 '
+              f'{rd32(c254):#x} REG_PREV {rd32(regprev):#x} WCUR {s.result.read(wcur, 1)[0]}', errs)
+        s.shot('prematch')
+        info.append(f'obj4 {b4:#x}, manifest {reg:#x} ({nw} worlds), picker SEL_MODE {swreg.M_FRIENDLY} then ~0')
+    return not errs, '; '.join(errs + info)
+
+
+@scenario
+def engine_wmodes():
+    """W-modes M2: the FRIENDLY picker lists the worlds (swe.c, release-recipe exe, fresh SETUP.DAT = default World
+    2026-27). It opens on World 2026-27's continents + the STORICO entry (98; its label = the careers' box until
+    Davide's texts). INTER (EUROPA > ITALIA > SERIE A) picked there sets the contest's world (SEL_CW 5); STORICO then
+    lists the 1996-97 game (WMENU + 0) but not Europe 1984-85 (mixing A: one career world per contest). HAMBURG from
+    STORICO > 1996-97 > EUROPA > GERMANIA > 1. LIGA: the pre-match screen shows INTER (ITALIA) - HAMBURG (GERMANIA),
+    SWE_CWORLD 5, WCUR 5 (the contest's namespace: the countries' names are read by number), the game's lists back
+    (competitionsTable[254], [98]). SWOSTEST_UI fr/de/en: the same through the menus' own names."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import swreg
+    errs, info = [], []
+    hist = 'CARR. STORICHE'                      # (the careers' box label: STORICO's until Davide's texts)
+    files = {'SETUP.DAT': setup_file('engine_wmodes', 0)}     # (the default World 2026-27: a fresh install's)
+    with Session('engine_wmodes', os.environ.get('SWOSTEST_BUILD') or builds()['it'], files, 'dump:3', 400) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'no first pause ({s.result})'
+        r = s.result
+        b4 = r.base4
+        if b4 is None:
+            return False, 'obj4 header not in memory'
+        reg, _, _, selmode, _, cworld, selcw = struct.unpack('<7I', r.read(b4 + 32, 28))
+        m = r.read(reg, swreg.HDR)
+        wcur, c254, cwt = struct.unpack_from('<3I', m, 8)
+        rd32 = lambda a: struct.unpack('<I', s.result.read(a, 4))[0]
+        comp = c254 - 4 * 254
+        menu254, menu98 = rd32(c254), rd32(comp + 4 * 98)
+        for t in ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB'):
+            walk(s, t, 2)
+        scr = s.screen()
+        check(scr.find(hist) is not None and scr.find('EUROPA') is not None and
+              scr.find('NORDAMERICA') is not None, f'the picker\'s first list: {scr.texts()[:14]}', errs)
+        check(rd32(selmode) == swreg.M_FRIENDLY and rd32(c254) == cwt, f'in the picker: SEL_MODE {rd32(selmode):#x}, '
+              f'competitionsTable[254] {rd32(c254):#x} (the careers\' table {cwt:#x})', errs)
+        s.shot('first')
+        for t in ('EUROPA', 'ITALIA', 'SERIE A', 'INTER'):
+            walk(s, t, 2)
+        s.shot('inter')
+        for _ in range(6):                       # (up: the lists' ESCI entry, one level each; a team list's is
+            sc = s.screen()                      # reached down past its rows, as world_mainbtn's to_main)
+            if sc.find(hist) is not None:
+                break
+            out = sc.find('ESCI', exact=True)
+            if out is None or press(s, sc, out, 2) is None:
+                s.send('down ' * 12 + 'dump:1')
+                if out is not None and s.screen().selected == out:
+                    s.send('fire dump:2')
+        check(rd32(selcw) == 5, f'after INTER: SEL_CW {rd32(selcw)}', errs)
+        scr = walk(s, hist, 2)
+        check(scr.find('MONDO 1996-97') is not None and scr.find('EUROPA 1984-85') is None and
+              scr.find('MONDO 2026-27') is None, f'STORICO with a 2026-27 club picked: {scr.texts()[:10]}', errs)
+        s.shot('storico')
+        for t in ('MONDO 1996-97', 'EUROPA', 'GERMANIA', '1. LIGA', 'HAMBURG'):
+            walk(s, t, 2)
+        s.shot('hamburg')
+        for _ in range(16):
+            scr = s.screen()
+            if scr.selected == 55:
+                s.send('fire dump:4')
+                break
+            s.send(('right' if scr.selected in (56, 57) else 'down') + ' dump:0.5')
+        scr = s.screen()
+        tx = ' '.join(scr.texts()) + ' '.join(e[1] for e in scr.entries)
+        s.shot('prematch')
+        press(s, scr, 'AVVERSARI', 3)            # (the other team's squad)
+        sc2 = s.screen()
+        tx += ' '.join(sc2.texts()) + ' '.join(e[1] for e in sc2.entries)
+        check('INTER' in tx and 'HAMBURG' in tx, f'pre-match: {scr.texts()[:6]} / {sc2.texts()[:6]}', errs)
+        nat = {}
+        for t in ('INTER', 'HAMBURG'):           # (each squad screen: the club's name, then its country's)
+            for x in (scr, sc2):
+                if t in x.texts():
+                    nat[t] = (x.texts() + [''])[x.texts().index(t) + 1]
+        check(nat.get('INTER') == '(ITALIA)' and nat.get('HAMBURG') == '(GERMANIA)', f'countries {nat} (the contest '
+              f'world\'s namespace kept after the picker: the game reads a club\'s country name by number)', errs)
+        s.shot('opponent')
+        check(rd32(selmode) == 0xFFFFFFFF and rd32(c254) == menu254 and rd32(comp + 4 * 98) == menu98 and
+              rd32(cworld) == 5 and s.result.read(wcur, 1)[0] == 5, f'after the picker: SEL_MODE {rd32(selmode):#x} C254 {rd32(c254):#x} 98 '
+              f'{rd32(comp + 4 * 98):#x} SWE_CWORLD {rd32(cworld)} WCUR {s.result.read(wcur, 1)[0]}', errs)
+        info.append(f'pre-match {[t for t in scr.texts() if t][:4]} / {[t for t in sc2.texts() if t][:4]}, WCUR '
+                    f'{s.result.read(wcur, 1)[0]}')
+    return not errs, '; '.join(errs + info)
+
+
+def wm_up(s, label, n=6):
+    """Up the team picker's lists to the one showing `label` (each list's ESCI entry; a team list's past its rows)"""
+    for _ in range(n):
+        sc = s.screen()
+        if sc.find(label) is not None:
+            return sc
+        out = sc.find('ESCI', exact=True)
+        if out is None or press(s, sc, out, 2) is None:
+            s.send('down ' * 12 + 'dump:1')
+            if out is not None and s.screen().selected == out:
+                s.send('fire dump:2')
+    return s.screen()
+
+
+def wm_mixed(s, hist):
+    """W-modes M2: a mixed friendly from the main menu (default World 2026-27): INTER (EUROPA > ITALIA > SERIE A),
+    HAMBURG (STORICO > 1996-97 > EUROPA > GERMANIA > 1. LIGA), the picker done. Returns the pre-match screen."""
+    for t in ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE A', 'INTER'):
+        walk(s, t, 2)
+    wm_up(s, hist)
+    for t in (hist, 'MONDO 1996-97', 'EUROPA', 'GERMANIA', '1. LIGA', 'HAMBURG'):
+        walk(s, t, 2)
+    return pick_done(s)
+
+
+def wm_to_main(s, mark='COMP. PREDEFINITA'):
+    for _ in range(10):
+        sc = s.screen()
+        if sc.find(mark, exact=True) is not None and sc.find('AMICHEVOLE', exact=True) is not None:
+            return True
+        out = [sc.find(t, exact=True) for t in ('ABBANDONA', 'ESCI') if sc.find(t, exact=True) is not None]
+        if not out:                              # (as world_mainbtn's to_main: a list's exit is down past its rows)
+            s.send('esc dump:2')
+        elif press(s, sc, out[0], 2) is None:
+            s.send('down ' * 12 + 'dump:1')
+            if s.screen().selected == out[0]:
+                s.send('fire dump:2')
+    return False
+
+
+@scenario
+def engine_wmodes_next():
+    """W-modes M2: the next team picker of another kind after a mixed friendly (wm_mixed: INTER of World 2026-27 +
+    HAMBURG of the 1996-97 game, which leaves namespace 5, the contest's) gets the base namespace back (swe.c
+    swe_stfm_guard at SelectTeamsFinalMenu's entry): a preset's picker, MODIFICA SQUADRE's (SQUADRE ORIGINALI: the custom
+    teams' list), STAGIONE's - WCUR = the base one at their first list. A new career (CARRIERA > SCEGLI SQUADRA, the default
+    World 2026-27's selector > EUROPA > ITALIA > SERIE A > INTER): the career's own namespace (careerworld, by the
+    path), never the guard's: WCUR 5 and INTER (ITALIA) on its squad screen, not (SCOZIA). A fresh mixed friendly
+    before each."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import swreg
+    errs, info = [], []
+    hist = 'CARR. STORICHE'                      # (the careers' box label: STORICO's until Davide's texts)
+    files = {'SETUP.DAT': setup_file('engine_wmodes_next', 0)}
+    paths = {'preset': ['COMP. PREDEFINITA'], 'edit': ['MODIFICA SQUADRE', 'SQUADRE CLUB', 'SQUADRE ORIGINALI'], 'season': ['STAGIONE'],
+             'career': ['CARRIERA', 'SCEGLI SQUADRA']}
+    with Session('engine_wmodes_next', os.environ.get('SWOSTEST_BUILD') or builds()['it'], files, 'dump:3', 900) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'no first pause ({s.result})'
+        r = s.result
+        reg = struct.unpack('<I', r.read(r.base4 + 32, 4))[0]
+        m = r.read(reg, swreg.HDR)
+        nsbase, wcur = m[7], struct.unpack_from('<I', m, 8)[0]
+        for k, path in paths.items():
+            scr = wm_mixed(s, hist)
+            ns = s.result.read(wcur, 1)[0]
+            check(ns == 5, f'{k}: after the mixed friendly WCUR {ns} (the contest\'s 5)', errs)
+            if not wm_to_main(s):
+                errs.append(f'{k}: no way back to the main menu ({s.screen().texts()[:6]})')
+                break
+            seen = []
+            for t in path + ['SQUADRE CLUB', 'SCEGLI SQUADRA', 'SCEGLI SQUADRE']:
+                sc = s.screen()
+                if sc.find('EUROPA', exact=True) is not None or sc.find(hist) is not None:
+                    break
+                if sc.find(t, exact=False) is not None:
+                    press(s, sc, sc.find(t, exact=False), 3)
+                    seen.append(t)
+            sc = s.screen()
+            ns = s.result.read(wcur, 1)[0]
+            s.shot(k)
+            info.append(f'{k}: {" > ".join(seen)}: WCUR {ns}, {[e[1] for e in sc.entries if e[1]][:4]}')
+            if k != 'career':
+                opened = sc.find('EUROPA', exact=True) is not None or (k == 'edit' and sc.entries and   # (edit: the
+                                                                       sc.entries[0][1].startswith('SELEZ. SQ.'))  # CUSTOM list)
+                check(ns == nsbase and opened, f'{k}: WCUR {ns} at the picker\'s '
+                      f'first list (base {nsbase}) {sc.texts()[:8]}', errs)
+                wm_to_main(s)
+                continue
+            for t in ('EUROPA', 'ITALIA', 'SERIE A', 'INTER'):
+                walk(s, t, 2)
+            for _ in range(8):                   # (the career's confirmations, as world_s1conti's start)
+                sc = s.screen()
+                if 'INTER' in sc.texts() and '(ITALIA)' in sc.texts():
+                    break
+                ok = sc.find('OK', exact=True)
+                if ok is None or press(s, sc, ok, 3) is None:
+                    s.send('fire dump:3')
+            sc = s.screen()
+            ns = s.result.read(wcur, 1)[0]
+            s.shot('career')
+            check(ns == 5 and 'INTER' in sc.texts() and '(ITALIA)' in sc.texts(), f'career: WCUR {ns}, '
+                  f'{sc.texts()[:8]}', errs)
+            info.append(f'career start: WCUR {ns}, {sc.texts()[:3]}')
+    return not errs, '; '.join(errs + info)
+
+
+@scenario
+def engine_wmodes_def():
+    """W-modes M2, Q1 (b) (Davide 2026-11-04): under the 1996-97 / Europe 1984-85 default the friendly picker lists
+    MONDO 2026-27 as its own GREEN entry (colour 14) next to the STORICO box, and STORICO holds the historic worlds
+    only. (1) Default 1996-97: the game's continents + MONDO 2026-27 + STORICO (= EUROPA 1984-85 only); INTER from
+    MONDO 2026-27 > EUROPA > ITALIA > SERIE A locks the contest to 2026-27: the box (now empty) is left out, MONDO
+    2026-27 stays, the title bar shows the lock line (swe.LOCK_LINE: fits the bar, font chars), not in the lists
+    below; HAMBURG from the game's EUROPA > GERMANIA > 1. LIGA: INTER (ITALIA) - HAMBURG (GERMANIA).
+    (2) Default 1984-85: its countries + MONDO 2026-27 + STORICO (= 1996-97 only); VOLSUNGUR (ISLANDA) locks it to
+    1984-85: MONDO 2026-27 left out."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import swe
+    import complist
+    errs, info = [], []
+    hist = 'CARR. STORICHE'                      # (the purple box: STORICO, ui_it's HIST_BOX)
+    cur = 'MONDO 2026-27'
+    lock = swe.LOCK_LINE[UI if UI in swe.LOCK_LINE else 'it']
+
+    def title(sc, want, tag):                   # the lock line in the title bar (entry 0): fits, font chars only
+        t, w = sc.raw_texts[0], sc.geom[0][2]
+        ok = (t == lock) == want and (not want or (complist.px(t) <= w and set(t) <= complist.FONT))
+        check(ok, f'{tag}: title {t!r} ({complist.px(t)} px, bar {w}), the lock line wanted {want}', errs)
+    b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
+
+    def colour(sc, t):
+        i = sc.find(t, exact=True)
+        return None if i is None else next(c for (j, *_), c in zip(sc.entries, sc.colors) if j == i)
+
+    def first(s):
+        for t in ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB'):
+            walk(s, t, 2)
+        return s.screen()
+
+    with Session('engine_wmodes_def', b, {'SETUP.DAT': setup_file('engine_wmodes_def', 1)}, 'dump:3', 400) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'no first pause ({s.result})'
+        sc = first(s)
+        tx = sc.texts()
+        s.shot('d9697_first')
+        title(sc, False, 'default 1996-97, the first list')
+        check(all(t in tx for t in ('EUROPA', 'AFRICA', cur, hist)) and colour(sc, cur) == 14 and
+              tx.index(cur) < tx.index(hist), f'default 1996-97, the first list {tx[:12]}, {cur} colour '
+              f'{colour(sc, cur)}', errs)
+        sc = walk(s, hist, 2)
+        s.shot('d9697_storico')
+        check('EUROPA 1984-85' in sc.texts() and cur not in sc.texts() and 'MONDO 1996-97' not in sc.texts(),
+              f'default 1996-97, STORICO {sc.texts()[:8]}', errs)
+        wm_up(s, cur)
+        for t in (cur, 'EUROPA', 'ITALIA', 'SERIE A', 'INTER'):
+            walk(s, t, 2)
+        sc = wm_up(s, cur)                       # (the top list: 2026-27's own lists AFRICA too)
+        s.shot('d9697_locked')
+        title(sc, True, 'default 1996-97 after INTER')
+        check(cur in sc.texts() and hist not in sc.texts(), f'default 1996-97 after INTER: {sc.texts()[:12]} (the '
+              f'empty STORICO left out)', errs)
+        sc = walk(s, 'EUROPA', 2)
+        title(sc, False, 'default 1996-97, the game\'s EUROPA (no world listed)')
+        for t in ('GERMANIA', '1. LIGA', 'HAMBURG'):
+            walk(s, t, 2)
+        sc = pick_done(s)
+        tx = sc.texts()
+        press(s, sc, 'AVVERSARI', 3)
+        tx2 = s.screen().texts()
+        nat = {t: (x + [''])[x.index(t) + 1] for t in ('INTER', 'HAMBURG') for x in (tx, tx2) if t in x}
+        check(nat == {'INTER': '(ITALIA)', 'HAMBURG': '(GERMANIA)'}, f'default 1996-97, pre-match countries {nat}',
+              errs)
+        info.append(f'1996-97 default: {nat}')
+    with Session('engine_wmodes_def2', b, {'SETUP.DAT': setup_file('engine_wmodes_def2', 2)}, 'dump:3', 400) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'no first pause ({s.result})'
+        sc = first(s)
+        tx = sc.texts()
+        s.shot('d8485_first')
+        check(all(t in tx for t in ('ISLANDA', cur, hist)) and colour(sc, cur) == 14 and
+              tx.index(cur) < tx.index(hist), f'default 1984-85, the first list {tx[-8:]}, {cur} colour '
+              f'{colour(sc, cur)}', errs)
+        sc = walk(s, hist, 2)
+        s.shot('d8485_storico')
+        check('MONDO 1996-97' in sc.texts() and cur not in sc.texts() and 'EUROPA 1984-85' not in sc.texts(),
+              f'default 1984-85, STORICO {sc.texts()[:8]}', errs)
+        wm_up(s, cur)
+        for t in ('ISLANDA', 'VOLSUNGUR'):
+            walk(s, t, 2)
+        sc = wm_up(s, hist)
+        s.shot('d8485_locked')
+        title(sc, True, 'default 1984-85 after VOLSUNGUR')
+        check(cur not in sc.texts() and 'ISLANDA' in sc.texts(), f'default 1984-85 after VOLSUNGUR: '
+              f'{sc.texts()[-8:]} ({cur} left out)', errs)
+        info.append(f'1984-85 default locked: {sc.texts()[-4:]}')
+    return not errs, '; '.join(errs + info)
+
+
+def pick_done(s, e=55, w=4):
+    """The team picker's done entry (`e`, the bottom row's left: PLAY / CUP / ...): down past the team rows, right off
+    56 / 57, then fire (engine_registry's way: the path planner finds no link from a team row to it)"""
+    for _ in range(16):
+        scr = s.screen()
+        if scr.selected == e:
+            s.send(f'fire dump:{w}')
+            return s.screen()
+        s.send(('right' if scr.selected in (56, 57) else 'down') + ' dump:0.5')
+    raise AssertionError(f'the picker\'s entry {e} not reached ({s.screen().selected})')
+
+
+@scenario
+def engine_wmodes_diy():
+    """W-modes M2, the DIY contest's world ('WM', notes/engine/save-ledger.md). (1) Default World 2026-27: a DIY cup
+    of one round (COPPA, TURNI x3 = FINALE) with INTER (2026-27: EUROPA > ITALIA > SERIE A) and HAMBURG (STORICO >
+    1996-97 > EUROPA > GERMANIA > 1. LIGA), saved as WM5: the file = the game's part + 'WM' 1 5. (2) Default 1996-97
+    (the harness's): CARICA VECCHIA COMPETIZIONE > WM5: SWE_CWORLD 5 and namespace 5 (the contest's), the cup menu
+    shows INTER and HAMBURG."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import swreg
+    errs, info = [], []
+    hist = 'CARR. STORICHE'                      # (the careers' box label: STORICO's until Davide's texts)
+    b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
+
+    def hdr(s):
+        r = s.result
+        reg, _, _, selmode, _, cworld, selcw = struct.unpack('<7I', r.read(r.base4 + 32, 28))
+        wcur = struct.unpack('<I', r.read(reg + 8, 4))[0]
+        return struct.unpack('<I', r.read(cworld, 4))[0], wcur
+
+    def up_to(s, t):
+        for _ in range(6):
+            sc = s.screen()
+            if sc.find(t) is not None:
+                return
+            out = sc.find('ESCI', exact=True)
+            if out is None or press(s, sc, out, 2) is None:
+                s.send('down ' * 12 + 'dump:1')
+                if out is not None and s.screen().selected == out:
+                    s.send('fire dump:2')
+        raise AssertionError(f'{t} not reached ({s.screen().texts()[:10]})')
+    with Session('engine_wmodes_diy1', b, {'SETUP.DAT': setup_file('engine_wmodes_diy1', 0)}, 'dump:3', 400) as s:
+        if s.wait().outcome != 'dump' or s.result.base4 is None:
+            return False, f'no first pause / obj4 ({s.result})'
+        for t in ('COMPET. PERSONAL.', 'COPPA', 11, 11, 11, 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB'):
+            walk(s, t, 2)
+        for t in ('EUROPA', 'ITALIA', 'SERIE A', 'INTER'):
+            walk(s, t, 2)
+        up_to(s, hist)
+        for t in (hist, 'MONDO 1996-97', 'EUROPA', 'GERMANIA', '1. LIGA', 'HAMBURG'):
+            walk(s, t, 2)
+        pick_done(s, 55)
+        s.shot('cup')
+        walk(s, 'ESCI', 3)
+        cw, wcur = hdr(s)
+        check(cw == 5 and s.result.read(wcur, 1)[0] == 5, f'after the picker: SWE_CWORLD {cw}, WCUR '
+              f'{s.result.read(wcur, 1)[0]}', errs)
+        walk(s, 'SALVA COPPA PERSONAL.', 3)
+        s.send(name_entry('wm5') + ' dump:3')
+        game = s.result.game
+    f = [x for x in os.listdir(game) if x.upper() == 'WM5.DIY']
+    if not f:
+        return False, '; '.join(errs + [f'no WM5.DIY saved ({sorted(os.listdir(game))[:20]})'])
+    path = os.path.join(game, f[0])
+    data = open(path, 'rb').read()
+    check(data[-4:] == b'WM\x01\x05', f'WM5.DIY tail {data[-8:].hex()} ({len(data)} B)', errs)
+    info.append(f'WM5.DIY {len(data)} B, tail {data[-4:]!r}')
+    with Session('engine_wmodes_diy2', b, {'WM5.DIY': path}, 'dump:3', 300) as s:
+        s.wait()
+        walk(s, 'CARICA VECCHIA COMPETIZIONE', 3)
+        if press(s, s.screen(), 'WM5', 3, exact=False) is None:
+            return False, '; '.join(errs + [f'WM5 not listed ({s.screen().texts()[:12]})'])
+        sc = s.screen()
+        cw, wcur = hdr(s)
+        check(cw == 5 and s.result.read(wcur, 1)[0] == 5, f'loaded: SWE_CWORLD {cw}, WCUR {s.result.read(wcur, 1)[0]}',
+              errs)
+        check(sc.find('INTER') is not None and sc.find('HAMBURG') is not None, f'the cup menu: {sc.texts()[:14]}', errs)
+        s.shot('loaded')
+        info.append(f'loaded: SWE_CWORLD {cw}, WCUR {s.result.read(wcur, 1)[0]}')
+    return not errs, '; '.join(errs + info)
+
+
+@scenario
 def swospp_menu():
-    """4.0.5 (Davide 30/10, option 2): under SWOS++ the green CAREER 2026-27 button keeps entry 4 and SWOS++'s own entry
+    """4.0.5 (Davide 30/10, option 2): under SWOS++ the green button (W-modes: the world switch, fired once here) keeps entry 4 and SWOS++'s own entry
     is shown through entry 11 (SAVE) while no contest is loaded, at SWOS++'s place (top). SWOSPP_BUILD (a World 2026-27
     release-recipe dir whose ITALIAN.EXE is the English exe) + SWOS++ 1.9.2.2: (1) the main menu: entry 4 the button,
     entry 11 SWOS++ at x 93 y 21; (2) SWOS++'s menu opens from it and ESC comes back to the main menu; (3) a career
@@ -10535,6 +11125,7 @@ def swospp_menu():
     the SWOS++ entry is back. 4.0.6: the mod's version line (modver_corner) in the bottom-left corner at (1) and (4),
     clear of SWOS++'s entry; with CONTINUE shown only if its box is clear"""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import mainbtn
     import swospp
     if UI != 'en':
         return True, 'SKIP: SWOS++ is English only (SWOSTEST_UI=en)'
@@ -10571,8 +11162,15 @@ def swospp_menu():
         mv = os.environ.get('MODVER_EXPECT') or modver.text().decode()
         check(modver_corner(s, mv, errs, info, 'SWOS++ main menu'), 'SWOS++: the version line not drawn', errs)
         s.shot('main_start')
-        check(e[4][0].endswith(b'2026-27') and not e[4][1], f'entry 4 not the button: {e[4]}', errs)
+        check(e[4][0] in mainbtn.WORLD['en'] and not e[4][1], f'entry 4 not the button: {e[4]}', errs)
         check(e[11][0] == b'SWOS++' and not e[11][1] and e[11][2:4] == (93, 21), f'entry 11 not SWOS++: {e[11]}', errs)
+        k = mainbtn.WORLD['en'].index(e[4][0]) if e[4][0] in mainbtn.WORLD['en'] else 0
+        spp_go(s, e[4][0].decode(), 2)                          # (W-modes: the world switch under SWOS++: the next
+        nxt = mainbtn.WORLD['en'][(k + 1) % 3]                  # world's label, SETUP.DAT +105 written, SWOS++'s
+        e = menu(s, 'switch')                                   # entry still on 11)
+        d = open(os.path.join(s.run, 'SWOS', 'SETUP.DAT'), 'rb').read()
+        check(e[4][0] == nxt and len(d) == 106 and d[105] == (k + 1) % 3 and e[11][0] == b'SWOS++',
+              f'world switch under SWOS++: {e[4][0]} want {nxt}, SETUP.DAT +105 {d[105:106].hex()}, 11 {e[11][0]}', errs)
         sc = walk(s, 11, 3)                                     # (2) SWOS++'s own menu, then ESC
         opened = not is_main(s)
         check(opened, f'SWOS++ menu not opened: {sc}', errs)
@@ -10601,7 +11199,7 @@ def swospp_menu():
         s.shot('main_career')
         check(not e[10][1] and not e[11][1] and e[11][0] != b'SWOS++' and e[11][2:4] != (93, 21),
               f'CONTINUE / SAVE with a contest: {e[10]} {e[11]}', errs)
-        check(e[4][0].endswith(b'2026-27') and not e[4][1], f'entry 4 with a contest: {e[4]}', errs)
+        check(e[4][0] in mainbtn.WORLD['en'] and not e[4][1], f'entry 4 with a contest: {e[4]}', errs)
         go(s, 11)                                               # SAVE opens its screen
         check(not is_main(s), f'SAVE did not open: {s.screen()}', errs)
         info.append(f'SAVE: {[t for _, t, inv, *_ in s.screen().entries if not inv][-3:]}')
@@ -10654,7 +11252,7 @@ def swospp_bench():
         sc = s.screen()
         on, why = swospp_on(s.result, os.path.join(out, 'ITALIAN.EXE'))
         check(on, f'SWOS++ not running: {why}', errs)
-        e4 = [t for i, t, *_ in sc.entries if i == 4]          # (entry 4: the green CAREER 2026-27 button in a World
+        e4 = [t for i, t, *_ in sc.entries if i == 4]          # (entry 4: the green world switch in a World
         check(e4 and e4[0] != 'SWOS++', f'main menu entry 4 {e4}: {sc}', errs)   # 2026-27 build, always - Davide 30/10)
         r = s.result
         run = lepatch.LEPatch(os.path.join(RUNS, 'swospp_bench', 'SWOS', 'ITALIAN.EXE'))
@@ -19585,7 +20183,7 @@ def world_nats():
 def world_instinc():
     """4.0.1 install incomplete (Gianmarco's case; tools/instcheck.py): on a release-recipe build (SWOSTEST_BUILD; its
     ITALIAN.EXE in SWOSTEST_UI's language) cloned without DATA\\TMW5.150, CARRIERA > SCEGLI SQUADRA > CARR. STORICHE >
-    MONDO 2026-27 and the main menu's CARRIERA 2026-27 button show the exe's 'INCOMPLETE INSTALL: RUN THE PATCHER
+    MONDO 2026-27 and CARRIERA with the default world 2026-27 (W-modes) show the exe's 'INCOMPLETE INSTALL: RUN THE PATCHER
     AGAIN' box, its CONTINUE leads back to the menus (no exit to DOS); the complete build lists the world's continents"""
     import instcheck
     b = builds()['it']
@@ -19597,14 +20195,15 @@ def world_instinc():
     msg = instcheck.MSG[UI]
     errs, info = [], []
     for tag, exe, via in (('miss_list', miss, 'list'), ('miss_button', miss, 'button'), ('full', b, 'list')):
-        with Session(f'world_instinc_{UI}_{tag}', exe, {}, 'dump:2', 300) as s:
+        with Session(f'world_instinc_{UI}_{tag}', exe, {'SETUP.DAT': setup_file(f'world_instinc_{UI}_{tag}', 0)}
+                     if via == 'button' else {}, 'dump:2', 300) as s:
             s.wait()
             if via == 'list':
                 for t in ('CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27'):
                     if press(s, s.screen(), t, 3) is None:
                         return False, f'{tag}: {t} not reached: {[e[1] for e in s.screen().entries if e[1]]}'
             else:
-                walk(s, 4, 3)                            # the main menu's CARRIERA 2026-27 (entry 4)
+                walk(s, s.screen().find('CARRIERA', exact=True), 3)   # (W-modes: CAREER in the default world 2026-27)
                 walk(s, s.screen().find('SCEGLI SQUADRA'), 3)
             shown = [e[1] for e in s.screen().entries if e[1] and not e[2]]
             m = s.result.base2 + s.info['menu']             # (entry 0's raw text: Screen drops unknown umlauts)
@@ -24261,7 +24860,7 @@ def xtra_cpu_refill_labels():
 @scenario
 def xtra_cpu_refill_spp():
     """4.0.6 the CPU replacements switch under SWOS++ 1.9.2.2 (SWOSTEST_UI=en; SWOSPP_BUILD = a World 2026-27 release-recipe
-    dir whose ITALIAN.EXE is the English exe): SWOS++ running; CAREER 2026-27 > INTER (sppm17's one-key-at-a-time feed);
+    dir whose ITALIAN.EXE is the English exe): SWOS++ running; CAREER (default world 2026-27) > INTER (sppm17's one-key-at-a-time feed);
     TRANSFERS > BUY PLAYER: the switch (entry 8) visible, 'CPU REPL.: INVENTED'; fire -> 'CPU REPL.: FROM SQUAD', cr_mode 1.
     Shots spp_menu_0 / _1. (No purchase: the timer feed does not raise an offer - see the note at its end.)"""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
@@ -24313,12 +24912,13 @@ def xtra_cpu_refill_spp():
             spp_go(s, 'CONTINUA', 3) or spp_go(s, 'ESCI', 3) or s.send('fire dump:2')
 
     with Session('cpurefill_spp', out, {'LOADER.BIN': os.path.join(pp, 'loader.bin'),
-                                        'SWOSPP.BIN': os.path.join(pp, 'swospp.bin')}, 'dump:3', 900, timer=True) as s:
+                                        'SWOSPP.BIN': os.path.join(pp, 'swospp.bin'),
+                                        'SETUP.DAT': setup_file('cpurefill_spp', 0)}, 'dump:3', 900, timer=True) as s:
         if s.wait().outcome != 'dump':
             return False, f'START: no first pause ({s.result})'
         on, why = swospp_on(s.result, os.path.join(out, 'ITALIAN.EXE'))
         check(on, f'SWOS++ not running: {why}', errs)
-        for t in ['CAREER 2026-27', 'SCEGLI SQUADRA', 'EUROPA', 'ITALIA', 'SERIE A', 'INTER']:
+        for t in ['CARRIERA', 'SCEGLI SQUADRA', 'EUROPA', 'ITALIA', 'SERIE A', 'INTER']:   # (W-modes: world 2026-27)
             if not go(s, t):
                 return False, '; '.join(errs)
         s.send('fire dump:3')

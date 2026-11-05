@@ -138,7 +138,7 @@ def link(p, obj, text_at, bss_at, externs=None, limit=None, text_obj=1):
             tobj, toff = syms[sym][:2]
             a, = struct.unpack_from('<i', img, off)
             if typ == 1:                            # R_386_32: S + A, an LE fixup
-                assert tobj in (1, 2, 3), (syms[sym], off)
+                assert tobj in (1, 2, 3, 4), (syms[sym], off)
                 struct.pack_into('<I', img, off, toff + a)
                 fixups.append((base[tgt][1] + off, tobj, toff + a))
             elif typ == 2:                          # R_386_PC32: S + A - P

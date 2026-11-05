@@ -1016,8 +1016,8 @@ nat_init:                               ; 4.0.3: replaces `mov dword [A0], natio
     mov eax, [NATFLAG]
     test eax, eax
     jz .set
-    cmp byte [eax], 0
-    je .set
+    cmp byte [eax], 1                   ; (W-modes: 1 = World 2026-27's career, 2 = Europe 1984-85's)
+    jne .set
     mov esi, NATORD27
     mov ecx, N_27
     inc edx
@@ -1425,13 +1425,13 @@ w_ns_menu:                              ; replaces `and word [D7], 0FFh` at the 
     jmp .s
 .d:
     mov eax, ecx
-    call w_ns_set
+    call w_ns_set                       ; (W-modes M2: swe.py retargets this call to obj4 swe_sel_ns, which chains it)
 .r:
     popad
     ret
 .isw:
-    cmp eax, WMENU_N + 1
-    jb .n
+    cmp eax, WMENU_N                    ; (W-modes M2: WMENU + 0, the 1996-97 game's entry under the friendly / DIY
+    jb .n                               ; pickers' STORICO, is the base namespace: 0, the last world on the path wins)
     cmp eax, WMENU_N + NSMAXW
     ja .n
     lea ecx, [eax - WMENU_N]

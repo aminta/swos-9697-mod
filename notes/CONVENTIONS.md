@@ -78,8 +78,9 @@ new rule. If a rule seems wrong for a case, ask the regia session; don't silentl
     (world_cuplist_mestre + world_winners_oldsave on a release-recipe dir) before its sha.
 21. The career save's engine block ('EN' after the trailer, trailer.py) shares careerworld.SEL_ROOM with the 160-team
     cache: SEL_N x 684 + main block + engine block <= SEL_ROOM (trailer.py asserts it). Room left, release recipe:
-    305 B after 4.0.6's 'BQ' (24 B, gplay SEC_BQ: 15131 B engine block, main block 948 B). A new item costs 4 + its
-    size; past the room the build fails - plan any 4.0.6+ item against this figure and update it here.
+    93 B on 406-i10j, 68 B with FFP's FF (21 + 4) (engine block 15343 B, 25 items, main block 948 B; measured by the engine's P0, item by item in
+    notes/engine/save-ledger.md). A new item costs 4 + its size; past the room the build fails - plan any 4.0.6+ item
+    against this figure, add its line to the ledger and update it here.
 22. obj1 has a ceiling too: 237 pages in the release build (4.0.5, Panchina's SWOS++ probe: obj1 in memory <= 238 pages
     starts every match under SWOS++ 1.9.2.2, 239+ makes PLAY MATCH stall - obj2's base moves past what SWOS++ tolerates;
     the harness adds 1 obj1 page of its own, so 237 file pages = 238 under test = the real limit). patch.py prints
@@ -100,3 +101,17 @@ new rule. If a rule seems wrong for a case, ask the regia session; don't silentl
       rel32 (behind a type-8 fixup it is 0 until load); put() asserts over an existing type-8 rel32.
     - DOS/4GW loads obj3 apart from obj1 + obj2 (below obj1 in DOSBox-X): the harness reads it at Result.base3 (an obj1
       pointer into obj3), obj3 offsets as swostest.Off3, any (obj, off) through Result.lin().
+23bis. **obj4 is the competition engine's, and only the engine's** (engine step O, 04/11, Regia GO after the SWOS++ /
+    DOS/4GW probe). No 4.0.x minor ever adds code, data or pages to obj4; their code stays in obj3 (rule 23).
+    - Layout (tools/swe.py): obj4+0 the header ('SWOS-ENG', version, a self pointer, -> swe_init, -> the arena, the
+      .bss size, -> SWE_STATE); obj4+0x40 the engine's code + data (swe.OBJ4_PAGES file pages); the arena = the C
+      .bss, zero-filled vsize. patch.py adds obj4 right after obj3's pages; swe.patch() links it and puts its base
+      above obj3's end. buildrel.sh fails a build with a 5th object.
+    - **DOS/4GW zeroes no tail: the engine zeroes its own arena** (swe_init, before any other engine call). Never rely
+      on a zero obj4 byte that the engine did not write.
+    - No obj4 address is ever stored in a save (engine state = 'EN' items, rule 21), so obj4 may grow and move freely.
+    - Calls between the game / obj3 and obj4: self-relative fixups (type 8) as rule 23; cobj.link(text_obj=4).
+    - The harness finds obj4 by its header (Result.base4: the magic + the self pointer), not by a game pointer.
+    - Gates for any obj4 change: engine_obj4 (IT, and SWOSTEST_UI=en for SWOS++ 1.9.2.2), bench_world with
+      BENCH_SPP=1 (a match under SWOS++), host tests test_swe + test_roundtrip; before a minor ships, a MiSTer
+      z486 / ao486 boot of the obj4 exe.

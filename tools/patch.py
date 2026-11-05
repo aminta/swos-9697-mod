@@ -384,6 +384,10 @@ def patch_exe(src, dst, remap, lang='it'):
     for _ in range(OBJ3_PAGES):                      # obj2 = 213 for old saves: CONVENTIONS 20 / 22 / 23), benchx's
         data = add_object_page(data, 3)              # pages first
     assert LE(data).obj(3).npages * 0x1000 <= OBJ3_ARENA
+    import swe                                       # (engine step O: obj4 after obj3, the engine's alone,
+    data = add_object(data)                          # CONVENTIONS 23bis; linked by swe.patch below)
+    for _ in range(swe.OBJ4_PAGES):
+        data = add_object_page(data, 4)
     open(grown, 'wb').write(data)
     p = LEPatch(grown)
     os.remove(grown)
@@ -624,12 +628,16 @@ def patch_exe(src, dst, remap, lang='it'):
         import lpreal
         lpreal.patch(p, LR_ROOM[0], LR_ROOM[1], area, num_bss + shirtnum.BSS_SIZE + blond.BSS_SIZE + menunum.BSS_SIZE,
                      fmtpage.BSS_SIZE)
+    import mainbtn
+    mainbtn.SETTING[0] = None                    # (per exe: the registry's pointer to the world switch's byte)
     if lt_room:
         lt_end_ = longtable.patch(p, (lt_room[0] + 15) & ~15, area, lang, lt_obj)
         if worlds and any(pk.meta.get('id', '').startswith('world-2026-27-') for pk in mkseason.packs()):
-            import mainbtn                               # 4.0: the green CARRIERA 2026-27 button on the main menu
+            import mainbtn                               # 4.0: the green main-menu button (W-modes: the world switch)
             w27 = min(pk.world for pk in mkseason.packs() if pk.meta.get('id', '').startswith('world-2026-27-'))
-            lt_end_ = mainbtn.patch(p, (lt_end_ + 15) & ~15, lang, mkseason.WMENU + w27, obj=lt_obj)
+            w84 = [pk.world for pk in mkseason.packs() if pk.meta.get('id', '').startswith('europe-1984-85-')]
+            lt_end_ = mainbtn.patch(p, (lt_end_ + 15) & ~15, lang, mkseason.WMENU + w27, obj=lt_obj,
+                                    wid84=mkseason.WMENU + min(w84) if w84 else None)   # (W-modes: the world switch)
             if careerworld.SITES.get('natflag'):     # 4.0.3: CAREER 2026-27's coach nationalities (careerworld nat_init)
                 p.add_ptr(1, careerworld.SITES['natflag'], *mainbtn.FLAG[0])
         assert lt_end_ <= lt_room[1], (f'longtable + mainbtn: {lt_end_ - lt_room[0]} B from obj{lt_obj}+{lt_room[0]:#x}, '
@@ -824,11 +832,13 @@ def patch_exe(src, dst, remap, lang='it'):
                                                 # pair of variant sets; 4.0.5 lgreal's LGB last)
     p.set_vsize(2, obj2_free + o2pages * p.le.page_size + tail, bss=tail)
     p.set_base_after(3)                          # (obj3's header base above obj2's final end)
+    swe.LANG[0] = lang
+    swe.patch(p)                                 # (obj4: the engine, its base above obj3's)
     tailzero.patch(p, tz_at, obj2_free + o2pages * p.le.page_size, (tail + 3) & ~3, nasmcave,   # (DOS/4GW: not zeroed;
                    0x1000 * OBJ3_PAGES, (cg_bss + 3) & ~3)                  # 4.0.6: obj3's tail too)
     o1n, o2n = p.le.obj(1).npages, p.le.obj(2).npages
     print(f'exe: object pages: obj1 {o1n} (SWOS++ limit 237 with the harness page in obj1, CONVENTIONS 22), obj2 {o2n}, '
-          f'obj3 {p.le.obj(3).npages}'
+          f'obj3 {p.le.obj(3).npages}, obj4 {p.le.obj(4).npages}'
           + ('' if o1n <= 237 else '  WARNING: obj1 over 237 pages: SWOS++ PLAY MATCH can stall'))
     p.add_flags(1, 0x2)            # writable: season end rewrites the SA cup team lists in the cave
     split.late(p)                                # split's after-stage routines (engine.after_stage)

@@ -8405,7 +8405,9 @@ def oppo_list():
             os.environ['BENCH_OPPL'] = keep
 
 
-FR_CASES = {        # (4.0.6 bench_friendly) case: (world, home path, away path, named, used): the picker's labels (IT)
+NATS = ('NAZIONALI', 'NATIONAL', 'EQUIPES NAT', 'NATIONALM')   # (bench_friendly: the picker's national teams)
+FR_CASES = {        # (4.0.6 bench_friendly) case: (world, home path, away path, named, used): the picker's labels (IT;
+                    # a tuple: the first one on the screen - the World 2026-27's national teams show English names)
     'mixed': (0, ('SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE D', 'SERIE D GIRONE A', 'CELLE VARAZZE'),
               ('SQUADRE CLUB', 'EUROPA', 'SPAGNA', 'LALIGA', 'REAL MADRID'), 12, 5),
     'same': (0, ('SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE D', 'SERIE D GIRONE A', 'CELLE VARAZZE'),
@@ -8414,7 +8416,7 @@ FR_CASES = {        # (4.0.6 bench_friendly) case: (world, home path, away path,
                ('SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE A', 'MILAN'), 15, 5),
     'diy': (0, ('SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE D', 'SERIE D GIRONE A', 'CELLE VARAZZE'),
             ('SQUADRE CLUB', 'EUROPA', 'SPAGNA', 'LALIGA', 'REAL MADRID'), 12, 5),
-    'nat': (0, ('NAZIONALI', 'EUROPA', 'ITALY'), ('NAZIONALI', 'EUROPA', 'SPAIN'), 5, 2),
+    'nat': (0, (NATS, 'EUROPA', ('ITALY', 'ITALIA')), (NATS, 'EUROPA', ('SPAIN', 'SPAGNA')), 5, 2),
     '9697': (1, ('SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE A', 'INTER'),
              ('SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE A', 'MILAN'), 5, 2),
 }
@@ -8441,6 +8443,12 @@ def bench_friendly():
     errs, info = [], []
     cases = [c for c in (os.environ.get('BENCH_FR') or ','.join(FR_CASES)).split(',') if c]
 
+    def go(s, t):
+        if isinstance(t, tuple):
+            sc = s.screen()
+            t = next((x for x in t if sc.find(x) is not None), t[0])
+        walk(s, t, 2)
+
     def up_to(s, t):
         for _ in range(6):
             sc = s.screen()
@@ -8461,11 +8469,11 @@ def bench_friendly():
                 continue
             try:
                 for t in ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE') + home:
-                    walk(s, t, 2)
+                    go(s, t)
                 s.send('fire dump:2')               # home: COMPUTER -> GIOCA-ALLENA
                 up_to(s, away[1])                   # (the picker's top: the continents, the World's own list)
                 for t in away[1:]:
-                    walk(s, t, 2)
+                    go(s, t)
                 s.shot(f'{case}_picker')
                 pick_done(s)
                 for _ in range(22):                 # the pre-match screen: down to PLAY MATCH (9)

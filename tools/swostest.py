@@ -6708,6 +6708,16 @@ def fw_probe(s):
     return out
 
 
+def ega_on(r):
+    """EGA_graphics == -1 (as match_names14): the 16-colour mode's bit planes."""
+    if not hasattr(ega_on, 'at'):
+        o = lepatch_orig()
+        c = o.le.obj_bytes(1)
+        eg = [m.start() for m in re.finditer(rb'\x66\x83\x3d....\xff\x0f\x84....\x66\x81\x3d....\x33\x01', c, re.S)]
+        ega_on.at = o.target(1, eg[0] + 3)[1]
+    return r.obj2(ega_on.at, 2) == bytes([255, 255])
+
+
 def save_under(r):
     """(MiSTer panel H1, 05/11; suroom.py) the game's save-under stack: DrawRectangle saves the back buffer under each
     rectangle (SaveUnder: ((w >> 2) + 1) dwords x h, a 16-byte entry each) into one region of the DOS block, from the
@@ -6822,11 +6832,29 @@ def bench_sub(s, bx, place, errs, info, mark, key=None, gone=None, tag=''):
     r = s.send('fire:0.2 dump:0.6')
     st, ent = w16(v['SUBST'], r.base2), w16(v['ENTER'], r.base2)
     su = save_under(r)                      # (panel H1, suroom.py) the subs menu's save-under within its region
-    info.append(f'save-under with the subs menu open: high-water {su[1]} B ({su[2]} entries) of {su[3]} B, base {su[4]:#x}')
-    mark(info[-1])
-    check(0 < su[1] <= su[3], f'save-under overflow: {su[1]} B in a {su[3]} B region (the next area overwritten)', errs)
+    cnt = save_under.v[0]                   # (16 colours: EGA_FillRectangle's cseg_98EFD keeps only the entries, two
+    egan = lambda q: struct.unpack('<HH', q.obj2(cnt, 2) + q.obj2(cnt + 2 + 4096, 2))   # tables swapped by EGAFlip,
+    en = egan(r)                            # 256 each: numSpritesSaved and dseg_167766; no bytes in the region)
+    for _ in range(int(os.environ.get('SU_SAMPLES', 0))):   # (SU_SAMPLES more dumps: the highest)
+        q = s.send('dump:0.05')
+        if q.outcome == 'dump':
+            su, r = max(su, save_under(q), key=lambda x: x[1]), q     # (r: the pause still open, for the checks after)
+            en = tuple(max(a, b) for a, b in zip(en, egan(q)))
+    ega = ega_on(r)                         # (16 colours: the region unused, entry +8 never written; the frame is 4
+    if ega:                                 # bit planes, no formwide rows to read)
+        info.append(f'save-under (16 colours) with the subs menu open: entries {en} of 256 per table '
+                    f'(most of {int(os.environ.get("SU_SAMPLES", 0)) + 1} dumps)')
+        mark(info[-1])
+        check(0 < max(en) and max(en) <= 256, f'save-under (16 colours): entries {en} (256 a table)', errs)
+    else:
+        info.append(f'save-under with the subs menu open: high-water {su[1]} B ({su[2]} entries) of {su[3]} B, '
+                    f'base {su[4]:#x}')
+        mark(info[-1])
+        check(0 < su[1] <= su[3], f'save-under overflow: {su[1]} B in a {su[3]} B region (the next area overwritten)',
+              errs)
     s.shot(tag + 'subs_menu')
-    fw_want(r, fw_check(s.box.dump(0xA0000, 64000), tag + 'subs menu', errs, info), 12, 'subs menu', errs)
+    if not ega:
+        fw_want(r, fw_check(s.box.dump(0xA0000, 64000), tag + 'subs menu', errs, info), 12, 'subs menu', errs)
     check(st == 1 and ent == place - 1, f'after fire: g_subsState {st}, plToEnterGameIndex {ent} (want 1, {place - 1})', errs)
     r = s.send('fire:0.2 dump:0.6')
     ns = (w16(v['NS1'], r.base2), w16(v['NS2'], r.base2))
@@ -7941,9 +7969,7 @@ def bench_play(s, gmax, top, bot, wants, errs, info, mark, sub=None, icons=None,
         return True
     import namespr
     o = lepatch_orig()
-    c = o.le.obj_bytes(1)                   # EGA_graphics (as match_names14): the 16-colour mode's bit planes
-    eg = [m.start() for m in re.finditer(rb'\x66\x83\x3d....\xff\x0f\x84....\x66\x81\x3d....\x33\x01', c, re.S)]
-    ega = r.obj2(o.target(1, eg[0] + 3)[1], 2) == bytes([255, 255])
+    ega = ega_on(r)                         # (the 16-colour mode's bit planes)
     if ega:
         info.append('16-colour (EGA) mode')
     oldt = old_name_tables()                # the game's own three name tables (96 bytes): no longer used (block 3),

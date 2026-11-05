@@ -85,6 +85,10 @@ def compile_spec(pos, ndiv, league_names=None):
         kind = KINDS.get(po.get('kind'))
         if not kind:
             raise ValueError(f'{key}: kind {" / ".join(KINDS)}')
+        nm = po.get('names')                    # (4.0.6: a play-off without names showed its raw key on screen -
+        if not (isinstance(nm, dict) and nm and all(isinstance(v, list) and v and all(isinstance(x, str) and x for x in v)
+                                                    for v in nm.values())):   # I10p world_gplay 'L1_PO')
+            raise ValueError(f"{key}: 'names' {{lang or '*': [long, short]}} required")
         if kind == 7:                           # Argentina: {kind promedio, matches: this season's, loser_div}
             m, ld = po.get('matches'), po.get('loser_div')
             if not (isinstance(m, int) and 1 <= m < 256 and isinstance(ld, int) and 0 < ld < ndiv):

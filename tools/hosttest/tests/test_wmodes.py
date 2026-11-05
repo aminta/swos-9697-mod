@@ -202,6 +202,7 @@ def test_wmodes():
         xw = before[0].find(b'data\\xtw0.000\0')  # namespace is back: harmless, test_registry's whitelist too)
         if xw >= 0 and a1[xw + 8] == ord('5'):
             a1[xw + 8] = ord('0')
+        tr.unset_wtphys(a1, before[0])
         same = (bytes(a1), after[1]) == before and u32(selmode) == 0xFFFFFFFF
         return d0, seen, cw, same
 

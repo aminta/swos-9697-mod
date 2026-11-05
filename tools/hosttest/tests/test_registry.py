@@ -67,6 +67,21 @@ def _snap(uc, sizes):
     return bytes(uc.mem_read(B1, sizes[0])), bytes(uc.mem_read(B2, sizes[1]))
 
 
+def wtphys(mem):
+    """careerworld w_ns_set's `mov word [TEAMSLOADED], 0 / mov byte [WTPHYS], 0FFh` (4.0.6): WTPHYS's obj1 offsets in
+    obj1's memory image - a namespace change leaves it 0FFh (w_tcache reloads a national 80..85: harmless)"""
+    return [struct.unpack('<I', m.group(1))[0] - B1 for m in
+            re.finditer(rb'\x66\xc7\x05....\x00\x00\xc6\x05(....)\xff', mem, re.S)]
+
+
+def unset_wtphys(now, before):
+    """bytearray `now` with WTPHYS's 0FFh put back as in `before` (obj1 images)"""
+    for o in wtphys(before):
+        if 0 <= o < len(now) and now[o] == 0xFF:
+            now[o] = before[o]
+    return now
+
+
 def _diff(a, b, base):
     return [hex(base + i) for i in range(len(a)) if a[i] != b[i]][:6]
 
@@ -152,6 +167,7 @@ def test_registry():
     ok1 = bytearray(after[0])                     # leaves it (the base world's XTRA name is its own NSXDEF string)
     if xw >= 0 and after[0][xw + 8] == ord('5'):
         ok1[xw + 8] = ord('0')
+    unset_wtphys(ok1, boot[0])
     if bytes(ok1) != boot[0] or after[1] != boot[1]:
         errs.append(f'after reg_leave obj1 {_diff(ok1, boot[0], B1)} obj2 {_diff(after[1], boot[1], B2)}')
     boot = after

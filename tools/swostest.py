@@ -1021,8 +1021,6 @@ def ui_it(text):
         return 'FINE CAMP. ' + text
     if text in ("SAISONS D'ANTAN", 'SAISONKLASSIKER'):   # (mkseason.SEASONS_NAMES: the historic seasons' button)
         return 'STAG. STORICHE'
-    if re.fullmatch(r'\d+ TEAMS W\?HLEN', text):          # (German '%0 TEAMS W\x8eHLEN': the friendly / DIY button)
-        return 'SCEGLI SQUADRE'
     if 'DIY-POKAL' in text and ('SPEICHERN' in text or 'WEITER' in text):   # (German save / continue the DIY cup)
         return ('SALVA' if 'SPEICHERN' in text else 'CONTINUA') + ' COPPA PERSONAL.'
     m = re.fullmatch(r'\((.+)\)', text)                  # (a squad screen's '(COUNTRY)': the Italian name)
@@ -1065,7 +1063,7 @@ class Screen:
                 elif raw and (UI_MAP or COLLECT) and all(b >= 32 for b in raw):   # (another language's umlauts /
                     q = ''.join(chr(b) if b < 127 else '?' for b in raw)   # accents: '?', only a known label: the
                     text = q if q in UI_MAP or COLLECT or ui_it(q) != q else ''   # squad rows' drawn texts stay
-                                                                                     # empty; '2 TEAMS W?HLEN' kept)
+                                                                                     # empty; DIY-POKAL ... kept)
             self.raw_texts.append(text)
             self.entries.append((i, ui_it(text), inv, dis))
             self.raw.append(raw)
@@ -5764,7 +5762,8 @@ def walk(s, target, w=3, tries=20, stays=48):
             return s.screen()
         p = scr.path(i, frozenset(bad)) or scr.path(i)
         if not p:
-            raise AssertionError(f'no path to {target} from {scr.selected}')
+            raise AssertionError(f'no path to {target} ({i}) from {scr.selected}: ' + ' | '.join(
+                f'{j}:{t!r}:{inv}:{dis}:{r[:20]}:{nv[0]}' for (j, t, inv, dis), r, nv in zip(scr.entries, scr.raw, scr.nav) if r))
         s.send(p[0] + ' dump:0.5')
         if s.screen().selected == scr.selected and stays > 0:
             bad.add((scr.selected, p[0]))

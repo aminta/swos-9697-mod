@@ -2059,9 +2059,16 @@ def advance(s, stop, max_steps=400):
                 s.shot(f'rp{step:03d}')
             s.send('fire:3 ' * 3 + 'dump:1')
             continue
+        if getattr(s, 'realplay', False) and 'MOD. TATTICA' in texts and 'GIOCA PARTITA' not in texts and \
+                scr.find('GIOCA :', exact=True) is not None and getattr(s, 'rp_cycle', 0) < 3:
+            s.rp_cycle = getattr(s, 'rp_cycle', 0) + 1  # ('GIOCA :' cycles who plays: GIOCA PARTITA shows only for the
+            s.log.append(f'[realplay] step {step}: GIOCA : cycled ({s.rp_cycle})')   # human - else the squad screen
+            press(s, scr, 'GIOCA :', 2) or s.send('fire dump:2')   # without VIS. RISULTATI reads as a refused
+            continue                                    # line-up: I10p goal_slot_sc_real, Supercoppa real play)
         if getattr(s, 'realplay', False) and 'MOD. TATTICA' in texts and ('GIOCA PARTITA' in texts or 'PARTITA' in texts):
             s.realplay = False
             s.inmatch = True
+            s.rp_cycle = 0
             s.log.append(f'[realplay] step {step}: kick-off')
             press(s, scr, 'GIOCA PARTITA' if 'GIOCA PARTITA' in texts else 'PARTITA') or s.send('fire dump:2')
             continue

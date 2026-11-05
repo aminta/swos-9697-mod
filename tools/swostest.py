@@ -11193,7 +11193,12 @@ def swospp_menu():
             s.send('fire up:0.05 dump:3')
         walk(s, 'CARICA VECCHIA COMPETIZIONE', 3)               # (3) a career loaded
         s.send('fire dump:3')
-        go(s, 'ESCI')
+        try:
+            go(s, 'ESCI')
+        except AssertionError as x:                             # (the earlier steps' checks and the menu as it is)
+            menu(s, 'load')
+            errs.append(f'(3) career not loaded: {x}')
+            return False, '; '.join(errs + info)
         check(is_main(s), f'career menu -> ESCI: not the main menu: {s.screen()}', errs)
         e = menu(s, 'career')
         modver_corner(s, mv, errs, info, 'SWOS++ with CONTINUE')

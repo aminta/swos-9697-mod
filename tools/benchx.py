@@ -152,6 +152,7 @@ bx_max:                                 ; replaces `mov [GMAX], ax` (InitializeI
     mov ax, [bx_bench]
     jmp .cap
 .comp:                                  ; (phase 2) the competition's real bench (bx_look), else the game's
+    call bx_frset
     call bx_look
     cmp byte [bx_lkres], 0
     je .game
@@ -167,6 +168,7 @@ bx_max:                                 ; replaces `mov [GMAX], ax` (InitializeI
 bx_min:                                 ; (phase 2) replaces `mov [GMIN], ax`: the competition's substitutions
     cmp word [bx_bench], 0              ; allowed (bx_look), else the game's; the test switch keeps the game's
     jne .game
+    call bx_frset
     call bx_look
     cmp byte [bx_lkres + 1], 0
     je .game
@@ -179,6 +181,14 @@ bx_look:                                ; (phase 2) [bx_lkres] = the current com
     pushad                              ; not in the table (the game's rule). Careers only: the current competition =
     mov word [bx_lkres], 0              ; DIY_competitionStart, its title at +4 (the slot's name, as FORMAT's key);
     mov byte [bx_lket], 0               ; [bx_lket] = its extra-time substitute (4.0.6)
+    cmp word [GAMETYPE], 1              ; (4.0.6) a friendly / DIY match (gameType 0 / 1): bx_frset's at the kick-off
+    ja .car
+    mov ax, [bx_frkeep]
+    mov [bx_lkres], ax
+    mov al, [bx_fretk]
+    mov [bx_lket], al
+    jmp .out
+.car:
     cmp word [GAMETYPE], 4
     jne .out
     cmp word [TRAIN], 0                 ; (4.0.6, Marco) a training game (TRAINING on the squad screen) keeps the game's
@@ -369,10 +379,74 @@ bx_next:                                ; replaces `add word [D2], 1 / cmp word 
     pop eax
     ret
 
+bx_frset:                               ; (4.0.6, Davide 05/11) a friendly / DIY match of the World 2026-27 (gameType
+    pushad                              ; 0 / 1, WCUR = its world, not a training game): [bx_frkeep] / [bx_fretk] =
+    mov word [bx_frkeep], 0             ; the longer real bench of the two clubs (A1 / A2: their team files, at the
+    mov byte [bx_fretk], 0              ; kick-off's stores): each one's (country, division) entry of bx_frtab, else
+    cmp word [GAMETYPE], 1              ; its country's (division 0FFh); a national / custom team (no entry): the game's
+    ja .out
+    cmp word [TRAIN], 0
+    jne .out
+%if WCURV_
+    cmp byte [WCURV], BXWORLD_
+    jne .out
+%else
+    jmp .out
+%endif
+    mov esi, [A1]
+    call bx_frone
+    mov esi, [A2]
+    call bx_frone
+.out:
+    popad
+    ret
+
+bx_frone:                               ; esi -> a team file: its entry's bench if longer than [bx_frkeep]'s
+    test esi, esi
+    jz .r
+    mov al, [esi]                       ; countryNumber
+    mov ah, [esi + 25]                  ; league (the division)
+    mov edx, bx_frtab
+    mov ecx, [bx_frn]
+    xor ebx, ebx
+.f:
+    jecxz .d
+    cmp al, [edx]
+    jne .n
+    cmp ah, [edx + 1]
+    je .hit
+    cmp byte [edx + 1], 0FFh
+    jne .n
+    mov ebx, edx                        ; the country's own (its top league / confederation)
+.n:
+    add edx, 5
+    dec ecx
+    jmp .f
+.hit:
+    mov ebx, edx
+.d:
+    test ebx, ebx
+    jz .r
+    mov al, [ebx + 2]
+    cmp al, [bx_frkeep]
+    jbe .r
+    mov [bx_frkeep], al
+    mov al, [ebx + 3]
+    mov [bx_frkeep + 1], al
+    mov al, [ebx + 4]
+    mov [bx_fretk], al
+.r:
+    ret
+
 bx_xnamed:                              ; ax = team word -> eax = the players of its XTRA block (a career's CPU club;
 %if HASX_                               ; the ones the managed club bought are blanked there), else 0
-    cmp word [GAMETYPE], 4
-    jne .no
+    cmp word [GAMETYPE], 4              ; (4.0.6) or a friendly / DIY club with a long bench (bx_frset's)
+    je .gt
+    cmp word [GAMETYPE], 1
+    ja .no
+    cmp byte [bx_frkeep], 5
+    jbe .no
+.gt:
     cmp word [TRAIN], 0
     jne .no
     push ecx
@@ -1860,6 +1934,7 @@ def refs(p, tobj, lo, hi):
 
 LOG = []
 BENCH_WORLD = [0]                       # the World 2026-27's career world number (the packs' 'world'), 0 = none
+FR_TAB = []                             # (4.0.6) bench_table's (country number, division / 0FFh, named, used, et): friendlies
 BENCH_DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'bench2627.json')   # (4.0.6: in the repo)
 
 
@@ -1886,6 +1961,7 @@ def bench_table(lang):
     country with no data; exact entries only where they differ from it. Order: exact, continental, prefixes longest
     first (IRLANDA DEL NORD before IRLANDA)."""
     import json
+    FR_TAB.clear()
     if not os.path.isfile(BENCH_DATA):
         return []
     data = json.load(open(BENCH_DATA))
@@ -1911,6 +1987,13 @@ def bench_table(lang):
         lvals = fallback_divs(ent.get(lg['key']), len(lg.get('divisions') or [0])) if lg else []
         top = norm(lvals[0] if lvals and lvals[0] is not None else
                    (data.get('confederations') or {}).get(pk.get('continent')))
+        cn = ((pk.get('files') or {}).get('league') or {}).get('file')
+        if top and cn and not any(e[0] == cn for e in FR_TAB):   # (4.0.6) friendlies / DIY: the club's own country
+            FR_TAB.append((cn, 0xFF, top[0], used, top[1]))     # (its team file's countryNumber) and division (its
+            for i, x in enumerate(lvals):                       # league byte = the division's index)
+                v = norm(x) or top
+                if v != top:
+                    FR_TAB.append((cn, i, v[0], used, v[1]))
         for c in pk['competitions']:
             v, raw = ent.get(c['key']), []
             if c.get('type') == 'league':
@@ -1957,8 +2040,11 @@ def bench_table(lang):
 
 
 def table_asm(tab):
-    """bx_tabn / bx_tab: the entries of bench_table."""
-    lines = ['align 4', f'bx_tabn: dd {len(tab)}', 'bx_tab:']
+    """bx_tabn / bx_tab: the entries of bench_table; bx_frn / bx_frtab: FR_TAB's (country, division, named, used, et)."""
+    lines = ['bx_frkeep: dw 0', 'bx_fretk: db 0']        # (4.0.6) bx_frset: the friendly / DIY match's named subs,
+    lines += ['align 4', f'bx_frn: dd {len(FR_TAB)}', 'bx_frtab:']   # subs used and its extra-time substitute
+    lines += ['    db ' + ','.join(str(x) for x in e) for e in FR_TAB]
+    lines += ['align 4', f'bx_tabn: dd {len(tab)}', 'bx_tab:']
     for t, n, u, e in tab:                          # (4.0.5: titles NUL-terminated, no padding: the 2 pages)
         b = t + b'\0' + bytes((n, u, e))
         lines.append('    db ' + ','.join(str(x) for x in b))
@@ -1995,7 +2081,7 @@ def patch(p, at, ns_at, lang='it'):
     sym = {**v2, **v3, 'BENCHY': v11['BENCHY'], 'CAMY': v11['CAMY'], 'SIP': v11['SIP'], 'WAITGO': v11['WAITGO'],
            'DUGUP_': (0, 16 * dugout.ADD), **v12, 'CAMMID_': (0, dugout.CAM_MID), 'BACK_': (0, dugout.BACK),
            'FRONTX_': (0, dugout.FRONT_X), 'FRONTY_': (0, dugout.FRONT_Y), 'ARROWDX_': (0, dugout.ARROW_DX),
-           'ARROW_': (0, 1284), 'CAMX': (2, v11['CAMY'][1] - 4), 'INSUBS': (2, v11['BENCHY'][1] - 0x12), 'D7': (2, regs['D7']), 'D1': (2, regs['D7'] - 24), 'A0': (2, regs['A0']), 'GMAX': (2, gmax), 'D2': (2, d2), 'A2': (2, regs['A0'] + 8), 'A6': (2, regs['A0'] + 24),
+           'ARROW_': (0, 1284), 'CAMX': (2, v11['CAMY'][1] - 4), 'INSUBS': (2, v11['BENCHY'][1] - 0x12), 'D7': (2, regs['D7']), 'D1': (2, regs['D7'] - 24), 'A0': (2, regs['A0']), 'GMAX': (2, gmax), 'D2': (2, d2), 'A1': (2, regs['A0'] + 4), 'A2': (2, regs['A0'] + 8), 'A6': (2, regs['A0'] + 24),
            'CT': (2, ct), 'CNP': (2, cnp), 'MAXP': (0, MAXP), 'PI': (0, PI)}
     s4 = sites4(p, regs)
     assert s4['D4'] == v11['D4'][1], 'D4'
@@ -2024,13 +2110,15 @@ def patch(p, at, ns_at, lang='it'):
     tab = bench_table(lang)
     sym.update({'GMIN': gmin, 'DIYNAME': (2, lp36._sites(p)['DIY'] + 4),
                 'SLT': (careerworld.SITES or careerworld.sites(p))['slt'], 'WORLD_BYTE_': (0, careerworld.WORLD_BYTE),
-                'BXWORLD_': (0, BENCH_WORLD[0] if tab else 255)})
+                'BXWORLD_': (0, BENCH_WORLD[0] if tab else 255),
+                'WCURV': (1, careerworld.LABELS['WCUR']) if 'WCUR' in careerworld.LABELS else (0, 0),
+                'WCURV_': (0, int('WCUR' in careerworld.LABELS))})
     asm = ASM + table_asm(tab)
     code, fix, rel = nasmcave.assemble_obj(asm, at, sym, 3)
     lab = nasmcave.labels(asm, at, sym)
     INFO.update(TABLE=(3, lab['bx_table']), GMAX=(2, gmax), SUBST=v2['SUBST'], IDX=v2['IDX'])   # (oppl.py, 4.0.6)
     INFO['S7'] = s7                                 # (stadium.py, 4.0.6: the line-ups screen's sites)
-    LOG.append(f'benchx phase 2: {len(tab)} competitions with a real bench ({lang})')
+    LOG.append(f'benchx phase 2: {len(tab)} competitions with a real bench ({lang}), friendlies {len(FR_TAB)} entries')
     assert not any(p.get(3, at, len(code)))
     p.put(3, at, code)
     for o, t_obj, t_off in fix:

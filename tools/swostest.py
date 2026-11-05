@@ -8405,6 +8405,93 @@ def oppo_list():
             os.environ['BENCH_OPPL'] = keep
 
 
+FR_CASES = {        # (4.0.6 bench_friendly) case: (world, home path, away path, named, used): the picker's labels (IT)
+    'mixed': (0, ('SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE D', 'SERIE D GIRONE A', 'CELLE VARAZZE'),
+              ('SQUADRE CLUB', 'EUROPA', 'SPAGNA', 'LALIGA', 'REAL MADRID'), 12, 5),
+    'same': (0, ('SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE D', 'SERIE D GIRONE A', 'CELLE VARAZZE'),
+             ('SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE D', 'SERIE D GIRONE A', 'DERTHONA'), 9, 5),
+    'nat': (0, ('NAZIONALI', 'EUROPA', 'ITALY'), ('NAZIONALI', 'EUROPA', 'SPAIN'), 5, 2),
+    '9697': (1, ('SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE A', 'INTER'),
+             ('SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE A', 'MILAN'), 5, 2),
+}
+
+
+@scenario
+def bench_friendly():
+    """4.0.6 (Regia / Davide 05/11) the long bench in friendlies (benchx bx_frset): a FRIENDLY of the World 2026-27
+    between two clubs = the longer real bench of their two (country, division): BENCH_FR=<cases> (FR_CASES, default
+    all): 'mixed' Serie D (9) vs LaLiga (12) -> 12, 'same' two Serie D clubs -> 9, 'nat' two national teams -> the
+    game's 2 from 5, '9697' a 1996-97 friendly -> the game's 2 from 5. Per case: the picker (home human, away computer), PLAY MATCH,
+    at the kick-off gameMaxSubstitutes / gameMinSubstitutes and both in-match teams (11 + the bench places: named from
+    the record's 16 and the club's XTRA block, the rest empty). BENCH_BUILD = a World 2026-27 build."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lepatch
+    b = os.environ.get('BENCH_BUILD') or builds()['it']
+    exe = os.path.join(b, 'ITALIAN.EXE')
+    p = lepatch.LEPatch(exe)
+    _, gmax = bench_switch(exe)
+    m = re.search(rb'(?:\xc7\x05.{8}){4}\x66\xc7\x05.{4}\xa7\x06', p.le.obj_bytes(1), re.S)
+    top, bot = p.target(1, m.start() + 6)[1], p.target(1, m.start() + 26)[1]
+    errs, info = [], []
+    cases = [c for c in (os.environ.get('BENCH_FR') or ','.join(FR_CASES)).split(',') if c]
+
+    def up_to(s, t):
+        for _ in range(6):
+            sc = s.screen()
+            if sc.find(t, exact=True) is not None:
+                return
+            out = sc.find('ESCI', exact=True)
+            if out is None or press(s, sc, out, 2) is None:
+                s.send('down ' * 12 + 'dump:1')
+                if out is not None and s.screen().selected == out:
+                    s.send('fire dump:2')
+        raise AssertionError(f'{t} not reached ({s.screen().texts()[:10]})')
+    for case in cases:
+        world, home, away, want, used = FR_CASES[case]
+        tag = f'bench_friendly_{case}'
+        with Session(tag, b, {'SETUP.DAT': setup_file(tag, world)}, 'dump:3', 400, match=True) as s:
+            if s.wait().outcome != 'dump':
+                errs.append(f'{case}: no first pause ({s.result})')
+                continue
+            try:
+                for t in ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE') + home:
+                    walk(s, t, 2)
+                s.send('fire dump:2')               # home: COMPUTER -> GIOCA-ALLENA
+                up_to(s, away[1])                   # (the picker's top: the continents, the World's own list)
+                for t in away[1:]:
+                    walk(s, t, 2)
+                s.shot(f'{case}_picker')
+                pick_done(s)
+                for _ in range(22):                 # the pre-match screen: down to PLAY MATCH (9)
+                    s.send('down dump:0.5')
+                    if s.screen().selected == 9:
+                        break
+                s.shot(f'{case}_prematch')
+                r = s.send('fire ' + 'fire:3 ' * 8 + 'dump:2')
+            except AssertionError as e:
+                s.shot(f'{case}_lost')
+                errs.append(f'{case}: {e}')
+                continue
+            if r.outcome != 'dump':
+                errs.append(f'{case}: no match ({r})')
+                continue
+            s.shot(f'{case}_match')
+            gm = struct.unpack('<HH', r.obj2(gmax - 2, 4))          # gameMinSubstitutes, gameMaxSubstitutes
+            teams = [ingame_team(r, top), ingame_team(r, bot)]
+            cap = 11 + max(5, min(gm[1], 15))
+            desc = []
+            for name, pl in teams:
+                named = [x for x in pl[:cap] if x[0]]
+                empty = [i for i, x in enumerate(pl[:cap]) if not x[0] and x[1] == 0xFF and x[2] == 1]
+                desc.append(f'{name} {len(named)} named + {len(empty)} empty')
+                check(len(named) + len(empty) == cap, f'{case}: {name}: {len(named)} named + {len(empty)} empty of {cap}',
+                      errs)
+                check(len(named) >= 16, f'{case}: {name}: only {len(named)} named', errs)
+            info.append(f'{case}: named:used {gm[1]}:{gm[0]} ({", ".join(desc)})')
+            check(gm == (used, want), f'{case}: named:used {gm[1]}:{gm[0]}, want {want}:{used}', errs)
+    return not errs, '; '.join(errs + info)
+
+
 @scenario
 def bench_strip_world():
     """4.0.6 (Francesco) the bench info strip (bstrip.py): bench_world's career match (CELLE VARAZZE, bench 15) with

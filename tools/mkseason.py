@@ -1310,7 +1310,8 @@ def nat_today_files(w, src=None):
     """4.0.6 (Davide 05/11): {file: data} - a world from 2019 on with a namespace of its own and no national pack
     plays the game's national teams (TEAM.080..085); the ones whose nation changed name (careerworld.NAT_TEAM_TODAY:
     YUGOSLAVIA -> SERBIA ...) get renamed copies under the world's stem, the others stay the game's. src: the DATA
-    dir to copy from - patch.py passes the build's own, after its last TEAM pass (white hair, club names...)."""
+    dir to copy from - patch.py passes the build's own, after its last TEAM pass (white hair, club names...); a file
+    it does not hold (a scenario's test build writes only its own files) is the game's own, orig/DATA."""
     import careerworld
     if not multi_ns() or ns_stem(w) == 'team' or any(x.world == w for x in nationals()):
         return {}
@@ -1319,7 +1320,10 @@ def nat_today_files(w, src=None):
         return {}
     out = {}
     for f in range(80, 86):
-        d = bytearray(open(os.path.join(src or os.path.join(ROOT, 'orig', 'DATA'), 'TEAM.%03d' % f), 'rb').read())
+        fn = os.path.join(src, 'TEAM.%03d' % f) if src else None
+        if not fn or not os.path.exists(fn):
+            fn = os.path.join(ROOT, 'orig', 'DATA', 'TEAM.%03d' % f)
+        d = bytearray(open(fn, 'rb').read())
         n = struct.unpack('>H', d[:2])[0]
         hit = False
         for k in range(n):

@@ -25,7 +25,7 @@ import struct
 
 import nasmcave
 
-N = int(os.environ.get('SELLA_N', 14))          # (tuning: SELLA_N / SELLA_MARGIN, balance runs only)
+N = int(os.environ.get('SELLA_N', 12))          # (tuning: SELLA_N / SELLA_MARGIN, balance runs only)
 MARGIN = int(os.environ.get('SELLA_MARGIN', 2))
 RING = 32
 TAG = b'SELA'

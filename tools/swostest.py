@@ -6296,7 +6296,8 @@ def dugout_check(s, n, gone, errs, info, tag=''):
         info.append(f'{tag}dugout (16 colours): benchY {by}, camera ({cx}, {cy}); {fr}')
         return None, cy, None
     f = r.read(0xA0000, 64000)
-    samp = [(x, y) for y in range(0, 200, 3) for x in range(60, 320, 5)]
+    samp = [(x, y) for y in range(0, 200, 3) for x in range(60, 320, 5)    # (4.0.6 bstrip.py: the bench place's
+            if not (80 <= x < 240 and y < 62)]      # header row + box over the pitch, bench_strip checks them)
     fit = []
     for k in range(1, 6):
         try:
@@ -7087,13 +7088,18 @@ def bench_oppl(s, bx, top, bot, errs, info, mark):
     teams = [ingame_team(r, top), ingame_team(r, bot)]
 
     def open_list():
+        tries = []
         for call in range(12):
+            if not keeper_let_go(s, errs):  # (no bench key while a keeper holds the ball: the match stands still
+                return None                 # with the bench open, he never lets go - 05/11 bstrip runs, 3 of 6)
             r = s.send(('pgup' if call % 2 == 0 else 'pgdn') + ':0.3 dump:0.6')
-            cam_settle(s)                   # (4.0.6 long dugouts: the bench takes keys once the camera is there)
+            r0 = cam_settle(s)[0]           # (4.0.6 long dugouts: the bench takes keys once the camera is there)
             r = s.send('up:0.15 dump:0.6')
             if w16(r, v['SUBST']) == 5:
                 return cam_settle(s)[0]     # (4.0.6 long dugouts: the list drawn once the camera is at the dugout)
+            tries.append((w16(r0, v['SUBST']), w16(r0, v['IDX']), w16(r0, v['GSTATE']), w16(r, v['SUBST'])))
             s.send('left:0.3 left:0.3 dump:0.5')
+        info.append(f'oppl: not opened, (state, cursor, gameState, state after UP) per try: {tries}')
         return None
     if os.environ.get('BENCH_SPP'):         # under SWOS++ (network play) the list stays shut: UP does what it did
         r = open_list()
@@ -7181,6 +7187,169 @@ def bench_oppl(s, bx, top, bot, errs, info, mark):
     check(bool(t), 'oppl: no change made after the list', errs)
 
 
+def strip_rows(scr):
+    """A squad screen's player rows -> {short name: (skills, value)} as drawn (the raw texts: the exe's own price, the
+    pound sign too): per row (the entries' y) the texts by x, the leading shirt number dropped, then the name, the
+    position, the skill letters (none for a goalkeeper) and the value last."""
+    by = {}
+    for (i, tx, inv, _), g, raw in zip(scr.entries, scr.geom, scr.raw):
+        if raw and not inv:
+            by.setdefault(g[1], []).append((g[0], raw.replace(b'*', b'').decode('latin-1').strip()))
+    out = {}
+    for y, row in by.items():
+        row = [tx for x, tx in sorted(row) if tx]
+        while row and row[0].isdigit():
+            row = row[1:]
+        if len(row) in (3, 4) and any(c.isdigit() for c in row[-1]):
+            out[row[0]] = (row[2] if len(row) == 4 else '', row[-1])
+    return out
+
+
+def bench_strip(s, bx, top, bot, errs, info, mark):
+    """bstrip.py (4.0.6, Francesco): the bench info strip. The bench (g_subsState 0): down through every place, each
+    a header row + a box (BSTR mirror: state 0, the place = cursor + 10, his PlayerInfo's name = that place's in-match
+    player, skills / value = his pre-match squad row when it was on screen, else non-empty value, 0-3 letters); the
+    in-match teams unchanged by it. FIRE on place 12: state 1, the box of the one going in (plToEnterGameIndex) and
+    of each row highlighted (11 downs: every one a player on the pitch, the reference again). The SWOS++ mark set:
+    nothing drawn. Shots strip_b* / strip_s*. Then a change as usual (bench_sub, BENCH_SUB)."""
+    v = bench_vars()
+    exe3 = bench_oppl.obj3
+    k = exe3.find(b'BSTR')
+    if k < 0:
+        errs.append('bstrip: no BSTR marker in obj3 (a build without bstrip.py)')
+        return
+    base = Off3(k + 4)
+    w16 = lambda r, o: struct.unpack('<H', r.read(r.base2 + o, 2))[0]
+    cs = lambda b: b.split(b'\0')[0].decode('latin-1')
+
+    def mir(r):                             # (state, [left, right]: rec, PlayerInfo, skills, value, name, place, frames)
+        d = r.read(r.lin(base), 4 + 128)
+        sl = []
+        for i in range(2):
+            q = d[4 + 64 * i:68 + 64 * i]
+            rec, pi = struct.unpack_from('<II', q)
+            sl.append(dict(rec=rec, pi=pi, sk=cs(q[8:16]), pr=cs(q[16:40]), name=cs(q[40:56]),
+                           place=struct.unpack_from('<H', q, 56)[0], n=struct.unpack_from('<H', q, 58)[0]))
+        return struct.unpack_from('<h', d)[0], sl
+    rows = bench_strip.rows
+    info.append(f'bstrip: {len(rows)} squad rows for reference')
+    ov = oppl_vars()
+    snap = lambda r: (r.read(r.base2 + top, 1704), r.read(r.base2 + bot, 1704))
+    ref = {'hit': 0, 'fmt': 0}
+
+    def judge(sl, where):
+        key = next((k for k in rows if k == sl['name'] or k.endswith('.') and sl['name'].startswith(k[:-1])), None)
+        if key:                             # (the squad rows cut long names shorter: 'M. DI BATTIS.')
+            ref['hit'] += 1
+            check((sl['sk'], sl['pr']) == rows[key], f'bstrip {where}: {sl["name"]} {sl["sk"]!r} {sl["pr"]!r}, '
+                  f'the squad row {rows[key]}', errs)
+        else:
+            ref['fmt'] += 1
+            check(sl['pr'] and any(c.isdigit() for c in sl['pr']) and len(sl['sk']) <= 3 and sl['sk'].isalpha() | (sl['sk'] == ''),
+                  f'bstrip {where}: {sl["name"]} skills {sl["sk"]!r} value {sl["pr"]!r}', errs)
+
+    def to_bench():
+        for call in range(12):
+            r = s.send(('pgup' if call % 2 == 0 else 'pgdn') + ':0.3 dump:0.6')
+            r = cam_settle(s)[0]
+            if r.outcome == 'dump' and w16(r, v['SUBST']) == 0 and struct.unpack('<I', r.read(r.base2 + ov['BTG'], 4))[0]:
+                return r
+            s.send('left:0.3 left:0.3 dump:0.5')
+        return None
+    r = to_bench()
+    if r is None:
+        errs.append('bstrip: the bench never opened')
+        return
+    btg = struct.unpack('<I', r.read(r.base2 + ov['BTG'], 4))[0]
+    mine = top if btg == r.base2 + top else bot
+    names = lambda r: [x[0] for x in ingame_team(r, mine)[1]]
+    gmx = struct.unpack('<H', r.obj2(bench_oppl.gmax, 2))[0]
+    last = max(5, gmx)
+    s0 = snap(r)
+    seen = []
+    if r.read(r.base1 + ov['SWOSPP'], 1) != b'\xff':   # (BENCH_SPP) SWOS++ installed: its own menus, nothing drawn
+        n0 = [sl['n'] for sl in mir(r)[1]]  # through a whole change (bench_sub: its strip_subs_menu shot = SWOS++'s
+        r = s.send('left:0.3 left:0.3 dump:0.5')   # substitutes menu, no box)
+        t = bench_sub(s, bx, int(os.environ.get('BENCH_SUB', 21)), errs, info, mark, tag='strip_')
+        check(bool(t), 'bstrip: no change made after the strip', errs)
+        r = s.send('dump:0.4')
+        n1 = [sl['n'] for sl in mir(r)[1]]
+        check(n1 == n0 == [0, 0], f'bstrip: drawn under SWOS++ (frames {n0} -> {n1})', errs)
+        info.append(f'bstrip: SWOS++ (mark {r.read(r.base1 + ov["SWOSPP"], 1).hex()}): nothing drawn through the change')
+        return
+    for k in range(1, last + 1):            # the cursor down through the places (the coach at 0)
+        r = s.send('down:0.15 dump:0.6')
+        idx = w16(r, v['IDX'])
+        st, sl = mir(r)
+        if idx != k:
+            info.append(f'bstrip: cursor {idx} after {k} downs (an empty place skipped)')
+        nm = names(r)
+        pl = 10 + idx
+        if not nm[pl]:
+            check(st == -1, f'bstrip bench place {pl + 1}: empty, state {st} (want -1: nothing)', errs)
+            continue
+        seen.append((idx, sl[0]['name'], sl[0]['sk'], sl[0]['pr']))
+        check(st == 0 and sl[0]['place'] == pl and sl[0]['name'] == nm[pl] and sl[0]['pi'] == btg + 61 * pl,
+              f'bstrip bench cursor {idx}: state {st}, place {sl[0]["place"]} {sl[0]["name"]!r} (want {pl} {nm[pl]!r})',
+              errs)
+        judge(sl[0], f'bench {idx}')
+        if idx in (1, 2, 7, 8, last):
+            s.shot(f'strip_b{idx:02d}')
+        if idx >= last:
+            break
+    info.append(f'bstrip bench: {seen}')
+    check(len(seen) >= 5, f'bstrip bench: {len(seen)} places drawn', errs)
+    check(snap(r) == s0, 'bstrip: the in-match teams changed while walking the bench', errs)
+    for _ in range(last + 2):               # back up to place 12
+        r = s.send('up:0.15 dump:0.4')
+        if w16(r, v['IDX']) <= 1:
+            break
+    if w16(r, v['IDX']) == 0:
+        r = s.send('down:0.15 dump:0.4')
+    r = s.send('fire:0.2 dump:0.8')
+    st, sl = mir(r)
+    ent = w16(r, v['ENTER'])
+    check(w16(r, v['SUBST']) == 1 and st == 1 and sl[0]['place'] == ent and sl[0]['name'] == names(r)[ent],
+          f'bstrip menu: state {w16(r, v["SUBST"])} / {st}, in {sl[0]["place"]} {sl[0]["name"]!r} (want {ent} '
+          f'{names(r)[ent]!r})', errs)
+    s.shot('strip_s00')
+    outs = []
+    for k in range(12):                     # the rows: each highlighted one's box
+        st, sl = mir(r)
+        if st == 1 and sl[1]['n']:
+            q = (sl[1]['pi'] - btg) // 61
+            ok = (sl[1]['pi'] - btg) % 61 == 0 and q < 11 and names(r)[q] == sl[1]['name']
+            check(ok, f'bstrip menu row {sl[1]["place"]}: {sl[1]["name"]!r} place {q} (want a player on the pitch)', errs)
+            judge(sl[1], f'out row {sl[1]["place"]}')
+            judge(sl[0], 'in')
+            outs.append((sl[1]['place'], sl[1]['name'], sl[1]['sk'], sl[1]['pr']))
+        if k in (1, 5, 10):
+            s.shot(f'strip_s{k:02d}')
+        r = s.send('down:0.15 dump:0.5')
+    info.append(f'bstrip out rows: {sorted(set(outs))}')
+    check(len({o[0] for o in outs}) >= 10, f'bstrip menu: {len({o[0] for o in outs})} rows seen (want 10+)', errs)
+    info.append(f'bstrip reference: {ref["hit"]} boxes checked against the squad rows, {ref["fmt"]} by format')
+    check(ref['hit'] >= 10, f'bstrip: only {ref["hit"]} boxes matched a squad row', errs)
+    r = s.send('left:0.3 left:0.3 dump:0.5')
+    sp = r.base1 + ov['SWOSPP']             # SWOS++'s mark set: nothing drawn
+    check(r.read(sp, 1) == b'\xff', f'bstrip: the SWOS++ mark is {r.read(sp, 1).hex()} without SWOS++', errs)
+    s.poke(sp, b'\xb8')
+    r = to_bench()
+    n0 = mir(r)[1][0]['n'] if r is not None else None
+    if r is not None:
+        r = s.send('down:0.15 dump:0.6')
+        check(mir(r)[1][0]['n'] == n0, 'bstrip: with the SWOS++ mark set the strip was drawn', errs)
+        s.shot('strip_spp')
+    s.poke(s.result.base1 + ov['SWOSPP'], b'\xff')
+    r = s.send('left:0.3 left:0.3 dump:0.5')
+    mark('bstrip: ' + '; '.join(info[-4:]))
+    t = bench_sub(s, bx, int(os.environ.get('BENCH_SUB', 21)), errs, info, mark, tag='strip_')
+    check(bool(t), 'bstrip: no change made after the strip', errs)
+
+
+bench_strip.rows = {}
+
+
 def oppl_span(vga):
     """oppl's list box in a frame: (separator colour, left frame column, right one) from the line at y 60, or None."""
     px = lambda x, y: vga[y * 320 + x]
@@ -7266,6 +7435,25 @@ def bench_play(s, gmax, top, bot, wants, errs, info, mark, sub=None, icons=None,
             info.append('squad screen: ' + act)                                 #  'ALLEN:'; VIS. RISULTATI simulates)
             if icons is not None:           # the bald icons as the squad screen built them (a player poked bald)
                 icons['squad'] = bald_icons(r)
+            if os.environ.get('BENCH_STRIP') and not bench_strip.rows:   # (4.0.6) bench_strip's reference: the
+                home = scr.selected             # player rows' skills / value - the texts are one set of entries
+                s.send(' '.join(k + ':0.15' for k in scr.path(30) or []) + ' dump:0.4')   # (33..36) the game
+                first = None                    # re-points row by row: row 17's. The box left of row 17 (30) steps
+                for _ in range(40):             # the reserves' window (bench_squad): every bench / reserve player
+                    scr = s.screen()            # in row 17 in turn, back to the first after the last
+                    got = strip_rows(scr)
+                    name = next((k for k in got if k[:1].isalpha() and '-' not in k), None)
+                    if name is None or name == first:
+                        break
+                    first = first or name
+                    bench_strip.rows[name] = got[name]
+                    s.send('fire:0.3 dump:0.6')
+                s.send(' '.join(k + ':0.15' for k in scr.path(home) or []) + ' dump:0.4')
+                scr = s.screen()
+                mark(f'bstrip reference rows ({len(bench_strip.rows)}, back on {scr.selected} of {home}): '
+                     f'{bench_strip.rows}')
+                r = s.result
+                texts = scr.texts()
             s.shot(f'squad{step:02d}')
             if squad and not squad.get('done') and ('GIOCA PARTITA' in texts or UI != 'it' and 'GIOCA :' in texts):
                                             # (EN / FR / DE: the play button reads PARTITA, the player-coach 'GIOCA :')
@@ -7426,6 +7614,9 @@ def bench_play(s, gmax, top, bot, wants, errs, info, mark, sub=None, icons=None,
     s.shot('kickoff')
     if os.environ.get('BENCH_OPPL') and sub:   # (4.0.6) the opponent's list in the bench menu (oppl.py)
         bench_oppl(s, sub[0], top, bot, errs, info, mark)
+        return True
+    if os.environ.get('BENCH_STRIP') and sub:  # (4.0.6) the bench info strip (bstrip.py)
+        bench_strip(s, sub[0], top, bot, errs, info, mark)
         return True
     if os.environ.get('BENCH_ET') and sub:  # (4.0.6) the extra-time substitute: the competition's et flag poked (bx_look's
         bench_et(s, o, gmax, sub[0], errs, info, mark)   # cache), the match forced into extra time
@@ -7592,7 +7783,7 @@ def bench_world():
     m = re.search(rb'(?:\xc7\x05.{8}){4}\x66\xc7\x05.{4}\xa7\x06', c, re.S)
     top, bot = p.target(1, m.start() + 6)[1], p.target(1, m.start() + 26)[1]
     errs, info = [], []
-    tag = 'oppo_list' if os.environ.get('BENCH_OPPL') else 'bench_world'
+    tag = 'oppo_list' if os.environ.get('BENCH_OPPL') else 'bench_strip' if os.environ.get('BENCH_STRIP') else 'bench_world'
     os.makedirs(os.path.join(RUNS, tag), exist_ok=True)
 
     def mark(text):
@@ -7823,6 +8014,22 @@ def oppo_list():
             os.environ.pop('BENCH_OPPL', None)
         else:
             os.environ['BENCH_OPPL'] = keep
+
+
+@scenario
+def bench_strip_world():
+    """4.0.6 (Francesco) the bench info strip (bstrip.py): bench_world's career match (CELLE VARAZZE, bench 15) with
+    bench_strip instead of the bench loop: the box of each bench place, then the menu's two (in / out) against the
+    squad screen's rows; SWOS++'s mark: nothing drawn. Shots strip_b* / strip_s* (Davide's look review)."""
+    keep = os.environ.get('BENCH_STRIP')
+    os.environ['BENCH_STRIP'] = '1'
+    try:
+        return bench_world()
+    finally:
+        if keep is None:
+            os.environ.pop('BENCH_STRIP', None)
+        else:
+            os.environ['BENCH_STRIP'] = keep
 
 
 @scenario

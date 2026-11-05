@@ -2173,9 +2173,20 @@ def advance(s, stop, max_steps=400):
                 s.shot(f'rp{step:03d}')
             s.send('fire:3 ' * 3 + 'dump:1')
             continue
+        gi = scr.find('GIOCA :', exact=True)
+        if gi is not None and getattr(s, 'rp_cycle', 0) == 0:
+            s.rp_gi = gi                                # (the cycling entry: its label changes - GIOCA : / ALLENA: ...)
+        if getattr(s, 'realplay', False) and 'MOD. TATTICA' in texts and 'GIOCA PARTITA' not in texts and \
+                getattr(s, 'rp_gi', None) is not None and getattr(s, 'rp_cycle', 0) < 4:
+            s.rp_cycle = getattr(s, 'rp_cycle', 0) + 1  # ('GIOCA :' cycles who plays: GIOCA PARTITA shows only for the
+            s.log.append(f'[realplay] step {step}: who-plays entry {s.rp_gi} cycled ({s.rp_cycle})')   # human; the
+            walk(s, s.rp_gi, 2)                         # entry pressed by its index - after one press it reads 'ALLENA:'
+            continue                                    # (I10p lane F: goal_slot_sc_real / world_gplay_nzgf_real)
         if getattr(s, 'realplay', False) and 'MOD. TATTICA' in texts and ('GIOCA PARTITA' in texts or 'PARTITA' in texts):
             s.realplay = False
             s.inmatch = True
+            s.rp_cycle = 0
+            s.rp_gi = None
             s.log.append(f'[realplay] step {step}: kick-off')
             press(s, scr, 'GIOCA PARTITA' if 'GIOCA PARTITA' in texts else 'PARTITA') or s.send('fire dump:2')
             continue

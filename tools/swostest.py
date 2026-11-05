@@ -4489,11 +4489,83 @@ def et_open(s, team, errs):
 
 
 @scenario
+def edteam_right():
+    """4.0.6 (Davide, RC3 on the MiSTer) EDIT CUSTOM TEAMS: the shirt number is reached the way it is drawn - right of
+    the face: on row 5's face (NUMFIX_BUILD, else the harness build) RIGHT lights the number (the cursor stays on the
+    face), 8 8 + ENTER gives that player 88; the next RIGHT moves to his name; LEFT back to the face; LEFT on the face
+    goes nowhere and opens no box (a typed 5 + ENTER changes no number). RC3: RIGHT went to the name at once, LEFT
+    opened the box."""
+    b = os.environ.get('NUMFIX_BUILD') or builds()['it']
+    team = '90 MINUTES XI'
+    errs, notes = [], []
+    with Session('edteam_right', b, {}, 'dump:3', 300) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'START: no first pause ({s.result})'
+        if not et_open(s, team, errs):
+            return False, '; '.join(errs)
+        k = 4
+        face, name = 23 + k, 39 + k
+        se_goto(s, face)
+        s.send('dump:1')
+        n0 = [r[2] for r in et_team(s)[1]]
+        s.send('right dump:1')
+        check(s.screen().selected == face, f'RIGHT on the face: selected {s.screen().selected} (face {face}, name {name})',
+              errs)
+        s.shot('lit')
+        s.send('8 8 dump:1')
+        s.send('enter dump:1')
+        n1 = [r[2] for r in et_team(s)[1]]
+        check(n1[k] == 88, f'RIGHT, 8 8, ENTER: row {k} {n0[k]} -> {n1[k]} ({n0} -> {n1})', errs)
+        s.send('right dump:1')
+        check(s.screen().selected == name, f'the next RIGHT: selected {s.screen().selected} (name {name})', errs)
+        s.send('left dump:1')
+        check(s.screen().selected == face, f'LEFT from the name: selected {s.screen().selected} (face {face})', errs)
+        s.send('left dump:1')
+        check(s.screen().selected == face, f'LEFT on the face: selected {s.screen().selected}', errs)
+        s.send('5 dump:2')
+        s.send('enter dump:1')
+        n2 = [r[2] for r in et_team(s)[1]]
+        check(n2 == n1, f'LEFT on the face opened the number box: {n1} -> {n2}', errs)
+        s.shot('after')
+        notes.append(f'row {k}: {n0[k]} -> {n1[k]} -> {n2[k]}')
+    return not errs, '; '.join(errs + notes)
+
+
+def et_reopen(s, face):
+    """The number box again on the face it was used on (4.0.6: RIGHT to the name, LEFT back, RIGHT), by the cursor:
+    a RIGHT the box's release guard swallows (SWOS++'s timer-fed keys) is sent again."""
+    trail = [s.screen().selected]
+    for _ in range(4):
+        if s.screen().selected == face + 16:
+            break
+        s.send('right dump:1')
+        trail.append(s.screen().selected)
+    for _ in range(4):
+        if s.screen().selected == face:
+            break
+        s.send('left dump:1')
+        trail.append(s.screen().selected)
+    s.send('dump:1')                                # (idle on the face first, as a first open: under SWOS++ the
+    s.send('right dump:1')                          #  timer-fed LEFT may still be down when RIGHT comes)
+    trail.append(s.screen().selected)
+    s.log.append(f'[et_reopen] face {face}: {trail}')
+    return trail
+
+
+def et_off_face(s):
+    """Off a face button without touching its number (4.0.6: the first RIGHT on a face lights it, the second ends the
+    edit): before a path that may start with RIGHT (press / se_goto to OK)."""
+    s.send('right dump:1')
+    s.send('right dump:1')
+
+
+@scenario
 def edit_custom_teams():
     """4.0.6 (Marco) EDIT CUSTOM TEAMS (edteam.py): the release CUSTOMS.EDT's first team (90 MINUTES XI). (1) Looks:
     FIRE on a face button cycles ten looks (the record's face bits + byte 25, the button's icon each time; shots
-    look0..9); three outfield starters left shaved dark / white hair light / receding light. (2) Numbers: LEFT on a face
-    lights the number (shot lit), UP = next free, typed 23 (its holder swapped), ESC undoes, typed 7 + ENTER (swap, the
+    look0..9); three outfield starters left shaved dark / white hair light / receding light. (2) Numbers: RIGHT on a
+    face lights the number (shot lit; 4.0.6 RC3 fix: the number is drawn right of the face; once used, RIGHT, LEFT
+    back to the face, RIGHT opens it again), UP = next free, typed 23 (its holder swapped), ESC undoes, typed 7 + ENTER (swap, the
     pin bit in byte 23), FIRE ends an edit without a look change, DOWN moves again. (3) OK, exit, SAVE: CUSTOMS.EDT
     holds the numbers, looks and pin. (4) A friendly with SQUADRE MODIFICATE: the team screen's numbers and face icons,
     in the match the three players' look flags (blond: shaved dark 4, white light 7, receding light 3). SWOSPP_BUILD
@@ -4565,7 +4637,7 @@ def edit_custom_teams():
         k = order[4]
         scr = se_goto(s, 23 + k)
         s.send('dump:1')
-        s.send('left dump:1')
+        s.send('right dump:1')
         s.shot('lit')
         before = [r[2] for r in et_team(s)[1]]
         check(len(set(before)) == 16, f'first edit: numbers not unique {before}', errs)
@@ -4588,7 +4660,7 @@ def edit_custom_teams():
             t4 = [r[2] for r in et_team(s)[1]]
             check(t4 == before, f'ESC: {t4} != {before}', errs)
             check(et_editor(s), f'ESC left the editor ({s.screen()})', errs)
-            s.send('left dump:1')
+            notes.append(f'reopen {et_reopen(s, 23 + k)}')
             h7 = next((i for i in range(16) if before[i] == 7 and i != k), None)
             s.send('7 dump:2')
             s.send('enter dump:1')
@@ -4596,7 +4668,7 @@ def edit_custom_teams():
             check(t5[k] == 7 and (h7 is None or t5[h7] == before[k]), f'typed 7: {t5} (holder {h7})', errs)
             check(len(set(t5)) == 16, f'duplicate numbers {t5}', errs)
             check(et_team(s)[0][23] & 0x80, f'pin bit not set ({et_team(s)[0][23]:#x})', errs)
-            s.send('left dump:1')                      # FIRE ends an edit; the look stays
+            et_reopen(s, 23 + k)                       # FIRE ends an edit; the look stays
             s.send('down dump:1')
             s.send('fire dump:1')
             t6 = et_team(s)[1]
@@ -4606,6 +4678,7 @@ def edit_custom_teams():
             notes.append(f'UP {o} -> {nw}, typed 23 / 7 (holder {h7}), DOWN + FIRE {t5[k]} -> {t6[k][2]}')
         s.shot('after')
         final = et_team(s)[0]
+        et_off_face(s)
         press(s, s.screen(), 21, 3)                   # OK
         for _ in range(8):                            # out of the team list: the save prompt (SAVE / ABORT)
             scr = s.screen()
@@ -4843,6 +4916,82 @@ def numgap_check(s, tag, errs, info):
     info.append(f'{tag}: {n} numbered rows ({two} two-digit), face box ends x {fr if face else None}, number column x '
                 f'{nx}, names x {mx}' + f', columns clear (face, bar) {sorted(gaps, key=str)}')
     return n, two
+
+
+@scenario
+def squad_benchnum():
+    """4.0.6 (Davide, RC3 on the MiSTer) a bench player's shirt number on the long-bench squad screen: a new World
+    2026-27 career at CELLE VARAZZE (Serie D girone A, 30 players; NUMFIX_BUILD, else the harness build), bx_bench poked
+    to 15 (benchx's window), SQUADRA: LEFT + 8 8 + ENTER on a starter's row (row 3), on bench rows 12 and 15 with the
+    window at the top, on row 12 after the box moved the window one place and on row 13 after three more: each time only the record of the
+    player that row shows (careerTeam's place order + the window) gets 88 (RC3: the player above him did)."""
+    b = os.environ.get('NUMFIX_BUILD') or builds()['it']   # (SWOSTEST_UI en / fr / de: a copy whose ITALIAN.EXE is
+    exe = os.path.join(b, 'ITALIAN.EXE')                  #  that language's exe)
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lepatch
+    import xtra
+    _, cnp, ct, cmp, sel = xtra.sites(lepatch.LEPatch(exe))
+    bx, _ = bench_switch(exe)
+    errs, info = [], []
+    with Session('squad_benchnum', b, {}, 'dump:2', 600) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'START: no first pause ({s.result})'
+        for t in ('CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27'):
+            if press(s, s.screen(), t) is None:
+                return False, f'new career: {t} not reached ({s.result})'
+        if not pick_career(s, 'EUROPA,ITALIA,SERIE D GIRONE A,CELLE VARAZZE'.split(',')):
+            return False, f'new career: CELLE VARAZZE not reached ({s.screen()})'
+        s.poke(s.result.lin(bx), b'\x0f\x00')
+        if not sq_open(s):
+            return False, f'no squad screen ({s.screen()})'
+        r = s.result
+        n = struct.unpack('<H', r.obj2(cnp, 2))[0]
+        rows = sq_rows(s)
+        check(len(rows) == 17, f'squad rows {rows}', errs)
+        info.append(f'{n} players, rows {rows[0]}..{rows[-1]}')
+
+        def nums():
+            d = s.result.read(s.result.base2 + ct, 76 + 38 * 16 + 684)
+            out = []
+            for k in range(32):
+                a = 76 + 38 * k if k < 16 else 684 + 38 * (k - 16)
+                out.append((d[a + 2] if a + 2 < len(d) else None, d[a + 3:a + 25].split(b'\0')[0].decode('latin-1')))
+            return out
+
+        s.bx = bx
+        box = rows[16] + 1                               # (benchx's box: FIRE moves the window one place)
+        win = lambda: struct.unpack('<H', s.result.read(s.result.lin(bx) + WIN_OFF[rows[0]], 2))[0]
+
+        def shown(row):                                  # (the slot the row shows: places 0..10, then the window)
+            order = s.result.obj2(cmp, 32)
+            place = row if row < 11 else row + win()
+            return order[place], place
+
+        cases = [('starter row 3', 2, 0), ('bench row 12', 11, 0), ('bench row 15', 14, 0),
+                 ('bench row 12, window +1', 11, 1), ('bench row 13, window +3', 12, 3)]
+        num = 88
+        for tag, row, moved in cases:
+            window_home(s)
+            for _ in range(moved):
+                to_entry(s, box)
+                s.send(f'{PRESS_FIRE} dump:0.5')
+            tag = f'{tag} (window {win()})'
+            want, place = shown(row)
+            before = nums()
+            se_goto(s, rows[row])
+            s.send('dump:1')
+            s.send('left dump:1')
+            s.send(' '.join(str(num)) + ' dump:1')
+            s.send('enter dump:1')
+            after = nums()
+            ch = [k for k in range(32) if before[k][0] != after[k][0]]
+            got = [(k, after[k][1], before[k][0], after[k][0]) for k in ch]
+            ok = len(ch) >= 1 and after[want][0] == num
+            check(ok, f'{tag} (place {place + 1}, {before[want][1]}): changed {got}', errs)
+            info.append(f'{tag}: {before[want][1]} {before[want][0]} -> {after[want][0]}' + ('' if ok else f' WRONG {got}'))
+            s.shot(f'bn_{row}w{moved}')
+            num -= 1
+    return not errs, '; '.join(errs + info)
 
 
 @scenario

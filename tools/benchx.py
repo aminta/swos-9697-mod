@@ -381,9 +381,24 @@ bx_next:                                ; replaces `add word [D2], 1 / cmp word 
 
 bx_frset:                               ; (4.0.6, Davide 05/11) a friendly / DIY match of the World 2026-27 (gameType
     pushad                              ; 0 / 1, WCUR = its world, not a training game): [bx_frkeep] / [bx_fretk] =
-    mov word [bx_frkeep], 0             ; the longer real bench of the two clubs (A1 / A2: their team files, at the
-    mov byte [bx_fretk], 0              ; kick-off's stores): each one's (country, division) entry of bx_frtab, else
-    cmp word [GAMETYPE], 1              ; its country's (division 0FFh); a national / custom team (no entry): the game's
+    mov esi, [A1]                       ; the longer real bench of the two clubs (A1 / A2: their team files, at the
+    mov edi, [A2]                       ; kick-off's stores): each one's (country, division) entry of bx_frtab, else
+    call bx_frcalc                      ; its country's (division 0FFh); a national / custom team (no entry): the game's
+    popad
+    ret
+
+bx_frpm:                                ; (4.0.6) the same for the pre-match screens (sq_n): ShowPlayMatchMenu's two teams
+    pushad                              ; (playMatchTeam1Ptr / playMatchTeam2Ptr, this match's A1 / A2)
+    mov esi, [PMT1]
+    mov edi, [PMT2]
+    call bx_frcalc
+    popad
+    ret
+
+bx_frcalc:                              ; esi, edi -> the two team files
+    mov word [bx_frkeep], 0
+    mov byte [bx_fretk], 0
+    cmp word [GAMETYPE], 1
     ja .out
     cmp word [TRAIN], 0
     jne .out
@@ -393,12 +408,11 @@ bx_frset:                               ; (4.0.6, Davide 05/11) a friendly / DIY
 %else
     jmp .out
 %endif
-    mov esi, [A1]
+    push edi
     call bx_frone
-    mov esi, [A2]
+    pop esi
     call bx_frone
 .out:
-    popad
     ret
 
 bx_frone:                               ; esi -> a team file: its entry's bench if longer than [bx_frkeep]'s
@@ -923,6 +937,7 @@ sq_n:                                   ; ax = 11 + the bench (5..15): the first
     mov ax, [bx_bench]                  ; (the test switch, else the competition's real bench: bx_look)
     test ax, ax
     jnz .t
+    call bx_frpm                        ; (4.0.6) a friendly / DIY: the pre-match screen's two clubs
     call bx_look
     movzx ax, byte [bx_lkres]
 .t:
@@ -2113,6 +2128,12 @@ def patch(p, at, ns_at, lang='it'):
                 'BXWORLD_': (0, BENCH_WORLD[0] if tab else 255),
                 'WCURV': (1, careerworld.LABELS['WCUR']) if 'WCUR' in careerworld.LABELS else (0, 0),
                 'WCURV_': (0, int('WCUR' in careerworld.LABELS))})
+    pk = lambda x: re.escape(struct.pack('<I', x))           # ShowPlayMatchMenu: mov ax, [D6] / mov [squadChanges..], ax /
+                                                             # mov eax, [A1] / mov [playMatchTeam1Ptr],
+    pm = list(re.finditer(b'\x66\xa1' + pk(regs['D7'] - 4) + b'\x66\xa3....\xa1' + pk(regs['A0'] + 4) + b'\xa3(....)\xa1' + pk(regs['A0'] + 8) + b'\xa3(....)\x66\xa1'
+                          + pk(regs['D7'] - 24) + b'\x66\xa3', p.le.obj_bytes(1), re.S))   # eax / A2 / Team2Ptr / D1
+    assert len(pm) == 1, ('ShowPlayMatchMenu', len(pm))
+    sym.update({'PMT1': p.target(1, pm[0].start(1)), 'PMT2': p.target(1, pm[0].start(2))})
     asm = ASM + table_asm(tab)
     code, fix, rel = nasmcave.assemble_obj(asm, at, sym, 3)
     lab = nasmcave.labels(asm, at, sym)

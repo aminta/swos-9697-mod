@@ -8429,7 +8429,7 @@ def bench_friendly():
     b = os.environ.get('BENCH_BUILD') or builds()['it']
     exe = os.path.join(b, 'ITALIAN.EXE')
     p = lepatch.LEPatch(exe)
-    _, gmax = bench_switch(exe)
+    bx, gmax = bench_switch(exe)
     m = re.search(rb'(?:\xc7\x05.{8}){4}\x66\xc7\x05.{4}\xa7\x06', p.le.obj_bytes(1), re.S)
     top, bot = p.target(1, m.start() + 6)[1], p.target(1, m.start() + 26)[1]
     errs, info = [], []
@@ -8467,6 +8467,9 @@ def bench_friendly():
                     if s.screen().selected == 9:
                         break
                 s.shot(f'{case}_prematch')
+                r = s.result                        # the pre-match screen's bench (sq_n -> bx_frpm -> bx_look: bx_lkres =
+                pre = struct.unpack('<BB', r.read(r.lin(bx) + 14, 2))   # bx_bench + 14)
+                check(pre[0] == (want if want > 5 else 0), f'{case}: pre-match screen bench {pre[0]}:{pre[1]}', errs)
                 r = s.send('fire ' + 'fire:3 ' * 8 + 'dump:2')
             except AssertionError as e:
                 s.shot(f'{case}_lost')
@@ -8487,7 +8490,7 @@ def bench_friendly():
                 check(len(named) + len(empty) == cap, f'{case}: {name}: {len(named)} named + {len(empty)} empty of {cap}',
                       errs)
                 check(len(named) >= 16, f'{case}: {name}: only {len(named)} named', errs)
-            info.append(f'{case}: named:used {gm[1]}:{gm[0]} ({", ".join(desc)})')
+            info.append(f'{case}: pre-match {pre[0]}:{pre[1]}, named:used {gm[1]}:{gm[0]} ({", ".join(desc)})')
             check(gm == (used, want), f'{case}: named:used {gm[1]}:{gm[0]}, want {want}:{used}', errs)
     return not errs, '; '.join(errs + info)
 

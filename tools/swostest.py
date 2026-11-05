@@ -1932,6 +1932,9 @@ def _label_data():
     for k, v in sc.items():
         if not k.startswith('_'):
             slot4 |= forms(v.get('names'))
+    for po in GPLAY_SCO:                                # (harness-injected play-offs, world_gplay*: no 'name' in
+        k = po['key'].upper()                           # world_gplay - the game shows the key; world_gplay_play
+        slot4 |= {k, k.replace('_', ' ')} | forms(po.get('names'))   # names them after it)
     every |= slot4
     _LABEL_DATA.update(ids=ids, slot4=slot4, every=every, src=key)
     return _LABEL_DATA

@@ -10848,11 +10848,13 @@ def engine_wmodes_play():
     """W-modes M2 for the players (12 Bit internal build): the mixed friendly INTER (World 2026-27) - HAMBURG (the
     1996-97 game) PLAYED to the end on a release-recipe exe (SWOSTEST_BUILD), fresh SETUP.DAT (default World 2026-27):
     the match starts, runs to its end without a crash, the menus come back and lead to the main menu. SWOSTEST_UI=en:
-    the same under SWOS++ 1.9.2.2 too (a second run). Any SWOSTEST_UI: the menus' own names (UI_MAP)."""
+    the same under SWOS++ 1.9.2.2 too with WMPLAY_SPP=1 (a second run; its walk not SWOS++-safe yet). Any SWOSTEST_UI:
+    the menus' own names (UI_MAP). The post-match REPLAY / ESCI screen is no menu of the game's (n 0): wait, then down +
+    fire = ESCI, as a player; the main menu after it."""
     b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
     runs = [('dos4gw', b, {})]
-    if UI == 'en':
-        sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    if UI == 'en' and os.environ.get('WMPLAY_SPP'):   # (the SWOS++ run: its picker walk is not yet SWOS++-safe -
+        sys.path.insert(0, os.path.join(ROOT, 'tools'))    #  empty first screen under the timer feed; 4.0.6 queue)
         import swospp
         pp = os.path.join(MAIN, 'internal', 'swospp-test')
         out = os.path.join(WORK, 'builds-x', 'engine_wmodes_play')
@@ -10862,7 +10864,10 @@ def engine_wmodes_play():
         runs.append(('swospp', out, {'LOADER.BIN': os.path.join(pp, 'loader.bin'),
                                      'SWOSPP.BIN': os.path.join(pp, 'swospp.bin')}))
     errs, info = [], []
+    global SPP_STEP
+    old_step = SPP_STEP
     for tag, d, extra in runs:
+        SPP_STEP = bool(extra)                  # (SWOS++'s timer feed: press() one tap at a time, as bench_world)
         files = dict(extra, **{'SETUP.DAT': setup_file('engine_wmodes_play', 0)})
         with Session(f'engine_wmodes_play_{tag}', d, files, 'dump:3', 900, timer=bool(extra)) as s:
             if s.wait().outcome != 'dump':
@@ -10884,28 +10889,92 @@ def engine_wmodes_play():
                 errs.append(f'{tag}: match start: {r}')
                 continue
             s.shot(f'{tag}_match')
-            menu, k = None, 0
-            for k in range(90):                 # play on: fire for the kicks, until a menu is back (the match over)
-                r = s.send('fire:3 ' * 10 + 'dump:1')
+            menu, k, seen = None, 0, []          # (the post-match REPLAY / ESCI screen is no menu of the game's
+            for k in range(int(os.environ.get('WMPLAY_MAX', 12))):   # system: n 0, like the match. So: wait,
+                r = s.send('dump:5')             # then down + fire (= ESCI there, harmless in a match) until a
+                if r.outcome != 'dump':          # real menu is back - the friendly's screens)
+                    errs.append(f'{tag}: wait {k}: {r}')
+                    break
+                if k < 3:
+                    continue
+                if k == 3:
+                    s.shot(f'{tag}_over')
+                s.send('down dump:0.5')
+                r = s.send('fire dump:3')
                 if r.outcome != 'dump':
-                    errs.append(f'{tag}: play on {k}: {r}')
+                    errs.append(f'{tag}: ESCI {k}: {r}')
                     break
                 try:
                     sc = s.screen()
-                    if any(sc.find(t) is not None for t in ('ESCI', 'CONTINUA', 'AMICHEVOLE')):
-                        menu = sc
-                        break
-                except Exception:
-                    pass
+                except Exception as e:
+                    seen.append(f'{k}: {type(e).__name__}')
+                    continue
+                if sc.n:
+                    menu = sc
+                    break
+                seen.append(f'{k}: n 0')
             s.shot(f'{tag}_end')
-            check(menu is not None, f'{tag}: no menu after {k + 1} play-on pauses (the match not over)', errs)
+            check(menu is not None, f'{tag}: no menu back after the match and ESCI ({k + 1} waits: {seen})', errs)
             if menu is not None:
                 after = [t for t in menu.texts() if t][:10]
+                s.shot(f'{tag}_exit')
                 back = wm_to_main(s)
                 check(back, f'{tag}: main menu not reached after the match ({after})', errs)
-                info.append(f'{tag}: match over after {k + 1} pauses, menu {after}, main menu {back}')
+                info.append(f'{tag}: match played, ESCI after {k + 1} waits -> {after[:4]}, main menu {back}')
+    SPP_STEP = old_step
     return not errs, '; '.join(errs + info)
 
+
+
+@scenario
+def engine_wmodes_nat():
+    """W-modes M2 + 4.0.6 nations by today's names (95b0bec), the friendly's national teams across world switches
+    (release-recipe exe, SWOSTEST_BUILD; Italian menus): MONDO 2026-27 -> 1996-97 -> 2026-27, each time FRIENDLY >
+    NAZIONALI > EUROPA. The friendly's national branch keeps the game's own namespace in every world (M2: national /
+    custom untouched), so every list = the game's TEAM.080 (CZECH REPUBLIC, YUGOSLAVIA; never TMW5.080's CZECHIA /
+    SERBIA, which only a 2026-27 namespace reads), the same after the round trip; the two picked after it: the
+    pre-match screen shows them."""
+    files = {'SETUP.DAT': setup_file('engine_wmodes_nat', 0)}
+    today, era = ('CZECHIA',), ('CZECH REPUBLIC',)        # (the list's first page: ALBANIA..ENGLAND)
+    errs, info = [], []
+
+    def nat_list(s):
+        for t in ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE'):
+            walk(s, t, 2)
+        sc = s.screen()
+        nat = next((t for t in ('NAZIONALI', 'SQUADRE NAZIONALI', 'SQUADRE NAZ.') if sc.find(t, exact=True) is not None), None)
+        if nat is None:
+            raise AssertionError(f'no national teams entry: {sc.texts()[:16]}')
+        walk(s, nat, 2)
+        walk(s, 'EUROPA', 2)
+        return s.screen()
+
+    with Session('engine_wmodes_nat', os.environ.get('SWOSTEST_BUILD') or builds()['it'], files, 'dump:3', 600) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'no first pause ({s.result})'
+        seen = []
+        for k, w in enumerate((0, 1, 0)):
+            set_world(s, w)
+            sc = nat_list(s)
+            tx = [t for t in sc.texts() if t]
+            seen.append(tuple(n for n in today + era if n in tx))
+            s.shot(f'nat{k}_w{w}')
+            if k == 2:                                   # (after the round trip: pick both, the pre-match screen)
+                for n in era + ('ALBANIA',):
+                    walk(s, n, 2)
+                sc = s.screen()                          # (the national list's own PLAY entry: the visible one after
+                go = next((j for j, t, inv, _ in sc.entries if t == 'AMICHEVOLE' and not inv and j), None)   # the rows)
+                pm = walk(s, go, 4) if go is not None else sc
+                ptx = ' '.join(t for t in pm.texts() if t)
+                check(go is not None and any(n in ptx for n in era + ('ALBANIA',)) and not any(n in ptx for n in today),
+                      f'pre-match after the round trip: {[t for t in pm.texts() if t][:8]}', errs)
+                s.shot('prematch')
+                info.append(f'pre-match {[t for t in pm.texts() if t][:6]}')
+            check(wm_to_main(s), f'step {k}: main menu not reached', errs)
+        check(all(x == era for x in seen), f'national names per step (2026-27, 1996-97, 2026-27): {seen} (want {era})',
+              errs)
+        info.insert(0, f'national names per step (2026-27, 1996-97, 2026-27): {seen}')
+    return not errs, '; '.join(errs + info)
 
 def wm_up(s, label, n=6):
     """Up the team picker's lists to the one showing `label` (each list's ESCI entry; a team list's past its rows)"""

@@ -33,6 +33,8 @@ WORLD = {'it': (b'MONDO: 2026-27', b'MONDO: 1996-97', b'EUROPA 1984-85'),
          'de': (b'WELT: 2026-27', b'WELT: 1996-97', b'EUROPA 1984-85')}
 SET_OFF = 105                                # the default world's byte in SETUP.DAT / setupDatBuffer
 LAB_W = 17                                   # (a label's slot: 16 chars + 0)
+CHOOSE = [None]                              # (W-modes M3) {'site': obj1 offset of ChooseTeamsDialog's picker call,
+                                             # 'HDR' / 'STR': (obj, off) as mb_d0's check} (swe.py)
 FLAG = [None]                                # (obj, offset) of mb_flag (the career's world: 0 the game's, 1 World
 SETTING = [None]                             # 2026-27, 2 Europe 1984-85); SETTING: (obj, offset) of the byte
 X, W, H, GAP, GREEN = 162, 150, 16, 18, 14   # (x as the menu stores it: definition + 8)
@@ -286,6 +288,21 @@ LABELS_
 """
 
 
+def choose_sites(p):
+    """ChooseTeamsDialog's `mov byte [D0], 255; call SelectTeamsFinalMenu` (obj1 offset, the game's bytes), the title
+    pointer it reads (HDR) and SELECT TEAM TO MANAGE's string (STR): (cs, (obj, off), (obj, off))."""
+    c = p.le.obj_bytes(1)
+    fx = {s: (t, o) for so, s, _, t, o, *_ in p.le.fixups() if so == 1}
+    cs = [m.start() for m in re.finditer(rb'\xc6\x05....\xff\xe8....\x66\xa1', c, re.S)]
+    assert len(cs) == 1, cs
+    cs = cs[0]
+    hdr = [fx[cs - 0xd0 + k.start() + 6] for k in re.finditer(rb'\xa1....\xa3', c[cs - 0xd0:cs], re.S)][0]
+    st = [fx[m.start() + 6] for m in re.finditer(rb'\xc7\x05........\xc7\x05....\x00\x00\x00\x00\x66\xc7\x05....'
+                                                 rb'\x01\x00\x66\xc7\x05....\x00\x00\x66\xc7\x05....\x00\x00\xe8', c, re.S)]
+    st = [x for x in st if p.le.obj_bytes(2)[x[1]:x[1] + 1] != b'\0']
+    return cs, hdr, st[0]
+
+
 def patch(p, at, lang, wid, onsel=None, obj=1, wid84=None):
     """The button's code at obj offset at (4.0.6: obj3's last page, else obj1); wid = the World 2026-27's list id
     (mkseason.WMENU + its number), wid84 = Europe 1984-85's (None: not in the build, the switch has two worlds); onsel =
@@ -324,14 +341,8 @@ def patch(p, at, lang, wid, onsel=None, obj=1, wid84=None):
     sym = {'D0': d0[0], 'A0': a0, 'CALC': (1, calc), 'GAP_': (0, GAP), 'X_': (0, X), 'W_': (0, W), 'H_': (0, H),
            'GREEN_': (0, GREEN)}
     sym['ONSELF'] = onsel
-    cs = [m.start() for m in re.finditer(rb'\xc6\x05....\xff\xe8....\x66\xa1', c, re.S)]   # ChooseTeamsDialog:
-    assert len(cs) == 1, cs                                          # `mov byte [D0], 255; call SelectTeamsFinalMenu`
-    cs = cs[0]
-    hdr = [fx[cs - 0xd0 + k.start() + 6] for k in re.finditer(rb'\xa1....\xa3', c[cs - 0xd0:cs], re.S)][0]
-    st = [fx[m.start() + 6] for m in re.finditer(rb'\xc7\x05........\xc7\x05....\x00\x00\x00\x00\x66\xc7\x05....'
-                                                 rb'\x01\x00\x66\xc7\x05....\x00\x00\x66\xc7\x05....\x00\x00\xe8', c, re.S)]
-    st = [x for x in st if p.le.obj_bytes(2)[x[1]:x[1] + 1] != b'\0']
-    sym.update({'HDR': hdr, 'STR': st[0], 'WID_': (0, wid), 'WID84_': (0, wid84 or wid), 'FNAME': fx[rs[0] + 1],
+    cs, hdr, st = choose_sites(p)
+    sym.update({'HDR': hdr, 'STR': st, 'WID_': (0, wid), 'WID84_': (0, wid84 or wid), 'FNAME': fx[rs[0] + 1],
                 'BUF': fx[rs[0] + 17], 'SET_OFF_': (0, SET_OFF), 'MAXW_': (0, len(labs) - 1), 'LAB_W_': (0, LAB_W)})
     import zones
     code = zones._put_obj(p, src, at, sym, obj)
@@ -340,6 +351,7 @@ def patch(p, at, lang, wid, onsel=None, obj=1, wid84=None):
     p.branch(1, off + 6, 0xE9, obj, lab['mb_off'], n=7)
     p.remove(1, cs + 2)                              # (the overwritten instruction's fixup: [D0])
     p.branch(1, cs, 0xE8, obj, lab['mb_d0'], n=7)
+    CHOOSE[0] = {'site': cs + 7, 'HDR': hdr, 'STR': st}
     FLAG[0] = (obj, lab['mb_flag'])                  # (4.0.3: careerworld's nat_init reads it: the coach's list)
     SETTING[0] = (sym['BUF'][0], sym['BUF'][1] + SET_OFF)   # (W-modes: the registry's pointer, swreg)
     print(f'exe: main menu world switch {" / ".join(t.decode() for t in labs)} at obj{obj}+{at:#x} '

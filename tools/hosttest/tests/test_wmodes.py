@@ -127,7 +127,9 @@ def test_wmodes():
     pre, post = _e8(rd, cs[0]), _e8(rd, cs[2])
     into4 = [a for a in range(B1, B1 + sizes[0] - 5) if rd(a, 1) == b'\xe8' and B4 <= _e8(rd, a) < B4 + swreg.REG_AT]
     nstr = [_e8(rd, a) for a in into4 if a - B1 not in (site,) + tuple(c for c, _ in calls)]
-    if len(nstr) != 1 or rd(nstr[0] + 1, 3) != b'\x0f\xb6\xc0':
+    car = [t for t in nstr if rd(t, 2) == b'\x60\xe8']       # (M3: the career's team choice, swe_car_tramp)
+    nstr = [t for t in nstr if t not in car]
+    if len(nstr) != 1 or len(car) != 1 or rd(nstr[0] + 1, 3) != b'\x0f\xb6\xc0':
         return False, f'obj1 calls into obj4: {[hex(a - B1) for a in into4]} (the picker, DIY save / load, w_ns_menu)'
     ns = _e8(rd, nstr[0] + 4 + 1)
     import re
@@ -234,6 +236,94 @@ def test_wmodes():
     run(0, 1, [(1, 0)])                           # (a 1996-97 contest: the base namespace again)
     if rd(wcur, 1)[0] != 4:
         errs.append(f'a 1996-97 contest left namespace {rd(wcur, 1)[0]}')
+    # M3: the career's picker (swe_car_tramp -> swe_sel_pre(M_CAREER)): the same lists, whatever teamsType, no lock
+    def run_car(setting, steps):
+        uc.mem_write(wdef, bytes((setting,)))
+        w16(TTYPE, 0)
+        uc.mem_write(D0, b'\xff')
+        w16(NUMSEL, 0)
+        before = tr._snap(uc, sizes)
+        tr._call(uc, pre, swreg.M_CAREER)
+        d0 = rd(D0, 1)[0]
+        seen = [(ids(u32(slot(98))), ids(u32(slot(d0))) if d0 != 255 else ids(cwt))]
+        for n, w in steps:
+            w16(NUMSEL, n)
+            tr._call(uc, ns, w)
+            seen.append((ids(u32(slot(98))), ids(u32(slot(d0))) if d0 != 255 else ids(cwt), u32(selcw_p)))
+        return d0, seen, before
+    for setting, d0w, want in ((0, 205, [([200, 204], o205 + [98]), ([200, 204], o205 + [98], 0)]),
+                               (1, 255, [([204], ctop + [205, 98]), ([204], ctop + [205, 98], 0)]),
+                               (2, 204, [([200], o204 + [205, 98]), ([200], o204 + [205, 98], 0)])):
+        d0, seen, before = run_car(setting, [(1, 5)])
+        tr._call(uc, post)                        # (the lists back; the friendly's post: the namespace is the test's)
+        uc.mem_write(D0, b'\xff')
+        if d0 != d0w or seen != want:
+            errs.append(f'career picker, setting {setting}: D0 {d0}, lists {seen}')
+        if ids(cwt) != ctop + [98] or ids(u32(slot(98))) != o98:
+            errs.append(f'career picker, setting {setting}: lists not restored {ids(cwt)} {ids(u32(slot(98)))}')
+    tr._call(uc, guard)
+    # M3: swe_car_tramp's own pre / post (its calls: pushal; call pre; popal; call the picker; ..; call post): only for
+    # SELECT TEAM TO MANAGE (mainbtn mb_d0's check: the title pointer = its string); after it the namespace stays
+    import mainbtn
+    _, hdr_s, str_s = mainbtn.choose_sites(o)
+    HDR, STR = ((B1 if x[0] == 1 else B2) + x[1] for x in (hdr_s, str_s))
+    cc = [a for a in range(car[0], car[0] + 40) if rd(a, 1) == b'\xe8']
+    cpre, cpost = _e8(rd, cc[0]), _e8(rd, cc[2])
+    uc.mem_write(wdef, b'\x00')
+    keep_hdr = rd(HDR, 4)
+    for title, on in ((STR + 1, False), (STR, True)):
+        uc.mem_write(HDR, struct.pack('<I', title))
+        uc.mem_write(D0, b'\xcd')                # (mb_d0's: World 2026-27's list)
+        tr._call(uc, cpre)
+        got = (ids(u32(slot(98))), u32(selmode), rd(D0, 1)[0])
+        want = ([200, 204], swreg.M_CAREER, 205) if on else (o98, 0xFFFFFFFF, 0xCD)
+        uc.mem_write(wcur, b'\x05')              # (the path's namespace, as the picker left it)
+        tr._call(uc, cpost)
+        if got != want or ids(u32(slot(98))) != o98 or u32(selmode) != 0xFFFFFFFF or rd(wcur, 1)[0] != 5:
+            errs.append(f'career tramp ({"SELECT TEAM TO MANAGE" if on else "another team choice"}): {got} want '
+                        f'{want}; after: 98 {ids(u32(slot(98)))} SEL_MODE {u32(selmode):#x} WCUR {rd(wcur, 1)[0]}')
+    uc.mem_write(HDR, keep_hdr)
+    uc.mem_write(D0, b'\xff')
+    w16(GTYPE, 0)
+    tr._call(uc, guard)
+    run(0, 1, [(1, 0)])                           # (the base namespace back for the cases below)
+    # M3: the coach nationality after the team choice (swe_nat_fix, careerworld.NAT_ERA): every pair, both ways
+    natx = u32(B4 + 60)
+    if not natx:
+        errs.append('obj4 header +60: no NAT_X (the coach nationality fix)')
+    else:
+        import careerworld
+        fix, plnat, m27, mera, lera, l27 = struct.unpack('<6I', rd(natx, 24))
+        code = careerworld.nat_codes(os.path.join(os.path.dirname(TOOLS), 'orig', 'ENGLISH.EXE'))
+        name = {v: k for k, v in code.items()}
+        lst = lambda a: list(rd(a, 256)[:rd(a, 256).index(0xFF)])
+        era, today = lst(lera), lst(l27)
+        keep = rd(plnat, 1)
+        bad = []
+
+        def got(c, t):
+            uc.mem_write(plnat, bytes((c,)))
+            tr._call(uc, fix, t)
+            return rd(plnat, 1)[0]
+        want = {}                                 # (from, to today?) -> expected, from the table itself
+        for e, (succ, states) in careerworld.NAT_ERA.items():
+            want[(code[e], 1)] = code[e] if code[e] in today else (code[succ] if succ else careerworld.NAT_ENG)
+            for st in states:
+                want.setdefault((code[st], 0), code[st] if code[st] in era else code[e])
+        for (c, t), w in want.items():
+            if got(c, t) != w:
+                bad.append(f'{name[c]} -> {"today" if t else "era"}: {name.get(got(c, t))} (want {name[w]})')
+        for t, l in ((1, today), (0, era)):       # (a nationality in the list is kept; FF = OTHER too)
+            bad += [f'{name.get(c, c)} not kept ({"today" if t else "era"})' for c in l + [0xFF] if got(c, t) != c]
+        for c, t, w in ((code['GDR'], 1, code['GER']), (code['FRG'], 1, code['GER']), (code['URS'], 1, code['RUS']),
+                        (code['UKR'], 0, code['UKR']), (code['KAZ'], 0, code['URS']), (code['MNE'], 0, code['YUG']),
+                        (code['BOS'], 0, code['YUG']), (code['YUG'], 1, careerworld.NAT_ENG),
+                        (code['USA'], 0, careerworld.NAT_ENG)):   # (hand-written: GDR -> GER ... USA -> ENG)
+            if got(c, t) != w:
+                bad.append(f'{name[c]}: {name.get(got(c, t))} want {name[w]}')
+        uc.mem_write(plnat, keep)
+        if bad:
+            errs.append(f'coach nationality: {bad[:8]}')
     for tt in (0, 2, 3):
         d0, seen, cw, same = run(0, tt, [])
         if d0 != 255 or seen[0][0] != o98 or seen[0][2] or seen[-1] != ('ns', 4, 4) or not same:
@@ -278,6 +368,6 @@ def test_wmodes():
     if res != want or odd != 0:
         errs.append(f'DIY save / load {res} (want {want}), a file of another size -> {odd}')
     return not errs, '; '.join(errs) or (
-        f'default 2026-27 / 1996-97 / 1984-85 lists, lock both ways, national / custom untouched, memory restored; '
+        f'default 2026-27 / 1996-97 / 1984-85 lists, lock both ways, national / custom untouched, memory restored; career picker (M3): the same lists, no lock, only for SELECT TEAM TO MANAGE, namespace kept; '
         f'200 = 6 proxies = the game continents; DIY: WM 5 / 4 round trip, 1996-97 alone = the game file '
-        f'({game} B), other size -> 0')
+        f'({game} B), other size -> 0; coach nationality: kept in the list, era <-> today pairs both ways, ENG last')

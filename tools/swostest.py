@@ -11387,7 +11387,7 @@ def world_groups():
     exe = build('world_groups', env=env)
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     old = os.environ.get('SEASON_PACKS')
-    os.environ['SEASON_PACKS'] = env['SEASON_PACKS']
+    os.environ['SEASON_PACKS'] = packs_font_safe(env['SEASON_PACKS'])
     mkseason = mkseason_now()
     pk = [p for p in mkseason.packs() if p.parallel()][0]
     if old is None:
@@ -11464,7 +11464,7 @@ def world_playoffs():
     exe = build('world_playoffs', env=env)
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     old = os.environ.get('SEASON_PACKS')
-    os.environ['SEASON_PACKS'] = env['SEASON_PACKS']
+    os.environ['SEASON_PACKS'] = packs_font_safe(env['SEASON_PACKS'])
     mkseason = mkseason_now()
     pk = [p for p in mkseason.packs() if p.parallel()][0]
     if old is None:
@@ -11568,7 +11568,7 @@ def world_dplay_b(force='5', team='EUROPA,ITALIA,SERIE B,MODENA'):
         check(any(t == res and dl == -1 for _, t, dl in mv), f'C winner {res:#x} not moved up: moves {mv}', errs)
         sys.path.insert(0, os.path.join(ROOT, 'tools'))      # the two groups simulated at the league end: their
         old = os.environ.get('SEASON_PACKS')                   # winners then (the state's tables) = the clubs the
-        os.environ['SEASON_PACKS'] = env['SEASON_PACKS']       # season end promoted from them
+        os.environ['SEASON_PACKS'] = packs_font_safe(env['SEASON_PACKS'])       # season end promoted from them
         mkseason = mkseason_now()
         pk = [p for p in mkseason.packs() if p.parallel()][0]
         if old is None:
@@ -12976,7 +12976,7 @@ def world_gplay():
     exe = build('world_gplay', env=env)
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     old = os.environ.get('SEASON_PACKS')
-    os.environ['SEASON_PACKS'] = env['SEASON_PACKS']
+    os.environ['SEASON_PACKS'] = packs_font_safe(env['SEASON_PACKS'])
     mkseason = mkseason_now()
     pk = next(p for p in mkseason.packs() if p.meta.get('id', '').endswith('-sco'))
     if old is None:
@@ -13745,7 +13745,7 @@ def world_conti_guest():
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
     packs = ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order])
     old = os.environ.get('SEASON_PACKS')
-    os.environ['SEASON_PACKS'] = packs                   # (before mkseason's import: ENABLED is read there)
+    os.environ['SEASON_PACKS'] = packs_font_safe(packs)                   # (before mkseason's import: ENABLED is read there)
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     mkseason = mkseason_now()
     sample = os.path.join(WORK, 'guests_sample_squads')
@@ -18461,7 +18461,7 @@ def club_divisions(car, src, country, words):
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     old = os.environ.get('SEASON_PACKS')
-    os.environ['SEASON_PACKS'] = ','.join([os.path.join(src, x) for x in order])
+    os.environ['SEASON_PACKS'] = packs_font_safe(','.join([os.path.join(src, x) for x in order]))
     mkseason = mkseason_now()
     pk = next(p for p in mkseason.packs() if p.meta.get('id', '').endswith('-' + country))
     if old is None:
@@ -18486,7 +18486,7 @@ def reserve_left(car, src, country='ita'):
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     old = os.environ.get('SEASON_PACKS')
-    os.environ['SEASON_PACKS'] = ','.join([os.path.join(src, x) for x in order])
+    os.environ['SEASON_PACKS'] = packs_font_safe(','.join([os.path.join(src, x) for x in order]))
     mkseason = mkseason_now()
     pk = next(p for p in mkseason.packs() if p.meta.get('id', '').endswith('-' + country))
     if old is None:
@@ -18706,7 +18706,7 @@ def world_second_milanfuturo(force='1', team='EUROPA,ITALIA,SERIE D GIRONE B,MIL
         return False, f'{msg}; no season-end save {car}'
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     old = os.environ.get('SEASON_PACKS')
-    os.environ['SEASON_PACKS'] = ','.join([os.path.join(src, x) for x in order])
+    os.environ['SEASON_PACKS'] = packs_font_safe(','.join([os.path.join(src, x) for x in order]))
     pk = next(p for p in mkseason_now().packs() if p.meta.get('id', '').endswith('-ita'))
     if old is None:
         os.environ.pop('SEASON_PACKS')
@@ -18930,7 +18930,7 @@ def cd_strengths(src):
         else sorted(x for x in os.listdir(src) if os.path.isdir(os.path.join(src, x)))
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     old = os.environ.get('SEASON_PACKS')
-    os.environ['SEASON_PACKS'] = ','.join(os.path.join(src, x) for x in order)
+    os.environ['SEASON_PACKS'] = packs_font_safe(','.join(os.path.join(src, x) for x in order))
     mkseason = mkseason_now()
     import cupd
     try:
@@ -20758,7 +20758,7 @@ def full_season(country, team):
     order = [ln.split()[0].lower() for ln in open(data.replace('-lc', '') + '.txt') if ' file ' in ln]
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     old = os.environ.get('SEASON_PACKS')
-    os.environ['SEASON_PACKS'] = ','.join([os.path.join(data, x) for x in order])
+    os.environ['SEASON_PACKS'] = packs_font_safe(','.join([os.path.join(data, x) for x in order]))
     mkseason = mkseason_now()
     pk = next(p for p in mkseason.packs() if p.meta.get('id', '').endswith('-' + country))
     if old is None:

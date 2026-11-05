@@ -9703,7 +9703,8 @@ def swospp_menu():
     release-recipe dir whose ITALIAN.EXE is the English exe) + SWOS++ 1.9.2.2: (1) the main menu: entry 4 the button,
     entry 11 SWOS++ at x 93 y 21; (2) SWOS++'s menu opens from it and ESC comes back to the main menu; (3) a career
     loaded (W84E): CONTINUE / SAVE shown, entry 11 not SWOS++, SAVE opens its screen; (4) DIY COMPETITION > ABANDON:
-    the SWOS++ entry is back"""
+    the SWOS++ entry is back. 4.0.6: the mod's version line (modver_corner) in the bottom-left corner at (1) and (4),
+    clear of SWOS++'s entry; with CONTINUE shown only if its box is clear"""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import swospp
     if UI != 'en':
@@ -9737,6 +9738,10 @@ def swospp_menu():
         on, why = swospp_on(s.result, os.path.join(out, 'ITALIAN.EXE'))
         check(on, f'SWOS++ not running: {why}', errs)
         e = menu(s, 'start')
+        import modver                                           # (4.0.6: the version line under SWOS++ too)
+        mv = os.environ.get('MODVER_EXPECT') or modver.text().decode()
+        check(modver_corner(s, mv, errs, info, 'SWOS++ main menu'), 'SWOS++: the version line not drawn', errs)
+        s.shot('main_start')
         check(e[4][0].endswith(b'2026-27') and not e[4][1], f'entry 4 not the button: {e[4]}', errs)
         check(e[11][0] == b'SWOS++' and not e[11][1] and e[11][2:4] == (93, 21), f'entry 11 not SWOS++: {e[11]}', errs)
         sc = walk(s, 11, 3)                                     # (2) SWOS++'s own menu, then ESC
@@ -9763,6 +9768,8 @@ def swospp_menu():
         go(s, 'ESCI')
         check(is_main(s), f'career menu -> ESCI: not the main menu: {s.screen()}', errs)
         e = menu(s, 'career')
+        modver_corner(s, mv, errs, info, 'SWOS++ with CONTINUE')
+        s.shot('main_career')
         check(not e[10][1] and not e[11][1] and e[11][0] != b'SWOS++' and e[11][2:4] != (93, 21),
               f'CONTINUE / SAVE with a contest: {e[10]} {e[11]}', errs)
         check(e[4][0].endswith(b'2026-27') and not e[4][1], f'entry 4 with a contest: {e[4]}', errs)
@@ -9784,6 +9791,7 @@ def swospp_menu():
             sc = s.screen()
             go(s, 'ESCI') if sc.find('ESCI', exact=True) is not None else s.send('esc dump:3')
         e = menu(s, 'abandoned')
+        check(modver_corner(s, mv, errs, info, 'SWOS++ abandoned'), 'SWOS++: the version line not back', errs)
         check(e[10][1] and e[11][0] == b'SWOS++' and not e[11][1], f'SWOS++ entry not back: {e[10]} {e[11]}', errs)
         s.shot('main')
     return not errs, '; '.join(errs + info)
@@ -24509,15 +24517,73 @@ def poke_stress():
     return not errs, '; '.join(errs + info)
 
 
+def modver_glyphs():
+    """(smallCharsTable, g_spriteGraphicsPtr) obj2 offsets of the UI language's original exe (modver_render's inputs)."""
+    if not hasattr(modver_glyphs, 'v'):
+        sys.path.insert(0, os.path.join(ROOT, 'tools'))
+        import lepatch
+        import modver
+        import sacups
+        orig = lepatch.LEPatch(os.path.join(MAIN, 'orig', UI_ORIG_OF[UI]))   # (the UI language's addresses: EN read
+        small = modver.find(orig)['small'][1]                                # the IT ones, a wild glyph pointer - a
+        d1 = orig.le.obj_bytes(1)                                            # 4 GB dump)
+        rg = sacups.regs(d1)
+        A2, D0 = rg['A0'] + 8, rg['D7'] - 28
+        m = [x.start() for x in re.finditer(rb'\xa1(....)\xa3' + re.escape(struct.pack('<I', A2)) + rb'\x66\xa1(....)\x66\xa3' +
+                                            re.escape(struct.pack('<I', D0)) + rb'\x66\xc1\x25' + re.escape(struct.pack('<I', D0)) +
+                                            rb'\x02', d1, re.S)]
+        modver_glyphs.v = (small, orig.target(1, m[0] + 1)[1])
+    return modver_glyphs.v
+
+
+def modver_corner(s, want, errs, info, tag):
+    """4.0.6 modver: the main menu on screen now (a dump): the version line in the bottom-left corner, in grey
+    (modver.COLOR), left edge at modver.X, the glyphs = `want` rendered from the game's font, or no line at all - drawn
+    exactly when its box (X, Y, the rendered width, H) is clear of every visible entry of the menu (Screen geom: the
+    SWOS++ entry too); a drawn line never inside an entry's rect. Returns True if drawn."""
+    import modver
+    r = s.send('dump:1')
+    fr = s.box.dump(0xA0000, 64000)
+    sc = s.screen()
+    small, gptr = modver_glyphs()
+    layers = modver_render(r, small, gptr, want)
+    exp = max(layers.values(), key=len) if layers else set()      # (the face; the other value is the shadow)
+    ex, ey = min(x for x, _ in exp), min(y for _, y in exp)
+    w = max(x for x, _ in exp) - ex + 1
+    band = range(modver.Y - 2, modver.Y + modver.H + 2)
+    got = {(x, y) for y in band for x in range(160) if fr[y * 320 + x] == modver.COLOR}
+    vis = [g for g, (_, _, inv, _) in zip(sc.geom, sc.entries) if not inv]
+    box = (modver.X, modver.Y, w, modver.H)
+    hit = lambda a, b: a[0] < b[0] + b[2] and b[0] < a[0] + a[2] and a[1] < b[1] + b[3] and b[1] < a[1] + a[3]
+    clear = not any(hit(box, g) for g in vis)
+    if clear:
+        check(got, f'{tag}: no line in the bottom-left corner (its box {box} clear of the entries)', errs)
+        if got:
+            gx, gy = min(x for x, _ in got), min(y for _, y in got)
+            norm = lambda pts, ox, oy: {(x - ox, y - oy) for x, y in pts}
+            check(norm(got, gx, gy) == norm(exp, ex, ey), f'{tag}: the drawn line is not {want!r} ({len(got)} pixels vs '
+                  f'{len(exp)})', errs)
+            check(gx == modver.X + ex, f'{tag}: line at x {gx}, want {modver.X + ex}', errs)
+            check(modver.Y <= gy and max(y for _, y in got) < modver.Y + modver.H, f'{tag}: line rows {gy}.. outside '
+                  f'y {modver.Y}..{modver.Y + modver.H - 1}', errs)
+            inside = [g for g in vis if any(hit((x, y, 1, 1), g) for x, y in got)]
+            check(not inside, f'{tag}: line pixels inside entries {inside}', errs)
+            info.append(f'{tag}: {want!r} at x {gx}..{max(x for x, _ in got)} y {gy}, {len(got)} grey pixels')
+    else:
+        check(not got, f'{tag}: {len(got)} grey pixels in the corner, but its box {box} overlaps an entry', errs)
+        info.append(f'{tag}: no line (box {box} overlaps {[g for g in vis if hit(box, g)]})')
+    return clear
+
+
 @scenario
 def modver_line():
     """4.0.5 modver.py: the main menu shows 'MOD <mkpatcher.VERSION>[ <tag>]' (modver.text() for this build's
-    environment) in the game's smallest font, centred below LOAD OLD COMPETITION: the line's pixels on the screen
-    (palette index 2, the menu text's colour, in the band under the button) are exactly the string rendered from the
-    game's own glyphs (smallCharsTable, read from memory), centred on x 160; only the font's characters; the text in the
-    exe = the expected one"""
+    environment) in the game's smallest font; 4.0.6 (Marco): in the bottom-left corner, grey (modver_corner: the
+    pixels of palette index modver.COLOR in the corner band = the string rendered from the game's own glyphs, left edge
+    on modver.X, clear of every entry); only the font's characters; the text in the exe = the expected one. Then a
+    career loaded (W84E.CAR, LOAD OLD COMPETITION) and back on the main menu: CONTINUE shown, the line drawn only if
+    its box is clear of the entries (it is not: LOAD OLD COMPETITION at y 182)."""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
-    import lepatch
     import modver
     b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
     want = os.environ.get('MODVER_EXPECT') or modver.text().decode()
@@ -24525,34 +24591,27 @@ def modver_line():
     exe = open(os.path.join(b, 'ITALIAN.EXE'), 'rb').read()
     check(re.fullmatch(r'[A-Z0-9. ]+', want) is not None, f'characters outside the font: {want!r}', errs)
     check((want.encode() + b'\0') in exe, f'{want!r} not in the exe', errs)
-    orig = lepatch.LEPatch(os.path.join(MAIN, 'orig', UI_ORIG_OF[UI]))   # (the UI language's addresses: EN read the IT
-    small = modver.find(orig)['small'][1]                                # ones, a wild glyph pointer - a 4 GB dump)
-    d1 = orig.le.obj_bytes(1)
-    import sacups
-    rg = sacups.regs(d1)
-    A2, D0 = rg['A0'] + 8, rg['D7'] - 28
-    m = [x.start() for x in re.finditer(rb'\xa1(....)\xa3' + re.escape(struct.pack('<I', A2)) + rb'\x66\xa1(....)\x66\xa3' +
-                                        re.escape(struct.pack('<I', D0)) + rb'\x66\xc1\x25' + re.escape(struct.pack('<I', D0)) +
-                                        rb'\x02', d1, re.S)]
-    gptr = orig.target(1, m[0] + 1)[1]
-    with Session('modver_line', b, {}, 'dump:3', 200) as s:
+    with Session('modver_line', b, {'W84E.CAR': os.path.join(WORK, 'saves', 'W84E_TEAM254.CAR')}, 'dump:3', 300) as s:
         s.wait()
-        r = s.send('dump:2')
-        fr = s.box.dump(0xA0000, 64000)
+        s.send('dump:2')
         s.shot('main')
-        layers = modver_render(r, small, gptr, want)
-    exp = max(layers.values(), key=len) if layers else set()   # (the face; the other value is the shadow)
-    got = {(x, y) for y in range(modver.Y - 2, modver.Y + 9) for x in range(320) if fr[y * 320 + x] == 2}
-    check(got and exp, f'no line ({len(got)} pixels on screen, {len(exp)} rendered)', errs)
-    if got and exp:
-        gx, gy = min(x for x, _ in got), min(y for _, y in got)
-        ex, ey = min(x for x, _ in exp), min(y for _, y in exp)
-        norm = lambda pts, ox, oy: {(x - ox, y - oy) for x, y in pts}
-        check(norm(got, gx, gy) == norm(exp, ex, ey), f'the drawn line is not {want!r} '
-              f'({len(got)} pixels vs {len(exp)})', errs)
-        mid = (gx + max(x for x, _ in got)) / 2
-        check(abs(mid - modver.X) <= 2, f'not centred: {mid}', errs)
-        info.append(f'{want!r} drawn at x {gx}..{max(x for x, _ in got)} y {gy}, {len(got)} pixels = the game font')
+        check(modver_corner(s, want, errs, info, 'main menu'), 'the line not drawn on the plain main menu', errs)
+        walk(s, 'CARICA VECCHIA COMPETIZIONE', 3)           # a career loaded: CONTINUE / SAVE on the main menu
+        s.send('fire dump:3')
+        for _ in range(4):
+            sc = s.screen()
+            if sc.find('MOD. TATTICA', exact=True) is not None:
+                break
+            if sc.find('ESCI', exact=True) is None:
+                s.send('esc dump:2')
+                continue
+            walk(s, 'ESCI', 3)
+        sc = s.screen()
+        cont = sc.find('MOD. TATTICA', exact=True) is not None and len(sc.entries) > 10 and not sc.entries[10][2]
+        check(cont, f'no main menu with CONTINUE after loading W84E.CAR: {str(sc)[:120]}', errs)
+        if cont:
+            s.shot('main_continue')
+            modver_corner(s, want, errs, info, 'with CONTINUE')
     return not errs, '; '.join(errs + info)
 
 @scenario

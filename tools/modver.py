@@ -1,8 +1,11 @@
 """4.0.5 the mod's version on the main menu (Davide: support needs to know what is installed): 'MOD 4.0.5' in the
-game's smallest font (smallCharsTable, the match's), centred below LOAD OLD COMPETITION, drawn by the main menu's
-on-draw function (SWOS_MainMenu +8, 0 in the game; SWOS++ patches +4 / +0xC / +0x22 / +0x9E / +0xCE, not +8) through
-the game's DrawMenuTextCentered. Not drawn while CONTINUE (entry 10) is shown: LOAD OLD COMPETITION is then at the
-bottom and nothing fits below it.
+game's smallest font (smallCharsTable, the match's), drawn by the main menu's on-draw function (SWOS_MainMenu +8, 0 in
+the game; SWOS++ patches +4 / +0xC / +0x22 / +0x9E / +0xCE, not +8) through the game's DrawMenuText.
+4.0.6 (Marco, Davide via Regia 04/11): in the bottom-left corner (left edge on the buttons' x 8), in the palette's grey
+(7: 109,109,109 - readable, quieter than the menus' white 2), no longer centred below LOAD OLD COMPETITION. Drawn
+whenever its box (x, y, GetTextWidth, H) is clear of every visible entry of the current menu (the screen's own rects:
+SWOS++'s entry too); with CONTINUE shown LOAD OLD COMPETITION is at y 182..195 over x 35..285 and the line does not
+fit: not drawn, as before.
 
 The text has one source: mkpatcher.VERSION (the patcher's), + ' ' + MODVER_TAG (betas / release candidates: 'B11',
 'RC11'), or ' TEST' in a build with a test switch (*_FORCE and the like) - so a tester's report names the build.
@@ -14,7 +17,7 @@ import struct
 import nasmcave
 import sacups
 
-X, Y, COLOR = 160, 176, 2          # centre x, top y (screen), DrawMenuText's colour (D3)
+X, Y, H, COLOR = 8, 188, 7, 7      # left x, top y, box height (the font's 5 rows + shadow, +1), colour (D3)
 TEST_VARS = ('GPLAY_FORCE', 'DPLAY_FORCE', 'CD_FORCE', 'CONTI_FORCE', 'SPLIT_FORCE', 'UEFAQ_FORCE', 'GPLAY_KOFORCE',
              'GPLAY_RLFORCE', 'CONTI_GPLACE', 'STATESPEC_TEST', 'CONTI_KOLOSE', 'CAREER_SEED', 'OFFER_FORCE', 'BPLACE_FORCE', 'CARDS_FORCE', 'INJ_FORCE', 'CONTI_KOWIN', 'GPLAY_GFFORCE', 'GPLAY_GOUT', 'GPLAY_S3DEFER', 'GPLAY_GFREST', 'GPLAY_GFIDX', 'CONTI_CGTEST', 'CG_FILL_TEST', 'CONTI_CGVIEW', 'GKINJ_FORCE', 'CONTI_G1_TEST', 'FFP_FORCE')
 BUILD_SWITCHES = TEST_VARS + (                     # 4.0.6: every switch a test build may set; buildrel.sh clears
@@ -35,8 +38,6 @@ def text():
 ASM = r"""
 mv_draw:                                ; SWOS_MainMenu's on-draw function
     pushad
-    cmp word [MENU_ + 16h + 10 * 38h + 4], 0
-    je .x                               ; (CONTINUE shown: no room)
     sub esp, 60                         ; the game's D0..D7, A0..A6 are memory: keep them
     mov esi, D0_
     mov edi, esp
@@ -44,16 +45,45 @@ mv_draw:                                ; SWOS_MainMenu's on-draw function
     rep movsd
     mov dword [A0_], MV_TEXT
     mov dword [A0_ + 4], SMALLCHARS
+    call TEXTW                          ; GetTextWidth -> D7
+    movzx ecx, word [MENU_ + 10h]       ; the current menu's entries
+    mov esi, MENU_ + 16h
+.e: test ecx, ecx
+    jz .draw
+    cmp word [esi + 4], 0
+    jne .n                              ; (invisible)
+    movsx eax, word [esi + 14h]         ; entry x
+    movzx edx, word [D0_ + 28]
+    add edx, X_
+    cmp edx, eax
+    jle .n                              ; the line ends left of it
+    movsx edx, word [esi + 18h]
+    add eax, edx
+    cmp eax, X_
+    jle .n                              ; it ends left of the line
+    movsx eax, word [esi + 16h]         ; entry y
+    cmp eax, Y_ + H_
+    jge .n                              ; below the line
+    movsx edx, word [esi + 1Ah]
+    add eax, edx
+    cmp eax, Y_
+    jg .x                               ; overlaps: not drawn
+.n: add esi, 38h
+    dec ecx
+    jmp .e
+.draw:
+    mov dword [A0_], MV_TEXT
+    mov dword [A0_ + 4], SMALLCHARS
     mov word [D0_ + 4], X_
     mov word [D0_ + 8], Y_
     mov word [D0_ + 12], COLOR_
-    call CENTERED
-    mov esi, esp
+    call DRAWTEXT
+.x: mov esi, esp
     mov edi, D0_
     mov ecx, 15
     rep movsd
     add esp, 60
-.x: popad
+    popad
     ret
 """
 
@@ -78,13 +108,17 @@ def find(p):
                                         rb'\x01\x66\xd1\x2d' + P(D0 + 28) + rb'\x66\xa1' + P(D0 + 28) +
                                         rb'\x66\x29\x05' + P(D0 + 4) + rb'\xe9', d1, re.S)]
     assert len(c) == 1, ('DrawMenuTextCentered', c)
+    m = re.compile(rb'\xff\x35....' * 4 + rb'\xe8', re.S).match(d1, c[0])
+    textw = m.end() - 1 + 5 + struct.unpack_from('<i', d1, m.end())[0]          # (its call GetTextWidth)
+    j = d1.index(b'\x66\x29\x05' + struct.pack('<I', D0 + 4) + b'\xe9', c[0]) + 7
+    draw = j + 5 + struct.unpack_from('<i', d1, j + 1)[0]                        # (its jmp DrawMenuText)
     import namespr                                       # (MakePlayerNameSprite: mov [A0], offset numberBuffer;
     s = namespr.find(p)                                  #  mov [A1], offset smallCharsTable)
     ref = max(s['refs'])
     assert d1[ref + 4:ref + 6] == b'\xc7\x05' and struct.unpack_from('<I', d1, ref + 6)[0] == A0 + 4
     small = p.target(1, ref + 10)
     import zones
-    return dict(menu=menu, centered=c[0], small=small, D0=D0, A0=A0, menu_cur=zones._current_menu(p))
+    return dict(menu=menu, centered=c[0], textw=textw, draw=draw, small=small, D0=D0, A0=A0, menu_cur=zones._current_menu(p))
 
 
 def patch(p, at, lang):
@@ -93,7 +127,8 @@ def patch(p, at, lang):
     s = find(lepatch.LEPatch(bytes(p.le.data)))          # (the original bytes: patched sites elsewhere don't matter)
     t = text()
     sym = {'MENU_': s['menu_cur'], 'D0_': (2, s['D0']), 'A0_': (2, s['A0']), 'SMALLCHARS': s['small'],
-           'CENTERED': (1, s['centered']), 'X_': (0, X), 'Y_': (0, Y), 'COLOR_': (0, COLOR)}
+           'TEXTW': (1, s['textw']), 'DRAWTEXT': (1, s['draw']), 'X_': (0, X), 'Y_': (0, Y), 'H_': (0, H),
+           'COLOR_': (0, COLOR)}
     src = ASM + 'MV_TEXT: db ' + ', '.join(str(b) for b in t + b'\0') + '\n'
     code, fix = nasmcave.assemble(src, at, sym)
     lab = nasmcave.labels(src, at, sym)
@@ -103,5 +138,5 @@ def patch(p, at, lang):
         p.add_ptr(1, at + o, t_obj, t_off)
     p.add_ptr(2, s['menu'] + 8, 1, lab['mv_draw'])
     p.put(2, s['menu'] + 8, struct.pack('<I', lab['mv_draw']))
-    print(f"exe: main menu version line {t.decode()!r}: on-draw obj1+{at:#x} ({len(code)} B), menu obj2+{s['menu']:#x}")
+    print(f"exe: main menu version line {t.decode()!r} (bottom left x {X} y {Y}, grey {COLOR}): on-draw obj1+{at:#x} ({len(code)} B), menu obj2+{s['menu']:#x}")
     return at + len(code)

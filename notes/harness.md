@@ -376,3 +376,12 @@ the chairman's note -> the career menu, 4.0.5 + SWOS++ the same; SLOW_FIRE 3 s a
 market part). Status 03/11: up to 13 rounds opened and closed in a row under SWOS++ (legs, aggregate, groups), but
 the run does not reach its end - SWOS++'s timer-fed keys come late or twice (a view's ESCI not taken, a fire into
 NEW ZEALAND's leagues): a harness limit, not a view fault seen so far.
+4.0.6 ctcursor (Davide GO 05/11, variant a): the rounds menu opens on the CURRENT round - ctview.c cv_rounds' CR_SEL,
+the first listed round not played yet (drawn, its month over: the summary page's rule), every one played the last
+(after the final: the final, RIEPILOGO one key away); ctview cr_sel writes it into CR_MENU's initialEntry before
+SHOW_MENU on both ways in (cv_open, cw_after); back from a round's view or RIEPILOGO the game keeps the entry it left.
+The list is cup by cup (calendar order within a cup), so the pick is the first cup's open round. world_cgame_view
+asserts every rounds menu opens on a visible round button; `world_ctcursor` (DOSBox, CV_BUILD / CV_S2 as
+world_cgame_view): season 1 (new INTER career) every menu on its first round; the season-2 save on a round; the
+current calendar entry's week poked to FF (restored, nothing saved) every menu and VIEW WORLD's SUDAMERICA cup on its
+last round, never before the plain week's pick; shots ctc_<s1|s2|end>_<k>, ctc_world_cup.

@@ -237,6 +237,7 @@ cv_open:                                ; button eax: that confederation (P3): i
     call CV_ROUNDS
     add esp, 12
     mov [CR_CNT], eax
+    call cr_sel
     pop es
     popad
     cmp dword [CR_CNT], 0
@@ -286,6 +287,7 @@ cw_after:                               ; careerworld w_choose (VIEW WORLD's pic
     call CV_ROUNDS
     add esp, 12
     mov [CR_CNT], eax
+    call cr_sel
     pop es
     test eax, eax
     jnz .m
@@ -372,6 +374,14 @@ cv_page:                                ; CV_CUR's cups on fmtpage's page (the s
     popad
     mov dword [A6], FMTMENU
     jmp SHOW_MENU
+
+cr_sel:                                 ; the rounds menu opens on cv_rounds' CR_SEL (the current round, Davide 05/11
+    push eax                            ; variant a): its initialEntry (round k = entry k + 1); back from a round's view
+    mov eax, [CR_SEL_]                  ; or RIEPILOGO the game keeps the entry it left (RestorePreviousMenu)
+    inc eax
+    mov [CR_MENU + 12], eax
+    pop eax
+    ret
 
 cr_init:                                ; the rounds menu's onInit: title, labels, links; the unused buttons hidden
     pushad
@@ -640,7 +650,7 @@ def patch(p, at, lang, scr_at):
                SPEC=cl['SPEC'], CT_LPF=(1, cl['ct_lp']), CV_CONFS=syms['cv_confs'], CV_TEXT=syms['cv_text'],
                CAREERTEAM=gplay.LABELS['CAREERTEAM'], CAL=gplay.LABELS['CAL'], CAL_CUR=gplay.LABELS['CAL_CUR'],
                W_LPW=(1, careerworld.LABELS['w_lpw']), CT_SEG_=cs['CT_SEG'], CT_ED_=cs['CT_ED'],
-               CT_OUT_=cs['CT_OUT'], CV_ROUNDS=syms['cv_rounds'], CR_LAYOUT=syms['cr_layout'], VC_CALC=gplay.LABELS['VC_CALC'],
+               CT_OUT_=cs['CT_OUT'], CV_ROUNDS=syms['cv_rounds'], CR_LAYOUT=syms['cr_layout'], CR_SEL_=syms['CR_SEL'], VC_CALC=gplay.LABELS['VC_CALC'],
                VC_VIEW=gplay.LABELS['VC_VIEW'], SLOT3=__import__('uefaq').SYMS['SLOT3'], D0R=__import__('uefaq').SYMS['D0R'],
                A0R=__import__('uefaq').SYMS['A0R'], CR_N_=(0, CR_N), CR_LW_=(0, CR_LW))
     sym.update({f'CW_M{c}': (3, m) for c, m in enumerate(cw['marks'])})

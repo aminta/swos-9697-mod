@@ -16734,6 +16734,8 @@ def world_cgame_view():
             check(len(bot) == 2 and abs(bot[0][0] - (320 - bot[1][0] - bot[1][2])) <= 1,
                   f'{conf}: RIEPILOGO / ESCI not centred: {bot}', errs)
             s.log.append(f'[cgv] {conf} rounds menu margins {lm} / {rm}, bottom pair {bot}')
+            rb = [i for i, t, inv, dis in sc.entries[1:1 + ctview.CR_N] if not inv and t]   # (4.0.6 ctcursor: the
+            check(sc.selected in rb, f'{conf}: rounds menu opens on entry {sc.selected}, not a round {rb}', errs)   # current round)
             opened = []
             s.log.append(f'[cgv] {conf} rounds menu: {btns} nav {sc.nav[1:4]} {sc.nav[ctview.CR_N + 1:ctview.CR_N + 3]}')
             for j, (i, label) in enumerate(btns):
@@ -17076,6 +17078,120 @@ def world_cgame_swospp():
             else:
                 os.environ[k] = v
     return ok, f'SWOS++: {msg}'
+
+
+@scenario
+def world_ctcursor():
+    """4.0.6 ctcursor (Davide GO 05/11, variant a): COPPE CONTINENTALI's rounds menu opens on the CURRENT round - the
+    first one not played yet (drawn, its month over: the summary page's rule), all played (after the final) the last -
+    never on RIEPILOGO / ESCI. Season 1 (a new World 2026-27 career, INTER, before any match): every confederation's
+    menu on its first round. Season 2 (world_contiview's save, CV_S2): on a round; then the calendar entry's week
+    forced to FF (every round's month over; restored, nothing saved): on the last round; the forced pick >= the
+    plain one. VIEW WORLD's cup buttons (the other way in, cw_after) the same. Shots ctc_<part>_<k>. (CV_BUILD /
+    W2627REL_DATA as world_cgame_view)"""
+    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    if not os.path.isdir(src) and not os.environ.get('CV_BUILD'):
+        return True, f'SKIP: private data {src} missing'
+    exe = os.environ.get('CV_BUILD')
+    if not exe:
+        order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+        exe = build('world_contiview', env={'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x)
+                                                                                          for x in order])}, lang=UI)
+    s2 = os.environ.get('CV_S2') or os.path.join(RUNS, f'cv_s2_{UI}.CAR')
+    if not os.path.exists(s2):
+        return False, f'no season-2 save {s2} (run world_contiview first)'
+    tr = cv_trace(exe)
+    if not tr:
+        return False, 'no CVTRPTR block (ctview not in the build)'
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import ctview
+    summ = ctview.TEXTS[UI][7].decode('latin1')
+    errs, info = [], []
+
+    def confs(s, part):                                 # (COPPE CONTINENTALI on screen: each confederation's rounds
+        got = {}                                        #  menu - its selected entry, the visible round buttons)
+        for k in range(1, 7):
+            conf = s.screen().entries[k][1]
+            walk(s, k, 3)
+            sc = s.screen()
+            if sc.find(summ, exact=True) is None:       # (no round drawn: the summary page only)
+                walk(s, 16, 3)
+                continue
+            rb = [i for i, t, inv, dis in sc.entries[1:1 + ctview.CR_N] if not inv and t]
+            s.shot(f'ctc_{part}_{k}')
+            got[conf] = (sc.selected, rb)
+            s.log.append(f'[ctc] {part} {conf}: selected {sc.selected} rounds {[(i, sc.entries[i][1]) for i in rb]}')
+            check(sc.selected in rb, f'{part} {conf}: opens on entry {sc.selected}, not a round {rb}', errs)
+            walk(s, ctview.CR_N + 2, 3)                 # (ESCI -> the confederations)
+        return got
+
+    def to_conti(s):
+        for _ in range(6):
+            if s.screen().find('VISUAL. COMPETIZ.', exact=True) is not None:
+                break
+            press(s, s.screen(), 'CONTINUA', 3) or s.send('fire dump:2')
+        walk(s, s.screen().find('VISUAL. COMPETIZ.', exact=True), 3)
+        walk(s, s.screen().find('COPPE CONTINENTALI', exact=True), 3)
+
+    def back(s):                                        # (the confederations' ESCI, VISUAL. COMPETIZ.'s -> the menu)
+        for _ in range(5):
+            if s.screen().find('VISUAL. COMPETIZ.', exact=True) is not None:
+                return
+            press(s, s.screen(), 'ESCI', 3) or s.send('fire dump:2')
+
+    with Session('world_ctcursor_s1', exe, {}, 'dump:2', 300) as s:
+        s.wait()
+        if not pick_career(s, ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27', 'EUROPA', 'ITALIA',
+                               'SERIE A', 'INTER']):
+            return False, 'season 1: career not reached'
+        s.send('fire dump:3')
+        to_conti(s)
+        g1 = confs(s, 's1')
+        check(g1, 'season 1: no rounds menu', errs)
+        for conf, (sel, rb) in g1.items():
+            check(sel == min(rb), f'season 1 {conf}: on entry {sel}, not its first round {min(rb)}', errs)
+        info.append(f's1 {g1}')
+    with Session('world_ctcursor_s2', exe, {'W84A.CAR': s2}, 'dump:2', 600) as s:
+        s.wait()
+        s.send(LOAD1 + ' dump:3')
+        to_conti(s)
+        g2 = confs(s, 's2')
+        check(g2, 'season 2: no rounds menu', errs)
+        back(s)
+        cur = struct.unpack('<H', bytes(s.result.obj2(tr[4], 2)))[0]
+        wk = (2, tr[3] + cur + 1)                       # (cv_week: the current calendar entry's week byte)
+        w0 = bytes(s.result.read(s.result.lin(wk), 1))
+        s.poke(s.result.lin(wk), b'\xff')
+        s.send('dump:1')
+        walk(s, s.screen().find('COPPE CONTINENTALI', exact=True), 3)
+        gf = confs(s, 'end')
+        for conf, (sel, rb) in gf.items():
+            check(sel == max(rb), f'week FF {conf}: on entry {sel}, not its last round {max(rb)}', errs)
+            if conf in g2:
+                check(sel >= g2[conf][0], f'week FF {conf}: entry {sel} before the season-2 week\'s {g2[conf][0]}', errs)
+        back(s)
+        for _ in range(4):                              # (VIEW WORLD's way in, week FF: SUDAMERICA's first cup)
+            if s.screen().find('VISUALIZZA MONDO', exact=True) is not None:
+                break
+            press(s, s.screen(), 'ESCI', 3) or s.send('fire dump:2')
+        walk(s, 'VISUALIZZA MONDO', 3)
+        gwalk(s, 'SUDAMERICA', 3)
+        sc = s.screen()
+        cup = next((t for i, t, inv, _ in sc.entries if 1 <= i <= 20 and t and not inv), None)
+        if cup is None:
+            check(False, 'SUDAMERICA: no cup button', errs)
+        else:
+            gwalk(s, cup, 4)
+            sc = s.screen()
+            rb = [i for i, t, inv, dis in sc.entries[1:1 + ctview.CR_N] if not inv and t]
+            s.shot('ctc_world_cup')
+            s.log.append(f'[ctc] VIEW WORLD {cup}: selected {sc.selected} rounds {rb}')
+            check(sc.find(summ, exact=True) is not None and rb and sc.selected == max(rb),
+                  f'VIEW WORLD {cup} (week FF): on entry {sc.selected}, not its last round {rb}', errs)
+            info.append(f'VIEW WORLD {cup}: {sc.selected} of {rb}')
+        s.poke(s.result.lin(wk), w0)
+        info.append(f's2 {g2}; week FF {gf}')
+    return not errs, '; '.join(errs) or '; '.join(info)
 
 
 @scenario

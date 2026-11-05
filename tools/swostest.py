@@ -24986,8 +24986,9 @@ def gk_last():
     keepers as they are, (B) an outfield player in goal (a fit bench player of rows 13..16) and every injured keeper
     out of the 16 (a fit outfield reserve in his row): VIS. RISULTATI shown or not at each step (shots gklast_*), then
     with VIS. RISULTATI the match viewed: the screen after. PASS = measured."""
-    b = os.environ.get('GKLAST_BUILD') or builds()['it']
     tag = os.environ.get('GKLAST_TAG', 'it')
+    b = nop_league_int3(f'gklast_{tag}', os.environ.get('GKLAST_BUILD') or builds()['it'])   # (the fixture's '- PARTITA -':
+                                                    # the game's own int 3, a trap under BPINT 3 - 05/11 server run)
     notes = []
     with Session(f'gk_last_{tag}', b, {}, 'dump:3', 900) as s:
         s.wait()

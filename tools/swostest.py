@@ -17173,22 +17173,39 @@ def world_ctcursor():
     import ctview
     summ = ctview.TEXTS[UI][7].decode('latin1')
     errs, info = [], []
-
-    with Session('world_ctcursor_s1', exe, {}, 'dump:2', 300) as s:
+    pp = os.environ.get('CGV_SWOSPP')                   # (world_ctcursor_swospp: SWOS++'s loader files, timer keys -
+    extra = {'LOADER.BIN': os.path.join(pp, 'loader.bin'), 'SWOSPP.BIN': os.path.join(pp, 'swospp.bin')} if pp else {}
+    if not pp:                                          #  the season-2 save part only, loaded by name)
+        with Session('world_ctcursor_s1', exe, {}, 'dump:2', 300) as s:
+            s.wait()
+            if not pick_career(s, ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27', 'EUROPA', 'ITALIA',
+                                   'SERIE A', 'INTER']):
+                return False, 'season 1: career not reached'
+            s.send('fire dump:3')
+            ctc_to_conti(s)
+            g1 = ctc_confs(s, 's1', errs)
+            check(g1, 'season 1: no rounds menu', errs)
+            for conf, (sel, rb) in g1.items():
+                check(sel == min(rb), f'season 1 {conf}: on entry {sel}, not its first round {min(rb)}', errs)
+            info.append(f's1 {g1}')
+    with Session('world_ctcursor_s2', exe, {'W84A.CAR': s2, **extra}, 'dump:4' if pp else 'dump:2', 600,
+                 timer=bool(pp)) as s:
         s.wait()
-        if not pick_career(s, ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27', 'EUROPA', 'ITALIA',
-                               'SERIE A', 'INTER']):
-            return False, 'season 1: career not reached'
-        s.send('fire dump:3')
-        ctc_to_conti(s)
-        g1 = ctc_confs(s, 's1', errs)
-        check(g1, 'season 1: no rounds menu', errs)
-        for conf, (sel, rb) in g1.items():
-            check(sel == min(rb), f'season 1 {conf}: on entry {sel}, not its first round {min(rb)}', errs)
-        info.append(f's1 {g1}')
-    with Session('world_ctcursor_s2', exe, {'W84A.CAR': s2}, 'dump:2', 600) as s:
-        s.wait()
-        s.send(LOAD1 + ' dump:3')
+        if pp:
+            on, why = swospp_on(s.result, os.path.join(exe, 'ITALIAN.EXE'))
+            check(on, f'SWOS++ not running: {why}', errs)
+            walk(s, 'CARICA VECCHIA COMPETIZIONE', 3)   # (as world_cgame_view: the list on ABBANDONA, the load
+            walk(s, 'W84A', 3)                          #  ends on the day's table - its ESCI, the chairman's note)
+            s.send('dump:3')
+            for _ in range(6):
+                if s.screen().find('VISUAL. COMPETIZ.', exact=True) is not None:
+                    break
+                if s.screen().find('- PARTITA -', exact=True) is not None:
+                    walk(s, 'ESCI', 3)
+                    continue
+                press(s, s.screen(), 'CONTINUA', 3) or s.send('fire dump:2')
+        else:
+            s.send(LOAD1 + ' dump:3')
         ctc_to_conti(s)
         g2 = ctc_confs(s, 's2', errs)
         check(g2, 'season 2: no rounds menu', errs)
@@ -17227,6 +17244,40 @@ def world_ctcursor():
         s.poke(s.result.lin(wk), w0)
         info.append(f's2 {g2}; week FF {gf}')
     return not errs, '; '.join(errs) or '; '.join(info)
+
+
+@scenario
+def world_ctcursor_swospp():
+    """4.0.6 ctcursor under SWOS++ 1.9.2.2 (English only; CV_BUILD = the English release exe, CV_S2 its season-2 save -
+    world_contiview EN's): world_ctcursor's season-2 part (the menus opened, the cursor read, the week poked to FF) with
+    SWOS++ installed, keys from the timer (SLOW_FIRE 3 s); season 1's new career skipped (SWOS++'s main menu). A late
+    timer key is a harness limit (world_cgame_swospp), not the menu."""
+    if UI != 'en':
+        return True, 'SKIP: SWOS++ is English only (SWOSTEST_UI=en)'
+    exe = os.environ.get('CV_BUILD')
+    if not exe:
+        return True, 'SKIP: CV_BUILD not set (the English release exe)'
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import swospp
+    pp = os.path.join(MAIN, 'internal', 'swospp-test')
+    out = os.path.join(WORK, 'builds-x', 'world_ctcursor_swospp')
+    shutil.rmtree(out, ignore_errors=True)
+    shutil.copytree(exe, out)
+    swospp.install(os.path.join(exe, 'ITALIAN.EXE'), os.path.join(out, 'ITALIAN.EXE'))
+    keep = {k: os.environ.get(k) for k in ('CV_BUILD', 'CGV_SWOSPP')}
+    os.environ.update(CV_BUILD=out, CGV_SWOSPP=pp)
+    global SLOW_FIRE
+    SLOW_FIRE = 3
+    try:
+        ok, msg = world_ctcursor()
+    finally:
+        SLOW_FIRE = 0
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    return ok, f'SWOS++: {msg}'
 
 
 @scenario

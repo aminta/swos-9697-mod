@@ -22781,7 +22781,7 @@ def new_career(s, country, league, team, continent='EUROPA'):
     """Main menu -> CARRIERA -> SCEGLI SQUADRA -> continent -> country -> league -> team -> the
     chairman's note -> career menu."""
     for t in ('CARRIERA', 'SCEGLI SQUADRA', continent):
-        walk(s, career_entry(s, t), 3)          # (the original CARRIERA, not the green 2026-27 button: I10p statespec_byes)
+        walk(s, t, 3)
     for _ in range(60):                         # the countries (columns): one key at a time by the geometry, fire
         scr = s.screen()                        # only on a selection still there one pause later (a move can be
         i = scr.find(country, exact=True)       # taken twice)

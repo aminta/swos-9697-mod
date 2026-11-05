@@ -56,6 +56,11 @@ breakpoints), `W84NAT_REDO=1` (remake the cached national-team saves).
    - What it does NOT cover: an object's BSS tail (obj2 +0xd5000.., obj3's CG_BSS) still reads 00, because DOS/4GW
      under DOSBox-X zero-fills it at load. So tail_zero's MiSTer case (REL401rc3 / 402b4 without the stub) still
      passes shirt_numbers dirty: prove BSS clearing with the in-exe fills (TAILZERO_FILL_TEST, CG_FILL_TEST) instead.
+   - 4.0.6 (the I10o MiSTer panel hunt): tailzero's stub clears obj3's tail too (tail_zero checks both parts, fill 0).
+     The fills take 2 hex digits (that byte) or 8 (a dword, bytes that differ as real leftovers do):
+     TAILZERO_FILL_TEST = obj2's tail, TAILZERO_FILL3_TEST = obj3's (defaults to the first). A filled build is a
+     test build: tail_zero FAILs on it (the negative control). E.g. TAILZERO_FILL3_TEST=A55AC33C on the I10o layout:
+     the match panel (panelprobe2.py, INTER v MONZA, kick-off + two poked goals) stays clean in DOSBox-X.
 
 ## 3. Driving the game
 

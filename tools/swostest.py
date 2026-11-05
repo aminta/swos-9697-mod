@@ -8412,6 +8412,8 @@ FR_CASES = {        # (4.0.6 bench_friendly) case: (world, home path, away path,
              ('SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE D', 'SERIE D GIRONE A', 'DERTHONA'), 9, 5),
     'seriea': (0, ('SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE A', 'INTER'),
                ('SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE A', 'MILAN'), 15, 5),
+    'diy': (0, ('SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE D', 'SERIE D GIRONE A', 'CELLE VARAZZE'),
+            ('SQUADRE CLUB', 'EUROPA', 'SPAGNA', 'LALIGA', 'REAL MADRID'), 12, 5),
     'nat': (0, ('NAZIONALI', 'EUROPA', 'ITALY'), ('NAZIONALI', 'EUROPA', 'SPAIN'), 5, 2),
     '9697': (1, ('SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE A', 'INTER'),
              ('SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE A', 'MILAN'), 5, 2),
@@ -8423,7 +8425,8 @@ def bench_friendly():
     """4.0.6 (Regia / Davide 05/11) the long bench in friendlies (benchx bx_frset): a FRIENDLY of the World 2026-27
     between two clubs = the longer real bench of their two (country, division): BENCH_FR=<cases> (FR_CASES, default
     all): 'mixed' Serie D (9) vs LaLiga (12) -> 12, 'same' two Serie D clubs -> 9, 'seriea' INTER - MILAN -> 15
-    and a change from place 21 (bench_sub: its save-under guard with two benches of 15, the strip, formwide), 'nat' two national teams -> the
+    and a change from place 21 ('diy': 'mixed' with g_gameType poked to 1 on the pre-match screen: a DIY match, the
+    same rule) (bench_sub: its save-under guard with two benches of 15, the strip, formwide), 'nat' two national teams -> the
     game's 2 from 5, '9697' a 1996-97 friendly -> the game's 2 from 5. Per case: the picker (home human, away computer), PLAY MATCH,
     at the kick-off gameMaxSubstitutes / gameMinSubstitutes and both in-match teams (11 + the bench places: named from
     the record's 16 and the club's XTRA block, the rest empty). BENCH_BUILD = a World 2026-27 build."""
@@ -8470,6 +8473,11 @@ def bench_friendly():
                     if s.screen().selected == 9:
                         break
                 s.shot(f'{case}_prematch')
+                if case == 'diy':                   # (forced: a DIY match = gameType 1, the gates read it alone)
+                    import gkinj
+                    gt_at = gkinj.find(lepatch.LEPatch(os.path.join(ROOT, 'orig', UI_ORIG)))['GT']
+                    s.poke(s.result.lin(gt_at), struct.pack('<H', 1))
+                    s.send('dump:0.5')
                 r = s.result                        # the pre-match screen's bench (sq_n -> bx_frpm -> bx_look: bx_lkres =
                 pre = struct.unpack('<BB', r.read(r.lin(bx) + 14, 2))   # bx_bench + 14)
                 check(pre[0] == (want if want > 5 else 0), f'{case}: pre-match screen bench {pre[0]}:{pre[1]}', errs)

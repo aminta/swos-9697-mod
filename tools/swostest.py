@@ -23236,7 +23236,11 @@ def kbfirst():
             pn = [struct.unpack('<H', s.result.obj2(t + 4, 2))[0] for t in (top, bot)]
             team = top if pn[0] == 1 else bot
             check(1 in pn and 2 not in pn, f'match: playerNumber top / bottom {pn}', errs)
-            stick_up(s)
+            wait = 0                                    # (I10p 05/11: the match is the exe's - RC1's: SCHALKE
+            while struct.unpack('<h', s.result.obj2(777158, 2))[0] != 100 and wait < 20:   # scores at 13', HAMBURG's
+                s.send('fire:2 dump:1')                 # kick-off waits for its human player (gameStatePl 102, as
+                wait += 1                               # stoppage_time's restarts; its fire as KEYBOARD ONLY): the
+            stick_up(s)                                 # ball in play first, then the stick and DOWN)
             s.send('dump:0.5')
 
             def state(r):
@@ -23247,15 +23251,25 @@ def kbfirst():
             a = state(s.result)
             kcf(s, 2)                                   # DOWN held
             seq = []
-            for _ in range(8):                          # (no controlled player while the ball is out - a corner, a
+            for _ in range(16):                         # (no controlled player while the ball is out - a corner, a
                 s.send('dump:0.5')                      #  throw-in: sampled until two readings in play show the move)
+                if struct.unpack('<h', s.result.obj2(777158, 2))[0] != 100:   # (out: HAMBURG's restart waits for
+                    kcf(s, 0)                           # its human player - taken as above, the readings so far
+                    s.poke(s.result.base2 + buf + 6, struct.pack('<H', 1))   # dropped; 16 samples: the base exe's
+                    s.send('fire:2 dump:1')             # ball went out right after the DOWN)
+                    wait += 1
+                    stick_up(s)
+                    s.send('dump:0.5')
+                    kcf(s, 2)
+                    seq = []
+                    continue
                 seq.append(state(s.result))
                 ys = [x[2] for x in seq[-2:]]
                 if len(ys) == 2 and None not in ys and ys[1] > ys[0]:
                     break
             kcf(s, 0)
-            info.append(f'match (playerNumber {pn}): stick UP pl1Direction / team direction / player y {a}; DOWN held '
-                        f'{seq}')
+            info.append(f'match (playerNumber {pn}): {wait} fire presses to the ball in play; stick UP pl1Direction / team '
+                        f'direction / player y {a}; DOWN held {seq}')
             check(a[:2] == (0, 0), f'match: the stick UP not read: {a}', errs)
             check(all(x[:2] == (4, 4) for x in seq), f'match: DOWN held: {seq}', errs)
             ys = [x[2] for x in seq[-2:]]

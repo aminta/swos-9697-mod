@@ -22777,11 +22777,13 @@ def world_ns():
 
 
 
-def new_career(s, country, league, team, continent='EUROPA'):
+def new_career(s, country, league, team, continent='EUROPA', original=False):
     """Main menu -> CARRIERA -> SCEGLI SQUADRA -> continent -> country -> league -> team -> the
-    chairman's note -> career menu."""
+    chairman's note -> career menu. original=True: the 1996-97 CARRIERA (career_entry) even where the green
+    CARRIERA 2026-27 button exists - else a plain 'CARRIERA' takes the green one on such builds (the callers that
+    rely on that: cpu_* / gk_inj / foreign_buy / fin_statement, I10p 05/11)."""
     for t in ('CARRIERA', 'SCEGLI SQUADRA', continent):
-        walk(s, t, 3)
+        walk(s, career_entry(s, t) if original else t, 3)
     for _ in range(60):                         # the countries (columns): one key at a time by the geometry, fire
         scr = s.screen()                        # only on a selection still there one pause later (a move can be
         i = scr.find(country, exact=True)       # taken twice)
@@ -22869,7 +22871,7 @@ def statespec_byes():
     errs, seen = [], {}
     with Session('statespec_byes', b, {}, 'dump:2', 1800) as s:
         s.wait()
-        new_career(s, 'BRASILE', None, 'ATL PARANAENSE', 'SUDAMERICA')
+        new_career(s, 'BRASILE', None, 'ATL PARANAENSE', 'SUDAMERICA', original=True)
 
         def stop(scr):
             state_rounds(s.result, 0xF1, seen)
@@ -22915,7 +22917,7 @@ def statespec_ce():
     errs, seen = [], {}
     with Session('statespec_ce', b, {}, 'dump:2', 1800) as s:
         s.wait()
-        new_career(s, 'BRASILE', None, 'ATL PARANAENSE', 'SUDAMERICA')
+        new_career(s, 'BRASILE', None, 'ATL PARANAENSE', 'SUDAMERICA', original=True)
 
         def stop(scr):
             c = s.result.obj2(0x4ebd4, 0x41F)                  # (IT: diyFileBufferCopy, DIY at +41Fh)
@@ -22950,7 +22952,7 @@ def statespec_merit():
     errs, seen = [], {}
     with Session('statespec_merit', b, {}, 'dump:2', 1800) as s:
         s.wait()
-        new_career(s, 'BRASILE', None, 'ATL PARANAENSE', 'SUDAMERICA')
+        new_career(s, 'BRASILE', None, 'ATL PARANAENSE', 'SUDAMERICA', original=True)
 
         def stop(scr):
             state_rounds(s.result, 0xF1, seen)
@@ -22983,7 +22985,7 @@ def statespec_test():
     errs, snaps = [], {}
     with Session('statespec_test', b, {}, 'dump:2', 1800) as s:
         s.wait()
-        new_career(s, 'BRASILE', None, 'ATL PARANAENSE', 'SUDAMERICA')
+        new_career(s, 'BRASILE', None, 'ATL PARANAENSE', 'SUDAMERICA', original=True)
 
         seen = {}
 

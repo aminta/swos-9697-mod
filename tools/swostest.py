@@ -20781,7 +20781,8 @@ def menu_levels_cursor():
     with Session('menu_levels_cursor', b, {}, 'dump:3', 900) as s:
         s.wait()
         try:
-            for t in ('CAREER 2026-27' if UI == 'en' else 'CARRIERA 2026-27', 'SCEGLI SQUADRA', 'EUROPA'):
+            import mainbtn                         # (the green button in the run's exe language: CARRIERE / KARRIERE)
+            for t in (mainbtn.LABEL.get(UI, mainbtn.LABEL['it']).decode(), 'SCEGLI SQUADRA', 'EUROPA'):
                 i = s.screen().find(t, exact=True)
                 walk(s, t if i is None else i, 3)
             country('ITALIA')

@@ -120,14 +120,17 @@ def set_world(s, w, lang=None):
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import mainbtn
     labs = [t.decode('latin-1') for t in mainbtn.WORLD[lang or UI]]
-    for _ in range(4):
+    its = [t.decode('latin-1') for t in mainbtn.WORLD['it']]   # (the decoder may give a label in Italian: EN 'EUROPE
+    for _ in range(4):                                          # 1984-85' reads 'EUROPA 1984-85', M3 gate 05/11)
         sc = s.screen()
-        now = [k for k, t in enumerate(labs) if sc.find(t, exact=True) is not None]
+        now = [k for k in range(len(labs)) if sc.find(labs[k], exact=True) is not None or
+               sc.find(its[k], exact=True) is not None]
         if not now:
             raise AssertionError(f'no world switch on the main menu ({sc.texts()[:16]})')
         if now[0] == w:
             return sc
-        walk(s, sc.find(labs[now[0]], exact=True), 1)
+        k = now[0]
+        walk(s, sc.find(labs[k], exact=True) if sc.find(labs[k], exact=True) is not None else sc.find(its[k], exact=True), 1)
     raise AssertionError(f'world switch: {labs[w]} not reached')
 
 
@@ -3655,6 +3658,12 @@ def world8485():
             if season == 1:
                 team = os.environ.get('W8485_TEAM', 'INGHILTERRA,FIRST DIVISION,LIVERPOOL').split(',')
                 path = ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', os.environ.get('W8485_WORLD', 'EUROPA 1984-85')] + team
+                if os.environ.get('W8485_WORLD') == 'MONDO 2026-27':   # (W-modes M3: the team choice lists the main
+                    try:                                    # menu's world itself, STORICO only the other ones - the
+                        set_world(s, 0)                     # switch on 2026-27, then its continents at once)
+                        path = ['CARRIERA', 'SCEGLI SQUADRA'] + team
+                    except AssertionError:                  # (no world switch: a pre-W-modes build, the old path)
+                        pass
                 if os.environ.get('W8485_PATH'):              # the whole selector path; '<back>' = ESCI until the
                     path = ['CARRIERA', 'SCEGLI SQUADRA'] + os.environ['W8485_PATH'].split(',')   # next step shows
                 for k, t in enumerate(path):
@@ -10942,7 +10951,8 @@ def engine_wmodes_nat():
         for t in ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE'):
             walk(s, t, 2)
         sc = s.screen()
-        nat = next((t for t in ('NAZIONALI', 'SQUADRE NAZIONALI', 'SQUADRE NAZ.') if sc.find(t, exact=True) is not None), None)
+        nat = next((t for t in ('NAZIONALI', 'SQUADRE NAZIONALI', 'SQUADRE NAZ.', 'NATIONAL TEAMS', 'EQUIPES NATIONALES',
+                                'NATIONALMANNSCHAFTEN') if sc.find(t, exact=True) is not None), None)
         if nat is None:
             raise AssertionError(f'no national teams entry: {sc.texts()[:16]}')
         walk(s, nat, 2)
@@ -10963,7 +10973,8 @@ def engine_wmodes_nat():
                 for n in era + ('ALBANIA',):
                     walk(s, n, 2)
                 sc = s.screen()                          # (the national list's own PLAY entry: the visible one after
-                go = next((j for j, t, inv, _ in sc.entries if t == 'AMICHEVOLE' and not inv and j), None)   # the rows)
+                play = {'fr': 'MATCHS AMICAUX'}.get(UI, 'AMICHEVOLE')    # the rows; FR: not UI_MAP's MATCH AMICAL)
+                go = next((j for j, t, inv, _ in sc.entries if t == play and not inv and j), None)
                 pm = walk(s, go, 4) if go is not None else sc
                 ptx = ' '.join(t for t in pm.texts() if t)
                 check(go is not None and any(n in ptx for n in era + ('ALBANIA',)) and not any(n in ptx for n in today),

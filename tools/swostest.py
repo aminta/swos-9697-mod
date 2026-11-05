@@ -24975,6 +24975,102 @@ def gk_read(s, gk):
 
 
 @scenario
+def gk_last():
+    """MEASUREMENT (Regia 05/11, I10p #10: can a club go on with no fit keeper?) A career (JUVENTUS) on GKLAST_BUILD
+    (default the IT test build; the 4.0.5 release exe for the control): at the first squad screen every keeper of the
+    club is poked injured (cardsInjuries | 60h in every copy of his record, as a stock injury), then (A) the injured
+    keepers as they are, (B) an outfield player in goal (a fit bench player of rows 13..16) and every injured keeper
+    out of the 16 (a fit outfield reserve in his row): VIS. RISULTATI shown or not at each step (shots gklast_*), then
+    with VIS. RISULTATI the match viewed: the screen after. PASS = measured."""
+    b = os.environ.get('GKLAST_BUILD') or builds()['it']
+    tag = os.environ.get('GKLAST_TAG', 'it')
+    notes = []
+    with Session(f'gk_last_{tag}', b, {}, 'dump:3', 900) as s:
+        s.wait()
+        new_career(s, 'ITALIA', 'SERIE A', 'JUVENTUS')
+        for _ in range(12):                             # (the career menu -> the fixture -> the squad screen)
+            texts = s.screen().texts()
+            if 'MOD. TATTICA' in texts:
+                break
+            if 'TRASFERIMENTI' in texts and 'PARTITA' in texts:
+                press(s, s.screen(), 'PARTITA', 2) or s.send('fire dump:2')
+            elif '- PARTITA -' in texts:
+                press(s, s.screen(), '- PARTITA -', 2) or s.send('fire dump:2')
+            else:
+                s.send('fire dump:2')
+        else:
+            return False, f'no squad screen: {s.screen()}'
+        vis = lambda: vis_ok(s)
+        notes.append(f'start: VIS. RISULTATI {vis()}, places {lineup_places(s)}')
+        s.shot('gklast_0_start')
+        if lineup_mem(s) is None:                       # (caches s.ctsites)
+            return False, 'careerTeam not readable'
+        cnp, ct, _ = s.ctsites
+        r = s.result
+        o2 = r.read(r.base2, 0x300000)
+        n = struct.unpack('<H', r.obj2(cnp, 2))[0]
+        hurt = []
+        for q in range(n):                              # every keeper of the club injured (all copies, by name)
+            slot = ct + (76 + q * 38 if q < 16 else 684 + (q - 16) * 38)
+            if r.obj2(slot + 26, 1)[0] >> 5:
+                continue
+            nm = r.obj2(slot + 3, 22).split(b'\0')[0]
+            for m_ in re.finditer(re.escape(nm) + b'\0', o2):
+                h = m_.start() - 3
+                s.poke(r.base2 + h + 27, bytes((o2[h + 27] | 0x60,)))
+            hurt.append(nm.decode('latin-1'))
+        s.send('dump:1')
+        notes.append(f'keepers poked out: {hurt}')
+        a = vis()
+        s.shot('gklast_A_keepers_out')
+        notes.append(f'(A) keepers injured in place: VIS. RISULTATI {a}, places {lineup_places(s)}')
+        window_home(s)
+        cur = s.screen()
+        rows = squad_rows(s, cur, 'gkl')
+        pl = lineup_places(s)
+        if len(rows) != 17 or not pl:
+            return False, f'squad screen: {len(rows)} rows, places {pl}'
+        bench = next((k for k in range(12, 16) if not pl[k][0] and not pl[k][1]), None)
+        if bench is None:
+            return False, f'no fit outfield bench player in rows 13..16: {pl}'
+        swap_rows(s, rows, 0, bench)                    # (B) an outfield player in goal
+        notes.append(f'(B1) row {bench + 1} -> goal: places {lineup_places(s)}')
+        reserve = rows[-1][0]
+        ry = cur.geom[reserve][1]
+        face = next((i for i, (l, r_) in enumerate(cur.nav) if l[1] == reserve and cur.geom[i][0] < row_x(cur)), None)
+        for _ in range(4):                              # every injured keeper still in the 16 -> a fit outfield reserve
+            pl = lineup_places(s)
+            k = next((k for k in range(16) if pl[k][0] and pl[k][1]), None)
+            if k is None or face is None:
+                break
+            window_home(s)
+            for _ in range(40):
+                c2 = s.screen()
+                rows2 = squad_rows(s, c2, 'gkl')
+                name, role, value = reserve_info(c2, ry)
+                if len(rows2) == 17 and not rows2[-1][1] and role and role != 'G':
+                    break
+                press(s, c2, face, wait=1)
+            ok = swap_in(s, k, rows2, reserve, ry, name)
+            notes.append(f'(B2) row {k + 1} (keeper out) <- {name} ({role}): {ok}')
+        s.send('dump:1')
+        bvis = vis()
+        pl = lineup_places(s)
+        s.shot('gklast_B_outfield_in_goal')
+        notes.append(f'(B) outfield player in goal, no keeper out in the 16: VIS. RISULTATI {bvis}, place 1 keeper '
+                     f'{pl[0][0] if pl else None}, unavailable {[k + 1 for k, (_, u) in enumerate(pl or []) if u]}')
+        if bvis:
+            press(s, s.screen(), 'VIS. RISULTATI', 3)
+            for _ in range(6):
+                if s.screen().entries:
+                    break
+                s.send('fire:3 dump:2')
+            s.shot('gklast_C_after')
+            notes.append(f'(C) after VIS. RISULTATI: {" | ".join(s.screen().texts())[:200]}')
+    return True, '; '.join(notes)
+
+
+@scenario
 def gk_inj():
     """4.0.6 (Davide): goalkeeper injuries (gkinj.py). OPTIONS: INFORTUNI PORTIERI entry 24 / value 25 (26 entries),
     above ROSSI ALLA CPU (20), below the title, within 138 px, font characters; fire -> OFF -> ON (GI_W, GI_SH). A

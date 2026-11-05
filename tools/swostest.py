@@ -6377,6 +6377,27 @@ def fw_probe(s):
     return out
 
 
+def save_under(r):
+    """(MiSTer panel H1, 05/11; suroom.py) the game's save-under stack: DrawRectangle saves the back buffer under each
+    rectangle (SaveUnder: ((w >> 2) + 1) dwords x h, a 16-byte entry each) into one region of the DOS block, from the
+    pointer [0x31694 IT] to the next area's [0x31684 IT]; the restore pops them all at the next frame, clearing the
+    entries it pops but not the one after the last (its start = the stack's end): (entries now, the high-water end,
+    its entry count, the region's size, linear base)."""
+    if not hasattr(save_under, 'v'):
+        d = lepatch_orig().le.obj_bytes(1)
+        m = re.search(rb'\x33\xdb\x33\xc0\x33\xd2\x33\xc9\x66\x8b\x1d(....)\xc1\xe3\x04.{32}\x66\x89\x83(....)'
+                      rb'.{42}\x03\x3d(....)', d, re.S)
+        n = re.search(rb'\x05\x00\x0c\x06\x00\xa3(....)', d, re.S)
+        assert m and n, 'save_under: SaveUnder / the DOS block allocation not found'
+        save_under.v = [struct.unpack('<I', x)[0] for x in (m.group(1), m.group(2), m.group(3), n.group(1))]
+    cnt, tbl, ptr, nxt = save_under.v
+    t = r.obj2(tbl, 4096)
+    ends = [struct.unpack_from('<I', t, 16 * k + 8)[0] for k in range(256)]
+    hi = max(range(256), key=lambda k: ends[k])
+    base, top = (struct.unpack('<I', r.obj2(x, 4))[0] for x in (ptr, nxt))
+    return struct.unpack('<H', r.obj2(cnt, 2))[0], ends[hi], hi, top - base, base
+
+
 def bench_sub(s, bx, place, errs, info, mark, key=None, gone=None, tag=''):
     """benchx block 2: the bench called, its cursor moved down to the squad's place `place` (12..26, g_benchPlayerIndex
     = place - 11: index 1 = in-match player 11 = place 12; 4.0.6 two-row dugouts: every place seated, no window - bx_win,
@@ -6469,6 +6490,10 @@ def bench_sub(s, bx, place, errs, info, mark, key=None, gone=None, tag=''):
         info.append(f'fw probe: {fw_probe(s)}')
     r = s.send('fire:0.2 dump:0.6')
     st, ent = w16(v['SUBST'], r.base2), w16(v['ENTER'], r.base2)
+    su = save_under(r)                      # (panel H1, suroom.py) the subs menu's save-under within its region
+    info.append(f'save-under with the subs menu open: high-water {su[1]} B ({su[2]} entries) of {su[3]} B, base {su[4]:#x}')
+    mark(info[-1])
+    check(0 < su[1] <= su[3], f'save-under overflow: {su[1]} B in a {su[3]} B region (the next area overwritten)', errs)
     s.shot(tag + 'subs_menu')
     fw_want(r, fw_check(s.box.dump(0xA0000, 64000), tag + 'subs menu', errs, info), 12, 'subs menu', errs)
     check(st == 1 and ent == place - 1, f'after fire: g_subsState {st}, plToEnterGameIndex {ent} (want 1, {place - 1})', errs)
@@ -6491,6 +6516,12 @@ def bench_sub(s, bx, place, errs, info, mark, key=None, gone=None, tag=''):
     oth0 = list(ord0[26 * (1 - t):26 * (1 - t) + 26])
     check(other == oth0 and len(moved) == 2 and any(x == place - 1 for j, x in moved)
           and all(dict(moved).get(x) == j for j, x in moved), f'bx_ord after the change: mine {moved}, other {other}', errs)
+    if os.environ.get('BENCH_PANEL'):       # (MiSTer panel H1) play on after the change: the bottom panel's shots
+        for k in range(14):
+            r = s.send('dump:1.5')
+            if r.outcome != 'dump':
+                break
+            s.shot(f'{tag}panel{k:02d}')
     return t + 1                            # (the team whose NumSubs moved: 1 / 2)
 
 

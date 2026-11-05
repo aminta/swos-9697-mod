@@ -8,8 +8,11 @@ and wn_nzpre (gplay.csyms.gp_pre_c on the fixed build, gp_sims' rows read before
 wn_nzend: the preview (GP_PRE=1, no club play-off) = CONTINUA (GP_PRE=0) on the same tables - the Championship's
 champion; the old rows (the career division's numbers at each early row's index) decide otherwise (the bug, pinned).
 wn_nzpre: every early division's row carries its own number - one base per team file (global = base + index), the
-career division's for its file."""
+career division's for its file.
+The control: wn_nzend/WOUT.CAR, the RC1 L3 run's season-end save (repro i10p-26), carries the rc19 preview's
+champion in its WN_ST (gp_pre ran on the league's last match day, before the save) - the old rows give that one."""
 import os
+import re
 import struct
 import sys
 
@@ -50,6 +53,17 @@ def _champ(fx, pre, old):
     return next((struct.unpack_from('<H', raw, 6 + 4 * i)[0] for i in range(raw[3]) if raw[4 + 4 * i] == ord('K')), None)
 
 
+def _car_champ(car):
+    d = open(car, 'rb').read()
+    for i in (m.start() for m in re.finditer(rb'WN', d)):
+        n = d[i + 3]
+        e = [d[i + 4 + 4 * k:i + 8 + 4 * k] for k in range(n)] if 1 <= n <= 40 and i + 4 + 4 * n <= len(d) else []
+        k = [struct.unpack_from('<H', x, 2)[0] for x in e if x[0] == ord('K')]
+        if k:
+            return k[0]
+    return None
+
+
 def test_wn_preview_globs():
     for fx in ('wn_nzend', 'wn_nzpre'):
         if not os.path.isdir(os.path.join(FIXD, fx)):
@@ -61,6 +75,12 @@ def test_wn_preview_globs():
     if old == end:
         bad.append(f'wn_nzend: the old rows decide the same ({old:#x}) - the fixture no longer shows the bug')
     out.append(f'wn_nzend champion: preview {pre:#x} = CONTINUA {end:#x}; old rows {old:#x}')
+    car = os.path.join(FIXD, 'wn_nzend', 'WOUT.CAR')
+    if os.path.isfile(car):
+        rc1 = _car_champ(car)
+        if rc1 != old or rc1 == end:
+            bad.append(f'RC1 save: preview {rc1} - not the old rows\' {old:#x}, or CONTINUA\'s')
+        out.append(f'RC1 save WN_ST preview {hex(rc1) if rc1 is not None else None} = old rows (control)')
     m = Machine(os.path.join(FIXD, 'wn_nzpre'), 0)
     L, L2 = _lay(m)
     sim = [d for d in m.read('gplay.GP_IN', 9, L2[4]) if d != 0xFF]

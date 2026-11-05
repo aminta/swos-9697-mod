@@ -19159,16 +19159,19 @@ def world_nats():
             for ny, nx, ni, _ in nats:                   # record name (a long name shows as 'N. SURNAME': poking
                 rows[ny] = max(rows.get(ny, (nx, ni)), (nx, ni))   # that text's other copy changes nothing; the
                                                          # list itself depends on the bank - finance's income)
-            first = hits = None
-            for y in sorted(rows, reverse=True):
+            first = hits = None                          # (the rows are drawn through one set of template
+            for y in sorted(rows, reverse=True):         # entries: only the last row's texts stay, 4.0.6 I10p #31)
                 nat_i = rows[y][1]
                 row = sorted((scr.geom[i][0], t) for i, t, inv, _ in scr.entries
                              if i >= 10 and t and scr.geom[i][1] == y and not t.startswith('('))
                 names = [t for _, t in row if len(t) > 3]
-                if not names or re.match(r'[A-Z]\. ', names[0]):
+                if not names:
                     continue
                 first = names[0].encode()
-                hits = [m.start() - 3 for m in re.finditer(re.escape(first) + b'\\0', o2)
+                ab = re.fullmatch(rb'([A-Z])\. (.+)', first)   # a long name drawn 'A. WEIMANN': its record is
+                pat = (rb"(?<![A-Z'-])" + ab.group(1) + rb"[A-Z'-]*(?: [A-Z'-]+)* " + re.escape(ab.group(2))
+                       if ab else re.escape(first)) + b'\\0'   # ANDREAS WEIMANN (the same initial and surname)
+                hits = [m.start() - 3 for m in re.finditer(pat, o2)
                         if m.start() >= 3 and o2[m.start() - 3] <= 155 + len(careerworld.WORLD_NATS)]
                 if hits:
                     break

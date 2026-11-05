@@ -364,9 +364,11 @@ SPP_STEP = False                                        # bench_world BENCH_SPP:
 
 
 SPP_HOLD = 20                                           # timer ticks a key is held under SWOS++ without the latch (0.29 s)
-SPP_PM_HOLD = 16                                        # timer ticks the PLAY MATCH fire is held under SWOS++ (0.23 s):
-                                                        # the long-bench squad screen takes a fire only held >= ~12 ticks
-                                                        # (406 i10l; 4.0.5 release ~20, 4.0.5 without benches ~6), see spp_go
+SPP_PM_HOLD = 24                                        # timer ticks the PLAY MATCH fire is held under SWOS++ (0.34 s):
+                                                        # the long-bench squad screen takes a fire only held >= its frame
+                                                        # time; min hold that PASSes bench_world BENCH_SPP (EN): i10o 9-12,
+                                                        # 4.0.6 RC1 19-20 (the 6 i10p merges together; each alone <= 16),
+                                                        # 4.0.5 release ~20 - 24 keeps a margin over all of them, see spp_go
 
 
 def spp_go(s, target, w=3, fire='fire', hold=None):

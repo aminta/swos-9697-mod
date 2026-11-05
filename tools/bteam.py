@@ -1241,18 +1241,17 @@ bt_cx:                                  ; EXIT
 bt_dinit:
     ret
 
-bt_hl:                                  ; squadnum's number entry (esi = it, [A6] + 4Ch = his record): "12B" for a borrowed one
-    call SE_HL
-    cmp word [esi + 22h], 2             ; a "12B" last time: the number's own x and colour back
-    jne .k
-    add word [esi + 14h], 2
+bt_hl:                                  ; squadnum's number entry (esi = it, [A6] + 4Ch = his record): a borrowed one's number
+    call SE_HL                          ; in yellow (4.0.6 Davide's MiSTer 04/11: no "12B" - the entry stays the game's
+    cmp byte [bt_nw], 0                 ; ENTRY_NUMBER, right-aligned as the others; one entry for every row)
+    je .k
+    mov byte [bt_nw], 0                 ; a borrowed one last time: the number's own colour back
     and word [esi + 24h], 0FFF0h
     push eax
     mov al, [bt_nc]
     or [esi + 24h], al
     pop eax
 .k:
-    mov word [esi + 22h], 6             ; ENTRY_NUMBER (the game's)
     pushad
     cmp dword [SQT], CT                 ; the career club's squad only
     jne .r
@@ -1266,30 +1265,11 @@ bt_hl:                                  ; squadnum's number entry (esi = it, [A6
     pop esi
     test eax, eax
     jz .r
-    movzx ebx, word [esi + 2]           ; a buffer per row (ordinal)
-    and ebx, 31
-    lea ebx, [bt_nb + ebx * 4]
-    mov edi, ebx
-    movzx eax, word [esi + 26h]
-    mov cl, 10
-    div cl
-    test al, al
-    jz .one
-    add al, '0'
-    stosb
-.one:
-    mov al, ah
-    add al, '0'
-    stosb
-    mov ax, 'B'
-    stosw
-    mov word [esi + 22h], 2             ; ENTRY_STRING, drawn with the number's flags
-    mov [esi + 26h], ebx
     mov al, [esi + 24h]
     and al, 0Fh
     mov [bt_nc], al
     or byte [esi + 24h], 0Fh            ; in the yellow of his PRES. (SquadAfterDrawCommon's colour 0Fh for bit 1)
-    sub word [esi + 14h], 2             ; 2 px left: the B clear of the name bar
+    mov byte [bt_nw], 1
 .r:
     popad
     ret
@@ -1297,8 +1277,8 @@ bt_hl:                                  ; squadnum's number entry (esi = it, [A6
 align 4
 bt_coach: times 24 db 0
 bt_w2: db "I1',.:", 0                   ; 2 px wide
-bt_nb: times 32 * 4 db 0
 bt_nc: db 0
+bt_nw: db 0
 align 4
 bt_oinit: dd 0
 bt_oret: dd 0
@@ -1497,7 +1477,7 @@ def patch(p, at, force=None, lang='it'):
         p.remove(1, g + 2)                              # mov esi, [A0]
         p.branch(1, g, 0xE8, 3, lab['bt_gen'], 10)
     p.branch(1, s['wst'], 0xE8, 3, lab['bt_wst'])
-    p.branch(1, hl, 0xE8, 3, lab['bt_hl'])              # the 'B' after a borrowed player's number
+    p.branch(1, hl, 0xE8, 3, lab['bt_hl'])              # a borrowed player's number in yellow
     for x in u['users']:                                # M3: mov dword [A6], squadMenu -> the copy with SQ. B
         p.remove(1, x + 2)
         p.remove(1, x + 6)

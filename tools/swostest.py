@@ -23972,6 +23972,77 @@ def bteam_state(s, v):
     return n, [slots[k][0] for k in order], slots, ents
 
 
+def bt_numcheck(s, ncalled, errs, info, tag='squad_called'):
+    """(4.0.6, Davide's MiSTer 04/11) a called-up player's number on the squad lists: just the number, in yellow (no
+    'B'), where the others are: bteam's bt_hl keeps the game's ENTRY_NUMBER (right-aligned) and sets colour 0Fh;
+    yellow pixels inside its box, their right edge on the white numbers' column. The called-up ones sit at the squad's end:
+    the long bench's window moved by its own box (FIRE, benchx) until they show; shots `tag`_wNN."""
+    from PIL import Image
+
+    def read():
+        r = s.result
+        m = r.base2 + s.info['menu']
+        n = min(struct.unpack('<H', r.read(m + 0x10, 2))[0], 120)
+        mem = r.read(m, 0x16 + n * 0x38)
+        rows = []
+        for i in range(n):
+            e = 0x16 + i * 0x38
+            x, y, w, h = struct.unpack_from('<4h', mem, e + 0x14)
+            typ, fl = struct.unpack_from('<HH', mem, e + 0x22)
+            p_ = struct.unpack_from('<I', mem, e + 0x26)[0]
+            t = (r.read(p_, 8).split(b'\0')[0] if typ == 2 and 0x1000 < p_ < MEMSIZE - 64 else
+                 str(p_ & 0xFFFF).encode() if typ == 6 else b'')
+            rows.append((i, typ, x, y, w, h, fl, t))
+        return rows
+
+    seen, bad, xs_bad, w0 = set(), [], [], None
+    for k in range(20):
+        rows = read()
+        bad += [t for *_, t in rows if re.fullmatch(rb'\d+B', t)]
+        yel = [q for q in rows if q[1] == 6 and q[6] & 0x0F == 0x0F]
+        win = bx_window(s)
+        if yel:                                         # (SquadAfterDrawCommon reuses one number entry per row: the
+            shot = f'{tag}_w{(win or (0,))[0]:02d}'     #  other rows' numbers are pixels only - the column = the
+            s.shot(shot)                                #  white digits' right edge in the same band, right-aligned)
+            im = Image.open(os.path.join(s.run, 'shots', shot + '.png')).convert('RGB')
+            W, H = im.size
+            top = H - W * 400 // 640                   # (as squad_rows)
+            pix = lambda x, y: im.getpixel((min(W - 1, int(x * W / 320)), min(H - 1, int(top + y * (H - top) / 200))))
+            YEL = lambda c: c[0] > 180 and c[1] > 180 and c[2] < 110
+            WHT = lambda c: min(c) > 200
+            for i, typ, x, y, w, h, fl, t in yel:
+                if t in seen:
+                    continue
+                seen.add(t)
+                px = [(x + dx, pix(x + dx, y + dy)) for dx in range(w) for dy in range(h)]
+                ys = [a for a, c in px if YEL(c)]
+                check(len(ys) >= 4, f'number {t.decode()} (entry {i}): {len(ys)} yellow pixels', errs)
+                edges = []
+                for yy in range(200):
+                    if y <= yy < y + h:
+                        continue
+                    xs = [x + dx for dx in range(w) if WHT(pix(x + dx, yy))]
+                    if xs:
+                        edges.append(max(xs))
+                edge = max(set(edges), key=edges.count) if edges else None
+                short = 2 if t.endswith(b'1') else 0    # (a '1' ends 2 px short of the wider digits: 11, 31 in white)
+                if ys and edge is not None and not -1 <= edge - max(ys) - short <= 1:
+                    xs_bad.append((t.decode(), max(ys), edge))
+                info.append(f'{t.decode()}: yellow right edge {max(ys) if ys else None}, the column {edge}')
+        if len(seen) >= ncalled or win is None:
+            break
+        if w0 is not None and win[0] == w0:            # (back at the top: every window seen)
+            break
+        w0 = w0 if w0 is not None else win[0]
+        if press(s, s.screen(), win[1], 0.6) is None:  # FIRE on the box: the window one place on
+            break
+    window_home(s)                                     # (the window back at the top for what follows)
+    check(not bad, f'numbers with a B: {sorted(set(bad))}', errs)
+    check(seen, f'no yellow number seen ({ncalled} called up)', errs)
+    check(not xs_bad, f'yellow numbers off the number column: {xs_bad}', errs)
+    info.append(f'yellow numbers {sorted(t.decode() for t in seen)}')
+
+
 @scenario
 def bteam_rt():
     """4.0.6 B-team call-ups, M2 runtime (BTEAM_FORCE release-recipe build, SWOSTEST_BUILD): a World 2026-27 career at
@@ -24012,6 +24083,8 @@ def bteam_rt():
 
     with Session('bteam_rt', b, {}, 'dump:2', 1500, match=True) as s:
         s.wait()
+        if os.environ.get('BT_RNGPIN'):                 # (bisects, Regia 05/11: the match's random draw pinned at every
+            s.rng_at, s.rng_pin = rng_sites(os.path.join(b, 'ITALIAN.EXE')), 'bteam_rt:' + os.environ['BT_RNGPIN']
         if not pick_career(s, path):
             return False, 'new career: ' + str(s.screen().texts()[:8])
         s.send('fire dump:3')
@@ -24077,7 +24150,13 @@ def bteam_rt():
         season = [bn[i] for (k, i), c in zip(reqs, res) if k == 2 and c == 0]
         gone = [bn[i] for (k, i), c in zip(reqs, res) if k == 1 and c == 0]
         info.append(f'after the match: squad {n2}, BU {bu2}')
-        check(n2 == n0 + len(season), f'after the match: squad {n2}, want {n0 + len(season)}', errs)
+        new = [nm for nm in order2 if nm not in order0 and nm not in season]
+        trial = [nm for nm in new if nm not in bn]      # (the game's own "joined the club on trial" note, at random:
+        if trial:                                       #  MERT ENEM, pin a 05/11 - not a B-team player)
+            info.append(f'on trial: {trial}')
+        check(not set(new) - set(trial), f'after the match, B-team players back in: {sorted(set(new) - set(trial))}', errs)
+        check(n2 == n0 + len(season) + len(trial), f'after the match: squad {n2}, want {n0 + len(season)}'
+              f' + {len(trial)} on trial', errs)
         check(not any(g in order2 for g in gone), f'one-match players still in: {[g for g in gone if g in order2]}', errs)
         check(all(g in order2 for g in season), f'season players gone: {[g for g in season if g not in order2]}', errs)
         check(len(bu2) == len(season) and all(e[0] & 3 == 2 for e in bu2), f'BU after the match {bu2} (before {bu1})', errs)
@@ -24217,6 +24296,8 @@ def bteam_ui():
         check(s.screen().find('SQ. B', exact=True) is not None, f'back: no SQ. B ({s.screen()})', errs)
         s.shot('squad_after')
         info.append(f'one match: squad {n1}, BU {bu1}')
+        bt_numcheck(s, 1, errs, info, 'squad_after')   # (4.0.6: his number in yellow, no B - SQUADRA only: bt_hl's
+                                                        #  squad is the career club's, SQT = careerTeam)
         if len(bn) > 16:
             e = page('PER LA STAGIONE', True)
             if e:

@@ -27168,6 +27168,10 @@ def sell_offers():
     os.environ.update(W8485_BUILD=b, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+',
                       W8485_NOSACK='1', W8485_ONE='1')
     os.environ.pop('W8485_FROM', None)
+    keep['W8485_PATH'] = os.environ.get('W8485_PATH')
+    if os.environ.get('SA_PATH'):                  # (a real 1996-97 career: SA_PATH=EUROPA,ITALIA,SERIE B,..., SA_WNUM,
+        os.environ.update(W8485_PATH=os.environ['SA_PATH'], W8485_WNUM=os.environ.get('SA_WNUM', '0'),   # SA_K)
+                          W8485_K=os.environ.get('SA_K', '0+'))
     if os.environ.get('SA_FROM'):
         os.environ['W8485_FROM'] = os.environ['SA_FROM']
         os.environ.pop('W8485_ONE')
@@ -27190,7 +27194,7 @@ def sell_offers():
         lines.append(f'{name}(v{val} above {above} amt {amt})')
         if rule and above >= n_:
             bad.append(lines[-1])
-    check(ok, f'season: {msg[:200]}', errs)
+    check(ok or os.environ.get('SA_SEASONOK') == '0', f'season: {msg[:200]}', errs)   # (SA_SEASONOK=0: balance runs)
     check(len(offers) > 0, f'no offer made (tries {last["t"]})', errs)
     if os.environ.get('SA_EXPECT', 'on') != 'off' and rule:
         check(not bad, f'rule A broken (N {n_} margin {mg}): {bad[:8]}', errs)

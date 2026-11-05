@@ -61,7 +61,7 @@ def test_sella_buyers():
         return False, f'no sl_try fixture in {FIX}'
     s = _sites()
     o2 = lambda m, t: m.base2 + t[1]
-    stats, bad, sizes = {}, [], []
+    stats, bad, sizes, fsizes = {}, [], [], []
     for k in ks:
         m = Machine(FIX, k)
         n_, mg, ring, rule = m.read('sella.SL_PARM', 4)
@@ -70,10 +70,8 @@ def test_sella_buyers():
         jb = m.base1 + s['POOL_JB']
         orig_jb = m.read(jb, 6)
         at = lambda k: m.u32(m.base1 + s[k])          # (the live absolute address in that instruction)
-        nsel, ntmd = m.u16(at('NSEL')), m.u16(at('NTMD'))
-        selp, tmd = m.u32(at('SELP')), at('TMD')
+        nsel, selp, ntmd = m.u16(at('NSEL')), m.u32(at('SELP')), m.u16(at('NTMD'))
         dom = [m.read(selp + 0x2AC * i, 0x2AC) for i in range(nsel)]
-        fgn = [m.read(tmd + 0x2AC * i, 0x2AC) for i in range(ntmd)]
         for val in range(0, 50, 7):                     # (pool sizes vs the 116-byte list, per value byte)
             od = [r for r in dom if r[0] == sel & 0xFF and _orig_ok(r, val, sel)]
             ad = [r for r in od if _above(r, val, mg) < n_]
@@ -104,17 +102,23 @@ def test_sella_buyers():
                     why.append(f'record {buyer:#x} != teamOffering {m.u16(o2(m, s["TOFF"])):#x}')
                 if buyer == sel or rec[0x19] == 4:
                     why.append('own / cup-only club')
-                if (rec[0] == sel & 0xFF) != (pool == 'dom'):
+                if pool == 'dom' and rec[0] != sel & 0xFF:     # (a world career's foreign pool: careerworld's)
                     why.append(f'country {rec[0]} in the {pool} pool')
                 if rule and _above(rec, val, mg) >= n_:
                     why.append(f'{_above(rec, val, mg)} above v{val}+{mg}')
                 if why:
                     bad.append((k, pool, rec[5:22].split(b'\0')[0].decode('latin-1'), val, why))
         m.write(jb, orig_jb)
+        tmd = m.u32(o2(m, (2, s['A0'] + 20)))           # (the foreign pool's start, as the last call set it: careerworld's
+        fgn = [m.read(tmd + 0x2AC * i, 0x2AC) for i in range(ntmd)]          #  big-world buffer in a world career)
+        for val in range(0, 50, 7):
+            of = [r for r in fgn if r[0] != sel & 0xFF and _orig_ok(r, val, sel)]
+            fsizes.append((k, val, ntmd, len(of), len([r for r in of if _above(r, val, mg) < n_])))
     worst = max(sizes, key=lambda x: x[3])
     msg = (f'fixtures {ks}, N {n_} margin {mg} rule {rule}; ' +
            ', '.join(f'{p}: {v["tries"]} tries {v["offers"]} offers values {sorted(v["vals"])}' for p, v in stats.items()) +
            f'; domestic pool {worst[2]} clubs, original candidates up to {worst[3]} (value {worst[1]}), with rule A '
-           f'{max(x[4] for x in sizes)} (list 116 B, byte indices); bad {bad[:6]}')
+           f'{max(x[4] for x in sizes)}; foreign pool {max(x[2] for x in fsizes)} clubs, original candidates up to '
+           f'{max(x[3] for x in fsizes)}, with rule A {max(x[4] for x in fsizes)} (list 116 B, byte indices); bad {bad[:6]}')
     ok = not bad and all(v['offers'] for v in stats.values())
     return ok, msg

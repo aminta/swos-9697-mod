@@ -1330,16 +1330,45 @@ class Session:
         return r
 
 
+def w27_up(s, scr, text):
+    """W-modes M3 (one place for the 46 2026-27 career paths ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE',
+    'MONDO 2026-27', ...]): the team choice lists the main menu's world itself and its STORICO page only the other
+    worlds, so 'MONDO 2026-27' asked on a STORICO page that lacks it (EUROPA 1984-85 / MONDO 1996-97 there) = one level
+    up (its ESCI): on a 2026-27 default the first list is 2026-27's own (True: the step is done), on another default
+    MONDO 2026-27 is a green entry of it (False: the caller selects it there). None: not that case."""
+    if text != 'MONDO 2026-27' or scr.find(text, exact=True) is not None or scr.find('ESCI', exact=True) is None or \
+            not any(scr.find(w, exact=True) is not None for w in ('EUROPA 1984-85', 'MONDO 1996-97')):
+        return None
+    s.log.append(f'[w27 up] {text} not on {scr}'[:300])
+    out = scr.find('ESCI', exact=True)
+    if scr.path(out) is not None:
+        press(s, scr, out, 2)
+    else:                                               # (ESCI with no links the planner knows: down to it, wm_up's way)
+        s.send('down ' * 12 + 'dump:1')
+        if s.screen().selected == out:
+            s.send('fire dump:2')
+    return s.screen().find(text, exact=True) is None
+
+
 def press(s, scr, text, wait=2, exact=True, avoid=frozenset(), fire=None):
     """Select the visible entry `text` (or entry number), check on the next pause that it is the selected one (a
     move can be taken twice), then fire; returns the new Result (None if not reachable). avoid = moves (entry, key)
     not to take (the long bench's window: up on row 12 / down on row 17 scroll it); none left: any way."""
     i = text if isinstance(text, int) else scr.find(text, exact=exact)
     if i is None:
-        return None
+        up = w27_up(s, scr, text)
+        if up:
+            return s.result
+        if up is None:
+            return None
+        scr = s.screen()
+        i = scr.find(text, exact=exact)
+        if i is None:
+            return None
     if SPP_STEP and not avoid:                          # (SWOS++'s timer feed: a key can move two rows, so a path
-        for _ in range(40):                             # is walked one tap at a time, re-planned after each pause; the
-            if scr.selected == i:                       # fire only on a selection still there one pause later)
+        sbad = set()                                    # is walked one tap at a time, re-planned after each pause; the
+        for _ in range(40):                             # fire only on a selection still there one pause later)
+            if scr.selected == i:
                 if s.send('dump:0.5').outcome != 'dump':
                     return s.result
                 if s.screen().selected == i:
@@ -1347,16 +1376,21 @@ def press(s, scr, text, wait=2, exact=True, avoid=frozenset(), fire=None):
                     return s.send(f'{fire or PRESS_FIRE} dump:{wait}')
                 scr = s.screen()
                 continue
-            steps = scr.path(i, set(), steps=True)
-            if not steps:                               # (fire up:0.05's UP can land on a dead entry, ESCI: off it -
+            steps = scr.path(i, sbad, steps=True) or scr.path(i, set(), steps=True)   # (a move that went astray
+            if not steps:                               # is not planned again: M3 05/11, tac_name_swospp looped 4 > 9 >
+                                                        # 3 > 2 > 4 on a loaded Mac; fire up:0.05's UP can land on a dead entry, ESCI: off it -
                 k_ = ('down', 'up', 'down')[_ % 3]      #  pgrp.py's recovery)
                 if s.send(k_ + ':0.3 dump:0.5').outcome != 'dump':
                     return s.result
                 scr = s.screen()
                 continue
-            if s.send(steps[0][0] + ':0.3 dump:0.5').outcome != 'dump':
+            cur, (k_, want) = scr.selected, steps[0]
+            s.log.append(f'[spp step] {cur} -> {i}: {steps[:4]}')
+            if s.send(k_ + ':0.3 dump:0.5').outcome != 'dump':
                 return s.result
             scr = s.screen()
+            if scr.selected != want:
+                sbad.add((cur, k_))
         return None
     bad = set(avoid)
     for attempt in range(40):
@@ -5765,6 +5799,11 @@ def walk(s, target, w=3, tries=20, stays=48):
         scr = s.screen()
         i = scr.find(target) if isinstance(target, str) else target
         if i is None:
+            up = w27_up(s, scr, target)                 # (M3: MONDO 2026-27 asked on a STORICO page without it)
+            if up:
+                return s.screen()
+            if up is False:
+                continue
             raise AssertionError(f'{target} not on screen ({scr.texts()[:16]})')
         if scr.selected == i:
             s.send(f'fire dump:{w + SLOW_FIRE}')
@@ -11378,7 +11417,9 @@ def swospp_menu():
         check(e[4][0] in mainbtn.WORLD['en'] and not e[4][1], f'entry 4 not the button: {e[4]}', errs)
         check(e[11][0] == b'SWOS++' and not e[11][1] and e[11][2:4] == (93, 21), f'entry 11 not SWOS++: {e[11]}', errs)
         k = mainbtn.WORLD['en'].index(e[4][0]) if e[4][0] in mainbtn.WORLD['en'] else 0
-        spp_go(s, e[4][0].decode(), 2)                          # (W-modes: the world switch under SWOS++: the next
+        spp_go(s, e[4][0].decode(), 2, fire='fire up:0.05')     # (W-modes: the world switch under SWOS++: the next
+        # world's label - 'fire up:0.05' as PRESS_FIRE's note: a plain fire stays the latched key and is read again,
+        # the switch then moved two worlds (M3 05/11: 1996-97 -> 2026-27, SETUP.DAT 00; 1 in 3 before)
         nxt = mainbtn.WORLD['en'][(k + 1) % 3]                  # world's label, SETUP.DAT +105 written, SWOS++'s
         e = menu(s, 'switch')                                   # entry still on 11)
         d = open(os.path.join(s.run, 'SWOS', 'SETUP.DAT'), 'rb').read()
@@ -11388,8 +11429,9 @@ def swospp_menu():
         opened = not is_main(s)
         check(opened, f'SWOS++ menu not opened: {sc}', errs)
         info.append(f'SWOS++ menu: {str(sc)[:60]}')
-        if sc.find('ESCI', exact=True) is not None:            # (its EXIT entry; ESC does not close it)
-            walk(s, 'ESCI', 3)
+        if sc.find('ESCI', exact=True) is not None:            # (its EXIT entry; ESC does not close it - one key
+            spp_go(s, 'ESCI', 3)                                # at a time: a walk's downs went past it, 5 for 3,
+                                                                # and fired another SWOS++ entry, M3 05/11)
         check(is_main(s), f'not back on the main menu: {s.screen()}', errs)
         e = menu(s, 'back')
         check(e[11][0] == b'SWOS++' and not e[4][1], f'after SWOS++ menu: {e}', errs)
@@ -11403,8 +11445,9 @@ def swospp_menu():
                     break
                 s.send(sc.path(i)[0] + ' dump:0.5')
             s.send('fire up:0.05 dump:3')
-        walk(s, 'CARICA VECCHIA COMPETIZIONE', 3)               # (3) a career loaded
-        s.send('fire dump:3')
+        s.send('dump:1')                                        # (3) a career loaded - one pause first: back from
+        spp_go(s, 'CARICA VECCHIA COMPETIZIONE', 3)   # SWOS++'s menu the selection read stale
+        s.send('fire dump:3')                                   # and the fire reopened it (M3 05/11, 1 in 3)
         try:
             go(s, 'ESCI')
         except AssertionError as x:                             # (the earlier steps' checks and the menu as it is)

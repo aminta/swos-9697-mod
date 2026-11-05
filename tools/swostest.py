@@ -1330,30 +1330,45 @@ class Session:
         return r
 
 
-def w27_up(s, scr, text):
-    """W-modes M3 (one place for the 46 2026-27 career paths ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE',
-    'MONDO 2026-27', ...]): the team choice lists the main menu's world itself and its STORICO page only the other
-    worlds, so 'MONDO 2026-27' asked on a STORICO page that lacks it (EUROPA 1984-85 / MONDO 1996-97 there) = one level
-    up (its ESCI): on a 2026-27 default the first list is 2026-27's own (True: the step is done), on another default
-    MONDO 2026-27 is a green entry of it (False: the caller selects it there). None: not that case."""
-    if text != 'MONDO 2026-27' or scr.find(text, exact=True) is not None or scr.find('ESCI', exact=True) is None or \
-            not any(scr.find(w, exact=True) is not None for w in ('EUROPA 1984-85', 'MONDO 1996-97')):
-        return None
-    s.log.append(f'[w27 up] {text} not on {scr}'[:300])
-    out = scr.find('ESCI', exact=True)
-    if scr.path(out) is not None:
-        press(s, scr, out, 2)
-    else:                                               # (ESCI with no links the planner knows: down to it, wm_up's way)
-        s.send('down ' * 12 + 'dump:1')
-        if s.screen().selected == out:
-            s.send('fire dump:2')
-    return s.screen().find(text, exact=True) is None
+W27_WORLDS = ('MONDO 2026-27', 'MONDO 1996-97', 'EUROPA 1984-85')   # (the career picker's world entries, mainbtn order)
 
+
+def w27_mark(s, text):
+    """w27_up's context: on after SCEGLI SQUADRA (a career's team choice), off on the main menu's other pickers."""
+    if text == 'SCEGLI SQUADRA':
+        s.w27_car = True
+    elif text in ('AMICHEVOLE', 'COMPET. PERSONAL.', 'COMP. PREDEFINITA', 'STAGIONE', 'SCEGLI SQUADRE'):
+        s.w27_car = False
+
+
+def w27_up(s, scr, text):
+    """W-modes M3, one place for every career path ['CARRIERA', 'SCEGLI SQUADRA', ('CARR. STORICHE',) <world>, ...]
+    (46 of them walk CARR. STORICHE > MONDO 2026-27): the team choice lists the main menu's world itself and STORICO
+    only the other ones, so a world asked in a career pick that the screen does not show is chosen the player's way -
+    back to the main menu, the WORLD selector on it (set_world), CARRIERA > SCEGLI SQUADRA: that world's own first
+    list, the path goes on from there (True). None: not that case (no career pick, the world on screen, no selector:
+    a pre-W-modes build keeps its old path)."""
+    if text not in W27_WORLDS or not getattr(s, 'w27_car', False) or scr.find(text, exact=True) is not None or \
+            scr.find('ESCI', exact=True) is None:
+        return None
+    s.log.append(f'[w27] {text} by the main menu selector (not on {scr})'[:300])
+    s.w27_car = False                                   # (no re-entry while it walks)
+    try:
+        if not wm_to_main(s):
+            return None
+        set_world(s, W27_WORLDS.index(text))
+    except AssertionError as x:
+        s.log.append(f'[w27] no selector: {x}'[:200])
+        return None
+    walk(s, 'CARRIERA', 3)
+    walk(s, 'SCEGLI SQUADRA', 3)
+    return True
 
 def press(s, scr, text, wait=2, exact=True, avoid=frozenset(), fire=None):
     """Select the visible entry `text` (or entry number), check on the next pause that it is the selected one (a
     move can be taken twice), then fire; returns the new Result (None if not reachable). avoid = moves (entry, key)
     not to take (the long bench's window: up on row 12 / down on row 17 scroll it); none left: any way."""
+    w27_mark(s, text)
     i = text if isinstance(text, int) else scr.find(text, exact=exact)
     if i is None:
         up = w27_up(s, scr, text)
@@ -5797,9 +5812,10 @@ def walk(s, target, w=3, tries=20, stays=48):
     bad, n = set(), 0
     while n < tries:
         scr = s.screen()
+        w27_mark(s, target)
         i = scr.find(target) if isinstance(target, str) else target
         if i is None:
-            up = w27_up(s, scr, target)                 # (M3: MONDO 2026-27 asked on a STORICO page without it)
+            up = w27_up(s, scr, target)                 # (M3: a world asked in a career pick, not on the screen)
             if up:
                 return s.screen()
             if up is False:

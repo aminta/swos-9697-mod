@@ -494,6 +494,21 @@ def load(confs, files=None, words=None, s1=None):
     return spec, assocs, [(conf, c['key']) for conf, c, _ in cups]
 
 
+def guest_sub(key, ws, rd):
+    """CONTI_GUEST (test builds: 'cup:guest word[,guest word..]:club word', hex): the guests in place of the career
+    club's next group-mates / its opponent in cup key's main-round list ws (rd: that round); a new list."""
+    ws = list(ws)
+    g = os.environ.get('CONTI_GUEST')
+    if g and g.split(':')[0] == key:
+        _, gws, cw = g.split(':')
+        if int(cw, 16) in ws:
+            i = ws.index(int(cw, 16))
+            sz = rd['size'] if rd['kind'] == 'groups' else 2
+            for k, gw in enumerate(gws.split(',')[:sz - 1]):
+                ws[i - i % sz + (i % sz + 1 + k) % sz] = int(gw, 16)
+    return ws
+
+
 def s1_block(cups, gl, words):
     """4.0.6 B2: the season-1 edition (conti.c ct_new1): 'S1', entries, the fixed seed, then each cup's main-round
     list as the build drew it (the exe's contest list: the career club's own contest). Entries as CT_ED's: team word,
@@ -504,6 +519,7 @@ def s1_block(cups, gl, words):
     for gi, (conf, c, _) in enumerate(cups):
         e = S1_ED.get((conf, c['key'])) or {'main': [], 'later': []}
         mr = main_round(c)
+        e = dict(e, main=guest_sub(c["key"], e["main"], c["rounds"][mr]))   # (CONTI_GUEST: season 1 plays this list, B2)
         st = lambda w: min((pr.get(w) or gst.get(w) or 0) // 16, 0xFFF)
         for w in e['main']:
             if w != 0xFFFF:
@@ -1712,15 +1728,7 @@ def structs(p, area, lang, at):
                                                                                               # clubs: CONCACAF had 1)
             ws = list(first.get((conf, c['key'])) or [])
             assert len(ws) in (0, n), (c['key'], len(ws), n)
-            g = os.environ.get('CONTI_GUEST')           # (test builds: 'cup:guest word[,guest word..]:club word', hex -
-            if g and g.split(':')[0] == c['key']:       # the guests in place of the career club's next group-mates /
-                _, gws, cw = g.split(':')               # its opponent)
-                if int(cw, 16) in ws:
-                    i = ws.index(int(cw, 16))
-                    sz = rd['size'] if rd['kind'] == 'groups' else 2
-                    for k, gw in enumerate(gws.split(',')[:sz - 1]):
-                        ws[i - i % sz + (i % sz + 1 + k) % sz] = int(gw, 16)
-            ws = ws or [0xFFFF] * n
+            ws = guest_sub(c['key'], ws, rd) or [0xFFFF] * n
             blob = bytes(body[:name_at]) + struct.pack('<II', rel, SNAMES[-1]) + struct.pack(f'<{n}H', *ws)
             assert blob[5] + 5 == name_at and blob[7] + 7 == name_at + 8, c['key']
             p.put(1, at, blob)

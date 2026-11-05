@@ -1910,6 +1910,8 @@ def _label_data():
     for k, v in sc.items():
         if not k.startswith('_'):
             slot4 |= forms(v.get('names'))
+    import dplay                                        # (the career club's Serie B / C play-offs and play-out:
+    slot4 |= {n.decode('latin-1') for n in dplay.NAMES}   # dplay's own names, id FEh for the play-out, no pack name)
     every |= slot4
     _LABEL_DATA.update(ids=ids, slot4=slot4, every=every, src=key)
     return _LABEL_DATA
@@ -15570,9 +15572,26 @@ def world_sc_bra():
     (the champion). Season 1: no SUPERCOPPA DEL BRASILE (the 2027 edition's clubs are not known); season 2 (from
     season 1's save): its FINALE played once in January v the COPA DO BRASIL winner (or the league's 2nd after a
     double) - Brazil's cup 2 (its cup 1 is the state contest), recorded by sc_cup2 at cseg_92A63; both seasons end"""
-    word = {'en': 'BRAZILIAN SUPER CUP', 'fr': 'SUPERCOUPE DU BRESIL', 'de': 'BRASILIANISCHER SUPERCUP'}.get(
-        UI, 'SUPERCOPPA DEL BRASILE')               # (the exe's language: tools/supercups2627.json's names)
-    return sc_from2('SUDAMERICA,BRASILE,BRASILEIRAO SERIE A,FLAMENGO', word, 'bra')
+    return sc_from2('SUDAMERICA,BRASILE,BRASILEIRAO SERIE A,FLAMENGO', sc_title('bra'), 'bra')
+
+
+def sc_title(c):
+    """A national supercup's match-screen title in the exe's language (SWOSTEST_UI), as supercup._entry makes it
+    since b0b3042 (Davide 03/11): '<country button> <long name fitted>' - BRASILE SUPERCOPPA, BRAZIL SUPER CUP."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import complist
+    import json as _j
+    nm = _j.load(open(os.path.join(ROOT, 'tools', 'supercups2627.json')))[c]['names']
+    nm = nm.get(UI) or nm['en']
+    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    m = _j.load(open(os.path.join(src, c, 'pack.json')))
+    country = ((m.get('button_names') or {}).get(UI) or m.get('button') or '').upper()
+    keep = list(complist.LANG)
+    complist.LANG[:] = [UI]
+    try:
+        return f'{country} {complist._fit(country, nm[0], nm[1])}'
+    finally:
+        complist.LANG[:] = keep
 
 
 def conti_drop(tag, force, team, word):

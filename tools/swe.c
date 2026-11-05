@@ -341,6 +341,11 @@ void swe_names_post(void)
    game's numbers, < 100, are the same in every namespace). The next team picker of another kind (season, preset, edit,
    a new career) puts the base one back: swe_stfm_guard at SelectTeamsFinalMenu's entry, outside a career and only
    while the namespace is still the one left here. */
+/* Step 2.5, for Panchina's 2026-27 long bench (friendly / DIY): SWE_W27 = 1 while the contest a friendly / DIY picker
+   or a DIY file load left is World 2026-27's (any of its clubs: mixed contests take the longer bench, Davide 05/11),
+   0 after any other picker kind (preset, season, team editor, a career's team choice). swe.LABELS['SWE_W27'] after
+   swe.patch(p). */
+u32 SWE_W27 DATA = 0;
 u32 NS_LEFT DATA = 0;                   /* the namespace swe left after a contest's picker / DIY load, 0 = none */
 extern u8 SWE_GTYPE[];
 #define GAME_TYPE_CAREER 4
@@ -355,8 +360,10 @@ static void ns_left(u32 w)
 #ifdef NS
 void swe_stfm_guard(void)
 {
-    if (SEL_MODE == 0xFFFFFFFF)         /* (another picker kind: the game's nationals) */
+    if (SEL_MODE == 0xFFFFFFFF) {       /* (another picker kind: the game's nationals, no 2026-27 contest) */
         fnat(0);
+        SWE_W27 = 0;
+    }
     if (AV_ARM)
         av_swap();
     u8 *wcur = (u8 *)rd32(SWE_REG + 8);
@@ -448,6 +455,7 @@ void swe_sel_post(void)
         ns_left(SWE_CWORLD);
     } else if (SEL_MODE == M_FRIENDLY && fnat_on())
         SWE_CWORLD = *(u16 *)SWE_NUMSEL ? fnat_on() : 0;   /* (the DIY file's 'WM' block: its nationals' world) */
+    SWE_W27 = SEL_ON && SEL_MODE == M_FRIENDLY && SWE_CWORLD == SET_W[0];   /* (clubs only: SEL_ON) */
     SEL_ON = 0;
     SEL_MODE = 0xFFFFFFFF;
 }
@@ -608,6 +616,7 @@ void swe_diy_loaded(void)
         SWE_CWORLD = b[3];
     ns_left(SWE_CWORLD);
     fnat(SWE_CWORLD == SET_W[2] ? SWE_CWORLD : 0);   /* (step 2.5: a 1984-85 DIY's nationals are DaniSwos's) */
+    SWE_W27 = SWE_CWORLD == SET_W[0];
 }
 
 #ifdef NS
@@ -627,6 +636,7 @@ void swe_av_pre(u32 kind)
 
 void swe_av_post(void) { AV_ARM = AV_SHOW = 0; }
 
+#ifdef AV
 __attribute__((naked)) void swe_pre_tramp(void)
 {
     __asm__ volatile("pushal\n\tpushl %0\n\tcall swe_av_pre\n\taddl $4, %%esp\n\tpopal\n\t"
@@ -640,6 +650,7 @@ __attribute__((naked)) void swe_sea_tramp(void)
                      "call SWE_SEAPICK\n\tpushfl\n\tpushal\n\tcall swe_av_post\n\tpopal\n\tpopfl\n\tret"
                      : : "i"(AV_SEASON));
 }
+#endif
 
 __attribute__((naked)) void swe_names_tramp(void)
 {

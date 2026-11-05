@@ -11380,8 +11380,8 @@ def engine_wmodes_play():
 @scenario
 def engine_wmodes_nat():
     """W-modes M2 + 4.0.6 nations by today's names (95b0bec), the friendly's national teams across world switches
-    (release-recipe exe, SWOSTEST_BUILD; Italian menus): MONDO 2026-27 -> 1996-97 -> 2026-27, each time FRIENDLY >
-    NAZIONALI > EUROPA. The friendly's national branch keeps the game's own namespace in every world (M2: national /
+    (release-recipe exe, SWOSTEST_BUILD; Italian menus): 1996-97 -> MONDO 2026-27 -> 1996-97, each time FRIENDLY >
+    NAZIONALI (> EUROPA; step 2.5: under MONDO 2026-27 the message, engine_avail). The friendly's national branch keeps the game's own namespace in every world (M2: national /
     custom untouched), so every list = the game's TEAM.080 (CZECH REPUBLIC, YUGOSLAVIA; never TMW5.080's CZECHIA /
     SERBIA, which only a 2026-27 namespace reads), the same after the round trip; the two picked after it: the
     pre-match screen shows them."""
@@ -11389,15 +11389,12 @@ def engine_wmodes_nat():
     today, era = ('CZECHIA',), ('CZECH REPUBLIC',)        # (the list's first page: ALBANIA..ENGLAND)
     errs, info = [], []
 
-    def nat_list(s):
-        for t in ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE'):
-            walk(s, t, 2)
-        sc = s.screen()
-        nat = next((t for t in ('NAZIONALI', 'SQUADRE NAZIONALI', 'SQUADRE NAZ.', 'NATIONAL TEAMS', 'EQUIPES NATIONALES',
-                                'NATIONALMANNSCHAFTEN') if sc.find(t, exact=True) is not None), None)
-        if nat is None:
-            raise AssertionError(f'no national teams entry: {sc.texts()[:16]}')
-        walk(s, nat, 2)
+    def nat_list(s, w):
+        sc = wm_nat_top(s)
+        if w == 0:                                       # (step 2.5: MONDO 2026-27's NAZIONALI = the message)
+            check(av_rows_ok(sc, 'nat', errs, 'nat 2026-27') and sc.find('EUROPA', exact=True) is None,
+                  f'2026-27 NAZIONALI: the message, no EUROPA ({sc.texts()[:6]})', errs)
+            return None
         walk(s, 'EUROPA', 2)
         return s.screen()
 
@@ -11405,9 +11402,13 @@ def engine_wmodes_nat():
         if s.wait().outcome != 'dump':
             return False, f'no first pause ({s.result})'
         seen = []
-        for k, w in enumerate((0, 1, 0)):
+        for k, w in enumerate((1, 0, 1)):
             set_world(s, w)
-            sc = nat_list(s)
+            sc = nat_list(s, w)
+            if sc is None:
+                s.shot(f'nat{k}_w{w}')
+                check(wm_to_main(s), f'step {k}: main menu not reached', errs)
+                continue
             tx = [t for t in sc.texts() if t]
             seen.append(tuple(n for n in today + era if n in tx))
             s.shot(f'nat{k}_w{w}')
@@ -11424,10 +11425,132 @@ def engine_wmodes_nat():
                 s.shot('prematch')
                 info.append(f'pre-match {[t for t in pm.texts() if t][:6]}')
             check(wm_to_main(s), f'step {k}: main menu not reached', errs)
-        check(all(x == era for x in seen), f'national names per step (2026-27, 1996-97, 2026-27): {seen} (want {era})',
-              errs)
-        info.insert(0, f'national names per step (2026-27, 1996-97, 2026-27): {seen}')
+        check(len(seen) == 2 and all(x == era for x in seen), f'national names per step (1996-97, 1996-97 after '
+              f'2026-27\'s message): {seen} (want {era})', errs)
+        info.insert(0, f'national names per step (1996-97, 1996-97 after 2026-27\'s message): {seen}')
     return not errs, '; '.join(errs + info)
+
+
+def wm_nat_top(s):
+    """FRIENDLY > SCEGLI SQUADRE > NAZIONALI (the label per exe language): the national picker's top list."""
+    for t in ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE'):
+        walk(s, t, 2)
+    sc = s.screen()
+    nat = next((t for t in ('NAZIONALI', 'SQUADRE NAZIONALI', 'SQUADRE NAZ.', 'NATIONAL TEAMS', 'EQUIPES NATIONALES',
+                            'NATIONALMANNSCHAFTEN') if sc.find(t, exact=True) is not None), None)
+    if nat is None:
+        raise AssertionError(f'no national teams entry: {sc.texts()[:16]}')
+    walk(s, nat, 2)
+    return s.screen()
+
+
+def av_rows_ok(sc, kind, errs, tag):
+    """Step 2.5: the picker's top list shows the message (swe.AV_LINES in the exe's language, swe.av_rows' 2 rows) as
+    its first two visible entries, disabled, each within its entry's width and in the menu font; the cursor off them.
+    kind: 'nat', 'preset', 'season'. True = all of it holds (errs gets what fails)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import swe
+    import complist
+    lang = UI if UI in swe.AV_LINES else 'it'
+    want = swe.av_rows(swe.AV_LINES[lang][{'nat': 0, 'preset': 1, 'season': 2}[kind]])
+    vis = [i for i, (j, t, inv, dis) in enumerate(sc.entries) if not inv and 21 <= j <= 86]
+    if len(vis) < 2:
+        return False
+    ok = True
+    for i, w in zip(vis[:2], want):
+        raw = sc.raw[i].decode('latin-1')
+        good = raw == w and sc.entries[i][3] and complist.px(raw) <= sc.geom[i][2] and set(raw) <= complist.FONT | {swe.UE}
+        if not good:
+            errs.append(f'{tag}: row {raw!r} (want {w!r}, disabled {sc.entries[i][3]}, {complist.px(raw)} px of '
+                        f'{sc.geom[i][2]})')
+        ok &= good
+    if sc.selected in vis[:2]:
+        errs.append(f'{tag}: the cursor on a message row ({sc.selected})')
+        ok = False
+    return ok
+
+
+@scenario
+def engine_avail():
+    """Step 2.5 (Davide 2026-11-05): 'not available in this world' -> a message on the spot, 2 rows in the list area
+    (swe.c av_*; texts swe.AV_LINES, frozen, 4 languages - SWOSTEST_UI). Per default world (main-menu WORLD switch):
+    COMP. PREDEFINITA and STAGIONE under MONDO 2026-27 and EUROPA 1984-85 = the message + the purple TORNEI STORICI /
+    STAG. STORICHE box (the cursor on it), the box opens its list (COPPA MONDIALE 1934 / ITALIA 1947-48) and its ESCI
+    comes back to the message; under 1996-97 the game's continents, no message. FRIENDLY > NAZIONALI: 2026-27 = the
+    message (the cursor on ABBANDONA); EUROPA 1984-85 = EUROPA only, DaniSwos's nations (EAST GERMANY, SOVIET UNION,
+    not CROATIA), EAST GERMANY - WEST GERMANY: the pre-match screen shows an era one; 1996-97 after it = the game's (CROATIA)."""
+    errs, info = [], []
+    files = {'SETUP.DAT': setup_file('engine_avail', 1)}
+    box = {'preset': ('COMP. PREDEFINITA', 'TORNEI STORICI', 'COPPA MONDIALE 1934'),
+           'season': ('STAGIONE', 'STAG. STORICHE', 'ITALIA 1947-48')}
+    with Session('engine_avail', os.environ.get('SWOSTEST_BUILD') or builds()['it'], files, 'dump:3', 900) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'no first pause ({s.result})'
+        for w, wn in ((0, '2026-27'), (2, '1984-85'), (1, '1996-97')):
+            for kind, (entry, hist, item) in box.items():
+                set_world(s, w)
+                walk(s, entry, 2)
+                sc = s.screen()
+                s.shot(f'{kind}_{wn}')
+                tag = f'{kind} {wn}'
+                if w == 1:
+                    check(sc.find('EUROPA', exact=True) is not None and sc.find(hist, exact=True) is not None and
+                          not av_rows_ok(sc, kind, [], tag), f'{tag}: the game\'s continents + {hist} '
+                          f'({sc.texts()[:10]})', errs)
+                else:
+                    b = sc.find(hist, exact=True)
+                    check(av_rows_ok(sc, kind, errs, tag) and sc.find('EUROPA', exact=True) is None and b is not None
+                          and sc.selected == b, f'{tag}: the message + {hist} under the cursor '
+                          f'({sc.texts()[:6]}, selected {sc.selected})', errs)
+                    if b is not None:
+                        walk(s, b, 2)
+                        sc = s.screen()
+                        check(sc.find(item, exact=True) is not None, f'{tag}: {hist} lists {item} ({sc.texts()[:8]})',
+                              errs)
+                        wm_up(s, hist)
+                        check(av_rows_ok(s.screen(), kind, errs, tag + ' back'), f'{tag}: back from {hist}: '
+                              f'the message again', errs)
+                info.append(f'{tag} ok')
+                check(wm_to_main(s), f'{tag}: main menu not reached', errs)
+        for w, wn in ((0, '2026-27'), (2, '1984-85'), (1, '1996-97')):
+            set_world(s, w)
+            sc = wm_nat_top(s)
+            s.shot(f'nat_{wn}')
+            tag = f'nat {wn}'
+            if w == 0:
+                out = sc.find('ABBANDONA', exact=True)
+                check(av_rows_ok(sc, 'nat', errs, tag) and sc.find('EUROPA', exact=True) is None and
+                      sc.selected == out, f'{tag}: the message, the cursor on ABBANDONA ({sc.texts()[:6]}, '
+                      f'selected {sc.selected})', errs)
+            else:
+                conts = [t for t in ('EUROPA', 'NORDAMERICA', 'SUDAMERICA', 'AFRICA', 'ASIA', 'OCEANIA')
+                         if sc.find(t, exact=True) is not None]
+                check(conts == (['EUROPA'] if w == 2 else conts) and len(conts) == (1 if w == 2 else 6),
+                      f'{tag}: continents {conts}', errs)
+                walk(s, 'EUROPA', 2)
+                sc = s.screen()
+                tx = [t for t in sc.texts() if t]
+                s.shot(f'nat_{wn}_eu')
+                want, never = ((('EAST GERMANY', 'SOVIET UNION', 'WEST GERMANY'), ('CROATIA', 'RUSSIA')) if w == 2
+                               else (('CROATIA', 'RUSSIA'), ('EAST GERMANY', 'SOVIET UNION')))
+                check(all(n in tx for n in want) and not any(n in tx for n in never), f'{tag}: EUROPA lists '
+                      f'{[n for n in want + never if n in tx]}', errs)
+                info.append(f'{tag}: {conts}, {[n for n in want + never if n in tx]}')
+                if w == 2:
+                    for n in ('EAST GERMANY', 'WEST GERMANY'):
+                        walk(s, n, 2)
+                    sc = s.screen()
+                    play = {'fr': 'MATCHS AMICAUX'}.get(UI, 'AMICHEVOLE')
+                    go = next((j for j, t, inv, _ in sc.entries if t == play and not inv and j), None)
+                    pm = walk(s, go, 4) if go is not None else sc
+                    ptx = ' '.join(t for t in pm.texts() if t)
+                    s.shot('nat_1984-85_prematch')
+                    check(go is not None and ('EAST GERMANY' in ptx or 'WEST GERMANY' in ptx) and   # (one team a
+                          'CROATIA' not in ptx,                                                      # screen)
+                          f'{tag}: pre-match {[t for t in pm.texts() if t][:8]}', errs)
+            check(wm_to_main(s), f'{tag}: main menu not reached', errs)
+    return not errs, '; '.join(errs + info)
+
 
 def wm_up(s, label, n=6):
     """Up the team picker's lists to the one showing `label` (each list's ESCI entry; a team list's past its rows)"""
@@ -11502,7 +11625,8 @@ def engine_wmodes_next():
             seen = []
             for t in path + ['SQUADRE CLUB', 'SCEGLI SQUADRA', 'SCEGLI SQUADRE']:
                 sc = s.screen()
-                if sc.find('EUROPA', exact=True) is not None or sc.find(hist) is not None:
+                if sc.find('EUROPA', exact=True) is not None or sc.find(hist) is not None or \
+                        (k in ('preset', 'season') and av_rows_ok(sc, k, [], k)):
                     break
                 if sc.find(t, exact=False) is not None:
                     press(s, sc, sc.find(t, exact=False), 3)
@@ -11513,7 +11637,8 @@ def engine_wmodes_next():
             info.append(f'{k}: {" > ".join(seen)}: WCUR {ns}, {[e[1] for e in sc.entries if e[1]][:4]}')
             if k != 'career':
                 opened = sc.find('EUROPA', exact=True) is not None or (k == 'edit' and sc.entries and   # (edit: the
-                                                                       sc.entries[0][1].startswith('SELEZ. SQ.'))  # CUSTOM list)
+                                                                       sc.entries[0][1].startswith('SELEZ. SQ.')) \
+                    or (k in ('preset', 'season') and av_rows_ok(sc, k, [], k))   # (step 2.5: 2026-27's message)
                 check(ns == nsbase and opened, f'{k}: WCUR {ns} at the picker\'s '
                       f'first list (base {nsbase}) {sc.texts()[:8]}', errs)
                 wm_to_main(s)

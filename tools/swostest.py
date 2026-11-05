@@ -2894,39 +2894,45 @@ def coach_nat():
     b = os.environ.get('COACHNAT_BUILD') or os.environ.get('SWOSTEST_BUILD')
     if not b:
         return True, 'SKIP: COACHNAT_BUILD (a full 2026-27 build) not set'
-    era, errs, info = {'YUG', 'RFT', 'URS', 'RDT'}, [], []
+    era = {'it': {'YUG', 'RFT', 'URS', 'RDT'}, 'en': {'YUG', 'FRG', 'URS', 'GDR'}, 'fr': {'YUG', 'RFA', 'URS', 'RDA'},
+           'de': {'YUG', 'BRD', 'URS', 'DDR'}}.get(UI, set())   # (the era's letters per exe language)
+    errs, info = [], []
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import careerworld
     import lepatch
     o1 = bytes(lepatch.LEPatch(os.path.join(b, 'ITALIAN.EXE')).le.obj_bytes(1))
     nshort = o1.find(b'ALBAUTBELBUL')                       # (careerworld's NATSHORT: the one table, in obj1)
-    gone = {'TCH', 'MAC', 'ZAI', 'SWA'}
 
     def letters(s, tag, want):
         got = {c: s.result.obj1(nshort + 3 * c, 3).decode('latin-1') for c in careerworld.NAT_TODAY}
         check(nshort >= 0 and got == want, f'{tag}: nation letters {got} (want {want})', errs)
     era_l = {c: o1[nshort + 3 * c:nshort + 3 * c + 3].decode('latin-1') for c in careerworld.NAT_TODAY}
     today_l = dict(careerworld.NAT_TODAY)
+    gone = set(era_l.values()) - set(today_l.values())  # (the exe's own era letters: TCH MAC ZAI SWA in Italian)
     tw = b''.join(open(x, 'rb').read() for x in glob.glob(os.path.join(b, 'DATA', 'TMW5.08[0-5]')))
     tg = b''.join(open(os.path.join(b, 'DATA', 'TEAM.%03d' % f), 'rb').read() for f in range(80, 86))
     for old, new in careerworld.NAT_TEAM_TODAY.items():       # (the 2026-27 national teams: renamed copies)
         check(b'\0' + new.encode() + b'\0' in tw and b'\0' + old.encode() + b'\0' not in tw
               and b'\0' + old.encode() + b'\0' in tg, f'national team {old} -> {new}: TMW5 / TEAM files', errs)
 
+    def car27(sc):                                          # (the green button: CAREER / CARRIERE / KARRIERE 2026-27)
+        return next((i for i, t, *_ in sc.entries if t and t.endswith(' 2026-27')), None)
+
     def to_main(s):
         for _ in range(4):
             sc = s.screen()
-            if sc.find('CARRIERA 2026-27', exact=True) is not None:
+            if car27(sc) is not None:
                 return
             if sc.find('ESCI', exact=True) is None or press(s, sc, 'ESCI', 2) is None:   # (the career menu: ESC
                 s.send('esc dump:2')                                                     # does not leave it)
 
-    def cycle(s, key, n):
+    def cycle(s, key, n, i=None):                           # (i: the field already found, its value no longer ENG)
         sc = s.screen()
-        i = sc.find('ENG', exact=True)
         if i is None:
-            raise AssertionError(f'no ENG field: {sc}')
-        walk(s, i, 1)
+            i = sc.find('ENG', exact=True)
+            if i is None:
+                raise AssertionError(f'no ENG field: {sc}')
+            walk(s, i, 1)
         seen = []
         for _ in range(n):
             s.send(f'fire+{key} dump:0.5')
@@ -2941,12 +2947,12 @@ def coach_nat():
         info.append(f'CARRIERA {seen}')
         letters(s, 'CARRIERA', era_l)
         to_main(s)
-        walk(s, s.screen().find('CARRIERA 2026-27', exact=True), 3)
+        walk(s, car27(s.screen()), 3)
         letters(s, 'CARRIERA 2026-27', today_l)
         i, seen = cycle(s, 'left', 62)
         check({'TGA', 'SAM', 'MNE', 'FIJ'} <= set(seen) and not era & set(seen),
               f'CARRIERA 2026-27: {seen}', errs)
-        _, more = cycle(s, 'left', 160)                     # (the whole list: today's letters in, the era's out)
+        _, more = cycle(s, 'left', 160, i)                     # (the whole list: today's letters in, the era's out)
         check(set(today_l.values()) <= set(seen + more) and not (gone | era) & set(seen + more),
               f'CARRIERA 2026-27 list: {sorted(set(seen + more))}', errs)
         for _ in range(222):                                # (back to the 62nd, a nation the era list lacks: the
@@ -2960,7 +2966,7 @@ def coach_nat():
         sc = s.screen()
         check(sc.find('ENG', exact=True) is not None, f'CARRIERA after {last}: not ENG ({sc})', errs)
         to_main(s)
-        walk(s, s.screen().find('CARRIERA 2026-27', exact=True), 3)
+        walk(s, car27(s.screen()), 3)
         i, seen = cycle(s, 'left', 1)
         for _ in range(5):                                  # (the walk's fire may move the field once)
             if seen[-1] == 'TGA':
@@ -2975,7 +2981,7 @@ def coach_nat():
                 break
         s.send('fire dump:3')
         got = str(s.screen())
-        check('CAMP. 2026/27' in got and 'INTER' in got, f'the TGA coach career: {got[:80]}', errs)
+        check('2026/27' in got and 'INTER' in got, f'the TGA coach career: {got[:80]}', errs)
         letters(s, 'the 2026-27 career', today_l)
     return not errs, '; '.join(errs) or '; '.join(info)
 

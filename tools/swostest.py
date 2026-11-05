@@ -240,11 +240,51 @@ def mkseason_now():
     return importlib.reload(mkseason)
 
 
+def packs_font_safe(packs):
+    """4.0.6 (406-font): a SEASON_PACKS list with every pack whose clubs.csv has a club NAME with '&' (no font character:
+    the older world snapshots, e.g. world5tm-nzchamp / -formats' 'TREFELIN BOYS &') replaced by a sanitized copy under
+    internal/swostest/sanitized/: the name the release data (internal/world2526/world5tm) gives that club - same
+    country, same key, else the same source club - so on-screen names match the release (TREFELIN BGC); no match: '&'
+    dropped. Only the name column changes; the snapshots untouched."""
+    import csv
+    import io
+    rel = os.path.join(MAIN, 'internal', 'world2526', 'world5tm')
+    out = []
+    for p in packs.split(','):
+        q = p if os.sep in p else None
+        cf = os.path.join(q, 'clubs.csv') if q else ''
+        rows = list(csv.reader(open(cf, encoding='utf-8'))) if q and os.path.isfile(cf) else []
+        bad = [r for r in rows[1:] if len(r) > 1 and '&' in r[1]]
+        if bad:
+            cc = os.path.basename(q.rstrip(os.sep))
+            rf = os.path.join(rel, cc, 'clubs.csv')
+            rr = list(csv.reader(open(rf, encoding='utf-8')))[1:] if os.path.isfile(rf) else []
+            bykey = {r[0]: r[1] for r in rr if len(r) > 1}
+            bysrc = {r[-1].split(' (')[0].strip().lower(): r[1] for r in rr if len(r) > 1}
+            for r in bad:
+                src = r[-1].split(' (')[0].strip().lower()
+                r[1] = bykey.get(r[0]) or bysrc.get(src) or next((v for k, v in bysrc.items() if k and src.startswith(k)), None) \
+                    or r[1].replace(' & ', ' ').replace(' &', '').replace('&', '')
+            h = hashlib.md5((os.path.realpath(q) + repr([r[1] for r in bad])).encode()).hexdigest()[:10]
+            d = os.path.join(WORK, 'sanitized', h, cc)
+            if not os.path.isdir(d):
+                shutil.copytree(q, d + '.tmp', dirs_exist_ok=True)
+                b = io.StringIO()
+                csv.writer(b, lineterminator='\n').writerows(rows)
+                open(os.path.join(d + '.tmp', 'clubs.csv'), 'w', encoding='utf-8').write(b.getvalue())
+                os.rename(d + '.tmp', d)
+            q = d
+        out.append(q or p)
+    return ','.join(out)
+
+
 def build(name, env=None, branch=None, lang='it'):
     """Build the IT exe + team files into internal/swostest/builds/<name>-<key> (build_key: from this checkout or a
     git branch, with the build-affecting environment) - its own dir per build, so sessions never overwrite each
     other's exes; an existing dir of the same key is reused. Built in <dir>.tmp<pid>, then renamed into place."""
     src = ROOT
+    if env and env.get('SEASON_PACKS'):              # (old snapshots with '&': a font-safe copy, packs_font_safe)
+        env = dict(env, SEASON_PACKS=packs_font_safe(env['SEASON_PACKS']))
     if branch:                                       # a throw-away worktree of that commit, links to the ignored dirs
         sha = subprocess.run(['git', '-C', MAIN, 'rev-parse', branch + '^{commit}'], capture_output=True, text=True,
                              check=True).stdout.strip()

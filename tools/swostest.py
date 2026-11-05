@@ -24371,20 +24371,10 @@ def bteam_ui():
         import complist                                 # a long coach name: shown cut at SQ. B (Davide 02/11 (a))
         scr = s.screen()
         cn = next((t for i, t, inv, _ in scr.entries if i == 5), '')
+        ctb = bytes(s.result.obj2(v['ct'], 76))
         long_name = os.environ.get('BT_COACH', 'ALEXANDER MACPHERSON-SMYTHE')[:22]
-        at = None                                       # (I10p 05/11: EN/FR found no 'JON HARE' + NUL in careerTeam's
-        if cn:                                          #  76 bytes - the name the game points entry 5 at, wherever it
-            c = cn.encode('latin-1')                    #  is: careerTeam first, then obj2 whole; shown cut = a prefix)
-            for base, n in ((v['ct'], 76), (0, s.info['size2'])):
-                d = bytes(s.result.obj2(base, n))
-                hits = [base + m.start() for m in re.finditer(re.escape(c), d) if m.start() == 0 or d[m.start() - 1] == 0]
-                if hits:
-                    at = hits[0]
-                    full = bytes(s.result.obj2(at, 24)).split(b'\0')[0].decode('latin-1')
-                    info.append(f'coach {full!r} at obj2+{at:#x} (careerTeam {v["ct"]:#x}{at - v["ct"]:+#x}, {len(hits)} hits)')
-                    break
-        if at is not None:
-            s.poke(s.result.lin((2, at)), long_name.encode() + b'\0')
+        if cn and cn.encode('latin-1') + b'\0' in ctb:
+            s.poke(s.result.lin((2, v['ct'] + ctb.index(cn.encode('latin-1') + b'\0'))), long_name.encode() + b'\0')
             walk(s, 'ESCI', 3)
             sq_open(s)
             scr = s.screen()
@@ -24395,7 +24385,7 @@ def bteam_ui():
                   f'coach {long_name!r} shown {shown!r} ({complist.px(shown)} px, free {free})', errs)
             info.append(f'coach {long_name!r} shown {shown!r} ({complist.px(shown)} px of {free})')
         else:
-            errs.append(f'coach name {cn!r} not in careerTeam nor obj2')
+            errs.append(f'coach name {cn!r} not in careerTeam')
         scr = s.screen()
         s.shot('squad_btn')
         check(scr.find('SQ. B', exact=True) is not None, f'no SQ. B on the squad screen: {scr}', errs)

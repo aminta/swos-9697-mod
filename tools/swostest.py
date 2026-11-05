@@ -25079,6 +25079,11 @@ def stoppage_time():
     si = stoppage_sites(b)
     if si is None:
         return False, 'no stoppage module in the exe'
+    from le import LE                                   # UpdateTime's last minute: `cmp word [esi + y], 449 / ja /
+    m = [x for x in re.finditer(rb'\x66\x81\x7e\x24\xc1\x01\x77.\x81\x3d(....)(....)\x74',   # cmp [lastTeamPlayed],
+                                LE(open(os.path.join(b, 'ITALIAN.EXE'), 'rb').read()).obj_bytes(1), re.S)]   # bottomTeamData'
+    assert len(m) == 1, len(m)
+    ltp = struct.unpack('<II', m[0].group(1) + m[0].group(2))   # (obj2 offsets: lastTeamPlayed, bottomTeamData)
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import stoppage
     errs, info = [], []
@@ -25189,10 +25194,14 @@ def stoppage_time():
                             # the whistle wait held open: the ball in the top penalty area (the game's end waits while it is there)
                             for o, v in ((30, 0), (32, 234), (34, 0), (36, 180), (38, 0), (40, 0)):
                                 s.poke(r.base2 + 0x52c9a + o, struct.pack('<h', v))
-                        elif ph_last == 2 and W16(777158) == 100:   # held long enough: the ball to the centre spot (out
-                            for o, v in ((30, 0), (32, 336), (34, 0), (36, 449), (38, 0), (40, 0)):   # of both areas: the
-                                s.poke(r.base2 + 0x52c9a + o, struct.pack('<h', v))   # whistle now; 105' in R1 waited
-                                                                    # 80 steps in the area / restarts and ran out)
+                        elif ph_last == 2 and W16(777158) == 100:   # held long enough: the ball out of both areas, in
+                            bot = struct.unpack('<I', s.result.obj2(ltp[0], 4))[0] == r.base2 + ltp[1]   # the half the last
+                            for o, v in ((30, 0), (32, 336), (34, 0), (36, 560 if bot else 340), (38, 0), (40, 0)):
+                                s.poke(r.base2 + 0x52c9a + o, struct.pack('<h', v))   # team to play attacks AWAY from:
+                            # the whistle now (UpdateTime's last minute: in the top half with lastTeamPlayed the bottom
+                            # team - or the bottom half with the top team - an attack in progress, the end counter reset
+                            # every frame; I10p 05/11: the centre spot, y 449 = the top half, held 130 dumps with the
+                            # bottom team last on the ball; 105' in R1 waited 80 steps in the area / restarts and ran out)
                         if tag == '45' and ph_last == 1 and not goal.get('k') and len(goal.get('tries', [])) < 6 and \
                                 W16(777158) == 100:     # (only with the ball in play: moved in a restart it hangs the match)
                             goal.setdefault('tries', []).append(1)   # a goal in the added time: the ball past the
@@ -25260,6 +25269,7 @@ def stoppage_time():
                     s.poke(drow, drow0)
                     if goal.get('k'):
                         goal['d1'] = I32(L('ST_DEAD'))
+                    s.log.append(f'[st_seen {tag}] {seen}')   # (every dump's clock / phase / gameStatePl, for a FAIL)
                     return None, seen, None
 
                 def kick(rr, tag):                      # the next half under way: the game's own clock

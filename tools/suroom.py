@@ -10,12 +10,13 @@ wrote into that backup, and on the MiSTer the match's bottom panel came out garb
 Fix: the block ROOM bytes longer and the backup area ROOM bytes further (the allocation's `mov ebx, 60C00h` and the
 backup pointer's `add eax, 60C00h`): the stack's region 69 632 + ROOM B, the rest of the block as it was. Every user
 of the stack goes through the pointer [0x31694] (base+0x4fc00, unchanged). The same bytes in the four exes.
-The block grows from 418 to 434 KB of conventional memory (DOS/4GW's DOS-memory allocation).
+The block grows from 418 to 450 KB of conventional memory (DOS/4GW's DOS-memory allocation).
 """
 import re
 import struct
 
-ROOM = 0x4000                           # +16 KB: the stack's region 86 016 B
+ROOM = 0x8000                           # +32 KB: the stack's region 102 400 B (Regia 05/11: room for the long bench
+                                        # in friendlies + the strip + future boxes, not a 6.5 KB margin)
 OLD = 0x60C00                           # the backup area's offset in the block (= the old block size - 0x5582)
 
 

@@ -4499,7 +4499,7 @@ def squad_numbers():
             s.send('esc dump:1')
             t4 = sq_team(s)[1]
             check(t4 == before, f'ESC: {[t4[i] for i in sq]} != {[before[i] for i in sq]}', errs)
-            check(s.screen().find('PRATICA', exact=True) is not None, f'ESC left the squad screen ({s.screen()})', errs)
+            check(bool(sq_rows(s)), f'ESC left the squad screen ({s.screen()})', errs)   # (its rows: no label, any language)
             s.send('left dump:1')
             h7 = next((i for i in sq if before[i] == 7 and i != k), None)
             s.send('7 dump:2')                         # (single digit: committed by the timer)
@@ -24793,9 +24793,12 @@ def world_kits_always():
     kits; saved, then played from the save to the season end (world8485: its matches, the season end's kit refresh
     careerworld w_kits) - the kits stay (release recipe, SWOSTEST_BUILD)"""
     import careerworld
+    import kitcolors
     import lepatch
     exe = builds()['it']
-    kits = careerworld.sites(lepatch.LEPatch(os.path.join(MAIN, 'orig', 'ITALIAN.EXE')))['cfb'] + 0xDB80 + 0x1A
+    kits = careerworld.sites(lepatch.LEPatch(os.path.join(MAIN, 'orig', UI_ORIG)))['cfb'] + 0xDB80 + 0x1A
+    kt = {k: (UI_MAP.get(v.decode('latin1'), v.decode('latin1'))) for k, v in kitcolors.TEXTS[UI].items()}
+    is_ = lambda t, k: t in (kt[k], kitcolors.TEXTS['it'][k].decode('latin1'))   # (the toggle's label, any language)
     path = ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27', 'EUROPA', 'ITALIA', 'SERIE A', 'ATALANTA']
     errs, info, car = [], [], None
 
@@ -24826,7 +24829,7 @@ def world_kits_always():
             if scr.entries[1][1] != 'ATALANTA':
                 scr = walk(s, 1, 2)
             check(scr.entries[1][1] == 'ATALANTA' and len(scr.entries) > 23 and not scr.entries[23][2]
-                  and scr.entries[23][1] == 'SOLO PARTITA', f'{mode}: SELEZIONA MAGLIE {scr.texts()[:6]} '
+                  and is_(scr.entries[23][1], 'match'), f'{mode}: SELEZIONA MAGLIE {scr.texts()[:6]} '
                   f'entry 23 {scr.entries[23] if len(scr.entries) > 23 else None}', errs)
             opp = walk(s, 1, 2)                         # (the opponent: no toggle)
             check(opp.entries[1][1] != 'ATALANTA' and opp.entries[23][2], f'{mode}: opponent {opp.entries[1][1]!r} '
@@ -24834,7 +24837,7 @@ def world_kits_always():
             scr = walk(s, 1, 2)
             if mode == 'always':
                 scr = walk(s, 23, 2)
-                check(scr.entries[23][1] == 'SEMPRE', f'toggle: {scr.entries[23]}', errs)
+                check(is_(scr.entries[23][1], 'always'), f'toggle: {scr.entries[23]}', errs)
             s.shot('kits_' + mode)
             walk(s, 5, 2)                               # (the first kit's shirt, then the shirt type beside it:
             s.send('right dump:1')                      #  the game's editor - ATALANTA's stripes become plain)
@@ -25099,11 +25102,11 @@ def world_job_squad():
 
 
 def home_market_sites():
-    """obj2 offsets of numHomeMarketPlayers / homeMarketPlayers (AddPlayerToCareerContest) in the original IT exe."""
+    """obj2 offsets of numHomeMarketPlayers / homeMarketPlayers (AddPlayerToCareerContest) in the original exe of SWOSTEST_UI's language (obj2 differs per language)."""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import sacups
     from le import LE
-    d1 = LE(open(os.path.join(ROOT, 'orig', 'ITALIAN.EXE'), 'rb').read()).obj_bytes(1)
+    d1 = LE(open(os.path.join(ROOT, 'orig', UI_ORIG), 'rb').read()).obj_bytes(1)
     a1 = sacups.regs(d1)['A1']
     m = re.search(rb'\x66\x83\x3d(....)\x19\x74.\xc7\x05' + re.escape(struct.pack('<I', a1)) + rb'(....)', d1, re.S)
     return struct.unpack('<I', m.group(1))[0], struct.unpack('<I', m.group(2))[0]
@@ -25162,11 +25165,11 @@ NEW_BALANCE = 0x16cb2            # newBalance (obj2, dd; cseg_580EF's 'mov eax, 
 
 def cpurefill_cl_sites():
     """obj2 offsets of the CPU squads' change list (AddCareerPoolPlayer: numForeignMarketPlayers2, careerForeignMarketPlayers)
-    in the original IT exe, as xleft.sites finds them: {'nfm2', 'cfmp'}."""
+    in the original exe of SWOSTEST_UI's language (obj2 differs per language), as xleft.sites finds them: {'nfm2', 'cfmp'}."""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import sacups
     from le import LE
-    d1 = LE(open(os.path.join(ROOT, 'orig', 'ITALIAN.EXE'), 'rb').read()).obj_bytes(1)
+    d1 = LE(open(os.path.join(ROOT, 'orig', UI_ORIG), 'rb').read()).obj_bytes(1)
     a6 = sacups.regs(d1)['A0'] + 24
     m = [x for x in re.finditer(rb'\x66\x83\x05(....)\x01\x66\x83\x05(....)\x01\xc6\x05....\xff\xc3', d1, re.S)]
     assert len(m) == 1, ('AddCareerPoolPlayer', m)
@@ -25249,7 +25252,7 @@ def xtra_cpu_refill():
     nh, hm = home_market_sites()
     team, rec, blk = cpurefill_club(exe, 'MILAN')
     nm = lambda b: b[3:26].split(b'\0')[0].decode('latin1')
-    t0, t1 = cpurefill.TEXTS['it']
+    t0, t1 = cpurefill.TEXTS[UI]
     path = ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27', 'EUROPA', 'ITALIA', 'SERIE A', 'INTER']
     errs, info = [], []
     b8 = lambda r, a: r.read(r.lin(a), 1)[0]

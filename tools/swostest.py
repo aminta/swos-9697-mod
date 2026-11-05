@@ -16636,7 +16636,8 @@ def world_s1conti():
 def world_s1conti_oldsave():
     """4.0.6 B2 M3 (Davide: old saves built at load): Davide's rc7 season-1 career PHILA.CAR (no 'CE', no 'CT') on a
     release-like build (world_winners_oldsave's recipe) gets season 1's edition at the load (conti.c ct_load1): CT_ED
-    'CE', the season-1 bit, the entries of the build's block, the career club's word (its season end: world_winners_oldsave)"""
+    'CE', the season-1 bit, the entries of the build's block, the career club's word (its season end: world_winners_oldsave);
+    4.0.6 ctcursor: every COPPE CONTINENTALI rounds menu opens on a round (the pick reads no field old saves lack)"""
     car = os.environ.get('WINNERS_OLDSAVE') or os.path.join(MAIN, 'internal', 'davide-mister-20261021', 'PHILA.CAR')
     if not os.path.exists(car):
         return True, f'SKIP: no {car}'
@@ -16662,11 +16663,14 @@ def world_s1conti_oldsave():
         s.wait()
         s.send(LOAD1 + ' dump:3')
         eds.append(bytes(s.result.obj2(tr[1], 2260)))
+        ctc_to_conti(s)                                 # (4.0.6 ctcursor: the rounds menus on the old save's edition
+        g1 = ctc_confs(s, 'old', errs)                  #  built at the load - each on a round, its pick logged)
+        check(g1, 'old save: no rounds menu', errs)
     ed = eds[0]
     ne, mgr = struct.unpack_from('<H', ed, 2)[0], struct.unpack_from('<H', ed, 8)[0]
     check(ed[:2] == b'CE' and ed[11] & 3 == 3 and ne > 100,   # (built at the load: the 4.0.6 goals model too)
           f'old save: no season-1 edition at the load (CT_ED {ed[:12].hex()})', errs)
-    return not errs, '; '.join(errs) or f'CT_ED {ed[:12].hex()}: {ne} entries, club {mgr:#x}'
+    return not errs, '; '.join(errs) or f'CT_ED {ed[:12].hex()}: {ne} entries, club {mgr:#x}; cursor {g1}'
 
 
 @scenario
@@ -16787,6 +16791,10 @@ def world_cgame_view():
             check(len(bot) == 2 and abs(bot[0][0] - (320 - bot[1][0] - bot[1][2])) <= 1,
                   f'{conf}: RIEPILOGO / ESCI not centred: {bot}', errs)
             s.log.append(f'[cgv] {conf} rounds menu margins {lm} / {rm}, bottom pair {bot}')
+            rb = [i for i, t, inv, dis in sc.entries[1:1 + ctview.CR_N] if not inv and t]   # (4.0.6 ctcursor: the
+            check(sc.selected in rb, f'{conf}: rounds menu opens on entry {sc.selected}, not a round {rb}', errs)   # current round)
+            far = menu_unreach(sc, rb + [ctview.CR_N + 1, ctview.CR_N + 2])   # (every button within the keys' reach)
+            check(not far, f'{conf}: rounds menu entries {far} out of the keys\' reach from {sc.selected}', errs)
             opened = []
             s.log.append(f'[cgv] {conf} rounds menu: {btns} nav {sc.nav[1:4]} {sc.nav[ctview.CR_N + 1:ctview.CR_N + 3]}')
             for j, (i, label) in enumerate(btns):
@@ -16856,6 +16864,11 @@ def world_cgame_view():
             if s.screen().find(summ, exact=True) is None:
                 info.append(f'{conf}: no rounds')
                 walk(s, 16, 3)
+                for _ in range(3 if pp else 0):         # (SWOS++'s timer keys: the page's ESCI taken late or the
+                    sc_ = s.screen()                    #  fire twice - the page again: ESCI till the confederations)
+                    if (sc_.raw_texts or [sc_.entries[0][1]])[0] == ctview.TEXTS[UI][6].decode('latin1'):
+                        break
+                    press(s, sc_, 'ESCI', 3) or s.send('fire dump:2')
                 continue
             opened = rounds(f'cgv_{k}', conf)
             info.append(f'{conf}: {len(opened)} rounds {opened[:3]}')
@@ -16970,8 +16983,9 @@ def world_cgame_fallback():
     menu with its links, CT_SEG / CT_ED unchanged; the guard poked back -> the first round is the game's screen again.
     (The other reasons - E_GUEST a club in no team file, E_NOREC no goals kept, E_CACHE, E_KIND - are Tier B
     test_cg_fallback's: cg_view 0 is the one path to the page.) Then season 1 of a new career (CGF_TEAM, default
-    EUROPA,ITALIA,SERIE A,ROMA: no edition yet - no 'CE'): every confederation's COPPE CONTINENTALI button the page at
-    once (no rounds menu), VIEW WORLD's SUDAMERICA cups the page, no view opened."""
+    EUROPA,ITALIA,SERIE A,ROMA): every confederation's COPPE CONTINENTALI button the page, or - 4.0.6 B2 (dacabf7):
+    season 1's drawn main rounds - its rounds menu, every button within the keys' reach; VIEW WORLD's SUDAMERICA cup
+    its page or rounds menu (title = the cup), no view opened."""
     exe = os.environ.get('CV_BUILD')
     if not exe:
         return True, 'SKIP: CV_BUILD not set (world_cgame_view\'s build)'
@@ -17065,14 +17079,21 @@ def world_cgame_fallback():
         g0 = G(s)
         walk(s, s.screen().find('VISUAL. COMPETIZ.', exact=True), 3)
         walk(s, s.screen().find('COPPE CONTINENTALI', exact=True), 3)
-        pages = 0
+        pages = menus = 0
         for k in range(1, 7):
             c = s.screen().entries[k][1]
             walk(s, k, 3)
             v = s.screen()
             s.shot(f'cgf_s1_{k}')
             s.log.append(f'[cgf] season 1 {c}: {v.texts()[:10]}')
-            check(v.find(summ, exact=True) is None and v.texts(), f'season 1 {c}: a rounds menu ({v.texts()[:6]})', errs)
+            if v.find(summ, exact=True) is not None:   # (4.0.6 B2, dacabf7: season 1's drawn main rounds in the
+                rb = [i for i, t, inv, dis in v.entries[1:1 + ctview.CR_N] if not inv and t]   # rounds menu from
+                far = menu_unreach(v, rb + [ctview.CR_N + 1, ctview.CR_N + 2])                  # the start)
+                check(rb and not far, f'season 1 {c}: rounds menu {rb}, out of reach {far}', errs)
+                menus += 1
+                walk(s, ctview.CR_N + 2, 3)
+                continue
+            check(v.texts(), f'season 1 {c}: an empty screen', errs)
             q = [t for t in v.texts() if '?' in t]      # (an unknown name: the list read past the round's places)
             check(not q, f'season 1 {c}: unknown names {q[:3]}', errs)
             pages += 1
@@ -17089,11 +17110,10 @@ def world_cgame_fallback():
             v = s.screen()
             s.shot('cgf_s1_world')
             title = (v.raw_texts or [v.entries[0][1]])[0]
-            check(v.find(summ, exact=True) is None and cups[0] in title,
-                  f'season 1 {cups[0]}: not its page ({v.texts()[:6]})', errs)
+            check(cups[0] in title, f'season 1 {cups[0]}: not its page / rounds menu ({v.texts()[:6]})', errs)
         g1 = G(s)
         check(g1[3] == g0[3] and not g1[5], f'season 1: views opened {g0[3]} -> {g1[3]}, bad {g1[5]}', errs)
-        info.append(f'season 1: {pages} confederation pages + {cups[:1]} from VIEW WORLD, no view')
+        info.append(f'season 1: {pages} confederation pages, {menus} rounds menus + {cups[:1]} from VIEW WORLD, no view')
     return not errs, '; '.join(errs[:10]) or '; '.join(info)
 
 
@@ -17121,6 +17141,188 @@ def world_cgame_swospp():
     SLOW_FIRE = 3
     try:
         ok, msg = world_cgame_view()
+    finally:
+        SLOW_FIRE = 0
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    return ok, f'SWOS++: {msg}'
+
+
+def menu_unreach(sc, ents):
+    """The entries of ents (visible ones) the cursor cannot reach from the selected one through the menu's
+    left/right/up/down links (Screen.path: the keys a player has) - a menu where a button is out of reach."""
+    return [i for i in ents if i != sc.selected and sc.path(i) is None]
+
+
+def ctc_confs(s, part, errs):
+    """4.0.6 ctcursor: COPPE CONTINENTALI on screen -> each confederation's rounds menu: {conf: (its selected entry,
+    the visible round buttons)}, a shot ctc_<part>_<k>; the cursor on a round asserted; ESCI back each time."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import ctview
+    summ, got = ctview.TEXTS[UI][7].decode('latin1'), {}
+    for k in range(1, 7):
+        conf = s.screen().entries[k][1]
+        walk(s, k, 3)
+        sc = s.screen()
+        if sc.find(summ, exact=True) is None:           # (no round drawn: the summary page only)
+            walk(s, 16, 3)
+            continue
+        rb = [i for i, t, inv, dis in sc.entries[1:1 + ctview.CR_N] if not inv and t]
+        s.shot(f'ctc_{part}_{k}')
+        got[conf] = (sc.selected, rb)
+        s.log.append(f'[ctc] {part} {conf}: selected {sc.selected} rounds {[(i, sc.entries[i][1]) for i in rb]}')
+        check(sc.selected in rb, f'{part} {conf}: opens on entry {sc.selected}, not a round {rb}', errs)
+        far = menu_unreach(sc, rb + [ctview.CR_N + 1, ctview.CR_N + 2])
+        check(not far, f'{part} {conf}: entries {far} out of the keys\' reach from {sc.selected}', errs)
+        walk(s, ctview.CR_N + 2, 3)                     # (ESCI -> the confederations)
+    return got
+
+
+def ctc_to_conti(s):
+    """The career menu (after a load / a new career's first screens) -> VISUAL. COMPETIZ. -> COPPE CONTINENTALI."""
+    for _ in range(6):
+        if s.screen().find('VISUAL. COMPETIZ.', exact=True) is not None:
+            break
+        press(s, s.screen(), 'CONTINUA', 3) or s.send('fire dump:2')
+    walk(s, s.screen().find('VISUAL. COMPETIZ.', exact=True), 3)
+    walk(s, s.screen().find('COPPE CONTINENTALI', exact=True), 3)
+
+
+def ctc_back(s):
+    """The confederations' ESCI, then VISUAL. COMPETIZ.'s list: back where COPPE CONTINENTALI is."""
+    for _ in range(5):
+        if s.screen().find('VISUAL. COMPETIZ.', exact=True) is not None:
+            return
+        press(s, s.screen(), 'ESCI', 3) or s.send('fire dump:2')
+
+
+@scenario
+def world_ctcursor():
+    """4.0.6 ctcursor (Davide GO 05/11, variant a): COPPE CONTINENTALI's rounds menu opens on the CURRENT round - the
+    first one not played yet (drawn, its month over: the summary page's rule), all played (after the final) the last -
+    never on RIEPILOGO / ESCI. Season 1 (a new World 2026-27 career, INTER, before any match): every confederation's
+    menu on its first round. Season 2 (world_contiview's save, CV_S2): on a round; then the calendar entry's week
+    forced to FF (every round's month over; restored, nothing saved): on the last round; the forced pick >= the
+    plain one. VIEW WORLD's cup buttons (the other way in, cw_after) the same. Shots ctc_<part>_<k>. (CV_BUILD /
+    W2627REL_DATA as world_cgame_view)"""
+    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    if not os.path.isdir(src) and not os.environ.get('CV_BUILD'):
+        return True, f'SKIP: private data {src} missing'
+    exe = os.environ.get('CV_BUILD')
+    if not exe:
+        order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+        exe = build('world_contiview', env={'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x)
+                                                                                          for x in order])}, lang=UI)
+    s2 = os.environ.get('CV_S2') or os.path.join(RUNS, f'cv_s2_{UI}.CAR')
+    if not os.path.exists(s2):
+        return False, f'no season-2 save {s2} (run world_contiview first)'
+    tr = cv_trace(exe)
+    if not tr:
+        return False, 'no CVTRPTR block (ctview not in the build)'
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import ctview
+    summ = ctview.TEXTS[UI][7].decode('latin1')
+    errs, info = [], []
+    pp = os.environ.get('CGV_SWOSPP')                   # (world_ctcursor_swospp: SWOS++'s loader files, timer keys -
+    extra = {'LOADER.BIN': os.path.join(pp, 'loader.bin'), 'SWOSPP.BIN': os.path.join(pp, 'swospp.bin')} if pp else {}
+    if not pp:                                          #  the season-2 save part only, loaded by name)
+        with Session('world_ctcursor_s1', exe, {}, 'dump:2', 300) as s:
+            s.wait()
+            if not pick_career(s, ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27', 'EUROPA', 'ITALIA',
+                                   'SERIE A', 'INTER']):
+                return False, 'season 1: career not reached'
+            s.send('fire dump:3')
+            ctc_to_conti(s)
+            g1 = ctc_confs(s, 's1', errs)
+            check(g1, 'season 1: no rounds menu', errs)
+            for conf, (sel, rb) in g1.items():
+                check(sel == min(rb), f'season 1 {conf}: on entry {sel}, not its first round {min(rb)}', errs)
+            info.append(f's1 {g1}')
+    with Session('world_ctcursor_s2', exe, {'W84A.CAR': s2, **extra}, 'dump:4' if pp else 'dump:2', 600,
+                 timer=bool(pp)) as s:
+        s.wait()
+        if pp:
+            on, why = swospp_on(s.result, os.path.join(exe, 'ITALIAN.EXE'))
+            check(on, f'SWOS++ not running: {why}', errs)
+            walk(s, 'CARICA VECCHIA COMPETIZIONE', 3)   # (as world_cgame_view: the list on ABBANDONA, the load
+            walk(s, 'W84A', 3)                          #  ends on the day's table - its ESCI, the chairman's note)
+            s.send('dump:3')
+            for _ in range(6):
+                if s.screen().find('VISUAL. COMPETIZ.', exact=True) is not None:
+                    break
+                if s.screen().find('- PARTITA -', exact=True) is not None:
+                    walk(s, 'ESCI', 3)
+                    continue
+                press(s, s.screen(), 'CONTINUA', 3) or s.send('fire dump:2')
+        else:
+            s.send(LOAD1 + ' dump:3')
+        ctc_to_conti(s)
+        g2 = ctc_confs(s, 's2', errs)
+        check(g2, 'season 2: no rounds menu', errs)
+        ctc_back(s)
+        cur = struct.unpack('<H', bytes(s.result.obj2(tr[4], 2)))[0]
+        wk = (2, tr[3] + cur + 1)                       # (cv_week: the current calendar entry's week byte)
+        w0 = bytes(s.result.read(s.result.lin(wk), 1))
+        s.poke(s.result.lin(wk), b'\xff')
+        s.send('dump:1')
+        walk(s, s.screen().find('COPPE CONTINENTALI', exact=True), 3)
+        gf = ctc_confs(s, 'end', errs)
+        for conf, (sel, rb) in gf.items():
+            check(sel == max(rb), f'week FF {conf}: on entry {sel}, not its last round {max(rb)}', errs)
+            if conf in g2:
+                check(sel >= g2[conf][0], f'week FF {conf}: entry {sel} before the season-2 week\'s {g2[conf][0]}', errs)
+        ctc_back(s)
+        for _ in range(4):                              # (VIEW WORLD's way in, week FF: SUDAMERICA's first cup)
+            if s.screen().find('VISUALIZZA MONDO', exact=True) is not None:
+                break
+            press(s, s.screen(), 'ESCI', 3) or s.send('fire dump:2')
+        walk(s, 'VISUALIZZA MONDO', 3)
+        gwalk(s, 'SUDAMERICA', 3)
+        sc = s.screen()
+        cup = next((t for i, t, inv, _ in sc.entries if 1 <= i <= 20 and t and not inv), None)
+        if cup is None:
+            check(False, 'SUDAMERICA: no cup button', errs)
+        else:
+            gwalk(s, cup, 4)
+            sc = s.screen()
+            rb = [i for i, t, inv, dis in sc.entries[1:1 + ctview.CR_N] if not inv and t]
+            s.shot('ctc_world_cup')
+            s.log.append(f'[ctc] VIEW WORLD {cup}: selected {sc.selected} rounds {rb}')
+            check(sc.find(summ, exact=True) is not None and rb and sc.selected == max(rb),
+                  f'VIEW WORLD {cup} (week FF): on entry {sc.selected}, not its last round {rb}', errs)
+            info.append(f'VIEW WORLD {cup}: {sc.selected} of {rb}')
+        s.poke(s.result.lin(wk), w0)
+        info.append(f's2 {g2}; week FF {gf}')
+    return not errs, '; '.join(errs) or '; '.join(info)
+
+
+@scenario
+def world_ctcursor_swospp():
+    """4.0.6 ctcursor under SWOS++ 1.9.2.2 (English only; CV_BUILD = the English release exe, CV_S2 its season-2 save -
+    world_contiview EN's): world_ctcursor's season-2 part (the menus opened, the cursor read, the week poked to FF) with
+    SWOS++ installed, keys from the timer (SLOW_FIRE 3 s); season 1's new career skipped (SWOS++'s main menu). A late
+    timer key is a harness limit (world_cgame_swospp), not the menu."""
+    if UI != 'en':
+        return True, 'SKIP: SWOS++ is English only (SWOSTEST_UI=en)'
+    exe = os.environ.get('CV_BUILD')
+    if not exe:
+        return True, 'SKIP: CV_BUILD not set (the English release exe)'
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import swospp
+    pp = os.path.join(MAIN, 'internal', 'swospp-test')
+    out = os.path.join(WORK, 'builds-x', 'world_ctcursor_swospp')
+    shutil.rmtree(out, ignore_errors=True)
+    shutil.copytree(exe, out)
+    swospp.install(os.path.join(exe, 'ITALIAN.EXE'), os.path.join(out, 'ITALIAN.EXE'))
+    keep = {k: os.environ.get(k) for k in ('CV_BUILD', 'CGV_SWOSPP')}
+    os.environ.update(CV_BUILD=out, CGV_SWOSPP=pp)
+    global SLOW_FIRE
+    SLOW_FIRE = 3
+    try:
+        ok, msg = world_ctcursor()
     finally:
         SLOW_FIRE = 0
         for k, v in keep.items():

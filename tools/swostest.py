@@ -26467,6 +26467,119 @@ def xleft_job():
 
 
 @scenario
+def xtra_gk_clone():
+    """4.0.6 (Jacopo on 4.0.5, TRIESTINA: "a clone of my goalkeeper", the game crashed when he sold it): a World 2026-27
+    career at XGK_CLUB (TRIESTINA, Serie D girone C) on SWOSTEST_BUILD; the home market poked with XGK_SELLER's XTRA
+    goalkeeper (SANDONA, XTRA index XGK_IDX 16), bought; his name counted in the squad and in a save (every 38-byte
+    record's name field: one copy = no clone), the save reloaded and the squad read again."""
+    import lepatch
+    import xtra
+    exe = os.environ.get('SWOSTEST_BUILD') or builds()['it']
+    me = os.environ.get('XGK_CLUB', 'TRIESTINA')
+    seller = os.environ.get('XGK_SELLER', 'SANDONA')
+    bidx = int(os.environ.get('XGK_IDX', 16))
+    blk = xtra_club_block(exe, seller)
+    if not blk:
+        return False, f'no XTRA block: {seller}'
+    word, extras = blk
+    gk = extras[bidx - 16]
+    p = lepatch.LEPatch(os.path.join(exe, 'ITALIAN.EXE'))
+    _, cnp, ct, cmp, sel = xtra.sites(p)
+    nh, hm = home_market_sites()
+    path = ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27', 'EUROPA', 'ITALIA',
+            os.environ.get('XGK_DIV', 'SERIE D GIRONE C'), me]
+    errs, info = [], []
+    names = lambda r: [r.obj2(ct + 76 + j * 38 + 3, 23).split(b'\0')[0].decode('latin1') for j in range(32)]
+    key = gk.encode('latin1')
+
+    def in_file(car):
+        d = open(car, 'rb').read()
+        return [k for k in range(len(d)) if d.startswith(key, k) and d[k + len(key)] == 0 and d[k - 1] < 100]
+
+    with Session('xtra_gk_clone', exe, {}, 'dump:2', 600) as s:
+        s.wait()
+        if not pick_career(s, path):
+            return False, 'new career: ' + str(s.screen().texts()[:8])
+        s.send('fire dump:3')
+        for _ in range(8):
+            if 'PROSS. PARTITA' in s.screen().texts():
+                break
+            press(s, s.screen(), 'CONTINUA', 3) or press(s, s.screen(), 'ESCI', 3) or s.send('fire dump:2')
+        r = s.result
+        s.poke(r.base2 + hm, struct.pack('<HBB', word, bidx, 0))
+        s.poke(r.base2 + nh, struct.pack('<H', 1))
+        n0 = struct.unpack('<H', s.result.obj2(cnp, 2))[0]
+        ans = xtra_buy_first(s)
+        r = s.result
+        n1, nm1 = struct.unpack('<H', r.obj2(cnp, 2))[0], names(r)
+        info.append(f'bought {gk} ({seller} {bidx}): squad {n0} -> {n1}, copies in the squad {nm1[:n1].count(gk)}')
+        if gk not in nm1[:n1]:
+            return False, f'purchase of {gk} failed: squad {n0} -> {n1}, answer {ans[:6]}'
+        check(nm1[:n1].count(gk) == 1, f'CLONE in the squad: {gk} x {nm1[:n1].count(gk)} {nm1[:n1]}', errs)
+        s.shot('squad_after_buy')
+        for _ in range(6):
+            if s.screen().find('SALVA CARRIERA', exact=True) is not None:
+                break
+            press(s, s.screen(), 'ESCI', 3) or press(s, s.screen(), 'ABBANDONA', 3)
+        walk(s, 'SALVA CARRIERA', 2)
+        s.send(name_entry('XGK1') + ' dump:3')
+        car = os.path.join(s.run, 'SWOS', 'XGK1.CAR')
+        if not os.path.exists(car):
+            return False, '; '.join(errs + info + ['no XGK1.CAR'])
+        at = in_file(car)
+        info.append(f'XGK1.CAR: {gk} at {[hex(k) for k in at]}')
+        check(len(at) == 1, f'CLONE in the save: {gk} x {len(at)} at {[hex(k) for k in at]}', errs)
+        if 'TRASFERIMENTI' not in ns_load(s, 'XGK1'):
+            return False, '; '.join(errs + info + [f'XGK1 not loaded: {s.screen()}'])
+        r = s.result
+        n2, nm2 = struct.unpack('<H', r.obj2(cnp, 2))[0], names(r)
+        info.append(f'reloaded: squad {n2}, copies {nm2[:n2].count(gk)}')
+        check(nm2[:n2].count(gk) == 1, f'CLONE after the reload: {gk} x {nm2[:n2].count(gk)}', errs)
+    if not os.environ.get('XGK_SEASON'):
+        return not errs, '; '.join(errs + info)
+    seen = {}                                           # XGK_SEASON=1: the season played on from XGK1 (world8485),
+                                                        # the squad read at every step: the first step with 2 copies
+    def hook(s, season, scr):
+        r = s.result
+        n = struct.unpack('<H', r.obj2(cnp, 2))[0]
+        if not 0 < n <= 32:
+            return
+        c = names(r)[:n].count(gk)
+        seen['steps'] = seen.get('steps', 0) + 1
+        seen['max'] = max(seen.get('max', 0), c)
+        if c != 1 and 'first' not in seen:
+            seen['first'] = (seen['steps'], c, scr.texts()[:6])
+            s.shot('clone_first')
+
+    global W84_HOOK
+    keys = ('W8485_BUILD', 'W8485_FROM', 'W8485_NOSACK', 'W8485_SAVE_END', 'SWOSTEST_SCENARIO')
+    keep = {k: os.environ.get(k) for k in keys}
+    W84_HOOK = hook
+    try:
+        os.environ.update(W8485_BUILD=exe, W8485_FROM=car, W8485_NOSACK='1', W8485_SAVE_END='XGKE',
+                          SWOSTEST_SCENARIO='xtra_gk_clone_season')
+        ok, msg = world8485()
+    finally:
+        W84_HOOK = None
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    info.append(f'season: {"OK" if ok else "FAIL"} {msg[:160]}; squad copies max {seen.get("max")} over '
+                f'{seen.get("steps")} steps, first other count {seen.get("first")}')
+    check(ok, f'season from XGK1: {msg[:300]}', errs)
+    check(seen.get('max') == 1 and 'first' not in seen, f'CLONE during the season: {seen}', errs)
+    if 'saved ' in msg:
+        end = msg.split('saved ', 1)[1].strip().split()[0].rstrip(';,')
+        if os.path.exists(end):
+            at = in_file(end)
+            info.append(f'season end save: {gk} x {len(at)}')
+            check(len(at) == 1, f'CLONE in the season end save: {gk} x {len(at)} at {[hex(k) for k in at]}', errs)
+    return not errs, '; '.join(errs + info)
+
+
+@scenario
 def xleft_oldsave():
     """4.0.6: Enzo's own 4.0.5 save (internal/reports/enzo-dup-20261102/ENZO.CAR, COMO, a copy) on this build: it loads
     (no 'XL' in it: the list empty), the squad is the saved one (27 players, LAHDO in it: no repair after a load,

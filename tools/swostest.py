@@ -2688,6 +2688,25 @@ def nosack_off(exe):
     return hits[0]
 
 
+
+def renew_site(exe):
+    """(4.0.6 FAIL #28) the season end's contract renewal (cseg_2E3B0): with the contract ending and the board's
+    season verdict dseg_D6E04 >= 2 (0 good .. 4 bad, from the competitions' results), a random draw under 32 / 85 /
+    170 of 256 shows the chairman's message 38 ('... non rinnovarvi il contratto') and ends the career at the club:
+    `cmp [rand], ax / ja keep / mov word [currentMessage], 38`. Returns (obj1 offset of that ja, obj2 offset of
+    dseg_D6E04) - W8485_RENEW pokes the ja to jmp (always renewed: a code poke, no game data touched)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    from le import LE
+    le = LE(open(exe, 'rb').read())
+    d = le.obj_bytes(1)
+    m = [x for x in re.finditer(rb'\x66\x83\x3d(....)\x02\x74.\x66\xc7\x05....\x55\x00.{10}\x66\xc7\x05....\xaa\x00'
+                                rb'\x66\xa1....\x66\x39\x05....\x77.\x66\xc7\x05....\x26\x00', d, re.S)]
+    assert len(m) == 1, len(m)
+    ja = m[0].end() - 11
+    assert d[ja] == 0x77, d[ja:ja + 2].hex()
+    return ja, struct.unpack('<I', m[0].group(1))[0]
+
+
 def checkw1(path):
     """internal/career-test/checkw1.py on a world save (DATA next to it); returns (ok, its output)."""
     r = subprocess.run([sys.executable, os.path.join(MAIN, 'internal', 'career-test', 'checkw1.py'), path],
@@ -3516,6 +3535,8 @@ def world8485():
             seen, errs = {}, []
             nosack, poked = (nosack_off(os.path.join(exe, 'ITALIAN.EXE')) if os.environ.get('W8485_NOSACK') == '1'
                              else None), set()
+            renew, renew_done = (renew_site(os.path.join(exe, 'ITALIAN.EXE')) if os.environ.get('W8485_RENEW') == '1'
+                                 else None), []
 
             def hexlog():                              # W8485_HEX: obj2 offset:bytes (o1/ prefix: obj1, o3/: obj3),
                 for a in filter(None, os.environ.get('W8485_HEX', '').split(',')):   # logged when they change
@@ -3546,6 +3567,9 @@ def world8485():
                     h = hashlib.md5(f"{os.environ['W8485_RNGSTEP']}:{season}:{s.rng_n}".encode()).digest()
                     for at, part in zip(rs, (h[:3], h[3:6])):   # no renewal, MODICA on f1dd98f / gs3 / gsOFF)
                         s.poke(s.result.base2 + at, part)
+                if renew is not None and not renew_done:   # W8485_RENEW: the contract always renewed (the ja -> jmp,
+                    s.poke(s.result.base1 + renew[0], b'\xeb')    #  code: once a session; test runs only)
+                    renew_done.append(1)
                 if nosack is not None and season not in poked:   # W8485_NOSACK: the game's 'no sacking' word
                     s.poke(s.result.base2 + nosack, b'\x01\x00')   # (dseg_D6B62, cleared at every season start)
                     poked.add(season)
@@ -23317,7 +23341,9 @@ def world_kitfix():
     """4.0.5 the career club's kits after a data update (kitfix.py, careerworld w_kits at the season end): Francesco's
     ISCHIA save (KITFIX_CAR, a 4.0 kit 0 6 6 1 6 / 0 1 1 6 1 in its careerTeam) played on from its load to the season
     end on SWOSTEST_BUILD (release recipe, data world5tm-403c4: 3 5 9 5 5 / 0 1 1 1 1): careerTeam takes the current
-    kits; the same save with the home kit edited by hand (as SELECT KITS would) keeps it"""
+    kits; the same save with the home kit edited by hand (as SELECT KITS would) keeps it. The contract renewal forced
+    (W8485_RENEW, 4.0.6 FAIL #28: the board's verdict 2+ dropped the manager before the season-end list); the club
+    lost anyway = a FAIL 'harness lost the club'"""
     import careerworld
     import lepatch
     car = os.environ.get('KITFIX_CAR') or os.path.join(MAIN, 'internal', 'reports', 'ischia', 'ISCHIA_francesco_20261028.CAR')
@@ -23338,16 +23364,25 @@ def world_kitfix():
     os.makedirs(RUNS, exist_ok=True)
     open(ed, 'wb').write(edited)
     errs, info = [], []
-    keys = ('W8485_BUILD', 'W8485_FROM', 'W8485_NOSACK', 'W8485_HEX', 'SWOSTEST_SCENARIO')
+    keys = ('W8485_BUILD', 'W8485_FROM', 'W8485_NOSACK', 'W8485_RENEW', 'W8485_HEX', 'SWOSTEST_SCENARIO')
     keep = {k: os.environ.get(k) for k in keys}
+    club = kits - 0x1A                                  # (careerTeam's file + ordinal: ISCHIA 66e7)
+    board = renew_site(os.path.join(exe, 'ITALIAN.EXE'))[1]
     try:
         for tag, src, expect in (('as_saved', car, want), ('edited', ed, bytes(edited[56192 + 0x1A:56192 + 0x1A + 10]))):
-            os.environ.update(W8485_BUILD=exe, W8485_FROM=src, W8485_NOSACK='1', W8485_HEX=f'{kits:x}:10',
-                              SWOSTEST_SCENARIO=f'world_kitfix_{tag}')   # (a run dir per case)
+            os.environ.update(W8485_BUILD=exe, W8485_FROM=src, W8485_NOSACK='1', W8485_RENEW='1',   # (I10p FAIL #28:
+                              W8485_HEX=f'{kits:x}:10,{club:x}:2,{board:x}:2',  # the board's verdict 2+ and the draw
+                              SWOSTEST_SCENARIO=f'world_kitfix_{tag}')   # gave no renewal: the club lost, kitfix unseen)
             ok, msg = world8485()
-            dumps = [bytes.fromhex(ln.split()[2]) for ln in open(os.path.join(RUNS, w84_tag() + '_2', 'session.log'),
-                                                                     errors='replace')
-                     if ln.startswith('HEX ') and len(ln.split()) == 3 and int(ln.split()[1], 16) == kits]
+            hexes = [ln.split()[1:] for ln in open(os.path.join(RUNS, w84_tag() + '_2', 'session.log'), errors='replace')
+                     if ln.startswith('HEX ') and len(ln.split()) == 3]
+            dumps = [bytes.fromhex(v) for o, v in hexes if int(o, 16) == kits]
+            clubs = [v for o, v in hexes if int(o, 16) == club]
+            info.append(f'{tag}: board verdicts {[int.from_bytes(bytes.fromhex(v), "little") for o, v in hexes if int(o, 16) == board]}')
+            if clubs and clubs[-1] != d[56192:56194].hex():
+                errs.append(f'{tag}: harness lost the club - careerTeam {clubs[0]} -> {clubs[-1]} at the season end '
+                            f'(W8485_RENEW / NOSACK did not hold), kitfix not tested')
+                continue
             check('season 2:' in msg and 'steps' in msg, f'{tag}: {msg[:200]}', errs)   # (to the season end; the
             if not ok:                                  # save's own world checks - checkw1 on a save of older data -
                 info.append(f'{tag}: {msg[-60:]}')      # are not this scenario's)

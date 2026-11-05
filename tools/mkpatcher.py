@@ -178,7 +178,8 @@ def world_entries(data_dir=None):
     with contextlib.redirect_stdout(io.StringIO()):          # (the packs' build logs)
         import guests                                        # (4.0: the off-file pools RS<w><file>.DAT and the
         names = sorted(set(mkseason.ns_team_files()) | set(mkseason.xtra_files()) | set(mkseason.world_files())
-                       | set(mkseason.rs_files()) | set(guests.team_files()))   # continental cups' guest files)
+                       | set(mkseason.rs_files()) | set(guests.team_files())    # continental cups' guest files)
+                       | set(mkseason.nat_today_names()))             # (4.0.6: today's national team names)
         import fmtgame                                       # the FORMAT page's texts (fmtpage.py), per world
         names = sorted(set(names) | set(fmtgame.file_names([e if os.sep in e else os.path.join(mkseason.PACKS, e)
                                                             for e in mkseason.ENABLED])))

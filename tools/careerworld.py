@@ -105,7 +105,14 @@ WORLD_NATS = ('MNE KOS AND GIB KAZ KGZ BLZ HAI CUW ARU DOM CUB PUR GRN GLP MTQ G
                                                  # (FIFA codes; the same in every exe, as the game's own 153)
 MENU_NATS = [153, 154, 155, 37]                      # added to the career menu's nationalities (Davide: the coach can be
                                                      # East/West German, Soviet, Yugoslav; YUG existed, not offered)
-NAT_GONE = {37}                                      # 4.0.3: the game's codes of no nation today (YUG; TCH 6 = Czechia)
+NAT_GONE = set()                                     # 4.0.3: the game's codes of no nation today (4.0.6: none - YUG is
+                                                     # SRB in today's worlds, NAT_TODAY)
+NAT_TODAY = {37: 'SRB', 6: 'CZE', 47: 'MKD', 86: 'COD', 101: 'SWZ'}   # 4.0.6 (Davide 05/11): a 1996-97 code whose nation
+                                                     # changed name, shown as today's FIFA code in the worlds from
+                                                     # 2019 on (WNMOD); the historic ones keep the exe's own letters
+NAT_TEAM_TODAY = {'YUGOSLAVIA': 'SERBIA', 'MACEDONIA': 'NORTH MACEDONIA', 'SWAZILAND': 'ESWATINI',   # 4.0.6: the
+                  'CZECH REPUBLIC': 'CZECHIA'}       # same worlds' national teams (the game's TEAM.080..085, renamed
+                                                     # copies in the world's namespace: mkseason.nat_today_files)
 
 
 def nat_order27(game63, ncodes):
@@ -1005,14 +1012,18 @@ nat_init:                               ; 4.0.3: replaces `mov dword [A0], natio
     pushad                              ; (D0 = plNationality): CAREER 2026-27 (mainbtn's mb_flag) gets today's nations,
     mov esi, NATORD                     ; CAREER the era list (+ GDR / URS / FRG / YUG); ChangeNationality wraps at the
     mov ecx, N_ERA                      ; list's length; a coach nationality not in the list becomes ENG (the search
-    mov eax, [NATFLAG]                  ; has no end check)
+    xor edx, edx                        ; has no end check); 4.0.6: the names as the list's (nat_names)
+    mov eax, [NATFLAG]
     test eax, eax
     jz .set
     cmp byte [eax], 0
     je .set
     mov esi, NATORD27
     mov ecx, N_27
+    inc edx
 .set:
+    mov eax, edx
+    call nat_names
     mov [NATPTR], esi
     mov [NATWRAP_INC], cl
     dec cl
@@ -1027,6 +1038,26 @@ nat_init:                               ; 4.0.3: replaces `mov dword [A0], natio
 .ok:
     mov [A0R], esi
     popad
+    ret
+
+nat_names:                              ; 4.0.6: al = 1 today's letters (NAT_TODAY), 0 the exe's own, for NATSW's codes
+    pushad                              ; in NATSHORT (the one 3-letter table: squads, market, coach list)
+    mov esi, NATSW
+.l: movzx ebx, byte [esi]
+    cmp bl, 0FFh
+    je .x
+    lea edi, [ebx + ebx * 2 + NATSHORT]
+    lea edx, [esi + 1]
+    test al, al
+    jz .c
+    add edx, 3
+.c: mov cx, [edx]
+    mov [edi], cx
+    mov cl, [edx + 2]
+    mov [edi + 2], cl
+    add esi, 7
+    jmp .l
+.x: popad
     ret
 
 w_tcache:                               ; replaces `mov al, [lastLoadedExtNumber]` (cache test): a cached 80..85 is
@@ -1299,10 +1330,15 @@ w_ns_set:                               ; al = world (0 = the base world): its n
     jnz .w
     mov al, NSBASE
 .w:
+    push eax
+    movzx eax, byte [WNMOD + eax]       ; (4.0.6: the nations' names as this world's - every call, also after a
+    call nat_names                      ; career menu's list)
+    pop eax
     cmp al, [WCUR]
     je .r
     mov [WCUR], al
     mov word [TEAMSLOADED], 0           ; teamFileBuffer may hold the other world's file of the same number
+    mov byte [WTPHYS], 0FFh             ; (4.0.6: also a national 80..85 - TMW5.080 is not TEAM.080: w_tcache reloads)
     mov edx, [NSXP]                     ; xtra.py's XTRA_NAMEP (0: no XTRA hook in this build; bound by ns_xtra)
     test edx, edx
     jz .nx
@@ -1965,6 +2001,9 @@ def patch(p, worlds, at, nasmcave, comp, ct, cont_rec):
     assert all(len(x) == 3 for x in nn)
     short = bytes(p.get(2, s['short'], s['short_len'])) + ''.join(nn).encode()
     extra.append('NATSHORT: db ' + ', '.join(map(str, short + b'\0')))
+    sw = b''.join(bytes((c,)) + short[3 * c:3 * c + 3] + t.encode() for c, t in sorted(NAT_TODAY.items()))
+    assert all(len(t) == 3 for t in NAT_TODAY.values()) and max(NAT_TODAY) < len(short) // 3
+    extra.append('NATSW: db ' + ', '.join(map(str, sw + b'\xff')))
     order = bytes(p.get(2, s['natord'], 63))
     assert not set(MENU_NATS) & set(order) and max(MENU_NATS) < len(short) // 3
     order += bytes(MENU_NATS) + b'\xff'
@@ -2033,6 +2072,10 @@ def patch(p, worlds, at, nasmcave, comp, ct, cont_rec):
             for f in ns['files'][w['n']]:
                 bits[32 * w['n'] + f // 8] |= 1 << f % 8
         extra.append('WNSB: db ' + ', '.join(map(str, bits)))
+        mod = [0] * (maxw + 1)                   # 4.0.6: per world 1 = today's nation names (NAT_TODAY): from 2019 on
+        for w in worlds:
+            mod[w['n']] = 1 if w['year'] >= 2019 else 0
+        extra.append('WNMOD: db ' + ', '.join(map(str, mod)))
         extra.append('align 4')
         extra.append('WSTEM: db ' + ', '.join(map(str, b''.join(ns['stems'].get(n, 'team').encode() for n in range(maxw + 1)))))
     import guests

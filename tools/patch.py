@@ -1025,6 +1025,11 @@ def write_new_teams(src_dir, dst_dir):
             if hit:
                 open(q, 'wb').write(data)
                 print(f'{f}: white hair {", ".join(hit)}')
+    for w in mkseason.worlds():                       # 4.0.6: today's national team names (SERBIA ...): copies of
+        for n, data in mkseason.nat_today_files(w, dst_dir).items():   # the build's final TEAM.08x, last
+            name = '%s.%03d' % (mkseason.ns_stem(w).upper(), n)
+            open(os.path.join(dst_dir, name), 'wb').write(data)
+            print(f'{name}: national teams with today\'s names')
 
 
 # 4.0 (Davide, 2026-10-18): the Milan clubs by the names they go by. Name fields are zero padded: the shorter name +

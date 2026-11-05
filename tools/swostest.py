@@ -8410,6 +8410,8 @@ FR_CASES = {        # (4.0.6 bench_friendly) case: (world, home path, away path,
               ('SQUADRE CLUB', 'EUROPA', 'SPAGNA', 'LALIGA', 'REAL MADRID'), 12, 5),
     'same': (0, ('SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE D', 'SERIE D GIRONE A', 'CELLE VARAZZE'),
              ('SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE D', 'SERIE D GIRONE A', 'DERTHONA'), 9, 5),
+    'seriea': (0, ('SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE A', 'INTER'),
+               ('SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE A', 'MILAN'), 15, 5),
     'nat': (0, ('NAZIONALI', 'EUROPA', 'ITALY'), ('NAZIONALI', 'EUROPA', 'SPAIN'), 5, 2),
     '9697': (1, ('SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE A', 'INTER'),
              ('SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE A', 'MILAN'), 5, 2),
@@ -8420,7 +8422,8 @@ FR_CASES = {        # (4.0.6 bench_friendly) case: (world, home path, away path,
 def bench_friendly():
     """4.0.6 (Regia / Davide 05/11) the long bench in friendlies (benchx bx_frset): a FRIENDLY of the World 2026-27
     between two clubs = the longer real bench of their two (country, division): BENCH_FR=<cases> (FR_CASES, default
-    all): 'mixed' Serie D (9) vs LaLiga (12) -> 12, 'same' two Serie D clubs -> 9, 'nat' two national teams -> the
+    all): 'mixed' Serie D (9) vs LaLiga (12) -> 12, 'same' two Serie D clubs -> 9, 'seriea' INTER - MILAN -> 15
+    and a change from place 21 (bench_sub: its save-under guard with two benches of 15, the strip, formwide), 'nat' two national teams -> the
     game's 2 from 5, '9697' a 1996-97 friendly -> the game's 2 from 5. Per case: the picker (home human, away computer), PLAY MATCH,
     at the kick-off gameMaxSubstitutes / gameMinSubstitutes and both in-match teams (11 + the bench places: named from
     the record's 16 and the club's XTRA block, the rest empty). BENCH_BUILD = a World 2026-27 build."""
@@ -8492,6 +8495,12 @@ def bench_friendly():
                 check(len(named) >= 16, f'{case}: {name}: only {len(named)} named', errs)
             info.append(f'{case}: pre-match {pre[0]}:{pre[1]}, named:used {gm[1]}:{gm[0]} ({", ".join(desc)})')
             check(gm == (used, want), f'{case}: named:used {gm[1]}:{gm[0]}, want {want}:{used}', errs)
+            if case == 'seriea' and gm == (used, want):     # the change: the save-under peak with two benches of 15
+                mine = [k for k, (name, _) in enumerate(teams) if name == home[-1]]   # the human club (top / bottom:
+                pl = teams[mine[0]][1][:cap] if mine else []                         # the game may swap the sides)
+                gone = {i - 10 for i, x in enumerate(pl) if i >= 11 and not x[0]}      # its empty places (no XTRA player)
+                bench_sub(s, bx, 21, errs, info, lambda t: open(os.path.join(s.run, 'progress.txt'), 'a').write(t + '\n'),
+                          key=('pgup', 'pgdn')[mine[0]] if mine else None, gone=gone)
     return not errs, '; '.join(errs + info)
 
 

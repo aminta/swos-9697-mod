@@ -811,6 +811,9 @@ def patch_exe(src, dst, remap, lang='it'):
     import edteam                                # 4.0.6 (Marco): EDIT CUSTOM TEAMS - ten looks on the face button, the
     st_end = edteam.patch(p, (st_end + 15) & ~15)            # number box (shirtedit's); the obj3 chain's end
     assert st_end <= LT3_AT, hex(st_end)
+    import sella                                 # 4.0.6 (Davide, Francesco): outgoing offers rule A - a buyer only if the
+    st_end = sella.patch(p, (st_end + 15) & ~15)             # player would be among its N best; the obj3 chain's end
+    assert st_end <= LT3_AT, hex(st_end)
     st_end = bplace.force(p, (st_end + 15) & ~15)            # (BPLACE_FORCE test builds only: such ties forced; in
     assert st_end <= LT3_AT, hex(st_end)                     # obj3 since 4.0.6: the obj1 controls page is full)
     print(f'exe: obj3 end {st_end:#x} ({LT3_AT - st_end} B left before the longtable page obj3+{LT3_AT:#x})')

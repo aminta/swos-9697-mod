@@ -2736,7 +2736,27 @@ def renew_site(exe):
     assert len(m) == 1, len(m)
     ja = m[0].end() - 11
     assert d[ja] == 0x77, d[ja:ja + 2].hex()
-    return ja, struct.unpack('<I', m[0].group(1))[0]
+    jb = m[0].start() - 16                              # (verdict < 2: `jb` past the draw, to the same ret)
+    assert d[jb:jb + 2] == bytes([0x72, ja + 25 - (jb + 2)]) and d[ja + 25] == 0xC3, d[jb:jb + 2].hex()
+    return ja, struct.unpack('<I', m[0].group(1))[0], struct.unpack('<I', d[ja - 4:ja])[0], jb
+
+
+def sack_site(exe):
+    """(4.0.6 #28, A/B 05/11) the mod's own season-end sacking, gplay's gp_sack: the career club relegated into the
+    reserve -> `call gp_c / test eax, eax / jz .game / mov word [currentMessage], 38 / call ShowChairmanMessage /
+    mov word [youreSacked], 1 / popad`. On mod builds THIS is what ends ISCHIA's career (20/20 A/B runs), the board's
+    check (renew_site) never runs. Returns the obj1 offset of that jz (W8485_RENEW: -> jmp); None for the original
+    game's exe (obj1 0xA1000 B, + the harness page); a mod exe (obj1 0xED000 on 4.0.5, 0xEB000 on 4.0.6) without
+    exactly one = an AssertionError (the scenario FAILs)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    from le import LE
+    d = LE(open(exe, 'rb').read()).obj_bytes(1)
+    if len(d) < 0xC0000:
+        return None
+    m = [x.start() for x in re.finditer(rb'\xe8....\x85\xc0\x74\x17\x66\xc7\x05....\x26\x00\xe8....\x66\xc7\x05....'
+                                        rb'\x01\x00\x61', d, re.S)]
+    assert len(m) == 1, f'gp_sack site: {len(m)} hits {[hex(x) for x in m]} in {exe}'
+    return m[0] + 7
 
 
 def checkw1(path):
@@ -3569,6 +3589,7 @@ def world8485():
                              else None), set()
             renew, renew_done = (renew_site(os.path.join(exe, 'ITALIAN.EXE')) if os.environ.get('W8485_RENEW') == '1'
                                  else None), []
+            sack = sack_site(os.path.join(exe, 'ITALIAN.EXE')) if renew is not None else None
 
             def hexlog():                              # W8485_HEX: obj2 offset:bytes (o1/ prefix: obj1, o3/: obj3),
                 for a in filter(None, os.environ.get('W8485_HEX', '').split(',')):   # logged when they change
@@ -3602,6 +3623,18 @@ def world8485():
                 if renew is not None and not renew_done:   # W8485_RENEW: the contract always renewed (the ja -> jmp,
                     s.poke(s.result.base1 + renew[0], b'\xeb')    #  code: once a session; test runs only)
                     renew_done.append(1)
+                    if sack is not None:                # (and gp_sack's jz -> jmp: the mod's relegation sacking,
+                        s.poke(s.result.base1 + sack, b'\xeb')   # the one that ends a mod career - e112c5f missed it)
+                    if os.environ.get('W8485_RENEW_LOG'):   # (4.0.6 #28 4.0.5-vs-4.0.6 runs) the ja + the dead
+                        ja, vd, d0, jb = renew          # message path (25 bytes, to the ret) = a stub: the draw
+                        slot = s.result.base1 + s.info['script'] + 4 * SCRIPT_MAX   # (D0) + the verdict into the
+                        st = lambda o: struct.pack('<I', o)                         # script area's tail (no send
+                        s.poke(slot, b'\xff' * 4)                                  # writes it), always renewed;
+                        s.poke(s.result.base1 + ja, b'\x66\xa1' + st(s.result.base2 + d0) + b'\x66\xa3' + st(slot) +
+                               b'\x66\xa1' + st(s.result.base2 + vd) + b'\x66\xa3' + st(slot + 2) + b'\xc3')
+                        s.poke(s.result.base1 + jb + 1, bytes([ja - (jb + 2)]))   # verdict 0 / 1 too (draw stale)
+                        os.environ['W8485_HEX'] = ','.join(filter(None, [os.environ.get('W8485_HEX'),
+                                                                         f'o1/{s.info["script"] + 4 * SCRIPT_MAX:x}:4']))
                 if nosack is not None and season not in poked:   # W8485_NOSACK: the game's 'no sacking' word
                     s.poke(s.result.base2 + nosack, b'\x01\x00')   # (dseg_D6B62, cleared at every season start)
                     poked.add(season)
@@ -23393,8 +23426,9 @@ def world_kitfix():
     ISCHIA save (KITFIX_CAR, a 4.0 kit 0 6 6 1 6 / 0 1 1 6 1 in its careerTeam) played on from its load to the season
     end on SWOSTEST_BUILD (release recipe, data world5tm-403c4: 3 5 9 5 5 / 0 1 1 1 1): careerTeam takes the current
     kits; the same save with the home kit edited by hand (as SELECT KITS would) keeps it. The contract renewal forced
-    (W8485_RENEW, 4.0.6 FAIL #28: the board's verdict 2+ dropped the manager before the season-end list); the club
-    lost anyway = a FAIL 'harness lost the club'"""
+    (W8485_RENEW, 4.0.6 FAIL #28: ISCHIA relegated into the reserve - gplay's gp_sack, ~50% of seeds on 4.0.5 and
+    4.0.6 alike - dropped the manager before the season-end list); the club lost anyway = a FAIL 'harness lost the
+    club'"""
     import careerworld
     import lepatch
     car = os.environ.get('KITFIX_CAR') or os.path.join(MAIN, 'internal', 'reports', 'ischia', 'ISCHIA_francesco_20261028.CAR')

@@ -310,7 +310,10 @@ def prepare(name, exe_dir, cars, steps, match=False, timer=False):
 
 
 SCAN = {'fire': 0x1D, 'up': 0x48, 'down': 0x50, 'left': 0x4B, 'right': 0x4D, 'esc': 0x01, 'enter': 0x1C,
-        'space': 0x39, 'bspace': 0x0E, 'semicolon': 0x27, 'pgup': 0x49, 'pgdn': 0x51, 'lshift': 0x2A, 'dump': 0xFF}
+        'space': 0x39, 'bspace': 0x0E, 'semicolon': 0x27, 'pgup': 0x49, 'pgdn': 0x51, 'lshift': 0x2A, 'dump': 0xFF,
+        # (punctuation keys by position, 4.0.6 typed names: what they type depends on the exe's layout, keytext)
+        'minus': 0x0C, 'equals': 0x0D, 'lbr': 0x1A, 'rbr': 0x1B, 'apos': 0x28, 'grave': 0x29, 'bslash': 0x2B,
+        'comma': 0x33, 'period': 0x34, 'slash': 0x35, 'kpminus': 0x4A, 'kpplus': 0x4E, 'lt102': 0x56}
 SCAN.update({ch: sc for row, base in (('1234567890', 0x02), ('qwertyuiop', 0x10), ('asdfghjkl', 0x1E),
                                       ('zxcvbnm', 0x2C)) for sc, ch in enumerate(row, base)})
 SCRIPT_MAX = 200                                       # steps a pause can write
@@ -9208,6 +9211,301 @@ def menu_numbers():
             info.append(f'{len(recs)} copies of LEICESTER poked to 17..32; sprites 12..99 built, checked 12 17 20 23 32 '
                         f'41 99')
     return not errs, '; '.join(errs + info) + f' (screenshot runs/menu_numbers/shots/menu_numbers.png)'
+
+
+def tn_keys(text):
+    """(4.0.6 keytext) The keys that type `text` on SWOSTEST_UI's keyboard: letters / digits as name_entry (AZERTY /
+    QWERTZ swaps), the punctuation from keytext.LAYOUT (unshifted, or 'key+lshift': the key queued, SHIFT held -
+    kt_irq sees both makes before GetKey reads it), the numpad's - +."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import keytext
+    un, sh = keytext.LAYOUT[UI]
+    rev = {}
+    for k, v in SCAN.items():
+        if k != 'dump':
+            rev.setdefault(v, k)
+    swap = {'fr': {'a': 'q', 'q': 'a', 'w': 'z', 'z': 'w', 'm': 'semicolon'}, 'de': {'y': 'z', 'z': 'y'}}.get(UI, {})
+    out = []
+    for c in text:
+        if c.isalnum():
+            out.append(swap.get(c.lower(), c.lower()))
+        elif c == ' ':
+            out.append('space')
+        elif c in un.values():
+            out.append(rev[next(k for k, v in un.items() if v == c)])
+        elif c in sh.values():
+            out.append(rev[next(k for k, v in sh.items() if v == c)] + '+lshift')
+        else:
+            out.append(rev[next(k for k, v in keytext.NUMPAD.items() if v == c)])
+    return ' '.join(out)
+
+
+def tn_changed(exe):
+    """obj2 offset of tacticsChangedFlag: SaveAndExitEditTactics' `call EditTacticsMenuSavePlayerPositions / mov ax,
+    tacticsChangedFlag / or ax, ax / jz / call / call / mov A0, offset aSaveEditedTact`."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    from le import LE
+    le = LE(open(exe, 'rb').read())
+    c = le.obj_bytes(1)
+    fx = {so: (t, o) for sobj, so, _, t, o, *_ in le.fixups() if sobj == 1}
+    m = [x.start() for x in re.finditer(rb'\xe8....\x66\xa1....\x66\x0b\xc0\x74.\xe8....\xe8....\xc7\x05', c, re.S)
+         if fx.get(x.start() + 7, (0,))[0] == 2]
+    assert len(m) == 1, ('SaveAndExitEditTactics', m)
+    return fx[m[0] + 7][1]
+
+
+TN_USER = ('UTN A', 'USER_A', 'UTIL A', 'SPIEL A')       # the first user tactic, per exe language
+TN_EXIT = ('USCITA', 'SAVE/EXIT', 'ENR/QUIT', 'SPEI/ENDE')  # the tactics editor's exit (SaveAndExitEditTactics)
+TN_IMPORT = ('IMPORTA', 'IMPORT')                          # its IMPORTA (ImportTactics: the load is there)
+
+
+def tn_nth(scr, k, raw=False):
+    """Index of the k-th visible entry with a text (k < 0: from the end): the menus whose labels differ per exe
+    language and are not in UI_MAP (the tactics editor, its save prompt, IMPORTA's menu, MODIFICA SQUADRE)."""
+    v = [i for (i, t, inv, dis), r in zip(scr.entries, scr.raw) if (r if raw else t) and not inv]   # (raw: a German
+                                                                                    # title with an umlaut reads as '')
+    return v[k] if -len(v) <= k < len(v) else None
+
+
+@scenario
+def tac_name():
+    """4.0.6 (Marco 04/11: "FWRD 3-2" saved as FWRD32): a tactic's name is its .TAC file name, typed in the save dialog
+    (g_allowExtraCharsFlag: the game's letters / digits / # / -, keytext adds ' ( ) _ - Davide (b); '_' drawn as a
+    space). MOD. TATTICA > UTN A, tacticsChangedFlag poked (the game's own switch: as a moved player), ESCI > SAVE >
+    the file name typed as f w lshift r d _ 3 2 LEFT - . space / (SHIFT alone moves nothing now, LEFT moves the cursor,
+    '-' / '_' are the layout's keys, . space / refused) -> FWRD_3-2.TAC shown; then D'A(1).TAC. Then on TACNAME_OLD (a 4.0.5-or-older build, optional) the
+    same with OLDTIC; a fresh session on the build under test loads them (IMPORTA > CARICA) and shows their names. Any
+    SWOSTEST_UI (TACNAME_BUILD: that language's exe as ITALIAN.EXE)."""
+    b = os.environ.get('TACNAME_BUILD') or (builds()['it'] if UI == 'it' else build('tacname_' + UI, lang=UI))
+    old = os.environ.get('TACNAME_OLD')
+    errs, info = [], []
+    flag = tn_changed(os.path.join(b, 'ITALIAN.EXE'))
+
+    def mark(s, where):
+        info.append(f'{where}: ' + ', '.join(t for t in s.screen().texts() if t)[:300])
+
+    def save(tag, build_dir, typed, want):
+        with Session('tac_name_' + tag, build_dir, {}, 'dump:2', 300) as s:
+            if s.wait().outcome != 'dump':
+                return None, f'{tag}: no first pause ({s.result})'
+            if press(s, s.screen(), 'MOD. TATTICA', 3) is None:
+                return None, f'{tag}: MOD. TATTICA not reached'
+            mark(s, f'{tag} tactics menu')
+            scr = s.screen()
+            u = next((x for x in TN_USER if scr.find(x, exact=True) is not None), None)
+            if u is None or press(s, scr, u, 3) is None:
+                return None, f'{tag}: user tactic not reached'
+            mark(s, f'{tag} editor')
+            s.poke(s.result.base2 + tn_changed(os.path.join(build_dir, 'ITALIAN.EXE')), b'\x01\x00')
+            scr = s.screen()                             # (the editor's exit, per exe language)
+            ex = next((i for i, t in enumerate(scr.raw_texts) if t in TN_EXIT), None)
+            if ex is None or press(s, scr, ex, 2) is None:
+                return None, f'{tag}: editor exit not reached'
+            mark(s, f'{tag} save edited tactics?')
+            scr = s.screen()
+            yes = tn_nth(scr, -2)                        # (title, SALVA / SAVE..., ESCI: the German title reads '')
+            if yes is None or press(s, scr, yes, 2) is None:
+                return None, f'{tag}: SAVE not found'
+            mark(s, f'{tag} save dialog')
+            s.send('up:2 fire:1 ' + 'bspace ' * 9 + typed + ' enter:2 dump:2')
+            mark(s, f'{tag} after save')               # (the main menu: SaveAndExitEditTactics leaves both menus)
+            press(s, s.screen(), 'MOD. TATTICA', 3)
+            mark(s, f'{tag} tactics menu again')
+            texts = s.screen().texts()
+            s.shot('list_' + tag)
+            game = s.result.game
+        files = sorted(f for f in os.listdir(game) if f.upper().endswith('.TAC'))
+        check(want + '.TAC' in [f.upper() for f in files], f'{tag}: {want}.TAC not written ({files})', errs)
+        check(any(want in t for t in texts), f'{tag}: {want} not shown ({texts[:20]})', errs)
+        f = next((os.path.join(game, x) for x in files if x.upper() == want + '.TAC'), None)
+        if f:
+            check(os.path.getsize(f) == 370, f'{tag}: {want}.TAC {os.path.getsize(f)} B (370)', errs)
+        return f, None
+
+    typed = tn_keys('fw') + ' lshift ' + tn_keys('rd_32') + ' left ' + tn_keys('-') + ' ' + tn_keys('. /')
+    new, e = save('new', b, typed, 'FWRD_3-2')
+    if e or not new:
+        return False, '; '.join(errs + [e or 'FWRD_3-2.TAC not written'] + info)
+    new2, e = save('new2', b, tn_keys("d'a(1)"), "D'A(1)")
+    if e:
+        errs.append(e)
+    oldf = None
+    if old:
+        oldf, e = save('old', old, tn_keys('oldtic'), 'OLDTIC')   # (no a q w z m y: the old exe is IT, the keys SWOSTEST_UI's)
+        if e:
+            errs.append(e)
+    files = {'FWRD_3-2.TAC': new}
+    if new2:
+        files["D'A(1).TAC"] = new2
+    if oldf:
+        files['OLDTIC.TAC'] = oldf
+    for name in files:                                   # reload: a fresh session, CARICA, the file, its name shown
+        with Session('tac_name_load_' + re.sub(r'\W', '_', name[:-4]), b, files, 'dump:2', 300) as s:
+            s.wait()
+            ok = press(s, s.screen(), 'MOD. TATTICA', 3) is not None
+            scr = s.screen()
+            u = next((x for x in TN_USER if scr.find(x, exact=True) is not None), None)
+            ok = ok and u is not None and press(s, scr, u, 3) is not None
+            mark(s, f'load {name} editor')
+            ok = ok and press(s, s.screen(), next((i for i, t in enumerate(s.screen().raw_texts) if t in TN_IMPORT),
+                                                  None), 3) is not None                 # IMPORTA (ImportTactics: its
+            mark(s, f'load {name} import menu')                                      # menu has the load, CARICA, the
+            scr = s.screen()                                                         # last but ESCI)
+            ld = tn_nth(scr, -2)
+            ok = ok and ld is not None and press(s, scr, ld, 3) is not None
+            mark(s, f'load {name} file list')
+            scr = s.screen()
+            fe = next((i for i, e in enumerate(scr.entries) if e[1] and e[1].upper().startswith(name[:-4])), None)
+            ok = ok and fe is not None and press(s, scr, fe, 3) is not None
+            mark(s, f'load {name} loaded')
+            check(ok and any(name[:-4] in t for t in s.screen().texts()), f'load {name}: not loaded / not shown', errs)
+            s.shot('load_' + name[:-4])
+    return not errs, '; '.join(errs + info)
+
+
+@scenario
+def tac_name_swospp():
+    """4.0.6 keytext under SWOS++ 1.9.2.2 (SWOSTEST_UI=en, TACNAME_BUILD = an English release-recipe dir, keys from the
+    timer): keytext is off there (kt_conv takes the game's table when SWOS++ runs), so the game's typing as before -
+    MOD. TATTICA > USER_A, ESCI > SAVE, a b MINUS 1 2 typed: AB12.TAC or AB-12.TAC written (what SWOS++'s own keyboard
+    makes of '-', logged), the list shows it; SWOS++ running, the GetKey site in memory (ours or SWOS++'s) logged."""
+    global SPP_STEP
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import swospp
+    import keytext
+    import lepatch
+    if UI != 'en':
+        return True, 'SKIP: SWOS++ is English only (SWOSTEST_UI=en)'
+    b = os.environ.get('TACNAME_BUILD')
+    if not b:
+        return True, 'SKIP: TACNAME_BUILD not set'
+    pp = os.path.join(MAIN, 'internal', 'swospp-test')
+    out = os.path.join(WORK, 'builds-x', 'tac_name_swospp')
+    shutil.rmtree(out, ignore_errors=True)
+    shutil.copytree(b, out)
+    swospp.install(os.path.join(b, 'ITALIAN.EXE'), os.path.join(out, 'ITALIAN.EXE'))
+    site = keytext.find(lepatch.LEPatch(os.path.join(ROOT, 'orig', 'ENGLISH.EXE')))[0]['get']   # (the original's site)
+    errs, info = [], []
+    SPP_STEP, old = True, SPP_STEP
+    try:
+        with Session('tac_name_swospp', out, {'LOADER.BIN': os.path.join(pp, 'loader.bin'),
+                                              'SWOSPP.BIN': os.path.join(pp, 'swospp.bin')}, 'dump:3', 300,
+                     timer=True) as s:
+            if s.wait().outcome != 'dump':
+                return False, f'START: no first pause ({s.result})'
+            on, why = swospp_on(s.result, os.path.join(out, 'ITALIAN.EXE'))
+            check(on, f'SWOS++ not running: {why}', errs)
+            info.append(f'GetKey site obj1+{site:#x} in memory: {s.result.read(s.result.base1 + site, 8).hex()}')
+            ok = press(s, s.screen(), 'MOD. TATTICA', 3) is not None
+            scr = s.screen()
+            u = next((x for x in TN_USER if scr.find(x, exact=True) is not None), None)
+            ok = ok and u is not None and press(s, scr, u, 3) is not None
+            if not ok:
+                return False, '; '.join(errs + [f'editor not reached ({s.screen().texts()[:10]})'] + info)
+            s.poke(s.result.base2 + tn_changed(os.path.join(out, 'ITALIAN.EXE')), b'\x01\x00')
+            scr = s.screen()
+            ex = next((i for i, t in enumerate(scr.raw_texts) if t in TN_EXIT), None)
+            ok = ex is not None and press(s, scr, ex, 2) is not None
+            ok = ok and press(s, s.screen(), tn_nth(s.screen(), -2), 2) is not None
+            info.append('save dialog: ' + ', '.join(t for t in s.screen().texts() if t)[:200])
+            s.send('up:2 fire:1 ' + 'bspace ' * 9 + 'a b minus 1 2 enter:2 dump:2')
+            press(s, s.screen(), 'MOD. TATTICA', 3)
+            texts = s.screen().texts()
+            s.shot('list')
+            game = s.result.game
+    finally:
+        SPP_STEP = old
+    files = sorted(f.upper() for f in os.listdir(game) if f.upper().endswith('.TAC'))
+    got = next((f for f in files if f in ('AB12.TAC', 'AB-12.TAC')), None)
+    check(got, f'no AB12.TAC / AB-12.TAC ({files})', errs)
+    if got:
+        check(any(got[:-4] in t for t in texts), f'{got[:-4]} not shown ({texts[:10]})', errs)   # (SWOS++: still in the
+                                                                    # editor after the save, its title EDIT TACTICS (AB12))
+        info.append(f'{got} written (SWOS++\'s keyboard: the - key {"typed" if "-" in got else "gave nothing"})')
+    return not errs, '; '.join(errs + info)
+
+
+TN_PLAYER = "A-B.C/D'E?F+G(H):I,J_K"                   # every new character (keytext.NEW), 22 of the 22
+TN_TEAM = "ALL (2-1) A.C."                              # 14 of the 16
+
+
+@scenario
+def tac_name_teams():
+    """4.0.6 keytext in MODIFICA SQUADRE (InputText without the save dialog's flag: every new character): MODIFICA
+    SQUADRE > SQUADRE ORIGINALI > the selected custom team (the game's own) > its team name and its first player's
+    name cleared and typed on SWOSTEST_UI's keyboard (TN_TEAM, TN_PLAYER: - . / ' ? + ( ) : , _, the SHIFT layer as
+    tn_keys), the entries show them; OK, ESCI, SAVE -> CUSTOMS.EDT holds both (bytes = the text, no format change); a
+    fresh session with it lists the team under SQUADRE MODIFICATE. TACNAME_BUILD / SWOSTEST_UI as tac_name."""
+    b = os.environ.get('TACNAME_BUILD') or (builds()['it'] if UI == 'it' else build('tacname_' + UI, lang=UI))
+    errs, info = [], []
+
+    def mark(s, where):
+        info.append(f'{where}: ' + ', '.join(t for t in s.screen().texts() if t)[:300])
+
+    def retype(s, i, new, n):
+        if press(s, s.screen(), i, 1) is None:
+            errs.append(f'entry {i} not reachable')
+            return
+        s.send('bspace ' * n + tn_keys(new) + ' enter:1 dump:1')
+        t = s.screen().texts()
+        check(new in t, f'typed {new!r}: not shown ({[x for x in t if x][:30]})', errs)
+
+    def to_list(s, which):
+        if press(s, s.screen(), 'MODIFICA SQUADRE', 3) is None:
+            return False
+        if s.screen().find('CONTINUA', exact=True) is not None:
+            press(s, s.screen(), 'CONTINUA', 3)
+        return press(s, s.screen(), tn_nth(s.screen(), which, raw=True), 3) is not None   # ORIGINALI 0 / MODIFICATE 1
+
+    with Session('tac_name_teams', b, {}, 'dump:2', 300) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'no first pause ({s.result})'
+        if not to_list(s, 0):
+            return False, '; '.join(['SQUADRE ORIGINALI not reached'] + info)
+        s.send('fire dump:2')                            # (the selected team)
+        scr = s.screen()
+        t = scr.texts()
+        if 'OK' not in t:
+            mark(s, 'not the edit screen')
+            return False, '; '.join(errs + info)
+        team_i = next(i for i, e in enumerate(scr.entries) if e[1])
+        ok_i = scr.find('OK', exact=True)                # (OK, ANNULL. / CANCEL..., then the players)
+        pl_i = [i for i, e in enumerate(scr.entries) if i > ok_i and e[1]][1]
+        info.append(f'team {scr.entries[team_i][1]!r} (entry {team_i}), player {scr.entries[pl_i][1]!r} (entry {pl_i})')
+        retype(s, pl_i, TN_PLAYER, 23)
+        retype(s, team_i, TN_TEAM, 17)
+        s.shot('edited')
+        press(s, s.screen(), 'OK', 2) or mark(s, 'OK missing')
+        for _ in range(4):
+            scr = s.screen()
+            tx = [i for i, t, inv, dis in scr.entries if t and not inv]
+            yes = tx[-2] if len(tx) <= 4 and scr.entries[tx[-1]][1] == 'ABBANDONA' else None
+            if yes is not None:                          # (EDIT CUSTOM TEAMS' prompt: title, SALVA / SAVE..., ABORT)
+                press(s, scr, yes, 3)
+                break
+            press(s, scr, 'ESCI', 2) or s.send('esc dump:2')
+        else:
+            errs.append('SAVE prompt not found')
+        mark(s, 'after save')
+        game = s.result.game
+    f = os.path.join(game, 'CUSTOMS.EDT')
+    d = open(f, 'rb').read() if os.path.exists(f) else b''
+    check(d, 'CUSTOMS.EDT not written', errs)
+    if d:
+        n = struct.unpack('>H', d[:2])[0]
+        recs = [d[2 + 684 * k:2 + 684 * (k + 1)] for k in range(n)]
+        r = next((x for x in recs if x[5:22].split(b'\0')[0] == TN_TEAM.encode()), None)
+        check(r is not None, f'{TN_TEAM!r} not in CUSTOMS.EDT ({n} teams)', errs)
+        if r:
+            pls = [r[76 + 38 * k + 3:76 + 38 * k + 26].split(b'\0')[0] for k in range(16)]
+            check(TN_PLAYER.encode() in pls, f'{TN_PLAYER!r} not among its players {pls[:3]}', errs)
+        with Session('tac_name_teams_load', b, {'CUSTOMS.EDT': f}, 'dump:2', 300) as s:
+            s.wait()
+            ok = to_list(s, 1)
+            mark(s, 'reload list')
+            check(ok and s.screen().find(TN_TEAM, exact=True) is not None, f'reload: {TN_TEAM!r} not listed', errs)
+            s.shot('reload')
+    return not errs, '; '.join(errs + info)
 
 
 def ct_build():

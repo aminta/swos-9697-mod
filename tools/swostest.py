@@ -1442,6 +1442,20 @@ def lineup_mem(s, n=16):
     places, 0-based]) - careerTeam's records in careerMatchPlayers order (xtra.sites of the run's exe, cached per
     session; position bits 5-7 = 0: a keeper; cardsInjuries C0h injured, bits 0-1 suspended in a career). None if it
     cannot be read."""
+    m = lineup_places(s, n)
+    return None if m is None else (m[0][0], [k for k, (_, un) in enumerate(m) if un])
+
+
+def fit_keeper_place(s):
+    """(I10p world8485_nat: the fixer had taken the fit bench keeper as an outfield stand-in, then found no keeper
+    among the reserves and ping-ponged outfield players in goal) The first of places 2..16 holding a fit keeper, 0-based;
+    None if none or unreadable."""
+    m = lineup_places(s)
+    return next((k for k, (g, un) in enumerate(m) if k and g and not un), None) if m else None
+
+
+def lineup_places(s, n=16):
+    """lineup_mem's places one by one: [(a keeper, unavailable)], or None if unreadable."""
     try:
         if not hasattr(s, 'ctsites'):
             sys.path.insert(0, os.path.join(ROOT, 'tools'))
@@ -1453,7 +1467,7 @@ def lineup_mem(s, n=16):
         r = s.result
         order = r.obj2(cmp_, min(n, struct.unpack('<H', r.obj2(cnp, 2))[0]))
         recs = [r.obj2(ct + (76 + q * 38 if q < 16 else 684 + (q - 16) * 38) + 26, 2) for q in order]
-        return recs[0][0] >> 5 == 0, [k for k, b in enumerate(recs) if b[1] & 0xC3]
+        return [(b[0] >> 5 == 0, bool(b[1] & 0xC3)) for b in recs]
     except Exception:
         return None
 
@@ -1582,6 +1596,12 @@ def substitute(s, scr, tries=40, full=False):
             return None if 'VIS. RISULTATI' in s.screen().texts() else 'squad screen without VIS. RISULTATI, no unavailable row'
         k = bad[0]
         need = SLOT_ROLE[k] if k < len(SLOT_ROLE) else ''
+        g = fit_keeper_place(s) if k == 0 and not s.__dict__.get('gk_swap') else None
+        if g is not None:                               # (a fit keeper already in the 16: he goes in goal)
+            swap_rows(s, rows, 0, g)
+            s.gk_swap = gk_now = True
+            s.log.append(f'[subs] slot 1: the keeper of place {g + 1} in')
+            continue
         if k == 0 and not rows[11][1] and not s.__dict__.get('gk_swap') and 11 not in subs:   # the keeper: row 12
             swap_rows(s, rows, 0, 11)                   # is the bench keeper in SWOS squads (drawn rows have no
                                                         # texts) unless a stand-in took his place
@@ -1676,6 +1696,11 @@ def substitute_min(s, tries=40):
         if not bad:
             return None if 'VIS. RISULTATI' in cur.texts() else 'squad screen without VIS. RISULTATI, no unavailable row'
         k = bad[0]
+        g = fit_keeper_place(s) if k == 0 else None     # (a fit keeper already in the 16: he goes in goal)
+        if g is not None:
+            swap_rows(s, rows, 0, g)
+            s.log.append(f'[subs] slot 1: the keeper of place {g + 1} in (min)')
+            continue
         if k == 0 and (keeper or rows[11][1]):          # no fit keeper in goal (row 12 is not always one: an outfield
             err = keeper_from_reserves(s, cur, rows, tries)   # player in goal keeps VIS. RISULTATI hidden): a fit
             if err:                                           # keeper (P / G) of the reserves, the 17th row cycled
@@ -1693,8 +1718,8 @@ def substitute_min(s, tries=40):
             return 'squad screen: no face entry for the 17th row'
         # the first fit reserve the 17th row shows with a real value; the game's invented reserves (RIS, value 0:
         # a red '?' once in the 16, VIS. RISULTATI hidden) and trial players (-1) only on a second lap
-        name, _, value = reserve_info(cur, ry)
-        first, lap, fit = name, 0, not rows[-1][1] and value > 0
+        name, role, value = reserve_info(cur, ry)        # (a keeper only on the second lap too: taken for an outfield
+        first, lap, fit = name, 0, not rows[-1][1] and value > 0 and role != 'G'   # place he is missed in goal later)
         for _ in range(2 * tries):
             if fit:
                 break
@@ -1705,12 +1730,12 @@ def substitute_min(s, tries=40):
             rows2 = squad_rows(s, c2, f'sq{len(s.log):03d}')
             if len(rows2) != 17:
                 break
-            name, _, value = reserve_info(c2, ry)
+            name, role, value = reserve_info(c2, ry)
             if name == first:                           # (every reserve seen once)
                 lap += 1
                 if lap == 2:
                     break
-            fit = not rows2[-1][1] and (value > 0 or lap == 1)
+            fit = not rows2[-1][1] and ((value > 0 and role != 'G') or lap == 1)
         if not fit:                                     # (no fit reserve: the game may still allow the match, else
             return fallback_full(s, tries, f'no fit reserve for row {k + 1}')   # the full search, once)
         stand_in = reserve_info(s.screen(), ry)[0]

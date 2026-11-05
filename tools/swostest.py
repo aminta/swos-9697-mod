@@ -2062,9 +2062,11 @@ def advance(s, stop, max_steps=400):
         if not getattr(s, 'inmatch', False) or scr.entries:
             recent.append(str(scr))                      # stuck: the last 16 screens are 1 or 2 alternating ones
         rp_ = os.environ.get('W8485_REALPLAY')
-        if getattr(s, 'inmatch', False) and rp_ and scr.entries and scr.entries[0][2] and rp_ in scr.entries[0][1]:
-            s.send('fire dump:2')                        # (4.0.5: a final's line-ups before the kick-off, its title
-            continue                                     #  inverted: still the match - goal_slot_sc_real)
+        if getattr(s, 'inmatch', False) and rp_ and scr.entries and scr.entries[0][2] and \
+                rp_ in ' '.join(e[1] for e in scr.entries[:2] if e[2]):   # (4.0.6: the title in two inverted entries,
+            s.send('fire dump:2')                        #  'NL CHAMPIONSHIP' + 'GRUPPO FINALE' - nzgf_real) (4.0.5: a
+            continue                                     #  final's line-ups before the kick-off, its title inverted:
+                                                         #  still the match - goal_slot_sc_real)
         if scr.entries:
             s.inmatch = False
         if len(recent) >= 16 and len(set(recent[-16:])) <= 2:

@@ -1497,6 +1497,26 @@ def fit_keeper_place(s):
     return next((k for k, (g, un) in enumerate(m) if k and g and not un), None) if m else None
 
 
+def squad_keepers_log(s):
+    """(regia 05/11, I10p #20 statespec_test) When the line-up fixer gives up: every careerTeam record in
+    careerMatchPlayers order to the session log - place, name, keeper (position bits 5-7 = 0), cardsInjuries byte (C0h
+    injured, bits 0-1 suspended; 20h = the residual level, fit) - so a 'no fit keeper' case (the gkinj last-keeper
+    question) is told from a fixer fault without a full dump."""
+    try:
+        lineup_places(s)                                # (caches s.ctsites)
+        cnp, ct, cmp_ = s.ctsites
+        r = s.result
+        n = struct.unpack('<H', r.obj2(cnp, 2))[0]
+        for k, q in enumerate(r.obj2(cmp_, n)):
+            o = ct + (76 + q * 38 if q < 16 else 684 + (q - 16) * 38)
+            b = r.obj2(o, 38)
+            nm = bytes(b[3:25]).split(b'\x00')[0].decode('latin-1')
+            s.log.append(f'[keepers] place {k + 1} rec {q}: {nm} '
+                         f'{"G" if b[26] >> 5 == 0 else "-"} inj {b[27]:02X}')
+    except Exception as e:                              # (diagnostics only: never the scenario's result)
+        s.log.append(f'[keepers] unreadable: {e!r}')
+
+
 def lineup_places(s, n=16):
     """lineup_mem's places one by one: [(a keeper, unavailable)], or None if unreadable."""
     try:
@@ -1674,6 +1694,7 @@ def substitute(s, scr, tries=40, full=False):
             subs[k] = (out, stand_in)
         out_now.add(k)
         s.log.append(f'[subs] slot {k + 1} ({need or "any"}): {out} out, {stand_in} ({best[1] or "?"}, {best[2]}) in')
+    squad_keepers_log(s)                            # (regia 05/11 #20: who could keep goal - names, keeper bit, injuries)
     return 'squad screen: still unavailable players after 10 swaps'
 
 

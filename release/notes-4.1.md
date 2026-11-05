@@ -1,10 +1,10 @@
-<!-- DRAFT 4.0.6 (Note session). Not merged, not published. -->
+<!-- DRAFT 4.1 (Note session; was 4.0.6, merged with 4.0.7). Not merged, not published. -->
 
 ## English
 
-**SWOS 96/97 Mod 4.0.6**
+**SWOS 96/97 Mod 4.1**
 
-4.0.6 brings **two players on one keyboard**, the computer's clubs playing by your rules (red cards, injuries, and goalkeeper injuries for everyone), **club finances closer to real football** and a **financial fair play** option, **B-team call-ups** for 20 clubs, the **continental cups** of the other continents in the game's own screens, **two-row benches** you can see in the match with the opponent's squad one key away, **stoppage time**, the UEFA Super Cup and the other intercontinental matches, full **stadium names**, white hair for Ravanelli, an easier install (a new patcher button and clearer messages) and a good number of fixes. Everything in 4.0 to 4.0.5 stays as it was; careers saved with those versions load and play on.
+4.1 is a big release. It brings a **world selector on the main menu** (2026-27, 1996-97 or Europe 1984-85, for career, friendlies and DIY competitions), **two players on one keyboard** players on one keyboard**, the computer's clubs playing by your rules (red cards, injuries, and goalkeeper injuries for everyone), **club finances closer to real football** and a **financial fair play** option, **B-team call-ups** for 20 clubs, the **continental cups** of the other continents in the game's own screens, **two-row benches** you can see in the match with the opponent's squad one key away, **stoppage time**, the UEFA Super Cup and the other intercontinental matches, full **stadium names**, a **bench info strip**, more realistic **offers for your players**, white hair for Ravanelli, an easier install (a new patcher button and clearer messages) and a good number of fixes. Everything in 4.0 to 4.0.5 stays as it was; careers saved with those versions load and play on.
 
 ### What's new
 
@@ -118,7 +118,7 @@ career starts with INVENTED. Older saves load with INVENTED.
 - **Shirt numbers on the squad screen.** You can now edit your club's shirt numbers on the squad screen too, as you already could on the team screen before a match: press LEFT on a player, then UP / DOWN or type the number; ESC cancels. The number no longer touches the player's name, and its shadow shows.
 - **Transfer market keeps its place** (reported by Enzo). When you look at a player in the national or foreign market list (MAKE OFFER) and come back with EXIT, the list stays on the page you were on, with the cursor on that player, instead of jumping back to the first page.
 - **Groups list.** When you pick a division split into groups (Serie C, Serie D, Argentina's Zona A / B, El Salvador's Segunda / Tercera, ...) the list of groups now opens on the first group (GIRONE A), both when you choose your club and in VIEW WORLD. EXIT still takes you back with the cursor on the division you came from.
-- **Version label** (idea of Marco). The "MOD 4.0.6" label on the main menu moved to the bottom-left corner, in grey: still readable, less in the way. With a competition loaded (CONTINUE on the menu) there is no free corner, so it is not shown, as before.
+- **Version label** (idea of Marco). The "MOD 4.1" label on the main menu moved to the bottom-left corner, in grey: still readable, less in the way. With a competition loaded (CONTINUE on the menu) there is no free corner, so it is not shown, as before.
 - **Edit Custom Teams: looks and shirt numbers.** In EDIT CUSTOM TEAMS the face button next to each player now has ten looks. Press FIRE on it to go through them: white, ginger, black and dark blond, then receding hairline, shaved head and white hair, each with light or dark skin. The button shows the look you picked. Press LEFT on the face button to light up the player's shirt number. UP / DOWN move it to the next / previous number nobody else in the team wears. You can also type the number with the number keys (1 to 99). If another player already wears that number, the two swap. FIRE, ENTER, LEFT or RIGHT confirm, and ESC puts the numbers back as they were. From your first change, the numbers stay with the players, even when you change the line-up. They show on every squad screen and in the match. Everything is saved with the team in CUSTOMS.EDT, and older files load as before. Thanks to Marco for the idea. With SWOS++ the button offers the four faces only (the other looks need the mod's own drawing). The numbers work the same. A player whose name has the full 22 letters keeps the four faces. In the original game the new looks show as the plain face.
 - **More characters in typed names** (thanks to Marco): player, team and coach names in EDIT CUSTOM TEAMS can now use - . / ' ? + ( ) : , and _ (shown as a space, as in ROBERTO_CARLOS), typed with your own keyboard's layout (Italian, UK, French, German) and the numpad's - and +. File names when you save (careers, seasons, tactics) can use - ' ( ) and _ too, so a tactic saved as FWRD_3-2 shows as FWRD 3-2. **Changed:** SHIFT no longer moves the text cursor; it now types the symbol on the key. Use the LEFT / RIGHT arrows to move the cursor. (SWOS++ keeps its own typing.)
 - **CONTINENTAL CUPS menu centred.** The rounds menu (SUMMARY and EXIT buttons) is now centred on the screen. Opening a continental cup's rounds menu now starts on the current round (after the final: on the final).
@@ -160,7 +160,7 @@ have to sell players to stay afloat. That is how the original game works:
   10 to 20 million a season (Real Madrid -16.9 M, Manchester City -18.5 M, Inter -10.9 M in the first season),
   while a small club's books stayed roughly level.
 
-**What 4.0.6 changes.** With every match charge, your club now also receives its share of the season's
+**What 4.1 changes.** With every match charge, your club now also receives its share of the season's
 **TV and commercial income**:
 - a **base** that depends on the division: 3.0 M a season in the top division, 1.2 M in the second, 0.5 M in the
   third, 0.2 M in the fourth and below (a division played in parallel groups, such as Serie C or Serie D,
@@ -183,7 +183,7 @@ one. It could happen to a club with a cheap squad and a big crowd, because the g
 squad's average price. Now a gate stops at its maximum instead.
 
 What it looks like in a career (World 2026-27, first two seasons, a club that wins its matches):
-| Club (division) | 4.0.5: start / end of season 1 / end of season 2 (lowest) | 4.0.6: start / end of season 1 / end of season 2 (lowest) |
+| Club (division) | 4.0.5: start / end of season 1 / end of season 2 (lowest) | 4.1: start / end of season 1 / end of season 2 (lowest) |
 |---|---|---|
 | Real Madrid (LaLiga) | 7.9 / -9.0 / -32.3 M (-34.4) | 10.4 / 15.3 / 10.3 M (3.5) |
 | Manchester City (Premier League) | 9.2 / -9.2 / -22.1 M (-27.9) | 7.8 / 5.2 / 7.8 M (-3.0) |
@@ -275,7 +275,7 @@ With the new button in place, a long coach's name on the squad screen is shown s
 - **A play-off entrant that refuses the place** no longer makes the game read wrong data at the season end (it showed up with San Marino; found by Ben Baker).
 
 ### Good to know
-- **With SWOS++** (SWOS++ has its own controls and its own match code) these 4.0.6 features are off or hidden: the "P1 AND P2 ON KEYBOARD" device, the OPTIONS rows CPU RED CARDS, CPU INJURIES and GOALKEEPER INJURIES, the opponent's squad list in the match, stoppage time, and the bald and white-hair looks (the players keep their normal look). The other new features work as without SWOS++. A very quick tap on PLAY MATCH may be ignored under SWOS++: press it normally.
+- **With SWOS++** (SWOS++ has its own controls and its own match code) these 4.1 features are off or hidden: the "P1 AND P2 ON KEYBOARD" device, the OPTIONS rows CPU RED CARDS, CPU INJURIES and GOALKEEPER INJURIES, the opponent's squad list in the match, stoppage time, and the bald and white-hair looks (the players keep their normal look). The other new features work as without SWOS++. A very quick tap on PLAY MATCH may be ignored under SWOS++: press it normally.
 - **New Zealand, B-team call-ups:** the age rule for the New Zealand clubs' reserves is an approximation (see above).
 - **Finances:** the new income applies to every career from its next match, including older ones; it changes the money, not the squads.
 
@@ -284,9 +284,9 @@ Thanks to Roman for asking for an easier install, to Marco for the financial fai
 
 ## Italiano
 
-**SWOS 96/97 Mod 4.0.6**
+**SWOS 96/97 Mod 4.1**
 
-La 4.0.6 porta **due giocatori sulla stessa tastiera**, le squadre del computer che giocano con le tue regole (rossi, infortuni e infortuni dei portieri per tutti), **finanze dei club più vicine al calcio vero** e un'opzione di **fair play finanziario**, le **convocazioni dalla squadra B** per 20 club, le **coppe continentali** degli altri continenti nelle schermate del gioco, le **panchine su due file** visibili in partita con la rosa avversaria a un tasto di distanza, il **recupero**, la Supercoppa UEFA e le altre partite intercontinentali, i **nomi completi degli stadi**, i capelli bianchi di Ravanelli, un'installazione più facile (un nuovo pulsante del patcher e messaggi più chiari) e diverse correzioni. Tutto ciò che c'è dalla 4.0 alla 4.0.5 resta com'era; le carriere salvate con quelle versioni si caricano e si giocano.
+La 4.1 è una versione grande. Porta un **selettore del mondo nel menu principale** (2026-27, 1996-97 o Europa 1984-85, per carriera, amichevoli e competizioni FAI DA TE), **due giocatori sulla stessa tastiera**, le squadre del computer che giocano con le tue regole (rossi, infortuni e infortuni dei portieri per tutti), **finanze dei club più vicine al calcio vero** e un'opzione di **fair play finanziario**, le **convocazioni dalla squadra B** per 20 club, le **coppe continentali** degli altri continenti nelle schermate del gioco, le **panchine su due file** visibili in partita con la rosa avversaria a un tasto di distanza, il **recupero**, la Supercoppa UEFA e le altre partite intercontinentali, i **nomi completi degli stadi**, una **striscia info in panchina**, **offerte** per i tuoi giocatori **più realistiche**, i capelli bianchi di Ravanelli, un'installazione più facile (un nuovo pulsante del patcher e messaggi più chiari) e diverse correzioni. Tutto ciò che c'è dalla 4.0 alla 4.0.5 resta com'era; le carriere salvate con quelle versioni si caricano e si giocano.
 
 ### Novità
 
@@ -404,7 +404,7 @@ carriera nuova parte da INVENTATI. I salvataggi precedenti si caricano con INVEN
 - **Numeri di maglia nella schermata della rosa.** Ora puoi modificare i numeri di maglia del tuo club anche nella schermata della rosa, come già potevi nella schermata della squadra prima della partita: premi SINISTRA su un giocatore, poi SU / GIÙ o scrivi il numero; ESC annulla. Il numero non tocca più il nome del giocatore e se ne vede l'ombra.
 - **Il mercato ricorda la pagina** (segnalato da Enzo). Quando guardi un giocatore nell'elenco del mercato nazionale o estero (FAI UN'OFFERTA) e torni con ESCI, l'elenco resta sulla pagina in cui eri, con il cursore su quel giocatore, invece di tornare alla prima pagina.
 - **Lista dei gironi.** Quando scegli una divisione divisa in gironi (Serie C, Serie D, le Zone A / B dell'Argentina, Segunda / Tercera di El Salvador, ...) la lista dei gironi ora si apre sul primo girone (GIRONE A), sia quando scegli il club sia in VISUALIZZA MONDO. ESCI riporta come prima alla divisione da cui eri entrato, con il cursore su di essa.
-- **Etichetta della versione** (idea di Marco). La scritta "MOD 4.0.6" sul menu principale è passata nell'angolo in basso a sinistra, in grigio: si legge ancora, ma dà meno nell'occhio. Con una competizione caricata (CONTINUA nel menu) non c'è un angolo libero, quindi non compare, come prima.
+- **Etichetta della versione** (idea di Marco). La scritta "MOD 4.1" sul menu principale è passata nell'angolo in basso a sinistra, in grigio: si legge ancora, ma dà meno nell'occhio. Con una competizione caricata (CONTINUA nel menu) non c'è un angolo libero, quindi non compare, come prima.
 - **Modifica squadre: aspetto e numeri di maglia.** In MODIFICA SQUADRE il pulsante della faccia accanto a ogni giocatore ha ora dieci aspetti. Premi FUOCO su di esso per passarli in rassegna: bianco, rosso, nero e nero biondo, poi stempiato, testa rasata e capelli bianchi, ciascuno con la pelle chiara o scura. Il pulsante mostra l'aspetto scelto. Premi SINISTRA sul pulsante della faccia per accendere il numero di maglia del giocatore. SU / GIÙ lo portano al numero libero successivo / precedente, cioè uno che nessun altro della squadra ha. Puoi anche scriverlo con i tasti dei numeri (da 1 a 99). Se un altro giocatore ha già quel numero, i due se lo scambiano. FUOCO, INVIO, SINISTRA o DESTRA confermano, ESC rimette i numeri com'erano. Dalla prima modifica i numeri restano ai giocatori, anche quando cambi la formazione. Compaiono in ogni schermata della rosa e in partita. Tutto viene salvato con la squadra in CUSTOMS.EDT, e i file più vecchi si caricano come prima. Grazie a Marco per l'idea. Con SWOS++ il pulsante offre solo le quattro facce (gli altri aspetti richiedono il disegno della mod). I numeri funzionano allo stesso modo. Un giocatore con un nome di 22 lettere (il massimo) resta alle quattro facce. Nel gioco originale i nuovi aspetti compaiono come la faccia normale.
 - **Più caratteri nei nomi** (grazie a Marco): i nomi di giocatori, squadre e allenatori in MODIFICA SQUADRE possono contenere - . / ' ? + ( ) : , e _ (mostrato come spazio, come in ROBERTO_CARLOS), digitati con la disposizione della tua tastiera (italiana, inglese, francese, tedesca) e con - e + del tastierino. Anche i nomi dei file quando salvi (carriere, stagioni, tattiche) accettano - ' ( ) e _: una tattica salvata come FWRD_3-2 si vede FWRD 3-2. **Cambiato:** SHIFT non sposta più il cursore del testo; ora scrive il simbolo sul tasto. Il cursore si sposta con le frecce SINISTRA / DESTRA. (SWOS++ mantiene la sua digitazione.)
 - **Menu COPPE CONTINENTALI centrato.** Il menu dei turni (pulsanti RIEPILOGO ed ESCI) ora è centrato sullo schermo. Aprendo il menu dei turni di una coppa continentale il cursore parte dal turno in corso (dopo la finale: sulla finale).
@@ -448,7 +448,7 @@ vincendo tutto, e bisogna vendere giocatori per restare a galla. È il funzionam
   20 milioni a stagione: nella prima stagione Real Madrid −16,9 M, Manchester City −18,5 M, Inter −10,9 M. Un
   club piccolo invece restava più o meno in pari.
 
-**Cosa cambia nella 4.0.6.** A ogni partita il tuo club riceve anche la sua quota degli **incassi da diritti TV e
+**Cosa cambia nella 4.1.** A ogni partita il tuo club riceve anche la sua quota degli **incassi da diritti TV e
 sponsor** della stagione:
 - una **base** che dipende dalla serie: 3,0 M a stagione nella massima serie, 1,2 M nella seconda, 0,5 M nella
   terza, 0,2 M dalla quarta in giù (una serie a gironi paralleli, come la Serie C o la Serie D, conta come un
@@ -472,7 +472,7 @@ molto meno di uno più piccolo. Poteva succedere a un club con una rosa economic
 divide l'incasso per il prezzo medio della rosa. Ora l'incasso si ferma al massimo.
 
 Come si vede in carriera (Mondo 2026-27, prime due stagioni, un club che vince le sue partite):
-| Club (serie) | 4.0.5: inizio / fine stagione 1 / fine stagione 2 (minimo) | 4.0.6: inizio / fine stagione 1 / fine stagione 2 (minimo) |
+| Club (serie) | 4.0.5: inizio / fine stagione 1 / fine stagione 2 (minimo) | 4.1: inizio / fine stagione 1 / fine stagione 2 (minimo) |
 |---|---|---|
 | Real Madrid (LaLiga) | 7,9 / -9,0 / -32,3 M (-34,4) | 10,4 / 15,3 / 10,3 M (3,5) |
 | Manchester City (Premier League) | 9,2 / -9,2 / -22,1 M (-27,9) | 7,8 / 5,2 / 7,8 M (-3,0) |
@@ -564,7 +564,7 @@ resta quello).
 - **Una squadra di play-off che rifiuta il posto** non fa più leggere al gioco dati sbagliati a fine stagione (si vedeva con San Marino; trovato da Ben Baker).
 
 ### Da sapere
-- **Con SWOS++** (SWOS++ ha i suoi comandi e il suo codice di partita) queste novità della 4.0.6 sono disattivate o nascoste: il dispositivo "G1 E G2 SU TASTIERA", le righe di OPZIONI ROSSI ALLA CPU, INFORTUNI ALLA CPU e INFORTUNI PORTIERI, l'elenco della rosa avversaria in partita, il recupero, e i look calvo e a capelli bianchi (i giocatori mantengono il loro aspetto normale). Le altre novità funzionano come senza SWOS++. Un tocco velocissimo su GIOCA PARTITA con SWOS++ può essere ignorato: premilo normalmente.
+- **Con SWOS++** (SWOS++ ha i suoi comandi e il suo codice di partita) queste novità della 4.1 sono disattivate o nascoste: il dispositivo "G1 E G2 SU TASTIERA", le righe di OPZIONI ROSSI ALLA CPU, INFORTUNI ALLA CPU e INFORTUNI PORTIERI, l'elenco della rosa avversaria in partita, il recupero, e i look calvo e a capelli bianchi (i giocatori mantengono il loro aspetto normale). Le altre novità funzionano come senza SWOS++. Un tocco velocissimo su GIOCA PARTITA con SWOS++ può essere ignorato: premilo normalmente.
 - **Nuova Zelanda, convocazioni dalla squadra B:** la regola sull'età per le riserve dei club neozelandesi è un'approssimazione (vedi sopra).
 - **Finanze:** i nuovi incassi valgono per ogni carriera dalla partita successiva, anche per quelle già iniziate; cambiano i soldi, non le rose.
 

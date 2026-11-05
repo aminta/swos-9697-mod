@@ -1446,6 +1446,23 @@ def lineup_mem(s, n=16):
     return None if m is None else (m[0][0], [k for k, (_, un) in enumerate(m) if un])
 
 
+def keeper_in(s, rows, g):
+    """(I10p world8485_nat B0: memory's place k and the squad screen's row k are not always the same player - ZAHRA in
+    screen row 9 read as place 8 - so 'the keeper of place 8 in' swapped the wrong row and ping-ponged) Row 1 <-> the
+    screen row of fit keeper place g: rows g, g + 1, g - 1, g + 2, g - 2 tried, each checked in memory (place 1 a fit
+    keeper after the swap, else swapped back). The row taken, or None."""
+    for r in (g, g + 1, g - 1, g + 2, g - 2):
+        if not 1 <= r < 16:
+            continue
+        if not swap_rows(s, rows, 0, r):
+            return None
+        m = lineup_places(s)
+        if m and m[0][0] and not m[0][1]:
+            return r
+        swap_rows(s, rows, 0, r)                        # (not him: back)
+    return None
+
+
 def fit_keeper_place(s):
     """(I10p world8485_nat: the fixer had taken the fit bench keeper as an outfield stand-in, then found no keeper
     among the reserves and ping-ponged outfield players in goal) The first of places 2..16 holding a fit keeper, 0-based;
@@ -1597,10 +1614,10 @@ def substitute(s, scr, tries=40, full=False):
         k = bad[0]
         need = SLOT_ROLE[k] if k < len(SLOT_ROLE) else ''
         g = fit_keeper_place(s) if k == 0 and not s.__dict__.get('gk_swap') else None
-        if g is not None:                               # (a fit keeper already in the 16: he goes in goal)
-            swap_rows(s, rows, 0, g)
+        r_ = keeper_in(s, rows, g) if g is not None else None
+        if r_ is not None:                              # (a fit keeper already in the 16: he goes in goal)
             s.gk_swap = gk_now = True
-            s.log.append(f'[subs] slot 1: the keeper of place {g + 1} in')
+            s.log.append(f'[subs] slot 1: the keeper of place {g + 1} (row {r_ + 1}) in')
             continue
         if k == 0 and not rows[11][1] and not s.__dict__.get('gk_swap') and 11 not in subs:   # the keeper: row 12
             swap_rows(s, rows, 0, 11)                   # is the bench keeper in SWOS squads (drawn rows have no
@@ -1676,6 +1693,7 @@ def substitute_min(s, tries=40):
     bench keeper (row 12) first; no best-reserve search, no starter brought back later (substitute's two cycles over
     every reserve per squad screen were ~50-60% of a long career's pauses). Returns an error string or None."""
     keeper = False                                      # (the row-12 keeper swap: once)
+    kp_tried = False                                    # (the fit keeper of the 16 in goal: once)
     for _ in range(12):
         if 'VIS. RISULTATI' in s.screen().texts():      # (the match allowed: nothing to fix - with a bench over 5 an
             s.lineup_esc = 0                            # unavailable bench player is left out at the kick-off)
@@ -1696,10 +1714,11 @@ def substitute_min(s, tries=40):
         if not bad:
             return None if 'VIS. RISULTATI' in cur.texts() else 'squad screen without VIS. RISULTATI, no unavailable row'
         k = bad[0]
-        g = fit_keeper_place(s) if k == 0 else None     # (a fit keeper already in the 16: he goes in goal)
-        if g is not None:
-            swap_rows(s, rows, 0, g)
-            s.log.append(f'[subs] slot 1: the keeper of place {g + 1} in (min)')
+        g = fit_keeper_place(s) if k == 0 and not kp_tried else None   # (a fit keeper already in the 16: he goes
+        kp_tried = kp_tried or g is not None                            #  in goal - once per screen: no ping-pong)
+        r_ = keeper_in(s, rows, g) if g is not None else None
+        if r_ is not None:
+            s.log.append(f'[subs] slot 1: the keeper of place {g + 1} (row {r_ + 1}) in (min)')
             continue
         if k == 0 and (keeper or rows[11][1]):          # no fit keeper in goal (row 12 is not always one: an outfield
             err = keeper_from_reserves(s, cur, rows, tries)   # player in goal keeps VIS. RISULTATI hidden): a fit

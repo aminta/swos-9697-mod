@@ -11470,6 +11470,16 @@ def av_rows_ok(sc, kind, errs, tag):
     return ok
 
 
+def av_unused():
+    """The 1984-85 nations that do not exist in the era (packs/europe-1984-85/national nations.csv unused = 1): their
+    names (clubs.csv), hidden from the friendly / DIY lists (step 2.5, mkseason UNUSED_LEAGUE)."""
+    d = os.path.join(ROOT, 'packs', 'europe-1984-85', 'national')
+    import csv
+    rd = lambda n: list(csv.DictReader(open(os.path.join(d, n), newline='')))
+    un = {r['key'] for r in rd('nations.csv') if r['unused'].strip() == '1'}
+    return tuple(r['name'] for r in rd('clubs.csv') if r['key'] in un)
+
+
 @scenario
 def engine_avail():
     """Step 2.5 (Davide 2026-11-05): 'not available in this world' -> a message on the spot, 2 rows in the list area
@@ -11478,7 +11488,7 @@ def engine_avail():
     STAG. STORICHE box (the cursor on it), the box opens its list (COPPA MONDIALE 1934 / ITALIA 1947-48) and its ESCI
     comes back to the message; under 1996-97 the game's continents, no message. FRIENDLY > NAZIONALI: 2026-27 = the
     message (the cursor on ABBANDONA); EUROPA 1984-85 = EUROPA only, DaniSwos's nations (EAST GERMANY, SOVIET UNION,
-    not CROATIA), EAST GERMANY - WEST GERMANY: the pre-match screen shows an era one; 1996-97 after it = the game's (CROATIA)."""
+    not CROATIA, none of the 12 post-1990 'unused' ones: av_unused), EAST GERMANY - WEST GERMANY: the pre-match screen shows an era one; 1996-97 after it = the game's (CROATIA)."""
     errs, info = [], []
     files = {'SETUP.DAT': setup_file('engine_avail', 1)}
     box = {'preset': ('COMP. PREDEFINITA', 'TORNEI STORICI', 'COPPA MONDIALE 1934'),
@@ -11531,8 +11541,9 @@ def engine_avail():
                 sc = s.screen()
                 tx = [t for t in sc.texts() if t]
                 s.shot(f'nat_{wn}_eu')
-                want, never = ((('EAST GERMANY', 'SOVIET UNION', 'WEST GERMANY'), ('CROATIA', 'RUSSIA')) if w == 2
-                               else (('CROATIA', 'RUSSIA'), ('EAST GERMANY', 'SOVIET UNION')))
+                want, never = ((('EAST GERMANY', 'SOVIET UNION', 'WEST GERMANY', 'CZECHOSLOVAKIA', 'YUGOSLAVIA'),
+                                ('CROATIA', 'RUSSIA') + av_unused()) if w == 2
+                               else (('CROATIA', 'RUSSIA', 'UKRAINE'), ('EAST GERMANY', 'SOVIET UNION')))
                 check(all(n in tx for n in want) and not any(n in tx for n in never), f'{tag}: EUROPA lists '
                       f'{[n for n in want + never if n in tx]}', errs)
                 info.append(f'{tag}: {conts}, {[n for n in want + never if n in tx]}')

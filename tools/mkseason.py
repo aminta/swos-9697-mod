@@ -44,6 +44,8 @@ ENABLED = (os.environ['SEASON_PACKS'].split(',') if 'SEASON_PACKS' in os.environ
                               if not c.startswith('.') and c != NATIONAL])
                                         # (a name in packs/ or a path; SEASON_PACKS only for test builds)
 TEAM_SIZE = 684
+TF_LEAGUE = 25                          # TeamFile.league (team record offset)
+UNUSED_LEAGUE = 1                       # an unused nation's league byte (the file's nations are league 0)
 SEASONS = 97                            # pseudo-continent 'classic seasons' of the Season menu
 SEASONS_NAMES = {'it': b'STAG. STORICHE', 'en': b'CLASSIC SEASONS', 'fr': b"SAISONS D'ANTAN", 'de': b'SAISONKLASSIKER'}
 SEASONS_REC = [None]                    # obj2 offset of its countriesTable record (historic.hist_names colours it)
@@ -723,6 +725,12 @@ class Pack:
                 out[k], n = _place_numbers(out[k])
                 moved += n
             self.log(f'shirt numbers by place (1..11 starters, 12..16 bench): {moved} changed')
+        for f, i in getattr(self, 'unused', ()):         # step 2.5 (Davide 2026-11-05): a nation that does not exist in
+            r = bytearray(out[f])                         # the era is hidden from the friendly / DIY lists - their
+            r[2 + TEAM_SIZE * i + TF_LEAGUE] = UNUSED_LEAGUE   # filter (ChooseTeamsFriendlyInitFinish) lists the file's
+            out[f] = bytes(r)                             # teams of league 0 only; the career skips them (nat_table)
+        if getattr(self, 'unused', ()):
+            self.log(f'{len(self.unused)} unused nations: league {UNUSED_LEAGUE} (hidden from the team lists)')
         self.pool_data = out.pop(self.files['pool'][0], None) if getattr(self, 'pool_key', None) else None
         self.xtra.pop(self.files['pool'][0], None) if getattr(self, 'pool_key', None) else None
         return out                                      # (the off-file pool: rs_files)
@@ -1150,11 +1158,14 @@ class NationalPack(Pack):
             self.count[c['file']] = n + 1
         self.division, self.comps, self.ties = {}, [], {}
         self.nations = {}                       # nations.csv: (game file, ordinal) -> code, nat, home, unused
+        self.unused = []                        # (physical file, ordinal) of its unused nations (team_files)
         np_ = os.path.join(path, 'nations.csv')
         for row in (_csv(np_) if os.path.exists(np_) else []):
             _need(row['key'] in self.clubs, f"nations.csv: unknown team {row['key']}")
             f, i = self.where[row['key']]
             self.nations[(self.as_file[f], i)] = row
+            if row.get('unused') == '1':
+                self.unused.append((f, i))
 
     def word(self, key):
         """The game's team word of a national team: file (80..85) | ordinal << 8."""

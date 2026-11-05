@@ -249,13 +249,28 @@ Your squad still holds at most 30 players. A player whose year of birth we do no
 For New Zealand we found no official rule for the reserves' ages, so they follow the Australian one: an approximation.
 With the new button in place, a long coach's name on the squad screen is shown shortened (the name itself is kept).
 
+#### Choose your world (thanks to Francesco and Marco)
+- **A WORLD selector on the main menu.** A new button lets you pick the world you play in: **2026-27**, **1996-97** or **EUROPE 1984-85**. It replaces the green CAREER 2026-27 button. The world you choose applies to CAREER, FRIENDLY, DIY competitions and the preset competitions: the teams, competitions and seasons you are offered are those of that world.
+- **CAREER lists the teams of the chosen world.** The team choice at the start of a career now shows the clubs of the world you picked.
+- **Clear messages when something is not available in a world.** HISTORIC TOURNAMENTS and HISTORIC SEASONS are always visible. If the chosen world has none, the game says so instead of leaving an empty list: "NO PRESET COMPETITIONS FOR THIS WORLD AT THE MOMENT", "NO SEASONS FOR THIS WORLD AT THE MOMENT". National teams are not ready for 2026-27 yet and say "NATIONAL TEAMS NOT YET AVAILABLE FOR THIS WORLD"; in EUROPE 1984-85 the national teams are those of DaniSwos.
+- **Patcher: "Original main menu"** (Marco's idea). Tick it if you prefer the main menu exactly as in the original game, without the new world button.
+- **Long benches in friendlies and DIY competitions (2026-27 world).** Each club uses the bench size of its own league. In a match between clubs with different benches, both use the LONGER one. National teams, custom teams and the 1996-97 world stay at 5 substitutes. On the screen before the match you see the extra players and can swap them. <!-- TBC Panchina: 406-lbfr still in progress -->
+
+#### Bench info strip (an idea of Francesco)
+- In the bench menu and the substitutions menu, a strip now shows the **value** and **three attributes** of the substitute you highlight, so you can choose without leaving the menu. <!-- TBC Panchina 2d1215b: name the 3 attributes, SWOS++ -->
+
+#### More realistic offers for your players (thanks to Francesco)
+- **Career:** clubs now only make an offer for one of your players if he would earn a place in their squad (at least their 12th best player, with a margin of 2). A big club no longer bids for a cheap reserve from a small team: in a Serie D career, offers come from clubs of a similar level. The prices offered stay as before.
+
 #### Fixes
 - **New Zealand, last round of the Championship group.** If your club rests in the last round of the Championship group, the menu now offers FINISH SEASON. Press it: if your club reached the Grand Final, MATCH comes back and you play it; otherwise the season ends. (Before, the menu could offer a match on the rest day.) The real champion was already right; this removes the confusing final that did not count mentioned in the 4.0.5 notes.
 - **Buying a club's extra squad players** (thanks to Enzo). Fixed: after taking over a club, a player you had bought from it (one of its extra squad players) could reappear in its squad, so he was in two clubs at once. Fixed: buying one of another club's extra squad players (players 17 to 30) could make the career crash at the start of a later season, or spoil another club's squad. Careers saved with 4.0.2 to 4.0.5 play on safely.
 - **TRANSFERS stays available after viewing a cup.** After looking at a cup from VIEW WORLD, TRANSFERS was greyed out until the next match and the menu cursor jumped
   into the fixtures (since 4.0.5). Now the career menu stays as it was.
-- **The UP and DOWN arrows stopped working after a match** (thanks to Salvatore). In 4.0.5 the UP and DOWN arrows could stop working in every menu after a match. It happened if you pressed VIEW OPPO on the pre-match screen and started the match from there (PLAY MATCH): the arrows stayed dead until the next pre-match screen, even after loading another career (LEFT and RIGHT still worked). Now they always work, and on the pre-match screen UP and DOWN still scroll the opponent's long squad as before.
+- **The UP and DOWN arrows stopped working after a match** (thanks to Salvatore and Marco). In 4.0.5 the UP and DOWN arrows could stop working in every menu after a match. It happened if you pressed VIEW OPPO on the pre-match screen and started the match from there (PLAY MATCH): the arrows stayed dead until the next pre-match screen, even after loading another career (LEFT and RIGHT still worked). Now they always work, and on the pre-match screen UP and DOWN still scroll the opponent's long squad as before.
 - **Two-row benches drew stray pieces.** The patcher used to install only one of the five pitch picture files, so the new two-row benches showed dirty pieces on some pitches. It now installs all five.
+- **Shirt numbers on the bench and in EDIT CUSTOM TEAMS.** On the squad screen with a long bench, changing a substitute's number used to change the player above him; now it changes his own. In EDIT CUSTOM TEAMS the number is changed by moving RIGHT from the player's face (it was LEFT).
+- **Score panel garbled after a substitution.** On some setups (seen on a MiSTer) the score panel could be drawn wrong after a substitution. The game's area for saving the screen under menus is now larger.
 - **Club names without the "&" sign:** O Y M, TREFELIN BGC, SB VLASIM and HARLAND WOLFF.
 - **A play-off entrant that refuses the place** no longer makes the game read wrong data at the season end (it showed up with San Marino; found by Ben Baker).
 
@@ -265,7 +280,7 @@ With the new button in place, a long coach's name on the squad screen is shown s
 - **Finances:** the new income applies to every career from its next match, including older ones; it changes the money, not the squads.
 
 ### Thanks
-Thanks to Roman for asking for an easier install, to Marco for the financial fair play idea, the training, shirt-number and keyboard ideas, to Enzo for the market-list report, to Nicola for the finance and CPU-replacements reports, to Salvatore for the arrows report and to Ben Baker for the San Marino report. Marco and Davide had the idea of the stoppage time.
+Thanks to Roman for asking for an easier install, to Marco for the financial fair play idea, the training, shirt-number and keyboard ideas, to Enzo for the market-list report, to Nicola for the finance and CPU-replacements reports, to Salvatore and Marco for the arrows report, to Francesco for the bench strip, offers and world ideas and to Ben Baker for the San Marino report. Marco and Davide had the idea of the stoppage time.
 
 ## Italiano
 
@@ -523,13 +538,28 @@ Per la Nuova Zelanda non abbiamo trovato una regola ufficiale sull'età delle ri
 Con il nuovo pulsante, un nome dell'allenatore lungo nella schermata della rosa viene mostrato accorciato (il nome
 resta quello).
 
+#### Scegli il tuo mondo (grazie a Francesco e Marco)
+- **Un selettore del MONDO nel menu principale.** Un nuovo pulsante permette di scegliere il mondo in cui giochi: **2026-27**, **1996-97** o **EUROPA 1984-85**. Sostituisce il pulsante verde CARRIERA 2026-27. Il mondo scelto vale per CARRIERA, AMICHEVOLE, competizioni FAI DA TE e competizioni predefinite: le squadre, le competizioni e le stagioni che ti vengono proposte sono quelle di quel mondo.
+- **CARRIERA elenca le squadre del mondo scelto.** La scelta della squadra a inizio carriera ora mostra i club del mondo che hai scelto.
+- **Messaggi chiari quando qualcosa non c'è in un mondo.** TORNEI STORICI e STAG. STORICHE sono sempre visibili. Se il mondo scelto non ne ha, il gioco lo dice invece di mostrare una lista vuota: "AL MOMENTO NON CI SONO COMPETIZIONI PREDEFINITE PER QUESTO MONDO", "AL MOMENTO NON CI SONO STAGIONI PER QUESTO MONDO". Le nazionali non sono ancora pronte per il 2026-27 e dicono "NAZIONALI NON ANCORA DISPONIBILI PER QUESTO MONDO"; in EUROPA 1984-85 le nazionali sono quelle di DaniSwos.
+- **Patcher: "Menu principale originale"** (idea di Marco). Spuntala se preferisci il menu principale identico al gioco originale, senza il nuovo pulsante del mondo.
+- **Panchine lunghe in amichevoli e competizioni FAI DA TE (mondo 2026-27).** Ogni club usa la panchina della propria lega. In una partita tra club con panchine diverse, entrambi usano la PIÙ LUNGA. Nazionali, squadre personalizzate e mondo 1996-97 restano a 5 riserve. Nella schermata prima della partita vedi i giocatori in più e puoi scambiarli. <!-- TBC Panchina: 406-lbfr ancora in corso -->
+
+#### Striscia info in panchina (idea di Francesco)
+- Nel menu panchina e nel menu sostituzioni, una striscia mostra ora il **valore** e **tre attributi** della riserva evidenziata, così scegli senza uscire dal menu. <!-- TBC Panchina 2d1215b: nominare i 3 attributi, SWOS++ -->
+
+#### Offerte più realistiche per i tuoi giocatori (grazie a Francesco)
+- **Carriera:** un club fa un'offerta per un tuo giocatore solo se quel giocatore troverebbe posto nella sua rosa (almeno il 12° migliore, con margine 2). Una grande squadra non chiede più una riserva da pochi soldi di un club piccolo: in una carriera in Serie D le offerte arrivano da club di livello simile. I prezzi offerti restano come prima.
+
 #### Correzioni
 - **Nuova Zelanda, ultima giornata del gruppo del Championship.** Se il tuo club riposa nell'ultima giornata del gruppo del Championship, il menu ora offre FINISCI STAGIONE. Premilo: se il tuo club è arrivato alla Grand Final torna PARTITA e la giochi; altrimenti la stagione finisce. (Prima il menu poteva offrire una partita nel giorno di riposo.) Il campione vero era già giusto; questo toglie la finale confusa che non contava, citata nelle note della 4.0.5.
 - **Acquisto dei giocatori extra di una squadra** (grazie a Enzo). Corretto: prendendo una squadra, un giocatore che le avevi comprato (uno dei suoi giocatori extra della rosa) poteva ricomparire nella sua rosa, quindi in due squadre insieme. Corretto: comprare uno dei giocatori extra della rosa di un'altra squadra (dal 17° al 30°) poteva bloccare la carriera all'inizio di una stagione successiva o rovinare la rosa di un'altra squadra. Le carriere salvate con le versioni 4.0.2-4.0.5 proseguono senza problemi.
 - **TRASFERIMENTI resta disponibile dopo aver guardato una coppa.** Dopo aver guardato una coppa da VISUALIZZA MONDO, TRASFERIMENTI restava grigio fino alla partita successiva e il
   cursore del menu saltava nelle partite (dalla 4.0.5). Ora il menu della carriera resta com'era.
-- **Le frecce SU e GIÙ smettevano di funzionare dopo una partita** (grazie a Salvatore). Nella 4.0.5 le frecce SU e GIÙ potevano smettere di funzionare in tutti i menu dopo una partita. Succedeva se nella schermata prima della partita guardavi la rosa avversaria (AVVERSARI) e facevi partire la partita da lì: le frecce restavano bloccate fino alla schermata prima della partita successiva, anche caricando un'altra carriera (SINISTRA e DESTRA funzionavano). Ora funzionano sempre, e nella schermata prima della partita SU e GIÙ scorrono ancora la rosa lunga dell'avversario come prima.
+- **Le frecce SU e GIÙ smettevano di funzionare dopo una partita** (grazie a Salvatore e Marco). Nella 4.0.5 le frecce SU e GIÙ potevano smettere di funzionare in tutti i menu dopo una partita. Succedeva se nella schermata prima della partita guardavi la rosa avversaria (AVVERSARI) e facevi partire la partita da lì: le frecce restavano bloccate fino alla schermata prima della partita successiva, anche caricando un'altra carriera (SINISTRA e DESTRA funzionavano). Ora funzionano sempre, e nella schermata prima della partita SU e GIÙ scorrono ancora la rosa lunga dell'avversario come prima.
 - **Le panchine su due file mostravano pezzi sporchi.** Il patcher installava solo uno dei cinque file con le immagini dei campi, quindi le nuove panchine su due file mostravano pezzi sporchi su alcuni campi. Ora li installa tutti e cinque.
+- **Numeri di maglia in panchina e in MODIFICA SQUADRE.** Nella schermata della rosa con la panchina lunga, cambiare il numero di un panchinaro cambiava quello del giocatore sopra di lui; ora cambia proprio il suo. In MODIFICA SQUADRE il numero si cambia andando a DESTRA dalla faccia del giocatore (prima era SINISTRA).
+- **Pannello del punteggio rovinato dopo una sostituzione.** Su alcune configurazioni (visto su un MiSTer) il pannello del punteggio poteva essere disegnato male dopo una sostituzione. L'area in cui il gioco salva lo schermo sotto i menu ora è più grande.
 - **Nomi di club senza il segno "&":** O Y M, TREFELIN BGC, SB VLASIM e HARLAND WOLFF.
 - **Una squadra di play-off che rifiuta il posto** non fa più leggere al gioco dati sbagliati a fine stagione (si vedeva con San Marino; trovato da Ben Baker).
 
@@ -539,4 +569,4 @@ resta quello).
 - **Finanze:** i nuovi incassi valgono per ogni carriera dalla partita successiva, anche per quelle già iniziate; cambiano i soldi, non le rose.
 
 ### Ringraziamenti
-Grazie a Roman per aver chiesto un'installazione più semplice, a Marco per l'idea del fair play finanziario, le idee su allenamento, numeri di maglia e tastiera, a Enzo per la segnalazione sull'elenco del mercato, a Nicola per quelle sulle finanze e sui rimpiazzi della CPU, a Salvatore per quella sulle frecce e a Ben Baker per la segnalazione su San Marino. L'idea del recupero è di Marco e Davide.
+Grazie a Roman per aver chiesto un'installazione più semplice, a Marco per l'idea del fair play finanziario, le idee su allenamento, numeri di maglia e tastiera, a Enzo per la segnalazione sull'elenco del mercato, a Nicola per quelle sulle finanze e sui rimpiazzi della CPU, a Salvatore e Marco per quella sulle frecce, a Francesco per le idee su striscia panchina, offerte e mondi e a Ben Baker per la segnalazione su San Marino. L'idea del recupero è di Marco e Davide.

@@ -16740,6 +16740,8 @@ def world_cgame_view():
             s.log.append(f'[cgv] {conf} rounds menu margins {lm} / {rm}, bottom pair {bot}')
             rb = [i for i, t, inv, dis in sc.entries[1:1 + ctview.CR_N] if not inv and t]   # (4.0.6 ctcursor: the
             check(sc.selected in rb, f'{conf}: rounds menu opens on entry {sc.selected}, not a round {rb}', errs)   # current round)
+            far = menu_unreach(sc, rb + [ctview.CR_N + 1, ctview.CR_N + 2])   # (every button within the keys' reach)
+            check(not far, f'{conf}: rounds menu entries {far} out of the keys\' reach from {sc.selected}', errs)
             opened = []
             s.log.append(f'[cgv] {conf} rounds menu: {btns} nav {sc.nav[1:4]} {sc.nav[ctview.CR_N + 1:ctview.CR_N + 3]}')
             for j, (i, label) in enumerate(btns):
@@ -16809,6 +16811,11 @@ def world_cgame_view():
             if s.screen().find(summ, exact=True) is None:
                 info.append(f'{conf}: no rounds')
                 walk(s, 16, 3)
+                for _ in range(3 if pp else 0):         # (SWOS++'s timer keys: the page's ESCI taken late or the
+                    sc_ = s.screen()                    #  fire twice - the page again: ESCI till the confederations)
+                    if (sc_.raw_texts or [sc_.entries[0][1]])[0] == ctview.TEXTS[UI][6].decode('latin1'):
+                        break
+                    press(s, sc_, 'ESCI', 3) or s.send('fire dump:2')
                 continue
             opened = rounds(f'cgv_{k}', conf)
             info.append(f'{conf}: {len(opened)} rounds {opened[:3]}')
@@ -16923,8 +16930,9 @@ def world_cgame_fallback():
     menu with its links, CT_SEG / CT_ED unchanged; the guard poked back -> the first round is the game's screen again.
     (The other reasons - E_GUEST a club in no team file, E_NOREC no goals kept, E_CACHE, E_KIND - are Tier B
     test_cg_fallback's: cg_view 0 is the one path to the page.) Then season 1 of a new career (CGF_TEAM, default
-    EUROPA,ITALIA,SERIE A,ROMA: no edition yet - no 'CE'): every confederation's COPPE CONTINENTALI button the page at
-    once (no rounds menu), VIEW WORLD's SUDAMERICA cups the page, no view opened."""
+    EUROPA,ITALIA,SERIE A,ROMA): every confederation's COPPE CONTINENTALI button the page, or - 4.0.6 B2 (dacabf7):
+    season 1's drawn main rounds - its rounds menu, every button within the keys' reach; VIEW WORLD's SUDAMERICA cup
+    its page or rounds menu (title = the cup), no view opened."""
     exe = os.environ.get('CV_BUILD')
     if not exe:
         return True, 'SKIP: CV_BUILD not set (world_cgame_view\'s build)'
@@ -17018,14 +17026,21 @@ def world_cgame_fallback():
         g0 = G(s)
         walk(s, s.screen().find('VISUAL. COMPETIZ.', exact=True), 3)
         walk(s, s.screen().find('COPPE CONTINENTALI', exact=True), 3)
-        pages = 0
+        pages = menus = 0
         for k in range(1, 7):
             c = s.screen().entries[k][1]
             walk(s, k, 3)
             v = s.screen()
             s.shot(f'cgf_s1_{k}')
             s.log.append(f'[cgf] season 1 {c}: {v.texts()[:10]}')
-            check(v.find(summ, exact=True) is None and v.texts(), f'season 1 {c}: a rounds menu ({v.texts()[:6]})', errs)
+            if v.find(summ, exact=True) is not None:   # (4.0.6 B2, dacabf7: season 1's drawn main rounds in the
+                rb = [i for i, t, inv, dis in v.entries[1:1 + ctview.CR_N] if not inv and t]   # rounds menu from
+                far = menu_unreach(v, rb + [ctview.CR_N + 1, ctview.CR_N + 2])                  # the start)
+                check(rb and not far, f'season 1 {c}: rounds menu {rb}, out of reach {far}', errs)
+                menus += 1
+                walk(s, ctview.CR_N + 2, 3)
+                continue
+            check(v.texts(), f'season 1 {c}: an empty screen', errs)
             q = [t for t in v.texts() if '?' in t]      # (an unknown name: the list read past the round's places)
             check(not q, f'season 1 {c}: unknown names {q[:3]}', errs)
             pages += 1
@@ -17042,11 +17057,10 @@ def world_cgame_fallback():
             v = s.screen()
             s.shot('cgf_s1_world')
             title = (v.raw_texts or [v.entries[0][1]])[0]
-            check(v.find(summ, exact=True) is None and cups[0] in title,
-                  f'season 1 {cups[0]}: not its page ({v.texts()[:6]})', errs)
+            check(cups[0] in title, f'season 1 {cups[0]}: not its page / rounds menu ({v.texts()[:6]})', errs)
         g1 = G(s)
         check(g1[3] == g0[3] and not g1[5], f'season 1: views opened {g0[3]} -> {g1[3]}, bad {g1[5]}', errs)
-        info.append(f'season 1: {pages} confederation pages + {cups[:1]} from VIEW WORLD, no view')
+        info.append(f'season 1: {pages} confederation pages, {menus} rounds menus + {cups[:1]} from VIEW WORLD, no view')
     return not errs, '; '.join(errs[:10]) or '; '.join(info)
 
 
@@ -17084,6 +17098,12 @@ def world_cgame_swospp():
     return ok, f'SWOS++: {msg}'
 
 
+def menu_unreach(sc, ents):
+    """The entries of ents (visible ones) the cursor cannot reach from the selected one through the menu's
+    left/right/up/down links (Screen.path: the keys a player has) - a menu where a button is out of reach."""
+    return [i for i in ents if i != sc.selected and sc.path(i) is None]
+
+
 def ctc_confs(s, part, errs):
     """4.0.6 ctcursor: COPPE CONTINENTALI on screen -> each confederation's rounds menu: {conf: (its selected entry,
     the visible round buttons)}, a shot ctc_<part>_<k>; the cursor on a round asserted; ESCI back each time."""
@@ -17102,6 +17122,8 @@ def ctc_confs(s, part, errs):
         got[conf] = (sc.selected, rb)
         s.log.append(f'[ctc] {part} {conf}: selected {sc.selected} rounds {[(i, sc.entries[i][1]) for i in rb]}')
         check(sc.selected in rb, f'{part} {conf}: opens on entry {sc.selected}, not a round {rb}', errs)
+        far = menu_unreach(sc, rb + [ctview.CR_N + 1, ctview.CR_N + 2])
+        check(not far, f'{part} {conf}: entries {far} out of the keys\' reach from {sc.selected}', errs)
         walk(s, ctview.CR_N + 2, 3)                     # (ESCI -> the confederations)
     return got
 

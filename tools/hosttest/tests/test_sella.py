@@ -4,8 +4,8 @@ sella.@TRY_AT on a SELLOFF_FORCE + HOSTTEST_SYMS build; HT_SA = the fixture dir,
 career at CELLE VARAZZE, Serie D). Each pool forced in turn (the pool draw's jb: never = our country's loaded clubs,
 always = the team file's other countries); every offer made: the buyer not our club, not a cup-only club (league byte
 4), of the forced pool's country side, and fewer than N of its 16 players priced above the player's value + MARGIN.
-Also measured: the pools' sizes against the candidate list (116 bytes, byte indices) - the original test's and rule A's
-candidates for each player value."""
+Also measured and asserted: the pools' candidates (the original test's and rule A's, per player value) never more than
+the candidate list holds (116 bytes, byte indices; or sella's moved list) and no call writes past it."""
 import glob
 import json
 import os
@@ -18,6 +18,8 @@ from emu import Machine
 HOME = os.path.expanduser('~')
 FIX = os.path.join(HOME, 'swos-mod', 'internal', 'hosttest', 'fixtures', os.environ.get('HT_SA', 'sa_it'))
 SEEDS = int(os.environ.get('HT_SA_SEEDS', 400))
+CAP, LIST_ORIG, GUARD = 116, 0xB4EAE, 64        # (dseg_175036: 116 B of byte indices, then dseg_1750AA - the national
+                                                #  selector table; a moved list: sella's SL_CAP)
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
 
 
@@ -71,11 +73,14 @@ def test_sella_buyers():
         orig_jb = m.read(jb, 6)
         at = lambda k: m.u32(m.base1 + s[k])          # (the live absolute address in that instruction)
         nsel, selp, ntmd = m.u16(at('NSEL')), m.u32(at('SELP')), m.u16(at('NTMD'))
+        lst = at('BUF')                                 # (the candidate list as the exe uses it: nothing past CAP)
+        cap = CAP if lst == m.base2 + LIST_ORIG else m.u16('sella.SL_CAP')
+        guard = m.read(lst + cap, GUARD)
         dom = [m.read(selp + 0x2AC * i, 0x2AC) for i in range(nsel)]
         for val in range(0, 50, 7):                     # (pool sizes vs the 116-byte list, per value byte)
             od = [r for r in dom if r[0] == sel & 0xFF and _orig_ok(r, val, sel)]
             ad = [r for r in od if _above(r, val, mg) < n_]
-            sizes.append((k, val, nsel, len(od), len(ad)))
+            sizes.append((k, val, nsel, len(od), len(ad), cap))
         rnd = random.Random(k)
         for pool in ('dom', 'fgn'):
             m.write(jb, b'\x90' * 6 if pool == 'dom' else
@@ -90,6 +95,9 @@ def test_sella_buyers():
                 made = m.u32('sella.SL_MADE')
                 m.call('sella.sl_try')
                 st['tries'] += 1
+                if m.read(lst + cap, GUARD) != guard:
+                    bad.append((k, pool, i, f'candidate list written past its {cap} bytes'))
+                    m.write(lst + cap, guard)
                 if m.u32('sella.SL_MADE') == made:
                     continue
                 st['offers'] += 1
@@ -113,12 +121,15 @@ def test_sella_buyers():
         fgn = [m.read(tmd + 0x2AC * i, 0x2AC) for i in range(ntmd)]          #  big-world buffer in a world career)
         for val in range(0, 50, 7):
             of = [r for r in fgn if r[0] != sel & 0xFF and _orig_ok(r, val, sel)]
-            fsizes.append((k, val, ntmd, len(of), len([r for r in of if _above(r, val, mg) < n_])))
+            fsizes.append((k, val, ntmd, len(of), len([r for r in of if _above(r, val, mg) < n_]), cap))
     worst = max(sizes, key=lambda x: x[3])
     msg = (f'fixtures {ks}, N {n_} margin {mg} rule {rule}; ' +
            ', '.join(f'{p}: {v["tries"]} tries {v["offers"]} offers values {sorted(v["vals"])}' for p, v in stats.items()) +
            f'; domestic pool {worst[2]} clubs, original candidates up to {worst[3]} (value {worst[1]}), with rule A '
            f'{max(x[4] for x in sizes)}; foreign pool {max(x[2] for x in fsizes)} clubs, original candidates up to '
            f'{max(x[3] for x in fsizes)}, with rule A {max(x[4] for x in fsizes)} (list 116 B, byte indices); bad {bad[:6]}')
+    over = [x for x in sizes + fsizes if x[3] > x[5]]
+    if over:
+        bad.append(('candidates over the list capacity', over[:4]))
     ok = not bad and all(v['offers'] for v in stats.values())
     return ok, msg

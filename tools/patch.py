@@ -593,6 +593,8 @@ def patch_exe(src, dst, remap, lang='it'):
     import devname                               # 4.0.2: DOS device names (CON, PRN, AUX ...) refused as save names
     devname.patch(p, lang)
     joyfix.patch(p)                              # 4.0.1: ReadSetupDat -> VerifyJoypadControls (no pad + controls != 1 = frozen menus)
+    import suroom                                # 4.0.6 (MiSTer panel H1): the save-under stack 16 KB more room (the
+    suroom.patch(p)                              # wide bench-menu rows overflowed it into the next area)
     import careerseed                            # (CAREER_SEED test builds only: a career's draw pinned)
     careerseed.patch(p)
     import offerforce                            # (OFFER_FORCE test builds only: every transfer offer accepted)

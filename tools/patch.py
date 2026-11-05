@@ -733,7 +733,6 @@ def patch_exe(src, dst, remap, lang='it'):
     ctl_end = goalslot.patch(p, (ctl_end + 15) & ~15, lang)  # in +37 (the form / trial mark)
     import bplace                                # 4.0.5 (Davide): a level tie won by the better placed says so on its
     ctl_end = bplace.patch(p, (ctl_end + 15) & ~15, lang)    # result line (PASSA %a (MIGL. PIAZZ.))
-    ctl_end = bplace.force(p, (ctl_end + 15) & ~15)          # (BPLACE_FORCE test builds only: such ties forced)
     assert ctl_end <= ctl_at + 0x1000, hex(ctl_end)        # (the code page; controls' data pages follow it)
     import benchx                                # 4.1: a bench of up to 15 (block 1: the in-match teams of 26)
     bn_end = benchx.patch(p, 0, ns_at, lang)     # (4.0.6: in obj3)
@@ -812,6 +811,8 @@ def patch_exe(src, dst, remap, lang='it'):
     import edteam                                # 4.0.6 (Marco): EDIT CUSTOM TEAMS - ten looks on the face button, the
     st_end = edteam.patch(p, (st_end + 15) & ~15)            # number box (shirtedit's); the obj3 chain's end
     assert st_end <= LT3_AT, hex(st_end)
+    st_end = bplace.force(p, (st_end + 15) & ~15)            # (BPLACE_FORCE test builds only: such ties forced; in
+    assert st_end <= LT3_AT, hex(st_end)                     # obj3 since 4.0.6: the obj1 controls page is full)
     print(f'exe: obj3 end {st_end:#x} ({LT3_AT - st_end} B left before the longtable page obj3+{LT3_AT:#x})')
     p.set_vsize(3, 0x1000 * OBJ3_PAGES + cg_bss, bss=cg_bss)
     assert 0x1000 * OBJ3_PAGES + cg_bss <= OBJ3_ARENA

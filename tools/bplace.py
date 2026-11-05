@@ -152,8 +152,9 @@ bf_et:                                  ; its extra time (`call cseg_2B81B`): no
 def force(p, at):
     """BPLACE_FORCE (test builds only): every decisive match cseg_2AE97 settles - a single match (cseg_2B28C's with
     extra time, or the other) or a second leg - level after 90 minutes / on aggregate, no goals in extra time: the mod's
-    play-offs go to the better placed (gp_draw / dp_draw), the game's cups to penalties. Code at obj1:at; returns the end
-    (at itself without the switch)."""
+    play-offs go to the better placed (gp_draw / dp_draw), the game's cups to penalties. Code at obj3:at (4.0.6: the
+    obj3 chain's end; the obj1 controls page has no room left after mvpos); returns the end (at itself without the
+    switch)."""
     if not os.environ.get('BPLACE_FORCE'):
         return at
     d = p.le.obj_bytes(1)
@@ -178,20 +179,22 @@ def force(p, at):
                 one.append(m.start())
     assert len(one) == 2, [hex(x) for x in one]
     sym = {'D1_': (2, D0 + 4), 'D2_': (2, D0 + 8), 'D3_': (2, D0 + 12), 'D4_': (2, D0 + 16), 'ETX': (1, etx.pop())}
-    code, fix = nasmcave.assemble(FORCE_ASM, at, sym)
+    code, fix, rel = nasmcave.assemble_obj(FORCE_ASM, at, sym, 3)
     lab = nasmcave.labels(FORCE_ASM, at, sym)
-    assert not any(p.get(1, at, len(code)))
-    p.put(1, at, code)
+    assert not any(p.get(3, at, len(code)))
+    p.put(3, at, code)
     for o, t_obj, t_off in fix:
-        p.add_ptr(1, at + o, t_obj, t_off)
+        p.add_ptr(3, at + o, t_obj, t_off)
+    for o, t_obj, t_off in rel:
+        p.add_rel(3, at + o, t_obj, t_off)
     for o, lbl in [(x, 'bf_one') for x in one] + [(two[0], 'bf_two')]:
         assert bytes(p.get(1, o, 6)) == d[o:o + 6], ('BPLACE_FORCE site already patched', lbl, hex(o))
         p.remove(1, o + 2)
-        p.put(1, o, b'\xe8' + struct.pack('<i', lab[lbl] - (o + 5)) + b'\x90')
+        p.branch(1, o, 0xE8, 3, lab[lbl], 6)
     for m in et:
         o = m.end() - 5
         assert bytes(p.get(1, o, 5)) == d[o:o + 5], 'BPLACE_FORCE extra-time call already patched'
-        p.put(1, o, b'\xe8' + struct.pack('<i', lab['bf_et'] - (o + 5)))
-    print(f'exe: BPLACE_FORCE (test build: decisive matches level, no extra-time goals) obj1+{at:#x}, '
+        p.branch(1, o, 0xE8, 3, lab['bf_et'])
+    print(f'exe: BPLACE_FORCE (test build: decisive matches level, no extra-time goals) obj3+{at:#x}, '
           f'sites {[hex(x) for x in one + two]}')
     return at + len(code)

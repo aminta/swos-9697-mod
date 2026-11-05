@@ -845,17 +845,19 @@ gp_sims:                                ; GP_IN.sim[]'s divisions simulated now 
     mov [A0R], edx
     mov [D0R], cx
     call C3ABB2                         ; the whole division simulated (cseg_3ABB2) into DIY
+    pushad                              ; (4.0.6 #26: its rows read now, SELTEAMS still the division's selection -
+    mov eax, [esp + 32 + 24]            ; after RESTSEL each row's global number came off the career league's list
+    mov ebp, DIY                        ; at its index: NZ's Southern winner took AUCKLAND FC RES's, a B team to
+    call gp_rows                        ; sec_find, dropped from the preview's Championship; eax = the outer
+    popad                               ; pushad's ecx, the division)
     call RESTSEL
     mov word [F846], 0
     mov eax, 1
     call gp_regs
     popad
     pushad
-    mov [GP_DIV], cl                    ; (rc19: before gp_rows - it leaves ecx = the row count: the kept table was
-    mov eax, ecx                        ; filed under it, never restored at the season end)
-    mov ebp, DIY
-    call gp_rows
-    mov dword [GP_DIYP], DIY
+    mov [GP_DIV], cl                    ; (rc19: the division - gp_rows above left ecx = the row count: the kept
+    mov dword [GP_DIYP], DIY            ; table was filed under it, never restored at the season end)
     mov eax, gp_simkeep_pre
     call gp_c
     popad

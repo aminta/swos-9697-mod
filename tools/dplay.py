@@ -301,7 +301,9 @@ dp_lend:                                ; replaces `call cseg_8ECAE` (the career
     movzx ecx, byte [esi + 5]
     sub eax, ecx
     mov ebp, DIY
-    call dp_rows
+    call dp_rows                        ; (after RESTSEL, so each row's global number is the career list's at its index -
+                                        ; the gplay #26 pattern, inert here: dplay has no sec_ filter, its numbers feed only
+                                        ; move() / seed at the season end and c_lend's lot tie-break, both correct)
     pop edi
     imul edi, edi, SR_N * SRSZ          ; and its rows, place by place, into the state (dp_restore)
     add edi, DP_ST + SV_SROW

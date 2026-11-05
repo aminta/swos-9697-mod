@@ -1485,6 +1485,20 @@ def lineup_mem(s, n=16):
     places, 0-based]) - careerTeam's records in careerMatchPlayers order (xtra.sites of the run's exe, cached per
     session; position bits 5-7 = 0: a keeper; cardsInjuries C0h injured, bits 0-1 suspended in a career). None if it
     cannot be read."""
+    m = lineup_places(s, n)
+    return None if m is None else (m[0][0], [k for k, (_, un) in enumerate(m) if un])
+
+
+def fit_keeper_place(s):
+    """(I10p world8485_nat: the fixer had taken the fit bench keeper as an outfield stand-in, then found no keeper
+    among the reserves and ping-ponged outfield players in goal) The first of places 2..16 holding a fit keeper, 0-based;
+    None if none or unreadable."""
+    m = lineup_places(s)
+    return next((k for k, (g, un) in enumerate(m) if k and g and not un), None) if m else None
+
+
+def lineup_places(s, n=16):
+    """lineup_mem's places one by one: [(a keeper, unavailable)], or None if unreadable."""
     try:
         if not hasattr(s, 'ctsites'):
             sys.path.insert(0, os.path.join(ROOT, 'tools'))
@@ -1496,7 +1510,7 @@ def lineup_mem(s, n=16):
         r = s.result
         order = r.obj2(cmp_, min(n, struct.unpack('<H', r.obj2(cnp, 2))[0]))
         recs = [r.obj2(ct + (76 + q * 38 if q < 16 else 684 + (q - 16) * 38) + 26, 2) for q in order]
-        return recs[0][0] >> 5 == 0, [k for k, b in enumerate(recs) if b[1] & 0xC3]
+        return [(b[0] >> 5 == 0, bool(b[1] & 0xC3)) for b in recs]
     except Exception:
         return None
 
@@ -1625,6 +1639,12 @@ def substitute(s, scr, tries=40, full=False):
             return None if 'VIS. RISULTATI' in s.screen().texts() else 'squad screen without VIS. RISULTATI, no unavailable row'
         k = bad[0]
         need = SLOT_ROLE[k] if k < len(SLOT_ROLE) else ''
+        g = fit_keeper_place(s) if k == 0 and not s.__dict__.get('gk_swap') else None
+        if g is not None:                               # (a fit keeper already in the 16: he goes in goal)
+            swap_rows(s, rows, 0, g)
+            s.gk_swap = gk_now = True
+            s.log.append(f'[subs] slot 1: the keeper of place {g + 1} in')
+            continue
         if k == 0 and not rows[11][1] and not s.__dict__.get('gk_swap') and 11 not in subs:   # the keeper: row 12
             swap_rows(s, rows, 0, 11)                   # is the bench keeper in SWOS squads (drawn rows have no
                                                         # texts) unless a stand-in took his place
@@ -1719,6 +1739,11 @@ def substitute_min(s, tries=40):
         if not bad:
             return None if 'VIS. RISULTATI' in cur.texts() else 'squad screen without VIS. RISULTATI, no unavailable row'
         k = bad[0]
+        g = fit_keeper_place(s) if k == 0 else None     # (a fit keeper already in the 16: he goes in goal)
+        if g is not None:
+            swap_rows(s, rows, 0, g)
+            s.log.append(f'[subs] slot 1: the keeper of place {g + 1} in (min)')
+            continue
         if k == 0 and (keeper or rows[11][1]):          # no fit keeper in goal (row 12 is not always one: an outfield
             err = keeper_from_reserves(s, cur, rows, tries)   # player in goal keeps VIS. RISULTATI hidden): a fit
             if err:                                           # keeper (P / G) of the reserves, the 17th row cycled
@@ -1736,8 +1761,8 @@ def substitute_min(s, tries=40):
             return 'squad screen: no face entry for the 17th row'
         # the first fit reserve the 17th row shows with a real value; the game's invented reserves (RIS, value 0:
         # a red '?' once in the 16, VIS. RISULTATI hidden) and trial players (-1) only on a second lap
-        name, _, value = reserve_info(cur, ry)
-        first, lap, fit = name, 0, not rows[-1][1] and value > 0
+        name, role, value = reserve_info(cur, ry)        # (a keeper only on the second lap too: taken for an outfield
+        first, lap, fit = name, 0, not rows[-1][1] and value > 0 and role != 'G'   # place he is missed in goal later)
         for _ in range(2 * tries):
             if fit:
                 break
@@ -1748,12 +1773,12 @@ def substitute_min(s, tries=40):
             rows2 = squad_rows(s, c2, f'sq{len(s.log):03d}')
             if len(rows2) != 17:
                 break
-            name, _, value = reserve_info(c2, ry)
+            name, role, value = reserve_info(c2, ry)
             if name == first:                           # (every reserve seen once)
                 lap += 1
                 if lap == 2:
                     break
-            fit = not rows2[-1][1] and (value > 0 or lap == 1)
+            fit = not rows2[-1][1] and ((value > 0 and role != 'G') or lap == 1)
         if not fit:                                     # (no fit reserve: the game may still allow the match, else
             return fallback_full(s, tries, f'no fit reserve for row {k + 1}')   # the full search, once)
         stand_in = reserve_info(s.screen(), ry)[0]
@@ -1952,6 +1977,9 @@ def _label_data():
             slot4 |= forms(v.get('names'))
     import dplay                                        # (the career club's Serie B / C play-offs and play-out:
     slot4 |= {n.decode('latin-1') for n in dplay.NAMES}   # dplay's own names, id FEh for the play-out, no pack name)
+    for po in GPLAY_SCO:                                # (harness-injected play-offs, world_gplay*: no 'name' in
+        k = po['key'].upper()                           # world_gplay - the game shows the key; world_gplay_play
+        slot4 |= {k, k.replace('_', ' ')} | forms(po.get('names'))   # names them after it)
     every |= slot4
     _LABEL_DATA.update(ids=ids, slot4=slot4, every=every, src=key)
     return _LABEL_DATA
@@ -25815,6 +25843,102 @@ def gk_sites(exe_dir):
 def gk_read(s, gk):
     """(rolls, hits, last record, seed, GI_W, GI_SH)"""
     return struct.unpack('<IIIIHH', s.result.read(s.result.lin(gk), 20))
+
+
+@scenario
+def gk_last():
+    """MEASUREMENT (Regia 05/11, I10p #10: can a club go on with no fit keeper?) A career (JUVENTUS) on GKLAST_BUILD
+    (default the IT test build; the 4.0.5 release exe for the control): at the first squad screen every keeper of the
+    club is poked injured (cardsInjuries | 60h in every copy of his record, as a stock injury), then (A) the injured
+    keepers as they are, (B) an outfield player in goal (a fit bench player of rows 13..16) and every injured keeper
+    out of the 16 (a fit outfield reserve in his row): VIS. RISULTATI shown or not at each step (shots gklast_*), then
+    with VIS. RISULTATI the match viewed: the screen after. PASS = measured."""
+    b = os.environ.get('GKLAST_BUILD') or builds()['it']
+    tag = os.environ.get('GKLAST_TAG', 'it')
+    notes = []
+    with Session(f'gk_last_{tag}', b, {}, 'dump:3', 900) as s:
+        s.wait()
+        new_career(s, 'ITALIA', 'SERIE A', 'JUVENTUS')
+        for _ in range(12):                             # (the career menu -> the fixture -> the squad screen)
+            texts = s.screen().texts()
+            if 'MOD. TATTICA' in texts:
+                break
+            if 'TRASFERIMENTI' in texts and 'PARTITA' in texts:
+                press(s, s.screen(), 'PARTITA', 2) or s.send('fire dump:2')
+            elif '- PARTITA -' in texts:
+                press(s, s.screen(), '- PARTITA -', 2) or s.send('fire dump:2')
+            else:
+                s.send('fire dump:2')
+        else:
+            return False, f'no squad screen: {s.screen()}'
+        vis = lambda: vis_ok(s)
+        notes.append(f'start: VIS. RISULTATI {vis()}, places {lineup_places(s)}')
+        s.shot('gklast_0_start')
+        if lineup_mem(s) is None:                       # (caches s.ctsites)
+            return False, 'careerTeam not readable'
+        cnp, ct, _ = s.ctsites
+        r = s.result
+        o2 = r.read(r.base2, 0x300000)
+        n = struct.unpack('<H', r.obj2(cnp, 2))[0]
+        hurt = []
+        for q in range(n):                              # every keeper of the club injured (all copies, by name)
+            slot = ct + (76 + q * 38 if q < 16 else 684 + (q - 16) * 38)
+            if r.obj2(slot + 26, 1)[0] >> 5:
+                continue
+            nm = r.obj2(slot + 3, 22).split(b'\0')[0]
+            for m_ in re.finditer(re.escape(nm) + b'\0', o2):
+                h = m_.start() - 3
+                s.poke(r.base2 + h + 27, bytes((o2[h + 27] | 0x60,)))
+            hurt.append(nm.decode('latin-1'))
+        s.send('dump:1')
+        notes.append(f'keepers poked out: {hurt}')
+        a = vis()
+        s.shot('gklast_A_keepers_out')
+        notes.append(f'(A) keepers injured in place: VIS. RISULTATI {a}, places {lineup_places(s)}')
+        window_home(s)
+        cur = s.screen()
+        rows = squad_rows(s, cur, 'gkl')
+        pl = lineup_places(s)
+        if len(rows) != 17 or not pl:
+            return False, f'squad screen: {len(rows)} rows, places {pl}'
+        bench = next((k for k in range(12, 16) if not pl[k][0] and not pl[k][1]), None)
+        if bench is None:
+            return False, f'no fit outfield bench player in rows 13..16: {pl}'
+        swap_rows(s, rows, 0, bench)                    # (B) an outfield player in goal
+        notes.append(f'(B1) row {bench + 1} -> goal: places {lineup_places(s)}')
+        reserve = rows[-1][0]
+        ry = cur.geom[reserve][1]
+        face = next((i for i, (l, r_) in enumerate(cur.nav) if l[1] == reserve and cur.geom[i][0] < row_x(cur)), None)
+        for _ in range(4):                              # every injured keeper still in the 16 -> a fit outfield reserve
+            pl = lineup_places(s)
+            k = next((k for k in range(16) if pl[k][0] and pl[k][1]), None)
+            if k is None or face is None:
+                break
+            window_home(s)
+            for _ in range(40):
+                c2 = s.screen()
+                rows2 = squad_rows(s, c2, 'gkl')
+                name, role, value = reserve_info(c2, ry)
+                if len(rows2) == 17 and not rows2[-1][1] and role and role != 'G':
+                    break
+                press(s, c2, face, wait=1)
+            ok = swap_in(s, k, rows2, reserve, ry, name)
+            notes.append(f'(B2) row {k + 1} (keeper out) <- {name} ({role}): {ok}')
+        s.send('dump:1')
+        bvis = vis()
+        pl = lineup_places(s)
+        s.shot('gklast_B_outfield_in_goal')
+        notes.append(f'(B) outfield player in goal, no keeper out in the 16: VIS. RISULTATI {bvis}, place 1 keeper '
+                     f'{pl[0][0] if pl else None}, unavailable {[k + 1 for k, (_, u) in enumerate(pl or []) if u]}')
+        if bvis:
+            press(s, s.screen(), 'VIS. RISULTATI', 3)
+            for _ in range(6):
+                if s.screen().entries:
+                    break
+                s.send('fire:3 dump:2')
+            s.shot('gklast_C_after')
+            notes.append(f'(C) after VIS. RISULTATI: {" | ".join(s.screen().texts())[:200]}')
+    return True, '; '.join(notes)
 
 
 @scenario

@@ -2392,6 +2392,7 @@ def quit_and_save(name):
 def check(cond, msg, errs):
     if not cond:
         errs.append(msg)
+    return bool(cond)
 
 
 def season_case(name, build, car, out, timeout=120, extra=None):
@@ -8405,6 +8406,150 @@ def oppo_list():
             os.environ['BENCH_OPPL'] = keep
 
 
+def fr_sites(exe):
+    """(B, 4.0.6) benchx's friendly-club orders (the 'FRTB' mark: fr_on, fr_next, fr_tab of 4 x (dw team, db n, db used,
+    32 places)) as Off3, and from the original exe numPlayersToShowInMenu (PlayMatchMenuReinit) and playMatchTeam1Ptr
+    (ShowPlayMatchMenu), obj2 offsets."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lepatch
+    import sacups
+    p = lepatch.LEPatch(exe)
+    k = p.le.obj_bytes(3).find(b'FRTB')
+    if k < 0:
+        return None
+    o = lepatch_orig()
+    d = o.le.obj_bytes(1)
+    m = re.search(rb'\x66\xa3(....)\xc7\x05....\x00\x00\x00\x00\x66\xc7\x05....\x00\x00\x66\xc7\x05....\xff\xff', d, re.S)
+    regs = sacups.regs(d)
+    pk = lambda x: re.escape(struct.pack('<I', x))
+    t = re.search(rb'\x66\xa1' + pk(regs['D7'] - 4) + rb'\x66\xa3....\xa1' + pk(regs['A0'] + 4) + rb'\xa3(....)\xa1'
+                  + pk(regs['A0'] + 8) + rb'\xa3', d, re.S)                      # (as benchx: mov ax, [D6] first)
+    d1 = regs['D7'] - 24
+    e = [x.start() for x in re.finditer(rb'\x66\xa1(....)\x66\xa3' + pk(d1) + rb'\x66\x83\x2d' + pk(d1) + rb'\x10\x74', d, re.S)]
+    e = [x for x in e if re.search(rb'\xc7\x05' + pk(regs['D7'] - 28) + rb'\x1c\x00', d[x - 0x60:x])]   # (as benchx.sites6)
+    tab = (k + 7 + 3) & ~3
+    return dict(on=Off3(k + 4), tab=Off3(tab), w27p=Off3((tab + 4 * 36 + 3 + 3) & ~3), NPS=o.target(1, m.start() + 2)[1],
+                PMT1=o.target(1, t.start(1))[1], ETNP=o.target(1, e[0] + 2)[1])
+
+
+def fr_slot(r, fs):
+    """The pre-match screen's club's own order: (team file pointer, n, the 16 + n places, its playerNumbers), or None."""
+    ptr = struct.unpack('<I', r.obj2(fs['PMT1'], 4))[0]
+    team = r.read(ptr, 2)
+    tab = r.read(r.lin(fs['tab']), 4 * 36)
+    for i in range(4):
+        e = tab[36 * i:36 * i + 36]
+        if e[3] and e[:2] == team:
+            return ptr, e[2], list(e[4:4 + 16 + e[2]]), list(r.read(ptr + 0x3C, 16))
+    return ptr, 0, None, list(r.read(ptr + 0x3C, 16))
+
+
+def fr_order(s, fs, bx, case, errs, info):
+    """(B, 4.0.6, Davide's option B) a friendly club with a long bench on its pre-match screen: its own order (benchx
+    fr_find: places 0..15 = the record's order, 16.. its XTRA block's players), numPlayersToShowInMenu = 16 + n, row 17
+    (entry 29) and the box (30) shown; the box moves the window (bx_pw = bx_bench + 4) over places 17..16 + n and back
+    to 0; a swap of row 17 (place 17, his first XTRA player) with row 2 (place 2): the two places swapped in the order,
+    TeamFile.playerNumbers = the record's players in the new order (no index >= 16). Returns (xtra index, record
+    index) swapped, for the kick-off check, or None."""
+    r = s.result
+    ptr, n, order, pn = fr_slot(r, fs)
+    nps = struct.unpack('<H', r.obj2(fs['NPS'], 2))[0]
+    info.append(f'{case} B: n {n}, NPS {nps}, order {order}')
+    if not check(order is not None and n > 0, f'{case} B: no own order for the pre-match club (n {n}, playerNumbers {pn})',
+                 errs):
+        return None
+    check(order[:16] == pn and order[16:] == sorted(order[16:]) and min(order[16:]) >= 16,
+          f'{case} B: order {order} vs playerNumbers {pn}', errs)
+    check(nps == 16 + n, f'{case} B: numPlayersToShowInMenu {nps}, want {16 + n}', errs)
+    q = s.screen()
+    check(not q.entries[29][2] and not q.entries[30][2], f'{case} B: row 17 / box hidden ({q.entries[29]}, {q.entries[30]})',
+          errs)
+    pw = lambda: struct.unpack('<H', s.result.read(s.result.lin(bx) + 4, 2))[0]
+
+    def goto(t):
+        for _ in range(24):
+            q_ = s.screen()
+            if q_.selected == t:
+                return True
+            s.send(' '.join(k + ':0.15' for k in (q_.path(t) or [])) + ' dump:0.4')
+        return False
+    seen = []
+    if check(goto(30), f'{case} B: the box not reached', errs):
+        for _ in range(n):
+            s.send('fire:0.3 dump:0.5')
+            seen.append(pw())
+            if seen[-1] == n - 1:
+                s.shot(f'{case}_B_win{seen[-1]:02d}')
+            if seen[-1] == 0:
+                break
+        info.append(f'{case} B: window {seen}')
+        check(seen == list(range(1, n)) + [0], f'{case} B: window steps {seen} (want 1..{n - 1}, 0)', errs)
+    if not (check(goto(29), f'{case} B: row 17 not reached', errs)):
+        return None
+    s.send('fire:0.3 dump:0.5')
+    if not check(goto(14), f'{case} B: row 2 not reached', errs):
+        return None
+    s.send('fire:0.3 dump:0.8')
+    s.shot(f'{case}_B_swap')
+    _, n1, o1, pn1 = fr_slot(s.result, fs)
+    o1 = o1 or []
+    diff = [k for k in range(min(len(o1), len(order))) if o1[k] != order[k]]   # (row 2 = a starter's place through
+    p = diff[0] if diff else 0                                                  # the tactics: GPI's mapping)
+    exp = list(order)
+    exp[p], exp[16] = order[16], order[p]
+    rec = [x for x in o1 if x < 16]
+    info.append(f'{case} B: swap row 17 (place 17) <-> row 2 (place {p + 1}): order {o1}, playerNumbers {pn1}')
+    check(len(diff) == 2 and p < 11 and o1 == exp, f'{case} B: swap row 17 <-> row 2: {order} -> {o1}', errs)
+    check(pn1 == rec and sorted(pn1) == list(range(16)), f'{case} B: playerNumbers {pn1} after the swap (want {rec})', errs)
+    fr_tactics(s, fs, case, n, errs, info)
+    return order[16], order[p]
+
+
+def fr_tactics(s, fs, case, n, errs, info):
+    """(B) the pre-match screen's MOD. TATTICA on a club with its own order: editTacticsNumPlayers = 16 + n (fr_etnp),
+    a swap of row 17 (place 17) with row 3 (a starter) in its list (fr_sw_et): the order's two places swapped,
+    playerNumbers the record's players in order; then the same swap again (back as before) and out."""
+    if press(s, s.screen(), 'MOD. TATTICA') is None:
+        errs.append(f'{case} B tactics: MOD. TATTICA not reached')
+        return
+    for _ in range(4):                      # (the choose-tactics list first: fire on its current tactic; then the
+        etnp = struct.unpack('<H', s.result.obj2(fs['ETNP'], 2))[0]   # editor, whose init sets the count)
+        if etnp:
+            break
+        s.send('fire:0.3 dump:0.8')
+    check(etnp == 16 + n, f'{case} B tactics: editTacticsNumPlayers {etnp}, want {16 + n}', errs)
+    _, _, o0, _ = fr_slot(s.result, fs)
+    o0 = o0 or []
+
+    def swap():
+        for e in (27, 13):                  # row 17, row 3 (names = entries 11..27)
+            for _ in range(24):
+                q = s.screen()
+                if q.selected == e:
+                    break
+                s.send(' '.join(k + ':0.15' for k in (q.path(e) or [])) + ' dump:0.4')
+            s.send('fire:0.3 dump:0.6')
+        _, _, o, pn = fr_slot(s.result, fs)
+        return o or [], pn
+    o1, pn1 = swap()
+    s.shot(f'{case}_B_tactics')
+    diff = [k for k in range(min(len(o0), len(o1))) if o0[k] != o1[k]]
+    info.append(f'{case} B tactics: NPS {etnp}, swap row 17 <-> row 3: places {[k + 1 for k in diff]}, playerNumbers {pn1}')
+    check(len(diff) == 2 and diff[1] == 16 and diff[0] < 11 and o1[diff[0]] == o0[16] and o1[16] == o0[diff[0]],
+          f'{case} B tactics: swap {o0} -> {o1}', errs)
+    check(pn1 == [x for x in o1 if x < 16], f'{case} B tactics: playerNumbers {pn1} vs order {o1}', errs)
+    o2, _ = swap()
+    check(o2 == o0, f'{case} B tactics: swapped back {o2}, want {o0}', errs)
+    for _ in range(4):
+        q = s.screen()
+        t = q.texts()
+        if 'GIOCA PARTITA' in t or UI != 'it' and 'GIOCA :' in t and 'PARTITA' in t:
+            return
+        if not any(press(s, q, x) is not None for x in ('USCITA', 'SAVE/EXIT', 'ESCI') if x in t):
+            s.send('esc:0.3 dump:0.6')
+    errs.append(f'{case} B tactics: not back to the pre-match screen')
+
+
 NATS = ('NAZIONALI', 'NATIONAL', 'EQUIPES NAT', 'NATIONALM')   # (bench_friendly: the picker's national teams)
 FR_CASES = {        # (4.0.6 bench_friendly) case: (world, home path, away path, named, used): the picker's labels (IT;
                     # a tuple: the first one on the screen - the World 2026-27's national teams show English names)
@@ -8416,10 +8561,20 @@ FR_CASES = {        # (4.0.6 bench_friendly) case: (world, home path, away path,
                ('SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE A', 'MILAN'), 15, 5),
     'diy': (0, ('SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE D', 'SERIE D GIRONE A', 'CELLE VARAZZE'),
             ('SQUADRE CLUB', 'EUROPA', 'SPAGNA', 'LALIGA', 'REAL MADRID'), 12, 5),
-    'nat': (0, (NATS, 'EUROPA', ('ITALY', 'ITALIA')), (NATS, 'EUROPA', ('SPAIN', 'SPAGNA')), 5, 2),
+    'diycup': (0, ('SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE D', 'SERIE D GIRONE A', 'CELLE VARAZZE'),
+               ('SQUADRE CLUB', 'EUROPA', 'SPAGNA', 'LALIGA', 'REAL MADRID'), 12, 5),
+    'nat': (1, (NATS, 'EUROPA', ('ITALY', 'ITALIA')), (NATS, 'EUROPA', ('SPAIN', 'SPAGNA')), 5, 2),   # (step 2.5: the
+                    # 2026-27 picker has no national teams yet, a message: the 1996-97 world's)
+    '9697w': (0, ('SQUADRE CLUB', 'CARR. STORICHE', 'MONDO 1996-97', 'EUROPA', 'ITALIA', 'SERIE A', 'INTER'),
+              ('SQUADRE CLUB', 'CARR. STORICHE', 'MONDO 1996-97', 'EUROPA', 'ITALIA', 'SERIE A', 'MILAN'), 5, 2),
     '9697': (1, ('SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE A', 'INTER'),
              ('SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE A', 'MILAN'), 5, 2),
 }
+
+FR_B = ('mixed', 'diy', 'diycup')               # (B) the cases with the own-order check (fr_order)
+FR_W27 = ('9697w',)                             # (step 2.5) only with the engine's SWE_W27 (benchx bx_w27p linked)
+FR_PRE = {'diycup': ('COMPET. PERSONAL.', 'COPPA', 11, 11, 11, 'OK', 'SCEGLI SQUADRE')}   # (a real DIY cup: one round,
+                                                # the final; its menu's PROSS. PARTITA -> the pre-match screen)
 
 
 @scenario
@@ -8428,8 +8583,10 @@ def bench_friendly():
     between two clubs = the longer real bench of their two (country, division): BENCH_FR=<cases> (FR_CASES, default
     all): 'mixed' Serie D (9) vs LaLiga (12) -> 12, 'same' two Serie D clubs -> 9, 'seriea' INTER - MILAN -> 15
     and a change from place 21 ('diy': 'mixed' with g_gameType poked to 1 on the pre-match screen: a DIY match, the
-    same rule) (bench_sub: its save-under guard with two benches of 15, the strip, formwide), 'nat' two national teams -> the
-    game's 2 from 5, '9697' a 1996-97 friendly -> the game's 2 from 5. Per case: the picker (home human, away computer), PLAY MATCH,
+    same rule; 'diycup': the same two clubs in a real DIY cup, COMPET. PERSONAL. > COPPA of one round; '9697w': INTER - MILAN
+    of the 1996-97 world picked in the World 2026-27's picker (CARR. STORICHE) -> the game's 2 from 5: the gate is the
+    contest's world, SWE_W27 - skipped on a build without it) (bench_sub: its save-under guard with two benches of 15, the strip, formwide), 'nat' two national teams (1996-97's:
+    step 2.5's 2026-27 picker has none yet) -> the game's 2 from 5, '9697' a 1996-97 friendly -> the game's 2 from 5. Per case: the picker (home human, away computer), PLAY MATCH,
     at the kick-off gameMaxSubstitutes / gameMinSubstitutes and both in-match teams (11 + the bench places: named from
     the record's 16 and the club's XTRA block, the rest empty). BENCH_BUILD = a World 2026-27 build."""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
@@ -8442,6 +8599,7 @@ def bench_friendly():
     top, bot = p.target(1, m.start() + 6)[1], p.target(1, m.start() + 26)[1]
     errs, info = [], []
     cases = [c for c in (os.environ.get('BENCH_FR') or ','.join(FR_CASES)).split(',') if c]
+    fs = fr_sites(exe)                          # (B) None: a build without the friendly clubs' own order
 
     def go(s, t):
         if isinstance(t, tuple):
@@ -8450,7 +8608,7 @@ def bench_friendly():
         walk(s, t, 2)
 
     def up_to(s, t):
-        for _ in range(6):
+        for _ in range(9):                      # ('9697w': up from the 1996-97 world's league list)
             sc = s.screen()
             if sc.find(t, exact=True) is not None:
                 return
@@ -8467,8 +8625,11 @@ def bench_friendly():
             if s.wait().outcome != 'dump':
                 errs.append(f'{case}: no first pause ({s.result})')
                 continue
+            if case in FR_W27 and not (fs and struct.unpack('<I', s.result.read(s.result.lin(fs['w27p']), 4))[0]):
+                info.append(f'{case}: SKIP (no SWE_W27 in this build: the WCUR gate)')
+                continue
             try:
-                for t in ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE') + home:
+                for t in FR_PRE.get(case, ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE')) + home:
                     go(s, t)
                 s.send('fire dump:2')               # home: COMPUTER -> GIOCA-ALLENA
                 up_to(s, away[1])                   # (the picker's top: the continents, the World's own list)
@@ -8476,6 +8637,10 @@ def bench_friendly():
                     go(s, t)
                 s.shot(f'{case}_picker')
                 pick_done(s)
+                if case in FR_PRE:                  # (the DIY cup's menu)
+                    s.shot(f'{case}_cup')
+                    walk(s, 'PROSS. PARTITA', 3)
+                    walk(s, '- PARTITA -', 3)       # (- PARTITA - / - RISULTATO -: played)
                 for _ in range(22):                 # the pre-match screen: down to PLAY MATCH (9)
                     s.send('down dump:0.5')
                     if s.screen().selected == 9:
@@ -8486,6 +8651,15 @@ def bench_friendly():
                     gt_at = gkinj.find(lepatch.LEPatch(os.path.join(ROOT, 'orig', UI_ORIG)))['GT']
                     s.poke(s.result.lin(gt_at), struct.pack('<H', 1))
                     s.send('dump:0.5')
+                fb = None
+                if case in FR_B and fs:             # (B) the club's own order: window, swap 17 <-> 2
+                    fb = fr_order(s, fs, bx, case, errs, info)
+                    for _ in range(12):             # back to PLAY MATCH (9)
+                        q = s.screen()
+                        if q.selected == 9:
+                            break
+                        s.send(' '.join(k + ':0.15' for k in (q.path(9) or ['down'])) + ' dump:0.5')
+                    check(s.screen().selected == 9, f'{case} B: PLAY MATCH not reached ({s.screen().texts()[:8]})', errs)
                 r = s.result                        # the pre-match screen's bench (sq_n -> bx_frpm -> bx_look: bx_lkres =
                 pre = struct.unpack('<BB', r.read(r.lin(bx) + 14, 2))   # bx_bench + 14)
                 check(pre[0] == (want if want > 5 else 0), f'{case}: pre-match screen bench {pre[0]}:{pre[1]}', errs)
@@ -8509,6 +8683,14 @@ def bench_friendly():
                 check(len(named) + len(empty) == cap, f'{case}: {name}: {len(named)} named + {len(empty)} empty of {cap}',
                       errs)
                 check(len(named) >= 16, f'{case}: {name}: only {len(named)} named', errs)
+            if fb:                                  # (B) the in-match team from that order: the XTRA player among
+                mine = [t for t in (top, bot) if ingame_team(r, t)[0] == home[-1]]   # the starters, the record
+                if check(mine, f'{case} B: {home[-1]} not in the match', errs):  # player he replaced on the bench
+                    d = r.read(r.base2 + mine[0], 1704)
+                    idx = [d[61 * i + 43] for i in range(cap)]
+                    info.append(f'{case} B: in-match indices {idx}')
+                    check(fb[0] in idx[:11] and fb[1] in idx[11:], f'{case} B: in-match indices {idx}: want {fb[0]} '
+                          f'among the starters, {fb[1]} on the bench', errs)
             info.append(f'{case}: pre-match {pre[0]}:{pre[1]}, named:used {gm[1]}:{gm[0]} ({", ".join(desc)})')
             check(gm == (used, want), f'{case}: named:used {gm[1]}:{gm[0]}, want {want}:{used}', errs)
             if case == 'seriea' and gm == (used, want):     # the change: the save-under peak with two benches of 15

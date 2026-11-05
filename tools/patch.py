@@ -842,6 +842,7 @@ def patch_exe(src, dst, remap, lang='it'):
     p.set_base_after(3)                          # (obj3's header base above obj2's final end)
     swe.LANG[0] = lang
     swe.patch(p)                                 # (obj4: the engine, its base above obj3's)
+    benchx.link_w27(p)                           # (4.0.6 step 2.5: the friendlies' long bench by SWE_W27)
     tailzero.patch(p, tz_at, obj2_free + o2pages * p.le.page_size, (tail + 3) & ~3, nasmcave,   # (DOS/4GW: not zeroed;
                    0x1000 * OBJ3_PAGES, (cg_bss + 3) & ~3)                  # 4.0.6: obj3's tail too)
     o1n, o2n = p.le.obj(1).npages, p.le.obj(2).npages

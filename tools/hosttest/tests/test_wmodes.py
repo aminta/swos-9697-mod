@@ -317,7 +317,7 @@ def test_wmodes():
             bad += [f'{name.get(c, c)} not kept ({"today" if t else "era"})' for c in l + [0xFF] if got(c, t) != c]
         for c, t, w in ((code['GDR'], 1, code['GER']), (code['FRG'], 1, code['GER']), (code['URS'], 1, code['RUS']),
                         (code['UKR'], 0, code['UKR']), (code['KAZ'], 0, code['URS']), (code['MNE'], 0, code['YUG']),
-                        (code['BOS'], 0, code['YUG']), (code['YUG'], 1, careerworld.NAT_ENG),
+                        (code['BOS'], 0, code['YUG']), (code['YUG'], 1, code['YUG']),   # (NAT_TODAY: 37 = SERBIA today)
                         (code['USA'], 0, careerworld.NAT_ENG)):   # (hand-written: GDR -> GER ... USA -> ENG)
             if got(c, t) != w:
                 bad.append(f'{name[c]}: {name.get(got(c, t))} want {name[w]}')

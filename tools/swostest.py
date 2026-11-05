@@ -988,7 +988,8 @@ UI_EN = {'CAREER': 'CARRIERA', 'CHOOSE TEAM': 'SCEGLI SQUADRA', 'CLASSIC CAREERS
          '- MATCH -': '- PARTITA -', '- RESULT -': '- RISULTATO -', 'NEXT MATCH': 'PROSS. PARTITA', 'SQUAD': 'SQUADRA',
          'ADD INTERNATIONAL PLAYER (HOME)': 'AGGIUNGI GIOCA. INTERNAZIONALE (CASA)', 'STATS': 'STAT', 'FORMAT': 'FORMULA',
          'CHOOSE TEAMS': 'SCEGLI SQUADRE', 'CLUB TEAMS': 'SQUADRE CLUB', 'PLAY FRIENDLY': 'AMICHEVOLE',
-         'VIEW OTHER TEAM': 'AVVERSARI', 'CUP': 'COPPA'}
+         'VIEW OTHER TEAM': 'AVVERSARI', 'CUP': 'COPPA', 'SAVE DIY CUP': 'SALVA COPPA PERSONAL.',
+         'CONTINUE DIY CUP': 'CONTINUA COPPA PERSONAL.'}
 
 
 UI = os.environ.get('SWOSTEST_UI') or os.environ.get('SWOSTEST_LANG') or 'it'   # (SWOSTEST_LANG: an alias)
@@ -1020,6 +1021,13 @@ def ui_it(text):
         return 'FINE CAMP. ' + text
     if text in ("SAISONS D'ANTAN", 'SAISONKLASSIKER'):   # (mkseason.SEASONS_NAMES: the historic seasons' button)
         return 'STAG. STORICHE'
+    if re.fullmatch(r'\d+ TEAMS W\?HLEN', text):          # (German '%0 TEAMS W\x8eHLEN': the friendly / DIY button)
+        return 'SCEGLI SQUADRE'
+    if 'DIY-POKAL' in text and ('SPEICHERN' in text or 'WEITER' in text):   # (German save / continue the DIY cup)
+        return ('SALVA' if 'SPEICHERN' in text else 'CONTINUA') + ' COPPA PERSONAL.'
+    m = re.fullmatch(r'\((.+)\)', text)                  # (a squad screen's '(COUNTRY)': the Italian name)
+    if m and ui_it(m.group(1)) != m.group(1):
+        return '(' + ui_it(m.group(1)) + ')'
     m = re.fullmatch(r'(ITALY|ITALIE|ITALIEN) (\d{4}-\d{2})', text)   # (the historic season's own button: Italy 1947-48)
     if m:
         return 'ITALIA ' + m.group(2)
@@ -1056,7 +1064,8 @@ class Screen:
                     text = raw.decode()
                 elif raw and (UI_MAP or COLLECT) and all(b >= 32 for b in raw):   # (another language's umlauts /
                     q = ''.join(chr(b) if b < 127 else '?' for b in raw)   # accents: '?', only a known label: the
-                    text = q if q in UI_MAP or COLLECT else ''             # squad rows' drawn texts stay empty)
+                    text = q if q in UI_MAP or COLLECT or ui_it(q) != q else ''   # squad rows' drawn texts stay
+                                                                                     # empty; '2 TEAMS W?HLEN' kept)
             self.raw_texts.append(text)
             self.entries.append((i, ui_it(text), inv, dis))
             self.raw.append(raw)
@@ -10831,6 +10840,71 @@ def engine_wmodes():
               f'{rd32(comp + 4 * 98):#x} SWE_CWORLD {rd32(cworld)} WCUR {s.result.read(wcur, 1)[0]}', errs)
         info.append(f'pre-match {[t for t in scr.texts() if t][:4]} / {[t for t in sc2.texts() if t][:4]}, WCUR '
                     f'{s.result.read(wcur, 1)[0]}')
+    return not errs, '; '.join(errs + info)
+
+
+
+@scenario
+def engine_wmodes_play():
+    """W-modes M2 for the players (12 Bit internal build): the mixed friendly INTER (World 2026-27) - HAMBURG (the
+    1996-97 game) PLAYED to the end on a release-recipe exe (SWOSTEST_BUILD), fresh SETUP.DAT (default World 2026-27):
+    the match starts, runs to its end without a crash, the menus come back and lead to the main menu. SWOSTEST_UI=en:
+    the same under SWOS++ 1.9.2.2 too (a second run). Any SWOSTEST_UI: the menus' own names (UI_MAP)."""
+    b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
+    runs = [('dos4gw', b, {})]
+    if UI == 'en':
+        sys.path.insert(0, os.path.join(ROOT, 'tools'))
+        import swospp
+        pp = os.path.join(MAIN, 'internal', 'swospp-test')
+        out = os.path.join(WORK, 'builds-x', 'engine_wmodes_play')
+        shutil.rmtree(out, ignore_errors=True)
+        shutil.copytree(b, out)
+        swospp.install(os.path.join(b, 'ITALIAN.EXE'), os.path.join(out, 'ITALIAN.EXE'))
+        runs.append(('swospp', out, {'LOADER.BIN': os.path.join(pp, 'loader.bin'),
+                                     'SWOSPP.BIN': os.path.join(pp, 'swospp.bin')}))
+    errs, info = [], []
+    for tag, d, extra in runs:
+        files = dict(extra, **{'SETUP.DAT': setup_file('engine_wmodes_play', 0)})
+        with Session(f'engine_wmodes_play_{tag}', d, files, 'dump:3', 900, timer=bool(extra)) as s:
+            if s.wait().outcome != 'dump':
+                errs.append(f'{tag}: no first pause ({s.result})')
+                continue
+            if extra:
+                on, why = swospp_on(s.result, os.path.join(d, 'ITALIAN.EXE'))
+                check(on, f'{tag}: SWOS++ not running: {why}', errs)
+            scr = wm_mixed(s, 'CARR. STORICHE')
+            tx = ' '.join(t for t in scr.texts() if t)
+            check('INTER' in tx or 'HAMBURG' in tx, f'{tag}: pre-match {scr.texts()[:8]}', errs)
+            s.shot(f'{tag}_prematch')
+            for _ in range(22):                  # (the pre-match screen: down the rows to the PLAY entry, as bench_slack)
+                s.send('down dump:0.5')
+                if s.screen().selected == 9:
+                    break
+            r = s.send('fire dump:2')
+            if r.outcome != 'dump':
+                errs.append(f'{tag}: match start: {r}')
+                continue
+            s.shot(f'{tag}_match')
+            menu, k = None, 0
+            for k in range(90):                 # play on: fire for the kicks, until a menu is back (the match over)
+                r = s.send('fire:3 ' * 10 + 'dump:1')
+                if r.outcome != 'dump':
+                    errs.append(f'{tag}: play on {k}: {r}')
+                    break
+                try:
+                    sc = s.screen()
+                    if any(sc.find(t) is not None for t in ('ESCI', 'CONTINUA', 'AMICHEVOLE')):
+                        menu = sc
+                        break
+                except Exception:
+                    pass
+            s.shot(f'{tag}_end')
+            check(menu is not None, f'{tag}: no menu after {k + 1} play-on pauses (the match not over)', errs)
+            if menu is not None:
+                after = [t for t in menu.texts() if t][:10]
+                back = wm_to_main(s)
+                check(back, f'{tag}: main menu not reached after the match ({after})', errs)
+                info.append(f'{tag}: match over after {k + 1} pauses, menu {after}, main menu {back}')
     return not errs, '; '.join(errs + info)
 
 

@@ -1668,12 +1668,12 @@ def substitute(s, scr, tries=40, full=False):
         for k in [k for k, st in list(subs.items()) if not any(n == st[0] for n, _, _, _ in pool)]:
             del subs[k]                                 # the starter left the squad (sold, the game's changes)
         bad = [k for k, (i, un) in enumerate(rows[:16]) if un]
-        if not bad and 'VIS. RISULTATI' not in cur.texts() and not vis_ok(s):
+        if not bad and not match_ok(cur) and not vis_ok(s):
             bad = no_red_bad(s)                         # no goalkeeper in goal (the game's own squad changes), an
             if bad == LINEUP_REFUSED:                   # unmarked suspended player (memory), or the game's refusal
                 return bad
         if not bad:
-            return None if 'VIS. RISULTATI' in s.screen().texts() else 'squad screen without VIS. RISULTATI, no unavailable row'
+            return None if match_ok(s.screen()) else 'squad screen without VIS. RISULTATI, no unavailable row'
         k = bad[0]
         need = SLOT_ROLE[k] if k < len(SLOT_ROLE) else ''
         g = fit_keeper_place(s) if k == 0 and not s.__dict__.get('gk_swap') else None
@@ -1715,10 +1715,17 @@ def substitute(s, scr, tries=40, full=False):
     return 'squad screen: still unavailable players after 10 swaps'
 
 
+def match_ok(sc):
+    """The pre-match screen's start button shown (playMatchMenu's entry 9, ShowOrHidePlayMatchButton): VIS. RISULTATI
+    for a computer-run club, GIOCA PARTITA / ALLENATORE (EN PLAY / COACH MATCH) when the club is played for real
+    (goal_slot_sc_real, world_gplay_nzgf_real - #19: a mended line-up read as refused, the button had another text)."""
+    return 'MOD. TATTICA' in sc.texts() and len(sc.entries) > 9 and bool(sc.entries[9][1]) and not sc.entries[9][2]
+
+
 def vis_ok(s):
-    """VIS. RISULTATI shown after a redraw (a swap's screen is read before the game re-checks the line-up)."""
+    """The start button shown after a redraw (a swap's screen is read before the game re-checks the line-up)."""
     s.send('dump:1')
-    return s.result.outcome == 'dump' and 'VIS. RISULTATI' in s.screen().texts()
+    return s.result.outcome == 'dump' and match_ok(s.screen())
 
 
 def keeper_from_reserves(s, cur, rows, tries=40):
@@ -1759,7 +1766,7 @@ def substitute_min(s, tries=40):
     keeper = False                                      # (the row-12 keeper swap: once)
     kp_tried = False                                    # (the fit keeper of the 16 in goal: once)
     for _ in range(12):
-        if 'VIS. RISULTATI' in s.screen().texts():      # (the match allowed: nothing to fix - with a bench over 5 an
+        if match_ok(s.screen()):                        # (the match allowed: nothing to fix - with a bench over 5 an
             s.lineup_esc = 0                            # unavailable bench player is left out at the kick-off)
             return None
         window_home(s)                                  # (long bench: rows 12..16 = places 12..16 for the reads)
@@ -1768,7 +1775,7 @@ def substitute_min(s, tries=40):
         if len(rows) != 17:
             return f'squad screen: {len(rows)} rows'
         bad = [k for k, (i, un) in enumerate(rows[:16]) if un]
-        if not bad and 'VIS. RISULTATI' not in cur.texts():
+        if not bad and not match_ok(cur):
             if vis_ok(s):                               # (only not redrawn yet)
                 s.lineup_esc = 0
                 return None
@@ -1776,7 +1783,7 @@ def substitute_min(s, tries=40):
             if bad == LINEUP_REFUSED:                   # unmarked suspended player (memory), or the game's refusal:
                 return bad                              # fail fast (no fallback, no ESCI loop)
         if not bad:
-            return None if 'VIS. RISULTATI' in cur.texts() else 'squad screen without VIS. RISULTATI, no unavailable row'
+            return None if match_ok(cur) else 'squad screen without VIS. RISULTATI, no unavailable row'
         k = bad[0]
         g = fit_keeper_place(s) if k == 0 and not kp_tried else None   # (a fit keeper already in the 16: he goes
         kp_tried = kp_tried or g is not None                            #  in goal - once per screen: no ping-pong)

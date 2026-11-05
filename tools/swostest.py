@@ -1977,9 +1977,8 @@ def _label_data():
             slot4 |= forms(v.get('names'))
     import dplay                                        # (the career club's Serie B / C play-offs and play-out:
     slot4 |= {n.decode('latin-1') for n in dplay.NAMES}   # dplay's own names, id FEh for the play-out, no pack name)
-    for po in GPLAY_SCO:                                # (harness-injected play-offs, world_gplay*: no 'name' in
-        k = po['key'].upper()                           # world_gplay - the game shows the key; world_gplay_play
-        slot4 |= {k, k.replace('_', ' ')} | forms(po.get('names'))   # names them after it)
+    for po in GPLAY_SCO:                                # (the harness-injected Scottish play-offs, world_gplay*: their
+        slot4 |= forms(po['names'])                     # real names - never the raw keys)
     every |= slot4
     _LABEL_DATA.update(ids=ids, slot4=slot4, every=every, src=key)
     return _LABEL_DATA
@@ -12890,16 +12889,16 @@ def world_leaguecup():
 
 
 GPLAY_SCO = [   # Scotland 2026-27 (internal/world2526/formats2627.md 1): the three promotion / relegation play-offs
-    {'key': 'prem_po', 'kind': 'promotion', 'entrants': [[1, 3], [1, 4], [1, 2], [0, 11]],
+    {'key': 'prem_po', 'names': {'*': ['PREMIERSHIP PLAY-OFF', 'PREM PLAY-OFF']}, 'kind': 'promotion', 'entrants': [[1, 3], [1, 4], [1, 2], [0, 11]],
      'rounds': [{'ties': [[1, 0]], 'legs': 2, 'host': 'listed', 'level': 'et_pens'},
                 {'ties': [['W0', 2]], 'legs': 2, 'host': 'better', 'level': 'et_pens'},
                 {'ties': [['W1', 3]], 'legs': 2, 'host': 'listed', 'level': 'et_pens'}],
      'winner_div': 0, 'loser_div': 1},
-    {'key': 'champ_po', 'kind': 'promotion', 'entrants': [[1, 9], [2, 4], [2, 2], [2, 3]],
+    {'key': 'champ_po', 'names': {'*': ['CHAMPIONSHIP PLAY-OFF', 'CHAMP PLAY-OFF']}, 'kind': 'promotion', 'entrants': [[1, 9], [2, 4], [2, 2], [2, 3]],
      'rounds': [{'ties': [[1, 0], [3, 2]], 'legs': 2, 'host': 'better', 'level': 'et_pens'},
                 {'ties': [['W0', 'W1']], 'legs': 2, 'host': 'better', 'level': 'et_pens'}],
      'winner_div': 1, 'loser_div': 2},
-    {'key': 'l1_po', 'kind': 'promotion', 'entrants': [[2, 9], [3, 4], [3, 2], [3, 3]],
+    {'key': 'l1_po', 'names': {'*': ['LEAGUE ONE PLAY-OFF', 'L1 PLAY-OFF']}, 'kind': 'promotion', 'entrants': [[2, 9], [3, 4], [3, 2], [3, 3]],
      'rounds': [{'ties': [[1, 0], [3, 2]], 'legs': 2, 'host': 'better', 'level': 'et_pens'},
                 {'ties': [['W0', 'W1']], 'legs': 2, 'host': 'better', 'level': 'et_pens'}],
      'winner_div': 2, 'loser_div': 3}]
@@ -13052,8 +13051,8 @@ def world_gplay_play(force='2', team='EUROPA,SCOZIA,SCOTTISH LEAGUE TWO,CLYDE', 
     f = os.path.join(w, 'world5tm', 'sco', 'pack.json')
     d = json.load(open(f))
     lg = next(c for c in d['competitions'] if c['type'] == 'league')
-    lg['ko_playoffs'] = [dict(po, names={'*': [po['key'].upper().replace('_', ' ')] * 2})   # (font characters only:
-                         for po in GPLAY_SCO]                                               # complist.check_titles)
+    lg['ko_playoffs'] = GPLAY_SCO                       # (their formats2627 names: font characters only,
+                                                        # complist.check_titles)
     json.dump(d, open(f, 'w'), indent=1, ensure_ascii=False)
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
     env = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(w, 'world5tm', x) for x in order]),

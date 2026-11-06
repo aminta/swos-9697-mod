@@ -1,5 +1,5 @@
 """Engine P: the engine's state item 'SWC1' in the career save's 'EN' block (trailer.py save_trailer / en_read /
-en_finish, swe.c swe_st_save / swe_st_load), on the static image of HT_P_EXE (else c/HTP1: a release-recipe exe built
+en_finish, swe.c swe_st_save / swe_st_load), on the static image of HT_P_EXE (else c/HTP5: a release-recipe exe built
 with HOSTTEST_SYMS=1). No snapshot: the save is save_trailer's own block with no cached team (NUMSEL 0), WriteFile not
 reached; the load is en_read + en_finish + swe_st_load on hand-made blocks.
 
@@ -27,7 +27,7 @@ import swe  # noqa: E402
 import trailer  # noqa: E402
 
 HOME = os.path.expanduser('~')
-EXE = os.environ.get('HT_P_EXE') or os.path.join(HOME, 'swos-mod', 'c', 'HTP1', 'SWOS', 'ITALIAN.EXE')
+EXE = os.environ.get('HT_P_EXE') or os.path.join(HOME, 'swos-mod', 'c', 'HTP5', 'SWOS', 'ITALIAN.EXE')
 GDT_AT, BUF = 0x6000000, 0x6100000
 
 
@@ -201,3 +201,71 @@ def test_swc1():
                                          f'current, shorter (zero tail), longer / missing (started), CC short skipped'
                                          + ('; retired probe never saved, imported as section RP only into a save from'
                                             ' before P' if probe else ''))
+
+
+def test_swc1_sections():
+    """Engine P 6: SWC1's sections (swe.c swc1_find / swc1_add) on the static image of HT_P_EXE, whatever the saved
+    bytes hold: an empty state takes a section (id, length, zeroed bytes, the end marker after it when there is room)
+    and finds it back; a section that does not fit is refused; a corrupt state (a length past the item, a chain that
+    overruns it, no end marker) never makes either routine read or write outside SWC1 (memory hooks), find answers 0
+    for what it cannot reach whole, add refuses."""
+    syms = EXE[:-4] + '.syms.json'
+    if not os.path.exists(EXE) or not os.path.exists(syms):
+        return False, f'{EXE} / its .syms.json missing (HT_P_EXE)'
+    sy = json.load(open(syms))
+    if 'swc1_find' not in sy.get('swe', {}):
+        return False, 'no swe.swc1_find (a build before engine P 3)'
+    from unicorn import UC_HOOK_MEM_READ, UC_HOOK_MEM_WRITE
+    uc, le, rd = static_machine(EXE)
+    at = lambda k: tr.B4 + sy['swe'][k][1]
+    swc1, find, add = at('SWC1'), at('swc1_find'), at('swc1_add')
+    size, hdr = swe.SWC1_SIZE, 20
+    uc.mem_map(BUF, 0x1000)
+    lenp = BUF
+    stray = []
+
+    def watch(u, access, a, n, v, d):
+        if not (swc1 <= a < swc1 + size or tr.STACK - 0x2000 <= a < tr.STACK + 0x100 or lenp <= a < lenp + 4):
+            stray.append((d, hex(a)))
+    hooks = [uc.hook_add(UC_HOOK_MEM_READ, watch, 'read'), uc.hook_add(UC_HOOK_MEM_WRITE, watch, 'write')]
+    errs = []
+
+    def state(body):
+        uc.mem_write(swc1, (struct.pack('<HH', 1, 5) + bytes(hdr - 4) + body).ljust(size, b'\0')[:size])
+
+    def f(i):
+        uc.mem_write(lenp, b'\xEE' * 4)
+        p = tr._call(uc, find, i, lenp) & 0xFFFFFFFF
+        return (p - swc1, struct.unpack('<I', rd(lenp, 4))[0]) if p else None
+
+    a = lambda i, n: ((tr._call(uc, add, i, n) & 0xFFFFFFFF) or swc1) - swc1 or None
+    state(b'')
+    if f(0x4141) is not None:
+        errs.append('empty: a section found')
+    uc.mem_write(swc1 + hdr, b'\0\0' + b'\x77' * (size - hdr - 2))      # (stale bytes past the end marker)
+    got = a(0x4141, 4)
+    want = struct.pack('<HH', 0x4141, 4) + bytes(4) + b'\0\0'
+    if got != hdr + 4 or rd(swc1 + hdr, 10) != want or f(0x4141) != (hdr + 4, 4):
+        errs.append(f'add 4: at {got}, {rd(swc1 + hdr, 10).hex()}, find {f(0x4141)}')
+    if a(0x4242, 3) is not None:                                         # (28 + 4 + 3 > 32)
+        errs.append('a section past the item added')
+    got = a(0x4343, 0)                                                   # (exactly to the end: no marker room)
+    if got != size or f(0x4343) != (size, 0) or f(0x4141) != (hdr + 4, 4):
+        errs.append(f'add 0 at the end: {got}, find {f(0x4343)}')
+    for tag, body, found in (
+            ('length past the item', struct.pack('<HH', 7, 0xFFFF), {7: None}),
+            ('chain overrun', struct.pack('<HH', 1, 2) + b'ab' + struct.pack('<HH', 2, 0x10), {1: (hdr + 4, 2), 2: None}),
+            ('no end marker', struct.pack('<HH', 3, 8) + b'x' * 8, {3: (hdr + 4, 8), 9: None})):
+        state(body)
+        for i, w in found.items():
+            if f(i) != w:
+                errs.append(f'{tag}: find {i:#x} {f(i)}, want {w}')
+        before = rd(swc1, size)
+        if a(0x5555, 1) is not None or rd(swc1, size) != before:
+            errs.append(f'{tag}: add not refused / state changed')
+    for h in hooks:
+        uc.hook_del(h)
+    if stray:
+        errs.append(f'accesses outside SWC1: {sorted(set(stray))[:6]}')
+    return not errs, '; '.join(errs) or ('add / find on an empty state, a full one refused, 3 corrupt states: no access '
+                                         'outside SWC1, find 0 for an unreachable section, add refused')

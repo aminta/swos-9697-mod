@@ -3,7 +3,8 @@ en_finish, swe.c swe_st_save / swe_st_load), on the static image of HT_P_EXE (el
 with HOSTTEST_SYMS=1). No snapshot: the save is save_trailer's own block with no cached team (NUMSEL 0), WriteFile not
 reached; the load is en_read + en_finish + swe_st_load on hand-made blocks.
 
-- the save writes SWC1 (its size, swe.SWC1_SIZE) with the header version 1 and the career's world byte;
+- the save writes SWC1 (its size, swe.SWC1_SIZE) with the header version 1, the career's world byte and (P 5) its
+  season (the game's seasonPlaying);
 - a block with this build's SWC1 loads byte for byte, the save's version kept (SWC1_LOADED);
 - SWC1 grows: a shorter (older) one loads its bytes and the rest zeroed; a longer (newer) one is not this build's:
   zeroed, started as a save without it (version 1, the world byte, SWC1_LOADED 0) - as a save from before P;
@@ -103,6 +104,7 @@ def test_swc1():
     out = code.find(b'\x61\xe9') if out < 0 else out              # (or popad, jmp WriteFile)
     assert out > 0, 'save_trailer: no popad / jmp at its end'
     cwb = _disp(rd, at('swe', 'swe_st_save'), 0x40, b'\x0f\xb6\x05')   # swe.c cw_byte: movzx eax, byte [SWE_CWB]
+    sea = _disp(rd, at('swe', 'swe_st_save'), 0x40, b'\x0f\xb6\x05', 1)   # (engine P 5: then [SWE_SEASON])
     errs = []
 
     uc.mem_write(guard, b'\0' * 4)
@@ -111,6 +113,7 @@ def test_swc1():
     uc.mem_write(roomv, struct.pack('<I', 0x30000))
     uc.mem_write(d1, b'\0' * 4)
     uc.mem_write(cwb, b'\x05')
+    uc.mem_write(sea, b'\x7e')                                     # (2026: 126)
     uc.mem_write(swc1, bytes(range(1, size + 1)))
     _run(uc, save, save + out + 1)
     n = struct.unpack('<I', rd(d1, 4))[0]
@@ -127,9 +130,9 @@ def test_swc1():
         p += 4 + ln
     sid = engine.item_id('SWC1')
     s = items.get(sid)
-    want = struct.pack('<HH', 1, 5) + bytes(range(5, size + 1))
+    want = struct.pack('<HH', 1, 5) + bytes(range(5, 9)) + struct.pack('<H', 126) + bytes(range(11, size + 1))
     if s != want:
-        errs.append(f'saved SWC1 {s.hex() if s else None} (want version 1, world 5, the rest as in memory)')
+        errs.append(f'saved SWC1 {s.hex() if s else None} (want version 1, world 5, season 126, the rest as in memory)')
     rid = engine.item_id('RPRB')
     probe = None
     en_n = _disp(rd, en_read, 0x60, b'\x81\xf9') if b'\x81\xf9' in rd(en_read, 0x60) else rd(en_read, 0x60)[
@@ -194,7 +197,7 @@ def test_swc1():
         got, ver, _, _ = load([(sid, own), (rid, b'\x11\x22\x33\x44')])
         if got != own or ver != 1:
             errs.append(f'SWC1 v1 + RPRB: {got.hex()} (imported over a save of P)')
-    return not errs, '; '.join(errs) or (f'saved {len(order)} items ({n} B), SWC1 {size} B version 1 + world; loads: '
+    return not errs, '; '.join(errs) or (f'saved {len(order)} items ({n} B), SWC1 {size} B version 1 + world + season; loads: '
                                          f'current, shorter (zero tail), longer / missing (started), CC short skipped'
                                          + ('; retired probe never saved, imported as section RP only into a save from'
                                             ' before P' if probe else ''))

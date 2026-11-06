@@ -799,10 +799,19 @@ static u32 cw_byte(void) { return SWE_CWB[0]; }
 static u32 cw_byte(void) { return 0; }
 #endif
 
-void swe_st_save(void)                  /* engine.before_save: the header as this build writes it */
+#ifdef SEAS
+extern u8 SWE_SEASON[];                 /* the game's seasonPlaying (the year - 1900) */
+static u32 season(void) { return SWE_SEASON[0]; }
+#else
+static u32 season(void) { return 0; }
+#endif
+
+void swe_st_save(void)                  /* engine.before_save: the header as this build writes it (engine P 5: the
+                                           season, the career's at the save; a load keeps the saved one) */
 {
     *(u16 *)SWC1 = SWC1_VER;
     *(u16 *)(SWC1 + 2) = (u16)cw_byte();
+    *(u16 *)(SWC1 + 8) = (u16)season();
 }
 
 /* SWC1's sections: u16 id, u16 length, the bytes; id 0 (or the item's end) ends them. */

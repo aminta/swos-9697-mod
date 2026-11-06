@@ -50,7 +50,7 @@ SEL_N 160 × 684 = 109440, main block 948, 'EN' block 15343 (25 items) → 12573
   smaller. The other way round, a save of this build can be up to 207 B bigger than a 4.1 exe's room (a downgrade, not
   supported).
 - **SWC1** (swe.c, obj4, 32 B in v1): the engine's state, one 'EN' item that *grows*. Header 20 B: u16 version (1),
-  u16 world (the career's world byte), u32 spec hash, u16 season, u16 flags, u64 seed (0 until the steps that use
+  u16 world (the career's world byte), u32 spec hash, u16 season (P 5: seasonPlaying at the save), u16 flags, u64 seed (0 until the steps that use
   them), then sections (u16 id, u16 length, bytes; id 0 ends). swe_st_save (engine.before_save) writes the header;
   swe_st_load (engine.after_load) keeps the save's version in SWC1_LOADED (0 = a save from before P) and starts a
   missing state. With its 4-B item header: **36 B → 239 B left** (HTP1).

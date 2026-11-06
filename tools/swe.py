@@ -287,11 +287,13 @@ def patch(p):
     if careerworld.SITES.get('slt'):                # engine P: the career's world byte, SWC1's header
         so, soff = careerworld.SITES['slt']
         ext['SWE_CWB'] = (so, soff + careerworld.WORLD_BYTE)
+    if careerworld.SITES.get('season') is not None:     # engine P 5: the season (the game's seasonPlaying byte)
+        ext['SWE_SEASON'] = (2, careerworld.SITES['season'])
     imp, imp_size = imports()                       # engine P 3: the load-only items' slots / found bytes
     if imp:
         import trailer
         ext['SWE_ENF'] = (1, trailer.LABELS['EN_FOUND'][1] + trailer.INFO['EN_NS'])
-    flags = (('-DNS',) if ns else ()) + (('-DSTFM',) if 'SWE_STFM' in ext else ()) + (('-DNAT',) if 'CW_PLNAT' in ext else ()) + (('-DMB',) if 'MB_STR' in ext else ()) + (('-DOMM',) if 'MB_OMM' in ext else ()) + (('-DFNAT',) if 'CW_FNAT' in ext else ()) + (('-DAV',) if 'SWE_PREPICK' in ext else ()) + (('-DCWB',) if 'SWE_CWB' in ext else ()) + (f'-DSWC1_SIZE={SWC1_SIZE}',)
+    flags = (('-DNS',) if ns else ()) + (('-DSTFM',) if 'SWE_STFM' in ext else ()) + (('-DNAT',) if 'CW_PLNAT' in ext else ()) + (('-DMB',) if 'MB_STR' in ext else ()) + (('-DOMM',) if 'MB_OMM' in ext else ()) + (('-DFNAT',) if 'CW_FNAT' in ext else ()) + (('-DAV',) if 'SWE_PREPICK' in ext else ()) + (('-DCWB',) if 'SWE_CWB' in ext else ()) + (('-DSEAS',) if 'SWE_SEASON' in ext else ()) + (f'-DSWC1_SIZE={SWC1_SIZE}',)
     if imp:
         flags += (f'-DIMP_N={len(imp)}', f'-DSWE_IMP_SIZE={max(imp_size, 4)}') + tuple(
             d for n, k, off in imp for d in (f'-DIMPK_{n}={k}',) + ((f'-DIMP_{n}={off}',) if off is not None else ()))

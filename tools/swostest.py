@@ -4268,7 +4268,8 @@ def nop_league_int3(name, src=None):
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import lepatch
     src = src or builds()['it']
-    b = os.path.join(WORK, 'builds-x', f'{name}_' + os.path.basename(src.rstrip('/')))
+    b = os.path.join(WORK, 'builds-x', f'{name}_' + os.path.basename(src.rstrip('/')) + '_' +   # (+ the path's hash:
+                     hashlib.md5(os.path.abspath(src).encode()).hexdigest()[:6])         # two builds' SWOS dirs)
     shutil.rmtree(b, ignore_errors=True)
     shutil.copytree(src, b, symlinks=True)
     p = lepatch.LEPatch(os.path.join(b, 'ITALIAN.EXE'))
@@ -28054,7 +28055,8 @@ def vopp_stale():
     (VOPPA), loaded; the first match's pre-match screen, AVVERSARI: DOWN / UP scroll the opponent's rows 12..17, the
     cursor stays; GIOCA PARTITA from that view, ESC out of the match, ESCI: the career menu with the flag still set
     (the stale state, else the case is not reached): DOWN / UP move the cursor; ESCI, CARICA VECCHIA COMPETIZIONE VOPPA
-    (Salvatore's path: another career loaded, the flag still set): DOWN / UP move the cursor."""
+    (Salvatore's path: another career loaded, the flag still set): DOWN / UP move the cursor. VOPP_CAR: a player's
+    own save (a path, outside the repo) loaded as VOPPA instead of the new career (Marco's 4.0.5 PONTEDERA)."""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import lepatch
     o = lepatch.LEPatch(os.path.join(MAIN, 'orig', UI_ORIG))
@@ -28085,20 +28087,22 @@ def vopp_stale():
             press(s, s.screen(), 'CONTINUA', 3) or press(s, s.screen(), 'ESCI', 3) or s.send('fire dump:2')
         return 'TRASFERIMENTI' in s.screen().texts()
 
-    with Session(f'vopp_stale_{UI}', exe, {}, 'dump:2', 900, match=True) as s:
+    car = os.environ.get('VOPP_CAR')                    # (a player's own save instead: loaded as VOPPA)
+    with Session(f'vopp_stale_{UI}', exe, {'VOPPA.CAR': car} if car else {}, 'dump:2', 900, match=True) as s:
         vopp = lambda: struct.unpack('<H', bytes(s.result.obj2(vo, 2)))[0]
         s.wait()
-        if not pick_career(s, path):
+        if not car and not pick_career(s, path):
             return False, 'new career: ' + str(s.screen().texts()[:8])
-        s.send('fire dump:3')
-        if not career_menu():
-            return False, f'no career menu: {s.screen()}'
-        press(s, s.screen(), 'ESCI', 3)                 # saved as VOPPA, then loaded (the main menu's load)
-        if press(s, s.screen(), 'SALVA CARRIERA') is None:
-            return False, f'no SALVA CARRIERA on {s.screen()}'
-        s.send(name_entry('VOPPA') + ' dump:3')        # (the cursor on SALVA; any exe language / keyboard layout)
-        if not os.path.exists(os.path.join(s.run, 'SWOS', 'VOPPA.CAR')):
-            return False, f'VOPPA.CAR not written ({s.result})'
+        if not car:
+            s.send('fire dump:3')
+            if not career_menu():
+                return False, f'no career menu: {s.screen()}'
+            press(s, s.screen(), 'ESCI', 3)             # saved as VOPPA, then loaded (the main menu's load)
+            if press(s, s.screen(), 'SALVA CARRIERA') is None:
+                return False, f'no SALVA CARRIERA on {s.screen()}'
+            s.send(name_entry('VOPPA') + ' dump:3')    # (the cursor on SALVA; any exe language / keyboard layout)
+            if not os.path.exists(os.path.join(s.run, 'SWOS', 'VOPPA.CAR')):
+                return False, f'VOPPA.CAR not written ({s.result})'
         for _ in range(4):
             if press(s, s.screen(), 'CARICA VECCHIA COMPETIZIONE') is not None or \
                     s.screen().find('CARICA VECCHIA COMPETIZIONE', exact=True) is not None:

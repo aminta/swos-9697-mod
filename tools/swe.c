@@ -466,8 +466,10 @@ void swe_sel_post(void)
    SELECT TEAM TO MANAGE: a player purchase's team choice stays the game's) lists the worlds as the friendly picker
    (the default world's list, MONDO 2026-27 next to STORICO), with no lock (one club). The namespace stays the one the
    path left (careerworld w_ns_menu): InitCareer's w_load1 reads it for the career's world. */
+#ifdef MB                               /* (a build with mainbtn's world switch: else no career picker hook) */
 extern u8 MB_HDR[], MB_STR[];
 u32 CAR_ON DATA = 0;
+#endif
 
 /* M3 (Davide 04/11): the coach's nationality list follows the career's world, chosen with the team (careerworld nat_init
    picked it at CareerMenuInit from the default world): today's list for World 2026-27, else the era list. A
@@ -503,6 +505,7 @@ const u32 NAT_X[6] = {(u32)swe_nat_fix, (u32)CW_PLNAT, (u32)NATMAP27, (u32)NATMA
                       (u32)CW_NATORD27};
 #endif
 
+#ifdef MB
 void swe_car_pre(void)
 {
     CAR_ON = rd32(MB_HDR) == (u32)MB_STR;
@@ -532,6 +535,7 @@ __attribute__((naked)) void swe_car_tramp(void)
     __asm__ volatile("pushal\n\tcall swe_car_pre\n\tpopal\n\tcall SWE_CARPICK\n\t"
                      "pushfl\n\tpushal\n\tcall swe_car_post\n\tpopal\n\tpopfl\n\tret");
 }
+#endif
 
 /* GoGetTeamsForPlay's picker call (swe.py pick_site) lands here: SWE_PICK = what that call reached before (chained) */
 __attribute__((naked)) void swe_sel_tramp(void)

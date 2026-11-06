@@ -202,7 +202,7 @@ def patch(p):
         calls = [c for c in calls if c[1] not in ('swe_ns_tramp', 'swe_stfm_tramp')]
     if 'W_FNAT' in careerworld.LABELS:              # step 2.5: the friendly / DIY nationals' world (w_tmap)
         ext['CW_FNAT'] = (1, careerworld.LABELS['W_FNAT'])
-    flags = (('-DNS',) if ns else ()) + (('-DNAT',) if 'CW_PLNAT' in ext else ()) + (('-DFNAT',) if 'CW_FNAT' in ext else ()) + (('-DAV',) if 'SWE_PREPICK' in ext else ())
+    flags = (('-DNS',) if ns else ()) + (('-DNAT',) if 'CW_PLNAT' in ext else ()) + (('-DMB',) if 'MB_STR' in ext else ()) + (('-DFNAT',) if 'CW_FNAT' in ext else ()) + (('-DAV',) if 'SWE_PREPICK' in ext else ())
     syms, end, bss = cobj.link(p, cobj.compile_c(SRC, flags), CODE_AT, (4, room), externs=ext, limit=swreg.REG_AT,
                                text_obj=4)
     arena = syms['SWE_ARENA_AT']

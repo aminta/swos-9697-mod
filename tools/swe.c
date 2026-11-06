@@ -106,6 +106,7 @@ u32 SEL_ON DATA = 0;                    /* 1 = this picker lists the worlds */
 u32 SEL_DW DATA = 0;                    /* the default world (0 = the 1996-97 game) */
 u32 SEL_CW DATA = 0;                    /* the contest's career world, 0 = none yet */
 u32 SEL_N DATA = 0;                     /* NUMSEL at the last list */
+u32 SEL_LW DATA = 0;                    /* the world of the last list (the one new picks came from) */
 u32 SWE_CWORLD DATA = 0;                /* the last contest's world (picker / DIY load): the 'WM' block */
 u32 *SEL_SLOT98 DATA = 0, *SEL_SLOTD DATA = 0;
 u32 SEL_O98 DATA = 0, SEL_OD DATA = 0;  /* the game's list pointers */
@@ -405,6 +406,7 @@ void swe_sel_pre(u32 mode)
     SEL_DW = dw;
     SEL_CW = 0;
     SEL_N = 0;
+    SEL_LW = 0;
     *c254 = cw;
     SEL_SLOT98 = comp_slot(CAREERS);
     SEL_O98 = *SEL_SLOT98;
@@ -432,9 +434,10 @@ void swe_sel_ns(u32 w)                  /* careerworld w_ns_menu, every list: w 
         n = 0;
     if (!n)
         SEL_CW = 0;
-    else if (n > SEL_N && !SEL_CW && w)
-        SEL_CW = w;
+    else if (n > SEL_N && !SEL_CW && SEL_LW)
+        SEL_CW = SEL_LW;                /* (the picks came from the list shown last, not from this one) */
     SEL_N = n;
+    SEL_LW = w;
     sel_lists();
 }
 
@@ -454,6 +457,8 @@ void swe_sel_post(void)
 {
     AV_ARM = AV_SHOW = 0;
     sel_restore();
+    if (SEL_ON && SEL_MODE != M_CAREER && !SEL_CW && *(u16 *)SWE_NUMSEL > SEL_N && SEL_LW)
+        SEL_CW = SEL_LW;                /* (picks in the last list: a toggle redraws no list, no swe_sel_ns saw them) */
     if (SEL_ON) {
         SWE_CWORLD = *(u16 *)SWE_NUMSEL ? SEL_CW : 0;
         ns_left(SWE_CWORLD);

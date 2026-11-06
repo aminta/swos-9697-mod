@@ -863,18 +863,36 @@ void sec_post(void) {                                   /* gp_end, after the mov
 /* The league champion from a 'title' play-off (GP_OUT.res kind 5): the season end's top-9 list of the country's top
    division (cseg_927A2: GP_TOPW = their team words, GP_TOPR = their 684-byte records), which the qualifiers read for
    the 'champion' place (the game's cseg_93974 / uefaq's uq_country), gets the play-off's winner first, the clubs
-   above it one place down. A winner outside the top 9: as it is (the table's 1st stays). */
+   above it one place down. 4.1 (Davide 06/11, Malta's 11th won the Final Four): a winner outside the top 9 comes in
+   first all the same - its record from the game's team cache (FindTeamInCache), the 9th drops out; not in the cache:
+   as before, the table's 1st stays. */
 extern u16 GP_TOPW[9];
 extern u8 GP_TOPR[9 * 684];
 static u8 ch_tmp[684];
+extern u8 GP_FTIC[];                    /* FindTeamInCache: word [D0] = the team -> ZF, [A0] = its 684-byte record */
+extern u32 GP_D0, GP_D1, GP_A0;         /* (the game's pseudo registers it uses: kept) */
+__attribute__((naked, noinline)) static const u8 *gp_ftic(u32 w) {
+    __asm__ volatile(
+        "pushl GP_D0\n\tpushl GP_D1\n\tpushl GP_A0\n\t"
+        "movl 16(%esp), %eax\n\tmovw %ax, GP_D0\n\t"
+        "pushal\n\tcall GP_FTIC\n\tpopal\n\t"
+        "movl $0, %eax\n\tjnz 1f\n\tmovl GP_A0, %eax\n"
+        "1:\n\tpopl GP_A0\n\tpopl GP_D1\n\tpopl GP_D0\n\tret");
+}
 void gp_champ(void) {
     for (int k = 0; k < GP_OUT.nres; k++) {
         if (GP_OUT.res[k].kind != K_TITLE) continue;
         u16 w = GP_OUT.res[k].team[0];
         int j = 0;
         while (j < 9 && GP_TOPW[j] != w) j++;
-        if (j == 0 || j >= 9) continue;
-        for (int b = 0; b < 684; b++) ch_tmp[b] = GP_TOPR[684 * j + b];
+        if (j == 0) continue;
+        const u8 *src = GP_TOPR + 684 * j;
+        if (j >= 9) {
+            src = gp_ftic(w);
+            if (!src || (src[0] | src[1] << 8) != w) continue;
+            j = 8;
+        }
+        for (int b = 0; b < 684; b++) ch_tmp[b] = src[b];
         for (int i = j; i > 0; i--) {
             GP_TOPW[i] = GP_TOPW[i - 1];
             for (int b = 0; b < 684; b++) GP_TOPR[684 * i + b] = GP_TOPR[684 * (i - 1) + b];

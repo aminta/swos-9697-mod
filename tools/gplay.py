@@ -2662,6 +2662,12 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
                                 f"-DCF_SEED={__import__('cupsf').SEED}"]
                                + (['-DHDR_TEST'] if os.environ.get('HDR_TEST') else []))   # (test builds: GROUP n headers)
     top_r, top_w = _top9(p)                          # (cseg_927A2's top-9 list: gp_champ)
+    d1o = p.le.obj_bytes(1)                          # 4.1 gp_champ: FindTeamInCache (VerifyTeamLoaded's call, as
+    vtl = [m.start() for m in re.finditer(rb'\xe8.{4}\x75\x01\xc3\xcc\xe8.{4}\xe8.{4}\xcc', d1o, re.S)]   # earlier
+    assert len(vtl) == 1, vtl                        # patches left it) and the pseudo registers it uses
+    rg = sacups.regs(d1o)
+    ftic = {'GP_FTIC': p.call_target(1, vtl[0]), 'GP_D0': (2, rg['D7'] - 28), 'GP_D1': (2, rg['D7'] - 24),
+            'GP_A0': (2, rg['A0'])}
     import mkseason                             # 4.0 group headers' labels (zones.header_labels, the exe language)
     import zones
     hlt = area.add(zones.header_labels(lang, [e if os.sep in e else os.path.join(mkseason.PACKS, e)
@@ -2670,7 +2676,7 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
                                                                    **({'GP_SSF': (1, ssf_at),
                                                                        'GP_CAREERW': (2, sacups.SEL_ADDR[0])}
                                                                       if ssf_at else {}),
-                                                                   'GP_TOPR': top_r, 'GP_TOPW': top_w,
+                                                                   'GP_TOPR': top_r, 'GP_TOPW': top_w, **ftic,
                                                                    'SEC_SLT': careerworld.SITES['slt'],
                                                                    'SEC_COPY': careerworld.SITES['sltcopy'],
                                                                    'GP_HLT': (2, hlt)}, limit=limit)

@@ -23157,13 +23157,12 @@ def menu_levels():
     b = os.path.realpath(os.environ.get('MENU14_BUILD') or os.path.join(WORK, 'builds', 'w2627-latest'))
     vis = lambda scr: [t for i, t, inv, _ in scr.entries if 11 <= i <= 86 and t and not inv]
     errs, notes = [], []
-    head = ('CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27')
     with Session('menu_levels', b, {}, 'dump:2', 600) as s:
         s.wait()
         try:
-            for t in head + ('EUROPA',):                # (exact: the main menu's green CARRIERA 2026-27 button
-                i = s.screen().find(t, exact=True)      # would match 'CARRIERA' too, mainbtn)
-                walk(s, t if i is None else i, 3)
+            set_world(s, 0)                             # (W-modes M1: the green button is the world switch, World
+            for t in ('CARRIERA', 'SCEGLI SQUADRA', 'EUROPA'):   # 2026-27 on it: its career by CARRIERA, its
+                walk(s, t, 3)                           # continents on the team choice - as menu_levels_cursor)
             walk(s, 'ITALIA', 3)
             lv = vis(s.screen())
             check(lv == ['SERIE A', 'SERIE B', 'SERIE C', 'SERIE D'], f'ITALIA levels {lv}', errs)
@@ -23203,9 +23202,9 @@ def menu_levels():
     with Session('menu_levels_slv', b, {}, 'dump:2', 600) as s:
         s.wait()
         try:
-            for t in head:                              # (exact: CARRIERA 2026-27 matches 'CARRIERA' too)
-                i = s.screen().find(t, exact=True)
-                walk(s, t if i is None else i, 3)
+            set_world(s, 0)                             # (as above: World 2026-27 on the switch, CARRIERA)
+            for t in ('CARRIERA', 'SCEGLI SQUADRA'):
+                walk(s, t, 3)
             cont = next((c for c in ('NORDAMERICA', 'NORD AMERICA', 'CENTROAMERICA') if s.screen().find(c, exact=True) is not None), None)
             walk(s, cont, 3)
             walk(s, 'EL SALVADOR', 3)

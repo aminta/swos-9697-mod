@@ -105,3 +105,24 @@ u32 xw_wm_get(const u8 *p, u32 n, struct xw_map *m)
     m->k = (u8)k;
     return 2;
 }
+
+/* The rows 220..253 a contest's namespace gets (careerworld w_ns_set fills them from these on each swap): for every
+   mapped file i, the visitor world's countriesTable entry for its file f (vlab[f], the country's name as that world
+   shows it) and its teamsCountryNumbers word (vbase[f], the first global number of f's clubs; vcnt[f] clubs). The
+   global numbers must not collide with the host world's files the contest uses (hf[0..nh), hbase / hcnt per file): 0
+   when one does (the pick is refused), else 1 with lab[i] / base[i] filled. */
+u32 xw_rows(const struct xw_map *m, const u32 *vlab, const unsigned short *vbase, const u8 *vcnt,
+            const u8 *hf, u32 nh, const unsigned short *hbase, const u8 *hcnt, u32 *lab, unsigned short *base)
+{
+    for (u32 i = 0; i < m->k; i++) {
+        u32 f = m->f[i], lo = vbase[f], hi = lo + vcnt[f];
+        for (u32 j = 0; j < nh; j++) {
+            u32 h = hf[j], hlo = hbase[h], hhi = hlo + hcnt[h];
+            if (lo < hhi && hlo < hi)
+                return 0;
+        }
+        lab[i] = vlab[f];
+        base[i] = (unsigned short)lo;
+    }
+    return 1;
+}

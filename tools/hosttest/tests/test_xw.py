@@ -6,7 +6,9 @@ called through ctypes - no exe, no snapshot.
 - xw_file: the number back to its file, 0 for a number not mapped;
 - xw_wm_put / xw_wm_get: the DIY tail 'WM' v2 (len 2 + 3k: host, visitor, (r, f, flags) x k) round trip, empty and
   full maps; a mixing-A tail ('WM' 1, world) reads as version 1, the world as host; anything else reads as 0 (no
-  block): a short / long length, a cut file, k > 34, r outside 220..253, a repeated r or f, f 0 / 220+, another tag."""
+  block): a short / long length, a cut file, k > 34, r outside 220..253, a repeated r or f, f 0 / 220+, another tag;
+- xw_rows: each mapped file's row = the visitor world's label and teamsCountryNumbers base; a host file whose global
+  numbers overlap a visitor file's refuses (0), adjacent ranges do not."""
 import ctypes
 import os
 import subprocess
@@ -87,5 +89,24 @@ def test_xw():
         v, _ = get(tt)
         if v != 0:
             errs.append(f'{tag}: read as version {v}')
-    return not errs, '; '.join(errs) or (f'alloc 220.. per file (34 max, bad files refused), WM v2 round trip (0 / 3 / '
+    # xw_rows: the visitor's label / base per mapped file; a global-number overlap with a host file refuses
+    U16 = ctypes.c_uint16 * 256
+    vlab, vbase, vcnt = (ctypes.c_uint32 * 256)(), U16(), (ctypes.c_uint8 * 256)()
+    hbase, hcnt = U16(), (ctypes.c_uint8 * 256)()
+    for f in range(101, 140):                    # (visitor: 20 clubs a file from 3000; host: 16 a file from 0)
+        vlab[f], vbase[f], vcnt[f] = 0x1000 + f, 3000 + 20 * (f - 101), 20
+        hbase[f], hcnt[f] = 16 * (f - 101), 16
+    hf = (ctypes.c_uint8 * 3)(101, 105, 120)
+    lab, base = (ctypes.c_uint32 * 34)(), (ctypes.c_uint16 * 34)()
+    ok = x.xw_rows(ctypes.byref(m), vlab, vbase, vcnt, hf, 3, hbase, hcnt, lab, base)
+    want = [(0x1000 + f, 3000 + 20 * (f - 101)) for f in (105, 112, 131)]
+    if ok != 1 or [(lab[i], base[i]) for i in range(3)] != want:
+        errs.append(f'rows: {ok} {[(hex(lab[i]), base[i]) for i in range(3)]}')
+    hbase[120], hcnt[120] = 3000 + 20 * (112 - 101) + 19, 4      # (a host file's numbers reach file 112's last club)
+    if x.xw_rows(ctypes.byref(m), vlab, vbase, vcnt, hf, 3, hbase, hcnt, lab, base) != 0:
+        errs.append('rows: an overlapping host file not refused')
+    hbase[120] = 3000 + 20 * (112 - 101) + 20                     # (just past it: no overlap)
+    if x.xw_rows(ctypes.byref(m), vlab, vbase, vcnt, hf, 3, hbase, hcnt, lab, base) != 1:
+        errs.append('rows: adjacent ranges refused')
+    return not errs, '; '.join(errs) or (f'rows: label + base per file, overlap refused, adjacent kept; alloc 220.. per file (34 max, bad files refused), WM v2 round trip (0 / 3 / '
                                          f'34 files, {len(put(full))} B max), mixing A = v1, {len(bad)} bad tails = 0')

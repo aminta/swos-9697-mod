@@ -61,3 +61,11 @@ follows P, because the visitor map is saved state.
 
 22–30 h as in the estimate (unchanged): allocation + rewrite 6, careerworld stems / rows 6, WM v2 4, Tier B 3,
 DOSBox 4 languages 5–8, notes 1–2. Inputs: P merged (for the engine line, not for room), W-modes M2.
+
+## Groundwork (2026-11-06, MC)
+
+`tools/xw.c`: the visitor map (xw_clear / xw_alloc / xw_file) and the 'WM' v2 tail (xw_wm_put / xw_wm_get), pure
+functions, not linked into the exe yet. Tier B `hosttest/tests/test_xw.py` compiles it for the host and calls it through
+ctypes: the allocation (first free, one number per file, 34 max, bad files refused), the round trip (0 / 3 / 34 files,
+107 B max), a mixing-A tail read as version 1, 14 malformed tails read as no block. The hooks (pick-time rewrite,
+w_ns_stem, the rows 220..253, the DIY save / load) link it into obj4 after the P gate.

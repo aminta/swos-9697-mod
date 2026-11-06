@@ -280,7 +280,7 @@ With the new button in place, a long coach's name on the squad screen is shown s
 - **DIY TOURNAMENT, national teams, EUROPE 1984-85.** After a 2026-27 friendly it could show 2026-27 Saudi clubs. Fixed.
 - **Continent buttons in the 1996-97 world** now read EUROPE 96-97, SOUTH AMERICA 96-97 and so on, in the four game languages.
 - **HISTORIC > EUROPE 1984-85 under the default 2026-27 world** (friendly, career, DIY) showed 2026-27 countries. Fixed: it shows those of 1984-85.
-<!-- TBC Shaved: EXIT next to ABANDON (IT ESCI next to ABBANDONA) on the "not available" screens -->
+- **EXIT on the "not available" national teams message.** In the FRIENDLY and DIY team pickers, the message that national teams are not yet available now has an EXIT button to the left of ABORT. EXIT goes back to the menu of team kinds and keeps the teams you have already picked; ABORT works as before.
 - **Club names without the "&" sign:** O Y M, TREFELIN BGC, SB VLASIM and HARLAND WOLFF.
 - **A play-off entrant that refuses the place** no longer makes the game read wrong data at the season end (it showed up with San Marino; found by Ben Baker).
 
@@ -579,6 +579,7 @@ resta quello).
 - **TORNEO PERSON., nazionali, EUROPA 1984-85.** Dopo un'amichevole del 2026-27 poteva mostrare club sauditi del 2026-27. Corretto.
 - **I pulsanti dei continenti nel mondo 1996-97** ora dicono EUROPA 96-97, SUDAMERICA 96-97 e così via, nelle quattro lingue del gioco.
 - **STORICO > EUROPA 1984-85 con il mondo 2026-27 predefinito** (amichevole, carriera, competizione personalizzata) mostrava i paesi del 2026-27. Corretto: mostra quelli del 1984-85.
+- **ESCI nel messaggio delle nazionali non disponibili.** Nelle scelte squadre di AMICHEVOLE e delle competizioni personalizzate, il messaggio che dice che le nazionali non sono ancora disponibili ora ha un pulsante ESCI a sinistra di ABBANDONA. ESCI torna al menu dei tipi di squadre e tiene le squadre già scelte; ABBANDONA funziona come prima.
 - **Nomi di club senza il segno "&":** O Y M, TREFELIN BGC, SB VLASIM e HARLAND WOLFF.
 - **Una squadra di play-off che rifiuta il posto** non fa più leggere al gioco dati sbagliati a fine stagione (si vedeva con San Marino; trovato da Ben Baker).
 

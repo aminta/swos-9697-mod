@@ -215,6 +215,18 @@ static void top_restore(void)
 u8 AV_TXT[3][2][AV_LEN] DATA = {{{0}}}; /* swe.py AV_LINES, the exe's language: [kind - 1][line] */
 u32 AV_ARM DATA = 0;                    /* the message the next picker shows (AV_*), 0 = none */
 u32 AV_SHOW DATA = 0;                   /* the message this picker's top list shows */
+/* 4.1 ESCI next to ABBANDONA (Davide 06/11, MiSTer): on the nationals' message the game leaves ABBANDONA alone, which
+   quits the whole choice. ESCI (the game's own word, swe.py AV_ESC) opens the team kinds menu (CLUB / NAZIONALI /
+   PERSONALIZZATE: GoGetTeamsForPlay's, SWE_CHOOSE) from its on-select, as the game's own buttons open theirs (a menu
+   opened after the picker's exit took the fire still held under SWOS++). Its ESCI: the message again; a kind chosen:
+   out of the picker the way ABBANDONA goes (ExitSelectTeams), then swe_sel_tramp runs the picker again for that kind
+   (GoGetTeamsForPlay after its kinds menu, AV_AFTER). The contest's editor and its teams stay as they were. */
+extern u8 SWE_CHOOSE[], SWE_KEYCOUNT[], SWE_LASTKEY[];                 /* GoGetTeamsForPlay: mov [A6], offset chooseTeamsMenu; call ShowMenu; mov ax, [teamsType] */
+u8 AV_ESC[12] DATA = {0};
+u32 AV_ABORT DATA = 0;                  /* ABBANDONA's on-select (entry 88: ExitSelectTeams) */
+u32 AV_BACK DATA = 0;                   /* a kind chosen through ESCI: the picker again */
+u32 AV_AFTER DATA = 0;
+void swe_av_esci(void);
 u8 L_AV[12] DATA = {0};
 
 static u32 av_world(void)               /* the default world (SETUP.DAT +105 -> SET_W), 0 = the 1996-97 game */
@@ -264,6 +276,27 @@ static void av_swap(void)               /* at SelectTeamsFinalMenu's entry: the 
 }
 #endif
 
+static void av_esc(u8 *ent, u8 *after)  /* ESCI: a list row the message leaves hidden, as ABBANDONA left of it */
+{
+    u8 *ab = ent + 88 * 56, *x = after + 56;
+    while (*(u16 *)(x + 2) != 87 && !*(u16 *)(x + 4))
+        x += 56;
+    if (*(u16 *)(x + 2) == 87)
+        return;
+    u16 ord = *(u16 *)(x + 2);
+    for (int k = 0; k < 56; k++)
+        x[k] = ab[k];
+    *(u16 *)(x + 2) = ord;
+    *(u16 *)(x + 0x14) -= *(u16 *)(ab + 0x18) + 4;
+    *(u16 *)(x + 0x1E) = (*(u16 *)(x + 0x1E) & 0xFFF0) | 0x0C;   /* (the game's ESCI colour, orange; ABBANDONA's red) */
+    *(u32 *)(x + 0x26) = (u32)AV_ESC;
+    AV_ABORT = rd32(ab + 0x2A);
+    *(u32 *)(x + 0x2A) = (u32)swe_av_esci;
+    x[8] = x[10] = x[11] = 0xFF;        /* (left, up, down: none; right: ABBANDONA) */
+    x[9] = 88;
+    ab[8] = (u8)ord;
+}
+
 static void av_rows(u8 *e0)             /* the message in the top list's first two rows (e0 = entry 21) */
 {
     u8 *r[2], *e = e0;
@@ -287,12 +320,14 @@ static void av_rows(u8 *e0)             /* the message in the top list's first t
     }
     u8 *m = e0 - 21 * 56 - 0x16, *to = 0;   /* the menu's header: the cursor off the rows (the box, else ABBANDONA) */
     u32 *sel = (u32 *)(m + 0x0C);
-    if (*sel != (u32)r[0] && *sel != (u32)r[1])
-        return;
-    for (u8 *x = r[1] + 56; !to && *(u16 *)(x + 2) != 87; x += 56)
-        if (!*(u16 *)(x + 4) && !*(u16 *)(x + 6))
-            to = x;
-    *sel = (u32)(to ? to : m + 0x16 + 88 * 56);
+    if (*sel == (u32)r[0] || *sel == (u32)r[1]) {
+        for (u8 *x = r[1] + 56; !to && *(u16 *)(x + 2) != 87; x += 56)
+            if (!*(u16 *)(x + 4) && !*(u16 *)(x + 6))
+                to = x;
+        *sel = (u32)(to ? to : m + 0x16 + 88 * 56);
+    }
+    if (AV_SHOW == AV_NAT && AV_ESC[0])     /* (4.1: after the cursor - it stays on ABBANDONA, the game's) */
+        av_esc(m + 0x16, r[1]);
 }
 
 /* SelectTeamsReinit's names call (swe.py, chained: historic's hist_names, which leaves the first entry in its
@@ -541,7 +576,40 @@ __attribute__((naked)) void swe_car_tramp(void)
 __attribute__((naked)) void swe_sel_tramp(void)
 {
     __asm__ volatile("pushal\n\tpushl %0\n\tcall swe_sel_pre\n\taddl $4, %%esp\n\tpopal\n\t"
-                     "call SWE_PICK\n\tpushal\n\tcall swe_sel_post\n\tpopal\n\tret" : : "i"(M_FRIENDLY));
+                     "call SWE_PICK\n\tpushal\n\tcall swe_sel_post\n\tpopal\n\t"
+                     "cmpl $0, AV_BACK\n\tjne 1f\n\tret\n"
+                     "1:\tmovl $0, AV_BACK\n\tpushal\n\tcall swe_av_clear\n\tpopal\n\taddl $4, %%esp\n\tjmp *AV_AFTER"
+                     : : "i"(M_FRIENDLY));
+}
+
+void swe_av_kinds(void)                 /* ESCI fired: the kinds menu over the picker; AV_BACK = a kind chosen */
+{
+    u8 *c = SWE_CHOOSE;
+    short *tt = (short *)rd32(c + 17), was = *tt;
+    *(u32 *)rd32(c + 2) = rd32(c + 6);
+    *(u16 *)SWE_KEYCOUNT = *(u16 *)SWE_LASTKEY = 0;   /* (ESCI's key is not read again by the kinds menu) */
+    u32 show = (u32)(c + 15) + rd32(c + 11);
+    __asm__ volatile("pushal\n\tcall *%0\n\tpopal" : : "r"(show) : "memory", "cc");
+    AV_AFTER = (u32)(c + 15);
+    AV_BACK = *tt >= 0;
+    if (!AV_BACK)                       /* (its ESCI: teamsType -1 - the nationals' picker goes on as it was) */
+        *tt = was;
+}
+
+void swe_av_clear(void)                 /* ExitSelectTeams' abortSelectTeams = 1 (its `mov word [x], 1`) back to 0 */
+{
+    u8 *f = (u8 *)AV_ABORT;
+    for (int k = 0; k < 0x80; k++)
+        if (f[k] == 0x66 && f[k + 1] == 0xC7 && f[k + 2] == 5 && f[k + 7] == 1 && f[k + 8] == 0) {
+            *(u16 *)rd32(f + k + 3) = 0;
+            return;
+        }
+}
+
+/* 4.1: ESCI on the nationals' message (av_esc) */
+__attribute__((naked)) void swe_av_esci(void)
+{
+    __asm__ volatile("pushal\n\tcall swe_av_kinds\n\tpopal\n\tcmpl $0, AV_BACK\n\tjne 1f\n\tret\n1:\tjmp *AV_ABORT");
 }
 
 #ifdef NS

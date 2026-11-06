@@ -30,6 +30,8 @@ AV_LINES = {        # step 2.5 (texts frozen, Davide 2026-11-05): [NATIONAL, PRE
            'AUCUNE COMPETITION PREDEFINIE POUR CE MONDE POUR LE MOMENT', 'AUCUNE SAISON POUR CE MONDE POUR LE MOMENT'),
     'de': ('NATIONALMANNSCHAFTEN F\x9aR DIESE WELT NOCH NICHT VERF\x9aGBAR', 'ZURZEIT KEINE STANDARDWETTBEWERBE F\x9aR DIESE WELT',
            'ZURZEIT KEINE SAISONS F\x9aR DIESE WELT')}
+AV_ESC = {'it': 'ESCI', 'en': 'EXIT', 'fr': 'QUITTER', 'de': 'ENDE'}   # 4.1: ESCI next to ABBANDONA on the nationals'
+                               # message (swe.c av_esc), the word the game's own lists show (Davide 06/11)
 AV_KINDS = (1, 2, 0)           # swe.c AV_TXT[kind - 1] order: PRESET, SEASON, NATIONAL -> AV_LINES' index
 AV_LEN, AV_WIDTH = 40, 300     # (swe.c AV_LEN; the rows' width = the list area's)
 UE = '\x9a'                    # (the exe's own U-umlaut glyph, as titlelegs' R\x9aCKSP.)
@@ -67,6 +69,29 @@ def pick_site(p):
                                              + rb'\x00\x00\x00\x00\xe8', d1, re.S)]
     assert len(ms) == 1, ms
     return ms[0]
+
+
+def choose_site(p, site):
+    """4.1 ESCI: GoGetTeamsForPlay's `mov [A6], offset chooseTeamsMenu; call ShowMenu` before the picker call (the
+    team kinds menu: swe_sel_tramp goes back there, the rest of the function runs as the first time)"""
+    import re
+    import sacups
+    d1 = p.le.obj_bytes(1)
+    a6 = sacups.regs(d1)['A0'] + 24
+    ms = [site - 0x80 + m.start() for m in re.finditer(rb'\xc7\x05' + re.escape(struct.pack('<I', a6)) + rb'.{4}\xe8',
+                                                          d1[site - 0x80:site], re.S)]
+    assert len(ms) == 1, ('GoGetTeamsForPlay: mov [A6], offset chooseTeamsMenu', ms)
+    return (1, ms[0])
+
+
+def key_site(p):
+    """4.1 ESCI: GetKey's `sub [keyCount], 1; movzx ebx, byte [D0]; mov [lastKey], bx` (swe_av_kinds empties both
+    before the kinds menu, as the game's own menus find them after a key is taken)"""
+    import re
+    d1 = p.le.obj_bytes(1)
+    ms = [m.start() for m in re.finditer(rb'\x66\x83\x2d.{4}\x01\x0f\xb6\x1d.{4}\x66\x89\x1d', d1, re.S)]
+    assert len(ms) == 1, ('GetKey: sub [keyCount], 1 .. mov [lastKey], bx', ms)
+    return p.target(1, ms[0] + 3), p.target(1, ms[0] + 18)
 
 
 def m2_sites(p, site):
@@ -185,7 +210,8 @@ def patch(p):
     site = pick_site(p)
     pick = p.call_target(1, site)                   # (chained: the picker call as earlier patches left it)
     ns = 'w_ns_set' in careerworld.LABELS and careerworld.NS.get('info')
-    ext = {'SWE_REG': (4, swreg.REG_AT), 'SWE_PICK': pick}
+    ext = {'SWE_REG': (4, swreg.REG_AT), 'SWE_PICK': pick, 'SWE_CHOOSE': choose_site(p, site)}
+    ext['SWE_KEYCOUNT'], ext['SWE_LASTKEY'] = key_site(p)
     if ns:
         ext['w_ns_set'] = (1, careerworld.LABELS['w_ns_set'])
     m2, calls = m2_sites(p, site)                   # (W-modes M2: chained, as the picker call)
@@ -224,6 +250,9 @@ def patch(p):
         lines = AV_LINES[LANG[0]]
         buf = b''.join((r.encode('latin-1') + b'\0').ljust(AV_LEN, b'\0') for k in AV_KINDS for r in av_rows(lines[k]))
         p.put(*syms['AV_TXT'], buf)
+        esc = AV_ESC[LANG[0]]
+        assert set(esc) <= complist.FONT and complist.px(esc) <= 58 and len(esc) < 12, ('ESCI', esc)   # (ABBANDONA's 62 px)
+        p.put(*syms['AV_ESC'], esc.encode('latin-1') + b'\0')
     assert arena[0] == 4 and bss >= ARENA
     p.put(4, 0, MAGIC + struct.pack('<I', VERSION))
     cobj.add_ptr(p, 12, 4, 0, 4)

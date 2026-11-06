@@ -14860,7 +14860,7 @@ def title_top(lg):
     return list(struct.unpack_from('<9H', lg, GP_LOG_TOP)) if len(lg) >= GP_LOG_TOP + 18 else None
 
 
-def world_title(code, force='3', team=None, fill=False):
+def world_title(code, force='3', team=None, fill=False, kof=None):
     """A title play-off of the world 2026-27 (formats_data.KO_TITLE, mkworld_tm TM_TITLE=1: Canada's CPL play-offs,
     the A-League finals series, Costa Rica's semis + final + Gran Final), played: the stable world5tm-poule snapshot
     with the country's KO_TITLE in its pack, built with GPLAY_FORCE (the career club's place at the league end; one
@@ -14877,7 +14877,8 @@ def world_title(code, force='3', team=None, fill=False):
     import formats_data
     ko_title = dict(formats_data.KO_TITLE, **({} if 'MLT' in formats_data.KO_TITLE else {'MLT': TITLE_MLT}))
     spec = ko_title[code.upper()]
-    benv = 'TITLE_BUILD' + ('' if force == '3' else force)
+    benv = 'TITLE_BUILD' + ('' if force == '3' else force) + ('K' + kof if kof else '')   # (kof: GPLAY_KOFORCE, its
+                                                                                       # own build)
     exe = os.environ.get(benv)
     if not exe:
         w = os.path.join(WORK, 'world_title')
@@ -14893,8 +14894,8 @@ def world_title(code, force='3', team=None, fill=False):
             lg['ko_playoffs'] = lg.get('ko_playoffs', []) + sp
             json.dump(d, open(f, 'w'), indent=1, ensure_ascii=False)
         env = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(w, 'world5tm', x) for x in order]),
-               'GPLAY_FORCE': force}
-        exe = build('world_title_' + force, env=env)
+               'GPLAY_FORCE': force, **({'GPLAY_KOFORCE': kof} if kof else {})}
+        exe = build('world_title_' + force + ('k' + kof if kof else ''), env=env)
         os.environ[benv] = exe                          # (the next country reuses it)
     log_at, st_at, log_n, st_n = gp_ptrs(exe)
     seas_at = gp_eu(exe)[4]                             # (the season records: the title won's line, gp_pwin_c)
@@ -19686,8 +19687,10 @@ def world_title_aus():
 def world_title_mlt():
     """world_title: Malta's title decider (the Opening Round's kept table and the Closing Round's: one winner of both
     = champion; the Finalissima; three clubs; the Final Four by aggregate points; gplay split_seed), the club forced
-    1st of the Closing Round (TITLE_BUILD1)"""
-    return world_title('mlt', '1')
+    1st of the Closing Round and winning its Final Four ties (TITLE_BUILD1K2: GPLAY_FORCE=1 + GPLAY_KOFORCE=2 - force,
+    don't retry: a lost semi-final let an 11th-placed club win, outside gp_champ's top 9, MC 06/11), so the champion
+    is the career club, first of the top-9 list"""
+    return world_title('mlt', '1', kof='2')
 
 
 def gplay_host(test):

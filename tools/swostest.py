@@ -11668,6 +11668,54 @@ def engine_omm():
     return not errs, '; '.join(errs + info)
 
 
+@scenario
+def engine_omm_spp():
+    """4.1 'Original main menu' under SWOS++ 1.9.2.2 (SWOSTEST_UI=en, SWOSPP_BUILD as swospp_menu's): the option's exe
+    (omm_exe) + SWOS++: entry 4 is SWOS++'s own entry where SWOS++ puts it (no world switch), entry 11 not SWOS++ (the
+    game's SAVE, hidden: no contest), no version line;
+    COMP. PREDEFINITA = the 1996-97 game's continents (SETUP.DAT +105 = 0, World 2026-27 saved); SWOS++'s menu opens
+    from entry 4 (last: leaving it is swospp_menu's step 3, its own open item)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import swospp
+    if UI != 'en':
+        return True, 'SKIP: SWOS++ is English only (SWOSTEST_UI=en)'
+    b = os.environ.get('SWOSPP_BUILD')
+    if not b or not os.path.isdir(b):
+        return True, 'SKIP: SWOSPP_BUILD not set'
+    pp = os.path.join(MAIN, 'internal', 'swospp-test')
+    out = os.path.join(WORK, 'builds-x', 'engine_omm_spp')
+    shutil.rmtree(out, ignore_errors=True)
+    shutil.copytree(b, out)
+    swospp.install(omm_exe(b, 'engine_omm_spp'), os.path.join(out, 'ITALIAN.EXE'))
+    errs, info = [], []
+    with Session('engine_omm_spp', out, {'LOADER.BIN': os.path.join(pp, 'loader.bin'),
+                                         'SWOSPP.BIN': os.path.join(pp, 'swospp.bin'),
+                                         'SETUP.DAT': setup_file('engine_omm_spp', 0)}, 'dump:3', 300, timer=True) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'START: no first pause ({s.result})'
+        on, why = swospp_on(s.result, os.path.join(out, 'ITALIAN.EXE'))
+        check(on, f'SWOS++ not running: {why}', errs)
+        r, m = s.result, s.info['menu']
+        e = {i: ct_entry(r, m, i) for i in (4, 11)}
+        s.shot('main')
+        grey = omm_corner(s)
+        check(e[4][0] == b'SWOS++' and not e[4][1] and e[11][0] != b'SWOS++' and grey == 0,
+              f'main menu: 4 {e[4]}, 11 {e[11]}, {grey} grey pixels', errs)
+        info.append(f'main: 4 {e[4][0].decode()!r} at {e[4][2]},{e[4][3]}, 11 {e[11][0].decode()!r}'
+                    f'{"(inv)" if e[11][1] else ""}, grey {grey}')
+        walk(s, 'COMP. PREDEFINITA', 2)
+        sc = s.screen()
+        check(sc.find('EUROPA', exact=True) is not None and not av_rows_ok(sc, 'preset', [], 'spp'),
+              f'COMP. PREDEFINITA {sc.texts()[:6]}', errs)
+        info.append(f'preset {sc.texts()[1:4]}')
+        check(wm_to_main(s), 'COMP. PREDEFINITA: main menu not reached', errs)
+        sc = walk(s, 4, 3)                              # (last: leaving SWOS++'s own menu is swospp_menu's step 3)
+        check('MOD. TATTICA' not in [x[1] for x in s.screen().entries], f'SWOS++ menu not opened from entry 4: {sc}',
+              errs)
+        info.append(f'entry 4 opens {str(s.screen())[:40]}')
+    return not errs, '; '.join(errs + info)
+
+
 def wm_to_main(s, mark='COMP. PREDEFINITA'):
     for _ in range(10):
         sc = s.screen()

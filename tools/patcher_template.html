@@ -417,7 +417,9 @@ async function handle(files) {
       render(); continue;
     }
     if (!patches.length && cur) {                         // already modified with this release
-      r.state = 'current'; render(); continue;
+      r.state = 'current';
+      if (cur.omm != null) r.patch = cur;                 // (an exe with the option: its kind, CD / GOG, for the message)
+      render(); continue;
     }
     if (!patches.length) {
       r.state = 'bad';

@@ -879,12 +879,20 @@ __attribute__((naked, noinline)) static const u8 *gp_ftic(u32 w) {
         "movl $0, %eax\n\tjnz 1f\n\tmovl GP_A0, %eax\n"
         "1:\n\tpopl GP_A0\n\tpopl GP_D1\n\tpopl GP_D0\n\tret");
 }
+#ifndef GP_CHFORCE
+#define GP_CHFORCE 0                    /* (4.1 test builds, GPLAY_CHFORCE=1: the title winner taken out of the top 9 - its
+#endif                                     slot gets the 9th's word and record - so gp_champ fetches it from the cache) */
 void gp_champ(void) {
     for (int k = 0; k < GP_OUT.nres; k++) {
         if (GP_OUT.res[k].kind != K_TITLE) continue;
         u16 w = GP_OUT.res[k].team[0];
         int j = 0;
         while (j < 9 && GP_TOPW[j] != w) j++;
+        if (GP_CHFORCE && j < 8) {
+            GP_TOPW[j] = GP_TOPW[8];
+            for (int b = 0; b < 684; b++) GP_TOPR[684 * j + b] = GP_TOPR[684 * 8 + b];
+            j = 9;
+        }
         if (j == 0) continue;
         const u8 *src = GP_TOPR + 684 * j;
         if (j >= 9) {

@@ -2627,6 +2627,8 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     force = int(os.environ.get('GPLAY_FORCE') or 0)         # (test builds: the career club's place in its division)
     if os.environ.get('GPLAY_GOUT'):                        # (test builds: the career club out of the game's groups)
         print('exe: GPLAY_GOUT (test build: the career club last of its group in the other group stages)')
+    if os.environ.get('GPLAY_CHFORCE'):
+        print('exe: GPLAY_CHFORCE=1 (test build: gp_champ finds the title winner outside the top 9)')
     if os.environ.get('GPLAY_KOFORCE'):                     # (test builds: the career club's knockout ties forced)
         print(f"exe: GPLAY_KOFORCE={os.environ['GPLAY_KOFORCE']} (test build: the career club {'loses' if os.environ['GPLAY_KOFORCE'] == '1' else 'wins'} "
               'its played knockout ties)')
@@ -2652,6 +2654,7 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
                                 f"-DSEC_FORCE_B={int(os.environ.get('SEC_FORCE_B') or 0xFFFF)}",
                                 f"-DGP_RLFORCE={int(os.environ.get('GPLAY_RLFORCE') or 0)}",
                                 f"-DGP_KOFORCE={int(os.environ.get('GPLAY_KOFORCE') or 0)}",
+                                f"-DGP_CHFORCE={int(os.environ.get('GPLAY_CHFORCE') or 0)}",   # (4.1 test builds: the title winner out of the top 9)
                                 f"-DGP_USCFORCE={int(os.environ.get('USC_FORCE') or 0)}",   # (4.0.6 test builds: the UEFA Super Cup, the career club a holder)
                                 f"-DGP_GFFORCE={int(os.environ.get('GPLAY_GFFORCE') or 0)}",
                                 f"-DGP_S3DEFER={int(os.environ.get('GPLAY_S3DEFER') or 0)}",

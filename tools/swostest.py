@@ -14860,7 +14860,7 @@ def title_top(lg):
     return list(struct.unpack_from('<9H', lg, GP_LOG_TOP)) if len(lg) >= GP_LOG_TOP + 18 else None
 
 
-def world_title(code, force='3', team=None, fill=False, kof=None):
+def world_title(code, force='3', team=None, fill=False, kof=None, chf=None):
     """A title play-off of the world 2026-27 (formats_data.KO_TITLE, mkworld_tm TM_TITLE=1: Canada's CPL play-offs,
     the A-League finals series, Costa Rica's semis + final + Gran Final), played: the stable world5tm-poule snapshot
     with the country's KO_TITLE in its pack, built with GPLAY_FORCE (the career club's place at the league end; one
@@ -14877,8 +14877,8 @@ def world_title(code, force='3', team=None, fill=False, kof=None):
     import formats_data
     ko_title = dict(formats_data.KO_TITLE, **({} if 'MLT' in formats_data.KO_TITLE else {'MLT': TITLE_MLT}))
     spec = ko_title[code.upper()]
-    benv = 'TITLE_BUILD' + ('' if force == '3' else force) + ('K' + kof if kof else '')   # (kof: GPLAY_KOFORCE, its
-                                                                                       # own build)
+    benv = 'TITLE_BUILD' + ('' if force == '3' else force) + ('K' + kof if kof else '') + ('C' if chf else '')   # (kof:
+                                                        # GPLAY_KOFORCE, chf: GPLAY_CHFORCE - each its own build)
     exe = os.environ.get(benv)
     if not exe:
         w = os.path.join(WORK, 'world_title')
@@ -14894,8 +14894,8 @@ def world_title(code, force='3', team=None, fill=False, kof=None):
             lg['ko_playoffs'] = lg.get('ko_playoffs', []) + sp
             json.dump(d, open(f, 'w'), indent=1, ensure_ascii=False)
         env = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(w, 'world5tm', x) for x in order]),
-               'GPLAY_FORCE': force, **({'GPLAY_KOFORCE': kof} if kof else {})}
-        exe = build('world_title_' + force + ('k' + kof if kof else ''), env=env)
+               'GPLAY_FORCE': force, **({'GPLAY_KOFORCE': kof} if kof else {}), **({'GPLAY_CHFORCE': chf} if chf else {})}
+        exe = build('world_title_' + force + ('k' + kof if kof else '') + ('c' if chf else ''), env=env)
         os.environ[benv] = exe                          # (the next country reuses it)
     log_at, st_at, log_n, st_n = gp_ptrs(exe)
     seas_at = gp_eu(exe)[4]                             # (the season records: the title won's line, gp_pwin_c)
@@ -19691,6 +19691,14 @@ def world_title_mlt():
     don't retry: a lost semi-final let an 11th-placed club win, outside gp_champ's top 9, MC 06/11), so the champion
     is the career club, first of the top-9 list"""
     return world_title('mlt', '1', kof='2')
+
+
+@scenario
+def world_title_mlt_out():
+    """4.1 gp_champ (Davide 06/11 B): world_title_mlt with the title winner taken out of the season end's top-9 list
+    (GPLAY_CHFORCE=1 test build: its slot gets the 9th's word and record), so gp_champ must bring it in from the game's
+    team cache: the champion (the career club) first of the top-9 list all the same, the season played on to its end"""
+    return world_title('mlt', '1', kof='2', chf='1')
 
 
 def gplay_host(test):

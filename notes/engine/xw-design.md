@@ -37,8 +37,8 @@ follows P, because the visitor map is saved state.
 - The loader keeps today's rules: the block counts only when the file size is exactly the game's part + the block
   and the tag matches; a 1-byte 'WM' (mixing A) is read as today. An older exe ignores the tail (the game's part is
   unchanged), so it loads an XW contest with the visitor clubs unresolved → **those builds must refuse it**: the
-  older 4.1 loader already reads only len 1, so it reads world 0 and lists the 220..253 clubs as missing files. Open
-  question for Davide: acceptable (XW DIYs need ≥ the XW build), or a guard that the game's part carries no 220+.
+  older 4.1 loader already reads only len 1, so it reads world 0 and lists the 220..253 clubs as missing files.
+  **Decision (Davide, 06/11): acceptable - an XW DIY needs ≥ the XW build; no guard for older builds.**
 - A friendly saves nothing. Presets / seasons: none (they are one world's).
 
 ## Where the code goes

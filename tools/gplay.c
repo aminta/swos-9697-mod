@@ -879,9 +879,9 @@ __attribute__((naked, noinline)) static const u8 *gp_ftic(u32 w) {
         "movl $0, %eax\n\tjnz 1f\n\tmovl GP_A0, %eax\n"
         "1:\n\tpopl GP_A0\n\tpopl GP_D1\n\tpopl GP_D0\n\tret");
 }
-#ifndef GP_CHFORCE
-#define GP_CHFORCE 0                    /* (4.1 test builds, GPLAY_CHFORCE=1: the title winner taken out of the top 9 - its
-#endif                                     slot gets the 9th's word and record - so gp_champ fetches it from the cache) */
+#ifndef GP_CHFORCE                      /* (4.1 test builds, GPLAY_CHFORCE=1: the title winner taken out of the top 9 - its */
+#define GP_CHFORCE 0                    /* slot gets the 9th's word and record - so gp_champ fetches it from the cache) */
+#endif
 void gp_champ(void) {
     for (int k = 0; k < GP_OUT.nres; k++) {
         if (GP_OUT.res[k].kind != K_TITLE) continue;

@@ -8619,6 +8619,10 @@ FR_CASES = {        # (4.0.6 bench_friendly) case: (world, home path, away path,
              ('SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE D', 'SERIE D GIRONE A', 'DERTHONA'), 9, 5),
     'seriea': (0, ('SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE A', 'INTER'),
                ('SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE A', 'MILAN'), 15, 5),
+    'onelist': (0, ('SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE A', 'INTER'),        # (4.1) INTER then JUVENTUS from
+                ('SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE A', 'JUVENTUS'), 15, 5),  # the one SERIE A list (FR_ONE)
+    'onelist_cpu': (0, ('SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE A', 'INTER'),
+                    ('SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE A', 'JUVENTUS'), 15, 5),
     'seriea_top': (0, ('SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE A', 'INTER'),     # (Regia 06/11) seriea with the human
                    ('SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE A', 'MILAN'), 15, 5),   # made the top team (BENCH_TOP)
     'diy': (0, ('SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE D', 'SERIE D GIRONE A', 'CELLE VARAZZE'),
@@ -8634,6 +8638,9 @@ FR_CASES = {        # (4.0.6 bench_friendly) case: (world, home path, away path,
 }
 
 FR_B = ('mixed', 'diy', 'diycup')               # (B) the cases with the own-order check (fr_order)
+FR_ONE = {'onelist': 'human', 'onelist_cpu': 'cpu'}   # (4.1, Davide 06/11) both clubs from ONE list, one after the
+                                                # other (no way back up): the first club human / computer, the other the
+                                                # opposite - the 2nd club of a one-list pick got the 5-man bench
 FR_W27 = ('9697w',)                             # (step 2.5) only with the engine's SWE_W27 (benchx bx_w27p linked)
 FR_PRE = {'diycup': ('COMPET. PERSONAL.', 'COPPA', 11, 11, 11, 'OK', 'SCEGLI SQUADRE')}   # (a real DIY cup: one round,
                                                 # the final; its menu's PROSS. PARTITA -> the pre-match screen)
@@ -8744,9 +8751,16 @@ def bench_friendly():
                     seq(s, FR_PRE[case][2:] + home)
                 else:
                     seq(s, FR_PRE.get(case, ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE')) + home)
-                s.send('fire dump:2')               # home: COMPUTER -> GIOCA-ALLENA
-                up_to(s, away[1])                   # (the picker's top: the continents, the World's own list)
-                seq(s, away[1:])
+                if FR_ONE.get(case) == 'cpu':       # (FR_ONE: the first club stays COMPUTER, the second made human)
+                    seq(s, away[-1:])
+                    s.send('fire dump:2')
+                else:
+                    s.send('fire dump:2')           # home: COMPUTER -> GIOCA-ALLENA
+                    if case in FR_ONE:              # (the same list: the second club next, no way back up)
+                        seq(s, away[-1:])
+                    else:
+                        up_to(s, away[1])           # (the picker's top: the continents, the World's own list)
+                        seq(s, away[1:])
                 s.shot(f'{case}_picker')
                 done(s)
                 if case in FR_PRE:                  # (the DIY cup's menu)

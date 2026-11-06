@@ -145,14 +145,37 @@ def m2_sites(p, site):
     return ext, calls
 
 
-def w0_proxies(p, at):
+W0_YEAR = b' 96-97'                    # 4.1 (Davide 06/11, option A): MONDO 1996-97's buttons = the continent + the year
+
+
+W0_YR_N = 8                             # (swe.c W0_YR pairs)
+
+
+def w0_proxies(p, at, syms):
     """W-modes M2: the 1996-97 world's continent proxies (mkseason.W0_IDS) = copies of the game's continent records
     as the build left them (their cups' pointers dd .., -1 with their fixups, then the country ids .. FF), in obj4 after
-    the registry. Returns the end."""
+    the registry. 4.1 (option A: the button only): each proxy's countriesTable entry = a copy of the game's record
+    (continent byte, NAME, ADJ), so its NAME pointer is its own: swe.c swe_names_post shows the button of that pointer
+    as the paired text NAME + W0_YEAR (W0_YR: proxy NAME, year text), STORICO > MONDO 1996-97 reads 'EUROPA 96-97';
+    the picker titles (GetCountryName: the same NAME) and the game's own continents keep their names. Returns the end."""
     import countries
     import mkseason
-    comp = countries.COMP[0]
+    comp, ct = countries.COMP[0], countries.CT[0]
+    yr = 0
     for cid, c in mkseason.W0_IDS:
+        sobj, src = p.target(2, ct + 4 * c)
+        rec = bytes(p.get(sobj, src, 64))
+        name, adj = rec[1:].split(b'\0')[:2]
+        new = rec[:1] + name + b'\0' + adj + b'\0' + name + W0_YEAR + b'\0'
+        assert at + len(new) <= 0x1000 * OBJ4_PAGES, 'world 0 proxies: past obj4'
+        assert yr < W0_YR_N, 'swe.c W0_YR: more proxies than pairs'
+        p.put(4, at, new)
+        p.remove(2, ct + 4 * cid)
+        p.add_ptr(2, ct + 4 * cid, 4, at)
+        p.add_ptr(4, syms['W0_YR'][1] + 8 * yr, 4, at + 1)
+        p.add_ptr(4, syms['W0_YR'][1] + 8 * yr + 4, 4, at + 3 + len(name) + len(adj))
+        yr += 1
+        at = (at + len(new) + 3) & ~3
         sobj, src = p.target(2, comp + 4 * c)
         k = 0
         while struct.unpack('<i', p.get(sobj, src + k, 4))[0] != -1:
@@ -235,7 +258,7 @@ def patch(p):
     for k, nm in enumerate(('reg_enter', 'reg_leave', 'SEL_MODE', 'REG_PREV', 'SWE_CWORLD', 'SEL_CW')):
         cobj.add_ptr(p, 36 + 4 * k, *syms[nm], 4)
     rend = swreg.patch(p, lambda off, tobj, toff: cobj.add_ptr(p, off, tobj, toff, 4))
-    w0_proxies(p, rend)
+    w0_proxies(p, rend, syms)
     for cs, tr in [(site, 'swe_sel_tramp')] + calls:
         if p.rel_target(1, cs + 1):
             p.remove(1, cs + 1)

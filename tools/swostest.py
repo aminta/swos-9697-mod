@@ -6761,6 +6761,17 @@ def save_under(r):
     return struct.unpack('<H', r.obj2(cnt, 2))[0], ends[hi], hi, top - base, base
 
 
+def team_names(r):
+    """(4.1 MiSTer panel H1; suroom.py) 256 colours: the bottom panel's two team-name images (136 x 11 bytes each,
+    0x600 apart) that DrawSprite16Pixels' 307 / 308 branch copies from [0x31694] + off - off read from the running
+    exe's own `add esi, off` (0x10000 before 4.1, the save-under region's tail): (off, the 0xC00 bytes)."""
+    if not hasattr(team_names, 'site'):
+        import suroom
+        team_names.site = suroom.name_sites(lepatch_orig())[0]
+    off = struct.unpack('<I', r.obj1(team_names.site, 4))[0]
+    return off, r.read(save_under(r)[4] + off, 0xC00)
+
+
 def bench_sub(s, bx, place, errs, info, mark, key=None, gone=None, tag='', human_key=False):
     """benchx block 2: the bench called, its cursor moved down to the squad's place `place` (12..26, g_benchPlayerIndex
     = place - 11: index 1 = in-match player 11 = place 12; 4.0.6 two-row dugouts: every place seated, no window - bx_win,
@@ -6776,6 +6787,7 @@ def bench_sub(s, bx, place, errs, info, mark, key=None, gone=None, tag='', human
     seen = []
     ns0 = (w16(v['NS1'], s.result.base2), w16(v['NS2'], s.result.base2))
     ord0 = s.result.read(s.result.lin(bx) - 4 - 156, 52)   # (2 humans: the other team's half may hold its change)
+    nm0 = None if ega_on(s.result) else team_names(s.result)
 
     def ks(keys):                           # (BENCH_SAMPLE=secs, 02/11: in-match stalls under load - the dump never came
         if not os.environ.get('BENCH_SAMPLE'):   # back after a cursor key: each key with sample(), the EIPs of a hang)
@@ -6895,12 +6907,22 @@ def bench_sub(s, bx, place, errs, info, mark, key=None, gone=None, tag='', human
         mark(info[-1])
         check(0 < su[1] <= su[3], f'save-under overflow: {su[1]} B in a {su[3]} B region (the next area overwritten)',
               errs)
+        nm1 = team_names(r)                 # (4.1 H1: the stack's top under the panel's team names, which stay as
+        check(su[1] <= nm1[0], f'save-under {su[1]} B reaches the team names at +{nm1[0]:#x} (H1)', errs)   # drawn)
+        check(nm1 == nm0, f'team names changed with the subs menu open (+{nm1[0]:#x}: '
+              f'{sum(a != b for a, b in zip(nm0[1], nm1[1]))} of 3072 bytes; H1)', errs)
     s.shot(tag + 'subs_menu')
     if not ega:
         fw_want(r, fw_check(s.box.dump(0xA0000, 64000), tag + 'subs menu', errs, info), 12, 'subs menu', errs)
     check(st == 1 and ent == place - 1, f'after fire: g_subsState {st}, plToEnterGameIndex {ent} (want 1, {place - 1})', errs)
     r = s.send('fire:0.2 dump:0.6')
     ns = (w16(v['NS1'], r.base2), w16(v['NS2'], r.base2))
+    if nm0:
+        nm2 = team_names(r)
+        info.append(f'team names at +{nm2[0]:#x}: {sum(1 for x in nm0[1] if x)} pixels, the same with the menu open '
+                    f'and after the change: {nm1 == nm0 and nm2 == nm0}')
+        check(nm2 == nm0, f'team names changed after the change (+{nm2[0]:#x}; H1)', errs)
+        check(any(nm0[1]), 'team names: no pixels before the change', errs)
     info.append(f'subs made {ns0} -> {ns}, entering place {ent + 1}')
     check(sum(ns) == sum(ns0) + 1, f'no change made: NumSubs {ns0} -> {ns}', errs)
     mark(f'change: place {ent + 1} in, NumSubs {ns0} -> {ns}')

@@ -498,8 +498,9 @@ void swe_diy_loaded(void)
     ns_left(SWE_CWORLD);
 }
 
-#ifdef NS
-/* SelectTeamsFinalMenu's entry (a jmp of an earlier patch there, chained: SWE_STFM) */
+#if defined(NS) && defined(STFM)
+/* SelectTeamsFinalMenu's entry (a jmp of an earlier patch there - menulevels' ml_reset -, chained: SWE_STFM; a build
+   with no menulevels has none: no tramp, swe.py) */
 __attribute__((naked)) void swe_stfm_tramp(void)
 {
     __asm__ volatile("pushfl\n\tpushal\n\tcall swe_stfm_guard\n\tpopal\n\tpopfl\n\tjmp SWE_STFM");

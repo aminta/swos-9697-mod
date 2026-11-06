@@ -66,6 +66,9 @@ SEL_N 160 × 684 = 109440, main block 948, 'EN' block 15343 (25 items) → 12573
   EN_NS + k) and -DIMP_<name> (its slot). swe_st_load, on a save from before P only (SWC1_LOADED 0), runs
   swe_import: each retired item that was in the save becomes an SWC1 section (swc1_add; swc1_find reads one back).
   The step that retires an item adds its line there. A save with SWC1 never imports (its sections are the state).
+- **Old saves' added items (P 3, test_roundtrip_old):** every item an archived save (3.3.6 .. 4.0.5) lacks comes in
+  as zero, but SWC1 (started: version 1 + the career's world byte) and SH (a 4.0 save's split state moved in,
+  sp_migrate) - asserted, so a new item with a non-zero old-save default needs its line here and in the test.
 - Tier B: test_swc1.py (static image): the save, this build's load, shorter (grow) / longer / missing SWC1, a plain
   item of another length skipped, and (EN_RETIRE_PROBE=1 build) a load-only item read, never saved, imported as section 'RP' only into a save from
   before P (none from nothing, none over a save of P).

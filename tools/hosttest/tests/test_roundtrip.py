@@ -6,7 +6,8 @@ callbacks, ProcessCareerFile) then the game's own SaveCareerFile (the trailer's 
 - a save of this build: save(load(x)) = x, byte for byte;
 - an older save (the archived set: players' and Davide's saves of 3.3.6 .. 4.0.5): it is upgraded once - the main
   block and every engine item it had unchanged (but an empty 'CE' in a season-1 save: season 1's edition, conti
-  ct_load1), only items it lacked added (their defaults), the team cache unchanged,
+  ct_load1), only items it lacked added (their defaults: zero, but SWC1 started and SH a 4.0 split state moved in
+  by sp_migrate), the team cache unchanged,
   the fixed part only the game's own absolute pointers re-based to this exe (dwords both sides pointer-like, or a
   pointer cleared, or a pointer's low word by the same delta), a 4.0 split state moved (sp_migrate) - and the upgrade
   is a fixed point: save(load(save(load(x)))) = save(load(x)).
@@ -199,5 +200,10 @@ def test_roundtrip_old():
             why.append(f'fixed part not pointers at {fb[:6]}')
         if why:
             bad.append(f'{tag}: {", ".join(why)}')
-        out.append(f'{tag} +{sorted(set(iy) - set(ix))}')
+        nz = {k: iy[k] for k in sorted(set(iy) - set(ix)) if any(iy[k])}
+        odd = sorted(set(nz) - {'SWC1', 'SH'})        # (engine P: an added item = its zero default, but SWC1 started
+        if odd:                                       # (swe_st_load) and SH, a 4.0 split state moved in (sp_migrate))
+            why.append(f'added items not zero {[(k, nz[k][:8].hex()) for k in odd]}')
+        out.append(f'{tag} +{sorted(set(iy) - set(ix))}' + (f' nonzero {[(k, len(v), v[:12].hex()) for k, v in nz.items()]}'
+                                                            if os.environ.get('HT_RT_DEFAULTS') else ''))
     return not bad, ('; '.join(bad) + ' | ' if bad else '') + '; '.join(out)

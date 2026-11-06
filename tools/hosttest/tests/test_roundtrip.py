@@ -31,7 +31,9 @@ import trailer  # noqa: E402
 from le import LE  # noqa: E402
 
 HOME = os.path.expanduser('~')
-FIX = os.environ.get('HT_P0_FIX') or os.path.join(HOME, 'swos-mod', 'internal', 'hosttest', 'fixtures', 'p0_uru_load')
+FIX = os.environ.get('HT_P0_FIX') or os.path.join(HOME, 'swos-mod', 'internal', 'hosttest', 'fixtures', 'p1_uru_load')
+# (engine P: p1_uru_load = the same save loaded by c/HTP1, p-persist 27bb1d1 + HOSTTEST_SYMS; p0_uru_load = c/HTI10j,
+# a build before SWC1)
 OLD = [os.path.join(HOME, 'swos-mod', 'internal', p) for p in (
     'oldsaves/v3.3.6_W8485_LIVERPOOL_s1.CAR', 'davide-mister-20261021/PHILA.CAR',
     'davide-mister-20261022-rc11/MESTRE.CAR', 'davide-mister-20261022-rc11/BOCA.CAR', 'reports/ischia/ISCHIA.CAR',
@@ -42,7 +44,7 @@ _IDN = {}
 
 def _name(iid):
     if not _IDN:
-        for c in ['BT_EXT', 'SS2'] + [a + b for a, b in itertools.product(string.ascii_uppercase + string.digits,
+        for c in ['BT_EXT', 'SS2', 'SWC1'] + [a + b for a, b in itertools.product(string.ascii_uppercase + string.digits,
                                                                           repeat=2)]:
             _IDN.setdefault(engine.item_id(c), c)
     return _IDN.get(iid, hex(iid))
@@ -74,6 +76,11 @@ class Game:
         mach = self.machine()
         self.stage = bytes(mach.uc.mem_read(0, 0x2000000)).find(self.car[:4096])
         assert self.stage > 0, 'the save not found in the snapshot'
+
+    def has_swc1(self):
+        """engine P: this build saves SWC1 (its syms list swe.SWC1)"""
+        import json
+        return 'SWC1' in json.load(open(os.path.join(self.build, 'ITALIAN.syms.json'))).get('swe', {})
 
     def machine(self):
         m = Machine(FIX, 0)
@@ -144,11 +151,18 @@ def _fixed_ok(a, b):
 
 
 def test_roundtrip_current():
-    """a save of this build: save(load(x)) = x"""
+    """a save of this build: save(load(x)) = x (the fixture's save from an older build: upgraded once first)"""
     g = Game()
-    y = g.round_trip(g.car)
-    diff = sum(1 for i in range(min(len(y), len(g.car))) if y[i] != g.car[i])
-    return y == g.car, f'{len(g.car)} B -> {len(y)} B, {diff} bytes differ'
+    x = g.car
+    pre = 'SWC1' not in g.parts(x)[3] and g.has_swc1()
+    if pre:                                         # (p1: the fixture's .CAR is the I10j save, before SWC1)
+        x = g.round_trip(x)
+    y = g.round_trip(x)
+    diff = sum(1 for i in range(min(len(y), len(x))) if y[i] != x[i])
+    sw = g.parts(y)[3].get('SWC1')
+    ok = y == x and (sw is None or sw[:2] == b'\1\0') and (sw is not None) == g.has_swc1()
+    return ok, (f'(upgraded first) ' if pre else '') + f'{len(x)} B -> {len(y)} B, {diff} bytes differ' + \
+        (f', SWC1 {sw[:4].hex()}' if sw is not None else '')
 
 
 def test_roundtrip_old():
@@ -178,6 +192,8 @@ def test_roundtrip_old():
         gone = sorted(set(ix) - set(iy))
         if chg or gone:
             why.append(f'items changed {chg} gone {gone}')
+        if g.has_swc1() and 'SWC1' not in ix and iy.get('SWC1', b'')[:2] != b'\1\0':
+            why.append(f"SWC1 not started: {iy.get('SWC1', b'').hex()[:16]}")
         fb = _fixed_ok(fx, fy)
         if fb:
             why.append(f'fixed part not pointers at {fb[:6]}')

@@ -27264,13 +27264,18 @@ def modver_glyphs():
 
 def modver_want(b):
     """The version line the build b draws: MODVER_EXPECT, else the exe's own 'MOD <version>[ <tag>]' (modver.text(); a
-    release / PRE / RC / INT build carries its MODVER_TAG: 'MOD 4.1 INT' - the harness's own environment has none)."""
+    release / PRE / RC / INT build carries its MODVER_TAG: 'MOD 4.1 INT' - the harness's own environment has none),
+    its number = this checkout's mkpatcher.VERSION."""
     if os.environ.get('MODVER_EXPECT'):
         return os.environ['MODVER_EXPECT']
     exe = open(os.path.join(b, 'ITALIAN.EXE'), 'rb').read()     # (the exe's own: a build of another checkout's VERSION too)
     m = re.findall(rb'MOD [0-9]+(?:\.[0-9]+)+(?: [A-Z0-9]+)?\0', exe)
     assert len(set(m)) == 1, ('the version line in the exe', m)
-    return m[0][:-1].decode()
+    v = re.search(r"^VERSION = '([^']+)'", open(os.path.join(ROOT, 'tools', 'mkpatcher.py')).read(), re.M).group(1)
+    got = m[0][:-1].decode()
+    assert got.split()[1] == v, (f'the exe says {got!r}, this checkout is {v} (MODVER_EXPECT for another release\'s '
+                                 f'build)')                     # (Integratore 06/11: a wrong version must not pass)
+    return got
 
 
 def modver_corner(s, want, errs, info, tag):

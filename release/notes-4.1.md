@@ -275,6 +275,14 @@ With the new button in place, a long coach's name on the squad screen is shown s
 - **Two-row benches drew stray pieces.** The patcher used to install only one of the five pitch picture files, so the new two-row benches showed dirty pieces on some pitches. It now installs all five.
 - **Shirt numbers on the bench and in EDIT CUSTOM TEAMS.** On the squad screen with a long bench, changing a substitute's number used to change the player above him; now it changes his own. In EDIT CUSTOM TEAMS the number is changed by moving RIGHT from the player's face (it was LEFT).
 - **Score panel garbled after a substitution.** On some setups (seen on a MiSTer) the score panel could be drawn wrong after a substitution. The game's area for saving the screen under menus is now larger.
+- **A league title decided by a play-off** (Malta type): the champion's European place now goes to the play-off winner, even if he finished below 9th in the table.
+- **Score panel after a substitution.** If you made a substitution while the result panel was shown (for example at kick-off), the team names in the bottom panel could turn into pieces of the pitch. Fixed.
+- **Friendly with both clubs picked from one list** (World 2026-27, for example SERIE A: INTER, then JUVENTUS). The match got the plain bench of 5 and showed "MILAN (SCOTLAND)" next to a club. Fixed: the long bench applies and each club shows its own country.
+- **DIY TOURNAMENT, national teams, EUROPE 1984-85.** After a 2026-27 friendly it could show 2026-27 Saudi clubs. Fixed.
+- **Continent buttons in the 1996-97 world** now read EUROPE 96-97, SOUTH AMERICA 96-97 and so on, in the four game languages. <!-- check the EN/FR/DE spelling on the exe: only the IT form EUROPA 96-97 / SUDAMERICA 96-97 was given -->
+- **HISTORIC > EUROPE 1984-85 under the default 2026-27 world** (friendly, career, DIY) showed 2026-27 countries. Fixed: it shows those of 1984-85.
+<!-- TBC Shaved: EXIT next to ABANDON (IT ESCI next to ABBANDONA) on the "not available" screens -->
+<!-- TBC Motore: continental cups opening straight on the round in progress (check overlap with the ctcursor line already in "Continental cups") -->
 - **Club names without the "&" sign:** O Y M, TREFELIN BGC, SB VLASIM and HARLAND WOLFF.
 - **A play-off entrant that refuses the place** no longer makes the game read wrong data at the season end (it showed up with San Marino; found by Ben Baker).
 
@@ -568,6 +576,12 @@ resta quello).
 - **Le panchine su due file mostravano pezzi sporchi.** Il patcher installava solo uno dei cinque file con le immagini dei campi, quindi le nuove panchine su due file mostravano pezzi sporchi su alcuni campi. Ora li installa tutti e cinque.
 - **Numeri di maglia in panchina e in MODIFICA SQUADRE.** Nella schermata della rosa con la panchina lunga, cambiare il numero di un panchinaro cambiava quello del giocatore sopra di lui; ora cambia proprio il suo. In MODIFICA SQUADRE il numero si cambia andando a DESTRA dalla faccia del giocatore (prima era SINISTRA).
 - **Pannello del punteggio rovinato dopo una sostituzione.** Su alcune configurazioni (visto su un MiSTer) il pannello del punteggio poteva essere disegnato male dopo una sostituzione. L'area in cui il gioco salva lo schermo sotto i menu ora è più grande.
+- **Un campionato deciso da uno spareggio** (tipo Malta): il posto europeo del campione ora va al vincitore dello spareggio, anche se era sotto il 9° posto in classifica.
+- **Pannello del punteggio dopo una sostituzione.** Se facevi una sostituzione mentre era visibile il pannello del risultato (per esempio al calcio d'inizio), i nomi delle squadre nel pannello in basso potevano trasformarsi in pezzi del campo. Corretto.
+- **Amichevole con i due club scelti dalla stessa lista** (Mondo 2026-27, per esempio SERIE A: INTER, poi JUVENTUS). La partita aveva la panchina semplice da 5 e mostrava "MILAN (SCOZIA)" accanto a un club. Corretto: vale la panchina lunga e ogni club mostra il suo paese.
+- **TORNEO PERSONALIZZATO, nazionali, EUROPA 1984-85.** Dopo un'amichevole del 2026-27 poteva mostrare club sauditi del 2026-27. Corretto.
+- **I pulsanti dei continenti nel mondo 1996-97** ora dicono EUROPA 96-97, SUDAMERICA 96-97 e così via, nelle quattro lingue del gioco.
+- **STORICO > EUROPA 1984-85 con il mondo 2026-27 predefinito** (amichevole, carriera, competizione personalizzata) mostrava i paesi del 2026-27. Corretto: mostra quelli del 1984-85.
 - **Nomi di club senza il segno "&":** O Y M, TREFELIN BGC, SB VLASIM e HARLAND WOLFF.
 - **Una squadra di play-off che rifiuta il posto** non fa più leggere al gioco dati sbagliati a fine stagione (si vedeva con San Marino; trovato da Ben Baker).
 

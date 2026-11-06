@@ -11427,7 +11427,8 @@ def engine_wmodes_play():
                 continue
             s.shot(f'{tag}_match')
             menu, k, seen = None, 0, []          # (the post-match REPLAY / ESCI screen is no menu of the game's
-            for k in range(int(os.environ.get('WMPLAY_MAX', 12))):   # system: n 0, like the match. So: wait,
+            mx = 60 if extra else 12             # (SWOS++'s timer feed: the match ~10x slower, minute 19 after 12)
+            for k in range(int(os.environ.get('WMPLAY_MAX', mx))):   # system: n 0, like the match. So: wait,
                 r = s.send('dump:5')             # then down + fire (= ESCI there, harmless in a match) until a
                 if r.outcome != 'dump':          # real menu is back - the friendly's screens)
                     errs.append(f'{tag}: wait {k}: {r}')

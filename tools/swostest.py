@@ -438,6 +438,19 @@ def spp_go(s, target, w=3, fire='fire', hold=None):
     return None
 
 
+def spp_fire_held(s, target, w, gone):
+    """(06/11) Under SWOS++'s timer feed a screen takes a fire only held >= its frame time, which depends on the
+    machine's load (a loaded Mac: '- PARTITA -' never took the fixed hold, 4/4, the server 9/9; the friendly's long-bench
+    PLAY MATCH needed 36 ticks): spp_go with the fire held SPP_PM_HOLD, x 1.5, x 2 ticks until gone(s) says the screen
+    went on. Returns the hold that worked, or None."""
+    for h in (SPP_PM_HOLD, SPP_PM_HOLD * 3 // 2, SPP_PM_HOLD * 2):
+        if spp_go(s, target, w, hold=h) is None:
+            return None
+        if s.result.outcome != 'dump' or gone(s):
+            return h
+    return None
+
+
 PRESS_FIRE = 'fire'                                    # press()'s fire ('fire up:0.05' under SWOS++'s timer feed: the
                                                        # menus read the latched last key, a fire would be read again)
 RATE = 30                                              # GetKey calls per second in the menus (calibrated)
@@ -7914,8 +7927,14 @@ def bench_play(s, gmax, top, bot, wants, errs, info, mark, sub=None, icons=None,
         mark(f'step {step} [{act}]: ' + ', '.join(texts)[:150])
         if act:
             pm = act in ('PARTITA', 'GIOCA PARTITA') and 'MOD. TATTICA' in texts
-            (spp_go(s, act, 4 if pm else 3, hold=SPP_PM_HOLD if pm else None)
-             if SPP_STEP else press(s, scr, act)) or s.send('fire dump:2')
+            if SPP_STEP and (pm or act == '- PARTITA -'):   # (06/11: held until the screen goes - frame time = load)
+                h = spp_fire_held(s, act, 4 if pm else 3, lambda q: q.screen().find(
+                    'MOD. TATTICA' if pm else act, exact=True) is None)
+                mark(f'  SWOS++ {act} fire held {h} ticks')
+                h or s.send('fire dump:2')
+            else:
+                (spp_go(s, act, 4 if pm else 3, hold=SPP_PM_HOLD if pm else None)
+                 if SPP_STEP else press(s, scr, act)) or s.send('fire dump:2')
             r = s.result
         else:
             r = s.send('fire:0.5 dump:1')
@@ -8756,11 +8775,9 @@ def bench_friendly():
                 pre = struct.unpack('<BB', r.read(r.lin(bx) + 14, 2))   # bx_bench + 14)
                 check(pre[0] == (want if want > 5 else 0), f'{case}: pre-match screen bench {pre[0]}:{pre[1]}', errs)
                 if files:                           # (SWOS++: the long-bench screen reads a fire only held >= its
-                    for h in (SPP_PM_HOLD, SPP_PM_HOLD * 3 // 2, SPP_PM_HOLD * 2):   # frame time; the friendly's
-                        spp_go(s, 9, 4, hold=h)     # 16 + n rows: 24 ticks at the edge - longer until it goes)
-                        if s.result.outcome != 'dump' or s.screen().find('MOD. TATTICA', exact=True) is None:
-                            info.append(f'{case}: SWOS++ PLAY MATCH fire held {h} ticks')
-                            break
+                    h = spp_fire_held(s, 9, 4, lambda q: q.screen().find('MOD. TATTICA', exact=True) is None)
+                    info.append(f'{case}: SWOS++ PLAY MATCH fire held {h} ticks')   # (frame time; the friendly's
+                                                                                    # 16 + n rows: 24 at the edge)
                     r = s.send('fire:3 ' * 8 + 'dump:2')
                 else:
                     r = s.send('fire ' + 'fire:3 ' * 8 + 'dump:2')

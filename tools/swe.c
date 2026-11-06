@@ -393,6 +393,8 @@ void swe_sel_pre(u32 mode)
             fnat(w);                    /* EUROPA 1984-85: DaniSwos's nations, Europe only */
             av_arm(fnat_on() ? AV_EU : 0);
         }
+        ns_left(0);                     /* (the national lists pass no w_ns_menu: a 2026-27 contest's namespace left
+                                           here named TEAM.180.. / TEAM.080 tmw5.nnn - 2026-27's Saudi clubs) */
     }
     if (!cw || !set || (mode != M_CAREER && *(u16 *)SWE_TTYPE != CLUB_TEAMS) || !*comp_slot(CAREERS))
         return;

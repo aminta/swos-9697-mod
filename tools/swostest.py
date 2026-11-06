@@ -6777,6 +6777,8 @@ def bench_sub(s, bx, place, errs, info, mark, key=None, gone=None, tag=''):
         r = s.send((key or ('pgup' if call % 2 == 0 else 'pgdn')) + ':0.3 dump:0.6')   # (key: one team's bench)
         if r.outcome == 'dump':
             r, cam = cam_settle(s)          # (4.0.6 long dugouts: the bench takes keys once the camera is there)
+            if os.environ.get('BENCH_DIAG') and call < 4:
+                s.shot(f'{tag}bench_call{call}')
             cams.append((cam, w16(v['BENCHY'], r.base2), {hex(o)[-3:]: w16(o, r.base2) for o in (
                 0xb16b6, 0xb16b8, 0xb16be, 0xb16c4, 0xb16c6, 0xb16ca, 0xb16cc, 0xb16e8, 0xb16f2, 0xb16f4, 0xb1718, 0xb171a, 0xb1722, 0xb16fe, 0xb1702, 0xb1714, 0xb170c, 0x72942, 0xb16c8, 0xbdbc8,
                 0xb1720)}) if r.outcome == 'dump' and os.environ.get('BENCH_DIAG') else
@@ -6799,6 +6801,13 @@ def bench_sub(s, bx, place, errs, info, mark, key=None, gone=None, tag=''):
             last = idx
             if idx == want or still >= 4:
                 break
+        if os.environ.get('BENCH_DIAG') and last == 0 and call < 6 and w16(v['BENCHY'], r.base2):
+            tr = []                         # (diag: a bench that ignores DOWN - which keys move its cursor)
+            for k in ('up', 'left', 'right', 'fire'):
+                r = ks(f'{k}:0.15 dump:0.3')
+                tr.append((k, w16(v['IDX'], r.base2)))
+            info.append(f'bench call {call}: down ignored, then {tr}')
+            s.shot(f'{tag}bench_diag{call}')
         if last == want:
             break
     mark(f'bench cursor (index, window): {seen}')
@@ -8600,7 +8609,8 @@ def bench_friendly():
     step 2.5's 2026-27 picker has none yet) -> the game's 2 from 5, '9697' a 1996-97 friendly -> the game's 2 from 5. Per case: the picker (home human, away computer), PLAY MATCH,
     at the kick-off gameMaxSubstitutes / gameMinSubstitutes and both in-match teams (11 + the bench places: named from
     the record's 16 and the club's XTRA block, the rest empty). BENCH_BUILD = a World 2026-27 build; BENCH_SPP=1 (EN):
-    the same under SWOS++ 1.9.2.2 (as bench_world's; run it without SWOSTEST_DIRTY)."""
+    a smoke test under SWOS++ 1.9.2.2 (as bench_world's: no B swaps; run it without SWOSTEST_DIRTY, BENCH_FR=mixed,diy -
+    SWOS++'s DIY cup ROUNDS never gives 1, so no diycup)."""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import lepatch
     b = os.environ.get('BENCH_BUILD') or builds()['it']
@@ -8613,9 +8623,9 @@ def bench_friendly():
         shutil.copy(os.path.join(b, 'ITALIAN.EXE'), os.path.join(b, 'ITALIAN.EXE.nospp'))
         swospp.install(os.path.join(b, 'ITALIAN.EXE.nospp'), os.path.join(b, 'ITALIAN.EXE'))
         global SPP_STEP, HOLD
-        SPP_STEP = True
-        os.environ['SWOSTEST_SPP_NOLATCH'] = '1'
-        HOLD = SPP_HOLD
+        SPP_STEP = True                         # (bench_world's feed: no latch, keys held SPP_HOLD ticks; every menu
+        os.environ['SWOSTEST_SPP_NOLATCH'] = '1'   # step through press() - one 'key:0.3' tap at a time: walk()'s bare
+        HOLD = SPP_HOLD                         # keys were lost in the picker)
         pp = os.path.join(MAIN, 'internal', 'swospp-test')
         files = {'LOADER.BIN': os.path.join(pp, 'loader.bin'), 'SWOSPP.BIN': os.path.join(pp, 'swospp.bin')}
     exe = os.path.join(b, 'ITALIAN.EXE')
@@ -8631,7 +8641,35 @@ def bench_friendly():
         if isinstance(t, tuple):
             sc = s.screen()
             t = next((x for x in t if sc.find(x) is not None), t[0])
-        walk(s, t, 2)
+        if not files:
+            walk(s, t, 2)
+        elif not any(press(s, s.screen(), t) is not None for _ in range(4)):   # (SWOS++: a key taken every
+            raise AssertionError(f'{t} not reached ({s.screen().texts()[:16]})')  # second tap, long paths)
+
+    def seq(s, path):
+        path = list(path)
+        while path:                             # (SWOS++: a held fire carried into the next menu took a step - a
+            if files:                           # later step already on the screen is next, as wm_go)
+                sc = s.screen()
+                has = lambda t: any(sc.find(x) is not None for x in (t if isinstance(t, tuple) else (t,))) \
+                    if not isinstance(t, int) else True
+                if not has(path[0]):
+                    k = next((j for j, t in enumerate(path[1:], 1) if not isinstance(t, int) and has(t)), None)
+                    if k:
+                        s.log.append(f'[spp carried] {path[0]} -> {path[k]}')
+                        path = path[k:]
+            go(s, path.pop(0))
+    tap = ':0.3' if files else ''               # (SWOS++: a bare key is lost)
+
+    def done(s):                                # pick_done, under SWOS++ with taps
+        if not files:
+            return pick_done(s)
+        for _ in range(16):
+            sc = s.screen()
+            if sc.selected == 55:
+                return s.send('fire dump:4')
+            s.send(('right' if sc.selected in (56, 57) else 'down') + tap + ' dump:0.5')
+        raise AssertionError(f'the picker\'s entry 55 not reached ({s.screen().selected})')
 
     def up_to(s, t):
         for _ in range(9):                      # ('9697w': up from the 1996-97 world's league list)
@@ -8640,7 +8678,7 @@ def bench_friendly():
                 return
             out = sc.find('ESCI', exact=True)
             if out is None or press(s, sc, out, 2) is None:
-                s.send('down ' * 12 + 'dump:1')
+                s.send(f'down{tap} ' * 12 + 'dump:1')
                 if out is not None and s.screen().selected == out:
                     s.send('fire dump:2')
         raise AssertionError(f'{t} not reached ({s.screen().texts()[:10]})')
@@ -8656,22 +8694,26 @@ def bench_friendly():
                 info.append(f'{case}: SKIP (no SWE_W27 in this build: the WCUR gate)')
                 continue
             try:
-                for t in FR_PRE.get(case, ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE')) + home:
-                    go(s, t)
+                if files and case in FR_PRE:        # (SWOS++: the DIY type screen's fast frames repeat a key held
+                    seq(s, FR_PRE[case][:1])        # SPP_HOLD ticks - one tap moved 3 rows; the main menu takes no
+                    s.poke(s.result.base1 + s.info['holdn'], struct.pack('<H', 8))   # key held 8)
+                    seq(s, FR_PRE[case][1:2])
+                    s.poke(s.result.base1 + s.info['holdn'], struct.pack('<H', HOLD))
+                    seq(s, FR_PRE[case][2:] + home)
+                else:
+                    seq(s, FR_PRE.get(case, ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE')) + home)
                 s.send('fire dump:2')               # home: COMPUTER -> GIOCA-ALLENA
                 up_to(s, away[1])                   # (the picker's top: the continents, the World's own list)
-                for t in away[1:]:
-                    go(s, t)
+                seq(s, away[1:])
                 s.shot(f'{case}_picker')
-                pick_done(s)
+                done(s)
                 if case in FR_PRE:                  # (the DIY cup's menu)
                     s.shot(f'{case}_cup')
-                    walk(s, 'PROSS. PARTITA', 3)
-                    walk(s, '- PARTITA -', 3)       # (- PARTITA - / - RISULTATO -: played)
+                    seq(s, ('PROSS. PARTITA', '- PARTITA -'))   # (- PARTITA - / - RISULTATO -: played)
                 for _ in range(22):                 # the pre-match screen: down to PLAY MATCH (9)
-                    s.send('down dump:0.5')
                     if s.screen().selected == 9:
                         break
+                    s.send('down:0.3 dump:0.5' if files else 'down dump:0.5')
                 s.shot(f'{case}_prematch')
                 if case == 'diy':                   # (forced: a DIY match = gameType 1, the gates read it alone)
                     import gkinj
@@ -8679,7 +8721,8 @@ def bench_friendly():
                     s.poke(s.result.lin(gt_at), struct.pack('<H', 1))
                     s.send('dump:0.5')
                 fb = None
-                if case in FR_B and fs:             # (B) the club's own order: window, swap 17 <-> 2
+                if case in FR_B and fs and not files:   # (B) the club's own order: window, swap 17 <-> 2 (not
+                                                    # under SWOS++: BENCH_SPP is a smoke test, as bench_world's)
                     fb = fr_order(s, fs, bx, case, errs, info)
                     for _ in range(12):             # back to PLAY MATCH (9)
                         q = s.screen()
@@ -8690,7 +8733,15 @@ def bench_friendly():
                 r = s.result                        # the pre-match screen's bench (sq_n -> bx_frpm -> bx_look: bx_lkres =
                 pre = struct.unpack('<BB', r.read(r.lin(bx) + 14, 2))   # bx_bench + 14)
                 check(pre[0] == (want if want > 5 else 0), f'{case}: pre-match screen bench {pre[0]}:{pre[1]}', errs)
-                r = s.send('fire ' + 'fire:3 ' * 8 + 'dump:2')
+                if files:                           # (SWOS++: the long-bench screen reads a fire only held >= its
+                    for h in (SPP_PM_HOLD, SPP_PM_HOLD * 3 // 2, SPP_PM_HOLD * 2):   # frame time; the friendly's
+                        spp_go(s, 9, 4, hold=h)     # 16 + n rows: 24 ticks at the edge - longer until it goes)
+                        if s.result.outcome != 'dump' or s.screen().find('MOD. TATTICA', exact=True) is None:
+                            info.append(f'{case}: SWOS++ PLAY MATCH fire held {h} ticks')
+                            break
+                    r = s.send('fire:3 ' * 8 + 'dump:2')
+                else:
+                    r = s.send('fire ' + 'fire:3 ' * 8 + 'dump:2')
             except AssertionError as e:
                 s.shot(f'{case}_lost')
                 errs.append(f'{case}: {e}')
@@ -8724,8 +8775,13 @@ def bench_friendly():
                 mine = [k for k, (name, _) in enumerate(teams) if name == home[-1]]   # the human club (top / bottom:
                 pl = teams[mine[0]][1][:cap] if mine else []                         # the game may swap the sides)
                 gone = {i - 10 for i, x in enumerate(pl) if i >= 11 and not x[0]}      # its empty places (no XTRA player)
+                if os.environ.get('BENCH_DIAG'):    # (the controls each bench reads: playerNumber / playerCoachNumber)
+                    td = team_data()
+                    info.append('player / coach numbers top, bottom: ' + str([struct.unpack('<HH', r.read(r.base2 + o + 4, 4))
+                                                                               for o in td]))
                 bench_sub(s, bx, 21, errs, info, lambda t: open(os.path.join(s.run, 'progress.txt'), 'a').write(t + '\n'),
-                          key=('pgup', 'pgdn')[mine[0]] if mine else None, gone=gone)
+                          gone=gone)        # (no key: pgup / pgdn in turn, as the other callers - the one human's
+                                            # bench opens on its own key; the fixed key by side missed it, MILAN on top)
     return not errs, '; '.join(errs + info)
 
 

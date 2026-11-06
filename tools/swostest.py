@@ -8838,6 +8838,145 @@ def bench_friendly():
     return not errs, '; '.join(errs + info)
 
 
+TAP_GRID = ((4, 4), (10, 8))                 # (bench_tap) (hold, gap) of each tap in feeder GetKey calls
+TAP_LEAD = 0.6                                # (bench_tap) seconds with no direction before the first tap
+
+
+def leave_timer():
+    """g_cameraLeavingSubsTimer (obj2 offset): LeaveSubsMenu's `mov [benchOff], 1 / mov [g_cameraLeavingSubsTimer], 55 /
+    mov [g_leavingSubsMenu], 1` - while it runs BenchCheckControls skips the bench call (taps too)."""
+    if not hasattr(leave_timer, 'v'):
+        p = lepatch_orig()
+        m = list(re.finditer(rb'\x66\xc7\x05....\x01\x00\x66\xc7\x05(....)\x37\x00\x66\xc7\x05....\x01\x00',
+                             p.le.obj_bytes(1), re.S))
+        assert len(m) == 1, ('g_cameraLeavingSubsTimer', len(m))
+        leave_timer.v = p.target(1, m[0].start(1))[1]
+    return leave_timer.v
+
+
+def bench_team():
+    """benchTeam (obj2 offset; -> the calling team's TeamGeneralInfo): BenchCheckControls' @@enter_substitutes_menu
+    `mov [bench1Called], 0 / mov [bench2Called], 0 / mov eax, [A6] / mov [benchTeam], eax`."""
+    if not hasattr(bench_team, 'v'):
+        p, v = lepatch_orig(), bench_vars()
+        m = [x for x in re.finditer(rb'\x66\xc7\x05(....)\x00\x00\x66\xc7\x05(....)\x00\x00\xa1....\xa3(....)',
+                                    p.le.obj_bytes(1), re.S)
+             if (p.target(1, x.start(1))[1], p.target(1, x.start(2))[1]) == (v['B1C'], v['B2C'])]
+        assert len(m) == 1, ('benchTeam', len(m))
+        bench_team.v = p.target(1, m[0].start(3))[1]
+    return bench_team.v
+
+
+@scenario
+def bench_tap():
+    """4.1 (Regia 06/11) the joypad's bench call: a stick / pad has no PgUp / PgDn, the bench is called by tapping a
+    direction while play is stopped (BenchCheckControls: the 1st tap sets subsPrevPl1/2Direction, the 2nd and 3rd
+    count subsPl1/2TapCount to 2 -> the substitutes menu; a release > 15 calls of that team's branch resets it). The
+    'seriea' friendly (INTER - MILAN, bench_friendly's picker), both sides in turn: the human club made the top team
+    (playerNumber 1: player 1's branch) then the bottom one (player 2's branch). Per side and TAP_GRID timing, 2 bench
+    openings by DOWN tapped 3 x (held h, g apart, no dump inside: real tap timing), g_inSubstitutesMenu set and
+    benchTeam = the human's TeamGeneralInfo. A try the taps do not open is checked at once with the human's own bench
+    key: it opens -> FAIL (the taps missed a stopped moment); it does not -> play on (not stopped). After each opening the
+    bench is shut by the own key and the next taps wait for g_cameraLeavingSubsTimer (55 frames) to run out."""
+    b = os.environ.get('BENCH_BUILD') or builds()['it']
+    errs, info = [], []
+    v, td, lt = bench_vars(), team_data(), leave_timer()
+    p = lepatch_orig()                              # gameStatePl: BenchCheckControls' `cmp [gameStatePl], ST_GAME_IN_PROGRESS`
+    gs = {p.target(1, x.start(1))[1] for x in re.finditer(rb'\x66\x83\x3d(....)\x64\x0f\x84', p.le.obj_bytes(1), re.S)}
+    assert len(gs) == 1, ('gameStatePl', gs)
+    gsp = gs.pop()
+    _, home, away, _, _ = FR_CASES['seriea']
+    with Session('bench_tap', b, {'SETUP.DAT': setup_file('bench_tap', 0)}, 'dump:3', 900, match=True) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'no first pause ({s.result})'
+        w16 = lambda o: struct.unpack('<H', s.result.read(s.result.base2 + o, 2))[0]
+        hold = lambda n: s.poke(s.result.base1 + s.info['holdn'], struct.pack('<H', n))
+        try:
+            for t in ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE') + home:
+                walk(s, t, 2)
+            s.send('fire dump:2')                   # home: COMPUTER -> GIOCA-ALLENA
+            for _ in range(9):                      # (up to the picker's continents, as bench_friendly's up_to)
+                sc = s.screen()
+                if sc.find(away[1], exact=True) is not None:
+                    break
+                out = sc.find('ESCI', exact=True)
+                if out is None or press(s, sc, out, 2) is None:
+                    s.send('down ' * 12 + 'dump:1')
+                    if out is not None and s.screen().selected == out:
+                        s.send('fire dump:2')
+            for t in away[1:]:
+                walk(s, t, 2)
+            pick_done(s)
+            for _ in range(22):                     # the pre-match screen: down to PLAY MATCH (9)
+                if s.screen().selected == 9:
+                    break
+                s.send('down dump:0.5')
+            r = s.send('fire ' + 'fire:3 ' * 8 + 'dump:2')
+        except AssertionError as e:
+            s.shot('lost')
+            return False, f'no match: {e}'
+        if r.outcome != 'dump':
+            return False, f'no match ({r})'
+        s.shot('match')
+
+        def stopped():                              # (BenchCheckControls' gates: gameStatePl not in progress, gameState
+            return w16(gsp) != 100 and not 21 <= w16(v['GSTATE']) <= 30   # not ST_STARTING_GAME .. ST_GAME_ENDED)
+
+        def shut(own):                              # the own key shuts it; then the camera-leaving timer runs out
+            hold(1)
+            s.send(f'{own}:0.3 dump:1')
+            for _ in range(20):
+                if not w16(lt):
+                    break
+                s.send('dump:0.5')
+            s.send('dump:0.5')
+            return check(not w16(v['INSUBS']), f'the own key ({own}) did not shut the bench', errs)
+        own = None
+        for side, k in (('top', 0), ('bottom', 1)):
+            if own and w16(v['INSUBS']) and not shut(own):   # (the other side's bench shut first)
+                break
+            s.poke(s.result.base2 + td[k] + 4, b'\x01\x00')       # (the human club: player 1 / no coach)
+            s.poke(s.result.base2 + td[1 - k] + 4, b'\x00\x00\x00\x00')
+            own = 'pgdn' if k == 0 else 'pgup'
+            for h, g in TAP_GRID:
+                ok = idle = race = 0
+                for tr in range(60):
+                    if ok >= 2 or not check(s.result.outcome == 'dump', f'{side} {h}/{g}: no dump ({s.result})', errs):
+                        break
+                    if w16(v['INSUBS']) and not shut(own):
+                        break
+                    st0 = stopped()
+                    hold(h)
+                    gap = f'{g / RATE:.4f}'
+                    r = s.send(f'down:{TAP_LEAD} down:{gap} down:{gap} dump:0.3')   # (TAP_LEAD of no direction first:
+                                                    # the original, too, misses taps 10/8 typed 0.05 s after a pause)
+                    hold(1)
+                    if r.outcome != 'dump':
+                        continue
+                    if w16(v['INSUBS']):
+                        bt = struct.unpack('<I', r.read(r.base2 + bench_team(), 4))[0] - r.base2
+                        check(bt == td[k], f'{side} {h}/{g}: the taps opened benchTeam {bt:#x}, want {td[k]:#x}', errs)
+                        ok += 1
+                        if ok == 1:
+                            s.shot(f'tap_{side}_{h}_{g}')
+                        continue
+                    st1 = stopped()
+                    s.send(f'{own}:0.1 dump:0.3')     # the same moment: the own key
+                    if w16(v['INSUBS']):
+                        if st0 and st1:             # (stopped before and after the taps: they had to open it)
+                            errs.append(f'{side} {h}/{g} try {tr}: the taps missed, the own key ({own}) opened the bench')
+                        else:
+                            race += 1               # (play stopped while the taps ran: the game cleared them)
+                        if not shut(own):
+                            break
+                    else:
+                        idle += 1
+                        s.send('dump:1')            # (play on: not a stopped moment)
+                info.append(f'{side} hold/gap {h}/{g}: {ok} opened by taps, {idle} tries in play, {race} stopped mid-taps')
+                check(ok >= 2, f'{side} {h}/{g}: {ok} of 2 openings by taps ({idle} tries in play)', errs)
+    return not errs, '; '.join(errs + info)
+
+
 @scenario
 def bench_strip_world():
     """4.0.6 (Francesco) the bench info strip (bstrip.py): bench_world's career match (CELLE VARAZZE, bench 15) with

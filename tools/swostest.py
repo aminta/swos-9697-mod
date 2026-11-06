@@ -12083,7 +12083,7 @@ def swospp_menu():
         check(on, f'SWOS++ not running: {why}', errs)
         e = menu(s, 'start')
         import modver                                           # (4.0.6: the version line under SWOS++ too)
-        mv = os.environ.get('MODVER_EXPECT') or modver.text().decode()
+        mv = modver_want(out)
         check(modver_corner(s, mv, errs, info, 'SWOS++ main menu'), 'SWOS++: the version line not drawn', errs)
         s.shot('main_start')
         check(e[4][0] in mainbtn.WORLD['en'] and not e[4][1], f'entry 4 not the button: {e[4]}', errs)
@@ -12102,8 +12102,10 @@ def swospp_menu():
         check(opened, f'SWOS++ menu not opened: {sc}', errs)
         info.append(f'SWOS++ menu: {str(sc)[:60]}')
         if sc.find('ESCI', exact=True) is not None:            # (its EXIT entry; ESC does not close it - one key
-            spp_go(s, 'ESCI', 3)                                # at a time: a walk's downs went past it, 5 for 3,
-                                                                # and fired another SWOS++ entry, M3 05/11)
+            spp_go(s, 'ESCI', 3, fire='fire up:0.01')           # at a time: a walk's downs went past it, 5 for 3,
+                                                                # and fired another SWOS++ entry, M3 05/11; 06/11: a
+                                                                # plain fire stayed latched, the main menu read it on
+                                                                # entry 11 and opened SWOS++'s menu again - 'fire up')
         check(is_main(s), f'not back on the main menu: {s.screen()}', errs)
         e = menu(s, 'back')
         check(e[11][0] == b'SWOS++' and not e[4][1], f'after SWOS++ menu: {e}', errs)
@@ -27260,6 +27262,17 @@ def modver_glyphs():
     return modver_glyphs.v
 
 
+def modver_want(b):
+    """The version line the build b draws: MODVER_EXPECT, else the exe's own 'MOD <version>[ <tag>]' (modver.text(); a
+    release / PRE / RC / INT build carries its MODVER_TAG: 'MOD 4.1 INT' - the harness's own environment has none)."""
+    if os.environ.get('MODVER_EXPECT'):
+        return os.environ['MODVER_EXPECT']
+    exe = open(os.path.join(b, 'ITALIAN.EXE'), 'rb').read()     # (the exe's own: a build of another checkout's VERSION too)
+    m = re.findall(rb'MOD [0-9]+(?:\.[0-9]+)+(?: [A-Z0-9]+)?\0', exe)
+    assert len(set(m)) == 1, ('the version line in the exe', m)
+    return m[0][:-1].decode()
+
+
 def modver_corner(s, want, errs, info, tag):
     """4.0.6 modver: the main menu on screen now (a dump): the version line in the bottom-left corner, in grey
     (modver.COLOR), left edge at modver.X, the glyphs = `want` rendered from the game's font, or no line at all - drawn
@@ -27310,7 +27323,7 @@ def modver_line():
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import modver
     b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
-    want = os.environ.get('MODVER_EXPECT') or modver.text().decode()
+    want = modver_want(b)
     errs, info = [], []
     exe = open(os.path.join(b, 'ITALIAN.EXE'), 'rb').read()
     check(re.fullmatch(r'[A-Z0-9. ]+', want) is not None, f'characters outside the font: {want!r}', errs)

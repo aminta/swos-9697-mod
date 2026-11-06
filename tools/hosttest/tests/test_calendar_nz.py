@@ -6,7 +6,7 @@ any day ahead is a phantom final).
   rc19 (the fixture's own code): the flag left 0 with nothing ahead - PARTITA on nothing, the stall          -> red
   HTPRE22 (the rejected 'hide only' candidate): a career day at week 141 - the phantom final               -> red
   HTMOT25 (the shipped 4.0.5 fix MOT25 + symbols)                                                         -> green
-Today's exe: cal_nz (gp_gf snapshots of an NZ career on c/HTCAL, HT_CAL_NZ) - the old snapshots cannot carry today's
+Today's exe: cal_nz (gf_step_c snapshots of an NZ career on c/HTCALnz = HTCAL + GPLAY_FORCE=1, HT_CAL_NZ) - the old snapshots cannot carry today's
 code (LayoutChanged: obj3 and the state moved), so it has its own fixture."""
 import os
 import sys
@@ -19,10 +19,12 @@ CASES = (('rc19', None, False), ('HTPRE22', 'HTPRE22', False), ('HTMOT25', 'HTMO
 
 def nz_case(d, k, code, out=True):
     m = L.machine(d, k, code)
-    m.call('gplay.gp_gf')
+    _, idx, rows, _ = L.cal(m)
+    glue = idx + 1 < len(rows)          # (gp_gf decides the final before its day: at the final's own day - the last
+    m.call('gplay.gp_gf')               #  entry, the club's byte 6 already spent - the menu flag is the scan's, not its)
     cur, _, rows, _ = L.cal(m)
     ahead = [(r['i'], r['slot'], r['week']) for r in L.career_ahead(rows, cur)]
-    bad, summ = L.check(m, glue=True)
+    bad, summ = L.check(m, glue=glue)
     if out and ahead:
         bad.append(f'phantom final: career days ahead with the club out {ahead}')
     return bad, summ
@@ -40,12 +42,13 @@ def test_calendar_nz_405():
 
 
 def test_calendar_nz_now():
-    """today's exe (c/HTCAL) on its own gp_gf snapshots (an NZ career, WESTERN SPRINGS, from week 120): C1..C4 with the
-    flag as gp_gf leaves it (whether the club is in the final is the run's: no phantom check here)"""
+    """today's exe on its own gf_step_c snapshots (c/HTCALnz = c/HTCAL + GPLAY_FORCE=1: WESTERN SPRINGS 1st of the
+    Northern League, in the Championship; weeks 125+): gp_gf then C1..C4, with the flag as gp_gf leaves it before the
+    final's day (whether the club is in the final is the run's: no phantom check here)"""
     d = os.environ.get('HT_CAL_NZ', 'cal_nz')
-    ks = [k for k, _ in L.snaps(d, 'gplay.gp_gf')] if os.path.isdir(os.path.join(L.FIX, d)) else []
+    ks = [k for k, _ in L.snaps(d, 'gplay.csyms.gf_step_c')] if os.path.isdir(os.path.join(L.FIX, d)) else []
     if not ks:
-        return True, f'SKIP: fixture {d} (gplay.gp_gf) not taken yet (today\'s exe needs its own snapshot)'
+        return True, f'SKIP: fixture {d} (gplay.csyms.gf_step_c) not taken yet (today\'s exe needs its own snapshot)'
     out, bad = [], []
     for k in ks:
         b, summ = nz_case(d, k, None, out=False)

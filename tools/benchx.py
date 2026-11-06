@@ -133,8 +133,9 @@ the kick-off builds the two teams (bx_max .. the second bx_next end): GetPlayerA
 fr_sw_et) swap its two places and write the record's players back in their new order (no index >= 16 in the
 record's 16 bytes; an XTRA player among the starters = the record's next players move up). The in-match team follows
 the order (InitInGameTeamStructure -> GetPlayerInfoBreakPosition -> GetPlayerAtIndex). The order of the XTRA players
-is kept only while the club stays in fr_tab (the record's own order always is). The game's own ready check
-(GetNumberOfAvailablePlayers: the record's first 11) still reads the record.
+is kept only while the club stays in fr_tab (the record's own order always is). The pre-match screen's PLAY MATCH
+checks (GetNumberOfAvailablePlayers: the first 11 fit; GetNumberOfSubstitutes: a goalkeeper in place 1) read it too
+(fr_a2: A2 = the order, fr_a1: an XTRA index's record = his cached slot), so they judge the players on the screen.
 
 spritesIndex past the game's 1335 entries (shirtnum.py's extension into the 3072 free bytes after it: indices
 1335..2102; it cannot move, SWOS++ holds its address):
@@ -730,6 +731,41 @@ fr_etnp:                                ; EditTacticsInit's `mov [editTacticsNum
     mov [ETNP], cx
 .r: popad
     ret
+
+fr_a2:                                  ; GetNumberOfAvailablePlayers / GetNumberOfSubstitutes: replaces `mov [A2], eax`
+    mov [A2], eax                       ; (A2 = the record's playerNumbers): a club with its own order -> it, so the
+    mov byte [fr_gn], 0                 ; pre-match screen's PLAY MATCH checks (the first 11 fit, a goalkeeper in
+    pushad                              ; place 1) read the players shown there
+    mov esi, [A0]
+    call fr_find
+    jc .r
+    mov [A2], edi
+    mov byte [fr_gn], 1
+.r: popad
+    ret
+
+fr_a1:                                  ; their `mov [A1], eax` (eax = A0 + index * 38: the player's record, - 4Ch):
+    mov [A1], eax                       ; with fr_a2's order an XTRA index (16..) -> his cached slot (xtra's xt_slot)
+    cmp byte [fr_gn], 0
+    je .r
+    pushad
+    sub eax, [A0]
+    cmp eax, 16 * PLAYER_
+    jb .o
+    mov edi, eax                        ; index * 38
+    xor edx, edx
+    mov ebx, PLAYER_
+    div ebx
+    mov ecx, eax
+    mov esi, [A0]
+    mov ax, [esi]
+    call XTS
+    test eax, eax
+    jz .o
+    add eax, edi
+    mov [A1], eax
+.o: popad
+.r: ret
 
 fr_pmend:                               ; ShowPlayMatchMenu's `mov ax, [playerNumThatStarted]` after ShowMenu: the
     mov byte [fr_on], 0                 ; pre-match screen is gone
@@ -2230,6 +2266,16 @@ def sites_fr(p, regs, s5, s6, pmt1):
     assert len(m) == 1, ('ShowPlayMatchMenu end', m)
     out['pmend'] = m[0]
     out['PNTS'] = t(m[0] + 2)
+    # GetNumberOfAvailablePlayers: mov eax, [A0] / add eax, 3Ch / mov [A2], eax / mov word [D5], 16; GetNumberOfSubstitutes:
+    # mov ax, [D0] / mov [D1], ax / sub word [D1], 1 / mov eax, [A0] / add eax, 3Ch / mov [A2], eax; each one's first
+    # mov [A1], eax (the player's record)
+    a1, a2, d5 = pk(a0 + 4), pk(a0 + 8), regs['D7'] - 8
+    g = [x.start() + 8 for x in re.finditer(rb'\xa1' + pk(a0) + rb'\x83\xc0\x3c\xa3' + a2 + rb'\x66\xc7\x05' + pk(d5) + rb'\x10\x00', d)]
+    n = [x.start() + 28 for x in re.finditer(rb'\x66\xa1' + pk(d0) + rb'\x66\xa3' + pk(d1) + rb'\x66\x83\x2d' + pk(d1) + rb'\x01\xa1'
+                                             + pk(a0) + rb'\x83\xc0\x3c\xa3' + a2, d)]
+    assert len(g) == 1 and len(n) == 1, ('GetNumberOfAvailablePlayers / GetNumberOfSubstitutes', g, n)
+    out['a2'] = g + n
+    out['a1'] = [o + re.search(rb'\xa3' + a1, d[o:o + 0x200]).start() for o in out['a2']]
     return out
 
 
@@ -2362,7 +2408,7 @@ def bench_table(lang):
 
 def table_asm(tab):
     """bx_tabn / bx_tab: the entries of bench_table; bx_frn / bx_frtab: FR_TAB's (country, division, named, used, et)."""
-    lines = ["fr_mark: db 'FRTB'", 'fr_on: db 0, 0', 'fr_next: db 0', 'align 4', f'fr_tab: times {FRN * FRE} db 0']   # (B) fr_find's orders
+    lines = ["fr_mark: db 'FRTB'", 'fr_on: db 0, 0', 'fr_next: db 0', 'fr_gn: db 0', 'align 4', f'fr_tab: times {FRN * FRE} db 0']   # (B) fr_find's orders
     lines += ['bx_frkeep: dw 0', 'bx_fretk: db 0', 'align 4', 'bx_w27p: dd 0']   # (bx_w27p: link_w27's pointer)        # (4.0.6) bx_frset: the friendly / DIY match's named subs,
     lines += ['align 4', f'bx_frn: dd {len(FR_TAB)}', 'bx_frtab:']   # subs used and its extra-time substitute
     lines += ['    db ' + ','.join(str(x) for x in e) for e in FR_TAB]
@@ -2448,7 +2494,7 @@ def patch(p, at, ns_at, lang='it'):
                 'MAXE_': (0, xtra.MAX_EXTRA), 'PLAYER_': (0, xtra.PLAYER)})
     if sfr:
         sym.update({k: sfr[k] for k in ('GTP', 'GETPLAYER', 'CTTP', 'SWPM', 'SWET', 'PNTS')})
-        sym.update({'XSGA': p.call_target(1, sfr['ga']), 'ETNP': s6['ETNP']})
+        sym.update({'XSGA': p.call_target(1, sfr['ga']), 'ETNP': s6['ETNP'], 'XTS': (1, xtra.LABELS['xt_slot'])})
     asm = ASM + table_asm(tab)
     code, fix, rel = nasmcave.assemble_obj(asm, at, sym, 3)
     lab = nasmcave.labels(asm, at, sym)
@@ -2553,6 +2599,10 @@ def patch(p, at, ns_at, lang='it'):
         call9(sfr['nps'], 6, 'fr_nps', 2)           # mov [numPlayersToShowInMenu], ax
         call9(sfr['etnp'], 6, 'fr_etnp', 2)         # mov [editTacticsNumPlayers], ax
         call9(sfr['pmend'], 6, 'fr_pmend', 2)       # mov ax, [playerNumThatStarted]
+        for k, lbl in (('a2', 'fr_a2'), ('a1', 'fr_a1')):   # the PLAY MATCH checks: mov [A2] / [A1], eax (A3 addr)
+            for o in sfr[k]:
+                assert bytes(p.get(1, o, 5)) == d1o[o:o + 5], (k, hex(o))
+                call9(o, 5, lbl, 1)
     bf = int(os.environ.get('BENCH_FORCE', '0'))   # BENCH_FORCE=n (test / playtest builds only): every match's bench
     if bf:                                          # n (<= 15) until the per-competition rule (phase 2)
         p.put(3, lab['bx_bench'], struct.pack('<H', min(bf, 15)))

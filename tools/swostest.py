@@ -8449,7 +8449,8 @@ def fr_order(s, fs, bx, case, errs, info):
     fr_find: places 0..15 = the record's order, 16.. its XTRA block's players), numPlayersToShowInMenu = 16 + n, row 17
     (entry 29) and the box (30) shown; the box moves the window (bx_pw = bx_bench + 4) over places 17..16 + n and back
     to 0; a swap of row 17 (place 17, his first XTRA player) with row 2 (place 2): the two places swapped in the order,
-    TeamFile.playerNumbers = the record's players in the new order (no index >= 16). Returns (xtra index, record
+    TeamFile.playerNumbers = the record's players in the new order (no index >= 16); with place 12's record player poked
+    injured (after the swap the record's 11th) PLAY MATCH stays shown (fr_a2 / fr_a1: the checks read the order). Returns (xtra index, record
     index) swapped, for the kick-off check, or None."""
     r = s.result
     ptr, n, order, pn = fr_slot(r, fs)
@@ -8486,11 +8487,19 @@ def fr_order(s, fs, bx, case, errs, info):
         check(seen == list(range(1, n)) + [0], f'{case} B: window steps {seen} (want 1..{n - 1}, 0)', errs)
     if not (check(goto(29), f'{case} B: row 17 not reached', errs)):
         return None
+    inj = ptr + 0x4C + order[11] * 38 + 27  # (PLAY MATCH's check: place 12's record player injured - after the swap
+    c0 = s.result.read(inj, 1)[0]           # he is the record's 11th, on the bench on the screen)
+    s.poke(inj, bytes([(c0 & 0x1F) | 0x40]))
     s.send('fire:0.3 dump:0.5')
     if not check(goto(14), f'{case} B: row 2 not reached', errs):
         return None
     s.send('fire:0.3 dump:0.8')
     s.shot(f'{case}_B_swap')
+    q = s.screen()
+    info.append(f'{case} B: PLAY MATCH {"hidden" if q.entries[9][2] else "shown"} (the XI fit, place 12 injured)')
+    check(not q.entries[9][2], f'{case} B: PLAY MATCH hidden with a fit XI on the screen (the injured player on the '
+          f'bench: the check read the record, not the order)', errs)
+    s.poke(inj, bytes([c0]))
     _, n1, o1, pn1 = fr_slot(s.result, fs)
     o1 = o1 or []
     diff = [k for k in range(min(len(o1), len(order))) if o1[k] != order[k]]   # (row 2 = a starter's place through
@@ -8540,13 +8549,15 @@ def fr_tactics(s, fs, case, n, errs, info):
     check(pn1 == [x for x in o1 if x < 16], f'{case} B tactics: playerNumbers {pn1} vs order {o1}', errs)
     o2, _ = swap()
     check(o2 == o0, f'{case} B tactics: swapped back {o2}, want {o0}', errs)
-    for _ in range(4):
-        q = s.screen()
+    for _ in range(4):                      # (the pre-match screen: its 69+ entries and the MOD. TATTICA button; the
+        q = s.screen()                      # editor's exit by its label, else ESC one at a time - FR / DE labels)
         t = q.texts()
-        if 'GIOCA PARTITA' in t or UI != 'it' and 'GIOCA :' in t and 'PARTITA' in t:
+        if len(q.entries) > 60 and q.find('MOD. TATTICA', exact=True) is not None:
             return
-        if not any(press(s, q, x) is not None for x in ('USCITA', 'SAVE/EXIT', 'ESCI') if x in t):
-            s.send('esc:0.3 dump:0.6')
+        # the editor's exit button by index (USCITA/SAVE/EXIT...: same layout in every language)
+        ex = 8 if len(q.geom) > 8 and tuple(q.geom[8][:2]) == (197, 191) else None
+        if ex is None or press(s, q, ex) is None:
+            s.send('esc:0.3 dump:0.8')
     errs.append(f'{case} B tactics: not back to the pre-match screen')
 
 
@@ -8588,10 +8599,25 @@ def bench_friendly():
     contest's world, SWE_W27 - skipped on a build without it) (bench_sub: its save-under guard with two benches of 15, the strip, formwide), 'nat' two national teams (1996-97's:
     step 2.5's 2026-27 picker has none yet) -> the game's 2 from 5, '9697' a 1996-97 friendly -> the game's 2 from 5. Per case: the picker (home human, away computer), PLAY MATCH,
     at the kick-off gameMaxSubstitutes / gameMinSubstitutes and both in-match teams (11 + the bench places: named from
-    the record's 16 and the club's XTRA block, the rest empty). BENCH_BUILD = a World 2026-27 build."""
+    the record's 16 and the club's XTRA block, the rest empty). BENCH_BUILD = a World 2026-27 build; BENCH_SPP=1 (EN):
+    the same under SWOS++ 1.9.2.2 (as bench_world's; run it without SWOSTEST_DIRTY)."""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import lepatch
     b = os.environ.get('BENCH_BUILD') or builds()['it']
+    files = {}
+    if os.environ.get('BENCH_SPP'):             # (4.1) under SWOS++ (SWOSTEST_UI=en, an English build), as bench_world:
+        import swospp                           # installed on a copy's exe; keys held SPP_HOLD, no latch, press() one
+        if UI != 'en':                          # tap at a time
+            return True, 'SKIP: SWOS++ is English only (SWOSTEST_UI=en)'
+        b = nop_league_int3('bench_friendly_spp_' + os.path.basename(RUNS.rstrip('/')), b)
+        shutil.copy(os.path.join(b, 'ITALIAN.EXE'), os.path.join(b, 'ITALIAN.EXE.nospp'))
+        swospp.install(os.path.join(b, 'ITALIAN.EXE.nospp'), os.path.join(b, 'ITALIAN.EXE'))
+        global SPP_STEP, HOLD
+        SPP_STEP = True
+        os.environ['SWOSTEST_SPP_NOLATCH'] = '1'
+        HOLD = SPP_HOLD
+        pp = os.path.join(MAIN, 'internal', 'swospp-test')
+        files = {'LOADER.BIN': os.path.join(pp, 'loader.bin'), 'SWOSPP.BIN': os.path.join(pp, 'swospp.bin')}
     exe = os.path.join(b, 'ITALIAN.EXE')
     p = lepatch.LEPatch(exe)
     bx, gmax = bench_switch(exe)
@@ -8621,7 +8647,8 @@ def bench_friendly():
     for case in cases:
         world, home, away, want, used = FR_CASES[case]
         tag = f'bench_friendly_{case}'
-        with Session(tag, b, {'SETUP.DAT': setup_file(tag, world)}, 'dump:3', 400, match=True) as s:
+        with Session(tag, b, {'SETUP.DAT': setup_file(tag, world), **files}, 'dump:3', 400, match=True,
+                     timer=bool(files)) as s:   # (SWOS++: keys from the timer, as bench_world)
             if s.wait().outcome != 'dump':
                 errs.append(f'{case}: no first pause ({s.result})')
                 continue

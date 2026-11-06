@@ -12,7 +12,8 @@ emulator; each call logs the day it would simulate): FINISH SEASON may simulate 
 club's own - it gives the menu back (careerFinished 0) with the club's day still ahead.
   the reverted glue (the game's CareerPlayMatch, still in the exe: the fix only redirected its one call) -> red
   gp_fin (4.0.5's fix, h_uru's build 406-i4)                                                         -> green
-Today's exe: the same on cal_uru's mid-season snapshot (c/HTCAL; HT_CAL_SD=dir:k)."""
+Today's exe: the same on cal_uru's gplay.gp_fin snapshot (c/HTCAL: the real FINISH SEASON entry of NACIONAL's season
+2, week 112; HT_CAL_SD=dir:k)."""
 import os
 import re
 import struct
@@ -46,9 +47,9 @@ def fin_case(d, k, routine, mark_ahead=6):
     c = m.lin('uefaq.SYMS.CAL')
     cur, idx, rows, cnt = L.cal(m)
     ahead = [r for r in rows if r['i'] > idx]
-    if len(ahead) <= mark_ahead:
+    if len(ahead) < 2:
         return [f'only {len(ahead)} days ahead'], ''
-    mark = ahead[mark_ahead]
+    mark = ahead[min(mark_ahead, len(ahead) - 1)]
     for r in rows[idx:]:
         m.write(c + r['off'] + 6, bytes([1 if r is mark else 0]))
     m.write(m.base2 + L.SEASON_OVER, b'\1\0')
@@ -92,13 +93,15 @@ def test_calendar_seried_405():
 
 
 def test_calendar_seried_now():
-    """today's exe (c/HTCAL): gp_fin green on its own mid-season snapshot"""
+    """today's exe (c/HTCAL): gp_fin green, the game's CareerPlayMatch red, on its own FINISH SEASON snapshot"""
     d, _, k = os.environ.get('HT_CAL_SD', 'cal_uru:').partition(':')
     if not os.path.isdir(os.path.join(L.FIX, d)):
         return True, f'SKIP: fixture {d} not taken yet (today\'s exe needs its own snapshot)'
-    if not k:                           # (the first snapshot with >= 8 days ahead and the season running)
-        k = next((str(kk) for kk, meta in L.snaps(d) if 20 <= (meta.get('week') or 0) <= 100), None)
+    if not k:                           # (the real FINISH SEASON entry)
+        k = next((str(kk) for kk, meta in L.snaps(d, 'gplay.gp_fin')), None)
         if k is None:
-            return False, f'{d}: no mid-season snapshot'
+            return True, f'SKIP: no gplay.gp_fin snapshot in {d} yet'
     bad, summ = fin_case(d, int(k), 'gp_fin')
-    return not bad, f'{d}:{k} {summ} {bad or ""}'
+    rbad, rsumm = fin_case(d, int(k), 'cpm')          # (the reverted glue on today's code: red)
+    return not bad and bool(rbad), (f'{d}:{k} gp_fin {"green" if not bad else "red"}: {summ} {bad or ""}; the game\'s '
+                                    f'CareerPlayMatch {"red" if rbad else "NOT red"}: {rsumm}')

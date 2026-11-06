@@ -6,8 +6,8 @@ any day ahead is a phantom final).
   rc19 (the fixture's own code): the flag left 0 with nothing ahead - PARTITA on nothing, the stall          -> red
   HTPRE22 (the rejected 'hide only' candidate): a career day at week 141 - the phantom final               -> red
   HTMOT25 (the shipped 4.0.5 fix MOT25 + symbols)                                                         -> green
-Today's exe: the same check on cal_nz (a snapshot of gp_gf on c/HTCAL with the club out, HT_CAL_NZ=dir:k) - the old
-snapshots cannot carry today's code (LayoutChanged: obj3 and the state moved), so it needs its own fixture."""
+Today's exe: cal_nz (gp_gf snapshots of an NZ career on c/HTCAL, HT_CAL_NZ) - the old snapshots cannot carry today's
+code (LayoutChanged: obj3 and the state moved), so it has its own fixture."""
 import os
 import sys
 
@@ -17,13 +17,13 @@ import test_calendar_lib as L  # noqa: E402
 CASES = (('rc19', None, False), ('HTPRE22', 'HTPRE22', False), ('HTMOT25', 'HTMOT25', True))
 
 
-def nz_case(d, k, code):
+def nz_case(d, k, code, out=True):
     m = L.machine(d, k, code)
     m.call('gplay.gp_gf')
     cur, _, rows, _ = L.cal(m)
     ahead = [(r['i'], r['slot'], r['week']) for r in L.career_ahead(rows, cur)]
     bad, summ = L.check(m, glue=True)
-    if ahead:
+    if out and ahead:
         bad.append(f'phantom final: career days ahead with the club out {ahead}')
     return bad, summ
 
@@ -40,9 +40,16 @@ def test_calendar_nz_405():
 
 
 def test_calendar_nz_now():
-    """today's exe (c/HTCAL) on its own snapshot: green"""
-    d, _, k = os.environ.get('HT_CAL_NZ', 'cal_nz:0').partition(':')
-    if not os.path.isdir(os.path.join(L.FIX, d)):
-        return True, f'SKIP: fixture {d} not taken yet (today\'s exe needs its own snapshot)'
-    bad, summ = nz_case(d, int(k or 0), None)
-    return not bad, f'{d}:{k} {summ} {bad or ""}'
+    """today's exe (c/HTCAL) on its own gp_gf snapshots (an NZ career, WESTERN SPRINGS, from week 120): C1..C4 with the
+    flag as gp_gf leaves it (whether the club is in the final is the run's: no phantom check here)"""
+    d = os.environ.get('HT_CAL_NZ', 'cal_nz')
+    ks = [k for k, _ in L.snaps(d, 'gplay.gp_gf')] if os.path.isdir(os.path.join(L.FIX, d)) else []
+    if not ks:
+        return True, f'SKIP: fixture {d} (gplay.gp_gf) not taken yet (today\'s exe needs its own snapshot)'
+    out, bad = [], []
+    for k in ks:
+        b, summ = nz_case(d, k, None, out=False)
+        out.append(f'k{k}: {summ}')
+        bad += [f'k{k}: {x}' for x in b]
+    return not bad, '; '.join(out + bad)
+

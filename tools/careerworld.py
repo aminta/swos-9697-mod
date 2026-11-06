@@ -1445,8 +1445,6 @@ w_ns_menu:                              ; replaces `and word [D7], 0FFh` at the 
     cmp dword [COMP254], CAREER_WORLD
     jne .r
     xor ecx, ecx
-    movzx eax, byte [D7R]
-    call .isw
     mov esi, CSTACK
     mov edi, [CSPTR]
 .s:
@@ -1457,6 +1455,8 @@ w_ns_menu:                              ; replaces `and word [D7], 0FFh` at the 
     inc esi
     jmp .s
 .d:
+    movzx eax, byte [D7R]               ; (the list shown last: it is the deepest - STORICO > EUROPA 1984-85 under
+    call .isw                           ; the default World 2026-27's list is 1984-85's namespace, not 2026-27's)
     mov eax, ecx
     call w_ns_set                       ; (W-modes M2: swe.py retargets this call to obj4 swe_sel_ns, which chains it)
 .r:

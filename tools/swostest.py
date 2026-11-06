@@ -11773,6 +11773,55 @@ def engine_wmodes_car():
     return not errs, '; '.join(errs + info)
 
 
+
+@scenario
+def world_ns_hist():
+    """4.1 (MC 06/11): a historic world's lists under the default World 2026-27 are that world's namespace. Three
+    pickers, each from a fresh SETUP.DAT (default 2026-27): the friendly's (AMICHEVOLE > SCEGLI SQUADRE > SQUADRE
+    CLUB), the career's team choice (CARRIERA > SCEGLI SQUADRA, M3) and the DIY cup's (COMPET. PERSONAL. > COPPA);
+    each > CARR. STORICHE > EUROPA 1984-85: the countries are 1984-85's (GERMANIA OVEST listed, AZERBAIGIAN not),
+    WCUR = the 1984-85 namespace (the build's base world), and ITALIA > SERIE A lists 1984-85's clubs (AVELLINO).
+    Before the fix careerworld w_ns_menu let the path's 2026-27 entry win: 2026-27's labels, ITALIA opened SCOZIA."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import swreg
+    errs, info = [], []
+    hist = 'CARR. STORICHE'
+    b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
+    cases = [('friendly', ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB')),
+             ('career', ('CARRIERA', 'SCEGLI SQUADRA')),
+             ('diy', ('COMPET. PERSONAL.', 'COPPA', 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB'))]
+    for tag, path in cases:
+        name = f'world_ns_hist_{tag}'
+        with Session(name, b, {'SETUP.DAT': setup_file(name, 0)}, 'dump:3', 400) as s:
+            if s.wait().outcome != 'dump':
+                errs.append(f'{tag}: no first pause ({s.result})')
+                continue
+            r = s.result
+            reg = struct.unpack('<I', r.read(r.base4 + 32, 4))[0]
+            m = r.read(reg, swreg.HDR)
+            nsbase, wcur = m[7], struct.unpack_from('<I', m, 8)[0]
+            try:
+                wm_seq(s, path + (hist, 'EUROPA 1984-85'))
+            except AssertionError as x:
+                errs.append(f'{tag}: path {x}')
+                continue
+            sc = s.screen()
+            tx = [t for t in sc.texts() if t]
+            ns = s.result.read(wcur, 1)[0]
+            s.shot(f'{tag}_countries')
+            check('GERMANIA OVEST' in tx and 'AZERBAIGIAN' not in tx and ns == nsbase,
+                  f'{tag}: EUROPA 1984-85 lists {tx[:14]} (WCUR {ns}, 1984-85 {nsbase})', errs)
+            try:
+                wm_seq(s, ('ITALIA', 'SERIE A'))
+            except AssertionError as x:
+                errs.append(f'{tag}: ITALIA > SERIE A {x}')
+                continue
+            tx = [t for t in s.screen().texts() if t]
+            s.shot(f'{tag}_clubs')
+            check('AVELLINO' in tx, f'{tag}: ITALIA > SERIE A lists {tx[:12]}', errs)
+            info.append(f'{tag}: WCUR {ns}, {tx[:5]}')
+    return not errs, '; '.join(errs + info)
+
 def pick_done(s, e=55, w=4):
     """The team picker's done entry (`e`, the bottom row's left: PLAY / CUP / ...): down past the team rows, right off
     56 / 57, then fire (engine_registry's way: the path planner finds no link from a team row to it)"""

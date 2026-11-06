@@ -6483,6 +6483,14 @@ def bench_vars():
         gs = [x for x in re.finditer(rb'\x66\x83\x3d(....)\x03\x0f\x84....\x66\xc7\x05....\x01\x00\x66\x83\x3d', d, re.S)]
         assert len(gs) == 1, ('gameState', len(gs))     # (BenchMenuHandleControls: cmp gameState, ST_KEEPER_HOLDS_BALL /
         bench_vars.v['GSTATE'] = t(gs[0], 1)            # jz / mov [subsBlockDirections], 1 / cmp [g_benchPlayerIndex], 5)
+        ni = list(re.finditer(rb'(?:\x66\xc7\x05....\xff\xff(?:\x66\xc7\x05....\x00\x00){2}){2}\x66\xc7\x05(....)\x00\x00\x66\xc7\x05(....)'
+                              rb'\x00\x00\xc3', d, re.S))           # (BenchCheckControls' @@bench_not_invoked: the calls
+        assert len(ni) == 1, ('bench_not_invoked', len(ni))  # cleared every frame of play - PgUp / PgDn land only while
+        b1, b2 = t(ni[0], 1), t(ni[0], 2)                # play is stopped)
+        ls = [x for x in re.finditer(rb'\x66\xc7\x05(....)\x00\x00\x66\xc7\x05(....)\x00\x00\x66\xc7\x05(....)\x00\x00', d, re.S)
+              if (t(x, 1), t(x, 2)) == (b1, b2)]         # (LeaveSubsMenu: bench1Called / bench2Called / g_inSubstitutesMenu)
+        assert len(ls) == 1, ('LeaveSubsMenu', len(ls))
+        bench_vars.v.update(B1C=b1, B2C=b2, INSUBS=t(ls[0], 3))
     return bench_vars.v
 
 
@@ -6740,11 +6748,15 @@ def save_under(r):
     return struct.unpack('<H', r.obj2(cnt, 2))[0], ends[hi], hi, top - base, base
 
 
-def bench_sub(s, bx, place, errs, info, mark, key=None, gone=None, tag=''):
+def bench_sub(s, bx, place, errs, info, mark, key=None, gone=None, tag='', human_key=False):
     """benchx block 2: the bench called, its cursor moved down to the squad's place `place` (12..26, g_benchPlayerIndex
     = place - 11: index 1 = in-match player 11 = place 12; 4.0.6 two-row dugouts: every place seated, no window - bx_win,
     obj1 at bx - 4, stays 0 - and the camera at the halfway line, both dugouts in view, dugout_check); fire picks him
-    (g_subsState 1, plToEnterGameIndex = place - 1), fire again makes the change (the team's NumSubs + 1)."""
+    (g_subsState 1, plToEnterGameIndex = place - 1), fire again makes the change (the team's NumSubs + 1).
+    human_key (06/11): the human club's own key (PgDn the top team's, PgUp the bottom's: TeamGeneralInfo.playerNumber),
+    up to 40 calls, the cursor tried only once the bench is open (g_inSubstitutesMenu): the game clears a bench call
+    every frame of play (@@bench_not_invoked), so a key lands only while play is stopped - fixed keys at fixed times
+    missed it for one side's whole match flow (the 'top-team freeze', 8/8, 06/11)."""
     v = bench_vars()
     want = place - 11
     w16 = lambda o, base: struct.unpack('<H', s.result.read(base + o, 2))[0]
@@ -6771,10 +6783,16 @@ def bench_sub(s, bx, place, errs, info, mark, key=None, gone=None, tag=''):
             s.poke(s.result.base2 + at, part)
         s.log.append(f'[rng] {rv.hex()}')
         s.rng_pinned = True
-    for call in range(12):
+    if human_key:
+        td = team_data()
+        key = 'pgdn' if w16(td[0] + 4, s.result.base2) or w16(td[0] + 6, s.result.base2) else 'pgup'
+    for call in range(40 if human_key else 12):
         if not keeper_let_go(s, errs):
             return False
         r = s.send((key or ('pgup' if call % 2 == 0 else 'pgdn')) + ':0.3 dump:0.6')   # (key: one team's bench)
+        if os.environ.get('BENCH_DIAG') and r.outcome == 'dump':   # (bench1Called / bench2Called / g_inSubstitutesMenu)
+            info.append(f'call {call} {key or ("pgup", "pgdn")[call % 2]}: b1/b2/in ' + str(
+                [w16(v[k], r.base2) for k in ('B1C', 'B2C', 'INSUBS')]))
         if r.outcome == 'dump':
             r, cam = cam_settle(s)          # (4.0.6 long dugouts: the bench takes keys once the camera is there)
             if os.environ.get('BENCH_DIAG') and call < 4:
@@ -6787,6 +6805,8 @@ def bench_sub(s, bx, place, errs, info, mark, key=None, gone=None, tag=''):
             errs.append(f'bench call: {r}')
             return False
         last, still = w16(v['IDX'], r.base2), 0
+        if human_key and not w16(v['INSUBS'], r.base2):
+            continue                        # (not open: play went on - the next call)
         for j in range(24):
             r = ks(f"down:{os.environ.get('BENCH_KEYHOLD', '0.15')} dump:0.3")
             if r.outcome != 'dump':
@@ -8579,6 +8599,8 @@ FR_CASES = {        # (4.0.6 bench_friendly) case: (world, home path, away path,
              ('SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE D', 'SERIE D GIRONE A', 'DERTHONA'), 9, 5),
     'seriea': (0, ('SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE A', 'INTER'),
                ('SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE A', 'MILAN'), 15, 5),
+    'seriea_top': (0, ('SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE A', 'INTER'),     # (Regia 06/11) seriea with the human
+                   ('SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE A', 'MILAN'), 15, 5),   # made the top team (BENCH_TOP)
     'diy': (0, ('SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE D', 'SERIE D GIRONE A', 'CELLE VARAZZE'),
             ('SQUADRE CLUB', 'EUROPA', 'SPAGNA', 'LALIGA', 'REAL MADRID'), 12, 5),
     'diycup': (0, ('SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE D', 'SERIE D GIRONE A', 'CELLE VARAZZE'),
@@ -8771,17 +8793,30 @@ def bench_friendly():
                           f'among the starters, {fb[1]} on the bench', errs)
             info.append(f'{case}: pre-match {pre[0]}:{pre[1]}, named:used {gm[1]}:{gm[0]} ({", ".join(desc)})')
             check(gm == (used, want), f'{case}: named:used {gm[1]}:{gm[0]}, want {want}:{used}', errs)
-            if case == 'seriea' and gm == (used, want):     # the change: the save-under peak with two benches of 15
+            if case in ('seriea', 'seriea_top') and gm == (used, want):   # the change: the save-under peak, two benches of 15
                 mine = [k for k, (name, _) in enumerate(teams) if name == home[-1]]   # the human club (top / bottom:
                 pl = teams[mine[0]][1][:cap] if mine else []                         # the game may swap the sides)
                 gone = {i - 10 for i, x in enumerate(pl) if i >= 11 and not x[0]}      # its empty places (no XTRA player)
+                td = team_data()
+                if case == 'seriea_top' or os.environ.get('BENCH_TOP'):   # (Regia 06/11) the human made the top team:
+                                                    # playerNumber 1 / 0 (the bench call by PgDn, bench_sub human_key)
+                    s.poke(r.base2 + td[0] + 4, b'\x01\x00')
+                    s.poke(r.base2 + td[1] + 4, b'\x00\x00')
+                    r = s.send('dump:0.3')
+                    ptr = struct.unpack('<I', r.read(r.base2 + td[0] + 10, 4))[0]   # (TeamGeneralInfo.inGameTeamPtr:
+                    k = 0 if ptr == r.base2 + top else 1                           # the club the human now plays)
+                    gone = {i - 10 for i, x in enumerate(teams[k][1][:cap]) if i >= 11 and not x[0]}
+                    info.append(f'BENCH_TOP: the top team ({teams[k][0]}) made the human one')
                 if os.environ.get('BENCH_DIAG'):    # (the controls each bench reads: playerNumber / playerCoachNumber)
-                    td = team_data()
                     info.append('player / coach numbers top, bottom: ' + str([struct.unpack('<HH', r.read(r.base2 + o + 4, 4))
                                                                                for o in td]))
+                    ig = {r.lin(0) * 0 + r.base2 + top: teams[0][0], r.base2 + bot: teams[1][0]}
+                    for nm, o in zip(('top', 'bottom'), td):     # (TeamGeneralInfo.inGameTeamPtr +10, teamNumber +18)
+                        ptr, tn = struct.unpack('<I', r.read(r.base2 + o + 10, 4))[0], struct.unpack('<H', r.read(r.base2 + o + 18, 2))[0]
+                        info.append(f'TGI {nm}: inGameTeamPtr {ptr:#x} -> {ig.get(ptr, ig.get(ptr - r.base2 + r.base2, "?"))}, '
+                                    f'teamNumber {tn} (in-match teams at {r.base2 + top:#x} {teams[0][0]}, {r.base2 + bot:#x} {teams[1][0]})')
                 bench_sub(s, bx, 21, errs, info, lambda t: open(os.path.join(s.run, 'progress.txt'), 'a').write(t + '\n'),
-                          gone=gone)        # (no key: pgup / pgdn in turn, as the other callers - the one human's
-                                            # bench opens on its own key; the fixed key by side missed it, MILAN on top)
+                          gone=gone, human_key=True)   # (the human's key until the bench opens: bench_sub)
     return not errs, '; '.join(errs + info)
 
 

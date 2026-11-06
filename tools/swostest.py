@@ -7927,7 +7927,8 @@ def bench_play(s, gmax, top, bot, wants, errs, info, mark, sub=None, icons=None,
         mark(f'step {step} [{act}]: ' + ', '.join(texts)[:150])
         if act:
             pm = act in ('PARTITA', 'GIOCA PARTITA') and 'MOD. TATTICA' in texts
-            if SPP_STEP and (pm or act == '- PARTITA -'):   # (06/11: held until the screen goes - frame time = load)
+            if SPP_STEP and (pm or act in ('- PARTITA -', 'PROSS. PARTITA')):   # (06/11: held until the screen
+                                                                               # goes - its frame time = the load)
                 h = spp_fire_held(s, act, 4 if pm else 3, lambda q: q.screen().find(
                     'MOD. TATTICA' if pm else act, exact=True) is None)
                 mark(f'  SWOS++ {act} fire held {h} ticks')

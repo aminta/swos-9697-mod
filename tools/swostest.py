@@ -18053,13 +18053,14 @@ def world_s1conti_oldsave():
         s.send(LOAD1 + ' dump:3')
         eds.append(bytes(s.result.obj2(tr[1], 2260)))
         ctc_to_conti(s)                                 # (4.0.6 ctcursor: the rounds menus on the old save's edition
-        g1 = ctc_confs(s, 'old', errs)                  #  built at the load - each on a round, its pick logged)
+        d1 = []                                         #  built at the load - each on a round, its pick logged;
+        g1 = ctc_confs(s, 'old', errs, d1)              #  4.1 cdirect: a round in progress opened on its view)
         check(g1, 'old save: no rounds menu', errs)
     ed = eds[0]
     ne, mgr = struct.unpack_from('<H', ed, 2)[0], struct.unpack_from('<H', ed, 8)[0]
     check(ed[:2] == b'CE' and ed[11] & 3 == 3 and ne > 100,   # (built at the load: the 4.0.6 goals model too)
           f'old save: no season-1 edition at the load (CT_ED {ed[:12].hex()})', errs)
-    return not errs, '; '.join(errs) or f'CT_ED {ed[:12].hex()}: {ne} entries, club {mgr:#x}; cursor {g1}'
+    return not errs, '; '.join(errs) or f'CT_ED {ed[:12].hex()}: {ne} entries, club {mgr:#x}; cursor {g1}; direct {d1}'
 
 
 @scenario
@@ -18249,7 +18250,11 @@ def world_cgame_view():
         walk(s, s.screen().find('COPPE CONTINENTALI', exact=True), 3)
         for k in range(1, 7):
             conf = s.screen().entries[k][1]
-            walk(s, k, 3)
+            how = ctc_open(s, k, f'cgv_{k}')            # (4.1 cdirect: a round in progress - its view, ESCI back)
+            if how not in ('menu', 'page'):
+                ok, sel, lab = ctc_same(s, how)
+                check(ok, f'{conf}: direct view {how!r}, the cursor\'s entry {sel} {lab!r} not that round', errs)
+                info.append(f'{conf}: direct {how!r}')
             if s.screen().find(summ, exact=True) is None:
                 info.append(f'{conf}: no rounds')
                 walk(s, 16, 3)
@@ -18316,7 +18321,14 @@ def world_cgame_view():
             if cont:
                 gwalk(s, cont, 3)
             b0 = st()
-            gwalk(s, cup, 4)
+            if cont == 'EUROPA':                        # (the UEFA cups: the game's own view)
+                gwalk(s, cup, 4)
+            else:                                       # (4.1 cdirect: a round in progress - its view, ESCI back)
+                how = ctc_open(s, cup, f'cgw_{q}')
+                if how not in ('menu', 'page'):
+                    ok, sel, lab = ctc_same(s, how)
+                    check(ok, f'{cup}: direct view {how!r}, the cursor\'s entry {sel} {lab!r} not that round', errs)
+                    info.append(f'{cup}: direct {how!r}')
             sc = s.screen()
             title = (sc.raw_texts or [sc.entries[0][1]])[0]
             if sc.find(summ, exact=True) is None:      # (no round drawn: the cup's page part; a UEFA cup:
@@ -18546,7 +18558,7 @@ def menu_unreach(sc, ents):
     return [i for i in ents if i != sc.selected and sc.path(i) is None]
 
 
-def ctc_confs(s, part, errs):
+def ctc_confs(s, part, errs, direct=None):
     """4.0.6 ctcursor: COPPE CONTINENTALI on screen -> each confederation's rounds menu: {conf: (its selected entry,
     the visible round buttons)}, a shot ctc_<part>_<k>; the cursor on a round asserted; ESCI back each time."""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
@@ -18554,11 +18566,18 @@ def ctc_confs(s, part, errs):
     summ, got = ctview.TEXTS[UI][7].decode('latin1'), {}
     for k in range(1, 7):
         conf = s.screen().entries[k][1]
-        walk(s, k, 3)
-        sc = s.screen()
-        if sc.find(summ, exact=True) is None:           # (no round drawn: the summary page only)
+        how = ctc_open(s, k, f'{part}_{k}')
+        if how == 'page':                               # (no round drawn: the summary page only)
             walk(s, 16, 3)
             continue
+        sc = s.screen()
+        if how != 'menu':                               # (4.1 cdirect: a round in progress - its view first, its
+            if direct is not None:                      #  ESCI on the rounds menu, the cursor on that round)
+                direct.append(conf)
+            ok, sel, lab = ctc_same(s, how)
+            s.log.append(f'[ctc] {part} {conf}: direct view {how!r}, back on entry {sel} {lab!r}: {ok}')
+            check(ok, f'{part} {conf}: direct view {how!r}, the cursor\'s entry {sel} {lab!r} not that round', errs)
+            sc = s.screen()
         rb = [i for i, t, inv, dis in sc.entries[1:1 + ctview.CR_N] if not inv and t]
         s.shot(f'ctc_{part}_{k}')
         got[conf] = (sc.selected, rb)
@@ -18568,6 +18587,49 @@ def ctc_confs(s, part, errs):
         check(not far, f'{part} {conf}: entries {far} out of the keys\' reach from {sc.selected}', errs)
         walk(s, ctview.CR_N + 2, 3)                     # (ESCI -> the confederations)
     return got
+
+
+def ctc_open(s, k, tag):
+    """A confederation's / a cup's button k (a number or a label): 'menu' (its rounds menu), 'page' (the summary page:
+    no round drawn) or - 4.1 cdirect, a round in progress - the round view's title (its shot ctd_<tag>), then its ESCI
+    till the rounds menu."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import ctview
+    summ = ctview.TEXTS[UI][7].decode('latin1')
+    (walk if isinstance(k, int) else gwalk)(s, k, 4)
+    sc = s.screen()
+    if sc.find(summ, exact=True) is not None:
+        return 'menu'
+    t0 = (sc.raw_texts or [e[1] for e in sc.entries])[0] or ''
+    if t0.startswith(ctview.TEXTS[UI][6].decode('latin1')) or (isinstance(k, str) and t0.strip() == k):
+        return 'page'                                   # (VIEW WORLD's cup: its page titled by the cup alone)
+    s.shot(f'ctd_{tag}')
+    for _ in range(6):
+        if s.screen().find(summ, exact=True) is not None:
+            break
+        press(s, s.screen(), 'ESCI', 3) or s.send('fire dump:2')
+    return t0.strip() or '?'
+
+
+def ctc_same(s, title):
+    """4.1 cdirect, back from a direct round view on the rounds menu: the cursor's round opened again shows the same
+    view (its title), then ESCI back on the menu, the cursor where it was. -> (ok, the cursor's entry, its label)"""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import ctview
+    summ = ctview.TEXTS[UI][7].decode('latin1')
+    sc = s.screen()
+    sel = sc.selected
+    lab = sc.entries[sel][1] if sel in range(len(sc.entries)) else None
+    if sc.find(summ, exact=True) is None or not 1 <= sel <= ctview.CR_N:
+        return False, sel, lab
+    walk(s, sel, 4)
+    v = s.screen()
+    t = ((v.raw_texts or [e[1] for e in v.entries])[0] or '').strip()
+    for _ in range(6):
+        if s.screen().find(summ, exact=True) is not None:
+            break
+        press(s, s.screen(), 'ESCI', 3) or s.send('fire dump:2')
+    return t == title and s.screen().selected == sel, sel, lab
 
 
 def ctc_to_conti(s):
@@ -18625,8 +18687,10 @@ def world_ctcursor():
                 return False, 'season 1: career not reached'
             s.send('fire dump:3')
             ctc_to_conti(s)
-            g1 = ctc_confs(s, 's1', errs)
+            d1 = []
+            g1 = ctc_confs(s, 's1', errs, d1)
             check(g1, 'season 1: no rounds menu', errs)
+            check(not d1, f'season 1 (no match played): {d1} opened on a round view (4.1 cdirect: not started)', errs)
             for conf, (sel, rb) in g1.items():
                 check(sel == min(rb), f'season 1 {conf}: on entry {sel}, not its first round {min(rb)}', errs)
             info.append(f's1 {g1}')
@@ -18649,8 +18713,11 @@ def world_ctcursor():
         else:
             s.send(LOAD1 + ' dump:3')
         ctc_to_conti(s)
-        g2 = ctc_confs(s, 's2', errs)
+        d2 = []
+        g2 = ctc_confs(s, 's2', errs, d2)
         check(g2, 'season 2: no rounds menu', errs)
+        check(d2, 'season 2: no confederation opened on its round in progress (4.1 cdirect)', errs)
+        info.append(f'direct {d2}')
         ctc_back(s)
         cur = struct.unpack('<H', bytes(s.result.obj2(tr[4], 2)))[0]
         wk = (2, tr[3] + cur + 1)                       # (cv_week: the current calendar entry's week byte)
@@ -18658,7 +18725,9 @@ def world_ctcursor():
         s.poke(s.result.lin(wk), b'\xff')
         s.send('dump:1')
         walk(s, s.screen().find('COPPE CONTINENTALI', exact=True), 3)
-        gf = ctc_confs(s, 'end', errs)
+        df = []
+        gf = ctc_confs(s, 'end', errs, df)
+        check(not df, f'week FF (season over): {df} opened on a round view (4.1 cdirect)', errs)
         for conf, (sel, rb) in gf.items():
             check(sel == max(rb), f'week FF {conf}: on entry {sel}, not its last round {max(rb)}', errs)
             if conf in g2:
@@ -18684,6 +18753,16 @@ def world_ctcursor():
                   f'VIEW WORLD {cup} (week FF): on entry {sc.selected}, not its last round {rb}', errs)
             info.append(f'VIEW WORLD {cup}: {sc.selected} of {rb}')
         s.poke(s.result.lin(wk), w0)
+        if cup is not None:                             # (4.1 cdirect: the season-2 week again - VIEW WORLD's cup
+            walk(s, ctview.CR_N + 2, 3)                 #  on its round in progress: the view, ESCI on the rounds menu)
+            walk(s, 'VISUALIZZA MONDO', 3)
+            gwalk(s, 'SUDAMERICA', 3)
+            how = ctc_open(s, cup, 'world_cup')
+            ok, sel, lab = ctc_same(s, how) if how not in ('menu', 'page') else (False, None, None)
+            s.log.append(f'[ctc] VIEW WORLD {cup} (season-2 week): {how!r}, back on entry {sel} {lab!r}: {ok}')
+            if 'CONMEBOL' in d2:
+                check(ok, f'VIEW WORLD {cup} (season-2 week): {how!r}, the cursor\'s entry {sel} {lab!r}', errs)
+            info.append(f'VIEW WORLD {cup} s2: {how}')
         info.append(f's2 {g2}; week FF {gf}')
     return not errs, '; '.join(errs) or '; '.join(info)
 

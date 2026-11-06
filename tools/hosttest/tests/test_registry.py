@@ -23,7 +23,7 @@ import swreg  # noqa: E402
 HOME = os.path.expanduser('~')
 EXE = os.environ.get('HT_REG_EXE') or os.path.join(HOME, 'swos-mod', 'c', 'HTW', 'SWOS', 'ITALIAN.EXE')
 ORIG = os.environ.get('HT_REG_ORIG') or os.path.join(HOME, 'swos-mod', 'orig', 'ITALIAN.EXE')   # (the same language / edition)
-B1, B2, B4 = 0x1000000, 0x2000000, 0x3000000
+B1, B2, B3, B4 = 0x1000000, 0x2000000, 0x2C00000, 0x3000000
 STACK, RET = 0x5000000, 0x4FF0000
 
 
@@ -36,11 +36,12 @@ def _machine():
     from unicorn import Uc, UC_ARCH_X86, UC_MODE_32
     import emu
     from le import LE
-    i1, i2, le = emu.relocate(EXE, B1, B2, None, B4)
+    i1, i2, le = emu.relocate(EXE, B1, B2, B3, B4)
     o4 = le.obj(4)
     i4 = bytes(le.img4).ljust(o4.vsize, b'\xAA')        # (the arena: garbage, as DOS/4GW may leave it)
+    i3 = bytes(le.img3).ljust(le.obj(3).vsize, b'\0')  # (4.1: mainbtn's 'Original main menu' byte, set_w)
     uc = Uc(UC_ARCH_X86, UC_MODE_32)
-    for b, img in ((B1, i1), (B2, i2), (B4, i4)):
+    for b, img in ((B1, i1), (B2, i2), (B3, i3), (B4, i4)):
         uc.mem_map(b, (len(img) + 0xfff) & ~0xfff)
         uc.mem_write(b, bytes(img))
     uc.mem_map(RET & ~0xfffff, 0x200000)

@@ -310,6 +310,8 @@ static int world_name(u32 t)
 /* 4.1 (Davide 06/11, option A): STORICO > MONDO 1996-97's continent buttons with the year ('EUROPA 96-97': 1996-97 is wider than NORDAMERICA's 100 px, Davide ok 07/11): pairs
    (a proxy's own NAME, its text with the year), swe.py w0_proxies; the titles keep the NAME. */
 const u8 *W0_YR[2 * 8] DATA = {0};
+#define W0_BTN 100                      /* (the list's button width, x at +0x14, width at +0x18) */
+#define W0_WIDEN 12
 
 void swe_names_post(void)
 {
@@ -324,8 +326,13 @@ void swe_names_post(void)
         if (*(u16 *)(e + 4))
             continue;
         for (int j = 0; j < 8 && W0_YR[2 * j]; j++)
-            if (rd32(e + 0x26) == (u32)W0_YR[2 * j])
+            if (rd32(e + 0x26) == (u32)W0_YR[2 * j]) {
                 *(u32 *)(e + 0x26) = (u32)W0_YR[2 * j + 1];
+                if (*(u16 *)(e + 0x18) == W0_BTN) {   /* (the one column of 100 px: 'NORTH AMERICA 96-97' is 102) */
+                    *(u16 *)(e + 0x14) -= W0_WIDEN / 2;
+                    *(u16 *)(e + 0x18) += W0_WIDEN;
+                }
+            }
         if (rd32(e + 0x26) == nm + 1)
             *(u16 *)(e + 0x1E) = GREEN;
         worlds |= world_name(rd32(e + 0x26));

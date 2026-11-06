@@ -11886,17 +11886,17 @@ def world_ns_contest():
         seq(s, ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB', hist, w0))
         sc = s.screen()
         s.shot('w0_list')
-        rows = [(i, t) for i, (j, t, inv, dis) in enumerate(sc.entries) if t and not inv and 21 <= j <= 86]
+        rows = [(i, sc.raw[i].decode('latin-1')) for i, (j, t, inv, dis) in enumerate(sc.entries)
+                if not inv and 21 <= j <= 86 and sc.raw[i]]           # (raw: the decoder drops a label with the Ü)
         cont = [(i, t) for i, t in rows if t.endswith(yr)]
         check(len(cont) == 6, f'(a) MONDO 1996-97 buttons {[t for _, t in rows]}: {len(cont)} with the year', errs)
-        for i, t in cont:
-            raw = sc.raw[i].decode('latin-1')
-            check(set(raw) <= complist.FONT and complist.px(raw) <= sc.geom[i][2],
+        for i, raw in cont:
+            check(set(raw) <= complist.FONT | {swe.UE} and complist.px(raw) <= sc.geom[i][2],
                   f'(a) button {raw!r}: {complist.px(raw)} px of {sc.geom[i][2]}, chars {set(raw) - complist.FONT}', errs)
         eu = next((t for _, t in cont if t.startswith('EUROPA') or t.startswith('EUROPE')), None)
         if eu:
             walk(s, eu, 2)
-            t0 = [t for t in s.screen().texts() if t][0]
+            t0 = s.screen().raw_texts[0]
             s.shot('w0_europa')
             check(t0.endswith(' - ' + eu[:-len(yr)]), f'(a) the EUROPA list title {t0!r}', errs)
             info.append(f'(a) {[t for _, t in cont]}, title {t0!r}')

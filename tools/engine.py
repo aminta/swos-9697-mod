@@ -36,12 +36,20 @@ CALL_AT = {}            # name -> (obj, offset) of the routine
 
 def clear():
     LEAGUE_AT.clear()
+    RETIRED.clear()
+    GROW.clear()
+    del BEFORE_SAVE[:]
     del GPLAY[:], PGROUPS[:], SPLITS[:], RESERVES[:]
     ITEM_AT.clear()
     CALL_AT.clear()
 
 
-def save_item(name, size, clear=True, world_only=False):
+RETIRED = {}            # engine P: name -> size of a load-only item (an older build's, its state now elsewhere)
+GROW = set()            # engine P: items whose saved length may be shorter (an older version of the item)
+BEFORE_SAVE = []        # engine P: routines called at the start of a career save (save_trailer)
+
+
+def save_item(name, size, clear=True, world_only=False, grow=False):
     """Save `size` bytes with the career, in the engine block 'EN' after the trailer's main block (any world, world 0
     too). The owner sets ITEM_AT[name] = (obj, offset) before trailer.patch runs, or later (then
     trailer.late() binds it, at the end of patch_exe). clear: a save without the item (an
@@ -50,8 +58,29 @@ def save_item(name, size, clear=True, world_only=False):
     another build does not know is skipped."""
     assert 0 < size < 0x8000 and SAVE_ITEMS.get(name, (size, clear)) == (size, clear), (name, size)
     SAVE_ITEMS[name] = (size, clear)
+    if grow:                            # (engine P: a save of an older, shorter version loads its bytes and zeroes the
+        GROW.add(name)                  # rest; another length of a plain item is not this build's item: skipped)
     if world_only:                      # (4.0.1: trailer.py writes it only for a career world's career; a world-0
         WORLD_ONLY.add(name)            # save without it loads it zeroed, as an older save)
+
+
+def retire_item(name, size, clear=True):
+    """Engine P: an item older builds saved and this one no longer writes (its state moved into the engine's 'SWC1'):
+    a load still reads it, by its id and size, to ITEM_AT[name] (the owner's import buffer or its old place), or
+    zeroes it when the save has none (clear); an after_load routine then imports it. Its room in the save is free."""
+    assert name not in SAVE_ITEMS and RETIRED.get(name, size) == size, name
+    RETIRED[name] = (size, clear)
+
+
+def before_save(name):
+    """Engine P: call CALL_AT[name] (pushad / popad around it, no arguments) when a career is saved, before the
+    trailer's blocks are written (e.g. swe.c filling the 'SWC1' header)."""
+    if name not in BEFORE_SAVE:
+        BEFORE_SAVE.append(name)
+
+
+def before_saves():
+    return [(n, CALL_AT.get(n)) for n in BEFORE_SAVE]
 
 
 def after_stage(name):
@@ -109,11 +138,13 @@ def item_id(name):
     return zlib.crc32(name.encode()) & 0xFFFF
 
 
-def save_items():
+def save_items(retired=False):
     """[(name, id, size, clear, (obj, offset) or None: set later, trailer.late)] in name order (trailer.patch); ids
-    unique."""
+    unique. retired: the load-only items after them (engine P: trailer.py reads them, never writes them)."""
     out = [(n, item_id(n), sz, cl, ITEM_AT.get(n))     # (the world-only items last: a world-0 career writes the
            for n, (sz, cl) in sorted(SAVE_ITEMS.items(), key=lambda kv: (kv[0] in WORLD_ONLY, kv[0]))]   # first ones)
+    if retired:
+        out += [(n, item_id(n), sz, cl, ITEM_AT.get(n)) for n, (sz, cl) in sorted(RETIRED.items())]
     assert len({i for _, i, _, _, _ in out}) == len(out), 'engine.save_item: two names with one id'
     return out
 

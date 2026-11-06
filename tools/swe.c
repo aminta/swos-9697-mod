@@ -783,3 +783,32 @@ __attribute__((naked)) void swe_pre_load_tramp(void)
     __asm__ volatile("pushal\n\tcall swe_diy_name\n\tpopal\n\tcall SWE_LOADPRE\n\tpushfl\n\tpushal\n\t"
                      "call swe_diy_loaded\n\tpopal\n\tpopfl\n\tret");
 }
+
+/* Engine P: the engine's state, saved with a career as the 'EN' item SWC1 (trailer.py, engine.save_item grow): a
+   header, then sections (u16 id, u16 length, the bytes; id 0 ends them). A save from before P has none: the trailer
+   zeroes the item (version 0) and swe_st_load starts it - the steps that take a legacy item over import it there. A
+   save of an older, shorter version loads its bytes, the rest zeroed. No pointers, integers only (PLAN §3.4). */
+#define SWC1_VER 1
+#define SWC1_HDR 20                     /* u16 version, u16 world, u32 spec hash, u16 season, u16 flags, u64 seed */
+u8 SWC1[SWC1_SIZE] DATA = {0};
+u32 SWC1_LOADED DATA = 0;               /* the last load's SWC1 version: 0 = a save from before P */
+#ifdef CWB
+extern u8 SWE_CWB[];                    /* careerworld: the career's world byte (someLeaguesTable[WORLD_BYTE]) */
+static u32 cw_byte(void) { return SWE_CWB[0]; }
+#else
+static u32 cw_byte(void) { return 0; }
+#endif
+
+void swe_st_save(void)                  /* engine.before_save: the header as this build writes it */
+{
+    *(u16 *)SWC1 = SWC1_VER;
+    *(u16 *)(SWC1 + 2) = (u16)cw_byte();
+}
+
+void swe_st_load(void)                  /* engine.after_load: the save's version kept, a missing state started */
+{
+    SWC1_LOADED = *(u16 *)SWC1;
+    if (!SWC1_LOADED)
+        *(u16 *)(SWC1 + 2) = (u16)cw_byte();
+    *(u16 *)SWC1 = SWC1_VER;
+}

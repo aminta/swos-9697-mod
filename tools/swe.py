@@ -53,6 +53,7 @@ MAGIC = b'SWOS-ENG'
 VERSION = 3                    # (swe.c SWE_VERSION; 2 = step W, the registry; 3 = W-modes M2, the pickers' worlds)
 CODE_AT = 0x40
 ARENA = 0x8000                 # (swe.c SWE_ARENA)
+SWC1_SIZE = 32                 # engine P: the career state item (swe.c SWC1: header 20 B + sections; grows by version)
 SRC = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'swe.c')
 LABELS = {}
 
@@ -266,10 +267,19 @@ def patch(p):
         calls = [c for c in calls if c[1] not in ('swe_ns_tramp', 'swe_stfm_tramp')]
     if 'W_FNAT' in careerworld.LABELS:              # step 2.5: the friendly / DIY nationals' world (w_tmap)
         ext['CW_FNAT'] = (1, careerworld.LABELS['W_FNAT'])
-    flags = (('-DNS',) if ns else ()) + (('-DSTFM',) if 'SWE_STFM' in ext else ()) + (('-DNAT',) if 'CW_PLNAT' in ext else ()) + (('-DMB',) if 'MB_STR' in ext else ()) + (('-DOMM',) if 'MB_OMM' in ext else ()) + (('-DFNAT',) if 'CW_FNAT' in ext else ()) + (('-DAV',) if 'SWE_PREPICK' in ext else ())
+    if careerworld.SITES.get('slt'):                # engine P: the career's world byte, SWC1's header
+        so, soff = careerworld.SITES['slt']
+        ext['SWE_CWB'] = (so, soff + careerworld.WORLD_BYTE)
+    flags = (('-DNS',) if ns else ()) + (('-DSTFM',) if 'SWE_STFM' in ext else ()) + (('-DNAT',) if 'CW_PLNAT' in ext else ()) + (('-DMB',) if 'MB_STR' in ext else ()) + (('-DOMM',) if 'MB_OMM' in ext else ()) + (('-DFNAT',) if 'CW_FNAT' in ext else ()) + (('-DAV',) if 'SWE_PREPICK' in ext else ()) + (('-DCWB',) if 'SWE_CWB' in ext else ()) + (f'-DSWC1_SIZE={SWC1_SIZE}',)
     syms, end, bss = cobj.link(p, cobj.compile_c(SRC, flags), CODE_AT, (4, room), externs=ext, limit=swreg.REG_AT,
                                text_obj=4)
     arena = syms['SWE_ARENA_AT']
+    import engine                                   # engine P: SWC1 and its hooks (trailer.late binds them)
+    engine.ITEM_AT['SWC1'] = syms['SWC1']
+    engine.CALL_AT['swe_st_save'] = syms['swe_st_save']
+    engine.CALL_AT['swe_st_load'] = syms['swe_st_load']
+    if 'RPRB' in engine.RETIRED:                    # (EN_RETIRE_PROBE test builds: the probe lands on SWC1_LOADED)
+        engine.ITEM_AT['RPRB'] = syms['SWC1_LOADED']
     if 'NAT_X' in syms:                             # M3: careerworld.NAT_ERA's pairs for the two lists
         import careerworld
         code = careerworld.nat_codes(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'orig',

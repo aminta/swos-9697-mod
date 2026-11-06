@@ -41,6 +41,29 @@ SEL_N 160 × 684 = 109440, main block 948, 'EN' block 15343 (25 items) → 12573
 | CR | 1 | cpurefill | 4.0.6 | CPU replacements switch |
 | FF | 21 | ffp (Integratore; state in finance.py FF_ST) | 4.0.6 (after I10j) | financial fair play: FF_ON, FF_BLOCK, FF_VALID (1 B each), FF_INC (the season's gates), FF_IPREV (last season's income), FF_FINE, FF_TVW (the season's TV credit share paid for the wages, left out of FFP's income) (dd each), FF_NCH (dw: the season's match charges, for the season-end wage bill). Plain bytes, no pointers, clear: an older save loads it zeroed = the rule OFF; a new career sets ON + VALID (after_new). With its header 25 B: **68 B left** on I10j + FFP |
 
+## Engine P (2026-11-06, branch p-persist off engine = trymerge cd4e54c)
+
+**Re-measured on the 4.1 recipe** (406-omm, c/HTOMM): 'EN' 15368 B (26 items) + main 948 → **68 B left** of SEL_ROOM.
+
+- **SEL_ROOM + 207 B** (0x4000 → 0x40CF over the cache): all the room between the stage's end and B_UQ, nothing
+  moved (B_SEL + SEL_ROOM still 945 B below B_STAGE). A constant, not an old-save-trap change: old saves are
+  smaller. The other way round, a save of this build can be up to 207 B bigger than a 4.1 exe's room (a downgrade, not
+  supported).
+- **SWC1** (swe.c, obj4, 32 B in v1): the engine's state, one 'EN' item that *grows*. Header 20 B: u16 version (1),
+  u16 world (the career's world byte), u32 spec hash, u16 season, u16 flags, u64 seed (0 until the steps that use
+  them), then sections (u16 id, u16 length, bytes; id 0 ends). swe_st_save (engine.before_save) writes the header;
+  swe_st_load (engine.after_load) keeps the save's version in SWC1_LOADED (0 = a save from before P) and starts a
+  missing state. With its 4-B item header: **36 B → 239 B left** (HTP1).
+- **Item flags in the trailer** (EN_ITEMS' third dword): bit 16 clear, **bit 17 grow** (a shorter saved length loads,
+  the rest zeroed; a longer one is a newer build's: skipped, as before). **Load-only items**
+  (engine.retire_item): read by id and size, never written; the save loops write EN_NS items, the load knows EN_N.
+- **How the room comes back:** a step that takes a legacy item over (S1..S3: GP, GS, SS, SS2, CD, CF, WN, F1, CN, BQ)
+  retires it (load-only, its import in swe_st_load when SWC1_LOADED is 0) and grows SWC1 by a section: its bytes + 4
+  move from the item to SWC1, the item's own 4-B header comes free. **SWC1 ≤ the retired items + 239 B**; beyond
+  that, a B_STAGE / B_UQ move (+~4 h, its own old-save gate), asked first.
+- Tier B: test_swc1.py (static image): the save, this build's load, shorter (grow) / longer / missing SWC1, a plain
+  item of another length skipped, and (EN_RETIRE_PROBE=1 build) a load-only item read, never saved.
+
 ## The round trip (test_roundtrip.py, Tier B)
 
 - **A save of the current build:** save(load(x)) = x, byte for byte.

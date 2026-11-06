@@ -1024,6 +1024,8 @@ def ui_it(text):
         return 'FINE CAMP. ' + text
     if text in ("SAISONS D'ANTAN", 'SAISONKLASSIKER'):   # (mkseason.SEASONS_NAMES: the historic seasons' button)
         return 'STAG. STORICHE'
+    if text in ('CLASSIC TOURNEYS', 'TOURNOIS ANCIENS', 'TURNIERKLASSIKER'):   # (historic.NAMES: the tourneys' button)
+        return 'TORNEI STORICI'
     if 'DIY-POKAL' in text and ('SPEICHERN' in text or 'WEITER' in text):   # (German save / continue the DIY cup)
         return ('SALVA' if 'SPEICHERN' in text else 'CONTINUA') + ' COPPA PERSONAL.'
     m = re.fullmatch(r'\((.+)\)', text)                  # (a squad screen's '(COUNTRY)': the Italian name)
@@ -11491,7 +11493,8 @@ def engine_avail():
     not CROATIA, none of the 12 post-1990 'unused' ones: av_unused), EAST GERMANY - WEST GERMANY: the pre-match screen shows an era one; 1996-97 after it = the game's (CROATIA)."""
     errs, info = [], []
     files = {'SETUP.DAT': setup_file('engine_avail', 1)}
-    box = {'preset': ('COMP. PREDEFINITA', 'TORNEI STORICI', 'COPPA MONDIALE 1934'),
+    wc34 = {'en': 'WORLD CUP 1934', 'fr': 'COUPE DU MONDE 1934', 'de': 'WM 1934'}.get(UI, 'COPPA MONDIALE 1934')
+    box = {'preset': ('COMP. PREDEFINITA', 'TORNEI STORICI', wc34),                  # (the pack's name per language)
            'season': ('STAGIONE', 'STAG. STORICHE', 'ITALIA 1947-48')}
     with Session('engine_avail', os.environ.get('SWOSTEST_BUILD') or builds()['it'], files, 'dump:3', 900) as s:
         if s.wait().outcome != 'dump':
@@ -11544,9 +11547,11 @@ def engine_avail():
                 want, never = ((('EAST GERMANY', 'SOVIET UNION', 'WEST GERMANY', 'CZECHOSLOVAKIA', 'YUGOSLAVIA'),
                                 ('CROATIA', 'RUSSIA') + av_unused()) if w == 2
                                else (('CROATIA', 'RUSSIA', 'UKRAINE'), ('EAST GERMANY', 'SOVIET UNION')))
-                check(all(n in tx for n in want) and not any(n in tx for n in never), f'{tag}: EUROPA lists '
-                      f'{[n for n in want + never if n in tx]}', errs)
-                info.append(f'{tag}: {conts}, {[n for n in want + never if n in tx]}')
+                en = json.load(open(os.path.join(ROOT, 'tools', 'swostest_lang.json')))['en']   # (CROATIA is read
+                has = lambda n: n in tx or en.get(n, n) in tx                                       # as CROAZIA)
+                check(all(map(has, want)) and not any(map(has, never)), f'{tag}: EUROPA lists '
+                      f'{[n for n in want + never if has(n)]}', errs)
+                info.append(f'{tag}: {conts}, {[n for n in want + never if has(n)]}')
                 if w == 2:
                     for n in ('EAST GERMANY', 'WEST GERMANY'):
                         walk(s, n, 2)
@@ -11617,7 +11622,8 @@ def engine_wmodes_next():
     errs, info = [], []
     hist = 'CARR. STORICHE'                      # (the careers' box label: STORICO's until Davide's texts)
     files = {'SETUP.DAT': setup_file('engine_wmodes_next', 0)}
-    paths = {'preset': ['COMP. PREDEFINITA'], 'edit': ['MODIFICA SQUADRE', 'SQUADRE CLUB', 'SQUADRE ORIGINALI'], 'season': ['STAGIONE'],
+    orig = {'en': 'ORIGINAL CUSTOM TEAMS', 'fr': 'EQUIPES PERS. ORIG'}.get(UI, 'SQUADRE ORIGINALI')   # (DE: its umlaut,
+    paths = {'preset': ['COMP. PREDEFINITA'], 'edit': ['MODIFICA SQUADRE', 'SQUADRE CLUB', orig], 'season': ['STAGIONE'],   # no text)
              'career': ['CARRIERA', 'SCEGLI SQUADRA']}
     with Session('engine_wmodes_next', os.environ.get('SWOSTEST_BUILD') or builds()['it'], files, 'dump:3', 900) as s:
         if s.wait().outcome != 'dump':
@@ -11643,12 +11649,16 @@ def engine_wmodes_next():
                     press(s, sc, sc.find(t, exact=False), 3)
                     seen.append(t)
             sc = s.screen()
+            if k == 'edit' and UI == 'de' and orig not in seen and sc.find('ESCI', exact=True):   # (URSPRUENGL. EIGN
+                press(s, sc, sc.find('ESCI', exact=True) - 2, 3)                                 # MANNS: 2 before ENDE)
+                seen.append(orig)
+                sc = s.screen()
             ns = s.result.read(wcur, 1)[0]
             s.shot(k)
             info.append(f'{k}: {" > ".join(seen)}: WCUR {ns}, {[e[1] for e in sc.entries if e[1]][:4]}')
             if k != 'career':
-                opened = sc.find('EUROPA', exact=True) is not None or (k == 'edit' and sc.entries and   # (edit: the
-                                                                       sc.entries[0][1].startswith('SELEZ. SQ.')) \
+                opened = sc.find('EUROPA', exact=True) is not None or (k == 'edit' and orig in seen and   # (edit: the
+                                                                       sum(bool(t) and not inv for _, t, inv, _ in sc.entries) >= 8) \
                     or (k in ('preset', 'season') and av_rows_ok(sc, k, [], k))   # (step 2.5: 2026-27's message)
                 check(ns == nsbase and opened, f'{k}: WCUR {ns} at the picker\'s '
                       f'first list (base {nsbase}) {sc.texts()[:8]}', errs)

@@ -239,6 +239,7 @@ static void fnat(u32 w) { (void)w; }
 static u32 fnat_on(void) { return 0; }
 #endif
 
+#ifdef NS                               /* (its one caller: swe_stfm_guard) */
 static void av_swap(void)               /* at SelectTeamsFinalMenu's entry: the armed message's top list */
 {
     u32 kind = AV_ARM, *c254 = (u32 *)rd32(SWE_REG + 12);
@@ -261,6 +262,7 @@ static void av_swap(void)               /* at SelectTeamsFinalMenu's entry: the 
     *c254 = (u32)L_AV;
     AV_SHOW = kind == AV_EU ? 0 : kind;
 }
+#endif
 
 static void av_rows(u8 *e0)             /* the message in the top list's first two rows (e0 = entry 21) */
 {

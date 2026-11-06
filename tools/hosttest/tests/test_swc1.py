@@ -269,3 +269,52 @@ def test_swc1_sections():
         errs.append(f'accesses outside SWC1: {sorted(set(stray))[:6]}')
     return not errs, '; '.join(errs) or ('add / find on an empty state, a full one refused, 3 corrupt states: no access '
                                          'outside SWC1, find 0 for an unreachable section, add refused')
+
+
+LEDGER = os.path.join(TOOLS, '..', 'notes', 'engine', 'save-ledger.md')
+
+
+def test_ledger():
+    """Engine P 7: the save ledger (notes/engine/save-ledger.md, its item table) against what HT_P_EXE's save_trailer
+    really writes (NUMSEL 0, the static image): every item saved has its row with the same size, every row is saved
+    (a new item without its ledger line - the rule since P0 - fails here), and the build's room left is >= 0."""
+    syms = EXE[:-4] + '.syms.json'
+    if not os.path.exists(EXE) or not os.path.exists(syms):
+        return False, f'{EXE} / its .syms.json missing (HT_P_EXE)'
+    import re
+    rows = {m.group(1): int(m.group(2)) for m in re.finditer(r'^\| ([A-Z][A-Z0-9_]*) \| (\d+) \|', open(LEDGER).read(),
+                                                                re.M)}
+    sy = json.load(open(syms))
+    uc, le, rd = static_machine(EXE)
+    save = tr.B1 + sy['trailer']['save_trailer'][1]
+    uc.mem_map(BUF, 0x40000)
+    code = rd(save, 0x400)
+    for pat, val in ((b'\xa1', b'\0' * 4), (b'\x0f\xb7\x05', b'\0\0'), (b'\x03\x3d', struct.pack('<I', BUF)),
+                     (b'\x3b\x05', struct.pack('<I', 0x30000))):
+        uc.mem_write(_disp(rd, save, 0x80 if pat != b'\xa1' else 0x10, pat), val)
+    d1 = _disp(rd, save, 0x200, b'\x81\x05')
+    uc.mem_write(d1, b'\0' * 4)
+    st_save = tr.B4 + sy['swe']['swe_st_save'][1]                    # (a World 2026-27 career: the world-only
+    uc.mem_write(_disp(rd, st_save, 0x40, b'\x0f\xb6\x05'), b'\x05')   # items written too)
+    out = code.find(b'\x61\xff\x25')
+    out = code.find(b'\x61\xe9') if out < 0 else out
+    _run(uc, save, save + out + 1)
+    blk = rd(BUF, struct.unpack('<I', rd(d1, 4))[0])
+    k = blk.find(struct.pack('<H', trailer.EN_MARK))
+    p, end = k + 4, k + 4 + struct.unpack_from('<H', blk, k + 2)[0]
+    saved = {}
+    while p + 4 <= end:
+        iid, ln = struct.unpack_from('<HH', blk, p)
+        saved[iid] = ln
+        p += 4 + ln
+    ids = {engine.item_id(n): n for n in rows}
+    errs = [f'item {iid:#06x} ({ln} B) saved, no ledger row' for iid, ln in saved.items() if iid not in ids]
+    errs += [f'{ids[iid]}: saved {ln} B, ledger {rows[ids[iid]]}' for iid, ln in saved.items()
+             if iid in ids and rows[ids[iid]] != ln]
+    errs += [f'{n}: ledger row, not saved' for n in rows if engine.item_id(n) not in saved]
+    log = os.path.join(os.path.dirname(os.path.dirname(EXE)), 'build-it.log')
+    room = re.findall(r'big cache room left (-?\d+) B', open(log).read()) if os.path.exists(log) else []
+    if room and int(room[-1]) < 0:
+        errs.append(f'room left {room[-1]} B')
+    return not errs, '; '.join(errs) or (f'{len(saved)} items saved = {len(rows)} ledger rows, sizes equal; room left '
+                                         f'{room[-1] if room else "?"} B')

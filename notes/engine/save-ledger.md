@@ -40,6 +40,7 @@ SEL_N 160 × 684 = 109440, main block 948, 'EN' block 15343 (25 items) → 12573
 | GI | 2 | gkinj | 4.0.6 | OPTIONS: goalkeeper injuries |
 | CR | 1 | cpurefill | 4.0.6 | CPU replacements switch |
 | FF | 21 | ffp (Integratore; state in finance.py FF_ST) | 4.0.6 (after I10j) | financial fair play: FF_ON, FF_BLOCK, FF_VALID (1 B each), FF_INC (the season's gates), FF_IPREV (last season's income), FF_FINE, FF_TVW (the season's TV credit share paid for the wages, left out of FFP's income) (dd each), FF_NCH (dw: the season's match charges, for the season-end wage bill). Plain bytes, no pointers, clear: an older save loads it zeroed = the rule OFF; a new career sets ON + VALID (after_new). With its header 25 B: **68 B left** on I10j + FFP |
+| SWC1 | 32 | swe (engine P) | 4.1 | the engine's state: header (version, world, spec hash, season, flags, seed) + sections; grows by version |
 
 ## Engine P (2026-11-06, branch p-persist off engine = trymerge cd4e54c)
 

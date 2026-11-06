@@ -6008,6 +6008,7 @@ def career_entry(s, t):
 
 def friendly_prematch(s, home, away):
     """Main menu -> AMICHEVOLE with two Bundesliga clubs (player-controlled) -> pre-match screen."""
+    w9697(s)                                # (a factory SETUP.DAT opens World 2026-27: 1. LIGA is 1996-97's)
     for t in ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB', 'EUROPA', 'GERMANIA', '1. LIGA', home, away):
         walk(s, t, 2)
     for _ in range(12):                         # AMICHEVOLE (55) is reached from the list by down, then right (56, 57)
@@ -24875,6 +24876,7 @@ def kbfirst():
             s.poke(s.result.base1 + spp, b'\xff')
             s.poke(s.result.base2 + buf + 6, struct.pack('<H', 1))  # (the friendly's menus as KEYBOARD ONLY: HAMBURG
             s.send('dump:1')                                        #  is player 1's)
+            w9697(s)                                # (a factory SETUP.DAT opens World 2026-27: 1. LIGA is 1996-97's)
             for t in ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB', 'EUROPA', 'GERMANIA', '1. LIGA', 'HAMBURG'):
                 walk(s, t, 2)
             s.send('fire dump:2')                       # HAMBURG: COMPUTER -> human
@@ -26735,6 +26737,7 @@ def match_names14():
                 os.environ['SWOSTEST_MEMSIZE'] = '8'
             with Session(f'match_names14_{mode}', b, {'DATA/TEAM.014': team}, 'dump:3', 300, match=True) as s:
                 s.wait()
+                w9697(s)                                # (a factory SETUP.DAT opens World 2026-27: 1. LIGA is 1996-97's)
                 for t in ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB', 'EUROPA', 'GERMANIA', '1. LIGA', 'HAMBURG'):
                     walk(s, t, 2)
                 s.send('fire dump:2')
@@ -26865,6 +26868,7 @@ def stoppage_time():
                 cars['SETUP.DAT'] = fac
             with Session(f'stoppage_time_{mode}', b, cars, 'dump:3', 1200, match=True) as s:
                 s.wait()
+                w9697(s)                                # (a factory SETUP.DAT opens World 2026-27: 1. LIGA is 1996-97's)
                 for t in ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB', 'EUROPA', 'GERMANIA', '1. LIGA', 'HAMBURG'):
                     walk(s, t, 2)
                 s.send('fire dump:2')

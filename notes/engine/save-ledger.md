@@ -61,8 +61,14 @@ SEL_N 160 × 684 = 109440, main block 948, 'EN' block 15343 (25 items) → 12573
   retires it (load-only, its import in swe_st_load when SWC1_LOADED is 0) and grows SWC1 by a section: its bytes + 4
   move from the item to SWC1, the item's own 4-B header comes free. **SWC1 ≤ the retired items + 239 B**; beyond
   that, a B_STAGE / B_UQ move (+~4 h, its own old-save gate), asked first.
+- **The import path (P 3):** a load-only item with no old place (ITEM_AT) is read into its slot of swe.c's
+  SWE_IMP (obj4 BSS, swe.imports()); swe.c sees -DIMPK_<name> (its found byte SWE_ENF[k] = trailer's EN_FOUND +
+  EN_NS + k) and -DIMP_<name> (its slot). swe_st_load, on a save from before P only (SWC1_LOADED 0), runs
+  swe_import: each retired item that was in the save becomes an SWC1 section (swc1_add; swc1_find reads one back).
+  The step that retires an item adds its line there. A save with SWC1 never imports (its sections are the state).
 - Tier B: test_swc1.py (static image): the save, this build's load, shorter (grow) / longer / missing SWC1, a plain
-  item of another length skipped, and (EN_RETIRE_PROBE=1 build) a load-only item read, never saved.
+  item of another length skipped, and (EN_RETIRE_PROBE=1 build) a load-only item read, never saved, imported as section 'RP' only into a save from
+  before P (none from nothing, none over a save of P).
 
 ## The round trip (test_roundtrip.py, Tier B)
 

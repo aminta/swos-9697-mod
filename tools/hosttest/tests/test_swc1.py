@@ -8,8 +8,9 @@ reached; the load is en_read + en_finish + swe_st_load on hand-made blocks.
 - SWC1 grows: a shorter (older) one loads its bytes and the rest zeroed; a longer (newer) one is not this build's:
   zeroed, started as a save without it (version 1, the world byte, SWC1_LOADED 0) - as a save from before P;
 - a plain item of another length is still skipped (zeroed: CC);
-- with a load-only (retired) item (EN_RETIRE_PROBE=1 builds: 'RPRB', 4 B, at SWC1_LOADED): the save never writes it,
-  a load reads it."""
+- with a load-only (retired) item (EN_RETIRE_PROBE=1 builds: 'RPRB', 4 B, its slot in SWE_IMP): the save never
+  writes it; a save from before P that has it gets it imported as SWC1 section 'RP' (engine P 3: swe_import), a save
+  without it gets no section, and a save with SWC1 never imports (its own sections stay)."""
 import json
 import os
 import struct
@@ -88,6 +89,7 @@ def test_swc1():
     at = lambda m, k: base[sy[m][k][0] or 1] + sy[m][k][1]
     save, en_read, en_finish = (at('trailer', k) for k in ('save_trailer', 'en_read', 'en_finish'))
     swc1, loaded, st_load = at('swe', 'SWC1'), at('swe', 'SWC1_LOADED'), at('swe', 'swe_st_load')
+    imp = at('swe', 'SWE_IMP') if 'SWE_IMP' in sy['swe'] else None
     size = swe.SWC1_SIZE
     uc.mem_map(BUF, 0x40000)
     # save_trailer's variables, from its code (trailer.ASM)
@@ -150,12 +152,14 @@ def test_swc1():
         uc.mem_write(found, b'\0' * (en_n + 1))
         uc.mem_write(d1, struct.pack('<I', d1len))
         uc.mem_write(swc1, b'\xEE' * size)
+        if imp is not None:
+            uc.mem_write(imp, b'\xEE' * 4)
         if ccat:
             uc.mem_write(ccat, b'\xEE' * 4)
         from unicorn.x86_const import UC_X86_REG_ESI, UC_X86_REG_EBX
         _run(uc, en_read, tr.RET, {UC_X86_REG_ESI: BUF, UC_X86_REG_EBX: 0})
         _run(uc, en_finish, tr.RET)
-        pr = rd(loaded, 4)
+        pr = rd(imp, 4) if imp is not None else None
         _run(uc, st_load, tr.RET)
         return rd(swc1, size), struct.unpack('<I', rd(loaded, 4))[0], rd(ccat, 4) if ccat else None, pr
 
@@ -177,9 +181,20 @@ def test_swc1():
         if c != b'\0' * 4:
             errs.append(f'CC saved 2 B of 4: loaded {c.hex()} (a plain item: skipped, zeroed)')
     if probe:
-        _, _, _, pr = load([(rid, b'\x11\x22\x33\x44')])
+        rp = struct.pack('<HH', 0x5052, 4) + b'\x11\x22\x33\x44'
+        got, ver, _, pr = load([(rid, b'\x11\x22\x33\x44')])
         if pr != b'\x11\x22\x33\x44':
-            errs.append(f'the retired probe not read ({pr.hex()})')
+            errs.append(f'the retired probe not read ({pr.hex() if pr else None})')
+        if ver != 0 or got != struct.pack('<HH', 1, 4) + bytes(16) + rp + bytes(size - 28):
+            errs.append(f'a save from before P with RPRB: SWC1 {got.hex()} (want started + section RP)')
+        got, _, _, _ = load([])
+        if got != struct.pack('<HH', 1, 4) + bytes(size - 4):
+            errs.append(f'no RPRB: SWC1 {got.hex()} (a section imported from nothing)')
+        own = cur[:20] + struct.pack('<HH', 0x4141, 2) + b'\x99\x98' + bytes(size - 26)
+        got, ver, _, _ = load([(sid, own), (rid, b'\x11\x22\x33\x44')])
+        if got != own or ver != 1:
+            errs.append(f'SWC1 v1 + RPRB: {got.hex()} (imported over a save of P)')
     return not errs, '; '.join(errs) or (f'saved {len(order)} items ({n} B), SWC1 {size} B version 1 + world; loads: '
                                          f'current, shorter (zero tail), longer / missing (started), CC short skipped'
-                                         + ('; retired probe read, never saved' if probe else ''))
+                                         + ('; retired probe never saved, imported as section RP only into a save from'
+                                            ' before P' if probe else ''))

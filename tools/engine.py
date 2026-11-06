@@ -66,8 +66,9 @@ def save_item(name, size, clear=True, world_only=False, grow=False):
 
 def retire_item(name, size, clear=True):
     """Engine P: an item older builds saved and this one no longer writes (its state moved into the engine's 'SWC1'):
-    a load still reads it, by its id and size, to ITEM_AT[name] (the owner's import buffer or its old place), or
-    zeroes it when the save has none (clear); an after_load routine then imports it. Its room in the save is free."""
+    a load still reads it, by its id and size, to ITEM_AT[name] (its old place), or, with no ITEM_AT, to its slot in
+    swe.c's import buffer SWE_IMP (engine P 3: swe.imports()); it is zeroed when the save has none (clear). swe_st_load
+    imports it into an SWC1 section on a save from before P (SWC1_LOADED 0). Its room in the save is free."""
     assert name not in SAVE_ITEMS and RETIRED.get(name, size) == size, name
     RETIRED[name] = (size, clear)
 

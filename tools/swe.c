@@ -805,10 +805,70 @@ void swe_st_save(void)                  /* engine.before_save: the header as thi
     *(u16 *)(SWC1 + 2) = (u16)cw_byte();
 }
 
+/* SWC1's sections: u16 id, u16 length, the bytes; id 0 (or the item's end) ends them. */
+u8 *swc1_find(u32 id, u32 *len)         /* a section's bytes (its length in *len), or 0 */
+{
+    u8 *p = SWC1 + SWC1_HDR;
+    while (p + 4 <= SWC1 + SWC1_SIZE && *(u16 *)p) {
+        u32 n = *(u16 *)(p + 2);
+        if (p + 4 + n > SWC1 + SWC1_SIZE)
+            break;
+        if (*(u16 *)p == id) {
+            *len = n;
+            return p + 4;
+        }
+        p += 4 + n;
+    }
+    return 0;
+}
+
+u8 *swc1_add(u32 id, u32 len)           /* a new last section of len zero bytes, or 0 when SWC1 has no room */
+{
+    u8 *p = SWC1 + SWC1_HDR;
+    while (p + 4 <= SWC1 + SWC1_SIZE && *(u16 *)p)
+        p += 4 + *(u16 *)(p + 2);
+    if (p + 4 + len > SWC1 + SWC1_SIZE)
+        return 0;
+    *(u16 *)p = (u16)id;
+    *(u16 *)(p + 2) = (u16)len;
+    volatile u8 *z = p + 4;             /* (volatile: no memset call - there is no library) */
+    for (u32 i = 0; i < len; i++)
+        z[i] = 0;
+    if (p + 6 + len <= SWC1 + SWC1_SIZE)
+        *(u16 *)(p + 4 + len) = 0;
+    return p + 4;
+}
+
+/* Engine P 3: the load-only items (engine.retire_item, swe.py imports()). A save from before P carries a legacy item
+   the engine now keeps in SWC1: the trailer reads it into its slot of SWE_IMP (or its old place), SWE_ENF[k] says it
+   was in the save, and swe_import turns it into its SWC1 section. Each step that retires an item adds its import. */
+#ifdef IMP_N
+u8 SWE_IMP[SWE_IMP_SIZE];
+extern u8 SWE_ENF[];                    /* trailer.py: EN_FOUND + EN_NS, one byte per load-only item */
+
+static void imp_copy(u32 k, const u8 *src, u32 id, u32 len)    /* the item's bytes as section id, if it was saved */
+{
+    volatile u8 *d;                     /* (volatile: no memcpy call) */
+    if (!SWE_ENF[k] || !(d = swc1_add(id, len)))
+        return;
+    for (u32 i = 0; i < len; i++)
+        d[i] = src[i];
+}
+#endif
+
+static void swe_import(void)
+{
+#ifdef IMPK_RPRB                        /* (EN_RETIRE_PROBE test builds: 'RPRB', 4 B, as section 'RP') */
+    imp_copy(IMPK_RPRB, SWE_IMP + IMP_RPRB, 0x5052, 4);
+#endif
+}
+
 void swe_st_load(void)                  /* engine.after_load: the save's version kept, a missing state started */
 {
     SWC1_LOADED = *(u16 *)SWC1;
-    if (!SWC1_LOADED)
+    if (!SWC1_LOADED) {
         *(u16 *)(SWC1 + 2) = (u16)cw_byte();
+        swe_import();
+    }
     *(u16 *)SWC1 = SWC1_VER;
 }

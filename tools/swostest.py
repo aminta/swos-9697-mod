@@ -11867,6 +11867,41 @@ def wm_spp_check(s, ex, errs, info):
         info.append(f'SWOS++ {"on" if on else "OFF"}')
 
 
+WM_LOCK = False                                 # engine_wmodes_swospp: engine_wmodes / _diy assert the lock line
+
+
+def wm_fire(s, w, gone=None):
+    """The fire on the selected entry: a plain 'fire dump:w', or under engine_wmodes_swospp spp_fire_held (SWOS++'s
+    timer feed: held SPP_PM_HOLD, x 1.5, x 2 ticks until gone(s) - default: the selection or the texts changed)."""
+    if not WM_SPP:
+        return s.send(f'fire dump:{w}')
+    sc = s.screen()
+    before = (sc.selected, sc.texts())
+    gone = gone or (lambda s_: (s_.screen().selected, s_.screen().texts()) != before)
+    if spp_fire_held(s, sc.selected, w, gone) is None:
+        raise AssertionError(f'SWOS++: the fire on {sc.selected} not taken at 2 x {SPP_PM_HOLD} ticks ({sc.texts()[:10]})')
+    return s.result
+
+
+def wm_lock(s, ex, tag, errs, info):
+    """engine_wmodes_swospp: the contest locked to World 2026-27 (INTER picked): a list of worlds (the top list with
+    the STORICO box, STORICO's own) shows the lock line in its title bar (entry 0) = swe.LOCK_LINE of SWOSTEST_UI, that
+    text in the exe under test (the build's own string), fitting the bar, font chars only."""
+    if not WM_LOCK:
+        return
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import swe
+    import complist
+    lock = swe.LOCK_LINE[UI if UI in swe.LOCK_LINE else 'it']
+    inexe = lock.encode('latin-1') + b'\0' in open(os.path.join(ex, 'ITALIAN.EXE'), 'rb').read()
+    sc = s.screen()
+    t, wd = sc.raw_texts[0], sc.geom[0][2]
+    check(t == lock and inexe and complist.px(t) <= wd and set(t) <= complist.FONT, f'{tag}: title {t!r} '
+          f'({complist.px(t)} px, bar {wd}), the lock line {lock!r} (in the exe: {inexe})', errs)
+    s.shot(f'lock_{tag}')
+    info.append(f'{tag}: {t!r}')
+
+
 @scenario
 def engine_wmodes():
     """W-modes M2: the FRIENDLY picker lists the worlds (swe.c, release-recipe exe, fresh SETUP.DAT = default World
@@ -11913,10 +11948,12 @@ def engine_wmodes():
             if out is None or press(s, sc, out, 2) is None:
                 s.send('down ' * 12 + 'dump:1')
                 if out is not None and s.screen().selected == out:
-                    s.send('fire dump:2')
+                    wm_fire(s, 2)
         check(rd32(selcw) == 5, f'after INTER: SEL_CW {rd32(selcw)}', errs)
+        wm_lock(s, ex, 'friendly_top', errs, info)
         wm_go(s, hist, 2)
         scr = s.screen()
+        wm_lock(s, ex, 'friendly_storico', errs, info)
         check(scr.find('MONDO 1996-97') is not None and scr.find('EUROPA 1984-85') is None and
               scr.find('MONDO 2026-27') is None, f'STORICO with a 2026-27 club picked: {scr.texts()[:10]}', errs)
         s.shot('storico')
@@ -11925,7 +11962,7 @@ def engine_wmodes():
         for _ in range(16):
             scr = s.screen()
             if scr.selected == 55:
-                s.send('fire dump:4')
+                wm_fire(s, 4)
                 break
             s.send(('right' if scr.selected in (56, 57) else 'down') + ' dump:0.5')
         scr = s.screen()
@@ -12351,7 +12388,7 @@ def pick_done(s, e=55, w=4):
     for _ in range(16):
         scr = s.screen()
         if scr.selected == e:
-            s.send(f'fire dump:{w}')
+            wm_fire(s, w)
             return s.screen()
         s.send(('right' if scr.selected in (56, 57) else 'down') + ' dump:0.5')
     raise AssertionError(f'the picker\'s entry {e} not reached ({s.screen().selected})')
@@ -12385,7 +12422,7 @@ def engine_wmodes_diy():
             if out is None or press(s, sc, out, 2) is None:
                 s.send('down ' * 12 + 'dump:1')
                 if out is not None and s.screen().selected == out:
-                    s.send('fire dump:2')
+                    wm_fire(s, 2)
         raise AssertionError(f'{t} not reached ({s.screen().texts()[:10]})')
     b, xf, kw = wm_build('engine_wmodes_diy', b)
     with Session('engine_wmodes_diy1', b, {'SETUP.DAT': setup_file('engine_wmodes_diy1', 0), **xf}, 'dump:3', 400,
@@ -12406,7 +12443,10 @@ def engine_wmodes_diy():
             wm_seq(s, ('COMPET. PERSONAL.', 'COPPA', 11, 11, 11, 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB'))
         wm_seq(s, ('EUROPA', 'ITALIA', 'SERIE A', 'INTER') + (('MILAN',) if WM_SPP else ()))
         up_to(s, hist)
-        wm_seq(s, (hist, 'MONDO 1996-97', 'EUROPA', 'GERMANIA', '1. LIGA', 'HAMBURG') + (('SCHALKE',) if WM_SPP else ()))
+        wm_lock(s, b, 'diy_top', errs, info)
+        wm_seq(s, (hist,))
+        wm_lock(s, b, 'diy_storico', errs, info)
+        wm_seq(s, ('MONDO 1996-97', 'EUROPA', 'GERMANIA', '1. LIGA', 'HAMBURG') + (('SCHALKE',) if WM_SPP else ()))
         pick_done(s, 55)
         s.shot('cup')
         wm_go(s, 'ESCI', 3)
@@ -12440,22 +12480,29 @@ def engine_wmodes_diy():
 
 @scenario
 def engine_wmodes_swospp():
-    """(4.1, Regia 05/11) W-modes M2's one-world-per-contest lock under SWOS++ 1.9.2.2: engine_wmodes (FRIENDLY: INTER
-    from World 2026-27 fixes the contest's world, STORICO then lists the 1996-97 game only, HAMBURG mixes) and
-    engine_wmodes_diy (a DIY cup: the same pick, saved with its world, loaded back) on SWOSPP_BUILD (a World 2026-27
-    release-recipe dir whose ITALIAN.EXE is the English exe, SWOSTEST_UI=en) with SWOS++ installed, keys from the
-    timer (SPP_STEP: one key at a time; PRESS_FIRE 'fire up:0.05', as the latched feed needs; a fire carried into the
-    next list skips that step - wm_seq). Under SWOS++ the DIY cup's ROUNDS cycles 2..6 (never 1): semi-finals + final,
-    INTER + MILAN (2026-27) and HAMBURG + SCHALKE (1996-97)."""
-    global WM_SPP, SPP_STEP, PRESS_FIRE
-    if UI != 'en':
-        return True, 'SKIP: SWOS++ is English only (SWOSTEST_UI=en)'
-    b = os.environ.get('SWOSPP_BUILD')
+    """(4.1, Regia 05/11 + 06/11) W-modes M2's one-world-per-contest lock under SWOS++ 1.9.2.2: engine_wmodes (FRIENDLY:
+    INTER from World 2026-27 fixes the contest's world, STORICO then lists the 1996-97 game only, HAMBURG mixes) and
+    engine_wmodes_diy (a DIY cup: the same pick, saved with its world, loaded back), both asserting the lock line on
+    screen: after INTER the top list (STORICO box) and STORICO's list show swe.LOCK_LINE of SWOSTEST_UI in the title bar
+    (that text in the exe under test, fits the bar, font chars only - wm_lock). SWOSTEST_UI=en: on SWOSPP_BUILD (a World
+    2026-27 release-recipe dir whose ITALIAN.EXE is the English exe) with SWOS++ installed, keys from the timer
+    (SPP_STEP: one key at a time; PRESS_FIRE 'fire up:0.05', as the latched feed needs; a fire carried into the next
+    list skips that step - wm_seq; the raw fires - ESCI, the picker's done entry - by spp_fire_held, wm_fire). Under
+    SWOS++ the DIY cup's ROUNDS cycles 2..6 (never 1): semi-finals + final, INTER + MILAN (2026-27) and HAMBURG +
+    SCHALKE (1996-97). it / fr / de: SWOS++ installs on ENGLISH.EXE only (tools/swospp.py; loader.bin patches by
+    English symbol address), so the same two runs + lock line on SWOSTEST_BUILD without SWOS++."""
+    global WM_SPP, SPP_STEP, PRESS_FIRE, WM_LOCK
+    spp = UI == 'en'
+    b = os.environ.get('SWOSPP_BUILD') if spp else os.environ.get('SWOSTEST_BUILD')
     if not b or not os.path.isdir(b):
-        return True, 'SKIP: SWOSPP_BUILD not set'
-    WM_SPP, SPP_STEP, old, fire0 = b, True, SPP_STEP, PRESS_FIRE
-    PRESS_FIRE = 'fire up:0.05'                         # (the latched feed: a plain fire is read again by the next
+        return True, f'SKIP: {"SWOSPP_BUILD" if spp else "SWOSTEST_BUILD"} not set'
+    old, fire0 = SPP_STEP, PRESS_FIRE
+    WM_LOCK = True
+    if spp:
+        WM_SPP, SPP_STEP = b, True
+        PRESS_FIRE = 'fire up:0.05'                     # (the latched feed: a plain fire is read again by the next
                                                         # menu - carried fires skipped list levels and picked clubs)
+
     def part(f):
         try:
             return f()
@@ -12465,8 +12512,9 @@ def engine_wmodes_swospp():
         ok1, m1 = part(engine_wmodes)
         ok2, m2 = part(engine_wmodes_diy)
     finally:
-        WM_SPP, SPP_STEP, PRESS_FIRE = None, old, fire0
-    return ok1 and ok2, f'friendly: {"PASS" if ok1 else "FAIL"} {m1}; diy: {"PASS" if ok2 else "FAIL"} {m2}'
+        WM_SPP, SPP_STEP, PRESS_FIRE, WM_LOCK = None, old, fire0, False
+    return ok1 and ok2, (f'{"SWOS++ on" if spp else "SWOS++ n/a: ENGLISH.EXE only"} ({UI}); friendly: '
+                         f'{"PASS" if ok1 else "FAIL"} {m1}; diy: {"PASS" if ok2 else "FAIL"} {m2}')
 
 
 @scenario

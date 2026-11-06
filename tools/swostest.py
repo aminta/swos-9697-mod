@@ -11896,7 +11896,8 @@ def world_ns_contest():
         eu = next((t for _, t in cont if t.startswith('EUROPA') or t.startswith('EUROPE')), None)
         if eu:
             walk(s, eu, 2)
-            t0 = s.screen().raw_texts[0]
+            sc = s.screen()                  # (the raw bytes: the decoder gives '' for a title with the Ü - TEAMS FÜR)
+            t0 = sc.raw[0].decode('latin-1') if sc.raw and sc.raw[0] else sc.raw_texts[0]
             s.shot('w0_europa')
             check(t0.endswith(' - ' + eu[:-len(yr)]), f'(a) the EUROPA list title {t0!r}', errs)
             info.append(f'(a) {[t for _, t in cont]}, title {t0!r}')

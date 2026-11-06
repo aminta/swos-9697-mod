@@ -11594,6 +11594,80 @@ def wm_mixed(s, hist):
     return pick_done(s)
 
 
+def omm_exe(b, tag, on=True):
+    """4.1 'Original main menu' (Marco): build b's exe with mainbtn's mb_omm (the byte after mainbtn.OMM_MARK) set as
+    the patcher sets it -> runs/<tag>_files/ITALIAN.EXE (the run's ITALIAN.EXE: UI builds carry their language's there)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import mainbtn
+    d = bytearray(open(os.path.join(b, 'ITALIAN.EXE'), 'rb').read())
+    assert d.count(mainbtn.OMM_MARK) == 1, 'OMM marker'
+    d[d.find(mainbtn.OMM_MARK) + len(mainbtn.OMM_MARK)] = 1 if on else 0
+    path = os.path.join(RUNS, tag + '_files', 'ITALIAN.EXE')
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    open(path, 'wb').write(bytes(d))
+    return path
+
+
+def omm_corner(s):
+    """The grey pixels (modver.COLOR) in the version line's band of the screen now (0 = no line)."""
+    import modver
+    s.send('dump:1')
+    fr = s.box.dump(0xA0000, 64000)
+    return sum(fr[y * 320 + x] == modver.COLOR for y in range(modver.Y - 2, modver.Y + modver.H + 2) for x in range(160))
+
+
+@scenario
+def engine_omm():
+    """4.1 the patcher's 'Original main menu' option (Marco; Davide 06/11: B, main-menu label only, patcher only):
+    mb_omm set (omm_exe) = the game's main menu - entry 4 (the world switch) not shown, CAREER at the game's x, no
+    'MOD x.y' line (no grey pixel in its band) - and the default world reads as the 1996-97 game whatever SETUP.DAT
+    holds: a fresh install's 105-B file (= World 2026-27), +105 = 0 (2026-27 saved), +105 = 2 (Europe 1984-85):
+    COMP. PREDEFINITA = the game's continents + TORNEI STORICI (no step-2.5 message), CARRIERA > SCEGLI SQUADRA = the
+    game's top list (EUROPA, no 2026-27 title); the file is not written (byte-identical after the run). The same exe
+    with the byte 0 and +105 = 0: the switch shown, the line drawn, the 2026-27 message (the saved default kept)."""
+    errs, info = [], []
+    b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
+    on = omm_exe(b, 'engine_omm')
+    base = setup_dat(0)
+    for k, (case, setup) in enumerate((('fresh 105 B', base[:105]), ('2026-27 saved', base),
+                                       ('1984-85 saved', base[:105] + b'\x02'), ('OFF, 2026-27 saved', base))):
+        path = os.path.join(RUNS, 'engine_omm_files', 'SETUP.DAT')
+        open(path, 'wb').write(setup)
+        opt = not case.startswith('OFF')
+        files = {'SETUP.DAT': path, **({'ITALIAN.EXE': on} if opt else {})}
+        with Session(f'engine_omm{k}', b, files, 'dump:3', 600) as s:   # (a run dir per case: its shots)
+            if s.wait().outcome != 'dump':
+                errs.append(f'{case}: no first pause ({s.result})')
+                continue
+            s.send('dump:2')
+            sc = s.screen()
+            s.shot('main')
+            sw = len(sc.entries) > 9 and not sc.entries[4][2]
+            grey = omm_corner(s)
+            car_x = sc.geom[9][0] if len(sc.geom) > 9 else None
+            check(sw != opt and (grey == 0) == opt, f'{case}: the switch {"shown" if sw else "hidden"}, {grey} grey '
+                  f'pixels in the version band, CAREER x {car_x}', errs)
+            walk(s, 'COMP. PREDEFINITA', 2)
+            sc = s.screen()
+            msg = av_rows_ok(sc, 'preset', [], case)
+            check((sc.find('EUROPA', exact=True) is not None and not msg) if opt else msg,
+                  f'{case}: COMP. PREDEFINITA {sc.texts()[:6]}', errs)
+            check(wm_to_main(s), f'{case}: main menu not reached', errs)
+            if opt:
+                for t in ('CARRIERA', 'SCEGLI SQUADRA'):
+                    walk(s, t, 3)
+                sc = s.screen()
+                tx = [t for t in sc.texts() if t]
+                check(sc.find('EUROPA', exact=True) is not None and not any('2026-27' in t for t in tx[:2]),
+                      f'{case}: CARRIERA > SCEGLI SQUADRA {tx[:6]}', errs)
+            info.append(f'{case}: switch {"shown" if sw else "hidden"}, grey {grey}, CAREER x {car_x}, preset '
+                        f'{"message" if msg else "continents"}')
+            game = s.result.game
+        after = open(os.path.join(game, 'SETUP.DAT'), 'rb').read()
+        check(after == setup, f'{case}: SETUP.DAT written ({len(setup)} -> {len(after)} B)', errs)
+    return not errs, '; '.join(errs + info)
+
+
 def wm_to_main(s, mark='COMP. PREDEFINITA'):
     for _ in range(10):
         sc = s.screen()

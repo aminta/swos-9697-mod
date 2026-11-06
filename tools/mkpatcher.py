@@ -340,6 +340,11 @@ def old_outputs():
             out = decode(src, unpack(e))
             assert hashlib.md5(out).hexdigest() == e['out_md5'], (ver, e['id'])
             found.setdefault((e['id'], e['out_md5']), (out, ver))
+            if e.get('omm') is not None:              # 4.1+: the same exe with the 'Original main menu' byte set
+                on = bytearray(out)
+                on[e['omm']] = 1
+                assert hashlib.md5(on).hexdigest() == e['omm_md5'], (ver, e['id'], 'omm')
+                found.setdefault((e['id'], e['omm_md5']), (bytes(on), ver))
     return found
 
 
@@ -454,6 +459,29 @@ def setup_entries():
     return out
 
 
+def omm_sites(entries):
+    """4.1 'Original main menu' (Marco, Davide 06/11: patcher only): every entry whose output is an exe of this release gets
+    'omm' = the file offset of mainbtn's mb_omm (the byte after mainbtn.OMM_MARK, 0 in the build) and 'omm_md5' = the
+    output's md5 with that byte 1. The page sets it when the box is ticked (and back to 0 when not, on a re-run)."""
+    import mainbtn
+    sites = {}
+    for fid, _, patched, target in FILES:
+        if not target.endswith('.EXE'):
+            continue
+        d = open(os.path.join(ROOT, patched), 'rb').read()
+        assert d.count(mainbtn.OMM_MARK) == 1, (fid, 'OMM marker', d.count(mainbtn.OMM_MARK))
+        at = d.find(mainbtn.OMM_MARK) + len(mainbtn.OMM_MARK)
+        assert d[at] == 0, (fid, 'OMM byte set in the build')
+        on = bytearray(d)
+        on[at] = 1
+        sites[hashlib.md5(d).hexdigest()] = (at, hashlib.md5(on).hexdigest())
+        print(f'{fid}: Original main menu byte at {at:#x}')
+    for e in entries:
+        if e['out_md5'] in sites:
+            e['omm'], e['omm_md5'] = sites[e['out_md5']]
+    assert sum(e.get('omm') is not None for e in entries) >= len(sites)
+
+
 def build():
     build_swospp()
     entries = []
@@ -471,6 +499,7 @@ def build():
     entries += upgrades(entries)
     entries += swospp_sources(entries)
     entries += setup_entries()
+    omm_sites(entries)
     page = open(os.path.join(ROOT, 'tools', 'patcher_template.html'), encoding='utf-8').read()
     page = page.replace('/*PATCHES*/null', json.dumps(entries)).replace('{{VERSION}}', VERSION)
     out = os.path.join(ROOT, 'release', 'swos-9697-mod-patcher.html')

@@ -37,6 +37,7 @@ def text():
 
 ASM = r"""
 mv_draw:                                ; SWOS_MainMenu's on-draw function
+OMM_CHECK_
     pushad
     sub esp, 60                         ; the game's D0..D7, A0..A6 are memory: keep them
     mov esi, D0_
@@ -121,15 +122,19 @@ def find(p):
     return dict(menu=menu, centered=c[0], textw=textw, draw=draw, small=small, D0=D0, A0=A0, menu_cur=zones._current_menu(p))
 
 
-def patch(p, at, lang):
-    """Code + text at obj1:at; returns the end."""
+def patch(p, at, lang, omm=None):
+    """Code + text at obj1:at; returns the end. omm = (obj, offset) of mainbtn's 'Original main menu' byte (the
+    patcher's option, 4.1: set = no line), None = a build without the main menu's world switch (the line always)."""
     import lepatch
     s = find(lepatch.LEPatch(bytes(p.le.data)))          # (the original bytes: patched sites elsewhere don't matter)
     t = text()
     sym = {'MENU_': s['menu_cur'], 'D0_': (2, s['D0']), 'A0_': (2, s['A0']), 'SMALLCHARS': s['small'],
            'TEXTW': (1, s['textw']), 'DRAWTEXT': (1, s['draw']), 'X_': (0, X), 'Y_': (0, Y), 'H_': (0, H),
            'COLOR_': (0, COLOR)}
-    src = ASM + 'MV_TEXT: db ' + ', '.join(str(b) for b in t + b'\0') + '\n'
+    if omm:
+        sym['OMM_'] = omm
+    src = nasmcave.sub(ASM, 'OMM_CHECK_', '    cmp byte [OMM_], 0\n    je .on\n    ret\n.on:' if omm else '')
+    src = src + 'MV_TEXT: db ' + ', '.join(str(b) for b in t + b'\0') + '\n'
     code, fix = nasmcave.assemble(src, at, sym)
     lab = nasmcave.labels(src, at, sym)
     assert not any(p.get(1, at, len(code)))

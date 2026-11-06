@@ -217,10 +217,22 @@ u32 AV_ARM DATA = 0;                    /* the message the next picker shows (AV
 u32 AV_SHOW DATA = 0;                   /* the message this picker's top list shows */
 u8 L_AV[12] DATA = {0};
 
+#ifdef OMM
+extern u8 MB_OMM[];                     /* mainbtn's mb_omm: the patcher's 'Original main menu' (4.1, Marco) */
+#endif
+static u32 set_w(void)                  /* the default-world setting (SETUP.DAT +105, mainbtn); the option: 1, the */
+{                                       /* 1996-97 game, whatever the file holds (it is not touched) */
+#ifdef OMM
+    if (MB_OMM[0])
+        return 1;
+#endif
+    u32 set = rd32(SWE_REG + 28);
+    return set ? *(u8 *)set : 0;
+}
+
 static u32 av_world(void)               /* the default world (SETUP.DAT +105 -> SET_W), 0 = the 1996-97 game */
 {
-    u32 set = rd32(SWE_REG + 28);
-    u32 s = set ? *(u8 *)set : 0;
+    u32 s = set_w();
     return s < sizeof SET_W ? SET_W[s] : 0;
 }
 
@@ -396,7 +408,7 @@ void swe_sel_pre(u32 mode)
     }
     if (!cw || !set || (mode != M_CAREER && *(u16 *)SWE_TTYPE != CLUB_TEAMS) || !*comp_slot(CAREERS))
         return;
-    u32 s = *(u8 *)set, dw = s < sizeof SET_W ? SET_W[s] : 0;
+    u32 s = set_w(), dw = s < sizeof SET_W ? SET_W[s] : 0;
     if (dw && !friendly_world(dw))
         dw = 0;
     SEL_ON = 1;

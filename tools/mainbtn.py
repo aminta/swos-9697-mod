@@ -18,7 +18,12 @@ W-modes M1 (Davide 04/11): the button no longer starts a career. It is the defau
 setting (MONDO: 2026-27 / MONDO: 1996-97 / EUROPA 1984-85, per language), fire cycles it and writes SETUP.DAT +105 at
 once (only that byte: the controls stay as on disk; no file or a short one: the game's buffer, 106 B). CAREER's
 on-select (entry 9) becomes mb_car: its team choice opens in the default world's list (World 2026-27 / Europe 1984-85
-in CLASSIC CAREERS) or, with 1996-97, at the top as the game's."""
+in CLASSIC CAREERS) or, with 1996-97, at the top as the game's.
+
+4.1 (Marco, Davide 06/11): the patcher's 'Original main menu' option sets mb_omm (after the OMM_MARK marker) in the
+output exes: the button is not set up (the game's main menu, SWOS++'s entry 4 as SWOS++ shows it, CAREER the game's),
+modver's 'MOD x.y' line is not drawn, and the default world reads as the 1996-97 game whatever SETUP.DAT +105 holds
+(swe.c set_w; the file is not touched, so the option OFF again gives back the saved default)."""
 import re
 import struct
 
@@ -37,6 +42,8 @@ CHOOSE = [None]                              # (W-modes M3) {'site': obj1 offset
                                              # 'HDR' / 'STR': (obj, off) as mb_d0's check} (swe.py)
 FLAG = [None]                                # (obj, offset) of mb_flag (the career's world: 0 the game's, 1 World
 SETTING = [None]                             # 2026-27, 2 Europe 1984-85); SETTING: (obj, offset) of the byte
+OMM = [None]                                 # (obj, offset) of mb_omm, the patcher's 'Original main menu' byte
+OMM_MARK = b'SWOSMOD-OMM'                    # (right before it in the exe: mkpatcher finds it there)
 X, W, H, GAP, GREEN = 162, 150, 16, 18, 14   # (x as the menu stores it: definition + 8)
 
 SRC = """
@@ -47,6 +54,8 @@ mb_set: pushad
         call .f
 .f:     pop eax
         mov byte [eax + mb_flag - .f], 0   ; (back on the main menu: SELECT TEAM TO MANAGE opens at the top again)
+        cmp byte [eax + mb_omm - .f], 0    ; the patcher's 'Original main menu': the game's menu as it is
+        jne .out
         mov word [D0], 9                ; CAREER: the row's left half, its right link -> the button
         call CALC
         mov edi, [A0]
@@ -283,6 +292,8 @@ mb_d0:  mov byte [D0], 0FFh             ; (replaced: SelectTeamsFinalMenu from t
 .r:     ret
 
 mb_flag: db 0
+mb_ommk: db "SWOSMOD-OMM"               ; (the patcher finds the option byte by this marker, OMM_MARK)
+mb_omm:  db 0                           ; 1 = 'Original main menu' (set by the patcher only)
 mb_labs:
 LABELS_
 """
@@ -354,6 +365,7 @@ def patch(p, at, lang, wid, onsel=None, obj=1, wid84=None):
     CHOOSE[0] = {'site': cs + 7, 'HDR': hdr, 'STR': st}
     FLAG[0] = (obj, lab['mb_flag'])                  # (4.0.3: careerworld's nat_init reads it: the coach's list)
     SETTING[0] = (sym['BUF'][0], sym['BUF'][1] + SET_OFF)   # (W-modes: the registry's pointer, swreg)
+    OMM[0] = (obj, lab['mb_omm'])                    # (modver's line and swe's default world read it too)
     print(f'exe: main menu world switch {" / ".join(t.decode() for t in labs)} at obj{obj}+{at:#x} '
           f'(hooks {on + 6:#x}, {off + 6:#x}; setting obj{SETTING[0][0]}+{SETTING[0][1]:#x})')
     return at + len(code)

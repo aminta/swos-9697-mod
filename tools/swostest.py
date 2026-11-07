@@ -2362,7 +2362,9 @@ def advance(s, stop, max_steps=400):
         if rp and scr.entries and rp in scr.entries[0][1]:   # with that word played for real, as Davide on the MiSTer
             i_ = scr.find('- PARTITA -', exact=True)    #  - the exe needs nop_league_int3)
             s.rpseen = getattr(s, 'rpseen', 0) + (i_ is not None and not scr.entries[i_][2])
-            if i_ is not None and not scr.entries[i_][2] and s.rpseen > int(os.environ.get('W8485_REALSKIP', 0)):
+            if i_ is not None and not scr.entries[i_][2] and s.rpseen > int(os.environ.get('W8485_REALSKIP', 0)) and \
+                    getattr(s, 'rpn', 0) < int(os.environ.get('W8485_REALMAX', 9999)):   # (4.1: the first N only)
+                s.rpn = getattr(s, 'rpn', 0) + 1
                 s.realplay = True
                 s.log.append(f'[realplay] step {step}: {scr.entries[0][1]}')
                 press(s, scr, '- PARTITA -') or s.send('fire dump:2')
@@ -22615,6 +22617,79 @@ def world_cfb_guard():
         n = struct.unpack_from('<H', open(out, 'rb').read(), 0)[0]
         check(n == want, f'{name}: the new save\'s count {n}, expected {want}', errs)
         load(name.lower() + '_re', 'CFBRE', out, want)
+    return not errs, '; '.join(errs + notes)
+
+
+@scenario
+def world_coef_seed():
+    """4.1: a loaded World 2026-27 career's UEFA coefficient block (uefacoef, tmdFileBuffer + 0x3800) re-seeded when
+    damaged (uefacoef uc_chk, engine.after_process: no 'UC' mark, or a season value above CHMAX / KHMAX). Fixtures
+    (internal/swostest/fixtures/coefseed): Francesco's ISCHIA 07/11 repaired save (ISCHIAFX = fix1.CAR 6637ab75: no mark,
+    Italy's seasons 50369592 / 2523136 / 1695057922 / 1116241937 / 19000 -> the table showed 2 Champions League places)
+    -> after the load the mark, ring 0 and Italy's real 2025-26 seeds; saved (SALVA CARRIERA) with them and reloaded
+    unchanged. His earlier healthy save (ISCHIAOK = old.CAR da1c675f): the block in memory and in its new save
+    byte-identical to the file's. On a release-recipe build (COEFSEED_BUILD, else ISCHIA_REL / CUPLIST_REL)"""
+    fx = os.path.join(MAIN, 'internal', 'swostest', 'fixtures', 'coefseed')
+    exe = os.environ.get('COEFSEED_BUILD') or os.environ.get('ISCHIA_REL') or os.environ.get('CUPLIST_REL')
+    if not exe or not os.path.isdir(fx):
+        return True, 'SKIP: no release dir (COEFSEED_BUILD / ISCHIA_REL / CUPLIST_REL) or no fixtures'
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import uefacoef
+    uefacoef.layout()
+    cb, size = 2 + uefacoef.CB_OFF, uefacoef.SIZE            # (the block's offset in the .CAR: careerFileBuffer + 2)
+    ita, seed = 102, [15714, 22357, 21000, 21875, 19000]     # (Italy's league file; its pack's uefa_coef seasons)
+    errs, notes = [], []
+
+    def hist(b, c):
+        return [struct.unpack_from('<I', b, uefacoef.CHIST + (r * 256 + c) * 4)[0] for r in range(5)]
+
+    def sane(b):
+        return b[0:2] == b'UC' and b[uefacoef.RING] < 5 and b[uefacoef.DONE] <= 1 and \
+            max(struct.unpack_from('<1280I', b, uefacoef.CHIST)) <= uefacoef.CHMAX
+
+    def load(tag, name, car, want, save_as=None):      # want(block) -> error text or None; -> the new save or None
+        save = open(car, 'rb').read()
+        with Session(f'world_coef_seed_{tag}', exe, {name + '.CAR': car}, f'{LOAD1} dump:3', 300) as s:
+            r = s.wait()
+            if r.outcome != 'dump':
+                errs.append(f'{tag}: no career menu after the load ({r})')
+                return None
+            check('TRASFERIMENTI' in [ui_it(t) for t in s.screen().texts()], f'{tag}: not the career menu', errs)
+            o2 = r.read(r.base2, 0x30000)
+            at = o2.find(save[2:350])                    # (careerFileBuffer + 2: the W1 block as loaded)
+            if at < 0:
+                errs.append(f'{tag}: careerFileBuffer not found')
+                return None
+            blk = o2[at + uefacoef.CB_OFF:at + uefacoef.CB_OFF + size]
+            e = want(blk)
+            check(e is None, f'{tag}: {e}', errs)
+            notes.append(f'{tag}: mark {blk[:2]!r}, Italy {hist(blk, ita)}')
+            if not save_as:
+                return None
+            press(s, s.screen(), 'ESCI')
+            s.send('dump:2')
+            if press(s, s.screen(), 'SALVA CARRIERA') is None:
+                errs.append(f'{tag}: no SALVA CARRIERA on {s.screen()}')
+                return None
+            s.send(name_entry(save_as.lower()) + ' dump:3')
+            out = os.path.join(s.result.game, save_as + '.CAR')
+            return out if os.path.exists(out) else errs.append(f'{tag}: {save_as}.CAR not saved')
+
+    fxb = open(os.path.join(fx, 'ISCHIAFX.CAR'), 'rb').read()[cb:cb + size]
+    check(not sane(fxb), 'ISCHIAFX: the fixture block is not damaged', errs)
+    reseed = lambda b: None if sane(b) and hist(b, ita) == seed and b[uefacoef.RING] == 0 else \
+        f'not re-seeded (mark {b[:2]!r}, ring {b[uefacoef.RING]}, Italy {hist(b, ita)})'
+    out = load('fx', 'ISCHIAFX', os.path.join(fx, 'ISCHIAFX.CAR'), reseed, 'COEFRE')
+    if out:
+        nb = open(out, 'rb').read()[cb:cb + size]
+        check(reseed(nb) is None, f'COEFRE.CAR: {reseed(nb)}', errs)
+        load('fx_re', 'COEFRE', out, lambda b: None if b == nb else 'the reloaded block differs from its save')
+    okb = open(os.path.join(fx, 'ISCHIAOK.CAR'), 'rb').read()[cb:cb + size]
+    check(sane(okb), 'ISCHIAOK: the fixture block is not sane', errs)
+    same = lambda b: None if b == okb else f'healthy block changed ({sum(x != y for x, y in zip(b, okb))} bytes)'
+    out = load('ok', 'ISCHIAOK', os.path.join(fx, 'ISCHIAOK.CAR'), same, 'COEFOK')
+    if out:
+        check(open(out, 'rb').read()[cb:cb + size] == okb, 'COEFOK.CAR: the healthy block changed in the save', errs)
     return not errs, '; '.join(errs + notes)
 
 

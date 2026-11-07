@@ -304,6 +304,8 @@ def patch_exe(src, dst, remap, lang='it'):
     if sp_tabs:                                        # 4.0.1: split's head-to-head / 'keep' block left the DIY (the
         engine.save_item('SH', split.SH_SIZE, world_only=not engine.split_tables())   # weeks reach 104 days): the
         engine.after_process('sp_migrate')             # career league's in 'SH'; a 4.0 save's state moved at the load
+    if mkseason.league_phase_worlds():
+        engine.after_process('uc_chk')                 # 4.1: a damaged UEFA coefficient block re-seeded at the load
     ss_on = any(st.get('table') is not None for *_, sp in sp_tabs for st in sp.get('stages') or [])
     import gplay                                       # (also imported below: the banks need it here)
     if ss_on:                                          # stage tables (GP_SS, gplay.c gp_stage: Argentina's Apertura /

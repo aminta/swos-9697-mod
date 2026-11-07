@@ -12316,8 +12316,8 @@ KITNAVY_MATCHES = [('lille_home', 'FRANCIA', 'LIGUE 1', 'LILLE', 'AUXERRE'),
                    ('lille_away', 'FRANCIA', 'LIGUE 1', 'BREST', 'LILLE'),
                    ('marseille_home', 'FRANCIA', 'LIGUE 1', 'MARSEILLE', 'LILLE'),
                    ('marseille_away', 'FRANCIA', 'LIGUE 1', 'AUXERRE', 'MARSEILLE'),
-                   ('millwall_home', 'INGHILTERRA', 'CHAMPIONSHIP', 'MILLWALL', 'SWANSEA CITY'),
-                   ('millwall_away', 'INGHILTERRA', 'CHAMPIONSHIP', 'BIRMINGHAM CITY', 'MILLWALL'),
+                   ('millwall_home', 'INGHILTERRA', 'EFL CHAMPIONSHIP', 'MILLWALL', 'SWANSEA CITY'),
+                   ('millwall_away', 'INGHILTERRA', 'EFL CHAMPIONSHIP', 'BIRMINGHAM CITY', 'MILLWALL'),
                    ('bochum_home', 'GERMANIA', '2. BUNDESLIGA', 'BOCHUM', 'DYNAMO DRESDEN'),
                    ('bochum_away', 'GERMANIA', '2. BUNDESLIGA', 'KARLSRUHER', 'BOCHUM')]
 
@@ -12335,6 +12335,7 @@ def kit_navy_shots():
             continue
         with Session('kit_navy_' + tag, b, {}, 'dump:3', 300, match=True) as s:
             s.wait()
+            set_world(s, 0)                     # (World 2026-27 on the main menu's switch)
             for t in ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB', 'EUROPA', country, league, home):
                 walk(s, t, 2)
             s.send('fire dump:2')               # home: COMPUTER -> GIOCA-ALLENA
@@ -12353,6 +12354,15 @@ def kit_navy_shots():
                 errs.append(f'{tag}: no pre-match screen ({scr.texts()[:8]})')
                 continue
             s.shot(tag + '_prematch')
+            worn = []
+            scr = walk(s, 68, 3)                # SELECT KITS (kits AUTO: each team's kit on the pitch), both teams
+            for k in range(2):
+                worn.append([x for x in scr.texts() if 'TENUTA' in x][:2])
+                s.shot(f'{tag}_kits{k + 1}')
+                if k == 0:
+                    scr = walk(s, 1, 3)
+            walk(s, 21, 3)                      # OK (the same kits)
+            info.append(f'{tag} {worn}')
             for _ in range(22):
                 s.send('down dump:0.5')
                 if s.screen().selected == 9:
@@ -12364,8 +12374,7 @@ def kit_navy_shots():
                 r = s.send('fire:4 dump:2')
                 if r.outcome == 'dump':
                     s.shot(tag + '_match2')
-                info.append(tag)
-    return not errs, '; '.join(errs) if errs else f'shots of {len(info)} matches: {", ".join(info)}'
+    return not errs, '; '.join(errs + info) if errs else f'shots of {len(info)} matches: {"; ".join(info)}'
 
 
 STNM_NAME, STNM_SHOWN, STNM_KEY, STNM_Y = 4, 53, 54, 56          # stadium.py's log after its 'STNM' mark (v3: name[49])

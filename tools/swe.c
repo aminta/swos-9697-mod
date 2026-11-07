@@ -139,9 +139,11 @@ static int friendly_world(u32 n)        /* world n is listed by this picker (its
 
 static int locked(u32 n) { return SEL_CW && n && n != SEL_CW; }
 
+/* 4.1 (Davide 07/11, MiSTer): a career's team choice lists the main menu's world only - no STORICO box, no green
+   MONDO 2026-27 entry (the world is the main menu's WORLD button's); the friendly / DIY pickers keep both (mixing) */
 static int cur_entry(void)              /* MONDO 2026-27 is an entry of the default world's list */
 {
-    return SEL_DW != SET_W[0] && friendly_world(SET_W[0]) && !locked(SET_W[0]);
+    return SEL_MODE != M_CAREER && SEL_DW != SET_W[0] && friendly_world(SET_W[0]) && !locked(SET_W[0]);
 }
 
 static void put_ff(u8 *l) { l[0] = l[1] = l[2] = l[3] = 0xFF; }
@@ -159,7 +161,7 @@ static void sel_lists(void)
         *h++ = *p;
     }
     *h = 0xFF;
-    int hist = h > L_HIST + 4;          /* (an empty STORICO is left out) */
+    int hist = h > L_HIST + 4 && SEL_MODE != M_CAREER;   /* (an empty STORICO is left out; a career: none) */
     if (!SEL_DW) {
         if (SEL_TOP) {
             u8 *t = SEL_TOP;

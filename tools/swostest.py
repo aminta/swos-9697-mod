@@ -1424,6 +1424,10 @@ def w27_up(s, scr, text):
     back to the main menu, the WORLD selector on it (set_world), CARRIERA > SCEGLI SQUADRA: that world's own first
     list, the path goes on from there (True). None: not that case (no career pick, the world on screen, no selector:
     a pre-W-modes build keeps its old path)."""
+    if text == 'CARR. STORICHE' and getattr(s, 'w27_car', False) and scr.find(text, exact=True) is None and \
+            scr.find('ESCI', exact=True) is not None:   # (4.1 carnost: a career's team choice has no STORICO box -
+        s.log.append(f'[w27] no STORICO box in the career pick: skipped ({scr})'[:300])   # the world entry
+        return True                                     # after it is chosen by the main menu selector, below)
     if text not in W27_WORLDS or not getattr(s, 'w27_car', False) or scr.find(text, exact=True) is not None or \
             scr.find('ESCI', exact=True) is None:
         return None
@@ -13101,27 +13105,24 @@ def engine_wmodes_def():
 
 @scenario
 def engine_wmodes_car():
-    """W-modes M3: the career's team choice (CARRIERA > SCEGLI SQUADRA, swe.c swe_car_tramp) lists the worlds as the
-    friendly picker, with no lock, and the career takes the world of the path. (1) Default 2026-27: its continents +
-    STORICO (= MONDO 1996-97 + EUROPA 1984-85, no MONDO 2026-27); STORICO > MONDO 1996-97 > EUROPA > ITALIA > SERIE A >
-    INTER starts a 1996-97 career (1996/97, WCUR = base). (2) Default 1996-97: the game's continents + MONDO 2026-27
-    (GREEN) + STORICO (= EUROPA 1984-85); MONDO 2026-27 > EUROPA > ITALIA > SERIE A > INTER: a 2026-27 career
-    (2026/27, WCUR 5). (3) Default 1984-85: its countries + MONDO 2026-27 + STORICO (= MONDO 1996-97); ISLANDA >
-    VOLSUNGUR: a 1984-85 career (1984/85). No lock line in the career's title bar."""
+    """W-modes M3 + 4.1 carnost (Davide 07/11, MiSTer): the career's team choice (CARRIERA > SCEGLI SQUADRA, swe.c
+    swe_car_tramp) lists the main menu's world only - no STORICO box, no green MONDO 2026-27 entry: the world is the
+    main menu's WORLD button's - and the career takes that world. (1) Default 2026-27: its continents, EUROPA > ITALIA
+    > SERIE A > INTER starts a 2026-27 career (2026/27, WCUR 5). (2) Default 1996-97: the game's continents,
+    EUROPA > ITALIA > SERIE A > INTER: a 1996-97 career (1996/97, WCUR = base). (3) Default 1984-85: its countries,
+    ISLANDA > VOLSUNGUR: a 1984-85 career (1984/85). No lock line in the career's title bar. The friendly picker
+    keeps both (engine_wmodes_def / world_ns_hist)."""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import swreg
     import swe
     errs, info = [], []
-    hist, cur, w0 = 'CARR. STORICHE', 'MONDO 2026-27', 'MONDO 1996-97'
+    hist, cur = 'CARR. STORICHE', 'MONDO 2026-27'
     lock = swe.LOCK_LINE[UI if UI in swe.LOCK_LINE else 'it']
     b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
-    cases = [(0, ('EUROPA', hist), (w0, 'EUROPA 1984-85'), (cur,), [hist, w0, 'EUROPA', 'ITALIA', 'SERIE A', 'INTER'],
-              ('INTER', '1996/97'), 'base'),
-             (1, ('AFRICA', cur, hist), ('EUROPA 1984-85',), (cur, w0), [cur, 'EUROPA', 'ITALIA', 'SERIE A', 'INTER'],
-              ('INTER', '2026/27'), 5),
-             (2, ('ISLANDA', cur, hist), (w0,), (cur, 'EUROPA 1984-85'), ['ISLANDA', 'VOLSUNGUR'],
-              ('VOLSUNGUR', '1984/85'), 'base')]
-    for setting, first, inh, notinh, path, want, ns_want in cases:
+    cases = [(0, ('EUROPA',), ['EUROPA', 'ITALIA', 'SERIE A', 'INTER'], ('INTER', '2026/27'), 5),
+             (1, ('AFRICA', 'EUROPA'), ['EUROPA', 'ITALIA', 'SERIE A', 'INTER'], ('INTER', '1996/97'), 'base'),
+             (2, ('ISLANDA',), ['ISLANDA', 'VOLSUNGUR'], ('VOLSUNGUR', '1984/85'), 'base')]
+    for setting, first, path, want, ns_want in cases:
         tag = f'engine_wmodes_car{setting}'
         with Session(tag, b, {'SETUP.DAT': setup_file(tag, setting)}, 'dump:3', 400) as s:
             if s.wait().outcome != 'dump':
@@ -13135,18 +13136,10 @@ def engine_wmodes_car():
             sc = s.screen()
             tx = sc.texts()
             s.shot(f'set{setting}_first')
-            col = next((c for (j, t, *_), c in zip(sc.entries, sc.colors) if t == cur), None)
-            check(all(t in tx for t in first) and (cur not in first or col == 14) and sc.raw_texts[0] != lock,
-                  f'default {setting}: the first list {tx[:12]}.. {tx[-6:]} ({cur} colour {col}, title '
+            check(all(t in tx for t in first) and hist not in tx and cur not in tx and sc.raw_texts[0] != lock,
+                  f'default {setting}: the first list {tx[:12]}.. {tx[-6:]} (no {hist} / {cur} wanted, title '
                   f'{sc.raw_texts[0]!r})', errs)
-            sc = walk(s, hist, 2)
-            s.shot(f'set{setting}_storico')
-            check(all(t in sc.texts() for t in inh) and not any(t in sc.texts() for t in notinh),
-                  f'default {setting}: STORICO {sc.texts()[:8]}', errs)
-            wm_up(s, first[-1])
             for t in path:
-                if t == hist and s.screen().find(hist) is None:
-                    wm_up(s, hist)
                 walk(s, t, 2)
             s.send('fire dump:3')
             got = str(s.screen())

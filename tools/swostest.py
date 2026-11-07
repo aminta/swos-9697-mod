@@ -47,6 +47,16 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 MAIN = os.path.expanduser('~/swos-mod')               # main checkout: c/, orig/, internal/ live there
 WORK = os.path.join(MAIN, 'internal', 'swostest')
 RUNS = os.environ.get('SWOSTEST_RUNS') or os.path.join(WORK, 'runs')   # run dirs (another one = a parallel suite)
+
+
+def xdir(name):
+    """builds-x/<name>: a scenario's throwaway exe copy (rmtree + copytree every run); under SWOSTEST_RUNS one per run dir
+    (07/11, backlog 106: two suites running one SWOS++ scenario at once - a gate and a session - removed each other's
+    copy: FileExistsError / missing DATA files mid-copy)"""
+    return os.path.join(WORK, 'builds-x', name + ('_' + os.path.basename(RUNS.rstrip('/')) if os.environ.get('SWOSTEST_RUNS')
+                                                  else ''))
+
+
 DOSBOX = '/Applications/dosbox-x.app/Contents/MacOS/dosbox-x'
 ISO = os.path.join(MAIN, 'orig', 'swos9697ita.iso')
 BREAK = re.compile(rb'[0-9A-F]{4}:([0-9A-F]{8}) +' + (rb'[0-9A-F]{2}' if os.environ.get('SWOSTEST_BP4C') else
@@ -453,6 +463,53 @@ SPP_CONTI_HOLD = int(os.environ.get('SPP_CONTI_HOLD', 10))   # (07/11) the conti
                                                        # SPP_HOLD (20) a tap moved 2 rows there (menu auto-repeat)
 SPP_FIRE_HOLD = 0                                      # (07/11, backlog 157) walk / press fire held so many timer ticks
                                                        # (0: the feed's own HOLD) - the conti scenarios under SWOS++
+SPP_TAP = int(os.environ.get('SPP_TAP', 8))            # (07/11, backlog 106) walk's first fire under SPP_STEP: held 8
+                                                       # ticks, not HOLD (20): a 20-tick fire auto-repeated into the
+                                                       # screen it opened (suite-41s23-spp: OK's fire also fired the
+                                                       # friendly's SCEGLI SQUADRE, under a 4-DOSBox load)
+
+
+def spp_tap_fire(s, cmd):
+    """walk's fire under SPP_STEP (bench_world's feed: no latch, keys held HOLD ticks) with no SPP_FIRE_HOLD: held
+    SPP_TAP ticks first; only if the screen (every text + the selection) is the same after the fire's dump and 4 s
+    more, again held HOLD, then HOLD * 3 // 2 (a slow screen takes a fire only held >= its frame time, spp_fire_held) -
+    never a second fire on a screen that changed; each refire logged ([spp tap])."""
+    def look():
+        try:
+            sc = s.screen()
+            return tuple(sc.texts()), sc.selected
+        except Exception:
+            return None
+    before = look()
+    for h in (SPP_TAP, HOLD, HOLD * 3 // 2):
+        s.poke(s.result.base1 + s.info['holdn'], struct.pack('<H', h))
+        r = s.send(cmd)
+        s.poke(s.result.base1 + s.info['holdn'], struct.pack('<H', HOLD))
+        if before is None or r.outcome != 'dump' or look() != before:
+            break
+        r = s.send('dump:4')
+        if r.outcome != 'dump' or look() != before:
+            break
+        s.log.append(f'[spp tap] {before[0][:1]!r} unchanged after a {h}-tick fire: held longer')
+    return r
+
+
+def walk_ahead(s, scr, target, nxt):
+    """(07/11, backlog 106) Under SWOS++'s timer feed (SPP_STEP / WALK_SPP) a fire can be taken twice: the screen is
+    then one step ahead - target not on it, the path's next step (nxt[0]) is. True = carry on from there; every such
+    skip logged ([spp skip], session.log) and printed, so a game fault that looks like one stays visible."""
+    if not (SPP_STEP or WALK_SPP) or not nxt or not isinstance(nxt[0], str) or scr.find(nxt[0]) is None:
+        return False
+    msg = f'[spp skip] {target!r} not on screen, the next step {nxt[0]!r} is: a fire taken twice? carried on'
+    s.log.append(msg)
+    print(f'{os.path.basename(s.run)}: {msg}', file=sys.stderr, flush=True)
+    return True
+
+
+def walk_seq(s, path, w=3):
+    """walk() along a menu path; under SWOS++ a step a doubled fire already took is skipped (walk_ahead, logged)."""
+    for k, t in enumerate(path):
+        walk(s, t, w, nxt=path[k + 1:])
 
 
 def fire_send(s, cmd, retry=False, plain_first=False):
@@ -4865,7 +4922,7 @@ def edit_custom_teams():
     if spp:
         import swospp
         pp = os.path.join(MAIN, 'internal', 'swospp-test')
-        b = os.path.join(WORK, 'builds-x', 'edit_custom_teams')
+        b = xdir('edit_custom_teams')
         shutil.rmtree(b, ignore_errors=True)
         shutil.copytree(os.environ['SWOSPP_BUILD'], b)
         swospp.install(os.path.join(os.environ['SWOSPP_BUILD'], 'ITALIAN.EXE'), os.path.join(b, 'ITALIAN.EXE'))
@@ -6085,7 +6142,7 @@ def gwalk(s, text, w=3, tries=40):
     raise AssertionError(f'gwalk: {text} not reached ({s.screen()})')
 
 
-def walk(s, target, w=3, tries=20, stays=48):
+def walk(s, target, w=3, tries=20, stays=48, nxt=()):
     """Select entry `target` (text or number) one key at a time, re-planning after each move (menus where a planned
     path drifts: two-column lists, moves taken twice), then fire; returns the new screen. A key that leaves the cursor
     where it was (4.0.5 long bench: down on row 17 / up on row 12 scroll the player list's window - ViewSquad of a
@@ -6097,6 +6154,8 @@ def walk(s, target, w=3, tries=20, stays=48):
         try:
             sc = s.screen()
             i = sc.find(target) if isinstance(target, str) else target
+            if i is None and walk_ahead(s, sc, target, nxt):
+                return sc
             if i is None or press(s, sc, i, w + SLOW_FIRE) is None:
                 raise AssertionError(f'{target} not reached by SWOS++ taps ({s.screen().texts()[:16]})')
         finally:
@@ -6113,9 +6172,14 @@ def walk(s, target, w=3, tries=20, stays=48):
                 return s.screen()
             if up is False:
                 continue
+            if walk_ahead(s, scr, target, nxt):
+                return scr
             raise AssertionError(f'{target} not on screen ({scr.texts()[:16]})')
         if scr.selected == i:
-            fire_send(s, f'fire dump:{w + SLOW_FIRE}', target == 'ESCI' or scr.entries[i][1] == 'ESCI')
+            if SPP_STEP and not SPP_FIRE_HOLD:
+                spp_tap_fire(s, f'fire dump:{w + SLOW_FIRE}')
+            else:
+                fire_send(s, f'fire dump:{w + SLOW_FIRE}', target == 'ESCI' or scr.entries[i][1] == 'ESCI')
             return s.screen()
         p = scr.path(i, frozenset(bad)) or scr.path(i)
         if not p:
@@ -11415,7 +11479,7 @@ def tac_name_swospp():
     if not b:
         return True, 'SKIP: TACNAME_BUILD not set'
     pp = os.path.join(MAIN, 'internal', 'swospp-test')
-    out = os.path.join(WORK, 'builds-x', 'tac_name_swospp')
+    out = xdir('tac_name_swospp')
     shutil.rmtree(out, ignore_errors=True)
     shutil.copytree(b, out)
     swospp.install(os.path.join(b, 'ITALIAN.EXE'), os.path.join(out, 'ITALIAN.EXE'))
@@ -11913,7 +11977,7 @@ def controls_calib():
     b, v = ct_build()
     T = controls.TEXTS[UI]
     enc = lambda x: x.encode('latin-1')
-    rb = os.path.join(WORK, 'builds-x', f'controls_rgp_{UI}')
+    rb = xdir(f'controls_rgp_{UI}')
     shutil.rmtree(rb, ignore_errors=True)
     shutil.copytree(b, rb)
     p = lepatch.LEPatch(os.path.join(rb, 'ITALIAN.EXE'))
@@ -12003,7 +12067,7 @@ def controls_swospp():
         return True, 'SKIP: SWOS++ is English only (SWOSTEST_UI=en)'
     b, v = ct_build()
     pp = os.path.join(MAIN, 'internal', 'swospp-test')
-    out = os.path.join(WORK, 'builds-x', 'controls_swospp')
+    out = xdir('controls_swospp')
     shutil.rmtree(out, ignore_errors=True)
     shutil.copytree(b, out)
     swospp.install(os.path.join(b, 'ITALIAN.EXE'), os.path.join(out, 'ITALIAN.EXE'))
@@ -12053,7 +12117,7 @@ def engine_obj4():
     if UI == 'en':
         import swospp
         pp = os.path.join(MAIN, 'internal', 'swospp-test')
-        out = os.path.join(WORK, 'builds-x', 'engine_obj4')
+        out = xdir('engine_obj4')
         shutil.rmtree(out, ignore_errors=True)
         shutil.copytree(b, out)
         swospp.install(exe, os.path.join(out, 'ITALIAN.EXE'))
@@ -12344,7 +12408,7 @@ def engine_wmodes_play():
         sys.path.insert(0, os.path.join(ROOT, 'tools'))    #  empty first screen under the timer feed; 4.0.6 queue)
         import swospp
         pp = os.path.join(MAIN, 'internal', 'swospp-test')
-        out = os.path.join(WORK, 'builds-x', 'engine_wmodes_play')
+        out = xdir('engine_wmodes_play')
         shutil.rmtree(out, ignore_errors=True)
         shutil.copytree(b, out)
         swospp.install(os.path.join(b, 'ITALIAN.EXE'), os.path.join(out, 'ITALIAN.EXE'))
@@ -12695,7 +12759,7 @@ def engine_avail_esci_swospp():
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import swospp
     pp = os.path.join(MAIN, 'internal', 'swospp-test')
-    out = os.path.join(WORK, 'builds-x', 'engine_avail_esci_swospp')
+    out = xdir('engine_avail_esci_swospp')
     shutil.rmtree(out, ignore_errors=True)
     shutil.copytree(b, out)
     swospp.install(os.path.join(b, 'ITALIAN.EXE'), os.path.join(out, 'ITALIAN.EXE'))
@@ -12836,7 +12900,7 @@ def engine_omm_spp():
     if not b or not os.path.isdir(b):
         return True, 'SKIP: SWOSPP_BUILD not set'
     pp = os.path.join(MAIN, 'internal', 'swospp-test')
-    out = os.path.join(WORK, 'builds-x', 'engine_omm_spp')
+    out = xdir('engine_omm_spp')
     shutil.rmtree(out, ignore_errors=True)
     shutil.copytree(b, out)
     swospp.install(omm_exe(b, 'engine_omm_spp'), os.path.join(out, 'ITALIAN.EXE'))
@@ -13484,7 +13548,7 @@ def swospp_menu():
     if not b or not os.path.isdir(b):
         return True, 'SKIP: SWOSPP_BUILD not set'
     pp = os.path.join(MAIN, 'internal', 'swospp-test')
-    out = os.path.join(WORK, 'builds-x', 'swospp_menu')
+    out = xdir('swospp_menu')
     shutil.rmtree(out, ignore_errors=True)
     shutil.copytree(b, out)
     swospp.install(os.path.join(b, 'ITALIAN.EXE'), os.path.join(out, 'ITALIAN.EXE'))
@@ -13604,7 +13668,7 @@ def swospp_bench():
     if not b or not os.path.isdir(b):
         return True, 'SKIP: SWOSPP_BUILD not set'
     pp = os.path.join(MAIN, 'internal', 'swospp-test')
-    out = os.path.join(WORK, 'builds-x', 'swospp_bench')
+    out = xdir('swospp_bench')
     shutil.rmtree(out, ignore_errors=True)
     shutil.copytree(b, out)
     swospp.install(os.path.join(b, 'ITALIAN.EXE'), os.path.join(out, 'ITALIAN.EXE'))
@@ -20176,7 +20240,7 @@ def world_cgame_swospp():
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import swospp
     pp = os.path.join(MAIN, 'internal', 'swospp-test')
-    out = os.path.join(WORK, 'builds-x', 'world_cgame_swospp')
+    out = xdir('world_cgame_swospp')
     shutil.rmtree(out, ignore_errors=True)
     shutil.copytree(exe, out)
     swospp.install(os.path.join(exe, 'ITALIAN.EXE'), os.path.join(out, 'ITALIAN.EXE'))
@@ -20456,7 +20520,7 @@ def world_conti_spp_esci():
     summ = ctview.TEXTS[UI][7].decode('latin1')
     home = ctview.TEXTS[UI][6].decode('latin1')
     pp = os.path.join(MAIN, 'internal', 'swospp-test')
-    out = os.path.join(WORK, 'builds-x', 'world_conti_spp_esci')
+    out = xdir('world_conti_spp_esci')
     shutil.rmtree(out, ignore_errors=True)
     shutil.copytree(exe, out)
     swospp.install(os.path.join(exe, 'ITALIAN.EXE'), os.path.join(out, 'ITALIAN.EXE'))
@@ -20541,7 +20605,7 @@ def world_ctcursor_swospp():
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import swospp
     pp = os.path.join(MAIN, 'internal', 'swospp-test')
-    out = os.path.join(WORK, 'builds-x', 'world_ctcursor_swospp')
+    out = xdir('world_ctcursor_swospp')
     shutil.rmtree(out, ignore_errors=True)
     shutil.copytree(exe, out)
     swospp.install(os.path.join(exe, 'ITALIAN.EXE'), os.path.join(out, 'ITALIAN.EXE'))
@@ -27784,7 +27848,7 @@ def xtra_cpu_refill_spp():
     team, rec, blk = cpurefill_club(b, 'MILAN')
     nm = lambda x: x[3:26].split(b'\0')[0].decode('latin1')
     pp = os.path.join(MAIN, 'internal', 'swospp-test')
-    out = os.path.join(WORK, 'builds-x', 'cpurefill_spp' + os.environ.get('SWOSTEST_TAG', ''))
+    out = xdir('cpurefill_spp' + os.environ.get('SWOSTEST_TAG', ''))
     shutil.rmtree(out, ignore_errors=True)
     shutil.copytree(b, out)
     swospp.install(os.path.join(b, 'ITALIAN.EXE'), os.path.join(out, 'ITALIAN.EXE'))
@@ -28852,7 +28916,7 @@ def match_names14():
     if spp:
         import swospp
         pp = os.path.join(MAIN, 'internal', 'swospp-test')
-        b = os.path.join(WORK, 'builds-x', 'match_names14')
+        b = xdir('match_names14')
         shutil.rmtree(b, ignore_errors=True)
         shutil.copytree(os.environ['SWOSPP_BUILD'], b)
         swospp.install(os.path.join(os.environ['SWOSPP_BUILD'], 'ITALIAN.EXE'), os.path.join(b, 'ITALIAN.EXE'))
@@ -28875,8 +28939,8 @@ def match_names14():
                 if spp:
                     on, why = swospp_on(s.result, os.path.join(b, 'ITALIAN.EXE'))
                     check(on, f'SWOS++ not running: {why}', errs)
-                for t in ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB', 'EUROPA', 'GERMANIA', '1. LIGA', 'HAMBURG'):
-                    walk(s, t, 2)
+                walk_seq(s, ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB', 'EUROPA', 'GERMANIA', '1. LIGA',
+                             'HAMBURG'), 2)
                 s.send('fire dump:2')
                 walk(s, 'SCHALKE', 2)
                 tap = ':0.3' if spp else ''                # (SWOS++'s timer feed: held taps; the squad screen's PLAY

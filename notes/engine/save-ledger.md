@@ -111,4 +111,14 @@ SEL_N 160 × 684 = 109440, main block 948, 'EN' block 15343 (25 items) → 12573
 - Read by obj4 after LoadDIYFile (LoadOldCompetitionMenu's call, retargeted). The block counts only when the file's
   size is exactly the game's part + 4 and the tag matches. Any other file (the game's, an older mod's, a preset) reads
   as world 0. An older exe loads a file with the block whole: the 4 B land past the last record and nobody reads them.
-- Presets (.PRE) and seasons (.SEA) get no block in W-modes. Their worlds come at 4.1 (engine P: SWC1 in those saves).
+- Presets (.PRE) and seasons (.SEA) get no block in W-modes (engine P c, 2026-11-07):
+  - **.SEA is SaveCareerFile's** (SaveContest's season branch calls j_SaveCareerFile): a season's save already carries
+    the trailer and SWC1. SWC1's world is the career's byte only when the game type is a career (4); a season writes 0,
+    since someLeaguesTable's byte is stale outside a career (it would be an earlier career's). A season's load already
+    gives the base namespace back (engine_sea_ns: after a mixed friendly, WCUR = base).
+  - **.PRE is the DIY file's body** (SavePresetCompetitionFile = SaveDIYFile, LoadPresetFile = LoadDIYFile). No preset
+    of a career world exists yet, so a .PRE is never written with a block (no save hook: the file stays the game's).
+    Its load goes through swe_diy_loaded (swe_pre_load_tramp at LoadOldCompetitionMenu's '.PRE' call): no 'WM' block,
+    so the base namespace back. Before it, a preset loaded after a mixed friendly kept namespace 5 (engine_pre_ns).
+  - When a world gets presets or seasons, their start sets the contest's world (SWE_CWORLD for a preset, then the
+    preset save hook as the DIY one; SWC1's world for a season) - not before.

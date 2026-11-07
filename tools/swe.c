@@ -794,7 +794,13 @@ u8 SWC1[SWC1_SIZE] DATA = {0};
 u32 SWC1_LOADED DATA = 0;               /* the last load's SWC1 version: 0 = a save from before P */
 #ifdef CWB
 extern u8 SWE_CWB[];                    /* careerworld: the career's world byte (someLeaguesTable[WORLD_BYTE]) */
+/* (a career's only: the byte is stale outside one - a .SEA is SaveCareerFile's too, and a season plays the base
+   world until world seasons exist; engine P c, 07/11) */
+#ifdef NS
+static u32 cw_byte(void) { return *(u16 *)SWE_GTYPE == GAME_TYPE_CAREER ? SWE_CWB[0] : 0; }
+#else
 static u32 cw_byte(void) { return SWE_CWB[0]; }
+#endif
 #else
 static u32 cw_byte(void) { return 0; }
 #endif

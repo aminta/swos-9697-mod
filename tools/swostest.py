@@ -12522,6 +12522,74 @@ def av_unused():
 
 
 @scenario
+def engine_sea_ns():
+    """Engine P step c (MC 07/11): a SEASON's save (.SEA = the game's SaveCareerFile, so SWC1 is in it) loaded after a
+    mixed friendly (wm_mixed: namespace 5 left, the contest's). (1) Default 1996-97: STAGIONE > STAG. STORICHE > ITALIA
+    1947-48 > JUVENTUS, its team screen read, SALVA STAGIONE as SEANS. (2) Default World 2026-27: the mixed friendly
+    (WCUR 5), main menu, CARICA VECCHIA COMPETIZIONE > SEANS: WCUR = the base namespace at its first screen and the
+    same team screen as (1) (no 2026-27 names / nationalities over the season's teams)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import swreg
+    b = nop_league_int3('engine_sea_ns', os.environ.get('SWOSTEST_BUILD') or builds()['it'])
+    errs, info = [], []
+
+    def reg(s):
+        r = s.result
+        m = r.read(struct.unpack('<I', r.read(r.base4 + 32, 4))[0], swreg.HDR)
+        return m[7], struct.unpack_from('<I', m, 8)[0]
+    with Session('engine_sea_ns', b, {'SETUP.DAT': setup_file('engine_sea_ns', 1)}, 'dump:2', 300) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'no first pause ({s.result})'
+        for t in ('STAGIONE', 'STAG. STORICHE', 'ITALIA 1947-48', 'JUVENTUS'):
+            if press(s, s.screen(), t, 2) is None:
+                return False, f'{t} not reached ({s.screen().texts()[:8]})'
+        for _ in range(14):                     # the STAGIONE button, right of ABBANDONA (as shirt_edit_season)
+            scr = s.screen()
+            if scr.entries[scr.selected][1] == 'STAGIONE':
+                break
+            s.send(('right' if scr.entries[scr.selected][1] == 'ABBANDONA' else 'down') + ' dump:0.5')
+        s.send('fire dump:3')
+        sc = se_to_playmatch(s)
+        if sc is None:
+            return False, f'(1) no team screen ({s.screen().texts()[:8]})'
+        t1 = [t for t in sc.texts() if t]
+        s.shot('team_1')
+        for _ in range(6):
+            scr = s.screen()
+            if 'SALVA STAGIONE' in scr.texts():
+                break
+            press(s, scr, 'ESCI', 2) or s.send('fire dump:2')
+        press(s, s.screen(), 'SALVA STAGIONE', 2)
+        s.send(name_entry('seans') + ' dump:3')
+        game = s.result.game
+    saves = [f for f in os.listdir(game) if f.upper().endswith('.SEA')]
+    if not saves:
+        return False, f'(1) no .SEA saved ({sorted(os.listdir(game))})'
+    info.append(f'(1) {saves[0]} {os.path.getsize(os.path.join(game, saves[0]))} B, team screen {t1[:6]}')
+    files = {'SETUP.DAT': setup_file('engine_sea_ns2', 0), saves[0]: os.path.join(game, saves[0])}
+    with Session('engine_sea_ns2', b, files, 'dump:3', 600) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'(2) no first pause ({s.result})'
+        nsbase, wcur = reg(s)
+        wm_mixed(s, 'CARR. STORICHE')
+        ns = s.result.read(wcur, 1)[0]
+        check(ns == 5, f'(2) after the mixed friendly WCUR {ns} (the contest\'s 5)', errs)
+        if not wm_to_main(s):
+            return False, '; '.join(errs + info + [f'(2) no main menu ({s.screen().texts()[:6]})'])
+        press(s, s.screen(), 'CARICA VECCHIA COMPETIZIONE', 2)
+        if press(s, s.screen(), 'SEANS', 3, exact=False) is None:
+            return False, '; '.join(errs + info + [f'(2) SEANS not listed ({s.screen().texts()[:8]})'])
+        ns = s.result.read(wcur, 1)[0]
+        info.append(f'(2) loaded: WCUR {ns} (base {nsbase})')
+        check(ns == nsbase, f'(2) loaded: WCUR {ns}, base {nsbase}', errs)
+        sc = se_to_playmatch(s)
+        t2 = [t for t in sc.texts() if t] if sc else []
+        s.shot('team_2')
+        check(t2 == t1, f'(2) team screen {t2[:8]} != {t1[:8]}', errs)
+    return not errs, '; '.join(errs + info)
+
+
+@scenario
 def engine_avail():
     """Step 2.5 (Davide 2026-11-05): 'not available in this world' -> a message on the spot, 2 rows in the list area
     (swe.c av_*; texts swe.AV_LINES, frozen, 4 languages - SWOSTEST_UI). Per default world (main-menu WORLD switch):

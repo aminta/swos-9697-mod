@@ -1,5 +1,5 @@
 """Engine P: the engine's state item 'SWC1' in the career save's 'EN' block (trailer.py save_trailer / en_read /
-en_finish, swe.c swe_st_save / swe_st_load), on the static image of HT_P_EXE (else c/HTP5: a release-recipe exe built
+en_finish, swe.c swe_st_save / swe_st_load), on the static image of HT_P_EXE (else c/HTPC2: a release-recipe exe built
 with HOSTTEST_SYMS=1). No snapshot: the save is save_trailer's own block with no cached team (NUMSEL 0), WriteFile not
 reached; the load is en_read + en_finish + swe_st_load on hand-made blocks.
 
@@ -27,7 +27,7 @@ import swe  # noqa: E402
 import trailer  # noqa: E402
 
 HOME = os.path.expanduser('~')
-EXE = os.environ.get('HT_P_EXE') or os.path.join(HOME, 'swos-mod', 'c', 'HTP5', 'SWOS', 'ITALIAN.EXE')
+EXE = os.environ.get('HT_P_EXE') or os.path.join(HOME, 'swos-mod', 'c', 'HTPC2', 'SWOS', 'ITALIAN.EXE')
 GDT_AT, BUF = 0x6000000, 0x6100000
 
 
@@ -105,6 +105,10 @@ def test_swc1():
     assert out > 0, 'save_trailer: no popad / jmp at its end'
     cwb = _disp(rd, at('swe', 'swe_st_save'), 0x40, b'\x0f\xb6\x05')   # swe.c cw_byte: movzx eax, byte [SWE_CWB]
     sea = _disp(rd, at('swe', 'swe_st_save'), 0x40, b'\x0f\xb6\x05', 1)   # (engine P 5: then [SWE_SEASON])
+    gt = _disp(rd, at('swe', 'swe_st_save'), 0x40, b'\x66\x83\x3d') if b'\x66\x83\x3d' in \
+        rd(at('swe', 'swe_st_save'), 0x40) else None              # (P c: cmp word [SWE_GTYPE], 4 - a career's world only)
+    if gt is not None:
+        uc.mem_write(gt, b'\x04\x00')
     errs = []
 
     uc.mem_write(guard, b'\0' * 4)
@@ -133,6 +137,24 @@ def test_swc1():
     want = struct.pack('<HH', 1, 5) + bytes(range(5, 9)) + struct.pack('<H', 126) + bytes(range(11, size + 1))
     if s != want:
         errs.append(f'saved SWC1 {s.hex() if s else None} (want version 1, world 5, season 126, the rest as in memory)')
+    if gt is None:
+        errs.append('swe_st_save: no `cmp word [SWE_GTYPE], 4` (a season\'s .SEA would save the stale career byte)')
+    else:                                                           # (P c: a season's .SEA = SaveCareerFile too:
+        uc.mem_write(gt, b'\x03\x00')                               # world 0, never the stale career byte)
+        uc.mem_write(d1, b'\0' * 4)
+        _run(uc, save, save + out + 1)
+        n2 = struct.unpack('<I', rd(d1, 4))[0]
+        b2 = rd(BUF, n2)
+        k2 = b2.find(struct.pack('<H', trailer.EN_MARK))
+        p2, e2, s2 = k2 + 4, k2 + 4 + struct.unpack_from('<H', b2, k2 + 2)[0], None
+        while p2 + 4 <= e2:
+            iid, ln = struct.unpack_from('<HH', b2, p2)
+            if iid == engine.item_id('SWC1'):
+                s2 = b2[p2 + 4:p2 + 4 + ln]
+            p2 += 4 + ln
+        if not s2 or s2[2:4] != b'\0\0':
+            errs.append(f'a season\'s save: SWC1 {s2.hex() if s2 else None} (want world 0, the career byte 5 stale)')
+        uc.mem_write(gt, b'\x04\x00')
     rid = engine.item_id('RPRB')
     probe = None
     en_n = _disp(rd, en_read, 0x60, b'\x81\xf9') if b'\x81\xf9' in rd(en_read, 0x60) else rd(en_read, 0x60)[

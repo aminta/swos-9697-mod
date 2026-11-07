@@ -21514,8 +21514,11 @@ def world_title_mlt():
 def world_title_mlt_out():
     """4.1 gp_champ (Davide 06/11 B): world_title_mlt with the title winner taken out of the season end's top-9 list
     (GPLAY_CHFORCE=1 test build: its slot gets the 9th's word and record), so gp_champ must bring it in from the game's
-    team cache: the champion (the career club) first of the top-9 list all the same, the season played on to its end"""
-    return world_title('mlt', '1', kof='2', chf='1')
+    team cache: the champion (the career club) first of the top-9 list all the same, the season played on to its end.
+    Every match decided by strength (W8485_FILL, simdraw 3-0; MLTOUT_NATURAL=1: the natural season): the Opening
+    Round's table and the Final Four's seeds are natural otherwise, and a run whose RNG / menu flow differs met
+    another situation (4.1 m1 07/11: a club seeded twice, its own final, the champion outside the cache)"""
+    return world_title('mlt', '1', kof='2', chf='1', fill=os.environ.get('MLTOUT_NATURAL') != '1')
 
 
 def gplay_host(test):

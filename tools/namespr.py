@@ -21,7 +21,17 @@ pixels (5 quads), and Text2Sprite draws nothing at all when the text is wider th
 Code, headers and pixels live in obj1 pages of their own (PAGES; obj2's page count unchanged, nothing saved), sized
 for CAP sprites (26 per team) although the game has 32 (N).
 The tail past CAP x DATA (p6 + Integratore): ns_at+0x4A40..+0x4EF9 the shaved art (blond.art_patch, 4.0.5); the rest
-(ns_at+0x4EF9..+0x4FFF, 263 B) is free. More room for namespr = a new page.
+(ns_at+0x4EF9..+0x4FFF, 263 B) was free; 4.1 long_patch takes its top 0x80 (ns_at+0x4F80..), 135 B left. More room for
+namespr = a new page.
+4.1 (Marco, RUUD VAN NISTELROOY showed 'VAN NISTEL.'): InitInGamePlayer makes PlayerInfo.shortName with
+ExtractSurname 800Eh, the initial + everything past the first word, 14 at most ('R. VAN NISTEL.'), and the sprite's
+400Eh then drops its first word. long_patch, at the top of that free tail:
+- InitInGamePlayer's call -> nl_init: when the initial + surname was cut (ExtractSurname leaves D6 = 14 only then) but
+  the surname alone fits (400Eh not cut), shortName = the surname whole ('VAN NISTELROOY'); else the game's cut.
+- MakePlayerNameSprite's call -> nl_spr: a short name without the initial ('X. ', GoalScored's own test) is used whole
+  (D0 = 0Eh, no flags: returned as it is, 14 at most); with it, the surname as before. One-word names ('_' joins:
+  ROBERTO_CARLOS) are unchanged: no initial either way. GoalScored's scorer line and the bench menu read shortName too
+  (both: the initial skipped / shown as it is) - they show the whole surname as well.
 
 Fixed counts a bigger bench would touch (the game's, unchanged here): MakeSpritesFromPlayerNames `mov word [D6], 255`
 (the first sprite) and `mov word [D7], 15` twice (16 players per team); SetCurrentPlayerName's `add D1, 255` /
@@ -87,6 +97,80 @@ ns_fix:                                 ; replaces `call LoadSpritesAndFixOffset
     popad
     ret
 """
+
+
+LONG_ASM = r"""
+nl_init:                                ; replaces InitInGamePlayer's `call ExtractSurname` (D0 = 800Eh, A0 -> name)
+    mov eax, [A0]
+    push eax
+    call EXTRACT1                       ; the game's: initial + surname, 14 at most
+    pop eax
+    cmp word [D6], 14
+    jne .out                            ; (not cut)
+    mov esi, [A0]
+    cmp word [esi + 1], 202Eh
+    jne .out                            ; (no initial: one word, cut)
+    push eax
+    mov [A0], eax
+    mov word [D0], 400Eh
+    call EXTRACT1                       ; the surname alone
+    pop eax
+    cmp word [D6], 14
+    jne .out                            ; (fits whole)
+    mov [A0], eax
+    mov word [D0], 800Eh
+    jmp EXTRACT1                        ; longer than 14 too: the game's cut
+.out:
+    ret
+
+nl_spr:                                 ; replaces MakePlayerNameSprite's `call ExtractSurname` (A0 -> shortName)
+    mov esi, [A0]
+    cmp word [esi + 1], 202Eh
+    je EXTRACT2                         ; 'X. ...': the surname (D0 400Eh)
+    mov word [D0], 0Eh                  ; no initial: the short name whole
+    jmp EXTRACT2
+"""
+LONG_SIZE = 0x80
+
+
+def long_sites(p):
+    """(InitInGamePlayer's call ExtractSurname, MakePlayerNameSprite's): obj1 offsets in the original exe."""
+    d1 = p.le.obj_bytes(1)
+    D0 = sacups.regs(d1)['D7'] - 28
+    m = [x.start() + 45 for x in re.finditer(rb'\x66\xc7\x05' + re.escape(struct.pack('<I', D0)) + rb'\x0e\x80(?:\xff\x35....){6}'
+                                              rb'\xe8', d1, re.S)]
+    assert len(m) == 1, ('InitInGamePlayer 800Eh', m)
+    lim = [x.start() for x in re.finditer(rb'\x66\xc7\x05' + re.escape(struct.pack('<I', D0)) + rb'\x0b\x40', d1)]
+    assert len(lim) == 1, ('400Bh', lim)                  # (MakePlayerNameSprite's, as find(): obj_bytes = the original)
+    lim = lim[0]
+    c = [x.end() - 1 + lim for x in re.finditer(rb'(?:\xff\x35....){7}\xe8', d1[lim:lim + 0x60], re.S)]
+    assert len(c) == 1 and _rel(d1, c[0]) == _rel(d1, m[0]), ('MakePlayerNameSprite ExtractSurname', c)
+    return m[0], c[0]
+
+
+def long_patch(p, end):
+    """4.1 whole surnames up to 14 (VAN NISTELROOY): code at the top of namespr's free tail (end = ns_at + PAGES pages,
+    after blond.art_patch). Both calls chained (their current targets)."""
+    d1 = p.le.obj_bytes(1)
+    ini, spr = long_sites(p)
+    tgt = {}
+    for k, o in (('EXTRACT1', ini), ('EXTRACT2', spr)):
+        cur = bytes(p.get(1, o, 5))
+        assert cur[0] == 0xE8
+        tgt[k] = (1, _rel(cur, 0) + o)
+    r = sacups.regs(d1)
+    at = end - LONG_SIZE
+    sym = dict(tgt, A0=(2, r['A0']), D0=(2, r['D7'] - 28), D6=(2, r['D7'] - 4))
+    code, fix = nasmcave.assemble(LONG_ASM, at, sym)
+    lab = nasmcave.labels(LONG_ASM, at, sym)
+    assert len(code) <= LONG_SIZE and not any(p.get(1, at, LONG_SIZE)), (len(code), hex(at))
+    p.put(1, at, code)
+    for o, t_obj, t_off in fix:
+        p.add_ptr(1, at + o, t_obj, t_off)
+    for o, l in ((ini, 'nl_init'), (spr, 'nl_spr')):
+        p.put(1, o, b'\xE8' + struct.pack('<i', lab[l] - (o + 5)))
+    print(f'exe: whole surnames up to 14 in the match: code obj1+{at:#x} ({len(code)} B, {len(fix)} fixups)')
+    return at
 
 
 def _rel(d, c):

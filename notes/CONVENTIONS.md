@@ -110,9 +110,10 @@ new rule. If a rule seems wrong for a case, ask the regia session; don't silentl
     - **DOS/4GW zeroes no tail: the engine zeroes its own arena** (swe_init, before any other engine call). Never rely
       on a zero obj4 byte that the engine did not write.
     - 4.1 exception (Davide 08/11 via Regia, MC as obj4 owner): obj4 page 3+ may hold engine-adjacent views at a
-      named address (uesum, the UEFA RIEPILOGO page, at swreg.UESUM_AT = 0x2000; 4.2 moves it to 0x3000 with the
-      registry). The engine's code + registry stay below swreg.OBJ4_END (0x2000), each view has its own range
-      assert, and the 23bis gates below apply to it as to engine code.
+      named address (uesum, the UEFA RIEPILOGO page, at swreg.UESUM_AT = 0x2000; 4.2, xw-42: obj4 4 pages, engine
+      code below REG_AT 0x2800, registry 0x2800..OBJ4_END 0x3000, uesum moved to UESUM_AT 0x3000). The engine's code
+      + registry stay below swreg.OBJ4_END (0x2000 in 4.1), each view has its own range assert, and the 23bis gates
+      below apply to it as to engine code.
     - No obj4 address is ever stored in a save (engine state = 'EN' items, rule 21), so obj4 may grow and move freely.
     - Calls between the game / obj3 and obj4: self-relative fixups (type 8) as rule 23; cobj.link(text_obj=4).
     - The harness finds obj4 by its header (Result.base4: the magic + the self pointer), not by a game pointer.

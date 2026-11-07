@@ -12183,7 +12183,7 @@ def wm_go(s, t, w=2, nxt=()):
             s.log.append(f'[spp latch] {t} not on {scr}'[:300])
             press(s, scr, 'ESCI', w)
             continue
-        if press(s, scr, i, w) is None:
+        if press(s, scr, t if isinstance(t, int) or scr.find(t, exact=True) is not None else i, w) is None:
             raise AssertionError(f'{t} not reached ({s.screen().texts()[:16]})')
         return 0
     raise AssertionError(f'{t} not on screen ({s.screen().texts()[:16]})')
@@ -12270,6 +12270,10 @@ def engine_wmodes():
         menu254, menu98 = rd32(c254), rd32(comp + 4 * 98)
         wm_seq(s, ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB'))
         scr = s.screen()
+        if WM_SPP and scr.find(hist) is None and scr.find('ESCI', exact=True) is not None:
+            s.log.append(f'[spp carried] SQUADRE CLUB\'s fire into the first list: ESCI back ({scr})'[:300])
+            press(s, scr, 'ESCI', 2)                    # (SWOS++'s latch fired its first entry, EUROPA: 4.1 m1)
+            scr = s.screen()
         check(scr.find(hist) is not None and scr.find('EUROPA') is not None and
               scr.find('NORDAMERICA') is not None, f'the picker\'s first list: {scr.texts()[:14]}', errs)
         check(rd32(selmode) == swreg.M_FRIENDLY and rd32(c254) == cwt, f'in the picker: SEL_MODE {rd32(selmode):#x}, '

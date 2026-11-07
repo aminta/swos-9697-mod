@@ -2,7 +2,7 @@
 rule, the world builder's rule (internal/world2526/tmkits.py) checked against it, and the patched world data checked
 byte for byte against its base.
 Fixture internal/hosttest/fixtures/kitpurple/audit.json (the 07/11 audit, unversioned like every fixture).
-HT_KIT_BASE / HT_KIT_DATA = the world dirs (default world5tm-403c14 / world5tm-403c14-kp)."""
+HT_KIT_BASE / HT_KIT_DATA = the world dirs (default world5tm-403c14 / world5tm-403c15)."""
 import json
 import os
 import sys
@@ -16,7 +16,7 @@ MAIN = os.path.expanduser('~/swos-mod')
 W = os.path.join(MAIN, 'internal', 'world2526')
 AUDIT = os.path.join(MAIN, 'internal', 'hosttest', 'fixtures', 'kitpurple', 'audit.json')
 BASE = os.environ.get('HT_KIT_BASE') or os.path.join(W, 'world5tm-403c14')
-DATA = os.environ.get('HT_KIT_DATA') or os.path.join(W, 'world5tm-403c14-kp')
+DATA = os.environ.get('HT_KIT_DATA') or os.path.join(W, 'world5tm-403c15')
 P = str(kitpurple.PURPLE)
 
 

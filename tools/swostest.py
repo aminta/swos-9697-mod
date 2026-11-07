@@ -12324,7 +12324,7 @@ KITNAVY_MATCHES = [('lille_home', 'FRANCIA', 'LIGUE 1', 'LILLE', 'AUXERRE'),
 
 @scenario
 def kit_navy_shots():
-    """4.1 navy / grey -> purple fix (tools/kitpurple.py, World 2026-27 data world5tm-403c14-kp): photos for Davide of
+    """4.1 navy / grey -> purple fix (tools/kitpurple.py, World 2026-27 data world5tm-403c15): photos for Davide of
     LILLE, MARSEILLE, MILLWALL, BOCHUM at home and away against a club whose kit clashes (friendlies, kits AUTO): the
     pre-match screen and two frames of the match. KITNAVY_ONLY = tags (comma list). The check: each match reached"""
     b = builds()['it']

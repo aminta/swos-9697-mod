@@ -11,6 +11,12 @@ Fix: the block ROOM bytes longer and the backup area ROOM bytes further (the all
 backup pointer's `add eax, 60C00h`): the stack's region 69 632 + ROOM B, the rest of the block as it was. Every user
 of the stack goes through the pointer [0x31694] (base+0x4fc00, unchanged). The same bytes in the four exes.
 The block grows from 418 to 450 KB of conventional memory (DOS/4GW's DOS-memory allocation).
+4.1 (MiSTer panel H1, the real cause): in 256 colours the bottom panel's team names (sprites 307 / 308) are not sprite
+data - DrawSprite16Pixels copies two 136 x 11 images from [0x31694] + 0x10000 (+ 0x600 the second team; rendered and
+cleared there at match start, 4 KB). That is the region's tail: the original subs menu (63 432 B) stayed under it,
+the wide rows (70 - 79 KB) saved the pitch over the names, and the kick-off panel after a substitution at 0 mins
+showed pitch in both name strips. Fix: the names' 4 KB at the top of the enlarged region (+ 0x10000 + ROOM: the
+draw, the render and the clear - their three `add esi / edi, 10000h` after the pointer), the stack 98 304 B below.
 """
 import re
 import struct
@@ -29,9 +35,31 @@ def sites(p):
     return a[0], b[0]
 
 
+NAMES = 0x10000                         # the team-name images' offset from [0x31694] (4 KB)
+
+
+def name_sites(p):
+    """obj1 offsets of the three `add esi / edi, 10000h` right after `mov esi / edi, [0x31694]` (the team names'
+    draw, render, clear)."""
+    d = p.le.obj_bytes(1)
+    fx = {soff: (tobj, toff) for sobj, soff, _, tobj, toff, *_ in p.le.fixups() if sobj == 1}
+    ptr = {fx.get(m.start() + 6) for m in re.finditer(rb'\x05\x00\xfc\x04\x00\xa3', d)}   # mov [0x31694], base + 4FC00h
+    assert len(ptr) == 1 and None not in ptr, ('suroom: the [0x31694] pointer', ptr)
+    ptr = ptr.pop()
+    out = [m.start() + 2 for m in re.finditer(rb'\x8b[\x35\x3d]....\x81[\xc6\xc7]', d, re.S)
+           if fx.get(m.start() + 2) == ptr and (d[m.start() + 1] == 0x35) == (d[m.start() + 7] == 0xC6)
+           and d[m.start() + 8:m.start() + 12] in (struct.pack('<I', NAMES), struct.pack('<I', NAMES + ROOM))]
+    assert len(out) == 3, ('suroom: the team names\' three sites', [hex(x) for x in out])
+    return [x + 6 for x in out]
+
+
 def patch(p):
+    for site in name_sites(p):
+        assert p.get(1, site, 4) == struct.pack('<I', NAMES), ('suroom: names already moved', hex(site))
+        p.put(1, site, struct.pack('<I', NAMES + ROOM))
     for site in sites(p):
         assert p.get(1, site, 4) == struct.pack('<I', OLD), ('suroom: already patched', hex(site))
         p.put(1, site, struct.pack('<I', OLD + ROOM))
     a, b = sites(p)
-    print(f'exe: suroom: save-under region {0x11000 + ROOM} B (+{ROOM}), DOS block +{ROOM} B (obj1+{a:#x}, +{b:#x})')
+    print(f'exe: suroom: save-under region {0x11000 + ROOM} B (+{ROOM}), DOS block +{ROOM} B (obj1+{a:#x}, +{b:#x}); '
+          f'team names at +{NAMES + ROOM:#x} (obj1+{", +".join(hex(x) for x in name_sites(p))})')

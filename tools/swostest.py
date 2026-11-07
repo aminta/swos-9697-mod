@@ -6763,6 +6763,117 @@ def save_under(r):
     return struct.unpack('<H', r.obj2(cnt, 2))[0], ends[hi], hi, top - base, base
 
 
+def team_names(r):
+    """(4.1 MiSTer panel H1; suroom.py) 256 colours: the bottom panel's two team-name images (136 x 11 bytes each,
+    0x600 apart) that DrawSprite16Pixels' 307 / 308 branch copies from [0x31694] + off - off read from the running
+    exe's own `add esi, off` (0x10000 before 4.1, the save-under region's tail): (off, the 0xC00 bytes)."""
+    if not hasattr(team_names, 'site'):
+        import suroom
+        team_names.site = suroom.name_sites(lepatch_orig())[0]
+    off = struct.unpack('<I', r.obj1(team_names.site, 4))[0]
+    return off, r.read(save_under(r)[4] + off, 0xC00)
+
+
+def find_image(vga, img, w=136, h=11, tol=0.1):
+    """(x, y) on the 320 x 200 screen where the w x h image's non-zero pixels are (all but tol of them: the score's
+    digits cover the strips' inner ends), None if nowhere. Anchors: each row's longest run of non-zero pixels."""
+    pix = [(x, y, img[y * w + x]) for y in range(h) for x in range(w) if img[y * w + x]]
+    if not pix:
+        return None
+    minx, maxx = min(x for x, _, _ in pix), max(x for x, _, _ in pix)
+    anchors = []
+    for y in range(h):
+        best, x = (0, 0), 0
+        while x < w:
+            e = x
+            while e < w and img[y * w + e]:
+                e += 1
+            if e - x > best[1]:
+                best = (x, e - x)
+            x = e + 1
+        if best[1] >= 3:
+            anchors.append((best[0], y, bytes(img[y * w + best[0]:y * w + best[0] + best[1]])))
+    tried = set()
+    for ax, ay, pat in anchors:
+        for sy in range(ay, 200 - h + ay + 1):
+            row = vga[sy * 320:sy * 320 + 320]
+            i = row.find(pat)
+            while i >= 0:
+                ox, oy = i - ax, sy - ay
+                if -minx <= ox < 320 - maxx and (ox, oy) not in tried:   # (a strip may run past the edge)
+                    tried.add((ox, oy))
+                    if sum(vga[(oy + y) * 320 + ox + x] != v for x, y, v in pix) <= tol * len(pix):
+                        return ox, oy
+                i = row.find(pat, i + 1)
+    return None
+
+
+def names_users(exe):
+    """(4.1 H1) the exe's code that addresses [0x31694 IT] (the save-under region's pointer): its obj1 / obj3 sites
+    against the original's 11 (the region set up; the 256 picture loads at +0 (64 768 B); SaveUnder / the restore; the
+    team names' draw, render and clear), and the names' three immediates. Returns (new sites, gone sites, names
+    offsets)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    from le import LE
+    import suroom
+    o = lepatch_orig()
+    ptr = o.target(1, suroom.name_sites(o)[0] - 6)
+    le = LE(open(exe, 'rb').read())
+    us = lambda x: {(so, oo) for so, oo, _, to, tt, *_ in x.fixups() if (to, tt) == ptr}
+    a, b = us(le), us(o.le)
+    c = le.obj_bytes(1)
+    offs = [struct.unpack_from('<I', c, x)[0] for x in suroom.name_sites(o)]
+    return sorted(a - b), sorted(b - a), offs
+
+
+def bench_kick_panel(s, bx, place, errs, info, mark, tag='kick_', **kw):
+    """(4.1 MiSTer panel H1, Davide's case) the change made at the kick-off (0 mins, 256 colours): the team names'
+    images unchanged through it (bench_sub's check: the real assertion) and, in each look where the panel shows
+    after it, both found in its strips (all but 10 % of their pixels: the score covers the inner ends)."""
+    r = s.result
+    if ega_on(r):
+        errs.append('kick-off panel: 16 colours (the names come from sprite planes there; run in 256)')
+        return
+    o = lepatch_orig()
+    gt = o.target(1, re.search(rb'\x81\x3d....\x00\x00\x04\x05\x75', o.le.obj_bytes(1), re.S).start() + 2)
+    t0 = r.obj2(gt[1], 4)
+    info.append(f'first look: gameTime {t0.hex()}')
+    # (the minute at this first look varies with the feeder's timing, 0..4: the change goes in at the first stop; the
+    # game shows the result panel again when play restarts after it - that panel is the one looked at)
+    exe = [os.path.join(s.run, 'SWOS', x) for x in os.listdir(os.path.join(s.run, 'SWOS'))
+           if x.upper() == os.path.basename(UI_ORIG).upper()]
+    new, gone, offs = names_users(exe[0])
+    info.append(f'[0x31694] users: new {new}, gone {gone}; names at {[hex(x) for x in offs]}')
+    check(not new and not gone and len(set(offs)) == 1, f'[0x31694] users changed: new {new}, gone {gone}, names {offs}',
+          errs)
+    off, nm = team_names(r)
+    imgs = [nm[0:1496], nm[0x600:0x600 + 1496]]
+    os.makedirs(os.path.join(s.run, 'shots'), exist_ok=True)
+    open(os.path.join(s.run, 'shots', tag + 'names.bin'), 'wb').write(nm)   # (the two images, for a look at the shots)
+    before = [find_image(s.box.dump(0xA0000, 64000), im) for im in imgs]
+    s.shot(tag + 'before')
+    bench_sub(s, bx, place, errs, info, mark, tag=tag, **kw)
+    seen = []
+    for k in range(16):
+        r = s.send('dump:0.5')
+        if r.outcome != 'dump':
+            break
+        vga = s.box.dump(0xA0000, 64000)
+        seen.append([find_image(vga, im) for im in imgs])
+        if any(seen[-1]) and not all(seen[-1]):
+            open(os.path.join(s.run, 'shots', f'{tag}panel{k:02d}.vga'), 'wb').write(vga)
+        if k < 3 or any(seen[-1]):
+            s.shot(f'{tag}panel{k:02d}')
+        if all(seen[-1]):
+            break
+    info.append(f'kick-off panel: the names on the screen before the change {before}, after it {seen[-1:]} '
+                f'({len(seen)} looks)')
+    shown = [x for x in seen if any(x)]     # (the harness's kick-off is quick: the panel may be gone before a look)
+    info.append(f'kick-off panel: shown in {len(shown)} of {len(seen)} looks')
+    check(not shown or any(all(x) for x in shown),
+          f'kick-off panel after the change: a team name missing from the strips ({shown[:3]}; H1)', errs)
+
+
 def bench_sub(s, bx, place, errs, info, mark, key=None, gone=None, tag='', human_key=False):
     """benchx block 2: the bench called, its cursor moved down to the squad's place `place` (12..26, g_benchPlayerIndex
     = place - 11: index 1 = in-match player 11 = place 12; 4.0.6 two-row dugouts: every place seated, no window - bx_win,
@@ -6778,6 +6889,7 @@ def bench_sub(s, bx, place, errs, info, mark, key=None, gone=None, tag='', human
     seen = []
     ns0 = (w16(v['NS1'], s.result.base2), w16(v['NS2'], s.result.base2))
     ord0 = s.result.read(s.result.lin(bx) - 4 - 156, 52)   # (2 humans: the other team's half may hold its change)
+    nm0 = None if ega_on(s.result) else team_names(s.result)
 
     def ks(keys):                           # (BENCH_SAMPLE=secs, 02/11: in-match stalls under load - the dump never came
         if not os.environ.get('BENCH_SAMPLE'):   # back after a cursor key: each key with sample(), the EIPs of a hang)
@@ -6860,17 +6972,19 @@ def bench_sub(s, bx, place, errs, info, mark, key=None, gone=None, tag='', human
         opp_dugout_shot(s, errs, info, 'h1_')
     s.shot(tag + 'bench_window')
     ups = []                                # back up 6 places (the window starts at the cursor) and down again
-    for key in ['up'] * 6 + ['down'] * 6:
+    cand = [i for i in range(want - 1, 0, -1) if i not in gone]     # (left-out places: empty, the cursor skips them)
+    nu = min(6, len(cand))                  # (4.1 H1: the 1996-97 kick-off case's bench of 5 has fewer places above)
+    for key in ['up'] * nu + ['down'] * nu:
         r = ks(key + ':0.15 dump:0.3')
         if r.outcome != 'dump':
             errs.append(f'bench up / down: {r}')
             return False
         ups.append((w16(v['IDX'], r.base2), w16(0, r.lin(bx - 4))))
     info.append(f'up/down {ups}')
-    up6 = ups[5]
-    up_i = [i for i in range(want - 1, 0, -1) if i not in gone][5]     # (left-out places: empty, the cursor skips them)
-    check(up6 == (up_i, 0), f'up 6: (index, window) {up6} (index {up_i})', errs)
-    check(ups[-1] == (want, 0), f'down again: {ups[-1]}', errs)
+    if nu:
+        up6, up_i = ups[nu - 1], cand[nu - 1]
+        check(up6 == (up_i, 0), f'up {nu}: (index, window) {up6} (index {up_i})', errs)
+        check(ups[-1] == (want, 0), f'down again: {ups[-1]}', errs)
     s.shot(tag + 'bench_up')
     if os.environ.get('BENCH_FWPROBE'):     # (4.0.6 formwide) cards / record crosses on the rows: their pixels in the shot
         info.append(f'fw probe: {fw_probe(s)}')
@@ -6897,12 +7011,22 @@ def bench_sub(s, bx, place, errs, info, mark, key=None, gone=None, tag='', human
         mark(info[-1])
         check(0 < su[1] <= su[3], f'save-under overflow: {su[1]} B in a {su[3]} B region (the next area overwritten)',
               errs)
+        nm1 = team_names(r)                 # (4.1 H1: the stack's top under the panel's team names, which stay as
+        check(su[1] <= nm1[0], f'save-under {su[1]} B reaches the team names at +{nm1[0]:#x} (H1)', errs)   # drawn)
+        check(nm1 == nm0, f'team names changed with the subs menu open (+{nm1[0]:#x}: '
+              f'{sum(a != b for a, b in zip(nm0[1], nm1[1]))} of 3072 bytes; H1)', errs)
     s.shot(tag + 'subs_menu')
     if not ega:
         fw_want(r, fw_check(s.box.dump(0xA0000, 64000), tag + 'subs menu', errs, info), 12, 'subs menu', errs)
     check(st == 1 and ent == place - 1, f'after fire: g_subsState {st}, plToEnterGameIndex {ent} (want 1, {place - 1})', errs)
     r = s.send('fire:0.2 dump:0.6')
     ns = (w16(v['NS1'], r.base2), w16(v['NS2'], r.base2))
+    if nm0:
+        nm2 = team_names(r)
+        info.append(f'team names at +{nm2[0]:#x}: {sum(1 for x in nm0[1] if x)} pixels, the same with the menu open '
+                    f'and after the change: {nm1 == nm0 and nm2 == nm0}')
+        check(nm2 == nm0, f'team names changed after the change (+{nm2[0]:#x}; H1)', errs)
+        check(any(nm0[1]), 'team names: no pixels before the change', errs)
     info.append(f'subs made {ns0} -> {ns}, entering place {ent + 1}')
     check(sum(ns) == sum(ns0) + 1, f'no change made: NumSubs {ns0} -> {ns}', errs)
     mark(f'change: place {ent + 1} in, NumSubs {ns0} -> {ns}')
@@ -8051,6 +8175,9 @@ def bench_play(s, gmax, top, bot, wants, errs, info, mark, sub=None, icons=None,
             check(b0 and all(p for p, _, _ in b0), f'the bald icons not built on the squad screen: {b0}', errs)
         check(icons['kickoff'] == b0, f'the bald icons changed at the kick-off: {b0} -> {icons["kickoff"]}', errs)
     s.shot('kickoff')
+    if os.environ.get('BENCH_KICKSUB') and sub:   # (4.1 H1) the change at the kick-off, the panel after it
+        bench_kick_panel(s, sub[0], sub[1], errs, info, mark)
+        return True
     if os.environ.get('BENCH_OPPL') and sub:   # (4.0.6) the opponent's list in the bench menu (oppl.py)
         bench_oppl(s, sub[0], top, bot, errs, info, mark)
         return True
@@ -8633,7 +8760,12 @@ FR_CASES = {        # (4.0.6 bench_friendly) case: (world, home path, away path,
               ('SQUADRE CLUB', 'CARR. STORICHE', 'MONDO 1996-97', 'EUROPA', 'ITALIA', 'SERIE A', 'MILAN'), 5, 2),
     '9697': (1, ('SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE A', 'INTER'),
              ('SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE A', 'MILAN'), 5, 2),
+    'kick9697': (1, ('SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE A', 'INTER'),     # (4.1 H1, Davide's MiSTer) 9697 /
+                 ('SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE A', 'MILAN'), 5, 2),  # seriea with the change made at
+    'kickseriea': (0, ('SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE A', 'INTER'),   # the kick-off: bench_kick_panel
+                   ('SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE A', 'MILAN'), 15, 5),
 }
+FR_KICK = ('kick9697', 'kickseriea')
 
 FR_B = ('mixed', 'diy', 'diycup')               # (B) the cases with the own-order check (fr_order)
 FR_W27 = ('9697w',)                             # (step 2.5) only with the engine's SWE_W27 (benchx bx_w27p linked)
@@ -8813,6 +8945,15 @@ def bench_friendly():
                           f'among the starters, {fb[1]} on the bench', errs)
             info.append(f'{case}: pre-match {pre[0]}:{pre[1]}, named:used {gm[1]}:{gm[0]} ({", ".join(desc)})')
             check(gm == (used, want), f'{case}: named:used {gm[1]}:{gm[0]}, want {want}:{used}', errs)
+            if case in FR_KICK:                     # (4.1 H1) the change at the kick-off (0 mins), the panel after it
+                mine = [k for k, (name, _) in enumerate(teams) if name == home[-1]]
+                pl = teams[mine[0]][1][:cap] if mine else []
+                gone = {i - 10 for i, x in enumerate(pl) if i >= 11 and not x[0]}
+                n0 = len(info)
+                bench_kick_panel(s, bx, 21 if gm[1] > 10 else 13, errs, info,
+                                 lambda t: open(os.path.join(s.run, 'progress.txt'), 'a').write(t + '\n'),
+                                 gone=gone, human_key=True, tag=case + '_')
+                info[n0:] = [f'{case}: {x}' for x in info[n0:]]
             if case in ('seriea', 'seriea_top') and gm == (used, want):   # the change: the save-under peak, two benches of 15
                 mine = [k for k, (name, _) in enumerate(teams) if name == home[-1]]   # the human club (top / bottom:
                 pl = teams[mine[0]][1][:cap] if mine else []                         # the game may swap the sides)
@@ -8993,6 +9134,24 @@ def bench_strip_world():
             os.environ.pop('BENCH_STRIP', None)
         else:
             os.environ['BENCH_STRIP'] = keep
+
+
+@scenario
+def bench_kick_panel_world():
+    """4.1 (Davide's MiSTer, panel H1) bench_world's career match (CELLE VARAZZE, bench 15, 256 colours) with the
+    change made at the kick-off, 0 mins: the bottom panel's team names (two images in the save-under region, suroom)
+    byte for byte the same before the bench, with the subs menu open (save-under high-water below them) and after
+    the change; then both found on the screen in the kick-off panel; no new code addresses the region's pointer.
+    Shots kick_before, kick_subs_menu, kick_panel*."""
+    keep = os.environ.get('BENCH_KICKSUB')
+    os.environ['BENCH_KICKSUB'] = '1'
+    try:
+        return bench_world()
+    finally:
+        if keep is None:
+            os.environ.pop('BENCH_KICKSUB', None)
+        else:
+            os.environ['BENCH_KICKSUB'] = keep
 
 
 @scenario

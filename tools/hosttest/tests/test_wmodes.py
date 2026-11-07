@@ -169,14 +169,23 @@ def test_wmodes():
             out.append(u32(lp + k))
             k += 4
         return out, ids(lp)
-    bad = [(c, x) for c, x in zip(top, w0) if rec(u32(slot(c))) != rec(u32(slot(x))) or
-           u32(B2 + ct + 4 * c) != u32(B2 + ct + 4 * x)]
+    def ctrec(i):                                 # countriesTable record: continent byte, NAME, ADJ (+ a proxy's NAME + year)
+        b = rd(u32(B2 + ct + 4 * i), 64)
+        return b[:1], b[1:].split(b'\0')[:3]
+    bad = []
+    for c, x in zip(top, w0):                     # 4.1 (6940ecd): a proxy's record is its own copy, 'NAME 96-97' after it
+        (gc, (gn, ga, _)), (pc, (pn, pa, py)) = ctrec(c), ctrec(x)
+        if rec(u32(slot(c))) != rec(u32(slot(x))) or (gc, gn, ga) != (pc, pn, pa) or py != pn + swe.W0_YEAR:
+            bad.append((c, x))
     if bad:
         errs.append(f'proxies differing from the game continents {bad}')
     boot = tr._snap(uc, sizes)
 
-    def run(setting, ttype, steps, career=False):
-        """steps = [(NUMSEL, the path's world)]: lists after each; returns (D0, [(hist, def)], SWE_CWORLD, mem ok)"""
+    def run(setting, ttype, steps, career=False, tail=None):
+        """steps = [(NUMSEL, the path's world)]: list w shown at the count so far (swe_sel_ns), the picks in it, then w
+        shown again (ee6117b: swe_sel_ns credits the picks to the list shown last, SEL_LW); lists after each. tail = a
+        last list shown at the count so far and NUMSEL picks in it with no list after them (swe_sel_post credits them).
+        Returns (D0, [(hist, def)], SWE_CWORLD, mem ok)"""
         uc.mem_write(wdef, bytes((setting,)))
         w16(TTYPE, ttype)
         uc.mem_write(D0, b'\xff')
@@ -185,10 +194,17 @@ def test_wmodes():
         tr._call(uc, pre, swreg.M_FRIENDLY)
         d0 = rd(D0, 1)[0]
         seen = [(ids(u32(slot(98))), ids(u32(slot(d0))) if d0 != 255 else ids(cwt), u32(c254) == cwt)]
+        k = 0
         for n, w in steps:
-            w16(NUMSEL, n)
+            w16(NUMSEL, k)
+            tr._call(uc, ns, w)
+            w16(NUMSEL, k := n)
             tr._call(uc, ns, w)
             seen.append((ids(u32(slot(98))), ids(u32(slot(d0))) if d0 != 255 else ids(cwt), u32(selcw_p)))
+        if tail:
+            w16(NUMSEL, k)
+            tr._call(uc, ns, tail[1])
+            w16(NUMSEL, tail[0])
         tr._call(uc, post)
         cw = u32(cworld_p)
         ns_after = rd(wcur, 1)[0]
@@ -197,7 +213,7 @@ def test_wmodes():
         seen.append(('ns', ns_after, rd(wcur, 1)[0]))
         w16(GTYPE, 0)
         uc.mem_write(D0, b'\xff')
-        last = steps[-1][0] if steps else 0
+        last = tail[0] if tail else steps[-1][0] if steps else 0
         w16(NUMSEL, 0)
         after = tr._snap(uc, sizes)
         w16(NUMSEL, last)
@@ -237,6 +253,11 @@ def test_wmodes():
     run(0, 1, [(1, 0)])                           # (a 1996-97 contest: the base namespace again)
     if rd(wcur, 1)[0] != 4:
         errs.append(f'a 1996-97 contest left namespace {rd(wcur, 1)[0]}')
+    # ee6117b: the picks made in the list shown last, with no list change before the picker's end (INTER + MILAN in one
+    # 2026-27 list): swe_sel_post gives the contest that list's world
+    d0, seen, cw, same = run(0, 1, [], tail=(2, 5))
+    if cw != 5 or seen[-1] != ('ns', 5, 4) or not same:
+        errs.append(f'picks in the last list only: contest world {cw}, {seen[-1]}, memory restored {same}')
     # M3: the career's picker (swe_car_tramp -> swe_sel_pre(M_CAREER)): the same lists, whatever teamsType, no lock
     def run_car(setting, steps):
         uc.mem_write(wdef, bytes((setting,)))
@@ -370,5 +391,5 @@ def test_wmodes():
         errs.append(f'DIY save / load {res} (want {want}), a file of another size -> {odd}')
     return not errs, '; '.join(errs) or (
         f'default 2026-27 / 1996-97 / 1984-85 lists, lock both ways, national / custom untouched, memory restored; career picker (M3): the same lists, no lock, only for SELECT TEAM TO MANAGE, namespace kept; '
-        f'200 = 6 proxies = the game continents; DIY: WM 5 / 4 round trip, 1996-97 alone = the game file '
+        f'200 = 6 proxies = the game continents (own records, NAME 96-97); picks in the last list = its world; DIY: WM 5 / 4 round trip, 1996-97 alone = the game file '
         f'({game} B), other size -> 0; coach nationality: kept in the list, era <-> today pairs both ways, ENG last')

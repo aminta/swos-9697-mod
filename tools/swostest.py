@@ -12699,6 +12699,108 @@ def world_ns_hist():
             info.append(f'{tag}: WCUR {ns}, {tx[:5]}')
     return not errs, '; '.join(errs + info)
 
+
+@scenario
+def world_ns_contest():
+    """4.1 (MC 06/11, Davide's MiSTer 41dry), default World 2026-27 (fresh SETUP.DAT), the exe's language (SWOSTEST_UI):
+    (a), every SWOSTEST_UI: friendly > SQUADRE CLUB > CARR. STORICHE > MONDO 1996-97: its continent buttons read '<continent> 96-97'
+    (swe.py W0_YEAR, option A), each within its button's width in px and in the menu font, the game's continents only
+    there; the EUROPA list's title keeps '- EUROPA' (no year: ChooseTeamsSetHeader's 47 characters). (b), IT: INTER + MILAN
+    picked in one list (2026-27 SERIE A: no list change between the picks): the pre-match screen names its club's
+    country ITALIA (was SCOZIA: the host world unset, the 1984-85 namespace) and WCUR 5. (c), IT: after a mixed friendly
+    (INTER 2026-27 + HAMBURG 1996-97, namespace 5 left) and the world switch to EUROPA 1984-85: COMPET. PERSONAL. > TORNEO
+    > NAZIONALI > EUROPA lists 1984-85's nations (ALBANIA), not 2026-27's Saudi clubs (ABHA: tmw5.180)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import complist
+    import swe
+    errs, info = [], []
+    hist, w0 = 'CARR. STORICHE', 'MONDO 1996-97'
+    b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
+    yr = swe.W0_YEAR.decode('latin-1')
+
+    def seq(s, path):
+        for t in path:
+            walk(s, t, 2)
+
+    def wcur(s):
+        r = s.result
+        reg = struct.unpack('<I', r.read(r.base4 + 32, 4))[0]
+        return r.read(struct.unpack('<I', r.read(reg + 8, 4))[0], 1)[0]
+
+    def play(s):
+        for _ in range(22):
+            s.send('down dump:0.5')
+            if s.screen().selected == 9:
+                break
+        s.send('fire dump:2')
+        for k in range(12):
+            s.send('dump:5')
+            if k < 3:
+                continue
+            s.send('down dump:0.5')
+            s.send('fire dump:3')
+            try:
+                if s.screen().n:
+                    return True
+            except Exception:
+                pass
+        return False
+
+    with Session('world_ns_contest_a', b, {'SETUP.DAT': setup_file('world_ns_contest_a', 0)}, 'dump:3', 600) as s:
+        s.wait()
+        seq(s, ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB', hist, w0))
+        sc = s.screen()
+        s.shot('w0_list')
+        rows = [(i, sc.raw[i].decode('latin-1')) for i, (j, t, inv, dis) in enumerate(sc.entries)
+                if not inv and 21 <= j <= 86 and sc.raw[i]]           # (raw: the decoder drops a label with the Ü)
+        cont = [(i, t) for i, t in rows if t.endswith(yr)]
+        check(len(cont) == 6, f'(a) MONDO 1996-97 buttons {[t for _, t in rows]}: {len(cont)} with the year', errs)
+        for i, raw in cont:
+            check(set(raw) <= complist.FONT | {swe.UE} and complist.px(raw) <= sc.geom[i][2],
+                  f'(a) button {raw!r}: {complist.px(raw)} px of {sc.geom[i][2]}, chars {set(raw) - complist.FONT}', errs)
+        eu = next((t for _, t in cont if t.startswith('EUROPA') or t.startswith('EUROPE')), None)
+        if eu:
+            walk(s, eu, 2)
+            sc = s.screen()                  # (the raw bytes: the decoder gives '' for a title with the Ü - TEAMS FÜR)
+            t0 = sc.raw[0].decode('latin-1') if sc.raw and sc.raw[0] else sc.raw_texts[0]
+            s.shot('w0_europa')
+            check(t0.endswith(' - ' + eu[:-len(yr)]), f'(a) the EUROPA list title {t0!r}', errs)
+            info.append(f'(a) {[t for _, t in cont]}, title {t0!r}')
+    if UI != 'it':                       # ((b) / (c) read Italian names: the IT run; (a) in every language)
+        return not errs, '; '.join(errs + info)
+    with Session('world_ns_contest_b', b, {'SETUP.DAT': setup_file('world_ns_contest_b', 0)}, 'dump:3', 600) as s:
+        s.wait()
+        seq(s, ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE A', 'INTER', 'MILAN'))
+        pm = pick_done(s)
+        tx, ns = [t for t in pm.texts() if t], wcur(s)
+        s.shot('prematch')
+        check(len(tx) > 1 and tx[0] in ('INTER', 'MILAN') and tx[1] == '(ITALIA)' and ns == 5,
+              f'(b) pre-match {tx[:4]}, WCUR {ns}', errs)
+        info.append(f'(b) {tx[:2]} WCUR {ns}')
+    with Session('world_ns_contest_c', b, {'SETUP.DAT': setup_file('world_ns_contest_c', 0)}, 'dump:3', 900) as s:
+        s.wait()
+        seq(s, ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE A', 'INTER'))
+        wm_up(s, hist)
+        seq(s, (hist, w0, 'EUROPA' + yr, 'GERMANIA', '1. LIGA', 'HAMBURG'))
+        pick_done(s)
+        check(play(s), '(c) no menu back after the mixed friendly', errs)
+        check(wm_to_main(s), '(c) main menu not reached', errs)
+        left = wcur(s)
+        set_world(s, 2)
+        seq(s, ('COMPET. PERSONAL.', 'TORNEO', 'OK', 'SCEGLI SQUADRE'))
+        sc = s.screen()
+        nat = next((t for t in ('NAZIONALI', 'SQUADRE NAZIONALI', 'SQUADRE NAZ.') if sc.find(t, exact=True) is not None),
+                   None)
+        if nat is None:
+            errs.append(f'(c) no NAZIONALI: {sc.texts()[:8]}')
+        else:
+            seq(s, (nat, 'EUROPA'))
+            tx = [t for t in s.screen().texts() if t]
+            s.shot('nat_europa')
+            check('ALBANIA' in tx and 'ABHA' not in tx, f'(c) TORNEO nationals > EUROPA {tx[:8]}', errs)
+            info.append(f'(c) namespace left {left}, nationals {tx[4:7]}')
+    return not errs, '; '.join(errs + info)
+
 def pick_done(s, e=55, w=4):
     """The team picker's done entry (`e`, the bottom row's left: PLAY / CUP / ...): down past the team rows, right off
     56 / 57, then fire (engine_registry's way: the path planner finds no link from a team row to it)"""

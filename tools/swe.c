@@ -106,6 +106,7 @@ u32 SEL_ON DATA = 0;                    /* 1 = this picker lists the worlds */
 u32 SEL_DW DATA = 0;                    /* the default world (0 = the 1996-97 game) */
 u32 SEL_CW DATA = 0;                    /* the contest's career world, 0 = none yet */
 u32 SEL_N DATA = 0;                     /* NUMSEL at the last list */
+u32 SEL_LW DATA = 0;                    /* the world of the last list (the one new picks came from) */
 u32 SWE_CWORLD DATA = 0;                /* the last contest's world (picker / DIY load): the 'WM' block */
 u32 *SEL_SLOT98 DATA = 0, *SEL_SLOTD DATA = 0;
 u32 SEL_O98 DATA = 0, SEL_OD DATA = 0;  /* the game's list pointers */
@@ -318,6 +319,12 @@ static int world_name(u32 t)
     return t == rd32(SWE_CT + 4 * CAREERS) + 1;
 }
 
+/* 4.1 (Davide 06/11, option A): STORICO > MONDO 1996-97's continent buttons with the year ('EUROPA 96-97': 1996-97 is wider than NORDAMERICA's 100 px, Davide ok 07/11): pairs
+   (a proxy's own NAME, its text with the year), swe.py w0_proxies; the titles keep the NAME. */
+const u8 *W0_YR[2 * 8] DATA = {0};
+#define W0_BTN 100                      /* (the list's button width, x at +0x14, width at +0x18) */
+#define W0_WIDEN 12
+
 void swe_names_post(void)
 {
     u32 nm = rd32(SWE_CT + 4 * (WMENU + SET_W[0]));
@@ -330,6 +337,14 @@ void swe_names_post(void)
     for (int k = 0; k < 64 && *(u16 *)(e + 2) != 87; k++, e += 56) {   /* (ordinal 87: the end of the entries) */
         if (*(u16 *)(e + 4))
             continue;
+        for (int j = 0; j < 8 && W0_YR[2 * j]; j++)
+            if (rd32(e + 0x26) == (u32)W0_YR[2 * j]) {
+                *(u32 *)(e + 0x26) = (u32)W0_YR[2 * j + 1];
+                if (*(u16 *)(e + 0x18) == W0_BTN) {   /* (the one column of 100 px: 'NORTH AMERICA 96-97' is 102) */
+                    *(u16 *)(e + 0x14) -= W0_WIDEN / 2;
+                    *(u16 *)(e + 0x18) += W0_WIDEN;
+                }
+            }
         if (rd32(e + 0x26) == nm + 1)
             *(u16 *)(e + 0x1E) = GREEN;
         worlds |= world_name(rd32(e + 0x26));
@@ -405,6 +420,8 @@ void swe_sel_pre(u32 mode)
             fnat(w);                    /* EUROPA 1984-85: DaniSwos's nations, Europe only */
             av_arm(fnat_on() ? AV_EU : 0);
         }
+        ns_left(0);                     /* (the national lists pass no w_ns_menu: a 2026-27 contest's namespace left
+                                           here named TEAM.180.. / TEAM.080 tmw5.nnn - 2026-27's Saudi clubs) */
     }
     if (!cw || !set || (mode != M_CAREER && *(u16 *)SWE_TTYPE != CLUB_TEAMS) || !*comp_slot(CAREERS))
         return;
@@ -415,6 +432,7 @@ void swe_sel_pre(u32 mode)
     SEL_DW = dw;
     SEL_CW = 0;
     SEL_N = 0;
+    SEL_LW = 0;
     *c254 = cw;
     SEL_SLOT98 = comp_slot(CAREERS);
     SEL_O98 = *SEL_SLOT98;
@@ -442,9 +460,10 @@ void swe_sel_ns(u32 w)                  /* careerworld w_ns_menu, every list: w 
         n = 0;
     if (!n)
         SEL_CW = 0;
-    else if (n > SEL_N && !SEL_CW && w)
-        SEL_CW = w;
+    else if (n > SEL_N && !SEL_CW && SEL_LW)
+        SEL_CW = SEL_LW;                /* (the picks came from the list shown last, not from this one) */
     SEL_N = n;
+    SEL_LW = w;
     sel_lists();
 }
 
@@ -464,6 +483,8 @@ void swe_sel_post(void)
 {
     AV_ARM = AV_SHOW = 0;
     sel_restore();
+    if (SEL_ON && SEL_MODE != M_CAREER && !SEL_CW && *(u16 *)SWE_NUMSEL > SEL_N && SEL_LW)
+        SEL_CW = SEL_LW;                /* (picks in the last list: a toggle redraws no list, no swe_sel_ns saw them) */
     if (SEL_ON) {
         SWE_CWORLD = *(u16 *)SWE_NUMSEL ? SEL_CW : 0;
         ns_left(SWE_CWORLD);

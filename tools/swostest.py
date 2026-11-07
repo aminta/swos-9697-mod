@@ -438,6 +438,19 @@ def spp_go(s, target, w=3, fire='fire', hold=None):
     return None
 
 
+def spp_fire_held(s, target, w, gone):
+    """(06/11) Under SWOS++'s timer feed a screen takes a fire only held >= its frame time, which depends on the
+    machine's load (a loaded Mac: '- PARTITA -' never took the fixed hold, 4/4, the server 9/9; the friendly's long-bench
+    PLAY MATCH needed 36 ticks): spp_go with the fire held SPP_PM_HOLD, x 1.5, x 2 ticks until gone(s) says the screen
+    went on. Returns the hold that worked, or None."""
+    for h in (SPP_PM_HOLD, SPP_PM_HOLD * 3 // 2, SPP_PM_HOLD * 2):
+        if spp_go(s, target, w, hold=h) is None:
+            return None
+        if s.result.outcome != 'dump' or gone(s):
+            return h
+    return None
+
+
 PRESS_FIRE = 'fire'                                    # press()'s fire ('fire up:0.05' under SWOS++'s timer feed: the
                                                        # menus read the latched last key, a fire would be read again)
 RATE = 30                                              # GetKey calls per second in the menus (calibrated)
@@ -2392,6 +2405,7 @@ def quit_and_save(name):
 def check(cond, msg, errs):
     if not cond:
         errs.append(msg)
+    return bool(cond)
 
 
 def season_case(name, build, car, out, timeout=120, extra=None):
@@ -6482,6 +6496,14 @@ def bench_vars():
         gs = [x for x in re.finditer(rb'\x66\x83\x3d(....)\x03\x0f\x84....\x66\xc7\x05....\x01\x00\x66\x83\x3d', d, re.S)]
         assert len(gs) == 1, ('gameState', len(gs))     # (BenchMenuHandleControls: cmp gameState, ST_KEEPER_HOLDS_BALL /
         bench_vars.v['GSTATE'] = t(gs[0], 1)            # jz / mov [subsBlockDirections], 1 / cmp [g_benchPlayerIndex], 5)
+        ni = list(re.finditer(rb'(?:\x66\xc7\x05....\xff\xff(?:\x66\xc7\x05....\x00\x00){2}){2}\x66\xc7\x05(....)\x00\x00\x66\xc7\x05(....)'
+                              rb'\x00\x00\xc3', d, re.S))           # (BenchCheckControls' @@bench_not_invoked: the calls
+        assert len(ni) == 1, ('bench_not_invoked', len(ni))  # cleared every frame of play - PgUp / PgDn land only while
+        b1, b2 = t(ni[0], 1), t(ni[0], 2)                # play is stopped)
+        ls = [x for x in re.finditer(rb'\x66\xc7\x05(....)\x00\x00\x66\xc7\x05(....)\x00\x00\x66\xc7\x05(....)\x00\x00', d, re.S)
+              if (t(x, 1), t(x, 2)) == (b1, b2)]         # (LeaveSubsMenu: bench1Called / bench2Called / g_inSubstitutesMenu)
+        assert len(ls) == 1, ('LeaveSubsMenu', len(ls))
+        bench_vars.v.update(B1C=b1, B2C=b2, INSUBS=t(ls[0], 3))
     return bench_vars.v
 
 
@@ -6739,11 +6761,15 @@ def save_under(r):
     return struct.unpack('<H', r.obj2(cnt, 2))[0], ends[hi], hi, top - base, base
 
 
-def bench_sub(s, bx, place, errs, info, mark, key=None, gone=None, tag=''):
+def bench_sub(s, bx, place, errs, info, mark, key=None, gone=None, tag='', human_key=False):
     """benchx block 2: the bench called, its cursor moved down to the squad's place `place` (12..26, g_benchPlayerIndex
     = place - 11: index 1 = in-match player 11 = place 12; 4.0.6 two-row dugouts: every place seated, no window - bx_win,
     obj1 at bx - 4, stays 0 - and the camera at the halfway line, both dugouts in view, dugout_check); fire picks him
-    (g_subsState 1, plToEnterGameIndex = place - 1), fire again makes the change (the team's NumSubs + 1)."""
+    (g_subsState 1, plToEnterGameIndex = place - 1), fire again makes the change (the team's NumSubs + 1).
+    human_key (06/11): the human club's own key (PgDn the top team's, PgUp the bottom's: TeamGeneralInfo.playerNumber),
+    up to 40 calls, the cursor tried only once the bench is open (g_inSubstitutesMenu): the game clears a bench call
+    every frame of play (@@bench_not_invoked), so a key lands only while play is stopped - fixed keys at fixed times
+    missed it for one side's whole match flow (the 'top-team freeze', 8/8, 06/11)."""
     v = bench_vars()
     want = place - 11
     w16 = lambda o, base: struct.unpack('<H', s.result.read(base + o, 2))[0]
@@ -6770,12 +6796,20 @@ def bench_sub(s, bx, place, errs, info, mark, key=None, gone=None, tag=''):
             s.poke(s.result.base2 + at, part)
         s.log.append(f'[rng] {rv.hex()}')
         s.rng_pinned = True
-    for call in range(12):
+    if human_key:
+        td = team_data()
+        key = 'pgdn' if w16(td[0] + 4, s.result.base2) or w16(td[0] + 6, s.result.base2) else 'pgup'
+    for call in range(40 if human_key else 12):
         if not keeper_let_go(s, errs):
             return False
         r = s.send((key or ('pgup' if call % 2 == 0 else 'pgdn')) + ':0.3 dump:0.6')   # (key: one team's bench)
+        if os.environ.get('BENCH_DIAG') and r.outcome == 'dump':   # (bench1Called / bench2Called / g_inSubstitutesMenu)
+            info.append(f'call {call} {key or ("pgup", "pgdn")[call % 2]}: b1/b2/in ' + str(
+                [w16(v[k], r.base2) for k in ('B1C', 'B2C', 'INSUBS')]))
         if r.outcome == 'dump':
             r, cam = cam_settle(s)          # (4.0.6 long dugouts: the bench takes keys once the camera is there)
+            if os.environ.get('BENCH_DIAG') and call < 4:
+                s.shot(f'{tag}bench_call{call}')
             cams.append((cam, w16(v['BENCHY'], r.base2), {hex(o)[-3:]: w16(o, r.base2) for o in (
                 0xb16b6, 0xb16b8, 0xb16be, 0xb16c4, 0xb16c6, 0xb16ca, 0xb16cc, 0xb16e8, 0xb16f2, 0xb16f4, 0xb1718, 0xb171a, 0xb1722, 0xb16fe, 0xb1702, 0xb1714, 0xb170c, 0x72942, 0xb16c8, 0xbdbc8,
                 0xb1720)}) if r.outcome == 'dump' and os.environ.get('BENCH_DIAG') else
@@ -6784,6 +6818,8 @@ def bench_sub(s, bx, place, errs, info, mark, key=None, gone=None, tag=''):
             errs.append(f'bench call: {r}')
             return False
         last, still = w16(v['IDX'], r.base2), 0
+        if human_key and not w16(v['INSUBS'], r.base2):
+            continue                        # (not open: play went on - the next call)
         for j in range(24):
             r = ks(f"down:{os.environ.get('BENCH_KEYHOLD', '0.15')} dump:0.3")
             if r.outcome != 'dump':
@@ -6798,6 +6834,13 @@ def bench_sub(s, bx, place, errs, info, mark, key=None, gone=None, tag=''):
             last = idx
             if idx == want or still >= 4:
                 break
+        if os.environ.get('BENCH_DIAG') and last == 0 and call < 6 and w16(v['BENCHY'], r.base2):
+            tr = []                         # (diag: a bench that ignores DOWN - which keys move its cursor)
+            for k in ('up', 'left', 'right', 'fire'):
+                r = ks(f'{k}:0.15 dump:0.3')
+                tr.append((k, w16(v['IDX'], r.base2)))
+            info.append(f'bench call {call}: down ignored, then {tr}')
+            s.shot(f'{tag}bench_diag{call}')
         if last == want:
             break
     mark(f'bench cursor (index, window): {seen}')
@@ -7884,8 +7927,15 @@ def bench_play(s, gmax, top, bot, wants, errs, info, mark, sub=None, icons=None,
         mark(f'step {step} [{act}]: ' + ', '.join(texts)[:150])
         if act:
             pm = act in ('PARTITA', 'GIOCA PARTITA') and 'MOD. TATTICA' in texts
-            (spp_go(s, act, 4 if pm else 3, hold=SPP_PM_HOLD if pm else None)
-             if SPP_STEP else press(s, scr, act)) or s.send('fire dump:2')
+            if SPP_STEP and (pm or act in ('- PARTITA -', 'PROSS. PARTITA')):   # (06/11: held until the screen
+                                                                               # goes - its frame time = the load)
+                h = spp_fire_held(s, act, 4 if pm else 3, lambda q: q.screen().find(
+                    'MOD. TATTICA' if pm else act, exact=True) is None)
+                mark(f'  SWOS++ {act} fire held {h} ticks')
+                h or s.send('fire dump:2')
+            else:
+                (spp_go(s, act, 4 if pm else 3, hold=SPP_PM_HOLD if pm else None)
+                 if SPP_STEP else press(s, scr, act)) or s.send('fire dump:2')
             r = s.result
         else:
             r = s.send('fire:0.5 dump:1')
@@ -8403,6 +8453,528 @@ def oppo_list():
             os.environ.pop('BENCH_OPPL', None)
         else:
             os.environ['BENCH_OPPL'] = keep
+
+
+def fr_sites(exe):
+    """(B, 4.0.6) benchx's friendly-club orders (the 'FRTB' mark: fr_on, fr_next, fr_tab of 4 x (dw team, db n, db used,
+    32 places)) as Off3, and from the original exe numPlayersToShowInMenu (PlayMatchMenuReinit) and playMatchTeam1Ptr
+    (ShowPlayMatchMenu), obj2 offsets."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lepatch
+    import sacups
+    p = lepatch.LEPatch(exe)
+    k = p.le.obj_bytes(3).find(b'FRTB')
+    if k < 0:
+        return None
+    o = lepatch_orig()
+    d = o.le.obj_bytes(1)
+    m = re.search(rb'\x66\xa3(....)\xc7\x05....\x00\x00\x00\x00\x66\xc7\x05....\x00\x00\x66\xc7\x05....\xff\xff', d, re.S)
+    regs = sacups.regs(d)
+    pk = lambda x: re.escape(struct.pack('<I', x))
+    t = re.search(rb'\x66\xa1' + pk(regs['D7'] - 4) + rb'\x66\xa3....\xa1' + pk(regs['A0'] + 4) + rb'\xa3(....)\xa1'
+                  + pk(regs['A0'] + 8) + rb'\xa3', d, re.S)                      # (as benchx: mov ax, [D6] first)
+    d1 = regs['D7'] - 24
+    e = [x.start() for x in re.finditer(rb'\x66\xa1(....)\x66\xa3' + pk(d1) + rb'\x66\x83\x2d' + pk(d1) + rb'\x10\x74', d, re.S)]
+    e = [x for x in e if re.search(rb'\xc7\x05' + pk(regs['D7'] - 28) + rb'\x1c\x00', d[x - 0x60:x])]   # (as benchx.sites6)
+    tab = (k + 7 + 3) & ~3
+    return dict(on=Off3(k + 4), tab=Off3(tab), w27p=Off3((tab + 4 * 36 + 3 + 3) & ~3), NPS=o.target(1, m.start() + 2)[1],
+                PMT1=o.target(1, t.start(1))[1], ETNP=o.target(1, e[0] + 2)[1])
+
+
+def fr_slot(r, fs):
+    """The pre-match screen's club's own order: (team file pointer, n, the 16 + n places, its playerNumbers), or None."""
+    ptr = struct.unpack('<I', r.obj2(fs['PMT1'], 4))[0]
+    team = r.read(ptr, 2)
+    tab = r.read(r.lin(fs['tab']), 4 * 36)
+    for i in range(4):
+        e = tab[36 * i:36 * i + 36]
+        if e[3] and e[:2] == team:
+            return ptr, e[2], list(e[4:4 + 16 + e[2]]), list(r.read(ptr + 0x3C, 16))
+    return ptr, 0, None, list(r.read(ptr + 0x3C, 16))
+
+
+def fr_order(s, fs, bx, case, errs, info):
+    """(B, 4.0.6, Davide's option B) a friendly club with a long bench on its pre-match screen: its own order (benchx
+    fr_find: places 0..15 = the record's order, 16.. its XTRA block's players), numPlayersToShowInMenu = 16 + n, row 17
+    (entry 29) and the box (30) shown; the box moves the window (bx_pw = bx_bench + 4) over places 17..16 + n and back
+    to 0; a swap of row 17 (place 17, his first XTRA player) with row 2 (place 2): the two places swapped in the order,
+    TeamFile.playerNumbers = the record's players in the new order (no index >= 16); with place 12's record player poked
+    injured (after the swap the record's 11th) PLAY MATCH stays shown (fr_a2 / fr_a1: the checks read the order). Returns (xtra index, record
+    index) swapped, for the kick-off check, or None."""
+    r = s.result
+    ptr, n, order, pn = fr_slot(r, fs)
+    nps = struct.unpack('<H', r.obj2(fs['NPS'], 2))[0]
+    info.append(f'{case} B: n {n}, NPS {nps}, order {order}')
+    if not check(order is not None and n > 0, f'{case} B: no own order for the pre-match club (n {n}, playerNumbers {pn})',
+                 errs):
+        return None
+    check(order[:16] == pn and order[16:] == sorted(order[16:]) and min(order[16:]) >= 16,
+          f'{case} B: order {order} vs playerNumbers {pn}', errs)
+    check(nps == 16 + n, f'{case} B: numPlayersToShowInMenu {nps}, want {16 + n}', errs)
+    q = s.screen()
+    check(not q.entries[29][2] and not q.entries[30][2], f'{case} B: row 17 / box hidden ({q.entries[29]}, {q.entries[30]})',
+          errs)
+    pw = lambda: struct.unpack('<H', s.result.read(s.result.lin(bx) + 4, 2))[0]
+
+    def goto(t):
+        for _ in range(24):
+            q_ = s.screen()
+            if q_.selected == t:
+                return True
+            s.send(' '.join(k + ':0.15' for k in (q_.path(t) or [])) + ' dump:0.4')
+        return False
+    seen = []
+    if check(goto(30), f'{case} B: the box not reached', errs):
+        for _ in range(n):
+            s.send('fire:0.3 dump:0.5')
+            seen.append(pw())
+            if seen[-1] == n - 1:
+                s.shot(f'{case}_B_win{seen[-1]:02d}')
+            if seen[-1] == 0:
+                break
+        info.append(f'{case} B: window {seen}')
+        check(seen == list(range(1, n)) + [0], f'{case} B: window steps {seen} (want 1..{n - 1}, 0)', errs)
+    if not (check(goto(29), f'{case} B: row 17 not reached', errs)):
+        return None
+    inj = ptr + 0x4C + order[11] * 38 + 27  # (PLAY MATCH's check: place 12's record player injured - after the swap
+    c0 = s.result.read(inj, 1)[0]           # he is the record's 11th, on the bench on the screen)
+    s.poke(inj, bytes([(c0 & 0x1F) | 0x40]))
+    s.send('fire:0.3 dump:0.5')
+    if not check(goto(14), f'{case} B: row 2 not reached', errs):
+        return None
+    s.send('fire:0.3 dump:0.8')
+    s.shot(f'{case}_B_swap')
+    q = s.screen()
+    info.append(f'{case} B: PLAY MATCH {"hidden" if q.entries[9][2] else "shown"} (the XI fit, place 12 injured)')
+    check(not q.entries[9][2], f'{case} B: PLAY MATCH hidden with a fit XI on the screen (the injured player on the '
+          f'bench: the check read the record, not the order)', errs)
+    s.poke(inj, bytes([c0]))
+    _, n1, o1, pn1 = fr_slot(s.result, fs)
+    o1 = o1 or []
+    diff = [k for k in range(min(len(o1), len(order))) if o1[k] != order[k]]   # (row 2 = a starter's place through
+    p = diff[0] if diff else 0                                                  # the tactics: GPI's mapping)
+    exp = list(order)
+    exp[p], exp[16] = order[16], order[p]
+    rec = [x for x in o1 if x < 16]
+    info.append(f'{case} B: swap row 17 (place 17) <-> row 2 (place {p + 1}): order {o1}, playerNumbers {pn1}')
+    check(len(diff) == 2 and p < 11 and o1 == exp, f'{case} B: swap row 17 <-> row 2: {order} -> {o1}', errs)
+    check(pn1 == rec and sorted(pn1) == list(range(16)), f'{case} B: playerNumbers {pn1} after the swap (want {rec})', errs)
+    fr_tactics(s, fs, case, n, errs, info)
+    return order[16], order[p]
+
+
+def fr_tactics(s, fs, case, n, errs, info):
+    """(B) the pre-match screen's MOD. TATTICA on a club with its own order: editTacticsNumPlayers = 16 + n (fr_etnp),
+    a swap of row 17 (place 17) with row 3 (a starter) in its list (fr_sw_et): the order's two places swapped,
+    playerNumbers the record's players in order; then the same swap again (back as before) and out."""
+    if press(s, s.screen(), 'MOD. TATTICA') is None:
+        errs.append(f'{case} B tactics: MOD. TATTICA not reached')
+        return
+    for _ in range(4):                      # (the choose-tactics list first: fire on its current tactic; then the
+        etnp = struct.unpack('<H', s.result.obj2(fs['ETNP'], 2))[0]   # editor, whose init sets the count)
+        if etnp:
+            break
+        s.send('fire:0.3 dump:0.8')
+    check(etnp == 16 + n, f'{case} B tactics: editTacticsNumPlayers {etnp}, want {16 + n}', errs)
+    _, _, o0, _ = fr_slot(s.result, fs)
+    o0 = o0 or []
+
+    def swap():
+        for e in (27, 13):                  # row 17, row 3 (names = entries 11..27)
+            for _ in range(24):
+                q = s.screen()
+                if q.selected == e:
+                    break
+                s.send(' '.join(k + ':0.15' for k in (q.path(e) or [])) + ' dump:0.4')
+            s.send('fire:0.3 dump:0.6')
+        _, _, o, pn = fr_slot(s.result, fs)
+        return o or [], pn
+    o1, pn1 = swap()
+    s.shot(f'{case}_B_tactics')
+    diff = [k for k in range(min(len(o0), len(o1))) if o0[k] != o1[k]]
+    info.append(f'{case} B tactics: NPS {etnp}, swap row 17 <-> row 3: places {[k + 1 for k in diff]}, playerNumbers {pn1}')
+    check(len(diff) == 2 and diff[1] == 16 and diff[0] < 11 and o1[diff[0]] == o0[16] and o1[16] == o0[diff[0]],
+          f'{case} B tactics: swap {o0} -> {o1}', errs)
+    check(pn1 == [x for x in o1 if x < 16], f'{case} B tactics: playerNumbers {pn1} vs order {o1}', errs)
+    o2, _ = swap()
+    check(o2 == o0, f'{case} B tactics: swapped back {o2}, want {o0}', errs)
+    for _ in range(4):                      # (the pre-match screen: its 69+ entries and the MOD. TATTICA button; the
+        q = s.screen()                      # editor's exit by its label, else ESC one at a time - FR / DE labels)
+        t = q.texts()
+        if len(q.entries) > 60 and q.find('MOD. TATTICA', exact=True) is not None:
+            return
+        # the editor's exit button by index (USCITA/SAVE/EXIT...: same layout in every language)
+        ex = 8 if len(q.geom) > 8 and tuple(q.geom[8][:2]) == (197, 191) else None
+        if ex is None or press(s, q, ex) is None:
+            s.send('esc:0.3 dump:0.8')
+    errs.append(f'{case} B tactics: not back to the pre-match screen')
+
+
+NATS = ('NAZIONALI', 'NATIONAL', 'EQUIPES NAT', 'NATIONALM')   # (bench_friendly: the picker's national teams)
+FR_CASES = {        # (4.0.6 bench_friendly) case: (world, home path, away path, named, used): the picker's labels (IT;
+                    # a tuple: the first one on the screen - the World 2026-27's national teams show English names)
+    'mixed': (0, ('SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE D', 'SERIE D GIRONE A', 'CELLE VARAZZE'),
+              ('SQUADRE CLUB', 'EUROPA', 'SPAGNA', 'LALIGA', 'REAL MADRID'), 12, 5),
+    'same': (0, ('SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE D', 'SERIE D GIRONE A', 'CELLE VARAZZE'),
+             ('SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE D', 'SERIE D GIRONE A', 'DERTHONA'), 9, 5),
+    'seriea': (0, ('SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE A', 'INTER'),
+               ('SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE A', 'MILAN'), 15, 5),
+    'seriea_top': (0, ('SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE A', 'INTER'),     # (Regia 06/11) seriea with the human
+                   ('SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE A', 'MILAN'), 15, 5),   # made the top team (BENCH_TOP)
+    'diy': (0, ('SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE D', 'SERIE D GIRONE A', 'CELLE VARAZZE'),
+            ('SQUADRE CLUB', 'EUROPA', 'SPAGNA', 'LALIGA', 'REAL MADRID'), 12, 5),
+    'diycup': (0, ('SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE D', 'SERIE D GIRONE A', 'CELLE VARAZZE'),
+               ('SQUADRE CLUB', 'EUROPA', 'SPAGNA', 'LALIGA', 'REAL MADRID'), 12, 5),
+    'nat': (1, (NATS, 'EUROPA', ('ITALY', 'ITALIA')), (NATS, 'EUROPA', ('SPAIN', 'SPAGNA')), 5, 2),   # (step 2.5: the
+                    # 2026-27 picker has no national teams yet, a message: the 1996-97 world's)
+    '9697w': (0, ('SQUADRE CLUB', 'CARR. STORICHE', 'MONDO 1996-97', 'EUROPA', 'ITALIA', 'SERIE A', 'INTER'),
+              ('SQUADRE CLUB', 'CARR. STORICHE', 'MONDO 1996-97', 'EUROPA', 'ITALIA', 'SERIE A', 'MILAN'), 5, 2),
+    '9697': (1, ('SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE A', 'INTER'),
+             ('SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE A', 'MILAN'), 5, 2),
+}
+
+FR_B = ('mixed', 'diy', 'diycup')               # (B) the cases with the own-order check (fr_order)
+FR_W27 = ('9697w',)                             # (step 2.5) only with the engine's SWE_W27 (benchx bx_w27p linked)
+FR_PRE = {'diycup': ('COMPET. PERSONAL.', 'COPPA', 11, 11, 11, 'OK', 'SCEGLI SQUADRE')}   # (a real DIY cup: one round,
+                                                # the final; its menu's PROSS. PARTITA -> the pre-match screen)
+
+
+@scenario
+def bench_friendly():
+    """4.0.6 (Regia / Davide 05/11) the long bench in friendlies (benchx bx_frset): a FRIENDLY of the World 2026-27
+    between two clubs = the longer real bench of their two (country, division): BENCH_FR=<cases> (FR_CASES, default
+    all): 'mixed' Serie D (9) vs LaLiga (12) -> 12, 'same' two Serie D clubs -> 9, 'seriea' INTER - MILAN -> 15
+    and a change from place 21 ('diy': 'mixed' with g_gameType poked to 1 on the pre-match screen: a DIY match, the
+    same rule; 'diycup': the same two clubs in a real DIY cup, COMPET. PERSONAL. > COPPA of one round; '9697w': INTER - MILAN
+    of the 1996-97 world picked in the World 2026-27's picker (CARR. STORICHE) -> the game's 2 from 5: the gate is the
+    contest's world, SWE_W27 - skipped on a build without it) (bench_sub: its save-under guard with two benches of 15, the strip, formwide), 'nat' two national teams (1996-97's:
+    step 2.5's 2026-27 picker has none yet) -> the game's 2 from 5, '9697' a 1996-97 friendly -> the game's 2 from 5. Per case: the picker (home human, away computer), PLAY MATCH,
+    at the kick-off gameMaxSubstitutes / gameMinSubstitutes and both in-match teams (11 + the bench places: named from
+    the record's 16 and the club's XTRA block, the rest empty). BENCH_BUILD = a World 2026-27 build; BENCH_SPP=1 (EN):
+    a smoke test under SWOS++ 1.9.2.2 (as bench_world's: no B swaps; run it without SWOSTEST_DIRTY, BENCH_FR=mixed,diy -
+    SWOS++'s DIY cup ROUNDS never gives 1, so no diycup)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lepatch
+    b = os.environ.get('BENCH_BUILD') or builds()['it']
+    files = {}
+    if os.environ.get('BENCH_SPP'):             # (4.1) under SWOS++ (SWOSTEST_UI=en, an English build), as bench_world:
+        import swospp                           # installed on a copy's exe; keys held SPP_HOLD, no latch, press() one
+        if UI != 'en':                          # tap at a time
+            return True, 'SKIP: SWOS++ is English only (SWOSTEST_UI=en)'
+        b = nop_league_int3('bench_friendly_spp_' + os.path.basename(RUNS.rstrip('/')), b)
+        shutil.copy(os.path.join(b, 'ITALIAN.EXE'), os.path.join(b, 'ITALIAN.EXE.nospp'))
+        swospp.install(os.path.join(b, 'ITALIAN.EXE.nospp'), os.path.join(b, 'ITALIAN.EXE'))
+        global SPP_STEP, HOLD
+        SPP_STEP = True                         # (bench_world's feed: no latch, keys held SPP_HOLD ticks; every menu
+        os.environ['SWOSTEST_SPP_NOLATCH'] = '1'   # step through press() - one 'key:0.3' tap at a time: walk()'s bare
+        HOLD = SPP_HOLD                         # keys were lost in the picker)
+        pp = os.path.join(MAIN, 'internal', 'swospp-test')
+        files = {'LOADER.BIN': os.path.join(pp, 'loader.bin'), 'SWOSPP.BIN': os.path.join(pp, 'swospp.bin')}
+    exe = os.path.join(b, 'ITALIAN.EXE')
+    p = lepatch.LEPatch(exe)
+    bx, gmax = bench_switch(exe)
+    m = re.search(rb'(?:\xc7\x05.{8}){4}\x66\xc7\x05.{4}\xa7\x06', p.le.obj_bytes(1), re.S)
+    top, bot = p.target(1, m.start() + 6)[1], p.target(1, m.start() + 26)[1]
+    errs, info = [], []
+    cases = [c for c in (os.environ.get('BENCH_FR') or ','.join(FR_CASES)).split(',') if c]
+    fs = fr_sites(exe)                          # (B) None: a build without the friendly clubs' own order
+
+    def go(s, t):
+        if isinstance(t, tuple):
+            sc = s.screen()
+            t = next((x for x in t if sc.find(x) is not None), t[0])
+        if not files:
+            walk(s, t, 2)
+        elif not any(press(s, s.screen(), t) is not None for _ in range(4)):   # (SWOS++: a key taken every
+            raise AssertionError(f'{t} not reached ({s.screen().texts()[:16]})')  # second tap, long paths)
+
+    def seq(s, path):
+        path = list(path)
+        while path:                             # (SWOS++: a held fire carried into the next menu took a step - a
+            if files:                           # later step already on the screen is next, as wm_go)
+                sc = s.screen()
+                has = lambda t: any(sc.find(x) is not None for x in (t if isinstance(t, tuple) else (t,))) \
+                    if not isinstance(t, int) else True
+                if not has(path[0]):
+                    k = next((j for j, t in enumerate(path[1:], 1) if not isinstance(t, int) and has(t)), None)
+                    if k:
+                        s.log.append(f'[spp carried] {path[0]} -> {path[k]}')
+                        path = path[k:]
+            go(s, path.pop(0))
+    tap = ':0.3' if files else ''               # (SWOS++: a bare key is lost)
+
+    def done(s):                                # pick_done, under SWOS++ with taps
+        if not files:
+            return pick_done(s)
+        for _ in range(16):
+            sc = s.screen()
+            if sc.selected == 55:
+                return s.send('fire dump:4')
+            s.send(('right' if sc.selected in (56, 57) else 'down') + tap + ' dump:0.5')
+        raise AssertionError(f'the picker\'s entry 55 not reached ({s.screen().selected})')
+
+    def up_to(s, t):
+        for _ in range(9):                      # ('9697w': up from the 1996-97 world's league list)
+            sc = s.screen()
+            if sc.find(t, exact=True) is not None:
+                return
+            out = sc.find('ESCI', exact=True)
+            if out is None or press(s, sc, out, 2) is None:
+                s.send(f'down{tap} ' * 12 + 'dump:1')
+                if out is not None and s.screen().selected == out:
+                    s.send('fire dump:2')
+        raise AssertionError(f'{t} not reached ({s.screen().texts()[:10]})')
+    for case in cases:
+        world, home, away, want, used = FR_CASES[case]
+        tag = f'bench_friendly_{case}'
+        with Session(tag, b, {'SETUP.DAT': setup_file(tag, world), **files}, 'dump:3', 400, match=True,
+                     timer=bool(files)) as s:   # (SWOS++: keys from the timer, as bench_world)
+            if s.wait().outcome != 'dump':
+                errs.append(f'{case}: no first pause ({s.result})')
+                continue
+            if case in FR_W27 and not (fs and struct.unpack('<I', s.result.read(s.result.lin(fs['w27p']), 4))[0]):
+                info.append(f'{case}: SKIP (no SWE_W27 in this build: the WCUR gate)')
+                continue
+            try:
+                if files and case in FR_PRE:        # (SWOS++: the DIY type screen's fast frames repeat a key held
+                    seq(s, FR_PRE[case][:1])        # SPP_HOLD ticks - one tap moved 3 rows; the main menu takes no
+                    s.poke(s.result.base1 + s.info['holdn'], struct.pack('<H', 8))   # key held 8)
+                    seq(s, FR_PRE[case][1:2])
+                    s.poke(s.result.base1 + s.info['holdn'], struct.pack('<H', HOLD))
+                    seq(s, FR_PRE[case][2:] + home)
+                else:
+                    seq(s, FR_PRE.get(case, ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE')) + home)
+                s.send('fire dump:2')               # home: COMPUTER -> GIOCA-ALLENA
+                up_to(s, away[1])                   # (the picker's top: the continents, the World's own list)
+                seq(s, away[1:])
+                s.shot(f'{case}_picker')
+                done(s)
+                if case in FR_PRE:                  # (the DIY cup's menu)
+                    s.shot(f'{case}_cup')
+                    seq(s, ('PROSS. PARTITA', '- PARTITA -'))   # (- PARTITA - / - RISULTATO -: played)
+                for _ in range(22):                 # the pre-match screen: down to PLAY MATCH (9)
+                    if s.screen().selected == 9:
+                        break
+                    s.send('down:0.3 dump:0.5' if files else 'down dump:0.5')
+                s.shot(f'{case}_prematch')
+                if case == 'diy':                   # (forced: a DIY match = gameType 1, the gates read it alone)
+                    import gkinj
+                    gt_at = gkinj.find(lepatch.LEPatch(os.path.join(ROOT, 'orig', UI_ORIG)))['GT']
+                    s.poke(s.result.lin(gt_at), struct.pack('<H', 1))
+                    s.send('dump:0.5')
+                fb = None
+                if case in FR_B and fs and not files:   # (B) the club's own order: window, swap 17 <-> 2 (not
+                                                    # under SWOS++: BENCH_SPP is a smoke test, as bench_world's)
+                    fb = fr_order(s, fs, bx, case, errs, info)
+                    for _ in range(12):             # back to PLAY MATCH (9)
+                        q = s.screen()
+                        if q.selected == 9:
+                            break
+                        s.send(' '.join(k + ':0.15' for k in (q.path(9) or ['down'])) + ' dump:0.5')
+                    check(s.screen().selected == 9, f'{case} B: PLAY MATCH not reached ({s.screen().texts()[:8]})', errs)
+                r = s.result                        # the pre-match screen's bench (sq_n -> bx_frpm -> bx_look: bx_lkres =
+                pre = struct.unpack('<BB', r.read(r.lin(bx) + 14, 2))   # bx_bench + 14)
+                check(pre[0] == (want if want > 5 else 0), f'{case}: pre-match screen bench {pre[0]}:{pre[1]}', errs)
+                if files:                           # (SWOS++: the long-bench screen reads a fire only held >= its
+                    h = spp_fire_held(s, 9, 4, lambda q: q.screen().find('MOD. TATTICA', exact=True) is None)
+                    info.append(f'{case}: SWOS++ PLAY MATCH fire held {h} ticks')   # (frame time; the friendly's
+                                                                                    # 16 + n rows: 24 at the edge)
+                    r = s.send('fire:3 ' * 8 + 'dump:2')
+                else:
+                    r = s.send('fire ' + 'fire:3 ' * 8 + 'dump:2')
+            except AssertionError as e:
+                s.shot(f'{case}_lost')
+                errs.append(f'{case}: {e}')
+                continue
+            if r.outcome != 'dump':
+                errs.append(f'{case}: no match ({r})')
+                continue
+            s.shot(f'{case}_match')
+            gm = struct.unpack('<HH', r.obj2(gmax - 2, 4))          # gameMinSubstitutes, gameMaxSubstitutes
+            teams = [ingame_team(r, top), ingame_team(r, bot)]
+            cap = 11 + max(5, min(gm[1], 15))
+            desc = []
+            for name, pl in teams:
+                named = [x for x in pl[:cap] if x[0]]
+                empty = [i for i, x in enumerate(pl[:cap]) if not x[0] and x[1] == 0xFF and x[2] == 1]
+                desc.append(f'{name} {len(named)} named + {len(empty)} empty')
+                check(len(named) + len(empty) == cap, f'{case}: {name}: {len(named)} named + {len(empty)} empty of {cap}',
+                      errs)
+                check(len(named) >= 16, f'{case}: {name}: only {len(named)} named', errs)
+            if fb:                                  # (B) the in-match team from that order: the XTRA player among
+                mine = [t for t in (top, bot) if ingame_team(r, t)[0] == home[-1]]   # the starters, the record
+                if check(mine, f'{case} B: {home[-1]} not in the match', errs):  # player he replaced on the bench
+                    d = r.read(r.base2 + mine[0], 1704)
+                    idx = [d[61 * i + 43] for i in range(cap)]
+                    info.append(f'{case} B: in-match indices {idx}')
+                    check(fb[0] in idx[:11] and fb[1] in idx[11:], f'{case} B: in-match indices {idx}: want {fb[0]} '
+                          f'among the starters, {fb[1]} on the bench', errs)
+            info.append(f'{case}: pre-match {pre[0]}:{pre[1]}, named:used {gm[1]}:{gm[0]} ({", ".join(desc)})')
+            check(gm == (used, want), f'{case}: named:used {gm[1]}:{gm[0]}, want {want}:{used}', errs)
+            if case in ('seriea', 'seriea_top') and gm == (used, want):   # the change: the save-under peak, two benches of 15
+                mine = [k for k, (name, _) in enumerate(teams) if name == home[-1]]   # the human club (top / bottom:
+                pl = teams[mine[0]][1][:cap] if mine else []                         # the game may swap the sides)
+                gone = {i - 10 for i, x in enumerate(pl) if i >= 11 and not x[0]}      # its empty places (no XTRA player)
+                td = team_data()
+                if case == 'seriea_top' or os.environ.get('BENCH_TOP'):   # (Regia 06/11) the human made the top team:
+                                                    # playerNumber 1 / 0 (the bench call by PgDn, bench_sub human_key)
+                    s.poke(r.base2 + td[0] + 4, b'\x01\x00')
+                    s.poke(r.base2 + td[1] + 4, b'\x00\x00')
+                    r = s.send('dump:0.3')
+                    ptr = struct.unpack('<I', r.read(r.base2 + td[0] + 10, 4))[0]   # (TeamGeneralInfo.inGameTeamPtr:
+                    k = 0 if ptr == r.base2 + top else 1                           # the club the human now plays)
+                    gone = {i - 10 for i, x in enumerate(teams[k][1][:cap]) if i >= 11 and not x[0]}
+                    info.append(f'BENCH_TOP: the top team ({teams[k][0]}) made the human one')
+                if os.environ.get('BENCH_DIAG'):    # (the controls each bench reads: playerNumber / playerCoachNumber)
+                    info.append('player / coach numbers top, bottom: ' + str([struct.unpack('<HH', r.read(r.base2 + o + 4, 4))
+                                                                               for o in td]))
+                    ig = {r.lin(0) * 0 + r.base2 + top: teams[0][0], r.base2 + bot: teams[1][0]}
+                    for nm, o in zip(('top', 'bottom'), td):     # (TeamGeneralInfo.inGameTeamPtr +10, teamNumber +18)
+                        ptr, tn = struct.unpack('<I', r.read(r.base2 + o + 10, 4))[0], struct.unpack('<H', r.read(r.base2 + o + 18, 2))[0]
+                        info.append(f'TGI {nm}: inGameTeamPtr {ptr:#x} -> {ig.get(ptr, ig.get(ptr - r.base2 + r.base2, "?"))}, '
+                                    f'teamNumber {tn} (in-match teams at {r.base2 + top:#x} {teams[0][0]}, {r.base2 + bot:#x} {teams[1][0]})')
+                bench_sub(s, bx, 21, errs, info, lambda t: open(os.path.join(s.run, 'progress.txt'), 'a').write(t + '\n'),
+                          gone=gone, human_key=True)   # (the human's key until the bench opens: bench_sub)
+    return not errs, '; '.join(errs + info)
+
+
+TAP_GRID = ((4, 4), (10, 8))                 # (bench_tap) (hold, gap) of each tap in feeder GetKey calls
+TAP_LEAD = 0.6                                # (bench_tap) seconds with no direction before the first tap
+
+
+def leave_timer():
+    """g_cameraLeavingSubsTimer (obj2 offset): LeaveSubsMenu's `mov [benchOff], 1 / mov [g_cameraLeavingSubsTimer], 55 /
+    mov [g_leavingSubsMenu], 1` - while it runs BenchCheckControls skips the bench call (taps too)."""
+    if not hasattr(leave_timer, 'v'):
+        p = lepatch_orig()
+        m = list(re.finditer(rb'\x66\xc7\x05....\x01\x00\x66\xc7\x05(....)\x37\x00\x66\xc7\x05....\x01\x00',
+                             p.le.obj_bytes(1), re.S))
+        assert len(m) == 1, ('g_cameraLeavingSubsTimer', len(m))
+        leave_timer.v = p.target(1, m[0].start(1))[1]
+    return leave_timer.v
+
+
+def bench_team():
+    """benchTeam (obj2 offset; -> the calling team's TeamGeneralInfo): BenchCheckControls' @@enter_substitutes_menu
+    `mov [bench1Called], 0 / mov [bench2Called], 0 / mov eax, [A6] / mov [benchTeam], eax`."""
+    if not hasattr(bench_team, 'v'):
+        p, v = lepatch_orig(), bench_vars()
+        m = [x for x in re.finditer(rb'\x66\xc7\x05(....)\x00\x00\x66\xc7\x05(....)\x00\x00\xa1....\xa3(....)',
+                                    p.le.obj_bytes(1), re.S)
+             if (p.target(1, x.start(1))[1], p.target(1, x.start(2))[1]) == (v['B1C'], v['B2C'])]
+        assert len(m) == 1, ('benchTeam', len(m))
+        bench_team.v = p.target(1, m[0].start(3))[1]
+    return bench_team.v
+
+
+@scenario
+def bench_tap():
+    """4.1 (Regia 06/11) the joypad's bench call: a stick / pad has no PgUp / PgDn, the bench is called by tapping a
+    direction while play is stopped (BenchCheckControls: the 1st tap sets subsPrevPl1/2Direction, the 2nd and 3rd
+    count subsPl1/2TapCount to 2 -> the substitutes menu; a release > 15 calls of that team's branch resets it). The
+    'seriea' friendly (INTER - MILAN, bench_friendly's picker), both sides in turn: the human club made the top team
+    (playerNumber 1: player 1's branch) then the bottom one (player 2's branch). Per side and TAP_GRID timing, 2 bench
+    openings by DOWN tapped 3 x (held h, g apart, no dump inside: real tap timing), g_inSubstitutesMenu set and
+    benchTeam = the human's TeamGeneralInfo. A try the taps do not open is checked at once with the human's own bench
+    key: it opens -> FAIL (the taps missed a stopped moment); it does not -> play on (not stopped). After each opening the
+    bench is shut by the own key and the next taps wait for g_cameraLeavingSubsTimer (55 frames) to run out."""
+    b = os.environ.get('BENCH_BUILD') or builds()['it']
+    errs, info = [], []
+    v, td, lt = bench_vars(), team_data(), leave_timer()
+    p = lepatch_orig()                              # gameStatePl: BenchCheckControls' `cmp [gameStatePl], ST_GAME_IN_PROGRESS`
+    gs = {p.target(1, x.start(1))[1] for x in re.finditer(rb'\x66\x83\x3d(....)\x64\x0f\x84', p.le.obj_bytes(1), re.S)}
+    assert len(gs) == 1, ('gameStatePl', gs)
+    gsp = gs.pop()
+    _, home, away, _, _ = FR_CASES['seriea']
+    with Session('bench_tap', b, {'SETUP.DAT': setup_file('bench_tap', 0)}, 'dump:3', 900, match=True) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'no first pause ({s.result})'
+        w16 = lambda o: struct.unpack('<H', s.result.read(s.result.base2 + o, 2))[0]
+        hold = lambda n: s.poke(s.result.base1 + s.info['holdn'], struct.pack('<H', n))
+        try:
+            for t in ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE') + home:
+                walk(s, t, 2)
+            s.send('fire dump:2')                   # home: COMPUTER -> GIOCA-ALLENA
+            for _ in range(9):                      # (up to the picker's continents, as bench_friendly's up_to)
+                sc = s.screen()
+                if sc.find(away[1], exact=True) is not None:
+                    break
+                out = sc.find('ESCI', exact=True)
+                if out is None or press(s, sc, out, 2) is None:
+                    s.send('down ' * 12 + 'dump:1')
+                    if out is not None and s.screen().selected == out:
+                        s.send('fire dump:2')
+            for t in away[1:]:
+                walk(s, t, 2)
+            pick_done(s)
+            for _ in range(22):                     # the pre-match screen: down to PLAY MATCH (9)
+                if s.screen().selected == 9:
+                    break
+                s.send('down dump:0.5')
+            r = s.send('fire ' + 'fire:3 ' * 8 + 'dump:2')
+        except AssertionError as e:
+            s.shot('lost')
+            return False, f'no match: {e}'
+        if r.outcome != 'dump':
+            return False, f'no match ({r})'
+        s.shot('match')
+
+        def stopped():                              # (BenchCheckControls' gates: gameStatePl not in progress, gameState
+            return w16(gsp) != 100 and not 21 <= w16(v['GSTATE']) <= 30   # not ST_STARTING_GAME .. ST_GAME_ENDED)
+
+        def shut(own):                              # the own key shuts it; then the camera-leaving timer runs out
+            hold(1)
+            s.send(f'{own}:0.3 dump:1')
+            for _ in range(20):
+                if not w16(lt):
+                    break
+                s.send('dump:0.5')
+            s.send('dump:0.5')
+            return check(not w16(v['INSUBS']), f'the own key ({own}) did not shut the bench', errs)
+        own = None
+        for side, k in (('top', 0), ('bottom', 1)):
+            if own and w16(v['INSUBS']) and not shut(own):   # (the other side's bench shut first)
+                break
+            s.poke(s.result.base2 + td[k] + 4, b'\x01\x00')       # (the human club: player 1 / no coach)
+            s.poke(s.result.base2 + td[1 - k] + 4, b'\x00\x00\x00\x00')
+            own = 'pgdn' if k == 0 else 'pgup'
+            for h, g in TAP_GRID:
+                ok = idle = race = 0
+                for tr in range(60):
+                    if ok >= 2 or not check(s.result.outcome == 'dump', f'{side} {h}/{g}: no dump ({s.result})', errs):
+                        break
+                    if w16(v['INSUBS']) and not shut(own):
+                        break
+                    st0 = stopped()
+                    hold(h)
+                    gap = f'{g / RATE:.4f}'
+                    r = s.send(f'down:{TAP_LEAD} down:{gap} down:{gap} dump:0.3')   # (TAP_LEAD of no direction first:
+                                                    # the original, too, misses taps 10/8 typed 0.05 s after a pause)
+                    hold(1)
+                    if r.outcome != 'dump':
+                        continue
+                    if w16(v['INSUBS']):
+                        bt = struct.unpack('<I', r.read(r.base2 + bench_team(), 4))[0] - r.base2
+                        check(bt == td[k], f'{side} {h}/{g}: the taps opened benchTeam {bt:#x}, want {td[k]:#x}', errs)
+                        ok += 1
+                        if ok == 1:
+                            s.shot(f'tap_{side}_{h}_{g}')
+                        continue
+                    st1 = stopped()
+                    s.send(f'{own}:0.1 dump:0.3')     # the same moment: the own key
+                    if w16(v['INSUBS']):
+                        if st0 and st1:             # (stopped before and after the taps: they had to open it)
+                            errs.append(f'{side} {h}/{g} try {tr}: the taps missed, the own key ({own}) opened the bench')
+                        else:
+                            race += 1               # (play stopped while the taps ran: the game cleared them)
+                        if not shut(own):
+                            break
+                    else:
+                        idle += 1
+                        s.send('dump:1')            # (play on: not a stopped moment)
+                info.append(f'{side} hold/gap {h}/{g}: {ok} opened by taps, {idle} tries in play, {race} stopped mid-taps')
+                check(ok >= 2, f'{side} {h}/{g}: {ok} of 2 openings by taps ({idle} tries in play)', errs)
+    return not errs, '; '.join(errs + info)
 
 
 @scenario
@@ -11295,6 +11867,41 @@ def wm_spp_check(s, ex, errs, info):
         info.append(f'SWOS++ {"on" if on else "OFF"}')
 
 
+WM_LOCK = False                                 # engine_wmodes_swospp: engine_wmodes / _diy assert the lock line
+
+
+def wm_fire(s, w, gone=None):
+    """The fire on the selected entry: a plain 'fire dump:w', or under engine_wmodes_swospp spp_fire_held (SWOS++'s
+    timer feed: held SPP_PM_HOLD, x 1.5, x 2 ticks until gone(s) - default: the selection or the texts changed)."""
+    if not WM_SPP:
+        return s.send(f'fire dump:{w}')
+    sc = s.screen()
+    before = (sc.selected, sc.texts())
+    gone = gone or (lambda s_: (s_.screen().selected, s_.screen().texts()) != before)
+    if spp_fire_held(s, sc.selected, w, gone) is None:
+        raise AssertionError(f'SWOS++: the fire on {sc.selected} not taken at 2 x {SPP_PM_HOLD} ticks ({sc.texts()[:10]})')
+    return s.result
+
+
+def wm_lock(s, ex, tag, errs, info):
+    """engine_wmodes_swospp: the contest locked to World 2026-27 (INTER picked): a list of worlds (the top list with
+    the STORICO box, STORICO's own) shows the lock line in its title bar (entry 0) = swe.LOCK_LINE of SWOSTEST_UI, that
+    text in the exe under test (the build's own string), fitting the bar, font chars only."""
+    if not WM_LOCK:
+        return
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import swe
+    import complist
+    lock = swe.LOCK_LINE[UI if UI in swe.LOCK_LINE else 'it']
+    inexe = lock.encode('latin-1') + b'\0' in open(os.path.join(ex, 'ITALIAN.EXE'), 'rb').read()
+    sc = s.screen()
+    t, wd = sc.raw_texts[0], sc.geom[0][2]
+    check(t == lock and inexe and complist.px(t) <= wd and set(t) <= complist.FONT, f'{tag}: title {t!r} '
+          f'({complist.px(t)} px, bar {wd}), the lock line {lock!r} (in the exe: {inexe})', errs)
+    s.shot(f'lock_{tag}')
+    info.append(f'{tag}: {t!r}')
+
+
 @scenario
 def engine_wmodes():
     """W-modes M2: the FRIENDLY picker lists the worlds (swe.c, release-recipe exe, fresh SETUP.DAT = default World
@@ -11341,10 +11948,12 @@ def engine_wmodes():
             if out is None or press(s, sc, out, 2) is None:
                 s.send('down ' * 12 + 'dump:1')
                 if out is not None and s.screen().selected == out:
-                    s.send('fire dump:2')
+                    wm_fire(s, 2)
         check(rd32(selcw) == 5, f'after INTER: SEL_CW {rd32(selcw)}', errs)
+        wm_lock(s, ex, 'friendly_top', errs, info)
         wm_go(s, hist, 2)
         scr = s.screen()
+        wm_lock(s, ex, 'friendly_storico', errs, info)
         check(scr.find('MONDO 1996-97') is not None and scr.find('EUROPA 1984-85') is None and
               scr.find('MONDO 2026-27') is None, f'STORICO with a 2026-27 club picked: {scr.texts()[:10]}', errs)
         s.shot('storico')
@@ -11353,7 +11962,7 @@ def engine_wmodes():
         for _ in range(16):
             scr = s.screen()
             if scr.selected == 55:
-                s.send('fire dump:4')
+                wm_fire(s, 4)
                 break
             s.send(('right' if scr.selected in (56, 57) else 'down') + ' dump:0.5')
         scr = s.screen()
@@ -11779,7 +12388,7 @@ def pick_done(s, e=55, w=4):
     for _ in range(16):
         scr = s.screen()
         if scr.selected == e:
-            s.send(f'fire dump:{w}')
+            wm_fire(s, w)
             return s.screen()
         s.send(('right' if scr.selected in (56, 57) else 'down') + ' dump:0.5')
     raise AssertionError(f'the picker\'s entry {e} not reached ({s.screen().selected})')
@@ -11813,7 +12422,7 @@ def engine_wmodes_diy():
             if out is None or press(s, sc, out, 2) is None:
                 s.send('down ' * 12 + 'dump:1')
                 if out is not None and s.screen().selected == out:
-                    s.send('fire dump:2')
+                    wm_fire(s, 2)
         raise AssertionError(f'{t} not reached ({s.screen().texts()[:10]})')
     b, xf, kw = wm_build('engine_wmodes_diy', b)
     with Session('engine_wmodes_diy1', b, {'SETUP.DAT': setup_file('engine_wmodes_diy1', 0), **xf}, 'dump:3', 400,
@@ -11834,7 +12443,10 @@ def engine_wmodes_diy():
             wm_seq(s, ('COMPET. PERSONAL.', 'COPPA', 11, 11, 11, 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB'))
         wm_seq(s, ('EUROPA', 'ITALIA', 'SERIE A', 'INTER') + (('MILAN',) if WM_SPP else ()))
         up_to(s, hist)
-        wm_seq(s, (hist, 'MONDO 1996-97', 'EUROPA', 'GERMANIA', '1. LIGA', 'HAMBURG') + (('SCHALKE',) if WM_SPP else ()))
+        wm_lock(s, b, 'diy_top', errs, info)
+        wm_seq(s, (hist,))
+        wm_lock(s, b, 'diy_storico', errs, info)
+        wm_seq(s, ('MONDO 1996-97', 'EUROPA', 'GERMANIA', '1. LIGA', 'HAMBURG') + (('SCHALKE',) if WM_SPP else ()))
         pick_done(s, 55)
         s.shot('cup')
         wm_go(s, 'ESCI', 3)
@@ -11868,22 +12480,29 @@ def engine_wmodes_diy():
 
 @scenario
 def engine_wmodes_swospp():
-    """(4.1, Regia 05/11) W-modes M2's one-world-per-contest lock under SWOS++ 1.9.2.2: engine_wmodes (FRIENDLY: INTER
-    from World 2026-27 fixes the contest's world, STORICO then lists the 1996-97 game only, HAMBURG mixes) and
-    engine_wmodes_diy (a DIY cup: the same pick, saved with its world, loaded back) on SWOSPP_BUILD (a World 2026-27
-    release-recipe dir whose ITALIAN.EXE is the English exe, SWOSTEST_UI=en) with SWOS++ installed, keys from the
-    timer (SPP_STEP: one key at a time; PRESS_FIRE 'fire up:0.05', as the latched feed needs; a fire carried into the
-    next list skips that step - wm_seq). Under SWOS++ the DIY cup's ROUNDS cycles 2..6 (never 1): semi-finals + final,
-    INTER + MILAN (2026-27) and HAMBURG + SCHALKE (1996-97)."""
-    global WM_SPP, SPP_STEP, PRESS_FIRE
-    if UI != 'en':
-        return True, 'SKIP: SWOS++ is English only (SWOSTEST_UI=en)'
-    b = os.environ.get('SWOSPP_BUILD')
+    """(4.1, Regia 05/11 + 06/11) W-modes M2's one-world-per-contest lock under SWOS++ 1.9.2.2: engine_wmodes (FRIENDLY:
+    INTER from World 2026-27 fixes the contest's world, STORICO then lists the 1996-97 game only, HAMBURG mixes) and
+    engine_wmodes_diy (a DIY cup: the same pick, saved with its world, loaded back), both asserting the lock line on
+    screen: after INTER the top list (STORICO box) and STORICO's list show swe.LOCK_LINE of SWOSTEST_UI in the title bar
+    (that text in the exe under test, fits the bar, font chars only - wm_lock). SWOSTEST_UI=en: on SWOSPP_BUILD (a World
+    2026-27 release-recipe dir whose ITALIAN.EXE is the English exe) with SWOS++ installed, keys from the timer
+    (SPP_STEP: one key at a time; PRESS_FIRE 'fire up:0.05', as the latched feed needs; a fire carried into the next
+    list skips that step - wm_seq; the raw fires - ESCI, the picker's done entry - by spp_fire_held, wm_fire). Under
+    SWOS++ the DIY cup's ROUNDS cycles 2..6 (never 1): semi-finals + final, INTER + MILAN (2026-27) and HAMBURG +
+    SCHALKE (1996-97). it / fr / de: SWOS++ installs on ENGLISH.EXE only (tools/swospp.py; loader.bin patches by
+    English symbol address), so the same two runs + lock line on SWOSTEST_BUILD without SWOS++."""
+    global WM_SPP, SPP_STEP, PRESS_FIRE, WM_LOCK
+    spp = UI == 'en'
+    b = os.environ.get('SWOSPP_BUILD') if spp else os.environ.get('SWOSTEST_BUILD')
     if not b or not os.path.isdir(b):
-        return True, 'SKIP: SWOSPP_BUILD not set'
-    WM_SPP, SPP_STEP, old, fire0 = b, True, SPP_STEP, PRESS_FIRE
-    PRESS_FIRE = 'fire up:0.05'                         # (the latched feed: a plain fire is read again by the next
+        return True, f'SKIP: {"SWOSPP_BUILD" if spp else "SWOSTEST_BUILD"} not set'
+    old, fire0 = SPP_STEP, PRESS_FIRE
+    WM_LOCK = True
+    if spp:
+        WM_SPP, SPP_STEP = b, True
+        PRESS_FIRE = 'fire up:0.05'                     # (the latched feed: a plain fire is read again by the next
                                                         # menu - carried fires skipped list levels and picked clubs)
+
     def part(f):
         try:
             return f()
@@ -11893,8 +12512,9 @@ def engine_wmodes_swospp():
         ok1, m1 = part(engine_wmodes)
         ok2, m2 = part(engine_wmodes_diy)
     finally:
-        WM_SPP, SPP_STEP, PRESS_FIRE = None, old, fire0
-    return ok1 and ok2, f'friendly: {"PASS" if ok1 else "FAIL"} {m1}; diy: {"PASS" if ok2 else "FAIL"} {m2}'
+        WM_SPP, SPP_STEP, PRESS_FIRE, WM_LOCK = None, old, fire0, False
+    return ok1 and ok2, (f'{"SWOS++ on" if spp else "SWOS++ n/a: ENGLISH.EXE only"} ({UI}); friendly: '
+                         f'{"PASS" if ok1 else "FAIL"} {m1}; diy: {"PASS" if ok2 else "FAIL"} {m2}')
 
 
 @scenario

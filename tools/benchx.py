@@ -119,6 +119,24 @@ clubs' division; every country a prefix entry ('<COUNTRY> ', et bit 7: bx_strpre
 confederation's default, so any other title of it (supercups...) has a real bench; the table's entries are the
 title + NUL + 3 bytes (no padding: 184 entries, < 4 KB, in benchx's 2 pages). internal/reports/bench-unknowns-2627.md.
 
+Friendlies (4.0.6, Regia / Davide 05/11): a FRIENDLY / DIY match (gameType 0 / 1) of the World 2026-27 has the longer
+real bench of its two clubs' (country, division) entries (bx_frset at the kick-off, bx_frpm on the pre-match screens:
+FR_TAB from bench_table); a club with a bench over 5 plays with 16 + its XTRA block's players (bx_xnamed).
+(B, Davide 05/11) such a club has its own order of those places (fr_find; 4 clubs at a time, fr_tab): places 0..15 its
+record's order (TeamFile.playerNumbers), 16.. its XTRA players (index 16 + slot, as xs_ga); rebuilt when the record's
+players are no longer in that order (another screen moved them) or the block's count changed. It is read while the
+pre-match screen shows (ShowPlayMatchMenu until ShowMenu returns: pm_max / fr_pmend, its tactics editor too) and while
+the kick-off builds the two teams (bx_max .. the second bx_next end): GetPlayerAtIndex's not-the-current-team path
+(fr_ga, chained before xbrowse's xs_ga) serves place D1 from it; the pre-match screen shows 16 + n players
+(numPlayersToShowInMenu, fr_nps: row 17 and the box, the window bx_pw), the tactics editor the same
+(editTacticsNumPlayers, fr_etnp); the swaps of both (PlayMatchMenuSwapPlayers / cseg_4E3DD's @@no_career: fr_sw_pm /
+fr_sw_et) swap its two places and write the record's players back in their new order (no index >= 16 in the
+record's 16 bytes; an XTRA player among the starters = the record's next players move up). The in-match team follows
+the order (InitInGameTeamStructure -> GetPlayerInfoBreakPosition -> GetPlayerAtIndex). The order of the XTRA players
+is kept only while the club stays in fr_tab (the record's own order always is). The pre-match screen's PLAY MATCH
+checks (GetNumberOfAvailablePlayers: the first 11 fit; GetNumberOfSubstitutes: a goalkeeper in place 1) read it too
+(fr_a2: A2 = the order, fr_a1: an XTRA index's record = his cached slot), so they judge the players on the screen.
+
 spritesIndex past the game's 1335 entries (shirtnum.py's extension into the 3072 free bytes after it: indices
 1335..2102; it cannot move, SWOS++ holds its address):
   1335..1417 shirtnum (match shirt numbers 17..99)      1620..1707 menunum (menu numbers 12..99)
@@ -137,6 +155,7 @@ import nasmcave
 import shirtnum
 
 MAXP = 26                               # 11 + 15
+FRN, FRE = 4, 36                        # (B) fr_find: 4 clubs' own orders (dw team, db n, db used, 32 places)
 NB = blond.ICONBL + 2                   # the name sprites of places 17..26: team 1 1912.., team 2 1922.. (after the bald icons)
 SPR_END = shirtnum.NEWBASE + 3072 // 4  # 2103: spritesIndex's room ends here
 assert (shirtnum.NEWBASE + 83 == blond.NEW1 and blond.NEW2 + 101 == menunum.NEWBASE and menunum.NEWBASE + 88 == blond.NEW3
@@ -147,11 +166,13 @@ INFO = {}                               # patch()'s sites for the modules after 
 
 ASM = r"""
 bx_max:                                 ; replaces `mov [GMAX], ax` (InitializeInGameTeamsAndStartGame)
+    mov byte [fr_on + 1], 2             ; (B) the two teams' builds read a friendly club's own order (fr_find)
     cmp word [bx_bench], 0
     je .comp
     mov ax, [bx_bench]
     jmp .cap
 .comp:                                  ; (phase 2) the competition's real bench (bx_look), else the game's
+    call bx_frset
     call bx_look
     cmp byte [bx_lkres], 0
     je .game
@@ -167,6 +188,7 @@ bx_max:                                 ; replaces `mov [GMAX], ax` (InitializeI
 bx_min:                                 ; (phase 2) replaces `mov [GMIN], ax`: the competition's substitutions
     cmp word [bx_bench], 0              ; allowed (bx_look), else the game's; the test switch keeps the game's
     jne .game
+    call bx_frset
     call bx_look
     cmp byte [bx_lkres + 1], 0
     je .game
@@ -179,6 +201,14 @@ bx_look:                                ; (phase 2) [bx_lkres] = the current com
     pushad                              ; not in the table (the game's rule). Careers only: the current competition =
     mov word [bx_lkres], 0              ; DIY_competitionStart, its title at +4 (the slot's name, as FORMAT's key);
     mov byte [bx_lket], 0               ; [bx_lket] = its extra-time substitute (4.0.6)
+    cmp word [GAMETYPE], 1              ; (4.0.6) a friendly / DIY match (gameType 0 / 1): bx_frset's at the kick-off
+    ja .car
+    mov ax, [bx_frkeep]
+    mov [bx_lkres], ax
+    mov al, [bx_fretk]
+    mov [bx_lket], al
+    jmp .out
+.car:
     cmp word [GAMETYPE], 4
     jne .out
     cmp word [TRAIN], 0                 ; (4.0.6, Marco) a training game (TRAINING on the squad screen) keeps the game's
@@ -359,6 +389,10 @@ bx_next:                                ; replaces `add word [D2], 1 / cmp word 
     jmp .empty
 .done:
     mov [A6], edi
+    cmp byte [fr_on + 1], 0             ; (B) one team built
+    je .d0
+    dec byte [fr_on + 1]
+.d0:
     xor eax, eax                        ; ZF = 1: done
     jmp .out
 .more:
@@ -369,10 +403,96 @@ bx_next:                                ; replaces `add word [D2], 1 / cmp word 
     pop eax
     ret
 
+bx_frset:                               ; (4.0.6, Davide 05/11) a friendly / DIY match of the World 2026-27 (gameType
+    pushad                              ; 0 / 1, WCUR = its world, not a training game): [bx_frkeep] / [bx_fretk] =
+    mov esi, [A1]                       ; the longer real bench of the two clubs (A1 / A2: their team files, at the
+    mov edi, [A2]                       ; kick-off's stores): each one's (country, division) entry of bx_frtab, else
+    call bx_frcalc                      ; its country's (division 0FFh); a national / custom team (no entry): the game's
+    popad
+    ret
+
+bx_frpm:                                ; (4.0.6) the same for the pre-match screens (sq_n): ShowPlayMatchMenu's two teams
+    pushad                              ; (playMatchTeam1Ptr / playMatchTeam2Ptr, this match's A1 / A2)
+    mov esi, [PMT1]
+    mov edi, [PMT2]
+    call bx_frcalc
+    popad
+    ret
+
+bx_frcalc:                              ; esi, edi -> the two team files
+    mov word [bx_frkeep], 0
+    mov byte [bx_fretk], 0
+    cmp word [GAMETYPE], 1
+    ja .out
+    cmp word [TRAIN], 0
+    jne .out
+    mov eax, [bx_w27p]                  ; (4.0.6 step 2.5) the engine's SWE_W27 when linked (link_w27): 1 = the
+    test eax, eax                       ; contest the friendly / DIY picker or a DIY file left is World 2026-27's
+    jz .wc
+    cmp dword [eax], 1
+    jne .out
+    jmp .on
+.wc:
+%if WCURV_
+    cmp byte [WCURV], BXWORLD_          ; (else the current world)
+    jne .out
+%else
+    jmp .out
+%endif
+.on:
+    push edi
+    call bx_frone
+    pop esi
+    call bx_frone
+.out:
+    ret
+
+bx_frone:                               ; esi -> a team file: its entry's bench if longer than [bx_frkeep]'s
+    test esi, esi
+    jz .r
+    mov al, [esi]                       ; countryNumber
+    mov ah, [esi + 25]                  ; league (the division)
+    mov edx, bx_frtab
+    mov ecx, [bx_frn]
+    xor ebx, ebx
+.f:
+    jecxz .d
+    cmp al, [edx]
+    jne .n
+    cmp ah, [edx + 1]
+    je .hit
+    cmp byte [edx + 1], 0FFh
+    jne .n
+    mov ebx, edx                        ; the country's own (its top league / confederation)
+.n:
+    add edx, 5
+    dec ecx
+    jmp .f
+.hit:
+    mov ebx, edx
+.d:
+    test ebx, ebx
+    jz .r
+    mov al, [ebx + 2]
+    cmp al, [bx_frkeep]
+    jbe .r
+    mov [bx_frkeep], al
+    mov al, [ebx + 3]
+    mov [bx_frkeep + 1], al
+    mov al, [ebx + 4]
+    mov [bx_fretk], al
+.r:
+    ret
+
 bx_xnamed:                              ; ax = team word -> eax = the players of its XTRA block (a career's CPU club;
 %if HASX_                               ; the ones the managed club bought are blanked there), else 0
-    cmp word [GAMETYPE], 4
-    jne .no
+    cmp word [GAMETYPE], 4              ; (4.0.6) or a friendly / DIY club with a long bench (bx_frset's)
+    je .gt
+    cmp word [GAMETYPE], 1
+    ja .no
+    cmp byte [bx_frkeep], 5
+    jbe .no
+.gt:
     cmp word [TRAIN], 0
     jne .no
     push ecx
@@ -401,6 +521,257 @@ bx_xnamed:                              ; ax = team word -> eax = the players of
 %endif
     xor eax, eax
     ret
+
+%if HASFR_                              ; (B: builds with XTRA blocks and xbrowse's xs_ga)
+fr_find:                                ; (B, 4.0.6, Davide 05/11) esi -> a team file: CF = 0 when it has its own
+                                        ; order (a friendly / DIY club with a long bench, while the pre-match screen
+    cmp word [fr_on], 0                 ; shows or the kick-off builds the teams): edi -> it (place -> index: 0..15 the
+    je .none                            ; record's players, 16 + slot the XTRA block's), ecx = its places (16 + n).
+    cmp word [GAMETYPE], 1              ; Rebuilt from the record's order (TeamFile.playerNumbers) + the block when
+    ja .none                            ; the record's players are no longer in that order (another screen moved
+    push eax                            ; them) or the block's count changed
+    push ebx
+    push edx
+    mov ax, [esi]
+    call bx_xnamed
+    test eax, eax
+    jz .no
+    cmp eax, MAXE_
+    jbe .n
+    mov eax, MAXE_
+.n:
+    mov edx, eax                        ; edx = n
+    mov ax, [esi]
+    mov edi, fr_tab
+    mov ecx, FRN_
+.s: cmp byte [edi + 3], 0
+    je .sn
+    cmp [edi], ax
+    je .hit
+.sn:
+    add edi, FRE_
+    dec ecx
+    jnz .s
+    movzx edi, byte [fr_next]           ; not there: the next slot in turn
+    inc byte [fr_next]
+    and byte [fr_next], FRN_ - 1
+    imul edi, edi, FRE_
+    add edi, fr_tab
+    jmp .build
+.hit:
+    cmp [edi + 2], dl
+    jne .build
+    push esi                            ; its record players in order = the record's?
+    lea ebx, [edi + 4]
+    lea ecx, [edx + 16]
+    add esi, PNUM_
+.c: mov al, [ebx]
+    cmp al, 16
+    jae .cn
+    cmp al, [esi]
+    jne .cbad
+    inc esi
+.cn:
+    inc ebx
+    dec ecx
+    jnz .c
+    pop esi
+    jmp .ok
+.cbad:
+    pop esi
+.build:
+    mov ax, [esi]
+    mov [edi], ax
+    mov [edi + 2], dl
+    mov byte [edi + 3], 1
+    push esi
+    push edi
+    add esi, PNUM_
+    add edi, 4
+    mov ecx, 16
+    rep movsb                           ; places 0..15: the record's order
+    pop edi
+    pop esi
+    push edi
+    add edi, 20
+    mov ax, [esi]
+    call XTB                            ; places 16..: the block's players in order (index 16 + slot, as xs_ga)
+    test eax, eax
+    jz .bd
+    movzx ecx, byte [eax + 2]
+    lea ebx, [eax + 4 + 3]
+    mov al, 16
+.b: test ecx, ecx
+    jz .bd
+    cmp byte [ebx], 0
+    je .bs
+    test edx, edx
+    jz .bd
+    mov [edi], al
+    inc edi
+    dec edx
+.bs:
+    inc al
+    add ebx, PLAYER_
+    dec ecx
+    jmp .b
+.bd:
+    pop edi
+    movzx edx, byte [edi + 2]
+.ok:
+    lea ecx, [edx + 16]
+    add edi, 4
+    pop edx
+    pop ebx
+    pop eax
+    clc
+    ret
+.no:
+    pop edx
+    pop ebx
+    pop eax
+.none:
+    stc
+    ret
+
+fr_ga:                                  ; GetPlayerAtIndex, a club that is not the current / managed one (chained
+                                        ; before xbrowse's xs_ga): a club with its own order -> place D1's player
+    cmp word [fr_on], 0
+    je .x
+    pushad
+    push dword [D0]
+    push dword [D1]
+    call GTP
+    pop dword [D1]
+    pop dword [D0]
+    mov esi, [A0]
+    call fr_find
+    jc .no
+    movzx ebx, word [D1]
+    cmp ebx, ecx
+    jae .no
+    movzx ax, byte [edi + ebx]
+    mov [D1], ax
+    popad
+    add esp, 4                          ; not coming back (as xs_ga): GetPlayer, gp_wide serves 16..
+    jmp GETPLAYER
+.no:
+    popad
+.x:
+    jmp XSGA
+
+fr_swap:                                ; eax -> the swapping screen's team file, D3 / D4 the two places: CF = 1 swapped
+                                        ; in its own order (and the record's players' order written back to
+    pushad                              ; TeamFile.playerNumbers: no index >= 16 there), CF = 0 the game's
+    mov esi, eax
+    call fr_find
+    jc .no
+    movzx ebx, word [D3]
+    movzx edx, word [D4]
+    cmp ebx, ecx
+    jae .done
+    cmp edx, ecx
+    jae .done
+    mov al, [edi + ebx]
+    xchg al, [edi + edx]
+    mov [edi + ebx], al
+    add esi, PNUM_
+.w: mov al, [edi]
+    cmp al, 16
+    jae .wn
+    mov [esi], al
+    inc esi
+.wn:
+    inc edi
+    dec ecx
+    jnz .w
+.done:
+    popad
+    stc
+    ret
+.no:
+    popad
+    clc
+    ret
+
+fr_sw_pm:                               ; PlayMatchMenuSwapPlayers' @@no_career (`mov eax, [playMatchTeam1Ptr]`, then
+    mov eax, [PMT1]                     ; A0 = its playerNumbers, the swap)
+    call fr_swap
+    jc .r
+    mov [A0], eax
+    add dword [A0], PNUM_
+    jmp SWPM
+.r: ret
+
+fr_sw_et:                               ; the tactics editor's swap (cseg_4E3DD): the same with chooseTacticsTeamPtr
+    mov eax, [CTTP]
+    call fr_swap
+    jc .r
+    mov [A0], eax
+    add dword [A0], PNUM_
+    jmp SWET
+.r: ret
+
+fr_nps:                                 ; PlayMatchMenuReinit's `mov [numPlayersToShowInMenu], ax`: a club with its own
+    mov [NPS], ax                       ; order shows its 16 + n (row 17 and the box: SetVariableButtons)
+    pushad
+    mov esi, [PMT1]
+    call fr_find
+    jc .r
+    mov [NPS], cx
+.r: popad
+    ret
+
+fr_etnp:                                ; EditTacticsInit's `mov [editTacticsNumPlayers], ax`: the same
+    mov [ETNP], ax
+    pushad
+    mov esi, [CTTP]
+    call fr_find
+    jc .r
+    mov [ETNP], cx
+.r: popad
+    ret
+
+fr_a2:                                  ; GetNumberOfAvailablePlayers / GetNumberOfSubstitutes: replaces `mov [A2], eax`
+    mov [A2], eax                       ; (A2 = the record's playerNumbers): a club with its own order -> it, so the
+    mov byte [fr_gn], 0                 ; pre-match screen's PLAY MATCH checks (the first 11 fit, a goalkeeper in
+    pushad                              ; place 1) read the players shown there
+    mov esi, [A0]
+    call fr_find
+    jc .r
+    mov [A2], edi
+    mov byte [fr_gn], 1
+.r: popad
+    ret
+
+fr_a1:                                  ; their `mov [A1], eax` (eax = A0 + index * 38: the player's record, - 4Ch):
+    mov [A1], eax                       ; with fr_a2's order an XTRA index (16..) -> his cached slot (xtra's xt_slot)
+    cmp byte [fr_gn], 0
+    je .r
+    pushad
+    sub eax, [A0]
+    cmp eax, 16 * PLAYER_
+    jb .o
+    mov edi, eax                        ; index * 38
+    xor edx, edx
+    mov ebx, PLAYER_
+    div ebx
+    mov ecx, eax
+    mov esi, [A0]
+    mov ax, [esi]
+    call XTS
+    test eax, eax
+    jz .o
+    add eax, edi
+    mov [A1], eax
+.o: popad
+.r: ret
+
+fr_pmend:                               ; ShowPlayMatchMenu's `mov ax, [playerNumThatStarted]` after ShowMenu: the
+    mov byte [fr_on], 0                 ; pre-match screen is gone
+    mov ax, [PNTS]
+    ret
+%endif
 
 bx_stad:                                ; ShowStadiumInit's last `jmp SetExitMenuFlag` (the line-ups drawn and faded in):
     pushad                              ; a bench over 5 with players past place 16 -> its rows 12..16 turn pages
@@ -849,6 +1220,7 @@ sq_n:                                   ; ax = 11 + the bench (5..15): the first
     mov ax, [bx_bench]                  ; (the test switch, else the competition's real bench: bx_look)
     test ax, ax
     jnz .t
+    call bx_frpm                        ; (4.0.6) a friendly / DIY: the pre-match screen's two clubs
     call bx_look
     movzx ax, byte [bx_lkres]
 .t:
@@ -968,6 +1340,7 @@ pm_max:                                 ; ShowPlayMatchMenu: replaces `mov [maxS
     mov ax, 5
 .s:
     mov [MAXSUB], ax
+    mov byte [fr_on], 1                 ; (B) the pre-match screen (and its tactics editor) until ShowMenu returns
     mov word [bx_pw], 0
     mov word [bx_po], 0
     ret
@@ -1838,6 +2211,74 @@ def sites6(p, regs, s4):
     return out
 
 
+def link_w27(p):
+    """(4.0.6 step 2.5, after swe.patch) bx_w27p -> the engine's SWE_W27 (obj4), when this build has it (MC's
+    406-avail); else the friendlies' gate stays the current world (WCUR)."""
+    import swe
+    if 'SWE_W27' not in swe.LABELS or 'bx_w27p' not in LABELS:
+        return False
+    t = swe.LABELS['SWE_W27']
+    p.add_ptr(3, LABELS['bx_w27p'], t[0], t[1])
+    print(f'exe: benchx friendlies gated by SWE_W27 (obj{t[0]}+{t[1]:#x})')
+    return True
+
+
+def sites_fr(p, regs, s5, s6, pmt1):
+    """(B, 4.0.6) a friendly / DIY club's own order: GetPlayerAtIndex's xs_ga call (xbrowse), the two swaps' @@no_career
+    blocks (pre-match screen, tactics editor), the two player-count stores, ShowPlayMatchMenu's end."""
+    d = p.le.obj_bytes(1)
+    pk = lambda x: re.escape(struct.pack('<I', x))
+    t = lambda o: p.target(1, o)
+    d0, d1, a0 = regs['D7'] - 28, regs['D7'] - 24, regs['A0']
+    # GetPlayerAtIndex @@not_selected_team: cmp word [D1], 16 / jnb / push dword [D0] / call GetTeamPointer / pop / ...
+    # mov al, [esi+eax+3Ch] / mov [D1], al / jmp GetPlayer (as xbrowse.sites)
+    ga = [x for x in re.finditer(rb'\x66\x83\x3d' + pk(d1) + rb'\x10\x73.\xff\x35' + pk(d0) + rb'\xe8(....)\x8f\x05' + pk(d0) +
+                                 rb'\x8b\x35' + pk(a0) + rb'\x0f\xb7\x05' + pk(d1) + rb'\x8a\x44\x06\x3c\xa2' + pk(d1) +
+                                 rb'\xe9(....)\xcc', d, re.S)]
+    assert len(ga) == 1, ('GetPlayerAtIndex', len(ga))
+    out = dict(ga=ga[0].start(), GTP=(1, ga[0].end(1) + struct.unpack('<i', ga[0].group(1))[0]),
+               GETPLAYER=(1, ga[0].end(2) + struct.unpack('<i', ga[0].group(2))[0]))
+    # EditTacticsInit: mov eax, [chooseTacticsTeamPtr] / mov [A0], eax / call SetBenchPlayersNumbers ... mov ax, [D0] /
+    # mov [editTacticsNumPlayers], ax
+    etnp = s6['ETNP'][1]
+    m = [x.start() + 6 for x in re.finditer(rb'\x66\xa1' + pk(d0) + rb'\x66\xa3' + pk(etnp), d)]
+    m = [o for o in m if re.search(rb'\xa1....\xa3' + pk(a0) + rb'\xe8', d[o - 0x80:o], re.S)]
+    assert len(m) == 1, ('EditTacticsInit', m)
+    out['etnp'] = m[0]
+    c = re.search(rb'\xa1(....)\xa3' + pk(a0) + rb'\xe8', d[m[0] - 0x80:m[0]], re.S)
+    cttp = struct.unpack('<I', c.group(1))[0]
+    out['CTTP'] = t(m[0] - 0x80 + c.start(1))
+    # the swaps' @@no_career: mov eax, [team] / mov [A0], eax / mov eax, [A0] / add eax, 3Ch / mov [A0], eax / jmp
+    sw = {}
+    for x in re.finditer(rb'\xa1(....)\xa3' + pk(a0) + rb'\xa1' + pk(a0) + rb'\x83\xc0\x3c\xa3' + pk(a0) + rb'(\xe9....|\xeb.)', d, re.S):
+        j = x.start(2)
+        dest = j + 5 + struct.unpack('<i', d[j + 1:j + 5])[0] if d[j] == 0xE9 else j + 2 + struct.unpack('<b', d[j + 1:j + 2])[0]
+        sw[struct.unpack('<I', x.group(1))[0]] = (x.start(), dest)
+    assert pmt1 in sw and cttp in sw, ('swap blocks', sw.keys())
+    out.update(swpm=sw[pmt1][0], SWPM=(1, sw[pmt1][1]), swet=sw[cttp][0], SWET=(1, sw[cttp][1]))
+    # PlayMatchMenuReinit: mov ax, [D0] / mov [numPlayersToShowInMenu], ax
+    m = [x.start() + 6 for x in re.finditer(rb'\x66\xa1' + pk(d0) + rb'\x66\xa3' + pk(s5['NPS'][1]) + rb'\xc7\x05', d)]
+    assert len(m) == 1, ('PlayMatchMenuReinit NPS', m)
+    out['nps'] = m[0]
+    # ShowPlayMatchMenu's end: call ShowMenu / mov ax, [playerNumThatStarted] / mov [D0], ax / ret
+    m = [s5['store'] + x.start() + 5 for x in re.finditer(rb'\xe8....\x66\xa1....\x66\xa3' + pk(d0) + rb'\xc3',
+                                                           d[s5['store']:s5['store'] + 0x100], re.S)]
+    assert len(m) == 1, ('ShowPlayMatchMenu end', m)
+    out['pmend'] = m[0]
+    out['PNTS'] = t(m[0] + 2)
+    # GetNumberOfAvailablePlayers: mov eax, [A0] / add eax, 3Ch / mov [A2], eax / mov word [D5], 16; GetNumberOfSubstitutes:
+    # mov ax, [D0] / mov [D1], ax / sub word [D1], 1 / mov eax, [A0] / add eax, 3Ch / mov [A2], eax; each one's first
+    # mov [A1], eax (the player's record)
+    a1, a2, d5 = pk(a0 + 4), pk(a0 + 8), regs['D7'] - 8
+    g = [x.start() + 8 for x in re.finditer(rb'\xa1' + pk(a0) + rb'\x83\xc0\x3c\xa3' + a2 + rb'\x66\xc7\x05' + pk(d5) + rb'\x10\x00', d)]
+    n = [x.start() + 28 for x in re.finditer(rb'\x66\xa1' + pk(d0) + rb'\x66\xa3' + pk(d1) + rb'\x66\x83\x2d' + pk(d1) + rb'\x01\xa1'
+                                             + pk(a0) + rb'\x83\xc0\x3c\xa3' + a2, d)]
+    assert len(g) == 1 and len(n) == 1, ('GetNumberOfAvailablePlayers / GetNumberOfSubstitutes', g, n)
+    out['a2'] = g + n
+    out['a1'] = [o + re.search(rb'\xa3' + a1, d[o:o + 0x200]).start() for o in out['a2']]
+    return out
+
+
 def refs(p, tobj, lo, hi):
     """Every 32-bit fixup source (objn, off) whose target is tobj:lo..hi-1 -> [(objn, off, toff)]."""
     out = []
@@ -1860,6 +2301,7 @@ def refs(p, tobj, lo, hi):
 
 LOG = []
 BENCH_WORLD = [0]                       # the World 2026-27's career world number (the packs' 'world'), 0 = none
+FR_TAB = []                             # (4.0.6) bench_table's (country number, division / 0FFh, named, used, et): friendlies
 BENCH_DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'bench2627.json')   # (4.0.6: in the repo)
 
 
@@ -1886,6 +2328,7 @@ def bench_table(lang):
     country with no data; exact entries only where they differ from it. Order: exact, continental, prefixes longest
     first (IRLANDA DEL NORD before IRLANDA)."""
     import json
+    FR_TAB.clear()
     if not os.path.isfile(BENCH_DATA):
         return []
     data = json.load(open(BENCH_DATA))
@@ -1911,6 +2354,13 @@ def bench_table(lang):
         lvals = fallback_divs(ent.get(lg['key']), len(lg.get('divisions') or [0])) if lg else []
         top = norm(lvals[0] if lvals and lvals[0] is not None else
                    (data.get('confederations') or {}).get(pk.get('continent')))
+        cn = ((pk.get('files') or {}).get('league') or {}).get('file')
+        if top and cn and not any(e[0] == cn for e in FR_TAB):   # (4.0.6) friendlies / DIY: the club's own country
+            FR_TAB.append((cn, 0xFF, top[0], used, top[1]))     # (its team file's countryNumber) and division (its
+            for i, x in enumerate(lvals):                       # league byte = the division's index)
+                v = norm(x) or top
+                if v != top:
+                    FR_TAB.append((cn, i, v[0], used, v[1]))
         for c in pk['competitions']:
             v, raw = ent.get(c['key']), []
             if c.get('type') == 'league':
@@ -1957,8 +2407,12 @@ def bench_table(lang):
 
 
 def table_asm(tab):
-    """bx_tabn / bx_tab: the entries of bench_table."""
-    lines = ['align 4', f'bx_tabn: dd {len(tab)}', 'bx_tab:']
+    """bx_tabn / bx_tab: the entries of bench_table; bx_frn / bx_frtab: FR_TAB's (country, division, named, used, et)."""
+    lines = ["fr_mark: db 'FRTB'", 'fr_on: db 0, 0', 'fr_next: db 0', 'fr_gn: db 0', 'align 4', f'fr_tab: times {FRN * FRE} db 0']   # (B) fr_find's orders
+    lines += ['bx_frkeep: dw 0', 'bx_fretk: db 0', 'align 4', 'bx_w27p: dd 0']   # (bx_w27p: link_w27's pointer)        # (4.0.6) bx_frset: the friendly / DIY match's named subs,
+    lines += ['align 4', f'bx_frn: dd {len(FR_TAB)}', 'bx_frtab:']   # subs used and its extra-time substitute
+    lines += ['    db ' + ','.join(str(x) for x in e) for e in FR_TAB]
+    lines += ['align 4', f'bx_tabn: dd {len(tab)}', 'bx_tab:']
     for t, n, u, e in tab:                          # (4.0.5: titles NUL-terminated, no padding: the 2 pages)
         b = t + b'\0' + bytes((n, u, e))
         lines.append('    db ' + ','.join(str(x) for x in b))
@@ -1995,7 +2449,7 @@ def patch(p, at, ns_at, lang='it'):
     sym = {**v2, **v3, 'BENCHY': v11['BENCHY'], 'CAMY': v11['CAMY'], 'SIP': v11['SIP'], 'WAITGO': v11['WAITGO'],
            'DUGUP_': (0, 16 * dugout.ADD), **v12, 'CAMMID_': (0, dugout.CAM_MID), 'BACK_': (0, dugout.BACK),
            'FRONTX_': (0, dugout.FRONT_X), 'FRONTY_': (0, dugout.FRONT_Y), 'ARROWDX_': (0, dugout.ARROW_DX),
-           'ARROW_': (0, 1284), 'CAMX': (2, v11['CAMY'][1] - 4), 'INSUBS': (2, v11['BENCHY'][1] - 0x12), 'D7': (2, regs['D7']), 'D1': (2, regs['D7'] - 24), 'A0': (2, regs['A0']), 'GMAX': (2, gmax), 'D2': (2, d2), 'A2': (2, regs['A0'] + 8), 'A6': (2, regs['A0'] + 24),
+           'ARROW_': (0, 1284), 'CAMX': (2, v11['CAMY'][1] - 4), 'INSUBS': (2, v11['BENCHY'][1] - 0x12), 'D7': (2, regs['D7']), 'D1': (2, regs['D7'] - 24), 'A0': (2, regs['A0']), 'GMAX': (2, gmax), 'D2': (2, d2), 'A1': (2, regs['A0'] + 4), 'A2': (2, regs['A0'] + 8), 'A6': (2, regs['A0'] + 24),
            'CT': (2, ct), 'CNP': (2, cnp), 'MAXP': (0, MAXP), 'PI': (0, PI)}
     s4 = sites4(p, regs)
     assert s4['D4'] == v11['D4'][1], 'D4'
@@ -2024,13 +2478,29 @@ def patch(p, at, ns_at, lang='it'):
     tab = bench_table(lang)
     sym.update({'GMIN': gmin, 'DIYNAME': (2, lp36._sites(p)['DIY'] + 4),
                 'SLT': (careerworld.SITES or careerworld.sites(p))['slt'], 'WORLD_BYTE_': (0, careerworld.WORLD_BYTE),
-                'BXWORLD_': (0, BENCH_WORLD[0] if tab else 255)})
+                'BXWORLD_': (0, BENCH_WORLD[0] if tab else 255),
+                'WCURV': (1, careerworld.LABELS['WCUR']) if 'WCUR' in careerworld.LABELS else (0, 0),
+                'WCURV_': (0, int('WCUR' in careerworld.LABELS))})
+    pk = lambda x: re.escape(struct.pack('<I', x))           # ShowPlayMatchMenu: mov ax, [D6] / mov [squadChanges..], ax /
+                                                             # mov eax, [A1] / mov [playMatchTeam1Ptr],
+    pm = list(re.finditer(b'\x66\xa1' + pk(regs['D7'] - 4) + b'\x66\xa3....\xa1' + pk(regs['A0'] + 4) + b'\xa3(....)\xa1' + pk(regs['A0'] + 8) + b'\xa3(....)\x66\xa1'
+                          + pk(regs['D7'] - 24) + b'\x66\xa3', p.le.obj_bytes(1), re.S))   # eax / A2 / Team2Ptr / D1
+    assert len(pm) == 1, ('ShowPlayMatchMenu', len(pm))
+    sym.update({'PMT1': p.target(1, pm[0].start(1)), 'PMT2': p.target(1, pm[0].start(2))})
+    sfr = sites_fr(p, regs, s5, s6, sym['PMT1'][1]) if hasx else None    # (B) a friendly club's own order: chained
+    if sfr and bytes(p.get(1, sfr['ga'], 1)) != b'\xe8':                  # before xbrowse's xs_ga
+        sfr = None
+    sym.update({'HASFR_': (0, int(bool(sfr))), 'FRN_': (0, FRN), 'FRE_': (0, FRE), 'PNUM_': (0, 0x3C),
+                'MAXE_': (0, xtra.MAX_EXTRA), 'PLAYER_': (0, xtra.PLAYER)})
+    if sfr:
+        sym.update({k: sfr[k] for k in ('GTP', 'GETPLAYER', 'CTTP', 'SWPM', 'SWET', 'PNTS')})
+        sym.update({'XSGA': p.call_target(1, sfr['ga']), 'ETNP': s6['ETNP'], 'XTS': (1, xtra.LABELS['xt_slot'])})
     asm = ASM + table_asm(tab)
     code, fix, rel = nasmcave.assemble_obj(asm, at, sym, 3)
     lab = nasmcave.labels(asm, at, sym)
     INFO.update(TABLE=(3, lab['bx_table']), GMAX=(2, gmax), SUBST=v2['SUBST'], IDX=v2['IDX'])   # (oppl.py, 4.0.6)
     INFO['S7'] = s7                                 # (stadium.py, 4.0.6: the line-ups screen's sites)
-    LOG.append(f'benchx phase 2: {len(tab)} competitions with a real bench ({lang})')
+    LOG.append(f'benchx phase 2: {len(tab)} competitions with a real bench ({lang}), friendlies {len(FR_TAB)} entries')
     assert not any(p.get(3, at, len(code)))
     p.put(3, at, code)
     for o, t_obj, t_off in fix:
@@ -2119,6 +2589,20 @@ def patch(p, at, ns_at, lang='it'):
     for o, lbl in rcalls:                           # call rel32 (no fixup)
         assert bytes(p.get(1, o, 1)) == b'\xe8', hex(o)
         go(o, lbl)
+    if sfr:                                         # (B) a friendly / DIY club with a long bench: its own order
+        go(sfr['ga'], 'fr_ga')                      # GetPlayerAtIndex: call xs_ga -> call fr_ga (-> jmp xs_ga)
+        for k, lbl in (('swpm', 'fr_sw_pm'), ('swet', 'fr_sw_et')):   # mov eax, [team] (A1 addr) -> jmp
+            p.remove(1, sfr[k] + 1)
+            go(sfr[k], lbl, op=0xE9)
+        for k in ('nps', 'etnp', 'pmend'):           # nobody else patched them
+            assert bytes(p.get(1, sfr[k], 6)) == d1o[sfr[k]:sfr[k] + 6], k
+        call9(sfr['nps'], 6, 'fr_nps', 2)           # mov [numPlayersToShowInMenu], ax
+        call9(sfr['etnp'], 6, 'fr_etnp', 2)         # mov [editTacticsNumPlayers], ax
+        call9(sfr['pmend'], 6, 'fr_pmend', 2)       # mov ax, [playerNumThatStarted]
+        for k, lbl in (('a2', 'fr_a2'), ('a1', 'fr_a1')):   # the PLAY MATCH checks: mov [A2] / [A1], eax (A3 addr)
+            for o in sfr[k]:
+                assert bytes(p.get(1, o, 5)) == d1o[o:o + 5], (k, hex(o))
+                call9(o, 5, lbl, 1)
     bf = int(os.environ.get('BENCH_FORCE', '0'))   # BENCH_FORCE=n (test / playtest builds only): every match's bench
     if bf:                                          # n (<= 15) until the per-competition rule (phase 2)
         p.put(3, lab['bx_bench'], struct.pack('<H', min(bf, 15)))

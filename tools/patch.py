@@ -610,6 +610,8 @@ def patch_exe(src, dst, remap, lang='it'):
     cos = menulevels.patch(p, cos, area, lang)   # 4.0: team choice of a league with levels of groups: level, then group
     import titlelegs                             # 4.0: the French match titles' leg words (40-character titles)
     titlelegs.patch(p, area, lang)
+    import frhdr                                 # 4.1: the French team-pick header short enough for ' - <world>'
+    frhdr.patch(p, lang)
     import zones                                 # 4.0: zone colours in the league tables (light blue, green, ...)
     zones.RING = None                            # (per exe: a release build patches the four languages in one run)
     xp = hist2 + h2 + 0x1000 * (lpb - cos_pg - ri_pg - xpg) if xtra_pg else None   # (the extra pages)

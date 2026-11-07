@@ -1484,11 +1484,11 @@ def w27_up(s, scr, text):
     list, the path goes on from there (True). None: not that case (no career pick, the world on screen, no selector:
     a pre-W-modes build keeps its old path)."""
     if text == 'CARR. STORICHE' and getattr(s, 'w27_car', False) and scr.find(text, exact=True) is None and \
-            scr.find('ESCI', exact=True) is not None:   # (4.1 carnost: a career's team choice has no STORICO box -
+            (scr.find('ESCI', exact=True) is not None or scr.find('ABBANDONA', exact=True) is not None):   # (4.1 carnost: a career's team choice has no STORICO box -
         s.log.append(f'[w27] no STORICO box in the career pick: skipped ({scr})'[:300])   # the world entry
         return True                                     # after it is chosen by the main menu selector, below)
     if text not in W27_WORLDS or not getattr(s, 'w27_car', False) or scr.find(text, exact=True) is not None or \
-            scr.find('ESCI', exact=True) is None:
+            (scr.find('ESCI', exact=True) is None and scr.find('ABBANDONA', exact=True) is None):
         return None
     s.log.append(f'[w27] {text} by the main menu selector (not on {scr})'[:300])
     s.w27_car = False                                   # (no re-entry while it walks)

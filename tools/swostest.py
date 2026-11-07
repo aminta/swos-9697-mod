@@ -20569,9 +20569,8 @@ def world_ctsum():
         return False, f'no season-2 save {s2} (run world_contiview first)'
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import ctview
-    import fmtpage
     T = [x.decode('latin1') for x in ctview.TEXTS[UI]]
-    summ, frm = T[7], fmtpage.TEXTS[UI]['btn'].decode('latin1')
+    summ, frm = T[7], 'FORMULA'                         # (the harness's screen texts: FORMAT -> FORMULA)
     errs, info = [], []
 
     def stat_entries(tag):

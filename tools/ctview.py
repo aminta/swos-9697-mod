@@ -718,7 +718,8 @@ def patch(p, at, lang, scr_at):
     p.add_ptr(1, careerworld.LABELS['WV_AFTER'], 3, lab['cw_after'])   # (careerworld w_choose -> cw_after, the
     p.add_ptr(1, careerworld.LABELS['WV_ON'], 3, lab['cw_on'])         #  cup-button lists in / out around its picker)
     p.add_ptr(1, careerworld.LABELS['WV_OFF'], 3, lab['cw_off'])
-    for o, t in ((wn['init'], 'cv_stinit'), (wn['init'] + 4, 'cv_stinit'), (wn['sumsel'], 'cv_page')):
+    for o, t in ((wn['init'], 'cv_stinit'), (wn['init'] + 4, 'cv_stinit'), (wn['sumsel'], 'cv_page'),
+                 (wn['sumtxt'], 'CR_SUMT')):
         p.retarget(2, o, 3, lab[t])                     # (4.1: STAT's RIEPILOGO)
         p.put(2, o, struct.pack('<I', lab[t]))
     CR_PTRS.clear()

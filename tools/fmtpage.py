@@ -31,10 +31,10 @@ WN_TXT2 = 0x5800                # winners.py's TXT2 (the last season's division 
 NAME = 41                       # the slot's name (+4 .. +2Ch, before the contest id): the title the game shows
 
 TEXTS = {
-    'it': dict(sum=b'RIEPILOGO', wbtn=b'VINCITORI', btn=b'FORMULA', next=b'PAG. SUCC.', none=b'NESSUNA DESCRIZIONE', file=b'data/fmtit', ov=b'CLASSIFICA GENERALE', prev=b'PAG. PREC.'),
-    'en': dict(sum=b'SUMMARY', wbtn=b'WINNERS', btn=b'FORMAT', next=b'NEXT PAGE', none=b'NO DESCRIPTION', file=b'data/fmten', ov=b'OVERALL TABLE', prev=b'PREV. PAGE'),
-    'fr': dict(sum=b'RESUME', wbtn=b'VAINQUEURS', btn=b'FORMULE', next=b'PAGE SUIV.', none=b'PAS DE DESCRIPTION', file=b'data/fmtfr', ov=b'CLASSEMENT GENERAL', prev=b'PAGE PREC.'),
-    'de': dict(sum=b'UBERSICHT', wbtn=b'SIEGER', btn=b'MODUS', next=b'WEITER', none=b'KEINE BESCHREIBUNG', file=b'data/fmtde', ov=b'GESAMTTABELLE', prev=b'VORIGE SEITE'),
+    'it': dict(wbtn=b'VINCITORI', btn=b'FORMULA', next=b'PAG. SUCC.', none=b'NESSUNA DESCRIZIONE', file=b'data/fmtit', ov=b'CLASSIFICA GENERALE', prev=b'PAG. PREC.'),
+    'en': dict(wbtn=b'WINNERS', btn=b'FORMAT', next=b'NEXT PAGE', none=b'NO DESCRIPTION', file=b'data/fmten', ov=b'OVERALL TABLE', prev=b'PREV. PAGE'),
+    'fr': dict(wbtn=b'VAINQUEURS', btn=b'FORMULE', next=b'PAGE SUIV.', none=b'PAS DE DESCRIPTION', file=b'data/fmtfr', ov=b'CLASSEMENT GENERAL', prev=b'PAGE PREC.'),
+    'de': dict(wbtn=b'SIEGER', btn=b'MODUS', next=b'WEITER', none=b'KEINE BESCHREIBUNG', file=b'data/fmtde', ov=b'GESAMTTABELLE', prev=b'VORIGE SEITE'),
 }
 
 F1_TEXTS = {'it': (b'FASE 1', b'GRUPPI'), 'en': (b'PHASE 1', b'GROUPS'), 'fr': (b'PHASE 1', b'GROUPES'),   # 4.0.5
@@ -529,7 +529,7 @@ def patch(p, at, lang, area, bss, world=None, wn=False):
         data.extend(b + b'\0' * ((size or len(b) + 1) - len(b)))
     for k in ('btn', 'next', 'none', 'ov', 'prev') + (('wbtn',) if wn else ()):   # (VINCITORI: its builds only)
         put(k, T[k])
-    put('file', T['file'], 20)
+    put('file', T['file'], 18)                           # (data/fmtxx + 2 digits + .dat + NUL = 17; 4.1: 18, FR's page)
     put('title', b'', NAME + 1)
     put('lines', b'', LINES * LINE_W)
     put('vars', b'', 8)                                  # page (dword), found (byte)
@@ -537,8 +537,6 @@ def patch(p, at, lang, area, bss, world=None, wn=False):
     import conti
     ap = bool(wn and gplay.LABELS.get('ap_mask') and gplay.LABELS.get('STG_TAB'))   # 4.0.5: the earlier stages' entries
     sm_on = ap and conti.enabled() and 'CV9_VIS' in gplay.LABELS   # 4.1 RIEPILOGO (entry 10): ctview's (patch.py's test)
-    if sm_on:
-        put('sum', T['sum'])
     while len(data) % 4:
         data.append(0)
 
@@ -590,9 +588,10 @@ def patch(p, at, lang, area, bss, world=None, wn=False):
         entry(tail, sm_at + len(sm), 92, 165, 120, 15, nav=(-1, -1, 8, 10 if sm_on else 4), color=0x0E, text=(2, 'ov'),
               select=(1, 'fp_st9'))
     if sm_on:                                            # 4.1 RIEPILOGO: ctview points its select at its summary and
-        entry(tail, sm_at + len(sm), 92, 165, 120, 15, nav=(-1, -1, 9, 4), color=0x0E, text=(2, 'sum'),
-              select=(1, 'fp_open'))                     # wraps the menu's onInit (shown / placed there)
-        ssel = sm_at + len(sm) + len(tail) - 6
+        entry(tail, sm_at + len(sm), 92, 165, 120, 15, nav=(-1, -1, 9, 4), color=0x0E, text=(2, 'ov'),
+              select=(1, 'fp_open'))                     # wraps the menu's onInit (shown / placed there); its text
+        ssel = sm_at + len(sm) + len(tail) - 6           # too: its RIEPILOGO in obj3 (CR_SUMT; FR's obj2 page had
+                                                         # 6 B less than this block with its own string)
     sm += tail + struct.pack('<h', -999)
     data.extend(sm)
     while len(data) % 4:
@@ -673,8 +672,9 @@ def patch(p, at, lang, area, bss, world=None, wn=False):
         assert any(o == wsel for o, _, _ in ptrs), 'VINCITORI select'
         WN.update(stpos=lab.get('fp_stpos'))          # (4.0.5: winners' onInit re-spaces the column after VINCITORI)
         WN.update(exit=(exit_text[0], exit_fn[0]))   # (4.0.6 ctview's menu: ESCI as the statistics menu's)
-        assert not sm_on or any(o == ssel for o, _, _ in ptrs), 'RIEPILOGO select'
-        WN.update(sumsel=base + ssel if sm_on else None)   # (4.1 ctview: STAT's RIEPILOGO select, entry 10)
+        assert not sm_on or {ssel, ssel - 6} <= {o for o, _, _ in ptrs}, 'RIEPILOGO select / text'
+        WN.update(sumsel=base + ssel if sm_on else None)   # (4.1 ctview: STAT's RIEPILOGO select, entry 10; its
+        WN.update(sumtxt=base + ssel - 6 if sm_on else None)   # text pointer)
         WN.update(sel=base + wsel, init=base + sm_at, ovinit=lab['fp_ovinit'], fill=lab['fp_fill'], menu=base + wm_at,
                   sym={k: sym[k] for k in ('DIYNAME', 'A6', 'SHOW_MENU', 'FNAME', 'TITLE', 'LINES_BUF', 'PAGE', 'FOUND',
                                            'FMTMENU', 'BUF', 'TXT', 'IDXMAX_', 'TXTMAX_', 'ENTRY_', 'NAME_', 'LINES_',

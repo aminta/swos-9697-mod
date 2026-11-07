@@ -166,8 +166,8 @@ have to sell players to stay afloat. That is how the original game works:
   third, 0.2 M in the fourth and below (a division played in parallel groups, such as Serie C or Serie D,
   counts as one level);
 - plus **1.1 times your season's wage bill**: a bigger club earns more from TV and sponsors.
-The money arrives a little at a time, with each match charge, and shows under SPONSORSHIP on the finance screen.
-Expenses are exactly as in the original game.
+The money arrives a little at a time, with each match charge, and shows on the SPONSORS + TV RIGHTS row of the finance screen (IT: SPONSOR E DIRITTI TV, FR: SPONSORS + DROITS TV, DE: SPONSOREN + TV-RECHTE).
+Expenses are exactly as in the original game (the fair-play fine, below, aside).
 
 Why it is closer to real football:
 - In the big European leagues wages typically take well over half of a club's revenue (a general real-world figure, not something we measured): income that grows with the payroll
@@ -465,8 +465,8 @@ sponsor** della stagione:
   terza, 0,2 M dalla quarta in giù (una serie a gironi paralleli, come la Serie C o la Serie D, conta come un
   solo livello);
 - più **1,1 volte il monte stipendi della stagione**: un club più grande guadagna di più da TV e sponsor.
-I soldi arrivano un po' alla volta, partita dopo partita, e compaiono alla voce SPONSORIZZ. nella schermata dei
-conti. Le spese restano esattamente quelle del gioco originale.
+I soldi arrivano un po' alla volta, partita dopo partita, e compaiono nella riga SPONSOR E DIRITTI TV della schermata dei
+conti (EN: SPONSORS + TV RIGHTS, FR: SPONSORS + DROITS TV, DE: SPONSOREN + TV-RECHTE). Le spese restano esattamente quelle del gioco originale (a parte la multa del fair play, più sotto).
 
 Perché è più vicino al calcio vero:
 - Nei grandi campionati europei gli stipendi assorbono di solito ben più della metà dei ricavi di un club (è una cifra generale del calcio vero, non misurata da noi). Un incasso che cresce

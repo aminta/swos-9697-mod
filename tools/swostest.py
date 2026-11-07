@@ -13159,14 +13159,15 @@ def world_ns_hist():
     CLUB), the career's team choice (CARRIERA > SCEGLI SQUADRA, M3) and the DIY cup's (COMPET. PERSONAL. > COPPA);
     each > CARR. STORICHE > EUROPA 1984-85: the countries are 1984-85's (GERMANIA OVEST listed, AZERBAIGIAN not),
     WCUR = the 1984-85 namespace (the build's base world), and ITALIA > SERIE A lists 1984-85's clubs (AVELLINO).
-    Before the fix careerworld w_ns_menu let the path's 2026-27 entry win: 2026-27's labels, ITALIA opened SCOZIA."""
+    Before the fix careerworld w_ns_menu let the path's 2026-27 entry win: 2026-27's labels, ITALIA opened SCOZIA.
+    4.1 carnost (Davide 07/11): a career's team choice has no STORICO box (its world is the main menu's), so the
+    career case is gone - engine_wmodes_car checks that pick."""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import swreg
     errs, info = [], []
     hist = 'CARR. STORICHE'
     b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
     cases = [('friendly', ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB')),
-             ('career', ('CARRIERA', 'SCEGLI SQUADRA')),
              ('diy', ('COMPET. PERSONAL.', 'COPPA', 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB'))]
     for tag, path in cases:
         name = f'world_ns_hist_{tag}'

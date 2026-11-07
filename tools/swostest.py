@@ -438,6 +438,42 @@ def spp_go(s, target, w=3, fire='fire', hold=None):
     return None
 
 
+WALK_SPP = False                                       # (07/11, backlog 157) walk() as press() under SPP_STEP
+SPP_CONTI_HOLD = int(os.environ.get('SPP_CONTI_HOLD', 10))   # (07/11) the conti menus' cursor taps: held 10 ticks - at
+                                                       # SPP_HOLD (20) a tap moved 2 rows there (menu auto-repeat)
+SPP_FIRE_HOLD = 0                                      # (07/11, backlog 157) walk / press fire held so many timer ticks
+                                                       # (0: the feed's own HOLD) - the conti scenarios under SWOS++
+
+
+def fire_send(s, cmd, retry=False, plain_first=False):
+    """s.send(cmd) of a walk / press fire: under SPP_FIRE_HOLD the fire held that many timer ticks (holdn poked, put back
+    after) - a slow screen (AFC's 4-tie round view) takes a fire only held >= its frame time (spp_fire_held)."""
+    if not SPP_FIRE_HOLD:
+        return s.send(cmd)
+    def look():
+        try:
+            sc = s.screen()
+            return ((sc.raw_texts or [e[1] for e in sc.entries] or [''])[0], sc.selected, sc.n)
+        except Exception:
+            return None
+    before = look() if WALK_SPP else None
+    holds = (HOLD, SPP_FIRE_HOLD, SPP_FIRE_HOLD * 3 // 2) if plain_first else \
+        (SPP_FIRE_HOLD, SPP_FIRE_HOLD * 3 // 2, SPP_FIRE_HOLD * 2)        # (plain_first, a picker - gwalk -: a long
+    for h in holds:                                                          #  hold ran into the screen it opened -
+                                                                             #  UEFA CONFERENCE LEAGUE's view left at
+                                                                             #  once, 07/11. The screen did not change -
+        s.poke(s.result.base1 + s.info['holdn'], struct.pack('<H', h))     #  a slower one: held longer, as
+        r = s.send(cmd)                                                      #  spp_fire_held)
+        s.poke(s.result.base1 + s.info['holdn'], struct.pack('<H', HOLD))
+        if before is None or r.outcome != 'dump' or look() != before:
+            break
+        r = s.send('dump:4')                    # (a slow-loading next screen - VIEW WORLD -: the fire taken late?
+        if r.outcome != 'dump' or look() != before:   #  only then a second fire: never two on one screen)
+            break
+        s.log.append(f'[spp fire] {before[0]!r} unchanged after a {h}-tick fire')
+    return r
+
+
 def spp_fire_held(s, target, w, gone):
     """(06/11) Under SWOS++'s timer feed a screen takes a fire only held >= its frame time, which depends on the
     machine's load (a loaded Mac: '- PARTITA -' never took the fixed hold, 4/4, the server 9/9; the friendly's long-bench
@@ -1401,7 +1437,7 @@ def press(s, scr, text, wait=2, exact=True, avoid=frozenset(), fire=None):
                     return s.result
                 if s.screen().selected == i:
                     s.log.append(f'[spp fire] {i} on {s.screen()}'[:400])
-                    return s.send(f'{fire or PRESS_FIRE} dump:{wait}')
+                    return fire_send(s, f'{fire or PRESS_FIRE} dump:{wait}', text == 'ESCI' or s.screen().entries[i][1] == 'ESCI')
                 scr = s.screen()
                 continue
             steps = scr.path(i, sbad, steps=True) or scr.path(i, set(), steps=True)   # (a move that went astray
@@ -1423,7 +1459,7 @@ def press(s, scr, text, wait=2, exact=True, avoid=frozenset(), fire=None):
     bad = set(avoid)
     for attempt in range(40):
         if scr.selected == i:
-            return s.send(f'{PRESS_FIRE} dump:{wait}')
+            return fire_send(s, f'{PRESS_FIRE} dump:{wait}', text == 'ESCI')
         steps = scr.path(i, bad, steps=True)
         if not steps and bad & set(avoid):
             bad -= set(avoid)                           # (no way around: the window may move)
@@ -5953,17 +5989,36 @@ def gwalk(s, text, w=3, tries=40):
     """Select the entry showing text by geometry, then fire (the team / competition picker: its links pass through
     hidden entries the game skips by position - walk's planner finds no path to the cup buttons above the nations,
     the stock MONDO screen's UEFA cups too); returns the new screen."""
-    for _ in range(tries):
+    stuck = 0
+    for _ in range(tries * (3 if WALK_SPP else 1)):   # (SWOS++ taps: a long nation list, one row a tap)
         scr = s.screen()
         i = scr.find(text, exact=True)
         if i is None:
             raise AssertionError(f'{text} not on screen ({scr.texts()[:16]})')
         if scr.selected == i:
-            s.send(f'fire dump:{w + SLOW_FIRE}')
+            fire_send(s, f'fire dump:{w + SLOW_FIRE}', text == 'ESCI', plain_first=text != 'ESCI')
+            if WALK_SPP and text not in ('ESCI', 'ABBANDONA'):   # (a picker's choice - not its way out: the next
+                                                # screen may load slowly - UEFA CONFERENCE
+                s.send('dump:4')                #  LEAGUE's view came after the screen was read, 07/11: VIEW WORLD
+                for k in range(5):              #  left first - the career menu on screen - then the game's view.
+                    sc = s.screen()             #  Wait while the career menu shows: the view comes, or it was not
+                    if sc.find('VISUALIZZA MONDO', exact=True) is None:   #  coming - never a key meanwhile)
+                        break
+                    s.log.append(f'[spp settle] {text!r}: career menu {k}, waiting for the view')
+                    s.send('dump:3')
             return s.screen()
         (x0, y0, w0, h0), (x1, y1, w1, h1) = scr.geom[scr.selected], scr.geom[i]
         k = 'up' if y1 + h1 <= y0 else 'down' if y1 >= y0 + h0 else 'left' if x1 < x0 else 'right'
-        s.send(k + ' dump:0.5')
+        if WALK_SPP and stuck >= 4 and k in ('up', 'down'):   # (a column's end: no down link - sideways first)
+            k = 'left' if x1 + w1 <= x0 else 'right'
+        if WALK_SPP:                            # (SWOS++: a slow screen - a 44-nation picker - takes a key only held
+            h = min(SPP_CONTI_HOLD << min(stuck, 2), 40)   # >= its frame time: a tap that did not move, held longer)
+            s.poke(s.result.base1 + s.info['holdn'], struct.pack('<H', h))
+            s.send(k + ':0.3 dump:0.5')
+            s.poke(s.result.base1 + s.info['holdn'], struct.pack('<H', HOLD))
+        else:
+            s.send(k + ' dump:0.5')
+        stuck = stuck + 1 if s.screen().selected == scr.selected else 0
     raise AssertionError(f'gwalk: {text} not reached ({s.screen()})')
 
 
@@ -5973,6 +6028,17 @@ def walk(s, target, w=3, tries=20, stays=48):
     where it was (4.0.5 long bench: down on row 17 / up on row 12 scroll the player list's window - ViewSquad of a
     32-player squad, world_transfer_sale rc14p) is not counted in tries: the next plan goes around it if it can, else
     the same key again (at the window's end the cursor moves), at most `stays` times."""
+    if WALK_SPP:                                        # (07/11: the conti scenarios under SWOS++ - press()'s one tap
+        global SPP_STEP                                 #  at a time, the fire on a selection that stays)
+        old, SPP_STEP = SPP_STEP, True
+        try:
+            sc = s.screen()
+            i = sc.find(target) if isinstance(target, str) else target
+            if i is None or press(s, sc, i, w + SLOW_FIRE) is None:
+                raise AssertionError(f'{target} not reached by SWOS++ taps ({s.screen().texts()[:16]})')
+        finally:
+            SPP_STEP = old
+        return s.screen()
     bad, n = set(), 0
     while n < tries:
         scr = s.screen()
@@ -5986,7 +6052,7 @@ def walk(s, target, w=3, tries=20, stays=48):
                 continue
             raise AssertionError(f'{target} not on screen ({scr.texts()[:16]})')
         if scr.selected == i:
-            s.send(f'fire dump:{w + SLOW_FIRE}')
+            fire_send(s, f'fire dump:{w + SLOW_FIRE}', target == 'ESCI' or scr.entries[i][1] == 'ESCI')
             return s.screen()
         p = scr.path(i, frozenset(bad)) or scr.path(i)
         if not p:
@@ -18965,6 +19031,9 @@ def world_cgame_view():
         if own:
             check(own_seen, f'{own}: its own round never on screen', errs)
             info.insert(0, f'{own} from slot 3: {own_seen}')
+    if pp:                                              # (07/11: this exe needs SWOS++'s loader files - the plain
+        info.append('pickers plain: world_cgame_view\'s part (not under SWOS++)')   # pickers are no SWOS++ path)
+        return not errs, '; '.join(errs[:12]) or '; '.join(info)
     with Session('world_cgame_view_pick', exe, {'W84A.CAR': s2}, 'dump:2', 300) as s:
         s.wait()                                        # (the new career's club picker: the plain lists, no cup
         for t in ('CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27'):   # buttons - ctview cw_on /
@@ -19144,14 +19213,15 @@ def world_cgame_swospp():
     shutil.rmtree(out, ignore_errors=True)
     shutil.copytree(exe, out)
     swospp.install(os.path.join(exe, 'ITALIAN.EXE'), os.path.join(out, 'ITALIAN.EXE'))
-    keep = {k: os.environ.get(k) for k in ('CV_BUILD', 'CGV_SWOSPP')}
-    os.environ.update(CV_BUILD=out, CGV_SWOSPP=pp)
-    global SLOW_FIRE
-    SLOW_FIRE = 3
+    keep = {k: os.environ.get(k) for k in ('CV_BUILD', 'CGV_SWOSPP', 'SWOSTEST_SPP_NOLATCH')}
+    os.environ.update(CV_BUILD=out, CGV_SWOSPP=pp, SWOSTEST_SPP_NOLATCH='1')   # (07/11, backlog 157: keys as a
+    global SLOW_FIRE, HOLD, SPP_FIRE_HOLD, WALK_SPP                             #  player presses them - no latched
+    SLOW_FIRE, hold0 = 3, HOLD                                                  #  fire read twice - one tap at a
+    HOLD, SPP_FIRE_HOLD, WALK_SPP = SPP_CONTI_HOLD, SPP_PM_HOLD, True           #  time, every fire held 24 ticks)
     try:
         ok, msg = world_cgame_view()
     finally:
-        SLOW_FIRE = 0
+        SLOW_FIRE, HOLD, SPP_FIRE_HOLD, WALK_SPP = 0, hold0, 0, False
         for k, v in keep.items():
             if v is None:
                 os.environ.pop(k, None)
@@ -19308,6 +19378,121 @@ def world_ctcursor():
     return not errs, '; '.join(errs) or '; '.join(info)
 
 
+def spp_conti_load(s, exe):
+    """SWOS++ running (timer keys, SWOSTEST_SPP_NOLATCH): CARICA VECCHIA COMPETIZIONE > W84A, the day's screens ->
+    VISUAL. COMPETIZ. -> COPPE CONTINENTALI, every step by spp_go (one key at a time, a plain fire). An error or None."""
+    on, why = swospp_on(s.result, os.path.join(exe, 'ITALIAN.EXE'))
+    if not on:
+        return f'SWOS++ not running: {why}'
+    for t in ('CARICA VECCHIA COMPETIZIONE', 'W84A'):
+        if spp_go(s, t, 4) is None:
+            return f'{t} not reached ({s.screen()})'
+    for _ in range(10):
+        sc = s.screen()
+        if sc.find('VISUAL. COMPETIZ.', exact=True) is not None:
+            break
+        t = next((x for x in ('ESCI', 'CONTINUA') if sc.find(x, exact=True) is not None), None)
+        if t is None or spp_go(s, t, 3) is None:
+            s.send('fire dump:3')
+    for t in ('VISUAL. COMPETIZ.', 'COPPE CONTINENTALI'):
+        if spp_go(s, t, 4) is None:
+            return f'{t} not reached ({s.screen()})'
+    return None
+
+
+@scenario
+def world_conti_spp_esci():
+    """Backlog 157 (07/11): under SWOS++ 1.9.2.2 (English only; CV_BUILD = the English release exe, CV_S2 its
+    season-2 save as world_ctcursor_swospp) a continental round view - AFC's ACL ELITE PRELIMINARY ROUND, 4 ties -
+    reopened from its rounds menu stayed on screen after 10 plain ESCI fires (baseline 8457f07 too: not cdirect). The
+    cause is the timer feed (spp_fire_held, 06/11): a screen takes a fire only held >= its frame time, and the 4-tie
+    view draws slower than CONMEBOL's 3-tie one. Here: CONMEBOL and AFC (any direct view first: its ESCI), their
+    first round opened from the menu 3 times, each ESCI'd with spp_fire_held: back on the rounds menu every time,
+    the hold that worked logged ([sppe] lines). Keys as a player presses them (SWOSTEST_SPP_NOLATCH, HOLD SPP_HOLD).
+    07/11: baseline 8457f07 and cdirect 29051a6 both exit at the first held fire (24 ticks), 3/3 per view."""
+    if UI != 'en':
+        return True, 'SKIP: SWOS++ is English only (SWOSTEST_UI=en)'
+    exe = os.environ.get('CV_BUILD')
+    s2 = os.environ.get('CV_S2')
+    if not exe or not s2:
+        return True, 'SKIP: CV_BUILD / CV_S2 not set (the English release exe, its season-2 save)'
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import ctview
+    import swospp
+    summ = ctview.TEXTS[UI][7].decode('latin1')
+    home = ctview.TEXTS[UI][6].decode('latin1')
+    pp = os.path.join(MAIN, 'internal', 'swospp-test')
+    out = os.path.join(WORK, 'builds-x', 'world_conti_spp_esci')
+    shutil.rmtree(out, ignore_errors=True)
+    shutil.copytree(exe, out)
+    swospp.install(os.path.join(exe, 'ITALIAN.EXE'), os.path.join(out, 'ITALIAN.EXE'))
+    global HOLD, SPP_STEP
+    keep = (HOLD, SPP_STEP, os.environ.get('SWOSTEST_SPP_NOLATCH'))
+    os.environ['SWOSTEST_SPP_NOLATCH'] = '1'    # (Panchina 04/11: keys as a player presses them - no latch read of the
+    HOLD, SPP_STEP = SPP_HOLD, True             #  last key, a fire read once; every key held SPP_HOLD ticks)
+    try:
+        return _conti_spp_esci(out, s2, pp, summ, home)
+    finally:
+        HOLD, SPP_STEP = keep[0], keep[1]
+        if keep[2] is None:
+            os.environ.pop('SWOSTEST_SPP_NOLATCH', None)
+        else:
+            os.environ['SWOSTEST_SPP_NOLATCH'] = keep[2]
+
+
+def _conti_spp_esci(out, s2, pp, summ, home):
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import ctview
+    errs, info = [], []
+    title = lambda sc: ((sc.raw_texts or [e[1] for e in sc.entries])[0] or '').strip()
+    on_menu = lambda q: q.screen().find(summ, exact=True) is not None
+
+    def esci_held(tag):                         # (a view on screen: its ESCI, held; back on the rounds menu?)
+        sc = s.screen()
+        t = title(sc)
+        h = spp_fire_held(s, 'ESCI', 3, on_menu)
+        s.log.append(f'[sppe] {tag} {t!r}: held ESCI -> hold {h}, now {title(s.screen())!r}')
+        return h, t
+
+    with Session('world_conti_spp_esci', out, {'W84A.CAR': s2, 'LOADER.BIN': os.path.join(pp, 'loader.bin'),
+                                               'SWOSPP.BIN': os.path.join(pp, 'swospp.bin')}, 'dump:4', 600,
+                 timer=True) as s:
+        s.wait()
+        why = spp_conti_load(s, out)
+        if why:
+            return False, why
+        for k in (1, 3):                        # CONMEBOL (3 ties), AFC (4 ties: the slow view). (FIFA, 6: spp_go's
+                                                #  re-planned keys swing up / down on the list - a harness limit)
+            for _ in range(4):                  # (on the confederations list)
+                if title(s.screen()) == home:
+                    break
+                spp_fire_held(s, 'ESCI', 3, lambda q: title(q.screen()) == home)
+            conf = s.screen().entries[k][1]
+            spp_fire_held(s, k, 4, lambda q: title(q.screen()) != home)   # (the list's fire: held, as ESCI's)
+            if not on_menu(s) and title(s.screen()) != home and not title(s.screen()).startswith(home):
+                h, t = esci_held(f'{conf} direct')     # (4.1 cdirect: the round in progress first)
+                check(h is not None, f'{conf}: direct view {t!r} not left by a held ESCI', errs)
+            if not on_menu(s):
+                info.append(f'{conf}: no rounds menu ({title(s.screen())!r})')
+                spp_fire_held(s, 'ESCI', 3, lambda q: title(q.screen()) == home)
+                continue
+            holds = []
+            for n in range(3):
+                spp_fire_held(s, 1, 4, lambda q: not on_menu(q))   # (the round's button: a held fire)
+                if on_menu(s):
+                    check(False, f'{conf} {n}: the first round not opened ({title(s.screen())!r})', errs)
+                    break
+                s.shot(f'sppe_{k}_{n}')
+                h, t = esci_held(f'{conf} {n}')
+                holds.append(h)
+                check(h is not None, f'{conf} {n}: {t!r} not left by a held ESCI (up to {SPP_PM_HOLD * 2} ticks)', errs)
+                if h is None:
+                    break
+            info.append(f'{conf}: holds {holds}')
+            spp_fire_held(s, ctview.CR_N + 2, 3, lambda q: title(q.screen()) == home)   # (the rounds menu's ESCI)
+    return not errs, '; '.join(errs + info)
+
+
 @scenario
 def world_ctcursor_swospp():
     """4.0.6 ctcursor under SWOS++ 1.9.2.2 (English only; CV_BUILD = the English release exe, CV_S2 its season-2 save -
@@ -19326,14 +19511,15 @@ def world_ctcursor_swospp():
     shutil.rmtree(out, ignore_errors=True)
     shutil.copytree(exe, out)
     swospp.install(os.path.join(exe, 'ITALIAN.EXE'), os.path.join(out, 'ITALIAN.EXE'))
-    keep = {k: os.environ.get(k) for k in ('CV_BUILD', 'CGV_SWOSPP')}
-    os.environ.update(CV_BUILD=out, CGV_SWOSPP=pp)
-    global SLOW_FIRE
-    SLOW_FIRE = 3
+    keep = {k: os.environ.get(k) for k in ('CV_BUILD', 'CGV_SWOSPP', 'SWOSTEST_SPP_NOLATCH')}
+    os.environ.update(CV_BUILD=out, CGV_SWOSPP=pp, SWOSTEST_SPP_NOLATCH='1')   # (07/11, backlog 157: keys as a
+    global SLOW_FIRE, HOLD, SPP_FIRE_HOLD, WALK_SPP                             #  player presses them - no latched
+    SLOW_FIRE, hold0 = 3, HOLD                                                  #  fire read twice - one tap at a
+    HOLD, SPP_FIRE_HOLD, WALK_SPP = SPP_CONTI_HOLD, SPP_PM_HOLD, True           #  time, every fire held 24 ticks)
     try:
         ok, msg = world_ctcursor()
     finally:
-        SLOW_FIRE = 0
+        SLOW_FIRE, HOLD, SPP_FIRE_HOLD, WALK_SPP = 0, hold0, 0, False
         for k, v in keep.items():
             if v is None:
                 os.environ.pop(k, None)

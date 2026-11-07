@@ -12263,6 +12263,125 @@ def engine_avail():
     return not errs, '; '.join(errs + info)
 
 
+NAT_LABELS = ('NAZIONALI', 'SQUADRE NAZIONALI', 'SQUADRE NAZ.', 'NATIONAL TEAMS', 'EQUIPES NATIONALES',
+              'NATIONALMANNSCHAFTEN')    # (the team kinds menu's national entry per exe language, as wm_nat_top)
+
+
+def esci_check(s, sc, tag, errs):
+    """4.1 ESCI next to ABBANDONA (swe.c av_esc): on the nationals' message, ESCI (the game's word, swe.AV_ESC in the
+    exe's language) visible and enabled, left of ABBANDONA on its row, the cursor still on ABBANDONA; fired, the team
+    kinds menu (SQUADRE CLUB / NAZIONALI) instead of leaving the choice. Returns that screen (None: not reached)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import swe
+    esc = swe.AV_ESC[UI if UI in swe.AV_ESC else 'it']
+    ab = sc.find('ABBANDONA', exact=True)
+    i = next((k for k, (j, t, inv, dis) in enumerate(sc.entries) if 21 <= j <= 86 and not inv and t in (esc, 'ESCI')),
+             None)
+    if i is None or ab is None:
+        check(False, f'{tag}: no {esc} next to ABBANDONA ({sc.texts()[:8]})', errs)
+        return None
+    raw = sc.raw[i].decode('latin-1')
+    ga, ge = sc.geom[ab], sc.geom[i]
+    check(raw == esc and not sc.entries[i][3] and ge[1] == ga[1] and ge[0] + ge[2] <= ga[0] and sc.selected == ab,
+          f'{tag}: {raw!r} at {ge} (ABBANDONA {ga}), disabled {sc.entries[i][3]}, selected {sc.selected}', errs)
+    if SPP_STEP:                                        # (SWOS++'s timer feed: one tap at a time, the fire checked)
+        press(s, sc, sc.entries[i][0], 2)
+    else:
+        walk(s, sc.entries[i][0], 2)
+    k = s.screen()
+    ok = k.find('SQUADRE CLUB', exact=True) is not None and any(k.find(t, exact=True) is not None for t in NAT_LABELS)
+    check(ok, f'{tag}: {esc} -> {k.texts()[:8]}, not the team kinds', errs)
+    return k if ok else None
+
+
+@scenario
+def engine_avail_esci():
+    """4.1 ESCI next to ABBANDONA (Davide 06/11, his MiSTer test; swe.c av_esc / swe_sel_tramp): default world MONDO
+    2026-27, the nationals' message in the FRIENDLY and in a DIY CUP picker has ESCI left of ABBANDONA (the cursor on
+    ABBANDONA, the game's), ESCI goes back to the team kinds; from there SQUADRE CLUB works as ever: the friendly with
+    INTER - LAZIO reaches its pre-match screen, the DIY cup's club list opens (EUROPA). The message rows as engine_avail (av_rows_ok)."""
+    errs, info = [], []
+    files = {'SETUP.DAT': setup_file('engine_avail_esci', 0)}
+    with Session('engine_avail_esci', os.environ.get('SWOSTEST_BUILD') or builds()['it'], files, 'dump:3', 600) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'no first pause ({s.result})'
+        set_world(s, 0)
+        sc = wm_nat_top(s)
+        s.shot('friendly_msg')
+        av_rows_ok(sc, 'nat', errs, 'friendly')
+        k = esci_check(s, sc, 'friendly', errs)
+        if k is not None:
+            s.shot('friendly_kinds')
+            for t in ('SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE A', 'INTER', 'LAZIO'):
+                walk(s, t, 2)
+            pm = pick_done(s)
+            ptx = ' '.join(t for t in pm.texts() if t)
+            s.shot('friendly_prematch')
+            check('INTER' in ptx or 'LAZIO' in ptx, f'friendly after ESCI: pre-match {pm.texts()[:8]}', errs)
+            info.append(f'friendly: ESCI -> kinds -> {[t for t in pm.texts() if t][:4]}')
+        check(wm_to_main(s), 'friendly: main menu not reached', errs)
+        set_world(s, 0)
+        for t in ('COMPET. PERSONAL.', 'COPPA', 11, 11, 11, 'OK', 'SCEGLI SQUADRE'):
+            walk(s, t, 2)
+        sc = s.screen()
+        nat = next((t for t in NAT_LABELS if sc.find(t, exact=True) is not None), None)
+        if nat is None:
+            return False, '; '.join(errs + [f'DIY cup: no national teams entry ({sc.texts()[:12]})'])
+        walk(s, nat, 2)
+        sc = s.screen()
+        s.shot('diy_msg')
+        av_rows_ok(sc, 'nat', errs, 'diy cup')
+        k = esci_check(s, sc, 'diy cup', errs)
+        if k is not None:
+            walk(s, 'SQUADRE CLUB', 2)
+            c = s.screen()
+            s.shot('diy_clubs')
+            check(c.find('EUROPA', exact=True) is not None, f'DIY cup after ESCI: club list {c.texts()[:8]}', errs)
+            info.append(f'DIY cup: ESCI -> kinds -> clubs {[t for t in c.texts() if t][:4]}')
+    return not errs, '; '.join(errs + info)
+
+
+@scenario
+def engine_avail_esci_swospp():
+    """4.1 ESCI under SWOS++ 1.9.2.2 (English only; SWOSTEST_BUILD = the English release-recipe dir): SWOS++ installed
+    on its exe, keys from the timer one tap at a time (SPP_STEP), fresh SETUP.DAT (default World 2026-27): FRIENDLY >
+    NATIONAL TEAMS = the message with EXIT left of ABORT, EXIT -> the team kinds (esci_check). The picker's club walk is
+    left to engine_avail_esci (W-modes: not SWOS++-safe under the timer feed yet, engine_wmodes_play)."""
+    if UI != 'en':
+        return True, 'SKIP: SWOS++ is English only (SWOSTEST_UI=en)'
+    b = os.environ.get('SWOSTEST_BUILD')
+    if not b:
+        return True, 'SKIP: SWOSTEST_BUILD not set (the English release-recipe dir)'
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import swospp
+    pp = os.path.join(MAIN, 'internal', 'swospp-test')
+    out = os.path.join(WORK, 'builds-x', 'engine_avail_esci_swospp')
+    shutil.rmtree(out, ignore_errors=True)
+    shutil.copytree(b, out)
+    swospp.install(os.path.join(b, 'ITALIAN.EXE'), os.path.join(out, 'ITALIAN.EXE'))
+    files = {'LOADER.BIN': os.path.join(pp, 'loader.bin'), 'SWOSPP.BIN': os.path.join(pp, 'swospp.bin'),
+             'SETUP.DAT': setup_file('engine_avail_esci_swospp', 0)}
+    errs = []
+    global SPP_STEP
+    old = SPP_STEP
+    SPP_STEP = True
+    try:
+        with Session('engine_avail_esci_swospp', out, files, 'dump:4', 600, timer=True) as s:
+            if s.wait().outcome != 'dump':
+                return False, f'no first pause ({s.result})'
+            on, why = swospp_on(s.result, os.path.join(out, 'ITALIAN.EXE'))
+            check(on, f'SWOS++ not running: {why}', errs)
+            sc = wm_nat_top(s)
+            s.shot('spp_msg')
+            av_rows_ok(sc, 'nat', errs, 'swos++')
+            k = esci_check(s, sc, 'swos++', errs)
+            if k is not None:
+                s.shot('spp_kinds')
+    finally:
+        SPP_STEP = old
+    return not errs, '; '.join(errs) or 'SWOS++: the message, EXIT left of ABORT, EXIT -> the team kinds'
+
+
 def wm_up(s, label, n=6):
     """Up the team picker's lists to the one showing `label` (each list's ESCI entry; a team list's past its rows)"""
     for _ in range(n):

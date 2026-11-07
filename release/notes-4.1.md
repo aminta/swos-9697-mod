@@ -279,6 +279,7 @@ With the new button in place, a long coach's name on the squad screen is shown s
 - **Friendly with both clubs picked from one list** (World 2026-27, for example SERIE A: INTER, then JUVENTUS). The match got the plain bench of 5 and showed "MILAN (SCOTLAND)" next to a club. Fixed: the long bench applies and each club shows its own country.
 - **DIY TOURNAMENT, national teams, EUROPE 1984-85.** After a 2026-27 friendly it could show 2026-27 Saudi clubs. Fixed.
 - **Continent buttons in the 1996-97 world** now read EUROPE 96-97, SOUTH AMERICA 96-97 and so on, in the four game languages.
+- **Preset competitions after a cross-world friendly.** If you played a friendly between clubs of different worlds and then loaded a preset competition, its teams could show today's (2026-27) country names instead of their own. Fixed: every preset competition shows its own country names.
 - **HISTORIC > EUROPE 1984-85 under the default 2026-27 world** (friendly, career, DIY) showed 2026-27 countries. Fixed: it shows those of 1984-85.
 - **EXIT on the "not available" national teams message.** In the FRIENDLY and DIY team pickers, the message that national teams are not yet available now has an EXIT button to the left of ABORT. EXIT goes back to the menu of team kinds and keeps the teams you have already picked; ABORT works as before.
 - **Club names without the "&" sign:** O Y M, TREFELIN BGC, SB VLASIM and HARLAND WOLFF.
@@ -578,6 +579,7 @@ resta quello).
 - **Amichevole con i due club scelti dalla stessa lista** (Mondo 2026-27, per esempio SERIE A: INTER, poi JUVENTUS). La partita aveva la panchina semplice da 5 e mostrava "MILAN (SCOZIA)" accanto a un club. Corretto: vale la panchina lunga e ogni club mostra il suo paese.
 - **TORNEO PERSON., nazionali, EUROPA 1984-85.** Dopo un'amichevole del 2026-27 poteva mostrare club sauditi del 2026-27. Corretto.
 - **I pulsanti dei continenti nel mondo 1996-97** ora dicono EUROPA 96-97, SUDAMERICA 96-97 e così via, nelle quattro lingue del gioco.
+- **Competizioni predefinite dopo un'amichevole tra mondi.** Se giocavi un'amichevole tra club di mondi diversi e poi caricavi una competizione predefinita, le sue squadre potevano mostrare i nomi dei paesi di oggi (2026-27) invece dei propri. Corretto: ogni competizione predefinita mostra i nomi dei suoi paesi.
 - **STORICO > EUROPA 1984-85 con il mondo 2026-27 predefinito** (amichevole, carriera, competizione personalizzata) mostrava i paesi del 2026-27. Corretto: mostra quelli del 1984-85.
 - **ESCI nel messaggio delle nazionali non disponibili.** Nelle scelte squadre di AMICHEVOLE e delle competizioni personalizzate, il messaggio che dice che le nazionali non sono ancora disponibili ora ha un pulsante ESCI a sinistra di ABBANDONA. ESCI torna al menu dei tipi di squadre e tiene le squadre già scelte; ABBANDONA funziona come prima.
 - **Nomi di club senza il segno "&":** O Y M, TREFELIN BGC, SB VLASIM e HARLAND WOLFF.

@@ -2357,3 +2357,19 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
   Campeón de Campeones, real European draws and first-season calendars, bald players, SELECT KITS ALWAYS, coach nationalities,
   NZ championship phase + Grand Final, better-placed tie lines, POULE SCUDETTO SERIE D on WINNERS, many fixes.
 - After shipping: `python3 tools/kitfix.py ship c/REL405` (adds 4.0.5's kits to tools/kits_shipped.json.gz).
+
+## 4.1 release (old 4.0.6 + 4.0.7 merged): docs draft (branch notes-406, 2026-11-07)
+- Release name: SWOS 96/97 Mod 4.1 ("a big release"). Notes: `release/notes-4.1.md` (EN + IT, draft, not merged, not published); README EN/IT 4.1 bullets;
+  manual `docs/src/manual.{en,it}.html` section "4.1 additions" + `tools/mkdocs.py`. Build shas, gate results and the release recipe are for the
+  Integratore to add at release time (not known when this was written).
+- Content: world selector on the main menu (2026-27 / 1996-97 / Europe 1984-85; CAREER, FRIENDLY, DIY, PRESET, SEASON), "not available" messages,
+  purple STORICO box, cross-world friendlies and DIY, ONE WORLD PER COMPETITION (mixing A, `locked(n)`), patcher "Original main menu", long benches in
+  friendlies / DIY (2026-27 world) + bench info strip, offers rule A, two players on one keyboard, CPU red cards / injuries, goalkeeper injuries, stoppage
+  time, UEFA Super Cup and the other intercontinental matches, two-row benches, continental cups in the game's own screens (opens on the round in progress),
+  club finances, financial fair play, B-team call-ups, CPU replacements, stadium names, shirt numbers (squad screen, EDIT CUSTOM TEAMS), white hair,
+  easier install, EXIT on the nationals "not available" message, score-panel fix, many fixes.
+- Roadmap after 4.1: 4.2 Italy on the engine (Serie D 162), 4.3 CPU market + transfer formulas, 4.4 1996-97 fidelity (squads of the new World 2026-27
+  countries stay 1996-97 until 4.4).
+- Open at the time of writing: the English label of ESCI's twin on the nationals message is written ABORT (not confirmed by the exe); the 1984-85
+  national DIY line in the notes is to be dropped if `engine_avail_diy` fails; the SWOS++ result of the final gate is to be added if it differs.
+- README fix: the Italian section had a duplicated English copy of the 4.0.6 bullets; removed.

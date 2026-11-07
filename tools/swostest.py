@@ -19645,8 +19645,11 @@ def world_contiview():
         st = lambda: (bytes(s.result.obj2(seg_at, 72)), bytes(s.result.obj2(ed_at, 2260)))
         walk(s, s.screen().find('COPPE CONTINENTALI', exact=True), 3)
         for k in range(1, 7):                           # (B2 + Davide 04/11: season 1's drawn main round in every
-            walk(s, k, 3)                               #  rounds menu from the season start - never the text page -
-            sc = s.screen()                             #  its game screen the stock draw, no results)
+            how = ctc_open(s, k, f'cv_s1_{k}')          #  rounds menu from the season start - never the text page -
+            sc = s.screen()                             #  its game screen the stock draw, no results; 4.1 cdall:
+            if how not in ('menu', 'page'):             #  its first round's view straight away, ESCI on the menu)
+                info.append(f's1 {names[k - 1]}: direct {how!r}')
+            check(how != 'menu', f'season 1 {names[k - 1]}: the rounds menu, not a round view (4.1 cdall)', errs)
             if sc.find(T[7], exact=True) is None:      # (the Intercontinental: its clubs season 1's winners -
                 tx = [x[1] for x in sc.entries[1:15] if x[1]]   # its page, every round to be played)
                 s.shot(f'cv_s1_{k}_page')
@@ -20429,8 +20432,9 @@ def world_ctcursor():
     never on RIEPILOGO / ESCI. Season 1 (a new World 2026-27 career, INTER, before any match): every confederation's
     menu on its first round. Season 2 (world_contiview's save, CV_S2): on a round; then the calendar entry's week
     forced to FF (every round's month over; restored, nothing saved): on the last round; the forced pick >= the
-    plain one. VIEW WORLD's cup buttons (the other way in, cw_after) the same. Shots ctc_<part>_<k>. (CV_BUILD /
-    W2627REL_DATA as world_cgame_view)"""
+    plain one. VIEW WORLD's cup buttons (the other way in, cw_after) the same. 4.1 cdall (Davide 07/11): every
+    menu with a round opens straight on that round's view (season 1, season 2, week FF, VIEW WORLD's cup), its ESCI
+    on the menu, the cursor on that round. Shots ctc_<part>_<k>. (CV_BUILD / W2627REL_DATA as world_cgame_view)"""
     src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
     if not os.path.isdir(src) and not os.environ.get('CV_BUILD'):
         return True, f'SKIP: private data {src} missing'
@@ -20462,7 +20466,8 @@ def world_ctcursor():
             d1 = []
             g1 = ctc_confs(s, 's1', errs, d1)
             check(g1, 'season 1: no rounds menu', errs)
-            check(not d1, f'season 1 (no match played): {d1} opened on a round view (4.1 cdirect: not started)', errs)
+            check(sorted(d1) == sorted(g1), f'season 1: direct views {d1}, menus {list(g1)} (4.1 cdall: every one)',
+                  errs)
             for conf, (sel, rb) in g1.items():
                 check(sel == min(rb), f'season 1 {conf}: on entry {sel}, not its first round {min(rb)}', errs)
             info.append(f's1 {g1}')
@@ -20488,7 +20493,7 @@ def world_ctcursor():
         d2 = []
         g2 = ctc_confs(s, 's2', errs, d2)
         check(g2, 'season 2: no rounds menu', errs)
-        check(d2, 'season 2: no confederation opened on its round in progress (4.1 cdirect)', errs)
+        check(d2 and sorted(d2) == sorted(g2), f'season 2: direct views {d2}, menus {list(g2)} (4.1 cdall)', errs)
         info.append(f'direct {d2}')
         ctc_back(s)
         cur = struct.unpack('<H', bytes(s.result.obj2(tr[4], 2)))[0]
@@ -20499,7 +20504,8 @@ def world_ctcursor():
         walk(s, s.screen().find('COPPE CONTINENTALI', exact=True), 3)
         df = []
         gf = ctc_confs(s, 'end', errs, df)
-        check(not df, f'week FF (season over): {df} opened on a round view (4.1 cdirect)', errs)
+        check(sorted(df) == sorted(gf), f'week FF (season over): direct views {df}, menus {list(gf)} (4.1 cdall: the '
+              'last round\'s view)', errs)
         for conf, (sel, rb) in gf.items():
             check(sel == max(rb), f'week FF {conf}: on entry {sel}, not its last round {max(rb)}', errs)
             if conf in g2:
@@ -20516,7 +20522,8 @@ def world_ctcursor():
         if cup is None:
             check(False, 'SUDAMERICA: no cup button', errs)
         else:
-            gwalk(s, cup, 4)
+            how = ctc_open(s, cup, 'world_cup_ff')      # (4.1 cdall: its last round's view first, ESCI on the menu)
+            check(how not in ('menu', 'page'), f'VIEW WORLD {cup} (week FF): {how!r}, not its last round\'s view', errs)
             sc = s.screen()
             rb = [i for i, t, inv, dis in sc.entries[1:1 + ctview.CR_N] if not inv and t]
             s.shot('ctc_world_cup')
@@ -20532,8 +20539,7 @@ def world_ctcursor():
             how = ctc_open(s, cup, 'world_cup')
             ok, sel, lab = ctc_same(s, how) if how not in ('menu', 'page') else (False, None, None)
             s.log.append(f'[ctc] VIEW WORLD {cup} (season-2 week): {how!r}, back on entry {sel} {lab!r}: {ok}')
-            if 'CONMEBOL' in d2:
-                check(ok, f'VIEW WORLD {cup} (season-2 week): {how!r}, the cursor\'s entry {sel} {lab!r}', errs)
+            check(ok, f'VIEW WORLD {cup} (season-2 week): {how!r}, the cursor\'s entry {sel} {lab!r}', errs)
             info.append(f'VIEW WORLD {cup} s2: {how}')
         info.append(f's2 {g2}; week FF {gf}')
     return not errs, '; '.join(errs) or '; '.join(info)

@@ -321,8 +321,9 @@ u32 cv_confs(u32 word, u8 *order) {     /* the confederations with a cup (ctview
    - or the career club's round in progress; B2's season 1: its main round from the start), cup by cup in calendar
    order, the latest CR_N; out[k] = cup << 4 | round; returns their number (0: no edition - the text page only).
    CR_SEL: the menu's cursor (Davide 05/11, variant a): the first of them not played yet (rstate, the summary page's
-   rule), every one played (after the final) the last. CR_IN (4.1 cdirect, Davide 06/11): that round in progress
-   (drawn, its month come, not played) - the menu opens straight on it; 0 before a cup's start / after the final.
+   rule), every one played (after the final) the last. CR_IN (4.1 cdirect, Davide 06/11; 07/11 cdall: every cup, not
+   only a round in progress): the menu opens straight on that round's view whenever it lists one (before a cup's
+   start: its first round, after the final: the last); its ESCI back on the menu.
    cr_layout(n, nav): the menu's links (left, right, up, down a button, entries 1..CR_N in two columns of CR_N / 2; CR_N + 1 the summary page, CR_N + 2
    ESCI; FF none) - nav[4 * CR_N .. + 3] the summary's up / ESCI's up. */
 #define CR_N 16
@@ -345,7 +346,7 @@ u32 cv_rounds(u32 conf, u32 week, u8 *out) {
                                            round in the menu from the start, its stock draw - Davide 04/11) */
                 if (R[0] == K_KO && R[18] && n && 2 * n <= R[18]) continue;
                 if (!st || !n) continue;
-                pl[k] = (u8)(st == 2 ? 2 : week >= mweek(m));   /* (2 played, 1 in progress, 0 its month to come) */
+                pl[k] = st == 2;
                 all[k++] = (u8)(c << 4 | r);
             }
         }
@@ -353,8 +354,8 @@ u32 cv_rounds(u32 conf, u32 week, u8 *out) {
     u32 s = k > CR_N ? k - CR_N : 0;
     for (u32 i = s; i < k; i++) out[i - s] = all[i];
     CR_SEL = k > s ? k - s - 1 : 0;
-    for (u32 i = k; i-- > s; ) if (pl[i] != 2) CR_SEL = i - s;
-    if (k > s && pl[s + CR_SEL] == 1) CR_IN = 1;   /* (cr_init clears it, the menu opening) */
+    for (u32 i = k; i-- > s; ) if (!pl[i]) CR_SEL = i - s;
+    if (k > s) CR_IN = 1;                           /* (cr_init clears it, the menu opening) */
     return k - s;
 }
 

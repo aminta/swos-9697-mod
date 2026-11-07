@@ -467,8 +467,8 @@ cr_init:                                ; the rounds menu's onInit: title, label
     jbe .e
     pop es
     popad
-    btr dword [CR_IN_], 0               ; (4.1 cdirect: cv_rounds' round in progress - once, the menu opening: its
-    jnc .z                              ; view straight away; its ESCI back here, the cursor on it)
+    btr dword [CR_IN_], 0               ; (4.1 cdirect / cdall: cv_rounds' CR_SEL round - once, the menu opening: its
+    jnc .z                              ; view straight away, every cup; its ESCI back here, the cursor on it)
     push eax
     mov eax, [CR_SEL_]
     call cr_go

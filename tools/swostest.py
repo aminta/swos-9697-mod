@@ -708,6 +708,8 @@ class Dosbox:
             if os.environ.get('SWOSTEST_DIRTY_EMS') != '1':   # (no EMS: DOS/4GW then takes XMS - the filled pages -
                 conf = conf.replace('[mixer]', '[dos]\nems=false\n[mixer]')   # instead of VCPI's)
         exe = exe + (' ' + os.environ['SWOSTEST_EXEARGS'] if os.environ.get('SWOSTEST_EXEARGS') else '')   # (e.g. /H)
+        if os.environ.get('SWOSTEST_LOADFIX'):        # 4.1: N KB of conventional memory taken first - the DOS block
+            exe = f"loadfix -{os.environ['SWOSTEST_LOADFIX']} {exe}"   # (dosMemLinAdr) higher, as on a player's PC
         conf = conf.format(cputype=os.environ.get('SWOSTEST_CPUTYPE', 'pentium'), cycles=os.environ.get('CYCLES', 'max'), core=os.environ.get('CORE', 'dynamic'), iso=ISO,
                            exe=exe, turbo='false' if os.environ.get('TURBO') == '0' else 'true',
                            joy=f"[joystick]\njoysticktype={os.environ['SWOSTEST_JOY']}\n" if os.environ.get('SWOSTEST_JOY') else '')   # (none / auto / 2axis ...)
@@ -22627,8 +22629,9 @@ def world_coef_seed():
     (internal/swostest/fixtures/coefseed): Francesco's ISCHIA 07/11 repaired save (ISCHIAFX = fix1.CAR 6637ab75: no mark,
     Italy's seasons 50369592 / 2523136 / 1695057922 / 1116241937 / 19000 -> the table showed 2 Champions League places)
     -> after the load the mark, ring 0 and Italy's real 2025-26 seeds; saved (SALVA CARRIERA) with them and reloaded
-    unchanged. His earlier healthy save (ISCHIAOK = old.CAR da1c675f): the block in memory and in its new save
-    byte-identical to the file's. On a release-recipe build (COEFSEED_BUILD, else ISCHIA_REL / CUPLIST_REL)"""
+    unchanged. His earlier healthy save (ISCHIAOK = old.CAR da1c675f) and world_cfb_guard's ISCHIA02 / CHIEVO06 (legal
+    blocks): the block in memory and in the new save byte-identical to the file's; ISCHIA06 (damaged, as fix1): re-seeded
+    (each file's own block decides). On a release-recipe build (COEFSEED_BUILD, else ISCHIA_REL / CUPLIST_REL)"""
     fx = os.path.join(MAIN, 'internal', 'swostest', 'fixtures', 'coefseed')
     exe = os.environ.get('COEFSEED_BUILD') or os.environ.get('ISCHIA_REL') or os.environ.get('CUPLIST_REL')
     if not exe or not os.path.isdir(fx):
@@ -22684,12 +22687,25 @@ def world_coef_seed():
         nb = open(out, 'rb').read()[cb:cb + size]
         check(reseed(nb) is None, f'COEFRE.CAR: {reseed(nb)}', errs)
         load('fx_re', 'COEFRE', out, lambda b: None if b == nb else 'the reloaded block differs from its save')
-    okb = open(os.path.join(fx, 'ISCHIAOK.CAR'), 'rb').read()[cb:cb + size]
-    check(sane(okb), 'ISCHIAOK: the fixture block is not sane', errs)
-    same = lambda b: None if b == okb else f'healthy block changed ({sum(x != y for x, y in zip(b, okb))} bytes)'
-    out = load('ok', 'ISCHIAOK', os.path.join(fx, 'ISCHIAOK.CAR'), same, 'COEFOK')
-    if out:
-        check(open(out, 'rb').read()[cb:cb + size] == okb, 'COEFOK.CAR: the healthy block changed in the save', errs)
+    cfx = os.path.join(fx, '..', 'cfbguard')             # (+ world_cfb_guard's 4.0.5 saves - Integratore: ISCHIA02 and
+    for tag, car in (('ok', os.path.join(fx, 'ISCHIAOK.CAR')),   # CHIEVO06 legal blocks, ISCHIA06 damaged)
+                     ('i02', os.path.join(cfx, 'ISCHIA02.CAR')), ('c06', os.path.join(cfx, 'CHIEVO06.CAR')),
+                     ('i06', os.path.join(cfx, 'ISCHIA06.CAR'))):
+        if not os.path.exists(car):
+            errs.append(f'{tag}: {car} missing')
+            continue
+        okb = open(car, 'rb').read()[cb:cb + size]
+        name = os.path.basename(car)[:-4]
+        if not sane(okb):                                # (the file's own block decides the expectation)
+            out = load(tag, name, car, reseed, 'COEF' + tag.upper())
+            if out:
+                nb = open(out, 'rb').read()[cb:cb + size]
+                check(reseed(nb) is None, f'{tag} saved: {reseed(nb)}', errs)
+            continue
+        same = lambda b, okb=okb: None if b == okb else f'legal block changed ({sum(x != y for x, y in zip(b, okb))} bytes)'
+        out = load(tag, name, car, same, 'COEF' + tag.upper())
+        if out:
+            check(open(out, 'rb').read()[cb:cb + size] == okb, f'{tag}: the legal block changed in the save', errs)
     return not errs, '; '.join(errs + notes)
 
 

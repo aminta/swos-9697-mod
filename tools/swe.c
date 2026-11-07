@@ -521,3 +521,11 @@ __attribute__((naked)) void swe_diy_load_tramp(void)
     __asm__ volatile("pushal\n\tcall swe_diy_name\n\tpopal\n\tcall SWE_LOADDIY\n\tpushfl\n\tpushal\n\t"
                      "call swe_diy_loaded\n\tpopal\n\tpopfl\n\tret");
 }
+
+/* LoadPresetFile (the same body: a preset's file has no 'WM' block, so swe_diy_loaded gives the base namespace back -
+   a preset loaded after a mixed friendly kept the friendly's, engine_pre_ns 07/11) */
+__attribute__((naked)) void swe_pre_load_tramp(void)
+{
+    __asm__ volatile("pushal\n\tcall swe_diy_name\n\tpopal\n\tcall SWE_LOADPRE\n\tpushfl\n\tpushal\n\t"
+                     "call swe_diy_loaded\n\tpopal\n\tpopfl\n\tret");
+}

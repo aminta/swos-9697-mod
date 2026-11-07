@@ -84,6 +84,14 @@ def m2_sites(p, site):
     ld = [x for x in ld if (1, x) in tg]
     assert len(ld) == 1, ld
     ld = ld[0]
+    pre = []                                        # its '.PRE' branch, right after: push [A0]; call LoadPresetFile
+    for m in re.finditer(rb'\x81\x3d' + pk(d0 + 4) + rb'YID\.(\x74.|\x0f\x84.{4})', d1, re.S):
+        for q in re.finditer(rb'\x81\x3d' + pk(d0 + 4) + rb'ERP\.(\x74.|\x0f\x84.{4})', d1[m.end():m.end() + 0x20], re.S):
+            j = m.end() + q.start(1)
+            j = j + 2 + d1[j + 1] if d1[j] == 0x74 else j + 6 + struct.unpack_from('<i', d1, j + 2)[0]
+            if d1[j:j + 6] == b'\xff\x35' + struct.pack('<I', a0) and d1[j + 6] == 0xE8:
+                pre.append(j + 6)
+    assert len(pre) == 1, ('LoadOldCompetitionMenu: the preset load call', pre)
     ext['SWE_A0'] = p.target(1, ld + 2)
     calls = []                                      # their callers: push [A0]; call ..; pop [A0]; jnz
     for fn, tr in ((sv, 'swe_diy_save_tramp'), (ld, 'swe_diy_load_tramp')):
@@ -91,6 +99,7 @@ def m2_sites(p, site):
               if p.call_target(1, m.start() + 6) == (1, fn)]
         assert len(cs) == 1, (tr, cs)
         calls.append((cs[0], tr))
+    calls.append((pre[0], 'swe_pre_load_tramp'))   # (a preset's file: no 'WM' block, so the base namespace back)
     if 'gametype' in careerworld.SITES and 'w_ns_menu' in careerworld.LABELS:
         ext['SWE_GTYPE'] = careerworld.SITES['gametype']
         stfm = p.call_target(1, site)               # SelectTeamsFinalMenu's entry: an earlier patch's jmp (chained)
@@ -165,7 +174,7 @@ def patch(p):
         ext['w_ns_set'] = (1, careerworld.LABELS['w_ns_set'])
     m2, calls = m2_sites(p, site)                   # (W-modes M2: chained, as the picker call)
     ext.update(m2)
-    chain = {'swe_diy_save_tramp': 'SWE_SAVEDIY', 'swe_diy_load_tramp': 'SWE_LOADDIY', 'swe_ns_tramp': 'SWE_NSSET',
+    chain = {'swe_diy_save_tramp': 'SWE_SAVEDIY', 'swe_diy_load_tramp': 'SWE_LOADDIY', 'swe_pre_load_tramp': 'SWE_LOADPRE', 'swe_ns_tramp': 'SWE_NSSET',
              'swe_stfm_tramp': 'SWE_STFM', 'swe_names_tramp': 'SWE_NAMES', 'swe_car_tramp': 'SWE_CARPICK'}
     for cs, tr in calls:
         ext[chain[tr]] = p.call_target(1, cs)

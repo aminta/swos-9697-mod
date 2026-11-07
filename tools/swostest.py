@@ -134,6 +134,16 @@ def set_world(s, w, lang=None):
     raise AssertionError(f'world switch: {labs[w]} not reached')
 
 
+def w9697(s):
+    """The 1996-97 game's lists for a friendly path written for them (EUROPA > GERMANIA > 1. LIGA > HAMBURG): with
+    W-modes' default World 2026-27 (a factory SETUP.DAT, the H lane's DKB_SETUP) the main menu's world switch is set to
+    1996-97 first, as a player would. No switch (a pre-W-modes build) or already 1996-97: nothing to do."""
+    try:
+        set_world(s, 1)
+    except AssertionError as x:
+        s.log.append(f'[w9697] {x}'[:200])
+
+
 BUILD_KEEP_DAYS = 3        # build() / unique_out(): <name>-<key> dirs unused this long are removed (other names untouched)
 _ENV_RE = re.compile(r"""(?:environ(?:\.get)?\s*[\[(]\s*|getenv\(\s*)['"]([A-Z][A-Z0-9_]*)['"]""")
 
@@ -6014,6 +6024,7 @@ def career_entry(s, t):
 
 def friendly_prematch(s, home, away):
     """Main menu -> AMICHEVOLE with two Bundesliga clubs (player-controlled) -> pre-match screen."""
+    w9697(s)                                # (a factory SETUP.DAT opens World 2026-27: 1. LIGA is 1996-97's)
     for t in ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB', 'EUROPA', 'GERMANIA', '1. LIGA', home, away):
         walk(s, t, 2)
     for _ in range(12):                         # AMICHEVOLE (55) is reached from the list by down, then right (56, 57)
@@ -6081,6 +6092,7 @@ def shirt_numbers():
         cars['SETUP.DAT'] = os.environ['DKB_SETUP']
     with Session('shirt_numbers', b, cars, 'dump:3', 300, match=True) as s:
         s.wait()
+        w9697(s)                                # (a factory SETUP.DAT opens World 2026-27: 1. LIGA is 1996-97's)
         for t in ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB', 'EUROPA', 'GERMANIA', '1. LIGA', 'HAMBURG'):
             walk(s, t, 2)
         s.send('fire dump:2')                   # HAMBURG: COMPUTER -> GIOCA-ALLENA (human)
@@ -6230,6 +6242,7 @@ def subs_numbers():
     errs, info = [], []
     with Session('subs_numbers', b, {'DATA/TEAM.014': team}, 'dump:3', 300, match=True) as s:
         s.wait()
+        w9697(s)                                # (a factory SETUP.DAT opens World 2026-27: 1. LIGA is 1996-97's)
         for t in ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB', 'EUROPA', 'GERMANIA', '1. LIGA', 'HAMBURG'):
             walk(s, t, 2)
         s.send('fire dump:2')                   # HAMBURG: GIOCA-ALLENA (human)
@@ -6307,6 +6320,7 @@ def bench_mem():
         open(os.path.join(RUNS, 'bench_mem', 'progress.txt'), 'a').write(text + '\n')
     with Session('bench_mem', b, {}, 'dump:3', 900, match=True) as s:
         s.wait()
+        w9697(s)                                # (a factory SETUP.DAT opens World 2026-27: 1. LIGA is 1996-97's)
         for t in ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB', 'EUROPA', 'GERMANIA', '1. LIGA', 'HAMBURG'):
             walk(s, t, 2)
         s.send('fire dump:2')                   # HAMBURG: GIOCA-ALLENA (human)
@@ -9817,6 +9831,7 @@ def shirt_numbers_ega():
     try:
         with Session('shirt_numbers_ega', b, {'DATA/TEAM.014': team}, 'dump:3', 300, match=True) as s:
             s.wait()
+            w9697(s)                                # (a factory SETUP.DAT opens World 2026-27: 1. LIGA is 1996-97's)
             for t in ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB', 'EUROPA', 'GERMANIA', '1. LIGA', 'HAMBURG'):
                 walk(s, t, 2)
             s.send('fire dump:2')
@@ -9880,6 +9895,7 @@ def ega_bench_cursor():
     try:
         with Session('ega_bench_cursor', b, {}, 'dump:3', 600, match=True) as s:
             s.wait()
+            w9697(s)                                # (a factory SETUP.DAT opens World 2026-27: 1. LIGA is 1996-97's)
             for t in ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB', 'EUROPA', 'GERMANIA', '1. LIGA', 'HAMBURG'):
                 walk(s, t, 2)
             s.send('fire dump:2')
@@ -13307,9 +13323,11 @@ def swospp_menu():
         check(e[4][0] in mainbtn.WORLD['en'] and not e[4][1], f'entry 4 not the button: {e[4]}', errs)
         check(e[11][0] == b'SWOS++' and not e[11][1] and e[11][2:4] == (93, 21), f'entry 11 not SWOS++: {e[11]}', errs)
         k = mainbtn.WORLD['en'].index(e[4][0]) if e[4][0] in mainbtn.WORLD['en'] else 0
-        spp_go(s, e[4][0].decode(), 2, fire='fire up:0.05')     # (W-modes: the world switch under SWOS++: the next
-        # world's label - 'fire up:0.05' as PRESS_FIRE's note: a plain fire stays the latched key and is read again,
-        # the switch then moved two worlds (M3 05/11: 1996-97 -> 2026-27, SETUP.DAT 00; 1 in 3 before)
+        spp_go(s, e[4][0].decode(), 2, fire='fire up:0.01')     # (W-modes: the world switch under SWOS++: the next
+        # world's label - 'fire up:0.01' as PRESS_FIRE's note: a plain fire stays the latched key and is read again,
+        # the switch then moved two worlds (M3 05/11: 1996-97 -> 2026-27, SETUP.DAT 00; 1 in 3 before). 'up:0.05' was
+        # 2 GetKey calls with the fire latched (round(0.05 * RATE)): still two worlds in the 4.1 dry gate (06/11);
+        # 0.01 = steps_of's minimum, 1 call: one fire read, one switch, then the label read once
         nxt = mainbtn.WORLD['en'][(k + 1) % 3]                  # world's label, SETUP.DAT +105 written, SWOS++'s
         e = menu(s, 'switch')                                   # entry still on 11)
         d = open(os.path.join(s.run, 'SWOS', 'SETUP.DAT'), 'rb').read()
@@ -24591,13 +24609,12 @@ def menu_levels():
     b = os.path.realpath(os.environ.get('MENU14_BUILD') or os.path.join(WORK, 'builds', 'w2627-latest'))
     vis = lambda scr: [t for i, t, inv, _ in scr.entries if 11 <= i <= 86 and t and not inv]
     errs, notes = [], []
-    head = ('CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27')
     with Session('menu_levels', b, {}, 'dump:2', 600) as s:
         s.wait()
         try:
-            for t in head + ('EUROPA',):                # (exact: the main menu's green CARRIERA 2026-27 button
-                i = s.screen().find(t, exact=True)      # would match 'CARRIERA' too, mainbtn)
-                walk(s, t if i is None else i, 3)
+            set_world(s, 0)                             # (W-modes M1: the green button is the world switch, World
+            for t in ('CARRIERA', 'SCEGLI SQUADRA', 'EUROPA'):   # 2026-27 on it: its career by CARRIERA, its
+                walk(s, t, 3)                           # continents on the team choice - as menu_levels_cursor)
             walk(s, 'ITALIA', 3)
             lv = vis(s.screen())
             check(lv == ['SERIE A', 'SERIE B', 'SERIE C', 'SERIE D'], f'ITALIA levels {lv}', errs)
@@ -24637,9 +24654,9 @@ def menu_levels():
     with Session('menu_levels_slv', b, {}, 'dump:2', 600) as s:
         s.wait()
         try:
-            for t in head:                              # (exact: CARRIERA 2026-27 matches 'CARRIERA' too)
-                i = s.screen().find(t, exact=True)
-                walk(s, t if i is None else i, 3)
+            set_world(s, 0)                             # (as above: World 2026-27 on the switch, CARRIERA)
+            for t in ('CARRIERA', 'SCEGLI SQUADRA'):
+                walk(s, t, 3)
             cont = next((c for c in ('NORDAMERICA', 'NORD AMERICA', 'CENTROAMERICA') if s.screen().find(c, exact=True) is not None), None)
             walk(s, cont, 3)
             walk(s, 'EL SALVADOR', 3)
@@ -24699,10 +24716,9 @@ def menu_levels_cursor():
     with Session('menu_levels_cursor', b, {}, 'dump:3', 900) as s:
         s.wait()
         try:
-            import mainbtn                         # (the green button in the run's exe language: CARRIERE / KARRIERE)
-            for t in (mainbtn.LABEL.get(UI, mainbtn.LABEL['it']).decode(), 'SCEGLI SQUADRA', 'EUROPA'):
-                i = s.screen().find(t, exact=True)
-                walk(s, t if i is None else i, 3)
+            set_world(s, 0)                        # (W-modes M1: the green button is the world switch, mainbtn.WORLD;
+            for t in ('CARRIERA', 'SCEGLI SQUADRA', 'EUROPA'):   # World 2026-27 on it, its career by CARRIERA)
+                walk(s, t, 3)
             country('ITALIA')
             level('SERIE D', 'SERIE D GIRONE A', 'career')
             s.shot('groups')
@@ -26311,6 +26327,7 @@ def kbfirst():
             s.poke(s.result.base1 + spp, b'\xff')
             s.poke(s.result.base2 + buf + 6, struct.pack('<H', 1))  # (the friendly's menus as KEYBOARD ONLY: HAMBURG
             s.send('dump:1')                                        #  is player 1's)
+            w9697(s)                                # (a factory SETUP.DAT opens World 2026-27: 1. LIGA is 1996-97's)
             for t in ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB', 'EUROPA', 'GERMANIA', '1. LIGA', 'HAMBURG'):
                 walk(s, t, 2)
             s.send('fire dump:2')                       # HAMBURG: COMPUTER -> human
@@ -28171,6 +28188,7 @@ def match_names14():
                 os.environ['SWOSTEST_MEMSIZE'] = '8'
             with Session(f'match_names14_{mode}', b, {'DATA/TEAM.014': team}, 'dump:3', 300, match=True) as s:
                 s.wait()
+                w9697(s)                                # (a factory SETUP.DAT opens World 2026-27: 1. LIGA is 1996-97's)
                 for t in ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB', 'EUROPA', 'GERMANIA', '1. LIGA', 'HAMBURG'):
                     walk(s, t, 2)
                 s.send('fire dump:2')
@@ -28301,6 +28319,7 @@ def stoppage_time():
                 cars['SETUP.DAT'] = fac
             with Session(f'stoppage_time_{mode}', b, cars, 'dump:3', 1200, match=True) as s:
                 s.wait()
+                w9697(s)                                # (a factory SETUP.DAT opens World 2026-27: 1. LIGA is 1996-97's)
                 for t in ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB', 'EUROPA', 'GERMANIA', '1. LIGA', 'HAMBURG'):
                     walk(s, t, 2)
                 s.send('fire dump:2')

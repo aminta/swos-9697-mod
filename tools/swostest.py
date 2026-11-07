@@ -12856,6 +12856,84 @@ def wm_to_main(s, mark='COMP. PREDEFINITA'):
 
 
 @scenario
+def engine_pre_ns():
+    """4.1 (MC 07/11, found by engine P's step c): a PRESET's save (.PRE = SavePresetCompetitionFile, the DIY file's body: no SWC1, no
+    'WM' block) loaded after a mixed friendly (namespace 5 left). (1) Default 1996-97: COMP. PREDEFINITA > TORNEI
+    STORICI > COPPA MONDIALE 1934 > TORNEO, its first round screen read, ESCI, the main menu's save as PRENS. (2) Default
+    World 2026-27: the mixed friendly (WCUR 5), CARICA VECCHIA COMPETIZIONE > PRENS: WCUR = the base namespace and the
+    same round screen as (1). PRENS_OLD=<an older release's SWOS dir> (e.g. c/REL405/SWOS): (1) runs on that exe - an
+    old .PRE loaded by this build."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import swreg
+    b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
+    wc34 = {'en': 'WORLD CUP 1934', 'fr': 'COUPE DU MONDE 1934', 'de': 'WM 1934'}.get(UI, 'COPPA MONDIALE 1934')
+    errs, info = [], []
+
+    def reg(s):
+        r = s.result
+        m = r.read(struct.unpack('<I', r.read(r.base4 + 32, 4))[0], swreg.HDR)
+        return m[7], struct.unpack_from('<I', m, 8)[0]
+    old = os.environ.get('PRENS_OLD')
+    with Session('engine_pre_ns', old or b, {'SETUP.DAT': setup_file('engine_pre_ns', 1)}, 'dump:2', 300) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'no first pause ({s.result})'
+        import historic
+        for t in ('COMP. PREDEFINITA', historic.NAMES[UI].decode('latin-1'), wc34, 'TORNEO'):
+            sc = s.screen()                     # (TORNEO / PLAY TOURNAMENT..: the entry after ABBANDONA, any language)
+            if t == historic.NAMES[UI].decode('latin-1') and sc.find(t, exact=True) is None:
+                t = 'TORNEI STORICI'            # (the decoder reads EN's CLASSIC TOURNEYS in Italian: UI_MAP)
+            if t == 'TORNEO' and sc.find('ABBANDONA', exact=True) is not None:
+                t = sc.find('ABBANDONA', exact=True) + 1
+            if press(s, sc, t, 2) is None:
+                return False, f'{t} not reached ({s.screen().texts()})'
+        t1 = [t for t in s.screen().texts() if t]
+        s.shot('round_1')
+        for _ in range(4):
+            sc = s.screen()
+            sv = next((x for x in sc.texts() if x.startswith(('SALVA', 'SAVE', 'SAUV', 'ENREG', 'SPEICH'))), None)
+            if sv and 'MOD. TATTICA' in sc.texts() and 'COMPET. PERSONAL.' in sc.texts():
+                break
+            press(s, sc, 'ESCI', 2) or s.send('fire dump:2')
+        sc = s.screen()
+        sv = next((x for x in sc.texts() if x.startswith(('SALVA', 'SAVE', 'SAUV', 'ENREG', 'SPEICH'))), None)
+        if not sv:
+            return False, f'(1) no save entry on the main menu ({sc.texts()[:16]})'
+        press(s, sc, sv, 2)
+        s.send(name_entry('prens') + ' dump:3')
+        game = s.result.game
+    saves = [f for f in os.listdir(game) if f.upper().endswith('.PRE')]
+    if not saves:
+        return False, f'(1) no .PRE saved ({sorted(os.listdir(game))})'
+    if old:
+        mv = re.search(rb'MOD (\d+\.\d+(?:\.\d+)?)\0', open(os.path.join(old, 'ITALIAN.EXE'), 'rb').read())
+        dst = os.path.join(MAIN, 'internal', 'oldsaves', f'v{mv.group(1).decode() if mv else "old"}_PRESET_WC34.PRE')
+        if not os.path.exists(dst):
+            shutil.copy(os.path.join(game, saves[0]), dst)
+    info.append(f'(1){" " + old if old else ""} {saves[0]} {os.path.getsize(os.path.join(game, saves[0]))} B ({sv}), round {t1[:6]}')
+    files = {'SETUP.DAT': setup_file('engine_pre_ns2', 0), saves[0]: os.path.join(game, saves[0])}
+    with Session('engine_pre_ns2', b, files, 'dump:3', 600) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'(2) no first pause ({s.result})'
+        nsbase, wcur = reg(s)
+        wm_mixed(s, 'CARR. STORICHE')
+        ns = s.result.read(wcur, 1)[0]
+        check(ns == 5, f'(2) after the mixed friendly WCUR {ns} (the contest\'s 5)', errs)
+        if not wm_to_main(s):
+            return False, '; '.join(errs + info + [f'(2) no main menu ({s.screen().texts()[:6]})'])
+        press(s, s.screen(), 'CARICA VECCHIA COMPETIZIONE', 2)
+        stem = saves[0][:-4].upper()                          # (the dialog's name: PRENS, or the game's default)
+        if press(s, s.screen(), stem, 3, exact=False) is None:
+            return False, '; '.join(errs + info + [f'(2) {stem} not listed ({s.screen().texts()[:8]})'])
+        ns = s.result.read(wcur, 1)[0]
+        t2 = [t for t in s.screen().texts() if t]
+        s.shot('round_2')
+        info.append(f'(2) loaded: WCUR {ns} (base {nsbase}), round {t2[:6]}')
+        check(ns == nsbase, f'(2) loaded: WCUR {ns}, base {nsbase}', errs)
+        check(t2 == t1, f'(2) round screen {t2[:10]} != {t1[:10]}', errs)
+    return not errs, '; '.join(errs + info)
+
+
+@scenario
 def engine_wmodes_next():
     """W-modes M2: the next team picker of another kind after a mixed friendly (wm_mixed: INTER of World 2026-27 +
     HAMBURG of the 1996-97 game, which leaves namespace 5, the contest's) gets the base namespace back (swe.c

@@ -29170,6 +29170,209 @@ def match_names14():
 
 
 
+def scorer_sites(orig):
+    """(4.1 match_scorer14) obj2 offsets in the UI language's original exe: lastPlayerPlayed / lastKeeperPlayed
+    (CheckIfBallOutOfPlay: mov eax, [lpp] / mov [A0], eax / mov eax, [lkp] / or / jz / cmp [A0], offset goalie1),
+    ballSprite (mov [A6], offset ballSprite / mov esi, [A6] / mov ax, [esi + x + 2]), gameStatePl (its cmp .., 101
+    right before), team1Scorer1Sprite / team2Scorer1Sprite (GoalScored: mov [A3], scorers / [A4], sprite / [A6], widths)."""
+    import sacups
+    c = orig.le.obj_bytes(1)
+    a0 = sacups.regs(c)['A0']
+    P = lambda a: re.escape(struct.pack('<I', a))
+    U = lambda o: struct.unpack_from('<I', c, o)[0]
+    m = [x.start() for x in re.finditer(rb'\xa1....\xa3' + P(a0) + rb'\xa1....\x0b\xc0\x74.\x81\x3d' + P(a0), c, re.S)]
+    b = [x.start() for x in re.finditer(rb'\xc7\x05' + P(a0 + 24) + rb'....\x8b\x35' + P(a0 + 24) + rb'\x66\x8b\x46\x20', c, re.S)]
+    g = [x.start() for x in re.finditer(rb'\x66\x83\x3d....\x65', c[b[0] - 0x30:b[0]], re.S)] if b else []
+    sc = [x.start() for x in re.finditer(rb'\xc7\x05' + P(a0 + 12) + rb'....\xc7\x05' + P(a0 + 16) + rb'....\xc7\x05' + P(a0 + 24),
+                                         c, re.S)]
+    assert len(m) == 1 and len({U(x + 6) for x in b}) == 1 and len(g) == 1 and len(sc) == 2, ('scorer_sites', m, b, g, sc)
+    return {'LPP': U(m[0] + 1), 'LKP': U(m[0] + 11), 'BALL': U(b[0] + 6), 'GSP': U(b[0] - 0x30 + g[0] + 3),
+            'SC': [U(x + 16) for x in sc]}
+
+
+SCORER_TARGETS = ('VAN NISTELROOY', 'WWWWWWWWWWWWWW')
+
+
+@scenario
+def match_scorer14():
+    """4.1 41-namelong (Integratore: force it, check it on screen): the scorer line. A friendly, human HAMBURG named as
+    match_names14 (N14_NAMES) v SCHALKE, VGA; two HAMBURG goals forced with the ball in play: lastPlayerPlayed poked to
+    the HAMBURG sprite whose PlayerInfo.shortName is SCORER_TARGETS[k] ('VAN NISTELROOY', then 14 W: the widest), the
+    keeper's 0, the ball past the goal line HAMBURG attacks (the bottom team scores in the top goal, y 120; the top
+    team in the bottom one, y 778; x 334, z 0). Then GoalScored's text sprite (team1/2Scorer1Sprite + k x 0x6E,
+    its imageIndex) starts with that name in the game's small font (the glyph runs of the text, as match_names14),
+    every lit pixel inside its pixWidth. Shots goal_<k> (the scorers under the result)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lepatch
+    import namespr
+    if os.environ.get('SWOSPP_BUILD'):
+        return True, 'SKIP: no SWOS++ variant (the same GoalScored; match_names14 SWOS++ covers the names)'
+    b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
+    src = os.path.join(b, 'DATA', 'TEAM.014')
+    d = bytearray(open(src if os.path.exists(src) else os.path.join(MAIN, 'orig', 'DATA', 'TEAM.014'), 'rb').read())
+    for t in range(struct.unpack('>H', d[:2])[0]):
+        o = 2 + t * 684
+        if d[o + 5:o + 22].split(b'\0')[0] == b'HAMBURG':
+            for k, nm in enumerate(N14_NAMES):
+                d[o + 76 + k * 38 + 3:o + 76 + k * 38 + 26] = nm.encode().ljust(23, b'\0')
+    team = os.path.join(WORK, 'saves', 'TEAM014_HAMBURG_SC14.BIN')
+    os.makedirs(os.path.dirname(team), exist_ok=True)
+    open(team, 'wb').write(d)
+    orig = lepatch.LEPatch(os.path.join(MAIN, 'orig', ORIG_EXE[UI]))
+    c = orig.le.obj_bytes(1)
+    spr = namespr.find(orig)['spridx']
+    import sacups
+    m = re.search(rb'(?:\xc7\x05.{8}){4}\x66\xc7\x05.{4}\xa7\x06', c, re.S)
+    igt = (orig.target(1, m.start() + 6)[1], orig.target(1, m.start() + 26)[1])      # top / bottomTeamInGame
+    lim = namespr.find(orig)['lim']
+    k_ = [x.start() for x in re.finditer(rb'\xc7\x05' + re.escape(struct.pack('<I', sacups.regs(c)['A1'])), c[lim:lim + 0x80])]
+    small = orig.target(1, lim + k_[0] + 6)[1]
+    gptr = modver_glyphs()[1]
+    si = scorer_sites(orig)
+    tds = team_data()
+    errs, info = [], []
+    W16 = lambda r, o: struct.unpack('<H', r.read(r.base2 + o, 2))[0]
+    U32 = lambda r, lin: struct.unpack('<I', r.read(lin, 4))[0]
+    with Session('match_scorer14', b, {'DATA/TEAM.014': team}, 'dump:3', 300, match=True) as s:
+        s.wait()
+        w9697(s)
+        for t in ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB', 'EUROPA', 'GERMANIA', '1. LIGA', 'HAMBURG'):
+            walk(s, t, 2)
+        s.send('fire dump:2')
+        walk(s, 'SCHALKE', 2)
+        for _ in range(12):
+            scr = s.screen()
+            if scr.selected == 55:
+                s.send('fire dump:4')
+                break
+            s.send(('right' if scr.selected in (56, 57) else 'down') + ' dump:0.5')
+        for _ in range(22):
+            s.send('down dump:0.5')
+            if s.screen().selected == 9:
+                break
+        r = s.send('fire dump:1')
+        targets, pending, found = list(SCORER_TARGETS), None, {}
+        for step in range(160):
+            if r.outcome != 'dump':
+                errs.append(f'match: {r}')
+                break
+            if pending is None and targets and W16(r, si['GSP']) == 100:
+                ham = [td for td in tds if U32(r, r.base2 + td + 10) == r.base2 + igt[0 if ham_top(r, igt) else 1]]
+                td = ham[0]
+                tb = r.read(U32(r, r.base2 + td + 10), 42 + 61 * 16)
+                sps = struct.unpack('<11I', r.read(U32(r, r.base2 + td + 20), 44))
+                pick = [p for p in sps if p and tb[42 + 61 * (W16_lin(r, p + 2) - 1) + 12:].split(b'\0')[0].decode('latin-1')
+                        == targets[0]]
+                if not pick:
+                    errs.append(f'no HAMBURG player on the pitch named {targets[0]!r}')
+                    targets.pop(0)
+                    continue
+                y = 120 if td == tds[1] else 778        # (bottomTeamData scores in the top goal)
+                s.poke(r.base2 + si['LPP'], struct.pack('<I', pick[0]))
+                s.poke(r.base2 + si['LKP'], bytes(4))
+                for o, v in ((30, 0), (32, 334), (34, 0), (36, y), (38, 0), (40, 0)):
+                    s.poke(r.base2 + si['BALL'] + o, struct.pack('<h', v))
+                pending = (targets.pop(0), step, y)
+            r = s.send('fire:0.5 dump:0.5' if W16(r, si['GSP']) != 102 else 'fire:2 dump:1')
+            if pending is None:
+                if not targets and len(found) == len(SCORER_TARGETS):
+                    break
+                continue
+            want = pending[0]
+            exp = n14_runs(set().union(*modver_render(r, small, gptr, want).values()))
+            for base in si['SC']:
+                for j in range(8):
+                    img = W16(r, base + j * 0x6E + 0x46)
+                    try:
+                        w, nl, wq, rows = n14_sprites(r, spr, False, img, 1)[0]
+                    except Exception:
+                        continue
+                    lit = {(x, y_) for y_, xs in enumerate(rows) for x in xs}
+                    if lit and n14_runs(lit)[:len(exp)] == exp:
+                        found[want] = (img, w, max(x for x, _ in lit), len(n14_runs(lit)) - len(exp))
+            if want in found:
+                for q in range(int(os.environ.get('SC14_SERIES', '0'))):
+                    s.send('dump:1')
+                    s.shot(f'goal_{len(found)}_{q}')
+                s.send('dump:2')
+                s.shot(f'goal_{len(found)}')
+                info.append(f'{want!r}: scorer sprite {found[want][0]} ({found[want][1]} px wide), lit up to x '
+                            f'{found[want][2]}, {found[want][3]} runs after the name (the minute), goal y {pending[2]}')
+                check(found[want][2] < found[want][1], f'{want!r}: the scorer line past its sprite', errs)
+                pending = None
+            elif step - pending[1] > 30:
+                errs.append(f'{want!r}: no scorer sprite with that name 30 steps after the poke (gameStatePl '
+                            f'{W16(r, si["GSP"])})')
+                pending = None
+        check(set(found) == set(SCORER_TARGETS), f'scorer lines found {sorted(found)}, want {list(SCORER_TARGETS)}', errs)
+        seen = {}                                   # on screen: the half-time result shows the scorers - every
+        for step in range(240):                     # found sprite's own pixels (colour indices) in the frame
+            if len(seen) == len(found) or r.outcome != 'dump':
+                break
+            r = s.send('fire:2 dump:1' if W16(r, si['GSP']) == 102 else 'dump:1')   # (102: a restart waits for the
+            if r.outcome != 'dump':                                                  #  human team)
+                break
+            if step % 20 == 0 and int(os.environ.get('SC14_SERIES', '0')):
+                s.shot(f'ht_{step}')
+            fr = s.box.dump(0xA0000, 64000)
+            for want, (img, *_) in found.items():
+                if want not in seen:
+                    at = sprite_in_frame(fr, sprite_px(r, spr, img))
+                    if at:
+                        seen[want] = (at, step)
+                        s.shot(f'scorers_{len(seen)}')
+        for want in found:
+            check(want in seen, f'{want!r}: its scorer line never on screen ({len(seen)} of {len(found)} seen, '
+                  f'gameStatePl {W16(r, si["GSP"]) if r.outcome == "dump" else r.outcome})', errs)
+        info += [f'{w!r} on screen at {a} (step {k}, shots/scorers_*.png)' for w, (a, k) in seen.items()]
+    return not errs, '; '.join(errs + info)
+
+
+def sprite_px(r, spr, img):
+    """A chunky sprite's lit pixels {(x, y): colour index} (spritesIndex[img])."""
+    pt = struct.unpack('<I', r.read(r.base2 + spr + img * 4, 4))[0]
+    h = r.read(pt, 24)
+    w, nl, wq = struct.unpack_from('<HHH', h, 10)
+    px = r.read(struct.unpack('<I', h[:4])[0], wq * 8 * nl)
+    out = {}
+    for y in range(nl):
+        for x in range(wq * 16):
+            v = (px[y * wq * 8 + x // 2] >> (0 if x & 1 else 4)) & 15
+            if v:
+                out[(x, y)] = v
+    return out
+
+
+def sprite_in_frame(fr, pts):
+    """(x0, y0) where the 320x200 frame shows those pixels (the same colour index, or index + k for one k: a sprite
+    drawn with a palette offset), else None."""
+    if not pts:
+        return None
+    (ax, ay), av = min(pts.items())
+    rest = [(x - ax, y - ay, v - av) for (x, y), v in pts.items()]
+    for y0 in range(200):
+        for x0 in range(320):
+            base = fr[y0 * 320 + x0] - av
+            ok = True
+            for dx, dy, dv in rest:
+                X, Y = x0 + dx, y0 + dy
+                if not (0 <= X < 320 and 0 <= Y < 200) or fr[Y * 320 + X] != av + dv + base:
+                    ok = False
+                    break
+            if ok:
+                return (x0 - ax, y0 - ay)
+    return None
+
+
+def ham_top(r, igt):
+    """Is HAMBURG the top in-match team (topTeamInGame's name)?"""
+    return ingame_team(r, igt[0])[0] == 'HAMBURG'
+
+
+def W16_lin(r, lin):
+    return struct.unpack('<H', r.read(lin, 2))[0]
+
+
 def stoppage_sites(b):
     """(4.0.6 stoppage.py) A build's addresses: {GT, GSEC, ETS (extraTimeState), goals [s1, s2, t1, t2] (obj2 offsets),
     lab (stoppage.layout: obj3 labels)}; None without the module."""

@@ -2286,17 +2286,30 @@ def advance(s, stop, max_steps=400):
         if rp and scr.entries and rp in scr.entries[0][1]:   # with that word played for real, as Davide on the MiSTer
             i_ = scr.find('- PARTITA -', exact=True)    #  - the exe needs nop_league_int3)
             s.rpseen = getattr(s, 'rpseen', 0) + (i_ is not None and not scr.entries[i_][2])
-            if i_ is not None and not scr.entries[i_][2] and s.rpseen > int(os.environ.get('W8485_REALSKIP', 0)):
-                s.realplay = True
+            if i_ is not None and not scr.entries[i_][2] and s.rpseen > int(os.environ.get('W8485_REALSKIP', 0)) and \
+                    getattr(s, 'rpkicks', 0) < int(os.environ.get('W8485_REALN', 10 ** 6)):   # (W8485_REALN: only the
+                s.realplay = True                                                            #  first N for real)
                 s.log.append(f'[realplay] step {step}: {scr.entries[0][1]}')
                 press(s, scr, '- PARTITA -') or s.send('fire dump:2')
                 continue
         if getattr(s, 'inmatch', False) and not scr.entries:   # (the match: bench_world's pace - 3 fires a pause)
+            if os.environ.get('W8485_NAMES') and not getattr(s, 'rpnamed', True):   # (41-namefix: the 32 name
+                s.rpnamed = True                                                     #  sprites at the first pause of
+                ns = n14_sprites(s.result, names_spridx(s), False)                   #  each real match: the last lit
+                s.log.append(f'[names] match {s.rpkicks}: ends ' +                   #  column of each; and where
+                             ' '.join(str(max((max(x) for x in rows if x), default=-1)) for *_, rows in ns))
+                r_ = s.result                                                        #  ChainFont would convert
+                dm = struct.unpack('<I', r_.obj2(names_dosmem(), 4))[0]              #  them without the fix: our
+                pt = struct.unpack('<I', r_.obj2(names_spridx() + 255 * 4, 4))[0]    #  sprData + dosMemLinAdr)
+                lo = struct.unpack('<I', r_.read(pt, 4))[0] + dm - r_.base2
+                s.log.append(f'[nswin] {lo:x} {lo + 32 * 336:x} dosMemLinAdr {dm:x}')
             if step % 25 == 0:
                 s.shot(f'rp{step:03d}')
             s.send('fire:3 ' * 3 + 'dump:1')
             continue
         gi = scr.find('GIOCA :', exact=True)
+        if gi is None:                                  # (41-namefix: a 1996-97 career's who-plays entry can start on
+            gi = scr.find('ALLENA:', exact=True)        #  the coach, JUVEFIX3)
         if gi is not None and getattr(s, 'rp_cycle', 0) == 0:
             s.rp_gi = gi                                # (the cycling entry: its label changes - GIOCA : / ALLENA: ...)
         if getattr(s, 'realplay', False) and 'MOD. TATTICA' in texts and 'GIOCA PARTITA' not in texts and \
@@ -2305,13 +2318,16 @@ def advance(s, stop, max_steps=400):
             s.log.append(f'[realplay] step {step}: who-plays entry {s.rp_gi} cycled ({s.rp_cycle})')   # human; the
             walk(s, s.rp_gi, 2)                         # entry pressed by its index - after one press it reads 'ALLENA:'
             continue                                    # (I10p lane F: goal_slot_sc_real / world_gplay_nzgf_real)
-        if getattr(s, 'realplay', False) and 'MOD. TATTICA' in texts and ('GIOCA PARTITA' in texts or 'PARTITA' in texts):
+        go = next((t for t in ('GIOCA PARTITA', 'PARTITA') if t in texts), None) or \
+            ('ALLENATORE' if 'ALLENATORE' in texts and getattr(s, 'rp_cycle', 0) >= 4 else None)   # (a coach's career:
+        if getattr(s, 'realplay', False) and 'MOD. TATTICA' in texts and go:                          #  no GIOCA PARTITA)
             s.realplay = False
             s.inmatch = True
             s.rp_cycle = 0
             s.rp_gi = None
             s.log.append(f'[realplay] step {step}: kick-off')
-            press(s, scr, 'GIOCA PARTITA' if 'GIOCA PARTITA' in texts else 'PARTITA') or s.send('fire dump:2')
+            s.rpkicks, s.rpnamed = getattr(s, 'rpkicks', 0) + 1, False
+            press(s, scr, go) or s.send('fire dump:2')
             continue
         if 'VIS. RISULTATI' in texts and 'MOD. TATTICA' in texts and (getattr(s, 'subs', None) or
                                                                      getattr(s, 'gk_swap', False)):
@@ -20733,6 +20749,121 @@ def world_cupd_ischia_load():
     return os.path.exists(nxt) and 'trap' not in msg, f'the old save played on: {msg[:300]}'   # check)
 
 
+NF_WIN = (0x8000, 0x5000)              # obj2 logged: namespr's 32 x 336 B + dosMemLinAdr (ChainFont's window before
+                                        # 41-namefix: 0x81C0..0xABBF on REL405, 0xA1C0..0xCBBF on the 4.1 builds, the
+                                        # harness's DOSBox-X; [nswin] each run's own)
+
+
+@scenario
+def world_namefix():
+    """4.1 (41-namefix; Francesco's ISCHIA, Tally's CHIEVO): from the 2nd match after a program start spritesIndex[255..286]
+    point at namespr's headers, LoadSpritesAndFixOffsets added dosMemLinAdr to their sprData once more and ChainFont
+    converted 32 x 336 B in place at obj2 0x81C0..0xABBF (the country tables, all_countries_list, careerFileBuffer: a
+    garbage record count saved -> data/team.nnn exit at the next load; the season end walking the countries -> int 3).
+    A World 2026-27 career (fixtures/namefix/ISCHIAF1.CAR: ISCHIA, Serie C 2028/29, undamaged): its first 3 matches
+    played for real (W8485_REALN), the rest simulated, through the season end into the next season without a reload:
+    the window as loaded at every pause, careerFileBuffer 108 throughout, the 32 name sprites drawn at each real match,
+    no trap, and the next season's save (count 108) loaded back to the career menu. On a release-recipe build
+    (NAMEFIX_BUILD, else ISCHIA_REL / CUPLIST_REL), its league int 3 NOP-ed (nop_league_int3)"""
+    car = os.path.join(MAIN, 'internal', 'swostest', 'fixtures', 'namefix', 'ISCHIAF1.CAR')
+    rel = os.environ.get('NAMEFIX_BUILD') or os.environ.get('ISCHIA_REL') or os.environ.get('CUPLIST_REL')
+    if not os.path.exists(car) or not rel:
+        return True, 'SKIP: no fixtures/namefix/ISCHIAF1.CAR or no release dir (NAMEFIX_BUILD / ISCHIA_REL / CUPLIST_REL)'
+    exe = nop_league_int3('world_namefix', rel)
+    keys = ('W8485_BUILD', 'W8485_FROM', 'W8485_NOSACK', 'W8485_REALPLAY', 'W8485_REALN', 'W8485_NAMES', 'W8485_HEX',
+            'W8485_K', 'W8485_WNUM', 'W8485_TMO', 'W8485_ONE')
+    keep = {k: os.environ.get(k) for k in keys}
+    os.environ.pop('W8485_ONE', None)
+    os.environ.update(W8485_BUILD=exe, W8485_FROM=car, W8485_NOSACK='1', W8485_REALPLAY='SERIE C', W8485_REALN='3',
+                      W8485_NAMES='1', W8485_HEX=f'{NF_WIN[0]:x}:{NF_WIN[1]},96d6:2', W8485_K='108+', W8485_WNUM='5',
+                      W8485_TMO='1500')
+    try:
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            os.environ.pop(k, None) if v is None else os.environ.__setitem__(k, v)
+    run = os.path.join(RUNS, w84_tag() + '_2')
+    lines = open(os.path.join(run, 'session.log'), errors='replace').read().splitlines()
+    errs = []
+    check(ok and 'trap' not in msg, f'played on: {msg[:300]}', errs)
+    kicks = [i for i, ln in enumerate(lines) if ln.startswith('[realplay]') and ln.endswith('kick-off')]
+    check(len(kicks) == 3, f'{len(kicks)} matches played for real, want 3', errs)
+    end = next((i for i, ln in enumerate(lines) if ln.startswith('[menu] season_end')), len(lines))
+    win = [(i, ln.split()[2]) for i, ln in enumerate(lines[:end]) if ln.startswith(f'HEX {NF_WIN[0]:x} ')]   # (the
+    # season end rewrites the country / league tables there: obj2 0x9702.. on ISCHIAF1)
+    moved = [i for i, v in win[1:] if v != win[0][1]]
+    check(win and not moved, f'obj2 {NF_WIN[0]:#x}..{sum(NF_WIN) - 1:#x} changed at log lines {moved[:6]} '
+          f'before the season end (real kick-offs at {kicks})', errs)
+    nsw = sorted({tuple(int(x, 16) for x in ln.split()[1:3]) for ln in lines if ln.startswith('[nswin] ')})
+    check(nsw and all(NF_WIN[0] <= a and b <= sum(NF_WIN) for a, b in nsw), f'window {nsw} not inside the logged '
+          f'obj2 {NF_WIN[0]:#x}..{sum(NF_WIN) - 1:#x}', errs)
+    cfb = sorted({ln.split()[2] for ln in lines if ln.startswith('HEX 96d6 ')})
+    check(cfb == ['6c00'], f'careerFileBuffer word {cfb}, want 6c00 (108) throughout', errs)
+    names = [ln for ln in lines if ln.startswith('[names] ')]
+    bad = [ln for ln in names if any(int(x) <= 10 for x in ln.split('ends ')[1].split())]
+    check(len(names) == 3 and not bad, f'name sprites: {len(names)} real matches logged, undrawn: {bad[:2]}', errs)
+    nxt = os.path.join(run, 'SWOS', 'W84B.CAR')
+    if not os.path.exists(nxt):
+        errs.append('no next-season save W84B.CAR')
+    else:
+        n = struct.unpack_from('<H', open(nxt, 'rb').read(), 0)[0]
+        check(n == 108, f'W84B.CAR record count {n}, want 108', errs)
+        with Session('world_namefix_reload', rel, {'NFRE.CAR': nxt}, f'{LOAD1} dump:3', 300) as s:
+            r = s.wait()
+            texts = [ui_it(t) for t in s.screen().texts()] if r.outcome == 'dump' else []
+            check('TRASFERIMENTI' in texts, f'W84B.CAR reloaded: not the career menu ({r}; {texts[:6]})', errs)
+    return not errs, '; '.join(errs) or (f'{len(kicks)} real matches, window unchanged to the season end '
+                                         f'({len(win)} logs), cfb 108, names drawn; {msg[:120]}; W84B 108, reloaded')
+
+
+
+@scenario
+def career_namefix():
+    """4.1 (41-namefix, Regia's 1996-97 chain): world_namefix's damage in a normal 1996-97 career - there obj2's
+    ChainFont window holds tmdFileBuffer's team records (saved with the career). JUVEFIX3 (Juventus 1998/99
+    mid-season, the coach only: ALLENA: / ALLENATORE), its next 3 SERIE A matches played for real (W8485_REALPLAY,
+    W8485_REALN) in one program run: obj2 NF_WIN at each match's first pause = as on the career menu before it (the
+    baseline 4.1 build: 0 / 7210 / 7389 bytes at 0xA1C0..), the 32 name sprites drawn at each ([names]). On
+    NAMEFIX_BUILD (else ISCHIA_REL / CUPLIST_REL, else the IT test build), its league int 3 NOP-ed (nop_league_int3)"""
+    rel = os.environ.get('NAMEFIX_BUILD') or os.environ.get('ISCHIA_REL') or os.environ.get('CUPLIST_REL') or \
+        builds()['it']
+    exe = nop_league_int3('career_namefix', rel)
+    keys = ('W8485_REALPLAY', 'W8485_NAMES', 'W8485_REALN')
+    keep = {k: os.environ.get(k) for k in keys}
+    os.environ.update(W8485_REALPLAY='SERIE A', W8485_NAMES='1', W8485_REALN='3')
+    pre, res, errs = [None], [], []
+    try:
+        with Session('career_namefix', exe, {'JUVEFIX3.CAR': os.path.join(SAVES, 'JUVEFIX3.CAR')}, 'dump:2', 1500, 0,
+                     match=True) as s:
+            if s.wait().outcome != 'dump':
+                return False, f'START: no first pause ({s.result})'
+            s.send('down down down down down fire dump:2')
+            s.send('fire dump:2')
+            s.poke(s.result.base2 + nosack_off(os.path.join(rel, 'ITALIAN.EXE')), b'\x01\x00')
+
+            def stop(scr):
+                if 'TRASFERIMENTI' in scr.texts():
+                    pre[0] = bytes(s.result.obj2(*NF_WIN))
+                elif getattr(s, 'rpkicks', 0) > len(res) and getattr(s, 'inmatch', False) and not scr.entries and pre[0]:
+                    now = bytes(s.result.obj2(*NF_WIN))
+                    res.append([i for i in range(len(now)) if now[i] != pre[0][i]])
+                    s.log.append(f'[chain] match {len(res)}: {len(res[-1])} bytes changed since the career menu')
+                return len(res) >= 3 and 'TRASFERIMENTI' in scr.texts()
+            ok, msg = advance(s, stop, 1500)
+            names = [ln for ln in s.log if ln.startswith('[names] ')]
+    finally:
+        for k, v in keep.items():
+            os.environ.pop(k, None) if v is None else os.environ.__setitem__(k, v)
+    check(ok, f'advance: {msg}', errs)
+    check(len(res) == 3, f'{len(res)} real matches seen, want 3', errs)
+    for k, d in enumerate(res, 1):
+        check(not d, f'match {k}: {len(d)} bytes of obj2 {NF_WIN[0]:#x}..{sum(NF_WIN) - 1:#x} rewritten at the kick-off '
+              f'({NF_WIN[0] + d[0]:#x}..{NF_WIN[0] + d[-1]:#x})' if d else '', errs)
+    bad = [ln for ln in names if any(int(x) <= 10 for x in ln.split('ends ')[1].split())]
+    check(len(names) == 3 and not bad, f'name sprites: {len(names)} real matches logged, undrawn: {bad[:2]}', errs)
+    return not errs, '; '.join(errs) or '3 real SERIE A matches, window unchanged at each kick-off, names drawn'
+
+
 @scenario
 def world_gplay_cupd(team='EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA', two=False, extra=None, tag=''):
     """The Coppa Italia Serie D (cupd.py, gplay.c cd_step_c): world5tm-poule with Italy's 'cup_d' = the data session's
@@ -26665,6 +26796,28 @@ N14_NAMES = (['ROBERTO_CARLOS', 'LUIS_ENRIQUE', 'SCHWEINSTEIGER', 'JAN STOECKLIN
               'BASTIAN SCHWEINSTEIGER'] * 3)[:16]
 
 
+def names_spridx(s=None):
+    """obj2 offset of spritesIndex in the UI language's exe (the built exe's obj2 keeps the original layout; cached)."""
+    if not hasattr(names_spridx, 'v'):
+        sys.path.insert(0, os.path.join(ROOT, 'tools'))
+        import shirtnum
+        names_spridx.v = shirtnum.spr_index(lepatch_orig())
+    return names_spridx.v
+
+
+def names_dosmem():
+    """obj2 offset of dosMemLinAdr (LoadSpritesAndFixOffsets: mov ebx, offset spritesIndex; mov eax, 227; shl eax, 2;
+    add ebx, eax; mov eax, dosMemLinAdr; mov ecx, 114), in the UI language's exe (cached)."""
+    if not hasattr(names_dosmem, 'v'):
+        p = lepatch_orig()
+        c = p.le.obj_bytes(1)
+        m = [x.start() for x in re.finditer(rb'\xbb....\xb8\xe3\x00\x00\x00\xc1\xe0\x02\x03\xd8\xa1....\xb9\x72\x00\x00\x00',
+                                            c, re.S)]
+        assert len(m) == 1, ('dosMemLinAdr', m)
+        names_dosmem.v = p.target(1, m[0] + 16)[1]
+    return names_dosmem.v
+
+
 def n14_sprites(r, spr, ega, first=255, n=32):
     """The in-match name sprites (255..286; benchx's places 17..26: 1912.., 20) as (pixWidth, nlines, wquads, rows of
     lit pixels)."""
@@ -26706,34 +26859,63 @@ def match_names14():
     team = os.path.join(WORK, 'saves', 'TEAM014_HAMBURG_N14.BIN')
     os.makedirs(os.path.dirname(team), exist_ok=True)
     open(team, 'wb').write(d)
-    orig = lepatch.LEPatch(os.path.join(MAIN, 'orig', 'ITALIAN.EXE'))
+    orig = lepatch.LEPatch(os.path.join(MAIN, 'orig', ORIG_EXE[UI]))   # (41-namefix: the UI language's addresses)
     spr = namespr.find(orig)['spridx']
     c = orig.le.obj_bytes(1)
     eg = [m.start() for m in re.finditer(rb'\x66\x83\x3d....\xff\x0f\x84....\x66\x81\x3d....\x33\x01', c, re.S)]
     egoff = orig.target(1, eg[0] + 3)[1]
     errs, info = [], []
+    spp = bool(os.environ.get('SWOSPP_BUILD'))             # (41-namefix, the Integratore: SWOS++ 1.9.2.2, English)
+    if spp and UI != 'en':
+        return True, 'SKIP: SWOS++ is English only (SWOSTEST_UI=en)'
+    extra, timer = {}, False
+    if spp:
+        import swospp
+        pp = os.path.join(MAIN, 'internal', 'swospp-test')
+        b = os.path.join(WORK, 'builds-x', 'match_names14')
+        shutil.rmtree(b, ignore_errors=True)
+        shutil.copytree(os.environ['SWOSPP_BUILD'], b)
+        swospp.install(os.path.join(os.environ['SWOSPP_BUILD'], 'ITALIAN.EXE'), os.path.join(b, 'ITALIAN.EXE'))
+        extra = {'LOADER.BIN': os.path.join(pp, 'loader.bin'), 'SWOSPP.BIN': os.path.join(pp, 'swospp.bin')}
+        timer = True
+    global SPP_STEP, HOLD
     keep = os.environ.get('SWOSTEST_MEMSIZE')
+    kspp = (SPP_STEP, HOLD, os.environ.get('SWOSTEST_SPP_NOLATCH'))
+    if spp:                                                # (bench_world BENCH_SPP's key flow: one tap at a time,
+        SPP_STEP, HOLD = True, SPP_HOLD                    #  held keys, no latch)
+        os.environ['SWOSTEST_SPP_NOLATCH'] = '1'
     try:
-        for mode in ('vga', 'ega'):
+        for mode in ('vga',) if spp else ('vga', 'ega'):
             if mode == 'ega':
                 os.environ['SWOSTEST_MEMSIZE'] = '8'
-            with Session(f'match_names14_{mode}', b, {'DATA/TEAM.014': team}, 'dump:3', 300, match=True) as s:
+            with Session(f'match_names14_{mode}' + ('_spp' if spp else ''), b, dict({'DATA/TEAM.014': team}, **extra),
+                         'dump:3', 300, match=True, timer=timer) as s:
                 s.wait()
+                if spp:
+                    on, why = swospp_on(s.result, os.path.join(b, 'ITALIAN.EXE'))
+                    check(on, f'SWOS++ not running: {why}', errs)
                 for t in ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB', 'EUROPA', 'GERMANIA', '1. LIGA', 'HAMBURG'):
                     walk(s, t, 2)
                 s.send('fire dump:2')
                 walk(s, 'SCHALKE', 2)
-                for _ in range(12):
+                tap = ':0.3' if spp else ''                # (SWOS++'s timer feed: held taps; the squad screen's PLAY
+                for _ in range(12 * (1 + spp)):            #  MATCH fire held SPP_PM_HOLD ticks - spp_go)
                     scr = s.screen()
                     if scr.selected == 55:
                         s.send('fire dump:4')
                         break
-                    s.send(('right' if scr.selected in (56, 57) else 'down') + ' dump:0.5')
-                for _ in range(22):
-                    s.send('down dump:0.5')
-                    if s.screen().selected == 9:
+                    s.send(('right' if scr.selected in (56, 57) else 'down') + tap + ' dump:0.5')
+                for _ in range(22 * (1 + spp)):
+                    if spp and s.screen().selected == 9:
                         break
-                r = s.send('fire ' + 'fire:3 ' * 12 + 'dump:2')
+                    s.send('down' + tap + ' dump:0.5')
+                    if not spp and s.screen().selected == 9:
+                        break
+                if spp:
+                    spp_go(s, 9, 2, hold=SPP_PM_HOLD)
+                    r = s.send('fire:3 ' * 12 + 'dump:2')
+                else:
+                    r = s.send('fire ' + 'fire:3 ' * 12 + 'dump:2')
                 if r.outcome != 'dump':
                     errs.append(f'{mode}: match {r}')
                     continue
@@ -26756,7 +26938,13 @@ def match_names14():
             os.environ.pop('SWOSTEST_MEMSIZE', None)
         else:
             os.environ['SWOSTEST_MEMSIZE'] = keep
+        SPP_STEP, HOLD = kspp[:2]
+        if kspp[2] is None:
+            os.environ.pop('SWOSTEST_SPP_NOLATCH', None)
+        else:
+            os.environ['SWOSTEST_SPP_NOLATCH'] = kspp[2]
     return not errs, '; '.join(errs + info)
+
 
 
 def stoppage_sites(b):

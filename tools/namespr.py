@@ -12,7 +12,11 @@ pixels (5 quads), and Text2Sprite draws nothing at all when the text is wider th
   LoadSpritesAndFixOffsets) spritesIndex[255..286] point at 32 sprites of ours, 112 x 6 (7 quads): each header the
   game's own (copied the first time: flags, ordinal, centre; nlines 6), sprData our 336 bytes, pixWidth 112, wquads 7.
   Re-done every match: LoadSpritesAndFixOffsets adds dosMemLinAdr to the sprData of 227..340 again (spriteFixupFlag
-  -1), ours included. Half / EGA mode: the game leaves 255..286 chained (UnchainSprites 227..254 and 287..306), so the
+  -1), ours included - and ChainFont(227) right after it converts those sprites in place, so from the 2nd match of a
+  program run it rewrote 32 x DATA bytes at our pixels + dosMemLinAdr (obj2 0x81C0.. on 4.0.5, 0xA1C0.. on 4.1: the
+  country tables, careerFileBuffer, a 1996-97 career's team records; 4.1 ISCHIA / CHIEVO). So that call -> ns_fix:
+  the game's routine, then our 32 sprData back on our pixels before ChainFont (idempotent; the first match as before).
+  Half / EGA mode: the game leaves 255..286 chained (UnchainSprites 227..254 and 287..306), so the
   names are drawn as they are in both modes.
 Code, headers and pixels live in obj1 pages of their own (PAGES; obj2's page count unchanged, nothing saved), sized
 for CAP sprites (26 per team) although the game has 32 (N).
@@ -65,11 +69,39 @@ ns_make:                                ; replaces `call MakeSpritesFromPlayerNa
     jb .l
     popad
     jmp MAKESPR
+
+ns_fix:                                 ; replaces `call LoadSpritesAndFixOffsets` (ConvertColorsAndTextSprites)
+    call LOADSPR                        ; (its spriteFixupFlag -1 pass adds dosMemLinAdr to the sprData of 227..340
+    pushad                              ;  again - ours too, once spritesIndex points at them: ChainFont would then
+    xor ecx, ecx                        ;  convert 32 x DATA_ bytes in place at our pixels + dosMemLinAdr = obj2
+.f: imul edi, ecx, 24                   ;  0x81C0.. / 0xA1C0.. - the docstring)
+    add edi, NS_HDR
+    cmp [SPRIDX + FIRST_ * 4 + ecx * 4], edi
+    jne .n                              ; (the game's own header: fixed up once, right)
+    imul eax, ecx, DATA_
+    add eax, NS_DATA
+    mov [edi], eax                      ; sprData back on our pixels before ChainFont (ns_make sets the same)
+.n: inc ecx
+    cmp ecx, N_
+    jb .f
+    popad
+    ret
 """
 
 
 def _rel(d, c):
     return c + 5 + struct.unpack_from('<i', d, c + 1)[0]
+
+
+def fix_site(p):
+    """ConvertColorsAndTextSprites' `call LoadSpritesAndFixOffsets` (right before `mov D0, 227; call ChainFont`): obj1
+    offset in the original exe."""
+    d1 = p.le.obj_bytes(1)
+    D0 = sacups.regs(d1)['D7'] - 28
+    m = [x.start() for x in re.finditer(rb'\xe8....\xc7\x05' + re.escape(struct.pack('<I', D0)) + rb'\xe3\x00\x00\x00\xe8',
+                                        d1, re.S)]
+    assert len(m) == 1, ('call LoadSpritesAndFixOffsets', m)
+    return m[0]
 
 
 def make_sites(p):
@@ -119,7 +151,11 @@ def patch(p, at, lang):
     s = find(p)
     hdr, data, num = layout(at)
     assert data + CAP * DATA <= at + PAGES * 0x1000
+    fs = fix_site(p)
+    cur = bytes(p.get(1, fs, 5))                           # (chained: the call's current target, patched or not)
+    assert cur[0] == 0xE8
     sym = {'SPRIDX': (2, s['spridx']), 'NS_HDR': (1, hdr), 'NS_DATA': (1, data), 'MAKESPR': (1, s['make']),
+           'LOADSPR': (1, _rel(cur, 0) + fs),
            'FIRST_': (0, FIRST), 'N_': (0, N), 'QUADS_': (0, QUADS), 'LINES_': (0, LINES), 'DATA_': (0, DATA)}
     code, fix = nasmcave.assemble(ASM, at, sym)
     lab = nasmcave.labels(ASM, at, sym)
@@ -128,6 +164,7 @@ def patch(p, at, lang):
     for o, t_obj, t_off in fix:
         p.add_ptr(1, at + o, t_obj, t_off)
     p.put(1, s['call'], b'\xE8' + struct.pack('<i', lab['ns_make'] - (s['call'] + 5)))
+    p.put(1, fs, b'\xE8' + struct.pack('<i', lab['ns_fix'] - (fs + 5)))
     assert p.get(1, s['lim'], 2) == b'\x0b\x40'
     p.put(1, s['lim'], b'\x0e')                           # 400Bh -> 400Eh
     for o in s['refs']:                                    # numberBuffer -> NS_NUM (24 bytes)

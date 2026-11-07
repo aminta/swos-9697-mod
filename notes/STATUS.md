@@ -2370,6 +2370,6 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
   easier install, EXIT on the nationals "not available" message, score-panel fix, many fixes.
 - Roadmap after 4.1: 4.2 Italy on the engine (Serie D 162), 4.3 CPU market + transfer formulas, 4.4 1996-97 fidelity (squads of the new World 2026-27
   countries stay 1996-97 until 4.4).
-- Open at the time of writing: the English label of ESCI's twin on the nationals message is written ABORT (not confirmed by the exe); the 1984-85
+- Open at the time of writing: (ESCI label confirmed by Shaved: EN EXIT next to ABORT, FR QUITTER / ANNULER, DE ENDE / ABBRECHEN); the 1984-85
   national DIY line in the notes is to be dropped if `engine_avail_diy` fails; the SWOS++ result of the final gate is to be added if it differs.
 - README fix: the Italian section had a duplicated English copy of the 4.0.6 bullets; removed.

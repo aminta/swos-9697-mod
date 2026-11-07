@@ -44,7 +44,10 @@ def layout():
     SIZE = FIN + 0xC
     assert CB_OFF + SIZE <= (bigtables.ext_off() if bigtables.ON[0] else 80 * 684), hex(CB_OFF + SIZE)
 
-LP_CLN = [5, 5, 4, 4, 3, 2, 2, 2] + [1] * 7            # places per rank: Champions League (34 + its holder + the EL winner)
+CHMAX = 100000                  # 4.1 uc_chk: an association season above 100 points (thousandths), a club season above
+KHMAX = 4000                    # 500 points (units): no simulated season gets near (Francesco's 4th season: 31343 / 652 at most)
+
+LP_CLN = [5, 5, 4, 4, 3, 2, 2, 2] + [1] * 7           # places per rank: Champions League (34 + its holder + the EL winner)
 LP_ELN = [2] * 12 + [1] * 11                           # Europa League (35 + the Conference League winner)
 LP_UEN = [1] * 36                                      # Conference League (36)
 
@@ -150,6 +153,35 @@ ASM = nasmcave.sub(ASM, """    imul ebx, ecx, 1024
     mov [ebp + CHIST + ebx*4], eax      ; CHIST + (s * 256 + c) * 4""")
 
 ASM += '''
+uc_chk:                                 ; 4.1 (engine.after_process): a loaded league-phase world career's block, re-seeded
+    call W_LPW                          ; when it is not one: no 'UC' mark, or a value no season can give (4.0.5's
+    jne .x                              ; match-name sprites wrote over career data: Francesco's ISCHIA 07/11 saved
+    mov ebp, CB                         ; association seasons of 1.9e9 thousandths and lost the mark, so the table
+    cmp word [ebp + MARK], 4355h        ; colours (zones' uc_rank, no mark check) ranked Italy 7th while uc_ok had
+    jne .bad                            ; re-seeded it for the qualifiers)
+    cmp byte [ebp + RING], 5
+    jae .bad
+    cmp byte [ebp + DONE], 1
+    ja .bad
+    xor ecx, ecx
+.h:
+    cmp dword [ebp + CHIST + ecx*4], CHMAX
+    ja .bad
+    inc ecx
+    cmp ecx, 5 * 256
+    jb .h
+    xor ecx, ecx
+.k:
+    cmp word [ebp + KHIST + ecx*2], KHMAX
+    ja .bad
+    inc ecx
+    cmp ecx, 5 * NG
+    jb .k
+.x:
+    ret
+.bad:
+    jmp uc_init
+
 uc_new:                                 ; replaces `call w_cups` (career start in a world): a fresh block
     call W_CUPS
     pushad
@@ -723,13 +755,15 @@ def patch(p, cave, worlds, sites):
                'W_REC': (1, cw.LABELS['w_rec']), 'W_CUPS': (1, cw.LABELS['w_cups']),
                'MARK': (0, MARK), 'RING': (0, RING), 'DONE': (0, DONE), 'WORK_CC': q['WORK_CC'],
                'WORK_CWC': q['WORK_CWC'], 'WORK_UEFA': q['WORK_UEFA'], 'CTEAMS': (0, CTEAMS), 'CPTS': (0, CPTS), 'CHIST': (0, CHIST),
-               'KPTS': (0, KPTS), 'KHIST': (0, KHIST), 'PREV': (0, PREV), 'FIN': (0, FIN), 'SIZE': (0, SIZE), 'NG': (0, NG),
+               'KPTS': (0, KPTS), 'KHIST': (0, KHIST), 'CHMAX': (0, CHMAX), 'KHMAX': (0, KHMAX), 'PREV': (0, PREV), 'FIN': (0, FIN), 'SIZE': (0, SIZE), 'NG': (0, NG),
                'CLN_BYTES': (0, db((LP_CLN + [0] * 64)[:64])), 'ELN_BYTES': (0, db((LP_ELN + [0] * 64)[:64])),
                'UEN_BYTES': (0, db((LP_UEN + [0] * 64)[:64])), 'SEEDC_BYTES': (0, db(seedc)), 'UC_SEEDK': (2, sites['area'].add(seedk))}   # (obj2: any number of clubs)
     code, fix = nasmcave.assemble(ASM, cave, symbols)
     lab = nasmcave.labels(ASM, cave, symbols)
     LABELS.update(lab)
     LABELS['CB_ADDR'] = symbols['CB']           # (zones.py: uc_rank needs ebp = CB)
+    import engine
+    engine.CALL_AT['uc_chk'] = (1, lab['uc_chk'])   # (4.1: patch.py registers it with engine.after_process)
     p.put(1, cave, code)
     for off, tobj, toff in fix:
         p.add_ptr(1, cave + off, tobj, toff)

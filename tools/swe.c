@@ -98,6 +98,7 @@ int reg_leave(void)                     /* back to the namespace reg_enter left 
 #define WMENU 200                       /* (mkseason WMENU, CAREERS) */
 #define CAREERS 98
 #define CLUB_TEAMS 1
+#define NAT_TEAMS 0                     /* (teamsType: 1 club, 0 national, 2 original, 3 custom: the menu's setters) */
 #define DATA __attribute__((section(".data")))   /* (initialised: obj4's .bss is not zeroed at boot) */
 
 extern u8 SWE_D0[], SWE_NUMSEL[], SWE_TTYPE[], SWE_A0[], SWE_NDIY[], SWE_CFB[];
@@ -196,6 +197,104 @@ static void top_restore(void)
     SEL_TOP = 0;
 }
 
+/* Step 2.5 (Davide 2026-11-05): a picker with none of the default world's own content shows a message on the spot,
+   2 lines in the list area: PRESET (COMP. PREDEFINITA) and SEASON (STAGIONE) under MONDO 2026-27 / EUROPA 1984-85
+   (their purple TORNEI STORICI / STAG. STORICHE box stays below, the 1996-97 continents are the 1996-97 world's), the
+   friendly / DIY NAZIONALI under MONDO 2026-27. The preset / season tramps (or swe_sel_pre) arm it; at
+   SelectTeamsFinalMenu's entry (swe_stfm_guard) the top list (competitionsTable[254], what the caller set) becomes
+   L_AV: no competitions, the list's box id 3 times (preset / season: 2 message rows + the box) or a continent twice
+   (nationals: 2 rows); swe_names_post turns the first two rows of that list (the two equal names) into the message
+   (disabled, the list area's width). The caller's pop / sel_restore puts the game's table back. */
+#define AV_PRESET 1
+#define AV_SEASON 2
+#define AV_NAT 3
+#define AV_EU 4                         /* (no message: EUROPA 1984-85's nationals, its one continent - Europe) */
+#define AV_LEN 40
+#define AV_COLOR 0                      /* (no button: the text on the menu's background) */
+#define AV_GAP 5                        /* (historic MENU_GAP) */
+u8 AV_TXT[3][2][AV_LEN] DATA = {{{0}}}; /* swe.py AV_LINES, the exe's language: [kind - 1][line] */
+u32 AV_ARM DATA = 0;                    /* the message the next picker shows (AV_*), 0 = none */
+u32 AV_SHOW DATA = 0;                   /* the message this picker's top list shows */
+u8 L_AV[12] DATA = {0};
+
+static u32 av_world(void)               /* the default world (SETUP.DAT +105 -> SET_W), 0 = the 1996-97 game */
+{
+    u32 set = rd32(SWE_REG + 28);
+    u32 s = set ? *(u8 *)set : 0;
+    return s < sizeof SET_W ? SET_W[s] : 0;
+}
+
+static void av_arm(u32 kind) { AV_ARM = kind == AV_EU || AV_TXT[kind - 1][0][0] ? kind : 0; AV_SHOW = 0; }
+
+/* EUROPA 1984-85's nationals (DaniSwos, packs/europe-1984-85/national) in a friendly / DIY: careerworld w_tmap maps a
+   national file 80..85 to the world's own (WNAT, TEAM.180..) by CW_FNAT outside a career, as by the career's world byte
+   inside one. Set by the friendly / DIY picker's national branch under that default world (or a DIY file of that
+   world), cleared by any other picker kind's entry (preset, season, team editor: the game's TEAM.080). */
+#ifdef FNAT
+extern u8 CW_FNAT[];
+static void fnat(u32 w) { CW_FNAT[0] = w; }
+static u32 fnat_on(void) { return CW_FNAT[0]; }
+#else
+static void fnat(u32 w) { (void)w; }
+static u32 fnat_on(void) { return 0; }
+#endif
+
+#ifdef NS                               /* (its one caller: swe_stfm_guard) */
+static void av_swap(void)               /* at SelectTeamsFinalMenu's entry: the armed message's top list */
+{
+    u32 kind = AV_ARM, *c254 = (u32 *)rd32(SWE_REG + 12);
+    AV_ARM = 0;
+    if (!kind || !*c254)
+        return;
+    const u8 *p = list_ids(*c254);
+    u8 b = 0xFF, *l = L_AV + 4;
+    for (; *p != 0xFF; p++)
+        b = (kind == AV_NAT || kind == AV_EU) && b != 0xFF ? b : *p;   /* (nationals: the first continent, EUROPA; else the box, the last id) */
+    if (b == 0xFF)
+        return;
+    put_ff(L_AV);
+    *l++ = b;
+    if (kind != AV_EU)
+        *l++ = b;
+    if (kind == AV_PRESET || kind == AV_SEASON)
+        *l++ = b;
+    *l = 0xFF;
+    *c254 = (u32)L_AV;
+    AV_SHOW = kind == AV_EU ? 0 : kind;
+}
+#endif
+
+static void av_rows(u8 *e0)             /* the message in the top list's first two rows (e0 = entry 21) */
+{
+    u8 *r[2], *e = e0;
+    int n = 0;
+    for (int k = 0; k < 64 && n < 2 && *(u16 *)(e + 2) != 87; k++, e += 56)
+        if (!*(u16 *)(e + 4))
+            r[n++] = e;
+    if (n < 2)
+        return;
+    u32 t0 = rd32(r[0] + 0x26), t1 = rd32(r[1] + 0x26), m0 = (u32)AV_TXT[AV_SHOW - 1][0];
+    if (t0 != t1 && t0 != m0)           /* (a list below the top one: the rows are not the two equal names) */
+        return;
+    for (int j = 0; j < 2; j++) {
+        *(u32 *)(r[j] + 0x26) = (u32)AV_TXT[AV_SHOW - 1][j];
+        *(u16 *)(r[j] + 6) = 1;         /* disabled */
+        *(u16 *)(r[j] + 0x1E) = AV_COLOR;
+        *(u16 *)(r[j] + 0x14) = 10;     /* x, width: the list area (the title bar's) */
+        *(u16 *)(r[j] + 0x18) = 300;
+        if (AV_SHOW != AV_NAT)
+            *(u16 *)(r[j] + 0x16) -= AV_GAP;   /* (the box's gap above it, as historic's MENU_GAP gave it to all 3) */
+    }
+    u8 *m = e0 - 21 * 56 - 0x16, *to = 0;   /* the menu's header: the cursor off the rows (the box, else ABBANDONA) */
+    u32 *sel = (u32 *)(m + 0x0C);
+    if (*sel != (u32)r[0] && *sel != (u32)r[1])
+        return;
+    for (u8 *x = r[1] + 56; !to && *(u16 *)(x + 2) != 87; x += 56)
+        if (!*(u16 *)(x + 4) && !*(u16 *)(x + 6))
+            to = x;
+    *sel = (u32)(to ? to : m + 0x16 + 88 * 56);
+}
+
 /* SelectTeamsReinit's names call (swe.py, chained: historic's hist_names, which leaves the first entry in its
    EF_VARS): MONDO 2026-27 GREEN in the lists of a friendly / DIY picker; while the lock applies, the lists of worlds
    (an entry of a world or the STORICO box) show the lock line in the title bar (entry 0). */
@@ -211,6 +310,8 @@ void swe_names_post(void)
 {
     u32 nm = rd32(SWE_CT + 4 * (WMENU + SET_W[0]));
     u8 *e0 = (u8 *)rd32(SWE_EFV), *e = e0;
+    if (AV_SHOW && e)
+        av_rows(e);
     if (!SEL_ON || !nm || !e)
         return;
     int worlds = 0;
@@ -242,6 +343,11 @@ void swe_names_post(void)
    game's numbers, < 100, are the same in every namespace). The next team picker of another kind (season, preset, edit,
    a new career) puts the base one back: swe_stfm_guard at SelectTeamsFinalMenu's entry, outside a career and only
    while the namespace is still the one left here. */
+/* Step 2.5, for Panchina's 2026-27 long bench (friendly / DIY): SWE_W27 = 1 while the contest a friendly / DIY picker
+   or a DIY file load left is World 2026-27's (any of its clubs: mixed contests take the longer bench, Davide 05/11),
+   0 after any other picker kind (preset, season, team editor, a career's team choice). swe.LABELS['SWE_W27'] after
+   swe.patch(p). */
+u32 SWE_W27 DATA = 0;
 u32 NS_LEFT DATA = 0;                   /* the namespace swe left after a contest's picker / DIY load, 0 = none */
 extern u8 SWE_GTYPE[];
 #define GAME_TYPE_CAREER 4
@@ -256,6 +362,12 @@ static void ns_left(u32 w)
 #ifdef NS
 void swe_stfm_guard(void)
 {
+    if (SEL_MODE == 0xFFFFFFFF) {       /* (another picker kind: the game's nationals, no 2026-27 contest) */
+        fnat(0);
+        SWE_W27 = 0;
+    }
+    if (AV_ARM)
+        av_swap();
     u8 *wcur = (u8 *)rd32(SWE_REG + 8);
     if (!NS_LEFT || SEL_MODE != 0xFFFFFFFF || !wcur)
         return;
@@ -272,6 +384,16 @@ void swe_sel_pre(u32 mode)
     SEL_C254 = *c254;
     SEL_ON = 0;
     u32 cw = rd32(SWE_REG + 16), set = rd32(SWE_REG + 28);
+    if (mode == M_FRIENDLY && *(u16 *)SWE_TTYPE == NAT_TEAMS) {   /* (step 2.5: NAZIONALI) */
+        u32 w = av_world();
+        fnat(0);
+        if (w == SET_W[0])
+            av_arm(AV_NAT);             /* MONDO 2026-27: the message */
+        else if (w == SET_W[2] && reg_world(w)) {
+            fnat(w);                    /* EUROPA 1984-85: DaniSwos's nations, Europe only */
+            av_arm(fnat_on() ? AV_EU : 0);
+        }
+    }
     if (!cw || !set || (mode != M_CAREER && *(u16 *)SWE_TTYPE != CLUB_TEAMS) || !*comp_slot(CAREERS))
         return;
     u32 s = *(u8 *)set, dw = s < sizeof SET_W ? SET_W[s] : 0;
@@ -328,11 +450,14 @@ static void sel_restore(void)           /* the game's lists back */
 
 void swe_sel_post(void)
 {
+    AV_ARM = AV_SHOW = 0;
     sel_restore();
     if (SEL_ON) {
         SWE_CWORLD = *(u16 *)SWE_NUMSEL ? SEL_CW : 0;
         ns_left(SWE_CWORLD);
-    }
+    } else if (SEL_MODE == M_FRIENDLY && fnat_on())
+        SWE_CWORLD = *(u16 *)SWE_NUMSEL ? fnat_on() : 0;   /* (the DIY file's 'WM' block: its nationals' world) */
+    SWE_W27 = SEL_ON && SEL_MODE == M_FRIENDLY && SWE_CWORLD == SET_W[0];   /* (clubs only: SEL_ON) */
     SEL_ON = 0;
     SEL_MODE = 0xFFFFFFFF;
 }
@@ -496,6 +621,8 @@ void swe_diy_loaded(void)
     if (n == diy_size() + 4 && b[0] == 'W' && b[1] == 'M' && b[2] == 1 && b[3] && reg_world(b[3]))
         SWE_CWORLD = b[3];
     ns_left(SWE_CWORLD);
+    fnat(SWE_CWORLD == SET_W[2] ? SWE_CWORLD : 0);   /* (step 2.5: a 1984-85 DIY's nationals are DaniSwos's) */
+    SWE_W27 = SWE_CWORLD == SET_W[0];
 }
 
 #ifdef NS
@@ -503,6 +630,31 @@ void swe_diy_loaded(void)
 __attribute__((naked)) void swe_stfm_tramp(void)
 {
     __asm__ volatile("pushfl\n\tpushal\n\tcall swe_stfm_guard\n\tpopal\n\tpopfl\n\tjmp SWE_STFM");
+}
+#endif
+
+/* Step 2.5: the preset / season selectors' picker calls (historic.CALLS: hist_preset / mkseason's season_sel, chained) */
+void swe_av_pre(u32 kind)
+{
+    if (av_world())
+        av_arm(kind);
+}
+
+void swe_av_post(void) { AV_ARM = AV_SHOW = 0; }
+
+#ifdef AV
+__attribute__((naked)) void swe_pre_tramp(void)
+{
+    __asm__ volatile("pushal\n\tpushl %0\n\tcall swe_av_pre\n\taddl $4, %%esp\n\tpopal\n\t"
+                     "call SWE_PREPICK\n\tpushfl\n\tpushal\n\tcall swe_av_post\n\tpopal\n\tpopfl\n\tret"
+                     : : "i"(AV_PRESET));
+}
+
+__attribute__((naked)) void swe_sea_tramp(void)
+{
+    __asm__ volatile("pushal\n\tpushl %0\n\tcall swe_av_pre\n\taddl $4, %%esp\n\tpopal\n\t"
+                     "call SWE_SEAPICK\n\tpushfl\n\tpushal\n\tcall swe_av_post\n\tpopal\n\tpopfl\n\tret"
+                     : : "i"(AV_SEASON));
 }
 #endif
 

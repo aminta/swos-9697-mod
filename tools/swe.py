@@ -21,6 +21,31 @@ import struct
 LANG = ['it']                  # (patch.py: the exe's language, for LOCK_LINE)
 LOCK_LINE = {'it': 'UN SOLO MONDO PER COMPETIZIONE', 'en': 'ONE WORLD PER COMPETITION',   # W-modes M2's lock line
              'fr': 'UN SEUL MONDE PAR COMPETITION', 'de': 'NUR EINE WELT PRO WETTBEWERB'}  # (Davide 2026-11-04)
+AV_LINES = {        # step 2.5 (texts frozen, Davide 2026-11-05): [NATIONAL, PRESET, SEASON], split into 2 rows by av_rows
+    'it': ('NAZIONALI NON ANCORA DISPONIBILI PER QUESTO MONDO', 'AL MOMENTO NON CI SONO COMPETIZIONI PREDEFINITE PER QUESTO MONDO',
+           'AL MOMENTO NON CI SONO STAGIONI PER QUESTO MONDO'),
+    'en': ('NATIONAL TEAMS NOT YET AVAILABLE FOR THIS WORLD', 'NO PRESET COMPETITIONS FOR THIS WORLD AT THE MOMENT',
+           'NO SEASONS FOR THIS WORLD AT THE MOMENT'),
+    'fr': ('EQUIPES NATIONALES PAS ENCORE DISPONIBLES POUR CE MONDE',
+           'AUCUNE COMPETITION PREDEFINIE POUR CE MONDE POUR LE MOMENT', 'AUCUNE SAISON POUR CE MONDE POUR LE MOMENT'),
+    'de': ('NATIONALMANNSCHAFTEN F\x9aR DIESE WELT NOCH NICHT VERF\x9aGBAR', 'ZURZEIT KEINE STANDARDWETTBEWERBE F\x9aR DIESE WELT',
+           'ZURZEIT KEINE SAISONS F\x9aR DIESE WELT')}
+AV_KINDS = (1, 2, 0)           # swe.c AV_TXT[kind - 1] order: PRESET, SEASON, NATIONAL -> AV_LINES' index
+AV_LEN, AV_WIDTH = 40, 300     # (swe.c AV_LEN; the rows' width = the list area's)
+UE = '\x9a'                    # (the exe's own U-umlaut glyph, as titlelegs' R\x9aCKSP.)
+
+
+def av_rows(text):
+    """the message's 2 rows: the word break with the most even widths (complist.px), each within AV_WIDTH"""
+    import complist
+    w = text.split(' ')
+    cuts = [(' '.join(w[:k]), ' '.join(w[k:])) for k in range(1, len(w))]
+    a, b = min(cuts, key=lambda c: abs(complist.px(c[0]) - complist.px(c[1])))
+    for r in (a, b):
+        assert set(r) <= complist.FONT | {UE} and complist.px(r) <= AV_WIDTH and len(r) < AV_LEN, ('step 2.5 row', r, complist.px(r))
+    return a, b
+
+
 OBJ4_PAGES = 2                 # (M2: 2 pages, the registry moved to swreg.REG_AT = 0x1800)
 MAGIC = b'SWOS-ENG'
 VERSION = 3                    # (swe.c SWE_VERSION; 2 = step W, the registry; 3 = W-modes M2, the pickers' worlds)
@@ -167,11 +192,17 @@ def patch(p):
     ext.update(m2)
     chain = {'swe_diy_save_tramp': 'SWE_SAVEDIY', 'swe_diy_load_tramp': 'SWE_LOADDIY', 'swe_ns_tramp': 'SWE_NSSET',
              'swe_stfm_tramp': 'SWE_STFM', 'swe_names_tramp': 'SWE_NAMES', 'swe_car_tramp': 'SWE_CARPICK'}
+    import historic
+    if historic.CALLS:                              # step 2.5: the preset / season selectors' picker calls
+        calls += [(historic.CALLS[0], 'swe_pre_tramp'), (historic.CALLS[1], 'swe_sea_tramp')]
+        chain.update(swe_pre_tramp='SWE_PREPICK', swe_sea_tramp='SWE_SEAPICK')
     for cs, tr in calls:
         ext[chain[tr]] = p.call_target(1, cs)
     if not ns:
         calls = [c for c in calls if c[1] not in ('swe_ns_tramp', 'swe_stfm_tramp')]
-    flags = (('-DNS',) if ns else ()) + (('-DNAT',) if 'CW_PLNAT' in ext else ()) + (('-DMB',) if 'MB_STR' in ext else ())
+    if 'W_FNAT' in careerworld.LABELS:              # step 2.5: the friendly / DIY nationals' world (w_tmap)
+        ext['CW_FNAT'] = (1, careerworld.LABELS['W_FNAT'])
+    flags = (('-DNS',) if ns else ()) + (('-DNAT',) if 'CW_PLNAT' in ext else ()) + (('-DMB',) if 'MB_STR' in ext else ()) + (('-DFNAT',) if 'CW_FNAT' in ext else ()) + (('-DAV',) if 'SWE_PREPICK' in ext else ())
     syms, end, bss = cobj.link(p, cobj.compile_c(SRC, flags), CODE_AT, (4, room), externs=ext, limit=swreg.REG_AT,
                                text_obj=4)
     arena = syms['SWE_ARENA_AT']
@@ -189,6 +220,10 @@ def patch(p):
     lk = LOCK_LINE[LANG[0]]
     assert set(lk) <= complist.FONT and complist.px(lk) <= 280 and len(lk) < 48, ('lock line', lk, complist.px(lk))
     p.put(*syms['LOCK_TXT'], lk.encode('latin-1') + b'\0')
+    if 'AV_TXT' in syms:                            # step 2.5: the messages' rows, the exe's language
+        lines = AV_LINES[LANG[0]]
+        buf = b''.join((r.encode('latin-1') + b'\0').ljust(AV_LEN, b'\0') for k in AV_KINDS for r in av_rows(lines[k]))
+        p.put(*syms['AV_TXT'], buf)
     assert arena[0] == 4 and bss >= ARENA
     p.put(4, 0, MAGIC + struct.pack('<I', VERSION))
     cobj.add_ptr(p, 12, 4, 0, 4)

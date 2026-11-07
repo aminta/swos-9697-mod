@@ -611,14 +611,16 @@ w_nat:                                  ; replaces `mov ax, [D0]; mov [lastNatio
     ret
 
 w_tmap:                                 ; eax = team file number (80..85) -> the world's own national file
-    cmp word [GAMETYPE], 4              ; (career only: the world byte is stale outside a career)
-    jne .r
     cmp eax, 80
     jb .r
     cmp eax, 85
     ja .r
     push ebx
+    movzx ebx, byte [W_FNAT]            ; (step 2.5: outside a career, the friendly / DIY nationals' world, swe.c;
+    cmp word [GAMETYPE], 4              ; a career: its world byte - stale outside a career)
+    jne .f
     movzx ebx, byte [SLT + WORLD_BYTE]
+.f:
     movzx ebx, byte [WNAT + ebx]
     test ebx, ebx
     jz .p
@@ -1111,6 +1113,7 @@ w_tcache:                               ; replaces `mov al, [lastLoadedExtNumber
     pop edx
     ret
 WTPHYS: db 0
+W_FNAT: db 0                            ; (swe.c FNAT: 0, or the 1984-85 world for its nationals)
 
 w_holders:                              ; replaces `call cseg_92BBF`: in a world the holders get a place of their own
     push ebx                            ; (appended to the list + record), the game replaces a random qualifier

@@ -17798,10 +17798,9 @@ def contiview_open(s, k, pages=None):
     walk(s, i, 3)
     s.shot('contiview_menu')
     btn = [x[1] for x in s.screen().entries[1:7]]
-    walk(s, k, 3)
     import ctview                                       # (4.0.6 P3: a confederation with drawn rounds opens its
-    summ = ctview.TEXTS[UI][7].decode('latin1')         # rounds menu: the page is its RIEPILOGO)
-    rounds_menu = s.screen().find(summ, exact=True) is not None
+    summ = ctview.TEXTS[UI][7].decode('latin1')         # rounds menu: the page is its RIEPILOGO; 4.1 cdirect: a
+    rounds_menu = ctc_open(s, k, f'cv_{k}') != 'page'   # round in progress opens its view - ESCI to the rounds menu)
     if rounds_menu:
         s.shot(f'contiview_{k}_rounds')
         CR_LAST[:] = [x[1] for x in s.screen().entries[1:1 + ctview.CR_N] if not x[2]]
@@ -18118,6 +18117,9 @@ def world_cgame_view():
                 walk(s, 'ESCI', 3)
                 continue
             press(s, s.screen(), 'CONTINUA', 3) or s.send('fire dump:2')
+        if b'FFPS' in open(os.path.join(exe, 'ITALIAN.EXE'), 'rb').read():   # (4.0.6 FFP, ON in a new career: the save's
+            s.poke(s.result.lin(ffp_sites(exe)[0]) + 1, b'\x00')   #  season-1 verdict may block purchases - the game's
+                                                        #  refusal instead of the market lists checked here: FF_BLOCK 0)
         st = lambda: (bytes(s.result.obj2(seg_at, 72)), bytes(s.result.obj2(ed_at, 2260)))
         gtr = cg_trace(exe)                             # (ctgame's CG_G[3]: the views opened - none for the career
         opens = lambda: struct.unpack('<I', bytes(s.result.read(s.result.lin((3, gtr[3] + 12)), 4)))[0]   # club's own
@@ -18429,8 +18431,7 @@ def world_cgame_fallback():
         conf = None
         for k in range(1, 7):
             c = s.screen().entries[k][1]
-            walk(s, k, 3)
-            if s.screen().find(summ, exact=True) is not None:
+            if ctc_open(s, k, f'cgf_{k}') != 'page':   # (4.1 cdirect: a round in progress - its view, ESCI back)
                 conf = c
                 break
             walk(s, 16, 3)

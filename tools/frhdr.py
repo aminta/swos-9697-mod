@@ -7,12 +7,14 @@ place are at most 47 characters (the game's own test, obj1 0x3a631 / 0x3d2d8 'cm
 most 50), else no place at all: the French friendly's 25 + 12 + MONDE 2026-27's 13 = 50, over 47, showed neither World
 2026-27 nor Europe 1984-85 (IT 'SCEGLI SQUADRE PER ' 19 does). The French exe's own string shortened in place (obj2,
 NUL-padded to the old length: every reference unchanged, nothing saved): 'EQUIPES : ' (10) -> 'EQUIPES : MATCH AMICAL
-- MONDE 2026-27' (38), 'EQUIPES : COUPE PERSONNELLE - EUROPE 1984-85' (44). More headers = more HDRS rows. Other
-languages unchanged.
+- MONDE 2026-27' (38), 'EQUIPES : COUPE PERSONNELLE - EUROPE 1984-85' (44). Its edit-teams twin (Davide 'A + all') the
+same way: 'MODIFIER LES EQUIPES POUR ' (26) -> 'MODIFIER : ' (11). More headers = more HDRS rows. Other languages
+unchanged.
 """
 import re
 
-HDRS = {'fr': [(b'CHOISIR LES EQUIPES POUR ', b'EQUIPES : ')]}   # (the exe's string, ours: not longer)
+HDRS = {'fr': [(b'CHOISIR LES EQUIPES POUR ', b'EQUIPES : '),        # (the exe's string, ours: not longer)
+               (b'MODIFIER LES EQUIPES POUR ', b'MODIFIER : ')]}     # (its edit-teams twin, 0x3a5cf / 0x3d276)
 
 
 def patch(p, lang):

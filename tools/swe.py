@@ -118,9 +118,14 @@ def m2_sites(p, site):
         calls.append((cs[0], tr))
     if 'gametype' in careerworld.SITES and 'w_ns_menu' in careerworld.LABELS:
         ext['SWE_GTYPE'] = careerworld.SITES['gametype']
-        stfm = p.call_target(1, site)               # SelectTeamsFinalMenu's entry: an earlier patch's jmp (chained)
-        assert p.get(*stfm, 1) == b'\xe9' and stfm[0] == 1, ('SelectTeamsFinalMenu entry', stfm, p.get(*stfm, 5))
-        calls.append((stfm[1], 'swe_stfm_tramp'))
+        stfm = p.call_target(1, site)               # SelectTeamsFinalMenu's entry: an earlier patch's jmp (chained:
+        if p.get(*stfm, 1) == b'\xe9':              # menulevels' ml_reset)
+            assert stfm[0] == 1, ('SelectTeamsFinalMenu entry', stfm, p.get(*stfm, 5))
+            calls.append((stfm[1], 'swe_stfm_tramp'))
+        else:                                       # (4.1: a build with no league of groups - world_ns' test recipe -
+            assert p.get(*stfm, 3) == b'\x66\xc7\x05', ('SelectTeamsFinalMenu entry', stfm, p.get(*stfm, 5))
+            print('exe: SelectTeamsFinalMenu entry not hooked (no menulevels): no swe_stfm_guard')   # has no
+                                                    # ml_reset there; the release recipe always has it)
     import mainbtn                                  # (M3) the career's team choice: ChooseTeamsDialog's picker call
     if mainbtn.CHOOSE[0]:                           # after mb_d0 (a build with the main menu's world switch)
         ch = mainbtn.CHOOSE[0]
@@ -203,7 +208,7 @@ def patch(p):
         calls = [c for c in calls if c[1] not in ('swe_ns_tramp', 'swe_stfm_tramp')]
     if 'W_FNAT' in careerworld.LABELS:              # step 2.5: the friendly / DIY nationals' world (w_tmap)
         ext['CW_FNAT'] = (1, careerworld.LABELS['W_FNAT'])
-    flags = (('-DNS',) if ns else ()) + (('-DNAT',) if 'CW_PLNAT' in ext else ()) + (('-DMB',) if 'MB_STR' in ext else ()) + (('-DOMM',) if 'MB_OMM' in ext else ()) + (('-DFNAT',) if 'CW_FNAT' in ext else ()) + (('-DAV',) if 'SWE_PREPICK' in ext else ())
+    flags = (('-DNS',) if ns else ()) + (('-DSTFM',) if 'SWE_STFM' in ext else ()) + (('-DNAT',) if 'CW_PLNAT' in ext else ()) + (('-DMB',) if 'MB_STR' in ext else ()) + (('-DOMM',) if 'MB_OMM' in ext else ()) + (('-DFNAT',) if 'CW_FNAT' in ext else ()) + (('-DAV',) if 'SWE_PREPICK' in ext else ())
     syms, end, bss = cobj.link(p, cobj.compile_c(SRC, flags), CODE_AT, (4, room), externs=ext, limit=swreg.REG_AT,
                                text_obj=4)
     arena = syms['SWE_ARENA_AT']

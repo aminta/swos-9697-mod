@@ -12319,13 +12319,14 @@ KITNAVY_MATCHES = [('lille_home', 'FRANCIA', 'LIGUE 1', 'LILLE', 'AUXERRE'),
                    ('millwall_home', 'INGHILTERRA', 'EFL CHAMPIONSHIP', 'MILLWALL', 'SWANSEA CITY'),
                    ('millwall_away', 'INGHILTERRA', 'EFL CHAMPIONSHIP', 'BIRMINGHAM CITY', 'MILLWALL'),
                    ('bochum_home', 'GERMANIA', '2. BUNDESLIGA', 'BOCHUM', 'DYNAMO DRESDEN'),
-                   ('bochum_away', 'GERMANIA', '2. BUNDESLIGA', 'KARLSRUHER', 'BOCHUM')]
+                   ('bochum_away', 'GERMANIA', '2. BUNDESLIGA', 'KARLSRUHER', 'BOCHUM'),
+                   ('valencia_away', 'SPAGNA', 'LALIGA', 'REAL MADRID', 'VALENCIA')]       # (403c16 hand fixes)
 
 
 @scenario
 def kit_navy_shots():
     """4.1 navy / grey -> purple fix (tools/kitpurple.py, World 2026-27 data world5tm-403c15): photos for Davide of
-    LILLE, MARSEILLE, MILLWALL, BOCHUM at home and away against a club whose kit clashes (friendlies, kits AUTO): the
+    LILLE, MARSEILLE, MILLWALL, BOCHUM at home and away against a club whose kit clashes, VALENCIA away (403c16) (friendlies, kits AUTO): the
     pre-match screen and two frames of the match. KITNAVY_ONLY = tags (comma list). The check: each match reached"""
     b = builds()['it']
     only = [x for x in os.environ.get('KITNAVY_ONLY', '').split(',') if x]

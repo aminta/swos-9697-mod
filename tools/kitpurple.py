@@ -10,6 +10,7 @@ The rule (also in internal/world2526/tmkits.colour, for future world builds), by
 One exception: MARIBOR keeps its purple (its real colour, which the sources give as a dark violet-blue).
 
     python3 tools/kitpurple.py AUDIT SRC DST     copy world dir SRC to DST with only the audited kit fields changed
+    python3 tools/kitpurple.py --hand SRC DST    copy SRC to DST with only the HAND kit cells changed (403c15 -> 403c16)
 
 AUDIT = the audit's json (internal/hosttest/fixtures/kitpurple/audit.json): one row per kit that had a purple field:
 {cc, key, name, kit, before, fields: [[field, hex or None, hsv, source], ...]}."""
@@ -26,7 +27,13 @@ PURPLE = 10
 HUE = (248, 335)
 SAT = 0.2
 KEEP = {('svn', 'maribor')}                     # (cc, key): purple kept
-FIELDS = ['shirt', 'stripes', 'shorts', 'socks']        # kit string positions 1..4 (0 = type)
+FIELDS = ['shirt', 'stripes', 'shorts', 'socks']
+# (403c16, Davide 07/11 via Regia) navy sources the old RGB rule put on maroon / green / black, outside the purple fields:
+# (cc, key, kit): (before, after)
+HAND = {('fra', 'marseille', 'kit2'): ('3 2 5 6 6', '3 2 5 5 5'),       # shorts + socks 2C2C3E (maroon)
+        ('irl', 'stpatricks', 'kit2'): ('2 6 5 6 6', '2 6 5 5 5'),      # shorts + socks 282F45 (maroon)
+        ('esp', 'valencia', 'kit2'): ('0 8 8 8 8', '0 5 5 5 5'),        # 024560 (green)
+        ('eng', 'millwall', 'kit1'): ('2 2 5 2 2', '0 5 5 5 5')}        # 000f36 (black, stripes = a texture): plain navy        # kit string positions 1..4 (0 = type)
 
 
 NAVY = (195, 247)
@@ -71,7 +78,8 @@ def fixed(row):
 
 
 def patch(audit, src, dst):
-    """copy src to dst, rewriting only the audited kit cells; returns [(cc, key, kit, before, after)]"""
+    """copy src to dst, rewriting only the audited kit cells (audit = rows as AUDIT's; HAND as rows: --hand);
+    returns [(cc, key, kit, before, after)]"""
     assert not os.path.exists(dst), dst
     shutil.copytree(src, dst, symlinks=True)
     by = {}
@@ -85,7 +93,7 @@ def patch(audit, src, dst):
         lines = text.splitlines(keepends=True)
         hdr = next(csv.reader([lines[0]]))
         for r in rows:
-            new = fixed(r)
+            new = r['after'] if 'after' in r else fixed(r)
             if new == r['before']:
                 continue
             hit = [i for i, ln in enumerate(lines[1:], 1) if next(csv.reader([ln]))[hdr.index('key')] == r['key']]
@@ -105,7 +113,11 @@ def patch(audit, src, dst):
     return out
 
 
+def hand_rows():
+    return [{'cc': c, 'key': k, 'kit': t, 'before': b, 'after': a} for (c, k, t), (b, a) in HAND.items()]
+
+
 if __name__ == '__main__':
     a, s, d = sys.argv[1:4]
-    for x in patch(json.load(open(a)), s, d):
+    for x in patch(hand_rows() if a == '--hand' else json.load(open(a)), s, d):
         print(*x, sep='\t')

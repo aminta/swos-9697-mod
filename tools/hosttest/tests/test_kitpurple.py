@@ -2,7 +2,7 @@
 rule, the world builder's rule (internal/world2526/tmkits.py) checked against it, and the patched world data checked
 byte for byte against its base.
 Fixture internal/hosttest/fixtures/kitpurple/audit.json (the 07/11 audit, unversioned like every fixture).
-HT_KIT_BASE / HT_KIT_DATA = the world dirs (default world5tm-403c14 / world5tm-403c15)."""
+HT_KIT_BASE / HT_KIT_DATA = the world dirs (default world5tm-403c14 / world5tm-403c16 = the audit's cells + kitpurple.HAND)."""
 import json
 import os
 import sys
@@ -16,7 +16,7 @@ MAIN = os.path.expanduser('~/swos-mod')
 W = os.path.join(MAIN, 'internal', 'world2526')
 AUDIT = os.path.join(MAIN, 'internal', 'hosttest', 'fixtures', 'kitpurple', 'audit.json')
 BASE = os.environ.get('HT_KIT_BASE') or os.path.join(W, 'world5tm-403c14')
-DATA = os.environ.get('HT_KIT_DATA') or os.path.join(W, 'world5tm-403c15')
+DATA = os.environ.get('HT_KIT_DATA') or os.path.join(W, 'world5tm-403c16')
 P = str(kitpurple.PURPLE)
 
 
@@ -73,9 +73,12 @@ def test_kitpurple_rule():
 
 
 def test_kitpurple_data():
-    """DATA = BASE with only the audited kit cells changed, each to kitpurple.fixed()"""
+    """DATA = BASE with only the audited kit cells changed, each to kitpurple.fixed(), and (403c16) the HAND cells"""
     audit = json.load(open(AUDIT))
     want = {(r['cc'], r['key'], r['kit']): (r['before'], kitpurple.fixed(r)) for r in audit}
+    if os.path.basename(DATA.rstrip('/')) != 'world5tm-403c15':        # (403c16 on: the hand cells on top)
+        for k, (b, a) in kitpurple.HAND.items():
+            want[k] = (want[k][0] if k in want else b, a)
     errs, cells, files = [], 0, 0
     for root, _, fs in os.walk(BASE):
         for fn in fs:
@@ -114,7 +117,7 @@ def test_kitpurple_data():
         errs.append(f'{extra} files only in the patched dir')
     changed = sum(1 for b, a in want.values() if b != a)
     if cells != changed:
-        errs.append(f'{cells} cells changed, the audit changes {changed}')
+        errs.append(f'{cells} cells changed, the audit + hand change {changed}')
     if errs:
         return False, '; '.join(errs[:12])
     return True, f'{files} files: {cells} kit cells changed as the rule says, every other byte identical'

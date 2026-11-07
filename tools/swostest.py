@@ -20735,35 +20735,58 @@ def world_cupd_ischia_load():
 
 @scenario
 def world_cfb_guard():
-    """4.1 (Francesco's ISCHIA, World 2026-27, Serie C 2028/29): a big world's save whose record count
-    (careerFileBuffer's word) is damaged - his 06/11 save: 6445h, W1 records 48+ empty - loads: w_load_tail walks only
-    the W1 records present (at most 128, up to the first empty one) and writes that count back, so the walk never reads
-    past the block (4.0.5 / 4.1 dry: data/team.255 -> exit to DOS). His 02/11 save of the same career (108 records)
-    loads as before: the count stays 108. Both on a release-recipe build (CFBGUARD_BUILD, else ISCHIA_REL /
-    CUPLIST_REL); fixtures internal/swostest/fixtures/cfbguard"""
+    """4.1: big-world saves whose record count (careerFileBuffer's word) is damaged load: w_load_tail walks only the
+    W1 records present (at most 128, up to the first empty one) and writes that count back, so the walk never reads
+    past the block (4.0.5 / 4.1 dry: data/team.nnn -> exit to DOS). Fixtures (internal/swostest/fixtures/cfbguard):
+    Francesco's ISCHIA 06/11 (Serie C 2028/29: 6445h, W1 records 48+ empty -> 48; team.255 before), Tally's CHIEVO
+    06/11 (Serie D 2026-27, 4.0.2 -> 4.0.5 GOG: 2A01h, all 108 records -> 108; team.009 before), and ISCHIA 02/11 of
+    the same career, undamaged (108, unchanged). Each: the career menu after the load, the count; the damaged ones
+    then ESCI -> SALVA CARRIERA -> the new file's count -> reloaded to the career menu again. On a release-recipe
+    build (CFBGUARD_BUILD, else ISCHIA_REL / CUPLIST_REL)"""
     fx = os.path.join(MAIN, 'internal', 'swostest', 'fixtures', 'cfbguard')
     exe = os.environ.get('CFBGUARD_BUILD') or os.environ.get('ISCHIA_REL') or os.environ.get('CUPLIST_REL')
     if not exe or not os.path.isdir(fx):
         return True, 'SKIP: no release dir (CFBGUARD_BUILD / ISCHIA_REL / CUPLIST_REL) or no fixtures'
     errs, notes = [], []
-    for name, want in (('ISCHIA06', 48), ('ISCHIA02', 108)):
-        car = os.path.join(fx, name + '.CAR')
+
+    def load(tag, name, car, want):                    # -> the Session's game dir, or None
         save = open(car, 'rb').read()
-        with Session(f'world_cfb_guard_{name.lower()}', exe, {name + '.CAR': car}, f'{LOAD1} dump:3', 300) as s:
+        with Session(f'world_cfb_guard_{tag}', exe, {name + '.CAR': car}, f'{LOAD1} dump:3', 300) as s:
             r = s.wait()
             if r.outcome != 'dump':
-                errs.append(f'{name}: no career menu after the load ({r})')
-                continue
+                errs.append(f'{tag}: no career menu after the load ({r})')
+                return None
             texts = [ui_it(t) for t in s.screen().texts()]
-            check('TRASFERIMENTI' in texts, f'{name}: not the career menu: {texts[:8]}', errs)
+            check('TRASFERIMENTI' in texts, f'{tag}: not the career menu: {texts[:8]}', errs)
             o2 = r.read(r.base2, 0x30000)
             at = o2.find(save[2:350])                    # (careerFileBuffer + 2: the W1 block as loaded)
             if at < 0:
-                errs.append(f'{name}: careerFileBuffer not found')
-                continue
+                errs.append(f'{tag}: careerFileBuffer not found')
+                return None
             n = struct.unpack_from('<H', o2, at - 2)[0]
-            check(n == want, f'{name}: record count {n} after the load, expected {want}', errs)
-            notes.append(f'{name}: career menu, count {n} (saved {struct.unpack_from("<H", save, 0)[0]:#x})')
+            check(n == want, f'{tag}: record count {n} after the load, expected {want}', errs)
+            notes.append(f'{tag}: career menu, count {n} (saved {struct.unpack_from("<H", save, 0)[0]:#x})')
+            if name == 'CFBRE':
+                return None
+            press(s, s.screen(), 'ESCI')                 # (the career menu -> the main menu)
+            s.send('dump:2')
+            if press(s, s.screen(), 'SALVA CARRIERA') is None:
+                errs.append(f'{tag}: no SALVA CARRIERA on {s.screen()}')
+                return None
+            s.send(name_entry('cfbre') + ' dump:3')
+            return s.result.game
+
+    for name, want, again in (('ISCHIA06', 48, True), ('CHIEVO06', 108, True), ('ISCHIA02', 108, False)):
+        game = load(name.lower(), name, os.path.join(fx, name + '.CAR'), want)
+        out = game and os.path.join(game, 'CFBRE.CAR')
+        if not again or not game:
+            continue
+        if not os.path.exists(out):
+            errs.append(f'{name}: CFBRE.CAR not saved')
+            continue
+        n = struct.unpack_from('<H', open(out, 'rb').read(), 0)[0]
+        check(n == want, f'{name}: the new save\'s count {n}, expected {want}', errs)
+        load(name.lower() + '_re', 'CFBRE', out, want)
     return not errs, '; '.join(errs + notes)
 
 

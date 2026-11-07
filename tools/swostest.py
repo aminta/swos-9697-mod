@@ -12312,6 +12312,62 @@ def purple_stadium():
     return ok, f'line-ups screen entry 12 {got} ({r.outcome})'
 
 
+KITNAVY_MATCHES = [('lille_home', 'FRANCIA', 'LIGUE 1', 'LILLE', 'AUXERRE'),
+                   ('lille_away', 'FRANCIA', 'LIGUE 1', 'BREST', 'LILLE'),
+                   ('marseille_home', 'FRANCIA', 'LIGUE 1', 'MARSEILLE', 'LILLE'),
+                   ('marseille_away', 'FRANCIA', 'LIGUE 1', 'AUXERRE', 'MARSEILLE'),
+                   ('millwall_home', 'INGHILTERRA', 'CHAMPIONSHIP', 'MILLWALL', 'SWANSEA CITY'),
+                   ('millwall_away', 'INGHILTERRA', 'CHAMPIONSHIP', 'BIRMINGHAM CITY', 'MILLWALL'),
+                   ('bochum_home', 'GERMANIA', '2. BUNDESLIGA', 'BOCHUM', 'DYNAMO DRESDEN'),
+                   ('bochum_away', 'GERMANIA', '2. BUNDESLIGA', 'KARLSRUHER', 'BOCHUM')]
+
+
+@scenario
+def kit_navy_shots():
+    """4.1 navy / grey -> purple fix (tools/kitpurple.py, World 2026-27 data world5tm-403c14-kp): photos for Davide of
+    LILLE, MARSEILLE, MILLWALL, BOCHUM at home and away against a club whose kit clashes (friendlies, kits AUTO): the
+    pre-match screen and two frames of the match. KITNAVY_ONLY = tags (comma list). The check: each match reached"""
+    b = builds()['it']
+    only = [x for x in os.environ.get('KITNAVY_ONLY', '').split(',') if x]
+    errs, info = [], []
+    for tag, country, league, home, away in KITNAVY_MATCHES:
+        if only and tag not in only:
+            continue
+        with Session('kit_navy_' + tag, b, {}, 'dump:3', 300, match=True) as s:
+            s.wait()
+            for t in ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB', 'EUROPA', country, league, home):
+                walk(s, t, 2)
+            s.send('fire dump:2')               # home: COMPUTER -> GIOCA-ALLENA
+            walk(s, away, 2)
+            for _ in range(12):
+                scr = s.screen()
+                i = scr.find('AMICHEVOLE', exact=True)
+                if i is None:
+                    break
+                if scr.selected == i:
+                    s.send('fire dump:4')
+                    break
+                s.send(('right' if scr.selected in (i + 1, i + 2) else 'down') + ' dump:0.5')
+            scr = s.screen()
+            if not (len(scr.entries) > 68 and scr.entries[68][1] == 'MAGLIE AUTO'):
+                errs.append(f'{tag}: no pre-match screen ({scr.texts()[:8]})')
+                continue
+            s.shot(tag + '_prematch')
+            for _ in range(22):
+                s.send('down dump:0.5')
+                if s.screen().selected == 9:
+                    break
+            r = s.send('fire ' + 'fire:3 ' * 8 + 'dump:2')
+            check(r.outcome == 'dump', f'{tag}: match {r}', errs)
+            if r.outcome == 'dump':
+                s.shot(tag + '_match1')
+                r = s.send('fire:4 dump:2')
+                if r.outcome == 'dump':
+                    s.shot(tag + '_match2')
+                info.append(tag)
+    return not errs, '; '.join(errs) if errs else f'shots of {len(info)} matches: {", ".join(info)}'
+
+
 STNM_NAME, STNM_SHOWN, STNM_KEY, STNM_Y = 4, 53, 54, 56          # stadium.py's log after its 'STNM' mark (v3: name[49])
 
 

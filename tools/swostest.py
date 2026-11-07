@@ -9503,11 +9503,11 @@ def goal_log_at(exe):
     return p.target(1, k + 3)[1] - 4 if k > 0 else None
 
 
-def goal_slot_run(name, team, midtext, exe, want, real=False):
+def goal_slot_run(name, team, midtext, exe, want, real=False, screens=2, fill=None):
     """A World 2026-27 career at team on exe (world8485, results only - the simulated result's write-back cseg_1C39F;
     real: the matches of fixture screens titled with midtext played for real, W8485_REALPLAY - the match engine's
-    cseg_2F3AB) stopped and saved at the second fixture screen showing midtext (the first is the one before the
-    match: W8485_MIDTEXT counts screens with '- RISULTATO -'), else at the season's end; gs_add's ring of the remapped writes (slot 4, slot 3 FC..FE; W8485_HEX on obj1) gathered at every
+    cseg_2F3AB) stopped and saved at the screens-th fixture screen showing midtext (default 2: the first is the one
+    before the match: W8485_MIDTEXT counts screens with '- RISULTATO -'), else at the season's end (fill: W8485_FILL); gs_add's ring of the remapped writes (slot 4, slot 3 FC..FE; W8485_HEX on obj1) gathered at every
     screen. Checks: every one left +37 alone (the form / trial mark: before = after), went to a counter 0..3 (+33..+36:
     LEGA COP1 COP2 INT, all in TOT), that counter grew by the goals; slot 4 never as the game; at least one write of class
     want[0] into counter want[1] (the match's goals). Returns (ok, msg)."""
@@ -9517,11 +9517,12 @@ def goal_slot_run(name, team, midtext, exe, want, real=False):
     if real:
         exe = nop_league_int3(name, exe)
     keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_ONE',
-            'W8485_HEX', 'W8485_MIDTEXT', 'W8485_TMO', 'W8485_REALPLAY')
+            'W8485_HEX', 'W8485_MIDTEXT', 'W8485_TMO', 'W8485_REALPLAY', 'W8485_FILL')
     keep = {k: os.environ.get(k) for k in keys}
     os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+',
-                      W8485_NOSACK='1', W8485_ONE='1', W8485_HEX=f'o1/{at:x}:132', W8485_MIDTEXT=midtext + ':2',
-                      W8485_TMO='1500', **({'W8485_REALPLAY': midtext} if real else {}))
+                      W8485_NOSACK='1', W8485_ONE='1', W8485_HEX=f'o1/{at:x}:132', W8485_MIDTEXT=f'{midtext}:{screens}',
+                      W8485_TMO='1500', **({'W8485_REALPLAY': midtext} if real else {}),
+                      **({'W8485_FILL': fill} if fill else {}))
     try:
         ok, msg = world8485()
     finally:
@@ -9546,10 +9547,26 @@ def goal_slot_run(name, team, midtext, exe, want, real=False):
            or (e[0] == 4 and e[3] == 4)]
     check(not bad, f'bad writes (slot, counter, goals, class, +37 before / after, counter before / after): {bad[:6]}', errs)
     hit = [(t, e.hex()) for t, e in ents if e[3] == want[0] and e[1] == want[1]]
-    check(hit, f'no class-{want[0]} goal into counter {want[1]} ({midtext}); {len(ents)} writes', errs)
+    cop = None
+    if not hit:                                    # (which side failed: the career club's counter in the stop's save -
+        cop = goal_slot_saved(want[1])             # 0 = no goal of it yet (level ties, penalties), > 0 = goals the
+    check(hit, f'no class-{want[0]} goal into counter {want[1]} ({midtext}); {len(ents)} writes; '   # ring missed)
+               f'career club\'s counter {want[1]} in the save: {cop}', errs)
     cls = sorted({(e[0], e[1], e[3]) for _, e in ents})
     return not errs, '; '.join(errs) or f'{name}: {len(hit)} {midtext} scorers -> counter {want[1]}, +37 untouched in ' \
                                         f'all {len(ents)} writes (slot, counter, class: {cls})'
+
+
+def goal_slot_saved(counter):
+    """the career club's goals in counter 0..3 (player +33..+36: LEGA COP1 COP2 INT) summed over its 16 record players,
+    from the newest .CAR of the w84 run (the stop's save: team record at 56192, players at +76, 38 B), or None"""
+    d = os.path.join(RUNS, w84_tag() + '_1', 'SWOS')
+    cars = sorted((f for f in os.listdir(d) if f.upper().endswith('.CAR')), key=lambda f: os.path.getmtime(os.path.join(d, f))) \
+        if os.path.isdir(d) else []
+    if not cars:
+        return None
+    b = open(os.path.join(d, cars[-1]), 'rb').read()
+    return sum(b[56192 + 76 + 38 * k + 33 + counter] for k in range(16))
 
 
 @scenario
@@ -9572,7 +9589,9 @@ def goal_slot_sc_real():
 @scenario
 def goal_slot_cd():
     """4.0.5 (goalslot.py) the Coppa Italia Serie D's goals in COP2: a FIDELIS ANDRIA career (Serie D girone H), season 1
-    up to its second COPPA ITALIA SERIE D screen. Draw-proof: a CD_FORCE=1 test build of the release data (W2627REL_DATA,
+    up to its second COPPA ITALIA SERIE D screen. Goals forced: simdraw's table filled with 2-2 (W8485_FILL, every
+    simulated result; 4.1: m1's primo turno went 0-0 to penalties, nothing to write); a FAIL names the club's COP2 goals
+    in the stop's save (0 = no goal, > 0 = the ring missed them). Draw-proof: a CD_FORCE=1 test build of the release data (W2627REL_DATA,
     else world5tm-403c11; the career club wins its Coppa D ties - pre31's data had it lose round 1 to MANFREDONIA, no
     second screen), as goal_slot_po; GOALSLOT_CD_BUILD = a build of your own."""
     src = (os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-403c11')).rstrip('/')
@@ -9583,7 +9602,16 @@ def goal_slot_cd():
         order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
         exe = build('goal_slot_cd', env={'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]),
                                          'CD_FORCE': '1'})
-    return goal_slot_run('goal_slot_cd', 'EUROPA,ITALIA,SERIE D GIRONE H,FIDELIS ANDRIA', 'COPPA ITALIA SERIE D', exe, (2, 2))
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import simdraw
+    from le import LE
+    tab = simdraw.table()                       # (every simulated result 2-2: the Coppa D tie has goals - forced, not
+    d2 = LE(open(os.path.join(exe, 'ITALIAN.EXE'), 'rb').read()).obj_bytes(2)    # hoped; as world_away_goals)
+    at = [m.start() for m in re.finditer(re.escape(tab), d2)]
+    if len(at) != 1:
+        return False, f'simdraw table found {len(at)} times in {exe}'
+    return goal_slot_run('goal_slot_cd', 'EUROPA,ITALIA,SERIE D GIRONE H,FIDELIS ANDRIA', 'COPPA ITALIA SERIE D', exe, (2, 2),
+                         screens=int(os.environ.get('GOALSLOT_CD_SCREENS', '2')), fill=f'{at[0]:x}:22:{len(tab)}')
 
 
 @scenario

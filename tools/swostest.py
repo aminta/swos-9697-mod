@@ -29845,12 +29845,14 @@ def cpucards_label():
 def fin_statement():
     """4.0.6 finance's row on the post-match statement (finance.py fi_stmt; Davide on the MiSTer, I3S: the club income was
     credited with no row, old balance + total != new): SWOSTEST_BUILD (SWOSTEST_UI it / en / fr / de, that language's
-    exe as ITALIAN.EXE), a new career (JUVENTUS) and the old save JUVEFIX3.CAR, each advanced to the career menu after a
-    match charge (the sponsorship grown), ANDAMENTO CLUB = the in-season statement: label entry 6 = finance.ROW[lang],
+    exe as ITALIAN.EXE), a new career (JUVENTUS) and the old save JUVEFIX3.CAR, each advanced to the career menu after
+    FIN_CHARGES (default 1,3; the old save also 0: right after the load) match days that credited income (the
+    sponsorship grown that many times), ANDAMENTO CLUB = the in-season statement: label entry 6 = finance.ROW[lang],
     visible, font characters only, within its entry's width, the label rows apart (no overlap: the rows below it moved
-    down) and above CONTINUA; value entry 16 = the sponsorship (obj2, finance.find's SPONS); old balance (12) + the
-    total (20) = the new balance (21); the shown rows (13..19) + the hidden D6B88 / competition bonuses = the total; a
-    screenshot of each"""
+    down) and above CONTINUA; value entry 16 = the statement period's share (4.1, Regia 07/11: the growth of obj2's SPONS
+    since the last career menu - one match day - not the season's SPONS; right after a load: the figure that balances
+    it, finance.py FI_OLD); old balance (12) + the total (20) = the new balance (21); the shown rows (13..19) + the hidden
+    D6B88 / competition bonuses = the total; a screenshot of each"""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import complist
     import finance
@@ -29859,10 +29861,12 @@ def fin_statement():
     row = finance.ROW[UI]
     money = lambda t: (-1 if t.lstrip().startswith('-') else 1) * int(re.sub(r'\D', '', t) or 0)
     word = lambda r, o: struct.unpack('<i', bytes(r.obj2(o, 4)))[0]
+    marks = [int(x) for x in os.environ.get('FIN_CHARGES', '1,3').split(',')]
+    old_marks = sorted({0} | set(marks)) if 'FIN_CHARGES' not in os.environ else marks
     errs, info = [], []
     for case in ('new', 'old'):
         files = {'JUVEFIX3.CAR': os.path.join(SAVES, 'JUVEFIX3.CAR')} if case == 'old' else {}
-        with Session(f'fin_statement_{UI}_{case}', builds()['it'], files, 'dump:2', 300) as s:
+        with Session(f'fin_statement_{UI}_{case}', builds()['it'], files, 'dump:2', 600) as s:
             if s.wait().outcome != 'dump':
                 errs.append(f'{case}: no first pause ({s.result})')
                 continue
@@ -29871,50 +29875,59 @@ def fin_statement():
                 s.send('fire dump:2')
             else:
                 new_career(s, 'ITALIA', 'SERIE A', 'JUVENTUS')
-            seen = []                                    # the sponsorship at the first career menu, then grown
+            seen = []                                    # the sponsorship at each career menu where it grew
             def charged(scr):
                 if 'ANDAMENTO CLUB' not in scr.texts():
                     return False
-                seen.append(word(s.result, sym['SPONS'][1]))
-                return seen[-1] != seen[0]
-            ok, msg = advance(s, charged, 150)
-            if not ok:
-                errs.append(f'{case}: no match charge: {msg}')
-                continue
-            press(s, s.screen(), 'ANDAMENTO CLUB', 3)
-            scr = s.screen()
-            if not any(e[0] == 6 and not e[2] and e[1] == row for e in scr.entries):
-                errs.append(f'{case}: no {row!r} row: {scr}')
-                continue
-            s.shot(f'statement_{case}')
-            e = {i: (t, inv) for i, t, inv, _ in scr.entries}
-            raw = {x[0]: scr.raw[j].decode('latin-1') for j, x in enumerate(scr.entries)}   # (the English '£' rows:
-            v = {i: money(raw[i]) for i in range(12, 22) if i in e and not e[i][1]}       # no text, the bytes read)
-            check(all(re.search(r'\d', raw[i]) for i in v), f'{case}: a value row without digits {raw}', errs)
-            w = scr.geom[[x[0] for x in scr.entries].index(6)][2]
-            check(set(row) <= set(complist.SMALL_W) | {' '}, f'{case}: {row!r} has non-font characters', errs)
-            check(complist.px(row) <= w, f'{case}: {row!r} {complist.px(row)} px > its entry {w} px', errs)
-            g = {x[0]: scr.geom[j] for j, x in enumerate(scr.entries) if not x[2]}
-            ys = sorted(g[i][1] for i in range(2, 12) if i in g)        # the visible labels: one row each, and the
-            check(all(b - a >= 8 for a, b in zip(ys, ys[1:])), f'{case}: label rows overlap {ys}', errs)   # last
-            ci = scr.find('CONTINUA', exact=True)                         # above CONTINUA
-            check(ci is None or g[21][1] + g[21][3] <= scr.geom[ci][1], f'{case}: new balance over CONTINUA', errs)
-            spons, nb = word(s.result, sym['SPONS'][1]), word(s.result, sym['NEWBAL'][1])
-            k = v[21] / nb if nb else 1                     # (the exe's currency: the Italian one shows lire, x 2)
-            check(k > 0 and abs(v.get(16, 0) - spons * k) <= k, f'{case}: row {raw.get(16)!r} != the sponsorship {spons} x {k:g}', errs)
-            check(spons > 0, f'{case}: no income after a match ({spons})', errs)
-            check(v[12] + v[20] == v[21], f'{case}: old {v[12]} + total {v[20]} != new {v[21]}', errs)
-            hid = round(k * (word(s.result, sym['D6B88'][1]) + word(s.result, sym['D6B88'][1] + 4)))
-            rows = sum(x for i, x in v.items() if 13 <= i <= 19)
-            check(abs(rows + hid - v[20]) <= 8 * k, f'{case}: rows {rows} + hidden {hid} != total {v[20]}', errs)
-            if ci is not None:                              # a second visit: the same rows (no drift of the
-                press(s, scr, 'CONTINUA', 2)                # moved rows: the menu is rebuilt at every show)
+                v_ = word(s.result, sym['SPONS'][1])
+                if not seen or v_ != seen[-1]:
+                    seen.append(v_)
+                return len(seen) > n
+            for n in (old_marks if case == 'old' else marks):
+                tag = f'{case}{n}'
+                ok, msg = advance(s, charged, 150 * n or 10)
+                if not ok:
+                    errs.append(f'{tag}: no match charge {n}: {msg}')
+                    break
                 press(s, s.screen(), 'ANDAMENTO CLUB', 3)
-                scr2 = s.screen()
-                g2 = {x[0]: scr2.geom[j] for j, x in enumerate(scr2.entries) if not x[2]}
-                check(g2 == g, f'{case}: second visit rows moved {[(i, g[i][1], g2.get(i)) for i in g if g2.get(i) != g[i]]}',
-                      errs)
-            info.append(f'{case}: {row} {raw[16].strip()} (from {seen[0]}, x {k:g}), old {v[12]} + total {v[20]} = new {v[21]} ({msg})')
+                scr = s.screen()
+                if not any(e[0] == 6 and not e[2] and e[1] == row for e in scr.entries):
+                    errs.append(f'{tag}: no {row!r} row: {scr}')
+                    break
+                s.shot(f'statement_{tag}')
+                e = {i: (t, inv) for i, t, inv, _ in scr.entries}
+                raw = {x[0]: scr.raw[j].decode('latin-1') for j, x in enumerate(scr.entries)}   # (the English '£' rows:
+                v = {i: money(raw[i]) for i in range(12, 22) if i in e and not e[i][1]}       # no text, the bytes read)
+                check(all(re.search(r'\d', raw[i]) for i in v), f'{tag}: a value row without digits {raw}', errs)
+                w = scr.geom[[x[0] for x in scr.entries].index(6)][2]
+                check(set(row) <= set(complist.SMALL_W) | {' '}, f'{tag}: {row!r} has non-font characters', errs)
+                check(complist.px(row) <= w, f'{tag}: {row!r} {complist.px(row)} px > its entry {w} px', errs)
+                g = {x[0]: scr.geom[j] for j, x in enumerate(scr.entries) if not x[2]}
+                ys = sorted(g[i][1] for i in range(2, 12) if i in g)        # the visible labels: one row each, and the
+                check(all(b - a >= 8 for a, b in zip(ys, ys[1:])), f'{tag}: label rows overlap {ys}', errs)   # last
+                ci = scr.find('CONTINUA', exact=True)                         # above CONTINUA
+                check(ci is None or g[21][1] + g[21][3] <= scr.geom[ci][1], f'{tag}: new balance over CONTINUA', errs)
+                nb = word(s.result, sym['NEWBAL'][1])
+                last = seen[-1] - seen[-2] if n else None   # (the period's share: SPONS's growth since the last menu)
+                k = v[21] / nb if nb else 1                 # (the exe's currency: the Italian one shows lire, x 2)
+                if n:
+                    check(k > 0 and abs(v.get(16, 0) - last * k) <= k, f'{tag}: row {raw.get(16)!r} != the period\'s share '
+                          f'{last} x {k:g} (the season\'s {seen[-1]})', errs)
+                    check(last > 0, f'{tag}: no income at match day {n} ({seen})', errs)
+                check(v[12] + v[20] == v[21], f'{tag}: old {v[12]} + total {v[20]} != new {v[21]}', errs)
+                hid = round(k * (word(s.result, sym['D6B88'][1]) + word(s.result, sym['D6B88'][1] + 4)))
+                rows = sum(x for i, x in v.items() if 13 <= i <= 19)
+                check(abs(rows + hid - v[20]) <= 8 * k, f'{tag}: rows {rows} + hidden {hid} != total {v[20]}', errs)
+                if ci is not None:                          # a second visit: the same rows (no drift of the
+                    press(s, scr, 'CONTINUA', 2)            # moved rows: the menu is rebuilt at every show)
+                    press(s, s.screen(), 'ANDAMENTO CLUB', 3)
+                    scr2 = s.screen()
+                    g2 = {x[0]: scr2.geom[j] for j, x in enumerate(scr2.entries) if not x[2]}
+                    check(g2 == g, f'{tag}: second visit rows moved {[(i, g[i][1], g2.get(i)) for i in g if g2.get(i) != g[i]]}',
+                          errs)
+                    press(s, scr2, 'CONTINUA', 2)
+                info.append(f'{tag}: {row} {raw[16].strip()} (share {last} of the season\'s {seen[-1]}, x {k:g}), old {v[12]} '
+                            f'+ total {v[20]} = new {v[21]} ({msg})')
     return not errs, '; '.join(errs) or '; '.join(info)
 
 

@@ -15,11 +15,16 @@ the career club's division (dseg_D6CDC) counted as the league's levels: a level 
 A-C, Serie D girone A-I, ...: menulevels' tables) is one level; a league without groups: division + 1. Levels past
 the table: its last value. Nothing is saved: an old save gets it from its next match charge.
 
-The post-match statement (ClubBusinessInit's in-season variant, Davide on the MiSTer) showed no row for it and left it
-out of its PROFITTI / PERDITE TOTALI (old balance + total != new balance): it now shows the hidden sponsorship row
-(label entry 6, value entry 16, as the season-start statement's Sensisoft deal) with ROW[lang], the rows below it
-15 px down as that statement does, and adds the sponsorship to its total. The season-start statements are the original's: a new club's (sponsorship 0 there) and
-the staying club's (the Sensisoft deal row, already counted).
+The post-match statement (ClubBusinessInit's in-season variant, Davide on the MiSTer) showed no row for it and left
+it out of its PROFITTI / PERDITE TOTALI (old balance + total != new balance): it now shows the hidden sponsorship row
+(label entry 6, value entry 16, as the season-start statement's Sensisoft deal) with ROW[lang], the rows below it 15
+px down as that statement does, and adds it to its total. Its value is the TV share credited in the statement's
+period (FI_PER: the game opens a period - old balance = new, the rows' accumulators cleared - at the season start and
+at each match day, cseg_4DD58 / cseg_4E148), as every other row; 4.0.6 showed the season's SPONS there, so from a
+season's 2nd match day on old + total != new (4.1 fix, Regia 07/11). FI_PER is not saved: on a period FI_OLD does not
+name (a career loaded since) the row is what balances the statement (new - old - the game's own total). The season-
+start statements are the original's: a new club's (sponsorship 0 there) and the staying club's (the Sensisoft deal
+row, already counted).
 
 The gate receipts (cseg_3C4CE) were cut to 16 bits before x16 (`and D7, 0FFFFh`): a gate over 65535 x 16 wrapped to
 a few pounds. Saturated at 0FFFFh now.
@@ -83,6 +88,7 @@ fi_charge:                              ; replaces `add word [C1750DA], 1` in cs
     div ebx
     add [FF_TVW], eax                   ; (4.0.6 FFP: the season's wage-linked share, not income for its ratio)
     add eax, ecx
+    add [FI_PER], eax                   ; (the statement period's share: the in-season statement's row)
     add [SPONS], eax                    ; SPONSORSHIP
     add [NEWBAL], eax
     popad
@@ -102,7 +108,31 @@ GATE_FORCE
     pop eax
     jmp GATE_BACK
 
+fi_old:                                 ; replaces `mov eax, [NEWBAL]; mov [OLDBAL], eax` (both statement period starts:
+    mov eax, [NEWBAL]                   ; the season's, cseg_4DD58, and the match day's, cseg_4E148, with the rows'
+    mov [OLDBAL], eax                   ; accumulators cleared)
+    mov [FI_OLD], eax
+    mov dword [FI_PER], 0
+    ret
+
 fi_stmt:                                ; replaces `mov eax, [D6B88]; mov [D1], eax` (the in-season statement's total)
+    mov eax, [OLDBAL]                   ; 4.1: this period's share (FI_PER), the period FI_OLD names; another period
+    cmp eax, [FI_OLD]                   ; (a career loaded since: FI_PER is not saved) - what balances the statement:
+    jne .bal                            ; new - old - the game's own total
+    mov eax, [FI_PER]
+    jmp .have
+.bal:
+    mov eax, [NEWBAL]
+    sub eax, [OLDBAL]
+    sub eax, [T1]
+    sub eax, [T2]
+    sub eax, [T3]
+    sub eax, [T4]
+    add eax, [T5]
+    add eax, [T6]
+    add eax, [T7]
+.have:
+    mov [FI_SHOW], eax
     mov dword [D0], 6                   ; the label: ours, shown
     call CALCMENU
     mov esi, [A0]
@@ -114,15 +144,15 @@ fi_stmt:                                ; replaces `mov eax, [D6B88]; mov [D1], 
     mov word [esi + 4], 0
     mov eax, [esi + 38]
     mov [A1], eax
-    mov eax, [SPONS]
-    mov [D0], eax
+    mov eax, [FI_SHOW]                  ; (4.1: the period's share, as the other rows: not the season's SPONS -
+    mov [D0], eax                       ;  old + total = new from the period's 2nd charge on)
     call WRITEBAL
     mov dword [D0], 7                   ; the rows below it 15 px down, as the staying club's statement does
     call .down                          ; for its Sensisoft row (cseg_5F0E7: labels 7..11, values 17..21)
     mov dword [D0], 17
     call .down
     mov eax, [D6B88]                    ; the total with it
-    add eax, [SPONS]
+    add eax, [FI_SHOW]
     mov [D1], eax
     ret
 .down:
@@ -135,6 +165,10 @@ fi_stmt:                                ; replaces `mov eax, [D6B88]; mov [D1], 
     loop .dn
     ret
 
+align 4
+FI_PER: dd 0                            ; the TV share credited in this statement period
+FI_OLD: dd 0                            ; the old balance of the period FI_PER counts (not saved: a load = another)
+FI_SHOW: dd 0                           ; the row's value at this show
 FI_ROW: ROW_DB
 FI_BASE: BASE_DD
 FI_LV: LV_DB
@@ -174,6 +208,19 @@ def find(p):
     assert len(g) == 1, g
     st = [m.start() for m in re.finditer(rb'\xa1....\xa3(....)\xa1....\x01\x05\1\xa1....\x01\x05\1', d, re.S)]
     assert len(st) == 3, st                             # the statement totals: in-season, new club, staying club
+    t = st[0]                                           # (the in-season total: D6B88 + 3 adds - 3 subs, 11 B each)
+    assert all(d[t + 10 + 11 * k] == 0xA1 and d[t + 15 + 11 * k:t + 17 + 11 * k] == (b'\x01\x05' if k < 3 else b'\x29\x05')
+               for k in range(6)), 'the in-season total'
+    terms = [p.target(1, t + 1)] + [p.target(1, t + 11 + 11 * k) for k in range(6)]
+    nbal = (2, b9a - 0x32)
+    def tgt(o):
+        try:
+            return p.target(1, o)
+        except AssertionError:                          # (no fixup there: not an address)
+            return None
+    per = [m.start() for m in re.finditer(rb'\xa1(....)\xa3(....)\xc7\x05', d, re.S)
+           if tgt(m.start() + 1) == nbal and tgt(m.start() + 6) == (2, nbal[1] + 4)]
+    assert len(per) == 2, ('the statement period starts', per)
     w = re.search(rb'\xc7\x05(....)\x13\x00\x00\x00\xe8(....)\x8f\x05\1\x8b\x35(....)\x8b\x46\x26\xa3(....)\xa1....'
                   rb'\xa3\1\xf7\x1d\1\xe8(....)\Z', d[st[0] - 60:st[0]], re.S)
     assert w, 'the wages row before the in-season total'
@@ -184,7 +231,8 @@ def find(p):
             'A0': p.target(1, s0 + w.start(3)), 'A1': p.target(1, s0 + w.start(4)), 'CALCMENU': rel(2), 'WRITEBAL': rel(5),
             'charge': cnt[0], 'C1750DA': p.target(1, cnt[0] + 3), 'gate': g[0], 'D7': p.target(1, g[0] + 2),
             'D6B9E': (2, b9a + 4), 'D6CA2': p.target(1, ca2[0] + 3), 'SPONS': (2, b9a - 0xA), 'NEWBAL': (2, b9a - 0x32),
-            'D6CDC': (2, gplay._cardiv(p))}
+            'D6CDC': (2, gplay._cardiv(p)), 'OLDBAL': (2, b9a - 0x2E), 'per': per,
+            **{f'T{k + 1}': terms[k] for k in range(7)}}
 
 
 def levels(lang):
@@ -211,10 +259,12 @@ def patch(p, at, lang):
     assert s['SPONS'] == (2, s['D6B88'][1] + 8), (s['SPONS'], s['D6B88'])   # D6B88, competitionBonuses, sponsorship
     for k, n in (('charge', 8), ('gate', 10), ('stmt', 10)):
         assert p.get(1, s[k], n) == d[s[k]:s[k] + n], ('finance site already patched', k)
+    for a in s['per']:
+        assert p.get(1, a, 10) == d[a:a + 10], ('finance period start already patched', hex(a))
     lv = levels(lang)
     rows = []
     sym = {k: s[k] for k in ('C1750DA', 'D7', 'D6B9E', 'D6CA2', 'SPONS', 'NEWBAL', 'D6CDC', 'D6B88', 'D1', 'D0', 'A0', 'A1',
-                             'CALCMENU', 'WRITEBAL')}
+                             'CALCMENU', 'WRITEBAL', 'OLDBAL', 'T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7')}
     for j, (lat, row) in enumerate(lv):
         sym[f'LV{j}'] = lat
         rows.append(f'dd LV{j}')
@@ -243,6 +293,10 @@ def patch(p, at, lang):
     p.remove(1, s['stmt'] + 1)
     p.remove(1, s['stmt'] + 6)
     p.branch(1, s['stmt'], 0xE8, 3, lab['fi_stmt'], 10)
+    for a in s['per']:                                   # (4.1: the statement periods' starts)
+        p.remove(1, a + 1)
+        p.remove(1, a + 6)
+        p.branch(1, a, 0xE8, 3, lab['fi_old'], 10)
     print(f'exe: club income per match charge (base {[b // 1000 for b in BASE]} k by level + {WAGE_MUL}/{WAGE_DIV} x the '
           f'wages; {len(lv)} leagues with levels of groups) + gate saturated + statement row {ROW[lang]!r}: code '
           f'obj3+{at:#x} ({len(code)} B), sites '

@@ -23,7 +23,7 @@ function load(file, lang) {                                   // a patcher page'
     atob: s => Buffer.from(s, 'base64').toString('latin1'), Blob, Response, DecompressionStream, TextEncoder, TextDecoder, URL, setTimeout, console };
   ctx.document.querySelectorAll = () => [];
   vm.createContext(ctx);
-  vm.runInContext(js + '\n;globalThis.__t = { handle, results, PATCHES, setJoy: typeof setJoy === "function" ? setJoy : null, ' +
+  vm.runInContext(js + '\n;globalThis.__t = { handle, results, PATCHES, setJoy: typeof setJoy === "function" ? setJoy : null, setOmm: typeof setOmm === "function" ? setOmm : null, ' +
     (js.includes('function installDir') ? 'installDir, copyTree, findGame, setLang, DT' + (js.includes('function installCopy') ? ', installCopy, failMsg' : '') : 'x: 0') + ' };', ctx);
   if (ctx.__t.setLang) ctx.__t.setLang(lang);
   return ctx.__t;
@@ -136,6 +136,29 @@ for (const lang of ['it', 'en', 'fr', 'de']) {
     ok(md5(path.join(src, 'ITALIAN.EXE')) === md5(path.join(M, 'orig/ITALIAN.EXE')), `${lang} from the CD: the CD folder untouched`); }
   { const top = path.join(R, 'pp'), dir = path.join(top, 'SWOS'); game(dir, false); fs.writeFileSync(path.join(dir, 'LOADER.BIN'), 'x');
     const n = await T.installDir(new DH(top), say); ok(n > 0, `${lang} SWOS++: ${n} written`); check(T, dir, false, true, `${lang} SWOS++`); }
+  if (T.setOmm) {                                            // 4.1 'Original main menu' (Marco): the exes' mb_omm byte
+    const exes = (gog, pp) => T.PATCHES.filter(p => !p.from && !p.via && p.omm != null && p.id.includes('(GOG)') === gog &&
+                                                    p.id.includes('SWOS++') === pp);
+    const onCount = (dir, gog, pp) => exes(gog, pp).filter(p => fs.existsSync(path.join(dir, p.target)) &&
+                                                                md5(path.join(dir, p.target)) === p.omm_md5).length;
+    for (const [name, gog, sub, pp] of [['ommcd', false, 'SWOS', false], ['ommgog', true, 'Sensible World of Soccer 96-97', false],
+                                        ['ommpp', false, 'SWOS', true]]) {
+      const top = path.join(R, name), dir = path.join(top, sub); game(dir, gog);
+      if (pp) fs.writeFileSync(path.join(dir, 'LOADER.BIN'), 'x');
+      const want = 4;                                        // (SWOS++: ENGLISH.EXE its variant, the other 3 the mod's)
+      T.setOmm(true); const n = await T.installDir(new DH(top), say);
+      const on = onCount(dir, gog, false) + (pp ? onCount(dir, gog, true) : 0);
+      ok(n > 0 && on === want, `${lang} ${name}: the option ON from the originals: ${on}/${want} exes with its byte`);
+      const n2 = await T.installDir(new DH(top), say); ok(n2 === 0, `${lang} ${name} ON again: nothing written: ${log.at(-1).slice(0, 70)}`);
+      T.setOmm(false); const n3 = await T.installDir(new DH(top), say); ok(n3 === 4, `${lang} ${name} OFF: ${n3} written (the 4 exes)`);
+      check(T, dir, gog, pp, `${lang} ${name} OFF`);
+      T.setOmm(true); const n4 = await T.installDir(new DH(top), say);
+      ok(n4 === 4 && onCount(dir, gog, false) + (pp ? onCount(dir, gog, true) : 0) === want, `${lang} ${name} ON once more: ${n4} written`);
+      ok(md5(path.join(backup(dir), 'ITALIAN.EXE')) === md5(path.join(M, gog ? 'orig/gog' : 'orig', 'ITALIAN.EXE')),
+         `${lang} ${name}: MOD_BACKUP = the originals after the switches`);
+      T.setOmm(false);
+    }
+  }
   { // 4.0.3: the community pack "SWOS 16/17" (GAME + DOSBOX + CD\SWOS9697.ISO): refused, nothing written, the CD hint shown;
     // a synthetic one (CD originals + the pack's exe names, once with a MOD_BACKUP) and, with PACK1617=<folder>, a real one
     const cases = [['synthetic', false], ['synthetic + MOD_BACKUP', true]];

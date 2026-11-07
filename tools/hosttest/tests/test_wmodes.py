@@ -128,8 +128,9 @@ def test_wmodes():
     into4 = [a for a in range(B1, B1 + sizes[0] - 5) if rd(a, 1) == b'\xe8' and B4 <= _e8(rd, a) < B4 + swreg.REG_AT]
     nstr = [_e8(rd, a) for a in into4 if a - B1 not in (site,) + tuple(c for c, _ in calls)]
     car = [t for t in nstr if rd(t, 2) == b'\x60\xe8']       # (M3: the career's team choice, swe_car_tramp)
-    nstr = [t for t in nstr if t not in car]
-    if len(nstr) != 1 or len(car) != 1 or rd(nstr[0] + 1, 3) != b'\x0f\xb6\xc0':
+    av = [t for t in nstr if t not in car and rd(t + 1, 3) != b'\x0f\xb6\xc0']   # (step 2.5: the preset / season
+    nstr = [t for t in nstr if t not in car and t not in av]                     # selectors' tramps, -DAV builds)
+    if len(nstr) != 1 or len(car) != 1 or len(av) not in (0, 2):
         return False, f'obj1 calls into obj4: {[hex(a - B1) for a in into4]} (the picker, DIY save / load, w_ns_menu)'
     ns = _e8(rd, nstr[0] + 4 + 1)
     import re

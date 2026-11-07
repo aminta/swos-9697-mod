@@ -126,6 +126,7 @@ def m2_sites(p, site):
         ch = mainbtn.CHOOSE[0]
         assert p.get(1, ch['site'], 1) == b'\xe8', ('ChooseTeamsDialog picker call', hex(ch['site']))
         ext['MB_HDR'], ext['MB_STR'] = ch['HDR'], ch['STR']
+        ext['MB_OMM'] = mainbtn.OMM[0]              # (4.1: the patcher's 'Original main menu' byte, set_w)
         calls.append((ch['site'], 'swe_car_tramp'))
         nat = careerworld.SITES.get('nat')
         if nat:                                     # (M3: the coach nationality list after the team choice)
@@ -202,7 +203,7 @@ def patch(p):
         calls = [c for c in calls if c[1] not in ('swe_ns_tramp', 'swe_stfm_tramp')]
     if 'W_FNAT' in careerworld.LABELS:              # step 2.5: the friendly / DIY nationals' world (w_tmap)
         ext['CW_FNAT'] = (1, careerworld.LABELS['W_FNAT'])
-    flags = (('-DNS',) if ns else ()) + (('-DNAT',) if 'CW_PLNAT' in ext else ()) + (('-DMB',) if 'MB_STR' in ext else ()) + (('-DFNAT',) if 'CW_FNAT' in ext else ()) + (('-DAV',) if 'SWE_PREPICK' in ext else ())
+    flags = (('-DNS',) if ns else ()) + (('-DNAT',) if 'CW_PLNAT' in ext else ()) + (('-DMB',) if 'MB_STR' in ext else ()) + (('-DOMM',) if 'MB_OMM' in ext else ()) + (('-DFNAT',) if 'CW_FNAT' in ext else ()) + (('-DAV',) if 'SWE_PREPICK' in ext else ())
     syms, end, bss = cobj.link(p, cobj.compile_c(SRC, flags), CODE_AT, (4, room), externs=ext, limit=swreg.REG_AT,
                                text_obj=4)
     arena = syms['SWE_ARENA_AT']

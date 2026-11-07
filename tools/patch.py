@@ -632,6 +632,7 @@ def patch_exe(src, dst, remap, lang='it'):
                      fmtpage.BSS_SIZE)
     import mainbtn
     mainbtn.SETTING[0] = None                    # (per exe: the registry's pointer to the world switch's byte)
+    mainbtn.OMM[0] = None                        # (per exe: the 'Original main menu' byte)
     if lt_room:
         lt_end_ = longtable.patch(p, (lt_room[0] + 15) & ~15, area, lang, lt_obj)
         if worlds and any(pk.meta.get('id', '').startswith('world-2026-27-') for pk in mkseason.packs()):
@@ -736,7 +737,7 @@ def patch_exe(src, dst, remap, lang='it'):
     ctl_end = tz_at + tailzero.SIZE
     ctl_end = blond.unch_patch(p, (ctl_end + 15) & ~15)   # 4.0.2 MALEN: the darkblond sets in half / EGA mode
     import modver                                # 4.0.5: 'MOD <version>' on the main menu (Davide, support)
-    ctl_end = modver.patch(p, (ctl_end + 15) & ~15, lang)
+    ctl_end = modver.patch(p, (ctl_end + 15) & ~15, lang, mainbtn.OMM[0])
     import scorint                               # 4.0.5: the international cups' goals column on CAPO CANNONIERI
     ctl_end = scorint.patch(p, (ctl_end + 15) & ~15, lang)   # NAZIONALE (Luigi: TOT larger than the columns)
     import goalslot                              # 4.0.5: slot-4 / domestic slot-3 goals in LEGA / COP1 / COP2, never

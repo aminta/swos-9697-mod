@@ -152,6 +152,17 @@ ct_optret:                              ; (and on return to OPTIONS: unpacked ag
     mov word [esi + 16h], QUIT_Y        ; (4.0.5 Marco: EXIT TO DOS 1 px up - 2 px above and below CONTROLS)
     mov byte [MENU_ + 16h + 18 * 38h + 0Ah], 19
     mov byte [MENU_ + 16h + 18 * 38h + 12h], 19
+    cmp word [MENU_ + 16h + 38h + 16h], ROW1_Y   ; 4.1 (Marco 07/11): the game's option rows 1..16 (11 px high
+    jne .x                              ; boxes) ROWS_DY px down - cpucards' / gkinj's rows above them are made from
+    mov esi, MENU_ + 16h + 38h          ; row 1 after this, so they follow: the gap under the title as the one above
+    mov ecx, 16                         ; EXIT TO DOS (once per unpack: row 1 still at its y)
+.r:
+    cmp word [esi + 1Ah], 11
+    jne .n
+    add word [esi + 16h], ROWS_DY
+.n:
+    add esi, 38h
+    loop .r
 .x: popad
     ret
 
@@ -1004,7 +1015,8 @@ def patch(p, at, lang):
                 'KEYTAB': (1, base + off['keytab']), 'DEVPTR': (1, base + off['devptr']),
                 'MSGTAB': (1, base + off['msgtab']), 'FIELDS': (1, base + off['fields']), 'CTMENU': (1, base + m_at),
                 'S_TITLE': (1, base + off['title']), 'S_TEST': (1, base + off['test']), 'S_DUP': (1, base + off['dup']),
-                'REC_': (0, REC), 'BTN_Y': (0, BTN_Y), 'QUIT_Y': (0, QUIT_Y)})
+                'REC_': (0, REC), 'BTN_Y': (0, BTN_Y), 'QUIT_Y': (0, QUIT_Y), 'ROW1_Y': (0, ROW1_Y),
+                'ROWS_DY': (0, ROWS_DY)})
     sym.update({f'S_K{i}': (1, base + off[f'k{i}']) for i in range(5)})
     for k, (o, sz) in {'MODE': (0, 1), 'PAD': (1, 1), 'KIDX': (2, 1), 'ARMED': (3, 1), 'FPREV': (4, 1),
                        'DUP': (5, 1), 'WAIT': (6, 1), 'KEY': (7, 1), 'SV_CTL': (8, 2), 'SV_P1': (10, 2),
@@ -1038,6 +1050,8 @@ def patch(p, at, lang):
 
 LAST = {}                             # (the last patch's labels and data block: kbd2's CONTROLS B page builds on them)
 LABEL_COL, VALUE_COL = 0x09, 0x0D     # (the OPTIONS rows: labels 9, values 13)
+ROW1_Y, ROWS_DY = 52, 2               # 4.1 (Marco 07/11): the option rows y 16..146 -> 18..148 (title 0..14: gap 1 -> 3 px;
+                                      # EXIT TO DOS at 151: 4 -> 2 px; 5 px in all, the nearest to equal)
 BTN_Y, QUIT_Y = 168, 151              # the button between EXIT TO DOS (151 + 15) and EXIT (185): 2 px gaps (4.0.5 Marco;
                                       # EXIT ends on the screen's last row, EXIT TO DOS moves up 1 px)
 

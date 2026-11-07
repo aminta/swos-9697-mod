@@ -11552,6 +11552,11 @@ def ct_build():
     return b, controls.runtime(os.path.join(b, 'ITALIAN.EXE'), os.path.join(ROOT, 'orig', UI_ORIG), UI)
 
 
+def ct_fire_bytes(sd):
+    """SETUP.DAT +101..+104 as SAVE writes them with a joypad device (4.1 controls.ct_firefix): 0 -> -1 / -2."""
+    return bytes(b or (0xFF, 0xFE)[k & 1] for k, b in enumerate(sd[101:105]))
+
+
 def ct_entry(r, menu, i):
     """(text bytes, invisible, x, y, w, h) of entry i of the current menu."""
     e = r.base2 + menu + 0x16 + i * 0x38
@@ -11695,6 +11700,62 @@ def kbd2_page():
         got = open(f2, 'rb').read() if os.path.exists(f2) else b''
         check(got[:4] == kbd2.MAGIC + b'\x00', f'CONTROL2.DAT after KEYBOARD ONLY: {got.hex()}', errs)
         notes.append(f'CONTROL2.DAT {got.hex()}')
+    return not errs, '; '.join(errs + notes)
+
+
+@scenario
+def controls_firefix():
+    """4.1 (12 Bit 07/11: a USB stick moved in the menus, its buttons never fired, the match ignored it): SETUP.DAT's
+    stick fire bytes +101..+104 (g_joy1Fire1 / 2, g_joy2Fire1 / 2) are 0 in the factory file and an older CONTROLS page
+    never wrote them. (a) a saved SETUP.DAT with device 3 and those bytes 0: at the start the game's buffer gets
+    FF FE FF FE (controls.ct_boot, before joyfix's stick check), the file is left alone; (b) the factory file (device 1):
+    the bytes stay 0; COMANDI + SALVA on KEYBOARD ONLY writes them 0, on P1 JOYPAD (3) FF FE FF FE (file and game)"""
+    b, v = ct_build()
+    errs, notes = [], []
+    tmp = os.path.join(RUNS, 'controls_firefix_' + UI + '_files')
+    os.makedirs(tmp, exist_ok=True)
+    sd = bytearray(setup_dat())
+    sd[101:105] = bytes(4)
+    for dev in (3, 1):
+        sd[6:8] = struct.pack('<H', dev)
+        open(os.path.join(tmp, f'SETUP{dev}.DAT'), 'wb').write(sd)
+    FIX = b'\xff\xfe\xff\xfe'
+    with Session(f'controls_firefix_a_{UI}', b, {'SETUP.DAT': os.path.join(tmp, 'SETUP3.DAT')}, 'dump:2', 300) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'(a) START: no first pause ({s.result})'
+        mem = s.result.read(s.result.base2 + v['buf'] + 101, 4)
+        disk = open(os.path.join(s.run, 'SWOS', 'SETUP.DAT'), 'rb').read()[101:105]
+        check(mem == FIX and disk == bytes(4), f'(a) device 3, fire 0: game {mem.hex()}, file {disk.hex()}', errs)
+        notes.append(f'(a) game {mem.hex()}, file {disk.hex()}')
+    with Session(f'controls_firefix_b_{UI}', b, {'SETUP.DAT': os.path.join(tmp, 'SETUP1.DAT')}, 'dump:2', 300) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'(b) START: no first pause ({s.result})'
+        mem = lambda: s.result.read(s.result.base2 + v['buf'] + 101, 4)
+        disk = lambda: open(os.path.join(s.run, 'SWOS', 'SETUP.DAT'), 'rb').read()
+        check(mem() == bytes(4), f'(b) device 1 at the start: game {mem().hex()}', errs)
+
+        def open_page():
+            press(s, s.screen(), 'OPZIONI', 2)
+            press(s, s.screen(), 19, 2)
+            return s.screen().n == 26
+
+        if not open_page():
+            return False, '; '.join(errs + [f'(b) page not open ({s.screen().n} entries)'])
+        press(s, s.screen(), 17, 2)                     # SALVA on KEYBOARD ONLY
+        d = disk()
+        check(struct.unpack_from('<H', d, 6)[0] == 1 and d[101:105] == bytes(4) and mem() == bytes(4),
+              f'(b) SALVA keyboard only: device {struct.unpack_from("<H", d, 6)[0]}, file {d[101:105].hex()}, '
+              f'game {mem().hex()}', errs)
+        check(open_page(), '(b) page not open again', errs)
+        s.send('fire dump:0.5')                         # -> P1 JOYPAD, P2 KEYBOARD
+        dev = struct.unpack_from('<H', s.result.read(ct_base(s.result, v) + v['work'], 8), 6)[0]
+        check(dev == 3, f'(b) device row: {dev}', errs)
+        press(s, s.screen(), 17, 2)                     # SALVA (no stick in DOSBox-X: the game's device back to 1)
+        d = disk()
+        check(struct.unpack_from('<H', d, 6)[0] == 3 and d[101:105] == FIX and mem() == FIX,
+              f'(b) SALVA P1 JOYPAD: device {struct.unpack_from("<H", d, 6)[0]}, file {d[101:105].hex()}, '
+              f'game {mem().hex()}', errs)
+        notes.append(f'(b) SALVA 1: file {bytes(4).hex()}; SALVA 3: file {d[101:105].hex()}, game {mem().hex()}')
     return not errs, '; '.join(errs + notes)
 
 
@@ -11874,6 +11935,7 @@ def controls_menu():
         want = bytearray(base)
         want[6:8] = b'\x03\x00'
         want[100] = 0x39
+        want[101:105] = ct_fire_bytes(want)             # (4.1 joyfire: a joypad device's 0 fire bytes -> -1 / -2)
         check(saved == bytes(want), f'SETUP.DAT {saved.hex()} want {bytes(want).hex()}', errs)
         mem = r.read(r.base2 + v['buf'], 105)
         check(mem[100] == 0x39 and mem[6] == 1, f'game: fire {mem[100]:#x}, device {mem[6]} (no stick: 1)', errs)
@@ -11974,7 +12036,8 @@ def controls_calib():
         press(s, s.screen(), 17, 2)
         saved = open(os.path.join(s.run, 'SWOS', 'SETUP.DAT'), 'rb').read()
         sg = struct.unpack_from('<2H', saved, 30) + struct.unpack_from('<8H', saved, 38) + struct.unpack_from('<H', saved, 92)
-        check(sg == want and saved[6] == 3 and saved[:6] == base[:6] and saved[96:] == base[96:],
+        check(sg == want and saved[6] == 3 and saved[:6] == base[:6] and saved[96:101] == base[96:101] and
+              saved[101:105] == ct_fire_bytes(base) and saved[105:] == base[105:],
               f'SETUP.DAT {saved.hex()}', errs)
         notes.append(f'calibration {got}')
     return not errs, '; '.join(errs + notes)

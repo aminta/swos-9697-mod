@@ -735,6 +735,38 @@ ct_apply:                               ; WORK's fields -> [edi]: device, the tw
     add esi, 2
     jmp .f
 .e:
+    jmp ct_firefix                      ; (SAVE: the file's buffer and the game's both)
+
+ct_firefix:                             ; 4.1 (12 Bit 07/11): [edi] = a SETUP.DAT buffer. Its fire bytes +101..+104
+                                        ; (g_joy1Fire1 / 2, g_joy2Fire1 / 2: -1 / -2 = the stick's 1st / 2nd button)
+                                        ; are 0 in the CD's / GOG's factory file: Joy1SetStatus then sets bit 4, never
+                                        ; fire (20h), with any device but keyboard only. 0 -> -1 / -2; device 1 untouched
+    cmp word [edi + 6], 1
+    je .x
+    xor ecx, ecx
+.b:
+    cmp byte [edi + 101 + ecx], 0
+    jne .n
+    mov al, cl
+    and al, 1
+    not al                              ; (even: FFh, odd: FEh)
+    mov [edi + 101 + ecx], al
+.n:
+    inc ecx
+    cmp ecx, 4
+    jb .b
+.x:
+    ret
+
+ct_boot:                                ; 4.1: joyfix's `call ReadSetupDat` (before its stick check): a SETUP.DAT saved
+    call RSDP                           ; by an older CONTROLS page (device != 1, fire bytes 0) repaired in memory
+    cmp byte [SWOSPP], 0FFh             ; (SWOS++ hooks this byte: its own controls)
+    jne .x
+    pushad
+    mov edi, BUF
+    call ct_firefix
+    popad
+.x:
     ret
 
 ct_refresh:                             ; texts, rows shown and links from WORK and the mode
@@ -979,12 +1011,16 @@ def patch(p, at, lang):
                        'SV_P2': (12, 2), 'SV_IT': (14, 2), 'SV_NL': (16, 4), 'CX_': (20, 2), 'CY_': (22, 2),
                        'MINX': (24, 2), 'MAXX': (26, 2), 'MINY': (28, 2), 'MAXY': (30, 2)}.items():
         sym[k] = (1, v + o)
+    vj = sym['RGP'][1] - 0x66                          # 4.1: joyfix's code (VerifyJoypadControls' place) opens with
+    assert p.get(1, vj, 1) == b'\xe8', 'joyfix first'  # `call ReadSetupDat`: ct_boot chains onto it
+    sym['RSDP'] = p.call_target(1, vj)
     code, fix = nasmcave.assemble(ASM, at, sym)
     lab = nasmcave.labels(ASM, at, sym)
     assert not any(p.get(1, at, len(code)))
     p.put(1, at, code)
     for o, t_obj, t_off in fix:
         p.add_ptr(1, at + o, t_obj, t_off)
+    p.branch(1, vj, 0xE8, 1, lab['ct_boot'])
     for o, t_obj, t in ptrs:
         p.add_ptr(1, base + o, 1, lab[t] if t_obj == 1 else base + off[t])   # (the block's own texts: obj1 too)
     hdr = menu_header(p, sym['OMBD'][1])

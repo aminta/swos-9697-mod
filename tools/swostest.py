@@ -20734,6 +20734,40 @@ def world_cupd_ischia_load():
 
 
 @scenario
+def world_cfb_guard():
+    """4.1 (Francesco's ISCHIA, World 2026-27, Serie C 2028/29): a big world's save whose record count
+    (careerFileBuffer's word) is damaged - his 06/11 save: 6445h, W1 records 48+ empty - loads: w_load_tail walks only
+    the W1 records present (at most 128, up to the first empty one) and writes that count back, so the walk never reads
+    past the block (4.0.5 / 4.1 dry: data/team.255 -> exit to DOS). His 02/11 save of the same career (108 records)
+    loads as before: the count stays 108. Both on a release-recipe build (CFBGUARD_BUILD, else ISCHIA_REL /
+    CUPLIST_REL); fixtures internal/swostest/fixtures/cfbguard"""
+    fx = os.path.join(MAIN, 'internal', 'swostest', 'fixtures', 'cfbguard')
+    exe = os.environ.get('CFBGUARD_BUILD') or os.environ.get('ISCHIA_REL') or os.environ.get('CUPLIST_REL')
+    if not exe or not os.path.isdir(fx):
+        return True, 'SKIP: no release dir (CFBGUARD_BUILD / ISCHIA_REL / CUPLIST_REL) or no fixtures'
+    errs, notes = [], []
+    for name, want in (('ISCHIA06', 48), ('ISCHIA02', 108)):
+        car = os.path.join(fx, name + '.CAR')
+        save = open(car, 'rb').read()
+        with Session(f'world_cfb_guard_{name.lower()}', exe, {name + '.CAR': car}, f'{LOAD1} dump:3', 300) as s:
+            r = s.wait()
+            if r.outcome != 'dump':
+                errs.append(f'{name}: no career menu after the load ({r})')
+                continue
+            texts = [ui_it(t) for t in s.screen().texts()]
+            check('TRASFERIMENTI' in texts, f'{name}: not the career menu: {texts[:8]}', errs)
+            o2 = r.read(r.base2, 0x30000)
+            at = o2.find(save[2:350])                    # (careerFileBuffer + 2: the W1 block as loaded)
+            if at < 0:
+                errs.append(f'{name}: careerFileBuffer not found')
+                continue
+            n = struct.unpack_from('<H', o2, at - 2)[0]
+            check(n == want, f'{name}: record count {n} after the load, expected {want}', errs)
+            notes.append(f'{name}: career menu, count {n} (saved {struct.unpack_from("<H", save, 0)[0]:#x})')
+    return not errs, '; '.join(errs + notes)
+
+
+@scenario
 def world_gplay_cupd(team='EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA', two=False, extra=None, tag=''):
     """The Coppa Italia Serie D (cupd.py, gplay.c cd_step_c): world5tm-poule with Italy's 'cup_d' = the data session's
     real 2026-27 bracket (internal/world2526/formats/coppa_italia_serie_d_2627.json); a season at LIGORNA (it enters

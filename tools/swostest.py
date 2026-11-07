@@ -6311,18 +6311,21 @@ def shirt_numbers():
 SUBS_NUMS = [99, 43, 5, 3, 20, 18, 86, 61, 17, 14, 9, 1, 12, 7, 10, 77]
 
 
-def subs_rows(vga):
+def subs_rows(vga, strip=(196, 208), xmax=210):
     """The in-match bench list's player rows in a frame (320x200 palette indices): [(y0, y1, bg, segments)], segments =
-    the runs of text columns (x0, x1) in x 100..209 (face, number, name words), a gap of 2+ empty columns between runs."""
+    the runs of text columns (x0, x1) in x 100..xmax-1 (face, number, name words), a gap of 2+ empty columns between
+    runs. A row = a band of 7..10 lines whose background fills x strip[0]..strip[1]-1 (4.1 subs_names14: 208..210, the
+    gap past 14-letter names, xmax 219 = the position letters)."""
     rows, y = [], 0
+    sx = range(*strip)
     while y < 200:
-        c = vga[y * 320 + 203]
-        if all(vga[y * 320 + x] == c for x in range(196, 208)):
+        c = vga[y * 320 + sx[0]]
+        if all(vga[y * 320 + x] == c for x in sx):
             y1 = y
-            while y1 + 1 < 200 and vga[(y1 + 1) * 320 + 203] == c and all(vga[(y1 + 1) * 320 + x] == c for x in range(196, 208)):
+            while y1 + 1 < 200 and all(vga[(y1 + 1) * 320 + x] == c for x in sx):
                 y1 += 1
             if 6 <= y1 - y <= 9:
-                cols = [x for x in range(100, 210) if any(vga[yy * 320 + x] != c for yy in range(y, y1 + 1))]
+                cols = [x for x in range(100, xmax) if any(vga[yy * 320 + x] != c for yy in range(y, y1 + 1))]
                 seg = []
                 for x in cols:
                     if seg and x - seg[-1][1] <= 2:
@@ -6409,6 +6412,20 @@ def subs_numbers():
     99 43 5 3 20 18 86 61 17 14 9 ..., the bench called (PgUp / PgDn at the kick-off) and its list opened: in every
     player row the number is right-aligned (one last column), apart from the face icon, and the name starts in one
     column for all rows, 2+ px after the number. FAILs on the 4.0.2 betas (two-digit numbers touch both)."""
+    return subs_list_run('subs_numbers')
+
+
+@scenario
+def subs_names14():
+    """4.1 41-namelong (Marco: RUUD VAN NISTELROOY): subs_numbers with HAMBURG also named N14_NAMES (match_names14's:
+    whole surnames up to 14 in PlayerInfo.shortName - VAN NISTELROOY, 14 W, 14 M): every bench-list row still left of
+    the position column (x < 210), numbers and names aligned as there. Shot: shots/subs_list.png"""
+    return subs_list_run('subs_names14', N14_NAMES)
+
+
+def subs_list_run(tag, names=None):
+    """subs_numbers' run: HAMBURG numbered SUBS_NUMS (and named `names`), the bench list opened at the kick-off."""
+    geom = ((208, 211), 219) if names else ((196, 208), 210)
     b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
     d = bytearray(open(os.path.join(b, 'DATA', 'TEAM.014') if os.path.exists(os.path.join(b, 'DATA', 'TEAM.014'))
                        else os.path.join(MAIN, 'orig', 'DATA', 'TEAM.014'), 'rb').read())
@@ -6417,11 +6434,13 @@ def subs_numbers():
         if d[o + 5:o + 22].split(b'\0')[0] == b'HAMBURG':
             for k in range(16):
                 d[o + 76 + k * 38 + 2] = SUBS_NUMS[k]
-    team = os.path.join(WORK, 'saves', 'TEAM014_HAMBURG_SUBS.BIN')
+                if names:
+                    d[o + 76 + k * 38 + 3:o + 76 + k * 38 + 26] = names[k].encode().ljust(23, b'\0')
+    team = os.path.join(WORK, 'saves', f'TEAM014_HAMBURG_{tag.upper()}.BIN')
     os.makedirs(os.path.dirname(team), exist_ok=True)
     open(team, 'wb').write(d)
     errs, info = [], []
-    with Session('subs_numbers', b, {'DATA/TEAM.014': team}, 'dump:3', 300, match=True) as s:
+    with Session(tag, b, {'DATA/TEAM.014': team}, 'dump:3', 300, match=True) as s:
         s.wait()
         w9697(s)                                # (a factory SETUP.DAT opens World 2026-27: 1. LIGA is 1996-97's)
         for t in ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB', 'EUROPA', 'GERMANIA', '1. LIGA', 'HAMBURG'):
@@ -6446,7 +6465,7 @@ def subs_numbers():
                 return False, f'match: {r}'
             if k % 2:
                 r = s.send('fire:1 dump:1.5')
-                rows = [x for x in subs_rows(s.box.dump(0xA0000, 64000)) if len(x[3]) >= 2]
+                rows = [x for x in subs_rows(s.box.dump(0xA0000, 64000), *geom) if len(x[3]) >= 2]
                 if len(rows) >= 11:
                     break
         s.shot('subs_list')
@@ -6462,8 +6481,10 @@ def subs_numbers():
             check(len({n[0] for n in name}) == 1, f'names not in one column: {name}', errs)
             check(all(n[0] > f[1] + 1 for n, f in zip(num, face)), f'a number touches the face: {list(zip(face, num))}', errs)
             check(all(m[0] - n[1] >= 2 for n, m in zip(num, name)), f'a number touches the name: {list(zip(num, name))}', errs)
-            check(all(x[3][-1][1] < 210 for x in rows), 'a row runs into the position column', errs)
-    return not errs, '; '.join(errs + info) + ' (runs/subs_numbers/shots/subs_list.png)'
+            check(all(x[3][-1][1] < geom[1] - 2 for x in rows), f'a row runs into the position column (names end '
+                  f'{sorted({x[3][-1][1] for x in rows})}, want < {geom[1] - 2})', errs)
+            info.append(f'names end by x {max(x[3][-1][1] for x in rows)}')
+    return not errs, '; '.join(errs + info) + f' (runs/{tag}/shots/subs_list.png)'
 
 
 BENCH_SLACK = 1018                          # TeamGame 42 + 16 x PlayerInfo 61: the in-match team's used bytes (of 1704)
@@ -28900,7 +28921,59 @@ def xleft_oldpool():
 
 
 N14_NAMES = (['ROBERTO_CARLOS', 'LUIS_ENRIQUE', 'SCHWEINSTEIGER', 'JAN STOECKLINGE', 'MUELLER',
-              'BASTIAN SCHWEINSTEIGER'] * 3)[:16]
+              'BASTIAN SCHWEINSTEIGER', 'RUUD VAN NISTELROOY', 'MARCO VAN BASTEN', 'GIO VAN BRONCKHORST',
+              'A WWWWWWWWWWWWWW', 'A MMMMMMMMMMMMMM'] * 2)[:16]   # (4.1 41-namelong, Marco: the last five)
+
+
+def n14_extract(name, flags):
+    """ExtractSurname (D0 = flags | 14) in Python: (text, cut). 4000h: the words past the first; 8000h: the initial +
+    '. ' + those words; one word: itself. 14 at most, a longer one cut with a '.' (D6 reaches 14: cut)."""
+    s = name.lstrip(' ')
+    e = s.rstrip(' ')
+    if ' ' not in e:
+        txt, d6 = s, 0
+        head = ''
+    else:
+        txt, d6 = s[s.index(' ') + 1:], 0
+        head = ''
+        if flags & 0x8000:
+            head, d6 = s[0] + '. ', 3
+    out = ''
+    for k, ch in enumerate(txt):
+        out += ch
+        if k + 1 == len(txt):
+            return head + out, False
+        d6 += 1
+        if d6 == 14:
+            return head + out[:-1] + '.', True
+    return head + out, False
+
+
+def n14_runs(pts):
+    """Lit pixels -> the shapes between blank columns, left to right (each from its own first column, y as is)."""
+    xs, runs = sorted({x for x, _ in pts}), []
+    for x in xs:
+        if runs and x == runs[-1][-1] + 1:
+            runs[-1].append(x)
+        else:
+            runs.append([x])
+    return [frozenset((x - r[0], y) for x, y in pts if r[0] <= x <= r[-1]) for r in runs]
+
+
+def n14_short(name):
+    """PlayerInfo.shortName (4.1 namespr nl_init): initial + surname; the surname whole when only the initial made it
+    longer than 14."""
+    sh, cut = n14_extract(name, 0x8000)
+    if cut and sh[1:3] == '. ':
+        alt, cut2 = n14_extract(name, 0x4000)
+        if not cut2:
+            return alt
+    return sh
+
+
+def n14_label(short):
+    """The name sprite's text past 'NN ' (4.1 namespr nl_spr): the surname of 'X. ...', else the short name whole."""
+    return n14_extract(short, 0x4000)[0] if short[1:3] == '. ' else short
 
 
 def names_spridx(s=None):
@@ -28971,6 +29044,13 @@ def match_names14():
     c = orig.le.obj_bytes(1)
     eg = [m.start() for m in re.finditer(rb'\x66\x83\x3d....\xff\x0f\x84....\x66\x81\x3d....\x33\x01', c, re.S)]
     egoff = orig.target(1, eg[0] + 3)[1]
+    import sacups                                       # (4.1 41-namelong: topTeamInGame / bottomTeamInGame, and
+    m = re.search(rb'(?:\xc7\x05.{8}){4}\x66\xc7\x05.{4}\xa7\x06', c, re.S)   # MakePlayerNameSprite's `mov [A1],
+    top, bot = orig.target(1, m.start() + 6)[1], orig.target(1, m.start() + 26)[1]   # offset smallCharsTable` past
+    lim = namespr.find(orig)['lim']                                                 # its ExtractSurname)
+    a1 = struct.pack('<I', sacups.regs(c)['A1'])
+    k = [x.start() for x in re.finditer(rb'\xc7\x05' + re.escape(a1), c[lim:lim + 0x80])]
+    small = orig.target(1, lim + k[0] + 6)[1]
     errs, info = [], []
     spp = bool(os.environ.get('SWOSPP_BUILD'))             # (41-namefix, the Integratore: SWOS++ 1.9.2.2, English)
     if spp and UI != 'en':
@@ -29034,6 +29114,41 @@ def match_names14():
                 ends = [max((max(x) for x in rows if x), default=-1) for *_, rows in sp]
                 check(all(e > 10 for e in ends), f'{mode}: an empty name sprite {ends}', errs)
                 check(sum(e >= 80 for e in ends) >= 6, f'{mode}: long names end at {sorted(ends)[-8:]} (want 6 past the old 80 px)', errs)
+                ham = [b_ for b_ in (top, bot) if ingame_team(r, b_)[0] == 'HAMBURG']     # (4.1 41-namelong)
+                check(len(ham) == 1, f'{mode}: HAMBURG in the match: {[ingame_team(r, b_)[0] for b_ in (top, bot)]}', errs)
+                if ham:
+                    tb = r.read(r.base2 + ham[0], 42 + 61 * 16)
+                    pls = [(tb[42 + 61 * k + 54 - 42:42 + 61 * k + 69 - 42].split(b'\0')[0].decode('latin-1'),
+                            tb[42 + 61 * k + 3]) for k in range(16)]
+                    got = sorted(x for x, _ in pls)
+                    want = sorted(n14_short(n) for n in N14_NAMES)
+                    check(got == want, f'{mode}: HAMBURG short names {got}, want {want}', errs)
+                    first = 0 if ham[0] == top else 16
+                    gptr = modver_glyphs()[1]
+                    lw = []
+                    for k, (sh, num) in enumerate(pls):
+                        txt = f'{num} {n14_label(sh)}'
+                        rows = sp[first + k][3]
+                        lit = {(x, y) for y, xs in enumerate(rows) for x in xs}
+                        if not ega:                     # (the font's sprites are chunky in the VGA mode only)
+                            exp = set().union(*modver_render(r, small, gptr, txt.replace('_', ' ')).values())
+                            check(lit and n14_runs(lit) == n14_runs(exp), f'{mode}: sprite {255 + first + k} {txt!r} is '
+                                  f'not that text ({len(lit)} lit pixels, want {len(exp)})', errs)   # (glyph runs: the
+                                  # word gaps of the match's sprites are 1 px off the menu layout, the glyphs the same)
+                        lw.append((txt, max((x for x, _ in lit), default=-1)))
+                    info.append(f'{mode}: ' + ', '.join(f'{t} ..{e}' for t, e in lw if len(t) > 12))
+                    if not ega:
+                        ct = r.read(r.base2 + small, 14 + 224)
+                        sp_, spw, off = struct.unpack_from('<hhh', ct, 8)
+                        tab = struct.unpack('<I', r.read(r.base2 + gptr, 4))[0]
+                        cw = lambda ch: struct.unpack_from('<H', r.read(struct.unpack('<I', r.read(
+                            tab + 4 * (ct[14 + ord(ch) - 32] + off), 4))[0], 24), 10)[0] + sp_
+                        wl = max((cw(ch), ch) for ch in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ.-\'')
+                        wd = max(cw(ch) for ch in '0123456789')
+                        worst = 2 * wd + spw + 14 * wl[0]
+                        check(worst <= 112, f'{mode}: the widest name \'99 \' + 14 x {wl[1]!r} = {worst} px > 112: '
+                              f'Text2Sprite would draw nothing', errs)
+                        info.append(f'{mode}: widest letter {wl[1]!r} {wl[0]} px, digit {wd}, worst name {worst} px of 112')
                 img = Image.new('L', (112, 32 * 8), 0)
                 for k, (*_, rows) in enumerate(sp):
                     for y, xs in enumerate(rows):

@@ -732,6 +732,8 @@ def patch_exe(src, dst, remap, lang='it'):
     ns_end = namespr.patch(p, ns_at, lang)
     assert ns_at == ns_at0 and ns_end <= art_at, (hex(ns_end), hex(art_at))   # (namespr's CAP x DATA: the art's floor)
     blond.art_patch(p, ns_at + 0x1000 * namespr.PAGES)            # 4.0.5: the shaved art in namespr's spare tail
+    namespr.long_patch(p, ns_at + 0x1000 * namespr.PAGES)         # 4.1 (Marco): whole surnames up to 14 (VAN NISTELROOY),
+                                                                  # the top of that tail, after the art
     import numcol                                      # 4.0.5 (Marco): the squad lists' number column 1 px wider
     numcol.patch(p)
     import subsnum                               # 4.0.2: two-digit numbers in the in-match bench list (names +6 px)

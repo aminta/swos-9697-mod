@@ -12172,7 +12172,8 @@ def wm_go(s, t, w=2, nxt=()):
         return 0
     for _ in range(4):
         scr = s.screen()
-        if (scr.find(t) if isinstance(t, str) else t) is None:
+        i = (scr.find(t, exact=True) if scr.find(t, exact=True) is not None else scr.find(t)) if isinstance(t, str) else t
+        if i is None:                                   # (a prefix: 'EUROPA' -> 'EUROPA 96-97', 41-wns' 1996-97 labels)
             k = next((j for j, x in enumerate(nxt) if isinstance(x, str) and scr.find(x) is not None), None)
             if k is not None:
                 s.log.append(f'[spp carried] {t} -> {nxt[k]} on {scr}'[:300])
@@ -12182,7 +12183,7 @@ def wm_go(s, t, w=2, nxt=()):
             s.log.append(f'[spp latch] {t} not on {scr}'[:300])
             press(s, scr, 'ESCI', w)
             continue
-        if press(s, scr, t, w) is None:
+        if press(s, scr, i, w) is None:
             raise AssertionError(f'{t} not reached ({s.screen().texts()[:16]})')
         return 0
     raise AssertionError(f'{t} not on screen ({s.screen().texts()[:16]})')
@@ -13181,7 +13182,9 @@ def world_ns_hist():
     WCUR = the 1984-85 namespace (the build's base world), and ITALIA > SERIE A lists 1984-85's clubs (AVELLINO).
     Before the fix careerworld w_ns_menu let the path's 2026-27 entry win: 2026-27's labels, ITALIA opened SCOZIA.
     4.1 carnost (Davide 07/11): a career's team choice has no STORICO box (its world is the main menu's), so the
-    career case is gone - engine_wmodes_car checks that pick."""
+    career case is gone - engine_wmodes_car checks that pick. Every SWOSTEST_UI: West Germany by the exe's own name
+    (WEST GERMANY / RFA / BRD; the screen shows every country in the exe's language, the harness reads the original
+    countries' entries in IT - BELGIO, ITALIA)"""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import swreg
     errs, info = [], []
@@ -13208,7 +13211,8 @@ def world_ns_hist():
             tx = [t for t in sc.texts() if t]
             ns = s.result.read(wcur, 1)[0]
             s.shot(f'{tag}_countries')
-            check('GERMANIA OVEST' in tx and 'AZERBAIGIAN' not in tx and ns == nsbase,
+            wg = {'en': 'WEST GERMANY', 'fr': 'RFA', 'de': 'BRD'}.get(UI, 'GERMANIA OVEST')   # (the exe's own name;
+            check(wg in tx and 'AZERBAIGIAN' not in tx and ns == nsbase,          # the original countries read in IT)
                   f'{tag}: EUROPA 1984-85 lists {tx[:14]} (WCUR {ns}, 1984-85 {nsbase})', errs)
             try:
                 wm_seq(s, ('ITALIA', 'SERIE A'))

@@ -8,6 +8,13 @@
 
 ### What's new
 
+#### The 4.0.5 save bug (thanks to Francesco and Tally)
+**What happened in 4.0.5.** Playing two or more matches for real (not simulated) without quitting the game could damage your career save, so that it no longer loads (a "data/team..." error and a black screen), or freeze the game at the end of a season. It affected all languages, CD and GOG. 4.0.4 and earlier versions were not affected.
+
+**What 4.1 does.** 4.1 fixes the cause, so you can play as many matches as you like in one go. It also repairs damaged World 2026-27 and Europe 1984-85 careers when you load them: keep the damaged save and just load it in 4.1. A 1996-97 career damaged in 4.0.5 cannot be repaired: load an earlier save.
+
+Thanks to Francesco and Tally, who sent us their saves.
+
 #### Two players on one keyboard
 - **CONTROLS: new device "P1 AND P2 ON KEYBOARD".** Two people can now play on the same keyboard. Player 2 has a second set of keys, by default **W / S / A / D** to move and **left SHIFT** to fire; you can change them in OPTIONS > CONTROLS like the first set, and they are saved in a file of their own (CONTROL2.DAT). Player 1 keeps his usual keys.
 - Good to know: many keyboards cannot read too many keys pressed at once (this is called *ghosting*: the keyboard "forgets" a key when several others are held down). If a direction or the fire key does not answer when both players press a lot at once, choose other keys for player 2 that are far from player 1's.
@@ -291,7 +298,7 @@ With the new button in place, a long coach's name on the squad screen is shown s
 - **Finances:** the new income applies to every career from its next match, including older ones; it changes the money, not the squads.
 
 ### Thanks
-Thanks to Roman for asking for an easier install, to Marco for the financial fair play idea, the training, shirt-number and keyboard ideas, to Enzo for the market-list report, to Nicola for the finance and CPU-replacements reports, to Salvatore and Marco for the arrows report, to Francesco for the bench strip, offers and world ideas and to Ben Baker for the San Marino report. Marco and Davide had the idea of the stoppage time.
+Thanks to Roman for asking for an easier install, to Marco for the financial fair play idea, the training, shirt-number and keyboard ideas, to Enzo for the market-list report, to Nicola for the finance and CPU-replacements reports, to Salvatore and Marco for the arrows report, to Francesco for the bench strip, offers and world ideas, to Francesco and Tally for their 4.0.5 saves and to Ben Baker for the San Marino report. Marco and Davide had the idea of the stoppage time.
 
 ## Italiano
 
@@ -300,6 +307,13 @@ Thanks to Roman for asking for an easier install, to Marco for the financial fai
 La 4.1 è una versione grande. Porta un **selettore del mondo nel menu principale** (2026-27, 1996-97 o Europa 1984-85, per carriera, amichevoli e competizioni personalizzate), **due giocatori sulla stessa tastiera**, le squadre del computer che giocano con le tue regole (rossi, infortuni e infortuni dei portieri per tutti), **finanze dei club più vicine al calcio vero** e un'opzione di **fair play finanziario**, le **convocazioni dalla squadra B** per 20 club, le **coppe continentali** degli altri continenti nelle schermate del gioco, le **panchine su due file** visibili in partita con la rosa avversaria a un tasto di distanza, il **recupero**, la Supercoppa UEFA e le altre partite intercontinentali, i **nomi completi degli stadi**, una **striscia info in panchina**, **offerte** per i tuoi giocatori **più realistiche**, i capelli bianchi di Ravanelli, un'installazione più facile (un nuovo pulsante del patcher e messaggi più chiari) e diverse correzioni. Tutto ciò che c'è dalla 4.0 alla 4.0.5 resta com'era; le carriere salvate con quelle versioni si caricano e si giocano.
 
 ### Novità
+
+#### L'errore dei salvataggi della 4.0.5 (grazie a Francesco e Tally)
+**Cos'è successo nella 4.0.5.** Giocare davvero (non simulate) due o più partite senza chiudere il gioco poteva rovinare il salvataggio della carriera, che non si caricava più (errore "data/team..." e schermo nero), o bloccare il gioco a fine stagione. Riguardava tutte le lingue, CD e GOG. La 4.0.4 e le versioni precedenti non erano colpite.
+
+**Cosa fa la 4.1.** La 4.1 corregge la causa, quindi puoi giocare tutte le partite che vuoi di fila. Ripara anche le carriere del Mondo 2026-27 e dell'Europa 1984-85 già rovinate, quando le carichi: tieni il salvataggio rovinato e caricalo nella 4.1. Una carriera 1996-97 rovinata nella 4.0.5 non si può riparare: carica un salvataggio precedente.
+
+Grazie a Francesco e Tally, che ci hanno mandato i loro salvataggi.
 
 #### Due giocatori sulla stessa tastiera
 - **COMANDI: nuovo dispositivo "G1 E G2 SU TASTIERA".** Due persone possono giocare sulla stessa tastiera. Il giocatore 2 ha un secondo gruppo di tasti, di default **W / S / A / D** per muoversi e **MAIUSC sinistro** per il fuoco; si cambiano in OPZIONI > COMANDI come il primo gruppo e si salvano in un file a parte (CONTROL2.DAT). Il giocatore 1 tiene i suoi tasti di sempre.
@@ -591,4 +605,4 @@ resta quello).
 - **Finanze:** i nuovi incassi valgono per ogni carriera dalla partita successiva, anche per quelle già iniziate; cambiano i soldi, non le rose.
 
 ### Ringraziamenti
-Grazie a Roman per aver chiesto un'installazione più semplice, a Marco per l'idea del fair play finanziario, le idee su allenamento, numeri di maglia e tastiera, a Enzo per la segnalazione sull'elenco del mercato, a Nicola per quelle sulle finanze e sui rimpiazzi della CPU, a Salvatore e Marco per quella sulle frecce, a Francesco per le idee su striscia panchina, offerte e mondi e a Ben Baker per la segnalazione su San Marino. L'idea del recupero è di Marco e Davide.
+Grazie a Roman per aver chiesto un'installazione più semplice, a Marco per l'idea del fair play finanziario, le idee su allenamento, numeri di maglia e tastiera, a Enzo per la segnalazione sull'elenco del mercato, a Nicola per quelle sulle finanze e sui rimpiazzi della CPU, a Salvatore e Marco per quella sulle frecce, a Francesco per le idee su striscia panchina, offerte e mondi, a Francesco e Tally per i loro salvataggi della 4.0.5 e a Ben Baker per la segnalazione su San Marino. L'idea del recupero è di Marco e Davide.

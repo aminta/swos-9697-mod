@@ -11659,6 +11659,39 @@ def ct_check_texts(r, menu, entries, errs, tag):
 
 
 @scenario
+def options_gap():
+    """4.1 (Marco 07/11): OPTIONS' rows 2 px lower (controls.ROWS_DY) - the gap under the title (box 0) 3 px, the one
+    above EXIT TO DOS (17) 2 px, EXIT TO DOS / CONTROLS / EXIT where they were; the same after COMANDI and back (no
+    drift: the rows are moved once per unpack); a shot of each"""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import controls
+    b, v = ct_build()
+    errs, notes = [], []
+    with Session('options_gap_' + UI, b, {}, 'dump:2', 300) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'START: no first pause ({s.result})'
+        for k in range(2):
+            press(s, s.screen(), 'OPZIONI', 2)
+            r, menu = s.result, s.info['menu']
+            e = {i: ct_entry(r, menu, i) for i in range(26)}
+            rows = [i for i in e if i not in (0, 17, 18, 19) and e[i][5] == 11]
+            top = min(e[i][3] for i in rows)
+            bot = max(e[i][3] + e[i][5] for i in rows)
+            gaps = (top - (e[0][3] + e[0][5]), e[17][3] - bot)
+            btn = tuple(e[i][3] for i in (17, 19, 18))
+            check(len(rows) == 22 and gaps == (3, 2) and btn == (controls.QUIT_Y, controls.BTN_Y, 185),
+                  f'pass {k}: {len(rows)} rows, gaps {gaps}, EXIT TO DOS / CONTROLS / EXIT y {btn}', errs)
+            notes.append(f'pass {k}: gaps {gaps}, buttons {btn}')
+            s.shot(f'options_{k}')
+            if k == 0:                                  # COMANDI and back (ANNULLA)
+                press(s, s.screen(), 19, 2)
+                check(s.screen().n == 26, f'COMANDI not open ({s.screen().n})', errs)
+                press(s, s.screen(), 18, 2)
+                press(s, s.screen(), 18, 2)             # (OPTIONS' EXIT: the main menu)
+    return not errs, '; '.join(errs + notes)
+
+
+@scenario
 def controls_mode4():
     """4.0.5 (Marco: 'P1 KEYBOARD, P2 JOYPAD' swapped the devices - the game reads stick 1 for P1 unless keyboard only and
     the keyboard for P2 unless two joypads, so mode 4 always behaved as 3): a game buffer holding 4 (INSTALL's choice,

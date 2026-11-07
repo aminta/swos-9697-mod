@@ -2485,6 +2485,22 @@ w_load_tail:                            ; LoadCareerFile after load_trailer (tra
     call w_copy
     mov [WPTR], esi
     call w_cupnames
+    xor ecx, ecx                        ; 4.1: the record count (careerFileBuffer's word) is at most the W1 records
+.g:                                     ; present: 128 at most, up to the first empty one (pair 0 and byte 4 - the
+    cmp ecx, 128                        ; status, 1 in every record - 0). Francesco's ISCHIA 06/11 saved 6445h with
+    jae .gd                             ; records 48+ empty: the walk went past the block -> data\\team.255 -> exit
+    cmp cx, [CFB]
+    jae .gd
+    cmp word [esi], 0
+    jne .g1
+    cmp byte [esi + 2], 0
+    je .gd
+.g1:
+    add esi, 2 + VARN
+    inc ecx
+    jmp .g
+.gd:
+    mov [CFB], cx
     mov dword [WI], 0
 .rec:                                   ; every record from its TEAM file + the saved bytes
     movzx eax, word [CFB]

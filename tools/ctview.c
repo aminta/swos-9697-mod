@@ -129,7 +129,33 @@ static void word(const char *s, int indent) {   /* s whole on this line, else on
 }
 static void head(const char *rname, const char *tail) { add(rname); add(":"); if (tail) { add(" "); add(tail); } }
 
-/* one round: ko ties (the club through in brackets once played), groups by final place (draw order before) */
+/* 4.1 P (Davide 08/11): a played group's points, from the replay's goals (ctgame's record: ctgame.py points cv_replay
+   at cg_replay, cv_gr at its record); none for a group the career club played in the game (GR_OWN) or not kept
+   (3 a win, 1 a draw: conti.c group()'s) */
+void (*cv_replay)(void) = 0;
+const struct ct_grec *cv_gr = 0;
+static __attribute__((noinline)) int pk(int c, int r, u32 g, u32 k) {   /* group g's club k: its points, -1 none */
+    const u8 *R = RD(c, r);
+    u32 gs = R[7], half = gs * (gs - 1) / 2, n = half * R[8], o = cv_replay ? cv_gr->off[c][r] : 0, i = 0, j = 0, m;
+    int p = 0;
+    if (!o) return -1;
+    const u8 *b = cv_gr->b + o - 1 + g * n;
+    for (m = 0; m < n; m++) {           /* (conti.c group()'s order: leg, i, j > i - the second leg j at home) */
+        if (++j >= gs) { if (++i >= gs - 1) i = 0; j = i + 1; }
+        u32 v = b[m];
+        if (v == GR_OWN) return -1;
+        int d = (int)(v & 15) - (int)(v >> 4);
+        if (m >= half) d = -d;          /* (d: i's goals - j's) */
+        if (!v || (i != k && j != k)) continue;
+        if (j == k) d = -d;
+        p += d > 0 ? 3 : d == 0;
+    }
+    return p;
+}
+static __attribute__((noinline)) int dig(char *b, int m, int v) { if (v >= 10) b[m++] = (char)('0' + v / 10 % 10); b[m++] = (char)('0' + v % 10); return m; }
+
+/* one round: ko ties (the club through in brackets once played), groups by final place (draw order before; 4.1 P:
+   played, each club's points after its name) */
 static void round_lines(int c, int r, int played) {
     const u8 *R = RD(c, r);
     const u8 *ct = cuptab(c);
@@ -153,8 +179,10 @@ static void round_lines(int c, int r, int played) {
                     if (played ? CT_OUT.res[c][r][i] != q : k + 1 != q) continue;
                     char b[40];
                     int m = 0;
-                    if (played) { if (q >= 10) b[m++] = (char)('0' + q / 10); b[m++] = (char)('0' + q % 10); b[m++] = ' '; }
-                    for (const char *s = cname(CT_OUT.ent[c][r][i]); *s && m < 36; ) b[m++] = *s++;
+                    if (played) { m = dig(b, m, q); b[m++] = ' '; }
+                    for (const char *s = cname(CT_OUT.ent[c][r][i]); *s && m < 33; ) b[m++] = *s++;
+                    int v = played ? pk(c, r, g, k) : -1;   /* (4.1 P) */
+                    if (v >= 0) { b[m++] = ' '; m = dig(b, m, v); }
                     b[m++] = ' '; b[m++] = ' '; b[m] = 0;
                     word(b, 2);
                 }
@@ -293,7 +321,8 @@ u32 cv_text(u32 conf, u32 week, char *out, u32 room) {
     if (!CT_SPEC) { add(txt(T_NONE)); endline(); *o = 0; return (u32)(o - out); }
     spec();
     int live = CT_ED.mark == 0x4543;
-    if (live) ct_resume();              /* (the replay: CT_OUT as it stands, CT_SEG unchanged) */
+    if (live) (cv_replay ? cv_replay : ct_resume)();   /* (the replay: CT_OUT as it stands, CT_SEG unchanged; 4.1 P:
+                                           ctgame's, its goals kept for the points) */
     int any = 0;
     for (int c = 0; c < ncup; c++)
         if (cuptab(c)[0] == conf && ONLY(c)) { cup_lines(c, week, live); any = 1; }

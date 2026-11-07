@@ -20095,12 +20095,15 @@ def world_cgame_view():
             b0 = st()
             if cont == 'EUROPA':                        # (the UEFA cups: the game's own view)
                 gwalk(s, cup, 4)
-            else:                                       # (4.1 cdirect: a round in progress - its view, ESCI back)
-                how = ctc_open(s, cup, f'cgw_{q}')
+            else:                                       # (4.1 cdall B: a round drawn - its view straight away, no
+                how = ctc_open(s, cup, f'cgw_{q}')      #  rounds menu, ESCI back on the career menu)
+                check(how != 'menu', f'{cup}: a rounds menu from VIEW WORLD (4.1 cdall B: none)', errs)
                 if how not in ('menu', 'page'):
-                    ok, sel, lab = ctc_same(s, how)
-                    check(ok, f'{cup}: direct view {how!r}, the cursor\'s entry {sel} {lab!r} not that round', errs)
+                    check(how.startswith(cup), f'{cup}: direct view {how!r}', errs)
                     info.append(f'{cup}: direct {how!r}')
+                    check(st() == b0, f'{cup}: CT_SEG / CT_ED changed', errs)
+                    check(career_menu(), f'{cup}: not back on the career menu ({s.screen()})', errs)
+                    continue
             sc = s.screen()
             title = (sc.raw_texts or [sc.entries[0][1]])[0]
             if sc.find(summ, exact=True) is None:      # (no round drawn: the cup's page part; a UEFA cup:
@@ -20367,7 +20370,7 @@ def ctc_confs(s, part, errs, direct=None):
 def ctc_open(s, k, tag):
     """A confederation's / a cup's button k (a number or a label): 'menu' (its rounds menu), 'page' (the summary page:
     no round drawn) or - 4.1 cdirect, a round in progress - the round view's title (its shot ctd_<tag>), then its ESCI
-    till the rounds menu."""
+    till the rounds menu (4.1 cdall B: VIEW WORLD's cup button, k a label - no rounds menu: till the career menu)."""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import ctview
     summ = ctview.TEXTS[UI][7].decode('latin1')
@@ -20380,7 +20383,7 @@ def ctc_open(s, k, tag):
         return 'page'                                   # (VIEW WORLD's cup: its page titled by the cup alone)
     s.shot(f'ctd_{tag}')
     for _ in range(6):
-        if s.screen().find(summ, exact=True) is not None:
+        if s.screen().find(summ, exact=True) is not None or s.screen().find('VISUALIZZA MONDO', exact=True) is not None:
             break
         press(s, s.screen(), 'ESCI', 3) or s.send('fire dump:2')
     return t0.strip() or '?'
@@ -20522,26 +20525,148 @@ def world_ctcursor():
         if cup is None:
             check(False, 'SUDAMERICA: no cup button', errs)
         else:
-            how = ctc_open(s, cup, 'world_cup_ff')      # (4.1 cdall: its last round's view first, ESCI on the menu)
-            check(how not in ('menu', 'page'), f'VIEW WORLD {cup} (week FF): {how!r}, not its last round\'s view', errs)
-            sc = s.screen()
-            rb = [i for i, t, inv, dis in sc.entries[1:1 + ctview.CR_N] if not inv and t]
-            s.shot('ctc_world_cup')
-            s.log.append(f'[ctc] VIEW WORLD {cup}: selected {sc.selected} rounds {rb}')
-            check(sc.find(summ, exact=True) is not None and rb and sc.selected == max(rb),
-                  f'VIEW WORLD {cup} (week FF): on entry {sc.selected}, not its last round {rb}', errs)
-            info.append(f'VIEW WORLD {cup}: {sc.selected} of {rb}')
+            how = ctc_open(s, cup, 'world_cup_ff')      # (4.1 cdall B: its last round's view straight away, no
+            s.shot('ctc_world_cup')                     #  rounds menu: ESCI back on the career menu)
+            s.log.append(f'[ctc] VIEW WORLD {cup} (week FF): {how!r}')
+            check(how not in ('menu', 'page') and how.startswith(cup), f'VIEW WORLD {cup} (week FF): {how!r}, not '
+                  'a round view', errs)
+            check(s.screen().find('VISUALIZZA MONDO', exact=True) is not None, f'VIEW WORLD {cup} (week FF): not back '
+                  f'on the career menu ({s.screen().texts()[:8]})', errs)
+            info.append(f'VIEW WORLD {cup} FF: {how}')
         s.poke(s.result.lin(wk), w0)
-        if cup is not None:                             # (4.1 cdirect: the season-2 week again - VIEW WORLD's cup
-            walk(s, ctview.CR_N + 2, 3)                 #  on its round in progress: the view, ESCI on the rounds menu)
-            walk(s, 'VISUALIZZA MONDO', 3)
+        if cup is not None:                             # (the season-2 week again - VIEW WORLD's cup on its round in
+            walk(s, 'VISUALIZZA MONDO', 3)              #  progress: its view, ESCI back on the career menu)
             gwalk(s, 'SUDAMERICA', 3)
-            how = ctc_open(s, cup, 'world_cup')
-            ok, sel, lab = ctc_same(s, how) if how not in ('menu', 'page') else (False, None, None)
-            s.log.append(f'[ctc] VIEW WORLD {cup} (season-2 week): {how!r}, back on entry {sel} {lab!r}: {ok}')
-            check(ok, f'VIEW WORLD {cup} (season-2 week): {how!r}, the cursor\'s entry {sel} {lab!r}', errs)
-            info.append(f'VIEW WORLD {cup} s2: {how}')
+            how2 = ctc_open(s, cup, 'world_cup')
+            s.log.append(f'[ctc] VIEW WORLD {cup} (season-2 week): {how2!r}')
+            check(how2 not in ('menu', 'page') and how2.startswith(cup) and how2 != how,
+                  f'VIEW WORLD {cup} (season-2 week): {how2!r} (week FF {how!r})', errs)
+            check(s.screen().find('VISUALIZZA MONDO', exact=True) is not None, f'VIEW WORLD {cup} (season-2 week): '
+                  f'not back on the career menu ({s.screen().texts()[:8]})', errs)
+            info.append(f'VIEW WORLD {cup} s2: {how2}')
         info.append(f's2 {g2}; week FF {gf}')
+    return not errs, '; '.join(errs) or '; '.join(info)
+
+
+@scenario
+def world_ctsum():
+    """4.1 cdall A (Davide 07/11): STAT inside a continental round's view (cr_go) offers RIEPILOGO (fmtpage entry 10,
+    ctview cv_stinit) -> the confederation's summary page (cv_page: 'COPPE CONTINENTALI - CONMEBOL', its lines); its
+    ESCI back on STAT (RIEPILOGO still there), then the view, the rounds menu. A league's STAT (VISUAL. COMPETIZ.'s
+    first entry) without it. 4.1 P: the week forced to FF, CONMEBOL's RIEPILOGO groups 'place NAME points', places
+    up / points down, a 4-club double round robin 24..36 points. Season-2 save as world_ctcursor (CV_BUILD / CV_S2 /
+    W2627REL_DATA). Shots ctsum_*."""
+    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    if not os.path.isdir(src) and not os.environ.get('CV_BUILD'):
+        return True, f'SKIP: private data {src} missing'
+    exe = os.environ.get('CV_BUILD')
+    if not exe:
+        order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+        exe = build('world_contiview', env={'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x)
+                                                                                          for x in order])}, lang=UI)
+    s2 = os.environ.get('CV_S2') or os.path.join(RUNS, f'cv_s2_{UI}.CAR')
+    if not os.path.exists(s2):
+        return False, f'no season-2 save {s2} (run world_contiview first)'
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import ctview
+    import fmtpage
+    T = [x.decode('latin1') for x in ctview.TEXTS[UI]]
+    summ, frm = T[7], fmtpage.TEXTS[UI]['btn'].decode('latin1')
+    errs, info = [], []
+
+    def stat_entries(tag):
+        sc = s.screen()
+        s.shot(f'ctsum_{tag}')
+        return sc, [t for i, t, inv, _ in sc.entries if t and not inv]
+    with Session('world_ctsum', exe, {'W84A.CAR': s2}, 'dump:2', 600) as s:
+        s.wait()
+        s.send(LOAD1 + ' dump:3')
+        ctc_to_conti(s)
+        how = ctc_open(s, 1, 'ctsum_conmebol')          # (CONMEBOL: its round in progress' view, ESCI on the menu)
+        check(how not in ('menu', 'page'), f'CONMEBOL: {how!r}, not a round view', errs)
+        sc = s.screen()
+        walk(s, sc.selected, 4)                         # (the cursor's round: its view again)
+        i = s.screen().find('STAT', exact=True)
+        check(i is not None, 'round view: no STAT', errs)
+        if i is not None:
+            walk(s, i, 3)
+            sc, vis = stat_entries('stat')
+            s.log.append(f'[ctsum] STAT: {vis}')
+            check(summ in vis and frm in vis, f'round view STAT: {vis} (no {summ!r})', errs)
+            info.append(f'STAT {vis}')
+            j = sc.find(summ, exact=True)
+            far = menu_unreach(sc, [k for k, t, inv, _ in sc.entries if t and not inv and k])
+            check(not far, f'STAT: entries {far} out of the keys\' reach', errs)
+            if j is not None:
+                walk(s, j, 3)
+                pg = s.screen()
+                s.shot('ctsum_page')
+                title, lines = pg.entries[0][1], [x[1] for x in pg.entries[1:15]]
+                s.log.append(f'[ctsum] page {title!r} {lines}')
+                check(title == T[6] + ' - CONMEBOL' and lines[:1] == ['COPA LIBERTADORES'],
+                      f'RIEPILOGO page {title!r} {lines[:3]}', errs)
+                info.append(f'page {title!r} {lines[:3]}')
+                walk(s, 16, 3)                          # (the page's ESCI -> STAT)
+                sc, vis2 = stat_entries('stat_back')
+                check(summ in vis2 and frm in vis2, f'back from RIEPILOGO: {vis2}, not STAT', errs)
+            press(s, s.screen(), 'ESCI', 3)             # STAT -> the view -> the rounds menu
+            for _ in range(4):
+                if s.screen().find(summ, exact=True) is not None and s.screen().find(frm, exact=True) is None:
+                    break
+                press(s, s.screen(), 'ESCI', 3) or s.send('fire dump:2')
+            check(s.screen().find(summ, exact=True) is not None, 'not back on the rounds menu', errs)
+        walk(s, ctview.CR_N + 2, 3)                     # (the rounds menu's ESCI -> the confederations)
+        ctc_back(s)                                     # (4.1 P: points - the calendar week forced to FF, every
+        tr = cv_trace(exe)                              #  round played; restored, nothing saved)
+        cur = struct.unpack('<H', bytes(s.result.obj2(tr[4], 2)))[0]
+        wk = s.result.lin((2, tr[3] + cur + 1))
+        w0 = bytes(s.result.read(wk, 1))
+        s.poke(wk, b'\xff')
+        s.send('dump:1')
+        walk(s, s.screen().find('COPPE CONTINENTALI', exact=True), 3)
+        how = ctc_open(s, 1, 'ctsum_ff')                # (CONMEBOL: its last round's view, ESCI on the menu)
+        walk(s, s.screen().find(summ, exact=True), 3)
+        lines = [x[1] for x in s.screen().entries[1:15]]
+        for n in range(12):
+            if s.screen().entries[15][2]:
+                break
+            walk(s, 15, 3)
+            s.shot(f'ctsum_ff_p{n + 2}')
+            lines += [x[1] for x in s.screen().entries[1:15]]
+        groups, cur_g = [], None
+        for ln in lines:
+            if not ln:
+                continue
+            if ln.startswith(T[3] + ' ') and ln.endswith(':'):
+                cur_g = []
+                groups.append((ln, cur_g))
+            elif cur_g is not None and ln.startswith('  '):
+                cur_g += [(int(a), b, int(c)) for a, b, c in re.findall(r'(\d+) (.+?) (\d+)(?:  |$)', ln.strip())]
+            else:
+                cur_g = None
+        s.log.append(f'[ctsum] FF groups: {groups}')
+        check(groups and all(g for _, g in groups), f'week FF CONMEBOL: no group lines with points ({lines[:6]})',
+              errs)
+        for hd, g in groups:
+            pl, pt = [x[0] for x in g], [x[2] for x in g]
+            check(pl == sorted(pl) and pt == sorted(pt, reverse=True), f'{hd} places / points out of order {g}', errs)
+            if len(g) == 4:                             # (a 4-club group, home and away: 12 games, 2 or 3 points each)
+                check(24 <= sum(pt) <= 36, f'{hd} points total {sum(pt)} {g}', errs)
+        info.append(f'FF {len(groups)} groups, {groups[:1]}')
+        walk(s, 16, 3)
+        walk(s, ctview.CR_N + 2, 3)
+        s.poke(wk, w0)
+        ctc_back(s)                                     # (VISUAL. COMPETIZ.'s list: its first entry, the career
+        lg = s.screen().entries[1][1]                   #  club's league)
+        walk(s, 1, 3)
+        i = s.screen().find('STAT', exact=True)
+        check(i is not None, f'{lg}: no STAT', errs)
+        if i is not None:
+            walk(s, i, 3)
+            sc, vis = stat_entries('stat_league')
+            s.log.append(f'[ctsum] {lg} STAT: {vis}')
+            check(summ not in vis and frm in vis, f'{lg} STAT: {vis}', errs)
+            info.append(f'{lg} STAT {vis}')
     return not errs, '; '.join(errs) or '; '.join(info)
 
 

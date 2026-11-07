@@ -467,7 +467,13 @@ cr_init:                                ; the rounds menu's onInit: title, label
     jbe .e
     pop es
     popad
-    ret
+    btr dword [CR_IN_], 0               ; (4.1 cdirect: cv_rounds' round in progress - once, the menu opening: its
+    jnc .z                              ; view straight away; its ESCI back here, the cursor on it)
+    push eax
+    mov eax, [CR_SEL_]
+    call cr_go
+    pop eax
+.z: ret
 
 cr_sum:                                 ; RIEPILOGO: the summary page, then the rounds menu's labels and links again
     call cv_page
@@ -650,7 +656,7 @@ def patch(p, at, lang, scr_at):
                SPEC=cl['SPEC'], CT_LPF=(1, cl['ct_lp']), CV_CONFS=syms['cv_confs'], CV_TEXT=syms['cv_text'],
                CAREERTEAM=gplay.LABELS['CAREERTEAM'], CAL=gplay.LABELS['CAL'], CAL_CUR=gplay.LABELS['CAL_CUR'],
                W_LPW=(1, careerworld.LABELS['w_lpw']), CT_SEG_=cs['CT_SEG'], CT_ED_=cs['CT_ED'],
-               CT_OUT_=cs['CT_OUT'], CV_ROUNDS=syms['cv_rounds'], CR_LAYOUT=syms['cr_layout'], CR_SEL_=syms['CR_SEL'], VC_CALC=gplay.LABELS['VC_CALC'],
+               CT_OUT_=cs['CT_OUT'], CV_ROUNDS=syms['cv_rounds'], CR_LAYOUT=syms['cr_layout'], CR_SEL_=syms['CR_SEL'], CR_IN_=syms['CR_IN'], VC_CALC=gplay.LABELS['VC_CALC'],
                VC_VIEW=gplay.LABELS['VC_VIEW'], SLOT3=__import__('uefaq').SYMS['SLOT3'], D0R=__import__('uefaq').SYMS['D0R'],
                A0R=__import__('uefaq').SYMS['A0R'], CR_N_=(0, CR_N), CR_LW_=(0, CR_LW))
     sym.update({f'CW_M{c}': (3, m) for c, m in enumerate(cw['marks'])})

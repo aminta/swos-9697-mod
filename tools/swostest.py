@@ -11528,6 +11528,11 @@ def ct_build():
     return b, controls.runtime(os.path.join(b, 'ITALIAN.EXE'), os.path.join(ROOT, 'orig', UI_ORIG), UI)
 
 
+def ct_fire_bytes(sd):
+    """SETUP.DAT +101..+104 as SAVE writes them with a joypad device (4.1 controls.ct_firefix): 0 -> -1 / -2."""
+    return bytes(b or (0xFF, 0xFE)[k & 1] for k, b in enumerate(sd[101:105]))
+
+
 def ct_entry(r, menu, i):
     """(text bytes, invisible, x, y, w, h) of entry i of the current menu."""
     e = r.base2 + menu + 0x16 + i * 0x38
@@ -11906,6 +11911,7 @@ def controls_menu():
         want = bytearray(base)
         want[6:8] = b'\x03\x00'
         want[100] = 0x39
+        want[101:105] = ct_fire_bytes(want)             # (4.1 joyfire: a joypad device's 0 fire bytes -> -1 / -2)
         check(saved == bytes(want), f'SETUP.DAT {saved.hex()} want {bytes(want).hex()}', errs)
         mem = r.read(r.base2 + v['buf'], 105)
         check(mem[100] == 0x39 and mem[6] == 1, f'game: fire {mem[100]:#x}, device {mem[6]} (no stick: 1)', errs)
@@ -12006,7 +12012,8 @@ def controls_calib():
         press(s, s.screen(), 17, 2)
         saved = open(os.path.join(s.run, 'SWOS', 'SETUP.DAT'), 'rb').read()
         sg = struct.unpack_from('<2H', saved, 30) + struct.unpack_from('<8H', saved, 38) + struct.unpack_from('<H', saved, 92)
-        check(sg == want and saved[6] == 3 and saved[:6] == base[:6] and saved[96:] == base[96:],
+        check(sg == want and saved[6] == 3 and saved[:6] == base[:6] and saved[96:101] == base[96:101] and
+              saved[101:105] == ct_fire_bytes(base) and saved[105:] == base[105:],
               f'SETUP.DAT {saved.hex()}', errs)
         notes.append(f'calibration {got}')
     return not errs, '; '.join(errs + notes)

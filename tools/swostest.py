@@ -11577,9 +11577,15 @@ def engine_pre_ns():
     with Session('engine_pre_ns', old or b, {'SETUP.DAT': setup_file('engine_pre_ns', 1)}, 'dump:2', 300) as s:
         if s.wait().outcome != 'dump':
             return False, f'no first pause ({s.result})'
-        for t in ('COMP. PREDEFINITA', 'TORNEI STORICI', wc34, 'TORNEO'):
-            if press(s, s.screen(), t, 2) is None:
-                return False, f'{t} not reached ({s.screen().texts()[:8]})'
+        import historic
+        for t in ('COMP. PREDEFINITA', historic.NAMES[UI].decode('latin-1'), wc34, 'TORNEO'):
+            sc = s.screen()                     # (TORNEO / PLAY TOURNAMENT..: the entry after ABBANDONA, any language)
+            if t == historic.NAMES[UI].decode('latin-1') and sc.find(t, exact=True) is None:
+                t = 'TORNEI STORICI'            # (the decoder reads EN's CLASSIC TOURNEYS in Italian: UI_MAP)
+            if t == 'TORNEO' and sc.find('ABBANDONA', exact=True) is not None:
+                t = sc.find('ABBANDONA', exact=True) + 1
+            if press(s, sc, t, 2) is None:
+                return False, f'{t} not reached ({s.screen().texts()})'
         t1 = [t for t in s.screen().texts() if t]
         s.shot('round_1')
         for _ in range(4):

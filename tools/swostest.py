@@ -7771,8 +7771,8 @@ def bench_tactics(s, scr, squad, errs, info, mark):
     for _ in range(4):
         q = s.screen()
         t = q.texts()
-        if 'GIOCA PARTITA' in t or UI != 'it' and 'GIOCA :' in t and 'PARTITA' in t:   # (EN: PLAY MATCH reads PARTITA)
-            return
+        if 'MOD. TATTICA' in t and {'GIOCA PARTITA', 'PARTITA', TRAIN_TXT[UI][2]} & set(t):   # (EN PARTITA, FR JOUER
+            return                          # LE MATCH, DE NUR SPIEL.: the pre-match screen's play button per UI)
         mark('tactics exit: ' + ', '.join(t)[:200])
         if not any(press(s, q, x) is not None for x in TN_EXIT + ('ESCI',) if x in t):   # (FR ENR/QUIT, DE SPEI/ENDE)
             s.send('esc:0.3 dump:0.6')

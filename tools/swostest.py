@@ -6346,11 +6346,14 @@ def shirt_numbers():
 SUBS_NUMS = [99, 43, 5, 3, 20, 18, 86, 61, 17, 14, 9, 1, 12, 7, 10, 77]
 
 
-def subs_rows(vga, strip=(196, 208), xmax=210):
+def subs_rows(vga, strip=(209, 211), xmax=210):
     """The in-match bench list's player rows in a frame (320x200 palette indices): [(y0, y1, bg, segments)], segments =
     the runs of text columns (x0, x1) in x 100..xmax-1 (face, number, name words), a gap of 2+ empty columns between
-    runs. A row = a band of 7..10 lines whose background fills x strip[0]..strip[1]-1 (4.1 subs_names14: 208..210, the
-    gap past 14-letter names, xmax 219 = the position letters)."""
+    runs. A row = a band of 7..10 lines whose background fills x strip[0]..strip[1]-1: 209..210, formwide's name / cross
+    gap (x+109, x+110: fw_rows checks it), past the longest name (to x+108; 4.1 41-namelong's whole surnames reach the
+    old strip 196..207: PINELLA OBANDO ends at 200, its row was missed - bench_world s32, Panchina 08/11). The
+    info strip's bands match it too: fw_rows drops them (frame width), list counts take 11+ rows. subs_numbers keeps
+    196..207, subs_names14 208..210 with xmax 219 (the position letters)."""
     rows, y = [], 0
     sx = range(*strip)
     while y < 200:
@@ -7771,7 +7774,7 @@ def bench_tactics(s, scr, squad, errs, info, mark):
         if 'GIOCA PARTITA' in t or UI != 'it' and 'GIOCA :' in t and 'PARTITA' in t:   # (EN: PLAY MATCH reads PARTITA)
             return
         mark('tactics exit: ' + ', '.join(t)[:200])
-        if not any(press(s, q, x) is not None for x in ('USCITA', 'SAVE/EXIT', 'ESCI') if x in t):
+        if not any(press(s, q, x) is not None for x in TN_EXIT + ('ESCI',) if x in t):   # (FR ENR/QUIT, DE SPEI/ENDE)
             s.send('esc:0.3 dump:0.6')
     errs.append('tactics: not back to the pre-match screen')
 

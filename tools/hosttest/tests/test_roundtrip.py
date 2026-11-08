@@ -10,6 +10,9 @@ callbacks, ProcessCareerFile) then the game's own SaveCareerFile (the trailer's 
   the fixed part only the game's own absolute pointers re-based to this exe (dwords both sides pointer-like, or a
   pointer cleared, or a pointer's low word by the same delta), a 4.0 split state moved (sp_migrate) - and the upgrade
   is a fixed point: save(load(save(load(x)))) = save(load(x)).
+  The UEFA coefficient block (uefacoef CB, 4.1 uc_chk): a block uc_chk finds damaged (no 'UC' mark, ring / done out of
+  range, a season above CHMAX / KHMAX: BOCA rc11, NZ rc17's sprite-written KHIST) comes back as the fresh seed -
+  byte for byte the block uc_init writes on this fixture's own save; any other block byte-identical.
 
 (H's '5083 of 16192 B differ' compared an upgraded trailer with an older one byte by byte: the added items shift the
 later ones. Item by item nothing changes.)"""
@@ -27,6 +30,7 @@ TOOLS = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__
 sys.path.insert(0, TOOLS)
 import engine  # noqa: E402
 import sacups  # noqa: E402
+import uefacoef  # noqa: E402
 import trailer  # noqa: E402
 from le import LE  # noqa: E402
 
@@ -80,11 +84,13 @@ class Game:
         m.dos_files(self.build, writes=True)
         return m
 
-    def round_trip(self, x):
+    def round_trip(self, x, seed=False):
         m = self.machine()
         m.write(self.stage, x + bytes(max(0, len(self.car) - len(x))))
         m.write(m.base2 + self.dreg1, struct.pack('<I', len(x)))
         m.call('trailer.load_trailer', max_insn=300_000_000)
+        if seed:                                       # (the fresh UEFA coefficient block: uc_init after the load)
+            m.call('uefacoef.uc_init', max_insn=50_000_000)
         m.files_written.clear()
         m.call(m.base1 + self.save_fn, max_insn=300_000_000)
         return next(iter(m.files_written.values()), b'')
@@ -103,6 +109,30 @@ class Game:
                 items[_name(iid)] = x[p + 4:p + 4 + ln]
                 p += 4 + ln
         return x[:self.fixed], x[self.fixed:t], main, items
+
+
+CB = 2 + uefacoef.CB_OFF                                # the coefficient block in the fixed part (tmdFileBuffer + 0x3800)
+
+
+def _uc_block(g):
+    """(size, fresh seed, damaged(fixed part)) of the build's coefficient block when it has uc_chk (4.1), else None.
+    NG from uc_chk's own `cmp ecx, 5 * NG` (bigtables: 2409); the seed = uc_init on the fixture's save."""
+    m = g.machine()
+    if 'uc_chk' not in m.syms.get('uefacoef', {}):
+        return None
+    code = m.read(m.lin('uefacoef.uc_chk'), 0x80)
+    ng = struct.unpack_from('<I', code, [k.start() for k in re.finditer(rb'\x81\xf9', code)][-1] + 2)[0] // 5
+    kh = uefacoef.KPTS + 2 * ng
+    size = kh + 10 * ng + 0x6C + 0xC                 # (uefacoef.layout: PREV = KHIST + 10 NG, FIN = PREV + 6Ch, + 0Ch)
+    seed = g.parts(g.round_trip(g.car, seed=True))[0][CB:CB + size]
+    assert seed[:2] == b'UC', seed[:4]
+
+    def damaged(f):                                  # uc_chk in Python (uefacoef.ASM)
+        b = f[CB:CB + size]
+        return (b[:2] != b'UC' or b[uefacoef.RING] >= 5 or b[uefacoef.DONE] > 1
+                or max(struct.unpack_from('<1280I', b, uefacoef.CHIST)) > uefacoef.CHMAX
+                or max(struct.unpack_from(f'<{5 * ng}H', b, kh)) > uefacoef.KHMAX)
+    return size, seed, damaged
 
 
 def _ptr(v):
@@ -154,6 +184,7 @@ def test_roundtrip_current():
 def test_roundtrip_old():
     """older saves: upgraded once (only added items, pointers re-based), then a fixed point"""
     g = Game()
+    uc = _uc_block(g)
     out, bad = [], []
     for f in OLD:
         if not os.path.exists(f):
@@ -178,6 +209,15 @@ def test_roundtrip_old():
         gone = sorted(set(ix) - set(iy))
         if chg or gone:
             why.append(f'items changed {chg} gone {gone}')
+        if uc:                                         # (4.1 uc_chk: a damaged block re-seeded, any other kept)
+            n, seed, damaged = uc
+            if damaged(fx) and fy[CB:CB + n] != fx[CB:CB + n]:
+                if fy[CB:CB + n] != seed:
+                    why.append('coefficient block not the fresh seed')
+                tag += ' (UEFA coefficients re-seeded)'
+            elif fy[CB:CB + n] != fx[CB:CB + n]:
+                why.append('coefficient block changed')
+            fx, fy = fx[:CB] + fy[CB:CB + n] + fx[CB + n:], fy   # (the block compared above: not by _fixed_ok)
         fb = _fixed_ok(fx, fy)
         if fb:
             why.append(f'fixed part not pointers at {fb[:6]}')

@@ -20407,7 +20407,8 @@ def ctc_same(s, title):
         if s.screen().find(summ, exact=True) is not None:
             break
         press(s, s.screen(), 'ESCI', 3) or s.send('fire dump:2')
-    return t == title and s.screen().selected == sel, sel, lab
+    return (t or '?') == title and s.screen().selected == sel, sel, lab     # ('?': ctc_open's untitled view - a
+                                                                            #  single match's result screen, 4.1 S2b)
 
 
 def ctc_to_conti(s):

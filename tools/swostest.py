@@ -1156,6 +1156,24 @@ def squad_title(t):
         (UI == 'fr' and t.startswith('EQUIPE ') and t not in ('EQUIPE CHOISIE',))
 
 
+def ui_label(b):
+    """A mod label (bytes in the exe's language) as Screen reads it: a byte past '~' (the DE fonts' 9Ah U-umlaut:
+    ctview's '\x9aBERSICHT') as '?'."""
+    return ''.join(chr(x) if x < 127 else '?' for x in b)
+
+
+_OWN = {}
+
+
+def own_labels():
+    """The mod's own labels with such a byte, as Screen reads them (kept like UI_MAP's known labels)."""
+    if UI not in _OWN:
+        sys.path.insert(0, os.path.join(ROOT, 'tools'))
+        import ctview
+        _OWN[UI] = {ui_label(x) for x in ctview.TEXTS.get(UI, ()) if any(c >= 127 for c in x)}
+    return _OWN[UI]
+
+
 def ui_it(text):
     if text in HIST_BOX and not COLLECT:
         return 'CARR. STORICHE'
@@ -1222,7 +1240,7 @@ class Screen:
                     text = raw.decode()
                 elif raw and (UI_MAP or COLLECT) and all(b >= 32 for b in raw):   # (another language's umlauts /
                     q = ''.join(chr(b) if b < 127 else '?' for b in raw)   # accents: '?', only a known label: the
-                    text = q if q in UI_MAP or COLLECT or ui_it(q) != q else ''   # squad rows' drawn texts stay
+                    text = q if q in UI_MAP or COLLECT or ui_it(q) != q or q in own_labels() else ''   # squad rows' drawn texts stay
                                                                                      # empty; DIY-POKAL ... kept)
             self.raw_texts.append(text)
             self.entries.append((i, ui_it(text), inv, dis))
@@ -19797,7 +19815,7 @@ def contiview_open(s, k, pages=None):
     s.shot('contiview_menu')
     btn = [x[1] for x in s.screen().entries[1:7]]
     import ctview                                       # (4.0.6 P3: a confederation with drawn rounds opens its
-    summ = ctview.TEXTS[UI][7].decode('latin1')         # rounds menu: the page is its RIEPILOGO; 4.1 cdirect: a
+    summ = ui_label(ctview.TEXTS[UI][7])         # rounds menu: the page is its RIEPILOGO; 4.1 cdirect: a
     rounds_menu = ctc_open(s, k, f'cv_{k}') != 'page'   # round in progress opens its view - ESCI to the rounds menu)
     if rounds_menu:
         s.shot(f'contiview_{k}_rounds')
@@ -19853,7 +19871,7 @@ def world_contiview():
     errs, info = [], []
     names = ['CONMEBOL', 'CONCACAF', 'AFC', 'CAF', 'OFC', 'FIFA']
     import ctview                                       # (the exe's language: its texts)
-    T = [x.decode('latin1') for x in ctview.TEXTS[UI]]
+    T = [ui_label(x) for x in ctview.TEXTS[UI]]
     with Session('world_contiview_s1', exe, {}, 'dump:2', 300) as s:
         s.wait()
         if not pick_career(s, ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27', 'EUROPA', 'ITALIA',
@@ -20093,7 +20111,7 @@ def world_cgame_view():
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import complist
     import ctview
-    summ = ctview.TEXTS[UI][7].decode('latin1')
+    summ = ui_label(ctview.TEXTS[UI][7])
     errs, info = [], []
     pp = os.environ.get('CGV_SWOSPP')                   # (world_cgame_swospp: SWOS++'s loader files, timer keys)
     extra = {'LOADER.BIN': os.path.join(pp, 'loader.bin'), 'SWOSPP.BIN': os.path.join(pp, 'swospp.bin')} if pp else {}
@@ -20408,7 +20426,7 @@ def world_cgame_fallback():
     seg_at, ed_at = tr[0], tr[1]
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import ctview
-    summ = ctview.TEXTS[UI][7].decode('latin1')
+    summ = ui_label(ctview.TEXTS[UI][7])
     errs, info = [], []
 
     def G(s):
@@ -20572,7 +20590,7 @@ def ctc_confs(s, part, errs, direct=None):
     the visible round buttons)}, a shot ctc_<part>_<k>; the cursor on a round asserted; ESCI back each time."""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import ctview
-    summ, got = ctview.TEXTS[UI][7].decode('latin1'), {}
+    summ, got = ui_label(ctview.TEXTS[UI][7]), {}
     for k in range(1, 7):
         conf = s.screen().entries[k][1]
         how = ctc_open(s, k, f'{part}_{k}')
@@ -20604,7 +20622,7 @@ def ctc_open(s, k, tag):
     till the rounds menu (4.1 cdall B: VIEW WORLD's cup button, k a label - no rounds menu: till the career menu)."""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import ctview
-    summ = ctview.TEXTS[UI][7].decode('latin1')
+    summ = ui_label(ctview.TEXTS[UI][7])
     (walk if isinstance(k, int) else gwalk)(s, k, 4)
     sc = s.screen()
     if sc.find(summ, exact=True) is not None:
@@ -20625,7 +20643,7 @@ def ctc_same(s, title):
     view (its title), then ESCI back on the menu, the cursor where it was. -> (ok, the cursor's entry, its label)"""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import ctview
-    summ = ctview.TEXTS[UI][7].decode('latin1')
+    summ = ui_label(ctview.TEXTS[UI][7])
     sc = s.screen()
     sel = sc.selected
     lab = sc.entries[sel][1] if sel in range(len(sc.entries)) else None
@@ -20686,7 +20704,7 @@ def world_ctcursor():
         return False, 'no CVTRPTR block (ctview not in the build)'
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import ctview
-    summ = ctview.TEXTS[UI][7].decode('latin1')
+    summ = ui_label(ctview.TEXTS[UI][7])
     errs, info = [], []
     pp = os.environ.get('CGV_SWOSPP')                   # (world_ctcursor_swospp: SWOS++'s loader files, timer keys -
     extra = {'LOADER.BIN': os.path.join(pp, 'loader.bin'), 'SWOSPP.BIN': os.path.join(pp, 'swospp.bin')} if pp else {}
@@ -20801,7 +20819,7 @@ def world_ctsum():
         return False, f'no season-2 save {s2} (run world_contiview first)'
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import ctview
-    T = [x.decode('latin1') for x in ctview.TEXTS[UI]]
+    T = [ui_label(x) for x in ctview.TEXTS[UI]]
     summ, frm = T[7], 'FORMULA'                         # (the harness's screen texts: FORMAT -> FORMULA)
     errs, info = [], []
 
@@ -21014,7 +21032,7 @@ def world_uesum():
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import ctview
     import rnames
-    summ = ctview.TEXTS[UI][7].decode('latin1')
+    summ = ui_label(ctview.TEXTS[UI][7])
     stages = [rnames.NAMES[UI][k][0] for k in (0, 1, 2, 12, 13, 14)]
     errs, info = [], []
     with Session('world_uesum', exe, {'W84A.CAR': car}, 'dump:2', 600) as s:
@@ -21163,7 +21181,7 @@ def world_uesum_ko():
     import ctview
     import rnames
     import uesum
-    summ = ctview.TEXTS[UI][7].decode('latin1')
+    summ = ui_label(ctview.TEXTS[UI][7])
     pen, aet = (x.decode('latin1') for x in uesum.TEXTS[UI])
     stn = [rnames.NAMES[UI][k][0] for k in (1, 2, 12, 13)]     # (the recorded stages' names: play-offs .. SF)
     errs, info = [], []
@@ -21385,7 +21403,7 @@ def world_conti_spp_esci():
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import ctview
     import swospp
-    summ = ctview.TEXTS[UI][7].decode('latin1')
+    summ = ui_label(ctview.TEXTS[UI][7])
     home = ctview.TEXTS[UI][6].decode('latin1')
     pp = os.path.join(MAIN, 'internal', 'swospp-test')
     out = xdir('world_conti_spp_esci')
@@ -21544,7 +21562,7 @@ def world_contiview_tie():
         return False, 'no CVTRPTR block (ctview not in the build)'
     seg_at, ed_at = tr[0], tr[1]
     import ctview
-    T = [x.decode('latin1') for x in ctview.TEXTS[UI]]
+    T = [ui_label(x) for x in ctview.TEXTS[UI]]
     team = 'SUDAMERICA,BRASILE,BRASILEIRAO SERIE A,FLAMENGO'
     mid = os.environ.get('CV_TIE_S2') or os.path.join(RUNS, f'cv_tie_{UI}.CAR')
     opp = None

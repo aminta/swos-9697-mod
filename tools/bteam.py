@@ -1021,10 +1021,10 @@ TEXTS = {
                codes=('', 'MAXIMUM 4 PAR MATCH', 'TROP DE JOUEURS HORS AGE', 'MERCATO FERME', 'EFFECTIF COMPLET (30)',
                       'MAXIMUM 3 PAR MERCATO', 'DEJA APPELE', "PAS D'EQUIPE B", 'JOUEUR NON VALABLE',
                       "TROP D'APPELES")),
-    'de': dict(head='B-TEAM: SPIELER W\x8eHLEN', btn='B-TEAM', c1='NUR N\x8eCHSTES SPIEL', c2='F\x9aR DIE SAISON', exit='ENDE',
-               ok1='F\x9aR DAS N\x8eCHSTE SPIEL BERUFEN', ok2='F\x9aR DIE SAISON BERUFEN',
-               codes=('', 'H\x99CHSTENS 4 PRO SPIEL', 'ZU VIELE \x9aBER 23', 'TRANSFERFENSTER ZU', 'KADER VOLL (30)',
-                      'H\x99CHSTENS 3 PRO FENSTER', 'SCHON BERUFEN', 'KEIN B-TEAM', 'KEIN G\x9aLTIGER SPIELER',
+    'de': dict(head='B-TEAM: SPIELER WAEHLEN', btn='B-TEAM', c1='NUR NAECHSTES SPIEL', c2='FUER DIE SAISON', exit='ENDE',
+               ok1='FUER DAS NAECHSTE SPIEL BERUFEN', ok2='FUER DIE SAISON BERUFEN',
+               codes=('', 'HOECHSTENS 4 PRO SPIEL', 'ZU VIELE UEBER 23', 'TRANSFERFENSTER ZU', 'KADER VOLL (30)',
+                      'HOECHSTENS 3 PRO FENSTER', 'SCHON BERUFEN', 'KEIN B-TEAM', 'KEIN GUELTIGER SPIELER',
                       'ZU VIELE BERUFEN')),
 }
 MSG = 40                                # the result line's buffer
@@ -1362,7 +1362,7 @@ def ui_texts(lang):
     for t in (T['ok1'], T['ok2']) + T['codes']:
         assert len(t) < MSG, t
     for t in [T[k] for k in ('btn', 'c1', 'c2', 'exit', 'head', 'ok1', 'ok2')] + list(T['codes']):   # (the fonts' glyphs;
-        assert set(t) <= complist.FONT | (complist.DE_UMLAUT if lang == 'de' else set()), (lang, t)   #  DE: its umlauts)
+        assert set(t) <= complist.FONT, (lang, t)                       #  DE: AE / OE / UE, CONVENTIONS.md)
     out = [f'bt_lbl: {_db(enc(T["btn"]))}', f'bt_t1: {_db(enc(T["c1"]))}', f'bt_t2: {_db(enc(T["c2"]))}',
            f'bt_tx: {_db(enc(T["exit"]))}', f'bt_hd: {_db(enc(T["head"]))}', f'bt_ok1: {_db(enc(T["ok1"]))}', f'bt_ok2: {_db(enc(T["ok2"]))}']
     out += [f'bt_cd{i}: {_db(enc(t))}' for i, t in enumerate(T['codes'])]

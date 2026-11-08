@@ -24,7 +24,7 @@ TEXTS = {   # holder, to be played, winner, group, earlier rounds (season 1), no
            b'NO CUP IN PROGRESS', b'CONTINENTAL CUPS', b'SUMMARY'),
     'fr': (b'TENANT', b'A JOUER', b'VAINQUEUR', b'GROUPE', b'TOURS PRECEDENTS JOUES AVANT LA SAISON',
            b'AUCUNE COUPE EN COURS', b'COUPES CONTINENTALES', b'RESUME'),
-    'de': (b'TITELVERTEIDIGER', b'NOCH OFFEN', b'SIEGER', b'GRUPPE', b'FR\x9aHERE RUNDEN VOR DER SAISON GESPIELT',
+    'de': (b'TITELVERTEIDIGER', b'NOCH OFFEN', b'SIEGER', b'GRUPPE', b'FRUEHERE RUNDEN VOR DER SAISON GESPIELT',
            b'KEIN POKAL IM GANGE', b'KONTINENTALPOKALE', b'\x9aBERSICHT'),   # (9Ah: the DE fonts' U-umlaut, sprite 54)
 }
 CONF_NAMES = {'conmebol': b'CONMEBOL', 'concacaf': b'CONCACAF', 'afc': b'AFC', 'caf': b'CAF', 'ofc': b'OFC',
@@ -153,8 +153,8 @@ def table(lang, confs, files=None, words=None):
         for t in [nm] + [round_name(r, lang).encode('latin1') for r in rounds]:
             assert complist.px(t.decode('latin1')) <= 298 and all(ch in complist.FONT for ch in t.decode('latin1')), (lang, t)
         body.append((cnum[conf], nrd[ci], s(nm), [s(round_name(r, lang).encode('latin1')) for r in rounds]))
-    for t in tx:                                        # (DE: the fonts' umlauts - '\x9aBERSICHT', 'FR\x9aHERE')
-        assert all(ch in complist.FONT or (lang == 'de' and ch in complist.DE_UMLAUT) for ch in t.decode('latin1')), (lang, t)
+    for t in tx[:7]:                                    # (the page's small font: DE as AE / OE / UE; only the summary
+        assert all(ch in complist.FONT for ch in t.decode('latin1')), (lang, t)     # button, big font, has umlauts)
     head = 16 + 64 + 2 + 2 * len(assocs) + sum(4 + 2 * n for _, n, _, _ in body)
     out = bytearray(struct.pack('<8H', *[head + o for o in toff[:6]] + [0, 0]))
     out += bytes(min(255, complist.px(chr(0x20 + k))) if chr(0x20 + k) in complist.FONT else 6 for k in range(64))

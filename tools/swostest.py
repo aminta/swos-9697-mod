@@ -19889,8 +19889,7 @@ def world_contiview():
         check(lines[:1] == ['COPA LIBERTADORES'] and T[4] in lines and f'{T[3]} A: {T[1]}' in lines,
               f'season 1 page {lines}', errs)
         check(not LIST_BAD, f'season 1 VISUAL. COMPETIZ. list: {LIST_BAD}', errs)
-        check(not any('?' in x for x in lines if x not in T), f'season 1 unread club names {lines[:4]}', errs)   # (DE:
-                                                    # T[4]'s umlaut reads '?')
+        check(not any('?' in x for x in lines), f'season 1 unread club names {lines[:4]}', errs)
         info.append(f's1: {lines[:4]}')
         st = lambda: (bytes(s.result.obj2(seg_at, 72)), bytes(s.result.obj2(ed_at, 2260)))
         walk(s, s.screen().find('COPPE CONTINENTALI', exact=True), 3)
@@ -31771,9 +31770,7 @@ def ffp_biz(s, tag, errs, toggle=False):
     rt, sw = raw(scr, 22), raw(scr, 23)
     g = {n: scr.geom[ix[n]] for n in ix}
     check(rt.startswith(ffp.RATIO[UI]) and rt.endswith(f' (MAX {ffp.LIMIT}%)') and (rt[len(ffp.RATIO[UI]):].startswith('--') or '% (' in rt), f'{tag}: ratio row {rt!r}', errs)
-    import complist                                     # (DE: the fonts' umlauts, ffp.RATIO's GEH\x8eLTER)
-    check(set(rt) <= set(SMALL_W) | {' '} | (complist.DE_UMLAUT if UI == 'de' else set()) and px(rt) <= g[22][2],
-          f'{tag}: ratio row {rt!r} {px(rt)} px / {g[22][2]} or '
+    check(set(rt) <= set(SMALL_W) | {' '} and px(rt) <= g[22][2], f'{tag}: ratio row {rt!r} {px(rt)} px / {g[22][2]} or '
           f'non-font characters', errs)
     check(g[22][1] + g[22][3] <= g[2][1] and g[0][1] + g[0][3] <= g[22][1], f'{tag}: ratio row y {g[22]} not between '
           f'the title {g[0]} and the old balance {g[2]}', errs)

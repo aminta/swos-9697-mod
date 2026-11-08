@@ -389,7 +389,8 @@ FONT = set(" '()-./0123456789:,?+ABCDEFGHIJKLMNOPQRSTUVWXYZ")   # the characters
 # 4.0.6: no '&' / '!' - both fonts' conversionTable (smallCharsTable / bigCharsTable) map them, as '"#$<=>@', to sprite
 # 0: not a glyph - Davide's MiSTer, 'O&M' in the CONCACAF page)
 DE_UMLAUT = {'\x8e', '\x99', '\x9a'}   # the German exe's A / O / U umlauts (its own strings' bytes): both DE fonts'
-# conversionTable maps them to sprites 53 / 55 / 54 (4.1, Davide 08/11) - mod texts in the DE exe only
+# conversionTable maps them to sprites 53 / 55 / 54 - mod texts in the DE exe, big-font titles only (the small font's dots
+# barely show: AE / OE / UE there, Davide 26/10 + 08/11, CONVENTIONS.md)
 FONT_EXCEPT = {   # shipped names outside FONT, known and with their data owner (each one shows a broken glyph): the
 }   # (the checks report them, never fail; 04/11: O&M -> O Y M, TREFELIN B & G -> TREFELIN BGC in world5tm-403c12 / 12b,
     #  SELLIER & BELLOT -> SB VLASIM in 403c13 / 13b, HARLAND & WOLFF -> HARLAND WOLFF in europe-1984-85: none left)

@@ -458,6 +458,28 @@ def spp_go(s, target, w=3, fire='fire', hold=None):
     return None
 
 
+
+SPP_TAPS = (0.01, 0.02, 0.03)                          # (08/11) spp_tap's fire lengths, shortest first
+
+
+def spp_tap(s, target, w, taken, stays):
+    """A checked fire tap under SWOS++'s timer feed: spp_go(target) with 'fire up:T' for T in SPP_TAPS until taken(s).
+    A 1-read tap (0.01) can fall between two of the game's key reads - the exe's load layout (its LE fixup-table size)
+    shifts that phase: S2a missed every 0.01 tap, only the trailing 'up' was read (MC 08/11); a long one is read twice
+    (0.05: two world switches, 06/11). So: the shortest tap first, a longer one only while stays(s) - the screen did not
+    take the fire - each retry logged ([spp tap], session.log). Returns the tap taken, or None."""
+    for k, t in enumerate(SPP_TAPS):
+        if spp_go(s, target, w, fire=f'fire up:{t}') is None:
+            return None
+        if taken(s):
+            return t
+        if not stays(s) or k == len(SPP_TAPS) - 1:
+            return None
+        msg = f'[spp tap] {target!r}: fire up:{t} not taken, again at up:{SPP_TAPS[k + 1]}'
+        s.log.append(msg)
+        print(f'{os.path.basename(s.run)}: {msg}', file=sys.stderr, flush=True)
+    return None
+
 WALK_SPP = False                                       # (07/11, backlog 157) walk() as press() under SPP_STEP
 SPP_CONTI_HOLD = int(os.environ.get('SPP_CONTI_HOLD', 10))   # (07/11) the conti menus' cursor taps: held 10 ticks - at
                                                        # SPP_HOLD (20) a tap moved 2 rows there (menu auto-repeat)
@@ -13814,6 +13836,10 @@ def swospp_menu():
     def is_main(s):                                     # (the menu buffer's address is fixed: the main menu by its entries)
         t = [x[1] for x in s.screen().entries]
         return 'MOD. TATTICA' in t and 'COMPET. PERSONAL.' in t
+
+    def menu_label(s):                                  # (entry 4's label: the world button)
+        en = s.screen().entries
+        return en[4][1] if len(en) > 4 else None
     with Session('swospp_menu', out, {'LOADER.BIN': os.path.join(pp, 'loader.bin'),
                                       'SWOSPP.BIN': os.path.join(pp, 'swospp.bin'),
                                       'W84E.CAR': os.path.join(WORK, 'saves', 'W84E_TEAM254.CAR')},
@@ -13830,11 +13856,13 @@ def swospp_menu():
         check(e[4][0] in mainbtn.WORLD['en'] and not e[4][1], f'entry 4 not the button: {e[4]}', errs)
         check(e[11][0] == b'SWOS++' and not e[11][1] and e[11][2:4] == (93, 21), f'entry 11 not SWOS++: {e[11]}', errs)
         k = mainbtn.WORLD['en'].index(e[4][0]) if e[4][0] in mainbtn.WORLD['en'] else 0
-        spp_go(s, e[4][0].decode(), 2, fire='fire up:0.01')     # (W-modes: the world switch under SWOS++: the next
-        # world's label - 'fire up:0.01' as PRESS_FIRE's note: a plain fire stays the latched key and is read again,
+        lab = e[4][0].decode()
+        tap = spp_tap(s, lab, 2, lambda s: menu_label(s) != lab, lambda s: is_main(s) and menu_label(s) == lab)
+        info.append(f'switch tap {tap}')                        # (W-modes: the world switch under SWOS++: the next
+        # world's label - a short 'fire up' as PRESS_FIRE's note: a plain fire stays the latched key and is read again,
         # the switch then moved two worlds (M3 05/11: 1996-97 -> 2026-27, SETUP.DAT 00; 1 in 3 before). 'up:0.05' was
         # 2 GetKey calls with the fire latched (round(0.05 * RATE)): still two worlds in the 4.1 dry gate (06/11);
-        # 0.01 = steps_of's minimum, 1 call: one fire read, one switch, then the label read once
+        # 0.01 = steps_of's minimum, 1 call - missed on S2a (08/11): spp_tap, the checked tap
         nxt = mainbtn.WORLD['en'][(k + 1) % 3]                  # world's label, SETUP.DAT +105 written, SWOS++'s
         e = menu(s, 'switch')                                   # entry still on 11)
         d = open(os.path.join(s.run, 'SWOS', 'SETUP.DAT'), 'rb').read()
@@ -13845,10 +13873,12 @@ def swospp_menu():
         check(opened, f'SWOS++ menu not opened: {sc}', errs)
         info.append(f'SWOS++ menu: {str(sc)[:60]}')
         if sc.find('ESCI', exact=True) is not None:            # (its EXIT entry; ESC does not close it - one key
-            spp_go(s, 'ESCI', 3, fire='fire up:0.01')           # at a time: a walk's downs went past it, 5 for 3,
+            tap = spp_tap(s, 'ESCI', 3, is_main,                # at a time: a walk's downs went past it, 5 for 3,
                                                                 # and fired another SWOS++ entry, M3 05/11; 06/11: a
                                                                 # plain fire stayed latched, the main menu read it on
                                                                 # entry 11 and opened SWOS++'s menu again - 'fire up')
+                          lambda s: s.screen().find('ESCI', exact=True) is not None and not is_main(s))
+            info.append(f'ESCI tap {tap}')
         check(is_main(s), f'not back on the main menu: {s.screen()}', errs)
         e = menu(s, 'back')
         check(e[11][0] == b'SWOS++' and not e[4][1], f'after SWOS++ menu: {e}', errs)

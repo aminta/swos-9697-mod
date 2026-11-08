@@ -958,22 +958,22 @@ bx_win_end:                             ; replaces `cmp word [D7], 6` (DrawBench
 
 bx_benchy:                              ; (4.0.6) replaces `mov word [D1], 389` (BenchCheckControls: the top bench's y)
     mov word [D1], 389
-    cmp word [TRAIN], 0
+    call bx_van                         ; (4.1: the game's dugout - a training game, or a bench of 5 at most)
     jne .t
     sub word [D1], DUGUP_               ; the top dugout grew upwards
 .t:
     ret
 
 bx_camdest:                             ; (4.0.6) ax = the bench camera's destination y: the halfway line of the
-    mov ax, 449                         ; two-row dugouts (both in view), 449 (the game's) in a training game
-    cmp word [TRAIN], 0
+    mov ax, 449                         ; two-row dugouts (both in view), 449 (the game's) with the game's dugout
+    call bx_van
     jne .x
     mov ax, CAMMID_
 .x:
     ret
 
 bx_seat:                                ; (4.0.6 two rows) replaces DrawBenchPlayersAndCoach's players' `call
-    cmp word [TRAIN], 0                 ; DrawSpriteInCameraView` (D1 / D2 = the seat, pushed by the caller)
+    call bx_van                         ; DrawSpriteInCameraView` (D1 / D2 = the seat, pushed by the caller)
     jne .go
     cmp word [D7], BACK_
     jbe .back
@@ -993,7 +993,7 @@ bx_seat:                                ; (4.0.6 two rows) replaces DrawBenchPla
     jmp DRAWSPR
 
 bx_arrow:                               ; (4.0.6 two rows) replaces the bench arrow's `call DrawSpriteInCameraView`
-    cmp word [TRAIN], 0                 ; (DrawBenchAndSubsMenu, D0 = the arrow, D1 pushed by the caller)
+    call bx_van                         ; (DrawBenchAndSubsMenu, D0 = the arrow, D1 pushed by the caller)
     jne .game
     cmp word [IDX], BACK_
     ja .front
@@ -1071,8 +1071,8 @@ bx_camy:                                ; replaces `mov word [D4], 449` (MoveCam
 
 bx_camlo:                               ; replaces `cmp word [CAMY], 339` (its flags): the arrival window's top
     push eax
-    cmp word [TRAIN], 0
-    jne .w
+    cmp word [TRAIN], 0                 ; (4.1: the snap with the game's dugout too - destination 449 - as in 4.0.6:
+    jne .w                              ; only the training game keeps the game's own step)
     call bx_camdest                     ; (two rows) 1..3 px above its destination the game's step (delta / 4 x
     sub ax, 100                         ; 0.25) is 0: the camera never stands still (cameraCoordinatesValid 0, the
     sub ax, [CAMY]                      ; bench takes no keys) - there it is set on the destination
@@ -1088,7 +1088,7 @@ bx_camlo:                               ; replaces `cmp word [CAMY], 339` (its f
 
 bx_clock:                               ; (two rows) replaces UpdateTime's `mov word [esi + z + 2], 10000 / ret`
     mov word [esi + 40], 10000          ; (esi = currentTimeSprite): with the bench open (g_inSubstitutesMenu) the
-    cmp word [TRAIN], 0                 ; clock goes to the screen's top right, its right edge at x 288, left of
+    call bx_van                         ; clock goes to the screen's top right, its right edge at x 288, left of
     jne .x                              ; the spinning S (SpinBig_S_Sprite: camera + 285, ink from x 295), off
                                         ; the top dugout
     cmp word [INSUBS], 0
@@ -1105,6 +1105,57 @@ bx_clock:                               ; (two rows) replaces UpdateTime's `mov 
     pop eax
 .x:
     ret
+
+;   4.1 (41-vandug, Marco: the 1996-97 matches showed the long dugout) - the game's dugout art and geometry when
+;   the match bench has 5 at most: the long one only for a bench over 5 (bit 15 of pitchNumberAndType, set by vd_pitch)
+bx_van:                                 ; ZF clear (jne taken) = the game's dugout, ZF set = the long one
+    test word [PNT], 8000h
+    jz .van
+    cmp eax, eax
+    ret
+.van:
+    test esp, esp
+    ret
+
+vd_pitch:                               ; replaces InitGameRestoreTeams' `call ReadPitchFile` ([D0] = pitchNumberAndType
+    pushad                              ; >> 8, the pitch 0..5). A match: the long set when not a training game and
+    mov ax, [GMAX]                      ; gameMaxSubstitutes > 5 -> bit 15 in pitchNumberAndType and hilPitchNumber (the
+    mov [vd_log + 4], ax                ; highlights' header, written before); a replay (playHighlightFlag): the bit
+    and word [D0], 7Fh                  ; its HIL brought back (CopyTeamsAndHeader). Then the pitch's three names get
+    cmp word [PHF], 0                   ; the digit (the game's PITCHn) or the letter (dugout.long_names: PITCHA..E)
+    jne .have
+    and word [PNT], 7FFFh
+    and word [HILPN], 7FFFh
+    cmp word [TRAIN], 0
+    jne .have
+    cmp word [GMAX], 5
+    jbe .have
+    or word [PNT], 8000h
+    or word [HILPN], 8000h
+.have:
+    movzx ebx, word [D0]
+    cmp ebx, 5
+    jae .go                             ; (PITCH6, the training pitch: as it is)
+    lea eax, [ebx + '1']
+    test word [PNT], 8000h
+    jz .set
+    add al, 'a' - '1'
+.set:
+    mov esi, [PDAT + ebx * 4]           ; 'pitchN.dat'
+    mov [esi + 5], al
+    mov esi, [P16T + ebx * 4]           ; 'swcpichN.p16'
+    mov [esi + 7], al
+    shl ebx, 4
+    mov [PBLK + ebx + 5], al            ; 'pitchN.blk' (16-byte strings)
+.go:
+    mov ax, [PNT]
+    mov [vd_log + 6], ax
+    inc word [vd_log + 8]
+    popad
+    jmp RPF
+vd_log:                                 ; (harness vandug_check: 'VDPL', GMAX at the load, pitchNumberAndType, loads)
+    db 'VDPL'
+    dw 0, 0, 0
 
 bx_camhi:                               ; replaces `cmp word [CAMY], 359`
     push eax
@@ -1885,6 +1936,44 @@ def sites11(p, regs):
                 'WAITGO': tg(wt[0].start() + 2), 'D4': (2, d4)}
 
 
+def sites_vd(p, regs):
+    """4.1 41-vandug: InitGameRestoreTeams' `call ReadPitchFile` (obj1) + its target, and obj2's ofsPitch1Dat /
+    ofsSwpich1Dat (the VGA / EGA names' tables: ReadPitchFile's two `mov [A0], offset ..`), 'pitch1.blk' (`mov edx,
+    offset ..`: 6 strings of 16), pitchNumberAndType (the call's `mov ax, [..] / mov [D0], ax / shr [D0], 8`),
+    hilPitchNumber (SetHilFileHeader: mov ax, [pitchNumberAndType] / mov [..], ax) and playHighlightFlag
+    (ViewHighLightsMain: mov word [..], 1 / call CopyTeamsAndHeader, whose `mov ax, [hilPitchNumber] / mov
+    [pitchNumberAndType], ax`)."""
+    d = p.le.obj_bytes(1)
+    pk = lambda x: re.escape(struct.pack('<I', x))
+    U = lambda o: struct.unpack_from('<I', d, o)[0]
+    d0, a0 = regs['D7'] - 28, regs['A0']
+    st = [x.start() for x in re.finditer(rb'\xb9\xcc\x09\x00\x00\x33\xc0\xf3\xab', d)]   # mov ecx, 2508 / rep stosd
+    assert len(st) == 2, ('ReadPitchFile', st)
+    rpf = d.rfind(b'\x66\x83\x3d', 0, st[0])         # cmp word [EGA_graphics], -1
+    assert 0 < st[0] - rpf < 0x20 and d[rpf + 7:rpf + 10] == b'\xff\x0f\x84', ('ReadPitchFile start', hex(rpf))
+    calls = [x for x in range(len(d) - 5) if d[x] == 0xE8 and x + 5 + struct.unpack_from('<i', d, x + 1)[0] == rpf]
+    assert len(calls) == 1, ('call ReadPitchFile', calls)
+    w = d[rpf:rpf + 0x200]
+    tabs = [U(rpf + x.start() + 6) for x in re.finditer(rb'\xc7\x05' + pk(a0) + rb'....', w, re.S)][:2]
+    blk = [U(rpf + x.start() + 1) for x in re.finditer(rb'\xba....\x66\xc1\x25', w, re.S)]
+    assert len(blk) == 1, ('pitch1.blk', blk)
+    pre = d[calls[0] - 0x80:calls[0]]
+    pm = [U(calls[0] - 0x80 + x.start() + 2) for x in re.finditer(rb'\x66\xa1....\x66\xa3' + pk(d0) + rb'\x66\xc1\x2d'
+                                                                  + pk(d0) + rb'\x08', pre, re.S)]
+    assert len(pm) == 1, ('pitchNumberAndType', pm)
+    pnt = pm[0]
+    hil = [U(x.start() + 8) for x in re.finditer(rb'\x66\xa1' + pk(pnt) + rb'\x66\xa3(....)', d, re.S)
+           if U(x.start() + 8) not in range(d0, a0 + 28)]
+    back = [x.start() for x in re.finditer(rb'\x66\xa1....\x66\xa3' + pk(pnt), d, re.S)]
+    back = [x for x in back if U(x + 2) in hil]
+    assert len(hil) == 1 and len(back) == 1, ('hilPitchNumber', hil, back)
+    phf = [U(x + 3) for x in range(len(d) - 14) if d[x:x + 3] == b'\x66\xc7\x05' and d[x + 7:x + 10] == b'\x01\x00\xe8'
+           and 0 < back[0] - (x + 14 + struct.unpack_from('<i', d, x + 10)[0]) < 0x40]
+    assert len(phf) == 1, ('playHighlightFlag', phf)
+    return {'call': calls[0], 'RPF': (1, rpf), 'PDAT': (2, tabs[0]), 'P16T': (2, tabs[1]), 'PBLK': (2, blk[0]),
+            'PNT': (2, pnt), 'HILPN': (2, hil[0]), 'PHF': (2, phf[0])}
+
+
 def sites12(p, regs, s2):
     """(4.0.6 two rows) {name: obj1 offset} of the two `call DrawSpriteInCameraView` the bench rows change: the
     arrow's (`mov word [D0], 1284; push dword [D1]; call`) and the bench players' (7 pushes, then the call, in the
@@ -2434,6 +2523,7 @@ def patch(p, at, ns_at, lang='it'):
     s2, v2 = sites2(p, regs)
     s11, v11 = sites11(p, regs)
     s12, v12 = sites12(p, regs, s2)
+    svd = sites_vd(p, regs)                         # 4.1 41-vandug: the game's dugout for a bench of 5 at most
     INFO['TRAIN'] = v2['TRAIN']                     # (kittrain.py, 4.0.6: g_trainingGame)
     s3 = sites3(p, regs, s2['n1'], s2['n2'])
     import namespr
@@ -2450,7 +2540,8 @@ def patch(p, at, ns_at, lang='it'):
            'DUGUP_': (0, 16 * dugout.ADD), **v12, 'CAMMID_': (0, dugout.CAM_MID), 'BACK_': (0, dugout.BACK),
            'FRONTX_': (0, dugout.FRONT_X), 'FRONTY_': (0, dugout.FRONT_Y), 'ARROWDX_': (0, dugout.ARROW_DX),
            'ARROW_': (0, 1284), 'CAMX': (2, v11['CAMY'][1] - 4), 'INSUBS': (2, v11['BENCHY'][1] - 0x12), 'D7': (2, regs['D7']), 'D1': (2, regs['D7'] - 24), 'A0': (2, regs['A0']), 'GMAX': (2, gmax), 'D2': (2, d2), 'A1': (2, regs['A0'] + 4), 'A2': (2, regs['A0'] + 8), 'A6': (2, regs['A0'] + 24),
-           'CT': (2, ct), 'CNP': (2, cnp), 'MAXP': (0, MAXP), 'PI': (0, PI)}
+           'CT': (2, ct), 'CNP': (2, cnp), 'MAXP': (0, MAXP), 'PI': (0, PI),
+           **{k: v for k, v in svd.items() if k != 'call'}}
     s4 = sites4(p, regs)
     assert s4['D4'] == v11['D4'][1], 'D4'
     sym.update({'GPI': (1, s4['gpi_t']), 'ROTATE': (1, s4['rot_t']), 'DRAWMENU': (1, s4['drawmenu']),
@@ -2536,7 +2627,9 @@ def patch(p, at, ns_at, lang='it'):
     call9(s11['chi'], 9, 'bx_camhi', 3)
     for k, lbl in (('arrowcall', 'bx_arrow'), ('seatcall', 'bx_seat')):   # (two rows) call rel32 (no fixup)
         go(s12[k], lbl)
-    go(s12['clock'], 'bx_clock', 7, op=0xE9)        # mov word [esi + 40], 10000 / ret (no address) -> jmp bx_clock
+    go(s12['clock'], 'bx_clock', 7, op=0xE9)
+    assert bytes(p.get(1, svd['call'], 1)) == b'\xe8' and p.call_target(1, svd['call']) == svd['RPF'], 'ReadPitchFile call'
+    go(svd['call'], 'vd_pitch')                     # (4.1 41-vandug) InitGameRestoreTeams' call ReadPitchFile (rel32)        # mov word [esi + 40], 10000 / ret (no address) -> jmp bx_clock
     call9(s2['n1'], 9, 'bx_name1', 3)               # add word [D1], 255 (66 81 05 addr FF 00)
     call9(s2['n2'], 9, 'bx_name2', 3)
     for k in ('wb0', 'wb1', 'wb2'):                 # mov word [D2], 15 (66 C7 05 addr 0F 00)

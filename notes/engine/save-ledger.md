@@ -20,9 +20,10 @@ Old saves: the .CAR layout does not change and B_STAGE is a file I/O buffer only
 the 8 archived saves round-trip byte for byte as on 8dfa5ea (test_roundtrip, fixtures p0_uru_load_sr / _srbase).
 Edge case (pre-existing): a 3.0 .. 3.3.2 Europe 1984-85 save without BIGC and with 90 or fewer cached teams loads into
 the game's 68400-B cache; a world career's whole 'EN' block fits there only up to 76 cached teams (75 with S2b's 'US',
-182 B), past that save_trailer drops 'EN' at runtime, as before.
+290 B), past that save_trailer drops 'EN' at runtime, as before.
 **4.1 S2b (Shaved, 08/11):** 'US' 182 B + 4 (the career club's UEFA cup's earlier knockout stages, line below) →
-'EN' 15554 B (27 items): **522 B left**.
+'EN' 15554 B (27 items): 522 B left. **S2b LP (Davide 08/11):** + the league phase's final table, 108 B → 'US' 290 B,
+'EN' 15662 B (27 items): **414 B left**.
 
 | Item | B | Owner (module) | Since | What |
 |---|---|---|---|---|
@@ -52,7 +53,7 @@ the game's 68400-B cache; a world career's whole 'EN' block fits there only up t
 | GI | 2 | gkinj | 4.0.6 | OPTIONS: goalkeeper injuries |
 | CR | 1 | cpurefill | 4.0.6 | CPU replacements switch |
 | FF | 21 | ffp (Integratore; state in finance.py FF_ST) | 4.0.6 (after I10j) | financial fair play: FF_ON, FF_BLOCK, FF_VALID (1 B each), FF_INC (the season's gates), FF_IPREV (last season's income), FF_FINE, FF_TVW (the season's TV credit share paid for the wages, left out of FFP's income) (dd each), FF_NCH (dw: the season's match charges, for the season-end wage bill). Plain bytes, no pointers, clear: an older save loads it zeroed = the rule OFF; a new career sets ON + VALID (after_new). With its header 25 B: **68 B left** on I10j + FFP |
-| US | 182 | uesum (Shaved) | 4.1 S2b | RIEPILOGO's earlier knockout stages of the career club's own UEFA cup (uesum.c US_REC: u8 contest id, u8 ties per stage [play-offs, R16, QF, SF], pad, 22 ties x 8 B - team words x / y, leg 1 / leg 2 / penalties as goals x << 4 | y, flags). Recorded at cseg_28E76's exit after every match; world_only (big worlds; 1984-85 carries a zero block). Clear: an older save loads it zeroed = the S2a page. With its header 186 B, on top of MC's 41-selroom (SEL_ROOM +640): **522 B left** |
+| US | 290 | uesum (Shaved) | 4.1 S2b | RIEPILOGO's earlier knockout stages of the career club's own UEFA cup (uesum.c US_REC: u8 contest id, u8 ties per stage [play-offs, R16, QF, SF], u8 season stamp, 22 ties x 8 B - team words x / y, leg 1 / leg 2 / penalties as goals x << 4 | y, flags; then the league phase's final table: 36 team words + 36 u8 points, place order). Ties recorded at cseg_28E76's exit after every match, the table at lp36's lp_cb_gend; world_only (big worlds; 1984-85 carries a zero block). Clear: an older save loads it zeroed = the S2a page. With its header 294 B, on top of MC's 41-selroom (SEL_ROOM +640): **414 B left** |
 
 ## The round trip (test_roundtrip.py, Tier B)
 

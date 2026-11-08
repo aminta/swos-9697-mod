@@ -20961,8 +20961,9 @@ def ko2_poke(s):
 
 def rec_poke(s):
     """UES_POKE=rec (world_uesum, 4.1 S2b): uesum.c's US_REC = the CL (id 0), one play-off tie between the first two
-    clubs of the CL's knockout contest (type 1): 1-0, 1-2, (2-2), the guest through on penalties 4-3. Returns the two lines expected
-    (the play-offs' name, the tie), None without an S2b exe or a CL copy."""
+    clubs of the CL's knockout contest (type 1): 1-0, 1-2, (2-2), the guest through on penalties 4-3; S2b LP: the league
+    phase's final table = those two clubs, 20 and 19 points (the other 34 places no club, FFFFh). Returns the four lines
+    expected (the league phase's name, its table line, the play-offs' name, the tie), None without an S2b exe or a CL copy."""
     import rnames
     import uesum
     r = s.result
@@ -20985,10 +20986,12 @@ def rec_poke(s):
     old = os.environ.get('UES_POKE') == 'recold'
     s.poke(r.base4 + 0x2000 + k + 4, bytes((0, 1, 0, 0, 0, (ss - 1) & 0xFF if old else ss))
            + struct.pack('<2H4B', w[0], w[1], 0x10, 0x12, 0x43, 0xEB))
+    s.poke(r.base4 + 0x2000 + k + 4 + US_LP, struct.pack('<36H', w[0], w[1], *[0xFFFF] * 34) + bytes((20, 19)))
     s.send('dump:1')
     pen = uesum.TEXTS[UI][0].decode('latin1')
     s.log.append(f'[uesum] rec poked: {names}, stamp {ss}{" - 1" if old else ""}')
-    return ['OLD'] if old else [rnames.NAMES[UI][1][0] + ':', f'  {names[0]} - {names[1]} 1-0 1-2 (2-2) {pen} 4-3']
+    return ['OLD'] if old else [rnames.NAMES[UI][0][0] + ':', f'  1 {names[0][:17]} 20  2 {names[1][:17]} 19',
+                                rnames.NAMES[UI][1][0] + ':', f'  {names[0]} - {names[1]} 1-0 1-2 (2-2) {pen} 4-3']
 
 
 @scenario
@@ -21076,11 +21079,12 @@ def world_uesum():
                     ties = [ln for ln in lines if ln.startswith('  ') and not ln.startswith('   ')] + lines[-1:]
                     check(ties == want, f'ko2 ties {ties}, not {want}', errs)
                 if rwant == ['OLD']:                    # (last season's stamp: no earlier stage on the page)
-                    po = rnames.NAMES[UI][1][0] + ':'
-                    check(po not in lines, f'recold: last season\'s {po} on the page {lines}', errs)
+                    for po in (rnames.NAMES[UI][1][0] + ':', rnames.NAMES[UI][0][0] + ':'):   # (+ S2b LP's table)
+                        check(po not in lines, f'recold: last season\'s {po} on the page {lines}', errs)
                 elif rwant:
                     k = next((i for i, ln in enumerate(lines) if ln == rwant[0]), None)
-                    check(k is not None and lines[k:k + 2] == rwant, f'rec: {rwant} not on the page {lines}', errs)
+                    check(k is not None and [ln.rstrip() for ln in lines[k:k + 4]] == rwant,
+                          f'rec: {rwant} not on the page {lines}', errs)
                 info.append(f'{cup}: {len(lines)} lines, heads {heads}')
                 walk(s, 16, 3)                          # (the page's ESCI -> STAT)
                 vis2 = [t for k, t, inv, _ in s.screen().entries if t and not inv]
@@ -21099,11 +21103,15 @@ def season_playing_at(r, exe):
     return r.lin(uesum.season_var(p))
 
 
+US_LP = 182                             # (uesum.c struct cup: the league phase's table after the 22 ties)
+
+
 def us_rec_read(r, at):
     """uesum.c's US_REC at linear at (after its 'S2BR' tag): the career club's cup (id, n[4], 22 ties: x, y, l1, l2,
-    pn, fl)."""
-    b = bytes(r.read(at, 182))
-    return b[0], list(b[1:5]), [struct.unpack_from('<2H4B', b, 6 + 8 * k) for k in range(22)], b[5]
+    pn, fl), its stamp, the league phase's final table (36 team words, 36 points)."""
+    b = bytes(r.read(at, 290))
+    return (b[0], list(b[1:5]), [struct.unpack_from('<2H4B', b, 6 + 8 * k) for k in range(22)], b[5],
+            list(struct.unpack_from('<36H', b, US_LP)), list(b[US_LP + 72:US_LP + 108]))
 
 
 def us_line(names, t, pen, aet):
@@ -21133,7 +21141,8 @@ def world_uesum_ko():
     recorder at cseg_28E76's exit -> US_REC, found by its 'S2BR' tag): per cup the stages' tie counts, every recorded
     tie decided, each stage's clubs through = the next stage's clubs (the play-offs' 8 winners in the round of 16);
     then the CL's RIEPILOGO lists SPAREGGI .. SEMIFINALE before the current stage, every tie line as US_REC says
-    (us_line, the names from the team cache). The save: UES_CAR, UES_KO_CAR, or the pinned
+    (us_line, the names from the team cache); S2b LP: the league phase's final table recorded (36 clubs, points in
+    place order, places 9-24 = the play-offs' clubs, 1-8 in the round of 16) and its block first on the page. The save: UES_CAR, UES_KO_CAR, or the pinned
     internal/uesum/cv_s2_cl_<UI>.CAR (IT: ARSENAL in the CL); none -> SKIP (rec / recold cover the language)."""
     exe, car = os.environ.get('UES_BUILD') or os.environ.get('CV_BUILD'), os.environ.get('UES_CAR')
     if not exe:                                         # (default: world_uesum's - world_contiview's build)
@@ -21171,13 +21180,13 @@ def world_uesum_ko():
         check(rec0[1] == [0] * 4, f'US_REC not empty after the load: {rec0[:2]}', errs)
         sp = season_playing_at(r, exe)
         ss = r.read(sp, 1)[0] + 1
-        s.poke(at, bytes((0, 8, 8, 4, 2, (ss - 1) & 0xFF)) + bytes([0x11]) * 176)   # (MC 08/11: a stale block - the
+        s.poke(at, bytes((0, 8, 8, 4, 2, (ss - 1) & 0xFF)) + bytes([0x11]) * 284)   # (MC 08/11: a stale block - the
         s.send('dump:1')                                                      #  CL, last season's stamp - dropped
 
         def done(scr):
             if scr.find('VISUAL. COMPETIZ.', exact=True) is None:
                 return season_over(scr)
-            cid, n, t, _ = us_rec_read(s.result, at)
+            cid, n, t, _, _, _ = us_rec_read(s.result, at)
             return cid == 0 and n[3] and all(t[sum(n[:3]) + i][5] & 0x82 == 0x82 for i in range(n[3]))
         ok, msg = advance(s, done, 900)
         if not ok:
@@ -21194,10 +21203,10 @@ def world_uesum_ko():
                              f'{struct.unpack_from("<H", mem, b - 0x41F + 0x53)[0] if b >= 0x41F else None}')
                 k = mem.find(nm, k + 1)
         cache = mem[s.result.base2:s.result.base2 + 0x100000]
-        cid, n, ties, ss1 = rec
+        cid, n, ties, ss1, lw, lp = rec
         ssn = s.result.read(sp, 1)[0] + 1
         check(ss1 == ssn, f'US_REC stamp {ss1}, not seasonPlaying + 1 = {ssn}', errs)
-        words = {w for t in ties[:sum(n)] for w in t[:2]}
+        words = {w for t in ties[:sum(n)] for w in t[:2]} | set(lw)
         hits = {}                                           # (the team cache: 684-byte records, the word at +0 and
         for w in words:                                     #  the name at +5 - the records' common alignment)
             j = cache.find(struct.pack('<H', w))
@@ -21225,6 +21234,13 @@ def world_uesum_ko():
             prev = {t[1] if t[5] & 1 else t[0] for t in tt}
         info.append(f'cup {cid}: {n}')
         check(cid == 0 and n == [8, 8, 4, 2], f'CL stages {cid} {n}, not 0 [8, 8, 4, 2]', errs)
+        if check(lw[0] and len(set(lw)) == 36, f'S2b LP: no final table recorded ({lw[:4]}...)', errs):   # (S2b LP:
+            check(all(a >= b for a, b in zip(lp, lp[1:])), f'S2b LP: points not in place order {lp}', errs)   # the table
+            po = {w for t in ties[:n[0]] for w in t[:2]}                     # vs the knockout: places 9-24 = the play-offs'
+            check(po == set(lw[8:24]), f'S2b LP: play-off clubs {sorted(po - set(lw[8:24]))} not places 9-24', errs)
+            r16 = {w for t in ties[n[0]:n[0] + n[1]] for w in t[:2]}         # clubs, 1-8 in the round of 16
+            check(set(lw[:8]) <= r16, f'S2b LP: places 1-8 {sorted(set(lw[:8]) - r16)} not in the round of 16', errs)
+            info.append(f'LP table {lw[0]:#x} {lp[0]} .. {lp[35]}')
         want, off = [], 0
         for st in range(4):
             want.append(stn[st] + ':')
@@ -21250,6 +21266,13 @@ def world_uesum_ko():
                 joined.append(ln)
         for ln in joined:
             s.log.append(f'[uesko]   | {ln}')
+        if lw[0]:                                           # (S2b LP: its block first - one line joined, compared
+            lph = rnames.NAMES[UI][0][0] + ':'              #  without spaces: a wrapped line loses its trailing ones)
+            k = next((i for i, ln in enumerate(joined) if ln == lph), None)
+            exp = ''.join(f'{i + 1}{names[w][:17]}{p}' for i, (w, p) in enumerate(zip(lw, lp)) if w in names).replace(' ', '')
+            gotl = joined[k + 1].replace(' ', '') if k is not None and k + 1 < len(joined) else None
+            check(gotl == exp, f'S2b LP block on the page {gotl!r}, not {exp!r}', errs)
+            check(k is not None and joined[k + 2:k + 3] == want[:1], f'S2b LP: {want[0]} not right after its block', errs)
         i0 = next((i for i, ln in enumerate(joined) if ln == want[0]), None)
         got = joined[i0:i0 + len(want)] if i0 is not None else []
         check(got == want, f'earlier stages on the page {got[:6]}... not {want[:6]}... '
@@ -21276,7 +21299,7 @@ def world_uesum_ko():
         m = bytes(r.read(r.base4 + 0x2000, 0x1000))
         at2 = r.base4 + 0x2000 + m.find(b'S2BR') + 4
         rec2 = us_rec_read(r, at2)
-        check(rec2[:2] == rec[:2] and rec2[3] == rec[3] and rec2[2][:sum(rec[1])] == rec[2][:sum(rec[1])],
+        check(rec2[:2] == rec[:2] and rec2[3:] == rec[3:] and rec2[2][:sum(rec[1])] == rec[2][:sum(rec[1])],
               f'US_REC after the reload {rec2[:2]}, not {rec[:2]}', errs)
         for _ in range(6):
             if s.screen().find('VISUAL. COMPETIZ.', exact=True) is not None:
@@ -21316,7 +21339,7 @@ def world_uesum_ko():
                     break
                 press(s, s.screen(), 'CONTINUA', 3) or s.send('fire dump:2')
             rn = us_rec_read(s.result, at2)
-            check(rn[1] == [0] * 4, f'new career after a career: US_REC {rn[:2]} stamp {rn[3]}, not empty', errs)
+            check(rn[1] == [0] * 4 and not rn[4][0], f'new career after a career: US_REC {rn[:2]} stamp {rn[3]} LP {rn[4][0]:#x}, not empty', errs)
             info.append(f'new career: US_REC n {rn[1]}')
     return not errs, '; '.join(errs) or '; '.join(info)
 

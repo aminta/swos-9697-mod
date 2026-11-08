@@ -13,7 +13,7 @@ TEXTS = {   # pens, a.e.t. (holder, to be played, winner: ctview.TEXTS')
     'it': (b'RIG.', b'D.T.S.'), 'en': (b'PENS', b'AET'), 'fr': (b'TAB', b'A.P.'), 'de': (b'I.E.', b'N.V.')}
 STAGES = (0, 1, 2, 12, 13, 14)  # rnames.NAMES' long names: league phase, play-offs, round of 16, QF, SF, final
 LABELS = {}
-REC_SIZE = 182                                          # 4.1 S2b: uesum.c's US_REC (MC's save item copies it)
+REC_SIZE = 290                                          # 4.1 S2b: uesum.c's US_REC (MC's save item copies it; + LP 108)
 REC_PAT = rb'\xe8....\xeb\x05\xe8....(\x66\xc7\x05....\x00\x00)\x66[\x31\x33]\xc0\xc3'
 
 
@@ -85,8 +85,18 @@ def patch(p, at, lang, usc=False):
            'W_LPW': (1, careerworld.LABELS['w_lpw']), 'US_TAB': (4, tab_at)}
     rs = rec_site(p)                                    # (S2b: the recorder at cseg_28E76's exit)
     ext.update({'D0W': p.target(1, rs + 3), 'RET28': (1, rs + 9), 'SEASONP': season_var(p)})
+    import lp36                                         # (S2b LP: the league phase's end, lp36's lp_cb_gend - chained:
+    gend = lp36.LABELS.get('lp_cb_gend')                #  uefacoef's jmp uc_gend after us_gend, else its ret)
+    chain = gend is not None and p.get(1, gend, 1)[0] == 0xE9
+    if gend is not None:
+        assert chain or p.get(1, gend, 1)[0] == 0xC3, ('lp_cb_gend', bytes(p.get(1, gend, 5)).hex())
+        ext['LP_ORD'], ext['LP_KEY'] = lp36.LABELS['LP_ORD'], lp36.LABELS['LP_KEY']
+        if chain:
+            ext['GENDOLD'] = (1, gend + 5 + struct.unpack('<i', bytes(p.get(1, gend + 1, 4)))[0])
+    else:
+        ext['LP_ORD'] = ext['LP_KEY'] = (2, diycopy)    # (no league phase in this exe: us_gend never called)
     obj = cobj.compile_c(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uesum.c'),
-                         ['-Oz', '-fno-zero-initialized-in-bss', f'-DTXTMAX={fmtpage.TXTMAX}'])
+                         ['-Oz', '-fno-zero-initialized-in-bss', f'-DTXTMAX={fmtpage.TXTMAX}', f'-DGEND_CHAIN={int(chain)}'])
     syms, end, bss = cobj.link(p, obj, at, (4, 0), externs=ext, limit=room, text_obj=4)
     assert bss == 0, ('uesum.c: no .bss (statics in its data)', bss)
     assert end <= room, ('uesum past obj4', hex(end), hex(room))
@@ -96,6 +106,8 @@ def patch(p, at, lang, usc=False):
         p.put(3, cp[k], struct.pack('<I', syms[f][1]))
     p.remove(1, rs + 3)                                 # (its D0 fixup: the jmp overwrites it; us_hook does the mov)
     p.branch(1, rs, 0xE9, *syms['us_hook'][:2], n=9)
+    if gend is not None:
+        p.branch(1, gend, 0xE9, *syms['us_gend'][:2], n=5)
     LABELS.clear()
     LABELS.update(syms)
     LABELS['US_REC'] = (4, syms['US'][1] + 4)           # (after its 'S2BR' tag)

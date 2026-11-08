@@ -3282,20 +3282,28 @@ def zone_rows(s, tag, n):
 def main_button():
     """W-modes M1 (Davide 04/11): the main menu's green button is the default-world switch (mainbtn.py), in a full
     2026-27 build (MAINBTN_BUILD, else SWOSTEST_BUILD; EN too with MAINBTN_EN = an English build, its exe as
-    ITALIAN.EXE). A fresh install's 105-B SETUP.DAT shows WORLD: 2026-27 (right of CAREER: 4 x down from FRIENDLY) and
+    ITALIAN.EXE; FR / DE with SWOSTEST_UI, the labels checked against the exe's own, 08/11). A fresh install's 105-B SETUP.DAT shows WORLD: 2026-27 (right of CAREER: 4 x down from FRIENDLY) and
     CAREER > SELECT TEAM opens the World 2026-27's list at once; fire -> WORLD: 1996-97, SETUP.DAT +105 = 1 at once
     (the other 105 B as on disk), CAREER > SELECT TEAM at the top (the game's); fire -> EUROPE 1984-85 (+105 = 2),
     SELECT TEAM opens that world's list; fire -> back to 2026-27 (0). Then a restart with +105 = 2 shows EUROPE
     1984-85, and with 2026-27 EUROPE > ITALY > SERIE A > INTER starts that world's career (2026/27)."""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import mainbtn
-    cases = [('it', os.environ.get('MAINBTN_BUILD') or os.environ.get('SWOSTEST_BUILD'), 'CARRIERA', 'SCEGLI SQUADRA',
-              'MONDO 2026-27', 'EUROPA 1984-85', ['EUROPA', 'ITALIA', 'SERIE A', 'INTER'], 'CAMP. 2026/27'),
-             ('en', os.environ.get('MAINBTN_EN'), 'CAREER', 'CHOOSE TEAM', 'WORLD 2026-27', 'EUROPE 1984-85',
-              ['EUROPE', 'ITALY', 'SERIE A', 'INTER'], '2026/27')]
+    cases = [(UI, os.environ.get('MAINBTN_BUILD') or os.environ.get('SWOSTEST_BUILD'), 'CARRIERA', 'SCEGLI SQUADRA',
+              'MONDO 2026-27', 'EUROPA 1984-85', ['EUROPA', 'ITALIA', 'SERIE A', 'INTER'], 'CAMP. 2026/27')]
+    if UI == 'it':                                      # (SWOSTEST_UI=en / fr / de: the first case, read back in Italian)
+        cases.append(('en', os.environ.get('MAINBTN_EN'), 'CAREER', 'CHOOSE TEAM', 'WORLD 2026-27', 'EUROPE 1984-85',
+                      ['EUROPE', 'ITALY', 'SERIE A', 'INTER'], '2026/27'))
     errs, info = [], []
     if not cases[0][1]:
         return True, 'SKIP: MAINBTN_BUILD / SWOSTEST_BUILD (a full 2026-27 build) not set'
+    for lang, b, *_ in cases:                           # (08/11: the switch's labels are the exe's own: the language
+        if b:                                           #  whose three labels the exe under test holds = the case's)
+            exe = open(os.path.join(b, 'ITALIAN.EXE'), 'rb').read()
+            has = [k for k, t in mainbtn.WORLD.items() if all(x + b'\0' in exe for x in t)]
+            check(has == [lang], f'{lang}: the exe holds the world labels of {has}', errs)
+    if errs:
+        return False, '; '.join(errs)
     fresh = os.path.join(RUNS, 'main_button_files', 'SETUP.DAT')
     os.makedirs(os.path.dirname(fresh), exist_ok=True)
     base = setup_dat()[:105]
@@ -3304,11 +3312,16 @@ def main_button():
         if not b:
             continue
         labs = [t.decode('latin-1') for t in mainbtn.WORLD[lang]]
+        its = [t.decode('latin-1') for t in mainbtn.WORLD['it']]   # (the decoder may read a label in Italian:
+
+        def lab(sc, k):                                             #  EN / FR 'EUROPE 1984-85' -> 'EUROPA 1984-85')
+            i = sc.find(labs[k], exact=True)
+            return i if i is not None or lang == 'it' else sc.find(its[k], exact=True)
 
         def to_main(s):
             for _ in range(8):
                 sc = s.screen()
-                if any(sc.find(t, exact=True) is not None for t in labs):
+                if any(lab(sc, k) is not None for k in range(len(labs))):
                     return sc
                 out = [sc.find(t, exact=True) for t in ('ABBANDONA', 'ESCI', 'ABORT', 'EXIT') if sc.find(t, exact=True) is not None]
                 if not out:                                 # (the team list / career menu: ESC does not leave)
@@ -3330,7 +3343,7 @@ def main_button():
         with Session(f'main_button_{lang}', b, {'SETUP.DAT': fresh}, 'dump:2', 1500) as s:
             s.wait()
             sc = s.screen()
-            i = sc.find(labs[0], exact=True)
+            i = lab(sc, 0)
             check(i is not None, f'{lang}: {labs[0]} on the main menu of a fresh install ({sc.texts()[:14]})', errs)
             if i is None:
                 continue
@@ -3356,7 +3369,7 @@ def main_button():
         with Session(f'main_button_restart_{lang}', b, {'SETUP.DAT': saved}, 'dump:2', 600) as s:
             s.wait()
             sc = s.screen()
-            check(sc.find(labs[2], exact=True) is not None and sc.find(labs[0], exact=True) is None,
+            check(lab(sc, 2) is not None and lab(sc, 0) is None,
                   f'{lang}: restart: {labs[2]} kept ({sc.texts()[:14]})', errs)
             set_world(s, 0, lang)
             head = team_head(s)

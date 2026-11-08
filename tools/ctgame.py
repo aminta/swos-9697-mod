@@ -478,6 +478,10 @@ def patch(p, at, scr_at, lang):
         p.add_ptr(3, cp['view'], 3, syms['cg_view'][1])
         p.add_ptr(3, cp['close'], 3, syms['cg_close'][1])
         p.add_ptr(3, cp['scr'], 3, scr_at)
+        rec = int(re.search(r'#define CG_REC (0x[0-9A-Fa-f]+)', open(os.path.join(os.path.dirname(os.path.abspath(
+            __file__)), 'ctgame.c')).read()).group(1), 16)
+        p.add_ptr(3, cp['replay'], 3, syms['cg_replay'][1])   # (4.1 P: ctview's group points from the record)
+        p.add_ptr(3, cp['gr'], 3, scr_at + rec)
     p.add_ptr(1, cl['cg_guardp'], 3, syms['cg_daily'][1])          # (P2: a day / a save closes an open view first)
     p.add_ptr(1, trailer.INFO['cg_guardp'], 3, syms['cg_guard'][1])
     LABELS.clear()

@@ -259,8 +259,8 @@ cw_title:                               ; edi = a title: VIEW WORLD's one cup (C
 .r: ret
 
 cw_after:                               ; careerworld w_choose (VIEW WORLD's picker returned): one of our cup buttons
-    pushad                              ; (selectedContest = a CW_MARK) -> that cup's rounds menu (no round yet: its
-    cmp word [CTRES], 0                 ; page part), chooseTeamsResult cleared (ViewWorldMenu then goes out)
+    pushad                              ; (selectedContest = a CW_MARK) -> that cup's CR_SEL round view (no round yet:
+    cmp word [CTRES], 0                 ; its page part), chooseTeamsResult cleared (ViewWorldMenu then goes out)
     je .x
     mov eax, [SELCONT]
     xor ebx, ebx
@@ -287,14 +287,13 @@ cw_after:                               ; careerworld w_choose (VIEW WORLD's pic
     call CV_ROUNDS
     add esp, 12
     mov [CR_CNT], eax
-    call cr_sel
     pop es
     test eax, eax
     jnz .m
     call cv_page
     jmp .e
-.m: mov dword [A6], CR_MENU
-    call SHOW_MENU
+.m: mov eax, [CR_SEL_]                  ; (4.1 cdall B, Davide 08/11: no rounds menu here - CR_SEL's round view
+    call cr_view                        ;  straight away, its ESCI back to VIEW WORLD)
 .e: mov dword [CV_ONLY_], 0FFh
 .x: popad
     ret
@@ -467,20 +466,66 @@ cr_init:                                ; the rounds menu's onInit: title, label
     jbe .e
     pop es
     popad
-    btr dword [CR_IN_], 0               ; (4.1 cdirect: cv_rounds' round in progress - once, the menu opening: its
-    jnc .z                              ; view straight away; its ESCI back here, the cursor on it)
+    btr dword [CR_IN_], 0               ; (4.1 cdirect / cdall: cv_rounds' CR_SEL round - once, the menu opening: its
+    jnc .z                              ; view straight away, every cup; its ESCI back here, the cursor on it)
     push eax
     mov eax, [CR_SEL_]
     call cr_go
     pop eax
 .z: ret
 
+cv_stinit:                              ; 4.1 STAT's onInit / onReturn: winners' (CLASSIFICA GENERALE, VINCITORI, the
+    call WN_INIT                        ; places), then RIEPILOGO (entry 10, cv_page) shown while cr_go's round view
+    pushad                              ; is up, the column re-spaced as fmtpage's fp_stpos (19 px from y 30)
+    mov ebx, MENU_ + 16h
+    movzx eax, byte [CV_SUMF]
+    test eax, eax
+    jnz .v
+    call [CV_USOK]                      ; (4.1 S2a: a world's UEFA cup, uesum us_ok)
+.v: xor al, 1
+    mov [ebx + 10 * 38h + 4], ax
+    jnz .r
+    mov edx, 30
+    mov esi, CV_STORD
+.l: movzx eax, byte [esi]
+    inc esi
+    test eax, eax
+    jz .r
+    imul eax, eax, 38h
+    cmp word [ebx + eax + 4], 0
+    jne .l
+    mov [ebx + eax + 16h], dx
+    add edx, 19
+    jmp .l
+.r: popad
+    ret
+CV_STORD: db 1, 2, 3, 5, 6, 7, 8, 9, 10, 0
+CV_SUMF: db 0
+
+cv_sum:                                 ; RIEPILOGO's select: a conti round's view -> cv_page; else (4.1 S2a) the
+    cmp byte [CV_SUMF], 0               ; UEFA cup's page text (uesum us_text), then cv_page's tail
+    jne cv_page
+    pushad
+    push es
+    push ds
+    pop es
+    cld
+    call [CV_UST]
+    jmp cv_page.t3
+align 4
+CV_USOK: dd 0                           ; (uesum.patch: us_ok, us_text in obj4)
+CV_UST: dd 0
+
 cr_sum:                                 ; RIEPILOGO: the summary page, then the rounds menu's labels and links again
     call cv_page
     jmp cr_init
 
 CR_STUBS
-cr_go:                                  ; round button eax: the game's own screen of that round (ctgame cg_view), the
+cr_go:                                  ; round button eax: its view (cr_view), then the menu as it came back: its
+    call cr_view                        ; labels and links again
+    jmp cr_init
+
+cr_view:                                ; CR_LIST round eax: the game's own screen of that round (ctgame cg_view), the
     pushad                              ; career club's group stage in progress the real one (slot 3); a round the
     push es                             ; screens can't show (cg_view 0) -> the summary page
     push ds
@@ -492,6 +537,7 @@ cr_go:                                  ; round button eax: the game's own scree
     and eax, 15
     mov [CR_C], ebx
     mov [CR_R], eax
+    mov byte [CV_SUMF], 1               ; (4.1: STAT's RIEPILOGO while the view is up, cv_stinit)
     cmp byte [CT_SEG_ + 2], 0FFh
     je .b
     cmp [CT_SEG_], bl
@@ -516,14 +562,14 @@ cr_go:                                  ; round button eax: the game's own scree
     mov [A0R], eax
     call VC_VIEW
     call [CR_CLOSE]
-.x: call cr_init                        ; (the menu as it came back: its labels and links again)
+.x: mov byte [CV_SUMF], 0
     pop es
     popad
     ret
-.t: pop es
+.t: mov byte [CV_SUMF], 0
+    pop es
     popad
-    call cv_page                        ; (the summary page, then the menu as it came back: labels and links again)
-    jmp cr_init
+    jmp cv_page                         ; (the summary page)
 
 align 4
 CR_VIEW: dd 0                           ; (ctgame.patch: cg_view, cg_close, its scratch)
@@ -652,6 +698,10 @@ def patch(p, at, lang, scr_at):
                                                           for b in CONF_NAMES[k].ljust(12, b'\0')))
     ws = wn['sym']
     sym = {k: ws[k] for k in ('A6', 'SHOW_MENU', 'TITLE', 'PAGE', 'FOUND', 'TXT', 'TXTMAX_', 'FMTMENU')}
+    assert wn.get('sumsel'), 'ctview: fmtpage RIEPILOGO (4.1)'
+    wi = p.target(2, wn['init'])                        # (winners' wn_init: STAT's onInit and onReturn)
+    assert wi == p.target(2, wn['init'] + 4) and wi[0] == 1, wi
+    sym.update(WN_INIT=wi, MENU_=ws['MENU_'])
     sym.update(FP_FILL=(1, wn['fill']), EXIT_T=wn['exit'][0], EXIT_F=wn['exit'][1], CT_SPEC=cs['CT_SPEC'],
                SPEC=cl['SPEC'], CT_LPF=(1, cl['ct_lp']), CV_CONFS=syms['cv_confs'], CV_TEXT=syms['cv_text'],
                CAREERTEAM=gplay.LABELS['CAREERTEAM'], CAL=gplay.LABELS['CAL'], CAL_CUR=gplay.LABELS['CAL_CUR'],
@@ -684,8 +734,13 @@ def patch(p, at, lang, scr_at):
     p.add_ptr(1, careerworld.LABELS['WV_AFTER'], 3, lab['cw_after'])   # (careerworld w_choose -> cw_after, the
     p.add_ptr(1, careerworld.LABELS['WV_ON'], 3, lab['cw_on'])         #  cup-button lists in / out around its picker)
     p.add_ptr(1, careerworld.LABELS['WV_OFF'], 3, lab['cw_off'])
+    for o, t in ((wn['init'], 'cv_stinit'), (wn['init'] + 4, 'cv_stinit'), (wn['sumsel'], 'cv_sum'),
+                 (wn['sumtxt'], 'CR_SUMT')):
+        p.retarget(2, o, 3, lab[t])                     # (4.1: STAT's RIEPILOGO)
+        p.put(2, o, struct.pack('<I', lab[t]))
     CR_PTRS.clear()
-    CR_PTRS.update(view=lab['CR_VIEW'], close=lab['CR_CLOSE'], scr=lab['CR_SCR'])
+    CR_PTRS.update(view=lab['CR_VIEW'], close=lab['CR_CLOSE'], scr=lab['CR_SCR'], usok=lab['CV_USOK'], ust=lab['CV_UST'], replay=syms['cv_replay'][1],
+                   gr=syms['cv_gr'][1])                 # (4.1 P: cv_text's replay with its goals - the points)
     p.retarget(1, gl['VC9_TXTP'], 3, lab['CV_LABEL'])
     p.put(1, gl['VC9_TXTP'], struct.pack('<I', lab['CV_LABEL']))
     print(f'exe: COPPE CONTINENTALI view (ctview): obj3+{t0:#x}..{end:#x} ({end - t0} B of {CAP}: table {len(tab)}, '

@@ -464,7 +464,7 @@ def patch(p, at, lang):
     sym['S_OFF'], sym['S_ON'] = cpucards.strings(p, controls.menu_header(p, controls.locate(p)['OMBD'][1]))
     assert p.target(2, s['bizhdr']) == s['BIZINIT'], ('clubBusinessMenu init already hooked', p.target(2, s['bizhdr']))
     for t in (RATIO[lang], FINE[lang]):
-        assert re.fullmatch(r"[A-Z0-9 /.:'-]+", t), t
+        assert re.fullmatch(r"[A-Z0-9 /.:'-]+", t), t           # (DE: AE / OE / UE in the small font, CONVENTIONS.md)
     sym['PREV5DEB9'] = p.call_target(1, s['season'])
     assert sym['PREV5DEB9'] == (1, s['F5DEB9']), ('InitializeNewSeason: cseg_5DEB9 call already hooked', sym['PREV5DEB9'])
     sym['LIMIT_'] = (0, 0 if os.environ.get('FFP_FORCE') == 'over' else LIMIT)

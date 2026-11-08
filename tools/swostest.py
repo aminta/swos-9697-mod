@@ -29115,8 +29115,8 @@ def bteam_ui():
     if UI != 'it':                                      # (SWOSTEST_UI: bteam's own texts read back as the Italian ones)
         for k, t in bteam.TEXTS[UI].items():
             for x, y in zip(t if isinstance(t, (list, tuple)) else [t], bteam.TEXTS['it'][k] if isinstance(t, (list, tuple)) else [bteam.TEXTS['it'][k]]):
-                if x:
-                    UI_MAP.setdefault(x, y)
+                if x:                                   # (as Screen reads them: a DE umlaut as '?')
+                    UI_MAP.setdefault(ui_label(x.encode('latin-1')), y)
     nbo = finance.find(lepatch.LEPatch(os.path.join(MAIN, 'orig', UI_ORIG)))['NEWBAL'][1]
     bank = lambda: struct.unpack('<i', bytes(s.result.obj2(nbo, 4)))[0]     # newBalance: no money for a call-up
     errs, info = [], []

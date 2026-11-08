@@ -1358,8 +1358,11 @@ def ui_texts(lang):
     """BT_TEXTS: the button, the page's words and the codes' lines (pointer tables bt_codes / bt_oks)."""
     T = TEXTS[lang]
     enc = lambda t: t.encode('latin-1')
+    import complist
     for t in (T['ok1'], T['ok2']) + T['codes']:
         assert len(t) < MSG, t
+    for t in [T[k] for k in ('btn', 'c1', 'c2', 'exit', 'head', 'ok1', 'ok2')] + list(T['codes']):   # (the fonts' glyphs;
+        assert set(t) <= complist.FONT, (lang, t)                       #  DE: AE / OE / UE, CONVENTIONS.md)
     out = [f'bt_lbl: {_db(enc(T["btn"]))}', f'bt_t1: {_db(enc(T["c1"]))}', f'bt_t2: {_db(enc(T["c2"]))}',
            f'bt_tx: {_db(enc(T["exit"]))}', f'bt_hd: {_db(enc(T["head"]))}', f'bt_ok1: {_db(enc(T["ok1"]))}', f'bt_ok2: {_db(enc(T["ok2"]))}']
     out += [f'bt_cd{i}: {_db(enc(t))}' for i, t in enumerate(T['codes'])]

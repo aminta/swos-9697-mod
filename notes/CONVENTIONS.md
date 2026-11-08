@@ -9,6 +9,8 @@ new rule. If a rule seems wrong for a case, ask the regia session; don't silentl
    35-byte title field; calendar labels ≤ 70 px before the (C)/(F) marker, **both lines** of a two-line cup entry.
    The build asserts this (complist.check_titles / rnames). No stray characters, no cut words.
 2. **4 languages, the game's own words.** Every new text exists in IT / EN / FR / DE, in each exe's own wording.
+   DE umlauts: the fonts' bytes (8Eh / 99h / 9Ah = Ä / Ö / Ü) **only in big-font titles** (e.g. ÜBERSICHT); every
+   small-font text writes AE / OE / UE (its dots barely show; Davide 26/10 + 08/11). complist.DE_UMLAUT, asserted.
 3. **Club names = the national press** (Italy: Gazzetta dello Sport, ...), never legal names.
 4. **FORMAT pages are discursive prose** (the approved Libertadores style), full-width wrap, a blank line between
    paragraphs, PAG. SUCC. / PAG. PREC.

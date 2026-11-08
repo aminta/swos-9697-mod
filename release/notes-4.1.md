@@ -45,10 +45,13 @@ Thanks to Francesco and Tally, who sent us their saves.
   - knockout rounds with both legs, the aggregate, extra time, away goals and penalties;
   - group stages with their tables and the fixtures match day by match day (NEXT shows the next stage, as in any
     cup of the game).
-  - **SUMMARY** is now inside STAT, in every cup (the UEFA ones too), with the points beside the clubs. <!-- DRAFT slots 26/27: wait for Regia's sha -->
+  - **SUMMARY** (IT RIEPILOGO, FR RESUME, DE UBERSICHT) is now inside STAT, in every cup (the UEFA ones too), with the points beside the clubs. For your own club's European cup (Champions League, Europa League or Conference League) it keeps the story of the season, and saves it with the career:
+    - **Earlier rounds.** The summary lists the knockout rounds already played, from the play-offs up to the semi-finals, with the clubs that went through, before the round you are looking at. They are remembered in the save, so they are still there after you quit and load the career again.
+    - **LEAGUE PHASE.** Once the knockout rounds start, a LEAGUE PHASE block (IT FASE CAMPIONATO, FR PHASE DE LIGUE, DE LIGAPHASE) shows the final table of the 36-club league phase, place by place with each club's points, before the PLAY-OFFS (IT SPAREGGI, FR BARRAGES, DE PLAYOFFS).
+    - **Rules.** Only your own club's European cup is remembered (the other European cups of the world are shown as they stand at the moment). A new season starts the record again, and so does a new career; a club that skips the play-offs does not show last season's ties. A career saved before 4.1 shows the summary as it stands, without the earlier rounds.
 - **VIEW WORLD**: every continent now shows its continental cups as green buttons above its nations - SOUTH AMERICA
   the Libertadores, the Sudamericana and the Recopa, EUROPE the Champions League, Europa League and Conference League,
-  WORLD the Intercontinental, and so on. A button opens that cup directly on its current round. The menu of rounds stays only on the CONTINENTAL CUPS path, where you pick a confederation. <!-- DRAFT slots 26/27: wait for Regia's sha -->
+  WORLD the Intercontinental, and so on. A button opens that cup directly on its current round. The menu of rounds stays only on the CONTINENTAL CUPS path, where you pick a confederation.
 - When the game's own screen can't show a round, you get the text page instead:
   - for the AFC Champions League Elite league stage, a format the game's screens don't have;
   - in the rare cases where it couldn't be shown safely (too many clubs loaded at once, a club missing from the data).
@@ -291,7 +294,7 @@ With the new button in place, a long coach's name on the squad screen is shown s
 - **HISTORIC > EUROPE 1984-85 under the default 2026-27 world** (friendly, career, DIY) showed 2026-27 countries. Fixed: it shows those of 1984-85.
 - **French: the world, continent and country name now shows.** In the French game the headers of the team-pick screens ("EQUIPES : ", "MODIFIER : ") were too long and hid the world, continent or country name. They are shorter now.
 - **European places after a damaged save.** 4.0.5 could damage the UEFA coefficients stored in a career, which gave wrong European places (for example 2 Champions League places while 4 clubs qualified). 4.1 repairs them when you load the career.
-- **Joystick fire buttons.** The fire buttons now work after COMMANDS > calibrate > SAVE, and they are fixed automatically at start-up on installs where they had been left unset. <!-- DRAFT slot 29: wait for Regia's sha -->
+- **Joystick fire buttons.** The fire buttons now work after COMMANDS > calibrate > SAVE, and they are fixed automatically at start-up on installs where they had been left unset.
 - **EXIT on the "not available" national teams message.** In the FRIENDLY and DIY team pickers, the message that national teams are not yet available now has an EXIT button to the left of ABORT. EXIT goes back to the menu of team kinds and keeps the teams you have already picked; ABORT works as before.
 - **OPTIONS screen spacing** (thanks to Marco). The option rows moved down 2 pixels, so the gap under the title now matches the gap above QUIT TO DOS. QUIT TO DOS, CONTROLS and EXIT stay where they were. Not with SWOS++, which has its own options screen.
 - **Longer names in the match** (thanks to Marco). A surname that fits whole is no longer cut: RUUD VAN NISTELROOY used to show as "VAN NISTEL.", and now shows as VAN NISTELROOY, on the player's name, on the goal scorers line and in the bench menu. Surnames of up to 14 letters are shown whole; a longer one is cut as before, and one-word names are unchanged.
@@ -352,10 +355,13 @@ Grazie a Francesco e Tally, che ci hanno mandato i loro salvataggi.
   - turni a eliminazione diretta con andata e ritorno, il totale, i supplementari, i gol in trasferta e i rigori;
   - fasi a gironi con le classifiche e le partite giornata per giornata (PASSA mostra la fase successiva, come in ogni
     coppa del gioco).
-  - **RIEPILOGO** ora è dentro STAT, in tutte le coppe (anche quelle UEFA), con i punti accanto alle squadre. <!-- BOZZA slot 26/27: aspetta lo sha di Regia -->
+  - **RIEPILOGO** (EN SUMMARY, FR RESUME, DE UBERSICHT) ora è dentro STAT, in tutte le coppe (anche quelle UEFA), con i punti accanto alle squadre. Per la coppa europea del tuo club (Champions League, Europa League o Conference League) conserva la storia della stagione e la salva con la carriera:
+    - **Turni precedenti.** Il riepilogo elenca i turni a eliminazione già giocati, dagli spareggi alle semifinali, con le squadre che sono passate, prima del turno che stai guardando. Restano nel salvataggio, quindi ci sono ancora dopo aver chiuso il gioco e ricaricato la carriera.
+    - **FASE CAMPIONATO.** Quando iniziano i turni a eliminazione, un blocco FASE CAMPIONATO (EN LEAGUE PHASE, FR PHASE DE LIGUE, DE LIGAPHASE) mostra la classifica finale della fase campionato a 36 club, posto per posto con i punti di ogni squadra, prima degli SPAREGGI (EN PLAY-OFFS, FR BARRAGES, DE PLAYOFFS).
+    - **Regole.** Si ricorda solo la coppa europea del tuo club (le altre coppe europee del mondo si vedono come stanno in quel momento). Una nuova stagione ricomincia la registrazione, e così una nuova carriera; un club che salta gli spareggi non mostra gli scontri della stagione scorsa. Una carriera salvata prima della 4.1 mostra il riepilogo com'è, senza i turni precedenti.
 - **VISUALIZZA MONDO**: ogni continente ora mostra le sue coppe continentali come pulsanti verdi sopra le nazioni -
   SUDAMERICA la Libertadores, la Sudamericana e la Recopa, EUROPA Champions League, Europa League e Conference League,
-  MONDO l'Intercontinentale, e così via. Un pulsante apre quella coppa direttamente sul turno in corso. Il menu dei turni resta solo nel percorso COPPE CONTINENTALI, dove scegli una confederazione. <!-- BOZZA slot 26/27: aspetta lo sha di Regia -->
+  MONDO l'Intercontinentale, e così via. Un pulsante apre quella coppa direttamente sul turno in corso. Il menu dei turni resta solo nel percorso COPPE CONTINENTALI, dove scegli una confederazione.
 - Quando la schermata del gioco non può mostrare un turno, compare invece la pagina di testo:
   - per la fase campionato della AFC Champions League Elite, una formula che le schermate del gioco non hanno;
   - nei rari casi in cui non si potrebbe mostrare in sicurezza (troppe squadre caricate insieme, un club che manca nei
@@ -604,7 +610,7 @@ resta quello).
 - **STORICO > EUROPA 1984-85 con il mondo 2026-27 predefinito** (amichevole, carriera, competizione personalizzata) mostrava i paesi del 2026-27. Corretto: mostra quelli del 1984-85.
 - **Francese: ora si vede il nome del mondo, del continente e della nazione.** Nel gioco in francese le intestazioni delle schermate di scelta della squadra ("EQUIPES : ", "MODIFIER : ") erano troppo lunghe e coprivano il nome del mondo, del continente o della nazione. Ora sono più corte.
 - **Posti europei dopo un salvataggio rovinato.** La 4.0.5 poteva rovinare i coefficienti UEFA salvati in una carriera, e questo dava posti europei sbagliati (per esempio 2 posti in Champions League mentre si qualificavano 4 club). La 4.1 li ripara quando carichi la carriera.
-- **Pulsanti di fuoco del joystick.** I pulsanti di fuoco ora funzionano dopo COMANDI > calibra > SALVA, e vengono sistemati da soli all'avvio nelle installazioni dove erano rimasti non impostati. <!-- BOZZA slot 29: aspetta lo sha di Regia -->
+- **Pulsanti di fuoco del joystick.** I pulsanti di fuoco ora funzionano dopo COMANDI > calibra > SALVA, e vengono sistemati da soli all'avvio nelle installazioni dove erano rimasti non impostati.
 - **ESCI nel messaggio delle nazionali non disponibili.** Nelle scelte squadre di AMICHEVOLE e delle competizioni personalizzate, il messaggio che dice che le nazionali non sono ancora disponibili ora ha un pulsante ESCI a sinistra di ABBANDONA. ESCI torna al menu dei tipi di squadre e tiene le squadre già scelte; ABBANDONA funziona come prima.
 - **Spaziatura della schermata OPZIONI** (grazie a Marco). Le righe delle opzioni sono scese di 2 pixel, così lo spazio sotto il titolo ora è come quello sopra ESCI A DOS. ESCI A DOS, COMANDI ed ESCI restano dove erano. Non con SWOS++, che ha una sua schermata delle opzioni.
 - **Nomi più lunghi in partita** (grazie a Marco). Un cognome che sta intero non viene più tagliato: RUUD VAN NISTELROOY compariva come "VAN NISTEL.", ora come VAN NISTELROOY, sul nome del giocatore, nella riga dei marcatori e nel menu della panchina. I cognomi fino a 14 lettere si vedono interi; uno più lungo viene tagliato come prima, e i nomi di una sola parola non cambiano.

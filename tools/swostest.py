@@ -20959,6 +20959,34 @@ def ko2_poke(s):
     return [f'  {names[4]} - {names[2]} 1-0 1-2 (2-2) {pen} 4-3', f'  {names[3]} - {names[0]} 0-2',
             ctview.TEXTS[UI][2].decode('latin1') + ': ' + names[4]]
 
+def rec_poke(s):
+    """UES_POKE=rec (world_uesum, 4.1 S2b): uesum.c's US_REC = the CL (id 0), one play-off tie between the first two
+    clubs of the CL's knockout contest (type 1): 1-0, 1-2, (2-2), the guest through on penalties 4-3. Returns the two lines expected
+    (the play-offs' name, the tie), None without an S2b exe or a CL copy."""
+    import rnames
+    import uesum
+    r = s.result
+    m = bytes(r.read(r.base4 + 0x2000, 0x1000))
+    k = m.find(b'S2BR')
+    d = bytes(r.read(r.base2, 0x100000))
+    nm = b'UEFA CHAMPIONS LEAGUE\0'
+    hits = [i for i in range(len(d) - 0x800) if d[i] == 1 and d[i + 0x2D] == 0 and d[i + 4:i + 4 + len(nm)] == nm]
+    if k < 0 or not hits:
+        return None
+    w = [struct.unpack_from('<H', d, hits[0] + 0x24D + 2 * i)[0] for i in (0, 1)]
+    names = []
+    for x in w:
+        j = d.find(struct.pack('<H', x))
+        while j >= 0 and not re.match(rb"[A-Z][A-Z0-9 .'/&-]{2,16}\0", d[j + 5:j + 23]):
+            j = d.find(struct.pack('<H', x), j + 1)
+        names.append(d[j + 5:j + 22].split(b'\0')[0].decode('latin1') if j >= 0 else '?')
+    s.poke(r.base4 + 0x2000 + k + 4, bytes((0, 1, 0, 0, 0, 0)) + struct.pack('<2H4B', w[0], w[1], 0x10, 0x12, 0x43, 0xEB))
+    s.send('dump:1')
+    pen = uesum.TEXTS[UI][0].decode('latin1')
+    s.log.append(f'[uesum] rec poked: {names}')
+    return [rnames.NAMES[UI][1][0] + ':', f'  {names[0]} - {names[1]} 1-0 1-2 (2-2) {pen} 4-3']
+
+
 @scenario
 def world_uesum():
     """4.1 S2a (Davide 08/11): STAT > RIEPILOGO of a world's UEFA cup (uesum.c, obj4): a World 2026-27 career save
@@ -20990,10 +21018,13 @@ def world_uesum():
                 break
             press(s, s.screen(), 'CONTINUA', 3) or s.send('fire dump:2')
         walk(s, s.screen().find('VISUAL. COMPETIZ.', exact=True), 3)
-        want = None
+        want = rwant = None
         if os.environ.get('UES_POKE') == 'ko2':         # (a test state: the CL's knockout round in every copy of its
             want = ko2_poke(s)                          #  contest - the second leg's turn, tie 0 decided on pens)
             check(want, 'UES_POKE=ko2: no CL knockout contest in memory', errs)
+        elif os.environ.get('UES_POKE') == 'rec':       # (4.1 S2b: US_REC set to one recorded play-off tie of the CL -
+            rwant = rec_poke(s)                         #  shown before a later current stage, e.g. the final)
+            check(rwant, 'UES_POKE=rec: no S2BR block / CL contest', errs)
         comps = [e[1] for e in s.screen().entries if e[1] and not e[2]]
         s.log.append(f'[uesum] contests {comps}')
         lg = s.screen().entries[1][1]                   # (the career league's STAT: no RIEPILOGO)
@@ -21040,10 +21071,202 @@ def world_uesum():
                 if want:
                     ties = [ln for ln in lines if ln.startswith('  ') and not ln.startswith('   ')] + lines[-1:]
                     check(ties == want, f'ko2 ties {ties}, not {want}', errs)
+                if rwant:
+                    k = next((i for i, ln in enumerate(lines) if ln == rwant[0]), None)
+                    check(k is not None and lines[k:k + 2] == rwant, f'rec: {rwant} not on the page {lines}', errs)
                 info.append(f'{cup}: {len(lines)} lines, heads {heads}')
                 walk(s, 16, 3)                          # (the page's ESCI -> STAT)
                 vis2 = [t for k, t, inv, _ in s.screen().entries if t and not inv]
                 check(summ in vis2, f'back from RIEPILOGO: {vis2}', errs)
+    return not errs, '; '.join(errs) or '; '.join(info)
+
+
+def us_rec_read(r, at):
+    """uesum.c's US_REC at linear at (after its 'S2BR' tag): the career club's cup (id, n[4], 22 ties: x, y, l1, l2,
+    pn, fl)."""
+    b = bytes(r.read(at, 182))
+    return b[0], list(b[1:5]), [struct.unpack_from('<2H4B', b, 6 + 8 * k) for k in range(22)]
+
+
+def us_line(names, t, pen, aet):
+    """uesum.c tline() in Python: a recorded tie's line, None when a club has no name."""
+    x, y, l1, l2, pn, fl = t
+    if x not in names or y not in names:
+        return None
+    ln = f'  {names[x]} - {names[y]}'
+    if not fl & 0xA0:
+        return ln
+    ln += f' {l1 >> 4}-{l1 & 15}'
+    if not fl & 0x80:
+        return ln
+    if fl & 0x40:
+        ln += f' {l2 >> 4}-{l2 & 15} ({(l1 >> 4) + (l2 >> 4)}-{(l1 & 15) + (l2 & 15)})'
+    if fl & 8:
+        ln += f' {pen} {pn >> 4}-{pn & 15}'
+    elif fl & 4:
+        ln += f' {aet}'
+    return ln
+
+
+@scenario
+def world_uesum_ko():
+    """4.1 S2b (Davide 08/11, option A): RIEPILOGO's earlier knockout stages. World_uesum's season-2 save (UES_CAR /
+    CV_S2; UES_BUILD / CV_BUILD its exe), played on until the CL's semi-finals are recorded and decided (uesum.c's
+    recorder at cseg_28E76's exit -> US_REC, found by its 'S2BR' tag): per cup the stages' tie counts, every recorded
+    tie decided, each stage's clubs through = the next stage's clubs (the play-offs' 8 winners in the round of 16);
+    then the CL's RIEPILOGO lists SPAREGGI .. SEMIFINALE before the current stage, every tie line as US_REC says
+    (us_line, the names from the team cache)."""
+    exe, car = os.environ.get('UES_BUILD') or os.environ.get('CV_BUILD'), os.environ.get('UES_CAR')
+    if not exe:                                         # (default: world_uesum's - world_contiview's build)
+        src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+        if not os.path.isdir(src):
+            return True, f'SKIP: private data {src} missing'
+        order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+        exe = build('world_contiview', env={'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x)
+                                                                                          for x in order])}, lang=UI)
+    car = car or os.environ.get('CV_S2') or os.path.join(RUNS, f'cv_s2_{UI}.CAR')
+    if not os.path.exists(car):
+        return False, f'no save {car} (UES_CAR, or run world_contiview first)'
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import ctview
+    import rnames
+    import uesum
+    summ = ctview.TEXTS[UI][7].decode('latin1')
+    pen, aet = (x.decode('latin1') for x in uesum.TEXTS[UI])
+    stn = [rnames.NAMES[UI][k][0] for k in (1, 2, 12, 13)]     # (the recorded stages' names: play-offs .. SF)
+    errs, info = [], []
+    with Session('world_uesum_ko', exe, {'W84A.CAR': car}, 'dump:2', 1500) as s:
+        s.wait()
+        s.send(LOAD1 + ' dump:3')
+        r = s.result
+        m = bytes(r.read(r.base4 + 0x2000, 0x1000))
+        k = m.find(b'S2BR')
+        if k < 0:
+            return False, 'no S2BR block in obj4 page 3 (not an S2b exe)'
+        at = r.base4 + 0x2000 + k + 4
+        rec0 = us_rec_read(r, at)
+        check(rec0[1] == [0] * 4, f'US_REC not empty after the load: {rec0[:2]}', errs)
+
+        def done(scr):
+            if scr.find('VISUAL. COMPETIZ.', exact=True) is None:
+                return season_over(scr)
+            cid, n, t = us_rec_read(s.result, at)
+            return cid == 0 and n[3] and all(t[sum(n[:3]) + i][5] & 0x82 == 0x82 for i in range(n[3]))
+        ok, msg = advance(s, done, 900)
+        if not ok:
+            return False, f'advance: {msg}'
+        rec = us_rec_read(s.result, at)
+        s.log.append(f'[uesko] {msg}: cup {rec[0]} n {rec[1]}')
+        mem = bytes(s.result.read(0, MEMSIZE))
+        for nm in (b'UEFA CHAMPIONS LEAGUE\0', b'UEFA EUROPA LEAGUE\0', b'UEFA CONFERENCE LEAGUE\0'):
+            k = mem.find(nm)                                # (every copy of each cup's contest: type, id, ties,
+            while k >= 0:                                   #  the slot's stage word 0x41F below it)
+                b = k - 4
+                s.log.append(f'[uesko] {nm[:-1].decode()} at {b:#x}: type {mem[b]} id {mem[b + 0x2D]} ties '
+                             f'{struct.unpack_from("<H", mem, b + 0x51)[0]} stage@-41Fh+53h '
+                             f'{struct.unpack_from("<H", mem, b - 0x41F + 0x53)[0] if b >= 0x41F else None}')
+                k = mem.find(nm, k + 1)
+        cache = mem[s.result.base2:s.result.base2 + 0x100000]
+        cid, n, ties = rec
+        words = {w for t in ties[:sum(n)] for w in t[:2]}
+        hits = {}                                           # (the team cache: 684-byte records, the word at +0 and
+        for w in words:                                     #  the name at +5 - the records' common alignment)
+            j = cache.find(struct.pack('<H', w))
+            while j >= 0:
+                if re.match(rb"[A-Z][A-Z0-9 .'/&-]{2,16}\0", cache[j + 5:j + 23]):
+                    hits.setdefault(w, []).append(j)
+                j = cache.find(struct.pack('<H', w), j + 1)
+        al = collections.Counter(j % 684 for js in hits.values() for j in js).most_common(1)
+        names = {}
+        for w, js in hits.items():
+            j = next((j for j in js if al and j % 684 == al[0][0]), None)
+            if j is not None:
+                names[w] = cache[j + 5:j + 22].split(b'\0')[0].decode('latin1')
+        off, prev = 0, None                                 # (each stage decided; its winners in the next one)
+        for st in range(4):
+            tt = ties[off:off + n[st]]
+            off += n[st]
+            if not tt:
+                continue
+            und = [t for t in tt if t[5] & 0x82 != 0x82]
+            check(not und, f'stage {st}: undecided ties {und}', errs)
+            clubs = {w for t in tt for w in t[:2]}
+            if prev is not None:
+                check(prev <= clubs, f'stage {st}: winners {sorted(prev - clubs)} of the stage before missing', errs)
+            prev = {t[1] if t[5] & 1 else t[0] for t in tt}
+        info.append(f'cup {cid}: {n}')
+        check(cid == 0 and n == [8, 8, 4, 2], f'CL stages {cid} {n}, not 0 [8, 8, 4, 2]', errs)
+        want, off = [], 0
+        for st in range(4):
+            want.append(stn[st] + ':')
+            want += [ln for ln in (us_line(names, t, pen, aet) for t in ties[off:off + n[st]]) if ln]
+            off += n[st]
+        for _ in range(6):
+            if s.screen().find('VISUAL. COMPETIZ.', exact=True) is not None:
+                break
+            press(s, s.screen(), 'CONTINUA', 3) or s.send('fire dump:2')
+        walk(s, s.screen().find('VISUAL. COMPETIZ.', exact=True), 3)
+        cup = next((e[1] for e in s.screen().entries if e[1] and not e[2] and e[1].startswith('UEFA CHAMPIONS')), None)
+        if not check(cup, f'no UEFA CHAMPIONS LEAGUE in VISUAL. COMPETIZ. ({s.screen()})', errs):
+            return False, '; '.join(errs)
+        walk(s, s.screen().find(cup, exact=True), 3)
+        walk(s, s.screen().find('STAT', exact=True), 3)
+        walk(s, s.screen().find(summ, exact=True), 3)
+        title, lines = uesum_page(s, 'ko')
+        joined = []
+        for ln in lines:                                    # (word(): a long line goes on with 4 spaces)
+            if ln.startswith('    ') and joined:
+                joined[-1] += ln[4:]
+            else:
+                joined.append(ln)
+        for ln in joined:
+            s.log.append(f'[uesko]   | {ln}')
+        i0 = next((i for i, ln in enumerate(joined) if ln == want[0]), None)
+        got = joined[i0:i0 + len(want)] if i0 is not None else []
+        check(got == want, f'earlier stages on the page {got[:6]}... not {want[:6]}... '
+              f'(first diff {next((a, b) for a, b in zip(got + [None] * len(want), want) if a != b) if got != want else None})', errs)
+        info.append(f'{title}: {len(joined)} lines, earlier {len(want)} as US_REC')
+        for _ in range(10):                                 # (the save: ESCI back to the main menu, its SALVA entry)
+            sc = s.screen()
+            sv = next((x for x in sc.texts() if x.startswith(('SALVA', 'SAVE', 'SAUV', 'ENREG', 'SPEICH'))), None)
+            if sv and 'MOD. TATTICA' in sc.texts():
+                break
+            press(s, sc, 'ESCI', 3) or s.send('fire dump:2')
+        if not check(sv, f'no save entry on the main menu ({s.screen().texts()[:16]})', errs):
+            return False, '; '.join(errs)
+        press(s, s.screen(), sv, 2)
+        s.send(name_entry('S2BK') + ' dump:3')
+        game = s.result.game
+    saved = next((os.path.join(game, f) for f in os.listdir(game) if f.upper() == 'S2BK.CAR'), None)
+    if not check(saved, f'no S2BK.CAR saved ({sorted(os.listdir(game))[:20]})', errs):
+        return False, '; '.join(errs)
+    with Session('world_uesum_ko2', exe, {'W84A.CAR': saved}, 'dump:2', 600) as s:   # (the reload: US_REC and the
+        s.wait()                                                                       #  page as before the save)
+        s.send(LOAD1 + ' dump:3')
+        r = s.result
+        m = bytes(r.read(r.base4 + 0x2000, 0x1000))
+        at2 = r.base4 + 0x2000 + m.find(b'S2BR') + 4
+        rec2 = us_rec_read(r, at2)
+        check(rec2[:2] == rec[:2] and rec2[2][:sum(rec[1])] == rec[2][:sum(rec[1])],
+              f'US_REC after the reload {rec2[:2]}, not {rec[:2]}', errs)
+        for _ in range(6):
+            if s.screen().find('VISUAL. COMPETIZ.', exact=True) is not None:
+                break
+            press(s, s.screen(), 'CONTINUA', 3) or s.send('fire dump:2')
+        walk(s, s.screen().find('VISUAL. COMPETIZ.', exact=True), 3)
+        walk(s, s.screen().find(cup, exact=True), 3)
+        walk(s, s.screen().find('STAT', exact=True), 3)
+        walk(s, s.screen().find(summ, exact=True), 3)
+        _, lines2 = uesum_page(s, 'ko_reload')
+        joined2 = []
+        for ln in lines2:
+            if ln.startswith('    ') and joined2:
+                joined2[-1] += ln[4:]
+            else:
+                joined2.append(ln)
+        check(joined2 == joined, f'page after the reload differs: {[(a, b) for a, b in zip(joined2, joined) if a != b][:3]} '
+              f'({len(joined2)} vs {len(joined)} lines)', errs)
+        info.append(f'reload ({os.path.getsize(saved)} B): US_REC and the page unchanged')
     return not errs, '; '.join(errs) or '; '.join(info)
 
 

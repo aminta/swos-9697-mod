@@ -10,6 +10,8 @@
      swapped, the first leg's score at +14Dh with them), per tie +2CDh the pair (indices into the team words
      +24Dh), +89h flags (80h played, 2 decided, 1 the second club through, 4 a.e.t., 8 penalties), +C9h this leg's
      score, +1CDh the penalties - a word, hi = the pair's first club; +39h the winner (FFFFh none).
+   4.1 S2b (Davide 08/11, option A): the earlier knockout stages (play-offs .. semi-finals) as us_rec recorded them -
+   after every match cseg_28E76 plays, its common exit (us_hook) - in US_REC, MC's save item (uesum.REC_SIZE).
    Holders: the last season end's HOLD_CC / HOLD_CWC / HOLD_UEFA as supercup.py's usc_snap keeps them (saved). Names: the team cache
    (selTeamsPtr, its records' word at +0, teamName +5); a club not there has no line. */
 
@@ -84,25 +86,88 @@ static __attribute__((noinline)) const char *stname(u32 s) {             /* stag
     return txt(s < 2 ? T_LP + (int)s : n == 16 ? T_LP + 2 : n == 8 ? T_LP + 3 : n == 4 ? T_LP + 4 : T_LP + 5);
 }
 
+/* --- a tie, normalised (4.1 S2b): the current stage's (ko) and the earlier stages' (US_REC, saved) the same way --- */
+struct tie {                            /* x = the first leg's home club, y its guest (team words) */
+    u16 x, y;
+    u8 l1, l2, pn, fl;                  /* goals x << 4 | y (15 at most): leg 1, leg 2, penalties; FL_* */
+};
+enum { FL_PLAYED = 0x80, FL_TWO = 0x40, FL_LEG1 = 0x20, FL_Y = 1, FL_DEC = 2, FL_AET = 4, FL_PEN = 8 };
+#define NSTG 4                          /* the earlier stages kept: play-offs, round of 16, quarter-finals, semi-finals */
+#define NTIE 22                         /* (8 + 8 + 4 + 2) */
+struct cup { u8 id, n[NSTG], pad; struct tie t[NTIE]; };
+struct { u32 tag; struct cup c; } US = { 0x52423253 };   /* 'S2BR' (the harness finds the block by it), then the
+                                           career club's UEFA cup (the one contest a career keeps: id = its contest 0..2):
+                                           stage s's ties after n[0..s-2]'s - the save item's block US_REC = US.c (MC's
+                                           'EN' item copies it, zero after an old save) */
+#define US_REC US.c
+_Static_assert(sizeof US.c == 182, "US_REC: uesum.REC_SIZE");
+
+static u32 nib(u32 a, u32 b) { return (a > 15 ? 15 : a) << 4 | (b > 15 ? 15 : b); }
+static __attribute__((noinline)) void norm(u32 i, struct tie *t) {      /* UD's tie i (see the top) */
+    u32 two = w16(UD + 0x14B) == 2, l2 = w16(UD + 0x149) != 0;
+    const u8 *pr = UD + 0x2CD + 2 * i;
+    u32 f = UD[0x89 + i], s = w16(UD + 0xC9 + 2 * i), a = w16(UD + 0x14D + 2 * i), p = w16(UD + 0x1CD + 2 * i);
+    u32 fl = two ? FL_TWO : 0;
+    t->x = w16(UD + 0x24D + 2 * pr[l2]);
+    t->y = w16(UD + 0x24D + 2 * pr[!l2]);
+    t->l1 = t->l2 = 0;
+    if (l2) {                                   /* the second leg's turn: the first leg (hi = y now), this leg */
+        fl |= FL_LEG1;
+        t->l1 = (u8)nib(a & 0xFF, a >> 8);
+        if (f & 0x80) { fl |= FL_PLAYED; t->l2 = (u8)nib(s & 0xFF, s >> 8); }
+    } else if (f & 0x80) {
+        fl |= two ? FL_LEG1 : FL_PLAYED;
+        t->l1 = (u8)nib(s >> 8, s & 0xFF);
+    }
+    if (fl & FL_PLAYED) fl |= (f & (FL_DEC | FL_AET | FL_PEN)) | ((f ^ l2) & FL_Y);  /* (1: the pair's second club) */
+    t->pn = (u8)(l2 ? nib(p & 0xFF, p >> 8) : nib(p >> 8, p & 0xFF));
+    t->fl = (u8)fl;
+}
+
+static __attribute__((noinline)) void tline(const struct tie *t) {
+    const char *nx = name(t->x), *ny = name(t->y);
+    u32 fl = t->fl;
+    if (!nx || !ny) return;
+    brk();
+    add("  "); add(nx); word(" - "); word(ny);
+    if (!(fl & (FL_LEG1 | FL_PLAYED))) return;
+    score(t->l1 >> 4, t->l1 & 15, 0);
+    if (!(fl & FL_PLAYED)) return;
+    if (fl & FL_TWO) { score(t->l2 >> 4, t->l2 & 15, 0); score((t->l1 >> 4) + (t->l2 >> 4), (t->l1 & 15) + (t->l2 & 15), 1); }
+    if (fl & FL_PEN) { word(" "); word(txt(T_PEN)); score(t->pn >> 4, t->pn & 15, 0); }
+    else if (fl & FL_AET) { word(" "); word(txt(T_AET)); }
+}
+
 static void ko(void) {
-    u32 nt = w16(UD + 0x51), two = w16(UD + 0x14B) == 2, l2 = w16(UD + 0x149) != 0;
-    for (u32 i = 0; i < nt && i < 32; i++) {
-        const u8 *pr = UD + 0x2CD + 2 * i;
-        u32 x = pr[l2], y = pr[!l2];            /* x = the first leg's home club, y its guest */
-        const char *nx = name(w16(UD + 0x24D + 2 * x)), *ny = name(w16(UD + 0x24D + 2 * y));
-        if (!nx || !ny) continue;
-        u32 f = UD[0x89 + i], s = w16(UD + 0xC9 + 2 * i), a = w16(UD + 0x14D + 2 * i), p = w16(UD + 0x1CD + 2 * i);
-        brk();
-        add("  "); add(nx); word(" - "); word(ny);
-        if (l2) {                               /* the first leg (hi = y now), then the second leg and the total */
-            score(a & 0xFF, a >> 8, 0);
-            if (f & 0x80) { score(s & 0xFF, s >> 8, 0); score((a & 0xFF) + (s & 0xFF), (a >> 8) + (s >> 8), 1); }
-        } else if (f & 0x80) {
-            score(s >> 8, s & 0xFF, 0);
-            if (two) continue;
-        } else continue;
-        if (f & 8) { word(" "); word(txt(T_PEN)); score(l2 ? p & 0xFF : p >> 8, l2 ? p >> 8 : p & 0xFF, 0); }
-        else if (f & 4) { word(" "); word(txt(T_AET)); }
+    struct tie t;
+    for (u32 i = 0, nt = w16(UD + 0x51); i < nt && i < 32; i++) { norm(i, &t); tline(&t); }
+}
+
+/* 4.1 S2b, the recorder: after every match cseg_28E76 plays (its common exit, us_hook) the contest's knockout stage
+   1..NSTG into US_REC - the stage's last state is its result; recording stage s drops the stages after it (a new
+   season's). */
+void us_rec(void) {
+    u32 s = w16(UC + 0x53), nt = w16(UD + 0x51), off = 0;
+    if (UD[0] != 1 || s - 1 >= NSTG || !us_ok()) return;
+    struct cup *c = &US_REC;
+    if (c->id != UD[0x2D]) { c->id = UD[0x2D]; for (u32 k = 0; k < NSTG; k++) c->n[k] = 0; }   /* (another cup) */
+    for (u32 k = 0; k + 1 < s; k++) off += c->n[k];
+    if (off + nt > NTIE) return;                /* (a stage bigger than the room: not kept) */
+    for (u32 k = s; k < NSTG; k++) c->n[k] = 0;
+    c->n[s - 1] = (u8)nt;
+    for (u32 i = 0; i < nt; i++) norm(i, &c->t[off + i]);
+}
+extern u16 D0W;                         /* the game's D0 */
+void RET28(void);                       /* cseg_28E76's 'xor ax, ax; retn' */
+__asm__(".globl us_hook\nus_hook:\n\tpushal\n\tcall us_rec\n\tpopal\n\tmovw $0, D0W\n\tjmp RET28\n");
+
+static void earlier(u32 st) {                   /* the recorded stages before the current one */
+    const struct cup *c = &US_REC;
+    if (c->id != UD[0x2D]) return;
+    for (u32 s = 1, off = 0; s < st && s <= NSTG; off += c->n[s - 1], s++) {
+        if (!c->n[s - 1]) continue;
+        head(stname(s), 0);
+        for (u32 i = 0; i < c->n[s - 1]; i++) tline(&c->t[off + i]);
     }
 }
 
@@ -132,6 +197,7 @@ void us_text(void) {
     const char *h = HOLD[UD[0x2D]] ? name(HOLD[UD[0x2D]]) : 0;   /* (0: none yet, a world's first season) */
     if (h) head(txt(T_HOLD), h);
     u32 st = w16(UC + 0x53), ko_ = UD[0] == 1;
+    earlier(st);
     head(stname(st), 0);
     if (ko_) ko(); else table();
     for (u32 s = st + 1; s < 6 && w16(UC + 0x15D + 0x76 * s + 4); s++) head(stname(s), txt(T_TBP));

@@ -83,7 +83,7 @@ new rule. If a rule seems wrong for a case, ask the regia session; don't silentl
     against this figure, add its line to the ledger and update it here.
     4.1 (41-selroom, for S2b): SEL_ROOM + 640 (0x280), B_STAGE 0x7B000 -> 0x7AE40 - the two gaps around the stage
     (1152 B below, 207 B above), nothing after it moves (B_UQ, obj2's size): **708 B left** (engine block 15368 B,
-    26 items, 4.1 staging 8dfa5ea). That is the last room the gaps give (at most +679 B); more means moving B_UQ and the
+    26 items, 4.1 staging 8dfa5ea); S2b's 'US' (182 + 4) leaves **522 B** (engine block 15554 B, 27 items). That is the last room the gaps give (at most +679 B); more means moving B_UQ and the
     tail after it, or folding gplay's items into SWC1 (4.2) - the next item past this room waits for one of those.
 22. obj1 has a ceiling too: 237 pages in the release build (4.0.5, Panchina's SWOS++ probe: obj1 in memory <= 238 pages
     starts every match under SWOS++ 1.9.2.2, 239+ makes PLAY MATCH stall - obj2's base moves past what SWOS++ tolerates;

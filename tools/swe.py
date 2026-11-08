@@ -48,7 +48,7 @@ def av_rows(text):
     return a, b
 
 
-OBJ4_PAGES = 2                 # (M2: 2 pages, the registry moved to swreg.REG_AT = 0x1800)
+OBJ4_PAGES = 3                 # (M2: 2 pages, the registry moved to swreg.REG_AT = 0x1800; 4.1 S2a: a 3rd, uesum.US_AT)
 MAGIC = b'SWOS-ENG'
 VERSION = 3                    # (swe.c SWE_VERSION; 2 = step W, the registry; 3 = W-modes M2, the pickers' worlds)
 CODE_AT = 0x40
@@ -243,8 +243,8 @@ def patch(p):
     import careerworld
     import swreg
     assert len(p.le.objs) == 4 and p.le.obj(4).npages == OBJ4_PAGES, 'obj4 not added (patch.py)'
-    room = 0x1000 * OBJ4_PAGES
-    assert room == swreg.OBJ4_END
+    room = 0x1000 * OBJ4_PAGES                      # (4.1: a 3rd page above the registry's end, uesum's -
+    assert room == p.le.obj(4).npages * 0x1000 and swreg.REG_AT < swreg.OBJ4_END <= swreg.UESUM_AT < room   # swreg.UESUM_AT)
     site = pick_site(p)
     pick = p.call_target(1, site)                   # (chained: the picker call as earlier patches left it)
     ns = 'w_ns_set' in careerworld.LABELS and careerworld.NS.get('info')

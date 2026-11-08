@@ -20669,6 +20669,152 @@ def world_ctsum():
     return not errs, '; '.join(errs) or '; '.join(info)
 
 
+
+def uesum_page(s, tag):
+    """The RIEPILOGO page on screen: (title, its lines over every page - NEXT until the last; shots uesum_<tag>_pN)."""
+    pg = s.screen()
+    s.shot(f'uesum_{tag}_p1')
+    title, lines = pg.entries[0][1], [x[1] for x in pg.entries[1:15]]
+    for n in range(12):
+        if s.screen().entries[15][2]:
+            break
+        walk(s, 15, 3)
+        s.shot(f'uesum_{tag}_p{n + 2}')
+        lines += [x[1] for x in s.screen().entries[1:15]]
+    while lines and not lines[-1]:
+        lines.pop()
+    return title, lines
+
+
+
+def ko2_poke(s):
+    """UES_POKE=ko2 (world_uesum): every copy in memory of the CL's knockout contest (type 1 inside its type-2 slot,
+    or the viewed DIY) set to a two-leg round on the second leg's turn (cseg_28E76's layout, ctgame ko_fill's
+    orientation): tie 0 = pair (2, 4) swapped, first leg 1-0, second leg 2-1 to the visitors, 2-2, B through on
+    penalties 3-4 -> 'A - B 1-0 1-2 (2-2) PENS 4-3'; tie 1 = pair (0, 3), first leg 0-2, second leg to come; +39h
+    the winner = club 4 ('WINNER: A', the page's last line). Returns the three lines expected (names from the team cache), None if no copy."""
+    import uesum
+    r = s.result
+    d = bytes(r.read(r.base2, 0x100000))
+    nm = b'UEFA CHAMPIONS LEAGUE\0'
+    hits = [i for i in range(len(d) - 0x800) if d[i] == 1 and d[i + 0x2D] == 0 and d[i + 4:i + 4 + len(nm)] == nm]
+    if not hits:
+        return None
+    k = hits[0]
+    w = lambda i: struct.unpack_from('<H', d, k + 0x24D + 2 * i)[0]
+    names = {}
+    cache = bytes(r.read(r.base2, 0x100000))
+    for i in (0, 2, 3, 4):                              # (a club's name: its team word's record in the cache, the
+        pat = struct.pack('<H', w(i))                   #  first 684-byte record with it at +0 and a name at +5)
+        j = cache.find(pat)
+        while j >= 0 and not re.match(rb"[A-Z][A-Z0-9 .'/&-]{2,16}\0", cache[j + 5:j + 23]):
+            j = cache.find(pat, j + 1)
+        names[i] = cache[j + 5:j + 22].split(b'\0')[0].decode('latin1') if j >= 0 else '?'
+    for i in hits:
+        b = r.base2 + i
+        s.poke(b + 0x51, struct.pack('<H', 2))
+        s.poke(b + 0x89, bytes((0xAB, 0x20)))           # (80h played, 20h leg 2, 2 decided, 8 pens, 1 the 2nd club)
+        s.poke(b + 0xC9, struct.pack('<2H', 0x0201, 0))
+        s.poke(b + 0x149, struct.pack('<2H', 1, 2))     # (+149h the second leg's turn, +14Bh two legs)
+        s.poke(b + 0x14D, struct.pack('<2H', 0x0001, 0x0200))
+        s.poke(b + 0x1CD, struct.pack('<2H', 0x0304, 0))
+        s.poke(b + 0x2CD, bytes((2, 4, 0, 3)))
+        s.poke(b + 0x39, struct.pack('<H', w(4)))      # (+39h the winner: its line last)
+    s.send('dump:1')
+    pen = uesum.TEXTS[UI][0].decode('latin1')
+    s.log.append(f'[uesum] ko2 poked {len(hits)} copies, names {names}')
+    import ctview
+    return [f'  {names[4]} - {names[2]} 1-0 1-2 (2-2) {pen} 4-3', f'  {names[3]} - {names[0]} 0-2',
+            ctview.TEXTS[UI][2].decode('latin1') + ': ' + names[4]]
+
+@scenario
+def world_uesum():
+    """4.1 S2a (Davide 08/11): STAT > RIEPILOGO of a world's UEFA cup (uesum.c, obj4): a World 2026-27 career save
+    (UES_CAR; UES_BUILD its exe dir; default world_ctsum's: CV_BUILD / CV_S2 / W2627REL_DATA) -> VISUAL. COMPETIZ. -> each UEFA cup listed -> STAT shows RIEPILOGO -> its page:
+    the cup's name as the title, the current stage's line (its name) and its table / ties, the stages to come; ESCI
+    back on STAT. The career league's STAT without it. UES_EXPECT: 'ko' / 'lp' the CL's stage kind in the save."""
+    exe, car = os.environ.get('UES_BUILD') or os.environ.get('CV_BUILD'), os.environ.get('UES_CAR')
+    if not exe:                                         # (default: world_ctsum's season-2 career, CV_S2 / W2627REL_DATA)
+        src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+        if not os.path.isdir(src):
+            return True, f'SKIP: private data {src} missing'
+        order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+        exe = build('world_contiview', env={'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x)
+                                                                                          for x in order])}, lang=UI)
+    car = car or os.environ.get('CV_S2') or os.path.join(RUNS, f'cv_s2_{UI}.CAR')
+    if not os.path.exists(car):
+        return False, f'no save {car} (UES_CAR, or run world_contiview first)'
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import ctview
+    import rnames
+    summ = ctview.TEXTS[UI][7].decode('latin1')
+    stages = [rnames.NAMES[UI][k][0] for k in (0, 1, 2, 12, 13, 14)]
+    errs, info = [], []
+    with Session('world_uesum', exe, {'W84A.CAR': car}, 'dump:2', 600) as s:
+        s.wait()
+        s.send(LOAD1 + ' dump:3')
+        for _ in range(6):
+            if s.screen().find('VISUAL. COMPETIZ.', exact=True) is not None:
+                break
+            press(s, s.screen(), 'CONTINUA', 3) or s.send('fire dump:2')
+        walk(s, s.screen().find('VISUAL. COMPETIZ.', exact=True), 3)
+        want = None
+        if os.environ.get('UES_POKE') == 'ko2':         # (a test state: the CL's knockout round in every copy of its
+            want = ko2_poke(s)                          #  contest - the second leg's turn, tie 0 decided on pens)
+            check(want, 'UES_POKE=ko2: no CL knockout contest in memory', errs)
+        comps = [e[1] for e in s.screen().entries if e[1] and not e[2]]
+        s.log.append(f'[uesum] contests {comps}')
+        lg = s.screen().entries[1][1]                   # (the career league's STAT: no RIEPILOGO)
+        walk(s, 1, 3)
+        i = s.screen().find('STAT', exact=True)
+        if check(i is not None, f'{lg}: no STAT', errs):
+            walk(s, i, 3)
+            vis = [t for k, t, inv, _ in s.screen().entries if t and not inv]
+            check(summ not in vis, f'{lg} STAT shows {summ}: {vis}', errs)
+            info.append(f'{lg} STAT {vis}')
+        for _ in range(4):                              # (back on VISUAL. COMPETIZ.'s list)
+            if s.screen().find('COPPE CONTINENTALI', exact=True) is not None:
+                break
+            press(s, s.screen(), 'ESCI', 3) or s.send('fire dump:2')
+        cup = next((c for c in comps if c.startswith('UEFA ')), None)
+        if cup:                                         # (the career club's own UEFA cup)
+            walk(s, s.screen().find(cup, exact=True), 3)
+        else:                                           # (else VIEW WORLD > EUROPA's first UEFA cup button)
+            for _ in range(4):
+                if s.screen().find('VISUALIZZA MONDO', exact=True) is not None:
+                    break
+                press(s, s.screen(), 'ESCI', 3) or s.send('fire dump:2')
+            walk(s, 'VISUALIZZA MONDO', 3)
+            gwalk(s, 'EUROPA', 3)
+            sc = s.screen()
+            cup = next((t for i, t, inv, _ in sc.entries if 1 <= i <= 20 and t and not inv and t.startswith('UEFA ')), None)
+            s.log.append(f'[uesum] VIEW WORLD EUROPA: {[t for i, t, inv, _ in sc.entries if t and not inv]}')
+            if check(cup, 'VIEW WORLD EUROPA: no UEFA cup button', errs):
+                gwalk(s, cup, 3)
+        i = s.screen().find('STAT', exact=True) if cup else None
+        if cup and check(i is not None, f'{cup}: no STAT ({s.screen()})', errs):
+            walk(s, i, 3)
+            vis = [t for k, t, inv, _ in s.screen().entries if t and not inv]
+            s.shot('uesum_stat')
+            if check(summ in vis, f'{cup} STAT: {vis} (no {summ!r})', errs):
+                walk(s, s.screen().find(summ, exact=True), 3)
+                title, lines = uesum_page(s, 'cl')
+                s.log.append(f'[uesum] page {title!r}')
+                for ln in lines:
+                    s.log.append(f'[uesum]   | {ln}')
+                check(title == cup, f'page title {title!r}, not {cup!r}', errs)
+                heads = [ln.split(':')[0] for ln in lines if ':' in ln and not ln.startswith(' ')]
+                check(any(h in stages for h in heads), f'no stage line: {heads}', errs)
+                if want:
+                    ties = [ln for ln in lines if ln.startswith('  ') and not ln.startswith('   ')] + lines[-1:]
+                    check(ties == want, f'ko2 ties {ties}, not {want}', errs)
+                info.append(f'{cup}: {len(lines)} lines, heads {heads}')
+                walk(s, 16, 3)                          # (the page's ESCI -> STAT)
+                vis2 = [t for k, t, inv, _ in s.screen().entries if t and not inv]
+                check(summ in vis2, f'back from RIEPILOGO: {vis2}', errs)
+    return not errs, '; '.join(errs) or '; '.join(info)
+
+
 def spp_conti_load(s, exe):
     """SWOS++ running (timer keys, SWOSTEST_SPP_NOLATCH): CARICA VECCHIA COMPETIZIONE > W84A, the day's screens ->
     VISUAL. COMPETIZ. -> COPPE CONTINENTALI, every step by spp_go (one key at a time, a plain fire). An error or None."""

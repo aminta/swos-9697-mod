@@ -846,7 +846,11 @@ def patch_exe(src, dst, remap, lang='it'):
     p.set_vsize(2, obj2_free + o2pages * p.le.page_size + tail, bss=tail)
     p.set_base_after(3)                          # (obj3's header base above obj2's final end)
     swe.LANG[0] = lang
-    swe.patch(p)                                 # (obj4: the engine, its base above obj3's)
+    s4_end = swe.patch(p)                        # (obj4: the engine, its base above obj3's)
+    import ctview
+    if ctview.CR_PTRS.get('usok'):               # 4.1 S2a: STAT > RIEPILOGO of a world's UEFA cup, obj4 after swe.c
+        import uesum
+        uesum.patch(p, s4_end, lang, usc=sc_on)    # (sc_on: supercup's usc_snap keeps the holders)
     benchx.link_w27(p)                           # (4.0.6 step 2.5: the friendlies' long bench by SWE_W27)
     tailzero.patch(p, tz_at, obj2_free + o2pages * p.le.page_size, (tail + 3) & ~3, nasmcave,   # (DOS/4GW: not zeroed;
                    0x1000 * OBJ3_PAGES, (cg_bss + 3) & ~3)                  # 4.0.6: obj3's tail too)

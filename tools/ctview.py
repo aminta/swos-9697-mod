@@ -478,11 +478,13 @@ cv_stinit:                              ; 4.1 STAT's onInit / onReturn: winners'
     call WN_INIT                        ; places), then RIEPILOGO (entry 10, cv_page) shown while cr_go's round view
     pushad                              ; is up, the column re-spaced as fmtpage's fp_stpos (19 px from y 30)
     mov ebx, MENU_ + 16h
-    xor eax, eax
-    cmp [CV_SUMF], al
-    sete al
+    movzx eax, byte [CV_SUMF]
+    test eax, eax
+    jnz .v
+    call [CV_USOK]                      ; (4.1 S2a: a world's UEFA cup, uesum us_ok)
+.v: xor al, 1
     mov [ebx + 10 * 38h + 4], ax
-    je .r
+    jnz .r
     mov edx, 30
     mov esi, CV_STORD
 .l: movzx eax, byte [esi]
@@ -499,6 +501,20 @@ cv_stinit:                              ; 4.1 STAT's onInit / onReturn: winners'
     ret
 CV_STORD: db 1, 2, 3, 5, 6, 7, 8, 9, 10, 0
 CV_SUMF: db 0
+
+cv_sum:                                 ; RIEPILOGO's select: a conti round's view -> cv_page; else (4.1 S2a) the
+    cmp byte [CV_SUMF], 0               ; UEFA cup's page text (uesum us_text), then cv_page's tail
+    jne cv_page
+    pushad
+    push es
+    push ds
+    pop es
+    cld
+    call [CV_UST]
+    jmp cv_page.t3
+align 4
+CV_USOK: dd 0                           ; (uesum.patch: us_ok, us_text in obj4)
+CV_UST: dd 0
 
 cr_sum:                                 ; RIEPILOGO: the summary page, then the rounds menu's labels and links again
     call cv_page
@@ -718,12 +734,12 @@ def patch(p, at, lang, scr_at):
     p.add_ptr(1, careerworld.LABELS['WV_AFTER'], 3, lab['cw_after'])   # (careerworld w_choose -> cw_after, the
     p.add_ptr(1, careerworld.LABELS['WV_ON'], 3, lab['cw_on'])         #  cup-button lists in / out around its picker)
     p.add_ptr(1, careerworld.LABELS['WV_OFF'], 3, lab['cw_off'])
-    for o, t in ((wn['init'], 'cv_stinit'), (wn['init'] + 4, 'cv_stinit'), (wn['sumsel'], 'cv_page'),
+    for o, t in ((wn['init'], 'cv_stinit'), (wn['init'] + 4, 'cv_stinit'), (wn['sumsel'], 'cv_sum'),
                  (wn['sumtxt'], 'CR_SUMT')):
         p.retarget(2, o, 3, lab[t])                     # (4.1: STAT's RIEPILOGO)
         p.put(2, o, struct.pack('<I', lab[t]))
     CR_PTRS.clear()
-    CR_PTRS.update(view=lab['CR_VIEW'], close=lab['CR_CLOSE'], scr=lab['CR_SCR'], replay=syms['cv_replay'][1],
+    CR_PTRS.update(view=lab['CR_VIEW'], close=lab['CR_CLOSE'], scr=lab['CR_SCR'], usok=lab['CV_USOK'], ust=lab['CV_UST'], replay=syms['cv_replay'][1],
                    gr=syms['cv_gr'][1])                 # (4.1 P: cv_text's replay with its goals - the points)
     p.retarget(1, gl['VC9_TXTP'], 3, lab['CV_LABEL'])
     p.put(1, gl['VC9_TXTP'], struct.pack('<I', lab['CV_LABEL']))

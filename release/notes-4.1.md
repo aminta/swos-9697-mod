@@ -89,6 +89,7 @@ it). Cup finals: the FA Cup final at WEMBLEY STADIUM, the Coppa Italia final at 
 - **The match clock steps aside.** While the bench is open, the clock moves to the top right, next to the spinning S, so it no longer covers the coach and the first seats. It goes back to its place when you close the bench.
 - Fixed a bug of the original game: when you called the bench with the ball in the top half of the pitch, the bench sometimes ignored the cursor keys and you couldn't pick anyone. The camera now settles properly and the bench always responds.
 - Training matches keep the original one-row bench and clock.
+- **With 5 substitutes or fewer, the original dugout is back** (thanks to Marco). The two-row dugouts appear only when the match has a long bench, more than 5 substitutes. In every other match, in every world (1996-97 and Europe 1984-85 included), you get the game's own dugout, as in the original.
 - **Wider rows in the bench menu** (layout by Marco). In a match, the substitutes list, FORMATION, the opponent's list and the long-bench pages have wider rows. The yellow / red card now sits in its own space left of the face, at the same distance from the edge of the menu as from the face. The injury cross has its own column before the position, so it no longer covers the end of a long name. (With SWOS++ the menu keeps SWOS++'s own look.)
 
 #### Long benches: scrolling as in the original game
@@ -292,6 +293,8 @@ With the new button in place, a long coach's name on the squad screen is shown s
 - **European places after a damaged save.** 4.0.5 could damage the UEFA coefficients stored in a career, which gave wrong European places (for example 2 Champions League places while 4 clubs qualified). 4.1 repairs them when you load the career.
 - **Joystick fire buttons.** The fire buttons now work after COMMANDS > calibrate > SAVE, and they are fixed automatically at start-up on installs where they had been left unset. <!-- DRAFT slot 29: wait for Regia's sha -->
 - **EXIT on the "not available" national teams message.** In the FRIENDLY and DIY team pickers, the message that national teams are not yet available now has an EXIT button to the left of ABORT. EXIT goes back to the menu of team kinds and keeps the teams you have already picked; ABORT works as before.
+- **OPTIONS screen spacing** (thanks to Marco). The option rows moved down 2 pixels, so the gap under the title now matches the gap above the button that quits to DOS. That button, CONTROLS and EXIT stay where they were. Not with SWOS++, which has its own options screen.
+- **Longer names in the match** (thanks to Marco). A surname that fits whole is no longer cut: RUUD VAN NISTELROOY used to show as "VAN NISTEL.", and now shows as VAN NISTELROOY, on the player's name, on the goal scorers line and in the bench menu. Surnames of up to 14 letters are shown whole; a longer one is cut as before, and one-word names are unchanged.
 - **Club names without the "&" sign:** O Y M, TREFELIN BGC, SB VLASIM and HARLAND WOLFF.
 - **A play-off entrant that refuses the place** no longer makes the game read wrong data at the season end (it showed up with San Marino; found by Ben Baker).
 
@@ -396,6 +399,7 @@ Italia allo STADIO OLIMPICO.
 - **L'orologio si sposta.** Con la panchina aperta il tempo di gioco va in alto a destra, accanto alla S che gira, così non copre più l'allenatore e i primi posti. Quando chiudi la panchina torna al suo posto.
 - Corretto un difetto del gioco originale: se chiamavi la panchina con la palla nella metà campo in alto, a volte la panchina non rispondeva ai tasti del cursore e non potevi scegliere nessuno. Ora la telecamera si ferma bene e la panchina risponde sempre.
 - Le partite di allenamento mantengono la panchina e l'orologio originali, su una sola fila.
+- **Con 5 riserve o meno torna la panchina originale** (grazie a Marco). Le panchine su due file compaiono solo quando la partita ha una panchina lunga, con più di 5 riserve. In tutte le altre partite, in ogni mondo (anche 1996-97 ed Europa 1984-85), vedi la panchina del gioco, come nell'originale.
 - **Righe più larghe nel menu panchina** (layout di Marco). In partita, la lista delle sostituzioni, FORMAZIONE, la lista dell'avversario e le pagine della panchina lunga hanno righe più larghe. Il cartellino giallo / rosso ora ha il suo spazio a sinistra della faccia, alla stessa distanza dal bordo del menu e dalla faccia. La croce degli infortuni ha una colonna sua prima del ruolo, così non copre più la fine dei nomi lunghi. (Con SWOS++ il menu resta come lo disegna SWOS++.)
 
 #### Panchine lunghe: si scorre come nel gioco originale
@@ -602,6 +606,8 @@ resta quello).
 - **Posti europei dopo un salvataggio rovinato.** La 4.0.5 poteva rovinare i coefficienti UEFA salvati in una carriera, e questo dava posti europei sbagliati (per esempio 2 posti in Champions League mentre si qualificavano 4 club). La 4.1 li ripara quando carichi la carriera.
 - **Pulsanti di fuoco del joystick.** I pulsanti di fuoco ora funzionano dopo COMANDI > calibra > SALVA, e vengono sistemati da soli all'avvio nelle installazioni dove erano rimasti non impostati. <!-- BOZZA slot 29: aspetta lo sha di Regia -->
 - **ESCI nel messaggio delle nazionali non disponibili.** Nelle scelte squadre di AMICHEVOLE e delle competizioni personalizzate, il messaggio che dice che le nazionali non sono ancora disponibili ora ha un pulsante ESCI a sinistra di ABBANDONA. ESCI torna al menu dei tipi di squadre e tiene le squadre già scelte; ABBANDONA funziona come prima.
+- **Spaziatura della schermata OPZIONI** (grazie a Marco). Le righe delle opzioni sono scese di 2 pixel, così lo spazio sotto il titolo ora è come quello sopra il pulsante che esce al DOS. Quel pulsante, COMANDI ed ESCI restano dove erano. Non con SWOS++, che ha una sua schermata delle opzioni.
+- **Nomi più lunghi in partita** (grazie a Marco). Un cognome che sta intero non viene più tagliato: RUUD VAN NISTELROOY compariva come "VAN NISTEL.", ora come VAN NISTELROOY, sul nome del giocatore, nella riga dei marcatori e nel menu della panchina. I cognomi fino a 14 lettere si vedono interi; uno più lungo viene tagliato come prima, e i nomi di una sola parola non cambiano.
 - **Nomi di club senza il segno "&":** O Y M, TREFELIN BGC, SB VLASIM e HARLAND WOLFF.
 - **Una squadra di play-off che rifiuta il posto** non fa più leggere al gioco dati sbagliati a fine stagione (si vedeva con San Marino; trovato da Ben Baker).
 

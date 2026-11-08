@@ -10212,6 +10212,15 @@ def ega_bench_cursor():
                 for call in range(10):
                     if not keeper_let_go(s, errs):
                         break
+                    g0 = None                       # (4.1, Integratore 08/11) the key at a stoppage: the seed is poked
+                    for _ in range(60):             # at a wall-clock moment after the kick-off (turbo, cycles=max), so
+                        r = s.result                # the match flow - and whether a fixed-time key meets a stoppage -
+                        g0 = w16(r, v['GSTATE'])    # varies with the host's load (the same seed gave two flows on
+                        if g0 != 100:               # REL41s31 alone); the game takes a bench call only while play is
+                            break                   # stopped (the call is cleared every frame of play; a keeper holding
+                                                    # the ball: keeper_let_go above)
+                        if s.send('dump:0.3').outcome != 'dump':
+                            break
                     r = s.send(('pgup' if call % 2 == 0 else 'pgdn') + ':0.3 dump:0.6')
                     if r.outcome == 'dump':
                         r, cam = cam_settle(s)
@@ -10227,13 +10236,13 @@ def ega_bench_cursor():
                                 break
                         idx = w16(r, v['IDX']) if r.outcome == 'dump' else None
                         moved = moved or bool(idx)
-                    calls.append((call, cam, opened, idx, w16(r, v['GSTATE']) if r.outcome == 'dump' else None))
+                    calls.append((call, cam, opened, idx, (g0, w16(r, v['GSTATE'])) if r.outcome == 'dump' else None))
                     if moved:
                         s.shot('bench_moved')
                         break
                 check(any(c[2] == 30 for c in calls), f'the bench never opened: {calls}', errs)
                 check(moved, f'the cursor never moved on an open bench: {calls}', errs)
-                info.append(f'16 colours, seed {seed.hex()}: calls (n, camera, open, index, gameState) {calls}')
+                info.append(f'16 colours, seed {seed.hex()}: calls (n, camera, open, index, gameState at the key / after) {calls}')
     finally:
         if keep is None:
             os.environ.pop('SWOSTEST_MEMSIZE', None)

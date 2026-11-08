@@ -73,7 +73,12 @@ function check(T, dir, gog, pp, tag) {                       // every target fil
     const got = path.join(dir, p.target);
     if (!fs.existsSync(got) || md5(got) !== md5(want)) bad.push(p.target);
   }
-  ok(!bad.length, `${tag}: ${n} files = ${rel} (pool / guest files ${pool})${bad.length ? ' DIFFER: ' + bad.slice(0, 5).join(', ') : ''}`);
+  ok(!bad.length, `${tag}: ${n} files = ${rel} (pool / guest files ${pool})${bad.length ? ' DIFFER: ' + bad.slice(0, 5).join(', ') +
+     (bad.length > 5 ? ` (+${bad.length - 5})` : '') : ''}`);
+  const srcs = [...new Set(T.PATCHES.filter(p => p.src).map(p => p.src))];   // (4.1 41-vandug) sources of files made under
+  const moved = srcs.filter(x => fs.existsSync(path.join(M, 'orig', x)) &&       // another name (PITCH1.DAT -> PITCHA.DAT):
+    md5(path.join(dir, x)) !== md5(path.join(M, 'orig', x)));                   // read, never written
+  if (srcs.length) ok(!moved.length, `${tag}: the ${srcs.length} sources under another name kept as the originals${moved.length ? ' CHANGED: ' + moved.join(', ') : ''}`);
 }
 const backup = dir => path.join(dir, 'MOD_BACKUP', fs.readdirSync(path.join(dir, 'MOD_BACKUP'))[0]);
 for (const lang of ['it', 'en', 'fr', 'de']) {

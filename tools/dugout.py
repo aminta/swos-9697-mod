@@ -32,8 +32,9 @@ middle tile (PITCH5) the original itself draws one middle tile in every phase it
 used. The 3rd column as in VGA (column 1's x 15 repeated, the grass pixels the row's column-2 grass), new patterns
 at the end of the file.
 
-gen(dst_dir) writes PITCH1-5.DAT (and a BLK that grew) and SWCPICH1-5.P16 from orig/ into dst_dir (beside the exe,
-as kitfix's KITFIX.DAT); the patcher ships them (mkpatcher FILES).
+gen(dst_dir) writes them from orig/ into dst_dir (beside the exe, as kitfix's KITFIX.DAT) under long_names (4.1:
+PITCHA-E.DAT / .BLK, SWCPICHA-E.P16; the game's PITCH1-5 stay original - benchx vd_pitch loads the long set only for a
+bench over 5); the patcher ships them as deltas from the user's own PITCH1-5 (mkpatcher FILES).
 """
 import os
 import struct
@@ -216,17 +217,26 @@ def pitch(n, src=None):
             f'PITCH{n}: period {per}, {len(new)} rows x 3 columns, {len(made)} new patterns ({npat} of {MAX_PATTERNS})')
 
 
+def long_names(n):
+    """4.1 (41-vandug, Marco): the long dugouts' files of pitch n (1..5) - the game's names with the digit a letter
+    (1 -> A .. 5 -> E: PITCHA.DAT, PITCHA.BLK, SWCPICHA.P16); the game's own PITCH1-5 / SWCPICH1-5 stay original."""
+    c = chr(ord('A') + n - 1)
+    return f'PITCH{c}.DAT', f'PITCH{c}.BLK', f'SWCPICH{c}.P16'
+
+
 def gen(dst_dir, src=None):
-    """Writes PITCH1-5.DAT (+ a grown BLK) into dst_dir; returns the log line."""
+    """Writes the long dugouts' PITCHA-E.DAT / .BLK and SWCPICHA-E.P16 (long_names) into dst_dir; returns the log line.
+    (4.0.6 wrote them over PITCH1-5: 4.1 keeps those original, the exe picks the long set only for a bench over 5.)"""
     out = []
     for n in PITCHES:
+        dn, bn, pn = long_names(n)
         d, b, info = pitch(n, src)
-        open(os.path.join(dst_dir, f'PITCH{n}.DAT'), 'wb').write(d)
-        if b:
-            open(os.path.join(dst_dir, f'PITCH{n}.BLK'), 'wb').write(b)
+        open(os.path.join(dst_dir, dn), 'wb').write(d)
+        open(os.path.join(dst_dir, bn), 'wb').write(b or open(os.path.join(src or os.path.join(ROOT, 'orig'),
+                                                                        f'PITCH{n}.BLK'), 'rb').read())
         out.append(info)
         d, info = p16(n, src)
-        open(os.path.join(dst_dir, f'SWCPICH{n}.P16'), 'wb').write(d)
+        open(os.path.join(dst_dir, pn), 'wb').write(d)
         out.append(info)
     return '; '.join(out)
 

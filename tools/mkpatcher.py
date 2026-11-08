@@ -129,21 +129,24 @@ FILES = [  # (id, original path, patched path, file name in the game folder)
     # 4.0.6: the long dugouts (dugout.py, benchx block 2): the match pitches' maps, their patterns (the 3rd column's
     # new ones in every BLK: PITCH1-4.BLK were missing until 4.0.6 I8 - a disk with the new maps and the old BLKs
     # drew the tiles past the file's end from RAM, noise on z486), the 16-colour maps
-    ('PITCH1.DAT', 'orig/PITCH1.DAT', 'c/SWOS/PITCH1.DAT', 'PITCH1.DAT'),
-    ('PITCH2.DAT', 'orig/PITCH2.DAT', 'c/SWOS/PITCH2.DAT', 'PITCH2.DAT'),
-    ('PITCH3.DAT', 'orig/PITCH3.DAT', 'c/SWOS/PITCH3.DAT', 'PITCH3.DAT'),
-    ('PITCH4.DAT', 'orig/PITCH4.DAT', 'c/SWOS/PITCH4.DAT', 'PITCH4.DAT'),
-    ('PITCH5.DAT', 'orig/PITCH5.DAT', 'c/SWOS/PITCH5.DAT', 'PITCH5.DAT'),
-    ('PITCH1.BLK', 'orig/PITCH1.BLK', 'c/SWOS/PITCH1.BLK', 'PITCH1.BLK'),
-    ('PITCH2.BLK', 'orig/PITCH2.BLK', 'c/SWOS/PITCH2.BLK', 'PITCH2.BLK'),
-    ('PITCH3.BLK', 'orig/PITCH3.BLK', 'c/SWOS/PITCH3.BLK', 'PITCH3.BLK'),
-    ('PITCH4.BLK', 'orig/PITCH4.BLK', 'c/SWOS/PITCH4.BLK', 'PITCH4.BLK'),
-    ('PITCH5.BLK', 'orig/PITCH5.BLK', 'c/SWOS/PITCH5.BLK', 'PITCH5.BLK'),
-    ('SWCPICH1.P16', 'orig/SWCPICH1.P16', 'c/SWOS/SWCPICH1.P16', 'SWCPICH1.P16'),
-    ('SWCPICH2.P16', 'orig/SWCPICH2.P16', 'c/SWOS/SWCPICH2.P16', 'SWCPICH2.P16'),
-    ('SWCPICH3.P16', 'orig/SWCPICH3.P16', 'c/SWOS/SWCPICH3.P16', 'SWCPICH3.P16'),
-    ('SWCPICH4.P16', 'orig/SWCPICH4.P16', 'c/SWOS/SWCPICH4.P16', 'SWCPICH4.P16'),
-    ('SWCPICH5.P16', 'orig/SWCPICH5.P16', 'c/SWOS/SWCPICH5.P16', 'SWCPICH5.P16'),
+    # 4.1 (41-vandug): the long art under its own names (dugout.long_names), each a delta from the user's own
+    # PITCHn / SWCPICHn (the page matches a source by md5: one original feeds two entries); the game's PITCH1-5 stay
+    # original (the exe loads the long set only for a bench over 5)
+    ('PITCHA.DAT', 'orig/PITCH1.DAT', 'c/SWOS/PITCHA.DAT', 'PITCHA.DAT'),
+    ('PITCHB.DAT', 'orig/PITCH2.DAT', 'c/SWOS/PITCHB.DAT', 'PITCHB.DAT'),
+    ('PITCHC.DAT', 'orig/PITCH3.DAT', 'c/SWOS/PITCHC.DAT', 'PITCHC.DAT'),
+    ('PITCHD.DAT', 'orig/PITCH4.DAT', 'c/SWOS/PITCHD.DAT', 'PITCHD.DAT'),
+    ('PITCHE.DAT', 'orig/PITCH5.DAT', 'c/SWOS/PITCHE.DAT', 'PITCHE.DAT'),
+    ('PITCHA.BLK', 'orig/PITCH1.BLK', 'c/SWOS/PITCHA.BLK', 'PITCHA.BLK'),
+    ('PITCHB.BLK', 'orig/PITCH2.BLK', 'c/SWOS/PITCHB.BLK', 'PITCHB.BLK'),
+    ('PITCHC.BLK', 'orig/PITCH3.BLK', 'c/SWOS/PITCHC.BLK', 'PITCHC.BLK'),
+    ('PITCHD.BLK', 'orig/PITCH4.BLK', 'c/SWOS/PITCHD.BLK', 'PITCHD.BLK'),
+    ('PITCHE.BLK', 'orig/PITCH5.BLK', 'c/SWOS/PITCHE.BLK', 'PITCHE.BLK'),
+    ('SWCPICHA.P16', 'orig/SWCPICH1.P16', 'c/SWOS/SWCPICHA.P16', 'SWCPICHA.P16'),
+    ('SWCPICHB.P16', 'orig/SWCPICH2.P16', 'c/SWOS/SWCPICHB.P16', 'SWCPICHB.P16'),
+    ('SWCPICHC.P16', 'orig/SWCPICH3.P16', 'c/SWOS/SWCPICHC.P16', 'SWCPICHC.P16'),
+    ('SWCPICHD.P16', 'orig/SWCPICH4.P16', 'c/SWOS/SWCPICHD.P16', 'SWCPICHD.P16'),
+    ('SWCPICHE.P16', 'orig/SWCPICH5.P16', 'c/SWOS/SWCPICHE.P16', 'SWCPICHE.P16'),
     # GOG release (2013): same files, 2 bytes changed in each exe (a national cup's months); TEAM.020 identical.
     # Originals in orig/gog/, built with patch.patch_exe(orig/gog/X, c/gog/X, ...)
     ('ITALIAN.EXE (GOG)', 'orig/gog/ITALIAN.EXE', 'c/gog/ITALIAN.EXE', 'ITALIAN.EXE'),
@@ -494,6 +497,9 @@ def build():
              'out_md5': hashlib.md5(dst).hexdigest(), 'out_size': len(dst), 'delta': pack(ops), 'z': 1}
         if not orig:
             e['with'] = 'TEAM.020'                  # new file: produced when the user's TEAM.020 is recognised
+        elif os.path.basename(orig).upper() != os.path.basename(target).upper():
+            e['src'] = os.path.basename(orig)       # (4.1 41-vandug) made from a file of another name (PITCH1.DAT ->
+                                                    # PITCHA.DAT): the folder install reads it too
         entries.append(e)
         print(f'{fid}: {len(dst)} bytes, delta {len(ops)} bytes ({inserted} inserted)')
     entries += upgrades(entries)

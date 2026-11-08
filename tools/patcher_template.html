@@ -709,8 +709,13 @@ async function installDir(dir, say, tail = '') {  // -> the number of files writ
     const h = (dname ? dm : g.m).get(fname.toUpperCase());
     if (h && h.kind === 'file') { const f = await h.getFile(); have.set(tgt, { name: f.name, bytes: new Uint8Array(await f.arrayBuffer()) }); }
   }
+  const srcs = [];                                         // (4.1) the sources of files made under another name
+  for (const s of new Set(PATCHES.filter(p => p.src).map(p => p.src))) {   // (PITCH1.DAT -> PITCHA.DAT: the long
+    const h = g.m.get(s.toUpperCase());                    //  dugouts' art): read as well, never written
+    if (h && h.kind === 'file' && !targets.includes(s)) { const f = await h.getFile(); srcs.push({ name: f.name, bytes: new Uint8Array(await f.arrayBuffer()) }); }
+  }
   results.length = 0;
-  await handle([...have].map(([tgt, x]) => ({ name: x.name, arrayBuffer: async () => x.bytes.buffer.slice(x.bytes.byteOffset, x.bytes.byteOffset + x.bytes.length) })));
+  await handle([...have.values(), ...srcs].map(x => ({ name: x.name, arrayBuffer: async () => x.bytes.buffer.slice(x.bytes.byteOffset, x.bytes.byteOffset + x.bytes.length) })));
   const swospp = g.m.has('SWOSPP.BIN') || g.m.has('LOADER.BIN');
   const out = new Map();                                   // target -> bytes (SWOS++ variant only where SWOS++ is installed)
   const ppTarget = new Set(results.filter(r => r.patch && r.patch.id.includes('SWOS++') && (r.state === 'ok' || r.state === 'current'))

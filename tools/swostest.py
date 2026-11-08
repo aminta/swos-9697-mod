@@ -6701,7 +6701,33 @@ def bench_vars():
               if (t(x, 1), t(x, 2)) == (b1, b2)]         # (LeaveSubsMenu: bench1Called / bench2Called / g_inSubstitutesMenu)
         assert len(ls) == 1, ('LeaveSubsMenu', len(ls))
         bench_vars.v.update(B1C=b1, B2C=b2, INSUBS=t(ls[0], 3))
+        vd = benchx.sites_vd(p, sacups.regs(d))       # (4.1 41-vandug: pitchNumberAndType, hilPitchNumber; bit 15 =
+        bench_vars.v.update(PNT=vd['PNT'][1], HILPN=vd['HILPN'][1])   # the long dugout art loaded)
     return bench_vars.v
+
+
+def vd_log(r):
+    """(4.1 41-vandug) benchx vd_pitch's log 'VDPL' (obj3): (GMAX at the last ReadPitchFile, pitchNumberAndType then,
+    loads) or None for an exe without it."""
+    m = r.mem
+    at = m.find(b'VDPL') if m else -1
+    return struct.unpack_from('<HHH', m, at + 4) if at >= 0 else None
+
+
+def pitch_maps(s, r):
+    """(4.1 41-vandug) [(name, px)] of the pitch art the exe loaded: PITCHA-E (dugout.long_names) when
+    pitchNumberAndType has bit 15 (a bench over 5), else the game's own PITCH1-5; px(x, y) = the map's colour."""
+    lng = struct.unpack('<H', r.read(r.base2 + bench_vars()['PNT'], 2))[0] & 0x8000
+    out = []
+    for k in range(1, 6):
+        n = f'PITCH{"ABCDE"[k - 1] if lng else k}'
+        try:
+            dat = struct.unpack('<2310I', open(os.path.join(s.run, 'SWOS', n + '.DAT'), 'rb').read())
+            blk = open(os.path.join(s.run, 'SWOS', n + '.BLK'), 'rb').read()
+        except OSError:
+            continue
+        out.append((n, lambda x, y, dat=dat, blk=blk: blk[dat[(y // 16) * 42 + x // 16] + (y % 16) * 16 + x % 16]))
+    return out
 
 
 def cam_settle(s, tries=20):
@@ -6783,20 +6809,12 @@ def opp_dugout_shot(s, errs, info, tag=''):
     fr = dugout_frame(r, cx, cy, errs, tag)
     f = r.read(0xA0000, 64000)
     samp = [(x, y) for y in range(0, 200, 3) for x in range(60, 320, 5)]
-    fit = []
-    for k in range(1, 6):
-        try:
-            dat = struct.unpack('<2310I', open(os.path.join(s.run, 'SWOS', f'PITCH{k}.DAT'), 'rb').read())
-            blk = open(os.path.join(s.run, 'SWOS', f'PITCH{k}.BLK'), 'rb').read()
-        except OSError:
-            continue
-        px = lambda x, y, dat=dat, blk=blk: blk[dat[(y // 16) * 42 + x // 16] + (y % 16) * 16 + x % 16]
-        fit.append((sum(px(x + cx, y + cy) != f[y * 320 + x] for x, y in samp), k, px))
+    fit = [(sum(px(x + cx, y + cy) != f[y * 320 + x] for x, y in samp), k, px) for k, px in pitch_maps(s, r)]
     bad, k, px = min(fit, key=lambda t: t[0])
-    check(bad * 20 < len(samp), f'{tag}both dugouts: no pitch map fits (best PITCH{k}: {bad} of {len(samp)})', errs)
+    check(bad * 20 < len(samp), f'{tag}both dugouts: no pitch map fits (best {k}: {bad} of {len(samp)})', errs)
     top, bot = dugout_rows(px, f, cx, cy, b0, b1), dugout_rows(px, f, cx, cy, b1)
     check(top[0] is not None and bot[0] is not None, f'{tag}both dugouts: a bench missing {top} {bot}', errs)
-    info.append(f'{tag}both dugouts: camera ({cx}, {cy}), PITCH{k}, rows (back, front) top {b0} {top}, bottom {b1} {bot}; '
+    info.append(f'{tag}both dugouts: camera ({cx}, {cy}), {k}, rows (back, front) top {b0} {top}, bottom {b1} {bot}; '
                 f'{fr}')
 
 
@@ -6816,6 +6834,54 @@ def dugout_rows(px, f, cx, cy, by, opp=None):
     return tuple(out)
 
 
+def vd_check(r, n, errs, info, tag=''):
+    """(4.1 41-vandug) the dugout art the exe chose (benchx vd_pitch) for a match bench of n: bit 15 of
+    pitchNumberAndType (and of hilPitchNumber, the highlights' copy) = n > 5; vd_pitch's log 'VDPL' proves the timing:
+    gameMaxSubstitutes as ReadPitchFile ran (the kick-off's, not the 5 before InitializeInGameTeamsAndStartGame) and
+    the bit then. Returns the bit."""
+    v = bench_vars()
+    pn, hp = (struct.unpack('<H', r.read(r.base2 + v[k], 2))[0] for k in ('PNT', 'HILPN'))
+    lg = vd_log(r)
+    lng = bool(pn & 0x8000)
+    check(lg is not None, f'{tag}vandug: no VDPL log (an exe without 41-vandug)', errs)
+    if lg is None:
+        return lng
+    check(lng == (n > 5) and bool(hp & 0x8000) == lng and bool(lg[1] & 0x8000) == lng and lg[2] >= 1
+          and (lg[0] > 5) == lng, f'{tag}vandug: bench {n}, pitchNumberAndType {pn:#06x}, hilPitchNumber {hp:#06x}, '
+                                  f'log (GMAX at the load {lg[0]}, pitch {lg[1]:#06x}, loads {lg[2]})', errs)
+    info.append(f'{tag}vandug: bench {n} -> {"long" if lng else "the game\'s"} dugout (pitchNumberAndType {pn:#06x}, '
+                f'GMAX {lg[0]} at load {lg[2]})')
+    return lng
+
+
+def pitch_fit(s, r, cx, cy, f, samp):
+    """(4.1) the loaded pitch art (pitch_maps) that fits frame f at camera (cx, cy) best: (differing samples, name, px)."""
+    return min(((sum(px(x + cx, y + cy) != f[y * 320 + x] for x, y in samp), k, px) for k, px in pitch_maps(s, r)),
+               key=lambda t: t[0])
+
+
+def van_dugout(s, r, by, cx, cy, errs, info, tag=''):
+    """(4.1 41-vandug) the bench open with the game's dugout (a bench of 5): benchY 389 / 485, the camera at the game's
+    destination (449 - 100 = 349, +-10), the clock where the game keeps it (bx_clock leaves it: not at the long
+    dugout's top right, right edge x 288), the frame = one of the game's PITCH1-5 maps (bench sprites aside)."""
+    check(by in (389, 485), f'{tag}the game\'s dugout: benchY {by} (want 389 / 485)', errs)
+    check(abs(cy - 349) <= 10, f'{tag}the game\'s dugout: camera y {cy} (want 349)', errs)
+    b = clock_box(r)
+    check(b is None or b[2] != 288, f'{tag}the game\'s dugout: the clock {b} moved to the top right', errs)
+    if ega_on(r):
+        info.append(f'{tag}the game\'s dugout (16 colours): benchY {by}, camera ({cx}, {cy}), clock {b}')
+        return None, cy, None
+    f = r.read(0xA0000, 64000)
+    samp = [(x, y) for y in range(0, 200, 3) for x in range(60, 320, 5) if not (80 <= x < 240 and y < 62)]
+    bad, k, _ = pitch_fit(s, r, cx, cy, f, samp)
+    check(k[-1].isdigit() and bad * 20 < len(samp), f'{tag}the game\'s dugout: best map {k} ({bad} of {len(samp)} '
+                                                     f'differ)', errs)
+    info.append(f'{tag}the game\'s dugout: benchY {by}, camera ({cx}, {cy}), {k} ({bad} of {len(samp)} differ), '
+                f'clock {b}')
+    s.shot(tag + 'dugout')
+    return k, cy, None
+
+
 def dugout_check(s, n, gone, errs, info, tag=''):
     """4.0.6 two-row dugouts (dugout.py, benchx block 2) with the bench open (subs menu, cursor moved): benchY 373 (the
     top dugout, grown upwards: 389 - 16 x ADD) or 485; both dugouts whole and the clock off them (dugout_frame); the camera arrived at the halfway line between them (g_cameraY = CAM_MID - 100,
@@ -6833,6 +6899,9 @@ def dugout_check(s, n, gone, errs, info, tag=''):
         return None
     by, (cx, cy) = w16(r, v['BENCHY']), cam
     ob = w16(r, bench_vars()['BENCHY'] + 2) if by == w16(r, bench_vars()['BENCHY']) else w16(r, bench_vars()['BENCHY'])   # (benchY / opponentBenchY)
+    lng = vd_check(r, n, errs, info, tag)
+    if not lng:                             # (4.1 41-vandug) a bench of 5: the game's dugout - its art (PITCH1-5),
+        return van_dugout(s, r, by, cx, cy, errs, info, tag)   # benchY, camera and clock
     ty = 389 - 16 * dugout.ADD
     check(by in (ty, 485), f'{tag}dugout: benchY {by} (want {ty} top / 485 bottom)', errs)
     check(abs(cy - (dugout.CAM_MID - 100)) <= 10, f'{tag}dugout: camera y {cy}, not at the halfway line '
@@ -6847,19 +6916,11 @@ def dugout_check(s, n, gone, errs, info, tag=''):
     f = r.read(0xA0000, 64000)
     samp = [(x, y) for y in range(0, 200, 3) for x in range(60, 320, 5)    # (4.0.6 bstrip.py: the bench place's
             if not (80 <= x < 240 and y < 62)]      # header row + box over the pitch, bench_strip checks them)
-    fit = []
-    for k in range(1, 6):
-        try:
-            dat = struct.unpack('<2310I', open(os.path.join(s.run, 'SWOS', f'PITCH{k}.DAT'), 'rb').read())
-            blk = open(os.path.join(s.run, 'SWOS', f'PITCH{k}.BLK'), 'rb').read()
-        except OSError:
-            continue
-        px = lambda x, y, dat=dat, blk=blk: blk[dat[(y // 16) * 42 + x // 16] + (y % 16) * 16 + x % 16]
-        fit.append((sum(px(x + cx, y + cy) != f[y * 320 + x] for x, y in samp), k, px))
+    fit = [(sum(px(x + cx, y + cy) != f[y * 320 + x] for x, y in samp), k, px) for k, px in pitch_maps(s, r)]
     bad, k, px = min(fit, key=lambda t: t[0])
     if bad * 20 >= len(samp):               # (kept for decoding: the frame and the camera)
         open(os.path.join(s.run, tag + 'dugout_frame.bin'), 'wb').write(f + struct.pack('<hh', cx, cy))
-    check(bad * 20 < len(samp), f'{tag}dugout: no pitch map fits the frame (best PITCH{k}: {bad} of {len(samp)} differ)', errs)
+    check(bad * 20 < len(samp), f'{tag}dugout: no pitch map fits the frame (best {k}: {bad} of {len(samp)} differ)', errs)
     filled = [i for i in range(1, n + 1) if i not in gone]
     want = (max([0] + [i for i in filled if i <= dugout.BACK]), max([i for i in filled if i > dugout.BACK], default=None))
     seen = dugout_rows(px, f, cx, cy, by, ob if ob > by else None)
@@ -6867,7 +6928,7 @@ def dugout_check(s, n, gone, errs, info, tag=''):
                         f'gone {sorted(gone)})', errs)
     oseen = dugout_rows(px, f, cx, cy, ob, by if by > ob else None)
     check(oseen[0] is not None, f'{tag}dugout: the other bench (benchY {ob}) not in the frame', errs)
-    info.append(f'{tag}dugout: benchY {by}, camera ({cx}, {cy}), PITCH{k} ({bad} of {len(samp)} differ), seated per row '
+    info.append(f'{tag}dugout: benchY {by}, camera ({cx}, {cy}), {k} ({bad} of {len(samp)} differ), seated per row '
                 f'{seen} of {n}; the other bench (benchY {ob}) {oseen}; {fr}')
     s.shot(tag + 'dugout')
     return k, cy, max(x for x in seen if x is not None) if seen[0] is not None else None
@@ -7752,6 +7813,7 @@ def bench_hil_view(s, snap, spr, ega, top, bot, bx, errs, info, mark):
                 f'sprites unlike the kick-off ones {bad}, as the changes\' order {swp}')
     mark(info[-1])
     check(g == h == 15, f'highlights: gameMaxSubstitutes {g}, hilMaxSubstitutes {h}', errs)
+    hil_art(s, r, errs, info, 'highlights')
     check(not bad and any(moved), f'highlights: name sprites {bad} (moved {moved})', errs)
     for k in range(12):                     # (to its end, back to the menu: no trap)
         r = s.send('fire:1 dump:2')
@@ -7761,6 +7823,36 @@ def bench_hil_view(s, snap, spr, ega, top, bot, bx, errs, info, mark):
         if 'SALVA AZIONI PRINCIPALI' in s.screen().texts():
             break
     bench_hil_file(s, snap, final, spr, ega, errs, info, mark)
+
+
+def hil_art(s, r, errs, info, tag):
+    """(4.1 41-vandug) a highlights replay of a long-bench match: the long art again (benchx vd_pitch keeps the bit
+    CopyTeamsAndHeader brought back from hilPitchNumber: the replay's ReadPitchFile, playHighlightFlag set), the frame
+    = a PITCHA-E map."""
+    v = bench_vars()
+    n0 = (vd_log(r) or (0, 0, 0))[2]
+    for i in range(14):                     # (the playback opens on the line-ups screen: on to the pitch - the
+        lg = vd_log(r)                      # replay's own ReadPitchFile, the log's load count up by one)
+        if r.outcome != 'dump' or lg is None or lg[2] > n0:
+            break
+        r = s.send('fire:0.3 dump:1' if i >= 2 else 'dump:1')
+    pn, hp = (struct.unpack('<H', r.read(r.base2 + v[k], 2))[0] for k in ('PNT', 'HILPN'))
+    check(r.outcome == 'dump' and lg and lg[2] > n0, f'{tag}: the replay never loaded its pitch (log {lg}, loads '
+          f'before {n0}: {r})', errs)
+    check(pn & 0x8000 and hp & 0x8000 and lg and lg[1] & 0x8000, f'{tag}: the long art bit lost: pitchNumberAndType '
+          f'{pn:#06x}, hilPitchNumber {hp:#06x}, log {lg}', errs)
+    if ega_on(r) or r.outcome != 'dump':
+        return
+    samp = [(x, y) for y in range(20, 200, 3) for x in range(0, 320, 5)]
+    for _ in range(6):                      # (a fade-in / the scene's first frames: a few dumps until the pitch fits)
+        cx, cy = (struct.unpack('<H', r.read(r.base2 + v['CAMY'] + k, 2))[0] for k in (-4, 0))
+        bad, k, _ = pitch_fit(s, r, cx, cy, r.read(0xA0000, 64000), samp)
+        if bad * 10 < len(samp):
+            break
+        r = s.send('dump:0.5')
+    s.shot(tag.replace(' ', '_').replace('.', '_') + '_pitch')
+    check(not k[-1].isdigit() and bad * 10 < len(samp), f'{tag}: best map {k} ({bad} of {len(samp)} differ)', errs)
+    info.append(f'{tag}: long art kept (pitchNumberAndType {pn:#06x}, log {lg}), frame {k} ({bad} of {len(samp)} differ)')
 
 
 def bench_hil_file(s, snap, final, spr, ega, errs, info, mark, name='HILB15'):
@@ -7790,6 +7882,9 @@ def bench_hil_file(s, snap, final, spr, ega, errs, info, mark, name='HILB15'):
           f'{name}.HIL: {len(d)} bytes, places 17.. {names}', errs)
     hb = s.result.base2 + v['HMAX']         # the memory spoilt: a reload must bring them back
     s.poke(hb, b'\x05\x00')
+    for k in ('PNT', 'HILPN'):              # (4.1 41-vandug) the long art bit too: the file's header brings it back
+        at = s.result.base2 + bench_vars()[k]
+        s.poke(at, struct.pack('<H', struct.unpack('<H', s.result.read(at, 2))[0] & 0x7FFF))
     s.send('dump:0.5')
     scr = s.screen()
     if press(s, scr, 'CARICA AZIONI PRINCIPALI') is None:
@@ -7820,6 +7915,7 @@ def bench_hil_file(s, snap, final, spr, ega, errs, info, mark, name='HILB15'):
                     f'sprites unlike their place\'s player {bad}')
         mark(info[-1])
         check(g == 15 and not bad, info[-1], errs)
+        hil_art(s, r, errs, info, f'{name}.HIL loaded')
 
 
 def bench_oppl(s, bx, top, bot, errs, info, mark):
@@ -9154,6 +9250,20 @@ def bench_friendly():
                           f'among the starters, {fb[1]} on the bench', errs)
             info.append(f'{case}: pre-match {pre[0]}:{pre[1]}, named:used {gm[1]}:{gm[0]} ({", ".join(desc)})')
             check(gm == (used, want), f'{case}: named:used {gm[1]}:{gm[0]}, want {want}:{used}', errs)
+            n0 = len(info)                          # (4.1 41-vandug) the dugout art: long for a bench over 5, the
+            lng = vd_check(r, gm[1], errs, info)    # game's PITCH1-5 for 5 (1996-97, national teams, training)
+            if not ega_on(r):                       # the kick-off frame = the chosen set's map (players aside)
+                samp = [(x, y) for y in range(20, 200, 3) for x in range(0, 320, 5)]
+                for _ in range(4):                  # (a dump taken while the camera scrolls - SWOS++'s timer keys:
+                    q = s.result                    # the frame and g_camera a frame apart - is taken again)
+                    cx, cy = (struct.unpack('<H', q.read(q.base2 + bench_vars()['CAMY'] + k, 2))[0] for k in (-4, 0))
+                    bad, k, _ = pitch_fit(s, q, cx, cy, q.read(0xA0000, 64000), samp)
+                    if bad * 10 < len(samp) or s.send('dump:0.5').outcome != 'dump':
+                        break
+                check(k[-1].isdigit() != lng and bad * 10 < len(samp), f'{case}: the kick-off frame: best map {k} '
+                      f'({bad} of {len(samp)} differ), long {lng}', errs)
+                info.append(f'kick-off frame: {k} ({bad} of {len(samp)} differ)')
+            info[n0:] = [f'{case}: {x}' for x in info[n0:]]
             if case in FR_KICK:                     # (4.1 H1) the change at the kick-off (0 mins), the panel after it
                 mine = [k for k, (name, _) in enumerate(teams) if name == home[-1]]
                 pl = teams[mine[0]][1][:cap] if mine else []

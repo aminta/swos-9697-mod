@@ -220,7 +220,7 @@ def patch_exe(src, dst, remap, lang='it'):
     if worlds:                                         # 4.0.6: DATA\\BAGE.nnn, the B teams' links + birth years (bteam.py)
         import bteam
         print('exe: B-team call-ups data: ' + bteam.write(os.path.join(os.path.dirname(os.path.abspath(dst)), 'DATA')))
-    import dugout                                      # 4.0.6: PITCH1-5 with the long dugouts beside the exe (benchx)
+    import dugout                                      # 4.1: the long dugouts as PITCHA-E / SWCPICHA-E beside the exe (benchx)
     print('exe: long dugouts: ' + dugout.gen(os.path.dirname(os.path.abspath(dst))))
     mkseason.register_states()                         # the career worlds' state championships (statespec.py)
     import statespec

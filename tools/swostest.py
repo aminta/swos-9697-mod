@@ -2627,6 +2627,27 @@ def scenario(fn):
     return fn
 
 
+def spp_restore(fn):
+    """A scenario that switches the SWOS++ key feed on (BENCH_SPP: SPP_STEP, HOLD, PRESS_FIRE, SWOSTEST_SPP_NOLATCH)
+    gets the old values back when it ends: in a -j1 run the next scenarios kept the feed (world_uesum after
+    bench_world, Integratore 08/11)."""
+    import functools
+
+    @functools.wraps(fn)
+    def run(*a, **k):
+        global SPP_STEP, HOLD, PRESS_FIRE
+        old = SPP_STEP, HOLD, PRESS_FIRE, os.environ.get('SWOSTEST_SPP_NOLATCH')
+        try:
+            return fn(*a, **k)
+        finally:
+            SPP_STEP, HOLD, PRESS_FIRE = old[:3]
+            if old[3] is None:
+                os.environ.pop('SWOSTEST_SPP_NOLATCH', None)
+            else:
+                os.environ['SWOSTEST_SPP_NOLATCH'] = old[3]
+    return run
+
+
 def rel_data_default():
     """W2627REL_DATA unset + SWOSTEST_BUILD a release dir (c/RELxx/SWOS, buildrel.sh): the snapshot that release was built
     with, from its build.log ('RELxx = <sha>, data <name>, ...'), as the gate sets it - so the label checks and the
@@ -8686,6 +8707,7 @@ def bench_play(s, gmax, top, bot, wants, errs, info, mark, sub=None, icons=None,
 
 
 @scenario
+@spp_restore
 def bench_world():
     """Panchina block 1 (benchx) in the World 2026-27 (BENCH_BUILD, else XTRA30_BUILD: a world build with the XTRA
     blocks): a new career at CELLE VARAZZE (Serie D girone A, 30 players; BENCH_CLUB / BENCH_PATH to change) as a
@@ -9161,6 +9183,7 @@ FR_PRE = {'diycup': ('COMPET. PERSONAL.', 'COPPA', 11, 11, 11, 'OK', 'SCEGLI SQU
 
 
 @scenario
+@spp_restore
 def bench_friendly():
     """4.0.6 (Regia / Davide 05/11) the long bench in friendlies (benchx bx_frset): a FRIENDLY of the World 2026-27
     between two clubs = the longer real bench of their two (country, division): BENCH_FR=<cases> (FR_CASES, default

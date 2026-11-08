@@ -21133,7 +21133,8 @@ def world_uesum_ko():
     recorder at cseg_28E76's exit -> US_REC, found by its 'S2BR' tag): per cup the stages' tie counts, every recorded
     tie decided, each stage's clubs through = the next stage's clubs (the play-offs' 8 winners in the round of 16);
     then the CL's RIEPILOGO lists SPAREGGI .. SEMIFINALE before the current stage, every tie line as US_REC says
-    (us_line, the names from the team cache)."""
+    (us_line, the names from the team cache). The save: UES_CAR, UES_KO_CAR, or the pinned
+    internal/uesum/cv_s2_cl_<UI>.CAR (IT: ARSENAL in the CL); none -> SKIP (rec / recold cover the language)."""
     exe, car = os.environ.get('UES_BUILD') or os.environ.get('CV_BUILD'), os.environ.get('UES_CAR')
     if not exe:                                         # (default: world_uesum's - world_contiview's build)
         src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
@@ -21142,9 +21143,13 @@ def world_uesum_ko():
         order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
         exe = build('world_contiview', env={'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x)
                                                                                           for x in order])}, lang=UI)
-    car = car or os.environ.get('CV_S2') or os.path.join(RUNS, f'cv_s2_{UI}.CAR')
+    pin = os.path.join(MAIN, 'internal', 'uesum', f'cv_s2_cl_{UI}.CAR')   # (Integratore 08/11, force don't retry: a
+    car = car or os.environ.get('UES_KO_CAR') or (pin if os.path.exists(pin) else None)   # pinned season-2 save with
+    if not car:                                         # ARSENAL in the CL's knockout stages; a fresh world_contiview
+        return True, (f'SKIP: no pinned CL save {pin} (UES_KO_CAR); the recorder in this language is covered by '   # save
+                      'world_uesum UES_POKE=rec / recold')   # has him wherever season 1 put him - EFL / no Europe)
     if not os.path.exists(car):
-        return False, f'no save {car} (UES_CAR, or run world_contiview first)'
+        return False, f'no save {car} (UES_CAR / UES_KO_CAR)'
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import ctview
     import rnames

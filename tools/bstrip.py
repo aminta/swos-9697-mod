@@ -357,8 +357,7 @@ def sites(p):
                 A2=(2, A2), A4=(2, A0 + 16), A6=(2, A6))
 
 
-def patch(p, at):
-    """bs_* at obj3:at (the chain's end); returns the end."""
+def _asm(p, at):
     import benchx
     import formwide
     s = sites(p)
@@ -372,7 +371,17 @@ def patch(p, at):
                ROWW=(0, 126 + formwide.WIDE),
                **{f'K_{n}': (0, k) for n, k in zip(('SHIRT', 'STRIPES', 'SHORTS', 'SOCKS'), s['K'])})
     code, fix, rel = nasmcave.assemble_obj(ASM, at, sym, 3)
-    lab = nasmcave.labels(ASM, at, sym)
+    return s, prev, code, fix, rel, nasmcave.labels(ASM, at, sym)
+
+
+def size(p):
+    """The code's size (nothing written)."""
+    return len(_asm(p, 0)[2])
+
+
+def patch(p, at):
+    """bs_* at obj3:at (the chain's end); returns the end."""
+    s, prev, code, fix, rel, lab = _asm(p, at)
     assert not any(p.get(3, at, len(code))), hex(at)
     p.put(3, at, code)
     for o, t_obj, t_off in fix:

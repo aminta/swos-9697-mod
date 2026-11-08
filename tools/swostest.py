@@ -7900,7 +7900,8 @@ def bench_hil_file(s, snap, final, spr, ega, errs, info, mark, name='HILB15'):
     h2 = struct.unpack('<H', s.result.obj2(v['HMAX'], 2))[0]
     check(h2 == 15, f'{name}.HIL loaded: hilMaxSubstitutes {h2} (want 15)', errs)
     scr = s.screen()
-    view = [x for x in scr.texts() if x.startswith('VISUAL')]
+    view = [x for x in scr.texts() if x.startswith('VISUAL') or x == 'VIS. SINTESI']   # (EN VIEW HIGHLIGHTS / DE HIGHLIGHTS
+                                                     #  ANZEIGEN read as the career menu's VIS. SINTESI, 08/11)
     if not view:
         errs.append(f'after the load: {scr.texts()}')
         return

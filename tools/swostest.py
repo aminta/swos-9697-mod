@@ -20980,11 +20980,15 @@ def rec_poke(s):
         while j >= 0 and not re.match(rb"[A-Z][A-Z0-9 .'/&-]{2,16}\0", d[j + 5:j + 23]):
             j = d.find(struct.pack('<H', x), j + 1)
         names.append(d[j + 5:j + 22].split(b'\0')[0].decode('latin1') if j >= 0 else '?')
-    s.poke(r.base4 + 0x2000 + k + 4, bytes((0, 1, 0, 0, 0, 0)) + struct.pack('<2H4B', w[0], w[1], 0x10, 0x12, 0x43, 0xEB))
+    exe = os.environ.get('UES_BUILD') or os.environ.get('CV_BUILD')
+    ss = r.read(season_playing_at(r, exe), 1)[0] + 1   # (UES_POKE=recold: last season's stamp - the page shows none)
+    old = os.environ.get('UES_POKE') == 'recold'
+    s.poke(r.base4 + 0x2000 + k + 4, bytes((0, 1, 0, 0, 0, (ss - 1) & 0xFF if old else ss))
+           + struct.pack('<2H4B', w[0], w[1], 0x10, 0x12, 0x43, 0xEB))
     s.send('dump:1')
     pen = uesum.TEXTS[UI][0].decode('latin1')
-    s.log.append(f'[uesum] rec poked: {names}')
-    return [rnames.NAMES[UI][1][0] + ':', f'  {names[0]} - {names[1]} 1-0 1-2 (2-2) {pen} 4-3']
+    s.log.append(f'[uesum] rec poked: {names}, stamp {ss}{" - 1" if old else ""}')
+    return ['OLD'] if old else [rnames.NAMES[UI][1][0] + ':', f'  {names[0]} - {names[1]} 1-0 1-2 (2-2) {pen} 4-3']
 
 
 @scenario
@@ -21022,7 +21026,7 @@ def world_uesum():
         if os.environ.get('UES_POKE') == 'ko2':         # (a test state: the CL's knockout round in every copy of its
             want = ko2_poke(s)                          #  contest - the second leg's turn, tie 0 decided on pens)
             check(want, 'UES_POKE=ko2: no CL knockout contest in memory', errs)
-        elif os.environ.get('UES_POKE') == 'rec':       # (4.1 S2b: US_REC set to one recorded play-off tie of the CL -
+        elif os.environ.get('UES_POKE') in ('rec', 'recold'):   # (4.1 S2b: US_REC set to one recorded play-off tie of the CL -
             rwant = rec_poke(s)                         #  shown before a later current stage, e.g. the final)
             check(rwant, 'UES_POKE=rec: no S2BR block / CL contest', errs)
         comps = [e[1] for e in s.screen().entries if e[1] and not e[2]]
@@ -21071,7 +21075,10 @@ def world_uesum():
                 if want:
                     ties = [ln for ln in lines if ln.startswith('  ') and not ln.startswith('   ')] + lines[-1:]
                     check(ties == want, f'ko2 ties {ties}, not {want}', errs)
-                if rwant:
+                if rwant == ['OLD']:                    # (last season's stamp: no earlier stage on the page)
+                    po = rnames.NAMES[UI][1][0] + ':'
+                    check(po not in lines, f'recold: last season\'s {po} on the page {lines}', errs)
+                elif rwant:
                     k = next((i for i, ln in enumerate(lines) if ln == rwant[0]), None)
                     check(k is not None and lines[k:k + 2] == rwant, f'rec: {rwant} not on the page {lines}', errs)
                 info.append(f'{cup}: {len(lines)} lines, heads {heads}')
@@ -21081,11 +21088,22 @@ def world_uesum():
     return not errs, '; '.join(errs) or '; '.join(info)
 
 
+def season_playing_at(r, exe):
+    """seasonPlaying's linear address in this run (uesum.season_var: InitializeNewSeason's add / cmp / mov, its fixup
+    in the exe file - S2b's season stamp is its value + 1)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lepatch
+    import uesum
+    p = lepatch.LEPatch(next(os.path.join(exe, f) for f in (UI_ORIG, 'ITALIAN.EXE')
+                             if os.path.exists(os.path.join(exe, f))))
+    return r.lin(uesum.season_var(p))
+
+
 def us_rec_read(r, at):
     """uesum.c's US_REC at linear at (after its 'S2BR' tag): the career club's cup (id, n[4], 22 ties: x, y, l1, l2,
     pn, fl)."""
     b = bytes(r.read(at, 182))
-    return b[0], list(b[1:5]), [struct.unpack_from('<2H4B', b, 6 + 8 * k) for k in range(22)]
+    return b[0], list(b[1:5]), [struct.unpack_from('<2H4B', b, 6 + 8 * k) for k in range(22)], b[5]
 
 
 def us_line(names, t, pen, aet):
@@ -21146,11 +21164,15 @@ def world_uesum_ko():
         at = r.base4 + 0x2000 + k + 4
         rec0 = us_rec_read(r, at)
         check(rec0[1] == [0] * 4, f'US_REC not empty after the load: {rec0[:2]}', errs)
+        sp = season_playing_at(r, exe)
+        ss = r.read(sp, 1)[0] + 1
+        s.poke(at, bytes((0, 8, 8, 4, 2, (ss - 1) & 0xFF)) + bytes([0x11]) * 176)   # (MC 08/11: a stale block - the
+        s.send('dump:1')                                                      #  CL, last season's stamp - dropped
 
         def done(scr):
             if scr.find('VISUAL. COMPETIZ.', exact=True) is None:
                 return season_over(scr)
-            cid, n, t = us_rec_read(s.result, at)
+            cid, n, t, _ = us_rec_read(s.result, at)
             return cid == 0 and n[3] and all(t[sum(n[:3]) + i][5] & 0x82 == 0x82 for i in range(n[3]))
         ok, msg = advance(s, done, 900)
         if not ok:
@@ -21167,7 +21189,9 @@ def world_uesum_ko():
                              f'{struct.unpack_from("<H", mem, b - 0x41F + 0x53)[0] if b >= 0x41F else None}')
                 k = mem.find(nm, k + 1)
         cache = mem[s.result.base2:s.result.base2 + 0x100000]
-        cid, n, ties = rec
+        cid, n, ties, ss1 = rec
+        ssn = s.result.read(sp, 1)[0] + 1
+        check(ss1 == ssn, f'US_REC stamp {ss1}, not seasonPlaying + 1 = {ssn}', errs)
         words = {w for t in ties[:sum(n)] for w in t[:2]}
         hits = {}                                           # (the team cache: 684-byte records, the word at +0 and
         for w in words:                                     #  the name at +5 - the records' common alignment)
@@ -21247,7 +21271,7 @@ def world_uesum_ko():
         m = bytes(r.read(r.base4 + 0x2000, 0x1000))
         at2 = r.base4 + 0x2000 + m.find(b'S2BR') + 4
         rec2 = us_rec_read(r, at2)
-        check(rec2[:2] == rec[:2] and rec2[2][:sum(rec[1])] == rec[2][:sum(rec[1])],
+        check(rec2[:2] == rec[:2] and rec2[3] == rec[3] and rec2[2][:sum(rec[1])] == rec[2][:sum(rec[1])],
               f'US_REC after the reload {rec2[:2]}, not {rec[:2]}', errs)
         for _ in range(6):
             if s.screen().find('VISUAL. COMPETIZ.', exact=True) is not None:
@@ -21267,6 +21291,28 @@ def world_uesum_ko():
         check(joined2 == joined, f'page after the reload differs: {[(a, b) for a, b in zip(joined2, joined) if a != b][:3]} '
               f'({len(joined2)} vs {len(joined)} lines)', errs)
         info.append(f'reload ({os.path.getsize(saved)} B): US_REC and the page unchanged')
+        for _ in range(10):                                 # (MC 08/11: a new career in this session - US_REC zero:
+            sc = s.screen()                                 #  trailer's new_career_defaults clears the item)
+            if 'MOD. TATTICA' in sc.texts():
+                break
+            press(s, sc, 'ESCI', 3) or s.send('fire dump:2')
+        press(s, s.screen(), 'CARRIERA', 3)
+        if 'ABBANDONA' in s.screen().texts():               # (a career loaded: CARRIERA asks CONTINUA / ABBANDONA first)
+            press(s, s.screen(), 'ABBANDONA', 3)
+            for _ in range(4):
+                if 'SCEGLI SQUADRA' in s.screen().texts():
+                    break
+                press(s, s.screen(), 'SI', 3) or press(s, s.screen(), 'CONTINUA', 3) or s.send('fire dump:2')
+        if check(pick_career(s, ['SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27', 'EUROPA', 'ITALIA',
+                                 'SERIE A', 'INTER']), f'new career: not reached ({s.screen()})', errs):
+            s.send('fire dump:3')
+            for _ in range(6):
+                if s.screen().find('VISUAL. COMPETIZ.', exact=True) is not None:
+                    break
+                press(s, s.screen(), 'CONTINUA', 3) or s.send('fire dump:2')
+            rn = us_rec_read(s.result, at2)
+            check(rn[1] == [0] * 4, f'new career after a career: US_REC {rn[:2]} stamp {rn[3]}, not empty', errs)
+            info.append(f'new career: US_REC n {rn[1]}')
     return not errs, '; '.join(errs) or '; '.join(info)
 
 

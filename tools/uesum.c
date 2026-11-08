@@ -25,6 +25,8 @@ extern u16 NUMSEL;                      /* g_numSelectedTeams */
 extern u16 HOLD[3];                     /* CC, CWC, UEFA holder words (usc_snap's SC_ST entry +6) */
 extern char TXT[], TITLE[];             /* fmtpage's page text and title */
 void W_LPW(void);                       /* careerworld w_lpw: ZF = 1 in a league-phase world */
+extern u8 SEASONP;                      /* seasonPlaying: the season's year, 2 digits (InitializeNewSeason +1) */
+static u32 stamp(void) { return SEASONP + 1u; }
 
 /* uesum.py's table: u16 offsets [11] (holder, to be played, winner, pens, a.e.t., league phase, play-offs, round of
    16, quarter-finals, semi-final, final), u8 widths [64] (' '..'_'), the strings NUL-ended */
@@ -94,7 +96,7 @@ struct tie {                            /* x = the first leg's home club, y its 
 enum { FL_PLAYED = 0x80, FL_TWO = 0x40, FL_LEG1 = 0x20, FL_Y = 1, FL_DEC = 2, FL_AET = 4, FL_PEN = 8 };
 #define NSTG 4                          /* the earlier stages kept: play-offs, round of 16, quarter-finals, semi-finals */
 #define NTIE 22                         /* (8 + 8 + 4 + 2) */
-struct cup { u8 id, n[NSTG], pad; struct tie t[NTIE]; };
+struct cup { u8 id, n[NSTG], ss; struct tie t[NTIE]; };    /* ss: the season stamp, seasonPlaying + 1 (0: none) */
 struct { u32 tag; struct cup c; } US = { 0x52423253 };   /* 'S2BR' (the harness finds the block by it), then the
                                            career club's UEFA cup (the one contest a career keeps: id = its contest 0..2):
                                            stage s's ties after n[0..s-2]'s - the save item's block US_REC = US.c (MC's
@@ -144,13 +146,17 @@ static void ko(void) {
 }
 
 /* 4.1 S2b, the recorder: after every match cseg_28E76 plays (its common exit, us_hook) the contest's knockout stage
-   1..NSTG into US_REC - the stage's last state is its result; recording stage s drops the stages after it (a new
-   season's). */
+   1..NSTG into US_REC - the stage's last state is its result; recording stage s drops the stages after it, another
+   cup or season (MC 08/11: the stamp) drops them all. */
 void us_rec(void) {
     u32 s = w16(UC + 0x53), nt = w16(UD + 0x51), off = 0;
     if (UD[0] != 1 || s - 1 >= NSTG || !us_ok()) return;
     struct cup *c = &US_REC;
-    if (c->id != UD[0x2D]) { c->id = UD[0x2D]; for (u32 k = 0; k < NSTG; k++) c->n[k] = 0; }   /* (another cup) */
+    if (c->id != UD[0x2D] || c->ss != stamp()) {   /* (another cup, or another season: what is kept is not this one's) */
+        c->id = UD[0x2D];
+        c->ss = (u8)stamp();
+        for (u32 k = 0; k < NSTG; k++) c->n[k] = 0;
+    }
     for (u32 k = 0; k + 1 < s; k++) off += c->n[k];
     if (off + nt > NTIE) return;                /* (a stage bigger than the room: not kept) */
     for (u32 k = s; k < NSTG; k++) c->n[k] = 0;
@@ -163,7 +169,7 @@ __asm__(".globl us_hook\nus_hook:\n\tpushal\n\tcall us_rec\n\tpopal\n\tmovw $0, 
 
 static void earlier(u32 st) {                   /* the recorded stages before the current one */
     const struct cup *c = &US_REC;
-    if (c->id != UD[0x2D]) return;
+    if (c->id != UD[0x2D] || c->ss != stamp()) return;   /* (another cup's or season's; an older save's zero block) */
     for (u32 s = 1, off = 0; s < st && s <= NSTG; off += c->n[s - 1], s++) {
         if (!c->n[s - 1]) continue;
         head(stname(s), 0);

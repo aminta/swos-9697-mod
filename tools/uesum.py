@@ -27,6 +27,14 @@ def rec_site(p):
     return hits[0]
 
 
+def season_var(p):
+    """seasonPlaying (obj, offset): InitializeNewSeason's `add [x], 1; cmp [x], 100; jnz; mov [x], 0` (S2b's stamp)."""
+    d = p.le.obj_bytes(1)
+    m = [x for x in re.finditer(rb'\x80\x05(.{4})\x01\x80\x3d\1\x64\x75.\xc6\x05\1\x00', d, re.S)]
+    assert len(m) == 1, ('uesum: seasonPlaying', len(m))
+    return p.target(1, m[0].start() + 2)
+
+
 def table(lang):
     import complist
     import ctview
@@ -76,7 +84,7 @@ def patch(p, at, lang, usc=False):
            'NUMSEL': trailer.INFO['NUMSEL'], 'HOLD': hold, 'TXT': ws['TXT'], 'TITLE': ws['TITLE'],
            'W_LPW': (1, careerworld.LABELS['w_lpw']), 'US_TAB': (4, tab_at)}
     rs = rec_site(p)                                    # (S2b: the recorder at cseg_28E76's exit)
-    ext.update({'D0W': p.target(1, rs + 3), 'RET28': (1, rs + 9)})
+    ext.update({'D0W': p.target(1, rs + 3), 'RET28': (1, rs + 9), 'SEASONP': season_var(p)})
     obj = cobj.compile_c(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uesum.c'),
                          ['-Oz', '-fno-zero-initialized-in-bss', f'-DTXTMAX={fmtpage.TXTMAX}'])
     syms, end, bss = cobj.link(p, obj, at, (4, 0), externs=ext, limit=room, text_obj=4)

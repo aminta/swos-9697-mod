@@ -81,6 +81,10 @@ new rule. If a rule seems wrong for a case, ask the regia session; don't silentl
     93 B on 406-i10j, 68 B with FFP's FF (21 + 4) (engine block 15343 B, 25 items, main block 948 B; measured by the engine's P0, item by item in
     notes/engine/save-ledger.md). A new item costs 4 + its size; past the room the build fails - plan any 4.0.6+ item
     against this figure, add its line to the ledger and update it here.
+    4.1 (41-selroom, for S2b): SEL_ROOM + 640 (0x280), B_STAGE 0x7B000 -> 0x7AE40 - the two gaps around the stage
+    (1152 B below, 207 B above), nothing after it moves (B_UQ, obj2's size): **708 B left** (engine block 15368 B,
+    26 items, 4.1 staging 8dfa5ea). That is the last room the gaps give (at most +679 B); more means moving B_UQ and the
+    tail after it, or folding gplay's items into SWC1 (4.2) - the next item past this room waits for one of those.
 22. obj1 has a ceiling too: 237 pages in the release build (4.0.5, Panchina's SWOS++ probe: obj1 in memory <= 238 pages
     starts every match under SWOS++ 1.9.2.2, 239+ makes PLAY MATCH stall - obj2's base moves past what SWOS++ tolerates;
     the harness adds 1 obj1 page of its own, so 237 file pages = 238 under test = the real limit). patch.py prints

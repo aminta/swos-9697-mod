@@ -12,6 +12,16 @@ The career .CAR of a big world (World 2026-27, Europe 1984-85) keeps three thing
 **Measured on 406-i10j a25886a, release recipe (c/HTI10j, world5tm-403c13b), NACIONAL season-1 save:**
 SEL_N 160 × 684 = 109440, main block 948, 'EN' block 15343 (25 items) → 125731 of SEL_ROOM 125824: **93 B left**.
 
+**4.1 (41-selroom, 08/11), release recipe c/REL41sr (8dfa5ea + the room change, world5tm-403c16):** SEL_ROOM grows by
+640 B (B_STAGE 0x7B000 → 0x7AE40, the gaps around the stage; B_UQ and everything after it unchanged). 109440 + 948 +
+'EN' 15368 (26 items) = 125756 of SEL_ROOM 126464: **708 B left**, for S2b (the UEFA cups' earlier rounds). The gaps
+allow at most +679 B: past this, move B_UQ and the tail after it, or fold gplay's items into SWC1 (4.2).
+Old saves: the .CAR layout does not change and B_STAGE is a file I/O buffer only (no save stores an address into it):
+the 8 archived saves round-trip byte for byte as on 8dfa5ea (test_roundtrip, fixtures p0_uru_load_sr / _srbase).
+Edge case (pre-existing): a 3.0 .. 3.3.2 Europe 1984-85 save without BIGC and with 90 or fewer cached teams loads into
+the game's 68400-B cache; a world career's whole 'EN' block fits there only up to 76 cached teams (75 with S2b's 'US',
+182 B), past that save_trailer drops 'EN' at runtime, as before.
+
 | Item | B | Owner (module) | Since | What |
 |---|---|---|---|---|
 | GP | 2048 | gplay | 4.0 | play-off / title-group state (GP_ST) |
@@ -56,7 +66,8 @@ SEL_N 160 × 684 = 109440, main block 948, 'EN' block 15343 (25 items) → 12573
 
 - **SWC1 cannot fit in 93 B.** Choose one of these, or both:
   - fold legacy items into SWC1 as the engine absorbs their modules: GP + GS + SS + SS2 + CD + CF + WN + F1 + CN + BQ ≈ 9.3 KB are gplay's and become the engine's. That frees what the engine state needs, as long as it stays within their sum;
-  - grow SEL_ROOM by moving B_STAGE, a change of the old-save-trap class that needs its own old-save gate.
+  - grow SEL_ROOM by moving B_STAGE, a change of the old-save-trap class that needs its own old-save gate (done once in
+    4.1 for S2b, +640 B: the gaps are used up).
 - **The rule from now on:** a new item in a 4.0.x minor gets a line here, and a P import entry when the engine starts, before its sha.
 
 ## Not save room: the default world (W-modes M1, 2026-11-04)

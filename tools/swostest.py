@@ -1525,10 +1525,13 @@ def w27_up(s, scr, text):
     walk(s, 'SCEGLI SQUADRA', 3)
     return True
 
-def press(s, scr, text, wait=2, exact=True, avoid=frozenset(), fire=None):
+def press(s, scr, text, wait=2, exact=True, avoid=frozenset(), fire=None, hold=None):
     """Select the visible entry `text` (or entry number), check on the next pause that it is the selected one (a
     move can be taken twice), then fire; returns the new Result (None if not reachable). avoid = moves (entry, key)
-    not to take (the long bench's window: up on row 12 / down on row 17 scroll it); none left: any way."""
+    not to take (the long bench's window: up on row 12 / down on row 17 scroll it); none left: any way. hold (SPP_STEP,
+    a feed with holdn): the cursor taps held so many ticks, halved after a tap that went past its row (a fast
+    auto-repeat menu: the match's highlights menu moved 3 rows on a 20-tick tap, 1 -> 4 -> 1, 4.1 bench_world under
+    SWOS++, Panchina 08/11)."""
     w27_mark(s, text)
     i = text if isinstance(text, int) else scr.find(text, exact=exact)
     if i is None:
@@ -1561,11 +1564,18 @@ def press(s, scr, text, wait=2, exact=True, avoid=frozenset(), fire=None):
                 scr = s.screen()
                 continue
             cur, (k_, want) = scr.selected, steps[0]
-            s.log.append(f'[spp step] {cur} -> {i}: {steps[:4]}')
-            if s.send(k_ + ':0.3 dump:0.5').outcome != 'dump':
+            s.log.append(f'[spp step] {cur} -> {i}: {steps[:4]}' + (f' held {hold}' if hold else ''))
+            if hold:
+                s.poke(s.result.base1 + s.info['holdn'], struct.pack('<H', hold))
+            r_ = s.send(k_ + ':0.3 dump:0.5')
+            if hold:
+                s.poke(s.result.base1 + s.info['holdn'], struct.pack('<H', HOLD))
+            if r_.outcome != 'dump':
                 return s.result
             scr = s.screen()
-            if scr.selected != want:
+            if scr.selected != want and hold and scr.selected != cur and hold > 2:
+                hold = max(hold // 2, 2)        # (moved, but past its row: a shorter tap, the same way again)
+            elif scr.selected != want:
                 sbad.add((cur, k_))
         return None
     bad = set(avoid)
@@ -7923,8 +7933,9 @@ def bench_hil_file(s, snap, final, spr, ega, errs, info, mark, name='HILB15'):
     by place, the name tables reset): in a reloaded scene recorded after a change the two players' names are swapped
     (hil6 30/10); the view straight after the match keeps the kick-off sprites (all right)."""
     v = hil_vars()
+    hold = SPP_CONTI_HOLD if SPP_STEP else None   # (SWOS++: the highlights menu's auto-repeat - press' short taps)
     scr = s.screen()
-    if press(s, scr, 'SALVA AZIONI PRINCIPALI') is None:
+    if press(s, scr, 'SALVA AZIONI PRINCIPALI', hold=hold) is None:
         errs.append(f'SALVA AZIONI PRINCIPALI not reached: {scr.texts()}')
         return
     s.send(name_entry(name) + ' dump:2')
@@ -7946,13 +7957,13 @@ def bench_hil_file(s, snap, final, spr, ega, errs, info, mark, name='HILB15'):
         s.poke(at, struct.pack('<H', struct.unpack('<H', s.result.read(at, 2))[0] & 0x7FFF))
     s.send('dump:0.5')
     scr = s.screen()
-    if press(s, scr, 'CARICA AZIONI PRINCIPALI') is None:
+    if press(s, scr, 'CARICA AZIONI PRINCIPALI', hold=hold) is None:
         errs.append(f'CARICA AZIONI PRINCIPALI not reached: {scr.texts()}')
         return
     q = s.screen()
     mark('load list: ' + ', '.join(q.texts()))
     if name in q.texts():
-        press(s, q, name)
+        press(s, q, name, hold=hold)
     else:
         s.send('fire:1 dump:2')
     s.send('dump:1')
@@ -7964,7 +7975,7 @@ def bench_hil_file(s, snap, final, spr, ega, errs, info, mark, name='HILB15'):
     if not view:
         errs.append(f'after the load: {scr.texts()}')
         return
-    press(s, scr, view[0])
+    press(s, scr, view[0], hold=hold)
     r = s.send('dump:3')
     s.shot('highlights_loaded')
     check(r.outcome == 'dump', f'loaded highlights playback: {r}', errs)

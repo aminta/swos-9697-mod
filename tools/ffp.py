@@ -34,7 +34,7 @@ import nasmcave
 LIMIT = 40                                   # W / I > 40 % (Davide 05/11; 35 % sanctioned one star at a big club)
 # the memo: two lines, as message 1 (%a = the manager, %b = the fine); the game's own font (German umlauts as its strings)
 # ANDAMENTO CLUB's row (ratio W / last season's I) and the season-start statement's fine row (Davide 04/11)
-RATIO = {'it': 'STIPENDI/RICAVI ', 'en': 'WAGES/INCOME ', 'fr': 'SALAIRES/RECETTES ', 'de': 'GEHAELTER/EINNAHMEN '}
+RATIO = {'it': 'STIPENDI/RICAVI ', 'en': 'WAGES/INCOME ', 'fr': 'SALAIRES/RECETTES ', 'de': 'GEH\x8eLTER/EINNAHMEN '}
 FINE = {'it': 'MULTA FAIR PLAY FINANZ.:', 'en': 'FINANCIAL FAIR PLAY FINE:', 'fr': 'AMENDE FAIR-PLAY FINANCIER:',
         'de': 'STRAFE FINANZ. FAIRPLAY:'}
 MEMO = {'it': ('SPIACENTE %a, GLI STIPENDI SUPERANO IL 40 PER CENTO',
@@ -464,7 +464,7 @@ def patch(p, at, lang):
     sym['S_OFF'], sym['S_ON'] = cpucards.strings(p, controls.menu_header(p, controls.locate(p)['OMBD'][1]))
     assert p.target(2, s['bizhdr']) == s['BIZINIT'], ('clubBusinessMenu init already hooked', p.target(2, s['bizhdr']))
     for t in (RATIO[lang], FINE[lang]):
-        assert re.fullmatch(r"[A-Z0-9 /.:'-]+", t), t
+        assert re.fullmatch(r"[A-Z0-9 /.:'\x8e\x99\x9a-]+" if lang == 'de' else r"[A-Z0-9 /.:'-]+", t), t   # (DE umlauts)
     sym['PREV5DEB9'] = p.call_target(1, s['season'])
     assert sym['PREV5DEB9'] == (1, s['F5DEB9']), ('InitializeNewSeason: cseg_5DEB9 call already hooked', sym['PREV5DEB9'])
     sym['LIMIT_'] = (0, 0 if os.environ.get('FFP_FORCE') == 'over' else LIMIT)

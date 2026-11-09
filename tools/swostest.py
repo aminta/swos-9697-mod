@@ -7091,6 +7091,85 @@ def keeper_let_go(s, errs):
     return True
 
 
+def wait_stopped(s, tries=40):
+    """(4.1 RC2 MEM16 lane, 09/11) dumps until play stands still - BenchCheckControls' gates: gameStatePl not
+    ST_GAME_IN_PROGRESS (100), gameState not ST_STARTING_GAME .. ST_GAME_ENDED (21..30), and no keeper
+    holding the ball (3: the bench takes no cursor key then, keeper_let_go) - the only frames that take a
+    bench key (@@bench_not_invoked clears the calls every frame of play). A bench key sent blind lands in play whenever
+    the match's course moves (REL41rc2 at memsize 8: 12 calls in play, the bench never open). The last result."""
+    v = bench_vars()
+    if not hasattr(wait_stopped, 'gsp'):
+        p = lepatch_orig()
+        gs = {p.target(1, x.start(1))[1] for x in re.finditer(rb'\x66\x83\x3d(....)\x64\x0f\x84', p.le.obj_bytes(1), re.S)}
+        assert len(gs) == 1, ('gameStatePl', gs)
+        wait_stopped.gsp = gs.pop()
+    r = s.result
+    for k in range(tries):
+        w16 = lambda o: struct.unpack('<H', r.read(r.base2 + o, 2))[0]
+        if w16(wait_stopped.gsp) != 100 and not 21 <= w16(v['GSTATE']) <= 30 and w16(v['GSTATE']) != 3:
+            break
+        r = s.send('fire:2 dump:0.5' if w16(v['GSTATE']) == 3 and k % 2 else 'dump:0.5')   # (a human keeper holds
+        if r.outcome != 'dump':                                                     #  it until fire: keeper_let_go)
+            break
+    return r
+
+
+def bench_open(s, key, tries=8):
+    """(4.1 RC3 MEM16 lane, 09/11) the bench called as the game's own PgUp / PgDn does it, without the key's timing:
+    MainKeysCheck sets bench2Called (PgUp, the bottom team's) / bench1Called (PgDn, the top team's) only for a team a
+    human plays or coaches - the same gate here (none: nothing, as the key) -, poked on a frame where play stands still
+    (wait_stopped: BenchCheckControls' @@bench_not_invoked clears the calls every frame of play), then dumps until
+    the game entered the menu (g_inSubstitutesMenu 30) and its g_goToSubsTimer (15 frames from the entry, held while
+    the camera is not valid) ran out - only then BenchMenuHandleControls reads the cursor. A real key was the problem
+    twice over: sent blind it landed in play (rc2 at memsize 8: never open), and a second one - a re-send, or the
+    keyboard's own repeat of a key held while the bench opened - is a bench call inside the menu, which LEAVES it
+    (BenchMenuHandleControls @@check_if_bench_recalled: open 'in=30', then closed before the cursor keys, rc2 normal
+    memory). Re-poked only when play went on before the game took the call (the call cleared, the menu not entered).
+    Returns the last result; the menu open iff INSUBS reads 30 in it."""
+    v = bench_vars()
+    top, bot = team_data()
+    w16 = lambda r, o: struct.unpack('<H', r.read(r.base2 + o, 2))[0]
+    if not hasattr(bench_open, 'goto'):
+        p = lepatch_orig()
+        g = [p.target(1, x.start(2))[1] for x in re.finditer(rb'\x66\xc7\x05(....)\x1e\x00\x66\xc7\x05(....)\x0f\x00',
+             p.le.obj_bytes(1), re.S) if p.target(1, x.start(1))[1] == v['INSUBS']]
+        assert len(g) == 1, ('g_goToSubsTimer', g)      # (@@init_bench_vars: mov [g_inSubstitutesMenu], 30 /
+        bench_open.goto = g[0]                          #  mov [g_goToSubsTimer], 15)
+    team, call = (bot, v['B2C']) if key == 'pgup' else (top, v['B1C'])
+    r = s.result
+    if not (w16(r, team + 4) or w16(r, team + 6)):
+        return r
+    for k in range(tries):
+        r = wait_stopped(s)
+        if r.outcome != 'dump':
+            return r
+        s.poke(r.base2 + call, b'\x01\x00')
+        for _ in range(12):
+            r = s.send('dump:0.3')
+            if r.outcome != 'dump' or w16(r, v['INSUBS']) == 30 or not w16(r, call):
+                break
+        if r.outcome != 'dump':
+            return r
+        if w16(r, v['INSUBS']) == 30 and w16(r, v['GSTATE']) == 3:   # (open while a keeper holds the ball: no
+            s.log.append(f'[bench open] {key}: open with the keeper holding the ball, left')  # cursor; right leaves it)
+            r = s.send('right:0.15 dump:0.5')
+            if r.outcome != 'dump':
+                return r
+            continue
+        if w16(r, v['INSUBS']) == 30:
+            for _ in range(20):                         # (15 frames once the camera is valid)
+                if w16(r, bench_open.goto) == 0:
+                    break
+                r = s.send('dump:0.3')
+                if r.outcome != 'dump':
+                    return r
+            s.log.append(f'[bench open] {key}: menu open after {k + 1} poke(s), goToSubsTimer {w16(r, bench_open.goto)}')
+            return r
+        s.log.append(f'[bench open] {key}: poke {k + 1} cleared by play (gameStatePl {w16(r, wait_stopped.gsp)}, '
+                     f'gameState {w16(r, v["GSTATE"])})')
+    return r
+
+
 def fw_probe(s):
     """Both teams' starters 2 / 3 booked (Sprite.cards +66h: 1 yellow, -1 red), the record-injury byte
     (PlayerInfoHeader.injuriesBitfield, 42 + 61 i + 35) 0x20 (a cross drawn every frame) for starters 2 and 4: the bench
@@ -7295,7 +7374,8 @@ def bench_sub(s, bx, place, errs, info, mark, key=None, gone=None, tag='', human
     for call in range(40 if human_key else 12):
         if not keeper_let_go(s, errs):
             return False
-        r = s.send((key or ('pgup' if call % 2 == 0 else 'pgdn')) + ':0.3 dump:0.6')   # (key: one team's bench)
+        r = bench_open(s, key or ('pgup' if call % 2 == 0 else 'pgdn'))   # (the call poked on a still frame, the
+                                                                          #  menu waited for - MEM16 lane 09/11)
         if os.environ.get('BENCH_DIAG') and r.outcome == 'dump':   # (bench1Called / bench2Called / g_inSubstitutesMenu)
             info.append(f'call {call} {key or ("pgup", "pgdn")[call % 2]}: b1/b2/in ' + str(
                 [w16(v[k], r.base2) for k in ('B1C', 'B2C', 'INSUBS')]))
@@ -7311,8 +7391,8 @@ def bench_sub(s, bx, place, errs, info, mark, key=None, gone=None, tag='', human
             errs.append(f'bench call: {r}')
             return False
         last, still = w16(v['IDX'], r.base2), 0
-        if human_key and not w16(v['INSUBS'], r.base2):
-            continue                        # (not open: play went on - the next call)
+        if w16(v['INSUBS'], r.base2) != 30:
+            continue                        # (not open: no human on that key's team, or play never stood still)
         for j in range(24):
             r = ks(f"down:{os.environ.get('BENCH_KEYHOLD', '0.15')} dump:0.3")
             if r.outcome != 'dump':
@@ -7332,7 +7412,9 @@ def bench_sub(s, bx, place, errs, info, mark, key=None, gone=None, tag='', human
             for k in ('up', 'left', 'right', 'fire'):
                 r = ks(f'{k}:0.15 dump:0.3')
                 tr.append((k, w16(v['IDX'], r.base2)))
-            info.append(f'bench call {call}: down ignored, then {tr}')
+            info.append(f'bench call {call}: down ignored, then {tr}; gameState {w16(v["GSTATE"], r.base2)} gameStatePl '
+                        f'{w16(wait_stopped.gsp, r.base2) if hasattr(wait_stopped, "gsp") else None} b1/b2/in '
+                        f'{[w16(v[k], r.base2) for k in ("B1C", "B2C", "INSUBS")]}')
             s.shot(f'{tag}bench_diag{call}')
         if last == want:
             break

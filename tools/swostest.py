@@ -16819,6 +16819,72 @@ def lrank_po(force, team, legs, uefaf=False):
 
 
 @scenario
+def world_decider_title():
+    """4.2 (H1, Serie D Art. 51 c.6) the 'decider' flag: a prototype world (internal/world2526/world5tm-s1rank-int2,
+    DECIDER_DATA) whose Serie D groups have a one-match promotion play-off [d,1] v [d,2] (gap 1, neutral, e.t. + pens,
+    winner to Serie C, 'decider': true). LIGORNA forced 2nd of girone A, level with the 1st (GPLAY_FORCE=2, LR_FORCE=1),
+    its played ties won (GPLAY_KOFORCE=2): the decider is built in slot 4 (codes 0 / 1, one tie), the career club wins
+    it and moves up 3 levels (GP_LOG moves); after the season end its row is the group's 1st in GP_IN.t (the swap the
+    later play-offs read), the old 1st on row 2, and before it the career club was on row 2. Run it with
+    W2627REL_DATA=<the same data> (the calendar label check's names); DECIDER_BUILD = an exe built here (remote runs)."""
+    exe = os.environ.get('DECIDER_BUILD')                  # (a build made elsewhere: the remote server's run)
+    if not exe:
+        src = os.environ.get('DECIDER_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-s1rank-int2')
+        if not os.path.isdir(src):
+            return True, f'SKIP: private data {src} missing'
+        order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+        env = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]),
+               'GPLAY_FORCE': '2', 'LR_FORCE': '1', 'GPLAY_KOFORCE': '2', 'HOSTTEST_SYMS': '1'}
+        exe = build('world_decider' + ('' if UI == 'it' else '_' + UI), env=env, lang=UI)
+    ptrs = gp_ptrs(exe)
+    if not ptrs:
+        return False, 'no GPLOGPTR block in the exe'
+    log_at, st_at, log_n, st_n = ptrs
+    syms = json.load(open(os.path.join(exe, 'ITALIAN.syms.json')))
+    gin, ct = syms['gplay']['GP_IN'][1], syms['gplay']['CAREERTEAM'][1]
+    t5 = gin + 4 + 16 + 2 + 5 * 32 * 12                    # (gplay.c struct gp_in: GP_IN.t[5], girone A, 12 B rows)
+    keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
+                                            'W8485_NOSACK', 'W8485_HEX')}
+    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM='EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA',
+                      W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1',
+                      W8485_HEX=f'{log_at:x}:{log_n},{st_at:x}:{st_n},{t5:x}:48,{ct:x}:2')
+    try:
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    hexes = {}
+    for ln in open(os.path.join(RUNS, w84_tag() + '_1', 'session.log'), errors='replace'):
+        p = ln.split()
+        if len(p) == 3 and p[0] == 'HEX':
+            hexes.setdefault(p[1], []).append(bytes.fromhex(p[2]))
+    errs = []
+    check(ok, msg, errs)
+    me = [struct.unpack('<H', b)[0] for b in hexes.get(f'{ct:x}', [])]
+    me = me[-1] if me else None
+    sts = [b for b in hexes.get(f'{st_at:x}', []) if b[:2] == b'GK']
+    if not sts or me is None:
+        return False, f'{msg}; the decider never ran (GP_ST {len(sts)}) or no career team'
+    ko = gp_ko(sts[-1][GP_STKO:])
+    check(ko['cid'] == 0xFE and ko['n'] == 2 and sorted(ko['code']) == [5 * 32, 5 * 32 + 1] and ko['ntie'] == 1,
+          f"contest {ko['cid']:#x} n {ko['n']} codes {ko['code']} ties {ko['ntie']}", errs)
+    logs = [b for b in hexes.get(f'{log_at:x}', []) if b[:4] == b'GPLG']
+    mv = [struct.unpack_from('<HHb', logs[-1], 686 + 8 * i) for i in range(min(logs[-1][682], 32))] if logs else []
+    check(any(t == me and dl == -3 for _, t, dl in mv), f'career club {me:#x} not moved up 3: {mv}', errs)
+    rows = [[struct.unpack_from('<6H', b, 12 * i) for i in range(4)] for b in hexes.get(f'{t5:x}', [])]
+    before = [r for r in rows if r[1][0] == me and r[0][5] == r[1][5]]
+    after = [r for r in rows if r[0][0] == me]
+    check(bool(before), f'never 2nd level with the 1st: {[(hex(r[0][0]), r[0][5], hex(r[1][0]), r[1][5]) for r in rows[-3:]]}', errs)
+    check(bool(after) and before and after[-1][1][0] == before[0][0][0],
+          f'after the season end not swapped: {[(hex(r[0][0]), hex(r[1][0])) for r in rows[-3:]]}', errs)
+    return not errs, '; '.join(errs) or (f"{msg}; decider codes {ko['code']} winner {ko['tw']}, career {me:#x} 2nd -> 1st "
+                                         f"(old 1st {before[0][0][0]:#x} now 2nd), moves {mv[:6]}")
+
+
+@scenario
 def world_lrank_title():
     """4.2 S1.3: the Serie A title play-off match (one match at the better placed's, penalties): INTER forced 1st,
     level with the 2nd (lrank_po)"""

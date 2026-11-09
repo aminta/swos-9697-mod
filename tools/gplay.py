@@ -53,7 +53,10 @@ pack.json league "ko_playoffs": [{ "key", "names": {lang: [long, short]},
               "skip_if_same": bool (a tie of one club with itself is not played: it goes through)}
              | {"group": {"rounds": 1..4, "bonus": [points per member], "host": "listed" | "neutral"},
                 "members": [...]} (a round robin; its placings P<k>, numbered across the group rounds)],
-  "winner_div": d, "loser_div": d2 | "reserve" (out of the league), "skip_qualified": bool,
+  "winner_div": d, "loser_div": d2 | "reserve" (out of the league), "skip_qualified": bool (europe),
+  "decider": bool (4.2, Serie D Art. 51 c.6: one round of one tie; its winner takes the loser's better place in the
+  table the later play-offs read - flag bit 0, skip_qualified's on the europe kind; gp_need skips a one-round play-off
+  decided by its gap),
   "host_by_record": bool (4.0 MLS: 'better' = the better record in the division's table - points, wins, goal
   difference, goals - not the better place: conference tables in one division, the MLS Cup at the better record),
   "winners": w (a promotion play-off ending with a group: its top w go to winner_div),
@@ -262,7 +265,10 @@ def compile_spec(pos, ndiv, league_names=None):
             raise ValueError(f'{key}: a best-of-three ("series": 3) not as the last round')
         if po.get('draw_pot') and not (len(po['rounds']) > 2 and all('group' in r for r in po['rounds'][:2])):
             raise ValueError(f'{key}: draw_pot needs 2+ leading group rounds (their heads = the first entrants)')
-        flags = (1 if po.get('skip_qualified') else 0) | (2 if po.get('host_by_record') else 0) | ((win if win > 1 else 0) << 4) \
+        if po.get('decider') and (po.get('kind') == 'europe' or len(po.get('rounds') or []) != 1
+                                  or len(po['rounds'][0].get('ties') or []) != 1):
+            raise ValueError(f'{key}: "decider" needs one round of one tie, not europe')
+        flags = (1 if po.get('skip_qualified') or po.get('decider') else 0) | (2 if po.get('host_by_record') else 0) | ((win if win > 1 else 0) << 4) \
             | (8 if po.get('draw_pot') else 0) \
             | (4 if po.get('supercup') else 0) | (0x80 if po.get('skip_second') else 0)       # (4.0.1 Colombia: the entrants after the heads drawn into the groups;
                                                      # 4.0.5 'supercup': not played at the season end - the next season's

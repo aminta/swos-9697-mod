@@ -21574,7 +21574,8 @@ def up_find(r):
 def world_uprize():
     """4.1 RC3 (Miguel via Davide 09/11): UEFA prize money for the career club (uprize.c). The pinned CL save (UPR_CAR,
     else internal/uesum/cv_s2_cl_<UI>.CAR or _it: ARSENAL in the CL's league phase, a save without the item 'UP'):
-    UPR_OFF=1: the switch fired OFF on that statement, then nothing more paid to the semi-finals. After the load UP is
+    UPR_OLD=1: UP left as the older save has it (ok 0) - at the first event what the club had reached is counted as
+    paid (participation, value pillar, earlier W / D: nothing back-paid), then everything after it is paid. UPR_OFF=1: the switch fired OFF on that statement, then nothing more paid to the semi-finals. After the load UP is
     an older save's (ok 0); UP poked to this season's CL with nothing paid (as a new career's at
     its cup's start - the first event pays all the club has reached), then played on until the CL's semi-finals are
     decided (US_REC). Then: participation once; 3 x W + D = the club's league-phase points in US_REC's final table;
@@ -21615,7 +21616,10 @@ def world_uprize():
         check(u0['ok'] == 0 and u0['sum'] == 0, f'after loading an older save UP {u0}, not ok 0', errs)
         club = struct.unpack('<H', bytes(r.read(r.lin(ct), 2)))[0]
         ss = r.read(season_playing_at(r, exe), 1)[0] + 1
-        s.poke(at, bytes((1, 0, ss, 0, 0, 0, 0, 0)) + bytes(4))     # (this season's CL, nothing paid yet)
+        if os.environ.get('UPR_OLD') != '1':                # (UPR_OLD=1: the older save's UP kept - its catch-up at the
+            s.poke(at, bytes((1, 0, ss, 0, 0, 0, 0, 0)) + bytes(4))  #  first event must pay what the poke's run pays)
+        else:                                                # (else this season's CL, nothing paid yet)
+            info.append('old save: UP not poked')
         s.send('dump:1')
         fs = finance.find(lepatch.LEPatch(os.path.join(ROOT, 'orig', UI_ORIG_OF[UI])))
         word = lambda o: struct.unpack('<i', bytes(s.result.obj2(o, 4)))[0]
@@ -21625,6 +21629,14 @@ def world_uprize():
                                                      #  competition bonuses are the league place's)
         if not check(ok, f'no career menu with a prize paid: {msg}', errs):
             return False, '; '.join(errs)
+        old = os.environ.get('UPR_OLD') == '1'
+        u1 = up_read(s.result, at)
+        if old:                                              # (what the club had reached at the load counts as paid: the
+            v1 = upv_read(s.result)                          #  first event pays one result, plus the participation and
+            one = u1['w'] * tab[1] + u1['d'] * tab[2] if u1['w'] + u1['d'] <= 1 else None   # the value pillar only
+            full = one is not None and v1 and tab[0] + (v1['a'] + 500) // 1000 * 1000 + one   # before its 2nd match)
+            check(u1['ok'] == 1 and u1['fl'] & 1 and u1['sum'] in (tab[1], tab[2], full), f'old save: the first '
+                  f'event\'s UP {u1}: not one result ({tab[1]:,} / {tab[2]:,}) nor the first match\'s {full}', errs)
         press(s, s.screen(), 'ANDAMENTO CLUB', 3)             # (M2: the statement's row PREMI UEFA, label 3 / value 13)
         scr = s.screen()
         s.shot(f'uprize_stmt_{UI}')
@@ -21695,7 +21707,10 @@ def world_uprize():
         stages = [k for k in range(4) if any(club in t[:2] for t in ties[sum(n[:k]):sum(n[:k + 1])])]
         check(u['st'] == st, f'UP st {u["st"]}, not {st} (the last stage US_REC has the club in)', errs)
         want = tab[0] + u['w'] * tab[1] + u['d'] * tab[2] + sum(tab[3 + k] for k in stages)
-        if check(v is not None and v['e'] < 36 and v['b'] < 36, f'value pillar: UPV {v}', errs):   # (part 2, with the
+        if old:                                              # (from the first event on: its sum, then the rest)
+            want = u1['sum'] + (u['w'] - u1['w']) * tab[1] + (u['d'] - u1['d']) * tab[2] + sum(tab[3 + k] for k in stages)
+            info.append(f'old save: first event UP {u1}')
+        elif check(v is not None and v['e'] < 36 and v['b'] < 36, f'value pillar: UPV {v}', errs):   # (part 2, with the
             vs = [x * uprize.K[0] // uprize.K[1] for x in uprize.VALUE[0]]                    #  participation)
             check(v['a'] == vs[0] * (36 - v['e']) + vs[1] * (36 - v['b']), f'value pillar: {v} != the shares {vs}', errs)
             want += (v['a'] + 500) // 1000 * 1000

@@ -38,7 +38,8 @@ How each part is worked out:
 **The switch.** CLUB STATUS has a new button left of CONTINUE: **UEFA PRIZES: ON / OFF** (IT *PREMI UEFA: SI / NO*,
 FR *PRIMES UEFA: OUI / NON*, DE *UEFA-PRAEMIEN: AN / AUS*). OFF stops the prizes from then on and brings back the
 game's own season-start bonus. The setting is kept in your save. Careers saved before 4.1 start with the prizes ON;
-what such a career has already won in the current cup is paid at its next European match.
+in a cup already under way, prizes are paid from the next European match on (what the club had already reached by
+then counts as paid: nothing is back-paid).
 
 Simplifications, compared with UEFA's rules:
 - **TV markets**: UEFA does not publish its market order. The game puts England, Spain, Germany, Italy and France
@@ -85,8 +86,8 @@ Come si calcola ciascuna parte:
 **L'interruttore.** In ANDAMENTO CLUB c'è un nuovo pulsante a sinistra di CONTINUA: **PREMI UEFA: SI / NO** (EN *UEFA
 PRIZES: ON / OFF*, FR *PRIMES UEFA: OUI / NON*, DE *UEFA-PRAEMIEN: AN / AUS*). Su NO i premi si fermano da quel
 momento e torna il bonus di inizio stagione del gioco originale. La scelta resta nel salvataggio. Le carriere salvate
-prima della 4.1 partono con i premi attivi; quello che hanno già guadagnato nella coppa in corso viene pagato alla
-prossima partita europea.
+prima della 4.1 partono con i premi attivi; in una coppa già in corso i premi si pagano dalla prossima partita europea
+in poi (quello che il club aveva già raggiunto conta come già pagato: niente arretrati).
 
 Semplificazioni rispetto alle regole UEFA:
 - **Mercati televisivi**: la UEFA non pubblica il suo ordine dei mercati. Il gioco mette prima Inghilterra, Spagna,

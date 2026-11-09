@@ -28467,6 +28467,7 @@ def xtra_cpu_refill():
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import cpurefill
     import lepatch
+    import offerforce
     import xtra
     exe = builds()['it']
     v = cpurefill_vars(exe)
@@ -28475,6 +28476,7 @@ def xtra_cpu_refill():
     mode_at, count_at = v
     p = lepatch.LEPatch(os.path.join(exe, 'ITALIAN.EXE'))
     _, cnp, ct, cmp, sel = xtra.sites(p)
+    acc_at, acc_jmp = offerforce.site(p, lepatch_orig())                # (the club's answer forced at runtime, release bytes on disk)
     xs = cpurefill_cl_sites()
     nh, hm = home_market_sites()
     team, rec, blk = cpurefill_club(exe, 'MILAN')
@@ -28542,7 +28544,10 @@ def xtra_cpu_refill():
             leave(s)
             return f'no offer screen: {tx[:6]}'
         s.poke(s.result.base2 + NEW_BALANCE, struct.pack('<I', 100000000))   # (forced: the offer is capped at our balance
-        # - cseg_580EF - and MILAN refuses one 20% under its price - cseg_584D7: MAIGNAN after CAMARDA, cr2's draw)
+        # - cseg_580EF - and the club's answer, cseg_584D7's willing-to-sell / asked-value draw, moves with the exe's
+        # bytes: RC1 EN / FR MILAN refused MAIGNAN. So its jnb is a jmp in memory, offerforce's site; the exe on disk
+        # stays the release one, no OFFER_FORCE copy; Regia 09/11)
+        s.poke(s.result.base1 + acc_at, acc_jmp)
         ans = xtra_bid(s)
         s.shot(tag + '_answer')
         leave(s)

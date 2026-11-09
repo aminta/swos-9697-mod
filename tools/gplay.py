@@ -2144,7 +2144,10 @@ def _top9(p):
                                         rb'\xc7\x05' + pk(r['A0'] + 8), d1, re.S)]
     assert len(m) == 2, m                       # (the first: cseg_927A2; the second: another list of the season end)
     return p.target(1, m[0] + 6), p.target(1, m[0] + 16)
-GP_PAGES = 20 + (1 if os.environ.get("GPLAY_FORCE") else 0)   # (4.0.5: 20 with the NZ Grand Final (gf_*: longtable room ran out with the release world); 19 with the earlier stages' tables (ap_*); 18, the supercups (sc_step_c) took the room longtable needs; 4.0.1 rc: GPLAY_FORCE test builds' extra code overflowed 16 pages by 44 B; 4.0.2: option C's gp_keep blocks - 17, obj1 only)
+GP_PAGES0 = 20 + (1 if os.environ.get("GPLAY_FORCE") else 0)
+GP_PAGES = GP_PAGES0        # (4.2 S1.3: patch.py +1 with tie-breaker lists - the Serie A play-off matches' specs; until MC's
+                            # gplay -> obj4 move at the 4.2 rebase)
+# GP_PAGES0   # (4.0.5: 20 with the NZ Grand Final (gf_*: longtable room ran out with the release world); 19 with the earlier stages' tables (ap_*); 18, the supercups (sc_step_c) took the room longtable needs; 4.0.1 rc: GPLAY_FORCE test builds' extra code overflowed 16 pages by 44 B; 4.0.2: option C's gp_keep blocks - 17, obj1 only)
 #P_PAGES = 16            # obj1 pages for the C code + glue + specs (World 2026-27's 20 countries; gplay-play; 4.0 ARG: 7; the record lines: 12; longtable's code: 13; 4.0.1 MEX stage titles per division: 14; cupsf: 16, with package 6's title_seed / draw_pot)
 GP_ST_SIZE = 2048       # (sizeof struct gp_state: the engine block's item 'GP', patch.py)
 F1_SIZE = 8 + 30 * 8     # 4.0.5 (sizeof struct f1_state: the engine block's item 'F1', the FASE 1 page)

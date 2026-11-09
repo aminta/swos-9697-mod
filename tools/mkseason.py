@@ -495,6 +495,24 @@ class Pack:
         return (self.world, int(lg['id'], 16), par['upper'], par['first'], par['count'], self.files[lg['clubs']][0],
                 int(self.comp(lc)['id'], 16) if lc else 0)
 
+    def lrank(self):
+        """lrank table (4.2 S1.3): None, or (world, league file, [(division, codes, uses the head-to-head block)]) of
+        a world league whose divisions have a "tiebreak" list."""
+        lg = self.league
+        if not lg or self.world is None:
+            return None
+        import lrank
+        out = []
+        for d, dv in enumerate(self.divisions()):
+            if 'tiebreak' not in dv:
+                continue
+            try:
+                codes, h2h = lrank.compile_list(dv['tiebreak'], dv['teams'], f"{self.league['key']} division {d + 1}")
+            except ValueError as e:
+                _need(False, f"{self.meta['id']}: {e}")
+            out.append((d, codes, h2h))
+        return (self.world, self.files[lg['clubs']][0], out) if out else None
+
     def gplay(self):
         """gplay table: None, or (world, league file, spec bytes) of a world league with 'ko_playoffs'."""
         lg = self.league
@@ -1422,6 +1440,11 @@ def numbered_cups():
 def gplay_tables():
     """gplay: the world leagues with knockout play-offs (Pack.gplay)."""
     return [t for pk in packs() for t in [pk.gplay()] if t]
+
+
+def lrank_tables():
+    """lrank: the world leagues with tie-breaker lists (Pack.lrank)."""
+    return [t for pk in packs() for t in [pk.lrank()] if t]
 
 
 def cupd_tables():

@@ -265,6 +265,9 @@ def patch_exe(src, dst, remap, lang='it'):
     if ri_tabs:                                        # their identity map + queue (RI_STATE) in the engine block
         import ripool
         engine.save_item('RI', ripool.RI_SIZE, world_only=True)
+    lr_tabs = mkseason.lrank_tables() if mkseason.worlds() else []   # 4.2 S1.3: tie-breaker lists (lrank.py)
+    import gplay as gp_mod
+    gp_mod.GP_PAGES = gp_mod.GP_PAGES0 + bool(lr_tabs)   # (the play-off matches' specs: gplay's pages were full)
     dp_tabs = mkseason.dplay_tables() if mkseason.worlds() else []   # Italian play-offs (dplay.py)
     lpb += 2 * bool(dp_tabs)                           # (+2: their code pages, before the extra one)
     gp_tabs = (mkseason.gplay_tables() if mkseason.worlds() else []) + engine.gplay_tables()   # knockout play-offs
@@ -336,6 +339,11 @@ def patch_exe(src, dst, remap, lang='it'):
         engine.after_load('ct_load')                                    # (B2 M3: an older season-1 save: built at load)
         import uesum                                                    # 4.1 S2b: RIEPILOGO's earlier knockout stages
         engine.save_item('US', uesum.REC_SIZE, world_only=True)         # (uesum.c US_REC; a save without it: zeroed)
+    import lrank
+    import swe
+    swe.OBJ4_PAGES = max(swe.OBJ4_BASE, lrank.LR_AT // 0x1000 + lrank.LR_PAGES) if lr_tabs else swe.OBJ4_BASE
+    if lr_tabs:                                        # (the career league's head-to-head block)
+        engine.save_item('LR', lrank.LR_SIZE, world_only=True)
     import controls                                    # 4.0.2: the CONTROLS page (controls.py): code + its data pages, the
     ctl_pg = 1 + controls.DATA_PAGES                   # last pages (obj1: obj2's page count stays 4.0's, see controls.patch)
     import namespr                                     # 4.0.5: 14-character match names (namespr.py), after them
@@ -862,6 +870,9 @@ def patch_exe(src, dst, remap, lang='it'):
         import uesum
         p.put(4, swreg.UESUM_AT, bytes(uesum.REC_SIZE))
         engine.ITEM_AT['US'] = (4, swreg.UESUM_AT)
+    if lr_tabs:                                  # 4.2 S1.3: the tie-breaker lists, obj4+lrank.LR_AT (after the
+        lrank.patch(p, lr_tabs, split.ST, split.MAGIC)     # obj1 hooks it chains onto: split's sp_res, lp36's lp_sort)
+        engine.ITEM_AT['LR'] = lrank.LABELS['LR_BLK']
     benchx.link_w27(p)                           # (4.0.6 step 2.5: the friendlies' long bench by SWE_W27)
     tailzero.patch(p, tz_at, obj2_free + o2pages * p.le.page_size, (tail + 3) & ~3, nasmcave,   # (DOS/4GW: not zeroed;
                    0x1000 * OBJ3_PAGES, (cg_bss + 3) & ~3)                  # 4.0.6: obj3's tail too)

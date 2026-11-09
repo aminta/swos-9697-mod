@@ -21571,6 +21571,12 @@ def up_find(r):
     return None if k < 0 else r.base4 + 0x3000 + k + 4
 
 
+def uprize_exe(d):
+    """The exe file in a build dir: the UI language's name, else ITALIAN.EXE (SWOSTEST_UI builds run as it)."""
+    fs = {f.upper(): f for f in os.listdir(d)}
+    return os.path.join(d, fs.get(UI_ORIG_OF[UI].upper()) or fs['ITALIAN.EXE'])
+
+
 @scenario
 def world_uprize():
     """4.1 RC3 (Miguel via Davide 09/11): UEFA prize money for the career club (uprize.c). The pinned CL save (UPR_CAR,
@@ -21608,6 +21614,9 @@ def world_uprize():
         s.wait()
         s.send(LOAD1 + ' dump:3')
         r = s.result
+        if os.environ.get('UPR_PROBE') == '1':              # (debug: load + 60 career steps only, any exe - a trap's
+            ok, msg = advance(s, lambda scr: False, 60)      #  bisect between builds)
+            return 'trap' not in msg, f'probe: {msg}'
         at = up_find(r)
         if not at:
             return False, 'no UPRZ block in obj4 page 4 (not an RC3 exe)'
@@ -21617,8 +21626,7 @@ def world_uprize():
         check(u0['ok'] == 0 and u0['sum'] == 0, f'after loading an older save UP {u0}, not ok 0', errs)
         club = struct.unpack('<H', bytes(r.read(r.lin(ct), 2)))[0]
         ss = r.read(season_playing_at(r, exe), 1)[0] + 1
-        s.poke(r.base2 + nosack_off(next(os.path.join(exe, f) for f in os.listdir(exe)   # (the chairman never sacks:
-                                         if f.upper() == UI_ORIG_OF[UI].upper())), b'\x01\x00')   #  the end save goes on)
+        s.poke(r.base2 + nosack_off(uprize_exe(exe)), b'\x01\x00')   # (the chairman never sacks: the end save goes on)
         if os.environ.get('UPR_OLD') != '1':                # (UPR_OLD=1: the older save's UP kept - its catch-up at the
             s.poke(at, bytes((1, 0, ss, 0, 0, 0, 0, 0)) + bytes(4))  #  first event must pay what the poke's run pays)
         else:                                                # (else this season's CL, nothing paid yet)
@@ -21749,6 +21757,76 @@ def world_uprize():
 
 
 @scenario
+def world_uprize_ui():
+    """4.1 RC3 (any UI language): the UEFA prizes' texts on ANDAMENTO CLUB. A 2026-27 world career save of this
+    language (UPU_CAR, else the newest cv_s2_<UI>.CAR of a suite run - world_contiview's: its club need not play in
+    Europe), the first career menu, competitionBonuses poked to 1,234,000 (uprize up_show: the row shown when the
+    period's prizes are not 0) -> ANDAMENTO CLUB: label 3 = uprize.ROW[UI], value 13 its amount (1234 in it), the
+    label rows apart; the switch, entry 24 = uprize.SWITCH[UI][0], on CONTINUA's row left of it, its text within its
+    box (complist.px <= SW_W - 4); fired -> SWITCH[UI][1] and UP's off byte 1, fired again -> ON, 0. Shots uprize_ui_*."""
+    exe = os.environ.get('UPR_BUILD') or os.environ.get('UES_BUILD') or os.environ.get('CV_BUILD')
+    if not exe:
+        src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+        if not os.path.isdir(src):
+            return True, f'SKIP: private data {src} missing'
+        order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+        exe = build('world_contiview', env={'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x)
+                                                                                          for x in order])}, lang=UI)
+    car = os.environ.get('UPU_CAR')
+    if not car:
+        cands = glob.glob(os.path.join(MAIN, 'internal', 'swostest', '*', f'cv_s2_{UI}.CAR'))   # one level: '**' walks runs dirs for hours
+        car = max(cands, key=os.path.getmtime) if cands else None
+    if not car:
+        return True, f'SKIP: no cv_s2_{UI}.CAR (UPU_CAR)'
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import complist
+    import finance
+    import lepatch
+    import uprize
+    fs = finance.find(lepatch.LEPatch(os.path.join(ROOT, 'orig', UI_ORIG_OF[UI])))
+    cbo = fs['D6B88'][1] + 4
+    son, soff = uprize.SWITCH[UI]
+    errs, info = [], [f'save {os.path.relpath(car, MAIN)}']
+    with Session('world_uprize_ui', exe, {'W84A.CAR': car}, 'dump:2', 600) as s:
+        s.wait()
+        s.send(LOAD1 + ' dump:3')
+        at = up_find(s.result)
+        if not at:
+            return False, 'no UPRZ block (not an RC3 exe)'
+        seen = []                                        # (the career menu a 2nd time - a match played: the in-season
+        ok, msg = advance(s, lambda scr: 'ANDAMENTO CLUB' in scr.texts() and (seen.append(1) or len(seen) >= 2), 200)
+        if not check(ok, f'no in-season career menu: {msg}', errs):   # statement; the season start's is the game's own)
+            return False, '; '.join(errs)
+        s.poke(s.result.base2 + cbo, struct.pack('<i', 1_234_000))
+        press(s, s.screen(), 'ANDAMENTO CLUB', 3)
+        scr = s.screen()
+        s.shot(f'uprize_ui_{UI}')
+        e = {i: (t, inv) for i, t, inv, _ in scr.entries}
+        raw = {x[0]: scr.raw[j].decode('latin-1') for j, x in enumerate(scr.entries)}
+        g = {x[0]: scr.geom[j] for j, x in enumerate(scr.entries) if not x[2]}
+        s.log.append(f'[upr-ui] geom {sorted((x[0], x[1], scr.geom[j]) for j, x in enumerate(scr.entries))}')
+        check(e.get(3, ('',))[0] == uprize.ROW[UI], f'label 3 {e.get(3)}, not {uprize.ROW[UI]!r}', errs)
+        check('1234' in re.sub(r'\D', '', raw.get(13, '')) or '2468' in re.sub(r'\D', '', raw.get(13, '')),
+              f'value 13 {raw.get(13)!r}: not the poked 1,234,000', errs)    # (lire x 2 in the Italian exe)
+        ys = sorted(g[i][1] for i in range(2, 12) if i in g)
+        check(all(b - a >= 8 for a, b in zip(ys, ys[1:])), f'label rows overlap {ys}', errs)
+        gc = g.get(1)                                        # (CONTINUA: entry 1 - up_biz's 24 is a copy of it)
+        if check(24 in e and e[24][0] == son, f'switch entry 24 {e.get(24)}, not {son!r}', errs):
+            gs = g.get(24)
+            check(gs and gc and gs[1] == gc[1] and gs[0] + gs[2] <= gc[0], f'switch {gs} not left of CONTINUA {gc}', errs)
+            for t in (son, soff):
+                check(complist.px(t) <= uprize.SW_W - 4, f'switch text {t!r} {complist.px(t)} px > box {uprize.SW_W}', errs)
+            for want, bit in ((soff, 1), (son, 0)):
+                press(s, s.screen(), 24, 2)
+                t2 = {i: t for i, t, inv, _ in s.screen().entries}.get(24)
+                b = bytes(s.result.read(at + 7, 1))[0]
+                check(t2 == want and b == bit, f'switch fired: {t2!r} off {b}, not {want!r} {bit}', errs)
+                s.shot(f'uprize_ui_{UI}_{"off" if bit else "on"}')
+        info.append(f'{UI}: row {uprize.ROW[UI]!r} {raw.get(13, "").strip()}, switch {son!r} / {soff!r} fired both ways')
+    return not errs, '; '.join(errs) or '; '.join(info)
+
+
+@scenario
 def world_uprize_ss():
     """4.1 RC3 (MC 09/11: no double pay): the next season's start after world_uprize's end save (UPS_CAR, else the
     pinned internal/uesum/upr_s2up_<UI>.CAR or _it: ARSENAL, the CL's semi-finals decided, UP paid) played twice with
@@ -21789,7 +21867,7 @@ def world_uprize_ss():
     assert d1[es - 0x0F:es - 0x0D] == b'\x66\xa1' and d1[es + 0x0D] == 0xA0, 'cseg_5DEB9 layout'
     force = os.environ.get('UPS_FORCE') == '1'               # (UPS_FORCE=1: flag 1, the club's byte 10 poked before each
                                                              #  step - debugging only: the flag gates slot 2's term too)
-    exe_file = next(os.path.join(exe, f) for f in os.listdir(exe) if f.upper() == UI_ORIG_OF[UI].upper())
+    exe_file = uprize_exe(exe)
     errs, info, got = [], [], {}
     for mode in ('on', 'off'):
         with Session(f'world_uprize_ss_{mode}', exe, {'W84A.CAR': car}, 'dump:2', 1500) as s:

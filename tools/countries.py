@@ -43,15 +43,30 @@ class Obj2Area:
     """Bump allocator in the obj2 pages added by lepatch.add_object_page (strings, records)."""
     def __init__(self, p, start, end):
         self.p, self.at, self.end = p, start, end
+        self.gaps = []                          # (4.2: the page tails add() skipped - [start, end) - for add_tail)
 
     def add(self, data):
         off = self.at
         if off // 0x1000 != (off + len(data) - 1) // 0x1000 and len(data) <= 0x1000:
             off = (off + 0xfff) & ~0xfff        # several pages (career worlds): pointers must not straddle a page
+            if off - self.at >= 16:
+                self.gaps.append([self.at, off])
         assert off + len(data) <= self.end, 'obj2 area full'
         self.p.put(2, off, data)
         self.at = off + len(data)
         return off
+
+    def add_tail(self, data):
+        """add() for a block whose offset is used on its own (a string): first into a page tail add() skipped (4.2,
+        Integratore 09/11: the Serie D play-off names pushed a big record over a page, 1.7 KB lost - the FRENCH exe's
+        obj2 area full), else add()."""
+        for g in self.gaps:
+            if g[1] - g[0] >= len(data):
+                off = g[0]
+                self.p.put(2, off, data)
+                g[0] += len(data)
+                return off
+        return self.add(data)
 
 
 def tables(p):

@@ -167,6 +167,15 @@ extern const u8 GP_SEASP;               /* seasonPlaying (US_REC's stamp - 1) */
 static int uefa_fin(u16 ta, u16 tb) {
     const u8 *c = GP_USRP;
     int s = 3, off = 0;
+#if GP_UEFAFORCE
+    if (c != (const u8 *)1 && c) {      /* (test builds, GPLAY_UEFAF=1: US_REC written as if the career club had won
+                                           this season's semi-final - the record the read below takes) */
+        u8 *w = (u8 *)c;
+        w[1] = w[2] = w[3] = 0; w[4] = 2; w[5] = (u8)(GP_SEASP + 1);
+        *(u16 *)(w + 6) = GP_IN.mgr; *(u16 *)(w + 8) = 0xFFFE; w[13] = 0x80;
+        *(u16 *)(w + 14) = 0xFFFD; *(u16 *)(w + 16) = 0xFFFC; w[21] = 0x81;
+    }
+#endif
     if (c == (const u8 *)1 || !c || c[5] != (u8)(GP_SEASP + 1)) return 0;
     while (s >= 0 && !c[1 + s]) s--;
     if (s < 0 || c[1 + s] != 2) return 0;

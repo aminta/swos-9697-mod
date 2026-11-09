@@ -2564,7 +2564,7 @@ def _sadd(area, x):
     TORNEO APERTURA in three countries, the record line = the long name - and the obj2 area was full)."""
     k = (id(area), x)
     if k not in _STRS:
-        _STRS[k] = area.add(x + b'\0')
+        _STRS[k] = getattr(area, 'add_tail', area.add)(x + b'\0')   # (4.2: into a skipped page tail first)
     return _STRS[k]
 
 
@@ -2710,6 +2710,7 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
                                 f"-DGP_CHFORCE={int(os.environ.get('GPLAY_CHFORCE') or 0)}",   # (4.1 test builds: the title winner out of the top 9)
                                 f"-DGP_USCFORCE={int(os.environ.get('USC_FORCE') or 0)}",   # (4.0.6 test builds: the UEFA Super Cup, the career club a holder)
                                 f"-DGP_GFFORCE={int(os.environ.get('GPLAY_GFFORCE') or 0)}",
+                                f"-DGP_UEFAFORCE={int(os.environ.get('GPLAY_UEFAF') or 0)}",   # (4.2 S1.3 test builds: the career club a UEFA finalist)
                                 f"-DGP_S3DEFER={int(os.environ.get('GPLAY_S3DEFER') or 0)}",
                                 f"-DGP_GFREST={int(os.environ.get('GPLAY_GFREST') or 0)}",
                                 f"-DGP_GFIDX={int(os.environ.get('GPLAY_GFIDX') or 0)}",

@@ -16668,30 +16668,41 @@ def world_gplay_play(force='2', team='EUROPA,SCOZIA,SCOTTISH LEAGUE TWO,CLYDE', 
                                          f"game rounds seen {gw}, winner {win:#x} (code {wcode}), moves {mv}")
 
 
-def lrank_po(force, team, legs):
+def lrank_po(force, team, legs, uefaf=False):
     """4.2 S1.3 (MC): a Serie A play-off match played (Davide 09/11, Q8 = a; FIGC C.U. 244/A): the world 2026-27 with
     the S1 tie-breaker lists and play-off matches (internal/world2526/world5tm-s1rank, W2627S1_DATA) built with
     GPLAY_FORCE=k (the career club takes place k at the league end) and LR_FORCE=k (place k + 1 gets place k's points:
     a level pair). The play-off (gap 1: played only when level) is built in slot 4 and played: 2 clubs, places k and
     k + 1, one tie of `legs` legs, decided. The career league's head-to-head block (lrank's LR_BLK, item 'LR') is full
-    at the league end: this season's stamp, 20 clubs, not void, 380 results."""
+    at the league end: this season's stamp, 20 clubs, not void, 380 results.
+    uefaf (4.2 S1.3b, C.U. 244/A (iv)): also GPLAY_UEFAF=1 - US_REC says the career club won this season's UEFA
+    semi-final; the round's skip_if_uefa_finalist: no match (no slot-4 contest), the better placed (place k, the career
+    club) the champion in the season-end results; US_REC (o4/) dumped: the record the rule read."""
     src = os.environ.get('W2627S1_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-s1rank')
     if not os.path.isdir(src):
         return True, f'SKIP: private data {src} missing'
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
     env = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]),
            'GPLAY_FORCE': str(force), 'LR_FORCE': str(force), 'HOSTTEST_SYMS': '1'}
-    exe = os.environ.get('LRANK_BUILD') or build(f'world_lrank_po_{force}' + ('' if UI == 'it' else '_' + UI), env=env,
+    if uefaf:
+        env['GPLAY_UEFAF'] = '1'
+    exe = os.environ.get('LRANK_BUILD') or build(f'world_lrank_po_{force}' + ('u' if uefaf else '') + ('' if UI == 'it' else '_' + UI), env=env,
                                                  lang=UI)                    # (the UI lane's exe: SWOSTEST_UI)
     ptrs = gp_ptrs(exe)
     if not ptrs:
         return False, 'no GPLOGPTR block in the exe'
     log_at, st_at, log_n, st_n = ptrs
-    blk = json.load(open(os.path.join(exe, 'ITALIAN.syms.json')))['lrank']['LR_BLK'][1]
+    syms = json.load(open(os.path.join(exe, 'ITALIAN.syms.json')))
+    blk, ct = syms['lrank']['LR_BLK'][1], syms['gplay']['CAREERTEAM'][1]
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    from le import LE
+    o4 = LE(open(os.path.join(exe, [f for f in os.listdir(exe) if f.endswith('.EXE') and f != 'SWOS.EXE'][0]), 'rb').read()).obj_bytes(4)
+    usr = o4.find(b'S2BR') + 4                              # (uesum.c's US_REC after its tag)
     keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
                                             'W8485_NOSACK', 'W8485_HEX')}
     os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+',
-                      W8485_NOSACK='1', W8485_HEX=f'{log_at:x}:{log_n},{st_at:x}:{st_n},o4/{blk:x}:404')
+                      W8485_NOSACK='1', W8485_HEX=f'{log_at:x}:{log_n},{st_at:x}:{st_n},o4/{blk:x}:404'
+                      + (f',o4/{usr:x}:22,{ct:x}:2' if uefaf else ''))
     try:
         ok, msg = world8485()
     finally:
@@ -16708,6 +16719,19 @@ def lrank_po(force, team, legs):
     errs = []
     check(ok, msg, errs)
     sts = [b for b in hexes.get(f'{st_at:x}', []) if b[:2] == b'GK']
+    if uefaf:
+        logs = [b for b in hexes.get(f'{log_at:x}', []) if b[:4] == b'GPLG']
+        me = [struct.unpack('<H', b)[0] for b in hexes.get(f'{ct:x}', [])]
+        me = me[-1] if me else None
+        played = [r for r in (gp_ko(b[GP_STKO:]) for b in sts) if r['cid'] == 0xFE]
+        check(not played, f'a play-off match was built: {[(hex(r["cid"]), r["code"]) for r in played]}', errs)
+        res = [struct.unpack_from('<BBHHHH', logs[-1], 942 + 10 * i) for i in range(min(logs[-1][683], 4))] if logs else []
+        champ = [r for r in res if r[0] == 5 and r[1] == 0]
+        check(champ and me is not None and champ[0][2] == me, f'champion {champ} career club {me and hex(me)}', errs)
+        rec = [b for b in hexes.get(f'o4/{usr:x}', []) if b[4] == 2]
+        check(any(struct.unpack_from('<H', b, 6)[0] == me and b[13] & 0x80 for b in rec),
+              f'US_REC never held the forced semi-final: {[b.hex() for b in hexes.get(f"o4/{usr:x}", [])[-2:]]}', errs)
+        return not errs, '; '.join(errs) or f'{msg}; no match, champion {hex(champ[0][2])} (the career club), US_REC read'
     if not sts:
         return False, f'{msg}; the play-off match never ran (no GP_ST seen)'
     ko = gp_ko(sts[-1][GP_STKO:])
@@ -16730,6 +16754,13 @@ def world_lrank_title():
     """4.2 S1.3: the Serie A title play-off match (one match at the better placed's, penalties): INTER forced 1st,
     level with the 2nd (lrank_po)"""
     return lrank_po(1, 'EUROPA,ITALIA,SERIE A,INTER', 1)
+
+
+@scenario
+def world_lrank_uefaf():
+    """4.2 S1.3b: the C.U. 244/A exception (iv) - INTER forced 1st, level with the 2nd, and (GPLAY_UEFAF) already in
+    a UEFA final: the title play-off match is not played, INTER the champion (lrank_po uefaf)"""
+    return lrank_po(1, 'EUROPA,ITALIA,SERIE A,INTER', 1, uefaf=True)
 
 
 @scenario

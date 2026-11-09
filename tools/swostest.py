@@ -5809,28 +5809,41 @@ def names_fit():
 
 @scenario
 def careers_list():
-    """CARRIERA > SCEGLI SQUADRA > CARR. STORICHE lists the career worlds only, one entry each (since 3.0 a tourney pack
-    shifted mkseason's pack / info pairing: 'ALBANIA', the 1984-85 world's first country, showed as an entry of its
-    own); expected = the build's worlds' names (world_cups.name, else the start years)"""
+    """The historic worlds' list, one entry each (since 3.0 a tourney pack shifted mkseason's pack / info pairing:
+    'ALBANIA', the 1984-85 world's first country, showed as an entry of its own); expected = the build's worlds' names
+    (world_cups.name, else the start years). 4.1 carnost (1545d24) took the list out of the career's team choice (the
+    world is the main menu's: engine_wmodes_car); it lives on in the friendly picker's STORICO box, read here with the
+    1996-97 default: STORICO = the historic worlds, MONDO 2026-27 its own entry outside it, 1996-97 in neither"""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     mkseason = mkseason_now()
+    hist, cur = 'CARR. STORICHE', 'MONDO 2026-27'
     want = []
     for n, pks in sorted(mkseason.worlds().items()):
         root = [pk for pk in pks if 'world_cups' in pk.meta][0].meta['world_cups']
         name = root.get('name', f"{root['start_year']}-{(root['start_year'] + 1) % 100:02d}")
         name = (name.get('it') or name.get('*') or next(iter(name.values()))) if isinstance(name, dict) else name
-        want.append(name.upper())
-    with Session('careers_list', builds()['it'], {}, 'dump:2', 300) as s:
-        s.wait()
-        for t in ('CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE'):
-            if press(s, s.screen(), t) is None or s.result.outcome != 'dump':
-                return False, f'{t} not reached ({s.result})'
-        got = [t for _, t, inv, _ in s.screen().entries if t and not inv][1:]
-        got = [t for t in got if t != 'ESCI']
-    extra = [t for t in got if t not in want]      # (4.0: a release build adds worlds outside the harness's packs - the
-    ok = (all(t in got for t in want) and len(set(got)) == len(got)       # world 2026-27, MONDO 2026-27 - one entry each)
-          and all(re.search(r'\d{4}-\d{2}$', t) for t in extra))
-    return ok, f'CARR. STORICHE: {got} (expected {want} + worlds of the build)'
+        if name.upper() != cur:                    # (World 2026-27: the green entry next to the box)
+            want.append(name.upper())
+    b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
+    with Session('careers_list', b, {'SETUP.DAT': setup_file('careers_list', 1)}, 'dump:3', 300) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'no first pause ({s.result})'
+        for t in ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB'):
+            walk(s, t, 2)
+        first = s.screen().texts()
+        if hist not in first and cur not in first:  # (a build without World 2026-27 has neither the box nor the
+            return True, f'SKIP: no World 2026-27 in this build, so no STORICO box ({first[:8]}): run it on a release '\
+                         'build (SWOSTEST_BUILD)'          # green entry: W-modes M2)
+        if hist not in first:
+            return False, f'no {hist} box in the friendly picker: {first[:16]}'
+        got = [t for t in walk(s, hist, 2).texts()[1:] if t not in ('ESCI', 'ABBANDONA', 'SELEZ ALTRE 2 SQUAD.')]
+        s.shot('storico')
+    got = [t for t in got if t != hist]
+    extra = [t for t in got if t not in want]      # (a release build adds worlds outside the harness's packs: one
+    ok = (all(t in got for t in want) and len(set(got)) == len(got)       # entry each, named by their years)
+          and all(re.search(r'\d{4}-\d{2}$', t) for t in extra) and cur not in got and 'MONDO 1996-97' not in got
+          and first.count(cur) <= 1)
+    return ok, f'STORICO: {got} (expected {want} + worlds of the build; first list {first.count(cur)} x {cur})'
 
 
 @scenario

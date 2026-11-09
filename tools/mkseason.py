@@ -664,13 +664,15 @@ class Pack:
         return self.world, levels, out
 
     def divisions(self):
-        """League divisions: pack.json 'divisions' [{teams, promoted, relegated, names}], or one division."""
+        """League divisions: pack.json 'divisions' [{teams, promoted, relegated, names}], or one division (its
+        "tiebreak" list, 4.2 H2: on the league itself)."""
         lg = self.league
         if lg is None:
             return []
         if 'divisions' in lg:
             return lg['divisions']
-        return [{'teams': len(self.league_clubs), 'promoted': 0, 'relegated': lg['relegated'], 'names': lg['names']}]
+        one = {'teams': len(self.league_clubs), 'promoted': 0, 'relegated': lg['relegated'], 'names': lg['names']}
+        return [dict(one, tiebreak=lg['tiebreak']) if 'tiebreak' in lg else one]
 
     def state(self, c):
         """A 'state' competition (statespec.py): the compiled contest + its clubs' (file, ordinal)."""

@@ -26,7 +26,7 @@ import os
 import struct
 
 LR_AT = 0x6000
-LR_PAGES = 3
+LR_PAGES = 4                    # (4.2 H2 import: 121 world divisions' lists, 3 pages overflowed by 0xD1)
 LR_N = 20                       # (lrank.c: the pairs block's clubs; 24 for the EFL / Segunda does not fit: the
                                 # career cache's room (careerworld.SEL_ROOM) has 6 B left with 404, 24 needs +176)
 LR_SIZE = 4 + LR_N * LR_N       # struct lr_blk

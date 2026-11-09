@@ -15021,9 +15021,9 @@ def world_dplay_b(force='5', team='EUROPA,ITALIA,SERIE B,MODENA', cupw=''):
     env = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'DPLAY_FORCE': force}
     if cupw:                                                 # (4.1: the Coppa Italia Serie C winner forced, DPLAY_CUPW)
         env['DPLAY_CUPW'] = cupw
-    exe = build('world_dplay_' + force + ('_w' + cupw if cupw else '')
+    exe = build('world_dplay_' + force + ('_w' + cupw if cupw else '') + ('' if UI == 'it' else '_' + UI)
                 + ('_' + os.path.basename(src) if os.environ.get('W2627D_DATA') else ''),
-                env=env)                                     # (another snapshot: its own build dir)
+                env=env, lang=UI)                            # (the UI lane's exe: SWOSTEST_UI)                                     # (another snapshot: its own build dir)
     keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
                                             'W8485_NOSACK', 'W8485_HEX')}
     os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team,

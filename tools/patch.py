@@ -222,6 +222,8 @@ def patch_exe(src, dst, remap, lang='it'):
         print('exe: B-team call-ups data: ' + bteam.write(os.path.join(os.path.dirname(os.path.abspath(dst)), 'DATA')))
     import dugout                                      # 4.1: the long dugouts as PITCHA-E / SWCPICHA-E beside the exe (benchx)
     print('exe: long dugouts: ' + dugout.gen(os.path.dirname(os.path.abspath(dst))))
+    import euro                                        # 4.1 RC3: CHARSEU.DAT beside the exe (the euro sign)
+    print('exe: ' + euro.gen(os.path.dirname(os.path.abspath(dst))))
     mkseason.register_states()                         # the career worlds' state championships (statespec.py)
     import statespec
     statespec.register_test()                          # STATESPEC_TEST=1: a world-0 test state (harness)
@@ -753,6 +755,8 @@ def patch_exe(src, dst, remap, lang='it'):
     import bplace                                # 4.0.5 (Davide): a level tie won by the better placed says so on its
     ctl_end = bplace.patch(p, (ctl_end + 15) & ~15, lang)    # result line (PASSA %a (MIGL. PIAZZ.))
     assert ctl_end <= ctl_at + 0x1000, hex(ctl_end)        # (the code page; controls' data pages follow it)
+    import euro                                  # 4.1 RC3 (Enzo): the currency glyph as the euro sign - the exe
+    euro.patch(p)                                # loads CHARSEU.DAT (written beside it below) instead of charset.dat
     import benchx                                # 4.1: a bench of up to 15 (block 1: the in-match teams of 26)
     bn_end = benchx.patch(p, 0, ns_at, lang)     # (4.0.6: in obj3)
     import kittrain                              # 4.0.6 (Marco): SELECT KITS in a training game (A / B: one name),

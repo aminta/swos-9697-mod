@@ -14784,13 +14784,13 @@ def euro_money():
 def euro_historic():
     """4.1 RC3 (Davide: per world) the historic worlds keep the game's own currency: on SWOSTEST_BUILD (the release dir in
     the run's language, as euro_money) and on EURO_REF (the same language's REL41rc2: no euro code), the same flow - a
-    World 2026-27 friendly up to its pre-match screen (WCUR 5: the euro world's namespace; the screen shows no prices,
-    nor does any screen outside careers), back to the main menu, then a new 1996-97 career at JUVENTUS: TRASFERIMENTI
-    and ANDAMENTO CLUB. The club's starting balance comes from the timer (CareerMenu reseeds Rand from currentTick: any
+    new World 2026-27 career at INTER, its TRASFERIMENTI (WCUR 5: on SWOSTEST_BUILD the euro balance, the euro strings
+    and sprites swapped in; only careers print money), back to the main menu, then a new 1996-97 career at JUVENTUS:
+    TRASFERIMENTI and ANDAMENTO CLUB. The club's starting balance comes from the timer (CareerMenu reseeds Rand from currentTick: any
     code change moves it), so both builds get EURO_BANK in every obj2 dword holding the shown balance first. The frames
-    must then be byte-identical on both builds (L x2 / FF x10 / DM x2 / the pound, after the euro world's friendly in
-    the same session: the switch back); on SWOSTEST_BUILD no euro letter there, the exe's own currency in the money
-    entries (ENGLISH: the pound letter). Shots eu_fr2627 / eu_h_transfers / eu_h_finance (+ ref_)."""
+    must then be byte-identical on both builds (L x2 / FF x10 / DM x2 / the pound, after the euro world's screen in the
+    same session: the switch back); on SWOSTEST_BUILD no euro letter there, the exe's own currency in the money
+    entries (ENGLISH: the pound letter). Shots eu_tr2627 / eu_h_transfers / eu_h_finance (+ ref_)."""
     exe, ref = foreign_exe(), os.environ.get('EURO_REF')
     if not exe or not ref:
         return True, 'SKIP: SWOSTEST_BUILD (a release dir) and EURO_REF (REL41rc2 in the same language) needed'
@@ -14802,18 +14802,22 @@ def euro_historic():
         with Session(f'euro_historic_{tag}', b, {}, 'dump:3', 600) as s:
             s.wait()
             set_world(s, 0)
-            for t in ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE A', 'VENEZIA'):
-                walk(s, t, 2)
-            walk(s, 'INTER', 2)
-            pick_done(s)                        # (wm_mixed's: the pre-match screen, every UI)
-            ns = euro_wcur(s)                   # (the friendly's pre-match screen shows no prices: only its world)
-            check(ns == 5, f'{tag}: the 2026-27 friendly left WCUR {ns}, not 5', errs)
-            s.shot(('eu_' if tag == 'new' else 'ref_') + 'fr2627')
+            for t in ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27', 'EUROPA', 'ITALIA', 'SERIE A', 'INTER']:
+                press(s, s.screen(), t, 3)
+            s.send('fire dump:3')
+            euro_menu(s)
+            walk(s, 'TRASFERIMENTI', 3)         # (a World 2026-27 career's bank: on SWOSTEST_BUILD the euro is drawn -
+            ns = euro_wcur(s)                   #  its strings and sprites swapped in - before the 1996-97 career)
+            check(ns == 5, f'{tag}: the 2026-27 career: WCUR {ns}, not 5', errs)
+            if tag == 'new':
+                euro_look(s, 'tr2627', new, old, seen, errs)
+                check('tr2627' in seen, 'the 2026-27 career: no euro balance on TRASFERIMENTI', errs)
+            else:
+                s.shot('ref_tr2627')
+            euro_menu(s)
             check(wm_to_main(s), f'{tag}: no way back to the main menu ({s.screen().texts()[:6]})', errs)
             w9697(s)
-            s.rng_at = rng_sites(os.path.join(b, 'ITALIAN.EXE'))   # (both builds: the same random states at every pause
-            s.rng_pin = 'euh'                                        #  from here - the club's budget is random)
-            new_career(s, 'ITALIA', 'SERIE A', 'JUVENTUS', original=True)
+            new_career(s, 'ITALIA', 'SERIE A', 'JUVENTUS', original=True)   # (CARRIERA's 'new career?': CONTINUA)
             euro_menu(s)
             euro_bank(s, EURO_OLD[UI], EURO_FACTOR[UI], tag, info, errs)
             euro_menu(s)
@@ -28344,6 +28348,10 @@ def new_career(s, country, league, team, continent='EUROPA', original=False):
     rely on that: cpu_* / gk_inj / foreign_buy / fin_statement, I10p 05/11)."""
     for t in ('CARRIERA', 'SCEGLI SQUADRA', continent):
         walk(s, career_entry(s, t) if original else t, 3)
+        sc = s.screen()                         # (a career already held in this session: CARRIERA asks first -
+        if t == 'CARRIERA' and sc.find('SCEGLI SQUADRA', exact=True) is None and \
+                sc.find('CONTINUA', exact=True) is not None and sc.find('ABBANDONA', exact=True) is not None:
+            walk(s, 'CONTINUA', 3)              #  CONTINUA = a new one, ABBANDONA = back)
     for _ in range(60):                         # the countries (columns): one key at a time by the geometry, fire
         scr = s.screen()                        # only on a selection still there one pause later (a move can be
         i = scr.find(country, exact=True)       # taken twice)

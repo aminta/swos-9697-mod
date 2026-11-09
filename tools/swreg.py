@@ -26,7 +26,8 @@ import struct
 
 REG_AT = 0x1800                         # obj4: swe.c's code + data below it, the manifest up to the object end
 OBJ4_END = 0x2000                       # (the registry's end; swe.OBJ4_PAGES pages: 4.1 has a 3rd)
-UESUM_AT = 0x2000                       # 4.1 S2a: uesum.c's page in obj4 (MC moves it to 0x3000 in 4.2: one line)
+UESUM_AT = 0x2000                       # 4.1 S2a: uesum.c's page in obj4 (MC moves it to 0x4000 in 4.2: one line)
+USMENU_AT = 0x3000                      # 4.1 RC2: usmenu's page, the 4th (RIEPILOGO's phase menu; Regia / MC 09/11)
 MAGIC = b'SWRG'
 VERSION = 2
 HDR = 32

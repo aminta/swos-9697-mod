@@ -48,7 +48,8 @@ def av_rows(text):
     return a, b
 
 
-OBJ4_PAGES = 3                 # (M2: 2 pages, the registry moved to swreg.REG_AT = 0x1800; 4.1 S2a: a 3rd, uesum.US_AT)
+OBJ4_PAGES = 4                 # (M2: 2 pages, the registry moved to swreg.REG_AT = 0x1800; 4.1 S2a: a 3rd, uesum.US_AT;
+                               #  4.1 RC2: a 4th, swreg.USMENU_AT)
 MAGIC = b'SWOS-ENG'
 VERSION = 3                    # (swe.c SWE_VERSION; 2 = step W, the registry; 3 = W-modes M2, the pickers' worlds)
 CODE_AT = 0x40

@@ -116,8 +116,9 @@ new rule. If a rule seems wrong for a case, ask the regia session; don't silentl
     - **DOS/4GW zeroes no tail: the engine zeroes its own arena** (swe_init, before any other engine call). Never rely
       on a zero obj4 byte that the engine did not write.
     - 4.1 exception (Davide 08/11 via Regia, MC as obj4 owner): obj4 page 3+ may hold engine-adjacent views at a
-      named address (uesum, the UEFA RIEPILOGO page, at swreg.UESUM_AT = 0x2000; 4.2, xw-42: obj4 4 pages, engine
-      code below REG_AT 0x2800, registry 0x2800..OBJ4_END 0x3000, uesum moved to UESUM_AT 0x3000). The engine's code
+      named address (uesum, the UEFA RIEPILOGO page, at swreg.UESUM_AT = 0x2000; 4.1 RC2: usmenu, its phase menu, the
+      4th page at swreg.USMENU_AT = 0x3000; 4.2, xw-42: engine code below REG_AT 0x2800, registry 0x2800..OBJ4_END
+      0x3000, uesum moved to UESUM_AT 0x4000 and usmenu after it - Regia 09/11). The engine's code
       + registry stay below swreg.OBJ4_END (0x2000 in 4.1), each view has its own range assert, and the 23bis gates
       below apply to it as to engine code.
     - No obj4 address is ever stored in a save (engine state = 'EN' items, rule 21), so obj4 may grow and move freely.

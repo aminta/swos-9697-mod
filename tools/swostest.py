@@ -21082,6 +21082,24 @@ def world_ctsum():
 
 
 
+def usm_menu(s, summ):
+    """4.1 RC2: the UEFA cup's phase menu on screen (usmenu: RIEPILOGO entry 7, ESCI 8, no STAT)."""
+    sc = s.screen()
+    return sc.find(summ, exact=True) == 7 and sc.find('ESCI', exact=True) == 8 and sc.find('STAT', exact=True) is None
+
+
+def usm_page(s, summ):
+    """STAT > RIEPILOGO of a UEFA cup opened the phase menu (4.1 RC2): its RIEPILOGO -> the text page."""
+    if usm_menu(s, summ):
+        walk(s, 7, 3)
+
+
+def usm_back(s, summ):
+    """Back from the text page on the phase menu: its ESCI -> STAT."""
+    if usm_menu(s, summ):
+        walk(s, 8, 3)
+
+
 def uesum_page(s, tag):
     """The RIEPILOGO page on screen: (title, its lines over every page - NEXT until the last; shots uesum_<tag>_pN)."""
     pg = s.screen()
@@ -21248,6 +21266,7 @@ def world_uesum():
             s.shot('uesum_stat')
             if check(summ in vis, f'{cup} STAT: {vis} (no {summ!r})', errs):
                 walk(s, s.screen().find(summ, exact=True), 3)
+                usm_page(s, summ)                       # (4.1 RC2: the phase menu's RIEPILOGO)
                 title, lines = uesum_page(s, 'cl')
                 s.log.append(f'[uesum] page {title!r}')
                 for ln in lines:
@@ -21266,7 +21285,8 @@ def world_uesum():
                     check(k is not None and [ln.rstrip() for ln in lines[k:k + 4]] == rwant,
                           f'rec: {rwant} not on the page {lines}', errs)
                 info.append(f'{cup}: {len(lines)} lines, heads {heads}')
-                walk(s, 16, 3)                          # (the page's ESCI -> STAT)
+                walk(s, 16, 3)                          # (the page's ESCI -> the phase menu -> STAT)
+                usm_back(s, summ)
                 vis2 = [t for k, t, inv, _ in s.screen().entries if t and not inv]
                 check(summ in vis2, f'back from RIEPILOGO: {vis2}', errs)
     return not errs, '; '.join(errs) or '; '.join(info)
@@ -21437,6 +21457,7 @@ def world_uesum_ko():
         walk(s, s.screen().find(cup, exact=True), 3)
         walk(s, s.screen().find('STAT', exact=True), 3)
         walk(s, s.screen().find(summ, exact=True), 3)
+        usm_page(s, summ)                               # (4.1 RC2: the phase menu's RIEPILOGO)
         title, lines = uesum_page(s, 'ko')
         joined = []
         for ln in lines:                                    # (word(): a long line goes on with 4 spaces)
@@ -21489,6 +21510,7 @@ def world_uesum_ko():
         walk(s, s.screen().find(cup, exact=True), 3)
         walk(s, s.screen().find('STAT', exact=True), 3)
         walk(s, s.screen().find(summ, exact=True), 3)
+        usm_page(s, summ)                               # (4.1 RC2: the phase menu's RIEPILOGO)
         _, lines2 = uesum_page(s, 'ko_reload')
         joined2 = []
         for ln in lines2:
@@ -21522,6 +21544,205 @@ def world_uesum_ko():
             check(rn[1] == [0] * 4 and not rn[4][0], f'new career after a career: US_REC {rn[:2]} stamp {rn[3]} LP {rn[4][0]:#x}, not empty', errs)
             info.append(f'new career: US_REC n {rn[1]}')
     return not errs, '; '.join(errs) or '; '.join(info)
+
+
+@scenario
+def world_usmenu():
+    """4.1 RC2 (Davide 09/11, option A + a): STAT > RIEPILOGO of the career club's UEFA cup = the phase menu (usmenu.c,
+    obj4 page 4). Part 1, a save with the CL's stages recorded (USM_CAR, else the pinned internal/uesum/usmenu_ko_<UI>.CAR
+    or _it - a world_uesum_ko S2BK.CAR: semi-finals decided, US_REC n [8, 8, 4, 2] + the league phase's table, the final
+    the current stage): the menu's title (the cup) and green boxes = the phases US_REC and the current stage say, in
+    this language (rnames' long names), the cursor on the current one, RIEPILOGO + ESCI below; each box opened - an
+    earlier knockout stage: the game's cup screen, its title the stage's name, every visible tie's clubs (the second
+    leg's view: the guest first) and its winner's line as US_REC has them; the league phase: the text page of its
+    final table; the current stage: the game's screen of the cup - and ESCI back on the menu, the work area the STAT
+    view holds unchanged byte for byte; RIEPILOGO -> the whole page and back; then US_REC poked to last season's stamp
+    (an old save's / another season's block): the current stage's box alone; ESCI -> STAT. Part 2 (USM_LP_CAR, else
+    the pinned internal/uesum/cv_s2_cl_<UI>.CAR or _it, US_REC empty): the boxes of its stage (the league phase in
+    progress: that box alone, the game's table screen). Shots usm_*."""
+    exe, car = os.environ.get('UES_BUILD') or os.environ.get('CV_BUILD'), os.environ.get('USM_CAR')
+    if not exe:
+        src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+        if not os.path.isdir(src):
+            return True, f'SKIP: private data {src} missing'
+        order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+        exe = build('world_contiview', env={'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x)
+                                                                                          for x in order])}, lang=UI)
+
+    def pinned(stem):
+        for lg in (UI, 'it'):
+            f = os.path.join(MAIN, 'internal', 'uesum', f'{stem}_{lg}.CAR')
+            if os.path.exists(f):
+                return f
+        return None
+    car = car or pinned('usmenu_ko')
+    if not car:
+        return True, 'SKIP: no pinned save internal/uesum/usmenu_ko_<UI>.CAR (USM_CAR: a world_uesum_ko S2BK.CAR)'
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import ctview
+    import rnames
+    import uesum
+    summ = ui_label(ctview.TEXTS[UI][7])
+    lname = [rnames.NAMES[UI][k][0] for k in uesum.STAGES]
+    errs, info = [], []
+
+    def to_stat(s):
+        """VISUAL. COMPETIZ. -> the CL -> STAT; (US_REC's address, the cup's name)."""
+        r = s.result
+        m = bytes(r.read(r.base4 + 0x2000, 0x1000))
+        k = m.find(b'S2BR')
+        if k < 0:
+            return None, None
+        for _ in range(6):
+            if s.screen().find('VISUAL. COMPETIZ.', exact=True) is not None:
+                break
+            press(s, s.screen(), 'CONTINUA', 3) or s.send('fire dump:2')
+        walk(s, s.screen().find('VISUAL. COMPETIZ.', exact=True), 3)
+        cup = next((e[1] for e in s.screen().entries if e[1] and not e[2] and e[1].startswith('UEFA CHAMPIONS')), None)
+        if cup:
+            walk(s, s.screen().find(cup, exact=True), 3)
+            walk(s, s.screen().find('STAT', exact=True), 3)
+        return r.base4 + 0x2000 + k + 4, cup
+
+    def want_boxes(rec, st):
+        cid, n, ties, ss, lw, lp = rec
+        return ([lname[0]] if st == 0 or lw[0] else []) + [lname[x] for x in range(1, min(st, 5)) if n[x - 1]] + \
+            ([lname[st]] if 0 < st < 6 else [])
+
+    def menu(s, cup, want, tag):
+        sc = s.screen()
+        s.shot(f'usm_{tag}')
+        vis = [(i, t) for i, t, inv, _ in sc.entries if t and not inv]
+        s.log.append(f'[usm] {tag} menu {vis} sel {sc.selected}')
+        boxes = [sc.raw_texts[i] for i, t in vis if 1 <= i <= 6]   # (as drawn: DE's LIGAPHASE reads FASE CAMP.)
+        check(sc.entries[0][1] == cup, f'{tag}: menu title {sc.entries[0][1]!r}, not {cup!r}', errs)
+        check(boxes == want, f'{tag}: menu boxes {boxes}, not {want}', errs)
+        check(sc.selected == len(want), f'{tag}: cursor on entry {sc.selected}, not {len(want)} (the current stage)', errs)
+        check([t for i, t in vis if i in (7, 8)] == [summ, 'ESCI'], f'{tag}: menu bottom {vis[-2:]}', errs)
+        return boxes
+
+    def back_menu(s, cup):
+        for _ in range(4):
+            if usm_menu(s, summ) and s.screen().entries[0][1] == cup:
+                return True
+            press(s, s.screen(), 'ESCI', 3) or s.send('fire dump:2')
+        return usm_menu(s, summ)
+
+    with Session('world_usmenu', exe, {'W84A.CAR': car}, 'dump:2', 900) as s:
+        s.wait()
+        s.send(LOAD1 + ' dump:3')
+        at, cup = to_stat(s)
+        if not check(at and cup, f'no S2BR block / no UEFA CHAMPIONS LEAGUE ({s.screen()})', errs):
+            return False, '; '.join(errs)
+        rec = us_rec_read(s.result, at)
+        cid, n, ties, ss, lw, lp = rec
+        diy = s.result.lin(uesum_diy(s.result, exe))
+        work = bytes(s.result.read(diy, 0xB52))
+        st = struct.unpack_from('<H', work, 0x53)[0]
+        info.append(f'US_REC cup {cid} n {n} LP {bool(lw[0])}; stage {st}')
+        names = cache_names(s.result, {w for t in ties[:sum(n)] for w in t[:2]})
+        want = want_boxes(rec, st)
+        walk(s, s.screen().find(summ, exact=True), 3)
+        boxes = menu(s, cup, want, 'menu')
+        stage_of, titles = {lname[x]: x for x in range(6)}, []
+        for e in range(1, len(boxes) + 1):
+            x = stage_of.get(boxes[e - 1])
+            walk(s, e, 3)
+            sc2 = s.screen()
+            s.shot(f'usm_ph{e}')
+            ent = {i: t for i, t, inv, _ in sc2.entries if t and not inv}
+            raw = {i: sc2.raw_texts[i] for i in ent}
+            s.log.append(f'[usm] {boxes[e - 1]}: {sorted(ent.items())}')
+            if x == st:                                 # (the current stage: the game's own screen of the cup)
+                check(ent.get(0, '').startswith(cup) and 'STAT' in ent.values(), f'{boxes[e - 1]}: screen {ent.get(0)!r}', errs)
+            elif x == 0:                                # (the league phase over: its table on the text page)
+                check(ent.get(0) == cup and raw.get(1) == lname[0] + ':' and raw.get(2, '').startswith('  1 '),
+                      f'league phase page {ent.get(0)!r} {raw.get(1)!r} {raw.get(2)!r}', errs)
+            else:                                       # (an earlier knockout stage: US_REC's ties)
+                tt = ties[sum(n[:x - 1]):sum(n[:x])]
+                tl = sc2.raw[0].decode('latin1')        # (the game's own title - QUARTI FINALE, 1/4-FINALE: one a stage;
+                                                        #  DE's RUCKSP. with its umlaut: the bytes)
+                check(tl.startswith(cup) and tl not in titles, f'{boxes[e - 1]}: title {tl!r} (before: {titles})', errs)
+                titles.append(tl)
+                for i, t in enumerate(tt[:6]):
+                    two = t[5] & 0x40
+                    a, b2 = (t[1], t[0]) if two else (t[0], t[1])
+                    got = (raw.get(19 + 8 * i), raw.get(21 + 8 * i))
+                    check(got == (names.get(a), names.get(b2)), f'{boxes[e - 1]} tie {i}: {got}, not '
+                          f'{(names.get(a), names.get(b2))}', errs)
+                    win = names.get(t[1] if t[5] & 1 else t[0])
+                    check(win and win in (raw.get(25 + 8 * i) or ''), f'{boxes[e - 1]} tie {i}: winner line '
+                          f'{raw.get(25 + 8 * i)!r} without {win!r}', errs)
+            check(back_menu(s, cup), f'after {boxes[e - 1]}: not back on the menu ({s.screen().texts()[:10]})', errs)
+            back = [s.screen().raw_texts[i] for i, t, inv, _ in s.screen().entries if t and not inv and 1 <= i <= 6]
+            check(back == want, f'after {boxes[e - 1]}: boxes {back}', errs)
+            w2 = bytes(s.result.read(diy, 0xB52))
+            check(w2 == work, f'after {boxes[e - 1]}: the work area changed at '
+                  f'{next((hex(i) for i in range(len(work)) if w2[i] != work[i]), None)}', errs)
+        walk(s, 7, 3)
+        title, lines = uesum_page(s, 'usm')
+        check(title == cup and any(ln.split(':')[0] in lname for ln in lines), f'RIEPILOGO page {title!r} {lines[:3]}', errs)
+        walk(s, 16, 3)
+        check(usm_menu(s, summ), f'back from RIEPILOGO: {s.screen().texts()[:10]}', errs)
+        walk(s, 8, 3)                                   # (ESCI -> STAT; the stamp poked: an old block)
+        vis2 = [t for i, t, inv, _ in s.screen().entries if t and not inv]
+        check(summ in vis2 and not usm_menu(s, summ), f'ESCI: not STAT ({vis2})', errs)
+        s.poke(at + 5, bytes(((ss - 1) & 0xFF,)))
+        s.send('dump:1')
+        walk(s, s.screen().find(summ, exact=True), 3)
+        old = menu(s, cup, ([lname[st]] if st else [lname[0]]), 'old')
+        info.append(f'menu {boxes}; old block {old}')
+        s.poke(at + 5, bytes((ss,)))
+        walk(s, 8, 3)
+        s.shot('usm_stat')
+    lpc = os.environ.get('USM_LP_CAR') or pinned('cv_s2_cl')
+    if lpc:
+        with Session('world_usmenu_lp', exe, {'W84A.CAR': lpc}, 'dump:2', 600) as s:
+            s.wait()
+            s.send(LOAD1 + ' dump:3')
+            at, cup = to_stat(s)
+            if check(at and cup, f'lp save: no S2BR / CL ({s.screen()})', errs):
+                rec = us_rec_read(s.result, at)
+                work = bytes(s.result.read(s.result.lin(uesum_diy(s.result, exe)), 0xB52))
+                st = struct.unpack_from('<H', work, 0x53)[0]
+                walk(s, s.screen().find(summ, exact=True), 3)
+                bx = menu(s, cup, want_boxes(rec, st), 'lp')
+                walk(s, len(bx), 3)                     # (its current stage: the game's screen)
+                s.shot('usm_lp_view')
+                sc = s.screen()
+                check(sc.entries[0][1].startswith(cup) and sc.find('STAT', exact=True) is not None,
+                      f'lp save stage {st}: screen {sc.texts()[:6]}', errs)
+                check(back_menu(s, cup), 'lp save: not back on the menu', errs)
+                info.append(f'stage {st} save: {bx}')
+    return not errs, '; '.join(errs) or '; '.join(info)
+
+
+def cache_names(r, words):
+    """{team word: name} of the team cache (684-byte records, the word at +0, the name at +5 - their common alignment
+    in obj2, as world_uesum_ko finds them)."""
+    cache = bytes(r.read(r.base2, 0x100000))
+    hits = {}
+    for w in words:
+        j = cache.find(struct.pack('<H', w))
+        while j >= 0:
+            if re.match(rb"[A-Z][A-Z0-9 .'/&-]{2,16}\0", cache[j + 5:j + 23]):
+                hits.setdefault(w, []).append(j)
+            j = cache.find(struct.pack('<H', w), j + 1)
+    al = collections.Counter(j % 684 for js in hits.values() for j in js).most_common(1)
+    out = {}
+    for w, js in hits.items():
+        j = next((j for j in js if al and j % 684 == al[0][0]), None)
+        if j is not None:
+            out[w] = cache[j + 5:j + 22].split(b'\0')[0].decode('latin1')
+    return out
+
+
+def uesum_diy(r, exe):
+    """diyFileBufferCopy (obj, offset): lib97's site in the original exe (uesum.patch's UC; obj2 does not move)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lepatch
+    import lib97
+    return (2, lib97._sites(lepatch.LEPatch(os.path.join(ROOT, 'orig', UI_ORIG_OF[UI])))[3])
 
 
 def spp_conti_load(s, exe):

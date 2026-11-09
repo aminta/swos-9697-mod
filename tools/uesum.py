@@ -1,7 +1,8 @@
 """4.1 S2a (Davide 08/11): STAT > RIEPILOGO of a world's UEFA cups - uesum.c in obj4 after swe.c (its own page:
 obj4+swreg.UESUM_AT, the 3rd), the page text built from the viewed contest (see uesum.c). ctview's
-glue (obj3) holds two pointers, set here: CV_USOK -> us_ok (cv_stinit: entry 10 shown), CV_UST -> us_text (cv_sum:
-the page, then cv_page's tail). 4.1 S2b: uesum.c's us_hook at cseg_28E76's exit (rec_site) records the knockout
+glue (obj3) holds two pointers: CV_USOK -> us_ok (cv_stinit: entry 10 shown), set here; CV_UST -> (4.1 RC2) usmenu's
+us_open, the phase menu (usmenu.patch, called from here; us_text its RIEPILOGO button's page, us_lpt its league
+phase's once over). 4.1 S2b: uesum.c's us_hook at cseg_28E76's exit (rec_site) records the knockout
 stages in US_REC (LABELS['US_REC'], REC_SIZE B: the save item's block)."""
 import os
 import re
@@ -97,13 +98,17 @@ def patch(p, at, lang, usc=False):
         ext['LP_ORD'] = ext['LP_KEY'] = (2, diycopy)    # (no league phase in this exe: us_gend never called)
     obj = cobj.compile_c(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uesum.c'),
                          ['-Oz', '-fno-zero-initialized-in-bss', f'-DTXTMAX={fmtpage.TXTMAX}', f'-DGEND_CHAIN={int(chain)}'])
-    syms, end, bss = cobj.link(p, obj, at, (4, 0), externs=ext, limit=room, text_obj=4)
+    syms, end, bss = cobj.link(p, obj, at, (4, 0), externs=ext, limit=swreg.USMENU_AT, text_obj=4)
     assert bss == 0, ('uesum.c: no .bss (statics in its data)', bss)
-    assert end <= room, ('uesum past obj4', hex(end), hex(room))
+    assert end <= swreg.USMENU_AT, ('uesum past its page', hex(end))
     cp = ctview.CR_PTRS
-    for k, f in (('usok', 'us_ok'), ('ust', 'us_text')):
-        p.add_ptr(3, cp[k], *syms[f])
-        p.put(3, cp[k], struct.pack('<I', syms[f][1]))
+    p.add_ptr(3, cp['usok'], *syms['us_ok'])
+    p.put(3, cp['usok'], struct.pack('<I', syms['us_ok'][1]))
+    import usmenu                                       # (4.1 RC2: CV_UST -> the phase menu, usmenu's page)
+    sumt = p.target(2, fmtpage.WN['sumtxt'])            # (ctview's CR_SUMT: RIEPILOGO's label)
+    m_end = usmenu.patch(p, lang, {'UC': ext['UC'], 'US_IN': syms['US_IN'], 'us_cur': syms['us_cur'],
+                                   'us_stname': syms['us_stname'], 'us_lpt': syms['us_lpt'], 'US_TEXT': syms['us_text'],
+                                   'us_text': syms['us_text'], 'SELPTR': ext['SELPTR'], 'NUMSEL': ext['NUMSEL']}, sumt)
     p.remove(1, rs + 3)                                 # (its D0 fixup: the jmp overwrites it; us_hook does the mov)
     p.branch(1, rs, 0xE9, *syms['us_hook'][:2], n=9)
     if gend is not None:
@@ -112,5 +117,5 @@ def patch(p, at, lang, usc=False):
     LABELS.update(syms)
     LABELS['US_REC'] = (4, syms['US'][1] + 4)           # (after its 'S2BR' tag)
     print(f'exe: UEFA RIEPILOGO (uesum, 4.1 S2a): obj4+{t0:#x}..{end:#x} ({end - t0} B: table {len(tab)}, C {end - at}); '
-          f'obj4 left {room - end} B; S2b recorder at obj1+{rs:#x}, US_REC obj4+{LABELS["US_REC"][1]:#x} ({REC_SIZE} B)')
+          f'page left {swreg.USMENU_AT - end} B, usmenu to {m_end:#x}; S2b recorder at obj1+{rs:#x}, US_REC obj4+{LABELS["US_REC"][1]:#x} ({REC_SIZE} B)')
     return end

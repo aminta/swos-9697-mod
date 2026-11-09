@@ -118,6 +118,11 @@ cup or state championship from the country's top league ('=league.N': division N
 clubs' division; every country a prefix entry ('<COUNTRY> ', et bit 7: bx_strpre) = its top league or its
 confederation's default, so any other title of it (supercups...) has a real bench; the table's entries are the
 title + NUL + 3 bytes (no padding: 184 entries, < 4 KB, in benchx's 2 pages). internal/reports/bench-unknowns-2627.md.
+(4.2, MC 09/11) a gplay play-off / play-out / poule has no title entry any more (one per title: Serie D's 18 ties
+overflowed obj3): bx_look asks gplay (gp_bdiv: the contest in DIY is a play-off of ours of this season) for its team
+file and its entrants' lowest division and reads that (file, division) entry of bx_frtab (FR_TAB: one per division
+that differs from the country's top league, else the country's own) - the same values as before; one-tie contests of
+gplay (the Coppa D's tie, the supercups, the Grand Final) and dplay's play-offs keep their title entries.
 
 Friendlies (4.0.6, Regia / Davide 05/11): a FRIENDLY / DIY match (gameType 0 / 1) of the World 2026-27 has the longer
 real bench of its two clubs' (country, division) entries (bx_frset at the kick-off, bx_frpm on the pre-match screens:
@@ -215,6 +220,21 @@ bx_look:                                ; (phase 2) [bx_lkres] = the current com
     jne .out                            ; 2 from 2 (PlayTrainingGame): no league bench in the dugout / squad lists
     cmp byte [SLT + WORLD_BYTE_], BXWORLD_   ; the career's world (careerworld's save byte): the 2026-27 one only (the
     jne .out                            ; 1996-97 base game and the historic worlds keep the game's rule, same titles)
+%if GPB_
+    call GP_BDIV                        ; (4.2) a play-off of ours (gplay): the bench of its clubs' division (the lowest
+    cmp eax, 0FFFFh                     ; if mixed) from bx_frtab, as a friendly club's - one entry per division, not one
+    je .ttl                             ; per play-off title (Serie D's 18 ties); not cached by title (the contest's)
+    call bx_frfind
+    test ebx, ebx
+    jz .ttl
+    mov ax, [ebx + 2]
+    mov [bx_lkres], ax
+    mov al, [ebx + 4]
+    and al, 1
+    mov [bx_lket], al
+    jmp .out
+.ttl:
+%endif
     mov esi, DIYNAME
     mov edi, bx_lkname
     call bx_streq                       ; the same title as last time: its result
@@ -452,6 +472,23 @@ bx_frone:                               ; esi -> a team file: its entry's bench 
     jz .r
     mov al, [esi]                       ; countryNumber
     mov ah, [esi + 25]                  ; league (the division)
+    call bx_frfind
+    test ebx, ebx
+    jz .r
+    mov al, [ebx + 2]
+    cmp al, [bx_frkeep]
+    jbe .r
+    mov [bx_frkeep], al
+    mov al, [ebx + 3]
+    mov [bx_frkeep + 1], al
+    mov al, [ebx + 4]
+    mov [bx_fretk], al
+.r:
+    ret
+
+bx_frfind:                              ; al = a team file (countryNumber), ah = a division -> ebx = its bx_frtab entry,
+    push ecx                            ; else its country's (division 0FFh: its top league / confederation), else 0
+    push edx
     mov edx, bx_frtab
     mov ecx, [bx_frn]
     xor ebx, ebx
@@ -471,17 +508,8 @@ bx_frone:                               ; esi -> a team file: its entry's bench 
 .hit:
     mov ebx, edx
 .d:
-    test ebx, ebx
-    jz .r
-    mov al, [ebx + 2]
-    cmp al, [bx_frkeep]
-    jbe .r
-    mov [bx_frkeep], al
-    mov al, [ebx + 3]
-    mov [bx_frkeep + 1], al
-    mov al, [ebx + 4]
-    mov [bx_fretk], al
-.r:
+    pop edx
+    pop ecx
     ret
 
 bx_xnamed:                              ; ax = team word -> eax = the players of its XTRA block (a career's CPU club;
@@ -2460,13 +2488,13 @@ def bench_table(lang):
                 if isinstance(v, str) and v.startswith('=league.'):   # division's (its clubs' own league), none =
                     v = lvals[int(v[8:])] if int(v[8:]) < len(lvals) else None   # the top league's (Davide 30/10)
                 items = [(first(c['names']), v)]
-            if c is lg:                         # (4.0.5) the league's own contests (fmtgame's titles): each gplay
+            if c is lg:                         # (4.0.5) the league's own contests (fmtgame's titles); (4.2, MC 09/11)
                 nm = lambda names: (names.get(lang) or names.get('*') or next(iter(names.values())))
                 nm1 = lambda names: (lambda x: x[0] if isinstance(x, list) else x)(nm(names))
-                for po in c.get('ko_playoffs') or []:   # play-off / play-out / poule = its clubs' division (the
-                    dv = [e[0] for e in po.get('entrants') or [] if isinstance(e, list)]   # lowest if mixed)
-                    if po.get('names') and dv and max(dv) < len(lvals):
-                        items.append((nm1(po['names']), ent.get(po.get('key')) or lvals[max(dv)]))
+                for po in c.get('ko_playoffs') or []:   # a gplay play-off / play-out / poule: no entry of its own -
+                    assert po.get('key') not in ent, f"{cc} {po.get('key')}: a play-off's own bench"   # bx_look asks
+                                                # gplay (gp_bdiv) for its clubs' division (the lowest if mixed) and reads
+                                                # FR_TAB's (team file, division) entry: one entry per division
                 if c.get('cup_d'):                  # cupd: the Coppa Italia Serie D (its own json key 'cup_d'; its
                     items.append((nm1(c['cup_d'].get('names') or {'*': ['COPPA ITALIA SERIE D']}), ent.get('cup_d')))
                     raw.append(items[-1])           # tie's title has no country too: bench_cup at CELLE VARAZZE)
@@ -2572,6 +2600,9 @@ def patch(p, at, ns_at, lang='it'):
                 'BXWORLD_': (0, BENCH_WORLD[0] if tab else 255),
                 'WCURV': (1, careerworld.LABELS['WCUR']) if 'WCUR' in careerworld.LABELS else (0, 0),
                 'WCURV_': (0, int('WCUR' in careerworld.LABELS))})
+    import gplay                                    # (4.2) bx_look: a play-off of ours by its division (gp_bdiv)
+    gpb = 'gp_bdiv' in gplay.LABELS and bool(tab)
+    sym.update({'GPB_': (0, int(gpb)), 'GP_BDIV': (1, gplay.LABELS['gp_bdiv']) if gpb else (0, 0)})
     pk = lambda x: re.escape(struct.pack('<I', x))           # ShowPlayMatchMenu: mov ax, [D6] / mov [squadChanges..], ax /
                                                              # mov eax, [A1] / mov [playMatchTeam1Ptr],
     pm = list(re.finditer(b'\x66\xa1' + pk(regs['D7'] - 4) + b'\x66\xa3....\xa1' + pk(regs['A0'] + 4) + b'\xa3(....)\xa1' + pk(regs['A0'] + 8) + b'\xa3(....)\x66\xa1'

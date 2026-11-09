@@ -2710,6 +2710,19 @@ int gp_ours_c(void) {
     return -1;
 }
 
+/* (4.2, benchx bx_look) the contest in DIY when it is a play-off of ours (not a one-tie contest: the Coppa D's, a
+   supercup, the Grand Final keep their titles' benches): its team file | the lowest division of its entrants << 8 (a
+   play-off's bench = its clubs' division, the lowest if mixed: one bench entry per division, not one per title);
+   0xFFFF: none */
+u32 gp_bdiv_c(void) {
+    int i = gp_ours_c();
+    if (i < 0 || GP_ST.ko[i].pi == NOC) return 0xFFFF;
+    const struct gp_ko *k = &GP_ST.ko[i];
+    int d = 0;
+    for (int j = 0; j < k->n && j < KN; j++) if (KDV(k, j) > d) d = KDV(k, j);
+    return k->lfile | d << 8;
+}
+
 static int kidx(const struct gp_ko *k, u16 team) {
     for (int i = 0; i < k->n; i++) if (k->team[i] == team) return i;
     return NOC;

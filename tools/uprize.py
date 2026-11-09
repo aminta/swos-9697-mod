@@ -84,6 +84,13 @@ up_biz:                                 ; clubBusinessMenu's init (ANDAMENTO CLU
     test eax, eax
     jz .x
     mov ebx, MENU_
+    cmp dword [ebx + 16h + 3 * 38h + 26h], UP_ROW_   ; (the statement's PREMI UEFA row, up_stmt's: now that every
+    jne .row                            ; row is placed, 15 px above the next one - and so 15 below the old balance,
+    mov ax, [ebx + 16h + 4 * 38h + 16h] ; as the other rows; Davide 10/11)
+    sub ax, 15
+    mov [ebx + 16h + 3 * 38h + 16h], ax
+    mov [ebx + 16h + 13 * 38h + 16h], ax
+.row:
     cmp word [ebx + 10h], 24
     jne .x
     lea eax, [ebx + 16h + 24 * 38h]
@@ -243,7 +250,7 @@ def patch(p, at, ext, lang):
     es = eur_site(p, d8cb6)
     p.remove(1, es + 1)
     p.branch(1, es, 0xE8, *syms['up_eur'][:2], n=5)
-    end2 = part2(p, lang, syms)
+    end2 = part2(p, lang, dict(syms, UP_ROWL=(4, lab['UP_ROW'])))
     LABELS.clear()
     LABELS.update(syms)
     LABELS['UP_ST'] = (4, syms['UP'][1] + 4)
@@ -293,7 +300,7 @@ def part2(p, lang, s1):
     prev = p.target(2, fs['bizhdr'])
     assert prev == (3, ffp.LABELS['ff_biz']), ('uprize: ANDAMENTO CLUB init (FFP\'s)', prev)
     sym = {'PREV_BIZ': prev, 'UP_WORLD': s1['up_world'][:2], 'MENU_': zones._current_menu(p), 'MENUSZ_': (0, 6500),
-           'DRAWITEM': (1, cpucards.find(p)['DRAWITEM']), 'UP_OFF': (4, s1['UP'][1] + 4 + 7),
+           'DRAWITEM': (1, cpucards.find(p)['DRAWITEM']), 'UP_OFF': (4, s1['UP'][1] + 4 + 7), 'UP_ROW_': s1['UP_ROWL'],
            'SW_X_': (0, SW_X), 'SW_W_': (0, SW_W)}
     code, fix, rel = nasmcave.assemble_obj(src, at0, sym, 4)
     lab = nasmcave.labels(src, at0, sym)

@@ -21813,6 +21813,7 @@ def world_uprize_ui():
               f'value 13 {raw.get(13)!r}: not the poked 1,234,000', errs)    # (lire x 2 in the Italian exe)
         ys = sorted(g[i][1] for i in range(2, 12) if i in g)
         check(all(b - a >= 8 for a, b in zip(ys, ys[1:])), f'label rows overlap {ys}', errs)
+        check(all(b - a == 15 for a, b in zip(ys, ys[1:])), f'label rows not 15 px apart {ys}', errs)  # (Davide 10/11)
         money = lambda t: (-1 if t.lstrip().startswith('-') else 1) * int(re.sub(r'\D', '', t) or 0)
         v = {i: money(raw[i]) for i in (12, 20, 21) if i in raw}
         check(v.get(12, 0) + v.get(20, 0) == v.get(21), f'old {v.get(12)} + total {v.get(20)} != new {v.get(21)}', errs)

@@ -35,7 +35,7 @@ CODES = (None, 'points', 'goal_difference', 'goals_for', 'goals_against', 'wins'
          'head_to_head_points', 'head_to_head_goal_difference', 'head_to_head_goals_for', 'head_to_head_away_goals',
          'fair_play', 'coefficient', 'previous_stage_rank', 'play_off_match', 'draw_lots', 'name', 'faithful_1996',
          'head_to_head_reapplied', 'avulsa', 'losses_fewer', 'home_losses_fewer',
-         'head_to_head_table_once')     # (swcc TIEBS = SR_TB_*)
+         'head_to_head_table_once', 'only_if_two_level')     # (swcc TIEBS = SR_TB_*)
 H2H = {'head_to_head_points', 'head_to_head_goal_difference', 'head_to_head_goals_for', 'head_to_head_away_goals',
        'head_to_head_reapplied', 'avulsa', 'home_losses_fewer', 'away_wins', 'away_goals_for',
        'head_to_head_table_once'}   # (the block's)
@@ -54,9 +54,11 @@ def compile_list(names, teams, where):
         if nm in REFUSED:
             raise ValueError(f'{where}: tiebreak: {nm!r} needs data the game lacks (play_off_match: a ko_playoffs '
                              'entry with gap 1)')
-        if nm in out and nm != 'head_to_head_goal_difference':
+        if nm in out and nm not in ('head_to_head_goal_difference', 'only_if_two_level'):
             raise ValueError(f'{where}: tiebreak: {nm!r} twice')
         out.append(nm)
+    if out[-1] == 'only_if_two_level' or 'only_if_two_level only_if_two_level' in ' '.join(out):
+        raise ValueError(f'{where}: tiebreak: only_if_two_level prefixes the code after it')
     h2h = bool(H2H & set(out))
     if h2h and teams > LR_N:
         raise ValueError(f'{where}: tiebreak: head to head in a division of {teams} clubs (the saved block: {LR_N})')

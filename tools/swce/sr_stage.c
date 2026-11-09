@@ -66,7 +66,7 @@ i32 sr_rr_calendar(i32 n, i32 legs, sr_match *out, i32 room)
 
 static int usable(u8 c)
 {
-    return (c >= SR_TB_H2H_REAPPLIED && c <= SR_TB_H2H_TABLE_ONCE) || (c >= SR_TB_POINTS && c <= SR_TB_NAME && c != SR_TB_FAIR_PLAY &&
+    return (c >= SR_TB_H2H_REAPPLIED && c <= SR_TB_ONLY_IF_TWO) || (c >= SR_TB_POINTS && c <= SR_TB_NAME && c != SR_TB_FAIR_PLAY &&
                                         c != SR_TB_COEFFICIENT && c != SR_TB_PREVIOUS_STAGE_RANK && c != SR_TB_PLAY_OFF_MATCH);
 }
 
@@ -187,12 +187,12 @@ static void avulsa(const sr_tctx *x, u8 *ord, u8 *cut, i32 b, i32 e, u8 last)
 
 /* each criterion once, in order, inside the blocks the ones before left tied (a stable sort there);
  * faithful_1996 = points, goal difference, goals for, name (the 1996 game's cseg_883DD) */
-static void crit(const sr_tctx *x, u8 t, u8 *ord, u8 *cut)
+static void crit(const sr_tctx *x, u8 t, u8 *ord, u8 *cut, int only2)
 {
     for (i32 b = 0; b < x->n;) {
         i32 e = b + 1;
         while (!cut[e]) e++;
-        if (e - b > 1) {
+        if (e - b > 1 && (!only2 || e - b == 2)) {
             if (t == SR_TB_H2H_REAPPLIED) reapply(x, ord, cut, b, e);
             else if (t == SR_TB_AVULSA) avulsa(x, ord, cut, b, e, SR_TB_H2H_GOAL_DIFFERENCE);
             else if (t == SR_TB_H2H_TABLE_ONCE) avulsa(x, ord, cut, b, e, SR_TB_H2H_GOALS_FOR);
@@ -211,9 +211,14 @@ static void rank(const sr_tctx *x, const u8 *tieb, u8 *ord)
     u8 cut[N + 1];                                              /* cut[k]: a block starts at k */
     for (i32 k = 0; k < x->n; k++) { ord[k] = (u8)k; cut[k] = k == 0; }
     cut[x->n] = 1;
+    int only2 = 0;                                              /* (only_if_two_level: for the next criterion) */
     for (const u8 *t = tieb; t && *t; t++)
-        if (*t == SR_TB_FAITHFUL_1996) for (const u8 *f = F96; *f; f++) crit(x, *f, ord, cut);
-        else crit(x, *t, ord, cut);
+        if (*t == SR_TB_ONLY_IF_TWO) only2 = 1;
+        else {
+            if (*t == SR_TB_FAITHFUL_1996) for (const u8 *f = F96; *f; f++) crit(x, *f, ord, cut, only2);
+            else crit(x, *t, ord, cut, only2);
+            only2 = 0;
+        }
 }
 
 i32 sr_league_rank(i32 n, const sr_srow *row, const u8 *pairs, const u8 *namek, i32 win, i32 draw, i32 loss,
@@ -223,9 +228,11 @@ i32 sr_league_rank(i32 n, const sr_srow *row, const u8 *pairs, const u8 *namek, 
     for (const u8 *t = tieb; t && *t; t++) if (!usable(*t) && *t != SR_TB_FAITHFUL_1996) return -1;
     u8 tl[24];                                                  /* (no results: the head-to-head criteria left out) */
     i32 k = 0;
+#define NEEDS_PAIRS(c) (((c) >= SR_TB_H2H_POINTS && (c) <= SR_TB_H2H_AWAY_GOALS) || (c) == SR_TB_H2H_REAPPLIED || \
+                        (c) == SR_TB_AVULSA || (c) == SR_TB_HOME_LOSSES_FEWER || (c) == SR_TB_H2H_TABLE_ONCE)
     for (const u8 *t = tieb; t && *t && k < 23; t++)
-        if (pairs || !((*t >= SR_TB_H2H_POINTS && *t <= SR_TB_H2H_AWAY_GOALS) || *t == SR_TB_H2H_REAPPLIED ||
-                       *t == SR_TB_AVULSA || *t == SR_TB_HOME_LOSSES_FEWER || *t == SR_TB_H2H_TABLE_ONCE)) tl[k++] = *t;
+        if (*t == SR_TB_ONLY_IF_TWO && !pairs && t[1] && NEEDS_PAIRS(t[1])) t++;   /* (its criterion left out too) */
+        else if (pairs || !NEEDS_PAIRS(*t)) tl[k++] = *t;
     tl[k] = 0;
     const sr_tctx x = { row, 0, 0, n, win, draw, loss, seed, pairs, namek };
     rank(&x, tl, ord);
@@ -436,7 +443,7 @@ i32 sr_best_placed(const sr_group *g, i32 ng, i32 place, i32 win, i32 draw, i32 
 {
     for (const u8 *t = tieb; t && *t; t++)
         if (!usable(*t) || (*t >= SR_TB_H2H_POINTS && *t <= SR_TB_H2H_AWAY_GOALS) || *t == SR_TB_H2H_REAPPLIED ||
-            *t == SR_TB_AVULSA || *t == SR_TB_H2H_TABLE_ONCE) return -1;
+            *t == SR_TB_AVULSA || *t == SR_TB_H2H_TABLE_ONCE || *t == SR_TB_ONLY_IF_TWO) return -1;
     if (ng < 1 || ng > N) return -1;
     i32 least = g[0].n;
     for (i32 j = 1; j < ng; j++) if (g[j].n < least) least = g[j].n;

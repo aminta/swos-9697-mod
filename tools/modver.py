@@ -27,11 +27,15 @@ BUILD_SWITCHES = TEST_VARS + (                     # 4.0.6: every switch a test 
     'AFTER_PROCESS_PROBE', 'QUIETEND_OFF', 'SELLA_N', 'SELLA_MARGIN', 'SELLA_OFF')
 
 
+def is_test():
+    """A test build: a TEST_VARS switch or any *_FORCE set (MODVER_TAG aside)."""
+    return any(os.environ.get(v) for v in TEST_VARS) or any(k.endswith('_FORCE') and v for k, v in os.environ.items())
+
+
 def text():
     v = re.search(r"^VERSION = '([^']+)'", open(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                                         'mkpatcher.py')).read(), re.M).group(1)   # (no import: the
-    tag = os.environ.get('MODVER_TAG') or ('TEST' if any(os.environ.get(v) for v in TEST_VARS) or
-                                           any(k.endswith('_FORCE') and v for k, v in os.environ.items()) else '')
+    tag = os.environ.get('MODVER_TAG') or ('TEST' if is_test() else '')
     return ('MOD ' + v + (' ' + tag.upper() if tag else '')).encode('ascii')     # patcher's file checks)
 
 

@@ -831,11 +831,20 @@ def patch_exe(src, dst, remap, lang='it'):
     st_end = edteam.patch(p, (st_end + 15) & ~15)            # number box (shirtedit's); the obj3 chain's end
     assert st_end <= LT3_AT, hex(st_end)
     import sella                                 # 4.0.6 (Davide, Francesco): outgoing offers rule A - a buyer only if the
-    st_end = sella.patch(p, (st_end + 15) & ~15)             # player would be among its N best; the obj3 chain's end
-    assert st_end <= LT3_AT, hex(st_end)
-    import bstrip                                # 4.0.6 (Francesco): the bench info strip - skills + value of the
-    st_end = bstrip.patch(p, (st_end + 15) & ~15)            # bench player / the two in a change; the obj3 chain's end
-    assert st_end <= LT3_AT, hex(st_end)
+    import bstrip                                # player would be among its N best; the obj3 chain's end
+    import modver                                # (4.1 RC1: a TEST build whose switches' code leaves the chain too little
+    sl_at = (st_end + 15) & ~15                  #  room - IT obj3 had 96 B left - puts sella on the longtable page's free
+    sl_need = ((sl_at + sella.patch(p, sl_at, dry=True) + 15) & ~15) + bstrip.size(p)   # tail; release builds never
+    lt3_tail = (lt_end_ + 15) & ~15 if lt_room and lt_obj == 3 else None                # move: same bytes)
+    if sl_need > LT3_AT and modver.is_test() and lt3_tail is not None:
+        sl_end = sella.patch(p, lt3_tail)
+        assert sl_end <= LT3_AT + 0x1000, hex(sl_end)
+        print(f'exe: TEST build: sella on the longtable page obj3+{lt3_tail:#x}..{sl_end:#x} (chain needed {sl_need:#x})')
+    else:
+        st_end = sella.patch(p, sl_at)
+        assert st_end <= LT3_AT, hex(st_end)
+    st_end = bstrip.patch(p, (st_end + 15) & ~15)            # 4.0.6 (Francesco): the bench info strip - skills + value
+    assert st_end <= LT3_AT, hex(st_end)                     # of the bench player / the two in a change; the chain's end
     st_end = bplace.force(p, (st_end + 15) & ~15)            # (BPLACE_FORCE test builds only: such ties forced; in
     assert st_end <= LT3_AT, hex(st_end)                     # obj3 since 4.0.6: the obj1 controls page is full)
     print(f'exe: obj3 end {st_end:#x} ({LT3_AT - st_end} B left before the longtable page obj3+{LT3_AT:#x})')

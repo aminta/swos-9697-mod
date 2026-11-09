@@ -1142,6 +1142,8 @@ if UI != 'it':
 # index (club names never: they are not translated); umlauts / accents read as '?' for a known label
 UI_MAP = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'swostest_lang.json'))).get(UI, {}) \
     if UI != 'it' else {}
+FRIENDLY_PLAY = {'fr': 'MATCHS AMICAUX'}.get(UI, 'AMICHEVOLE')   # the friendly team screen's play button (FR: not
+# UI_MAP's MATCH AMICAL, that screen's title)
 UI_ORIG = {'it': 'ITALIAN', 'en': 'ENGLISH', 'fr': 'FRENCH', 'de': 'GERMAN'}.get(UI, 'ITALIAN') + '.EXE'
 UI_ORIG_OF = {k: v + '.EXE' for k, v in {'it': 'ITALIAN', 'en': 'ENGLISH', 'fr': 'FRENCH', 'de': 'GERMAN'}.items()}
 COLLECT = os.environ.get('SWOSTEST_COLLECT') == '1'    # (collecting the labels: raw texts, umlauts as '?')
@@ -5166,7 +5168,7 @@ def edit_custom_teams():
               f'{team} not human-controlled (colour {scr.colors[scr.find(team, exact=True)]}, legend {leg})', errs)
         walk(s, 'A C ARTISAN', 2)                      # the opponent (walk's fire: COMPUTER)
         scr = s.screen()
-        play = {'fr': 'MATCHS AMICAUX'}.get(UI, 'AMICHEVOLE')   # (FR: not UI_MAP's MATCH AMICAL)
+        play = FRIENDLY_PLAY
         if scr.find(play) is None:                       # (shown once two teams are chosen)
             return False, '; '.join(errs + notes + [f'no play button after the team choice (colours '
                                                     f'{[(t, scr.colors[i]) for i, t, _, _ in scr.entries[:8]]}; {scr})'])
@@ -12911,7 +12913,7 @@ def engine_wmodes_nat():
                 for n in era + ('ALBANIA',):
                     walk(s, n, 2)
                 sc = s.screen()                          # (the national list's own PLAY entry: the visible one after
-                play = {'fr': 'MATCHS AMICAUX'}.get(UI, 'AMICHEVOLE')    # the rows; FR: not UI_MAP's MATCH AMICAL)
+                play = FRIENDLY_PLAY                    # the rows)
                 go = next((j for j, t, inv, _ in sc.entries if t == play and not inv and j), None)
                 pm = walk(s, go, 4) if go is not None else sc
                 ptx = ' '.join(t for t in pm.texts() if t)
@@ -13049,7 +13051,7 @@ def engine_avail():
                     for n in ('EAST GERMANY', 'WEST GERMANY'):
                         walk(s, n, 2)
                     sc = s.screen()
-                    play = {'fr': 'MATCHS AMICAUX'}.get(UI, 'AMICHEVOLE')
+                    play = FRIENDLY_PLAY
                     go = next((j for j, t, inv, _ in sc.entries if t == play and not inv and j), None)
                     pm = walk(s, go, 4) if go is not None else sc
                     ptx = ' '.join(t for t in pm.texts() if t)
@@ -14191,7 +14193,7 @@ def italy_friendly(s, home, away):
     walk(s, away, 2)
     for _ in range(12):
         scr = s.screen()
-        i = scr.find('AMICHEVOLE', exact=True)
+        i = scr.find(FRIENDLY_PLAY, exact=True)
         if i is None:
             raise AssertionError(f'AMICHEVOLE not on screen ({scr.texts()[-10:]})')
         if scr.selected == i:
@@ -14382,7 +14384,7 @@ def kit_navy_shots():
             walk(s, away, 2)
             for _ in range(12):
                 scr = s.screen()
-                i = scr.find('AMICHEVOLE', exact=True)
+                i = scr.find(FRIENDLY_PLAY, exact=True)
                 if i is None:
                     break
                 if scr.selected == i:
@@ -14452,7 +14454,7 @@ def skin_ab():
         walk(s, 'INTER', 2)
         for _ in range(12):                     # (skin_venezia's way to the team screen)
             scr = s.screen()
-            i = scr.find('AMICHEVOLE', exact=True)
+            i = scr.find(FRIENDLY_PLAY, exact=True)
             if i is None:
                 break
             if scr.selected == i:
@@ -14502,7 +14504,7 @@ def skin_venezia():
         walk(s, 'INTER', 2)
         for _ in range(12):
             scr = s.screen()
-            i = scr.find('AMICHEVOLE', exact=True)
+            i = scr.find(FRIENDLY_PLAY, exact=True)
             if i is None:
                 break
             if scr.selected == i:
@@ -26310,7 +26312,7 @@ def white_ravanelli():
         walk(s, 'ARSENAL', 2)
         for _ in range(12):
             scr = s.screen()
-            i = scr.find('AMICHEVOLE', exact=True)
+            i = scr.find(FRIENDLY_PLAY, exact=True)
             if scr.selected == i:
                 s.send('fire dump:4')
                 break

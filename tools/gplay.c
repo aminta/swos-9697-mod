@@ -871,6 +871,7 @@ extern u8 GP_TOPR[9 * 684];
 static u8 ch_tmp[684];
 extern u8 GP_FTIC[];                    /* FindTeamInCache: word [D0] = the team -> ZF, [A0] = its 684-byte record */
 extern u32 GP_D0, GP_D1, GP_A0;         /* (the game's pseudo registers it uses: kept) */
+#if defined(__i386__)                   /* (the exe; the host tests' cc - arm64 - has no x86 asm: no cache there) */
 __attribute__((naked, noinline)) static const u8 *gp_ftic(u32 w) {
     __asm__ volatile(
         "pushl GP_D0\n\tpushl GP_D1\n\tpushl GP_A0\n\t"
@@ -879,6 +880,9 @@ __attribute__((naked, noinline)) static const u8 *gp_ftic(u32 w) {
         "movl $0, %eax\n\tjnz 1f\n\tmovl GP_A0, %eax\n"
         "1:\n\tpopl GP_A0\n\tpopl GP_D1\n\tpopl GP_D0\n\tret");
 }
+#else
+static const u8 *gp_ftic(u32 w) { (void)w; return 0; }
+#endif
 #ifndef GP_CHFORCE                      /* (4.1 test builds, GPLAY_CHFORCE=1: the title winner taken out of the top 9 - its */
 #define GP_CHFORCE 0                    /* slot gets the 9th's word and record - so gp_champ fetches it from the cache) */
 #endif

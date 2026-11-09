@@ -66,7 +66,7 @@ i32 sr_rr_calendar(i32 n, i32 legs, sr_match *out, i32 room)
 
 static int usable(u8 c)
 {
-    return (c >= SR_TB_H2H_REAPPLIED && c <= SR_TB_ONLY_IF_TWO) || (c >= SR_TB_POINTS && c <= SR_TB_NAME && c != SR_TB_FAIR_PLAY &&
+    return (c >= SR_TB_H2H_REAPPLIED && c <= SR_TB_AWAY_GOAL_DIFFERENCE) || (c >= SR_TB_POINTS && c <= SR_TB_NAME && c != SR_TB_FAIR_PLAY &&
                                         c != SR_TB_COEFFICIENT && c != SR_TB_PREVIOUS_STAGE_RANK && c != SR_TB_PLAY_OFF_MATCH);
 }
 
@@ -100,6 +100,16 @@ static i32 key(const sr_tctx *x, u8 t, i32 c, const u8 *in)
             }
         for (i32 k = 0; k < nm; k++) if (m[k].played && m[k].home == c && m[k].hg < m[k].ag) hl++;
         return -hl;
+    }
+    case SR_TB_AWAY_GOAL_DIFFERENCE: {                          /* over the whole season, as home_losses_fewer */
+        i32 d = 0;
+        if (x->pairs)
+            for (i32 j = 0; j < x->n; j++) {
+                const u8 v = j == c ? SR_PAIR_NONE : x->pairs[j * x->n + c];
+                if (v != SR_PAIR_NONE) d += (v & 15) - (v >> 4);
+            }
+        for (i32 k = 0; k < nm; k++) if (m[k].played && m[k].away == c) d += m[k].ag - m[k].hg;
+        return d;
     }
     default: break;
     }
@@ -229,7 +239,8 @@ i32 sr_league_rank(i32 n, const sr_srow *row, const u8 *pairs, const u8 *namek, 
     u8 tl[24];                                                  /* (no results: the head-to-head criteria left out) */
     i32 k = 0;
 #define NEEDS_PAIRS(c) (((c) >= SR_TB_H2H_POINTS && (c) <= SR_TB_H2H_AWAY_GOALS) || (c) == SR_TB_H2H_REAPPLIED || \
-                        (c) == SR_TB_AVULSA || (c) == SR_TB_HOME_LOSSES_FEWER || (c) == SR_TB_H2H_TABLE_ONCE)
+                        (c) == SR_TB_AVULSA || (c) == SR_TB_HOME_LOSSES_FEWER || (c) == SR_TB_H2H_TABLE_ONCE || \
+                        (c) == SR_TB_AWAY_GOAL_DIFFERENCE)
     for (const u8 *t = tieb; t && *t && k < 23; t++)
         if (*t == SR_TB_ONLY_IF_TWO && !pairs && t[1] && NEEDS_PAIRS(t[1])) t++;   /* (its criterion left out too) */
         else if (pairs || !NEEDS_PAIRS(*t)) tl[k++] = *t;

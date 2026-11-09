@@ -35,10 +35,10 @@ CODES = (None, 'points', 'goal_difference', 'goals_for', 'goals_against', 'wins'
          'head_to_head_points', 'head_to_head_goal_difference', 'head_to_head_goals_for', 'head_to_head_away_goals',
          'fair_play', 'coefficient', 'previous_stage_rank', 'play_off_match', 'draw_lots', 'name', 'faithful_1996',
          'head_to_head_reapplied', 'avulsa', 'losses_fewer', 'home_losses_fewer',
-         'head_to_head_table_once', 'only_if_two_level')     # (swcc TIEBS = SR_TB_*)
+         'head_to_head_table_once', 'only_if_two_level', 'away_goal_difference')     # (swcc TIEBS = SR_TB_*)
 H2H = {'head_to_head_points', 'head_to_head_goal_difference', 'head_to_head_goals_for', 'head_to_head_away_goals',
        'head_to_head_reapplied', 'avulsa', 'home_losses_fewer', 'away_wins', 'away_goals_for',
-       'head_to_head_table_once'}   # (the block's)
+       'head_to_head_table_once', 'away_goal_difference'}   # (the block's)
 REFUSED = {'fair_play', 'coefficient', 'previous_stage_rank', 'play_off_match'}
 LABELS = {}
 

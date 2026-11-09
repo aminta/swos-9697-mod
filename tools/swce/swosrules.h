@@ -568,7 +568,7 @@ enum { SR_TB_END = 0, SR_TB_POINTS, SR_TB_GOAL_DIFFERENCE, SR_TB_GOALS_FOR, SR_T
        SR_TB_H2H_AWAY_GOALS, SR_TB_FAIR_PLAY, SR_TB_COEFFICIENT, SR_TB_PREVIOUS_STAGE_RANK, SR_TB_PLAY_OFF_MATCH,
        SR_TB_DRAW_LOTS, SR_TB_NAME, SR_TB_FAITHFUL_1996,
        SR_TB_H2H_REAPPLIED, SR_TB_AVULSA, SR_TB_LOSSES_FEWER, SR_TB_HOME_LOSSES_FEWER, SR_TB_H2H_TABLE_ONCE,
-       SR_TB_ONLY_IF_TWO };
+       SR_TB_ONLY_IF_TWO, SR_TB_AWAY_GOAL_DIFFERENCE };
 enum { SR_D_END = 0, SR_D_AGGREGATE, SR_D_AWAY_GOALS, SR_D_EXTRA_TIME, SR_D_PENALTIES, SR_D_BETTER_PLACED,
        SR_D_REPLAY, SR_D_DRAW_LOTS, SR_D_GOLDEN_GOAL };
 
@@ -590,7 +590,8 @@ typedef struct { uint8_t club, pad; int16_t pts; uint16_t pl, w, d, l, gf, ga, a
  * SR_TB_AVULSA (FIGC): h2h points then h2h goal difference over all the clubs level when it starts, once;
  * SR_TB_H2H_TABLE_ONCE (EFL reg. 9.2): the same with h2h goals for as its third key (one mini-table);
  * SR_TB_ONLY_IF_TWO (CBF REC art. 15 / 12 § 2): a prefix - the criterion after it splits only blocks of exactly two
- * clubs (a block of 3+ skips it); then the
+ * clubs (a block of 3+ skips it); SR_TB_AWAY_GOAL_DIFFERENCE (RBFA B7.42 5°): the season's away goal difference
+ * (from the results, as home_losses_fewer); then the
  * next criterion; draw lots from the seed and the club, so the input order never matters; 'name' = the
  * caller's order). Returns n, or -1: a criterion the stage cannot use alone (fair play, coefficient,
  * previous stage rank, play-off match, faithful_1996: they need the game's data), a club outside 0..n-1. */

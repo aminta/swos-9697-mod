@@ -21,7 +21,11 @@
    split's 'keep'), resolved to its row of division div's final table by the global number; host byte bit 7 =
    skip_if_same (a tie of one club with itself is not played: it goes through); levels 4 away_pens / 5 away_better
    (away goals are not simulated: as et_pens / better); member 0x3F = the best placed loser of the previous round.
-   Entrant type 6 (4.0, Malta 2026-27) = seed a (1..4) of a split season's title decider (split_seed). */
+   Entrant type 6 (4.0, Malta 2026-27) = seed a (1..4) of a split season's title decider (split_seed).
+   4.2 (s3shape, the Serie B / C play-offs as data; the rules library's sr_gplay, rules-check identical): kind | 0x40 =
+   an extension block (PO_EXT); levels 6 better_pts / 7 second; entrant type 9 = the Coppa Italia Serie C's place
+   (cup_code: GP_CUPW / GP_CUPF, the winner / the other finalist). An extended play-off is played at the season end
+   only (playable: no contest). */
 
 typedef unsigned char u8;
 typedef unsigned short u16;
@@ -30,7 +34,15 @@ typedef signed char s8;
 
 enum { GT = 32, GD = 16, GN = 64, RESERVE = 0xFE };   /* (GD: Italy 2026-27 has 14 divisions; GT: Argentina's 30) */
 enum { HOST_LISTED, HOST_BETTER, HOST_DRAWN, HOST_NEUTRAL, HOST_SKIP_SAME = 0x80 };
-enum { LV_BETTER, LV_ET_PENS, LV_ET_BETTER, LV_PENS, LV_AWAY_PENS, LV_AWAY_BETTER };
+enum { LV_BETTER, LV_ET_PENS, LV_ET_BETTER, LV_PENS, LV_AWAY_PENS, LV_AWAY_BETTER,
+       LV_BETTER_PTS, LV_SECOND };      /* (4.2 s3shape: the better placed unless level on points, then e.t. + penalties;
+                                           the listed second - a seeded round's seed) */
+enum { PO_EXT = 0x40 };                 /* (4.2 s3shape: kind | 0x40 - an extension block after the header: its length,
+                                           then ops: 1 g direct (entrant 0 wins if g+ points ahead of entrant 1), 2 a
+                                           level of groups' ranking, 3 k round k seeded, 4 k i j round k: the best of
+                                           members i .. j-1 first) */
+enum { E_DIRECT = 1, E_LEVEL, E_SEEDED, E_BEST };
+static const u8 *ents_of(const u8 *s) { return s + 6 + (s[0] & PO_EXT ? 1 + s[6] : 0); }
 enum { K_TITLE = 5, K_CONT = 6, K_PROM = 7, K_STAGE = 8, GS = 2, BEST_LOSER = 0x3F };
 enum { PO_SUPER = 4, PO_SKIP2 = 0x80 };                  /* (a play-off spec's flag, pack 'supercup': not played at the season end) */
 struct gp_row { u16 team, glob, won, gf, ga, pts; };
@@ -118,7 +130,21 @@ static u32 below(u32 n) {
 static const struct gp_row *row(int c) { return &GP_IN.t[DV(c)][PL(c)]; }
 
 static int by_rec;                      /* spec flag 2 'host_by_record' (4.0 MLS): in one division the better record */
+static int x_lvl, x_direct, x_sdiv, x_sfrom;    /* (4.2 s3shape, gp_season's extended play-off: a level of groups, its
+                                                   direct gap; the cup place's scroll: division, first place) */
+static u32 x_seeded, x_lot0;
+static const u8 *x_b, *x_e;
+static u8 x_lot(int c) { return (u8)((row(c)->glob * 2654435761u + x_lot0) >> 24); }
 static int better(int a, int b) {       /* the higher tier, then the better place */
+    if (DV(a) != DV(b) && x_lvl) {      /* (4.2: a level of groups - the place, then points, wins, goals, the lot:
+                                           dplay.c dp_better) */
+        const struct gp_row *x = row(a), *y = row(b);
+        if (PL(a) != PL(b)) return PL(a) < PL(b);
+        if (x->pts != y->pts) return x->pts > y->pts;
+        if (x->won != y->won) return x->won > y->won;
+        if (x->gf != y->gf) return x->gf > y->gf;
+        return x_lot(a) < x_lot(b);
+    }
     if (DV(a) != DV(b)) return DV(a) < DV(b);
     if (by_rec) {                       /* (points, wins, goal difference, goals: MLS; then the place) */
         const struct gp_row *x = row(a), *y = row(b);
@@ -153,6 +179,8 @@ static int tie(int a, int b, int legs, int host, int level) {
     if (below(100) < (legs == 1 ? 22u : 12u)) {             /* level after the regulation time */
         int bp = better(h, o) ? h : o;
         if (level == LV_BETTER || level == LV_ET_BETTER || level == LV_AWAY_BETTER) return bp;
+        if (level == LV_SECOND) return b;
+        if (level == LV_BETTER_PTS && row(h)->pts != row(o)->pts) return bp;
         u32 x = str2(h, 0), y = str2(o, 0);                   /* e.t. + penalties: close to a coin toss */
         sh = 2 * x + y; so = x + 2 * y;
     }
@@ -777,6 +805,7 @@ static int sec_inelig(int c) {                          /* a row skipped as a pl
 }
 
 static int place_club(int d, int p, int kind) {         /* [div, place] -> its row, B teams skipped but in play-outs */
+    if (x_sfrom && d == x_sdiv && p >= x_sfrom) p++;    /* (4.2: the cup place's scroll) */
     if (d >= GP_IN.nd || d >= GD || p < 1 || p > GP_IN.n[d]) return -1;
     if (kind == 4) return d * GT + p - 1;
     for (int k = 0; k < GP_IN.n[d]; k++)
@@ -957,9 +986,51 @@ static void pot_perm(const u8 *s, int *pm) {
     int n = s[1], h = 0;
     for (int i = 0; i < n; i++) pm[i] = i;
     if (!(s[5] & 8)) return;
-    const u8 *r = s + 6 + 4 * n;
+    const u8 *r = ents_of(s) + 4 * n;
     for (int k = 0; k < s[2] && (r[1] & 0x80); k++) { h++; r += 6 + 2 * r[0]; }
     for (int i = n - 1; i > h; i--) { int j = h + below(i - h + 1), x = pm[i]; pm[i] = pm[j]; pm[j] = x; }
+}
+
+/* 4.2 s3shape: the Coppa Italia Serie C's play-off place (entrant type 9: e[1] the first group's division, e[2] the
+   groups, e[3] the play-out gap | 0x80 the real rule when the finalist is known). A winner in the play-out places
+   (n-3 / n-2 always, n-5 / n-4 when their tie is under the gap apart) or relegated is precluded, as one in 1st-3rd.
+   The Mod 4.1's (dplay.c): the winner from 11th down unless precluded, else the 11th of its group; unknown: the best
+   11th of the groups. The real rule (FIGC C.U. 209/A, NOIF art. 49 II-III): a precluded winner's place to the other
+   finalist (the same preclusions); both precluded, the 4th of the winner's group; the club taking it from 4th-10th
+   leaves its group's play-off and that group scrolls (the places below move up one, the 11th comes in). */
+u16 GP_CUPW, GP_CUPF;                   /* (the glue: the cup's winner and other finalist, team words; 0 unknown) */
+static int cup_out(int d, int k, int gap) {     /* place k (from 0) precluded */
+    const struct gp_row *t = GP_IN.t[d];
+    int n = GP_IN.n[d];
+    if (k <= 2) return 1;
+    if (n < 6 || k < n - 5) return 0;
+    if (k == n - 5) return t[n - 5].pts - t[n - 2].pts < gap;
+    if (k == n - 4) return t[n - 4].pts - t[n - 3].pts < gap;
+    return 1;
+}
+static int cup_find(int d0, int ng, u16 team, int *d, int *k) {
+    for (*d = d0; team && *d < d0 + ng && *d < GP_IN.nd; (*d)++)
+        for (*k = 0; *k < GP_IN.n[*d]; (*k)++) if (GP_IN.t[*d][*k].team == team) return 1;
+    return 0;
+}
+static int cup_code(const u8 *e) {
+    int d0 = e[1], ng = e[2], gap = e[3] & 0x7F, dw, kw, df, kf, b = -1;
+    int w = cup_find(d0, ng, GP_CUPW, &dw, &kw);
+    if ((e[3] & 0x80) && GP_CUPF && w) {
+        int d = -1, k = -1;
+        if (!cup_out(dw, kw, gap)) d = dw, k = kw;
+        else if (cup_find(d0, ng, GP_CUPF, &df, &kf) && !cup_out(df, kf, gap)) d = df, k = kf;
+        if (d < 0) { d = dw; k = 3; }   /* (both precluded: the 4th of the winner's group) */
+        if (k <= 9) { x_sdiv = d; x_sfrom = k + 1; }
+        return d * GT + k;
+    }
+    if (w) return dw * GT + (kw >= 10 && !cup_out(dw, kw, gap) ? kw : 10);
+    for (int d = d0; d < d0 + ng && d < GP_IN.nd; d++)
+        if (GP_IN.n[d] > 10 && (b < 0 || better(d * GT + 10, b))) b = d * GT + 10;
+    return b;
+}
+static void draw(int *c, int n) {       /* a draw: c[0 .. n) shuffled */
+    for (int i = n - 1; i > 0; i--) { int j = below(i + 1), x = c[i]; c[i] = c[j]; c[j] = x; }
 }
 
 GP_KOSIZE void gp_season(void) {
@@ -994,9 +1065,16 @@ GP_KOSIZE void gp_season(void) {
                                                                                         : GP_IN.t[d][0].team);
     }
     for (int pidx = 0; s && *s; pidx++) {
-        int kind = s[0], n = s[1], nr = s[2], wdiv = s[3], ldiv = s[4];
-        const u8 *e = s + 6, *r = e + 4 * n;
+        int kind = s[0] & 0x3F, n = s[1], nr = s[2], wdiv = s[3], ldiv = s[4];
+        const u8 *e = ents_of(s), *r = e + 4 * n;
         by_rec = s[5] & 2;
+        x_lvl = x_direct = 0; x_seeded = 0;     /* (4.2: the extension's ops) */
+        x_b = s + 7; x_e = s[0] & PO_EXT ? s + 7 + s[6] : x_b;
+        for (const u8 *x = x_b; x < x_e; x += x[0] == E_LEVEL ? 1 : x[0] == E_BEST ? 4 : 2) {
+            if (x[0] == E_DIRECT) x_direct = x[1];
+            if (x[0] == E_LEVEL) x_lvl = 1;
+            if (x[0] == E_SEEDED) x_seeded |= 1u << (x[1] & 31);
+        }
         if (kind == K_PROM) {                   /* (no entrants, no rounds) */
             if (!GP_PRE) promedio(0, wdiv, ldiv);   /* (the preview: no promedio - its history is written) */
             s = r;
@@ -1010,8 +1088,13 @@ GP_KOSIZE void gp_season(void) {
         int W[GN], L[GN], nt = 0, last = -1, lastr = 0, nlast = 0;
         int P[GN], np = 0, glast = -1, kog = 0, winners = s[5] >> 4 & 7 ? s[5] >> 4 & 7 : 1;   /* (kog: a knockout
                                            round after a group - its last tie decides, NZ's Grand Final, the Poule) */
+        x_lot0 = 0x9E3779B9u * (u32)(pidx + 1);
+        x_sfrom = 0;
+        for (int i = 0; i < n && i < GN; i++)   /* (4.2: the cup place first - its scroll moves the places) */
+            if (e[4 * i] == 9 && (club[i] = cup_code(e + 4 * i)) < 0) ok = 0;
         for (int i = 0; i < n && i < GN; i++) {
             int ty = e[4 * i], d = e[4 * i + 1], p = e[4 * i + 2];
+            if (ty == 9) continue;
             club[i] = -1;                       /* (4.0.6, Ben: an entrant refused below kept stack garbage, which
                                                    rc19's seed loop then read through row(): San Marino's 'europe'
                                                    entrants past its 6 clubs) */
@@ -1054,6 +1137,11 @@ GP_KOSIZE void gp_season(void) {
             for (int i = 0; i < n && i < GN; i++) tmp[i] = club[pm[i]];
             for (int i = 0; i < n && i < GN; i++) club[i] = tmp[i];
         }
+        if (x_direct && ok && n >= 2 && (int)row(club[0])->pts - (int)row(club[1])->pts >= x_direct) {
+            W[0] = club[0]; L[0] = club[1];     /* (4.2: entrant 0 far enough ahead - no round played) */
+            nt = 1; last = 0; lastr = 0; nlast = 1;
+            for (; nr; nr--) r += 6 + 2 * r[0];
+        }
         for (int k = 0; k < nr; k++) {          /* walk the rounds (also to skip a play-off not played here) */
             int ties = r[0], legs = r[1], host = r[2] & 0x7F, skip = r[2] & HOST_SKIP_SAME, level = r[3];
             int pairing = r[4], gap = r[5];
@@ -1091,9 +1179,20 @@ GP_KOSIZE void gp_season(void) {
                 r = m + 2 * ties;
                 continue;
             }
-            if (ok && (pairing & 0x80)) {   /* a draw (pack 'pairing': 'draw'): the first p members shuffled, paired */
+            for (const u8 *x = x_b; x < x_e && ok; x += x[0] == E_LEVEL ? 1 : x[0] == E_BEST ? 4 : 2)
+                if (x[0] == E_BEST && x[1] == k && x[3] <= 2 * ties) {  /* (4.2: the best of i .. j-1 first) */
+                    int at = x[2];
+                    for (int i = x[2] + 1; i < x[3]; i++) if (better(mem[i], mem[at])) at = i;
+                    for (int c = mem[at]; at > x[2]; at--) mem[at] = mem[at - 1], mem[at - 1] = c;
+                }
+            int tmp[2 * GN];
+            if (ok && (x_seeded >> k & 1)) {    /* (4.2: seeds mem[0 .. ties) v the others drawn, the seed second) */
+                draw(mem + ties, ties);
+                for (int i = 0; i < ties; i++) { tmp[2 * i] = mem[ties + i]; tmp[2 * i + 1] = mem[i]; }
+                for (int i = 0; i < 2 * ties; i++) mem[i] = tmp[i];
+            } else if (ok && (pairing & 0x80)) {   /* a draw (pack 'pairing': 'draw'): the first p members shuffled, paired */
                 int pn = (pairing & 0x7F) <= 2 * ties ? pairing & 0x7F : 2 * ties;
-                for (int i = pn - 1; i > 0; i--) { int j = below(i + 1), x = mem[i]; mem[i] = mem[j]; mem[j] = x; }
+                draw(mem, pn);
             } else if (ok && pairing) {     /* best v worst: sorted, then 1st v last, 2nd v second last ... */
                 int pn = pairing <= 2 * ties ? pairing : 2 * ties;
                 for (int i = 1; i < pn; i++) {
@@ -1101,7 +1200,6 @@ GP_KOSIZE void gp_season(void) {
                     while (j > 0 && sbetter_cmp(x, mem[j - 1])) { mem[j] = mem[j - 1]; j--; }
                     mem[j] = x;
                 }
-                int tmp[2 * GN];
                 for (int i = 0; i < pn / 2; i++) { tmp[2 * i] = mem[pn - 1 - i]; tmp[2 * i + 1] = mem[i]; }
                 for (int i = 0; i < pn; i++) mem[i] = tmp[i];
             }
@@ -1173,6 +1271,7 @@ GP_KOSIZE void gp_season(void) {
         s = r;
     }
     wn_on = 0;
+    x_sfrom = 0; x_lvl = 0;                     /* (4.2: this season end's only - a contest reads the places as they are) */
     if (ss_used && !GP_PRE) SSB->fresh = 0;   /* (this league's stage tables used: next season's are new ones) */
 }
 
@@ -1254,7 +1353,7 @@ static const u8 *po_at(int pi) {        /* the country's play-off pi in GP_IN.sp
     for (; s && *s; pi--) {
         if (!pi) return s;
         int n = s[1], nr = s[2];
-        const u8 *r = s + 6 + 4 * n;
+        const u8 *r = ents_of(s) + 4 * n;
         for (int k = 0; k < nr; k++) r += 6 + 2 * r[0];
         s = r;
     }
@@ -2740,13 +2839,14 @@ __attribute__((minsize)) u32 gp_need_pre(void) {
     }
     for (int pass = 0; pass < 4; pass++)
         for (int pi = 0; ; pi++) {
-            const u8 *s = po_at(pi), *e = s ? s + 6 : 0;
+            const u8 *s = po_at(pi), *e = s ? ents_of(s) : 0;
             if (!s) break;
             if (s[0] == K_PROM || pi == GP_IN.pi[0] || pi == GP_IN.pi[1]) continue;   /* (the club's: built, played) */
             u32 need = 0;
             for (int i = 0; i < s[1]; i++) {
                 int ty = e[4 * i], d = e[4 * i + 1];
                 if ((ty == 0 || ty == 3 || ty == 6 || ty == 7) && d < GP_IN.nd) need |= 1u << d;
+                for (int g = 0; ty == 9 && g < e[4 * i + 2] && d + g < GP_IN.nd; g++) need |= 1u << (d + g);   /* (4.2: the cup's groups) */
             }
             int mine = need >> GP_IN.mdiv & 1, title = s[0] == K_TITLE || s[0] == K_STAGE || s[0] == K_CONT, nn = 0;
             need &= ~have;

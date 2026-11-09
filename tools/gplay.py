@@ -70,7 +70,11 @@ KINDS = {'promotion': 1, 'europe': 2, 'placement': 3, 'playout': 4, 'title': 5, 
          'stage_title': 8}
 RESERVE = 0xFE                  # loser_div 'reserve': out of every division (gplay.c)
 HOSTS = {'listed': 0, 'better': 1, 'drawn': 2, 'neutral': 3}
-LEVELS = {'better': 0, 'et_pens': 1, 'et_better': 2, 'pens': 3, 'away_pens': 4, 'away_better': 5}
+LEVELS = {'better': 0, 'et_pens': 1, 'et_better': 2, 'pens': 3, 'away_pens': 4, 'away_better': 5,
+          'better_pts': 6, 'second': 7}    # (4.2 s3shape: the better placed unless level on points, then e.t. + pens;
+                                           # the listed second - a seeded round's seed)
+PO_EXT = 0x40                   # 4.2 s3shape: kind | 0x40 = an extension block after the header (gplay.c ents_of)
+E_DIRECT, E_LEVEL, E_SEEDED, E_BEST = 1, 2, 3, 4
 SKIP_SAME = 0x80                # host byte bit 7: a tie of one club with itself is not played (4.0 package 6)
 BEST_LOSER = 0x3F               # member 'BL': the best placed loser of the previous round (entrants are 0..62)
 
@@ -133,6 +137,13 @@ def compile_spec(pos, ndiv, league_names=None):
                                                                # 4 (4.0.1 MEX Campeon de Campeones): the 2nd stage's
                                                                # champion always (with skip_if_same: none if the same)
                 ents.append((5, d, c, 0))
+            elif isinstance(e, dict) and 'cup_place' in e:   # 4.2 s3shape: the Coppa Italia Serie C's play-off place
+                c = e['cup_place']                           # (gplay.c cup_code: the first group's division, the
+                d, g, gap = c.get('div'), c.get('groups'), c.get('playout_gap', 0)   # groups, the play-out gap;
+                if not (isinstance(d, int) and isinstance(g, int) and 1 <= g <= 4 and 0 <= d and d + g <= ndiv
+                        and isinstance(gap, int) and 0 <= gap < 128):           # 'real': the C.U. 209/A rule)
+                    raise ValueError(f'{key}: cup_place {{div, groups 1..4, playout_gap 0..127, real}}')
+                ents.append((9, d, g, gap | (0x80 if c.get('real') else 0)))
             elif isinstance(e, dict) and e.get('league_cup_winner'):
                 a, b = e.get('if_places', [0, 0])
                 ents.append((2, 0, a, b))
@@ -140,7 +151,16 @@ def compile_spec(pos, ndiv, league_names=None):
                 raise ValueError(f'{key}: entrant {e}')
         if not 2 <= len(ents) <= 63:
             raise ValueError(f'{key}: 2..63 entrants')
-        rounds, nt, npl = bytearray(), 0, 0
+        rounds, nt, npl, ext = bytearray(), 0, 0, bytearray()
+        if po.get('direct_gap'):                # 4.2: entrant 0 wins, no round played, if g+ points ahead of entrant 1
+            g = po['direct_gap']
+            if not (isinstance(g, int) and 1 <= g < 256 and kind in (1, 4)):
+                raise ValueError(f'{key}: direct_gap 1..255 (promotion / playout)')
+            ext += bytes((E_DIRECT, g))
+        if po.get('rank') == 'level':           # 4.2: a level of groups ranked by place, points, wins, goals, the lot
+            ext += bytes((E_LEVEL,))
+        elif po.get('rank') is not None:
+            raise ValueError(f'{key}: rank "level"')
         def code(m):
             if m == 'BL':
                 if not nt:
@@ -187,6 +207,16 @@ def compile_spec(pos, ndiv, league_names=None):
                 raise ValueError(f'{key}: a best_worst block only as the first tie of a round')
             bm = list(blk['clubs']) if blk is not None else []
             mem = bm + [m for t in tl for m in t]
+            if 'seeds' in rd:                   # 4.2: seeds v the others drawn, the seed second (hosts the return)
+                if blk is not None or tl or len(rd['seeds']) != len(rd.get('drawn', [])) or not rd['seeds']:
+                    raise ValueError(f'{key}: seeds and drawn, as many, no ties / pairing')
+                mem = list(rd['seeds']) + list(rd['drawn'])
+                ext += bytes((E_SEEDED, nrd - 1))
+            if 'best_first' in rd:              # 4.2: the best of members i .. j-1 moved to i (by place, the rank)
+                bf = rd['best_first']
+                if not (isinstance(bf, list) and len(bf) == 2 and 0 <= bf[0] < bf[1] <= len(mem)):
+                    raise ValueError(f'{key}: best_first [i, j] of the round\'s members')
+                ext += bytes((E_BEST, nrd - 1, bf[0], bf[1]))
             ties, pairing = len(mem) // 2, len(bm) | (0x80 if blk is not None and blk.get('pairing') == 'draw' else 0)
             codes = [code(m) for m in mem]
             legs = rd.get('legs', 1)
@@ -233,7 +263,13 @@ def compile_spec(pos, ndiv, league_names=None):
                                                      # 4.0.5 'supercup': not played at the season end - the next season's
                                                      # national supercup, supercups2627.json: MEX's Campeon de Campeones;
                                                      # 4.0.5 NZ 'skip_second' 0x80: placings skip B teams - 'winners' bits 4-6)
-        out += bytes((kind, len(ents), nrd, wd, ld, flags))
+        if nrd > 16 and ext:
+            raise ValueError(f'{key}: an extended play-off has at most 16 rounds')
+        if len(ext) > 255:
+            raise ValueError(f'{key}: extension over 255 bytes')
+        out += bytes((kind | (PO_EXT if ext else 0), len(ents), nrd, wd, ld, flags))
+        if ext:
+            out += bytes((len(ext),)) + ext
         out += b''.join(bytes(e) for e in ents) + rounds
     stages = set()                              # 4.0 ARG: the Trofeo's entrants (type 5) read GP_OUT.sres of the stage
     for po in pos:                              # titles 0 and 1 (of their division), filled earlier in the same pass

@@ -267,7 +267,8 @@ def patch_exe(src, dst, remap, lang='it'):
         engine.save_item('RI', ripool.RI_SIZE, world_only=True)
     lr_tabs = mkseason.lrank_tables() if mkseason.worlds() else []   # 4.2 S1.3: tie-breaker lists (lrank.py)
     import gplay as gp_mod
-    gp_mod.GP_PAGES = gp_mod.GP_PAGES0 + bool(lr_tabs)   # (the play-off matches' specs: gplay's pages were full)
+    gp_mod.GP_PAGES = gp_mod.GP_PAGES0 + 1       # (4.2 S1.3: the play-off matches' specs and uefa_fin: gplay's pages
+                                                # were full; the gplay -> obj4 move at the 4.2 rebase frees it)
     dp_tabs = mkseason.dplay_tables() if mkseason.worlds() else []   # Italian play-offs (dplay.py)
     lpb += 2 * bool(dp_tabs)                           # (+2: their code pages, before the extra one)
     gp_tabs = (mkseason.gplay_tables() if mkseason.worlds() else []) + engine.gplay_tables()   # knockout play-offs

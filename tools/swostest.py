@@ -16723,8 +16723,11 @@ def lrank_po(force, team, legs, uefaf=False):
         logs = [b for b in hexes.get(f'{log_at:x}', []) if b[:4] == b'GPLG']
         me = [struct.unpack('<H', b)[0] for b in hexes.get(f'{ct:x}', [])]
         me = me[-1] if me else None
-        played = [r for r in (gp_ko(b[GP_STKO:]) for b in sts) if r['cid'] == 0xFE]
-        check(not played, f'a play-off match was built: {[(hex(r["cid"]), r["code"]) for r in played]}', errs)
+        lk = gp_ko(logs[-1][8:]) if logs else None              # (the season-end log: the play-off's clubs)
+        po = sorted(lk['team'][:2]) if lk else []
+        played = [r for r in (gp_ko(b[GP_STKO:]) for b in sts) if r['cid'] == 0xFE and sorted(r['team'][:2]) == po]
+        check(lk and me in po and not played, f'play-off clubs {[hex(t) for t in po]}: a match was built '
+              f'{[(hex(r["cid"]), r["code"]) for r in played]}', errs)   # (slot 4's FE contests: the Supercoppa too)
         res = [struct.unpack_from('<BBHHHH', logs[-1], 942 + 10 * i) for i in range(min(logs[-1][683], 4))] if logs else []
         champ = [r for r in res if r[0] == 5 and r[1] == 0]
         check(champ and me is not None and champ[0][2] == me, f'champion {champ} career club {me and hex(me)}', errs)

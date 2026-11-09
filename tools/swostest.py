@@ -15008,7 +15008,7 @@ def world_playoffs():
 
 
 @scenario
-def world_dplay_b(force='5', team='EUROPA,ITALIA,SERIE B,MODENA'):
+def world_dplay_b(force='5', team='EUROPA,ITALIA,SERIE B,MODENA', cupw=''):
     """The career club's Serie B play-off, played (dplay step 2): the world 2026-27 (private data internal/world2526/
     world5tm, 'playoffs': 'ita'; W2627D_DATA: another snapshot) built with DPLAY_FORCE=5 (at the league end the
     career club takes 5th place); a season at MODENA: the PLAY-OFF SERIE B contest is built in slot 4 after the last
@@ -15019,7 +15019,10 @@ def world_dplay_b(force='5', team='EUROPA,ITALIA,SERIE B,MODENA'):
         return True, 'SKIP: private data internal/world2526/world5tm missing'
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
     env = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'DPLAY_FORCE': force}
-    exe = build('world_dplay_' + force + ('_' + os.path.basename(src) if os.environ.get('W2627D_DATA') else ''),
+    if cupw:                                                 # (4.1: the Coppa Italia Serie C winner forced, DPLAY_CUPW)
+        env['DPLAY_CUPW'] = cupw
+    exe = build('world_dplay_' + force + ('_w' + cupw if cupw else '')
+                + ('_' + os.path.basename(src) if os.environ.get('W2627D_DATA') else ''),
                 env=env)                                     # (another snapshot: its own build dir)
     keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
                                             'W8485_NOSACK', 'W8485_HEX')}
@@ -15060,6 +15063,8 @@ def world_dplay_b(force='5', team='EUROPA,ITALIA,SERIE B,MODENA'):
         check(list(places[:18]) == [4, 9, 5, 8, 6, 7] * 3 and list(places[18:24]) == [3] * 3 + [2] * 3 and places[24] == 10
               and list(places[25:]) == [1] * 3 and list(groups[:18]) == [g for g in (1, 2, 3) for _ in range(6)],
               f'places {list(places)} groups {list(groups)}', errs)   # the best 11th, 2nds
+        if cupw:                                             # (the cup winner relegated / in a play-out: the 11th of
+            check(groups[24] == 1, f'cup place from group {groups[24]}, not the career club\'s (1)', errs)   # its group)
     else:
         check(list(places[:n]) == ([16, 15] if out else [4, 7, 5, 6, 2, 3]), f'places {list(places[:n])}', errs)
     check(res in teams[:n], f'winner {res:#x} not among {[hex(t) for t in teams[:n]]}', errs)
@@ -16379,6 +16384,15 @@ def world_dplay_c():
     return world_dplay_b('105', 'EUROPA,ITALIA,SERIE C GIRONE A,RENATE')
 
 
+
+@scenario
+def world_dplay_cupw_low():
+    """4.1 (FIGC C.U. 209/A, NOIF art. 49 II.1 d-e; MC's B-team gap (e), 42-italysim-full): the Coppa Italia Serie C
+    winner 20th of its group has no play-off place - the 11th of its group takes it. As world_dplay_c with
+    DPLAY_FORCE=111 (RENATE 11th of Serie C group A) and DPLAY_CUPW=20 (group A's 20th the cup winner): RENATE plays
+    the PLAY-OFF SERIE C in the cup winner's place (index 24: place 11, group A). Before 4.1 the 20th kept the place
+    (RENATE played nothing: no log), and a 20th or a play-out club winning the play-off went up and down at once"""
+    return world_dplay_b('111', 'EUROPA,ITALIA,SERIE C GIRONE A,RENATE', cupw='20')
 
 @scenario
 def world_leaguecup():
@@ -22516,13 +22530,13 @@ def world_title_mlt_out():
     return world_title('mlt', '1', kof='2', chf='1', fill=os.environ.get('MLTOUT_NATURAL') != '1')
 
 
-def gplay_host(test):
-    """A C test that #includes tools/gplay.c (%s: its path) compiled and run on the host (cc): (ok, stdout or the
-    compiler's error); the exe's externs it never uses get stubs in a unit of their own."""
+def gplay_host(test, src='gplay.c'):
+    """A C test that #includes tools/gplay.c (or src; %s: its path) compiled and run on the host (cc): (ok, stdout or
+    the compiler's error); the exe's externs it never uses get stubs in a unit of their own."""
     import subprocess
     import tempfile
     with tempfile.TemporaryDirectory() as d:
-        open(os.path.join(d, 't.c'), 'w').write(test % os.path.join(ROOT, 'tools', 'gplay.c'))
+        open(os.path.join(d, 't.c'), 'w').write(test % os.path.join(ROOT, 'tools', src))
         stub = ''
         for _ in range(2):
             open(os.path.join(d, 's.c'), 'w').write(stub)
@@ -22852,6 +22866,39 @@ int main(void) {
     want = 'AAAA BAAB CAAC BCAB CADB'    # (aggregates: B 63 / A 60; C 61 / A 60; C 56 / A 31; C 61 A 55 D 54 B 48)
     ok, got = gplay_host(test)
     return ok and got == want, f'seeds {got} (expected {want})'
+
+
+@scenario
+def dplay_cup_place():
+    """4.1 dplay.c cup_place (FIGC C.U. 209/A, 27/04/2026, NOIF art. 49 II.1 d-e) compiled on the host (cc): the Coppa
+    Italia Serie C winner's play-off place by its place in a group of 20 - 11th..15th itself; 2nd..10th, relegated
+    (20th) or in a play-out (18th, 19th; 16th / 17th when its tie is played: under 8 points apart) the 11th of its
+    group; 16th / 17th safe (their tie not played: 8+ points) itself; unknown: the best 11th. Before 4.1 a 20th or a
+    play-out club kept the place and could go up and down at once"""
+    test = r"""
+#include "%s"
+#include <stdio.h>
+static void run(int k, int gap1619, int gap1718) {
+    DP_IN.ng = 3;
+    for (int g = 1; g <= 3; g++) {
+        DP_IN.n[g] = 20;
+        for (int i = 0; i < 20; i++) { DP_IN.t[g][i].team = g * 100 + i; DP_IN.t[g][i].pts = 60 - 2 * i; }
+    }
+    DP_IN.t[2][15].pts = DP_IN.t[2][18].pts + gap1619;
+    DP_IN.t[2][16].pts = DP_IN.t[2][17].pts + gap1718;
+    DP_IN.cupw = k < 0 ? 0 : 200 + k;
+    int c = cup_place(3);
+    printf("%%d.%%d ", c / NT, c %% NT + 1);
+}
+int main(void) {
+    run(10, 6, 2); run(14, 6, 2); run(1, 6, 2); run(9, 6, 2); run(19, 6, 2); run(18, 6, 2); run(17, 6, 2);
+    run(15, 7, 2); run(15, 8, 2); run(16, 6, 7); run(16, 6, 8);
+    return 0;
+}
+"""
+    want = '2.11 2.15 2.11 2.11 2.11 2.11 2.11 2.11 2.16 2.11 2.17'
+    ok, got = gplay_host(test, 'dplay.c')
+    return ok and got == want, f'places {got} (expected {want})'
 
 
 @scenario

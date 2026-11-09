@@ -7869,26 +7869,39 @@ def hil_small_chars():
     return hil_small_chars.v
 
 
-def hil_unlike(r, now, want, ega, top, bot):
+def hil_unlike(now, want, ega):
     """[(team, place)] whose name sprite is not the wanted one. want[team][place]: the kick-off sprite expected there.
-    The 16-colour (EGA) mode: places 1..16 are the game's own sprites (255..286), which ShowHighlights builds again
-    itself and whose bytes then differ from the kick-off ones (RC1 MEM16, 09/11: every name still right): they are
-    read as text instead - the sprite's glyph runs = 'NN SURNAME' of the in-match team's PlayerInfo at that place
-    (number, shortName as n14_label), rendered from the font's own glyphs (modver_render ega); places 17..26 (benchx's
-    sprites) byte for byte as in the VGA mode."""
-    bad = [(tm, p_) for tm in (0, 1) for p_ in range(16 if ega else 0, 26) if now[tm][p_] != want[tm][p_]]
-    if ega:
-        small, gptr = hil_small_chars(), modver_glyphs()[1]
-        for tm, base in enumerate((top, bot)):
-            d = r.read(r.base2 + base, 42 + 61 * 16)
-            for p_ in range(16):
-                sh = d[42 + 61 * p_ + 12:42 + 61 * p_ + 27].split(b'\0')[0].decode('latin-1')
-                txt = f'{d[42 + 61 * p_ + 3]} {n14_label(sh)}'.replace('_', ' ')
-                lit = {(x, y) for y, xs in enumerate(now[tm][p_][3]) for x in xs}
-                exp = set().union(*modver_render(r, small, gptr, txt, ega=True).values())
-                if not lit or n14_runs(lit) != n14_runs(exp):
-                    bad.append((tm, p_))
-    return sorted(bad)
+    The 16-colour (EGA) mode: places 17..26 only (benchx's sprites); places 1..16 are hil_text's."""
+    return [(tm, p_) for tm in (0, 1) for p_ in range(16 if ega else 0, 26) if now[tm][p_] != want[tm][p_]]
+
+
+def hil_text_dump(s, tb, tag):
+    """(16 colours) a hil_text failure: the whole memory then, MEMDUMP_<tag>.BIN (renamed at once), to decode by hand."""
+    if tb:
+        s.box.dump(0, MEMSIZE)
+        os.replace(os.path.join(s.run, 'MEMDUMP.BIN'), os.path.join(s.run, f'MEMDUMP_{tag}.BIN'))
+
+
+def hil_text(r, spr, top, bot):
+    """(16 colours) [(team, place)] of places 1..16 whose name sprite is not its player's text. They are the game's own
+    sprites (255..286): ShowHighlights builds them again itself, and on the line-ups screen that opens the playback their
+    bytes are not yet the match's 16-colour ones (RC1 MEM16, 09/11; bde01e9 checked there and failed): so read once the
+    replay is on the pitch (hil_art's last dump), as text - the sprite's glyph runs = 'NN SURNAME' of the in-match
+    team's PlayerInfo at that place (number, shortName as n14_label), rendered from the font's own glyphs
+    (modver_render ega)."""
+    now = bench_names(r, spr, True)
+    bad = []
+    small, gptr = hil_small_chars(), modver_glyphs()[1]
+    for tm, base in enumerate((top, bot)):
+        d = r.read(r.base2 + base, 42 + 61 * 16)
+        for p_ in range(16):
+            sh = d[42 + 61 * p_ + 12:42 + 61 * p_ + 27].split(b'\0')[0].decode('latin-1')
+            txt = f'{d[42 + 61 * p_ + 3]} {n14_label(sh)}'.replace('_', ' ')
+            lit = {(x, y) for y, xs in enumerate(now[tm][p_][3]) for x in xs}
+            exp = set().union(*modver_render(r, small, gptr, txt, ega=True).values())
+            if not lit or n14_runs(lit) != n14_runs(exp):
+                bad.append((tm, p_))
+    return bad
 
 
 def bench_hil_match(s, spr, ega, errs, info, mark):
@@ -7955,14 +7968,20 @@ def bench_hil_view(s, snap, spr, ega, top, bot, bx, errs, info, mark):
         return
     g, h = struct.unpack('<H', r.obj2(v['GMAX'], 2))[0], struct.unpack('<H', r.obj2(v['HMAX'], 2))[0]
     now = bench_names(r, spr, ega)
-    bad = hil_unlike(r, now, snap, ega, top, bot)
+    bad = hil_unlike(now, snap, ega)
     swp = [(tm, p_) for tm in (0, 1) for p_ in range(26) if final[tm][p_] != p_ and now[tm][p_] == snap[tm][final[tm][p_]]]
     moved = [[(p_, final[tm][p_]) for p_ in range(26) if final[tm][p_] != p_] for tm in (0, 1)]
     info.append(f'highlights played: gameMaxSubstitutes {g} (hil {h}), places moved by changes {moved}, '
                 f'sprites unlike the kick-off ones {bad}, as the changes\' order {swp}')
     mark(info[-1])
     check(g == h == 15, f'highlights: gameMaxSubstitutes {g}, hilMaxSubstitutes {h}', errs)
-    hil_art(s, r, errs, info, 'highlights')
+    r = hil_art(s, r, errs, info, 'highlights')
+    if ega and r.outcome == 'dump':         # (16 colours: places 1..16 as text, on the pitch)
+        tb = hil_text(r, spr, top, bot)
+        hil_text_dump(s, tb, 'hilview')
+        info.append(f'highlights on the pitch (16 colours): places 1..16 unlike their player\'s text {tb}')
+        mark(info[-1])
+        bad += tb
     check(not bad and any(moved), f'highlights: name sprites {bad} (moved {moved})', errs)
     for k in range(12):                     # (to its end, back to the menu: no trap)
         r = s.send('fire:1 dump:2')
@@ -7991,7 +8010,7 @@ def hil_art(s, r, errs, info, tag):
     check(pn & 0x8000 and hp & 0x8000 and lg and lg[1] & 0x8000, f'{tag}: the long art bit lost: pitchNumberAndType '
           f'{pn:#06x}, hilPitchNumber {hp:#06x}, log {lg}', errs)
     if ega_on(r) or r.outcome != 'dump':
-        return
+        return r
     samp = [(x, y) for y in range(20, 200, 3) for x in range(0, 320, 5)]
     for _ in range(6):                      # (a fade-in / the scene's first frames: a few dumps until the pitch fits)
         cx, cy = (struct.unpack('<H', r.read(r.base2 + v['CAMY'] + k, 2))[0] for k in (-4, 0))
@@ -8002,6 +8021,7 @@ def hil_art(s, r, errs, info, tag):
     s.shot(tag.replace(' ', '_').replace('.', '_') + '_pitch')
     check(not k[-1].isdigit() and bad * 10 < len(samp), f'{tag}: best map {k} ({bad} of {len(samp)} differ)', errs)
     info.append(f'{tag}: long art kept (pitchNumberAndType {pn:#06x}, log {lg}), frame {k} ({bad} of {len(samp)} differ)')
+    return r
 
 
 def bench_hil_file(s, snap, final, spr, ega, errs, info, mark, name='HILB15', top=None, bot=None):
@@ -8061,13 +8081,18 @@ def bench_hil_file(s, snap, final, spr, ega, errs, info, mark, name='HILB15', to
     check(r.outcome == 'dump', f'loaded highlights playback: {r}', errs)
     if r.outcome == 'dump':
         g = struct.unpack('<H', r.obj2(v['GMAX'], 2))[0]
-        bad = hil_unlike(r, bench_names(r, spr, ega), [[snap[tm][final[tm][p_]] for p_ in range(26)] for tm in (0, 1)],
-                         ega, top, bot)
+        bad = hil_unlike(bench_names(r, spr, ega), [[snap[tm][final[tm][p_]] for p_ in range(26)] for tm in (0, 1)], ega)
         info.append(f'{name}.HIL loaded (bench poked 5 first): hilMaxSubstitutes {h2}, playback gameMaxSubstitutes {g}, '
                     f'sprites unlike their place\'s player {bad}')
         mark(info[-1])
-        check(g == 15 and not bad, info[-1], errs)
-        hil_art(s, r, errs, info, f'{name}.HIL loaded')
+        r = hil_art(s, r, errs, info, f'{name}.HIL loaded')
+        if ega and r is not None and r.outcome == 'dump':   # (16 colours: places 1..16 as text, on the pitch)
+            tb = hil_text(r, spr, top, bot)
+            hil_text_dump(s, tb, 'hilload')
+            info.append(f'{name}.HIL loaded, on the pitch (16 colours): places 1..16 unlike their player\'s text {tb}')
+            mark(info[-1])
+            bad += tb
+        check(g == 15 and not bad, f'{name}.HIL loaded: gameMaxSubstitutes {g}, sprites unlike {bad}', errs)
 
 
 def bench_oppl(s, bx, top, bot, errs, info, mark):

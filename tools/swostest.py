@@ -14417,18 +14417,22 @@ def kit_navy_shots():
     return not errs, '; '.join(errs + info) if errs else f'shots of {len(info)} matches: {"; ".join(info)}'
 
 
-SKIN_AB = {'DAVID NERES': 2, 'NOA LANG': 0, 'ELIEZER MAYENDA': 2, 'LUDOVIC BLAS': 0, 'MAHDI CAMARA': 2}   # (skin_ab:
-# Davide's A/B pass, 403c18: light -> dark, dark -> light (NAPOLI, RENNES); MAHDI CAMARA unticked: dark as shipped)
+SKIN_AB = {'DAVID NERES': 2, 'NOA LANG': 0, 'ELIEZER MAYENDA': 2, 'LUDOVIC BLAS': 0, 'MAHDI CAMARA': 2,   # (skin_ab:
+           'DESIRE DOUE': 2, 'HIDEMASA MORITA': 0}
+# Davide's A/B pass, 403c18: light -> dark, dark -> light (NAPOLI, RENNES); MAHDI CAMARA unticked: dark as shipped;
+# 403c19 ("ok consigli"): DOUE / MORITA back to the shipped skin (403c18 had them light / dark))
 SKIN_FIX = {'YEBOAH': 'ADAMS'}          # (skin_venezia: a hand-fixed player -> a dark team-mate of the same squad)
 
 
 @scenario
 def skin_ab():
     """4.1 RC3 (Regia 09/11: Davide's skin pass on tiers A + B, data 403c18): 244 portraits' skins applied, 53 he unticked
-    kept. Read back: SKIN_AB's faces in the build's DATA files (every copy: TMW5 / XTW5) - DAVID NERES / ELIEZER MAYENDA
-    light -> dark (face 2), NOA LANG / LUDOVIC BLAS dark -> light (0), MAHDI CAMARA (unticked) dark as shipped; and in
+    kept; 403c19: 45 of them back to the shipped skin (Davide: "ok consigli" on the doubtful list). Read back: SKIN_AB's
+    faces in the build's DATA files (every copy: TMW5 / XTW5) - DAVID NERES / ELIEZER MAYENDA light -> dark (face 2),
+    NOA LANG / LUDOVIC BLAS dark -> light (0), MAHDI CAMARA (unticked) dark as shipped, DESIRE DOUE dark / HIDEMASA MORITA
+    light (403c19's reverts); and in
     the game: a World 2026-27 friendly NAPOLI (human) - INTER, NAPOLI's records on the team screen: NERES face 2, LANG
-    face 0. Shot skin_ab_prematch. SWOSTEST_BUILD = a release build of 403c18 data or later."""
+    face 0. Shot skin_ab_prematch. SWOSTEST_BUILD = a release build of 403c19 data or later."""
     b = builds()['it']
     errs, info = [], []
     for nm, want in SKIN_AB.items():

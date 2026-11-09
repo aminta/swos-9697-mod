@@ -21552,6 +21552,17 @@ def up_read(r, at):
     return dict(zip(('ok', 'id', 'ss', 'fl', 'w', 'd', 'st'), b[:7]), sum=struct.unpack_from('<I', b, 8)[0])
 
 
+def upv_read(r):
+    """uprize2.c's UPV (obj4's 5th page, after 'UUPV'): the value pillar's last European rank, coefficient rank (0-based),
+    amount (before rounding); None when not an RC3 part-2 exe."""
+    m = bytes(r.read(r.base4 + 0x4000, 0x1000))
+    k = m.find(b'UUPV')
+    if k < 0:
+        return None
+    b = m[k + 4:k + 12]
+    return dict(e=b[0], b=b[1], a=struct.unpack_from('<I', b, 4)[0])
+
+
 def up_find(r):
     """UP's linear address: the 'UPRZ' tag in obj4's 4th page (usmenu's)."""
     m = bytes(r.read(r.base4 + 0x3000, 0x1000))
@@ -21563,7 +21574,8 @@ def up_find(r):
 def world_uprize():
     """4.1 RC3 (Miguel via Davide 09/11): UEFA prize money for the career club (uprize.c). The pinned CL save (UPR_CAR,
     else internal/uesum/cv_s2_cl_<UI>.CAR or _it: ARSENAL in the CL's league phase, a save without the item 'UP'):
-    after the load UP is an older save's (ok 0); UP poked to this season's CL with nothing paid (as a new career's at
+    UPR_OFF=1: the switch fired OFF on that statement, then nothing more paid to the semi-finals. After the load UP is
+    an older save's (ok 0); UP poked to this season's CL with nothing paid (as a new career's at
     its cup's start - the first event pays all the club has reached), then played on until the CL's semi-finals are
     decided (US_REC). Then: participation once; 3 x W + D = the club's league-phase points in US_REC's final table;
     the first career menu after a prize: ANDAMENTO CLUB's in-season statement shows label 3 = uprize.ROW[lang], value 13 =
@@ -21637,7 +21649,19 @@ def world_uprize():
         ci = scr.find('CONTINUA', exact=True)
         check(ci is None or 21 not in g or g[21][1] + g[21][3] <= scr.geom[ci][1], 'statement: new balance over CONTINUA', errs)
         info.append(f'statement: {uprize.ROW[UI]} {raw.get(13, "").strip()} (prizes {cb:,}), old + total = new')
-        press(s, scr, 'CONTINUA', 2)
+        son, soff = uprize.SWITCH[UI]                        # (part 2: the switch, entry 24, left of CONTINUA)
+        if check(24 in e and e[24][0] == son, f'statement: switch entry 24 {e.get(24)}, not {son!r}', errs):
+            gs, gc = g.get(24), (scr.geom[ci] if ci is not None else None)
+            check(gs and gc and gs[1] == gc[1] and gs[0] + gs[2] <= gc[0], f'switch {gs} not left of CONTINUA {gc}', errs)
+        off_case = os.environ.get('UPR_OFF') == '1'
+        if off_case:                                         # (the UI: fire on it -> OFF, UP's off byte 1)
+            press(s, scr, son, 2)
+            t2 = {i: t for i, t, inv, _ in s.screen().entries}.get(24)
+            check(t2 == soff and bytes(s.result.read(at + 7, 1))[0] == 1, f'switch after fire: {t2!r}, UP off '
+                  f'{bytes(s.result.read(at + 7, 1))[0]}', errs)
+            sum_off = up_read(s.result, at)['sum']
+            info.append(f'switch OFF at {sum_off:,} paid')
+        press(s, s.screen(), 'CONTINUA', 2)
 
         def done(scr):
             if scr.find('VISUAL. COMPETIZ.', exact=True) is None:
@@ -21650,6 +21674,12 @@ def world_uprize():
         r = s.result
         u = up_read(r, at)
         cid, n, ties, _, lw, lp = us_rec_read(r, rat)
+        if off_case:                                         # (OFF: nothing more paid, the switch kept)
+            check(u['sum'] == sum_off, f'OFF: paid {u["sum"]:,} after the switch, not {sum_off:,}', errs)
+            check(bytes(r.read(at + 7, 1))[0] == 1, 'OFF: UP off not kept', errs)
+            info.append(f'OFF to the semi-finals: nothing paid ({msg})')
+            return not errs, '; '.join(errs) or '; '.join(info)
+        v = upv_read(r)
         s.log.append(f'[upr] {msg}: club {club:#x} UP {u} US_REC {cid} {n}')
         check(u['ok'] == 1 and u['id'] == 0 and u['ss'] == ss and u['fl'] & 1, f'UP {u}: not this season\'s CL, '
               'participation paid', errs)
@@ -21665,6 +21695,11 @@ def world_uprize():
         stages = [k for k in range(4) if any(club in t[:2] for t in ties[sum(n[:k]):sum(n[:k + 1])])]
         check(u['st'] == st, f'UP st {u["st"]}, not {st} (the last stage US_REC has the club in)', errs)
         want = tab[0] + u['w'] * tab[1] + u['d'] * tab[2] + sum(tab[3 + k] for k in stages)
+        if check(v is not None and v['e'] < 36 and v['b'] < 36, f'value pillar: UPV {v}', errs):   # (part 2, with the
+            vs = [x * uprize.K[0] // uprize.K[1] for x in uprize.VALUE[0]]                    #  participation)
+            check(v['a'] == vs[0] * (36 - v['e']) + vs[1] * (36 - v['b']), f'value pillar: {v} != the shares {vs}', errs)
+            want += (v['a'] + 500) // 1000 * 1000
+            info.append(f'value pillar: European rank {v["e"] + 1}, coefficient rank {v["b"] + 1}, {v["a"]:,}')
         if club in lw:                                       # (the ranking pillar at the league phase's end)
             pl = lw.index(club)
             want += (tab[9] * (36 - pl) + 500) // 1000 * 1000 + (tab[10] if pl < 8 else tab[11] if pl < 16 else 0)

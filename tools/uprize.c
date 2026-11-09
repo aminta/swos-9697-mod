@@ -40,28 +40,32 @@ enum { F_PART = 1, F_WON = 2, F_RANK = 4 };
 
 #define w16(p) (*(const u16 *)(p))
 
-struct up { u8 ok, id, ss, fl, w, d, st, pad; };        /* the save item 'UP' (8 B) */
+struct up { u8 ok, id, ss, fl, w, d, st, off; };        /* the save item 'UP' (8 B); off: ANDAMENTO CLUB's switch
+                                                           (uprize2.c: 0 = ON - an older save, a new career) */
 struct { u32 tag; struct up u; u32 sum; } UP = { 0x5A525055 };  /* 'UPRZ' (the harness finds it); sum: this run's
                                                                     payments (not saved, the harness's) */
 _Static_assert(sizeof UP.u == 8, "UP: uprize.UP_SIZE");
 
-static u32 lpw(void) {
+u32 up_world(void) {                    /* a league-phase world's career (the switch's button shows) */
     u8 z;
     if (GAMETYPE != 4) return 0;
     __asm__ volatile("call W_LPW; sete %0" : "=q"(z) : : "memory", "cc");
     return z;
 }
+static u32 lpw(void) { return !UP.u.off && up_world(); }   /* (OFF: no prizes, the season start's own euro-cup term) */
 static u32 stamp(void) { return SEASONP + 1u; }
 static u32 cid;                         /* the cup (contest 0..2) of this event */
 
-static __attribute__((noinline)) void pay(u32 k, u32 n) {
-    u32 a = (UP_TAB[cid][k] * n + 500) / 1000 * 1000;  /* (the ranking's shares x K: rounded as the rest) */
+void up_credit(u32 a) {                 /* (rounded to thousands: the ranking's / value pillar's shares x K) */
+    a = (a + 500) / 1000 * 1000;
     if (!a) return;
     UP.sum += a;
     CBON += (int)a;
     FF_INC += a;
     NEWBAL = NEWBAL > MAXBAL - (int)a ? MAXBAL : NEWBAL + (int)a;
 }
+static __attribute__((noinline)) void pay(u32 k, u32 n) { up_credit(UP_TAB[cid][k] * n); }
+void (*UP_VFN)(u32 me) = 0;             /* uprize2.c up_value (the value pillar, with the participation), set by uprize.py */
 
 /* UP for this cup and season; another one (or none yet) starts at zero - an older save's (ok 0) at what its club has
    reached now (part, w, d, st, won: counted as paid) */
@@ -91,7 +95,7 @@ void up_res(void) {                     /* a league-phase result, before the gam
                                                    (cseg_8922B, cseg_88A12 before the goals) */
     u32 w = w16(r + 6), d = w16(r + 8);
     struct up *u = cur(w16(r + 4) > 1, w - (gf > ga), d - (gf == ga), 0, 0, 0);   /* (an older save: before it) */
-    if (!(u->fl & F_PART)) { u->fl |= F_PART; pay(P_PART, 1); }
+    if (!(u->fl & F_PART)) { u->fl |= F_PART; pay(P_PART, 1); if (UP_VFN) UP_VFN(me); }
     if (w > u->w) { pay(P_WIN, w - u->w); u->w = (u8)w; }
     if (d > u->d) { pay(P_DRAW, d - u->d); u->d = (u8)d; }
 }

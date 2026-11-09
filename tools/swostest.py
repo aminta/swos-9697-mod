@@ -21798,6 +21798,9 @@ def world_uprize_ui():
         if not check(ok, f'no in-season career menu: {msg}', errs):   # statement; the season start's is the game's own)
             return False, '; '.join(errs)
         s.poke(s.result.base2 + cbo, struct.pack('<i', 1_234_000))
+        nbo = fs['NEWBAL'][1]                            # (paid as up_credit pays it: the cash too - new = old + total)
+        nb0 = struct.unpack('<i', bytes(s.result.obj2(nbo, 4)))[0]
+        s.poke(s.result.base2 + nbo, struct.pack('<i', nb0 + 1_234_000))
         press(s, s.screen(), 'ANDAMENTO CLUB', 3)
         scr = s.screen()
         s.shot(f'uprize_ui_{UI}')
@@ -21810,6 +21813,9 @@ def world_uprize_ui():
               f'value 13 {raw.get(13)!r}: not the poked 1,234,000', errs)    # (lire x 2 in the Italian exe)
         ys = sorted(g[i][1] for i in range(2, 12) if i in g)
         check(all(b - a >= 8 for a, b in zip(ys, ys[1:])), f'label rows overlap {ys}', errs)
+        money = lambda t: (-1 if t.lstrip().startswith('-') else 1) * int(re.sub(r'\D', '', t) or 0)
+        v = {i: money(raw[i]) for i in (12, 20, 21) if i in raw}
+        check(v.get(12, 0) + v.get(20, 0) == v.get(21), f'old {v.get(12)} + total {v.get(20)} != new {v.get(21)}', errs)
         gc = g.get(1)                                        # (CONTINUA: entry 1 - up_biz's 24 is a copy of it)
         if check(24 in e and e[24][0] == son, f'switch entry 24 {e.get(24)}, not {son!r}', errs):
             gs = g.get(24)

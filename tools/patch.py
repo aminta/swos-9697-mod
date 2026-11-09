@@ -710,10 +710,14 @@ def patch_exe(src, dst, remap, lang='it'):
         assert sp_end <= sp_at + 0x1000 * sp_pg, (hex(sp_at), hex(sp_end), sp_pg)
         if LG_ROOM:                              # 4.0.5: the real league calendars of a world's first season
             import lgreal
-            lgreal.patch(p, LG_ROOM[0], LG_ROOM[1], num_bss + shirtnum.BSS_SIZE + blond.BSS_SIZE + menunum.BSS_SIZE,
-                         fmtpage.BSS_SIZE, num_bss + shirtnum.BSS_SIZE + blond.BSS_SIZE + menunum.BSS_SIZE +
-                         fmtpage.BSS_SIZE + teamstab.BSS_SIZE + blond.BSS2_SIZE,
-                         alt=[(sp_end + 15) & ~15, sp_at + 0x1000 * sp_pg])   # (rc19: gplay's preview filled LG_ROOM)
+            lg_end = lgreal.patch(p, LG_ROOM[0], LG_ROOM[1], num_bss + shirtnum.BSS_SIZE + blond.BSS_SIZE + menunum.BSS_SIZE,
+                                  fmtpage.BSS_SIZE, num_bss + shirtnum.BSS_SIZE + blond.BSS_SIZE + menunum.BSS_SIZE +
+                                  fmtpage.BSS_SIZE + teamstab.BSS_SIZE + blond.BSS2_SIZE,
+                                  alt=[(sp_end + 15) & ~15, sp_at + 0x1000 * sp_pg])   # (rc19: gplay's preview filled LG_ROOM)
+            import euro                          # 4.1 RC3 (Enzo, Davide): money in euros in the euro worlds (World
+            eu_at = lg_end if LG_ROOM[0] <= lg_end <= LG_ROOM[1] else LG_ROOM[0]   # 2026-27), after lgreal in its room
+            if 'WCUR' in careerworld.LABELS:
+                euro.patch(p, eu_at, LG_ROOM[1], (1, careerworld.LABELS['WCUR']))
     if sc_pg:                                    # state championships in career / Season slot 1 (statecup.py)
         sc_at = hist2 + h2 + 0x1000 * (lpb + sp_pg)
         sc_end = statecup.test_contest(p, sc_at) if statecup.TEST else sc_at   # (STATECUP_TEST=1 builds)

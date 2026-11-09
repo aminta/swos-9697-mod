@@ -4015,10 +4015,10 @@ def world8485():
                                  else None), []
             sack = sack_site(os.path.join(exe, 'ITALIAN.EXE')) if renew is not None else None
 
-            def hexlog():                              # W8485_HEX: obj2 offset:bytes (o1/ prefix: obj1, o3/: obj3),
+            def hexlog():                              # W8485_HEX: obj2 offset:bytes (o1/ prefix: obj1, o3/: obj3, o4/),
                 for a in filter(None, os.environ.get('W8485_HEX', '').split(',')):   # logged when they change
                     o, n = a.split(':')
-                    if o[:3] in ('o1/', 'o3/'):
+                    if o[:3] in ('o1/', 'o3/', 'o4/'):
                         v = s.result.read(s.result.lin((int(o[1]), int(o[3:], 16))), int(n)).hex()
                     else:
                         v = s.result.obj2(int(o, 16), int(n)).hex()
@@ -16666,6 +16666,164 @@ def world_gplay_play(force='2', team='EUROPA,SCOZIA,SCOTTISH LEAGUE TWO,CLYDE', 
     gw = sorted({r['gcur'] for r in run})
     return not errs, '; '.join(errs) or (f"{msg}; contest clubs {[hex(t) for t in ko['team']]} codes {ko['code']}, "
                                          f"game rounds seen {gw}, winner {win:#x} (code {wcode}), moves {mv}")
+
+
+def lrank_po(force, team, legs):
+    """4.2 S1.3 (MC): a Serie A play-off match played (Davide 09/11, Q8 = a; FIGC C.U. 244/A): the world 2026-27 with
+    the S1 tie-breaker lists and play-off matches (internal/world2526/world5tm-s1rank, W2627S1_DATA) built with
+    GPLAY_FORCE=k (the career club takes place k at the league end) and LR_FORCE=k (place k + 1 gets place k's points:
+    a level pair). The play-off (gap 1: played only when level) is built in slot 4 and played: 2 clubs, places k and
+    k + 1, one tie of `legs` legs, decided. The career league's head-to-head block (lrank's LR_BLK, item 'LR') is full
+    at the league end: this season's stamp, 20 clubs, not void, 380 results."""
+    src = os.environ.get('W2627S1_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-s1rank')
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    env = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]),
+           'GPLAY_FORCE': str(force), 'LR_FORCE': str(force), 'HOSTTEST_SYMS': '1'}
+    exe = os.environ.get('LRANK_BUILD') or build(f'world_lrank_po_{force}' + ('' if UI == 'it' else '_' + UI), env=env,
+                                                 lang=UI)                    # (the UI lane's exe: SWOSTEST_UI)
+    ptrs = gp_ptrs(exe)
+    if not ptrs:
+        return False, 'no GPLOGPTR block in the exe'
+    log_at, st_at, log_n, st_n = ptrs
+    blk = json.load(open(os.path.join(exe, 'ITALIAN.syms.json')))['lrank']['LR_BLK'][1]
+    keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
+                                            'W8485_NOSACK', 'W8485_HEX')}
+    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+',
+                      W8485_NOSACK='1', W8485_HEX=f'{log_at:x}:{log_n},{st_at:x}:{st_n},o4/{blk:x}:404')
+    try:
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    hexes = {}
+    for ln in open(os.path.join(RUNS, w84_tag() + '_1', 'session.log'), errors='replace'):
+        p = ln.split()
+        if len(p) == 3 and p[0] == 'HEX':
+            hexes.setdefault(p[1], []).append(bytes.fromhex(p[2]))
+    errs = []
+    check(ok, msg, errs)
+    sts = [b for b in hexes.get(f'{st_at:x}', []) if b[:2] == b'GK']
+    if not sts:
+        return False, f'{msg}; the play-off match never ran (no GP_ST seen)'
+    ko = gp_ko(sts[-1][GP_STKO:])
+    check(ko['cid'] == 0xFE and ko['n'] == 2 and sorted(ko['code']) == [force - 1, force] and ko['ntie'] == 1,
+          f"contest {ko['cid']:#x} n {ko['n']} codes {ko['code']} ties {ko['ntie']}", errs)
+    logs = [b for b in hexes.get(f'{log_at:x}', []) if b[:4] == b'GPLG']
+    lk = gp_ko(logs[-1][8:]) if logs else None
+    check(lk is not None and lk['ntie'] == 1 and lk['tw'][0] in (0, 1), f'season-end log: {lk and lk["tw"]}', errs)
+    full = [b for b in hexes.get(f'o4/{blk:x}', []) if b[1] == 20 and sum(x != 0xFF for x in b[4:]) == 380]
+    check(bool(full), 'LR_BLK never full: ' + ', '.join(f'{b[:4].hex()}/{sum(x != 0xFF for x in b[4:])}'
+                                                      for b in hexes.get(f'o4/{blk:x}', [])[-3:]), errs)
+    games = [r['gcur'] for r in (gp_ko(b[GP_STKO:]) for b in sts)]
+    mv = [struct.unpack_from('<HHb', logs[-1], 686 + 8 * i) for i in range(min(logs[-1][682], 32))] if logs else []
+    return not errs, '; '.join(errs) or (f"{msg}; play-off clubs {[hex(t) for t in ko['team']]} codes {ko['code']}, "
+                                         f"rounds seen {sorted(set(games))}, winner {lk['tw'][0]}, moves {mv[:6]}")
+
+
+@scenario
+def world_lrank_title():
+    """4.2 S1.3: the Serie A title play-off match (one match at the better placed's, penalties): INTER forced 1st,
+    level with the 2nd (lrank_po)"""
+    return lrank_po(1, 'EUROPA,ITALIA,SERIE A,INTER', 1)
+
+
+@scenario
+def world_lrank_releg():
+    """4.2 S1.3: the Serie A 17th / 18th play-off (two legs, penalties): COMO forced 17th, level with the 18th; the
+    loser goes down (lrank_po)"""
+    return lrank_po(17, 'EUROPA,ITALIA,SERIE A,COMO', 2)
+
+
+def lrank_reload(old):
+    """4.2 S1.3 / S1.4 (MC): the career league's head-to-head block across a mid-season save. A career at INTER in the
+    S1 world (lrank_po's data, no test switch) saved on league day 10 (DIY+1C1h), then reloaded and played to the season
+    end. old=False: the block after the load is the saved one, and it ends full (380 results, not void). old=True: the
+    save's 'LR' item renamed (an older save, or one from before the block): zeroed at the load, the season's next
+    result finds it played already - the block stays void (n | 80h) for the rest of the season, as declared."""
+    import split
+    import lepatch
+    import zlib
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    src = os.environ.get('W2627S1_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-s1rank')
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    env = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'HOSTTEST_SYMS': '1'}
+    exe = os.environ.get('LRANK_BUILD0') or build('world_lrank' + ('' if UI == 'it' else '_' + UI), env=env, lang=UI)
+    blk = json.load(open(os.path.join(exe, 'ITALIAN.syms.json')))['lrank']['LR_BLK'][1]
+    day = split.sites(lepatch.LEPatch(os.path.join(MAIN, 'orig', 'ITALIAN.EXE')))['DIY'] + 0x1C1
+    names = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_HEX',
+             'W8485_ONE', 'W8485_MIDSAVE', 'W8485_FROM')
+    keep = {x: os.environ.get(x) for x in names}
+    base = dict(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1',
+                W8485_TEAM='EUROPA,ITALIA,SERIE A,INTER', W8485_HEX=f'o4/{blk:x}:404')
+    hexes = lambda tag: [bytes.fromhex(ln.split()[2]) for ln in open(os.path.join(RUNS, w84_tag() + tag, 'session.log'),
+                                                                     errors='replace')
+                         if ln.startswith('HEX ') and ln.split()[1] == f'o4/{blk:x}']
+    errs = []
+    try:
+        for x in names:
+            os.environ.pop(x, None)
+        os.environ.update(base, W8485_ONE='1', W8485_MIDSAVE=f'{day:x}:10:2')
+        ok, msg = world8485()
+        car = os.path.join(RUNS, w84_tag() + '_1', 'SWOS', 'W84A.CAR')
+        check(ok and os.path.exists(car), f'mid-season save: {msg}', errs)
+        if errs:
+            return False, '; '.join(errs)
+        before = hexes('_1')
+        d = bytearray(open(car, 'rb').read())
+        lr = struct.pack('<HH', zlib.crc32(b'LR') & 0xFFFF, 404)
+        k = d.find(lr)
+        check(k >= 0 and d.find(lr, k + 1) < 0, f"the save's 'LR' item: at {k}", errs)
+        if errs:
+            return False, '; '.join(errs)
+        saved_blk = bytes(d[k + 4:k + 4 + 404])
+        n_saved = sum(x != 0xFF for x in saved_blk[4:])
+        check(saved_blk[1] == 20 and 0 < n_saved < 380, f'saved block {saved_blk[:4].hex()} with {n_saved} results', errs)
+        if old:
+            d[k:k + 2] = struct.pack('<H', (zlib.crc32(b'LR') & 0xFFFF) ^ 0x5A5A)   # (an id no build knows)
+        saved = os.path.join(RUNS, f'lrank_reload_{int(old)}_W84A.CAR')
+        open(saved, 'wb').write(d)
+        for x in names:
+            os.environ.pop(x, None)
+        os.environ.update(base, W8485_FROM=saved, W8485_ONE='1')
+        ok, msg = world8485()
+        check(ok, f'reloaded: {msg}', errs)
+        after = hexes('_2')
+        check(bool(after), 'no LR_BLK dump after the load', errs)
+        if after:
+            last = after[-1]
+            got = sum(x != 0xFF for x in last[4:])
+            if old:
+                check(last[1] == 20 | 0x80, f'old save: block {last[:4].hex()} ({got} results), not void', errs)
+            else:
+                check(after[0] == saved_blk, f'after the load {after[0][:4].hex()} != saved {saved_blk[:4].hex()}', errs)
+                check(last[1] == 20 and got == 380, f'season end: block {last[:4].hex()} with {got} results', errs)
+        info = f'saved on day 10 with {n_saved} results, {len(before)} dumps before / {len(after)} after the load'
+    finally:
+        for x, v in keep.items():
+            if v is None:
+                os.environ.pop(x, None)
+            else:
+                os.environ[x] = v
+    return not errs, '; '.join(errs) or info
+
+
+@scenario
+def world_lrank_reload():
+    """4.2 S1.3: the head-to-head block kept across a mid-season save (lrank_reload)"""
+    return lrank_reload(False)
+
+
+@scenario
+def world_lrank_oldsave():
+    """4.2 S1.3: a save without the block: void for that season, as declared (lrank_reload)"""
+    return lrank_reload(True)
 
 
 def sr_blocks(b):

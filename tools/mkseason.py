@@ -510,7 +510,7 @@ class Pack:
                 codes, h2h = lrank.compile_list(dv['tiebreak'], dv['teams'], f"{self.league['key']} division {d + 1}")
             except ValueError as e:
                 _need(False, f"{self.meta['id']}: {e}")
-            out.append((d, codes, h2h))
+            out.append((d, codes, h2h, dv['teams']))
         return (self.world, self.files[lg['clubs']][0], out) if out else None
 
     def gplay(self):

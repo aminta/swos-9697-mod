@@ -11,10 +11,15 @@ coefficient, previous_stage_rank).
 Head to head: lr_res keeps the career league's results, one byte per ordered pair, in LR_BLK (engine item 'LR',
 LR_SIZE B, saved with the career; leagues of up to lrank.c LR_N clubs). An older save, or a season already under way
 when the block starts: no results for that season, its head-to-head criteria are left out (declared); from the
-next season the list applies in full.
+next season the list applies in full. The same for the away criteria (away_wins, away_goals_for): the game's rows
+have no home / away split, so they come from the block too and are left out with it (declared).
 
-Code: obj4+LR_AT (lrank.c + LR_TAB), after the 4.1 pages (RIEPILOGO 0x3000, uprize 0x4000, uesum 0x5000 after the
-4.2 rebase: mc.md c-map). Hooks (chained): cseg_88CBB's `add word [esi+1BDh], 1` (split's sp_res when there) -> call
+Which table (H5 B1, Motore 09/11): the career club's league (D8CAA / world / D6CDC: an LR_TAB entry) only when DIY
+is that division's table - one group (+4Fh) of the division's clubs (LR_TAB's count). A European group stage or league
+phase, or a gplay group contest, holding the career club is a league layout under the same globals: left alone.
+
+Code: obj4+LR_AT (lrank.c + LR_TAB), above the 4.1 pages (today swreg.UESUM_AT 0x2000; the 4.2 rebase's c-map in
+mc.md: RIEPILOGO 0x3000, uprize 0x4000, uesum 0x5000). Hooks (chained): cseg_88CBB's `add word [esi+1BDh], 1` (split's sp_res when there) -> call
 lr_res_hook; cseg_883DD's first instruction `mov [A4], offset DIY` (lp36's jmp lp_sort when there) -> jmp
 lr_sort_hook."""
 import os
@@ -57,15 +62,15 @@ def compile_list(names, teams, where):
 
 def table(p, tables):
     """LR_TAB bytes and its league-struct dwords' (offset, (obj, off)): tables = [(world, league file, [(div, codes,
-    h2h)])]"""
+    h2h, clubs)])]"""
     import mkseason
     out, ptrs = bytearray(), []
     for world, lfile, divs in tables:
         at = mkseason.LEAGUE_AT[(world, lfile)]
         at = at if isinstance(at, tuple) else (1, at)
-        for d, codes, h2h in divs:
+        for d, codes, h2h, teams in divs:
             ptrs.append((len(out), at))
-            out += struct.pack('<IBBBB', at[1], world, d, int(h2h), 0) + codes.ljust(16, b'\0')
+            out += struct.pack('<IBBBB', at[1], world, d, int(h2h), teams) + codes.ljust(16, b'\0')
     return bytes(out + bytes(ENTRY)), ptrs
 
 
@@ -95,6 +100,10 @@ def patch(p, tables, split_st, split_magic):
            'D6CDC': (2, ps['d6cdc']), 'D8CAA': (2, ps['d8caa']),
            'WORLDB': (s['SLT'][0], s['SLT'][1] + careerworld.WORLD_BYTE), 'SEASONP': uesum.season_var(p)}
     flags = ['-Oz', '-fno-zero-initialized-in-bss', f'-DSPLIT_ST={split_st}', f'-DSPLIT_MAGIC={split_magic}']
+    force = int(os.environ.get('LR_FORCE') or 0)
+    if force:
+        print(f'exe: LR_FORCE={force} (test build: at the league end place {force + 1} gets place {force}\'s points)')
+        flags.append(f'-DLR_FORCE={force}')
     if res_chain:
         ext['RES_PREV'] = p.call_target(1, res)
         flags.append('-DRES_CHAIN')

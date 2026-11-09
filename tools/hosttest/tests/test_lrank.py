@@ -92,6 +92,9 @@ class Exe:
         self.uc.emu_start(at, self.sent, count=20_000_000)
 
 
+LR_N = 20                                           # (lrank.c: the pairs block's clubs)
+
+
 def setup(x, n, teams, career, gtype=4, serie_a=True, ent=0):
     ud = x.lin('UD')
     tab = x.lin('LR_TAB')
@@ -174,7 +177,7 @@ def test_lrank_differential():
     stats = dict(seasons=0, sort=0, void_differs=0, notours=0, partial=0)
     for s in range(SEASONS):
         ent = (0, 2, 5)[s % 3]                                     # (Serie A, C, D: their lists)
-        n = 17 if ent == 5 else 20
+        n = x.rd(x.lin('LR_TAB') + 24 * ent + 7, 1)[0]             # (the division's clubs: mine() checks DIY's n)
         stats[f'div{ent}'] = stats.get(f'div{ent}', 0) + 1
         teams = [0x1300 | k + 1 + (s % 7) for k in range(n)]
         sp = (s % 90) + 1
@@ -221,9 +224,15 @@ def test_lrank_differential():
             return False, f'season {s}: the sort entry gives {got}, the library {ref}'
         stats['sort'] += 1
         stats['partial'] += upto < len(res)
-        for how in ('stranger', 'split', 'season_mode', 'other_league'):   # (not ours: 6Dh untouched)
+        blk0 = x.rd(blk, 4 + LR_N * LR_N)
+        for how in ('stranger', 'split', 'season_mode', 'other_league', 'groups', 'clubs'):   # (not ours: 6Dh untouched)
             setup(x, n, teams, 0x7777 if how == 'stranger' else teams[0], gtype=3 if how == 'season_mode' else 4,
                   serie_a=how != 'other_league', ent=ent)
+            if how == 'groups':                                    # (H5 B1: a European group stage holding the career
+                x.wr(ud + 0x4F, struct.pack('<HH', 2, n // 2))     #  club under the league's globals - 2 groups)
+            if how == 'clubs':                                     # (a league phase of another size: n - 1 clubs)
+                x.wr(ud + 0x31, struct.pack('<H', n - 1))
+                x.wr(ud + 0x4F, struct.pack('<HH', 1, n - 1))
             for c, r in enumerate(rows):
                 x.wr(ud + 0x2B3 + 18 * c + 4, struct.pack('<7H', *r))
             if how == 'split':
@@ -243,6 +252,9 @@ def test_lrank_differential():
                 if any(key[o[k]] < key[o[k + 1]] for k in range(n - 1)) or o == ref and o != sorted(o, key=lambda c: key[c], reverse=True):
                     return False, f'season {s}: the game sort did not run behind the hook ({o})'
                 stats['gamesort'] = stats.get('gamesort', 0) + 1
+            play(x, ud, [(0, 1, 2, 1)], 1, [list(r) for r in rows])        # (a result there: the block untouched)
+            if x.rd(blk, 4 + LR_N * LR_N) != blk0:
+                return False, f'season {s}: {how}: a result changed the pairs block'
             stats['notours'] += 1
         stats['seasons'] += 1
     if not stats['void_differs']:

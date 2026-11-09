@@ -2,7 +2,9 @@
    engine's sr_league_rank (tools/swce/sr_stage.c, the rules library at tools/swce/SWCE_SHA). obj4 (tools/lrank.py).
 
    The career club's league (a league DIY holding CAREERTEAM, in a career: g_gameType 4) whose (league struct D8CAA,
-   world, division D6CDC) has an entry in LR_TAB:
+   world, division D6CDC) has an entry in LR_TAB, and DIY is that division's table (H5 B1: one group of the
+   division's clubs - a European group / league phase or a gplay group contest holding the career club is a league
+   layout too, under the same globals):
    - lr_res (cseg_88CBB, where a result goes into the rows: chained before split's sp_res, or the game's own
      `add word [esi+1BDh], 1`): the result into the pairs block LR_BLK, one byte per ordered pair (home goals << 4 |
      away goals, each 0..14, FFh not played) - saved with the career (engine item 'LR', lrank.LR_SIZE). The block is
@@ -36,7 +38,7 @@ extern u8 WORLDB;                       /* the career's world byte (someLeaguesT
 extern u8 SEASONP;                      /* seasonPlaying (uesum's stamp) */
 
 /* LR_TAB (lrank.py): entries of 24 B - u32 league struct, u8 world, u8 division, u8 h2h (1: the list has a
-   head-to-head code), u8 pad, the list (16 codes, 0-ended); ended by a null struct */
+   head-to-head code), u8 the division's clubs, the list (16 codes, 0-ended); ended by a null struct */
 extern const u8 LR_TAB[];
 
 #define LR_N 20                         /* the pairs block's clubs (the .CAR's 'EN' room: lrank.LR_SIZE) */
@@ -51,14 +53,14 @@ static u8 lr_ord[SR_STAGE_CLUBS];
 
 static __attribute__((noinline)) const u8 *mine(void) {  /* the career league's LR_TAB entry, else 0 */
     u32 n = w16(UD + 0x31), k;
-    if (GAMETYPE != 4 || UD[0] || n < 2 || n > SR_STAGE_CLUBS) return 0;
+    if (GAMETYPE != 4 || UD[0] || n < 2 || n > SR_STAGE_CLUBS || w16(UD + 0x4F) != 1) return 0;
 #ifdef SPLIT_ST
     if (w16(UD + SPLIT_ST) == SPLIT_MAGIC) return 0;
 #endif
     for (k = 0; k < n && w16(UD + 0x12D + 2 * k) != CAREERTEAM; k++) ;
     if (k == n) return 0;
     for (const u8 *e = LR_TAB; *(const u32 *)e; e += 24)
-        if (*(u8 *const *)e == D8CAA && e[4] == WORLDB && e[5] == D6CDC) return e;
+        if (*(u8 *const *)e == D8CAA && e[4] == WORLDB && e[5] == D6CDC) return e[7] == n ? e : 0;
     return 0;
 }
 
@@ -112,6 +114,18 @@ void lr_rank(void) {
             }
     u32 seed = stamp() * 0x9E3779B1u ^ w16(UD + 0x12D);
     if (sr_league_rank((int32_t)n, lr_rows, pairs, 0, w16(UD + 0x61), 1, 0, e + 8, seed, lr_ord) != (int32_t)n) return;
+#ifdef LR_FORCE
+    /* test builds (LR_FORCE=k): at the league end (every row has played 2 (n - 1)), place k + 1 gets place k's
+       points - a level pair for gplay's play-off match (gap 1) */
+    u32 full = 1;
+    for (u32 k = 0; k < n; k++) full &= lr_rows[k].pl == 2 * (n - 1);
+    u32 a = lr_ord[LR_FORCE - 1], z = lr_ord[LR_FORCE];
+    if (full && LR_FORCE < n && lr_rows[a].pts != lr_rows[z].pts) {
+        *(u16 *)(ROW(z) + 0x10) = (u16)lr_rows[a].pts;
+        lr_rows[z].pts = lr_rows[a].pts;
+        sr_league_rank((int32_t)n, lr_rows, pairs, 0, w16(UD + 0x61), 1, 0, e + 8, seed, lr_ord);
+    }
+#endif
     for (u32 k = 0; k < n; k++) *(u16 *)(UD + 0x6D + 2 * k) = (u16)(lr_ord[k] * 18);
 }
 

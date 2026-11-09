@@ -14417,7 +14417,54 @@ def kit_navy_shots():
     return not errs, '; '.join(errs + info) if errs else f'shots of {len(info)} matches: {"; ".join(info)}'
 
 
+SKIN_AB = {'DAVID NERES': 2, 'NOA LANG': 0, 'ELIEZER MAYENDA': 2, 'LUDOVIC BLAS': 0, 'MAHDI CAMARA': 2}   # (skin_ab:
+# Davide's A/B pass, 403c18: light -> dark, dark -> light (NAPOLI, RENNES); MAHDI CAMARA unticked: dark as shipped)
 SKIN_FIX = {'YEBOAH': 'ADAMS'}          # (skin_venezia: a hand-fixed player -> a dark team-mate of the same squad)
+
+
+@scenario
+def skin_ab():
+    """4.1 RC3 (Regia 09/11: Davide's skin pass on tiers A + B, data 403c18): 244 portraits' skins applied, 53 he unticked
+    kept. Read back: SKIN_AB's faces in the build's DATA files (every copy: TMW5 / XTW5) - DAVID NERES / ELIEZER MAYENDA
+    light -> dark (face 2), NOA LANG / LUDOVIC BLAS dark -> light (0), MAHDI CAMARA (unticked) dark as shipped; and in
+    the game: a World 2026-27 friendly NAPOLI (human) - INTER, NAPOLI's records on the team screen: NERES face 2, LANG
+    face 0. Shot skin_ab_prematch. SWOSTEST_BUILD = a release build of 403c18 data or later."""
+    b = builds()['it']
+    errs, info = [], []
+    for nm, want in SKIN_AB.items():
+        got = []
+        for f in sorted(glob.glob(os.path.join(b, 'DATA', '*'))):
+            if os.path.basename(f)[:4] in ('TMW5', 'XTW5'):
+                d = open(f, 'rb').read()
+                got += [(os.path.basename(f), (d[m.start() - 3 + 26] >> 3) & 3) for m in re.finditer(re.escape(nm.encode()) + rb'\0', d)]
+        check(got and all(fc == want for _, fc in got), f'{nm} in DATA: {got} (want face {want})', errs)
+        info.append(f'{nm} {got}')
+    with Session('skin_ab', b, {}, 'dump:3', 300) as s:
+        s.wait()
+        set_world(s, 0)
+        for t in ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE A', 'NAPOLI'):
+            walk(s, t, 2)
+        s.send('fire dump:2')                   # COMPUTER -> GIOCA-ALLENA
+        walk(s, 'INTER', 2)
+        for _ in range(12):                     # (skin_venezia's way to the team screen)
+            scr = s.screen()
+            i = scr.find('AMICHEVOLE', exact=True)
+            if i is None:
+                break
+            if scr.selected == i:
+                s.send('fire dump:4')
+                break
+            s.send(('right' if scr.selected in (i + 1, i + 2) else 'down') + ' dump:0.5')
+        if not se_rows(s):
+            return False, '; '.join(errs + [f'no team screen ({s.screen().texts()[:8]})'])
+        tm = se_team(s)[0]
+        recs = [s.result.read(tm + 76 + 38 * j, 38) for j in range(16)]
+        faces = {bytes(r[3:25]).split(b'\0')[0].decode('latin-1'): (r[26] >> 3) & 3 for r in recs}
+        s.shot('skin_ab_prematch')
+        for nm in ('DAVID NERES', 'NOA LANG'):
+            check(faces.get(nm) == SKIN_AB[nm], f'in the game: {nm} face {faces.get(nm)} (want {SKIN_AB[nm]}; {sorted(faces)[:6]})', errs)
+        info.append(f'in the game: NERES {faces.get("DAVID NERES")}, LANG {faces.get("NOA LANG")}')
+    return not errs, '; '.join(errs) or '; '.join(info)
 
 
 @scenario

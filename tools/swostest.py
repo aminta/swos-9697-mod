@@ -401,10 +401,6 @@ def prepare(name, exe_dir, cars, steps, match=False, timer=False):
         shutil.copy(exe_dir, os.path.join(game, 'ITALIAN.EXE'))
     else:
         shutil.copytree(exe_dir, game, dirs_exist_ok=True, ignore=shutil.ignore_patterns('log.txt', 'INPUTS.txt', 'COBJ_MISSING.txt'))
-    if not os.path.exists(os.path.join(game, 'CHARSEU.DAT')):   # (4.1 RC3 euro.py: the exe loads CHARSEU.DAT at its
-        sys.path.insert(0, os.path.join(ROOT, 'tools'))          # start; a bare exe or a base made before it: written
-        import euro                                              # here from the originals - older exes never read it)
-        euro.gen(game)
     for dos, src in cars.items():
         shutil.copy(src, os.path.join(game, dos))
     if 'SETUP.DAT' not in cars:                        # (W-modes: the default world byte, SETUP.DAT +105)
@@ -14510,10 +14506,10 @@ def skin_venezia():
     return not errs, '; '.join(errs) or '; '.join(info)
 
 
-def euro_glyphs(v, scr, new, old):
-    """The money entries on screen (raw text with the currency byte 9Ch) and, inside their boxes in the frame v, how
-    many letters of the euro (new: euro.letter's masks, small and big font) and of the pound (old) are drawn: a mask
-    matches where its pixels are one colour and the body's other pixels are not that colour."""
+def euro_glyphs(v, scr, new, old, cur=b'\x9c'):
+    """The money entries on screen (raw text holding `cur`, the exe's currency) and, inside their boxes in the frame v,
+    how many euro letters (new: euro.euro_letter, small and big font) and pound letters (old: CHARSET.DAT's sprites 46
+    / 103) are drawn: a mask matches where its pixels are one colour and the body's other pixels are not that colour."""
     def hits(masks, x0, y0, w0, h0):
         n = 0
         for m in masks:
@@ -14525,7 +14521,8 @@ def euro_glyphs(v, scr, new, old):
                     if all((v[(y + j) * 320 + x + i] == c) == m[j][i] for j in range(mh) for i in range(mw)):
                         n += 1
         return n
-    ent = [i for i, r in enumerate(scr.raw) if b'\x9c' in r and not scr.entries[i][2]]
+    ent = [i for i, r in enumerate(scr.raw) if re.search(re.escape(cur) + rb'\d', r) and not scr.entries[i][2]]   # (an
+                                                                     # amount: L / FF / DM letters in names are not)
     e = o = 0
     for i in ent:
         x, y, w, h = scr.geom[i]
@@ -14535,60 +14532,109 @@ def euro_glyphs(v, scr, new, old):
 
 
 EURO_UEFA_ROW = {'it': 'PREMI UEFA:', 'en': 'UEFA PRIZE MONEY:', 'fr': 'PRIMES UEFA:', 'de': 'UEFA-PRAEMIEN:'}   # (Shaved 09/11)
+EURO_FACTOR = {'it': 2, 'en': 1, 'fr': 10, 'de': 2}   # (the conversion: shown amount = stored x factor)
+EURO_BANK = 3141592                                      # (euro_historic: the balance both builds get)
+EURO_OBJ2 = 0x1F0000                                     # (the part of obj2 searched for it)
+EURO_OLD = {'it': b'L', 'en': b'\x9c', 'fr': b'FF', 'de': b'DM'}   # the exes' own currency (the historic worlds)
+
+
+def euro_masks(exe):
+    """(euro letters, pound letters), small and big font: euro.py's template / the build's CHARSET.DAT."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import euro
+    sp, cs = (open(os.path.join(exe, f), 'rb').read() for f in ('SPRITE.DAT', 'CHARSET.DAT'))
+    return [euro.euro_letter(i) for i in (46, 103)], [euro.letter(cs, sp, i) for i in (46, 103)]
+
+
+def euro_look(s, tag, new, old, seen, errs, euro_on=True):
+    """One screen: euro_on - its 9Ch money entries show the euro letter (at least one per entry), never the pound;
+    else (a historic world) the exe's own currency: no euro letter, and in ENGLISH.EXE the pound. Shot eu_<tag> when
+    money is on screen; seen[tag] = (entries, euro, pound, the amounts' texts)."""
+    scr = s.screen()
+    cur = b'\x9c' if euro_on else EURO_OLD[UI]
+    n, e, o = euro_glyphs(s.box.dump(0xA0000, 64000), scr, new, old, cur)
+    if n:
+        s.shot('eu_' + tag)
+        amounts = [m.group(1).decode('latin-1') for r in scr.raw for m in [re.search(re.escape(cur) + rb'(\d\S*)', r)] if m]
+        seen[tag] = (n, e, o, amounts)
+        if euro_on:
+            check(e >= n and o == 0, f'{tag}: {n} money entries, euro letters {e}, pound letters {o} ({amounts[:3]})', errs)
+        else:
+            check(e == 0 and (o >= n if UI == 'en' else True), f'{tag} (historic): {n} entries in {cur!r}, euro letters {e}, '
+                  f'pound letters {o} ({amounts[:3]})', errs)
+    return n
+
+
+def euro_bank(s, cur, factor, tag, info, errs):
+    """From the career menu: TRASFERIMENTI's balance (cur + digits) -> every obj2 dword holding it (the bank, the
+    season-start balance; shown = stored x factor, or x 1000 / factor) set to EURO_BANK. The club's money is drawn at
+    the career's start from the timer (CareerMenu reseeds Rand from currentTick): any code change, another exe language
+    too, moves it - so builds and languages compared screen by screen get the same balance. Back on the career menu."""
+    walk(s, 'TRASFERIMENTI', 3)
+    shown = next((m for r in s.screen().raw for m in [re.search(re.escape(cur) + rb'([\d,.]+)', r)] if m), None)
+    hits = []
+    if shown:
+        amt = int(re.sub(rb'\D', b'', shown.group(1)))
+        mem = s.result.obj2(0, EURO_OBJ2)
+        for v in (amt // factor, amt * 1000 // factor):
+            hits = [m.start() for m in re.finditer(re.escape(struct.pack('<i', v)), mem) if m.start() % 2 == 0]
+            if hits:
+                break
+        info.append(f'{tag}: balance {shown.group(1).decode()} -> {len(hits)} dwords {[hex(h) for h in hits[:4]]}')
+        for h in hits:
+            s.poke(s.result.base2 + h, struct.pack('<i', EURO_BANK))
+    check(0 < len(hits) <= 4, f'{tag}: the balance {shown and shown.group(1)} not found in obj2 (or too many: {len(hits)})',
+          errs)
+    euro_menu(s)
+
+
+def euro_wcur(s):
+    """careerworld's WCUR (the namespace whose teams are loaded: the euro's switch), through the world registry."""
+    import swreg
+    r = s.result
+    reg = struct.unpack('<I', r.read(r.base4 + 32, 4))[0]
+    return r.read(struct.unpack_from('<I', r.read(reg, swreg.HDR), 8)[0], 1)[0]
+
+
+def euro_menu(s):
+    """Back to the career menu (PROSS. PARTITA on screen)."""
+    for _ in range(8):
+        if 'PROSS. PARTITA' in s.screen().texts():
+            return True
+        press(s, s.screen(), 'CONTINUA', 3) or press(s, s.screen(), 'ESCI', 3) or s.send('fire dump:2')
+    return 'PROSS. PARTITA' in s.screen().texts()
 
 
 @scenario
 def euro_money():
-    """4.1 RC3 (Enzo 09/11, via Regia): money shown with the euro sign (euro.py: CHARSEU.DAT, the exe loads it instead of
-    charset.dat; display only). On a RELEASE dir (foreign_exe) in the run's language (SWOSTEST_UI it / en / fr / de, a
-    build whose ITALIAN.EXE is that language's): a new World 2026-27 career at INTER; every screen up to the career menu
-    (the season-start statement: budget / finance), TRASFERIMENTI (the bank balance), the national market's list
-    (ELENCA: the prices), a player's offer screen (FAI UN'OFFERTA), ANDAMENTO CLUB (finances) and, after match day 1,
-    its statement again (the match's income rows); EURO_SEASON (default 1): a short season (Malta 1984-85, ST.
-    ANDREWS) played to its end, every season-end screen (the prize money) and season 2's ANDAMENTO CLUB; EURO_UEFA=<a CL
-    career save> (RC3 with 41-uprize): match days played until ANDAMENTO CLUB shows the PREMI UEFA row. On each, the entries whose text holds the
-    currency byte (9Ch, Int2Pounds' `pound`): in the frame their boxes show the euro letter (small or big font, the
-    exact pixels of CHARSEU.DAT's sprites 46 / 103) as often as there are such entries or more, and the pound letter
-    never. The build's CHARSET.DAT stays the original. Shots eu_<screen>."""
+    """4.1 RC3 (Enzo 09/11; Davide: option A + per world) money in euros in the euro worlds (euro.py: World 2026-27):
+    every exe shows the English amounts with the euro sign. On a RELEASE dir (foreign_exe) in the run's language
+    (SWOSTEST_UI it / en / fr / de, a build whose ITALIAN.EXE is that language's): a new World 2026-27 career at INTER -
+    TRASFERIMENTI (the bank), the national market list (ELENCA: the prices), a player's offer screen (FAI UN'OFFERTA),
+    ANDAMENTO CLUB (finances) and, after match day 1, its statement again; EURO_SEASON=1 (default): a short 2026-27
+    season (MALTA, FLORIANA; the no-sacking poke only) to its end, every season-end screen (the prize money) and season
+    2's ANDAMENTO CLUB; EURO_UEFA=<a CL career save> (RC3 with 41-uprize): match days until ANDAMENTO CLUB shows the
+    PREMI UEFA row. On each: the money entries (9Ch) show the euro letter (euro_look) and never the pound. The amounts of
+    TRASFERIMENTI and ANDAMENTO CLUB go to <EURO_DIGITS or the runs dir>/euro_digits_<UI>.json and must equal every other
+    language's file there (the same amounts in all four)."""
     exe = foreign_exe()
     if not exe:
         return True, 'SKIP: no release SWOS dir (FOREIGNBUY_BUILD, or SWOSTEST_BUILD / W8485_BUILD with DATA/POOL05.DAT)'
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
-    import euro
     import finance
     import lepatch
-    errs, info = [], []
-    if not os.path.exists(os.path.join(exe, euro.NAME)):
-        return False, f'no {euro.NAME} in {exe}'
-    sp = open(os.path.join(exe, 'SPRITE.DAT'), 'rb').read()
-    cs, ce = (open(os.path.join(exe, f), 'rb').read() for f in ('CHARSET.DAT', euro.NAME))
-    check(cs == open(os.path.join(ROOT, 'orig', 'CHARSET.DAT'), 'rb').read(), 'the build\'s CHARSET.DAT is not the original', errs)
-    new = [euro.letter(ce, sp, i) for i in (46, 103)]
-    old = [euro.letter(cs, sp, i) for i in (46, 103)]
-    check(new != old, 'CHARSEU.DAT: sprites 46 / 103 still the pound', errs)
-    seen = {}
-
-    def look(s, tag):
-        scr = s.screen()
-        n, e, o = euro_glyphs(s.box.dump(0xA0000, 64000), scr, new, old)
-        if n:
-            s.shot('eu_' + tag)
-            seen[tag] = (n, e, o)
-            money = [r for r in scr.raw if b'\x9c' in r][:3]
-            check(e >= n and o == 0, f'{tag}: {n} money entries, euro letters {e}, pound letters {o} ({money})', errs)
-        return n
-
+    errs, info, seen = [], [], {}
+    new, old = euro_masks(exe)
+    look = lambda s, tag: euro_look(s, tag, new, old, seen, errs)
+    sym = finance.find(lepatch.LEPatch(os.path.join(MAIN, 'orig', UI_ORIG)))
     with Session('euro_money', exe, {}, 'dump:2', 600) as s:
         s.wait()
         for t in ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27', 'EUROPA', 'ITALIA', 'SERIE A', 'INTER']:
             if press(s, s.screen(), t, 3) is None:
                 return False, f'new career: {t} not reached'
         s.send('fire dump:3')
-        for k in range(10):                     # (the season-start statements: the budget / finance screens)
-            if 'PROSS. PARTITA' in s.screen().texts():
-                break
-            look(s, f'start{k}')
-            press(s, s.screen(), 'CONTINUA', 3) or press(s, s.screen(), 'ESCI', 3) or s.send('fire dump:2')
+        euro_menu(s)
+        euro_bank(s, b'\x9c', 1, 'inter', info, errs)   # (the same balance in every language: the digits compared)
         walk(s, 'TRASFERIMENTI', 3)
         look(s, 'transfers')
         walk(s, 2, 3)                           # ACQUISTA GIOCATORE
@@ -14600,9 +14646,8 @@ def euro_money():
         walk(s, 7, 3)                           # ELENCA
         look(s, 'market')
         scr = s.screen()
-        row = 13 if len(scr.entries) > 13 else None   # (a player row: the list's 4th, as market_keep_page)
-        if row is not None:
-            for k in (scr.path(row) or []):
+        if len(scr.entries) > 13:               # (a player row: the list's 4th, as market_keep_page)
+            for k in (scr.path(13) or []):
                 s.send(k + ' dump:0.5')
             s.send('fire dump:4')
             check("FAI UN'OFFERTA" in s.screen().texts(), f'no offer screen ({s.screen().texts()[:6]})', errs)
@@ -14610,8 +14655,7 @@ def euro_money():
         for _ in range(8):                      # back to the career menu
             if 'PROSS. PARTITA' in s.screen().texts():
                 break
-            press(s, s.screen(), 'ESCI', 3) or s.send('escape dump:2')
-        sym = finance.find(lepatch.LEPatch(os.path.join(MAIN, 'orig', UI_ORIG)))
+            press(s, s.screen(), 'ESCI', 3) or s.send('esc dump:2')
         spons = lambda: struct.unpack('<i', bytes(s.result.obj2(sym['SPONS'][1], 4)))[0]
         for tag in ('finance', 'statement1'):   # ANDAMENTO CLUB: the season-start statement, then match day 1's
             if tag == 'statement1':
@@ -14625,16 +14669,20 @@ def euro_money():
                 break
             look(s, tag)
             press(s, s.screen(), 'CONTINUA', 3) or press(s, s.screen(), 'ESCI', 3)
-    if os.environ.get('EURO_SEASON', '1') == '1':   # the season-end prize money: a short season (Malta 1984-85, 18 match
-        with Session('euro_money_season', exe, {}, 'dump:2', 900) as s:   # days, as ffp_season; no test build, only
-            s.wait()                                                       # the chairman's no-sacking poke)
-            for t in ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'EUROPA 1984-85', 'MALTA', 'ST. ANDREWS']:
-                if press(s, s.screen(), t) is None or s.result.outcome != 'dump':
-                    check(False, f'season: new career: {t} not reached ({s.result})', errs)
+    if os.environ.get('EURO_SEASON', '1') == '1':   # the season-end prize money: a short 2026-27 season (Malta)
+        with Session('euro_money_season', exe, {}, 'dump:2', 1500) as s:
+            s.wait()
+            for t in ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27', 'EUROPA', 'MALTA']:
+                if press(s, s.screen(), t, 3) is None:
+                    check(False, f'season: new career: {t} not reached ({s.screen().texts()[:8]})', errs)
                     break
             else:
+                if press(s, s.screen(), 'FLORIANA', 3) is None:     # (a league list first: its top division)
+                    s.send('fire dump:3')
+                    press(s, s.screen(), 'FLORIANA', 3)
+                s.send('fire dump:3')
                 s.poke(s.result.base2 + nosack_off(os.path.join(exe, 'ITALIAN.EXE')), b'\x01\x00')
-                ok, m = advance(s, season_over, 600)
+                ok, m = advance(s, season_over, 900)
                 check(ok, f'season 1: {m}', errs)
                 if ok:
                     if s.screen().find('FINISCI STAGIONE', exact=True) is not None:
@@ -14653,15 +14701,12 @@ def euro_money():
     uefa = os.environ.get('EURO_UEFA')            # (RC3 merged, Shaved's 41-uprize: a CL career save, e.g.
     if uefa:                                      #  internal/uesum/cv_s2_cl_it.CAR; up to 4 match days played until
         lab = EURO_UEFA_ROW[UI]                   #  ANDAMENTO CLUB shows the PREMI UEFA row, label 3 / value 13)
-        with Session('euro_money_uefa', exe, {os.path.basename(uefa).upper(): uefa}, 'dump:2', 900) as s:
+        with Session('euro_money_uefa', exe, {'W84A.CAR': uefa}, 'dump:2', 900) as s:   # (Shaved 09/11: as world_uprize)
             s.wait()
-            s.send('down down down down down fire dump:2')
-            s.send('fire dump:3')
-            sym = finance.find(lepatch.LEPatch(os.path.join(MAIN, 'orig', UI_ORIG)))
-            spons = lambda: struct.unpack('<i', bytes(s.result.obj2(sym['SPONS'][1], 4)))[0]
-            for k in range(4):
-                s0 = spons()
-                ok, msg = advance(s, lambda scr: 'ANDAMENTO CLUB' in scr.texts() and spons() != s0, 150)
+            s.send(LOAD1 + ' dump:3')
+            cbo = lambda: struct.unpack('<i', bytes(s.result.obj2(sym['D6B88'][1] + 4, 4)))[0]   # (competitionBonuses:
+            for k in range(4):                                                                    #  an old save's first
+                ok, msg = advance(s, lambda scr: 'ANDAMENTO CLUB' in scr.texts() and cbo() != 0, 150)   # CL day pays)
                 if not ok or press(s, s.screen(), 'ANDAMENTO CLUB', 3) is None:
                     check(False, f'uefa: match day {k + 1}: {msg}', errs)
                     break
@@ -14674,8 +14719,75 @@ def euro_money():
     for t, why in (('transfers', 'the bank balance'), ('market', 'the market prices'), ('offer', 'the offer'),
                    ('finance', 'ANDAMENTO CLUB'), ('statement1', 'the match day 1 statement')):
         check(t in seen, f'{why}: no money entry seen', errs)
-    info.append(f'UI {UI}: ' + ', '.join(f'{t} {n} entries / {e} euro / {o} pound' for t, (n, e, o) in seen.items()))
+    dd = os.environ.get('EURO_DIGITS') or RUNS             # the same amounts in every language (deterministic screens)
+    mine = {t: seen[t][3] for t in ('transfers', 'finance') if t in seen}
+    json.dump(mine, open(os.path.join(dd, f'euro_digits_{UI}.json'), 'w'))
+    for f in sorted(glob.glob(os.path.join(dd, 'euro_digits_*.json'))):
+        other = json.load(open(f))
+        lang = os.path.basename(f)[12:14]
+        if lang != UI:
+            for t in mine:
+                check(other.get(t) in (None, mine[t]), f'{t}: {UI} {mine[t][:4]} != {lang} {other.get(t, [])[:4]}', errs)
+            info.append(f'= {lang}')
+    info.insert(0, f'UI {UI}: ' + ', '.join(f'{t} {n} entries / {e} euro / {o} pound' for t, (n, e, o, _) in seen.items()))
     return not errs, '; '.join(errs) or '; '.join(info)
+
+
+@scenario
+def euro_historic():
+    """4.1 RC3 (Davide: per world) the historic worlds keep the game's own currency: on SWOSTEST_BUILD (the release dir in
+    the run's language, as euro_money) and on EURO_REF (the same language's REL41rc2: no euro code), the same flow - a
+    World 2026-27 friendly up to its pre-match screen (WCUR 5: the euro world's namespace; the screen shows no prices,
+    nor does any screen outside careers), back to the main menu, then a new 1996-97 career at JUVENTUS: TRASFERIMENTI
+    and ANDAMENTO CLUB. The club's starting balance comes from the timer (CareerMenu reseeds Rand from currentTick: any
+    code change moves it), so both builds get EURO_BANK in every obj2 dword holding the shown balance first. The frames
+    must then be byte-identical on both builds (L x2 / FF x10 / DM x2 / the pound, after the euro world's friendly in
+    the same session: the switch back); on SWOSTEST_BUILD no euro letter there, the exe's own currency in the money
+    entries (ENGLISH: the pound letter). Shots eu_fr2627 / eu_h_transfers / eu_h_finance (+ ref_)."""
+    exe, ref = foreign_exe(), os.environ.get('EURO_REF')
+    if not exe or not ref:
+        return True, 'SKIP: SWOSTEST_BUILD (a release dir) and EURO_REF (REL41rc2 in the same language) needed'
+    errs, info = [], []
+    new, old = euro_masks(exe)
+    frames = {}
+    for tag, b in (('new', exe), ('ref', ref)):
+        seen = {}
+        with Session(f'euro_historic_{tag}', b, {}, 'dump:3', 600) as s:
+            s.wait()
+            set_world(s, 0)
+            for t in ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE A', 'VENEZIA'):
+                walk(s, t, 2)
+            walk(s, 'INTER', 2)
+            pick_done(s)                        # (wm_mixed's: the pre-match screen, every UI)
+            ns = euro_wcur(s)                   # (the friendly's pre-match screen shows no prices: only its world)
+            check(ns == 5, f'{tag}: the 2026-27 friendly left WCUR {ns}, not 5', errs)
+            s.shot(('eu_' if tag == 'new' else 'ref_') + 'fr2627')
+            check(wm_to_main(s), f'{tag}: no way back to the main menu ({s.screen().texts()[:6]})', errs)
+            w9697(s)
+            s.rng_at = rng_sites(os.path.join(b, 'ITALIAN.EXE'))   # (both builds: the same random states at every pause
+            s.rng_pin = 'euh'                                        #  from here - the club's budget is random)
+            new_career(s, 'ITALIA', 'SERIE A', 'JUVENTUS', original=True)
+            euro_menu(s)
+            euro_bank(s, EURO_OLD[UI], EURO_FACTOR[UI], tag, info, errs)
+            euro_menu(s)
+            for t, label in (('h_transfers', 'TRASFERIMENTI'), ('h_finance', 'ANDAMENTO CLUB')):
+                walk(s, label, 3)
+                if tag == 'new':
+                    euro_look(s, t, new, old, seen, errs, euro_on=False)
+                else:
+                    s.shot('ref_' + t)
+                frames[(tag, t)] = bytes(s.box.dump(0xA0000, 64000))
+                euro_menu(s)
+        if tag == 'new':
+            for t in ('h_transfers', 'h_finance'):
+                check(t in seen, f'{t}: no money entry in {EURO_OLD[UI]!r}', errs)
+            info.append(', '.join(f'{t} {n} entries / {e} euro / {o} pound {a[:2]}' for t, (n, e, o, a) in seen.items()))
+    for t in ('h_transfers', 'h_finance'):
+        a, b = frames.get(('new', t)), frames.get(('ref', t))
+        diff = sum(x != y for x, y in zip(a, b)) if a and b else None
+        check(diff == 0, f'{t}: the frame differs from REL41rc2\'s in {diff} pixels', errs)
+        info.append(f'{t} = REL41rc2 ({diff} px differ)')
+    return not errs, f'UI {UI}: ' + ('; '.join(errs) or '; '.join(info))
 
 
 STNM_NAME, STNM_SHOWN, STNM_KEY, STNM_Y = 4, 53, 54, 56          # stadium.py's log after its 'STNM' mark (v3: name[49])

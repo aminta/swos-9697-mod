@@ -147,9 +147,6 @@ FILES = [  # (id, original path, patched path, file name in the game folder)
     ('SWCPICHC.P16', 'orig/SWCPICH3.P16', 'c/SWOS/SWCPICHC.P16', 'SWCPICHC.P16'),
     ('SWCPICHD.P16', 'orig/SWCPICH4.P16', 'c/SWOS/SWCPICHD.P16', 'SWCPICHD.P16'),
     ('SWCPICHE.P16', 'orig/SWCPICH5.P16', 'c/SWOS/SWCPICHE.P16', 'SWCPICHE.P16'),
-    # 4.1 RC3 (Enzo, euro.py): the menu fonts with the euro sign, a delta from the user's own CHARSET.DAT (kept
-    # original: the exe loads CHARSEU.DAT)
-    ('CHARSEU.DAT', 'orig/CHARSET.DAT', 'c/SWOS/CHARSEU.DAT', 'CHARSEU.DAT'),
     # GOG release (2013): same files, 2 bytes changed in each exe (a national cup's months); TEAM.020 identical.
     # Originals in orig/gog/, built with patch.patch_exe(orig/gog/X, c/gog/X, ...)
     ('ITALIAN.EXE (GOG)', 'orig/gog/ITALIAN.EXE', 'c/gog/ITALIAN.EXE', 'ITALIAN.EXE'),

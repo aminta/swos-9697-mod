@@ -20503,7 +20503,9 @@ def world_cgame_fallback():
     test_cg_fallback's: cg_view 0 is the one path to the page.) Then season 1 of a new career (CGF_TEAM, default
     EUROPA,ITALIA,SERIE A,ROMA): every confederation's COPPE CONTINENTALI button the page, or - 4.0.6 B2 (dacabf7):
     season 1's drawn main rounds - its rounds menu, every button within the keys' reach; VIEW WORLD's SUDAMERICA cup
-    its page or rounds menu (title = the cup), no view opened."""
+    its page or rounds menu (title = the cup), no view opened. 4.1 cdall (6079c5c): a drawn round opens straight on
+    the game's screen (ctc_open: its ESCI back on the rounds menu, then checked as the menu); the views opened = those
+    direct ones only."""
     exe = os.environ.get('CV_BUILD')
     if not exe:
         return True, 'SKIP: CV_BUILD not set (world_cgame_view\'s build)'
@@ -20597,12 +20599,15 @@ def world_cgame_fallback():
         walk(s, s.screen().find('VISUAL. COMPETIZ.', exact=True), 3)
         walk(s, s.screen().find('COPPE CONTINENTALI', exact=True), 3)
         pages = menus = 0
+        direct = []
         for k in range(1, 7):
             c = s.screen().entries[k][1]
-            walk(s, k, 3)
-            v = s.screen()
+            how = ctc_open(s, k, f'cgf_s1_{k}')         # (4.1 cdall: a drawn round - its view straight away, ESCI
+            v = s.screen()                              #  back on the rounds menu)
             s.shot(f'cgf_s1_{k}')
-            s.log.append(f'[cgf] season 1 {c}: {v.texts()[:10]}')
+            s.log.append(f'[cgf] season 1 {c} ({how}): {v.texts()[:10]}')
+            if how not in ('menu', 'page'):
+                direct.append(c)
             if v.find(summ, exact=True) is not None:   # (4.0.6 B2, dacabf7: season 1's drawn main rounds in the
                 rb = [i for i, t, inv, dis in v.entries[1:1 + ctview.CR_N] if not inv and t]   # rounds menu from
                 far = menu_unreach(v, rb + [ctview.CR_N + 1, ctview.CR_N + 2])                  # the start)
@@ -20623,14 +20628,21 @@ def world_cgame_fallback():
         cups = [raw[i] for i, t, inv, _ in sc.entries if 1 <= i <= 20 and t and not inv]
         check(bool(cups), f'season 1 SUDAMERICA: no cup buttons ({sc.texts()[:8]})', errs)
         if cups:
-            gwalk(s, cups[0], 4)
+            how = ctc_open(s, cups[0], 'cgf_s1_world')
             v = s.screen()
             s.shot('cgf_s1_world')
             title = (v.raw_texts or [v.entries[0][1]])[0]
-            check(cups[0] in title, f'season 1 {cups[0]}: not its page / rounds menu ({v.texts()[:6]})', errs)
+            if how not in ('menu', 'page'):             # (4.1 cdall: the round's view, its ESCI on the career menu)
+                direct.append(cups[0])
+                check(cups[0] in how and v.find('VISUALIZZA MONDO', exact=True) is not None,
+                      f'season 1 {cups[0]}: view {how!r}, then not on the career menu ({v.texts()[:6]})', errs)
+            else:
+                check(cups[0] in title, f'season 1 {cups[0]}: not its page / rounds menu ({v.texts()[:6]})', errs)
         g1 = G(s)
-        check(g1[3] == g0[3] and not g1[5], f'season 1: views opened {g0[3]} -> {g1[3]}, bad {g1[5]}', errs)
-        info.append(f'season 1: {pages} confederation pages, {menus} rounds menus + {cups[:1]} from VIEW WORLD, no view')
+        check(g1[3] == g0[3] + len(direct) and not g1[5],
+              f'season 1: views opened {g0[3]} -> {g1[3]} (direct {direct}), bad {g1[5]}', errs)
+        info.append(f'season 1: {pages} confederation pages, {menus} rounds menus + {cups[:1]} from VIEW WORLD, '
+                    f'direct views {direct}')
     return not errs, '; '.join(errs[:10]) or '; '.join(info)
 
 

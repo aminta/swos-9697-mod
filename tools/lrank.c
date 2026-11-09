@@ -119,7 +119,7 @@ void lr_rank(void) {
        points - a level pair for gplay's play-off match (gap 1) */
     u32 full = 1;
     for (u32 k = 0; k < n; k++) full &= lr_rows[k].pl == 2 * (n - 1);
-    u32 a = lr_ord[LR_FORCE - 1], z = lr_ord[LR_FORCE];
+    u32 a = LR_FORCE < n ? lr_ord[LR_FORCE - 1] : 0, z = LR_FORCE < n ? lr_ord[LR_FORCE] : 0;
     if (full && LR_FORCE < n && lr_rows[a].pts != lr_rows[z].pts) {
         *(u16 *)(ROW(z) + 0x10) = (u16)lr_rows[a].pts;
         lr_rows[z].pts = lr_rows[a].pts;

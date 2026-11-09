@@ -45,6 +45,9 @@ enum { E_DIRECT = 1, E_LEVEL, E_SEEDED, E_BEST };
 static const u8 *ents_of(const u8 *s) { return s + 6 + (s[0] & PO_EXT ? 1 + s[6] : 0); }
 enum { K_TITLE = 5, K_CONT = 6, K_PROM = 7, K_STAGE = 8, GS = 2, BEST_LOSER = 0x3F };
 enum { PO_SUPER = 4, PO_SKIP2 = 0x80 };                  /* (a play-off spec's flag, pack 'supercup': not played at the season end) */
+enum { PO_DECIDER = 1 };                /* (4.2, Serie D Art. 51 c.6: flag bit 0 - 'skip_qualified' of the europe kind,
+                                           uefaq's - on the other kinds 'decider': the last tie's winner takes the
+                                           loser's better place in GP_IN.t, so the later play-offs read the new order) */
 struct gp_row { u16 team, glob, won, gf, ga, pts; };
 static void rcopy(struct gp_row *d, const struct gp_row *s) {   /* (no memcpy in the exe: field by field) */
     d->team = s->team; d->glob = s->glob; d->won = s->won; d->gf = s->gf; d->ga = s->ga; d->pts = s->pts;
@@ -275,6 +278,13 @@ static void move(int c, int delta) {
 }
 
 static int sbetter_cmp(int a, int b) { return better(a, b); }
+
+static u16 dsw[16];                     /* (4.2 'decider': the preview's row swaps, undone at its end) */
+static int ndsw;
+static void dswap(int a, int b) {       /* rows a, b of one division: their places exchanged */
+    struct gp_row x, *ra = &GP_IN.t[DV(a)][PL(a)], *rb = &GP_IN.t[DV(b)][PL(b)];
+    rcopy(&x, ra); rcopy(ra, rb); rcopy(rb, &x);
+}
 
 static void result(int kind, int w, int l) {
     if (GP_OUT.nres >= 4) return;
@@ -1301,11 +1311,18 @@ GP_KOSIZE void gp_season(void) {
         if (ok && kind == K_TITLE && glast < 0)  /* (a title play-off's last three ties: the MLS conference finals) */
             for (int t = nt > 3 ? nt - 3 : 0; t < nt && t < GN; t++) wn_add(0x80 | (pidx & 0x7F), t, row(W[t])->team);
         prev_loser = ok && last >= 0 ? L[last] : -1;
+        if (ok && last >= 0 && (s[5] & PO_DECIDER) && DV(W[last]) == DV(L[last]) && PL(W[last]) > PL(L[last])) {
+            dswap(W[last], L[last]);            /* (4.2 'decider': the winner up to the loser's place, the moves
+                                                   above made by global number) */
+            prev_loser = W[last];               /* (the loser: now on the winner's old row) */
+            if (GP_PRE && ndsw < 8) { dsw[2 * ndsw] = W[last]; dsw[2 * ndsw + 1] = L[last]; ndsw++; }
+        }
         s = r;
     }
     wn_on = 0;
     x_sfrom = 0; x_lvl = 0;                     /* (4.2: this season end's only - a contest reads the places as they are) */
     if (ss_used && !GP_PRE) SSB->fresh = 0;   /* (this league's stage tables used: next season's are new ones) */
+    while (ndsw) { ndsw--; dswap(dsw[2 * ndsw], dsw[2 * ndsw + 1]); }   /* (the preview: the tables as they were) */
 }
 
 /* ---- The playable play-offs (gp_lend .. gp_end in gplay.py): the career club's play-off or play-out is played in
@@ -1544,6 +1561,21 @@ void t2_pre(const u8 *con, u8 *diy, u32 sel) {
     }
 }
 
+static int gap_done(const u8 *s) {      /* 4.2: a one-round play-off whose ties are all decided by its gap on the final
+                                           table (no tie to play: gp_season's 'too far apart') - not the club's contest */
+    const u8 *e = s + 6, *r = e + 4 * s[1];
+    if (s[2] != 1 || !r[5] || (r[1] & 0x80)) return 0;
+    for (int i = 0; i < r[0]; i++) {
+        int a = r[6 + 2 * i], b = r[7 + 2 * i];
+        if (a >= s[1] || b >= s[1]) return 0;
+        a = ent_club(e + 4 * a, s[0]); b = ent_club(e + 4 * b, s[0]);
+        if (a < 0 || b < 0) return 0;
+        int d = (int)row(a)->pts - (int)row(b)->pts;
+        if (d < r[5] && -d < r[5]) return 0;
+    }
+    return 1;
+}
+
 u32 gp_need(void) {
     int m = -1, d0 = GP_IN.mdiv, cnt = 0, ns = 0;
     ss_set(GP_IN.mgr);                          /* (the career club's league's bank) */
@@ -1556,7 +1588,7 @@ u32 gp_need(void) {
     for (int pi = 0; cnt < (GP_IN.gtype == 4 ? 1 : 2); pi++) {
         const u8 *s = po_at(pi), *e = s ? s + 6 : 0;
         if (!s) break;
-        if ((!playable(s) && !(GP_IN.gtype == 4 && t2_shape(s, 0))) || s[0] == K_STAGE) continue;
+        if ((!playable(s) && !(GP_IN.gtype == 4 && t2_shape(s, 0))) || s[0] == K_STAGE || gap_done(s)) continue;
                                                     /* (stage titles: gp_build, mid-season; a group contest: careers) */
         int in = 0, all = 1;
         for (int i = 0; i < s[1]; i++) {

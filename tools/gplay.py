@@ -955,6 +955,27 @@ gp_ours:                                ; ZF = 0 and GP_K = the ko index if DIY 
     popad
     ret
 
+gp_bdiv:                                ; (4.2, benchx bx_look) eax = gp_bdiv_c (the contest in DIY: a play-off of ours ->
+    push ecx                            ; its team file | its lowest division << 8, else 0FFFFh); gplay's GP_K, GP_CID,
+    push edx                            ; GP_SEAS kept (bx_look runs in the menus and the match too)
+    push dword [GP_K]
+    mov cl, [GP_CID]
+    mov ch, [GP_SEAS]
+    push ecx
+    mov al, [DIY + 2Dh]
+    mov [GP_CID], al
+    mov al, [SEASONPLAYING]
+    mov [GP_SEAS], al
+    mov eax, gp_bdiv_c
+    call gp_c
+    pop ecx
+    mov [GP_CID], cl
+    mov [GP_SEAS], ch
+    pop dword [GP_K]
+    pop edx
+    pop ecx
+    ret
+
 gp_decisive:                            ; ZF = 0 if the match just played decides its tie (single, or a second leg)
     cmp word [DIY + 14Bh], 2
     jne .y
@@ -2762,7 +2783,7 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     symbols.update({k: syms[k] for k in ('GP_SSB', 'GP_IN', 'GP_OUT', 'gp_season', 'gp_champ', 'gp_keep', 'GP_ST', 'GP_LOG', 'GP_NM', 'GP_DIYP', 'GP_K',
                                          'GP_W', 'GP_SKIP', 'GP_RB', 'GP_ALIVE', 'GP_LAST', 'GP_A', 'GP_B', 'GP_CID', 'GP_SEAS', 'GP_DIV',
                                          'GP_PT', 'GP_PL', 'gp_need', 'gp_simkeep', 'gp_need_pre', 'gp_simkeep_pre', 'gp_pre_c', 'GP_PRE', 'gp_restore', 'gp_lend_c', 'gp_ours_c',
-                                         'gp_perm_c', 'gp_rec_c', 'gp_draw_c', 'gp_played_c', 'gp_end_c',
+                                         'gp_perm_c', 'gp_bdiv_c', 'gp_rec_c', 'gp_draw_c', 'gp_played_c', 'gp_end_c',
                                          'gp_build_c', 'GP_BPIC', 'sec_post')})
     t2s, c8a2ce = _t2_sites(p, r)
     symbols.update({'A5R': (2, r['A0'] + 20), 't2_pre': syms['t2_pre'], 't2_defer': syms['t2_defer'], 't2_waiting': syms['t2_waiting'], 't2_due': syms['t2_due'], 'T2_NEXT0': (1, tgt(t2s[0])),

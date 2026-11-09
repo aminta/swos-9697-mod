@@ -16668,6 +16668,72 @@ def world_gplay_play(force='2', team='EUROPA,SCOZIA,SCOTTISH LEAGUE TWO,CLYDE', 
                                          f"game rounds seen {gw}, winner {win:#x} (code {wcode}), moves {mv}")
 
 
+@scenario
+def world_gplay_bench(force='16', team='EUROPA,GERMANIA,2. BUNDESLIGA,BOCHUM', want='10:5', other='9:5'):
+    """(4.2, MC 09/11) benchx: a gplay play-off's bench = its clubs' division (the lowest if mixed) from bx_frtab, no
+    title entry of its own (Serie D's 18 ties overflowed obj3): the world 2026-27 (W2627S1_DATA, default
+    world5tm-s1rank) built with GPLAY_FORCE=16 - BOCHUM 16th of the 2. Bundesliga plays the relegation play-off with
+    the 3. Liga's 3rd (two legs, slot 4): while DIY holds it (its title at DIY+4) bx_look gives the 3. Liga's bench
+    10:5 (`want`), not the career club's division's 9:5 (`other`, the 2. Bundesliga's: seen with the league's title);
+    the play-off's title is in no bx_tab entry of the exe (obj3)"""
+    src = os.environ.get('W2627S1_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-s1rank')
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    env = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'GPLAY_FORCE': force}
+    exe = os.environ.get('GPLAY_BUILD') or build(f'world_gplay_bench_{force}', env=env)
+    log_at, st_at, log_n, st_n = gp_ptrs(exe)
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lepatch
+    import lp36
+    pe = lepatch.LEPatch(os.path.join(exe, 'ITALIAN.EXE'))
+    diy = lp36._sites(lepatch.LEPatch(os.path.join(MAIN, 'orig', 'ITALIAN.EXE')))['DIY']   # (the game's variable: its
+                                                                                        # sites read on the original)
+    bx, _ = bench_switch(os.path.join(exe, 'ITALIAN.EXE'))
+    ob, bx = getattr(bx, 'obj', 1), int(bx)
+    keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
+                                            'W8485_NOSACK', 'W8485_HEX', 'W8485_ONE')}
+    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+',
+                      W8485_NOSACK='1', W8485_ONE='1',
+                      W8485_HEX=f'{st_at:x}:{st_n},{diy + 4:x}:41,o{ob}/{bx + 14:x}:2')
+    try:
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    errs = []
+    check(ok, msg, errs)
+    title, res, pairs, ran = '', '', {}, False
+    for ln in open(os.path.join(RUNS, w84_tag() + '_1', 'session.log'), errors='replace'):
+        p_ = ln.split()
+        if len(p_) != 3 or p_[0] != 'HEX':
+            continue
+        v = bytes.fromhex(p_[2])
+        if p_[1] == f'{st_at:x}':
+            ran = ran or v[:2] == b'GK'
+            continue
+        if p_[1] == f'{diy + 4:x}':
+            title = v.split(b'\0')[0].decode('latin-1')
+        else:
+            res = f'{v[0]}:{v[1]}'
+        if title and res:
+            pairs.setdefault(title, set()).add(res)
+    check(ran, 'the play-off never ran (no GP_ST seen)', errs)
+    po = [t for t in pairs if 'SPAREGGIO' in t]
+    lg = [t for t in pairs if t.endswith('2. BUNDESLIGA') and 'SPAREGGIO' not in t]
+    check(po and all(want in pairs[t] for t in po), f'play-off bench {[(t, sorted(pairs[t])) for t in po]}, want {want}',
+          errs)
+    check(lg and all(other in pairs[t] for t in lg), f'league bench {[(t, sorted(pairs[t])) for t in lg]}, want {other}',
+          errs)
+    o3 = pe.le.obj_bytes(ob)
+    for t in po:
+        check(o3.find(t.encode('latin-1') + b'\0') < 0, f'{t}: still a title entry in obj{ob}', errs)
+    return not errs, '; '.join(errs) or f'{msg}; benches seen {[(t, sorted(v)) for t, v in pairs.items()]}'
+
+
 def lrank_po(force, team, legs, uefaf=False):
     """4.2 S1.3 (MC): a Serie A play-off match played (Davide 09/11, Q8 = a; FIGC C.U. 244/A): the world 2026-27 with
     the S1 tie-breaker lists and play-off matches (internal/world2526/world5tm-s1rank, W2627S1_DATA) built with

@@ -15008,7 +15008,44 @@ def world_playoffs():
 
 
 @scenario
-def world_dplay_b(force='5', team='EUROPA,ITALIA,SERIE B,MODENA', cupw=''):
+def serie_c_mid(exe, rank=7):
+    """4.1: the Serie C group A club ranked `rank` (1 = the strongest) by built strength (ntdata-style s11: the first
+    11's outfield skills + 2 x the keeper's level) in the world 2026-27 data - with W8485_FILL (the stronger side
+    wins) it ends mid-table, out of the play-out zone (16th-19th) and off the top (no group-winner contest): the
+    world_dplay_c / _cupw_low career club (RENATE played group A's play-out in DE)"""
+    src = (os.environ.get('W2627D_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm')).rstrip('/')
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    old = os.environ.get('SEASON_PACKS')
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    os.environ['SEASON_PACKS'] = packs_font_safe(','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]))
+    try:
+        pk = next(p for p in mkseason_now().packs() if p.meta.get('id', '').endswith('-ita'))
+    finally:
+        if old is None:
+            os.environ.pop('SEASON_PACKS')
+        else:
+            os.environ['SEASON_PACKS'] = old
+    def s11(rec):
+        tot = 0
+        for place, j in enumerate(rec[60:71]):
+            q = rec[76 + j * 38:76 + (j + 1) * 38]
+            if q[26] >> 5 == 0:
+                tot += 2 * q[32] if place == 0 else 0
+            else:
+                tot += sum(b >> 4 & 7 for b in q[28:32]) + sum(b & 7 for b in q[28:32])
+        return tot
+    rows = []
+    for k in pk.league_clubs:
+        if pk.division.get(k) != 2:
+            continue
+        f, i = pk.where[k]
+        d = open(os.path.join(exe, 'DATA', f'TEAM.{f:03d}'), 'rb').read()   # (the built exe's team file)
+        rows.append((-s11(d[2 + 684 * i:2 + 684 * (i + 1)]), pk.clubs[k]['name']))
+    rows.sort()
+    return rows[min(rank, len(rows)) - 1][1]
+
+
+def world_dplay_b(force='5', team='EUROPA,ITALIA,SERIE B,MODENA', cupw='', fill=False):
     """The career club's Serie B play-off, played (dplay step 2): the world 2026-27 (private data internal/world2526/
     world5tm, 'playoffs': 'ita'; W2627D_DATA: another snapshot) built with DPLAY_FORCE=5 (at the league end the
     career club takes 5th place); a season at MODENA: the PLAY-OFF SERIE B contest is built in slot 4 after the last
@@ -15024,8 +15061,17 @@ def world_dplay_b(force='5', team='EUROPA,ITALIA,SERIE B,MODENA', cupw=''):
     exe = build('world_dplay_' + force + ('_w' + cupw if cupw else '') + ('' if UI == 'it' else '_' + UI)
                 + ('_' + os.path.basename(src) if os.environ.get('W2627D_DATA') else ''),
                 env=env, lang=UI)                            # (the UI lane's exe: SWOSTEST_UI)                                     # (another snapshot: its own build dir)
+    if team.endswith(',*'):                                  # (Serie C cases: the club by strength, serie_c_mid)
+        team = team[:-1] + serie_c_mid(exe)
     keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
-                                            'W8485_NOSACK', 'W8485_HEX')}
+                                            'W8485_NOSACK', 'W8485_HEX', 'W8485_FILL')}
+    if fill:                                                 # (4.1: every simulated match won by the stronger side,
+        import simdraw                                       # simdraw's table; the career club's group place then
+        from le import LE                                    # follows its strength, never the play-out zone - in DE
+        at = LE(open(os.path.join(exe, 'ITALIAN.EXE'), 'rb').read()).obj_bytes(2).find(simdraw.table())   # the
+        if at < 0:                                           # natural RENATE played group A's play-out, which takes
+            return False, 'simdraw table not found in obj2'  # the club's contest before dplay: no play-off, no log)
+        os.environ['W8485_FILL'] = f'{at:x}:30:3072'
     os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team,
                       W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1')
     os.environ.setdefault('W8485_HEX', f'156d8:16,18e04:4,1b528:6,{CAL_AT - 4:x}:3000')   # (the state's head, slot 4,
@@ -16381,7 +16427,7 @@ def world_dplay_c():
     (Serie C group A, 5th at its league end): the other two groups simulated at once, PLAY-OFF SERIE C (28 clubs) in
     slot 4 - group rounds, national rounds with seeds, Final Four - played to its end; its winner promoted (the
     season log: kind 3, the 28 clubs in place order, the winner moved up)"""
-    return world_dplay_b('105', 'EUROPA,ITALIA,SERIE C GIRONE A,RENATE')
+    return world_dplay_b('105', 'EUROPA,ITALIA,SERIE C GIRONE A,*', fill=True)
 
 
 
@@ -16392,7 +16438,7 @@ def world_dplay_cupw_low():
     DPLAY_FORCE=111 (RENATE 11th of Serie C group A) and DPLAY_CUPW=20 (group A's 20th the cup winner): RENATE plays
     the PLAY-OFF SERIE C in the cup winner's place (index 24: place 11, group A). Before 4.1 the 20th kept the place
     (RENATE played nothing: no log), and a 20th or a play-out club winning the play-off went up and down at once"""
-    return world_dplay_b('111', 'EUROPA,ITALIA,SERIE C GIRONE A,RENATE', cupw='20')
+    return world_dplay_b('111', 'EUROPA,ITALIA,SERIE C GIRONE A,*', cupw='20', fill=True)
 
 @scenario
 def world_leaguecup():

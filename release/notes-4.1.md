@@ -208,6 +208,26 @@ What it looks like in a career (World 2026-27, first two seasons, a club that wi
 Old careers: nothing is stored in the save. A career started with an older version gets the new income from its
 next match.
 
+#### UEFA prize money (World 2026-27)
+In the 2026-27 world, in the league-phase **Champions League, Europa League and Conference League**, your club now earns UEFA's real prize money, scaled down to the game's economy: **1/20 of the real amounts**. It is paid when it is earned, match by match, and shows on CLUB STATUS as its own row, **UEFA PRIZE MONEY**. Every payment is rounded to the nearest thousand.
+
+| Paid for | Champions League | Europa League | Conference League |
+|---|---|---|---|
+| Playing the league phase | 931,000 | 215,500 | 158,500 |
+| League-phase win / draw | 105,000 / 35,000 | 22,500 / 7,500 | 20,000 / 6,650 |
+| Knockout play-offs | 50,000 | 15,000 | 10,000 |
+| Round of 16 | 550,000 | 87,500 | 40,000 |
+| Quarter-finals | 625,000 | 125,000 | 65,000 |
+| Semi-finals | 750,000 | 210,000 | 125,000 |
+| Final | 925,000 | 350,000 | 200,000 |
+| Winning the cup (extra) | 325,000 | 300,000 | 150,000 |
+
+On top of these come the money for your final place in the league-phase table (the top 8 and places 9 to 16 get a bonus) and UEFA's "value" share, paid with the participation money and based on your country's TV market and your club's coefficient. The game's old bonus for playing in Europe at the start of the season is **not** paid in the 2026-27 world while the prizes are on, so nothing is paid twice.
+
+**The switch.** CLUB STATUS has a new button left of CONTINUE: **UEFA PRIZES: ON / OFF** (Italian PREMI UEFA: SI / NO, French PRIMES UEFA: OUI / NON, German UEFA-PRAEMIEN: AN / AUS). OFF stops the prizes from then on and brings back the game's old start-of-season bonus. The setting is kept in your save. Careers saved before 4.1 start with the prizes ON; in a cup already under way, prizes are paid from the next European match on and nothing is paid back for what the club had already reached.
+
+What is simplified, compared with UEFA: UEFA does not publish its TV-market order, so the game puts England, Spain, Germany, Italy and France first, then the other countries in the world's coefficient order; the game uses its own 5-year club coefficient where UEFA uses a 10-year one; the qualifying rounds' solidarity payments and the payments to clubs that do not take part are not included.
+
 #### Financial fair play (thanks to Marco)
 **Financial fair play** (idea: Marco). In a career, your chairman now watches the wage bill. At the start of every
 season he compares the squad's wages at the end of the season with what the club earned in the season just ended (gate
@@ -525,6 +545,26 @@ Come si vede in carriera (Mondo 2026-27, prime due stagioni, un club che vince l
 
 Carriere già iniziate: nel salvataggio non viene memorizzato niente. Una carriera iniziata con una versione
 precedente riceve i nuovi incassi dalla partita successiva.
+
+#### Premi UEFA (Mondo 2026-27)
+Nel mondo 2026-27, in **Champions League, Europa League e Conference League** con la fase a girone unico, il tuo club ora incassa i premi veri della UEFA, ridotti all'economia del gioco: **1/20 delle cifre reali**. Si incassano quando si guadagnano, partita per partita, e compaiono in ANDAMENTO CLUB su una riga tutta loro, **PREMI UEFA**. Ogni pagamento è arrotondato al migliaio.
+
+| Premio per | Champions League | Europa League | Conference League |
+|---|---|---|---|
+| Partecipazione alla fase a girone unico | 931.000 | 215.500 | 158.500 |
+| Vittoria / pareggio nel girone | 105.000 / 35.000 | 22.500 / 7.500 | 20.000 / 6.650 |
+| Spareggi a eliminazione diretta | 50.000 | 15.000 | 10.000 |
+| Ottavi di finale | 550.000 | 87.500 | 40.000 |
+| Quarti di finale | 625.000 | 125.000 | 65.000 |
+| Semifinali | 750.000 | 210.000 | 125.000 |
+| Finale | 925.000 | 350.000 | 200.000 |
+| Vittoria della coppa (in più) | 325.000 | 300.000 | 150.000 |
+
+A queste cifre si aggiungono il premio per il posto finale nella classifica del girone (le prime 8 e i posti dal 9° al 16° hanno un extra) e la quota "valore" della UEFA, pagata insieme alla partecipazione e basata sul mercato televisivo del tuo paese e sul coefficiente del tuo club. Nel mondo 2026-27, con i premi attivi, il vecchio bonus di inizio stagione per chi gioca in Europa **non** viene pagato: niente doppi incassi.
+
+**L'interruttore.** In ANDAMENTO CLUB c'è un nuovo pulsante a sinistra di CONTINUA: **PREMI UEFA: SI / NO** (inglese UEFA PRIZES: ON / OFF, francese PRIMES UEFA: OUI / NON, tedesco UEFA-PRAEMIEN: AN / AUS). Su NO i premi si fermano da quel momento e torna il vecchio bonus di inizio stagione. La scelta resta nel salvataggio. Le carriere salvate prima della 4.1 partono con i premi attivi; in una coppa già in corso i premi si pagano dalla prossima partita europea in poi e non c'è nessun arretrato per quello che il club aveva già raggiunto.
+
+Cosa è semplificato rispetto alla UEFA: la UEFA non pubblica l'ordine dei suoi mercati televisivi, quindi il gioco mette prima Inghilterra, Spagna, Germania, Italia e Francia, poi gli altri paesi nell'ordine del coefficiente del mondo; il gioco usa il suo coefficiente club su 5 anni dove la UEFA ne usa uno su 10; non sono inclusi i contributi di solidarietà dei turni preliminari e i pagamenti ai club che non partecipano.
 
 #### Fair play finanziario (grazie a Marco)
 **Fair play finanziario** (idea di Marco). In carriera il presidente ora controlla il monte ingaggi. All'inizio di ogni

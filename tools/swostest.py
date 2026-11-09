@@ -29743,25 +29743,23 @@ def xtra_cpu_refill_spp():
             return False, f'START: no first pause ({s.result})'
         on, why = swospp_on(s.result, os.path.join(out, 'ITALIAN.EXE'))
         check(on, f'SWOS++ not running: {why}', errs)
-        global SLOW_FIRE, HOLD, SPP_FIRE_HOLD, WALK_SPP
-        keep = os.environ.get('SWOSTEST_SPP_NOLATCH')   # (4.1 carnost: the career pick lost CARR. STORICHE - spp_go's
-        os.environ['SWOSTEST_SPP_NOLATCH'] = '1'          #  key plan stalled on it, 'SCEGLI SQUADRA not reached'; the
-        SLOW_FIRE, hold0 = 3, HOLD                        #  career's way: walk, one tap at a time, its fire SPP_TAP
-        HOLD, SPP_FIRE_HOLD, WALK_SPP = SPP_CONTI_HOLD, SPP_TAP, True   # ticks, longer only on a screen that stays
-                                                          #  (fire_send) - the feed's 20-tick fire on SERIE A ran on into
-                                                          #  the club list 1 run in 2 (a club picked); the world from
-                                                          #  SETUP.DAT)
-        try:
-            for t in ['CARRIERA', 'SCEGLI SQUADRA', 'EUROPA', 'ITALIA', 'SERIE A', 'INTER']:
-                walk(s, t, 3)
+        global SLOW_FIRE, HOLD, SPP_FIRE_HOLD, WALK_SPP   # (4.1 carnost: the career pick lost CARR. STORICHE - spp_go's
+        SLOW_FIRE, hold0 = 3, HOLD                        #  key plan stalled on it, 'SCEGLI SQUADRA not reached'; the
+        HOLD, SPP_FIRE_HOLD, WALK_SPP = SPP_CONTI_HOLD, SPP_TAP, True   # career's way now: walk, one tap at a time,
+        try:                                              #  the fire SPP_TAP ticks, longer only on a screen that stays
+            path = ['CARRIERA', 'SCEGLI SQUADRA', 'EUROPA', 'ITALIA', 'SERIE A', 'INTER']   # (fire_send); the world
+            for k, t in enumerate(path):                  #  from SETUP.DAT)
+                sc = s.screen()
+                if t == 'INTER' and sc.find('INTER', exact=True) is None and sc.find('CONTINUA', exact=True) is not None:
+                    s.log.append('[spp skip] the fire on SERIE A ran on into the club list: its first club taken')
+                    info.append('club picked by a doubled fire (SWOS++ feed; the switch does not depend on the club)')
+                    break                               # (RC2 EN exe: every run; REL41e2_en 1 in 2 - the chairman's
+                walk(s, t, 3, nxt=path[k + 1:])           #  note is up: the switch's test holds for any club)
                 s.log.append(f'[cpurefill_spp] {t} -> {[x for x in s.screen().texts() if x][:6]}')
-            s.send('fire dump:3')
+            else:
+                s.send('fire dump:3')
         finally:
             SLOW_FIRE, HOLD, SPP_FIRE_HOLD, WALK_SPP = 0, hold0, 0, False
-            if keep is None:
-                os.environ.pop('SWOSTEST_SPP_NOLATCH', None)
-            else:
-                os.environ['SWOSTEST_SPP_NOLATCH'] = keep
         leave(s)
         go(s, 'TRASFERIMENTI')
         go_i(s, 2)

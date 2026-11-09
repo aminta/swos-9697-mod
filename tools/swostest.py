@@ -14872,18 +14872,30 @@ def euro_money():
         with Session('euro_money_uefa', exe, {'W84A.CAR': uefa}, 'dump:2', 900) as s:   # (Shaved 09/11: as world_uprize)
             s.wait()
             s.send(LOAD1 + ' dump:3')
-            cbo = lambda: struct.unpack('<i', bytes(s.result.obj2(sym['D6B88'][1] + 4, 4)))[0]   # (competitionBonuses:
-            for k in range(4):                                                                    #  an old save's first
-                ok, msg = advance(s, lambda scr: 'ANDAMENTO CLUB' in scr.texts() and cbo() != 0, 150)   # CL day pays)
+            r = s.result
+            m = bytes(r.read(r.base4 + 0x3000, 0x1000))  # (uprize's UP, after 'UPRZ' in obj4's 4th page - world_uprize's
+            k = m.find(b'UPRZ')                           #  up_find; the save predates it: ok 0, nothing paid until it is
+            if k < 0:                                     #  this season's CL - poked so, as world_uprize; Integratore
+                check(False, 'uefa: no UPRZ block in obj4 page 4 (not an RC3 uprize exe)', errs)   # s43dry 09/11)
+            else:
+                at = r.base4 + 0x3000 + k + 4
+                ss = r.read(season_playing_at(r, exe), 1)[0] + 1
+                s.poke(at, bytes((1, 0, ss, 0, 0, 0, 0, 0)) + bytes(4))
+                s.poke(r.base2 + nosack_off(os.path.join(exe, 'ITALIAN.EXE')), b'\x01\x00')
+                s.send('dump:1')
+                cbo = lambda: struct.unpack('<i', bytes(s.result.obj2(sym['D6B88'][1] + 4, 4)))[0]   # (competitionBonuses)
+                paid = lambda: struct.unpack_from('<I', bytes(s.result.read(at + 8, 4)))[0]       # (UP's sum: a prize paid)
+                ok, msg = advance(s, lambda scr: 'ANDAMENTO CLUB' in scr.texts() and paid() > 0 and cbo() != 0, 300)
                 if not ok or press(s, s.screen(), 'ANDAMENTO CLUB', 3) is None:
-                    check(False, f'uefa: match day {k + 1}: {msg}', errs)
-                    break
-                scr = s.screen()
-                if len(scr.raw) > 13 and scr.raw[3].decode('latin-1') == lab and not scr.entries[3][2]:
-                    look(s, 'uefa')
-                    break
-                press(s, scr, 'CONTINUA', 3) or press(s, scr, 'ESCI', 3)
-        check('uefa' in seen, f'uefa: no statement with {lab!r} in 4 match days', errs)
+                    check(False, f'uefa: no prize paid: {msg}', errs)
+                else:
+                    scr = s.screen()
+                    if len(scr.raw) > 13 and scr.raw[3].decode('latin-1') == lab and not scr.entries[3][2]:
+                        look(s, 'uefa')
+                    else:
+                        check(False, f'uefa: a prize paid ({paid():,}), the statement without {lab!r}: '
+                                     f'{scr.texts()[:10]}', errs)
+        check('uefa' in seen, f'uefa: no statement with {lab!r}', errs)
     for t, why in (('transfers', 'the bank balance'), ('market', 'the market prices'), ('offer', 'the offer'),
                    ('finance', 'ANDAMENTO CLUB'), ('statement1', 'the match day 1 statement')):
         check(t in seen, f'{why}: no money entry seen', errs)

@@ -14635,6 +14635,70 @@ def euro_bank(s, cur, factor, tag, info, errs):
     euro_menu(s)
 
 
+def ega_flag(exe):
+    """EGA_graphics (obj2): -1 = the game's 16-colour mode (shirt_numbers_ega's code pattern)."""
+    import lepatch
+    p = lepatch.LEPatch(exe)
+    c = p.le.obj_bytes(1)
+    m = re.search(rb'\x66\x83\x3d....\xff\x0f\x84....\x66\x81\x3d....\x33\x01', c, re.S)
+    return p.target(1, m.start() + 3)[1]
+
+
+@scenario
+def euro_swospp():
+    """4.1 RC3 euro under SWOS++ 1.9.2.2 (Regia 09/11; English only: SWOS++ installs on ENGLISH.EXE): SWOSTEST_BUILD
+    = the English release dir (its ITALIAN.EXE = ENGLISH.EXE), SWOS++ installed on a copy (tools/swospp.py, LOADER.BIN /
+    SWOSPP.BIN, keys from the timer, one tap at a time as world_cgame_swospp; World 2026-27 saved in SETUP.DAT):
+    SWOS++ running (swospp_on), a new World
+    2026-27 INTER career, its TRASFERIMENTI: the bank drawn with the euro letter (euro_look), never the pound.
+    Shot eu_spp_transfers."""
+    if UI != 'en':
+        return True, 'SKIP: SWOS++ is English only (SWOSTEST_UI=en)'
+    exe = foreign_exe()
+    if not exe:
+        return True, 'SKIP: no release SWOS dir (SWOSTEST_BUILD)'
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import swospp
+    pp = os.path.join(MAIN, 'internal', 'swospp-test')
+    out = xdir('euro_swospp')
+    shutil.rmtree(out, ignore_errors=True)
+    shutil.copytree(exe, out)
+    swospp.install(os.path.join(exe, 'ITALIAN.EXE'), os.path.join(out, 'ITALIAN.EXE'))
+    errs, info, seen = [], [], {}
+    new, old = euro_masks(exe)
+    global SLOW_FIRE, HOLD, SPP_FIRE_HOLD, WALK_SPP
+    keep = os.environ.get('SWOSTEST_SPP_NOLATCH')
+    os.environ['SWOSTEST_SPP_NOLATCH'] = '1'
+    SLOW_FIRE, hold0 = 3, HOLD
+    HOLD, SPP_FIRE_HOLD, WALK_SPP = SPP_CONTI_HOLD, SPP_PM_HOLD, True
+    try:
+        files = {'LOADER.BIN': os.path.join(pp, 'loader.bin'), 'SWOSPP.BIN': os.path.join(pp, 'swospp.bin'),
+                 'SETUP.DAT': setup_file('euro_swospp', 0)}    # (World 2026-27 saved as the main menu's world: the
+        with Session('euro_swospp', out, files, 'dump:4', 600, timer=True) as s:   # career's without the WORLD
+            s.wait()                                           # switch - under SWOS++ spp_fire's first-text check
+            on, why = swospp_on(s.result, os.path.join(out, 'ITALIAN.EXE'))   # does not see its label change)
+            check(on, f'SWOS++ not running: {why}', errs)
+            for t in ['CARRIERA', 'SCEGLI SQUADRA', 'EUROPA', 'ITALIA', 'SERIE A', 'INTER']:
+                walk(s, t, 3)                   # (WALK_SPP: one tap at a time, the fire held)
+                s.log.append(f'[euro_swospp] {t} -> {[x for x in s.screen().texts() if x][:6]}')
+            s.send('fire dump:3')
+            euro_menu(s)
+            walk(s, 'TRASFERIMENTI', 3)
+            ns = euro_wcur(s)
+            check(ns == 5, f'the career is not World 2026-27\'s (WCUR {ns})', errs)
+            info.append(f'WCUR {ns}')
+            euro_look(s, 'spp_transfers', new, old, seen, errs)
+            check('spp_transfers' in seen, f'no money entry on TRASFERIMENTI ({s.screen().texts()[:6]})', errs)
+    finally:
+        SLOW_FIRE, HOLD, SPP_FIRE_HOLD, WALK_SPP = 0, hold0, 0, False
+        if keep is None:
+            os.environ.pop('SWOSTEST_SPP_NOLATCH', None)
+        else:
+            os.environ['SWOSTEST_SPP_NOLATCH'] = keep
+    info += [f'{t} {n} entries / {e} euro / {o} pound {a[:2]}' for t, (n, e, o, a) in seen.items()]
+    return not errs, '; '.join(errs) or 'SWOS++ on; ' + '; '.join(info)
+
+
 def euro_wcur(s):
     """careerworld's WCUR (the namespace whose teams are loaded: the euro's switch), through the world registry."""
     import swreg
@@ -14674,7 +14738,10 @@ def euro_money():
     new, old = euro_masks(exe)
     look = lambda s, tag: euro_look(s, tag, new, old, seen, errs)
     sym = finance.find(lepatch.LEPatch(os.path.join(MAIN, 'orig', UI_ORIG)))
-    with Session('euro_money', exe, {}, 'dump:2', 600) as s:
+    ega = ega_flag(os.path.join(exe, 'ITALIAN.EXE')) if os.environ.get('SWOSTEST_MEMSIZE') else None
+    if ega is not None:                         # (the career match's '- PARTITA -': the game's own int 3)
+        exe = nop_league_int3('euro_money_ega_' + os.path.basename(RUNS.rstrip('/')), exe)
+    with Session('euro_money', exe, {}, 'dump:2', 900, match=ega is not None) as s:
         s.wait()
         for t in ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27', 'EUROPA', 'ITALIA', 'SERIE A', 'INTER']:
             if press(s, s.screen(), t, 3) is None:
@@ -14716,6 +14783,54 @@ def euro_money():
                 break
             look(s, tag)
             press(s, s.screen(), 'CONTINUA', 3) or press(s, s.screen(), 'ESCI', 3)
+        if ega is not None:                     # (SWOSTEST_MEMSIZE=8: the game's 16-colour mode, set for a match -
+            euro_menu(s)                        #  the career's next match played (cc_match's way: the club coached,
+            for _ in range(12):                 #  so both sides AI), the flag read on every in-match dump; then the
+                sc = s.screen()                 #  career menu again: its ANDAMENTO CLUB)
+                texts = sc.texts()
+                if cc_play(sc) is not None:
+                    break
+                if 'TRASFERIMENTI' in texts and 'PARTITA' in texts:
+                    press(s, sc, 'PARTITA', 2) or s.send('fire dump:2')
+                elif '- PARTITA -' in texts:
+                    press(s, sc, '- PARTITA -', 2) or s.send('fire dump:2')
+                elif 'MOD. TATTICA' in texts:
+                    press(s, sc, 'ESCI', 2) or s.send('fire dump:2')
+                else:
+                    s.send('fire dump:2')
+            sc = s.screen()
+            if cc_play(sc) is None:
+                check(False, f'EGA: no team screen ({sc.texts()[:6]})', errs)
+            else:
+                i = sc.find('GIOCA :', exact=True)
+                if i is not None:
+                    sc = walk(s, i, 2)
+                press(s, sc, cc_play(sc)) or s.send('fire dump:2')
+                fl, played = set(), False
+                for _ in range(250):
+                    sc = s.screen()
+                    if not sc.entries:
+                        played = True
+                        fl.add(bytes(s.result.obj2(ega, 2)).hex())
+                        s.send('fire:3 ' * 3 + 'dump:1')
+                        continue
+                    if played:
+                        break
+                    s.send('fire dump:2')
+                check(played, 'EGA: no match', errs)
+                check('ffff' in fl, f'not the 16-colour mode in the match (EGA_graphics seen {sorted(fl)})', errs)
+                info.append(f'EGA_graphics in the match {sorted(fl)}')
+                for _ in range(10):             # (the fixture / table screens after it list PROSS. PARTITA too:
+                    if 'TRASFERIMENTI' in s.screen().texts():   # the career menu is the one with TRASFERIMENTI)
+                        break
+                    press(s, s.screen(), 'ESCI', 3) or press(s, s.screen(), 'CONTINUA', 3) or s.send('fire dump:2')
+                if 'TRASFERIMENTI' not in s.screen().texts():
+                    check(False, f'EGA: no career menu after the match ({s.screen().texts()[:6]})', errs)
+                else:
+                    if press(s, s.screen(), 'ANDAMENTO CLUB', 3) is not None:
+                        look(s, 'ega_after')
+                    check('ega_after' in seen, f'EGA: no euro on ANDAMENTO CLUB after the match ({s.screen().texts()[:6]}; EGA_graphics in it {sorted(fl)})', errs)
+                    info.append(f'WCUR after {euro_wcur(s)}')
     if os.environ.get('EURO_SEASON', '1') == '1':   # the season-end prize money: a short 2026-27 season (Malta)
         with Session('euro_money_season', exe, {}, 'dump:2', 1500) as s:
             s.wait()

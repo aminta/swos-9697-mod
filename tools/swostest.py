@@ -14417,6 +14417,95 @@ def kit_navy_shots():
     return not errs, '; '.join(errs + info) if errs else f'shots of {len(info)} matches: {"; ".join(info)}'
 
 
+SKIN_FIX = {'YEBOAH': 'ADAMS'}          # (skin_venezia: a hand-fixed player -> a dark team-mate of the same squad)
+
+
+@scenario
+def skin_venezia():
+    """4.1 RC3 (Enzo 09/11, via Regia): JOHN YEBOAH (Germany / Ecuador: no nationality in the dark list) and JUAN JESUS
+    (Brazil) of VENEZIA were light; faces_fix.csv + data 403c17 make them dark. A friendly in the World 2026-27,
+    VENEZIA (human) - INTER: on the team screen YEBOAH's record has face 2 (dark) and his row's face icon is the very
+    picture of a dark team-mate's (SKIN_FIX), not a light one's; in the match his PlayerInfo face is 2. Shots
+    skin_prematch / skin_match. (JUAN JESUS is in VENEZIA's extra squad, not the 16 a friendly plays: his face byte
+    is checked in the build's DATA files.) SWOSTEST_BUILD = a release build of 403c17 data or later."""
+    import lepatch
+    b = builds()['it']
+    errs, info = [], []
+    names = []
+    for f in sorted(glob.glob(os.path.join(b, 'DATA', '*'))):
+        d = open(f, 'rb').read()
+        for m in re.finditer(rb'JUAN JESUS\0', d):
+            face = (d[m.start() - 3 + 26] >> 3) & 3
+            names.append((os.path.basename(f), face))
+    check(names and all(fc == 2 for _, fc in names), f'JUAN JESUS in DATA: {names} (want face 2 everywhere)', errs)
+    info.append(f'JUAN JESUS face {names}')
+    p = lepatch.LEPatch(os.path.join(b, 'ITALIAN.EXE'))
+    m = re.search(rb'(?:\xc7\x05.{8}){4}\x66\xc7\x05.{4}\xa7\x06', p.le.obj_bytes(1), re.S)
+    top, bot = p.target(1, m.start() + 6)[1], p.target(1, m.start() + 26)[1]
+    with Session('skin_venezia', b, {}, 'dump:3', 300, match=True) as s:
+        s.wait()
+        set_world(s, 0)
+        for t in ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE A', 'VENEZIA'):
+            walk(s, t, 2)
+        s.send('fire dump:2')                   # COMPUTER -> GIOCA-ALLENA
+        walk(s, 'INTER', 2)
+        for _ in range(12):
+            scr = s.screen()
+            i = scr.find('AMICHEVOLE', exact=True)
+            if i is None:
+                break
+            if scr.selected == i:
+                s.send('fire dump:4')
+                break
+            s.send(('right' if scr.selected in (i + 1, i + 2) else 'down') + ' dump:0.5')
+        rows = se_rows(s)
+        if not rows:
+            return False, '; '.join(errs + [f'no team screen ({s.screen().texts()[:8]})'])
+        tm = se_team(s)[0]
+        recs = [s.result.read(tm + 76 + 38 * j, 38) for j in range(16)]
+        rn = [bytes(r[3:25]).split(b'\0')[0].decode('latin-1') for r in recs]
+        scr = s.screen()
+        v_ = s.box.dump(0xA0000, 64000)
+
+        def pic(nm):                            # the face icon of a player's row (x 2..12, icon colours < 32; the rows
+            j = next((j for j, n in enumerate(rn) if nm in n), None)   # carry no text: a friendly's rows are in record
+            if j is None or j >= len(rows):     # order - VENEZIA's line-up 0..15, the shot shows it)
+                return None
+            x_, y_, w_, h_ = scr.geom[rows[j]]
+            return bytes(c if c < 32 else 0 for c in (v_[(y_ + j) * 320 + c] for j in range(h_) for c in range(2, 13)))
+        s.shot('skin_prematch')
+        light = next((n for n, r in zip(rn, recs) if not (r[26] >> 3) & 3 and not r[25] & 5 and r[26] >> 5), None)
+        for who, mate in SKIN_FIX.items():
+            k = next((j for j, n in enumerate(rn) if who in n), None)
+            if k is None:
+                check(False, f'{who} not in VENEZIA\'s 16 ({rn})', errs)
+                continue
+            check((recs[k][26] >> 3) & 3 == 2, f'{rn[k]}: record face {(recs[k][26] >> 3) & 3}, want 2 (dark)', errs)
+            a, d_, l_ = pic(who), pic(mate), pic(light) if light else None
+            check(None not in (a, d_, l_) and a == d_ and a != l_, f'{rn[k]}: team-screen face icon = {mate}\'s '
+                  f'{a == d_}, = {light}\'s {a == l_} ({len(rows)} rows)', errs)
+            info.append(f'{rn[k]} record face 2, icon = {mate}\'s')
+        for _ in range(22):
+            s.send('down dump:0.5')
+            if s.screen().selected == 9:
+                break
+        r = s.send('fire ' + 'fire:3 ' * 8 + 'dump:2')
+        check(r.outcome == 'dump', f'match {r}', errs)
+        if r.outcome == 'dump':
+            s.shot('skin_match')
+            got = {}
+            for t in (top, bot):                # (InitGameSaveTeams' TeamGame blocks, as hil_text)
+                d = r.read(r.base2 + t, 42 + 61 * 16)
+                for j in range(16):
+                    pi = d[42 + 61 * j:42 + 61 * (j + 1)]
+                    nm = bytes(pi[12:27]).split(b'\0')[0].decode('latin-1')
+                    if any(w in nm for w in SKIN_FIX):
+                        got[nm] = pi[5]
+            check(got and all(v == 2 for v in got.values()), f'in the match: PlayerInfo faces {got} (want 2)', errs)
+            info.append(f'match PlayerInfo {got}')
+    return not errs, '; '.join(errs) or '; '.join(info)
+
+
 STNM_NAME, STNM_SHOWN, STNM_KEY, STNM_Y = 4, 53, 54, 56          # stadium.py's log after its 'STNM' mark (v3: name[49])
 
 

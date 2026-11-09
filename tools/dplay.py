@@ -797,7 +797,9 @@ def patch(p, at, limit, tables, bss_at, area):
     top = bigtables.ext_off() if bigtables.ON[0] else careerworld.BIGC_AT
     assert save_at + LOG_AT + 0x500 <= top, (hex(se), hex(save_at), hex(top))
     force = int(os.environ.get('DPLAY_FORCE') or 0)          # (test builds: the career club's Serie B place)
-    obj = cobj.compile_c(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'dplay.c'), [f'-DDP_FORCE={force}'])
+    cupw = int(os.environ.get('DPLAY_CUPW') or 0)            # (test builds: the cup winner's place in that group)
+    obj = cobj.compile_c(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'dplay.c'),
+                         [f'-DDP_FORCE={force}'] + ([f'-DDP_CUPWF={cupw}'] if cupw else []))
     syms, cend, bss = cobj.link(p, obj, at, (2, bss_at), limit=limit)
     assert bss <= 0x1000, hex(bss)
     keys = ('IN_SIZE', 'OUT_SIZE', 'RSZ', 'NT', 'O_N', 'O_T', 'O_MV', 'MSZ', 'O_PO', 'O_MGR', 'SV_SIZE', 'SV_KIND',

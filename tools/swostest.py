@@ -7076,6 +7076,29 @@ def keeper_let_go(s, errs):
     return True
 
 
+def wait_stopped(s, tries=40):
+    """(4.1 RC2 MEM16 lane, 09/11) dumps until play stands still - BenchCheckControls' gates: gameStatePl not
+    ST_GAME_IN_PROGRESS (100), gameState not ST_STARTING_GAME .. ST_GAME_ENDED (21..30), and no keeper
+    holding the ball (3: the bench takes no cursor key then, keeper_let_go) - the only frames that take a
+    bench key (@@bench_not_invoked clears the calls every frame of play). A bench key sent blind lands in play whenever
+    the match's course moves (REL41rc2 at memsize 8: 12 calls in play, the bench never open). The last result."""
+    v = bench_vars()
+    if not hasattr(wait_stopped, 'gsp'):
+        p = lepatch_orig()
+        gs = {p.target(1, x.start(1))[1] for x in re.finditer(rb'\x66\x83\x3d(....)\x64\x0f\x84', p.le.obj_bytes(1), re.S)}
+        assert len(gs) == 1, ('gameStatePl', gs)
+        wait_stopped.gsp = gs.pop()
+    r = s.result
+    for _ in range(tries):
+        w16 = lambda o: struct.unpack('<H', r.read(r.base2 + o, 2))[0]
+        if w16(wait_stopped.gsp) != 100 and not 21 <= w16(v['GSTATE']) <= 30 and w16(v['GSTATE']) != 3:
+            break
+        r = s.send('dump:0.5')
+        if r.outcome != 'dump':
+            break
+    return r
+
+
 def fw_probe(s):
     """Both teams' starters 2 / 3 booked (Sprite.cards +66h: 1 yellow, -1 red), the record-injury byte
     (PlayerInfoHeader.injuriesBitfield, 42 + 61 i + 35) 0x20 (a cross drawn every frame) for starters 2 and 4: the bench
@@ -7280,7 +7303,13 @@ def bench_sub(s, bx, place, errs, info, mark, key=None, gone=None, tag='', human
     for call in range(40 if human_key else 12):
         if not keeper_let_go(s, errs):
             return False
-        r = s.send((key or ('pgup' if call % 2 == 0 else 'pgdn')) + ':0.3 dump:0.6')   # (key: one team's bench)
+        bk = (key or ('pgup' if call % 2 == 0 else 'pgdn')) + ':0.3 dump:0.6'
+        r = s.send(bk)
+        if r.outcome == 'dump' and not w16(v['INSUBS'], r.base2) and not w16(v['B1C'], r.base2) \
+                and not w16(v['B2C'], r.base2):     # (a key that landed in play: once more at the next stoppage, as a
+            r = wait_stopped(s)                     #  player presses it - MEM16 lane 09/11)
+            if r.outcome == 'dump':
+                r = s.send(bk)   # (key: one team's bench)
         if os.environ.get('BENCH_DIAG') and r.outcome == 'dump':   # (bench1Called / bench2Called / g_inSubstitutesMenu)
             info.append(f'call {call} {key or ("pgup", "pgdn")[call % 2]}: b1/b2/in ' + str(
                 [w16(v[k], r.base2) for k in ('B1C', 'B2C', 'INSUBS')]))
@@ -7317,7 +7346,9 @@ def bench_sub(s, bx, place, errs, info, mark, key=None, gone=None, tag='', human
             for k in ('up', 'left', 'right', 'fire'):
                 r = ks(f'{k}:0.15 dump:0.3')
                 tr.append((k, w16(v['IDX'], r.base2)))
-            info.append(f'bench call {call}: down ignored, then {tr}')
+            info.append(f'bench call {call}: down ignored, then {tr}; gameState {w16(v["GSTATE"], r.base2)} gameStatePl '
+                        f'{w16(wait_stopped.gsp, r.base2) if hasattr(wait_stopped, "gsp") else None} b1/b2/in '
+                        f'{[w16(v[k], r.base2) for k in ("B1C", "B2C", "INSUBS")]}')
             s.shot(f'{tag}bench_diag{call}')
         if last == want:
             break

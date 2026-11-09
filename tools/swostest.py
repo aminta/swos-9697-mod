@@ -15007,7 +15007,6 @@ def world_playoffs():
     return not errs, '; '.join(errs) or f'{msg}; divisions {sorted(cnt.items())}; moves {dict(mv)}'
 
 
-@scenario
 def serie_c_mid(exe, rank=7):
     """4.1: the Serie C group A club ranked `rank` (1 = the strongest) by built strength (ntdata-style s11: the first
     11's outfield skills + 2 x the keeper's level) in the world 2026-27 data - with W8485_FILL (the stronger side
@@ -15045,6 +15044,7 @@ def serie_c_mid(exe, rank=7):
     return rows[min(rank, len(rows)) - 1][1]
 
 
+@scenario
 def world_dplay_b(force='5', team='EUROPA,ITALIA,SERIE B,MODENA', cupw='', fill=False):
     """The career club's Serie B play-off, played (dplay step 2): the world 2026-27 (private data internal/world2526/
     world5tm, 'playoffs': 'ita'; W2627D_DATA: another snapshot) built with DPLAY_FORCE=5 (at the league end the

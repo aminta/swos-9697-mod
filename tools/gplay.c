@@ -33,7 +33,7 @@ typedef unsigned int u32;
 typedef signed char s8;
 
 enum { GT = 32, GD = 16, GN = 64, RESERVE = 0xFE };   /* (GD: Italy 2026-27 has 14 divisions; GT: Argentina's 30) */
-enum { HOST_LISTED, HOST_BETTER, HOST_DRAWN, HOST_NEUTRAL, HOST_SKIP_SAME = 0x80 };
+enum { HOST_LISTED, HOST_BETTER, HOST_DRAWN, HOST_NEUTRAL, HOST_UEFA_FINAL = 0x40, HOST_SKIP_SAME = 0x80 };
 enum { LV_BETTER, LV_ET_PENS, LV_ET_BETTER, LV_PENS, LV_AWAY_PENS, LV_AWAY_BETTER,
        LV_BETTER_PTS, LV_SECOND };      /* (4.2 s3shape: the better placed unless level on points, then e.t. + penalties;
                                            the listed second - a seeded round's seed) */
@@ -155,6 +155,28 @@ static int better(int a, int b) {       /* the higher tier, then the better plac
         if (x->gf != y->gf) return x->gf > y->gf;
     }
     return PL(a) < PL(b);
+}
+
+/* 4.2 S1.3, the FIGC C.U. 244/A exception (iv): a play-off match is not played when one of its clubs is already in a
+   UEFA competition's final - round host bit 0x40 (pack "skip_if_uefa_finalist"; the rules library's sr_season
+   .uefa_final). The game plays one UEFA cup, the career club's: its finalists are the winners of the last stage uesum's
+   US_REC kept this season (GP_USRP, 1 without uesum; struct cup: u8 id, n[4], ss, ties of 8 B at +6: u16 x, y, .., u8
+   fl - 0x80 played, 1 y went through) when that stage is the semi-finals (2 ties). */
+const u8 *GP_USRP = (const u8 *)1;      /* (1: none - not in .bss; patch.py: gplay.link_usrec after uesum) */
+extern const u8 GP_SEASP;               /* seasonPlaying (US_REC's stamp - 1) */
+static int uefa_fin(u16 ta, u16 tb) {
+    const u8 *c = GP_USRP;
+    int s = 3, off = 0;
+    if (c == (const u8 *)1 || !c || c[5] != (u8)(GP_SEASP + 1)) return 0;
+    while (s >= 0 && !c[1 + s]) s--;
+    if (s < 0 || c[1 + s] != 2) return 0;
+    for (int k = 0; k < s; k++) off += c[1 + k];
+    for (int i = 0; i < 2 && off + i < 22; i++) {
+        const u8 *t = c + 6 + 8 * (off + i);
+        u16 w = t[7] & 1 ? *(const u16 *)(t + 2) : *(const u16 *)t;
+        if ((t[7] & 0x80) && (w == ta || w == tb)) return 1;
+    }
+    return 0;
 }
 
 static u32 str2(int c, int home) {      /* strength: the place in its division, the tier */
@@ -1143,7 +1165,8 @@ GP_KOSIZE void gp_season(void) {
             for (; nr; nr--) r += 6 + 2 * r[0];
         }
         for (int k = 0; k < nr; k++) {          /* walk the rounds (also to skip a play-off not played here) */
-            int ties = r[0], legs = r[1], host = r[2] & 0x7F, skip = r[2] & HOST_SKIP_SAME, level = r[3];
+            int ties = r[0], legs = r[1], host = r[2] & 0x3F, skip = r[2] & HOST_SKIP_SAME, level = r[3];
+            int fin = r[2] & HOST_UEFA_FINAL;
             int pairing = r[4], gap = r[5];
             const u8 *m = r + 6;
             int mem[2 * GN], gm = legs & 0x80 ? ties : 2 * ties;     /* (a group round: ties = its members) */
@@ -1210,6 +1233,7 @@ GP_KOSIZE void gp_season(void) {
                     int a = mem[2 * i], b = mem[2 * i + 1], d = (int)row(a)->pts - (int)row(b)->pts;
                     int w = a == b && skip ? a                                         /* (one club: no tie) */
                           : gap && (d >= gap || -d >= gap) ? (better(a, b) ? a : b)   /* (too far apart: no tie) */
+                          : fin && uefa_fin(row(a)->team, row(b)->team) ? (better(a, b) ? a : b)   /* (C.U. 244/A (iv)) */
                           : legs == 3 ? series(a, b, level) : tie(a, b, legs, host, level);
                     if (GP_IN.pl_pi == pidx + 1 && nt < KT && GP_IN.pl_w[nt])    /* (played in slot 4: its result) */
                         w = row(b)->team == GP_IN.pl_w[nt] ? b : row(a)->team == GP_IN.pl_w[nt] ? a : w;
@@ -1619,7 +1643,7 @@ static u32 hseed(const struct gp_ko *k, int g) {
 static int presim;                      /* a career club that waits in round 1 (MLS: seeds 1-7 v the wild cards): the
                                            first round's ties simulated at the build, the contest starts after them */
 static int build_game(struct gp_ko *k, int g) {
-    int r = k->gsr[g], ties = k->rs[r][0], legs = k->rs[r][1], host = k->rs[r][2] & 0x7F, pairing = k->rs[r][4];
+    int r = k->gsr[g], ties = k->rs[r][0], legs = k->rs[r][1], host = k->rs[r][2] & 0x3F, pairing = k->rs[r][4];
     int t0 = k->gt0[r], np = k->gp0[g], mem[2 * KT];
     rng = hseed(k, g);
     if (k->gno[g]) {                    /* a series' game 2 / 3: the ties not decided yet */
@@ -1653,7 +1677,7 @@ static int build_game(struct gp_ko *k, int g) {
         for (int i = 0; i < pn; i++) mem[i] = tmp[i];
     }
     for (int i = 0; i < ties; i++) {
-        int t = t0 + i, a = mem[2 * i], b = mem[2 * i + 1], gap = k->rs[r][5];
+        int t = t0 + i, a = mem[2 * i], b = mem[2 * i + 1], gap = k->rs[r][5], fin = k->rs[r][2] & HOST_UEFA_FINAL;
         if (k->tw[t] != NOC) continue;  /* (decided by the gap rule) */
         if (g == 0 && presim && k->code[a] != k->code[b]) {   /* (the career club waits: simulated now) */
             int ca = k->code[a], cb = k->code[b], lv = k->rs[r][3];
@@ -1663,9 +1687,9 @@ static int build_game(struct gp_ko *k, int g) {
         }
         if (k->code[a] == k->code[b]) { k->tw[t] = k->tl[t] = a; continue; }   /* (skip_if_same: one CLUB twice
                                            (two entrants, e.g. the Trofeo's R1 = R2): no tie) */
-        if (g == 0 && gap) {
+        if (g == 0 && (gap || fin)) {
             int d = (int)k->pts[a] - (int)k->pts[b];
-            if (d >= gap || -d >= gap) { k->tw[t] = kbetter(k, a, b) ? a : b; k->tl[t] = k->tw[t] == a ? b : a; continue; }
+            if ((gap && (d >= gap || -d >= gap)) || (fin && uefa_fin(k->team[a], k->team[b]))) { k->tw[t] = kbetter(k, a, b) ? a : b; k->tl[t] = k->tw[t] == a ? b : a; continue; }
         }
         int bt = kbetter(k, a, b) ? a : b, wo = bt == a ? b : a;
         if (legs == 3 || host == HOST_NEUTRAL) { a = bt; b = wo; }   /* (no neutral grounds: the better placed's) */

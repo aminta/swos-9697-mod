@@ -47,6 +47,9 @@ pack.json league "ko_playoffs": [{ "key", "names": {lang: [long, short]},
               placings by their own groups' points, goal difference, goals - a ranking round before),
               "host": "listed" | "better" | "drawn" | "neutral", "level": "better" | "et_pens" | "et_better" | "pens",
               "gap": g (a tie of clubs g+ points apart is not played: the better placed goes through),
+              "skip_if_uefa_finalist": true (4.2: a tie of a club already in the final of the career club's UEFA cup is
+              not played either: the better placed goes through - the FIGC C.U. 244/A exception (iv); SWOS plays no
+              other UEFA cup),
               "skip_if_same": bool (a tie of one club with itself is not played: it goes through)}
              | {"group": {"rounds": 1..4, "bonus": [points per member], "host": "listed" | "neutral"},
                 "members": [...]} (a round robin; its placings P<k>, numbered across the group rounds)],
@@ -76,6 +79,7 @@ LEVELS = {'better': 0, 'et_pens': 1, 'et_better': 2, 'pens': 3, 'away_pens': 4, 
 PO_EXT = 0x40                   # 4.2 s3shape: kind | 0x40 = an extension block after the header (gplay.c ents_of)
 E_DIRECT, E_LEVEL, E_SEEDED, E_BEST = 1, 2, 3, 4
 SKIP_SAME = 0x80                # host byte bit 7: a tie of one club with itself is not played (4.0 package 6)
+UEFA_FINAL = 0x40               # bit 6 (4.2 S1.3, FIGC C.U. 244/A (iv)): not played when a club is in a UEFA final
 BEST_LOSER = 0x3F               # member 'BL': the best placed loser of the previous round (entrants are 0..62)
 
 
@@ -229,7 +233,8 @@ def compile_spec(pos, ndiv, league_names=None):
             gap = rd.get('gap', 0)
             if not (isinstance(gap, int) and 0 <= gap < 256):
                 raise ValueError(f'{key}: gap 0..255 points')
-            host = HOSTS[rd.get('host', 'listed')] | (SKIP_SAME if rd.get('skip_if_same') else 0)
+            host = (HOSTS[rd.get('host', 'listed')] | (SKIP_SAME if rd.get('skip_if_same') else 0)
+                    | (UEFA_FINAL if rd.get('skip_if_uefa_finalist') else 0))
             rounds += bytes((ties, legs, host, LEVELS[rd.get('level', 'et_pens')], pairing,
                              gap))
             rounds += bytes(codes)
@@ -2532,6 +2537,14 @@ def _fin_site(p):
                 scan=scan.pop(), refresh=[rel(run[0] + 5 * k) for k in range(4)])
 
 
+def link_usrec(p, us_rec):
+    """After uesum.patch: gplay.c's GP_USRP -> uesum's US_REC (4.2 S1.3, the C.U. 244/A exception (iv): the career
+    club's UEFA cup's finalists); none: it stays 0 (no tie skipped)."""
+    import cobj
+    if us_rec and LABELS.get('GP_USRP'):
+        cobj.add_ptr(p, LABELS['GP_USRP'][1], *us_rec[:2], objn=LABELS['GP_USRP'][0])
+
+
 def link_reserve(p, ri=None):
     """After pgroups.patch (and ripool.patch): gp_sack's reserve tables, pgroups.LABELS['RS_TAB'] and the off-file
     pool's RI_TAB (ri: ripool.patch's labels); none: their pointers stay 0."""
@@ -2657,6 +2670,7 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     import nasmcave
     import sacups
     import split
+    import uesum
     cap, c9221f, end_site, c9228d, diy, ct, rel, pro, r = dplay._sites(p)
     ps = dplay._play_sites(p, r)
     tgt = lambda a: a + 5 + struct.unpack('<i', p.get(1, a + 1, 4))[0]   # (the current targets: dplay's, or the game's)
@@ -2721,7 +2735,8 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
                                                                    'GP_TOPR': top_r, 'GP_TOPW': top_w, **ftic,
                                                                    'SEC_SLT': careerworld.SITES['slt'],
                                                                    'SEC_COPY': careerworld.SITES['sltcopy'],
-                                                                   'GP_HLT': (2, hlt)}, limit=limit)
+                                                                   'GP_HLT': (2, hlt), 'GP_SEASP': uesum.season_var(p)},
+                                limit=limit)
     assert bss <= GP_BSS, hex(bss)                  # (patch.py: GP_BSS: the reserves' state, GD 16, GP_ST)
     keys = ('RSZ', 'GT_N', 'O_N', 'O_T', 'O_SPEC', 'O_MV', 'MSZ', 'GD_N')
     lay = dict(zip(keys, struct.unpack(f'<{len(keys)}I', p.get(1, syms['GP_LAYOUT'][1], 4 * len(keys)))))
@@ -3005,7 +3020,7 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
                      struct.unpack('<8I', p.get(1, syms['GP_KOLAY'][1], 32))))   # (4.0's gp_build glue: GP_ST.ko[0])
     LABELS.update(CAL=(2, ps['cal']), CAL_CUR=(2, ps['cal_cur']))   # (4.0.6 ctview: the career calendar's week)
     LABELS['csyms'] = dict(syms)                       # (every C symbol: tools/hosttest's ITALIAN.syms.json)
-    LABELS.update(lab, GP_TOPW=top_w, GP_TOPR=top_r, CD_ST=syms['CD_ST'], SC_ST=syms['SC_ST'], SC_TRACE=syms['SC_TRACE'], CF_ST=syms['CF_ST'], CN_ST=syms['CN_ST'], SEC_BQ=syms['SEC_BQ'], GP_GS=syms['GP_GS'], GP_KOLAY=kolay, GP_IN=syms['GP_IN'], GP_OUT=syms['GP_OUT'], GP_ST=syms['GP_ST'], GP_LOG=syms['GP_LOG'], layout=lay, pg_season=syms['pg_season'], pg_place=syms['pg_place'], rs_season=syms['rs_season'], gp_stage=syms['gp_stage'], gp_overall=syms['gp_overall'], F1_ST=syms['F1_ST'], f1_capture=syms['f1_capture'], f1_valid=syms['f1_valid'], f1_auto=syms['f1_auto'], f1_build=syms['f1_build'], ap_mask=syms['ap_mask'], ap_next=syms['ap_next'], ap_label=syms['ap_label'], ap_build=syms['ap_build'], CAREERTEAM=(2, ct), SEASONPLAYING=(2, s['season']), gp_stitle_c=syms['gp_stitle_c'], gp_hplan_c=syms['gp_hplan_c'], gp_hlabel_c=syms['gp_hlabel_c'], GP_HP=syms['GP_HP'], GP_HGP=syms['GP_HGP'], GP_HG=syms['GP_HG'], GP_HV=syms['GP_HV'], GP_HF=syms['GP_HF'], GP_HL=syms['GP_HL'], GP_HON=syms['GP_HON'], GP_OV_ORD=syms['GP_OV_ORD'], GP_OV_ROWS=syms['GP_OV_ROWS'], GP_OV_N=syms['GP_OV_N'], GP_OV_ANNUAL=syms['GP_OV_ANNUAL'], GP_SS=syms['GP_SSB'], GP_SHB=syms['GP_SHB'], CFB=(2, ps['cfb']), PR_STATE=syms['PR_STATE'],
+    LABELS.update(lab, GP_USRP=syms['GP_USRP'], GP_TOPW=top_w, GP_TOPR=top_r, CD_ST=syms['CD_ST'], SC_ST=syms['SC_ST'], SC_TRACE=syms['SC_TRACE'], CF_ST=syms['CF_ST'], CN_ST=syms['CN_ST'], SEC_BQ=syms['SEC_BQ'], GP_GS=syms['GP_GS'], GP_KOLAY=kolay, GP_IN=syms['GP_IN'], GP_OUT=syms['GP_OUT'], GP_ST=syms['GP_ST'], GP_LOG=syms['GP_LOG'], layout=lay, pg_season=syms['pg_season'], pg_place=syms['pg_place'], rs_season=syms['rs_season'], gp_stage=syms['gp_stage'], gp_overall=syms['gp_overall'], F1_ST=syms['F1_ST'], f1_capture=syms['f1_capture'], f1_valid=syms['f1_valid'], f1_auto=syms['f1_auto'], f1_build=syms['f1_build'], ap_mask=syms['ap_mask'], ap_next=syms['ap_next'], ap_label=syms['ap_label'], ap_build=syms['ap_build'], CAREERTEAM=(2, ct), SEASONPLAYING=(2, s['season']), gp_stitle_c=syms['gp_stitle_c'], gp_hplan_c=syms['gp_hplan_c'], gp_hlabel_c=syms['gp_hlabel_c'], GP_HP=syms['GP_HP'], GP_HGP=syms['GP_HGP'], GP_HG=syms['GP_HG'], GP_HV=syms['GP_HV'], GP_HF=syms['GP_HF'], GP_HL=syms['GP_HL'], GP_HON=syms['GP_HON'], GP_OV_ORD=syms['GP_OV_ORD'], GP_OV_ROWS=syms['GP_OV_ROWS'], GP_OV_N=syms['GP_OV_N'], GP_OV_ANNUAL=syms['GP_OV_ANNUAL'], GP_SS=syms['GP_SSB'], GP_SHB=syms['GP_SHB'], CFB=(2, ps['cfb']), PR_STATE=syms['PR_STATE'],
                   RS_STATE=syms['RS_STATE'], ri_season=syms['ri_season'], ri_apply=syms['ri_apply'],
                   ri_cache=syms['ri_cache'], RI_STATE=syms['RI_STATE'], RI_MGR=syms['RI_MGR'],
                   RI_RULE=syms['RI_RULE'], cd_season=syms['cd_season'],

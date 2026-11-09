@@ -865,6 +865,8 @@ def patch_exe(src, dst, remap, lang='it'):
         uesum.patch(p, s4_end, lang, usc=sc_on)    # (sc_on: supercup's usc_snap keeps the holders)
         if 'US' in engine.SAVE_ITEMS:            # (4.1 S2b: its save item, trailer.late binds it)
             engine.ITEM_AT['US'] = uesum.LABELS['US_REC']
+        if gp_on:                                # (4.2 S1.3: gplay's UEFA-finalist rule reads it)
+            gp_mod.link_usrec(p, uesum.LABELS['US_REC'])
     elif 'US' in engine.SAVE_ITEMS:              # (a test build with conti but no ctview: the item a zero block in
         import swreg                             # uesum's free page, saved and loaded as it is)
         import uesum

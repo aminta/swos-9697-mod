@@ -170,6 +170,10 @@ typedef struct {
      * with it a knockout's cup place (entrant type 9, flag 0x80) plays the real C.U. 209/A rule; and the test hook */
     uint16_t       cup_finalist;
     const sr_force *force;
+    /* 4.2 S1.3: the clubs (team words, 0 none) already in a UEFA competition's final (the career club's cup: the Mod's
+     * uesum US_REC, its semi-finals' winners) -- a knockout round with host bit 0x40 (pack "skip_if_uefa_finalist", the
+     * FIGC C.U. 244/A exception (iv)) does not play a tie of one of them: the better placed goes through */
+    uint16_t       uefa_final[2];
 } sr_season;
 
 /* A result the knockouts decide beside the moves: a title's champion and runner-up, a continental

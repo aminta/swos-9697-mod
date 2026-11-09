@@ -21546,6 +21546,155 @@ def world_uesum_ko():
     return not errs, '; '.join(errs) or '; '.join(info)
 
 
+def up_read(r, at):
+    """uprize.c's UP at linear at (after its 'UPRZ' tag): ok, id, ss, fl, w, d, st, and this run's payments (sum)."""
+    b = bytes(r.read(at, 12))
+    return dict(zip(('ok', 'id', 'ss', 'fl', 'w', 'd', 'st'), b[:7]), sum=struct.unpack_from('<I', b, 8)[0])
+
+
+def up_find(r):
+    """UP's linear address: the 'UPRZ' tag in obj4's 4th page (usmenu's)."""
+    m = bytes(r.read(r.base4 + 0x3000, 0x1000))
+    k = m.find(b'UPRZ')
+    return None if k < 0 else r.base4 + 0x3000 + k + 4
+
+
+@scenario
+def world_uprize():
+    """4.1 RC3 (Miguel via Davide 09/11): UEFA prize money for the career club (uprize.c). The pinned CL save (UPR_CAR,
+    else internal/uesum/cv_s2_cl_<UI>.CAR or _it: ARSENAL in the CL's league phase, a save without the item 'UP'):
+    after the load UP is an older save's (ok 0); UP poked to this season's CL with nothing paid (as a new career's at
+    its cup's start - the first event pays all the club has reached), then played on until the CL's semi-finals are
+    decided (US_REC). Then: participation once; 3 x W + D = the club's league-phase points in US_REC's final table;
+    the first career menu after a prize: ANDAMENTO CLUB's in-season statement shows label 3 = uprize.ROW[lang], value 13 =
+    the period's prizes (competitionBonuses), the label rows apart, old + total = new, the rows + D6B88 = the total;
+    the stages paid = the stages US_REC has the club in (play-offs .. semi-finals, UP st the last); the ranking pillar
+    by its place in that table; UP sum = the table's amounts for all that (uprize.amounts, K). Saved and reloaded: UP the same, ok 1."""
+    exe = os.environ.get('UPR_BUILD') or os.environ.get('UES_BUILD') or os.environ.get('CV_BUILD')
+    if not exe:
+        src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+        if not os.path.isdir(src):
+            return True, f'SKIP: private data {src} missing'
+        order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+        exe = build('world_contiview', env={'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x)
+                                                                                          for x in order])}, lang=UI)
+    car = os.environ.get('UPR_CAR') or next((f for f in (os.path.join(MAIN, 'internal', 'uesum', f'cv_s2_cl_{lg}.CAR')
+                                                          for lg in (UI, 'it')) if os.path.exists(f)), None)
+    if not car:
+        return True, 'SKIP: no pinned CL save internal/uesum/cv_s2_cl_<UI>.CAR (UPR_CAR)'
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import finance
+    import kitcolors
+    import lepatch
+    import uprize
+    tab = uprize.amounts()[0]
+    ct = kitcolors._career_syms(lepatch.LEPatch(os.path.join(ROOT, 'orig', UI_ORIG_OF[UI])))['CAREER_TEAM']
+    errs, info = [], []
+    with Session('world_uprize', exe, {'W84A.CAR': car}, 'dump:2', 1500) as s:
+        s.wait()
+        s.send(LOAD1 + ' dump:3')
+        r = s.result
+        at = up_find(r)
+        if not at:
+            return False, 'no UPRZ block in obj4 page 4 (not an RC3 exe)'
+        m = bytes(r.read(r.base4 + 0x2000, 0x1000))
+        rat = r.base4 + 0x2000 + m.find(b'S2BR') + 4
+        u0 = up_read(r, at)
+        check(u0['ok'] == 0 and u0['sum'] == 0, f'after loading an older save UP {u0}, not ok 0', errs)
+        club = struct.unpack('<H', bytes(r.read(r.lin(ct), 2)))[0]
+        ss = r.read(season_playing_at(r, exe), 1)[0] + 1
+        s.poke(at, bytes((1, 0, ss, 0, 0, 0, 0, 0)) + bytes(4))     # (this season's CL, nothing paid yet)
+        s.send('dump:1')
+        fs = finance.find(lepatch.LEPatch(os.path.join(ROOT, 'orig', UI_ORIG_OF[UI])))
+        word = lambda o: struct.unpack('<i', bytes(s.result.obj2(o, 4)))[0]
+        cbo = fs['D6B88'][1] + 4                             # (competitionBonuses)
+        ok, msg = advance(s, lambda scr: 'ANDAMENTO CLUB' in scr.texts() and up_read(s.result, at)['sum'] > 0
+                          and word(cbo) != 0, 300)   # (a prize paid: not the season start's own statement, whose
+                                                     #  competition bonuses are the league place's)
+        if not check(ok, f'no career menu with a prize paid: {msg}', errs):
+            return False, '; '.join(errs)
+        press(s, s.screen(), 'ANDAMENTO CLUB', 3)             # (M2: the statement's row PREMI UEFA, label 3 / value 13)
+        scr = s.screen()
+        s.shot(f'uprize_stmt_{UI}')
+        money = lambda t: (-1 if t.lstrip().startswith('-') else 1) * int(re.sub(r'\D', '', t) or 0)
+        e = {i: (t, inv) for i, t, inv, _ in scr.entries}
+        raw = {x[0]: scr.raw[j].decode('latin-1') for j, x in enumerate(scr.entries)}
+        check(e.get(3, ('',))[0] == uprize.ROW[UI], f'statement: label 3 {e.get(3)}, not {uprize.ROW[UI]!r}', errs)
+        v = {i: money(raw[i]) for i in range(12, 22) if i in e and not e[i][1]}
+        nb = word(fs['NEWBAL'][1])
+        k = v.get(21, 0) / nb if nb else 1                   # (the exe's currency: lire x 2 in the Italian one)
+        cb = word(cbo)
+        check(13 in v and abs(v[13] - cb * k) <= k, f'statement: value 13 {raw.get(13)!r}, not the prizes {cb} x {k:g}', errs)
+        check(v.get(12, 0) + v.get(20, 0) == v.get(21), f'statement: old {v.get(12)} + total {v.get(20)} != new {v.get(21)}',
+              errs)
+        hid = round(k * word(fs['D6B88'][1]))
+        rows = sum(x for i, x in v.items() if 13 <= i <= 19)
+        check(abs(rows + hid - v.get(20, 0)) <= 8 * k, f'statement: rows {rows} + hidden {hid} != total {v.get(20)}', errs)
+        g = {x[0]: scr.geom[j] for j, x in enumerate(scr.entries) if not x[2]}
+        s.log.append(f'[upr] statement geom {sorted((x[0], x[1], scr.geom[j]) for j, x in enumerate(scr.entries))}')
+        ys = sorted(g[i][1] for i in range(2, 12) if i in g)
+        check(all(b - a >= 8 for a, b in zip(ys, ys[1:])), f'statement: label rows overlap {ys}', errs)
+        ci = scr.find('CONTINUA', exact=True)
+        check(ci is None or 21 not in g or g[21][1] + g[21][3] <= scr.geom[ci][1], 'statement: new balance over CONTINUA', errs)
+        info.append(f'statement: {uprize.ROW[UI]} {raw.get(13, "").strip()} (prizes {cb:,}), old + total = new')
+        press(s, scr, 'CONTINUA', 2)
+
+        def done(scr):
+            if scr.find('VISUAL. COMPETIZ.', exact=True) is None:
+                return season_over(scr)
+            cid, n, t, _, _, _ = us_rec_read(s.result, rat)
+            return cid == 0 and n[3] and all(t[sum(n[:3]) + i][5] & 0x82 == 0x82 for i in range(n[3]))
+        ok, msg = advance(s, done, 900)
+        if not ok:
+            return False, f'advance: {msg}'
+        r = s.result
+        u = up_read(r, at)
+        cid, n, ties, _, lw, lp = us_rec_read(r, rat)
+        s.log.append(f'[upr] {msg}: club {club:#x} UP {u} US_REC {cid} {n}')
+        check(u['ok'] == 1 and u['id'] == 0 and u['ss'] == ss and u['fl'] & 1, f'UP {u}: not this season\'s CL, '
+              'participation paid', errs)
+        if check(club in lw, f'club {club:#x} not in the league phase\'s final table', errs):
+            pts = lp[lw.index(club)]
+            check(3 * u['w'] + u['d'] == pts and u['w'] + u['d'] <= 8, f'UP w {u["w"]} d {u["d"]}: not the club\'s '
+                  f'{pts} league-phase points', errs)
+        st, off = 0, 0
+        for k in range(4):                                   # (the stages the club played: play-offs .. semi-finals)
+            if any(club in t[:2] for t in ties[off:off + n[k]]):
+                st = k + 1
+            off += n[k]
+        stages = [k for k in range(4) if any(club in t[:2] for t in ties[sum(n[:k]):sum(n[:k + 1])])]
+        check(u['st'] == st, f'UP st {u["st"]}, not {st} (the last stage US_REC has the club in)', errs)
+        want = tab[0] + u['w'] * tab[1] + u['d'] * tab[2] + sum(tab[3 + k] for k in stages)
+        if club in lw:                                       # (the ranking pillar at the league phase's end)
+            pl = lw.index(club)
+            want += (tab[9] * (36 - pl) + 500) // 1000 * 1000 + (tab[10] if pl < 8 else tab[11] if pl < 16 else 0)
+            check(u['fl'] & 4, f'UP {u}: the ranking pillar not paid (place {pl + 1})', errs)
+        check(u['sum'] == want, f'paid {u["sum"]:,}, not {want:,} (w {u["w"]} d {u["d"]} stages {stages})', errs)
+        info.append(f'CL: w {u["w"]} d {u["d"]} stages {stages}, paid {u["sum"]:,} (K {uprize.K[0]}/{uprize.K[1]})')
+        for _ in range(10):
+            sc = s.screen()
+            sv = next((x for x in sc.texts() if x.startswith(('SALVA', 'SAVE', 'SAUV', 'ENREG', 'SPEICH'))), None)
+            if sv and 'MOD. TATTICA' in sc.texts():
+                break
+            press(s, sc, 'ESCI', 3) or s.send('fire dump:2')
+        if not check(sv, f'no save entry on the main menu ({s.screen().texts()[:16]})', errs):
+            return False, '; '.join(errs)
+        press(s, s.screen(), sv, 2)
+        s.send(name_entry('S2UP') + ' dump:3')
+        game = s.result.game
+    saved = next((os.path.join(game, f) for f in os.listdir(game) if f.upper() == 'S2UP.CAR'), None)
+    if not check(saved, 'no S2UP.CAR saved', errs):
+        return False, '; '.join(errs)
+    with Session('world_uprize2', exe, {'W84A.CAR': saved}, 'dump:2', 300) as s:
+        s.wait()
+        s.send(LOAD1 + ' dump:3')
+        u2 = up_read(s.result, up_find(s.result))
+        check({k: v for k, v in u2.items() if k != 'sum'} == {k: v for k, v in u.items() if k != 'sum'},
+              f'UP after the reload {u2}, not {u}', errs)
+        info.append('reload: UP kept')
+    return not errs, '; '.join(errs) or '; '.join(info)
+
+
 @scenario
 def world_usmenu():
     """4.1 RC2 (Davide 09/11, option A + a): STAT > RIEPILOGO of the career club's UEFA cup = the phase menu (usmenu.c,

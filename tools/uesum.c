@@ -177,14 +177,18 @@ void us_lp(void) {                      /* the league phase's end (lp36 lp_cb_ge
         c->lp[k] = (u8)(pt > 255 ? 255 : pt);
     }
 }
+void (*US_UP2)(void) = 0;             /* 4.1 RC3: uprize.c up_lp (the ranking pillar), set by uprize.py */
+void us_up2(void) { if (US_UP2) US_UP2(); }
 #if GEND_CHAIN                          /* (uefacoef's uc_gend after it, else lp_cb_gend's own ret) */
-__asm__(".globl us_gend\nus_gend:\n\tpushal\n\tcall us_lp\n\tpopal\n\tjmp GENDOLD\n");
+__asm__(".globl us_gend\nus_gend:\n\tpushal\n\tcall us_lp\n\tcall us_up2\n\tpopal\n\tjmp GENDOLD\n");
 #else
-__asm__(".globl us_gend\nus_gend:\n\tpushal\n\tcall us_lp\n\tpopal\n\tret\n");
+__asm__(".globl us_gend\nus_gend:\n\tpushal\n\tcall us_lp\n\tcall us_up2\n\tpopal\n\tret\n");
 #endif
 extern u16 D0W;                         /* the game's D0 */
 void RET28(void);                       /* cseg_28E76's 'xor ax, ax; retn' */
-__asm__(".globl us_hook\nus_hook:\n\tpushal\n\tcall us_rec\n\tpopal\n\tmovw $0, D0W\n\tjmp RET28\n");
+void (*US_UP)(void) = 0;              /* 4.1 RC3: uprize.c up_ko (the prizes), set by uprize.py */
+void us_up(void) { if (US_UP) US_UP(); }
+__asm__(".globl us_hook\nus_hook:\n\tpushal\n\tcall us_rec\n\tcall us_up\n\tpopal\n\tmovw $0, D0W\n\tjmp RET28\n");
 
 static __attribute__((noinline)) void ent(u32 k, u32 w, u32 pts) {   /* 'place NAME points' (a table's entry) */
     const char *nm = name(w);

@@ -95,10 +95,18 @@ class Exe:
 LR_N = 20                                           # (lrank.c: the pairs block's clubs)
 
 
+def ita(x, ent):
+    """LR_TAB's entry ent of Italy (0 Serie A, 2 Serie C group A, 5 Serie D group A): every world league has entries
+    since the 4.2 H2 import, Italy's are the 14 in a row"""
+    tab, divs = x.lin('LR_TAB'), []
+    while x.rd(tab + 24 * len(divs), 4) != bytes(4):
+        divs.append(x.rd(tab + 24 * len(divs) + 5, 1)[0])
+    return tab + 24 * (next(i for i in range(len(divs)) if divs[i:i + 14] == list(range(14))) + ent)
+
+
 def setup(x, n, teams, career, gtype=4, serie_a=True, ent=0):
     ud = x.lin('UD')
-    tab = x.lin('LR_TAB')
-    e = x.rd(tab + 24 * ent, 24)                    # (entry ent: 0 Serie A, 2 Serie C group A, 5 Serie D group A)
+    e = x.rd(ita(x, ent), 24)
     league, world, div = struct.unpack_from('<IBB', e)
     assert div == ent
     x.wr(ud, bytes(0x2B3 + 18 * 64))
@@ -177,7 +185,7 @@ def test_lrank_differential():
     stats = dict(seasons=0, sort=0, void_differs=0, notours=0, partial=0)
     for s in range(SEASONS):
         ent = (0, 2, 5)[s % 3]                                     # (Serie A, C, D: their lists)
-        n = x.rd(x.lin('LR_TAB') + 24 * ent + 7, 1)[0]             # (the division's clubs: mine() checks DIY's n)
+        n = x.rd(ita(x, ent) + 7, 1)[0]                            # (the division's clubs: mine() checks DIY's n)
         stats[f'div{ent}'] = stats.get(f'div{ent}', 0) + 1
         teams = [0x1300 | k + 1 + (s % 7) for k in range(n)]
         sp = (s % 90) + 1

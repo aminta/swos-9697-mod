@@ -774,6 +774,30 @@ def _contests(p, area, lfile):
 LABELS = {}
 
 
+def cgaps():
+    """4.2: Serie C's play-out gap per group (dplay.c DP_CG1..4, cup_out): the first round's gap of the first 'playout'
+    of the dplay world's ko_playoffs whose entrants are all [the group's division, place] - the bytes gp_season's 'too
+    far apart' reads (the engine's sr_dplay spec_cgap, the same rule); 8 without one."""
+    import mkseason
+    for pk in mkseason.packs():
+        t = pk.dplay()
+        if not t:
+            continue
+        par = pk.league['parallel']
+        par = par[0] if isinstance(par, list) else par
+        out = []
+        for g in range(min(par['count'], 4)):
+            d, gap = par['first'] + g, 8
+            for po in pk.league.get('ko_playoffs') or []:
+                es = po.get('entrants') or []
+                if po.get('kind') == 'playout' and es and all(isinstance(e, list) and e[0] == d for e in es):
+                    gap = int((po.get('rounds') or [{}])[0].get('gap', 0))
+                    break
+            out.append(gap)
+        return out
+    return []
+
+
 def patch(p, at, limit, tables, bss_at, area):
     """tables: mkseason.dplay_tables() (one world). C + glue + the two contests in obj1 at..limit, the C .bss at obj2
     bss_at (0x1000). Returns the end."""
@@ -798,8 +822,10 @@ def patch(p, at, limit, tables, bss_at, area):
     assert save_at + LOG_AT + 0x500 <= top, (hex(se), hex(save_at), hex(top))
     force = int(os.environ.get('DPLAY_FORCE') or 0)          # (test builds: the career club's Serie B place)
     cupw = int(os.environ.get('DPLAY_CUPW') or 0)            # (test builds: the cup winner's place in that group)
+    cg = cgaps()                                             # (4.2: each group's play-out gap, as gp_season reads it)
     obj = cobj.compile_c(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'dplay.c'),
-                         [f'-DDP_FORCE={force}'] + ([f'-DDP_CUPWF={cupw}'] if cupw else []))
+                         [f'-DDP_FORCE={force}'] + ([f'-DDP_CUPWF={cupw}'] if cupw else [])
+                         + [f'-DDP_CG{g + 1}={v}' for g, v in enumerate(cg)])
     syms, cend, bss = cobj.link(p, obj, at, (2, bss_at), limit=limit)
     assert bss <= 0x1000, hex(bss)
     keys = ('IN_SIZE', 'OUT_SIZE', 'RSZ', 'NT', 'O_N', 'O_T', 'O_MV', 'MSZ', 'O_PO', 'O_MGR', 'SV_SIZE', 'SV_KIND',

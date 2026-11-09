@@ -198,13 +198,29 @@ static void serie_b(void) {
    11th of the groups. 4.1 (FIGC C.U. 209/A, 27/04/2026, NOIF art. 49 II.1 d-e): a winner relegated directly or in a
    play-out place has no play-off place either - the 11th of its group (it went up and down at once before: Serie B
    21 / its group 19 a season later). The play-out places of a group of n: n-5 v n-2 and n-4 v n-3, each not played
-   when 8+ points apart (formats_data PLAYOUT_C 'gap': the better placed is safe, the other down) */
+   when its gap or more points apart (the better placed is safe, the other down). 4.2: the gap is the group's own
+   play-out's, DP_CG<g> (dplay.py: the pack's playout of that division, the bytes gp_season's 'too far apart' reads;
+   8 without one, 0 = always played) - a constant 8 here let the cup winner win the play-off and lose a play-out held
+   at 8 points under a gap of 9 (simdrv SIMDRV_CGAP=9, the engine's sr_dplay cup_out the same) */
+#ifndef DP_CG1
+#define DP_CG1 8
+#endif
+#ifndef DP_CG2
+#define DP_CG2 8
+#endif
+#ifndef DP_CG3
+#define DP_CG3 8
+#endif
+#ifndef DP_CG4
+#define DP_CG4 8
+#endif
+static const u8 DP_CGAP[NDIV] = { 8, DP_CG1, DP_CG2, DP_CG3, DP_CG4 };
 static int cup_out(int g, int k) {     /* place k of group g relegated or in a play-out */
     const struct dp_row *t = DP_IN.t[g];
-    int n = DP_IN.n[g];
+    int n = DP_IN.n[g], gap = DP_CGAP[g];
     if (n < 6 || k < n - 5) return 0;
-    if (k == n - 5) return t[n - 5].pts - t[n - 2].pts < 8;
-    if (k == n - 4) return t[n - 4].pts - t[n - 3].pts < 8;
+    if (k == n - 5) return !gap || t[n - 5].pts - t[n - 2].pts < gap;
+    if (k == n - 4) return !gap || t[n - 4].pts - t[n - 3].pts < gap;
     return 1;
 }
 static int cup_place(int ng) {

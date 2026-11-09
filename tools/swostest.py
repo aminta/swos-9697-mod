@@ -16790,7 +16790,8 @@ def lrank_reload(old):
     env = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'HOSTTEST_SYMS': '1'}
     exe = os.environ.get('LRANK_BUILD0') or build('world_lrank' + ('' if UI == 'it' else '_' + UI), env=env, lang=UI)
     blk = json.load(open(os.path.join(exe, 'ITALIAN.syms.json')))['lrank']['LR_BLK'][1]
-    day = split.sites(lepatch.LEPatch(os.path.join(MAIN, 'orig', 'ITALIAN.EXE')))['DIY'] + 0x1C1
+    day = split.sites(lepatch.LEPatch(os.path.join(MAIN, 'orig', UI_ORIG)))['DIY'] + 0x1C1   # (the lane's exe:
+                                                                                    # obj2 differs per language)
     names = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_HEX',
              'W8485_ONE', 'W8485_MIDSAVE', 'W8485_FROM')
     keep = {x: os.environ.get(x) for x in names}

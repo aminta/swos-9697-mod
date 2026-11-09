@@ -66,7 +66,7 @@ i32 sr_rr_calendar(i32 n, i32 legs, sr_match *out, i32 room)
 
 static int usable(u8 c)
 {
-    return (c >= SR_TB_H2H_REAPPLIED && c <= SR_TB_HOME_LOSSES_FEWER) || (c >= SR_TB_POINTS && c <= SR_TB_NAME && c != SR_TB_FAIR_PLAY &&
+    return (c >= SR_TB_H2H_REAPPLIED && c <= SR_TB_H2H_TABLE_ONCE) || (c >= SR_TB_POINTS && c <= SR_TB_NAME && c != SR_TB_FAIR_PLAY &&
                                         c != SR_TB_COEFFICIENT && c != SR_TB_PREVIOUS_STAGE_RANK && c != SR_TB_PLAY_OFF_MATCH);
 }
 
@@ -170,12 +170,13 @@ static void reapply(const sr_tctx *x, u8 *ord, u8 *cut, i32 b, i32 e)
 }
 
 /* avulsa (FIGC, NOIF art. 51 / 49 X): head-to-head points, then head-to-head goal difference, BOTH over the matches
- * among all the clubs of the block (the clubs level when it starts), once; the smaller blocks it leaves stay tied */
-static void avulsa(const sr_tctx *x, u8 *ord, u8 *cut, i32 b, i32 e)
+ * among all the clubs of the block (the clubs level when it starts), once; the smaller blocks it leaves stay tied.
+ * head_to_head_table_once (EFL reg. 9.2, last = h2h goals for): the same mini-table with goals for as a third key */
+static void avulsa(const sr_tctx *x, u8 *ord, u8 *cut, i32 b, i32 e, u8 last)
 {
     u8 in[N];
     block_in(x->n, ord, b, e, in);
-    for (u8 t = SR_TB_H2H_POINTS; t <= SR_TB_H2H_GOAL_DIFFERENCE; t++)
+    for (u8 t = SR_TB_H2H_POINTS; t <= last; t++)
         for (i32 s = b; s < e;) {
             i32 f = s + 1;
             while (f < e && !cut[f]) f++;
@@ -193,7 +194,8 @@ static void crit(const sr_tctx *x, u8 t, u8 *ord, u8 *cut)
         while (!cut[e]) e++;
         if (e - b > 1) {
             if (t == SR_TB_H2H_REAPPLIED) reapply(x, ord, cut, b, e);
-            else if (t == SR_TB_AVULSA) avulsa(x, ord, cut, b, e);
+            else if (t == SR_TB_AVULSA) avulsa(x, ord, cut, b, e, SR_TB_H2H_GOAL_DIFFERENCE);
+            else if (t == SR_TB_H2H_TABLE_ONCE) avulsa(x, ord, cut, b, e, SR_TB_H2H_GOALS_FOR);
             else {
                 u8 in[N];
                 block_in(x->n, ord, b, e, in);
@@ -223,7 +225,7 @@ i32 sr_league_rank(i32 n, const sr_srow *row, const u8 *pairs, const u8 *namek, 
     i32 k = 0;
     for (const u8 *t = tieb; t && *t && k < 23; t++)
         if (pairs || !((*t >= SR_TB_H2H_POINTS && *t <= SR_TB_H2H_AWAY_GOALS) || *t == SR_TB_H2H_REAPPLIED ||
-                       *t == SR_TB_AVULSA || *t == SR_TB_HOME_LOSSES_FEWER)) tl[k++] = *t;
+                       *t == SR_TB_AVULSA || *t == SR_TB_HOME_LOSSES_FEWER || *t == SR_TB_H2H_TABLE_ONCE)) tl[k++] = *t;
     tl[k] = 0;
     const sr_tctx x = { row, 0, 0, n, win, draw, loss, seed, pairs, namek };
     rank(&x, tl, ord);
@@ -434,7 +436,7 @@ i32 sr_best_placed(const sr_group *g, i32 ng, i32 place, i32 win, i32 draw, i32 
 {
     for (const u8 *t = tieb; t && *t; t++)
         if (!usable(*t) || (*t >= SR_TB_H2H_POINTS && *t <= SR_TB_H2H_AWAY_GOALS) || *t == SR_TB_H2H_REAPPLIED ||
-            *t == SR_TB_AVULSA) return -1;
+            *t == SR_TB_AVULSA || *t == SR_TB_H2H_TABLE_ONCE) return -1;
     if (ng < 1 || ng > N) return -1;
     i32 least = g[0].n;
     for (i32 j = 1; j < ng; j++) if (g[j].n < least) least = g[j].n;

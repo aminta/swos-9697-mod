@@ -27,15 +27,18 @@ import struct
 
 LR_AT = 0x6000
 LR_PAGES = 3
-LR_N = 20                       # (lrank.c: the pairs block's clubs)
+LR_N = 20                       # (lrank.c: the pairs block's clubs; 24 for the EFL / Segunda does not fit: the
+                                # career cache's room (careerworld.SEL_ROOM) has 6 B left with 404, 24 needs +176)
 LR_SIZE = 4 + LR_N * LR_N       # struct lr_blk
 ENTRY = 24
 CODES = (None, 'points', 'goal_difference', 'goals_for', 'goals_against', 'wins', 'away_wins', 'away_goals_for',
          'head_to_head_points', 'head_to_head_goal_difference', 'head_to_head_goals_for', 'head_to_head_away_goals',
          'fair_play', 'coefficient', 'previous_stage_rank', 'play_off_match', 'draw_lots', 'name', 'faithful_1996',
-         'head_to_head_reapplied', 'avulsa', 'losses_fewer', 'home_losses_fewer')      # (swcc TIEBS = SR_TB_*)
+         'head_to_head_reapplied', 'avulsa', 'losses_fewer', 'home_losses_fewer',
+         'head_to_head_table_once')     # (swcc TIEBS = SR_TB_*)
 H2H = {'head_to_head_points', 'head_to_head_goal_difference', 'head_to_head_goals_for', 'head_to_head_away_goals',
-       'head_to_head_reapplied', 'avulsa', 'home_losses_fewer', 'away_wins', 'away_goals_for'}   # (the block's)
+       'head_to_head_reapplied', 'avulsa', 'home_losses_fewer', 'away_wins', 'away_goals_for',
+       'head_to_head_table_once'}   # (the block's)
 REFUSED = {'fair_play', 'coefficient', 'previous_stage_rank', 'play_off_match'}
 LABELS = {}
 

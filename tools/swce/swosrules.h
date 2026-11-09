@@ -567,7 +567,7 @@ enum { SR_TB_END = 0, SR_TB_POINTS, SR_TB_GOAL_DIFFERENCE, SR_TB_GOALS_FOR, SR_T
        SR_TB_AWAY_WINS, SR_TB_AWAY_GOALS_FOR, SR_TB_H2H_POINTS, SR_TB_H2H_GOAL_DIFFERENCE, SR_TB_H2H_GOALS_FOR,
        SR_TB_H2H_AWAY_GOALS, SR_TB_FAIR_PLAY, SR_TB_COEFFICIENT, SR_TB_PREVIOUS_STAGE_RANK, SR_TB_PLAY_OFF_MATCH,
        SR_TB_DRAW_LOTS, SR_TB_NAME, SR_TB_FAITHFUL_1996,
-       SR_TB_H2H_REAPPLIED, SR_TB_AVULSA, SR_TB_LOSSES_FEWER, SR_TB_HOME_LOSSES_FEWER };
+       SR_TB_H2H_REAPPLIED, SR_TB_AVULSA, SR_TB_LOSSES_FEWER, SR_TB_HOME_LOSSES_FEWER, SR_TB_H2H_TABLE_ONCE };
 enum { SR_D_END = 0, SR_D_AGGREGATE, SR_D_AWAY_GOALS, SR_D_EXTRA_TIME, SR_D_PENALTIES, SR_D_BETTER_PLACED,
        SR_D_REPLAY, SR_D_DRAW_LOTS, SR_D_GOLDEN_GOAL };
 
@@ -586,7 +586,8 @@ typedef struct { uint8_t club, pad; int16_t pts; uint16_t pl, w, d, l, gf, ga, a
 
 /* The table of n clubs from the played matches (points win / draw / loss), ranked by the tie-breaker list
  * (SR_TB_*, 0-ended; each head-to-head criterion compares the matches among the clubs its block still holds;
- * SR_TB_AVULSA (FIGC): h2h points then h2h goal difference over all the clubs level when it starts, once; then the
+ * SR_TB_AVULSA (FIGC): h2h points then h2h goal difference over all the clubs level when it starts, once;
+ * SR_TB_H2H_TABLE_ONCE (EFL reg. 9.2): the same with h2h goals for as its third key (one mini-table); then the
  * next criterion; draw lots from the seed and the club, so the input order never matters; 'name' = the
  * caller's order). Returns n, or -1: a criterion the stage cannot use alone (fair play, coefficient,
  * previous stage rank, play-off match, faithful_1996: they need the game's data), a club outside 0..n-1. */

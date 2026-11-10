@@ -522,9 +522,153 @@ def load(confs, files=None, words=None, s1=None, rank_out=False):
             f2 = (fc, rkey[fc][fr])
             print(f'exe: CONTI_FORCE2={fk}:{fr} (test build)')
     spec += bytes(f2)
+    if s1 is None and words is not None and not os.environ.get('CONTI_NOBOUND'):   # (4.2 P7, CONVENTIONS 14a)
+        BOUND_IN[0] = (body, list(access), holders, gl, assocs, assoc_clubs(words, assocs))
+        bad = draw_bound(*BOUND_IN[0])
+        assert not bad, 'conti: a group draw could be impossible (fix the competition data by its regulations): ' + \
+            '; '.join(f'{cups[ci][0]}:{cups[ci][1]["key"]} round {j}: {assocs[ai]} up to {n} clubs for {lim} '
+                      f'(the rule\'s limit)' for ci, j, ai, n, lim in bad)
     if s1 is None:                                      # (4.0.6 B2: the season-1 block, conti.s1_patch puts it
         S1_BLOCK[0] = s1_block(cups, gl, words) if S1_ED and os.environ.get('CONTI_S1', '1') == '1' else b''   # in obj3)
     return spec, assocs, [(conf, c['key']) for conf, c, _ in cups]
+
+
+BOUND_IN = [None]                       # (load's last draw_bound inputs: test_bound's mutants)
+
+
+def test_bound():
+    """4.2 P7: draw_bound on the world's data (no breach), then a mutant per checked group stage: its tightest
+    association given places up to limit + 1 must breach exactly there."""
+    confs = ready()
+    files, words = _world_maps(confs)
+    spec, assocs, cups = load(confs, files, words)
+    body, access, holders, gl, assocs, clubs = BOUND_IN[0]
+    assert not draw_bound(*BOUND_IN[0])
+    R, off, ci = {}, 0, 0
+    while off < len(body):
+        for j in range(body[off]):
+            R[(ci, j)] = body[off + 4 + RB * j:off + 4 + RB * (j + 1)]
+        off += 4 + RB * body[off]
+        ci += 1
+    n = 0
+    for (c, j), b in sorted(R.items()):
+        if b[0] != K['groups'] or b[5] not in (ASSOC['no'], ASSOC['no_unless_via'], ASSOC['max_2']) or b[19]:
+            continue
+        lim = b[6] * (2 if b[5] == ASSOC['max_2'] else 1)
+        best, ai = None, None                           # (the tightest association of the cup's)
+        for a in sorted({a for a, cc, jj, k in access if cc == c and a != 0xFE}):
+            for extra in range(1, (best or lim + 2)):
+                cl = dict(clubs)
+                cl[a] = cl.get(a, 0) + extra            # (the clubs too: the mutant is a place the world can fill)
+                bad = draw_bound(body, access + [(a, c, j, 0)] * extra, holders, gl, assocs, cl)
+                if any(x[:3] == (c, j, a) for x in bad):
+                    best, ai = extra, a
+                    break
+        assert best is not None, ('mutant not caught', cups[c], j)
+        print(f'PASS: bound {cups[c][0]}:{cups[c][1]} round {j} ({b[6]} groups, limit {lim}): {assocs[ai]} breaks '
+              f'with {best} more direct place(s)')
+        n += 1
+    print(f'PASS: draw_bound - the world\'s data within every limit; {n} group stages, each mutant caught')
+
+
+def assoc_clubs(words, assocs):
+    """{association index: the clubs conti can take from it} (its league clubs kept, NL 32; a guest association:
+    its guests, counted by draw_bound from the access entries)"""
+    n = {}
+    for k in words:
+        if isinstance(k, tuple):
+            n[k[0]] = n.get(k[0], 0) + 1
+    return {i: min(n[a], 32) for i, a in enumerate(assocs) if a in n}
+
+
+def draw_bound(body, access, holders, gl, assocs, clubs):
+    """4.2 P7 (CONVENTIONS 14a): the most clubs of each association that every group stage drawn with an association
+    rule can hold, to a fixed point over the spec (load's round bytes): its direct places + guests, a holder's slot
+    (+1 for any association of the source cup), every route into it (KO winners / losers, group places, a league
+    stage's top n: each min(the places sent, the source's count)) and the fills (the best club in no cup, R[23] 0:
+    each association's places beyond its league clubs, any association's). A_NOVIA: the routed clubs are exempt.
+    -> [(cup, round, association, count, limit)] where count > limit (ng; A_NO2 2 ng): ct_sdraw could refuse."""
+    R, off = {}, 0
+    ci = 0
+    while off < len(body):
+        nr = body[off]
+        for j in range(nr):
+            R[(ci, j)] = body[off + 4 + RB * j:off + 4 + RB * (j + 1)]
+        off += 4 + RB * nr
+        ci += 1
+    direct = {}
+    places = {}
+    for a, c, j, k in access:
+        ai = gl[k][1] if a == 0xFE else a
+        d = direct.setdefault((c, j), {})
+        d[ai] = d.get(ai, 0) + 1
+        places[ai] = places.get(ai, 0) + 1
+    guests = {}
+    for a, c, j, k in access:
+        if a == 0xFE:
+            guests[gl[k][1]] = guests.get(gl[k][1], 0) + 1
+    cap = dict(clubs)
+    cap.update({ai: n for ai, n in guests.items() if ai not in cap})
+    short = sum(max(0, places[ai] - cap.get(ai, places[ai])) for ai in places)
+    hold = {}
+    for si, c, jf, _ in holders:
+        if si != 0xFF:
+            hold.setdefault((c, jf & 0x1F), []).append(si)
+
+    def flows(cnt, routed_only):
+        inc = {}
+        for (c, j), b in R.items():
+            src = cnt.get((c, j), {})
+            outs = []
+            if b[0] == K['ko']:
+                outs = [(b[10], (b[18] + 1) // 2), (b[11], b[18] // 2)]
+            else:
+                outs = [(b[12 + q], b[6]) for q in range(4)] + ([(b[20], b[6] * b[19])] if b[19] else [])
+            for t, n in outs:
+                if t in (OUT, CHAMP) or not n:
+                    continue
+                d = inc.setdefault((t >> 4, t & 15), {})
+                for ai, x in src.items():
+                    d[ai] = d.get(ai, 0) + min(n, x)
+        return inc
+
+    cnt = {}
+    for _ in range(64):
+        inc = flows(cnt, False)
+        new = {}
+        for key, b in R.items():
+            d = dict(direct.get(key, {}))
+            for ai, x in inc.get(key, {}).items():
+                d[ai] = d.get(ai, 0) + x
+            for si in hold.get(key, ()):
+                for ai in {ai for (c, _), dd in cnt.items() if c == si for ai, x in dd.items() if x}:
+                    d[ai] = d.get(ai, 0) + 1
+            if b[0] == K['groups'] and not b[23] and short:
+                for ai in set(cap) | set(d):
+                    d[ai] = d.get(ai, 0) + short
+            new[key] = {ai: min(x, b[18], cap.get(ai, x)) for ai, x in d.items() if x}
+        if new == cnt:
+            break
+        cnt = new
+    bad = []
+    for (c, j), b in sorted(R.items()):
+        if b[0] != K['groups'] or b[5] not in (ASSOC['no'], ASSOC['no_unless_via'], ASSOC['max_2']) or b[19]:
+            continue
+        lim = b[6] * (2 if b[5] == ASSOC['max_2'] else 1)
+        if b[5] == ASSOC['no_unless_via']:          # (via clubs exempt: the direct places, holders and fills only)
+            d = dict(direct.get((c, j), {}))
+            for si in hold.get((c, j), ()):
+                for ai in {ai for (cc, _), dd in cnt.items() if cc == si for ai in dd}:
+                    d[ai] = d.get(ai, 0) + 1
+            if not b[23] and short:
+                for ai in set(cap) | set(d):
+                    d[ai] = d.get(ai, 0) + short
+        else:
+            d = cnt.get((c, j), {})
+        for ai, x in sorted(d.items()):
+            if x > lim:
+                bad.append((c, j, ai, x, lim))
+    return bad
 
 
 def guest_sub(key, ws, rd):
@@ -1362,6 +1506,20 @@ def _world_maps(confs):
     return files, {k: v for k, v in words.items() if v is not None}
 
 
+def sdraw_patch(p, ct_sdraw):
+    """4.2 P7: conti.c's CT_SDRAW (obj1 .data) -> ctdraw.c's ct_sdraw (obj4, lrank's link). conti linked without it
+    would refuse every ED_S draw (-4): an assertion here instead."""
+    if 'syms' not in LABELS:
+        return
+    import cobj
+    assert ct_sdraw and ct_sdraw[0] == 4, ('conti: ct_sdraw not linked (lrank)', ct_sdraw)
+    cs = LABELS['syms']['CT_SDRAW']
+    assert cs[0] == 1 and p.get(1, cs[1], 4) == b'\0' * 4, cs
+    p.put(1, cs[1], struct.pack('<I', ct_sdraw[1]))
+    cobj.add_ptr(p, cs[1], 4, ct_sdraw[1])
+    print(f'exe: conti group draws (4.2 P7) CT_SDRAW obj1+{cs[1]:#x} -> ct_sdraw obj4+{ct_sdraw[1]:#x}')
+
+
 def patch(p, at, limit, bss_at, area):
     """conti.c + its glue at obj1:at (..limit), .bss at obj2:bss_at; returns the code end. World 2026-27 only."""
     import re
@@ -2037,7 +2195,9 @@ def test_s1(mgr_key=None, seed=3):
 
 if __name__ == '__main__':
     import sys
-    if sys.argv[1:2] == ['--test-goals']:
+    if sys.argv[1:2] == ['--test-bound']:
+        test_bound()
+    elif sys.argv[1:2] == ['--test-goals']:
         test_goals()
     elif sys.argv[1:2] == ['--test-s1']:
         test_s1(*(sys.argv[2:3] or [None]))

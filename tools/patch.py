@@ -932,6 +932,7 @@ def patch_exe(src, dst, remap, lang='it'):
     if lr_tabs:                                  # 4.2 S1.3: the tie-breaker lists, obj4+lrank.LR_AT (after the
         lrank.patch(p, lr_tabs, split.ST, split.MAGIC)     # obj1 hooks it chains onto: split's sp_res, lp36's lp_sort)
         engine.ITEM_AT['LR'] = lrank.LABELS['LR_BLK']
+        conti.sdraw_patch(p, lrank.LABELS.get('ct_sdraw'))   # (4.2 P7: conti's group draws -> ct_sdraw)
         import swreg
         assert swreg.ST_AT + swreg.ST_SIZE <= lrank.LR_AT, ('ST', hex(swreg.ST_AT), hex(lrank.LR_AT))
         p.put(4, swreg.ST_AT, bytes(swreg.ST_SIZE))

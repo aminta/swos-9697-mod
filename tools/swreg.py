@@ -30,6 +30,10 @@ UESUM_AT = 0x2000                       # 4.1 S2a: uesum.c's page in obj4 (MC mo
 ST_AT, ST_SIZE = 0x5000, 144             # 4.2: the engine's ledger item 'ST' (sr_stled.c: a groups stage's state;
                                         # sr_st_size(32, 8, 2) = 16 + 32 + 96), a zero block in obj4's 6th page,
                                         # under lrank.LR_AT (4.1's usmenu 0x3000 / uprize2 0x4000 / conti 0x4B00 below)
+SREG_AT = 0x5100                        # 4.2 N7: the club registry's code + data (sreg.py, sreg.c), after ST, under
+                                        # lrank.LR_AT (MC 10/11: the band 0x5100..0x6000); linked only with a shape
+SREG_DIV_AT = 0x4600                    # 4.2 N7: sreg.c's SREG_DIV (SR_REG_CLUBS bytes, 0x4600..0x4A00), above 4.1's
+                                        # uprize2 (0x4000..0x42c8), under conti (CONTI4_AT 0x4B00; MC 10/11)
 MAGIC = b'SWRG'
 VERSION = 2
 HDR = 32

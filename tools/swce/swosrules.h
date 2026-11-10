@@ -107,7 +107,7 @@ typedef struct {
 } sr_league;
 
 /* A league's levels when some are groups of parallel divisions (Serie C's, Serie D's): where each
- * level starts. levels 0: a level per division. */
+ * level starts -- first[0] 0, then strictly up (sr_season_check). levels 0: a level per division. */
 typedef struct { uint8_t levels; const uint8_t *first; } sr_levels;
 
 /* What the game around the rules knows (all optional, 0 for none): a tie, a title or a stage
@@ -198,6 +198,7 @@ typedef struct sr_state {
         uint32_t rng;
         uint8_t  lot[5 * 24];
         uint8_t  test_held;
+        uint8_t  cgap[5];           /* Serie C's play-out gap per group (the spec's playout of that division; 8 if none) */
         const sr_force *force;      /* (tests: sr_season.force) */
     } dp;
     /* gplay.c */
@@ -207,6 +208,8 @@ typedef struct sr_state {
         uint16_t mgr, played_a, played_b, played_w;
         sr_result res[4], sres[3], srl[3];
         int32_t  nres;
+        uint16_t dsw[16];           /* (4.2 'decider': a preview's row swaps, undone at its end) */
+        int32_t  ndsw;
         uint8_t  nst[2];            /* the kept 'keep' tables (gp_keep) */
         sr_row   st[2][SR_CLUBS];
         sr_stage_bank *ssb, no_bank;
@@ -312,8 +315,8 @@ typedef struct { uint8_t division, clubs, byes; } sr_quota;
 
 /* A cup's clubs this season. The league's nclubs clubs are each a slot and this season's division
  * (after the moves); place[slot] is last season's (place | level << 5, 0 none) or the whole table 0
- * when last season's places are not this league's last season; level[d] a division's level (a
- * level of groups one). Each division's quota is taken in order -- relegated into it, stayed,
+ * when last season's places are not this league's last season (slots past SR_CLUB_SLOTS: none); level[d]
+ * a division's level (a level of groups one; SR_DIVS entries, a quota's division past them level 0). Each division's quota is taken in order -- relegated into it, stayed,
  * promoted, without a place; then the place, the slot --, the career club first when it is in it.
  * The slots in order (round 1's clubs, then the byes); their count, or 0 when it must play the
  * real list (a division with fewer clubs than its quota, or not n in all). */
@@ -382,7 +385,8 @@ void sr_cupd_note_arrival(sr_cupd_end *e, uint16_t slot);
 int32_t sr_cupd_make(const sr_cupd_end *e, uint32_t season, uint8_t rounds, uint8_t first, uint8_t groups,
                   int32_t nslots, const uint8_t *division, const uint16_t *word, sr_cupd_rounds *out);
 /* (-1: rounds outside 2..8 -- a first round of more than 64 ties --, or first + groups past the
- * league's divisions: nothing made) */
+ * league's divisions: nothing made. More than 4 x the first round's ties (or 2 x 41 + the first round's
+ * sides) clubs: the first ones in entry order play, the rest are left out.) */
 
 /* ---- Parallel groups at the season end (sr_groups.c: gplay.c pg_one / pg_season, the Mod 4.0.5,
  * with 4.0.6's pg_a2 guard) ---- */
@@ -466,8 +470,16 @@ typedef struct { uint16_t ident; uint16_t strength; } sr_lp_club;
 int32_t sr_lp_table(uint32_t seed, int32_t d, const sr_lp_club *c, int32_t n, sr_row *out);
 
 /* The play-off of a light table (2nd-7th: quarter-finals 4v7 and 5v6, semi-finals 2 and 3 v the
- * winners -- 2 v the lower placed --, the final; one match each, the better placed at home, extra time
- * and penalties near a coin toss): the winner's place in the table (1..6). n < 7: no play-off, -1. */
+ * winners, the final; one match each, the better placed at home, extra time and penalties near a coin
+ * toss): the winner's place in the table (1..6). n < 7: no play-off, -1. The semi-finals by `bracket`
+ * (the _b forms; the others take SR_LP_FIXED): SR_LP_FIXED 2nd v W(5v6), 3rd v W(4v7) -- the National
+ * League's bracket, declared for England's step 3 (its leagues' 2026-27 bracket unpublished; Davide to
+ * confirm, Regia 09/11) --; SR_LP_RESEED 2nd v the lower placed winner (4.2 before 09/11). */
+#define SR_LP_FIXED  0
+#define SR_LP_RESEED 1
+/* The semi-finals' opponents of the 2nd and the 3rd (indices in the table: 1, 2) from the quarter-finals' winners
+ * (w47 of 4v7, w56 of 5v6: their indices) by bracket. 0; -1 a bracket unknown. */
+int32_t sr_lp_semis(int32_t w47, int32_t w56, int32_t bracket, int32_t *v2, int32_t *v3);
 int32_t sr_lp_playoff(uint32_t seed, int32_t d, const sr_row *table, int32_t n, const sr_lp_club *c);
 
 /* A pool season: nd divisions' light tables, then each one's champion and play-off winner up.
@@ -491,6 +503,10 @@ int32_t sr_lp_table_sp(uint32_t seed, int32_t d, const sr_lp_club *c, int32_t n,
 int32_t sr_lp_playoff_sp(uint32_t seed, int32_t d, const sr_row *table, int32_t n, const sr_lp_club *c, int32_t spread);
 int32_t sr_lp_season_sp(uint32_t seed, int32_t nd, const sr_lp_club *const *c, const int32_t *n, int32_t *up,
                         int32_t spread);
+int32_t sr_lp_playoff_b(uint32_t seed, int32_t d, const sr_row *table, int32_t n, const sr_lp_club *c, int32_t spread,
+                        int32_t bracket);
+int32_t sr_lp_season_b(uint32_t seed, int32_t nd, const sr_lp_club *const *c, const int32_t *n, int32_t *up,
+                       int32_t spread, int32_t bracket);
 
 /* ---- A pool with a cross play-off (swc/1.4 'up.cross'; Italy's Eccellenza 2026-27, 4.2 light; MC 42-ecclp) ----
  * Each division sends up its champion and one club to a play-off across the pool's divisions through its own
@@ -634,8 +650,24 @@ int32_t sr_group_sizes(int32_t n, int32_t g, uint8_t *size);
  * = none): two clubs with one value never in one group. The draw goes pot by pot, the pot's clubs in an order hashed
  * from the seed, each to the first group (in an order hashed from the seed and the club) that still leaves a whole
  * draw possible -- UEFA's computer draw. grp[c] = club c's group. Returns g; -1 sizes refused (sr_group_sizes);
- * -2 no draw keeps the clubs of one association apart. */
+ * -2 no draw keeps the clubs of one association apart: exactly when an association has more clubs than there are
+ * groups (decided at once). Otherwise it always ends with a draw: the check after a pick repairs a known draw
+ * (a Kempe chain) or searches, with a budget (4000 nodes a draw); a pick it cannot decide in time is passed over, the
+ * club going to a later group of its order (one known to leave a draw). Real shapes never reach the budget: there the
+ * draw is UEFA's exactly (32 clubs in 8 groups: ~0.2 M i486 instructions). Stack: ~1.7 KB + 148 B a club left at
+ * worst (the search's recursion). */
 int32_t sr_group_draw(int32_t n, int32_t g, const uint8_t *assoc, uint32_t seed, uint8_t *grp);
+
+/* swc/1.5: sr_group_draw with protect pairs: prot[2i], prot[2i+1] (nprot <= SR_PROT_PAIRS) two association values
+ * whose clubs never share a group (UEFA's prohibited clashes; assoc required). The pairs stay pairs: KOS-BIH and
+ * KOS-SRB leave BIH v SRB free. A component of them that is a clique among the associations drawn (ARM-AZE alone) is
+ * one class: König's bound decides at once and the draw is sr_group_draw's (-2 that class over g). A chain's first
+ * whole draw comes from the search (its budget): -2 none exists, -3 undecided in the budget (the stage not drawn
+ * either way: the glue logs it -- a harness FAIL, never a silent relaxation). Then the same pick-then-check, the
+ * Kempe repair kept only when it leaves the pairs apart. nprot 0 = sr_group_draw. */
+#define SR_PROT_PAIRS 64
+int32_t sr_group_draw_p(int32_t n, int32_t g, const uint8_t *assoc, const uint8_t *prot, int32_t nprot, uint32_t seed,
+                        uint8_t *grp);
 
 /* One group of a groups stage, for sr_best_placed: its clubs (0..n-1 inside it), its matches, its final table. */
 typedef struct { const sr_match *m; int32_t nm, n; const sr_srow *table; } sr_group;
@@ -644,7 +676,8 @@ typedef struct { const sr_match *m; int32_t nm, n; const sr_srow *table; } sr_gr
  * A group without that place is left out. With groups of different sizes, each club's matches against the clubs
  * placed at or below the smallest group's size are dropped first (UEFA's best thirds). Criteria: sr_rr_table's
  * without head to head (clubs of different groups never met); 'name' = the groups' order. Returns the groups
- * ranked, -1 a criterion refused. */
+ * ranked, -1 a criterion refused, or a group not as sr_rr_table leaves it (n outside 0..SR_STAGE_CLUBS, a table not
+ * its clubs 0..n-1 once each, a match's club outside them). */
 int32_t sr_best_placed(const sr_group *g, int32_t ng, int32_t place, int32_t win, int32_t draw, int32_t loss,
                        const uint8_t *tieb, uint32_t seed, uint8_t *ord);
 
@@ -654,11 +687,48 @@ int32_t sr_best_placed(const sr_group *g, int32_t ng, int32_t place, int32_t win
  *   seeded   each club of the top half v one of the bottom half, drawn; the seeded club first
  *   draw     any v any, drawn; the first drawn first
  * avoid (NULL = none): two clubs with one value (a group, an association) never paired. Draws by hashes, as
- * sr_group_draw (each pick leaves a whole round possible). Returns n / 2; -1 n odd or above SR_STAGE_CLUBS, bracket
- * not a power of 2, an unknown mode; -2 no pairing keeps them apart; -3 fixed / bracket pairs two clubs avoid
+ * sr_group_draw (each pick leaves a whole round possible: an exact check, Hall's condition -- never a dead end). Returns
+ * n / 2; -1 n odd or above SR_STAGE_CLUBS, bracket not a power of 2, an unknown mode; -2 no pairing keeps them apart
+ * (draw: a class with more than half the clubs; seeded: a class with more clubs, both halves, than pairs); -3 fixed / bracket pairs two clubs avoid
  * keeps apart. */
 enum { SR_PAIR_DRAW = 0, SR_PAIR_SEEDED, SR_PAIR_BRACKET, SR_PAIR_FIXED };
 int32_t sr_ko_pairs(int32_t mode, int32_t n, const uint8_t *avoid, uint32_t seed, uint8_t *out);
+
+/* ---- sr_stled.c: a groups stage's state in a save, the ledger item 'ST' (layout in sr_stled.c) ----
+ * A stage of n clubs (0 .. n-1 in seeding order, as sr_group_draw) in g groups (sr_group_sizes), legs 1..4,
+ * keyed by the season (its low 16 bits) and the stage's purpose (SwcStage.purpose). */
+#define SR_ST_VERSION 1
+/* The block's bytes for that shape (the ledger item's fixed size): 16 + n + the groups' matches; -1 refused. */
+int32_t sr_st_size(int32_t n, int32_t g, int32_t legs);
+/* A new block: the draw (sr_group_draw with assoc and seed: the stage's own, P4) and no result yet; word[0 .. n) the
+ * entrants' team words in seeding order (the key). Its size; -1 a shape refused, room short or no words, -2 the draw
+ * refused (sr_group_draw). */
+int32_t sr_st_begin(uint8_t *st, int32_t room, int32_t n, int32_t g, int32_t legs, uint32_t season, uint32_t purpose,
+                    const uint16_t *word, const uint8_t *assoc, uint32_t seed);
+/* After a load: 1 this stage's block, valid (its groups the shape's sizes, every result 0xFF or two goals 0..14);
+ * 0 not this stage's (zeroed: an older save, the item absent; another season, stage, shape or entrants): not
+ * started, the caller begins it; 2 an 'ST' block of another layout version (the caller begins it: the same groups,
+ * the results so far lost); -1 this stage's key with a broken body (the caller begins it too); -2 a shape refused,
+ * room short or no words. */
+int32_t sr_st_check(const uint8_t *st, int32_t room, int32_t n, int32_t g, int32_t legs, uint32_t season,
+                    uint32_t purpose, const uint16_t *word);
+/* Group k of a checked block: its clubs club[0 .. s) (stage indices, ascending; club: SR_STAGE_CLUBS bytes) and its
+ * matches m[0 .. nm) --
+ * sr_rr_calendar's of s clubs (home / away 0 .. s-1 index club[]), played and goals from the block; for
+ * sr_rr_table. nm; -1 k outside the groups, room short, or a block not as sr_st_check accepts. */
+int32_t sr_st_group(const uint8_t *st, int32_t k, uint8_t *club, sr_match *m, int32_t room);
+/* A result in: the first match of their group's calendar with home at home to away not yet played gets hg-ag
+ * (each capped at 14: sr_stled.c's known limit; 3-4 legs: the pair's first unplayed match at that ground). m: the caller's work room for the group's calendar (no big locals). The match's index in
+ * the results (0 .. m); -1 none such (another group, all played, a club outside 0..n-1, room short). */
+int32_t sr_st_record(uint8_t *st, int32_t home, int32_t away, int32_t hg, int32_t ag, sr_match *m, int32_t room);
+/* swc/1.5 round avoid: avoid = the same-group key (NULL none), assoc = the association key (NULL none) and prot its
+ * protect pairs (nprot <= SR_PROT_PAIRS, pairs of assoc values: as sr_group_draw_p's, pairs not classes). Seeded with
+ * two keys or pairs: each pick leaves a perfect matching of the free top v bottom clubs on the allowed pairs (exact,
+ * augmenting paths); -2 exactly when none exists (UEFA's last-16 draw). Draw with pairs: the search with its budget
+ * (the per-class check a necessary condition only). Draw with two keys: -1 (swcc refuses it). Otherwise
+ * sr_ko_pairs. */
+int32_t sr_ko_pairs_x(int32_t mode, int32_t n, const uint8_t *avoid, const uint8_t *assoc, const uint8_t *prot,
+                      int32_t nprot, uint32_t seed, uint8_t *out);
 
 /* ---- sr_reg.c: one league across N team files -- the club registry (swc/1.4 countries.<c>.files; MC
  * 42-s7reg: Italy 4.2 = file 102 Serie A + B + C, file 144 Serie D + the Eccellenza stand-ins) ----
@@ -693,7 +763,7 @@ typedef struct { uint16_t a, b, on; } sr_reg_swap;
  * files) takes the next row of that division's range, clubs in index order -- so an old save's file order
  * (and then its off-file clubs) gives the new places with every club's order kept within its division: the
  * old-save import (a v1.3 save's words -> the registry, the caller keeping old word i -> word[i]). 0; -1 a
- * layout past the limits (files 1 .. 8, unique numbers, a division in one file, rows <= 256, pool rows in one
+ * layout past the limits (files 1 .. 8, unique numbers other than 255, a division in one file, rows <= 256, pool rows in one
  * file at most) or a division's clubs not its size. */
 int32_t sr_reg_build(sr_registry *r, int32_t nfiles, const sr_reg_file *f, int32_t n, const uint8_t *div);
 uint16_t sr_reg_word(const sr_registry *r, int32_t ident);     /* SR_REG_NONE: off the files, or no such club */
@@ -719,5 +789,136 @@ uint32_t sr_reg_size(void);         /* sizeof(sr_registry), sizeof(sr_reg_work):
 uint32_t sr_reg_work_size(void);
 /* The invariants: every row holds one club, each club at most one row, words and rows agree. 0; -1. */
 int32_t sr_reg_check(const sr_registry *r);
+
+/* ---- sr_regsave.c: the registry in a save (N7: the Mod's SWC1 section 'IT'). The identity map only, 10 bits a
+ * row (Italy 4.2: 298 rows, 12 + 373 B); word[] is its inverse, a row's division stays as built (the exe's default
+ * sets it from the records). Idents are the pack's order, append-only: another layout reads as absent. ---- */
+#define SR_REGSAVE_VERSION  1
+#define SR_REGSAVE_HDR      12
+#define SR_REGSAVE_FLAGS    8          /* u16 at +8, the caller's: */
+#define SR_REGSAVE_IMPORTED 1          /*   written by an old save's import */
+#define SR_REGSAVE_PENDING  2          /*   clubs with an ident and no row yet (they come on at the next season end) */
+/* FNV-1a 32 over the shape: nfiles, each file's number, divisions and sizes, pool rows; nclub */
+uint32_t sr_reg_layout(int32_t nfiles, const sr_reg_file *f, int32_t nclub);
+int32_t  sr_reg_save_size(const sr_registry *r);                   /* bytes; -1 no registry */
+/* The bytes written (flags 0: the caller sets them after, swe_st_save's order); -1 room short, nclub past
+ * SR_REG_CLUBS (10-bit idents), a file whose rows are not its divisions' sizes + pool, or one failing sr_reg_check. */
+int32_t  sr_reg_save(const sr_registry *r, uint32_t layout, uint16_t season, uint8_t *out, int32_t room);
+/* r built from the spec first (sr_reg_build: the files' shape, nclub). 1 loaded; 0 absent (len 0), another
+ * version, file count or layout: r unchanged, the caller imports or keeps the built one; -1 corrupt (short, rows
+ * not the files', an ident >= nclub or twice) or r's own shape bad (as sr_reg_save): r unchanged -- except a block
+ * that passes those and then fails sr_reg_check: r filled, the caller rebuilds it (sr_reg_build). */
+int32_t  sr_reg_load(sr_registry *r, uint32_t layout, const uint8_t *in, int32_t len);
+/* The word map: an old team word -> its club's word now (SR_REG_NONE: off the files), sorted by the old word;
+ * a word not in it is unchanged. The count; -1 bad input (a word twice, a swap of a word with itself), -2 room short. */
+typedef struct { uint16_t from, to; } sr_wpair;
+int32_t  sr_wmap_build(const sr_reg_swap *sw, int32_t n, sr_wpair *out, int32_t max);   /* sr_reg_season's swaps */
+/* old_word[ident] = the club's word in the old layout (SR_REG_NONE: it was off the files), idents 0 .. n-1 */
+int32_t  sr_wmap_import(const sr_registry *r, const uint16_t *old_word, int32_t n, sr_wpair *out, int32_t max);
+uint16_t sr_wmap_get(const sr_wpair *m, int32_t n, uint16_t w);
+
+/* 42-s2ko: a knockout's bracket numbers and its fixed bracket (sr_kn.c; Lega Serie A C.U. 253 and its Allegato 1).
+ * The caller resolves each 'numbers' item (swc: "<league>#N-M", "<league>:up", "<cup>:winner" ...) into a list of
+ * last season's clubs in order; club codes are the caller's (< SR_KN_CLUBS), rec / eligible indexed by them. */
+#define SR_KN_CLUBS   512
+#define SR_KN_NUMBERS 256
+#define SR_KN_LIST         0           /* a group's order: as listed */
+#define SR_KN_RECORD       1           /* points per match, wins, goals for, then a draw */
+#define SR_KN_PLACE_RECORD 2           /* place, then points per match (else_order) */
+#define SR_KN_PLACE_DESC   3           /* M2b: from the bottom -- place, the lower first, then a draw */
+/* A list of last season's clubs; n < 0: its fact unknown (an old save, a first season end) -> the list 'unknown'
+ * stands for it (the spec's fallback; < 0 none: nothing, the group's 'else' fills). */
+#define SR_KN_NONE (-1)
+typedef struct { const uint16_t *club; int32_t n; int32_t unknown; } sr_kn_list;
+typedef struct { uint8_t take, order, else_order, nfrom, nelse, from[16], els[16]; } sr_kn_group;   /* (M2b: 16, Serie D's 9 groups) */
+typedef struct { uint16_t pts, pld, won, gf; uint8_t place; } sr_kn_rec;        /* last season, per club */
+typedef struct { int16_t lat, lon; } sr_kn_geo;                               /* 1/100 degree */
+typedef struct {
+    uint32_t key[SR_KN_CLUBS]; uint16_t cand[SR_KN_NUMBERS]; uint8_t taken[SR_KN_CLUBS];
+    uint16_t pool[SR_KN_NUMBERS], pnum[SR_KN_NUMBERS]; uint8_t pzone[SR_KN_NUMBERS], pjoin[SR_KN_NUMBERS];   /* (a drawn round) */
+    const sr_kn_geo *geo;              /* (M2b: the caller's, geo[club], for a "geo" round) */
+} sr_kn_work;
+/* The numbers: out[0 .. n) the clubs numbered 1 .. n. n; -1 a group nobody is left to fill, or past max. */
+int32_t sr_kn_number(const sr_kn_group *g, int32_t ng, const sr_kn_list *lists, const sr_kn_rec *rec,
+                     const uint8_t *eligible, uint32_t *rng, sr_kn_work *w, uint16_t *out, int32_t max);
+uint32_t sr_kn_work_size(void);
+/* The bracket: a side is a number 1 .. 1024 (that club enters here) or SR_KN_WIN(r, t) (round r's tie t's winner,
+ * from 0). home: the swcc codes (0 draw, 3 neutral, 4 fixed, 5 lower_number, 6 lower_number_second_leg). swap[p]
+ * (NULL: none): the first season's field swaps. play(ctx, round, tie, t): 0 the home side through, 1 the away
+ * side, -1 stop. out[p] per pair. The last winner; -1 a stop (play's: the ties before it stay as built); -2 refused
+ * (sr_kn_cup_check before any tie is built and play never called; a drawn round that does not fit, before its first
+ * tie: the earlier rounds stay as played). */
+#define SR_KN_WIN(r, t) ((uint16_t)(0x8000u | (uint16_t)((r) << 9) | (uint16_t)(t)))
+#define SR_KN_DRAW      0
+#define SR_KN_NEUTRAL   3
+#define SR_KN_FIXED     4
+#define SR_KN_LOWER     5
+#define SR_KN_LOWER_2ND 6
+#define SR_KN_JOINER    7              /* (a drawn round) the club joining at this round hosts; the others drawn */
+#define SR_KN_ALTERNATE 8              /* M2b: the side away in its previous tie hosts; both alike (or one
+                                          entering here): drawn (LND C.U. 1 art. 4) */
+#define SR_KN_F_NEUTRAL 1
+#define SR_KN_F_2ND     2              /* two legs: the second leg at the away side's (the lower number's) */
+/* A round's pairing: fixed (pairs[first .. first + ties)), or drawn from the previous round's winners and this
+ * round's joiners (join[jfirst .. jfirst + njoin)): open, or within each zone (a club keeps its zone). */
+#define SR_KN_PAIR_FIXED 0
+#define SR_KN_PAIR_DRAW  1
+#define SR_KN_PAIR_ZONE  2
+#define SR_KN_PAIR_GEO   3              /* M2b: the pool halved by geography (w->geo) into blocks of 'block'
+                                          clubs, drawn within each; tie t = places 2t, 2t + 1 of that order, so
+                                          a later fixed round of winner:(t, t + 1) stays near */
+#define SR_KN_ZONES     16
+typedef struct { uint16_t a, b; } sr_kn_pair;
+typedef struct { uint16_t ties, first; uint8_t legs, home, pairing, block; uint16_t jfirst, njoin; } sr_kn_round;
+typedef struct { uint16_t club; uint8_t zone, pad; } sr_kn_entry;
+typedef struct { uint16_t home, away, nhome, naway, winner, nwin; uint8_t legs, flags, zone, pad; } sr_kn_tie;
+typedef int32_t (*sr_kn_play_fn)(void *ctx, int32_t round, int32_t tie, const sr_kn_tie *t);
+int32_t sr_kn_bracket(const sr_kn_round *rd, int32_t nr, const sr_kn_pair *pairs, const uint16_t *numbers,
+                      int32_t nn, const uint8_t *swap, uint32_t *rng, sr_kn_play_fn play, void *ctx, sr_kn_tie *out);
+/* The same with drawn rounds (w: the caller's work area; join: the rounds' joiners); -2 also a club twice in a drawn
+ * round's pool (a club in two chains). */
+int32_t sr_kn_cup(const sr_kn_round *rd, int32_t nr, const sr_kn_pair *pairs, const uint16_t *numbers, int32_t nn,
+                  const sr_kn_entry *join, const uint8_t *swap, uint32_t *rng, sr_kn_play_fn play, void *ctx,
+                  sr_kn_work *w, sr_kn_tie *out);
+/* The cup's entrants and bracket, results aside (the set-up's check: sr_kn_cup runs it first): every club entering,
+ * numbered (numbers[0 .. nn)) or joining a drawn round, once and < SR_KN_CLUBS; a fixed side a number 1 .. nn used
+ * once in the cup, or an earlier round's winner taken once (by one fixed side, or by the drawn round after it); a
+ * fixed round without joiners; a drawn round's pool (the previous round's winners and its joiners) 2 x its ties.
+ * 0; -1. */
+int32_t sr_kn_cup_check(const sr_kn_round *rd, int32_t nr, const sr_kn_pair *pairs, const uint16_t *numbers,
+                        int32_t nn, const sr_kn_entry *join);
+/* Zones by proximity (42-s2ko M2, the Coppa Italia Serie C's geographic groups): clubs[0 .. n) into nz zones of cap
+ * clubs each, each club to its nearest centre with room, the club with the most to lose first (the regret: its
+ * second-nearest room's distance less its nearest's; equal: the earlier in the list). geo[club] and the centres in
+ * 1/100 degree (lat, lon); the distance flat, longitude by cos 42 degrees. zone[i] for clubs[i]. 0; -1 too many
+ * clubs (n > nz x cap), nz out of 1 .. SR_KN_ZONES. */
+int32_t sr_kn_zones(const sr_kn_geo *geo, const uint16_t *clubs, int32_t n, const sr_kn_geo *centre, int32_t nz,
+                    int32_t cap, sr_kn_work *w, uint8_t *zone);
+
+/* The 'KN' block (42-s2ko, the Mod's item 'KN', world_only): next season's cup numbers built at the season end (the
+ * facts still in memory), read at each cup's set-up. stamp = seasonPlaying + 1 (as uesum / lrank): a zeroed block (an
+ * old save) or another season's reads as missing, and the cup is built from its spec's 'unknown' fallbacks. Layout:
+ * stamp, nparts, per part id, n, payload: SR_KNS_CI / SR_KNS_SC n idents (dw, in number order), SR_KNS_D n bits
+ * over this season's Serie D clubs in sr_kn_dorder's order (1: in the preliminary). The idents are the caller's
+ * (s7reg); the bit set's clubs any codes, compared as they are. Coppa C: no part (built at set-up). */
+#define SR_KNS_CI  1
+#define SR_KNS_SC  2
+#define SR_KNS_D   3
+#define SR_KNS_MAX (2 + 2 + 2 * 255 + 2 + 2 * 255 + 2 + 32)
+/* The Serie D clubs' one order, for the bit set where it is built and at the Coppa D set-up: the groups as given
+ * (the league file's, group A first), each in row order. n; -1 more than max. */
+int32_t sr_kn_dorder(const sr_kn_list *groups, int32_t ng, uint16_t *order, int32_t max);
+/* The block into out[0 .. max): ci / sc the numbers' idents (n 0: no part), dorder[0 .. nd) this season's D clubs,
+ * dpre[0 .. npre) the preliminary's (the first numbers out of sr_kn_number). Its length; -1 a count over 255, out
+ * too small, a preliminary club not in dorder. */
+int32_t sr_kns_build(uint8_t stamp, const uint16_t *ci, int32_t nci, const uint16_t *sc, int32_t nsc,
+                     const uint16_t *dorder, int32_t nd, const uint16_t *dpre, int32_t npre, uint8_t *out, int32_t max);
+/* A part's idents into out (SR_KNS_CI / SR_KNS_SC): n; -1 missing (the fallbacks). */
+int32_t sr_kns_idents(const uint8_t *blk, int32_t len, uint8_t stamp, uint8_t id, uint16_t *out, int32_t max);
+/* The Coppa D part over dorder[0 .. nd): the preliminary's clubs into pre (*npre of them), the others into rest, both
+ * in dorder's order (a round's order does not matter: the geographic blocks sort it). nd; -1 missing or a different
+ * number of D clubs (the fallback: the preliminary from the bottom of the tables). */
+int32_t sr_kns_dpre(const uint8_t *blk, int32_t len, uint8_t stamp, const uint16_t *dorder, int32_t nd,
+                    uint16_t *pre, uint16_t *rest, int32_t *npre);
 
 #endif

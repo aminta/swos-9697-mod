@@ -27980,7 +27980,7 @@ def gft_at(exe):
 NZ_PHHEX = ',1b52c:8000,17256:1300'                                 # (4.1.1: the calendar from CAL - 4, careerTeam)
 
 
-def nz_phantom(lines, gft, mgr, fin, errs):
+def nz_phantom(lines, gft, mgr, fin, errs, st_at=None):
     """4.1.1 NZ Grand Final without the career club (gf_drop_c, GP_GFT 9): from the drop on, the slot-4 calendar
     entries' pairing (+12 / +14) is the two finalists, never the career club (4.0.5-4.1: the placeholder's career club
     v the group's other club, played as a computer match - Panchina's phantom 0-4, a card, an injury), and no record
@@ -28012,11 +28012,19 @@ def nz_phantom(lines, gft, mgr, fin, errs):
             if ci0 is not None:
                 worse += [(q, ci0[q], ci[q]) for q in range(30) if ci[q] > ci0[q]]
             ci0 = ci
-    check(pairs and all(set(x) == set(fin) for x in pairs) and not any(mgr in x for x in pairs),
-          f'slot-4 pairings after the drop {[[hex(t) for t in x] for x in pairs]} (want the final '
-          f'{[hex(x) for x in fin]}, never the career club {hex(mgr) if mgr is not None else None})', errs)
-    check(not worse, f'careerTeam cards / injuries after the drop (record, before, after): {worse[:4]}', errs)
-    return f'real final without the career club: pairings {[[hex(t) for t in x] for x in pairs]}, no card / injury'
+    sts = [bytes.fromhex(ln.split()[2]) for ln in lines if st_at is not None and ln.startswith(f'HEX {st_at:x} ')]
+    sts = [b for b in sts if gp_ko(b[GP_STKO:])['kind'] == 5]
+    gf = gp_ko(sts[-1][GP_STKO + GP_KO['size']:]) if sts else None
+    done = bool(sts) and sts[-1][GP_STKO + 570 + 6] == 3 and gf['kind'] == 11 and set(gf['team'][:2]) == set(fin)
+    check(done, f"the Grand Final recorded by gf_done (state {sts[-1][GP_STKO + 570 + 6] if sts else None}, ko[1] "
+          f"{[hex(t) for t in gf['team'][:2]] if gf else None}, want the final {[hex(x) for x in fin]})", errs)
+    if pairs or not done:                              # (none when the decision came inside the session's last step -
+        check(pairs and all(set(x) == set(fin) for x in pairs) and not any(mgr in x for x in pairs),   # restout:
+              f'slot-4 pairings after the drop {[[hex(t) for t in x] for x in pairs]} (want the final '   # FINISH SEASON
+              f'{[hex(x) for x in fin]}, never the career club {hex(mgr) if mgr is not None else None})', errs)   # to
+        check(not worse, f'careerTeam cards / injuries after the drop (record, before, after): {worse[:4]}', errs)   # the end;
+    return (f'real final without the career club: pairings {[[hex(t) for t in x] for x in pairs]}, no card / injury'   # slot 4's
+            if pairs else 'real final without the career club recorded by gf_done (decided inside the last step)')   # only match
 
 
 def nzchamp_season(lines, st_at, log_at, res_words, gff, kof, errs, rest=False, team='', gft=None):
@@ -28055,7 +28063,7 @@ def nzchamp_season(lines, st_at, log_at, res_words, gff, kof, errs, rest=False, 
                                                                        # decided at once, the season goes on - Panchina's
                                                                        # rc19 stop at the placeholder, step 179)
         if gft is not None and not os.environ.get('NZ_HEXPLUS'):
-            note.append(nz_phantom(lines, gft, mgr, fin, errs))
+            note.append(nz_phantom(lines, gft, mgr, fin, errs, st_at))
         fl = [ln for ln in lines if 'CHAMPIONSHIP FINALE' in ln]
         club = team.split(',')[-1]
         if natural and gff != '1' and fl:                             # (the DECLARED limit, rc20 74b589f: the decision

@@ -35,7 +35,8 @@ VENV = os.path.expanduser('~/swos-mod/internal/hosttest/.venv/bin/python')
 EXHAUST, NSAT, NRND, NSEED, NGAME = 4096, 4096, 4096, 1024, 64
 I486_MAX = 20_000_000
 FLAGS = ['-Oz', '-fno-zero-initialized-in-bss']        # (lrank.ct_patch's)
-SRCS = ('ctdraw.c', 'ctband.c', 'swce/sr_stage.c', 'swce/swosrules.h', 'drawgate.py')
+SRCS = ('ctdraw.c', 'ctband.c', 'swce/sr_stage.c', 'swce/swosrules.h', 'drawgate.py',
+        'conti.c', 'conti.h')                           # (conti.c: the game seeds' derivation - MC 11/11)
 A_ANY, A_NO, A_NOVIA, A_NO2, A_MIN = 0, 1, 2, 3, 4
 
 
@@ -207,7 +208,8 @@ def key(rs):
     for f in SRCS:
         h.update(open(os.path.join(HERE, f), 'rb').read())
     import cobj
-    h.update(json.dumps([cobj.CFLAGS, FLAGS]).encode())
+    import conti
+    h.update(json.dumps([cobj.CFLAGS, FLAGS, list(conti.NATIVE_FLAGS)]).encode())   # (+ the native build's flags)
     h.update(json.dumps([{k: (sorted(v.items()) if isinstance(v, dict) else v) for k, v in r.items()} for r in rs]).encode())
     return h.hexdigest()[:16]
 

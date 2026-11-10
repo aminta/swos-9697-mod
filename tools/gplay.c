@@ -1301,6 +1301,7 @@ void gp_forcecfb(void) {
     u16 *pa = (u16 *)(d + 0x6D + 2 * m), *pb = (u16 *)(d + 0x6D + 2 * (GP_FORCE - 1));
     u16 *ra = (u16 *)(d + *pa + 0x2B7), *rb = (u16 *)(d + *pb + 0x2B7), x;
     for (int i = 0; i < 7; i++) { x = ra[i]; ra[i] = rb[i]; rb[i] = x; }
+#if GP_FORCE                            /* (GP_SP*: gplay.py's defines; host compiles without them, check.sh) */
     if (*(u16 *)(d + GP_SPST) == GP_SPMAGIC) {  /* (a split league: the rows' groups and 'points before rounding' too -
                                                    sp_sort's partition re-sorts by them at the season end, MC 10/11) */
         u8 *g = d + GP_SPST + GP_SPGRP, ia = *pa / 0x12, ib = *pb / 0x12, y = g[ia];
@@ -1308,6 +1309,7 @@ void gp_forcecfb(void) {
         g[ia] = g[ib]; g[ib] = y;
         x = q[ia]; q[ia] = q[ib]; q[ib] = x;
     }
+#endif
     x = *pa; *pa = *pb; *pb = x;
 }
 

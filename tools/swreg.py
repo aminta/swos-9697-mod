@@ -40,6 +40,10 @@ CONTI4_END = 0x5000                     # winners) at the 5th page's top, above 
                                         # it: lrank from 0x6000)
 assert UPRIZE2_END <= CONTI4_AT, 'uprize part 2 would cross conti / ST'   # (4.2: bands never cross)
 assert CONTI4_END <= ST_AT, 'conti data would cross ST'
+SREG_AT = 0x5100                        # 4.2 N7: the club registry's code + data (sreg.py, sreg.c), after ST, under
+                                        # lrank.LR_AT (MC 10/11: the band 0x5100..0x6000); linked only with a shape
+SREG_DIV_AT = 0x4600                    # 4.2 N7: sreg.c's SREG_DIV (SR_REG_CLUBS bytes, 0x4600..0x4A00), above 4.1's
+                                        # uprize2 (0x4000..0x42c8), under conti (CONTI4_AT 0x4B00; MC 10/11)
 MAGIC = b'SWRG'
 VERSION = 2
 HDR = 32

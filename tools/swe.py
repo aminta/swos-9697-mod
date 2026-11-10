@@ -54,6 +54,7 @@ MAGIC = b'SWOS-ENG'
 VERSION = 3                    # (swe.c SWE_VERSION; 2 = step W, the registry; 3 = W-modes M2, the pickers' worlds)
 CODE_AT = 0x40
 ARENA = 0x8000                 # (swe.c SWE_ARENA)
+SWC1_SIZE = 32                 # engine P: the career state item (swe.c SWC1: header 20 B + sections; grows by version)
 SRC = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'swe.c')
 LABELS = {}
 
@@ -237,6 +238,23 @@ def w0_proxies(p, at, syms):
     return at
 
 
+def imports():
+    """Engine P 3: the load-only items (engine.retire_item), in the trailer's order (EN_FOUND + EN_NS + k): [(name, k,
+    offset in SWE_IMP or None when the item keeps its old place, ITEM_AT)], SWE_IMP's size. swe.c sees -DIMPK_<name>=k
+    (its found byte, SWE_ENF[k]) and -DIMP_<name>=offset; its import routine runs in swe_st_load on a save from before
+    P."""
+    import engine
+    out, at = [], 0
+    for k, n in enumerate(sorted(engine.RETIRED)):
+        assert n.isalnum(), n
+        if n in engine.ITEM_AT:
+            out.append((n, k, None))
+        else:
+            out.append((n, k, at))
+            at = (at + engine.RETIRED[n][0] + 3) & ~3
+    return out, at
+
+
 def patch(p):
     """links swe.c into obj4 (after obj3's vsize / base are final), the world registry (swreg.py) and the picker's
     trampoline; returns the code's end"""
@@ -267,10 +285,29 @@ def patch(p):
         calls = [c for c in calls if c[1] not in ('swe_ns_tramp', 'swe_stfm_tramp')]
     if 'W_FNAT' in careerworld.LABELS:              # step 2.5: the friendly / DIY nationals' world (w_tmap)
         ext['CW_FNAT'] = (1, careerworld.LABELS['W_FNAT'])
-    flags = (('-DNS',) if ns else ()) + (('-DSTFM',) if 'SWE_STFM' in ext else ()) + (('-DNAT',) if 'CW_PLNAT' in ext else ()) + (('-DMB',) if 'MB_STR' in ext else ()) + (('-DOMM',) if 'MB_OMM' in ext else ()) + (('-DFNAT',) if 'CW_FNAT' in ext else ()) + (('-DAV',) if 'SWE_PREPICK' in ext else ())
+    if careerworld.SITES.get('slt'):                # engine P: the career's world byte, SWC1's header
+        so, soff = careerworld.SITES['slt']
+        ext['SWE_CWB'] = (so, soff + careerworld.WORLD_BYTE)
+    if careerworld.SITES.get('season') is not None:     # engine P 5: the season (the game's seasonPlaying byte)
+        ext['SWE_SEASON'] = (2, careerworld.SITES['season'])
+    imp, imp_size = imports()                       # engine P 3: the load-only items' slots / found bytes
+    if imp:
+        import trailer
+        ext['SWE_ENF'] = (1, trailer.LABELS['EN_FOUND'][1] + trailer.INFO['EN_NS'])
+    flags = (('-DNS',) if ns else ()) + (('-DSTFM',) if 'SWE_STFM' in ext else ()) + (('-DNAT',) if 'CW_PLNAT' in ext else ()) + (('-DMB',) if 'MB_STR' in ext else ()) + (('-DOMM',) if 'MB_OMM' in ext else ()) + (('-DFNAT',) if 'CW_FNAT' in ext else ()) + (('-DAV',) if 'SWE_PREPICK' in ext else ()) + (('-DCWB',) if 'SWE_CWB' in ext else ()) + (('-DSEAS',) if 'SWE_SEASON' in ext else ()) + (f'-DSWC1_SIZE={SWC1_SIZE}',)
+    if imp:
+        flags += (f'-DIMP_N={len(imp)}', f'-DSWE_IMP_SIZE={max(imp_size, 4)}') + tuple(
+            d for n, k, off in imp for d in (f'-DIMPK_{n}={k}',) + ((f'-DIMP_{n}={off}',) if off is not None else ()))
     syms, end, bss = cobj.link(p, cobj.compile_c(SRC, flags), CODE_AT, (4, room), externs=ext, limit=swreg.REG_AT,
                                text_obj=4)
     arena = syms['SWE_ARENA_AT']
+    import engine                                   # engine P: SWC1 and its hooks (trailer.late binds them)
+    engine.ITEM_AT['SWC1'] = syms['SWC1']
+    engine.CALL_AT['swe_st_save'] = syms['swe_st_save']
+    engine.CALL_AT['swe_st_load'] = syms['swe_st_load']
+    for n, k, off in imp:                           # (a load-only item with no old place: its SWE_IMP slot)
+        if off is not None:
+            engine.ITEM_AT[n] = (syms['SWE_IMP'][0], syms['SWE_IMP'][1] + off)
     if 'NAT_X' in syms:                             # M3: careerworld.NAT_ERA's pairs for the two lists
         import careerworld
         code = careerworld.nat_codes(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'orig',

@@ -791,3 +791,107 @@ __attribute__((naked)) void swe_pre_load_tramp(void)
     __asm__ volatile("pushal\n\tcall swe_diy_name\n\tpopal\n\tcall SWE_LOADPRE\n\tpushfl\n\tpushal\n\t"
                      "call swe_diy_loaded\n\tpopal\n\tpopfl\n\tret");
 }
+
+/* Engine P: the engine's state, saved with a career as the 'EN' item SWC1 (trailer.py, engine.save_item grow): a
+   header, then sections (u16 id, u16 length, the bytes; id 0 ends them). A save from before P has none: the trailer
+   zeroes the item (version 0) and swe_st_load starts it - the steps that take a legacy item over import it there. A
+   save of an older, shorter version loads its bytes, the rest zeroed. No pointers, integers only (PLAN §3.4). */
+#define SWC1_VER 1
+#define SWC1_HDR 20                     /* u16 version, u16 world, u32 spec hash, u16 season, u16 flags, u64 seed */
+u8 SWC1[SWC1_SIZE] DATA = {0};
+u32 SWC1_LOADED DATA = 0;               /* the last load's SWC1 version: 0 = a save from before P */
+#ifdef CWB
+extern u8 SWE_CWB[];                    /* careerworld: the career's world byte (someLeaguesTable[WORLD_BYTE]) */
+/* (a career's only: the byte is stale outside one - a .SEA is SaveCareerFile's too, and a season plays the base
+   world until world seasons exist; engine P c, 07/11) */
+#ifdef NS
+static u32 cw_byte(void) { return *(u16 *)SWE_GTYPE == GAME_TYPE_CAREER ? SWE_CWB[0] : 0; }
+#else
+static u32 cw_byte(void) { return SWE_CWB[0]; }
+#endif
+#else
+static u32 cw_byte(void) { return 0; }
+#endif
+
+#ifdef SEAS
+extern u8 SWE_SEASON[];                 /* the game's seasonPlaying (the year - 1900) */
+static u32 season(void) { return SWE_SEASON[0]; }
+#else
+static u32 season(void) { return 0; }
+#endif
+
+void swe_st_save(void)                  /* engine.before_save: the header as this build writes it (engine P 5: the
+                                           season, the career's at the save; a load keeps the saved one) */
+{
+    *(u16 *)SWC1 = SWC1_VER;
+    *(u16 *)(SWC1 + 2) = (u16)cw_byte();
+    *(u16 *)(SWC1 + 8) = (u16)season();
+}
+
+/* SWC1's sections: u16 id, u16 length, the bytes; id 0 (or the item's end) ends them. */
+u8 *swc1_find(u32 id, u32 *len)         /* a section's bytes (its length in *len), or 0 */
+{
+    u8 *p = SWC1 + SWC1_HDR;
+    while (p + 4 <= SWC1 + SWC1_SIZE && *(u16 *)p) {
+        u32 n = *(u16 *)(p + 2);
+        if (p + 4 + n > SWC1 + SWC1_SIZE)
+            break;
+        if (*(u16 *)p == id) {
+            *len = n;
+            return p + 4;
+        }
+        p += 4 + n;
+    }
+    return 0;
+}
+
+u8 *swc1_add(u32 id, u32 len)           /* a new last section of len zero bytes, or 0 when SWC1 has no room */
+{
+    u8 *p = SWC1 + SWC1_HDR;
+    while (p + 4 <= SWC1 + SWC1_SIZE && *(u16 *)p)
+        p += 4 + *(u16 *)(p + 2);
+    if (p + 4 + len > SWC1 + SWC1_SIZE)
+        return 0;
+    *(u16 *)p = (u16)id;
+    *(u16 *)(p + 2) = (u16)len;
+    volatile u8 *z = p + 4;             /* (volatile: no memset call - there is no library) */
+    for (u32 i = 0; i < len; i++)
+        z[i] = 0;
+    if (p + 6 + len <= SWC1 + SWC1_SIZE)
+        *(u16 *)(p + 4 + len) = 0;
+    return p + 4;
+}
+
+/* Engine P 3: the load-only items (engine.retire_item, swe.py imports()). A save from before P carries a legacy item
+   the engine now keeps in SWC1: the trailer reads it into its slot of SWE_IMP (or its old place), SWE_ENF[k] says it
+   was in the save, and swe_import turns it into its SWC1 section. Each step that retires an item adds its import. */
+#ifdef IMP_N
+u8 SWE_IMP[SWE_IMP_SIZE];
+extern u8 SWE_ENF[];                    /* trailer.py: EN_FOUND + EN_NS, one byte per load-only item */
+
+static void imp_copy(u32 k, const u8 *src, u32 id, u32 len)    /* the item's bytes as section id, if it was saved */
+{
+    volatile u8 *d;                     /* (volatile: no memcpy call) */
+    if (!SWE_ENF[k] || !(d = swc1_add(id, len)))
+        return;
+    for (u32 i = 0; i < len; i++)
+        d[i] = src[i];
+}
+#endif
+
+static void swe_import(void)
+{
+#ifdef IMPK_RPRB                        /* (EN_RETIRE_PROBE test builds: 'RPRB', 4 B, as section 'RP') */
+    imp_copy(IMPK_RPRB, SWE_IMP + IMP_RPRB, 0x5052, 4);
+#endif
+}
+
+void swe_st_load(void)                  /* engine.after_load: the save's version kept, a missing state started */
+{
+    SWC1_LOADED = *(u16 *)SWC1;
+    if (!SWC1_LOADED) {
+        *(u16 *)(SWC1 + 2) = (u16)cw_byte();
+        swe_import();
+    }
+    *(u16 *)SWC1 = SWC1_VER;
+}

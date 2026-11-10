@@ -54,6 +54,39 @@ the game's 68400-B cache; a world career's whole 'EN' block fits there only up t
 | CR | 1 | cpurefill | 4.0.6 | CPU replacements switch |
 | FF | 21 | ffp (Integratore; state in finance.py FF_ST) | 4.0.6 (after I10j) | financial fair play: FF_ON, FF_BLOCK, FF_VALID (1 B each), FF_INC (the season's gates), FF_IPREV (last season's income), FF_FINE, FF_TVW (the season's TV credit share paid for the wages, left out of FFP's income) (dd each), FF_NCH (dw: the season's match charges, for the season-end wage bill). Plain bytes, no pointers, clear: an older save loads it zeroed = the rule OFF; a new career sets ON + VALID (after_new). With its header 25 B: **68 B left** on I10j + FFP |
 | US | 290 | uesum (Shaved) | 4.1 S2b | RIEPILOGO's earlier knockout stages of the career club's own UEFA cup (uesum.c US_REC: u8 contest id, u8 ties per stage [play-offs, R16, QF, SF], u8 season stamp, 22 ties x 8 B - team words x / y, leg 1 / leg 2 / penalties as goals x << 4 | y, flags; then the league phase's final table: 36 team words + 36 u8 points, place order). Ties recorded at cseg_28E76's exit after every match, the table at lp36's lp_cb_gend; world_only (big worlds; 1984-85 carries a zero block). Clear: an older save loads it zeroed = the S2a page. With its header 294 B, on top of MC's 41-selroom (SEL_ROOM +640): **414 B left** |
+| SWC1 | 32 | swe (engine P) | 4.1 | the engine's state: header (version, world, spec hash, season, flags, seed) + sections; grows by version |
+
+## Engine P (2026-11-06, branch p-persist off engine = trymerge cd4e54c)
+
+**Re-measured on the 4.1 recipe** (406-omm, c/HTOMM): 'EN' 15368 B (26 items) + main 948 → **68 B left** of SEL_ROOM.
+
+- **SEL_ROOM + 207 B** (0x4000 → 0x40CF over the cache): all the room between the stage's end and B_UQ, nothing
+  moved (B_SEL + SEL_ROOM still 945 B below B_STAGE). A constant, not an old-save-trap change: old saves are
+  smaller. The other way round, a save of this build can be up to 207 B bigger than a 4.1 exe's room (a downgrade, not
+  supported).
+- **SWC1** (swe.c, obj4, 32 B in v1): the engine's state, one 'EN' item that *grows*. Header 20 B: u16 version (1),
+  u16 world (the career's world byte), u32 spec hash, u16 season (P 5: seasonPlaying at the save), u16 flags, u64 seed (0 until the steps that use
+  them), then sections (u16 id, u16 length, bytes; id 0 ends). swe_st_save (engine.before_save) writes the header;
+  swe_st_load (engine.after_load) keeps the save's version in SWC1_LOADED (0 = a save from before P) and starts a
+  missing state. With its 4-B item header: **36 B → 239 B left** (HTP1).
+- **Item flags in the trailer** (EN_ITEMS' third dword): bit 16 clear, **bit 17 grow** (a shorter saved length loads,
+  the rest zeroed; a longer one is a newer build's: skipped, as before). **Load-only items**
+  (engine.retire_item): read by id and size, never written; the save loops write EN_NS items, the load knows EN_N.
+- **How the room comes back:** a step that takes a legacy item over (S1..S3: GP, GS, SS, SS2, CD, CF, WN, F1, CN, BQ)
+  retires it (load-only, its import in swe_st_load when SWC1_LOADED is 0) and grows SWC1 by a section: its bytes + 4
+  move from the item to SWC1, the item's own 4-B header comes free. **SWC1 ≤ the retired items + 239 B**; beyond
+  that, a B_STAGE / B_UQ move (+~4 h, its own old-save gate), asked first.
+- **The import path (P 3):** a load-only item with no old place (ITEM_AT) is read into its slot of swe.c's
+  SWE_IMP (obj4 BSS, swe.imports()); swe.c sees -DIMPK_<name> (its found byte SWE_ENF[k] = trailer's EN_FOUND +
+  EN_NS + k) and -DIMP_<name> (its slot). swe_st_load, on a save from before P only (SWC1_LOADED 0), runs
+  swe_import: each retired item that was in the save becomes an SWC1 section (swc1_add; swc1_find reads one back).
+  The step that retires an item adds its line there. A save with SWC1 never imports (its sections are the state).
+- **Old saves' added items (P 3, test_roundtrip_old):** every item an archived save (3.3.6 .. 4.0.5) lacks comes in
+  as zero, but SWC1 (started: version 1 + the career's world byte) and SH (a 4.0 save's split state moved in,
+  sp_migrate) - asserted, so a new item with a non-zero old-save default needs its line here and in the test.
+- Tier B: test_swc1.py (static image): the save, this build's load, shorter (grow) / longer / missing SWC1, a plain
+  item of another length skipped, and (EN_RETIRE_PROBE=1 build) a load-only item read, never saved, imported as section 'RP' only into a save from
+  before P (none from nothing, none over a save of P).
 
 ## The round trip (test_roundtrip.py, Tier B)
 
@@ -93,4 +126,14 @@ the game's 68400-B cache; a world career's whole 'EN' block fits there only up t
 - Read by obj4 after LoadDIYFile (LoadOldCompetitionMenu's call, retargeted). The block counts only when the file's
   size is exactly the game's part + 4 and the tag matches. Any other file (the game's, an older mod's, a preset) reads
   as world 0. An older exe loads a file with the block whole: the 4 B land past the last record and nobody reads them.
-- Presets (.PRE) and seasons (.SEA) get no block in W-modes. Their worlds come at 4.1 (engine P: SWC1 in those saves).
+- Presets (.PRE) and seasons (.SEA) get no block in W-modes (engine P c, 2026-11-07):
+  - **.SEA is SaveCareerFile's** (SaveContest's season branch calls j_SaveCareerFile): a season's save already carries
+    the trailer and SWC1. SWC1's world is the career's byte only when the game type is a career (4); a season writes 0,
+    since someLeaguesTable's byte is stale outside a career (it would be an earlier career's). A season's load already
+    gives the base namespace back (engine_sea_ns: after a mixed friendly, WCUR = base).
+  - **.PRE is the DIY file's body** (SavePresetCompetitionFile = SaveDIYFile, LoadPresetFile = LoadDIYFile). No preset
+    of a career world exists yet, so a .PRE is never written with a block (no save hook: the file stays the game's).
+    Its load goes through swe_diy_loaded (swe_pre_load_tramp at LoadOldCompetitionMenu's '.PRE' call): no 'WM' block,
+    so the base namespace back. Before it, a preset loaded after a mixed friendly kept namespace 5 (engine_pre_ns).
+  - When a world gets presets or seasons, their start sets the contest's world (SWE_CWORLD for a preset, then the
+    preset save hook as the DIY one; SWC1's world for a season) - not before.

@@ -251,6 +251,12 @@ def patch_exe(src, dst, remap, lang='it'):
     engine.save_item('GI', 2)                    # 4.0.6 the OPTIONS row 'goalkeeper injuries' (gkinj.py: 0 = ON; the session's
     engine.after_load('gk_load')                 # value kept by a load / a new career)
     engine.after_new('gk_new')
+    import swe
+    engine.save_item('SWC1', swe.SWC1_SIZE, grow=True)   # engine P: the engine's state (swe.c SWC1: a versioned header,
+    engine.before_save('swe_st_save')            # then sections; older, shorter versions load - grow)
+    engine.after_load('swe_st_load')
+    if os.environ.get('EN_RETIRE_PROBE'):        # (test builds only: a load-only item, hosttest test_swc1)
+        engine.retire_item('RPRB', 4)
     import finance
     engine.save_item('FF', finance.FF_SIZE)      # 4.0.6 financial fair play (ffp.py: finance's FF_ST; a save without it:
     engine.after_new('ff_new')                   # the rule OFF, a new career: ON)

@@ -12744,10 +12744,24 @@ def engine_wmodes():
 
 @scenario
 def engine_wmodes_play():
+    # (engine_wmodes_play_run, its feed globals put back whatever happens - an AssertionError of wm_go included;
+    # the docstring is the run's, set below)
+    global SPP_STEP, WM_SPP, PRESS_FIRE
+    keep = SPP_STEP, WM_SPP, PRESS_FIRE
+    try:
+        return engine_wmodes_play_run()
+    except AssertionError as x:
+        return False, f'exception {x}'
+    finally:
+        SPP_STEP, WM_SPP, PRESS_FIRE = keep
+
+
+def engine_wmodes_play_run():
     """W-modes M2 for the players (12 Bit internal build): the mixed friendly INTER (World 2026-27) - HAMBURG (the
     1996-97 game) PLAYED to the end on a release-recipe exe (SWOSTEST_BUILD), fresh SETUP.DAT (default World 2026-27):
     the match starts, runs to its end without a crash, the menus come back and lead to the main menu. SWOSTEST_UI=en:
-    the same under SWOS++ 1.9.2.2 too with WMPLAY_SPP=1 (a second run; its walk not SWOS++-safe yet). Any SWOSTEST_UI:
+    the same under SWOS++ 1.9.2.2 too with WMPLAY_SPP=1 (a second run, engine_wmodes_swospp's feed: WM_SPP, one key at
+    a time, PRESS_FIRE 'fire up:0.05', the raw fires held - wm_fire / spp_fire_held; 4.1 MC 06/11). Any SWOSTEST_UI:
     the menus' own names (UI_MAP). The post-match REPLAY / ESCI screen is no menu of the game's (n 0): wait, then down +
     fire = ESCI, as a player; the main menu after it."""
     b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
@@ -12763,10 +12777,12 @@ def engine_wmodes_play():
         runs.append(('swospp', out, {'LOADER.BIN': os.path.join(pp, 'loader.bin'),
                                      'SWOSPP.BIN': os.path.join(pp, 'swospp.bin')}))
     errs, info = [], []
-    global SPP_STEP
-    old_step = SPP_STEP
+    global SPP_STEP, WM_SPP, PRESS_FIRE
+    old_step, fire0 = SPP_STEP, PRESS_FIRE
     for tag, d, extra in runs:
         SPP_STEP = bool(extra)                  # (SWOS++'s timer feed: press() one tap at a time, as bench_world)
+        WM_SPP = b if extra else None           # (wm_seq / wm_fire: engine_wmodes_swospp's SWOS++ steps)
+        PRESS_FIRE = 'fire up:0.05' if extra else fire0
         files = dict(extra, **{'SETUP.DAT': setup_file('engine_wmodes_play', 0)})
         with Session(f'engine_wmodes_play_{tag}', d, files, 'dump:3', 900, timer=bool(extra)) as s:
             if s.wait().outcome != 'dump':
@@ -12783,7 +12799,17 @@ def engine_wmodes_play():
                 s.send('down dump:0.5')
                 if s.screen().selected == 9:
                     break
-            r = s.send('fire dump:2')
+            if extra:                            # (SWOS++: PLAY held until the pre-match screen goes, as bench_world)
+                def gone(q):
+                    try:
+                        return q.screen().selected != 9
+                    except Exception:
+                        return True
+                h = spp_fire_held(s, 9, 2, gone)
+                info.append(f'{tag}: PLAY held {h} ticks')
+                r = s.result
+            else:
+                r = s.send('fire dump:2')
             if r.outcome != 'dump':
                 errs.append(f'{tag}: match start: {r}')
                 continue
@@ -12799,8 +12825,12 @@ def engine_wmodes_play():
                     continue
                 if k == 3:
                     s.shot(f'{tag}_over')
+                if extra:                        # (SWOS++: no menu to plan on - the two keys held SPP_PM_HOLD ticks)
+                    s.poke(s.result.base1 + s.info['holdn'], struct.pack('<H', SPP_PM_HOLD))
                 s.send('down dump:0.5')
                 r = s.send('fire dump:3')
+                if extra:
+                    s.poke(s.result.base1 + s.info['holdn'], struct.pack('<H', HOLD))
                 if r.outcome != 'dump':
                     errs.append(f'{tag}: ESCI {k}: {r}')
                     break
@@ -12821,8 +12851,11 @@ def engine_wmodes_play():
                 back = wm_to_main(s)
                 check(back, f'{tag}: main menu not reached after the match ({after})', errs)
                 info.append(f'{tag}: match played, ESCI after {k + 1} waits -> {after[:4]}, main menu {back}')
-    SPP_STEP = old_step
+    SPP_STEP, WM_SPP, PRESS_FIRE = old_step, None, fire0
     return not errs, '; '.join(errs + info)
+
+
+engine_wmodes_play.__doc__ = engine_wmodes_play_run.__doc__
 
 
 
@@ -12927,6 +12960,74 @@ def av_unused():
     rd = lambda n: list(csv.DictReader(open(os.path.join(d, n), newline='')))
     un = {r['key'] for r in rd('nations.csv') if r['unused'].strip() == '1'}
     return tuple(r['name'] for r in rd('clubs.csv') if r['key'] in un)
+
+
+@scenario
+def engine_sea_ns():
+    """Engine P step c (MC 07/11): a SEASON's save (.SEA = the game's SaveCareerFile, so SWC1 is in it) loaded after a
+    mixed friendly (wm_mixed: namespace 5 left, the contest's). (1) Default 1996-97: STAGIONE > STAG. STORICHE > ITALIA
+    1947-48 > JUVENTUS, its team screen read, SALVA STAGIONE as SEANS. (2) Default World 2026-27: the mixed friendly
+    (WCUR 5), main menu, CARICA VECCHIA COMPETIZIONE > SEANS: WCUR = the base namespace at its first screen and the
+    same team screen as (1) (no 2026-27 names / nationalities over the season's teams)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import swreg
+    b = nop_league_int3('engine_sea_ns', os.environ.get('SWOSTEST_BUILD') or builds()['it'])
+    errs, info = [], []
+
+    def reg(s):
+        r = s.result
+        m = r.read(struct.unpack('<I', r.read(r.base4 + 32, 4))[0], swreg.HDR)
+        return m[7], struct.unpack_from('<I', m, 8)[0]
+    with Session('engine_sea_ns', b, {'SETUP.DAT': setup_file('engine_sea_ns', 1)}, 'dump:2', 300) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'no first pause ({s.result})'
+        for t in ('STAGIONE', 'STAG. STORICHE', 'ITALIA 1947-48', 'JUVENTUS'):
+            if press(s, s.screen(), t, 2) is None:
+                return False, f'{t} not reached ({s.screen().texts()[:8]})'
+        for _ in range(14):                     # the STAGIONE button, right of ABBANDONA (as shirt_edit_season)
+            scr = s.screen()
+            if scr.entries[scr.selected][1] == 'STAGIONE':
+                break
+            s.send(('right' if scr.entries[scr.selected][1] == 'ABBANDONA' else 'down') + ' dump:0.5')
+        s.send('fire dump:3')
+        sc = se_to_playmatch(s)
+        if sc is None:
+            return False, f'(1) no team screen ({s.screen().texts()[:8]})'
+        t1 = [t for t in sc.texts() if t]
+        s.shot('team_1')
+        for _ in range(6):
+            scr = s.screen()
+            if 'SALVA STAGIONE' in scr.texts():
+                break
+            press(s, scr, 'ESCI', 2) or s.send('fire dump:2')
+        press(s, s.screen(), 'SALVA STAGIONE', 2)
+        s.send(name_entry('seans') + ' dump:3')
+        game = s.result.game
+    saves = [f for f in os.listdir(game) if f.upper().endswith('.SEA')]
+    if not saves:
+        return False, f'(1) no .SEA saved ({sorted(os.listdir(game))})'
+    info.append(f'(1) {saves[0]} {os.path.getsize(os.path.join(game, saves[0]))} B, team screen {t1[:6]}')
+    files = {'SETUP.DAT': setup_file('engine_sea_ns2', 0), saves[0]: os.path.join(game, saves[0])}
+    with Session('engine_sea_ns2', b, files, 'dump:3', 600) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'(2) no first pause ({s.result})'
+        nsbase, wcur = reg(s)
+        wm_mixed(s, 'CARR. STORICHE')
+        ns = s.result.read(wcur, 1)[0]
+        check(ns == 5, f'(2) after the mixed friendly WCUR {ns} (the contest\'s 5)', errs)
+        if not wm_to_main(s):
+            return False, '; '.join(errs + info + [f'(2) no main menu ({s.screen().texts()[:6]})'])
+        press(s, s.screen(), 'CARICA VECCHIA COMPETIZIONE', 2)
+        if press(s, s.screen(), 'SEANS', 3, exact=False) is None:
+            return False, '; '.join(errs + info + [f'(2) SEANS not listed ({s.screen().texts()[:8]})'])
+        ns = s.result.read(wcur, 1)[0]
+        info.append(f'(2) loaded: WCUR {ns} (base {nsbase})')
+        check(ns == nsbase, f'(2) loaded: WCUR {ns}, base {nsbase}', errs)
+        sc = se_to_playmatch(s)
+        t2 = [t for t in sc.texts() if t] if sc else []
+        s.shot('team_2')
+        check(t2 == t1, f'(2) team screen {t2[:8]} != {t1[:8]}', errs)
+    return not errs, '; '.join(errs + info)
 
 
 @scenario
@@ -13134,6 +13235,79 @@ def engine_avail_esci_swospp():
     return not errs, '; '.join(errs) or 'SWOS++: the message, EXIT left of ABORT, EXIT -> the team kinds'
 
 
+@scenario
+def engine_avail_diy():
+    """4.1 (MC 06/11, the WTPHYS follow-up): a DIY cup of Europe 1984-85's national teams saved and loaded back. (1)
+    Default world EUROPA 1984-85: COMPET. PERSONAL. > COPPA, one round (FINALE), SCEGLI SQUADRE > NAZIONALI > EUROPA >
+    EAST GERMANY + WEST GERMANY (DaniSwos's nations, the national files 180..185), saved as N84: the file's tail logged
+    (W-modes 'WM' block or the game's file alone). (2) Default 1996-97 (the game's nationals, files 80..85, viewed first:
+    FRIENDLY > NAZIONALI > EUROPA, so the team-file cache holds a 1996-97 national file), CARICA VECCHIA COMPETIZIONE >
+    N84: the cup menu names EAST GERMANY and WEST GERMANY, and the match's pre-match screen shows them - never a 1996-97
+    nation (CROATIA): the cached file of the other world is not taken (careerworld w_tcache / WTPHYS)."""
+    errs, info = [], []
+    b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
+    en = json.load(open(os.path.join(ROOT, 'tools', 'swostest_lang.json')))['en']
+    has = lambda tx, n: n in tx or en.get(n, n) in tx
+    natl = ('NAZIONALI', 'SQUADRE NAZIONALI', 'SQUADRE NAZ.', 'NATIONAL TEAMS', 'EQUIPES NATIONALES', 'NATIONALMANNSCHAFTEN')
+    pair = ('EAST GERMANY', 'WEST GERMANY')
+    with Session('engine_avail_diy1', b, {'SETUP.DAT': setup_file('engine_avail_diy1', 2)}, 'dump:3', 400) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'no first pause ({s.result})'
+        for t in ('COMPET. PERSONAL.', 'COPPA', 11, 11, 11, 'OK', 'SCEGLI SQUADRE'):
+            walk(s, t, 2)
+        sc = s.screen()
+        nat = next((t for t in natl if sc.find(t, exact=True) is not None), None)
+        if nat is None:
+            return False, f'DIY picker: no national teams entry ({sc.texts()[:16]})'
+        walk(s, nat, 2)
+        walk(s, 'EUROPA', 2)
+        tx = [t for t in s.screen().texts() if t]
+        check(all(has(tx, n) for n in pair) and not has(tx, 'CROATIA'), f'1984-85 DIY: EUROPA lists {tx[:24]}', errs)
+        for n in pair:
+            walk(s, en.get(n, n) if en.get(n, n) in tx else n, 2)
+        pick_done(s, 55)
+        s.shot('cup')
+        tx = ' '.join(t for t in s.screen().texts() if t)
+        check(all(has(tx, n) for n in pair), f'the cup menu after the picker: {tx[:200]}', errs)
+        walk(s, 'ESCI', 3)
+        walk(s, 'SALVA COPPA PERSONAL.', 3)
+        s.send(name_entry('n84') + ' dump:3')
+        game = s.result.game
+    f = [x for x in os.listdir(game) if x.upper() == 'N84.DIY']
+    if not f:
+        return False, '; '.join(errs + [f'no N84.DIY saved ({sorted(os.listdir(game))[:20]})'])
+    path = os.path.join(game, f[0])
+    data = open(path, 'rb').read()
+    info.append(f'N84.DIY {len(data)} B, tail {data[-4:].hex()}' + (' (WM block)' if data[-4:-2] == b'WM' else ''))
+    with Session('engine_avail_diy2', b, {'N84.DIY': path, 'SETUP.DAT': setup_file('engine_avail_diy2', 1)},
+                 'dump:3', 400) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'run 2: no first pause ({s.result})'
+        sc = wm_nat_top(s)                       # (1996-97's nationals into the team-file cache first)
+        walk(s, 'EUROPA', 2)
+        tx = [t for t in s.screen().texts() if t]
+        check(has(tx, 'CROATIA') and not has(tx, 'EAST GERMANY'), f'1996-97 nationals first: {tx[:20]}', errs)
+        check(wm_to_main(s), 'run 2: main menu not reached', errs)
+        walk(s, 'CARICA VECCHIA COMPETIZIONE', 3)
+        if press(s, s.screen(), 'N84', 3, exact=False) is None:
+            return False, '; '.join(errs + [f'N84 not listed ({s.screen().texts()[:12]})'] + info)
+        sc = s.screen()
+        tx = ' '.join(t for t in sc.texts() if t)
+        s.shot('loaded')
+        check(all(has(tx, n) for n in pair) and not has(tx, 'CROATIA'), f'loaded cup menu: {tx[:200]}', errs)
+        go = next((t for t in ('PROSS. PARTITA', 'GIOCA PARTITA', 'PARTITA') if sc.find(t, exact=True) is not None), None)
+        if go is None:
+            errs.append(f'loaded: no match entry ({sc.texts()[:16]})')
+        else:
+            walk(s, go, 4)
+            pm = s.screen()
+            ptx = ' '.join(t for t in pm.texts() if t)
+            s.shot('prematch')
+            check(any(has(ptx, n) for n in pair) and not has(ptx, 'CROATIA'), f'loaded, pre-match: '
+                  f'{[t for t in pm.texts() if t][:10]}', errs)
+            info.append(f'loaded -> {go} -> pre-match {[t for t in pm.texts() if t][:4]}')
+    return not errs, '; '.join(errs + info)
+
 def wm_up(s, label, n=6):
     """Up the team picker's lists to the one showing `label` (each list's ESCI entry; a team list's past its rows)"""
     for _ in range(n):
@@ -13144,18 +13318,16 @@ def wm_up(s, label, n=6):
         if out is None or press(s, sc, out, 2) is None:
             s.send('down ' * 12 + 'dump:1')
             if out is not None and s.screen().selected == out:
-                s.send('fire dump:2')
+                wm_fire(s, 2)
     return s.screen()
 
 
 def wm_mixed(s, hist):
     """W-modes M2: a mixed friendly from the main menu (default World 2026-27): INTER (EUROPA > ITALIA > SERIE A),
     HAMBURG (STORICO > 1996-97 > EUROPA > GERMANIA > 1. LIGA), the picker done. Returns the pre-match screen."""
-    for t in ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE A', 'INTER'):
-        walk(s, t, 2)
-    wm_up(s, hist)
-    for t in (hist, 'MONDO 1996-97', 'EUROPA', 'GERMANIA', '1. LIGA', 'HAMBURG'):
-        walk(s, t, 2)
+    wm_seq(s, ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE A', 'INTER'))
+    wm_up(s, hist)                              # (wm_seq / wm_fire: walk() / a plain fire, or under WM_SPP SWOS++'s
+    wm_seq(s, (hist, 'MONDO 1996-97', 'EUROPA', 'GERMANIA', '1. LIGA', 'HAMBURG'))   # one-key-at-a-time feed)
     return pick_done(s)
 
 
@@ -13292,7 +13464,7 @@ def wm_to_main(s, mark='COMP. PREDEFINITA'):
         elif press(s, sc, out[0], 2) is None:
             s.send('down ' * 12 + 'dump:1')
             if s.screen().selected == out[0]:
-                s.send('fire dump:2')
+                wm_fire(s, 2)
     return False
 
 

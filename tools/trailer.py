@@ -49,7 +49,7 @@ EN_SAVE = '''
     mov word [edi + 2], TOTAL - BLOCK - 4
     add edi, 4
     mov edx, EN_ITEMS
-    mov ebp, EN_N
+    mov ebp, EN_NS
 .en:
     mov ax, [edx + 8]
     mov [edi], ax
@@ -71,7 +71,7 @@ EN_SAVE = '''
     add dword [D1], TOTAL - BLOCK'''
 
 EN_SAVE_W = '''
-    mov ebp, EN_N
+    mov ebp, EN_NS
     mov eax, TOTAL
 %if EN_N0 < EN_N
     cmp byte [SLT + WORLD_BYTE], 0      ; 4.0.1: a world-0 career writes only the first EN_N0 items (the world-only
@@ -129,6 +129,7 @@ save_trailer:
     call eax
     pop es
 .g0:
+;EN_BEFORE
     movzx eax, word [NUMSEL]
     imul eax, eax, TEAM_SIZE
     mov edi, eax                        ; after the records: the career's cache + N*684 (g_selectedTeams =
@@ -341,13 +342,18 @@ en_read:
     jae .nf
     cmp ax, [edx + 8]
     jne .nx
-    cmp ebp, [edx + 4]                  ; (another size: not this build's item)
-    jne .nf
+    cmp ebp, [edx + 4]                  ; (another size: not this build's item - a longer one never, a shorter
+    je .ok                              ; one if the item grows: engine P, an older version of it)
+    ja .nf
+    test byte [edx + 10], 2
+    jz .nf
+.ok:
     mov byte [EN_FOUND + ecx], 1
     push edi
     lea esi, [edi + 4]
     mov edi, [edx]
     mov ecx, ebp
+    jecxz .bz
 .b:
     mov al, [esi]
     mov [edi], al
@@ -355,6 +361,16 @@ en_read:
     inc edi
     dec ecx
     jnz .b
+.bz:
+    mov ecx, [edx + 4]                  ; (a shorter save of a growing item: the rest zeroed)
+    sub ecx, ebp
+    jz .bd
+.bt:
+    mov byte [edi], 0
+    inc edi
+    dec ecx
+    jnz .bt
+.bd:
     pop edi
     jmp .nf
 .nx:
@@ -449,6 +465,7 @@ def patch(p, cave, items, tails=False):
     block = 2 + sum(n for _, n in items)
     import engine
     en = engine.save_items()                      # the engine block 'EN' after the main one
+    enr = engine.save_items(retired=True)         # (engine P: + the load-only items, read and never written)
     en_block = 4 + sum(4 + sz for _, _, sz, _, _ in en) if en else 0
     en0 = [e for e in en if e[0] not in engine.WORLD_ONLY]     # 4.0.1: a world-0 career's block (the world-only items
     assert en[:len(en0)] == en0, [e[0] for e in en]            # last, not written for it)
@@ -472,17 +489,17 @@ def patch(p, cave, items, tails=False):
                'OLD_SAVED': (2, table + sa.SAVED_GLOBAL), 'MARK3_AT': (2, table + sa.MARK3_GLOBAL),
                'MARK3_COPY': (2, copy + sa.MARK3_GLOBAL), 'OLD_LIB': (0, OLD_LIB), 'OLD_LIB_MAX': (0, OLD_LIB_MAX), 'LIB_N': (0, sacups.LIB_N), 'MARK3': (0, sa.MARK3), 'MARK3_BAL': (0, bal),
                'DEFAULT_BYTES': (0, 'db ' + ', '.join(str(b) for b in defaults)),
-               'TOTAL': (0, block + en_block), 'EN_N': (0, len(en)), 'EN_MARK': (0, EN_MARK),
+               'TOTAL': (0, block + en_block), 'EN_N': (0, len(enr)), 'EN_NS': (0, len(en)), 'EN_MARK': (0, EN_MARK),
                'TOTAL0': (0, block + en_block0), 'EN_N0': (0, len(en0))}
     if len(en0) < len(en):                        # (the career's world byte: careerworld's someLeaguesTable copy)
         symbols.update(SLT=careerworld.SITES['slt'], WORLD_BYTE=(0, careerworld.WORLD_BYTE))
     late = []                                     # items / routines whose address comes later in patch_exe
-    for k_, (name, _, _, _, at) in enumerate(en):
+    for k_, (name, _, _, _, at) in enumerate(enr):
         symbols[f'E{k_}'] = at or (1, cave)       # (a placeholder fixup, retargeted by late())
         if at is None:
             late.append(('item', name, 'EN_ITEMS', 12 * k_))
-    symbols['EN_ENTRIES'] = (0, 'dd ' + ', '.join(f'E{k_}, {sz}, {iid | (int(cl) << 16)}'
-                                                  for k_, (_, iid, sz, cl, _) in enumerate(en)) if en else 'dd 0')
+    symbols['EN_ENTRIES'] = (0, 'dd ' + ', '.join(f'E{k_}, {sz}, {iid | (int(cl) << 16) | (int(n in engine.GROW) << 17)}'
+                                                  for k_, (n, iid, sz, cl, _) in enumerate(enr)) if enr else 'dd 0')
     for k_, (off, n) in enumerate(items):         # obj1 addresses as symbols: nasmcave adds their fixups
         symbols[f'I{k_}'] = (1, off)
     symbols['ITEM_ENTRIES'] = (0, 'dd ' + ', '.join(f'I{k_}, {n}' for k_, (_, n) in enumerate(items)))
@@ -504,6 +521,10 @@ def patch(p, cave, items, tails=False):
                                                   # subset only where world-only items exist; else 4.0's code)
     cbs = engine.after_loads()                    # after the engine items (or their clearing): pushad, call, popad
     asm = nasmcave.sub(asm, ';EN_AFTER', '\n'.join(f'    pushad\n    call [EN_CB + {4 * k}]\n    popad' for k in range(len(cbs))))
+    bss = engine.before_saves()                   # (engine P: at a save's start, as the contest view's guard above)
+    asm = nasmcave.sub(asm, ';EN_BEFORE', ''.join(f'    pushad\n    push es\n    push ds\n    pop es\n    cld\n'
+                                                  f'    call [EN_CB + 4 * (EN_NB + {k})]\n    pop es\n    popad\n'
+                                                  for k in range(len(bss))))
     if tails:                                     # the tails first: after_process below calls the load tail (the
         asm = nasmcave.sub(asm, '    popad\n    jmp WRITEFILE', '    popad\n    jmp [SAVE_TAIL]')   # other order lost
         asm = nasmcave.sub(asm, '    popad\n    jmp PROCESS', '    popad\n    jmp [LOAD_TAIL]')     # w_load_tail - the
@@ -522,6 +543,8 @@ def patch(p, cave, items, tails=False):
                            ''.join(f'    pushad\n    call [EN_CB + {4 * (len(cbs) + k)}]\n    popad\n'
                                    for k in range(len(nws))))
         cbs = cbs + nws
+    symbols['EN_NB'] = (0, len(cbs))
+    cbs = cbs + bss
     asm += 'align 4\nEN_CB: ' + ('dd ' + ', '.join('ap_probe' if n == 'probe' else f'CB{k}' for k, (n, _) in enumerate(cbs))
                                  if cbs else 'dd 0') + '\n'
     if any(n == 'probe' for n, _ in cbs):
@@ -546,7 +569,8 @@ def patch(p, cave, items, tails=False):
     p.put(1, save_call + 1, struct.pack('<i', labels['save_trailer'] - (save_call + 5)))
     p.put(1, load_call + 1, struct.pack('<i', labels['load_trailer'] - (load_call + 5)))
     LABELS.clear()
-    LABELS.update({k: (0, labels[k]) for k in ('save_trailer', 'load_trailer', 'en_read', 'en_finish', 'ROOMV')})
+    LABELS.update({k: (0, labels[k]) for k in ('save_trailer', 'load_trailer', 'en_read', 'en_finish', 'EN_FOUND',
+                                                'ROOMV')})
     INFO.clear()
     INFO.update({k: symbols[k] for k in ('NUMSEL', 'CAREER', 'D1', 'WRITEFILE', 'PROCESS', 'BLOCK', 'FIXED', 'ROOM',
                                          'MARK', 'SELBUF')})
@@ -555,10 +579,16 @@ def patch(p, cave, items, tails=False):
     if tails:
         INFO['tails'] = (labels['SAVE_TAIL'], labels['LOAD_TAIL'])
     INFO['EN'] = [(n, iid, sz) for n, iid, sz, _, _ in en]
+    INFO['EN_RETIRED'] = [(n, iid, sz) for n, iid, sz, _, _ in enr[len(en):]]
+    INFO['EN_NS'] = len(en)                      # (EN_FOUND + EN_NS + k: the k-th load-only item was in the save)
     INFO['late'] = [(kind, name, labels[lab] + off) for kind, name, lab, off in late]
     print(f'exe: .CAR trailer {chr(MARK & 0xff)}{chr(MARK >> 8)} ({block} B' + (f' + engine block EN {en_block} B: ' + ', '.join(n for n, *_ in en)
                                                 if en else '') + f'; EN saved with up to {nmax} cached teams'
-          + (f'; after load: {", ".join(n for n, _ in cbs)}' if cbs else '') + f') @ obj1+{cave:#x}, '
+          + (f'; after load / new: {", ".join(n for n, _ in cbs[:symbols["EN_NB"][1]])}' if cbs else '')
+          + (f'; before save: {", ".join(n for n, _ in bss)}' if bss else '')
+          + (f'; load-only: {", ".join(n for n, *_ in enr[len(en):])}' if len(enr) > len(en) else '')
+          + (f'; big cache room left {careerworld.SEL_ROOM - careerworld.SEL_N * TEAM_SIZE - block - en_block} B'
+             if careerworld.BSS[0] is not None else '') + f') @ obj1+{cave:#x}, '
           f'SaveCareerFile call obj1+{save_call:#x}, '
           f'LoadCareerFile call obj1+{load_call:#x}')
     return (cave + len(code) + 3) & ~3, labels['new_career_defaults']

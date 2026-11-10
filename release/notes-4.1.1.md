@@ -18,7 +18,7 @@ The FORMAT page of the Coppa Italia Serie D now says that the home and away alte
 
 ### Good to know
 - Careers saved with 4.0, 4.0.1, 4.0.2, 4.0.5 and 4.1 load and play on. A continental cup already under way in an older save keeps the draw it already had.
-- You do not need to start a new career to get the New Zealand fix: it applies from the next final.
+- You do not need to start a new career to get the New Zealand fix: it applies from the next Grand Final that is still to be decided (a save made after the Championship group ended and before its final keeps the old behaviour for that one final).
 
 ## Italiano
 
@@ -40,4 +40,4 @@ La pagina FORMAT della Coppa Italia Serie D ora dice che l'alternanza casa/trasf
 
 ### Da sapere
 - Le carriere salvate con la 4.0, la 4.0.1, la 4.0.2, la 4.0.5 e la 4.1 si caricano e si giocano normalmente. Una coppa continentale già in corso in un salvataggio vecchio tiene il sorteggio che aveva già.
-- Non serve cominciare una nuova carriera per avere la correzione della Nuova Zelanda: vale dalla prossima finale.
+- Non serve cominciare una nuova carriera per avere la correzione della Nuova Zelanda: vale dalla prossima finale ancora da decidere (un salvataggio fatto tra la fine del girone del Championship e la sua finale tiene il vecchio comportamento per quella sola finale).

@@ -461,6 +461,7 @@ static int in_cup(int c, int a) {       /* an association with a place in the cu
     }
     return 0;
 }
+#ifdef NATIVE                           /* (4.2 P7: the native tests' clash count; the exe's in ctdraw.c ct_place) */
 static int clash(int ng, int gs, int rule) {   /* two clubs of a group that may not meet (the draw's rule) */
     for (int g = 0; g < ng; g++)
         for (int p = 1; p < gs; p++)
@@ -470,6 +471,7 @@ static int clash(int ng, int gs, int rule) {   /* two clubs of a group that may 
             }
     return 0;
 }
+#endif
 static int draw_groups(int c, int r, const u8 *R) {   /* 0, or -1: not drawn (ED_S: CONVENTIONS 14a) */
     int n = EN[c][r], ng = R[6], gs = R[7], rule = R[5];
     u16 x[NE]; u8 v[NE], k[NE];

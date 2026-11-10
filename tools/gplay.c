@@ -167,10 +167,37 @@ static int better(int a, int b) {       /* the higher tier, then the better plac
    fl - 0x80 played, 1 y went through) when that stage is the semi-finals (2 ties). */
 const u8 *GP_USRP = (const u8 *)1;      /* (1: none - not in .bss; patch.py: gplay.link_usrec after uesum) */
 extern const u8 GP_SEASP;               /* seasonPlaying (US_REC's stamp - 1) */
+#if GP_UEFAFORCE == 2
+/* (test builds, GPLAY_UEFAF=2 - H6 M2: a probe, US_REC left to uesum: what the last uefa_fin read - US_REC's stamp, the
+   stamp it wants, the last stage's tie count, the semi-finals' winners (0 none), the clubs asked, the answer) */
+struct { u32 tag; u8 calls, ss, want, nst; u16 w[2], ta, tb; u8 res, pad[3]; } GP_UFPB = { 0x42504655 };   /* 'UFPB' */
+static int uefa_fin1(u16 ta, u16 tb);
 static int uefa_fin(u16 ta, u16 tb) {
     const u8 *c = GP_USRP;
+    int r = uefa_fin1(ta, tb), s = 3, off = 0;
+    GP_UFPB.calls++;
+    GP_UFPB.want = (u8)(GP_SEASP + 1);
+    GP_UFPB.ta = ta; GP_UFPB.tb = tb; GP_UFPB.res = (u8)r;
+    GP_UFPB.ss = GP_UFPB.nst = 0; GP_UFPB.w[0] = GP_UFPB.w[1] = 0;
+    if (c == (const u8 *)1 || !c) return r;
+    GP_UFPB.ss = c[5];
+    while (s >= 0 && !c[1 + s]) s--;
+    if (s < 0) return r;
+    GP_UFPB.nst = c[1 + s];
+    for (int k = 0; k < s; k++) off += c[1 + k];
+    for (int i = 0; i < 2 && i < c[1 + s] && off + i < 22; i++) {
+        const u8 *t = c + 6 + 8 * (off + i);
+        if (t[7] & 0x80) GP_UFPB.w[i] = t[7] & 1 ? *(const u16 *)(t + 2) : *(const u16 *)t;
+    }
+    return r;
+}
+static int uefa_fin1(u16 ta, u16 tb) {
+#else
+static int uefa_fin(u16 ta, u16 tb) {
+#endif
+    const u8 *c = GP_USRP;
     int s = 3, off = 0;
-#if GP_UEFAFORCE
+#if GP_UEFAFORCE == 1
     if (c != (const u8 *)1 && c) {      /* (test builds, GPLAY_UEFAF=1: US_REC written as if the career club had won
                                            this season's semi-final - the record the read below takes) */
         u8 *w = (u8 *)c;

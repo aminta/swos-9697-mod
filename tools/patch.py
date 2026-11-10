@@ -893,6 +893,8 @@ def patch_exe(src, dst, remap, lang='it'):
             p.put(4, ua, bytes(uprize.UP_SIZE) + b'\xc3')
             engine.ITEM_AT['UP'] = (4, ua)
             engine.CALL_AT['up_new'] = (4, ua + uprize.UP_SIZE)
+    if ct_pg:                                    # 4.1.1: conti's ranking + the 4.1 season-1 data, obj4's 5th page top
+        conti.d4_patch(p)
     benchx.link_w27(p)                           # (4.0.6 step 2.5: the friendlies' long bench by SWE_W27)
     tailzero.patch(p, tz_at, obj2_free + o2pages * p.le.page_size, (tail + 3) & ~3, nasmcave,   # (DOS/4GW: not zeroed;
                    0x1000 * OBJ3_PAGES, (cg_bss + 3) & ~3)                  # 4.0.6: obj3's tail too)

@@ -134,6 +134,14 @@ S1_HOLD = {}                            # (conf, cup key) -> the 2027 edition's 
 S1_ED = {}                              # 4.0.6 B2: (conf, cup key) -> {'main': [main-round words, drawn], 'later':
                                         # [(round, word, slot)] (clubs entering after the main round)} - season1_native
 S1_BLOCK = [b'']                        # its bytes for the exe (load(); s1_patch)
+S1_OLD = [b'', b'']                     # 4.1.1: the 4.1 build's season-1 main-round lists ('S1', 0 entries) + its 2027 winners
+S1_OLD_FULL = [b'']                     # (season1_old: the whole 4.1 block, for its sha1)
+RANK_B = [b'']                          # 4.1.1: the ranking table as built (load), u16 count + (word, points)
+RANK_OUT = [b'']                        # (patch: the exe's table, its spec without it - d4_patch puts it in obj4)
+S1_HB = [b'']                           # (load(): the spec's 2027-winners part, as last built)
+S1_OLD_DATA = 'world5tm-403c19'          # 4.1.1: the 4.1 release's world data and its season-1 block's sha1s
+S1_OLD_SHA = ('47dfa15736f0fa343e4336846a7dcd3e886a09f7',    # (4.1 RC3 f15fe0c, world5tm-403c19: the block and the
+              '8f7531eefddcec280cf15699a5742bf735b8da26')    # winners - conti-clash/411/s1old_cmp.py)
 S1_SEED = 0x20270801                    # (the season-1 edition's fixed seed: every new career plays the same one, its
                                         # career club's games aside - an old season-1 save rebuilds it the same way)
 
@@ -261,7 +269,20 @@ def _ic_holders(a, entries):
     return out
 
 
-def load(confs, files=None, words=None, s1=None):
+def ranking(ac, words):
+    """{team word: points} of an access file's club ranking (CONMEBOL's: 'assoc/club': {'rank', 'points'}), the
+    world's clubs only; points rounded, at least 1 (0 = unranked in conti.c), at most 0xFFFF. 4.1.1: before it the
+    keys never matched the words' (assoc, club) and the table was empty - conti.c ranks by it from ED_R editions on."""
+    out = {}
+    for k, v in ((ac or {}).get('ranking') or {}).items():
+        key = tuple(k.split('/', 1)) if '/' in k else k
+        if words and key in words:
+            pt = v.get('points', 0) if isinstance(v, dict) else v
+            out[words[key]] = max(1, min(int(round(pt)), 0xFFFF))
+    return out
+
+
+def load(confs, files=None, words=None, s1=None, rank_out=False):
     """-> (spec bytes, [association pack keys], [(conf, cup key)]). files: {association key: its league team file}
     (the game's build; the tests: 100 + index), words: {club key: team word} (the ranking's clubs)."""
     cups, assocs = [], []
@@ -460,10 +481,10 @@ def load(confs, files=None, words=None, s1=None):
     spec += bytes(0 if a.startswith('g:') else (files or {}).get(a, 100 + i) & 0xFF for i, a in enumerate(assocs))
     rank = {}
     for conf in confs:
-        for k, v in ((_read(conf, 'access') or {}).get('ranking') or {}).items():
-            if words and k in words:
-                rank[words[k]] = min(int(round(v)), 0xFFFF)
-    spec += struct.pack('<H', len(rank)) + b''.join(struct.pack('<HH', w, v) for w, v in sorted(rank.items()))
+        rank.update(ranking(_read(conf, 'access'), words))
+    rkb = struct.pack('<H', len(rank)) + b''.join(struct.pack('<HH', w, v) for w, v in sorted(rank.items()))
+    RANK_B[0] = rkb                                     # (4.1.1: the exe's goes to obj4 - conti.c CT_RK - its spec
+    spec += struct.pack('<H', 0) if rank_out else rkb  # keeps 0 entries: d4_patch)
     spec += struct.pack('<H', len(gl)) + b''.join(struct.pack('<HBBI', w, a, 0, st) for w, a, st in gl)
     reg = {}                                            # (a league stage's regions: data's <conf>.<cup>_league.json)
     for conf in confs:
@@ -481,9 +502,12 @@ def load(confs, files=None, words=None, s1=None):
     for f in (files or {}).values():                    # game's own 1996-97 Champions Cup holder - is no finalist)
         wf[f >> 3] |= 1 << (f & 7)
     spec += bytes(wf)
+    hb = b''
     for conf, c, _ in cups:                             # (each cup's season-1 holder: season1_native's run)
         w, an, st = S1_HOLD.get((conf, c['key']), (0, None, 0))
-        spec += struct.pack('<HBBI', w, assocs.index(an) if an in assocs else 0xFE, 0, st)
+        hb += struct.pack('<HBBI', w, assocs.index(an) if an in assocs else 0xFE, 0, st)
+    spec += hb
+    S1_HB[0] = hb
     spec += bytes(gids)
     gp = int(os.environ.get('CONTI_GPLACE', '0'))       # CONTI_GPLACE=n (test builds only): the career club's place
     if gp:                                              # at every group stage's end is n (the 3rd's move, forced)
@@ -1268,7 +1292,8 @@ def patch(p, at, limit, bss_at, area):
     import lib97
     confs = ready()
     files, words = _world_maps(confs)
-    spec, assocs, cups = load(confs, files, words)
+    spec, assocs, cups = load(confs, files, words, rank_out=True)   # (4.1.1: the ranking table in obj4, d4_patch)
+    RANK_OUT[0] = RANK_B[0]                             # (that build's table: later loads overwrite RANK_B)
     d1 = p.le.obj_bytes(1)
     a0 = sacups.regs(d1)['A0']
     A = lambda x: re.escape(struct.pack('<I', x))
@@ -1339,6 +1364,8 @@ def patch(p, at, limit, bss_at, area):
     glue = (spec_at + len(spec) + 15) & ~15
     code, fix = nasmcave.assemble(asm, glue, symbols)
     lab = nasmcave.labels(asm, glue, symbols)
+    print(f'exe: conti spec obj1+{spec_at:#x} ({len(spec)} B), code obj1+{glue:#x} ({len(code)} B), '
+          f'{limit - glue - len(code)} B left to obj1+{limit:#x}')
     assert glue + len(code) <= limit, hex(glue + len(code))
     p.put(1, glue, code)
     for off, tobj, toff in fix:
@@ -1378,48 +1405,79 @@ def patch(p, at, limit, bss_at, area):
 
 
 # --- season 1: the 2027 editions' main rounds at build time ---------------------------------------------------------
+def d4_patch(p):
+    """4.1.1: the ranking table (CT_RK) and the 4.1 build's season-1 lists + 2027 winners (CT_S1R0 / CT_S1H0) at
+    obj4:swreg.CONTI4_AT (..CONTI4_END), conti.c's pointers (obj1 .data) to them; the range must still be free (zero). Returns its end."""
+    import swreg
+    D4_AT, D4_END = swreg.CONTI4_AT, swreg.CONTI4_END
+    if 'syms' not in LABELS:
+        return D4_AT
+    import cobj
+    import uprize
+    at = D4_AT
+    assert p.le.obj(4).npages * 0x1000 >= D4_END, ('conti d4: obj4 pages', p.le.obj(4).npages)
+    up = uprize.LABELS.get('END2')                      # (uprize part 2's end: below conti's data)
+    assert up is None or up[1] <= D4_AT, ('conti d4: uprize part 2 ends past swreg.CONTI4_AT', hex(up[1]))
+    for sym, data in (('CT_RK', RANK_OUT[0]), ('CT_S1R0', S1_OLD[0]), ('CT_S1H0', S1_OLD[1])):
+        if not data:
+            continue
+        assert at + len(data) <= D4_END and not any(p.get(4, at, len(data))), ('conti d4: obj4 room', sym, hex(at))
+        p.put(4, at, data)
+        cs = LABELS['syms'][sym]
+        assert cs[0] == 1 and p.get(1, cs[1], 4) == b'\0' * 4, cs
+        p.put(1, cs[1], struct.pack('<I', at))
+        cobj.add_ptr(p, cs[1], 4, at)
+        at = (at + len(data) + 3) & ~3
+    print(f'exe: conti 4.1.1 data obj4+{D4_AT:#x}..{at:#x} (uprize part 2 to {up[1] if up else 0:#x}; ranking {len(RANK_OUT[0])} B, 4.1 '
+          f'season 1 {len(S1_OLD[0])} + {len(S1_OLD[1])} B; {D4_END - at} B left to obj4+{D4_END:#x})')
+    return at
+
+
 def s1_patch(p, at):
     """4.0.6 B2: the season-1 block at obj3:at (the chain's end), conti.c's CT_S1 pointing at it; returns the end."""
     b = S1_BLOCK[0]
     if not b or 'syms' not in LABELS:
         return at
     import cobj
-    assert not any(p.get(3, at, len(b)))
-    p.put(3, at, b)
-    cs = LABELS['syms']['CT_S1']
-    assert cs[0] == 1 and p.get(1, cs[1], 4) == b'\0' * 4, cs
-    p.put(1, cs[1], struct.pack('<I', at))
-    cobj.add_ptr(p, cs[1], 3, at)
-    print(f'exe: conti B2 season-1 block obj3+{at:#x} ({len(b)} B)')
-    return at + len(b)
+    for sym, data in (('CT_S1', b),):
+        if not data:
+            continue
+        assert not any(p.get(3, at, len(data)))
+        p.put(3, at, data)
+        cs = LABELS['syms'][sym]
+        assert cs[0] == 1 and p.get(1, cs[1], 4) == b'\0' * 4, cs
+        p.put(1, cs[1], struct.pack('<I', at))
+        cobj.add_ptr(p, cs[1], 3, at)
+        print(f'exe: conti {sym} obj3+{at:#x} ({len(data)} B)')
+        at += len(data)
+    return at
 
 
-def season1(confs, files, words, seed=2027, stand_ins_only=False):
+def season1(confs, files, words, seed=2027, stand_ins_only=False, norank=False):
     """{(conf, cup key): [team words of the main round, in the drawn order]} from the access files' entrants_season1
     (data: the real 2027 entrants where known, else the access list on the starting tables). Rounds before the main
     one are simulated here (seeded, 50/50 or by the ranking); a vacant holder place (holders_season1 None: the 2026
     finals come after the release) goes to the best-placed club not in any cup of the top-ranked associations (BRA,
-    ARG, ...), the same clubs stand in as the Recopa's pair. Declared in the notes."""
+    ARG, ...; in turn: the first BRA, the second ARG), the same clubs stand in as the Recopa's pair; from 4.1.1 the
+    association's best-ranked free club (CONMEBOL ranking), else its best placed. Declared in the notes."""
     import random
     rnd = random.Random(seed)
     out = {}
     for conf in confs:
         fm, ac = _read(conf, 'format'), _read(conf, 'access') or {}
         acc = {c['key']: c for c in ac.get('cups', [])}
-        rank = {words[k]: v for k, v in (ac.get('ranking') or {}).items() if k in words}
+        rank = {} if norank else ranking(ac, words)   # (norank: the 4.1 build's - its table never matched)
         top = sorted({e['assoc'] for c in acc.values() for e in c.get('entrants_season1') or []},
                      key=lambda a: ('bra', 'arg').index(a) if a in ('bra', 'arg') else 9)
         taken = {words[(e['assoc'], e['club'])] for c in acc.values() for e in c.get('entrants_season1') or []
                  if (e['assoc'], e['club']) in words}   # (a test world without some of the clubs)
 
         def stand_in(i):
-            if rank:
-                return max((w for w in rank if w not in taken), key=rank.get)
             for d in range(len(top)):                   # (a test world: an association may have no free club left)
                 a = top[(i + d) % len(top)]
                 free = [w for k, w in words.items() if isinstance(k, tuple) and w & 0xFF == files[a] and w not in taken]
-                if free:
-                    return min(free, key=lambda w: w >> 8)
+                if free:                                # (4.1.1: its best-ranked free club, else the best placed)
+                    return min(free, key=lambda w: (-rank.get(w, 0), w >> 8))
             return None
 
         subs = []
@@ -1537,13 +1595,14 @@ def season1(confs, files, words, seed=2027, stand_ins_only=False):
     return out
 
 
-def season1_native(confs, files, words):
+def season1_native(confs, files, words, old=False):
     """{(conf, cup key): [team words of the main round, drawn]}: conti.c itself on data's season-1 entrants (the
     access files' entrants_season1 + holders_season1, the guests' season1), natively at the build: the rounds before
     the main one simulated (strength: none, 50/50), the same draws / byes / fills as in the game. Vacant season-1
     holder places: the best-placed clubs in no cup of the top associations (season1()'s stand-ins)."""
     import ctypes
     L = _native()
+    ctypes.c_ubyte.in_dll(L, 'CT_NOR').value = 1 if old else 0   # (old: the 4.1 build's run - no ED_R)
     out = {}
     for conf in confs:
         fm, ac = _read(conf, 'format'), _read(conf, 'access') or {}
@@ -1556,7 +1615,7 @@ def season1_native(confs, files, words):
                 w = words.get((e['assoc'], e['club']))
                 if w is not None:
                     s1.setdefault((conf, c['key'], e['round']), []).append((w, e['assoc']))
-        base = season1([conf], files, words, stand_ins_only=True)
+        base = season1([conf], files, words, stand_ins_only=True, norank=old)
         for (cf, ck, rk), ws in base.items():
             s1.setdefault((cf, ck, rk), []).extend(ws)
         spec, assocs, cups = load([conf], files, words, s1=s1)
@@ -1599,6 +1658,28 @@ def season1_native(confs, files, words):
             lp[i] = None
     return out
 
+
+
+def season1_old(confs, files, words):
+    """4.1.1: the season-1 block and 2027 winners a 4.1 build made (ED_R off: one draw, squad strength, the empty
+    ranking) into S1_OLD, for the season-1 editions of 4.1 saves (conti.c CT_S1R0 / CT_S1H0: they replay as they
+    began); S1_ED / S1_HOLD / S1_BLOCK cleared for the build's own run after it."""
+    S1_ED.clear()
+    S1_HOLD.clear()
+    season1_native(confs, files, words, old=True)
+    load(confs, files, words)
+    S1_OLD_FULL[0] = S1_BLOCK[0]                        # (the whole block 4.1 built: its sha1 checked at the build)
+    b = S1_BLOCK[0]                                     # (kept: its main-round lists only - an old save has its own
+    n = struct.unpack_from('<H', b, 2)[0] if b else 0   # entries, conti.c s1list reads past n = 0 - and the winners)
+    S1_OLD[0] = b[:2] + struct.pack('<H', 0) + b[4:8] + b[8 + 5 * n:] if b else b''
+    S1_OLD[1] = S1_HB[0]
+    S1_ED.clear()
+    S1_HOLD.clear()
+    S1_BLOCK[0] = S1_HB[0] = b''
+    ctypes_lib = getattr(_native, 'last', None)
+    if ctypes_lib is not None:
+        import ctypes
+        ctypes.c_ubyte.in_dll(ctypes_lib, 'CT_NOR').value = 0
 
 # --- the career club's contests (the slot-3 chain) --------------------------------------------------------------------
 IDS = [0xC6, 0xC7, 0xC8, 0xC9, 0xCA, 0xD0, 0xD1, 0xDA, 0xDD, 0xDE, 0xDF, 0xEC, 0xED, 0xEE, 0xEF]   # (mkseason.RESERVED_IDS)
@@ -1691,6 +1772,16 @@ def structs(p, area, lang, at):
     SROUNDS.clear()
     SKINDS.clear()
     files, words = _world_maps(confs)
+    if os.environ.get('CONTI_S1', '1') == '1':          # 4.1.1: the 4.1 build's season-1 block first (4.1 saves'
+        season1_old(confs, files, words)                # season-1 editions replay from it)
+        import hashlib
+        got = (hashlib.sha1(S1_OLD_FULL[0]).hexdigest(), hashlib.sha1(S1_OLD[1]).hexdigest())
+        sp = os.environ.get('SEASON_PACKS', '')
+        if S1_OLD_DATA in sp:                           # (4.1's own world data: the very bytes 4.1 shipped)
+            assert got == S1_OLD_SHA, ('conti: the 4.1 season-1 block rebuilt differently', got)
+        elif 'world5tm-' in sp:                         # (other world data: the 4.1 bytes are not rebuilt from it -
+            print(f'exe: WARNING conti: 4.1 season-1 block built on other data than {S1_OLD_DATA} {got}: '
+                  'a release on it must freeze 4.1\'s bytes')   # test builds only)
     first = season1_native(confs, files, words)         # (the 2027 editions' main rounds: the contests' lists)
     ci = 0
     for conf in confs:

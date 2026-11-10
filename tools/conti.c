@@ -25,6 +25,7 @@ struct ct_state CT_ST;
 struct ct_out CT_OUT;
 struct ct_ed CT_ED;
 #define ED_R 4                          /* (CT_ED.pad: an edition made from 4.1.1 on - pts() / draw_groups) */
+#define ND_MARK 0xFF                    /* (CT_OUT.res[c][r][0] of a round with no entrants: not drawn, P7) */
 #define ED_S 8                          /* (CT_ED.pad, 4.2 P7: an edition made from 4.2 on, after season 1 - its group
                                            draws by the rules library, ct_sdraw: clash-free whenever a draw exists) */
 struct ct_seg CT_SEG;
@@ -666,6 +667,7 @@ static int ct_round(int c, int r) {
                                            here, no club goes on, no winner (the holder stays: ct_finish), the game's
                                            contest gets no list; ctview shows the round as not drawn - CT_SDRAW_ERR) */
             CT_OUT.nent[c][r] = 0;
+            CT_OUT.res[c][r][0] = ND_MARK;  /* (no entrants: the view's "draw not made") */
             return 0;
         }
         n = R[6] * R[7];

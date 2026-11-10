@@ -337,10 +337,14 @@ def packs_font_safe(packs):
     return ','.join(out)
 
 
-def build(name, env=None, branch=None, lang='it'):
+def build(name, env=None, branch=None, lang='it', euro=False):
     """Build the IT exe + team files into internal/swostest/builds/<name>-<key> (build_key: from this checkout or a
     git branch, with the build-affecting environment) - its own dir per build, so sessions never overwrite each
-    other's exes; an existing dir of the same key is reused. Built in <dir>.tmp<pid>, then renamed into place."""
+    other's exes; an existing dir of the same key is reused. Built in <dir>.tmp<pid>, then renamed into place.
+    euro=False (scenario builds, most without gplay's tail / split page): EURO_OPTIONAL=1 for the build, so a euro
+    world's packs without the euro patch build (patch.py's guard, 3cd9335); env's own EURO_OPTIONAL wins. euro=True:
+    the guard on (EURO_OPTIONAL dropped), its own key - a scenario that needs the euro never reuses a build without it.
+    (Release recipes, buildrel.sh, never come here: the guard always on.)"""
     src = ROOT
     if env and env.get('SEASON_PACKS'):              # (old snapshots with '&': a font-safe copy, packs_font_safe)
         env = dict(env, SEASON_PACKS=packs_font_safe(env['SEASON_PACKS']))
@@ -354,7 +358,7 @@ def build(name, env=None, branch=None, lang='it'):
         for d in ('orig', 'ref', 'c', 'internal'):
             if not os.path.exists(os.path.join(src, d)):
                 os.symlink(os.path.join(MAIN, d), os.path.join(src, d))
-    out, done = unique_out(name, build_key(src, env, b'' if lang == 'it' else lang.encode()))   # (4.0.6: the
+    out, done = unique_out(name, build_key(src, env, (b'' if lang == 'it' else lang.encode()) + (b'euro' if euro else b'')))   # (4.0.6: the
     # language in the key - an FR world_vc5 reused the IT exe of the same name and env, typing AZERTY into it)
     if os.environ.get('SWOSTEST_BUILT_LOG'):         # (remote_run.sh's local pre-build: the dirs whose inputs to sync)
         open(os.environ['SWOSTEST_BUILT_LOG'], 'a').write(out + '\n')
@@ -370,8 +374,12 @@ def build(name, env=None, branch=None, lang='it'):
             f"    patch.patch_exe('orig/{UI_ORIG_OF[lang]}',out+'/ITALIAN.EXE',r,'{lang}')\n")   # (lang: run as ITALIAN.EXE)
     miss = os.path.join(tmp, 'COBJ_MISSING.txt')   # (cobj.compile_c: C objects not from the reference Mac)
     try:
-        subprocess.run([sys.executable, '-c', code, tmp, MAIN], cwd=src, check=True,
-                       env=dict(os.environ, **(env or {}), COBJ_MISS_LOG=miss))
+        benv = dict(os.environ, **(env or {}), COBJ_MISS_LOG=miss)
+        if euro:
+            benv.pop('EURO_OPTIONAL', None)
+        elif 'EURO_OPTIONAL' not in (env or {}):     # (not in the key: the exe is the same whenever the patch went in)
+            benv['EURO_OPTIONAL'] = '1'
+        subprocess.run([sys.executable, '-c', code, tmp, MAIN], cwd=src, check=True, env=benv)
         if os.path.exists(miss):                     # not a reference build: never reused, rebuilt next time
             print(f'BUILD WARNING {name}: C objects compiled here, not the reference Mac\'s: {open(miss).read().strip()}',
                   flush=True)

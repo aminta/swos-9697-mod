@@ -2373,3 +2373,17 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
 - Open at the time of writing: (ESCI label confirmed by Shaved: EN EXIT next to ABORT, FR QUITTER / ANNULER, DE ENDE / ABBRECHEN); the 1984-85
   national DIY line in the notes is to be dropped if `engine_avail_diy` fails; the SWOS++ result of the final gate is to be added if it differs.
 - README fix: the Italian section had a duplicated English copy of the 4.0.6 bullets; removed.
+
+## 4.1 release (2026-11-10, Davide's yes)
+- Release build c/REL41 = 41-final 1eae7bd (rc3 f15fe0c + the 4.1 notes / README / manual + harness-only fixes + c30f5ce's
+  test-build-only gp_forcecfb), data world5tm-403c19, no MODVER_TAG (main menu 'MOD 4.1'). IT CD 6823e9e5, EN CD a51ac5b1,
+  FR CD d14189b1, DE CD 7d399a77; GOG IT 4866e52a, EN e95f5ced, FR e6c460c1, DE 2ee8271d. Patcher page md5 483e7b12.
+- Identity: = REL41rc3 on all 656 files except the version text ('MOD 4.1 RC3' -> 'MOD 4.1', 4 bytes per exe); the 1eae7bd
+  rebuild (c/REL41c) md5-identical to c/REL41 (the release gplay object has GP_FORCE=0).
+- Gate: the RC3 suite on the release recipe (147 PASS; world_title_mlt = a GPLAY_FORCE artifact, fixed by c30f5ce and PASS on
+  1eae7bd; crc_skip PASS on rerun; uq_nextmatch known intermittent), natural Malta seasons on REL41rc3 7/7 PASS; Node patcher
+  test (DATA coverage 0, all OK) and dirtest ALL OK on the final page; visual tour (tour41-final) reviewed with Davide.
+- Since 4.0.5: see release/notes-4.1.md (world selector, two players on one keyboard, CPU red cards / injuries, stoppage time,
+  UEFA Super Cup, two-row benches, long benches in friendlies / DIY, continental cups views, finances, many fixes).
+- Known, for 4.1.1: the NZ Grand Final phantom match when the career club is not a finalist (option A2, branch 411-nzgf).
+- `python3 tools/kitfix.py ship c/REL41` done in the release commit (4.1's kits in tools/kits_shipped.json.gz).

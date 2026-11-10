@@ -14825,7 +14825,8 @@ def euro_money():
     TRASFERIMENTI (the bank), the national market list (ELENCA: the prices), a player's offer screen (FAI UN'OFFERTA),
     ANDAMENTO CLUB (finances) and, after match day 1, its statement again; EURO_SEASON=1 (default): a short 2026-27
     season (MALTA, FLORIANA; the no-sacking poke only) to its end, every season-end screen (the prize money) and season
-    2's ANDAMENTO CLUB; EURO_UEFA=<a CL career save> (RC3 with 41-uprize): match days until ANDAMENTO CLUB shows the
+    2's ANDAMENTO CLUB; EURO_UEFA=<a CL career save> or EURO_UEFA=new (a new INTER career in the run's language; RC3
+    with 41-uprize): this season's CL poked as uprize's UP, match days until ANDAMENTO CLUB shows the
     PREMI UEFA row. On each: the money entries (9Ch) show the euro letter (euro_look) and never the pound. The amounts of
     TRASFERIMENTI and ANDAMENTO CLUB go to <EURO_DIGITS or the runs dir>/euro_digits_<UI>.json and must equal every other
     language's file there (the same amounts in all four)."""
@@ -14964,26 +14965,48 @@ def euro_money():
     uefa = os.environ.get('EURO_UEFA')            # (RC3 merged, Shaved's 41-uprize: a CL career save, e.g.
     if uefa:                                      #  internal/uesum/cv_s2_cl_it.CAR; up to 4 match days played until
         lab = EURO_UEFA_ROW[UI]                   #  ANDAMENTO CLUB shows the PREMI UEFA row, label 3 / value 13)
-        with Session('euro_money_uefa', exe, {'W84A.CAR': uefa}, 'dump:2', 900) as s:   # (Shaved 09/11: as world_uprize)
-            s.wait()
-            s.send(LOAD1 + ' dump:3')
-            cbo = lambda: struct.unpack('<i', bytes(s.result.obj2(sym['D6B88'][1] + 4, 4)))[0]   # (competitionBonuses:
-            for k in range(4):                                                                    #  an old save's first
-                ok, msg = advance(s, lambda scr: 'ANDAMENTO CLUB' in scr.texts() and cbo() != 0, 150)   # CL day pays)
+        fresh = uefa == 'new'                     # (EURO_UEFA=new: a new INTER career in the run's language - its
+        with Session('euro_money_uefa', exe, {} if fresh else {'W84A.CAR': uefa}, 'dump:2', 1500) as s:   # CL forced
+            s.wait()                              #  as below; EN/FR/DE have no CL save and an IT one traps there, 0x17064)
+            if fresh:
+                for t in ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27', 'EUROPA', 'ITALIA', 'SERIE A',
+                          'INTER']:
+                    if press(s, s.screen(), t, 3) is None:
+                        return False, '; '.join(errs + [f'uefa: new career: {t} not reached'])
+                s.send('fire dump:3')
+                euro_menu(s)
+            else:
+                s.send(LOAD1 + ' dump:3')
+            r = s.result
+            m = bytes(r.read(r.base4 + 0x3000, 0x1000))  # (uprize's UP, after 'UPRZ' in obj4's 4th page - world_uprize's
+            k = m.find(b'UPRZ')                           #  up_find; the save predates it: ok 0, nothing paid until it is
+            if k < 0:                                     #  this season's CL - poked so, as world_uprize; Integratore
+                check(False, 'uefa: no UPRZ block in obj4 page 4 (not an RC3 uprize exe)', errs)   # s43dry 09/11)
+            else:
+                at = r.base4 + 0x3000 + k + 4
+                ss = r.read(season_playing_at(r, exe), 1)[0] + 1
+                s.poke(at, bytes((1, 0, ss, 0, 0, 0, 0, 0)) + bytes(4))
+                s.poke(r.base2 + nosack_off(os.path.join(exe, 'ITALIAN.EXE')), b'\x01\x00')
+                s.send('dump:1')
+                cbo = lambda: struct.unpack('<i', bytes(s.result.obj2(sym['D6B88'][1] + 4, 4)))[0]   # (competitionBonuses)
+                paid = lambda: struct.unpack_from('<I', bytes(s.result.read(at + 8, 4)))[0]       # (UP's sum: a prize paid)
+                ok, msg = advance(s, lambda scr: 'ANDAMENTO CLUB' in scr.texts() and paid() > 0 and cbo() != 0, 300)
                 if not ok or press(s, s.screen(), 'ANDAMENTO CLUB', 3) is None:
-                    check(False, f'uefa: match day {k + 1}: {msg}', errs)
-                    break
-                scr = s.screen()
-                if len(scr.raw) > 13 and scr.raw[3].decode('latin-1') == lab and not scr.entries[3][2]:
-                    look(s, 'uefa')
-                    break
-                press(s, scr, 'CONTINUA', 3) or press(s, scr, 'ESCI', 3)
-        check('uefa' in seen, f'uefa: no statement with {lab!r} in 4 match days', errs)
+                    check(False, f'uefa: no prize paid: {msg}', errs)
+                else:
+                    scr = s.screen()
+                    if len(scr.raw) > 13 and scr.raw[3].decode('latin-1') == lab and not scr.entries[3][2]:
+                        look(s, 'uefa')
+                    else:
+                        check(False, f'uefa: a prize paid ({paid():,}), the statement without {lab!r}: '
+                                     f'{scr.texts()[:10]}', errs)
+        check('uefa' in seen, f'uefa: no statement with {lab!r}', errs)
     for t, why in (('transfers', 'the bank balance'), ('market', 'the market prices'), ('offer', 'the offer'),
                    ('finance', 'ANDAMENTO CLUB'), ('statement1', 'the match day 1 statement')):
         check(t in seen, f'{why}: no money entry seen', errs)
     dd = os.environ.get('EURO_DIGITS') or RUNS             # the same amounts in every language (deterministic screens)
     mine = {t: seen[t][3] for t in ('transfers', 'finance') if t in seen}
+    os.makedirs(dd, exist_ok=True)
     json.dump(mine, open(os.path.join(dd, f'euro_digits_{UI}.json'), 'w'))
     for f in sorted(glob.glob(os.path.join(dd, 'euro_digits_*.json'))):
         other = json.load(open(f))

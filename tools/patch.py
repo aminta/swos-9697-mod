@@ -704,6 +704,7 @@ def patch_exe(src, dst, remap, lang='it'):
         (hex(world), hex(nz_end), hex(fin_end), hex(arg_end))
     careerworld.ns_xtra(p, xtra.LABELS['XTRA_NAMEP'] if xtra_on else None)   # several worlds: XTWn.nnn names
     mkseason.ns_emit(p)                          # several worlds: the namespaces' rows, the base one static
+    eu_end = None
     if sp_pg:                                    # World 2026-27: mid-season splits (split.py), after lpb's pages
         sp_at = hist2 + h2 + 0x1000 * lpb
         sp_end = split.patch(p, sp_at, nasmcave, sp_tabs)
@@ -717,7 +718,11 @@ def patch_exe(src, dst, remap, lang='it'):
             import euro                          # 4.1 RC3 (Enzo, Davide): money in euros in the euro worlds (World
             eu_at = lg_end if LG_ROOM[0] <= lg_end <= LG_ROOM[1] else LG_ROOM[0]   # 2026-27), after lgreal in its room
             if 'WCUR' in careerworld.LABELS:
-                euro.patch(p, eu_at, LG_ROOM[1], (1, careerworld.LABELS['WCUR']))
+                eu_end = euro.patch(p, eu_at, LG_ROOM[1], (1, careerworld.LABELS['WCUR']))
+    if worlds:                                   # (MC 09/11: never a silent skip - a build with a euro world has the euro)
+        import euro
+        assert not euro.euro_worlds() or eu_end or os.environ.get('EURO_OPTIONAL'), \
+            f'euro: worlds {sorted(euro.euro_worlds())} in the build but no euro patch (gplay tail / split page / WCUR missing)'
     if sc_pg:                                    # state championships in career / Season slot 1 (statecup.py)
         sc_at = hist2 + h2 + 0x1000 * (lpb + sp_pg)
         sc_end = statecup.test_contest(p, sc_at) if statecup.TEST else sc_at   # (STATECUP_TEST=1 builds)

@@ -323,10 +323,20 @@ class Pack:
                 self.tourney(c) if c['type'] == 'tourney' else self.round_robin(c)     # validates
             return
         self.league = next(c for c in self.comps if c['key'] == m['season']['league'])
-        self.league_clubs = [k for k, c in self.clubs.items() if c['file'] == self.league['clubs']]
+        # S7 (n7-p4.md §1): a 'shaped' pack = a league over 2+ team files, roles with 'divisions' (the league's division
+        # indices in that file, in its order) and 'pool_rows' (rows after them: clubs.csv division 'pool' = the league's
+        # reserve, division byte nd like 'reserve'). Every other pack: the one file of league['clubs'], as before.
+        roles = [k for k, v in m['files'].items() if 'divisions' in v]
+        self.shaped = len(roles) >= 2
+        if not self.shaped:
+            roles = [self.league['clubs']]
+        self.league_clubs = [k for k, c in self.clubs.items() if c['file'] in roles]
         nd = len(self.divisions())                 # (a club of the 'reserve' (gplay loser_div 'reserve', league
-        self.division = {k: nd if self.clubs[k].get('division') == 'reserve' else   # 'reserve'): out of every
-                         int(self.clubs[k].get('division') or 0) for k in self.league_clubs}   # division, = nd)
+        rsv = ('reserve', 'pool') if self.shaped else ('reserve',)   # 'reserve'): out of every division, = nd)
+        self.division = {k: nd if self.clubs[k].get('division') in rsv else
+                         int(self.clubs[k].get('division') or 0) for k in self.league_clubs}
+        if self.shaped:
+            self._shape_check(roles, nd)
         self.reserve_clubs = [k for k in self.league_clubs if self.division[k] == nd]
         divs = self.divisions()
         for d, dv in enumerate(divs):
@@ -571,6 +581,24 @@ class Pack:
             fl, i = self.where[e[0]]
             out.append((globnum.glob(self, fl, i), *e[1:]))
         return out
+
+    def _shape_check(self, roles, nd):
+        """A shaped pack's checks (S7, n7-p4.md §1-§2): the league's own file is a role; every division in exactly one
+        role; every club on a role's rows (the clubs off the files = L-Italy's light pool, later); the reserve = the pool
+        rows, on file (no off-file pool: the registry replaces RI's swaps); sreg.shape_of's order / size checks."""
+        import sreg
+        w = f"{self.meta['id']}: a league over {len(roles)} team files"
+        _need(self.league['clubs'] in roles, f"{w}: the league's own file '{self.league['clubs']}' has no 'divisions'")
+        got = sorted(d for r in roles for d in self.meta['files'][r]['divisions'])
+        _need(got == list(range(nd)), f"{w}: the roles' 'divisions' must hold each division 0..{nd - 1} once ({got})")
+        off = [k for k, c in self.clubs.items() if c['file'] not in roles]
+        _need(not off, f"{w}: clubs off the team files ({off[:3]}): not before L-Italy's light pool")
+        rs = self.league.get('reserve')
+        _need(not rs or not rs.get('off_file'), f"{w}: the reserve is the pool rows (on file), not 'off_file'")
+        try:
+            sreg.shape_of(self)
+        except AssertionError as e:
+            raise PackError(f'{w}: {e}') from None
 
     def team_file_items(self):
         """files without the off-file pool (a pseudo file: no TEAM file, no country entry, no global numbers)."""
@@ -2282,6 +2310,9 @@ def patch(p, lang, area, cave):
     """Every enabled pack into the exe (countries, competitions), then the shared part: CLASSIC SEASONS button with one
     country per pack, season_sel / cont_check / euro_slot2 hook with the packs' European-cup tables.
     Returns (cave end, obj1 offsets of the leagues that are also classic tourneys)."""
+    two = [pk.meta['id'] for pk in packs() if getattr(pk, 'shaped', False)]   # (S7: the league tables below read one
+    _need(not two, f'{two}: a league over two team files has no exe side yet (MC\'s S7 glue names the division -> '   # file
+          'file interface, n7-s7-clubmap §0); its team files only: tools/s7pack.py / Pack.team_files()')   # per league)
     import countries
     import historic
     import nasmcave

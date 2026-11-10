@@ -401,7 +401,8 @@ def test_sreg_oldwords():
     src = os.path.join(d, 'o.c')
     with open(src, 'w') as f:
         f.write('#define SWOSRULES_HAVE_STDINT\n#include <stdint.h>\n'
-                f'#include "{TOOLS}/swce/swosrules.h"\n#include "{TOOLS}/sreg_import.c"\n')
+                f'#include "{TOOLS}/swce/sr_reg.c"\n#include "{TOOLS}/swce/sr_regsave.c"\n'
+                f'#include "{TOOLS}/sreg_import.c"\n')
     lib = os.path.join(d, 'o.dylib')
     r = subprocess.run(['cc', '-shared', '-fPIC', '-O1', '-I', os.path.join(TOOLS, 'swce'), '-o', lib, src],
                        capture_output=True, text=True)
@@ -430,3 +431,136 @@ def test_sreg_oldwords():
             errs.append(f'{tag}: {run(maps, nslot)[0]}')
     return not errs, '; '.join(errs) or ('old words: no map / swaps -> each club on its current slot, the rest NONE; '
                                          'refused: one identity on two slots, past the pool, nslot past RIS')
+
+
+def test_sreg_import():
+    """sreg_import (sreg_import.c, n7-p4.md §9c, MC's option 1) built natively, on a small S7-like shape: file 102 =
+    division 0 (4 clubs) + 1 (4), file 144 = Serie D groups 5 and 6 (3 each) + 2 pool rows; 16 idents: a0..a3, b0..b3
+    (4.1 rows 0..7), d0 d1 (rows 8, 9) + J (a joiner: 4.1 pool 0) in group 5, e0..e2 (rows 10..12) in group 6, p1 p2 (4.1
+    pool 1, 2) on the pool rows. 4.1 had one file of 13 slots and a pool of 3.
+    - a fresh 4.1 save: no swap, every club its spec division, J pending (flags IMPORTED | PENDING | season 27 << 8),
+      the map = the 5 Serie D words 102 -> 144;
+    - after season ends: b0 (div 1) down to group 5 and d0 up to 1 (one cross-file swap), a3 / b1 traded 0 <-> 1 in
+      file 102 (no row moves, only the division), RI: p1 onto d1's slot 9 (group 5), d1 off -> the pool: every club's
+      registry division = its actual one (J's spec), the map follows every club on a slot;
+    - deterministic: two imports from different garbage give the same registry, swaps, map and result;
+    - refused, with the club: J swapped on by RI (SIX, J), a club down to group 6 with nobody up (BALANCE, it), a
+      division byte the registry lacks (DIV), an identity on two slots (MAP), a slot no ident has (LOST, 0x8000 | slot),
+      room for no swap (ROOM)."""
+    import ctypes
+    import subprocess
+    import tempfile
+    d = tempfile.mkdtemp()
+    src = os.path.join(d, 'i.c')
+    with open(src, 'w') as f:
+        f.write('#define SWOSRULES_HAVE_STDINT\n#include <stdint.h>\n'
+                f'#include "{TOOLS}/swce/sr_reg.c"\n#include "{TOOLS}/swce/sr_regsave.c"\n'
+                f'#include "{TOOLS}/sreg_import.c"\n'
+                'uint32_t imp_work_size(void) { return sizeof(sreg_imp_work); }\n'
+                'uint32_t imp_res_size(void) { return sizeof(sreg_imp_res); }\n')
+    lib = os.path.join(d, 'i.dylib')
+    r = subprocess.run(['cc', '-shared', '-fPIC', '-O1', '-Wall', '-Werror', '-I', os.path.join(TOOLS, 'swce'), '-o',
+                        lib, src], capture_output=True, text=True)
+    if r.returncode:
+        return False, 'cc: ' + r.stderr[-400:]
+    L = ctypes.CDLL(lib)
+    L.sreg_import.restype = ctypes.c_int32
+    W102, W144 = (lambda x: 102 | x << 8), (lambda x: 144 | x << 8)
+    names = ['a0', 'a1', 'a2', 'a3', 'b0', 'b1', 'b2', 'b3', 'd0', 'd1', 'J', 'e0', 'e1', 'e2', 'p1', 'p2']
+    I = {k: i for i, k in enumerate(names)}
+    sdiv = [0] * 4 + [1] * 4 + [5] * 3 + [6] * 3 + [POOL] * 2
+    old = list(range(10)) + [256] + [10, 11, 12] + [257, 258]
+    spec = spec_bytes([(102, [(0, 4), (1, 4)], 0), (144, [(5, 3), (6, 3)], 2)])
+    slot0 = [0] * 4 + [1] * 4 + [5, 5] + [6] * 3
+    IMP = {-1: 'ARGS', -2: 'SPEC', -3: 'MAP', -4: 'LOST', -5: 'DIV', -6: 'SIX', -7: 'PEND', -8: 'BALANCE', -9: 'ROOM',
+           -10: 'WMAP'}
+
+    def imp(maps=None, slot=slot0, maxsw=64, fill=0xAA):
+        R = ctypes.create_string_buffer(bytes([fill]) * REGSIZE, REGSIZE)
+        wk = ctypes.create_string_buffer(bytes([fill ^ 0x55]) * L.imp_work_size(), L.imp_work_size())
+        res = ctypes.create_string_buffer(L.imp_res_size())
+        sw = (ctypes.c_uint16 * (3 * 64))(*([0x5A5A] * 192))
+        mp = (ctypes.c_uint16 * (2 * 64))(*([0x5A5A] * 128))
+        m = (ctypes.c_uint16 * 13)(*maps) if maps else None
+        n = L.sreg_import(R, ctypes.create_string_buffer(spec, len(spec)), 2, bytes(sdiv), len(names),
+                          (ctypes.c_uint16 * len(old))(*old), m, 13, 3, 102, bytes(slot), 27, wk, sw, maxsw, mp, 64,
+                          res)
+        nswap, nmap, npend, bad, flags = struct.unpack_from('<iiiiI', res.raw, 0)
+        pend = list(struct.unpack_from(f'<{npend}H', res.raw, 20)) if n >= 0 else []
+        b = R.raw
+        words = struct.unpack_from(f'<{len(names)}H', b, 8 + FILES * FSIZE)
+        at = 8 + FILES * FSIZE + 2 * CLUBS
+        rdiv = at + FILES * 512
+
+        def div(c):                                     # sr_reg_div: its row's division
+            w = words[c]
+            fi = {102: 0, 144: 1}[w & 0xFF]
+            return b[rdiv + 256 * fi + (w >> 8)]
+        return dict(n=n, why=IMP.get(n, n), bad=bad, flags=flags, pend=pend,
+                    swaps=[tuple(sw[3 * k:3 * k + 3]) for k in range(max(n, 0))],
+                    pairs=[tuple(mp[2 * k:2 * k + 2]) for k in range(nmap if n >= 0 else 0)],
+                    words=words, divs=[div(c) for c in range(len(names))], view=view(b))
+    errs = []
+    # a fresh 4.1 save
+    g = imp()
+    want_pairs = sorted([(W102(8), W144(0)), (W102(9), W144(1)), (W102(10), W144(3)), (W102(11), W144(4)),
+                         (W102(12), W144(5))])
+    if (g['n'], g['pend'], g['flags'], g['divs'], g['pairs']) != (0, [I['J']], 1 | 2 | 27 << 8, sdiv, want_pairs):
+        errs.append(f"fresh: {g['why']} pend {g['pend']} flags {g['flags']:#x} divs {g['divs']} pairs {g['pairs']}")
+    # after season ends: b0 down to 5, d0 up to 1, a3 <-> b1 in file 102, RI: p1 (identity 257) on slot 9, d1 off
+    maps = [0] * 13
+    maps[9] = 257 + 1
+    slot = list(slot0)
+    slot[4], slot[8], slot[3], slot[5] = 5, 1, 1, 0
+    g = imp(maps, slot)
+    act = list(sdiv)
+    act[I['b0']], act[I['d0']], act[I['a3']], act[I['b1']], act[I['p1']], act[I['d1']] = 5, 1, 1, 0, 5, POOL
+    if g['n'] != 1 or g['divs'] != act or g['pend'] != [I['J']]:
+        errs.append(f"seasons: {g['why']} {g['swaps']} divs {g['divs']} pend {g['pend']}")
+    else:
+        if sorted(g['swaps'][0][:2]) != sorted([W102(4), W144(0)]) or g['swaps'][0][2] != 0xFFFF:
+            errs.append(f"seasons: swap {[hex(x) for x in g['swaps'][0]]}")
+        if g['words'][I['b0']] != W144(0) or g['words'][I['d0']] != W102(4) or g['words'][I['p1']] != W144(6):
+            errs.append(f"seasons: words b0 {g['words'][I['b0']]:#x} d0 {g['words'][I['d0']]:#x} "
+                        f"p1 {g['words'][I['p1']]:#x}")
+        pm = dict(g['pairs'])                           # every club on a 4.1 slot -> its word now
+        for c in range(len(names)):
+            ow = None
+            if old[c] < 256 and maps[old[c]] == 0:
+                ow = W102(old[c])
+            elif old[c] == 257:
+                ow = W102(9)
+            if ow is not None and pm.get(ow, ow) != g['words'][c]:
+                errs.append(f'seasons: map {names[c]} {ow:#x} -> {pm.get(ow, ow):#x}, now {g["words"][c]:#x}')
+        if W102(9) not in pm or pm[W102(9)] != W144(6):
+            errs.append('seasons: the slot RI gave p1 not mapped to its row')
+    g2 = imp(maps, slot, fill=0x33)
+    if any(g[k] != g2[k] for k in ('n', 'bad', 'flags', 'pend', 'swaps', 'pairs', 'words', 'divs', 'view')):
+        errs.append('not deterministic (two garbage fills)')
+    # refusals
+    m6 = [0] * 13
+    m6[9] = 256 + 1                                     # J swapped on (d1 off)
+    s_bal = list(slot0)
+    s_bal[I['b2']] = 6
+    s_div = list(slot0)
+    s_div[10] = 9                                       # (slot 10 = e0's)
+    m2 = [0] * 13
+    m2[3] = 2 + 1                                       # identity 2 on slots 2 and 3
+    m_lost = [0] * 13
+    for tag, kw, want in (('J swapped on', dict(maps=m6), ('SIX', I['J'])),
+                          ('down, nobody up', dict(slot=s_bal), ('BALANCE', I['b2'])),
+                          ('unknown division', dict(slot=s_div), ('DIV', I['e0'])),
+                          ('two slots', dict(maps=m2), ('MAP', -1)),
+                          ('no swap room', dict(maps=maps, slot=slot, maxsw=0), ('ROOM', -1))):
+        g = imp(**kw)
+        if (g['why'], g['bad']) != want:
+            errs.append(f"{tag}: {g['why']} bad {g['bad']}")
+    old_l = list(old)
+    old[I['e2']] = 0xFFFF                               # slot 12's club unknown to the pack (e2 a new club: pending)
+    g = imp(m_lost)
+    if (g['why'], g['bad']) != ('LOST', 0x8000 | 12):
+        errs.append(f"lost slot: {g['why']} bad {g['bad']:#x}")
+    old[:] = old_l
+    return not errs, '; '.join(errs) or ('fresh: no swap, J pending, 5 Serie D words to 144; seasons: 1 cross-file '
+                                         'swap, every division the save\'s, map follows each club, RI slot -> pool row; '
+                                         'deterministic; refused SIX / BALANCE / DIV / MAP / ROOM / LOST with the club')

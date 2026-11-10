@@ -28180,15 +28180,10 @@ def nzchamp_season(lines, st_at, log_at, res_words, gff, kof, errs, rest=False, 
             note.append(nz_phantom(lines, gft, mgr, fin, errs, st_at))
         fl = [ln for ln in lines if 'CHAMPIONSHIP FINALE' in ln]
         club = team.split(',')[-1]
-        if natural and gff != '1' and fl:                             # (the DECLARED limit, rc20 74b589f: the decision
-            ph = bool(club) and all(club in ln for ln in fl)          # inside the club's rest day after PARTITA - a
-            check(ph, f'a Grand Final screen without the career club {club}: {fl[0][:160]}', errs)   # phantom FINALE with the
-            if ph:
-                note.append(f'declared limit: phantom FINALE with {club} ({len(fl)} screens; the real final and champion '
-                            f'above)')                                # career club, the real final decided without it)
-        else:                                                         # (4.1.1 A2: the real final's screens - its
-            mine = [ln for ln in fl if club and club in ln]               # two finalists, VISUAL. COMPETIZ. - are fine;
-            check(not mine, f'a Grand Final screen with the career club {club}: {mine[:1]}', errs)   # never one of the club)
+        mine = [ln for ln in fl if club and club in ln]               # (4.1.1 A2: the real final's screens - its two
+        check(not mine, f'a Grand Final screen with the career club {club}: {mine[:1]}', errs)   # finalists - are fine;
+        if fl and not mine:                                           # never one with the club: rc20's declared limit,
+            note.append(f'{len(fl)} FINALE screen(s) of the real final')   # the phantom FINALE, is gone)
     else:
         check(gfs and gfs[-1]['slot'] == 4 and gfs[-1]['n'] == 2 and set(gfs[-1]['team'][:2]) == set(fin) and mgr in fin,
               f"Grand Final in slot 4 (the career club {'in' if natural else 'forced in'}): {[(x['slot'], [hex(t) for t in x['team'][:2]]) for x in gfs[-1:]]}"

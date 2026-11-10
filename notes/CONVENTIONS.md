@@ -87,6 +87,12 @@ new rule. If a rule seems wrong for a case, ask the regia session; don't silentl
     (1152 B below, 207 B above), nothing after it moves (B_UQ, obj2's size): **708 B left** (engine block 15368 B,
     26 items, 4.1 staging 8dfa5ea); S2b's 'US' (290 + 4, with the LP table) leaves **414 B** (engine block 15662 B, 27 items). That is the last room the gaps give (at most +679 B); more means moving B_UQ and the
     tail after it, or folding gplay's items into SWC1 (4.2) - the next item past this room waits for one of those.
+    4.2 A1: the cache's memory stays 160 teams (careerworld.SEL_CAP: SEL_ROOM, the season-end park) and the save is
+    budgeted at SEL_N = **159**: the assert above runs at 159 (+684 B). A save with 160 cached teams (peak seen 124)
+    takes the trailer's own skip: the engine block no longer fits ROOMV, so it is NOT written, and the load zeroes
+    every 'EN' item as from an older save (LR void for the season, ST 'not started' = redrawn, the same groups) -
+    the career goes on, nothing crashes (world_en_drop forces that path). 4.2 room: 'ST' (144 + 4) leaves **542 B**
+    (engine block 16218 B); the 4.2 ledger is in internal/handoff/mc-engine.md "ST save room".
 22. obj1 has a ceiling too: 237 pages in the release build (4.0.5, Panchina's SWOS++ probe: obj1 in memory <= 238 pages
     starts every match under SWOS++ 1.9.2.2, 239+ makes PLAY MATCH stall - obj2's base moves past what SWOS++ tolerates;
     the harness adds 1 obj1 page of its own, so 237 file pages = 238 under test = the real limit). patch.py prints

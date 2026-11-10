@@ -546,7 +546,7 @@ def patch(p, cave, items, tails=False):
     p.put(1, save_call + 1, struct.pack('<i', labels['save_trailer'] - (save_call + 5)))
     p.put(1, load_call + 1, struct.pack('<i', labels['load_trailer'] - (load_call + 5)))
     LABELS.clear()
-    LABELS.update({k: (0, labels[k]) for k in ('save_trailer', 'load_trailer', 'en_read', 'en_finish')})
+    LABELS.update({k: (0, labels[k]) for k in ('save_trailer', 'load_trailer', 'en_read', 'en_finish', 'ROOMV')})
     INFO.clear()
     INFO.update({k: symbols[k] for k in ('NUMSEL', 'CAREER', 'D1', 'WRITEFILE', 'PROCESS', 'BLOCK', 'FIXED', 'ROOM',
                                          'MARK', 'SELBUF')})

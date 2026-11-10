@@ -4154,6 +4154,11 @@ def world8485():
                         break
                 if press(s, s.screen(), 'SALVA CARRIERA') is None:
                     return False, f'mid-season save: no SALVA CARRIERA on {s.screen()}'
+                if os.environ.get('W8485_ENDROP'):     # 4.2 A1 (world_en_drop): ROOMV = the records + the main block
+                    rv, ns, blk = (int(x, 0) for x in os.environ['W8485_ENDROP'].split(':'))   # only - the engine
+                    n = struct.unpack('<H', s.result.obj2(ns, 2))[0]                          # block no longer fits,
+                    s.poke(s.result.base1 + rv, struct.pack('<I', n * 684 + blk))             # as with 160 cached
+                    s.log.append(f'ENDROP numsel {n} ROOMV {n * 684 + blk}')
                 s.send(name_entry('W84A') + ' dump:3')
                 path = os.path.join(s.run, 'SWOS', 'W84A.CAR')
                 return os.path.exists(path), f'saved mid-season: {path}'
@@ -17026,7 +17031,11 @@ def lrank_reload(old):
         for x in names:
             os.environ.pop(x, None)
         os.environ.update(base, W8485_ONE='1', W8485_MIDSAVE=f'{day:x}:10:2')
+        if old == 'drop':                              # 4.2 A1: ROOMV = the records + 2 KB (the main block, 948 B,
+            sy = json.load(open(os.path.join(exe, 'ITALIAN.syms.json')))   # fits; the 16 KB engine block does not)
+            os.environ['W8485_ENDROP'] = f"{sy['trailer']['ROOMV'][1]:#x}:{sy['uesum']['NUMSEL'][1]:#x}:2048"
         ok, msg = world8485()
+        os.environ.pop('W8485_ENDROP', None)
         car = os.path.join(RUNS, w84_tag() + '_1', 'SWOS', 'W84A.CAR')
         check(ok and os.path.exists(car), f'mid-season save: {msg}', errs)
         if errs:
@@ -17035,15 +17044,25 @@ def lrank_reload(old):
         d = bytearray(open(car, 'rb').read())
         lr = struct.pack('<HH', zlib.crc32(b'LR') & 0xFFFF, 404)
         k = d.find(lr)
-        check(k >= 0 and d.find(lr, k + 1) < 0, f"the save's 'LR' item: at {k}", errs)
+        if old == 'drop':                              # the save: the main block, no engine block ('LR' / 'ST' gone)
+            st = struct.pack('<HH', zlib.crc32(b'ST') & 0xFFFF, 144)
+            log1 = open(os.path.join(RUNS, w84_tag() + '_1', 'session.log'), errors='replace').read()
+            check('ENDROP' in log1, 'no ENDROP poke before the save', errs)
+            check(k < 0 and d.find(st) < 0, f"engine block written anyway: 'LR' at {k}, 'ST' at {d.find(st)}", errs)
+            check(d.find(struct.pack('<H', 0x3743)) >= 0, "no main block ('C7') in the save", errs)
+            n_saved = 0
+        else:
+            check(k >= 0 and d.find(lr, k + 1) < 0, f"the save's 'LR' item: at {k}", errs)
         if errs:
             return False, '; '.join(errs)
-        saved_blk = bytes(d[k + 4:k + 4 + 404])
-        n_saved = sum(x != 0xFF for x in saved_blk[4:])
-        check(saved_blk[1] == 20 and 0 < n_saved < 380, f'saved block {saved_blk[:4].hex()} with {n_saved} results', errs)
-        if old:
+        if old != 'drop':
+            saved_blk = bytes(d[k + 4:k + 4 + 404])
+            n_saved = sum(x != 0xFF for x in saved_blk[4:])
+            check(saved_blk[1] == 20 and 0 < n_saved < 380, f'saved block {saved_blk[:4].hex()} with {n_saved} results',
+                  errs)
+        if old is True:
             d[k:k + 2] = struct.pack('<H', (zlib.crc32(b'LR') & 0xFFFF) ^ 0x5A5A)   # (an id no build knows)
-        saved = os.path.join(RUNS, f'lrank_reload_{int(old)}_W84A.CAR')
+        saved = os.path.join(RUNS, f'lrank_reload_{old}_W84A.CAR')
         open(saved, 'wb').write(d)
         for x in names:
             os.environ.pop(x, None)
@@ -17080,6 +17099,14 @@ def world_lrank_reload():
 def world_lrank_oldsave():
     """4.2 S1.3: a save without the block: void for that season, as declared (lrank_reload)"""
     return lrank_reload(True)
+
+
+@scenario
+def world_en_drop():
+    """4.2 A1 (CONVENTIONS 21): a save whose engine block does not fit ROOMV (as with 160 cached teams; forced by a
+    poke of ROOMV before SALVA CARRIERA) keeps its main block, writes no 'EN' ('LR' / 'ST' absent) and loads: the
+    items zeroed as from an older save - LR void for the season, the career plays on (lrank_reload)"""
+    return lrank_reload('drop')
 
 
 def sr_blocks(b):

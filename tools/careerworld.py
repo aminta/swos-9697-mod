@@ -48,9 +48,12 @@ B_TFB, TFB_SIZE = 0x31000, 0x2B000
 # SaveCareerFile writes it from B_STAGE (fixed part copied before the records) and LoadCareerFile reads it there
 # (trailer.LOADCOPY -> w_loadcopy spreads it). Old saves (N <= 100) load unchanged.
 SEL_N = 160
-B_SEL, SEL_ROOM = 0x5C000, SEL_N * TEAM_SIZE + 0x4000          # (+ the trailer's blocks after the records: the main
-                                                               # one + the engine block 'EN': ~14.6 KB in 4.0.1: 0x4000)
-B_STAGE = 0x7B000                                    # 95153 (fixed part) + SEL_ROOM
+B_SEL, SEL_ROOM = 0x5C000, SEL_N * TEAM_SIZE + 0x4000 + 0x280  # (+ the trailer's blocks after the records: the main
+                                                               # one + the engine block 'EN': ~14.6 KB in 4.0.1: 0x4000;
+                                                               # 4.1 S2b: + 0x280, the two gaps around B_STAGE - B_UQ and
+                                                               # everything after it stay put; CONVENTIONS 21)
+B_STAGE = 0x7AE40                                    # 95153 (fixed part) + SEL_ROOM (4.1: 0x7B000 - 0x1C0; a file I/O
+                                                     # buffer only, no save stores an address into it)
 # UEFA qualifying rounds (uefaq.py, league-phase worlds only: BSS_SIZE grows then): the C code's .bss, then the
 # season end's copies of the clubs' records (55 associations x (top 9 + cup winner) + 3)
 B_UQ, UQ_BSS, UQ_RECS = 0xB1000, 0x7000, 563
@@ -105,7 +108,47 @@ WORLD_NATS = ('MNE KOS AND GIB KAZ KGZ BLZ HAI CUW ARU DOM CUB PUR GRN GLP MTQ G
                                                  # (FIFA codes; the same in every exe, as the game's own 153)
 MENU_NATS = [153, 154, 155, 37]                      # added to the career menu's nationalities (Davide: the coach can be
                                                      # East/West German, Soviet, Yugoslav; YUG existed, not offered)
-NAT_GONE = {37}                                      # 4.0.3: the game's codes of no nation today (YUG; TCH 6 = Czechia)
+NAT_GONE = set()                                     # 4.0.3: the game's codes of no nation today (4.0.6: none - YUG is
+                                                     # SRB in today's worlds, NAT_TODAY)
+NAT_TODAY = {37: 'SRB', 6: 'CZE', 47: 'MKD', 86: 'COD', 101: 'SWZ'}   # 4.0.6 (Davide 05/11): a 1996-97 code whose nation
+                                                     # changed name, shown as today's FIFA code in the worlds from
+                                                     # 2019 on (WNMOD); the historic ones keep the exe's own letters
+NAT_TEAM_TODAY = {'YUGOSLAVIA': 'SERBIA', 'MACEDONIA': 'NORTH MACEDONIA', 'SWAZILAND': 'ESWATINI',   # 4.0.6: the
+                  'CZECH REPUBLIC': 'CZECHIA'}       # same worlds' national teams (the game's TEAM.080..085, renamed
+                                                     # copies in the world's namespace: mkseason.nat_today_files)
+# W-modes M3 (Davide 04/11, via Regia): a career's coach nationality when the list changes after the team choice (era
+# list <-> today's, swe.c swe_nat_fix): kept if in the new list, else its era counterpart, ENG last. The one table: era
+# code -> (its successor today, or None: no code of its own; the states after it). era -> today: the successor;
+# today -> era: the era code of any state after it. English codes (the game's numbers: nat_codes()).
+NAT_ERA = {'GDR': ('GER', ['GER']), 'FRG': ('GER', ['GER']),
+           'URS': ('RUS', ['RUS', 'UKR', 'BLS', 'EST', 'LAT', 'LIT', 'MOL', 'ARM', 'AZB', 'GEO', 'KAZ', 'KGZ', 'TAD',
+                           'UZB', 'TRK']),
+           'YUG': ('YUG', ['YUG', 'CRO', 'SLO', 'BOS', 'MAC', 'MNE', 'KOS']),   # (4.0.6 NAT_TODAY: YUG 37 = SRB in
+           'TCH': ('TCH', ['TCH', 'SVK'])}                               # today's list, one code in both)
+NAT_ENG = 8
+
+
+def nat_codes(exe):
+    """{English code: the game's nationality number} from an English exe's table + NEW_NATS + WORLD_NATS."""
+    from le import LE
+    d2 = LE(open(exe, 'rb').read()).obj_bytes(2)
+    a = d2.index(b'ALBAUTBELBULCROCYPTCH')
+    t = d2[a:d2.index(b'\0', a)].decode('latin-1')
+    codes = [t[i:i + 3] for i in range(0, len(t), 3)] + NEW_NATS['en'] + list(WORLD_NATS)
+    return {c: i for i, c in enumerate(codes)}
+
+
+def nat_maps(code, era, today):
+    """(to today's list, to the era list): [(from, to)] for the codes of one list missing from the other."""
+    to27, toera = [], []
+    for e, (succ, states) in NAT_ERA.items():
+        if code[e] not in today and succ and code[succ] in today:
+            to27.append((code[e], code[succ]))
+        for st in states:
+            if code[st] not in era and code[e] in era and code[st] not in [f for f, _ in toera]:
+                toera.append((code[st], code[e]))
+    return to27, toera
+
 
 
 def nat_order27(game63, ncodes):
@@ -532,8 +575,30 @@ w_mrec:                                 ; replaces `add word [D1], 1996; add wor
     pop ebx
     jmp %2
 %endmacro
-W_SWAP w_view, CHOOSECOMP, 1               ; (4.0.2, Davide: VIEW WORLD as well - no one-entry CLASSIC CAREERS menu)
+W_SWAP w_view, w_choose, 1                 ; (4.0.2, Davide: VIEW WORLD as well - no one-entry CLASSIC CAREERS menu)
+w_choose:                               ; 4.0.6 P3: the picker, then ctview's cw_after (a confederation's cup button:
+    cmp dword [WV_ON], 0                ; its rounds menu - chooseTeamsResult cleared, ViewWorldMenu goes out); the
+    je .c                               ; lists with the cup buttons only while it runs (cw_on / cw_off: the other
+    call [WV_ON]                        ; pickers - a new career's club, the foreign market - keep the plain ones)
+.c: call CHOOSECOMP
+    cmp dword [WV_ON], 0
+    je .r
+    call [WV_OFF]
+    call [WV_AFTER]
+.r: ret
+align 4
+WV_ON: dd 0                             ; (ctview.patch)
+WV_OFF: dd 0
+WV_AFTER: dd 0
 W_SWAP w_buy, CHOOSETEAMS, 1
+
+w_vcup:                                 ; 4.0.6 (Davide): ViewWorldMenu's call cseg_3AA17 - a cup's own view. Its
+    push word [DF4F4]                   ; loaders (cseg_3ABB2 / 3ADAE) set dseg_DF4F4 - CheckTransfers' 'transfers
+    push word [E0052]                   ; closed' flag, cleared by the next match only: TRASFERIMENTI disabled,
+    call VCUP                           ; skipped by the menu's links - and dseg_E0052: both put back as they were
+    pop word [E0052]
+    pop word [DF4F4]
+    ret
 
 w_nat:                                  ; replaces `mov ax, [D0]; mov [lastNationalityCall], ax`: no national team
     mov ax, [D0R]                       ; job in a world (-1 = none) unless the world has its national teams (3.1)
@@ -549,14 +614,16 @@ w_nat:                                  ; replaces `mov ax, [D0]; mov [lastNatio
     ret
 
 w_tmap:                                 ; eax = team file number (80..85) -> the world's own national file
-    cmp word [GAMETYPE], 4              ; (career only: the world byte is stale outside a career)
-    jne .r
     cmp eax, 80
     jb .r
     cmp eax, 85
     ja .r
     push ebx
+    movzx ebx, byte [W_FNAT]            ; (step 2.5: outside a career, the friendly / DIY nationals' world, swe.c;
+    cmp word [GAMETYPE], 4              ; a career: its world byte - stale outside a career)
+    jne .f
     movzx ebx, byte [SLT + WORLD_BYTE]
+.f:
     movzx ebx, byte [WNAT + ebx]
     test ebx, ebx
     jz .p
@@ -983,14 +1050,18 @@ nat_init:                               ; 4.0.3: replaces `mov dword [A0], natio
     pushad                              ; (D0 = plNationality): CAREER 2026-27 (mainbtn's mb_flag) gets today's nations,
     mov esi, NATORD                     ; CAREER the era list (+ GDR / URS / FRG / YUG); ChangeNationality wraps at the
     mov ecx, N_ERA                      ; list's length; a coach nationality not in the list becomes ENG (the search
-    mov eax, [NATFLAG]                  ; has no end check)
+    xor edx, edx                        ; has no end check); 4.0.6: the names as the list's (nat_names)
+    mov eax, [NATFLAG]
     test eax, eax
     jz .set
-    cmp byte [eax], 0
-    je .set
+    cmp byte [eax], 1                   ; (W-modes: 1 = World 2026-27's career, 2 = Europe 1984-85's)
+    jne .set
     mov esi, NATORD27
     mov ecx, N_27
+    inc edx
 .set:
+    mov eax, edx
+    call nat_names
     mov [NATPTR], esi
     mov [NATWRAP_INC], cl
     dec cl
@@ -1005,6 +1076,26 @@ nat_init:                               ; 4.0.3: replaces `mov dword [A0], natio
 .ok:
     mov [A0R], esi
     popad
+    ret
+
+nat_names:                              ; 4.0.6: al = 1 today's letters (NAT_TODAY), 0 the exe's own, for NATSW's codes
+    pushad                              ; in NATSHORT (the one 3-letter table: squads, market, coach list)
+    mov esi, NATSW
+.l: movzx ebx, byte [esi]
+    cmp bl, 0FFh
+    je .x
+    lea edi, [ebx + ebx * 2 + NATSHORT]
+    lea edx, [esi + 1]
+    test al, al
+    jz .c
+    add edx, 3
+.c: mov cx, [edx]
+    mov [edi], cx
+    mov cl, [edx + 2]
+    mov [edi + 2], cl
+    add esi, 7
+    jmp .l
+.x: popad
     ret
 
 w_tcache:                               ; replaces `mov al, [lastLoadedExtNumber]` (cache test): a cached 80..85 is
@@ -1025,6 +1116,7 @@ w_tcache:                               ; replaces `mov al, [lastLoadedExtNumber
     pop edx
     ret
 WTPHYS: db 0
+W_FNAT: db 0                            ; (swe.c FNAT: 0, or the 1984-85 world for its nationals)
 
 w_holders:                              ; replaces `call cseg_92BBF`: in a world the holders get a place of their own
     push ebx                            ; (appended to the list + record), the game replaces a random qualifier
@@ -1277,10 +1369,15 @@ w_ns_set:                               ; al = world (0 = the base world): its n
     jnz .w
     mov al, NSBASE
 .w:
+    push eax
+    movzx eax, byte [WNMOD + eax]       ; (4.0.6: the nations' names as this world's - every call, also after a
+    call nat_names                      ; career menu's list)
+    pop eax
     cmp al, [WCUR]
     je .r
     mov [WCUR], al
     mov word [TEAMSLOADED], 0           ; teamFileBuffer may hold the other world's file of the same number
+    mov byte [WTPHYS], 0FFh             ; (4.0.6: also a national 80..85 - TMW5.080 is not TEAM.080: w_tcache reloads)
     mov edx, [NSXP]                     ; xtra.py's XTRA_NAMEP (0: no XTRA hook in this build; bound by ns_xtra)
     test edx, edx
     jz .nx
@@ -1354,8 +1451,6 @@ w_ns_menu:                              ; replaces `and word [D7], 0FFh` at the 
     cmp dword [COMP254], CAREER_WORLD
     jne .r
     xor ecx, ecx
-    movzx eax, byte [D7R]
-    call .isw
     mov esi, CSTACK
     mov edi, [CSPTR]
 .s:
@@ -1366,14 +1461,16 @@ w_ns_menu:                              ; replaces `and word [D7], 0FFh` at the 
     inc esi
     jmp .s
 .d:
+    movzx eax, byte [D7R]               ; (the list shown last: it is the deepest - STORICO > EUROPA 1984-85 under
+    call .isw                           ; the default World 2026-27's list is 1984-85's namespace, not 2026-27's)
     mov eax, ecx
-    call w_ns_set
+    call w_ns_set                       ; (W-modes M2: swe.py retargets this call to obj4 swe_sel_ns, which chains it)
 .r:
     popad
     ret
 .isw:
-    cmp eax, WMENU_N + 1
-    jb .n
+    cmp eax, WMENU_N                    ; (W-modes M2: WMENU + 0, the 1996-97 game's entry under the friendly / DIY
+    jb .n                               ; pickers' STORICO, is the base namespace: 0, the last world on the path wins)
     cmp eax, WMENU_N + NSMAXW
     ja .n
     lea ecx, [eax - WMENU_N]
@@ -1570,6 +1667,15 @@ def sites(p):
              + rb'\xe8', d1, 'ViewWorldMenu')
     s['view'] = m.start()
     s['choosecomp'] = m.start() + 5 + struct.unpack('<i', m.group(1))[0]
+    s['ctres'], s['selcont'] = p.target(1, m.start() + 7), p.target(1, m.start() + 17)   # (4.0.6 P3: ctview cw_after)
+    s['vcup'] = m.end() - 1                     # its call cseg_3AA17 (the chosen contest's own view)
+    s['vcup_to'] = s['vcup'] + 5 + struct.unpack('<i', d1[s['vcup'] + 1:s['vcup'] + 5])[0]
+    # cseg_3ABB2 / cseg_3ADAE (that view's loaders): mov word [dseg_E0052], 1; mov ax, [10E848]; or ax, ax; jnz;
+    # mov ax, [10E846]; or ax, ax; jnz; mov word [dseg_DF4F4], 1 - CheckTransfers' 'transfers closed' flag
+    vf = {(p.target(1, x.start() + 3), p.target(1, x.end() - 6)) for x in re.finditer(
+        rb'\x66\xc7\x05.{4}\x01\x00\x66\xa1.{4}\x66\x0b\xc0\x75.\x66\xa1.{4}\x66\x0b\xc0\x75.\x66\xc7\x05.{4}\x01\x00', d1, re.S)}
+    assert len(vf) == 1, vf
+    s['e0052'], s['df4f4'] = vf.pop()
     # BuyOtherForeignPlayer: ... D2 = 1, D3 = D4 = 0, call ChooseTeamsDialog; cmp word [D0], -1
     m = _one(rb'\xc7\x05' + pk(A1) + rb'\x00\x00\x00\x00\x66\xc7\x05' + pk(D7 - 20) + rb'\x01\x00\x66\xc7\x05' + pk(D7 - 16)
              + rb'\x00\x00\x66\xc7\x05' + pk(D7 - 12) + rb'\x00\x00\xe8(.{4})\x66\x83\x3d' + pk(D0) + rb'\xff\x74', d1,
@@ -1885,7 +1991,7 @@ def patch(p, worlds, at, nasmcave, comp, ct, cont_rec):
         import mkseason                         # world 2025-26: several continents -> VIEW WORLD / foreign browser
         conts = [c for c, _, top in mkseason.WCONT_IDS.get(n, []) if top]
         view = conts or w['countries']          # the continents, then theirs
-        data.append(f'    dd W{n}_CONT, {int(bw)}')
+        data.append(f'W{n}_CONTP: dd W{n}_CONT, {int(bw)}')   # (4.0.6 P3: ctview.world_cups checks it)
         extra.append(f'W{n}_CONT: dd ' + ('WCC, WCWC, WUEFA' if bw else 'CCCOPY, CWCCOPY, UEFACOPY') + ', -1')
         extra.append('    db ' + ', '.join(map(str, view + [0xff])))
         for key, euro in zip(('cc', 'cwc', 'uefa'), s['euro']):
@@ -1934,6 +2040,9 @@ def patch(p, worlds, at, nasmcave, comp, ct, cont_rec):
     assert all(len(x) == 3 for x in nn)
     short = bytes(p.get(2, s['short'], s['short_len'])) + ''.join(nn).encode()
     extra.append('NATSHORT: db ' + ', '.join(map(str, short + b'\0')))
+    sw = b''.join(bytes((c,)) + short[3 * c:3 * c + 3] + t.encode() for c, t in sorted(NAT_TODAY.items()))
+    assert all(len(t) == 3 for t in NAT_TODAY.values()) and max(NAT_TODAY) < len(short) // 3
+    extra.append('NATSW: db ' + ', '.join(map(str, sw + b'\xff')))
     order = bytes(p.get(2, s['natord'], 63))
     assert not set(MENU_NATS) & set(order) and max(MENU_NATS) < len(short) // 3
     order += bytes(MENU_NATS) + b'\xff'
@@ -2002,6 +2111,10 @@ def patch(p, worlds, at, nasmcave, comp, ct, cont_rec):
             for f in ns['files'][w['n']]:
                 bits[32 * w['n'] + f // 8] |= 1 << f % 8
         extra.append('WNSB: db ' + ', '.join(map(str, bits)))
+        mod = [0] * (maxw + 1)                   # 4.0.6: per world 1 = today's nation names (NAT_TODAY): from 2019 on
+        for w in worlds:
+            mod[w['n']] = 1 if w['year'] >= 2019 else 0
+        extra.append('WNMOD: db ' + ', '.join(map(str, mod)))
         extra.append('align 4')
         extra.append('WSTEM: db ' + ', '.join(map(str, b''.join(ns['stems'].get(n, 'team').encode() for n in range(maxw + 1)))))
     import guests
@@ -2038,6 +2151,7 @@ def patch(p, worlds, at, nasmcave, comp, ct, cont_rec):
                 'CCTAB': (2, s['tabs'][0][2]), 'CWCTAB': (2, s['tabs'][1][2]), 'UEFATAB': (2, s['tabs'][3][2]),
                 'WCONT': (0, WCONT), 'SEASONPLAYING': (2, s['season']), 'COMP254': (2, comp + 4 * 254),
                 'COMP99': (2, comp + 4 * WCONT), 'VIEWFIRST': p.target(vobj, vtab), 'CHOOSECOMP': (1, s['choosecomp']),
+                'VCUP': (1, s['vcup_to']), 'DF4F4': s['df4f4'], 'E0052': s['e0052'],
                 'CHOOSETEAMS': (1, s['chooseteams']), 'LASTNAT': (2, s['lastnat']), 'HOLDERS': (1, s['holders']),
                 'ADDREC': (1, s['addrec']), 'CLEARHOLD': (1, s['clearhold']),
                 'LOOP_CWC': (1, s['pick'][1][2]), 'LOOP_UEFA': (1, s['pick'][2][2]),
@@ -2089,6 +2203,7 @@ def patch(p, worlds, at, nasmcave, comp, ct, cont_rec):
     hook(s['away3'], 5, 'w_away3', ())              # and simulated two-legged ties
     hook(s['away4'], 7, 'w_away4', ())
     hook(s['view'], 5, 'w_view', ())
+    hook(s['vcup'], 5, 'w_vcup', ())
     hook(s['buy'], 5, 'w_buy', ())
     hook(s['nat'], 12, 'w_nat', (2, 8))
     hook(s['tfile'], 10, 'w_tfile', (2,))
@@ -2118,6 +2233,9 @@ def patch(p, worlds, at, nasmcave, comp, ct, cont_rec):
     p.put(1, s['nat_wrap'][0], bytes((63 + len(MENU_NATS),)))   # (nat_init sets them for the chosen list)
     p.put(1, s['nat_wrap'][1], bytes((64 + len(MENU_NATS),)))
     SITES['natflag'] = labels['NATFLAG']
+    SITES['nat'] = {'PLNAT': s['plnat'], 'WRAPD': (1, s['nat_wrap'][0]), 'WRAPI': (1, s['nat_wrap'][1]),   # (swe.c
+                    'NATPTR': (1, labels['NATPTR']), 'NATORD': (1, labels['NATORD']),                 # swe_nat_fix)
+                    'NATORD27': (1, labels['NATORD27'])}
     hook(s['tcache'], 5, 'w_tcache', (1,))
     if ns:
         hook(NS['menu_site'], 9, 'w_ns_menu', (3,))
@@ -2370,6 +2488,22 @@ w_load_tail:                            ; LoadCareerFile after load_trailer (tra
     call w_copy
     mov [WPTR], esi
     call w_cupnames
+    xor ecx, ecx                        ; 4.1: the record count (careerFileBuffer's word) is at most the W1 records
+.g:                                     ; present: 128 at most, up to the first empty one (pair 0 and byte 4 - the
+    cmp ecx, 128                        ; status, 1 in every record - 0). Francesco's ISCHIA 06/11 saved 6445h with
+    jae .gd                             ; records 48+ empty: the walk went past the block -> data\\team.255 -> exit
+    cmp cx, [CFB]
+    jae .gd
+    cmp word [esi], 0
+    jne .g1
+    cmp byte [esi + 2], 0
+    je .gd
+.g1:
+    add esi, 2 + VARN
+    inc ecx
+    jmp .g
+.gd:
+    mov [CFB], cx
     mov dword [WI], 0
 .rec:                                   ; every record from its TEAM file + the saved bytes
     movzx eax, word [CFB]

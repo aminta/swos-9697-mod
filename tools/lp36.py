@@ -1968,6 +1968,7 @@ def patch(p, cave, cups, area, lang='it', world_ids=()):
           f"; day 1 {days[0][:3]}...; labels " + ' '.join(f'{k} {v:#x}' for k, v in lab.items() if k.startswith('lp_')))
     LABELS.update(lab)
     LABELS['LP_ORD'] = symbols['LP_ORD']
+    LABELS['LP_KEY'] = symbols['LP_KEY']             # (uesum S2b LP: the points, its keys' +2 word)
     LABELS['symbols'] = {k: symbols[k] for k in ('DIY', 'DIYCOPY', 'A0', 'A1', 'A2', 'C2730A', 'C8A2CE', 'SELTEAMS')}
     return cave + len(code), lab['lp_copy_ours'], lab['lp_draw']
 

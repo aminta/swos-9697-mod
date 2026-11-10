@@ -10,7 +10,8 @@ Italy's 14 divisions lost the last four). Three hooks:
 - ml_pick1 / ml_pick2 follow the two picks (`mov [D0], ax` after the number is read from leagueNumbersTable: the
   career / Season pick and the VIEW WORLD one): a level number opens the level: the country pushed on the menu's
   country's competition list rebuilt at the same menu depth (cseg_4B500, D7 = the country, isCountryNumber 0: a
-  push would make the game take it for a division's team list), filtered to the level;
+  push would make the game take it for a division's team list), filtered to the level, the cursor on its first
+  group (4.0.6: the depth's saved entry in the game's SELTAB cleared, setsel; ESCI puts it back: the level);
   the header's country name (curCountryStr, set again by every rebuild's GetCountryName) becomes '<country>
   <level>', or '<level>' (cut) when the header's 40 characters have no room (SELEZ. SQ. DA DIRIGERE - ITALIA SERIE D);
 - ml_esc (@@no_league_selected, ESCI) with a level open at this depth: closes it, the levels again;
@@ -185,26 +186,6 @@ emit:                                   ; eax = name, cx = number
     pop edi
     ret
 
-ml_pick1:
-    mov [D0], ax
-    cmp ax, 80h
-    jb .back
-    cmp ax, 0FFh
-    ja .back
-    call open
-.back:
-    jmp BACK1
-
-ml_pick2:
-    mov [D0], ax
-    cmp ax, 80h
-    jb .back
-    cmp ax, 0FFh
-    ja .back
-    call open
-.back:
-    jmp BACK2
-
 ml_load:                                ; @@load_team (career team choice): leagueNumber = the entry's index D7
     movzx eax, word [D7]                ; -> its number in leagueNumbersTable (= the index for a plain division)
     mov ax, [NUMS + 2 * eax]
@@ -220,6 +201,19 @@ ml_load:                                ; @@load_team (career team choice): leag
     mov [LEAGUENUM], ax
     jmp BACK3
 
+pback:
+    ret
+ml_pick1:                               ; (the two picks share their body, falling into open: 4.0.6 room for GIRONE A)
+    push BACK1                          ; (open's pop drops it)
+    jmp short pick
+ml_pick2:
+    push BACK2
+pick:
+    mov [D0], ax
+    cmp ax, 80h
+    jb pback
+    cmp ax, 0FFh
+    ja pback
 open:                                   ; a level picked: the country's list again, at the same menu depth (no
     pop eax                             ; push: the depth tells the game which kind of list it shows), filtered
     mov al, [D0]                        ; (no return)
@@ -231,6 +225,10 @@ open:                                   ; a level picked: the country's list aga
     mov [LVL_DEPTH], eax
     mov ax, [D6]                        ; (D6 = the country at a division pick)
     mov [LVL_COUNTRY], ax
+    movzx eax, word [DEPTH]             ; (4.0.6 Davide 04/11) the groups open on their first one, GIRONE A, not on
+    mov ax, [SELTAB + 2 * eax]          ; the level's slot: this depth's saved entry kept for ESCI (back on the
+    mov [LVL_SEL], ax                   ; level, as before), then cleared as for a deeper list (the game's setsel)
+    call SETSEL
 reopen:
     mov word [ISCN], 0                  ; the country's competitions (its file D7), not a division's teams
     mov ax, [LVL_COUNTRY]
@@ -244,12 +242,16 @@ ml_esc:                                 ; @@no_league_selected (ESCI): a level o
     cmp eax, [LVL_DEPTH]
     jne .orig
     mov byte [LVL], 0FFh
+    movzx esi, word [DEPTH]             ; (the saved entry back: the cursor on the level just closed)
+    mov ax, [LVL_SEL]
+    mov [SELTAB + 2 * esi], ax
     jmp reopen
 .orig:
     mov ax, [NUMSEL]
     jmp ESC_BACK
 
 LVL: db 0FFh
+LVL_SEL: dw 0FFFFh
 align 4
 LVL_LAST: dd 0
 LVL_STRUCT: dd 0
@@ -337,6 +339,8 @@ def _sites(p):
     pushc, setsel, rebuild = rel(0), rel(5), rel(31)
     iscn, cn = p.target(1, k + 13), p.target(1, k + 27)
     csp = p.target(1, pushc + 1)
+    assert d1[setsel:setsel + 2] == b'\x66\xa1' and d1[setsel + 0x13:setsel + 0x15] == b'\xc7\x05', d1[setsel:setsel + 0x20].hex()
+    depth, seltab = p.target(1, setsel + 2), p.target(1, setsel + 0x19)   # setsel: the menu depth, the saved entries
     a0 = re.escape(struct.pack('<I', A0))
     m = re.search(rb'\xa1(.{4})\xa3' + a0 + rb'\x83\x3d' + a0 + rb'\x00\x75.\xc7\x05' + a0 + rb'(.{4})', d1, re.S)
     hdr1, defhdr = p.target(1, m.start(1)), p.target(1, m.start(2))    # SelectTeamsReinit: the header's first part
@@ -360,7 +364,7 @@ def _sites(p):
     m = list(re.finditer(rb'\x66\xa1(.{4})\x66\x0b\xc0\x0f\x84.{4}\x66\xc7\x05' + pk(iscn[1]) + rb'\x00\x00\xe8', d1, re.S))
     assert len(m) == 1, len(m)
     esc, numsel = m[0].start(), p.target(1, m[0].start(1))    # @@no_league_selected: mov ax, [numSelectedTeams]
-    return dict(loop=loop, divtab=divtab, numl=numl, cur_next=cur_next, no_more=no_more, picks=sorted(picks), pushc=pushc, setsel=setsel,
+    return dict(depth=depth, seltab=seltab, loop=loop, divtab=divtab, numl=numl, cur_next=cur_next, no_more=no_more, picks=sorted(picks), pushc=pushc, setsel=setsel,
                 rebuild=rebuild, iscn=iscn, cn=cn, csp=csp, reset=reset, leaguenum=leaguenum, load=load, esc=esc, numsel=numsel, curcountry=curcountry, hdr1=hdr1, defhdr=defhdr, gts=gts,
                 regs=dict(D0=D0, D1=D1, D6=D6, A1=A1, A2=A2, A3=A3, A4=A4))
 
@@ -390,7 +394,7 @@ def patch(p, at, area, lang):
                 'SETSEL': (1, s['setsel']), 'REBUILD': (1, s['rebuild']), 'BACK3': (1, s['load'] + 12),
                 'NUMS': (2, menutab.NEW[1]), 'D7': (2, s['regs']['D6'] + 4), 'NUMSEL': s['numsel'],
                 'ESC_BACK': (1, s['esc'] + 6), 'CURCOUNTRY': s['curcountry'], 'HDR1': s['hdr1'],
-                'DEFHDR': s['defhdr'], 'GTS': s['gts']})
+                'DEFHDR': s['defhdr'], 'GTS': s['gts'], 'DEPTH': s['depth'], 'SELTAB': s['seltab']})
     body = []
     for k, ((obj, off), levels, rows) in enumerate(lv):
         sym[f'S{k}'] = (obj, off)

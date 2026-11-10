@@ -174,6 +174,7 @@ LANGS = ('it', 'en', 'fr', 'de')
 
 
 FIT_NAMES = {   # hand-picked forms (regia / Davide 2026-10-20): (original long name, language or '*') -> the long name used
+    ('FA COMMUNITY SHIELD', '*'): 'COMMUNITY SHIELD',   # (4.0.6 supercups: INGHILTERRA FA COMMUNITY SHIELD 161 px)
     ('SEGUNDA DIVISION OCCIDENTE', '*'): 'SEGUNDA OCCIDENTE', ('SEGUNDA DIVISION ORIENTE', '*'): 'SEGUNDA ORIENTE',
     ('TERCERA DIVISION OCCIDENTE', '*'): 'TERCERA OCCIDENTE', ('TERCERA DIVISION ORIENTE', '*'): 'TERCERA ORIENTE',
     ('CAMPEONATO BRASILEIRO SERIE A', '*'): 'BRASILEIRAO SERIE A', ('CAMPEONATO BRASILEIRO SERIE B', '*'): 'BRASILEIRAO SERIE B',
@@ -384,7 +385,21 @@ def fit_titles(m):
     return m
 
 
-FONT = set(" &'()-./0123456789:,!?+ABCDEFGHIJKLMNOPQRSTUVWXYZ")   # the characters the game's menu fonts draw (4.0)
+FONT = set(" '()-./0123456789:,?+ABCDEFGHIJKLMNOPQRSTUVWXYZ")   # the characters the game's menu fonts draw (4.0;
+# 4.0.6: no '&' / '!' - both fonts' conversionTable (smallCharsTable / bigCharsTable) map them, as '"#$<=>@', to sprite
+# 0: not a glyph - Davide's MiSTer, 'O&M' in the CONCACAF page)
+DE_UMLAUT = {'\x8e', '\x99', '\x9a'}   # the German exe's A / O / U umlauts (its own strings' bytes): both DE fonts'
+# conversionTable maps them to sprites 53 / 55 / 54 - mod texts in the DE exe, big-font titles only (the small font's dots
+# barely show: AE / OE / UE there, Davide 26/10 + 08/11, CONVENTIONS.md)
+FONT_EXCEPT = {   # shipped names outside FONT, known and with their data owner (each one shows a broken glyph): the
+}   # (the checks report them, never fail; 04/11: O&M -> O Y M, TREFELIN B & G -> TREFELIN BGC in world5tm-403c12 / 12b,
+    #  SELLIER & BELLOT -> SB VLASIM in 403c13 / 13b, HARLAND & WOLFF -> HARLAND WOLFF in europe-1984-85: none left)
+
+
+def font_odd(name):
+    """The characters of name the menu fonts cannot draw (upper-cased), none for a FONT_EXCEPT name."""
+    u = name.upper()
+    return [] if u in FONT_EXCEPT else sorted(set(u) - FONT)
 
 
 def check_titles(m, clubs=()):
@@ -439,7 +454,7 @@ def check_titles(m, clubs=()):
         for i, dv in enumerate(c.get('divisions', []) or []):
             stage_titles((dv or {}).get('split'), f"{c.get('key')} division {i}")
     for name in clubs:
-        odd = sorted(set(name.upper()) - FONT)
+        odd = font_odd(name)
         if odd:
             bad.append(f"{m.get('id')} club {name!r}: characters {odd}")
     return bad

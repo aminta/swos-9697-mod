@@ -29,16 +29,39 @@ substituted). The buffers' tail (bytes 1018..1703) is free (harness bench_mem, 2
   goalkeeper's only, in FirePressedInSubsMenu, UpdateSubstitutePlayerIndices and DrawBenchPlayersAndCoach twice)
   compare with 127: never taken.
 
-Block 2 (the bench graphic, 4.1): the dugout keeps its art and 5 places; with a bigger bench they are a window of 5
-that scrolls with the cursor (Davide's choice B).
+Block 2 (the bench graphic): 4.1 kept the dugout's art and 5 places, a window of 5 that scrolled with the cursor;
+4.0.6 (Davide 03/11, two-row V1) has two-row dugouts (dugout.py: PITCH1-5 2 tile rows longer and one column wider
+each) and every bench place seated, both benches: the back row the coach + places 1..7, the front row places 8..15.
 - BenchMenuHandleControls' `cmp [g_benchPlayerIndex], 5` / `, 6` (the cursor's last place / one past it) ->
   bx_cmp_last / bx_cmp_last1: the last place is max(5, gameMaxSubstitutes) <= 15 (5 in a training game); empty
   places are skipped by IsThisPlayerOkToSelect as the game's own substituted players.
-- DrawBenchAndSubsMenu's `mov ax, [g_benchPlayerIndex]` (the arrow's row) -> bx_arrow: the window start bx_win
-  follows the cursor (the coach or a training game: 0), the arrow's row = index - bx_win; (4.0.6, two humans) the
-  bench's entry (BenchCheckControls' `mov word [g_benchPlayerIndex], 0`) -> bx_bentry: the window back at the top.
-- DrawBenchPlayersAndCoach's `mov word [D7], 1` / `cmp word [D7], 6` -> bx_win_init / bx_win_end: places
-  bx_win + 1 .. bx_win + 5 (A0 moved on by bx_win players); the opponent's bench (g_subsState -1) its first 5.
+- DrawBenchPlayersAndCoach's `cmp word [D7], 6` -> bx_win_end: places 1 .. that last place (the arrow's row and the
+  first place are the game's: the index, place 1), the opponent's bench (g_subsState -1) the same; an empty place is
+  an empty seat (the game's own skip, y still moves on).
+- BenchCheckControls' `mov word [D1], 389` (the top bench's y) -> bx_benchy: 389 - 16 x dugout.ADD = 373, the top
+  dugout grew upwards (a training game: 389, PITCH6 unchanged); the bottom one grew downwards (485 stays).
+- MoveCamera's bench destination `mov word [D4], 449` -> bx_camy: dugout.CAM_MID 450, the halfway line between the
+  two-row dugouts (their ink y 352..547, roof cap to steps: both whole in one 200-row screen from y 350, the
+  opponent's bench too), 449 as before in a
+  training game; its arrival window `cmp [g_cameraY], 339` / `, 359` (the x limit 0: the dugout at the screen's left
+  edge) -> bx_camlo / bx_camhi: the destination - 110 / - 90. bx_camlo also sets g_cameraY on the destination when
+  it is 1..3 px above it: there the game's step (delta / 4 x 0.25 px) is 0, the camera never stands still
+  (cameraCoordinatesValid stays 0) and the bench takes no keys (the camera stops above it coming from the top half).
+- (two rows) DrawBenchPlayersAndCoach's players' `call DrawSpriteInCameraView` -> bx_seat: a place over dugout.BACK
+  (7) at x + 9, y - 53 (= one row of 8 seats back up, + 3: place 8 level with the coach); a standing back-row figure
+  (the cursor's in the subs menu: sprites 1316..1321) at x + 9 too, in front of the front row (exit option e: the
+  game has no walk out of the seat, he appears standing). The caller pushes / pops D1 and D2, so the stub moves them
+  freely. Both benches (the opponent's through DrawOpponentsBench), not in a training game.
+- The arrow's `call DrawSpriteInCameraView` (DrawBenchAndSubsMenu) -> bx_arrow: on a front-row place the game's
+  arrow (sprite 1284) mirrored, right of the front row pointing left, y as its seat: bx_mirror mirrors the sprite in
+  place (centerX = width - 1 - centerX; VGA: 2 pixels a byte, high nibble first -> each line's bytes reversed,
+  nibbles swapped; EGA, unchained at the match's start: each plane's line's bytes reversed, bits reversed), the
+  game draws it, bx_mirror again gives the game's arrow back (no buffer: obj3 is nearly full).
+- (two rows) UpdateTime's `mov word [currentTimeSprite.z], 10000 / ret` -> jmp bx_clock: with the bench open
+  (g_inSubstitutesMenu) the clock at the screen's top right (x = camera + 289 - its picture's width: its right edge
+  at x 288, left of the game's spinning S at camera + 285, ink from x 295), off the top dugout's coach and first
+  seats; not in a training game. (The game itself moves the clock only 8 px down, with currentPlayerIndicatorPosition 4.)
+  (bx_win / bx_cur stay as 0 words: the harness finds the tables from bx_bench.)
 - Block 3, the names (on namespr's 112 px sprites, 4.0.5): plOrdinalsTable / plNamesLengthTable /
   plNamesLengthTableCopy (obj2, 16 bytes a team) move here at 26 a team (bx_ord / bx_len / bx_lenc, every reference
   retargeted; the team-2 offsets +16 -> +26 in SwapPlayerNameData, SetCurrentPlayerName, CopyPlayerNameLengths and
@@ -56,24 +79,27 @@ from 12 on, scrolled by the box left of row 17), 4.0.6 (Davide 31/10):
 - a marked player stays marked when the window scrolls: the game keeps the mark as his place (selectedPlayerPosition /
   dseg_16F48C / dseg_17994A = GetPlayerInfoBreakPosition's D1, not a row), draws it wherever he shows and swaps by
   place, so pm_rot / et_rot no longer cancel it (sq_rot never did);
-- the cursor scrolls the window as in the dugout: MenuProc's `mov [D6], ax` (the move, 2 up / 3 down, before it looks
-  for the next entry) -> bx_mdir: on row 17 down / row 12 up, while the window can move (0 .. players - 17, as the
-  box), the window moves one place and the cursor stays (the menu redrawn, no entry search). The screen is told by the
-  selected entry's onSelect (OnSwapPlayer, SquadCommon, EditTacticsPlayerNamesCommon) and its ordinal.
-  (4.0.5, Davide 01/11 on Marco's feedback) down on row 17 with the window at its end goes back to the top of the
-  bench (window 0, the cursor on row 12), as the box; up on row 12 at the top keeps the game's move (row 11, the
-  starters). The entries below row 17 stay reachable another way (swostest wrap_reach). ViewSquad / the call-ups: no wrap.
+- only the box scrolls the window (4.0.6, Marco 02/11: as the original game, whose box rotates the reserves): the
+  cursor on the name rows moves as in the game - DOWN on row 17 to the game's next entry (PLAY MATCH, the squad
+  screen's buttons, the tactics editor's next), UP on row 12 to row 11 - on every own-team list (pre-match, SQUADRA,
+  the tactics editor, ViewSquad, the call-ups). (Gone: the 31/10 cursor scroll on rows 12 / 17 and its 4.0.5 wrap,
+  174f34f.) bx_mdir stays for VIEW OPPONENT only.
+  (4.0.6, Marco / Davide 02/11) the pre-match screen's links are the original game's (its own playMatchMenu, no
+  pm_links any more): DOWN from the last name -> the player / coach line -> PLAY MATCH, ESCI up / UTN A, C, E left ->
+  the player / coach line; a manager (the line hidden): the game's own skip, on to PLAY MATCH / row 17.
 - VIEW OPPONENT (the pre-match screen with viewingOpponentTeam; Davide's PANpt4 photo: a CPU BOLOGNA showed 11 + 5,
   its places 17.. out of sight): with a bench over 5 the opponent's places are 16 + its XTRA block's players (po_n, as
   bx_next: a career's CPU club), at most 11 + the bench; rows 12..17 a window bx_po on them (pm_row; row 17 = entry
   29 made visible, the game shows it by the own team's count), read-only: on a CPU club's view up / down anywhere move
-  the window one place (bx_mdir, wrapping as the box), nothing else changes.
+  the window one place (bx_mdir, wrapping as the box), nothing else changes. (4.0.6, Salvatore / Davide) only while the
+  pre-match screen shows (g_currentMenu's onInit = PlayMatchMenuInit): AVVERSARI then GIOCA PARTITA leaves the game's
+  viewingOpponentTeam set until the next pre-match screen, and up / down were dead in every menu after the match.
 - (4.0.6) ViewSquad (the game's squad view: AGG. GIOCATORE AL CALCIOMERC., offers, ...; the box and row 17 only for the
   managed club) and SelectNationalTeam (the national call-ups, careerTeam, at most 20 players: the game's per-player
   tables there, dseg_D6F48 / dseg_D6F98, hold 20): rows 12..17 a window bx_vw on the places from 12 on, as SQUADRA.
   vw_cmp (their AfterDrawCommon's `cmp word [D1], 10h`: row -> place in D1 / D6, no number from 11 + bench on),
   vw_gpi (their Common's GetPlayerInfoBreakPosition: the picked row -> its place), vw_rot (the box: the window one down
-  with a bench over 5, else the game's rotation), bx_mdir (the cursor on rows 12 / 17), vw_vinit (ViewSquad's entry:
+  with a bench over 5, else the game's rotation), vw_vinit (ViewSquad's entry:
   the window kept only when it comes back to a bench row of the managed club) and vw_ninit (the call-ups: at the top).
 
 Phase 2 (4.0.6): each competition's real rule (internal/panchina/fase2.md: official 2026-27 texts or the largest bench
@@ -81,8 +107,9 @@ seen in real 2026-27 team sheets). bench_table() builds, per exe language, a tab
 with a known bench: title (the country's button name + ' ' + the competition's / division's first name: what the game
 shows, FORMAT's key; 40 characters at most), named substitutes, substitutions allowed, extra-time substitute (stored,
 used at extra time: bx_et), from tools/bench2627.json x the world's career packs in SEASON_PACKS (none: no table, the
-game's rule everywhere). bx_look (careers only) finds the current competition's title (DIY_competitionStart + 4, as at
-the kick-off of InitializeInGameTeamsAndStartGame: e.g. ITALIA SERIE D GIRONE A) in it, cached by title; bx_max takes
+game's rule everywhere). bx_look (careers only; not a training game, 4.0.6 Marco: the game's 2 from 2) finds the
+current competition's title (DIY_competitionStart + 4, as at the kick-off of InitializeInGameTeamsAndStartGame: e.g.
+ITALIA SERIE D GIRONE A) in it, cached by title; bx_max takes
 its bench (else the game's: a career league passes its record's +65h, 5), bx_min (`mov [gameMinSubstitutes], ax`) its
 substitutions (else the game's +63h, 3), sq_n its bench for the pre-match screens. The test switch bx_bench wins over
 both. Competitions not in the table keep the game's 3 from 5. (4.0.5, Davide 30/10) bench_table fills bench2627.json's
@@ -91,6 +118,24 @@ cup or state championship from the country's top league ('=league.N': division N
 clubs' division; every country a prefix entry ('<COUNTRY> ', et bit 7: bx_strpre) = its top league or its
 confederation's default, so any other title of it (supercups...) has a real bench; the table's entries are the
 title + NUL + 3 bytes (no padding: 184 entries, < 4 KB, in benchx's 2 pages). internal/reports/bench-unknowns-2627.md.
+
+Friendlies (4.0.6, Regia / Davide 05/11): a FRIENDLY / DIY match (gameType 0 / 1) of the World 2026-27 has the longer
+real bench of its two clubs' (country, division) entries (bx_frset at the kick-off, bx_frpm on the pre-match screens:
+FR_TAB from bench_table); a club with a bench over 5 plays with 16 + its XTRA block's players (bx_xnamed).
+(B, Davide 05/11) such a club has its own order of those places (fr_find; 4 clubs at a time, fr_tab): places 0..15 its
+record's order (TeamFile.playerNumbers), 16.. its XTRA players (index 16 + slot, as xs_ga); rebuilt when the record's
+players are no longer in that order (another screen moved them) or the block's count changed. It is read while the
+pre-match screen shows (ShowPlayMatchMenu until ShowMenu returns: pm_max / fr_pmend, its tactics editor too) and while
+the kick-off builds the two teams (bx_max .. the second bx_next end): GetPlayerAtIndex's not-the-current-team path
+(fr_ga, chained before xbrowse's xs_ga) serves place D1 from it; the pre-match screen shows 16 + n players
+(numPlayersToShowInMenu, fr_nps: row 17 and the box, the window bx_pw), the tactics editor the same
+(editTacticsNumPlayers, fr_etnp); the swaps of both (PlayMatchMenuSwapPlayers / cseg_4E3DD's @@no_career: fr_sw_pm /
+fr_sw_et) swap its two places and write the record's players back in their new order (no index >= 16 in the
+record's 16 bytes; an XTRA player among the starters = the record's next players move up). The in-match team follows
+the order (InitInGameTeamStructure -> GetPlayerInfoBreakPosition -> GetPlayerAtIndex). The order of the XTRA players
+is kept only while the club stays in fr_tab (the record's own order always is). The pre-match screen's PLAY MATCH
+checks (GetNumberOfAvailablePlayers: the first 11 fit; GetNumberOfSubstitutes: a goalkeeper in place 1) read it too
+(fr_a2: A2 = the order, fr_a1: an XTRA index's record = his cached slot), so they judge the players on the screen.
 
 spritesIndex past the game's 1335 entries (shirtnum.py's extension into the 3072 free bytes after it: indices
 1335..2102; it cannot move, SWOS++ holds its address):
@@ -110,20 +155,24 @@ import nasmcave
 import shirtnum
 
 MAXP = 26                               # 11 + 15
+FRN, FRE = 4, 36                        # (B) fr_find: 4 clubs' own orders (dw team, db n, db used, 32 places)
 NB = blond.ICONBL + 2                   # the name sprites of places 17..26: team 1 1912.., team 2 1922.. (after the bald icons)
 SPR_END = shirtnum.NEWBASE + 3072 // 4  # 2103: spritesIndex's room ends here
 assert (shirtnum.NEWBASE + 83 == blond.NEW1 and blond.NEW2 + 101 == menunum.NEWBASE and menunum.NEWBASE + 88 == blond.NEW3
         and blond.NEW3 + 202 == blond.ICONBL and NB + 2 * (MAXP - 16) <= SPR_END), 'spritesIndex map overlaps'
 PI = 61                                 # sizeof PlayerInfo
 TABLE = struct.pack('<16H', *(i * PI for i in range(16)))     # 0, 61 .. 915
+INFO = {}                               # patch()'s sites for the modules after it (kittrain: TRAIN)
 
 ASM = r"""
 bx_max:                                 ; replaces `mov [GMAX], ax` (InitializeInGameTeamsAndStartGame)
+    mov byte [fr_on + 1], 2             ; (B) the two teams' builds read a friendly club's own order (fr_find)
     cmp word [bx_bench], 0
     je .comp
     mov ax, [bx_bench]
     jmp .cap
 .comp:                                  ; (phase 2) the competition's real bench (bx_look), else the game's
+    call bx_frset
     call bx_look
     cmp byte [bx_lkres], 0
     je .game
@@ -139,6 +188,7 @@ bx_max:                                 ; replaces `mov [GMAX], ax` (InitializeI
 bx_min:                                 ; (phase 2) replaces `mov [GMIN], ax`: the competition's substitutions
     cmp word [bx_bench], 0              ; allowed (bx_look), else the game's; the test switch keeps the game's
     jne .game
+    call bx_frset
     call bx_look
     cmp byte [bx_lkres + 1], 0
     je .game
@@ -151,8 +201,18 @@ bx_look:                                ; (phase 2) [bx_lkres] = the current com
     pushad                              ; not in the table (the game's rule). Careers only: the current competition =
     mov word [bx_lkres], 0              ; DIY_competitionStart, its title at +4 (the slot's name, as FORMAT's key);
     mov byte [bx_lket], 0               ; [bx_lket] = its extra-time substitute (4.0.6)
+    cmp word [GAMETYPE], 1              ; (4.0.6) a friendly / DIY match (gameType 0 / 1): bx_frset's at the kick-off
+    ja .car
+    mov ax, [bx_frkeep]
+    mov [bx_lkres], ax
+    mov al, [bx_fretk]
+    mov [bx_lket], al
+    jmp .out
+.car:
     cmp word [GAMETYPE], 4
     jne .out
+    cmp word [TRAIN], 0                 ; (4.0.6, Marco) a training game (TRAINING on the squad screen) keeps the game's
+    jne .out                            ; 2 from 2 (PlayTrainingGame): no league bench in the dugout / squad lists
     cmp byte [SLT + WORLD_BYTE_], BXWORLD_   ; the career's world (careerworld's save byte): the 2026-27 one only (the
     jne .out                            ; 1996-97 base game and the historic worlds keep the game's rule, same titles)
     mov esi, DIYNAME
@@ -329,6 +389,10 @@ bx_next:                                ; replaces `add word [D2], 1 / cmp word 
     jmp .empty
 .done:
     mov [A6], edi
+    cmp byte [fr_on + 1], 0             ; (B) one team built
+    je .d0
+    dec byte [fr_on + 1]
+.d0:
     xor eax, eax                        ; ZF = 1: done
     jmp .out
 .more:
@@ -339,10 +403,96 @@ bx_next:                                ; replaces `add word [D2], 1 / cmp word 
     pop eax
     ret
 
+bx_frset:                               ; (4.0.6, Davide 05/11) a friendly / DIY match of the World 2026-27 (gameType
+    pushad                              ; 0 / 1, WCUR = its world, not a training game): [bx_frkeep] / [bx_fretk] =
+    mov esi, [A1]                       ; the longer real bench of the two clubs (A1 / A2: their team files, at the
+    mov edi, [A2]                       ; kick-off's stores): each one's (country, division) entry of bx_frtab, else
+    call bx_frcalc                      ; its country's (division 0FFh); a national / custom team (no entry): the game's
+    popad
+    ret
+
+bx_frpm:                                ; (4.0.6) the same for the pre-match screens (sq_n): ShowPlayMatchMenu's two teams
+    pushad                              ; (playMatchTeam1Ptr / playMatchTeam2Ptr, this match's A1 / A2)
+    mov esi, [PMT1]
+    mov edi, [PMT2]
+    call bx_frcalc
+    popad
+    ret
+
+bx_frcalc:                              ; esi, edi -> the two team files
+    mov word [bx_frkeep], 0
+    mov byte [bx_fretk], 0
+    cmp word [GAMETYPE], 1
+    ja .out
+    cmp word [TRAIN], 0
+    jne .out
+    mov eax, [bx_w27p]                  ; (4.0.6 step 2.5) the engine's SWE_W27 when linked (link_w27): 1 = the
+    test eax, eax                       ; contest the friendly / DIY picker or a DIY file left is World 2026-27's
+    jz .wc
+    cmp dword [eax], 1
+    jne .out
+    jmp .on
+.wc:
+%if WCURV_
+    cmp byte [WCURV], BXWORLD_          ; (else the current world)
+    jne .out
+%else
+    jmp .out
+%endif
+.on:
+    push edi
+    call bx_frone
+    pop esi
+    call bx_frone
+.out:
+    ret
+
+bx_frone:                               ; esi -> a team file: its entry's bench if longer than [bx_frkeep]'s
+    test esi, esi
+    jz .r
+    mov al, [esi]                       ; countryNumber
+    mov ah, [esi + 25]                  ; league (the division)
+    mov edx, bx_frtab
+    mov ecx, [bx_frn]
+    xor ebx, ebx
+.f:
+    jecxz .d
+    cmp al, [edx]
+    jne .n
+    cmp ah, [edx + 1]
+    je .hit
+    cmp byte [edx + 1], 0FFh
+    jne .n
+    mov ebx, edx                        ; the country's own (its top league / confederation)
+.n:
+    add edx, 5
+    dec ecx
+    jmp .f
+.hit:
+    mov ebx, edx
+.d:
+    test ebx, ebx
+    jz .r
+    mov al, [ebx + 2]
+    cmp al, [bx_frkeep]
+    jbe .r
+    mov [bx_frkeep], al
+    mov al, [ebx + 3]
+    mov [bx_frkeep + 1], al
+    mov al, [ebx + 4]
+    mov [bx_fretk], al
+.r:
+    ret
+
 bx_xnamed:                              ; ax = team word -> eax = the players of its XTRA block (a career's CPU club;
 %if HASX_                               ; the ones the managed club bought are blanked there), else 0
-    cmp word [GAMETYPE], 4
-    jne .no
+    cmp word [GAMETYPE], 4              ; (4.0.6) or a friendly / DIY club with a long bench (bx_frset's)
+    je .gt
+    cmp word [GAMETYPE], 1
+    ja .no
+    cmp byte [bx_frkeep], 5
+    jbe .no
+.gt:
     cmp word [TRAIN], 0
     jne .no
     push ecx
@@ -371,6 +521,257 @@ bx_xnamed:                              ; ax = team word -> eax = the players of
 %endif
     xor eax, eax
     ret
+
+%if HASFR_                              ; (B: builds with XTRA blocks and xbrowse's xs_ga)
+fr_find:                                ; (B, 4.0.6, Davide 05/11) esi -> a team file: CF = 0 when it has its own
+                                        ; order (a friendly / DIY club with a long bench, while the pre-match screen
+    cmp word [fr_on], 0                 ; shows or the kick-off builds the teams): edi -> it (place -> index: 0..15 the
+    je .none                            ; record's players, 16 + slot the XTRA block's), ecx = its places (16 + n).
+    cmp word [GAMETYPE], 1              ; Rebuilt from the record's order (TeamFile.playerNumbers) + the block when
+    ja .none                            ; the record's players are no longer in that order (another screen moved
+    push eax                            ; them) or the block's count changed
+    push ebx
+    push edx
+    mov ax, [esi]
+    call bx_xnamed
+    test eax, eax
+    jz .no
+    cmp eax, MAXE_
+    jbe .n
+    mov eax, MAXE_
+.n:
+    mov edx, eax                        ; edx = n
+    mov ax, [esi]
+    mov edi, fr_tab
+    mov ecx, FRN_
+.s: cmp byte [edi + 3], 0
+    je .sn
+    cmp [edi], ax
+    je .hit
+.sn:
+    add edi, FRE_
+    dec ecx
+    jnz .s
+    movzx edi, byte [fr_next]           ; not there: the next slot in turn
+    inc byte [fr_next]
+    and byte [fr_next], FRN_ - 1
+    imul edi, edi, FRE_
+    add edi, fr_tab
+    jmp .build
+.hit:
+    cmp [edi + 2], dl
+    jne .build
+    push esi                            ; its record players in order = the record's?
+    lea ebx, [edi + 4]
+    lea ecx, [edx + 16]
+    add esi, PNUM_
+.c: mov al, [ebx]
+    cmp al, 16
+    jae .cn
+    cmp al, [esi]
+    jne .cbad
+    inc esi
+.cn:
+    inc ebx
+    dec ecx
+    jnz .c
+    pop esi
+    jmp .ok
+.cbad:
+    pop esi
+.build:
+    mov ax, [esi]
+    mov [edi], ax
+    mov [edi + 2], dl
+    mov byte [edi + 3], 1
+    push esi
+    push edi
+    add esi, PNUM_
+    add edi, 4
+    mov ecx, 16
+    rep movsb                           ; places 0..15: the record's order
+    pop edi
+    pop esi
+    push edi
+    add edi, 20
+    mov ax, [esi]
+    call XTB                            ; places 16..: the block's players in order (index 16 + slot, as xs_ga)
+    test eax, eax
+    jz .bd
+    movzx ecx, byte [eax + 2]
+    lea ebx, [eax + 4 + 3]
+    mov al, 16
+.b: test ecx, ecx
+    jz .bd
+    cmp byte [ebx], 0
+    je .bs
+    test edx, edx
+    jz .bd
+    mov [edi], al
+    inc edi
+    dec edx
+.bs:
+    inc al
+    add ebx, PLAYER_
+    dec ecx
+    jmp .b
+.bd:
+    pop edi
+    movzx edx, byte [edi + 2]
+.ok:
+    lea ecx, [edx + 16]
+    add edi, 4
+    pop edx
+    pop ebx
+    pop eax
+    clc
+    ret
+.no:
+    pop edx
+    pop ebx
+    pop eax
+.none:
+    stc
+    ret
+
+fr_ga:                                  ; GetPlayerAtIndex, a club that is not the current / managed one (chained
+                                        ; before xbrowse's xs_ga): a club with its own order -> place D1's player
+    cmp word [fr_on], 0
+    je .x
+    pushad
+    push dword [D0]
+    push dword [D1]
+    call GTP
+    pop dword [D1]
+    pop dword [D0]
+    mov esi, [A0]
+    call fr_find
+    jc .no
+    movzx ebx, word [D1]
+    cmp ebx, ecx
+    jae .no
+    movzx ax, byte [edi + ebx]
+    mov [D1], ax
+    popad
+    add esp, 4                          ; not coming back (as xs_ga): GetPlayer, gp_wide serves 16..
+    jmp GETPLAYER
+.no:
+    popad
+.x:
+    jmp XSGA
+
+fr_swap:                                ; eax -> the swapping screen's team file, D3 / D4 the two places: CF = 1 swapped
+                                        ; in its own order (and the record's players' order written back to
+    pushad                              ; TeamFile.playerNumbers: no index >= 16 there), CF = 0 the game's
+    mov esi, eax
+    call fr_find
+    jc .no
+    movzx ebx, word [D3]
+    movzx edx, word [D4]
+    cmp ebx, ecx
+    jae .done
+    cmp edx, ecx
+    jae .done
+    mov al, [edi + ebx]
+    xchg al, [edi + edx]
+    mov [edi + ebx], al
+    add esi, PNUM_
+.w: mov al, [edi]
+    cmp al, 16
+    jae .wn
+    mov [esi], al
+    inc esi
+.wn:
+    inc edi
+    dec ecx
+    jnz .w
+.done:
+    popad
+    stc
+    ret
+.no:
+    popad
+    clc
+    ret
+
+fr_sw_pm:                               ; PlayMatchMenuSwapPlayers' @@no_career (`mov eax, [playMatchTeam1Ptr]`, then
+    mov eax, [PMT1]                     ; A0 = its playerNumbers, the swap)
+    call fr_swap
+    jc .r
+    mov [A0], eax
+    add dword [A0], PNUM_
+    jmp SWPM
+.r: ret
+
+fr_sw_et:                               ; the tactics editor's swap (cseg_4E3DD): the same with chooseTacticsTeamPtr
+    mov eax, [CTTP]
+    call fr_swap
+    jc .r
+    mov [A0], eax
+    add dword [A0], PNUM_
+    jmp SWET
+.r: ret
+
+fr_nps:                                 ; PlayMatchMenuReinit's `mov [numPlayersToShowInMenu], ax`: a club with its own
+    mov [NPS], ax                       ; order shows its 16 + n (row 17 and the box: SetVariableButtons)
+    pushad
+    mov esi, [PMT1]
+    call fr_find
+    jc .r
+    mov [NPS], cx
+.r: popad
+    ret
+
+fr_etnp:                                ; EditTacticsInit's `mov [editTacticsNumPlayers], ax`: the same
+    mov [ETNP], ax
+    pushad
+    mov esi, [CTTP]
+    call fr_find
+    jc .r
+    mov [ETNP], cx
+.r: popad
+    ret
+
+fr_a2:                                  ; GetNumberOfAvailablePlayers / GetNumberOfSubstitutes: replaces `mov [A2], eax`
+    mov [A2], eax                       ; (A2 = the record's playerNumbers): a club with its own order -> it, so the
+    mov byte [fr_gn], 0                 ; pre-match screen's PLAY MATCH checks (the first 11 fit, a goalkeeper in
+    pushad                              ; place 1) read the players shown there
+    mov esi, [A0]
+    call fr_find
+    jc .r
+    mov [A2], edi
+    mov byte [fr_gn], 1
+.r: popad
+    ret
+
+fr_a1:                                  ; their `mov [A1], eax` (eax = A0 + index * 38: the player's record, - 4Ch):
+    mov [A1], eax                       ; with fr_a2's order an XTRA index (16..) -> his cached slot (xtra's xt_slot)
+    cmp byte [fr_gn], 0
+    je .r
+    pushad
+    sub eax, [A0]
+    cmp eax, 16 * PLAYER_
+    jb .o
+    mov edi, eax                        ; index * 38
+    xor edx, edx
+    mov ebx, PLAYER_
+    div ebx
+    mov ecx, eax
+    mov esi, [A0]
+    mov ax, [esi]
+    call XTS
+    test eax, eax
+    jz .o
+    add eax, edi
+    mov [A1], eax
+.o: popad
+.r: ret
+
+fr_pmend:                               ; ShowPlayMatchMenu's `mov ax, [playerNumThatStarted]` after ShowMenu: the
+    mov byte [fr_on], 0                 ; pre-match screen is gone
+    mov ax, [PNTS]
+    ret
+%endif
 
 bx_stad:                                ; ShowStadiumInit's last `jmp SetExitMenuFlag` (the line-ups drawn and faded in):
     pushad                              ; a bench over 5 with players past place 16 -> its rows 12..16 turn pages
@@ -547,60 +948,220 @@ bx_cmp_last1:                           ; replaces `cmp word [IDX], 6`
     pop eax
     ret
 
-bx_arrow:                               ; replaces `mov ax, [IDX]` (the arrow's row): ax = IDX - bx_win
-    push ebx
-    movzx eax, word [IDX]
-    xor ebx, ebx
-    cmp word [TRAIN], 0
-    jne .set
-    or eax, eax
-    jz .set                             ; (the coach: the first 5)
-    movzx ebx, word [bx_win]
-    dec eax                             ; the cursor's place - 1
-    cmp eax, ebx
-    jae .down
-    mov ebx, eax                        ; above the window: it starts there
-    jmp .set
-.down:
-    sub eax, 4
-    cmp eax, ebx
-    jle .set
-    mov ebx, eax                        ; below it: it ends there
-.set:
-    mov [bx_win], bx
-    movzx eax, word [IDX]
-    sub eax, ebx
-    pop ebx
-    ret
-
-bx_bentry:                              ; (4.0.6, two humans) replaces BenchCheckControls' `mov word [IDX], 0` (a bench
-    mov word [IDX], 0                   ; entered, @@init_bench_vars): the window back at the top too, before the dugout
-    mov word [bx_win], 0                ; is drawn (the other team's bench showed the window where the first one left it)
-    ret
-
-bx_win_init:                            ; replaces `mov word [D7], 1` (DrawBenchPlayersAndCoach, A0 -> place 11)
-    push eax
-    xor eax, eax
-    cmp word [SUBST], 0
-    jl .w                               ; (the opponent's bench: its first 5)
-    cmp word [TRAIN], 0
-    jne .w
-    mov ax, [bx_win]
-.w:
-    mov [bx_cur], ax
-    inc eax
-    mov [D7], ax
-    dec eax
-    imul eax, eax, PI
-    add [A0], eax
+bx_win_end:                             ; replaces `cmp word [D7], 6` (DrawBenchPlayersAndCoach): every place seated
+    push eax                            ; (4.0.6 long dugouts), both benches
+    call bx_lastw
+    inc ax
+    cmp [D7], ax
     pop eax
     ret
 
-bx_win_end:                             ; replaces `cmp word [D7], 6`
+bx_benchy:                              ; (4.0.6) replaces `mov word [D1], 389` (BenchCheckControls: the top bench's y)
+    mov word [D1], 389
+    call bx_van                         ; (4.1: the game's dugout - a training game, or a bench of 5 at most)
+    jne .t
+    sub word [D1], DUGUP_               ; the top dugout grew upwards
+.t:
+    ret
+
+bx_camdest:                             ; (4.0.6) ax = the bench camera's destination y: the halfway line of the
+    mov ax, 449                         ; two-row dugouts (both in view), 449 (the game's) with the game's dugout
+    call bx_van
+    jne .x
+    mov ax, CAMMID_
+.x:
+    ret
+
+bx_seat:                                ; (4.0.6 two rows) replaces DrawBenchPlayersAndCoach's players' `call
+    call bx_van                         ; DrawSpriteInCameraView` (D1 / D2 = the seat, pushed by the caller)
+    jne .go
+    cmp word [D7], BACK_
+    jbe .back
+    add word [D1], FRONTX_              ; places 8..: the front row, towards the pitch, 3 px lower
+    sub word [D2], 7 * (BACK_ + 1) - FRONTY_
+    jmp .go
+.back:
     push eax
-    mov ax, [bx_cur]
-    add ax, 6
-    cmp [D7], ax
+    mov ax, [D0]
+    sub ax, [D6]
+    sub ax, 1316                        ; standing (SPR_BENCH_STANDING_GOALIE_WHITE .. _PLAYER_BLACK)?
+    cmp ax, 5
+    pop eax
+    ja .go
+    add word [D1], FRONTX_              ; exit (e): he stands up in front of the front row
+.go:
+    jmp DRAWSPR
+
+bx_arrow:                               ; (4.0.6 two rows) replaces the bench arrow's `call DrawSpriteInCameraView`
+    call bx_van                         ; (DrawBenchAndSubsMenu, D0 = the arrow, D1 pushed by the caller)
+    jne .game
+    cmp word [IDX], BACK_
+    ja .front
+.game:
+    jmp DRAWSPR
+.front:                                 ; the front row: the game's arrow mirrored, right of the row, pointing left
+    call bx_mirror
+    add word [D1], ARROWDX_             ; mirrored around the middle between the rows' figures
+    sub word [D2], 7 * (BACK_ + 1) - FRONTY_
+    call DRAWSPR
+    jmp bx_mirror                       ; (mirrored again = the game's arrow)
+
+bx_mirror:                              ; the arrow sprite mirrored in place: its pixels and centerX (width - 1 - it)
+    pushad
+    mov edi, [SPRIDX + ARROW_ * 4]
+    movzx eax, word [edi + 14]          ; wquads
+    movzx edx, word [edi + 12]          ; nlines
+    imul edx, eax
+    shl edx, 3                          ; the pixels' bytes
+    mov ecx, eax
+    shl ecx, 4
+    dec ecx
+    sub cx, [edi + 16]
+    mov [edi + 16], cx
+    mov esi, [edi]
+    add edx, esi                        ; their end
+    lea ebx, [eax * 8]                  ; a chunk = a line: 2 pixels a byte, high nibble first (VGA)
+    cmp word [EGA], -1
+    jne .ch
+    shr ebx, 2                          ; EGA (unchained at the match's start): a plane's line, 8 pixels a byte
+.ch:
+    push esi
+    lea edi, [esi + ebx - 1]
+.sw:                                    ; (a chunk is an even number of bytes)
+    mov al, [esi]
+    call bx_mbyte
+    mov cl, al
+    mov al, [edi]
+    call bx_mbyte
+    mov [esi], al
+    mov [edi], cl
+    inc esi
+    dec edi
+    cmp esi, edi
+    jb .sw
+    pop esi
+    add esi, ebx
+    cmp esi, edx
+    jb .ch
+    popad
+    ret
+
+bx_mbyte:                               ; al mirrored: nibbles swapped (VGA), bits reversed (EGA)
+    cmp word [EGA], -1
+    je .b
+    rol al, 4
+    ret
+.b:
+    push ecx
+    mov ah, al
+    mov ecx, 8
+.r:
+    shr ah, 1
+    rcl al, 1
+    loop .r
+    pop ecx
+    ret
+
+bx_camy:                                ; replaces `mov word [D4], 449` (MoveCamera @@set_bench_camera_params)
+    push eax
+    call bx_camdest
+    mov [D4], ax
+    pop eax
+    ret
+
+bx_camlo:                               ; replaces `cmp word [CAMY], 339` (its flags): the arrival window's top
+    push eax
+    cmp word [TRAIN], 0                 ; (4.1: the snap with the game's dugout too - destination 449 - as in 4.0.6:
+    jne .w                              ; only the training game keeps the game's own step)
+    call bx_camdest                     ; (two rows) 1..3 px above its destination the game's step (delta / 4 x
+    sub ax, 100                         ; 0.25) is 0: the camera never stands still (cameraCoordinatesValid 0, the
+    sub ax, [CAMY]                      ; bench takes no keys) - there it is set on the destination
+    cmp ax, 3
+    ja .w
+    add [CAMY], ax
+.w:
+    call bx_camdest
+    sub ax, 110
+    cmp [CAMY], ax
+    pop eax
+    ret
+
+bx_clock:                               ; (two rows) replaces UpdateTime's `mov word [esi + z + 2], 10000 / ret`
+    mov word [esi + 40], 10000          ; (esi = currentTimeSprite): with the bench open (g_inSubstitutesMenu) the
+    call bx_van                         ; clock goes to the screen's top right, its right edge at x 288, left of
+    jne .x                              ; the spinning S (SpinBig_S_Sprite: camera + 285, ink from x 295), off
+                                        ; the top dugout
+    cmp word [INSUBS], 0
+    je .x
+    push eax
+    push ebx
+    movzx ebx, word [esi + 70]          ; (its picture's width, whatever the clock shows)
+    mov ebx, [SPRIDX + ebx * 4]
+    mov ax, [CAMX]
+    add ax, 289
+    sub ax, [ebx + 10]
+    mov [esi + 32], ax
+    pop ebx
+    pop eax
+.x:
+    ret
+
+;   4.1 (41-vandug, Marco: the 1996-97 matches showed the long dugout) - the game's dugout art and geometry when
+;   the match bench has 5 at most: the long one only for a bench over 5 (bit 15 of pitchNumberAndType, set by vd_pitch)
+bx_van:                                 ; ZF clear (jne taken) = the game's dugout, ZF set = the long one
+    test word [PNT], 8000h
+    jz .van
+    cmp eax, eax
+    ret
+.van:
+    test esp, esp
+    ret
+
+vd_pitch:                               ; replaces InitGameRestoreTeams' `call ReadPitchFile` ([D0] = pitchNumberAndType
+    pushad                              ; >> 8, the pitch 0..5). A match: the long set when not a training game and
+    mov ax, [GMAX]                      ; gameMaxSubstitutes > 5 -> bit 15 in pitchNumberAndType and hilPitchNumber (the
+    mov [vd_log + 4], ax                ; highlights' header, written before); a replay (playHighlightFlag): the bit
+    and word [D0], 7Fh                  ; its HIL brought back (CopyTeamsAndHeader). Then the pitch's three names get
+    cmp word [PHF], 0                   ; the digit (the game's PITCHn) or the letter (dugout.long_names: PITCHA..E)
+    jne .have
+    and word [PNT], 7FFFh
+    and word [HILPN], 7FFFh
+    cmp word [TRAIN], 0
+    jne .have
+    cmp word [GMAX], 5
+    jbe .have
+    or word [PNT], 8000h
+    or word [HILPN], 8000h
+.have:
+    movzx ebx, word [D0]
+    cmp ebx, 5
+    jae .go                             ; (PITCH6, the training pitch: as it is)
+    lea eax, [ebx + '1']
+    test word [PNT], 8000h
+    jz .set
+    add al, 'a' - '1'
+.set:
+    mov esi, [PDAT + ebx * 4]           ; 'pitchN.dat'
+    mov [esi + 5], al
+    mov esi, [P16T + ebx * 4]           ; 'swcpichN.p16'
+    mov [esi + 7], al
+    shl ebx, 4
+    mov [PBLK + ebx + 5], al            ; 'pitchN.blk' (16-byte strings)
+.go:
+    mov ax, [PNT]
+    mov [vd_log + 6], ax
+    inc word [vd_log + 8]
+    popad
+    jmp RPF
+vd_log:                                 ; (harness vandug_check: 'VDPL', GMAX at the load, pitchNumberAndType, loads)
+    db 'VDPL'
+    dw 0, 0, 0
+
+bx_camhi:                               ; replaces `cmp word [CAMY], 359`
+    push eax
+    call bx_camdest
+    sub ax, 90
+    cmp [CAMY], ax
     pop eax
     ret
 
@@ -710,6 +1271,7 @@ sq_n:                                   ; ax = 11 + the bench (5..15): the first
     mov ax, [bx_bench]                  ; (the test switch, else the competition's real bench: bx_look)
     test ax, ax
     jnz .t
+    call bx_frpm                        ; (4.0.6) a friendly / DIY: the pre-match screen's two clubs
     call bx_look
     movzx ax, byte [bx_lkres]
 .t:
@@ -829,6 +1391,7 @@ pm_max:                                 ; ShowPlayMatchMenu: replaces `mov [maxS
     mov ax, 5
 .s:
     mov [MAXSUB], ax
+    mov byte [fr_on], 1                 ; (B) the pre-match screen (and its tactics editor) until ShowMenu returns
     mov word [bx_pw], 0
     mov word [bx_po], 0
     ret
@@ -1048,19 +1611,21 @@ et_rot:                                 ; EditTacticsOnSelect28's `call RotatePl
     pop eax
     ret
 
-bx_mdir:                                ; MenuProc's `mov [D6], ax` (the move in menu notion: 2 up, 3 down; [A0] = the
-    mov [D6], ax                        ; selected entry): a bench over 5, the cursor on the window's first / last row
-    push eax                            ; (12 / 17) moving up / down scrolls the window instead, the cursor stays (as
-    push ebx                            ; the dugout); on the pre-match screen, SQUADRA and the tactics editor
+bx_mdir:                                ; MenuProc's `mov [D6], ax` (the move in menu notion: 2 up, 3 down): VIEW
+    mov [D6], ax                        ; OPPONENT of a CPU club with a bench over 5 (read-only): up / down anywhere
+    push eax                            ; move its window one place, wrapping as the box. (4.0.6, Marco) Own lists:
+    push ebx                            ; the game's move, only the box scrolls.
     push esi
     call sq_n
     cmp ax, 16
     jbe .no
-    cmp word [VOPP], 0                  ; (VIEW OPPONENT, a CPU club: read-only) up / down move its window, any entry
-    je .own
+    cmp word [VOPP], 0
+    je .no
+    cmp dword [MENU], PMINIT            ; (4.0.6, Salvatore / Davide) the pre-match screen itself: the game keeps
+    jne .no                             ; viewingOpponentTeam set from AVVERSARI + GIOCA PARTITA to the next one
     mov esi, [PMT2]
     cmp byte [esi + 4], 1               ; teamControls: TEAM_COMPUTER
-    jne .own
+    jne .no
     call po_n
     cmp ax, 16
     jbe .no
@@ -1081,62 +1646,6 @@ bx_mdir:                                ; MenuProc's `mov [D6], ax` (the move in
     mov bx, ax
 .oset:
     mov [bx_po], bx
-    jmp .scroll
-.own:
-    mov esi, [A0]
-    mov eax, [esi + 42]                 ; its onSelect: the screen
-    movzx ebx, word [esi + 2]           ; its ordinal
-    cmp eax, ONSWAP
-    jne .sq
-    cmp word [VOPP], 0
-    jne .no
-    sub ebx, 13                         ; rows = entries 13..29
-    mov esi, bx_pw
-    movzx eax, word [NPS]
-    jmp .w
-.sq:
-    cmp eax, SQCOMMON
-    jne .et
-    sub ebx, 28                         ; entries 28..44
-    mov esi, bx_sq
-    movzx eax, word [SQCNT]
-    jmp .w
-.et:
-    cmp eax, ETCOMMON
-    jne .vs
-    sub ebx, 11                         ; entries 11..27
-    mov esi, bx_tw
-    movzx eax, word [ETNP]
-.w:                                     ; ebx = the row (0..16), esi -> the window, eax = the squad's players
-    sub eax, 17                         ; the window's last start (as the box: *_rot)
-    cmp word [D6], 3
-    jne .up
-    cmp ebx, 16
-    jne .no
-    cmp [esi], ax
-    jge .wrap
-    inc word [esi]
-    jmp .scroll
-.wrap:                                  ; (4.0.5, Davide 01/11) the window at its end: back to the top of the bench,
-    cmp esi, bx_vw                      ; window 0 and the cursor on row 12 (ViewSquad / the call-ups: as the game)
-    je .no
-    mov eax, [A0]
-    sub eax, 5 * 38h                    ; row 12's entry (the rows are consecutive entries)
-    cmp dword [eax + 4], 0              ; isInvisible / isDisabled: as the game
-    jne .no
-    mov word [esi], 0
-    mov esi, [A6]
-    mov [esi + 0Ch], eax                ; Menu.selectedEntry (the whole menu redrawn below)
-    jmp .scroll
-.up:
-    cmp word [D6], 2
-    jne .no
-    cmp ebx, 11
-    jne .no
-    cmp word [esi], 0
-    jle .no
-    dec word [esi]
-.scroll:
     pop esi
     pop ebx
     pop eax
@@ -1147,23 +1656,6 @@ bx_mdir:                                ; MenuProc's `mov [D6], ax` (the move in
     pop ebx
     pop eax
     ret
-.vs:                                    ; (4.0.6) ViewSquad: entries 4..20, the managed club's players (else 16)
-    cmp eax, VSCOMMON
-    jne .nt
-    sub ebx, 4
-    mov esi, bx_vw
-    mov eax, 16
-    cmp dword [VSTEAM], CT
-    jne .w
-    movzx eax, word [CNP]
-    jmp .w
-.nt:                                    ; SelectNationalTeam: entries 8..24, careerTeam (at most 20)
-    cmp eax, NTCOMMON
-    jne .no
-    sub ebx, 8
-    mov esi, bx_vw
-    movzx eax, word [CNP]
-    jmp .w
 
 rot_d0:                                 ; ViewSquadOnSelect21 / SelectNationalTeamOnSelect25: replaces `mov word [D0], 5`
     push eax                            ; (RotatePlayersLeft's first place - 11): with a bench over 5 the rotation starts
@@ -1412,6 +1904,99 @@ def sites2(p, regs):
     return at, {'IDX': (2, idx), 'TRAIN': (2, train), 'SUBST': (2, subst), 'HIDE': (1, hd[0])}
 
 
+def sites11(p, regs):
+    """(4.0.6 long dugouts) {name: obj1 offset} of BenchCheckControls' bench y (`mov word [D1], 389` / `[D2], 485`)
+    and MoveCamera's bench destination (`mov word [D4], 449` after `mov [D3], ax`) + its arrival window (`cmp word
+    [g_cameraY], 339` / `359`), and the variables BENCHY, CAMY, SIP (g_substituteInProgress), WAITGO
+    (g_waitForPlayerToGoInTimer)."""
+    d = p.le.obj_bytes(1)
+    pk = lambda x: re.escape(struct.pack('<I', x))
+    d1, d2, d4 = regs['D7'] - 24, regs['D7'] - 20, regs['D7'] - 12
+    by = [x.start() for x in re.finditer(rb'\x66\xc7\x05' + pk(d1) + rb'\x85\x01\x66\xc7\x05' + pk(d2) + rb'\xe5\x01', d)]
+    assert len(by) == 1, ('the bench y', by)
+    bv = [x for x in re.finditer(rb'\x66\xa1' + pk(d1) + rb'\x66\xa3(....)\x66\xa1' + pk(d2) + rb'\x66\xa3....\x66\xc7\x05....'
+                                 rb'\xc1\x01', d, re.S) if 0 < x.start() - by[0] < 0x100]
+    assert len(bv) == 1, ('benchY', bv)
+    lo = list(re.finditer(rb'\x66\x81\x3d(....)\x53\x01\x0f\x82', d, re.S))
+    assert len(lo) == 1, ('the bench camera window', lo)
+    hi = [x.start() for x in re.finditer(rb'\x66\x81\x3d' + re.escape(lo[0].group(1)) + rb'\x67\x01\x77', d)]
+    cy = [x.start() + 6 for x in re.finditer(rb'\x66\xa3....\x66\xc7\x05' + pk(d4) + rb'\xc1\x01', d, re.S)
+          if 0 < x.start() - lo[0].start() < 0x100]
+    assert len(hi) == 1 and len(cy) == 1, ('the bench camera', hi, cy)
+    wt = list(re.finditer(rb'\x66\xa1(....)\x66\x0b\xc0\x0f\x85....\x66\xa1....\x66\x0b\xc0\x74.\x66\xc7\x05' + pk(d1)
+                          + rb'\x25\x00', d, re.S))
+    sp = [x for x in re.finditer(rb'\x66\xa1(....)\x66\x0b\xc0\x75.\x66\xc7\x05' + pk(d1) + rb'\x00\x00', d, re.S)
+          if 0 < x.start() - hi[0] < 0x80]
+    assert len(wt) == 1 and 0 < lo[0].start() - wt[0].start() < 0x80 and len(sp) == 1, ('the bench camera states', wt, sp)
+    at = {'by': by[0], 'clo': lo[0].start(), 'chi': hi[0], 'cy': cy[0]}
+    for k, o in at.items():                     # (no other hook there)
+        assert bytes(p.get(1, o, 9)) == d[o:o + 9], ('dugout site already patched', k, hex(o))
+    tg = lambda o: p.target(1, o)
+    return at, {'BENCHY': tg(bv[0].start() + 8), 'CAMY': tg(lo[0].start() + 3), 'SIP': tg(sp[0].start() + 2),
+                'WAITGO': tg(wt[0].start() + 2), 'D4': (2, d4)}
+
+
+def sites_vd(p, regs):
+    """4.1 41-vandug: InitGameRestoreTeams' `call ReadPitchFile` (obj1) + its target, and obj2's ofsPitch1Dat /
+    ofsSwpich1Dat (the VGA / EGA names' tables: ReadPitchFile's two `mov [A0], offset ..`), 'pitch1.blk' (`mov edx,
+    offset ..`: 6 strings of 16), pitchNumberAndType (the call's `mov ax, [..] / mov [D0], ax / shr [D0], 8`),
+    hilPitchNumber (SetHilFileHeader: mov ax, [pitchNumberAndType] / mov [..], ax) and playHighlightFlag
+    (ViewHighLightsMain: mov word [..], 1 / call CopyTeamsAndHeader, whose `mov ax, [hilPitchNumber] / mov
+    [pitchNumberAndType], ax`)."""
+    d = p.le.obj_bytes(1)
+    pk = lambda x: re.escape(struct.pack('<I', x))
+    U = lambda o: struct.unpack_from('<I', d, o)[0]
+    d0, a0 = regs['D7'] - 28, regs['A0']
+    st = [x.start() for x in re.finditer(rb'\xb9\xcc\x09\x00\x00\x33\xc0\xf3\xab', d)]   # mov ecx, 2508 / rep stosd
+    assert len(st) == 2, ('ReadPitchFile', st)
+    rpf = d.rfind(b'\x66\x83\x3d', 0, st[0])         # cmp word [EGA_graphics], -1
+    assert 0 < st[0] - rpf < 0x20 and d[rpf + 7:rpf + 10] == b'\xff\x0f\x84', ('ReadPitchFile start', hex(rpf))
+    calls = [x for x in range(len(d) - 5) if d[x] == 0xE8 and x + 5 + struct.unpack_from('<i', d, x + 1)[0] == rpf]
+    assert len(calls) == 1, ('call ReadPitchFile', calls)
+    w = d[rpf:rpf + 0x200]
+    tabs = [U(rpf + x.start() + 6) for x in re.finditer(rb'\xc7\x05' + pk(a0) + rb'....', w, re.S)][:2]
+    blk = [U(rpf + x.start() + 1) for x in re.finditer(rb'\xba....\x66\xc1\x25', w, re.S)]
+    assert len(blk) == 1, ('pitch1.blk', blk)
+    pre = d[calls[0] - 0x80:calls[0]]
+    pm = [U(calls[0] - 0x80 + x.start() + 2) for x in re.finditer(rb'\x66\xa1....\x66\xa3' + pk(d0) + rb'\x66\xc1\x2d'
+                                                                  + pk(d0) + rb'\x08', pre, re.S)]
+    assert len(pm) == 1, ('pitchNumberAndType', pm)
+    pnt = pm[0]
+    hil = [U(x.start() + 8) for x in re.finditer(rb'\x66\xa1' + pk(pnt) + rb'\x66\xa3(....)', d, re.S)
+           if U(x.start() + 8) not in range(d0, a0 + 28)]
+    back = [x.start() for x in re.finditer(rb'\x66\xa1....\x66\xa3' + pk(pnt), d, re.S)]
+    back = [x for x in back if U(x + 2) in hil]
+    assert len(hil) == 1 and len(back) == 1, ('hilPitchNumber', hil, back)
+    phf = [U(x + 3) for x in range(len(d) - 14) if d[x:x + 3] == b'\x66\xc7\x05' and d[x + 7:x + 10] == b'\x01\x00\xe8'
+           and 0 < back[0] - (x + 14 + struct.unpack_from('<i', d, x + 10)[0]) < 0x40]
+    assert len(phf) == 1, ('playHighlightFlag', phf)
+    return {'call': calls[0], 'RPF': (1, rpf), 'PDAT': (2, tabs[0]), 'P16T': (2, tabs[1]), 'PBLK': (2, blk[0]),
+            'PNT': (2, pnt), 'HILPN': (2, hil[0]), 'PHF': (2, phf[0])}
+
+
+def sites12(p, regs, s2):
+    """(4.0.6 two rows) {name: obj1 offset} of the two `call DrawSpriteInCameraView` the bench rows change: the
+    arrow's (`mov word [D0], 1284; push dword [D1]; call`) and the bench players' (7 pushes, then the call, in the
+    loop after s2's d7i), UpdateTime's last two instructions (`mov word [esi + z + 2], 10000 / ret`, esi = the clock
+    sprite, after `add word [esi + y + 2], 8`), and the symbols DRAWSPR (its target) and EGA (EGA_graphics, its first
+    `cmp word [x], -1`)."""
+    d = p.le.obj_bytes(1)
+    pk = lambda x: re.escape(struct.pack('<I', x))
+    d0, d1 = regs['D7'] - 28, regs['D7'] - 24
+    ar = [m.start() + 15 for m in re.finditer(rb'\x66\xc7\x05' + pk(d0) + rb'\x04\x05\xff\x35' + pk(d1) + rb'\xe8', d)]
+    pl = [m.end() - 1 for m in re.finditer(rb'(?:\xff\x35....){7}\xe8', d, re.S) if 0 < m.start() - s2['d7i'] < 0x300]
+    assert len(ar) == 1 and len(pl) == 1, ('the bench arrow / players calls', ar, pl)
+    ds = p.call_target(1, ar[0])
+    assert ds == p.call_target(1, pl[0]) and ds[0] == 1, ('DrawSpriteInCameraView', ds)
+    assert d[ds[1]:ds[1] + 3] == b'\x66\x83\x3d' and d[ds[1] + 7] == 0xff, 'EGA_graphics'
+    ck = [m.end() - 7 for m in re.finditer(rb'\x66\x83\x46\x24\x08\x8b\x35....\x66\xc7\x46\x28\x10\x27\xc3', d, re.S)]
+    assert len(ck) == 1, ('the clock sprite z', ck)
+    at = {'arrowcall': ar[0], 'seatcall': pl[0], 'clock': ck[0]}
+    for k, o in at.items():                     # (no other hook there)
+        assert bytes(p.get(1, o, 7)) == d[o:o + 7], ('two-row site already patched', k, hex(o))
+    return at, {'DRAWSPR': ds, 'EGA': p.target(1, ds[1] + 3)}
+
+
 def sites3(p, regs, n1, n2):
     """Block 3: the three name tables (obj2) and their references, the +16 team offsets, MakeSpritesFromPlayerNames'
     record fields (shortName, shirtNumber) and MakePlayerNameSprite, ns_make's tail jump (namespr's code)."""
@@ -1513,6 +2098,12 @@ def sites5(p, regs, s4):
                                             + pk(d7 - 20) + rb'\x66\xa3....\x66\xa3', d, re.S)]
     assert len(m) == 1, ('ShowPlayMatchMenu', m)
     out = dict(store=m[0], MAXSUB=t(m[0] + 2))
+    # its mov dword [A6], playMatchMenu: the menu's onInit (PlayMatchMenuInit; the header's first dword at g_currentMenu
+    # while it shows, also with VIEW OPPONENT)
+    a = [m[0] + x.start() for x in re.finditer(rb'\xc7\x05' + pk(a0 + 24), d[m[0]:m[0] + 0x60])]
+    assert len(a) == 1, ('ShowPlayMatchMenu playMatchMenu', a)
+    out['PMINIT'] = p.target(2, t(a[0] + 6)[1])
+    assert out['PMINIT'][0] == 1, out['PMINIT']
     mx = pk(out['MAXSUB'][1])
     # PlayMatchMenuReinit: mov ax, [D0] / mov [numPlayersToShowInMenu], ax / mov dword [pmSelectedPlayerEntry], 0 /
     # mov word [viewingOpponentTeam], 0 / mov word [selectedPlayerPosition], -1
@@ -1709,6 +2300,74 @@ def sites6(p, regs, s4):
     return out
 
 
+def link_w27(p):
+    """(4.0.6 step 2.5, after swe.patch) bx_w27p -> the engine's SWE_W27 (obj4), when this build has it (MC's
+    406-avail); else the friendlies' gate stays the current world (WCUR)."""
+    import swe
+    if 'SWE_W27' not in swe.LABELS or 'bx_w27p' not in LABELS:
+        return False
+    t = swe.LABELS['SWE_W27']
+    p.add_ptr(3, LABELS['bx_w27p'], t[0], t[1])
+    print(f'exe: benchx friendlies gated by SWE_W27 (obj{t[0]}+{t[1]:#x})')
+    return True
+
+
+def sites_fr(p, regs, s5, s6, pmt1):
+    """(B, 4.0.6) a friendly / DIY club's own order: GetPlayerAtIndex's xs_ga call (xbrowse), the two swaps' @@no_career
+    blocks (pre-match screen, tactics editor), the two player-count stores, ShowPlayMatchMenu's end."""
+    d = p.le.obj_bytes(1)
+    pk = lambda x: re.escape(struct.pack('<I', x))
+    t = lambda o: p.target(1, o)
+    d0, d1, a0 = regs['D7'] - 28, regs['D7'] - 24, regs['A0']
+    # GetPlayerAtIndex @@not_selected_team: cmp word [D1], 16 / jnb / push dword [D0] / call GetTeamPointer / pop / ...
+    # mov al, [esi+eax+3Ch] / mov [D1], al / jmp GetPlayer (as xbrowse.sites)
+    ga = [x for x in re.finditer(rb'\x66\x83\x3d' + pk(d1) + rb'\x10\x73.\xff\x35' + pk(d0) + rb'\xe8(....)\x8f\x05' + pk(d0) +
+                                 rb'\x8b\x35' + pk(a0) + rb'\x0f\xb7\x05' + pk(d1) + rb'\x8a\x44\x06\x3c\xa2' + pk(d1) +
+                                 rb'\xe9(....)\xcc', d, re.S)]
+    assert len(ga) == 1, ('GetPlayerAtIndex', len(ga))
+    out = dict(ga=ga[0].start(), GTP=(1, ga[0].end(1) + struct.unpack('<i', ga[0].group(1))[0]),
+               GETPLAYER=(1, ga[0].end(2) + struct.unpack('<i', ga[0].group(2))[0]))
+    # EditTacticsInit: mov eax, [chooseTacticsTeamPtr] / mov [A0], eax / call SetBenchPlayersNumbers ... mov ax, [D0] /
+    # mov [editTacticsNumPlayers], ax
+    etnp = s6['ETNP'][1]
+    m = [x.start() + 6 for x in re.finditer(rb'\x66\xa1' + pk(d0) + rb'\x66\xa3' + pk(etnp), d)]
+    m = [o for o in m if re.search(rb'\xa1....\xa3' + pk(a0) + rb'\xe8', d[o - 0x80:o], re.S)]
+    assert len(m) == 1, ('EditTacticsInit', m)
+    out['etnp'] = m[0]
+    c = re.search(rb'\xa1(....)\xa3' + pk(a0) + rb'\xe8', d[m[0] - 0x80:m[0]], re.S)
+    cttp = struct.unpack('<I', c.group(1))[0]
+    out['CTTP'] = t(m[0] - 0x80 + c.start(1))
+    # the swaps' @@no_career: mov eax, [team] / mov [A0], eax / mov eax, [A0] / add eax, 3Ch / mov [A0], eax / jmp
+    sw = {}
+    for x in re.finditer(rb'\xa1(....)\xa3' + pk(a0) + rb'\xa1' + pk(a0) + rb'\x83\xc0\x3c\xa3' + pk(a0) + rb'(\xe9....|\xeb.)', d, re.S):
+        j = x.start(2)
+        dest = j + 5 + struct.unpack('<i', d[j + 1:j + 5])[0] if d[j] == 0xE9 else j + 2 + struct.unpack('<b', d[j + 1:j + 2])[0]
+        sw[struct.unpack('<I', x.group(1))[0]] = (x.start(), dest)
+    assert pmt1 in sw and cttp in sw, ('swap blocks', sw.keys())
+    out.update(swpm=sw[pmt1][0], SWPM=(1, sw[pmt1][1]), swet=sw[cttp][0], SWET=(1, sw[cttp][1]))
+    # PlayMatchMenuReinit: mov ax, [D0] / mov [numPlayersToShowInMenu], ax
+    m = [x.start() + 6 for x in re.finditer(rb'\x66\xa1' + pk(d0) + rb'\x66\xa3' + pk(s5['NPS'][1]) + rb'\xc7\x05', d)]
+    assert len(m) == 1, ('PlayMatchMenuReinit NPS', m)
+    out['nps'] = m[0]
+    # ShowPlayMatchMenu's end: call ShowMenu / mov ax, [playerNumThatStarted] / mov [D0], ax / ret
+    m = [s5['store'] + x.start() + 5 for x in re.finditer(rb'\xe8....\x66\xa1....\x66\xa3' + pk(d0) + rb'\xc3',
+                                                           d[s5['store']:s5['store'] + 0x100], re.S)]
+    assert len(m) == 1, ('ShowPlayMatchMenu end', m)
+    out['pmend'] = m[0]
+    out['PNTS'] = t(m[0] + 2)
+    # GetNumberOfAvailablePlayers: mov eax, [A0] / add eax, 3Ch / mov [A2], eax / mov word [D5], 16; GetNumberOfSubstitutes:
+    # mov ax, [D0] / mov [D1], ax / sub word [D1], 1 / mov eax, [A0] / add eax, 3Ch / mov [A2], eax; each one's first
+    # mov [A1], eax (the player's record)
+    a1, a2, d5 = pk(a0 + 4), pk(a0 + 8), regs['D7'] - 8
+    g = [x.start() + 8 for x in re.finditer(rb'\xa1' + pk(a0) + rb'\x83\xc0\x3c\xa3' + a2 + rb'\x66\xc7\x05' + pk(d5) + rb'\x10\x00', d)]
+    n = [x.start() + 28 for x in re.finditer(rb'\x66\xa1' + pk(d0) + rb'\x66\xa3' + pk(d1) + rb'\x66\x83\x2d' + pk(d1) + rb'\x01\xa1'
+                                             + pk(a0) + rb'\x83\xc0\x3c\xa3' + a2, d)]
+    assert len(g) == 1 and len(n) == 1, ('GetNumberOfAvailablePlayers / GetNumberOfSubstitutes', g, n)
+    out['a2'] = g + n
+    out['a1'] = [o + re.search(rb'\xa3' + a1, d[o:o + 0x200]).start() for o in out['a2']]
+    return out
+
+
 def refs(p, tobj, lo, hi):
     """Every 32-bit fixup source (objn, off) whose target is tobj:lo..hi-1 -> [(objn, off, toff)]."""
     out = []
@@ -1731,6 +2390,7 @@ def refs(p, tobj, lo, hi):
 
 LOG = []
 BENCH_WORLD = [0]                       # the World 2026-27's career world number (the packs' 'world'), 0 = none
+FR_TAB = []                             # (4.0.6) bench_table's (country number, division / 0FFh, named, used, et): friendlies
 BENCH_DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'bench2627.json')   # (4.0.6: in the repo)
 
 
@@ -1757,6 +2417,7 @@ def bench_table(lang):
     country with no data; exact entries only where they differ from it. Order: exact, continental, prefixes longest
     first (IRLANDA DEL NORD before IRLANDA)."""
     import json
+    FR_TAB.clear()
     if not os.path.isfile(BENCH_DATA):
         return []
     data = json.load(open(BENCH_DATA))
@@ -1782,6 +2443,13 @@ def bench_table(lang):
         lvals = fallback_divs(ent.get(lg['key']), len(lg.get('divisions') or [0])) if lg else []
         top = norm(lvals[0] if lvals and lvals[0] is not None else
                    (data.get('confederations') or {}).get(pk.get('continent')))
+        cn = ((pk.get('files') or {}).get('league') or {}).get('file')
+        if top and cn and not any(e[0] == cn for e in FR_TAB):   # (4.0.6) friendlies / DIY: the club's own country
+            FR_TAB.append((cn, 0xFF, top[0], used, top[1]))     # (its team file's countryNumber) and division (its
+            for i, x in enumerate(lvals):                       # league byte = the division's index)
+                v = norm(x) or top
+                if v != top:
+                    FR_TAB.append((cn, i, v[0], used, v[1]))
         for c in pk['competitions']:
             v, raw = ent.get(c['key']), []
             if c.get('type') == 'league':
@@ -1828,8 +2496,12 @@ def bench_table(lang):
 
 
 def table_asm(tab):
-    """bx_tabn / bx_tab: the entries of bench_table."""
-    lines = ['align 4', f'bx_tabn: dd {len(tab)}', 'bx_tab:']
+    """bx_tabn / bx_tab: the entries of bench_table; bx_frn / bx_frtab: FR_TAB's (country, division, named, used, et)."""
+    lines = ["fr_mark: db 'FRTB'", 'fr_on: db 0, 0', 'fr_next: db 0', 'fr_gn: db 0', 'align 4', f'fr_tab: times {FRN * FRE} db 0']   # (B) fr_find's orders
+    lines += ['bx_frkeep: dw 0', 'bx_fretk: db 0', 'align 4', 'bx_w27p: dd 0']   # (bx_w27p: link_w27's pointer)        # (4.0.6) bx_frset: the friendly / DIY match's named subs,
+    lines += ['align 4', f'bx_frn: dd {len(FR_TAB)}', 'bx_frtab:']   # subs used and its extra-time substitute
+    lines += ['    db ' + ','.join(str(x) for x in e) for e in FR_TAB]
+    lines += ['align 4', f'bx_tabn: dd {len(tab)}', 'bx_tab:']
     for t, n, u, e in tab:                          # (4.0.5: titles NUL-terminated, no padding: the 2 pages)
         b = t + b'\0' + bytes((n, u, e))
         lines.append('    db ' + ','.join(str(x) for x in b))
@@ -1837,7 +2509,8 @@ def table_asm(tab):
 
 
 def patch(p, at, ns_at, lang='it'):
-    """Code + data at obj1:at (a page of its own), namespr's pages at ns_at; returns the end."""
+    """Code + data at obj3:at (4.0.6: its own pages in obj3, CONVENTIONS 23; the game's sites reach it through
+    self-relative fixups), namespr's pages at ns_at (obj1); returns the end."""
     import sacups
     import xtra
     regs = sacups.regs(p.le.obj_bytes(1))
@@ -1848,6 +2521,10 @@ def patch(p, at, ns_at, lang='it'):
     else:
         _, cnp, ct, _, _ = xtra.sites(p)
     s2, v2 = sites2(p, regs)
+    s11, v11 = sites11(p, regs)
+    s12, v12 = sites12(p, regs, s2)
+    svd = sites_vd(p, regs)                         # 4.1 41-vandug: the game's dugout for a bench of 5 at most
+    INFO['TRAIN'] = v2['TRAIN']                     # (kittrain.py, 4.0.6: g_trainingGame)
     s3 = sites3(p, regs, s2['n1'], s2['n2'])
     import namespr
     import shirtnum
@@ -1858,13 +2535,19 @@ def patch(p, at, ns_at, lang='it'):
           'SHIRT_': (0, s3['shirt']), 'NB_': (0, NB), 'D6': (2, regs['D7'] - 4), 'D0': (2, regs['D7'] - 28),
           'A4': (2, regs['A0'] + 16), 'A5': (2, regs['A0'] + 20)}
     at = (at + 15) & ~15
-    sym = {**v2, **v3, 'D7': (2, regs['D7']), 'D1': (2, regs['D7'] - 24), 'A0': (2, regs['A0']), 'GMAX': (2, gmax), 'D2': (2, d2), 'A2': (2, regs['A0'] + 8), 'A6': (2, regs['A0'] + 24),
-           'CT': (2, ct), 'CNP': (2, cnp), 'MAXP': (0, MAXP), 'PI': (0, PI)}
+    import dugout
+    sym = {**v2, **v3, 'BENCHY': v11['BENCHY'], 'CAMY': v11['CAMY'], 'SIP': v11['SIP'], 'WAITGO': v11['WAITGO'],
+           'DUGUP_': (0, 16 * dugout.ADD), **v12, 'CAMMID_': (0, dugout.CAM_MID), 'BACK_': (0, dugout.BACK),
+           'FRONTX_': (0, dugout.FRONT_X), 'FRONTY_': (0, dugout.FRONT_Y), 'ARROWDX_': (0, dugout.ARROW_DX),
+           'ARROW_': (0, 1284), 'CAMX': (2, v11['CAMY'][1] - 4), 'INSUBS': (2, v11['BENCHY'][1] - 0x12), 'D7': (2, regs['D7']), 'D1': (2, regs['D7'] - 24), 'A0': (2, regs['A0']), 'GMAX': (2, gmax), 'D2': (2, d2), 'A1': (2, regs['A0'] + 4), 'A2': (2, regs['A0'] + 8), 'A6': (2, regs['A0'] + 24),
+           'CT': (2, ct), 'CNP': (2, cnp), 'MAXP': (0, MAXP), 'PI': (0, PI),
+           **{k: v for k, v in svd.items() if k != 'call'}}
     s4 = sites4(p, regs)
+    assert s4['D4'] == v11['D4'][1], 'D4'
     sym.update({'GPI': (1, s4['gpi_t']), 'ROTATE': (1, s4['rot_t']), 'DRAWMENU': (1, s4['drawmenu']),
                 'SQCNT': (2, s4['tp'] - 2), 'S490': (2, s4['tp'] + 10), 'D3': (2, s4['D3']), 'D4': (2, s4['D4'])})
     s5 = sites5(p, regs, s4)
-    sym.update({k: s5[k] for k in ('MAXSUB', 'NPS', 'PMSEL', 'VOPP', 'SELPOS')})
+    sym.update({k: s5[k] for k in ('MAXSUB', 'NPS', 'PMSEL', 'VOPP', 'SELPOS', 'PMINIT')})
     s6 = sites6(p, regs, s4)
     sym.update({k: s6[k] for k in ('ETSEL', 'ETSELE', 'ETNP')})
     s8 = sites8(p, regs, s4, s5, s6)
@@ -1872,7 +2555,7 @@ def patch(p, at, ns_at, lang='it'):
     s9 = sites9(p, regs, s4, s6, ct, cnp)
     sym.update({k: s9[k] for k in ('VSCOMMON', 'NTCOMMON', 'VSTEAM', 'VSROW', 'NTSEL')})
     vg = s9['gpi'][0]                               # (4.0.5) ViewSquadCommon's call: its current target (xbrowse's vs_pick,
-    sym['VWPREV'] = (1, vg + 5 + struct.unpack('<i', bytes(p.get(1, vg + 1, 4)))[0])   # else the game's) - chained
+    sym['VWPREV'] = p.call_target(1, vg)                                               # else the game's) - chained
     etc, sfet = sites10(p)
     sym['SFET'] = (1, sfet)
     s7 = sites7(p, regs)
@@ -1886,55 +2569,83 @@ def patch(p, at, ns_at, lang='it'):
     tab = bench_table(lang)
     sym.update({'GMIN': gmin, 'DIYNAME': (2, lp36._sites(p)['DIY'] + 4),
                 'SLT': (careerworld.SITES or careerworld.sites(p))['slt'], 'WORLD_BYTE_': (0, careerworld.WORLD_BYTE),
-                'BXWORLD_': (0, BENCH_WORLD[0] if tab else 255)})
+                'BXWORLD_': (0, BENCH_WORLD[0] if tab else 255),
+                'WCURV': (1, careerworld.LABELS['WCUR']) if 'WCUR' in careerworld.LABELS else (0, 0),
+                'WCURV_': (0, int('WCUR' in careerworld.LABELS))})
+    pk = lambda x: re.escape(struct.pack('<I', x))           # ShowPlayMatchMenu: mov ax, [D6] / mov [squadChanges..], ax /
+                                                             # mov eax, [A1] / mov [playMatchTeam1Ptr],
+    pm = list(re.finditer(b'\x66\xa1' + pk(regs['D7'] - 4) + b'\x66\xa3....\xa1' + pk(regs['A0'] + 4) + b'\xa3(....)\xa1' + pk(regs['A0'] + 8) + b'\xa3(....)\x66\xa1'
+                          + pk(regs['D7'] - 24) + b'\x66\xa3', p.le.obj_bytes(1), re.S))   # eax / A2 / Team2Ptr / D1
+    assert len(pm) == 1, ('ShowPlayMatchMenu', len(pm))
+    sym.update({'PMT1': p.target(1, pm[0].start(1)), 'PMT2': p.target(1, pm[0].start(2))})
+    sfr = sites_fr(p, regs, s5, s6, sym['PMT1'][1]) if hasx else None    # (B) a friendly club's own order: chained
+    if sfr and bytes(p.get(1, sfr['ga'], 1)) != b'\xe8':                  # before xbrowse's xs_ga
+        sfr = None
+    sym.update({'HASFR_': (0, int(bool(sfr))), 'FRN_': (0, FRN), 'FRE_': (0, FRE), 'PNUM_': (0, 0x3C),
+                'MAXE_': (0, xtra.MAX_EXTRA), 'PLAYER_': (0, xtra.PLAYER)})
+    if sfr:
+        sym.update({k: sfr[k] for k in ('GTP', 'GETPLAYER', 'CTTP', 'SWPM', 'SWET', 'PNTS')})
+        sym.update({'XSGA': p.call_target(1, sfr['ga']), 'ETNP': s6['ETNP'], 'XTS': (1, xtra.LABELS['xt_slot'])})
     asm = ASM + table_asm(tab)
-    code, fix = nasmcave.assemble(asm, at, sym)
+    code, fix, rel = nasmcave.assemble_obj(asm, at, sym, 3)
     lab = nasmcave.labels(asm, at, sym)
-    LOG.append(f'benchx phase 2: {len(tab)} competitions with a real bench ({lang})')
-    assert not any(p.get(1, at, len(code)))
-    p.put(1, at, code)
+    INFO.update(TABLE=(3, lab['bx_table']), GMAX=(2, gmax), SUBST=v2['SUBST'], IDX=v2['IDX'])   # (oppl.py, 4.0.6)
+    INFO['S7'] = s7                                 # (stadium.py, 4.0.6: the line-ups screen's sites)
+    LOG.append(f'benchx phase 2: {len(tab)} competitions with a real bench ({lang}), friendlies {len(FR_TAB)} entries')
+    assert not any(p.get(3, at, len(code)))
+    p.put(3, at, code)
     for o, t_obj, t_off in fix:
-        p.add_ptr(1, at + o, t_obj, t_off)
+        p.add_ptr(3, at + o, t_obj, t_off)
+    for o, t_obj, t_off in rel:                     # its calls / jmps into the game (obj1)
+        p.add_rel(3, at + o, t_obj, t_off)
+    def go(o, lbl, n=5, op=0xE8):                   # a game site -> call / jmp lbl (obj3) + nops
+        p.branch(1, o, op, 3, lab[lbl], n)
     # gameMaxSubstitutes store (6 bytes: 66 A3 addr) -> call bx_max + nop
     p.remove(1, store + 2)
-    p.put(1, store, b'\xe8' + struct.pack('<i', lab['bx_max'] - (store + 5)) + b'\x90')
+    go(store, 'bx_max', 6)
     p.remove(1, store - 12 + 2)                     # (phase 2) gameMinSubstitutes store -> call bx_min + nop
-    p.put(1, store - 12, b'\xe8' + struct.pack('<i', lab['bx_min'] - (store - 12 + 5)) + b'\x90')
+    go(store - 12, 'bx_min', 6)
     # the loop step (16 bytes: add word [D2], 1 / cmp word [D2], 16) -> call bx_next + 11 nops (the jnz stays)
     p.remove(1, lp + 3)
     p.remove(1, lp + 11)
-    p.put(1, lp, b'\xe8' + struct.pack('<i', lab['bx_next'] - (lp + 5)) + b'\x90' * 11)
+    go(lp, 'bx_next', 16)
     p.remove(1, s7['stadium'] + 2)                  # the line-ups screen: mov ax, [GMAX] (66 A1 addr) -> call bx_gmax5
-    p.put(1, s7['stadium'], b'\xe8' + struct.pack('<i', lab['bx_gmax5'] - (s7['stadium'] + 5)) + b'\x90')
+    go(s7['stadium'], 'bx_gmax5', 6)
                                                     # its end: jmp SetExitMenuFlag (rel32, no fixup) -> jmp bx_stad
-    p.put(1, s7['stend'], b'\xe9' + struct.pack('<i', lab['bx_stad'] - (s7['stend'] + 5)))
+    go(s7['stend'], 'bx_stad', op=0xE9)
     for c in c5:                                    # the game's 'bench over 5' branches: never
         p.put(1, c + 7, b'\x7f')
     def call9(o, n, lbl, fixat):                     # an n-byte instruction with an address at o + fixat -> call + nops
         p.remove(1, o + fixat)
-        p.put(1, o, b'\xe8' + struct.pack('<i', lab[lbl] - (o + 5)) + b'\x90' * (n - 5))
+        go(o, lbl, n)
     call9(s2['c5'], 8, 'bx_cmp_last', 3)            # cmp word [IDX], 5 (66 83 3D addr 05)
     call9(s2['c6'], 8, 'bx_cmp_last1', 3)
-    call9(s2['arrow'], 6, 'bx_arrow', 2)            # mov ax, [IDX] (66 A1 addr)
-    call9(s2['bentry'], 9, 'bx_bentry', 3)          # (4.0.6) mov word [IDX], 0 (66 C7 05 addr 00 00): a bench entered
-    call9(s2['d7i'], 9, 'bx_win_init', 3)           # mov word [D7], 1 (66 C7 05 addr 01 00)
     call9(s2['d7e'], 8, 'bx_win_end', 3)            # cmp word [D7], 6 (66 83 3D addr 06)
+    call9(s11['by'], 9, 'bx_benchy', 3)             # (4.0.6 long dugouts) mov word [D1], 389 (66 C7 05 addr 85 01)
+    call9(s11['cy'], 9, 'bx_camy', 3)               # mov word [D4], 449
+    call9(s11['clo'], 9, 'bx_camlo', 3)             # cmp word [g_cameraY], 339 (66 81 3D addr 53 01)
+    call9(s11['chi'], 9, 'bx_camhi', 3)
+    for k, lbl in (('arrowcall', 'bx_arrow'), ('seatcall', 'bx_seat')):   # (two rows) call rel32 (no fixup)
+        go(s12[k], lbl)
+    go(s12['clock'], 'bx_clock', 7, op=0xE9)
+    assert bytes(p.get(1, svd['call'], 1)) == b'\xe8' and p.call_target(1, svd['call']) == svd['RPF'], 'ReadPitchFile call'
+    go(svd['call'], 'vd_pitch')                     # (4.1 41-vandug) InitGameRestoreTeams' call ReadPitchFile (rel32)        # mov word [esi + 40], 10000 / ret (no address) -> jmp bx_clock
     call9(s2['n1'], 9, 'bx_name1', 3)               # add word [D1], 255 (66 81 05 addr FF 00)
     call9(s2['n2'], 9, 'bx_name2', 3)
     for k in ('wb0', 'wb1', 'wb2'):                 # mov word [D2], 15 (66 C7 05 addr 0F 00)
         call9(s2[k], 9, 'bx_wcount', 3)
     for k, lbl in (('ord', 'bx_ord'), ('len', 'bx_len'), ('lenc', 'bx_lenc')):   # block 3: the name tables, 26 a team
         for objn, off, toff in s3['refs'][k]:
-            p.retarget(objn, off, 1, lab[lbl])
+            p.retarget(objn, off, 3, lab[lbl])
             p.put(objn, off, struct.pack('<I', lab[lbl]))
     for o in s3['imm']:                             # the team-2 offsets / the copy loop: 16 -> 26
         assert bytes(p.get(1, o, 1)) == b'\x10', hex(o)
         p.put(1, o, bytes([MAXP]))
-    p.put(1, s3['jmp'], b'\xe9' + struct.pack('<i', lab['bx_make'] - (s3['jmp'] + 5)))
+    go(s3['jmp'], 'bx_make', op=0xE9)
     rs = refs(p, 2, table, table + 32)
     assert 10 <= len(rs) <= 24, ('inGameTeamPlayerOffsets refs', len(rs))
     for objn, off, toff in rs:
-        p.retarget(objn, off, 1, lab['bx_table'] + toff - table)
+        p.retarget(objn, off, 3, lab['bx_table'] + toff - table)
         p.put(objn, off, struct.pack('<I', lab['bx_table'] + toff - table))
     call9(s4['row'], 8, 'sq_row', 3)                # task 1, the squad screen: sub word [D7], 1Ch
     call9(s4['cmp'], 8, 'sq_cmp', 3)                # cmp word [D7], 10h
@@ -1944,7 +2655,7 @@ def patch(p, at, ns_at, lang='it'):
         call9(c + 10, 8, 'sq_c4', 3)                # cmp word [D4], 10h
     call9(s4['bn'], 8, 'sq_bn', 3)                  # cmp word [D1], 16
     for k, lbl in (('gpi', 'sq_gpi'), ('rot', 'sq_rot')):   # call rel32 (no fixup)
-        p.put(1, s4[k], b'\xe8' + struct.pack('<i', lab[lbl] - (s4[k] + 5)))
+        go(s4[k], lbl)
     d1o = p.le.obj_bytes(1)
     for k, n in (('store', 6), ('row', 8), ('swap', 6), ('ready', 6)):   # nobody else patched them
         assert bytes(p.get(1, s5[k], n)) == d1o[s5[k]:s5[k] + n], k
@@ -1970,14 +2681,28 @@ def patch(p, at, ns_at, lang='it'):
         rcalls.append((s5['se'], 'pm_gpi2'))        # shirtedit's se_ctl (row -> place)
     for o, lbl in rcalls:                           # call rel32 (no fixup)
         assert bytes(p.get(1, o, 1)) == b'\xe8', hex(o)
-        p.put(1, o, b'\xe8' + struct.pack('<i', lab[lbl] - (o + 5)))
+        go(o, lbl)
+    if sfr:                                         # (B) a friendly / DIY club with a long bench: its own order
+        go(sfr['ga'], 'fr_ga')                      # GetPlayerAtIndex: call xs_ga -> call fr_ga (-> jmp xs_ga)
+        for k, lbl in (('swpm', 'fr_sw_pm'), ('swet', 'fr_sw_et')):   # mov eax, [team] (A1 addr) -> jmp
+            p.remove(1, sfr[k] + 1)
+            go(sfr[k], lbl, op=0xE9)
+        for k in ('nps', 'etnp', 'pmend'):           # nobody else patched them
+            assert bytes(p.get(1, sfr[k], 6)) == d1o[sfr[k]:sfr[k] + 6], k
+        call9(sfr['nps'], 6, 'fr_nps', 2)           # mov [numPlayersToShowInMenu], ax
+        call9(sfr['etnp'], 6, 'fr_etnp', 2)         # mov [editTacticsNumPlayers], ax
+        call9(sfr['pmend'], 6, 'fr_pmend', 2)       # mov ax, [playerNumThatStarted]
+        for k, lbl in (('a2', 'fr_a2'), ('a1', 'fr_a1')):   # the PLAY MATCH checks: mov [A2] / [A1], eax (A3 addr)
+            for o in sfr[k]:
+                assert bytes(p.get(1, o, 5)) == d1o[o:o + 5], (k, hex(o))
+                call9(o, 5, lbl, 1)
     bf = int(os.environ.get('BENCH_FORCE', '0'))   # BENCH_FORCE=n (test / playtest builds only): every match's bench
     if bf:                                          # n (<= 15) until the per-competition rule (phase 2)
-        p.put(1, lab['bx_bench'], struct.pack('<H', min(bf, 15)))
+        p.put(3, lab['bx_bench'], struct.pack('<H', min(bf, 15)))
         print(f'exe: BENCH_FORCE={min(bf, 15)} (test build)')
     assert lab['bx_bench'] - lab['bx_ord'] == 4 + 6 * MAXP   # (the harness finds the tables from bx_bench)
     assert lab['bx_vw'] - lab['bx_bench'] == 114               # (bench_view reads the window there)
     LABELS.update(lab)
     print(f'exe: bench up to 15 (block 1: in-match teams of {MAXP}; GMAX obj2+{gmax:#x}, loop obj1+{lp:#x}, '
-          f'{len(rs)} offset-table refs moved; block 2: bench window of 5, cursor to 15, names of places 17+ on sprites {NB}.. (name tables 26 a team), 3 after-match loops to 11 + bench; code obj1+{at:#x}, {len(code)} B, bx_bench obj1+{lab["bx_bench"]:#x})')
+          f'{len(rs)} offset-table refs moved; block 2: two-row dugouts (top bench y 373, back coach + 1..7, front 8..15, mirrored arrow, the camera at the halfway line, the clock top right), cursor to 15, names of places 17+ on sprites {NB}.. (name tables 26 a team), 3 after-match loops to 11 + bench; code obj3+{at:#x}, {len(code)} B, {len(rel)} rel32 into the game, bx_bench obj3+{lab["bx_bench"]:#x})')
     return at + len(code)

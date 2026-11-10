@@ -529,10 +529,14 @@ def patch(p, at, lang, area, bss, world=None, wn=False):
         data.extend(b + b'\0' * ((size or len(b) + 1) - len(b)))
     for k in ('btn', 'next', 'none', 'ov', 'prev') + (('wbtn',) if wn else ()):   # (VINCITORI: its builds only)
         put(k, T[k])
-    put('file', T['file'], 20)
+    put('file', T['file'], 18)                           # (data/fmtxx + 2 digits + .dat + NUL = 17; 4.1: 18, FR's page)
     put('title', b'', NAME + 1)
     put('lines', b'', LINES * LINE_W)
     put('vars', b'', 8)                                  # page (dword), found (byte)
+    import gplay
+    import conti
+    ap = bool(wn and gplay.LABELS.get('ap_mask') and gplay.LABELS.get('STG_TAB'))   # 4.0.5: the earlier stages' entries
+    sm_on = ap and conti.enabled() and 'CV9_VIS' in gplay.LABELS   # 4.1 RIEPILOGO (entry 10): ctview's (patch.py's test)
     while len(data) % 4:
         data.append(0)
 
@@ -569,10 +573,8 @@ def patch(p, at, lang, area, bss, world=None, wn=False):
             b += b'\0\0\0\0'
         buf.extend(b + b'\0\0')
     tail = bytearray()
-    import gplay
-    ap = bool(wn and gplay.LABELS.get('ap_mask') and gplay.LABELS.get('STG_TAB'))   # 4.0.5: the earlier stages' entries
-    if ap:                                               # 8 and 9 (after VINCITORI); EXIT: up -> the last of them
-        sm[e4 + 2] = 9
+    if ap:                                               # 4.0.5: the earlier stages' entries 8 and 9 (after VINCITORI);
+        sm[e4 + 2] = 10 if sm_on else 9                  # EXIT: up -> the last of them (4.1: RIEPILOGO, entry 10)
     entry(tail, sm_at + len(sm), 92, 115, 120, 15, nav=(-1, -1, 3, 6), color=0x0E, text=(2, 'btn'), select=(1, 'fp_open'))
     entry(tail, sm_at + len(sm), 92, 140, 120, 15, nav=(-1, -1, 5, 7 if wn else 4), color=0x0E, text=(2, 'ov'),
           select=(1, 'fp_ov'))
@@ -583,8 +585,13 @@ def patch(p, at, lang, area, bss, world=None, wn=False):
     if ap:                                               # (4.0.5: the label and place set by fp_ovinit: fp_stlab, fp_stpos)
         entry(tail, sm_at + len(sm), 92, 165, 120, 15, nav=(-1, -1, 7, 9), color=0x0E, text=(2, 'ov'),
               select=(1, 'fp_st8'))
-        entry(tail, sm_at + len(sm), 92, 165, 120, 15, nav=(-1, -1, 8, 4), color=0x0E, text=(2, 'ov'),
+        entry(tail, sm_at + len(sm), 92, 165, 120, 15, nav=(-1, -1, 8, 10 if sm_on else 4), color=0x0E, text=(2, 'ov'),
               select=(1, 'fp_st9'))
+    if sm_on:                                            # 4.1 RIEPILOGO: ctview points its select at its summary and
+        entry(tail, sm_at + len(sm), 92, 165, 120, 15, nav=(-1, -1, 9, 4), color=0x0E, text=(2, 'ov'),
+              select=(1, 'fp_open'))                     # wraps the menu's onInit (shown / placed there); its text
+        ssel = sm_at + len(sm) + len(tail) - 6           # too: its RIEPILOGO in obj3 (CR_SUMT; FR's obj2 page had
+                                                         # 6 B less than this block with its own string)
     sm += tail + struct.pack('<h', -999)
     data.extend(sm)
     while len(data) % 4:
@@ -664,6 +671,10 @@ def patch(p, at, lang, area, bss, world=None, wn=False):
         assert world, 'VINCITORI: a build with career worlds'
         assert any(o == wsel for o, _, _ in ptrs), 'VINCITORI select'
         WN.update(stpos=lab.get('fp_stpos'))          # (4.0.5: winners' onInit re-spaces the column after VINCITORI)
+        WN.update(exit=(exit_text[0], exit_fn[0]))   # (4.0.6 ctview's menu: ESCI as the statistics menu's)
+        assert not sm_on or {ssel, ssel - 6} <= {o for o, _, _ in ptrs}, 'RIEPILOGO select / text'
+        WN.update(sumsel=base + ssel if sm_on else None)   # (4.1 ctview: STAT's RIEPILOGO select, entry 10; its
+        WN.update(sumtxt=base + ssel - 6 if sm_on else None)   # text pointer)
         WN.update(sel=base + wsel, init=base + sm_at, ovinit=lab['fp_ovinit'], fill=lab['fp_fill'], menu=base + wm_at,
                   sym={k: sym[k] for k in ('DIYNAME', 'A6', 'SHOW_MENU', 'FNAME', 'TITLE', 'LINES_BUF', 'PAGE', 'FOUND',
                                            'FMTMENU', 'BUF', 'TXT', 'IDXMAX_', 'TXTMAX_', 'ENTRY_', 'NAME_', 'LINES_',

@@ -60,16 +60,23 @@ BALD_AT = 25                            # PlayerFile.field_19 (from the player r
 # shape 'E' (receding) or 'oval' (one colour, the face too), the skull's raw colour (7 = the variant's NEW palette tone,
 # drawn by DrawSprite16Pixels' table; 6 / 5 / 4 skin, 3 black) and the half / EGA mode's colour for a 7.
 LOOKS = {'receding': {'light': dict(shape='E', skull=6, ega=6), 'dark': dict(shape='E', skull=6, ega=6)},
-         'shaved': {'light': dict(shape='art', skull=7, ega=6), 'dark': dict(shape='art', skull=7, ega=6)}}
+         'shaved': {'light': dict(shape='art', skull=7, ega=6), 'dark': dict(shape='art', skull=7, ega=6)},
+         'white': {'light': dict(shape='white', skull=6, ega=6), 'dark': dict(shape='white', skull=6, ega=6)}}
 # (4.0.5 final, Marco 01/11: 'art' = shavedart.py's per-frame heads; the dark shade in the dark tone 85, the light
 # skull in the light tone 84 - raw 13 -> nibble 7 - and in the half / EGA mode both in the skull's raw 6)
 TONES = {'light': (84, (240, 150, 120)), 'dark': (85, (70, 30, 10))}   # palette index (free in every pitch), RGB
 # (Davide 30/10: the dark oval in the dark face's colour - raw 6, converted 4: head = face; index 85 stays spare). Variant flags (PlayerInfoHeader FLAG): 1 darkblond,
 # 2 / 3 receding dark / light, 4 / 5 shaved dark / light; bald.c's look = (flag - 2) xor 1.
-FLAGS = {2: ('receding', 'dark'), 3: ('receding', 'light'), 4: ('shaved', 'dark'), 5: ('shaved', 'light')}
+FLAGS = {2: ('receding', 'dark'), 3: ('receding', 'light'), 4: ('shaved', 'dark'), 5: ('shaved', 'light'),
+         6: ('white', 'dark'), 7: ('white', 'light')}
+# 4.0.6 white hair (Davide 30/10, round 3's R2 'stubble tone' kept as a hair look: internal/design/white-hair-variant.md):
+# byte 25 bit 2 (bit 0 bald wins), flags 6 / 7 dark / light, bald.c's looks 5 / 4: every raw hair pixel (13 / 9 / 12)
+# grey 1 - no face conversion changes it, no tone, the same in the half / EGA mode - the top hair row's end pixels off
+WHITE_BIT = 4
 NSLOT = 5                               # single-team set slots: NEW1 / + 101, NEW3 / + 101, SLOT5 (4.0.5)
 SLOT5 = 1932                            # (after benchx's 1912..1931)
 ICON3 = SLOT5 + 101                     # 2033 / 2034: the shaved face icons (light, dark)
+ICONW = ICON3 + 2                       # 2035 / 2036: the white hair face icons (light, dark; 4.0.6)
 FLAG = 49                               # PlayerInfoHeader.field_31
 BLOND = (6, 4, 5, 4, 4, 3, 13, 15, 9, 15, 12, 6, -1)   # black skin; hair bright/medium -> yellow, dark -> orange
 
@@ -90,7 +97,15 @@ ig_face:                                ; replaces mov al, [D0] / mov esi, [A6] 
     mov ah, [edi + 66h - 26 + BALD_AT_]
     pop edi
     test ah, 1
+    jnz .b
+    test ah, 4                          ; 4.0.6 white hair (bit 2; bald wins): 7 light, 6 dark
     jz .s
+    mov byte [esi + FLAG_], 7
+    cmp al, 2
+    jne .s
+    mov byte [esi + FLAG_], 6
+    jmp .s
+.b:
     mov byte [esi + FLAG_], 3           ; 3 receding light, 2 receding dark (also darkblond), + 2 shaved
     cmp al, 2
     jne .sh
@@ -119,7 +134,9 @@ copy_sets:                              ; replaces mov word [D0], 341 (after Ini
     mov [VBT + 4], eax                  ; then team 2 for each flag; a variant without a slot falls back (fo)
     mov [VBT + 8], eax
     mov [VBT + 12], eax
-    mov [VBT + 16], eax                 ; (VBT5)
+    mov [VBT + 16], eax                 ; (VBT5: flags 5, 6, 7)
+    mov [VBT + 20], eax
+    mov [VBT + 24], eax
     mov [SFL], eax
     mov byte [SFL + 4], 0
     xor ecx, ecx                        ; ecx = the next free slot
@@ -145,12 +162,13 @@ copy_sets:                              ; replaces mov word [D0], 341 (after Ini
 .ns0:
     movzx ebp, word [SIDX + ecx * 2]
     cmp dl, 5
-    je .v5
+    jae .v5
     lea esi, [VBT + eax * 8]
-    mov [esi + edx * 2 - 2], bp         ; (VBT: per team, flags 1..4; flag 5 in VBT5)
+    mov [esi + edx * 2 - 2], bp         ; (VBT: per team, flags 1..4; flags 5..7 in VBT5)
     jmp .v4
 .v5:
-    mov [VBT5 + eax * 2], bp
+    lea esi, [eax + edx * 2]
+    mov [VBT5 - 20 + esi * 2], bp
 .v4:
     mov edi, [SBUF + ecx * 4]
     imul edx, eax, 644 - 341
@@ -166,7 +184,7 @@ copy_sets:                              ; replaces mov word [D0], 341 (after Ini
     cmp eax, 2
     jb .t
     inc ebx
-    cmp ebx, 5
+    cmp ebx, 7
     jb .f
     mov byte [SHAPE], 0
     mov dword [NEEDT], 0
@@ -246,6 +264,233 @@ bald_shape:                             ; ebx = a copied raw sprite: its head re
 .r:
     ret
 
+SHAPE: db 0
+SIG: db 'BLDSLOT7'                      ; (harness variant_sets: SIG, SFL, STM, VBT, VBT5; 4.0.6 '7': VBT5 x 3)
+SFL: db 0, 0, 0, 0, 0                   ; per slot: its flag this match, 0 = free
+STM: db 0, 0, 0, 0, 0                   ; per slot: its team (0 / 1)
+align 2
+VBT: dw 0, 0, 0, 0, 0, 0, 0, 0          ; per team (8 bytes): flags 1..4's first sprite this match, 0 = none
+VBT5: dw 0, 0, 0, 0, 0, 0                 ; per team: flag 5's, then 6's, 7's (4.0.6)
+SIDX: dw NEW1_, NEW1_ + 101, NEW3_, NEW3_ + 101, SLOT5_
+align 4
+NEEDT: dd 0, 0
+
+fo1:                                    ; replaces mov ax, [D0] / mov bx, 442 / sub bx, 341 / mul bx (team 1 player)
+    mov ebx, [A0 + 8]                   ; A2 -> player
+    push ecx
+    push esi
+    mov ecx, -341
+    xor esi, esi
+    jmp fo
+fo2:
+    mov ebx, [A0 + 12]                  ; A3 -> player
+    push ecx
+    push esi
+    mov ecx, -644
+    mov esi, 1
+fo:                                     ; ax = the player's set (first sprite) - the team's raw base
+    movzx eax, byte [ebx + FLAG_]
+    test eax, eax
+    jz .norm
+    call .vb
+    jnz .ok
+    cmp byte [ebx + FLAG_], 4           ; a shaved player without a slot: his receding set when the team has it
+    jb .fb
+    cmp byte [ebx + FLAG_], 6           ; (4.0.6 white hair without a slot: his normal set)
+    jae .fb
+    movzx eax, byte [ebx + FLAG_]
+    sub eax, 2
+    call .vb
+    jnz .ok
+.fb:
+    movzx eax, byte [ebx + FLAG_]       ; light bald (3, 5) without sets: face 1 (the skin-coloured hair); dark and
+    cmp eax, 3                          ; darkblond: the normal sets
+    je .f1
+    cmp eax, 5
+    jne .norm
+.f1:
+    xor dx, dx
+    mov ax, 101
+    jmp .r
+.ok:
+    xor dx, dx
+    add ax, cx
+    jmp .r
+.norm:
+    mov ax, [D0]
+    mov bx, 101
+    mul bx
+.r:
+    pop esi
+    pop ecx
+    ret
+.vb:                                    ; eax = flag -> eax = the team's (esi) set of it, ZF: none (edx changed)
+    cmp eax, 5
+    jae .v5
+    lea edx, [esi * 8]
+    movzx eax, word [VBT + edx + eax * 2 - 2]
+    test eax, eax
+    ret
+.v5:
+    lea eax, [esi + eax * 2]
+    movzx eax, word [VBT5 - 20 + eax * 2]
+    test eax, eax
+    ret
+
+icon_d0:                                ; replaces add word [D0], 186 (face icon; A6 -> the player record)
+    add word [D0], 186
+    call build_icon
+    push edx
+    push eax
+    mov edx, D0
+    mov eax, [A6]
+    jmp bicon
+icon_d1:
+    add word [D1], 186
+    call build_icon
+    push edx
+    push eax
+    mov edx, D1
+    mov eax, [A6]
+    jmp bicon
+icon_d1a:                               ; (the Edit Teams face button: A0 -> the player record)
+    add word [D1], 186
+    call build_icon
+    push edx
+    push eax
+    mov edx, D1
+    mov eax, [A0]
+bicon:                                  ; 4.0.5: a bald player (record byte 25 bit 0; bit 1 shaved) gets the bald icon of
+    test eax, eax                       ; his look and skin: ICONS = receding light / dark (1910 / 1911, from 186 /
+    jz .r                               ; 188), shaved light / dark (ICON3 / + 1)
+    cmp byte [SPPMMI], 66h              ; (4.0.5: not under SWOS++, as the match sets above)
+    jne .r
+    test byte [eax + 66h - 26 + BALD_AT_], 5   ; (4.0.6: or white hair, bit 2)
+    jz .r
+    call build_bald
+    push ebx
+    xor ebx, ebx
+    cmp word [edx], 186 + 2
+    setae bl                            ; (faces 2 / 3: dark)
+    test byte [eax + 66h - 26 + BALD_AT_], 1
+    jnz .bd
+    add ebx, 4                          ; (white hair: ICONW / + 1)
+    jmp .i
+.bd:
+    test byte [eax + 66h - 26 + BALD_AT_], 2
+    jz .i
+    add ebx, 2
+.i:
+    movzx ebx, word [ICONS + ebx * 2]
+    mov [edx], bx
+    pop ebx
+.r:
+    pop eax
+    pop edx
+    ret
+build_bald:                             ; the four bald icons: the face icon (186 light, 188 dark) with its head by
+    pushad                              ; bald.c's bald_icon (look 0..3 as bald_c's)
+    xor ebp, ebp
+.l:
+    mov ebx, ebp
+    and ebx, 1
+    lea ebx, [186 + ebx * 2]
+    mov edi, ebp
+    shl edi, 8
+    add edi, ICONBUF
+    call .one
+    inc ebp
+    cmp ebp, 6                          ; (4.0.6: + the white hair icons, looks 4 / 5)
+    jb .l
+    popad
+    ret
+.one:                                   ; ebx = the source icon, ebp = the look, edi -> buffer
+    mov esi, [SPRIDX + ebx * 4]
+    test esi, esi
+    jz .x
+    cmp word [esi + 14], 1
+    jne .x
+    movzx ecx, word [esi + 12]
+    cmp ecx, 16
+    ja .x
+    xor eax, eax
+.h:
+    mov edx, [esi + eax]
+    mov [edi + eax], edx
+    add eax, 4
+    cmp eax, 24
+    jb .h
+    lea eax, [edi + 24]
+    mov [edi], eax
+    mov ax, [ICONS + ebp * 2]
+    mov [edi + 22], ax
+    movzx eax, ax
+    mov [SPRIDX + eax * 4], edi
+    mov esi, [esi]
+    shl ecx, 3
+    xor eax, eax
+.p:
+    mov dl, [esi + eax]
+    mov [edi + 24 + eax], dl
+    inc eax
+    cmp eax, ecx
+    jb .p
+    shr ecx, 3                          ; the head: bald.c (bald_icon)
+    push ebp
+    push ecx
+    lea eax, [edi + 24]
+    push eax
+    call BALDI
+    add esp, 12
+.x:
+    ret
+
+
+build_icon:                             ; sprite 189 = 188 with the hair (colour 3, top three rows) yellow
+    pushad
+    mov esi, [SPRIDX + 188 * 4]
+    mov edi, [SPRIDX + 189 * 4]
+    movzx ecx, word [esi + 12]
+    movzx eax, word [edi + 12]
+    cmp ecx, eax
+    jne .out
+    cmp word [esi + 14], 1
+    jne .out
+    cmp word [edi + 14], 1
+    jne .out
+    mov esi, [esi]
+    mov edi, [edi]
+    shl ecx, 3                          ; bytes
+    xor edx, edx
+.b:
+    mov al, [esi + edx]
+    cmp edx, 24                         ; rows 0..2 (8 bytes each): colour 3 -> 15
+    jae .put
+    mov ah, al
+    and ah, 0F0h
+    cmp ah, 30h
+    jne .lo
+    or al, 0F0h
+.lo:
+    mov ah, al
+    and ah, 0Fh
+    cmp ah, 3
+    jne .put
+    or al, 0Fh
+.put:
+    mov [edi + edx], al
+    inc edx
+    cmp edx, ecx
+    jb .b
+.out:
+    popad
+    ret
+"""
+
+
+# 4.0.6: out of the cave (it is full), in obj3 (late_patch, CONVENTIONS 23): routines only hooks call and tables
+# ASM only reads (no obj3 address reaches a save) - assembled first, their labels given to ASM as symbols
+XASM = r"""
 pal_setup:                              ; 4.0.5 replaces DrawSprite16Pixels' mov bh, [g_deltaColor] (each `or bl, bh` of
     push eax                            ; its loops is `mov bl, [ebx]`): ebx = bald.c's table + the slot of the delta;
     mov ebx, [LUTP]                     ; a sprite of a set slot (data in SBUF[s] .. + SET_) drawn with delta 0 gets
@@ -321,22 +566,6 @@ pal_write:                              ; 4.0.5 replaces InitGameRestoreTeams' m
     mov esi, WPAL
     ret
 
-SHAPE: db 0
-SIG: db 'BLDSLOT5'                      ; (harness variant_sets: SIG, SFL, STM, VBT, VBT5)
-SFL: db 0, 0, 0, 0, 0                   ; per slot: its flag this match, 0 = free
-STM: db 0, 0, 0, 0, 0                   ; per slot: its team (0 / 1)
-align 2
-VBT: dw 0, 0, 0, 0, 0, 0, 0, 0          ; per team (8 bytes): flags 1..4's first sprite this match, 0 = none
-VBT5: dw 0, 0                           ; per team: flag 5's
-SIDX: dw NEW1_, NEW1_ + 101, NEW3_, NEW3_ + 101, SLOT5_
-FACEOF: db 0, FACE_, F2_, F3_, F4_, F5_ ; per flag: the face conversion table (darkblond 3; bald: face 2 / 0, or 5 / 4
-                                        ; with a new tone: raw 13 -> 7, the tone's nibble)
-LUTSL: db 0, 0, S2_, S3_, S4_, S5_      ; per flag: pal_init's table slot of its tone (0 none, 3 light, 4 dark)
-ORDER: db 1, 5, 4, 3, 2                 ; slot priority: darkblond, shaved light / dark, receding light / dark
-align 4
-SBUF: dd BUF, BUF + SET_, BUF2, BUF2 + SET_, BUF3
-NEEDT: dd 0, 0
-
 conv1:                                  ; replaces mov ax, [useIndividualPlayerSkinColor] before team 1's goalkeepers
     pushad
     xor esi, esi
@@ -404,214 +633,68 @@ conv:                                   ; [esp+4] colour table, [esp+8] first ne
 .out:
     ret 12
 
-fo1:                                    ; replaces mov ax, [D0] / mov bx, 442 / sub bx, 341 / mul bx (team 1 player)
-    mov ebx, [A0 + 8]                   ; A2 -> player
-    push ecx
-    push esi
-    mov ecx, -341
-    xor esi, esi
-    jmp fo
-fo2:
-    mov ebx, [A0 + 12]                  ; A3 -> player
-    push ecx
-    push esi
-    mov ecx, -644
-    mov esi, 1
-fo:                                     ; ax = the player's set (first sprite) - the team's raw base
-    movzx eax, byte [ebx + FLAG_]
-    test eax, eax
-    jz .norm
-    call .vb
-    jnz .ok
-    cmp byte [ebx + FLAG_], 4           ; a shaved player without a slot: his receding set when the team has it
-    jb .fb
-    movzx eax, byte [ebx + FLAG_]
-    sub eax, 2
-    call .vb
-    jnz .ok
-.fb:
-    movzx eax, byte [ebx + FLAG_]       ; light bald (3, 5) without sets: face 1 (the skin-coloured hair); dark and
-    cmp eax, 3                          ; darkblond: the normal sets
-    je .f1
-    cmp eax, 5
-    jne .norm
-.f1:
-    xor dx, dx
-    mov ax, 101
-    jmp .r
-.ok:
-    xor dx, dx
-    add ax, cx
-    jmp .r
-.norm:
-    mov ax, [D0]
-    mov bx, 101
-    mul bx
-.r:
-    pop esi
-    pop ecx
-    ret
-.vb:                                    ; eax = flag -> eax = the team's (esi) set of it, ZF: none (edx changed)
-    cmp eax, 5
-    je .v5
-    lea edx, [esi * 8]
-    movzx eax, word [VBT + edx + eax * 2 - 2]
-    test eax, eax
-    ret
-.v5:
-    movzx eax, word [VBT5 + esi * 2]
-    test eax, eax
-    ret
+align 4
+SBUF: dd BUF, BUF + SET_, BUF2, BUF2 + SET_, BUF3
+FACEOF: db 0, FACE_, F2_, F3_, F4_, F5_, F6_, F7_ ; per flag: the face conversion table (darkblond 3; bald: face 2 / 0, or 5 / 4
+                                        ; with a new tone: raw 13 -> 7, the tone's nibble)
+LUTSL: db 0, 0, S2_, S3_, S4_, S5_, S6_, S7_ ; per flag: pal_init's table slot of its tone (0 none, 3 light, 4 dark)
+ORDER: db 1, 5, 4, 3, 2, 7, 6           ; slot priority: darkblond, shaved light / dark, receding light / dark,
+                                        ; white light / dark (4.0.6: last)
+ICONS: dw ICONBL_, ICONBL_ + 1, ICON3_, ICON3_ + 1, ICONW_, ICONW_ + 1
 
-icon_d0:                                ; replaces add word [D0], 186 (face icon; A6 -> the player record)
-    add word [D0], 186
-    call build_icon
-    push edx
+lp_face:                                ; 4.0.6 the stadium screen's little players (StadiumPlayerSpritesBeforeDraw's
+    push dword [A0]                     ; `call FillSkinColorConversionTable`, A0 -> the player, A1 = littlePlayers-
+    call FILLSKIN                       ; ColorTable: a word per raw colour): Davide, MiSTer 02/11 - white hair (flags
+    pop esi                             ; 6 / 7) as in the match, raw 13 / 9 WH_HAIR, 12 WH_DARK; goalkeepers keep their
+    cmp word [LITTLE], LGOALIE_         ; hair (as in the match: their sprites are the game's). Bald (Davide 03/11: the
+    je .x                               ; squad screen's look): the outfield sprites 210..212 share one 9 x 12 head
+    mov al, [esi + FLAG_]               ; (hair raw 13 / 9 / 12 in rows 0..2 only), drawn right after this call: shaved
+    mov edx, LPH0_                      ; (4 / 5) all the hair in the skin (12, the back, its shade 5); receding (2 / 3)
+    mov ecx, LPH1_                      ; the head's top (row 0, row 1's middle) in the skin in the sprites' pixels,
+    cmp al, 2                           ; the sides and the back keep the hair - put back for everyone else
+    jb .px
+    cmp al, 3
+    ja .px
+    mov edx, LPR0_
+    mov ecx, LPR1_
+.px:
     push eax
-    mov edx, D0
-    mov eax, [A6]
-    jmp bicon
-icon_d1:
-    add word [D1], 186
-    call build_icon
-    push edx
-    push eax
-    mov edx, D1
-    mov eax, [A6]
-    jmp bicon
-icon_d1a:                               ; (the Edit Teams face button: A0 -> the player record)
-    add word [D1], 186
-    call build_icon
-    push edx
-    push eax
-    mov edx, D1
-    mov eax, [A0]
-bicon:                                  ; 4.0.5: a bald player (record byte 25 bit 0; bit 1 shaved) gets the bald icon of
-    test eax, eax                       ; his look and skin: ICONS = receding light / dark (1910 / 1911, from 186 /
-    jz .r                               ; 188), shaved light / dark (ICON3 / + 1)
-    cmp byte [SPPMMI], 66h              ; (4.0.5: not under SWOS++, as the match sets above)
-    jne .r
-    test byte [eax + 66h - 26 + BALD_AT_], 1
-    jz .r
-    call build_bald
-    push ebx
-    xor ebx, ebx
-    cmp word [edx], 186 + 2
-    setae bl                            ; (faces 2 / 3: dark)
-    test byte [eax + 66h - 26 + BALD_AT_], 2
-    jz .i
-    add ebx, 2
-.i:
-    movzx ebx, word [ICONS + ebx * 2]
-    mov [edx], bx
-    pop ebx
-.r:
+    mov ebx, LSPR_
+.s: mov edi, [SPRIDX + ebx * 4]
+    mov edi, [edi]                      ; its pixels (16 a row, 4 bits each: 8 bytes)
+    mov ax, [edi + 1]
+    cmp ax, LPH0_                       ; (only over the game's own head or ours)
+    je .w
+    cmp ax, LPR0_
+    jne .n
+.w: mov [edi + 1], dx
+    mov [edi + 9], cx
+.n: inc ebx
+    cmp ebx, LSPR_ + 2
+    jbe .s
     pop eax
-    pop edx
-    ret
-build_bald:                             ; the four bald icons: the face icon (186 light, 188 dark) with its head by
-    pushad                              ; bald.c's bald_icon (look 0..3 as bald_c's)
-    xor ebp, ebp
-.l:
-    mov ebx, ebp
-    and ebx, 1
-    lea ebx, [186 + ebx * 2]
-    mov edi, ebp
-    shl edi, 8
-    add edi, ICONBUF
-    call .one
-    inc ebp
-    cmp ebp, 4
-    jb .l
-    popad
-    ret
-.one:                                   ; ebx = the source icon, ebp = the look, edi -> buffer
-    mov esi, [SPRIDX + ebx * 4]
-    test esi, esi
-    jz .x
-    cmp word [esi + 14], 1
-    jne .x
-    movzx ecx, word [esi + 12]
-    cmp ecx, 16
-    ja .x
-    xor eax, eax
-.h:
-    mov edx, [esi + eax]
-    mov [edi + eax], edx
-    add eax, 4
-    cmp eax, 24
-    jb .h
-    lea eax, [edi + 24]
-    mov [edi], eax
-    mov ax, [ICONS + ebp * 2]
-    mov [edi + 22], ax
-    movzx eax, ax
-    mov [SPRIDX + eax * 4], edi
-    mov esi, [esi]
-    shl ecx, 3
-    xor eax, eax
-.p:
-    mov dl, [esi + eax]
-    mov [edi + 24 + eax], dl
-    inc eax
-    cmp eax, ecx
-    jb .p
-    shr ecx, 3                          ; the head: bald.c (bald_icon)
-    push ebp
-    push ecx
-    lea eax, [edi + 24]
-    push eax
-    call BALDI
-    add esp, 12
-.x:
-    ret
-ICONS: dw ICONBL_, ICONBL_ + 1, ICON3_, ICON3_ + 1
-
-build_icon:                             ; sprite 189 = 188 with the hair (colour 3, top three rows) yellow
-    pushad
-    mov esi, [SPRIDX + 188 * 4]
-    mov edi, [SPRIDX + 189 * 4]
-    movzx ecx, word [esi + 12]
-    movzx eax, word [edi + 12]
-    cmp ecx, eax
-    jne .out
-    cmp word [esi + 14], 1
-    jne .out
-    cmp word [edi + 14], 1
-    jne .out
-    mov esi, [esi]
-    mov edi, [edi]
-    shl ecx, 3                          ; bytes
-    xor edx, edx
-.b:
-    mov al, [esi + edx]
-    cmp edx, 24                         ; rows 0..2 (8 bytes each): colour 3 -> 15
-    jae .put
-    mov ah, al
-    and ah, 0F0h
-    cmp ah, 30h
-    jne .lo
-    or al, 0F0h
-.lo:
-    mov ah, al
-    and ah, 0Fh
-    cmp ah, 3
-    jne .put
-    or al, 0Fh
-.put:
-    mov [edi + edx], al
-    inc edx
-    cmp edx, ecx
+    cmp al, 6
     jb .b
-.out:
-    popad
+    mov word [LPT + 26], WHH_
+    mov word [LPT + 18], WHH_
+    mov word [LPT + 24], WHD_
     ret
+.b: cmp al, 4
+    jb .x
+    cmp al, 5
+    ja .x
+    mov ax, [LPT + 12]
+    mov [LPT + 26], ax
+    mov [LPT + 18], ax
+    mov ax, [LPT + 10]
+    mov [LPT + 24], ax
+.x: ret
 """
-
 
 def patch(p, area, at, bss, spr, bss2, art_at):
     """Code at obj1:at, sets at obj2:bss (BSS_SIZE zero bytes) and obj2:bss2 (BSS2_SIZE, bald dark), spr = spritesIndex
-    (obj2), art_at = obj1 room for shavedart's main blob (art_patch). Returns the code end."""
+    (obj2), art_at = obj1 room for shavedart's main blob (art_patch); 4.0.6: the code written by late_patch (XASM in
+    obj3). Returns the obj1 code end."""
     d1, d2 = p.le.obj_bytes(1), p.le.obj_bytes(2)
     fix = list(p.le.fixups())
     one = lambda pat: (lambda m: m[0] if len(m) == 1 else None)([x.start() for x in re.finditer(pat, d1, re.S)])
@@ -688,17 +771,35 @@ def patch(p, area, at, bss, spr, bss2, art_at):
     mmi = [m.start() for m in re.finditer(rb'\x66\xc7\x05.{4}\xff\xff\xe8.{4}\xe8.{4}\xeb\x00', d1, re.S)]
     assert len(mmi) == 2 and mmi[0] < 0x20000, [hex(x) for x in mmi]   # (SWOSMainMenuInit's `mov currentTeamNumber, -1`
                                                                        # is the first: SWOS++ makes its 66h a B8h)
+    # 4.0.6 the stadium screen: StadiumPlayerSpritesBeforeDraw's `mov [A1], littlePlayersColorTable / call
+    # FillSkinColorConversionTable / retn` (FillSkin: mov al, byte [D0] first); its goalkeeper's
+    # `mov stadiumMenuLittlePlayer, SPR_LITTLE_PLAYER_GOALIE` before it
+    lps = [x.start() for x in re.finditer(rb'\xC7\x05' + re.escape(struct.pack('<I', A0 + 4)) + rb'....\xE8....\xC3', d1, re.S)]
+    def tsafe(o):
+        try:
+            return t(o)
+        except AssertionError:
+            return None
+    lps = [o for o in lps if 0 <= rel(o + 10) < len(d1) - 5 and d1[rel(o + 10)] == 0xA0 and tsafe(rel(o + 10) + 1) == (2, D0)]
+    assert len(lps) == 1, lps
+    lg = [x.start() for x in re.finditer(rb'\x66\xC7\x05....\xD5\x00', d1[lps[0] - 0x200:lps[0]], re.S)]
+    assert len(lg) == 1, lg
+    LPS[:] = [lps[0] + 10, t(lps[0] + 6), t(lps[0] - 0x200 + lg[0] + 3), rel(lps[0] + 10)]
     sym = {'SPPMMI': (1, mmi[0]), 'D0': (2, D0), 'D1': (2, D1), 'A0': (2, A0), 'A6': (2, A6), 'SPRIDX': (2, spr), 'BUF': (2, bss),
            'A5': (2, A0 + 20), 'BUF2': (2, bss2), 'BALD_AT_': (0, BALD_AT), 'NEW3_': (0, NEW3), 'ICONBL_': (0, ICONBL), 'ICONBUF': (2, bss2 + SCR_OFF + 0x800), 'SCR': (2, bss2 + SCR_OFF), 'MARK': (2, bss2 + SCR_OFF + 0x200),
            'USEIND': useind, 'T1TAB': (2, t1tab), 'T2TAB': (2, t2tab), 'SKINTAB': (1, skintab), 'CONVSPR': (1, csc),
            'FACE_': (0, FACE), 'FLAG_': (0, FLAG), 'FACE_OFF': (0, face_off), 'NEW1_': (0, NEW1), 'NEW2_': (0, NEW2),
-           'SET_': (0, SET_BYTES), 'NSLOT_': (0, NSLOT), 'SLOT5_': (0, SLOT5), 'ICON3_': (0, ICON3),
+           'SET_': (0, SET_BYTES), 'NSLOT_': (0, NSLOT), 'SLOT5_': (0, SLOT5), 'ICON3_': (0, ICON3), 'ICONW_': (0, ICONW),
            'BUF3': (2, bss2 + BUF3_OFF), 'A4': (2, A0 + 16), 'TOPTEAM': topteam(p),
+           'LPT': LPS[1], 'LITTLE': LPS[2], 'FILLSKIN': (1, LPS[3]), 'LGOALIE_': (0, 213),
+           'LSPR_': (0, 210), 'LPH0_': (0, 0x990D), 'LPH1_': (0, 0x9CD9), 'LPR0_': (0, 0x6606), 'LPR1_': (0, 0x66D6),
+           'WHH_': (0, WHITE_TONES[os.environ.get('WHITE_TONE', WHITE_TONE)][0]),
+           'WHD_': (0, WHITE_TONES[os.environ.get('WHITE_TONE', WHITE_TONE)][1]),
            **{f'F{f}_': (0, (5 if skin == 'dark' else 4) if LOOKS[look][skin]['skull'] == 7 else (2 if skin == 'dark' else 0))
               for f, (look, skin) in FLAGS.items()},
            **{f'S{f}_': (0, (4 if skin == 'dark' else 3) if LOOKS[look][skin]['skull'] == 7 else 0)
               for f, (look, skin) in FLAGS.items()}}
-    assert SLOT5 >= blond_free() and ICON3 + 2 <= 2103, 'spritesIndex map'
+    assert SLOT5 >= blond_free() and ICONW + 2 <= 2103, 'spritesIndex map'
     import cobj                                           # 4.0.5: bald.c (the bald heads) first, the glue after it
     main, _, _, dark = shavedart.blobs()                  # 4.0.5 the shaved art: the dark heads here, the rest in
     assert not any(p.get(1, at, len(dark)))              # namespr's spare tail (art_at, written by art_patch once
@@ -727,42 +828,79 @@ def patch(p, area, at, bss, spr, bss2, art_at):
     sym.update(DELTA=t(bh + 2), WPAL=wpal, SETUPDAT=SETUPDAT(p), SET2_=(0, 2 * SET_BYTES), TL_=(0, tl), TD_=(0, td),
                **{f'T{v}{c}_': (0, x >> 2) for v, rgb in (('L', rgbl), ('D', rgbd)) for c, x in zip('RGB', rgb)})
     print(f'exe: bald.c obj1+{at:#x}..{cend:#x} (shaved dark art {len(dark)} B first), .bss {cbss} B')
-    at = (cend + 15) & ~15
-    code, cfix = nasmcave.assemble(ASM, at, sym)
-    lab = nasmcave.labels(ASM, at, sym)
-    UNCH['sym'].update(SFL=(1, lab['SFL']), SIDX=(1, lab['SIDX']), NSLOT_=(0, NSLOT))
-    assert not any(p.get(1, at, len(code)))
-    p.put(1, at, code)
-    for o, t_obj, t_off in cfix:
-        p.add_ptr(1, at + o, t_obj, t_off)
+    at = (cend + 15) & ~15                                # 4.0.6: XASM (the palette route + read-only tables) in
+    xnames = ('pal_setup', 'pal_write', 'conv1', 'conv2', 'SBUF', 'FACEOF', 'LUTSL', 'ORDER', 'ICONS')   # obj3 after cpucards (late_patch,
+    dry = {**sym, **{n: (3, 0x1000) for n in xnames}}     # CONVENTIONS 23): ASM's size and labels with stand-ins
+    code0, _, _ = nasmcave.assemble_obj(ASM, at, dry, 1)  # (absolute 32-bit operands either way: one size)
+    lab0 = nasmcave.labels(ASM, at, dry)
+    UNCH['sym'].update(SFL=(1, lab0['SFL']), SIDX=(1, lab0['SIDX']), NSLOT_=(0, NSLOT))
+    assert not any(p.get(1, at, len(code0)))
+    p.put(1, at, code0)                                   # (the room held until late_patch writes the real code)
 
-    def hook(site, n, label, fixups):
-        assert p.get(1, site, n) == d1[site:site + n], hex(site)
-        for f in fixups:
-            p.remove(1, site + f)
-        p.put(1, site, b'\xE8' + struct.pack('<i', lab[label] - (site + 5)) + b'\x90' * (n - 5))
+    def late(at3):
+        xsym = {**sym, **{n: (1, v) for n, v in lab0.items() if '.' not in n and n not in xnames}}   # (ASM's labels)
+        xcode, xfix, xrel = nasmcave.assemble_obj(XASM, at3, xsym, 3)
+        xlab = nasmcave.labels(XASM, at3, xsym)
+        assert not any(p.get(3, at3, len(xcode))), hex(at3)
+        p.put(3, at3, xcode)
+        for o, t_obj, t_off in xfix:
+            p.add_ptr(3, at3 + o, t_obj, t_off)
+        for o, t_obj, t_off in xrel:
+            p.add_rel(3, at3 + o, t_obj, t_off)
+        sym.update({n: (3, xlab[n]) for n in xnames})
+        code, cfix, crel = nasmcave.assemble_obj(ASM, at, sym, 1)
+        lab = nasmcave.labels(ASM, at, sym)
+        assert len(code) == len(code0) and all(lab[n] == v for n, v in lab0.items() if n in lab), 'XASM: ASM moved'
+        p.put(1, at, code)
+        for o, t_obj, t_off in cfix:
+            p.add_ptr(1, at + o, t_obj, t_off)
+        for o, t_obj, t_off in crel:
+            p.add_rel(1, at + o, t_obj, t_off)
 
-    hook(face + 8, 14, 'ig_face', (1, 7))                 # mov al,[D0] / mov esi,[A6] / mov [esi+face],al
-    hook(bh, 6, 'pal_setup', (2,))                        # mov bh, [g_deltaColor]
-    for o in ors:
-        assert p.get(1, bh + o, 2) == b'\x0a\xdf'
-        p.put(1, bh + o, b'\x8a\x1b')                     # or bl, bh -> mov bl, [ebx]
-    hook(sv[0], 5, 'pal_write', (1,))                     # mov esi, g_workingPalette
-    hook(copy, 9, 'copy_sets', (3,))                      # mov word [D0], 341
-    hook(c1 + 11, 6, 'conv1', (2,))                       # mov ax, [useIndividualPlayerSkinColor]
-    hook(c2 + 11, 6, 'conv2', (2,))
-    hook(f1, 18, 'fo1', (2,))                             # mov ax,[D0] / mov bx,442 / sub bx,341 / mul bx
-    hook(f2, 18, 'fo2', (2,))
-    for s in icons:
-        reg = t(s + 3)
-        assert reg in ((2, D0), (2, D1)), (hex(s), reg)
-        lab_ = 'icon_d0' if reg == (2, D0) else 'icon_d1a' if cyc < s < cyc + 0x80 else 'icon_d1'
-        hook(s, 9, lab_, (3,))
-    assert p.get(1, cyc + 15, 1) == b'\x03'
-    p.put(1, cyc + 15, b'\x04')                           # Edit Teams face button: 0..3
-    print(f'exe: blond hair: face 3 (sets {NEW1}.., {NEW2}.., obj2+{bss:#x}; code obj1+{at:#x}, {len(code)} B)')
-    return at + len(code)
+        def hook(site, n, label, fixups):
+            assert p.get(1, site, n) == d1[site:site + n], hex(site)
+            for f in fixups:
+                p.remove(1, site + f)
+            if label in xlab:                             # (into obj3: a self-relative fixup)
+                p.branch(1, site, 0xE8, 3, xlab[label], n)
+            else:
+                p.put(1, site, b'\xE8' + struct.pack('<i', lab[label] - (site + 5)) + b'\x90' * (n - 5))
 
+        hook(face + 8, 14, 'ig_face', (1, 7))             # mov al,[D0] / mov esi,[A6] / mov [esi+face],al
+        hook(bh, 6, 'pal_setup', (2,))                    # mov bh, [g_deltaColor]
+        for o in ors:
+            assert p.get(1, bh + o, 2) == b'\x0a\xdf'
+            p.put(1, bh + o, b'\x8a\x1b')                 # or bl, bh -> mov bl, [ebx]
+        hook(sv[0], 5, 'pal_write', (1,))                 # mov esi, g_workingPalette
+        hook(copy, 9, 'copy_sets', (3,))                  # mov word [D0], 341
+        hook(c1 + 11, 6, 'conv1', (2,))                   # mov ax, [useIndividualPlayerSkinColor]
+        hook(c2 + 11, 6, 'conv2', (2,))
+        hook(f1, 18, 'fo1', (2,))                         # mov ax,[D0] / mov bx,442 / sub bx,341 / mul bx
+        hook(f2, 18, 'fo2', (2,))
+        hook(LPS[0], 5, 'lp_face', ())                    # 4.0.6 the stadium screen: call FillSkinColorConversionTable
+        for s in icons:
+            reg = t(s + 3)
+            assert reg in ((2, D0), (2, D1)), (hex(s), reg)
+            lab_ = 'icon_d0' if reg == (2, D0) else 'icon_d1a' if cyc < s < cyc + 0x80 else 'icon_d1'
+            hook(s, 9, lab_, (3,))
+        assert p.get(1, cyc + 15, 1) == b'\x03'
+        p.put(1, cyc + 15, b'\x04')                       # Edit Teams face button: 0..3
+        print(f'exe: blond XASM obj3+{at3:#x} ({len(xcode)} B: palette route, colour conversion, tables; 4.0.6)')
+        return at3 + len(xcode)
+
+    LATE[:] = [late]
+    print(f'exe: blond hair: face 3 (sets {NEW1}.., {NEW2}.., obj2+{bss:#x}; code obj1+{at:#x}, {len(code0)} B)')
+    return at + len(code0)
+
+
+LATE = []
+LPS = []                                # 4.0.6: the stadium screen's call site, littlePlayersColorTable, its sprite, FillSkin
+
+
+def late_patch(p, at3):
+    """4.0.6: blond's XASM at obj3:at3 (after cpucards: its labels are ASM's symbols), then ASM, its fixups and the
+    hooks (patch() laid ASM out with stand-ins). Returns the obj3 end (the next module: (end + 15) & ~15)."""
+    return LATE.pop()(at3)
 
 ART = []
 
@@ -810,7 +948,15 @@ def look_flags():
         lk = LOOKS[look][skin]
         f += [f'-DSH{k}={dict(E=0, art=1)[lk["shape"]]}', f'-DSK{k}={lk["skull"]}', f'-DEG{k}={lk["ega"]}']
     main, lo, io, _ = shavedart.blobs()
-    return f + [f'-DTONE_L={TONES["light"][0]}', f'-DTONE_D={TONES["dark"][0]}', f'-DART_LIGHT={lo}', f'-DART_ICONS={io}']
+    wt = WHITE_TONES[os.environ.get('WHITE_TONE', WHITE_TONE)]
+    return f + [f'-DTONE_L={TONES["light"][0]}', f'-DTONE_D={TONES["dark"][0]}', f'-DART_LIGHT={lo}', f'-DART_ICONS={io}',
+                f'-DWH_HAIR={wt[0]}', f'-DWH_DARK={wt[1]}']
+
+
+# 4.0.6 white hair's colours (the hair; its darkest shade - raw 12, an icon's third hair row): 1 grey, 2 white (both
+# untouched by the face conversions, in the match and menu palettes alike). WHITE_TONE env: review builds only.
+WHITE_TONES = {'grey': (1, 1), 'a': (2, 1), 'b': (2, 2)}
+WHITE_TONE = 'a'
 
 
 def blond_free():
@@ -878,13 +1024,29 @@ def _bald():
 
 BALD = _bald()                          # name -> byte 25 bits
 
+# 4.0.6 white-haired players (packs/white-hair.csv: season, country, club, name as in the team files, face): byte 25
+# bit 2, in every team file the build writes (faces) and in the original 1996-97 files that hold them (white_files).
+WHITE_CSV = os.path.join(os.path.dirname(BALD_CSV), 'white-hair.csv')
+
+
+def _white():
+    import csv
+    rows = list(csv.DictReader(open(WHITE_CSV, encoding='utf-8')))
+    out = {r['name'].encode('latin-1') for r in rows}
+    assert len(out) == len(rows) and all(len(n) <= 21 for n in out) and not out & set(BALD), 'white list'
+    return out
+
+
+WHITE = _white()
+
 
 def bald(player):
     """A 38-byte player record with byte 25's bald bits when he is in BALD (the extras' files: xtra.build)."""
     name = bytes(player[3:25]).split(b'\0')[0]
-    if name not in BALD:
+    b = BALD.get(name, 0) | (WHITE_BIT if name in WHITE else 0)
+    if not b:
         return bytes(player)
-    return bytes(player[:BALD_AT]) + bytes((player[BALD_AT] | BALD[name],)) + bytes(player[BALD_AT + 1:])
+    return bytes(player[:BALD_AT]) + bytes((player[BALD_AT] | b,)) + bytes(player[BALD_AT + 1:])
 
 
 def faces(data, header=True):
@@ -900,4 +1062,20 @@ def faces(data, header=True):
                 n += 1
             if name in BALD:
                 d[p + BALD_AT] |= BALD[name]
+            if name in WHITE:
+                d[p + BALD_AT] |= WHITE_BIT
     return bytes(d), n
+
+
+def white(data, header=True):
+    """4.0.6: team file bytes with WHITE's byte 25 bit 2 only (the original 1996-97 files: no other list applies to
+    them - BALD's namesakes there stay as they are). Returns (bytes, names set)."""
+    d, hit, o0 = bytearray(data), [], 2 if header else 0
+    for k in range((len(d) - o0) // 684):
+        for j in range(16):
+            p = o0 + k * 684 + 76 + j * 38
+            name = bytes(d[p + 3:p + 26]).split(b'\0')[0]
+            if name in WHITE:
+                d[p + BALD_AT] |= WHITE_BIT
+                hit.append(name.decode('latin-1'))
+    return bytes(d), hit

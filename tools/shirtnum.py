@@ -457,7 +457,7 @@ build_numbers:                          ; [CUR_BUF]: 1 = built, 2 = not possible
     div ecx                             ; eax = tens, edx = units
     xor ebx, ebx
     call glyph
-    cmp byte [CUR_MENU], 0              ; match numbers: 1 pixel apart; the menus' (4.0.2, Malave): side by side,
+    cmp byte [CUR_MENU], 0              ; match numbers: 1 pixel apart; the menus' (4.0.2, Marco): side by side,
     jne .tight                          ; as the menu's own "10"
     inc ebx
 .tight:
@@ -514,7 +514,9 @@ def spr_index(p):
     o, free = cand[0]
     callers = [(so, oo) for so, oo, t, to, tt, *_ in p.le.fixups() if to == 2 and tt == o]
     assert len(callers) == 4 and all(so == 1 for so, _ in callers), callers   # only the two dead routines
-    assert not any(p.le.obj_bytes(2)[free:free + 3072])
+    fx = {oo for so, oo, *_ in p.le.fixups() if so == 2 and free - 4 < oo < free + 3072}
+    d2 = p.le.obj_bytes(2)                  # (4.0.6: a built exe's own pointers in that room - stoppage's
+    assert not [i for i in range(free, free + 3072) if d2[i] and not any(f <= i < f + 4 for f in fx)]   # ST_IDX slot)
     return free - 5340
 
 

@@ -744,6 +744,7 @@ def _draw_call(p):
     return [c for c, _ in sites], sites[0][1]
 
 
+CALLS = []                      # obj1 offsets of the preset and season selectors' picker calls (patch)
 TABLE = [None, False]           # the fixed draws' table (obj, offset) and whether it has world filter records
 
 
@@ -853,6 +854,7 @@ def patch(p, lang, area, cave, draw_pre=None, leagues=(), cave2=None, lp=None, c
     at2 = cave2                                            # 3.2 page: ESCI fix, then the tourney packs' contests
     ecode, efix = nasmcave.assemble(ESCI_ASM, at2, {})
     elab = nasmcave.labels(ESCI_ASM, at2, {})
+    LBL['EF_VARS'] = elab['EF_VARS']                       # (swe.c swe_names_post: the first entry)
     p.put(1, at2, ecode)
     for off, tobj, toff in efix:
         p.add_ptr(1, at2 + off, tobj, toff)
@@ -941,6 +943,7 @@ def patch(p, lang, area, cave, draw_pre=None, leagues=(), cave2=None, lp=None, c
     for off, tobj, toff in fix:
         p.add_ptr(1, at2 + off, tobj, toff)
     LBL.update(labels)
+    CALLS[:] = [pre_call, season_call]                     # (swe.py step 2.5 chains both)
     p.put(1, pre_call + 1, struct.pack('<i', labels['hist_preset'] - (pre_call + 5)))
     p.put(1, names_call + 1, struct.pack('<i', labels['hist_names'] - (names_call + 5)))
     # the overwritten instructions held absolute addresses (D7, the skip flag): drop their fixups, or the loader would

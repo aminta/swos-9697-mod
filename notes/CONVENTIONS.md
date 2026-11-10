@@ -9,6 +9,8 @@ new rule. If a rule seems wrong for a case, ask the regia session; don't silentl
    35-byte title field; calendar labels ≤ 70 px before the (C)/(F) marker, **both lines** of a two-line cup entry.
    The build asserts this (complist.check_titles / rnames). No stray characters, no cut words.
 2. **4 languages, the game's own words.** Every new text exists in IT / EN / FR / DE, in each exe's own wording.
+   DE umlauts: the fonts' bytes (8Eh / 99h / 9Ah = Ä / Ö / Ü) **only in big-font titles** (e.g. ÜBERSICHT); every
+   small-font text writes AE / OE / UE (its dots barely show; Davide 26/10 + 08/11). complist.DE_UMLAUT, asserted.
 3. **Club names = the national press** (Italy: Gazzetta dello Sport, ...), never legal names.
 4. **FORMAT pages are discursive prose** (the approved Libertadores style), full-width wrap, a blank line between
    paragraphs, PAG. SUCC. / PAG. PREC.
@@ -78,12 +80,57 @@ new rule. If a rule seems wrong for a case, ask the regia session; don't silentl
     (world_cuplist_mestre + world_winners_oldsave on a release-recipe dir) before its sha.
 21. The career save's engine block ('EN' after the trailer, trailer.py) shares careerworld.SEL_ROOM with the 160-team
     cache: SEL_N x 684 + main block + engine block <= SEL_ROOM (trailer.py asserts it). Room left, release recipe:
-    305 B after 4.0.6's 'BQ' (24 B, gplay SEC_BQ: 15131 B engine block, main block 948 B). A new item costs 4 + its
-    size; past the room the build fails - plan any 4.0.6+ item against this figure and update it here.
+    93 B on 406-i10j, 68 B with FFP's FF (21 + 4) (engine block 15343 B, 25 items, main block 948 B; measured by the engine's P0, item by item in
+    notes/engine/save-ledger.md). A new item costs 4 + its size; past the room the build fails - plan any 4.0.6+ item
+    against this figure, add its line to the ledger and update it here.
+    4.1 (41-selroom, for S2b): SEL_ROOM + 640 (0x280), B_STAGE 0x7B000 -> 0x7AE40 - the two gaps around the stage
+    (1152 B below, 207 B above), nothing after it moves (B_UQ, obj2's size): **708 B left** (engine block 15368 B,
+    26 items, 4.1 staging 8dfa5ea); S2b's 'US' (290 + 4, with the LP table) leaves **414 B** (engine block 15662 B, 27 items). That is the last room the gaps give (at most +679 B); more means moving B_UQ and the
+    tail after it, or folding gplay's items into SWC1 (4.2) - the next item past this room waits for one of those.
 22. obj1 has a ceiling too: 237 pages in the release build (4.0.5, Panchina's SWOS++ probe: obj1 in memory <= 238 pages
     starts every match under SWOS++ 1.9.2.2, 239+ makes PLAY MATCH stall - obj2's base moves past what SWOS++ tolerates;
     the harness adds 1 obj1 page of its own, so 237 file pages = 238 under test = the real limit). patch.py prints
     'exe: object pages: obj1 N ..., obj2 M' and warns over 237; buildrel.sh fails a release build with obj1 > 237 or
     obj2 != 213. Room was made in 4.0.5 by capping the historic pages (patch.py h2, 1 used of the 4 it had become).
-    A 4.0.5+ item needing obj1 pages must find room in the existing pages first; the structural cure (code pages in a
-    third object after obj2, internal/design/obj2-code-pages.md) is 4.0.6.
+    A 4.0.5+ item needing obj1 pages must find room in the existing pages first; the structural cure is rule 23 (4.0.6:
+    obj1 235 pages once benchx moved to obj3).
+23. **New mod code and data go in obj3** (4.0.6, internal/design/obj3-406.md), the LE object after obj2
+    (lepatch.add_object, flags 0x2047). Never add obj1 pages (rule 22) or obj2 pages (rule 20).
+    - Layout: obj3's file pages (mod pages, benchx first, then the C engine's code, PLAN §19 step O) stay below
+      patch.OBJ3_ARENA = 0x20000 (buildrel.sh fails over 32 pages). The engine's arena + spec buffer go at 0x20000 as
+      zero-filled vsize; the engine zeroes it itself (DOS/4GW zeroes no tail).
+    - No obj3 address is ever stored in a save, so obj3 may grow and move freely.
+    - Cross-object control transfer: self-relative fixups (type 8, lepatch.add_rel / branch), as the game's own 42
+      obj1 <-> obj2 calls. Code is assembled with nasmcave.assemble_obj(src, org, sym, 3); its rel32s into the game
+      come back as `rel` and get add_rel.
+    - A chaining hook reads a call site's previous target with lepatch.call_target(obj, off), never by decoding the
+      rel32 (behind a type-8 fixup it is 0 until load); put() asserts over an existing type-8 rel32.
+    - DOS/4GW loads obj3 apart from obj1 + obj2 (below obj1 in DOSBox-X): the harness reads it at Result.base3 (an obj1
+      pointer into obj3), obj3 offsets as swostest.Off3, any (obj, off) through Result.lin().
+23bis. **obj4 is the competition engine's, and only the engine's** (engine step O, 04/11, Regia GO after the SWOS++ /
+    DOS/4GW probe). No 4.0.x minor ever adds code, data or pages to obj4; their code stays in obj3 (rule 23).
+    - Layout (tools/swe.py): obj4+0 the header ('SWOS-ENG', version, a self pointer, -> swe_init, -> the arena, the
+      .bss size, -> SWE_STATE); obj4+0x40 the engine's code + data (swe.OBJ4_PAGES file pages); the arena = the C
+      .bss, zero-filled vsize. patch.py adds obj4 right after obj3's pages; swe.patch() links it and puts its base
+      above obj3's end. buildrel.sh fails a build with a 5th object.
+    - **DOS/4GW zeroes no tail: the engine zeroes its own arena** (swe_init, before any other engine call). Never rely
+      on a zero obj4 byte that the engine did not write.
+    - 4.1 exception (Davide 08/11 via Regia, MC as obj4 owner): obj4 page 3+ may hold engine-adjacent views at a
+      named address (uesum, the UEFA RIEPILOGO page, at swreg.UESUM_AT = 0x2000; 4.1 RC2: usmenu, its phase menu, the
+      4th page at swreg.USMENU_AT = 0x3000; 4.2, xw-42: engine code below REG_AT 0x2800, registry 0x2800..OBJ4_END
+      0x3000, uesum moved to UESUM_AT 0x4000 and usmenu after it - Regia 09/11). The engine's code
+      + registry stay below swreg.OBJ4_END (0x2000 in 4.1), each view has its own range assert, and the 23bis gates
+      below apply to it as to engine code.
+    - No obj4 address is ever stored in a save (engine state = 'EN' items, rule 21), so obj4 may grow and move freely.
+    - Calls between the game / obj3 and obj4: self-relative fixups (type 8) as rule 23; cobj.link(text_obj=4).
+    - The harness finds obj4 by its header (Result.base4: the magic + the self pointer), not by a game pointer.
+    - Gates for any obj4 change: engine_obj4 (IT, and SWOSTEST_UI=en for SWOS++ 1.9.2.2), bench_world with
+      BENCH_SPP=1 (a match under SWOS++), host tests test_swe + test_roundtrip; before a minor ships, a MiSTer
+      z486 / ao486 boot of the obj4 exe.
+24. **Shared hook sites**: a site that one module hooks and another may need later is listed here. A later hook chains
+    to the earlier one (p.get() / lepatch.call_target, never obj_bytes), and the first one asserts it found the
+    original bytes.
+    - euro.py (4.1 RC3, obj1 gplay tail after lgreal): both `call conv` of the money conversion (Int2Pounds and
+      cseg_24AB6) -> eu_money; ChainFont's first instruction (`shl [D0], 2`, 7 B) -> jmp eu_chain; obj2's currency
+      strings block (pound, nullString, the short K / M forms) rewritten in place. A build with a euro world fails if the
+      patch did not go in (EURO_OPTIONAL=1 only for scenario builds without gplay's tail).

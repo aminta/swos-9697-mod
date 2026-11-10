@@ -234,7 +234,8 @@ HAND = {
                "vinto il play-off, in casa della squadra del paese meglio piazzato nel ranking FIFA; nel Derby delle "
                "Americhe la vincitrice della Copa Libertadores affronta quella della CONCACAF Champions Cup, in campo "
                "neutro. Le due vincenti si giocano la Challenger Cup in campo neutro, e chi vince sfida in finale, "
-               "sempre in campo neutro, la vincitrice della UEFA Champions League."],
+               "sempre in campo neutro, la vincitrice della UEFA Champions League.",
+               "Il play-off si gioca a fine agosto e la Coppa Africa-Asia-Pacifico a settembre. Il Derby delle Americhe si gioca a dicembre, come quello vero, seguito dalla Challenger Cup e dalla finale."],
         'en': ["The Intercontinental Cup brings together the winners of the six continents' club cups. It is a "
                "stepladder: the stronger a club's cup, the later it comes in. Every match is a single game, with extra "
                "time and penalties if level.",
@@ -244,7 +245,8 @@ HAND = {
                "the country higher in the FIFA ranking; in the Derby of the Americas the Copa Libertadores winners "
                "meet the CONCACAF Champions Cup winners at a neutral ground. The two winners play the Challenger Cup at "
                "a neutral ground, and its winners face the UEFA Champions League winners in the final, also at a "
-               "neutral ground."],
+               "neutral ground.",
+               "The play-off is played at the end of August and the African-Asian-Pacific Cup in September. The Derby of the Americas is played in December, as the real one, followed by the Challenger Cup and the final."],
         'fr': ["La Coupe intercontinentale réunit les vainqueurs des coupes des six continents. Elle se joue par "
                "paliers : plus la coupe d'un club est forte, plus il entre tard. Tous les matchs sont uniques, avec "
                "prolongation et tirs au but en cas d'égalité.",
@@ -254,7 +256,9 @@ HAND = {
                "Champions League affronte celui du barrage, chez le club du pays le mieux classé au classement FIFA ; "
                "dans le Derby des Amériques, le vainqueur de la Copa Libertadores affronte celui de la CONCACAF "
                "Champions Cup sur terrain neutre. Les deux vainqueurs jouent la Challenger Cup sur terrain neutre, et "
-               "son vainqueur affronte en finale, toujours sur terrain neutre, le vainqueur de l'UEFA Champions League."],
+               "son vainqueur affronte en finale, toujours sur terrain neutre, le vainqueur de l'UEFA Champions League.",
+               "Le barrage se joue fin août et la Coupe Afrique-Asie-Pacifique en septembre. Le Derby des Amériques "
+               "se joue en décembre, comme le vrai, suivi de la Challenger Cup et de la finale."],
         'de': ["Der Interkontinental-Pokal vereint die Sieger der Klubwettbewerbe der sechs Kontinente. Gespielt wird "
                "in Stufen: Je stärker der Wettbewerb eines Vereins, desto später steigt er ein. Alle Spiele sind "
                "Einzelspiele, bei Gleichstand mit Verlängerung und Elfmeterschießen.",
@@ -264,7 +268,8 @@ HAND = {
                "Playoff-Sieger, beim Verein des in der FIFA-Rangliste besser platzierten Landes; im Derby der Amerikas "
                "trifft der Sieger der Copa Libertadores auf den Sieger des CONCACAF Champions Cup, auf neutralem Platz. "
                "Die beiden Sieger spielen auf neutralem Platz den Challenger Cup, und dessen Sieger trifft im Finale, "
-               "ebenfalls auf neutralem Platz, auf den Sieger der UEFA Champions League."]},
+               "ebenfalls auf neutralem Platz, auf den Sieger der UEFA Champions League.",
+               "Das Playoff wird Ende August gespielt, der Afrika-Asien-Pazifik-Pokal im September. Das Derby der Amerikas wird wie das echte im Dezember gespielt, danach der Challenger Cup und das Finale."]},
     (5, 'ITALIA SERIE B'): {l: [{'it': "Il campionato ha 20 squadre che si affrontano in andata e ritorno: 38 giornate. "
                                        "La vittoria vale 3 punti, il pareggio 1.",
                                  'en': "The league has 20 clubs who play each other home and away: 38 matchdays. A win "

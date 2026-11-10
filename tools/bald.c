@@ -1,5 +1,6 @@
 /* 4.0.5 bald heads. The look of each variant is data (blond.LOOKS -> look_flags' SHk / SKk / EGk macros below; look
-   0 receding light, 1 receding dark, 2 shaved light, 3 shaved dark):
+   0 receding light, 1 receding dark, 2 shaved light, 3 shaved dark; 4.0.6: 4 / 5 white hair light / dark, R2 - the hair
+   grey, no shape):
    - shape 0 = 'E' receding (Davide 30/10, internal/design/bald-mock/variants-20261030 V_E): the hair's top row turns
      skin, and so do the second row's hair pixels with a pixel on both sides; the rest keeps the player's hair colour;
    - shape 1 = 'art' shaved (Marco 31/10, final): each frame's head drawn from shavedart.py's data (ART: the frame
@@ -62,6 +63,27 @@ static void pack(u8 *pix) {
         for (int x = 0; x < W; x += 2) pix[y * 8 + x / 2] = (u8)(px[y][x] << 4 | px[y][x + 1]);
 }
 
+/* 4.0.6 white hair (R2, internal/design/white-hair-variant.md) over the first n cells of px: a sprite's hair (raw 13 /
+   9 / 12) WH_HAIR, raw 12 WH_DARK - no face conversion changes 1 / 2 - with its top row's two end pixels off (3 or
+   more); an icon's hair (menu colour 3, n = its top three rows) the same - its full silhouette (Davide, MiSTer 02/11:
+   the whole top row off read as a cut-off cap), its third row WH_DARK. */
+#ifndef WH_HAIR
+#define WH_HAIR 2                                   /* (blond.WHITE_TONES: the hair's colour; the darkest shade's - raw 12, */
+#define WH_DARK 1                                   /* an icon's third hair row) */
+#endif
+__attribute__((noinline)) static void whiten(int n, int icon) {
+    u8 *q = &px[0][0];
+    int mask = icon ? 1 << 3 : 1 << 13 | 1 << 9 | 1 << 12, f = -1, l = 0, c = 0;
+    for (int i = 0; i < n; i++)
+        if (mask >> q[i] & 1) {
+            if (f < 0) f = i;
+            int top = i / W == f / W;
+            if (top) { l = i; c++; }
+            q[i] = q[i] == 12 || i / W > f / W + 1 ? WH_DARK : WH_HAIR;
+        }
+    if (c >= 3) q[f] = q[l] = 0;
+}
+
 /* shavedart.py's head record `head` of recs (skipping the ones before it) over px at the rectangle's origin oy, ox:
    codes 1 / 2 / 3 = cv[0..2] (cv[3] for a 3 with the record's flag), then the exceptions (cell, raw value). */
 static void art_head(const u8 *r, int head, int oy, int ox, const u8 *cv) {
@@ -83,6 +105,11 @@ void bald_c(u8 *pix, int lines, int look, int ega, int k) {
     if (lines < 2 || lines > HMAX) return;
     nl = lines;
     unpack(pix);
+    if (look > 3) {                                 /* 4.0.6 white hair (looks 4 / 5) */
+        whiten(nl * W, 0);
+        pack(pix);
+        return;
+    }
     look &= 3;
     int shape = SHAPE[look], skull = SKULL[look];
     if (skull == 7) {                               /* a new tone: the variant's conversion table makes raw 13 -> 7, */
@@ -122,6 +149,11 @@ void bald_icon(u8 *pix, int lines, int look) {
     for (int y = 3; y < nl && !skin; y++)
         for (int x = 0; x < W; x++) if (px[y][x] && px[y][x] != 3) { skin = px[y][x]; break; }
     if (!skin) return;
+    if (look > 3) {                                 /* 4.0.6 white hair */
+        whiten(3 * W, 1);
+        pack(pix);
+        return;
+    }
     look &= 3;
     if (SHAPE[look] == 1) {                         /* shaved: the art's icon (dark first) */
         const u8 *a = ART + ART_ICONS + (look & 1 ? 0 : 64);

@@ -17,11 +17,12 @@ import base64
 import hashlib
 import json
 import os
+import re
 import struct
 import zlib
 
 ROOT = os.path.join(os.path.dirname(__file__), '..')
-VERSION = '4.0.5'
+VERSION = '4.1'
 BLOCK = 16
 FILES = [  # (id, original path, patched path, file name in the game folder)
     ('ITALIAN.EXE', 'orig/ITALIAN.EXE', 'c/SWOS/ITALIAN.EXE', 'ITALIAN.EXE'),
@@ -37,6 +38,9 @@ FILES = [  # (id, original path, patched path, file name in the game folder)
     ('EUROCUP.TMD', 'orig/DATA/EUROCUP.TMD', 'c/SWOS/DATA/EUROCUP.TMD', 'DATA/EUROCUP.TMD'),
     ('UEFACUP.TMD', 'orig/DATA/UEFACUP.TMD', 'c/SWOS/DATA/UEFACUP.TMD', 'DATA/UEFACUP.TMD'),
     ('POOLPLYR.DAT', 'orig/DATA/POOLPLYR.DAT', 'c/SWOS/DATA/POOLPLYR.DAT', 'DATA/POOLPLYR.DAT'),
+    # 4.0.6: white-haired players (packs/white-hair.csv: byte 25 bit 2) in original team files
+    ('TEAM.008', 'orig/DATA/TEAM.008', 'c/SWOS/DATA/TEAM.008', 'DATA/TEAM.008'),
+    ('TEAM.080', 'orig/DATA/TEAM.080', 'c/SWOS/DATA/TEAM.080', 'DATA/TEAM.080'),
     # 3.3.0: purple clubs (kit colour 10) in original team files the mod did not change before
     ('TEAM.001', 'orig/DATA/TEAM.001', 'c/SWOS/DATA/TEAM.001', 'DATA/TEAM.001'),
     ('TEAM.002', 'orig/DATA/TEAM.002', 'c/SWOS/DATA/TEAM.002', 'DATA/TEAM.002'),
@@ -122,6 +126,27 @@ FILES = [  # (id, original path, patched path, file name in the game folder)
     ('TEAM.183', None, 'c/SWOS/DATA/TEAM.183', 'DATA/TEAM.183'),
     ('TEAM.184', None, 'c/SWOS/DATA/TEAM.184', 'DATA/TEAM.184'),
     ('TEAM.185', None, 'c/SWOS/DATA/TEAM.185', 'DATA/TEAM.185'),
+    # 4.0.6: the long dugouts (dugout.py, benchx block 2): the match pitches' maps, their patterns (the 3rd column's
+    # new ones in every BLK: PITCH1-4.BLK were missing until 4.0.6 I8 - a disk with the new maps and the old BLKs
+    # drew the tiles past the file's end from RAM, noise on z486), the 16-colour maps
+    # 4.1 (41-vandug): the long art under its own names (dugout.long_names), each a delta from the user's own
+    # PITCHn / SWCPICHn (the page matches a source by md5: one original feeds two entries); the game's PITCH1-5 stay
+    # original (the exe loads the long set only for a bench over 5)
+    ('PITCHA.DAT', 'orig/PITCH1.DAT', 'c/SWOS/PITCHA.DAT', 'PITCHA.DAT'),
+    ('PITCHB.DAT', 'orig/PITCH2.DAT', 'c/SWOS/PITCHB.DAT', 'PITCHB.DAT'),
+    ('PITCHC.DAT', 'orig/PITCH3.DAT', 'c/SWOS/PITCHC.DAT', 'PITCHC.DAT'),
+    ('PITCHD.DAT', 'orig/PITCH4.DAT', 'c/SWOS/PITCHD.DAT', 'PITCHD.DAT'),
+    ('PITCHE.DAT', 'orig/PITCH5.DAT', 'c/SWOS/PITCHE.DAT', 'PITCHE.DAT'),
+    ('PITCHA.BLK', 'orig/PITCH1.BLK', 'c/SWOS/PITCHA.BLK', 'PITCHA.BLK'),
+    ('PITCHB.BLK', 'orig/PITCH2.BLK', 'c/SWOS/PITCHB.BLK', 'PITCHB.BLK'),
+    ('PITCHC.BLK', 'orig/PITCH3.BLK', 'c/SWOS/PITCHC.BLK', 'PITCHC.BLK'),
+    ('PITCHD.BLK', 'orig/PITCH4.BLK', 'c/SWOS/PITCHD.BLK', 'PITCHD.BLK'),
+    ('PITCHE.BLK', 'orig/PITCH5.BLK', 'c/SWOS/PITCHE.BLK', 'PITCHE.BLK'),
+    ('SWCPICHA.P16', 'orig/SWCPICH1.P16', 'c/SWOS/SWCPICHA.P16', 'SWCPICHA.P16'),
+    ('SWCPICHB.P16', 'orig/SWCPICH2.P16', 'c/SWOS/SWCPICHB.P16', 'SWCPICHB.P16'),
+    ('SWCPICHC.P16', 'orig/SWCPICH3.P16', 'c/SWOS/SWCPICHC.P16', 'SWCPICHC.P16'),
+    ('SWCPICHD.P16', 'orig/SWCPICH4.P16', 'c/SWOS/SWCPICHD.P16', 'SWCPICHD.P16'),
+    ('SWCPICHE.P16', 'orig/SWCPICH5.P16', 'c/SWOS/SWCPICHE.P16', 'SWCPICHE.P16'),
     # GOG release (2013): same files, 2 bytes changed in each exe (a national cup's months); TEAM.020 identical.
     # Originals in orig/gog/, built with patch.patch_exe(orig/gog/X, c/gog/X, ...)
     ('ITALIAN.EXE (GOG)', 'orig/gog/ITALIAN.EXE', 'c/gog/ITALIAN.EXE', 'ITALIAN.EXE'),
@@ -156,7 +181,8 @@ def world_entries(data_dir=None):
     with contextlib.redirect_stdout(io.StringIO()):          # (the packs' build logs)
         import guests                                        # (4.0: the off-file pools RS<w><file>.DAT and the
         names = sorted(set(mkseason.ns_team_files()) | set(mkseason.xtra_files()) | set(mkseason.world_files())
-                       | set(mkseason.rs_files()) | set(guests.team_files()))   # continental cups' guest files)
+                       | set(mkseason.rs_files()) | set(guests.team_files())    # continental cups' guest files)
+                       | set(mkseason.nat_today_names()))             # (4.0.6: today's national team names)
         import fmtgame                                       # the FORMAT page's texts (fmtpage.py), per world
         names = sorted(set(names) | set(fmtgame.file_names([e if os.sep in e else os.path.join(mkseason.PACKS, e)
                                                             for e in mkseason.ENABLED])))
@@ -167,8 +193,12 @@ def world_entries(data_dir=None):
         names = sorted(set(names) | set(lpreal.file_names()))
         import lgreal                                        # 4.0.5: the real league calendars (season 1)
         names = sorted(set(names) | set(lgreal.file_names()))
+        import bteam                                         # 4.0.6: the B teams' links + birth years (BAGE.nnn)
+        names = sorted(set(names) | set(bteam.files()))
     if os.path.exists(os.path.join(data_dir, 'KITFIX.DAT')):   # (4.0.5 kitfix.py: the kits shipped before that the
         names = sorted(set(names) | {'KITFIX.DAT'})          # build's team files changed - the career kit refresh)
+    names = sorted(set(names) | {n for n in os.listdir(data_dir)      # (4.0.6 stadium.py: the stadium names, one
+                                 if re.fullmatch(r'STAD(TEAM|TMW\d)\.DAT', n)})   # file per team-file namespace)
     rows = [(n, None, os.path.relpath(os.path.join(data_dir, n), ROOT), 'DATA/' + n) for n in names
             if 'DATA/' + n not in listed]
     missing = [r[0] for r in rows if not os.path.exists(os.path.join(ROOT, r[2]))]
@@ -178,6 +208,20 @@ def world_entries(data_dir=None):
 
 _k = next(i for i, f in enumerate(FILES) if f[0].endswith('(GOG)'))
 FILES[_k:_k] = world_entries()
+
+
+def root_unlisted(build_dir=None):
+    """The game folder's files of the build (c/SWOS) that differ from their original in orig/ and no FILES row ships
+    (4.0.6: PITCH1-4.BLK grew with the 3rd dugout column, the list kept PITCH5.BLK only)."""
+    d = os.path.join(ROOT, build_dir or os.path.join(BUILD or 'c', 'SWOS'))
+    listed = {t.upper() for _, _, p, t in FILES if '/' not in t and os.path.normpath(os.path.dirname(os.path.join(ROOT, p))) == os.path.normpath(d)}
+    out = []
+    for n in sorted(os.listdir(d)):
+        o = os.path.join(ROOT, 'orig', n)
+        if os.path.isfile(os.path.join(d, n)) and os.path.isfile(o) and n.upper() not in listed and \
+                open(o, 'rb').read() != open(os.path.join(d, n), 'rb').read():
+            out.append(n)
+    return out
 
 
 def varint(n):
@@ -299,6 +343,11 @@ def old_outputs():
             out = decode(src, unpack(e))
             assert hashlib.md5(out).hexdigest() == e['out_md5'], (ver, e['id'])
             found.setdefault((e['id'], e['out_md5']), (out, ver))
+            if e.get('omm') is not None:              # 4.1+: the same exe with the 'Original main menu' byte set
+                on = bytearray(out)
+                on[e['omm']] = 1
+                assert hashlib.md5(on).hexdigest() == e['omm_md5'], (ver, e['id'], 'omm')
+                found.setdefault((e['id'], e['omm_md5']), (bytes(on), ver))
     return found
 
 
@@ -413,6 +462,29 @@ def setup_entries():
     return out
 
 
+def omm_sites(entries):
+    """4.1 'Original main menu' (Marco, Davide 06/11: patcher only): every entry whose output is an exe of this release gets
+    'omm' = the file offset of mainbtn's mb_omm (the byte after mainbtn.OMM_MARK, 0 in the build) and 'omm_md5' = the
+    output's md5 with that byte 1. The page sets it when the box is ticked (and back to 0 when not, on a re-run)."""
+    import mainbtn
+    sites = {}
+    for fid, _, patched, target in FILES:
+        if not target.endswith('.EXE'):
+            continue
+        d = open(os.path.join(ROOT, patched), 'rb').read()
+        assert d.count(mainbtn.OMM_MARK) == 1, (fid, 'OMM marker', d.count(mainbtn.OMM_MARK))
+        at = d.find(mainbtn.OMM_MARK) + len(mainbtn.OMM_MARK)
+        assert d[at] == 0, (fid, 'OMM byte set in the build')
+        on = bytearray(d)
+        on[at] = 1
+        sites[hashlib.md5(d).hexdigest()] = (at, hashlib.md5(on).hexdigest())
+        print(f'{fid}: Original main menu byte at {at:#x}')
+    for e in entries:
+        if e['out_md5'] in sites:
+            e['omm'], e['omm_md5'] = sites[e['out_md5']]
+    assert sum(e.get('omm') is not None for e in entries) >= len(sites)
+
+
 def build():
     build_swospp()
     entries = []
@@ -425,11 +497,15 @@ def build():
              'out_md5': hashlib.md5(dst).hexdigest(), 'out_size': len(dst), 'delta': pack(ops), 'z': 1}
         if not orig:
             e['with'] = 'TEAM.020'                  # new file: produced when the user's TEAM.020 is recognised
+        elif os.path.basename(orig).upper() != os.path.basename(target).upper():
+            e['src'] = os.path.basename(orig)       # (4.1 41-vandug) made from a file of another name (PITCH1.DAT ->
+                                                    # PITCHA.DAT): the folder install reads it too
         entries.append(e)
         print(f'{fid}: {len(dst)} bytes, delta {len(ops)} bytes ({inserted} inserted)')
     entries += upgrades(entries)
     entries += swospp_sources(entries)
     entries += setup_entries()
+    omm_sites(entries)
     page = open(os.path.join(ROOT, 'tools', 'patcher_template.html'), encoding='utf-8').read()
     page = page.replace('/*PATCHES*/null', json.dumps(entries)).replace('{{VERSION}}', VERSION)
     out = os.path.join(ROOT, 'release', 'swos-9697-mod-patcher.html')
@@ -438,4 +514,6 @@ def build():
 
 
 if __name__ == '__main__':
+    _u = root_unlisted()
+    assert not _u, f'changed game-folder files no FILES row ships: {_u}'
     build()

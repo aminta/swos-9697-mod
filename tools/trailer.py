@@ -119,6 +119,16 @@ EN_SAVE_W = '''
 ASM = '''
 save_trailer:
     pushad
+    mov eax, [CG_GUARDP]                ; 4.0.6 option C: a contest view left open is closed first (ctgame cg_guard)
+    test eax, eax
+    jz .g0
+    push es
+    push ds
+    pop es
+    cld
+    call eax
+    pop es
+.g0:
     movzx eax, word [NUMSEL]
     imul eax, eax, TEAM_SIZE
     mov edi, eax                        ; after the records: the career's cache + N*684 (g_selectedTeams =
@@ -277,6 +287,7 @@ align 4
 ROOMV: dd ROOM                          ; room for the records + this block (careerworld: a big world's cache)
 SELBASEV: dd SELBUF                     ; the career's team cache (careerworld: a league-phase world's is bigger)
 LOADCOPY: dd lt_ret
+CG_GUARDP: dd 0                         ; (ctgame.patch: cg_guard, option C's view)
 
 items_in:                               ; esi -> ebp items starting at [edx] (dd address, dd size)
     mov edi, [edx]
@@ -400,6 +411,7 @@ DEFAULTS: DEFAULT_BYTES
 '''
 
 
+LABELS = {}                               # (tools/hosttest: save_trailer / load_trailer, obj1 code)
 INFO = {}                                 # symbols + tail dwords for careerworld.patch_tails (big worlds)
 
 
@@ -502,6 +514,12 @@ def patch(p, cave, items, tails=False):
                    ''.join(f'    pushfd\n    pushad\n    call [EN_CB + {4 * (len(cbs) + k)}]\n    popad\n    popfd\n'
                            for k in range(len(aps))) + '    ret')
         cbs = cbs + aps
+    nws = engine.after_news()                     # 4.0.6: after a new career's defaults (its items zeroed)
+    if nws:
+        asm = nasmcave.sub(asm, '(clear flag)\n    call en_finish\n', '(clear flag)\n    call en_finish\n' +
+                           ''.join(f'    pushad\n    call [EN_CB + {4 * (len(cbs) + k)}]\n    popad\n'
+                                   for k in range(len(nws))))
+        cbs = cbs + nws
     asm += 'align 4\nEN_CB: ' + ('dd ' + ', '.join('ap_probe' if n == 'probe' else f'CB{k}' for k, (n, _) in enumerate(cbs))
                                  if cbs else 'dd 0') + '\n'
     if any(n == 'probe' for n, _ in cbs):
@@ -525,10 +543,13 @@ def patch(p, cave, items, tails=False):
         p.add_ptr(1, cave + off, tobj, toff)
     p.put(1, save_call + 1, struct.pack('<i', labels['save_trailer'] - (save_call + 5)))
     p.put(1, load_call + 1, struct.pack('<i', labels['load_trailer'] - (load_call + 5)))
+    LABELS.clear()
+    LABELS.update({k: (0, labels[k]) for k in ('save_trailer', 'load_trailer', 'en_read', 'en_finish')})
     INFO.clear()
     INFO.update({k: symbols[k] for k in ('NUMSEL', 'CAREER', 'D1', 'WRITEFILE', 'PROCESS', 'BLOCK', 'FIXED', 'ROOM',
                                          'MARK', 'SELBUF')})
-    INFO.update(load_a1=load_a1, roomv=labels['ROOMV'], loadcopy=labels['LOADCOPY'], selbasev=labels['SELBASEV'])
+    INFO.update(load_a1=load_a1, roomv=labels['ROOMV'], loadcopy=labels['LOADCOPY'], selbasev=labels['SELBASEV'],
+                cg_guardp=labels['CG_GUARDP'], items=list(items))
     if tails:
         INFO['tails'] = (labels['SAVE_TAIL'], labels['LOAD_TAIL'])
     INFO['EN'] = [(n, iid, sz) for n, iid, sz, _, _ in en]

@@ -26,6 +26,11 @@
 #ifndef DP_FORCE
 #define DP_FORCE 0
 #endif
+/* (test builds, DPLAY_CUPW=k: the Coppa Italia Serie C winner = the club at place k of the career club's group,
+   after DPLAY_FORCE's swap) */
+#ifndef DP_CUPWF
+#define DP_CUPWF 0
+#endif
 /* (test builds, DPLAY_FORCE >= 16: the play-out is held whatever the points) */
 #define OUT_HELD(t) ((t)[15].pts <= (t)[16].pts + 4 || DP_FORCE >= 16)
 
@@ -190,12 +195,23 @@ static void serie_b(void) {
 
 /* the Coppa Italia Serie C winner's play-off place: the winner itself when it finished 11th or lower, the 11th of
    its group when it is promoted or already in (2nd-10th); unknown (its final not played in this career): the best
-   11th of the groups */
+   11th of the groups. 4.1 (FIGC C.U. 209/A, 27/04/2026, NOIF art. 49 II.1 d-e): a winner relegated directly or in a
+   play-out place has no play-off place either - the 11th of its group (it went up and down at once before: Serie B
+   21 / its group 19 a season later). The play-out places of a group of n: n-5 v n-2 and n-4 v n-3, each not played
+   when 8+ points apart (formats_data PLAYOUT_C 'gap': the better placed is safe, the other down) */
+static int cup_out(int g, int k) {     /* place k of group g relegated or in a play-out */
+    const struct dp_row *t = DP_IN.t[g];
+    int n = DP_IN.n[g];
+    if (n < 6 || k < n - 5) return 0;
+    if (k == n - 5) return t[n - 5].pts - t[n - 2].pts < 8;
+    if (k == n - 4) return t[n - 4].pts - t[n - 3].pts < 8;
+    return 1;
+}
 static int cup_place(int ng) {
     int e[4];
     for (int g = 1; g <= ng && DP_IN.cupw; g++)
         for (int k = 0; k < DP_IN.n[g]; k++)
-            if (DP_IN.t[g][k].team == DP_IN.cupw) return g * NT + (k >= 10 ? k : 10);
+            if (DP_IN.t[g][k].team == DP_IN.cupw) return g * NT + (k >= 10 && !cup_out(g, k) ? k : 10);
     for (int g = 0; g < ng; g++) e[g] = (g + 1) * NT + 10;
     return best_of(e, ng);
 }
@@ -261,6 +277,10 @@ static int force_place(int m) {        /* (DP_FORCE 1..20: Serie B place; 101..1
     return DP_FORCE - 1;
 }
 
+static void cup_force(void) {
+    if (DP_CUPWF && DP_IN.mdiv && DP_CUPWF <= DP_IN.n[DP_IN.mdiv]) DP_IN.cupw = DP_IN.t[DP_IN.mdiv][DP_CUPWF - 1].team;
+}
+
 /* test builds: the league's own final table too (competitionFileBuffer at DP_CFB, at the league end before dp_rows):
    the career club's row and the forced place's swap their figures and places (as gplay's gp_forcecfb), so the game's
    own moves see the forced place. Without it a club really 18th-20th, forced 17th, went down twice (the game's direct
@@ -294,6 +314,7 @@ void dp_season(void) {
         for (int k = 0; k < DP_IN.n[d]; k++)
             if (DP_IN.t[d][k].team == DP_IN.mgr) { force_place(k); break; }
     }
+    cup_force();
     for (int i = 0; i < NDIV * NT; i++) lot[i] = below(256);
     DP_OUT.nmv = DP_OUT.ntie = 0;
     serie_b();
@@ -351,6 +372,7 @@ static void c_lend(void) {
     for (int k = 0; k < DP_IN.n[g0]; k++) if (DP_IN.t[g0][k].team == DP_IN.mgr) m = k;
     if (m < 0) return;
     m = force_place(m);
+    cup_force();
     for (int k = 0; k < NDIV * NT; k++) lot[k] = (u8)(DP_IN.t[k / NT][k % NT].glob * 37 + 11);
     cup = cup_place(ng);
     if (!(m >= 1 && m <= 9) && cup != g0 * NT + m) return;

@@ -34,9 +34,54 @@ CODE = {'cup': 1, 'next': 0x40, 'ap': 0x41, 'cl': 0x42}
 ALIAS = {'r1': 'first', 'playoffs': 'po'}   # (access files' round names -> the format's)
 
 
+FIXES = {('conmebol', 'rec'): {'month': 2, 'level': 'et_pens'},   # 4.0.6: the real editions (Recopa 2026: February,
+         ('caf', 'sc'): {'month': 10}}  # extra time then pens; CAF Super Cup 2025: October) - the data's month 8 / 9
+                                        # and 'pens' kept for older branches: internal/ is read live
+
+
 def _read(conf, kind):
     p = os.path.join(DATA, f'{conf}.{kind}.json')
-    return json.load(open(p)) if os.path.exists(p) else None
+    if not os.path.exists(p):
+        return None
+    d = json.load(open(p))
+    if kind == 'format':
+        for c in d.get('cups', []):
+            c['rounds'][0].update(FIXES.get((conf, c.get('key'))) or {})
+    if conf == 'fifa':
+        _ic_split(d, kind)
+    return d
+
+
+def _ic_split(d, kind):
+    """4.0.6: the Intercontinental's second round as two rounds, each in its real month (2026: the African-Asian-
+    Pacific Cup 19 Sep, the Derby of the Americas 9 Dec, after the Libertadores final): r2a (the CAF holder v the r1
+    winner, slots 1-2, month 9, its winner straight to the Challenger Cup) and r2b (the Libertadores v the CONCACAF
+    holders, slots 3-4, month 12: then the Challenger Cup and the final, in round order). internal/conti keeps one r2
+    (older branches read it live and have no 'winners' route)."""
+    for c in d.get('cups', []):
+        if c.get('key') != 'ic':
+            continue
+        if kind == 'format':
+            rs = c['rounds']
+            j = next((i for i, r in enumerate(rs) if r['key'] == 'r2'), None)
+            if j is None:
+                continue
+            r2, tn = rs[j], rs[j].get('tie_names') or {}
+            a = dict(r2, key='r2a', month=9, winners='playoff', ties=r2['ties'][:1])
+            b = dict(r2, key='r2b', month=12, host='neutral', ties=r2['ties'][1:])
+            for x, t in ((a, tn.get('aap')), (b, tn.get('americas'))):
+                x.pop('tie_names', None)
+                if t:
+                    x['names'] = {lg: [t[lg], r2['names'][lg][1]] for lg in t}
+            rs[j:j + 1] = [a, b]
+        else:
+            h = (c.get('access') or {}).get('holders') or {}
+            for k, rk in h.items():
+                if rk == 'r2':
+                    h[k] = 'r2b' if k in ('lib', 'ccc') else 'r2a'
+            for side in (c.get('rotation') or {}).values():
+                if 'r2' in side:
+                    side['r2a'] = side.pop('r2')
 
 
 def _draw(rd):
@@ -86,6 +131,25 @@ def main_round(c, size=None):
 
 
 S1_HOLD = {}                            # (conf, cup key) -> the 2027 edition's winner (word, association, strength)
+S1_ED = {}                              # 4.0.6 B2: (conf, cup key) -> {'main': [main-round words, drawn], 'later':
+                                        # [(round, word, slot)] (clubs entering after the main round)} - season1_native
+S1_BLOCK = [b'']                        # its bytes for the exe (load(); s1_patch)
+S1_SEED = 0x20270801                    # (the season-1 edition's fixed seed: every new career plays the same one, its
+                                        # career club's games aside - an old season-1 save rebuilds it the same way)
+
+
+def _prices(words):
+    """{team word: the sum of its 16 players' prices} from the World 2026-27 packs (the season end's strength,
+    conti.c rstr(), on the starting squads)."""
+    import mkseason
+    out = {}
+    for pk in mkseason.packs():
+        if not pk.meta.get('id', '').startswith('world-2026-27-'):
+            continue
+        for k, (fl, n) in getattr(pk, 'where', {}).items():
+            rows = pk.prows.get(k, [])[:16]
+            out[fl | n << 8] = sum(int(r.get('price') or 0) for r in rows)
+    return out
 FIELDS = {}                             # (conf, cup key) -> (round sizes, outside places, known places): load()'s
 
 
@@ -119,11 +183,17 @@ def fields(c, known, outside):
                     feed[key[t]] += r['groups'] * len(_places(q))
                 elif ':' not in t:
                     best[key[t]] = r['groups']
+    nties = lambda r: len(r['ties']) if isinstance(r.get('ties'), list) else r.get('ties')
+    for r in rounds:                                    # (4.0.6 a round whose winners go elsewhere, 'winners': its
+        if r.get('winners'):                            # ties' winners into that round, its own size from its ties)
+            feed[key[r['winners']]] += nties(r)
     field = [0] * n
     for j in range(n - 1, -1, -1):
         r = rounds[j]
         if r['kind'] in ('groups', 'league_stage'):
             field[j] = r.get('clubs') or r['groups'] * r['size']
+        elif r.get('winners'):
+            field[j] = 2 * nties(r)
         elif j == n - 1:
             field[j] = 2
         else:
@@ -304,6 +374,8 @@ def load(confs, files=None, words=None, s1=None):
                                                 # ct_structs past the end: the trap after the Challenger Cup)
             b[18] = min(size[j], 255)                   # (the round's places: byes when the world cannot fill it)
             b[10] = CHAMP if j == len(rounds) - 1 else (ci << 4 | (j + 1))
+            if rd.get('winners'):                       # (4.0.6: the winners to a later round - the Intercontinental's
+                b[10] = target(conf, ci, rd['winners'])  # r2a past r2b to the Challenger Cup)
             b[11] = OUT
             for q in range(4):
                 b[12 + q] = OUT
@@ -376,9 +448,11 @@ def load(confs, files=None, words=None, s1=None):
     force = (0xFF, 0xFF)                                # CONTI_FORCE=<cup>:<round> (test builds only): the
     if os.environ.get('CONTI_FORCE'):                   # career club enters that round at every season end
         fk, fr = os.environ['CONTI_FORCE'].split(':')
+        rep = fr.endswith('!')                          # (4.0.6 '<round>!': the club takes the place of the round's
+        fr = fr.rstrip('!')                             # entrant of its confederation - a full one-tie round stays full)
         fc = next((i for i, (_, c, _) in enumerate(cups) if c['key'] == fk), None)
         if fc is not None:                              # (season1_native loads one confederation at a time)
-            force = (fc, rkey[fc][fr])
+            force = (fc, rkey[fc][fr] | (0x80 if rep else 0))
             print(f'exe: CONTI_FORCE={fk}:{fr} (test build)')
     spec = bytes((len(cups), len(assocs)) + force) + body
     spec += struct.pack('<H', len(access)) + b''.join(bytes(x) for x in access)
@@ -415,25 +489,76 @@ def load(confs, files=None, words=None, s1=None):
     if gp:                                              # at every group stage's end is n (the 3rd's move, forced)
         print(f'exe: CONTI_GPLACE={gp} (test build)')
     spec += bytes((gp,))
+    if s1 is None:                                      # (4.0.6 B2: the season-1 block, conti.s1_patch puts it
+        S1_BLOCK[0] = s1_block(cups, gl, words) if S1_ED and os.environ.get('CONTI_S1', '1') == '1' else b''   # in obj3)
     return spec, assocs, [(conf, c['key']) for conf, c, _ in cups]
 
 
+def guest_sub(key, ws, rd):
+    """CONTI_GUEST (test builds: 'cup:guest word[,guest word..]:club word', hex): the guests in place of the career
+    club's next group-mates / its opponent in cup key's main-round list ws (rd: that round); a new list."""
+    ws = list(ws)
+    g = os.environ.get('CONTI_GUEST')
+    if g and g.split(':')[0] == key:
+        _, gws, cw = g.split(':')
+        if int(cw, 16) in ws:
+            i = ws.index(int(cw, 16))
+            sz = rd['size'] if rd['kind'] == 'groups' else 2
+            for k, gw in enumerate(gws.split(',')[:sz - 1]):
+                ws[i - i % sz + (i % sz + 1 + k) % sz] = int(gw, 16)
+    return ws
+
+
+def s1_block(cups, gl, words):
+    """4.0.6 B2: the season-1 edition (conti.c ct_new1): 'S1', entries, the fixed seed, then each cup's main-round
+    list as the build drew it (the exe's contest list: the career club's own contest). Entries as CT_ED's: team word,
+    cup << 4 | round, strength / 16 (the squad's prices) | slot << 12."""
+    pr = _prices(words or {})
+    gst = {w: st for w, _, st in gl}
+    ents, lists = [], []
+    for gi, (conf, c, _) in enumerate(cups):
+        e = S1_ED.get((conf, c['key'])) or {'main': [], 'later': []}
+        mr = main_round(c)
+        e = dict(e, main=guest_sub(c["key"], e["main"], c["rounds"][mr]))   # (CONTI_GUEST: season 1 plays this list, B2)
+        st = lambda w: min((pr.get(w) or gst.get(w) or 0) // 16, 0xFFF)
+        for w in e['main']:
+            if w != 0xFFFF:
+                ents.append((w, gi << 4 | mr, st(w)))
+        for r, w, slot in e['later']:
+            ents.append((w, gi << 4 | r, st(w) | (slot & 15) << 12))
+        assert len(e['main']) <= 32 and gi < 16, (c['key'], len(e['main']))
+        lists.append(e['main'])
+    assert len(ents) <= 440, ('conti B2: season-1 entries > NED', len(ents))
+    b = b'S1' + struct.pack('<HI', len(ents), S1_SEED) + b''.join(struct.pack('<HBH', w, cr, sv) for w, cr, sv in ents)
+    b += b''.join(bytes((len(l),)) + struct.pack(f'<{len(l)}H', *l) for l in lists)
+    print(f'exe: conti B2 season-1 edition: {len(ents)} entries, {sum(1 for l in lists if l)} main-round lists, '
+          f'{len(b)} B')
+    return b
+
+
 # --- native test ------------------------------------------------------------------------------------------------------
-def _native():
+NATIVE_FLAGS = ()                       # (test_goals: -DCONTI_G1 for the old goals model)
+
+
+def _native(extra=(), flags=()):
     import ctypes
     import subprocess
     import tempfile
     d = tempfile.mkdtemp()
     lib = os.path.join(d, 'conti.dylib')
-    subprocess.run(['clang', '-O1', '-shared', '-fPIC', '-o', lib, os.path.join(ROOT, 'tools', 'conti.c')], check=True)
-    return ctypes.CDLL(lib)
+    subprocess.run(['clang', '-O1', '-shared', '-fPIC', '-DNATIVE', *(flags or NATIVE_FLAGS), '-o', lib,
+                    os.path.join(ROOT, 'tools', 'conti.c')] +
+                   [os.path.join(ROOT, 'tools', x) for x in extra], check=True)   # (4.0.6: + ctview.c, the view's test)
+    _native.last = ctypes.CDLL(lib)
+    return _native.last
 
 
-def test(confs=('conmebol',), seasons=3, seed=7):
+def test(confs=('conmebol',), seasons=3, seed=7, L=None, hook=None):
+    """hook(L, names, step) (4.0.6 ctview's test): after the season end and after each career club game."""
     import ctypes
     import random
     spec, assocs, cups = load(list(confs))
-    L = _native()
+    L = L or _native()
     lay = (ctypes.c_uint32 * 20).in_dll(L, 'CT_LAYOUT')
     s_in, s_st, s_out = lay[0], lay[1], lay[2]
     o_league, o_cup, o_ap, o_cl, o_club = lay[3], lay[4], lay[5], lay[6], lay[7]
@@ -470,6 +595,8 @@ def test(confs=('conmebol',), seasons=3, seed=7):
         L.ct_finish()                               # (the game: ct_begin, the season end's first country)
         ctypes.memmove(IN, bytes(b), s_in)
         L.ct_season()
+        if hook:
+            hook(L, names, f's{season + 1} start')
         if os.environ.get('CONTI_TEST_MANAGER'):    # phase B: the career club's games, one by one (random results)
             SEG = (ctypes.c_ubyte * 72).in_dll(L, 'CT_SEG')
             path = []
@@ -485,7 +612,22 @@ def test(confs=('conmebol',), seasons=3, seed=7):
                 else:
                     v = rnd.randint(1, 4)
                     path.append(f'{cn}:{g[1]} groups ({g[3]}) place {v}')
+                if os.environ.get('CONTI_TEST_REPLAY'):   # 4.0.6 view: the replay leaves the state as it was
+                    snap = bytes(SEG), bytes(OUTB), bytes(IN)
+                    L.ct_resume()
+                    assert (bytes(SEG), bytes(OUTB), bytes(IN)) == snap, f'replay changed the state at {path[-1]}'
+                if os.environ.get('CONTI_TEST_GREC'):     # 4.0.6 option C: the replay keeping the goals - the same
+                    snap = bytes(SEG), bytes(OUTB), bytes(IN)   # state, goals that give its results
+                    gb = ctypes.create_string_buffer(4 + 2 * NCUP * NRD + 0x1400)
+                    struct.pack_into('<HH', gb, 0, 0, 0x1400)
+                    ctypes.c_void_p.in_dll(L, 'CT_GREC').value = ctypes.addressof(gb)
+                    L.ct_resume()
+                    ctypes.c_void_p.in_dll(L, 'CT_GREC').value = None
+                    assert (bytes(SEG), bytes(OUTB), bytes(IN)) == snap, f'goal replay changed the state at {path[-1]}'
+                    grec_check(spec, bytes(gb), bytes(OUTB), lay, struct.unpack_from('<H', bytes(IN), 6)[0], path[-1])
                 L.ct_result(v)
+                if hook:
+                    hook(L, names, f's{season + 1} after {path[-1]}')
             print('    career club:', ' -> '.join(path) or 'no game')
             L.ct_season.restype = None
         o = bytes(OUTB)
@@ -501,6 +643,87 @@ def test(confs=('conmebol',), seasons=3, seed=7):
                     if counts[r]:
                         es = struct.unpack_from(f'<{counts[r]}H', o, o_ent + 2 * (ci * NRD * NE + r * NE))
                         print('   ', r, [nm(x) for x in es])
+
+
+def grec_check(spec, gb, o, lay, mgr, where):
+    """CONTI_TEST_GREC: every kept round's goals give CT_OUT's result (ko: the aggregate's winner, else away goals /
+    extra time / penalties as the round's level allows; groups: the places in points order), the career club's games
+    GR_OWN; returns the bytes used."""
+    NCUP, NRD, NE = lay[17:20]
+    o_nent, o_ent, o_res = lay[11], lay[12], lay[13]
+    used, room = struct.unpack_from('<HH', gb, 0)
+    assert used <= room
+    off = struct.unpack_from(f'<{NCUP * NRD}H', gb, 4)
+    b = gb[4 + 2 * NCUP * NRD:]
+    p, kept = 4, 0
+    for c in range(spec[0]):
+        nr = spec[p]
+        for r in range(nr):
+            R = spec[p + 4 + r * RB:p + 4 + (r + 1) * RB]
+            k = off[c * NRD + r]
+            n = o[o_nent + c * NRD + r]
+            if not k:
+                continue
+            kept += 1
+            ent = struct.unpack_from(f'<{NE}H', o, o_ent + 2 * ((c * NRD + r) * NE))
+            res = o[o_res + (c * NRD + r) * NE:o_res + (c * NRD + r + 1) * NE]
+            g = lambda x: ((x & 15) - 1, (x >> 4) - 1)
+            if R[0] == 0:                           # (K_KO)
+                for t in range(n // 2):
+                    x = b[k - 1 + 3 * t:k + 2 + 3 * t]
+                    own = mgr and mgr in (ent[2 * t], ent[2 * t + 1])
+                    if x[0] == 0xFF:
+                        assert own, (where, c, r, t, 'GR_OWN not the career club')
+                        continue
+                    assert not own or not mgr, (where, c, r, t)
+                    assert x[0], (where, c, r, t, 'no first leg')
+                    a1, b1 = g(x[0])
+                    ga, gb_, awa, awb = a1, b1, 0, b1
+                    if R[1] == 2:
+                        assert x[1], (where, c, r, t, 'no second leg')
+                        b2, a2 = g(x[1])
+                        ga += a2; gb_ += b2; awa = a2
+                    w = res[2 * t]
+                    if ga != gb_:
+                        assert w == (ga > gb_), (where, c, r, t, x.hex(), w)
+                    elif R[2] in (2, 3) and R[1] == 2 and awa != awb:
+                        assert w == (awa > awb), (where, c, r, t, 'away', x.hex(), w)
+                    elif R[2] in (1, 3):
+                        assert x[2], (where, c, r, t, 'no extra time')
+                        e1, e2 = g(x[2])
+                        if e1 != e2:
+                            assert w == (e1 > e2), (where, c, r, t, 'et', x.hex(), w)
+            else:
+                ng, gs, gr = R[6], R[7], R[8]
+                gm = gs * (gs - 1) // 2 * gr
+                for q in range(ng):
+                    x = b[k - 1 + q * gm:k - 1 + (q + 1) * gm]
+                    grp = ent[q * gs:(q + 1) * gs]
+                    if x and x[0] == 0xFF:
+                        assert mgr in grp, (where, c, r, q, 'GR_OWN not the career club\'s group')
+                        continue
+                    pt, m = [0] * gs, 0
+                    for leg in range(gr):
+                        for i in range(gs):
+                            for j in range(i + 1, gs):
+                                h, a = (j, i) if leg else (i, j)
+                                if grp[h] and grp[a]:
+                                    hg, ag = g(x[m])
+                                    pt[h] += 3 if hg > ag else 1 if hg == ag else 0
+                                    pt[a] += 3 if ag > hg else 1 if hg == ag else 0
+                                else:
+                                    assert not x[m]
+                                m += 1
+                    pl = res[q * gs:(q + 1) * gs]
+                    order = sorted(range(gs), key=lambda i: pl[i])
+                    assert all(pt[order[i]] >= pt[order[i + 1]] for i in range(gs - 1) if grp[order[i + 1]]), \
+                        (where, c, r, q, pt, list(pl))
+        p += 4 + nr * RB
+    GREC_STAT.append((used, kept))
+    return used
+
+
+GREC_STAT = []
 
 
 # --- the game ---------------------------------------------------------------------------------------------------------
@@ -586,6 +809,40 @@ ct_fill:                                ; careerworld w_ct_fill (the season end'
 ; round byte, level, month x 8, pos, the clubs) -----------------------------------------------------------------
 ct_lp:                                  ; the contests' team lists for conti.c (CT_LP: BSS, empty after a load)
     ;CT_LP
+    ret
+
+ct_new:                                 ; 4.0.6 B2, engine after_new (a new career, before the season start's slot-3
+    push es                             ; chain): a World 2026-27 career plays season 1's edition (conti.c ct_new1:
+    push ds                             ; the build's main rounds, the clubs after them, a fixed seed)
+    pop es
+    cld
+    mov dword [CT_SPEC], SPEC
+    call W_LPW
+    jne .r
+    call ct_lp
+    movzx eax, word [SEL]
+    push eax
+    call CT_NEW1
+    add esp, 4
+.r:
+    pop es
+    ret
+
+ct_load:                                ; 4.0.6 B2 M3, engine after_load: an older World 2026-27 save still in season 1
+    push es                             ; (no 'CE', no 'CT' yet) -> season 1's edition built now (conti.c ct_load1)
+    push ds
+    pop es
+    cld
+    mov dword [CT_SPEC], SPEC
+    call W_LPW
+    jne .r
+    call ct_lp
+    movzx eax, word [SEL]
+    push eax
+    call CT_LOAD1
+    add esp, 4
+.r:
+    pop es
     ret
 
 ct_pre:                                 ; the season start's slot-3 chain, before conti's checks: after a load the
@@ -753,6 +1010,15 @@ ct_daily:                               ; before the next match (uefaq's uq_dail
     push ds
     pop es
     cld
+    mov eax, [cg_guardp]                ; (4.0.6 option C: a contest view left open is closed first, ctgame cg_guard;
+    test eax, eax                       ; CONTI_CGVIEW test builds: cg_vtest opens / closes one)
+    jz .g0
+    movzx ecx, word [CAL_CUR]
+    movzx ecx, byte [CAL + ecx + 1]
+    push ecx
+    call eax
+    add esp, 4
+.g0:
     mov dword [CT_SPEC], SPEC
     mov eax, [CT_ED + 4]                ; (a load / another career: CT_SEG again from the saved edition)
     mov dx, [CT_ED]
@@ -874,6 +1140,17 @@ ct_build:                               ; [A0R] -> slot 3, as uefaq's .build: th
     mov word [D2R], 0
     call C8B2D3
     mov word [SLOT3 + 39h], 0FFFFh
+%if CGTEST_
+    mov eax, [cg_testp]                 ; (CONTI_CGTEST test builds only: ctgame's cg_selftest - the same contest
+    test eax, eax                       ; built by the view's builder must be slot 3's, byte for byte)
+    jz .nt
+    movzx ecx, word [CAL_CUR]
+    movzx ecx, byte [CAL + ecx + 1]
+    push ecx
+    call eax
+    add esp, 4
+.nt:
+%endif
     popad
     ret
 
@@ -938,6 +1215,8 @@ ct_newcup:                              ; 4.0.5 (world_sc_bra, FLAMENGO 3rd in i
 .x: popad
     ret
 
+cg_testp: dd 0                          ; (ctgame.patch: cg_selftest in CONTI_CGTEST test builds)
+cg_guardp: dd 0                         ; (ctgame.patch: cg_daily - cg_guard, + cg_vtest in CONTI_CGVIEW builds)
 ct_on: db 0
 ct_live: db 0
 ct_gplace: db 0
@@ -1001,7 +1280,8 @@ def patch(p, at, limit, bss_at, area):
     calls = lambda t: [i for i in range(len(d1) - 5) if d1[i] == 0xE8 and i + 5 + struct.unpack_from('<i', d1, i + 1)[0] == t]
     c927, c939 = calls(t927[0]), calls(t939[0])
     assert len(c927) == 2 and len(c939) == 2, (c927, c939)
-    obj = cobj.compile_c(os.path.join(ROOT, 'tools', 'conti.c'))
+    obj = cobj.compile_c(os.path.join(ROOT, 'tools', 'conti.c'),
+                         ['-DCONTI_G1'] if os.environ.get('CONTI_G1_TEST') else [])   # (test builds: the old goals model)
     syms, end, bss = cobj.link(p, obj, at, (2, bss_at), limit=limit)
     assert bss <= BSS, hex(bss)
     q = cw._qual_sites(d1, p)
@@ -1025,11 +1305,13 @@ def patch(p, at, limit, bss_at, area):
     symbols['STR_BASE_'] = (2, sacups.STR_BASE)
     symbols['KOLOSE_'] = (0, int(bool(os.environ.get('CONTI_KOLOSE'))))   # (test builds only)
     symbols['KOWIN_'] = (0, int(bool(os.environ.get('CONTI_KOWIN'))))     # (test builds only)
+    symbols['CGTEST_'] = (0, int(bool(os.environ.get('CONTI_CGTEST'))))   # (test builds only: ctgame's self-test)
     if os.environ.get('CONTI_KOLOSE'):
         print('exe: CONTI_KOLOSE (test build: the career club loses its conti ties)')
     symbols.update(NEXT_DAILY=u['uq_daily'], TIE=(1, TIE[0]), TIE_ID=(0, p.get(1, TIE[0], 1)[0]),
                    TIE_D7=(0, D7_BASE[0] + len(STRUCTS)), CT_D7=(0, D7_BASE[0]), CT_SEG=syms['CT_SEG'], CT_NS=(0, len(STRUCTS)),
-                   CT_ED=syms['CT_ED'], CT_RESULT=syms['ct_result'], CT_RESUME=syms['ct_resume'])
+                   CT_ED=syms['CT_ED'], CT_RESULT=syms['ct_result'], CT_RESUME=syms['ct_resume'],
+                   CT_NEW1=syms['ct_new1'], CT_LOAD1=syms['ct_load1'], W_LPW=(1, cw.LABELS['w_lpw']))
     import lp36
     ls = lp36.LABELS['symbols']
     ids = [p.get(1, off, 1)[0] for _, off, _, _ in STRUCTS] + [p.get(1, TIE[0], 1)[0]]
@@ -1085,7 +1367,9 @@ def patch(p, at, limit, bss_at, area):
     assert struct.unpack('<I', p.get(1, syms['CT_LAYOUT'][1] + 80, 4))[0] == ED_SIZE
     if 'CE' in engine.SAVE_ITEMS:
         engine.ITEM_AT['CE'] = syms['CT_ED']
-    LABELS.update(lab, syms=syms, assocs=assocs, cups=cups)
+    engine.CALL_AT['ct_new'] = (1, lab['ct_new'])       # (4.0.6 B2: patch.py registers it, engine.after_new)
+    engine.CALL_AT['ct_load'] = (1, lab['ct_load'])     # (B2 M3: engine.after_load)
+    LABELS.update(lab, syms=syms, assocs=assocs, cups=cups, SPEC=symbols['SPEC'])   # (4.0.6 SPEC: ctview)
     print(f'exe: other confederations\' cups (conti.c): {len(cups)} cups of {", ".join(confs)}, '
           f'{len(assocs)} associations, spec {len(spec)} B; C obj1+{at:#x}..{end:#x}, glue ..{glue + len(code):#x}, '
           f'bss obj2+{bss_at:#x} ({bss} B); ct_gend C obj1+{syms["ct_gend"][1]:#x} glue {lab["ct_gend"]:#x}, '
@@ -1094,6 +1378,22 @@ def patch(p, at, limit, bss_at, area):
 
 
 # --- season 1: the 2027 editions' main rounds at build time ---------------------------------------------------------
+def s1_patch(p, at):
+    """4.0.6 B2: the season-1 block at obj3:at (the chain's end), conti.c's CT_S1 pointing at it; returns the end."""
+    b = S1_BLOCK[0]
+    if not b or 'syms' not in LABELS:
+        return at
+    import cobj
+    assert not any(p.get(3, at, len(b)))
+    p.put(3, at, b)
+    cs = LABELS['syms']['CT_S1']
+    assert cs[0] == 1 and p.get(1, cs[1], 4) == b'\0' * 4, cs
+    p.put(1, cs[1], struct.pack('<I', at))
+    cobj.add_ptr(p, cs[1], 3, at)
+    print(f'exe: conti B2 season-1 block obj3+{at:#x} ({len(b)} B)')
+    return at + len(b)
+
+
 def season1(confs, files, words, seed=2027, stand_ins_only=False):
     """{(conf, cup key): [team words of the main round, in the drawn order]} from the access files' entrants_season1
     (data: the real 2027 entrants where known, else the access list on the starting tables). Rounds before the main
@@ -1270,6 +1570,18 @@ def season1_native(confs, files, words):
             lp[i] = ctypes.addressof(lists[i]) if i < len(cups) else None
         L.ct_season()
         o, ib = bytes((ctypes.c_ubyte * lay[2]).in_dll(L, 'CT_OUT')), bytes((ctypes.c_ubyte * lay[0]).in_dll(L, 'CT_IN'))
+        ed = bytes((ctypes.c_ubyte * lay[20]).in_dll(L, 'CT_ED'))
+        ne = struct.unpack_from('<H', ed, 2)[0]
+        for cf, ck in cups:                             # (B2: the clubs entering after the main round, as built)
+            S1_ED[(cf, ck)] = {'main': [], 'later': []}
+        for k in range(ne):
+            w, cr, sv = struct.unpack_from('<HBH', ed, 60 + 5 * k)
+            if cr == 0xFF or (cr >> 4) >= len(cups):
+                continue
+            cf, ck = cups[cr >> 4]
+            c = next(x for x in fm['cups'] if x['key'] == ck)
+            if c.get('stepladder') or (cr & 15) > main_round(c):
+                S1_ED[(cf, ck)]['later'].append((cr & 15, w, sv >> 12))
         for i, (cf, ck) in enumerate(cups):             # (the 2027 editions' winners: the first season end's holders)
             w = struct.unpack_from('<H', o, lay[8] + 2 * i)[0]
             if w:
@@ -1282,6 +1594,7 @@ def season1_native(confs, files, words):
             ws = list(lists[i])[:n]
             if any(w != 0xFFFF for w in ws):
                 out[(cf, ck)] = ws
+                S1_ED[(cf, ck)]['main'] = ws
         for i in range(16):
             lp[i] = None
     return out
@@ -1335,6 +1648,28 @@ def _league_cal(ng):
     return [(h + 16 * g, a + 16 * g) for d in days for (h, a) in d for g in range(ng)]
 
 
+def groups_body(euro, cid, rounds, j, key=''):
+    """A group stage (round j) as a type-2 contest's header (the game's Champions Cup's, euro = its 47 bytes): the
+    groups, then the cup's last <= 4 knockout rounds after it as stages; -> (39 bytes + name pointers to come, clubs).
+    conti.structs' main rounds; 4.0.6 ctgame's other group stages (the view's contests)."""
+    rd, last = rounds[j], rounds[-1].get('month') or 5
+    body = bytearray(euro)
+    body[0] = cid
+    n = rd['groups'] * rd['size']
+    ko = [r for r in rounds[j + 1:] if r['kind'] == 'ko'][-4:]
+    kn = len(ko)                                # (stages: the groups, then kn knockout rounds of
+    st = [1 + kn, n, rd['groups'], rd['size']]  # 2^kn .. 2 clubs; the winners count; a round byte per
+    for t in range(kn):                         # stage from +22h: the groups' 0, then the knockouts')
+        st += [2 ** (kn - t), 0, 2 ** (kn - t)]
+    st += [1] + [0] * (20 - len(st) - 1)
+    st += [0] + [_legs(r) for r in ko] + [0] * (4 - kn)
+    assert len(st) == 0x27 - 0x0e and 1 <= kn <= 4, (key, kn, len(st))
+    body[0x0e:0x27] = bytes(st)
+    body[9] = 0                                 # (every round through the game's own draw: our list order)
+    body[3], body[4] = _month((rd.get('months') or [10])[0]), _month(last)
+    return body, n
+
+
 def structs(p, area, lang, at):
     """The career club's contests (one per cup: its main round as the game's own contest) at obj1:at; returns (end,
     [(1, struct offset)], [euro rank per struct]) for sacups' slot-3 chain (D7 / E092F = 6 + index)."""
@@ -1377,20 +1712,8 @@ def structs(p, area, lang, at):
                 import lp36                             # calendar - lp36's fixture contests, any first club)
                 lp36.FIXTURES[(cid, (0xFF, 0xFF))] = (rd['groups'], rd['size'], 8, _league_cal(rd['groups']))
             if rd['kind'] in ('groups', 'league_stage'):
-                body = bytearray(d2[euro:euro + 47])
-                body[0] = cid
-                n = rd['groups'] * rd['size']
+                body, n = groups_body(d2[euro:euro + 47], cid, rounds, j0, c['key'])
                 ko = [r for r in rounds[j0 + 1:] if r['kind'] == 'ko'][-4:]
-                kn = len(ko)                                # (stages: the groups, then kn knockout rounds of
-                st = [1 + kn, n, rd['groups'], rd['size']]  # 2^kn .. 2 clubs; the winners count; a round byte per
-                for t in range(kn):                         # stage from +22h: the groups' 0, then the knockouts')
-                    st += [2 ** (kn - t), 0, 2 ** (kn - t)]
-                st += [1] + [0] * (20 - len(st) - 1)
-                st += [0] + [_legs(r) for r in ko] + [0] * (4 - kn)
-                assert len(st) == 0x27 - 0x0e and 1 <= kn <= 4, (c['key'], kn, len(st))
-                body[0x0e:0x27] = bytes(st)
-                body[9] = 0                                 # (every round through the game's own draw: our list order)
-                body[3], body[4] = _month((rd.get('months') or [10])[0]), _month(last)
                 name_at = 39
             else:
                 ko = rounds[j0:]
@@ -1405,15 +1728,7 @@ def structs(p, area, lang, at):
                                                                                               # clubs: CONCACAF had 1)
             ws = list(first.get((conf, c['key'])) or [])
             assert len(ws) in (0, n), (c['key'], len(ws), n)
-            g = os.environ.get('CONTI_GUEST')           # (test builds: 'cup:guest word[,guest word..]:club word', hex -
-            if g and g.split(':')[0] == c['key']:       # the guests in place of the career club's next group-mates /
-                _, gws, cw = g.split(':')               # its opponent)
-                if int(cw, 16) in ws:
-                    i = ws.index(int(cw, 16))
-                    sz = rd['size'] if rd['kind'] == 'groups' else 2
-                    for k, gw in enumerate(gws.split(',')[:sz - 1]):
-                        ws[i - i % sz + (i % sz + 1 + k) % sz] = int(gw, 16)
-            ws = ws or [0xFFFF] * n
+            ws = guest_sub(c['key'], ws, rd) or [0xFFFF] * n
             blob = bytes(body[:name_at]) + struct.pack('<II', rel, SNAMES[-1]) + struct.pack(f'<{n}H', *ws)
             assert blob[5] + 5 == name_at and blob[7] + 7 == name_at + 8, c['key']
             p.put(1, at, blob)
@@ -1447,7 +1762,110 @@ def structs(p, area, lang, at):
     return at, out, kinds
 
 
+def test_goals():
+    """4.0.6 option c (Davide 04/11): the conti matches' goals natively, every edition from 4.0.6 on (ED_G2) and the
+    old model (CONTI_G1, older saves' editions): season 1 on the world's data (test_s1) and three test() seasons ->
+    {(model, run): (matches, mean goals a match)}"""
+    import contextlib
+    import ctypes
+    import io
+    global NATIVE_FLAGS
+    out = {}
+    try:
+        for model, fl in (('new', ()), ('old', ('-DCONTI_G1',))):
+            NATIVE_FLAGS = fl
+            for run, f in (('s1', test_s1), ('test', test)):
+                with contextlib.redirect_stdout(io.StringIO()):
+                    f()
+                n, g = (ctypes.c_uint32 * 2).in_dll(_native.last, 'CT_GSTAT')
+                out[(model, run)] = (n, g / n if n else 0)
+    finally:
+        NATIVE_FLAGS = ()
+    for k, (n, m) in out.items():
+        print(f'{k[0]:3} {k[1]:4}: {n} matches, {m:.2f} goals a match')
+    return out
+
+
+def test_s1(mgr_key=None, seed=3):
+    """4.0.6 B2 native test on the world's own data (SEASON_PACKS as a build): the season-1 edition (ct_new1) keeps
+    every main round as the build drew it (the exe lists, even when they hold junk: the block's lists win), plays
+    every cup to a winner, is deterministic, and the first season end makes its winners the holders (the cups
+    season 1 does not play: the build's 2027 winner). mgr_key: a club key (its games random, as test())."""
+    import ctypes
+    import random
+    confs = ready()
+    files, words = _world_maps(confs)
+    season1_native(confs, files, words)
+    spec, assocs, cups = load(confs, files, words)
+    assert S1_BLOCK[0][:2] == b'S1', 'no season-1 block'
+    L = _native()
+    s1b = ctypes.create_string_buffer(S1_BLOCK[0], len(S1_BLOCK[0]))
+    ctypes.c_void_p.in_dll(L, 'CT_S1').value = ctypes.addressof(s1b)
+    lay = (ctypes.c_uint32 * 22).in_dll(L, 'CT_LAYOUT')
+    buf = ctypes.create_string_buffer(spec, len(spec))
+    ctypes.c_void_p.in_dll(L, 'CT_SPEC').value = ctypes.addressof(buf)
+    lists = [(ctypes.c_uint16 * 32)(*([0x1234] * 32)) for _ in cups]
+    lp = (ctypes.c_void_p * 16).in_dll(L, 'CT_LP')
+    for i in range(16):
+        lp[i] = ctypes.addressof(lists[i]) if i < len(cups) else None
+    mgr = words.get(mgr_key, 0) if mgr_key else 0
+    if mgr_key:
+        assert mgr, ('no such club', mgr_key)
+    SEG = (ctypes.c_ubyte * 72).in_dll(L, 'CT_SEG')
+    o_win = lay[8]
+    rnd = random.Random(seed)
+
+    def season():
+        for z in ('CT_ED', 'CT_ST', 'CT_OUT', 'CT_IN'):
+            n = {'CT_ED': lay[20], 'CT_ST': lay[1], 'CT_OUT': lay[2], 'CT_IN': lay[0]}[z]
+            ctypes.memset(ctypes.addressof(ctypes.c_ubyte.in_dll(L, z)), 0, n)
+        L.ct_new1.restype = ctypes.c_uint32
+        assert L.ct_new1(mgr) == 1
+        L.ct_resume()
+        path = []
+        for _ in range(20):
+            g = bytes(SEG)
+            if g[2] == 0xFF:
+                break
+            v = rnd.randint(0, 1) if g[2] == 0 else rnd.randint(1, 4)
+            path.append(f'{cups[g[0]][1]}:{g[1]} kind {g[2]:#x} -> {v}')
+            L.ct_result(v)
+        o = bytes((ctypes.c_ubyte * lay[2]).in_dll(L, 'CT_OUT'))
+        ib = bytes((ctypes.c_ubyte * lay[0]).in_dll(L, 'CT_IN'))
+        win = {}
+        for ci, cu in enumerate(cups):
+            w = struct.unpack_from('<H', o, o_win + 2 * ci)[0]
+            win[cu] = struct.unpack_from('<H', ib, lay[7] + 12 * (w - 1))[0] if w else 0
+        bad = []
+        for ci, cu in enumerate(cups):
+            want = (S1_ED.get(cu) or {}).get('main') or []
+            if want and list(lists[ci])[:len(want)] != want:
+                bad.append(cu)
+        L.ct_finish()
+        st = bytes((ctypes.c_ubyte * lay[1]).in_dll(L, 'CT_ST'))
+        hold = {cu: struct.unpack_from('<H', st, 4 + 12 * ci)[0] for ci, cu in enumerate(cups)}
+        return win, bad, hold, path
+
+    w1, bad, hold, path = season()
+    w2, _, _, path2 = season() if not mgr_key else (w1, None, None, path)
+    print('career club:', ' -> '.join(path) or 'no game')
+    for cu in cups:
+        s1w = S1_HOLD.get(cu, (0,))[0]
+        print(f'  {cu[0]}:{cu[1]} winner {w1[cu]:#06x} holder {hold[cu]:#06x} (build s1h {s1w:#06x})')
+    assert not bad, ('main-round lists not as built', bad)
+    assert w1 == w2, 'not deterministic'
+    for cu in cups:
+        assert hold[cu] == (w1[cu] or S1_HOLD.get(cu, (0,))[0]), ('holder', cu)
+    played = [cu for cu in cups if w1[cu]]
+    print(f'PASS: {len(played)}/{len(cups)} cups played to a winner, lists as built, deterministic, holders = winners')
+    return w1
+
+
 if __name__ == '__main__':
     import sys
-    if sys.argv[1:2] == ['--test']:
+    if sys.argv[1:2] == ['--test-goals']:
+        test_goals()
+    elif sys.argv[1:2] == ['--test-s1']:
+        test_s1(*(sys.argv[2:3] or [None]))
+    elif sys.argv[1:2] == ['--test']:
         test(sys.argv[2:] or ['conmebol'])

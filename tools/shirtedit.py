@@ -1,4 +1,4 @@
-"""Editable shirt numbers (4.0.2; Marco Malave's SWOS 2020 video, Nicola's request): on the team screen before a match
+"""Editable shirt numbers (4.0.2; Marco's SWOS 2020 video, Nicola's request): on the team screen before a match
 (playMatchMenu: each player row is an entry drawn by DrawPlayerEntries), LEFT on one of your players' rows lights his
 number box (once the cursor has been on that row ~0.3 s: a LEFT that just brought it there, or a held one, still only
 moves); then
@@ -28,6 +28,7 @@ import nasmcave
 HL_COLOR = 0x0E                 # the lit number box's background colour (menu palette)
 WAIT = 28                       # menu frames for a second digit (~1 s)
 DWELL = 8                       # menu frames on a row before LEFT lights its number (~0.3 s)
+INFO = {}                       # patch()'s labels and sites for squadnum.py (4.0.6: the squad screen) and edteam.py
 
 ASM = r"""
 se_ctl:                                 ; MenuProc: replaces `call MenuCheckControls`
@@ -531,6 +532,15 @@ def patch(p, cave):
     hl = s['HL_SITE']
     assert p.get(1, hl, 6) == b'\x66\xc7\x46\x04\x00\x00'
     p.put(1, hl, b'\xe8' + struct.pack('<i', lab['se_hl'] - (hl + 5)) + b'\x90')
+    rc = [cave + m.start() for m in re.finditer(rb'\xe8', code)
+          if cave + m.start() + 5 + struct.unpack_from('<i', code, m.start() + 1)[0] == lab['se_row']]
+    assert len(rc) == 1, ('call se_row', rc)
+    dc = [cave + m.start() for m in re.finditer(re.escape(b'\x66\x83\x3d' + struct.pack('<I', sym['MCD'][1]) + b'\x06'),
+                                                 code)]
+    assert len(dc) == 1, ('cmp word [MCD], 6', dc)     # (se_ctl's idle: the direction that opens the box - edteam's)
+    INFO.update(se_row=lab['se_row'], se_hl=lab['se_hl'], row_call=rc[0], GPIBP=s['GPIBP'], se_on=lab['se_on'],
+                se_rec=lab['se_rec'], se_ent=lab['se_ent'], dir_at=dc[0],
+                **{k: sym[k] for k in ('CT', 'A0', 'D1', 'MCD', 'CURMENU')})
     print(f'exe: editable shirt numbers (MenuProc obj1+{mc:#x}, DrawPlayerEntries number obj1+{hl:#x}, '
           f'code obj1+{cave:#x}..{cave + len(code):#x})')
     return (cave + len(code) + 3) & ~3

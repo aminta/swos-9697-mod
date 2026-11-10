@@ -152,6 +152,17 @@ ct_optret:                              ; (and on return to OPTIONS: unpacked ag
     mov word [esi + 16h], QUIT_Y        ; (4.0.5 Marco: EXIT TO DOS 1 px up - 2 px above and below CONTROLS)
     mov byte [MENU_ + 16h + 18 * 38h + 0Ah], 19
     mov byte [MENU_ + 16h + 18 * 38h + 12h], 19
+    cmp word [MENU_ + 16h + 38h + 16h], ROW1_Y   ; 4.1 (Marco 07/11): the game's option rows 1..16 (11 px high
+    jne .x                              ; boxes) ROWS_DY px down - cpucards' / gkinj's rows above them are made from
+    mov esi, MENU_ + 16h + 38h          ; row 1 after this, so they follow: the gap under the title as the one above
+    mov ecx, 16                         ; EXIT TO DOS (once per unpack: row 1 still at its y)
+.r:
+    cmp word [esi + 1Ah], 11
+    jne .n
+    add word [esi + 16h], ROWS_DY
+.n:
+    add esi, 38h
+    loop .r
 .x: popad
     ret
 
@@ -655,12 +666,13 @@ ct_cancel:                              ; CANCEL: the copy dropped
     ret
 
 ct_save:                                ; SAVE: SETUP.DAT (as it is on disk, our fields replaced) and the game
+                                        ; (106 B: +105 = mainbtn's default world, W-modes)
     cmp byte [MODE], 0
     jne .x
     pushad
     mov esi, BUF                        ; (no file: the game's buffer)
     mov edi, FBUF
-    mov ecx, 105
+    mov ecx, 106
     rep movsb
     mov edx, FNAME
     mov eax, 3D00h
@@ -668,7 +680,7 @@ ct_save:                                ; SAVE: SETUP.DAT (as it is on disk, our
     jc .nofile
     mov ebx, eax
     mov edx, FBUF
-    mov ecx, 105
+    mov ecx, 106
     mov ah, 3Fh
     int 21h
     mov ah, 3Eh
@@ -685,7 +697,7 @@ ct_save:                                ; SAVE: SETUP.DAT (as it is on disk, our
     jc .nowrite
     mov ebx, eax
     mov edx, FBUF
-    mov ecx, 105
+    mov ecx, 106
     mov ah, 40h
     int 21h
     mov ah, 3Eh
@@ -734,6 +746,38 @@ ct_apply:                               ; WORK's fields -> [edi]: device, the tw
     add esi, 2
     jmp .f
 .e:
+    jmp ct_firefix                      ; (SAVE: the file's buffer and the game's both)
+
+ct_firefix:                             ; 4.1 (12 Bit 07/11): [edi] = a SETUP.DAT buffer. Its fire bytes +101..+104
+                                        ; (g_joy1Fire1 / 2, g_joy2Fire1 / 2: -1 / -2 = the stick's 1st / 2nd button)
+                                        ; are 0 in the CD's / GOG's factory file: Joy1SetStatus then sets bit 4, never
+                                        ; fire (20h), with any device but keyboard only. 0 -> -1 / -2; device 1 untouched
+    cmp word [edi + 6], 1
+    je .x
+    xor ecx, ecx
+.b:
+    cmp byte [edi + 101 + ecx], 0
+    jne .n
+    mov al, cl
+    and al, 1
+    not al                              ; (even: FFh, odd: FEh)
+    mov [edi + 101 + ecx], al
+.n:
+    inc ecx
+    cmp ecx, 4
+    jb .b
+.x:
+    ret
+
+ct_boot:                                ; 4.1: joyfix's `call ReadSetupDat` (before its stick check): a SETUP.DAT saved
+    call RSDP                           ; by an older CONTROLS page (device != 1, fire bytes 0) repaired in memory
+    cmp byte [SWOSPP], 0FFh             ; (SWOS++ hooks this byte: its own controls)
+    jne .x
+    pushad
+    mov edi, BUF
+    call ct_firefix
+    popad
+.x:
     ret
 
 ct_refresh:                             ; texts, rows shown and links from WORK and the mode
@@ -971,19 +1015,24 @@ def patch(p, at, lang):
                 'KEYTAB': (1, base + off['keytab']), 'DEVPTR': (1, base + off['devptr']),
                 'MSGTAB': (1, base + off['msgtab']), 'FIELDS': (1, base + off['fields']), 'CTMENU': (1, base + m_at),
                 'S_TITLE': (1, base + off['title']), 'S_TEST': (1, base + off['test']), 'S_DUP': (1, base + off['dup']),
-                'REC_': (0, REC), 'BTN_Y': (0, BTN_Y), 'QUIT_Y': (0, QUIT_Y)})
+                'REC_': (0, REC), 'BTN_Y': (0, BTN_Y), 'QUIT_Y': (0, QUIT_Y), 'ROW1_Y': (0, ROW1_Y),
+                'ROWS_DY': (0, ROWS_DY)})
     sym.update({f'S_K{i}': (1, base + off[f'k{i}']) for i in range(5)})
     for k, (o, sz) in {'MODE': (0, 1), 'PAD': (1, 1), 'KIDX': (2, 1), 'ARMED': (3, 1), 'FPREV': (4, 1),
                        'DUP': (5, 1), 'WAIT': (6, 1), 'KEY': (7, 1), 'SV_CTL': (8, 2), 'SV_P1': (10, 2),
                        'SV_P2': (12, 2), 'SV_IT': (14, 2), 'SV_NL': (16, 4), 'CX_': (20, 2), 'CY_': (22, 2),
                        'MINX': (24, 2), 'MAXX': (26, 2), 'MINY': (28, 2), 'MAXY': (30, 2)}.items():
         sym[k] = (1, v + o)
+    vj = sym['RGP'][1] - 0x66                          # 4.1: joyfix's code (VerifyJoypadControls' place) opens with
+    assert p.get(1, vj, 1) == b'\xe8', 'joyfix first'  # `call ReadSetupDat`: ct_boot chains onto it
+    sym['RSDP'] = p.call_target(1, vj)
     code, fix = nasmcave.assemble(ASM, at, sym)
     lab = nasmcave.labels(ASM, at, sym)
     assert not any(p.get(1, at, len(code)))
     p.put(1, at, code)
     for o, t_obj, t_off in fix:
         p.add_ptr(1, at + o, t_obj, t_off)
+    p.branch(1, vj, 0xE8, 1, lab['ct_boot'])
     for o, t_obj, t in ptrs:
         p.add_ptr(1, base + o, 1, lab[t] if t_obj == 1 else base + off[t])   # (the block's own texts: obj1 too)
     hdr = menu_header(p, sym['OMBD'][1])
@@ -993,12 +1042,16 @@ def patch(p, at, lang):
     p.put(2, hdr, struct.pack('<I', lab['ct_optinit']))
     p.put(2, hdr + 4, struct.pack('<I', lab['ct_optret']))
     p.add_ptr(2, hdr + 4, 1, lab['ct_optret'])
+    LAST.update(lab=lab, base=base, off=off, ptrs=ptrs, m_at=m_at, data=bytes(data), code_at=at, code_len=len(code))
     print(f'exe: CONTROLS page ({T["title"]}): code obj1+{at:#x} ({len(code)} B), page obj1+{base + m_at:#x}, '
           f'options menu obj2+{hdr:#x}')
     return at + len(code)
 
 
+LAST = {}                             # (the last patch's labels and data block: kbd2's CONTROLS B page builds on them)
 LABEL_COL, VALUE_COL = 0x09, 0x0D     # (the OPTIONS rows: labels 9, values 13)
+ROW1_Y, ROWS_DY = 52, 2               # 4.1 (Marco 07/11): the option rows y 16..146 -> 18..148 (title 0..14: gap 1 -> 3 px;
+                                      # EXIT TO DOS at 151: 4 -> 2 px; 5 px in all, the nearest to equal)
 BTN_Y, QUIT_Y = 168, 151              # the button between EXIT TO DOS (151 + 15) and EXIT (185): 2 px gaps (4.0.5 Marco;
                                       # EXIT ends on the screen's last row, EXIT TO DOS moves up 1 px)
 

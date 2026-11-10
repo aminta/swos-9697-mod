@@ -44,18 +44,25 @@ ENABLED = (os.environ['SEASON_PACKS'].split(',') if 'SEASON_PACKS' in os.environ
                               if not c.startswith('.') and c != NATIONAL])
                                         # (a name in packs/ or a path; SEASON_PACKS only for test builds)
 TEAM_SIZE = 684
+TF_LEAGUE = 25                          # TeamFile.league (team record offset)
+UNUSED_LEAGUE = 1                       # an unused nation's league byte (the file's nations are league 0)
 SEASONS = 97                            # pseudo-continent 'classic seasons' of the Season menu
 SEASONS_NAMES = {'it': b'STAG. STORICHE', 'en': b'CLASSIC SEASONS', 'fr': b"SAISONS D'ANTAN", 'de': b'SAISONKLASSIKER'}
 SEASONS_REC = [None]                    # obj2 offset of its countriesTable record (historic.hist_names colours it)
 CAREERS = 98                            # pseudo-continent 'classic careers' of the career team selector
-CAREERS_NAMES = {'it': b'CARR. STORICHE', 'en': b'CLASSIC CAREERS', 'fr': b"CARR. D'ANTAN", 'de': b'KLASS. KARRIERE'}
+CAREERS_NAMES = {'it': b'STORICO', 'en': b'HISTORIC', 'fr': b'HISTORIQUE', 'de': b'HISTORISCH'}   # (W-modes M2, Davide
+                                        # 2026-11-04: the purple box of the friendly / DIY / career pickers; was CARR. STORICHE)
 CAREERS_REC = [None]
+WCONT_KEY = {}                          # (4.0.6 P3) a continent list's menu id -> its continent key (CONT_ORDER)
 WCONT_IDS = {}                          # world 2025-26: world n -> [(menu id, [country files], top level)] when the world
 CONT_ORDER = ['europe', 'south_america', 'north_america', 'asia', 'africa', 'oceania']   # spans several continents
 OTHER_NAMES = {'it': b'ALTRE NAZIONI', 'en': b'OTHER NATIONS', 'fr': b'AUTRES PAYS', 'de': b'WEITERE LAENDER'}
 WCONT_MAX = int(os.environ.get('WCONT_MAX', 44))                             # countries a continent list of a world holds (more exits to DOS)
 CONT_NAT = {'europe': 80, 'africa': 81, 'south_america': 82, 'north_america': 83, 'asia': 84, 'oceania': 85}
 WMENU = 200                             # a world's entry in the CLASSIC CAREERS list: pseudo-continent 200 + world number
+WORLD0_NAMES = {'it': b'MONDO 1996-97', 'en': b'WORLD 1996-97', 'fr': b'MONDE 1996-97', 'de': b'WELT 1996-97'}   # W-modes M2: the 1996-97 game's entry (WMENU + 0)
+                                        # in the friendly / DIY STORICO box (TEXT PENDING: Davide's Q1-Q3 via Regia)
+W0_IDS = []                             # (W-modes M2) its continents' proxies: (menu id, the game's continent 80..85)
                                         # (its countries), named by the root pack's world_cups.name
 CAREER_DATA = [None]                    # obj1 pages of the career packs' structs (patch.py, only with worlds)
 CAREER_DATA_SIZE = 0x2000                # grows to 3 pages for a big world (career_data_pages)
@@ -718,6 +725,12 @@ class Pack:
                 out[k], n = _place_numbers(out[k])
                 moved += n
             self.log(f'shirt numbers by place (1..11 starters, 12..16 bench): {moved} changed')
+        for f, i in getattr(self, 'unused', ()):         # step 2.5 (Davide 2026-11-05): a nation that does not exist in
+            r = bytearray(out[f])                         # the era is hidden from the friendly / DIY lists - their
+            r[2 + TEAM_SIZE * i + TF_LEAGUE] = UNUSED_LEAGUE   # filter (ChooseTeamsFriendlyInitFinish) lists the file's
+            out[f] = bytes(r)                             # teams of league 0 only; the career skips them (nat_table)
+        if getattr(self, 'unused', ()):
+            self.log(f'{len(self.unused)} unused nations: league {UNUSED_LEAGUE} (hidden from the team lists)')
         self.pool_data = out.pop(self.files['pool'][0], None) if getattr(self, 'pool_key', None) else None
         self.xtra.pop(self.files['pool'][0], None) if getattr(self, 'pool_key', None) else None
         return out                                      # (the off-file pool: rs_files)
@@ -1145,11 +1158,14 @@ class NationalPack(Pack):
             self.count[c['file']] = n + 1
         self.division, self.comps, self.ties = {}, [], {}
         self.nations = {}                       # nations.csv: (game file, ordinal) -> code, nat, home, unused
+        self.unused = []                        # (physical file, ordinal) of its unused nations (team_files)
         np_ = os.path.join(path, 'nations.csv')
         for row in (_csv(np_) if os.path.exists(np_) else []):
             _need(row['key'] in self.clubs, f"nations.csv: unknown team {row['key']}")
             f, i = self.where[row['key']]
             self.nations[(self.as_file[f], i)] = row
+            if row.get('unused') == '1':
+                self.unused.append((f, i))
 
     def word(self, key):
         """The game's team word of a national team: file (80..85) | ordinal << 8."""
@@ -1296,7 +1312,48 @@ def ns_files(w):
     """Team file numbers of world w (its packs and its national pack): the files named by its stem."""
     import guests
     return sorted({f for pk in packs() + nationals() if pk.world == w for _, (f, _) in pk.team_file_items()}
-                  | set(guests.files() if guests.world() == w else ()))   # (the guest clubs' files: guests.py)
+                  | set(guests.files() if guests.world() == w else ())   # (the guest clubs' files: guests.py)
+                  | set(nat_today_files(w)))
+
+
+def nat_today_names():
+    """The renamed national files' names (TMWn.08x) of every world (mkpatcher's DATA list)."""
+    return sorted('%s.%03d' % (ns_stem(w).upper(), f) for w in worlds() for f in nat_today_files(w))
+
+
+def nat_today_files(w, src=None):
+    """4.0.6 (Davide 05/11): {file: data} - a world from 2019 on with a namespace of its own and no national pack
+    plays the game's national teams (TEAM.080..085); the ones whose nation changed name (careerworld.NAT_TEAM_TODAY:
+    YUGOSLAVIA -> SERBIA ...) get renamed copies under the world's stem, the others stay the game's. src: the DATA
+    dir to copy from - patch.py passes the build's own, after its last TEAM pass (white hair, club names...); a file
+    it does not hold (a scenario's test build writes only its own files) is the game's own, orig/DATA."""
+    import careerworld
+    if not multi_ns() or ns_stem(w) == 'team' or any(x.world == w for x in nationals()):
+        return {}
+    roots = [pk for pk in worlds().get(w, []) if 'world_cups' in pk.meta]
+    if not roots or roots[0].meta['world_cups'].get('start_year', 0) < 2019:
+        return {}
+    out = {}
+    for f in range(80, 86):
+        fn = os.path.join(src, 'TEAM.%03d' % f) if src else None
+        if not fn or not os.path.exists(fn):
+            fn = os.path.join(ROOT, 'orig', 'DATA', 'TEAM.%03d' % f)
+        d = bytearray(open(fn, 'rb').read())
+        n = struct.unpack('>H', d[:2])[0]
+        hit = False
+        for k in range(n):
+            o = 2 + 684 * k + 5                           # (a record's team name, 17 bytes NUL-padded)
+            nm = bytes(d[o:o + 17]).split(b'\0')[0].decode('latin-1')
+            if nm in careerworld.NAT_TEAM_TODAY:
+                new = careerworld.NAT_TEAM_TODAY[nm].encode('latin-1')
+                _need(len(new) <= 16, f'national team name {new} over 16 characters')
+                d[o:o + 17] = new.ljust(17, b'\0')
+                hit = True
+        if hit:
+            out[f] = bytes(d)
+    found = {x for f in out for x in careerworld.NAT_TEAM_TODAY.values() if x.encode() + b'\0' in out[f]}
+    _need(found == set(careerworld.NAT_TEAM_TODAY.values()), f'national renames not all found: {found}')
+    return out
 
 
 def draws():
@@ -2206,6 +2263,7 @@ def patch(p, lang, area, cave):
     comp = countries.COMP[0]
     NS.clear()                                 # (several worlds: this exe's namespaces; a release builds 8 exes in one run)
     NS_INFO.clear()
+    W0_IDS.clear()
     env = (p.le.obj_bytes(2), ct, tcn, comp, {f[1] for f in p.le.fixups() if f[0] == 2})
     ids = {}                                   # a league id may be shared by the packs of one career world, and
     for pk in packs():                         # every world has its own ids (worlds never run together: their cups'
@@ -2330,6 +2388,7 @@ def patch(p, lang, area, cave):
                     at = (at + len(cl) + 3) & ~3
                 for c in sorted(wconts, key=CONT_ORDER.index):
                     files, lid, top = wconts[c], take_id(), True
+                    WCONT_KEY[lid] = c
                     p.add_ptr(2, ct + 4 * lid, *p.target(2, ct + 4 * CONT_NAT[c]))
                     while True:
                         if len(files) <= WCONT_MAX:
@@ -2351,14 +2410,35 @@ def patch(p, lang, area, cave):
             p.add_ptr(2, comp + 4 * wid, 1, at)
             at = (at + len(wl) + 3) & ~3
             wmenus.append(wid)
+        if worlds():                            # W-modes M2: the 1996-97 game as a world (WMENU + 0) for the friendly /
+            _need(ct + 4 * WMENU not in fx2 and comp + 4 * WMENU not in fx2, f'world 0: menu id {WMENU} is used')
+            name = WORLD0_NAMES[lang]           # DIY pickers' STORICO box (swe.c); its continents are proxies (from
+            p.add_ptr(2, ct + 4 * WMENU, 2, area.add(bytes((countries.CONTINENT['europe'],)) + name + b'\0' + name
+                                                      + b'\0'))
+            ids, cid = [], 251                  # 251 down, as a world's): w_lvl shows a country's leagues at depth 3+
+            used = {e[0] for v in WCONT_IDS.values() for e in v}   # only under a list id >= WMENU
+            for c in conts:
+                while ct + 4 * cid in fx2 or comp + 4 * cid in fx2 or cid in used or cid in ids or \
+                        any(cid in v for v in NS.values()):
+                    cid -= 1
+                _need(cid > WMENU + max(worlds()), 'world 0: no free continent menu id')
+                ids.append(cid)
+                p.add_ptr(2, ct + 4 * cid, *p.target(2, ct + 4 * c))
+            W0_IDS[:] = list(zip(ids, conts))    # (their records: swe.py copies the game's, last - later patches
+                                                 # add to them, cafcups.intl_list)
+            wl = struct.pack('<i', -1) + bytes(ids) + b'\xff'
+            p.put(1, at, wl)
+            p.add_ptr(2, comp + 4 * WMENU, 1, at)
+            at = (at + len(wl) + 3) & ~3
+            wmenus.append(WMENU)
         lst = struct.pack('<i', -1) + bytes(entries) + b'\xff'
         p.put(1, at, lst)
         p.add_ptr(2, comp + 4 * CAREERS, 1, at)
         at = (at + len(lst) + 3) & ~3
         cworld = at
         p.add_ptr(1, at, *p.target(wobj, world))
-        p.put(1, at + 4, b'\xff' * 4 + conts + bytes((CAREERS, 0xff)))
-        at = (at + 8 + len(conts) + 2 + 3) & ~3
+        p.put(1, at + 4, b'\xff' * 4 + conts + bytes((CAREERS, 0xff, 0xff)))   # (W-modes M2: a spare byte, swe.c
+        at = (at + 8 + len(conts) + 3 + 3) & ~3                              # lists MONDO 2026-27 next to the box)
     d1 = p.le.obj_bytes(1)
     d7 = sacups.regs(d1)['D7']                  # continent range check: cmp word [D7], 85; ja last -> ja cont_check
     ms = [x.start() for x in re.finditer(rb'\x66\x83\x3d' + re.escape(struct.pack('<I', d7)) + rb'\x55\x0f\x87', d1)]
@@ -2384,6 +2464,8 @@ def patch(p, lang, area, cave):
         for ids in WCONT_IDS.values():                    # a world's continents and OTHER NATIONS lists
             for cid, _, _ in ids:
                 src = nasmcave.sub(src, 'cont_check:', f'cont_check:\n    cmp word [D7REG], {cid}\n    je CONT_WORLD')
+        for cid, _ in W0_IDS:                             # (W-modes M2) the 1996-97 world's continent proxies
+            src = nasmcave.sub(src, 'cont_check:', f'cont_check:\n    cmp word [D7REG], {cid}\n    je CONT_WORLD')
         if wmenus:
             lvl, nst, csp = _level_site(p)
             symbols.update({'NST': nst, 'CSP': csp, 'WMENU_N': (0, WMENU)})

@@ -27,6 +27,9 @@ import struct
 REG_AT = 0x1800                         # obj4: swe.c's code + data below it, the manifest up to the object end
 OBJ4_END = 0x2000                       # (the registry's end; swe.OBJ4_PAGES pages: 4.1 has a 3rd)
 UESUM_AT = 0x2000                       # 4.1 S2a: uesum.c's page in obj4 (MC moves it to 0x3000 in 4.2: one line)
+ST_AT, ST_SIZE = 0x5000, 144             # 4.2: the engine's ledger item 'ST' (sr_stled.c: a groups stage's state;
+                                        # sr_st_size(32, 8, 2) = 16 + 32 + 96), a zero block in obj4's 6th page,
+                                        # under lrank.LR_AT (4.1's usmenu 0x3000 / uprize2 0x4000 / conti 0x4B00 below)
 MAGIC = b'SWRG'
 VERSION = 2
 HDR = 32

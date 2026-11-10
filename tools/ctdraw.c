@@ -28,6 +28,11 @@ void swe_ready(void);                   /* (swe.c: cstack_init once, the arena l
 #endif
 
 uint32_t CT_SDRAW_N = 0, CT_SDRAW_ERR = 0, CT_SDRAW_HIT = 0;
+#ifdef NATIVE
+uint32_t CT_SDRAW_MAXU = 0;             /* (conti.py drawgate: the most steps of one library draw since reset) */
+uint32_t CT_PSEED[256];                 /* (the gate's game seeds: each (cup << 4 | round)'s ct_place rng before its
+                                           step, the last edition's) */
+#endif
 #if defined(CTDRAW_FORCE) || defined(NATIVE)
 uint32_t CT_SDRAW_FORCE = 0;
 #endif
@@ -60,6 +65,9 @@ int ct_sdraw(int n, int g, const uint8_t *assoc, int cap, uint32_t seed, uint8_t
     }
 #endif
     CT_SDRAW_HIT += sr_gdraw_hits - h0;
+#ifdef NATIVE
+    if (sr_gdraw_used > CT_SDRAW_MAXU) CT_SDRAW_MAXU = sr_gdraw_used;   /* (the gate: the most steps since reset) */
+#endif
     if (rc >= 0)
         CT_SDRAW_N++;
     else if (!CT_SDRAW_ERR)
@@ -107,6 +115,9 @@ int ct_place(int m, int ng, int gs, int mode, uint16_t *x, uint8_t *v, uint8_t *
                     sa[j++] = rule == PA_NOVIA && v[i] ? (uint8_t)(0x80 + i) : as[i] & 0x7F;
                     nw += !h;
                 }
+#ifdef NATIVE
+        CT_PSEED[tag & 0xFF] = *rng;
+#endif
         pbelow(rng, 0);                 /* (the seed: exactly one step of the edition's rng, whatever the outcome) */
         for (int h = 0; h < nh; h++) {
             int o = h ? nw : 0, n = h ? m - nw : nw;
@@ -178,3 +189,42 @@ int ct_place(int m, int ng, int gs, int mode, uint16_t *x, uint8_t *v, uint8_t *
     }
     return 0;
 }
+
+#ifdef NATIVE
+/* 4.2 AFC mode, the build's draw gate (MC 11/11; conti.py drawgate): one association multiset as0[] (m clubs, bit 7
+   the region), v0[] via flags, mode as ct_place's (ED_S), over ns seeds: s0[0 .. ns0) given (the game's), the rest
+   an LCG from seed0. Each seed: the clubs in an order of its own (a shuffle by the seed), then ct_place with rng =
+   the seed. out[0] the most steps (one library draw), out[1] its seed index, out[2] budget hits, out[3] refusals,
+   out[4] the first refused seed index + 1; wo[] / wv[] / *ws the worst seed's order and rng (Unicorn's replay). */
+int ct_gate(int m, int ng, int gs, int mode, const uint8_t *as0, const uint8_t *v0, const uint32_t *s0, int ns0,
+            int ns, uint32_t seed0, uint32_t *out, uint8_t *wo, uint8_t *wv, uint32_t *ws)
+{
+    uint32_t lcg = seed0 ? seed0 : 1;
+    out[0] = out[1] = out[2] = out[3] = out[4] = 0;
+    for (int s = 0; s < ns; s++) {
+        uint32_t sd = s < ns0 ? s0[s] : (lcg = lcg * 1664525u + 1013904223u);
+        uint8_t as[PNE], v[PNE], k[PNE];
+        uint16_t x[PNE];
+        uint32_t r = sd ^ 0x5bd1e995u;
+        for (int i = 0; i < m; i++) { as[i] = as0[i]; v[i] = v0[i]; }
+        for (int i = m - 1; i > 0; i--) {   /* (the order: a shuffle of its own, by the seed) */
+            int j = pbelow(&r, i + 1);
+            uint8_t t = as[i]; as[i] = as[j]; as[j] = t;
+            t = v[i]; v[i] = v[j]; v[j] = t;
+        }
+        for (int i = 0; i < m; i++) { x[i] = (uint16_t)(i + 1); k[i] = 0; }
+        uint8_t oa[PNE], ov[PNE];
+        for (int i = 0; i < m; i++) { oa[i] = as[i]; ov[i] = v[i]; }
+        uint32_t h0 = CT_SDRAW_HIT, rng = sd;
+        CT_SDRAW_MAXU = 0;
+        int rc = ct_place(m, ng, gs, mode, x, v, k, as, &rng, 0);
+        out[2] += CT_SDRAW_HIT - h0;
+        if (rc < 0) { out[3]++; if (!out[4]) out[4] = (uint32_t)s + 1; }
+        if (CT_SDRAW_MAXU > out[0] || s == 0) {
+            out[0] = CT_SDRAW_MAXU; out[1] = (uint32_t)s; *ws = sd;
+            for (int i = 0; i < m; i++) { wo[i] = oa[i]; wv[i] = ov[i]; }
+        }
+    }
+    return 0;
+}
+#endif

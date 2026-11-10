@@ -543,7 +543,8 @@ def load(confs, files=None, words=None, s1=None, rank_out=False):
                                and assocs[a] not in reg} | {assocs[gl[k][1]] for a, cc, jj, k in access
                                                               if cc == ci and a == 0xFE and assocs[gl[k][1]] not in reg})
                 assert not miss, ('conti: per_region draw, associations with no region (AFC_REGION)', c['key'], miss)
-    spec += bytes(reg.get(a, 0xFF) for a in assocs)
+    AREG[0] = bytes(reg.get(a, 0xFF) for a in assocs)
+    spec += AREG[0]
     wf = bytearray(32)                                  # (the world's team files: a UEFA holder outside it - the
     for f in (files or {}).values():                    # game's own 1996-97 Champions Cup holder - is no finalist)
         wf[f >> 3] |= 1 << (f & 7)
@@ -578,7 +579,9 @@ def load(confs, files=None, words=None, s1=None, rank_out=False):
     return spec, assocs, [(conf, c['key']) for conf, c, _ in cups]
 
 
-BOUND_IN = [None]                       # (load's last draw_bound inputs: test_bound's mutants)
+BOUND_IN = [None]
+BOUND_CNT = [None]                      # (draw_bound's last fixed point: ({(cup, round): {assoc: most}}, direct places))
+AREG = [None]                           # (load's areg bytes, one per association: drawgate's regions)                       # (load's last draw_bound inputs: test_bound's mutants)
 
 
 def test_bound():
@@ -713,6 +716,7 @@ def draw_bound(body, access, holders, gl, assocs, clubs):
         for ai, x in sorted(d.items()):
             if x > lim:
                 bad.append((c, j, ai, x, lim))
+    BOUND_CNT[0] = (cnt, direct, short, hold, cap)      # (4.2 AFC mode: drawgate's per-association bounds)
     return bad
 
 
@@ -1605,6 +1609,10 @@ def patch(p, at, limit, bss_at, area):
     confs = ready()
     files, words = _world_maps(confs)
     spec, assocs, cups = load(confs, files, words, rank_out=True)   # (4.1.1: the ranking table in obj4, d4_patch)
+    import drawgate                                     # (4.2 AFC mode, MC 11/11: the group-draw gate, always - cached
+    drawgate.gate(confs, cups, assocs, quiet=True)      #  by content in internal/drawgate; a FAIL fails the build)
+    spec, assocs, cups = load(confs, files, words, rank_out=True)   # (again: the gate's native run left conti's
+                                                                    #  module state at its own test world)
     RANK_OUT[0] = RANK_B[0]                             # (that build's table: later loads overwrite RANK_B)
     d1 = p.le.obj_bytes(1)
     a0 = sacups.regs(d1)['A0']

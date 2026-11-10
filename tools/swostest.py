@@ -27032,16 +27032,21 @@ def world_cupd_format():
     st = {}
 
     def hook(s, season, scr):
-        if scr is None or 'page' in st or season != 1:
+        if scr is None or st.get('page') or season != 1 or st.get('tries', 0) >= 12:
             return
         if 'TRASFERIMENTI' not in scr.texts() or 'VISUAL. COMPETIZ.' not in scr.texts():
             return
+        st['menus'] = st.get('menus', 0) + 1           # (the cup is in the list only once its first round is built:
+        nxt = any('SERIE D' in x and 'COPPA' in x for x in scr.texts())   # try when the next match is the cup's,
+        if not nxt and st['menus'] % 12:                                   # else every 12th career menu)
+            return
+        st['tries'] = st.get('tries', 0) + 1
         st['page'] = None
         try:
             walk(s, 'VISUAL. COMPETIZ.', 3)
             lst = s.screen()
             i = next((e[0] for e in lst.entries if e[1] and 'SERIE D' in e[1] and 'COPPA' in e[1] and not e[2]), None)
-            s.log.append(f'[cdfmt] list {[e[1] for e in lst.entries if e[1]][:16]} -> {i}')
+            s.log.append(f'[cdfmt] menu {st["menus"]} list {[e[1] for e in lst.entries if e[1]][:16]} -> {i}')
             if i is not None:
                 walk(s, i, 3)
                 walk(s, 'STAT', 3)

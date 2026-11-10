@@ -167,10 +167,57 @@ static int better(int a, int b) {       /* the higher tier, then the better plac
    fl - 0x80 played, 1 y went through) when that stage is the semi-finals (2 ties). */
 const u8 *GP_USRP = (const u8 *)1;      /* (1: none - not in .bss; patch.py: gplay.link_usrec after uesum) */
 extern const u8 GP_SEASP;               /* seasonPlaying (US_REC's stamp - 1) */
+#if GP_UEFAFORCE >= 2
+/* (test builds, GPLAY_UEFAF=2 - H6 M2: a probe, US_REC left to uesum: what the last uefa_fin read - US_REC's stamp, the
+   stamp it wants, the last stage's tie count, the semi-finals' winners (0 none), the clubs asked, the answer.
+   GPLAY_UEFAF=3: the same, and before the read uesum's own record forced - this season's semi-finals (stamp and stages
+   kept) with the career club the 1st tie's winner, unless it already won one; frc = 1 forced, 2 already a winner) */
+struct { u32 tag; u8 calls, ss, want, nst; u16 w[2], ta, tb; u8 res, frc, pad[2]; } GP_UFPB = { 0x42504655 };   /* 'UFPB' */
+static int uefa_fin1(u16 ta, u16 tb);
 static int uefa_fin(u16 ta, u16 tb) {
     const u8 *c = GP_USRP;
     int s = 3, off = 0;
-#if GP_UEFAFORCE
+#if GP_UEFAFORCE == 3
+    if (c != (const u8 *)1 && c && c[5] == (u8)(GP_SEASP + 1)) {
+        u8 *u = (u8 *)c;
+        int z = 3, o = 0;
+        while (z >= 0 && !u[1 + z]) z--;
+        if (z >= 0 && u[1 + z] == 2) {
+            for (int k = 0; k < z; k++) o += u[1 + k];
+            if (o + 1 < 22) {
+                u8 *t0 = u + 6 + 8 * o, *t1 = t0 + 8;
+                u16 mgr = GP_IN.mgr, w1 = t1[7] & 1 ? *(u16 *)(t1 + 2) : *(u16 *)t1;
+                if ((t1[7] & 0x80) && w1 == mgr) GP_UFPB.frc = 2;
+                else if (*(u16 *)(t0 + 2) == mgr) { t0[7] |= 0x81; GP_UFPB.frc = 1; }
+                else { *(u16 *)t0 = mgr; t0[7] = (u8)((t0[7] & ~1) | 0x80); GP_UFPB.frc = 1; }
+            }
+        }
+    }
+#endif
+    int r = uefa_fin1(ta, tb);
+    GP_UFPB.calls++;
+    GP_UFPB.want = (u8)(GP_SEASP + 1);
+    GP_UFPB.ta = ta; GP_UFPB.tb = tb; GP_UFPB.res = (u8)r;
+    GP_UFPB.ss = GP_UFPB.nst = 0; GP_UFPB.w[0] = GP_UFPB.w[1] = 0;
+    if (c == (const u8 *)1 || !c) return r;
+    GP_UFPB.ss = c[5];
+    while (s >= 0 && !c[1 + s]) s--;
+    if (s < 0) return r;
+    GP_UFPB.nst = c[1 + s];
+    for (int k = 0; k < s; k++) off += c[1 + k];
+    for (int i = 0; i < 2 && i < c[1 + s] && off + i < 22; i++) {
+        const u8 *t = c + 6 + 8 * (off + i);
+        if (t[7] & 0x80) GP_UFPB.w[i] = t[7] & 1 ? *(const u16 *)(t + 2) : *(const u16 *)t;
+    }
+    return r;
+}
+static int uefa_fin1(u16 ta, u16 tb) {
+#else
+static int uefa_fin(u16 ta, u16 tb) {
+#endif
+    const u8 *c = GP_USRP;
+    int s = 3, off = 0;
+#if GP_UEFAFORCE == 1
     if (c != (const u8 *)1 && c) {      /* (test builds, GPLAY_UEFAF=1: US_REC written as if the career club had won
                                            this season's semi-final - the record the read below takes) */
         u8 *w = (u8 *)c;

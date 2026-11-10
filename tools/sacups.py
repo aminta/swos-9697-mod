@@ -221,6 +221,7 @@ def patch(p, pool, cave, caf):
 SA_SLOT_BASE = 3
 MARK3_GLOBAL, MARK3 = 1847, 0x3353   # 1.2: someLeaguesTable[1847..1849] = 'S3' + balance byte: "this career is set up"
 TABLES = [None]          # (someLeaguesTable, leaguesTableCopy) obj2 offsets
+TABLE_RAW = [None]       # someLeaguesTable's own place (the .CAR fixed part's; a big world's table moved: bigtables)
 SAVE_ITEMS = [None]      # [(obj1 offset, size)] of the SA lists + Intercontinental pair, saved by trailer.py
 SAVED_GLOBAL = 1740      # 1.0/1.1 saves: someLeaguesTable[1740..1842]: 'S2' + 3 lists + Intercontinental pair + balance byte
                          # (cseg_9487A: sum must be 0); session-12 saves: 'SA' + 3 lists + balance byte (1740..1838);
@@ -649,6 +650,7 @@ def career_hooks(p, cups, cave, cups_all=None, caf=None):
     symbols['MARK3_AT'] = (2, table + MARK3_GLOBAL)
     symbols['MARK3'] = (0, MARK3)
     TABLES[0] = (table, copies_base)
+    TABLE_RAW[0] = table_raw
     SAVE_ITEMS[0] = [(lib + 47, 2 * LIB_N), (sup + 27, 32), (con + 27, 32), (cups_all[3] + 24, 4)]   # Lib, Sup, CON, INT pair
     asm = nasmcave.sub(CAREER_ASM, ';EXTRA_CHAIN', '\n'.join(chain))
     asm = nasmcave.sub(asm, ';EXTRA_LOAD', '\n'.join(load_map_lines))

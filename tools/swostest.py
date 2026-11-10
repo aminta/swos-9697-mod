@@ -22615,6 +22615,339 @@ def world_uesum():
     return not errs, '; '.join(errs) or '; '.join(info)
 
 
+@scenario
+def world_c23():
+    """4.2 (42-c23, Shaved 10/11): a career save from another build, loaded mid-season with a continental cup running:
+    the continental slots' long-name pointer (DIY+27h, absolute - gp_repoint_c skipped slots 2 / 3 before) must land on
+    the slot's own saved title (DIY+4, the long name), else the running cup's name and its season-record line
+    (+1Eh / +22h = DIY+27h - STR_BASE at the season end) are another build's string. C23_CAR (default the 4.1
+    world_uesum save internal/swostest/suite-41s37-itl/cv_s2_<UI>.CAR) on C23_BUILD; C23_EXPECT=stale: the control
+    build (no fix) must show at least one stale pointer."""
+    exe = os.environ.get('C23_BUILD')
+    car = os.environ.get('C23_CAR') or os.path.join(MAIN, 'internal', 'swostest', 'suite-41s37-itl', f'cv_s2_{UI}.CAR')
+    if not exe:
+        return False, 'C23_BUILD not set'
+    if not os.path.exists(car):
+        return False, f'no save {car}'
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import split
+    import lepatch
+    sp = split.sites(lepatch.LEPatch(os.path.join(MAIN, 'orig', 'ITALIAN.EXE')))['SLOTS']
+    errs, info, seen, titles, recs = [], [], [], [], []
+    with Session('world_c23', exe, {'W84A.CAR': car}, 'dump:2', 600) as s:
+        s.wait()
+        s.send(LOAD1 + ' dump:3')
+        for _ in range(6):
+            if s.screen().find('VISUAL. COMPETIZ.', exact=True) is not None:
+                break
+            press(s, s.screen(), 'CONTINUA', 3) or s.send('fire dump:2')
+        check(s.screen().find('VISUAL. COMPETIZ.', exact=True) is not None, f'career menu not reached: {s.screen()}', errs)
+        for k in (2, 3):
+            lin = struct.unpack('<I', s.result.obj2(sp + 4 * k, 4))[0]
+            if not lin:
+                continue
+            d = bytes(s.result.read(lin, 0x40))
+            title = d[4:38].split(b'\0')[0]
+            p27 = struct.unpack_from('<I', d, 0x27)[0]
+            if not title or not p27:
+                continue
+            got = bytes(s.result.read(p27, 42)).split(b'\0')[0] if p27 < 0x8000000 else b'(out of memory)'
+            ok = got == title or (len(title) == 34 and got.startswith(title))
+            seen.append(ok)
+            s.log.append(f'[c23] slot {k}: title {title!r} DIY+27h {p27:#x} -> {got!r} {"OK" if ok else "STALE"}')
+            info.append(f'slot {k} {title.decode("latin-1")} -> {got.decode("latin-1")!r}')
+            if k == 3:                                  # (the European slot: its line +1Eh at the season end)
+                titles.append(title.decode('latin-1'))
+        check(seen, 'no continental slot with a title and a name pointer in the save', errs)
+        if os.environ.get('C23_EXPECT') == 'stale':
+            check(seen and not all(seen), f'control build: no stale pointer ({info})', errs)
+        else:
+            check(all(seen), f'stale continental name pointer: {info}', errs)
+        if os.environ.get('C23_SEASON') == '1' and not errs:    # (the season played to its end: the record's lines
+            ns = s.result.base2 + nosack_off(os.path.join(exe, 'ITALIAN.EXE'))   # (no sacking: a sacked season's
+            end = lambda scr: any(t.endswith('FINE CAMP.') for t in scr.texts())   # record has no cup lines; the
+            fin = lambda scr: end(scr) or scr.find('FINISCI STAGIONE', exact=True) is not None   # word re-poked every
+            for _ in range(40):                                                  # 15 steps)
+                s.poke(ns, b'\x01\x00')
+                ok, msg = advance(s, fin, 15)
+                if ok or not msg.startswith('no stop'):
+                    break
+            if ok and not end(s.screen()):
+                s.poke(ns, b'\x01\x00')
+                press(s, s.screen(), 'FINISCI STAGIONE', wait=3)
+                for _ in range(10):
+                    s.poke(ns, b'\x01\x00')
+                    ok, msg = advance(s, end, 15)
+                    if ok or not msg.startswith('no stop'):
+                        break
+            if check(ok, f'season end not reached: {msg}', errs):
+                import gplay
+                import sacups
+                sr = gplay._sack_sites(lepatch.LEPatch(os.path.join(MAIN, 'orig', 'ITALIAN.EXE')))['seasrec']
+                sb = s.result.base2 + (sacups.STR_BASE or 0x16F8)   # (aChairmanScenes; set only by a patch run)
+                rd = lambda a: bytes(s.result.read(a, 42)).split(b'\0')[0] if 0 < a < 0x8000000 else b'?'
+                for base_ in (s.result.base2 + sr, struct.unpack('<I', s.result.obj2(sr, 4))[0]):
+                    if not 0 < base_ < 0x8000000:
+                        continue
+                    for i in range(64):
+                        r_ = bytes(s.result.read(base_ + 106 * i, 106))
+                        if not r_[2]:
+                            break
+                        f_ = struct.unpack_from('<4I', r_, 0x16)
+                        s.log.append(f'[c23] rec@{base_:#x}[{i}] {r_[:16].hex()} lines '
+                                     + ' / '.join(f'{x:#x}={rd(sb + x)!r}' if x else '0' for x in f_))
+                        for x in f_:                    # (every line a name: the record lines are written at the
+                            nm = rd(sb + x) if x else b''   # season start - InitializeNewSeason - so a mid-season
+                            check(not x or re.fullmatch(rb"[A-Z0-9][A-Z0-9 .'/&()-]+", nm),   # load leaves this
+                                  f'season record {i}: line {x:#x} -> {nm!r}', errs)       # season's lines as saved)
+                        recs.append(f_)
+                scr = s.screen()
+                yr = next(t for t in scr.texts() if t.endswith('FINE CAMP.'))
+                press(s, scr, 'VISUAL. COMPETIZ.', wait=3)
+                vc = s.screen()
+                lab = next((x for x in ('REGISTRO GESTIONE', 'MANAGEMENT RECORD') if vc.find(x, exact=True) is not None), None)
+                if check(lab, f'no management record button: {vc}', errs):
+                    press(s, vc, lab, wait=3)
+                    s.send('dump:1')
+                    rec = [x for _, x, inv, _ in s.screen().entries if x]
+                    s.log.append('[c23] record ' + ' | '.join(rec))
+                    s.shot('c23_record')
+                    info.append(f'{yr}: record {rec}')
+                    check(recs, 'no season record read', errs)
+                    check(any('EFL CUP' in x or 'CUP' in x or 'COPPA' in x for x in rec) or not recs,
+                          f'no cup line on the record screen {rec}', errs)
+    return not errs, '; '.join(errs) or '; '.join(info)
+
+
+@scenario
+def world_strmap():
+    """4.2 option C (strmap.py, Shaved 10/11): a 4.1 career save's past-season names on this build. STM_CAR (default
+    the 4.1 RC3 save suite-41rc3-L1/cgg_s2_A_<UI>.CAR: two seasons, 'FINAL FOUR PREMIER LGE' moved since 4.1) on
+    STM_BUILD (a release-recipe dir with DATA/STRMAP41.DAT, default c/REL42strmap4/SWOS); after the load every
+    record line (+16h..+22h) is read in memory: a rel the map moves -> its new rel and the 4.1 text
+    (release/strmap/v4.1-<UI>.json), a rel not in the map unchanged with its 4.1 text, a gone one any name (the
+    heuristic). Then saved (ESCI -> SALVA CARRIERA): someLeaguesTable[1842] = 1, [1843] = FFh, the table's sum 0.
+    STM_EXPECT=old: the same save on a copy of the build without STRMAP41.DAT (the control) - the moved lines lose
+    their 4.1 name (10/11: the heuristic clears FINAL FOUR PREMIER LGE's line, the record shows nothing)."""
+    exe = os.environ.get('STM_BUILD') or os.path.join(MAIN, 'c', 'REL42strmap4', 'SWOS')
+    car = os.environ.get('STM_CAR') or os.path.join(MAIN, 'internal', 'swostest', 'suite-41rc3-L1', f'cgg_s2_A_{UI}.CAR')
+    for f in (os.path.join(exe, 'DATA', 'STRMAP41.DAT'), car):
+        if not os.path.exists(f):
+            return False, f'no {f}'
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import gplay
+    import lepatch
+    import sacups
+    import strmap
+    lang = ['it', 'en', 'fr', 'de'].index(UI)
+    dat = open(os.path.join(exe, 'DATA', 'STRMAP41.DAT'), 'rb').read()
+    off, cnt = struct.unpack_from('<2I', dat, 12 + 8 * lang)
+    sec = dict(struct.unpack_from('<2I', dat, off + 8 * i) for i in range(cnt))
+    pin = strmap.load_pin(UI)
+    ctl = os.environ.get('STM_EXPECT') == 'old'
+    if ctl:                                             # (the control: the build without the map, copied - no links)
+        nomap = os.path.join(RUNS, 'stm_nomap', 'SWOS')
+        shutil.rmtree(os.path.dirname(nomap), ignore_errors=True)
+        shutil.copytree(exe, nomap, symlinks=False)
+        os.remove(os.path.join(nomap, 'DATA', 'STRMAP41.DAT'))
+        exe = nomap
+    lp = lepatch.LEPatch(os.path.join(MAIN, 'orig', UI_ORIG_OF[UI]))
+    d1 = lp.le.obj_bytes(1)
+    a1 = re.escape(struct.pack('<I', sacups.regs(d1)['A1']))     # (careerFileBuffer: LoadCareerFile's A1, trailer.py)
+    m = [x for x in re.finditer(rb'\xc7\x05' + a1 + rb'(.{4})\xe8.{4}\x75.\xe8.{4}\x75.\xe8(.{4})', d1, re.S)]
+    m = [x for x in m if sum(y.group(1) == x.group(1) for y in m) == 1]
+    sr = gplay._sack_sites(lp)['seasrec']
+    ro = sr - struct.unpack('<I', m[0].group(1))[0]               # (the records' offset in the .CAR)
+    fd = open(car, 'rb').read()
+    old = []
+    for i in range(64):
+        r_ = fd[ro + 106 * i:ro + 106 * i + 106]
+        if len(r_) < 106 or not r_[2]:
+            break
+        old.append(struct.unpack_from('<4I', r_, 0x16))
+    moved = [x for f_ in old for x in f_ if x and sec.get(x)]
+    errs, info = [], [f'save {os.path.relpath(car, MAIN)}: {len(old)} seasons, {sum(1 for f_ in old for x in f_ if x)} '
+                      f'lines, {len(moved)} moved']
+    check(moved, 'the save has no line the map moves (pick another STM_CAR)', errs)
+    with Session('world_strmap', exe, {'W84A.CAR': car}, 'dump:2', 600) as s:
+        s.wait()
+        s.send(LOAD1 + ' dump:3')
+        sb = s.result.base2 + (sacups.STR_BASE or 0x16F8)
+        rd = lambda a: bytes(s.result.read(a, 42)).split(b'\0')[0] if 0 < a < 0x8000000 else b'?'
+        got = [struct.unpack_from('<4I', bytes(s.result.read(s.result.base2 + sr + 106 * i, 106)), 0x16)
+               for i in range(len(old))]
+        kept = 0
+        for i, (f0, f1) in enumerate(zip(old, got)):
+            for k, (x, y) in enumerate(zip(f0, f1)):
+                if not x:
+                    continue
+                t41 = pin.get(x, b'')
+                nm = rd(sb + y) if y else b''
+                s.log.append(f'[stm] season {i} line {k}: {x:#x} {t41!r} -> {y:#x} {nm!r}')
+                if ctl:
+                    kept += bool(x in sec and sec[x] and nm != t41)   # (lost: the heuristic's 0 / another name)
+                elif x in sec and sec[x]:
+                    check(y == sec[x] and nm == t41, f'season {i} line {k}: {t41!r} {x:#x} -> {y:#x} {nm!r} '
+                          f'(want {sec[x]:#x})', errs)
+                elif x in sec:
+                    check(re.fullmatch(rb"[A-Z0-9][A-Z0-9 .'/&()-]+", nm), f'season {i} line {k}: gone {t41!r} '
+                          f'-> {nm!r}', errs)
+                else:
+                    check(y == x and (nm == t41 or not t41), f'season {i} line {k}: {x:#x} {t41!r} -> {y:#x} {nm!r}',
+                          errs)
+        if ctl:
+            check(kept, 'control: every moved line kept its 4.1 name without the map', errs)
+            info.append(f'control: {kept} moved lines lose their 4.1 name without the map')
+        else:
+            info.append('lines as 4.1: ' + ', '.join(sorted({pin[x].decode('latin-1') for x in moved})))
+        s.send(quit_and_save('w84s') + ' dump:3')
+        path = os.path.join(s.run, 'SWOS', 'W84S.CAR')
+        if check(os.path.exists(path), 'W84S.CAR not written', errs):
+            tab = open(path, 'rb').read()[SLT:SLT + 2000]
+            check(tab[strmap.TAG_GLOBAL] == strmap.TAG and tab[strmap.TAG_GLOBAL + 1] == -strmap.TAG & 0xFF
+                  and sum(tab) % 256 == 0, f'saved tag {tab[1842]} / {tab[1843]}, sum {sum(tab) % 256}', errs)
+            info.append(f'saved: tag {tab[1842]} + {tab[1843]:#x}, sum 0')
+    return not errs, '; '.join(errs) or '; '.join(info)
+
+
+def c23_slot3(s):
+    """(world_c23_ct) slot 3's title, header bytes (+2Dh..+2Fh: id, ...) and its calendar entries still to play from
+    the cursor (slot byte 3, round byte not FFh); None without a slot-3 buffer."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import split
+    import lepatch
+    if not hasattr(c23_slot3, 'sp'):
+        c23_slot3.sp = split.sites(lepatch.LEPatch(os.path.join(MAIN, 'orig', 'ITALIAN.EXE')))['SLOTS']
+    lin = struct.unpack('<I', s.result.obj2(c23_slot3.sp + 12, 4))[0]
+    if not lin:
+        return None
+    d = bytes(s.result.read(lin, 0x40))
+    cal = bytes(s.result.obj2(CAL_AT - 8, 3000))
+    cur, n = struct.unpack_from('<H', cal, 2)[0], struct.unpack_from('<H', cal, 4)[0]
+    o, ahead = 8 + cur, 0
+    for _ in range(n):
+        if o + 9 > len(cal):
+            break
+        ln_ = struct.unpack_from('<H', cal, o + 2)[0]
+        if not ln_:
+            break
+        ahead += cal[o] == 3 and cal[o + 7] != 0xFF
+        o += ln_
+    if getattr(s, 'c23_cal', None) is not None:     # (the slot-3 entries still to come: week byte +1, round +7)
+        o, ents = 8 + cur, []
+        for _ in range(n):
+            if o + 9 > len(cal):
+                break
+            ln_ = struct.unpack_from('<H', cal, o + 2)[0]
+            if not ln_:
+                break
+            if cal[o] == 3 and cal[o + 7] != 0xFF:
+                ents.append(f'{cal[o + 1]}/{cal[o + 7]}')
+            o += ln_
+        s.c23_cal = ents
+    if getattr(s, 'c23_cal', None) is not None:     # (DIY+27h on the slot's title? logged with the entries)
+        p27 = struct.unpack_from('<I', d, 0x27)[0]
+        t_ = d[4:38].split(b'\0')[0]
+        s.c23_cal.insert(0, 'ptr ' + ('ok' if p27 and bytes(s.result.read(p27, 40)).split(b'\0')[0] == t_ else 'STALE'))
+    return d[4:38].split(b'\0')[0].decode('latin-1'), d[0x2D:0x30].hex(), ahead
+
+
+@scenario
+def world_c23_ct():
+    """4.2 (42-c23, Regia 10/11): the player-visible side of the continental slots' relink - conti's ct_newcup. A 4.1
+    save taken during a running conti cup (FLAMENGO in the Libertadores qualifying, slot 3 live) loaded on 4.2: at the
+    next tie conti builds (ct_build -> ct_newcup) the old slot-3 name (DIY+27h) is compared with the new contest's;
+    a stale pointer (another build's obj2) never matches, so the cup's slot-3 calendar entries still to come were
+    dropped. Phase A (no C23_MID): the 4.1 save from world_cgame_self's season-1 end (C23_S1, default
+    suite-41rc3-eurorerun/cg_self_s1_it.CAR) on a 4.1 test build (C23_41, else built from C23_41_BRANCH, default 41-uprize;
+    CONTI_FORCE=lib:q1 CONTI_KOWIN=1), played
+    into season 2 until slot 3 is the Libertadores with 2+ entries ahead, saved -> RUNS/c23_lib_mid.CAR. Phase B: that
+    save on a 4.2 test build of this checkout (C23_BRANCH: another branch, the control) with the same switches,
+    played through C23_CHANGES slot-3 header changes (default 1; 6 = Q1..Q3 and the group stage): its entries still
+    to come must be kept. Found 10/11: the control (42-s1rank, no relink: DIY+27h STALE until the first conti build)
+    gives the same calendar, step by step - the build reloads the pointer (ptr ok from Q2 on) and nothing is lost on
+    this path; the scenario stays as the regression guard and logs 'ptr ok / STALE' with the slot-3 entries."""
+    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    errs, info = [], []
+    mid = os.environ.get('C23_MID') or os.path.join(RUNS, 'c23_lib_mid.CAR')
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    tenv = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]),
+            'CONTI_FORCE': 'lib:q1', 'CONTI_KOWIN': '1'}
+    if not os.path.exists(mid):
+        exe41 = os.environ.get('C23_41') or build('world_c23_ct41', env=tenv,
+                                                  branch=os.environ.get('C23_41_BRANCH', '41-uprize'))
+        s1 = os.environ.get('C23_S1') or os.path.join(MAIN, 'internal', 'swostest', 'suite-41rc3-eurorerun',
+                                                      'cg_self_s1_it.CAR')
+        if not exe41 or not os.path.exists(s1):
+            return False, f'phase A: C23_41 (the 4.1 test exe dir) / {s1} missing'
+        with Session('world_c23_ct_41', exe41, {'W84A.CAR': s1}, 'dump:2', 900) as s:
+            s.wait()
+            s.send(LOAD1 + ' dump:3')
+            for _ in range(8):
+                if s.screen().find('TRASFERIMENTI') is not None:
+                    break
+                scr = s.screen()
+                press(s, scr, 'CONTINUA CARRIERA' if scr.find('CONTINUA CARRIERA', exact=True) is not None else 'CONTINUA', 3) \
+                    or s.send('fire dump:2')
+
+            def live(scr):
+                if scr.find('TRASFERIMENTI') is None or scr.find('PROSS. PARTITA') is None:
+                    return False
+                c = c23_slot3(s)
+                return bool(c and c[0].startswith('COPA LIBERTADORES') and c[2] >= 2)
+            ok, msg = advance(s, live, 500)
+            if not check(ok, f'phase A: no live Libertadores in slot 3: {msg}', errs):
+                return False, '; '.join(errs)
+            info.append(f'4.1 save at slot 3 {c23_slot3(s)}')
+            for _ in range(5):
+                scr = s.screen()
+                press(s, scr, 'CONTINUA' if scr.find('CONTINUA', exact=True) is not None else 'ESCI', wait=3)
+                if s.screen().find('SALVA CARRIERA', exact=True) is not None:
+                    break
+            if not check(press(s, s.screen(), 'SALVA CARRIERA') is not None, f'phase A: no SALVA CARRIERA {s.screen()}', errs):
+                return False, '; '.join(errs)
+            s.send(name_entry('W84A') + ' dump:3')
+            path = os.path.join(s.run, 'SWOS', 'W84A.CAR')
+            if not check(os.path.exists(path), 'phase A: no save written', errs):
+                return False, '; '.join(errs)
+            shutil.copy(path, mid)
+    br = os.environ.get('C23_BRANCH')
+    exe = os.environ.get('C23_BUILD') or build('world_c23_ct' + ('_ctl' if br else ''), env=tenv, branch=br)
+    with Session('world_c23_ct', exe, {'W84A.CAR': mid}, 'dump:2', 900) as s:
+        s.wait()
+        s.send(LOAD1 + ' dump:3')
+        for _ in range(6):
+            if s.screen().find('TRASFERIMENTI') is not None:
+                break
+            press(s, s.screen(), 'CONTINUA', 3) or s.send('fire dump:2')
+        s.c23_cal = []
+        c0 = c23_slot3(s)
+        s.log.append(f'[c23ct] loaded: slot 3 {c0}')
+        if not check(c0 and c0[0].startswith('COPA LIBERTADORES') and c0[2] >= 1, f'loaded save: slot 3 {c0}', errs):
+            return False, '; '.join(errs)
+        trail = []
+
+        def changed(scr):
+            if scr.find('TRASFERIMENTI') is None or scr.find('PROSS. PARTITA') is None:
+                return False
+            c = c23_slot3(s)
+            if c and (not trail or trail[-1] != c):
+                trail.append(c)
+                s.log.append(f'[c23ct] slot 3 {c} cal {s.c23_cal} | {" | ".join(t for t in scr.texts()[:4])}')
+            hdrs = [t[1] for t in trail]
+            nchg = sum(1 for a, b in zip(hdrs, hdrs[1:]) if a != b)
+            return bool(c and nchg >= int(os.environ.get('C23_CHANGES', '1')))
+        ok, msg = advance(s, changed, 500)
+        if check(ok, f'slot 3 never changed contest: {msg}', errs):
+            c1 = c23_slot3(s)
+            s.shot('c23ct_after')
+            info.append(f'slot 3 {c0} -> {c1}; menu {[t for t in s.screen().texts() if t][:14]}')
+            check(c1[2] >= 1, f'slot-3 entries still to come dropped at the new tie: {c0} -> {c1}', errs)
+    return not errs, '; '.join(errs) or '; '.join(info)
+
+
 def season_playing_at(r, exe):
     """seasonPlaying's linear address in this run (uesum.season_var: InitializeNewSeason's add / cmp / mov, its fixup
     in the exe file - S2b's season stamp is its value + 1)."""

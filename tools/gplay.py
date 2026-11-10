@@ -434,6 +434,22 @@ gp_after:                               ; 4.0 after a career load (arg97's arg_l
     call gp_fixload                     ; (phase 0: the knockouts' contest names)
     add esp, 4
     call gp_repoint
+    push es                             ; 4.2 option C: a 4.1 save's record lines through DATA/STRMAP41.DAT first
+    push ds                             ; (gp_strmap_c: no release tag and the engine block's 4.1 item seen)
+    pop es
+    cld
+%if EN41_ON
+    movzx eax, byte [EN41_]
+%else
+    xor eax, eax
+%endif
+    push eax
+    movzx eax, byte [SLT + SM_TAG]
+    push eax
+    push dword SEASREC
+    call gp_strmap_c
+    add esp, 12
+    pop es
     push dword 1
     call gp_fixload                     ; (phase 1: the season records' league lines)
     add esp, 4
@@ -459,13 +475,14 @@ gp_repoint:                             ; 4.0 after a career load (gp_after): th
     push ds
     pop es
     cld
+    push dword O2_END_
     movzx eax, word [CAR_DIV]
     push eax
     push dword STR_BASE_
     push dword D8CAA
     push dword SLOTS_
     call gp_repoint_c
-    add esp, 16
+    add esp, 20
     pop es
     ret
 
@@ -2759,7 +2776,8 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
                                 f"-DGP_GFIDX={int(os.environ.get('GPLAY_GFIDX') or 0)}",
                                 f"-DGP_GOUT={int(os.environ.get('GPLAY_GOUT') or 0)}",
                                 f"-DGP_GSON={int(GS_ON[0])}",
-                                f"-DCF_SEED={__import__('cupsf').SEED}"]
+                                f"-DCF_SEED={__import__('cupsf').SEED}",
+                                f"-DSM_LANG={['it', 'en', 'fr', 'de'].index(lang)}"]   # (gp_strmap_c's STRMAP41 section)
                                + (['-DHDR_TEST'] if os.environ.get('HDR_TEST') else []))   # (test builds: GROUP n headers)
     top_r, top_w = _top9(p)                          # (cseg_927A2's top-9 list: gp_champ)
     d1o = p.le.obj_bytes(1)                          # 4.1 gp_champ: FindTeamInCache (VerifyTeamLoaded's call, as
@@ -2846,7 +2864,7 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     symbols['ADDJOB'] = (1, addjob)
     symbols.update({k: syms[k] for k in ('GP_CFB', 'GP_LG', 'GP_RST', 'GP_RIT', 'GP_SEL', 'GP_MGR', 'GP_WORLD', 'GP_SLT',
                                          'gp_sack_c', 'gp_forcecfb', 'gp_pwin_c', 'gp_rlines_c', 'GP_RLN', 'GP_RLC', 'GP_RLPOULE', 'GP_REC', 'GP_CMB', 'gp_adv_c', 'GP_ADVWK', 'GP_WK', 'GP_TH', 'GP_RN',
-                                         'gp_defer_c', 't2_force', 'gf_step_c', 'gf_drop_c', 'gf_place_c', 'gf_hide_c', 'gf_unhide_c', 'gf_anchor_c', 'GP_S3', 'GP_S3B', 'GP_GFT', 'cd_step_c', 'sc_step_c', 'sc_rlines_c', 'GP_SCT', 'GP_SCFIRST', 'SC_ST', 'SC_TRACE', 'cd_fixload_c', 'gp_scal_c', 'gp_repoint_c', 'gp_fixload_c', 'CD_ST', 'GP_CDT', 'GP_CDNM', 'GP_CDD',
+                                         'gp_defer_c', 't2_force', 'gf_step_c', 'gf_drop_c', 'gf_place_c', 'gf_hide_c', 'gf_unhide_c', 'gf_anchor_c', 'GP_S3', 'GP_S3B', 'GP_GFT', 'cd_step_c', 'sc_step_c', 'sc_rlines_c', 'GP_SCT', 'GP_SCFIRST', 'SC_ST', 'SC_TRACE', 'cd_fixload_c', 'gp_scal_c', 'gp_repoint_c', 'gp_fixload_c', 'gp_strmap_c', 'CD_ST', 'GP_CDT', 'GP_CDNM', 'GP_CDD',
                                          'GP_CDFIRST')})
     symbols['CD_MEMBER'] = syms['cd_member_c']
     symbols['GP_CDS1'] = syms['GP_CDS1']
@@ -2871,7 +2889,14 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
         LABELS['STG_TAB'] = (2, stg_tab)
     symbols['STG_ON'] = (0, int(bool(stg)))
     import sacups
-    symbols.update({'SLOTS_': (2, split.sites(p)['SLOTS']), 'STR_BASE_': (2, sacups.STR_BASE), 'CAR_DIV': (2, _cardiv(p))})
+    symbols.update({'SLOTS_': (2, split.sites(p)['SLOTS']), 'STR_BASE_': (2, sacups.STR_BASE), 'CAR_DIV': (2, _cardiv(p)),
+                    'O2_END_': (2, area.end if area is not None else sacups.STR_BASE + 1)})   # (gp_repoint's name search)
+    import strmap                                       # 4.2 option C: the release tag, the 4.1 save's EN item
+    import trailer
+    en41 = [k for k, (n, *_) in enumerate(trailer.INFO.get('EN', [])) if n == strmap.EN41_ITEM]
+    symbols.update({'SM_TAG': (0, strmap.TAG_GLOBAL), 'EN41_ON': (0, int(bool(en41)))})
+    if en41:
+        symbols['EN41_'] = (1, trailer.INFO['en_found'] + en41[0])
     rec_dp = p.get(1, ps['rec'], 1) == b'\xe8'                # dplay's `call dp_rec; nop` there, or the game's mov
     symbols['GP_REC_NEXT'] = (1, tgt(ps['rec'])) if rec_dp else (0, 0)
     after = {}                                              # 4.0 ARG: a stage title's knockout built after its stage

@@ -3332,12 +3332,91 @@ void gp_fixload_c(const u32 *nm, u8 *recs, u32 base, u8 *const *slots, u32 phase
     }
 }
 
-void gp_repoint_c(u8 *const *slots, u8 *const *structs, u32 base, u32 div) {
+/* 4.2 option C (strmap.py): a 4.1 save's season record lines through DATA\STRMAP41.DAT, before phase 1's heuristic -
+   the 4.1 offsets whose name moved since, per language, sorted (old rel, new rel; 0 = gone: left to the heuristic).
+   Only a 4.1 save: no release tag (someLeaguesTable[1842], trailer.py) and the engine block's 4.1 item seen (en41).
+   Own DOS calls: a missing / foreign file = the heuristic alone. Returns the lines translated. */
+#ifndef SM_LANG
+#define SM_LANG 0
+#endif
+static char sm_fn[] = "data\\strmap41.dat";
+static u32 sm_buf[256];                 /* (a 1 KB chunk of pairs; the header first) */
+static u32 *sm_at[256];                 /* the lines to translate, sorted by their rel */
+static int sm_dos(u32 ax, u32 bx, u32 cx, u32 dx) {
+    u32 r; u8 cf;
+    __asm__ volatile("int $0x21; setc %1" : "=a"(r), "=qm"(cf), "+b"(bx), "+c"(cx), "+d"(dx) : "0"(ax) : "memory", "cc");
+    return cf ? -1 : (int)(r & 0xFFFF);
+}
+u32 gp_strmap_c(u8 *recs, u32 tag, u32 en41) {
+    if (tag || !en41 || !recs) return 0;
+    int n = 0;
+    for (int i = 0; i < 64; i++) {
+        u8 *r = recs + 106 * i;
+        if (!r[2]) break;
+        for (int f = 0; f < 4; f++) {
+            u32 *o = (u32 *)(r + 0x16 + 4 * f), v = *o;
+            if (!v) continue;
+            int j = n++;
+            while (j > 0 && *sm_at[j - 1] > v) { sm_at[j] = sm_at[j - 1]; j--; }
+            sm_at[j] = o;
+        }
+    }
+    if (!n) return 0;
+    int h = sm_dos(0x3D00, 0, 0, (u32)sm_fn);
+    if (h < 0) return 0;
+    u32 done = 0, *b = sm_buf;
+    if (sm_dos(0x3F00, (u32)h, 44, (u32)b) == 44 && b[0] == 0x50414D53 && b[1] == (1 | 41u << 16)
+        && (b[2] & 0xFFFF) == 42) {
+        u32 off = b[3 + 2 * SM_LANG], cnt = b[4 + 2 * SM_LANG];
+        int k = 0;                      /* (the lines and the section, both sorted: one pass) */
+        if (sm_dos(0x4200, (u32)h, off >> 16, off & 0xFFFF) >= 0)
+            while (cnt && k < n) {
+                u32 m = cnt > 128 ? 128 : cnt;
+                if (sm_dos(0x3F00, (u32)h, 8 * m, (u32)b) != (int)(8 * m)) break;
+                cnt -= m;
+                for (u32 e = 0; e < m && k < n; e++) {
+                    while (k < n && *sm_at[k] < b[2 * e]) k++;
+                    while (k < n && *sm_at[k] == b[2 * e]) {
+                        if (b[2 * e + 1]) { *sm_at[k] = b[2 * e + 1]; done++; }
+                        k++;
+                    }
+                }
+            }
+    }
+    sm_dos(0x3E00, (u32)h, 0, 0);
+    return done;
+}
+
+static int title_is(const u8 *t, const u8 *s) {  /* a slot's title (DIY+4, 34 chars at most) is the name s */
+    int j = 0;
+    while (j < 34 && t[j] && t[j] == s[j]) j++;
+    return j && (j == 34 || (!t[j] && !s[j]));
+}
+void gp_repoint_c(u8 *const *slots, u8 *const *structs, u32 base, u32 div, u32 lim) {
     for (int k = 0; k < 5; k++) {
         u8 *b = slots[k];
         const u8 *s = structs[k];
-        if (k == 2 || k == 3) continue; /* (never the European / continental slots: at a load D8CAA[3] may already
-                                           be conti's next contest while the buffer is still this season's) */
+        if (k == 2 || k == 3) {         /* 4.2 the European / continental slots: their title (DIY+4, the long name,
+                                           saved) finds the name in this exe - never D8CAA[k] alone: at a load
+                                           D8CAA[3] may already be conti's next contest while the buffer is still
+                                           this season's. The old absolute DIY+27h (another build's obj2) gave a
+                                           wrong title and the season record's +1Eh / +22h line (DIY+27h -
+                                           STR_BASE) at the season end. */
+            if (!b || !b[4]) continue;
+            const u8 *cur = *(const u8 *const *)(b + 0x27);
+            if (!cur) continue;
+            const u8 *ln = 0;
+            if (s) {
+                u32 r = *(const u32 *)(s + 5 + s[5]);
+                if (r && r < lim - base && str_ok((const u8 *)(base + r)) && title_is(b + 4, (const u8 *)(base + r)))
+                    ln = (const u8 *)(base + r);
+            }
+            if (!ln && (u32)cur > base && (u32)cur < lim && str_ok(cur) && title_is(b + 4, cur)) continue;
+            for (const u8 *q = (const u8 *)base + 1; !ln && (u32)q < lim; q++)
+                if (*q == b[4] && !q[-1] && title_is(b + 4, q) && str_ok(q)) ln = q;
+            if (ln) *(const u8 **)(b + 0x27) = ln;
+            continue;
+        }
         if (!b || !s || !b[4]) continue;
         const u8 *nm = s + 5 + s[5] + (k == 0 ? 8 * div : 0);
         const u8 *ln = (const u8 *)(base + *(const u32 *)nm);

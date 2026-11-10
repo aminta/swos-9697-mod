@@ -119,6 +119,12 @@ EN_SAVE_W = '''
 ASM = '''
 save_trailer:
     pushad
+    mov byte [TAG_AT], TAG              ; 4.2 option C: this release's tag + balance (strmap.py: a 4.1 save has none)
+    mov byte [TAG_AT + 1], TAG_BAL
+    mov byte [TAG_RAW], TAG             ; (and in the fixed part's own table: a big world's bt_save copied the moved
+    mov byte [TAG_RAW + 1], TAG_BAL     ; table there before this - world_strmap's first save carried tag 0)
+    mov byte [TAG_COPY], TAG
+    mov byte [TAG_COPY + 1], TAG_BAL
     mov eax, [CG_GUARDP]                ; 4.0.6 option C: a contest view left open is closed first (ctgame cg_guard)
     test eax, eax
     jz .g0
@@ -460,6 +466,7 @@ def patch(p, cave, items, tails=False):
     assert numsel - career == 95151, hex(numsel - career)          # g_numSelectedTeams at save offset 95151
 
     import sacups as sa
+    import strmap
     table, copy = sa.TABLES[0]
     assert len(items) >= NSA + 4 and [n for _, n in items[:NSA]] == [2 * sacups.LIB_N, 32, 32, 4]
     block = 2 + sum(n for _, n in items)
@@ -487,6 +494,9 @@ def patch(p, cave, items, tails=False):
                'TEAM_SIZE': (0, TEAM_SIZE), 'ROOM': (0, SELECTED_ROOM), 'BLOCK': (0, block),
                'FIXED': (0, numsel - career + 2), 'NITEMS': (0, len(items)), 'NSA': (0, NSA), 'OLD_SIZE': (0, OLD_SIZE),
                'OLD_SAVED': (2, table + sa.SAVED_GLOBAL), 'MARK3_AT': (2, table + sa.MARK3_GLOBAL),
+               'TAG_AT': (2, table + strmap.TAG_GLOBAL), 'TAG_COPY': (2, copy + strmap.TAG_GLOBAL),
+               'TAG_RAW': (2, (sa.TABLE_RAW[0] if sa.TABLE_RAW[0] is not None else table) + strmap.TAG_GLOBAL),
+               'TAG': (0, strmap.TAG), 'TAG_BAL': (0, -strmap.TAG & 0xff),
                'MARK3_COPY': (2, copy + sa.MARK3_GLOBAL), 'OLD_LIB': (0, OLD_LIB), 'OLD_LIB_MAX': (0, OLD_LIB_MAX), 'LIB_N': (0, sacups.LIB_N), 'MARK3': (0, sa.MARK3), 'MARK3_BAL': (0, bal),
                'DEFAULT_BYTES': (0, 'db ' + ', '.join(str(b) for b in defaults)),
                'TOTAL': (0, block + en_block), 'EN_N': (0, len(enr)), 'EN_NS': (0, len(en)), 'EN_MARK': (0, EN_MARK),
@@ -575,7 +585,7 @@ def patch(p, cave, items, tails=False):
     INFO.update({k: symbols[k] for k in ('NUMSEL', 'CAREER', 'D1', 'WRITEFILE', 'PROCESS', 'BLOCK', 'FIXED', 'ROOM',
                                          'MARK', 'SELBUF')})
     INFO.update(load_a1=load_a1, roomv=labels['ROOMV'], loadcopy=labels['LOADCOPY'], selbasev=labels['SELBASEV'],
-                cg_guardp=labels['CG_GUARDP'], items=list(items))
+                cg_guardp=labels['CG_GUARDP'], items=list(items), en_found=labels['EN_FOUND'])
     if tails:
         INFO['tails'] = (labels['SAVE_TAIL'], labels['LOAD_TAIL'])
     INFO['EN'] = [(n, iid, sz) for n, iid, sz, _, _ in en]

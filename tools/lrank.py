@@ -42,7 +42,8 @@ H2H = {'head_to_head_points', 'head_to_head_goal_difference', 'head_to_head_goal
 REFUSED = {'fair_play', 'coefficient', 'previous_stage_rank', 'play_off_match'}
 LABELS = {}
 # what the hooks and the host test use: cobj links only the sections they reach (of the #included library: sr_league_rank)
-ROOTS = ('lr_res_hook', 'lr_sort_hook', 'lr_res', 'lr_rank', 'LR_BLK')
+ROOTS = ('lr_res_hook', 'lr_sort_hook', 'lr_res', 'lr_rank', 'LR_BLK',
+         'ct_sdraw', 'CT_SDRAW_N', 'CT_SDRAW_ERR')     # (4.2 P7: conti's group draw, ctdraw.c - sr_group_draw_k)
 
 
 def compile_list(names, teams, where):
@@ -120,6 +121,11 @@ def patch(p, tables, split_st, split_magic):
     else:
         ext['SORT_NEXT'] = (1, sort + 10)
     tab_at = (LR_AT + 0x1000 * LR_PAGES - len(tab)) & ~3
+    ext['cstack_call'] = swe.LABELS['cstack_call']              # (4.2 P7: ctdraw.c on the engine's C stack)
+    ext['swe_ready'] = swe.LABELS['swe_ready']
+    if os.environ.get('CTDRAW_FORCE'):
+        print('exe: CTDRAW_FORCE (test build: CT_SDRAW_FORCE refuses a conti group draw)')
+        flags.append('-DCTDRAW_FORCE')
     ext['LR_TAB'] = (4, tab_at)
     obj = cobj.compile_c(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lrank.c'), flags, sections=True)
     syms, end, bss = cobj.link(p, obj, LR_AT, (4, 0), externs=ext, limit=tab_at, text_obj=4, roots=ROOTS)

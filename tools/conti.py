@@ -20,7 +20,8 @@ OUT, CHAMP = 0xFF, 0xFE
 K = {'ko': 0, 'groups': 1, 'league_stage': 1}   # (a league stage: simulated as groups, one region a group)
 DRAW = {'order': 0, 'pots2': 1, 'same_assoc_pairs': 2, 'seeded_1v2': 3, 'bracket': 4, 'groups': 5, 'fixed': 6, 'slot': 7,
         'fixed_by_place': 8}
-ASSOC = {'allow': 0, 'any': 0, 'no': 1, 'no_unless_via': 2, 'allow_if_via': 2}
+ASSOC = {'allow': 0, 'any': 0, 'no': 1, 'no_unless_via': 2, 'allow_if_via': 2,
+         'max_2': 3}                     # (4.2 P7: 'max_2' at most 2 of an association a group, CAF art. 17 - ED_S editions)
 LEVEL = {'pens': 0, 'et_pens': 1, 'away_pens': 2, 'away_et_pens': 3}   # (3, 4.0.2: CONCACAF - away goals, then
 AWAY = ('away_pens', 'away_et_pens')                                     # extra time, then penalties)
 
@@ -580,7 +581,7 @@ def _native(extra=(), flags=()):
     lib = os.path.join(d, 'conti.dylib')
     subprocess.run(['clang', '-O1', '-shared', '-fPIC', '-DNATIVE', *(flags or NATIVE_FLAGS), '-o', lib,
                     os.path.join(ROOT, 'tools', 'conti.c')] +
-                   [os.path.join(ROOT, 'tools', x) for x in extra], check=True)   # (4.0.6: + ctview.c, the view's test)
+                   [os.path.join(ROOT, 'tools', x) for x in ('ctdraw.c',) + tuple(extra)], check=True)   # (4.2 P7: ct_sdraw)   # (4.0.6: + ctview.c, the view's test)
     _native.last = ctypes.CDLL(lib)
     return _native.last
 

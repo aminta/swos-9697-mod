@@ -25,12 +25,21 @@ struct ct_state CT_ST;
 struct ct_out CT_OUT;
 struct ct_ed CT_ED;
 #define ED_R 4                          /* (CT_ED.pad: an edition made from 4.1.1 on - pts() / draw_groups) */
+#define ED_S 8                          /* (CT_ED.pad, 4.2 P7: an edition made from 4.2 on, after season 1 - its group
+                                           draws by the rules library, ct_sdraw: clash-free whenever a draw exists) */
 struct ct_seg CT_SEG;
 #ifdef NATIVE
 const u8 *CT_S1;
 const u8 *CT_S1R0, *CT_S1H0, *CT_RK;
 u8 CT_NOR;                              /* (conti.season1_old: the build's run of a 4.1 edition, ED_R off) */
+u8 CT_NOS;                              /* (4.2 P7: an edition as 4.1.1 made it, ED_S off - the old-save tests) */
+int ct_sdraw(int n, int g, const u8 *assoc, int cap, u32 seed, u8 *grp, int tag);   /* (ctdraw.c, linked) */
+#define SDRAW ct_sdraw
+u32 CT_NCLASH, CT_NGDRAW;               /* (4.2 P7 native tests: group draws made / with a clash, both draw paths) */
 #else
+int (*CT_SDRAW)(int, int, const u8 *, int, u32, u8 *, int) __attribute__((section(".data"))) = 0;   /* (4.2 P7:
+                                           ctdraw.c's ct_sdraw in obj4 - conti.py sdraw_patch; 0 = not linked) */
+#define SDRAW CT_SDRAW
 const u8 *CT_S1 __attribute__((section(".data"))) = 0;   /* (4.0.6 B2: the season-1 block, obj3) */
 const u8 *CT_S1R0 __attribute__((section(".data"))) = 0; /* (4.1.1: the 4.1 build's season-1 block and its 2027 winners,
                                            obj3, for a season-1 edition saved before ED_R: it replays as it began) */
@@ -117,8 +126,10 @@ static u32 sq(int c) { u32 s = CT_IN.club[c - 1].str / 16; if (s < 1) s = 1; if 
 #define RANKED 0x10000u
 #ifdef NATIVE
 #define EDR (CT_NOR ? 0 : ED_R)
+#define EDS (CT_NOR || CT_NOS ? 0 : ED_S)
 #else
 #define EDR ED_R
+#define EDS ED_S
 #endif
 static __attribute__((noinline)) u32 pts(int c) {
     if ((CT_ED.pad & ED_R) && CT_IN.club[c - 1].pts) return RANKED + CT_IN.club[c - 1].pts;
@@ -458,7 +469,7 @@ static int clash(int ng, int gs, int rule) {   /* two clubs of a group that may 
             }
     return 0;
 }
-static void draw_groups(int c, int r, const u8 *R) {
+static int draw_groups(int c, int r, const u8 *R) {   /* 0, or -1: not drawn (ED_S: CONVENTIONS 14a) */
     int n = EN[c][r], ng = R[6], gs = R[7], rule = R[5];
     u16 x[NE]; u8 v[NE], k[NE];
     int m = 0;
@@ -499,7 +510,7 @@ static void draw_groups(int c, int r, const u8 *R) {
                 D[g * gs + fill[g]] = x[i]; DV[g * gs + fill[g]] = v[i]; DK[g * gs + fill[g]] = k[i]; fill[g]++;
                 x[i] = 0;
             }
-        return;
+        return 0;
     }
     int nd = 0;
     while (nd < m && !v[nd]) nd++;
@@ -513,6 +524,23 @@ static void draw_groups(int c, int r, const u8 *R) {
                 x[0] = t; v[0] = tv; k[0] = tk;
                 break;
             }
+    if (CT_ED.pad & ED_S) {             /* 4.2 P7: the rules library's draw (UEFA's computer draw: a pot at a time, each
+                                           club to the first group that still leaves a whole draw) - never a clash when
+                                           a draw exists; none: the round is not drawn (CONVENTIONS 14a, never relaxed) */
+        u8 as[NE], grp[NE];
+        for (int i = 0; i < m; i++)     /* (a via club under A_NOVIA: a value of its own, above every association's) */
+            as[i] = rule == A_NOVIA && v[i] ? (u8)(0x80 + i) : (u8)assoc(x[i]);
+        below(0);                       /* (the seed: exactly one step of the edition's rng, whatever the outcome) */
+        int rc = SDRAW ? SDRAW(m, ng, rule == A_ANY ? 0 : as, rule == A_NO2 ? 2 : 1, rng, grp, c << 4 | r) : -4;
+        for (int i = 0; i < NE; i++) D[i] = 0;
+        if (rc < 0) return -1;
+        int h = hold ? grp[0] : 0;      /* (the holder in group A: its group and A swap labels - still a valid draw) */
+        for (int i = 0; i < m; i++) {
+            int g = grp[i] == h ? 0 : grp[i] == 0 ? h : grp[i], s = g * gs + i / ng;
+            D[s] = x[i]; DV[s] = v[i]; DK[s] = k[i];
+        }
+        return 0;
+    }
     for (int tr = 0, tries = CT_ED.pad & ED_R ? 16 : 1; tr < tries; tr++) {   /* (4.1.1: drawn again while it
                                         clashes, up to 16 times, the last draw kept; the fill above stays out) */
         for (int i = 0; i < NE; i++) D[i] = 0;
@@ -547,6 +575,7 @@ static void draw_groups(int c, int r, const u8 *R) {
         }
         if (!clash(ng, gs, rule)) break;
     }
+    return 0;
 }
 
 /* --- rounds ------------------------------------------------------------------------------------------------------- */
@@ -631,7 +660,18 @@ static int ct_round(int c, int r) {
         EN[c][r] = --n;
     }
     if (fix) ;
-    else if (R[0] == K_GROUPS) { draw_groups(c, r, R); n = R[6] * R[7]; } else draw_ko(c, r, R);
+    else if (R[0] == K_GROUPS) {
+        if (draw_groups(c, r, R) < 0) {  /* (4.2 P7, not drawn - a bug the build's bound rules out: the edition stops
+                                           here, no club goes on, no winner (the holder stays: ct_finish), the game's
+                                           contest gets no list; ctview shows the round as not drawn - CT_SDRAW_ERR) */
+            CT_OUT.nent[c][r] = 0;
+            return 0;
+        }
+        n = R[6] * R[7];
+#ifdef NATIVE
+        if (!R[19] || !areg) { CT_NGDRAW++; if (clash(R[6], R[7], R[5] == A_NO2 ? A_ANY : R[5])) CT_NCLASH++; }
+#endif
+    } else draw_ko(c, r, R);
     CT_OUT.nent[c][r] = n;
     for (int i = 0; i < n && i < NE; i++) { CT_OUT.ent[c][r][i] = D[i]; if (D[i]) reached(D[i], c, r); }
     if (R[17] && CT_LP[c]) {            /* the main round: the game's contest plays it with the career club */
@@ -853,7 +893,7 @@ static int assoc_of(u16 id) {           /* a team word's association: its file's
 static void snapshot(void) {            /* the edition's entrants (after access) + the reserve clubs for group fills */
     static u8 seen[NC + 1];
     for (int i = 0; i <= NC; i++) seen[i] = 0;
-    CT_ED.ne = 0; CT_ED.nf = 0; CT_ED.pad = ED_G2 | EDR;
+    CT_ED.ne = 0; CT_ED.nf = 0; CT_ED.pad = ED_G2 | EDR | EDS;
     CT_ED.seed = rng;
     CT_ED.mgr = CT_IN.manager ? CT_IN.club[CT_IN.manager - 1].id : 0;
     for (int c = 0; c < ncup; c++)
@@ -971,7 +1011,7 @@ void ct_finish(void) {                  /* this season's edition finished, as pl
 void ct_season(void) {                  /* the season end (after ct_finish and the tables): the next edition built */
     parse();
     CT_ED.mark = 0;
-    CT_ED.pad = ED_G2 | EDR;            /* (the new edition's rules from its access on: snapshot keeps them) */
+    CT_ED.pad = ED_G2 | EDR | EDS;      /* (the new edition's rules from its access on: snapshot keeps them) */
     rng = CT_IN.seed ? CT_IN.seed : 1;
     for (int c = 0; c < NCUP; c++) for (int r = 0; r < NRD; r++) EN[c][r] = 0;
     for (int c = 0; c < ncup; c++) if (CT_LP[c]) lp_clear(c);

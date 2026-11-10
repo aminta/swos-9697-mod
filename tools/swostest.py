@@ -884,14 +884,20 @@ class Dosbox:
                     time.sleep(0.1)
                 return self.stat('run', t, 'exit')
             if n:
-                m = (BREAK_ANY if getattr(self, 'anybreak', False) else BREAK).search(self.screen, mark)
+                m = None if getattr(self, 'memwatch', False) else \
+                    (BREAK_ANY if getattr(self, 'anybreak', False) else BREAK).search(self.screen, mark)
+                # (a memory watch: its hit's text first, else the stall probe's redrawn code view reads as an int 3)
                 # (the debugger's code view redrawn on an int 3 (CD03); Session.sample: on any break)
                 if not m and getattr(self, 'memwatch', False):   # SWOSTEST_BPLM: a memory breakpoint's hit, then
                     seg = ANSI.sub(b' ', self.screen[mark:])     # the code view (EIP after the writing instruction)
-                    k = re.search(rb'Memory breakpoint[^\n]*->', seg)
+                    logs = list(re.finditer(rb'LOG: ', seg))  # (10/11: a hit = the NEWEST log line; the log pane
+                    k = logs and re.compile(rb'LOG: DEBUG: Memory breakpoint').match(seg, logs[-1].start())
+                    # redraws its old lines (an earlier hit's included) on later commands: those are stale)
                     if k:
                         m = re.compile(rb'0160:([0-9A-F]{8})\s').search(seg, k.end())
                         self.memhit = m is not None
+                    if not m:                          # (no memory hit: an int 3 break, as without a watch)
+                        m = (BREAK_ANY if getattr(self, 'anybreak', False) else BREAK).search(self.screen, mark)
                 if not m and self.watch:               # or on one of our breakpoints (Session.bp)
                     seg = ANSI.sub(b' ', self.screen[mark:])
                     for w in re.finditer(rb'0160:([0-9A-F]{8})\s', seg):
@@ -901,6 +907,7 @@ class Dosbox:
                 if m:
                     self.pump(0.02)                    # the rest of the redraw
                     self.eip = int(m.group(1), 16)
+                    self.nstall = 0                    # (the stall count: consecutive, since the last break)
                     return self.stat('run', t, 'break')
             el = time.time() - start
             if el >= (getattr(self, 'probe_at', 0) or 20) and self.eip is not None:
@@ -911,9 +918,16 @@ class Dosbox:
                     with open(os.path.join(self.run, 'stall.txt'), 'a') as fh:
                         fh.write(f'{time.strftime("%H:%M:%S")} no break seen, DOSBox-X idle {cpu - last:.2f} s CPU '
                                  f'in 10 s: code view redrawn at {self.eip:08X}\n')
+                        if getattr(self, 'memwatch', False) and not getattr(self, 'stall_dumped', False):
+                            self.stall_dumped = True    # (a memory watch: the screen since F5, once - what the
+                            fh.write(ANSI.sub(b' ', self.screen[mark:])[-3000:].decode('latin-1') + '\n')   # hit said)
+                    self.nstall = getattr(self, 'nstall', 0) + 1
+                    if getattr(self, 'memwatch', False) and self.nstall >= 18:   # (a memory watch: ~10 min idle in
+                        return self.stat('run', t, 'timeout')                     # the debugger - never hold a slot)
                     os.write(self.fd, b'C 160:0\r')
                     self.pump(0.5)
-                    mark = len(self.screen)
+                    if not getattr(self, 'memwatch', False):   # (a memory watch's hit text stays in view: the
+                        mark = len(self.screen)                # next pass matches it from the same mark)
                     os.write(self.fd, f'C 160:{self.eip:X}\r'.encode())
                     self.probe_cpu = None
                     continue
@@ -1369,19 +1383,19 @@ class Session:
                 self.bp(base1 + o, lambda r, o=o: (self.bp_hits.__setitem__(o, self.bp_hits.get(o, 0) + 1),
                                                    self.log.append(f'BP obj1+{o:X} hit {self.bp_hits[o]}' + bp_str(r)
                                                                    + self.bp_stack(r))))
-        while outcome == 'break' and getattr(b, 'memhit', False) and os.environ.get('SWOSTEST_BPLM_GO'):
-            b.memhit = False                           # SWOSTEST_BPLM_GO: log the writer's EIP (+ stack), re-arm, go on
-            r = self.paused('bplm', b.eip)
-            self.log.append(f'BPLM obj1+{b.eip - r.base1:X}' + bp_str(r) + self.bp_stack(r))
-            r.box = None
-            b.cmd('BPDEL *', 0.3)
-            b.cmd('BPINT 3', 0.2)
-            for lin in getattr(self, 'bps', {}):
-                b.cmd(f'BP 0160:{lin:08X}', 0.2)
-            for off in filter(None, os.environ.get('SWOSTEST_BPLM', '').split(',')):
-                b.cmd(f'BPLM {bplm_lin(r, off):08X}', 0.3)
-            outcome = b.go_on()
-        while outcome == 'break' and b.eip in getattr(self, 'bps', {}):
+        while outcome == 'break':                # (a memory watch's hits and our breakpoints, in any order)
+            if getattr(b, 'memhit', False) and os.environ.get('SWOSTEST_BPLM_GO'):
+                b.memhit = False                           # SWOSTEST_BPLM_GO: log the writer's EIP (+ stack), go on
+                r = self.paused('bplm', b.eip)
+                vals = ' '.join(f'{o}={int.from_bytes(r.obj2(int(o, 16), 2), "little")}'   # (the watched words now)
+                                for o in filter(None, os.environ.get('SWOSTEST_BPLM', '').split(',')))
+                self.log.append(f'BPLM obj1+{b.eip - r.base1:X} {vals}' + bp_str(r) + self.bp_stack(r))
+                r.box = None                               # (no re-arm, 10/11: a memory breakpoint stays after its hit,
+                outcome = b.go_on()                        # and a new BPLM takes a stale value - 00 -> 01 again at every
+                                                           # instruction, runs-mc-bplm2/3)
+                continue
+            if b.eip not in getattr(self, 'bps', {}):
+                break
             r = self.paused('bp', b.eip)
             self.bps[b.eip](r)
             r.box = None
@@ -1392,6 +1406,8 @@ class Session:
             b.cmd('BPINT 3', 0.2)                      # (BPDEL * also removed the int 3 one)
             for lin in self.bps:
                 b.cmd(f'BP 0160:{lin:08X}', 0.2)
+            for off in filter(None, os.environ.get('SWOSTEST_BPLM', '').split(',')):   # (BPDEL * took the memory
+                b.cmd(f'BPLM {bplm_lin(r, off):08X}', 0.3)                            # watch too)
             outcome = b.go_on()
         self.steps = getattr(self, 'steps', 0) + 1
         if outcome == 'break':

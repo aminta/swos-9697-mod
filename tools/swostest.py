@@ -5268,7 +5268,7 @@ MARCO_LAZIO = {'MARCHEGIANI': 1, 'CUDICINI': 22, 'NEGRO': 2, 'GOTTARDI': 17, 'FA
 
 @scenario
 def shirt_marco():
-    """4.0.5 (Marco Malave, 29/10): LAZIO numbered in an external editor (AG-SWSEDT 2.5.4: 22 / 17 / 18 ... - no pin
+    """4.0.5 (Marco, 29/10): LAZIO numbered in an external editor (AG-SWSEDT 2.5.4: 22 / 17 / 18 ... - no pin
     bit) keeps them in a FRIENDLY: the team screen shows starters 1 2 13 6 5 7 16 14 18 11 9 and the bench 22 17 3 4 10
     (benchnum bn_big: a player above 16 = real squad numbers, SetBenchPlayersNumbers skipped; before: 12..16), and the
     first number edit (Nesta's row: LEFT, UP, ENTER - shirtedit se_unique runs at LEFT; it walked the file's record
@@ -25026,7 +25026,7 @@ def world_cupd_ischia():
 
 @scenario
 def world_cupd_ischia_load():
-    """4.0.5: the user's own 4.0 career (internal/reports/ischia/ISCHIA.CAR, Francesco Pergola: ISCHIA, World 2026-27)
+    """4.0.5: the user's own 4.0 career (internal/reports/ischia/ISCHIA.CAR, Francesco: ISCHIA, World 2026-27)
     loads on a release-recipe build (ISCHIA_REL, else CUPLIST_REL: a release dir with the 2026-27 data) and plays on
     to its season's end and into the next season (world8485 from it), no trap"""
     car = os.path.join(MAIN, 'internal', 'reports', 'ischia', 'ISCHIA.CAR')

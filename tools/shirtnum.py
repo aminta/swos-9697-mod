@@ -457,7 +457,7 @@ build_numbers:                          ; [CUR_BUF]: 1 = built, 2 = not possible
     div ecx                             ; eax = tens, edx = units
     xor ebx, ebx
     call glyph
-    cmp byte [CUR_MENU], 0              ; match numbers: 1 pixel apart; the menus' (4.0.2, Malave): side by side,
+    cmp byte [CUR_MENU], 0              ; match numbers: 1 pixel apart; the menus' (4.0.2, Marco): side by side,
     jne .tight                          ; as the menu's own "10"
     inc ebx
 .tight:

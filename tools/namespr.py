@@ -1,4 +1,4 @@
-"""4.0.5 (Marco Malave'): in-match player names up to 14 characters (ROBERTO_CARLOS, LUIS_ENRIQUE).
+"""4.0.5 (Marco): in-match player names up to 14 characters (ROBERTO_CARLOS, LUIS_ENRIQUE).
 
 The match draws a player's name (the strip over the pitch, the goal / booking blink: SetCurrentPlayerName) as one of
 the 32 name sprites 255..286, made once per match by MakeSpritesFromPlayerNames -> MakePlayerNameSprite: the number,

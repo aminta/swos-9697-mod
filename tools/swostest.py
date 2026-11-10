@@ -348,6 +348,10 @@ def build(name, env=None, branch=None, lang='it', euro=False):
     src = ROOT
     if env and env.get('SEASON_PACKS'):              # (old snapshots with '&': a font-safe copy, packs_font_safe)
         env = dict(env, SEASON_PACKS=packs_font_safe(env['SEASON_PACKS']))
+    if env and env.get('SEASON_PACKS') and 'EURO_OPTIONAL' not in env:   # (4.1: a scenario's own pack set - 'ddr' +
+        env = dict(env, EURO_OPTIONAL='1')       # one world - has no split page / WCUR for euro.patch: patch.py's
+        # euro assert is the release recipe's (buildrel / bfull), not a scenario build's; a scenario that needs the
+        # euro checks it itself (euro_*). env EURO_OPTIONAL='' keeps the assert.)
     if branch:                                       # a throw-away worktree of that commit, links to the ignored dirs
         sha = subprocess.run(['git', '-C', MAIN, 'rev-parse', branch + '^{commit}'], capture_output=True, text=True,
                              check=True).stdout.strip()

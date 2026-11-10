@@ -24,7 +24,8 @@ BUILD_SWITCHES = TEST_VARS + (                     # 4.0.6: every switch a test 
     'CONTI_CONFS', 'CONTI_LEAGUE_PLAYED', 'CONTI_GUEST', 'CONTI_TEST_MANAGER', 'CONTI_DUMP', 'SEC_FORCE_B',   # them (and
     'HDR_TEST', 'NO_VC5', 'NO_CUP12', 'MKSEASON_NOBALANCE', 'PROTO36', 'RIPOOL_TEST_SR', 'STATECUP_TEST',  # every *_FORCE)
     'TAILZERO_FILL_TEST', 'TAILZERO_FILL3_TEST', 'SIMDRAW_G0', 'SIMDRAW_G1', 'SIMDRAW_K', 'SIMDRAW_D0', 'SIMDRAW_D1', 'XTRA_HOOK',
-    'AFTER_PROCESS_PROBE', 'QUIETEND_OFF', 'SELLA_N', 'SELLA_MARGIN', 'SELLA_OFF')
+    'AFTER_PROCESS_PROBE', 'QUIETEND_OFF', 'SELLA_N', 'SELLA_MARGIN', 'SELLA_OFF', 'EURO_OPTIONAL')   # (4.1: buildrel
+    # clears EURO_OPTIONAL, so the release recipe always keeps patch.py's euro assert)
 
 
 def is_test():

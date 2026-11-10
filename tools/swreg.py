@@ -30,6 +30,9 @@ UESUM_AT = 0x2000                       # 4.1 S2a: uesum.c's page in obj4 (MC mo
 USMENU_AT = 0x3000                      # 4.1 RC2: usmenu's page, the 4th (RIEPILOGO's phase menu; Regia / MC 09/11)
 UPRIZE2_AT = 0x4000                     # 4.1 RC3: uprize's part 2 (value pillar, ANDAMENTO CLUB switch), the 5th page,
                                         # uprize's alone (MC 09/11; stays here in 4.2)
+CONTI4_AT = 0x4B00                      # 4.1.1: conti's read-only data (the CONMEBOL ranking, the 4.1 season-1 lists +
+CONTI4_END = 0x5000                     # winners) at the 5th page's top, above uprize part 2 (Regia / MC 10/11; 4.2 keeps
+                                        # it: lrank from 0x6000)
 MAGIC = b'SWRG'
 VERSION = 2
 HDR = 32

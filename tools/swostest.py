@@ -23017,6 +23017,58 @@ def world_contiview_old():
 
 
 @scenario
+def world_conti411_oldsave():
+    """4.1.1 (Davide 10/11: the group-draw retry + the CONMEBOL ranking, from editions with CT_ED.pad ED_R): a 4.1
+    save made during season 1 replays its continental editions exactly as 4.1 did. A FLAMENGO career's season 1 on the
+    4.1 RC3 release exe (CV411_OLD, default c/REL41rc3/SWOS), saved at its 2nd Libertadores result screen (CV411_MID: a
+    cached save); that save loaded by the old exe and by this build, each to the in-season menu: CT_SEG (the club's next
+    game), CT_ED (the edition: unchanged, no ED_R) and CT_OUT (every round's entrants and results, ct_resume's replay)
+    byte-identical - the 4.1 build's season-1 block (conti.c CT_S1R0 / CT_S1H0) is what keeps them"""
+    old = os.environ.get('CV411_OLD') or os.path.join(MAIN, 'c', 'REL41rc3', 'SWOS')
+    if not os.path.isdir(old):
+        return True, f'SKIP: old release {old} missing'
+    exe = builds()['it']                                # (this build: SWOSTEST_BUILD = the release recipe's dir)
+    team = 'SUDAMERICA,BRASILE,BRASILEIRAO SERIE A,FLAMENGO'
+    mid = os.environ.get('CV411_MID') or os.path.join(RUNS, f'cv411_mid_{UI}.CAR')
+    if not os.path.exists(mid):
+        ok, msg, _ = sc_season(team, dict(W8485_BUILD=old, W8485_MIDTEXT='LIBERTADORES:2'))
+        if not ok or 'saved mid-season' not in msg:
+            return False, f'old season 1 to the 2nd Libertadores result: {msg[:200]}'
+        shutil.copy(msg.split(': ', 1)[1], mid)
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import ctypes
+    import conti
+    lay = (ctypes.c_uint32 * 22).in_dll(conti._native(), 'CT_LAYOUT')
+    n_out, n_ed = lay[2], lay[20]
+    got, errs = {}, []
+    for tag, d in (('4.1', old), ('4.1.1', exe)):
+        tr = cv_trace(d)
+        if not tr:
+            return False, f'{tag}: no CVTRPTR block'
+        with Session(f'world_conti411_oldsave_{tag}', d, {'W84A.CAR': mid}, 'dump:2', 300) as s:
+            s.wait()
+            s.send(LOAD1 + ' dump:3')
+            for _ in range(6):
+                if s.screen().find('VISUAL. COMPETIZ.', exact=True) is not None:
+                    break
+                press(s, s.screen(), 'CONTINUA', 3) or s.send('fire dump:2')
+            check(s.screen().find('VISUAL. COMPETIZ.', exact=True) is not None, f'{tag}: no in-season menu', errs)
+            got[tag] = (bytes(s.result.obj2(tr[0], 72)), bytes(s.result.obj2(tr[1], n_ed)),
+                        bytes(s.result.obj2(tr[2], n_out)))
+    a, b = got.get('4.1'), got.get('4.1.1')
+    if a and b:
+        ed = a[1]
+        check(ed[:2] == b'CE' and ed[11] & 1 and not ed[11] & 4, f'the save\'s edition: mark {ed[:2]} pad {ed[11]:#x} '
+              '(want a season-1 edition from before ED_R)', errs)
+        check(any(a[2]), 'CT_OUT empty on 4.1 (nothing replayed)', errs)
+        for k, nm in enumerate(('CT_SEG', 'CT_ED', 'CT_OUT')):
+            diff = [i for i in range(len(a[k])) if a[k][i] != b[k][i]]
+            check(not diff, f'{nm}: {len(diff)} bytes differ from 4.1 (first at {diff[:4]})', errs)
+    return not errs, '; '.join(errs) or f'season-1 save at the 2nd Libertadores result: CT_SEG / CT_ED / CT_OUT = 4.1\'s ' \
+        f'({sum(1 for x in a[2] if x)} non-zero CT_OUT bytes, next game {a[0][:8].hex()})'
+
+
+@scenario
 def world_contiview_tie():
     """4.0.6 COPPE CONTINENTALI with the career club in a conti cup (M4): a FLAMENGO career on a test build with
     CONTI_FORCE=lib:q1 (the club into the Libertadores' first qualifying round at every season end) and CONTI_KOWIN (it

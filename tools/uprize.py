@@ -255,6 +255,7 @@ def patch(p, at, ext, lang):
     LABELS.update(syms)
     LABELS['UP_ST'] = (4, syms['UP'][1] + 4)
     LABELS.update({k: (4, v) for k, v in lab.items()})
+    LABELS['END2'] = (4, end2)                          # (4.1.1: conti.d4_patch asserts its data above it)
     print(f'exe: UEFA prizes (uprize, 4.1 RC3): obj4+{t0:#x}..{end:#x} ({end - t0} B: table {len(tab)}, statement '
           f'{len(code)}), part 2 obj4+{swreg.UPRIZE2_AT:#x}..{end2:#x}; obj4 left '
           f'{room - end} B; K {K[0]}/{K[1]}')

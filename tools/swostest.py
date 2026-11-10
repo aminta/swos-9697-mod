@@ -28186,8 +28186,9 @@ def nzchamp_season(lines, st_at, log_at, res_words, gff, kof, errs, rest=False, 
             if ph:
                 note.append(f'declared limit: phantom FINALE with {club} ({len(fl)} screens; the real final and champion '
                             f'above)')                                # career club, the real final decided without it)
-        else:
-            check(not fl, 'no Grand Final screen without the career club', errs)
+        else:                                                         # (4.1.1 A2: the real final's screens - its
+            mine = [ln for ln in fl if club and club in ln]               # two finalists, VISUAL. COMPETIZ. - are fine;
+            check(not mine, f'a Grand Final screen with the career club {club}: {mine[:1]}', errs)   # never one of the club)
     else:
         check(gfs and gfs[-1]['slot'] == 4 and gfs[-1]['n'] == 2 and set(gfs[-1]['team'][:2]) == set(fin) and mgr in fin,
               f"Grand Final in slot 4 (the career club {'in' if natural else 'forced in'}): {[(x['slot'], [hex(t) for t in x['team'][:2]]) for x in gfs[-1:]]}"

@@ -46,8 +46,9 @@ int32_t sreg_old_words(const uint16_t *old_ord, int32_t n, const uint16_t *maps,
    1. sr_reg_build from the spec (spec / nf, spec_div = SREG_DIV: each ident's division in the shaped pack, n = its clubs);
    2. old_word[ident] = sreg_old_words (old_ord, the save's RI slot map maps / nslot / npool of file `file`);
    3. nd[ident] = the club's ACTUAL division in the save: on slot x -> slot_div[x] (the save's file record x's division
-      byte, +25: RI kind 0 keeps a slot's level, pg_season sets its group); off the files -> SR_REG_POOL (the RI pool
-      state: a pool club not swapped on, a club swapped off), or its spec value when that is SR_REG_POOL / SR_REG_OUT;
+      byte, +25: RI kind 0 keeps a slot's level, pg_season sets its group); off the files (the RI pool state: a pool
+      club not swapped on, a club swapped off) -> SR_REG_POOL when the spec has pool rows, else SR_REG_OUT (MC 11/11:
+      S7's file 144 = the 9 groups only, the stand-ins off-file as in 4.1); SR_REG_OUT in the spec stays SR_REG_OUT;
       the PENDING clubs (below) -> their spec division;
    4. ONE sr_reg_season(r, nd, no order, contiguous 0: the exe's) -- the swaps (sw, at most maxsw) for the exe's
       normal record-move path; no replay of past seasons, no RI order;
@@ -120,8 +121,8 @@ int32_t sreg_import(sr_registry *r, const sr_reg_file *spec, int32_t nf, const u
         } else if (ow != SR_REG_NONE) {
             w->nd[c] = slot_div[ow >> 8];
             if (w->nd[c] >= SR_REG_POOL || imp_file(r, w->nd[c]) < 0) { res->bad = c; return SREG_IMP_DIV; }
-        } else
-            w->nd[c] = s == SR_REG_OUT ? SR_REG_OUT : SR_REG_POOL;
+        } else                                          /* (off the files: the pool rows if the spec has them) */
+            w->nd[c] = s == SR_REG_OUT || imp_file(r, SR_REG_POOL) < 0 ? SR_REG_OUT : SR_REG_POOL;
     }
     for (int32_t i = 0; i < r->nfiles; i++) {           /* each file's comings and goings (sr_reg_season's -1, named) */
         int32_t in = 0;

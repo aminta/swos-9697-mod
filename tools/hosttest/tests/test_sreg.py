@@ -475,7 +475,7 @@ def test_sreg_import():
     IMP = {-1: 'ARGS', -2: 'SPEC', -3: 'MAP', -4: 'LOST', -5: 'DIV', -6: 'SIX', -7: 'PEND', -8: 'BALANCE', -9: 'ROOM',
            -10: 'WMAP'}
 
-    def imp(maps=None, slot=slot0, maxsw=64, fill=0xAA):
+    def imp(maps=None, slot=slot0, maxsw=64, fill=0xAA, spec=spec, sdiv=sdiv):
         R = ctypes.create_string_buffer(bytes([fill]) * REGSIZE, REGSIZE)
         wk = ctypes.create_string_buffer(bytes([fill ^ 0x55]) * L.imp_work_size(), L.imp_work_size())
         res = ctypes.create_string_buffer(L.imp_res_size())
@@ -494,6 +494,8 @@ def test_sreg_import():
 
         def div(c):                                     # sr_reg_div: its row's division
             w = words[c]
+            if w == 0xFFFF:
+                return OUT
             fi = {102: 0, 144: 1}[w & 0xFF]
             return b[rdiv + 256 * fi + (w >> 8)]
         return dict(n=n, why=IMP.get(n, n), bad=bad, flags=flags, pend=pend,
@@ -555,6 +557,21 @@ def test_sreg_import():
         g = imp(**kw)
         if (g['why'], g['bad']) != want:
             errs.append(f"{tag}: {g['why']} bad {g['bad']}")
+    # S7 as MC 11/11: file 144 = the groups only, p1 p2 off the files (OUT); the same season ends: p1 onto 144 from the
+    # pool (a pool swap: d1's row), d1 off the files
+    spec0 = spec_bytes([(102, [(0, 4), (1, 4)], 0), (144, [(5, 3), (6, 3)], 0)])
+    sdiv0 = sdiv[:14] + [OUT] * 2
+    g = imp(maps, slot, spec=spec0, sdiv=sdiv0)
+    act0 = list(act)
+    act0[I['d1']], act0[I['p2']] = OUT, OUT
+    divs0 = g['divs']
+    pm = dict(g['pairs'])
+    if g['n'] != 2 or divs0 != act0 or g['words'][I['p1']] != W144(1) or g['words'][I['d1']] != 0xFFFF or \
+            pm.get(W102(9)) != W144(1) or (W144(1), 0xFFFF, I['p1']) not in g['swaps']:
+        errs.append(f"no pool rows: {g['why']} {g['swaps']} divs {divs0} p1 {g['words'][I['p1']]:#x}")
+    f0 = imp(spec=spec0, sdiv=sdiv0)
+    if (f0['n'], f0['pend']) != (0, [I['J']]):
+        errs.append(f"no pool rows, fresh: {f0['why']} pend {f0['pend']}")
     old_l = list(old)
     old[I['e2']] = 0xFFFF                               # slot 12's club unknown to the pack (e2 a new club: pending)
     g = imp(m_lost)
@@ -563,4 +580,5 @@ def test_sreg_import():
     old[:] = old_l
     return not errs, '; '.join(errs) or ('fresh: no swap, J pending, 5 Serie D words to 144; seasons: 1 cross-file '
                                          'swap, every division the save\'s, map follows each club, RI slot -> pool row; '
-                                         'deterministic; refused SIX / BALANCE / DIV / MAP / ROOM / LOST with the club')
+                                         'deterministic; no pool rows (S7 11/11): the stand-in on by a pool swap, the club off OUT; '
+                                         'refused SIX / BALANCE / DIV / MAP / ROOM / LOST with the club')

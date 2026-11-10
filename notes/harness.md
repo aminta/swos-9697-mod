@@ -292,6 +292,15 @@ New code on old fixtures: `Machine(dir, k, code_from=BUILD_DIR)` relocates that 
 (LE fixups at the snapshot's bases; the snapshot's run.EXE = the exe as run, with the harness's page) and keeps the
 state: bytes the game changed at run time stay; a changed byte of a named label that moved goes to its new place;
 anything else = LayoutChanged (re-snapshot). test_ct_prep_overlay: the rc19 q2 snapshot + the fixed code -> week 60.
+Fixtures (4.2, all of the suite's): `zsh tools/hosttest/mkfixtures.sh [world data]` from the checkout root makes the
+static-image exes - one release-recipe ITALIAN.EXE (buildrel.sh's packs + world data, default world5tm-s1rank-int3,
+test switches cleared) with HOSTTEST_SYMS=1, copied to c/HTW (test_registry, test_wmodes), c/HTO4 (test_swe), c/HTOMM
+(test_wtphys) and c/HTPC2 (test_swc1: test_ledger checks the save ledger against today's items - rebuild after a new
+save item) - and keeps the snapshot fixtures' builds (internal/hosttest/fixtures/*/N.json 'build') in
+internal/hosttest/fixture-builds/<name>, internal/swostest/builds/<name> a symlink: build_cleanup removes <name>-<key>
+dirs unused for 3 days (06/11 it took ht_nzchamp / nzsyms_wout12 / wnglob_syms12: test_nzgf / test_wnglob FAILed) and
+cannot remove a symlink. One gone comes back from its archive on /Volumes/Backup1/swos-mod-runs (sha1 of ARCHIVED.txt
+checked; the snapshots run that build's code, a rebuild would not match). No DOSBox.
 Fixtures from ANY world8485-based run (e.g. a sweep config that reproduces a bug): add `HT_SNAP_LABELS=module.label,..`
 (+ `HT_SNAP_OUT`, `HT_SNAP_WEEKMIN`, `HT_SNAP_MAX`) and point W8485_BUILD / the scenario's build at a HOSTTEST_SYMS
 build of the same exe (e.g. c/HT19R = c/REL405rc19 byte for byte, with ITALIAN.syms.json). Scenario `ht_snapshot`

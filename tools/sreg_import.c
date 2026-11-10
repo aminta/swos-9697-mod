@@ -310,10 +310,16 @@ int32_t sreg_ri_import(const sr_registry *r, const sr_reg_file *spec, int32_t nf
    new_slt = old_slt with every global of either table zeroed, then for each club on a row in both layouts
    (old_word[c] and r->word[c] not SR_REG_NONE) new_slt[its S7 global] = old_slt[its 4.1 global]. A club on a row now
    with no 4.1 row (S7's joiners) keeps 0 (the season start fills it). A stand-in on a row through RI (model (i)) uses
-   that row's global, as ri_copy keeps the slot's bytes 0..4. The byte is copied as it is: it assumes both files'
-   globals read it against the same league base (Italy's one league). Returns the clubs moved; SREG_SLT_ARGS, or
-   SREG_SLT_GLOB with *bad = the club whose word has no global (a file or ordinal past its table). */
-enum { SREG_SLT_ARGS = -31, SREG_SLT_GLOB = -32 };
+   that row's global, as ri_copy keeps the slot's bytes 0..4.
+   The byte is a SIGNED delta on the club's own base division (record +25; RS / RI's base division for a stand-in;
+   Shaved via MC 11/11), so it is re-based (MC 11/11, binding): new = old_base[c] + (int8)old - new_base[c], with
+   old_base = the club's 4.1 base division, new_base = the division byte its S7 record carries after the import (the
+   save's real division for a swapped club; RS / RI's base for a stand-in on an RI row), both per club index. Copied as
+   it is only when old_base == new_base. Never clamped: SREG_SLT_DELTA with *bad = the club when the re-based delta
+   is outside -128..127 or old_base + delta (= new_base + new delta) is not a division 0..ndiv-1 of the league.
+   Returns the clubs moved; SREG_SLT_ARGS, or SREG_SLT_GLOB with *bad = the club whose word has no global (a file or
+   ordinal past its table). */
+enum { SREG_SLT_ARGS = -31, SREG_SLT_GLOB = -32, SREG_SLT_DELTA = -33 };
 
 static int32_t gl_glob(const uint8_t *gl, uint16_t word)
 {
@@ -349,11 +355,13 @@ static int32_t gl_zero(const uint8_t *gl, uint8_t *slt, int32_t nslt)
 }
 
 int32_t sreg_slt_import(const sr_registry *r, const uint16_t *old_word, int32_t n, const uint8_t *old_gl,
-                        const uint8_t *new_gl, const uint8_t *old_slt, uint8_t *new_slt, int32_t nslt, int32_t *bad)
+                        const uint8_t *new_gl, const uint8_t *old_base, const uint8_t *new_base, int32_t ndiv,
+                        const uint8_t *old_slt, uint8_t *new_slt, int32_t nslt, int32_t *bad)
 {
     if (!bad) return SREG_SLT_ARGS;
     *bad = -1;
-    if (!r || !old_word || !old_gl || !new_gl || !old_slt || !new_slt || old_slt == new_slt || n != r->nclub || nslt < 0)
+    if (!r || !old_word || !old_gl || !new_gl || !old_slt || !new_slt || old_slt == new_slt || n != r->nclub || nslt < 0 ||
+        !old_base || !new_base || ndiv < 1 || ndiv > 256)
         return SREG_SLT_ARGS;
     for (int32_t g = 0; g < nslt; g++) new_slt[g] = old_slt[g];
     if (gl_zero(old_gl, new_slt, nslt) || gl_zero(new_gl, new_slt, nslt)) return SREG_SLT_ARGS;
@@ -362,7 +370,9 @@ int32_t sreg_slt_import(const sr_registry *r, const uint16_t *old_word, int32_t 
         if (old_word[c] == SR_REG_NONE || r->word[c] == SR_REG_NONE) continue;
         const int32_t go = gl_glob(old_gl, old_word[c]), gn = gl_glob(new_gl, r->word[c]);
         if (go < 0 || gn < 0) { *bad = c; return SREG_SLT_GLOB; }
-        new_slt[gn] = old_slt[go];
+        const int32_t div = old_base[c] + (int8_t)old_slt[go], d = div - new_base[c];
+        if (div < 0 || div >= ndiv || d < -128 || d > 127) { *bad = c; return SREG_SLT_DELTA; }
+        new_slt[gn] = (uint8_t)(d & 0xFF);
         moved++;
     }
     return moved;

@@ -443,7 +443,7 @@ def _imp_protos(L):
         L.sreg_ri_import.argtypes = [P, P, I32, P, I32, P, P, I32, P, I32, P, P, U8, U8, U8, P, P, P, P]
         L.sreg_ri_import.restype = I32
     if hasattr(L, 'sreg_slt_import'):
-        L.sreg_slt_import.argtypes = [P, P, I32, P, P, P, P, I32, P]
+        L.sreg_slt_import.argtypes = [P, P, I32, P, P, P, P, I32, P, P, I32, P]
         L.sreg_slt_import.restype = I32
 
 
@@ -735,9 +735,12 @@ def test_sreg_sltimport():
     """sreg_slt_import (sreg_import.c, MC 11/11 from Shaved's S7-G) built natively on test_sreg_riimport's 'twice'
     shape: 4.1 globals = file 102's 13 slots from 92 (92..104); S7's = 102 x 8 from 92, 144 = 100 x 4 + 2283 x 2 (the
     split run, as globnum.split's 144). Every club's someLeaguesTable byte goes from its 4.1 global to its S7 one:
-    Serie A / B kept (92..98), d0 up into 102 row 7 (99), the stand-in p2 on 144 row 0 by RI (100: the row's global),
+    Serie A / B (92..98), d0 up into 102 row 7 (99), the stand-in p2 on 144 row 0 by RI (100: the row's global),
     e0 / e1 / e2 in Serie D at other ordinals (103, 2283, 2284), J (a joiner) 0 at 102, the old global nobody uses
-    now (104) 0, another country's byte (50) kept; refused: a 144 ordinal past its table's runs (GLOB, the club)."""
+    now (104) 0, another country's byte (50) kept. The byte is a signed delta on the club's base division, re-based
+    (MC 11/11): A / B keep their base (copied, one negative delta kept), d0 (4.1 Serie D 3 -> 1), d1 / p2 (3 -> group
+    5), e0..e2 (3 -> group 6) re-based, negative results stored as two's complement; refused: a 144 ordinal past its
+    runs (GLOB), a division past ndiv and a re-based delta past +127 (DELTA, the club)."""
     import ctypes
     import subprocess
     import tempfile
@@ -781,15 +784,19 @@ def test_sreg_sltimport():
     OLD, NEW = gl([(102, [(92, 13)])]), gl([(102, [(92, 8)]), (144, [(100, 4), (2283, 2)])])
     NS = 2300
     o = bytearray(NS)
+    dl = [0, 1, 0, 0, 0, -1, 0, 0, -2, 0, 1, 0, 2]      # 4.1 rows' signed deltas (row 7 = b3's slot, p2 through RI)
     for x in range(13):
-        o[92 + x] = 10 + x
+        o[92 + x] = dl[x] & 0xFF
     o[2283] = o[2284] = 0x77                            # (stale bytes at the new run: overwritten / zeroed)
     o[50] = 0x55                                        # (another country's)
+    ob = [0] * 4 + [1] * 4 + [3] * 3 + [3] * 3 + [3] * 2           # 4.1 base divisions (Serie D 3, stand-ins 3)
+    nb = [0] * 4 + [1] * 4 + [1, 5, 5] + [6] * 3 + [3, 5]         # S7 bases: d0 up to B, d1 / J / p2 group 5, e* 6
 
-    def run(new=NEW):
+    def run(new=NEW, ndiv=7, obase=ob, nbase=nb, old=o):
         out = ctypes.create_string_buffer(b'\xEE' * NS, NS)
         bad = ctypes.c_int32()
-        k = L.sreg_slt_import(R, wk, len(names), OLD, new, bytes(o), out, NS, ctypes.byref(bad))
+        k = L.sreg_slt_import(R, wk, len(names), OLD, new, bytes(obase), bytes(nbase), ndiv, bytes(old), out, NS,
+                              ctypes.byref(bad))
         return k, bad.value, out.raw
     errs = []
     k, bad, b = run()
@@ -797,17 +804,30 @@ def test_sreg_sltimport():
     for g in range(92, 105):
         want[g] = 0
     want[2283] = want[2284] = 0
-    for g, v in ((92, 10), (93, 11), (94, 12), (95, 13), (96, 14), (97, 15), (98, 16), (99, 18), (100, 17), (101, 19),
-                 (103, 20), (2283, 21), (2284, 22)):
-        want[g] = v
+    for g, club, x in ((92, 'a0', 0), (93, 'a1', 1), (94, 'a2', 2), (95, 'a3', 3), (96, 'b0', 4), (97, 'b1', 5),
+                       (98, 'b2', 6), (99, 'd0', 8), (100, 'p2', 7), (101, 'd1', 9), (103, 'e0', 10), (2283, 'e1', 11),
+                       (2284, 'e2', 12)):
+        want[g] = (ob[I[club]] + dl[x] - nb[I[club]]) & 0xFF
     if k != 13 or bytes(want) != b:
         dif = [(g, b[g], want[g]) for g in range(NS) if b[g] != want[g]]
         errs.append(f'moved {k}: (global, got, want) {dif[:8]}')
+    if (b[97], b[99], b[100], b[101], b[103], b[2283], b[2284]) != (0xFF, 0, 0xFE, 0xFE, 0xFE, 0xFD, 0xFF):
+        errs.append(f'deltas: {b[97]} {b[99]} {b[100]} {b[101]} {b[103]} {b[2283]} {b[2284]}')
     if b[102] != 0 or b[104] != 0:
         errs.append(f'J / unused global: {b[102]} {b[104]}')
     k, bad, _ = run(gl([(102, [(92, 8)]), (144, [(100, 4)])]))
     if (k, bad) != (-32, I['e1']):
         errs.append(f'144 past its runs: {k} bad {bad}')
-    return not errs, '; '.join(errs) or ('13 clubs moved: A / B kept, d0 into 102 row 7, p2 on its RI row\'s global, '
-                                         'e0..e2 at their new 144 globals (2 in the second run), J and the old unused '
-                                         'global 0, another country\'s kept; refused: past the runs (GLOB, e1)')
+    k, bad, _ = run(ndiv=5)                             # e2: 3 + 2 = division 5, past a 5-division league
+    if (k, bad) != (-33, I['e2']):
+        errs.append(f'division past ndiv: {k} bad {bad}')
+    o2 = bytearray(o)
+    o2[92] = 100                                        # a0: base 100 + 100 = division 200, S7 base 0 -> +200
+    k, bad, _ = run(ndiv=256, obase=[100] + ob[1:], old=o2)
+    if (k, bad) != (-33, I['a0']):
+        errs.append(f'delta past +127: {k} bad {bad}')
+    return not errs, '; '.join(errs) or ('13 clubs moved: A / B kept (b1 -1 as is), d0 into 102 row 7 (re-based 0), '
+                                         'p2 on its RI row\'s global (-2), d1 / e0..e2 re-based (-2 -2 -3 -1) at their '
+                                         'new globals (2 in 144\'s second run), J and the old unused global 0, another '
+                                         'country\'s kept; refused: past the runs (GLOB, e1), division past ndiv and '
+                                         'delta past +127 (DELTA, e2 / a0)')

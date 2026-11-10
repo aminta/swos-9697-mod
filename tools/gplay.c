@@ -2515,6 +2515,8 @@ static void cd_make(void) {             /* a later season's rounds 0-1 (CD_ST.ge
         }
     int n1 = 1 << (GP_CDT[1] - 2), p = n - 2 * n1, m = 0;
     if (p < 0) p = 0;
+    if (p > 2 * n1) p = 2 * n1;         /* (more clubs than 4 x round 1's ties: the first in entry order play, the rest
+                                           are left out - engine sr_cupd_make, Motore's fuzz round 2 find 7) */
     if (p > CDP) p = CDP;
     CD_ST.np = p;
     u8 sg[256];

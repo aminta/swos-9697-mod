@@ -336,6 +336,9 @@ def patch_exe(src, dst, remap, lang='it'):
         engine.after_load('ct_load')                                    # (B2 M3: an older season-1 save: built at load)
         import uesum                                                    # 4.1 S2b: RIEPILOGO's earlier knockout stages
         engine.save_item('US', uesum.REC_SIZE, world_only=True)         # (uesum.c US_REC; a save without it: zeroed)
+        import uprize                                                   # 4.1 RC3: the UEFA prizes paid (uprize.c UP;
+        engine.save_item('UP', uprize.UP_SIZE, world_only=True)         # a save without it: zeroed = an older save,
+        engine.after_new('up_new')                                      # what is reached counts as paid)
     import controls                                    # 4.0.2: the CONTROLS page (controls.py): code + its data pages, the
     ctl_pg = 1 + controls.DATA_PAGES                   # last pages (obj1: obj2's page count stays 4.0's, see controls.patch)
     import namespr                                     # 4.0.5: 14-character match names (namespr.py), after them
@@ -875,11 +878,21 @@ def patch_exe(src, dst, remap, lang='it'):
         uesum.patch(p, s4_end, lang, usc=sc_on)    # (sc_on: supercup's usc_snap keeps the holders)
         if 'US' in engine.SAVE_ITEMS:            # (4.1 S2b: its save item, trailer.late binds it)
             engine.ITEM_AT['US'] = uesum.LABELS['US_REC']
+        if 'UP' in engine.SAVE_ITEMS:
+            import uprize
+            engine.ITEM_AT['UP'] = uprize.LABELS['UP_ST']
+            engine.CALL_AT['up_new'] = uprize.LABELS['up_new'][:2]
     elif 'US' in engine.SAVE_ITEMS:              # (a test build with conti but no ctview: the item a zero block in
         import swreg                             # uesum's free page, saved and loaded as it is)
         import uesum
         p.put(4, swreg.UESUM_AT, bytes(uesum.REC_SIZE))
         engine.ITEM_AT['US'] = (4, swreg.UESUM_AT)
+        if 'UP' in engine.SAVE_ITEMS:            # (4.1 RC3: the prizes' item the same way, no code; a new career's
+            import uprize                        #  callback a ret)
+            ua = swreg.UESUM_AT + ((uesum.REC_SIZE + 3) & ~3)
+            p.put(4, ua, bytes(uprize.UP_SIZE) + b'\xc3')
+            engine.ITEM_AT['UP'] = (4, ua)
+            engine.CALL_AT['up_new'] = (4, ua + uprize.UP_SIZE)
     benchx.link_w27(p)                           # (4.0.6 step 2.5: the friendlies' long bench by SWE_W27)
     tailzero.patch(p, tz_at, obj2_free + o2pages * p.le.page_size, (tail + 3) & ~3, nasmcave,   # (DOS/4GW: not zeroed;
                    0x1000 * OBJ3_PAGES, (cg_bss + 3) & ~3)                  # 4.0.6: obj3's tail too)

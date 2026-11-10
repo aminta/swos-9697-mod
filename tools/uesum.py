@@ -109,6 +109,9 @@ def patch(p, at, lang, usc=False):
     m_end = usmenu.patch(p, lang, {'UC': ext['UC'], 'US_IN': syms['US_IN'], 'us_cur': syms['us_cur'],
                                    'us_stname': syms['us_stname'], 'us_lpt': syms['us_lpt'], 'US_TEXT': syms['us_text'],
                                    'us_text': syms['us_text'], 'SELPTR': ext['SELPTR'], 'NUMSEL': ext['NUMSEL']}, sumt)
+    import uprize                                       # (4.1 RC3: the UEFA prizes, after usmenu on its page)
+    u_end = uprize.patch(p, m_end, {k: ext[k] for k in ('UC', 'UD', 'SEASONP', 'W_LPW', 'LP_ORD')}
+                          | {'US_UP': syms['US_UP'], 'US_UP2': syms['US_UP2']}, lang)
     p.remove(1, rs + 3)                                 # (its D0 fixup: the jmp overwrites it; us_hook does the mov)
     p.branch(1, rs, 0xE9, *syms['us_hook'][:2], n=9)
     if gend is not None:
@@ -117,5 +120,5 @@ def patch(p, at, lang, usc=False):
     LABELS.update(syms)
     LABELS['US_REC'] = (4, syms['US'][1] + 4)           # (after its 'S2BR' tag)
     print(f'exe: UEFA RIEPILOGO (uesum, 4.1 S2a): obj4+{t0:#x}..{end:#x} ({end - t0} B: table {len(tab)}, C {end - at}); '
-          f'page left {swreg.USMENU_AT - end} B, usmenu to {m_end:#x}; S2b recorder at obj1+{rs:#x}, US_REC obj4+{LABELS["US_REC"][1]:#x} ({REC_SIZE} B)')
+          f'page left {swreg.USMENU_AT - end} B, usmenu to {m_end:#x}, uprize to {u_end:#x}; S2b recorder at obj1+{rs:#x}, US_REC obj4+{LABELS["US_REC"][1]:#x} ({REC_SIZE} B)')
     return end

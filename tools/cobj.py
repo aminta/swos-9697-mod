@@ -4,7 +4,12 @@ cave (code, read-only data, data) and a zero-filled obj2 area (.bss), applying t
 displacement (calls inside the code, or to the game's routines given as externs).
 
 The C file must be freestanding: no library calls (link() fails on any undefined symbol that is not an extern),
-cdecl functions (ebx, esi, edi, ebp preserved). Called from asm with pushad / popad around."""
+cdecl functions (ebx, esi, edi, ebp preserved). Called from asm with pushad / popad around.
+
+Dead code (4.2, engine P1): compile_c(sections=True) puts every function and variable in a section of its own, and
+link(roots=[names]) lays out only the sections reachable from those global symbols through the relocations - an
+#included library (tools/swce/sr_stage.c in lrank.c) brings only what the hooks call. roots=None: every section, as
+before."""
 import hashlib
 import os
 import re
@@ -35,12 +40,17 @@ def _src_key(src, flags):
     return h.hexdigest()[:24]
 
 
-def compile_c(src, flags=()):
+SECTIONS = ['-ffunction-sections', '-fdata-sections']
+
+
+def compile_c(src, flags=(), sections=False):
     """The object file's bytes. Every object compiled is kept in CACHE/<key>.o (key: _src_key). The Apple clang of
     one macOS gives other code than another's (4.0.5: MacMiniM1Server's clang 15 vs clang 21 here - gplay.c 901 bytes
     longer, an exe one page longer, world_gplay_poule FAILing there only): with COBJ_REF=1 (remote_run.sh on the
     server) a cached object - this Mac's, synced - is used instead of compiling; a missing one is compiled with the
-    local clang, a warning on stderr and its key in COBJ_MISS_LOG (the build is not reused then)."""
+    local clang, a warning on stderr and its key in COBJ_MISS_LOG (the build is not reused then). sections: a section
+    per function / variable, for link(roots=...)."""
+    flags = list(flags) + (SECTIONS if sections else [])
     key = _src_key(src, flags)
     cached = os.path.join(CACHE, key + '.o')
     if os.environ.get('COBJ_REF'):
@@ -82,16 +92,21 @@ def _elf(o):
     return secs
 
 
-def link(p, obj, text_at, bss_at, externs=None, limit=None, text_obj=1):
+def link(p, obj, text_at, bss_at, externs=None, limit=None, text_obj=1, roots=None):
     """obj = compile_c() bytes; text_at = offset of the cave in object text_obj (obj1; 4.0.6: obj3 too); bss_at =
     (obj, offset) of the zero-filled area; externs = {name: (obj, offset)}. Returns ({global symbol: (obj, offset)},
-    end of the code part, bss size). A call into another object (obj3 -> obj1's C) gets a self-relative fixup."""
+    end of the code part, bss size). A call into another object (obj3 -> obj1's C) gets a self-relative fixup.
+    roots (a compile_c(sections=True) object): the global symbols the caller uses; only the sections they reach are
+    laid out (the others' symbols are not returned)."""
     externs = externs or {}
     secs = _elf(obj)
+    keep = {i for i, s in enumerate(secs) if s['flags'] & 2 and s['size']}     # SHF_ALLOC
+    if roots is not None:
+        keep = _reach(obj, secs, keep, roots)
     base = {}                                       # section index -> (obj, offset)
     at, bss = text_at, 0
     for i, s in enumerate(secs):
-        if not s['flags'] & 2 or not s['size']:     # SHF_ALLOC
+        if i not in keep:
             continue
         al = max(s['align'], 1)
         if s['type'] == 8:                          # SHT_NOBITS
@@ -160,6 +175,43 @@ def link(p, obj, text_at, bss_at, externs=None, limit=None, text_obj=1):
         if s is not None and s[3] == 1 and s[2]:   # STB_GLOBAL
             out[s[2]] = s[:2]
     return out, at, bss
+
+
+def _symbols(obj, secs):
+    """[(name, section index, binding)] in symbol table order"""
+    symtab = next(s for s in secs if s['type'] == 2)
+    strtab = secs[symtab['link']]
+    out = []
+    for k in range(symtab['size'] // 16):
+        name, value, size, info, other, shndx = struct.unpack_from('<IIIBBH', obj, symtab['offset'] + 16 * k)
+        a = strtab['offset'] + name
+        out.append((obj[a:obj.index(b'\0', a)].decode(), shndx, info >> 4))
+    return out
+
+
+def _reach(obj, secs, alloc, roots):
+    """the allocated sections reachable from the global symbols roots, through the relocations"""
+    sy = _symbols(obj, secs)
+    glob = {nm: sh for nm, sh, bind in sy if bind == 1 and sh in alloc}
+    miss = [r for r in roots if r not in glob]
+    assert not miss, f'cobj.link roots not defined in the object: {miss}'
+    todo, keep = [glob[r] for r in roots], set()
+    rels = {}
+    for s in secs:
+        if s['type'] == 9:                          # SHT_REL
+            rels.setdefault(s['info'], []).append(s)
+    while todo:
+        i = todo.pop()
+        if i in keep:
+            continue
+        keep.add(i)
+        for r in rels.get(i, ()):
+            for k in range(r['size'] // 8):
+                _, info = struct.unpack_from('<II', obj, r['offset'] + 8 * k)
+                sh = sy[info >> 8][1]
+                if sh in alloc and sh not in keep:
+                    todo.append(sh)
+    return keep
 
 
 def add_ptr(p, off, tobj, toff, objn=1):

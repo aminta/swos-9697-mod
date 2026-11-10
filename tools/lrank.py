@@ -41,6 +41,8 @@ H2H = {'head_to_head_points', 'head_to_head_goal_difference', 'head_to_head_goal
        'head_to_head_table_once', 'away_goal_difference'}   # (the block's)
 REFUSED = {'fair_play', 'coefficient', 'previous_stage_rank', 'play_off_match'}
 LABELS = {}
+# what the hooks and the host test use: cobj links only the sections they reach (of the #included library: sr_league_rank)
+ROOTS = ('lr_res_hook', 'lr_sort_hook', 'lr_res', 'lr_rank', 'LR_BLK')
 
 
 def compile_list(names, teams, where):
@@ -119,8 +121,8 @@ def patch(p, tables, split_st, split_magic):
         ext['SORT_NEXT'] = (1, sort + 10)
     tab_at = (LR_AT + 0x1000 * LR_PAGES - len(tab)) & ~3
     ext['LR_TAB'] = (4, tab_at)
-    obj = cobj.compile_c(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lrank.c'), flags)
-    syms, end, bss = cobj.link(p, obj, LR_AT, (4, 0), externs=ext, limit=tab_at, text_obj=4)
+    obj = cobj.compile_c(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lrank.c'), flags, sections=True)
+    syms, end, bss = cobj.link(p, obj, LR_AT, (4, 0), externs=ext, limit=tab_at, text_obj=4, roots=ROOTS)
     assert bss == 0, ('lrank.c: no .bss', bss)
     p.put(4, tab_at, tab)
     for off, (o, a) in ptrs:

@@ -28960,6 +28960,69 @@ def world_gplay_nzgf_oldsave():
 
 
 @scenario
+def world_gplay_nzgf_41save():
+    """4.1.1 notes claim (Regia 10/11): the NZ fix needs no new career - a 4.1 save (NZGF_41, default v4.1 f2c9e45)
+    taken inside the Championship's group (Grand Final state 1, the placeholder of the career club installed), with
+    the career club kept out of the final (GPLAY_GFFORCE=1 on both builds), loaded by this build and played to the
+    season end: the real final without the career club (nz_phantom: GP_GFT 9, the finalists in slot 4, recorded by
+    gf_done, no card / injury), the champion one of the two finalists"""
+    src = os.environ.get('W2627NZ_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-nzchamp')
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    env = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'GPLAY_FORCE': '1',
+           'GPLAY_GFFORCE': '1'}
+    old = build('world_gplay_nz41', env=env, branch=os.environ.get('NZGF_41', 'f2c9e45'))
+    exe = os.environ.get('GPLAY_BUILD') or build('world_gplay_nzchamp', env=env)
+    olog, ost, _, _ = gp_ptrs(old)
+    log_at, st_at, log_n, st_n = gp_ptrs(exe)
+    gft = gft_at(exe)
+    keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_HEX',
+            'W8485_ONE', 'W8485_MIDSAVE', 'W8485_FROM', 'W2627REL_DATA')
+    keep = {k: os.environ.get(k) for k in keys}
+    base = dict(W8485_WORLD='MONDO 2026-27', W8485_TEAM='OCEANIA,NUOVA ZELANDA,NORTHERN LGE|NORTHERN LEAGUE,WESTERN '
+                'SPRINGS', W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1', W2627REL_DATA=src, W8485_ONE='1')
+    try:
+        os.environ.update(base, W8485_BUILD=old, W8485_HEX=f'{ost:x}:{st_n}',
+                          W8485_MIDSAVE=f'{ost + GP_STKO + 576:x}:1:6')    # (GF_WAIT for 6 pauses: inside the group)
+        ok, msg = world8485()
+        if not ok:
+            return False, f'4.1 build: {msg}'
+        path = msg.split(': ', 1)[1]
+        if not path.endswith('.CAR') or not os.path.isfile(path):
+            return False, f'no 4.1 save inside the group: {msg}'
+        os.environ.pop('W8485_MIDSAVE')
+        os.environ.update(base, W8485_BUILD=exe, W8485_FROM=path,
+                          W8485_HEX=f'{log_at:x}:{log_n},{st_at:x}:{st_n},{gft:x}:4' + NZ_PHHEX)
+        ok2, msg2 = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    lines = open(os.path.join(RUNS, w84_tag() + '_2', 'session.log'), errors='replace').read().splitlines()
+    errs = []
+    check(ok2, f'4.1.1 from the 4.1 save: {msg2}', errs)
+    logs = [bytes.fromhex(ln.split()[2]) for ln in lines if ln.startswith(f'HEX {log_at:x} ')]
+    logs = [b for b in logs if b[:4] == b'GPLG']
+    if not logs:
+        return False, f'{msg2}; no season-end log after the 4.1 save'
+    kl = gp_ko(logs[-1][8:])
+    champ = kl['team'][kl['tw'][0]] if kl['tw'] and kl['tw'][0] < kl['n'] else None
+    fin = [kl['team'][x] for x in (kl['tw'][0], kl['tl'][0]) if x < kl['n']] if kl['tw'] else []
+    res = [struct.unpack_from('<BBHHHH', logs[-1], 942 + 10 * i) for i in range(min(logs[-1][683], 4))]
+    sts = [bytes.fromhex(ln.split()[2]) for ln in lines if ln.startswith(f'HEX {st_at:x} ')]
+    gfs = [gp_ko(b[GP_STKO + GP_KO['size']:]) for b in sts]
+    gfs = [x for x in gfs if x['kind'] == 11]
+    mgr = gfs[0]['team'][0] if gfs else None                       # (the 4.1 placeholder: the career club first)
+    check(champ is not None and any(r[0] == 5 and r[2] == champ for r in res), f'title {res}, champion {champ}', errs)
+    check(len(fin) == 2 and mgr is not None and mgr not in fin, f'final {[hex(x) for x in fin]}, career club {mgr}', errs)
+    note = nz_phantom(lines, gft, mgr, fin, errs, st_at) if len(fin) == 2 else ''
+    return not errs, '; '.join(errs) or f'4.1 save {path}; final {[hex(x) for x in fin]}, champion {champ:#x}; {note}'
+
+
+@scenario
 def world_gplay_nzgf_lost():
     """NZ Grand Final lost (GPLAY_KOFORCE=1): the opponent is the champion (title result, season-end log)"""
     return world_gplay_nzchamp(kof='1')

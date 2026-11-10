@@ -1,8 +1,8 @@
 /* ctdraw.c - 4.2 engine P7: the World 2026-27 confederation cups' group draw by the rules library's
    sr_group_draw_k (tools/swce/sr_stage.c, cap 1 = sr_group_draw_p), on the engine's C stack (cstack.h).
 
-   In the exe it is #included by lrank.c (one linked copy of sr_stage in obj4, P1); conti.c calls ct_sdraw through
-   its obj1 .data pointer CT_SDRAW (conti.py sdraw_patch). NATIVE (conti.py --test): compiled on its own with
+   In the exe it is #included by ctband.c (4.2 AFC mode: its own link after lrank's in the code band - MC 11/11); conti.c calls
+   ct_place through its obj1 .data pointer CT_SDRAW (conti.py sdraw_patch). NATIVE (conti.py --test): compiled on its own with
    sr_stage.c and called directly.
 
    ct_sdraw(n, g, assoc, cap, seed, grp, tag): n clubs in seeding order (pot p = clubs p*g .. p*g+g-1) into g

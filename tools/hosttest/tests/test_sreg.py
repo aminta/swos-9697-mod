@@ -19,7 +19,7 @@ Piece 4 (n7-p4.md §3, §6b):
 - SREG_WORLD the shape's world (5, World 2026-27: the SREG_FORCE build's); a career of world 4 (1984-85) saves no
   'IT', and its load leaves the registry as it was (SREG_LAST 0) even with an 'IT' in the block;
 - the section's flags: SREG_FLAGS (PENDING | season 27 << 8) saved at +8, read back by a load, 0 after sreg_new and
-  after a load of another layout."""
+  after a load of another layout; the same registry with flags 0 and 3 loads as 1 both times (+8 not in the layout)."""
 import json
 import os
 import re
@@ -236,6 +236,19 @@ def test_sreg():
     m.load(SF)
     if last() != 1 or flags() != FL:
         errs.append(f'flags: load {last()}, SREG_FLAGS {flags():#x} (want 1, {FL:#x})')
+    S3 = bytearray(SF)                                      # (flags 3, the same registry: the layout check does
+    o3, p3 = None, HDR                                      #  not hash +8 - loads as 1, the flags back)
+    while o3 is None and struct.unpack_from('<H', SF, p3)[0]:
+        k3, n3 = struct.unpack_from('<HH', SF, p3)
+        o3, p3 = (p3 + 4 + 8 if k3 == IT else None), p3 + 4 + n3
+    S3[o3:o3 + 2] = struct.pack('<H', 3)
+    S0 = bytearray(SF)
+    S0[o3:o3 + 2] = b'\0\0'
+    for fl, blk in ((0, S0), (3, S3)):
+        m.call('sreg', 'sreg_new')
+        m.load(bytes(blk))
+        if last() != 1 or flags() != fl:
+            errs.append(f'flags {fl}: load {last()}, SREG_FLAGS {flags():#x} (want 1, {fl:#x})')
     shape(ITALY35, D35)
     m.load(SF)
     if last() != 0 or flags():

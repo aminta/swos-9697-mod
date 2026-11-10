@@ -369,7 +369,10 @@ class Pack:
             pool, first = rs.get('pool') or [], rs.get('first') or []
             _need(set(pool) == set(self.reserve_clubs) and set(first) <= set(pool) and rs.get('then', 'rotation') == 'rotation',
                   f"{self.league['key']}: reserve {{first, pool = every 'reserve' club of clubs.csv, then: 'rotation'}}")
-        self.pool_file = self.files[self.league['clubs']][0] if self.pool_key else None
+        lowf = self.league['clubs']                 # (S7: the off-file pool swaps on the lowest level's file)
+        if self.shaped:
+            lowf = next(r for r in roles if len(divs) - 1 in self.meta['files'][r]['divisions'])
+        self.pool_file = self.files[lowf][0] if self.pool_key else None
         st_res = [c for c in self.comps if c['type'] == 'state' and (c.get('reserve') or {}).get('off_file')]
         if st_res:                              # state championships' off-file pools (Brazil 2026: the A2 clubs)
             _need(not self.pool_key, f"{self.meta['id']}: one off-file pool kind per pack (league or states)")
@@ -584,17 +587,17 @@ class Pack:
 
     def _shape_check(self, roles, nd):
         """A shaped pack's checks (S7, n7-p4.md §1-§2): the league's own file is a role; every division in exactly one
-        role; every club on a role's rows (the clubs off the files = L-Italy's light pool, later); the reserve = the pool
-        rows, on file (no off-file pool: the registry replaces RI's swaps); sreg.shape_of's order / size checks."""
+        role; every club on a role's rows, or in the off-file pool ('pool', with an 'off_file' reserve: MC 11/11, S7's
+        stand-ins as in 4.1, RI's identity swaps on the lowest level's file); sreg.shape_of's order / size checks."""
         import sreg
         w = f"{self.meta['id']}: a league over {len(roles)} team files"
         _need(self.league['clubs'] in roles, f"{w}: the league's own file '{self.league['clubs']}' has no 'divisions'")
         got = sorted(d for r in roles for d in self.meta['files'][r]['divisions'])
         _need(got == list(range(nd)), f"{w}: the roles' 'divisions' must hold each division 0..{nd - 1} once ({got})")
-        off = [k for k, c in self.clubs.items() if c['file'] not in roles]
-        _need(not off, f"{w}: clubs off the team files ({off[:3]}): not before L-Italy's light pool")
         rs = self.league.get('reserve')
-        _need(not rs or not rs.get('off_file'), f"{w}: the reserve is the pool rows (on file), not 'off_file'")
+        offok = ('pool',) if rs and rs.get('off_file') else ()
+        off = [k for k, c in self.clubs.items() if c['file'] not in roles + list(offok)]
+        _need(not off, f"{w}: clubs off the team files ({off[:3]}): only the off-file reserve's ('pool')")
         try:
             sreg.shape_of(self)
         except AssertionError as e:

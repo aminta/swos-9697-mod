@@ -4,7 +4,7 @@ obj4+swreg.SREG_AT, under lrank.LR_AT, and its SWC1 section 'IT' (swe.c it_save 
 DORMANT until a world has a registry shape (S7: Italy's files 102 + 144, piece 4's pack data): shape() is None, sreg.c
 is not linked, swe.c's SREG_FN stays 0, no 'IT' is written and SWC1 keeps its 32 B - a save is byte-identical to one
 of the build before. SREG_FORCE=1 (test builds only, host tests): sreg.c linked with an empty shape the host test
-pokes (italy42's), SWC1 sized for ITALY_ROWS, SREG_WORLD FORCE_WORLD.
+pokes (S7's, MC 11/11), SWC1 sized for ITALY_ROWS, SREG_WORLD FORCE_WORLD.
 
 Piece 4 (n7-p4.md §1-§3, §6b): shape() from the pack (the files' 'divisions' / 'pool_rows', clubs.csv's order and
 divisions), checked at build; patch() puts SREG_NF / SREG_NCLUB / SREG_SPEC / SREG_DIV and SREG_WORLD (the pack's world:
@@ -13,7 +13,7 @@ import os
 import re
 import struct
 
-ITALY_ROWS = 298               # italy42 §2: files 102 + 144, every row (the identity map's size in a shaped save)
+ITALY_ROWS = 262               # S7 (MC 11/11): 102 = 100 + 144 = 9 x 18, the stand-ins off-file (the map's size in a shaped save)
 SECTION = 0x5449               # 'IT'
 LABELS = {}                    # (hosttest: sreg.c's symbols)
 
@@ -188,3 +188,17 @@ def ri_layout(tabs):
         assert all(n < 256 for n in ns) and len(ns) < 256
         out += bytes((world, fl)) + struct.pack('<HH', moff, nmap) + bytes([len(ns)]) + bytes(ns)
     return bytes(out)
+
+
+def new_pool(pk):
+    """sreg_ri_import's newpool (MC 11/11): u8 per 4.1 off-file pool record (its index, import41.csv's 256 + k), its S7
+    RS index or 255 (it left the pool: one of the clubs that join Serie D). From the shaped pack's newpool41.csv
+    (tools/s7pack.py). Checks: every 4.1 index once, the kept ones a permutation of 0 .. n - 1."""
+    import csv
+    path = os.path.join(pk.path, 'newpool41.csv')
+    with open(path, encoding='utf-8', newline='') as f:
+        rows = [(int(r['pool41']), int(r['pool'])) for r in csv.DictReader(f)]
+    assert sorted(k for k, _ in rows) == list(range(len(rows))), ('sreg: newpool41.csv: 4.1 indices', path)
+    kept = sorted(v for _, v in rows if v != 255)
+    assert kept == list(range(len(kept))), ('sreg: newpool41.csv: S7 indices not 0 .. n - 1', path)
+    return bytes(v for _, v in sorted(rows))

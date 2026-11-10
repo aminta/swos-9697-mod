@@ -19534,7 +19534,8 @@ def team_choice_colours():
 def xfer_sweep(env_extra, buyer, tag):
     """tools/xfersweep.py on the release dir (a poked third-party offer for SAO PAULO's player, accepted; LIST_ROW: that
     player listed on the transfer market first = a sale): the squad loses him, the bank gains, the order stays a
-    permutation, and after a save + reload the names, the bank and the order are the same."""
+    permutation, and after a save + reload the names, the bank and the order are the same. The bank: 'L...M' (lire), or
+    from 4.1 RC3 the euro ('EUR' for the 9Ch sign: World 2026-27 is a euro world)."""
     exe = foreign_exe()
     if not exe:
         return True, 'SKIP: no release SWOS dir (FOREIGNBUY_BUILD, or SWOSTEST_BUILD / W8485_BUILD with DATA/POOL05.DAT)'
@@ -19542,10 +19543,11 @@ def xfer_sweep(env_extra, buyer, tag):
                         'SUDAMERICA,BRASILE,BRASILEIRAO SERIE A,SAO PAULO', buyer, 'accept'], capture_output=True, text=True,
                        env=dict(os.environ, SWOSTEST_RUNS=os.path.join(RUNS, 'xfer_' + tag), **env_extra), timeout=1500)
     out = r.stdout
-    deal = re.search(r"DEAL accept sold (.+?) players (\d+) -> (\d+) bank (BANCA +L[\d,]+M) -> (BANCA +L[\d,]+M) gone (\w+) .*? order_ok (\w+)", out)
-    rel = re.search(r"RELOAD players (\d+) same_names (\w+) bank (BANCA +L[\d,]+M) order_ok (\w+)", out)
-    if not deal or not rel:
-        return False, f'{tag}: no DEAL / RELOAD line: {(out + r.stderr)[-300:]!r}'
+    deal = re.search(r"DEAL accept sold (.+?) players (\d+) -> (\d+) bank (BANCA +(?:L[\d,]+M|EUR[\d,.]+)) -> (BANCA +(?:L[\d,]+M|EUR[\d,.]+)) gone (\w+) .*? order_ok (\w+)", out)
+    rel = re.search(r"RELOAD players (\d+) same_names (\w+) bank (BANCA +(?:L[\d,]+M|EUR[\d,.]+)) order_ok (\w+)", out)
+    if not deal or not rel:                             # (the DEAL line's head: its bank fields)
+        dl = next((x for x in out.splitlines() if x.startswith('DEAL')), '')
+        return False, f'{tag}: no DEAL / RELOAD line: {dl[:160]!r} ... {(out + r.stderr)[-300:]!r}'
     errs = []
     sold, n0, n1, b0, b1, gone, ok1 = deal.groups()
     check(int(n1) == int(n0) - 1 and gone == 'True' and ok1 == 'True', f'{tag}: deal {deal.group(0)[:200]}', errs)

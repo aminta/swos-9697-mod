@@ -23,7 +23,8 @@ typedef unsigned int u32;
 #define M_FRIENDLY 1                    /* (swreg.py M_*) */
 #define M_CAREER 8
 
-u8 SWE_ARENA_AT[SWE_ARENA];
+u8 SWE_ARENA_AT[SWE_ARENA];             /* [0, sizeof(sr_registry)) = sreg.c's club registry (N7, SREG_REG; sreg.c
+                                           asserts it fits); any other user above it */
 u32 SWE_STATE;                          /* 0 = not initialised, 1 = swe_init ran */
 #define CSTACK_SYM SWE_CSTACK           /* 4.2 engine P2: the engine's C stack (the game's is 4 KB), outside the arena */
 #define CSTACK_IMPL

@@ -40,12 +40,18 @@ def patch(p, syms_swe):
     import lrank
     import swreg
     src = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sreg.c')
-    obj = cobj.compile_c(src, (), sections=True)
+    with open(os.path.join(os.path.dirname(src), 'swe.c')) as h:            # (sreg.c: the registry fits the arena)
+        arena = re.search(r'#define SWE_ARENA (0x[0-9A-Fa-f]+|\d+)', h.read()).group(1)
+    obj = cobj.compile_c(src, (f'-DSWE_ARENA={arena}',), sections=True)
     roots = ['sreg_build', 'sreg_size', 'sreg_save', 'sreg_load', 'sreg_new', 'SREG_NF', 'SREG_NCLUB', 'SREG_SPEC',
              'SREG_REG', 'SREG_LAST']
     with open(os.path.join(os.path.dirname(src), 'swce', 'swosrules.h')) as h:
         ndiv = int(re.search(r'#define SR_REG_CLUBS (\d+)', h.read()).group(1))    # (SREG_DIV's bytes)
     top = getattr(swreg, 'CONTI4_AT', swreg.ST_AT)      # (conti's data once 4.1 is merged into 4.2, ST before)
+    if hasattr(swreg, 'UPRIZE2_AT'):                    # (4.1 merged: uprize2 links below SREG_DIV_AT whatever the
+        assert hasattr(swreg, 'UPRIZE2_END') and swreg.UPRIZE2_END <= swreg.SREG_DIV_AT, \
+            ('4.1 -> 4.2 merge: swreg.UPRIZE2_END (uprize part 2\'s link limit, today UPRIZE2_AT + 0x1000) must end '
+             'at or under SREG_DIV_AT', hex(swreg.SREG_DIV_AT))                # order: uprize2 placed after us)
     assert swreg.SREG_DIV_AT + ndiv <= top and not any(p.get(4, swreg.SREG_DIV_AT, ndiv)), \
         ('sreg: obj4+SREG_DIV_AT not free / past conti', hex(swreg.SREG_DIV_AT), hex(top))
     assert p.le.obj(4).npages * 0x1000 >= lrank.LR_AT, ('sreg: obj4 has no page at SREG_AT (a world build: lrank)',

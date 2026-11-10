@@ -894,7 +894,6 @@ def patch_exe(src, dst, remap, lang='it'):
     import sreg                                  # 4.2 N7: the club registry (dormant without a shape: nothing linked)
     sreg_end = sreg.patch(p, swe.LABELS)
     if sreg_end is not None:
-        import swreg
         assert sreg_end <= lrank.LR_AT, ('sreg past LR_AT', hex(sreg_end), hex(lrank.LR_AT))
     benchx.link_w27(p)                           # (4.0.6 step 2.5: the friendlies' long bench by SWE_W27)
     tailzero.patch(p, tz_at, obj2_free + o2pages * p.le.page_size, (tail + 3) & ~3, nasmcave,   # (DOS/4GW: not zeroed;

@@ -30,6 +30,7 @@ sr_registry *SREG_REG DATA = 0;         /* sreg.py: -> the engine arena (swe.c S
 int32_t SREG_LAST DATA = 0;             /* the last sreg_load's result (1 / 0 / -1; harness) */
 static int32_t built DATA = 0;          /* *SREG_REG holds this career's registry */
 #define REG (*SREG_REG)
+typedef char registry_fits_the_arena[sizeof(sr_registry) <= SWE_ARENA ? 1 : -1];   /* (sreg.py: swe.c's SWE_ARENA) */
 
 static uint32_t layout(void) { return sr_reg_layout(SREG_NF, SREG_SPEC, SREG_NCLUB); }
 

@@ -2650,7 +2650,7 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
         assert not any(p.get(1, at, len(ssf)))
         p.put(1, at, ssf)
         ssf_at, at = at, (at + len(ssf) + 15) & ~15
-    obj = cobj.compile_c(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'gplay.c'), [f'-DSS_NB={nb}', f'-DGP_FORCE={force}', f"-DSEC_FORCE={int(os.environ.get('SEC_FORCE') or 0)}",
+    obj = cobj.compile_c(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'gplay.c'), [f'-DSS_NB={nb}', f'-DGP_FORCE={force}', f'-DGP_SPST={split.ST}', f"-DGP_SPGRP={split.OFF['grp']}", f"-DGP_SPPRE={split.OFF['pre']}", f'-DGP_SPMAGIC={split.MAGIC}', f"-DSEC_FORCE={int(os.environ.get('SEC_FORCE') or 0)}",
                                 f"-DSEC_FORCE_B={int(os.environ.get('SEC_FORCE_B') or 0xFFFF)}",
                                 f"-DGP_RLFORCE={int(os.environ.get('GPLAY_RLFORCE') or 0)}",
                                 f"-DGP_KOFORCE={int(os.environ.get('GPLAY_KOFORCE') or 0)}",

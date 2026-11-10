@@ -22727,8 +22727,8 @@ def world_strmap():
     record line (+16h..+22h) is read in memory: a rel the map moves -> its new rel and the 4.1 text
     (release/strmap/v4.1-<UI>.json), a rel not in the map unchanged with its 4.1 text, a gone one any name (the
     heuristic). Then saved (ESCI -> SALVA CARRIERA): someLeaguesTable[1842] = 1, [1843] = FFh, the table's sum 0.
-    STM_EXPECT=old: the same save on a copy of the build without STRMAP41.DAT (the control) - the moved lines keep
-    their 4.1 rel (another name)."""
+    STM_EXPECT=old: the same save on a copy of the build without STRMAP41.DAT (the control) - the moved lines lose
+    their 4.1 name (10/11: the heuristic clears FINAL FOUR PREMIER LGE's line, the record shows nothing)."""
     exe = os.environ.get('STM_BUILD') or os.path.join(MAIN, 'c', 'REL42strmap4', 'SWOS')
     car = os.environ.get('STM_CAR') or os.path.join(MAIN, 'internal', 'swostest', 'suite-41rc3-L1', f'cgg_s2_A_{UI}.CAR')
     for f in (os.path.join(exe, 'DATA', 'STRMAP41.DAT'), car):
@@ -22785,7 +22785,7 @@ def world_strmap():
                 nm = rd(sb + y) if y else b''
                 s.log.append(f'[stm] season {i} line {k}: {x:#x} {t41!r} -> {y:#x} {nm!r}')
                 if ctl:
-                    kept += x in sec and sec[x] and y == x
+                    kept += bool(x in sec and sec[x] and nm != t41)   # (lost: the heuristic's 0 / another name)
                 elif x in sec and sec[x]:
                     check(y == sec[x] and nm == t41, f'season {i} line {k}: {t41!r} {x:#x} -> {y:#x} {nm!r} '
                           f'(want {sec[x]:#x})', errs)
@@ -22796,8 +22796,8 @@ def world_strmap():
                     check(y == x and (nm == t41 or not t41), f'season {i} line {k}: {x:#x} {t41!r} -> {y:#x} {nm!r}',
                           errs)
         if ctl:
-            check(kept, 'control: no moved line kept its 4.1 rel', errs)
-            info.append(f'control: {kept} moved lines kept the 4.1 rel (other names)')
+            check(kept, 'control: every moved line kept its 4.1 name without the map', errs)
+            info.append(f'control: {kept} moved lines lose their 4.1 name without the map')
         else:
             info.append('lines as 4.1: ' + ', '.join(sorted({pin[x].decode('latin-1') for x in moved})))
         s.send(quit_and_save('w84s') + ' dump:3')

@@ -312,7 +312,8 @@ def patch(p):
     p.set_base_after(4)
     LABELS.clear()
     LABELS.update({k: v for k, v in syms.items()})
-    print(f'exe: obj4 (engine) code obj4+{CODE_AT:#x}..{end:#x} of {swreg.REG_AT:#x}, arena {bss:#x} B; the picker '
+    print(f'exe: obj4 (engine) code obj4+{CODE_AT:#x}..{end:#x} of {swreg.REG_AT:#x}, .bss {bss:#x} B (the C stack '
+          f'SWE_CSTACK obj4+{syms["SWE_CSTACK"][1]:#x}); the picker '
           f'call obj1+{site:#x} -> swe_sel_tramp obj4+{syms["swe_sel_tramp"][1]:#x} -> {pick[0]}:{pick[1]:#x}; M2 calls '
           + ', '.join(f'{cs:#x} -> {tr}' for cs, tr in calls))
     return end

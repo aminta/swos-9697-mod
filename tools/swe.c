@@ -1,6 +1,7 @@
 /* The competition engine's object (engine step O, PLAN §19; CONVENTIONS 23bis): obj4, the engine's alone - its code in
    the file pages after the header (swe.py), its arena the zero-filled tail (.bss). DOS/4GW zeroes no tail, so the
-   engine zeroes the arena itself: swe_init() first, before any other engine call that uses the arena.
+   engine zeroes the arena itself: swe_init() first, before any other engine call that uses the arena or cstack_call
+   (4.2: SWE_CSTACK, a 16 KB C stack for the engine's deep code - cstack.h; swe_init paints it).
 
    Step W adds the world registry's loader (swreg.py writes the manifest at SWE_REG): reg_enter / reg_leave put a
    world's country namespace into the game's tables and back, in any mode (careerworld's w_ns_set does the swap; the
@@ -24,6 +25,10 @@ typedef unsigned int u32;
 
 u8 SWE_ARENA_AT[SWE_ARENA];
 u32 SWE_STATE;                          /* 0 = not initialised, 1 = swe_init ran */
+#define CSTACK_SYM SWE_CSTACK           /* 4.2 engine P2: the engine's C stack (the game's is 4 KB), outside the arena */
+#define CSTACK_IMPL
+#include "cstack.h"
+u8 SWE_CSTACK[CSTACK_SIZE] __attribute__((aligned(16)));
 extern const u8 SWE_REG[];              /* obj4+REG_AT: the manifest */
 u32 REG_PREV = 0xFFFFFFFF;              /* the namespace reg_enter left (WCUR), ~0 = none entered */
 u32 SEL_C254 = 0;                       /* competitionsTable[254] at the picker's entry */
@@ -34,6 +39,7 @@ int swe_init(void)
     volatile u8 *a = SWE_ARENA_AT;      /* (volatile: no memset call for clang to emit - there is no library) */
     for (u32 i = 0; i < SWE_ARENA; i++)
         a[i] = 0;
+    cstack_init();
     SWE_STATE = 1;
     return SWE_VERSION;
 }

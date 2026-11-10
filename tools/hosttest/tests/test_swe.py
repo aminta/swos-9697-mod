@@ -1,7 +1,8 @@
 """Engine step O (CONVENTIONS 23bis): obj4, the engine's object, on its own - no snapshot, no game state. The exe's obj4
 (HT_SWE_EXE, else c/HTO4/SWOS/ITALIAN.EXE) relocated at a base of its own in a bare Unicorn machine (flat 4 GB
 segments), its zero-fill tail (the arena) filled with garbage as DOS/4GW may leave it, then swe_init() through the
-header's pointer: it returns the version, zeroes the whole arena and nothing past it, and sets SWE_STATE."""
+header's pointer: it returns the version, zeroes the whole arena and nothing past it, paints the C stack (4.2,
+SWE_CSTACK: outside the arena, 16-aligned, its state words 0) and sets SWE_STATE."""
 import os
 import struct
 import sys
@@ -14,6 +15,7 @@ from le import LE  # noqa: E402
 HOME = os.path.expanduser('~')
 EXE = os.environ.get('HT_SWE_EXE') or os.path.join(HOME, 'swos-mod', 'c', 'HTO4', 'SWOS', 'ITALIAN.EXE')
 BASE, STACK, RET = 0x400000, 0x300000, 0x2FF000
+CSTACK = 16384                                                  # (cstack.h CSTACK_SIZE)
 
 
 def test_swe_init():
@@ -63,7 +65,13 @@ def test_swe_init():
     if mem[o.vsize:size] != b'\xBB' * (size - o.vsize):
         errs.append('wrote past obj4\'s vsize')
     s0 = state_p - BASE
-    tail = [i for i in range(file_n, o.vsize) if not a0 <= i < a1 and not s0 <= i < s0 + 4 and mem[i] != 0xAA]
+    cs = mem.find(b'\xA5' * (CSTACK - 12) + bytes(12), file_n)    # (4.2: SWE_CSTACK painted, its state words 0)
+    if cs < 0 or cs % 16 or a0 <= cs < a1 or a0 < cs + CSTACK <= a1 or cs + CSTACK > o.vsize:
+        errs.append(f'C stack not painted in the tail outside the arena ({cs:#x})')
+        cs = -CSTACK
+    tail = [i for i in range(file_n, o.vsize) if not a0 <= i < a1 and not s0 <= i < s0 + 4 and not cs <= i < cs + CSTACK
+            and mem[i] != 0xAA]
     if tail:
         errs.append(f'tail bytes outside the arena changed: {[hex(i) for i in tail[:4]]}')
-    return not errs, '; '.join(errs) or f'v{rv}, arena obj4+{a0:#x}..{a1:#x} zeroed (was 0xAA), SWE_STATE 1, vsize {o.vsize:#x}'
+    return not errs, '; '.join(errs) or (f'v{rv}, arena obj4+{a0:#x}..{a1:#x} zeroed (was 0xAA), C stack obj4+{cs:#x} '
+                                         f'painted, SWE_STATE 1, vsize {o.vsize:#x}')

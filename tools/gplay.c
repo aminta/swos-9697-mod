@@ -77,6 +77,7 @@ struct gp_in {
                                            group contest's (the Poule): pl_w[0] / [1] = its champion / runner-up */
     u8 pi[2], sim[SDX];                 /* gp_need: the play-offs to play (spec index, 0xFF), divisions simulated early */
     u16 pl_w[KT];                       /* gp_end: the played play-off's tie winners (team words, 0 = not played) */
+    u16 pl_fw, pl_fl;                   /* 4.2: its final's winner, loser (a title play-off's champion, runner-up) */
 };
 struct gp_mv { u16 glob, team; s8 delta; u8 pad[3]; };
 struct gp_res { u8 kind, div; u16 team[2], glob[2]; };     /* title: [0] the champion; continental: winner, loser */
@@ -1440,6 +1441,7 @@ GP_KOSIZE void gp_season(void) {
             r = m + 2 * ties;
         }
         if (ldiv == RESERVE) ldiv = GP_IN.nd;   /* (the reserve: out of every division) */
+        const int pfin = kind == K_TITLE && !GP_IN.pl_t2 && GP_IN.pl_pi == pidx + 1 && team_club(GP_IN.pl_fw) >= 0;
         if (kind == K_STAGE) {                  /* a stage title: its champion / runner-up, no move, no league title */
             struct gp_res *x = (wdiv & 3) < 3 ? &sres_of(wdiv >> 2)[wdiv & 3] : 0;
             if (x && dec) {
@@ -1453,6 +1455,9 @@ GP_KOSIZE void gp_season(void) {
             }
         } else if (kind == K_TITLE && GP_IN.pl_t2 && GP_IN.pl_pi == pidx + 1 && team_club(GP_IN.pl_w[0]) >= 0) {
             result(kind, team_club(GP_IN.pl_w[0]), team_club(GP_IN.pl_w[1]));   /* (played: a group contest's final) */
+        } else if (pfin) {                      /* 4.2: played: the contest's own final, not the re-run's (its seeds may
+                                                   differ from the league end's: RC3 world_title_mlt) */
+            result(kind, team_club(GP_IN.pl_fw), GP_IN.pl_fl ? team_club(GP_IN.pl_fl) : -1);
         } else if (ok && (kind == K_TITLE || kind == K_CONT) && glast >= 0 && !kog) {   /* a final group: its 1st (2nd) */
             result(kind, P[glast], np - glast > 1 ? P[glast + 1] : -1);
         } else if (ok && (kind == K_TITLE || kind == K_CONT) && last >= 0) {   /* the last tie's winner (loser) */
@@ -1482,6 +1487,8 @@ GP_KOSIZE void gp_season(void) {
                                                                                 : 0xFFFF);
         else if (kind == K_TITLE && GP_IN.pl_t2 && GP_IN.pl_pi == pidx + 1)
             wn_add('K', pidx, GP_IN.pl_w[0] ? GP_IN.pl_w[0] : 0xFFFF);
+        else if (pfin)
+            wn_add('K', pidx, GP_IN.pl_fw);
         else if (ok && kind != 4 && (glast >= 0 || last >= 0))
             wn_add('K', pidx, row(glast >= 0 && !(kog && last >= 0) ? P[glast] : W[last])->team);
         if (ok && kind == K_TITLE && glast < 0)  /* (a title play-off's last three ties: the MLS conference finals) */
@@ -3195,6 +3202,7 @@ void gp_played_c(void) {
     struct gp_ko *k = &GP_ST.ko[0];
     GP_IN.pl_pi = 0;
     GP_IN.pl_t2 = 0;
+    GP_IN.pl_fw = GP_IN.pl_fl = 0;
     if (k->kind == K_CUPD) return;      /* (a Coppa Italia Serie D tie: not a play-off of the spec) */
     if (GP_ST.magic != MAGIC || GP_ST.season != GP_SEAS || k->magic != MAGIC || k->season != GP_SEAS) return;
     GP_IN.pl_pi = k->pi + 1;
@@ -3207,6 +3215,11 @@ void gp_played_c(void) {
     }
     resolve(k);
     for (int t = 0; t < KT; t++) GP_IN.pl_w[t] = t < k->ntie && k->tw[t] != NOC ? k->team[k->tw[t]] : 0;
+    int f = k->ntie - 1;                /* (4.2: its final - gp_season's title play-off result) */
+    if (f >= 0 && f < KT && k->tw[f] != NOC) {
+        GP_IN.pl_fw = k->team[k->tw[f]];
+        GP_IN.pl_fl = k->tl[f] != NOC && k->tl[f] != k->tw[f] ? k->team[k->tl[f]] : 0;
+    }
 }
 
 #ifndef GP_GSON

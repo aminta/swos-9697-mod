@@ -22615,6 +22615,55 @@ def world_uesum():
     return not errs, '; '.join(errs) or '; '.join(info)
 
 
+@scenario
+def world_c23():
+    """4.2 (42-c23, Shaved 10/11): a career save from another build, loaded mid-season with a continental cup running:
+    the continental slots' long-name pointer (DIY+27h, absolute - gp_repoint_c skipped slots 2 / 3 before) must land on
+    the slot's own saved title (DIY+4, the long name), else the running cup's name and its season-record line
+    (+1Eh / +22h = DIY+27h - STR_BASE at the season end) are another build's string. C23_CAR (default the 4.1
+    world_uesum save internal/swostest/suite-41s37-itl/cv_s2_<UI>.CAR) on C23_BUILD; C23_EXPECT=stale: the control
+    build (no fix) must show at least one stale pointer."""
+    exe = os.environ.get('C23_BUILD')
+    car = os.environ.get('C23_CAR') or os.path.join(MAIN, 'internal', 'swostest', 'suite-41s37-itl', f'cv_s2_{UI}.CAR')
+    if not exe:
+        return False, 'C23_BUILD not set'
+    if not os.path.exists(car):
+        return False, f'no save {car}'
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import split
+    import lepatch
+    sp = split.sites(lepatch.LEPatch(os.path.join(MAIN, 'orig', 'ITALIAN.EXE')))['SLOTS']
+    errs, info, seen = [], [], []
+    with Session('world_c23', exe, {'W84A.CAR': car}, 'dump:2', 600) as s:
+        s.wait()
+        s.send(LOAD1 + ' dump:3')
+        for _ in range(6):
+            if s.screen().find('VISUAL. COMPETIZ.', exact=True) is not None:
+                break
+            press(s, s.screen(), 'CONTINUA', 3) or s.send('fire dump:2')
+        check(s.screen().find('VISUAL. COMPETIZ.', exact=True) is not None, f'career menu not reached: {s.screen()}', errs)
+        for k in (2, 3):
+            lin = struct.unpack('<I', s.result.obj2(sp + 4 * k, 4))[0]
+            if not lin:
+                continue
+            d = bytes(s.result.read(lin, 0x40))
+            title = d[4:38].split(b'\0')[0]
+            p27 = struct.unpack_from('<I', d, 0x27)[0]
+            if not title or not p27:
+                continue
+            got = bytes(s.result.read(p27, 42)).split(b'\0')[0] if p27 < 0x8000000 else b'(out of memory)'
+            ok = got == title or (len(title) == 34 and got.startswith(title))
+            seen.append(ok)
+            s.log.append(f'[c23] slot {k}: title {title!r} DIY+27h {p27:#x} -> {got!r} {"OK" if ok else "STALE"}')
+            info.append(f'slot {k} {title.decode("latin-1")} -> {got.decode("latin-1")!r}')
+        check(seen, 'no continental slot with a title and a name pointer in the save', errs)
+        if os.environ.get('C23_EXPECT') == 'stale':
+            check(seen and not all(seen), f'control build: no stale pointer ({info})', errs)
+        else:
+            check(all(seen), f'stale continental name pointer: {info}', errs)
+    return not errs, '; '.join(errs) or '; '.join(info)
+
+
 def season_playing_at(r, exe):
     """seasonPlaying's linear address in this run (uesum.season_var: InitializeNewSeason's add / cmp / mov, its fixup
     in the exe file - S2b's season stamp is its value + 1)."""

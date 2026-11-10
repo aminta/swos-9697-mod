@@ -22719,6 +22719,97 @@ def world_c23():
     return not errs, '; '.join(errs) or '; '.join(info)
 
 
+@scenario
+def world_strmap():
+    """4.2 option C (strmap.py, Shaved 10/11): a 4.1 career save's past-season names on this build. STM_CAR (default
+    the 4.1 RC3 save suite-41rc3-L1/cgg_s2_A_<UI>.CAR: two seasons, 'FINAL FOUR PREMIER LGE' moved since 4.1) on
+    STM_BUILD (a release-recipe dir with DATA/STRMAP41.DAT, default c/REL42strmap4/SWOS); after the load every
+    record line (+16h..+22h) is read in memory: a rel the map moves -> its new rel and the 4.1 text
+    (release/strmap/v4.1-<UI>.json), a rel not in the map unchanged with its 4.1 text, a gone one any name (the
+    heuristic). Then saved (ESCI -> SALVA CARRIERA): someLeaguesTable[1842] = 1, [1843] = FFh, the table's sum 0.
+    STM_EXPECT=old: the same save on a copy of the build without STRMAP41.DAT (the control) - the moved lines keep
+    their 4.1 rel (another name)."""
+    exe = os.environ.get('STM_BUILD') or os.path.join(MAIN, 'c', 'REL42strmap4', 'SWOS')
+    car = os.environ.get('STM_CAR') or os.path.join(MAIN, 'internal', 'swostest', 'suite-41rc3-L1', f'cgg_s2_A_{UI}.CAR')
+    for f in (os.path.join(exe, 'DATA', 'STRMAP41.DAT'), car):
+        if not os.path.exists(f):
+            return False, f'no {f}'
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import gplay
+    import lepatch
+    import sacups
+    import strmap
+    lang = ['it', 'en', 'fr', 'de'].index(UI)
+    dat = open(os.path.join(exe, 'DATA', 'STRMAP41.DAT'), 'rb').read()
+    off, cnt = struct.unpack_from('<2I', dat, 12 + 8 * lang)
+    sec = dict(struct.unpack_from('<2I', dat, off + 8 * i) for i in range(cnt))
+    pin = strmap.load_pin(UI)
+    ctl = os.environ.get('STM_EXPECT') == 'old'
+    if ctl:                                             # (the control: the build without the map, copied - no links)
+        nomap = os.path.join(RUNS, 'stm_nomap', 'SWOS')
+        shutil.rmtree(os.path.dirname(nomap), ignore_errors=True)
+        shutil.copytree(exe, nomap, symlinks=False)
+        os.remove(os.path.join(nomap, 'DATA', 'STRMAP41.DAT'))
+        exe = nomap
+    lp = lepatch.LEPatch(os.path.join(MAIN, 'orig', UI_ORIG_OF[UI]))
+    d1 = lp.le.obj_bytes(1)
+    a1 = re.escape(struct.pack('<I', sacups.regs(d1)['A1']))     # (careerFileBuffer: LoadCareerFile's A1, trailer.py)
+    m = [x for x in re.finditer(rb'\xc7\x05' + a1 + rb'(.{4})\xe8.{4}\x75.\xe8.{4}\x75.\xe8(.{4})', d1, re.S)]
+    m = [x for x in m if sum(y.group(1) == x.group(1) for y in m) == 1]
+    sr = gplay._sack_sites(lp)['seasrec']
+    ro = sr - struct.unpack('<I', m[0].group(1))[0]               # (the records' offset in the .CAR)
+    fd = open(car, 'rb').read()
+    old = []
+    for i in range(64):
+        r_ = fd[ro + 106 * i:ro + 106 * i + 106]
+        if len(r_) < 106 or not r_[2]:
+            break
+        old.append(struct.unpack_from('<4I', r_, 0x16))
+    moved = [x for f_ in old for x in f_ if x and sec.get(x)]
+    errs, info = [], [f'save {os.path.relpath(car, MAIN)}: {len(old)} seasons, {sum(1 for f_ in old for x in f_ if x)} '
+                      f'lines, {len(moved)} moved']
+    check(moved, 'the save has no line the map moves (pick another STM_CAR)', errs)
+    with Session('world_strmap', exe, {'W84A.CAR': car}, 'dump:2', 600) as s:
+        s.wait()
+        s.send(LOAD1 + ' dump:3')
+        sb = s.result.base2 + (sacups.STR_BASE or 0x16F8)
+        rd = lambda a: bytes(s.result.read(a, 42)).split(b'\0')[0] if 0 < a < 0x8000000 else b'?'
+        got = [struct.unpack_from('<4I', bytes(s.result.read(s.result.base2 + sr + 106 * i, 106)), 0x16)
+               for i in range(len(old))]
+        kept = 0
+        for i, (f0, f1) in enumerate(zip(old, got)):
+            for k, (x, y) in enumerate(zip(f0, f1)):
+                if not x:
+                    continue
+                t41 = pin.get(x, b'')
+                nm = rd(sb + y) if y else b''
+                s.log.append(f'[stm] season {i} line {k}: {x:#x} {t41!r} -> {y:#x} {nm!r}')
+                if ctl:
+                    kept += x in sec and sec[x] and y == x
+                elif x in sec and sec[x]:
+                    check(y == sec[x] and nm == t41, f'season {i} line {k}: {t41!r} {x:#x} -> {y:#x} {nm!r} '
+                          f'(want {sec[x]:#x})', errs)
+                elif x in sec:
+                    check(re.fullmatch(rb"[A-Z0-9][A-Z0-9 .'/&()-]+", nm), f'season {i} line {k}: gone {t41!r} '
+                          f'-> {nm!r}', errs)
+                else:
+                    check(y == x and (nm == t41 or not t41), f'season {i} line {k}: {x:#x} {t41!r} -> {y:#x} {nm!r}',
+                          errs)
+        if ctl:
+            check(kept, 'control: no moved line kept its 4.1 rel', errs)
+            info.append(f'control: {kept} moved lines kept the 4.1 rel (other names)')
+        else:
+            info.append('lines as 4.1: ' + ', '.join(sorted({pin[x].decode('latin-1') for x in moved})))
+        s.send(quit_and_save('w84s') + ' dump:3')
+        path = os.path.join(s.run, 'SWOS', 'W84S.CAR')
+        if check(os.path.exists(path), 'W84S.CAR not written', errs):
+            tab = open(path, 'rb').read()[SLT:SLT + 2000]
+            check(tab[strmap.TAG_GLOBAL] == strmap.TAG and tab[strmap.TAG_GLOBAL + 1] == -strmap.TAG & 0xFF
+                  and sum(tab) % 256 == 0, f'saved tag {tab[1842]} / {tab[1843]}, sum {sum(tab) % 256}', errs)
+            info.append(f'saved: tag {tab[1842]} + {tab[1843]:#x}, sum 0')
+    return not errs, '; '.join(errs) or '; '.join(info)
+
+
 def c23_slot3(s):
     """(world_c23_ct) slot 3's title, header bytes (+2Dh..+2Fh: id, ...) and its calendar entries still to play from
     the cursor (slot byte 3, round byte not FFh); None without a slot-3 buffer."""

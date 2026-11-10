@@ -27876,7 +27876,7 @@ def world_gplay_nzchamp(force='1', team='OCEANIA,NUOVA ZELANDA,NORTHERN LGE|NORT
         os.environ['W2627REL_DATA'] = src                              #  championship's, absent from the old default)
         _LABEL_DATA.clear()
     os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+',
-                      W8485_NOSACK='1', W8485_HEX=f'{log_at:x}:{log_n},{st_at:x}:{st_n},{gft_at(exe):x}:4' + os.environ.get('NZ_HEXPLUS', ''), W8485_ONE='1')
+                      W8485_NOSACK='1', W8485_HEX=f'{log_at:x}:{log_n},{st_at:x}:{st_n},{gft_at(exe):x}:4' + os.environ.get('NZ_HEXPLUS', NZ_PHHEX), W8485_ONE='1')
     if real:                                                           # (the group's last matches only: 9 settled)
         os.environ.update(W8485_REALPLAY=real, W8485_TMO='1500', W8485_REALSKIP='8')
     if two:                                                            # (two seasons: save, reload, the second)
@@ -27893,7 +27893,7 @@ def world_gplay_nzchamp(force='1', team='OCEANIA,NUOVA ZELANDA,NORTHERN LGE|NORT
     check(ok, msg, errs)
     for sn in ((1, 2) if two else (1,)):
         lines = open(os.path.join(RUNS, w84_tag() + f'_{sn}', 'session.log'), errors='replace').read().splitlines()
-        ok1, m1 = nzchamp_season(lines, st_at, log_at, res_words, gff, kof, errs, rest, team=team)
+        ok1, m1 = nzchamp_season(lines, st_at, log_at, res_words, gff, kof, errs, rest, team=team, gft=gft_at(exe))
         if not ok1:
             return False, f'{msg}; season {sn}: {m1}'
     return not errs, '; '.join(errs) or f'{msg}; {m1}'
@@ -27977,7 +27977,49 @@ def gft_at(exe):
     return struct.unpack_from('<I', d1, k + 8 + 4 * 19)[0]
 
 
-def nzchamp_season(lines, st_at, log_at, res_words, gff, kof, errs, rest=False, team=''):
+NZ_PHHEX = ',1b52c:8000,17256:1300'                                 # (4.1.1: the calendar from CAL - 4, careerTeam)
+
+
+def nz_phantom(lines, gft, mgr, fin, errs):
+    """4.1.1 NZ Grand Final without the career club (gf_drop_c, GP_GFT 9): from the drop on, the slot-4 calendar
+    entries' pairing (+12 / +14) is the two finalists, never the career club (4.0.5-4.1: the placeholder's career club
+    v the group's other club, played as a computer match - Panchina's phantom 0-4, a card, an injury), and no record
+    of careerTeam gains a card or an injury (cardsInjuries, +27) after it. Returns a note"""
+    at = next((i for i, ln in enumerate(lines) if ln.startswith(f'HEX {gft:x} ')
+               and struct.unpack('<I', bytes.fromhex(ln.split()[2]))[0] == 9), None)
+    check(at is not None, f'GP_GFT 9 (the real final without the career club, gf_drop_c) never seen', errs)
+    if at is None:
+        return ''
+    pairs, ci0, worse = set(), None, []
+    for ln in lines[at:]:
+        p = ln.split()
+        if len(p) != 3 or p[0] != 'HEX':
+            continue
+        b = bytes.fromhex(p[2])
+        if p[1] == '1b52c':
+            n, o = struct.unpack_from('<H', b)[0], 4
+            for _ in range(n):
+                if o + 16 > len(b):
+                    break
+                ln_ = struct.unpack_from('<H', b, o + 2)[0]
+                if not ln_:
+                    break
+                if b[o] == 4:
+                    pairs.add(struct.unpack_from('<HH', b, o + 12))
+                o += ln_
+        elif p[1] == '17256' and len(b) >= 684 + 14 * 38:
+            ci = [b[76 + q * 38 + 27] for q in range(16)] + [b[684 + q * 38 + 27] for q in range(14)]
+            if ci0 is not None:
+                worse += [(q, ci0[q], ci[q]) for q in range(30) if ci[q] > ci0[q]]
+            ci0 = ci
+    check(pairs and all(set(x) == set(fin) for x in pairs) and not any(mgr in x for x in pairs),
+          f'slot-4 pairings after the drop {[[hex(t) for t in x] for x in pairs]} (want the final '
+          f'{[hex(x) for x in fin]}, never the career club {hex(mgr) if mgr is not None else None})', errs)
+    check(not worse, f'careerTeam cards / injuries after the drop (record, before, after): {worse[:4]}', errs)
+    return f'real final without the career club: pairings {[[hex(t) for t in x] for x in pairs]}, no card / injury'
+
+
+def nzchamp_season(lines, st_at, log_at, res_words, gff, kof, errs, rest=False, team='', gft=None):
     """world_gplay_nzchamp's checks on one season's session log: (False, why) when there is nothing to check"""
     sts = [bytes.fromhex(ln.split()[2]) for ln in lines if ln.startswith(f'HEX {st_at:x} ')]
     sts = [b for b in sts if b[:2] == b'GK']
@@ -28012,6 +28054,8 @@ def nzchamp_season(lines, st_at, log_at, res_words, gff, kof, errs, rest=False, 
         check(mgr is not None and mgr not in fin, f"career club {mgr} kept out: final {[hex(x) for x in fin]}", errs)   # final:
                                                                        # decided at once, the season goes on - Panchina's
                                                                        # rc19 stop at the placeholder, step 179)
+        if gft is not None and not os.environ.get('NZ_HEXPLUS'):
+            note.append(nz_phantom(lines, gft, mgr, fin, errs))
         fl = [ln for ln in lines if 'CHAMPIONSHIP FINALE' in ln]
         club = team.split(',')[-1]
         if natural and gff != '1' and fl:                             # (the DECLARED limit, rc20 74b589f: the decision

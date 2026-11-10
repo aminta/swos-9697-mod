@@ -2222,13 +2222,26 @@ u32 gf_step_c(void) {                   /* the calendar advance (slot 3 free): 2
         f[0] = GP_MGR;
     }
     struct gp_ko *fk = &GP_ST.ko[1];
-    if (f[0] != GP_MGR && f[1] != GP_MGR) {     /* (the career club not in it: decided now) */
-        rng = GP_SEAS * 7919u + 0x4E5A;
-        int w = below(5) < 3 ? 0 : 1;
-        k->tw[0] = kidx(k, f[w]); k->tl[0] = kidx(k, f[1 - w]);
-        GF(k) = GF_DONE;
-        fk->magic = 0;
-        GP_GFT = 2;
+    if (f[0] != GP_MGR && f[1] != GP_MGR) {     /* (the career club not in it: 4.1.1, the placeholder's day is the
+                                           real final, the two finalists, the game's simulated match deciding it -
+                                           gp_rec_c -> gf_done, as the career club's own final; before: decided here,
+                                           the host winning 3 in 5, and the placeholder's career club v the group's
+                                           other club played as a computer match - a phantom match, an injury. The
+                                           placeholder stays installed (ko[1] live, its days kept - rc19): gf_drop_c
+                                           rewrites its calendar entry and slot 4's teams) */
+        if (fk->magic != MAGIC || fk->kind != K_GF || fk->slot != 4) {
+            rng = GP_SEAS * 7919u + 0x4E5A;     /* (no placeholder in slot 4: decided now, as before) */
+            int w = below(5) < 3 ? 0 : 1;
+            k->tw[0] = kidx(k, f[w]); k->tl[0] = kidx(k, f[1 - w]);
+            GF(k) = GF_DONE;
+            fk->magic = 0;
+            GP_GFT = 2;
+            return 4;
+        }
+        fk->team[0] = f[0]; fk->team[1] = f[1];
+        fk->tw[0] = fk->tl[0] = fk->pw[0] = NOC;
+        GF(k) = GF_ON;
+        GP_GFT = 8;
         return 4;
     }
     gf_one(fk, k, f[0], f[1], GP_WK + 1);
@@ -2244,7 +2257,12 @@ u32 gf_drop_c(u8 *cal, u32 cur) {       /* rc20 (Panchina's natural NZ season, W
                                            club's: byte 6 = 0 (the career-day flag cseg_8EC2B counts - p6's host test;
                                            byte 4 != 0 entries it skips), byte 5 = 0 (gf_hide_c's). Returns 1 when no
                                            career day is left from the cursor on: the glue sets the menu's word (FINISH
-                                           SEASON), as cseg_8EC2B would */
+                                           SEASON), as cseg_8EC2B would.
+                                           4.1.1 (gf_step_c's GP_GFT 8: ko[1] the real final): the slot-4 entries'
+                                           pairing (+12 / +14) the finalists; GP_GFT 9 -> the glue loads them into
+                                           slot 4 (cseg_8ECAE's tail, as gp_install), the game simulates their match */
+    const struct gp_ko *f = &GP_ST.ko[1];
+    int real = GP_GFT == 8 && f->magic == MAGIC && f->kind == K_GF && f->slot == 4;
     u16 cnt = *(const u16 *)(cal - 4);
     u8 *e = cal;
     int ahead = 0;
@@ -2252,12 +2270,15 @@ u32 gf_drop_c(u8 *cal, u32 cur) {       /* rc20 (Panchina's natural NZ season, W
         u32 len = *(const u16 *)(e + 2);
         if (!len) break;
         if ((u32)(e - cal) >= cur) {
-            if (e[0] == 4) { e[5] = 0; e[6] = 0; }
+            if (e[0] == 4) {
+                e[5] = 0; e[6] = 0;
+                if (real && len >= 16) { *(u16 *)(e + 12) = f->team[0]; *(u16 *)(e + 14) = f->team[1]; }
+            }
             else if (!e[4] && e[6]) ahead = 1;
         }
         e += len;
     }
-    GP_GFT = 7;
+    GP_GFT = real ? 9 : 7;
     return !ahead;
 }
 static void cd_ko(struct gp_ko *k, u16 home, u16 away, int w1, int w2, int legs) {

@@ -650,6 +650,22 @@ gp_gf:                                  ; 4.0.5 NZ (gp_adv): a type-2 group cont
     push dword CAL
     call gf_drop_c
     add esp, 8
+    push eax
+    cmp dword [GP_GFT], 9               ; 4.1.1: the real final without the career club (ko[1]): its two clubs into
+    jne .nr                             ; slot 4, as gp_install's tail - the game's simulated match decides it (gp_rec
+    mov esi, GP_ST + ST_KO + KO_SIZE    ; -> gf_done); before, the placeholder's clubs (the career club) played it
+    mov ax, [esi + KO_TEAM]
+    mov [LIST4], ax
+    mov ax, [esi + KO_TEAM + 2]
+    mov [LIST4 + 2], ax
+    mov dword [A4R], SLOT4
+    mov word [D7R], 0
+    pushad
+    call C8EE5D
+    popad
+    mov word [SLOT4 + 4Bh], 0           ; (no human club in it)
+.nr:
+    pop eax
     test eax, eax
     jz .x
     mov word [NOCAREER], 1              ; (no career day left: the menu's FINISH SEASON - cseg_8EC2B's word)

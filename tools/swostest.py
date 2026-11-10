@@ -22633,7 +22633,7 @@ def world_c23():
     import split
     import lepatch
     sp = split.sites(lepatch.LEPatch(os.path.join(MAIN, 'orig', 'ITALIAN.EXE')))['SLOTS']
-    errs, info, seen = [], [], []
+    errs, info, seen, titles, recs = [], [], [], [], []
     with Session('world_c23', exe, {'W84A.CAR': car}, 'dump:2', 600) as s:
         s.wait()
         s.send(LOAD1 + ' dump:3')
@@ -22656,11 +22656,66 @@ def world_c23():
             seen.append(ok)
             s.log.append(f'[c23] slot {k}: title {title!r} DIY+27h {p27:#x} -> {got!r} {"OK" if ok else "STALE"}')
             info.append(f'slot {k} {title.decode("latin-1")} -> {got.decode("latin-1")!r}')
+            if k == 3:                                  # (the European slot: its line +1Eh at the season end)
+                titles.append(title.decode('latin-1'))
         check(seen, 'no continental slot with a title and a name pointer in the save', errs)
         if os.environ.get('C23_EXPECT') == 'stale':
             check(seen and not all(seen), f'control build: no stale pointer ({info})', errs)
         else:
             check(all(seen), f'stale continental name pointer: {info}', errs)
+        if os.environ.get('C23_SEASON') == '1' and not errs:    # (the season played to its end: the record's lines
+            ns = s.result.base2 + nosack_off(os.path.join(exe, 'ITALIAN.EXE'))   # (no sacking: a sacked season's
+            end = lambda scr: any(t.endswith('FINE CAMP.') for t in scr.texts())   # record has no cup lines; the
+            fin = lambda scr: end(scr) or scr.find('FINISCI STAGIONE', exact=True) is not None   # word re-poked every
+            for _ in range(40):                                                  # 15 steps)
+                s.poke(ns, b'\x01\x00')
+                ok, msg = advance(s, fin, 15)
+                if ok or not msg.startswith('no stop'):
+                    break
+            if ok and not end(s.screen()):
+                s.poke(ns, b'\x01\x00')
+                press(s, s.screen(), 'FINISCI STAGIONE', wait=3)
+                for _ in range(10):
+                    s.poke(ns, b'\x01\x00')
+                    ok, msg = advance(s, end, 15)
+                    if ok or not msg.startswith('no stop'):
+                        break
+            if check(ok, f'season end not reached: {msg}', errs):
+                import gplay
+                import sacups
+                sr = gplay._sack_sites(lepatch.LEPatch(os.path.join(MAIN, 'orig', 'ITALIAN.EXE')))['seasrec']
+                sb = s.result.base2 + (sacups.STR_BASE or 0x16F8)   # (aChairmanScenes; set only by a patch run)
+                rd = lambda a: bytes(s.result.read(a, 42)).split(b'\0')[0] if 0 < a < 0x8000000 else b'?'
+                for base_ in (s.result.base2 + sr, struct.unpack('<I', s.result.obj2(sr, 4))[0]):
+                    if not 0 < base_ < 0x8000000:
+                        continue
+                    for i in range(64):
+                        r_ = bytes(s.result.read(base_ + 106 * i, 106))
+                        if not r_[2]:
+                            break
+                        f_ = struct.unpack_from('<4I', r_, 0x16)
+                        s.log.append(f'[c23] rec@{base_:#x}[{i}] {r_[:16].hex()} lines '
+                                     + ' / '.join(f'{x:#x}={rd(sb + x)!r}' if x else '0' for x in f_))
+                        for x in f_:                    # (every line a name: the record lines are written at the
+                            nm = rd(sb + x) if x else b''   # season start - InitializeNewSeason - so a mid-season
+                            check(not x or re.fullmatch(rb"[A-Z0-9][A-Z0-9 .'/&()-]+", nm),   # load leaves this
+                                  f'season record {i}: line {x:#x} -> {nm!r}', errs)       # season's lines as saved)
+                        recs.append(f_)
+                scr = s.screen()
+                yr = next(t for t in scr.texts() if t.endswith('FINE CAMP.'))
+                press(s, scr, 'VISUAL. COMPETIZ.', wait=3)
+                vc = s.screen()
+                lab = next((x for x in ('REGISTRO GESTIONE', 'MANAGEMENT RECORD') if vc.find(x, exact=True) is not None), None)
+                if check(lab, f'no management record button: {vc}', errs):
+                    press(s, vc, lab, wait=3)
+                    s.send('dump:1')
+                    rec = [x for _, x, inv, _ in s.screen().entries if x]
+                    s.log.append('[c23] record ' + ' | '.join(rec))
+                    s.shot('c23_record')
+                    info.append(f'{yr}: record {rec}')
+                    check(recs, 'no season record read', errs)
+                    check(any('EFL CUP' in x or 'CUP' in x or 'COPPA' in x for x in rec) or not recs,
+                          f'no cup line on the record screen {rec}', errs)
     return not errs, '; '.join(errs) or '; '.join(info)
 
 

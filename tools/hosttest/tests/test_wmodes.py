@@ -258,7 +258,7 @@ def test_wmodes():
     d0, seen, cw, same = run(0, 1, [], tail=(2, 5))
     if cw != 5 or seen[-1] != ('ns', 5, 4) or not same:
         errs.append(f'picks in the last list only: contest world {cw}, {seen[-1]}, memory restored {same}')
-    # M3: the career's picker (swe_car_tramp -> swe_sel_pre(M_CAREER)): the same lists, whatever teamsType, no lock
+    # M3: the career's picker (swe_car_tramp -> swe_sel_pre(M_CAREER)): the main menu's world only (no STORICO, no green 2026-27), whatever teamsType, no lock
     def run_car(setting, steps):
         uc.mem_write(wdef, bytes((setting,)))
         w16(TTYPE, 0)
@@ -273,9 +273,10 @@ def test_wmodes():
             tr._call(uc, ns, w)
             seen.append((ids(u32(slot(98))), ids(u32(slot(d0))) if d0 != 255 else ids(cwt), u32(selcw_p)))
         return d0, seen, before
-    for setting, d0w, want in ((0, 205, [([200, 204], o205 + [98]), ([200, 204], o205 + [98], 0)]),
-                               (1, 255, [([204], ctop + [205, 98]), ([204], ctop + [205, 98], 0)]),
-                               (2, 204, [([200], o204 + [205, 98]), ([200], o204 + [205, 98], 0)])):
+    for setting, d0w, want in ((0, 205, [([200, 204], o205), ([200, 204], o205, 0)]),   # (4.1 carnost 1545d24, Davide
+                               (1, 255, [([204], ctop), ([204], ctop, 0)]),              #  07/11: a career lists the
+                               (2, 204, [([200], o204), ([200], o204, 0)])):             #  main menu's world only - no
+                                                                                         #  STORICO, no green 2026-27)
         d0, seen, before = run_car(setting, [(1, 5)])
         tr._call(uc, post)                        # (the lists back; the friendly's post: the namespace is the test's)
         uc.mem_write(D0, b'\xff')

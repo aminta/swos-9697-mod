@@ -1,8 +1,8 @@
 """N7 piece 3 (MC 10/11): the club registry's SWC1 section 'IT' (swe.c it_save / it_load, sreg.c at obj4+SREG_AT,
-SREG_DIV at obj4+SREG_DIV_AT), on the static image of HT_N7_EXE (else c/HTn7p4: the release recipe with SREG_FORCE=1 and
+SREG_DIV at obj4+SREG_DIV_AT), on the static image of HT_N7_EXE (else c/HTn7r4: the release recipe with SREG_FORCE=1 and
 HOSTTEST_SYMS=1, an empty shape) with the italy42 shape poked into SREG_NF / SREG_NCLUB / SREG_SPEC / SREG_DIV (A = 102
 Serie A, B, C + 2 x 20, B = 144 Serie D 9 x 18 + 36 pool rows, 10 off-file clubs: the engine's tests/rules/reg_save.c
-shape, 298 rows), and of HT_N7D_EXE (else c/HTn7p4d: the same recipe, dormant). The obj4 .bss (SWC1 and the arena) is
+shape, 298 rows), and of HT_N7D_EXE (else c/HTn7r4d: the same recipe, dormant). The obj4 .bss (SWC1 and the arena) is
 garbage at the start (0AAh), as DOS/4GW may leave it. A registry is compared by its state (view(): what sr_reg_build
 writes; the struct's unused tail keeps the arena's bytes).
 
@@ -36,8 +36,8 @@ import engine  # noqa: E402
 import trailer  # noqa: E402
 
 HOME = os.path.expanduser('~')
-EXE = os.environ.get('HT_N7_EXE') or os.path.join(HOME, 'swos-mod', 'c', 'HTn7p4', 'SWOS', 'ITALIAN.EXE')
-DORM = os.environ.get('HT_N7D_EXE') or os.path.join(HOME, 'swos-mod', 'c', 'HTn7p4d', 'SWOS', 'ITALIAN.EXE')
+EXE = os.environ.get('HT_N7_EXE') or os.path.join(HOME, 'swos-mod', 'c', 'HTn7r4', 'SWOS', 'ITALIAN.EXE')
+DORM = os.environ.get('HT_N7D_EXE') or os.path.join(HOME, 'swos-mod', 'c', 'HTn7r4d', 'SWOS', 'ITALIAN.EXE')
 IT, HDR = 0x5449, 20
 _H = open(os.path.join(TOOLS, 'swce', 'swosrules.h')).read()
 FILES, CLUBS, DIVS = (int(re.search(rf'#define {k}\s+(\d+)', _H).group(1)) for k in ('SR_REG_FILES', 'SR_REG_CLUBS',

@@ -932,11 +932,13 @@ def patch_exe(src, dst, remap, lang='it'):
     if lr_tabs:                                  # 4.2 S1.3: the tie-breaker lists, obj4+lrank.LR_AT (after the
         lrank.patch(p, lr_tabs, split.ST, split.MAGIC)     # obj1 hooks it chains onto: split's sp_res, lp36's lp_sort)
         engine.ITEM_AT['LR'] = lrank.LABELS['LR_BLK']
-        conti.sdraw_patch(p, lrank.LABELS.get('ct_sdraw'))   # (4.2 P7: conti's group draws -> ct_sdraw)
+        conti.sdraw_patch(p, lrank.LABELS.get('ct_place'))   # (4.2 P7: conti's group placement -> ct_place)
         import swreg
         assert swreg.ST_AT + swreg.ST_SIZE <= lrank.LR_AT, ('ST', hex(swreg.ST_AT), hex(lrank.LR_AT))
         p.put(4, swreg.ST_AT, bytes(swreg.ST_SIZE))
         engine.ITEM_AT['ST'] = (4, swreg.ST_AT)
+    assert not conti.LABELS.get('syms') or lr_tabs, ('4.2 P7: conti linked without lrank (ct_place is in its link: '
+                                                     'every group draw would be refused) - a world without tie-breaker lists')
     benchx.link_w27(p)                           # (4.0.6 step 2.5: the friendlies' long bench by SWE_W27)
     tailzero.patch(p, tz_at, obj2_free + o2pages * p.le.page_size, (tail + 3) & ~3, nasmcave,   # (DOS/4GW: not zeroed;
                    0x1000 * OBJ3_PAGES, (cg_bss + 3) & ~3)                  # 4.0.6: obj3's tail too)

@@ -1506,18 +1506,18 @@ def _world_maps(confs):
     return files, {k: v for k, v in words.items() if v is not None}
 
 
-def sdraw_patch(p, ct_sdraw):
+def sdraw_patch(p, ct_place):
     """4.2 P7: conti.c's CT_SDRAW (obj1 .data) -> ctdraw.c's ct_sdraw (obj4, lrank's link). conti linked without it
     would refuse every ED_S draw (-4): an assertion here instead."""
     if 'syms' not in LABELS:
         return
     import cobj
-    assert ct_sdraw and ct_sdraw[0] == 4, ('conti: ct_sdraw not linked (lrank)', ct_sdraw)
+    assert ct_place and ct_place[0] == 4, ('conti: ct_place not linked (lrank)', ct_place)
     cs = LABELS['syms']['CT_SDRAW']
     assert cs[0] == 1 and p.get(1, cs[1], 4) == b'\0' * 4, cs
-    p.put(1, cs[1], struct.pack('<I', ct_sdraw[1]))
-    cobj.add_ptr(p, cs[1], 4, ct_sdraw[1])
-    print(f'exe: conti group draws (4.2 P7) CT_SDRAW obj1+{cs[1]:#x} -> ct_sdraw obj4+{ct_sdraw[1]:#x}')
+    p.put(1, cs[1], struct.pack('<I', ct_place[1]))
+    cobj.add_ptr(p, cs[1], 4, ct_place[1])
+    print(f'exe: conti group draws (4.2 P7) CT_SDRAW obj1+{cs[1]:#x} -> ct_place obj4+{ct_place[1]:#x}')
 
 
 def patch(p, at, limit, bss_at, area):

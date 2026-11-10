@@ -130,6 +130,8 @@ def patch(p, tables, split_st, split_magic):
     obj = cobj.compile_c(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lrank.c'), flags, sections=True)
     syms, end, bss = cobj.link(p, obj, LR_AT, (4, 0), externs=ext, limit=tab_at, text_obj=4, roots=ROOTS)
     assert bss == 0, ('lrank.c: no .bss', bss)
+    assert end <= tab_at, ('lrank: code over LR_TAB', hex(end), hex(tab_at))   # (4.2 P7, MC: the band is fixed - LR_PAGES 4,
+                                                    # SREG2 at 0xA000; anything more moves past 0xB000, ask MC)
     p.put(4, tab_at, tab)
     for off, (o, a) in ptrs:
         cobj.add_ptr(p, tab_at + off, o, a, 4)
@@ -144,7 +146,7 @@ def patch(p, tables, split_st, split_magic):
     LABELS.update(syms)
     LABELS['ext'] = dict(ext, sort=(1, sort), res=(1, res))     # (hosttest: the game's variables and the two sites)
     print(f'exe: tie-breaker lists (lrank, 4.2 S1.3): obj4+{LR_AT:#x}..{end:#x}, LR_TAB {len(tab) // ENTRY - 1} '
-          f'divisions at obj4+{tab_at:#x}; hooks cseg_88CBB obj1+{res:#x} ({"after sp_res" if res_chain else "own"}), '
+          f'divisions at obj4+{tab_at:#x} ({tab_at - end} B between code and LR_TAB); hooks cseg_88CBB obj1+{res:#x} ({"after sp_res" if res_chain else "own"}), '
           f'cseg_883DD obj1+{sort:#x} ({"after lp_sort" if sort_chain else "own"}); LR_BLK obj4+{syms["LR_BLK"][1]:#x} '
           f'({LR_SIZE} B, item LR)')
     return end

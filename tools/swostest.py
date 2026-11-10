@@ -16748,17 +16748,20 @@ def lrank_po(force, team, legs, uefaf=False):
     whoever wins it), uefa_fin's probe GP_UFPB dumped: at the season-end decision US_REC's stamp is the one uefa_fin
     wants (seasonPlaying + 1 at gp_season time, not the next season's), its last stage the semi-finals (2 ties, both
     played), the winners it read those of the last US_REC dump; its answer decides: a finalist - no match, the career
-    club champion; none - the play-off match played."""
+    club champion; none - the play-off match played.
+    uefaf='force' (H6 M2, the other branch; Regia 10/11): GPLAY_UEFAF=3 - the probe, and uesum's own record forced
+    before the read (this season's stamp and stages kept, the career club the 1st semi-final's winner): the answer 1,
+    no play-off match built, the career club (the better placed) the champion."""
     src = os.environ.get('W2627S1_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-s1rank')
     if not os.path.isdir(src):
         return True, f'SKIP: private data {src} missing'
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
     env = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]),
            'GPLAY_FORCE': str(force), 'LR_FORCE': str(force), 'HOSTTEST_SYMS': '1'}
-    probe = uefaf == 'probe'
+    probe, frc = uefaf in ('probe', 'force'), uefaf == 'force'
     if uefaf:
-        env['GPLAY_UEFAF'] = '2' if probe else '1'
-    exe = os.environ.get('LRANK_BUILD') or build(f'world_lrank_po_{force}' + ('p' if probe else 'u' if uefaf else '') + ('' if UI == 'it' else '_' + UI), env=env,
+        env['GPLAY_UEFAF'] = '3' if frc else '2' if probe else '1'
+    exe = os.environ.get('LRANK_BUILD') or build(f'world_lrank_po_{force}' + ('f' if frc else 'p' if probe else 'u' if uefaf else '') + ('' if UI == 'it' else '_' + UI), env=env,
                                                  lang=UI)                    # (the UI lane's exe: SWOSTEST_UI)
     ptrs = gp_ptrs(exe)
     if not ptrs:
@@ -16772,7 +16775,7 @@ def lrank_po(force, team, legs, uefaf=False):
     usr = o4.find(b'S2BR') + 4                              # (uesum.c's US_REC after its tag)
     ufp = syms['gplay'].get('csyms.GP_UFPB') if probe else None   # (gplay.c's probe, GPLAY_UEFAF=2)
     if probe and not ufp:
-        return False, 'no GP_UFPB in the exe (GPLAY_UEFAF=2 build)'
+        return False, f"no GP_UFPB in the exe (GPLAY_UEFAF={env['GPLAY_UEFAF']} build)"
     ufh = f'o{ufp[0]}/{ufp[1]:x}' if ufp and ufp[0] != 2 else ufp and f'{ufp[1]:x}'
     keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
                                             'W8485_NOSACK', 'W8485_HEX')}
@@ -16805,7 +16808,7 @@ def lrank_po(force, team, legs, uefaf=False):
         calls, ss, want, nst = pb[-1][4:8]
         w = list(struct.unpack_from('<HH', pb[-1], 8))
         ta, tb = struct.unpack_from('<HH', pb[-1], 12)
-        res = pb[-1][16]
+        res, forced = pb[-1][16], pb[-1][17]
         check(ss == want and ss != 0, f"US_REC's stamp {ss} at the season-end decision, uefa_fin wants {want}", errs)
         check(nst == 2 and all(w), f'last stage {nst} ties, semi-final winners {[hex(x) for x in w]}', errs)
         recs = [b for b in hexes.get(f'o4/{usr:x}', []) if b[5] == ss]
@@ -16818,7 +16821,11 @@ def lrank_po(force, team, legs, uefaf=False):
                 t = r[6 + 8 * (off + i):14 + 8 * (off + i)]
                 if len(t) == 8 and t[7] & 0x80:
                     sf.append(struct.unpack_from('<H', t, 2 if t[7] & 1 else 0)[0])
-        check(sorted(sf) == sorted(w), f'US_REC dump SF winners {[hex(x) for x in sf]} != read {[hex(x) for x in w]}', errs)
+        if frc:                                             # (the dumps may predate the force: the other winner theirs)
+            check(forced in (1, 2) and me in w, f'force {forced}: career club {me and hex(me)} not a winner read {[hex(x) for x in w]}', errs)
+            check(not sf or set(w) - {me} <= set(sf), f'US_REC dump SF winners {[hex(x) for x in sf]}, read {[hex(x) for x in w]}', errs)
+        else:
+            check(sorted(sf) == sorted(w), f'US_REC dump SF winners {[hex(x) for x in sf]} != read {[hex(x) for x in w]}', errs)
         check(me in (ta, tb), f'uefa_fin asked about {hex(ta)} {hex(tb)}, career club {me and hex(me)}', errs)
         check(res == int(ta in w or tb in w), f'answer {res} for {hex(ta)} {hex(tb)} with finalists {[hex(x) for x in w]}', errs)
         logs = [b for b in hexes.get(f'{log_at:x}', []) if b[:4] == b'GPLG']
@@ -16826,9 +16833,16 @@ def lrank_po(force, team, legs, uefaf=False):
         po = sorted(lk['team'][:2]) if lk else []
         played = [r for r in (gp_ko(b[GP_STKO:]) for b in sts) if r['cid'] == 0xFE and sorted(r['team'][:2]) == po]
         check(bool(played) != bool(res), f'answer {res} but the play-off match {"was" if played else "was not"} built', errs)
+        champ = None
+        if frc:                                             # (the other branch: answer 1, the better placed champion)
+            check(res == 1, f'forced finalist, answer {res}', errs)
+            rs = [struct.unpack_from('<BBHHHH', logs[-1], 942 + 10 * i) for i in range(min(logs[-1][683], 4))] if logs else []
+            champ = next((r[2] for r in rs if r[0] == 5 and r[1] == 0), None)
+            check(champ == me, f'champion {champ and hex(champ)}, career club {me and hex(me)}', errs)
         return not errs, '; '.join(errs) or (f'{msg}; uefa_fin x{calls}: stamp {ss} = wanted {want} (uesum\'s own), '
                                               f'finalists {[hex(x) for x in w]}, career club {hex(me)} -> '
-                                              f'{"no match" if res else "match played"}')
+                                              f'{"no match" if res else "match played"}'
+                                              + (f', forced ({forced}), champion {hex(champ)}' if frc else ''))
     if uefaf:
         logs = [b for b in hexes.get(f'{log_at:x}', []) if b[:4] == b'GPLG']
         me = [struct.unpack('<H', b)[0] for b in hexes.get(f'{ct:x}', [])]
@@ -16948,6 +16962,13 @@ def world_lrank_uefafp():
     forced but INTER's level title pair) - US_REC's stamp at the season-end decision is the one uefa_fin wants, the
     finalists it read are the record's (lrank_po uefaf='probe')"""
     return lrank_po(1, 'EUROPA,ITALIA,SERIE A,INTER', 1, uefaf='probe')
+
+
+@scenario
+def world_lrank_uefaff():
+    """4.2 H6 M2, the other branch: world_lrank_uefafp with uesum's own record forced (GPLAY_UEFAF=3: this season's
+    semi-finals, INTER a winner) - answer 1, no title play-off match, INTER the champion (lrank_po uefaf='force')"""
+    return lrank_po(1, 'EUROPA,ITALIA,SERIE A,INTER', 1, uefaf='force')
 
 
 @scenario

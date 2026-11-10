@@ -522,7 +522,7 @@ def load(confs, files=None, words=None, s1=None, rank_out=False):
             f2 = (fc, rkey[fc][fr])
             print(f'exe: CONTI_FORCE2={fk}:{fr} (test build)')
     spec += bytes(f2)
-    if s1 is None and words is not None and not os.environ.get('CONTI_NOBOUND'):   # (4.2 P7, CONVENTIONS 14a)
+    if s1 is None and words is not None:            # (4.2 P7, CONVENTIONS 14a: no switch turns it off)
         BOUND_IN[0] = (body, list(access), holders, gl, assocs, assoc_clubs(words, assocs))
         bad = draw_bound(*BOUND_IN[0])
         assert not bad, 'conti: a group draw could be impossible (fix the competition data by its regulations): ' + \

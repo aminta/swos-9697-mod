@@ -8,7 +8,8 @@ divisions (file 144's struct: LEAGUE_AT[(5, 144)] faked here until MC's §3 exe 
   lrank.table with the fake 144 struct;
 - refusals, one per site: div_file (a division in two roles / out of range), dplay (Serie C group on file 144), lrank
   (no struct for 144), ko spec (entrants over both structs),
-  split (a division in two structs' 'divisions'); ko spec: entrants over both structs refused, a destination over
+  split (a division in two structs' 'divisions'); ko spec: entrants over both structs refused, an absent destination in struct 144 refused (a placement's
+  absent winner_div = its own division, explicit: gplay.c never moves a kind 3 - ok = 0), a destination over
   them = gplay.EXTERNAL + Pack.ko_external (the 4 Italian entries: cA/cB/cC play-outs -> (144, 0), dA_title ->
   (102, 2))."""
 import copy
@@ -111,13 +112,22 @@ def _test():
             bad.append(f'ko_external {ext}')
         sd = [po for po in lg['ko_playoffs'] if any(isinstance(e, list) and e[0] >= 5 for e in po['entrants'])]
         hand = [dict(po, entrants=[[e[0] - 5, e[1]] for e in po['entrants']],
-                     **({'winner_div': gplay.EXTERNAL} if po['key'] == 'dA_title' else {})) for po in sd]
+                     **({'winner_div': gplay.EXTERNAL} if po['key'] == 'dA_title' else
+                        {'winner_div': po['entrants'][0][0] - 5} if po['kind'] == 'placement' and 'winner_div' not in po
+                        else {})) for po in sd]           # (placement: no move, explicit in struct 144)
         top = [po for po in lg['ko_playoffs'] if po not in sd]
         hand_a = [dict(po, **({'loser_div': gplay.EXTERNAL} if po['key'] in CROSS else {})) for po in top]
         if [t[1] for t in gp] != [102, 144] or gp[1][2] != gplay.compile_spec(hand, 9, lg.get('names')) \
                 or gp[0][2] != gplay.compile_spec(hand_a, 5, lg.get('names')):
             bad.append('gplay: per-struct specs')
         out.append(f'ko_external {ext}')
+        # refusal: an absent destination in struct 144 (a Serie D play-out without loser_div)
+        dpo = next(po for po in lg['ko_playoffs'] if po['key'] == 'dA_playout')
+        ld = dpo.pop('loser_div')
+        r = _refused(it.gplay)
+        dpo['loser_div'] = ld
+        bad.append('gplay: absent loser_div in struct 144 not refused') if not r or 'dA_playout' not in r else \
+            out.append(f'gplay refused ({r})')
         # refusal: entrants over both structs
         lg['ko_playoffs'].append(dict(lg['ko_playoffs'][0], key='x_span', entrants=[[4, 1], [5, 1]]))
         r = _refused(it.gplay)
@@ -141,6 +151,13 @@ def _test():
         except globnum.GlobError as e:
             out.append(f'cupsf refused ({e})')
         cupsf.dt_bytes(it, 102)                         # (file A: one run, no refusal)
+        cup = next(c for c in it.comps if c['type'] == 'cup')     # (a cup over both files: refused)
+        k5 = it.bracket(cup)['clubs'][0]                         # (one of its clubs as if on file 144)
+        w5 = it.where[k5]
+        it.where[k5] = (144, 0)
+        r = _refused(lambda: cupsf.pack_cups(it, 102))
+        it.where[k5] = w5
+        bad.append('cupsf: a cup over both files not refused') if not r else out.append(f'cupsf refused ({r})')
         # cupd: Serie D's file (its CD_DT two-run base is Panchina's: until then S7-G's refusal)
         import cupd
         try:

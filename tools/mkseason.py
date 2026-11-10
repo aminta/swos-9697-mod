@@ -823,6 +823,19 @@ class Pack:
         _need(len(fs) == 1, f"{self.meta['id']}: ko_playoffs {po.get('key', '?')}: entrants of divisions "
               f"{sorted({d + 1 for d in ds if isinstance(d, int)})} over league structs {fs} (S7: one struct per entry)")
         ext = []
+        if any('divisions' in v for v in self.meta['files'].values()) and fs[0] != self.div_key(0)[0]:
+            # (S7, MC 11/11: a struct after the league's first - file 144 - has no division 0 of the league: an absent
+            # destination (compile_spec: 0) would read as its own first division. Dormant / struct A: unchanged.)
+            own = sorted({d for d in ds if isdiv(d)})
+            if kind == 3 and 'winner_div' not in po and len(own) == 1:
+                out['winner_div'] = self.div_key(own[0])[1]     # (placement: no move - gplay.c ok = 0 for kind 3;
+            #                                                     the entrants' own division, explicit)
+            need = [] if kind != 1 else ['winner_div'] + (['loser_div'] if isdiv(po.get('winner_div'))
+                                                          and po['winner_div'] in own else [])
+            need += ['loser_div'] if kind == 4 else []
+            miss = [x for x in need if x not in po]
+            _need(not miss, f"{self.meta['id']}: ko_playoffs {po.get('key', '?')}: {miss} absent in the league struct "
+                  f"of file {fs[0]} (S7: the default 0 would be that struct's own first division; give it)")
         for fld, outcome, kinds in (('winner_div', 'winner', (1,)), ('loser_div', 'loser', (1, 4, 7))):
             v = po.get(fld)
             if kind in kinds and isdiv(v):

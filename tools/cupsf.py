@@ -29,6 +29,11 @@ def pack_cups(pk, lfile=None):
             continue
         br = pk.bracket(c)
         keys, nb = br['clubs'], br['byes']
+        lfs = {pk.where[k][0] for k in keys if k in pk.where}
+        _need_one = all(k in pk.where and k in pk.division for k in keys) and len(lfs) > 1
+        if _need_one and lfs <= set(pk.league_files()):     # (S7: league clubs on two files - CF_TAB's groups read one
+            raise mkseason.PackError(f"{pk.meta['id']}: cup {c['key']}: league clubs on team files {sorted(lfs)} "   # dt:
+                                     '(cupsf: one dt per cup; not split silently)')                            # refused)
         if not all(k in pk.where and pk.where[k][0] == lfile and k in pk.division for k in keys):
             continue
         groups = {}

@@ -34,12 +34,12 @@ const u8 *CT_S1;
 const u8 *CT_S1R0, *CT_S1H0, *CT_RK;
 u8 CT_NOR;                              /* (conti.season1_old: the build's run of a 4.1 edition, ED_R off) */
 u8 CT_NOS;                              /* (4.2 P7: an edition as 4.1.1 made it, ED_S off - the old-save tests) */
-int ct_sdraw(int n, int g, const u8 *assoc, int cap, u32 seed, u8 *grp, int tag);   /* (ctdraw.c, linked) */
-#define SDRAW ct_sdraw
+int ct_place(int m, int ng, int gs, int mode, u16 *x, u8 *v, u8 *k, const u8 *as, u32 *rng, int tag);   /* (ctdraw.c) */
+#define SDRAW ct_place
 u32 CT_NCLASH, CT_NGDRAW;               /* (4.2 P7 native tests: group draws made / with a clash, both draw paths) */
 #else
-int (*CT_SDRAW)(int, int, const u8 *, int, u32, u8 *, int) __attribute__((section(".data"))) = 0;   /* (4.2 P7:
-                                           ctdraw.c's ct_sdraw in obj4 - conti.py sdraw_patch; 0 = not linked) */
+int (*CT_SDRAW)(int, int, int, int, u16 *, u8 *, u8 *, const u8 *, u32 *, int) __attribute__((section(".data"))) = 0;
+                                        /* (4.2 P7: ctdraw.c's ct_place in obj4 - conti.py sdraw_patch; 0 = not linked) */
 #define SDRAW CT_SDRAW
 const u8 *CT_S1 __attribute__((section(".data"))) = 0;   /* (4.0.6 B2: the season-1 block, obj3) */
 const u8 *CT_S1R0 __attribute__((section(".data"))) = 0; /* (4.1.1: the 4.1 build's season-1 block and its 2027 winners,
@@ -525,59 +525,13 @@ static int draw_groups(int c, int r, const u8 *R) {   /* 0, or -1: not drawn (ED
                 x[0] = t; v[0] = tv; k[0] = tk;
                 break;
             }
-    if (CT_ED.pad & ED_S) {             /* 4.2 P7: the rules library's draw (UEFA's computer draw: a pot at a time, each
-                                           club to the first group that still leaves a whole draw) - never a clash when
-                                           a draw exists; none: the round is not drawn (CONVENTIONS 14a, never relaxed) */
-        u8 as[NE], grp[NE];
-        for (int i = 0; i < m; i++)     /* (a via club under A_NOVIA: a value of its own, above every association's) */
-            as[i] = rule == A_NOVIA && v[i] ? (u8)(0x80 + i) : (u8)assoc(x[i]);
-        below(0);                       /* (the seed: exactly one step of the edition's rng, whatever the outcome) */
-        int rc = SDRAW ? SDRAW(m, ng, rule == A_ANY ? 0 : as, rule == A_NO2 ? 2 : 1, rng, grp,
-                         (CT_ST.season & 0xFF) << 8 | c << 4 | r) : -4;
-        for (int i = 0; i < NE; i++) D[i] = 0;
-        if (rc < 0) return -1;
-        int h = hold ? grp[0] : 0;      /* (the holder in group A: its group and A swap labels - still a valid draw) */
-        for (int i = 0; i < m; i++) {
-            int g = grp[i] == h ? 0 : grp[i] == 0 ? h : grp[i], s = g * gs + i / ng;
-            D[s] = x[i]; DV[s] = v[i]; DK[s] = k[i];
-        }
-        return 0;
-    }
-    for (int tr = 0, tries = CT_ED.pad & ED_R ? 16 : 1; tr < tries; tr++) {   /* (4.1.1: drawn again while it
-                                        clashes, up to 16 times, the last draw kept; the fill above stays out) */
-        for (int i = 0; i < NE; i++) D[i] = 0;
-        for (int p = 0; p < gs; p++) {
-            int base = p * ng;
-            u16 px[NE]; u8 pv[NE], pk[NE];
-            int pn = 0;
-            for (int i = base; i < base + ng && i < m; i++) { px[pn] = x[i]; pv[pn] = v[i]; pk[pn] = k[i]; pn++; }
-            if (p == 0 && hold) {
-                D[0] = px[0]; DV[0] = pv[0]; DK[0] = pk[0];
-                for (int i = 1; i < pn; i++) { px[i - 1] = px[i]; pv[i - 1] = pv[i]; pk[i - 1] = pk[i]; }
-                pn--;
-            } else
-                ;
-            shuffle(px, pv, pk, pn);
-            for (int i = 0; i < pn; i++) {
-                int best = -1, g0 = below(ng);
-                for (int t = 0; t < ng; t++) {     /* (every group once, from a drawn one) */
-                    int g = (t + g0) % ng, s = g * gs + p;
-                    if (D[s]) continue;
-                    int bad = 0;
-                    for (int q = 0; q < p; q++)
-                        if (D[g * gs + q] && conflict(D[g * gs + q], px[i], DV[g * gs + q], pv[i], rule)) bad = 1;
-                    if (!bad) { best = s; break; }
-                    if (best < 0) best = -2 - s;            /* (a slot with a conflict: the last resort) */
-                }
-                if (best < -1) best = -2 - best;
-                if (best < 0)                               /* (every free slot taken by the loop's order: any free) */
-                    for (int g = 0; g < ng; g++) if (!D[g * gs + p]) { best = g * gs + p; break; }
-                if (best >= 0) { D[best] = px[i]; DV[best] = pv[i]; DK[best] = pk[i]; }
-            }
-        }
-        if (!clash(ng, gs, rule)) break;
-    }
-    return 0;
+    u8 as[NE];                          /* 4.2 P7: the placement in obj4 (ctdraw.c ct_place: the 411 draw, or under ED_S
+                                           the rules library's - obj1 had no room), x / v / k back in slot order */
+    for (int i = 0; i < m; i++) as[i] = (u8)assoc(x[i]);
+    int rc = SDRAW ? SDRAW(m, ng, gs, rule | hold << 4 | (CT_ED.pad & ED_S ? 0x20 : 0) | (CT_ED.pad & ED_R ? 16 : 1) << 8,
+                           x, v, k, as, &rng, (CT_ST.season & 0xFF) << 8 | c << 4 | r) : -4;
+    for (int i = 0; i < NE; i++) { int in = rc >= 0 && i < ng * gs; D[i] = in ? x[i] : 0; DV[i] = in ? v[i] : 0; DK[i] = in ? k[i] : 0; }
+    return rc < 0 ? -1 : 0;
 }
 
 /* --- rounds ------------------------------------------------------------------------------------------------------- */

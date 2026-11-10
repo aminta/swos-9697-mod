@@ -518,7 +518,7 @@ static int draw_groups(int c, int r, const u8 *R) {   /* 0, or -1: not drawn (ED
     int nd = 0;
     while (nd < m && !v[nd]) nd++;
     sort_by_pts(x, v, k, nd);
-    int hold = R[16] && CT_ST.hold[c].id;
+    int hold = R[16] & 1 && CT_ST.hold[c].id;   /* (R[16]: bit 0 the holder in A, bit 1 per region) */
     if (hold)                           /* the holder first (pot 1, group A) */
         for (int i = 0; i < nd; i++)
             if (CT_IN.club[x[i] - 1].id == CT_ST.hold[c].id) {
@@ -529,8 +529,10 @@ static int draw_groups(int c, int r, const u8 *R) {   /* 0, or -1: not drawn (ED
             }
     u8 as[NE];                          /* 4.2 P7: the placement in obj4 (ctdraw.c ct_place: the 411 draw, or under ED_S
                                            the rules library's - obj1 had no room), x / v / k back in slot order */
-    for (int i = 0; i < m; i++) as[i] = (u8)assoc(x[i]);
-    int rc = SDRAW ? SDRAW(m, ng, gs, rule | hold << 4 | (CT_ED.pad & ED_S ? 0x20 : 0) | (CT_ED.pad & ED_R ? 16 : 1) << 8,
+    for (int i = 0; i < m; i++) { int a = assoc(x[i]); as[i] = (u8)(a | (R[16] & 2 ? areg[a] << 7 : 0)); }
+                                        /* (4.2 AFC mode: per region - bit 7 = the club's region, areg 0 / 1, a < 0x80) */
+    int rc = SDRAW ? SDRAW(m, ng, gs, rule | hold << 4 | (CT_ED.pad & ED_S ? 0x20 : 0) | (R[16] & 2) << 5 |
+                           (CT_ED.pad & ED_R ? 16 : 1) << 8,
                            x, v, k, as, &rng, (CT_ST.season & 0xFF) << 8 | c << 4 | r) : -4;
     for (int i = 0; i < NE; i++) { int in = rc >= 0 && i < ng * gs; D[i] = in ? x[i] : 0; DV[i] = in ? v[i] : 0; DK[i] = in ? k[i] : 0; }
     return rc < 0 ? -1 : 0;
@@ -628,7 +630,7 @@ static int ct_round(int c, int r) {
         }
         n = R[6] * R[7];
 #ifdef NATIVE
-        if (!R[19] || !areg) { CT_NGDRAW++; if (clash(R[6], R[7], R[5] == A_NO2 ? A_ANY : R[5])) CT_NCLASH++; }
+        if (!R[19] || !areg) { CT_NGDRAW++; if (clash(R[6], R[7], R[5] >= A_NO2 ? A_ANY : R[5])) CT_NCLASH++; }
 #endif
     } else draw_ko(c, r, R);
     CT_OUT.nent[c][r] = n;

@@ -674,6 +674,17 @@ int32_t sr_group_draw_p(int32_t n, int32_t g, const uint8_t *assoc, const uint8_
  * classes gives the first witness); protect pairs with cap 2 are refused (-1). */
 int32_t sr_group_draw_k(int32_t n, int32_t g, const uint8_t *assoc, const uint8_t *prot, int32_t nprot, int32_t cap,
                         uint32_t seed, uint8_t *grp);
+/* swc/1.7: an association rule with the regulations' "unless unavoidable" (AFC ACL Two 2026/27 art. 8.1.3 / 7.1.4.1:
+ * same-MA clubs not in one group "except in cases where it is unavoidable"): as few clubs of one association in a group
+ * as can be - each group floor(m/g) or ceil(m/g) of an association with m clubs (the fewest same-association pairs).
+ * Every association within g: sr_group_draw_p's draw, the same. Over g: its clubs, in an order hashed from the seed, in
+ * classes of g (the last shorter), each class kept apart. Never -2 (a class is never over g); -1 bad arguments
+ * (assoc required). */
+int32_t sr_group_draw_m(int32_t n, int32_t g, const uint8_t *assoc, uint32_t seed, uint8_t *grp);
+/* (diagnostics, every sr_group_draw*) sr_gdraw_hits: the draws whose search budget ran out - still a draw, but not
+ * surely the rule's own (a pick passed over undecided; the Mod's harness asserts none); sr_gdraw_used: the last draw's
+ * steps (over the budget: budget + 1). */
+extern uint32_t sr_gdraw_hits, sr_gdraw_used;
 
 /* One group of a groups stage, for sr_best_placed: its clubs (0..n-1 inside it), its matches, its final table. */
 typedef struct { const sr_match *m; int32_t nm, n; const sr_srow *table; } sr_group;

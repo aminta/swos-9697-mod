@@ -21,7 +21,18 @@ K = {'ko': 0, 'groups': 1, 'league_stage': 1}   # (a league stage: simulated as 
 DRAW = {'order': 0, 'pots2': 1, 'same_assoc_pairs': 2, 'seeded_1v2': 3, 'bracket': 4, 'groups': 5, 'fixed': 6, 'slot': 7,
         'fixed_by_place': 8}
 ASSOC = {'allow': 0, 'any': 0, 'no': 1, 'no_unless_via': 2, 'allow_if_via': 2,
-         'max_2': 3}                     # (4.2 P7: 'max_2' at most 2 of an association a group, CAF art. 17 - ED_S editions)
+         'max_2': 3,                     # (4.2 P7: 'max_2' at most 2 of an association a group, CAF art. 17 - ED_S editions)
+         'fewest': 4}                    # (4.2 AFC mode: "same_assoc": "no" + "unavoidable": "fewest" - conti.h A_MIN)
+# 4.2 AFC mode: each AFC association's region (fact; per_region group draws, and the ACLE league stage's areg for
+# associations its _league file does not list). Source: AFC Competitions Regulations 2026/27 (ACL Elite art. 7.1.4.1,
+# ACL Two art. 8.1.3 - the West / East zones) and the AFC member associations by regional federation: West = WAFF +
+# CAFA + SAFF (India West), East = EAFF + AFF. 'outside' (guest) clubs: their association's sub-federation. Codes:
+# FIFA's, plus the Mod's own keys (lower case: the world's associations; INA / IDN both Indonesia in the guests).
+AFC_REGION = {a: 0 for a in ('BHR IRQ JOR KUW LBN OMA PLE QAT KSA SYR UAE YEM '      # WAFF
+                             'AFG IRN KGZ TJK TKM UZB '                              # CAFA
+                             'BAN BHU IND MDV NEP PAK SRI').split()}                 # SAFF
+AFC_REGION.update({a: 1 for a in ('CHN TPE GUM HKG JPN PRK KOR MAC MNG NMI '         # EAFF
+                                  'AUS BRU CAM IDN INA LAO MAS MYA PHI SGP THA TLS VIE').split()})   # AFF
 LEVEL = {'pens': 0, 'et_pens': 1, 'away_pens': 2, 'away_et_pens': 3}   # (3, 4.0.2: CONCACAF - away goals, then
 AWAY = ('away_pens', 'away_et_pens')                                     # extra time, then penalties)
 
@@ -85,11 +96,29 @@ def _ic_split(d, kind):
                     side['r2a'] = side.pop('r2')
 
 
+def per_region(rd):
+    """4.2 AFC mode: a group round drawn per region (draw.per_region + its 'regions' {west: 'A-D', east: 'E-H'}): the
+    first half of the groups West, the rest East (conti.c areg 0 / 1). per_region with no 'regions' (the Challenge
+    League's 5 groups): not split - the data does not say which groups are whose."""
+    d = rd.get('draw') or {}
+    if rd['kind'] != 'groups' or not isinstance(d, dict) or not d.get('per_region') or not d.get('regions'):
+        return False
+    g, rg = rd['groups'], d['regions']
+    h = g // 2
+    want = {'west': f'A-{chr(64 + h)}', 'east': f'{chr(65 + h)}-{chr(64 + g)}'}
+    assert g % 2 == 0 and {k.lower(): v for k, v in rg.items()} == want, ('conti: per_region regions', rd.get('key'), rg, want)
+    return True
+
+
 def _draw(rd):
     """(draw byte, association rule byte) of a round's 'draw' value."""
     d = rd.get('draw')
     if rd['kind'] in ('groups', 'league_stage'):
-        return DRAW['groups'], ASSOC.get((d or {}).get('same_assoc', 'no'), 1)
+        rule = ASSOC.get((d or {}).get('same_assoc', 'no'), 1)
+        if (d or {}).get('unavoidable') == 'fewest':   # (4.2 AFC mode: the fewest of an association a group)
+            assert rule == ASSOC['no'], ('conti: "unavoidable": "fewest" needs "same_assoc": "no"', rd.get('key'))
+            rule = ASSOC['fewest']
+        return DRAW['groups'], rule
     if isinstance(d, dict) and d.get('kind') == 'fixed_by_place':
         return DRAW['fixed_by_place'], 0
     if isinstance(d, str):
@@ -389,7 +418,8 @@ def load(confs, files=None, words=None, s1=None, rank_out=False):
                 b[4] = DRAW['slot']
             if rd['kind'] in ('groups', 'league_stage'):
                 b[6], b[7], b[8] = rd['groups'], rd['size'], rd.get('rounds', 2)
-                b[16] = 1 if (rd.get('draw') or {}).get('holder') else 0
+                dd = rd.get('draw') or {}
+                b[16] = (1 if dd.get('holder') else 0) | (2 if per_region(rd) else 0)   # (4.2 AFC mode: bit 1)
             b[9] = rd.get('month') or (rd.get('months') or [8])[0]
             b[17] = 1 if j == main_round(c, size) and not c.get('stepladder') else 0   # (the Intercontinental: no
                                                 # contest of its own, every game a tie; its final as 'main' loaded
@@ -498,6 +528,21 @@ def load(confs, files=None, words=None, s1=None, rank_out=False):
                         for ak in (a, 'g:' + e.get('assoc', '')):
                             if ak in assocs:
                                 reg.setdefault(ak, ri)
+    for conf in confs:                                  # (4.2 AFC mode: the rest of AFC's by the fact table)
+        if conf == 'afc':
+            for a in assocs:
+                k = a[2:] if a.startswith('g:') else a.upper()
+                if k in AFC_REGION:             # (the _league file's own: the same zone; the rest 2 + zone - the
+                    assert reg.get(a, AFC_REGION[k]) == AFC_REGION[k], ('conti: AFC_REGION v _league', a)
+                    reg.setdefault(a, 2 | AFC_REGION[k])   # league stage's g >= ng skips them as 0xFF did (old
+                                                           # editions replay the same), conti.c's per region reads bit 0)
+    for ci, (conf, c, _) in enumerate(cups):            # (a per-region draw: every association of the cup has one)
+        for j, rd in enumerate(c['rounds']):
+            if rd['kind'] == 'groups' and per_region(rd):
+                miss = sorted({assocs[a] for a, cc, jj, k in access if cc == ci and a != 0xFE
+                               and assocs[a] not in reg} | {assocs[gl[k][1]] for a, cc, jj, k in access
+                                                              if cc == ci and a == 0xFE and assocs[gl[k][1]] not in reg})
+                assert not miss, ('conti: per_region draw, associations with no region (AFC_REGION)', c['key'], miss)
     spec += bytes(reg.get(a, 0xFF) for a in assocs)
     wf = bytearray(32)                                  # (the world's team files: a UEFA holder outside it - the
     for f in (files or {}).values():                    # game's own 1996-97 Champions Cup holder - is no finalist)
@@ -747,6 +792,8 @@ def test(confs=('conmebol',), seasons=3, seed=7, L=None, hook=None):
     OUTB = (ctypes.c_ubyte * s_out).in_dll(L, 'CT_OUT')
     rnd = random.Random(seed)
     names = {}
+    for k in ('CT_SDRAW_ERR', 'CT_SDRAW_HIT'):          # (this call's draws: the asserts at the end)
+        ctypes.c_uint32.in_dll(L, k).value = 0
     for season in range(seasons):
         b = bytearray(s_in)
         clubs = []
@@ -826,11 +873,37 @@ def test(confs=('conmebol',), seasons=3, seed=7, L=None, hook=None):
             nm = lambda x: names.get(struct.unpack_from('<H', ib, o_club + 12 * (x - 1))[0], 'guest') if x else '-'
             counts = [o[o_nent + ci * NRD + r] for r in range(NRD)]
             print(f'{conf}:{ck} rounds {[c for c in counts if c]} winner {nm(w)} runner-up {nm(s2)}')
+            for r in range(NRD):                        # (4.2 AFC mode: a per-region draw - each club in its half)
+                R = rbytes(spec, ci, r)
+                if R and R[0] == K['groups'] and R[16] & 2 and counts[r] and not any(   # (ED_S editions only)
+                        ctypes.c_ubyte.in_dll(L, k).value for k in ('CT_NOS', 'CT_NOR')):
+                    hg, gsz = R[6] // 2, R[7]
+                    for q in range(counts[r]):
+                        x = struct.unpack_from('<H', o, o_ent + 2 * (ci * NRD * NE + r * NE + q))[0]
+                        if x:
+                            ak = assocs[ib[o_club + 12 * (x - 1) + 2]]
+                            want = AFC_REGION[ak[2:] if ak.startswith('g:') else ak.upper()]
+                            assert (q // gsz >= hg) == want, (ck, r, q, ak, 'drawn outside its region')
+                    print(f'  {ck} round {r}: per region OK (West groups 0..{hg - 1})')
             if os.environ.get('CONTI_DUMP') == ck:
                 for r in range(NRD):
                     if counts[r]:
                         es = struct.unpack_from(f'<{counts[r]}H', o, o_ent + 2 * (ci * NRD * NE + r * NE))
                         print('   ', r, [nm(x) for x in es])
+    sn, se, sh = (ctypes.c_uint32.in_dll(L, k).value for k in ('CT_SDRAW_N', 'CT_SDRAW_ERR', 'CT_SDRAW_HIT'))
+    print(f'ct_sdraw: {sn} draws, refusal {se:#x}, budget hits {sh}')   # (4.2 AFC mode: MC 11/11 gate item 4)
+    assert sh == 0, f'conti: {sh} group draw(s) ran out of the search budget (CT_SDRAW_HIT): a reported bug'
+    assert se == 0 or ctypes.c_uint32.in_dll(L, 'CT_SDRAW_FORCE').value, f'conti: a group draw refused {se:#x}'
+
+
+def rbytes(spec, ci, r):
+    """cup ci's round r bytes in a spec (None past its rounds)"""
+    p = 4
+    for c in range(spec[0]):
+        nr = spec[p]
+        if c == ci:
+            return spec[p + 4 + r * RB:p + 4 + (r + 1) * RB] if r < nr else None
+        p += 4 + RB * nr
 
 
 def grec_check(spec, gb, o, lay, mgr, where):

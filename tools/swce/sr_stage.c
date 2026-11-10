@@ -377,6 +377,11 @@ enum { GBUDGET = 100000, GBUDGET_P = 25000, GBUDGET_C = 40000 };   /* gsolve's n
                                                                    protect pairs ~750 a step (T2 re-run): 25000;
                                                                    cap 2 ~400 a step (64 clubs): 40000 */
 
+u32 sr_gdraw_hits, sr_gdraw_used;                              /* (diagnostics) the draws whose budget ran out --
+                                                                   each a draw, but not surely the rule's own (a
+                                                                   pick passed over undecided); the last draw's
+                                                                   steps used */
+
 typedef struct {
     i32 n, g, np, steps, nprot, witok, cap;                     /* (witok 0: the witness not a draw yet -- a
                                                                    protect chain's first search; cap: an
@@ -737,6 +742,12 @@ static __attribute__((noinline)) i32 gclasses(i32 n, const u8 *assoc, const u8 *
     return np;
 }
 
+static void gdone(const sr_gdraw *d, i32 budget)
+{
+    sr_gdraw_used = (u32)(budget - (d->steps < 0 ? -1 : d->steps));
+    if (d->steps < 0) sr_gdraw_hits++;
+}
+
 i32 sr_group_draw(i32 n, i32 g, const u8 *assoc, u32 seed, u8 *grp)
 {
     return sr_group_draw_p(n, g, assoc, 0, 0, seed, grp);
@@ -745,6 +756,37 @@ i32 sr_group_draw(i32 n, i32 g, const u8 *assoc, u32 seed, u8 *grp)
 i32 sr_group_draw_p(i32 n, i32 g, const u8 *assoc, const u8 *prot, i32 nprot, u32 seed, u8 *grp)
 {
     return sr_group_draw_k(n, g, assoc, prot, nprot, 1, seed, grp);
+}
+
+i32 sr_group_draw_m(i32 n, i32 g, const u8 *assoc, u32 seed, u8 *grp)
+{
+    if (n > N || n < 0 || !assoc || g < 1)
+        return -1;
+    u8 cnt[256];                                                /* (n <= 64: a byte each) */
+    i32 over = 0;
+    for (i32 a = 0; a < 256; a++) cnt[a] = 0;                  /* (a loop, not = { 0 }: no memset in the i486 object) */
+    for (i32 c = 0; c < n; c++) cnt[assoc[c]]++;
+    for (i32 a = 0; a < 256; a++) over |= cnt[a] > g;
+    if (!over)                                                  /* (every association within g: sr_group_draw_p's
+                                                                   draw, the same) */
+        return sr_group_draw_p(n, g, assoc, 0, 0, seed, grp);
+    u8 cls[N], fresh[N];
+    i32 nf = 0;
+    for (i32 v = 255; v >= 0 && nf < N; v--) if (!cnt[v]) fresh[nf++] = (u8)v;
+    for (i32 c = 0; c < n; c++) cls[c] = assoc[c];
+    for (i32 a = 0; a < 256; a++) {                             /* an association over g: its clubs, in an order
+                                                                   hashed from the seed, in classes of g */
+        if (cnt[a] <= g) continue;
+        u8 m[N], o[N];
+        i32 k = 0;
+        for (i32 c = 0; c < n; c++) if (assoc[c] == a) m[k++] = (u8)c;
+        hash_order(seed, 0x4D490000u + (u32)a * 64u, k, o);
+        for (i32 i = g; i < k; i++) {                           /* (the first class keeps the association's value) */
+            if (i % g == 0) nf--;
+            cls[m[o[i]]] = fresh[nf];
+        }
+    }
+    return sr_group_draw_p(n, g, cls, 0, 0, seed, grp);
 }
 
 i32 sr_group_draw_k(i32 n, i32 g, const u8 *assoc, const u8 *prot, i32 nprot, i32 cap, u32 seed, u8 *grp)
@@ -781,12 +823,13 @@ i32 sr_group_draw_k(i32 n, i32 g, const u8 *assoc, const u8 *prot, i32 nprot, i3
             cls[c] = (u8)(2 * k + h[k]); h[k] ^= 1;
         }
     }
+    const i32 budget = d.steps;
     i32 r = gking(n, g, d.cap > 1 ? cls : d.assoc, d.wit);
     if (r < 0) return r;
     if (!gwit_ok(&d)) {                                         /* a protect chain: the first witness by the search */
         d.witok = 0;
         r = gsolve(&d, -1);
-        if (r <= 0) return r < 0 ? -3 : -2;
+        if (r <= 0) { gdone(&d, budget); return r < 0 ? -3 : -2; }
         d.witok = 1;
     }
     for (i32 i = 0; i < n; i++) {                               /* each club to the first group, in an order hashed
@@ -803,9 +846,10 @@ i32 sr_group_draw_k(i32 n, i32 g, const u8 *assoc, const u8 *prot, i32 nprot, i3
             if (r > 0) break;
             gtake(&d, c, j);                                    /* (no draw that way, or undecided in the budget) */
         }
-        if (r <= 0) return -2;                                  /* (not reached: the witness's group is one) */
+        if (r <= 0) { gdone(&d, budget); return -2; }          /* (not reached: the witness's group is one) */
     }
     for (i32 c = 0; c < n; c++) grp[c] = d.grp[c];
+    gdone(&d, budget);
     return g;
 }
 

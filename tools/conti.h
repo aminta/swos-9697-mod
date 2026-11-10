@@ -19,8 +19,9 @@ typedef int s32;
 /* round kinds, draws, association rules (spec byte values) */
 enum { K_KO, K_GROUPS };
 enum { D_ORDER, D_POTS2, D_SAMEPAIRS, D_SEED12, D_BRACKET, D_GROUPS, D_CROSS, D_SLOT, D_PLACE };
-enum { A_ANY, A_NO, A_NOVIA, A_NO2 };    /* (A_NO2, 4.2 P7: at most 2 of an association a group - CAF art. 17;
-                                           ED_S editions only, the 411 draw takes it as A_NO) */
+enum { A_ANY, A_NO, A_NOVIA, A_NO2, A_MIN };   /* (A_NO2, 4.2 P7: at most 2 of an association a group - CAF art. 17;
+                                           A_MIN, 4.2 AFC mode: the fewest of an association a group - ACL Two art.
+                                           8.1.3; ED_S editions only, the 411 draw takes both as A_NO) */
 /* access codes: 0 champion, 1 cup winner, 2..10 the k-th place, NEXT the best club not yet in, AP / CL a split
    season's stage champions (else as NEXT) */
 enum { C_NEXT = 0x40, C_AP = 0x41, C_CL = 0x42 };

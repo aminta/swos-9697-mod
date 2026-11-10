@@ -43,7 +43,7 @@ REFUSED = {'fair_play', 'coefficient', 'previous_stage_rank', 'play_off_match'}
 LABELS = {}
 # what the hooks and the host test use: cobj links only the sections they reach (of the #included library: sr_league_rank)
 ROOTS = ('lr_res_hook', 'lr_sort_hook', 'lr_res', 'lr_rank', 'LR_BLK',
-         'ct_place', 'CT_SDRAW_N', 'CT_SDRAW_ERR')     # (4.2 P7: conti's group draw, ctdraw.c - sr_group_draw_k)
+         'ct_place', 'CT_SDRAW_N', 'CT_SDRAW_ERR', 'CT_SDRAW_HIT')     # (4.2 P7: conti's group draw, ctdraw.c - sr_group_draw_k)
 
 
 def compile_list(names, teams, where):

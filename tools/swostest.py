@@ -27045,7 +27045,9 @@ def world_cupd_format():
         try:
             walk(s, 'VISUAL. COMPETIZ.', 3)
             lst = s.screen()
-            i = next((e[0] for e in lst.entries if e[1] and 'SERIE D' in e[1] and 'COPPA' in e[1] and not e[2]), None)
+            cand = [e[0] for e in lst.entries if e[1] and 'SERIE D' in e[1] and 'COPPA' in e[1] and not e[2]]
+            i = cand[-1] if cand else None              # (the cup's own entry, country first - not the slot tie's
+                                                        #  'COPPA ITALIA SERIE D', NESSUNA DESCRIZIONE)
             s.log.append(f'[cdfmt] menu {st["menus"]} list {[e[1] for e in lst.entries if e[1]][:16]} -> {i}')
             if i is not None:
                 walk(s, i, 3)
@@ -27068,7 +27070,8 @@ def world_cupd_format():
     finally:
         W84_HOOK = None
     errs = []
-    check(ok, msg[:300], errs)
+    if UI == 'it':                                      # (world_gplay_cupd's round-name checks read the Italian
+        check(ok, msg[:300], errs)                      #  screens: TRENTADUES... - other languages info only)
     exe = os.environ.get('GPLAY_BUILD') or ''
     pg = st.get('page')
     check(pg is not None, f'Coppa D FORMAT page not reached {st}', errs)
@@ -27077,7 +27080,7 @@ def world_cupd_format():
         got = pg[1][:len(want or [])]
         check(want and got == want, f'{pg[0]}: shown {got} want {want}', errs)
         alt = {'it': 'FINO AI QUARTI', 'en': 'TO THE QUARTER-FINALS', 'fr': 'JUSQU AUX QUARTS', 'de': 'VIERTELFINAL'}[UI]
-        check(any(alt in x for x in got), f'no alternation line with {alt!r}: {got}', errs)
+        check(alt in ' '.join(got), f'no alternation line with {alt!r}: {got}', errs)   # (the page wraps the text)
     return not errs, '; '.join(errs) or f'FORMAT {pg[0]!r}: {len(pg[1])} lines ok; {msg[:200]}'
 
 

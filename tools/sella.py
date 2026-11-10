@@ -161,9 +161,9 @@ def find(p):
                 TOFF=p.target(1, a + to[0].start() + 8), AMT=p.target(1, a + am[0].start() + 2))
 
 
-def patch(p, at):
+def patch(p, at, dry=False):
     """Code + data at obj3:at (the obj3 chain's end); returns the end. Chained on the current targets of the two
-    cseg_5B3B5 calls and of the cseg_5AB36 call (p.call_target)."""
+    cseg_5B3B5 calls and of the cseg_5AB36 call (p.call_target). dry: the code's size only, nothing written."""
     import sacups
     s = find(p)
     d = p.le.obj_bytes(1)
@@ -177,6 +177,8 @@ def patch(p, at):
            'D7_': (2, regs['D7']), 'D0_': (2, s['d0']), 'NOFF': s['NOFF'], 'TOFF': s['TOFF'], 'PIDX': s['PIDX'],
            'AMT': s['AMT']}
     code, fix, rel = nasmcave.assemble_obj(src, at, sym, 3)
+    if dry:
+        return len(code)
     lab = nasmcave.labels(src, at, sym)
     assert not any(p.get(3, at, len(code)))
     p.put(3, at, code)

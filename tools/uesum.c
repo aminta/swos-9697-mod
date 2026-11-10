@@ -44,9 +44,10 @@ enum { T_HOLD, T_TBP, T_WIN, T_PEN, T_AET, T_LP };
 static const char *txt(int k) { return (const char *)US_TAB + w16(US_TAB + 2 * k); }
 static int cwid(u8 ch) { return ch >= 0x20 && ch < 0x60 ? US_TAB[22 + ch - 0x20] : 6; }
 
+u8 US_IN = 0;                           /* (4.1 RC2: usmenu's view of a phase open - no RIEPILOGO in it) */
 u32 us_ok(void) {
     u8 z;
-    if (UD[0x2D] > 2) return 0;
+    if (UD[0x2D] > 2 || US_IN) return 0;
     __asm__ volatile("call W_LPW; sete %0" : "=q"(z) : : "memory", "cc");
     return z;
 }
@@ -87,26 +88,13 @@ static __attribute__((noinline)) void score(u32 a, u32 b, int par) {      /* ' a
     word(t);
 }
 
-static __attribute__((noinline)) const char *stname(u32 s) {             /* stage s's name: 0 the league phase, 1 the play-offs, then by clubs */
+__attribute__((noinline)) const char *us_stname(u32 s) {             /* stage s's name: 0 the league phase, 1 the play-offs, then by clubs */
     u32 n = w16(UC + 0x15D + 0x76 * s + 4);
     return txt(s < 2 ? T_LP + (int)s : n == 16 ? T_LP + 2 : n == 8 ? T_LP + 3 : n == 4 ? T_LP + 4 : T_LP + 5);
 }
 
 /* --- a tie, normalised (4.1 S2b): the current stage's (ko) and the earlier stages' (US_REC, saved) the same way --- */
-struct tie {                            /* x = the first leg's home club, y its guest (team words) */
-    u16 x, y;
-    u8 l1, l2, pn, fl;                  /* goals x << 4 | y (15 at most): leg 1, leg 2, penalties; FL_* */
-};
-enum { FL_PLAYED = 0x80, FL_TWO = 0x40, FL_LEG1 = 0x20, FL_Y = 1, FL_DEC = 2, FL_AET = 4, FL_PEN = 8 };
-#define NSTG 4                          /* the earlier stages kept: play-offs, round of 16, quarter-finals, semi-finals */
-#define NTIE 22                         /* (8 + 8 + 4 + 2) */
-#define NLP 36                          /* the league phase's clubs */
-struct cup {                            /* ss: the season stamp, seasonPlaying + 1 (0: none) */
-    u8 id, n[NSTG], ss;
-    struct tie t[NTIE];
-    u16 lw[NLP];                        /* the league phase's final table: team words, place order (lw[0] 0: none) */
-    u8 lp[NLP];                         /* their points */
-};
+#include "uesum.h"
 struct { u32 tag; struct cup c; } US = { 0x52423253 };   /* 'S2BR' (the harness finds the block by it), then the
                                            career club's UEFA cup (the one contest a career keeps: id = its contest 0..2):
                                            stage s's ties after n[0..s-2]'s - the save item's block US_REC = US.c (MC's
@@ -189,14 +177,18 @@ void us_lp(void) {                      /* the league phase's end (lp36 lp_cb_ge
         c->lp[k] = (u8)(pt > 255 ? 255 : pt);
     }
 }
+void (*US_UP2)(void) = 0;             /* 4.1 RC3: uprize.c up_lp (the ranking pillar), set by uprize.py */
+void us_up2(void) { if (US_UP2) US_UP2(); }
 #if GEND_CHAIN                          /* (uefacoef's uc_gend after it, else lp_cb_gend's own ret) */
-__asm__(".globl us_gend\nus_gend:\n\tpushal\n\tcall us_lp\n\tpopal\n\tjmp GENDOLD\n");
+__asm__(".globl us_gend\nus_gend:\n\tpushal\n\tcall us_lp\n\tcall us_up2\n\tpopal\n\tjmp GENDOLD\n");
 #else
-__asm__(".globl us_gend\nus_gend:\n\tpushal\n\tcall us_lp\n\tpopal\n\tret\n");
+__asm__(".globl us_gend\nus_gend:\n\tpushal\n\tcall us_lp\n\tcall us_up2\n\tpopal\n\tret\n");
 #endif
 extern u16 D0W;                         /* the game's D0 */
 void RET28(void);                       /* cseg_28E76's 'xor ax, ax; retn' */
-__asm__(".globl us_hook\nus_hook:\n\tpushal\n\tcall us_rec\n\tpopal\n\tmovw $0, D0W\n\tjmp RET28\n");
+void (*US_UP)(void) = 0;              /* 4.1 RC3: uprize.c up_ko (the prizes), set by uprize.py */
+void us_up(void) { if (US_UP) US_UP(); }
+__asm__(".globl us_hook\nus_hook:\n\tpushal\n\tcall us_rec\n\tcall us_up\n\tpopal\n\tmovw $0, D0W\n\tjmp RET28\n");
 
 static __attribute__((noinline)) void ent(u32 k, u32 w, u32 pts) {   /* 'place NAME points' (a table's entry) */
     const char *nm = name(w);
@@ -210,18 +202,25 @@ static __attribute__((noinline)) void ent(u32 k, u32 w, u32 pts) {   /* 'place N
     word(b);
 }
 
+const struct cup *us_cur(void) {                /* US_REC when it is the viewed cup's, this season's, else 0 */
+    const struct cup *c = &US_REC;              /* (another cup's or season's; an older save's zero block) */
+    return c->id != UD[0x2D] || c->ss != stamp() ? 0 : c;
+}
+
+static __attribute__((noinline)) void lpt(const struct cup *c) {   /* (S2b LP: the league phase's final table) */
+    head(us_stname(0), 0);
+    brk();
+    add("  ");
+    for (u32 k = 0; k < NLP; k++) ent(k, c->lw[k], c->lp[k]);
+}
+
 static void earlier(u32 st) {                   /* the recorded stages before the current one */
-    const struct cup *c = &US_REC;
-    if (c->id != UD[0x2D] || c->ss != stamp()) return;   /* (another cup's or season's; an older save's zero block) */
-    if (st && c->lw[0]) {                       /* (S2b LP: the league phase's final table) */
-        head(stname(0), 0);
-        brk();
-        add("  ");
-        for (u32 k = 0; k < NLP; k++) ent(k, c->lw[k], c->lp[k]);
-    }
+    const struct cup *c = us_cur();
+    if (!c) return;
+    if (st && c->lw[0]) lpt(c);
     for (u32 s = 1, off = 0; s < st && s <= NSTG; off += c->n[s - 1], s++) {
         if (!c->n[s - 1]) continue;
-        head(stname(s), 0);
+        head(us_stname(s), 0);
         for (u32 i = 0; i < c->n[s - 1]; i++) tline(&c->t[off + i]);
     }
 }
@@ -236,18 +235,29 @@ static void table(void) {                       /* the league phase: 'place NAME
     }
 }
 
-void us_text(void) {
+static void start(void) {                       /* the page empty, the cup's name its title */
     o = TXT; nl = px = nc = 0;
     char *t = TITLE;
     for (int i = 0; i < 24 && UD[4 + i]; i++) *t++ = (char)UD[4 + i];
     *t = 0;
+}
+
+void us_lpt(void) {                             /* 4.1 RC2: the menu's league phase once it is over - its table alone */
+    start();
+    const struct cup *c = us_cur();
+    if (c && c->lw[0]) lpt(c);
+    *o = 0;
+}
+
+void us_text(void) {
+    start();
     const char *h = HOLD[UD[0x2D]] ? name(HOLD[UD[0x2D]]) : 0;   /* (0: none yet, a world's first season) */
     if (h) head(txt(T_HOLD), h);
     u32 st = w16(UC + 0x53), ko_ = UD[0] == 1;
     earlier(st);
-    head(stname(st), 0);
+    head(us_stname(st), 0);
     if (ko_) ko(); else table();
-    for (u32 s = st + 1; s < 6 && w16(UC + 0x15D + 0x76 * s + 4); s++) head(stname(s), txt(T_TBP));
+    for (u32 s = st + 1; s < 6 && w16(UC + 0x15D + 0x76 * s + 4); s++) head(us_stname(s), txt(T_TBP));
     if (ko_ && w16(UD + 0x39) != 0xFFFF && (h = name(w16(UD + 0x39)))) head(txt(T_WIN), h);
     *o = 0;
 }

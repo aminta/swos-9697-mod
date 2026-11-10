@@ -21,7 +21,9 @@ def squad(s):
     names = [blk[38 * k + 3:38 * k + 26].split(b'\0')[0].decode('latin1') for k in o if k < 32]
     return n, o, names
 def bank(s):
-    T.walk(s, 'TRASFERIMENTI', 3); b = next((x for x in s.screen().texts() if x.startswith('BANCA')), '?')
+    T.walk(s, 'TRASFERIMENTI', 3); scr = s.screen(); b = next((x for x in scr.texts() if x.startswith('BANCA')), None)
+    if b is None:   # 4.1 RC3 euro: World 2026-27's money has the euro sign 9Ch, a byte Screen drops the whole text for
+        b = next((r.replace(b'\x9c', b'EUR').decode('latin-1') for r in scr.raw if r.startswith(b'BANCA')), '?')
     T.walk(s, 'ESCI', 3); return b
 def pick(s, label):
     sc = s.screen(); i = sc.find(label, exact=True)

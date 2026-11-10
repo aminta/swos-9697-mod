@@ -1,4 +1,4 @@
-"""Editable shirt numbers (4.0.2; Marco Malave's SWOS 2020 video, Nicola's request): on the team screen before a match
+"""Editable shirt numbers (4.0.2; Marco's SWOS 2020 video, Nicola's request): on the team screen before a match
 (playMatchMenu: each player row is an entry drawn by DrawPlayerEntries), LEFT on one of your players' rows lights his
 number box (once the cursor has been on that row ~0.3 s: a LEFT that just brought it there, or a held one, still only
 moves); then

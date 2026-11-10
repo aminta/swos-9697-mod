@@ -24,14 +24,19 @@ BUILD_SWITCHES = TEST_VARS + (                     # 4.0.6: every switch a test 
     'CONTI_CONFS', 'CONTI_LEAGUE_PLAYED', 'CONTI_GUEST', 'CONTI_TEST_MANAGER', 'CONTI_DUMP', 'SEC_FORCE_B',   # them (and
     'HDR_TEST', 'NO_VC5', 'NO_CUP12', 'MKSEASON_NOBALANCE', 'PROTO36', 'RIPOOL_TEST_SR', 'STATECUP_TEST',  # every *_FORCE)
     'TAILZERO_FILL_TEST', 'TAILZERO_FILL3_TEST', 'SIMDRAW_G0', 'SIMDRAW_G1', 'SIMDRAW_K', 'SIMDRAW_D0', 'SIMDRAW_D1', 'XTRA_HOOK',
-    'AFTER_PROCESS_PROBE', 'QUIETEND_OFF', 'SELLA_N', 'SELLA_MARGIN', 'SELLA_OFF')
+    'AFTER_PROCESS_PROBE', 'QUIETEND_OFF', 'SELLA_N', 'SELLA_MARGIN', 'SELLA_OFF', 'EURO_OPTIONAL')   # (4.1: buildrel
+    # clears EURO_OPTIONAL, so the release recipe always keeps patch.py's euro assert)
+
+
+def is_test():
+    """A test build: a TEST_VARS switch or any *_FORCE set (MODVER_TAG aside)."""
+    return any(os.environ.get(v) for v in TEST_VARS) or any(k.endswith('_FORCE') and v for k, v in os.environ.items())
 
 
 def text():
     v = re.search(r"^VERSION = '([^']+)'", open(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                                         'mkpatcher.py')).read(), re.M).group(1)   # (no import: the
-    tag = os.environ.get('MODVER_TAG') or ('TEST' if any(os.environ.get(v) for v in TEST_VARS) or
-                                           any(k.endswith('_FORCE') and v for k, v in os.environ.items()) else '')
+    tag = os.environ.get('MODVER_TAG') or ('TEST' if is_test() else '')
     return ('MOD ' + v + (' ' + tag.upper() if tag else '')).encode('ascii')     # patcher's file checks)
 
 

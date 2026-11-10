@@ -346,6 +346,9 @@ def patch_exe(src, dst, remap, lang='it'):
         engine.after_load('ct_load')                                    # (B2 M3: an older season-1 save: built at load)
         import uesum                                                    # 4.1 S2b: RIEPILOGO's earlier knockout stages
         engine.save_item('US', uesum.REC_SIZE, world_only=True)         # (uesum.c US_REC; a save without it: zeroed)
+        import uprize                                                   # 4.1 RC3: the UEFA prizes paid (uprize.c UP;
+        engine.save_item('UP', uprize.UP_SIZE, world_only=True)         # a save without it: zeroed = an older save,
+        engine.after_new('up_new')                                      # what is reached counts as paid)
     import lrank
     import swe
     swe.OBJ4_PAGES = max(swe.OBJ4_BASE, lrank.LR_AT // 0x1000 + lrank.LR_PAGES) if lr_tabs else swe.OBJ4_BASE
@@ -721,16 +724,25 @@ def patch_exe(src, dst, remap, lang='it'):
         (hex(world), hex(nz_end), hex(fin_end), hex(arg_end))
     careerworld.ns_xtra(p, xtra.LABELS['XTRA_NAMEP'] if xtra_on else None)   # several worlds: XTWn.nnn names
     mkseason.ns_emit(p)                          # several worlds: the namespaces' rows, the base one static
+    eu_end = None
     if sp_pg:                                    # World 2026-27: mid-season splits (split.py), after lpb's pages
         sp_at = hist2 + h2 + 0x1000 * lpb
         sp_end = split.patch(p, sp_at, nasmcave, sp_tabs)
         assert sp_end <= sp_at + 0x1000 * sp_pg, (hex(sp_at), hex(sp_end), sp_pg)
         if LG_ROOM:                              # 4.0.5: the real league calendars of a world's first season
             import lgreal
-            lgreal.patch(p, LG_ROOM[0], LG_ROOM[1], num_bss + shirtnum.BSS_SIZE + blond.BSS_SIZE + menunum.BSS_SIZE,
-                         fmtpage.BSS_SIZE, num_bss + shirtnum.BSS_SIZE + blond.BSS_SIZE + menunum.BSS_SIZE +
-                         fmtpage.BSS_SIZE + teamstab.BSS_SIZE + blond.BSS2_SIZE,
-                         alt=[(sp_end + 15) & ~15, sp_at + 0x1000 * sp_pg])   # (rc19: gplay's preview filled LG_ROOM)
+            lg_end = lgreal.patch(p, LG_ROOM[0], LG_ROOM[1], num_bss + shirtnum.BSS_SIZE + blond.BSS_SIZE + menunum.BSS_SIZE,
+                                  fmtpage.BSS_SIZE, num_bss + shirtnum.BSS_SIZE + blond.BSS_SIZE + menunum.BSS_SIZE +
+                                  fmtpage.BSS_SIZE + teamstab.BSS_SIZE + blond.BSS2_SIZE,
+                                  alt=[(sp_end + 15) & ~15, sp_at + 0x1000 * sp_pg])   # (rc19: gplay's preview filled LG_ROOM)
+            import euro                          # 4.1 RC3 (Enzo, Davide): money in euros in the euro worlds (World
+            eu_at = lg_end if LG_ROOM[0] <= lg_end <= LG_ROOM[1] else LG_ROOM[0]   # 2026-27), after lgreal in its room
+            if 'WCUR' in careerworld.LABELS:
+                eu_end = euro.patch(p, eu_at, LG_ROOM[1], (1, careerworld.LABELS['WCUR']))
+    if worlds:                                   # (MC 09/11: never a silent skip - a build with a euro world has the euro)
+        import euro
+        assert not euro.euro_worlds() or eu_end or os.environ.get('EURO_OPTIONAL'), \
+            f'euro: worlds {sorted(euro.euro_worlds())} in the build but no euro patch (gplay tail / split page / WCUR missing)'
     if sc_pg:                                    # state championships in career / Season slot 1 (statecup.py)
         sc_at = hist2 + h2 + 0x1000 * (lpb + sp_pg)
         sc_end = statecup.test_contest(p, sc_at) if statecup.TEST else sc_at   # (STATECUP_TEST=1 builds)
@@ -848,11 +860,20 @@ def patch_exe(src, dst, remap, lang='it'):
     st_end = edteam.patch(p, (st_end + 15) & ~15)            # number box (shirtedit's); the obj3 chain's end
     assert st_end <= LT3_AT, hex(st_end)
     import sella                                 # 4.0.6 (Davide, Francesco): outgoing offers rule A - a buyer only if the
-    st_end = sella.patch(p, (st_end + 15) & ~15)             # player would be among its N best; the obj3 chain's end
-    assert st_end <= LT3_AT, hex(st_end)
-    import bstrip                                # 4.0.6 (Francesco): the bench info strip - skills + value of the
-    st_end = bstrip.patch(p, (st_end + 15) & ~15)            # bench player / the two in a change; the obj3 chain's end
-    assert st_end <= LT3_AT, hex(st_end)
+    import bstrip                                # player would be among its N best; the obj3 chain's end
+    import modver                                # (4.1 RC1: a TEST build whose switches' code leaves the chain too little
+    sl_at = (st_end + 15) & ~15                  #  room - IT obj3 had 96 B left - puts sella on the longtable page's free
+    sl_need = ((sl_at + sella.patch(p, sl_at, dry=True) + 15) & ~15) + bstrip.size(p)   # tail; release builds never
+    lt3_tail = (lt_end_ + 15) & ~15 if lt_room and lt_obj == 3 else None                # move: same bytes)
+    if sl_need > LT3_AT and modver.is_test() and lt3_tail is not None:
+        sl_end = sella.patch(p, lt3_tail)
+        assert sl_end <= LT3_AT + 0x1000, hex(sl_end)
+        print(f'exe: TEST build: sella on the longtable page obj3+{lt3_tail:#x}..{sl_end:#x} (chain needed {sl_need:#x})')
+    else:
+        st_end = sella.patch(p, sl_at)
+        assert st_end <= LT3_AT, hex(st_end)
+    st_end = bstrip.patch(p, (st_end + 15) & ~15)            # 4.0.6 (Francesco): the bench info strip - skills + value
+    assert st_end <= LT3_AT, hex(st_end)                     # of the bench player / the two in a change; the chain's end
     st_end = bplace.force(p, (st_end + 15) & ~15)            # (BPLACE_FORCE test builds only: such ties forced; in
     assert st_end <= LT3_AT, hex(st_end)                     # obj3 since 4.0.6: the obj1 controls page is full)
     print(f'exe: obj3 end {st_end:#x} ({LT3_AT - st_end} B left before the longtable page obj3+{LT3_AT:#x})')
@@ -874,6 +895,10 @@ def patch_exe(src, dst, remap, lang='it'):
         uesum.patch(p, s4_end, lang, usc=sc_on)    # (sc_on: supercup's usc_snap keeps the holders)
         if 'US' in engine.SAVE_ITEMS:            # (4.1 S2b: its save item, trailer.late binds it)
             engine.ITEM_AT['US'] = uesum.LABELS['US_REC']
+        if 'UP' in engine.SAVE_ITEMS:
+            import uprize
+            engine.ITEM_AT['UP'] = uprize.LABELS['UP_ST']
+            engine.CALL_AT['up_new'] = uprize.LABELS['up_new'][:2]
         if gp_on:                                # (4.2 S1.3: gplay's UEFA-finalist rule reads it)
             gp_mod.link_usrec(p, uesum.LABELS['US_REC'])
     elif 'US' in engine.SAVE_ITEMS:              # (a test build with conti but no ctview: the item a zero block in
@@ -881,6 +906,12 @@ def patch_exe(src, dst, remap, lang='it'):
         import uesum
         p.put(4, swreg.UESUM_AT, bytes(uesum.REC_SIZE))
         engine.ITEM_AT['US'] = (4, swreg.UESUM_AT)
+        if 'UP' in engine.SAVE_ITEMS:            # (4.1 RC3: the prizes' item the same way, no code; a new career's
+            import uprize                        #  callback a ret)
+            ua = swreg.UESUM_AT + ((uesum.REC_SIZE + 3) & ~3)
+            p.put(4, ua, bytes(uprize.UP_SIZE) + b'\xc3')
+            engine.ITEM_AT['UP'] = (4, ua)
+            engine.CALL_AT['up_new'] = (4, ua + uprize.UP_SIZE)
     if lr_tabs:                                  # 4.2 S1.3: the tie-breaker lists, obj4+lrank.LR_AT (after the
         lrank.patch(p, lr_tabs, split.ST, split.MAGIC)     # obj1 hooks it chains onto: split's sp_res, lp36's lp_sort)
         engine.ITEM_AT['LR'] = lrank.LABELS['LR_BLK']

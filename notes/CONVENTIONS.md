@@ -122,8 +122,9 @@ new rule. If a rule seems wrong for a case, ask the regia session; don't silentl
     - **DOS/4GW zeroes no tail: the engine zeroes its own arena** (swe_init, before any other engine call). Never rely
       on a zero obj4 byte that the engine did not write.
     - 4.1 exception (Davide 08/11 via Regia, MC as obj4 owner): obj4 page 3+ may hold engine-adjacent views at a
-      named address (uesum, the UEFA RIEPILOGO page, at swreg.UESUM_AT = 0x2000; 4.2, xw-42: obj4 4 pages, engine
-      code below REG_AT 0x2800, registry 0x2800..OBJ4_END 0x3000, uesum moved to UESUM_AT 0x3000). The engine's code
+      named address (uesum, the UEFA RIEPILOGO page, at swreg.UESUM_AT = 0x2000; 4.1 RC2: usmenu, its phase menu, the
+      4th page at swreg.USMENU_AT = 0x3000; 4.2, xw-42: engine code below REG_AT 0x2800, registry 0x2800..OBJ4_END
+      0x3000, uesum moved to UESUM_AT 0x4000 and usmenu after it - Regia 09/11). The engine's code
       + registry stay below swreg.OBJ4_END (0x2000 in 4.1), each view has its own range assert, and the 23bis gates
       below apply to it as to engine code.
     - No obj4 address is ever stored in a save (engine state = 'EN' items, rule 21), so obj4 may grow and move freely.
@@ -132,3 +133,10 @@ new rule. If a rule seems wrong for a case, ask the regia session; don't silentl
     - Gates for any obj4 change: engine_obj4 (IT, and SWOSTEST_UI=en for SWOS++ 1.9.2.2), bench_world with
       BENCH_SPP=1 (a match under SWOS++), host tests test_swe + test_roundtrip; before a minor ships, a MiSTer
       z486 / ao486 boot of the obj4 exe.
+24. **Shared hook sites**: a site that one module hooks and another may need later is listed here. A later hook chains
+    to the earlier one (p.get() / lepatch.call_target, never obj_bytes), and the first one asserts it found the
+    original bytes.
+    - euro.py (4.1 RC3, obj1 gplay tail after lgreal): both `call conv` of the money conversion (Int2Pounds and
+      cseg_24AB6) -> eu_money; ChainFont's first instruction (`shl [D0], 2`, 7 B) -> jmp eu_chain; obj2's currency
+      strings block (pound, nullString, the short K / M forms) rewritten in place. A build with a euro world fails if the
+      patch did not go in (EURO_OPTIONAL=1 only for scenario builds without gplay's tail).

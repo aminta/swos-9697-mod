@@ -22719,6 +22719,144 @@ def world_c23():
     return not errs, '; '.join(errs) or '; '.join(info)
 
 
+def c23_slot3(s):
+    """(world_c23_ct) slot 3's title, header bytes (+2Dh..+2Fh: id, ...) and its calendar entries still to play from
+    the cursor (slot byte 3, round byte not FFh); None without a slot-3 buffer."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import split
+    import lepatch
+    if not hasattr(c23_slot3, 'sp'):
+        c23_slot3.sp = split.sites(lepatch.LEPatch(os.path.join(MAIN, 'orig', 'ITALIAN.EXE')))['SLOTS']
+    lin = struct.unpack('<I', s.result.obj2(c23_slot3.sp + 12, 4))[0]
+    if not lin:
+        return None
+    d = bytes(s.result.read(lin, 0x40))
+    cal = bytes(s.result.obj2(CAL_AT - 8, 3000))
+    cur, n = struct.unpack_from('<H', cal, 2)[0], struct.unpack_from('<H', cal, 4)[0]
+    o, ahead = 8 + cur, 0
+    for _ in range(n):
+        if o + 9 > len(cal):
+            break
+        ln_ = struct.unpack_from('<H', cal, o + 2)[0]
+        if not ln_:
+            break
+        ahead += cal[o] == 3 and cal[o + 7] != 0xFF
+        o += ln_
+    if getattr(s, 'c23_cal', None) is not None:     # (the slot-3 entries still to come: week byte +1, round +7)
+        o, ents = 8 + cur, []
+        for _ in range(n):
+            if o + 9 > len(cal):
+                break
+            ln_ = struct.unpack_from('<H', cal, o + 2)[0]
+            if not ln_:
+                break
+            if cal[o] == 3 and cal[o + 7] != 0xFF:
+                ents.append(f'{cal[o + 1]}/{cal[o + 7]}')
+            o += ln_
+        s.c23_cal = ents
+    if getattr(s, 'c23_cal', None) is not None:     # (DIY+27h on the slot's title? logged with the entries)
+        p27 = struct.unpack_from('<I', d, 0x27)[0]
+        t_ = d[4:38].split(b'\0')[0]
+        s.c23_cal.insert(0, 'ptr ' + ('ok' if p27 and bytes(s.result.read(p27, 40)).split(b'\0')[0] == t_ else 'STALE'))
+    return d[4:38].split(b'\0')[0].decode('latin-1'), d[0x2D:0x30].hex(), ahead
+
+
+@scenario
+def world_c23_ct():
+    """4.2 (42-c23, Regia 10/11): the player-visible side of the continental slots' relink - conti's ct_newcup. A 4.1
+    save taken during a running conti cup (FLAMENGO in the Libertadores qualifying, slot 3 live) loaded on 4.2: at the
+    next tie conti builds (ct_build -> ct_newcup) the old slot-3 name (DIY+27h) is compared with the new contest's;
+    a stale pointer (another build's obj2) never matches, so the cup's slot-3 calendar entries still to come were
+    dropped. Phase A (no C23_MID): the 4.1 save from world_cgame_self's season-1 end (C23_S1, default
+    suite-41rc3-eurorerun/cg_self_s1_it.CAR) on a 4.1 test build (C23_41, else built from C23_41_BRANCH, default 41-uprize;
+    CONTI_FORCE=lib:q1 CONTI_KOWIN=1), played
+    into season 2 until slot 3 is the Libertadores with 2+ entries ahead, saved -> RUNS/c23_lib_mid.CAR. Phase B: that
+    save on a 4.2 test build of this checkout (C23_BRANCH: another branch, the control) with the same switches,
+    played through C23_CHANGES slot-3 header changes (default 1; 6 = Q1..Q3 and the group stage): its entries still
+    to come must be kept. Found 10/11: the control (42-s1rank, no relink: DIY+27h STALE until the first conti build)
+    gives the same calendar, step by step - the build reloads the pointer (ptr ok from Q2 on) and nothing is lost on
+    this path; the scenario stays as the regression guard and logs 'ptr ok / STALE' with the slot-3 entries."""
+    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    errs, info = [], []
+    mid = os.environ.get('C23_MID') or os.path.join(RUNS, 'c23_lib_mid.CAR')
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    tenv = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]),
+            'CONTI_FORCE': 'lib:q1', 'CONTI_KOWIN': '1'}
+    if not os.path.exists(mid):
+        exe41 = os.environ.get('C23_41') or build('world_c23_ct41', env=tenv,
+                                                  branch=os.environ.get('C23_41_BRANCH', '41-uprize'))
+        s1 = os.environ.get('C23_S1') or os.path.join(MAIN, 'internal', 'swostest', 'suite-41rc3-eurorerun',
+                                                      'cg_self_s1_it.CAR')
+        if not exe41 or not os.path.exists(s1):
+            return False, f'phase A: C23_41 (the 4.1 test exe dir) / {s1} missing'
+        with Session('world_c23_ct_41', exe41, {'W84A.CAR': s1}, 'dump:2', 900) as s:
+            s.wait()
+            s.send(LOAD1 + ' dump:3')
+            for _ in range(8):
+                if s.screen().find('TRASFERIMENTI') is not None:
+                    break
+                scr = s.screen()
+                press(s, scr, 'CONTINUA CARRIERA' if scr.find('CONTINUA CARRIERA', exact=True) is not None else 'CONTINUA', 3) \
+                    or s.send('fire dump:2')
+
+            def live(scr):
+                if scr.find('TRASFERIMENTI') is None or scr.find('PROSS. PARTITA') is None:
+                    return False
+                c = c23_slot3(s)
+                return bool(c and c[0].startswith('COPA LIBERTADORES') and c[2] >= 2)
+            ok, msg = advance(s, live, 500)
+            if not check(ok, f'phase A: no live Libertadores in slot 3: {msg}', errs):
+                return False, '; '.join(errs)
+            info.append(f'4.1 save at slot 3 {c23_slot3(s)}')
+            for _ in range(5):
+                scr = s.screen()
+                press(s, scr, 'CONTINUA' if scr.find('CONTINUA', exact=True) is not None else 'ESCI', wait=3)
+                if s.screen().find('SALVA CARRIERA', exact=True) is not None:
+                    break
+            if not check(press(s, s.screen(), 'SALVA CARRIERA') is not None, f'phase A: no SALVA CARRIERA {s.screen()}', errs):
+                return False, '; '.join(errs)
+            s.send(name_entry('W84A') + ' dump:3')
+            path = os.path.join(s.run, 'SWOS', 'W84A.CAR')
+            if not check(os.path.exists(path), 'phase A: no save written', errs):
+                return False, '; '.join(errs)
+            shutil.copy(path, mid)
+    br = os.environ.get('C23_BRANCH')
+    exe = os.environ.get('C23_BUILD') or build('world_c23_ct' + ('_ctl' if br else ''), env=tenv, branch=br)
+    with Session('world_c23_ct', exe, {'W84A.CAR': mid}, 'dump:2', 900) as s:
+        s.wait()
+        s.send(LOAD1 + ' dump:3')
+        for _ in range(6):
+            if s.screen().find('TRASFERIMENTI') is not None:
+                break
+            press(s, s.screen(), 'CONTINUA', 3) or s.send('fire dump:2')
+        s.c23_cal = []
+        c0 = c23_slot3(s)
+        s.log.append(f'[c23ct] loaded: slot 3 {c0}')
+        if not check(c0 and c0[0].startswith('COPA LIBERTADORES') and c0[2] >= 1, f'loaded save: slot 3 {c0}', errs):
+            return False, '; '.join(errs)
+        trail = []
+
+        def changed(scr):
+            if scr.find('TRASFERIMENTI') is None or scr.find('PROSS. PARTITA') is None:
+                return False
+            c = c23_slot3(s)
+            if c and (not trail or trail[-1] != c):
+                trail.append(c)
+                s.log.append(f'[c23ct] slot 3 {c} cal {s.c23_cal} | {" | ".join(t for t in scr.texts()[:4])}')
+            hdrs = [t[1] for t in trail]
+            nchg = sum(1 for a, b in zip(hdrs, hdrs[1:]) if a != b)
+            return bool(c and nchg >= int(os.environ.get('C23_CHANGES', '1')))
+        ok, msg = advance(s, changed, 500)
+        if check(ok, f'slot 3 never changed contest: {msg}', errs):
+            c1 = c23_slot3(s)
+            s.shot('c23ct_after')
+            info.append(f'slot 3 {c0} -> {c1}; menu {[t for t in s.screen().texts() if t][:14]}')
+            check(c1[2] >= 1, f'slot-3 entries still to come dropped at the new tie: {c0} -> {c1}', errs)
+    return not errs, '; '.join(errs) or '; '.join(info)
+
+
 def season_playing_at(r, exe):
     """seasonPlaying's linear address in this run (uesum.season_var: InitializeNewSeason's add / cmp / mov, its fixup
     in the exe file - S2b's season stamp is its value + 1)."""

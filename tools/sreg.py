@@ -76,6 +76,32 @@ def shape_of(pk):
     return pk.world, files, divs
 
 
+OLD_NONE = 0xFFFF                               # (old_ord: a club the one-file layout did not have)
+
+
+def old_ord(pk):
+    """The old-save import's table (n7-p4.md §4 step 1): u16 per ident (clubs.csv order), the club's 4.1 identity in
+    gplay's RI space - a TEAM.102 row 0..255, or RIS (256) + its off-file pool index - or OLD_NONE. From the shaped
+    pack's import41.csv (tools/s7pack.py), matched by key. u16, not the note's u8: 4.1's file 102 already uses rows
+    0..255, and the 42 pool clubs need 256 + i. The C side: old_word[i] = the 102 slot x whose identity
+    (RI_STATE.maps[x] ? maps[x] - 1 : x) is old_ord[i], else SR_REG_NONE. Checks: every key a club of the pack, no
+    identity twice, rows < 256, pool indices < the 4.1 pool's size."""
+    import csv
+    path = os.path.join(pk.path, 'import41.csv')
+    with open(path, encoding='utf-8', newline='') as f:
+        rows = {r['key']: int(r['ident41']) for r in csv.DictReader(f)}
+    assert set(rows) <= set(pk.clubs), ('sreg: import41.csv: keys not in clubs.csv', sorted(set(rows) - set(pk.clubs))[:5])
+    vals = list(rows.values())
+    assert len(vals) == len(set(vals)), ('sreg: import41.csv: an identity twice', path)
+    npool = sum(1 for v in vals if v >= 256)
+    assert all(0 <= v < 256 + npool for v in vals), ('sreg: import41.csv: an identity past rows / pool', path)
+    return [rows.get(k, OLD_NONE) for k in pk.clubs]
+
+
+def old_ord_bytes(table):
+    return struct.pack(f'<{len(table)}H', *table)
+
+
 def spec_bytes(files, nf=8, ndivs=16):
     """SREG_SPEC's bytes: sr_reg_file[nf] (u8 file, u8 ndiv, u8 div[ndivs], u8 size[ndivs], u16 pool)."""
     import struct

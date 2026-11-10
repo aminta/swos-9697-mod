@@ -14,7 +14,9 @@ OUT_DIR    the shaped pack (a new folder; refused if it exists): the same files,
              the registry replaces RI's swaps), 'first' kept in its order without the 6;
            - squads 'files' with league_b for 'pool';
            - clubs.csv in ident order (append-only from the first S7 release, n7-p4.md §1): Serie A, B, C as in the
-             source, then the groups A..I in s7-groups.csv order, then the reserve rows in the source order.
+             source, then the groups A..I in s7-groups.csv order, then the reserve rows in the source order;
+           - import41.csv (key, ident41): each club's place in the one-file layout, in gplay's RI identity space (a
+             TEAM.102 row, or 256 + its off-file pool index) - the old-save import's table (sreg.old_ord).
 --base     file 144's first global number (n7-s7-clubmap §7.3: after XW's six; MC's S7 glue fixes it). Required.
 
 Data only: mkseason builds this pack's TEAM.102 / TEAM.144 (Pack.team_files()), but patch() refuses it until MC's S7
@@ -28,6 +30,7 @@ import os
 import shutil
 import sys
 
+RIS = 256                                       # (gplay.c RIS: RI's identities, a row or RIS + pool)
 SERIE_D = list(range(5, 14))                    # the league's divisions 5..13 = Serie D groups A..I
 
 
@@ -99,6 +102,15 @@ def build(src, groups, out, base, fileno=144):
     w.writerows(new)
     with open(os.path.join(out, 'clubs.csv'), 'w', encoding='utf-8', newline='') as f:
         f.write(buf.getvalue())
+    rid, nr, npool = {}, 0, 0                   # import41.csv: every club's place in the one-file layout (4.1's), in
+    for c in clubs:                             # gplay's RI identity space: a TEAM.102 row 0..255, or RIS (256) + its
+        if c['file'] == 'league':               # index among the off-file pool's records (clubs.csv order) - what
+            rid[c['key']], nr = nr, nr + 1      # RI_STATE.maps holds (+1); sreg.old_ord's input
+        else:
+            rid[c['key']], npool = RIS + npool, npool + 1
+    assert nr <= RIS, 's7pack: the one-file layout past 256 rows'
+    with open(os.path.join(out, 'import41.csv'), 'w', encoding='utf-8', newline='') as f:
+        f.write('key,ident41\n' + ''.join(f"{c['key']},{rid[c['key']]}\n" for c in new))
     return {'league': len(top), 'league_b': len(sd), 'pool_rows': len(left), 'join': join, 'sizes': size}
 
 

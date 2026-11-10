@@ -86,6 +86,29 @@ def test_s7pack():
         if 144 not in pk.xtra or 102 not in pk.xtra:
             errs.append(f'XTRA files {sorted(pk.xtra)}')
 
+        # old_ord: each ident's 4.1 identity (a 102 row, or 256 + its off-file pool index), by key
+        oo = sreg.old_ord(pk)
+        rows1 = [k for k, c in one.clubs.items() if c['file'] == 'league']
+        pool1 = [k for k, c in one.clubs.items() if c['file'] == 'pool']
+        want_oo = [rows1.index(k) if k in rows1 else 256 + pool1.index(k) for k in pk.clubs]
+        if oo != want_oo or sorted(oo) != list(range(298)) or oo[:100] != list(range(100)):
+            errs.append('old_ord: not the one-file rows / pool indices by key')
+        if [oo[list(pk.clubs).index(k)] >= 256 for k in s['join']] != [True] * 6:
+            errs.append('old_ord: the 6 not from the pool')
+        if len(sreg.old_ord_bytes(oo)) != 596:
+            errs.append('old_ord bytes')
+        dup = os.path.join(tmp, 'dup')
+        shutil.copytree(out, dup)
+        t = open(os.path.join(dup, 'import41.csv'), encoding='utf-8').read().splitlines()
+        t[2] = t[2].split(',')[0] + ',' + t[1].split(',')[1]
+        open(os.path.join(dup, 'import41.csv'), 'w', encoding='utf-8').write('\n'.join(t) + '\n')
+        try:
+            sreg.old_ord(mkseason.Pack(dup))
+            errs.append('old_ord: an identity twice accepted')
+        except AssertionError as e:
+            if 'twice' not in str(e):
+                errs.append(f'old_ord dup: {e}')
+
         # refused: the exe side (patch) and bad shapes
         keep = getattr(mkseason.packs, 'cache', None)
         mkseason.packs.cache = [pk]

@@ -3311,12 +3311,36 @@ void gp_fixload_c(const u32 *nm, u8 *recs, u32 base, u8 *const *slots, u32 phase
     }
 }
 
-void gp_repoint_c(u8 *const *slots, u8 *const *structs, u32 base, u32 div) {
+static int title_is(const u8 *t, const u8 *s) {  /* a slot's title (DIY+4, 34 chars at most) is the name s */
+    int j = 0;
+    while (j < 34 && t[j] && t[j] == s[j]) j++;
+    return j && (j == 34 || (!t[j] && !s[j]));
+}
+void gp_repoint_c(u8 *const *slots, u8 *const *structs, u32 base, u32 div, u32 lim) {
     for (int k = 0; k < 5; k++) {
         u8 *b = slots[k];
         const u8 *s = structs[k];
-        if (k == 2 || k == 3) continue; /* (never the European / continental slots: at a load D8CAA[3] may already
-                                           be conti's next contest while the buffer is still this season's) */
+        if (k == 2 || k == 3) {         /* 4.2 the European / continental slots: their title (DIY+4, the long name,
+                                           saved) finds the name in this exe - never D8CAA[k] alone: at a load
+                                           D8CAA[3] may already be conti's next contest while the buffer is still
+                                           this season's. The old absolute DIY+27h (another build's obj2) gave a
+                                           wrong title and the season record's +1Eh / +22h line (DIY+27h -
+                                           STR_BASE) at the season end. */
+            if (!b || !b[4]) continue;
+            const u8 *cur = *(const u8 *const *)(b + 0x27);
+            if (!cur) continue;
+            const u8 *ln = 0;
+            if (s) {
+                u32 r = *(const u32 *)(s + 5 + s[5]);
+                if (r && r < lim - base && str_ok((const u8 *)(base + r)) && title_is(b + 4, (const u8 *)(base + r)))
+                    ln = (const u8 *)(base + r);
+            }
+            if (!ln && (u32)cur > base && (u32)cur < lim && str_ok(cur) && title_is(b + 4, cur)) continue;
+            for (const u8 *q = (const u8 *)base + 1; !ln && (u32)q < lim; q++)
+                if (*q == b[4] && !q[-1] && title_is(b + 4, q) && str_ok(q)) ln = q;
+            if (ln) *(const u8 **)(b + 0x27) = ln;
+            continue;
+        }
         if (!b || !s || !b[4]) continue;
         const u8 *nm = s + 5 + s[5] + (k == 0 ? 8 * div : 0);
         const u8 *ln = (const u8 *)(base + *(const u32 *)nm);

@@ -99,6 +99,14 @@ new rule. If a rule seems wrong for a case, ask the regia session; don't silentl
     every 'EN' item as from an older save (LR void for the season, ST 'not started' = redrawn, the same groups) -
     the career goes on, nothing crashes (world_en_drop forces that path). 4.2 room: 'ST' (144 + 4) leaves **542 B**
     (engine block 16218 B); the 4.2 ledger is in internal/handoff/mc-engine.md "ST save room".
+21bis. **someLeaguesTable's reserved globals** (saved in the .CAR's fixed part, no 'EN' room; cseg_9487A traps unless
+    the table sums to 0, so every byte used here has its balance byte). Globals 1730..1849 belong to no club
+    (bigtables keeps them out of its remap); taken: 1786..1817 historic.BASE clubs, 1842 the save's release tag +
+    1843 its balance (4.2, N3 option C: 0 = a 4.1 or older save, 1 = 4.2, 2 = 4.3 ...; written at every save,
+    InitCareer clears it), 1844 pgroups.BALANCE, 1845 + 1846 careerworld's world byte + balance, 1847..1849 the 'S3'
+    career mark (sacups). Free: 1818..1841 (1740..1842 were the 1.0/1.1 'S2' / 'SA' block: trailer.load_trailer reads
+    and clears it, so take a new byte from the top down and read it only from a save that carries 'S3'). Add any new
+    byte here before its sha.
 22. obj1 has a ceiling too: 237 pages in the release build (4.0.5, Panchina's SWOS++ probe: obj1 in memory <= 238 pages
     starts every match under SWOS++ 1.9.2.2, 239+ makes PLAY MATCH stall - obj2's base moves past what SWOS++ tolerates;
     the harness adds 1 obj1 page of its own, so 237 file pages = 238 under test = the real limit). patch.py prints

@@ -459,13 +459,14 @@ gp_repoint:                             ; 4.0 after a career load (gp_after): th
     push ds
     pop es
     cld
+    push dword O2_END_
     movzx eax, word [CAR_DIV]
     push eax
     push dword STR_BASE_
     push dword D8CAA
     push dword SLOTS_
     call gp_repoint_c
-    add esp, 16
+    add esp, 20
     pop es
     ret
 
@@ -2855,7 +2856,8 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
         LABELS['STG_TAB'] = (2, stg_tab)
     symbols['STG_ON'] = (0, int(bool(stg)))
     import sacups
-    symbols.update({'SLOTS_': (2, split.sites(p)['SLOTS']), 'STR_BASE_': (2, sacups.STR_BASE), 'CAR_DIV': (2, _cardiv(p))})
+    symbols.update({'SLOTS_': (2, split.sites(p)['SLOTS']), 'STR_BASE_': (2, sacups.STR_BASE), 'CAR_DIV': (2, _cardiv(p)),
+                    'O2_END_': (2, area.end if area is not None else sacups.STR_BASE + 1)})   # (gp_repoint's name search)
     rec_dp = p.get(1, ps['rec'], 1) == b'\xe8'                # dplay's `call dp_rec; nop` there, or the game's mov
     symbols['GP_REC_NEXT'] = (1, tgt(ps['rec'])) if rec_dp else (0, 0)
     after = {}                                              # 4.0 ARG: a stage title's knockout built after its stage

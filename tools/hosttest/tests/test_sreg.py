@@ -442,6 +442,9 @@ def _imp_protos(L):
     if hasattr(L, 'sreg_ri_import'):
         L.sreg_ri_import.argtypes = [P, P, I32, P, I32, P, P, I32, P, I32, P, P, U8, U8, U8, P, P, P, P]
         L.sreg_ri_import.restype = I32
+    if hasattr(L, 'sreg_slt_import'):
+        L.sreg_slt_import.argtypes = [P, P, I32, P, P, P, P, I32, P]
+        L.sreg_slt_import.restype = I32
 
 
 def test_sreg_import():
@@ -726,3 +729,85 @@ def test_sreg_riimport():
     return not errs, '; '.join(errs) or ('RI season end: stand-in map, queue joiner out / p2 / d1; relegated twice: the '
                                          'record via the cross move; init 0 empty; 161 moved byte for byte; '
                                          'deterministic; refused SIX / QUEUE / POOLMAP / LAYOUT')
+
+
+def test_sreg_sltimport():
+    """sreg_slt_import (sreg_import.c, MC 11/11 from Shaved's S7-G) built natively on test_sreg_riimport's 'twice'
+    shape: 4.1 globals = file 102's 13 slots from 92 (92..104); S7's = 102 x 8 from 92, 144 = 100 x 4 + 2283 x 2 (the
+    split run, as globnum.split's 144). Every club's someLeaguesTable byte goes from its 4.1 global to its S7 one:
+    Serie A / B kept (92..98), d0 up into 102 row 7 (99), the stand-in p2 on 144 row 0 by RI (100: the row's global),
+    e0 / e1 / e2 in Serie D at other ordinals (103, 2283, 2284), J (a joiner) 0 at 102, the old global nobody uses
+    now (104) 0, another country's byte (50) kept; refused: a 144 ordinal past its table's runs (GLOB, the club)."""
+    import ctypes
+    import subprocess
+    import tempfile
+    d = tempfile.mkdtemp()
+    src = os.path.join(d, 's.c')
+    with open(src, 'w') as f:
+        f.write('#define SWOSRULES_HAVE_STDINT\n#include <stdint.h>\n'
+                f'#include "{TOOLS}/swce/sr_reg.c"\n#include "{TOOLS}/swce/sr_regsave.c"\n'
+                f'#include "{TOOLS}/sreg_import.c"\n'
+                'uint32_t imp_work_size(void) { return sizeof(sreg_imp_work); }\n'
+                'uint32_t imp_res_size(void) { return sizeof(sreg_imp_res); }\n')
+    lib = os.path.join(d, 's.dylib')
+    r = subprocess.run(['cc', '-shared', '-fPIC', '-O1', '-Wall', '-Werror', '-I', os.path.join(TOOLS, 'swce'), '-o',
+                        lib, src], capture_output=True, text=True)
+    if r.returncode:
+        return False, 'cc: ' + r.stderr[-400:]
+    L = ctypes.CDLL(lib)
+    _imp_protos(L)
+    names = ['a0', 'a1', 'a2', 'a3', 'b0', 'b1', 'b2', 'b3', 'd0', 'd1', 'J', 'e0', 'e1', 'e2', 'p1', 'p2']
+    I = {k: i for i, k in enumerate(names)}
+    sdiv = [0] * 4 + [1] * 4 + [5] * 3 + [6] * 3 + [OUT] * 2
+    old = list(range(10)) + [256] + [10, 11, 12] + [257, 258]
+    spec = spec_bytes([(102, [(0, 4), (1, 4)], 0), (144, [(5, 3), (6, 3)], 0)])
+    slot = [0] * 4 + [1] * 4 + [5, 5] + [6] * 3
+    slot[7], slot[8] = 5, 1                             # ('twice': b3's slot 7 now Serie D, holds p2; d0 up to 1)
+    maps = [0] * 13
+    maps[7] = 258 + 1
+    R = ctypes.create_string_buffer(b'\xAA' * REGSIZE, REGSIZE)
+    wk = ctypes.create_string_buffer(b'\xAA' * L.imp_work_size(), L.imp_work_size())
+    res = ctypes.create_string_buffer(L.imp_res_size())
+    sw, mp = (ctypes.c_uint16 * 192)(), (ctypes.c_uint16 * 128)()
+    n = L.sreg_import(R, ctypes.create_string_buffer(spec, len(spec)), 2, bytes(sdiv), len(names),
+                      (ctypes.c_uint16 * len(old))(*old), (ctypes.c_uint16 * 13)(*maps), 13, 3, 102, bytes(slot), 27, wk,
+                      sw, 64, mp, 64, res)
+    if n < 0:
+        return False, f'sreg_import {n}'
+
+    def gl(files):                                  # sreg.glob_bytes' format
+        return bytes([len(files)]) + b''.join(bytes([fl, len(rs)]) + b''.join(struct.pack('<HH', a, c) for a, c in rs)
+                                              for fl, rs in files)
+    OLD, NEW = gl([(102, [(92, 13)])]), gl([(102, [(92, 8)]), (144, [(100, 4), (2283, 2)])])
+    NS = 2300
+    o = bytearray(NS)
+    for x in range(13):
+        o[92 + x] = 10 + x
+    o[2283] = o[2284] = 0x77                            # (stale bytes at the new run: overwritten / zeroed)
+    o[50] = 0x55                                        # (another country's)
+
+    def run(new=NEW):
+        out = ctypes.create_string_buffer(b'\xEE' * NS, NS)
+        bad = ctypes.c_int32()
+        k = L.sreg_slt_import(R, wk, len(names), OLD, new, bytes(o), out, NS, ctypes.byref(bad))
+        return k, bad.value, out.raw
+    errs = []
+    k, bad, b = run()
+    want = bytearray(o)
+    for g in range(92, 105):
+        want[g] = 0
+    want[2283] = want[2284] = 0
+    for g, v in ((92, 10), (93, 11), (94, 12), (95, 13), (96, 14), (97, 15), (98, 16), (99, 18), (100, 17), (101, 19),
+                 (103, 20), (2283, 21), (2284, 22)):
+        want[g] = v
+    if k != 13 or bytes(want) != b:
+        dif = [(g, b[g], want[g]) for g in range(NS) if b[g] != want[g]]
+        errs.append(f'moved {k}: (global, got, want) {dif[:8]}')
+    if b[102] != 0 or b[104] != 0:
+        errs.append(f'J / unused global: {b[102]} {b[104]}')
+    k, bad, _ = run(gl([(102, [(92, 8)]), (144, [(100, 4)])]))
+    if (k, bad) != (-32, I['e1']):
+        errs.append(f'144 past its runs: {k} bad {bad}')
+    return not errs, '; '.join(errs) or ('13 clubs moved: A / B kept, d0 into 102 row 7, p2 on its RI row\'s global, '
+                                         'e0..e2 at their new 144 globals (2 in the second run), J and the old unused '
+                                         'global 0, another country\'s kept; refused: past the runs (GLOB, e1)')

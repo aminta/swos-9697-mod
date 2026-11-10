@@ -301,4 +301,71 @@ int32_t sreg_ri_import(const sr_registry *r, const sr_reg_file *spec, int32_t nf
     return 0;
 }
 
+/* The import's someLeaguesTable (MC 11/11, from Shaved's S7-G 21d9407): a club's byte (the game's per-global division
+   state, and the same for its sltcopy: call twice) moves from its 4.1 global to its S7 one, in the walk's pass. In a
+   4.1 save file 102's rows 100..255 had globals 192..347; in S7 those are file 144's first run, file 102 keeps 92..191.
+   Global numbers come from run tables (sreg.glob_bytes, globnum.split / base): db files; per file db file, db runs,
+   runs x (dw first global, dw count) - glob(file, ord) = the run holding ord, counted in order (globnum.glob).
+   old_gl = 4.1's (102: one run of 256 from 92), new_gl = S7's (102: 92 x 100; 144: 192 x 156 + 2283 x 6).
+   new_slt = old_slt with every global of either table zeroed, then for each club on a row in both layouts
+   (old_word[c] and r->word[c] not SR_REG_NONE) new_slt[its S7 global] = old_slt[its 4.1 global]. A club on a row now
+   with no 4.1 row (S7's joiners) keeps 0 (the season start fills it). A stand-in on a row through RI (model (i)) uses
+   that row's global, as ri_copy keeps the slot's bytes 0..4. The byte is copied as it is: it assumes both files'
+   globals read it against the same league base (Italy's one league). Returns the clubs moved; SREG_SLT_ARGS, or
+   SREG_SLT_GLOB with *bad = the club whose word has no global (a file or ordinal past its table). */
+enum { SREG_SLT_ARGS = -31, SREG_SLT_GLOB = -32 };
+
+static int32_t gl_glob(const uint8_t *gl, uint16_t word)
+{
+    const uint8_t *p = gl + 1;
+    for (int32_t k = 0; k < gl[0]; k++) {
+        const int32_t nr = p[1];
+        if (p[0] == (word & 0xFF)) {
+            int32_t o = word >> 8;
+            for (int32_t j = 0; j < nr; j++) {
+                const int32_t first = p[2 + 4 * j] | p[3 + 4 * j] << 8, cnt = p[4 + 4 * j] | p[5 + 4 * j] << 8;
+                if (o < cnt) return first + o;
+                o -= cnt;
+            }
+            return -1;
+        }
+        p += 2 + 4 * nr;
+    }
+    return -1;
+}
+
+static int32_t gl_zero(const uint8_t *gl, uint8_t *slt, int32_t nslt)
+{
+    const uint8_t *p = gl + 1;
+    for (int32_t k = 0; k < gl[0]; k++) {
+        for (int32_t j = 0; j < p[1]; j++) {
+            const int32_t first = p[2 + 4 * j] | p[3 + 4 * j] << 8, cnt = p[4 + 4 * j] | p[5 + 4 * j] << 8;
+            if (first + cnt > nslt) return -1;
+            for (int32_t g = first; g < first + cnt; g++) slt[g] = 0;
+        }
+        p += 2 + 4 * p[1];
+    }
+    return 0;
+}
+
+int32_t sreg_slt_import(const sr_registry *r, const uint16_t *old_word, int32_t n, const uint8_t *old_gl,
+                        const uint8_t *new_gl, const uint8_t *old_slt, uint8_t *new_slt, int32_t nslt, int32_t *bad)
+{
+    if (!bad) return SREG_SLT_ARGS;
+    *bad = -1;
+    if (!r || !old_word || !old_gl || !new_gl || !old_slt || !new_slt || old_slt == new_slt || n != r->nclub || nslt < 0)
+        return SREG_SLT_ARGS;
+    for (int32_t g = 0; g < nslt; g++) new_slt[g] = old_slt[g];
+    if (gl_zero(old_gl, new_slt, nslt) || gl_zero(new_gl, new_slt, nslt)) return SREG_SLT_ARGS;
+    int32_t moved = 0;
+    for (int32_t c = 0; c < n; c++) {
+        if (old_word[c] == SR_REG_NONE || r->word[c] == SR_REG_NONE) continue;
+        const int32_t go = gl_glob(old_gl, old_word[c]), gn = gl_glob(new_gl, r->word[c]);
+        if (go < 0 || gn < 0) { *bad = c; return SREG_SLT_GLOB; }
+        new_slt[gn] = old_slt[go];
+        moved++;
+    }
+    return moved;
+}
+
 #endif

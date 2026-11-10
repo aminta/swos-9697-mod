@@ -914,6 +914,8 @@ def patch_exe(src, dst, remap, lang='it'):
             p.put(4, ua, bytes(uprize.UP_SIZE) + b'\xc3')
             engine.ITEM_AT['UP'] = (4, ua)
             engine.CALL_AT['up_new'] = (4, ua + uprize.UP_SIZE)
+    if ct_pg:                                    # 4.1.1: conti's ranking + the 4.1 season-1 data, obj4's 5th page top
+        conti.d4_patch(p)
     if lr_tabs:                                  # 4.2 S1.3: the tie-breaker lists, obj4+lrank.LR_AT (after the
         lrank.patch(p, lr_tabs, split.ST, split.MAGIC)     # obj1 hooks it chains onto: split's sp_res, lp36's lp_sort)
         engine.ITEM_AT['LR'] = lrank.LABELS['LR_BLK']

@@ -23630,6 +23630,58 @@ def world_contiview_old():
 
 
 @scenario
+def world_conti411_oldsave():
+    """4.1.1 (Davide 10/11: the group-draw retry + the CONMEBOL ranking, from editions with CT_ED.pad ED_R): a 4.1
+    save made during season 1 replays its continental editions exactly as 4.1 did. A FLAMENGO career's season 1 on the
+    4.1 RC3 release exe (CV411_OLD, default c/REL41rc3/SWOS), saved at its 2nd Libertadores result screen (CV411_MID: a
+    cached save); that save loaded by the old exe and by this build, each to the in-season menu: CT_SEG (the club's next
+    game), CT_ED (the edition: unchanged, no ED_R) and CT_OUT (every round's entrants and results, ct_resume's replay)
+    byte-identical - the 4.1 build's season-1 block (conti.c CT_S1R0 / CT_S1H0) is what keeps them"""
+    old = os.environ.get('CV411_OLD') or os.path.join(MAIN, 'c', 'REL41rc3', 'SWOS')
+    if not os.path.isdir(old):
+        return True, f'SKIP: old release {old} missing'
+    exe = builds()['it']                                # (this build: SWOSTEST_BUILD = the release recipe's dir)
+    team = 'SUDAMERICA,BRASILE,BRASILEIRAO SERIE A,FLAMENGO'
+    mid = os.environ.get('CV411_MID') or os.path.join(RUNS, f'cv411_mid_{UI}.CAR')
+    if not os.path.exists(mid):
+        ok, msg, _ = sc_season(team, dict(W8485_BUILD=old, W8485_MIDTEXT='LIBERTADORES:2'))
+        if not ok or 'saved mid-season' not in msg:
+            return False, f'old season 1 to the 2nd Libertadores result: {msg[:200]}'
+        shutil.copy(msg.split(': ', 1)[1], mid)
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import ctypes
+    import conti
+    lay = (ctypes.c_uint32 * 22).in_dll(conti._native(), 'CT_LAYOUT')
+    n_out, n_ed = lay[2], lay[20]
+    got, errs = {}, []
+    for tag, d in (('4.1', old), ('4.1.1', exe)):
+        tr = cv_trace(d)
+        if not tr:
+            return False, f'{tag}: no CVTRPTR block'
+        with Session(f'world_conti411_oldsave_{tag}', d, {'W84A.CAR': mid}, 'dump:2', 300) as s:
+            s.wait()
+            s.send(LOAD1 + ' dump:3')
+            for _ in range(6):
+                if s.screen().find('VISUAL. COMPETIZ.', exact=True) is not None:
+                    break
+                press(s, s.screen(), 'CONTINUA', 3) or s.send('fire dump:2')
+            check(s.screen().find('VISUAL. COMPETIZ.', exact=True) is not None, f'{tag}: no in-season menu', errs)
+            got[tag] = (bytes(s.result.obj2(tr[0], 72)), bytes(s.result.obj2(tr[1], n_ed)),
+                        bytes(s.result.obj2(tr[2], n_out)))
+    a, b = got.get('4.1'), got.get('4.1.1')
+    if a and b:
+        ed = a[1]
+        check(ed[:2] == b'CE' and ed[11] & 1 and not ed[11] & 4, f'the save\'s edition: mark {ed[:2]} pad {ed[11]:#x} '
+              '(want a season-1 edition from before ED_R)', errs)
+        check(any(a[2]), 'CT_OUT empty on 4.1 (nothing replayed)', errs)
+        for k, nm in enumerate(('CT_SEG', 'CT_ED', 'CT_OUT')):
+            diff = [i for i in range(len(a[k])) if a[k][i] != b[k][i]]
+            check(not diff, f'{nm}: {len(diff)} bytes differ from 4.1 (first at {diff[:4]})', errs)
+    return not errs, '; '.join(errs) or f'season-1 save at the 2nd Libertadores result: CT_SEG / CT_ED / CT_OUT = 4.1\'s ' \
+        f'({sum(1 for x in a[2] if x)} non-zero CT_OUT bytes, next game {a[0][:8].hex()})'
+
+
+@scenario
 def world_contiview_tie():
     """4.0.6 COPPE CONTINENTALI with the career club in a conti cup (M4): a FLAMENGO career on a test build with
     CONTI_FORCE=lib:q1 (the club into the Libertadores' first qualifying round at every season end) and CONTI_KOWIN (it
@@ -27584,6 +27636,68 @@ def world_cup_prefix():
 
 
 @scenario
+def world_cupd_format():
+    """4.1.1 (Note f3803dd): the Coppa Italia Serie D's FORMAT page drawn in the game - world_gplay_cupd's season at
+    LIGORNA (GPLAY_BUILD: a release dir), on the first career menu VISUAL. COMPETIZ. > the Coppa D > STAT > FORMULA:
+    its title and lines = DATA\\FMT<UI>5.DAT's page (the alternation line 'up to the quarter-finals'), back to the
+    menu; the season then as world_gplay_cupd"""
+    global W84_HOOK
+    st = {}
+
+    def hook(s, season, scr):
+        if scr is None or st.get('page') or season != 1 or st.get('tries', 0) >= 12:
+            return
+        if 'TRASFERIMENTI' not in scr.texts() or 'VISUAL. COMPETIZ.' not in scr.texts():
+            return
+        st['menus'] = st.get('menus', 0) + 1           # (the cup is in the list only once its first round is built:
+        nxt = any('SERIE D' in x and 'COPPA' in x for x in scr.texts())   # try when the next match is the cup's,
+        if not nxt and st['menus'] % 12:                                   # else every 12th career menu)
+            return
+        st['tries'] = st.get('tries', 0) + 1
+        st['page'] = None
+        try:
+            walk(s, 'VISUAL. COMPETIZ.', 3)
+            lst = s.screen()
+            cand = [e[0] for e in lst.entries if e[1] and 'SERIE D' in e[1] and 'COPPA' in e[1] and not e[2]]
+            i = cand[-1] if cand else None              # (the cup's own entry, country first - not the slot tie's
+                                                        #  'COPPA ITALIA SERIE D', NESSUNA DESCRIZIONE)
+            s.log.append(f'[cdfmt] menu {st["menus"]} list {[e[1] for e in lst.entries if e[1]][:16]} -> {i}')
+            if i is not None:
+                walk(s, i, 3)
+                walk(s, 'STAT', 3)
+                walk(s, s.screen().find('FORMULA', exact=True), 3)
+                pg = s.screen()
+                s.shot('cupd_format')
+                st['page'] = (pg.entries[0][1], [x[1] for x in pg.entries[1:15]])
+                s.log.append(f'[cdfmt] page {st["page"]}')
+        except AssertionError as e:
+            st['error'] = str(e)
+        for _ in range(8):
+            if 'TRASFERIMENTI' in s.screen().texts():
+                break
+            if press(s, s.screen(), 'ESCI', 3) is None:
+                s.send('fire dump:2')
+    W84_HOOK = hook
+    try:
+        ok, msg = world_gplay_cupd()
+    finally:
+        W84_HOOK = None
+    errs = []
+    if UI == 'it':                                      # (world_gplay_cupd's round-name checks read the Italian
+        check(ok, msg[:300], errs)                      #  screens: TRENTADUES... - other languages info only)
+    exe = os.environ.get('GPLAY_BUILD') or ''
+    pg = st.get('page')
+    check(pg is not None, f'Coppa D FORMAT page not reached {st}', errs)
+    if pg:
+        want = fmt_lines(exe, pg[0], UI, 5) if exe else None
+        got = pg[1][:len(want or [])]
+        check(want and got == want, f'{pg[0]}: shown {got} want {want}', errs)
+        alt = {'it': 'FINO AI QUARTI', 'en': 'TO THE QUARTER-FINALS', 'fr': 'JUSQU AUX QUARTS', 'de': 'VIERTELFINAL'}[UI]
+        check(alt in ' '.join(got), f'no alternation line with {alt!r}: {got}', errs)   # (the page wraps the text)
+    return not errs, '; '.join(errs) or f'FORMAT {pg[0]!r}: {len(pg[1])} lines ok; {msg[:200]}'
+
+
+@scenario
 def world_gplay_cupd2():
     """world_gplay_cupd over two seasons: season 2's Coppa D bracket generated (gplay.c cd_season / cd_make) from the
     real Serie D of that season - the new arrivals (relegated from Serie C, promoted from the off-file Eccellenza pool)
@@ -28489,7 +28603,7 @@ def world_gplay_nzchamp(force='1', team='OCEANIA,NUOVA ZELANDA,NORTHERN LGE|NORT
         os.environ['W2627REL_DATA'] = src                              #  championship's, absent from the old default)
         _LABEL_DATA.clear()
     os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+',
-                      W8485_NOSACK='1', W8485_HEX=f'{log_at:x}:{log_n},{st_at:x}:{st_n},{gft_at(exe):x}:4' + os.environ.get('NZ_HEXPLUS', ''), W8485_ONE='1')
+                      W8485_NOSACK='1', W8485_HEX=f'{log_at:x}:{log_n},{st_at:x}:{st_n},{gft_at(exe):x}:4' + os.environ.get('NZ_HEXPLUS', NZ_PHHEX), W8485_ONE='1')
     if real:                                                           # (the group's last matches only: 9 settled)
         os.environ.update(W8485_REALPLAY=real, W8485_TMO='1500', W8485_REALSKIP='8')
     if two:                                                            # (two seasons: save, reload, the second)
@@ -28506,7 +28620,7 @@ def world_gplay_nzchamp(force='1', team='OCEANIA,NUOVA ZELANDA,NORTHERN LGE|NORT
     check(ok, msg, errs)
     for sn in ((1, 2) if two else (1,)):
         lines = open(os.path.join(RUNS, w84_tag() + f'_{sn}', 'session.log'), errors='replace').read().splitlines()
-        ok1, m1 = nzchamp_season(lines, st_at, log_at, res_words, gff, kof, errs, rest, team=team)
+        ok1, m1 = nzchamp_season(lines, st_at, log_at, res_words, gff, kof, errs, rest, team=team, gft=gft_at(exe))
         if not ok1:
             return False, f'{msg}; season {sn}: {m1}'
     return not errs, '; '.join(errs) or f'{msg}; {m1}'
@@ -28590,7 +28704,57 @@ def gft_at(exe):
     return struct.unpack_from('<I', d1, k + 8 + 4 * 19)[0]
 
 
-def nzchamp_season(lines, st_at, log_at, res_words, gff, kof, errs, rest=False, team=''):
+NZ_PHHEX = ',1b52c:8000,17256:1300'                                 # (4.1.1: the calendar from CAL - 4, careerTeam)
+
+
+def nz_phantom(lines, gft, mgr, fin, errs, st_at=None):
+    """4.1.1 NZ Grand Final without the career club (gf_drop_c, GP_GFT 9): from the drop on, the slot-4 calendar
+    entries' pairing (+12 / +14) is the two finalists, never the career club (4.0.5-4.1: the placeholder's career club
+    v the group's other club, played as a computer match - Panchina's phantom 0-4, a card, an injury), and no record
+    of careerTeam gains a card or an injury (cardsInjuries, +27) after it. Returns a note"""
+    at = next((i for i, ln in enumerate(lines) if ln.startswith(f'HEX {gft:x} ')
+               and struct.unpack('<I', bytes.fromhex(ln.split()[2]))[0] == 9), None)
+    check(at is not None, f'GP_GFT 9 (the real final without the career club, gf_drop_c) never seen', errs)
+    if at is None:
+        return ''
+    pairs, ci0, worse = set(), None, []
+    for ln in lines[at:]:
+        p = ln.split()
+        if len(p) != 3 or p[0] != 'HEX':
+            continue
+        b = bytes.fromhex(p[2])
+        if p[1] == '1b52c':
+            n, o = struct.unpack_from('<H', b)[0], 4
+            for _ in range(n):
+                if o + 16 > len(b):
+                    break
+                ln_ = struct.unpack_from('<H', b, o + 2)[0]
+                if not ln_:
+                    break
+                if b[o] == 4:
+                    pairs.add(struct.unpack_from('<HH', b, o + 12))
+                o += ln_
+        elif p[1] == '17256' and len(b) >= 684 + 14 * 38:
+            ci = [b[76 + q * 38 + 27] for q in range(16)] + [b[684 + q * 38 + 27] for q in range(14)]
+            if ci0 is not None:
+                worse += [(q, ci0[q], ci[q]) for q in range(30) if ci[q] > ci0[q]]
+            ci0 = ci
+    sts = [bytes.fromhex(ln.split()[2]) for ln in lines if st_at is not None and ln.startswith(f'HEX {st_at:x} ')]
+    sts = [b for b in sts if gp_ko(b[GP_STKO:])['kind'] == 5]
+    gf = gp_ko(sts[-1][GP_STKO + GP_KO['size']:]) if sts else None
+    done = bool(sts) and sts[-1][GP_STKO + 570 + 6] == 3 and gf['kind'] == 11 and set(gf['team'][:2]) == set(fin)
+    check(done, f"the Grand Final recorded by gf_done (state {sts[-1][GP_STKO + 570 + 6] if sts else None}, ko[1] "
+          f"{[hex(t) for t in gf['team'][:2]] if gf else None}, want the final {[hex(x) for x in fin]})", errs)
+    if pairs or not done:                              # (none when the decision came inside the session's last step -
+        check(pairs and all(set(x) == set(fin) for x in pairs) and not any(mgr in x for x in pairs),   # restout:
+              f'slot-4 pairings after the drop {[[hex(t) for t in x] for x in pairs]} (want the final '   # FINISH SEASON
+              f'{[hex(x) for x in fin]}, never the career club {hex(mgr) if mgr is not None else None})', errs)   # to
+        check(not worse, f'careerTeam cards / injuries after the drop (record, before, after): {worse[:4]}', errs)   # the end;
+    return (f'real final without the career club: pairings {[[hex(t) for t in x] for x in pairs]}, no card / injury'   # slot 4's
+            if pairs else 'real final without the career club recorded by gf_done (decided inside the last step)')   # only match
+
+
+def nzchamp_season(lines, st_at, log_at, res_words, gff, kof, errs, rest=False, team='', gft=None):
     """world_gplay_nzchamp's checks on one season's session log: (False, why) when there is nothing to check"""
     sts = [bytes.fromhex(ln.split()[2]) for ln in lines if ln.startswith(f'HEX {st_at:x} ')]
     sts = [b for b in sts if b[:2] == b'GK']
@@ -28625,16 +28789,14 @@ def nzchamp_season(lines, st_at, log_at, res_words, gff, kof, errs, rest=False, 
         check(mgr is not None and mgr not in fin, f"career club {mgr} kept out: final {[hex(x) for x in fin]}", errs)   # final:
                                                                        # decided at once, the season goes on - Panchina's
                                                                        # rc19 stop at the placeholder, step 179)
+        if gft is not None and not os.environ.get('NZ_HEXPLUS'):
+            note.append(nz_phantom(lines, gft, mgr, fin, errs, st_at))
         fl = [ln for ln in lines if 'CHAMPIONSHIP FINALE' in ln]
         club = team.split(',')[-1]
-        if natural and gff != '1' and fl:                             # (the DECLARED limit, rc20 74b589f: the decision
-            ph = bool(club) and all(club in ln for ln in fl)          # inside the club's rest day after PARTITA - a
-            check(ph, f'a Grand Final screen without the career club {club}: {fl[0][:160]}', errs)   # phantom FINALE with the
-            if ph:
-                note.append(f'declared limit: phantom FINALE with {club} ({len(fl)} screens; the real final and champion '
-                            f'above)')                                # career club, the real final decided without it)
-        else:
-            check(not fl, 'no Grand Final screen without the career club', errs)
+        mine = [ln for ln in fl if club and club in ln]               # (4.1.1 A2: the real final's screens - its two
+        check(not mine, f'a Grand Final screen with the career club {club}: {mine[:1]}', errs)   # finalists - are fine;
+        if fl and not mine:                                           # never one with the club: rc20's declared limit,
+            note.append(f'{len(fl)} FINALE screen(s) of the real final')   # the phantom FINALE, is gone)
     else:
         check(gfs and gfs[-1]['slot'] == 4 and gfs[-1]['n'] == 2 and set(gfs[-1]['team'][:2]) == set(fin) and mgr in fin,
               f"Grand Final in slot 4 (the career club {'in' if natural else 'forced in'}): {[(x['slot'], [hex(t) for t in x['team'][:2]]) for x in gfs[-1:]]}"
@@ -29412,6 +29574,69 @@ def world_gplay_nzgf_oldsave():
     res = [struct.unpack_from('<BBHHHH', logs[-1], 942 + 10 * i) for i in range(min(logs[-1][683], 4))]
     check(champ is not None and any(r[0] == 5 and r[2] == champ for r in res), f'title {res}, champion {champ}', errs)
     return not errs, '; '.join(errs) or f'old save {path}; {msg2[:80]}; champion {champ:#x}'
+
+
+@scenario
+def world_gplay_nzgf_41save():
+    """4.1.1 notes claim (Regia 10/11): the NZ fix needs no new career - a 4.1 save (NZGF_41, default v4.1 f2c9e45)
+    taken inside the Championship's group (Grand Final state 1, the placeholder of the career club installed), with
+    the career club kept out of the final (GPLAY_GFFORCE=1 on both builds), loaded by this build and played to the
+    season end: the real final without the career club (nz_phantom: GP_GFT 9, the finalists in slot 4, recorded by
+    gf_done, no card / injury), the champion one of the two finalists"""
+    src = os.environ.get('W2627NZ_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-nzchamp')
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    env = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'GPLAY_FORCE': '1',
+           'GPLAY_GFFORCE': '1'}
+    old = build('world_gplay_nz41', env=env, branch=os.environ.get('NZGF_41', 'f2c9e45'))
+    exe = os.environ.get('GPLAY_BUILD') or build('world_gplay_nzchamp', env=env)
+    olog, ost, _, _ = gp_ptrs(old)
+    log_at, st_at, log_n, st_n = gp_ptrs(exe)
+    gft = gft_at(exe)
+    keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_HEX',
+            'W8485_ONE', 'W8485_MIDSAVE', 'W8485_FROM', 'W2627REL_DATA')
+    keep = {k: os.environ.get(k) for k in keys}
+    base = dict(W8485_WORLD='MONDO 2026-27', W8485_TEAM='OCEANIA,NUOVA ZELANDA,NORTHERN LGE|NORTHERN LEAGUE,WESTERN '
+                'SPRINGS', W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1', W2627REL_DATA=src, W8485_ONE='1')
+    try:
+        os.environ.update(base, W8485_BUILD=old, W8485_HEX=f'{ost:x}:{st_n}',
+                          W8485_MIDSAVE=f'{ost + GP_STKO + 576:x}:1:6')    # (GF_WAIT for 6 pauses: inside the group)
+        ok, msg = world8485()
+        if not ok:
+            return False, f'4.1 build: {msg}'
+        path = msg.split(': ', 1)[1]
+        if not path.endswith('.CAR') or not os.path.isfile(path):
+            return False, f'no 4.1 save inside the group: {msg}'
+        os.environ.pop('W8485_MIDSAVE')
+        os.environ.update(base, W8485_BUILD=exe, W8485_FROM=path,
+                          W8485_HEX=f'{log_at:x}:{log_n},{st_at:x}:{st_n},{gft:x}:4' + NZ_PHHEX)
+        ok2, msg2 = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    lines = open(os.path.join(RUNS, w84_tag() + '_2', 'session.log'), errors='replace').read().splitlines()
+    errs = []
+    check(ok2, f'4.1.1 from the 4.1 save: {msg2}', errs)
+    logs = [bytes.fromhex(ln.split()[2]) for ln in lines if ln.startswith(f'HEX {log_at:x} ')]
+    logs = [b for b in logs if b[:4] == b'GPLG']
+    if not logs:
+        return False, f'{msg2}; no season-end log after the 4.1 save'
+    kl = gp_ko(logs[-1][8:])
+    champ = kl['team'][kl['tw'][0]] if kl['tw'] and kl['tw'][0] < kl['n'] else None
+    fin = [kl['team'][x] for x in (kl['tw'][0], kl['tl'][0]) if x < kl['n']] if kl['tw'] else []
+    res = [struct.unpack_from('<BBHHHH', logs[-1], 942 + 10 * i) for i in range(min(logs[-1][683], 4))]
+    sts = [bytes.fromhex(ln.split()[2]) for ln in lines if ln.startswith(f'HEX {st_at:x} ')]
+    gfs = [gp_ko(b[GP_STKO + GP_KO['size']:]) for b in sts]
+    gfs = [x for x in gfs if x['kind'] == 11]
+    mgr = gfs[0]['team'][0] if gfs else None                       # (the 4.1 placeholder: the career club first)
+    check(champ is not None and any(r[0] == 5 and r[2] == champ for r in res), f'title {res}, champion {champ}', errs)
+    check(len(fin) == 2 and mgr is not None and mgr not in fin, f'final {[hex(x) for x in fin]}, career club {mgr}', errs)
+    note = nz_phantom(lines, gft, mgr, fin, errs, st_at) if len(fin) == 2 else ''
+    return not errs, '; '.join(errs) or f'4.1 save {path}; final {[hex(x) for x in fin]}, champion {champ:#x}; {note}'
 
 
 @scenario

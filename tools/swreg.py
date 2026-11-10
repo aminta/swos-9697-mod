@@ -35,7 +35,11 @@ UPRIZE2_END = 0x4600                    # 4.2 (MC 10/11, the 4.1 merge): uprize 
 ST_AT, ST_SIZE = 0x5000, 144             # 4.2: the engine's ledger item 'ST' (sr_stled.c: a groups stage's state;
                                         # sr_st_size(32, 8, 2) = 16 + 32 + 96), a zero block in obj4's 6th page,
                                         # under lrank.LR_AT (4.1's usmenu 0x3000 / uprize2 0x4000 / conti 0x4B00 below)
-assert UPRIZE2_END <= globals().get('CONTI4_AT', ST_AT), 'uprize part 2 would cross conti / ST'   # (4.2: bands never cross)
+CONTI4_AT = 0x4B00                      # 4.1.1: conti's read-only data (the CONMEBOL ranking, the 4.1 season-1 lists +
+CONTI4_END = 0x5000                     # winners) at the 5th page's top, above uprize part 2 (Regia / MC 10/11; 4.2 keeps
+                                        # it: lrank from 0x6000)
+assert UPRIZE2_END <= CONTI4_AT, 'uprize part 2 would cross conti / ST'   # (4.2: bands never cross)
+assert CONTI4_END <= ST_AT, 'conti data would cross ST'
 MAGIC = b'SWRG'
 VERSION = 2
 HDR = 32

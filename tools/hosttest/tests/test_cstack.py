@@ -43,6 +43,7 @@ int t_nest(job *j) { return cstack_call(nest, j); }
 int t_direct(job *j) { return run(j); }
 int t_init(void) { cstack_init(); return 0; }
 int t_high(void) { return cstack_high(); }
+int t_ovf(void) { return cstack_overflows(); }
 __attribute__((noinline)) static i32 deep(i32 k) { volatile u8 b[256]; b[k & 255] = (u8)k; return k ? deep(k - 1) + b[k & 255] : 0; }
 static int over(void *p) { return deep(*(i32 *)p); }
 int t_over(i32 *k) { return cstack_call(over, k); }
@@ -78,7 +79,7 @@ def _machine():
         finally:
             del os.environ['COBJ_CACHE']
     p = Rec()
-    roots = ['t_draw', 't_nest', 't_direct', 't_over', 't_init', 't_high']
+    roots = ['t_draw', 't_nest', 't_direct', 't_over', 't_init', 't_high', 't_ovf']
     syms, end, bss = cobj.link(p, obj, 0, (2, 0), externs={'CSTACK': (4, BLK)}, roots=roots)
     assert not p.rels, p.rels
     base = {1: B1, 2: B2, 4: B4}
@@ -194,7 +195,7 @@ def test_cstack_nest_refuse_overflow():
         bad.append('40 levels: overflow counted')
     uc.mem_write(DATA + 0x300, struct.pack('<i', 80))       # ~22 KB: through the guard (the test maps 64 KB under it)
     r, used, ok = _call(uc, s['t_over'], DATA + 0x300)
-    if _blk(uc, SIZE - 12) != 1 or not ok or _blk(uc, SIZE - 4):
-        bad.append(f'80 levels: overflow {_blk(uc, SIZE - 12)}')
+    if _blk(uc, SIZE - 12) != 1 or _call(uc, s['t_ovf'], 0)[0] != 1 or not ok or _blk(uc, SIZE - 4):
+        bad.append(f'80 levels: overflow {_blk(uc, SIZE - 12)}, cstack_overflows {_call(uc, s["t_ovf"], 0)[0]}')
     return not bad, '; '.join(bad) or 'nested call stays on the block (depth 2), broken depth refused (-4), ' \
-                                      'overflow counted past the block, not before'
+                                      'overflow counted past the block (cstack_overflows 1), not before'

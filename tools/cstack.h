@@ -17,7 +17,11 @@
  *   below that          the stack, painted CSTACK_PAINT by cstack_init (cstack_high: the deepest use so far)
  * A call made while one is in progress (fn calling cstack_call again) stays on the block; one made from outside the
  * block while the depth is not 0 (a broken depth, or a call from an interrupt) is refused: fn is not run, -4.
- * Interrupts stay enabled: ESP stays in the same flat segment. fn is cdecl; cstack_call returns its value. */
+ * Interrupts stay enabled: ESP stays in the same flat segment. fn is cdecl; cstack_call returns its value (an overflow
+ * is not in it: read cstack_overflows()).
+ * Stack probes: the game is asm (no Watcom __STK / __CHK on the paths the engine calls). Were a probe ever run on the
+ * block, it compares ESP with _STACKLOW, and the block is above it (RC3: obj4 at linear 0x61A000, _STACKLOW 0x42BE55 -
+ * DOS/4GW loads obj4 after obj2), so it passes. */
 #ifndef CSTACK_H
 #define CSTACK_H
 
@@ -33,6 +37,7 @@
 int cstack_call(int (*fn)(void *), void *arg);
 void cstack_init(void);
 int cstack_high(void);
+int cstack_overflows(void);
 
 #ifdef CSTACK_IMPL
 extern unsigned char CSTACK_SYM[];
@@ -53,6 +58,11 @@ int cstack_high(void)                           /* the deepest use since cstack_
     while (i < CSTACK_SIZE - 12 && s[i] == CSTACK_PAINT)
         i++;
     return CSTACK_SIZE - 12 - i;
+}
+
+int cstack_overflows(void)                      /* the outer calls that found the guard broken, since cstack_init */
+{
+    return *(const volatile int *)(CSTACK_SYM + CSTACK_SIZE - 12);
 }
 
 #define CSTACK_S_(x) #x

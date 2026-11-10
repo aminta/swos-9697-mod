@@ -2094,6 +2094,53 @@ def structs(p, area, lang, at):
     return at, out, kinds
 
 
+def test_sdraw_force(seasons=4):
+    """4.2 P7: a refused group draw (CT_SDRAW_FORCE, the Libertadores group stage) from season 2 on: the round not
+    drawn, that edition with no winner, the holder kept (the Recopa still gets it, never club 0); the replay at every
+    career game leaves the state as it was (CONTI_TEST_REPLAY); the other cups play on; CT_SDRAW_ERR names it."""
+    import ctypes
+    import contextlib
+    import io
+    spec, assocs, cups = load(['conmebol'])
+    lib = [k for _, k in cups].index('lib')
+    gr = next(j for j, r in enumerate(_read('conmebol', 'format')['cups'][lib]['rounds']) if r['kind'] == 'groups')
+    tag = lib << 4 | gr
+    outs = []
+    for force in (0, 1):
+        L = _native()
+        ctypes.c_uint32.in_dll(L, 'CT_SDRAW_FORCE').value = (2 << 16 | tag + 1) if force else 0   # (season 2 on)
+        f = io.StringIO()
+        os.environ['CONTI_TEST_MANAGER'] = os.environ['CONTI_TEST_REPLAY'] = '1'
+        os.environ['CONTI_DUMP'] = 'rec'
+        try:
+            with contextlib.redirect_stdout(f):
+                test(['conmebol'], seasons=seasons, L=L)
+        finally:
+            for k in ('CONTI_TEST_MANAGER', 'CONTI_TEST_REPLAY', 'CONTI_DUMP'):
+                os.environ.pop(k)
+        err = ctypes.c_uint32.in_dll(L, 'CT_SDRAW_ERR').value
+        outs.append((f.getvalue(), err, ctypes.c_uint32.in_dll(L, 'CT_SDRAW_N').value))
+    (o0, e0, n0), (o1, e1, n1) = outs
+    assert e0 == 0 and n0 > 0, (e0, n0)
+    assert e1 & 0xFFFF == (tag << 8 | 2) and e1 >> 16 >= 2, hex(e1)
+    seas = o1.split('--- season ')[1:]
+    w1 = None
+    for k, blk in enumerate(seas):
+        ln = {l.split(' ')[0]: l for l in blk.splitlines() if l.startswith('conmebol:')}
+        win = ln['conmebol:lib'].split(' winner ')[1].split(' ')[0]
+        if k == 0:
+            assert win != '-', ln['conmebol:lib']
+            w1 = win
+            continue
+        assert win == '-', ('a refused edition with a winner', k + 1, ln['conmebol:lib'])
+        assert 'rounds [2]' in ln['conmebol:rec'], ('the Recopa without the kept holder', k + 1, ln['conmebol:rec'])
+        rec = [l for l in blk.splitlines() if l.startswith('    ')]
+        assert rec and "'-'" not in rec[0] and w1 in rec[0], ('the Recopa: the previous holder', k + 1, rec, w1)
+        assert 'winner -' not in ln['conmebol:sud'], ('the Sudamericana stopped too', ln['conmebol:sud'])
+    print(f'PASS: forced refusal of conmebol:lib round {gr} (tag {tag:#x}): ERR {e1:#x}, seasons 2..{seasons} with no '
+          f'Libertadores winner, the Recopa takes the season-1 holder {w1}, replays unchanged; unforced {n0} sr draws, 0 ERR')
+
+
 def test_goals():
     """4.0.6 option c (Davide 04/11): the conti matches' goals natively, every edition from 4.0.6 on (ED_G2) and the
     old model (CONTI_G1, older saves' editions): season 1 on the world's data (test_s1) and three test() seasons ->
@@ -2195,7 +2242,9 @@ def test_s1(mgr_key=None, seed=3):
 
 if __name__ == '__main__':
     import sys
-    if sys.argv[1:2] == ['--test-bound']:
+    if sys.argv[1:2] == ['--test-sforce']:
+        test_sdraw_force()
+    elif sys.argv[1:2] == ['--test-bound']:
         test_bound()
     elif sys.argv[1:2] == ['--test-goals']:
         test_goals()

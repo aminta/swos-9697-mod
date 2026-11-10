@@ -531,7 +531,8 @@ static int draw_groups(int c, int r, const u8 *R) {   /* 0, or -1: not drawn (ED
         for (int i = 0; i < m; i++)     /* (a via club under A_NOVIA: a value of its own, above every association's) */
             as[i] = rule == A_NOVIA && v[i] ? (u8)(0x80 + i) : (u8)assoc(x[i]);
         below(0);                       /* (the seed: exactly one step of the edition's rng, whatever the outcome) */
-        int rc = SDRAW ? SDRAW(m, ng, rule == A_ANY ? 0 : as, rule == A_NO2 ? 2 : 1, rng, grp, c << 4 | r) : -4;
+        int rc = SDRAW ? SDRAW(m, ng, rule == A_ANY ? 0 : as, rule == A_NO2 ? 2 : 1, rng, grp,
+                         (CT_ST.season & 0xFF) << 8 | c << 4 | r) : -4;
         for (int i = 0; i < NE; i++) D[i] = 0;
         if (rc < 0) return -1;
         int h = hold ? grp[0] : 0;      /* (the holder in group A: its group and A swap labels - still a valid draw) */

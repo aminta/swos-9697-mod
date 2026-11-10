@@ -8,8 +8,9 @@
    ct_sdraw(n, g, assoc, cap, seed, grp, tag): n clubs in seeding order (pot p = clubs p*g .. p*g+g-1) into g
    groups, assoc NULL = no rule; grp[c] = club c's group. Returns g, or the library's refusal (CONVENTIONS 14a: never
    relaxed): -1 bad arguments, -2 no draw exists, -3 undecided in the budget, -4 the C stack refused the call.
-   tag = cup << 4 | round. CT_SDRAW_N counts the draws made; CT_SDRAW_ERR = tag << 8 | -rc, the first refusal only
-   (the harness asserts 0). CT_SDRAW_FORCE (test builds only, -DCTDRAW_FORCE): tag + 1 = that round refused (-2). */
+   tag = season << 8 | cup << 4 | round. CT_SDRAW_N counts the draws made; CT_SDRAW_ERR = tag << 8 | -rc, the first
+   refusal only (the harness asserts 0). CT_SDRAW_FORCE (test builds only, -DCTDRAW_FORCE): from season << 16 |
+   (cup << 4 | round) + 1 = that round refused (-2) in that season's editions and later ones. */
 #ifdef NATIVE
 #define SWOSRULES_HAVE_STDINT
 typedef unsigned char uint8_t;
@@ -42,7 +43,7 @@ int ct_sdraw(int n, int g, const uint8_t *assoc, int cap, uint32_t seed, uint8_t
     struct ct_sjob j = { n, g, cap, assoc, seed, grp };
     int rc;
 #if defined(CTDRAW_FORCE) || defined(NATIVE)
-    if (CT_SDRAW_FORCE && CT_SDRAW_FORCE == (uint32_t)tag + 1)
+    if ((CT_SDRAW_FORCE & 0xFF) == ((uint32_t)tag & 0xFF) + 1 && (uint32_t)tag >> 8 >= CT_SDRAW_FORCE >> 16)
         rc = -2;
     else
 #endif

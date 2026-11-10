@@ -17,11 +17,12 @@ import struct
 import mkseason
 
 
-def pack_cups(pk):
-    """[(id, n, [(division, n_d, b_d)])] of a world pack's cups whose real clubs are all league-file clubs."""
+def pack_cups(pk, lfile=None):
+    """([(id, n, [(division, n_d, b_d)])], lfile) of a world pack's cups whose real clubs are all clubs of league file
+    lfile (default the league's first; S7: a league over two team files - pk.league_files() - has one list per file)."""
     if pk.world is None or not pk.league:
         return [], None
-    lfile = pk.files[pk.league['clubs']][0]
+    lfile = lfile if lfile is not None else pk.league_files()[0]
     out = []
     for c in pk.comps:
         if c['type'] != 'cup':
@@ -65,8 +66,8 @@ def levels(pk):
 
 
 def dt_bytes(pk, lfile):
-    if globnum.split_file(pk):          # (S7-G: the table holds ONE global base per league file)
-        raise globnum.GlobError(f"{pk.meta['id']}: cupsf over a league on two team files (one base)")
+    if len(globnum.runs_of(pk, lfile)) > 1:    # (S7-G: the table holds ONE global base per league file; S7-D: only
+        raise globnum.GlobError(f"{pk.meta['id']}: cupsf over file {lfile}'s two global runs (one base)")   # file B's)
     gbase = globnum.base(pk, lfile)
     pairs = sorted((pk.where[k][1], pk.division[k]) for k in pk.league_clubs if pk.where[k][0] == lfile)
     assert len(pairs) <= 256
@@ -80,12 +81,13 @@ def table(world):
     for pk in mkseason.packs():
         if pk.world != world:
             continue
-        cs, lfile = pack_cups(pk)
-        if not cs:
-            continue
-        dts.append(dt_bytes(pk, lfile))
-        for cid, n, gs in cs:
-            cups.append((cid, n, gs, len(dts) - 1))
+        for f in (pk.league_files() if pk.league else [None]):   # (S7: each league file its own dt)
+            cs, lfile = pack_cups(pk, f)
+            if not cs:
+                continue
+            dts.append(dt_bytes(pk, lfile))
+            for cid, n, gs in cs:
+                cups.append((cid, n, gs, len(dts) - 1))
     if not cups:
         return None
     year = globals()['year'](world) - 1900

@@ -743,7 +743,7 @@ def table_lines(tables):
         assert 1 <= world <= 255 and f == u + 1 and 2 <= ng <= 4, (world, u, f, ng)
         out.append(f'dd LG{len(out)}\n    db {world}, {u}, {f}, {ng}, {lc}')
     return '\n'.join(out + ['dd 0\n    db 0, 0, 0, 0, 0']), {
-        f'LG{i}': (1, mkseason.LEAGUE_AT[(t[0], t[5])]) for i, t in enumerate(tables)}
+        f'LG{i}': (1, mkseason.league_at(t[0], t[5], 'dplay')) for i, t in enumerate(tables)}
 
 
 def bye_cups(tables):

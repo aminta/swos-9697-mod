@@ -130,11 +130,12 @@ def pack_table(pk):
     c = lg['cup_d']
     d = json.load(open(os.path.join(pk.path, c['file'])))
 
-    lfile = pk.files[lg['clubs']][0]
+    par0 = lg.get('parallel') or []         # (S7: Serie D's file = div_file of its first division; dormant: the league's)
+    lfile = pk.div_file((par0 if isinstance(par0, list) else [par0])[-1]['first'] if par0 else 0)[0]
     assert lfile != 255, 'cup_d: team file 255 (its words would read as tie references)'
 
     def word(key):                      # (a club of the league's own file; the pool's are off-file: 0)
-        if not key or key not in pk.where or pk.where[key][0] != lfile:
+        if not key or key not in pk.where or pk.where[key][0] not in pk.league_files():   # (S7: file A or B)
             return None
         fl, i = pk.where[key]
         return fl | i << 8

@@ -75,6 +75,8 @@ RS_SIZE = 8 * 132                   # gplay.c RS_STATE: struct rs_state {u8 init
 KINDS = {'promotion': 1, 'europe': 2, 'placement': 3, 'playout': 4, 'title': 5, 'continental': 6, 'promedio': 7,
          'stage_title': 8}
 RESERVE = 0xFE                  # loser_div 'reserve': out of every division (gplay.c)
+EXTERNAL = 0xFD                 # S7 (MC 11/11): a destination in the other league struct - the club is left for the
+                                # season-end swap (mkseason Pack.ko_external; gplay.c's side: MC's S7 glue)
 HOSTS = {'listed': 0, 'better': 1, 'drawn': 2, 'neutral': 3}
 LEVELS = {'better': 0, 'et_pens': 1, 'et_better': 2, 'pens': 3, 'away_pens': 4, 'away_better': 5,
           'better_pts': 6, 'second': 7}    # (4.2 s3shape: the better placed unless level on points, then e.t. + pens;
@@ -102,7 +104,7 @@ def compile_spec(pos, ndiv, league_names=None):
             raise ValueError(f"{key}: 'names' {{lang or '*': [long, short]}} required")
         if kind == 7:                           # Argentina: {kind promedio, matches: this season's, loser_div}
             m, ld = po.get('matches'), po.get('loser_div')
-            if not (isinstance(m, int) and 1 <= m < 256 and isinstance(ld, int) and 0 < ld < ndiv):
+            if not (isinstance(m, int) and 1 <= m < 256 and isinstance(ld, int) and (0 < ld < ndiv or ld == EXTERNAL)):
                 raise ValueError(f'{key}: promedio needs matches 1..255 and loser_div 1..{ndiv - 1}')
             out += bytes((7, 0, 0, m, ld, 0))
             continue
@@ -259,7 +261,7 @@ def compile_spec(pos, ndiv, league_names=None):
             if len(sdv) > 1 or not sdv <= set(range(min(ndiv, 4))):
                 raise ValueError(f'{key}: stage_title entrants of one division (0..3)')
             wd |= (sdv.pop() if sdv else 0) << 2
-        if kind in (1, 4) and not (0 <= wd < ndiv and (0 <= ld < ndiv or ld == RESERVE)):
+        if kind in (1, 4) and not ((0 <= wd < ndiv or wd == EXTERNAL) and (0 <= ld < ndiv or ld in (RESERVE, EXTERNAL))):
             raise ValueError(f'{key}: winner_div / loser_div (a division, or "reserve")')
         if rounds and po['rounds'][-1].get('series'):
             raise ValueError(f'{key}: a best-of-three ("series": 3) not as the last round')
@@ -2182,7 +2184,7 @@ def table_lines(tables):
     import engine
     for i, (world, lfile, spec) in enumerate(tables):
         lines.append(f'    dd GPL{i}\n    db {world}\n    dd GPS{i}')
-        at = engine.LEAGUE_AT[lfile[1]] if isinstance(lfile, tuple) else mkseason.LEAGUE_AT[(world, lfile)]
+        at = engine.LEAGUE_AT[lfile[1]] if isinstance(lfile, tuple) else mkseason.league_at(world, lfile, 'gplay')
         syms[f'GPL{i}'] = at if isinstance(at, tuple) else (1, at)   # (world 0's structs: (obj, offset), often obj2)
     lines.append('    dd 0\n    db 0\n    dd 0')
     lines.append('GP_EPT:')                    # (uefaq UQ_EPP: per country file its specs, for the European ones)

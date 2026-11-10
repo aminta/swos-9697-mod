@@ -2533,8 +2533,10 @@ def advance(s, stop, max_steps=400):
             gi = scr.find('ALLENA:', exact=True)        #  the coach, JUVEFIX3)
         if gi is not None and getattr(s, 'rp_cycle', 0) == 0:
             s.rp_gi = gi                                # (the cycling entry: its label changes - GIOCA : / ALLENA: ...)
-        if getattr(s, 'realplay', False) and 'MOD. TATTICA' in texts and 'GIOCA PARTITA' not in texts and \
-                getattr(s, 'rp_gi', None) is not None and getattr(s, 'rp_cycle', 0) < 4:
+        if getattr(s, 'realplay', False) and 'MOD. TATTICA' in texts and \
+                getattr(s, 'rp_gi', None) is not None and getattr(s, 'rp_cycle', 0) < 4:   # (always the whole cycle, even
+            #   with GIOCA PARTITA already lit: Gate A 42-int, nzgf_real after nzgf_oldsave - a human entry kicked off
+            #   uncycled came back to this screen, step 200)
             s.rp_cycle = getattr(s, 'rp_cycle', 0) + 1  # ('GIOCA :' cycles who plays: GIOCA PARTITA shows only for the
             s.log.append(f'[realplay] step {step}: who-plays entry {s.rp_gi} cycled ({s.rp_cycle})')   # human; the
             walk(s, s.rp_gi, 2)                         # entry pressed by its index - after one press it reads 'ALLENA:'
@@ -28931,14 +28933,20 @@ def world_gplay_nzchamp(force='1', team='OCEANIA,NUOVA ZELANDA,NORTHERN LGE|NORT
     res_words = {pk.where[k][0] | pk.where[k][1] << 8 for k, c in pk.clubs.items() if c.get('second_of')}
     keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
                                             'W8485_NOSACK', 'W8485_HEX', 'W8485_ONE', 'W8485_REALPLAY', 'W8485_TMO',
-                                            'W8485_REALSKIP', 'W2627REL_DATA')}
+                                            'W8485_REALSKIP', 'W2627REL_DATA', 'W8485_RNGSTEP')}
     if not os.environ.get('W2627REL_DATA'):                            # (the label check's names: this data's - the NZ
         os.environ['W2627REL_DATA'] = src                              #  championship's, absent from the old default)
         _LABEL_DATA.clear()
     os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+',
                       W8485_NOSACK='1', W8485_HEX=f'{log_at:x}:{log_n},{st_at:x}:{st_n},{gft_at(exe):x}:4' + os.environ.get('NZ_HEXPLUS', NZ_PHHEX), W8485_ONE='1')
     if real:                                                           # (the group's last matches only: 9 settled)
-        os.environ.update(W8485_REALPLAY=real, W8485_TMO='1500', W8485_REALSKIP='8')
+        os.environ.update(W8485_REALPLAY=real, W8485_TMO='1500', W8485_REALSKIP='8',   # (Gate A 42-int: CareerMenu
+                          W8485_RNGSTEP=os.environ.get('NZREAL_RNGSTEP', 'nzreal'))  # reseeds Rand from the tick: a
+        #   new career's draws depend on what ran before. Pinned at every season pause; the career's start (manager,
+        #   the who-plays entry's default) still follows the tick - realplay's full who-plays cycle covers it.
+        #   NZREAL_RNGSTEP='' = the old unpinned run)
+        if not os.environ['W8485_RNGSTEP']:
+            os.environ.pop('W8485_RNGSTEP')
     if two:                                                            # (two seasons: save, reload, the second)
         os.environ.pop('W8485_ONE')
     try:

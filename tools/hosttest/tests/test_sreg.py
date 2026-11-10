@@ -333,3 +333,56 @@ def test_sreg_shape():
                 errs.append(f'{tag}: {e}')
     return not errs, '; '.join(errs) or ('italy42 shape + SREG_SPEC bytes from an S7-like pack; refused: order, '
                                          'pool_rows, off-file division, empty division, no division')
+
+
+def test_sreg_walk():
+    """sreg_walk.c (n7-p4.md §4 step 3) built natively: WS_W / WS_G lines over a buffer through a sorted word map
+    (sr_wpair, as sr_wmap_import returns it; an italy42-like move: (102, 120) -> (144, 20), (102, 130) -> (144, 30), (102, 5) unchanged).
+    W: mapped words rewritten, 0 / FFFFh and unmapped words kept, the count of changes returned; G: globals of file
+    102 (base 92) to file 144's (base G144 = 400 here, a test value), another country's global kept; a line past the
+    bytes -1 with nothing written; O8 / K -2."""
+    import ctypes
+    import subprocess
+    import tempfile
+    d = tempfile.mkdtemp()
+    src = os.path.join(d, 'w.c')
+    with open(src, 'w') as f:
+        f.write('#define SWOSRULES_HAVE_STDINT\n#include <stdint.h>\n'
+                f'#include "{TOOLS}/swce/sr_reg.c"\n#include "{TOOLS}/swce/sr_regsave.c"\n#include "{TOOLS}/sreg_walk.c"\n')
+    lib = os.path.join(d, 'w.dylib')
+    r = subprocess.run(['cc', '-shared', '-fPIC', '-O1', '-I', os.path.join(TOOLS, 'swce'), '-o', lib, src],
+                       capture_output=True, text=True)
+    if r.returncode:
+        return False, 'cc: ' + r.stderr[-300:]
+    L = ctypes.CDLL(lib)
+    pairs = sorted([(102 | 120 << 8, 144 | 20 << 8), (102 | 130 << 8, 144 | 30 << 8)])
+    m = (ctypes.c_uint16 * 4)(*[x for p in pairs for x in p])
+    g = struct.pack('<BBH', 102, 0, 92) + struct.pack('<BBH', 144, 0, 400) + struct.pack('<BBH', 120, 30, 600)
+
+    def walk(site, buf):
+        b = (ctypes.c_uint8 * len(buf)).from_buffer(buf)
+        s = ctypes.create_string_buffer(struct.pack('<HHHHBB', *site), 10)
+        return L.sreg_walk_site(s, b, len(buf), m, 2, ctypes.create_string_buffer(g, len(g)), 3)
+    errs = []
+    W = [102 | 120 << 8, 0, 0xFFFF, 102 | 5 << 8, 102 | 130 << 8, 161 | 3 << 8]
+    buf = bytearray(b'\xAA' * 2 + b''.join(struct.pack('<HH', w, 0x1234) for w in W))
+    n = walk((0, 2, 4, len(W), 1, 0), buf)
+    got = [struct.unpack_from('<H', buf, 2 + 4 * k)[0] for k in range(len(W))]
+    want = [144 | 20 << 8, 0, 0xFFFF, 102 | 5 << 8, 144 | 30 << 8, 161 | 3 << 8]
+    if n != 2 or got != want or buf[:2] != b'\xAA\xAA' or any(struct.unpack_from('<H', buf, 4 + 4 * k)[0] != 0x1234
+                                                              for k in range(len(W))):
+        errs.append(f'W: {n} changed, {[hex(x) for x in got]}')
+    G = [92 + 120, 92 + 5, 92 + 130, 600 + 3, 7]
+    buf = bytearray(b''.join(struct.pack('<H', x) for x in G))
+    n = walk((0, 0, 2, len(G), 2, 0), buf)
+    got = list(struct.unpack(f'<{len(G)}H', buf))
+    if n != 2 or got != [400 + 20, 92 + 5, 400 + 30, 600 + 3, 7]:
+        errs.append(f'G: {n} changed, {got}')
+    buf = bytearray(struct.pack('<4H', 102 | 120 << 8, 0, 0, 0))
+    before = bytes(buf)
+    if walk((0, 0, 4, 3, 1, 0), buf) != -1 or bytes(buf) != before:
+        errs.append('past the bytes: not -1, or written')
+    if walk((0, 0, 2, 1, 3, 0xFF), bytearray(4)) != -2 or walk((0, 0, 2, 1, 4, 0), bytearray(4)) != -2:
+        errs.append('O8 / K: not -2')
+    return not errs, '; '.join(errs) or 'W: 2 mapped words rewritten, none / unmapped / other files kept; G: 102 -> 144 ' \
+                                         'globals, others kept; past the bytes -1, untouched; O8 / K -2'

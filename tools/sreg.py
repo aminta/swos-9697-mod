@@ -4,25 +4,92 @@ obj4+swreg.SREG_AT, under lrank.LR_AT, and its SWC1 section 'IT' (swe.c it_save 
 DORMANT until a world has a registry shape (S7: Italy's files 102 + 144, piece 4's pack data): shape() is None, sreg.c
 is not linked, swe.c's SREG_FN stays 0, no 'IT' is written and SWC1 keeps its 32 B - a save is byte-identical to one
 of the build before. SREG_FORCE=1 (test builds only, host tests): sreg.c linked with an empty shape the host test
-pokes (italy42's), SWC1 sized for ITALY_ROWS."""
+pokes (italy42's), SWC1 sized for ITALY_ROWS, SREG_WORLD FORCE_WORLD.
+
+Piece 4 (n7-p4.md §1-§3, §6b): shape() from the pack (the files' 'divisions' / 'pool_rows', clubs.csv's order and
+divisions), checked at build; patch() puts SREG_NF / SREG_NCLUB / SREG_SPEC / SREG_DIV and SREG_WORLD (the pack's world:
+only its careers' saves carry 'IT', sreg.c's gate on SWC1's world byte); the section's flags = sreg.c's SREG_FLAGS."""
 import os
 import re
+import struct
 
 ITALY_ROWS = 298               # italy42 §2: files 102 + 144, every row (the identity map's size in a shaped save)
 SECTION = 0x5449               # 'IT'
 LABELS = {}                    # (hosttest: sreg.c's symbols)
 
 
+POOL, OUT = 0xFE, 0xFF          # (swosrules.h SR_REG_POOL / SR_REG_OUT: a pool row's division, a club off the files)
+FORCE_WORLD = 5                # (SREG_FORCE test builds: World 2026-27's world byte, as its pack's 'world')
+
+
 def shape():
-    """(files, divisions) of the world's registry, or None (no world has one before S7). files: [(file, [(div, size)],
-    pool)]; divisions: each club's division byte in pack order (its ident)."""
-    return None
+    """(world, files, divisions) of the build's registry, or None (dormant: no pack has one before S7).
+
+    The pack (swc/1.4 countries.<c>.files, n7-p4.md §1): a career-world pack whose 'files' has 2+ roles with
+    'divisions' - {role: {file, base, divisions: [the league's division indices in the file's order], pool_rows}}.
+    Its clubs.csv, in order, is the ident order (append-only): a club's 'file' names its role, its 'division' the
+    division (int) or 'pool' (one of the role's pool rows); a club of a role without 'divisions' is off the files.
+    files: [(file, [(div, size)], pool)], size = the clubs with that division; divisions: each club's byte (POOL /
+    OUT). Checks (the club key on failure, not a -1 in the game): within each role the clubs in its division order,
+    pool rows last (= the team file's ordinals mkseason writes); pool_rows = its pool clubs; rows <= 256; one such
+    pack per build (one 'IT' section)."""
+    if hasattr(shape, 'cache'):
+        return shape.cache
+    import mkseason
+    found = [pk for pk in mkseason.packs()
+             if sum('divisions' in v for v in pk.meta.get('files', {}).values()) >= 2]
+    assert len(found) <= 1, ('sreg: two packs with a registry shape (one SWC1 \'IT\')', [pk.path for pk in found])
+    shape.cache = shape_of(found[0]) if found else None
+    return shape.cache
+
+
+def shape_of(pk):
+    """shape()'s (world, files, divisions) of one pack (meta, clubs, world, path: mkseason.Pack's)."""
+    fs = pk.meta['files']
+    roles = [k for k, v in fs.items() if 'divisions' in v]
+    assert len(roles) <= 8 and len(pk.clubs) <= 1024, ('sreg: files / clubs past the library', pk.path)
+    files, divs, last, count = [], [], {r: -1 for r in roles}, {}
+    for key, c in pk.clubs.items():
+        r = c['file']
+        if r not in roles:
+            divs.append(OUT)
+            continue
+        order = fs[r]['divisions']
+        dv = (c.get('division') or '').strip()
+        assert dv == 'pool' or dv.isdigit(), ('sreg: a club of a registry file needs a division (or \'pool\')', key, r)
+        d = POOL if dv == 'pool' else int(dv)
+        k = len(order) if d == POOL else order.index(d) if d in order else None
+        assert k is not None, ('sreg: club in a division its file does not hold', key, r, d)
+        assert k >= last[r], ('sreg: clubs.csv not in the file\'s division order (pool rows last)', key, r)
+        last[r] = k
+        count[r, d] = count.get((r, d), 0) + 1
+        divs.append(d)
+    for r in roles:
+        v = fs[r]
+        sizes = [(d, count.get((r, d), 0)) for d in v['divisions']]
+        pool = count.get((r, POOL), 0)
+        assert pool == v.get('pool_rows', 0), ('sreg: pool_rows not its pool clubs', r, pool, v.get('pool_rows'))
+        assert all(n for _, n in sizes) and sum(n for _, n in sizes) + pool <= 256 and len(sizes) <= 16, \
+            ('sreg: a file\'s rows', r, sizes, pool)
+        files.append((v['file'], sizes, pool))
+    assert sum(1 for _, _, pool in files if pool) <= 1, ('sreg: pool rows in two files', pk.path)
+    return pk.world, files, divs
+
+
+def spec_bytes(files, nf=8, ndivs=16):
+    """SREG_SPEC's bytes: sr_reg_file[nf] (u8 file, u8 ndiv, u8 div[ndivs], u8 size[ndivs], u16 pool)."""
+    import struct
+    out = b''
+    for num, divs, pool in files:
+        out += (bytes([num, len(divs)]) + bytes(d for d, _ in divs).ljust(ndivs, b'\0') +
+                bytes(n for _, n in divs).ljust(ndivs, b'\0') + struct.pack('<H', pool))
+    return out.ljust(nf * (4 + 2 * ndivs), b'\0')
 
 
 def rows():
     s = shape()
     if s:
-        return sum(sum(n for _, n in divs) + pool for _, divs, pool in s[0])
+        return sum(sum(n for _, n in divs) + pool for _, divs, pool in s[1])
     return ITALY_ROWS if os.environ.get('SREG_FORCE') else 0
 
 
@@ -44,9 +111,11 @@ def patch(p, syms_swe):
         arena = re.search(r'#define SWE_ARENA (0x[0-9A-Fa-f]+|\d+)', h.read()).group(1)
     obj = cobj.compile_c(src, (f'-DSWE_ARENA={arena}',), sections=True)
     roots = ['sreg_build', 'sreg_size', 'sreg_save', 'sreg_load', 'sreg_new', 'SREG_NF', 'SREG_NCLUB', 'SREG_SPEC',
-             'SREG_REG', 'SREG_LAST']
+             'SREG_REG', 'SREG_LAST', 'SREG_WORLD', 'SREG_FLAGS']
     with open(os.path.join(os.path.dirname(src), 'swce', 'swosrules.h')) as h:
-        ndiv = int(re.search(r'#define SR_REG_CLUBS (\d+)', h.read()).group(1))    # (SREG_DIV's bytes)
+        hdr = h.read()
+    ndiv, nfiles, ndivs = (int(re.search(rf'#define {k}\s+(\d+)', hdr).group(1))
+                           for k in ('SR_REG_CLUBS', 'SR_REG_FILES', 'SR_DIVS'))  # (SREG_DIV's bytes; SREG_SPEC's shape)
     top = getattr(swreg, 'CONTI4_AT', swreg.ST_AT)      # (conti's data once 4.1 is merged into 4.2, ST before)
     if hasattr(swreg, 'UPRIZE2_AT'):                    # (4.1 merged: uprize2 links below SREG_DIV_AT whatever the
         assert hasattr(swreg, 'UPRIZE2_END') and swreg.UPRIZE2_END <= swreg.SREG_DIV_AT, \
@@ -57,7 +126,7 @@ def patch(p, syms_swe):
     assert p.le.obj(4).npages * 0x1000 >= lrank.LR_AT, ('sreg: obj4 has no page at SREG_AT (a world build: lrank)',
                                                          p.le.obj(4).npages)
     assert not any(p.get(4, swreg.SREG_AT, lrank.LR_AT - swreg.SREG_AT)), 'sreg: obj4+SREG_AT not free'
-    syms, end, bss = cobj.link(p, obj, swreg.SREG_AT, (4, 0), externs={'SREG_DIV': (4, swreg.SREG_DIV_AT)},
+    syms, end, bss = cobj.link(p, obj, swreg.SREG_AT, (4, 0), externs={'SREG_DIV': (4, swreg.SREG_DIV_AT), 'SREG_SWC1': syms_swe['SWC1']},
                                limit=lrank.LR_AT, text_obj=4, roots=roots)
     syms['SREG_DIV'] = (4, swreg.SREG_DIV_AT)
     assert not bss and end <= lrank.LR_AT, ('sreg: code + data past LR_AT', hex(end), bss)
@@ -65,7 +134,14 @@ def patch(p, syms_swe):
     LABELS.clear()
     LABELS.update(syms)
     s = shape()
-    assert not s, 'N7 piece 4: SREG_NF / SREG_NCLUB / SREG_SPEC / SREG_DIV (at SREG_DIV_AT) from the S7 shape'
+    if s:                                               # (S7: the pack's shape; SREG_FORCE: an empty one, world 5)
+        world, files, divs = s
+        assert len(divs) <= ndiv and len(files) <= nfiles, ('sreg: the shape past swosrules.h', len(divs), len(files))
+        p.put(*syms['SREG_NF'], struct.pack('<i', len(files)))
+        p.put(*syms['SREG_NCLUB'], struct.pack('<i', len(divs)))
+        p.put(*syms['SREG_SPEC'], spec_bytes(files, nfiles, ndivs))
+        p.put(4, swreg.SREG_DIV_AT, bytes(divs))
+    p.put(*syms['SREG_WORLD'], struct.pack('<I', s[0] if s else FORCE_WORLD))
     fn = syms_swe['SREG_FN']
     for k, nm in enumerate(('sreg_size', 'sreg_save', 'sreg_load', 'sreg_new', 'sreg_build')):
         cobj.add_ptr(p, fn[1] + 4 * k, *syms[nm], 4)

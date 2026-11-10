@@ -14,7 +14,12 @@ writes; the struct's unused tail keeps the arena's bytes).
   size, cut from its place, a section after it kept;
 - a corrupt section (every ident 0) and a short one: -1, the registry rebuilt - the same bytes from two garbage
   arenas;
-- the dormant build: SREG_FN 0, a new career's save writes no section."""
+- the dormant build: SREG_FN 0, a new career's save writes no section.
+Piece 4 (n7-p4.md §3, §6b):
+- SREG_WORLD the shape's world (5, World 2026-27: the SREG_FORCE build's); a career of world 4 (1984-85) saves no
+  'IT', and its load leaves the registry as it was (SREG_LAST 0) even with an 'IT' in the block;
+- the section's flags: SREG_FLAGS (PENDING | season 27 << 8) saved at +8, read back by a load, 0 after sreg_new and
+  after a load of another layout."""
 import json
 import os
 import re
@@ -38,6 +43,7 @@ _H = open(os.path.join(TOOLS, 'swce', 'swosrules.h')).read()
 FILES, CLUBS, DIVS = (int(re.search(rf'#define {k}\s+(\d+)', _H).group(1)) for k in ('SR_REG_FILES', 'SR_REG_CLUBS',
                                                                                      'SR_DIVS'))
 POOL, OUT = 0xFE, 0xFF
+WORLD = 5                                                   # (sreg.FORCE_WORLD: World 2026-27)
 FSIZE = 2 + 2 * DIVS + 2                                   # sr_reg_file: file, ndiv, div[], size[], u16 pool
 REGSIZE = 8 + FILES * FSIZE + 2 * CLUBS + FILES * 256 * 2 + FILES * 256 + 2 * FILES     # sr_registry
 
@@ -82,7 +88,13 @@ class N7:
         st = self.at('swe', 'swe_st_save')
         if b'\x66\x83\x3d' in self.rd(st, 0x40):                  # (a career: SWE_GTYPE 4)
             self.uc.mem_write(ts._disp(self.rd, st, 0x40, b'\x66\x83\x3d'), b'\x04\x00')
+        self.cwb = ts._disp(self.rd, st, 0x40, b'\x0f\xb6\x05') if b'\x0f\xb6\x05' in self.rd(st, 0x40) else None
+        self.world(WORLD)
         self.uc.mem_map(ts.BUF, 0x10000)
+
+    def world(self, n):                                         # (the career's world byte: cw_byte's SWE_CWB)
+        if self.cwb is not None:
+            self.uc.mem_write(self.cwb, bytes([n]))
 
     def w(self, a, b):
         self.uc.mem_write(a, b)
@@ -125,6 +137,9 @@ def test_sreg():
     if 'sreg' not in m.sy:
         return False, 'HT_N7_EXE has no sreg (not an SREG_FORCE build)'
     errs = []
+    sw = struct.unpack('<I', m.rd(m.at('sreg', 'SREG_WORLD'), 4))[0]
+    if sw != WORLD or m.cwb is None:
+        errs.append(f'SREG_WORLD {sw} (want {WORLD}), cw_byte\'s world byte {"not " if m.cwb is None else ""}found')
     fn = struct.unpack('<5I', d.rd(d.at('swe', 'SREG_FN'), 20))
     if any(fn) or 'sreg' in d.sy:
         errs.append(f'dormant: SREG_FN {fn}, sreg linked {"sreg" in d.sy}')
@@ -138,8 +153,10 @@ def test_sreg():
         m.w(m.at('sreg', 'SREG_DIV'), bytes(div).ljust(CLUBS, b'\0'))
     regb = lambda: view(m.rd(reg, REGSIZE))
     last = lambda: struct.unpack('<i', m.rd(m.at('sreg', 'SREG_LAST'), 4))[0]
+    flags = lambda: struct.unpack('<I', m.rd(m.at('sreg', 'SREG_FLAGS'), 4))[0]
 
     def fresh():                                            # (the spec's registry, as sreg_build makes it)
+        m.w(m.swc1 + 2, struct.pack('<H', WORLD))            # (SWC1's world: sreg.c's gate)
         if m.call('sreg', 'sreg_build'):
             errs.append('sreg_build refused the shape')
         return regb()
@@ -202,6 +219,44 @@ def test_sreg():
     if [(k, len(b)) for k, b in s] != [(0x5A5A, 4), (IT, 384)] or s[0][1] != b'zzzz':
         errs.append(f'another layout, save: sections {[(hex(k), len(b)) for k, b in s]} (want ZZ 4 kept, IT 384)')
 
+    # the flags: PENDING | season 27 << 8 saved at the section's +8, back after a load; 0 after sreg_new, and after
+    # a load of another layout (S2z under ITALY35 above: a different layout)
+    shape(ITALY, ITALY_DIV)
+    fresh()
+    FL = 2 | 27 << 8
+    m.w(m.at('sreg', 'SREG_FLAGS'), struct.pack('<I', FL))
+    m.call('swe', 'swe_st_save')
+    SF = m.rd(m.swc1, size)
+    it = dict(sections(SF)).get(IT, b'')
+    if it[8:10] != struct.pack('<H', FL):
+        errs.append(f'flags: the section\'s +8 {it[8:10].hex()} (want {FL:04x})')
+    m.call('sreg', 'sreg_new')
+    if flags():
+        errs.append(f'flags: {flags():#x} after sreg_new')
+    m.load(SF)
+    if last() != 1 or flags() != FL:
+        errs.append(f'flags: load {last()}, SREG_FLAGS {flags():#x} (want 1, {FL:#x})')
+    shape(ITALY35, D35)
+    m.load(SF)
+    if last() != 0 or flags():
+        errs.append(f'flags: another layout\'s load {last()}, SREG_FLAGS {flags():#x} (want 0, 0)')
+
+    # the world gate: a world-4 career saves no 'IT' (one there cut), and its load leaves the registry alone
+    shape(ITALY, ITALY_DIV)
+    R = fresh()
+    m.world(4)
+    m.call('swe', 'swe_st_save')
+    s4 = m.rd(m.swc1, size)
+    if struct.unpack_from('<H', s4, 2)[0] != 4 or IT in dict(sections(s4)):
+        errs.append(f'world 4: SWC1 world {struct.unpack_from("<H", s4, 2)[0]}, sections '
+                    f'{[(hex(k), len(b)) for k, b in sections(s4)]} (want 4, no IT)')
+    S4 = SF[:2] + struct.pack('<H', 4) + SF[4:]                # (an 'IT' in a world-4 block: never read)
+    m.load(S4)
+    if last() != 0 or regb() != R or flags():
+        errs.append(f'world 4 load: SREG_LAST {last()}, registry {"kept" if regb() == R else "changed"}, flags '
+                    f'{flags():#x} (want 0, kept, 0)')
+    m.world(WORLD)
+
     # corrupt (every ident 0) and short: -1, rebuilt - the same bytes from two garbage arenas
     shape(ITALY, ITALY_DIV)
     bad = S2[:HDR + 4 + 12] + bytes(373) + S2[HDR + 4 + 385:]
@@ -217,4 +272,51 @@ def test_sreg():
                         f', {"=" if got[0][1] == R0 else "!="} the spec\'s')
     return not errs, '; '.join(errs) or ('new career = the dormant head + IT 385 at the first save; save -> load of a '
                                          'non-spec registry 1, its state back; another layout 0 + IT cut (ZZ kept); '
-                                         'corrupt / short -1, the same rebuild twice; dormant: no sreg, no section')
+                                         'corrupt / short -1, the same rebuild twice; flags saved + loaded; world 4: no IT, load '
+                                         'ignored; dormant: no sreg, no section')
+
+
+def test_sreg_shape():
+    """sreg.shape_of on a pack's files / clubs (n7-p4.md §1-§2): the italy42 shape from an S7-like pack (102 Serie A,
+    B, C + 2, 144 Serie D 9 x 18 + 36 pool rows, 10 clubs off the files) = test_sreg's ITALY / ITALY_DIV, its
+    SREG_SPEC bytes = spec_bytes'; refused: a club out of its file's division order, pool_rows not its pool clubs, a
+    division its file does not hold, an empty division, a registry-file club with no division."""
+    import types
+    import sreg
+    fs = {'league': {'file': 102, 'base': 92, 'divisions': [0, 1, 2, 3, 4]},
+          'league_b': {'file': 144, 'base': 160, 'divisions': list(range(5, 14)), 'pool_rows': 36},
+          'pool': {'file': 253, 'base': 0}}
+    rows = ([('league', str(d)) for d in ITALY_DIV[:100]] + [('league_b', str(d)) for d in ITALY_DIV[100:262]] +
+            [('league_b', 'pool')] * 36 + [('pool', '')] * 10)
+
+    def pk(rs, files=fs):
+        return types.SimpleNamespace(meta={'files': files}, clubs={f'c{i}': {'file': f, 'division': d}
+                                                                   for i, (f, d) in enumerate(rs)}, world=5, path='t')
+    errs = []
+    got = sreg.shape_of(pk(rows))
+    if got != (5, ITALY, ITALY_DIV):
+        errs.append(f'italy42: {got[1] if got else got}')
+    elif sreg.spec_bytes(ITALY, FILES, DIVS) != spec_bytes(ITALY):
+        errs.append('spec_bytes differs from the host test\'s')
+    swap = [rows[100]] + rows[:100] + rows[101:]            # (a Serie D club first in clubs.csv: another file - ok;
+    swap2 = list(rows)                                      #  a Serie B club before a Serie A one: refused)
+    swap2[0], swap2[30] = swap2[30], swap2[0]
+    nopool = dict(fs, league_b=dict(fs['league_b'], pool_rows=35))
+    nodiv = list(rows)
+    nodiv[5] = ('league', '7')
+    empty = dict(fs, league=dict(fs['league'], divisions=[0, 1, 2, 3, 4, 14]))
+    blank = list(rows)
+    blank[3] = ('league', '')
+    for tag, p, want in (('Serie D club first (another file)', pk(swap), None), ('B before A', pk(swap2), 'order'),
+                         ('pool_rows 35', pk(rows, nopool), 'pool_rows'), ('a division off its file', pk(nodiv),
+                         'does not hold'), ('an empty division', pk(rows, empty), 'rows'),
+                         ('no division', pk(blank), 'needs a division')):
+        try:
+            sreg.shape_of(p)
+            if want:
+                errs.append(f'{tag}: accepted')
+        except AssertionError as e:
+            if not want or want not in str(e):
+                errs.append(f'{tag}: {e}')
+    return not errs, '; '.join(errs) or ('italy42 shape + SREG_SPEC bytes from an S7-like pack; refused: order, '
+                                         'pool_rows, off-file division, empty division, no division')

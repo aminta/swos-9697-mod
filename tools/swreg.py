@@ -44,6 +44,8 @@ SREG_AT = 0x5100                        # 4.2 N7: the club registry's code + dat
                                         # lrank.LR_AT (MC 10/11: the band 0x5100..0x6000); linked only with a shape
 SREG_DIV_AT = 0x4600                    # 4.2 N7: sreg.c's SREG_DIV (SR_REG_CLUBS bytes, 0x4600..0x4A00), above 4.1's
                                         # uprize2 (0x4000..0x42c8), under conti (CONTI4_AT 0x4B00; MC 10/11)
+SREG2_AT = 0xA000                       # 4.2 N7 piece 4: obj4's 11th page (0xA000..0xB000, MC n7-p4 §6b), the old-save
+                                        # import (old_ord, the walker, its sites); only with a shape (sreg.py)
 MAGIC = b'SWRG'
 VERSION = 2
 HDR = 32

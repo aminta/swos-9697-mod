@@ -457,9 +457,11 @@ def patch(p, cave, items, tails=False):
     assert en_block < 0x10000 and nmax >= 80, (block, en_block0, nmax)  # (the main block alone: N <= 98; EN in the
                                                   # normal cache matters for world-0 careers; a world's: its big cache)
     import careerworld                            # a big world's cache (its own SELBASEV / ROOMV): all of it at SEL_N
-    if careerworld.BSS[0] is not None:
+    if careerworld.BSS[0] is not None:            # (4.2 A1: SEL_N 159 of SEL_CAP 160; a 160-team save drops 'EN')
         assert careerworld.SEL_N * TEAM_SIZE + block + en_block <= careerworld.SEL_ROOM, \
             ('big cache room', careerworld.SEL_N, block, en_block, careerworld.SEL_ROOM)
+        print(f'exe: big cache save room: {careerworld.SEL_ROOM - careerworld.SEL_N * TEAM_SIZE - block - en_block} B left '
+              f'at {careerworld.SEL_N} teams (main {block}, EN {en_block})')
     defaults = b''.join(p.get(1, off, n) for off, n in items)
     bal = -(sa.MARK3 & 0xff) - (sa.MARK3 >> 8) & 0xff
     symbols = {'NUMSEL': (2, numsel), 'CAREER': (2, career), 'D1': (2, dreg1), 'WRITEFILE': (1, writefile),

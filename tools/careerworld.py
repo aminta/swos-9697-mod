@@ -47,8 +47,10 @@ B_TFB, TFB_SIZE = 0x31000, 0x2B000
 # fixup into the old one retargeted, big_sel_buffer); the .CAR keeps its layout (fixed part + N records + trailer), so
 # SaveCareerFile writes it from B_STAGE (fixed part copied before the records) and LoadCareerFile reads it there
 # (trailer.LOADCOPY -> w_loadcopy spreads it). Old saves (N <= 100) load unchanged.
-SEL_N = 160
-B_SEL, SEL_ROOM = 0x5C000, SEL_N * TEAM_SIZE + 0x4000 + 0x280  # (+ the trailer's blocks after the records: the main
+SEL_CAP, SEL_N = 160, 159        # the cache's memory (160 records) / what a save budgets for (4.2 A1: the trailer's room
+                                 # is checked at 159 records, +684 B for 'EN'; a save with 160 cached drops 'EN' as any
+                                 # save past ROOMV, trailer.EN_SAVE; every save seen caches <= 124)
+B_SEL, SEL_ROOM = 0x5C000, SEL_CAP * TEAM_SIZE + 0x4000 + 0x280  # (+ the trailer's blocks after the records: the main
                                                                # one + the engine block 'EN': ~14.6 KB in 4.0.1: 0x4000;
                                                                # 4.1 S2b: + 0x280, the two gaps around B_STAGE - B_UQ and
                                                                # everything after it stay put; CONVENTIONS 21)
@@ -81,7 +83,7 @@ B_TMD, B_CUPS, B_LISTS = 0, 128 * TEAM_SIZE, 128 * TEAM_SIZE + 3 * 160      # cu
 # the cache, so records 32+ come back as the simulated clubs (a 64-club national cup lost its second half -> the
 # season end's VerifyTeamLoaded on a finalist -> exit to DOS; world 1984-85, 2026-10-10). A big world parks all its
 # records (count word + SEL_N x 684 B) at B_SAVE.
-B_SAVE, SAVE_SIZE = 0x16000, 2 + SEL_N * TEAM_SIZE
+B_SAVE, SAVE_SIZE = 0x16000, 2 + SEL_CAP * TEAM_SIZE
 assert B_LISTS + 224 <= B_SAVE and B_SAVE + SAVE_SIZE <= B_TFB and B_TFB + TFB_SIZE <= B_SEL
 assert B_SEL + SEL_ROOM <= B_STAGE and B_STAGE + 95153 + SEL_ROOM <= B_UQ
 VAROFF = [4, 22, 25] + [76 + 38 * k + x for k in range(16) for x in (1, 27, 33, 34, 35, 36)]
@@ -2090,7 +2092,7 @@ def patch(p, worlds, at, nasmcave, comp, ct, cont_rec):
                       '    mov eax, WSAVE', '.o:', '    popfd', '    ret',
                       f'wl{k}:', '    mov dword [SVD0], 21888', '    pushfd', '    call w_big', '    jz .o',
                       '    mov dword [SVD0], 68400', '    push eax', '    mov eax, [SELPTR]', '    cmp eax, NEWSEL',
-                      '    pop eax', '    jne .o', f'    mov dword [SVD0], {SEL_N * TEAM_SIZE}', '.o:', '    popfd',
+                      '    pop eax', '    jne .o', f'    mov dword [SVD0], {SEL_CAP * TEAM_SIZE}', '.o:', '    popfd',
                       '    ret']
             bsym.update({'SVMEM': p.target(1, src_site + 1), 'SVD0': p.target(1, len_site + 2)})
             saves.append((src_site, f'ws{k}', len_site, f'wl{k}'))
@@ -2757,7 +2759,7 @@ def patch_tails(p, at, nasmcave):
     assert bytes(p.get(1, mmc, 5)) == orig[mmc:mmc + 5], 'another module patched SWOSMainMenuInit\'s first call'
     p.put(1, mmc, b'\xe8' + struct.pack('<i', labels['w_mmi'] - (mmc + 5)))   # (the mov stays the game's / SWOS++'s)
     p.retarget(1, LABELS['w_switch_dd'], 1, labels['w_switch'])
-    print(f'exe: big world: team cache of {SEL_N} at obj2+{b + B_SEL:#x} (stage obj2+{b + B_STAGE:#x}, mark BIGC)')
+    print(f'exe: big world: team cache of {SEL_CAP} (saves budgeted at {SEL_N}) at obj2+{b + B_SEL:#x} (stage obj2+{b + B_STAGE:#x}, mark BIGC)')
     print(f'exe: big world .CAR block W1 ({WBLOCK} B, in the 80-record area) @ obj1+{at:#x}, records moved to obj2+{b:#x}')
     return (at + len(code) + 3) & ~3
 

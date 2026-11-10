@@ -23676,6 +23676,69 @@ def world_cf_siracusa():
 
 
 @scenario
+def title_deadend():
+    """4.1.1 (Jacopo's COPPA ITALIA SERIE C results screen, Telegram video 11/11): the selection on the screen's title
+    (entry 0: all 4 links and 4 skip links FFh) was a dead end - no direction moved it, fire did nothing. benchx de_fix:
+    a direction takes it to the first visible, enabled entry with a link. A new World 2026-27 career with SORRENTO
+    (Serie C girone C), advanced to the first COPPA ITALIA SERIE C results screen; the selection poked onto entry 0
+    (a test poke, nothing saved): each of the 4 directions leaves it, to the first linked entry; control: from there
+    the keys move as the game's own links (never back onto entry 0, always a visible entry with a link).
+    TITLENAV_BUILD / SWOSTEST_BUILD: a release dir; TITLENAV_BASE: an exe without the fix (expects the dead end)."""
+    import struct
+    b = os.environ.get('TITLENAV_BUILD') or os.environ.get('SWOSTEST_BUILD')
+    if not b:
+        src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-403c19')
+        if not os.path.isdir(src):
+            return True, f'SKIP: private data {src} missing'
+        order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+        b = build('title_deadend', env={'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order])})
+    base = os.environ.get('TITLENAV_BASE')
+    errs, shown = [], []
+    for exe, fixed in ((b, True),) + (((base, False),) if base else ()):
+        with Session('title_deadend' + ('' if fixed else '_base'), exe, {}, 'dump:2', 600) as s:
+            s.wait()
+            for t in ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27', 'EUROPA', 'ITALIA', 'SERIE C',
+                      'SERIE C GIRONE C', 'SORRENTO']:
+                if press(s, s.screen(), t) is None:
+                    return False, f'no {t!r} on the way to the career'
+            s.send('fire dump:3')
+
+            def stop(sc):
+                t = sc.entries[0][1] if sc.entries else ''
+                return 'COPPA ITALIA SERIE C' in t and all(sc.find(x, exact=True) is None for x in (
+                    '- RISULTATO -', 'MOD. TATTICA', 'VISUAL. COMPETIZ.'))
+            ok, msg = advance(s, stop, 600)
+            if not ok:
+                return False, f'no COPPA ITALIA SERIE C results screen: {msg}'
+            m = s.result.base2 + s.info['menu']
+            sc = s.screen()
+            check(sc.nav[0] == ((255,) * 4, (255,) * 4), f'entry 0 {sc.entries[0][1]!r} links {sc.nav[0]}', errs)
+            first = next((i for i, (e, n) in enumerate(zip(sc.entries, sc.nav)) if not e[2] and
+                          n != ((255,) * 4, (255,) * 4)), None)
+            for k in ('up', 'down', 'left', 'right'):
+                s.poke(m + 0x0C, struct.pack('<I', m + 0x16))
+                s.send('dump:1')
+                check(s.screen().selected == 0, f'poke: selection {s.screen().selected}', errs)
+                s.send(k + ' dump:1')
+                got = s.screen().selected
+                shown.append(f"{'fix' if fixed else 'base'} {k} -> {got}")
+                if fixed:
+                    check(got == first, f'{k} from the title: {got}, want {first} (the first linked entry)', errs)
+                else:
+                    check(got == 0, f'base exe: {k} from the title moved to {got} (the dead end expected)', errs)
+            if fixed:
+                s.shot('left_title')
+                for k in 'right up up down left down'.split():    # (control: the game's own moves)
+                    s.send(k + ' dump:1')
+                    sc = s.screen()
+                    got = sc.selected
+                    shown.append(f'{k} -> {got}')
+                    check(got != 0 and not sc.entries[got][2] and sc.nav[got] != ((255,) * 4, (255,) * 4),
+                          f'control {k}: selection {got} ({sc.entries[got][1]!r}, links {sc.nav[got]})', errs)
+    return not errs, '; '.join(errs) or ('title (entry 0, no links) left by every direction; ' + ', '.join(shown))
+
+
+@scenario
 def world_cuplist_promoted():
     """Rule 11 across a D -> C promotion (Davide's MESTRE case, forced): LIGORNA 1st of Serie D girone A (GPLAY_FORCE=1,
     promoted), the season played and the next one saved and reloaded: in Serie C, VISUAL. COMPETIZ. lists the COPPA

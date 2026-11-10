@@ -1616,6 +1616,8 @@ bx_mdir:                                ; MenuProc's `mov [D6], ax` (the move in
     push eax                            ; move its window one place, wrapping as the box. (4.0.6, Marco) Own lists:
     push ebx                            ; the game's move, only the box scrolls.
     push esi
+    call de_fix                         ; (4.1.1) a selection with no way out: moved, the menu redrawn
+    jc .draw
     call sq_n
     cmp ax, 16
     jbe .no
@@ -1646,6 +1648,7 @@ bx_mdir:                                ; MenuProc's `mov [D6], ax` (the move in
     mov bx, ax
 .oset:
     mov [bx_po], bx
+.draw:
     pop esi
     pop ebx
     pop eax
@@ -1655,6 +1658,38 @@ bx_mdir:                                ; MenuProc's `mov [D6], ax` (the move in
     pop esi
     pop ebx
     pop eax
+    ret
+
+de_fix:                                 ; (4.1.1, Jacopo's COPPA ITALIA SERIE C results screen) the selection on an entry
+    pushad                              ; with no link at all (its 4 links and 4 skip links FFh: a title, entry 0) is a
+    mov ebp, MENU                       ; dead end - every direction kept it there, fire did nothing. On a direction it
+    mov ebx, [ebp + 0Ch]                ; goes to the first visible, enabled entry that has a link; CF = 1: moved (the
+    test ebx, ebx                       ; menu redrawn). Any other selection: CF = 0, the game's move as before.
+    jz .no
+    cmp dword [ebx + 8], -1
+    jne .no
+    cmp dword [ebx + 10h], -1
+    jne .no
+    movzx ecx, word [ebp + 10h]
+    lea esi, [ebp + 16h]
+.l:
+    dec ecx
+    js .no
+    cmp dword [esi + 4], 0              ; (invisible, disabled)
+    jne .n
+    cmp dword [esi + 8], -1
+    jne .f
+.n:
+    add esi, 38h
+    jmp .l
+.f:
+    mov [ebp + 0Ch], esi
+    popad
+    stc
+    ret
+.no:
+    popad
+    clc
     ret
 
 rot_d0:                                 ; ViewSquadOnSelect21 / SelectNationalTeamOnSelect25: replaces `mov word [D0], 5`

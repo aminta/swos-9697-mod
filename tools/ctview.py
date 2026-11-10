@@ -19,16 +19,13 @@ import conti        # noqa: E402
 
 TEXTS = {   # holder, to be played, winner, group, earlier rounds (season 1), none; the menu entry
     'it': (b'DETENTORE', b'DA GIOCARE', b'VINCITORE', b'GRUPPO', b'TURNI PRECEDENTI GIOCATI PRIMA DELLA STAGIONE',
-           b'NESSUNA COPPA IN CORSO', b'COPPE CONTINENTALI', b'RIEPILOGO',
-           b'SORTEGGIO NON EFFETTUATO'),
+           b'NESSUNA COPPA IN CORSO', b'COPPE CONTINENTALI', b'RIEPILOGO'),
     'en': (b'HOLDER', b'TO BE PLAYED', b'WINNER', b'GROUP', b'EARLIER ROUNDS PLAYED BEFORE THE SEASON',
-           b'NO CUP IN PROGRESS', b'CONTINENTAL CUPS', b'SUMMARY', b'DRAW NOT MADE'),
+           b'NO CUP IN PROGRESS', b'CONTINENTAL CUPS', b'SUMMARY'),
     'fr': (b'TENANT', b'A JOUER', b'VAINQUEUR', b'GROUPE', b'TOURS PRECEDENTS JOUES AVANT LA SAISON',
-           b'AUCUNE COUPE EN COURS', b'COUPES CONTINENTALES', b'RESUME',
-           b'TIRAGE NON EFFECTUE'),
+           b'AUCUNE COUPE EN COURS', b'COUPES CONTINENTALES', b'RESUME'),
     'de': (b'TITELVERTEIDIGER', b'NOCH OFFEN', b'SIEGER', b'GRUPPE', b'FRUEHERE RUNDEN VOR DER SAISON GESPIELT',
-           b'KEIN POKAL IM GANGE', b'KONTINENTALPOKALE', b'\x9aBERSICHT',
-           b'NICHT AUSGELOST'),   # (9Ah: the DE fonts' U-umlaut, sprite 54)
+           b'KEIN POKAL IM GANGE', b'KONTINENTALPOKALE', b'\x9aBERSICHT'),   # (9Ah: the DE fonts' U-umlaut, sprite 54)
 }
 CONF_NAMES = {'conmebol': b'CONMEBOL', 'concacaf': b'CONCACAF', 'afc': b'AFC', 'caf': b'CAF', 'ofc': b'OFC',
               'fifa': b'FIFA'}
@@ -147,7 +144,7 @@ def table(lang, confs, files=None, words=None):
             strs.extend(t + b'\0')
         return pool[t]
     tx = TEXTS[lang]
-    toff = [s(t) for t in tx[:6]] + [s(tx[8]), 0]        # (4.2 P7: slot 6 the refused draw's line)
+    toff = [s(t) for t in tx[:6]] + [0, 0]
     for ci, (conf, key) in enumerate(cups):
         c = fmt[conf, key]
         rounds = c['rounds']
@@ -156,14 +153,10 @@ def table(lang, confs, files=None, words=None):
         for t in [nm] + [round_name(r, lang).encode('latin1') for r in rounds]:
             assert complist.px(t.decode('latin1')) <= 298 and all(ch in complist.FONT for ch in t.decode('latin1')), (lang, t)
         body.append((cnum[conf], nrd[ci], s(nm), [s(round_name(r, lang).encode('latin1')) for r in rounds]))
-        for r in rounds:                                # (4.2 P7: "<round>: DRAW NOT MADE" on one line, font chars)
-            if r['kind'] == 'groups':
-                ln = round_name(r, lang) + ': ' + tx[8].decode('latin1')
-                assert complist.px(ln) <= 298 and set(ln) <= complist.FONT, ('draw not made line', lang, ln, complist.px(ln))
     for t in tx[:7]:                                    # (the page's small font: DE as AE / OE / UE; only the summary
         assert all(ch in complist.FONT for ch in t.decode('latin1')), (lang, t)     # button, big font, has umlauts)
     head = 16 + 64 + 2 + 2 * len(assocs) + sum(4 + 2 * n for _, n, _, _ in body)
-    out = bytearray(struct.pack('<8H', *[head + o for o in toff[:7]] + [0]))
+    out = bytearray(struct.pack('<8H', *[head + o for o in toff[:6]] + [0, 0]))
     out += bytes(min(255, complist.px(chr(0x20 + k))) if chr(0x20 + k) in complist.FONT else 6 for k in range(64))
     out += bytes((len(assocs), len(cups))) + bytes(afile) + bytes(aconf)
     for cf, n, nmo, ro in body:
@@ -831,8 +824,6 @@ def world_cups(p, at):
 def test(lang='it', confs=('conmebol',)):
     import ctypes
     L = conti._native(('ctview.c',))
-    if os.environ.get('CTVIEW_SFORCE'):              # (4.2 P7: a refused group draw, conti's CT_SDRAW_FORCE value)
-        ctypes.c_uint32.in_dll(L, 'CT_SDRAW_FORCE').value = int(os.environ['CTVIEW_SFORCE'], 0)
     tab, _ = table(lang, confs)
     ctypes.memmove(ctypes.addressof(ctypes.c_ubyte.in_dll(L, 'CV_TAB')), tab, len(tab))
     names = {}

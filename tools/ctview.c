@@ -32,7 +32,7 @@ u8 CV_TAB[8192];
 #else
 extern const u8 CV_TAB[];
 #endif
-enum { T_HOLD, T_TBP, T_WIN, T_GRP, T_BEFORE, T_NONE, T_NOTDRAWN };   /* (T_NOTDRAWN 4.2 P7) */
+enum { T_HOLD, T_TBP, T_WIN, T_GRP, T_BEFORE, T_NONE };
 
 #define PXMAX 298                       /* fmtpage's line (fmtgame PX_MAX) */
 #define LINES 14
@@ -295,10 +295,6 @@ static void cup_lines(int c, u32 week, int live) {
                 if (R[17] && r) { add(txt(T_BEFORE)); endline(); }
             }
             int n = CT_OUT.nent[c][r];
-            if (!n && CT_OUT.res[c][r][0] == 0xFF) {   /* (4.2 P7: a refused draw - conti.c ND_MARK; the edition stops) */
-                head((const char *)CV_TAB + w16(ct + 4 + 2 * r), txt(T_NOTDRAWN)); endline(); done = 0;
-                break;
-            }
             if (R[0] == K_KO && R[18] && n && 2 * n <= R[18]) continue;   /* (all through without playing: no ties) */
             if (!n && seg_before(c, r, mo) && !((CT_ED.pad & 1) && !has_main(c)))
                 continue;                                             /* (no entrants: not played this season) */

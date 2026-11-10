@@ -17688,6 +17688,49 @@ def title_top(lg):
     return list(struct.unpack_from('<9H', lg, GP_LOG_TOP)) if len(lg) >= GP_LOG_TOP + 18 else None
 
 
+def title_data(src, ko_title):
+    """world_title's data copy: src with every country's KO_TITLE appended to its league's ko_playoffs, in
+    WORK/world_title-<hash of src's files and ko_title> (10/11, RC3: one shared WORK/world_title, rmtree'd and
+    re-copied by every world_title_* build, let parallel scenarios build from a half-written copy or a twice-patched
+    pack - FileExistsError in world_title_crc_skip, two pack keys for one force). Made in a private temp dir, then
+    renamed into place (an existing copy is reused, never rewritten); the patched packs keep their source's mtime, so
+    build_key (SEASON_PACKS' path + mtimes) is the same for every run of the same data: one build per recipe."""
+    import hashlib
+    import json
+    import shutil
+    import tempfile
+    h = hashlib.sha256(json.dumps(ko_title, sort_keys=True).encode())
+    for dp, dn, fn in sorted(os.walk(src)):
+        dn.sort()
+        for f in sorted(fn):
+            q = os.path.join(dp, f)
+            h.update(f'{os.path.relpath(q, src)}:{os.path.getsize(q)}:{os.path.getmtime(q)}\0'.encode())
+    w = os.path.join(WORK, 'world_title-' + h.hexdigest()[:12])
+    if os.path.isdir(w):
+        return w
+    tmp = tempfile.mkdtemp(prefix='world_title-tmp', dir=WORK)
+    try:
+        shutil.copytree(src, os.path.join(tmp, 'world5tm'))
+        for c, sp in ko_title.items():
+            f = os.path.join(tmp, 'world5tm', c.lower(), 'pack.json')
+            if not os.path.exists(f):
+                continue
+            st = os.stat(f)
+            d = json.load(open(f))
+            lg = next(x for x in d['competitions'] if x['type'] == 'league')
+            lg['ko_playoffs'] = lg.get('ko_playoffs', []) + sp
+            json.dump(d, open(f, 'w'), indent=1, ensure_ascii=False)
+            os.utime(f, ns=(st.st_atime_ns, st.st_mtime_ns))
+        try:
+            os.rename(tmp, w)                           # (atomic; another process won the race: use its copy)
+        except OSError:
+            if not os.path.isdir(w):
+                raise
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+    return w
+
+
 def world_title(code, force='3', team=None, fill=False, kof=None, chf=None):
     """A title play-off of the world 2026-27 (formats_data.KO_TITLE, mkworld_tm TM_TITLE=1: Canada's CPL play-offs,
     the A-League finals series, Costa Rica's semis + final + Gran Final), played: the stable world5tm-poule snapshot
@@ -17709,18 +17752,8 @@ def world_title(code, force='3', team=None, fill=False, kof=None, chf=None):
                                                         # GPLAY_KOFORCE, chf: GPLAY_CHFORCE - each its own build)
     exe = os.environ.get(benv)
     if not exe:
-        w = os.path.join(WORK, 'world_title')
-        shutil.rmtree(w, ignore_errors=True)
-        shutil.copytree(src, os.path.join(w, 'world5tm'))
+        w = title_data(src, ko_title)
         order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
-        for c, sp in ko_title.items():
-            f = os.path.join(w, 'world5tm', c.lower(), 'pack.json')
-            if not os.path.exists(f):
-                continue
-            d = json.load(open(f))
-            lg = next(x for x in d['competitions'] if x['type'] == 'league')
-            lg['ko_playoffs'] = lg.get('ko_playoffs', []) + sp
-            json.dump(d, open(f, 'w'), indent=1, ensure_ascii=False)
         env = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(w, 'world5tm', x) for x in order]),
                'GPLAY_FORCE': force, **({'GPLAY_KOFORCE': kof} if kof else {}), **({'GPLAY_CHFORCE': chf} if chf else {})}
         exe = build('world_title_' + force + ('k' + kof if kof else '') + ('c' if chf else ''), env=env)

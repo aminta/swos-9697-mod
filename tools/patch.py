@@ -621,6 +621,7 @@ def patch_exe(src, dst, remap, lang='it'):
     zones.RING = None                            # (per exe: a release build patches the four languages in one run)
     xp = hist2 + h2 + 0x1000 * (lpb - cos_pg - ri_pg - xpg) if xtra_pg else None   # (the extra pages)
     xtra_at = xp                                                 # (where their code starts)
+    eu_room = None                                               # 4.2: euro's own room [start, end, obj]
     lt_room = None                                               # zones' ring + bskip, longtable + mainbtn: in obj3's
     lt_obj = 1                                                   # last page with gplay (4.0.6: gplay's room for its
     if LT_SPACE:                                                 # own code), else at the extra pages' start (their
@@ -656,6 +657,8 @@ def patch_exe(src, dst, remap, lang='it'):
                                        f'past the room end obj{lt_obj}+{lt_room[1]:#x} ({"obj3 last page: OBJ3_PAGES + 1" if LT_SPACE else "the extra pages"})')
         if LT_SPACE:                                     # (in obj3: lgreal gets gplay's whole free tail)
             LG_ROOM[:] = LT_SPACE
+            eu_room = [(lt_end_ + 15) & ~15, lt_room[1], lt_obj]   # 4.2 (MC 10/11): euro on obj3's last page, after
+                                                         # longtable + mainbtn (gplay's tail too small for lgreal + euro)
         elif xtra_pg:                                    # (in the extra pages: their code after it, lgreal on the
             xtra_at = (lt_end_ + 15) & ~15               # split page's tail)
             LG_ROOM[:] = [xtra_at, xtra_at]
@@ -719,9 +722,19 @@ def patch_exe(src, dst, remap, lang='it'):
                                   fmtpage.BSS_SIZE + teamstab.BSS_SIZE + blond.BSS2_SIZE,
                                   alt=[(sp_end + 15) & ~15, sp_at + 0x1000 * sp_pg])   # (rc19: gplay's preview filled LG_ROOM)
             import euro                          # 4.1 RC3 (Enzo, Davide): money in euros in the euro worlds (World
-            eu_at = lg_end if LG_ROOM[0] <= lg_end <= LG_ROOM[1] else LG_ROOM[0]   # 2026-27), after lgreal in its room
+            lg_in = LG_ROOM[0] <= lg_end <= LG_ROOM[1]   # 2026-27), its own room (4.2), else after lgreal in its room
+            lg_lim = LG_ROOM[1] if lg_in else sp_at + 0x1000 * sp_pg
+            eu_at = lg_end if lg_in else LG_ROOM[0]
             if 'WCUR' in careerworld.LABELS:
-                eu_end = euro.patch(p, eu_at, LG_ROOM[1], (1, careerworld.LABELS['WCUR']))
+                if eu_room:
+                    eu_end = euro.patch(p, eu_room[0], eu_room[1], (1, careerworld.LABELS['WCUR']), obj=eu_room[2])
+                else:
+                    eu_end = euro.patch(p, eu_at, LG_ROOM[1], (1, careerworld.LABELS['WCUR']))
+            rooms = [('lgreal', 1, lg_end, lg_lim)] + ([('euro', eu_room[2] if eu_room else 1, eu_end,
+                                                         eu_room[1] if eu_room else LG_ROOM[1])] if eu_end else [])
+            print('exe: rooms left: ' + ', '.join(f'{n} obj{o} {lim - e} B (to {lim:#x})' for n, o, e, lim in rooms))
+            for n, o, e, lim in rooms:                   # (MC 10/11: every room >= 64 B in every language x CD/GOG)
+                assert lim - e >= 64, (f'{n}: {lim - e} B left in obj{o} (< 64: MC 10/11)', hex(e), hex(lim))
     if worlds:                                   # (MC 09/11: never a silent skip - a build with a euro world has the euro)
         import euro
         assert not euro.euro_worlds() or eu_end or os.environ.get('EURO_OPTIONAL'), \

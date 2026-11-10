@@ -282,8 +282,9 @@ def euro_worlds():
     return out
 
 
-def patch(p, at, limit, wcur, worlds=None):
-    """eu_* at obj1:at (< limit); wcur = careerworld's WCUR (obj, off). Returns the end."""
+def patch(p, at, limit, wcur, worlds=None, obj=1):
+    """eu_* at obj:at (< limit; 4.2: obj3's last page, after longtable + mainbtn, in a release build); wcur =
+    careerworld's WCUR (obj, off). Returns the end."""
     worlds = euro_worlds() if worlds is None else worlds
     s = sites(p)
     slen = len(s['orig']) if s['orig'] != s['euro'] else 0
@@ -293,10 +294,10 @@ def patch(p, at, limit, wcur, worlds=None):
         w, nl, wq = SIZE[i]
         sym.update({f'N{i}_': (0, nl * wq * 8), f'Q{i}_': (0, wq), f'L{i}_': (0, nl)})
     at = (at + 15) & ~15
-    code, fix = nasmcave.assemble(ASM, at, sym)
+    code, fix, rel = nasmcave.assemble_obj(ASM, at, sym, obj)
     lab = nasmcave.labels(ASM, at, sym)
-    assert at + len(code) <= limit, ('euro: no room', hex(at), hex(at + len(code)), hex(limit))
-    assert not any(p.get(1, at, len(code))), hex(at)
+    assert at + len(code) <= limit, ('euro: no room', obj, hex(at), hex(at + len(code)), hex(limit))
+    assert not any(p.get(obj, at, len(code))), (obj, hex(at))
     code = bytearray(code)
     bm = bytearray(32)
     for w in worlds:
@@ -305,16 +306,18 @@ def patch(p, at, limit, wcur, worlds=None):
             ((('ORSTR', s['orig']), ('EUSTR', s['euro'])) if slen else ()):
         o = lab[name] - at
         code[o:o + len(data)] = data
-    p.put(1, at, bytes(code))
+    p.put(obj, at, bytes(code))
     for o, t_obj, t_off in fix:
-        p.add_ptr(1, at + o, t_obj, t_off)
+        p.add_ptr(obj, at + o, t_obj, t_off)
+    for o, t_obj, t_off in rel:                          # (code outside obj1: its rel32s back into obj1)
+        p.add_rel(obj, at + o, t_obj, t_off)
     for c in s['calls']:
-        p.branch(1, c, 0xE8, 1, lab['eu_money'])
+        p.branch(1, c, 0xE8, obj, lab['eu_money'])
     p.remove(1, s['chain'] + 2)                          # (`shl [D0], 2`: its D0 fixup goes with it)
-    p.branch(1, s['chain'], 0xE9, 1, lab['eu_chain'], n=7)
+    p.branch(1, s['chain'], 0xE9, obj, lab['eu_chain'], n=7)
     LABELS.clear()
-    LABELS.update({k: (1, v) for k, v in lab.items()})
+    LABELS.update({k: (obj, v) for k, v in lab.items()})
     print(f'exe: euro in the worlds {sorted(worlds)} (conversion obj1+{s["conv"]:#x}, callers '
           f'{", ".join(hex(c) for c in s["calls"])}, ChainFont obj1+{s["chain"]:#x}, strings obj2+{s["STR"][1]:#x} '
-          f'{len(s["orig"])} B{"" if slen else " (the same)"}), code obj1+{at:#x} ({len(code)} B)')
+          f'{len(s["orig"])} B{"" if slen else " (the same)"}), code obj{obj}+{at:#x} ({len(code)} B, {limit - at - len(code)} B left to obj{obj}+{limit:#x})')
     return at + len(code)

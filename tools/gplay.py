@@ -434,7 +434,7 @@ gp_after:                               ; 4.0 after a career load (arg97's arg_l
     call gp_fixload                     ; (phase 0: the knockouts' contest names)
     add esp, 4
     call gp_repoint
-    push es                             ; 4.2 option C: a 4.1 save's record lines through DATA\STRMAP41.DAT first
+    push es                             ; 4.2 option C: a 4.1 save's record lines through DATA/STRMAP41.DAT first
     push ds                             ; (gp_strmap_c: no release tag and the engine block's 4.1 item seen)
     pop es
     cld

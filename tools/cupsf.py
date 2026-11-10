@@ -11,6 +11,7 @@ Hooks: cf_a6 at the fixed list's `mov [A6], eax` (the game's own copy then reads
 (rule 11) asks cf_member_c, so the cup shows for the clubs that play it. Stateless: no save change, no load hook.
 A cup with a club outside the league file (cuponly / pool / another country) keeps its fixed list (declared).
 """
+import globnum
 import struct
 
 import mkseason
@@ -64,7 +65,9 @@ def levels(pk):
 
 
 def dt_bytes(pk, lfile):
-    gbase = next(b for ff, b in pk.files.values() if ff == lfile)
+    if globnum.split_file(pk):          # (S7-G: the table holds ONE global base per league file)
+        raise globnum.GlobError(f"{pk.meta['id']}: cupsf over a league on two team files (one base)")
+    gbase = globnum.base(pk, lfile)
     pairs = sorted((pk.where[k][1], pk.division[k]) for k in pk.league_clubs if pk.where[k][0] == lfile)
     assert len(pairs) <= 256
     assert max(d.get('teams', 0) for d in pk.divisions()) <= 31, 'cupsf: places stored in 5 bits'

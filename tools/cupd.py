@@ -22,6 +22,7 @@ host (0 listed, 2 drawn, 4 alternate), ties, flags (1 = the pairs drawn, 2 = pen
 first tie's index; then per tie dw a, b (a team word, or REF = index << 8 | FFh: a previous round's tie (a team word's file is never 255; FEFFh = drawn), or 0 = a club outside
 the file: its tie needs a real result), db the real winner (0 unknown, 1 a, 2 b), db -.
 """
+import globnum
 import json
 import os
 import struct
@@ -142,7 +143,9 @@ def pack_table(pk):
     par = par if isinstance(par, list) else [par]
     assert par, 'cup_d: the league needs its Serie D level of groups (parallel)'
     df, dc = par[-1]['first'], par[-1]['count']
-    gbase = next(b for ff, b in pk.files.values() if ff == lfile)
+    if globnum.split_file(pk):          # (S7-G: CD_DT holds ONE global base, cd_make reads slt[base + ordinal])
+        raise globnum.GlobError(f"{pk.meta['id']}: cup_d over a league on two team files (CD_DT: one base)")
+    gbase = globnum.base(pk, lfile)
     base = [0xFF] * 256
     for k in pk.league_clubs:
         fl, i = pk.where[k]

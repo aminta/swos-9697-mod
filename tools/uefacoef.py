@@ -74,6 +74,18 @@ uc_g:                                   ; eax = team word (file, ordinal) -> eax
     push edx
     movzx edx, al
     movzx eax, ah
+%ifdef SPLIT_FILE
+    cmp dl, SPLIT_FILE                  ; S7-G (globnum.glob, as worldpool.wp_glob): the split file's ordinals from
+    jne .g                              ; SPLIT_N1 on are in run 2 (in its world's namespace only)
+    cmp byte [WCUR], SPLIT_WORLD
+    jne .g
+    cmp eax, SPLIT_N1
+    jb .g
+    add eax, SPLIT_B2 - SPLIT_N1
+    pop edx
+    ret
+.g:
+%endif
     add ax, [TCN + edx*2]
     pop edx
     ret
@@ -758,6 +770,11 @@ def patch(p, cave, worlds, sites):
                'KPTS': (0, KPTS), 'KHIST': (0, KHIST), 'CHMAX': (0, CHMAX), 'KHMAX': (0, KHMAX), 'PREV': (0, PREV), 'FIN': (0, FIN), 'SIZE': (0, SIZE), 'NG': (0, NG),
                'CLN_BYTES': (0, db((LP_CLN + [0] * 64)[:64])), 'ELN_BYTES': (0, db((LP_ELN + [0] * 64)[:64])),
                'UEN_BYTES': (0, db((LP_UEN + [0] * 64)[:64])), 'SEEDC_BYTES': (0, db(seedc)), 'UC_SEEDK': (2, sites['area'].add(seedk))}   # (obj2: any number of clubs)
+    import globnum
+    split = globnum.exe_split()
+    if split is not None:                       # (S7-G: a league over two files)
+        symbols.update({'SPLIT_WORLD': (0, split[0]), 'SPLIT_FILE': (0, split[1]), 'SPLIT_N1': (0, split[2]),
+                        'SPLIT_B2': (0, split[3]), 'WCUR': (1, cw.LABELS['WCUR'])})
     code, fix = nasmcave.assemble(ASM, cave, symbols)
     lab = nasmcave.labels(ASM, cave, symbols)
     LABELS.update(lab)

@@ -26,6 +26,7 @@ Usage:
 import csv
 import json
 import complist
+import globnum
 import os
 import random
 import re
@@ -550,7 +551,7 @@ class Pack:
         glob = {}
         for k in self.league_clubs:
             fl, i = self.where[k]
-            glob[k] = next(b for fk, (ff, b) in self.files.items() if ff == fl) + i
+            glob[k] = globnum.glob(self, fl, i)
         order = list(rs.get('first') or []) + [k for k in self.reserve_clubs if k not in (rs.get('first') or [])]
         return (self.world, len(divs), low, [(glob[k], self.division[k]) for k in self.league_clubs],
                 [glob[k] for k in order])
@@ -568,7 +569,7 @@ class Pack:
                   0 <= x < (65536 if i % 2 == 0 else 256) for i, x in enumerate(e[1:])),
                   f"{self.meta['id']}: promedio_history: [club key, points, matches, points, matches] ({e})")
             fl, i = self.where[e[0]]
-            out.append((next(b for fk, (ff, b) in self.files.items() if ff == fl) + i, *e[1:]))
+            out.append((globnum.glob(self, fl, i), *e[1:]))
         return out
 
     def team_file_items(self):
@@ -600,6 +601,8 @@ class Pack:
             letters = 'ABCDEFGHIJ'
             darea = lambda k: letters.index(self.clubs[k]['area'].split('/')[-1][0]) if self.clubs[k].get('area') else 0xFF
             fl, base = self.files[self.league['clubs']]
+            if globnum.split_file(self):    # (S7-G: RI's slot = global - base of ONE file; a league over two files has no
+                raise globnum.GlobError(f"{self.meta['id']}: an off-file reserve (RI) over two team files")   # RI)
             slots = sorted(self.league_clubs, key=lambda k: self.where[k][1])
             first = list(rs.get('first') or [])
             order = first + [k for k in self.pool_clubs if k not in first]
@@ -656,10 +659,9 @@ class Pack:
         for k in self.league_clubs:
             c = self.clubs[k]
             fl, i = self.where[k]
-            base = next(b for fk, (ff, b) in self.files.items() if ff == fl)
             d = self.division[k]
             a = c.get('area') or ''
-            out.append((base + i, d, [area_byte(x) for x in a.split('/')] if '/' in a else
+            out.append((globnum.glob(self, fl, i), d, [area_byte(x) for x in a.split('/')] if '/' in a else
                         area_byte(a) if a else own.get(d, 0xFF)))      # (a reserve club: division nd)
         return self.world, levels, out
 
@@ -760,7 +762,7 @@ class Pack:
         r = bytearray(template)
         f, i = self.where[key]
         r[0], r[1] = f, i
-        struct.pack_into('>H', r, 2, self.files[c['file']][1] + i)
+        struct.pack_into('>H', r, 2, globnum.glob(self, f, i))
         r[25] = self.division.get(key, 0)              # division (0 = top)
         r[5:22] = c['name'].encode('latin1').ljust(17, b'\0')[:17]
         r[36:59] = _sn(c['coach']).encode('latin1').ljust(23, b'\0')[:23] if c['coach'] else bytes(23)
@@ -1496,7 +1498,7 @@ def second_table():
             lv += [l] * pars.get(d, 1)
             d += pars.get(d, 1)
             l += 1
-        glob = lambda k: next(b for f, b in pk.files.values() if f == pk.where[k][0]) + pk.where[k][1]
+        glob = lambda k: globnum.glob(pk, *pk.where[k])
         sec = [(k, c['second_of']) for k, c in pk.clubs.items() if c.get('second_of')]
         rs = pk.league.get('reserve') or {}
         ex = 2 if rs.get('off_file') else 0
@@ -2181,9 +2183,9 @@ def _patch_pack(pk, p, lang, area, at, env):
     for f, base in own + sorted(v for _, v in pk.team_file_items() if shares_base(v[0])):
         _need(ct + 4 * f not in fx2 and comp + 4 * f not in fx2, f'{pk.meta["id"]}: country {f} is already used')
         _tab(p, env, pk.world, 'ct', f, 2, rec)
-        _tab(p, env, pk.world, 'tcn', f, base)
+        _tab(p, env, pk.world, 'tcn', f, globnum.base(pk, f))          # (S7-G: a split file's run 1)
         if (f, base) == own[-1]:
-            _tab(p, env, pk.world, 'tcn', f + 1, base + pk.count[next(k for k, v in pk.files.items() if v[0] == f)])
+            _tab(p, env, pk.world, 'tcn', f + 1, sum(globnum.runs_of(pk, f)[-1]))
 
     ptr = {}
     for c in pk.comps:

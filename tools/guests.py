@@ -129,12 +129,14 @@ def alloc():
     byte, the saved SA block; its pool 190 / off-file pools 253 sit there too) - below bigtables.LIMIT: numbers of
     1996-97 files that world never loads. Asserted at the build: enough room, no overlap."""
     import bigtables
+    import globnum
     w = world()
-    used = set(range(1730, 1850))
-    for pk in mkseason.packs() + mkseason.nationals():
-        if pk.world == w:
-            for key, (f, base) in pk.files.items():
-                used.update(range(base, base + pk.count.get(key, 0)))
+    used = set(globnum.RESERVED)
+    for lo, hi, _ in globnum.file_runs(w):              # (a league over two files: its file B's run 1 is taken here,
+        used.update(range(lo, hi))                      # its run 2 comes after the guests - globnum.split)
+    r1 = globnum.run1(w)
+    if r1:
+        used.update(range(r1[1], r1[1] + r1[2]))
     out = {}
     for n, k in counts().items():
         start = next((g for g in range(bigtables.LIMIT - k + 1) if not used & set(range(g, g + k))), None)

@@ -84,12 +84,17 @@ def test_wn_preview_globs():
     m = Machine(os.path.join(FIXD, 'wn_nzpre'), 0)
     L, L2 = _lay(m)
     sim = [d for d in m.read('gplay.GP_IN', 9, L2[4]) if d != 0xFF]
-    base = {}
+    base, ords = {}, {}
     for d in [m.read('gplay.GP_IN', 1, L2[2])[0]] + sim:
         for t, g, *_ in _rows(m, d):
             base.setdefault(t & 255, set()).add(g - (t >> 8))
-    multi = {hex(f): sorted(map(hex, b)) for f, b in base.items() if len(b) > 1}
+            ords.setdefault((t & 255, g - (t >> 8)), set()).add(t >> 8)
+    # (S7-G, globnum.glob: a league over two files gives its file B two runs - two bases, every ordinal of the
+    # second one past every ordinal of the first; any other file one base)
+    two = lambda f, b: len(b) == 2 and max(ords[f, min(b, key=lambda x: min(ords[f, x]))]) < \
+        min(ords[f, max(b, key=lambda x: min(ords[f, x]))])
+    multi = {hex(f): sorted(map(hex, b)) for f, b in base.items() if len(b) > 1 and not two(f, b)}
     if not sim or multi:
         bad.append(f'wn_nzpre: early divisions {sim}, files with more than one base {multi}')
-    out.append(f'wn_nzpre: early divisions {sim}, one base per file {sorted((hex(f), hex(min(b))) for f, b in base.items())}')
+    out.append(f'wn_nzpre: early divisions {sim}, one base per file (two runs for a split file) {sorted((hex(f), sorted(map(hex, b))) for f, b in base.items())}')
     return not bad, ('; '.join(bad) + ' | ' if bad else '') + '; '.join(out)

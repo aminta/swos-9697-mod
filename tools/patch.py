@@ -497,9 +497,11 @@ def patch_exe(src, dst, remap, lang='it'):
         end = careerworld.late(p, careerworld.LABELS['end'], nasmcave)
         if bigw:
             end = careerworld.patch_tails(p, end, nasmcave)
+        import globnum
         import guests
         end = worldpool.patch(p, end, nasmcave, [(w['n'], w['pool'][0]) for w in mkseason.world_defs() if w['pool']],
-                              guests.alloc().get(guests.POOL))   # (4.0 hotfix: the pool clubs' team file 190)
+                              guests.alloc().get(guests.POOL),   # (4.0 hotfix: the pool clubs' team file 190)
+                              globnum.exe_split())               # (S7-G: a league over two files, else None)
         end = benchnum.patch(p, end, nasmcave, [w['n'] for w in mkseason.world_defs() if w['squad_numbers']])
         import shirtedit                          # 4.0.2: editable shirt numbers on the team screen (pins the team
         end = shirtedit.patch(p, end)             # through benchnum's hooks)

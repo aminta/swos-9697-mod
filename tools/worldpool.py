@@ -62,13 +62,27 @@ wp_name:                                ; replaces mov [A0], offset aDataPoolply
     pop eax
     ret
 
-%ifdef POOLG
+%ifdef WP_GLOB
 wp_glob:                                ; SetTeamGlobalNumbers' store (replaces mov esi, [A0]; mov [esi+2], ax)
     mov esi, [A0]
+%ifdef POOLG
     cmp byte [esi], POOL_FILE
     jne .s
     mov ax, POOLG                       ; the pool clubs' one global number
 .s:
+%endif
+%ifdef SPLIT_FILE
+    cmp byte [WCUR], SPLIT_WORLD        ; S7-G (globnum.split): the split file's rows from SPLIT_N1 on take run 2
+    jne .w                              ; (only in its world's namespace: another world's file of that number
+    cmp byte [esi], SPLIT_FILE          ; keeps its one base)
+    jne .w
+    cmp byte [esi+1], SPLIT_N1
+    jb .w
+    mov al, [esi+1]
+    xor ah, ah
+    add ax, SPLIT_B2 - SPLIT_N1         ; = run 2's first number + (ordinal - run 1's length)
+.w:
+%endif
     mov [esi+2], ax
     ret
 %endif
@@ -164,11 +178,13 @@ def pool_team_file(data, glob):
     return bytes(out)
 
 
-def patch(p, cave, nasmcave, pools, glob=None):
+def patch(p, cave, nasmcave, pools, glob=None, split=None):
     """pools: [(world number, 'POOLnn.DAT')]; glob: the pool clubs' global number when the build ships their team
-    file (guests.alloc()[POOL_FILE]). Returns the cave end (nothing done without pools)."""
+    file (guests.alloc()[POOL_FILE]); split: (world, file, run 1's length, run 2's first number) of a league over two
+    files (globnum.exe_split), else None. Returns the cave end (nothing done without pools)."""
     import careerworld
     if not pools:
+        assert split is None, 'worldpool: a split file needs the world pools (wp_glob lives here)'
         return cave
     s = _sites(p)
     tab = ''.join(f'    db {n}\n    dd WP_STR_{n}\n' for n, _ in pools) + '    db 0\n'
@@ -178,6 +194,13 @@ def patch(p, cave, nasmcave, pools, glob=None):
         src = f'%define POOLG {glob}\n%define POOL_FILE {POOL_FILE}\n' + src
     symbols = {'GAMETYPE': s['gametype'], 'SLT': s['slt'], 'WORLD_BYTE': (0, careerworld.WORLD_BYTE),
                'LOADED': s['loaded'], 'ORIGNAME': s['orig'], 'A0': (2, s['a0'])}
+    if split is not None:
+        sw, sf, n1, b2 = split
+        src = f'%define SPLIT_FILE {sf}\n%define SPLIT_WORLD {sw}\n%define SPLIT_N1 {n1}\n%define SPLIT_B2 {b2}\n' + src
+        symbols['WCUR'] = (1, careerworld.LABELS['WCUR'])
+    hook = glob is not None or split is not None
+    if hook:
+        src = '%define WP_GLOB\n' + src
     code, fix = nasmcave.assemble(src, cave, symbols)
     labels = nasmcave.labels(src, cave, symbols)
     p.put(1, cave, code)
@@ -188,10 +211,13 @@ def patch(p, cave, nasmcave, pools, glob=None):
     p.remove(1, s['name'] + 2)                       # mov [A0], offset name -> call wp_name; 5 x nop
     p.remove(1, s['name'] + 6)
     p.put(1, s['name'], b'\xe8' + struct.pack('<i', labels['wp_name'] - (s['name'] + 5)) + b'\x90' * 5)
-    if glob is not None:                             # mov esi, [A0]; mov [esi+2], ax -> call wp_glob; 5 x nop
+    if hook:                                         # mov esi, [A0]; mov [esi+2], ax -> call wp_glob; 5 x nop
         g = s['glob']
         p.remove(1, g + 2)
         p.put(1, g, b'\xe8' + struct.pack('<i', labels['wp_glob'] - (g + 5)) + b'\x90' * 5)
-        print(f'exe: pool clubs (file {POOL_FILE}): one global number {glob}, SetTeamGlobalNumbers obj1+{g:#x}')
+        if glob is not None:
+            print(f'exe: pool clubs (file {POOL_FILE}): one global number {glob}, SetTeamGlobalNumbers obj1+{g:#x}')
+        if split is not None:
+            print(f'exe: world {split[0]} file {split[1]}: ordinals {split[2]}.. -> globals {split[3]}.. (wp_glob)')
     print(f'exe: world pools {pools}: LoadPoolplyrDat obj1+{s["load"]:#x}, code obj1+{cave:#x}..{cave + len(code):#x}')
     return (cave + len(code) + 3) & ~3

@@ -140,3 +140,27 @@ the game's 68400-B cache; a world career's whole 'EN' block fits there only up t
     so the base namespace back. Before it, a preset loaded after a mixed friendly kept namespace 5 (engine_pre_ns).
   - When a world gets presets or seasons, their start sets the contest's world (SWE_CWORLD for a preset, then the
     preset save hook as the DIY one; SWC1's world for a season) - not before.
+
+## Not save room: file 144's global numbers (S7-G, MC 11/11, option (i))
+
+A club's global number indexes someLeaguesTable and leaguesTableCopy, and with them every save's table: a big
+world's numbers 2000..2408 sit in the 80-record area (bigtables.LIMIT = 2409). World 2026-27 (world5tm-s1rank-int3)
+leaves only 2283..2289 free, and S7's file 102 (Serie A + B + C, 256 -> 100 rows) gives up 192..347. File 144 (Serie
+D 9 x 18 = 162 rows; the 36 stand-ins stay off-file, pool 253, as in 4.1) therefore takes two runs, from one function
+(tools/globnum.py, `glob(pk, file, ordinal)`; `split(world)` gives the runs):
+
+| file | ordinals | global numbers | rule |
+|---|---|---|---|
+| 144 (G144 = 192) | 0..155 (156) | 192..347 | run 1: the free numbers right after file 102's run (Serie D's 4.1 numbers) |
+| 144 | 156..161 (6) | 2283..2288 | run 2: the lowest free numbers after the guest files (whose numbers stay 4.1's) |
+| (free) | | 2289 | one spare |
+
+- teamsCountryNumbers[144] = 192 (run 1). The exe gives run 2 through worldpool.wp_glob, the chain on
+  SetTeamGlobalNumbers' store: in world 5's namespace (WCUR), ordinals >= 156 of file 144. uefacoef uc_g (team word ->
+  global) does the same. In world 4, file 144 keeps its own one base.
+- Refused, not worked around: no free numbers for both runs raises GlobError at the build.
+- Old saves: the numbers 192..347 were Serie D's (file 102) in 4.1. 2283..2288 were free (no club, a 0 byte in
+  someLeaguesTable). The old-save import re-keys the words (n7-s7-clubmap §3). The bytes someLeaguesTable keeps at
+  192..347 are those of the 4.1 slots (102, 100..255), so the import must move them with the clubs (OPEN, import
+  piece: not covered by S7-G).
+- Dormant build (no league over two files): exe + DATA md5-identical to 42-s1rank 78fbf73.

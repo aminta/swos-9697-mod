@@ -36,12 +36,13 @@ SITES = {}
 
 def world_maxg(n):
     """The highest global number + 1 of world n's team files (packs and national pack)."""
+    import globnum
     import mkseason
     out = 0
     for pk in mkseason.packs() + mkseason.nationals():
         if pk.world == n:
             for key, (f, base) in pk.files.items():
-                out = max(out, base + pk.count.get(key, 0))
+                out = max([out] + [lo + k for lo, k in globnum.runs_of(pk, f)] if pk.count.get(key, 0) else [out])
     return out
 
 

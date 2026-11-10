@@ -433,6 +433,17 @@ def test_sreg_oldwords():
                                          'refused: one identity on two slots, past the pool, nslot past RIS')
 
 
+def _imp_protos(L):
+    """sreg_import / sreg_ri_import's prototypes (Apple arm64 packs small stack arguments: ctypes must know the u8s)"""
+    import ctypes
+    P, I32, U8, U32 = ctypes.c_void_p, ctypes.c_int32, ctypes.c_uint8, ctypes.c_uint32
+    L.sreg_import.argtypes = [P, P, I32, P, I32, P, P, I32, I32, U8, P, U32, P, P, I32, P, I32, P]
+    L.sreg_import.restype = I32
+    if hasattr(L, 'sreg_ri_import'):
+        L.sreg_ri_import.argtypes = [P, P, I32, P, I32, P, P, I32, P, I32, P, P, U8, U8, U8, P, P, P, P]
+        L.sreg_ri_import.restype = I32
+
+
 def test_sreg_import():
     """sreg_import (sreg_import.c, n7-p4.md §9c, MC's option 1) built natively, on a small S7-like shape: file 102 =
     division 0 (4 clubs) + 1 (4), file 144 = Serie D groups 5 and 6 (3 each) + 2 pool rows; 16 idents: a0..a3, b0..b3
@@ -464,7 +475,7 @@ def test_sreg_import():
     if r.returncode:
         return False, 'cc: ' + r.stderr[-400:]
     L = ctypes.CDLL(lib)
-    L.sreg_import.restype = ctypes.c_int32
+    _imp_protos(L)
     W102, W144 = (lambda x: 102 | x << 8), (lambda x: 144 | x << 8)
     names = ['a0', 'a1', 'a2', 'a3', 'b0', 'b1', 'b2', 'b3', 'd0', 'd1', 'J', 'e0', 'e1', 'e2', 'p1', 'p2']
     I = {k: i for i, k in enumerate(names)}
@@ -582,3 +593,136 @@ def test_sreg_import():
                                          'swap, every division the save\'s, map follows each club, RI slot -> pool row; '
                                          'deterministic; no pool rows (S7 11/11): the stand-in on by a pool swap, the club off OUT; '
                                          'refused SIX / BALANCE / DIV / MAP / ROOM / LOST with the club')
+
+
+def test_sreg_riimport():
+    """sreg_ri_import (sreg_import.c, MC 11/11 model (i)) built natively on test_sreg_import's no-pool shape (102 =
+    divisions 0, 1 x 4; 144 = groups 5, 6 x 3; J the joiner, p1 p2 the stand-ins, 4.1 pool 0, 1, 2). Two RI tables:
+    4.1 = another file (161, 4 slots, pools of 2 and 1) then Italy (102, 13 slots, pool 3); S7 = Italy (144, 6 slots,
+    pool 2) then 161: 161's init / maps / queues / overrides land at their new offsets byte for byte.
+    - an RI season end (p1 on 4.1 slot 9, d1 queued as identity 9; b0 / d0 traded across files): map[1] = p1's S7
+      identity (256 + 0) + 1, the record at row 1 still d1's; the queue J (out: joiner), p2 -> 257, d1 -> 1;
+    - a Serie C club relegated twice (b3: 4.1 slot 7 holds p2, b3 queued as 7): the import's cross-file move carries
+      b3's record to 144 row 0, so b3's identity is 0 and map[0] = p2's (257) + 1;
+    - init 0 (no RI season end): Italy's state empty; deterministic (two garbage fills);
+    - refused: a joiner not in the queue (SIX), an identity no club has (QUEUE), newpool not 0xFF for J (POOLMAP),
+      161 with another slot count (LAYOUT), init 0 with a pool swap (LAYOUT)."""
+    import ctypes
+    import subprocess
+    import tempfile
+    d = tempfile.mkdtemp()
+    src = os.path.join(d, 'r.c')
+    with open(src, 'w') as f:
+        f.write('#define SWOSRULES_HAVE_STDINT\n#include <stdint.h>\n'
+                f'#include "{TOOLS}/swce/sr_reg.c"\n#include "{TOOLS}/swce/sr_regsave.c"\n'
+                f'#include "{TOOLS}/sreg_import.c"\n'
+                'uint32_t imp_work_size(void) { return sizeof(sreg_imp_work); }\n'
+                'uint32_t imp_res_size(void) { return sizeof(sreg_imp_res); }\n'
+                'uint32_t ri_work_size(void) { return sizeof(sreg_ri_work); }\n')
+    lib = os.path.join(d, 'r.dylib')
+    r = subprocess.run(['cc', '-shared', '-fPIC', '-O1', '-Wall', '-Werror', '-I', os.path.join(TOOLS, 'swce'), '-o',
+                        lib, src], capture_output=True, text=True)
+    if r.returncode:
+        return False, 'cc: ' + r.stderr[-400:]
+    L = ctypes.CDLL(lib)
+    _imp_protos(L)
+    names = ['a0', 'a1', 'a2', 'a3', 'b0', 'b1', 'b2', 'b3', 'd0', 'd1', 'J', 'e0', 'e1', 'e2', 'p1', 'p2']
+    I = {k: i for i, k in enumerate(names)}
+    sdiv = [0] * 4 + [1] * 4 + [5] * 3 + [6] * 3 + [OUT] * 2
+    old = list(range(10)) + [256] + [10, 11, 12] + [257, 258]
+    spec = spec_bytes([(102, [(0, 4), (1, 4)], 0), (144, [(5, 3), (6, 3)], 0)])
+    slot0 = [0] * 4 + [1] * 4 + [5, 5] + [6] * 3
+    RI = {0: 'ok', -21: 'ARGS', -22: 'LAYOUT', -23: 'KIND', -24: 'NOID', -25: 'QUEUE', -26: 'SIX', -27: 'POOLMAP'}
+
+    def lay(files):                                 # sreg.ri_layout's bytes
+        return bytes([len(files)]) + b''.join(bytes([w, fl]) + struct.pack('<HH', mo, nm) + bytes([len(ns)]) +
+                                              bytes(ns) for w, fl, mo, nm, ns in files)
+    OLD = lay([(5, 161, 0, 4, [2, 1]), (5, 102, 4, 13, [3])])
+    NEW = lay([(5, 144, 0, 6, [2]), (5, 161, 6, 4, [2, 1])])
+
+    def ri_state(init, qn, q, ovr, maps):
+        b = bytearray(2332)
+        b[0:len(init)] = bytes(init)
+        b[8:8 + len(qn)] = bytes(qn)
+        for k, v in q.items():
+            struct.pack_into('<H', b, 28 + 2 * k, v)
+        for (p, j), v in ovr.items():
+            struct.pack_into('<H', b, 412 + 2 * (16 * p + j), v)
+        for k, v in maps.items():
+            struct.pack_into('<H', b, 1052 + 2 * k, v)
+        return bytes(b)
+    # 161's part (file index 0, pools 0 and 1, queue words 0..2, maps 0..3) - arbitrary bytes, moved as they are
+    B161 = dict(init=[2], qn=[2, 1], q={0: 0x0101, 1: 0x0202, 2: 0x8003}, ovr={(0, 3): 0x2A1, (1, 0): 0x3A1},
+                maps={0: 7, 1: 0, 2: 300, 3: 1})
+
+    def run(maps41, slot, q41, init=2, newpool=(0xFF, 0, 1), fill=0xAA, new=NEW):
+        R = ctypes.create_string_buffer(bytes([fill]) * REGSIZE, REGSIZE)
+        wk = ctypes.create_string_buffer(bytes([fill]) * L.imp_work_size(), L.imp_work_size())
+        res = ctypes.create_string_buffer(L.imp_res_size())
+        sw = (ctypes.c_uint16 * 192)()
+        mp = (ctypes.c_uint16 * 128)()
+        m = (ctypes.c_uint16 * 13)(*maps41)
+        sp = ctypes.create_string_buffer(spec, len(spec))
+        oo = (ctypes.c_uint16 * len(old))(*old)
+        n = L.sreg_import(R, sp, 2, bytes(sdiv), len(names), oo, m, 13, 3, 102, bytes(slot), 27, wk, sw, 64, mp, 64, res)
+        if n < 0:
+            return ('import', n)
+        o41 = ri_state(B161['init'] + [init], B161['qn'] + [len(q41)], {**B161['q'], **{3 + k: v for k, v in
+                       enumerate(q41)}}, B161['ovr'], {**B161['maps'], **{4 + k: v for k, v in enumerate(maps41)}})
+        out = ctypes.create_string_buffer(bytes([fill]) * 2332, 2332)
+        rw = ctypes.create_string_buffer(bytes([fill]) * L.ri_work_size(), L.ri_work_size())
+        bad = ctypes.c_int32()
+        k = L.sreg_ri_import(R, sp, 2, bytes(sdiv), len(names), oo, sw, n, bytes(newpool), 3, OLD, new, 5, 102, 144,
+                             o41, out, rw, ctypes.byref(bad))
+        b = out.raw
+        st = dict(init=list(b[0:2]), qn=list(b[8:11]), q=list(struct.unpack_from('<5H', b, 28)),
+                  maps=list(struct.unpack_from('<10H', b, 1052)), ovr=(struct.unpack_from('<H', b, 412 + 2 * (16 * 1 + 3))[0],
+                  struct.unpack_from('<H', b, 412 + 2 * (16 * 2 + 0))[0]), rest=b)
+        return (RI.get(k, k), bad.value, st)
+    errs = []
+
+    def chk161(st, tag):                            # 161 = new file index 1, pools 1 and 2, queue at 2..4, maps at 6..9
+        if (st['init'][1], st['qn'][1:3], st['q'][2:5], st['maps'][6:10], st['ovr']) != \
+                (2, [2, 1], [0x0101, 0x0202, 0x8003], [7, 0, 300, 1], (0x2A1, 0x3A1)):
+            errs.append(f"{tag}: 161 not moved as it is: {st['init']} {st['qn']} {st['q']} {st['maps']} {st['ovr']}")
+    # an RI season end: p1 (identity 257) on slot 9, d1 out (identity 9); b0 <-> d0 across files, a3 <-> b1 in 102
+    m1 = [0] * 13
+    m1[9] = 257 + 1
+    s1 = list(slot0)
+    s1[4], s1[8], s1[3], s1[5] = 5, 1, 1, 0
+    g = run(m1, s1, [256, 258, 9])
+    if g[0] != 'ok' or g[2]['init'][0] != 2 or g[2]['maps'][:6] != [0, 257, 0, 0, 0, 0] or g[2]['qn'][0] != 2 or \
+            g[2]['q'][:2] != [257, 1]:
+        errs.append(f"season: {g[:2]} maps {g[2]['maps'][:6] if len(g) > 2 else ''} q {g[2]['q'][:2] if len(g) > 2 else ''}")
+    else:
+        chk161(g[2], 'season')
+        g2 = run(m1, s1, [256, 258, 9], fill=0x33)
+        if g2[2]['rest'] != g[2]['rest']:
+            errs.append('season: not deterministic')
+    # b3 (Serie C at the spec) relegated twice: slot 7 holds p2 (identity 258), slot 7's division 5; d0 up to 1
+    m2 = [0] * 13
+    m2[7] = 258 + 1
+    s2 = list(slot0)
+    s2[7], s2[8] = 5, 1
+    g = run(m2, s2, [256, 257, 7])
+    if g[0] != 'ok' or g[2]['maps'][:6] != [258, 0, 0, 0, 0, 0] or g[2]['q'][:2] != [256, 0]:
+        errs.append(f"twice: {g[:2]} maps {g[2]['maps'][:6] if len(g) > 2 else ''} q {g[2]['q'][:2] if len(g) > 2 else ''}")
+    # init 0: nothing swapped yet
+    g = run([0] * 13, slot0, [], init=0)
+    if g[0] != 'ok' or g[2]['init'][0] != 0 or any(g[2]['maps'][:6]) or g[2]['qn'][0]:
+        errs.append(f"init 0: {g[:2]}")
+    else:
+        chk161(g[2], 'init 0')
+    # refusals
+    for tag, kw, want in (('J not queued', dict(maps41=m1, slot=s1, q41=[258, 9]), 'SIX'),
+                          ('unknown identity', dict(maps41=m1, slot=s1, q41=[256, 258, 99]), 'QUEUE'),
+                          ('newpool J kept', dict(maps41=m1, slot=s1, q41=[256, 258, 9], newpool=(2, 0, 1)), 'POOLMAP'),
+                          ('161 resized', dict(maps41=m1, slot=s1, q41=[256, 258, 9],
+                                               new=lay([(5, 144, 0, 6, [2]), (5, 161, 6, 5, [2, 1])])), 'LAYOUT'),
+                          ('init 0 + a pool swap', dict(maps41=m1, slot=s1, q41=[256, 258, 9], init=0), 'LAYOUT')):
+        g = run(**kw)
+        if g[0] != want:
+            errs.append(f'{tag}: {g[:2]}')
+    return not errs, '; '.join(errs) or ('RI season end: stand-in map, queue joiner out / p2 / d1; relegated twice: the '
+                                         'record via the cross move; init 0 empty; 161 moved byte for byte; '
+                                         'deterministic; refused SIX / QUEUE / POOLMAP / LAYOUT')

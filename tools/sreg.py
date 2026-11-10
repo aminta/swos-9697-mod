@@ -175,3 +175,16 @@ def patch(p, syms_swe):
           f'obj4+{swreg.SREG_DIV_AT:#x}..{swreg.SREG_DIV_AT + ndiv:#x}; SWC1 \'IT\' '
           f'{section_bytes()} B ({rows()} rows{"" if s else ", SREG_FORCE: an empty shape"})')
     return end
+
+
+def ri_layout(tabs):
+    """sreg_ri_import's layout bytes of an RI table (ripool / mkseason.off_pools tabs): db files; per file db world,
+    db file, dw map offset, dw slots (its records), db pools, pools x db n (each pool's records = its queue's length).
+    The import needs two: the 4.1 table's (Italy on file 102) and the S7 build's (Italy on file 144)."""
+    import ripool
+    out = bytearray([len(tabs)])
+    for (world, fl, pools, *_), (moff, nmap, *_r) in zip(tabs, ripool.layout(tabs)[0]):
+        ns = [len(pl[4] if pl[0] == 'league' else pl[5]) for pl in pools]
+        assert all(n < 256 for n in ns) and len(ns) < 256
+        out += bytes((world, fl)) + struct.pack('<HH', moff, nmap) + bytes([len(ns)]) + bytes(ns)
+    return bytes(out)

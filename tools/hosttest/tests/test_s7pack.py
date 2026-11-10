@@ -24,7 +24,7 @@ ROOT = os.path.join(TOOLS, '..')
 sys.path.insert(0, TOOLS)
 SRC = os.environ.get('S7_SRC') or os.path.join(ROOT, 'internal', 'world2526', 'world5tm-h2', 'ita')
 GROUPS = os.environ.get('S7_GROUPS') or os.path.join(ROOT, 'internal', 'n7', 's7-groups.csv')
-BASE = 160                                      # (a test base: MC's S7 glue fixes file 144's, n7-s7-clubmap §7.3)
+BASE = None                                     # (--base: from globnum, S7-G; the test checks glob())
 
 
 def _recs(data):
@@ -42,6 +42,20 @@ def _strip(r):
 
 
 def test_s7pack():
+    import test_globnum                     # (World 2026-27's packs enabled: globnum.split sees the world's files)
+    prev = os.environ.get('SEASON_PACKS')
+    test_globnum._env()
+    try:
+        return _test()
+    finally:
+        if prev is None:
+            os.environ.pop('SEASON_PACKS', None)
+        else:
+            os.environ['SEASON_PACKS'] = prev
+
+
+def _test():
+    import globnum
     import mkseason
     import s7pack
     import sreg
@@ -69,13 +83,17 @@ def test_s7pack():
         for r in _recs(one.pool_data):                           #  unique, clubs.csv checks)
             old.setdefault(r[5:22].split(b'\0')[0], r)
         b = _recs(t2[144])
+        g144 = [struct.unpack('>H', r[2:4])[0] for r in b]
+        if (pk.files['league_b'][1], g144[0], g144[155], g144[156], g144[161]) != (192, 192, 347, 2283, 2288):
+            errs.append(f"144 globals: base {pk.files['league_b'][1]}, rows 0/155/156/161 "
+                        f"{[g144[i] for i in (0, 155, 156, 161) if i < len(g144)]} (globnum: 192 / 347 / 2283 / 2288)")
         keys = [k for k, c in pk.clubs.items() if c['file'] == 'league_b']
         if len(b) != 162 or len(keys) != 162:
             errs.append(f'TEAM.144: {len(b)} records')
         for i, (k, r) in enumerate(zip(keys, b)):
             d = pk.division[k]
             want_d = int(pk.clubs[k]['division'])
-            if (r[0], r[1], struct.unpack('>H', r[2:4])[0], r[25]) != (144, i, BASE + i, want_d) or d != want_d:
+            if (r[0], r[1], struct.unpack('>H', r[2:4])[0], r[25]) != (144, i, globnum.glob(pk, 144, i), want_d) or d != want_d:
                 errs.append(f'TEAM.144 {k}: place {(r[0], r[1], struct.unpack(">H", r[2:4])[0], r[25])}')
                 break
             o = old.get(r[5:22].split(b'\0')[0])
@@ -167,7 +185,14 @@ def test_s7pack():
             errs.append('s7pack over an existing folder: accepted')
         except FileExistsError:
             pass
+        try:
+            s7pack.build(SRC, GROUPS, os.path.join(tmp, 'b160'), 160)
+            errs.append('--base 160 (not globnum\'s 192): accepted')
+        except SystemExit:
+            if os.path.exists(os.path.join(tmp, 'b160')):
+                errs.append('--base refused: its folder left')
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
     return not errs, '; '.join(errs) or (f"S7 Italy: 102 = 100 (as the one-file pack), 144 = 9 x 18, 36 stand-ins off-file (RS5144, newpool), "
-                                         f"the 6 = {' '.join(s['join'])}; refused: patch(), bad shapes")
+                                         f"144 globals from globnum (192.., rows 155 / 156 / 161 = 347 / 2283 / 2288), "
+                                         f"the 6 = {' '.join(s['join'])}; refused: patch(), bad shapes, a --base not globnum's")

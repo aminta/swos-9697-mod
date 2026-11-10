@@ -632,18 +632,22 @@ class Pack:
             letters = 'ABCDEFGHIJ'
             darea = lambda k: letters.index(self.clubs[k]['area'].split('/')[-1][0]) if self.clubs[k].get('area') else 0xFF
             fl, base = self.files[self.league['clubs']]
-            if globnum.split_file(self):    # (S7-G: RI's slot = global - base of ONE file; a league over two files has no
-                raise globnum.GlobError(f"{self.meta['id']}: an off-file reserve (RI) over two team files")   # RI)
-            slots = sorted(self.league_clubs, key=lambda k: self.where[k][1])
+            sp = globnum.split_file(self)   # (S7, MC 11/11 model (i): a league over two files keeps RI on file B only -
+            if sp:                          #  its slots = file B's rows (the lowest level's groups), their globals
+                fl, base = sp[0], globnum.base(self, sp[0])     # globnum's two runs; ripool's IDA two-run headers)
+            slots = sorted((k for k in self.league_clubs if self.where[k][0] == fl), key=lambda k: self.where[k][1])
+            gk = lambda k: globnum.glob(self, fl, self.where[k][1])
+            _need(not sp or slots and all(self.division[k] >= low for k in slots),
+                  f"{self.meta['id']}: RI on file {fl}: its rows must be the lowest level's")
             first = list(rs.get('first') or [])
             order = first + [k for k in self.pool_clubs if k not in first]
             pt = self.parallel()                # (4.0.5: each identity's areas per level of groups, ripool's IDA_TAB:
             npar = sum(1 for _, sz in pt[1] if len(sz) > 1) if pt else 0   # a slot's groups follow its identity)
             pa = {g: list(a) if isinstance(a, list) else [a] * npar for g, _, a in pt[2]} if pt else {}
             ar = lambda a: [area_byte(x) for x in a.split('/')] if '/' in a else [area_byte(a) if a else 0xFF] * npar
-            ida = [pa.get(base + self.where[k][1], [0xFF] * npar) for k in slots] + \
+            ida = [pa.get(gk(k), [0xFF] * npar) for k in slots] + \
                   [ar(self.clubs[k].get('area') or '') for k in self.pool_clubs]
-            return (self.world, fl, [('league', low, [(base + self.where[k][1], self.division[k], darea(k)) for k in slots],
+            return (self.world, fl, [('league', low, [(gk(k), self.division[k], darea(k)) for k in slots],
                                       [darea(k) for k in self.pool_clubs], [self.pool_clubs.index(k) for k in order],
                                       ida if npar else [])],
                     base, [], self._nrec(fl), len(self.pool_clubs))

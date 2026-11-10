@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """S7: World 2026-27's Italy pack over two team files (n7-p4.md §1), from the one-file pack + the Serie D groups.
 
-    python3 tools/s7pack.py SRC_PACK GROUPS_CSV OUT_DIR --base N [--file 144]
+    python3 tools/s7pack.py SRC_PACK GROUPS_CSV OUT_DIR [--base N] [--file 144]
 
 SRC_PACK   the one-file Italy pack (e.g. internal/world2526/world5tm-h2/ita): TEAM.102 = Serie A, B, C (100) + Serie D
            (156, 6 groups of 17 + 3 of 18), the 42 reserve clubs off the files (file 'pool', RI swaps).
@@ -19,7 +19,9 @@ OUT_DIR    the shaped pack (a new folder; refused if it exists): the same files,
              TEAM.102 row, or 256 + its off-file pool index) - the old-save import's table (sreg.old_ord);
            - newpool41.csv (key, pool41, pool): every 4.1 pool record's S7 RS index (the stand-ins' order in
              clubs.csv), 255 for the 6 that join Serie D - sreg_ri_import's newpool (sreg.new_pool).
---base     file 144's first global number (a test value until Shaved's globnum: MC's S7 glue fixes it). Required.
+--base     optional: file 144's run 1 first global number, checked against globnum (S7-G, MC 11/11): pack.json's
+           league_b 'base' = globnum.base(pk, FILE), its run 1 (192 in World 2026-27; rows 156..161 in run 2,
+           globnum.split); every global of the pack's records comes from globnum.glob. Refused if --base differs.
 
 Data only: mkseason builds this pack's TEAM.102 / TEAM.144 (Pack.team_files()), but patch() refuses it until MC's S7
 glue gives the exe a league over two files (data after engine). Not for SEASON_PACKS before then.
@@ -42,7 +44,7 @@ def _rows(path):
         return r.fieldnames, list(r)
 
 
-def build(src, groups, out, base, fileno=144):
+def build(src, groups, out, base=None, fileno=144):
     """Write the shaped pack to out; returns its summary (clubs per role, the 6 that join, pool rows)."""
     m = json.load(open(os.path.join(src, 'pack.json'), encoding='utf-8'))
     cols, clubs = _rows(os.path.join(src, 'clubs.csv'))
@@ -78,7 +80,7 @@ def build(src, groups, out, base, fileno=144):
     size = {d: sum(1 for c in sd if c['division'] == str(d)) for d in SERIE_D}
 
     fs2 = {'league': dict(fs['league'], divisions=list(range(5))),
-           'league_b': {'file': fileno, 'base': base, 'divisions': SERIE_D}, 'pool': fs['pool']}
+           'league_b': {'file': fileno, 'base': 0, 'divisions': SERIE_D}, 'pool': fs['pool']}   # ('base': below)
     m2 = dict(m, files=fs2)
     for sq in m2['squads']:
         if 'league' in sq['files'] and 'league_b' not in sq['files']:
@@ -105,6 +107,16 @@ def build(src, groups, out, base, fileno=144):
     w.writerows(new)
     with open(os.path.join(out, 'clubs.csv'), 'w', encoding='utf-8', newline='') as f:
         f.write(buf.getvalue())
+    import globnum
+    import mkseason
+    gb = globnum.base(mkseason.Pack(out), fileno)       # (globnum.split ignores a split file's own 'base')
+    if base is not None and base != gb:
+        shutil.rmtree(out)
+        raise SystemExit(f's7pack: --base {base} != globnum\'s {gb} (file {fileno} run 1)')
+    fs2['league_b']['base'] = gb
+    with open(os.path.join(out, 'pack.json'), 'w', encoding='utf-8') as f:
+        json.dump(m2, f, ensure_ascii=False, indent=1)
+        f.write('\n')
     rid, nr, npool = {}, 0, 0                   # import41.csv: every club's place in the one-file layout (4.1's), in
     for c in clubs:                             # gplay's RI identity space: a TEAM.102 row 0..255, or RIS (256) + its
         if c['file'] == 'league':               # index among the off-file pool's records (clubs.csv order) - what
@@ -126,7 +138,7 @@ def main(argv):
     ap.add_argument('src')
     ap.add_argument('groups')
     ap.add_argument('out')
-    ap.add_argument('--base', type=int, required=True)
+    ap.add_argument('--base', type=int)
     ap.add_argument('--file', type=int, default=144)
     a = ap.parse_args(argv)
     s = build(a.src, a.groups, a.out, a.base, a.file)

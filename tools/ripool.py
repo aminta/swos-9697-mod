@@ -76,10 +76,32 @@ def table_bytes(tabs):
     return bytes(out)
 
 
+def _runs2(base, slots):
+    """(base2, ord2) of a league pool whose slots' globals are two runs (S7-G: globnum.split's file 144, run 1 from
+    base, run 2 from base2 at ordinal ord2), or None for one run (global = base + ordinal)."""
+    gs = [g for g, *_ in slots]
+    k = next((i for i, g in enumerate(gs) if g != base + i), len(gs))
+    if k == len(gs):
+        return None
+    assert gs[k:] == list(range(gs[k], gs[k] + len(gs) - k)), 'IDA: a league pool\'s globals past two runs'
+    assert not base <= gs[k] < base + k, 'IDA: run 2 inside run 1'
+    return gs[k], k
+
+
+def ida_two(tabs):
+    """True when an IDA entry's slots are two runs (a shaped build): ida_bytes' 14-byte headers + ri_ida1's two-run
+    code; else (every dormant build) today's bytes exactly."""
+    return any(pl[0] == 'league' and len(pl) > 5 and pl[5] and _runs2(base, pl[2])
+               for _w, _f, pools, base, *_ in tabs for pl in pools)
+
+
 def ida_bytes(tabs):
     """IDA_TAB (4.0.5, ri_ida): db entries; per league pool with levels of groups db world, dw base (its slots' global
     numbers), dw map offset, dw slots, dw identities (slots + pool records), db na (areas per club: pgroups' levels of
-    groups), identities x na x db area (pgroups' bytes: the file's own records in file order, then the RS records)."""
+    groups), [ida_two builds only: dw base2, dw ord2 - run 2's first global and its first ordinal (S7-G); FFFFh /
+    slots for a one-run entry], identities x na x db area (pgroups' bytes: the file's own records in file order, then
+    the RS records)."""
+    two = ida_two(tabs)
     out = bytearray()
     n = 0
     for (world, fl, pools, base, *_), (moff, *_r) in zip(tabs, layout(tabs)[0]):
@@ -89,6 +111,8 @@ def ida_bytes(tabs):
                 na = len(ida[0])
                 assert all(len(r) == na for r in ida) and len(pl[2]) + len(pl[3]) == len(ida)
                 out += bytes((world,)) + struct.pack('<HHHHB', base, moff, len(pl[2]), len(ida), na)
+                if two:
+                    out += struct.pack('<HH', *(_runs2(base, pl[2]) or (0xFFFF, len(pl[2]))))
                 out += b''.join(bytes(r) for r in ida)
                 n += 1
     return bytes((n,)) + bytes(out)
@@ -101,7 +125,7 @@ def keys_bytes(tabs):
     return b''.join(struct.pack('<H', k) for k in (ks + [0] * RP)[:RP])
 
 
-def _asm(nf):
+def _asm(nf, two=False):
     load, after = [], []
     for k in range(nf):
         load.append(f'''
@@ -164,6 +188,26 @@ def _asm(nf):
     add esp, 28
 .n{k}:''')
     names = ''.join(f'RI_NAME{k}: db RI_FNAME{k}, 0\n' for k in range(nf))
+    SLOT = ('''    mov eax, ebx                        ; its slot: run 2 (global >= base2) = ord2 + global - base2,
+    movzx edx, word [edi + 10]          ; else global - base below ord2 (S7-G: a split file's two runs; one-run
+    cmp eax, edx                        ; entries: base2 FFFFh, ord2 = slots)
+    jb .s1
+    sub eax, edx
+    movzx edx, word [edi + 12]
+    add eax, edx
+    jmp .s2
+.s1:
+    movzx edx, word [edi + 1]
+    sub eax, edx
+    movzx edx, word [edi + 12]
+    cmp eax, edx
+    jae .no
+.s2:
+''' if two else '''    mov eax, ebx
+    movzx edx, word [edi + 1]
+    sub eax, edx                        ; its slot (global - base)
+''')
+    HDR = 14 if two else 10
     return f'''
 ri_load:                                ; replaces `call SetLoadedTeamsGlobalNumbers` after LoadTeamFile read TEAM.nnn
     pushad
@@ -234,10 +278,7 @@ ri_ida1:                                ; esi = a club entry of the running worl
 .f:
     dec ebp
     js .r
-    mov eax, ebx
-    movzx edx, word [edi + 1]
-    sub eax, edx                        ; its slot (global - base)
-    movzx edx, word [edi + 5]
+{SLOT}    movzx edx, word [edi + 5]
     cmp eax, edx
     jae .no
     mov cl, [edi]
@@ -259,7 +300,7 @@ ri_ida1:                                ; esi = a club entry of the running worl
     cmp eax, edx
     jae .no
     imul eax, ecx
-    lea eax, [edi + 10 + eax]
+    lea eax, [edi + {HDR} + eax]
 .cp:
     mov dl, [eax + ecx - 1]
     mov [esi + 2 + ecx], dl
@@ -269,7 +310,7 @@ ri_ida1:                                ; esi = a club entry of the running worl
     movzx eax, word [edi + 7]
     movzx ecx, byte [edi + 9]
     imul eax, ecx
-    lea edi, [edi + 10 + eax]
+    lea edi, [edi + {HDR} + eax]
     jmp .f
 .r:
     popad
@@ -342,7 +383,7 @@ def patch(p, at, bss, tabs):
         names.append('data/rs%d%03d.dat' % (world, fl))
         sym.update({f'RI_W{k}': (0, world), f'RI_F{k}': (0, fl), f'RI_ORIG{k}': (2, o), f'RI_OSZ{k}': (0, osz),
                     f'RI_POOL{k}': (2, o + osz), f'RI_MOFF{k}': (0, moff), f'RI_FNAME{k}': (0, '"%s"' % names[-1])})
-    src = _asm(len(tabs))
+    src = _asm(len(tabs), ida_two(tabs))
     code, fix = nasmcave.assemble(src, at, sym)
     lab = nasmcave.labels(src, at, sym)
     p.put(1, at, code)

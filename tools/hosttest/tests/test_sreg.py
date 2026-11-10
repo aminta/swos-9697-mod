@@ -386,3 +386,47 @@ def test_sreg_walk():
         errs.append('O8 / K: not -2')
     return not errs, '; '.join(errs) or 'W: 2 mapped words rewritten, none / unmapped / other files kept; G: 102 -> 144 ' \
                                          'globals, others kept; past the bytes -1, untouched; O8 / K -2'
+
+
+def test_sreg_oldwords():
+    """sreg_import.c (n7-p4.md §4 step 1) built natively: sreg_old_words from old_ord (a row 0..255, or 256 + a pool
+    index, or FFFFh) and an RI slot map (gplay ri_apply: maps[x] 0 = its own record, else identity maps[x] - 1).
+    No map: rows -> their slot's word, pool / none -> SR_REG_NONE. Swaps (two season ends: pool 0 and pool 1 on slots
+    0 and 1, row 1 on slot 2): the rows swapped off -> NONE, each club on its current slot. Refused: an identity on
+    two slots (-1), an identity past RIS + npool (-1), nslot past RIS (-2)."""
+    import ctypes
+    import subprocess
+    import tempfile
+    d = tempfile.mkdtemp()
+    src = os.path.join(d, 'o.c')
+    with open(src, 'w') as f:
+        f.write('#define SWOSRULES_HAVE_STDINT\n#include <stdint.h>\n'
+                f'#include "{TOOLS}/swce/swosrules.h"\n#include "{TOOLS}/sreg_import.c"\n')
+    lib = os.path.join(d, 'o.dylib')
+    r = subprocess.run(['cc', '-shared', '-fPIC', '-O1', '-I', os.path.join(TOOLS, 'swce'), '-o', lib, src],
+                       capture_output=True, text=True)
+    if r.returncode:
+        return False, 'cc: ' + r.stderr[-300:]
+    L = ctypes.CDLL(lib)
+    NONE, W = 0xFFFF, lambda x: 102 | x << 8
+    old = [0, 1, 2, 256, 257, 0xFFFF]
+
+    def run(maps, nslot=3, npool=2):
+        o = (ctypes.c_uint16 * len(old))(*old)
+        w = (ctypes.c_uint16 * len(old))(*([0x5A5A] * len(old)))
+        m = (ctypes.c_uint16 * len(maps))(*maps) if maps is not None else None
+        n = L.sreg_old_words(o, len(old), m, nslot, npool, 102, w)
+        return n, list(w)
+    errs = []
+    for tag, maps, want in (('no map', None, (3, [W(0), W(1), W(2), NONE, NONE, NONE])),
+                            ('no swaps', [0, 0, 0], (3, [W(0), W(1), W(2), NONE, NONE, NONE])),
+                            ('swaps', [257, 258, 2], (3, [NONE, W(2), NONE, W(0), W(1), NONE]))):
+        got = run(maps)
+        if got != want:
+            errs.append(f'{tag}: {got[0]} {[hex(x) for x in got[1]]}')
+    for tag, maps, nslot, want in (('two slots', [0, 1, 0], 3, -1), ('past the pool', [0, 0, 259], 3, -1),
+                                   ('nslot 257', None, 257, -2)):
+        if run(maps, nslot)[0] != want:
+            errs.append(f'{tag}: {run(maps, nslot)[0]}')
+    return not errs, '; '.join(errs) or ('old words: no map / swaps -> each club on its current slot, the rest NONE; '
+                                         'refused: one identity on two slots, past the pool, nslot past RIS')

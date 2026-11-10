@@ -50,6 +50,12 @@ new rule. If a rule seems wrong for a case, ask the regia session; don't silentl
     career path: transfers both ways, job offers, takeovers, cups. Any new code that loads a club's file goes through
     the shared loader (ripool / team cache), never a private copy.
 14. **Shared data files change only with or after their engine change.**
+14a. **An impossible draw is refused, never relaxed** (Davide, 2026-11-10, option B). When no draw satisfies every
+    constraint of the stage (protected pairs, the same-association separation, ...), the engine relaxes nothing: the
+    draw fails with an error (sr_group_draw_p -2 = none exists, -3 = undecided within the budget) and the caller
+    reports it; no silent fallback to a weaker draw. The one exception is a competition whose real regulations say how
+    to relax, and then exactly as they say (its spec carries that rule). The harness fails a build whose real data
+    hits a refusal.
 
 ## Tests
 15. Result-dependent cases are **forced** (pokes / *_FORCE / CONTI_GPLACE ...), never re-run hoping. Test switches

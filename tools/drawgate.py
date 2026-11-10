@@ -13,7 +13,7 @@ switch). For every conti group stage drawn with an association rule (conti.c dra
 
 A FAIL names the pack (confederation), cup, round, multiset and seed, and fails the build. The result is cached by
 content in internal/drawgate/<key>.json, key = sha1 of the gate's inputs (every round's rule / groups / size / region
-flag, direct places, bounds, regions, game seeds) + the draw code (ctdraw.c, ctband.c, swce/sr_stage.c,
+flag, fixed places, bounds, regions) + the draw code (ctdraw.c, ctband.c, swce/sr_stage.c,
 swce/swosrules.h, cobj's flags) + this file: one run serves every build until data or engine change.
 
     python3 tools/drawgate.py            # the gate on the world's data (the build's call: gate())
@@ -202,14 +202,13 @@ def game_seeds(confs, nseasons=NGAME):
     return got, L
 
 
-def key(rs, seeds):
+def key(rs):
     h = hashlib.sha1()
     for f in SRCS:
         h.update(open(os.path.join(HERE, f), 'rb').read())
     import cobj
     h.update(json.dumps([cobj.CFLAGS, FLAGS]).encode())
     h.update(json.dumps([{k: (sorted(v.items()) if isinstance(v, dict) else v) for k, v in r.items()} for r in rs]).encode())
-    h.update(json.dumps(sorted((list(k), v) for k, v in seeds.items())).encode())
     return h.hexdigest()[:16]
 
 
@@ -248,8 +247,8 @@ def gate(confs, cups, assocs, quiet=False):
     """the gate (the build: conti.patch after load); returns the result dict, raises AssertionError on a FAIL"""
     import ctypes
     rs = rounds(confs)
-    seeds, L = game_seeds(confs)
-    k = key(rs, seeds)
+    k = key(rs)                                         # (not the game seeds: derived from the same data and code -
+                                                        #  and from conti's module state, the build's season 1)
     path = os.path.join(CACHE, k + '.json')
     if os.path.exists(path):
         res = json.load(open(path))
@@ -257,6 +256,7 @@ def gate(confs, cups, assocs, quiet=False):
         print(f'exe: conti draw gate PASS (cached {k}): {res["summary"]}')
         return res
     t0 = time.time()
+    seeds, L = game_seeds(confs)
     L.ct_gate.restype = ctypes.c_int
     rnd = random.Random(0x4A2)
     res = dict(key=k, rounds=[], result='PASS')

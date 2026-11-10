@@ -27023,6 +27023,60 @@ def world_cup_prefix():
 
 
 @scenario
+def world_cupd_format():
+    """4.1.1 (Note f3803dd): the Coppa Italia Serie D's FORMAT page drawn in the game - world_gplay_cupd's season at
+    LIGORNA (GPLAY_BUILD: a release dir), on the first career menu VISUAL. COMPETIZ. > the Coppa D > STAT > FORMULA:
+    its title and lines = DATA\\FMT<UI>5.DAT's page (the alternation line 'up to the quarter-finals'), back to the
+    menu; the season then as world_gplay_cupd"""
+    global W84_HOOK
+    st = {}
+
+    def hook(s, season, scr):
+        if scr is None or 'page' in st or season != 1:
+            return
+        if 'TRASFERIMENTI' not in scr.texts() or 'VISUAL. COMPETIZ.' not in scr.texts():
+            return
+        st['page'] = None
+        try:
+            walk(s, 'VISUAL. COMPETIZ.', 3)
+            lst = s.screen()
+            i = next((e[0] for e in lst.entries if e[1] and 'SERIE D' in e[1] and 'COPPA' in e[1] and not e[2]), None)
+            s.log.append(f'[cdfmt] list {[e[1] for e in lst.entries if e[1]][:16]} -> {i}')
+            if i is not None:
+                walk(s, i, 3)
+                walk(s, 'STAT', 3)
+                walk(s, s.screen().find('FORMULA', exact=True), 3)
+                pg = s.screen()
+                s.shot('cupd_format')
+                st['page'] = (pg.entries[0][1], [x[1] for x in pg.entries[1:15]])
+                s.log.append(f'[cdfmt] page {st["page"]}')
+        except AssertionError as e:
+            st['error'] = str(e)
+        for _ in range(8):
+            if 'TRASFERIMENTI' in s.screen().texts():
+                break
+            if press(s, s.screen(), 'ESCI', 3) is None:
+                s.send('fire dump:2')
+    W84_HOOK = hook
+    try:
+        ok, msg = world_gplay_cupd()
+    finally:
+        W84_HOOK = None
+    errs = []
+    check(ok, msg[:300], errs)
+    exe = os.environ.get('GPLAY_BUILD') or ''
+    pg = st.get('page')
+    check(pg is not None, f'Coppa D FORMAT page not reached {st}', errs)
+    if pg:
+        want = fmt_lines(exe, pg[0], UI, 5) if exe else None
+        got = pg[1][:len(want or [])]
+        check(want and got == want, f'{pg[0]}: shown {got} want {want}', errs)
+        alt = {'it': 'FINO AI QUARTI', 'en': 'TO THE QUARTER-FINALS', 'fr': 'JUSQU AUX QUARTS', 'de': 'VIERTELFINAL'}[UI]
+        check(any(alt in x for x in got), f'no alternation line with {alt!r}: {got}', errs)
+    return not errs, '; '.join(errs) or f'FORMAT {pg[0]!r}: {len(pg[1])} lines ok; {msg[:200]}'
+
+
+@scenario
 def world_gplay_cupd2():
     """world_gplay_cupd over two seasons: season 2's Coppa D bracket generated (gplay.c cd_season / cd_make) from the
     real Serie D of that season - the new arrivals (relegated from Serie C, promoted from the off-file Eccellenza pool)

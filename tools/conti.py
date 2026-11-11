@@ -497,6 +497,21 @@ def load(confs, files=None, words=None, s1=None, rank_out=False):
             for _ in range(k):
                 access.append((assocs.index(mine[q % len(mine)]), ci, j, CODE['next']))
                 q += 1
+    for ci, (conf, c, _) in enumerate(cups):            # (4.2 AFC mode: a per-region cup's 'order' knockout - the
+        if conf != 'afc' or not any(isinstance(rd.get('draw'), dict) and rd['draw'].get('per_region')   # ACLE /
+                                    for rd in c['rounds']):   # ACL Two play-offs - pairs its
+            continue                                    # entrants in their order: West first, then East, so every
+        for j, rd in enumerate(c['rounds']):            # tie stays inside one region (format: "every round up to the
+            if rd['kind'] != 'ko' or _draw(rd)[0] != DRAW['order']:   # R16 inside one region"; a cross-region play-off
+                continue                                # loser unbalanced ACL Two's group halves: MC 11/11)
+            def zone(e):
+                a = assocs[gl[e[3]][1] if e[0] == 0xFE else e[0]]
+                return AFC_REGION[a[2:] if a.startswith('g:') else a.upper()]
+            at = [i for i, e in enumerate(access) if e[1] == ci and e[2] == j]
+            es = sorted((access[i] for i in at), key=zone)
+            assert all(sum(1 for e in es if zone(e) == z) % 2 == 0 for z in (0, 1)), ('conti: odd region', c['key'], j)
+            for i, e in zip(at, es):
+                access[i] = e
     force = (0xFF, 0xFF)                                # CONTI_FORCE=<cup>:<round> (test builds only): the
     if os.environ.get('CONTI_FORCE'):                   # career club enters that round at every season end
         fk, fr = os.environ['CONTI_FORCE'].split(':')

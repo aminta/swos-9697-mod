@@ -2360,7 +2360,9 @@ def ctsd_check(s):
     s.log.append(f'ctdraw: CT_SDRAW_N {v["N"]} ERR {v["ERR"]:#x} HIT {v["HIT"]}')
     if v['HIT']:
         CTSD_ERRS.append(f'{os.path.basename(s.run)}: CT_SDRAW_HIT {v["HIT"]} (a group draw out of its search budget)')
-    if v['ERR'] and not sy['force']:
+    if v['ERR'] and (v['ERR'] & 0xFF) == 5 and os.environ.get('CTSD_ALLOW') == 'halves':
+        s.log.append('ctdraw: rc 5 halves - allowed (world_conti_drop_acl_add, the negative case: MC 11/11)')
+    elif v['ERR'] and not sy['force']:
         CTSD_ERRS.append(f'{os.path.basename(s.run)}: CT_SDRAW_ERR {v["ERR"]:#x} (a group draw refused: tag << 8 | -rc)')
 CAL_CUR_AT, D8CAA_AT, D6CDC_AT, STR_BASE_AT = 0x1B52A, 0x18DF4, 0x16E26, 0x16F8   # (obj2, every language's exe)
 GLA_AT, ARR_AT = 0xB440C, 0x18E40                 # gameListArray, arrayOfPointers (CareerGameListCommon; every exe)
@@ -20776,16 +20778,17 @@ def conti_drop(tag, force, team, word):
 def world_conti_q1q2():
     """4.0.5 rc20 (Regia's blocker, NACIONAL season 2): two Libertadores rounds of one month (q1 and q2, month 8) -
     the next tie was built into weeks already played: no first leg of q2, only RITORNO, ESCI on it crashed to DOS.
-    A test build with CONTI_FORCE=lib:q1 (the career club into the first qualifying round at every season end) and
-    CONTI_KOWIN (it wins its conti ties): season 2 from FLAMENGO's career plays q1, q2 and q3 BOTH legs each (three
-    ANDATA and three RITORNO Libertadores titles) and the season ends"""
+    A test build with CONTI_FORCE=lib:q1! (the career club takes a first qualifying round entrant's place at every season
+    end) and CONTI_KOWIN (it wins its conti ties): season 2 from CHAPECOENSE's career plays q1, q2 and q3 BOTH legs each
+    (three ANDATA and three RITORNO Libertadores titles) and the season ends. (MC 11/11: a Brazilian non-holder - on the
+    2026-27 data FLAMENGO holds the Libertadores, straight into its groups, and never plays q1)"""
     src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
     if not os.path.isdir(src):
         return True, f'SKIP: private data {src} missing'
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
-    exe = os.environ.get('Q1Q2_BUILD') or build('world_conti_q1q2', env={
-        'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]),
-        'CONTI_FORCE': 'lib:q1', 'CONTI_KOWIN': '1'})
+    exe = os.environ.get('Q1Q2_BUILD') or build('world_conti_q1q2', env={   # ('!', MC 11/11: the club takes an
+        'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]),   # entrant's place - q1
+        'CONTI_FORCE': 'lib:q1!', 'CONTI_KOWIN': '1'})                 # full, no extra club: CT_SDRAW_ERR asserted)
     keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_ONE',
             'W8485_FROM', 'W8485_TMO')
     keep = {k: os.environ.get(k) for k in keys}
@@ -20793,7 +20796,7 @@ def world_conti_q1q2():
         for k in keys:
             os.environ.pop(k, None)
         os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM='SUDAMERICA,BRASILE,BRASILEIRAO '
-                          'SERIE A,FLAMENGO', W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1', W8485_TMO='900')
+                          'SERIE A,CHAPECOENSE', W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1', W8485_TMO='900')
         ok, msg = world8485()
     finally:
         for k, v in keep.items():
@@ -20822,9 +20825,23 @@ def world_conti_drop_lib():
 
 @scenario
 def world_conti_drop_acl():
-    """conti_drop: KASHIWA REYSOL forced into the AFC Champions League Elite's preliminary round (acle:pre), losing
-    it -> the ACL Two groups (afc 'losers' pre -> acl2:groups): an ACL Two match played, season 2 ends"""
-    return conti_drop('acl', 'acle:pre', 'ASIA,GIAPPONE,J1 LEAGUE,KASHIWA REYSOL', 'TWO')
+    """conti_drop: KASHIWA REYSOL forced into the AFC Champions League Elite's preliminary round in an East entrant's
+    place (acle:pre!, MC 11/11: '!' keeps the round's regions), losing it -> the ACL Two groups (afc 'losers' pre ->
+    acl2:groups, per region): an ACL Two match played, season 2 ends, CT_SDRAW_ERR 0"""
+    return conti_drop('acl', 'acle:pre!', 'ASIA,GIAPPONE,J1 LEAGUE,KASHIWA REYSOL', 'TWO')
+
+
+@scenario
+def world_conti_drop_acl_add():
+    """the negative case of world_conti_drop_acl (MC 11/11): plain acle:pre - the forced club an EXTRA entrant (9 in
+    the play-offs, the East half one over): draw_groups' region-aware trim / fill keeps the ACL Two halves, or the
+    round goes region-blind with CT_SDRAW_ERR rc 5 ('halves') - never a hole or a trap: season 2 ends. ERR asserted
+    by the harness: this scenario expects it 0 or rc 5 only (ctsd_check's 'halves' allowance below)"""
+    os.environ['CTSD_ALLOW'] = 'halves'
+    try:
+        return conti_drop('acla', 'acle:pre', 'ASIA,GIAPPONE,J1 LEAGUE,KASHIWA REYSOL', 'TWO')
+    finally:
+        os.environ.pop('CTSD_ALLOW', None)
 
 
 def conti_month(tag, force, team, word, week0):

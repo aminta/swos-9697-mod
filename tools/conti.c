@@ -268,8 +268,11 @@ static void access(void) {
         if (frnd & 0x80 && EN[fcup][fr]) {          /* ('!': the place of the entrant of its confederation - the */
             int j = 0, bj = -1;                     /* most cups shared with its association; that club out) */
             for (int i = 0; i < EN[fcup][fr]; i++) {
-                int n = 0;
-                for (int c = 0; c < ncup; c++) n += !in_cup(c, assoc(E[fcup][fr][i])) == !in_cup(c, assoc(CT_IN.manager));
+                int n = 0, a = assoc(E[fcup][fr][i]), am = assoc(CT_IN.manager);
+                for (int c = 0; c < ncup; c++) n += !in_cup(c, a) == !in_cup(c, am);
+                if (areg && a < na && am < na && areg[a] != 0xFF && (areg[a] & 1) == (areg[am] & 1))
+                    n += 64;            /* (4.2 AFC mode, MC 11/11: an entrant of its own region first - per-region
+                                           rounds keep their halves) */
                 if (n > bj) { bj = n; j = i; }
             }
             taken[E[fcup][fr][j]] = 0; E[fcup][fr][j] = CT_IN.manager; EV[fcup][fr][j] = 0;
@@ -481,20 +484,33 @@ static int draw_groups(int c, int r, const u8 *R) {   /* 0, or -1: not drawn (ED
             if ((pass == 1 && !EV[c][r][i]) || (pass == 2 && EV[c][r][i])) {
                 x[m] = E[c][r][i]; v[m] = EV[c][r][i]; k[m] = EK[c][r][i]; m++;
             }
-    int size = ng * gs;
+    int size = ng * gs, pr = R[16] & 2 && areg, hw = size / 2;
+    /* 4.2 AFC mode, per region (ct_place: size / 2 clubs a half): the trim takes the weakest of the OVERFULL half,
+       the fill the best club of the UNDERFULL half's region - a qualified club never makes room for an invented one;
+       halves still unbalanced at full size (too many qualified in one region: impossible data) are ct_place's -5 */
     while (m > size) {                  /* more clubs than places (a forced test place): the weakest out */
-        int w = -1;
+        int w = -1, nw = 0, h = -1;
+        if (pr) {
+            for (int i = 0; i < m; i++) nw += !(areg[assoc(x[i])] & 1);
+            h = nw > hw ? 0 : m - nw > hw ? 1 : -1;
+        }
         for (int i = 0; i < m; i++)
-            if (x[i] != CT_IN.manager && (w < 0 || pts(x[i]) < pts(x[w]))) w = i;
+            if (x[i] != CT_IN.manager && (h < 0 || (areg[assoc(x[i])] & 1) == h) && (w < 0 || pts(x[i]) < pts(x[w])))
+                w = i;
         if (w < 0) break;
         for (int i = w; i + 1 < m; i++) { x[i] = x[i + 1]; v[i] = v[i + 1]; k[i] = k[i + 1]; }
         m--;
     }
     while (m < size && !R[23]) {        /* fewer (the world could not fill the rounds before): the best ranked
                                            club in no cup this edition (declared), so the game's contest is full */
-        int b = 0;
+        int b = 0, nw = 0, h = -1;      /* (per region: of the underfull half's region) */
+        if (pr) {
+            for (int i = 0; i < m; i++) nw += !(areg[assoc(x[i])] & 1);
+            h = nw < hw ? 0 : m - nw < hw ? 1 : -1;
+        }
         for (int i = 1; i <= CT_IN.nclub; i++)
-            if (!taken[i] && in_cup(c, assoc(i)) && (!b || pts(i) > pts(b))) b = i;
+            if (!taken[i] && in_cup(c, assoc(i)) && (h < 0 || (areg[assoc(i)] & 1) == h) && (!b || pts(i) > pts(b)))
+                b = i;
         if (!b) break;
         taken[b] = 1;
         reached(b, c, r);

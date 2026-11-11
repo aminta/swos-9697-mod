@@ -7,7 +7,8 @@
 
    ct_sdraw(n, g, assoc, cap, seed, grp, tag): n clubs in seeding order (pot p = clubs p*g .. p*g+g-1) into g
    groups, assoc NULL = no rule; grp[c] = club c's group. Returns g, or the library's refusal (CONVENTIONS 14a: never
-   relaxed): -1 bad arguments, -2 no draw exists, -3 undecided in the budget, -4 the C stack refused the call.
+   relaxed): -1 bad arguments, -2 no draw exists, -3 undecided in the budget, -4 the C stack refused the call
+   (ct_place's own: 5 in CT_SDRAW_ERR = a per-region half over size / 2, placed region-blind).
    tag = season << 8 | cup << 4 | round. CT_SDRAW_N counts the draws made; CT_SDRAW_ERR = tag << 8 | -rc, the first
    refusal only (the harness asserts 0). CT_SDRAW_HIT (4.2 AFC mode, MC 11/11 gate item 4): the draws whose search
    budget ran out (the library's sr_gdraw_hits delta: still a draw, not surely the rule's own; the harness asserts 0,
@@ -104,6 +105,17 @@ int ct_place(int m, int ng, int gs, int mode, uint16_t *x, uint8_t *v, uint8_t *
 {
     int rule = mode & 15, hold = mode >> 4 & 1, size = ng * gs;
     uint8_t S[PNE];                     /* slot -> club index + 1 */
+    if ((mode & 0x60) == 0x60) {        /* (per region: a half over size / 2 - too many qualified in one region,
+                                           impossible data after conti.c's region-aware trim / fill - placed
+                                           region-blind, no hole, and recorded: CT_SDRAW_ERR rc -5 'halves', MC 11/11) */
+        int nw = 0;
+        for (int i = 0; i < m; i++) nw += !(as[i] >> 7);
+        if (nw > size / 2 || m - nw > size / 2) {
+            if (!CT_SDRAW_ERR)
+                CT_SDRAW_ERR = (uint32_t)tag << 8 | 5;
+            mode &= ~0x40;
+        }
+    }
     if (mode & 0x20) {
         uint8_t sa[PNE], grp[PNE], ord[PNE];   /* (by draw position j: club ord[j], West's first, then East's) */
         int nh = mode & 0x40 ? 2 : 1, hg = ng / nh, nw = 0, j = 0;
@@ -215,11 +227,14 @@ int ct_gate(int m, int ng, int gs, int mode, const uint8_t *as0, const uint8_t *
         for (int i = 0; i < m; i++) { x[i] = (uint16_t)(i + 1); k[i] = 0; }
         uint8_t oa[PNE], ov[PNE];
         for (int i = 0; i < m; i++) { oa[i] = as[i]; ov[i] = v[i]; }
-        uint32_t h0 = CT_SDRAW_HIT, rng = sd;
+        uint32_t h0 = CT_SDRAW_HIT, rng = sd, e0 = CT_SDRAW_ERR;
         CT_SDRAW_MAXU = 0;
+        CT_SDRAW_ERR = 0;
         int rc = ct_place(m, ng, gs, mode, x, v, k, as, &rng, 0);
+        int halves = (CT_SDRAW_ERR & 0xFF) == 5;   /* (per region: a half over size / 2 - a refusal for the gate) */
+        CT_SDRAW_ERR = e0;
         out[2] += CT_SDRAW_HIT - h0;
-        if (rc < 0) { out[3]++; if (!out[4]) out[4] = (uint32_t)s + 1; }
+        if (rc < 0 || halves) { out[3]++; if (!out[4]) out[4] = (uint32_t)s + 1; }
         if (CT_SDRAW_MAXU > out[0] || s == 0) {
             out[0] = CT_SDRAW_MAXU; out[1] = (uint32_t)s; *ws = sd;
             for (int i = 0; i < m; i++) { wo[i] = oa[i]; wv[i] = ov[i]; }

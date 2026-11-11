@@ -224,6 +224,21 @@ scenario's set-up is wrong, pick a club of an association WITH a place in that r
 Before D a plain force was an extra entrant: one Brazilian more than the data left the Sudamericana groups with no
 draw (CT_SDRAW_ERR 0x11102, rc -2).
 
+**Field invariants** (root fix C, MC 11/11; `tools/ctfield.py`, the harness's `field_check`). At the end of every
+session that has a conti edition in memory (CT_ED 'CE'; needs the exe's conti symbols: scenario builds always, a release
+exe through CT_SYMS) the harness reads CT_IN / CT_OUT / CT_ST and checks, natural and forced runs alike: (1) per round,
+per association, no more clubs than the data can give - that association's direct places in the round + the holder
+places whose holder (CT_ST.hold) is of it (a vacant one: any association, access()'s stand-in) + the round's 'outside'
+places + a group stage's unfed places (draw_groups' fill: the best club with no cup, e.g. an earlier round's loser) +
+the clubs of it the feeder rounds hold (a knockout's winners / losers, a group stage's places: the spec's targets);
+(2) no club twice in a round; (3) the career club enters each cup once. (1) skips season 1's edition (the S1 block:
+the data's real entrant lists, not the access) and the Intercontinental (holders by slot). On a forced build the career
+club in a holders' cup (D: another association by design) is a note, not a violation. A violation FAILs the scenario
+(`field: ...`), a pass appends `[field: n checks, 0 violations]`. The bound is the data's: a forced extra entrant
+(the pre-D hold_rec / hold_rec4 / hold_ic: one Brazilian more in the Libertadores groups) is flagged before any draw
+refuses. `python3 tools/ctfield.py`: native natural seasons of every confederation + a forced one, 0 violations.
+A refused group draw also dumps conti's state into the run dir (`ctsd_dump/`, `tools/ctsd_replay.py <run dir>`).
+
 ## 6. Adding a scenario
 
 1. Write `@scenario def name(): """one-line purpose"""` returning `(ok, message)`.

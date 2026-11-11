@@ -1378,6 +1378,10 @@ class Session:
             force_check(self)
         except Exception as e:
             self.log.append(f'force: error byte not read ({type(e).__name__}: {e})')
+        try:                                            # (root fix C: the field invariants, natural runs too)
+            field_check(self)
+        except Exception as e:
+            self.log.append(f'field: not checked ({type(e).__name__}: {e})')
         self.box.kill()
         el = time.time() - self.box.t0
         if getattr(self.box, 'status', None):
@@ -2380,12 +2384,46 @@ def ctsd_syms(exe_dir):
             got = {k: lr[f'CT_SDRAW_{k}'][1] for k in ('N', 'ERR', 'HIT')}
             got['force'] = 'CT_SDRAW_FORCE' in lr
             cs = json.load(open(path)).get('conti', {})
+            got['conti'] = {k[5:]: v for k, v in cs.items() if k.lower().startswith('syms.ct_') and k[5:].isupper()}
             cs = cs.get('syms.CT_SDRAW') or cs.get('SYMS.CT_SDRAW')
             if cs and cs[0] == 1 and lr.get('ct_place', [0])[0] == 4:   # (obj4's base from conti's obj1 pointer to
                 got['ptr'] = (cs[1], lr['ct_place'][1])                #  ct_place: 4 bytes, not base4's 32 MB scan)
             assert all(lr[f'CT_SDRAW_{k}'][0] == 4 for k in ('N', 'ERR', 'HIT')), ('ctsd: not obj4', path)
     _CTSD_SYMS[exe] = got
     return got
+
+
+FIELD_ERRS, FIELD_STATS = [], {'checks': 0, 'notes': []}
+
+
+def field_check(s):
+    """root fix C (MC 11/11): the continental cups' field invariants on the edition in memory at the session's last
+    pause (tools/ctfield.py: per round, per association, no more clubs than the data's places + holders + feeders +
+    outside / fill places; no club twice in a round; the career club entering a cup once) - natural and forced runs
+    alike; a violation FAILs the scenario (FIELD_ERRS, the run loop). Needs the exe's conti symbols (ctsd_syms)."""
+    sy = getattr(s, 'ctsd', None)
+    r = s.result
+    cs = (sy or {}).get('conti') or {}
+    if not all(k in cs for k in ('CT_IN', 'CT_OUT', 'CT_ST', 'CT_ED', 'CT_LAYOUT')) or r is None or \
+            getattr(r, 'outcome', None) != 'dump' or r.box is None or r.base1 is None or r.base2 is None:
+        return
+    base = lambda k: (r.base2 if cs[k][0] == 2 else r.base1) + cs[k][1]
+    if struct.unpack('<H', bytes(r.read(base('CT_ED'), 2)))[0] != 0x4543:    # ('CE': no edition built yet)
+        return
+    lay = struct.unpack('<22I', bytes(r.read(base('CT_LAYOUT'), 88)))
+    ib, st, o = (bytes(r.read(base(k), n)) for k, n in (('CT_IN', lay[0]), ('CT_ST', lay[1]), ('CT_OUT', lay[2])))
+    import ctfield
+    notes = []
+    forced = getattr(s, 'ctout', None) is not None       # (ctout_at: a CONTI_FORCE / CONTI_FORCE2 build's marker)
+    bad = ctfield.check(ib, o, lay, st, forced=forced, notes=notes)
+    FIELD_STATS['checks'] += 1
+    FIELD_STATS['notes'] += [x for x in notes if x not in FIELD_STATS['notes']]
+    s.log.append(f'field: {len(bad)} violation(s), season {struct.unpack_from("<H", st, 2)[0]}' +
+                 (f', notes {notes}' if notes else ''))
+    for x in bad:
+        s.log.append(f'field: {x}')
+    if bad:
+        FIELD_ERRS.append(f'{os.path.basename(s.run)}: {bad[:3]}')
 
 
 def ctsd_check(s):
@@ -2415,6 +2453,34 @@ def ctsd_check(s):
         CTSD_STATS['halves'] = CTSD_STATS.get('halves', 0) + 1
     elif v['ERR'] and not sy['force']:
         CTSD_ERRS.append(f'{os.path.basename(s.run)}: CT_SDRAW_ERR {v["ERR"]:#x} (a group draw refused: tag << 8 | -rc)')
+        ctsd_dump(s, r, sy, v)
+
+
+def ctsd_dump(s, r, sy, v):
+    """(MC 11/11) a refused group draw: conti's state into the run dir - ctsd_dump/<CT_x>.bin (CT_IN: the season
+    end's clubs, words, associations, strengths; CT_ST, CT_ED, CT_OUT: the rounds' entrants; CT_SEG; CT_SPEC: the
+    spec it points to, 64 KB) + ctsd_dump.json (the counters, the symbols) - tools/ctsd_replay.py replays it natively.
+    Harness-side only: the exe is unchanged."""
+    try:
+        d = os.path.join(s.run, 'ctsd_dump')
+        os.makedirs(d, exist_ok=True)
+        meta = {'ERR': v['ERR'], 'N': v['N'], 'HIT': v['HIT'], 'syms': sy.get('conti', {}), 'sizes': {}}
+        nxt = sorted(o for ob, o in meta['syms'].values() if ob == 2)
+        for k, (ob, off) in sorted(meta['syms'].items()):
+            if ob != 2 or k == 'CT_SPEC':
+                continue
+            n = min([x - off for x in nxt if x > off] + [0x8000])       # (up to the next symbol, 32 KB at most)
+            open(os.path.join(d, k + '.bin'), 'wb').write(bytes(r.read(r.base2 + off, n)))
+            meta['sizes'][k] = n
+        if 'CT_SPEC' in meta['syms']:
+            ob, off = meta['syms']['CT_SPEC']
+            p = struct.unpack('<I', bytes(r.read((r.base2 if ob == 2 else r.base1) + off, 4)))[0]
+            if 0 < p < MEMSIZE - 0x10000:
+                open(os.path.join(d, 'CT_SPEC.bin'), 'wb').write(bytes(r.read(p, 0x10000)))
+        json.dump(meta, open(os.path.join(s.run, 'ctsd_dump.json'), 'w'), indent=1)
+        s.log.append(f'ctdraw: state dumped to {d}')
+    except Exception as e:                      # (a dump never turns a FAIL into a crash)
+        s.log.append(f'ctdraw: dump failed: {e!r}')
 CAL_CUR_AT, D8CAA_AT, D6CDC_AT, STR_BASE_AT = 0x1B52A, 0x18DF4, 0x16E26, 0x16F8   # (obj2, every language's exe)
 GLA_AT, ARR_AT = 0xB440C, 0x18E40                 # gameListArray, arrayOfPointers (CareerGameListCommon; every exe)
 _WORLD_AT = {}                                    # (game dir, exe, mtime, size) -> someLeaguesTable[1845] (cf_slt)
@@ -30814,12 +30880,19 @@ def main(argv):
                 del CTSD_ERRS[:]
                 del FORCE_ERRS[:]
                 setup = False
+                del FIELD_ERRS[:]
+                FIELD_STATS.update(checks=0, notes=[])
                 CTSD_STATS.update(sessions=0, n=0, nosyms=0)
                 ok, msg = SCENARIOS[n]()
                 if ok and LABEL_ERRS:                       # (4.0.5: a wrong competition name FAILs the scenario)
                     ok, msg = False, f'contest names: {LABEL_ERRS[:3]}; ' + msg
                 if CTSD_ERRS:                               # (4.2 AFC mode: a refused / out-of-budget group draw -
                     ok, msg = False, f'ctdraw: {CTSD_ERRS[:3]}; ' + msg   # named on a FAIL too: often its cause)
+                if FIELD_ERRS:                              # (root fix C: a club the data cannot give in a round)
+                    ok, msg = False, f'field: {FIELD_ERRS[:3]}; ' + msg
+                elif FIELD_STATS['checks']:
+                    msg += f" [field: {FIELD_STATS['checks']} checks, 0 violations" + \
+                        (f", notes {FIELD_STATS['notes'][:2]}" if FIELD_STATS['notes'] else '') + ']'
                 if CTSD_STATS['sessions']:
                     msg += f" [ctdraw: {CTSD_STATS['sessions']} sessions, {CTSD_STATS['n']} draws, ERR/HIT 0]" \
                         if not CTSD_ERRS else ''

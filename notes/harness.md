@@ -255,6 +255,11 @@ A refused group draw also dumps conti's state into the run dir (`ctsd_dump/`, `t
 6. Line-ups: leave the default minimal line-up (§3); set `SWOSTEST_LINEUP=full` in the scenario only when it checks
    the career club's results or strength (the full best-reserve search costs about half of a career's run time).
 
+**World 2026-27 data for gates (MC 11/11)**: the scenarios on the 2026-27 world (world_conti_*, world_cgame_*,
+world_contiview_*...) default to the old snapshot world5tm-rel40-winnames-1031; with the 4.2 gplay.c its .bss no
+longer fits (`gplay.c .bss 0x80ec > GP_BSS 0x8000`: 4 stage banks). Run them with
+`W2627REL_DATA=~/swos-mod/internal/world2526/world5tm-h2` (EURO_OPTIONAL=1), as the gates do.
+
 **Results (root fix A/B/D, MC 11/11)**: `PASS`, `FAIL`, `SETUP-ERROR` (a `require()` unmet, or a CONTI_FORCE that
 replaced no entrant of its association - see CONTI_FORCE), `FLAKY`. Every FAIL is re-run ALONE at once, in a fresh
 process (no module caches, globals or os.environ left by earlier scenarios) and its own run dir (`<RUNS>-rerun`; the

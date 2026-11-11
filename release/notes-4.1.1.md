@@ -2,7 +2,7 @@
 
 **SWOS 96/97 Mod 4.1.1**
 
-4.1.1 is a small update that fixes a few things: in the 2026-27 world, New Zealand's championship final, the group draws of the continental cups, a line on the Coppa Italia Serie D page and the Serie D Poule Scudetto winner sent to the Champions League; in every world, a cursor that could get stuck on a screen's title; and, in the patcher, the joypad boxes. Everything in 4.1 stays as it was; careers saved with 4.0 up to 4.1 load and play on.
+4.1.1 is a small update that fixes a few things: in the 2026-27 world, New Zealand's championship final, the group draws of the continental cups and the Recopa / Intercontinental matches of a career club still in a cup outside Europe, a line on the Coppa Italia Serie D page and the Serie D Poule Scudetto winner sent to the Champions League; in every world, a cursor that could get stuck on a screen's title; and, in the patcher, the joypad boxes and reading the GOG game folder in Chrome. Everything in 4.1 stays as it was; careers saved with 4.0 up to 4.1 load and play on.
 
 ### What's new
 
@@ -32,7 +32,7 @@ The FORMAT page of the Coppa Italia Serie D now says that the home and away alte
 
 **SWOS 96/97 Mod 4.1.1**
 
-La 4.1.1 è un piccolo aggiornamento che sistema alcune cose: nel mondo 2026-27 la finale del campionato della Nuova Zelanda, i sorteggi dei gironi delle coppe continentali, una riga della pagina della Coppa Italia Serie D e la vincitrice della Poule Scudetto di Serie D mandata in Champions League; in tutti i mondi un cursore che poteva restare bloccato sul titolo di una schermata; e, nel patcher, le caselle del joypad. Tutto quello che c'era nella 4.1 resta com'era; le carriere salvate con la 4.0 fino alla 4.1 si caricano e si giocano normalmente.
+La 4.1.1 è un piccolo aggiornamento che sistema alcune cose: nel mondo 2026-27 la finale del campionato della Nuova Zelanda, i sorteggi dei gironi delle coppe continentali e le partite di Recopa / Intercontinentale di un club della carriera ancora in una coppa fuori dall'Europa, una riga della pagina della Coppa Italia Serie D e la vincitrice della Poule Scudetto di Serie D mandata in Champions League; in tutti i mondi un cursore che poteva restare bloccato sul titolo di una schermata; e, nel patcher, le caselle del joypad e la lettura della cartella del gioco GOG in Chrome. Tutto quello che c'era nella 4.1 resta com'era; le carriere salvate con la 4.0 fino alla 4.1 si caricano e si giocano normalmente.
 
 ### Novità
 

@@ -263,21 +263,10 @@ static void access(void) {
         if (k) { enter(e[1], e[2] & 0x1F, k, 0, e[3]); taken[k] = 1; if (e[2] & 0x80) own[k] = e[1] + 1; }
         /* (a holder may hold places in two cups: the Recopa; own[]: CAF, its league place in the cup is its own) */
     }
-    if (fcup < ncup && CT_IN.manager && !taken[CT_IN.manager]) {   /* (test builds: the forced place) */
-        int fr = frnd & 15;
-        if (frnd & 0x80 && EN[fcup][fr]) {          /* ('!': the place of the entrant of its confederation - the */
-            int j = 0, bj = -1;                     /* most cups shared with its association; that club out) */
-            for (int i = 0; i < EN[fcup][fr]; i++) {
-                int n = 0, a = assoc(E[fcup][fr][i]), am = assoc(CT_IN.manager);
-                for (int c = 0; c < ncup; c++) n += !in_cup(c, a) == !in_cup(c, am);
-                if (areg && a < na && am < na && areg[a] != 0xFF && (areg[a] & 1) == (areg[am] & 1))
-                    n += 64;            /* (4.2 AFC mode, MC 11/11: an entrant of its own region first - per-region
-                                           rounds keep their halves) */
-                if (n > bj) { bj = n; j = i; }
-            }
-            taken[E[fcup][fr][j]] = 0; E[fcup][fr][j] = CT_IN.manager; EV[fcup][fr][j] = 0;
-        } else
-            enter(fcup, fr, CT_IN.manager, 0, 0);
+    int fbang = 0;                      /* (test builds: the forced place - plain: an extra entrant, now; '!': held
+                                           out of the access - its own places pass down - and placed after it) */
+    if (fcup < ncup && CT_IN.manager && !taken[CT_IN.manager]) {
+        if (frnd & 0x80) fbang = 1; else enter(fcup, frnd & 15, CT_IN.manager, 0, 0);
         taken[CT_IN.manager] = 1;
     }
     if (gid[ncup + 1] < ncup && CT_IN.manager) {   /* (4.1.1 test builds, CONTI_FORCE2: a second cup's round as well -
@@ -305,6 +294,24 @@ static void access(void) {
         if (club && taken[club]) club = 0;          /* already in: the place passes down the table */
         if (!club) club = next_club(a);
         if (club) { enter(c, r, club, 0, 0); taken[club] = 1; }
+    }
+    if (fbang) {                        /* (test builds, '!': after the access - the round's entrants in, their
+                                           order kept - the place of the entrant of its confederation, the most cups
+                                           shared with its association; that club out; an empty round: an extra) */
+        int fr = frnd & 15;
+        if (EN[fcup][fr]) {
+            int j = 0, bj = -1;
+            for (int i = 0; i < EN[fcup][fr]; i++) {
+                int n = 0, a = assoc(E[fcup][fr][i]), am = assoc(CT_IN.manager);
+                for (int c = 0; c < ncup; c++) n += !in_cup(c, a) == !in_cup(c, am);
+                if (areg && a < na && am < na && areg[a] != 0xFF && (areg[a] & 1) == (areg[am] & 1))
+                    n += 64;            /* (4.2 AFC mode, MC 11/11: an entrant of its own region first - per-region
+                                           rounds keep their halves) */
+                if (n > bj) { bj = n; j = i; }
+            }
+            taken[E[fcup][fr][j]] = 0; E[fcup][fr][j] = CT_IN.manager; EV[fcup][fr][j] = 0;
+        } else
+            enter(fcup, fr, CT_IN.manager, 0, 0);
     }
     for (int v = 0; v < nvac; v++) {    /* a vacant holder place: the best ranked club not yet in (declared) */
         const u8 *e = hol + 4 * vac[v];

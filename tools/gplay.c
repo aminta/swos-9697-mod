@@ -2185,8 +2185,22 @@ const u32 CD_STSZ = sizeof(struct cd_state);
 const u8 *GP_CDT;                       /* (the glue: CD_TAB of the running world, or 0) */
 u32 GP_CDFORCE;                         /* (the glue: CD_FORCE test builds, the career club wins its Coppa D ties) */
 u16 *GP_CDS1;                           /* 4.0 (the glue): the Coppa D's slot-1 contest team list (64 words), 0 = none */
-const u8 *GP_CDD;                       /* (its CD_DT: db first Serie D division, groups; dw global base; 256 x db
-                                           base division, FFh none) */
+const u8 *GP_CDD;                       /* (its CD_DT: db first Serie D division, groups; dw global base; [GP_CD2 builds:
+                                           dw base2, dw ord2]; 256 x db base division, FFh none) */
+/* S7-G (MC 11/11): a league over two team files (gplay.py: globnum.exe_split) - CD_DT's file B rows from ord2 on
+   take run 2 (global base2 + ordinal - ord2); without GP_CD2 (every dormant build) the readers expand to today's
+   tokens */
+#ifndef GP_CD2
+#define GP_CD2 0
+#endif
+#if GP_CD2
+#define CD_O 8
+#define CD_G(dt, gb, i) ((i) >= ((dt)[6] | (dt)[7] << 8) ? ((dt)[4] | (dt)[5] << 8) + (i) - ((dt)[6] | (dt)[7] << 8) \
+                         : (gb) + (i))
+#else
+#define CD_O 4
+#define CD_G(dt, gb, i) (gb + i)
+#endif
 const u32 *GP_CDNM;                     /* (its names: dd long, short) */
 u32 GP_CDFIRST;                         /* (the career's first season in the world) */
 #define CDREC(r) (GP_CDT + 4 + 8 * (r))
@@ -2526,14 +2540,14 @@ extern u8 RI_FILES_FILE[CD_RF];
 void cd_season(const u8 *tab, const u8 *dt, const s8 *slt, const s8 *copy, int world) {
     if (tab[0] != world) return;
     int df = dt[0], dc = dt[1], gb = dt[2] | dt[3] << 8, lf = tab[2], moved = 0, fi = -1;
-    for (int i = 0; i < 256; i++) if (dt[4 + i] != 0xFF && copy[gb + i] != slt[gb + i]) moved = 1;
+    for (int i = 0; i < 256; i++) if (dt[CD_O + i] != 0xFF && copy[CD_G(dt, gb, i)] != slt[CD_G(dt, gb, i)]) moved = 1;
     if (!moved) return;                 /* (InitializeNewSeason at a career's start: the world's real bracket) */
     for (int k = 0; k < CD_RF; k++) if (RI_FILES_FILE[k] == lf) fi = k;
     CD_ST.nfc = CD_ST.nfp = 0;
     for (int i = 0; i < 256; i++) {
-        int b = dt[4 + i], e = 0;
+        int b = dt[CD_O + i], e = 0;
         if (b != 0xFF) {
-            int nd = b + copy[gb + i], od = b + slt[gb + i];
+            int nd = b + copy[CD_G(dt, gb, i)], od = b + slt[CD_G(dt, gb, i)];
             if (nd >= df && nd < df + dc) {
                 if (fi >= 0 && (RI_SWAPPED[fi][i >> 3] & 1 << (i & 7))) {
                     e = 1;              /* (a new arrival: a new identity from the pool) */
@@ -2578,9 +2592,9 @@ static void cd_make(void) {             /* a later season's rounds 0-1 (CD_ST.ge
     u16 key[256], side[256];
     rng = GP_SEAS * 104729u + 17;
     for (int i = 0; i < 256; i++) {
-        int b = dt[4 + i];
+        int b = dt[CD_O + i];
         if (b == 0xFF || !GP_SLT) continue;
-        int dv = b + GP_SLT[gb + i];
+        int dv = b + GP_SLT[CD_G(dt, gb, i)];
         if (dv < df || dv >= df + dc) continue;
         int e = CD_ST.efresh ? CD_ST.ent[i] : 0;
         ord[n] = i; grp[n] = dv - df; key[n] = (e ? e : 0x40) << 8 | below(256); n++;
@@ -2623,7 +2637,7 @@ static u32 cd_below(u32 n) {            /* (below() for n past 65535: the produc
     return (u32)(((unsigned long long)(rng >> 16) * n) >> 16);
 }
 static u32 cd_str(u16 w) {
-    const u8 *s = GP_CDD + 260;
+    const u8 *s = GP_CDD + CD_O + 256;
     int i = w >> 8, moff = s[0] | s[1] << 8, nmap = s[2] | s[3] << 8, np = s[4] | s[5] << 8, id = i;
     if (moff != 0xFFFF && i < nmap) id = cd_ident(moff + i, i);
     const u8 *p = id < 256 ? s + 6 + 2 * id : id - 256 < np ? s + 6 + 512 + 2 * (id - 256) : 0;
@@ -2714,9 +2728,9 @@ u32 cd_step_c(void) {
 u32 cd_member_c(u32 team) {
     const u8 *dt = GP_CDD;
     if (!GP_CDT || !dt || !GP_SLT || (team & 0xFF) != GP_CDT[2]) return 0;
-    int i = team >> 8 & 0xFF, b = dt[4 + i];
+    int i = team >> 8 & 0xFF, b = dt[CD_O + i];
     if (b == 0xFF) return 0;
-    int dv = b + GP_SLT[(dt[2] | dt[3] << 8) + i];
+    int dv = b + GP_SLT[CD_G(dt, (dt[2] | dt[3] << 8), i)];
     return dv >= dt[0] && dv < dt[0] + dt[1];
 }
 

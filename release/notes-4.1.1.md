@@ -26,6 +26,7 @@ The FORMAT page of the Coppa Italia Serie D now says that the home and away alte
 - Careers saved with 4.0, 4.0.1, 4.0.2, 4.0.5 and 4.1 load and play on. In an older save, a continental cup that has already started keeps its draw; the new rules apply from the next edition.
 - You do not need to start a new career to get the New Zealand fix: it applies from the next Grand Final that is still to be decided (a save made after the Championship group ended and before its final keeps the old behaviour for that one final).
 - The Poule Scudetto fix also needs no new career: it applies from the next end of season. A save made after a season has ended keeps the European places already given out for that season.
+- A career saved with 4.1 in the middle of a season picks the continental-cup fix (Recopa / Intercontinental) up at its next match; a cup winner already named at an earlier season end stays as it was.
 
 ## Italiano
 
@@ -55,3 +56,4 @@ La pagina FORMAT della Coppa Italia Serie D ora dice che l'alternanza casa/trasf
 - Le carriere salvate con la 4.0, la 4.0.1, la 4.0.2, la 4.0.5 e la 4.1 si caricano e si giocano normalmente. In un salvataggio vecchio, una coppa continentale già cominciata tiene il suo sorteggio; le nuove regole valgono dalla prossima edizione.
 - Non serve cominciare una nuova carriera per avere la correzione della Nuova Zelanda: vale dalla prossima finale ancora da decidere (un salvataggio fatto tra la fine del girone del Championship e la sua finale tiene il vecchio comportamento per quella sola finale).
 - Anche per la correzione della Poule Scudetto non serve una nuova carriera: vale dalla prossima fine stagione. Un salvataggio fatto a stagione già finita tiene i posti europei già assegnati per quella stagione.
+- Una carriera salvata con la 4.1 a metà stagione riceve la correzione delle coppe continentali (Recopa / Intercontinentale) dalla partita successiva; un vincitore di coppa già proclamato a una fine stagione precedente resta com'era.

@@ -2362,6 +2362,7 @@ def ctsd_check(s):
         CTSD_ERRS.append(f'{os.path.basename(s.run)}: CT_SDRAW_HIT {v["HIT"]} (a group draw out of its search budget)')
     if v['ERR'] and (v['ERR'] & 0xFF) == 5 and os.environ.get('CTSD_ALLOW') == 'halves':
         s.log.append('ctdraw: rc 5 halves - allowed (world_conti_drop_acl_add, the negative case: MC 11/11)')
+        CTSD_STATS['halves'] = CTSD_STATS.get('halves', 0) + 1
     elif v['ERR'] and not sy['force']:
         CTSD_ERRS.append(f'{os.path.basename(s.run)}: CT_SDRAW_ERR {v["ERR"]:#x} (a group draw refused: tag << 8 | -rc)')
 CAL_CUR_AT, D8CAA_AT, D6CDC_AT, STR_BASE_AT = 0x1B52A, 0x18DF4, 0x16E26, 0x16F8   # (obj2, every language's exe)
@@ -20838,10 +20839,14 @@ def world_conti_drop_acl_add():
     round goes region-blind with CT_SDRAW_ERR rc 5 ('halves') - never a hole or a trap: season 2 ends. ERR asserted
     by the harness: this scenario expects it 0 or rc 5 only (ctsd_check's 'halves' allowance below)"""
     os.environ['CTSD_ALLOW'] = 'halves'
+    h0 = CTSD_STATS.get('halves', 0)
     try:
-        return conti_drop('acla', 'acle:pre', 'ASIA,GIAPPONE,J1 LEAGUE,KASHIWA REYSOL', 'TWO')
+        ok, msg = conti_drop('acla', 'acle:pre', 'ASIA,GIAPPONE,J1 LEAGUE,KASHIWA REYSOL', 'TWO')
     finally:
         os.environ.pop('CTSD_ALLOW', None)
+    if CTSD_STATS.get('halves', 0) == h0:               # (MC 11/11: allowed but absent = the negative case tests
+        return False, 'negative case: no CT_SDRAW_ERR rc 5 recorded; ' + msg   # nothing)
+    return ok, 'rc 5 halves recorded, no trap; ' + msg
 
 
 def conti_month(tag, force, team, word, week0):

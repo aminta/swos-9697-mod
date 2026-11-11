@@ -1172,6 +1172,13 @@ FRIENDLY_PLAY = {'fr': 'MATCHS AMICAUX'}.get(UI, 'AMICHEVOLE')   # the friendly 
 # UI_MAP's MATCH AMICAL, that screen's title)
 UI_ORIG = {'it': 'ITALIAN', 'en': 'ENGLISH', 'fr': 'FRENCH', 'de': 'GERMAN'}.get(UI, 'ITALIAN') + '.EXE'
 UI_ORIG_OF = {k: v + '.EXE' for k, v in {'it': 'ITALIAN', 'en': 'ENGLISH', 'fr': 'FRENCH', 'de': 'GERMAN'}.items()}
+
+
+def it_only(name):
+    """(True, 'SKIP: ...') for an IT-only scenario under another SWOSTEST_UI (notes/harness.md 'IT only'), else None:
+    refused at its start, never driven into an Italian exe's menus with another language's logic (4.2 Gate B)."""
+    return (True, f'SKIP: {name} is IT only (SWOSTEST_UI={UI}; notes/harness.md "IT only")') if UI != 'it' else None
+
 COLLECT = os.environ.get('SWOSTEST_COLLECT') == '1'    # (collecting the labels: raw texts, umlauts as '?')
 
 
@@ -3028,6 +3035,8 @@ def slot_ties(r, n):
 def euro_draws():
     """JUVE2F 1997/98 end -> 1998/99: CC holder rule (next CC list) and no same-country ties in rounds 1-2 of the
     player's CWC/UEFA (euro9697-nodorby; obj2 offsets of build a0f38ad5)"""
+    if it_only('euro_draws'):
+        return it_only('euro_draws')
     with Session('euro_draws', builds()['it'], {'JUVE2F.CAR': juve2(True)}, 'dump:2', 180) as s:
         if s.wait().outcome != 'dump':
             return False, f'START: no first pause ({s.result})'
@@ -22725,14 +22734,19 @@ def world_c23():
 def world_strmap():
     """4.2 option C (strmap.py, Shaved 10/11): a 4.1 career save's past-season names on this build. STM_CAR (default
     the 4.1 RC3 save suite-41rc3-L1/cgg_s2_A_<UI>.CAR: two seasons, 'FINAL FOUR PREMIER LGE' moved since 4.1) on
-    STM_BUILD (a release-recipe dir with DATA/STRMAP41.DAT, default c/REL42strmap4/SWOS); after the load every
+    STM_BUILD (a release-recipe dir with DATA/STRMAP41.DAT; default the build under test, SWOSTEST_BUILD - none: SKIP);
+    after the load every
     record line (+16h..+22h) is read in memory: a rel the map moves -> its new rel and the 4.1 text
     (release/strmap/v4.1-<UI>.json), a rel not in the map unchanged with its 4.1 text, a gone one any name (the
     heuristic). Then saved (ESCI -> SALVA CARRIERA): someLeaguesTable[1842] = 1, [1843] = FFh, the table's sum 0.
     STM_EXPECT=old: the same save on a copy of the build without STRMAP41.DAT (the control) - the moved lines lose
     their 4.1 name (10/11: the heuristic clears FINAL FOUR PREMIER LGE's line, the record shows nothing)."""
-    exe = os.environ.get('STM_BUILD') or os.path.join(MAIN, 'c', 'REL42strmap4', 'SWOS')
+    exe = os.environ.get('STM_BUILD') or os.environ.get('SWOSTEST_BUILD')   # (Gate B 42: the build under test - a
+    if not exe:                                         # release-recipe dir: the world data + DATA/STRMAP41.DAT)
+        return True, 'SKIP: world_strmap needs a release-recipe build (SWOSTEST_BUILD, or STM_BUILD): a 4.1 world career'
     car = os.environ.get('STM_CAR') or os.path.join(MAIN, 'internal', 'swostest', 'suite-41rc3-L1', f'cgg_s2_A_{UI}.CAR')
+    if not os.environ.get('STM_CAR') and not os.path.exists(car):
+        return True, f'SKIP: no 4.1 save in SWOSTEST_UI={UI} ({os.path.relpath(car, MAIN)}; STM_CAR)'
     for f in (os.path.join(exe, 'DATA', 'STRMAP41.DAT'), car):
         if not os.path.exists(f):
             return False, f'no {f}'
@@ -22772,7 +22786,8 @@ def world_strmap():
                       f'lines, {len(moved)} moved']
     check(moved, 'the save has no line the map moves (pick another STM_CAR)', errs)
     with Session('world_strmap', exe, {'W84A.CAR': car}, 'dump:2', 600) as s:
-        s.wait()
+        if s.wait().outcome != 'dump':
+            return False, f'START: no first pause ({s.result})'
         s.send(LOAD1 + ' dump:3')
         sb = s.result.base2 + (sacups.STR_BASE or 0x16F8)
         rd = lambda a: bytes(s.result.read(a, 42)).split(b'\0')[0] if 0 < a < 0x8000000 else b'?'
@@ -29172,6 +29187,8 @@ def world_lpreal(cid=0, word='CHAMPIONS LEAGUE', team='EUROPA,ITALIA,SERIE A,INT
     release data world5tm-403c8, W2627LP_DATA); at its first CHAMPIONS LEAGUE screen the working DIY's 36 rows are the
     file's 36 clubs and its draw (lp36 CAL_OFF, rows in matchday order) is the real one, all 144 matches in order,
     home first; season 2 (save, reload): drawn again by the game (a valid draw, not the file's), the season ends"""
+    if it_only('world_lpreal'):
+        return it_only('world_lpreal')
     src = os.environ.get('W2627LP_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-403c8')
     if not os.path.isdir(src):
         return True, f'SKIP: private data {src} missing'
@@ -29271,6 +29288,8 @@ def world_lgreal(team='EUROPA,ITALIA,SERIE A,INTER', two=True, expect_real=True)
     the release data world5tm-403c8); the career calendar at the season's first menu: the club's league days = its
     matches of the real list (LGREAL.DAT), in order, home first (a split league: the days before the split);
     season 2 (save, reload): the generated calendar again, the season ends"""
+    if it_only('world_lgreal'):
+        return it_only('world_lgreal')
     src = os.environ.get('W2627LP_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-403c8')
     if not os.path.isdir(src):
         return True, f'SKIP: private data {src} missing'
@@ -29335,6 +29354,8 @@ def world_lgreal_oldsave():
     lgreal (LGREAL_OLD, default branch 405-rc5: the generated calendar), loaded by this build - the rest of the season
     keeps the save's calendar (no switch to the real list midway: every league match played after the load is one of
     the old calendar's), the season ends"""
+    if it_only('world_lgreal_oldsave'):
+        return it_only('world_lgreal_oldsave')
     src = os.environ.get('W2627LP_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-403c8')
     if not os.path.isdir(src):
         return True, f'SKIP: private data {src} missing'
@@ -29406,6 +29427,8 @@ def world_lpreal_oldsave():
     """world_lpreal on an older career: a save inside the Champions League's league phase made by the build before
     lpreal (LPREAL_OLD, default branch 405-rc5: its own draw), loaded by this build - the league phase keeps the
     save's draw (lp_start does not run again), the season ends"""
+    if it_only('world_lpreal_oldsave'):
+        return it_only('world_lpreal_oldsave')
     src = os.environ.get('W2627LP_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-403c8')
     if not os.path.isdir(src):
         return True, f'SKIP: private data {src} missing'

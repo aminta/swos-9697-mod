@@ -197,8 +197,10 @@ it returns the rounds (title, ties shown: at most 6 per screen) and the coin-tos
 world_lpreal_oldsave build their own Italian exes (builds()['it'] / build(), and an old branch's build for the save):
 under SWOSTEST_UI=de / fr they drive an Italian exe with that language's menu logic and fail the same on every build
 (REL42i1 baseline = REL42i3). Run them in IT only; the language-sensitive euro checks are euro_money / euro_historic
-(SWOSTEST_BUILD = the language copy) and euro_swospp. world_strmap: STM_BUILD defaults to c/REL42strmap4 (this Mac
-only) - pass STM_BUILD=<release dir>/SWOS, and on the server too.
+(SWOSTEST_BUILD = the language copy) and euro_swospp. Under another SWOSTEST_UI they refuse at their start (it_only:
+PASS with 'SKIP: ... is IT only'), never a deep FAIL. world_strmap: STM_BUILD defaults to the build under test (SWOSTEST_BUILD, a release-recipe dir: the 2026-27 world +
+DATA/STRMAP41.DAT); without one, or without a 4.1 save in SWOSTEST_UI's language (suite-41rc3-L1/cgg_s2_A_<UI>.CAR,
+only IT today; STM_CAR), it is a SKIP. No STM_BUILD needed, on the server too.
 
 ## 6. Adding a scenario
 

@@ -19169,7 +19169,7 @@ def world_winners_oldsave():
         return True, f'SKIP: no {car}'
     exe = os.environ.get('WINNERS_W27')
     if not exe:
-        src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')   # (the released 4.0's data: an old save needs the data it was played on)
+        src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-s1rank-int3')   # (winnames-1031, the 4.0 data, no longer builds on 4.2 (0x80ec); s1rank-int3 = c/REL42i3's data, and the rc7 save loads on it)
         if not os.path.isdir(src):
             return True, f'SKIP: private data {src} missing'
         order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
@@ -19358,7 +19358,7 @@ def world_winners_poule():
     0FFFCh: the game's winner, the slot's DIY +39h): LIGORNA forced 1st of girone A (GPLAY_FORCE=1); mid-Poule (saved
     once slot 3 holds it a while) its line POULE SCUDETTO SERIE D = IN CORSO; at the season end (saved before
     CONTINUA) the club slot 3's +39h names (squads' rc10 finding: the line was missing)"""
-    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-s1rank-int3')   # (the 4.0 winnames-1031 no longer builds on 4.2: 0x80ec)
     if not os.path.isdir(src):
         return True, f'SKIP: private data {src} missing'
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]

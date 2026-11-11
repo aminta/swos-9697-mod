@@ -24890,7 +24890,9 @@ def world_gplay_poule(force='1', team='EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA'):
     world5tm-poule (TM_RESERVE=1 TM_POULE=1: POULE_D in Italy's play-offs); LIGORNA forced 1st of Serie D girone A at
     the league end -> the other 8 groups simulated now, the 9 winners in 3 triangulars, the 3 winners + the best
     runner-up, two-legged semis, the final; the season end's title result = the contest's real champion, and the 9
-    clubs are in Serie C after the season (the early-simulated groups restored at the season end)"""
+    clubs are in Serie C after the season (the early-simulated groups restored at the season end); 4.2 (Jacopo's
+    TERMOLI in the Champions League): the Poule's champion is not in Italy's qualifiers' top-9 list (gp_champ: a lower
+    tier's title earns no European place), whose first is a Serie A club (still in Serie A after the season)"""
     import json
     import shutil
     src = os.environ.get('W2627P_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-poule')
@@ -24948,10 +24950,18 @@ def world_gplay_poule(force='1', team='EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA'):
     if won:                                                               # club -> its 4th line, WINNERS)
         check(struct.unpack_from('<I', rec, 34)[0] and rec[89] == 1, f'record line: {rec[34:38].hex()} {rec[89]}', errs)
     car = os.path.join(RUNS, w84_tag() + '_1', 'SWOS', 'W84A.CAR')    # (the 9 group winners: up into Serie C, the
-    if os.path.exists(car):                                               # early tables restored at the season end)
+    top = title_top(lg_)                                                  # early tables restored at the season end)
+    check(top is not None and champ not in top, f'the Poule champion {champ} in the qualifiers\' top-9 list {top} '
+          '(4.2: a lower tier\'s title earns no European place - Jacopo\'s TERMOLI in the Champions League)', errs)
+    if os.path.exists(car):
         dv = club_divisions(car, src, 'ita', set(kl['team']))
         check(len(dv) == 9 and all(2 <= x <= 4 for x in dv.values()), f'Poule clubs after the season: {dv}', errs)
-    return not errs, '; '.join(errs) or f"{msg}; Poule clubs {[hex(t) for t in kl['team']]}, champion {champ:#x}, res {res}"
+        if top:                                                           # (the list's first: Serie A's champion,
+            d0 = club_divisions(car, src, 'ita', {top[0]})                #  still in Serie A after the season)
+            check(d0.get(top[0]) == 0, f'the top-9 list\'s first {top[0]:#x}: division {d0}', errs)
+    return not errs, '; '.join(errs) or (f"{msg}; Poule clubs {[hex(t) for t in kl['team']]}, champion {champ:#x}, "
+                                         f"res {res}; top-9 list {[hex(t) for t in top]} (the Poule's champion out, "
+                                         f"Serie A's first)")
 
 
 @scenario

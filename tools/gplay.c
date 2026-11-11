@@ -217,8 +217,13 @@ static void move(int c, int delta) {
 
 static int sbetter_cmp(int a, int b) { return better(a, b); }
 
+static u32 ch_low, po_low;              /* 4.1.1 (Jacopo's TERMOLI, Davide 11/11): a title play-off with no entrant from
+                                           the top division (Italy's POULE SCUDETTO SERIE D) is a lower tier's title -
+                                           po_low while it is decided, ch_low bit k = GP_OUT.res[k]: gp_champ leaves it
+                                           out of the qualifiers' top-9 list (Europe from the top flight only) */
 static void result(int kind, int w, int l) {
     if (GP_OUT.nres >= 4) return;
+    if (kind == K_TITLE && po_low) ch_low |= 1u << GP_OUT.nres;
     struct gp_res *x = &GP_OUT.res[GP_OUT.nres++];
     x->kind = kind; x->div = DV(w);
     x->team[0] = row(w)->team; x->glob[0] = row(w)->glob;
@@ -888,7 +893,7 @@ static const u8 *gp_ftic(u32 w) { (void)w; return 0; }
 #endif
 void gp_champ(void) {
     for (int k = 0; k < GP_OUT.nres; k++) {
-        if (GP_OUT.res[k].kind != K_TITLE) continue;
+        if (GP_OUT.res[k].kind != K_TITLE || ch_low >> k & 1) continue;
         u16 w = GP_OUT.res[k].team[0];
         int j = 0;
         while (j < 9 && GP_TOPW[j] != w) j++;
@@ -970,6 +975,7 @@ GP_KOSIZE void gp_season(void) {
     rng = h;
     GP_OUT.nmv = 0;
     GP_OUT.nres = 0;
+    ch_low = 0;
     for (int k = 0; k < 3; k++) {               /* (stage titles: this season's, from the specs below) */
         GP_OUT.sres[k].kind = 0;
         GP_OUT.sres[k].team[0] = GP_OUT.sres[k].team[1] = GP_OUT.sres[k].glob[0] = GP_OUT.sres[k].glob[1] = 0xFFFF;
@@ -1039,6 +1045,9 @@ GP_KOSIZE void gp_season(void) {
                                            set - its stream's seed below read it; the play-off is not played then) */
             else if ((club[i] = place_club(d, p, kind)) < 0) ok = 0;
         }
+        po_low = 1;                             /* (an entrant by a top-division place: ty 0 / 3 / 5 / 6 / 7 with d 0) */
+        for (int i = 0; i < n && i < GN; i++)
+            if (e[4 * i] != 4 && e[4 * i] != 8 && e[4 * i] != 9 && e[4 * i + 1] == 0) po_low = 0;
         {                                       /* rc19: each play-off's own random stream, from its entrants' rows
                                                    (the preview at the league's end and CONTINUA's season end decide
                                                    the same whatever the other divisions' tables) */

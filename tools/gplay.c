@@ -3343,9 +3343,15 @@ static char sm_fn[] = "data\\strmap41.dat";
 static u32 sm_buf[256];                 /* (a 1 KB chunk of pairs; the header first) */
 static u32 *sm_at[256];                 /* the lines to translate, sorted by their rel */
 static int sm_dos(u32 ax, u32 bx, u32 cx, u32 dx) {
+#if defined(__i386__)                   /* (the game's build; the engine's rules-check compiles gplay.c on the host:
+                                           no DOS there - -1 = no file, the heuristic alone; as 9f33156's guard) */
     u32 r; u8 cf;
     __asm__ volatile("int $0x21; setc %1" : "=a"(r), "=qm"(cf), "+b"(bx), "+c"(cx), "+d"(dx) : "0"(ax) : "memory", "cc");
     return cf ? -1 : (int)(r & 0xFFFF);
+#else
+    (void)ax; (void)bx; (void)cx; (void)dx;
+    return -1;
+#endif
 }
 u32 gp_strmap_c(u8 *recs, u32 tag, u32 en41) {
     if (tag || !en41 || !recs) return 0;

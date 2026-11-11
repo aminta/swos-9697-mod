@@ -65,6 +65,17 @@ def _disp(rd, start, n, pat, k=0):
     return struct.unpack_from('<I', code, i + len(pat))[0]
 
 
+def _guard(rd, save):
+    """CG_GUARDP's address: save_trailer's `mov eax, [CG_GUARDP]` / `test eax, eax` (a1 <dd> 85 c0), its own dd in
+    the trailer's block; EXACTLY one in the first 0x80 bytes (42-strmap f9c00b0's tag writes precede it - their
+    order may change; a duplicate or missing guard check fails; MC 11/11)"""
+    code = rd(save, 0x80)
+    hits = [i for i in range(len(code) - 6) if code[i] == 0xa1 and code[i + 5:i + 7] == b'\x85\xc0' and
+            save <= struct.unpack_from('<I', code, i + 1)[0] < save + 0x2000]
+    assert len(hits) == 1, f'save_trailer {save:#x}: {len(hits)} guard checks (a1 <CG_GUARDP> 85 c0) in 0x80 B, not 1'
+    return struct.unpack_from('<I', code, hits[0] + 1)[0]
+
+
 def _run(uc, fn, stop, regs=None):
     from unicorn import UC_HOOK_CODE
     from unicorn.x86_const import UC_X86_REG_ESP
@@ -99,7 +110,7 @@ def test_swc1():
     selbase = _disp(rd, save, 0x80, b'\x03\x3d')                  # add edi, [SELBASEV]
     roomv = _disp(rd, save, 0x80, b'\x3b\x05')                    # cmp eax, [ROOMV]
     d1 = _disp(rd, save, 0x200, b'\x81\x05')                      # add dword [D1], BLOCK
-    guard = _disp(rd, save, 0x10, b'\xa1')                        # mov eax, [CG_GUARDP]
+    guard = _guard(rd, save)                                      # mov eax, [CG_GUARDP] (exactly one)
     out = code.find(b'\x61\xff\x25')                              # .skip: popad, jmp [SAVE_TAIL] (a big world)
     out = code.find(b'\x61\xe9') if out < 0 else out              # (or popad, jmp WriteFile)
     assert out > 0, 'save_trailer: no popad / jmp at its end'
@@ -311,9 +322,10 @@ def test_ledger():
     save = tr.B1 + sy['trailer']['save_trailer'][1]
     uc.mem_map(BUF, 0x40000)
     code = rd(save, 0x400)
-    for pat, val in ((b'\xa1', b'\0' * 4), (b'\x0f\xb7\x05', b'\0\0'), (b'\x03\x3d', struct.pack('<I', BUF)),
+    uc.mem_write(_guard(rd, save), b'\0' * 4)                        # (CG_GUARDP: no contest view open)
+    for pat, val in ((b'\x0f\xb7\x05', b'\0\0'), (b'\x03\x3d', struct.pack('<I', BUF)),
                      (b'\x3b\x05', struct.pack('<I', 0x30000))):
-        uc.mem_write(_disp(rd, save, 0x80 if pat != b'\xa1' else 0x10, pat), val)
+        uc.mem_write(_disp(rd, save, 0x80, pat), val)
     d1 = _disp(rd, save, 0x200, b'\x81\x05')
     uc.mem_write(d1, b'\0' * 4)
     st_save = tr.B4 + sy['swe']['swe_st_save'][1]                    # (a World 2026-27 career: the world-only

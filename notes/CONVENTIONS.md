@@ -150,7 +150,12 @@ new rule. If a rule seems wrong for a case, ask the regia session; don't silentl
 24. **Shared hook sites**: a site that one module hooks and another may need later is listed here. A later hook chains
     to the earlier one (p.get() / lepatch.call_target, never obj_bytes), and the first one asserts it found the
     original bytes.
-    - euro.py (4.1 RC3, obj1 gplay tail after lgreal): both `call conv` of the money conversion (Int2Pounds and
+    - euro.py (4.1 RC3; 4.2 de945f4: its code on obj3's last page after longtable + mainbtn, MC 10/11): both `call conv` of the money conversion (Int2Pounds and
       cseg_24AB6) -> eu_money; ChainFont's first instruction (`shl [D0], 2`, 7 B) -> jmp eu_chain; obj2's currency
       strings block (pound, nullString, the short K / M forms) rewritten in place. A build with a euro world fails if the
       patch did not go in (EURO_OPTIONAL=1 only for scenario builds without gplay's tail).
+
+25. **Inline asm in Mod C under `__i386__`** (MC 11/11, after 42-strmap's sm_dos broke the engine's rules-check): any
+    `__asm__` in a Mod C file that the engine's host tests compile (rules-check includes gplay.c; the host suite's cc
+    is arm64) goes under `#if defined(__i386__)` with a host stub that keeps the C path working (a DOS call: -1 = no
+    file / not found, as 9f33156 / sm_dos). The release objects stay byte-identical (check the exes' md5s).

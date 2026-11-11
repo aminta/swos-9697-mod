@@ -2799,6 +2799,8 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
                                                                    'SEC_COPY': careerworld.SITES['sltcopy'],
                                                                    'GP_HLT': (2, hlt), 'GP_SEASP': uesum.season_var(p)},
                                 limit=limit)
+    __import__('sys').stderr.write(f'gplay .bss {bss:#x} GP_BSS {GP_BSS:#x} banks {SS_BANKS[0]} headroom '
+                                   f'{GP_BSS - bss:#x}\n')   # (buildrel.sh: fails under 0x200, MC 11/11)
     assert bss <= GP_BSS, (                         # (patch.py: GP_BSS: the reserves' state, GD 16, GP_ST)
         f'gplay.c .bss {bss:#x} > GP_BSS {GP_BSS:#x} ({SS_BANKS[0]} stage bank(s) x SS_ITEM {SS_ITEM:#x}, page-rounded, '
         f'+ 0x6000; one bank: 0x7000): the room comes from the stage banks\' rounding - a world with few split-table '

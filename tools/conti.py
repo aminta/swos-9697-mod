@@ -513,6 +513,14 @@ def load(confs, files=None, words=None, s1=None, rank_out=False):
     if gp:                                              # at every group stage's end is n (the 3rd's move, forced)
         print(f'exe: CONTI_GPLACE={gp} (test build)')
     spec += bytes((gp,))
+    f2 = (0xFF, 0xFF)                                   # CONTI_FORCE2=<cup>:<round> (4.1.1 test builds only): the
+    if os.environ.get('CONTI_FORCE2'):                  # career club into a second cup's round too (conti.c access)
+        fk, fr = os.environ['CONTI_FORCE2'].split(':')
+        fc = next((i for i, (_, c, _) in enumerate(cups) if c['key'] == fk), None)
+        if fc is not None:
+            f2 = (fc, rkey[fc][fr])
+            print(f'exe: CONTI_FORCE2={fk}:{fr} (test build)')
+    spec += bytes(f2)
     if s1 is None:                                      # (4.0.6 B2: the season-1 block, conti.s1_patch puts it
         S1_BLOCK[0] = s1_block(cups, gl, words) if S1_ED and os.environ.get('CONTI_S1', '1') == '1' else b''   # in obj3)
     return spec, assocs, [(conf, c['key']) for conf, c, _ in cups]
@@ -629,6 +637,17 @@ def test(confs=('conmebol',), seasons=3, seed=7, L=None, hook=None):
                 if g[2] == 0xFF:
                     break
                 cn = cups[g[0]][1]
+                if g[2] & 0x40 or g[2] == 0x80:       # 4.1.1: a knockout of the game contest (slot 3): ct_daily's
+                    v = rnd.randint(0, 1)               # calendar reading -> ct_gamein (won: the next stage's round
+                    cf = next(c for c in _read(cups[g[0]][0], 'format')['cups'] if c['key'] == cn)   # byte; lost /
+                    _norm(cf)                                                                          # the final: none)
+                    mr, fin = main_round(cf), g[1] == len(cf['rounds']) - 1
+                    if L.ct_gamein(0xFFFF, 0xFFFF if (fin or not v) else g[1] + 1 - mr, v):
+                        path.append(f'{cn}:{g[1]} game contest {"W" if v else "L"}')
+                        if hook:
+                            hook(L, names, f's{season + 1} after {path[-1]}')
+                        continue
+                    assert not g[2] & 0x40, f'{cn}:{g[1]} kind 40h: ct_gamein refused'
                 if g[2] == 0:
                     opp = struct.unpack_from('<H', g, 8 + 2 * (1 - g[7]))[0]
                     v = rnd.randint(0, 1)
@@ -751,7 +770,7 @@ GREC_STAT = []
 
 
 # --- the game ---------------------------------------------------------------------------------------------------------
-PAGES = 6                               # obj1 pages: the C code + the glue (patch.py: after split's / statecup's)
+PAGES = 7                               # obj1 pages: the C code + the glue (patch.py: after split's / statecup's)
 BSS = 0x18000                           # obj2 .bss: CT_IN, CT_ST, CT_OUT, the edition (patch.py: in the career BSS)
 CONFS = ['conmebol', 'concacaf', 'afc', 'caf', 'ofc', 'fifa']
 LABELS = {}
@@ -1072,16 +1091,38 @@ ct_daily:                               ; before the next match (uefaq's uq_dail
     mov al, [CT_ED + 10]
     mov [ct_seen + 4], al
     call ct_prep
-    cmp ebx, 3
-    jne .x
-    cmp byte [CT_SEG + 2], 0
-    jne .x
-    mov dword [A0R], TIE
-    call ct_build
-    mov word [E092F], TIE_D7
-    mov word [CUP_KIND], 0
-    jmp .x
+    cmp byte [CT_SEG + 2], 0FFh         ; (4.1.1: any place - the 3rd's play-off, the 4th's Recopa -: its next game
+    je .x                               ; built as after a tie; 1st / 2nd: the game contest's round of 16 - kind 40h)
+    jmp .disp
 .chk2:
+    mov al, [CT_SEG + 2]                ; 4.1.1: the club in a knockout round of the game contest in slot 3 (kind 40h,
+    test al, 40h                        ; or a knockout main round 80h): its next slot-3 entry -> conti.c ct_gamein
+    jnz .gk                             ; (got past it / out / the final), then its next game as after a tie
+    cmp al, 80h
+    jne .chk3
+.gk:
+    call ct_gscan
+    xor ecx, ecx
+    mov dx, [SLOT3 + 39h]               ; (the contest's winner: the final won)
+    cmp dx, [SEL]
+    jne .gw
+    inc ecx
+.gw:
+    push ecx
+    push eax
+    movzx eax, byte [SLOT3 + 2Dh]
+    push eax
+    call CT_GAMEIN
+    add esp, 12
+    test eax, eax
+    jz .chk3                            ; (not a game contest's: a tie as before)
+    mov al, [CT_ED + 10]
+    mov [ct_seen + 4], al
+    call ct_prep
+    cmp byte [CT_SEG + 2], 0FFh         ; (none: slot 3 stays the game's; still in its contest: the same; another
+    je .x                               ; cup's tie / main round - the Recopa -: built now, after the current week)
+    jmp .disp
+.chk3:
     cmp byte [ct_live], 0
     je .x
     mov al, [SLOT3 + 2Dh]
@@ -1107,9 +1148,12 @@ ct_daily:                               ; before the next match (uefaq's uq_dail
     mov al, [CT_ED + 10]
     mov [ct_seen + 4], al
     call ct_prep
+.disp:
     movzx eax, byte [CT_SEG + 2]
     cmp al, 0FFh
     je .none
+    test al, 40h                        ; (4.1.1: a round of the game contest in slot 3: nothing to build)
+    jnz .x
     test al, 80h
     jnz .main
     mov dword [A0R], TIE                ; the next tie
@@ -1239,6 +1283,42 @@ ct_newcup:                              ; 4.0.5 (world_sc_bra, FLAMENGO 3rd in i
 .x: popad
     ret
 
+ct_gscan:                               ; 4.1.1 -> eax = the round byte (+7) of the club's next slot-3 calendar entry
+    push ecx                            ; from the cursor (+5 its matches: the club's, 0 when it is not in that round),
+    push esi                            ; FFFFh none
+    mov esi, CAL
+    movzx ecx, word [CAL - 4]
+    movzx eax, word [CAL_CUR]
+    add eax, esi
+.s0: test ecx, ecx
+    jz .none
+    cmp esi, eax
+    jb .s1
+    cmp byte [esi], 3
+    jne .s1
+    cmp byte [esi + 5], 0
+    je .s1
+    cmp byte [esi + 7], 0FFh
+    je .s1
+    movzx eax, byte [esi + 7]
+    jmp .r
+.s1: push eax
+    movzx eax, word [esi + 2]
+    test eax, eax
+    pop eax
+    jz .none
+    push edx
+    movzx edx, word [esi + 2]
+    add esi, edx
+    pop edx
+    dec ecx
+    jmp .s0
+.none:
+    mov eax, 0FFFFh
+.r: pop esi
+    pop ecx
+    ret
+
 cg_testp: dd 0                          ; (ctgame.patch: cg_selftest in CONTI_CGTEST test builds)
 cg_guardp: dd 0                         ; (ctgame.patch: cg_daily - cg_guard, + cg_vtest in CONTI_CGVIEW builds)
 ct_on: db 0
@@ -1335,7 +1415,7 @@ def patch(p, at, limit, bss_at, area):
         print('exe: CONTI_KOLOSE (test build: the career club loses its conti ties)')
     symbols.update(NEXT_DAILY=u['uq_daily'], TIE=(1, TIE[0]), TIE_ID=(0, p.get(1, TIE[0], 1)[0]),
                    TIE_D7=(0, D7_BASE[0] + len(STRUCTS)), CT_D7=(0, D7_BASE[0]), CT_SEG=syms['CT_SEG'], CT_NS=(0, len(STRUCTS)),
-                   CT_ED=syms['CT_ED'], CT_RESULT=syms['ct_result'], CT_RESUME=syms['ct_resume'],
+                   CT_ED=syms['CT_ED'], CT_RESULT=syms['ct_result'], CT_GAMEIN=syms['ct_gamein'], CT_RESUME=syms['ct_resume'],
                    CT_NEW1=syms['ct_new1'], CT_LOAD1=syms['ct_load1'], W_LPW=(1, cw.LABELS['w_lpw']))
     import lp36
     ls = lp36.LABELS['symbols']

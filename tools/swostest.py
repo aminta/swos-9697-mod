@@ -20235,6 +20235,101 @@ def world_conti_ic_dec():
     return not errs, '; '.join(errs + [f'season 2 Intercontinental {seen}'])
 
 
+def conti_holder(tag, env, team, words):
+    """4.1.1 (MC, the Recopa / Intercontinental never played): a career club in its continent's main cup (the game
+    contest in slot 3, CONTI_FORCE2 its group stage, CONTI_GPLACE its place) AND in a holders' cup (CONTI_FORCE, its
+    ties won: CONTI_KOWIN). conti.c used to stay on the main cup's round all season (the game contest's knockouts never
+    reported), so the holders' cup was never built. Season 2 must play the main cup's groups and a match of each of
+    words (result screens' titles, in that order), the holders' ones after the club's last main-cup match unless the
+    club is still in the main cup at the season end; and end (world8485 ok)."""
+    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    exe = build(f'conti_holder_{tag}', env=dict(env, SEASON_PACKS=','.join(['ddr-1988-89'] + [os.path.join(src, x)
+                                                                                         for x in order])))
+    keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_ONE',
+            'W8485_FROM', 'W8485_TMO', 'GP_CALTRACE')
+    keep = {k: os.environ.get(k) for k in keys}
+    try:
+        for k in keys:
+            os.environ.pop(k, None)
+        os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5',
+                          W8485_K='108+', W8485_NOSACK='1', W8485_TMO='900', GP_CALTRACE='1')
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    log = os.path.join(RUNS, w84_tag() + '_2', 'session.log')
+    lines = open(log, errors='replace').read().splitlines() if os.path.exists(log) else []
+    seen = []                                   # the conti result screens' titles, in order (each once in a row)
+    for ln in lines:
+        if ln.startswith('[') and '- RISULTATO -' in ln:
+            t = re.sub(r'^\[\d+\] ', '', ln.split('|')[0].strip())
+            if not seen or seen[-1] != t:
+                seen.append(t)
+    has = lambda w, t: all(x in t for x in w.split('+'))   # ('A+B': both in the title)
+    main = [i for i, t in enumerate(seen) if has(words[0], t)]
+    errs = []
+    check(ok, msg[:300], errs)
+    check(main, f'season 2: no {words[0]} match: {seen}', errs)
+    pos = [next((i for i, t in enumerate(seen) if has(w, t)), None) for w in words[1:]]
+    last_main = main[-1] if main else -1
+    final = any(has(words[0], t) and 'FINALE' in t and 'QUART' not in t and 'SEMI' not in t and 'OTTAVI' not in t
+                for t in seen)
+    for w, i in zip(words[1:], pos):
+        check(i is not None or final, f'season 2: no {w} match (the club out of {words[0]} after {seen[last_main] if main else "-"}): {seen}', errs)
+        check(i is None or i > last_main, f'season 2: {w} at {i} before the last {words[0]} match {last_main}: {seen}', errs)
+    check(all(a is None or b is None or a < b for a, b in zip(pos, pos[1:])), f'season 2: {words[1:]} out of order: {seen}', errs)
+    return not errs, '; '.join(errs + [f'season 2: {seen}'])
+
+
+@scenario
+def world_conti_hold_rec():
+    """conti_holder: FLAMENGO in the Libertadores (its groups, 1st) and the Recopa (rec:final, won): the Recopa after
+    the club's Libertadores (season 2 ends)"""
+    return conti_holder('rec', {'CONTI_FORCE': 'rec:final', 'CONTI_FORCE2': 'lib:groups', 'CONTI_GPLACE': '1',
+                                'CONTI_KOWIN': '1'}, 'SUDAMERICA,BRASILE,BRASILEIRAO SERIE A,FLAMENGO',
+                        ('LIBERTADORES', 'RECOPA'))
+
+
+@scenario
+def world_conti_hold_rec4():
+    """conti_holder: as world_conti_hold_rec, FLAMENGO 4th in its Libertadores group (out): the Recopa next"""
+    return conti_holder('rec4', {'CONTI_FORCE': 'rec:final', 'CONTI_FORCE2': 'lib:groups', 'CONTI_GPLACE': '4',
+                                 'CONTI_KOWIN': '1'}, 'SUDAMERICA,BRASILE,BRASILEIRAO SERIE A,FLAMENGO',
+                        ('LIBERTADORES', 'RECOPA'))
+
+
+@scenario
+def world_conti_hold_ic():
+    """conti_holder: FLAMENGO in the Libertadores (1st in its group) and the Derby of the Americas (ic:r2b!, its ties
+    won): the DERBY, CHALLENGER and FINAL after the club's Libertadores (December's rounds wait for it)"""
+    return conti_holder('ic', {'CONTI_FORCE': 'ic:r2b!', 'CONTI_FORCE2': 'lib:groups', 'CONTI_GPLACE': '1',
+                               'CONTI_KOWIN': '1'}, 'SUDAMERICA,BRASILE,BRASILEIRAO SERIE A,FLAMENGO',
+                        ('LIBERTADORES', 'INTERCONT+DERBY', 'INTERCONT+CHALLENGER', 'INTERCONTINENTALE FINALE'))
+
+
+@scenario
+def world_conti_hold_caf():
+    """conti_holder: PYRAMIDS in the CAF Champions League (1st in its group) and the Intercontinental's African-Asian
+    tie (ic:r2a!, won): the CHALLENGER CUP (December) after its CAF Champions League"""
+    return conti_holder('caf', {'CONTI_FORCE': 'ic:r2a!', 'CONTI_FORCE2': 'cl:groups', 'CONTI_GPLACE': '1',
+                                'CONTI_KOWIN': '1'}, 'AFRICA,EGITTO,PYRAMIDS', ('CAF+CHAMPIONS', 'INTERCONT+CHALLENGER'))
+
+
+@scenario
+def world_conti_hold_acl2():
+    """conti_holder: an AFC club in the AFC Champions League Two (1st in its group) and the African-Asian tie (ic:r2a!,
+    won): the tie and the CHALLENGER CUP after its ACL Two"""
+    return conti_holder('acl2', {'CONTI_FORCE': 'ic:r2a!', 'CONTI_FORCE2': 'acl2:groups', 'CONTI_GPLACE': '1',
+                                 'CONTI_KOWIN': '1'}, os.environ.get('HOLD_ACL2_TEAM', 'ASIA,GIAPPONE,J1 LEAGUE,KASHIWA REYSOL'),
+                        ('TWO', 'INTERCONT+CHALLENGER'))
+
+
 @scenario
 def world_conti_recopa():
     """conti_month: FLAMENGO forced into the Recopa Sudamericana (rec:final): played in February (week 104..111)"""

@@ -63,10 +63,10 @@ def test_ri_ida():
            92, [], 4, 1)
     # dormant: today's bytes / text
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-    old = subprocess.run(['git', '-C', TOOLS, 'show', os.environ.get('RI_IDA_REF', '8851886') + ':tools/ripool.py'], capture_output=True, text=True).stdout
+    old = subprocess.run(['git', '-C', TOOLS, 'show', os.environ.get('RI_IDA_REF', '421691e') + ':tools/ripool.py'], capture_output=True, text=True).stdout
     om = {}
     if 'def ida_bytes' not in old or '{SLOT}' in old:
-        errs.append('no dormant reference (RI_IDA_REF, default 8851886: ripool.py before the two-run change)')
+        errs.append('no dormant reference (RI_IDA_REF, default 421691e: ripool.py before the two-run change)')
     else:
         exec(compile(old, 'ripool_old', 'exec'), om)
         if om['ida_bytes']([one]) != ripool.ida_bytes([one]):

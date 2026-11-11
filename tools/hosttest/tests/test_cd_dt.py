@@ -17,7 +17,7 @@ TOOLS = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, TOOLS)
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 FLAGS = ['-DSS_NB=1', '-DGP_FORCE=0', '-DGP_SPST=0', '-DGP_SPGRP=0', '-DGP_SPPRE=0', '-DGP_SPMAGIC=0']
-REF = os.environ.get('CD_DT_REF', '8851886')    # (gplay.c before the two-run change)
+REF = os.environ.get('CD_DT_REF', '421691e')    # (gplay.c before the two-run change: the 42-int base)
 
 
 def _lib(d, src_text, cd2, tag=''):

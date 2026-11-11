@@ -36,8 +36,8 @@ import engine  # noqa: E402
 import trailer  # noqa: E402
 
 HOME = os.path.expanduser('~')
-EXE = os.environ.get('HT_N7_EXE') or os.path.join(HOME, 'swos-mod', 'c', 'HTn7s', 'SWOS', 'ITALIAN.EXE')
-DORM = os.environ.get('HT_N7D_EXE') or os.path.join(HOME, 'swos-mod', 'c', 'HTn7r4d', 'SWOS', 'ITALIAN.EXE')
+EXE = os.environ.get('HT_N7_EXE') or os.path.join(HOME, 'swos-mod', 'c', 'HTn7rf', 'SWOS', 'ITALIAN.EXE')
+DORM = os.environ.get('HT_N7D_EXE') or os.path.join(HOME, 'swos-mod', 'c', 'HTn7rd', 'SWOS', 'ITALIAN.EXE')
 IT, HDR = 0x5449, 20
 _H = open(os.path.join(TOOLS, 'swce', 'swosrules.h')).read()
 FILES, CLUBS, DIVS = (int(re.search(rf'#define {k}\s+(\d+)', _H).group(1)) for k in ('SR_REG_FILES', 'SR_REG_CLUBS',
@@ -140,9 +140,10 @@ def test_sreg():
     sw = struct.unpack('<I', m.rd(m.at('sreg', 'SREG_WORLD'), 4))[0]
     if sw != WORLD or m.cwb is None:
         errs.append(f'SREG_WORLD {sw} (want {WORLD}), cw_byte\'s world byte {"not " if m.cwb is None else ""}found')
-    fn = struct.unpack('<5I', d.rd(d.at('swe', 'SREG_FN'), 20))
-    if any(fn) or 'sreg' in d.sy:
-        errs.append(f'dormant: SREG_FN {fn}, sreg linked {"sreg" in d.sy}')
+    if 'SREG_FN' in d.sy.get('swe', {}) or 'sreg' in d.sy:    # (dormant: swe.c's 'IT' code not compiled at all -
+        errs.append(f'dormant: swe SREG_FN {"SREG_FN" in d.sy.get("swe", {})}, sreg linked {"sreg" in d.sy}')   # SWC1_BSS)
+    if 'SREG_FN' not in m.sy.get('swe', {}):
+        errs.append('SREG_FORCE build: swe.c without SREG_FN (SWC1_BSS not set)')
     reg = struct.unpack('<I', m.rd(m.at('sreg', 'SREG_REG'), 4))[0]
     if reg != m.at('swe', 'SWE_ARENA_AT'):
         errs.append(f'SREG_REG {reg:#x}, the arena {m.at("swe", "SWE_ARENA_AT"):#x}')

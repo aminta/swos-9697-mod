@@ -826,8 +826,12 @@ static u32 season(void) { return SWE_SEASON[0]; }
 static u32 season(void) { return 0; }
 #endif
 
+#ifdef SWC1_BSS                         /* (N7: a registry's 'IT' - swe.py sets SWC1_BSS only when sreg.section_bytes()
+                                           grows SWC1: a world with a registry shape, or SREG_FORCE. A dormant build
+                                           compiles none of it: its exe byte-identical to the build before N7) */
 static void it_save(void);
 static void it_load(void);
+#endif
 
 void swe_st_save(void)                  /* engine.before_save: the header as this build writes it (engine P 5: the
                                            season, the career's at the save; a load keeps the saved one) */
@@ -835,7 +839,9 @@ void swe_st_save(void)                  /* engine.before_save: the header as thi
     *(u16 *)SWC1 = SWC1_VER;
     *(u16 *)(SWC1 + 2) = (u16)cw_byte();
     *(u16 *)(SWC1 + 8) = (u16)season();
+#ifdef SWC1_BSS
     it_save();
+#endif
 }
 
 /* SWC1's sections: u16 id, u16 length, the bytes; id 0 (or the item's end) ends them. */
@@ -872,6 +878,7 @@ u8 *swc1_add(u32 id, u32 len)           /* a new last section of len zero bytes,
     return p + 4;
 }
 
+#ifdef SWC1_BSS
 /* a section out, the ones after it moved down (a section whose size changed: written again at the end) */
 static void swc1_cut(u8 *sec)           /* sec = the section's bytes (swc1_find) */
 {
@@ -923,6 +930,7 @@ static void it_load(void)               /* 1 loaded; 0 absent / another layout, 
     else
         ((sreg_void_t)SREG_FN[4])();
 }
+#endif
 
 /* Engine P 3: the load-only items (engine.retire_item, swe.py imports()). A save from before P carries a legacy item
    the engine now keeps in SWC1: the trailer reads it into its slot of SWE_IMP (or its old place), SWE_ENF[k] says it
@@ -956,5 +964,7 @@ void swe_st_load(void)                  /* engine.after_load: the save's version
         swe_import();
     }
     *(u16 *)SWC1 = SWC1_VER;
+#ifdef SWC1_BSS
     it_load();
+#endif
 }

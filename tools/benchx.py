@@ -1698,6 +1698,8 @@ de_fix:                                 ; (4.1.1, Jacopo's COPPA ITALIA SERIE C 
     jne .no
     cmp dword [ebx + 10h], -1
     jne .no
+    cmp word [ebx + 2Eh], 0             ; (its controlMask: an entry that takes the keys itself - the dugout's
+    jne .no                             ; opponent list's UP / PGUP, onSelect - is no dead end)
     movzx ecx, word [ebp + 10h]
     lea esi, [ebp + 16h]
 .l:

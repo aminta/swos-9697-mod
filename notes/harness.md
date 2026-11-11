@@ -210,6 +210,16 @@ the forced case never happens and the scenario FAILs on the wrong contest (e.g. 
 'Championship kind 0 n 0'). In a release gate run them with no *_BUILD in their env (self-built from the release
 sha's tree); give the release dir only to the natural scenarios (oldsave set, s1conti, cupd_format, euro_money...).
 
+**CONTI_FORCE=<cup>:<round>[!]** (conti.c access, test builds only). Plain: the career club is an EXTRA entrant of
+that round, placed before the access (its own places pass down). '<round>!': the club is held out of the access and,
+after it, takes the place of one of the round's entrants, the round's order kept - first an entrant of its own
+ASSOCIATION (the association counts stay exactly the data's: later same_assoc draws test the game, not the force),
+else one of its own region (4.2 AFC per-region rounds), else the one sharing the most cups with its association; an
+empty round (fed only by routes, e.g. lib:q3): an extra entrant. Pick the career club by the data's access places:
+a club of an association WITH a place in that round (lib:q1 -> a Bolivian club: bol q1 = its 3rd place), never a
+Brazilian on lib:q1 - one Brazilian more than the data left the Sudamericana groups with no draw (CT_SDRAW_ERR
+0x11102, rc -2; MC 11/11). A plain extra entrant can do the same: CT_SDRAW_ERR FAILs the scenario (4.2).
+
 ## 6. Adding a scenario
 
 1. Write `@scenario def name(): """one-line purpose"""` returning `(ok, message)`.

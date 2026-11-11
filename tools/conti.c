@@ -308,6 +308,9 @@ static void access(void) {
                 if (areg && a < na && am < na && areg[a] != 0xFF && (areg[a] & 1) == (areg[am] & 1))
                     n += 64;            /* (4.2 AFC mode, MC 11/11: an entrant of its own region first - per-region
                                            rounds keep their halves) */
+                if (a == am) n += 128;  /* (MC 11/11: an entrant of its own ASSOCIATION before all - the association
+                                           counts stay exactly the data's, so later same_assoc draws test the game,
+                                           not the force; none in the round: the tie-break above as before) */
                 if (n > bj) { bj = n; j = i; }
             }
             taken[E[fcup][fr][j]] = 0; E[fcup][fr][j] = CT_IN.manager; EV[fcup][fr][j] = 0;

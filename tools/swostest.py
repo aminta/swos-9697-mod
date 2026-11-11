@@ -20780,9 +20780,9 @@ def world_conti_q1q2():
     """4.0.5 rc20 (Regia's blocker, NACIONAL season 2): two Libertadores rounds of one month (q1 and q2, month 8) -
     the next tie was built into weeks already played: no first leg of q2, only RITORNO, ESCI on it crashed to DOS.
     A test build with CONTI_FORCE=lib:q1! (the career club takes a first qualifying round entrant's place at every season
-    end) and CONTI_KOWIN (it wins its conti ties): season 2 from CHAPECOENSE's career plays q1, q2 and q3 BOTH legs each
-    (three ANDATA and three RITORNO Libertadores titles) and the season ends. (MC 11/11: a Brazilian non-holder - on the
-    2026-27 data FLAMENGO holds the Libertadores, straight into its groups, and never plays q1)"""
+    end) and CONTI_KOWIN (it wins its conti ties): season 2 from AURORA's career plays q1, q2 and q3 BOTH legs each
+    (three ANDATA and three RITORNO Libertadores titles) and the season ends. (MC 11/11: a club of an association with a q1 place - Bolivia's
+    3rd - so the '!' keeps the association counts the data's; FLAMENGO holds the Libertadores on the 2026-27 data)"""
     src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
     if not os.path.isdir(src):
         return True, f'SKIP: private data {src} missing'
@@ -20796,8 +20796,7 @@ def world_conti_q1q2():
     try:
         for k in keys:
             os.environ.pop(k, None)
-        os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM='SUDAMERICA,BRASILE,BRASILEIRAO '
-                          'SERIE A,CHAPECOENSE', W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1', W8485_TMO='900')
+        os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM='SUDAMERICA,BOLIVIA,?DIVISION PROFESIONAL|DIV. PROFESIONAL|PROFESIONAL,AURORA', W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1', W8485_TMO='900')
         ok, msg = world8485()
     finally:
         for k, v in keep.items():
@@ -24218,8 +24217,8 @@ def world_conti411_oldsave():
 
 @scenario
 def world_contiview_tie():
-    """(MC 11/11: CHAPECOENSE with lib:q1! - on the 2026-27 data FLAMENGO holds the Libertadores, into its groups;
-    a plain extra entrant left later draws outside the gate's bound. FLAMENGO below reads CHAPECOENSE.)
+    """(MC 11/11: AURORA with lib:q1! - on the 2026-27 data FLAMENGO holds the Libertadores, into its groups;
+    a plain extra entrant left later draws outside the gate's bound. FLAMENGO below reads AURORA.)
     4.0.6 COPPE CONTINENTALI with the career club in a conti cup (M4): a FLAMENGO career on a test build with
     CONTI_FORCE=lib:q1 (the club into the Libertadores' first qualifying round at every season end) and CONTI_KOWIN (it
     wins its conti ties). Season 1 played; season 2 (its save) saved at its 5th Libertadores result screen (q3's first
@@ -24241,7 +24240,7 @@ def world_contiview_tie():
     seg_at, ed_at = tr[0], tr[1]
     import ctview
     T = [ui_label(x) for x in ctview.TEXTS[UI]]
-    team = 'SUDAMERICA,BRASILE,BRASILEIRAO SERIE A,CHAPECOENSE'
+    team = 'SUDAMERICA,BOLIVIA,?DIVISION PROFESIONAL|DIV. PROFESIONAL|PROFESIONAL,AURORA'
     mid = os.environ.get('CV_TIE_S2') or os.path.join(RUNS, f'cv_tie_{UI}.CAR')
     opp = None
     if not os.path.exists(mid):
@@ -24258,7 +24257,7 @@ def world_contiview_tie():
         shutil.copy(msg.split(': ', 1)[1], mid)
         res = [ln for ln in l2 if ln.startswith('[') and 'LIBERTADORES' in ln.split('|')[0] and '- RISULTATO -' in ln]
         if res:                                         # (the last one: q3's first leg - its two clubs)
-            opp = [t for t in (x.strip() for x in res[-1].split('|')) if t and t != 'CHAPECOENSE']
+            opp = [t for t in (x.strip() for x in res[-1].split('|')) if t and t != 'AURORA']
     errs, info = [], []
     with Session('world_contiview_tie', exe, {'W84A.CAR': mid}, 'dump:2', 300) as s:
         s.wait()
@@ -24292,13 +24291,13 @@ def world_contiview_tie():
                 break
             if x == 'COPA LIBERTADORES' or lib:
                 lib.append(x)
-        fl = [x for x in lib if 'CHAPECOENSE' in x]
-        info.append(f'CHAPECOENSE lines {fl}')
-        check(len(fl) >= 3, f'CHAPECOENSE in fewer than 3 Libertadores rounds: {lib}', errs)
+        fl = [x for x in lib if 'AURORA' in x]
+        info.append(f'AURORA lines {fl}')
+        check(len(fl) >= 3, f'AURORA in fewer than 3 Libertadores rounds: {lib}', errs)
         if len(fl) >= 3:
-            check(all('(CHAPECOENSE)' in x for x in fl[:2]), f"q1 / q2 without CHAPECOENSE in brackets: {fl[:2]}", errs)
+            check(all('(AURORA)' in x for x in fl[:2]), f"q1 / q2 without AURORA in brackets: {fl[:2]}", errs)
             check('(' not in fl[2], f"q3 (its next game) with brackets: {fl[2]}", errs)
-            other = [x.strip(' ()') for x in fl[2].split(' - ') if 'CHAPECOENSE' not in x]
+            other = [x.strip(' ()') for x in fl[2].split(' - ') if 'AURORA' not in x]
             if opp is not None:                         # (its other club exactly one of that screen's texts)
                 check(len(other) == 1 and other[0] in opp, f'q3 tie {fl[2]!r} is not the result screen\'s', errs)
             later = lib[lib.index(fl[2]) + 1:]
@@ -24499,7 +24498,7 @@ def world_ctgoals():
 
 @scenario
 def world_cgame_self():
-    """(MC 11/11: CHAPECOENSE with lib:q1!, as world_contiview_tie. FLAMENGO below reads CHAPECOENSE.)
+    """(MC 11/11: AURORA with lib:q1!, as world_contiview_tie. FLAMENGO below reads AURORA.)
     4.0.6 option C, P1 gate: the builder (ctgame.c - the view's contests by the game's own code into the scratch)
     against the game's own slot-3 contests. A FLAMENGO career on a CONTI_FORCE=lib:q1 + CONTI_KOWIN + CONTI_CGTEST
     test build: in season 2 every contest conti's ct_build puts in slot 3 from the daily (the Libertadores' q2, q3 ties,
@@ -24520,7 +24519,7 @@ def world_cgame_self():
     if not tr:
         return False, 'no CGTRPTR block (ctgame not in the build)'
     t_at = tr[0]
-    team = 'SUDAMERICA,BRASILE,BRASILEIRAO SERIE A,CHAPECOENSE'
+    team = 'SUDAMERICA,BOLIVIA,?DIVISION PROFESIONAL|DIV. PROFESIONAL|PROFESIONAL,AURORA'
     s1 = os.environ.get('CG_S1') or os.path.join(RUNS, f'cg_self_s1_{UI}.CAR')
     if not os.path.exists(s1):
         ok, msg, _ = sc_season(team, dict(W8485_BUILD=exe))

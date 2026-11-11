@@ -1777,7 +1777,9 @@ def structs(p, area, lang, at):
         import hashlib
         got = (hashlib.sha1(S1_OLD_FULL[0]).hexdigest(), hashlib.sha1(S1_OLD[1]).hexdigest())
         sp = os.environ.get('SEASON_PACKS', '')
-        if S1_OLD_DATA in sp:                           # (4.1's own world data: the very bytes 4.1 shipped)
+        guests = os.environ.get('GUESTS_DATA') or os.environ.get('CONTI_GUEST')   # (4.1.1 MC 11/11: a test build's guests
+        if S1_OLD_DATA in sp and not guests:            # rebuild the block by construction: the WARNING branch)
+                                                        # (4.1's own world data: the very bytes 4.1 shipped)
             assert got == S1_OLD_SHA, ('conti: the 4.1 season-1 block rebuilt differently', got)
         elif 'world5tm-' in sp:                         # (other world data: the 4.1 bytes are not rebuilt from it -
             print(f'exe: WARNING conti: 4.1 season-1 block built on other data than {S1_OLD_DATA} {got}: '

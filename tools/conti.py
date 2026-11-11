@@ -805,7 +805,9 @@ def test(confs=('conmebol',), seasons=3, seed=7, L=None, hook=None):
             if ak.startswith('g:'):
                 continue
             base = 3000 if ak in ('bra', 'arg') else 1500
-            for k in range(18):
+            short = dict(x.split(':') for x in os.environ.get('CONTI_TEST_SHORT', '').split(',') if x)
+            for k in range(int(short.get(ak, 18))):   # (CONTI_TEST_SHORT=bra:9: an association with few records -
+                                                      #  the group fill's association rule, MC 11/11)
                 cid = (100 + a) | k << 8
                 names[cid] = f'{ak}{k + 1}'
                 clubs.append((cid, a, base + rnd.randint(0, 1500) - 60 * k, rnd.randint(100, 9000)))
@@ -818,7 +820,7 @@ def test(confs=('conmebol',), seasons=3, seed=7, L=None, hook=None):
                 continue
             for l in range(min(NL, len(mine))):
                 struct.pack_into('<H', b, o_league + 2 * (a * NL + l), mine[l] + 1)
-            struct.pack_into('<H', b, o_cup + 2 * a, mine[rnd.randint(0, 6)] + 1)
+            struct.pack_into('<H', b, o_cup + 2 * a, mine[rnd.randint(0, min(6, len(mine) - 1))] + 1)
         ctypes.c_void_p.in_dll(L, 'CT_SPEC').value = ctypes.addressof(buf)
         L.ct_finish()                               # (the game: ct_begin, the season end's first country)
         ctypes.memmove(IN, bytes(b), s_in)
@@ -2331,5 +2333,10 @@ if __name__ == '__main__':
         test_goals()
     elif sys.argv[1:2] == ['--test-s1']:
         test_s1(*(sys.argv[2:3] or [None]))
+    elif sys.argv[1:2] == ['--test-fill']:            # (MC 11/11: the group fill keeps the association rule - an
+        for sh in ('bra:9,arg:30', 'bra:5,arg:30', 'arg:5,bra:30'):   # association with few records, another with
+            os.environ['CONTI_TEST_SHORT'] = sh                         # many reserves: before, a 9th Argentine in 8
+            test(['conmebol'], seasons=3)                               # Sud groups, no draw - 0x?1102)
+        print('PASS: the group fill within the association rule')
     elif sys.argv[1:2] == ['--test']:
         test(sys.argv[2:] or ['conmebol'])

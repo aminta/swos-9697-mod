@@ -503,9 +503,15 @@ static int draw_groups(int c, int r, const u8 *R) {   /* 0, or -1: not drawn (ED
             for (int i = 0; i < m; i++) nw += !ZONE(x[i]);
             h = nw < hw ? 0 : m - nw < hw ? 1 : -1;
         }
+        int cap = R[5] == A_NO || R[5] == A_NOVIA ? ng : R[5] == A_NO2 ? 2 * ng : NE;
         for (int i = 1; i <= CT_IN.nclub; i++)
-            if (!taken[i] && in_cup(c, assoc(i)) && (h < 0 || ZONE(i) == h) && (!b || pts(i) > pts(b)))
-                b = i;
+            if (!taken[i] && in_cup(c, assoc(i)) && (h < 0 || ZONE(i) == h) && (!b || pts(i) > pts(b))) {
+                int na_ = 0, a = assoc(i);  /* (4.2, MC 11/11: never past the round's association rule - one a group:
+                                               ng clubs, CAF's two: 2 ng - else no draw exists: hold_rec's Sud groups,
+                                               a 9th Argentine for 8 groups, rc -2; the next best club instead) */
+                for (int q = 0; q < m; q++) na_ += assoc(x[q]) == a;
+                if (na_ < cap) b = i;
+            }
         if (!b) break;
         taken[b] = 1;
         reached(b, c, r);

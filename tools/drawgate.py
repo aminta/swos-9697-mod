@@ -137,17 +137,39 @@ def rounds(confs):
             if t not in (conti.OUT, conti.CHAMP) and n:
                 fed.setdefault((t >> 4, t & 15), []).append(((c, j), kind, n))
 
+    places = {}                                         # (each association's direct places, all cups)
+    for (c, j), d in direct.items():
+        for a, x in d.items():
+            places[a] = places.get(a, 0) + x
+    hcup = {}                                           # (holder slots by cup, the UEFA holder's too: hold lacks it)
+    for si, c, jf, _ in holders:
+        hcup.setdefault(c, []).append(jf)
+
     def exact(src, kind):
         """a same_assoc_pairs knockout round fed by direct places only: its winners (losers) are exactly half of
-        each association's clubs (every tie two of one association) - else None"""
+        each association's clubs (every tie two of one association, conti.c draw_ko D_SAMEPAIRS) -> ({assoc: n},
+        None), else (None, why): the loose bound. The precondition (MC 11/11 check 2; access() in conti.c):
+        winners / losers routes only; no route in; no holder slot in the round, no CAF own-place holder in the cup
+        (its league place skipped, not refilled), no vacant holder place there; every direct place filled
+        (no association with more places than clubs: next_club() 0, a bye); even counts summing to the round's
+        size. (Test builds' CONTI_FORCE '!' place may swap an entrant: CT_SDRAW_HIT is the harness backstop.)"""
         b = R[src]
-        if b[0] != conti.K['ko'] or b[4] != conti.DRAW['same_assoc_pairs'] or kind > 1 or fed.get(src) or \
-                hold.get(src):
-            return None
+        if b[0] != conti.K['ko'] or b[4] != conti.DRAW['same_assoc_pairs']:
+            return None, 'not a same_assoc_pairs knockout'
+        if kind > 1:
+            return None, 'not a winners / losers route'
+        if fed.get(src):
+            return None, 'routes in'
+        if any((jf & 0x1F) == src[1] or jf & 0x80 for jf in hcup.get(src[0], ())):
+            return None, 'holder slot'
         d = direct.get(src, {})
-        if any(x % 2 for x in d.values()) or sum(d.values()) != b[18]:
-            return None
-        return {a: x // 2 for a, x in d.items()}
+        if any(places[a] > cap.get(a, places[a]) for a in d):
+            return None, 'association short of clubs'
+        if any(x % 2 for x in d.values()):
+            return None, 'odd association count'
+        if sum(d.values()) != b[18]:
+            return None, 'direct places != round size'
+        return {a: x // 2 for a, x in d.items()}, None
 
     out = []
     for (c, j), b in sorted(R.items()):
@@ -155,13 +177,17 @@ def rounds(confs):
             continue
         ng, gs, rule, pr = b[6], b[7], b[5], bool(b[16] & 2)
         d = dict(direct.get((c, j), {}))
-        var = {}                                        # (the variable clubs' bound: draw_bound's flows for this
+        var, ok, loose = {}, [], []                     # (the variable clubs' bound: draw_bound's flows for this
         for src, kind, n in fed.get((c, j), ()):         #  round, an exact source's clubs fixed instead)
-            ex = exact(src, kind)
+            ex, why = exact(src, kind)
             if ex is not None:
+                assert sum(ex.values()) == n, ('drawgate: exact source != places sent', src, kind, ex, n)
                 for a, x in ex.items():
                     d[a] = d.get(a, 0) + x
+                ok.append(f'{src[0]}.{src[1]}{"wl"[kind]}')
                 continue
+            if R[src][4] == conti.DRAW['same_assoc_pairs'] and R[src][0] == conti.K['ko']:
+                loose.append(f'{src[0]}.{src[1]}: {why}')
             for a, x in cnt.get(src, {}).items():
                 var[a] = var.get(a, 0) + min(n, x)
         for si in hold.get((c, j), ()):
@@ -178,7 +204,8 @@ def rounds(confs):
         av = {a: x for a, x in av.items() if x > 0}
         nvar = min(size - nd, sum(av.values()))
         out.append(dict(c=c, j=j, rule=rule, ng=ng, gs=gs, pr=pr, direct=d, avail=av, nvar=nvar,
-                        via=rule == A_NOVIA, region={a: areg[a] & 1 for a in set(d) | set(av)} if pr else {}))
+                        via=rule == A_NOVIA, region={a: areg[a] & 1 for a in set(d) | set(av)} if pr else {},
+                        exact=ok, loose=loose))
     return out
 
 
@@ -289,7 +316,8 @@ def gate(confs, cups, assocs, quiet=False):
                 rw = (out[0], ms_txt, ws.value)
         res['rounds'].append(dict(cup=f'{cups[r["c"]][0]}:{cups[r["c"]][1]}', round=r['j'], kind=kind,
                                   multisets=len(ms), saturated=nsat, random=len(ms) - nsat if kind != 'exhaustive' else 0,
-                                  game_seeds=len(gs_), worst_steps=rw[0], worst=rw[1], fails=fails[:8], nfail=len(fails)))
+                                  game_seeds=len(gs_), worst_steps=rw[0], worst=rw[1], fails=fails[:8], nfail=len(fails),
+                                  exact_src=r['exact'], loose_sap=r['loose']))
         if fails:
             res['result'] = 'FAIL'
             res.setdefault('fail', fails[0])
@@ -297,6 +325,8 @@ def gate(confs, cups, assocs, quiet=False):
             print(f'drawgate: {res["rounds"][-1]["cup"]} r{r["j"]} {kind} {len(ms)} multisets x {NSEED} seeds '
                   f'({len(gs_)} game): worst {rw[0]} steps [{rw[1]}], {len(fails)} FAIL ({time.time() - t0:.0f} s)',
                   flush=True)
+        if r['loose'] and not quiet:                    # (MC 11/11: a same_assoc_pairs source on the loose bound)
+            print(f'drawgate:   loose same_assoc_pairs source(s): {"; ".join(r["loose"])}', flush=True)
     for ri in range(len(res['rounds'])):                # (the exact count: each round's most-steps job - steps and
         js = [jb for jb in jobs if jb['r'] == ri]        #  instructions go together; the rest: under the cap or not)
         if js:

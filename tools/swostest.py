@@ -383,6 +383,8 @@ def build(name, env=None, branch=None, lang='it', euro=False):
             benv.pop('EURO_OPTIONAL', None)
         elif 'EURO_OPTIONAL' not in (env or {}):     # (not in the key: the exe is the same whenever the patch went in)
             benv['EURO_OPTIONAL'] = '1'
+        benv.setdefault('HOSTTEST_SYMS', '1')         # (4.2 AFC mode: ctdraw's counters for ctsd_check - the exe the
+                                                     #  same, its labels beside it; not in the key)
         subprocess.run([sys.executable, '-c', code, tmp, MAIN], cwd=src, check=True, env=benv)
         if os.path.exists(miss):                     # not a reference build: never reused, rebuilt next time
             print(f'BUILD WARNING {name}: C objects compiled here, not the reference Mac\'s: {open(miss).read().strip()}',
@@ -1347,11 +1349,16 @@ class Session:
         self.box = Dosbox(self.run, timeout, shots)
         self.result = None
         self.log = []
+        self.ctsd = ctsd_syms(exe_dir)
 
     def __enter__(self):
         return self
 
     def __exit__(self, *a):
+        try:                                            # (4.2 AFC mode: ctdraw's counters, the game still paused)
+            ctsd_check(self)
+        except Exception as e:
+            self.log.append(f'ctdraw: counters not read ({type(e).__name__}: {e})')
         self.box.kill()
         el = time.time() - self.box.t0
         if getattr(self.box, 'status', None):
@@ -2299,6 +2306,62 @@ def nat_callups(s, limit=120):
 # slot 4: the country's play-offs, the supercups, the Coppa D), else -- an id the data does not know (the continental
 # cups, the original game's contests) -- one of every known name (logged as a fallback). Errors FAIL the scenario.
 LABEL_ERRS, LABEL_STATS = [], {'rows': 0, 'keyed': 0, 'fallback': set()}
+CTSD_ERRS, CTSD_STATS = [], {'sessions': 0, 'n': 0, 'nosyms': 0}
+_CTSD_SYMS = {}
+
+
+def ctsd_syms(exe_dir):
+    """4.2 AFC mode (MC 11/11 gate item 4): ctdraw's counters in obj4 -> {'N': off, 'ERR': off, 'HIT': off,
+    'force': bool} or None. From the exe dir's ITALIAN.syms.json (a HOSTTEST_SYMS=1 build: scenario builds always),
+    else CT_SYMS=<dir> holding <md5 of the exe>.syms.json (a release build's, rebuilt with HOSTTEST_SYMS=1: the exe
+    byte-identical)."""
+    exe = exe_dir if os.path.isfile(exe_dir) else os.path.join(exe_dir, 'ITALIAN.EXE')
+    if not os.path.isfile(exe):
+        exe = os.path.join(exe_dir, 'ENGLISH.EXE')
+    if exe in _CTSD_SYMS:
+        return _CTSD_SYMS[exe]
+    path = os.path.splitext(exe)[0] + '.syms.json'
+    if not os.path.isfile(path) and os.environ.get('CT_SYMS') and os.path.isfile(exe):
+        path = os.path.join(os.environ['CT_SYMS'], hashlib.md5(open(exe, 'rb').read()).hexdigest() + '.syms.json')
+    got = None
+    if os.path.isfile(path):
+        lr = json.load(open(path)).get('lrank', {})
+        if all(f'CT_SDRAW_{k}' in lr for k in ('N', 'ERR', 'HIT')):
+            got = {k: lr[f'CT_SDRAW_{k}'][1] for k in ('N', 'ERR', 'HIT')}
+            got['force'] = 'CT_SDRAW_FORCE' in lr
+            cs = json.load(open(path)).get('conti', {})
+            cs = cs.get('syms.CT_SDRAW') or cs.get('SYMS.CT_SDRAW')
+            if cs and cs[0] == 1 and lr.get('ct_place', [0])[0] == 4:   # (obj4's base from conti's obj1 pointer to
+                got['ptr'] = (cs[1], lr['ct_place'][1])                #  ct_place: 4 bytes, not base4's 32 MB scan)
+            assert all(lr[f'CT_SDRAW_{k}'][0] == 4 for k in ('N', 'ERR', 'HIT')), ('ctsd: not obj4', path)
+    _CTSD_SYMS[exe] = got
+    return got
+
+
+def ctsd_check(s):
+    """the session's ctdraw counters at its last pause (cumulative since the exe started): ERR == 0 (a refused group
+    draw; a CTDRAW_FORCE test build excepted) and HIT == 0 (a draw out of its search budget) - else the scenario
+    FAILs (the run loop, as LABEL_ERRS)"""
+    sy = getattr(s, 'ctsd', None)
+    r = s.result
+    if not sy or r is None or getattr(r, 'outcome', None) != 'dump' or r.box is None or r.base1 is None:
+        if not sy:
+            CTSD_STATS['nosyms'] += 1
+        return
+    if sy.get('ptr'):
+        b4 = struct.unpack('<I', bytes(r.read(r.base1 + sy['ptr'][0], 4)))[0] - sy['ptr'][1]
+    else:
+        b4 = r.base4
+    if b4 is None or b4 <= 0:
+        return
+    v = {k: struct.unpack('<I', bytes(r.read(b4 + sy[k], 4)))[0] for k in ('N', 'ERR', 'HIT')}
+    CTSD_STATS['sessions'] += 1
+    CTSD_STATS['n'] += v['N']
+    s.log.append(f'ctdraw: CT_SDRAW_N {v["N"]} ERR {v["ERR"]:#x} HIT {v["HIT"]}')
+    if v['HIT']:
+        CTSD_ERRS.append(f'{os.path.basename(s.run)}: CT_SDRAW_HIT {v["HIT"]} (a group draw out of its search budget)')
+    if v['ERR'] and not sy['force']:
+        CTSD_ERRS.append(f'{os.path.basename(s.run)}: CT_SDRAW_ERR {v["ERR"]:#x} (a group draw refused: tag << 8 | -rc)')
 CAL_CUR_AT, D8CAA_AT, D6CDC_AT, STR_BASE_AT = 0x1B52A, 0x18DF4, 0x16E26, 0x16F8   # (obj2, every language's exe)
 GLA_AT, ARR_AT = 0xB440C, 0x18E40                 # gameListArray, arrayOfPointers (CareerGameListCommon; every exe)
 _WORLD_AT = {}                                    # (game dir, exe, mtime, size) -> someLeaguesTable[1845] (cf_slt)
@@ -30669,9 +30732,16 @@ def main(argv):
             try:
                 del LABEL_ERRS[:]
                 LABEL_STATS.update(rows=0, keyed=0, fallback=set())
+                del CTSD_ERRS[:]
+                CTSD_STATS.update(sessions=0, n=0, nosyms=0)
                 ok, msg = SCENARIOS[n]()
                 if ok and LABEL_ERRS:                       # (4.0.5: a wrong competition name FAILs the scenario)
                     ok, msg = False, f'contest names: {LABEL_ERRS[:3]}; ' + msg
+                if ok and CTSD_ERRS:                        # (4.2 AFC mode: a refused / out-of-budget group draw)
+                    ok, msg = False, f'ctdraw: {CTSD_ERRS[:3]}; ' + msg
+                if CTSD_STATS['sessions']:
+                    msg += f" [ctdraw: {CTSD_STATS['sessions']} sessions, {CTSD_STATS['n']} draws, ERR/HIT 0]" \
+                        if not CTSD_ERRS else ''
                 if LABEL_STATS['rows']:
                     msg += f" [names: {LABEL_STATS['rows']} rows, {LABEL_STATS['keyed']} keyed" + \
                         (f", fallback {sorted(LABEL_STATS['fallback'])[:6]}" if LABEL_STATS['fallback'] else '') + ']'

@@ -20819,9 +20819,11 @@ def world_conti_q1q2():
 
 @scenario
 def world_conti_drop_lib():
-    """conti_drop: FLAMENGO forced into the Libertadores' third qualifying round (lib:q3), losing it -> the
+    """conti_drop: FLAMENGO forced into the Libertadores' third qualifying round in an entrant's place (lib:q3!, MC
+    11/11: a plain extra entrant left the Sudamericana groups outside the draw gate's bound - CT_SDRAW_ERR 0x11102,
+    no group draw), losing it -> the
     Sudamericana groups (conmebol 'losers' q3 -> sud:groups): a Sudamericana group match played, season 2 ends"""
-    return conti_drop('lib', 'lib:q3', 'SUDAMERICA,BRASILE,BRASILEIRAO SERIE A,FLAMENGO', 'SUDAMERICANA')
+    return conti_drop('lib', 'lib:q3!', 'SUDAMERICA,BRASILE,BRASILEIRAO SERIE A,FLAMENGO', 'SUDAMERICANA')
 
 
 @scenario
@@ -24215,7 +24217,9 @@ def world_conti411_oldsave():
 
 @scenario
 def world_contiview_tie():
-    """4.0.6 COPPE CONTINENTALI with the career club in a conti cup (M4): a FLAMENGO career on a test build with
+    """(MC 11/11: CHAPECOENSE with lib:q1! - on the 2026-27 data FLAMENGO holds the Libertadores, into its groups;
+    a plain extra entrant left later draws outside the gate's bound. FLAMENGO below reads CHAPECOENSE.)
+    4.0.6 COPPE CONTINENTALI with the career club in a conti cup (M4): a FLAMENGO career on a test build with
     CONTI_FORCE=lib:q1 (the club into the Libertadores' first qualifying round at every season end) and CONTI_KOWIN (it
     wins its conti ties). Season 1 played; season 2 (its save) saved at its 5th Libertadores result screen (q3's first
     leg, September: q1 and q2, August, are over). The view (CONMEBOL first, the club's own): q1 and q2 list FLAMENGO's
@@ -24229,14 +24233,14 @@ def world_contiview_tie():
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
     exe = os.environ.get('CV_TIE_BUILD') or build('world_contiview_tie', env={
         'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]),
-        'CONTI_FORCE': 'lib:q1', 'CONTI_KOWIN': '1'}, lang=UI)
+        'CONTI_FORCE': 'lib:q1!', 'CONTI_KOWIN': '1'}, lang=UI)
     tr = cv_trace(exe)
     if not tr:
         return False, 'no CVTRPTR block (ctview not in the build)'
     seg_at, ed_at = tr[0], tr[1]
     import ctview
     T = [ui_label(x) for x in ctview.TEXTS[UI]]
-    team = 'SUDAMERICA,BRASILE,BRASILEIRAO SERIE A,FLAMENGO'
+    team = 'SUDAMERICA,BRASILE,BRASILEIRAO SERIE A,CHAPECOENSE'
     mid = os.environ.get('CV_TIE_S2') or os.path.join(RUNS, f'cv_tie_{UI}.CAR')
     opp = None
     if not os.path.exists(mid):
@@ -24253,7 +24257,7 @@ def world_contiview_tie():
         shutil.copy(msg.split(': ', 1)[1], mid)
         res = [ln for ln in l2 if ln.startswith('[') and 'LIBERTADORES' in ln.split('|')[0] and '- RISULTATO -' in ln]
         if res:                                         # (the last one: q3's first leg - its two clubs)
-            opp = [t for t in (x.strip() for x in res[-1].split('|')) if t and t != 'FLAMENGO']
+            opp = [t for t in (x.strip() for x in res[-1].split('|')) if t and t != 'CHAPECOENSE']
     errs, info = [], []
     with Session('world_contiview_tie', exe, {'W84A.CAR': mid}, 'dump:2', 300) as s:
         s.wait()
@@ -24287,13 +24291,13 @@ def world_contiview_tie():
                 break
             if x == 'COPA LIBERTADORES' or lib:
                 lib.append(x)
-        fl = [x for x in lib if 'FLAMENGO' in x]
-        info.append(f'FLAMENGO lines {fl}')
-        check(len(fl) >= 3, f'FLAMENGO in fewer than 3 Libertadores rounds: {lib}', errs)
+        fl = [x for x in lib if 'CHAPECOENSE' in x]
+        info.append(f'CHAPECOENSE lines {fl}')
+        check(len(fl) >= 3, f'CHAPECOENSE in fewer than 3 Libertadores rounds: {lib}', errs)
         if len(fl) >= 3:
-            check(all('(FLAMENGO)' in x for x in fl[:2]), f"q1 / q2 without FLAMENGO in brackets: {fl[:2]}", errs)
+            check(all('(CHAPECOENSE)' in x for x in fl[:2]), f"q1 / q2 without CHAPECOENSE in brackets: {fl[:2]}", errs)
             check('(' not in fl[2], f"q3 (its next game) with brackets: {fl[2]}", errs)
-            other = [x.strip(' ()') for x in fl[2].split(' - ') if 'FLAMENGO' not in x]
+            other = [x.strip(' ()') for x in fl[2].split(' - ') if 'CHAPECOENSE' not in x]
             if opp is not None:                         # (its other club exactly one of that screen's texts)
                 check(len(other) == 1 and other[0] in opp, f'q3 tie {fl[2]!r} is not the result screen\'s', errs)
             later = lib[lib.index(fl[2]) + 1:]
@@ -24494,7 +24498,8 @@ def world_ctgoals():
 
 @scenario
 def world_cgame_self():
-    """4.0.6 option C, P1 gate: the builder (ctgame.c - the view's contests by the game's own code into the scratch)
+    """(MC 11/11: CHAPECOENSE with lib:q1!, as world_contiview_tie. FLAMENGO below reads CHAPECOENSE.)
+    4.0.6 option C, P1 gate: the builder (ctgame.c - the view's contests by the game's own code into the scratch)
     against the game's own slot-3 contests. A FLAMENGO career on a CONTI_FORCE=lib:q1 + CONTI_KOWIN + CONTI_CGTEST
     test build: in season 2 every contest conti's ct_build puts in slot 3 from the daily (the Libertadores' q2, q3 ties,
     its group stage; q1 is built at the season start) is rebuilt at once by cg_build from conti.c's replay and must be byte-identical to slot 3 (cg_selftest:
@@ -24506,7 +24511,7 @@ def world_cgame_self():
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
     fill = os.environ.get('CG_FILL')
     env = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]),
-           'CONTI_FORCE': 'lib:q1', 'CONTI_KOWIN': '1', 'CONTI_CGTEST': '1'}
+           'CONTI_FORCE': 'lib:q1!', 'CONTI_KOWIN': '1', 'CONTI_CGTEST': '1'}
     if fill:
         env['CG_FILL_TEST'] = '5A'
     exe = os.environ.get('CG_BUILD') or build('world_cgame_self' + ('_fill' if fill else ''), env=env, lang=UI)
@@ -24514,7 +24519,7 @@ def world_cgame_self():
     if not tr:
         return False, 'no CGTRPTR block (ctgame not in the build)'
     t_at = tr[0]
-    team = 'SUDAMERICA,BRASILE,BRASILEIRAO SERIE A,FLAMENGO'
+    team = 'SUDAMERICA,BRASILE,BRASILEIRAO SERIE A,CHAPECOENSE'
     s1 = os.environ.get('CG_S1') or os.path.join(RUNS, f'cg_self_s1_{UI}.CAR')
     if not os.path.exists(s1):
         ok, msg, _ = sc_season(team, dict(W8485_BUILD=exe))
@@ -30759,8 +30764,8 @@ def main(argv):
                 ok, msg = SCENARIOS[n]()
                 if ok and LABEL_ERRS:                       # (4.0.5: a wrong competition name FAILs the scenario)
                     ok, msg = False, f'contest names: {LABEL_ERRS[:3]}; ' + msg
-                if ok and CTSD_ERRS:                        # (4.2 AFC mode: a refused / out-of-budget group draw)
-                    ok, msg = False, f'ctdraw: {CTSD_ERRS[:3]}; ' + msg
+                if CTSD_ERRS:                               # (4.2 AFC mode: a refused / out-of-budget group draw -
+                    ok, msg = False, f'ctdraw: {CTSD_ERRS[:3]}; ' + msg   # named on a FAIL too: often its cause)
                 if CTSD_STATS['sessions']:
                     msg += f" [ctdraw: {CTSD_STATS['sessions']} sessions, {CTSD_STATS['n']} draws, ERR/HIT 0]" \
                         if not CTSD_ERRS else ''

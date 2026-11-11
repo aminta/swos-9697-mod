@@ -202,6 +202,14 @@ PASS with 'SKIP: ... is IT only'), never a deep FAIL. world_strmap: STM_BUILD de
 DATA/STRMAP41.DAT); without one, or without a 4.1 save in SWOSTEST_UI's language (suite-41rc3-L1/cgg_s2_A_<UI>.CAR,
 only IT today; STM_CAR), it is a SKIP. No STM_BUILD needed, on the server too.
 
+**Forced scenarios self-build** (4.1.1 RC2, 11/11: the trap hit twice): a scenario that forces its case with a test
+switch (GPLAY_FORCE, GPLAY_GFFORCE / GFIDX / KOFORCE, CONTI_FORCE, CD_FORCE...: world_gplay_poule(_save),
+world_gplay_nzgf_* except _real / _41save / _oldsave, world_conti_* force cases) builds its own exe with that switch.
+Never give it the release dir through GPLAY_BUILD / SWOSTEST_BUILD / W8485_BUILD: the release exe has no switches, so
+the forced case never happens and the scenario FAILs on the wrong contest (e.g. 'Poule kind 9 n 2 slot 4',
+'Championship kind 0 n 0'). In a release gate run them with no *_BUILD in their env (self-built from the release
+sha's tree); give the release dir only to the natural scenarios (oldsave set, s1conti, cupd_format, euro_money...).
+
 ## 6. Adding a scenario
 
 1. Write `@scenario def name(): """one-line purpose"""` returning `(ok, message)`.

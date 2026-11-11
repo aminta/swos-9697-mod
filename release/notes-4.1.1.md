@@ -2,7 +2,7 @@
 
 **SWOS 96/97 Mod 4.1.1**
 
-4.1.1 is a small update that fixes three things in the 2026-27 world: New Zealand's championship final, the group draws of the continental cups, and a line on the Coppa Italia Serie D page. Everything in 4.1 stays as it was; careers saved with 4.0 up to 4.1 load and play on.
+4.1.1 is a small update that fixes a few things: in the 2026-27 world, New Zealand's championship final, the group draws of the continental cups, a line on the Coppa Italia Serie D page and the Serie D Poule Scudetto winner sent to the Champions League; in every world, a cursor that could get stuck on a screen's title; and, in the patcher, the joypad boxes. Everything in 4.1 stays as it was; careers saved with 4.0 up to 4.1 load and play on.
 
 ### What's new
 
@@ -15,15 +15,21 @@ Continental cup group draws no longer put two clubs from the same country in one
 #### Coppa Italia Serie D: the FORMAT page tells the whole rule
 The FORMAT page of the Coppa Italia Serie D now says that the home and away alternation (the club that was away in its previous tie plays at home) only goes up to the quarter-finals. The semi-finals and the final are played over two legs.
 
+### Fixes
+- Fixed: on some screens (for example the COPPA ITALIA SERIE C results) the cursor could get stuck on the title bar and could not move down.
+- Fixed: winning the Serie D Poule Scudetto no longer puts the club in the next season's Champions League; the European places come only from Serie A and the Coppa Italia.
+- Patcher: ticking "GOG version, joypad in keyboard mode" now also ticks "GOG version: I have a joypad", and unticking the first box unticks the keyboard mode too. Playing with the keyboard only? Leave the joypad boxes unticked.
+
 ### Good to know
 - Careers saved with 4.0, 4.0.1, 4.0.2, 4.0.5 and 4.1 load and play on. In an older save, a continental cup that has already started keeps its draw; the new rules apply from the next edition.
 - You do not need to start a new career to get the New Zealand fix: it applies from the next Grand Final that is still to be decided (a save made after the Championship group ended and before its final keeps the old behaviour for that one final).
+- The Poule Scudetto fix also needs no new career: it applies from the next end of season. A save made after a season has ended keeps the European places already given out for that season.
 
 ## Italiano
 
 **SWOS 96/97 Mod 4.1.1**
 
-La 4.1.1 è un piccolo aggiornamento che sistema tre cose nel mondo 2026-27: la finale del campionato della Nuova Zelanda, i sorteggi dei gironi delle coppe continentali e una riga della pagina della Coppa Italia Serie D. Tutto quello che c'era nella 4.1 resta com'era; le carriere salvate con la 4.0 fino alla 4.1 si caricano e si giocano normalmente.
+La 4.1.1 è un piccolo aggiornamento che sistema alcune cose: nel mondo 2026-27 la finale del campionato della Nuova Zelanda, i sorteggi dei gironi delle coppe continentali, una riga della pagina della Coppa Italia Serie D e la vincitrice della Poule Scudetto di Serie D mandata in Champions League; in tutti i mondi un cursore che poteva restare bloccato sul titolo di una schermata; e, nel patcher, le caselle del joypad. Tutto quello che c'era nella 4.1 resta com'era; le carriere salvate con la 4.0 fino alla 4.1 si caricano e si giocano normalmente.
 
 ### Novità
 
@@ -36,6 +42,12 @@ I sorteggi dei gironi delle coppe continentali non mettono più due squadre dell
 #### Coppa Italia Serie D: la pagina FORMAT dice tutta la regola
 La pagina FORMAT della Coppa Italia Serie D ora dice che l'alternanza casa/trasferta (gioca in casa chi era in trasferta nel turno prima) arriva solo fino ai quarti di finale. Semifinali e finale si giocano con andata e ritorno.
 
+### Correzioni
+- Corretto: in alcune schermate (per esempio i risultati della COPPA ITALIA SERIE C) il cursore poteva restare bloccato sulla barra del titolo senza riuscire a scendere.
+- Corretto: vincere la Poule Scudetto di Serie D non porta più il club in Champions League la stagione dopo; i posti europei arrivano solo dalla Serie A e dalla Coppa Italia.
+- Patcher: spuntando "Versione GOG, joypad in modalità tastiera" si spunta anche "Versione GOG: ho un joypad", e togliendo la prima spunta si toglie anche la modalità tastiera. Giochi solo con la tastiera? Lascia vuote le caselle del joypad.
+
 ### Da sapere
 - Le carriere salvate con la 4.0, la 4.0.1, la 4.0.2, la 4.0.5 e la 4.1 si caricano e si giocano normalmente. In un salvataggio vecchio, una coppa continentale già cominciata tiene il suo sorteggio; le nuove regole valgono dalla prossima edizione.
 - Non serve cominciare una nuova carriera per avere la correzione della Nuova Zelanda: vale dalla prossima finale ancora da decidere (un salvataggio fatto tra la fine del girone del Championship e la sua finale tiene il vecchio comportamento per quella sola finale).
+- Anche per la correzione della Poule Scudetto non serve una nuova carriera: vale dalla prossima fine stagione. Un salvataggio fatto a stagione già finita tiene i posti europei già assegnati per quella stagione.

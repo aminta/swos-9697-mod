@@ -19,6 +19,7 @@ The FORMAT page of the Coppa Italia Serie D now says that the home and away alte
 - Fixed: on some screens (for example the COPPA ITALIA SERIE C results) the cursor could get stuck on the title bar and could not move down.
 - Fixed: winning the Serie D Poule Scudetto no longer puts the club in the next season's Champions League; the European places come only from Serie A and the Coppa Italia.
 - Patcher: ticking "GOG version, joypad in keyboard mode" now also ticks "GOG version: I have a joypad", and unticking the first box unticks the keyboard mode too. Playing with the keyboard only? Leave the joypad boxes unticked.
+- Patcher in Chrome: Chrome does not let a web page open folders inside Program Files, where the GOG version installs, so the first button could not read the game there. The second button now reads the game folder in Chrome too (Chrome asks you to confirm the upload; your files stay on your PC); or use Edge.
 
 ### Good to know
 - Careers saved with 4.0, 4.0.1, 4.0.2, 4.0.5 and 4.1 load and play on. In an older save, a continental cup that has already started keeps its draw; the new rules apply from the next edition.
@@ -46,6 +47,7 @@ La pagina FORMAT della Coppa Italia Serie D ora dice che l'alternanza casa/trasf
 - Corretto: in alcune schermate (per esempio i risultati della COPPA ITALIA SERIE C) il cursore poteva restare bloccato sulla barra del titolo senza riuscire a scendere.
 - Corretto: vincere la Poule Scudetto di Serie D non porta più il club in Champions League la stagione dopo; i posti europei arrivano solo dalla Serie A e dalla Coppa Italia.
 - Patcher: spuntando "Versione GOG, joypad in modalità tastiera" si spunta anche "Versione GOG: ho un joypad", e togliendo la prima spunta si toglie anche la modalità tastiera. Giochi solo con la tastiera? Lascia vuote le caselle del joypad.
+- Patcher in Chrome: Chrome non lascia aprire a una pagina web le cartelle dentro Programmi (Program Files), dove si installa la versione GOG, quindi il primo pulsante lì non riusciva a leggere il gioco. Ora il secondo pulsante legge la cartella del gioco anche in Chrome (Chrome chiede di confermare il caricamento; i tuoi file restano sul tuo PC); oppure usa Edge.
 
 ### Da sapere
 - Le carriere salvate con la 4.0, la 4.0.1, la 4.0.2, la 4.0.5 e la 4.1 si caricano e si giocano normalmente. In un salvataggio vecchio, una coppa continentale già cominciata tiene il suo sorteggio; le nuove regole valgono dalla prossima edizione.

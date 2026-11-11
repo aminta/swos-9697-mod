@@ -210,15 +210,19 @@ the forced case never happens and the scenario FAILs on the wrong contest (e.g. 
 'Championship kind 0 n 0'). In a release gate run them with no *_BUILD in their env (self-built from the release
 sha's tree); give the release dir only to the natural scenarios (oldsave set, s1conti, cupd_format, euro_money...).
 
-**CONTI_FORCE=<cup>:<round>[!]** (conti.c access, test builds only). Plain: the career club is an EXTRA entrant of
-that round, placed before the access (its own places pass down). '<round>!': the club is held out of the access and,
-after it, takes the place of one of the round's entrants, the round's order kept - first an entrant of its own
-ASSOCIATION (the association counts stay exactly the data's: later same_assoc draws test the game, not the force),
-else one of its own region (4.2 AFC per-region rounds), else the one sharing the most cups with its association; an
-empty round (fed only by routes, e.g. lib:q3): an extra entrant. Pick the career club by the data's access places:
-a club of an association WITH a place in that round (lib:q1 -> a Bolivian club: bol q1 = its 3rd place), never a
-Brazilian on lib:q1 - one Brazilian more than the data left the Sudamericana groups with no draw (CT_SDRAW_ERR
-0x11102, rc -2; MC 11/11). A plain extra entrant can do the same: CT_SDRAW_ERR FAILs the scenario (4.2).
+**CONTI_FORCE=<cup>:<round>[!]**, **CONTI_FORCE2=<cup>:<round>** (conti.c, test builds only; root fix D, MC
+11/11: plain and '!' are now the same). The career club is held out of the access - its own league / cup places pass
+down the table, as the game does for a club already in a cup - and kept in the edition with no place (never a group
+fill). When the forced round is played (ct_round, every re-run) it TAKES THE PLACE of the weakest (ranking points)
+entrant of its own ASSOCIATION in that round, the round's order kept: the association counts stay exactly the data's,
+so the draws test the game, not the force. A holders' cup (no access place: the Recopa, the Intercontinental, the CAF
+Super Cup - no association rule): the entrant sharing the most cups with its association. Already in that cup: nothing.
+No entrant of its association (e.g. a Brazilian on lib:q1, an empty round fed only by routes): the club is added as an
+extra and conti.c sets CT_OUT.pad[0] = 1 (sticky for the exe run); the harness reads it at every pause (force_check,
+the build dir's .conti_force marker) and the scenario ends **SETUP-ERROR** (counted as bad, never PASS or FAIL: the
+scenario's set-up is wrong, pick a club of an association WITH a place in that round - lib:q1 -> a Bolivian club).
+Before D a plain force was an extra entrant: one Brazilian more than the data left the Sudamericana groups with no
+draw (CT_SDRAW_ERR 0x11102, rc -2).
 
 ## 6. Adding a scenario
 

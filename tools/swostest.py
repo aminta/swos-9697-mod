@@ -386,6 +386,8 @@ def build(name, env=None, branch=None, lang='it', euro=False):
         benv.setdefault('HOSTTEST_SYMS', '1')         # (4.2 AFC mode: ctdraw's counters for ctsd_check - the exe the
                                                      #  same, its labels beside it; not in the key)
         subprocess.run([sys.executable, '-c', code, tmp, MAIN], cwd=src, check=True, env=benv)
+        if benv.get('CONTI_FORCE') or benv.get('CONTI_FORCE2'):   # (root fix D: force_check reads CT_OUT.pad[0])
+            open(os.path.join(tmp, '.conti_force'), 'w').write(f"{benv.get('CONTI_FORCE', '')} {benv.get('CONTI_FORCE2', '')}\n")
         if os.path.exists(miss):                     # not a reference build: never reused, rebuilt next time
             print(f'BUILD WARNING {name}: C objects compiled here, not the reference Mac\'s: {open(miss).read().strip()}',
                   flush=True)
@@ -1350,6 +1352,7 @@ class Session:
         self.result = None
         self.log = []
         self.ctsd = ctsd_syms(exe_dir)
+        self.ctout = ctout_at(exe_dir)
 
     def __enter__(self):
         return self
@@ -1359,6 +1362,10 @@ class Session:
             ctsd_check(self)
         except Exception as e:
             self.log.append(f'ctdraw: counters not read ({type(e).__name__}: {e})')
+        try:
+            force_check(self)
+        except Exception as e:
+            self.log.append(f'force: error byte not read ({type(e).__name__}: {e})')
         self.box.kill()
         el = time.time() - self.box.t0
         if getattr(self.box, 'status', None):
@@ -2308,6 +2315,37 @@ def nat_callups(s, limit=120):
 LABEL_ERRS, LABEL_STATS = [], {'rows': 0, 'keyed': 0, 'fallback': set()}
 CTSD_ERRS, CTSD_STATS = [], {'sessions': 0, 'n': 0, 'nosyms': 0}
 _CTSD_SYMS = {}
+FORCE_ERRS, _CTOUT_AT = [], {}                   # (MC 11/11 root fix D: conti.c force_in's error byte, SETUP-ERROR)
+
+
+def ctout_at(exe_dir):
+    """obj2 offset of conti.c's CT_OUT (cv_trace) for a CONTI_FORCE / CONTI_FORCE2 test build, else None"""
+    if exe_dir not in _CTOUT_AT:
+        got = None
+        try:
+            if os.path.isfile(os.path.join(exe_dir, 'ITALIAN.EXE')) and \
+                    os.path.isfile(os.path.join(exe_dir, '.conti_force')):
+                tr = cv_trace(exe_dir)
+                got = tr[2] if tr else None
+        except Exception:
+            got = None
+        _CTOUT_AT[exe_dir] = got
+    return _CTOUT_AT[exe_dir]
+
+
+def force_check(s):
+    """MC 11/11 root fix D: a CONTI_FORCE / CONTI_FORCE2 test build's club found no entrant of its own association
+    to replace in the forced round (conti.c force_in: CT_OUT.pad[0] = 1, sticky for the exe run): the scenario's set-up
+    is wrong, not the game - SETUP-ERROR (the run loop), never a game FAIL or a PASS"""
+    at = getattr(s, 'ctout', None)
+    r = s.result
+    if at is None or r is None or getattr(r, 'outcome', None) != 'dump' or r.box is None or r.base2 is None:
+        return
+    v = bytes(r.obj2(at + 1, 1))[0]
+    s.log.append(f'force: CT_OUT.pad[0] {v}')
+    if v:
+        FORCE_ERRS.append(f'{os.path.basename(s.run)}: the forced club replaced no entrant of its association '
+                          f'(CONTI_FORCE / CONTI_FORCE2: added as an extra)')
 
 
 def ctsd_syms(exe_dir):
@@ -30760,6 +30798,7 @@ def main(argv):
                 del LABEL_ERRS[:]
                 LABEL_STATS.update(rows=0, keyed=0, fallback=set())
                 del CTSD_ERRS[:]
+                del FORCE_ERRS[:]
                 CTSD_STATS.update(sessions=0, n=0, nosyms=0)
                 ok, msg = SCENARIOS[n]()
                 if ok and LABEL_ERRS:                       # (4.0.5: a wrong competition name FAILs the scenario)
@@ -30782,8 +30821,11 @@ def main(argv):
                 import traceback
                 at = [f'{os.path.basename(x.filename)}:{x.lineno} {x.name}' for x in traceback.extract_tb(e.__traceback__)][-3:]
                 ok, msg = False, f'exception {type(e).__name__}: {e} (at {" < ".join(reversed(at))})'
-            bad += not ok
-            print(f'{"PASS" if ok else "FAIL"} {n} ({time.time() - t:.0f} s) {msg}', flush=True)
+            bad += not ok or bool(FORCE_ERRS)
+            res = 'SETUP-ERROR' if FORCE_ERRS else 'PASS' if ok else 'FAIL'   # (root fix D: the force's set-up, not
+            if FORCE_ERRS:                                                      #  the game: its own result)
+                msg = f'force: {FORCE_ERRS[:3]}; was {"PASS" if ok else "FAIL"}: ' + msg
+            print(f'{res} {n} ({time.time() - t:.0f} s) {msg}', flush=True)
         return 1 if bad else 0
     print(__doc__)
     return 2

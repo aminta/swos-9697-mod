@@ -500,8 +500,8 @@ def load(confs, files=None, words=None, s1=None, rank_out=False):
     force = (0xFF, 0xFF)                                # CONTI_FORCE=<cup>:<round> (test builds only): the
     if os.environ.get('CONTI_FORCE'):                   # career club enters that round at every season end
         fk, fr = os.environ['CONTI_FORCE'].split(':')
-        rep = fr.endswith('!')                          # (4.0.6 '<round>!': the club takes the place of the round's
-        fr = fr.rstrip('!')                             # entrant of its confederation - a full one-tie round stays full)
+        rep = fr.endswith('!')                          # (root fix D, MC 11/11: '!' and plain the same - conti.c
+        fr = fr.rstrip('!')                             # force_in: the place of an entrant of its association)
         fc = next((i for i, (_, c, _) in enumerate(cups) if c['key'] == fk), None)
         if fc is not None:                              # (season1_native loads one confederation at a time)
             force = (fc, rkey[fc][fr] | (0x80 if rep else 0))

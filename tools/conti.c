@@ -60,6 +60,7 @@ static int g_live = -1;                 /* 4.1.1: the cup whose game contest the
 
 /* --- the spec ----------------------------------------------------------------------------------------------------- */
 static u8 ncup, na, fcup, frnd;         /* (test builds, CONTI_FORCE: the career club into this cup's round) */
+#define FORCING (fcup < ncup || gid[ncup + 1] < ncup)   /* (test builds: CONTI_FORCE / CONTI_FORCE2 set) */
 static const u8 *cupr[NCUP];            /* first round of each cup */
 static u8 nrd[NCUP];
 static const u8 *acc;                   /* access entries: assoc, cup, round, code */
@@ -264,19 +265,10 @@ static void access(void) {
         if (k) { enter(e[1], e[2] & 0x1F, k, 0, e[3]); taken[k] = 1; if (e[2] & 0x80) own[k] = e[1] + 1; }
         /* (a holder may hold places in two cups: the Recopa; own[]: CAF, its league place in the cup is its own) */
     }
-    int fbang = 0;                      /* (test builds: the forced place - plain: an extra entrant, now; '!': held
-                                           out of the access - its own places pass down - and placed after it) */
-    if (fcup < ncup && CT_IN.manager && !taken[CT_IN.manager]) {
-        if (frnd & 0x80) fbang = 1; else enter(fcup, frnd & 15, CT_IN.manager, 0, 0);
-        taken[CT_IN.manager] = 1;
-    }
-    if (gid[ncup + 1] < ncup && CT_IN.manager) {   /* (4.1.1 test builds, CONTI_FORCE2: a second cup's round as well -
-                                                      the Recopa holder in the Libertadores) */
-        int c2 = gid[ncup + 1], r2 = gid[ncup + 2] & 15, in = 0;
-        for (int r = 0; r < nrd[c2]; r++) for (int i = 0; i < EN[c2][r]; i++) if (E[c2][r][i] == CT_IN.manager) in = 1;
-        if (!in) enter(c2, r2, CT_IN.manager, 0, 0);
-        taken[CT_IN.manager] = 1;
-    }
+    /* (test builds, CONTI_FORCE / CONTI_FORCE2 - MC 11/11 root fix D: the career club is held out of the access,
+       so its own league places pass down the table as the game does for a club already in; it takes a place in the
+       forced round when that round is played - force_in(), ct_round -, never an extra entrant) */
+    if (CT_IN.manager && FORCING) taken[CT_IN.manager] = 1;
     for (int i = 0; i < nacc; i++) {
         const u8 *e = acc + 4 * i;
         int a = e[0], c = e[1], r = e[2], k = e[3], club = 0;
@@ -295,27 +287,6 @@ static void access(void) {
         if (club && taken[club]) club = 0;          /* already in: the place passes down the table */
         if (!club) club = next_club(a);
         if (club) { enter(c, r, club, 0, 0); taken[club] = 1; }
-    }
-    if (fbang) {                        /* (test builds, '!': after the access - the round's entrants in, their
-                                           order kept - the place of the entrant of its confederation, the most cups
-                                           shared with its association; that club out; an empty round: an extra) */
-        int fr = frnd & 15;
-        if (EN[fcup][fr]) {
-            int j = 0, bj = -1;
-            for (int i = 0; i < EN[fcup][fr]; i++) {
-                int n = 0, a = assoc(E[fcup][fr][i]), am = assoc(CT_IN.manager);
-                for (int c = 0; c < ncup; c++) n += !in_cup(c, a) == !in_cup(c, am);
-                if (areg && a < na && am < na && areg[a] != 0xFF && (areg[a] & 1) == (areg[am] & 1))
-                    n += 64;            /* (4.2 AFC mode, MC 11/11: an entrant of its own region first - per-region
-                                           rounds keep their halves) */
-                if (a == am) n += 128;  /* (MC 11/11: an entrant of its own ASSOCIATION before all - the association
-                                           counts stay exactly the data's, so later same_assoc draws test the game,
-                                           not the force; none in the round: the tie-break above as before) */
-                if (n > bj) { bj = n; j = i; }
-            }
-            taken[E[fcup][fr][j]] = 0; E[fcup][fr][j] = CT_IN.manager; EV[fcup][fr][j] = 0;
-        } else
-            enter(fcup, fr, CT_IN.manager, 0, 0);
     }
     for (int v = 0; v < nvac; v++) {    /* a vacant holder place: the best ranked club not yet in (declared) */
         const u8 *e = hol + 4 * vac[v];
@@ -616,8 +587,42 @@ static int forced(int c, int r) {
     for (int i = 0; i < CT_ED.nf; i++) if (CT_ED.f[i].c == c && CT_ED.f[i].r == r) return CT_ED.f[i].v;
     return -1;
 }
+/* a cup no access place enters (the Recopa, the Intercontinental, the CAF Super Cup): holders and routes only,
+   no association rule in its draws */
+static int holders_cup(int c) {
+    for (int i = 0; i < nacc; i++) if (acc[4 * i + 1] == c) return 0;
+    return 1;
+}
+static void force_in(int c, int r) {
+    /* MC 11/11 root fix D (test builds: CONTI_FORCE / CONTI_FORCE2 name cup c's round r): the career club takes the
+       place of an entrant of its own ASSOCIATION in that round - the weakest by ranking points; the association
+       counts stay exactly the data's, so the draws test the game, not the force. A holders' cup (no association
+       rule): the entrant of its own confederation's slot (the most cups shared with its association). Already in
+       that cup: nothing. No such entrant: added as an extra entrant and CT_OUT.pad[0] = 1 (SETUP-ERROR: the
+       harness's, never a game FAIL) */
+    int m = CT_IN.manager;
+    if (!m) return;
+    for (int rr = 0; rr <= r && rr < nrd[c]; rr++)
+        for (int i = 0; i < EN[c][rr]; i++) if (E[c][rr][i] == m) return;
+    int n = EN[c][r], j = -1, am = assoc(m);
+    for (int i = 0; i < n; i++)
+        if (assoc(E[c][r][i]) == am && (j < 0 || pts(E[c][r][i]) < pts(E[c][r][j]))) j = i;
+    if (j < 0 && n && holders_cup(c)) {
+        int bj = -1;
+        for (int i = 0; i < n; i++) {
+            int k = 0, a = assoc(E[c][r][i]);
+            for (int cc = 0; cc < ncup; cc++) k += !in_cup(cc, a) == !in_cup(cc, am);
+            if (k > bj) { bj = k; j = i; }
+        }
+    }
+    if (j >= 0) { E[c][r][j] = (u16)m; EV[c][r][j] = 0; return; }
+    CT_OUT.pad[0] = 1;
+    enter(c, r, m, 0, 0);
+}
 static int ct_round(int c, int r) {
     const u8 *R = RND(c, r);
+    if (c == fcup && r == (frnd & 15)) force_in(c, r);
+    if (c == gid[ncup + 1] && r == (gid[ncup + 2] & 15)) force_in(c, r);
     int n = EN[c][r];
     if (!n) return 0;
     int fm = 0;
@@ -869,7 +874,7 @@ static void lp_clear(int c) {           /* (only its own places: the Recopa's li
 }
 static void clear_run(void) {
     for (int c = 0; c < NCUP; c++) for (int r = 0; r < NRD; r++) EN[c][r] = 0;
-    CT_OUT.ncup = ncup;
+    CT_OUT.ncup = ncup;   /* (CT_OUT.pad[0], force_in's error: sticky for the exe run, the harness reads it at a pause) */
     for (int i = 0; i < NC; i++) { CT_OUT.last[i] = OUT; CT_OUT.out_of[i] = 0; }
     for (int c = 0; c < NCUP; c++) { CT_OUT.winner[c] = CT_OUT.second[c] = 0;
         for (int r = 0; r < NRD; r++) { CT_OUT.nent[c][r] = 0; for (int i = 0; i < NE; i++) { CT_OUT.ent[c][r][i] = 0; CT_OUT.res[c][r][i] = 0; } } }
@@ -900,6 +905,10 @@ static void snapshot(void) {            /* the edition's entrants (after access)
     for (int c = 0; c < ncup; c++)
         for (int r = 0; r < nrd[c]; r++)
             for (int i = 0; i < EN[c][r]; i++) { seen[E[c][r][i]] = 1; ed_add(E[c][r][i], c << 4 | r, EK[c][r][i]); }
+    if (CT_IN.manager && FORCING && !seen[CT_IN.manager]) {   /* (a forced club in no round yet: kept in the
+                                                                 edition with no place, for force_in; never a fill) */
+        seen[CT_IN.manager] = 1; ed_add(CT_IN.manager, 0xFF, 0);
+    }
     for (int c = 0; c < ncup; c++)      /* up to 4 reserves per cup: its associations' best clubs in no cup */
         for (int k = 0; k < 4; k++) {
             int b = 0;
@@ -958,6 +967,7 @@ static int run(int stop) {              /* the edition from its entrants, the ca
         idx[i] = k;
         if (CT_ED.e[i].cr != 0xFF) taken[k] = 1;
     }
+    if (CT_IN.manager && FORCING) taken[CT_IN.manager] = 1;
     rng = CT_ED.seed ? CT_ED.seed : 1;
     clear_run();
     for (int i = 0; i < CT_ED.ne; i++)

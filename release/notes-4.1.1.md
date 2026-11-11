@@ -18,6 +18,7 @@ The FORMAT page of the Coppa Italia Serie D now says that the home and away alte
 ### Fixes
 - Fixed: on some screens (for example the COPPA ITALIA SERIE C results) the cursor could get stuck on the title bar and could not move down.
 - Fixed: winning the Serie D Poule Scudetto no longer puts the club in the next season's Champions League; the European places come only from Serie A and the Coppa Italia.
+- Fixed: in the 2026-27 world, a career club that won a continental cup outside Europe (Libertadores, Sudamericana, CAF Champions League, AFC Champions League Two) and played that continent's main cup again the next season never played its Recopa / later Intercontinental matches; and at season end the game could name your club the continental winner after it was knocked out.
 - Patcher: ticking "GOG version, joypad in keyboard mode" now also ticks "GOG version: I have a joypad", and unticking the first box unticks the keyboard mode too. Playing with the keyboard only? Leave the joypad boxes unticked.
 - Patcher in Chrome: Chrome does not let a web page open folders inside Program Files, where the GOG version installs, so the first button could not read the game there. The second button now reads the game folder in Chrome too (Chrome asks you to confirm the upload; your files stay on your PC); or use Edge.
 
@@ -46,6 +47,7 @@ La pagina FORMAT della Coppa Italia Serie D ora dice che l'alternanza casa/trasf
 ### Correzioni
 - Corretto: in alcune schermate (per esempio i risultati della COPPA ITALIA SERIE C) il cursore poteva restare bloccato sulla barra del titolo senza riuscire a scendere.
 - Corretto: vincere la Poule Scudetto di Serie D non porta più il club in Champions League la stagione dopo; i posti europei arrivano solo dalla Serie A e dalla Coppa Italia.
+- Corretto: nel mondo 2026-27, un club della carriera che aveva vinto una coppa continentale fuori dall'Europa (Libertadores, Sudamericana, CAF Champions League, AFC Champions League Two) e la stagione dopo giocava di nuovo la coppa principale di quel continente non giocava mai la Recopa né, più avanti, le partite dell'Intercontinentale; e a fine stagione il gioco poteva proclamare il tuo club vincitore della coppa continentale anche dopo che era stato eliminato.
 - Patcher: spuntando "Versione GOG, joypad in modalità tastiera" si spunta anche "Versione GOG: ho un joypad", e togliendo la prima spunta si toglie anche la modalità tastiera. Giochi solo con la tastiera? Lascia vuote le caselle del joypad.
 - Patcher in Chrome: Chrome non lascia aprire a una pagina web le cartelle dentro Programmi (Program Files), dove si installa la versione GOG, quindi il primo pulsante lì non riusciva a leggere il gioco. Ora il secondo pulsante legge la cartella del gioco anche in Chrome (Chrome chiede di confermare il caricamento; i tuoi file restano sul tuo PC); oppure usa Edge.
 

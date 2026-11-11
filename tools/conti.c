@@ -137,6 +137,7 @@ static __attribute__((noinline)) u32 pts(int c) {
     return CT_IN.club[c - 1].str / 64;
 }
 static int assoc(int c) { return CT_IN.club[c - 1].assoc; }
+#define ZONE(c) (assoc(c) < na ? areg[assoc(c)] & 1 : 1)   /* (4.2 AFC mode: a club's region; an unknown association East) */
 
 /* goals of one side: binomial(8, m / 8), m in eighths */
 static int goals(u32 m8) { int g = 0; for (int i = 0; i < 8; i++) if (below(64) < m8) g++; return g; }
@@ -382,7 +383,20 @@ static void draw_ko(int c, int r, const u8 *R) {
         return;
     }
     if (dr == D_ORDER || dr == D_BRACKET) {
-        for (int i = 0; i < n; i++) { D[i] = x[i]; DV[i] = v[i]; DK[i] = k[i]; }
+        int pr = 0;                     /* (4.2 AFC mode, ED_S editions: a per-region cup's 'order' knockout - the
+                                           ACLE / ACL Two play-offs - West first, then East, each in its order: no
+                                           tie across the regions, the groups' halves kept. Older editions as made) */
+        if (dr == D_ORDER && areg && CT_ED.pad & EDS)   /* (a knockout whose winners or losers go to a per-region
+                                                           group round: ACLE pre -> acl2 groups, acl2 pre -> its) */
+            for (int q = 10; q < 12; q++) {
+                int t = R[q];
+                if (t < 0xF0 && (t >> 4) < ncup && (t & 15) < nrd[t >> 4] && RND(t >> 4, t & 15)[0] == K_GROUPS)
+                    pr |= RND(t >> 4, t & 15)[16] & 2;
+            }
+        int m = 0;
+        for (int z = 0; z < 2; z++)
+            for (int i = 0; i < n; i++)
+                if (!pr ? !z : ZONE(x[i]) == z) { D[m] = x[i]; DV[m] = v[i]; DK[m] = k[i]; m++; }
         return;
     }
     if (dr == D_SAMEPAIRS) {            /* clubs of one association against each other, the first drawn at home */
@@ -498,11 +512,11 @@ static int draw_groups(int c, int r, const u8 *R) {   /* 0, or -1: not drawn (ED
     while (m > size) {                  /* more clubs than places (a forced test place): the weakest out */
         int w = -1, nw = 0, h = -1;
         if (pr) {
-            for (int i = 0; i < m; i++) nw += !(areg[assoc(x[i])] & 1);
+            for (int i = 0; i < m; i++) nw += !ZONE(x[i]);
             h = nw > hw ? 0 : m - nw > hw ? 1 : -1;
         }
         for (int i = 0; i < m; i++)
-            if (x[i] != CT_IN.manager && (h < 0 || (areg[assoc(x[i])] & 1) == h) && (w < 0 || pts(x[i]) < pts(x[w])))
+            if (x[i] != CT_IN.manager && (h < 0 || ZONE(x[i]) == h) && (w < 0 || pts(x[i]) < pts(x[w])))
                 w = i;
         if (w < 0) break;
         for (int i = w; i + 1 < m; i++) { x[i] = x[i + 1]; v[i] = v[i + 1]; k[i] = k[i + 1]; }
@@ -512,11 +526,11 @@ static int draw_groups(int c, int r, const u8 *R) {   /* 0, or -1: not drawn (ED
                                            club in no cup this edition (declared), so the game's contest is full */
         int b = 0, nw = 0, h = -1;      /* (per region: of the underfull half's region) */
         if (pr) {
-            for (int i = 0; i < m; i++) nw += !(areg[assoc(x[i])] & 1);
+            for (int i = 0; i < m; i++) nw += !ZONE(x[i]);
             h = nw < hw ? 0 : m - nw < hw ? 1 : -1;
         }
         for (int i = 1; i <= CT_IN.nclub; i++)
-            if (!taken[i] && in_cup(c, assoc(i)) && (h < 0 || (areg[assoc(i)] & 1) == h) && (!b || pts(i) > pts(b)))
+            if (!taken[i] && in_cup(c, assoc(i)) && (h < 0 || ZONE(i) == h) && (!b || pts(i) > pts(b)))
                 b = i;
         if (!b) break;
         taken[b] = 1;

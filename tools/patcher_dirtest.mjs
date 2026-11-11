@@ -24,14 +24,20 @@ function load(file, lang) {                                   // a patcher page'
   ctx.document.querySelectorAll = () => [];
   vm.createContext(ctx);
   vm.runInContext(js + '\n;globalThis.__t = { handle, results, PATCHES, setJoy: typeof setJoy === "function" ? setJoy : null, setOmm: typeof setOmm === "function" ? setOmm : null, ' +
-    (js.includes('function installDir') ? 'installDir, copyTree, findGame, setLang, DT' + (js.includes('function installCopy') ? ', installCopy, failMsg' : '') : 'x: 0') + ' };', ctx);
+    (js.includes('function installDir') ? 'installDir, copyTree, findGame, setLang, DT' + (js.includes('function installCopy') ? ', installCopy, failMsg' : '') + (js.includes('function filesDir') ? ', filesDir' : '') : 'x: 0') + ' };', ctx);
   if (ctx.__t.setLang) ctx.__t.setLang(lang);
   return ctx.__t;
 }
 class FH { constructor(p) { this.p = p; this.kind = 'file'; this.name = path.basename(p); }
   async getFile() { const b = fs.readFileSync(this.p); return { name: this.name, arrayBuffer: async () => b.buffer.slice(b.byteOffset, b.byteOffset + b.length) }; }
   async createWritable() { const p = this.p, ch = []; return { write: async d => ch.push(Buffer.from(d)), close: async () => { if (cut-- > 0) fs.writeFileSync(p, Buffer.concat(ch)); } }; } }
-let cut = Infinity;                                          // writes after the first `cut` are lost (an install stopped half way)
+let cut = Infinity;
+function upload(top) {                                       // <input webkitdirectory>'s File list of folder top (files only)
+  const out = [], walk = (d, rel) => { for (const n of fs.readdirSync(d).sort()) { const q = path.join(d, n), r = rel + '/' + n;
+    if (fs.statSync(q).isDirectory()) walk(q, r);
+    else out.push({ name: n, webkitRelativePath: r, arrayBuffer: async () => { const b = fs.readFileSync(q); return b.buffer.slice(b.byteOffset, b.byteOffset + b.length); } }); } };
+  walk(top, path.basename(top)); return out;
+}                                          // writes after the first `cut` are lost (an install stopped half way)
 class DH { constructor(p) { this.p = p; this.kind = 'directory'; this.name = path.basename(p); }
   async *entries() { for (const n of fs.readdirSync(this.p)) { const q = path.join(this.p, n); yield [n, fs.statSync(q).isDirectory() ? new DH(q) : new FH(q)]; } }
   async removeEntry(n) { fs.rmSync(path.join(this.p, n), { recursive: true, force: true }); }
@@ -125,7 +131,17 @@ for (const lang of ['it', 'en', 'fr', 'de']) {
       ok(tree(stop) === before && !fs.existsSync(path.join(dst, 'MOD_BACKUP', 'x')), `${lang} ${name} into a new folder: the original untouched`);
       if (gog) ok(['Italiano', 'English', 'Francais', 'Deutsch'].every(l => fs.existsSync(path.join(dst, `SWOS Mod - ${l}.bat`))), `${lang} gog into a new folder: 4 launchers there`);
       const n2 = await T.installCopy(new RO(stop), new DH(dst), say);
-      ok(n2 === 0 && !log.at(-1).startsWith('!') && log.at(-1).includes(D.current) && log.at(-1).endsWith(D.newplay), `${lang} ${name} new folder again: nothing written: ${log.at(-1).slice(0, 80)}`); }
+      ok(n2 === 0 && !log.at(-1).startsWith('!') && log.at(-1).includes(D.current) && log.at(-1).endsWith(D.newplay), `${lang} ${name} new folder again: nothing written: ${log.at(-1).slice(0, 80)}`);
+      if (T.filesDir) {                                     // 4.1.1: the game read by a folder upload (Chrome: Program Files)
+        const up = path.join(R, 'up' + name); fs.rmSync(up, { recursive: true, force: true }); fs.mkdirSync(up);
+        if (gog) for (const d of [src, dst]) fs.writeFileSync(path.join(d, 'DOSBOX', 'DOSBox.exe'), 'x');   // (an upload lists files
+        const before = tree(stop);                          //  only: a real GOG DOSBOX folder is never empty, the fixture's is)
+        const n3 = await T.installCopy(T.filesDir(upload(stop)), new DH(up), say);
+        ok(n3 > 0 && !log.at(-1).startsWith('!') && log.at(-1).endsWith(D.newplay), `${lang} ${name} uploaded into a new folder: ${n3} written: ${log.at(-1).slice(-120)}`);
+        check(T, up, gog, false, `${lang} ${name} uploaded into a new folder`);
+        ok(tree(stop) === before && tree(up) === tree(dst), `${lang} ${name} uploaded: the original untouched, the same files as the picker's new folder`);
+        const n4 = await T.installCopy(T.filesDir(upload(stop)), new DH(up), say);
+        ok(n4 === 0 && log.at(-1).includes(D.current), `${lang} ${name} uploaded again: nothing written: ${log.at(-1).slice(0, 80)}`); } }
     { const stop = path.join(R, 'pfcd'), D = T.DT[lang];
       const n = await T.installCopy(new RO(stop), new DH(path.join(stop, 'SWOS', 'DATA')), say);
       ok(n === 0 && log.at(-1) === '! ' + D.same, `${lang} new folder inside the game folder: refused`);

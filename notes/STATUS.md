@@ -2387,3 +2387,19 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
   UEFA Super Cup, two-row benches, long benches in friendlies / DIY, continental cups views, finances, many fixes).
 - Known, for 4.1.1: the NZ Grand Final phantom match when the career club is not a finalist (option A2, branch 411-nzgf).
 - `python3 tools/kitfix.py ship c/REL41` done in the release commit (4.1's kits in tools/kits_shipped.json.gz).
+
+## 4.1.1 release (2026-11-11, Davide's yes)
+- Release build c/REL411h = 411-rc2 c1309d4 (4.1 + 411-int 1d46913 + Jacopo's title cursor + the Poule Scudetto out of the
+  Champions League + euro on obj3 + patcher joypad boxes / Chrome folder upload + MC's conti fix 5c8f5af: the game contest's
+  results reach conti.c, deferred Recopa / Intercontinental right after the club's exit), data world5tm-403c19, no MODVER_TAG
+  (main menu 'MOD 4.1.1'). IT CD 780cdf1c, EN CD 2912bc08, FR CD 2cb5eeb0, DE CD 49954748; GOG IT f7cf7def, EN 1de295ed,
+  FR 2ef4bc61, DE 6d96bfa2. Patcher page md5 4beae9cd. Release commit adds notes intro / README / STATUS only (no exe change).
+- Pages: obj1 236 (one page left under 237), obj2 213, obj3 14, obj4 5.
+- Gate (gate411h): 47/48 PASS - forced conti self-built (hold_rec/rec4/ic/acl2/caf, q1q2, drop_lib, ic_dec, recopa), natural
+  conti on the release exe, the server old-save set + career_20seasons C20=2, NZ x10, euro x3 + SWOS++, cupd_format x4;
+  world_conti_guest FAIL = scenario-data case on 403c19 (no season-1 Lib for INDEPENDIENTE; MC backlog). Shaved's batch 30/30
+  (poule_save PASS alone; serial -j1 FAIL = shared harness state). Node patcher test all OK (DATA coverage 0), dirtest ALL OK,
+  host 29/29. Visual tour internal/swostest/tour411h reviewed with Davide.
+- Known, for 4.1.2: the deferred Recopa / Intercontinental in their real weeks; world_conti_guest data; harness mid-save
+  check before swostest.py:18109.
+- `python3 tools/kitfix.py ship c/REL411h` done in the release commit.

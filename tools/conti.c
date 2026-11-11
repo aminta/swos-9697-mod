@@ -589,15 +589,17 @@ static int forced(int c, int r) {
 }
 /* a cup no access place enters (the Recopa, the Intercontinental, the CAF Super Cup): holders and routes only,
    no association rule in its draws */
-static int holders_cup(int c) {
-    for (int i = 0; i < nacc; i++) if (acc[4 * i + 1] == c) return 0;
+static int holders_cup(int c, int r) {   /* (and a round no access place enters: the Intercontinental's r2a / r2b,
+                                           fed by the continental winners - the confederation's slot, not a country's) */
+    for (int i = 0; i < nacc; i++) if (acc[4 * i + 1] == c && (acc[4 * i + 2] & 0x1F) == r) return 0;
     return 1;
 }
 static void force_in(int c, int r) {
     /* MC 11/11 root fix D (test builds: CONTI_FORCE / CONTI_FORCE2 name cup c's round r): the career club takes the
        place of an entrant of its own ASSOCIATION in that round - the weakest by ranking points; the association
        counts stay exactly the data's, so the draws test the game, not the force. A holders' cup (no association
-       rule): the entrant of its own confederation's slot (the most cups shared with its association). Already in
+       rule) or a round no access place enters (fed by winners / holders: the Intercontinental's r2a / r2b): the entrant
+       of its own confederation's slot (the most cups shared with its association). Already in
        that cup: nothing. No such entrant: added as an extra entrant and CT_OUT.pad[0] = 1 (SETUP-ERROR: the
        harness's, never a game FAIL) */
     int m = CT_IN.manager;
@@ -607,7 +609,7 @@ static void force_in(int c, int r) {
     int n = EN[c][r], j = -1, am = assoc(m);
     for (int i = 0; i < n; i++)
         if (assoc(E[c][r][i]) == am && (j < 0 || pts(E[c][r][i]) < pts(E[c][r][j]))) j = i;
-    if (j < 0 && n && holders_cup(c)) {
+    if (j < 0 && n && holders_cup(c, r)) {
         int bj = -1;
         for (int i = 0; i < n; i++) {
             int k = 0, a = assoc(E[c][r][i]);

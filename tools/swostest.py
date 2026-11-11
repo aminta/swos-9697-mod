@@ -781,6 +781,18 @@ ANSI = re.compile(rb'\x1b\[[0-9;?]*[a-zA-Z]|\x1b\(B')
 MEMSIZE = 0x2000000                                   # memsize=32: linear 0..32 MB
 
 
+class SetupError(BaseException):   # (BaseException: a scenario's own 'except Exception' does not swallow it)
+    """root fix A (MC 11/11): a scenario's precondition not met - its data, its forced set-up, a club or a menu path
+    it assumes. The run loop prints SETUP-ERROR (counted as bad, never a game FAIL): fix the scenario, not the game"""
+
+
+def require(cond, msg):
+    """root fix A: a scenario's PRECONDITION (not the game's behaviour - that is check()): unmet -> SetupError"""
+    if not cond:
+        raise SetupError(msg)
+    return cond
+
+
 class BuildOnly(BaseException):
     """SWOSTEST_BUILD_ONLY=1 (remote_run.sh's local pre-build): a scenario stops at its first game start, its builds
     done. A BaseException, so the scenarios' own 'except Exception' don't catch it."""
@@ -30326,7 +30338,8 @@ def run_parallel(names, jobs):
                 print(out[n][1], flush=True)
                 del running[n]
     print(f'{len(names)} scenarios, {jobs} at a time: {time.time() - t0:.0f} s', flush=True)
-    return 1 if any(rc for rc, _ in out.values()) else 0
+    rcs = [rc for rc, _ in out.values()]
+    return 1 if any(rc and rc != 3 for rc in rcs) else 3 if 3 in rcs else 0   # (root fix B: 3 = FLAKY only)
 
 
 NS_W4 = ('EUROPA 1984-85', 'MALTA', 131)             # world_ns: Malta 1984-85 (TEAM.131) and Cyprus 2025-26 (TMW5.131,
@@ -30790,15 +30803,17 @@ def main(argv):
         jobs = int(next((a[2:] for a in argv[1:] if a.startswith('-j')), 1) or 4)
         if jobs > 1 and len(names) > 1:
             return run_parallel(names, jobs)
-        bad = 0
+        bad = flaky = 0
         for n in names:
             t = time.time()
+            setup = False
             os.environ['SWOSTEST_SCENARIO'] = n
             try:
                 del LABEL_ERRS[:]
                 LABEL_STATS.update(rows=0, keyed=0, fallback=set())
                 del CTSD_ERRS[:]
                 del FORCE_ERRS[:]
+                setup = False
                 CTSD_STATS.update(sessions=0, n=0, nosyms=0)
                 ok, msg = SCENARIOS[n]()
                 if ok and LABEL_ERRS:                       # (4.0.5: a wrong competition name FAILs the scenario)
@@ -30817,16 +30832,32 @@ def main(argv):
             except BuildOnly:
                 print(f'BUILT {n} ({time.time() - t:.0f} s)', flush=True)
                 continue
+            except SetupError as e:                        # (root fix A: a precondition, not the game)
+                ok, msg, setup = False, f'setup: {e}', True
             except Exception as e:                         # (one scenario's exception: a FAIL, the suite goes on)
                 import traceback
                 at = [f'{os.path.basename(x.filename)}:{x.lineno} {x.name}' for x in traceback.extract_tb(e.__traceback__)][-3:]
                 ok, msg = False, f'exception {type(e).__name__}: {e} (at {" < ".join(reversed(at))})'
-            bad += not ok or bool(FORCE_ERRS)
-            res = 'SETUP-ERROR' if FORCE_ERRS else 'PASS' if ok else 'FAIL'   # (root fix D: the force's set-up, not
-            if FORCE_ERRS:                                                      #  the game: its own result)
+            res = 'SETUP-ERROR' if FORCE_ERRS or setup else 'PASS' if ok else 'FAIL'   # (root fix D: the force's
+            if FORCE_ERRS:                                                                # set-up, not the game)
                 msg = f'force: {FORCE_ERRS[:3]}; was {"PASS" if ok else "FAIL"}: ' + msg
+            if res == 'FAIL' and not os.environ.get('SWOSTEST_RERUN') and not os.environ.get('SWOSTEST_NO_RERUN'):
+                # root fix B (MC 11/11): every FAIL is re-run ALONE - a fresh process (no module caches, no globals,
+                # no os.environ left by earlier scenarios) in its own run dir (RUNS-rerun: the FAIL's dirs kept).
+                # PASS there: FLAKY (the harness, the host or the order - not a product verdict; exit code 3); FAIL
+                # again: FAIL. SWOSTEST_NO_RERUN=1: no re-run (bisects, scenario development)
+                print(f'RERUN {n} alone: {msg[:200]}', flush=True)
+                rr = subprocess.run([sys.executable, os.path.abspath(__file__), 'run', n], capture_output=True, text=True,
+                                    env=dict(os.environ, SWOSTEST_RERUN='1', SWOSTEST_RUNS=RUNS.rstrip('/') + '-rerun'))
+                last = [ln for ln in rr.stdout.splitlines() if re.match(r'(PASS|FAIL|SETUP-ERROR) ', ln)]
+                if last and last[-1].startswith('PASS '):
+                    res, msg = 'FLAKY', f'FAILed in the batch, PASSed alone ({RUNS.rstrip("/")}-rerun): ' + msg
+                elif last:
+                    msg += f' [alone: {last[-1][:160]}]'
+            bad += res in ('FAIL', 'SETUP-ERROR')
+            flaky += res == 'FLAKY'
             print(f'{res} {n} ({time.time() - t:.0f} s) {msg}', flush=True)
-        return 1 if bad else 0
+        return 1 if bad else 3 if flaky else 0         # (root fix B: 3 = FLAKY only)
     print(__doc__)
     return 2
 

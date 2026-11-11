@@ -232,10 +232,20 @@ draw (CT_SDRAW_ERR 0x11102, rc -2).
 3. Use `Session(...)`, `press`, `advance`, `next_season_save`; force rare events with `poke` (find the variable's
    address by a byte pattern in the exe, not a fixed offset).
 4. Check with `check(cond, message, errs)`; put what you saw in the message: the report is the evidence.
+   A PRECONDITION of the scenario (its data, a club it picks, a forced set-up, a menu path it assumes) is
+   `require(cond, message)`, never `check`: unmet, it raises SetupError and the result is SETUP-ERROR - the scenario
+   is wrong, not the game (root fix A, MC 11/11).
 5. Run it twice: same result (the feeder is deterministic; match results may vary between runs because game time
    leaks in, so never assert a specific score or winner).
 6. Line-ups: leave the default minimal line-up (§3); set `SWOSTEST_LINEUP=full` in the scenario only when it checks
    the career club's results or strength (the full best-reserve search costs about half of a career's run time).
+
+**Results (root fix A/B/D, MC 11/11)**: `PASS`, `FAIL`, `SETUP-ERROR` (a `require()` unmet, or a CONTI_FORCE that
+replaced no entrant of its association - see CONTI_FORCE), `FLAKY`. Every FAIL is re-run ALONE at once, in a fresh
+process (no module caches, globals or os.environ left by earlier scenarios) and its own run dir (`<RUNS>-rerun`; the
+FAIL's dirs are kept for decoding): PASS there -> `FLAKY` (the harness, the host load or the order: not a product
+verdict - find its cause, do not ignore it), FAIL again -> `FAIL` with the alone line appended. Exit code 1 = a FAIL
+or a SETUP-ERROR, 3 = only FLAKY, 0 = all PASS. `SWOSTEST_NO_RERUN=1`: no re-run (bisects, scenario development).
 
 ## 7. What the tests do not cover (a person still has to look)
 

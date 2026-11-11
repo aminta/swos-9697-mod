@@ -2368,6 +2368,7 @@ def ctsd_syms(exe_dir):
             got = {k: lr[f'CT_SDRAW_{k}'][1] for k in ('N', 'ERR', 'HIT')}
             got['force'] = 'CT_SDRAW_FORCE' in lr
             cs = json.load(open(path)).get('conti', {})
+            got['conti'] = {k[5:]: v for k, v in cs.items() if k.lower().startswith('syms.ct_') and k[5:].isupper()}
             cs = cs.get('syms.CT_SDRAW') or cs.get('SYMS.CT_SDRAW')
             if cs and cs[0] == 1 and lr.get('ct_place', [0])[0] == 4:   # (obj4's base from conti's obj1 pointer to
                 got['ptr'] = (cs[1], lr['ct_place'][1])                #  ct_place: 4 bytes, not base4's 32 MB scan)
@@ -2403,6 +2404,34 @@ def ctsd_check(s):
         CTSD_STATS['halves'] = CTSD_STATS.get('halves', 0) + 1
     elif v['ERR'] and not sy['force']:
         CTSD_ERRS.append(f'{os.path.basename(s.run)}: CT_SDRAW_ERR {v["ERR"]:#x} (a group draw refused: tag << 8 | -rc)')
+        ctsd_dump(s, r, sy, v)
+
+
+def ctsd_dump(s, r, sy, v):
+    """(MC 11/11) a refused group draw: conti's state into the run dir - ctsd_dump/<CT_x>.bin (CT_IN: the season
+    end's clubs, words, associations, strengths; CT_ST, CT_ED, CT_OUT: the rounds' entrants; CT_SEG; CT_SPEC: the
+    spec it points to, 64 KB) + ctsd_dump.json (the counters, the symbols) - tools/ctsd_replay.py replays it natively.
+    Harness-side only: the exe is unchanged."""
+    try:
+        d = os.path.join(s.run, 'ctsd_dump')
+        os.makedirs(d, exist_ok=True)
+        meta = {'ERR': v['ERR'], 'N': v['N'], 'HIT': v['HIT'], 'syms': sy.get('conti', {}), 'sizes': {}}
+        nxt = sorted(o for ob, o in meta['syms'].values() if ob == 2)
+        for k, (ob, off) in sorted(meta['syms'].items()):
+            if ob != 2 or k == 'CT_SPEC':
+                continue
+            n = min([x - off for x in nxt if x > off] + [0x8000])       # (up to the next symbol, 32 KB at most)
+            open(os.path.join(d, k + '.bin'), 'wb').write(bytes(r.read(r.base2 + off, n)))
+            meta['sizes'][k] = n
+        if 'CT_SPEC' in meta['syms']:
+            ob, off = meta['syms']['CT_SPEC']
+            p = struct.unpack('<I', bytes(r.read((r.base2 if ob == 2 else r.base1) + off, 4)))[0]
+            if 0 < p < MEMSIZE - 0x10000:
+                open(os.path.join(d, 'CT_SPEC.bin'), 'wb').write(bytes(r.read(p, 0x10000)))
+        json.dump(meta, open(os.path.join(s.run, 'ctsd_dump.json'), 'w'), indent=1)
+        s.log.append(f'ctdraw: state dumped to {d}')
+    except Exception as e:                      # (a dump never turns a FAIL into a crash)
+        s.log.append(f'ctdraw: dump failed: {e!r}')
 CAL_CUR_AT, D8CAA_AT, D6CDC_AT, STR_BASE_AT = 0x1B52A, 0x18DF4, 0x16E26, 0x16F8   # (obj2, every language's exe)
 GLA_AT, ARR_AT = 0xB440C, 0x18E40                 # gameListArray, arrayOfPointers (CareerGameListCommon; every exe)
 _WORLD_AT = {}                                    # (game dir, exe, mtime, size) -> someLeaguesTable[1845] (cf_slt)

@@ -193,6 +193,13 @@ it returns the rounds (title, ties shown: at most 6 per screen) and the coin-tos
 
 `run -j4` runs them in parallel (own DOSBox-X and run dir each).
 
+**IT only** (MC 11/11, 4.2 Gate B): euro_draws, world_lgreal, world_lgreal_oldsave, world_lpreal and
+world_lpreal_oldsave build their own Italian exes (builds()['it'] / build(), and an old branch's build for the save):
+under SWOSTEST_UI=de / fr they drive an Italian exe with that language's menu logic and fail the same on every build
+(REL42i1 baseline = REL42i3). Run them in IT only; the language-sensitive euro checks are euro_money / euro_historic
+(SWOSTEST_BUILD = the language copy) and euro_swospp. world_strmap: STM_BUILD defaults to c/REL42strmap4 (this Mac
+only) - pass STM_BUILD=<release dir>/SWOS, and on the server too.
+
 ## 6. Adding a scenario
 
 1. Write `@scenario def name(): """one-line purpose"""` returning `(ok, message)`.

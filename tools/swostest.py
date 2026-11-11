@@ -8227,7 +8227,9 @@ def bench_oppl(s, bx, top, bot, errs, info, mark):
         for call in range(12):
             if not keeper_let_go(s, errs):  # (no bench key while a keeper holds the ball: the match stands still
                 return None                 # with the bench open, he never lets go - 05/11 bstrip runs, 3 of 6)
-            r = s.send(('pgup' if call % 2 == 0 else 'pgdn') + ':0.3 dump:0.6')
+            r = bench_open(s, 'pgup' if call % 2 == 0 else 'pgdn')    # (4.1.1: the call poked on a still frame, the
+            if r.outcome != 'dump':                                    # menu waited for, as bench_world's - a blind
+                return None                                            # key landed in play: SESTRI LEVANTE, RC2)
             r0 = cam_settle(s)[0]           # (4.0.6 long dugouts: the bench takes keys once the camera is there)
             r = s.send('up:0.15 dump:0.6')
             if w16(r, v['SUBST']) == 5:

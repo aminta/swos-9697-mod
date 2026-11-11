@@ -196,6 +196,20 @@ def rounds(confs):
         if not b[23] and short:
             for a in set(cap) | set(var) | set(d):
                 var[a] = var.get(a, 0) + short
+        wvar = None                                     # (4.2 AFC mode, per region: the variable clubs' West count
+        if pr and not hold.get((c, j)) and not (not b[23] and short):   # when every loose source is region-closed -
+            wvar = 0                                    #  an 'order' knockout of direct places only, West then East
+            for src, kind, n in fed.get((c, j), ()):    #  (conti.py), each region even: its winners / losers half
+                if exact(src, kind)[0] is not None:     #  of each region's clubs; else None: no region filter)
+                    continue
+                sb, sd = R[src], direct.get(src, {})
+                if (sb[0] != conti.K['ko'] or sb[4] != conti.DRAW['order'] or kind > 1 or fed.get(src)
+                        or any((jf & 0x1F) == src[1] or jf & 0x80 for jf in hcup.get(src[0], ()))
+                        or any(places[a] > cap.get(a, places[a]) for a in sd) or sum(sd.values()) != sb[18]
+                        or any(sum(x for a, x in sd.items() if areg[a] & 1 == z) % 2 for z in (0, 1))):
+                    wvar = None
+                    break
+                wvar += sum(x for a, x in sd.items() if not areg[a] & 1) // 2
         nd = sum(d.values())
         size = ng * gs
         assert nd <= size, ('drawgate: more fixed places than the round', c, j)
@@ -205,7 +219,7 @@ def rounds(confs):
         nvar = min(size - nd, sum(av.values()))
         out.append(dict(c=c, j=j, rule=rule, ng=ng, gs=gs, pr=pr, direct=d, avail=av, nvar=nvar,
                         via=rule == A_NOVIA, region={a: areg[a] & 1 for a in set(d) | set(av)} if pr else {},
-                        exact=ok, loose=loose))
+                        exact=ok, loose=loose, wvar=wvar))
     return out
 
 
@@ -249,6 +263,14 @@ def multisets(r, rnd):
     if r['via']:                                        # (A_NOVIA: routed clubs exempt - their own values)
         return 'exhaustive', [()], names
     tot = count(av, n)
+    w = r.get('wvar')
+    if w is not None:                                   # (per region, region-closed sources: only the multisets
+        west = [not r['region'][a] for a in names]      #  with that West count - the others unreachable)
+        keep = lambda t: sum(x for x, z in zip(t, west) if z) == w
+        if tot <= EXHAUST:
+            return 'exhaustive', [t for t in every(av, n) if keep(t)], names
+        return 'saturated+random', [('s', t) for t in saturated(av, n, rnd) if keep(t)] + \
+            [('r', t) for t in randoms(av, n, rnd) if keep(t)], names
     if tot <= EXHAUST:
         return 'exhaustive', every(av, n), names
     return 'saturated+random', [('s', t) for t in saturated(av, n, rnd)] + [('r', t) for t in randoms(av, n, rnd)], names

@@ -1366,6 +1366,10 @@ class Session:
             force_check(self)
         except Exception as e:
             self.log.append(f'force: error byte not read ({type(e).__name__}: {e})')
+        try:                                            # (root fix C: the field invariants, natural runs too)
+            field_check(self)
+        except Exception as e:
+            self.log.append(f'field: not checked ({type(e).__name__}: {e})')
         self.box.kill()
         el = time.time() - self.box.t0
         if getattr(self.box, 'status', None):
@@ -2375,6 +2379,39 @@ def ctsd_syms(exe_dir):
             assert all(lr[f'CT_SDRAW_{k}'][0] == 4 for k in ('N', 'ERR', 'HIT')), ('ctsd: not obj4', path)
     _CTSD_SYMS[exe] = got
     return got
+
+
+FIELD_ERRS, FIELD_STATS = [], {'checks': 0, 'notes': []}
+
+
+def field_check(s):
+    """root fix C (MC 11/11): the continental cups' field invariants on the edition in memory at the session's last
+    pause (tools/ctfield.py: per round, per association, no more clubs than the data's places + holders + feeders +
+    outside / fill places; no club twice in a round; the career club entering a cup once) - natural and forced runs
+    alike; a violation FAILs the scenario (FIELD_ERRS, the run loop). Needs the exe's conti symbols (ctsd_syms)."""
+    sy = getattr(s, 'ctsd', None)
+    r = s.result
+    cs = (sy or {}).get('conti') or {}
+    if not all(k in cs for k in ('CT_IN', 'CT_OUT', 'CT_ST', 'CT_ED', 'CT_LAYOUT')) or r is None or \
+            getattr(r, 'outcome', None) != 'dump' or r.box is None or r.base1 is None or r.base2 is None:
+        return
+    base = lambda k: (r.base2 if cs[k][0] == 2 else r.base1) + cs[k][1]
+    if struct.unpack('<H', bytes(r.read(base('CT_ED'), 2)))[0] != 0x4543:    # ('CE': no edition built yet)
+        return
+    lay = struct.unpack('<22I', bytes(r.read(base('CT_LAYOUT'), 88)))
+    ib, st, o = (bytes(r.read(base(k), n)) for k, n in (('CT_IN', lay[0]), ('CT_ST', lay[1]), ('CT_OUT', lay[2])))
+    import ctfield
+    notes = []
+    forced = getattr(s, 'ctout', None) is not None       # (ctout_at: a CONTI_FORCE / CONTI_FORCE2 build's marker)
+    bad = ctfield.check(ib, o, lay, st, forced=forced, notes=notes)
+    FIELD_STATS['checks'] += 1
+    FIELD_STATS['notes'] += [x for x in notes if x not in FIELD_STATS['notes']]
+    s.log.append(f'field: {len(bad)} violation(s), season {struct.unpack_from("<H", st, 2)[0]}' +
+                 (f', notes {notes}' if notes else ''))
+    for x in bad:
+        s.log.append(f'field: {x}')
+    if bad:
+        FIELD_ERRS.append(f'{os.path.basename(s.run)}: {bad[:3]}')
 
 
 def ctsd_check(s):
@@ -30828,12 +30865,19 @@ def main(argv):
                 LABEL_STATS.update(rows=0, keyed=0, fallback=set())
                 del CTSD_ERRS[:]
                 del FORCE_ERRS[:]
+                del FIELD_ERRS[:]
+                FIELD_STATS.update(checks=0, notes=[])
                 CTSD_STATS.update(sessions=0, n=0, nosyms=0)
                 ok, msg = SCENARIOS[n]()
                 if ok and LABEL_ERRS:                       # (4.0.5: a wrong competition name FAILs the scenario)
                     ok, msg = False, f'contest names: {LABEL_ERRS[:3]}; ' + msg
                 if CTSD_ERRS:                               # (4.2 AFC mode: a refused / out-of-budget group draw -
                     ok, msg = False, f'ctdraw: {CTSD_ERRS[:3]}; ' + msg   # named on a FAIL too: often its cause)
+                if FIELD_ERRS:                              # (root fix C: a club the data cannot give in a round)
+                    ok, msg = False, f'field: {FIELD_ERRS[:3]}; ' + msg
+                elif FIELD_STATS['checks']:
+                    msg += f" [field: {FIELD_STATS['checks']} checks, 0 violations" + \
+                        (f", notes {FIELD_STATS['notes'][:2]}" if FIELD_STATS['notes'] else '') + ']'
                 if CTSD_STATS['sessions']:
                     msg += f" [ctdraw: {CTSD_STATS['sessions']} sessions, {CTSD_STATS['n']} draws, ERR/HIT 0]" \
                         if not CTSD_ERRS else ''

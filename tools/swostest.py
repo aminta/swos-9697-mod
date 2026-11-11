@@ -20819,11 +20819,12 @@ def world_conti_q1q2():
 
 @scenario
 def world_conti_drop_lib():
-    """conti_drop: FLAMENGO forced into the Libertadores' third qualifying round in an entrant's place (lib:q3!, MC
-    11/11: a plain extra entrant left the Sudamericana groups outside the draw gate's bound - CT_SDRAW_ERR 0x11102,
-    no group draw), losing it -> the
-    Sudamericana groups (conmebol 'losers' q3 -> sud:groups): a Sudamericana group match played, season 2 ends"""
-    return conti_drop('lib', 'lib:q3!', 'SUDAMERICA,BRASILE,BRASILEIRAO SERIE A,FLAMENGO', 'SUDAMERICANA')
+    """conti_drop: AURORA (Bolivia) forced into the Libertadores' third qualifying round (lib:q3), losing it -> the
+    Sudamericana groups (conmebol 'losers' q3 -> sud:groups): a Sudamericana group match played, season 2 ends.
+    (MC 11/11: q3 has no direct entrants - only q2's winners - so '!' has no one to replace: the club is an extra one.
+    A small association's club: FLAMENGO, one Brazilian more than the data's, left the Sudamericana groups with no
+    draw under "same_assoc": "no" - CT_SDRAW_ERR 0x11102, rc -2, no SUD match)"""
+    return conti_drop('lib', 'lib:q3', 'SUDAMERICA,BOLIVIA,?DIVISION PROFESIONAL|DIV. PROFESIONAL|PROFESIONAL,AURORA', 'SUDAMERICANA')
 
 
 @scenario

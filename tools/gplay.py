@@ -2720,6 +2720,12 @@ def rr_pattern_fix(p, at):
     return list(RR_SIZES), (at + 15) & ~15
 
 
+def gp_s7():
+    """1 when a pack's ko_playoffs send a club across league structs (S7: Pack.ko_external, set by the gplay
+    tables built before the link), else 0: the GP_EXT glue compiled out, the exe byte-identical to one without S7."""
+    return int(any(getattr(pk, 'ko_external', None) for pk in mkseason.packs()))
+
+
 def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     """tables: mkseason.gplay_tables(). C + glue + specs in obj1 at..limit, the C .bss at obj2 bss_at (BSS_SIZE).
     area: the contest names' string area (the playable play-offs). Returns the end."""
@@ -2779,6 +2785,7 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
                                 f"-DGP_GOUT={int(os.environ.get('GPLAY_GOUT') or 0)}",
                                 f"-DGP_GSON={int(GS_ON[0])}",
                                 f"-DCF_SEED={__import__('cupsf').SEED}",
+                                f"-DGP_S7={gp_s7()}",
                                 f"-DSM_LANG={['it', 'en', 'fr', 'de'].index(lang)}"]   # (gp_strmap_c's STRMAP41 section)
                                + (['-DHDR_TEST'] if os.environ.get('HDR_TEST') else []))   # (test builds: GROUP n headers)
     top_r, top_w = _top9(p)                          # (cseg_927A2's top-9 list: gp_champ)
@@ -2822,7 +2829,8 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     tab_src, tab_syms = table_lines(tables)
     symbols = {k: (0, v) for k, v in lay.items()}
     symbols.update(tab_syms)
-    symbols.update({k: syms[k] for k in ('GP_SSB', 'GP_IN', 'GP_OUT', 'GP_EXT', 'gp_season', 'gp_champ', 'gp_keep', 'GP_ST', 'GP_LOG', 'GP_NM', 'GP_DIYP', 'GP_K',
+    symbols.update({k: syms[k] for k in ('GP_EXT',) if k in syms})   # (S7: shaped builds only, GP_S7)
+    symbols.update({k: syms[k] for k in ('GP_SSB', 'GP_IN', 'GP_OUT', 'gp_season', 'gp_champ', 'gp_keep', 'GP_ST', 'GP_LOG', 'GP_NM', 'GP_DIYP', 'GP_K',
                                          'GP_W', 'GP_SKIP', 'GP_RB', 'GP_ALIVE', 'GP_LAST', 'GP_A', 'GP_B', 'GP_CID', 'GP_SEAS', 'GP_DIV',
                                          'GP_PT', 'GP_PL', 'gp_need', 'gp_simkeep', 'gp_need_pre', 'gp_simkeep_pre', 'gp_pre_c', 'GP_PRE', 'gp_restore', 'gp_lend_c', 'gp_ours_c',
                                          'gp_perm_c', 'gp_bdiv_c', 'gp_rec_c', 'gp_draw_c', 'gp_played_c', 'gp_end_c',

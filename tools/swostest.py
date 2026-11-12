@@ -21186,8 +21186,8 @@ def cf_follow(name, team, pack, cid, gpforce, career_div):
     import mkseason
     import cupsf
     pk = mkseason.Pack(os.path.join(src, pack))
-    fmt = next(f for f in cupsf.pack_cups(pk)[0] if f[0] == cid)
-    lfile = pk.files[pk.league['clubs']][0]
+    fmt, lfile = next((f, lf) for lf in pk.league_files() for f in cupsf.pack_cups(pk, lf)[0] if f[0] == cid)   # (S7:
+    #                                                                                  the cup's league file)
     gbase = next(b for ff, b in pk.files.values() if ff == lfile)
     base = {pk.where[k][1]: pk.division[k] for k in pk.league_clubs if pk.where[k][0] == lfile}
     names = {pk.where[k][1]: pk.clubs[k]['name'] for k in pk.league_clubs if pk.where[k][0] == lfile}
@@ -26969,7 +26969,8 @@ def cd_strengths(src):
     import cupd
     try:
         pk = next(p for p in mkseason.packs() if p.meta.get('id', '').endswith('-ita'))
-        lf = pk.files[pk.league['clubs']][0]
+        par = pk.league.get('parallel') or []           # (S7: Coppa D's file = div_file of Serie D's first division)
+        lf = pk.div_file((par if isinstance(par, list) else [par])[-1]['first'] if par else 0)[0]
         return {lf | pk.where[k][1] << 8: cupd.strength(pk, k) for k in pk.league_clubs if pk.where[k][0] == lf}
     finally:
         if old is None:

@@ -79,7 +79,7 @@ def table(p, tables):
     import mkseason
     out, ptrs = bytearray(), []
     for world, lfile, divs in tables:
-        at = mkseason.LEAGUE_AT[(world, lfile)]
+        at = mkseason.league_at(world, lfile, 'lrank')
         at = at if isinstance(at, tuple) else (1, at)
         for d, codes, h2h, teams in divs:
             ptrs.append((len(out), at))

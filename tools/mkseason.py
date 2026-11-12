@@ -80,6 +80,13 @@ def career_data_pages():
 
 
 LEAGUE_AT = {}                          # (world, league file) -> obj1 offset of its league struct (patch)
+
+
+def league_at(world, lfile, what):
+    """LEAGUE_AT[(world, lfile)], refused with the key when the struct is missing (S7: a table keyed by a league
+    struct - lrank, ko spec, dplay - of a file with no struct of its own yet, e.g. file B before MC's §3 glue)."""
+    _need((world, lfile) in LEAGUE_AT, f'{what}: world {world} team file {lfile} has no league struct (LEAGUE_AT)')
+    return LEAGUE_AT[(world, lfile)]
 CAREER_CAVE = [None]                    # obj1 page of the career world code (patch.py adds it when worlds exist)
 INST_STUB = [None]                      # obj1 offset of cont_check's world-files check stub (instcheck.place)
 CAREER_CAVE_SIZE = 0x2000               # 3.1: two pages (patch.py; three with several worlds, cave_pages)
@@ -493,8 +500,9 @@ class Pack:
         par = lg['parallel']
         par = par[0] if isinstance(par, list) else par     # (Serie C; Serie D below it: pgroups)
         lc = self.meta['season'].get('league_cup')        # (its winner: the Coppa Italia Serie C winner's place)
-        return (self.world, int(lg['id'], 16), par['upper'], par['first'], par['count'], self.files[lg['clubs']][0],
-                int(self.comp(lc)['id'], 16) if lc else 0)
+        lf = self.one_file(range(par['upper'], par['first'] + par['count']), 'dplay (Serie B / C play-offs)')
+        return (self.world, int(lg['id'], 16), par['upper'], par['first'], par['count'], lf,   # (S7: div_file, one
+                int(self.comp(lc)['id'], 16) if lc else 0)                                     # file for the table)
 
     def lrank(self):
         """lrank table (4.2 S1.3): None, or (world, league file, [(division, codes, uses the head-to-head block)]) of
@@ -512,7 +520,11 @@ class Pack:
             except ValueError as e:
                 _need(False, f"{self.meta['id']}: {e}")
             out.append((d, codes, h2h, dv['teams']))
-        return (self.world, self.files[lg['clubs']][0], out) if out else None
+        by = {}                                 # (S7: one table per league struct, local divisions - div_key)
+        for d, *rest in out:
+            f, ld = self.div_key(d)
+            by.setdefault(f, []).append((ld, *rest))
+        return [(self.world, f, e) for f, e in by.items()]
 
     def gplay(self):
         """gplay table: None, or (world, league file, spec bytes) of a world league with 'ko_playoffs'."""
@@ -525,10 +537,17 @@ class Pack:
                                'div': self.division[e['club']]}
                               if isinstance(e, dict) and 'club' in e and e['club'] in self.league_clubs else e)
             pos = [dict(po, entrants=[club(e) for e in po.get('entrants', [])]) for po in lg['ko_playoffs']]
-            spec = gplay.compile_spec(pos, len(self.divisions()), lg.get('names'))
+            by, self.ko_external = {}, {}       # (S7: one spec per league struct, local divisions - div_key; the
+            for po in pos:                      # destinations in the other struct: {struct: [(spec entry, outcome,
+                f, lp, ext = self.po_local(po)  # target div_key)]} for the season-end swap builder)
+                by.setdefault(f, []).append(lp)
+                for x in ext:
+                    self.ko_external.setdefault(f, []).append((len(by[f]) - 1, *x))
+            out = [(self.world, f, gplay.compile_spec(ps, len(self.struct_divs(f)), lg.get('names')))
+                   for f, ps in by.items()]
         except (ValueError, KeyError, TypeError) as e:
             _need(False, f"{self.meta['id']}: ko_playoffs: {e}")
-        return self.world, self.files[lg['clubs']][0], spec
+        return out
 
     def cupd(self):
         """Coppa Italia Serie D table (cupd.py): None, or (world, team file, table, rounds, ties, names)."""
@@ -726,6 +745,114 @@ class Pack:
             prev = [t['winner'] for t in ties] + (byes if r == 1 else [])
         _need(len(draws[-1]) == 2, f'{key}: the last round must be the final (2 clubs)')
         return {'clubs': clubs, 'draws': draws, 'byes': len(byes)}
+
+    # --- division -> team file (S7 glue §1, MC 11/11) ------------------------------------------------------------
+    def league_roles(self):
+        """The league's 'files' keys: those with 'divisions' (a league over two team files, S7), else [its own file]."""
+        fs = self.meta['files']
+        roles = [k for k, v in fs.items() if 'divisions' in v]
+        return roles or [self.league['clubs']]
+
+    def league_files(self):
+        """The league's team file numbers (league_roles' order): file A first."""
+        return [self.files[k][0] for k in self.league_roles()]
+
+    def div_file(self, d):
+        """(file, base) holding division d's clubs: the 'files' entry whose 'divisions' holds d; with no 'divisions'
+        anywhere (dormant) the league file for every d. base = globnum.base (a split file: its run 1). Refused: d
+        in no role, or in two."""
+        _need(self.league and 0 <= d < len(self.divisions()),
+              f"{self.meta['id']}: div_file({d}): not a division of the league")
+        fs = self.meta['files']
+        roles = [k for k, v in fs.items() if 'divisions' in v]
+        hits = [k for k in roles if d in fs[k]['divisions']] if roles else [self.league['clubs']]
+        _need(len(hits) == 1, f"{self.meta['id']}: division {d + 1} in {len(hits)} team files' 'divisions' {hits}")
+        f = self.files[hits[0]][0]
+        return f, globnum.base(self, f)
+
+    def div_key(self, d):
+        """(struct file, local division) of division d: the league struct whose tables (lrank, ko spec, split) hold it
+        (MC 11/11, S7 option (a): one struct per team file, its divisions numbered from 0 in its 'divisions' order).
+        Dormant: (league file, d). The one place of that policy."""
+        f, _ = self.div_file(d)
+        roles = [v for v in self.meta['files'].values() if 'divisions' in v]
+        if not roles:
+            return f, d
+        dv = next(sorted(v['divisions']) for v in roles if d in v['divisions'])
+        return f, dv.index(d)
+
+    def struct_divs(self, f):
+        """The league's divisions of struct f (div_key's), global indices in local order."""
+        return [d for d in range(len(self.divisions())) if self.div_key(d)[0] == f]
+
+    def po_local(self, po):
+        """(struct file, po with local division indices, [(outcome, (struct file, local division))]) of a ko_playoffs
+        entry (club entrants already resolved to {'club_team', 'div'}). The ENTRANTS decide the struct (MC 11/11): an
+        entry whose entrants span two structs is refused (_need, with its key). A destination (winner_div / loser_div)
+        in the other struct is compiled as gplay.EXTERNAL and listed (outcome 'winner' / 'loser', its div_key): the
+        season-end swap builder moves that club (gplay.c's side of the marker: MC's S7 glue §3.5)."""
+        import gplay
+        nd = len(self.divisions())
+        isdiv = lambda d: isinstance(d, int) and not isinstance(d, bool) and 0 <= d < nd
+        ds, out = [], dict(po)
+        kind = gplay.KINDS.get(po.get('kind'))
+
+        def loc(d):
+            ds.append(d)
+            return self.div_key(d)[1] if isdiv(d) else d
+        ents = []
+        for e in po.get('entrants', []):
+            if isinstance(e, list) and len(e) == 2:
+                ents.append([loc(e[0]), e[1]])
+            elif isinstance(e, dict) and 'cup_place' in e:
+                c = e['cup_place']
+                d, g = c.get('div'), c.get('groups')
+                if isinstance(d, int) and isinstance(g, int):
+                    for x in range(d, d + g):
+                        loc(x)
+                ents.append(dict(e, cup_place=dict(c, div=self.div_key(d)[1] if isdiv(d) else d)))
+            elif isinstance(e, dict) and not ({'loser_of_previous', 'league_cup_winner'} & set(e)):
+                d = loc(e.get('div', 0))                    # (gplay.compile_spec: a missing 'div' = 0)
+                ents.append(dict(e, div=d) if 'div' in e else e)
+            else:
+                ents.append(e)
+        out['entrants'] = ents
+        fs = sorted({self.div_key(d)[0] for d in ds if isdiv(d)})
+        if not fs:
+            fs = [self.div_key(0)[0]]
+        _need(len(fs) == 1, f"{self.meta['id']}: ko_playoffs {po.get('key', '?')}: entrants of divisions "
+              f"{sorted({d + 1 for d in ds if isinstance(d, int)})} over league structs {fs} (S7: one struct per entry)")
+        ext = []
+        if any('divisions' in v for v in self.meta['files'].values()) and fs[0] != self.div_key(0)[0]:
+            # (S7, MC 11/11: a struct after the league's first - file 144 - has no division 0 of the league: an absent
+            # destination (compile_spec: 0) would read as its own first division. Dormant / struct A: unchanged.)
+            own = sorted({d for d in ds if isdiv(d)})
+            if kind == 3 and 'winner_div' not in po and len(own) == 1:
+                out['winner_div'] = self.div_key(own[0])[1]     # (placement: no move - gplay.c ok = 0 for kind 3;
+            #                                                     the entrants' own division, explicit)
+            need = [] if kind != 1 else ['winner_div'] + (['loser_div'] if isdiv(po.get('winner_div'))
+                                                          and po['winner_div'] in own else [])
+            need += ['loser_div'] if kind == 4 else []
+            miss = [x for x in need if x not in po]
+            _need(not miss, f"{self.meta['id']}: ko_playoffs {po.get('key', '?')}: {miss} absent in the league struct "
+                  f"of file {fs[0]} (S7: the default 0 would be that struct's own first division; give it)")
+        for fld, outcome, kinds in (('winner_div', 'winner', (1,)), ('loser_div', 'loser', (1, 4, 7))):
+            v = po.get(fld)
+            if kind in kinds and isdiv(v):
+                tf, tl = self.div_key(v)
+                if tf == fs[0]:
+                    out[fld] = tl
+                else:                                   # (only the destination crosses: the season-end swap's)
+                    out[fld] = gplay.EXTERNAL
+                    ext.append((outcome, (tf, tl)))
+        return fs[0], out, ext
+
+    def one_file(self, divs, what):
+        """The one team file of divisions divs (a table read from one file), else refused with the key."""
+        fl = sorted({self.div_file(d)[0] for d in divs})
+        _need(len(fl) == 1, f"{self.meta['id']}: {what}: divisions {[d + 1 for d in divs]} over team files {fl} "
+              '(a table read from one team file: not split silently)')
+        return fl[0]
 
     # --- TEAM files --------------------------------------------------------------------------------------------------
     def team_files(self):
@@ -1443,12 +1570,12 @@ def numbered_cups():
 
 def gplay_tables():
     """gplay: the world leagues with knockout play-offs (Pack.gplay)."""
-    return [t for pk in packs() for t in [pk.gplay()] if t]
+    return [t for pk in packs() for t in pk.gplay() or []]      # (S7: one per league struct)
 
 
 def lrank_tables():
     """lrank: the world leagues with tie-breaker lists (Pack.lrank)."""
-    return [t for pk in packs() for t in [pk.lrank()] if t]
+    return [t for pk in packs() for t in pk.lrank() or []]      # (S7: one per league struct)
 
 
 def cupd_tables():
@@ -1587,8 +1714,8 @@ def splits():
         lg = pk.league
         if pk.world is None or not lg:
             continue
-        file = pk.files[lg['clubs']][0]
         for d, dv in enumerate(pk.divisions()):
+            file, dl = pk.div_key(d)            # (S7: the key = (world, struct file, local division) - div_key)
             sp = dv.get('split') or (lg.get('split') if d == 0 else None)   # (the league's: its first division)
             games = dv.get('games') if 'divisions' in lg else None
             if not sp and games is None:
@@ -1691,7 +1818,7 @@ def splits():
                 _need(len(wk) == days, f'{w}.split.weeks: one date per match day ({days})')
                 spec['weeks'] = [split.week_of(x) for x in wk]
                 _need(spec['weeks'] == sorted(spec['weeks']), f'{w}.split.weeks: in order')
-            out.append((pk.world, file, d, n, spec))
+            out.append((pk.world, file, dl, n, spec))
     keys = [x[:3] for x in out]
     _need(len(keys) == len(set(keys)), 'split: one entry per division')
     return out

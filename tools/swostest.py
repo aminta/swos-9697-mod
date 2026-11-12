@@ -9225,6 +9225,11 @@ def bench_world():
             return False, f'START: no first pause ({s.result})'
         scr = s.screen()
         car = 'CARRIERA'                    # (under SWOS++ the plain CAREER > SELECT TEAM opens the base game's list,
+        for _ in range(40):                 # (12/11: the first pause can come before the main menu is up - SWOS++,
+            if scr.find(car) is not None:   #  140 GetKey calls: 'CARRIERA not reached' with no key sent, runs-bl-i17.
+                break                       #  Wait for the menu itself, bounded)
+            s.send('dump:0.5')
+            scr = s.screen()
         if press(s, scr, car) is None:      # no CLASSIC CAREERS - 4.0.2 too: W-modes, SETUP.DAT's default world
             return False, f'{car} not reached ({s.result})'   # 2026-27 instead, its list at once)
         for t in ['SCEGLI SQUADRA'] + ([] if os.environ.get('BENCH_BASE') or files else ['CARR. STORICHE', 'MONDO 2026-27']):

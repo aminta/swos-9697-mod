@@ -16,8 +16,10 @@ writes; the struct's unused tail keeps the arena's bytes).
   arenas;
 - the dormant build: SREG_FN 0, a new career's save writes no section.
 Piece 4 (n7-p4.md §3, §6b):
-- SREG_WORLD the shape's world (5, World 2026-27: the SREG_FORCE build's); a career of world 4 (1984-85) saves no
-  'IT', and its load leaves the registry as it was (SREG_LAST 0) even with an 'IT' in the block;
+- SREG_WORLD the shape's world (5, World 2026-27: the SREG_FORCE build's); a career of world 4 (1984-85) and a
+  world-0 save (a DIY / friendly career, a season: cw_byte 0) save no 'IT' (one in SWC1 cut), and their loads leave
+  the registry as it was (SREG_LAST 0) even with an 'IT' in the block; a world-5 save loaded after them comes back
+  (1, its flags) and saves the same 'IT' again;
 - the section's flags: SREG_FLAGS (PENDING | season 27 << 8) saved at +8, read back by a load, 0 after sreg_new and
   after a load of another layout; the same registry with flags 0 and 3 loads as 1 both times (+8 not in the layout)."""
 import json
@@ -255,21 +257,33 @@ def test_sreg():
     if last() != 0 or flags():
         errs.append(f'flags: another layout\'s load {last()}, SREG_FLAGS {flags():#x} (want 0, 0)')
 
-    # the world gate: a world-4 career saves no 'IT' (one there cut), and its load leaves the registry alone
+    # the world gate: a world-4 (1984-85) career and a world-0 save (a DIY / friendly career, a season: cw_byte 0)
+    # save no 'IT' (one there cut), and their loads leave the registry alone; then a world-5 save beside them still
+    # round-trips (its 'IT' read back, the same section written again)
     shape(ITALY, ITALY_DIV)
     R = fresh()
-    m.world(4)
-    m.call('swe', 'swe_st_save')
-    s4 = m.rd(m.swc1, size)
-    if struct.unpack_from('<H', s4, 2)[0] != 4 or IT in dict(sections(s4)):
-        errs.append(f'world 4: SWC1 world {struct.unpack_from("<H", s4, 2)[0]}, sections '
-                    f'{[(hex(k), len(b)) for k, b in sections(s4)]} (want 4, no IT)')
-    S4 = SF[:2] + struct.pack('<H', 4) + SF[4:]                # (an 'IT' in a world-4 block: never read)
-    m.load(S4)
-    if last() != 0 or regb() != R or flags():
-        errs.append(f'world 4 load: SREG_LAST {last()}, registry {"kept" if regb() == R else "changed"}, flags '
-                    f'{flags():#x} (want 0, kept, 0)')
+    for wn in (4, 0):
+        m.load(SF)                                          # (SWC1 holds an 'IT' before the save: it must go)
+        m.world(wn)
+        m.call('swe', 'swe_st_save')
+        s4 = m.rd(m.swc1, size)
+        if struct.unpack_from('<H', s4, 2)[0] != wn or IT in dict(sections(s4)):
+            errs.append(f'world {wn}: SWC1 world {struct.unpack_from("<H", s4, 2)[0]}, sections '
+                        f'{[(hex(k), len(b)) for k, b in sections(s4)]} (want {wn}, no IT)')
+        S4 = SF[:2] + struct.pack('<H', wn) + SF[4:]           # (an 'IT' in a world-4 / world-0 block: never read)
+        m.call('sreg', 'sreg_new')
+        m.load(S4)
+        if last() != 0 or regb() != R or flags():
+            errs.append(f'world {wn} load: SREG_LAST {last()}, registry {"kept" if regb() == R else "changed"}, '
+                        f'flags {flags():#x} (want 0, kept, 0)')
     m.world(WORLD)
+    m.call('sreg', 'sreg_new')
+    m.load(SF)
+    m.call('swe', 'swe_st_save')
+    it5, itf = dict(sections(m.rd(m.swc1, size))).get(IT), dict(sections(SF)).get(IT)
+    if last() != 1 or flags() != FL or it5 is None or it5 != itf:
+        errs.append(f'world 5 after them: load {last()}, flags {flags():#x}, IT {"=" if it5 == itf else "!="} the '
+                    f'saved one (want 1, {FL:#x}, =)')
 
     # corrupt (every ident 0) and short: -1, rebuilt - the same bytes from two garbage arenas
     shape(ITALY, ITALY_DIV)
@@ -286,8 +300,8 @@ def test_sreg():
                         f', {"=" if got[0][1] == R0 else "!="} the spec\'s')
     return not errs, '; '.join(errs) or ('new career = the dormant head + IT 340 at the first save; save -> load of a '
                                          'non-spec registry 1, its state back; another layout 0 + IT cut (ZZ kept); '
-                                         'corrupt / short -1, the same rebuild twice; flags saved + loaded; world 4: no IT, load '
-                                         'ignored; dormant: no sreg, no section')
+                                         'corrupt / short -1, the same rebuild twice; flags saved + loaded; worlds 4 and 0: no IT, load '
+                                         'ignored, world 5 round-trips after them; dormant: no sreg, no section')
 
 
 def test_sreg_shape():

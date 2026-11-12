@@ -3036,7 +3036,8 @@ def euro_draws():
         def stop(scr):
             rnd, cid, ties = slot_ties(s.result, 16)
             title = scr.entries[0][1] if scr.entries else ''
-            r2 = 'SECONDO TURNO' in title and ('EUFA' if cid == 2 else 'COPPE') in title   # that cup's round-2 screen
+            check('EUFA' not in title, f'title {title!r}: the original EUFA spelling (4.1.2: UEFA)', errs)
+            r2 = 'SECONDO TURNO' in title and ('UEFA' if cid == 2 else 'COPPE') in title   # that cup's round-2 screen
             if cid in (1, 2) and ((rnd == 0 and 0 not in seen and any(a or b for a, b in ties)) or (r2 and 1 not in seen)):
                 k = 0 if rnd == 0 and not r2 else 1
                 n = 16 if k == 0 else 8
@@ -5803,6 +5804,35 @@ def classic_tourneys():
         good &= ok
         out.append(f"{button}: {'ok' if ok else 'FAIL'} {msg}, {len(coins)} coin tosses")
     return good, '; '.join(out)
+
+
+@scenario
+def uefa_name():
+    """4.1.2 (Marco, 12/11): the UEFA Cup's name, 'EUFA' in the original exes (COPPA EUFA / EUFA CUP / COUPE EUFA /
+    EUFA-CUP, two copies each in obj2). No game run: every exe of the build's dir (SWOSTEST_BUILD; its ../gog too)
+    has no 'EUFA' left and its language's name with 'UEFA' at the original's first copy (the copy the game shows)"""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    from le import LE
+    want = {'ITALIAN': b'COPPA UEFA', 'ENGLISH': b'UEFA CUP', 'FRENCH': b'COUPE UEFA', 'GERMAN': b'UEFA-CUP'}
+    d = os.environ.get('SWOSTEST_BUILD')
+    if not d:
+        return True, 'SKIP: SWOSTEST_BUILD (a release dir) needed'
+    errs, n = [], 0
+    for sub in ('', os.path.join('..', 'gog')):
+        for lg, name in want.items():
+            exe = os.path.join(d, sub, lg + '.EXE')
+            if not os.path.isfile(exe):
+                continue
+            n += 1
+            org = os.path.join(ROOT, 'orig', 'gog' if sub else '', lg + '.EXE')
+            o2 = LE(open(org, 'rb').read()).obj_bytes(2)
+            x2 = LE(open(exe, 'rb').read()).obj_bytes(2)
+            first = o2.find(name.replace(b'UEFA', b'EUFA'))
+            check(b'EUFA' not in x2, f'{sub or "CD"} {lg}: EUFA still in obj2 at {x2.find(b"EUFA"):#x}', errs)
+            check(first >= 0 and x2[first:first + len(name)] == name,
+                  f'{sub or "CD"} {lg}: {x2[first:first + len(name)]!r} at the first copy, not {name!r}', errs)
+    check(n > 0, f'no exe in {d}', errs)
+    return not errs, '; '.join(errs) or f'{n} exes: the UEFA Cup spelled UEFA, no EUFA left'
 
 
 @scenario

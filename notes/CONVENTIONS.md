@@ -141,6 +141,8 @@ new rule. If a rule seems wrong for a case, ask the regia session; don't silentl
       0x3000, uesum moved to UESUM_AT 0x4000 and usmenu after it - Regia 09/11). The engine's code
       + registry stay below swreg.OBJ4_END (0x2000 in 4.1), each view has its own range assert, and the 23bis gates
       below apply to it as to engine code.
+    - 4.2 slow: obj4 page 13, SLOW_AT 0xC000 (slow.py, the OPTIONS row MATCH SPEED + its SPEED.CFG; MC 12/11,
+      SREG2 0xB000 below it, CT spare 0xD000; a 23bis exception, Davide's ok via Regia 12/11).
     - No obj4 address is ever stored in a save (engine state = 'EN' items, rule 21), so obj4 may grow and move freely.
     - Calls between the game / obj3 and obj4: self-relative fixups (type 8) as rule 23; cobj.link(text_obj=4).
     - The harness finds obj4 by its header (Result.base4: the magic + the self pointer), not by a game pointer.

@@ -33219,7 +33219,9 @@ def xleft_oldpool():
 N14_NAMES = (['ROBERTO_CARLOS', 'LUIS_ENRIQUE', 'SCHWEINSTEIGER', 'JAN STOECKLINGE', 'MUELLER',
               'BASTIAN SCHWEINSTEIGER', 'RUUD VAN NISTELROOY', 'MARCO VAN BASTEN', 'GIO VAN BRONCKHORST',
               'A WWWWWWWWWWWWWW', 'A MMMMMMMMMMMMMM', 'JOSE ANTONIO CAMACHO', 'KOEN DE VLEESCHAUWER',
-              'A. ANAGNOSTOPOULOS'] * 2)[:16]   # (4.1 41-namelong, Marco: the 5 before; 4.2 names14: the last 3)
+              'A. ANAGNOSTOPOULOS'] * 2)[:15] + ['A ANAGNOSTOPOULOS ']   # (4.1 41-namelong, Marco: the 5
+# before; 4.2 names14: the last 3 + a trailing space after a word of 15+ - MC's .ws guard: the game's cut, not empty)
+assert all(len(n) <= 22 for n in N14_NAMES), 'N14_NAMES: a name longer than the 22-byte field'
 
 
 def n14_extract(name, flags):
@@ -33265,11 +33267,21 @@ def n14_short(name):
         alt, cut2 = n14_extract(name, 0x4000)
         if not cut2:
             return alt
-        w = name.strip(' ').split()[1:]          # 4.2 names14: the last words that fit 14, else the last word 13 + '.'
-        for k in range(len(w)):
-            if len(' '.join(w[k:])) <= 14:
-                return ' '.join(w[k:])
-        return n14_extract(w[-1], 0x4000)[0]
+        raw = name.lstrip(' ')                   # 4.2 names14 (nl_init's loop, byte for byte): the last words that fit
+        k = raw.find(' ')                        # 14 (lengths to the NUL, trailing spaces counted), else the last word
+        if k < 0:                                # 13 + '.'; a trailing space with no word after it: the game's cut
+            return sh                            # (MC's .ws guard)
+        while True:
+            while k < len(raw) and raw[k] == ' ':
+                k += 1
+            if k == len(raw):
+                return sh
+            if len(raw) - k <= 14:
+                return raw[k:]
+            e = raw.find(' ', k)
+            if e < 0:
+                return n14_extract(raw[k:], 0x4000)[0]
+            k = e
     return sh
 
 

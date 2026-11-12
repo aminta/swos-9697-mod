@@ -20288,6 +20288,72 @@ def conti_holder(tag, env, team, words):
 
 
 @scenario
+def world_conti_bra_sud():
+    """4.2 root fix b (Regia 12/11): a natural FLAMENGO career (no CONTI_FORCE) through its first season end. Brazil,
+    the career club's own country (the season end's first), now enters its whole final table: the season-2 edition
+    (the career's last save, item 'CE', not the season-1 one) puts Brazil's 6 'next' places into the Sudamericana's
+    group stage - 6 clubs of FLAMENGO's team file (before: 1-2, ct_begin cleared the table: top 9 records only).
+    Reads only the save, so it runs on 4.1.1-recipe builds too (no symbols). BRASUD_BUILD: a release build's game
+    dir (else a build of this checkout); W2627REL_DATA as conti_holder."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import conti
+    import glob
+    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    exe = os.environ.get('BRASUD_BUILD')    # (a release build's game dir, e.g. c/RELxx/SWOS; else a build of this checkout)
+    if not exe or not os.path.isdir(exe):
+        exe = build('conti_bra_sud', env=dict(SEASON_PACKS=','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order])))
+    keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_ONE',
+            'W8485_FROM', 'W8485_TMO', 'GP_CALTRACE')
+    keep = {k: os.environ.get(k) for k in keys}
+    try:
+        for k in keys:
+            os.environ.pop(k, None)
+        os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM='SUDAMERICA,BRASILE,BRASILEIRAO SERIE A,FLAMENGO',
+                          W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1', W8485_TMO='900')
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    errs = []
+    check(ok, msg[:300], errs)
+    import contextlib
+    import io
+    with contextlib.redirect_stdout(io.StringIO()):
+        spec, _, cups = conti.load(list(conti.CONFS))
+    ci = cups.index(('conmebol', 'sud'))
+    def rbytes(r):                                       # (4.1.x: conti.py has no rbytes - the same spec walk)
+        p = 4
+        for c in range(spec[0]):
+            nr = spec[p]
+            if c == ci:
+                return spec[p + 4 + r * conti.RB:p + 4 + (r + 1) * conti.RB] if r < nr else None
+            p += 4 + conti.RB * nr
+    j = next(j for j in range(8) if rbytes(j) and rbytes(j)[0] == conti.K['groups'])
+    cars = sorted(glob.glob(os.path.join(RUNS, w84_tag() + '_*', 'SWOS', '*.CAR')), key=os.path.getmtime)
+    got = None
+    for car in reversed(cars):
+        ed = car_item(car, 'CE', conti.ED_SIZE)
+        if not ed or ed[:2] != b'CE' or ed[11] & 1:      # (none, or season 1's edition: the data's real lists)
+            continue
+        ne = min(struct.unpack_from('<H', ed, 2)[0], (len(ed) - 60) // 5)
+        mgr = struct.unpack_from('<H', ed, 8)[0]
+        es = [ed[60 + 5 * i:65 + 5 * i] for i in range(ne)]
+        grp = [e for e in es if len(e) == 5 and e[2] == (ci << 4 | j)]
+        got = (os.path.relpath(car, RUNS), len(grp), sum(1 for e in grp if e[0] == (mgr & 0xFF)))
+        break
+    check(got, f'no season-2 edition in the saves {[os.path.relpath(c, RUNS) for c in cars]}', errs)
+    check(not got or got[2] >= 6, f'Sudamericana groups (round {j}): {got and got[2]} clubs of the career club\'s file '
+          f'of {got and got[1]} direct entrants ({got and got[0]}), want 6 (a Brazilian Libertadores loser may add one)', errs)
+    return not errs, '; '.join(errs) or f'Sudamericana groups: {got[2]} BRA of {got[1]} direct entrants ({got[0]})'
+
+
+@scenario
 def world_conti_hold_rec():
     """conti_holder: FLAMENGO in the Libertadores (its groups, 1st) and the Recopa (rec:final, won): the Recopa after
     the club's Libertadores (season 2 ends)"""

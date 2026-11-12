@@ -21602,14 +21602,7 @@ def world_conti_bra_sud():
     with contextlib.redirect_stdout(io.StringIO()):
         spec, _, cups = conti.load(list(conti.CONFS))
     ci = cups.index(('conmebol', 'sud'))
-    def rbytes(r):                                       # (4.1.x: conti.py has no rbytes - the same spec walk)
-        p = 4
-        for c in range(spec[0]):
-            nr = spec[p]
-            if c == ci:
-                return spec[p + 4 + r * conti.RB:p + 4 + (r + 1) * conti.RB] if r < nr else None
-            p += 4 + conti.RB * nr
-    j = next(j for j in range(8) if rbytes(j) and rbytes(j)[0] == conti.K['groups'])
+    j = next(j for j in range(8) if conti.rbytes(spec, ci, j) and conti.rbytes(spec, ci, j)[0] == conti.K['groups'])
     cars = sorted(glob.glob(os.path.join(RUNS, w84_tag() + '_*', 'SWOS', '*.CAR')), key=os.path.getmtime)
     got = None
     for car in reversed(cars):

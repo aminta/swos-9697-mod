@@ -56,6 +56,16 @@ new rule. If a rule seems wrong for a case, ask the regia session; don't silentl
     reports it; no silent fallback to a weaker draw. The one exception is a competition whose real regulations say how
     to relax, and then exactly as they say (its spec carries that rule). The harness fails a build whose real data
     hits a refusal.
+14b. **Group draws are proven before they ship** (42-acl2, MC 11/11). Every continental group stage with an association rule
+    goes through the build's draw gate (tools/drawgate.py, run by conti.patch in every build): all the association
+    mixes the stage can really receive (exhaustive up to 4096, else saturated + random) x 1024 seeds, through the same
+    ctdraw.c code the game runs. A budget hit or a refusal on any of them FAILS THE BUILD; results are cached by content
+    in internal/drawgate/. The harness adds CT_SDRAW_ERR == 0 and CT_SDRAW_HIT > 0 in every conti scenario. A drawable
+    field is never refused. Only two competitions may relax, and only to what their regulations say (14a): the AFC
+    Champions League Two groups and the AFC Champions League Elite preliminary stage ("unless unavoidable"): the draw
+    then takes the fewest same-country pairs a legal field allows ('fewest', per region), nothing more. Everything else
+    (Elite league stage, CAF, CONMEBOL, OFC, UEFA) refuses. CONMEBOL's rule for clubs coming from the qualifying round
+    is a fixed class, not a relaxation. Sources and article numbers: internal/handoff/nota-draw-rules.md.
 
 ## Tests
 15. Result-dependent cases are **forced** (pokes / *_FORCE / CONTI_GPLACE ...), never re-run hoping. Test switches

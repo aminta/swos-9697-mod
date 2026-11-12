@@ -9411,10 +9411,16 @@ def bench_world():
         for t in ['SCEGLI SQUADRA'] + ([] if os.environ.get('BENCH_BASE') or files else ['CARR. STORICHE', 'MONDO 2026-27']):
             if press(s, s.screen(), t) is None:
                 return False, f'new career: {t} not reached ({s.result})'
-        if not pick_career(s, path):
+        if not pick_career(s, path, b):
             return False, f'new career: {path} not reached ({s.result}) on {s.screen()}'
         n = struct.unpack('<H', s.result.obj2(cnp, 2))[0]
         info.append(f'{club}: {n} players in the squad')
+        tick = career_tick_read(s, b)       # (12/11: the draw follows randomSeed = the timer at CareerInitVars;
+        info.append(f'career seed {tick}' + (' (CAREER_TICK)' if os.environ.get('CAREER_TICK') else ''))   # pinned
+        if os.environ.get('CAREER_TICK'):   # by CAREER_TICK: the same opponent / dugout at any time of day)
+            d_ = (tick - int(os.environ['CAREER_TICK'], 0)) & 0xFFFF   # (+ the press's own ticks: 376 on
+            check(d_ < 1000, f'career seed {tick}, not CAREER_TICK + the press\'s ticks', errs)   # REL42i19-en)
+            info.append(f'career seed = CAREER_TICK + {d_}')
         real = os.environ.get('BENCH_REAL')   # (phase 2) 'named:used' wanted from the competition's real rule: no poke
         if not real:
             s.poke(s.result.lin(bx), b'\x0f\x00')
@@ -9511,7 +9517,47 @@ def bench_world():
         check(k and k[0] == 'kick-off title ' + os.environ['BENCH_TITLE'], f'title: {k} (want {os.environ["BENCH_TITLE"]})', errs)
     check('squad screen: GIOCA PARTITA' in info or any(x.startswith('kick-off named:used') for x in info),
           'not played as a player-coach (no GIOCA PARTITA, no kick-off)', errs)   # (EN / FR / DE: the label differs)
+    side = os.environ.get('BENCH_SIDE')     # (12/11) 'top' / 'bottom': the club's own dugout (the first dugout
+    if side:                                # check's benchY: the human club's bench; 485 = bottom, else top)
+        by = next((int(m_.group(1)) for x in info for m_ in [re.search(r'dugout: benchY (\d+)', x)] if m_), None)
+        got = None if by is None else 'bottom' if by == 485 else 'top'
+        check(got == side, f'the club\'s dugout {got} (benchY {by}), want {side}', errs)
     return not errs, '; '.join(errs + info)
+
+
+BENCH_TICKS = {'top': '1234', 'bottom': '4000'}   # (12/11) CAREER_TICK per side of bench_world_home / _away: the
+                                                # career's seed (CAREER_TICK + the club's press, 376 ticks on
+                                                # REL42i19-en) draws the first opponent and the club's dugout
+
+
+def bench_world_side(side):
+    """bench_world with the career's draw pinned (CAREER_TICK = BENCH_TICKS[side], career_tick_pin) and the club's
+    dugout asserted (BENCH_SIDE): the same opponent and the same side on every run, whatever the harness's timing
+    before the club's press. BENCH_TICK overrides the value (a new exe whose draw moved)."""
+    keep = {k: os.environ.get(k) for k in ('CAREER_TICK', 'BENCH_SIDE')}
+    os.environ.update(CAREER_TICK=os.environ.get('BENCH_TICK') or BENCH_TICKS[side], BENCH_SIDE=side)
+    try:
+        return bench_world()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+
+
+@scenario
+@spp_restore
+def bench_world_home():
+    """bench_world, the club on the top dugout (the in-match top team) on a pinned draw (bench_world_side)."""
+    return bench_world_side('top')
+
+
+@scenario
+@spp_restore
+def bench_world_away():
+    """bench_world, the club on the bottom dugout (benchY 485) on a pinned draw (bench_world_side)."""
+    return bench_world_side('bottom')
 
 
 TRAIN_TXT = {'it': ('SQUADRA', 'PRATICA', 'GIOCA PARTITA'), 'en': ('SQUAD', 'TRAINING', 'PARTITA'),   # (career
@@ -11498,9 +11544,52 @@ def spp_settle(s, before, again):
     return False
 
 
-def pick_career(s, path):
-    """A new World 2026-27 career through the selector path (levels of a group first, as world8485 does)."""
+def career_seed_sites(exe):
+    """(42, bench_world) obj2 offsets of randomSeed, newRandomSeedCopy and currentTick: CareerInitVars' `mov ax,[currentTick]; mov
+    [randomSeed],ax; mov al,[currentTick]; mov [newRandomSeedCopy],al` (careerseed.py's pattern). The career's draws
+    come from randomSeed alone: every competition setup (cseg_3ABB2 / 3ACAB / 3ADAE) calls Randomize2, seed2 =
+    randomSeed ^ (comp << 8 | season) - so pinning Rand / Rand2's states (rng_sites) is overwritten there. The seed is
+    the game's timer count (TimerProc's currentTick, int 8) when the career menu runs CareerInitVars, not the DOS
+    clock (INT 21h 2Ch is read once, at the start, for the intro's Rand2 seed)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    from le import LE
+    le = LE(open(exe, 'rb').read())
+    d = le.obj_bytes(1)
+    fx = {f[1]: f[4] for f in le.fixups() if f[0] == 1 and f[3] == 2}
+    hits = [m.start() for m in re.finditer(rb'\x66\xa1....\x66\xa3....\xa0....\xa2', d, re.S)
+            if fx.get(m.start() + 2) is not None and fx.get(m.start() + 13) == fx.get(m.start() + 2)]
+    assert len(hits) == 1, hits
+    return fx[hits[0] + 8], fx[hits[0] + 18], fx[hits[0] + 2]
+
+
+def career_tick_pin(s, exe, where):
+    """CAREER_TICK=n (0..65535, harness only, any exe): the career's seed pinned (career_seed_sites). Not randomSeed
+    no: currentTick (TimerProc's count) poked to n right before the club's press - that press runs CareerInitVars
+    (randomSeed = currentTick; a randomSeed poke before it is overwritten, runs-tick-1234a) and then the season's
+    competition setups: randomSeed = n + the few emulated ticks the press takes, the same draw (fixtures, first
+    opponent, home / away) on every run at any wall-clock time. Logged as [career tick]."""
+    v = os.environ.get('CAREER_TICK')
+    if not v:
+        return
+    n = int(v, 0) & 0xFFFF
+    _, _, ct = career_seed_sites(os.path.join(exe, 'ITALIAN.EXE'))
+    was = struct.unpack('<H', s.result.read(s.result.base2 + ct, 2))[0]
+    s.poke(s.result.base2 + ct, struct.pack('<H', n))
+    s.log.append(f'[career tick] {where}: currentTick {was} -> {n}')
+
+
+def career_tick_read(s, exe):
+    """randomSeed now (career_seed_sites): with CAREER_TICK the pinned value, else the timer's count at CareerInitVars."""
+    rs = career_seed_sites(os.path.join(exe, 'ITALIAN.EXE'))[0]
+    return struct.unpack('<H', s.result.read(s.result.base2 + rs, 2))[0]
+
+
+def pick_career(s, path, exe=None):
+    """A new World 2026-27 career through the selector path (levels of a group first, as world8485 does). With `exe`
+    (the build dir) and CAREER_TICK set: the career's seed pinned before the club's press (career_tick_pin)."""
     for t in path:
+        if exe and t == path[-1]:
+            career_tick_pin(s, exe, t)
         scr = s.screen()
         lvl = None if scr.find(t, exact=True) is not None else \
             next((x for i, x, inv, _ in scr.entries if 11 <= i <= 20 and x and not inv and t.startswith(x + ' ')), None)

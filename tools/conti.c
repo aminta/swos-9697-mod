@@ -763,7 +763,9 @@ void ct_begin(void) {                   /* the season end's first country: this 
     ct_finish();
     u8 *b = (u8 *)&CT_IN;
     for (u32 i = 0; i < sizeof(CT_IN); i++) b[i] = 0;
-    ntab = 0;
+    /* (4.1.2: ntab kept - the first country is the career club's own, its top division's whole table caught by
+       ct_table just before this call; clearing it left that country only its top 9 records: a Brazilian career sent
+       10-11 clubs for Brazil's 13 continental places. ct_country checks TAB[0] against the champion) */
 }
 /* one country of the season end (after its season: the top 9 records in stand, the cup winner's record) */
 void ct_country(const u8 *stand, const u8 *cuprec) {

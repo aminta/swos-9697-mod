@@ -2723,6 +2723,7 @@ def rr_pattern_fix(p, at):
 def gp_s7():
     """1 when a pack's ko_playoffs send a club across league structs (S7: Pack.ko_external, set by the gplay
     tables built before the link), else 0: the GP_EXT glue compiled out, the exe byte-identical to one without S7."""
+    import mkseason
     return int(any(getattr(pk, 'ko_external', None) for pk in mkseason.packs()))
 
 

@@ -9040,12 +9040,22 @@ def bench_play(s, gmax, top, bot, wants, errs, info, mark, sub=None, icons=None,
         bench_et(s, o, gmax, sub[0], errs, info, mark)   # cache), the match forced into extra time
         return True                         # (BENCH_REAL's bench, often 5: the bench-15 checks below do not apply)
     bench, lists = 0, 0
-    for k in range(40):                     # the bench (PgUp / PgDn) and its list (fire), as subs_numbers: seen on screen
-        r = s.send(('pgdn' if k % 2 else 'pgup') + ':0.3 dump:0.5')
+    bv = bench_vars()                       # (12/11 bench feed: blind PgUp / PgDn during play were cleared by the game
+    tb = team_data()                        #  every frame - the club at home v DERTHONA never got its list, 'bench list
+    w16 = lambda r, o: struct.unpack('<H', r.read(r.base2 + o, 2))[0]   # never seen' 4/4. Now: the human team's
+    for _ in range(60):                     #  controls set (MainKeysCheck's gate), then bench_open - the call poked on
+        r = s.result                        #  a still frame, the menu state read (INSUBS 30) - for each side)
+        if r.outcome != 'dump' or any(w16(r, t + 4) or w16(r, t + 6) for t in tb):
+            break
+        s.send('dump:0.5')
+    hum = [k for k, t in zip(('pgdn', 'pgup'), tb) if w16(s.result, t + 4) or w16(s.result, t + 6)]
+    mark(f'bench list: human side {hum}')
+    for k in range(6 if hum else 0):        # the bench and its list (fire), as subs_numbers: seen on screen
+        r = bench_open(s, hum[k % len(hum)])
         if r.outcome != 'dump':
             errs.append(f'bench: {r}')
             break
-        if k % 2:
+        if w16(r, bv['INSUBS']) == 30:
             r = s.send('fire:1 dump:1.5')
             bench += 1
             rows = [x for x in subs_rows(s.box.dump(0xA0000, 64000)) if len(x[3]) >= 2]

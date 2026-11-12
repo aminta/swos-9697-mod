@@ -2,7 +2,7 @@
 
 **SWOS 96/97 Mod 4.1.2**
 
-4.1.2 is a small update. In the 2026-27 world it fixes a crash at the end of the season after an exit from the Libertadores and, in careers with a Brazilian or Argentine club, some of the country's places in the continental cups that were given to clubs from other countries. In Argentina, Panama and the MLS it fixes how the chairman judges a club in the second zone (conference). In every world it fixes the spelling of the UEFA Cup, and the patcher page can install from the Italian CD into a new folder in Chrome. Everything in 4.1.1 stays as it was; careers saved with 4.0 up to 4.1.1 load and play on.
+4.1.2 is a small update. In the 2026-27 world it fixes a crash at the end of the season after an exit from the Libertadores and, in careers with a Brazilian or Argentine club, some of the country's places in the continental cups that were given to clubs from other countries. In the same world it gives the United States all their places in the CONCACAF Champions Cup. In Argentina, Panama and the MLS it fixes how the chairman judges a club in the second zone (conference). In every world it fixes the spelling of the UEFA Cup, and the patcher page can install from the Italian CD into a new folder in Chrome. Everything in 4.1.1 stays as it was; careers saved with 4.0 up to 4.1.1 load and play on.
 
 ### What's new
 
@@ -21,9 +21,13 @@ Argentina, Panama and the MLS: the chairman now judges your club on its place in
 #### Installing straight from the Italian CD into a new folder
 In Chrome, installing into a new folder straight from the Italian CD stopped with "Name is not allowed", because the CD holds a desktop.ini file that the browser refuses to write. The patcher page now skips the files Windows and Mac keep in their folders and, if the browser cannot write some other file, lists its name instead of stopping. (Thanks Nicola.)
 
+#### CONCACAF Champions Cup: the United States send all their clubs
+In the World 2026-27, CONCACAF Champions Cup: some seasons one of the United States' places stayed empty when the MLS Cup was won by a club that had not topped the table. The US now always sends its full number of clubs.
+
 ### Good to know
 - Careers saved with 4.0, 4.0.1, 4.0.2, 4.0.5, 4.1 and 4.1.1 load and play on.
 - Brazil and Argentina: a save made in the middle of a season picks the fix up at its next season end; the cups already drawn at the previous season end keep the clubs they have, and the full lists show from the next season's cups on.
+- CONCACAF Champions Cup (World 2026-27): a save picks the fix up at its next season end; the edition already drawn this season stays as it is.
 - The Brazil and Argentina fix does not touch careers with a club from any other country, European ones included.
 - Recopa fix: no save is lost. If your game exited to DOS or hung after an exit from the Libertadores, load your last save with 4.1.2 and the Recopa is played normally.
 
@@ -31,7 +35,7 @@ In Chrome, installing into a new folder straight from the Italian CD stopped wit
 
 **SWOS 96/97 Mod 4.1.2**
 
-La 4.1.2 è un piccolo aggiornamento. Nel mondo 2026-27 sistema la chiusura del gioco a fine stagione dopo un'uscita dalla Libertadores e, nelle carriere con un club brasiliano o argentino, alcuni posti del paese nelle coppe continentali che andavano a club di altri paesi. In Argentina, Panama e MLS sistema il giudizio del presidente su un club della seconda zona (conference). In ogni mondo sistema il nome della Coppa UEFA e la pagina del patcher installa dal CD italiano in una cartella nuova anche in Chrome. Tutto quello che c'era nella 4.1.1 resta com'era; le carriere salvate con la 4.0 fino alla 4.1.1 si caricano e si giocano normalmente.
+La 4.1.2 è un piccolo aggiornamento. Nel mondo 2026-27 sistema la chiusura del gioco a fine stagione dopo un'uscita dalla Libertadores e, nelle carriere con un club brasiliano o argentino, alcuni posti del paese nelle coppe continentali che andavano a club di altri paesi. Nello stesso mondo dà agli Stati Uniti tutti i loro posti nella CONCACAF Champions Cup. In Argentina, Panama e MLS sistema il giudizio del presidente su un club della seconda zona (conference). In ogni mondo sistema il nome della Coppa UEFA e la pagina del patcher installa dal CD italiano in una cartella nuova anche in Chrome. Tutto quello che c'era nella 4.1.1 resta com'era; le carriere salvate con la 4.0 fino alla 4.1.1 si caricano e si giocano normalmente.
 
 ### Novità
 
@@ -50,8 +54,12 @@ Argentina, Panama e MLS: il presidente ora giudica il club sulla posizione nella
 #### Installazione dal CD italiano in una cartella nuova
 In Chrome, installare in una cartella nuova direttamente dal CD italiano si fermava con "Name is not allowed", perché il CD contiene un file desktop.ini che il browser non vuole scrivere. La pagina del patcher ora salta i file che Windows e Mac tengono nelle cartelle e, se il browser non riesce a scrivere un altro file, ne elenca il nome invece di fermarsi. (Grazie Nicola.)
 
+#### CONCACAF Champions Cup: gli Stati Uniti mandano tutte le loro squadre
+Nel Mondo 2026-27, CONCACAF Champions Cup: in alcune stagioni uno dei posti degli Stati Uniti restava vuoto quando la MLS Cup la vinceva una squadra non prima in classifica. Ora gli Stati Uniti mandano sempre tutte le loro squadre.
+
 ### Da sapere
 - Le carriere salvate con la 4.0, la 4.0.1, la 4.0.2, la 4.0.5, la 4.1 e la 4.1.1 si caricano e si giocano normalmente.
 - Brasile e Argentina: un salvataggio fatto a metà stagione prende la correzione alla prossima fine stagione; le coppe già sorteggiate alla fine della stagione precedente tengono i club che hanno, e le liste complete si vedono dalle coppe della stagione dopo.
+- CONCACAF Champions Cup (Mondo 2026-27): un salvataggio prende la correzione alla prossima fine stagione; l'edizione già sorteggiata in questa stagione resta com'è.
 - La correzione per Brasile e Argentina non tocca le carriere con un club di un altro paese, europee comprese.
 - Correzione della Recopa: nessun salvataggio è perso. Se il gioco era tornato al DOS o si era bloccato dopo un'uscita dalla Libertadores, carica l'ultimo salvataggio con la 4.1.2 e la Recopa si gioca normalmente.

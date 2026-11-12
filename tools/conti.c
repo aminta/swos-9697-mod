@@ -624,6 +624,8 @@ static void force_in(int c, int r) {
         }
     }
     if (j >= 0) { E[c][r][j] = (u16)m; EV[c][r][j] = 0; return; }
+    if (!n && holders_cup(c, r)) { enter(c, r, m, 0, 0); return; }   /* (an empty winners' round - season 1's IC,
+                                           its list fixed: no association count to keep, the old documented extra) */
     CT_OUT.pad[0] = 1;
     enter(c, r, m, 0, 0);
 }

@@ -245,6 +245,9 @@ def patch_exe(src, dst, remap, lang='it'):
             import bteam
             engine.save_item('BU', bteam.BU_SIZE, world_only=True)   # 4.0.6 the B-team call-ups (bteam.py)
         engine.save_item('CR', 1, world_only=True)               # 4.0.6 the CPU replacements switch (cpurefill.py: 0 = invented)
+        engine.save_item('TR', 1)                                # 4.2.x trial players (trial.py: bits 0-3 role, bit 4 QUALITA'+ off)
+        engine.after_load('tr_load')
+        engine.after_new('tr_new')
     engine.save_item('CC', 4)                    # 4.0.6 the OPTIONS rows 'CPU red cards', 'CPU injuries' (cpucards.py: 0 = ON;
     engine.after_load('cc_load')                 # the session's value kept by a load / a new career)
     engine.after_new('cc_new')
@@ -867,6 +870,9 @@ def patch_exe(src, dst, remap, lang='it'):
             print(f'exe: WARNING bteam {st_end - bt_at} B > 0x1200 (Regia: tell the Integratore)')
     if xtra_on:                                  # 4.0.6 (Davide 03/11): the CPU replacements switch (ACQUISTA GIOCATORE, World
         import cpurefill                         # 2026-27): an extra of the seller instead of the invented player; the
+        import trial                             # (4.2.x trial players: its code first, its button in cpurefill's copy)
+        cpurefill.EXTRA.clear()
+        st_end = trial.patch(p, (st_end + 15) & ~15, lang, cpurefill)
         st_end = cpurefill.patch(p, (st_end + 15) & ~15, lang)   # obj3 chain's end (Integratore 03/11)
         assert st_end <= LT3_AT, hex(st_end)
     import ffp                                   # 4.0.6 (Marco): financial fair play - the season-start check, the

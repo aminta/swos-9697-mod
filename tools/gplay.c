@@ -32,7 +32,7 @@ typedef unsigned short u16;
 typedef unsigned int u32;
 typedef signed char s8;
 
-enum { GT = 32, GD = 16, GN = 64, RESERVE = 0xFE };   /* (GD: Italy 2026-27 has 14 divisions; GT: Argentina's 30) */
+enum { GT = 32, GD = 16, GN = 64, RESERVE = 0xFE, EXTERNAL = 0xFD };   /* (EXTERNAL, S7: gplay.py's) */   /* (GD: Italy 2026-27 has 14 divisions; GT: Argentina's 30) */
 enum { HOST_LISTED, HOST_BETTER, HOST_DRAWN, HOST_NEUTRAL, HOST_UEFA_FINAL = 0x40, HOST_SKIP_SAME = 0x80 };
 enum { LV_BETTER, LV_ET_PENS, LV_ET_BETTER, LV_PENS, LV_AWAY_PENS, LV_AWAY_BETTER,
        LV_BETTER_PTS, LV_SECOND };      /* (4.2 s3shape: the better placed unless level on points, then e.t. + penalties;
@@ -323,6 +323,35 @@ static void move(int c, int delta) {
     struct gp_mv *m = &GP_OUT.mv[GP_OUT.nmv++];
     m->glob = row(c)->glob; m->team = row(c)->team; m->delta = delta;
 }
+
+/* S7 glue (MC 12/11, mc-s7-glue.md §3.5): a play-off destination in the OTHER league struct (Italy: Serie C's
+   play-out losers -> file 144's Serie D, the Serie D title winner -> file 102's Serie C) is compiled as EXTERNAL
+   (gplay.py, mkseason Pack.po_local). The game moves nobody across structs: the club stays where it is (no GP_OUT
+   move) and is listed here - entry, outcome, its global number - for the season-end swap builder, which reads the
+   entry's target division_key from mkseason's ko_external table (the one place of that policy). Not in GP_OUT
+   (its layout is the season-end log's, GP_LOG). The preview (GP_PRE) lists nothing. Dormant: no EXTERNAL byte in
+   any spec, n stays 0. Full (8): the last ones lost - the builder refuses that season by its
+   flag (GP_EXT.full), never a guess. */
+#if GP_S7
+enum { GP_EXT_N = 8, EXT_WINNER = 0, EXT_LOSER = 1 };
+struct gp_ext { u8 n, full, pad[2]; struct { u16 glob, team; u8 pidx, outcome, pad[2]; } e[GP_EXT_N]; };
+struct gp_ext GP_EXT;
+
+extern u8 GP_PRE;                       /* (the preview flag, defined below) */
+static void dest(int c, int to, int pidx, int outcome) {
+    if (to != EXTERNAL) {
+        move(c, to - DV(c));
+        return;
+    }
+    if (GP_PRE) return;
+    if (GP_EXT.n >= GP_EXT_N) { GP_EXT.full = 1; return; }
+    GP_EXT.e[GP_EXT.n].glob = row(c)->glob; GP_EXT.e[GP_EXT.n].team = row(c)->team;
+    GP_EXT.e[GP_EXT.n].pidx = (u8)pidx; GP_EXT.e[GP_EXT.n].outcome = (u8)outcome;
+    GP_EXT.n++;
+}
+#else
+#define dest(c, to, pidx, outcome) move((c), (to) - DV(c))   /* (dormant: the game's own move) */
+#endif
 
 static int sbetter_cmp(int a, int b) { return better(a, b); }
 
@@ -774,6 +803,9 @@ static int pr_row(int d, u16 g) {               /* a global number -> its row of
     return -1;
 }
 
+#if GP_S7
+static int pr_pidx;                     /* (S7: the promedio entry's index, for GP_EXT) */
+#endif
 static void promedio(int d, int mnow, int ldiv) {
     if (!PR_STATE.init) pr_seed();
     int n = SSB->n[2];
@@ -806,8 +838,13 @@ static void promedio(int d, int mnow, int ldiv) {
         if (ca >= 0 && cb >= 0) down2 = tie(ca, cb, 1, HOST_NEUTRAL, LV_ET_PENS) == ca ? l2 : l;
     }
     int c1 = pr_row(d, a[down1].glob), c2 = pr_row(d, a[down2].glob);
+#if GP_S7
+    if (c1 >= 0) dest(c1, ldiv, pr_pidx, EXT_LOSER);   /* (S7: an EXTERNAL loser_div - listed, not moved) */
+    if (c2 >= 0) dest(c2, ldiv, pr_pidx, EXT_LOSER);
+#else
     if (c1 >= 0) move(c1, ldiv - d);
     if (c2 >= 0) move(c2, ldiv - d);
+#endif
     static struct pr_club nx[PR_N];             /* next season's history: this season and the one before */
     int nn = 0;
     for (int i = 0; i < n && nn < PR_N; i++) {
@@ -1135,6 +1172,9 @@ GP_KOSIZE void gp_season(void) {
     GP_OUT.nmv = 0;
     GP_OUT.nres = 0;
     ch_low = 0;
+#if GP_S7
+    if (!GP_PRE) GP_EXT.n = GP_EXT.full = 0;   /* (S7: this season end's cross-struct list) */
+#endif
     for (int k = 0; k < 3; k++) {               /* (stage titles: this season's, from the specs below) */
         GP_OUT.sres[k].kind = 0;
         GP_OUT.sres[k].team[0] = GP_OUT.sres[k].team[1] = GP_OUT.sres[k].glob[0] = GP_OUT.sres[k].glob[1] = 0xFFFF;
@@ -1170,7 +1210,11 @@ GP_KOSIZE void gp_season(void) {
             if (x[0] == E_SEEDED) x_seeded |= 1u << (x[1] & 31);
         }
         if (kind == K_PROM) {                   /* (no entrants, no rounds) */
+#if GP_S7
+            if (!GP_PRE) { pr_pidx = pidx; promedio(0, wdiv, ldiv); }   /* (the preview: no promedio - its history is written) */
+#else
             if (!GP_PRE) promedio(0, wdiv, ldiv);   /* (the preview: no promedio - its history is written) */
+#endif
             s = r;
             continue;
         }
@@ -1344,17 +1388,17 @@ GP_KOSIZE void gp_season(void) {
                 for (int k = 0; k < winners; k++) if (P[glast + k] == c) top = 1;
                 if (top) to = wdiv;
                 else if (DV(c) == wdiv) to = ldiv;
-                move(c, to - DV(c));
+                dest(c, to, pidx, top ? EXT_WINNER : EXT_LOSER);
             }
         } else if (ok && last >= 0 && kind == 4) {     /* playout: the last round's losers down */
-            for (int t = lastr; t < lastr + nlast && t < GN; t++) move(L[t], ldiv - DV(L[t]));
+            for (int t = lastr; t < lastr + nlast && t < GN; t++) dest(L[t], ldiv, pidx, EXT_LOSER);
         } else if (ok && last >= 0) {           /* the winner to winner_div; another winner_div entrant down */
             int w = W[last];
             for (int i = 0; i < n; i++) {
                 int c = club[i], to = DV(c);
                 if (c == w) to = wdiv;
                 else if (DV(c) == wdiv) to = ldiv;
-                move(c, to - DV(c));
+                dest(c, to, pidx, c == w ? EXT_WINNER : EXT_LOSER);
             }
         }
         if (kind == K_STAGE)                    /* (WN_ST: this play-off's winner) */

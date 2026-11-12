@@ -2822,7 +2822,7 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     tab_src, tab_syms = table_lines(tables)
     symbols = {k: (0, v) for k, v in lay.items()}
     symbols.update(tab_syms)
-    symbols.update({k: syms[k] for k in ('GP_SSB', 'GP_IN', 'GP_OUT', 'gp_season', 'gp_champ', 'gp_keep', 'GP_ST', 'GP_LOG', 'GP_NM', 'GP_DIYP', 'GP_K',
+    symbols.update({k: syms[k] for k in ('GP_SSB', 'GP_IN', 'GP_OUT', 'GP_EXT', 'gp_season', 'gp_champ', 'gp_keep', 'GP_ST', 'GP_LOG', 'GP_NM', 'GP_DIYP', 'GP_K',
                                          'GP_W', 'GP_SKIP', 'GP_RB', 'GP_ALIVE', 'GP_LAST', 'GP_A', 'GP_B', 'GP_CID', 'GP_SEAS', 'GP_DIV',
                                          'GP_PT', 'GP_PL', 'gp_need', 'gp_simkeep', 'gp_need_pre', 'gp_simkeep_pre', 'gp_pre_c', 'GP_PRE', 'gp_restore', 'gp_lend_c', 'gp_ours_c',
                                          'gp_perm_c', 'gp_bdiv_c', 'gp_rec_c', 'gp_draw_c', 'gp_played_c', 'gp_end_c',

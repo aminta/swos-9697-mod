@@ -132,7 +132,30 @@ void up_lp(void) {                      /* the league phase's end (uesum's us_ge
 
 void up_new(void) { UP.u.ok = 1; }      /* a new career: nothing reached yet (an older save's item: 0) */
 
+#if CT_BONUS                            /* 4.2 (Davide 11/11, "1b"): the other confederations' cups (conti, slot 3
+                                           D7 CT_D7 .. CT_D7 + CT_NS, the last the ties' contest): the season start's
+                                           term by the cup's rank in its confederation, whatever the switch - the 1st
+                                           the Champions Cup's factor, the 2nd the UEFA Cup's (the game's own kind
+                                           would give it the Cup Winners' Cup's) */
+extern u16 E092F;                       /* the slot-3 contest's D7 */
+extern u8 CT_SEG[];                     /* conti.c: +0 the cup of the career club's next game (the ties' contest) */
+extern signed char DA111;               /* the season start's progress byte (cseg_5DEB9's x) */
+static const u8 CT_ST[CT_NS] = CT_STIER, CT_CT[CT_NC] = CT_CTIER;  /* uprize.py: per contest / per cup - 0 CC, 1 UEFA,
+                                                                       2 CWC, 3 none */
+static u32 ct_term(void) {              /* cseg_5DEB9's arithmetic: 16-bit x, x 2 x C35Bh / x A2C4h x 2 / x F4B4h,
+                                           / 1000 (a 16-bit quotient) x 1000 */
+    u32 e = (u32)E092F - CT_D7, t, x = (u32)(int)DA111, p;
+    if (e > CT_NS) return 0;
+    t = e < CT_NS ? CT_ST[e] : CT_SEG[0] < CT_NC ? CT_CT[CT_SEG[0]] : 3;
+    if (t > 2 || (int)x <= 0) return 1;
+    p = t == 0 ? (u16)(x << 1) * 0xC35Bu : t == 1 ? x * 0xA2C4u << 1 : x * 0xF4B4u;
+    CBON += (int)((u16)(p / 1000) * 1000u);
+    return 1;
+}
+u32 up_eurc(void) { return D8CB6 && ct_term() ? 0 : lpw() ? 0 : D8CB6; }
+#else
 u32 up_eurc(void) { return lpw() ? 0 : D8CB6; }
+#endif
 __asm__(".globl up_eur\nup_eur:\n\tpushal\n\tcall up_eurc\n\tmovl %eax, 28(%esp)\n\tpopal\n\tret\n");
 #if RES_CHAIN                           /* (lp_cb_res: uefacoef's uc_res after it, else its own ret) */
 __asm__(".globl up_resg\nup_resg:\n\tpushal\n\tcall up_res\n\tpopal\n\tjmp RESOLD\n");

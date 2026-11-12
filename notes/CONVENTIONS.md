@@ -148,6 +148,9 @@ new rule. If a rule seems wrong for a case, ask the regia session; don't silentl
     - 4.2.x trial players: obj4 0xC800..0xCF00 (page 13, between slow and the shirtbox; swreg.TRIAL_AT / TRIAL_END, MC
       12/11): trial.py's code + its 'TRFL' variables, out of obj3 (REL42i13 left IT obj3 112 B); obj1's three call sites
       are type-8 fixups into obj4, the buttons stay in cpurefill's obj3 menu copy with pointers into obj4.
+    - 4.2 names-fit: obj4 0xC400..0xC800 (page 13, between slow and trial; swreg.NAMEFIT_AT / NAMEFIT_END, MC 12/11):
+      namefit.py's code + 16 x 24 B row buffers (menu names cut by pixels); 3 obj1 call sites + the scorers' obj2 one = type-8 fixups into obj4;
+      slow's link limit is NAMEFIT_AT.
     - 4.2.y T3: obj4 page 14, T3_AT 0xD000 (swreg.T3_AT..T3_END 0xE000; t3.py / t3.c, Mercato CPU; MC 12/11).
     - No obj4 address is ever stored in a save (engine state = 'EN' items, rule 21), so obj4 may grow and move freely.
     - Calls between the game / obj3 and obj4: self-relative fixups (type 8) as rule 23; cobj.link(text_obj=4).

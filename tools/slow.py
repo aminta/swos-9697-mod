@@ -268,7 +268,8 @@ def patch(p, lang):
            'PREV_BOOT': (1, vj)}
     code, fix, rel = nasmcave.assemble_obj(src, at, sym, 4)
     lab = nasmcave.labels(src, at, sym)
-    top = getattr(swreg, 'TRIAL_AT', getattr(swreg, 'BOX_AT', swreg.SLOW_END))   # (4.2 MC 12/11: trial.py TRIAL_AT 0xC800..
+    top = getattr(swreg, 'NAMEFIT_AT', getattr(swreg, 'TRIAL_AT', getattr(swreg, 'BOX_AT', swreg.SLOW_END)))   # (4.2 names-fit
+    #  NAMEFIT_AT 0xC400.., MC 12/11)   # (4.2 MC 12/11: trial.py TRIAL_AT 0xC800..
     assert swreg.SLOW_AT <= top and getattr(swreg, 'BOX_END', top) <= swreg.SLOW_END   # 0xCF00, shirtbox BOX_AT..0xD000)
     assert at + len(code) <= top, ('slow: past its obj4 room', hex(at + len(code)), hex(top))
     assert p.le.obj(4).npages * 0x1000 >= swreg.SLOW_END, 'slow: obj4 pages (patch.py)'

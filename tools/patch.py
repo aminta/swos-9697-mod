@@ -352,7 +352,8 @@ def patch_exe(src, dst, remap, lang='it'):
     import lrank
     import swe
     swe.OBJ4_PAGES = max(swe.OBJ4_BASE, lrank.TAB_AT // 0x1000 + 1) \
-        if lr_tabs else swe.OBJ4_BASE           # (4.2 AFC mode: + LR_TAB's own page, the 11th - MC 11/11 option b)
+        if lr_tabs or ct_pg else swe.OBJ4_BASE  # (4.2 AFC mode: + LR_TAB's own page, the 11th - MC 11/11 option b;
+                                                # P7: conti linked = lrank's band too, even with no tie-breaker list)
     if lr_tabs:                                        # (the career league's head-to-head block)
         engine.save_item('LR', lrank.LR_SIZE, world_only=True)
         import swreg                                   # 4.2: a groups stage's state (engine ST, sr_stled.c; A1's room)
@@ -930,15 +931,19 @@ def patch_exe(src, dst, remap, lang='it'):
             engine.CALL_AT['up_new'] = (4, ua + uprize.UP_SIZE)
     if ct_pg:                                    # 4.1.1: conti's ranking + the 4.1 season-1 data, obj4's 5th page top
         conti.d4_patch(p)
-    if lr_tabs:                                  # 4.2 S1.3: the tie-breaker lists, obj4+lrank.LR_AT (after the
+    if lr_tabs or conti.LABELS.get('syms'):      # 4.2 S1.3: the tie-breaker lists, obj4+lrank.LR_AT (after the
         lrank.patch(p, lr_tabs, split.ST, split.MAGIC)     # obj1 hooks it chains onto: split's sp_res, lp36's lp_sort)
-        engine.ITEM_AT['LR'] = lrank.LABELS['LR_BLK']
+        if lr_tabs:                             # (4.2 P7 fix: conti linked in a world with no tie-breaker list - a user
+            engine.ITEM_AT['LR'] = lrank.LABELS['LR_BLK']   # world, 11 self-built scenarios - links lrank with an
+                                                # empty LR_TAB, so ct_place's band follows it: lrank's hooks find no
+                                                # entry (lrank.c mine() = 0, the game's own order) and no LR / ST item)
         if conti.LABELS.get('syms'):            # (4.2 P7: conti's group placement -> ct_place, its own band)
             conti.sdraw_patch(p, lrank.ct_patch(p))
-        import swreg
-        assert swreg.ST_AT + swreg.ST_SIZE <= lrank.LR_AT, ('ST', hex(swreg.ST_AT), hex(lrank.LR_AT))
-        p.put(4, swreg.ST_AT, bytes(swreg.ST_SIZE))
-        engine.ITEM_AT['ST'] = (4, swreg.ST_AT)
+        if lr_tabs:
+            import swreg
+            assert swreg.ST_AT + swreg.ST_SIZE <= lrank.LR_AT, ('ST', hex(swreg.ST_AT), hex(lrank.LR_AT))
+            p.put(4, swreg.ST_AT, bytes(swreg.ST_SIZE))
+            engine.ITEM_AT['ST'] = (4, swreg.ST_AT)
     assert not conti.LABELS.get('syms') or lr_tabs, ('4.2 P7: conti linked without lrank (ct_place is in its link: '
                                                      'every group draw would be refused) - a world without tie-breaker lists')
     benchx.link_w27(p)                           # (4.0.6 step 2.5: the friendlies' long bench by SWE_W27)

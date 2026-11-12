@@ -31722,6 +31722,68 @@ def diff_menu():
 
 
 
+@scenario
+def diff_beta():
+    """42-diff beta check (MC 13/11) on a ready build (SWOSTEST_BUILD = c/REL42diff/SWOS, DIFF_TEST=3 + MODVER_TAG, no
+    trace switch): OPTIONS has DIFFICULTY at 28 and DRIBBLING at 30 (32 entries), starting at NORMAL + CLASSIC (DF_W 0,
+    DF_DR 0); then a friendly HAMBURG v SCHALKE played for DIFF_POLLS x 5 s of game time with no key after the
+    kick-off: the kick-off hook ran (DF_KICKS > 0, DF_ACT 0, DF_DACT 0) and the match never hangs (topTeamData keeps
+    changing, every poll a dump). SWOSTEST_UI it / en / fr / de."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import difficulty as dfm
+    errs, notes = [], []
+    b = builds()['it']
+    g1, g2, top = diff_score_sites(b)
+    with Session(f'diff_beta_{UI}', b, {}, 'dump:3', 300) as s:
+        s.wait()
+        scr = walk(s, 'OPZIONI', 2)
+        blk = diff_block(s.result)
+        check(blk is not None, 'DIFF block in obj4', errs)
+        if blk is None:
+            return False, '; '.join(errs)
+        bb = s.result.read(blk, 32)
+        check(scr.find(dfm.LABEL[UI], exact=True) == 28 and scr.find(dfm.DRLABEL[UI], exact=True) == 30 and scr.n == 32,
+              f'OPTIONS: {dfm.LABEL[UI]} / {dfm.DRLABEL[UI]} at {scr.find(dfm.LABEL[UI], exact=True)} / '
+              f'{scr.find(dfm.DRLABEL[UI], exact=True)}, {scr.n} entries', errs)
+        check(bb[DIFF_OFF['W']] == 0 and bb[DIFF_OFF['DR']] == 0, f'start DF_W {bb[4]} DF_DR {bb[28]} (want 0 0)', errs)
+        s.shot('beta_options')
+    with Session(f'diff_beta_m_{UI}', b, {}, 'dump:3', 900, match=True) as s:
+        s.wait()
+        friendly_prematch(s, 'HAMBURG', 'SCHALKE')
+        blk = diff_block(s.result)
+        for _ in range(22):
+            s.send('down dump:0.5')
+            if s.screen().selected == 9:
+                break
+        r = s.send('fire dump:2')
+        for _ in range(40):
+            if r.outcome != 'dump' or struct.unpack('<I', r.read(blk + DIFF_OFF['KICKS'], 4))[0]:
+                break
+            r = s.send('fire dump:2')
+        last, same, n = None, 0, 0
+        for n in range(int(os.environ.get('DIFF_POLLS', '30'))):
+            if r.outcome != 'dump':
+                errs.append(f'match poll {n}: {r}')
+                break
+            t = r.obj2(top, 0x91 * 2)
+            same = same + 1 if t == last else 0
+            if same >= 4:
+                errs.append(f'match stuck at poll {n} (topTeamData unchanged x4)')
+                break
+            last = t
+            r = s.send('dump:5')
+        if r.outcome == 'dump':
+            bb = r.read(blk, 32)
+            k = struct.unpack_from('<I', bb, DIFF_OFF['KICKS'])[0]
+            goals = struct.unpack('<2H', r.obj2(g1, 2) + r.obj2(g2, 2))
+            check(k > 0 and bb[DIFF_OFF['ACT']] == 0 and bb[DIFF_OFF['DACT']] == 0,
+                  f'kick-offs {k}, DF_ACT {bb[6]}, DF_DACT {bb[30]} (want > 0, 0, 0)', errs)
+            notes.append(f'{n + 1} polls played, kick-offs {k}, score {goals[0]}-{goals[1]}')
+            s.shot('beta_match')
+    return not errs, '; '.join(errs + notes)
+
+
+
 def diff_score_sites(exe_dir):
     """(statsTeam1Goals, statsTeam2Goals, topTeamData) obj2 offsets of a build's exe (the 'equalizer' test; the A6 =
     offset topTeamData / bottomTeamData pair, 0x91 apart)."""

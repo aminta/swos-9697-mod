@@ -29,13 +29,26 @@ def _key(lg, it, f, i):
     return [po['key'] for po in lg['ko_playoffs'] if it.po_local(po)[0] == f][i]
 
 
+def _drop_tools():
+    """Drop the tools/ modules already imported (mkseason reads SEASON_PACKS at import and caches its packs: a test run
+    before this one under another SEASON_PACKS left them - the full suite's ko_external without dA_title, Integratore
+    12/11; the same class as test_ctcountry's 6efdcf4)."""
+    tools = os.path.realpath(os.path.dirname(os.path.dirname(HERE)))
+    for k, m in list(sys.modules.items()):
+        f = getattr(m, '__file__', None) or ''
+        if os.path.dirname(os.path.realpath(f)) == tools:
+            del sys.modules[k]
+
+
 def test_s7div():
     import test_globnum
     prev = os.environ.get('SEASON_PACKS')
+    _drop_tools()                               # (fresh imports under test_globnum's SEASON_PACKS, before and after)
     test_globnum._env()
     try:
         return _test()
     finally:
+        _drop_tools()
         if prev is None:
             os.environ.pop('SEASON_PACKS', None)
         else:
@@ -66,6 +79,9 @@ def _test():
     import mkseason
     out, bad = [], []
     it = next(pk for pk in mkseason.packs() if pk.world == 5 and pk.files.get('league', (0,))[0] == 102)
+    if 'dA_title' not in [po['key'] for po in it.league.get('ko_playoffs') or []]:
+        return True, ('SKIP: the data has no dA_title (a pre-10/11 snapshot, e.g. world5tm-h2): '
+                      f"HT_GLOB_WORLD={os.environ.get('HT_GLOB_WORLD') or 'default'}")
     nd = len(it.divisions())
     if nd != 14:
         return False, f'dormant Italy: {nd} divisions'

@@ -143,3 +143,5 @@ void SORT_NEXT(void);                   /* cseg_883DD after its first instructio
 __asm__(".globl lr_sort_hook\nlr_sort_hook:\n\tcall 1f\n\tpushal\n\tcall lr_rank\n\tpopal\n\tret\n"
         "1:\n\tmovl $UD, A4\n\tjmp SORT_NEXT\n");
 #endif
+
+/* (4.2 P7's ctdraw.c: its own band since the AFC mode - tools/ctband.c, its own link after this one - MC 11/11) */

@@ -20,6 +20,8 @@ def syms_of(build):
 
 
 def sym(syms, name):
+    if name.startswith('obj1+'):                         # (4.2 opsign: a raw obj1 offset - the original game's code)
+        return [0, int(name[5:], 16)]
     mod, lab = name.split('.', 1)
     return syms[mod][lab]
 

@@ -58,6 +58,8 @@ the game's 68400-B cache; a world career's whole 'EN' block fits there only up t
 | UP | 8 | uprize (Shaved) | 4.1 RC3 | the UEFA prizes already paid this season (uprize.c UP_ST); world-only; a save without it: zeroed = what is reached counts as paid (an older save); a new career: up_new |
 | LR | 404 | lrank (MC) | 4.2 S1.3 | the career league's head to head: one byte a pair of clubs (lrank.c LR_BLK, obj4); world-only; a save without it: void for that season |
 | ST | 144 | swe / engine sr_stled.c (Panchina P6, MC A1) | 4.2 | a groups stage's state: 16 B key (season, purpose, entrants' FNV-1a) + groups + results, 8x4 2 legs (obj4+0x5000); world-only; absent = not started, redrawn |
+| TR | 1 | trial (Mercato CPU) | 4.2.x | trial players: bits 0-3 the PROVA role (0 QUALSIASI, 1..8 = position 0..7), bit 4 QUALITA'+ off; all careers; a save without it: 0 = QUALSIASI with QUALITA'+ on |
+| T3 | 1 | t3 (Mercato CPU) | 4.2.y | PRIMAVERA: the period code of the last youth signing (t3.c T3_ITEM: 1 + (currentSeasonNumber x 64 + week / 4) mod 255; 0 = none); all careers (not world_only); a save without it: 0 = none signed, the list open. With its header 5 B, as TR (MC's room note 12/11: 414 B of the .CAR fixed part left) |
 
 ## Engine P (2026-11-06, branch p-persist off engine = trymerge cd4e54c)
 

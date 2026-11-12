@@ -33,6 +33,8 @@ import pgroups
 import engine
 import menunum
 import avgprice
+import opsign
+import subcard
 import joyfix
 import fmtpage
 import menumusic
@@ -245,6 +247,10 @@ def patch_exe(src, dst, remap, lang='it'):
             import bteam
             engine.save_item('BU', bteam.BU_SIZE, world_only=True)   # 4.0.6 the B-team call-ups (bteam.py)
         engine.save_item('CR', 1, world_only=True)               # 4.0.6 the CPU replacements switch (cpurefill.py: 0 = invented)
+        engine.save_item('TR', 1)                                # 4.2.x trial players (trial.py: bits 0-3 role, bit 4 QUALITA'+ off)
+        engine.save_item('T3', 1)                                # 4.2.y PRIMAVERA (t3.c T3_ITEM: the last signing's period code)
+        engine.after_load('tr_load')
+        engine.after_new('tr_new')
     engine.save_item('CC', 4)                    # 4.0.6 the OPTIONS rows 'CPU red cards', 'CPU injuries' (cpucards.py: 0 = ON;
     engine.after_load('cc_load')                 # the session's value kept by a load / a new career)
     engine.after_new('cc_new')
@@ -325,12 +331,8 @@ def patch_exe(src, dst, remap, lang='it'):
         if gplay.SS_BANKS[0] > 1:                      # zeroed at load; 'SS' = bank 0 as in 4.0)
             engine.save_item('SS2', gplay.SS_ITEM, world_only=not w0_ss)   # (one bank: the career league's; the others
                                                                             # are transient)
-            gplay.GP_BSS = 0x6000 + ((gplay.SS_ITEM * gplay.SS_BANKS[0] + 0xFFF) & ~0xFFF)
     else:
         gplay.SS_BANKS[:] = [1, None]
-    if gplay.SS_BANKS[0] <= 1:                         # (4.0.5: 0x7000 - FASE 1's F1_ST took gplay.c's .bss past 0x6000
-        gplay.GP_BSS = 0x7000                          # in builds with one stage bank: the scenario test builds; the
-                                                       # release builds' several banks leave the room in their rounding)
     pr_on = any(t and any(po.get('kind') == 'promedio' for po in pk.league.get('ko_playoffs') or [])
                 for pk in mkseason.packs() if pk.world is not None and pk.league for t in [True])
     if pr_on:                                          # Argentina's promedio history (gplay.c PR_STATE)
@@ -351,7 +353,18 @@ def patch_exe(src, dst, remap, lang='it'):
         engine.after_new('up_new')                                      # what is reached counts as paid)
     import lrank
     import swe
-    swe.OBJ4_PAGES = max(swe.OBJ4_BASE, lrank.LR_AT // 0x1000 + lrank.LR_PAGES) if lr_tabs else swe.OBJ4_BASE
+    swe.OBJ4_PAGES = max(swe.OBJ4_BASE, lrank.TAB_AT // 0x1000 + 1) \
+        if lr_tabs or ct_pg else swe.OBJ4_BASE  # (4.2 AFC mode: + LR_TAB's own page, the 11th - MC 11/11 option b;
+                                                # P7: conti linked = lrank's band too, even with no tie-breaker list)
+    import swreg
+    swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, swreg.BOX_END // 0x1000)   # 4.2 shirtbox: se_unsh at the 13th page's top
+    swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, swreg.SLOW_END // 0x1000)   # 4.2 slow (MC 12/11, 23bis exception): page 13
+    if xtra_on:                                        # 4.2.y T3 PRIMAVERA (MC 12/11, 23bis): its own page, the 14th
+                                                       # (the pages between stay zero)
+        swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, swreg.T3_END // 0x1000)
+    import swefile
+    if swefile.on():                                   # 4.2 file layer (MC 12/11): page 18, only when linked
+        swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, swefile.page_end() // 0x1000)
     if lr_tabs:                                        # (the career league's head-to-head block)
         engine.save_item('LR', lrank.LR_SIZE, world_only=True)
         import swreg                                   # 4.2: a groups stage's state (engine ST, sr_stled.c; A1's room)
@@ -616,6 +629,8 @@ def patch_exe(src, dst, remap, lang='it'):
     assert bl_end <= bl_at + 0xE00, hex(bl_end)          # cave is full) in controls' last data page, after its data
     cos = menunum.patch(p, cos, num_bss + shirtnum.BSS_SIZE + blond.BSS_SIZE)   # 3.3.4: menu numbers 17..99
     cos = avgprice.patch(p, cos)                 # 3.3.4: average player price >= 1 (divide error, 1984-85 Iceland)
+    opsign.patch(p)                              # 4.2: the season-end opinion's ratio signed (cdq)
+    subcard.patch(p)                             # 4.2 (Marco): a booked player on a carried yellow can be substituted
     import devname                               # 4.0.2: DOS device names (CON, PRN, AUX ...) refused as save names
     devname.patch(p, lang)
     joyfix.patch(p)                              # 4.0.1: ReadSetupDat -> VerifyJoypadControls (no pad + controls != 1 = frozen menus)
@@ -854,6 +869,10 @@ def patch_exe(src, dst, remap, lang='it'):
         cg_bss = 0
     import gkinj                                 # 4.0.6 (Davide): goalkeeper injuries after a match (an OPTIONS row,
     st_end = gkinj.patch(p, (st_end + 15) & ~15, lang)       # ON by default), the obj3 chain's end
+    import slow                                  # 4.2 EXPERIMENTAL (Davide 12/11): MATCH SPEED 100/90/80/70 % (an OPTIONS
+    slow.patch(p, lang)                          # row after gkinj's; GameLoop's @@flip_it; SPEED.CFG), obj4 page 13
+    import namefit                               # 4.2 names-fit (Marco (b) step 2): menu names cut by pixels, obj4 page 13
+    namefit.patch(p)
     if ct_pg:                                    # 4.0.6 B2: the season-1 edition's block (conti.c CT_S1 -> it)
         st_end = conti.s1_patch(p, (st_end + 15) & ~15)
     assert st_end <= LT3_AT, hex(st_end)
@@ -866,6 +885,12 @@ def patch_exe(src, dst, remap, lang='it'):
             print(f'exe: WARNING bteam {st_end - bt_at} B > 0x1200 (Regia: tell the Integratore)')
     if xtra_on:                                  # 4.0.6 (Davide 03/11): the CPU replacements switch (ACQUISTA GIOCATORE, World
         import cpurefill                         # 2026-27): an extra of the seller instead of the invented player; the
+        import trial                             # (4.2.x trial players: code in obj4 TRIAL_AT, page 13 - MC 12/11 -, its
+                                                 #  buttons in cpurefill's obj3 copy; the obj3 chain's end unchanged)
+        cpurefill.EXTRA.clear()
+        st_end = trial.patch(p, (st_end + 15) & ~15, lang, cpurefill)
+        import t3                                # (4.2.y PRIMAVERA: obj4 page 14, its button in cpurefill's copy)
+        t3.patch(p, lang, cpurefill)
         st_end = cpurefill.patch(p, (st_end + 15) & ~15, lang)   # obj3 chain's end (Integratore 03/11)
         assert st_end <= LT3_AT, hex(st_end)
     import ffp                                   # 4.0.6 (Marco): financial fair play - the season-start check, the
@@ -929,13 +954,21 @@ def patch_exe(src, dst, remap, lang='it'):
             engine.CALL_AT['up_new'] = (4, ua + uprize.UP_SIZE)
     if ct_pg:                                    # 4.1.1: conti's ranking + the 4.1 season-1 data, obj4's 5th page top
         conti.d4_patch(p)
-    if lr_tabs:                                  # 4.2 S1.3: the tie-breaker lists, obj4+lrank.LR_AT (after the
+    if lr_tabs or conti.LABELS.get('syms'):      # 4.2 S1.3: the tie-breaker lists, obj4+lrank.LR_AT (after the
         lrank.patch(p, lr_tabs, split.ST, split.MAGIC)     # obj1 hooks it chains onto: split's sp_res, lp36's lp_sort)
-        engine.ITEM_AT['LR'] = lrank.LABELS['LR_BLK']
-        import swreg
-        assert swreg.ST_AT + swreg.ST_SIZE <= lrank.LR_AT, ('ST', hex(swreg.ST_AT), hex(lrank.LR_AT))
-        p.put(4, swreg.ST_AT, bytes(swreg.ST_SIZE))
-        engine.ITEM_AT['ST'] = (4, swreg.ST_AT)
+        if lr_tabs:                             # (4.2 P7 fix: conti linked in a world with no tie-breaker list - a user
+            engine.ITEM_AT['LR'] = lrank.LABELS['LR_BLK']   # world, 11 self-built scenarios - links lrank with an
+                                                # empty LR_TAB, so ct_place's band follows it: lrank's hooks find no
+                                                # entry (lrank.c mine() = 0, the game's own order) and no LR / ST item)
+        if conti.LABELS.get('syms'):            # (4.2 P7: conti's group placement -> ct_place, its own band)
+            conti.sdraw_patch(p, lrank.ct_patch(p))
+        if lr_tabs:
+            import swreg
+            assert swreg.ST_AT + swreg.ST_SIZE <= lrank.LR_AT, ('ST', hex(swreg.ST_AT), hex(lrank.LR_AT))
+            p.put(4, swreg.ST_AT, bytes(swreg.ST_SIZE))
+            engine.ITEM_AT['ST'] = (4, swreg.ST_AT)
+    assert not conti.LABELS.get('syms') or 'ct_place' in lrank.LABELS, ('4.2 P7: conti linked without ct_place (lrank\'s '
+                                                     'band): every group draw would be refused')
     benchx.link_w27(p)                           # (4.0.6 step 2.5: the friendlies' long bench by SWE_W27)
     tailzero.patch(p, tz_at, obj2_free + o2pages * p.le.page_size, (tail + 3) & ~3, nasmcave,   # (DOS/4GW: not zeroed;
                    0x1000 * OBJ3_PAGES, (cg_bss + 3) & ~3)                  # 4.0.6: obj3's tail too)
@@ -946,6 +979,8 @@ def patch_exe(src, dst, remap, lang='it'):
     p.add_flags(1, 0x2)            # writable: season end rewrites the SA cup team lists in the cave
     split.late(p)                                # split's after-stage routines (engine.after_stage)
     trailer.late(p)                              # the engine block's late addresses (RS_STATE ...)
+    import uefaname
+    print(f'exe: UEFA cup name fixed in {uefaname.patch(p)} strings (the original exes: EUFA)')   # 4.1.2 (Marco)
     delta, shift = p.save(dst)
     dd = os.path.join(os.path.dirname(os.path.abspath(dst)), 'DATA')
     if os.path.isdir(dd):                        # (the neutral finals' strings: exact in this exe / its DATA)

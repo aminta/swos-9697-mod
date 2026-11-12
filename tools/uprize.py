@@ -185,6 +185,45 @@ def eur_site(p, d8cb6):
     return hits[0]
 
 
+# 4.2 (Davide 11/11, "1b 2 consigliato"): the season start's euro-cup term for the other confederations' cups, always
+# (whatever ANDAMENTO CLUB's switch): the game's own arithmetic (DA111 x factor, / 1000 x 1000, competitionBonuses) with
+# the factor of the cup's rank in its confederation - the 1st the Champions Cup's (CC), the 2nd the UEFA Cup's;
+# THIRD the cups after them (None: no term, as the game's own European Supercup).
+TIER = {0: 0, 1: 1}                                     # rank -> uprize.c's tier (0 CC, 1 UEFA, 2 CWC, 3 none)
+THIRD = {('afc', 'acgl'): 2, ('conmebol', 'rec'): 3, ('caf', 'sc'): 3}   # (Davide 11/11 "Ok così"; sources: notes42-panchina-cbonus)
+CT_TIERS = []                                           # [tier per cup index] (the host test)
+
+
+def ct_tiers():
+    """[tier per conti cup index (conti.NAMES' order: the Intercontinental's own entry too)], [tier per struct]."""
+    import conti
+    cups, st = [], []
+    for conf in conti.ready():
+        for k, c in enumerate(c for c in conti._read(conf, 'format')['cups'] if conti.supported(c)):
+            t = 3 if c.get('stepladder') else TIER[k] if k in TIER else THIRD[(conf, c['key'])]
+            cups.append(t)
+    assert len(cups) == len(conti.NAMES), ('uprize: conti cups', len(cups), len(conti.NAMES))
+    for ci, off, lst, n in conti.STRUCTS:
+        st.append(cups[ci])
+    return cups, st
+
+
+def ct_flags(p, es, ext):
+    """uprize.c's CT_BONUS flags (the conti build's: its contests in slot 3), ext + their symbols; [] without conti."""
+    import conti
+    import uefaq
+    if 'syms' not in conti.LABELS or not conti.STRUCTS:
+        return []
+    cups, st = ct_tiers()
+    CT_TIERS[:] = cups
+    d = p.le.obj_bytes(1)
+    assert d[es + 0xD] == 0xA0 and d[es + 0x12] == 0xA2, ('uprize: cseg_5DEB9\'s `mov al, [DA111]`', d[es:es + 0x16].hex())
+    ext.update(E092F=uefaq.SYMS['E092F'], CT_SEG=conti.LABELS['syms']['CT_SEG'][:2],
+               DA111=(2, struct.unpack_from('<I', d, es + 0xE)[0]))
+    return ['-DCT_BONUS=1', f'-DCT_D7={conti.D7_BASE[0]}', f'-DCT_NS={len(st)}', f'-DCT_NC={len(cups)}',
+            '-DCT_STIER={' + ','.join(map(str, st)) + '}', '-DCT_CTIER={' + ','.join(map(str, cups)) + '}']
+
+
 def patch(p, at, ext, lang):
     """uprize.c + its table at obj4:at (usmenu's end); ext: uesum's symbols (UC, UD, SEASONP, W_LPW, US_UP).
     Returns the end."""
@@ -216,8 +255,10 @@ def patch(p, at, ext, lang):
     assert res is None or chain or p.get(1, res, 1)[0] == 0xC3, ('lp_cb_res', bytes(p.get(1, res, 5)).hex())
     if chain:
         ext['RESOLD'] = (1, res + 5 + struct.unpack('<i', bytes(p.get(1, res + 1, 4)))[0])
-    obj = cobj.compile_c(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uprize.c'),
-                         ['-Oz', '-fno-zero-initialized-in-bss', f'-DRES_CHAIN={int(chain)}'])
+    es = eur_site(p, d8cb6)
+    ct = ct_flags(p, es, ext)                           # (4.2: the other confederations' season-start term; none: the
+    obj = cobj.compile_c(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uprize.c'),   # 4.1 object)
+                         ['-Oz', '-fno-zero-initialized-in-bss', f'-DRES_CHAIN={int(chain)}'] + ct)
     syms, end, bss = cobj.link(p, obj, at, (4, 0), externs=ext, limit=room, text_obj=4)
     assert bss == 0, ('uprize.c: no .bss', bss)
     import complist
@@ -247,13 +288,20 @@ def patch(p, at, ext, lang):
         p.add_ptr(up[0], up[1], *syms[fn][:2])
     if res is not None:
         p.branch(1, res, 0xE9, *syms['up_resg'][:2], n=5)
-    es = eur_site(p, d8cb6)
     p.remove(1, es + 1)
     p.branch(1, es, 0xE8, *syms['up_eur'][:2], n=5)
     end2 = part2(p, lang, dict(syms, UP_ROWL=(4, lab['UP_ROW'])))
     LABELS.clear()
     LABELS.update(syms)
     LABELS['UP_ST'] = (4, syms['UP'][1] + 4)
+    LABELS.update({'X.' + k: tuple(v[:2]) for k, v in ext.items()})     # (tools/hosttest test_cbonus: the externs,
+    for i, t in enumerate(CT_TIERS if ct else []):                     # the tier of each conti cup, its contests' D7)
+        LABELS[f'CT_TIER{i}'] = (0, t)
+    if ct:
+        import conti
+        LABELS['CT_D7'], LABELS['CT_NS'] = (0, conti.D7_BASE[0]), (0, len(conti.STRUCTS))
+        for i, (ci, *_) in enumerate(conti.STRUCTS):
+            LABELS[f'CT_SCUP{i}'] = (0, ci)
     LABELS.update({k: (4, v) for k, v in lab.items()})
     LABELS['END2'] = (4, end2)                          # (4.1.1: conti.d4_patch asserts its data above it)
     print(f'exe: UEFA prizes (uprize, 4.1 RC3): obj4+{t0:#x}..{end:#x} ({end - t0} B: table {len(tab)}, statement '

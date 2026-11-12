@@ -2387,3 +2387,36 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
   UEFA Super Cup, two-row benches, long benches in friendlies / DIY, continental cups views, finances, many fixes).
 - Known, for 4.1.1: the NZ Grand Final phantom match when the career club is not a finalist (option A2, branch 411-nzgf).
 - `python3 tools/kitfix.py ship c/REL41` done in the release commit (4.1's kits in tools/kits_shipped.json.gz).
+
+## 4.1.1 release (2026-11-11, Davide's yes)
+- Release build c/REL411h = 411-rc2 c1309d4 (4.1 + 411-int 1d46913 + Jacopo's title cursor + the Poule Scudetto out of the
+  Champions League + euro on obj3 + patcher joypad boxes / Chrome folder upload + MC's conti fix 5c8f5af: the game contest's
+  results reach conti.c, deferred Recopa / Intercontinental right after the club's exit), data world5tm-403c19, no MODVER_TAG
+  (main menu 'MOD 4.1.1'). IT CD 780cdf1c, EN CD 2912bc08, FR CD 2cb5eeb0, DE CD 49954748; GOG IT f7cf7def, EN 1de295ed,
+  FR 2ef4bc61, DE 6d96bfa2. Patcher page md5 4beae9cd. Release commit adds notes intro / README / STATUS only (no exe change).
+- Pages: obj1 236 (one page left under 237), obj2 213, obj3 14, obj4 5.
+- Gate (gate411h): 47/48 PASS - forced conti self-built (hold_rec/rec4/ic/acl2/caf, q1q2, drop_lib, ic_dec, recopa), natural
+  conti on the release exe, the server old-save set + career_20seasons C20=2, NZ x10, euro x3 + SWOS++, cupd_format x4;
+  world_conti_guest FAIL = scenario-data case on 403c19 (no season-1 Lib for INDEPENDIENTE; MC backlog). Shaved's batch 30/30
+  (poule_save PASS alone; serial -j1 FAIL = shared harness state). Node patcher test all OK (DATA coverage 0), dirtest ALL OK,
+  host 29/29. Visual tour internal/swostest/tour411h reviewed with Davide.
+- Known, for 4.1.2: the deferred Recopa / Intercontinental in their real weeks; world_conti_guest data; harness mid-save
+  check before swostest.py:18109.
+- `python3 tools/kitfix.py ship c/REL411h` done in the release commit.
+
+## 4.1.2 release candidate (2026-11-12, waiting for Davide's yes)
+- Release build c/REL412c = 412-rc3 2733884: 4.1.1 + 412-ctfull 6ec5114 + MC's Recopa fix bb42bd9 (deferred Recopa /
+  Intercontinental in their real weeks) + Marco's UEFA name (412-eufa d33bc3d: the original exes' 'EUFA' -> 'UEFA' in place,
+  tools/uefaname.py) + Nicola's Chrome CD desktop.ini (412-patname 022d794) + MC's class D (d2d0398: a country's whole table at
+  the season end also when its champion is not the leader) + Motore's zone positions (412-zonepos da4fc9c: ARG / MLS / PAN
+  zoned tables, Enzo's sacking). Data world5tm-403c19, no MODVER_TAG (main menu 'MOD 4.1.2').
+  IT CD 9568df15, EN CD 831e371d, FR CD 85f2106f, DE CD c4383264; GOG IT 0292d999, EN b8464b44, FR ecd56c89, DE 59cd01e4.
+  Patcher page md5 15c11e0d. Release commit adds notes / README / manual (412-notes 8ec15b9) + STATUS only (no exe change).
+- Pages: obj1 236, obj2 213, obj3 14, obj4 5.
+- Gate (gate412c): 75/76 PASS - suite slots (zones, zone colours, ARG / USA / PAN play-offs and lines, winners, full PER / COL /
+  URU / USA, par_exact, sa_banks, statesim, leaguecup, cuplist_mestre, career_20seasons C20=2), Motore's 6 world_zone_* incl.
+  the Malta control, zones extra + Apertura MEX / ARG / URU, natural + forced conti incl. bra_sud / recopa_late, uefa_name,
+  euro_draws, NZ x10, the server old-save set 10/10; world_conti_guest FAIL = the known 403c19 scenario-data case (MC backlog).
+  Node patcher test all OK (DATA coverage 0), dirtest ALL OK x4, host 30/30, test_stwins 16 cases PASS (41d8668 worktree).
+  Visual tour (Shaved) reviewed: nothing to fix.
+- Kept out of the frozen 4.1.2: 412-zonepos 415362f / 41d8668 (test only), they come with the 4.1.2 -> 42-int merge.

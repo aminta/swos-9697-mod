@@ -22,7 +22,7 @@ import struct
 import zlib
 
 ROOT = os.path.join(os.path.dirname(__file__), '..')
-VERSION = '4.1'
+VERSION = '4.1.2'
 BLOCK = 16
 FILES = [  # (id, original path, patched path, file name in the game folder)
     ('ITALIAN.EXE', 'orig/ITALIAN.EXE', 'c/SWOS/ITALIAN.EXE', 'ITALIAN.EXE'),
@@ -508,6 +508,11 @@ def build():
     entries += swospp_sources(entries)
     entries += setup_entries()
     omm_sites(entries)
+    sc = [e['target'] for e in entries if 'syms' in e['target'].lower() or e['target'].lower().endswith('.json')]
+    assert not sc, f'harness sidecars (HOSTTEST_SYMS *.syms.json) in the patcher: {sc}'   # (4.2 AFC mode, MC 11/11:
+    bd = os.path.join(ROOT, BUILD or 'c')                    #  CT_SYMS lives beside the release dir, never in it)
+    sj = [os.path.relpath(os.path.join(r, f), bd) for r, _, fs in os.walk(bd) for f in fs if f.endswith('.syms.json')]
+    assert not sj or not BUILD, f'a release dir with harness sidecars (*.syms.json): {sj}'
     page = open(os.path.join(ROOT, 'tools', 'patcher_template.html'), encoding='utf-8').read()
     page = page.replace('/*PATCHES*/null', json.dumps(entries)).replace('{{VERSION}}', VERSION)
     out = os.path.join(ROOT, 'release', 'swos-9697-mod-patcher.html')

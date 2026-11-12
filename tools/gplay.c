@@ -362,8 +362,13 @@ static void dswap(int a, int b) {       /* rows a, b of one division: their plac
     rcopy(&x, ra); rcopy(ra, rb); rcopy(rb, &x);
 }
 
+static u32 ch_low, po_low;              /* 4.2 (Jacopo's TERMOLI, Davide 11/11): a title play-off with no entrant from
+                                           the top division (Italy's POULE SCUDETTO SERIE D) is a lower tier's title -
+                                           po_low while it is decided, ch_low bit k = GP_OUT.res[k]: gp_champ leaves it
+                                           out of the qualifiers' top-9 list (Europe from the top flight only) */
 static void result(int kind, int w, int l) {
     if (GP_OUT.nres >= 4) return;
+    if (kind == K_TITLE && po_low) ch_low |= 1u << GP_OUT.nres;
     struct gp_res *x = &GP_OUT.res[GP_OUT.nres++];
     x->kind = kind; x->div = DV(w);
     x->team[0] = row(w)->team; x->glob[0] = row(w)->glob;
@@ -1042,7 +1047,7 @@ static const u8 *gp_ftic(u32 w) { (void)w; return 0; }
 #endif
 void gp_champ(void) {
     for (int k = 0; k < GP_OUT.nres; k++) {
-        if (GP_OUT.res[k].kind != K_TITLE) continue;
+        if (GP_OUT.res[k].kind != K_TITLE || ch_low >> k & 1) continue;
         u16 w = GP_OUT.res[k].team[0];
         int j = 0;
         while (j < 9 && GP_TOPW[j] != w) j++;
@@ -1166,6 +1171,7 @@ GP_KOSIZE void gp_season(void) {
     rng = h;
     GP_OUT.nmv = 0;
     GP_OUT.nres = 0;
+    ch_low = 0;
 #if GP_S7
     if (!GP_PRE) GP_EXT.n = GP_EXT.full = 0;   /* (S7: this season end's cross-struct list) */
 #endif
@@ -1254,6 +1260,9 @@ GP_KOSIZE void gp_season(void) {
                                            set - its stream's seed below read it; the play-off is not played then) */
             else if ((club[i] = place_club(d, p, kind)) < 0) ok = 0;
         }
+        po_low = 1;                             /* (an entrant by a top-division place: ty 0 / 3 / 5 / 6 / 7 with d 0) */
+        for (int i = 0; i < n && i < GN; i++)
+            if (e[4 * i] != 4 && e[4 * i] != 8 && e[4 * i] != 9 && e[4 * i + 1] == 0) po_low = 0;
         {                                       /* rc19: each play-off's own random stream, from its entrants' rows
                                                    (the preview at the league's end and CONTINUA's season end decide
                                                    the same whatever the other divisions' tables) */
@@ -3588,6 +3597,27 @@ u32 gp_rlines_c(void) {
     { u32 sn = usc_rline(); if (sn) rl_add(sn, 1); }  /* (4.0.6: the UEFA Super Cup won) */
     rl_put();
     return rl_n;
+}
+/* 4.1.2 (Enzo, Davide 12/11; split.py zp_bonus): the stage titles (Apertura, Clausura, Trofeo) the club mgr won
+   this season, for the chairman's season-end opinion in a league in zones (each one counts as a cup won). The same
+   sources as gp_rlines_c: GP_ST.dec (stages decided before) and ko[0] (the stage knockout still live). Read only. */
+u32 gp_stwins_c(u32 mgr) {
+    struct gp_ko *k = &GP_ST.ko[0];
+    int kstage = -1;
+    u32 n = 0;
+    if (GP_ST.magic != MAGIC || GP_ST.season != GP_SEAS) return 0;
+    int live = k->magic == MAGIC && k->season == GP_SEAS && k->kind == K_STAGE;
+    if (live) {
+        const u8 *s = po_at(k->pi);
+        kstage = s ? s[3] & 3 : -1;
+    }
+    for (int st = 0; st < 3; st++) {
+        const struct gp_dec *x = &GP_ST.dec[st];
+        if (st == kstage || x->season != GP_SEAS || !x->done || !x->pad[1]) continue;
+        if (x->pad[0] == 1) n++;
+    }
+    if (live && kstage >= 0 && club_res(k, (u16)mgr) == 1) n++;
+    return n;
 }
 u32 sc_rlines_c(void) {                 /* 4.0.5 (gp_rl, a league with no gplay play-offs: LaLiga, Serie A): only a
                                            national supercup won */

@@ -21,7 +21,7 @@ pixels (5 quads), and Text2Sprite draws nothing at all when the text is wider th
 Code, headers and pixels live in obj1 pages of their own (PAGES; obj2's page count unchanged, nothing saved), sized
 for CAP sprites (26 per team) although the game has 32 (N).
 The tail past CAP x DATA (p6 + Integratore): ns_at+0x4A40..+0x4EF9 the shaved art (blond.art_patch, 4.0.5); the rest
-(ns_at+0x4EF9..+0x4FFF, 263 B) was free; 4.1 long_patch takes its top 0x80 (ns_at+0x4F80..), 135 B left. More room for
+(ns_at+0x4EF9..+0x4FFF, 263 B) was free; 4.1 long_patch takes its top 0x80 (ns_at+0x4F80..), 135 B left; 4.2 names14: its top 0x100 (+0x4F00..), 7 B left. More room for
 namespr = a new page.
 4.1 (Marco, RUUD VAN NISTELROOY showed 'VAN NISTEL.'): InitInGamePlayer makes PlayerInfo.shortName with
 ExtractSurname 800Eh, the initial + everything past the first word, 14 at most ('R. VAN NISTEL.'), and the sprite's
@@ -32,6 +32,12 @@ ExtractSurname 800Eh, the initial + everything past the first word, 14 at most (
   (D0 = 0Eh, no flags: returned as it is, 14 at most); with it, the surname as before. One-word names ('_' joins:
   ROBERTO_CARLOS) are unchanged: no initial either way. GoalScored's scorer line and the bench menu read shortName too
   (both: the initial skipped / shown as it is) - they show the whole surname as well.
+4.2 (Marco 12/11, names14 survey: 287 of 52951 players in a 4.2 build): when the surname part (the words past the first)
+is longer than 14 too, nl_init no longer keeps the game's 'J. ANTONIO CA.' (the strip then showed 11 + '.'):
+shortName = the last words that fit 14 (JOSE ANTONIO CAMACHO -> CAMACHO, OLE GUNNAR SOLSKJAER -> SOLSKJAER, KOEN DE
+VLEESCHAUWER -> VLEESCHAUWER); one last word of 15+ = its first 13 + '.' (A. ANAGNOSTOPOULOS -> ANAGNOSTOPOUL.).
+No initial, so the strip, the scorer line and the subs menu show the same text. long_patch's room 0x80 -> 0x100
+(ns_at+0x4F00..: the tail is free from +0x4EF9).
 
 Fixed counts a bigger bench would touch (the game's, unchanged here): MakeSpritesFromPlayerNames `mov word [D6], 255`
 (the first sprite) and `mov word [D7], 15` twice (16 players per team); SetCurrentPlayerName's `add D1, 255` /
@@ -117,9 +123,54 @@ nl_init:                                ; replaces InitInGamePlayer's `call Extr
     pop eax
     cmp word [D6], 14
     jne .out                            ; (fits whole)
+    push ebx                            ; 4.2 (Marco 12/11): longer than 14 too (JOSE ANTONIO CAMACHO, OLE GUNNAR
+    push ecx                            ; SOLSKJAER): the last words that fit 14 (CAMACHO, SOLSKJAER), not the game's
+    mov esi, eax                        ; 'J. ANTONIO CA.' (the strip showed 11 + '.'); one last word of 15+ = its
+.ls:cmp byte [esi], ' '                 ; first 13 + '.' (400Eh on that word)
+    jne .fw
+    inc esi
+    jmp .ls
+.fw:mov cl, [esi]                       ; past the first word
+    or cl, cl
+    jz .game
+    inc esi
+    cmp cl, ' '
+    jne .fw
+.wd:cmp byte [esi], ' '
+    jne .ws
+    inc esi
+    jmp .wd
+.ws:cmp byte [esi], 0                   ; (MC 12/11: a trailing space - no word left: the game's cut, never an
+    je .game                            ;  empty shortName)
+    mov ebx, esi                        ; ebx -> this word
+    xor ecx, ecx
+.ln:cmp byte [esi + ecx], 0
+    je .lz
+    inc ecx
+    jmp .ln
+.lz:cmp ecx, 14
+    jbe .fit
+.nx:mov cl, [esi]                       ; the next word
+    or cl, cl
+    jz .one
+    inc esi
+    cmp cl, ' '
+    jne .nx
+    jmp .wd
+.fit:
+    mov [A0], ebx
+    mov word [D0], 0Eh                  ; (no flags, at most 14: returned as it is)
+    jmp .go
+.one:
+    mov [A0], ebx
+    mov word [D0], 400Eh                ; (one word: itself, cut 13 + '.')
+    jmp .go
+.game:
     mov [A0], eax
     mov word [D0], 800Eh
-    jmp EXTRACT1                        ; longer than 14 too: the game's cut
+.go:pop ecx
+    pop ebx
+    jmp EXTRACT1
 .out:
     ret
 
@@ -130,7 +181,7 @@ nl_spr:                                 ; replaces MakePlayerNameSprite's `call 
     mov word [D0], 0Eh                  ; no initial: the short name whole
     jmp EXTRACT2
 """
-LONG_SIZE = 0x80
+LONG_SIZE = 0x100                      # (4.2 names14: 0x80 -> 0x100, ns_at+0x4F00.. - the tail is free from +0x4EF9)
 
 
 def long_sites(p):

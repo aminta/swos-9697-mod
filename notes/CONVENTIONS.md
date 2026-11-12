@@ -56,6 +56,16 @@ new rule. If a rule seems wrong for a case, ask the regia session; don't silentl
     reports it; no silent fallback to a weaker draw. The one exception is a competition whose real regulations say how
     to relax, and then exactly as they say (its spec carries that rule). The harness fails a build whose real data
     hits a refusal.
+14b. **Group draws are proven before they ship** (42-acl2, MC 11/11). Every continental group stage with an association rule
+    goes through the build's draw gate (tools/drawgate.py, run by conti.patch in every build): all the association
+    mixes the stage can really receive (exhaustive up to 4096, else saturated + random) x 1024 seeds, through the same
+    ctdraw.c code the game runs. A budget hit or a refusal on any of them FAILS THE BUILD; results are cached by content
+    in internal/drawgate/. The harness adds CT_SDRAW_ERR == 0 and CT_SDRAW_HIT > 0 in every conti scenario. A drawable
+    field is never refused. Only two competitions may relax, and only to what their regulations say (14a): the AFC
+    Champions League Two groups and the AFC Champions League Elite preliminary stage ("unless unavoidable"): the draw
+    then takes the fewest same-country pairs a legal field allows ('fewest', per region), nothing more. Everything else
+    (Elite league stage, CAF, CONMEBOL, OFC, UEFA) refuses. CONMEBOL's rule for clubs coming from the qualifying round
+    is a fixed class, not a relaxation. Sources and article numbers: internal/handoff/nota-draw-rules.md.
 
 ## Tests
 15. Result-dependent cases are **forced** (pokes / *_FORCE / CONTI_GPLACE ...), never re-run hoping. Test switches
@@ -141,6 +151,17 @@ new rule. If a rule seems wrong for a case, ask the regia session; don't silentl
       0x3000, uesum moved to UESUM_AT 0x4000 and usmenu after it - Regia 09/11). The engine's code
       + registry stay below swreg.OBJ4_END (0x2000 in 4.1), each view has its own range assert, and the 23bis gates
       below apply to it as to engine code.
+    - 4.2 slow: obj4 page 13, SLOW_AT 0xC000 (slow.py, the OPTIONS row MATCH SPEED + its SPEED.CFG; MC 12/11,
+      SREG2 0xB000 below it, T3 0xD000 (Mercato CPU), CT spare 0xE000; a 23bis exception, Davide's ok via Regia 12/11).
+    - 4.2 shirtbox: obj4 0xCF00..0xD000 (in slow's page 13, top; swreg.BOX_AT / BOX_END, MC 12/11): shirtedit's
+      se_unsh (the lit number box's afterDraw) + its 4 data bytes, because the career cave is full. Slow's code stays below TRIAL_AT.
+    - 4.2.x trial players: obj4 0xC800..0xCF00 (page 13, between slow and the shirtbox; swreg.TRIAL_AT / TRIAL_END, MC
+      12/11): trial.py's code + its 'TRFL' variables, out of obj3 (REL42i13 left IT obj3 112 B); obj1's three call sites
+      are type-8 fixups into obj4, the buttons stay in cpurefill's obj3 menu copy with pointers into obj4.
+    - 4.2 names-fit: obj4 0xC400..0xC800 (page 13, between slow and trial; swreg.NAMEFIT_AT / NAMEFIT_END, MC 12/11):
+      namefit.py's code + 16 x 24 B row buffers (menu names cut by pixels); 3 obj1 call sites + the scorers' obj2 one = type-8 fixups into obj4;
+      slow's link limit is NAMEFIT_AT.
+    - 4.2.y T3: obj4 page 14, T3_AT 0xD000 (swreg.T3_AT..T3_END 0xE000; t3.py / t3.c, Mercato CPU; MC 12/11).
     - No obj4 address is ever stored in a save (engine state = 'EN' items, rule 21), so obj4 may grow and move freely.
     - Calls between the game / obj3 and obj4: self-relative fixups (type 8) as rule 23; cobj.link(text_obj=4).
     - The harness finds obj4 by its header (Result.base4: the magic + the self pointer), not by a game pointer.

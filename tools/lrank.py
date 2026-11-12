@@ -43,6 +43,12 @@ REFUSED = {'fair_play', 'coefficient', 'previous_stage_rank', 'play_off_match'}
 LABELS = {}
 # what the hooks and the host test use: cobj links only the sections they reach (of the #included library: sr_league_rank)
 ROOTS = ('lr_res_hook', 'lr_sort_hook', 'lr_res', 'lr_rank', 'LR_BLK')
+# 4.2 AFC mode (MC 11/11, option b): the code band obj4 0x6000..0xA000 = lrank.c, then conti's group draw (ctdraw.c
+# via ctband.c, its own link right after lrank's end); LR_TAB alone in the 11th page (TAB_AT..+0x1000); SREG2 at 0xB000
+# (the 12th). ctdraw's symbols go into LABELS too (the harness: syms['lrank'][CT_SDRAW_*]). MC: a code margin < 512 B
+# -> ask MC (obj4 above it, MC 12/11: SREG2 0xB000, SLOW 0xC000 (4.2 slow, swreg.SLOW_AT), T3 0xD000, CT spare 0xE000).
+TAB_AT = LR_AT + 0x1000 * LR_PAGES
+CT_ROOTS = ('ct_place', 'CT_SDRAW_N', 'CT_SDRAW_ERR', 'CT_SDRAW_HIT')
 
 
 def compile_list(names, teams, where):
@@ -90,8 +96,8 @@ def patch(p, tables, split_st, split_magic):
     import uesum
     import careerworld
     room = 0x1000 * swe.OBJ4_PAGES
-    assert LR_AT + 0x1000 * LR_PAGES <= room == p.le.obj(4).npages * 0x1000, ('lrank: obj4 pages', hex(room))
-    assert not any(p.get(4, LR_AT, 0x1000 * LR_PAGES)), 'lrank: obj4+LR_AT not free'
+    assert TAB_AT + 0x1000 <= room == p.le.obj(4).npages * 0x1000, ('lrank: obj4 pages', hex(room))
+    assert not any(p.get(4, LR_AT, TAB_AT + 0x1000 - LR_AT)), 'lrank: obj4+LR_AT not free'
     s = split.sites(p)
     tab, ptrs = table(p, tables)
     res, sort = s['res'], s['sort_start']
@@ -119,11 +125,14 @@ def patch(p, tables, split_st, split_magic):
         flags.append('-DSORT_CHAIN')
     else:
         ext['SORT_NEXT'] = (1, sort + 10)
-    tab_at = (LR_AT + 0x1000 * LR_PAGES - len(tab)) & ~3
+    tab_at = TAB_AT
+    assert tab_at + len(tab) <= TAB_AT + 0x1000, ('lrank: LR_TAB over its page', len(tab))   # (MC: S7 adds up to 9)
     ext['LR_TAB'] = (4, tab_at)
     obj = cobj.compile_c(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'lrank.c'), flags, sections=True)
-    syms, end, bss = cobj.link(p, obj, LR_AT, (4, 0), externs=ext, limit=tab_at, text_obj=4, roots=ROOTS)
+    syms, end, bss = cobj.link(p, obj, LR_AT, (4, 0), externs=ext, limit=TAB_AT, text_obj=4, roots=ROOTS)
     assert bss == 0, ('lrank.c: no .bss', bss)
+    assert end <= TAB_AT, ('lrank: code over its band', hex(end), hex(TAB_AT))   # (4.2 P7, MC: the band is fixed - LR_PAGES 4,
+                                                    # SREG2 at 0xB000, SLOW 0xC000, T3 0xD000, CT spare 0xE000; ask MC)
     p.put(4, tab_at, tab)
     for off, (o, a) in ptrs:
         cobj.add_ptr(p, tab_at + off, o, a, 4)
@@ -138,7 +147,35 @@ def patch(p, tables, split_st, split_magic):
     LABELS.update(syms)
     LABELS['ext'] = dict(ext, sort=(1, sort), res=(1, res))     # (hosttest: the game's variables and the two sites)
     print(f'exe: tie-breaker lists (lrank, 4.2 S1.3): obj4+{LR_AT:#x}..{end:#x}, LR_TAB {len(tab) // ENTRY - 1} '
-          f'divisions at obj4+{tab_at:#x}; hooks cseg_88CBB obj1+{res:#x} ({"after sp_res" if res_chain else "own"}), '
+          f'divisions at obj4+{tab_at:#x} ({TAB_AT + 0x1000 - tab_at - len(tab)} B left in its page); hooks cseg_88CBB obj1+{res:#x} ({"after sp_res" if res_chain else "own"}), '
           f'cseg_883DD obj1+{sort:#x} ({"after lp_sort" if sort_chain else "own"}); LR_BLK obj4+{syms["LR_BLK"][1]:#x} '
           f'({LR_SIZE} B, item LR)')
+    LABELS['@end'] = (4, end)
     return end
+
+
+def ct_patch(p):
+    """4.2 AFC mode (MC 11/11, option b): ctband.c (ctdraw.c + the library's group draws), its own link in the code
+    band right after lrank's end, up to TAB_AT; its symbols into LABELS (ct_place: conti.sdraw_patch). Returns
+    ct_place."""
+    import cobj
+    import swe
+    at, lim = (LABELS['@end'][1] + 15) & ~15, TAB_AT
+    assert not any(p.get(4, at, lim - at)), 'ctdraw: obj4 after lrank not free'
+    flags = ['-Oz', '-fno-zero-initialized-in-bss']
+    ext = {'cstack_call': swe.LABELS['cstack_call'], 'swe_ready': swe.LABELS['swe_ready']}   # (the engine's C stack)
+    roots = CT_ROOTS
+    if os.environ.get('CTDRAW_FORCE'):
+        print('exe: CTDRAW_FORCE (test build: CT_SDRAW_FORCE refuses a conti group draw)')
+        flags.append('-DCTDRAW_FORCE')
+        roots += ('CT_SDRAW_FORCE',)
+    obj = cobj.compile_c(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'ctband.c'), flags, sections=True)
+    syms, end, bss = cobj.link(p, obj, at, (4, 0), externs=ext, limit=lim, text_obj=4, roots=roots)
+    assert bss == 0, ('ctband.c: no .bss', bss)
+    assert end <= lim, ('ctdraw: the code band over', hex(end), hex(lim))
+    lib = sorted(k for k in syms if k.startswith('sr_'))
+    LABELS.update(syms)
+    print(f'exe: conti group draws (ctdraw, 4.2 AFC mode): obj4+{at:#x}..{end:#x} ({lim - end} B left in the code band'
+          f'{", UNDER 512: ask MC" if lim - end < 512 else ""}); '
+          f'library {lib}')
+    return syms['ct_place']

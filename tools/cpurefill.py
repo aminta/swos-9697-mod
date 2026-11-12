@@ -42,6 +42,9 @@ BUTTON = (183, 185, 121, 15)           # x, y, width, height: right of ESCI (x 1
 COLOR = 0x0E
 NEWENT = 8
 LABELS = {}
+EXTRA = []      # 4.2.x: more entries for the menu copy (trial.py's buttons), set before patch(): {'bytes', 'ptrs' [(offset
+                # in 'bytes', obj, off)], optional 'esci_left': its entry number, optional 'links': {original entry:
+                # (link 0..3, target)}} - numbered NEWENT + 1, ...
 
 ASM = r"""
 cr_w5:                                  ; ZF = 1: the current world is World 2026-27 (xtra's file name data\xtw5.nnn)
@@ -390,11 +393,20 @@ def patch(p, at, lang):
     ent += struct.pack('<IH', 0, 0)
     mc = bytearray(d2[s['menu']:end])
     mc[esci - s['menu'] + 1] = NEWENT
-    copy = bytes(mc) + ent + struct.pack('<h', -999)
+    xptrs, xb_ = [], b''
+    for k, e in enumerate(EXTRA):                    # (trial.py: ESCI's left link -> its button; QUALITA'+: entry 6's left)
+        if 'esci_left' in e:
+            assert e['esci_left'] == NEWENT + 1 + k, e['esci_left']
+            mc[esci - s['menu']] = e['esci_left']
+        for en, (li, v) in e.get('links', {}).items():   # {original entry: (link 0..3 = L R U D, the new target)}
+            mc[ents[en][1] - s['menu'] + li] = v
+        xptrs += [(len(mc) + len(ent) + len(xb_) + o, t_obj, t_off) for o, t_obj, t_off in e['ptrs']]
+        xb_ += e['bytes']
+    copy = bytes(mc) + ent + xb_ + struct.pack('<h', -999)
     ptrs = [(o - s['menu'], t_obj, t_off) for (s_obj, o, _, t_obj, t_off, *_r) in p.le.fixups()
             if s_obj == 2 and s['menu'] <= o < end and o - s['menu'] not in (0, 4)]
     ptrs += [(0, 3, lab['cr_init']), (4, 3, lab['cr_init']),
-             (len(mc) + buf_at, 3, lab['cr_buf']), (len(mc) + sel_at, 3, lab['cr_toggle'])]
+             (len(mc) + buf_at, 3, lab['cr_buf']), (len(mc) + sel_at, 3, lab['cr_toggle'])] + xptrs
     mat = (at + len(code) + 15) & ~15
     while any((mat + o) // 0x1000 != (mat + o + 3) // 0x1000 for o, _, _ in ptrs):
         mat += 4

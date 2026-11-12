@@ -38,8 +38,23 @@ ST_AT, ST_SIZE = 0x5000, 144             # 4.2: the engine's ledger item 'ST' (s
 CONTI4_AT = 0x4B00                      # 4.1.1: conti's read-only data (the CONMEBOL ranking, the 4.1 season-1 lists +
 CONTI4_END = 0x5000                     # winners) at the 5th page's top, above uprize part 2 (Regia / MC 10/11; 4.2 keeps
                                         # it: lrank from 0x6000)
+SLOW_AT = 0xC000                        # 4.2 slow (MATCH SPEED, slow.py): obj4's 13th page, its own (MC 12/11; a
+SLOW_END = 0xD000                       # CONVENTIONS 23bis exception: Davide's ok via Regia 12/11)
+T3_AT = 0xD000                          # 4.2.y T3 "mini primavera" (t3.py / t3.c): obj4's 14th page, its own (MC 12/11;
+T3_END = 0xE000                         # CONVENTIONS 23bis); 0xC000 = 42-slow's, 0xE000 = the conti CT spare
+SWEFILE_AT = 0x11000                    # 4.2 the engine's file layer (swefile.c, MC 12/11): obj4 page 18, after Difficolta's
+SWEFILE_END = 0x11800                   # page 15 (0xE000..0xF000) and Panchina's kits (0xF000..0x11000); dormant until a consumer
 assert UPRIZE2_END <= CONTI4_AT, 'uprize part 2 would cross conti / ST'   # (4.2: bands never cross)
 assert CONTI4_END <= ST_AT, 'conti data would cross ST'
+NAMEFIT_AT = 0xC400                     # 4.2 names-fit (namefit.py, Marco (b) step 2: menu names by pixels; MC 12/11): page 13
+NAMEFIT_END = 0xC800                    # between slow (its link limit NAMEFIT_AT) and trial; code + 16 x 24 B row buffers
+TRIAL_AT = 0xC800                       # 4.2.x trial players T1+T2 (trial.py's code, out of obj3: MC 12/11, REL42i13 IT obj3
+TRIAL_END = 0xCF00                      # 112 B): page 13 between slow (SLOW_AT, link limit TRIAL_AT) and the shirtbox (BOX_AT)
+BOX_AT = 0xCF00                         # 4.2 shirtbox (Marco's lit number box, shirtedit se_unsh): obj4's 13th page top,
+BOX_END = 0xD000                        # slow's page (SLOW_AT 0xC000, its code below BOX_AT); Mercato CPU's T3 from 0xD000 (MC 12/11)
+assert SLOW_AT < NAMEFIT_AT < NAMEFIT_END <= TRIAL_AT < TRIAL_END <= BOX_AT < BOX_END <= SLOW_END, \
+    'page 13: slow < namefit < trial < shirtbox'
+assert SLOW_END <= T3_AT < T3_END, 'page 14: T3 above page 13'
 MAGIC = b'SWRG'
 VERSION = 2
 HDR = 32

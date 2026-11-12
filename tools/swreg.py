@@ -53,9 +53,12 @@ BOX_END = 0xD000                        # slow's page (SLOW_AT 0xC000, its code 
 assert SLOW_AT < NAMEFIT_AT < NAMEFIT_END <= TRIAL_AT < TRIAL_END <= BOX_AT < BOX_END <= SLOW_END, \
     'page 13: slow < namefit < trial < shirtbox'
 assert SLOW_END <= T3_AT < T3_END, 'page 14: T3 above page 13'
-DIFF_AT = 0xE000                        # 42-diff (difficulty + DRIBBLING, difficulty.py): obj4's 15th page, 2 KB (MC 12/11:
-DIFF_END = 0xE800                       # 0xE800..0xF000 stays the conti CT draw's spare; CONVENTIONS 23bis)
-assert T3_END <= DIFF_AT < DIFF_END <= 0xF000, 'page 15: T3 < difficulty < the conti CT spare'
+DIFF_AT = 0xE000                        # 42-diff (difficulty + DRIBBLING, difficulty.py + buildup.py): obj4's whole
+DIFF_END = 0xF000                       # page 15 (MC 12/11, option a; a future CT page goes to 0xF000+). Split:
+BU_AT = 0xE900                          # difficulty 0xE000..BU_AT, the build-up v1 BU_AT..DIFF_END. The build FAILs
+BU_END = DIFF_END                       # when the release shape leaves under DIFF_MARGIN B of the page.
+DIFF_MARGIN = 512
+assert T3_END <= DIFF_AT < BU_AT < BU_END == DIFF_END <= 0x10000, 'page 15: T3 < difficulty < build-up'
 MAGIC = b'SWRG'
 VERSION = 2
 HDR = 32

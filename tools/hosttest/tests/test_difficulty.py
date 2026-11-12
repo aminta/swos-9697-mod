@@ -92,6 +92,8 @@ def _setup(uc, sym, case, B2):
     w(v('A3_'), '<I', case.get('a3', FA))
     for k in ('D0_', 'D1_', 'D2_', 'D3_'):
         w(v(k), '<I', case.get(k, 0))
+    for off, fmt, val in case.get('w2', ()):            # (other obj2 variables: D6, AI_rand ...)
+        w(B2 + off, fmt, val)
 
 
 REGS = None
@@ -125,6 +127,8 @@ def test_difficulty():
     for lang, name in LANGS.items():
         p = lepatch.LEPatch(os.path.join(ORIG, f'{name}.EXE'))
         s, sym = df.find(p)
+        import buildup as bu
+        bs_, bsym = bu.find(p, sym)
         exe = _build(lang)
         uo, so, b2o, _ = _load(os.path.join(ORIG, f'{name}.EXE'))
         un, sn, b2n, B4 = _load(exe)
@@ -243,6 +247,28 @@ def test_difficulty():
                         got = u16(r[t], (a6 - SCR) + 0x8A)
                         if got != want:
                             errs.append(f'{lang} K9 {case} {t}: {got}, want {want}')
+        # build-up v1 (DRIBBLING NEW): H1 on both sides; G1 / P1 off the opposition (no FindClosest call) = original
+        d6, rnd = bsym['D6_'][1], bsym['AIRAND'][1]
+        for a6 in (TA, TB):
+            for pa, pb in ((1, 0), (1, 1), (0, 0)):
+                opp = a6 == TB and (pa, pb) == (1, 0)
+                for dd in (100000, 180000, 180001, 250000, 270000, 270001, 400000):
+                    for ar in (0, 1, 4, 5, 200):
+                        case = dict(a6=a6, pa=pa, pb=pb, w2=((d6, '<I', dd), (rnd, '<H', ar)))
+                        r = run('H1', bs_['H1'], 10, case, flags=True)
+                        for t in ('n1', 'n5'):
+                            ja = not (r[t][0][2] & 1) and not (r[t][0][2] & 0x40)
+                            want = dd > 180000 and (not opp or ar & 3 == 0 or dd > bu.H1_DEEP)
+                            if ja != want:
+                                errs.append(f'{lang} H1 {case} {t}: ja {ja}, want {want}')
+                        if not opp:
+                            for key, n in (('G1', 6), ('P1', 10)):
+                                r = run(key, bs_[key], n, case, flags=True)
+                                for t in ('n1', 'n5'):
+                                    fl = key == 'P1' and r[t][0][2] != r['o'][0][2]   # (G1: flags dead: mov / and)
+                                    if r[t][0][0][:2] != r['o'][0][0][:2] or fl or \
+                                            r[t][1] != r['o'][1]:
+                                        errs.append(f'{lang} {key} {case} {t}: not the original off the opposition')
     return not errs, '; '.join(errs[:12]) + (f' (+{len(errs) - 12})' if len(errs) > 12 else '') or \
         f'4 languages, {n_cases} cases: DF 0 / 3 = the original at every site, L1 / L5 on the right side only'
 

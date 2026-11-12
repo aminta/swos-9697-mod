@@ -31548,6 +31548,20 @@ def diff_block(r):
     return b4 + swreg.DIFF_AT + k if k >= 0 else None
 
 
+def diff_bu_block(r):
+    """buildup.py's counter block (its 'BUP1' tag at swreg.BU_AT's page), or None."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import swreg
+    if r.base4 is None:
+        return None
+    at = swreg.BU_AT & ~0xFFF
+    pg = r.read(r.base4 + at, 0x1000)
+    k = pg.find(b'BUP1')
+    while k >= 0 and k % 4:
+        k = pg.find(b'BUP1', k + 1)
+    return r.base4 + at + k if k >= 0 else None
+
+
 def diff_match(name, build, home, away, ctl, seed, level_w=0, frames=13000, polls=120, drib=0):
     """One deterministic friendly (a DIFF_TRACE build): main menu -> AMICHEVOLE home v away (1996-97 1. LIGA) -> the
     pre-match screen; DF_SEED / DF_CTL / DF_W poked into the DIFF block; PLAY MATCH; no key after the kick-off
@@ -31708,10 +31722,21 @@ def diff_score_sites(exe_dir):
     import lepatch
     p = lepatch.LEPatch(os.path.join(exe_dir, 'ITALIAN.EXE'))
     d = p.le.obj_bytes(1)
-    m = [x.start() for x in re.finditer(rb'\x66\x83\x3d....\x00\x74.\x66\x83\x3d....\x00\x74.\x66\xa1....\x66\x3b\x05....'
-                                        rb'\x0f\x85....\xb8\x08\x00\x00\x00', d, re.S)]
-    assert len(m) == 1, ('statsTeamGoals', m)
-    g1, g2 = p.target(1, m[0] + 13)[1], p.target(1, m[0] + 3)[1]
+    m = []
+    for x in re.finditer(rb'\x66\xa1....\x66\x2b\x05....', d, re.S):   # (goal difference, then goal sum:
+        o = x.start()                                             #  mov ax, g1 / sub ax, g2 ... mov dx, g1 / add dx, g2)
+        try:
+            g1, g2 = p.target(1, o + 2), p.target(1, o + 9)
+        except AssertionError:
+            continue
+        y = re.compile(rb'\x66\x8b\x15....\x66\x03\x15....', re.S).search(d, o + 13, o + 0x40)
+        try:
+            if y and p.target(1, y.start() + 3) == g1 and p.target(1, y.start() + 10) == g2:
+                m.append((g1[1], g2[1]))
+        except AssertionError:
+            pass
+    assert len(set(m)) == 1, ('statsTeamGoals', m)
+    g1, g2 = m[0]
     c = collections.Counter()
     a6 = None
     for x in re.finditer(rb'\xc7\x05', d):
@@ -31795,6 +31820,11 @@ def diff_ab():
                         res = dict(pairing=pr, level=lv, drib=dr, seed=seed.hex(), frames=f, act=act, dact=bb[30],
                                    goals=goals, stats=st, pens=struct.unpack_from('<H', bb, DIFF_OFF['PENS'])[0],
                                    noslide=struct.unpack_from('<I', bb, DIFF_OFF['NOSL'])[0])
+                        bu = diff_bu_block(r)
+                        if bu is not None:              # build-up v1: G1 / H1 / P1 + [team][pass, kick, gk pass, gk kick]
+                            bb = r.read(bu, 36)
+                            res['bu'] = list(struct.unpack_from('<3I', bb, 4))
+                            res['rel'] = [list(struct.unpack_from('<4H', bb, 16 + 8 * t)) for t in (0, 1)]
                     else:
                         res = dict(pairing=pr, level=lv, drib=dr, seed=seed.hex(), error=str(r))
                 rows.append(res)
@@ -31806,9 +31836,11 @@ def diff_ab():
     for r in rows:
         if 'goals' in r:
             summ[(r['pairing'], r['level'], r['drib'])].append((r['goals'][0] - r['goals'][1], r['stats'][0][2],
-                                                               r['stats'][1][2], r['pens']))
+                                                               r['stats'][1][2], r['pens'],
+                                                               r.get('rel', [[0] * 4] * 2)[1]))
     info = [f'{k[0]} L{k[1]} D{k[2]}: goal diff {[x[0] for x in v]} mean {sum(x[0] for x in v) / len(v):+.2f}, fouls '
-            f'{sum(x[1] for x in v)}/{sum(x[2] for x in v)}, penalties {sum(x[3] for x in v)}'
+            f'{sum(x[1] for x in v)}/{sum(x[2] for x in v)}, penalties {sum(x[3] for x in v)}, CPU passes/kicks/gk '
+            f'{[sum(x[4][j] for x in v) for j in range(4)]}'
             for k, v in sorted(summ.items())]
     return not errs, '; '.join(errs[:6] + info + [f'rows in {out}'])
 

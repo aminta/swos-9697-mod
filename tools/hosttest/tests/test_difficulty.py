@@ -125,7 +125,7 @@ def test_difficulty():
         if k < 0:
             errs.append(f'{lang}: no DIFF tag in obj4')
             continue
-        dfa = B4 + 0xF000 + k + 5
+        dfa = B4 + 0xF000 + k + 6
         k3 = B4 + 0xF000 + mem4.find(struct.pack('<8H', *df.K3[0]))
         kfail = None
 

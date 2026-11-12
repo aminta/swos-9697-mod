@@ -258,6 +258,11 @@ def patch_exe(src, dst, remap, lang='it'):
     engine.save_item('GI', 2)                    # 4.0.6 the OPTIONS row 'goalkeeper injuries' (gkinj.py: 0 = ON; the session's
     engine.after_load('gk_load')                 # value kept by a load / a new career)
     engine.after_new('gk_new')
+    import difficulty
+    if difficulty.knobs():                       # 42-diff: the OPTIONS row DIFFICULTY (difficulty.py: DF_W's low byte, 0 =
+        engine.save_item('DF', 1)                # NORMAL; a save without it loads NORMAL; the session's level kept by a
+        engine.after_load('df_load')             # load / a new career as cpucards)
+        engine.after_new('df_new')
     import swe
     engine.save_item('SWC1', swe.SWC1_SIZE, grow=True)   # engine P: the engine's state (swe.c SWC1: a versioned header,
     engine.before_save('swe_st_save')            # then sections; older, shorter versions load - grow)

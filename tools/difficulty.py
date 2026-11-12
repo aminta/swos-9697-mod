@@ -36,6 +36,10 @@ import struct
 import nasmcave
 
 TAG = b'DIFF'
+LABEL = {'it': "DIFFICOLTA'", 'en': 'DIFFICULTY', 'fr': 'DIFFICULTE', 'de': 'SCHWIERIGKEIT'}
+VALUES = {'it': ('NORMALE', 'FACILE', 'DIFFICILE'), 'en': ('NORMAL', 'EASY', 'HARD'),
+          'fr': ('NORMAL', 'FACILE', 'DIFFICILE'), 'de': ('NORMAL', 'LEICHT', 'SCHWER')}   # (DF_W 0, 1, 2; 3 / 4 = L2 / L4,
+PITCH, HEIGHT, TOP = 10, 9, 18          # test values only: 'L2' / 'L4'); the 13 rows: y 18 + 10 k, 9 high (EXIT TO DOS 151)
 LVMAP = (3, 1, 5, 2, 4)                 # DF_W -> level
 #              L1      L2      L3      L4      L5
 K1 = (80, 90, 100, 105, 110)            # opposition skills %
@@ -55,14 +59,17 @@ assert K1[2] == 100 and K2[2] == 0 and K2B[2] == 0 and K3[2] == (6, 4, 3, 2, 1, 
 ASM = r"""
 ; ---- the kick-off: DF_ACT for this match (replaces `mov A6, offset team1AppPercent` at @@init_in_game_teams)
 df_kick:
+%if DIFF_TRACE
+    call df_tkick
+%endif
     push eax
     xor eax, eax
     cmp byte [SWOSPP], 0FFh             ; (0FFh = no SWOS++)
     jne .s
     cmp word [TRG], 0                   ; a training game
     jne .s
-    mov al, [DF_W]
-    cmp al, 4
+    mov ax, [DF_W]
+    cmp ax, 4
     ja .z
     mov al, [LVMAP + eax]
     cmp al, 3
@@ -293,15 +300,200 @@ df_turn:
     ret
 
 align 4
-TAGW: db 'DIFF'
-DF_W: db DF_START                       ; (the option: 0 NORMAL, 1 L1, 2 L5, 3 L2, 4 L4)
-DF_ACT: db 0                            ; (this match's level, 0 = off)
-DF_SH: db DF_START                      ; (the session's value: a new career zeroes the item)
-db 0
-DF_KICKS: dd 0                          ; (kick-offs seen: harness)
+TAGW: db 'DIFF'                         ; (+0; the harness finds the block by this tag - offsets below from it)
+DF_W: dw DF_START                       ; +4 the option: 0 NORMAL, 1 L1, 2 L5, 3 L2, 4 L4 (a word: the game's string
+                                        ;    table reads one; the save item 'DF' = its low byte)
+DF_ACT: db 0                            ; +6 this match's level, 0 = off
+DF_SH: db DF_START                      ; +7 the session's value (a new career zeroes the item)
+DF_KICKS: dd 0                          ; +8 kick-offs seen
+DF_SEED: db 0, 0, 0, 0, 0, 0            ; +12 DIFF_TRACE: both random generators' states at the kick-off (Rand, Rand2)
+DF_CTL: db 0, 0                         ; +18 DIFF_TRACE: teamControls forced on team 1 / 2 at the kick-off (0 = as is)
+DF_FRAMES: dd 0                         ; +20 DIFF_TRACE: live-match frames since the kick-off
+DF_HASH: dd 0                           ; +24 DIFF_TRACE: FNV-1a of every frame's 23 sprites' x / y / z + the RNG states
+DF_CK: times 64 dd 0                    ; +28 DIFF_TRACE: DF_HASH every 256 frames (ring)
 LVMAP: db 3, 1, 5, 2, 4
 align 2
 """
+
+ASM_ROW = r"""
+; ---- the OPTIONS row DIFFICULTY (entries 28 / 29 after slow's 26 / 27); 13 rows at a 10 px pitch, 9 high
+df_init:
+    call PREV_INIT
+    jmp df_add
+df_ret:
+    call PREV_RET
+df_add:
+    pushad
+    cmp byte [SWOSPP], 0FFh             ; SWOS++ running: no row (the level stays NORMAL there: df_kick)
+    jne .x
+    mov ebx, MENU_
+    cmp word [ebx + 10h], 28            ; (slow's 28 entries, nothing after them)
+    jne .x
+    lea eax, [ebx + 16h + 28 * 38h]
+    cmp [ebx + 12h], eax
+    jne .x
+    mov edi, eax                        ; entries 28 / 29 = copies of slow's row (26 / 27)
+    lea esi, [ebx + 16h + 26 * 38h]
+    mov ecx, 2 * 38h
+    rep movsb
+    mov edi, eax
+    mov word [edi + 2], 28
+    mov dword [edi + 26h], S_LBL
+    mov word [edi + 38h + 2], 29
+    mov dword [edi + 38h + 26h], TAB_D
+    mov dword [edi + 38h + 2Ah], df_tog
+    movzx ecx, byte [ebx + 16h + 27 * 38h + 0Bh]   ; (27's down: EXIT TO DOS - now 29's)
+    mov byte [edi + 38h + 0Ah], 27
+    mov [edi + 38h + 0Bh], cl
+    mov byte [edi + 38h + 12h], 27
+    mov [edi + 38h + 13h], cl
+    mov byte [ebx + 16h + 27 * 38h + 0Bh], 29
+    mov byte [ebx + 16h + 27 * 38h + 13h], 29
+    cmp cl, 0FFh
+    je .n
+    imul ecx, ecx, 38h                  ; (and the entry below: up 27 -> 29)
+    lea ecx, [ebx + 16h + ecx]
+    cmp byte [ecx + 0Ah], 27
+    jne .u
+    mov byte [ecx + 0Ah], 29
+.u: cmp byte [ecx + 12h], 27
+    jne .n
+    mov byte [ecx + 12h], 29
+.n: mov word [ebx + 10h], 30
+    add dword [ebx + 12h], 2 * 38h
+    lea esi, [ebx + 16h]                ; every row at slow's pitch (y TOP + 11 * k, 140 wide; ours at k = 12 once
+    mov ecx, 30                         ; copied: 26's y + 11) -> y TOP + PITCH * k, HEIGHT high
+    add word [ebx + 16h + 28 * 38h + 16h], 11
+    add word [ebx + 16h + 29 * 38h + 16h], 11
+.c: cmp word [esi + 18h], 140
+    jne .cn
+    movzx eax, word [esi + 16h]
+    sub eax, TOP
+    jb .cn
+    cmp eax, 12 * 11
+    ja .cn
+    xor edx, edx
+    mov edi, 11
+    div edi
+    test edx, edx
+    jnz .cn
+    imul eax, eax, PITCH
+    add eax, TOP
+    mov [esi + 16h], ax
+    mov word [esi + 1Ah], HEIGHT
+.cn: add esi, 38h
+    loop .c
+.x: popad
+    ret
+
+df_tog:                                 ; the value (fire): NORMAL -> HARD -> EASY -> NORMAL (L2 / L4: back to NORMAL)
+    mov ax, [DF_W]
+    cmp ax, 0
+    jne .a
+    mov ax, 2
+    jmp .s
+.a: cmp ax, 2
+    jne .b
+    mov ax, 1
+    jmp .s
+.b: xor eax, eax
+.s: mov [DF_W], ax
+    mov [DF_SH], al
+    jmp DRAWITEM
+
+df_load:                                ; after a career load: the save's level (0 = NORMAL without the item 'DF')
+    mov al, [DF_W]
+    cmp al, 4
+    jbe .s
+    xor eax, eax
+    mov [DF_W], ax
+.s: mov byte [DF_W + 1], 0
+    mov [DF_SH], al
+    ret
+df_new:                                 ; after a new career's defaults (its items zeroed): the session's level back
+    movzx ax, byte [DF_SH]
+    mov [DF_W], ax
+    ret
+"""
+
+ASM_T = r"""
+; ---- DIFF_TRACE (test builds): a deterministic match. The kick-off pins both generators (DF_SEED) and may force the
+;      teams' controls (DF_CTL); TimerProc no longer counts currentGameTick (its inc nopped): GameLoop's live-match
+;      Flip does, once per frame (every frame = 1 tick, as at 70 fps), and hashes the frame.
+df_tkick:
+    pushad
+    mov al, [DF_CTL]
+    test al, al
+    jz .c1
+    mov esi, [GT1]
+    mov [esi + 4], al
+.c1:mov al, [DF_CTL + 1]
+    test al, al
+    jz .c2
+    mov esi, [GT2]
+    mov [esi + 4], al
+.c2:mov esi, DF_SEED
+    mov edi, RNG1
+    movsw
+    movsb
+    mov edi, RNG2
+    movsw
+    movsb
+    xor eax, eax
+    mov [DF_FRAMES], eax
+    mov dword [DF_HASH], 2166136261
+    mov edi, DF_CK
+    mov ecx, 64
+    rep stosd
+    popad
+    ret
+
+df_frame:
+    call PREV_FLIP
+    pushad
+    inc word [CGT]
+    mov eax, [DF_HASH]
+    mov esi, SPR0
+    mov ecx, 23
+.s: push ecx
+    push esi
+    add esi, 1Eh                        ; (Sprite.x, .y, .z: 3 dwords)
+    mov ecx, 12
+    call df_fnv
+    pop esi
+    pop ecx
+    add esi, 6Eh
+    loop .s
+    mov esi, RNG1
+    mov ecx, 3
+    call df_fnv
+    mov esi, RNG2
+    mov ecx, 3
+    call df_fnv
+    mov [DF_HASH], eax
+    mov ebx, [DF_FRAMES]
+    inc ebx
+    mov [DF_FRAMES], ebx
+    test bl, bl
+    jnz .x
+    shr ebx, 8
+    and ebx, 63
+    mov [DF_CK + ebx * 4], eax
+.x: popad
+    ret
+
+df_fnv:                                 ; eax = FNV-1a(eax; esi, ecx bytes)
+    movzx edx, byte [esi]
+    xor eax, edx
+    imul eax, eax, 16777619
+    inc esi
+    loop df_fnv
+    ret
+"""
+
+
+def trace():
+    return bool(os.environ.get('DIFF_TRACE'))
 
 
 def _blk(t, i):
@@ -322,6 +514,10 @@ def data_asm():
 
 
 def on():
+    return bool(os.environ.get('DIFF_TEST') or os.environ.get('DIFF_TRACE'))
+
+
+def knobs():
     return bool(os.environ.get('DIFF_TEST'))
 
 
@@ -394,15 +590,59 @@ def patch(p, lang):
     assert not dribble.on(), 'DIFF_TEST and DRIBBLE_TEST: the carrier site is one (difficulty has the DRIBBLING rows)'
     force = bool(os.environ.get('DIFF_FORCE'))
     import modver
-    assert modver.is_test(), 'DIFF_TEST: test builds only (until the OPTIONS row)'
+    assert modver.is_test(), 'DIFF_TEST / DIFF_TRACE: test builds only (until the OPTIONS row)'
     s, sym = find(p)
     sym['SWOSPP'] = controls.locate(p)['SWOSPP']
-    sym['TRG'] = gkinj.find(p)['TRG']
+    g = gkinj.find(p)
+    sym['TRG'] = g['TRG']
+    tr = trace()
+    row = knobs()
+    if row:
+        import cpucards
+        import slow
+        import zones
+        from complist import px
+        sym0 = controls.locate(p)
+        hdr = controls.menu_header(p, sym0['OMBD'][1])
+        prev = [p.target(2, hdr + k) for k in (0, 4)]
+        assert prev == [(4, slow.LABELS['sl_init']), (4, slow.LABELS['sl_ret'])], ('OPTIONS init / return', prev)
+        sym.update(PREV_INIT=prev[0], PREV_RET=prev[1], MENU_=zones._current_menu(p),
+                   DRAWITEM=(1, cpucards.find(p)['DRAWITEM']))
+        for t in (LABEL[lang],) + VALUES[lang]:
+            assert px(t) <= 138 and re.fullmatch(r"[A-Z ']+", t), t
+    if tr:
+        import slow
+        d = p.le.obj_bytes(1)
+        sl = slow.find(p)
+        sym['CGT'] = sl['CGT']
+        sym['PREV_FLIP'] = p.call_target(1, sl['FLIP_AT'])
+        sym['RNG1'], sym['RNG2'] = g['RNG1'], g['RNG2']
+        tp = _one(rb'\x50\x66\xc7\x05....\xff\xff\x66\xff\x05....\x66\xff\x05....\x66\xa1....\x66\x0b\xc0\x75.'
+                  rb'\x66\xff\x05', d, 'TimerProc')[0] + 35
+        assert p.target(1, tp + 3) == sl['CGT'], 'TimerProc inc currentGameTick'
+        gt = [m.start() for m in re.finditer(rb'\xa1....\xa3....\xa1....\xa3', d[s['KICK'] - 0x600:s['KICK']], re.S)]
+        gt = [s['KICK'] - 0x600 + o for o in gt]
+        gt = [o for o in gt if p.target(1, o + 1) == sym['A1_'] and p.target(1, o + 11) == sym['A2_']]
+        assert len(gt) == 1, ('gameTeam1 / gameTeam2', gt)
+        sym['GT1'], sym['GT2'] = p.target(1, gt[0] + 6), p.target(1, gt[0] + 16)
+        bs = [m.start() for m in re.finditer(rb'\xc7\x05', d[s['PS'] + 10:s['PS'] + 0x80])]
+        bs = [s['PS'] + 10 + o for o in bs if _t(p, s['PS'] + 12 + o) == sym['A1_']]
+        assert bs, 'mov A1, offset ballSprite'
+        ball = p.target(1, bs[0] + 6)
+        sym['SPR0'] = (ball[0], ball[1] - 22 * 0x6E)         # (goalie1Sprite .. team2Player11Sprite, ballSprite)
     orig = {k: p.get(1, s[k], n) for k, n in (('SC', 13), ('GK', 11), ('PS', 10), ('GL', 8), ('SL', 7), ('TU', 6),
                                               ('CAR', 37), ('KICK', 10))}
     assert orig['GL'][:3] == b'\x66\x83\x05' and orig['TU'] == b'\x66\x81\x46\x2c\x00\x01', 'sites already patched'
     at = swreg.DIFF_AT
-    src = f'%define DIFF_FORCE {int(force)}\n%define DF_START {start_w()}\n' + ASM + data_asm()
+    db = lambda x: ', '.join(str(c) for c in x.encode() + b'\0')
+    strs = ''
+    if row:
+        v = VALUES[lang] + ('L2', 'L4')
+        strs = (f'S_LBL: db {db(LABEL[lang])}\n' + ''.join(f'S_V{i}: db {db(t)}\n' for i, t in enumerate(v))
+                + 'align 4\nTAB_D: dd DF_W\n    dw 0\n    dd ' + ', '.join(f'S_V{i}' for i in range(5)) + '\n')
+    src = (f'%define DIFF_FORCE {int(force)}\n%define DIFF_TRACE {int(tr)}\n%define DF_START {start_w()}\n'
+           f'%define TOP {TOP}\n%define PITCH {PITCH}\n%define HEIGHT {HEIGHT}\n' + ASM
+           + (ASM_ROW if row else '') + (ASM_T if tr else '') + data_asm() + strs)
     code, fix, rel = nasmcave.assemble_obj(src, at, sym, 4)
     lab = nasmcave.labels(src, at, sym)
     assert at + len(code) <= swreg.DIFF_END, ('difficulty: past its obj4 room', hex(at + len(code)))
@@ -413,19 +653,36 @@ def patch(p, lang):
         p.add_ptr(4, at + o, t_obj, t_off)
     for o, t_obj, t_off in rel:
         p.add_rel(4, at + o, t_obj, t_off)
-    for key, n, l in (('KICK', 10, 'df_kick'), ('SC', 13, 'df_scale'), ('GK', 11, 'df_gk'), ('PS', 10, 'df_pass'),
-                      ('GL', 8, 'df_goal'), ('SL', 7, 'df_slide'), ('TU', 6, 'df_turn'), ('CAR', 37, 'df_carrier')):
+    hooks = [('KICK', 10, 'df_kick')]
+    if knobs():
+        hooks += [('SC', 13, 'df_scale'), ('GK', 11, 'df_gk'), ('PS', 10, 'df_pass'), ('GL', 8, 'df_goal'),
+                  ('SL', 7, 'df_slide'), ('TU', 6, 'df_turn'), ('CAR', 37, 'df_carrier')]
+    for key, n, l in hooks:
         _hook(p, s[key], n, n, lab[l])
-    for o in s['HOLD']:
-        _hook(p, o, 7, 7, lab['df_hold'])
-    for o in s['LOCK']:
-        _hook(p, o, 9, 9, lab['df_lock'])
+    if knobs():
+        for o in s['HOLD']:
+            _hook(p, o, 7, 7, lab['df_hold'])
+        for o in s['LOCK']:
+            _hook(p, o, 9, 9, lab['df_lock'])
+    if row:
+        for k, l in ((0, 'df_init'), (4, 'df_ret')):
+            p.retarget(2, hdr + k, 4, lab[l])
+            p.put(2, hdr + k, struct.pack('<I', lab[l]))
+        import engine
+        engine.ITEM_AT['DF'] = (4, lab['DF_W'])
+        engine.CALL_AT['df_load'] = (4, lab['df_load'])
+        engine.CALL_AT['df_new'] = (4, lab['df_new'])
+    if tr:
+        p.branch(1, sl['FLIP_AT'], 0xE8, 4, lab['df_frame'])
+        p.remove(1, tp + 3)
+        p.put(1, tp, b'\x90' * 7)
     LABELS.clear()
     LABELS.update(lab)
     SITES.clear()
     SITES.update(s)
-    print(f'exe: difficulty test (DIFF_TEST={os.environ["DIFF_TEST"]}{", DIFF_FORCE" if force else ""}): code '
-          f'obj4+{at:#x} ({len(code)} B), 14 obj1 sites')
+    print(f'exe: difficulty test (DIFF_TEST={os.environ.get("DIFF_TEST", "")}{", DIFF_FORCE" if force else ""}'
+          f'{", DIFF_TRACE" if tr else ""}): code obj4+{at:#x} ({len(code)} B), '
+          f'{len(hooks) + (4 if knobs() else 0)} obj1 sites{" + Flip / TimerProc" if tr else ""}')
     return at + len(code)
 
 

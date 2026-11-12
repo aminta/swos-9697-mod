@@ -55,7 +55,7 @@ MAGIC = b'SWOS-ENG'
 VERSION = 3                    # (swe.c SWE_VERSION; 2 = step W, the registry; 3 = W-modes M2, the pickers' worlds)
 CODE_AT = 0x40
 ARENA = 0x8000                 # (swe.c SWE_ARENA)
-SWC1_SIZE = 32                 # engine P: the career state item (swe.c SWC1: header 20 B + sections; grows by version)
+SWC1_BASE = SWC1_SIZE = 32     # engine P: the career state item (swe.c SWC1: header 20 B + sections; grows by version)
 SWEFILE = False                # 4.2: the engine's file layer linked (swefile.py, obj4+swreg.SWEFILE_AT): a consumer sets it
 SRC = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'swe.c')
 LABELS = {}
@@ -296,7 +296,7 @@ def patch(p):
     if imp:
         import trailer
         ext['SWE_ENF'] = (1, trailer.LABELS['EN_FOUND'][1] + trailer.INFO['EN_NS'])
-    flags = (('-DNS',) if ns else ()) + (('-DSTFM',) if 'SWE_STFM' in ext else ()) + (('-DNAT',) if 'CW_PLNAT' in ext else ()) + (('-DMB',) if 'MB_STR' in ext else ()) + (('-DOMM',) if 'MB_OMM' in ext else ()) + (('-DFNAT',) if 'CW_FNAT' in ext else ()) + (('-DAV',) if 'SWE_PREPICK' in ext else ()) + (('-DCWB',) if 'SWE_CWB' in ext else ()) + (('-DSEAS',) if 'SWE_SEASON' in ext else ()) + (f'-DSWC1_SIZE={SWC1_SIZE}',)
+    flags = (('-DNS',) if ns else ()) + (('-DSTFM',) if 'SWE_STFM' in ext else ()) + (('-DNAT',) if 'CW_PLNAT' in ext else ()) + (('-DMB',) if 'MB_STR' in ext else ()) + (('-DOMM',) if 'MB_OMM' in ext else ()) + (('-DFNAT',) if 'CW_FNAT' in ext else ()) + (('-DAV',) if 'SWE_PREPICK' in ext else ()) + (('-DCWB',) if 'SWE_CWB' in ext else ()) + (('-DSEAS',) if 'SWE_SEASON' in ext else ()) + (f'-DSWC1_SIZE={SWC1_SIZE}',) + (('-DSWC1_BSS',) if SWC1_SIZE > SWC1_BASE else ())
     if os.environ.get('SWEFILE_TEST') == '1':         # 4.2: the file layer's self-test buffers + SWEF_HOOK (swefile.py)
         flags += ('-DSWEFILE_TEST',)
     if imp:

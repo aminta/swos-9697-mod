@@ -330,12 +330,15 @@ class Pack:
                 self.tourney(c) if c['type'] == 'tourney' else self.round_robin(c)     # validates
             return
         self.league = next(c for c in self.comps if c['key'] == m['season']['league'])
-        lroles = self.league_roles()               # (S7: a league over two team files - every 'divisions' role;
+        roles = lroles = self.league_roles()       # (S7: a league over two team files - every 'divisions' role;
         self.shaped = len([k for k, v in m['files'].items() if 'divisions' in v]) >= 2   # Pack.shaped as 42-n7reg's)
         self.league_clubs = [k for k, c in self.clubs.items() if c['file'] in lroles]
         nd = len(self.divisions())                 # (a club of the 'reserve' (gplay loser_div 'reserve', league
-        self.division = {k: nd if self.clubs[k].get('division') == 'reserve' else   # 'reserve'): out of every
-                         int(self.clubs[k].get('division') or 0) for k in self.league_clubs}   # division, = nd)
+        rsv = ('reserve', 'pool') if self.shaped else ('reserve',)   # 'reserve'): out of every division, = nd)
+        self.division = {k: nd if self.clubs[k].get('division') in rsv else
+                         int(self.clubs[k].get('division') or 0) for k in self.league_clubs}
+        if self.shaped:
+            self._shape_check(roles, nd)
         self.reserve_clubs = [k for k in self.league_clubs if self.division[k] == nd]
         divs = self.divisions()
         for d, dv in enumerate(divs):
@@ -368,7 +371,10 @@ class Pack:
             pool, first = rs.get('pool') or [], rs.get('first') or []
             _need(set(pool) == set(self.reserve_clubs) and set(first) <= set(pool) and rs.get('then', 'rotation') == 'rotation',
                   f"{self.league['key']}: reserve {{first, pool = every 'reserve' club of clubs.csv, then: 'rotation'}}")
-        self.pool_file = self.files[self.league['clubs']][0] if self.pool_key else None
+        lowf = self.league['clubs']                 # (S7: the off-file pool swaps on the lowest level's file)
+        if self.shaped:
+            lowf = next(r for r in roles if len(divs) - 1 in self.meta['files'][r]['divisions'])
+        self.pool_file = self.files[lowf][0] if self.pool_key else None
         st_res = [c for c in self.comps if c['type'] == 'state' and (c.get('reserve') or {}).get('off_file')]
         if st_res:                              # state championships' off-file pools (Brazil 2026: the A2 clubs)
             _need(not self.pool_key, f"{self.meta['id']}: one off-file pool kind per pack (league or states)")
@@ -593,6 +599,24 @@ class Pack:
             out.append((globnum.glob(self, fl, i), *e[1:]))
         return out
 
+    def _shape_check(self, roles, nd):
+        """A shaped pack's checks (S7, n7-p4.md §1-§2): the league's own file is a role; every division in exactly one
+        role; every club on a role's rows, or in the off-file pool ('pool', with an 'off_file' reserve: MC 11/11, S7's
+        stand-ins as in 4.1, RI's identity swaps on the lowest level's file); sreg.shape_of's order / size checks."""
+        import sreg
+        w = f"{self.meta['id']}: a league over {len(roles)} team files"
+        _need(self.league['clubs'] in roles, f"{w}: the league's own file '{self.league['clubs']}' has no 'divisions'")
+        got = sorted(d for r in roles for d in self.meta['files'][r]['divisions'])
+        _need(got == list(range(nd)), f"{w}: the roles' 'divisions' must hold each division 0..{nd - 1} once ({got})")
+        rs = self.league.get('reserve')
+        offok = ('pool',) if rs and rs.get('off_file') else ()
+        off = [k for k, c in self.clubs.items() if c['file'] not in roles + list(offok)]
+        _need(not off, f"{w}: clubs off the team files ({off[:3]}): only the off-file reserve's ('pool')")
+        try:
+            sreg.shape_of(self)
+        except AssertionError as e:
+            raise PackError(f'{w}: {e}') from None
+
     def team_file_items(self):
         """files without the off-file pool (a pseudo file: no TEAM file, no country entry, no global numbers)."""
         return [(k, v) for k, v in self.files.items() if k != getattr(self, 'pool_key', None)]
@@ -622,18 +646,22 @@ class Pack:
             letters = 'ABCDEFGHIJ'
             darea = lambda k: letters.index(self.clubs[k]['area'].split('/')[-1][0]) if self.clubs[k].get('area') else 0xFF
             fl, base = self.files[self.league['clubs']]
-            if globnum.split_file(self):    # (S7-G: RI's slot = global - base of ONE file; a league over two files has no
-                raise globnum.GlobError(f"{self.meta['id']}: an off-file reserve (RI) over two team files")   # RI)
-            slots = sorted(self.league_clubs, key=lambda k: self.where[k][1])
+            sp = globnum.split_file(self)   # (S7, MC 11/11 model (i): a league over two files keeps RI on file B only -
+            if sp:                          #  its slots = file B's rows (the lowest level's groups), their globals
+                fl, base = sp[0], globnum.base(self, sp[0])     # globnum's two runs; ripool's IDA two-run headers)
+            slots = sorted((k for k in self.league_clubs if self.where[k][0] == fl), key=lambda k: self.where[k][1])
+            gk = lambda k: globnum.glob(self, fl, self.where[k][1])
+            _need(not sp or slots and all(self.division[k] >= low for k in slots),
+                  f"{self.meta['id']}: RI on file {fl}: its rows must be the lowest level's")
             first = list(rs.get('first') or [])
             order = first + [k for k in self.pool_clubs if k not in first]
             pt = self.parallel()                # (4.0.5: each identity's areas per level of groups, ripool's IDA_TAB:
             npar = sum(1 for _, sz in pt[1] if len(sz) > 1) if pt else 0   # a slot's groups follow its identity)
             pa = {g: list(a) if isinstance(a, list) else [a] * npar for g, _, a in pt[2]} if pt else {}
             ar = lambda a: [area_byte(x) for x in a.split('/')] if '/' in a else [area_byte(a) if a else 0xFF] * npar
-            ida = [pa.get(base + self.where[k][1], [0xFF] * npar) for k in slots] + \
+            ida = [pa.get(gk(k), [0xFF] * npar) for k in slots] + \
                   [ar(self.clubs[k].get('area') or '') for k in self.pool_clubs]
-            return (self.world, fl, [('league', low, [(base + self.where[k][1], self.division[k], darea(k)) for k in slots],
+            return (self.world, fl, [('league', low, [(gk(k), self.division[k], darea(k)) for k in slots],
                                       [darea(k) for k in self.pool_clubs], [self.pool_clubs.index(k) for k in order],
                                       ida if npar else [])],
                     base, [], self._nrec(fl), len(self.pool_clubs))
@@ -2491,6 +2519,7 @@ def patch(p, lang, area, cave):
     """Every enabled pack into the exe (countries, competitions), then the shared part: CLASSIC SEASONS button with one
     country per pack, season_sel / cont_check / euro_slot2 hook with the packs' European-cup tables.
     Returns (cave end, obj1 offsets of the leagues that are also classic tourneys)."""
+    # (42-n7reg's guard 'a league over two team files has no exe side yet' dropped: 42-s7ctry's struct B is that exe side)
     import countries
     import historic
     import nasmcave

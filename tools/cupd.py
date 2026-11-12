@@ -12,6 +12,8 @@ round's are completed from the previous round's unused winners, in order (TM lea
 undecided).
 
 Later seasons (gplay.c cd_make): CD_DT = db the first Serie D division, its groups; dw the file's global base;
+[GP_CD2 builds (cd2: a league over two files, S7-G): dw base2, dw ord2 - the file's rows from ord2 on are global
+base2 + ordinal - ord2];
 256 x db each ordinal's base division (FFh: no league club) - the season's Serie D clubs from someLeaguesTable;
 then the strengths (gplay.c cd_str, the ties nobody plays): dw the file's off-file pool map offset in RI_STATE.maps
 (FFFFh: none), its map words, the pool's records; 256 x dw each ordinal's strength; pool records x dw theirs. A
@@ -122,6 +124,25 @@ def strengths(pk, lfile):
             + b''.join(struct.pack('<H', strength(pk, k)) for k in pool))
 
 
+def cd2():
+    """True in a build with a league over two team files (globnum.exe_split): gplay.c is compiled with GP_CD2 and
+    every CD_DT carries base2 / ord2 (head); else today's CD_DT bytes exactly."""
+    return globnum.exe_split() is not None
+
+
+def head(pk, lfile, df, dc):
+    """CD_DT's head: db first Serie D division, groups; dw the file's global base (run 1); [cd2 builds: dw base2, dw
+    ord2 - run 2's first global and its first ordinal (S7-G: globnum.runs_of), FFFFh / 256 for a one-run file]."""
+    runs = globnum.runs_of(pk, lfile)
+    assert len(runs) <= 2, f'CD_DT: file {lfile} over {len(runs)} runs'
+    out = bytes((df, dc)) + struct.pack('<H', runs[0][0])
+    if cd2():
+        out += struct.pack('<HH', *((runs[1][0], runs[0][1]) if len(runs) == 2 else (0xFFFF, 256)))
+    else:
+        assert len(runs) == 1, f'CD_DT: file {lfile} in two runs without GP_CD2'
+    return out
+
+
 def pack_table(pk):
     """A pack's 'cup_d' (league key): None, or (world, team file, table bytes, rounds, ties, names, CD_DT bytes)."""
     lg = pk.league
@@ -144,9 +165,6 @@ def pack_table(pk):
     par = par if isinstance(par, list) else [par]
     assert par, 'cup_d: the league needs its Serie D level of groups (parallel)'
     df, dc = par[-1]['first'], par[-1]['count']
-    if globnum.split_file(pk):          # (S7-G: CD_DT holds ONE global base, cd_make reads slt[base + ordinal])
-        raise globnum.GlobError(f"{pk.meta['id']}: cup_d over a league on two team files (CD_DT: one base)")
-    gbase = globnum.base(pk, lfile)
     base = [0xFF] * 256
     for k in pk.league_clubs:
         fl, i = pk.where[k]
@@ -154,6 +172,6 @@ def pack_table(pk):
             base[i] = pk.division[k]
     nd = sum(1 for b in base if df <= b < df + dc)
     assert nr >= 3 and 2 << (nr - 2) < nd <= (2 << (nr - 2)) + 41, f'cup_d: {nd} Serie D clubs for {nr} rounds'
-    dt = bytes((df, dc)) + struct.pack('<H', gbase) + bytes(base) + strengths(pk, lfile)
+    dt = head(pk, lfile, df, dc) + bytes(base) + strengths(pk, lfile)
     return (pk.world, lfile, tab, nr, nt, c.get('names') or {'*': ['COPPA ITALIA SERIE D', 'COPPA IT SERIE D']},
             dt)

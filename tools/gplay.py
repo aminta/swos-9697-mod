@@ -2788,7 +2788,8 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
                                 f"-DCF_SEED={__import__('cupsf').SEED}",
                                 f"-DGP_S7={gp_s7()}",
                                 f"-DSM_LANG={['it', 'en', 'fr', 'de'].index(lang)}"]   # (gp_strmap_c's STRMAP41 section)
-                               + (['-DHDR_TEST'] if os.environ.get('HDR_TEST') else []))   # (test builds: GROUP n headers)
+                               + (['-DHDR_TEST'] if os.environ.get('HDR_TEST') else [])   # (test builds: GROUP n headers)
+                               + (['-DGP_CD2=1'] if __import__('cupd').cd2() else []))   # (S7-G: CD_DT two runs)
     top_r, top_w = _top9(p)                          # (cseg_927A2's top-9 list: gp_champ)
     d1o = p.le.obj_bytes(1)                          # 4.1 gp_champ: FindTeamInCache (VerifyTeamLoaded's call, as
     vtl = [m.start() for m in re.finditer(rb'\xe8.{4}\x75\x01\xc3\xcc\xe8.{4}\xe8.{4}\xcc', d1o, re.S)]   # earlier

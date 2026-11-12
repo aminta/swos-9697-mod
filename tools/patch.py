@@ -258,6 +258,8 @@ def patch_exe(src, dst, remap, lang='it'):
     engine.after_load('gk_load')                 # value kept by a load / a new career)
     engine.after_new('gk_new')
     import swe
+    import sreg                                  # 4.2 N7: SWC1 + the club registry's section 'IT' (0 dormant: no
+    swe.SWC1_SIZE = swe.SWC1_BASE + sreg.section_bytes()   # registry shape, 32 B as before; the trailer's room sums it)
     engine.save_item('SWC1', swe.SWC1_SIZE, grow=True)   # engine P: the engine's state (swe.c SWC1: a versioned header,
     engine.before_save('swe_st_save')            # then sections; older, shorter versions load - grow)
     engine.after_load('swe_st_load')
@@ -365,6 +367,7 @@ def patch_exe(src, dst, remap, lang='it'):
     import swefile
     if swefile.on():                                   # 4.2 file layer (MC 12/11): page 18, only when linked
         swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, swefile.page_end() // 0x1000)
+    swe.OBJ4_PAGES = sreg.obj4_pages(swe.OBJ4_PAGES)   # (4.2 N7: + the old-save import's 12th page, SREG2_AT)
     if lr_tabs:                                        # (the career league's head-to-head block)
         engine.save_item('LR', lrank.LR_SIZE, world_only=True)
         import swreg                                   # 4.2: a groups stage's state (engine ST, sr_stled.c; A1's room)
@@ -967,8 +970,13 @@ def patch_exe(src, dst, remap, lang='it'):
             assert swreg.ST_AT + swreg.ST_SIZE <= lrank.LR_AT, ('ST', hex(swreg.ST_AT), hex(lrank.LR_AT))
             p.put(4, swreg.ST_AT, bytes(swreg.ST_SIZE))
             engine.ITEM_AT['ST'] = (4, swreg.ST_AT)
+            assert swreg.ST_AT + swreg.ST_SIZE <= swreg.SREG_AT, ('ST / SREG', hex(swreg.ST_AT), hex(swreg.SREG_AT))
     assert not conti.LABELS.get('syms') or 'ct_place' in lrank.LABELS, ('4.2 P7: conti linked without ct_place (lrank\'s '
                                                      'band): every group draw would be refused')
+    import sreg                                  # 4.2 N7: the club registry (dormant without a shape: nothing linked)
+    sreg_end = sreg.patch(p, swe.LABELS)
+    if sreg_end is not None:
+        assert sreg_end <= lrank.LR_AT, ('sreg past LR_AT', hex(sreg_end), hex(lrank.LR_AT))
     benchx.link_w27(p)                           # (4.0.6 step 2.5: the friendlies' long bench by SWE_W27)
     tailzero.patch(p, tz_at, obj2_free + o2pages * p.le.page_size, (tail + 3) & ~3, nasmcave,   # (DOS/4GW: not zeroed;
                    0x1000 * OBJ3_PAGES, (cg_bss + 3) & ~3)                  # 4.0.6: obj3's tail too)

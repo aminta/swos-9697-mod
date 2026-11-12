@@ -55,6 +55,14 @@ BOX_END = 0xD000                        # slow's page (SLOW_AT 0xC000, its code 
 assert SLOW_AT < NAMEFIT_AT < NAMEFIT_END <= TRIAL_AT < TRIAL_END <= BOX_AT < BOX_END <= SLOW_END, \
     'page 13: slow < namefit < trial < shirtbox'
 assert SLOW_END <= T3_AT < T3_END, 'page 14: T3 above page 13'
+SREG_AT = 0x5100                        # 4.2 N7: the club registry's code + data (sreg.py, sreg.c), after ST, under
+                                        # lrank.LR_AT (MC 10/11: the band 0x5100..0x6000); linked only with a shape
+SREG_DIV_AT = 0x4600                    # 4.2 N7: sreg.c's SREG_DIV (SR_REG_CLUBS bytes, 0x4600..0x4A00), above 4.1's
+                                        # uprize2 (0x4000..0x42c8), under conti (CONTI4_AT 0x4B00; MC 10/11)
+SREG2_AT = 0xB000                       # 4.2 N7 piece 4: obj4's 12th page (0xB000..0xC000; MC 12/11: the 11th,
+SREG2_END = 0xC000                      # 0xA000..0xB000, is lrank's LR_TAB alone since MC's 11/11 option b), the
+                                        # old-save import (old_ord, the walker, its sites); only with a shape (sreg.py
+                                        # obj4_pages / sreg2_check). 0xC000: Shaved's 42-slow; the CT spare: 0xD000
 MAGIC = b'SWRG'
 VERSION = 2
 HDR = 32

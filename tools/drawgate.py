@@ -488,9 +488,183 @@ def count_insns(uc, ct, sent, sp, args, buf, jb):
     return hi
 
 
+def native(conti_c=None):
+    """conti's native library: this checkout's, or conti_c (another conti.c - a git revision's copy, the negative
+    tests) compiled with this checkout's conti.h / ctdraw.c"""
+    import ctypes
+    import shutil
+    import tempfile
+    import conti
+    if not conti_c:
+        return conti._native()
+    t = tempfile.mkdtemp()
+    shutil.copy(conti_c, os.path.join(t, 'conti.c'))
+    for f in ('conti.h', 'ctdraw.c'):
+        shutil.copy(os.path.join(HERE, f), t)
+    if os.path.isdir(os.path.join(HERE, 'swce')):
+        shutil.copytree(os.path.join(HERE, 'swce'), os.path.join(t, 'swce'))
+    lib = os.path.join(t, 'conti.dylib')
+    subprocess.run(['clang', '-O1', '-shared', '-fPIC', '-DNATIVE', *conti.NATIVE_FLAGS, '-I', HERE, '-o', lib,
+                    os.path.join(t, 'conti.c'), os.path.join(t, 'ctdraw.c')], check=True, capture_output=True)
+    return ctypes.CDLL(lib)
+
+
+def world_spec():
+    """conti's spec for the world data in W2627REL_DATA (the build's packs list, as buildrel), the build's load"""
+    import contextlib
+    import io
+    import conti
+    w = os.environ.get('W2627REL_DATA') or os.path.expanduser('~/swos-mod/internal/world2526/world5tm-h2')
+    if not os.environ.get('SEASON_PACKS'):
+        os.environ['SEASON_PACKS'] = ','.join(os.path.join(w, ln.split()[0].lower()) for ln in open(w + '.txt')
+                                              if ' file ' in ln)
+    confs = conti.ready()
+    with contextlib.redirect_stdout(io.StringIO()):
+        files, words = conti._world_maps(confs)
+        spec, _, _ = conti.load(confs, files, words)
+    return spec
+
+
+def fill_sweep(confs=None, seasons=2, seeds=(7, 3, 11, 19, 23, 31), L=None, quiet=False):
+    """root fix G (MC 12/11) items 2 + 3: the group fills' associations and a career country's table, on conti.c
+    itself (native seasons, conti.test's world with each association's real club count from the world data - the
+    build's load: BOUND_CNT's cap). Every association with places in a confederation whose group stages fill (R[23]
+    0) in turn SHORT of clubs: one fewer than its places, half of them, and 10 (its top 9 records + the career club:
+    a career country before 2c352da) - so its places pass to the fills, any association's, which conti.c draw_groups
+    must keep within the round's rule (9b14728: ng clubs, A_NO2 2 ng). FAIL: a refused draw (CT_SDRAW_ERR), a budget
+    hit, or a ctfield violation (the shortened association's own check 4 excepted - that one is the case itself).
+    -> {'runs', 'fails': [(conf, assoc, n, seed, why)]}"""
+    import contextlib
+    import ctypes
+    import io
+    import conti
+    import ctfield
+    world_spec()                                        # (the world's load: BOUND_CNT's cap, the club counts)
+    cnt, direct, short, hold, cap = conti.BOUND_CNT[0]
+    _, _, _, _, assocs, _ = conti.BOUND_IN[0]
+    places = {}
+    for d in direct.values():
+        for a, x in d.items():
+            places[assocs[a]] = places.get(assocs[a], 0) + x
+    caps = {assocs[a]: n for a, n in cap.items() if a < len(assocs)}
+    L = L or conti._native()
+    fails, runs = [], 0
+    for conf in confs or conti.ready():
+        with contextlib.redirect_stdout(io.StringIO()):
+            spec, ca, cups = conti.load([conf])
+        fill = any(conti.rbytes(spec, ci, j)[0] == conti.K['groups'] and not conti.rbytes(spec, ci, j)[23]
+                   for ci in range(len(cups)) for j in range(8) if conti.rbytes(spec, ci, j))
+        if not fill:
+            continue
+        base = {a: min(caps.get(a, 18), 24) for a in ca if not a.startswith('g:')}   # (conti.test's strengths stay > 0)
+        for a in sorted(x for x in base if places.get(x)):
+            n = places[a]
+            for k in sorted({n - 1, max(1, n // 2)} | ({10} if n > 10 else set())):
+                for sd in seeds:
+                    env = dict(base, **{a: k})
+                    os.environ['CONTI_TEST_SHORT'] = ','.join(f'{x}:{y}' for x, y in env.items())
+                    bad = []
+
+                    def hook(L_, names, step):
+                        lay = (ctypes.c_uint32 * 22).in_dll(L_, 'CT_LAYOUT')
+                        g = lambda nm, i: bytes((ctypes.c_ubyte * lay[i]).in_dll(L_, nm))
+                        for x in ctfield.check(g('CT_IN', 0), g('CT_OUT', 2), lay, g('CT_ST', 1), confs=(conf,)):
+                            if not x.startswith(f'{a}: ') and x not in bad:
+                                bad.append(x)
+                    why = None
+                    lay0 = (ctypes.c_uint32 * 22).in_dll(L, 'CT_LAYOUT')    # (a fresh career each run: no
+                    for nm, i in (('CT_IN', 0), ('CT_ST', 1), ('CT_OUT', 2), ('CT_ED', 20)):   # holders, season, pad[1]
+                        ctypes.memset((ctypes.c_ubyte * lay0[i]).in_dll(L, nm), 0, lay0[i])  # of the run before)
+                    try:
+                        with contextlib.redirect_stdout(io.StringIO()):
+                            conti.test([conf], seasons=seasons, seed=sd, L=L, hook=hook)
+                    except AssertionError as e:
+                        why = str(e)
+                    finally:
+                        os.environ.pop('CONTI_TEST_SHORT', None)
+                    runs += 1
+                    if why or bad:
+                        fails.append((conf, a, k, sd, why or bad[0]))
+                        if not quiet:
+                            print(f'drawgate fill: FAIL {conf} {a} short to {k} (places {n}) seed {sd}: {why or bad[:2]}',
+                                  flush=True)
+    if not quiet:
+        print(f'drawgate fill: {runs} runs, {len(fails)} FAIL')
+    return dict(runs=runs, fails=fails)
+
+
+def field(run, nseeds=64, conti_c=None, quiet=False):
+    """root fix G (MC 12/11): replay a dumped edition (a harness run dir's ctsd_dump/: CT_ED - the season end's
+    entrants by cup and round + the reserve clubs the group fills take -, CT_ST, the exe's CT_SPEC) through conti.c
+    natively: ct_finish's run(0), every round and draw as the exe plays them, over nseeds edition seeds (the dump's
+    own first). conti_c: another conti.c (a git revision's copy: the negative test, e.g. before 9b14728's fill rule).
+    run: the dump's dir, or a .CAR (a run's career save: no dump needed - its 'CE' / 'CT' items, the spec rebuilt
+    from W2627REL_DATA). -> {'seeds', 'refused': [(seed, CT_SDRAW_ERR)], 'field': [ctfield violations]}; FAIL = any."""
+    import ctypes
+    import conti
+    import ctfield
+    if run.upper().endswith('.CAR'):                    # (a career save: its items 'CE' / 'CT'; the spec from the
+        import engine                                   #  world data - W2627REL_DATA, as the scenario build's)
+        car = open(run, 'rb').read()
+
+        def item(name, size):
+            k = car.find(struct.pack('<HH', engine.item_id(name), size))
+            assert k >= 0, ('drawgate field: no item', name, run)
+            return car[k + 4:k + 4 + size]
+        items = {'CT_ED': item('CE', conti.ED_SIZE), 'CT_ST': item('CT', conti.ST_SIZE), 'CT_SPEC': world_spec()}
+        d = run
+        rd = items.__getitem__
+    else:
+        d = run if os.path.isdir(os.path.join(run, 'ctsd_dump')) else os.path.dirname(run)
+        rd = lambda k: open(os.path.join(d, 'ctsd_dump', k + '.bin'), 'rb').read()
+    L = native(conti_c)
+    lay = (ctypes.c_uint32 * 22).in_dll(L, 'CT_LAYOUT')
+    s_in, s_st, s_out, s_ed = lay[0], lay[1], lay[2], lay[20]
+    ed0, st0, spec = bytearray(rd('CT_ED')[:s_ed]), rd('CT_ST')[:s_st], rd('CT_SPEC')
+    assert ed0[:2] == b'CE', ('drawgate field: no edition in the dump', d)
+    seed0 = struct.unpack_from('<I', ed0, 4)[0]
+    buf = ctypes.create_string_buffer(spec, len(spec))
+    IN = (ctypes.c_ubyte * s_in).in_dll(L, 'CT_IN')
+    ST = (ctypes.c_ubyte * s_st).in_dll(L, 'CT_ST')
+    ED = (ctypes.c_ubyte * s_ed).in_dll(L, 'CT_ED')
+    OUTB = (ctypes.c_ubyte * s_out).in_dll(L, 'CT_OUT')
+    err = ctypes.c_uint32.in_dll(L, 'CT_SDRAW_ERR')
+    refused, bad = [], []
+    lcg = seed0 or 1
+    for s in range(nseeds):
+        sd = seed0 if s == 0 else (lcg := (lcg * 1664525 + 1013904223) & 0xFFFFFFFF)
+        e = bytearray(ed0)
+        struct.pack_into('<I', e, 4, sd)
+        ctypes.c_void_p.in_dll(L, 'CT_SPEC').value = ctypes.addressof(buf)
+        ctypes.memmove(ST, st0, s_st)
+        ctypes.memmove(ED, bytes(e), s_ed)
+        ctypes.memset(IN, 0, s_in)
+        err.value = 0
+        L.ct_finish()
+        if err.value:
+            refused.append((sd, err.value))
+        for x in ctfield.check(bytes(IN), bytes(OUTB), tuple(lay), st0):
+            if x not in bad:
+                bad.append(x)
+    res = dict(run=d, seeds=nseeds, refused=refused, field=bad)
+    if not quiet:
+        print(f'drawgate field {d}: {nseeds} seeds: {len(refused)} refused'
+              + (f' (first seed {refused[0][0]:#x}, CT_SDRAW_ERR {refused[0][1]:#x})' if refused else '')
+              + f', {len(bad)} field violation(s) {bad[:3]}')
+    return res
+
+
 if __name__ == '__main__':
     if sys.argv[1:2] == ['--i486']:
         i486_main(sys.argv[2])
+    elif sys.argv[1:2] == ['--fill']:               # (root fix G items 2 + 3: every association short in turn)
+        sys.path.insert(0, HERE)
+        cc = os.environ.get('DRAWGATE_CONTI_C')      # (another conti.c: the negative test)
+        sys.exit(1 if fill_sweep(sys.argv[2:] or None, L=native(cc) if cc else None)['fails'] else 0)
+    elif sys.argv[1:2] == ['--field']:              # (root fix G: a dumped field, PASS / FAIL by exit code)
+        sys.path.insert(0, HERE)
+        r = field(sys.argv[2], conti_c=sys.argv[3] if len(sys.argv) > 3 else None)
+        sys.exit(1 if r['refused'] or r['field'] else 0)
     else:
         sys.path.insert(0, HERE)
         import conti

@@ -125,6 +125,18 @@ def check(ib, o, lay, st, confs=None, forced=False, notes=None):
     word = lambda x: struct.unpack_from('<H', ib, o_club + 12 * (x - 1))[0] if 0 < x <= nclub else 0
     ent = {(ci, j): rounds_of(ib, o, lay, ci, j) for ci in range(len(p['cups'])) for j in range(NRD)}
     bad = []
+    o_lg, o_cup, NA, NL = lay[3], lay[4], lay[14], lay[15]
+    want = Counter()                    # (each association's places, all cups: check 4 and the shortage below)
+    for v in p['direct'].values():
+        want.update(v)
+    held = {}
+    for i, a in enumerate(p['assocs'][:NA]):
+        lg = struct.unpack_from(f'<{NL}H', ib, o_lg + 2 * NL * i)
+        if lg[0]:
+            held[a] = len({x for x in lg if x} | ({struct.unpack_from('<H', ib, o_cup + 2 * i)[0]} - {0}))
+    short = sum(max(0, want[a] - n) for a, n in held.items())   # (root fix G: places an association with a table
+                                        # cannot fill - a career country cut to its top 9 before 2c352da, a small
+                                        # one - pass to the group fills: any association, never past the round's rule)
     for (ci, j), es in ent.items():
         if not es:
             continue
@@ -139,29 +151,31 @@ def check(ib, o, lay, st, confs=None, forced=False, notes=None):
                 have[an(mgr)] -= 1
                 if notes is not None:
                     notes.append(f'{name}: the forced career club ({an(mgr)}) in a holders\' cup, not counted')
-            fed = Counter()
+            fed, byes = Counter(), 0
             for f in p['feed'].get((ci, j), []):
                 fed.update(an(x) for x in set(ent.get(f, [])) if x)
+                F = conti.rbytes(p['spec'], *f)     # (root fix G: a knockout with an empty place - an association
+                if F and F[0] == conti.K['ko'] and ent.get(f):   # short of clubs - lists its tie's other club nowhere:
+                    byes += max(0, F[18] - len([x for x in ent[f] if x]))   # a bye, it is next round's, any association)
             hl = [hold_a(c) for c in p['hold'].get((ci, j), [])]
-            slack = p['extra'].get((ci, j), 0) + fill(p, ent, ci, j) + hl.count(None)   # (a vacant holder place:
+            slack = p['extra'].get((ci, j), 0) + fill(p, ent, ci, j) + hl.count(None) + byes   # (a vacant holder place:
                                                 # access()'s stand-in, the best ranked club not yet in - any association)
             hs = Counter(p['assocs'][x] if x < len(p['assocs']) else f'#{x:#x}'
                          for x in hl if x is not None)
+            R = conti.rbytes(p['spec'], ci, j)
+            grp = R and R[0] == conti.K['groups'] and not R[23]
+            rcap = (R[6] if R[5] in (1, 2) else 2 * R[6] if R[5] == 3 else 64) if grp else 0
             for a, k in have.items():
                 lim = p['direct'].get((ci, j), Counter())[a] + fed[a] + slack + hs[a]
+                if grp and short:       # (conti.c draw_groups' fill, 9b14728: up to the rule's cap - ng, 2 ng)
+                    lim = max(lim, min(lim + short, rcap))
                 if k > lim:
                     bad.append(f'{name}: {a} {k} clubs, the data gives at most {lim} (direct '
                                f'{p["direct"].get((ci, j), Counter())[a]}, fed {fed[a]}, holders {hs[a]}, outside/fill {slack})')
     if season >= 1:                     # 4. (4.2 root fix b) every association with a table holds at least as many
-        o_lg, o_cup, NA, NL = lay[3], lay[4], lay[14], lay[15]   # clubs as the data's places it fills (league codes,
-        want = Counter()                                         # its cup winner) - a career country cut to its top 9
-        for v in p['direct'].values():                           # records (ct_begin cleared its table) shows here
-            want.update(v)
-        for i, a in enumerate(p['assocs'][:NA]):
-            lg = struct.unpack_from(f'<{NL}H', ib, o_lg + 2 * NL * i)
-            held = {x for x in lg if x} | ({struct.unpack_from('<H', ib, o_cup + 2 * i)[0]} - {0})
-            if lg[0] and want[a] > len(held):
-                bad.append(f'{a}: the data gives it {want[a]} places, CT_IN holds {len(held)} of its clubs')
+        for a, n in held.items():       # clubs as the data's places it fills (league codes, its cup winner) - a career
+            if want[a] > n:             # country cut to its top 9 records (ct_begin cleared its table) shows here
+                bad.append(f'{a}: the data gives it {want[a]} places, CT_IN holds {n} of its clubs')
         if o[2]:                        # (conti.c access(): CT_OUT.pad[1], the first association whose table ran out)
             a = p['assocs'][o[2] - 1] if o[2] - 1 < len(p['assocs']) else f'#{o[2] - 1}'
             bad.append(f'{a}: access() found no club left for one of its places')

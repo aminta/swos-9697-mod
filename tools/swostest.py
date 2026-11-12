@@ -11291,19 +11291,45 @@ def xtra_club_block(exe, club):
     return None
 
 
+def spp_settle(s, before, again):
+    """SWOS++ (pick_career): after a fire, the screen can still be the old one for a few frames (MC 12/11, runs-t3c-bw:
+    '[spp fire] 22' on >ITALIA, the EUROPA list read again, the latch fix then ESCI'd out of it). Until the screen
+    differs from `before` (its texts): up to 4 short dumps, then `again()` once (the fire did not land), 4 more.
+    -> True when it changed."""
+    for k in range(9):
+        if s.screen().texts() != before:
+            return True
+        if k == 4:
+            s.log.append(f'[spp settle] screen unchanged after the fire, again: {str(s.screen())[:160]}')
+            if again() is None:
+                return False
+        else:
+            s.send('dump:0.5')
+    s.log.append('[spp settle] still unchanged')
+    return False
+
+
 def pick_career(s, path):
     """A new World 2026-27 career through the selector path (levels of a group first, as world8485 does)."""
     for t in path:
         scr = s.screen()
         lvl = None if scr.find(t, exact=True) is not None else \
             next((x for i, x, inv, _ in scr.entries if 11 <= i <= 20 and x and not inv and t.startswith(x + ' ')), None)
-        if lvl and press(s, scr, lvl, 3, fire='fire' if SPP_STEP else None) is None:   # (SWOS++: a plain fire on a
-            return False                                # grouped level - ml_pick rebuilds the list at that depth, the
+        if lvl:
+            before = scr.texts()
+            if press(s, scr, lvl, 3, fire='fire' if SPP_STEP else None) is None:   # (SWOS++: a plain fire on a
+                return False                            # grouped level - ml_pick rebuilds the list at that depth, the
+            if SPP_STEP:                                # (wait for the new list before the latch check below)
+                spp_settle(s, before, lambda: press(s, s.screen(), lvl, 3, fire='fire'))
         if SPP_STEP and s.screen().find(t, exact=True) is None and s.screen().find('ESCI', exact=True) is not None:
             s.log.append(f'[spp latch] {t} not on {s.screen()}'[:300])   # (SWOS++: the fire stays latched into the
             press(s, s.screen(), 'ESCI', 3)             # next menu, which fires on its preselected entry: back, then t)
+        before = s.screen().texts()
         if press(s, s.screen(), t, 3) is None:
             return False
+        if SPP_STEP and t != path[-1]:                  # (the next step must read the new screen, not this one)
+            spp_settle(s, before, lambda: press(s, s.screen(), t, 3) if s.screen().find(t, exact=True) is not None
+                       else True)
     return True
 
 

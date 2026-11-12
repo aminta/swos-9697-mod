@@ -22,7 +22,8 @@ if __name__ == '__main__':
         for name in sorted(n for n in dir(mod) if n.startswith('test_') and sel in n):
             t = time.time()
             try:
-                ok, msg = getattr(mod, name)()
+                r = getattr(mod, name)()
+                ok, msg = (True, '(asserts)') if r is None else r      # (pytest-style: no exception = PASS; MC 12/11)
             except Exception as e:
                 ok, msg = False, f'{type(e).__name__}: {e}'
             bad += not ok

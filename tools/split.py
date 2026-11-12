@@ -1290,6 +1290,7 @@ sp_migrate:                             ; 4.0.1, after ProcessCareerFile (engine
     mov ecx, 64
     rep movsb
 .r: ret
+ZP_ASM
 align 4
 SP_CB: SP_CB_ENTRIES
 sp_nostage:
@@ -1300,6 +1301,231 @@ SP_TAB:
 
 
 MONTH_DAYS = (31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)
+
+
+ZP_ASM = r"""
+; 4.1.2 (Enzo, Davide 12/11): leagues in zones by membership (Argentina, Panama: 2 zones; the MLS: 2 conferences)
+; are one table of N rows, the 2nd zone under the 1st. The board (cseg_3CCF0 mid-season, the season end's
+; ShowChairmanOpinionAboutTheSeason, cseg_3D6D8, the job offers) compares FindTeamInDIY's row index with N and
+; GetMoreExpensiveTeamsCount over all N clubs. For the career league (competitionFileBuffer) in a membership stage:
+; - zp_find: FindTeamInDIY's league place -> the place in the club's zone, scaled to N (pz x N / z): every ratio
+;   check gives the in-zone result (exact for 2 zones of N / 2), place 0 stays the zone's first;
+; - zp_skip / zp_escale: GetMoreExpensiveTeamsCount counts the same zone's clubs only, scaled the same way;
+; - zp_rec: the season record's league place byte (+56h) = the place in the zone;
+; - zp_bonus: the season-end opinion counts each stage title won (Apertura, Clausura: gplay.c gp_stwins_c) as a
+;   cup won (-2).
+zp_entry:                               ; esi = a league buffer -> edx = its entry, ebx = the current stage's members
+    cmp word [esi], 0                   ; (row -> zone), ecx = rows; ZF = 1 when none (not a league in zones now)
+    jne .no
+    cmp word [esi + S_MAGIC], MAGIC_
+    jne .no
+    mov edx, SP_TAB
+.f: cmp word [edx + E_LEN], 0
+    je .no
+    mov al, [esi + 12Dh]
+    cmp [edx + 1], al
+    jne .n
+    mov al, [esi + 31h]
+    cmp [edx + 3], al
+    jne .n
+    xor al, al
+    cmp word [GAMETYPE], 4
+    jne .w
+    mov al, [SLT + WORLD_BYTE]
+.w: cmp [edx], al
+    je .ok
+.n: movzx ecx, word [edx + E_LEN]
+    add edx, ecx
+    jmp .f
+.ok:
+    cmp byte [edx + 7], 0
+    je .no
+    movzx ecx, word [esi + 1C1h]
+    movzx eax, byte [edx + 5]
+    sub ecx, eax
+    jb .no                              ; (before the split: one table)
+    call sp_stage
+    test byte [ebp + 2], 8
+    jz .no
+    movzx ebx, word [ebp + 20]
+    or ebx, ebx
+    jz .no
+    add ebx, edx
+    movzx ecx, byte [edx + 3]
+    or ecx, ecx                         ; (ZF = 0)
+    ret
+.no:
+    cmp eax, eax
+    ret
+
+zp_zrow:                                ; ebx = members, ecx = rows, esi = buffer, ax = a team -> edi = its row
+    xor edi, edi                        ; (ecx if not found)
+.l: cmp [esi + 12Dh + edi * 2], ax
+    je .r
+    inc edi
+    cmp edi, ecx
+    jb .l
+.r: ret
+
+zp_size:                                ; ebx = members, ecx = rows, dl = a zone -> eax = its clubs
+    xor eax, eax
+    push edi
+    xor edi, edi
+.l: cmp [ebx + edi], dl
+    jne .n
+    inc eax
+.n: inc edi
+    cmp edi, ecx
+    jb .l
+    pop edi
+    ret
+
+zp_find:                                ; replaces FindTeamInDIY's league exit `shr word [D1], 1; retn` (jmp)
+    shr word [D1], 1
+    cmp dword [ZA6], CFB
+    jne .r
+    mov byte [zp_ok], 0
+    pushad
+    mov esi, CFB
+    call zp_entry
+    jz .x
+    movzx eax, word [D1]                ; the place (0-based)
+    cmp eax, ecx
+    jae .x
+    mov [zp_p], eax
+    movzx eax, word [esi + 6Dh + eax * 2]
+    xor edx, edx
+    mov edi, 18
+    div edi                             ; its row
+    mov dl, [ebx + eax]                 ; its zone
+    xor edi, edi                        ; place k
+    xor ebp, ebp                        ; the zone's clubs placed before
+.k: cmp edi, [zp_p]
+    jae .s
+    movzx eax, word [esi + 6Dh + edi * 2]
+    push edx
+    xor edx, edx
+    push ecx
+    mov ecx, 18
+    div ecx
+    pop ecx
+    pop edx
+    cmp [ebx + eax], dl
+    jne .kn
+    inc ebp
+.kn:
+    inc edi
+    jmp .k
+.s: call zp_size                        ; eax = z
+    or eax, eax
+    jz .x
+    mov [zp_pz], ebp
+    xchg eax, ebp                       ; eax = pz, ebp = z
+    mul ecx
+    div ebp                             ; pz x N / z
+    mov [D1], ax
+    mov [zp_pp], eax
+    mov byte [zp_ok], 1
+.x: popad
+.r: ret
+
+zp_skip:                                ; replaces `cmp word [D0], ax` in GetMoreExpensiveTeamsCount's loop (then its
+    cmp [D0], ax                        ; jz @@next_team): ZF = 1 for the club itself or, in zones, another zone's club
+    je .r
+    cmp dword [ZA6], CFB
+    jne .nz
+    pushad
+    mov byte [zp_t], 0
+    mov esi, CFB
+    call zp_entry
+    jz .x
+    mov ax, [D7]
+    call zp_zrow
+    cmp edi, ecx
+    jae .x
+    mov dl, [ebx + edi]                 ; our zone
+    mov eax, [ZA5]                      ; (A5: already past the team just read)
+    sub eax, esi
+    sub eax, 12Dh + 2
+    shr eax, 1
+    cmp eax, ecx
+    jae .x
+    cmp [ebx + eax], dl
+    je .x
+    mov byte [zp_t], 1
+.x: popad
+    cmp byte [zp_t], 1
+    ret
+.nz:
+    or esp, esp                         ; (ZF = 0)
+.r: ret
+
+zp_escale:                              ; replaces `mov ax, [D3]` at GetMoreExpensiveTeamsCount's end: in zones, the
+    cmp dword [ZA6], CFB                ; count scaled to the league (e x N / z)
+    jne .r
+    pushad
+    mov esi, CFB
+    call zp_entry
+    jz .x
+    mov ax, [D7]
+    call zp_zrow
+    cmp edi, ecx
+    jae .x
+    mov dl, [ebx + edi]
+    call zp_size
+    or eax, eax
+    jz .x
+    mov ebp, eax
+    movzx eax, word [ZD3]
+    mul ecx
+    div ebp
+    mov [ZD3], ax
+.x: popad
+.r: mov ax, [ZD3]
+    ret
+
+zp_rec:                                 ; replaces `mov al, [D1]` before the season record's `mov [esi+56h], al`:
+    mov al, [D1]                        ; FindTeamInDIY's scaled place (1-based by cseg_39916) -> the zone's
+    cmp byte [zp_ok], 0
+    je .r
+    push edx
+    mov edx, [zp_pp]
+    inc edx
+    cmp al, dl
+    jne .p
+    mov al, [zp_pz]
+    inc al
+.p: pop edx
+.r: ret
+
+zp_bonus:                               ; replaces `mov ax, [D7]` before the season-end opinion's clamp (D7 = its
+    pushad                              ; verdict, after the cups' -2): in zones, -2 per stage title won
+    mov esi, CFB
+    call zp_entry
+    jz .x
+%if ZP_STW_ON
+    push es
+    push ds
+    pop es
+    cld
+    movzx eax, word [ZSEL]
+    push eax
+    call ZP_STW
+    add esp, 4
+    pop es
+    add eax, eax
+    sub [D7], ax
+%endif
+.x: popad
+    mov ax, [D7]
+    ret
+
+zp_p: dd 0
+zp_pz: dd 0
+zp_pp: dd 0
+zp_ok: db 0
+zp_t: db 0
+"""
 
 
 def week_of(date):
@@ -1656,6 +1882,34 @@ def sites(p):
     return s
 
 
+def zp_sites(p):
+    """4.1.2 zone-position hooks' sites (obj1 offsets), on the original bytes."""
+    import sacups
+    d1 = p.le.obj_bytes(1)
+    a0 = sacups.regs(d1)['A0']
+    A = lambda x: re.escape(struct.pack('<I', x))
+    D0, D1, D2, D3, D7, A5, A6 = a0 - 32, a0 - 28, a0 - 24, a0 - 20, a0 - 4, a0 + 20, a0 + 24
+
+    def one(pat, what, k=0):
+        m = [x.start() + k for x in re.finditer(pat, d1, re.S)]
+        assert len(m) == 1, (what, [hex(x) for x in m])
+        return m[0]
+    s = {'D3': D3, 'A5': A5, 'A6': A6}
+    s['find'] = one(rb'\x66\x39\x05' + A(D7) + rb'\x75.\x66\xd1\x2d' + A(D1) + rb'\xc3', 'FindTeamInDIY league exit', 9)
+    s['skip'] = one(rb'\x66\xa3' + A(D0) + rb'\x66\xa1' + A(D7) + rb'\x66\x39\x05' + A(D0) + rb'\x74.\xe8',
+                    'GetMoreExpensiveTeamsCount loop', 12)
+    s['escale'] = one(rb'\x66\xa1' + A(D3) + rb'\x66\xa3' + A(D2) + rb'\x66\xa3.{4}\xc3', 'GetMoreExpensiveTeamsCount end')
+    s['rec'] = one(rb'\xe8.{4}\xa0' + A(D1) + rb'\x8b\x35' + A(A5) + rb'\x88\x46\x56', 'record +56h', 5)
+    s['bonus'] = one(rb'\x66\xa1' + A(D7) + rb'\x66\x0b\xc0\x79.\x66\xc7\x05' + A(D7) + rb'\x00\x00\x66\x83\x3d'
+                     + A(D7) + rb'\x04\x73', 'opinion clamp')
+    # ShowChairmanOpinionAboutTheSeason's start: mov A6, offset competitionFileBuffer; mov ax, [selTeamNumber]
+    m = [x for x in re.finditer(rb'\xc7\x05' + A(A6) + rb'.{4}\x66\xa1(.{4})\x66\xa3' + A(D0), d1, re.S)
+         if 0 < s['bonus'] - x.start() < 0x400]
+    assert m, 'opinion: selTeamNumber'
+    s['SEL'] = struct.unpack('<I', m[0].group(1))[0]
+    return s
+
+
 def pair_table(p, s, n):
     """The engine's pairs of an n-club group: dseg_11F356[n - 2] -> [(slot, slot)] x n(n-1)/2."""
     tobj, toff = p.target(1, s['table'])
@@ -1679,7 +1933,8 @@ def patch(p, cave, nasmcave, splits):
         log.append(f'w{world} f{file} d{div}: {n} clubs, {d1} + {d2} days, '
                    + ' / '.join(str(st.get('groups', 'fixtures')) for st in spec.get('stages') or []))
     tab += b'\0' * 16                          # (end: an entry of length 0)
-    src = ASM + ''.join(f'    db {", ".join(str(b) for b in tab[i:i + 32])}\n' for i in range(0, len(tab), 32))
+    zoned = any(st.get('members') for *_, sp in splits for st in sp.get('stages') or [])
+    src = ASM.replace('ZP_ASM\n', ZP_ASM if zoned else '') + ''.join(f'    db {", ".join(str(b) for b in tab[i:i + 32])}\n' for i in range(0, len(tab), 32))
     sym = {'D0': (2, s['A0'] - 32), 'A0': (2, s['A0']), 'A1': (2, s['A0'] + 4), 'A2': (2, s['A0'] + 8), 'A5': (2, s['A0'] + 20),
            'A3': (2, s['A0'] + 12), 'A4': (2, s['A0'] + 16), 'D1': (2, s['A0'] - 28), 'D2': (2, s['A0'] - 24),
            'D7': (2, s['A0'] - 4), 'REGS': (2, s['A0'] - 32), 'DIY': (2, s['DIY']), 'ST_': (0, ST), 'ST_SIZE': (0, ST_SIZE), 'O_GRP': (0, OFF['grp']), 'O_PRE': (0, OFF['pre']), 'ST_40': (0, ST_40),
@@ -1710,6 +1965,12 @@ def patch(p, cave, nasmcave, splits):
         src = nasmcave.sub(src, '    SHB_SET\n', '    mov dword [GP_SHB], sp_sh\n    mov dword [GP_SHB + 4], sp_shx\n')
     else:
         src = nasmcave.sub(src, '    SHB_SET\n', '')
+    if zoned:                                   # 4.1.2 zone positions (ZP_ASM)
+        zs = zp_sites(p)
+        stw = gplay.LABELS.get('csyms', {}).get('gp_stwins_c')
+        sym.update(ZD3=(2, zs['D3']), ZA5=(2, zs['A5']), ZA6=(2, zs['A6']), ZSEL=(2, zs['SEL']), ZP_STW_ON=(0, int(bool(stw))))
+        if stw:
+            sym['ZP_STW'] = stw
     sym['CFB'] = gplay.LABELS.get('CFB') or (2, (careerworld.SITES or careerworld.sites(p))['cfb'] + 0x15F6A)
     # (sp_migrate: competitionFileBuffer, the career league's slot - dplay._play_sites' 'cfb', as gplay reads it.
     #  careerworld's 'cfb' is careerFileBuffer, the file's start: the slot is at +15F6Ah in every career file)
@@ -1745,6 +2006,15 @@ def patch(p, cave, nasmcave, splits):
         if label == 'sp_post':
             p.remove(1, site + 2)                    # mov ax, [RFLAG]
         p.put(1, site, b'\xe8' + struct.pack('<i', lab[label] - (site + 5)) + b'\x90' * (n - 5))
+    if zoned:
+        for site, label, n, fx, jmp in ((zs['find'], 'zp_find', 8, 3, True), (zs['skip'], 'zp_skip', 7, 3, False),
+                                        (zs['escale'], 'zp_escale', 6, 2, False), (zs['rec'], 'zp_rec', 5, 1, False),
+                                        (zs['bonus'], 'zp_bonus', 6, 2, False)):
+            assert p.get(1, site, n) == p.le.obj_bytes(1)[site:site + n], f'split: {label} site already patched'
+            p.remove(1, site + fx)
+            p.put(1, site, (b'\xe9' if jmp else b'\xe8') + struct.pack('<i', lab[label] - (site + 5)) + b'\x90' * (n - 5))
+        print(f"exe: zone positions for the board / record (zp_find {lab['zp_find']:#x}, stage titles "
+              f"{'gp_stwins_c' if sym['ZP_STW_ON'][1] else 'none'})")
     print(f'exe: mid-season splits ({"; ".join(log)}), code obj1+{cave:#x}..{cave + len(code):#x} '
           f'(' + ', '.join(f'{k} {lab[k]:#x}' for k in ('sp_init', 'sp_pair', 'sp_freeze', 'sp_calendar', 'sp_count',
                                                        'sp_sort')) + ')')

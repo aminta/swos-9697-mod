@@ -41,10 +41,15 @@ function upload(top) {                                       // <input webkitdir
 class DH { constructor(p) { this.p = p; this.kind = 'directory'; this.name = path.basename(p); }
   async *entries() { for (const n of fs.readdirSync(this.p)) { const q = path.join(this.p, n); yield [n, fs.statSync(q).isDirectory() ? new DH(q) : new FH(q)]; } }
   async removeEntry(n) { fs.rmSync(path.join(this.p, n), { recursive: true, force: true }); }
-  async getDirectoryHandle(n, o = {}) { const q = path.join(this.p, n); if (!fs.existsSync(q)) { if (!o.create) throw Object.assign(new Error('nf'), { name: 'NotFoundError' }); fs.mkdirSync(q); } return new DH(q); }
-  async getFileHandle(n, o = {}) { const q = path.join(this.p, n); if (!fs.existsSync(q)) { if (!o.create) throw Object.assign(new Error('nf'), { name: 'NotFoundError' }); fs.writeFileSync(q, ''); } return new FH(q); }
+  async getDirectoryHandle(n, o = {}) { if (o.create) chromeName(n); const q = path.join(this.p, n); if (!fs.existsSync(q)) { if (!o.create) throw Object.assign(new Error('nf'), { name: 'NotFoundError' }); fs.mkdirSync(q); } return new DH(q); }
+  async getFileHandle(n, o = {}) { if (o.create) chromeName(n); const q = path.join(this.p, n); if (!fs.existsSync(q)) { if (!o.create) throw Object.assign(new Error('nf'), { name: 'NotFoundError' }); fs.writeFileSync(q, ''); } return new FH(q); }
   async isSameEntry(h) { return h.kind === this.kind && path.resolve(h.p) === path.resolve(this.p); }
   async resolve(h) { const r = path.relative(this.p, h.p); return r && !r.startsWith('..') && !path.isAbsolute(r) ? r.split(path.sep) : r === '' ? [] : null; } }
+function chromeName(n) {                                    // 4.1.2 (Nicola, CD): Chrome's own check on a name to create
+  if (n === '' || n === '.' || n === '..' || /[\\/:*?"<>|\x00-\x1f]/.test(n) || /[. ]$/.test(n) || /\.(lnk|local)$/i.test(n) ||   // (net::
+      /^(con|prn|aux|nul|com\d|lpt\d|clock\$)(\..*)?$/i.test(n) || /^(desktop\.ini|thumbs\.db)$/i.test(n))   // IsSafePortablePathComponent)
+    throw new TypeError(`Failed to execute 'getFileHandle' on 'FileSystemDirectoryHandle': Name is not allowed. (${n})`);
+}
 const denied = () => Object.assign(new Error('The request is not allowed'), { name: 'NotAllowedError' });
 class ROF extends FH { async createWritable() { throw denied(); } }      // 4.0.6: a folder the browser cannot write (Program Files)
 class RO extends DH { async *entries() { for await (const [n, h] of super.entries()) yield [n, h.kind === 'file' ? new ROF(h.p) : new RO(h.p)]; }
@@ -122,6 +127,7 @@ for (const lang of ['it', 'en', 'fr', 'de']) {
     for (const [name, gog, sub] of [['cd', false, 'SWOS'], ['gog', true, 'Sensible World of Soccer 96-97']]) {
       const stop = path.join(R, 'pf' + name), src = path.join(stop, sub), dst = path.join(R, 'new' + name);
       game(src, gog); fs.rmSync(dst, { recursive: true, force: true }); fs.mkdirSync(dst);
+      if (!gog) fs.writeFileSync(path.join(src, 'desktop.ini'), '[.ShellClassInfo]\r\nIconResource=INSTALL.ICO\r\n');   // (the CD's own)
       const before = tree(stop);
       let e1 = null; try { await T.installDir(new RO(stop), say); } catch (e) { e1 = e; }      // the game folder itself: refused
       ok(e1 && T.failMsg(e1, D) === D.nowrite && tree(stop) === before, `${lang} ${name} in a read-only folder: nothing changed, the new-folder hint: ${e1 && T.failMsg(e1, D).slice(0, 70)}`);
@@ -142,6 +148,17 @@ for (const lang of ['it', 'en', 'fr', 'de']) {
         ok(tree(stop) === before && tree(up) === tree(dst), `${lang} ${name} uploaded: the original untouched, the same files as the picker's new folder`);
         const n4 = await T.installCopy(T.filesDir(upload(stop)), new DH(up), say);
         ok(n4 === 0 && log.at(-1).includes(D.current), `${lang} ${name} uploaded again: nothing written: ${log.at(-1).slice(0, 80)}`); } }
+    if (T.installCopy.toString().includes('skip')) {      // 4.1.2: a CD copied raw (every name 'NAME;1'), desktop.ini and a name Chrome refuses
+      const stop = path.join(R, 'isocd'), src = path.join(stop, 'SWOS'), dst = path.join(R, 'newiso'), D = T.DT[lang];
+      game(src, false); fs.rmSync(dst, { recursive: true, force: true }); fs.mkdirSync(dst);
+      const ren = d => { for (const n of fs.readdirSync(d)) { const q = path.join(d, n);
+        if (fs.statSync(q).isDirectory()) ren(q); else fs.renameSync(q, q + ';1'); } };
+      ren(src); fs.writeFileSync(path.join(src, 'desktop.ini'), 'x'); fs.writeFileSync(path.join(src, 'AUX.TXT'), 'x');
+      const n = await T.installCopy(new RO(stop), new DH(dst), say);
+      ok(n > 0 && !log.at(-1).startsWith('!') && log.at(-1).endsWith(D.skipped('AUX.TXT') + ' ' + D.newplay) &&
+         !fs.readdirSync(dst).some(x => x.includes(';') || /^(desktop\.ini|AUX\.TXT)$/i.test(x)),
+         `${lang} a raw CD copy (NAME;1, desktop.ini, AUX.TXT) into a new folder: ${n} written, names without ;1, AUX.TXT listed: ${log.at(-1).slice(-200, -D.newplay.length)}`);
+      check(T, dst, false, false, `${lang} a raw CD copy into a new folder`); }
     { const stop = path.join(R, 'pfcd'), D = T.DT[lang];
       const n = await T.installCopy(new RO(stop), new DH(path.join(stop, 'SWOS', 'DATA')), say);
       ok(n === 0 && log.at(-1) === '! ' + D.same, `${lang} new folder inside the game folder: refused`);

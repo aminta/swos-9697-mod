@@ -568,11 +568,11 @@ EX = {
                'NATIONALE PHASE: 2 RUNDEN MIT GESETZTEN, HIN- UND RUECKSPIEL, GLEICHSTAND: DER GESETZTE',
                'FINAL FOUR: FREIE AUSLOSUNG, HIN- UND RUECKSPIEL, VERLAENGERUNG UND ELFMETER']),
 }
-# the game's own names of the European cups (a classic world: the exe's strings), keyed as world_cups
-GAME_CUPS = {'it': {'cc': 'COPPA CAMPIONI EUROPEA', 'cwc': 'COPPA D. COPPE EUROPEA', 'uefa': 'COPPA EUFA'},
-             'en': {'cc': 'EUROPEAN CHAMPIONS CUP', 'cwc': 'EUROPEAN CUP-WINNERS CUP', 'uefa': 'EUFA CUP'},
-             'fr': {'cc': "CPE D'EUROPE DES CHAMPS", 'cwc': "CPE D'EUR VAINQ. DE CPE", 'uefa': 'COUPE EUFA'},
-             'de': {'cc': 'EUROPAPOKAL LANDESMEISTER', 'cwc': 'EUROPAPOKAL POKALSIEGER', 'uefa': 'EUFA-CUP'}}
+# the game's own names of the European cups (a classic world: the exe's strings, 4.1.2: UEFA, not the original EUFA), keyed as world_cups
+GAME_CUPS = {'it': {'cc': 'COPPA CAMPIONI EUROPEA', 'cwc': 'COPPA D. COPPE EUROPEA', 'uefa': 'COPPA UEFA'},
+             'en': {'cc': 'EUROPEAN CHAMPIONS CUP', 'cwc': 'EUROPEAN CUP-WINNERS CUP', 'uefa': 'UEFA CUP'},
+             'fr': {'cc': "CPE D'EUROPE DES CHAMPS", 'cwc': "CPE D'EUR VAINQ. DE CPE", 'uefa': 'COUPE UEFA'},
+             'de': {'cc': 'EUROPAPOKAL LANDESMEISTER', 'cwc': 'EUROPAPOKAL POKALSIEGER', 'uefa': 'UEFA-CUP'}}
 CODES = {0x94: 'two_legs', 0x84: 'two_legs_pens', 0x14: 'single', 0x54: 'single_et'}
 
 

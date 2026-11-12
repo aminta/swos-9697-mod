@@ -467,6 +467,7 @@ const DT = {
         dstno: "Non posso scrivere nella cartella nuova: scegline una fuori da Program Files (per esempio in Documenti). Il gioco originale non è cambiato.",
         same: "La cartella nuova non può essere la cartella del gioco o una sua sottocartella: scegli una cartella vuota altrove (per esempio in Documenti).",
         notempty: "La cartella nuova non è vuota e non contiene già il gioco: scegli o crea una cartella vuota.",
+        skipped: l => `Non copiati: ${l} (nomi che il browser non può scrivere; al gioco non servono).`,
         newplay: "La mod è nella cartella nuova: gioca da lì (con GOG usa i file «SWOS Mod - ….bat» di quella cartella). Il gioco originale e il collegamento di GOG Galaxy restano com'erano, senza la mod.",
         reading: 'Leggo i file…', saving: 'Salvo la copia di sicurezza e scrivo la mod…',
         kind: { gog: 'versione GOG', cd: 'versione CD' }, found: (k, l) => `Trovato: ${k}, lingue ${l}.`,
@@ -490,6 +491,7 @@ const DT = {
         dstno: "I cannot write into the new folder: choose one outside Program Files (for example in Documents). The original game was not changed.",
         same: "The new folder cannot be the game folder or a folder inside it: choose an empty folder somewhere else (for example in Documents).",
         notempty: "The new folder is not empty and does not hold the game already: choose or create an empty folder.",
+        skipped: l => `Not copied: ${l} (names the browser cannot write; the game does not need them).`,
         newplay: "The mod is in the new folder: play from there (with GOG use the \"SWOS Mod - ….bat\" files in that folder). The original game and the GOG Galaxy shortcut stay as they were, without the mod.",
         reading: 'Reading the files…', saving: 'Saving the backup and writing the mod…',
         kind: { gog: 'GOG version', cd: 'CD version' }, found: (k, l) => `Found: ${k}, languages ${l}.`,
@@ -513,6 +515,7 @@ const DT = {
         dstno: "Je ne peux pas écrire dans le nouveau dossier : choisissez-en un hors de Program Files (par exemple dans Documents). Le jeu original n'a pas changé.",
         same: "Le nouveau dossier ne peut pas être le dossier du jeu ni un de ses sous-dossiers : choisissez un dossier vide ailleurs (par exemple dans Documents).",
         notempty: "Le nouveau dossier n'est pas vide et ne contient pas déjà le jeu : choisissez ou créez un dossier vide.",
+        skipped: l => `Non copiés : ${l} (noms que le navigateur ne peut pas écrire ; le jeu n'en a pas besoin).`,
         newplay: "Le mod est dans le nouveau dossier : jouez depuis celui-ci (avec GOG, utilisez les fichiers « SWOS Mod - ….bat » de ce dossier). Le jeu original et le raccourci de GOG Galaxy restent tels quels, sans le mod.",
         reading: 'Lecture des fichiers…', saving: 'Sauvegarde et écriture du mod…',
         kind: { gog: 'version GOG', cd: 'version CD' }, found: (k, l) => `Trouvé : ${k}, langues ${l}.`,
@@ -536,6 +539,7 @@ const DT = {
         dstno: "Ich kann in den neuen Ordner nicht schreiben: Wählen Sie einen außerhalb von Program Files (zum Beispiel unter Dokumente). Das Originalspiel ist unverändert.",
         same: "Der neue Ordner darf nicht der Spielordner oder einer seiner Unterordner sein: Wählen Sie anderswo einen leeren Ordner (zum Beispiel unter Dokumente).",
         notempty: "Der neue Ordner ist nicht leer und enthält das Spiel noch nicht: Wählen oder erstellen Sie einen leeren Ordner.",
+        skipped: l => `Nicht kopiert: ${l} (Namen, die der Browser nicht schreiben kann; das Spiel braucht sie nicht).`,
         newplay: "Der Mod ist im neuen Ordner: Spielen Sie von dort (mit GOG die Dateien „SWOS Mod - ….bat“ in diesem Ordner). Das Originalspiel und die Verknüpfung von GOG Galaxy bleiben, wie sie waren, ohne den Mod.",
         reading: 'Lese die Dateien…', saving: 'Sichere die Originale und schreibe den Mod…',
         kind: { gog: 'GOG-Version', cd: 'CD-Version' }, found: (k, l) => `Gefunden: ${k}, Sprachen ${l}.`,
@@ -564,9 +568,18 @@ async function isPack(g) {                        // the game folder found is th
   const e = g.m.get('ENGLISH.EXE');
   return !!e && e.kind === 'file' && PACK_MD5.includes(md5(await readBytes(e)));
 }
+function isoName(n) { return n.replace(/;\d+$/, ''); }   // 4.1.2: a CD copied raw keeps ISO 9660's 'NAME.EXT;1'
+function chromeName(n) {                           // 4.1.2 (Nicola, CD): a name Chrome's File System Access writes - it throws
+  return !(n === '' || n === '.' || n === '..' || /[\\/:*?"<>|\x00-\x1f]/.test(n) || /[. ]$/.test(n) ||   // TypeError 'Name
+           /\.(lnk|local)$/i.test(n) || /^\{.*\}$/.test(n) ||                                         // is not allowed'
+           /^(con|prn|aux|nul|com\d|lpt\d|clock\$)(\..*)?$/i.test(n) || /^(desktop\.ini|thumbs\.db)$/i.test(n));   // otherwise
+}
 async function childMap(dir) {                    // upper-case name -> handle
   const m = new Map();
-  for await (const [name, h] of dir.entries()) m.set(name.toUpperCase(), h);
+  for await (const [name, h] of dir.entries()) {   // (4.1.2: 'NAME;1' as NAME, unless NAME itself is there too)
+    const k = isoName(name).toUpperCase();
+    if (k === name.toUpperCase() || !m.has(k)) m.set(k, h);
+  }
   return m;
 }
 async function findGame(dir, depth = 0) {         // the folder with an exe of the game and DATA/TEAM.020 (eXoDOS: deeper)
@@ -801,11 +814,13 @@ async function pickDir() {
     await installDir(dir, say);
   } catch (e) { say(failMsg(e, DT[lang]), true); }
 }
-async function copyTree(src, dst) {               // a game folder (CD, Program Files) into a new folder (files + subfolders)
-  let n = 0;
-  for await (const [name, h] of src.entries()) {
-    if (name.toUpperCase() === 'MOD_BACKUP') continue;
-    if (h.kind === 'directory') n += await copyTree(h, await dst.getDirectoryHandle(name, { create: true }));
+async function copyTree(src, dst, skip = [], at = '') {   // a game folder (CD, Program Files) into a new folder (files +
+  let n = 0;                                                // subfolders). 4.1.2: 'NAME;1' (a raw CD copy) written as NAME;
+  for await (const [name0, h] of src.entries()) {           // a name Chrome will not write (the CD's desktop.ini: Windows
+    const name = isoName(name0);                            // folder files, names no DOS game uses) left out, listed in skip
+    if (name.toUpperCase() === 'MOD_BACKUP' || IGNORE.includes(name.toUpperCase())) continue;
+    if (!chromeName(name)) { skip.push(at + name0); continue; }
+    if (h.kind === 'directory') n += await copyTree(h, await dst.getDirectoryHandle(name, { create: true }), skip, at + name0 + '/');
     else { const w = await (await dst.getFileHandle(name, { create: true })).createWritable();
            await w.write(new Uint8Array(await (await h.getFile()).arrayBuffer())); await w.close(); n++; }
   }
@@ -816,7 +831,7 @@ async function inside(a, b) {                     // b is a, or inside a (null-s
 }
 const IGNORE = ['DESKTOP.INI', '.DS_STORE', 'THUMBS.DB'];
 async function installCopy(src, dst, say) {       // 4.0.6: the game from src (Program Files, a CD) into dst, then the mod there
-  const D = DT[lang];
+  const D = DT[lang], skip = [];
   GAMEWROTE = 0;
   const g = await findGame(src);
   if (!g) { say(D.notfound, true); return 0; }
@@ -825,10 +840,10 @@ async function installCopy(src, dst, say) {       // 4.0.6: the game from src (P
   if (!await findGame(dst)) {                    // a game there already: a re-run / an update of an earlier new-folder install
     for (const n of (await childMap(dst)).keys()) if (!IGNORE.includes(n)) { say(D.notempty, true); return 0; }
     say(D.copying);
-    try { await copyTree(g.root, dst); }
+    try { await copyTree(g.root, dst, skip); }
     catch (e) { say(e && (e.name === 'NotAllowedError' || e.name === 'NoModificationAllowedError') ? D.dstno : D.failnone(e && e.message || e), true); return 0; }
   }
-  return await installDir(dst, say, D.newplay);
+  return await installDir(dst, say, (skip.length ? D.skipped(skip.join(', ')) + ' ' : '') + D.newplay);
 }
 // 4.1.1: the second button reads the game by a folder upload (<input webkitdirectory>), not showDirectoryPicker:
 // Chrome's File System Access blocklist has every folder under Program Files / Program Files (x86) as

@@ -13519,6 +13519,90 @@ def engine_registry():
     return not errs, '; '.join(errs + info)
 
 
+
+def swef_pat(seed, n):
+    """swe.c swef_fill's bytes (SWEFILE_TEST builds; tools/hosttest/tests/test_swefile.py _pat)"""
+    out = bytearray(n)
+    for i in range(n):
+        seed = (seed * 1103515245 + 12345) & 0xFFFFFFFF
+        out[i] = seed >> 16 & 0xFF
+    return bytes(out)
+
+
+@scenario
+def swefile_layer():
+    """4.2: the engine's file layer (tools/swefile.h, swefile.c at obj4+swreg.SWEFILE_AT) in the game, on a SWEFILE_TEST=1
+    build (SWEFILE_BUILD; none: SKIP; made with bfull.py, never buildrel.sh: it clears the switch). At the FRIENDLY
+    picker swe_sel_pre runs swefile.c swef_selftest once (SWEF_HOOK): SWEF_RES ('SWEFRES2' in memory) holds every
+    call's code against the expected ones (bad = 0), and the game folder holds, byte for byte: TEST.MKT (64 KB, saved
+    new then over itself), CUT.MKT (the old one: recover removed the cut CUT.MK$), BOTH.MKT (cut point 2: the MK! won
+    over the old NAME), REC.MKT (cut point 3: put back from REC.MK!), STALE.MKT (saved over a stale MK$ and MK!),
+    BIG1.MKT (1.375 MB written in ONE call, new then over itself, read back in one call) and BIG2.MKT (1.375 MB in
+    64 KB chunks, read back in chunks) - DOS/4GW's own transfer-buffer splitting, which the host test cannot see; no
+    .MK$ / .MK! left, nothing from CUT2 (a cut first save) nor from the save into a missing directory. Timed (BIOS
+    ticks; CYCLES 26800 unless set): DOSBox's disk costs no emulated time, the MiSTer's is the real measure. The
+    picker still works after it (EUROPA shown). SWOSTEST_UI=en: the same under SWOS++ (a TSR on int 21h)."""
+    b = os.environ.get('SWEFILE_BUILD')
+    if not b:
+        return True, 'SKIP: SWEFILE_BUILD not set'
+    lang = 'ENGLISH.EXE' if UI == 'en' and os.path.exists(os.path.join(b, 'ENGLISH.EXE')) else 'ITALIAN.EXE'
+    errs, info = [], []
+    tag = 'swospp' if UI == 'en' else 'dos4gw'
+    d = xdir('swefile_layer_' + tag)
+    shutil.rmtree(d, ignore_errors=True)
+    shutil.copytree(b, d)
+    files = {}
+    if tag == 'swospp':
+        import swospp
+        exe = os.path.join(d, 'ITALIAN.EXE')
+        if lang != 'ITALIAN.EXE':
+            shutil.copy(os.path.join(b, lang), exe)
+        shutil.copy(exe, exe + '.nospp')
+        swospp.install(exe + '.nospp', exe)
+        pp = os.path.join(MAIN, 'internal', 'swospp-test')
+        files = {'LOADER.BIN': os.path.join(pp, 'loader.bin'), 'SWOSPP.BIN': os.path.join(pp, 'swospp.bin')}
+    old_cyc = os.environ.get('CYCLES')
+    os.environ['CYCLES'] = old_cyc or '26800'
+    try:
+        with Session('swefile_layer_' + tag, d, files, 'dump:3', 900, timer=bool(files)) as s:
+            if s.wait().outcome != 'dump':
+                return False, f'no first pause ({s.result})'
+            for t in ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB'):
+                walk(s, t, 4)
+            scr = s.screen()
+            check(scr.find('EUROPA') is not None, f'the picker after the self-test: {scr.texts()[:12]}', errs)
+            m = s.result.read(0, MEMSIZE)
+            k = m.find(b'SWEFRES2')
+            if k < 0:
+                return False, 'SWEF_RES not in memory (not a SWEFILE_TEST build?)'
+            done, *rest = struct.unpack_from('<I32iI6II', m, k + 8)
+            rc, bad, tk, nbytes = rest[:32], rest[32], rest[33:39], rest[39]
+            check(done == 1 and bad == 0, f'self-test done {done}, bad mask {bad:#x}, codes {rc[:29]}', errs)
+            s.shot('picker')
+            game = os.path.join(s.run, 'SWOS')          # (prepare(): the game runs in the run dir's copy)
+            if files:
+                on, why = swospp_on(s.result, os.path.join(d, 'ITALIAN.EXE'))
+                check(on, f'SWOS++ not running: {why}', errs)
+    finally:
+        if old_cyc is None:
+            os.environ.pop('CYCLES', None)
+        else:
+            os.environ['CYCLES'] = old_cyc
+    big = 22 * 65536
+    want = {'TEST.MKT': swef_pat(2, 65536), 'CUT.MKT': swef_pat(1, 65536), 'BOTH.MKT': swef_pat(5, 512),
+            'REC.MKT': swef_pat(5, 512), 'STALE.MKT': swef_pat(2, 65536), 'BIG1.MKT': swef_pat(6, big),
+            'BIG2.MKT': swef_pat(8, big)}
+    now = {n.upper(): n for n in os.listdir(game) if n.upper().endswith(('.MKT', '.MK$', '.MK!'))}
+    for n, v in want.items():
+        got = open(os.path.join(game, now[n]), 'rb').read() if n in now else None
+        check(got == v, f'{n}: {"missing" if got is None else f"{len(got)} B, not the bytes written"}', errs)
+    check(set(now) <= set(want), f'other new files: {sorted(set(now) - set(want))}', errs)
+    hz = 1193182 / 65536
+    sec = lambda a, b: f'{(tk[b] - tk[a]) / hz:.2f} s ({tk[b] - tk[a]} ticks)'
+    info.append(f'{tag}: {len(want)} files byte for byte; {nbytes} B: one-call save new {sec(0, 1)}, over itself '
+                f'{sec(1, 2)}, one-call read {sec(2, 3)}, 64 KB-chunk save {sec(4, 5)} (CYCLES {old_cyc or 26800})')
+    return not errs, '; '.join(errs + info)
+
 WM_SPP = None                                   # engine_wmodes_swospp: the SWOS++ build dir (engine_wmodes / _diy's runs)
 
 

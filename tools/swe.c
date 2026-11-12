@@ -29,6 +29,13 @@ u32 SWE_STATE;                          /* 0 = not initialised, 1 = swe_init ran
 #define CSTACK_IMPL
 #include "cstack.h"
 u8 SWE_CSTACK[CSTACK_SIZE] __attribute__((aligned(16)));
+#ifdef SWEFILE_TEST                     /* SWEFILE_TEST=1 builds only: the file layer's self-test (swefile.c swef_selftest) -
+                                           its buffers here in the .bss (swefile.c has none), its entry put in SWEF_HOOK by
+                                           swefile.py; swe_sel_pre calls it once */
+u8 SWEF_BIG[1441792] __attribute__((aligned(16)));     /* 22 x 64 KB: one-call and chunked writes / reads */
+u8 SWEF_RB[65536] __attribute__((aligned(16)));
+void (*SWEF_HOOK)(void) __attribute__((section(".data"))) = 0;   /* (.data: a file dword for the fixup) */
+#endif
 extern const u8 SWE_REG[];              /* obj4+REG_AT: the manifest */
 u32 REG_PREV = 0xFFFFFFFF;              /* the namespace reg_enter left (WCUR), ~0 = none entered */
 u32 SEL_C254 = 0;                       /* competitionsTable[254] at the picker's entry */
@@ -458,6 +465,13 @@ void swe_stfm_guard(void)
 
 void swe_sel_pre(u32 mode)
 {
+#ifdef SWEFILE_TEST
+    if (SWEF_HOOK) {
+        void (*f)(void) = SWEF_HOOK;
+        SWEF_HOOK = 0;
+        f();
+    }
+#endif
     SEL_MODE = mode;
     u32 *c254 = (u32 *)rd32(SWE_REG + 12);
     SEL_C254 = *c254;

@@ -56,6 +56,7 @@ VERSION = 3                    # (swe.c SWE_VERSION; 2 = step W, the registry; 3
 CODE_AT = 0x40
 ARENA = 0x8000                 # (swe.c SWE_ARENA)
 SWC1_SIZE = 32                 # engine P: the career state item (swe.c SWC1: header 20 B + sections; grows by version)
+SWEFILE = False                # 4.2: the engine's file layer linked (swefile.py, obj4+swreg.SWEFILE_AT): a consumer sets it
 SRC = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'swe.c')
 LABELS = {}
 
@@ -296,12 +297,17 @@ def patch(p):
         import trailer
         ext['SWE_ENF'] = (1, trailer.LABELS['EN_FOUND'][1] + trailer.INFO['EN_NS'])
     flags = (('-DNS',) if ns else ()) + (('-DSTFM',) if 'SWE_STFM' in ext else ()) + (('-DNAT',) if 'CW_PLNAT' in ext else ()) + (('-DMB',) if 'MB_STR' in ext else ()) + (('-DOMM',) if 'MB_OMM' in ext else ()) + (('-DFNAT',) if 'CW_FNAT' in ext else ()) + (('-DAV',) if 'SWE_PREPICK' in ext else ()) + (('-DCWB',) if 'SWE_CWB' in ext else ()) + (('-DSEAS',) if 'SWE_SEASON' in ext else ()) + (f'-DSWC1_SIZE={SWC1_SIZE}',)
+    if os.environ.get('SWEFILE_TEST') == '1':         # 4.2: the file layer's self-test buffers + SWEF_HOOK (swefile.py)
+        flags += ('-DSWEFILE_TEST',)
     if imp:
         flags += (f'-DIMP_N={len(imp)}', f'-DSWE_IMP_SIZE={max(imp_size, 4)}') + tuple(
             d for n, k, off in imp for d in (f'-DIMPK_{n}={k}',) + ((f'-DIMP_{n}={off}',) if off is not None else ()))
     syms, end, bss = cobj.link(p, cobj.compile_c(SRC, flags), CODE_AT, (4, room), externs=ext, limit=swreg.REG_AT,
                                text_obj=4)
     arena = syms['SWE_ARENA_AT']
+    import swefile
+    if swefile.on():                                # 4.2: the file layer's own range (page 18; dormant: nothing)
+        swefile.patch(p, syms)
     import engine                                   # engine P: SWC1 and its hooks (trailer.late binds them)
     engine.ITEM_AT['SWC1'] = syms['SWC1']
     engine.CALL_AT['swe_st_save'] = syms['swe_st_save']

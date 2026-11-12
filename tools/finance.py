@@ -241,9 +241,12 @@ def levels(lang):
     out = []
     for at, lv in menulevels.tables(lang):
         row = []
+        base = menulevels.LEVEL_BASE.get(at, 0)         # (S7 struct B: its levels after the first struct's)
         for k, (first, count, _) in enumerate(lv):
+            if count & 0x80:                            # (an external level: another struct's divisions)
+                continue
             assert first == len(row), (at, lv)
-            row += [k] * count
+            row += [k + base] * count
         assert len(row) <= MAXDIV, (at, len(row))
         out.append((at, row))
     return out

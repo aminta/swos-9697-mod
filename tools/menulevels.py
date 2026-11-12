@@ -52,6 +52,9 @@ ml_list:                                ; A1 = a league struct, its divisions ab
     mov [LVL_LAST], eax
     movzx ecx, byte [esi + 4]
     add esi, 5
+%if ML_EXT
+    mov [LVL_ENT], esi                  ; (S7: the listed struct's levels, for open's external check)
+%endif
     cmp byte [LVL], 0FFh
     je .levels
     cmp [LVL_STRUCT], eax
@@ -225,10 +228,34 @@ open:                                   ; a level picked: the country's list aga
     mov [LVL_DEPTH], eax
     mov ax, [D6]                        ; (D6 = the country at a division pick)
     mov [LVL_COUNTRY], ax
+%if ML_EXT
+    mov [LVL_SHOW], ax                  ; S7 struct B: an EXTERNAL level (count byte 80h | its index in its own
+    movzx eax, byte [LVL]               ; struct; first byte = that struct's file = country, e.g. Italy's SERIE D
+    lea eax, [eax + 2 * eax]            ; -> 144) lists that country at this depth with its level open; ESCI
+    add eax, eax                        ; (reopen: LVL_COUNTRY) goes back to this country's levels
+    add eax, [LVL_ENT]
+    test byte [eax + 1], 80h
+    jz .own
+    mov dl, [eax + 1]
+    and dl, 7Fh
+    mov [LVL], dl
+    movzx edx, byte [eax]
+    mov [LVL_SHOW], dx
+    mov edx, [COMPTAB + 4 * edx]        ; competitionsTable[country][0] = its league struct
+    mov edx, [edx]
+    mov [LVL_STRUCT], edx
+.own:
+%endif
     movzx eax, word [DEPTH]             ; (4.0.6 Davide 04/11) the groups open on their first one, GIRONE A, not on
     mov ax, [SELTAB + 2 * eax]          ; the level's slot: this depth's saved entry kept for ESCI (back on the
     mov [LVL_SEL], ax                   ; level, as before), then cleared as for a deeper list (the game's setsel)
     call SETSEL
+%if ML_EXT
+    mov word [ISCN], 0
+    mov ax, [LVL_SHOW]
+    mov [D7], ax
+    jmp REBUILD
+%endif
 reopen:
     mov word [ISCN], 0                  ; the country's competitions (its file D7), not a division's teams
     mov ax, [LVL_COUNTRY]
@@ -250,6 +277,7 @@ ml_esc:                                 ; @@no_league_selected (ESCI): a level o
     mov ax, [NUMSEL]
     jmp ESC_BACK
 
+%if ML_EXT == 0
 LVL: db 0FFh
 LVL_SEL: dw 0FFFFh
 align 4
@@ -260,7 +288,34 @@ LVL_COUNTRY: dd 0
 TITLE: times 52 db 0
 LV_TAB: LV_BYTES
     dd 0
+%endif                                  ; (S7 shaped builds: this block in obj2 - ml_data - the cos page is full)
 '''
+
+
+ML_DATA = dict(LVL=0, LVL_SEL=1, LVL_LAST=4, LVL_STRUCT=8, LVL_DEPTH=12, LVL_COUNTRY=16, LVL_ENT=20, LVL_SHOW=24,
+               TITLE=28, LV_TAB=80)
+
+
+def ml_data(p, area, lv, names):
+    """ML_EXT builds: the variables + LV_TAB in obj2 (area), not on the obj1 cos page (full since zone colours, 4 B
+    left): ML_DATA's layout, LVL / LVL_SEL = FFh, then the tables (dd struct, db n, n x (db first, count; dd name)),
+    dd 0. Returns {label: (2, offset)}."""
+    blob = bytearray(ML_DATA['LV_TAB'])
+    blob[0:3] = b'\xff\xff\xff'
+    ptrs = []
+    for (obj, off), levels in lv:
+        ptrs.append((len(blob), obj, off))
+        blob += bytes(4) + bytes((len(levels),))
+        for first, count, name in levels:
+            blob += bytes((first, count))
+            if name:
+                ptrs.append((len(blob), 2, names[name]))
+            blob += bytes(4)
+    blob += bytes(4)
+    at = area.add(bytes(blob))
+    for o, obj, off in ptrs:
+        p.add_ptr(2, at + o, obj, off)
+    return {k: (2, at + v) for k, v in ML_DATA.items()}
 
 
 def level_name(names):
@@ -282,9 +337,13 @@ def tables(lang):
     """[(league struct (obj, offset), [(first, count, level name or None)])] of every league with levels of groups."""
     import mkseason
     out = []
+    LEVEL_BASE.clear()
     for pk in mkseason.packs():
         par = pk.parallel()
         if not par:
+            continue
+        if getattr(pk, 'shaped', False):        # S7 struct B (Davide 12/11: file 144 hidden, reached through Italy)
+            out += _shaped_tables(pk, lang)
             continue
         lfile = pk.files[pk.league['clubs']][0]
         at = mkseason.LEAGUE_AT.get((pk.world, lfile))
@@ -304,6 +363,38 @@ def tables(lang):
 
 
 EXTRA = []              # (league struct (obj, offset), levels): world 0's leagues (4.1: seriec.py's Italy)
+LEVEL_BASE = {}         # (obj, offset) -> the league level of the struct's first level (S7 struct B: Serie D = 3;
+                        # finance.levels: the income by level), 0 when absent
+
+
+def _shaped_tables(pk, lang):
+    """A league over two team files (S7, MC 11/11 option (a)): one table per league struct, local divisions. In the
+    first struct's table a level that lives in another struct is EXTERNAL: (its struct's file = country, 0, name) -
+    picking it lists that country (file 144: hidden from VIEW WORLD / the pickers, Davide 12/11) at the same menu
+    depth with its level open; ESCI goes back to the first struct's levels."""
+    import mkseason
+    divs = pk.divisions()
+    files = pk.league_files()
+
+    def name(lv):
+        nm = [(divs[d]['names'].get(lang) or divs[d]['names']['*'])[0] for d in lv]
+        return level_name(nm) if len(lv) > 1 else nm[0]
+    out = []
+    for f in files:
+        at = mkseason.league_at(pk.world, f, 'menulevels')
+        own = [x for x in pk.levels() if pk.div_key(x[0])[0] == f]
+        LEVEL_BASE[(1, at)] = pk.levels().index(own[0])
+        lv = []
+        for x in pk.levels():
+            sf, first = pk.div_key(x[0])
+            if sf == f:
+                assert len(x) < 0x80, x
+                lv.append((first, len(x), name(x) if len(x) > 1 else None))
+            elif f == files[0]:                 # (external: that struct's file = country, 80h | the level's index
+                k = [y for y in pk.levels() if pk.div_key(y[0])[0] == sf].index(x)      # in its own table)
+                lv.append((sf, 0x80 | k, name(x)))
+        out.append(((1, at), lv))
+    return out
 
 
 def _sites(p):
@@ -394,7 +485,11 @@ def patch(p, at, area, lang):
                 'SETSEL': (1, s['setsel']), 'REBUILD': (1, s['rebuild']), 'BACK3': (1, s['load'] + 12),
                 'NUMS': (2, menutab.NEW[1]), 'D7': (2, s['regs']['D6'] + 4), 'NUMSEL': s['numsel'],
                 'ESC_BACK': (1, s['esc'] + 6), 'CURCOUNTRY': s['curcountry'], 'HDR1': s['hdr1'],
-                'DEFHDR': s['defhdr'], 'GTS': s['gts'], 'DEPTH': s['depth'], 'SELTAB': s['seltab']})
+                'DEFHDR': s['defhdr'], 'GTS': s['gts'], 'DEPTH': s['depth'], 'SELTAB': s['seltab'],
+                'ML_EXT': (0, int(any(c & 0x80 for _, levels in tabs for _, c, _ in levels)))})
+    if sym['ML_EXT'][1]:
+        import countries
+        sym['COMPTAB'] = (2, countries.COMP[0])
     body = []
     for k, ((obj, off), levels, rows) in enumerate(lv):
         sym[f'S{k}'] = (obj, off)
@@ -402,6 +497,9 @@ def patch(p, at, area, lang):
             if name:
                 sym[f'N{k}_{first}'] = (2, area.add(name.encode('latin1') + b'\0'))
         body += rows
+    if sym['ML_EXT'][1]:                        # (the data block in obj2: ml_data)
+        names = {name: sym[f'N{k}_{first}'][1] for k, (_, levels, _) in enumerate(lv) for first, _, name in levels if name}
+        sym.update(ml_data(p, area, [(ol, levels) for ol, levels, _ in lv], names))
     src = nasmcave.sub(ASM, 'LV_BYTES', '\n    '.join(body))     # (several lines: in the text, not a one-line symbol)
     code, fix = nasmcave.assemble(src, at, sym)
     lab = nasmcave.labels(src, at, sym)

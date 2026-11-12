@@ -46,7 +46,7 @@ ROOTS = ('lr_res_hook', 'lr_sort_hook', 'lr_res', 'lr_rank', 'LR_BLK')
 # 4.2 AFC mode (MC 11/11, option b): the code band obj4 0x6000..0xA000 = lrank.c, then conti's group draw (ctdraw.c
 # via ctband.c, its own link right after lrank's end); LR_TAB alone in the 11th page (TAB_AT..+0x1000); SREG2 at 0xB000
 # (the 12th). ctdraw's symbols go into LABELS too (the harness: syms['lrank'][CT_SDRAW_*]). MC: a code margin < 512 B
-# -> ask MC (the next step a CT page past SREG2, 0xC000).
+# -> ask MC (obj4 above it, MC 12/11: SREG2 0xB000, SLOW 0xC000 (4.2 slow, swreg.SLOW_AT), CT spare 0xD000).
 TAB_AT = LR_AT + 0x1000 * LR_PAGES
 CT_ROOTS = ('ct_place', 'CT_SDRAW_N', 'CT_SDRAW_ERR', 'CT_SDRAW_HIT')
 
@@ -132,7 +132,7 @@ def patch(p, tables, split_st, split_magic):
     syms, end, bss = cobj.link(p, obj, LR_AT, (4, 0), externs=ext, limit=TAB_AT, text_obj=4, roots=ROOTS)
     assert bss == 0, ('lrank.c: no .bss', bss)
     assert end <= TAB_AT, ('lrank: code over its band', hex(end), hex(TAB_AT))   # (4.2 P7, MC: the band is fixed - LR_PAGES 4,
-                                                    # SREG2 at 0xA000; anything more moves past 0xB000, ask MC)
+                                                    # SREG2 at 0xB000, SLOW 0xC000, CT spare 0xD000; ask MC)
     p.put(4, tab_at, tab)
     for off, (o, a) in ptrs:
         cobj.add_ptr(p, tab_at + off, o, a, 4)

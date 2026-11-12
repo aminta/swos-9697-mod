@@ -845,7 +845,9 @@ static u32 cw_byte(void) { return 0; }
 /* 4.2 kits (MC 12/11): 1 when the match being set up is World 2026-27's (SET_W[0]), for the yellow referee (kits.py);
    cdecl, no side effects. 1. a career: its world byte; 2. a friendly / DIY (gameType 0 / 1, not a training game): the
    contest's SWE_W27; 3. else (seasons, presets, competitions): the namespace in the tables, WCUR. Anything else, or a
-   build without namespaces: 0 = the game's black referee. */
+   build without namespaces: 0 = the game's black referee.
+   (cw_byte reads the mod's moved SLT - careerworld.SITES['slt'] of the patched exe -, not the original
+   someLeaguesTable: host tests take its address from this function's own cmp.) */
 #ifdef TRAIN
 extern u8 SWE_TRAIN[];                  /* the game's g_trainingGame (benchx) */
 #define TRAINING() (*(u16 *)SWE_TRAIN != 0)

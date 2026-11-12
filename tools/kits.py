@@ -506,10 +506,10 @@ def patch(p):
     code, fix, rel = nasmcave.assemble_obj(src, at, sym, 4)
     lab = nasmcave.labels(src, at, sym)
     end = at + len(code)
-    page = (at // 0x1000 + 1) * 0x1000
+    page = swreg.KITS_PAGE16_END
     assert end <= page, ('kits: code + masks past page 16 (MC: masks to page 17, never cut code)', hex(end))
-    assert p.le.obj(4).npages * 0x1000 >= swreg.KITS_END, 'kits: obj4 pages (patch.py)'
-    assert not any(p.get(4, at, swreg.KITS_END - at)), 'kits: obj4 room not free'
+    assert p.le.obj(4).npages * 0x1000 >= page, 'kits: obj4 pages (patch.py)'
+    assert not any(p.get(4, at, page - at)), 'kits: obj4 room not free'
     p.put(4, at, code)
     for o, t_obj, t_off in fix:
         p.add_ptr(4, at + o, t_obj, t_off)

@@ -141,6 +141,8 @@ new rule. If a rule seems wrong for a case, ask the regia session; don't silentl
       0x3000, uesum moved to UESUM_AT 0x4000 and usmenu after it - Regia 09/11). The engine's code
       + registry stay below swreg.OBJ4_END (0x2000 in 4.1), each view has its own range assert, and the 23bis gates
       below apply to it as to engine code.
+    - 4.2 shirtbox: obj4 0xCF00..0xD000 (in slow's page 13, top; swreg.BOX_AT / BOX_END, MC 12/11): shirtedit's
+      se_unsh (the lit number box's afterDraw) + its 4 data bytes, because the career cave is full. Slow's code stays below BOX_AT.
     - No obj4 address is ever stored in a save (engine state = 'EN' items, rule 21), so obj4 may grow and move freely.
     - Calls between the game / obj3 and obj4: self-relative fixups (type 8) as rule 23; cobj.link(text_obj=4).
     - The harness finds obj4 by its header (Result.base4: the magic + the self pointer), not by a game pointer.

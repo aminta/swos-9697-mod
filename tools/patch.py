@@ -351,6 +351,8 @@ def patch_exe(src, dst, remap, lang='it'):
     swe.OBJ4_PAGES = max(swe.OBJ4_BASE, lrank.TAB_AT // 0x1000 + 1) \
         if lr_tabs or ct_pg else swe.OBJ4_BASE  # (4.2 AFC mode: + LR_TAB's own page, the 11th - MC 11/11 option b;
                                                 # P7: conti linked = lrank's band too, even with no tie-breaker list)
+    import swreg
+    swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, swreg.BOX_END // 0x1000)   # 4.2 shirtbox: se_unsh at the 13th page's top
     if lr_tabs:                                        # (the career league's head-to-head block)
         engine.save_item('LR', lrank.LR_SIZE, world_only=True)
         import swreg                                   # 4.2: a groups stage's state (engine ST, sr_stled.c; A1's room)

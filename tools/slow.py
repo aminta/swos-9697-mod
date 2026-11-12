@@ -272,7 +272,7 @@ def patch(p, lang):
     assert swreg.SLOW_AT <= top and getattr(swreg, 'BOX_END', top) <= swreg.SLOW_END   # the top of this page)
     assert at + len(code) <= top, ('slow: past its obj4 room', hex(at + len(code)), hex(top))
     assert p.le.obj(4).npages * 0x1000 >= swreg.SLOW_END, 'slow: obj4 pages (patch.py)'
-    assert not any(p.get(4, at, len(code))), 'slow: obj4 page not free'
+    assert not any(p.get(4, at, top - at)), 'slow: obj4 room not free'     # (SLOW_AT..BOX_AT, the box's 0x100 not ours)
     p.put(4, at, code)
     for o, t_obj, t_off in fix:
         p.add_ptr(4, at + o, t_obj, t_off)

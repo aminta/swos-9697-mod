@@ -19,6 +19,7 @@ With a career club from Brazil or Argentina, your country now sends all its club
 - Careers saved with 4.0, 4.0.1, 4.0.2, 4.0.5, 4.1 and 4.1.1 load and play on.
 - Brazil and Argentina: a save made in the middle of a season picks the fix up at its next season end; the cups already drawn at the previous season end keep the clubs they have, and the full lists show from the next season's cups on.
 - The Brazil and Argentina fix does not touch careers with a club from any other country, European ones included.
+- Recopa fix: no save is lost. If your game exited to DOS or hung after an exit from the Libertadores, load your last save with 4.1.2 and the Recopa is played normally.
 
 ## Italiano
 
@@ -41,3 +42,4 @@ Con un club in carriera del Brasile o dell'Argentina, il tuo paese ora manda tut
 - Le carriere salvate con la 4.0, la 4.0.1, la 4.0.2, la 4.0.5, la 4.1 e la 4.1.1 si caricano e si giocano normalmente.
 - Brasile e Argentina: un salvataggio fatto a metà stagione prende la correzione alla prossima fine stagione; le coppe già sorteggiate alla fine della stagione precedente tengono i club che hanno, e le liste complete si vedono dalle coppe della stagione dopo.
 - La correzione per Brasile e Argentina non tocca le carriere con un club di un altro paese, europee comprese.
+- Correzione della Recopa: nessun salvataggio è perso. Se il gioco era tornato al DOS o si era bloccato dopo un'uscita dalla Libertadores, carica l'ultimo salvataggio con la 4.1.2 e la Recopa si gioca normalmente.

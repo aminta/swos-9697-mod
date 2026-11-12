@@ -53,9 +53,9 @@ BOX_END = 0xD000                        # slow's page (SLOW_AT 0xC000, its code 
 assert SLOW_AT < NAMEFIT_AT < NAMEFIT_END <= TRIAL_AT < TRIAL_END <= BOX_AT < BOX_END <= SLOW_END, \
     'page 13: slow < namefit < trial < shirtbox'
 assert SLOW_END <= T3_AT < T3_END, 'page 14: T3 above page 13'
-DIFF_AT = 0xF000                        # 42-diff (difficulty + DRIBBLING beta): obj4's 16th page, PROVISIONAL until MC
-DIFF_END = 0x10000                      # names the room (difficulty-plan.md §3)
-assert T3_END <= DIFF_AT
+DIFF_AT = 0xE000                        # 42-diff (difficulty + DRIBBLING, difficulty.py): obj4's 15th page, 2 KB (MC 12/11:
+DIFF_END = 0xE800                       # 0xE800..0xF000 stays the conti CT draw's spare; CONVENTIONS 23bis)
+assert T3_END <= DIFF_AT < DIFF_END <= 0xF000, 'page 15: T3 < difficulty < the conti CT spare'
 MAGIC = b'SWRG'
 VERSION = 2
 HDR = 32

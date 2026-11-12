@@ -31530,7 +31530,8 @@ def statespec_test():
     return not errs, '; '.join(errs + [f'{msg}; snapshots {sorted(snaps)}, last {snaps.get(max(snaps)) if snaps else None}'])
 
 # ---- 42-diff: selectable difficulty (tools/difficulty.py; internal/handoff/difficulty-plan.md) ----------------------
-DIFF_OFF = dict(W=4, ACT=6, KICKS=8, SEED=12, CTL=18, FRAMES=20, HASH=24, CK=28)
+DIFF_OFF = dict(W=4, ACT=6, KICKS=8, SEED=12, CTL=18, FRAMES=20, HASH=24, DR=28, DACT=30, SV=31, NOSL=32, PENS=38, CK=40)
+DIFF_CKN, DIFF_CKF = 8, 2048                    # checkpoints in the ring, frames between two
 
 
 def diff_block(r):
@@ -31547,7 +31548,7 @@ def diff_block(r):
     return b4 + swreg.DIFF_AT + k if k >= 0 else None
 
 
-def diff_match(name, build, home, away, ctl, seed, level_w=0, frames=13000, polls=120):
+def diff_match(name, build, home, away, ctl, seed, level_w=0, frames=13000, polls=120, drib=0):
     """One deterministic friendly (a DIFF_TRACE build): main menu -> AMICHEVOLE home v away (1996-97 1. LIGA) -> the
     pre-match screen; DF_SEED / DF_CTL / DF_W poked into the DIFF block; PLAY MATCH; no key after the kick-off
     (DF_KICKS > 0); played until DF_FRAMES >= frames. Returns dict(frames, hash, ck, act, goals, stats, errs)."""
@@ -31561,6 +31562,7 @@ def diff_match(name, build, home, away, ctl, seed, level_w=0, frames=13000, poll
             return dict(errs=['no DIFF block in obj4 (not a DIFF_TRACE build?)'])
         s.poke(blk + DIFF_OFF['SEED'], seed + bytes(ctl))
         s.poke(blk + DIFF_OFF['W'], bytes([level_w, 0]))
+        s.poke(blk + DIFF_OFF['DR'], bytes([drib, 0]))
         for _ in range(22):
             s.send('down dump:0.5')
             if s.screen().selected == 9:
@@ -31587,20 +31589,21 @@ def diff_match(name, build, home, away, ctl, seed, level_w=0, frames=13000, poll
             last = f
             r = s.send('dump:5')
         if r.outcome == 'dump':
-            b = r.read(blk, 28 + 256)
+            b = r.read(blk, DIFF_OFF['CK'] + 4 * DIFF_CKN)
             out = dict(frames=struct.unpack_from('<I', b, 20)[0], hash=struct.unpack_from('<I', b, 24)[0],
-                       ck=list(struct.unpack_from('<64I', b, 28)), act=b[6], kicks=struct.unpack_from('<I', b, 8)[0])
+                       ck=list(struct.unpack_from(f'<{DIFF_CKN}I', b, DIFF_OFF['CK'])), act=b[6], dact=b[30],
+                       kicks=struct.unpack_from('<I', b, 8)[0])
             s.shot(f'{name}_end')
     out['errs'] = errs
     return out
 
 
 def diff_ck_compare(a, b):
-    """(equal, first differing 256-frame checkpoint, checkpoints compared) over the frames both runs reached."""
-    n = min(a['frames'], b['frames']) // 256
-    n = min(n, 64)
+    """(equal, first differing checkpoint (every DIFF_CKF frames), checkpoints compared) over the frames both reached."""
+    n = min(a['frames'], b['frames']) // DIFF_CKF
+    n = min(n, DIFF_CKN)
     for k in range(1, n + 1):
-        if a['ck'][k % 64] != b['ck'][k % 64]:
+        if a['ck'][k % DIFF_CKN] != b['ck'][k % DIFF_CKN]:
             return False, k, n
     return True, None, n
 
@@ -31611,8 +31614,8 @@ def diff_trace():
     knob site), NEW = every knob site with the level at NORMAL (DIFF_TEST=3) - play the same friendly HAMBURG v
     SCHALKE with both generators pinned at the kick-off (DIFF_SEED, 6 bytes hex), every frame = 1 tick, no key after the
     kick-off. Pairings (DIFF_PAIRS, default hc,cc,hh): hc = human v computer (teamControls 2 / 1), cc = computer v
-    computer, hh = two humans; on NEW also EASY set (DF_W 1) for cc and hh, which must equal NORMAL. PASS = every
-    256-frame checkpoint of the hash (23 sprites' x / y / z + both RNG states) equal over the whole match (>= DIFF_FRAMES,
+    computer, hh = two humans; on NEW at NORMAL + CLASSIC, and for cc / hh also EASY + NEW (DF_W 1, DF_DR 1), which
+    must equal it. PASS = every 2048-frame checkpoint of the hash (23 sprites' x / y / z + both RNG states) equal over the whole match (>= DIFF_FRAMES,
     default 13000 frames). SWOSTEST_UI picks the language (the friendly walk: IT / EN)."""
     lang = os.environ.get('SWOSTEST_UI', 'it')
     ref = build('diff_ref', {'DIFF_TRACE': '1'}, lang=lang)
@@ -31625,8 +31628,8 @@ def diff_trace():
         a = diff_match(f'diff_trace_{pr}_ref', ref, 'HAMBURG', 'SCHALKE', ctls[pr], seed, 0, frames)
         runs = [('NORMAL', diff_match(f'diff_trace_{pr}_new', new, 'HAMBURG', 'SCHALKE', ctls[pr], seed, 0, frames))]
         if pr in ('cc', 'hh'):
-            runs.append(('EASY', diff_match(f'diff_trace_{pr}_easy', new, 'HAMBURG', 'SCHALKE', ctls[pr], seed, 1,
-                                            frames)))
+            runs.append(('EASY+NEW', diff_match(f'diff_trace_{pr}_easy', new, 'HAMBURG', 'SCHALKE', ctls[pr], seed,
+                                                1, frames, drib=1)))
         if a['errs'] or 'ck' not in a:
             errs.append(f'{pr} REF: {a["errs"]}')
             continue
@@ -31635,7 +31638,7 @@ def diff_trace():
                 errs.append(f'{pr} {tag}: {b["errs"]}')
                 continue
             eq, k, n = diff_ck_compare(a, b)
-            check(eq and n * 256 >= frames - 256, f'{pr} {tag}: differs at checkpoint {k} (frame {k * 256 if k else "-"})'
+            check(eq and n * DIFF_CKF >= frames - DIFF_CKF, f'{pr} {tag}: differs at checkpoint {k} (frame {k * DIFF_CKF if k else "-"})'
                   f' of {n}; frames {a["frames"]} / {b["frames"]}', errs)
             info.append(f'{pr} {tag}: {n} checkpoints equal (frames {a["frames"]} / {b["frames"]}, act {b["act"]})')
     return not errs, '; '.join(errs + info)
@@ -31644,9 +31647,10 @@ def diff_trace():
 
 @scenario
 def diff_menu():
-    """42-diff: the OPTIONS row DIFFICULTY (difficulty.py, DIFF_TEST build): entries 28 / 29 under slow's MATCH SPEED,
-    30 entries, the 13 rows at a 10 px pitch from y 18, 9 high, the last ending above EXIT TO DOS; the label and the
-    three values in their boxes, font characters; fire on the value: NORMAL -> HARD -> EASY -> NORMAL (DF_W 2, 1, 0).
+    """42-diff: the OPTIONS rows DIFFICULTY (entries 28 / 29) and DRIBBLING (30 / 31) under slow's MATCH SPEED
+    (difficulty.py, DIFF_TEST build): 32 entries, the 14 rows at PITCH from y TOP, HEIGHT high, the last ending above
+    EXIT TO DOS; labels and values in their boxes, font characters; fire on 29: NORMAL -> HARD -> EASY -> NORMAL
+    (DF_W 2, 1, 0); fire on 31: CLASSIC -> NEW -> CLASSIC (DF_DR 1, 0); the save byte DF_SV follows both.
     Shots options_diff_<n> (the visual tour / the geometry probe). SWOSTEST_UI it / en / fr / de."""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import difficulty as dfm
@@ -31660,16 +31664,21 @@ def diff_menu():
         blk = diff_block(s.result)
         rdw = lambda: struct.unpack('<H', s.result.read(blk + DIFF_OFF['W'], 2))[0]
         lab = scr.find(label, exact=True)
-        check(lab == 28 and scr.n == 30 and blk is not None and rdw() == 0,
+        rdr = lambda: struct.unpack('<H', s.result.read(blk + DIFF_OFF['DR'], 2))[0]
+        rsv = lambda: s.result.read(blk + DIFF_OFF['SV'], 1)[0]
+        lab2 = scr.find(dfm.DRLABEL[UI], exact=True)
+        check(lab2 == 30, f'OPTIONS: {dfm.DRLABEL[UI]} at {lab2}', errs)
+        check(lab == 28 and scr.n == 32 and blk is not None and rdw() == 0,
               f'OPTIONS: {label} at {lab}, {scr.n} entries, DF_W {rdw() if blk else None}', errs)
         if lab == 28:
             g = {e[0]: scr.geom[j] for j, e in enumerate(scr.entries)}
             rows = sorted({g[k][1] for k in g if g[k][2] == 140 and dfm.TOP <= g[k][1] <= 160})
-            quit_y = min(g[k][1] for k in g if g[k][1] > rows[-1] and k not in (28, 29))
-            check(rows == [dfm.TOP + dfm.PITCH * k for k in range(13)] and g[28][1] == rows[-1] and g[29][1] == rows[-1]
+            quit_y = min(g[k][1] for k in g if g[k][1] > rows[-1] and k not in (28, 29, 30, 31))
+            check(rows == [dfm.TOP + dfm.PITCH * k for k in range(14)] and g[28][1] == rows[-2] and g[29][1] == rows[-2]
+                  and g[30][1] == rows[-1] and g[31][1] == rows[-1]
                   and all(g[k][3] == dfm.HEIGHT for k in g if g[k][2] == 140 and g[k][1] in rows)
                   and rows[-1] + dfm.HEIGHT < quit_y, f'OPTIONS rows {rows}, 28 {g[28]}, 29 {g[29]}, below {quit_y}', errs)
-            for t in (label,) + dfm.VALUES[UI]:
+            for t in (label, dfm.DRLABEL[UI]) + dfm.VALUES[UI] + dfm.DRVALUES[UI]:
                 check(px(t) <= g[28][2] - 2 and set(t) <= set(SMALL_W) | {' '}, f'{t!r}: {px(t)} px in {g[28][2]}', errs)
             notes.append(f'rows {rows[0]}..{rows[-1]} (+{dfm.HEIGHT}), EXIT TO DOS at {quit_y}')
         s.shot('options_diff_0')
@@ -31679,7 +31688,14 @@ def diff_menu():
             w.append(rdw())
             s.shot(f'options_diff_{n + 1}')
         check(w == [2, 1, 0], f'toggles (DF_W): {w} (want 2, 1, 0 = HARD, EASY, NORMAL)', errs)
-        notes.append(f'toggles {w}')
+        walk(s, 29, 2)                                  # HARD, then DRIBBLING NEW: the save byte 0x12
+        dr = []
+        for n in range(2):
+            walk(s, 31, 2)
+            dr.append((rdr(), rsv()))
+            s.shot(f'options_drib_{n + 1}')
+        check(dr == [(1, 0x12), (0, 0x02)], f'DRIBBLING toggles (DF_DR, DF_SV): {dr} (want (1, 0x12), (0, 0x02))', errs)
+        notes.append(f'toggles {w}, dribbling {dr}')
     return not errs, '; '.join(errs + notes)
 
 
@@ -31725,6 +31741,7 @@ def diff_ab():
     run dir). PASS = every match played to DIFF_FRAMES; the numbers are the measurement (no threshold here)."""
     lang = os.environ.get('SWOSTEST_UI', 'it')
     b = build('diff_ab', {'DIFF_TEST': '3', 'DIFF_TRACE': '1', 'DIFF_FORCE': '1'}, lang=lang)
+    dribs = [int(x) for x in os.environ.get('DIFF_DRIBS', '0').split(',')]
     g1, g2, top = diff_score_sites(b)
     n = int(os.environ.get('DIFF_N', '4'))
     frames = int(os.environ.get('DIFF_FRAMES', '13000'))
@@ -31734,9 +31751,9 @@ def diff_ab():
     errs, rows = [], []
     for pr in os.environ.get('DIFF_PAIRINGS', 'sw,eq,ws').split(','):
         home, away = DIFF_PAIRINGS[pr]
-        for lv in (int(x) for x in os.environ.get('DIFF_LEVELS', '1,3,5').split(',')):
+        for lv, dr in ((int(x), d) for x in os.environ.get('DIFF_LEVELS', '1,3,5').split(',') for d in dribs):
             for k, seed in enumerate(seeds):
-                tag = f'diff_ab_{pr}_L{lv}_{k}'
+                tag = f'diff_ab_{pr}_L{lv}_D{dr}_{k}'
                 res = {}
                 with Session(tag, b, {}, 'dump:3', 900, match=True) as s:
                     s.wait()
@@ -31744,6 +31761,7 @@ def diff_ab():
                     blk = diff_block(s.result)
                     s.poke(blk + DIFF_OFF['SEED'], seed + bytes((3, 1)))
                     s.poke(blk + DIFF_OFF['W'], bytes([w_of[lv], 0]))
+                    s.poke(blk + DIFF_OFF['DR'], bytes([dr, 0]))
                     for _ in range(22):
                         s.send('down dump:0.5')
                         if s.screen().selected == 9:
@@ -31773,18 +31791,25 @@ def diff_ab():
                         for t in (top, top + 0x91):
                             sp = struct.unpack('<I', r.obj2(t + 0x0E, 4))[0]
                             st.append(list(struct.unpack('<7H', r.read(sp, 14))))
-                        res = dict(pairing=pr, level=lv, seed=seed.hex(), frames=f, act=act, goals=goals, stats=st)
+                        bb = r.read(blk, DIFF_OFF['CK'])
+                        res = dict(pairing=pr, level=lv, drib=dr, seed=seed.hex(), frames=f, act=act, dact=bb[30],
+                                   goals=goals, stats=st, pens=struct.unpack_from('<H', bb, DIFF_OFF['PENS'])[0],
+                                   noslide=struct.unpack_from('<I', bb, DIFF_OFF['NOSL'])[0])
                     else:
-                        res = dict(pairing=pr, level=lv, seed=seed.hex(), error=str(r))
+                        res = dict(pairing=pr, level=lv, drib=dr, seed=seed.hex(), error=str(r))
                 rows.append(res)
                 open(out, 'a').write(json.dumps(res) + '\n')
-                check('error' not in res and res['frames'] >= frames and res['act'] == (0 if lv == 3 else lv),
+                check('error' not in res and res['frames'] >= frames and res['act'] == (0 if lv == 3 else lv)
+                      and res['dact'] == dr,
                       f'{tag}: {res}', errs)
     summ = collections.defaultdict(list)
     for r in rows:
         if 'goals' in r:
-            summ[(r['pairing'], r['level'])].append(r['goals'][0] - r['goals'][1])
-    info = [f'{k[0]} L{k[1]}: goal diff {v} mean {sum(v) / len(v):+.2f}' for k, v in sorted(summ.items())]
+            summ[(r['pairing'], r['level'], r['drib'])].append((r['goals'][0] - r['goals'][1], r['stats'][0][2],
+                                                               r['stats'][1][2], r['pens']))
+    info = [f'{k[0]} L{k[1]} D{k[2]}: goal diff {[x[0] for x in v]} mean {sum(x[0] for x in v) / len(v):+.2f}, fouls '
+            f'{sum(x[1] for x in v)}/{sum(x[2] for x in v)}, penalties {sum(x[3] for x in v)}'
+            for k, v in sorted(summ.items())]
     return not errs, '; '.join(errs[:6] + info + [f'rows in {out}'])
 
 

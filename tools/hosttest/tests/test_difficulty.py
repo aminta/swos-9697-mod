@@ -17,12 +17,13 @@ TOOLS = os.path.join(HERE, '..', '..')
 sys.path.insert(0, TOOLS)
 sys.path.insert(0, os.path.join(HERE, '..'))
 import difficulty as df                                         # noqa: E402
+from swreg import DIFF_AT                                       # noqa: E402
 
 ORIG = os.path.join(TOOLS, '..', 'orig')
 LANGS = {'en': 'ENGLISH', 'it': 'ITALIAN', 'fr': 'FRENCH', 'de': 'GERMAN'}
 B1 = 0x100000
 SCR = 0x1F00000
-TA, TB, SPR, FA, FB = SCR, SCR + 0x100, SCR + 0x200, SCR + 0x300, SCR + 0x380
+TA, TB, SPR, FA, FB, CARS = SCR, SCR + 0x100, SCR + 0x200, SCR + 0x300, SCR + 0x380, SCR + 0x280
 STACK = 0x1E00000
 
 
@@ -77,6 +78,12 @@ def _setup(uc, sym, case, B2):
     w(FA + 4, 'B', case.get('fa', 2))
     w(FB + 4, 'B', case.get('fb', 1))
     w(SPR + 0x2C, '<H', case.get('speed', 0))
+    if case.get('hb'):                                  # the opponent of A6 carries the ball (K11's slide gate)
+        o = TB if case.get('a6', TB) == TA else TA
+        w(o + 0x28, '<H', 1)
+        w(o + 0x20, '<I', CARS)
+        w(CARS + 0x20, '<H', case['cx'])
+        w(CARS + 0x24, '<H', case['cy'])
     w(SPR + 0x4A, '<I', case.get('dist', 0))
     v = lambda k: B2 + sym[k][1]
     w(v('A6_'), '<I', case.get('a6', TB))
@@ -99,8 +106,9 @@ def _run(uc, at, n, esi, df_act, dfa_addr):
     uc.reg_write(UC_X86_REG_ESI, esi)
     uc.reg_write(UC_X86_REG_ESP, STACK)
     uc.reg_write(UC_X86_REG_EFLAGS, 0x202)
-    if dfa_addr is not None:
-        uc.mem_write(dfa_addr, bytes([df_act]))
+    if dfa_addr is not None:                            # (DF_ACT, DF_DACT: DIFFICULTY level, DRIBBLING on)
+        uc.mem_write(dfa_addr, bytes([df_act[0]]))
+        uc.mem_write(dfa_addr + 24, bytes([df_act[1]]))
     uc.emu_start(B1 + at, B1 + at + n, count=400)
     return [uc.reg_read(r) for r in regs], uc.reg_read(UC_X86_REG_ESP), uc.reg_read(UC_X86_REG_EFLAGS) & 0x8D5
 
@@ -120,13 +128,13 @@ def test_difficulty():
         exe = _build(lang)
         uo, so, b2o, _ = _load(os.path.join(ORIG, f'{name}.EXE'))
         un, sn, b2n, B4 = _load(exe)
-        mem4 = bytes(un.mem_read(B4 + 0xF000, 0x1000))
+        mem4 = bytes(un.mem_read(B4 + DIFF_AT, 0x1000))
         k = mem4.find(df.TAG)
         if k < 0:
             errs.append(f'{lang}: no DIFF tag in obj4')
             continue
-        dfa = B4 + 0xF000 + k + 6
-        k3 = B4 + 0xF000 + mem4.find(struct.pack('<8H', *df.K3[0]))
+        dfa = B4 + DIFF_AT + k + 6
+        k3 = B4 + DIFF_AT + mem4.find(struct.pack('<8H', *df.K3[0]))
         kfail = None
 
         def run(key, at, n, case, esi=SPR, flags=False):
@@ -136,8 +144,8 @@ def test_difficulty():
                                      ('n5', un, sn, b2n)):
                 uc.mem_write(0, sn_)
                 _setup(uc, sym, case, B2)
-                act = {'o': None, 'n0': 0, 'n3': 3, 'n1': 1, 'n5': 5}[tag]
-                r = _run(uc, at, n, esi if esi != 'A6' else case.get('a6', TB), act or 0,
+                act = {'o': None, 'n0': (0, 0), 'n3': (3, 0), 'n1': (1, 1), 'n5': (5, 1)}[tag]
+                r = _run(uc, at, n, esi if esi != 'A6' else case.get('a6', TB), act or (0, 0),
                          None if act is None else dfa)
                 res[tag] = (r, _state(uc, sym, B2))
             n_cases += 1
@@ -199,29 +207,39 @@ def test_difficulty():
                     case = dict(a6=a6, pa=pa, pb=pb, speed=sp)
                     r = run('K4', s['CAR'], 37, case, flags=True)
                     for t, lv in (('n1', 0), ('n5', 4)):
-                        k = (df.USER, df.OPP)[side]['k'][lv] if side is not None else 4
+                        k = (df.USER, df.OPP)[side]['k'] if side is not None else 4
                         want = sp - (sp * k >> 5)
                         if u16(r[t], 0x22C) != want:
                             errs.append(f'{lang} K4 {case} {t}: {u16(r[t], 0x22C)}, want {want}')
                     r = run('K10', s['TU'], 6, case, flags=True)
                     for t, lv in (('n1', 0), ('n5', 4)):
-                        add = (df.USER, df.OPP)[side]['turn'][lv] if side is not None else 256
+                        add = (df.USER, df.OPP)[side]['turn'] if side is not None else 256
                         if u16(r[t], 0x22C) != sp + add:
                             errs.append(f'{lang} K10 {case} {t}: {u16(r[t], 0x22C)}, want {sp + add}')
+                carriers = [{}] + [dict(hb=1, cx=x, cy=y) for x in (176, 177, 300, 494, 495)
+                                   for y in (232, 233, 400, 665, 666)]
                 for dist in (100, 121, 150, 161, 199, 200, 201, 3200, 3201, 4400, 4401):
-                    case = dict(a6=a6, pa=pa, pb=pb, dist=dist)
-                    for key, site, f in (('K5', s['SL'], 'slide'),) + tuple(('K8', o, 'hold') for o in s['HOLD']):
-                        r = run(key, site, 7, case, flags=True)
-                        for t, lv in (('n1', 0), ('n5', 4)):
-                            lim = (df.USER, df.OPP)[side][f][lv] if side is not None else df.NORM[f]
-                            ja = not (r[t][0][2] & 1) and not (r[t][0][2] & 0x40)
-                            if ja != (dist > lim):
-                                errs.append(f'{lang} {key} {case} {t}: ja {ja}, limit {lim}')
-                for o in s['LOCK']:
+                    for cr in carriers:
+                        case = dict(a6=a6, pa=pa, pb=pb, dist=dist, **cr)
+                        sites = (('K5', s['SL'], 'slide'),) + (tuple(('K8', o, 'hold') for o in s['HOLD'])
+                                                               if not cr else ())
+                        for key, site, f in sites:
+                            r = run(key, site, 7, case, flags=True)
+                            for t, lv in (('n1', 0), ('n5', 4)):
+                                blk = (df.USER, df.OPP)[side] if side is not None else df.NORM
+                                lim = blk[f]
+                                ja = not (r[t][0][2] & 1) and not (r[t][0][2] & 0x40)
+                                gate = False
+                                if key == 'K5' and cr and blk['box']:
+                                    m, (cx, cy) = blk['box'], (cr['cx'], cr['cy'])
+                                    gate = 193 - m <= cx <= 478 + m and (cy <= 216 + m if a6 == TA else cy >= 682 - m)
+                                if ja != (dist > lim or gate):
+                                    errs.append(f'{lang} {key} {case} {t}: ja {ja}, limit {lim}, gate {gate}')
+                for o, fld in zip(s['LOCK'], ('lockw', 'lockl')):
                     case = dict(a6=a6, pa=pa, pb=pb)
                     r = run('K9', o, 9, case, esi=a6)
                     for t, lv in (('n1', 0), ('n5', 4)):
-                        want = (df.USER, df.OPP)[side]['lock'][lv] if side is not None else 12
+                        want = (df.USER, df.OPP)[side][fld] if side is not None else 12
                         got = u16(r[t], (a6 - SCR) + 0x8A)
                         if got != want:
                             errs.append(f'{lang} K9 {case} {t}: {got}, want {want}')

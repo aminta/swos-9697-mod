@@ -365,12 +365,12 @@ def patch_exe(src, dst, remap, lang='it'):
     import swreg
     swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, swreg.BOX_END // 0x1000)   # 4.2 shirtbox: se_unsh at the 13th page's top
     swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, swreg.SLOW_END // 0x1000)   # 4.2 slow (MC 12/11, 23bis exception): page 13
-    import difficulty
-    if difficulty.on():                                # 42-diff: the difficulty page (provisional DIFF_AT)
-        swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, swreg.DIFF_END // 0x1000)
     if xtra_on:                                        # 4.2.y T3 PRIMAVERA (MC 12/11, 23bis): its own page, the 14th
                                                        # (the pages between stay zero)
         swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, swreg.T3_END // 0x1000)
+    import difficulty
+    if difficulty.on():                                # 42-diff: difficulty's 2 KB on page 15 (MC 12/11)
+        swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, (swreg.DIFF_END + 0xFFF) // 0x1000)
     if lr_tabs:                                        # (the career league's head-to-head block)
         engine.save_item('LR', lrank.LR_SIZE, world_only=True)
         import swreg                                   # 4.2: a groups stage's state (engine ST, sr_stled.c; A1's room)

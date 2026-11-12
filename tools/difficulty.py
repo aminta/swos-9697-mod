@@ -39,7 +39,7 @@ TAG = b'DIFF'
 LABEL = {'it': "DIFFICOLTA'", 'en': 'DIFFICULTY', 'fr': 'DIFFICULTE', 'de': 'SCHWIERIGKEIT'}
 VALUES = {'it': ('NORMALE', 'FACILE', 'DIFFICILE'), 'en': ('NORMAL', 'EASY', 'HARD'),
           'fr': ('NORMAL', 'FACILE', 'DIFFICILE'), 'de': ('NORMAL', 'LEICHT', 'SCHWER')}   # (DF_W 0, 1, 2; 3 / 4 = L2 / L4,
-PITCH, HEIGHT, TOP = 10, 9, 18          # test values only: 'L2' / 'L4'); the 13 rows: y 18 + 10 k, 9 high (EXIT TO DOS 151)
+PITCH, HEIGHT, TOP = 9, 8, 18           # test values only: 'L2' / 'L4'); the 14 rows: y 18 + 9 k, 8 high (EXIT TO DOS 151)
 LVMAP = (3, 1, 5, 2, 4)                 # DF_W -> level
 #              L1      L2      L3      L4      L5
 K1 = (80, 90, 100, 105, 110)            # opposition skills %
@@ -47,13 +47,23 @@ K2 = (-2, -1, 0, 1, 2)                  # opposition keeper points
 K2B = (-1, 0, 0, 1, 2)                  # opposition keeper close-shot index shift
 K3 = ((9, 7, 6, 5, 4, 3, 2, 1), (7, 5, 4, 3, 2, 1, 1, 0), (6, 4, 3, 2, 1, 0, 0, 0), (5, 3, 2, 1, 1, 0, 0, 0),
       (4, 3, 2, 1, 0, 0, 0, 0))         # opposition pass errors of 16, by passing 0..7 (L3 = kAIFailedPassChance)
-NORM = dict(k=4, lock=12, turn=256, hold=3200, slide=200)
-USER = dict(k=(2, 3, 4, 3, 3), lock=(16, 16, 12, 14, 14), turn=(192, 224, 256, 224, 224), hold=(3200,) * 5,
-            slide=(200,) * 5)           # the human's side
-OPP = dict(k=(4,) * 5, lock=(12,) * 5, turn=(256,) * 5, hold=(4400, 4400, 3200, 4400, 4400),
-           slide=(120, 160, 200, 160, 160))   # the opposition's side
-for _t in (USER, OPP):
-    assert all(_t[f][2] == NORM[f] for f in NORM), 'L3 must be the original game'
+# DRIBBLING (Davide 12/11: a second option, independent of the difficulty; CLASSIC = the original game). One block per
+# side: BLK_N (the original values: CLASSIC, two humans, CPU v CPU), BLK_U (NEW, the human), BLK_O (NEW, the CPU team).
+#   k     carrier slowdown speed -= speed * k >> 5 (4 = the original shr 3; v1 0a88fa5: 2 for both teams)
+#   lockw wonTheBallTimer written on the WINNER of a contact (CalculateIfPlayerWinsBall; Panchina: the opponent of a
+#         team with a running timer cannot take the ball back): 16 when the human wins it
+#   lockl wonTheBallTimer written on the LOSER of a strong tackle (A0 = the tackler's opponent): 16 when the CPU lost it
+#   turn  the ball's run-ahead on a sharp turn (256 = the original; lower = the ball stays closer)
+#   box   CPU slide gate: no slide while the carrier is inside the CPU's own penalty area + box px (0 = off; Davide's
+#         playtest 12/11: a penalty after every dribble in the box). Every foul in the area is a penalty.
+#   hold  second-chaser hold-back radius (sq px), slide the CPU slide radius (sq px)
+FIELDS = ('k', 'lockw', 'lockl', 'turn', 'box', 'hold', 'slide')
+NORM = dict(k=4, lockw=12, lockl=12, turn=256, box=0, hold=3200, slide=200)
+USER = dict(NORM, k=2, lockw=16, turn=224)
+OPP = dict(NORM, lockl=16, box=16, hold=4400, slide=160)
+DRLABEL = {'it': 'DRIBBLING', 'en': 'DRIBBLING', 'fr': 'DRIBBLE', 'de': 'DRIBBLING'}
+DRVALUES = {'it': ('CLASSICO', 'NUOVO'), 'en': ('CLASSIC', 'NEW'), 'fr': ('CLASSIQUE', 'NOUVEAU'),
+            'de': ('KLASSISCH', 'NEU')}
 assert K1[2] == 100 and K2[2] == 0 and K2B[2] == 0 and K3[2] == (6, 4, 3, 2, 1, 0, 0, 0)
 
 ASM = r"""
@@ -76,6 +86,16 @@ df_kick:
     jne .s
 .z: xor eax, eax
 .s: mov [DF_ACT], al
+    xor eax, eax                        ; DRIBBLING: the same gates (SWOS++, a training game)
+    cmp byte [SWOSPP], 0FFh
+    jne .d
+    cmp word [TRG], 0
+    jne .d
+    mov ax, [DF_DR]
+    cmp ax, 1
+    jbe .d
+    xor eax, eax
+.d: mov [DF_DACT], al
     inc dword [DF_KICKS]
     pop eax
     mov dword [A6_], T1APP
@@ -174,22 +194,19 @@ df_who:
 .x: pop ecx
     ret
 
-; ---- in ebx = TeamGeneralInfo; out ebx = its side's block (BLK_N, or the level's human / opposition row)
+; ---- in ebx = TeamGeneralInfo; out ebx = its side's DRIBBLING block (BLK_N; NEW: BLK_U the human, BLK_O the CPU)
 df_blk:
-    cmp byte [DF_ACT], 0
+    cmp byte [DF_DACT], 0
     je .n
     push eax
     call df_who
     test al, al
     jz .n0
-    movzx ebx, byte [DF_ACT]
-    dec ebx
+    mov ebx, BLK_U
     cmp al, 2
     jne .u
-    add ebx, 5
-.u: shl ebx, 4
-    add ebx, BLK_U
-    pop eax
+    mov ebx, BLK_O
+.u: pop eax
     ret
 .n0:
     pop eax
@@ -228,7 +245,7 @@ df_goal:
     cmp al, 2
     jne .p
     movzx ebx, byte [DF_ACT]
-    movsx ax, byte [K2BT - 1 + ebx]
+    movsx ax, byte [K2BT - 1 + ebx]     ; (the index clamped to goalScoredChances' 15 bytes, 0..14)
     test ax, ax
     jz .p
     sub [D1_], ax
@@ -264,27 +281,91 @@ df_hold:
     push ebx
     mov ebx, [A6_]
     call df_blk
-    mov ebx, [ebx + 8]
-    cmp [esi + 4Ah], ebx
-    pop ebx
-    ret
-
-; ---- K5: the CPU slide (replaces `cmp dword [esi + Sprite.ballDistance], 200`; A6 the tackler's team)
-df_slide:
-    push ebx
-    mov ebx, [A6_]
-    call df_blk
     mov ebx, [ebx + 12]
     cmp [esi + 4Ah], ebx
     pop ebx
     ret
 
-; ---- K9: the won-the-ball protection (replaces `mov word [esi + TeamGeneralInfo.wonTheBallTimer], 12`; esi the team)
-df_lock:
+; ---- K5: the CPU slide (replaces `cmp dword [esi + Sprite.ballDistance], 200`, then `ja @@out`; A6 the tackler's
+;      team, esi = A1 the tackler). K11: no slide while the carrier is in this team's own penalty area (+ box px):
+;      every foul there is a penalty (PlayerTacklingTestFoul's area: x 193..478, y <= 216 top team / >= 682 bottom).
+df_slide:
+    push ebx
+    mov ebx, [A6_]
+    call df_blk
+    cmp word [ebx + 8], 0
+    jne .g
+.c: mov ebx, [ebx + 16]
+    cmp [esi + 4Ah], ebx
+    pop ebx
+    ret
+.g: push eax
+    push ecx
+    push edx
+    push edi
+    mov eax, [ebx + 16]                 ; (outside the radius: no slide anyway, not counted)
+    cmp [esi + 4Ah], eax
+    ja .gn
+    movzx edx, word [ebx + 8]
+    mov ecx, [A6_]
+    mov edi, [ecx]                      ; (opponentsTeam)
+    cmp word [edi + 28h], 0             ; (playerHasBall)
+    je .gn
+    mov edi, [edi + 20h]                ; (controlledPlayer)
+    test edi, edi
+    jz .gn
+    movsx eax, word [edi + 20h]         ; (Sprite.x + 2)
+    mov ecx, 193
+    sub ecx, edx
+    cmp eax, ecx
+    jl .gn
+    lea ecx, [478 + edx]
+    cmp eax, ecx
+    jg .gn
+    movsx eax, word [edi + 24h]         ; (Sprite.y + 2)
+    mov ecx, [A6_]
+    cmp ecx, [ecx]                      ; top team (topTeamData < bottomTeamData = its opponent)?
+    ja .bt
+    lea ecx, [216 + edx]
+    cmp eax, ecx
+    jg .gn
+    jmp .gy
+.bt:mov ecx, 682
+    sub ecx, edx
+    cmp eax, ecx
+    jl .gn
+.gy:inc dword [DF_NOSL]
+    pop edi
+    pop edx
+    pop ecx
+    pop eax
+    pop ebx
+    push eax
+    mov eax, 1
+    cmp eax, 0                          ; (CF = ZF = 0: `ja @@out` taken)
+    pop eax
+    ret
+.gn:pop edi
+    pop edx
+    pop ecx
+    pop eax
+    jmp .c
+
+; ---- K9: the won-the-ball protection (replaces `mov word [esi + TeamGeneralInfo.wonTheBallTimer], 12`; esi the team:
+;      df_lockw the contact's winner (CalculateIfPlayerWinsBall), df_lockl a strong tackle's loser)
+df_lockw:
     push ebx
     mov ebx, esi
     call df_blk
     mov bx, [ebx + 2]
+    mov [esi + 8Ah], bx
+    pop ebx
+    ret
+df_lockl:
+    push ebx
+    mov ebx, esi
+    call df_blk
+    mov bx, [ebx + 4]
     mov [esi + 8Ah], bx
     pop ebx
     ret
@@ -294,7 +375,7 @@ df_turn:
     push ebx
     mov ebx, [A6_]
     call df_blk
-    mov bx, [ebx + 4]
+    mov bx, [ebx + 6]
     add [esi + 2Ch], bx
     pop ebx
     ret
@@ -304,19 +385,25 @@ TAGW: db 'DIFF'                         ; (+0; the harness finds the block by th
 DF_W: dw DF_START                       ; +4 the option: 0 NORMAL, 1 L1, 2 L5, 3 L2, 4 L4 (a word: the game's string
                                         ;    table reads one; the save item 'DF' = its low byte)
 DF_ACT: db 0                            ; +6 this match's level, 0 = off
-DF_SH: db DF_START                      ; +7 the session's value (a new career zeroes the item)
+DF_SH: db DF_START | (DR_START << 4)    ; +7 the session's DF_SV (a new career zeroes the item)
 DF_KICKS: dd 0                          ; +8 kick-offs seen
 DF_SEED: db 0, 0, 0, 0, 0, 0            ; +12 DIFF_TRACE: both random generators' states at the kick-off (Rand, Rand2)
 DF_CTL: db 0, 0                         ; +18 DIFF_TRACE: teamControls forced on team 1 / 2 at the kick-off (0 = as is)
 DF_FRAMES: dd 0                         ; +20 DIFF_TRACE: live-match frames since the kick-off
 DF_HASH: dd 0                           ; +24 DIFF_TRACE: FNV-1a of every frame's 23 sprites' x / y / z + the RNG states
-DF_CK: times 64 dd 0                    ; +28 DIFF_TRACE: DF_HASH every 256 frames (ring)
+DF_DR: dw DR_START                      ; +28 the DRIBBLING option: 0 CLASSIC, 1 NEW (a word: the string table)
+DF_DACT: db 0                           ; +30 this match's DRIBBLING, 0 = off
+DF_SV: db DF_START | (DR_START << 4)    ; +31 the save item 'DF': DIFFICULTY | DRIBBLING << 4
+DF_NOSL: dd 0                           ; +32 K11: CPU slides skipped in the own area (counter)
+DF_PP: dw 0                             ; +36 DIFF_TRACE: the previous frame's `penalty`
+DF_PENS: dw 0                           ; +38 DIFF_TRACE: penalties awarded since the kick-off (rising edges)
+DF_CK: times 8 dd 0                     ; +40 DIFF_TRACE: DF_HASH every 2048 frames (ring of 8: 16384 frames)
 LVMAP: db 3, 1, 5, 2, 4
 align 2
 """
 
 ASM_ROW = r"""
-; ---- the OPTIONS row DIFFICULTY (entries 28 / 29 after slow's 26 / 27); 13 rows at a 10 px pitch, 9 high
+; ---- the OPTIONS rows DIFFICULTY (entries 28 / 29) and DRIBBLING (30 / 31) after slow's 26 / 27; 14 rows at PITCH
 df_init:
     call PREV_INIT
     jmp df_add
@@ -324,7 +411,7 @@ df_ret:
     call PREV_RET
 df_add:
     pushad
-    cmp byte [SWOSPP], 0FFh             ; SWOS++ running: no row (the level stays NORMAL there: df_kick)
+    cmp byte [SWOSPP], 0FFh             ; SWOS++ running: no rows (both options stay off there: df_kick)
     jne .x
     mov ebx, MENU_
     cmp word [ebx + 10h], 28            ; (slow's 28 entries, nothing after them)
@@ -332,7 +419,10 @@ df_add:
     lea eax, [ebx + 16h + 28 * 38h]
     cmp [ebx + 12h], eax
     jne .x
-    mov edi, eax                        ; entries 28 / 29 = copies of slow's row (26 / 27)
+    mov edi, eax                        ; entries 28 / 29 and 30 / 31 = copies of slow's row (26 / 27)
+    lea esi, [ebx + 16h + 26 * 38h]
+    mov ecx, 2 * 38h
+    rep movsb
     lea esi, [ebx + 16h + 26 * 38h]
     mov ecx, 2 * 38h
     rep movsb
@@ -342,35 +432,46 @@ df_add:
     mov word [edi + 38h + 2], 29
     mov dword [edi + 38h + 26h], TAB_D
     mov dword [edi + 38h + 2Ah], df_tog
-    movzx ecx, byte [ebx + 16h + 27 * 38h + 0Bh]   ; (27's down: EXIT TO DOS - now 29's)
-    mov byte [edi + 38h + 0Ah], 27
-    mov [edi + 38h + 0Bh], cl
+    mov word [edi + 2 * 38h + 2], 30
+    mov dword [edi + 2 * 38h + 26h], S_RLBL
+    mov word [edi + 3 * 38h + 2], 31
+    mov dword [edi + 3 * 38h + 26h], TAB_R
+    mov dword [edi + 3 * 38h + 2Ah], df_rtog
+    movzx ecx, byte [ebx + 16h + 27 * 38h + 0Bh]   ; (27's down: EXIT TO DOS - now 31's)
+    mov byte [edi + 38h + 0Ah], 27      ; 27 -> 29 -> 31 -> EXIT TO DOS
+    mov byte [edi + 38h + 0Bh], 31
     mov byte [edi + 38h + 12h], 27
-    mov [edi + 38h + 13h], cl
+    mov byte [edi + 38h + 13h], 31
+    mov byte [edi + 3 * 38h + 0Ah], 29
+    mov [edi + 3 * 38h + 0Bh], cl
+    mov byte [edi + 3 * 38h + 12h], 29
+    mov [edi + 3 * 38h + 13h], cl
     mov byte [ebx + 16h + 27 * 38h + 0Bh], 29
     mov byte [ebx + 16h + 27 * 38h + 13h], 29
     cmp cl, 0FFh
     je .n
-    imul ecx, ecx, 38h                  ; (and the entry below: up 27 -> 29)
+    imul ecx, ecx, 38h                  ; (and the entry below: up 27 -> 31)
     lea ecx, [ebx + 16h + ecx]
     cmp byte [ecx + 0Ah], 27
     jne .u
-    mov byte [ecx + 0Ah], 29
+    mov byte [ecx + 0Ah], 31
 .u: cmp byte [ecx + 12h], 27
     jne .n
-    mov byte [ecx + 12h], 29
-.n: mov word [ebx + 10h], 30
-    add dword [ebx + 12h], 2 * 38h
-    lea esi, [ebx + 16h]                ; every row at slow's pitch (y TOP + 11 * k, 140 wide; ours at k = 12 once
-    mov ecx, 30                         ; copied: 26's y + 11) -> y TOP + PITCH * k, HEIGHT high
+    mov byte [ecx + 12h], 31
+.n: mov word [ebx + 10h], 32
+    add dword [ebx + 12h], 4 * 38h
+    lea esi, [ebx + 16h]                ; every row at slow's pitch (y TOP + 11 * k, 140 wide; ours at k = 12 / 13
+    mov ecx, 32                         ; once copied: 26's y + 11 / + 22) -> y TOP + PITCH * k, HEIGHT high
     add word [ebx + 16h + 28 * 38h + 16h], 11
     add word [ebx + 16h + 29 * 38h + 16h], 11
+    add word [ebx + 16h + 30 * 38h + 16h], 22
+    add word [ebx + 16h + 31 * 38h + 16h], 22
 .c: cmp word [esi + 18h], 140
     jne .cn
     movzx eax, word [esi + 16h]
     sub eax, TOP
     jb .cn
-    cmp eax, 12 * 11
+    cmp eax, 13 * 11
     ja .cn
     xor edx, edx
     mov edi, 11
@@ -386,7 +487,7 @@ df_add:
 .x: popad
     ret
 
-df_tog:                                 ; the value (fire): NORMAL -> HARD -> EASY -> NORMAL (L2 / L4: back to NORMAL)
+df_tog:                                 ; DIFFICULTY (fire): NORMAL -> HARD -> EASY -> NORMAL (L2 / L4: back to NORMAL)
     mov ax, [DF_W]
     cmp ax, 0
     jne .a
@@ -398,22 +499,42 @@ df_tog:                                 ; the value (fire): NORMAL -> HARD -> EA
     jmp .s
 .b: xor eax, eax
 .s: mov [DF_W], ax
-    mov [DF_SH], al
+    call df_pack
     jmp DRAWITEM
-
-df_load:                                ; after a career load: the save's level (0 = NORMAL without the item 'DF')
-    mov al, [DF_W]
-    cmp al, 4
-    jbe .s
-    xor eax, eax
-    mov [DF_W], ax
-.s: mov byte [DF_W + 1], 0
+df_rtog:                                ; DRIBBLING (fire): CLASSIC <-> NEW
+    mov ax, [DF_DR]
+    xor ax, 1
+    and ax, 1
+    mov [DF_DR], ax
+    call df_pack
+    jmp DRAWITEM
+df_pack:                                ; DF_SV = DF_SH = DIFFICULTY | DRIBBLING << 4
+    push eax
+    mov al, [DF_DR]
+    shl al, 4
+    or al, [DF_W]
+    mov [DF_SV], al
     mov [DF_SH], al
+    pop eax
     ret
-df_new:                                 ; after a new career's defaults (its items zeroed): the session's level back
-    movzx ax, byte [DF_SH]
-    mov [DF_W], ax
-    ret
+
+df_load:                                ; after a career load: the save's options (0 = NORMAL + CLASSIC without 'DF')
+    mov al, [DF_SV]
+    jmp df_unp
+df_new:                                 ; after a new career's defaults (its items zeroed): the session's options back
+    mov al, [DF_SH]
+df_unp:
+    push eax
+    and eax, 0Fh
+    cmp al, 4
+    jbe .w
+    xor eax, eax
+.w: mov [DF_W], ax
+    pop eax
+    shr al, 4
+    and eax, 1
+    mov [DF_DR], ax
+    jmp df_pack
 """
 
 ASM_T = r"""
@@ -441,9 +562,10 @@ df_tkick:
     movsb
     xor eax, eax
     mov [DF_FRAMES], eax
+    mov [DF_PP], eax
     mov dword [DF_HASH], 2166136261
     mov edi, DF_CK
-    mov ecx, 64
+    mov ecx, 8
     rep stosd
     popad
     ret
@@ -471,13 +593,20 @@ df_frame:
     mov ecx, 3
     call df_fnv
     mov [DF_HASH], eax
-    mov ebx, [DF_FRAMES]
+    mov ax, [PEN]                       ; (a penalty: `penalty` 0 -> non-zero)
+    cmp ax, [DF_PP]
+    je .np
+    mov [DF_PP], ax
+    test ax, ax
+    jz .np
+    inc word [DF_PENS]
+.np:mov ebx, [DF_FRAMES]
     inc ebx
     mov [DF_FRAMES], ebx
-    test bl, bl
+    test ebx, 7FFh
     jnz .x
-    shr ebx, 8
-    and ebx, 63
+    shr ebx, 11
+    and ebx, 7
     mov [DF_CK + ebx * 4], eax
 .x: popad
     ret
@@ -496,9 +625,9 @@ def trace():
     return bool(os.environ.get('DIFF_TRACE'))
 
 
-def _blk(t, i):
-    g = (lambda f: t[f][i]) if i is not None else (lambda f: t[f])
-    return struct.pack('<HHHHII', g('k'), g('lock'), g('turn'), 0, g('hold'), g('slide'))
+def _blk(t):
+    """32 B: k +0, lockw +2, lockl +4, turn +6, box +8, hold +12, slide +16."""
+    return struct.pack('<HHHHIII12x', *(t[f] for f in FIELDS))
 
 
 def data_asm():
@@ -506,9 +635,7 @@ def data_asm():
     out = 'K1T: dw ' + ', '.join(map(str, K1)) + '\n'
     out += 'K2T: db ' + ', '.join(str(v & 0xff) for v in K2) + '\n'
     out += 'K2BT: db ' + ', '.join(str(v & 0xff) for v in K2B) + '\n'
-    out += 'align 16\nBLK_N: ' + db(_blk(NORM, None))
-    out += 'BLK_U: ' + ''.join(db(_blk(USER, i)) for i in range(5))      # (BLK_U + 16 * (level - 1); the opposition's
-    out += ''.join(db(_blk(OPP, i)) for i in range(5))                  # rows follow: + 80)
+    out += 'align 16\nBLK_N: ' + db(_blk(NORM)) + 'BLK_U: ' + db(_blk(USER)) + 'BLK_O: ' + db(_blk(OPP))
     out += 'K3T: ' + ''.join('dw ' + ', '.join(map(str, r)) + '\n' for r in K3)
     return out
 
@@ -527,9 +654,15 @@ def start_w():
     return LVMAP.index(lv)
 
 
+def start_dr():
+    v = int(os.environ.get('DIFF_DRIB', '0') or '0')
+    assert v in (0, 1), 'DIFF_DRIB=0 (CLASSIC) / 1 (NEW)'
+    return v
+
+
 def _one(pat, d, name, n=1):
     m = [x.start() for x in re.finditer(pat, d, re.S)]
-    assert len(m) == n, (name, [hex(x) for x in m])
+    assert n is None or len(m) == n, (name, [hex(x) for x in m])
     return m
 
 
@@ -608,7 +741,7 @@ def patch(p, lang):
         assert prev == [(4, slow.LABELS['sl_init']), (4, slow.LABELS['sl_ret'])], ('OPTIONS init / return', prev)
         sym.update(PREV_INIT=prev[0], PREV_RET=prev[1], MENU_=zones._current_menu(p),
                    DRAWITEM=(1, cpucards.find(p)['DRAWITEM']))
-        for t in (LABEL[lang],) + VALUES[lang]:
+        for t in (LABEL[lang], DRLABEL[lang]) + VALUES[lang] + DRVALUES[lang]:
             assert px(t) <= 138 and re.fullmatch(r"[A-Z ']+", t), t
     if tr:
         import slow
@@ -630,6 +763,11 @@ def patch(p, lang):
         assert bs, 'mov A1, offset ballSprite'
         ball = p.target(1, bs[0] + 6)
         sym['SPR0'] = (ball[0], ball[1] - 22 * 0x6E)         # (goalie1Sprite .. team2Player11Sprite, ballSprite)
+        pn = _one(rb'\x66\xa1....\x66\x0b\xc0\x74.\x66\xc7\x05....\x01\x00', d, 'GoalScored penalty', None)
+        pn = [o for o in pn if _t(p, o + 14) == sym['D1_'] and d[o - 9:o - 6] == b'\x66\xc7\x05'
+              and d[o - 2:o] == b'\x02\x00' and _t(p, o - 6) == sym['D1_']]   # (after D1 = GT_OWN_GOAL)
+        assert len(pn) == 1, ('penalty', pn)
+        sym['PEN'] = p.target(1, pn[0] + 2)
     orig = {k: p.get(1, s[k], n) for k, n in (('SC', 13), ('GK', 11), ('PS', 10), ('GL', 8), ('SL', 7), ('TU', 6),
                                               ('CAR', 37), ('KICK', 10))}
     assert orig['GL'][:3] == b'\x66\x83\x05' and orig['TU'] == b'\x66\x81\x46\x2c\x00\x01', 'sites already patched'
@@ -639,8 +777,10 @@ def patch(p, lang):
     if row:
         v = VALUES[lang] + ('L2', 'L4')
         strs = (f'S_LBL: db {db(LABEL[lang])}\n' + ''.join(f'S_V{i}: db {db(t)}\n' for i, t in enumerate(v))
-                + 'align 4\nTAB_D: dd DF_W\n    dw 0\n    dd ' + ', '.join(f'S_V{i}' for i in range(5)) + '\n')
-    src = (f'%define DIFF_FORCE {int(force)}\n%define DIFF_TRACE {int(tr)}\n%define DF_START {start_w()}\n'
+                + 'align 4\nTAB_D: dd DF_W\n    dw 0\n    dd ' + ', '.join(f'S_V{i}' for i in range(5)) + '\n'
+                + f'S_RLBL: db {db(DRLABEL[lang])}\n' + ''.join(f'S_R{i}: db {db(t)}\n' for i, t in enumerate(DRVALUES[lang]))
+                + 'align 4\nTAB_R: dd DF_DR\n    dw 0\n    dd S_R0, S_R1\n')
+    src = (f'%define DIFF_FORCE {int(force)}\n%define DIFF_TRACE {int(tr)}\n%define DF_START {start_w()}\n%define DR_START {start_dr()}\n'
            f'%define TOP {TOP}\n%define PITCH {PITCH}\n%define HEIGHT {HEIGHT}\n' + ASM
            + (ASM_ROW if row else '') + (ASM_T if tr else '') + data_asm() + strs)
     code, fix, rel = nasmcave.assemble_obj(src, at, sym, 4)
@@ -662,14 +802,14 @@ def patch(p, lang):
     if knobs():
         for o in s['HOLD']:
             _hook(p, o, 7, 7, lab['df_hold'])
-        for o in s['LOCK']:
-            _hook(p, o, 9, 9, lab['df_lock'])
+        for o, l in zip(s['LOCK'], ('df_lockw', 'df_lockl')):
+            _hook(p, o, 9, 9, lab[l])
     if row:
         for k, l in ((0, 'df_init'), (4, 'df_ret')):
             p.retarget(2, hdr + k, 4, lab[l])
             p.put(2, hdr + k, struct.pack('<I', lab[l]))
         import engine
-        engine.ITEM_AT['DF'] = (4, lab['DF_W'])
+        engine.ITEM_AT['DF'] = (4, lab['DF_SV'])
         engine.CALL_AT['df_load'] = (4, lab['df_load'])
         engine.CALL_AT['df_new'] = (4, lab['df_new'])
     if tr:

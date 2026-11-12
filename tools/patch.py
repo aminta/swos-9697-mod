@@ -35,6 +35,7 @@ import menunum
 import avgprice
 import opsign
 import subcard
+import dribble
 import joyfix
 import fmtpage
 import menumusic
@@ -628,6 +629,7 @@ def patch_exe(src, dst, remap, lang='it'):
     cos = avgprice.patch(p, cos)                 # 3.3.4: average player price >= 1 (divide error, 1984-85 Iceland)
     opsign.patch(p)                              # 4.2: the season-end opinion's ratio signed (cdq)
     subcard.patch(p)                             # 4.2 (Marco): a booked player on a carried yellow can be substituted
+    dribble.patch(p)                             # 4.2 DRIBBLING test (DRIBBLE_TEST=1 only; calm-match-study.md)
     import devname                               # 4.0.2: DOS device names (CON, PRN, AUX ...) refused as save names
     devname.patch(p, lang)
     joyfix.patch(p)                              # 4.0.1: ReadSetupDat -> VerifyJoypadControls (no pad + controls != 1 = frozen menus)

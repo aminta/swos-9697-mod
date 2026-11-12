@@ -268,7 +268,9 @@ def patch(p, lang):
            'PREV_BOOT': (1, vj)}
     code, fix, rel = nasmcave.assemble_obj(src, at, sym, 4)
     lab = nasmcave.labels(src, at, sym)
-    assert at + len(code) <= swreg.SLOW_END, ('slow: past its obj4 page', hex(at + len(code)))
+    top = getattr(swreg, 'BOX_AT', swreg.SLOW_END)      # (4.2 shirtbox, MC 12/11: obj4 BOX_AT 0xCF00..BOX_END 0xD000 is
+    assert swreg.SLOW_AT <= top and getattr(swreg, 'BOX_END', top) <= swreg.SLOW_END   # the top of this page)
+    assert at + len(code) <= top, ('slow: past its obj4 room', hex(at + len(code)), hex(top))
     assert p.le.obj(4).npages * 0x1000 >= swreg.SLOW_END, 'slow: obj4 pages (patch.py)'
     assert not any(p.get(4, at, len(code))), 'slow: obj4 page not free'
     p.put(4, at, code)

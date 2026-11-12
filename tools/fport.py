@@ -228,6 +228,20 @@ def check(fx, wins, live=lambda cond: True):
     return None
 
 
+def canonical(w):
+    """the cross-check form (fport vs swcc, OpenSWOS milestone C): {cc: {div: [[B, E, user, cond], ...]}} with
+    divisions as strings, each list sorted by (B, E, user), END = 65535, cond null / 'entrant' / 'alive'; user =
+    '<kind>:<key>' ('dplay' alone), kind in dplay / promotion / playout / placement / title / europe / continental /
+    stage / supercup / cupd"""
+    out = {}
+    for cc, ds in sorted(w.items()):
+        out[cc] = {str(d): sorted([list(x) for x in ws], key=lambda x: (x[0], x[1], x[2]))
+                   for d, ws in ds.items() if d != 'unresolved' and ws}
+        if 'unresolved' in ds:
+            out[cc]['unresolved'] = ds['unresolved']
+    return out
+
+
 def world(src, exe=None):
     """{country id: {division: windows}} for a world snapshot dir (packs as <cc>/pack.json)"""
     out = {}
@@ -243,7 +257,11 @@ def world(src, exe=None):
 if __name__ == '__main__':
     import sys
     sys.path.insert(0, HERE)
-    src = sys.argv[1] if len(sys.argv) > 1 else os.path.join(MAIN, 'internal', 'world2526', 'world5tm-h2')
+    args = [a for a in sys.argv[1:] if not a.startswith('--')]
+    src = args[0] if args else os.path.join(MAIN, 'internal', 'world2526', 'world5tm-h2')
+    if '--json' in sys.argv:                     # (the cross-check file: python3 tools/fport.py --json <world dir>)
+        print(json.dumps(canonical(world(src)), indent=1, sort_keys=True))
+        sys.exit(0)
     for cc, ds in world(src).items():
         for d, ws in ds.items():
             if d == 'unresolved':

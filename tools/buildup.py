@@ -117,9 +117,11 @@ bu_opp:
 
 ; ---- G1 (replaces `mov ax, AI_rand` at @@keepers_ball; then `mov D0, ax / and D0, 1 / jz pass`)
 bu_g1:
+    DBG 5
     mov ax, [AIRAND]
     call bu_opp
     jne .o
+    DBG 6
     push esi
     push edx
     push eax
@@ -150,6 +152,7 @@ bu_g1:
 
 ; ---- H1 (replaces `cmp dword [D6], 180000`; then `ja hoof`)
 bu_h1:
+    DBG 7
     push eax
     mov eax, 180000
     cmp [D6_], eax
@@ -168,6 +171,7 @@ bu_h1:
 
 ; ---- P1 (replaces `cmp dword [D6], 9800`; then `jb run at the goal`)
 bu_p1:
+    DBG 0
     cmp dword [D6_], P1_NEAR
     jb .o
     cmp dword [D6_], P1_FAR
@@ -178,18 +182,22 @@ bu_p1:
     jae .o
     cmp word [AIRPT], 0
     jne .o
+    DBG 1
     call bu_opp
     jne .o
+    DBG 2
     push esi
     push edx
     push eax
     call bu_find
     test esi, esi
     jz .n
+    DBG 3
     cmp edx, P1_MIN
     jb .n
     cmp edx, P1_MAX
     ja .n
+    DBG 4
     call bu_free
     test al, al
     jz .n
@@ -246,6 +254,9 @@ BU_P1: dd 0                             ; +12 unpressed passes
 BU_CNT: times 8 dw 0                    ; +16 DIFF_TRACE [top, bottom][pass, kick, keeper pass, keeper kick]
 BU_PKT: dw 0, 0                         ; +32
 BU_R: dd 0
+%if DIFF_TRACE
+BU_DBG: times 8 dd 0                    ; +36 DIFF_TRACE: diagnostics, stages reached
+%endif
 BU_D: dd 0
 BU_SV: times 12 dd 0
 """
@@ -303,7 +314,8 @@ def patch(p, lang, sym, lab_df, at, end):
             if df0._t(p, x.start() + 2) == (2, sym['D0_'][1] + 4 * 11)]
     assert tops, 'FindClosestPlayerToBallFacing: mov A3, offset topTeamData'
     s['TOPT'] = p.target(1, tops[0] + 6)
-    defs = f'%define DIFF_TRACE {int(df0.trace())}\n' + ''.join(f'%define {k} {v}\n' for k, v in (('G1_DIST', G1_DIST), ('G1_LOOK', G1_LOOK), ('FREE', FREE),
+    defs = (f'%define DIFF_TRACE {int(df0.trace())}\n%macro DBG 1\n%if DIFF_TRACE\n    inc dword [BU_DBG + 4 * %1]\n'
+            '%endif\n%endmacro\n') + ''.join(f'%define {k} {v}\n' for k, v in (('G1_DIST', G1_DIST), ('G1_LOOK', G1_LOOK), ('FREE', FREE),
                                                          ('H1_DEEP', H1_DEEP), ('P1_NEAR', P1_NEAR), ('P1_FAR', P1_FAR),
                                                          ('P1_P', P1_P), ('P1_MIN', P1_MIN), ('P1_MAX', P1_MAX)))
     src = defs + ASM
@@ -317,8 +329,10 @@ def patch(p, lang, sym, lab_df, at, end):
     for o, t_obj, t_off in rel:
         p.add_rel(4, at + o, t_obj, t_off)
     import difficulty as df
+    skip = set(filter(None, os.environ.get('DIFF_SKIP', '').split(',')))   # (test bisection)
     for key, n, l in (('G1', 6, 'bu_g1'), ('H1', 10, 'bu_h1'), ('P1', 10, 'bu_p1')):
-        df._hook(p, sites[key], n, n, lab[l])
+        if key not in skip:
+            df._hook(p, sites[key], n, n, lab[l])
     LABELS.clear()
     LABELS.update(lab)
     SITES.clear()

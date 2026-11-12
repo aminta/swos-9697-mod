@@ -31531,7 +31531,7 @@ def statespec_test():
 
 # ---- 42-diff: selectable difficulty (tools/difficulty.py; internal/handoff/difficulty-plan.md) ----------------------
 DIFF_OFF = dict(W=4, ACT=6, KICKS=8, SEED=12, CTL=18, FRAMES=20, HASH=24, DR=28, DACT=30, SV=31, NOSL=32, PENS=38, CK=40)
-DIFF_CKN, DIFF_CKF = 8, 2048                    # checkpoints in the ring, frames between two
+DIFF_CKN, DIFF_CKF = 8, 1 << int(os.environ.get('DIFF_CKSH', '11'))   # ring size, frames between two (build: DIFF_CKSH)
 
 
 def diff_block(r):
@@ -31615,7 +31615,7 @@ def diff_match(name, build, home, away, ctl, seed, level_w=0, frames=13000, poll
 def diff_ck_compare(a, b):
     """(equal, first differing checkpoint (every DIFF_CKF frames), checkpoints compared) over the frames both reached."""
     n = min(a['frames'], b['frames']) // DIFF_CKF
-    n = min(n, DIFF_CKN)
+    n = min(n, DIFF_CKN - 1)
     for k in range(1, n + 1):
         if a['ck'][k % DIFF_CKN] != b['ck'][k % DIFF_CKN]:
             return False, k, n
@@ -31632,16 +31632,24 @@ def diff_trace():
     must equal it. PASS = every 2048-frame checkpoint of the hash (23 sprites' x / y / z + both RNG states) equal over the whole match (>= DIFF_FRAMES,
     default 13000 frames). SWOSTEST_UI picks the language (the friendly walk: IT / EN)."""
     lang = os.environ.get('SWOSTEST_UI', 'it')
-    ref = build('diff_ref', {'DIFF_TRACE': '1'}, lang=lang)
-    new = build('diff_new', {'DIFF_TRACE': '1', 'DIFF_TEST': '3'}, lang=lang)
+    sh = {'DIFF_CKSH': os.environ['DIFF_CKSH']} if os.environ.get('DIFF_CKSH') else {}
+    sh['DIFF_SKIP'] = os.environ.get('DIFF_SKIP', 'BUFRAME')   # (NEW only. BUFRAME: the build-up's per-frame
+    # counters are trace-only code whose CPU cost alone shifts a still timer-driven part of the match: 13/11 bisection)
+    ref = build('diff_ref', {'DIFF_TRACE': '1', **{k: v for k, v in sh.items() if k != 'DIFF_SKIP'}}, lang=lang)
+    new = build('diff_new', {'DIFF_TRACE': '1', 'DIFF_TEST': '3', **sh}, lang=lang)
     seed = bytes.fromhex(os.environ.get('DIFF_SEED', '0102030405a6'))
     frames = int(os.environ.get('DIFF_FRAMES', '13000'))
     ctls = dict(hc=(2, 1), cc=(1, 1), hh=(2, 2))
     errs, info = [], []
     for pr in os.environ.get('DIFF_PAIRS', 'hc,cc,hh').split(','):
         a = diff_match(f'diff_trace_{pr}_ref', ref, 'HAMBURG', 'SCHALKE', ctls[pr], seed, 0, frames)
-        runs = [('NORMAL', diff_match(f'diff_trace_{pr}_new', new, 'HAMBURG', 'SCHALKE', ctls[pr], seed, 0, frames))]
-        if pr in ('cc', 'hh'):
+        if os.environ.get('DIFF_SELF'):                 # (the harness's own determinism: REF twice)
+            runs = [('REF again', diff_match(f'diff_trace_{pr}_ref2', ref, 'HAMBURG', 'SCHALKE', ctls[pr], seed, 0,
+                                             frames))]
+        else:
+            runs = [('NORMAL', diff_match(f'diff_trace_{pr}_new', new, 'HAMBURG', 'SCHALKE', ctls[pr], seed, 0,
+                                          frames))]
+        if pr in ('cc', 'hh') and not os.environ.get('DIFF_SELF'):
             runs.append(('EASY+NEW', diff_match(f'diff_trace_{pr}_easy', new, 'HAMBURG', 'SCHALKE', ctls[pr], seed,
                                                 1, frames, drib=1)))
         if a['errs'] or 'ck' not in a:
@@ -31652,9 +31660,9 @@ def diff_trace():
                 errs.append(f'{pr} {tag}: {b["errs"]}')
                 continue
             eq, k, n = diff_ck_compare(a, b)
-            check(eq and n * DIFF_CKF >= frames - DIFF_CKF, f'{pr} {tag}: differs at checkpoint {k} (frame {k * DIFF_CKF if k else "-"})'
+            check(eq and n * DIFF_CKF >= min(frames, (DIFF_CKN - 1) * DIFF_CKF) - DIFF_CKF, f'{pr} {tag}: differs at checkpoint {k} (frame {k * DIFF_CKF if k else "-"})'
                   f' of {n}; frames {a["frames"]} / {b["frames"]}', errs)
-            info.append(f'{pr} {tag}: {n} checkpoints equal (frames {a["frames"]} / {b["frames"]}, act {b["act"]})')
+            info.append(f'{pr} {tag}: {n} checkpoints compared, equal {eq} (frames {a["frames"]} / {b["frames"]}, act {b["act"]})')
     return not errs, '; '.join(errs + info)
 
 
@@ -31822,7 +31830,8 @@ def diff_ab():
                                    noslide=struct.unpack_from('<I', bb, DIFF_OFF['NOSL'])[0])
                         bu = diff_bu_block(r)
                         if bu is not None:              # build-up v1: G1 / H1 / P1 + [team][pass, kick, gk pass, gk kick]
-                            bb = r.read(bu, 36)
+                            bb = r.read(bu, 68)
+                            res['budbg'] = list(struct.unpack_from('<8I', bb, 36))
                             res['bu'] = list(struct.unpack_from('<3I', bb, 4))
                             res['rel'] = [list(struct.unpack_from('<4H', bb, 16 + 8 * t)) for t in (0, 1)]
                     else:

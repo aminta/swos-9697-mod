@@ -168,21 +168,24 @@ df_who:
     mov ecx, [ebx]                      ; (opponentsTeam)
     test ecx, ecx
     jz .x
+%if DIFF_FORCE
+    cmp word [ebx + 4], 0               ; the proxy: no human at all -> team 1 (teamNumber 1) is "the human"
+    jne .o
+    cmp word [ecx + 4], 0
+    jne .o
+    mov al, 2
+    cmp word [ebx + 12h], 1
+    jne .x
+    mov al, 1
+    jmp .x
+.o:
+%endif
     cmp word [ebx + 4], 0
     jne .meu
-%if DIFF_FORCE
-    cmp word [ebx + 6], 0
-    jne .meu
-%endif
     cmp word [ebx + 6], 0               ; me: a computer team?
     jne .x
     cmp word [ecx + 4], 0               ; ... facing a human
-%if DIFF_FORCE
-    jne .two
-    cmp word [ecx + 6], 0
-%endif
     je .x
-.two:
     mov al, 2
     jmp .x
 .meu:                                   ; me: the human; the opponent a computer team?
@@ -561,6 +564,8 @@ df_tkick:
     movsw
     movsb
     xor eax, eax
+    mov [CGT], ax                       ; (currentGameTick: the AI reads its bits - pinned too)
+    mov [CT], ax                        ; (currentTick: CalculateIfPlayerWinsBall reads it - pinned too)
     mov [DF_FRAMES], eax
     mov [DF_PP], eax
     mov dword [DF_HASH], 2166136261
@@ -572,11 +577,13 @@ df_tkick:
 
 df_frame:
     call PREV_FLIP
-%if BU
+%if BUF
     call BU_ENTRY                       ; (buildup.py's counters)
 %endif
     pushad
     inc word [CGT]
+    inc word [CT]
+    mov byte [DF_LIVE], 8               ; (TimerProc leaves currentTick alone for 8 ticks: df_tick)
     mov eax, [DF_HASH]
     mov esi, SPR0
     mov ecx, 23
@@ -606,13 +613,23 @@ df_frame:
 .np:mov ebx, [DF_FRAMES]
     inc ebx
     mov [DF_FRAMES], ebx
-    test ebx, 7FFh
+    test ebx, (1 << CKSH) - 1
     jnz .x
-    shr ebx, 11
-    and ebx, 7
+    shr ebx, CKSH
+    cmp ebx, 8                          ; (no wrap: checkpoints 1..7 = frames 1..7 << CKSH)
+    jae .x
     mov [DF_CK + ebx * 4], eax
 .x: popad
     ret
+
+df_tick:                                ; TimerProc's `inc currentTick`, skipped while frames come (DF_LIVE)
+    cmp byte [DF_LIVE], 0
+    je .i
+    dec byte [DF_LIVE]
+    ret
+.i: inc word [CT]
+    ret
+DF_LIVE: db 0
 
 df_fnv:                                 ; eax = FNV-1a(eax; esi, ecx bytes)
     movzx edx, byte [esi]
@@ -756,6 +773,8 @@ def patch(p, lang):
         tp = _one(rb'\x50\x66\xc7\x05....\xff\xff\x66\xff\x05....\x66\xff\x05....\x66\xa1....\x66\x0b\xc0\x75.'
                   rb'\x66\xff\x05', d, 'TimerProc')[0] + 35
         assert p.target(1, tp + 3) == sl['CGT'], 'TimerProc inc currentGameTick'
+        assert d[tp - 25:tp - 22] == b'\x66\xff\x05', 'TimerProc inc currentTick'
+        sym['CT'] = p.target(1, tp - 22)
         gt = [m.start() for m in re.finditer(rb'\xa1....\xa3....\xa1....\xa3', d[s['KICK'] - 0x600:s['KICK']], re.S)]
         gt = [s['KICK'] - 0x600 + o for o in gt]
         gt = [o for o in gt if p.target(1, o + 1) == sym['A1_'] and p.target(1, o + 11) == sym['A2_']]
@@ -783,9 +802,10 @@ def patch(p, lang):
                 + 'align 4\nTAB_D: dd DF_W\n    dw 0\n    dd ' + ', '.join(f'S_V{i}' for i in range(5)) + '\n'
                 + f'S_RLBL: db {db(DRLABEL[lang])}\n' + ''.join(f'S_R{i}: db {db(t)}\n' for i, t in enumerate(DRVALUES[lang]))
                 + 'align 4\nTAB_R: dd DF_DR\n    dw 0\n    dd S_R0, S_R1\n')
-    bu = knobs() and os.environ.get('DIFF_BU', '1') != '0'
+    bu = knobs() and os.environ.get('DIFF_BU', '1') != '0' and 'BU' not in os.environ.get('DIFF_SKIP', '')
     sym['BU_ENTRY'] = (4, swreg.BU_AT)
-    src = (f'%define BU {int(bu)}\n%define DIFF_FORCE {int(force)}\n%define DIFF_TRACE {int(tr)}\n%define DF_START {start_w()}\n%define DR_START {start_dr()}\n'
+    bf = bu and 'BUFRAME' not in os.environ.get('DIFF_SKIP', '')
+    src = (f'%define BUF {int(bf)}\n%define CKSH {int(os.environ.get("DIFF_CKSH", "11"))}\n%define BU {int(bu)}\n%define DIFF_FORCE {int(force)}\n%define DIFF_TRACE {int(tr)}\n%define DF_START {start_w()}\n%define DR_START {start_dr()}\n'
            f'%define TOP {TOP}\n%define PITCH {PITCH}\n%define HEIGHT {HEIGHT}\n' + ASM
            + (ASM_ROW if row else '') + (ASM_T if tr else '') + data_asm() + strs)
     code, fix, rel = nasmcave.assemble_obj(src, at, sym, 4)
@@ -802,14 +822,16 @@ def patch(p, lang):
     if knobs():
         hooks += [('SC', 13, 'df_scale'), ('GK', 11, 'df_gk'), ('PS', 10, 'df_pass'), ('GL', 8, 'df_goal'),
                   ('SL', 7, 'df_slide'), ('TU', 6, 'df_turn'), ('CAR', 37, 'df_carrier')]
+    skip = set(filter(None, os.environ.get('DIFF_SKIP', '').split(',')))   # (test bisection: sites left original)
     for key, n, l in hooks:
-        _hook(p, s[key], n, n, lab[l])
+        if key not in skip:
+            _hook(p, s[key], n, n, lab[l])
     if knobs():
-        for o in s['HOLD']:
+        for o in s['HOLD'] * ('HOLD' not in skip):
             _hook(p, o, 7, 7, lab['df_hold'])
-        for o, l in zip(s['LOCK'], ('df_lockw', 'df_lockl')):
+        for o, l in zip(s['LOCK'] * ('LOCK' not in skip), ('df_lockw', 'df_lockl')):
             _hook(p, o, 9, 9, lab[l])
-    if row:
+    if row and 'ROW' not in skip:
         for k, l in ((0, 'df_init'), (4, 'df_ret')):
             p.retarget(2, hdr + k, 4, lab[l])
             p.put(2, hdr + k, struct.pack('<I', lab[l]))
@@ -832,6 +854,8 @@ def patch(p, lang):
         p.branch(1, sl['FLIP_AT'], 0xE8, 4, lab['df_frame'])
         p.remove(1, tp + 3)
         p.put(1, tp, b'\x90' * 7)
+        p.remove(1, tp - 22)                            # (and currentTick: one per frame while the match is
+        p.branch(1, tp - 25, 0xE8, 4, lab['df_tick'], n=7)   #  live, else TimerProc's own: df_tick)
     LABELS.clear()
     LABELS.update(lab)
     SITES.clear()

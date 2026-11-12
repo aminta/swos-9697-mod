@@ -2,7 +2,7 @@
 
 **SWOS 96/97 Mod 4.1.2**
 
-4.1.2 is a small update. In the 2026-27 world it fixes a crash at the end of the season after an exit from the Libertadores and, in careers with a Brazilian or Argentine club, some of the country's places in the continental cups that were given to clubs from other countries. In Argentina, Panama and the MLS it fixes how the chairman judges a club in the second zone (conference). In every world it fixes the spelling of the UEFA Cup. Everything in 4.1.1 stays as it was; careers saved with 4.0 up to 4.1.1 load and play on.
+4.1.2 is a small update. In the 2026-27 world it fixes a crash at the end of the season after an exit from the Libertadores and, in careers with a Brazilian or Argentine club, some of the country's places in the continental cups that were given to clubs from other countries. In Argentina, Panama and the MLS it fixes how the chairman judges a club in the second zone (conference). In every world it fixes the spelling of the UEFA Cup, and the patcher page can install from the Italian CD into a new folder in Chrome. Everything in 4.1.1 stays as it was; careers saved with 4.0 up to 4.1.1 load and play on.
 
 ### What's new
 
@@ -18,6 +18,9 @@ With a career club from Brazil or Argentina, your country now sends all its club
 #### Argentina, Panama and the MLS: the chairman judges the place in your own zone
 Argentina, Panama and the MLS: the chairman now judges your club on its place in its own zone (conference), not on the two zones stacked as one table, so a club leading the second zone is no longer warned or sacked for it. The management record shows that place too. In Argentina and Panama, every Apertura or Clausura title you win now counts at the season end like a cup won. (Thanks Enzo.)
 
+#### Installing straight from the Italian CD into a new folder
+In Chrome, installing into a new folder straight from the Italian CD stopped with "Name is not allowed", because the CD holds a desktop.ini file that the browser refuses to write. The patcher page now skips the files Windows and Mac keep in their folders and, if the browser cannot write some other file, lists its name instead of stopping. (Thanks Nicola.)
+
 ### Good to know
 - Careers saved with 4.0, 4.0.1, 4.0.2, 4.0.5, 4.1 and 4.1.1 load and play on.
 - Brazil and Argentina: a save made in the middle of a season picks the fix up at its next season end; the cups already drawn at the previous season end keep the clubs they have, and the full lists show from the next season's cups on.
@@ -28,7 +31,7 @@ Argentina, Panama and the MLS: the chairman now judges your club on its place in
 
 **SWOS 96/97 Mod 4.1.2**
 
-La 4.1.2 è un piccolo aggiornamento. Nel mondo 2026-27 sistema la chiusura del gioco a fine stagione dopo un'uscita dalla Libertadores e, nelle carriere con un club brasiliano o argentino, alcuni posti del paese nelle coppe continentali che andavano a club di altri paesi. In Argentina, Panama e MLS sistema il giudizio del presidente su un club della seconda zona (conference). In ogni mondo sistema il nome della Coppa UEFA. Tutto quello che c'era nella 4.1.1 resta com'era; le carriere salvate con la 4.0 fino alla 4.1.1 si caricano e si giocano normalmente.
+La 4.1.2 è un piccolo aggiornamento. Nel mondo 2026-27 sistema la chiusura del gioco a fine stagione dopo un'uscita dalla Libertadores e, nelle carriere con un club brasiliano o argentino, alcuni posti del paese nelle coppe continentali che andavano a club di altri paesi. In Argentina, Panama e MLS sistema il giudizio del presidente su un club della seconda zona (conference). In ogni mondo sistema il nome della Coppa UEFA e la pagina del patcher installa dal CD italiano in una cartella nuova anche in Chrome. Tutto quello che c'era nella 4.1.1 resta com'era; le carriere salvate con la 4.0 fino alla 4.1.1 si caricano e si giocano normalmente.
 
 ### Novità
 
@@ -43,6 +46,9 @@ Con un club in carriera del Brasile o dell'Argentina, il tuo paese ora manda tut
 
 #### Argentina, Panama e MLS: il presidente giudica la posizione nella tua zona
 Argentina, Panama e MLS: il presidente ora giudica il club sulla posizione nella sua zona (conference), non sulle due zone messe una sotto l'altra come un'unica classifica, quindi un club primo nella seconda zona non viene più richiamato né licenziato per questo. Anche il registro gestione mostra quella posizione. In Argentina e Panama ogni titolo di Apertura o Clausura vinto conta a fine stagione come una coppa vinta. (Grazie Enzo.)
+
+#### Installazione dal CD italiano in una cartella nuova
+In Chrome, installare in una cartella nuova direttamente dal CD italiano si fermava con "Name is not allowed", perché il CD contiene un file desktop.ini che il browser non vuole scrivere. La pagina del patcher ora salta i file che Windows e Mac tengono nelle cartelle e, se il browser non riesce a scrivere un altro file, ne elenca il nome invece di fermarsi. (Grazie Nicola.)
 
 ### Da sapere
 - Le carriere salvate con la 4.0, la 4.0.1, la 4.0.2, la 4.0.5, la 4.1 e la 4.1.1 si caricano e si giocano normalmente.

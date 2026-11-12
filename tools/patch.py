@@ -874,7 +874,8 @@ def patch_exe(src, dst, remap, lang='it'):
             print(f'exe: WARNING bteam {st_end - bt_at} B > 0x1200 (Regia: tell the Integratore)')
     if xtra_on:                                  # 4.0.6 (Davide 03/11): the CPU replacements switch (ACQUISTA GIOCATORE, World
         import cpurefill                         # 2026-27): an extra of the seller instead of the invented player; the
-        import trial                             # (4.2.x trial players: its code first, its button in cpurefill's copy)
+        import trial                             # (4.2.x trial players: code in obj4 TRIAL_AT, page 13 - MC 12/11 -, its
+                                                 #  buttons in cpurefill's obj3 copy; the obj3 chain's end unchanged)
         cpurefill.EXTRA.clear()
         st_end = trial.patch(p, (st_end + 15) & ~15, lang, cpurefill)
         st_end = cpurefill.patch(p, (st_end + 15) & ~15, lang)   # obj3 chain's end (Integratore 03/11)

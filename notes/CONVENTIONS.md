@@ -144,7 +144,10 @@ new rule. If a rule seems wrong for a case, ask the regia session; don't silentl
     - 4.2 slow: obj4 page 13, SLOW_AT 0xC000 (slow.py, the OPTIONS row MATCH SPEED + its SPEED.CFG; MC 12/11,
       SREG2 0xB000 below it, T3 0xD000 (Mercato CPU), CT spare 0xE000; a 23bis exception, Davide's ok via Regia 12/11).
     - 4.2 shirtbox: obj4 0xCF00..0xD000 (in slow's page 13, top; swreg.BOX_AT / BOX_END, MC 12/11): shirtedit's
-      se_unsh (the lit number box's afterDraw) + its 4 data bytes, because the career cave is full. Slow's code stays below BOX_AT.
+      se_unsh (the lit number box's afterDraw) + its 4 data bytes, because the career cave is full. Slow's code stays below TRIAL_AT.
+    - 4.2.x trial players: obj4 0xC800..0xCF00 (page 13, between slow and the shirtbox; swreg.TRIAL_AT / TRIAL_END, MC
+      12/11): trial.py's code + its 'TRFL' variables, out of obj3 (REL42i13 left IT obj3 112 B); obj1's three call sites
+      are type-8 fixups into obj4, the buttons stay in cpurefill's obj3 menu copy with pointers into obj4.
     - No obj4 address is ever stored in a save (engine state = 'EN' items, rule 21), so obj4 may grow and move freely.
     - Calls between the game / obj3 and obj4: self-relative fixups (type 8) as rule 23; cobj.link(text_obj=4).
     - The harness finds obj4 by its header (Result.base4: the magic + the self pointer), not by a game pointer.

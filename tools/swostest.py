@@ -32139,10 +32139,15 @@ def xtra_cpu_refill():
 
 
 def trial_vars(exe):
-    """trial.py's variables in the build's obj3 (around its 'TRFL' mark): (tr_mode, tr_last) as Off3, or None."""
+    """trial.py's variables around its 'TRFL' mark: (tr_mode, tr_last) - (4, off) pairs in obj4 (4.2, MC 12/11:
+    swreg.TRIAL_AT), Off3 in an older build's obj3 -, or None."""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import lepatch
     p = lepatch.LEPatch(os.path.join(exe, 'ITALIAN.EXE'))
+    if len(p.le.objs) >= 4:
+        k = p.le.obj_bytes(4).find(b'TRFL')
+        if k >= 0:
+            return (4, k + 4), (4, k - 2)
     if len(p.le.objs) < 3:
         return None
     k = p.le.obj_bytes(3).find(b'TRFL')
@@ -32167,7 +32172,7 @@ def trial_role():
     exe = os.environ.get('TRIAL_BUILD') or builds()['it']
     v = trial_vars(exe)
     if not v:
-        return False, 'no TRFL mark in obj3 (a build without trial.py)'
+        return False, 'no TRFL mark in obj4 / obj3 (a build without trial.py)'
     mode_at, last_at = v
     _, cnp, ct, cmp, sel = xtra.sites(lepatch.LEPatch(os.path.join(exe, 'ITALIAN.EXE')))
     labs, qlabs = trial.texts(UI)

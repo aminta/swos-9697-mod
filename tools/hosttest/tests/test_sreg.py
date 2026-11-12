@@ -608,6 +608,8 @@ def test_sreg_riimport():
       identity (256 + 0) + 1, the record at row 1 still d1's; the queue J (out: joiner), p2 -> 257, d1 -> 1;
     - a Serie C club relegated twice (b3: 4.1 slot 7 holds p2, b3 queued as 7): the import's cross-file move carries
       b3's record to 144 row 0, so b3's identity is 0 and map[0] = p2's (257) + 1;
+    - a stand-in RI-promoted into Serie C (p1 on 4.1 slot 4, b0 queued): refused KIND, bad = p1, RI_STATE not
+      written (MC 12/11: no RI map on 102 in S7; the player is told the 4.1 career can't move to 4.2's Italy);
     - init 0 (no RI season end): Italy's state empty; deterministic (two garbage fills);
     - refused: a joiner not in the queue (SIX), an identity no club has (QUEUE), newpool not 0xFF for J (POOLMAP),
       161 with another slot count (LAYOUT), init 0 with a pool swap (LAYOUT)."""
@@ -711,6 +713,15 @@ def test_sreg_riimport():
     g = run(m2, s2, [256, 257, 7])
     if g[0] != 'ok' or g[2]['maps'][:6] != [258, 0, 0, 0, 0, 0] or g[2]['q'][:2] != [256, 0]:
         errs.append(f"twice: {g[:2]} maps {g[2]['maps'][:6] if len(g) > 2 else ''} q {g[2]['q'][:2] if len(g) > 2 else ''}")
+    # a stand-in RI-promoted into Serie C (MC 12/11: refused, no library change; 0 of 72 real 4.1 saves have it):
+    # p1 (identity 257) on 4.1 slot 4 (division 1) through RI, b0 (identity 4) queued. The import's registry needs a
+    # pool swap on 102, and S7's RI has maps on 144 only: SREG_RI_KIND, bad = p1, the new RI_STATE never written
+    m3 = [0] * 13
+    m3[4] = 257 + 1
+    g = run(m3, list(slot0), [256, 258, 4])
+    if g[:2] != ('KIND', I['p1']) or g[2]['rest'] != bytes([0xAA]) * 2332:
+        errs.append(f"stand-in in Serie C: {g[:2]} (want KIND, {I['p1']}), RI_STATE "
+                    f"{'untouched' if len(g) > 2 and g[2]['rest'] == bytes([0xAA]) * 2332 else 'written'}")
     # init 0: nothing swapped yet
     g = run([0] * 13, slot0, [], init=0)
     if g[0] != 'ok' or g[2]['init'][0] != 0 or any(g[2]['maps'][:6]) or g[2]['qn'][0]:
@@ -728,7 +739,7 @@ def test_sreg_riimport():
         if g[0] != want:
             errs.append(f'{tag}: {g[:2]}')
     return not errs, '; '.join(errs) or ('RI season end: stand-in map, queue joiner out / p2 / d1; relegated twice: the '
-                                         'record via the cross move; init 0 empty; 161 moved byte for byte; '
+                                         'record via the cross move; a stand-in in Serie C refused KIND (its club); init 0 empty; 161 moved byte for byte; '
                                          'deterministic; refused SIX / QUEUE / POOLMAP / LAYOUT')
 
 

@@ -164,7 +164,10 @@ def check(ib, o, lay, st, confs=None, forced=False, notes=None):
                          for x in hl if x is not None)
             R = conti.rbytes(p['spec'], ci, j)
             grp = R and R[0] == conti.K['groups'] and not R[23]
-            rcap = (R[6] if R[5] in (1, 2) else 2 * R[6] if R[5] == 3 else 64) if grp else 0
+            rcap = {0: 64, 1: R[6], 2: R[6], 3: 2 * R[6], 4: 64}.get(R[5]) if grp else 0   # (conti.c draw_groups'
+            if rcap is None:            # fill cap: A_ANY / A_MIN none (NE), A_NO / A_NOVIA ng, A_NO2 2 ng - MC 12/11)
+                bad.append(f'{name}: unknown group rule {R[5]} (the fill cap undefined)')
+                rcap = 0
             for a, k in have.items():
                 lim = p['direct'].get((ci, j), Counter())[a] + fed[a] + slack + hs[a]
                 if grp and short:       # (conti.c draw_groups' fill, 9b14728: up to the rule's cap - ng, 2 ng)

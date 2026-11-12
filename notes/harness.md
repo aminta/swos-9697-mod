@@ -242,6 +242,12 @@ club in a holders' cup (D: another association by design) is a note, not a viola
 refuses. `python3 tools/ctfield.py`: native natural seasons of every confederation + a forced one, 0 violations.
 A refused group draw also dumps conti's state into the run dir (`ctsd_dump/`, `tools/ctsd_replay.py <run dir>`).
 
+**world_zone_below** (tools/zonetest.py, 4.2 opsign, MC 12/11; ~14 min on the server, two seasons): ALDOSIVI
+(Argentina, zone 2). A debugger breakpoint on the season-end opinion's own D2 - D1 (obj1 2C025h IT, found by pattern,
+original bytes asserted) pokes place = scaled 4 and expected = 0 once (test only, the exe untouched; FORCE line in the
+log). It runs on this checkout (signed ratio) and on ZONE_412 (default 412-zonepos 41d8668: 4.1.2 zones, the original
+ratio); each opinion = _verdict with its exe's rule, and the two must differ (ALTERNA vs NON BUONA).
+
 ## 6. Adding a scenario
 
 1. Write `@scenario def name(): """one-line purpose"""` returning `(ok, message)`.

@@ -136,16 +136,36 @@ def _run(tag, exe, team, rng=None):
             os.environ.pop('SWOSTEST_SCENARIO', None)
         else:
             os.environ['SWOSTEST_SCENARIO'] = tag0
-    return ok, msg, path, (ns, cfb + 0x6d, gp and gp[1] + DEC, sel, mec)
+    return ok, msg, path, (ns, cfb + 0x6d, gp and gp[1] + DEC, sel, mec, _signed(exe))
 
 
-def _verdict(p, e, n, t, c=0):            # ShowChairmanOpinionAboutTheSeason's club path, then the clamp
+def _signed(exe):
+    """True when the exe's opinion ratio is signed (4.2 opsign: `cdq; nop` = 99 90), False for the original
+    `xor edx, edx` (33 D2 / 31 D2): the rule _verdict copies."""
+    import re
+    sys.path.insert(0, os.path.join(T.ROOT, 'tools'))
+    import lepatch
+    import sacups
+    a0 = sacups.regs(lepatch.LEPatch(os.path.join(T.MAIN, 'orig', 'ITALIAN.EXE')).le.obj_bytes(1))['A0']
+    d1 = lepatch.LEPatch(os.path.join(exe, 'ITALIAN.EXE')).le.obj_bytes(1)   # (the pseudo registers: the original's)
+    A = lambda x: re.escape(struct.pack('<I', x))
+    m = [x.group(1) for x in re.finditer(rb'\xbb\x64\x00\x00\x00\xf7\xeb\xa3' + A(a0 - 32) + rb'(..)\xa1' + A(a0 - 32)
+                                         + rb'\x0f\xb7\x1d' + A(a0 - 20) + rb'\xf7\xfb', d1, re.S)]
+    assert len(m) == 1 and m[0] in (b'\x99\x90', b'\x33\xd2', b'\x31\xd2'), ('opinion ratio', m)
+    return m[0] == b'\x99\x90'
+
+
+def _verdict(p, e, n, t, c=0, signed=False):   # ShowChairmanOpinionAboutTheSeason's club path, then the clamp
     # (c: the career competitions' term, 2 / 2 / 3 each reached a final.) The ratio as the game computes it:
     # `movsx eax, D0; imul 100; xor edx, edx; idiv N` - edx is cleared, not sign-extended, so a club BELOW its
     # expected place divides 2^32 + (e - p) x 100: the low word then reads as noise (Malta -100 / 12 -> 554Dh, kind;
     # Argentina -400 / 30 -> 887Bh, harsh). Breakpoint-checked at cseg_3C271 (12/11). The original game's own rule.
-    d0 = (((e - p) * 100) & 0xffffffff) // n & 0xffff
-    d0 -= 0x10000 if d0 & 0x8000 else 0
+    # 4.2 (opsign, cdq): signed - the build decides (_signed: its bytes at the site).
+    if signed:
+        d0 = int((e - p) * 100 / n)
+    else:
+        d0 = (((e - p) * 100) & 0xffffffff) // n & 0xffff
+        d0 -= 0x10000 if d0 & 0x8000 else 0
     d7 = 0
     if p != 0 and d0 < 30:
         d7 = 1 if d0 >= 10 else 2 if d0 > -10 else 3 if d0 > -30 else 4
@@ -199,7 +219,8 @@ def _cupterm(hexes, ns, cfbo, me):
 def _read(log, country, key, offs):
     """The run's events: [(kind, value, place)] and the facts at the season-end opinion."""
     ns, cfbo, deco = offs[:3]
-    sel, mec = offs[3:] if len(offs) > 3 else (None, None)
+    sel, mec = offs[3:5] if len(offs) > 3 else (None, None)
+    signed = offs[5] if len(offs) > 5 else False
     pack = os.path.join(_data(), country)
     old = os.environ.get('SEASON_PACKS')
     os.environ['SEASON_PACKS'] = pack
@@ -263,7 +284,7 @@ def _read(log, country, key, offs):
             pend = (ln.split('|')[2].strip(), dict(cur), exp, titles)
     if pend:
         at_msg = pend + (_cupterm(hexes, ns, cfbo, me),)
-    return dict(n=n, z=z, zones=bool(zones), ev=ev, at_msg=at_msg, rel=rel)
+    return dict(n=n, z=z, zones=bool(zones), ev=ev, at_msg=at_msg, rel=rel, signed=signed)
 
 
 def _check_zoned(r, errs, want_titles=False):
@@ -296,18 +317,18 @@ def _check_zoned(r, errs, want_titles=False):
         text, cur, exp, t, c = r['at_msg']
         p = cur.get('scaled', 0)
         if c is None:                       # (a tournament among the career competitions: only "no worse")
-            top = _verdict(p, exp, n, t)
+            top = _verdict(p, exp, n, t, signed=r['signed'])
             got = next((i for i, m in enumerate(MSG) if m in text), 9)
             T.check(got <= MSG.index(top), f'opinion {text!r} worse than {top} (zone {cur}, expected {exp}, '
                     f'titles {t}, a tournament not modelled)', errs)
             want, c = f'<= {top}', '?'
         else:
-            want = _verdict(p, exp, n, t, c)
+            want = _verdict(p, exp, n, t, c, r['signed'])
             T.check(want in text, f'opinion {text!r}: expected {want} (zone {cur}, expected place {exp}, titles {t}, '
                     f'finals term {c})', errs)
         if want_titles:
             T.check(t >= 1, f'no stage title won in the forced build (titles {t})', errs)
-            base = _verdict(p, exp, n, 0, 0 if c == '?' else c)
+            base = _verdict(p, exp, n, 0, 0 if c == '?' else c, r['signed'])
             return f'zone {cur}, titles {t}, finals term {c}: opinion {want} (without the titles: {base})'
         return f'zone {cur}, expected {exp}, finals term {c}: opinion {want}'
     return ''

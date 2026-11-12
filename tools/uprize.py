@@ -190,7 +190,7 @@ def eur_site(p, d8cb6):
 # the factor of the cup's rank in its confederation - the 1st the Champions Cup's (CC), the 2nd the UEFA Cup's;
 # THIRD the cups after them (None: no term, as the game's own European Supercup).
 TIER = {0: 0, 1: 1}                                     # rank -> uprize.c's tier (0 CC, 1 UEFA, 2 CWC, 3 none)
-THIRD = {('afc', 'acgl'): 2, ('conmebol', 'rec'): 3, ('caf', 'sc'): 3}   # (pending Regia / Davide: see the notes)
+THIRD = {('afc', 'acgl'): 2, ('conmebol', 'rec'): 3, ('caf', 'sc'): 3}   # (Davide 11/11 "Ok così"; sources: notes42-panchina-cbonus)
 CT_TIERS = []                                           # [tier per cup index] (the host test)
 
 

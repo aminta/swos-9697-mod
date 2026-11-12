@@ -285,8 +285,14 @@ static void access(void) {
         else if (k >= 2 && k <= NL) club = CT_IN.league[a][k - 1];
         if (club && taken[club] && own[club] == c + 1) { own[club] = 0; continue; }   /* (the holder's own place) */
         if (club && taken[club]) club = 0;          /* already in: the place passes down the table */
-        if (!club) club = next_club(a);
+        if (!club) club = next_club(a);   /* (the place passes to the association's next-ranked club not yet in -
+                                             CONMEBOL Reglamento Sudamericana: a vacant place goes to the next club of
+                                             the same association) */
         if (club) { enter(c, r, club, 0, 0); taken[club] = 1; }
+        else if (!CT_OUT.pad[1] && a < na && CT_IN.league[a][0]) CT_OUT.pad[1] = (u8)(a + 1);   /* (none left: the first such association,
+                                             a table that ran out, sticky for the exe run -
+                                             release builds too: harmless, CT_OUT is not saved and only the harness
+                                             reads it - ctfield check 4 names it) */
     }
     for (int v = 0; v < nvac; v++) {    /* a vacant holder place: the best ranked club not yet in (declared) */
         const u8 *e = hol + 4 * vac[v];
@@ -819,7 +825,9 @@ void ct_begin(void) {                   /* the season end's first country: this 
     ct_finish();
     u8 *b = (u8 *)&CT_IN;
     for (u32 i = 0; i < sizeof(CT_IN); i++) b[i] = 0;
-    ntab = 0;
+    /* (ntab kept: the first country is the career club's own - cseg_91428 runs it first -, its top division's whole
+       table caught by ct_table just before this call; clearing it here left that country only its top 9 records -
+       4.2 root fix b: Brazil 10-11 clubs for 13 places. ct_country checks TAB[0] against the champion) */
 }
 /* one country of the season end (after its season: the top 9 records in stand, the cup winner's record) */
 void ct_country(const u8 *stand, const u8 *cuprec) {

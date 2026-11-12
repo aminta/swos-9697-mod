@@ -8,7 +8,9 @@ check(ib, o, lay, st) -> [violation, ...] for the edition in CT_OUT (built from 
      anything else adding a club the data cannot give, shows here.
   2. no club twice in one round;
   3. the career club (CT_IN.manager) enters each cup once: in a round it is either the round of its entry or it was
-     in a round feeding it.
+     in a round feeding it;
+  4. (4.2 root fix b) an association with a table holds at least as many clubs in CT_IN as the data's places it fills,
+     and access() never ran out of an association's clubs (CT_OUT.pad[1]): the violation names the association.
 The bound is checked on every edition the access built (CT_ST.season >= 1). Season 1's edition is built from the data's
 own real entrant lists (the S1 block, not the access), so only checks 2 and 3 apply to it. The Intercontinental
 (stepladder: the confederations' holders by slot) gets checks 2 and 3 only. Pure: no exe, no DOSBox. The harness calls
@@ -150,6 +152,19 @@ def check(ib, o, lay, st, confs=None, forced=False, notes=None):
                 if k > lim:
                     bad.append(f'{name}: {a} {k} clubs, the data gives at most {lim} (direct '
                                f'{p["direct"].get((ci, j), Counter())[a]}, fed {fed[a]}, holders {hs[a]}, outside/fill {slack})')
+    if season >= 1:                     # 4. (4.2 root fix b) every association with a table holds at least as many
+        o_lg, o_cup, NA, NL = lay[3], lay[4], lay[14], lay[15]   # clubs as the data's places it fills (league codes,
+        want = Counter()                                         # its cup winner) - a career country cut to its top 9
+        for v in p['direct'].values():                           # records (ct_begin cleared its table) shows here
+            want.update(v)
+        for i, a in enumerate(p['assocs'][:NA]):
+            lg = struct.unpack_from(f'<{NL}H', ib, o_lg + 2 * NL * i)
+            held = {x for x in lg if x} | ({struct.unpack_from('<H', ib, o_cup + 2 * i)[0]} - {0})
+            if lg[0] and want[a] > len(held):
+                bad.append(f'{a}: the data gives it {want[a]} places, CT_IN holds {len(held)} of its clubs')
+        if o[2]:                        # (conti.c access(): CT_OUT.pad[1], the first association whose table ran out)
+            a = p['assocs'][o[2] - 1] if o[2] - 1 < len(p['assocs']) else f'#{o[2] - 1}'
+            bad.append(f'{a}: access() found no club left for one of its places')
     if mgr:
         for ci in range(len(p['cups'])):
             entries = [j for j in range(NRD) if mgr in ent[(ci, j)]

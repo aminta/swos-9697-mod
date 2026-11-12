@@ -361,6 +361,7 @@ def patch_exe(src, dst, remap, lang='it'):
     import swreg
     swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, swreg.BOX_END // 0x1000)   # 4.2 shirtbox: se_unsh at the 13th page's top
     swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, swreg.SLOW_END // 0x1000)   # 4.2 slow (MC 12/11, 23bis exception): page 13
+    swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, swreg.KITS_END // 0x1000)   # 4.2 kits (MC 12/11): pages 16-17
     if xtra_on:                                        # 4.2.y T3 PRIMAVERA (MC 12/11, 23bis): its own page, the 14th
                                                        # (the pages between stay zero)
         swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, swreg.T3_END // 0x1000)
@@ -978,6 +979,8 @@ def patch_exe(src, dst, remap, lang='it'):
     if sreg_end is not None:
         assert sreg_end <= lrank.LR_AT, ('sreg past LR_AT', hex(sreg_end), hex(lrank.LR_AT))
     benchx.link_w27(p)                           # (4.0.6 step 2.5: the friendlies' long bench by SWE_W27)
+    import kits                                  # 4.2 K2 keepers + R1 referee (after swe: swe_match_w27)
+    kits.patch(p)
     tailzero.patch(p, tz_at, obj2_free + o2pages * p.le.page_size, (tail + 3) & ~3, nasmcave,   # (DOS/4GW: not zeroed;
                    0x1000 * OBJ3_PAGES, (cg_bss + 3) & ~3)                  # 4.0.6: obj3's tail too)
     o1n, o2n = p.le.obj(1).npages, p.le.obj(2).npages

@@ -36086,6 +36086,118 @@ def slow_matches(b, sl, cgt, paused, errs, notes):
             check(pz == b'\0\0', f'{pct}%: paused {pz.hex()}', errs)
 
 
+def kits_sites(exe_dir, exe='ITALIAN.EXE'):
+    """kits.py in a built exe: its data block (obj4, swreg.KITS_AT's page, after the tag 'KITS') and
+    g_spriteGraphicsPtr (kits.find on the exe language's original)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import kits
+    import lepatch
+    import swreg
+    p = lepatch.LEPatch(os.path.join(exe_dir, exe))
+    d4 = bytes(p.get(4, swreg.KITS_AT, 0x1000))
+    assert d4.count(b'KITS') == 1, d4.count(b'KITS')
+    f = kits.find(lepatch.LEPatch(os.path.join(ROOT, 'orig', UI_ORIG)))
+    return (4, swreg.KITS_AT + d4.index(b'KITS') + 4), f['SGP']
+
+
+def kits_read(s, kb):
+    """the block after the tag: REF, W27, KK1, KK2, HS1, HS2, CALLS, CONV, IN (8), W27P, W27F, KT1, KT2"""
+    d = s.result.read(s.result.lin(kb), 4 + 16 + 8 + 8 + 8 + 64)
+    ref, w27, _, _ = d[:4]
+    kk1, kk2, hs1, hs2 = (tuple(d[4 + 4 * k:8 + 4 * k]) for k in range(4))
+    calls, conv = struct.unpack_from('<II', d, 20)
+    t_in, w27p = tuple(d[28:36]), struct.unpack_from('<I', d, 36)[0]
+    kt1, kt2 = struct.unpack_from('<16H', d, 44), struct.unpack_from('<16H', d, 76)
+    return dict(ref=ref, w27=w27, kk1=kk1[:3], kk2=kk2[:3], hs1=hs1, hs2=hs2, calls=calls, conv=conv,
+                t1=t_in[:4], t2=t_in[4:], w27p=w27p, kt1=kt1, kt2=kt2)
+
+
+def kits_sprite(s, sgp, n):
+    """sprite n's chunky pixels from memory: rows of palette indices (None if not 16 px wide)"""
+    tab = struct.unpack('<I', s.result.read(s.result.base2 + sgp[1], 4))[0]
+    g = struct.unpack('<I', s.result.read(tab + 4 * n, 4))[0]
+    hdr = s.result.read(g, 24)
+    data, nl, wq = struct.unpack_from('<I', hdr, 0)[0], *struct.unpack_from('<HH', hdr, 12)
+    if wq != 1:
+        s.kits_diag = f'sprite {n}: table {tab:#x}, entry {g:#x}, header {hdr.hex()}'
+        return None
+    b = s.result.read(data, 8 * nl)
+    return [[(b[y * 8 + x // 2] >> (0 if x & 1 else 4)) & 15 for x in range(16)] for y in range(nl)]
+
+
+def kits_check(tag, s, kb, sgp, want_w27, errs, notes, hand=(None, None)):
+    """one match's kits against kits.match (the reference) and the sprites in memory: the referee's shirt pixels
+    (1273..1283) = his colour, the keepers' (947 / 1063, main frame 0) = their kits' shirt, the other 8s = shadow"""
+    import kits
+    import kitmasks
+    k = kits_read(s, kb)
+    r, k1, k2 = kits.match(k['t1'], k['t2'], want_w27, *hand)
+    notes.append(f"{tag}: teams {k['t1']} / {k['t2']}, w27 {k['w27']}, referee {k['ref']}, keepers {k['kk1']} / "
+                 f"{k['kk2']}, calls {k['calls']}, masked {k['conv']}")
+    check(k['calls'] >= 1 and k['w27'] == want_w27, f"{tag}: kt_chain runs {k['calls']}, w27 {k['w27']} (want "
+          f"{want_w27})", errs)
+    check((k['ref'], k['kk1'], k['kk2']) == (r, k1, k2), f"{tag}: referee / keepers {k['ref']} {k['kk1']} {k['kk2']} "
+          f"(reference {r} {k1} {k2})", errs)
+    check(k['conv'] >= 58, f"{tag}: keeper sprites masked {k['conv']} (want >= 58)", errs)
+
+    def mask(i):
+        o = kitmasks.MOFF[i]
+        a, n = kitmasks.MS[o], kitmasks.MS[o + 1]
+        ws = struct.unpack_from(f'<{n}H', kitmasks.MS, o + 2)
+        return {(a + y, x) for y, w in enumerate(ws) for x in range(16) if w & (0x8000 >> x)}
+    for spr in range(1273, 1284):
+        g = kits_sprite(s, sgp, spr)
+        px = [g[y][x] for y, x in mask(116 + spr - 1273)] if g else []
+        check(px and set(px) == {k['ref']}, f"{tag}: referee sprite {spr} shirt pixels {sorted(set(px))} (want "
+              f"{k['ref']})", errs)
+    for spr, kk in ((947, k['kk1']), (1063, k['kk2'])):
+        g = kits_sprite(s, sgp, spr)
+        m = mask(0)
+        px = [g[y][x] for y, x in m] if g else []
+        rest8 = sum(1 for y, row in enumerate(g or []) for x, v in enumerate(row) if v == 8 and (y, x) not in m)
+        check(px and set(px) == {kk[0]} and rest8 > 0, f"{tag}: keeper sprite {spr} shirt pixels {sorted(set(px))} "
+              f"(want {kk[0]}), shadow 8s {rest8}", errs)
+    if getattr(s, 'kits_diag', None):
+        notes.append(s.kits_diag)
+    return k
+
+
+@scenario
+def gk_ref_kits():
+    """4.2 kits (kits.py; David's idea, Davide 12/11): K2 keeper colours and the R1 referee, on KITS_BUILD (default the
+    IT test build). Friendlies HAMBURG - SCHALKE: (a) as picked (1996-97 clubs: SWE_W27 0) - black referee; (b) SWE_W27
+    poked 1 before the kick-off (the engine's swe_match_w27: a friendly of the World 2026-27) - yellow referee unless a
+    team's shirt / stripes clash with yellow. Each: the chosen kits = kits.match on the kits worn (KT_IN), the
+    referee's 11 sprites' shirt pixels = his colour, the keepers' (947 / 1063) = their shirts, the other 8s left
+    (the shadow). KITS_HAND=1: the build's hand-set keeper 1 (KITS_HAND1 / KITS_HAND2, test switches) kept when free,
+    the automatic colour when it clashes (Davide: "passa al colore automatico"). Shots kits_<case>."""
+    errs, notes = [], []
+    b = os.environ.get('KITS_BUILD') or builds()['it']
+    kb, sgp = kits_sites(b)
+    hand = tuple(tuple(int(x) for x in os.environ[v].split(',')) if os.environ.get(v) else None
+                 for v in ('KITS_HAND1', 'KITS_HAND2'))
+    for case, w27 in (('fr9697', 0), ('frw27', 1)):
+        with Session(f'kits_{case}_{UI}', b, {}, 'dump:3', 600, match=True) as s:
+            s.wait()
+            friendly_prematch(s, os.environ.get('KITS_HOME', 'HAMBURG'), os.environ.get('KITS_AWAY', 'SCHALKE'))
+            if w27:
+                p = kits_read(s, kb)['w27p']
+                check(p, f'{case}: no SWE_W27 pointer in the block', errs)
+                if p:
+                    s.poke(p, struct.pack('<I', 1))
+            for _ in range(22):                         # pre-match: down the rows to VIS. PARTITA
+                s.send('down dump:0.5')
+                if s.screen().selected == 9:
+                    break
+            s.send('fire ' + 'fire:3 ' * 12 + 'dump:2')
+            s.shot(f'kits_{case}')
+            if os.environ.get('KITS_DUMP'):             # (debug: the whole memory + the bases)
+                open(os.path.join(s.run, 'mem.bin'), 'wb').write(s.result.mem)
+                open(os.path.join(s.run, 'bases.txt'), 'w').write(f'{s.result.base1} {s.result.base2} {s.result.base4}')
+            kits_check(case, s, kb, sgp, w27, errs, notes, hand)
+    return not errs, '; '.join(errs + notes)
+
+
 def gk_sites(exe_dir):
     """gkinj in a built exe: its data block (obj3: GK_ROLLS, GK_HITS, GK_LAST, GK_SEED, GI_W, GI_SH after the tag) and
     careerTeam / currentMatchPlayers (gkinj.find on the exe language's original)."""

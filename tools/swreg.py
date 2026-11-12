@@ -40,6 +40,8 @@ CONTI4_END = 0x5000                     # winners) at the 5th page's top, above 
                                         # it: lrank from 0x6000)
 assert UPRIZE2_END <= CONTI4_AT, 'uprize part 2 would cross conti / ST'   # (4.2: bands never cross)
 assert CONTI4_END <= ST_AT, 'conti data would cross ST'
+BOX_AT = 0xCF00                         # 4.2 shirtbox (Marco's lit number box, shirtedit se_unsh): obj4's 13th page top,
+BOX_END = 0xD000                        # slow's page (SLOW_AT 0xC000, its code below BOX_AT); Mercato CPU's T3 from 0xD000 (MC 12/11)
 MAGIC = b'SWRG'
 VERSION = 2
 HDR = 32

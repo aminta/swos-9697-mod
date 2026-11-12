@@ -4799,6 +4799,26 @@ def se_goto(s, i):
     return scr
 
 
+def se_box(s, tag, notes, errs):
+    """4.2 (Marco 11/11, shirtbox): the lit number box in shot `tag` is a solid 14 x 8 square (the whole number column)
+    with the number on it in white: no black (the font's shadow, se_unsh) inside, nothing of the box outside."""
+    from PIL import Image
+    im = Image.open(os.path.join(s.run, 'shots', tag + '.png')).convert('RGB')
+    G = lambda c: c[2] == 0 and 0x70 < c[1] and c[0] < 0x40     # HL_COLOR 0x0E's greens (the menu's shading)
+    pts = [(x, y) for y in range(200) for x in range(64) if G(im.getpixel((x, y)))]
+    if not pts:
+        check(False, f'{tag}: no lit box', errs)
+        return
+    x0, x1 = min(x for x, _ in pts), max(x for x, _ in pts)
+    y0, y1 = min(y for _, y in pts), max(y for _, y in pts)
+    inside = [im.getpixel((x, y)) for y in range(y0, y1 + 1) for x in range(x0, x1 + 1)]
+    white = sum(c == (255, 255, 255) for c in inside)
+    other = {c for c in inside if c != (255, 255, 255) and not G(c)}
+    check((x1 - x0 + 1, y1 - y0 + 1) == (14, 8), f'{tag}: lit box {x1 - x0 + 1}x{y1 - y0 + 1} at ({x0},{y0}), want 14x8', errs)
+    check(white >= 8 and not other, f'{tag}: box pixels white {white}, not green/white {sorted(other)[:4]}', errs)
+    notes.append(f'{tag} box ({x0},{y0}) {x1 - x0 + 1}x{y1 - y0 + 1} white {white}')
+
+
 @scenario
 def shirt_edit():
     """4.0.2 editable shirt numbers (shirtedit.py): JUVEFIX3 play-match screen: LEFT on a row lights the number, UP =
@@ -4829,6 +4849,7 @@ def shirt_edit():
         scr = se_goto(s, 20)
         s.send('left dump:1')
         s.shot('lit')
+        se_box(s, 'lit', notes, errs)
         before = se_team(s)[1]                         # (after the first edit's one-number-per-player pass)
         check(len({before[i] for i in sq}) == len(sq), f'first edit: numbers not unique {[before[i] for i in sq]}', errs)
         s.send('up dump:1')
@@ -4844,8 +4865,14 @@ def shirt_edit():
             # typed '2' '3': 23 (swapped with its holder if any)
             holder = next((i for i in sq if after[i] == 23 and i != k), None)
             s.send('2 3 dump:1')
+            s.shot('lit23')
+            se_box(s, 'lit23', notes, errs)
             t3 = se_team(s)[1]
             check(t3[k] == 23 and (holder is None or t3[holder] == nw), f'typed 23: {t3[:16]} (holder {holder})', errs)
+            s.send('9 9 dump:1')                       # (4.2: the widest number on the box too)
+            s.shot('lit99')
+            se_box(s, 'lit99', notes, errs)
+            check(se_team(s)[1][k] == 99, f'typed 99: {se_team(s)[1][:16]}', errs)
             # ESC: everything as before the edit
             s.send('esc dump:1')
             t4 = se_team(s)[1]
@@ -4977,6 +5004,7 @@ def squad_numbers():
         s.send('dump:1')
         s.send('left dump:1')
         s.shot('lit')
+        se_box(s, 'lit', notes, errs)
         before = sq_team(s)[1]
         check(len({before[i] for i in sq}) == len(sq), f'first edit: numbers not unique {[before[i] for i in sq]}', errs)
         s.send('up dump:1')
@@ -33185,6 +33213,10 @@ def match_names14():
                         check(worst <= 112, f'{mode}: the widest name \'99 \' + 14 x {wl[1]!r} = {worst} px > 112: '
                               f'Text2Sprite would draw nothing', errs)
                         info.append(f'{mode}: widest letter {wl[1]!r} {wl[0]} px, digit {wd}, worst name {worst} px of 112')
+                if os.environ.get('N14_SHOTS'):         # (4.2 names survey: the name strip on screen while playing)
+                    for i in range(int(os.environ['N14_SHOTS'])):
+                        s.send('dump:0.7')
+                        s.shot(f'm{i:02d}')
                 img = Image.new('L', (112, 32 * 8), 0)
                 for k, (*_, rows) in enumerate(sp):
                     for y, xs in enumerate(rows):

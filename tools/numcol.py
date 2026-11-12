@@ -11,7 +11,7 @@ x 25, width 132 (the shadow column x 23, then a 1 px gap).
 face box's last column. The number column moves 1 px right (x 14) on all three; the names 2 px right on the lists
 (x 26 / width 79, Davide 03/11: with +1 a two-digit number's shadow met the name bar) and the squad screen's x 26 / 131:
 names 2 px after the number column everywhere, 1 px clear on both sides of a two-digit number. shirtedit's lit box
-(se_hl: the entry's own x, 11 px) follows the entry.
+(se_hl: the entry's own x, 11 px; 4.2: x - 2, 14 px, no shadow) follows the entry.
 Data only (obj2 packed menus, the same bytes in every exe)."""
 import re
 

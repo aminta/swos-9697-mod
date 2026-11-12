@@ -32107,6 +32107,137 @@ def xtra_cpu_refill():
     return not errs, '; '.join(errs + info)
 
 
+def trial_vars(exe):
+    """trial.py's variables in the build's obj3 (around its 'TRFL' mark): (tr_mode, tr_last) as Off3, or None."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lepatch
+    p = lepatch.LEPatch(os.path.join(exe, 'ITALIAN.EXE'))
+    if len(p.le.objs) < 3:
+        return None
+    k = p.le.obj_bytes(3).find(b'TRFL')
+    return (Off3(k + 4), Off3(k - 2)) if k >= 0 else None
+
+
+@scenario
+def trial_role():
+    """4.2.x trial players (trial.py, Francesco P. via Davide 12/11) on TRIAL_BUILD (a TRIAL_FORCE build of the release
+    recipe: a trial player every week while the squad is under 30). A new INTER career (World 2026-27, 24 players):
+    ACQUISTA GIOCATORE shows the trial button (entry 9) left of ESCI, 'PROVA: QUALSIASI', and QUALITA'+ (entry 10)
+    above it, 'SI'; tr_mode 0. Both labels: the exe's own texts (trial.texts), within the button (4 px margins), font
+    characters only. Fire entry 9 x4 -> 'PROVA: D' (tr_mode 4); weeks played until 2 trial players joined: both D (byte 26
+    >> 5 == 3), flagged 98h..9Bh (+37: 9Bh, counting down a week); T2: their level (tr_last) >= INTER's squad median price
+    / 3 - trial.FLOOR_BELOW. Then x4 more -> 'PROVA: A' (8) and QUALITA'+ fired -> NO (tr_mode 24): 2 more join, both A
+    (7). Shots: the menu per value, the squad."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import complist
+    import lepatch
+    import trial
+    import xtra
+    exe = os.environ.get('TRIAL_BUILD') or builds()['it']
+    v = trial_vars(exe)
+    if not v:
+        return False, 'no TRFL mark in obj3 (a build without trial.py)'
+    mode_at, last_at = v
+    _, cnp, ct, cmp, sel = xtra.sites(lepatch.LEPatch(os.path.join(exe, 'ITALIAN.EXE')))
+    labs, qlabs = trial.texts(UI)
+    path = ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27', 'EUROPA', 'ITALIA', 'SERIE A', 'INTER']
+    errs, info = [], []
+    b8 = lambda r, a: r.read(r.lin(a), 1)[0]
+    s16 = lambda r, a: struct.unpack('<h', r.read(r.lin(a), 2))[0]
+
+    def squad(r):                                       # [(slot, name, position, price, flag)] of the career club
+        n = struct.unpack('<H', bytes(r.obj2(cnp, 2)))[0]
+        out = []
+        for k in list(r.obj2(cmp, n)):
+            b = bytes(r.obj2(ct + 76 + k * 38, 38))
+            out.append((k, b[3:25].split(b'\0')[0].decode('latin1'), b[0x1A] >> 5, b[0x20], b[0x25]))
+        return out
+
+    def leave(s):
+        for _ in range(10):
+            if 'PROSS. PARTITA' in s.screen().texts():
+                return
+            press(s, s.screen(), 'CONTINUA', 3) or press(s, s.screen(), 'ESCI', 3) or s.send('fire dump:2')
+
+    def buy_menu(s):
+        walk(s, 'TRASFERIMENTI', 3)
+        walk(s, 2, 3)
+        return s.screen()
+
+    def button(scr, k):
+        if len(scr.entries) <= k:
+            return None
+        return scr.raw_texts[k], bool(scr.entries[k][2]), scr.geom[k]
+
+    def fits(b, tag):                                   # width + charset of a button's label
+        t, _, (x, y, w, h) = b
+        check(complist.px(t) <= w - 8 and not complist.font_odd(t),
+              f'{tag}: {t!r} {complist.px(t)} px in {w}, odd {complist.font_odd(t)}', errs)
+
+    def set_mode(s, k, q_on, tag):                      # buy menu: fire the buttons until tr_mode == k (+16 if off)
+        buy_menu(s)
+        for _ in range(10):
+            if b8(s.result, mode_at) & 15 == k:
+                break
+            walk(s, 9, 3)
+        if bool(b8(s.result, mode_at) & 16) == q_on:
+            walk(s, 10, 3)
+        scr = s.screen()
+        b, bq = button(scr, 9), button(scr, 10)
+        s.shot(tag)
+        want = k | (0 if q_on else 16)
+        check(b8(s.result, mode_at) == want and b is not None and b[0] == labs[k] and bq is not None and
+              bq[0] == qlabs[0 if q_on else 1], f'{tag}: tr_mode {b8(s.result, mode_at)} (want {want}), buttons {b} {bq}',
+              errs)
+        b and fits(b, tag)
+        bq and fits(bq, tag + ' Q')
+        leave(s)
+
+    with Session('trial_role', exe, {}, 'dump:2', 900) as s:
+        s.wait()
+        if not pick_career(s, path):
+            return False, 'new career: ' + str(s.screen().texts()[:8])
+        s.send('fire dump:3')
+        leave(s)
+        r = s.result
+        check(b8(r, mode_at) == 0, f'new career: tr_mode {b8(r, mode_at)}', errs)
+        q0 = squad(r)
+        prices = sorted(x[3] for x in q0 if x[0] < 16)
+        med = next(v for v in range(49, -1, -1) if sum(1 for x in prices if x >= v) >= 8)
+        floor = med // 3 - trial.FLOOR_BELOW
+        info.append(f'INTER: {len(q0)} players, record median price {med}, floor level {floor}')
+        scr = buy_menu(s)
+        b, bq = button(scr, 9), button(scr, 10)
+        s.shot('trial_menu_any')
+        check(b is not None and b[0] == labs[0] and not b[1] and bq is not None and bq[0] == qlabs[0] and not bq[1]
+              and bq[2][1] < b[2][1], f'the buttons: {b} {bq}', errs)
+        b and fits(b, 'QUALSIASI')
+        bq and fits(bq, 'QUALITA+')
+        info.append(f'buttons {b} {bq}')
+        leave(s)
+        seen = {x[0] for x in q0}
+        for k, q_on, want, tag in ((4, True, {3}, 'D'), (8, False, {7}, 'A')):
+            set_mode(s, k, q_on, f'trial_menu_{tag}')
+            lv0 = s16(s.result, last_at)
+            n0 = len(squad(s.result))
+            ok, msg = advance(s, lambda scr: len(squad(s.result)) >= n0 + 2 and 'PROSS. PARTITA' in scr.texts(), 400)
+            if not ok:
+                errs.append(f'{tag}: {msg}')
+                break
+            new = [x for x in squad(s.result) if x[0] not in seen]
+            seen |= {x[0] for x in new}
+            info.append(f'{tag}: ' + ', '.join(f'{x[1]} pos {x[2]} price {x[3]} flag {x[4]:#x}' for x in new))
+            check(len(new) >= 2 and all(x[2] in want and 0x98 <= x[4] <= 0x9B for x in new), f'{tag}: new {new}', errs)
+            lv = s16(s.result, last_at)
+            if q_on:
+                check(lv >= floor, f'{tag}: the last trial level {lv} < floor {floor}', errs)
+            else:
+                check(lv == lv0, f"{tag}: QUALITA'+ off but tr_last moved {lv0} -> {lv}", errs)
+            info.append(f'{tag}: last level {lv}')
+        s.shot('trial_squad')
+    return not errs, '; '.join(errs + info)
+
+
 @scenario
 def xtra_cpu_refill_labels():
     """4.0.6 the CPU replacements switch's labels (cpurefill.TEXTS), SWOSTEST_UI's exe (it / en / fr / de: that language's exe

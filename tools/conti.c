@@ -765,7 +765,7 @@ void ct_begin(void) {                   /* the season end's first country: this 
     for (u32 i = 0; i < sizeof(CT_IN); i++) b[i] = 0;
     /* (4.1.2: ntab kept - the first country is the career club's own, its top division's whole table caught by
        ct_table just before this call; clearing it left that country only its top 9 records: a Brazilian career sent
-       10-11 clubs for Brazil's 13 continental places. ct_country checks TAB[0] against the champion) */
+       10-11 clubs for Brazil's 13 continental places. ct_country checks the champion is in TAB) */
 }
 /* one country of the season end (after its season: the top 9 records in stand, the cup winner's record) */
 void ct_country(const u8 *stand, const u8 *cuprec) {
@@ -777,8 +777,16 @@ void ct_country(const u8 *stand, const u8 *cuprec) {
     for (int i = 0; i < na; i++) if (afile[i] == (champ & 0xFF)) a = i;
     if (a < 0) return;
     u32 last = 0;
-    int n = ntab;
-    if (!n || TAB[0] != champ) {        /* (no table of this division seen: the top 9 records alone) */
+    int n = ntab, ci = -1;
+    for (int k = 0; k < n; k++) if (TAB[k] == champ) ci = k;
+    if (ci > 0) {                       /* (MC 12/11, class D: the champion a play-off's winner - the MLS Cup, not
+                                           the table's leader: its own table all the same, the champion first, then
+                                           the table's order - as the top 9 records stand; before, TAB[0] != champ
+                                           left the US only its top 9 records: 9 clubs for 9 places + its cup winner) */
+        for (int k = ci; k > 0; k--) TAB[k] = TAB[k - 1];
+        TAB[0] = champ;
+    }
+    if (!n || ci < 0) {                 /* (no table of this division seen: the top 9 records alone) */
         n = 0;
         for (int k = 0; k < 9; k++) { u16 w = stand[k * REC] | stand[k * REC + 1] << 8; if (!w || w == 0xFFFF) break; TAB[n++] = w; }
     }

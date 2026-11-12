@@ -9943,6 +9943,212 @@ def bench_tap():
     return not errs, '; '.join(errs + info)
 
 
+def subcard_vars():
+    """(4.2 subcard.py) obj2 offsets from IsPlayerOkToSubstitute (the original IT/UI exe): benchTeamGame,
+    inGameTeamPlayerOffsets, plToBeSubstitutedPos."""
+    if not hasattr(subcard_vars, 'v'):
+        sys.path.insert(0, os.path.join(ROOT, 'tools'))
+        import subcard
+        p = lepatch_orig()
+        d = p.le.obj_bytes(1)
+        a = subcard.sites(d)['IsPlayerOkToSubstitute'] - 123
+        m = re.match(rb'\x66\x83\x3d(....)\x04\x75.\x66\xa1(....)\x66\x0b\xc0\x0f\x84....\xeb.\x90\x90\x90\xa1(....)'
+                     rb'\xa3(....)\xc7\x05(....)(....)\x66\xa1(....)', d[a:a + 64], re.S)
+        assert m, 'IsPlayerOkToSubstitute: not at its place'
+        t = lambda g: p.target(1, a + m.start(g))[1]
+        subcard_vars.v = {'BTG': t(3), 'OFFS': t(6), 'POS': t(7), 'ORD': t(2)}   # (OFFS: `mov [A1], offset ...`'s immediate)
+    return subcard_vars.v
+
+
+SUBCARD_CASES = ('banned', 'sentoff', 'booked', 'halves')   # (subcard) the cases, in one match: see subcard()
+
+
+@scenario
+def subcard():
+    """4.2 (Marco 12/11, backlog-42 row 44 point 4): a player booked on a carried yellow can be substituted
+    (subcard.py). The original: a cup's 1st-leg yellow is carried into the 2nd leg (PlayerFile bits 2-4 = 1 ->
+    previousCards 1 at kick-off, every match: plg_D3_param is always 0), a booking there sets the in-match cards to 2
+    (dseg_17E3F3 {1, 2, 4, 4, 4}) while he stays on the pitch, and the subs menu never offers him again: its first
+    choice (FindInitialPlayerToBeSubstituted) and its cursor (UpdateSubstitutePlayerIndices -> IsPlayerOkToSubstitute)
+    skip every pitch player on cards >= 2. The 'seriea' friendly (INTER human - MILAN), one match a case: the bench
+    called (bench_open), its cursor on place 12 (a goalkeeper, MAZZANTINI), the pitch goalkeeper (his exact match)
+    poked to the state after such a booking (previousCards 1, cards 2) BEFORE fire, fire, then UP to the menu's top:
+    'booked' - the fix offers him (first choice) and the change is made with him (NumSubs + 1, his place now another
+    player's); the base exe (SUBCARD_BASE=<branch>, notes only: the repro) never offers him; 'sentoff' - cards 3
+    (really sent off): never offered on both; 'banned' - the bench place on cards 2 (banned at kick-off): fire does
+    not pick him (g_subsState stays 0) on both; 'halves' (Davide 12/11) - no bench: a pitch player on 1 / 2 and a clean
+    one played to the first half's end: the fix counts his half (halfPlayed 2, BumpPlayerLastPlayedHalfAtHalfEnd), the
+    base does not (1). SUBCARD_CASES = a subset."""
+    v, sv, td = bench_vars(), subcard_vars(), team_data()
+    base = os.environ.get('SUBCARD_BASE')
+    bb = os.environ.get('SUBCARD_BASE_BUILD')      # (a base built here beforehand: remote_run's server has no branches)
+    runs = [('fix', builds()['it'])] + ([('base', bb)] if bb else [('base', build('subcard_base', branch=base))] if base
+                                        else [])
+    cases = [c for c in os.environ.get('SUBCARD_CASES', ','.join(SUBCARD_CASES)).split(',') if c]
+    _, home, away, _, _ = FR_CASES['seriea']
+    errs, info = [], []
+    for kind, b, case in [(k, b, c) for k, b in runs for c in cases]:
+        tag = f'{kind}_{case}'
+        with Session(f'subcard_{tag}', b, {'SETUP.DAT': setup_file(f'subcard_{tag}', 0)}, 'dump:3', 600,
+                     match=True) as s:
+            if s.wait().outcome != 'dump':
+                errs.append(f'{tag}: no first pause ({s.result})')
+                continue
+            w16 = lambda o: struct.unpack('<H', s.result.read(s.result.base2 + o, 2))[0]
+            try:
+                for t in ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE') + home:
+                    walk(s, t, 2)
+                s.send('fire dump:2')                   # home: COMPUTER -> GIOCA-ALLENA
+                for _ in range(9):                      # (up to the picker's continents, as bench_tap)
+                    sc = s.screen()
+                    if sc.find(away[1], exact=True) is not None:
+                        break
+                    out = sc.find('ESCI', exact=True)
+                    if out is None or press(s, sc, out, 2) is None:
+                        s.send('down ' * 12 + 'dump:1')
+                        if out is not None and s.screen().selected == out:
+                            s.send('fire dump:2')
+                for t in away[1:]:
+                    walk(s, t, 2)
+                pick_done(s)
+                for _ in range(22):                     # the pre-match screen: down to PLAY MATCH (9)
+                    if s.screen().selected == 9:
+                        break
+                    s.send('down dump:0.5')
+                r = s.send('fire ' + 'fire:3 ' * 8 + 'dump:2')
+            except AssertionError as e:
+                s.shot('lost')
+                errs.append(f'{tag}: no match: {e}')
+                continue
+            if r.outcome != 'dump':
+                errs.append(f'{tag}: no match ({r})')
+                continue
+            s.shot('match')
+            key = 'pgdn' if w16(td[0] + 4) or w16(td[0] + 6) else 'pgup'
+            idx = 1                                     # (place 12; one case a match)
+            if case == 'halves':                        # the human's in-match team (top / bottom: the friendly's
+                if not hasattr(subcard, 'tb'):          # sides vary), place 5 booked on a carried yellow, place 6
+                    p0 = lepatch_orig()                 # clean (the control): both on the pitch to the half's end
+                    m0 = re.search(rb'(?:\xc7\x05.{8}){4}\x66\xc7\x05.{4}\xa7\x06', p0.le.obj_bytes(1), re.S)
+                    subcard.tb = (p0.target(1, m0.start() + 6)[1], p0.target(1, m0.start() + 26)[1])
+                    g0 = re.search(rb'\x81\x3d....\x00\x00\x04\x05\x75', p0.le.obj_bytes(1), re.S)   # cmp gameTime, 45'
+                    subcard.gt = p0.target(1, g0.start() + 2)[1]
+                    e0 = re.search(rb'\x66\xc7\x05....\xff\xff\x66\xc7\x05....\x37\x00', p0.le.obj_bytes(1), re.S)
+                    subcard.egc = p0.target(1, e0.start() + 12)[1]   # @@last_cycle: gameSeconds -1, endGameCounter 55
+                team = s.result.base2 + subcard.tb[0 if key == 'pgdn' else 1]
+                pl = lambda place: team + struct.unpack('<H', s.result.read(s.result.base2 + sv['OFFS'] + 2 * place, 2))[0]
+                hp = lambda place: s.result.read(pl(place) + 0x4E, 1)[0]
+                s.poke(pl(5) + 51, b'\x01\x02')           # previousCards 1 / cards 2
+                h0 = (hp(5), hp(6))
+                for k in range(150):                    # to the half's end (BumpPlayerLastPlayedHalfAtHalfEnd)
+                    if hp(6) == 2 or s.result.outcome != 'dump':
+                        break
+                    t = s.result.read(s.result.base2 + subcard.gt, 4)
+                    if hp(6) == 1 and t[2] * 10 + t[3] < 44:   # the half started (minute 1's bump): the clock at
+                        s.poke(s.result.base2 + subcard.gt, bytes((0, 0, 4, 4)))   # 44' (gameTime bytes +1..+3 =
+                                                        # hundreds, tens, units, bench_et's recipe); again until it holds
+                    s.poke(s.result.base2 + subcard.egc, b'\0\0')   # the stoppage counter: the whistle now, not
+                    s.send('fire:0.2 dump:2')           # when the ball leaves the danger zones (UpdateTime's last cycle);
+                                                        # fire: a restart waits for the human team's player (bench_et)
+                h1 = (hp(5), hp(6), s.result.read(pl(5) + 51, 2).hex())
+                want = 2 if kind == 'fix' else 1
+                info.append(f'{tag}: halfPlayed (booked place 5, clean place 6) {h0} -> {h1[:2]} after {k} pauses '
+                            f'(place 5 cards {h1[2]})')
+                if check(h1[1] == 2, f'{tag}: the clean control never reached halfPlayed 2 ({h1})', errs):
+                    if kind == 'fix':
+                        check(h1[0] == 2, f'{tag}: the booked player\'s half not counted ({h1})', errs)
+                    elif h1[0] == 1:
+                        info.append(f'{tag}: BUG REPRODUCED (the booked player\'s half not counted)')
+                s.shot(f'{tag}_halfend')
+                continue
+            for _once in (1,):
+                opened = False
+                for call in range(30):
+                    if not keeper_let_go(s, errs):
+                        break
+                    r = bench_open(s, key)
+                    if r.outcome == 'dump' and w16(v['INSUBS']) == 30:
+                        opened = True
+                        break
+                if not check(opened, f'{tag}: the bench never opened', errs):
+                    break
+                r, _ = cam_settle(s)
+                for j in range(12):                     # the cursor down to place 11 + idx (g_benchPlayerIndex idx)
+                    if w16(v['IDX']) == idx:
+                        break
+                    s.send('down:0.15 dump:0.3')
+                if not check(w16(v['IDX']) == idx, f'{tag}: cursor at {w16(v["IDX"])}, not place {11 + idx}', errs):
+                    break
+                btg = struct.unpack('<I', s.result.read(s.result.base2 + sv['BTG'], 4))[0]
+                pl = lambda place: btg + struct.unpack('<H', s.result.read(s.result.base2 + sv['OFFS'] + 2 * place, 2))[0]
+                ns0 = w16(v['NS1']) + w16(v['NS2'])
+                if case == 'banned':
+                    c0 = s.result.read(pl(10 + idx) + 51, 2)
+                    s.poke(pl(10 + idx) + 51, b'\x02\x02')   # previousCards / cards 2: banned at kick-off
+                    r = s.send('fire:0.2 dump:0.6')
+                    st = w16(v['SUBST'])
+                    info.append(f'{tag}: bench place {11 + idx} on cards 2, fire -> g_subsState {st}')
+                    check(st == 0, f'{tag}: a banned bench player picked (g_subsState {st})', errs)
+                    s.shot(f'{tag}_menu')
+                    s.poke(pl(10 + idx) + 51, c0)
+                else:                                   # the exact match of the entering place 12 (a goalkeeper):
+                    gk = 0                                  # the pitch goalkeeper, in-match place 0, poked BEFORE fire
+                    gk_at = pl(gk)
+                    rec = lambda: s.result.read(gk_at + 42, 14).hex()
+                    pc = s.result.read(gk_at + 51, 2)
+                    s.poke(gk_at + 51, b'\x01\x02' if case == 'booked' else b'\x01\x03')
+                    r = s.send('fire:0.2 dump:0.6')
+                    st, ent = w16(v['SUBST']), w16(v['ENTER'])
+                    if not check(st == 1 and ent == 10 + idx, f'{tag}: after fire g_subsState {st}, '
+                                 f'plToEnterGameIndex {ent} (want 1, {10 + idx})', errs):
+                        break
+                    first = (w16(sv['ORD']), w16(sv['POS']))   # FindInitialPlayerToBeSubstituted's choice
+                    s.shot(f'{tag}_menu')
+                    seen = [first]                          # then UP to the top: UpdateSubstitutePlayerIndices
+                    for _ in range(12):                     # moves only onto players IsPlayerOkToSubstitute takes
+                        s.send('up:0.15 dump:0.3')
+                        seen.append((w16(sv['ORD']), w16(sv['POS'])))
+                        if len(seen) > 3 and seen[-1] == seen[-2] == seen[-3]:
+                            break
+                    on_gk = any(p == gk for o, p in seen)
+                    s.shot(f'{tag}_top')
+                    want = kind == 'fix' and case == 'booked'
+                    info.append(f'{tag}: goalkeeper (place {gk}) cards {pc.hex()} -> {rec()[18:22]}; first choice '
+                                f'(ord, place) {first}, up to the top {seen[1:]}: on him {on_gk}')
+                    if kind == 'fix':
+                        check(on_gk == want and (first[1] == gk) == want, f'{tag}: the goalkeeper '
+                              f'{"not " if want else ""}offered (first choice {first}, cursor {seen[1:]})', errs)
+                    elif case == 'booked':
+                        info.append(f'{tag}: BUG REPRODUCED (the booked one never offered)' if not on_gk else
+                                    f'{tag}: the booked one was offered on the base exe (no repro)')
+                    for _ in range(12):                     # (onto him if he is offered: the change made with him)
+                        if not on_gk or w16(sv['POS']) == gk:
+                            break
+                        s.send('up:0.15 dump:0.3')
+                    ns0 = w16(v['NS1']) + w16(v['NS2'])
+                    leave = w16(sv['POS'])
+                    shirt = lambda q: s.result.read(pl(q) + 45, 1)[0]
+                    sh0 = shirt(leave)
+                    r = s.send('fire:0.2 dump:0.6')
+                    ns = w16(v['NS1']) + w16(v['NS2'])
+                    for k in range(30):                     # (the records swap once play goes on, as bench_sub's
+                        if shirt(leave) != sh0 or s.result.outcome != 'dump':   # bx_ord)
+                            break
+                        s.send('fire:0.5 dump:1' if k < 6 else 'dump:1')
+                    info.append(f'{tag}: fire -> NumSubs {ns0} -> {ns}, place {leave} shirt {sh0} -> {shirt(leave)}')
+                    check(ns == ns0 + 1 and shirt(leave) != sh0, f'{tag}: no change made (NumSubs {ns0} -> {ns}, '
+                          f'place {leave} shirt {sh0} -> {shirt(leave)})', errs)
+                    if kind == 'fix':
+                        check((leave == gk) == want, f'{tag}: the change took off place {leave}', errs)
+                    s.shot(f'{tag}_done')
+                for _ in range(8):                      # the bench shut (LEFT out of it), play on
+                    if not w16(v['INSUBS']):
+                        break
+                    s.send('left:0.3 dump:0.5')
+                s.send('dump:2')
+    return not errs, '; '.join(errs + info)
+
+
 @scenario
 def bench_strip_world():
     """4.0.6 (Francesco) the bench info strip (bstrip.py): bench_world's career match (CELLE VARAZZE, bench 15) with

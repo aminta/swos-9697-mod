@@ -19,8 +19,11 @@ The BENCH checks stay >= 2 - IsThisPlayerOkToSelect, FirePressedInSubsMenu, Draw
 kick-off means banned, and a banned player still cannot come on. The card values themselves are unchanged (the ban
 after the match is the game's own). Three imm8 bytes, no code, no room.
 
-Not changed (reported to Regia, 12/11): BumpPlayerLastPlayedHalfAtHalfStart / End also skip cards >= 2, so a player on
-2 does not get his halves counted in halfPlayed.
+The same threshold in the halves he played (Davide 12/11, via Regia): BumpPlayerLastPlayedHalfAtHalfStart / End (two
+copies of the pair in the exe, the one UpdateTime calls and an older one: all four) skip a player on cards >= 2, so a
+player booked on a carried yellow never reaches halfPlayed 2 ("played the whole match"), which the career's after-match
+player update (cseg_2F0E2 -> cseg_64E3E, careerTeam only) reads. They become cards >= 3 too: a player sent off still
+stops counting. Four imm8 bytes more (7 in all); the 3 bench checks are the only cards >= 2 left.
 """
 import re
 
@@ -32,6 +35,9 @@ SITES = {                                         # name: (pattern, offset of th
 }
 
 
+BUMP = rb'\x80\x7e\x34\x02\x73\x16\x8b\x35....\x80\x7e\x4e(?:\x02\x74|\x01\x75)\x0a'   # BumpPlayerLastPlayedHalfAt*
+
+
 def sites(d):
     """{name: obj1 offset of the imm8 2} in obj1 bytes d (the original exe's, every language)."""
     out = {}
@@ -39,6 +45,10 @@ def sites(d):
         m = [x.start() for x in re.finditer(pat, d, re.S)]
         assert len(m) == 1, (name, len(m))
         out[name] = m[0] + k
+    bump = [x.start() + 3 for x in re.finditer(BUMP, d, re.S)]
+    assert len(bump) == 4, ('BumpPlayerLastPlayedHalfAt*', len(bump))
+    for i, at in enumerate(bump):
+        out[f'BumpPlayerLastPlayedHalf{i}'] = at
     assert len(re.findall(rb'\x80\x7e\x34\x02', d)) == 10, 'cmp byte [esi+34h], 2: not the 10 of the original'
     return out
 
@@ -48,4 +58,4 @@ def patch(p):
     for name, at in sites(d).items():
         assert p.get(1, at - 3, 4) == b'\x80\x7e\x34\x02', (name, p.get(1, at - 3, 4).hex())
         p.put(1, at, b'\x03')
-    print('exe: a booked player on a carried yellow can be substituted (pitch-player checks cards >= 3, 3 sites)')
+    print('exe: a booked player on a carried yellow can be substituted, his halves counted (cards >= 3, 7 sites)')

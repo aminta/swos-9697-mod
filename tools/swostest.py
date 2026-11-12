@@ -9960,7 +9960,7 @@ def subcard_vars():
     return subcard_vars.v
 
 
-SUBCARD_CASES = ('banned', 'sentoff', 'booked')   # (subcard) the cases, in one match: see subcard()
+SUBCARD_CASES = ('banned', 'sentoff', 'booked', 'halves')   # (subcard) the cases, in one match: see subcard()
 
 
 @scenario
@@ -9976,10 +9976,14 @@ def subcard():
     'booked' - the fix offers him (first choice) and the change is made with him (NumSubs + 1, his place now another
     player's); the base exe (SUBCARD_BASE=<branch>, notes only: the repro) never offers him; 'sentoff' - cards 3
     (really sent off): never offered on both; 'banned' - the bench place on cards 2 (banned at kick-off): fire does
-    not pick him (g_subsState stays 0) on both. SUBCARD_CASES = a subset."""
+    not pick him (g_subsState stays 0) on both; 'halves' (Davide 12/11) - no bench: a pitch player on 1 / 2 and a clean
+    one played to the first half's end: the fix counts his half (halfPlayed 2, BumpPlayerLastPlayedHalfAtHalfEnd), the
+    base does not (1). SUBCARD_CASES = a subset."""
     v, sv, td = bench_vars(), subcard_vars(), team_data()
     base = os.environ.get('SUBCARD_BASE')
-    runs = [('fix', builds()['it'])] + ([('base', build('subcard_base', branch=base))] if base else [])
+    bb = os.environ.get('SUBCARD_BASE_BUILD')      # (a base built here beforehand: remote_run's server has no branches)
+    runs = [('fix', builds()['it'])] + ([('base', bb)] if bb else [('base', build('subcard_base', branch=base))] if base
+                                        else [])
     cases = [c for c in os.environ.get('SUBCARD_CASES', ','.join(SUBCARD_CASES)).split(',') if c]
     _, home, away, _, _ = FR_CASES['seriea']
     errs, info = [], []
@@ -10022,6 +10026,41 @@ def subcard():
             s.shot('match')
             key = 'pgdn' if w16(td[0] + 4) or w16(td[0] + 6) else 'pgup'
             idx = 1                                     # (place 12; one case a match)
+            if case == 'halves':                        # the human's in-match team (top / bottom: the friendly's
+                if not hasattr(subcard, 'tb'):          # sides vary), place 5 booked on a carried yellow, place 6
+                    p0 = lepatch_orig()                 # clean (the control): both on the pitch to the half's end
+                    m0 = re.search(rb'(?:\xc7\x05.{8}){4}\x66\xc7\x05.{4}\xa7\x06', p0.le.obj_bytes(1), re.S)
+                    subcard.tb = (p0.target(1, m0.start() + 6)[1], p0.target(1, m0.start() + 26)[1])
+                    g0 = re.search(rb'\x81\x3d....\x00\x00\x04\x05\x75', p0.le.obj_bytes(1), re.S)   # cmp gameTime, 45'
+                    subcard.gt = p0.target(1, g0.start() + 2)[1]
+                    e0 = re.search(rb'\x66\xc7\x05....\xff\xff\x66\xc7\x05....\x37\x00', p0.le.obj_bytes(1), re.S)
+                    subcard.egc = p0.target(1, e0.start() + 12)[1]   # @@last_cycle: gameSeconds -1, endGameCounter 55
+                team = s.result.base2 + subcard.tb[0 if key == 'pgdn' else 1]
+                pl = lambda place: team + struct.unpack('<H', s.result.read(s.result.base2 + sv['OFFS'] + 2 * place, 2))[0]
+                hp = lambda place: s.result.read(pl(place) + 0x4E, 1)[0]
+                s.poke(pl(5) + 51, b'\x01\x02')           # previousCards 1 / cards 2
+                h0 = (hp(5), hp(6))
+                for k in range(150):                    # to the half's end (BumpPlayerLastPlayedHalfAtHalfEnd)
+                    if hp(6) == 2 or s.result.outcome != 'dump':
+                        break
+                    t = s.result.read(s.result.base2 + subcard.gt, 4)
+                    if hp(6) == 1 and t[2] * 10 + t[3] < 44:   # the half started (minute 1's bump): the clock at
+                        s.poke(s.result.base2 + subcard.gt, bytes((0, 0, 4, 4)))   # 44' (gameTime bytes +1..+3 =
+                                                        # hundreds, tens, units, bench_et's recipe); again until it holds
+                    s.poke(s.result.base2 + subcard.egc, b'\0\0')   # the stoppage counter: the whistle now, not
+                    s.send('fire:0.2 dump:2')           # when the ball leaves the danger zones (UpdateTime's last cycle);
+                                                        # fire: a restart waits for the human team's player (bench_et)
+                h1 = (hp(5), hp(6), s.result.read(pl(5) + 51, 2).hex())
+                want = 2 if kind == 'fix' else 1
+                info.append(f'{tag}: halfPlayed (booked place 5, clean place 6) {h0} -> {h1[:2]} after {k} pauses '
+                            f'(place 5 cards {h1[2]})')
+                if check(h1[1] == 2, f'{tag}: the clean control never reached halfPlayed 2 ({h1})', errs):
+                    if kind == 'fix':
+                        check(h1[0] == 2, f'{tag}: the booked player\'s half not counted ({h1})', errs)
+                    elif h1[0] == 1:
+                        info.append(f'{tag}: BUG REPRODUCED (the booked player\'s half not counted)')
+                s.shot(f'{tag}_halfend')
+                continue
             for _once in (1,):
                 opened = False
                 for call in range(30):

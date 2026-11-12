@@ -2418,5 +2418,5 @@ Left for 2.5: (a) NSL/NSSL finals series (type-1 design) or declare them postpon
   the Malta control, zones extra + Apertura MEX / ARG / URU, natural + forced conti incl. bra_sud / recopa_late, uefa_name,
   euro_draws, NZ x10, the server old-save set 10/10; world_conti_guest FAIL = the known 403c19 scenario-data case (MC backlog).
   Node patcher test all OK (DATA coverage 0), dirtest ALL OK x4, host 30/30, test_stwins 16 cases PASS (41d8668 worktree).
-  Visual tour (Shaved): internal/announcements/4.1.2/tour, nothing to fix.
+  Visual tour (Shaved) reviewed: nothing to fix.
 - Kept out of the frozen 4.1.2: 412-zonepos 415362f / 41d8668 (test only), they come with the 4.1.2 -> 42-int merge.

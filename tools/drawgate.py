@@ -11,6 +11,17 @@ switch). For every conti group stage drawn with an association rule (conti.c dra
 - per multiset the seed with the most library steps replayed under Unicorn on ctband.c as the exe compiles it
   (cobj flags, cobj.link; the engine's C stack stubbed to a direct call): <= 20 M i486 instructions, else FAIL.
 
+Root fix G (MC 12/11) adds, in the same cached result:
+- POTS (item 1): per round its NPM hardest multisets in up to NPOT pot compositions by club ranking each
+  (compositions(): an association's clubs together from every pot, the associations grouped / interleaved in many
+  orders, random rankings), NPS seeds each through ct_place in that FIXED seeding order;
+- FILL (items 2 + 3, its own process: run_fill): conti.c natively on the world's club counts, every association
+  with places in turn short of clubs (places - 1, half, 10 = a career country's top 9 + the club, as before
+  2c352da): the group fills' associations within the round's rule (9b14728), no refusal, ctfield clean.
+And by hand / the gate scripts: `drawgate.py --field <run dir | .CAR>` replays a harness run's dumped edition (or a
+career save's) over 64 seeds - exit 1 on a refusal or a ctfield violation; `--pots`, `--fill` alone
+(DRAWGATE_CONTI_C=<a conti.c>: another revision, the negative tests). Host tests: hosttest/tests/test_drawgate_g.py.
+
 A FAIL names the pack (confederation), cup, round, multiset and seed, and fails the build. The result is cached by
 content in internal/drawgate/<key>.json, key = sha1 of the gate's inputs (every round's rule / groups / size / region
 flag, fixed places, bounds, regions) + the draw code (ctdraw.c, ctband.c, swce/sr_stage.c,
@@ -36,7 +47,7 @@ EXHAUST, NSAT, NRND, NSEED, NGAME = 4096, 4096, 4096, 1024, 64
 I486_MAX = 20_000_000
 FLAGS = ['-Oz', '-fno-zero-initialized-in-bss']        # (lrank.ct_patch's)
 SRCS = ('ctdraw.c', 'ctband.c', 'swce/sr_stage.c', 'swce/swosrules.h', 'drawgate.py',
-        'conti.c', 'conti.h')                           # (conti.c: the game seeds' derivation - MC 11/11)
+        'conti.c', 'conti.h', 'ctfield.py')             # (ctfield: the fill sweep's checks - root fix G)                           # (conti.c: the game seeds' derivation - MC 11/11)
 A_ANY, A_NO, A_NOVIA, A_NO2, A_MIN = 0, 1, 2, 3, 4
 
 
@@ -252,6 +263,8 @@ def key(rs):
     import conti
     h.update(json.dumps([cobj.CFLAGS, FLAGS, list(conti.NATIVE_FLAGS)]).encode())   # (+ the native build's flags)
     h.update(json.dumps([{k: (sorted(v.items()) if isinstance(v, dict) else v) for k, v in r.items()} for r in rs]).encode())
+    if conti.BOUND_CNT[0]:                              # (root fix G: the fill sweep's club counts, per association)
+        h.update(json.dumps(sorted(conti.BOUND_CNT[0][4].items())).encode())
     return h.hexdigest()[:16]
 
 
@@ -353,6 +366,16 @@ def gate(confs, cups, assocs, quiet=False):
         js = [jb for jb in jobs if jb['r'] == ri]        #  instructions go together; the rest: under the cap or not)
         if js:
             max(js, key=lambda jb: jb['steps'])['exact'] = True
+    res['pots'] = pot_sweep(rs, L, cups, assocs, quiet=quiet)   # (root fix G item 1: pot compositions by ranking)
+    for rr in res['pots']:
+        if rr['nfail']:
+            res['result'] = 'FAIL'
+            res.setdefault('fail', rr['fails'][0])
+    fl = run_fill()                                     # (root fix G items 2 + 3: the fills, a short association)
+    res['fill'] = dict(runs=fl['runs'], nfail=len(fl['fails']), fails=fl['fails'][:8])
+    if fl['fails']:
+        res['result'] = 'FAIL'
+        res.setdefault('fail', 'fill sweep: ' + ' '.join(map(str, fl['fails'][0])))
     i486 = run_i486(jobs)                               # (every multiset's worst seed under Unicorn)
     for rr in res['rounds']:
         rr['i486_worst'] = 0
@@ -369,6 +392,8 @@ def gate(confs, cups, assocs, quiet=False):
         res['i486_over'] = over[:16]
     w = max(res['rounds'], key=lambda x: x['i486_worst'])
     res['summary'] = (f'{len(rs)} rounds, {sum(x["multisets"] for x in res["rounds"])} multisets x {NSEED} seeds; '
+                      f'pots {sum(x["compositions"] for x in res["pots"])} compositions x {NPS}; '
+                      f'fill {res["fill"]["runs"]} short-association runs; '
                       f'worst i486 {w["i486_worst"]} insns ({w["cup"]} r{w["round"]} [{w.get("i486_worst_ms", "")}])')
     res['seconds'] = round(time.time() - t0)
     os.makedirs(CACHE, exist_ok=True)
@@ -376,6 +401,18 @@ def gate(confs, cups, assocs, quiet=False):
     print(f'exe: conti draw gate {res["result"]} ({k}, {res["seconds"]} s): {res["summary"]}')
     assert res['result'] == 'PASS', f'drawgate FAIL ({path}): {res["fail"]}'
     return res
+
+
+def run_fill():
+    """the fill sweep in its own process (conti.test / load would overwrite the build's conti state): this
+    process's SEASON_PACKS (the build's world) -> fill_sweep's result"""
+    out = subprocess.run([sys.executable, os.path.abspath(__file__), '--fill-json'], capture_output=True, text=True,
+                         env=dict(os.environ))
+    line = [x for x in out.stdout.splitlines() if x.startswith('{')]
+    assert out.returncode == 0 and line, ('drawgate: the fill sweep did not run', out.stderr[-2000:])
+    r = json.loads(line[-1])
+    r['fails'] = [tuple(x) for x in r['fails']]
+    return r
 
 
 def _mset(asb):
@@ -488,6 +525,108 @@ def count_insns(uc, ct, sent, sp, args, buf, jb):
     return hi
 
 
+NPM, NPOT, NPS = 48, 256, 16          # (root fix G item 1: multisets per round, pot compositions each, seeds each)
+
+
+def compositions(asb, ng, gs, rnd, cap=NPOT):
+    """root fix G item 1 (MC 12/11): seeding orders of one multiset's clubs (asb: association bytes) that differ in
+    their POT composition (pot p = positions p*ng ..: conti.c draw_groups sorts by ranking, so any order is a
+    ranking): each association's clubs together from each pot in turn (the others grouped by association, or
+    interleaved), the associations grouped in up to 32 orders (and reversed), then random ones; distinct by pot
+    contents, at most cap. -> [list of club indices in seeding order]"""
+    m = len(asb)
+    idx = {}
+    for i, a in enumerate(asb):
+        idx.setdefault(a, []).append(i)
+    al = sorted(idx)
+    out, seen = [], set()
+
+    def add(o):
+        k = tuple(tuple(sorted(asb[i] for i in o[p * ng:(p + 1) * ng])) for p in range(gs))
+        if len(o) == m and k not in seen and len(out) < cap:
+            seen.add(k)
+            out.append(list(o))
+
+    def interleave(groups):
+        o, gs_ = [], [list(g) for g in groups]
+        while any(gs_):
+            for g in gs_:
+                if g:
+                    o.append(g.pop(0))
+        return o
+    for a in al:                                        # (a's clubs from pot p on, the rest grouped / interleaved)
+        rest = [b for b in al if b != a]
+        for style in (0, 1):
+            others = [i for b in rest for i in idx[b]] if style == 0 else interleave(idx[b] for b in rest)
+            for p in range(gs):
+                o = list(others)
+                at = min(p * ng, len(o))
+                add(o[:at] + idx[a] + o[at:])
+    orders = [al, al[::-1]] + [rnd.sample(al, len(al)) for _ in range(30)]
+    for ao in orders:                                   # (associations grouped, in an order)
+        add([i for b in ao for i in idx[b]])
+        add(interleave(idx[b] for b in ao))
+    for _ in range(4 * cap):                            # (random rankings)
+        if len(out) >= cap:
+            break
+        add(rnd.sample(range(m), m))
+    return out
+
+
+def pot_sweep(rs, L, cups, assocs, quiet=False):
+    """root fix G item 1: per group round, its NPM hardest multisets (the most clubs of one association first) in
+    up to NPOT pot compositions each (compositions()), NPS seeds each, through ct_place in that fixed seeding order
+    (ct_gate shuffles: a random composition per seed). FAIL: a refusal, a half over size / 2, a budget hit.
+    -> [{cup, round, multisets, compositions, draws, fails}]"""
+    import ctypes
+    rnd = random.Random(0x6A7E)
+    hit = ctypes.c_uint32.in_dll(L, 'CT_SDRAW_HIT')
+    err = ctypes.c_uint32.in_dll(L, 'CT_SDRAW_ERR')
+    L.ct_place.restype = ctypes.c_int
+    x, v, k, a_ = (ctypes.c_uint16 * 64)(), (ctypes.c_uint8 * 64)(), (ctypes.c_uint8 * 64)(), (ctypes.c_uint8 * 64)()
+    rng = ctypes.c_uint32()
+    out = []
+    for r in rs:
+        kind, ms, names = multisets(r, rnd)
+        tl = [t[1] if t and t[0] in ('s', 'r') else t for t in ms]
+        sets = [clubs_of(r, names, t) for t in tl]
+        sets.sort(key=lambda sv: (-max(_mset(sv[0]).values() or [0]), -sum(n * n for n in _mset(sv[0]).values())))
+        mode = r['rule'] | 0x20 | (0x40 if r['pr'] else 0) | 1 << 8
+        if os.environ.get('DRAWGATE_POTS_411'):         # (the negative test: 4.1.1's draw, not the library's -
+            mode = r['rule'] | 16 << 8                  #  it may refuse a composition a draw exists for)
+        nc = nd = 0
+        fails = []
+        for asb, vb in sets[:NPM]:
+            m = len(asb)
+            for o in compositions(asb, r['ng'], r['gs'], rnd):
+                nc += 1
+                lcg = 0x2545F491 ^ (nc * 2654435761 & 0xFFFFFFFF)
+                for _ in range(NPS):
+                    lcg = (lcg * 1664525 + 1013904223) & 0xFFFFFFFF
+                    for i, j in enumerate(o):
+                        x[i], v[i], k[i], a_[i] = i + 1, vb[j], 0, asb[j]
+                    rng.value = lcg
+                    h0, e0 = hit.value, err.value
+                    err.value = 0
+                    rc = L.ct_place(m, r['ng'], r['gs'], mode, x, v, k, a_, ctypes.byref(rng), 0)
+                    halves = (err.value & 0xFF) == 5
+                    err.value = e0
+                    nd += 1
+                    if rc < 0 or halves or hit.value != h0:
+                        pots = [' '.join(assocs[asb[j] & 0x7F] for j in o[p * r['ng']:(p + 1) * r['ng']])
+                                for p in range(r['gs'])]
+                        fails.append(f'{cups[r["c"]][0]}:{cups[r["c"]][1]} round {r["j"]} rc {rc}'
+                                     f'{" halves" if halves else ""}{" budget" if hit.value != h0 else ""} '
+                                     f'seed {lcg:#x} pots {pots}')
+        rr = dict(cup=f'{cups[r["c"]][0]}:{cups[r["c"]][1]}', round=r['j'], multisets=min(NPM, len(sets)),
+                  compositions=nc, draws=nd, nfail=len(fails), fails=fails[:8])
+        out.append(rr)
+        if not quiet:
+            print(f'drawgate pots: {rr["cup"]} r{r["j"]}: {rr["multisets"]} multisets, {nc} pot compositions, '
+                  f'{nd} draws, {len(fails)} FAIL', flush=True)
+    return out
+
+
 def native(conti_c=None):
     """conti's native library: this checkout's, or conti_c (another conti.c - a git revision's copy, the negative
     tests) compiled with this checkout's conti.h / ctdraw.c"""
@@ -507,6 +646,17 @@ def native(conti_c=None):
     subprocess.run(['clang', '-O1', '-shared', '-fPIC', '-DNATIVE', *conti.NATIVE_FLAGS, '-I', HERE, '-o', lib,
                     os.path.join(t, 'conti.c'), os.path.join(t, 'ctdraw.c')], check=True, capture_output=True)
     return ctypes.CDLL(lib)
+
+
+def _cups():
+    """the loaded world's cups, in spec order"""
+    import contextlib
+    import io
+    import conti
+    with contextlib.redirect_stdout(io.StringIO()):
+        files, words = conti._world_maps(conti.ready())
+        _, _, cups = conti.load(conti.ready(), files, words)
+    return cups
 
 
 def world_spec():
@@ -657,6 +807,19 @@ def field(run, nseeds=64, conti_c=None, quiet=False):
 if __name__ == '__main__':
     if sys.argv[1:2] == ['--i486']:
         i486_main(sys.argv[2])
+    elif sys.argv[1:2] == ['--fill-json']:          # (run_fill's child: the result as one JSON line)
+        sys.path.insert(0, HERE)
+        r = fill_sweep(quiet=True)
+        print(json.dumps(r))
+    elif sys.argv[1:2] == ['--pots']:               # (root fix G item 1: pot compositions by ranking)
+        sys.path.insert(0, HERE)
+        import conti
+        world_spec()
+        cc = os.environ.get('DRAWGATE_CONTI_C')
+        _, _, _, _, an, _ = conti.BOUND_IN[0]
+        cu = [x for x in conti.LOADED_CUPS] if hasattr(conti, 'LOADED_CUPS') else None
+        res = pot_sweep(rounds(conti.ready()), native(cc), cu or _cups(), an)
+        sys.exit(1 if any(r['nfail'] for r in res) else 0)
     elif sys.argv[1:2] == ['--fill']:               # (root fix G items 2 + 3: every association short in turn)
         sys.path.insert(0, HERE)
         cc = os.environ.get('DRAWGATE_CONTI_C')      # (another conti.c: the negative test)

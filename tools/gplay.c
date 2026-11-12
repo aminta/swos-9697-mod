@@ -3242,6 +3242,27 @@ u32 gp_rlines_c(void) {
     rl_put();
     return rl_n;
 }
+/* 4.1.2 (Enzo, Davide 12/11; split.py zp_bonus): the stage titles (Apertura, Clausura, Trofeo) the club mgr won
+   this season, for the chairman's season-end opinion in a league in zones (each one counts as a cup won). The same
+   sources as gp_rlines_c: GP_ST.dec (stages decided before) and ko[0] (the stage knockout still live). Read only. */
+u32 gp_stwins_c(u32 mgr) {
+    struct gp_ko *k = &GP_ST.ko[0];
+    int kstage = -1;
+    u32 n = 0;
+    if (GP_ST.magic != MAGIC || GP_ST.season != GP_SEAS) return 0;
+    int live = k->magic == MAGIC && k->season == GP_SEAS && k->kind == K_STAGE;
+    if (live) {
+        const u8 *s = po_at(k->pi);
+        kstage = s ? s[3] & 3 : -1;
+    }
+    for (int st = 0; st < 3; st++) {
+        const struct gp_dec *x = &GP_ST.dec[st];
+        if (st == kstage || x->season != GP_SEAS || !x->done || !x->pad[1]) continue;
+        if (x->pad[0] == 1) n++;
+    }
+    if (live && kstage >= 0 && club_res(k, (u16)mgr) == 1) n++;
+    return n;
+}
 u32 sc_rlines_c(void) {                 /* 4.0.5 (gp_rl, a league with no gplay play-offs: LaLiga, Serie A): only a
                                            national supercup won */
     rl_n = rl_w = 0;

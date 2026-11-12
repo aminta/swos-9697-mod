@@ -18069,6 +18069,94 @@ def guest_sample(out, src=64, n=2, conf='caf', assoc='PAR'):
 
 
 @scenario
+def world_recopa_late():
+    """4.1.2 B (MC 12/11, Regia: crash class): the season-1 Recopa of a career club still alive in the Libertadores
+    past the Recopa's own weeks. conti's daily built that main round from the cup's struct, its real weeks (104 / 112)
+    already gone: the game moved a leg past the calendar's last week (128) - REL42i9 ATHLETICO-PR stuck at step 273,
+    4.1.1 / 4.1.2 exit to DOS. Forced, no reruns: a copy of the world data with the BRA stand-in (ATHLETICO-PR) made
+    the strongest club (outfield skills 7, price 49), simdraw 0x30 (the stronger side wins 3-0) to the Libertadores
+    quarter-final return (W8485_MIDTEXT save), then that save with simdraw 0x03 (the weaker side wins): out in the
+    quarter-final at week ~115, its Recopa after it. The fix (conti ct_late): the legs at the next weeks - both
+    Recopa legs played, the season's end save reached"""
+    import csv
+    import shutil as sh
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import simdraw
+    from le import LE
+    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-403c19')
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    club, team = 'athleticopr', 'SUDAMERICA,BRASILE,BRASILEIRAO SERIE A|CAMPEONATO BRASILEIRO SERIE A,ATHLETICO-PR'
+    data = os.path.join(RUNS, 'recopa_late_data')       # (the world data with the club made the strongest; in the run
+                                                        # dir: parallel suites never share it)
+    if os.path.isdir(data):
+        sh.rmtree(data)
+    os.makedirs(data)
+    for n in os.listdir(src):
+        if n == 'bra':
+            sh.copytree(os.path.join(src, n), os.path.join(data, n))
+        else:
+            os.symlink(os.path.join(src, n), os.path.join(data, n))
+    sh.copy(src.rstrip('/') + '.txt', data + '.txt')
+    pp = os.path.join(data, 'bra', 'players.csv')
+    rows = list(csv.DictReader(open(pp, encoding='utf-8')))
+    mine = [r for r in rows if r['club'] == club]
+    if len(mine) < 16:
+        return False, f'setup: {club} has {len(mine)} players in {src}/bra'
+    for r in mine:
+        r['price'] = '49'
+        if r['role'] != 'G':
+            r.update({k: '7' for k in ('pa', 've', 'he', 'ta', 'co', 'sp', 'fi')})
+    with open(pp, 'w', encoding='utf-8', newline='') as f:      # (closed before the build reads it)
+        w = csv.DictWriter(f, fieldnames=list(rows[0].keys()))
+        w.writeheader()
+        w.writerows(rows)
+    order = [ln.split()[0].lower() for ln in open(data + '.txt') if ' file ' in ln]
+    packs = ','.join(['ddr-1988-89'] + [os.path.join(data, x) for x in order])
+    exe = os.environ.get('RECOPA_BUILD') or build('world_recopa_late', env={'SEASON_PACKS': packs})
+    at = LE(open(os.path.join(exe, 'ITALIAN.EXE'), 'rb').read()).obj_bytes(2).find(simdraw.table())
+    if at < 0:
+        return False, 'setup: simdraw table not found in obj2 (the forced results need it)'
+    keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_ONE',
+            'W8485_MIDTEXT', 'W8485_FROM', 'W8485_FILL')
+    keep = {k: os.environ.get(k) for k in keys}
+    base = dict(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+',
+                W8485_NOSACK='1')
+    logs = {}
+    try:
+        os.environ.update(base, W8485_ONE='1', W8485_MIDTEXT='QUARTI DI FINALE RITORNO:1',
+                          W8485_FILL=f'{at:x}:30:3072')
+        ok, msg = world8485()
+        logs['a'] = open(os.path.join(RUNS, w84_tag() + '_1', 'session.log'), errors='replace').read()
+        if not ok or 'saved mid-season' not in msg:
+            return False, f'setup: no save after the Libertadores quarter-final return (the club out before it?): {msg}'
+        mid = os.path.join(RUNS, 'recopa_late_mid.CAR')
+        os.makedirs(os.path.dirname(mid), exist_ok=True)
+        shutil.copy(msg.split(': ', 1)[1], mid)
+        for k in ('W8485_ONE', 'W8485_MIDTEXT'):
+            os.environ.pop(k, None)
+        os.environ.update(base, W8485_FROM=mid, W8485_FILL=f'{at:x}:03:3072')
+        ok2, msg2 = world8485()
+        logs['b'] = open(os.path.join(RUNS, w84_tag() + '_2', 'session.log'), errors='replace').read()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    played = lambda log, t: any(ln.split('] ', 1)[-1].startswith(t) and '>ESCI' in ln   # (the match screen left by
+                                for ln in log.splitlines())                           # ESCI: played, either way)
+    errs = []
+    check('RECOPA' not in logs['a'], 'setup: the Recopa already played before the quarter-final return '
+                                     '(not the late case)', errs)
+    check(ok2, f'the reloaded season (out in the quarter-final, its Recopa after it): {msg2[:300]}', errs)
+    check(played(logs['b'], 'RECOPA SUDAMERICANA FINALE ANDATA'), 'no Recopa first leg played after the reload', errs)
+    check(played(logs['b'], 'RECOPA SUDAMERICANA FINALE RITORNO'), 'no Recopa second leg played after the reload',
+          errs)
+    return not errs, '; '.join(errs) or f'the late Recopa played (both legs), the season ended: {msg2[:200]}'
+
+
+@scenario
 def world_conti_guest():
     """Guest clubs of the continental cups (guests.py, the integrator's option b): two guests built from a sample
     caf.guests.json (orig TEAM.064's first two clubs) into TEAM.191 on alias global numbers (guests.alloc), in

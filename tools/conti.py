@@ -942,6 +942,79 @@ ct_prep:                                ; CT_SEG a tie -> the ties' contest (its
 .r:
     ret
 
+ct_late:                                ; 4.1.2 (MC, B: world_recopa_late): eax = a cup's contest struct about to be
+    push ecx                            ; built for the career club (its main round). Its window's last week (+4,
+    push edx                            ; the second leg's) already reached - REL42i9 ATHLETICO-PR: the Recopa's legs
+    mov dword [ct_latep], 0             ; at 104 / 112 built at 124, the second put at 130 by the game, after the
+    movzx ecx, word [CAL_CUR]           ; calendar's 128: the season never ended - a knockout's weeks become the
+    movzx ecx, byte [CAL + ecx + 1]     ; next and the one two later (ct_prep's ties), kept in ct_latew; CF = 1: no
+    cmp [eax + 4], cl                   ; room before the calendar's last week (or a group stage: not squeezed)
+    ja .ok
+    test byte [CT_SEG + 2], 3Fh         ; (K_KO 0: a knockout)
+    jnz .no
+    call cal_last
+    add ecx, 3
+    cmp ecx, edx
+    ja .no
+    mov dx, [eax + 3]
+    mov [ct_latew], dx
+    mov [ct_latep], eax
+    sub ecx, 2
+    mov [eax + 3], cl
+    add ecx, 2
+    mov [eax + 4], cl
+.ok:
+    pop edx
+    pop ecx
+    clc
+    ret
+.no:
+    pop edx
+    pop ecx
+    stc
+    ret
+
+ct_lateback:                            ; the struct's own weeks back (the next season's build reads them)
+    push eax
+    push edx
+    mov eax, [ct_latep]
+    test eax, eax
+    jz .r
+    mov dx, [ct_latew]
+    mov [eax + 3], dx
+    mov dword [ct_latep], 0
+.r:
+    pop edx
+    pop eax
+    ret
+
+cal_last:                               ; edx = the career calendar's last week (its entries: count word at CAL - 4)
+    push eax
+    push ecx
+    push esi
+    xor edx, edx
+    mov esi, CAL
+    movzx ecx, word [CAL - 4]
+.l:
+    test ecx, ecx
+    jz .e
+    movzx eax, byte [esi + 1]
+    cmp eax, edx
+    jbe .n
+    mov edx, eax
+.n:
+    movzx eax, word [esi + 2]
+    test eax, eax
+    jz .e
+    add esi, eax
+    dec ecx
+    jmp .l
+.e:
+    pop esi
+    pop ecx
+    pop eax
+    ret
+
 ct_away:                                ; careerworld w_ct_away (4.0.2): ZF = 1 when the contest - esi = its DIY, 0 the
     push eax                            ; loaded one (diyFileBufferCopy) - keeps away goals after 90': a cup of
     push ecx                            ; AWAY_IDS, or our tie's contest when its round's level has them (CT_SEG +5:
@@ -1156,6 +1229,10 @@ ct_daily:                               ; before the next match (uefaq's uq_dail
     jnz .x
     test al, 80h
     jnz .main
+    call cal_last                       ; 4.1.2 (MC, B): a tie whose second week is past the calendar's last one
+    movzx eax, byte [TIE + 4]           ; would never be reached - the season could not end: not built (the season
+    cmp eax, edx                        ; end plays it, as a round still waiting there)
+    ja .none
     mov dword [A0R], TIE                ; the next tie
     call ct_build
     mov word [E092F], TIE_D7
@@ -1166,8 +1243,11 @@ ct_daily:                               ; before the next match (uefaq's uq_dail
     cmp ebx, CT_NS                      ; (a cup with no contest of its own: none - never past the table)
     jae .none
     mov eax, [ct_structs + ebx * 4]
-    mov [A0R], eax
-    call ct_build
+    call ct_late                        ; 4.1.2 (MC, B): its own weeks already gone (the club alive in another cup's
+    jc .none                            ; game contest until then - the Recopa after a Libertadores semi-final): from
+    mov [A0R], eax                      ; the next week as ct_prep's ties, put back after the build; no room left
+    call ct_build                       ; before the calendar's last week: not built (the season end plays it)
+    call ct_lateback
     add ebx, CT_D7
     mov [E092F], bx
     mov word [CUP_KIND], 0
@@ -1323,6 +1403,9 @@ cg_testp: dd 0                          ; (ctgame.patch: cg_selftest in CONTI_CG
 cg_guardp: dd 0                         ; (ctgame.patch: cg_daily - cg_guard, + cg_vtest in CONTI_CGVIEW builds)
 ct_on: db 0
 ct_live: db 0
+align 4
+ct_latep: dd 0                          ; (ct_late: the struct whose weeks were moved, its own two in ct_latew)
+ct_latew: dw 0
 ct_gplace: db 0
 ct_gids:
     ;CT_GIDS

@@ -2,7 +2,7 @@
 
 **SWOS 96/97 Mod 4.1.2**
 
-4.1.2 is a small update. In the 2026-27 world it fixes a crash at the end of the season after an exit from the Libertadores and, in careers with a Brazilian or Argentine club, some of the country's places in the continental cups that were given to clubs from other countries. In every world it fixes the spelling of the UEFA Cup. Everything in 4.1.1 stays as it was; careers saved with 4.0 up to 4.1.1 load and play on.
+4.1.2 is a small update. In the 2026-27 world it fixes a crash at the end of the season after an exit from the Libertadores and, in careers with a Brazilian or Argentine club, some of the country's places in the continental cups that were given to clubs from other countries. In Argentina, Panama and the MLS it fixes how the chairman judges a club in the second zone (conference). In every world it fixes the spelling of the UEFA Cup. Everything in 4.1.1 stays as it was; careers saved with 4.0 up to 4.1.1 load and play on.
 
 ### What's new
 
@@ -15,6 +15,9 @@ The original game writes the UEFA Cup as "EUFA" in all four languages (COPPA EUF
 #### Continental cups: Brazil and Argentina send all their clubs
 With a career club from Brazil or Argentina, your country now sends all its clubs to the Copa Libertadores and the Copa Sudamericana. Before, only the country's top 9 clubs (plus your own and the cup winner) were entered, so Brazil, with 13 places, was always 2 or 3 short and Argentina, with 12, 1 or 2 short, and the empty places went to clubs from other countries. A Flamengo career, for example, had 1 to 3 Brazilian clubs in the Copa Sudamericana groups; now it has 6 of 12.
 
+#### Argentina, Panama and the MLS: the chairman judges the place in your own zone
+Argentina, Panama and the MLS: the chairman now judges your club on its place in its own zone (conference), not on the two zones stacked as one table, so a club leading the second zone is no longer warned or sacked for it. The management record shows that place too. In Argentina and Panama, every Apertura or Clausura title you win now counts at the season end like a cup won. (Thanks Enzo.)
+
 ### Good to know
 - Careers saved with 4.0, 4.0.1, 4.0.2, 4.0.5, 4.1 and 4.1.1 load and play on.
 - Brazil and Argentina: a save made in the middle of a season picks the fix up at its next season end; the cups already drawn at the previous season end keep the clubs they have, and the full lists show from the next season's cups on.
@@ -25,7 +28,7 @@ With a career club from Brazil or Argentina, your country now sends all its club
 
 **SWOS 96/97 Mod 4.1.2**
 
-La 4.1.2 è un piccolo aggiornamento. Nel mondo 2026-27 sistema la chiusura del gioco a fine stagione dopo un'uscita dalla Libertadores e, nelle carriere con un club brasiliano o argentino, alcuni posti del paese nelle coppe continentali che andavano a club di altri paesi. In ogni mondo sistema il nome della Coppa UEFA. Tutto quello che c'era nella 4.1.1 resta com'era; le carriere salvate con la 4.0 fino alla 4.1.1 si caricano e si giocano normalmente.
+La 4.1.2 è un piccolo aggiornamento. Nel mondo 2026-27 sistema la chiusura del gioco a fine stagione dopo un'uscita dalla Libertadores e, nelle carriere con un club brasiliano o argentino, alcuni posti del paese nelle coppe continentali che andavano a club di altri paesi. In Argentina, Panama e MLS sistema il giudizio del presidente su un club della seconda zona (conference). In ogni mondo sistema il nome della Coppa UEFA. Tutto quello che c'era nella 4.1.1 resta com'era; le carriere salvate con la 4.0 fino alla 4.1.1 si caricano e si giocano normalmente.
 
 ### Novità
 
@@ -37,6 +40,9 @@ Il gioco originale scrive la Coppa UEFA "EUFA" in tutte e quattro le lingue (COP
 
 #### Coppe continentali: Brasile e Argentina mandano tutti i loro club
 Con un club in carriera del Brasile o dell'Argentina, il tuo paese ora manda tutti i suoi club alla Copa Libertadores e alla Copa Sudamericana. Prima entravano solo i primi 9 club del paese (più il tuo e il vincitore della coppa), quindi il Brasile, con 13 posti, ne aveva sempre 2 o 3 in meno e l'Argentina, con 12, 1 o 2 in meno, e i posti vuoti andavano a club di altri paesi. Una carriera con il Flamengo, per esempio, aveva da 1 a 3 club brasiliani nei gironi della Copa Sudamericana; ora ne ha 6 su 12.
+
+#### Argentina, Panama e MLS: il presidente giudica la posizione nella tua zona
+Argentina, Panama e MLS: il presidente ora giudica il club sulla posizione nella sua zona (conference), non sulle due zone messe una sotto l'altra come un'unica classifica, quindi un club primo nella seconda zona non viene più richiamato né licenziato per questo. Anche il registro gestione mostra quella posizione. In Argentina e Panama ogni titolo di Apertura o Clausura vinto conta a fine stagione come una coppa vinta. (Grazie Enzo.)
 
 ### Da sapere
 - Le carriere salvate con la 4.0, la 4.0.1, la 4.0.2, la 4.0.5, la 4.1 e la 4.1.1 si caricano e si giocano normalmente.

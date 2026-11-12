@@ -452,7 +452,7 @@ def _imp_protos(L):
     """sreg_import / sreg_ri_import's prototypes (Apple arm64 packs small stack arguments: ctypes must know the u8s)"""
     import ctypes
     P, I32, U8, U32 = ctypes.c_void_p, ctypes.c_int32, ctypes.c_uint8, ctypes.c_uint32
-    L.sreg_import.argtypes = [P, P, I32, P, I32, P, P, I32, I32, U8, P, U32, P, P, I32, P, I32, P]
+    L.sreg_import.argtypes = [P, P, I32, P, I32, P, P, I32, I32, U8, P, P, I32, U8, U32, P, P, I32, P, I32, P]
     L.sreg_import.restype = I32
     if hasattr(L, 'sreg_ri_import'):
         L.sreg_ri_import.argtypes = [P, P, I32, P, I32, P, P, I32, P, I32, P, P, U8, U8, U8, P, P, P, P]
@@ -473,7 +473,11 @@ def test_sreg_import():
       file 102 (no row moves, only the division), RI: p1 onto d1's slot 9 (group 5), d1 off -> the pool: every club's
       registry division = its actual one (J's spec), the map follows every club on a slot;
     - deterministic: two imports from different garbage give the same registry, swaps, map and result;
-    - refused, with the club: J swapped on by RI (SIX, J), a club down to group 6 with nobody up (BALANCE, it), a
+    - J swapped on by RI (option B, MC 12/11): an ordinary club on its slot, not pending; S7's no-pool shape: the free
+      144 row to a filler (a spec Serie D club off the files) in the RI queue's order, then spec order (a queue cut
+      short / empty), none left: DRY; a stand-in on a slot RI promoted into division 1 goes off, its slot word and
+      division to the next filler (MC 12/11: was RI_KIND);
+    - refused, with the club: a club down to group 6 with nobody up (BALANCE, it), a
       division byte the registry lacks (DIV), an identity on two slots (MAP), a slot no ident has (LOST, 0x8000 | slot),
       room for no swap (ROOM)."""
     import ctypes
@@ -501,19 +505,20 @@ def test_sreg_import():
     old = list(range(10)) + [256] + [10, 11, 12] + [257, 258]
     spec = spec_bytes([(102, [(0, 4), (1, 4)], 0), (144, [(5, 3), (6, 3)], 2)])
     slot0 = [0] * 4 + [1] * 4 + [5, 5] + [6] * 3
-    IMP = {-1: 'ARGS', -2: 'SPEC', -3: 'MAP', -4: 'LOST', -5: 'DIV', -6: 'SIX', -7: 'PEND', -8: 'BALANCE', -9: 'ROOM',
-           -10: 'WMAP'}
+    IMP = {-1: 'ARGS', -2: 'SPEC', -3: 'MAP', -4: 'LOST', -5: 'DIV', -7: 'PEND', -8: 'BALANCE', -9: 'ROOM',
+           -10: 'WMAP', -11: 'DRY'}
 
-    def imp(maps=None, slot=slot0, maxsw=64, fill=0xAA, spec=spec, sdiv=sdiv):
+    def imp(maps=None, slot=slot0, maxsw=64, fill=0xAA, spec=spec, sdiv=sdiv, queue=()):
         R = ctypes.create_string_buffer(bytes([fill]) * REGSIZE, REGSIZE)
         wk = ctypes.create_string_buffer(bytes([fill ^ 0x55]) * L.imp_work_size(), L.imp_work_size())
         res = ctypes.create_string_buffer(L.imp_res_size())
         sw = (ctypes.c_uint16 * (3 * 64))(*([0x5A5A] * 192))
         mp = (ctypes.c_uint16 * (2 * 64))(*([0x5A5A] * 128))
         m = (ctypes.c_uint16 * 13)(*maps) if maps else None
+        q = (ctypes.c_uint16 * len(queue))(*queue) if queue else None
         n = L.sreg_import(R, ctypes.create_string_buffer(spec, len(spec)), 2, bytes(sdiv), len(names),
-                          (ctypes.c_uint16 * len(old))(*old), m, 13, 3, 102, bytes(slot), 27, wk, sw, maxsw, mp, 64,
-                          res)
+                          (ctypes.c_uint16 * len(old))(*old), m, 13, 3, 102, bytes(slot), q, len(queue), 144, 27, wk,
+                          sw, maxsw, mp, 64, res)
         nswap, nmap, npend, bad, flags = struct.unpack_from('<iiiiI', res.raw, 0)
         pend = list(struct.unpack_from(f'<{npend}H', res.raw, 20)) if n >= 0 else []
         b = R.raw
@@ -578,8 +583,10 @@ def test_sreg_import():
     m2 = [0] * 13
     m2[3] = 2 + 1                                       # identity 2 on slots 2 and 3
     m_lost = [0] * 13
-    for tag, kw, want in (('J swapped on', dict(maps=m6), ('SIX', I['J'])),
-                          ('down, nobody up', dict(slot=s_bal), ('BALANCE', I['b2'])),
+    g = imp(maps=m6)                                    # (option B, MC 12/11: J on a slot = an ordinary club there)
+    if g['n'] < 0 or g['pend'] or g['words'][I['J']] == 0xFFFF or g['divs'][I['J']] != 5:
+        errs.append(f"J swapped on (pool rows): {g['why']} bad {g['bad']} pend {g['pend']} J div {g['divs'][I['J']]}")
+    for tag, kw, want in (('down, nobody up', dict(slot=s_bal), ('BALANCE', I['b2'])),
                           ('unknown division', dict(slot=s_div), ('DIV', I['e0'])),
                           ('two slots', dict(maps=m2), ('MAP', -1)),
                           ('no swap room', dict(maps=maps, slot=slot, maxsw=0), ('ROOM', -1))):
@@ -601,6 +608,40 @@ def test_sreg_import():
     f0 = imp(spec=spec0, sdiv=sdiv0)
     if (f0['n'], f0['pend']) != (0, [I['J']]):
         errs.append(f"no pool rows, fresh: {f0['why']} pend {f0['pend']}")
+    # option B (MC 12/11, n7-six-real.md): J already on a slot (slot 9: d1 off) is ordinary; 144's free row goes to a
+    # filler - a spec Serie D club off the files - in the save's RI queue order, then (the queue short) in spec order
+    g = imp(m6, spec=spec0, sdiv=sdiv0, queue=[9, 257, 258])
+    if g['n'] < 0 or g['pend'] != [I['d1']] or g['divs'][I['J']] != 5 or g['divs'][I['d1']] != 5 or \
+            g['flags'] != 1 | 2 | 27 << 8:
+        errs.append(f"B, J on a slot: {g['why']} bad {g['bad']} pend {g['pend']} flags {g['flags']:#x}")
+    m7 = list(m6)
+    m7[12] = 258 + 1                                    # (p2 on e2's slot 12: d1 and e2 both off, one free row)
+    for tag, q, want in (('queue order', [12, 9, 257], 'e2'), ('queue cut short', [257], 'd1'), ('no queue', [], 'd1')):
+        g = imp(m7, spec=spec0, sdiv=sdiv0, queue=q)
+        if g['n'] < 0 or g['pend'] != [I[want]] or g['words'][I['e2' if want == 'd1' else 'd1']] != 0xFFFF:
+            errs.append(f"B, filler by {tag}: {g['why']} bad {g['bad']} pend {[names[c] for c in g['pend']]} (want {want})")
+    s_dry = list(slot0)
+    s_dry[9] = 1                                        # (d1 up to division 1; J on b3's slot 7, now division 5)
+    s_dry[7] = 5
+    m_dry = [0] * 13
+    m_dry[7] = 256 + 1
+    g = imp(m_dry, s_dry, spec=spec0, sdiv=sdiv0, queue=[7, 257, 258])
+    if (g['why'], g['bad']) != ('DRY', -1):
+        errs.append(f"B, no filler at all: {g['why']} bad {g['bad']} (want DRY, -1)")
+    # the substitution (MC 12/11, was RI_KIND): p1 on 4.1 slot 4 (division 1: Serie C) through RI, b0 off; p2 on slot 9,
+    # d1 off. p1 goes off the files; slot 4 (its word, division 1) goes to the next filler, d1 (queue [J, b0, d1])
+    m8 = [0] * 13
+    m8[4], m8[9] = 257 + 1, 258 + 1
+    g = imp(m8, spec=spec0, sdiv=sdiv0, queue=[256, 4, 9])
+    pm = dict(g['pairs'])
+    if g['n'] < 0 or g['words'][I['p1']] != 0xFFFF or g['divs'][I['d1']] != 1 or g['pend'] != [I['J']] or \
+            g['words'][I['d1']] & 0xFF != 102 or pm.get(W102(4), W102(4)) != g['words'][I['d1']] or \
+            g['divs'][I['p2']] != 5 or W102(4) in [b for _, b in g['pairs']] and pm.get(W102(4)) is None:
+        errs.append(f"B, stand-in in Serie C substituted: {g['why']} bad {g['bad']} p1 {g['words'][I['p1']]:#x} d1 "
+                    f"{g['words'][I['d1']]:#x} div {g['divs'][I['d1']]} map 102|4 -> {pm.get(W102(4), W102(4)):#x} pend {g['pend']}")
+    g2 = imp(m8, spec=spec0, sdiv=sdiv0, queue=[256, 4, 9], fill=0x33)
+    if any(g[k] != g2[k] for k in ('n', 'bad', 'flags', 'pend', 'swaps', 'pairs', 'words', 'divs', 'view')):
+        errs.append('B, substitution: not deterministic')
     old_l = list(old)
     old[I['e2']] = 0xFFFF                               # slot 12's club unknown to the pack (e2 a new club: pending)
     g = imp(m_lost)
@@ -610,7 +651,10 @@ def test_sreg_import():
     return not errs, '; '.join(errs) or ('fresh: no swap, J pending, 5 Serie D words to 144; seasons: 1 cross-file '
                                          'swap, every division the save\'s, map follows each club, RI slot -> pool row; '
                                          'deterministic; no pool rows (S7 11/11): the stand-in on by a pool swap, the club off OUT; '
-                                         'refused SIX / BALANCE / DIV / MAP / ROOM / LOST with the club')
+                                         'option B: J on a slot ordinary, the free row to a filler by queue order / spec '
+                                         'order (queue short or empty), none: DRY; a stand-in in Serie C substituted '
+                                         '(off, its slot to the filler); refused BALANCE / DIV / MAP / ROOM / LOST with '
+                                         'the club')
 
 
 def test_sreg_riimport():
@@ -622,10 +666,10 @@ def test_sreg_riimport():
       identity (256 + 0) + 1, the record at row 1 still d1's; the queue J (out: joiner), p2 -> 257, d1 -> 1;
     - a Serie C club relegated twice (b3: 4.1 slot 7 holds p2, b3 queued as 7): the import's cross-file move carries
       b3's record to 144 row 0, so b3's identity is 0 and map[0] = p2's (257) + 1;
-    - a stand-in RI-promoted into Serie C (p1 on 4.1 slot 4, b0 queued): refused KIND, bad = p1, RI_STATE not
-      written (MC 12/11: no RI map on 102 in S7; the player is told the 4.1 career can't move to 4.2's Italy);
+    - a stand-in RI-promoted into Serie C (p1 on 4.1 slot 4, p2 on d1's slot 9, queue J / b0 / d1): substituted (MC
+      12/11, option B): J and d1 (the filler on slot 4) leave the queue, b0 -> its record's row, p1 at the tail;
     - init 0 (no RI season end): Italy's state empty; deterministic (two garbage fills);
-    - refused: a joiner not in the queue (SIX), an identity no club has (QUEUE), newpool not 0xFF for J (POOLMAP),
+    - refused: an identity no club has (QUEUE), newpool not 0xFF for J (POOLMAP),
       161 with another slot count (LAYOUT), init 0 with a pool swap (LAYOUT)."""
     import ctypes
     import subprocess
@@ -652,7 +696,7 @@ def test_sreg_riimport():
     old = list(range(10)) + [256] + [10, 11, 12] + [257, 258]
     spec = spec_bytes([(102, [(0, 4), (1, 4)], 0), (144, [(5, 3), (6, 3)], 0)])
     slot0 = [0] * 4 + [1] * 4 + [5, 5] + [6] * 3
-    RI = {0: 'ok', -21: 'ARGS', -22: 'LAYOUT', -23: 'KIND', -24: 'NOID', -25: 'QUEUE', -26: 'SIX', -27: 'POOLMAP'}
+    RI = {0: 'ok', -21: 'ARGS', -22: 'LAYOUT', -23: 'KIND', -24: 'NOID', -25: 'QUEUE', -27: 'POOLMAP'}
 
     def lay(files):                                 # sreg.ri_layout's bytes
         return bytes([len(files)]) + b''.join(bytes([w, fl]) + struct.pack('<HH', mo, nm) + bytes([len(ns)]) +
@@ -684,7 +728,9 @@ def test_sreg_riimport():
         m = (ctypes.c_uint16 * 13)(*maps41)
         sp = ctypes.create_string_buffer(spec, len(spec))
         oo = (ctypes.c_uint16 * len(old))(*old)
-        n = L.sreg_import(R, sp, 2, bytes(sdiv), len(names), oo, m, 13, 3, 102, bytes(slot), 27, wk, sw, 64, mp, 64, res)
+        qq = (ctypes.c_uint16 * len(q41))(*q41) if q41 else None
+        n = L.sreg_import(R, sp, 2, bytes(sdiv), len(names), oo, m, 13, 3, 102, bytes(slot), qq, len(q41), 144, 27, wk,
+                          sw, 64, mp, 64, res)
         if n < 0:
             return ('import', n)
         o41 = ri_state(B161['init'] + [init], B161['qn'] + [len(q41)], {**B161['q'], **{3 + k: v for k, v in
@@ -727,15 +773,19 @@ def test_sreg_riimport():
     g = run(m2, s2, [256, 257, 7])
     if g[0] != 'ok' or g[2]['maps'][:6] != [258, 0, 0, 0, 0, 0] or g[2]['q'][:2] != [256, 0]:
         errs.append(f"twice: {g[:2]} maps {g[2]['maps'][:6] if len(g) > 2 else ''} q {g[2]['q'][:2] if len(g) > 2 else ''}")
-    # a stand-in RI-promoted into Serie C (MC 12/11: refused, no library change; 0 of 72 real 4.1 saves have it):
-    # p1 (identity 257) on 4.1 slot 4 (division 1) through RI, b0 (identity 4) queued. The import's registry needs a
-    # pool swap on 102, and S7's RI has maps on 144 only: SREG_RI_KIND, bad = p1, the new RI_STATE never written
+    # a stand-in RI-promoted into Serie C (MC 12/11: substituted, no longer refused): p1 on 4.1 slot 4 (division 1),
+    # b0 off; p2 on slot 9, d1 off; queue [J, b0, d1]. sreg_import gives slot 4 to d1 (the filler): J leaves the queue
+    # (PENDING on its row), b0 -> its record's S7 identity, d1 leaves (on 102 now), p1 at the tail (256 + 0)
     m3 = [0] * 13
-    m3[4] = 257 + 1
-    g = run(m3, list(slot0), [256, 258, 4])
-    if g[:2] != ('KIND', I['p1']) or g[2]['rest'] != bytes([0xAA]) * 2332:
-        errs.append(f"stand-in in Serie C: {g[:2]} (want KIND, {I['p1']}), RI_STATE "
-                    f"{'untouched' if len(g) > 2 and g[2]['rest'] == bytes([0xAA]) * 2332 else 'written'}")
+    m3[4], m3[9] = 257 + 1, 258 + 1
+    g = run(m3, list(slot0), [256, 4, 9])
+    if g[0] != 'ok' or g[2]['qn'][0] != 2 or g[2]['q'][1] != 256 or g[2]['q'][0] >= 6:
+        errs.append(f"stand-in in Serie C: {g[:2]} q {g[2]['q'][:2] if len(g) > 2 else ''} qn "
+                    f"{g[2]['qn'][0] if len(g) > 2 else ''} (want ok, [b0's row, 256])")
+    else:
+        g2 = run(m3, list(slot0), [256, 4, 9], fill=0x33)
+        if g2[2]['rest'] != g[2]['rest']:
+            errs.append('stand-in in Serie C: not deterministic')
     # init 0: nothing swapped yet
     g = run([0] * 13, slot0, [], init=0)
     if g[0] != 'ok' or g[2]['init'][0] != 0 or any(g[2]['maps'][:6]) or g[2]['qn'][0]:
@@ -743,8 +793,7 @@ def test_sreg_riimport():
     else:
         chk161(g[2], 'init 0')
     # refusals
-    for tag, kw, want in (('J not queued', dict(maps41=m1, slot=s1, q41=[258, 9]), 'SIX'),
-                          ('unknown identity', dict(maps41=m1, slot=s1, q41=[256, 258, 99]), 'QUEUE'),
+    for tag, kw, want in (('unknown identity', dict(maps41=m1, slot=s1, q41=[256, 258, 99]), 'QUEUE'),
                           ('newpool J kept', dict(maps41=m1, slot=s1, q41=[256, 258, 9], newpool=(2, 0, 1)), 'POOLMAP'),
                           ('161 resized', dict(maps41=m1, slot=s1, q41=[256, 258, 9],
                                                new=lay([(5, 144, 0, 6, [2]), (5, 161, 6, 5, [2, 1])])), 'LAYOUT'),
@@ -753,8 +802,8 @@ def test_sreg_riimport():
         if g[0] != want:
             errs.append(f'{tag}: {g[:2]}')
     return not errs, '; '.join(errs) or ('RI season end: stand-in map, queue joiner out / p2 / d1; relegated twice: the '
-                                         'record via the cross move; a stand-in in Serie C refused KIND (its club); init 0 empty; 161 moved byte for byte; '
-                                         'deterministic; refused SIX / QUEUE / POOLMAP / LAYOUT')
+                                         'record via the cross move; a stand-in in Serie C substituted (fillers out, it at the tail); init 0 empty; 161 '
+                                         'moved byte for byte; deterministic; refused QUEUE / POOLMAP / LAYOUT')
 
 
 def test_sreg_sltimport():
@@ -799,8 +848,8 @@ def test_sreg_sltimport():
     res = ctypes.create_string_buffer(L.imp_res_size())
     sw, mp = (ctypes.c_uint16 * 192)(), (ctypes.c_uint16 * 128)()
     n = L.sreg_import(R, ctypes.create_string_buffer(spec, len(spec)), 2, bytes(sdiv), len(names),
-                      (ctypes.c_uint16 * len(old))(*old), (ctypes.c_uint16 * 13)(*maps), 13, 3, 102, bytes(slot), 27, wk,
-                      sw, 64, mp, 64, res)
+                      (ctypes.c_uint16 * len(old))(*old), (ctypes.c_uint16 * 13)(*maps), 13, 3, 102, bytes(slot),
+                      (ctypes.c_uint16 * 3)(256, 257, 7), 3, 144, 27, wk, sw, 64, mp, 64, res)
     if n < 0:
         return False, f'sreg_import {n}'
 

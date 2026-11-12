@@ -53,20 +53,35 @@ int32_t sreg_old_words(const uint16_t *old_ord, int32_t n, const uint16_t *maps,
    4. ONE sr_reg_season(r, nd, no order, contiguous 0: the exe's) -- the swaps (sw, at most maxsw) for the exe's
       normal record-move path; no replay of past seasons, no RI order;
    5. the word map for the walker: sr_wmap_import(r, old_word) (map, at most maxmap pairs, sorted).
-   PENDING (§9a.5): a club the spec puts in a division (not the pool, not off) whose 4.1 identity was off the file
-   (a pool index, or none) -- S7's 6 joiners. It is on its S7 row in the registry at once; the caller holds its
-   record's division byte back until the season end that clears PENDING. One of them on a slot in the save (RI swapped
-   it on) is refused (MC: no fallback).
+   PENDING (§9a.5): S7's new rows on the RI file ri_file (144: 162 rows for 4.1's 156 slots). Each is held by a club
+   that is on its S7 row in the registry at once; the caller holds its record's division byte back until the season
+   end that clears PENDING. Who (MC 12/11, n7-six-real.md option B, binding; it replaces §9c point 4):
+   - a joiner (the spec puts it in a division, its 4.1 identity was off the file: a pool index, or none) still off the
+     files in the save is PENDING, in its spec division;
+   - a joiner RI already put on a slot is an ordinary club on that slot (its actual division, not PENDING);
+   - every row still free on ri_file goes to a FILLER, PENDING the same way in its spec division: a club the spec puts
+     in one of ri_file's divisions, a 4.1 row (not a joiner), off the files in the save -- taken in the save's RI queue
+     order (queue / nqueue: the 4.1 identities in Italy's pool queue, the order 4.1 would bring them back in), then
+     (the queue short of them) the remaining such clubs in ident order (spec order);
+   - SUBSTITUTION (MC 12/11, was SREG_RI_KIND): a stand-in (spec pool / off) on a slot whose actual division is not
+     on ri_file (RI promoted it into Serie C) goes off the files; its slot -- its word, its actual division, so its
+     points and place -- goes to the next filler (old_word[filler] = the slot's word, before the PENDING rows are
+     filled), in slot order.
+   With 4.1's league sizes this always gives the 6 PENDING rows; no filler left: SREG_IMP_DRY (an assert: never on a
+   real save, MC 12/11).
    Returns the swaps' count (>= 0), res filled (flags IMPORTED, + PENDING | season << 8 when a club is pending, the
    pending idents in ident order); or a refusal SREG_IMP_* with res->bad = the club's ident (SREG_IMP_LOST: 0x8000 |
    the slot; the caller shows the club key, CONVENTIONS 14a) -- r then holds the spec's registry, nothing to apply.
    Deterministic: the same inputs give the same registry, swaps, map and res (w's and r's old bytes never read). */
 #define SREG_PEND_MAX 16
 enum { SREG_IMP_ARGS = -1, SREG_IMP_SPEC = -2, SREG_IMP_MAP = -3, SREG_IMP_LOST = -4, SREG_IMP_DIV = -5,
-       SREG_IMP_SIX = -6, SREG_IMP_PEND = -7, SREG_IMP_BALANCE = -8, SREG_IMP_ROOM = -9, SREG_IMP_WMAP = -10 };
+       SREG_IMP_PEND = -7, SREG_IMP_BALANCE = -8, SREG_IMP_ROOM = -9, SREG_IMP_WMAP = -10,
+       SREG_IMP_DRY = -11 };                    /* (-6 SREG_IMP_SIX retired: MC 12/11, option B) */
+#define SREG_KIND_MAX 16
 typedef struct {
     uint16_t old_word[SR_REG_CLUBS];
     uint8_t nd[SR_REG_CLUBS];
+    uint8_t taken[SR_REG_CLUBS / 8];    /* (the fillers chosen) */
     sr_reg_work rw;
 } sreg_imp_work;
 typedef struct {
@@ -94,14 +109,18 @@ static int32_t imp_spec_file(const sr_registry *r, int32_t c)  /* the file index
 
 int32_t sreg_import(sr_registry *r, const sr_reg_file *spec, int32_t nf, const uint8_t *spec_div, int32_t n,
                     const uint16_t *old_ord, const uint16_t *maps, int32_t nslot, int32_t npool, uint8_t file,
-                    const uint8_t *slot_div, uint32_t season, sreg_imp_work *w, sr_reg_swap *sw, int32_t maxsw,
-                    sr_wpair *map, int32_t maxmap, sreg_imp_res *res)
+                    const uint8_t *slot_div, const uint16_t *queue, int32_t nqueue, uint8_t ri_file, uint32_t season,
+                    sreg_imp_work *w, sr_reg_swap *sw, int32_t maxsw, sr_wpair *map, int32_t maxmap, sreg_imp_res *res)
 {
     if (!res) return SREG_IMP_ARGS;
     res->nswap = res->nmap = res->npend = 0; res->bad = -1; res->flags = 0;
-    if (!r || !spec || !spec_div || !old_ord || !slot_div || !w || !sw || !map || maxsw < 0 || maxmap < 0)
+    if (!r || !spec || !spec_div || !old_ord || !slot_div || !w || !sw || !map || maxsw < 0 || maxmap < 0 ||
+        nqueue < 0 || (nqueue && !queue))
         return SREG_IMP_ARGS;
     if (sr_reg_build(r, nf, spec, n, spec_div)) return SREG_IMP_SPEC;
+    int32_t fr = -1;                                    /* (ri_file's index: the new rows and the fillers) */
+    for (int32_t i = 0; i < r->nfiles; i++) if (r->f[i].file == ri_file) fr = i;
+    if (fr < 0) return SREG_IMP_ARGS;
     if (sreg_old_words(old_ord, n, maps, nslot, npool, file, w->old_word) < 0) return SREG_IMP_MAP;
     for (int32_t x = 0; x < nslot; x++) {               /* every club on the save's file has an ident: none lost */
         const int32_t id = maps && maps[x] ? maps[x] - 1 : x;
@@ -109,11 +128,14 @@ int32_t sreg_import(sr_registry *r, const sr_reg_file *spec, int32_t nf, const u
         while (c < n && old_ord[c] != id) c++;
         if (c == n) { res->bad = 0x8000 | x; return SREG_IMP_LOST; }
     }
+    uint16_t kind[SREG_KIND_MAX];                       /* (the substituted stand-ins' slots, in slot order) */
+    int32_t nkind = 0;
+    for (int32_t i = 0; i < SR_REG_CLUBS / 8; i++) w->taken[i] = 0;
     for (int32_t c = 0; c < n; c++) {
         const uint8_t s = spec_div[c];
         const uint16_t ow = w->old_word[c];
-        const int pend = s != SR_REG_POOL && s != SR_REG_OUT && (old_ord[c] == SREG_OLD_NONE || old_ord[c] >= SREG_RIS);
-        if (pend && ow != SR_REG_NONE) { res->bad = c; return SREG_IMP_SIX; }
+        const int pend = s != SR_REG_POOL && s != SR_REG_OUT && (old_ord[c] == SREG_OLD_NONE || old_ord[c] >= SREG_RIS)
+                         && ow == SR_REG_NONE;          /* (a joiner on a slot: an ordinary club there) */
         if (pend) {
             if (res->npend == SREG_PEND_MAX) { res->bad = c; return SREG_IMP_PEND; }
             res->pend[res->npend++] = (uint16_t)c;
@@ -121,9 +143,49 @@ int32_t sreg_import(sr_registry *r, const sr_reg_file *spec, int32_t nf, const u
         } else if (ow != SR_REG_NONE) {
             w->nd[c] = slot_div[ow >> 8];
             if (w->nd[c] >= SR_REG_POOL || imp_file(r, w->nd[c]) < 0) { res->bad = c; return SREG_IMP_DIV; }
+            if ((s == SR_REG_POOL || s == SR_REG_OUT) && imp_file(r, w->nd[c]) != fr) {   /* (a stand-in RI promoted
+                                                                   off ri_file: substituted below) */
+                if (nkind == SREG_KIND_MAX) { res->bad = c; return SREG_IMP_DRY; }
+                int32_t k = nkind++;
+                for (; k > 0 && kind[k - 1] > ow >> 8; k--) kind[k] = kind[k - 1];
+                kind[k] = (uint16_t)(ow >> 8);
+                w->nd[c] = SR_REG_OUT;
+                w->old_word[c] = SR_REG_NONE;
+            }
         } else                                          /* (off the files: the pool rows if the spec has them) */
             w->nd[c] = s == SR_REG_OUT || imp_file(r, SR_REG_POOL) < 0 ? SR_REG_OUT : SR_REG_POOL;
     }
+    int32_t qx = 0, cx = 0, in = 0;
+    #define IMP_FILLER(c) (spec_div[c] < SR_REG_POOL && imp_file(r, spec_div[c]) == fr && old_ord[c] < SREG_RIS && \
+                           w->old_word[c] == SR_REG_NONE && !(w->taken[(c) >> 3] >> ((c) & 7) & 1))
+    for (int32_t k = 0; k <= nkind; k++) {              /* the substitutions first, then ri_file's free rows */
+        int32_t need = 1;
+        if (k == nkind) {
+            for (int32_t c = 0; c < n; c++) in += imp_file(r, w->nd[c]) == fr;
+            need = r->rows[fr] - in;
+        }
+        for (; need > 0; need--) {
+            int32_t f = -1;
+            for (; f < 0 && qx < nqueue; qx++)          /* the save's RI queue order */
+                for (int32_t c = 0; c < n && f < 0; c++) if (old_ord[c] == queue[qx] && IMP_FILLER(c)) f = c;
+            for (; f < 0 && cx < n; cx++) if (IMP_FILLER(cx)) f = cx;       /* (then spec order) */
+            if (f < 0) { res->bad = k < nkind ? 0x8000 | kind[k] : -1; return SREG_IMP_DRY; }
+            w->taken[f >> 3] |= (uint8_t)(1 << (f & 7));
+            if (k < nkind) {
+                w->old_word[f] = (uint16_t)(file | kind[k] << 8);
+                w->nd[f] = slot_div[kind[k]];
+            } else {
+                if (res->npend == SREG_PEND_MAX) { res->bad = f; return SREG_IMP_PEND; }
+                res->pend[res->npend++] = (uint16_t)f;
+                w->nd[f] = spec_div[f];
+            }
+        }
+    }
+    #undef IMP_FILLER
+    for (int32_t i = 1; i < res->npend; i++)            /* (the pending list in ident order) */
+        for (int32_t j = i; j > 0 && res->pend[j - 1] > res->pend[j]; j--) {
+            const uint16_t t = res->pend[j]; res->pend[j] = res->pend[j - 1]; res->pend[j - 1] = t;
+        }
     for (int32_t i = 0; i < r->nfiles; i++) {           /* each file's comings and goings (sr_reg_season's -1, named) */
         int32_t in = 0;
         for (int32_t c = 0; c < n; c++) in += imp_file(r, w->nd[c]) == i;
@@ -160,8 +222,12 @@ int32_t sreg_import(sr_registry *r, const sr_reg_file *spec, int32_t nf, const u
    - maps[o] (o < file_new's rows = its slots): 0 if the club the registry puts on row o owns the record there, else
      the club's identity + 1 (none: SREG_RI_NOID);
    - the queue (its one pool): the old entries in order, each the club with that 4.1 identity (old_ord; none:
-     SREG_RI_QUEUE): a joiner leaves it (every joiner must be in it: SREG_RI_SIX), any other club off the files now
-     (else SREG_RI_QUEUE) -> its S7 identity; the length = the S7 pool's n (else SREG_RI_LAYOUT).
+     SREG_RI_QUEUE): a club on a row in the registry now leaves it (a joiner, a filler: sreg_import's PENDING and
+     substitutions, MC 12/11 option B), any other -> its S7 identity; then, at its tail in slot order, every club on
+     a 4.1 slot that is off the files now (a stand-in sreg_import substituted out of Serie C); the length = the S7
+     pool's n (else SREG_RI_LAYOUT). (SREG_RI_SIX, -26: retired with option B.)
+   SREG_RI_KIND (a pool swap off file_new, a record owner moved off it) stays as an assert: sreg_import substitutes
+   such a stand-in, so it never fires on an import's own output.
    0, or a refusal with *bad = the club's ident (-1: no club). Deterministic; old_ri never written. */
 #define SREG_RI_SIZE 2332               /* ripool.RI_SIZE: init[8], qn[20], q[192] u16, ovr[20][16] u16, maps[640] u16 */
 enum { SREG_RI_INIT = 0, SREG_RI_QN = 8, SREG_RI_Q = 28, SREG_RI_OVR = 412, SREG_RI_MAPS = 1052 };
@@ -230,12 +296,10 @@ int32_t sreg_ri_import(const sr_registry *r, const sr_reg_file *spec, int32_t nf
             if (r->at[i][o] != w->rec.at[i][o]) { *bad = r->at[i][o]; return SREG_RI_KIND; }
     for (int32_t c = 0; c < n; c++) w->id[c] = SR_REG_NONE;
     for (int32_t o = 0; o < r->rows[fi]; o++) w->id[w->rec.at[fi][o]] = (uint16_t)o;
-    int32_t njoin = 0;
     for (int32_t c = 0; c < n; c++) {                   /* the stand-ins: 256 + their S7 RS index; the joiners: none */
         const uint8_t s = spec_div[c];
         const int join = s != SR_REG_POOL && s != SR_REG_OUT && (old_ord[c] == SREG_OLD_NONE || old_ord[c] >= SREG_RIS);
         const int32_t k = old_ord[c] == SREG_OLD_NONE || old_ord[c] < SREG_RIS ? -1 : old_ord[c] - SREG_RIS;
-        njoin += join && k >= 0;
         if (k < 0) continue;
         if (k >= npool_old || join != (newpool[k] == 0xFF)) { *bad = c; return SREG_RI_POOLMAP; }
         if (!join) {
@@ -281,7 +345,7 @@ int32_t sreg_ri_import(const sr_registry *r, const sr_reg_file *spec, int32_t nf
             if (w->id[c] == SR_REG_NONE) { *bad = c; return SREG_RI_NOID; }
             ri_put(new_ri, SREG_RI_MAPS + 2 * (ne.moff + o), (uint16_t)(w->id[c] + 1));
         }
-        int32_t m = 0, out = 0;
+        int32_t m = 0;
         const int32_t qn = old_ri[SREG_RI_QN + oe.pi];
         if (qn > oe.n[0]) return SREG_RI_LAYOUT;
         for (int32_t x = 0; x < qn; x++) {
@@ -289,12 +353,19 @@ int32_t sreg_ri_import(const sr_registry *r, const sr_reg_file *spec, int32_t nf
             int32_t c = 0;
             while (c < n && old_ord[c] != e) c++;
             if (c == n) return SREG_RI_QUEUE;
-            const uint8_t s = spec_div[c];
-            if (s != SR_REG_POOL && s != SR_REG_OUT && old_ord[c] >= SREG_RIS) { out++; continue; }   /* (a joiner) */
-            if (r->word[c] != SR_REG_NONE || w->id[c] == SR_REG_NONE || m == ne.n[0]) { *bad = c; return SREG_RI_QUEUE; }
+            if (r->word[c] != SR_REG_NONE) continue;        /* (on a row now: a joiner / a filler leaves it) */
+            if (w->id[c] == SR_REG_NONE || m == ne.n[0]) { *bad = c; return SREG_RI_QUEUE; }
             ri_put(new_ri, SREG_RI_Q + 2 * (ne.qo + m++), w->id[c]);
         }
-        if (out != njoin) return SREG_RI_SIX;
+        for (int32_t x = 0; x < oe.nmap; x++) {         /* a stand-in substituted off a 4.1 slot: the queue's tail */
+            const uint16_t mo = ri_get(old_ri, SREG_RI_MAPS + 2 * (oe.moff + x));
+            const uint16_t e = (uint16_t)(mo ? mo - 1 : x);
+            int32_t c = 0;
+            while (c < n && old_ord[c] != e) c++;
+            if (c == n || r->word[c] != SR_REG_NONE) continue;
+            if (w->id[c] == SR_REG_NONE || m == ne.n[0]) { *bad = c; return SREG_RI_QUEUE; }
+            ri_put(new_ri, SREG_RI_Q + 2 * (ne.qo + m++), w->id[c]);
+        }
         if (m != ne.n[0]) return SREG_RI_LAYOUT;
         new_ri[SREG_RI_QN + ne.pi] = (uint8_t)m;
     }

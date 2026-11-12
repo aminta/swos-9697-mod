@@ -45,6 +45,9 @@ import collections, glob, hashlib, json, os, pty, re, select, shutil, signal, st
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 MAIN = os.path.expanduser('~/swos-mod')               # main checkout: c/, orig/, internal/ live there
+if os.environ.get('W2627REL_DATA') and os.sep not in os.environ['W2627REL_DATA'] and \
+        not os.path.isdir(os.environ['W2627REL_DATA']):  # (root fix F: a bare snapshot name, as the gates write it -
+    os.environ['W2627REL_DATA'] = os.path.join(MAIN, 'internal', 'world2526', os.environ['W2627REL_DATA'])   # world5tm-h2)
 WORK = os.path.join(MAIN, 'internal', 'swostest')
 RUNS = os.environ.get('SWOSTEST_RUNS') or os.path.join(WORK, 'runs')   # run dirs (another one = a parallel suite)
 
@@ -91,6 +94,52 @@ exit
 
 def md5(path):
     return hashlib.md5(open(path, 'rb').read()).hexdigest()[:8]
+
+
+BUILDS_USED = {}                                       # build_hash -> dir name: this scenario's sessions' builds
+_BHASH = {}                                            # (file, mtime_ns, size) -> sha256 of its bytes
+
+
+def build_hash(exe_dir):
+    """Root fix E (MC 12/11): a build's identity for the harness's caches = its exe AND its data - sha256 over
+    ITALIAN.EXE (or an .EXE file given directly) and every DATA/* file (name + bytes), 16 hex digits. Two builds with
+    one exe but other team files / pools (a release dir vs a scenario build: CONVENTIONS 17a) never share a cached
+    save; the per-file hashes are memoised on (path, mtime, size)."""
+    if os.path.isfile(exe_dir):
+        files = [('ITALIAN.EXE', exe_dir)]
+        data = os.path.join(MAIN, 'c', 'SWOS', 'DATA')   # (prepare(): an .EXE file runs on c/SWOS's DATA)
+    else:
+        files = [('ITALIAN.EXE', os.path.join(exe_dir, 'ITALIAN.EXE'))]
+        data = os.path.join(exe_dir, 'DATA')
+    if os.path.isdir(data):
+        files += [('DATA/' + f.upper(), os.path.join(data, f)) for f in sorted(os.listdir(data), key=str.upper)
+                  if os.path.isfile(os.path.join(data, f))]
+    h = hashlib.sha256()
+    for tag, f in files:
+        st = os.stat(f)
+        k = (os.path.realpath(f), st.st_mtime_ns, st.st_size)
+        if k not in _BHASH:
+            _BHASH[k] = hashlib.sha256(open(f, 'rb').read()).digest()
+        h.update(tag.encode() + b'\0' + _BHASH[k])
+    return h.hexdigest()[:16]
+
+
+def cache_path(name, exe_dir):
+    """Root fix E: a cached save / file made by a build, keyed by build_hash - internal/swostest/saves/<stem>-<hash>
+    <ext>. One build's cache never overwrites another's (the old <name> + <name>.exe stamp pairs ping-ponged between
+    sessions on other builds and ignored the data)."""
+    stem, ext = os.path.splitext(name)
+    d = os.path.join(WORK, 'saves')
+    os.makedirs(d, exist_ok=True)
+    return os.path.join(d, f'{stem}-{build_hash(exe_dir)}{ext}')
+
+
+def cache_put(src, dst):
+    """copy src to dst atomically (a parallel run never reads a half-written cache file)"""
+    tmp = f'{dst}.tmp{os.getpid()}'
+    shutil.copy(src, tmp)
+    os.replace(tmp, dst)
+    return dst
 
 
 def setup():
@@ -407,6 +456,10 @@ def prepare(name, exe_dir, cars, steps, match=False, timer=False):
     """runs/<name>/SWOS = base + exe_dir (ITALIAN.EXE + DATA, or an .EXE file) + saves {dos name: source path}."""
     if os.environ.get('SWOSTEST_BUILD_ONLY'):
         raise BuildOnly()
+    try:                                               # (root fix E: the builds a scenario ran, on its result line)
+        BUILDS_USED.setdefault(build_hash(exe_dir), os.path.basename(os.path.normpath(exe_dir)))
+    except OSError:
+        pass
     run = os.path.join(RUNS, name)
     if os.path.isdir(run):
         shutil.rmtree(run)
@@ -2372,8 +2425,9 @@ def ctsd_syms(exe_dir):
     exe = exe_dir if os.path.isfile(exe_dir) else os.path.join(exe_dir, 'ITALIAN.EXE')
     if not os.path.isfile(exe):
         exe = os.path.join(exe_dir, 'ENGLISH.EXE')
-    if exe in _CTSD_SYMS:
-        return _CTSD_SYMS[exe]
+    ck = (exe,) + ((os.stat(exe).st_mtime_ns, os.stat(exe).st_size) if os.path.isfile(exe) else ())
+    if ck in _CTSD_SYMS:                     # (root fix E: keyed by the exe's file state, not its path alone)
+        return _CTSD_SYMS[ck]
     path = os.path.splitext(exe)[0] + '.syms.json'
     if not os.path.isfile(path) and os.environ.get('CT_SYMS') and os.path.isfile(exe):
         path = os.path.join(os.environ['CT_SYMS'], hashlib.md5(open(exe, 'rb').read()).hexdigest() + '.syms.json')
@@ -2389,7 +2443,7 @@ def ctsd_syms(exe_dir):
             if cs and cs[0] == 1 and lr.get('ct_place', [0])[0] == 4:   # (obj4's base from conti's obj1 pointer to
                 got['ptr'] = (cs[1], lr['ct_place'][1])                #  ct_place: 4 bytes, not base4's 32 MB scan)
             assert all(lr[f'CT_SDRAW_{k}'][0] == 4 for k in ('N', 'ERR', 'HIT')), ('ctsd: not obj4', path)
-    _CTSD_SYMS[exe] = got
+    _CTSD_SYMS[ck] = got
     return got
 
 
@@ -2519,7 +2573,7 @@ def _label_data():
         elif isinstance(o, list):
             for v in o:
                 walk(v, acc)
-    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    src = world_data()
     for d in (sorted(os.listdir(src)) if os.path.isdir(src) else []):
         pj = os.path.join(src, d, 'pack.json')
         if not os.path.isfile(pj):
@@ -2867,6 +2921,106 @@ def spp_restore(fn):
             else:
                 os.environ['SWOSTEST_SPP_NOLATCH'] = old[3]
     return run
+
+
+WORLD_DATA_DEFAULT = 'world5tm-h2'                    # (root fix F: the one default World 2026-27 snapshot; 4.2
+                                                     # line: h2, rel40 no longer builds there - backlog-42 row 37,
+                                                     # Regia 12/11; 4.1.x keeps rel40 in its own swostest.py)
+DATA_USED = {}                                       # wd_hash -> snapshot name: the world data this scenario read
+_WDHASH = {}
+
+
+def world_data():
+    """Root fix F (MC 12/11): the World 2026-27 data a scenario reads or builds with - W2627REL_DATA, else
+    WORLD_DATA_DEFAULT; recorded (with its hash) for the scenario's result line."""
+    src = os.environ.get('W2627REL_DATA') or WORLD_DATA_DEFAULT
+    if os.sep not in src and not os.path.isdir(src):    # (a bare snapshot name, as the gates write it: world5tm-h2)
+        src = os.path.join(MAIN, 'internal', 'world2526', src)
+    try:
+        DATA_USED.setdefault(wd_hash(src), os.path.basename(os.path.normpath(src)))
+    except OSError:
+        pass
+    return src
+
+
+def wd_hash(src):
+    """Root fix F: a world-data snapshot's identity, 16 hex digits - sha256 over every country dir's files (name +
+    bytes) and the order file <src>.txt; memoised per (dir, its files' mtimes and sizes)."""
+    files = sorted(glob.glob(os.path.join(src, '*', '*'))) + ([src + '.txt'] if os.path.isfile(src + '.txt') else [])
+    sig = tuple((f, os.stat(f).st_mtime_ns, os.stat(f).st_size) for f in files if os.path.isfile(f))
+    if sig not in _WDHASH:
+        h = hashlib.sha256()
+        for f, *_ in sig:
+            h.update(os.path.relpath(f, os.path.dirname(src)).encode() + b'\0' + hashlib.sha256(open(f, 'rb').read()).digest())
+        _WDHASH[sig] = h.hexdigest()[:16]
+    return _WDHASH[sig]
+
+
+CONT_IT = {'europe': 'EUROPA', 'north_america': 'NORDAMERICA', 'south_america': 'SUDAMERICA', 'asia': 'ASIA',
+           'oceania': 'OCEANIA', 'africa': 'AFRICA'}   # (the career picker's continent list; harness paths are Italian)
+PICKED = []                                           # (root fix F: pick_club's choices, on the result line)
+
+
+def conti_free_s1(conf):
+    """pick_club need (root fix F): the club is in NO season-1 cup of confederation conf (internal/conti/<conf>.access.json
+    'entrants_season1') - so a forced KOWIN career can never be that cup's holder at season 2 (the holder skips a forced
+    qualifying place: world_contiview_tie / cgame_self on world5tm-h2, FLAMENGO, 11/11)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import conti
+    a = json.load(open(os.path.join(conti.DATA, f'{conf}.access.json')))
+    taken = {f"{e['assoc']}/{e['club']}" for c in a['cups'] for e in c.get('entrants_season1') or []}
+
+    def need(key, row, pk):
+        return f"{os.path.basename(os.path.normpath(pk.path))}/{key}" not in taken
+    need.__name__ = f'no season-1 {conf} cup'
+    return need
+
+
+def conti_in_s1(conf, cup, rnd=None):
+    """pick_club need (root fix F): the club enters confederation conf's cup in season 1 (entrants_season1), at round
+    rnd if given ('groups', 'q1'...) - world_conti_guest's career club must have a season-1 Libertadores group."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import conti
+    a = json.load(open(os.path.join(conti.DATA, f'{conf}.access.json')))
+    got = {f"{e['assoc']}/{e['club']}" for c in a['cups'] if c['key'] == cup for e in c.get('entrants_season1') or []
+           if rnd is None or e['round'] == rnd}
+
+    def need(key, row, pk):
+        return f"{os.path.basename(os.path.normpath(pk.path))}/{key}" in got
+    need.__name__ = f'season-1 {conf} {cup}' + (f' {rnd}' if rnd else '')
+    return need
+
+
+def pick_club(country, div=0, need=None, nth=0, src=None, why=''):
+    """Root fix F (MC 12/11): a career club DERIVED from the world data, never a literal name. country = the pack dir
+    ('bra', 'ita'...); div = the league division index (0 = top; Italy's Serie D groups are divisions of their own);
+    need(key, row, pack) -> bool = the scenario's declared requirement (not a season-1 holder, in a cup...); nth = the
+    nth club that meets it, in clubs.csv order (the data's own order: deterministic). Returns (W8485_TEAM path in the
+    harness's Italian menu names, club key). No club meets it -> SetupError naming the need (why), never a stand-in.
+    The choice and the data hash go on the scenario's result line."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import mkseason
+    src = src or world_data()
+    pk = mkseason.Pack(os.path.join(src, country))
+    lg = pk.league
+    require(lg is not None, f'pick_club {country}: no league in {src}')
+    divs = pk.divisions()
+    require(0 <= div < len(divs), f'pick_club {country}: no division {div} ({len(divs)} in the data)')
+    lfile = lg['clubs']
+    rows = [(k, r) for k, r in pk.clubs.items() if r['file'] == lfile and int(r['division'] or 0) == div]
+    ok = [(k, r) for k, r in rows if need is None or need(k, r, pk)]
+    require(len(ok) > nth, f'pick_club {country} div {div}: {len(ok)} of {len(rows)} clubs meet the need '
+            f'{why or (need and need.__name__) or "-"}, wanted #{nth}')
+    key, row = ok[nth]
+    m = pk.meta
+    path = [CONT_IT[m['continent']], ((m.get('button_names') or {}).get('it') or m['button']).upper()]
+    if len(divs) > 1:
+        nm = divs[div]['names']
+        nm = nm.get('it') or nm['*']
+        path.append('|'.join(dict.fromkeys(x.upper() for x in nm)))   # (world8485: '|' = any of the names shown)
+    path.append(row['name'])
+    PICKED.append(f'{country}:{key}' + (f' ({why})' if why else ''))
+    return ','.join(path), key
 
 
 def rel_data_default():
@@ -3530,10 +3684,9 @@ def w84_record():
     """3.3.6: REGISTRO GESTIONE in a 1984-85 career shows the world's seasons (FillManagementRecordInfo added 1996 to
     the season number: '1998/99' in the career's third season). W84B_MREC.CAR (world8485's W84B: Darlington, season
     1986/87) loaded: the record's season line is 1986/87 (careerworld w_mrec)"""
-    car = os.path.join(WORK, 'saves', 'W84B_MREC.CAR')
     exe = (os.environ.get('W8485_BUILD') or builds()['it'])   # (builds/w8485: a stale shared dir)
-    stamp = car + '.exe'
-    if not os.path.exists(car) or not os.path.exists(stamp) or open(stamp).read() != md5(os.path.join(exe, 'ITALIAN.EXE')):
+    car = cache_path('W84B_MREC.CAR', exe)                   # (root fix E: keyed by the build's exe + data)
+    if not os.path.exists(car):
         keys = ('W8485_BUILD', 'W8485_TEAM', 'W8485_FROM', 'W8485_ONE', 'W8485_WORLD')     # (made again by this exe: a
         keep = {k: os.environ.get(k) for k in keys}                                       # Darlington career, two seasons)
         os.environ.update(W8485_BUILD=exe, W8485_TEAM='INGHILTERRA,FOURTH DIVISION,DARLINGTON')
@@ -3548,12 +3701,9 @@ def w84_record():
                 else:
                     os.environ[k] = v
         made = os.path.join(RUNS, w84_tag() + '_2', 'SWOS', 'W84B.CAR')
-        if not os.path.exists(made):
-            if not os.path.exists(car):              # (else the kept one is used, as before)
-                return True, 'SKIP: no saves/W84B_MREC.CAR and a Darlington career could not be made: ' + str(msg)[:120]
-        else:
-            shutil.copy(made, car)
-            open(stamp, 'w').write(md5(os.path.join(exe, 'ITALIAN.EXE')))
+        if not os.path.exists(made):                 # (root fix E: no other build's save as a stand-in)
+            raise SetupError(f'no {os.path.basename(car)} and a Darlington career could not be made: ' + str(msg)[:120])
+        cache_put(made, car)
     with Session('w84_record', exe, {'W84B.CAR': car}, 'dump:2', 300) as s:
         s.wait()
         s.send(LOAD1 + ' dump:3')
@@ -4512,10 +4662,8 @@ def nat_offer_save(exe, off, name='W84NAT', season=None, lefts=0):
     error."""
     if os.environ.get('W84SAVE_' + name):           # (a given save instead of the cache: a failing run's, re-played
         return os.environ['W84SAVE_' + name]       # on another build)
-    dst = os.path.join(WORK, 'saves', name + '.CAR')
-    stamp = dst + '.exe'
-    if os.path.exists(dst) and open(stamp).read() == md5(os.path.join(exe, 'ITALIAN.EXE')) \
-            and not os.environ.get('W84NAT_REDO'):
+    dst = cache_path(name + '.CAR', exe)             # (root fix E: keyed by the build's exe + data)
+    if os.path.exists(dst) and not os.environ.get('W84NAT_REDO'):
         return dst
     with Session('world8485_natA', exe, {}, 'dump:2', 240) as s:   # season: currentSeasonShowing poked (cycles)
         if s.wait().outcome != 'dump':
@@ -4554,9 +4702,7 @@ def nat_offer_save(exe, off, name='W84NAT', season=None, lefts=0):
         path = os.path.join(s.run, 'SWOS', name + '.CAR')
         if not os.path.exists(path):
             return f'{name}.CAR not written ({s.result})'
-    shutil.copy(path, dst)
-    open(stamp, 'w').write(md5(os.path.join(exe, 'ITALIAN.EXE')))
-    return dst
+    return cache_put(path, dst)
 
 
 NAT_OFFER = {'it': 'OFFERTA DI LAVORO INTERNAZIONALE', 'en': 'INTERNATIONAL JOB OFFER FROM',
@@ -6377,7 +6523,7 @@ def world2526q():
 def q27_run(hook=None):
     """world2627q's career (see there), W84_HOOK = hook: (ok, msg, the manager's qualifying ties of season 2)."""
     global W84_HOOK
-    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    src = world_data()
     if not os.path.isdir(src):
         return None, f'SKIP: private data {src} missing', []
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
@@ -11203,9 +11349,7 @@ def xtra_squad():
         car = os.path.join(s.run, 'SWOS', 'XTRA1.CAR')
         if not os.path.exists(car):
             return False, f'XTRA1.CAR not written ({s.result}); ' + '; '.join(info)
-        keep = os.path.join(WORK, 'saves', 'XTRA1.CAR')
-        shutil.copy(car, keep)
-        open(keep + '.exe', 'w').write(md5(os.path.join(b, 'ITALIAN.EXE')))      # (the exe that made it: stale otherwise)
+        keep = cache_put(car, cache_path('XTRA1.CAR', b))     # (root fix E: keyed by the build's exe + data)
     with Session('xtra_squad_load', b, {'XTRA1.CAR': keep}, 'dump:2', 120) as s:
         s.wait()
         s.send('down down down down down fire dump:2')      # CARICA VECCHIA COMPETIZIONE -> the only save
@@ -12079,9 +12223,8 @@ def xtra_season():
     import xtra
     b = xtra_build()
     _, cnp, ct, cmp, sel = xtra.sites(lepatch.LEPatch(os.path.join(b, 'ITALIAN.EXE')))
-    keep = os.path.join(WORK, 'saves', 'XTRA1.CAR')
-    if not os.path.exists(keep) or not os.path.exists(keep + '.exe') or \
-            open(keep + '.exe').read() != md5(os.path.join(b, 'ITALIAN.EXE')):      # (made by another exe: made again)
+    keep = cache_path('XTRA1.CAR', b)                     # (root fix E: made by this build's exe + data, else again)
+    if not os.path.exists(keep):
         ok, msg = xtra_squad()
         if not ok:
             return False, 'xtra_squad: ' + msg
@@ -16502,7 +16645,7 @@ def serie_c_mid(exe, rank=7):
     11's outfield skills + 2 x the keeper's level) in the world 2026-27 data - with W8485_FILL (the stronger side
     wins) it ends mid-table, out of the play-out zone (16th-19th) and off the top (no group-winner contest): the
     world_dplay_c / _cupw_low career club (RENATE played group A's play-out in DE)"""
-    src = (os.environ.get('W2627D_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm')).rstrip('/')
+    src = (os.environ.get('W2627D_DATA') or world_data()).rstrip('/')
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     old = os.environ.get('SEASON_PACKS')
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
@@ -16541,7 +16684,7 @@ def world_dplay_b(force='5', team='EUROPA,ITALIA,SERIE B,MODENA', cupw='', fill=
     career club takes 5th place); a season at MODENA: the PLAY-OFF SERIE B contest is built in slot 4 after the last
     league day and played to its end (the season log in W84A.CAR: kind 1, the 6 clubs with MODENA 5th in the order 5th
     8th 6th 7th 3rd 4th, a winner among them), and that winner is the club Serie B sends up besides the first two"""
-    src = (os.environ.get('W2627D_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm')).rstrip('/')
+    src = (os.environ.get('W2627D_DATA') or world_data()).rstrip('/')
     if not os.path.isdir(src):
         return True, 'SKIP: private data internal/world2526/world5tm missing'
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
@@ -16686,7 +16829,7 @@ def split_build():
     import json
     if os.environ.get('SPLIT_BUILD'):
         return os.environ['SPLIT_BUILD']
-    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm')   # (the rc's
+    src = os.environ.get('W2627REL_DATA') or world_data()   # (the rc's
     w = os.path.join(WORK, 'world_split')                                                            # data: run sets it)
     shutil.rmtree(w, ignore_errors=True)
     shutil.copytree(src, os.path.join(w, 'world5tm'))
@@ -17938,7 +18081,7 @@ def world_leaguecup():
     the season ends and saves (checkw1)"""
     import json
     import shutil
-    src = os.environ.get('W2627FULL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm')
+    src = os.environ.get('W2627FULL_DATA') or world_data()
     lc = os.path.join(MAIN, 'internal', 'world2526', 'world5tm-lc', 'eng')   # (only when the pack has no league cup:
     if not os.path.isdir(src) or not os.path.exists(src + '.txt'):          # TM_LEAGUE_CUP=1 is the default now)
         return False, f'private data {src}(.txt) missing (W2627FULL_DATA)'   # (regia: a missing world FAILs)
@@ -18009,7 +18152,7 @@ def world_gplay():
     import collections
     import json
     import shutil
-    src = os.path.join(MAIN, 'internal', 'world2526', 'world5tm')
+    src = world_data()
     if not os.path.isdir(src):
         return True, 'SKIP: private data internal/world2526/world5tm missing'
     w = os.path.join(WORK, 'world_gplay')
@@ -18643,7 +18786,7 @@ def world_statesim(team='SUDAMERICA,BRASILE,BRASILEIRAO SERIE A,ATHLETICO-PR'):
     Paranaense's = the real stage-1 order seen at its first knockout (ST_RANK block 0, st_rec) with its relegation
     play-outs applied; season 2's Paranaense list (block 0 again) still holds 12 clubs and no season-1 relegated
     LEAGUE club (those leave through RI_OVR; a state-only club keeps its word, ripool swaps its identity)"""
-    src = os.path.join(MAIN, 'internal', 'world2526', 'world5tm')
+    src = world_data()
     if not os.path.isdir(src):
         return True, 'SKIP: private data internal/world2526/world5tm missing'
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
@@ -18776,7 +18919,7 @@ def world_gplay_reserve(force='20', team='EUROPA,ITALIA,SERIE C GIRONE A,RENATE'
     the play-out (16-19) -> it is played, and the club is sacked if and only if it lost (GPLAY_FORCE=16: world_gplay_
     reserve_out); sacked with no job offer left, the career ends (the game's own way) instead of a next season in the
     reserve (which trapped in cseg_3283C)"""
-    src = src or os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    src = src or world_data()
     src = src.rstrip('/')
     if not os.path.isdir(src):
         return True, f'SKIP: private data {src} missing'
@@ -19230,8 +19373,22 @@ def guest_sample(out, src=64, n=2, conf='caf', assoc='PAR'):
     for fn in os.listdir(real) if os.path.isdir(real) else []:   # GUESTS_DATA replaces the whole folder - without
         if fn.endswith('.guests.json') and fn != f'{conf}.guests.json':   # AFC's, the ACGL's access gave a negative
             shutil.copy(os.path.join(real, fn), os.path.join(out, fn))    # preliminary round: no build)
-    json.dump({'conf': conf, 'rotation': 'test', 'season1': {}, 'clubs': clubs}, open(os.path.join(out, f'{conf}.guests.json'), 'w'))
-    return [c['name'] for c in clubs]
+    own = os.path.join(real, f'{conf}.guests.json')     # (root fix F, MC 12/11: the test clubs ADDED to the data's own
+    base = json.load(open(own)) if os.path.isfile(own) else {'conf': conf, 'rotation': 'test', 'season1': {}, 'clubs': []}
+    # guests - replacing them left the confederation's guest places unfilled, and 4.2 P7's draw_bound (CONVENTIONS 14a)
+    # refused the build: 'arg up to 23 clubs for 8'. The test clubs have no access: CONTI_GUEST alone puts them in.)
+    taken = {c['key'] for c in base['clubs']}
+    base = dict(base, clubs=base['clubs'] + [c for c in clubs if c['key'] not in taken])
+    json.dump(base, open(os.path.join(out, f'{conf}.guests.json'), 'w'))
+    keys = [c['key'] for c in clubs]                    # (their team words: file | ordinal << 8 - after the data's own)
+    words = [guests_file(conf) | [c['key'] for c in base['clubs']].index(k) << 8 for k in keys]
+    return [c['name'] for c in clubs], words
+
+
+def guests_file(conf):
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import guests
+    return guests.FILES[conf]
 
 
 @scenario
@@ -19330,7 +19487,10 @@ def world_conti_guest():
     saved after the first match against a guest (W8485_MIDTEXT) and reloaded (W8485_FROM): the guests' matches with
     their names before and after the reload, the season's record (REGISTRO GESTIONE) with the Libertadores line;
     then its end save reloaded for a second season"""
-    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-names-2214')
+    src = world_data()                                  # (root fix F: the line's data; rel40-names no longer builds on 4.2)
+    team, ckey = pick_club('arg', 0, need=conti_in_s1('conmebol', 'lib', 'groups'), src=src,
+                           why='a season-1 Libertadores group for the guests')
+    club = team.rsplit(',', 1)[1]                       # (INDEPENDIENTE on the old data: no season-1 Libertadores on 403c19)
     if not os.path.isdir(src):
         return True, f'SKIP: private data {src} missing'
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
@@ -19340,20 +19500,19 @@ def world_conti_guest():
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     mkseason = mkseason_now()
     sample = os.path.join(WORK, 'guests_sample_squads')
-    names = guest_sample(sample)
+    names, gw = guest_sample(sample)
     ind = next(f | i << 8 for pk in mkseason.packs() if pk.meta.get('id') == 'world-2026-27-arg'
-               for k, (f, i) in pk.where.items() if pk.clubs[k]['name'] == 'INDEPENDIENTE')
+               for k, (f, i) in pk.where.items() if k == ckey)
     if old is None:
         os.environ.pop('SEASON_PACKS')
     else:
         os.environ['SEASON_PACKS'] = old
     exe = os.environ.get('GUEST_BUILD') or build('world_conti_guest', env={
-        'SEASON_PACKS': packs, 'GUESTS_DATA': sample, 'CONTI_GUEST': f'lib:00bf,01bf:{ind:04x}'})
+        'SEASON_PACKS': packs, 'GUESTS_DATA': sample, 'CONTI_GUEST': f"lib:{','.join('%04x' % w for w in gw)}:{ind:04x}"})
     keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_ONE',
             'W8485_MIDTEXT', 'W8485_FROM', 'W8485_RECSHOT')
     keep = {k: os.environ.get(k) for k in keys}
-    base = dict(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM='SUDAMERICA,ARGENTINA,LIGA PROFESIONAL,'
-                'INDEPENDIENTE', W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1')
+    base = dict(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1')
     logs = {}
     try:
         os.environ.update(base, W8485_ONE='1', W8485_MIDTEXT=f'{names[0]}:1')
@@ -19361,7 +19520,7 @@ def world_conti_guest():
         logs['a'] = open(os.path.join(RUNS, w84_tag() + '_1', 'session.log'), errors='replace').read()
         if not ok:
             return False, f'first session (to the mid-season save): {msg}'
-        mid = os.path.join(WORK, 'guests_mid_squads.CAR')
+        mid = cache_path('guests_mid_squads.CAR', exe)   # (root fix E: per build)
         shutil.copy(msg.split(': ', 1)[1], mid)
         for k in ('W8485_ONE', 'W8485_MIDTEXT'):
             os.environ.pop(k, None)
@@ -19369,7 +19528,7 @@ def world_conti_guest():
         ok2, msg2 = world8485()
         run2 = os.path.join(RUNS, w84_tag() + '_2')
         logs['b'] = open(os.path.join(run2, 'session.log'), errors='replace').read()
-        end = os.path.join(WORK, 'guests_end_squads.CAR')
+        end = cache_path('guests_end_squads.CAR', exe)
         if os.path.exists(end):
             os.remove(end)
         if os.path.exists(os.path.join(run2, 'SWOS', 'W84B.CAR')):   # (world8485's season-2 save: W84B)
@@ -19393,7 +19552,7 @@ def world_conti_guest():
     check(ok3, f'the second season: {msg3}', errs)
     check(games(logs['a']), f'no match against a guest {names} before the save', errs)
     check(games(logs['b']), f'no match against a guest {names} after the reload', errs)
-    check('2026/27 STAGIONE' in rec and 'INDEPENDIENTE' in rec, f'the record screen: {rec[:200]}', errs)
+    check('2026/27 STAGIONE' in rec and club in rec, f'the record screen: {rec[:200]}', errs)
     if errs and all('career menu of the new season not reached' in e or 'no season-end save' in e for e in errs):
         errs.insert(0, 'KNOWN FAIL 4.0.1 (the next season\'s start with the guest sample build: INDEPENDIENTE\'s team '
                        'screen comes back after ESCI, 11 players shown; a natural INDEPENDIENTE career on REL40hf reaches '
@@ -19799,7 +19958,7 @@ def world_winners_oldsave():
         return True, f'SKIP: no {car}'
     exe = os.environ.get('WINNERS_W27')
     if not exe:
-        src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-s1rank-int3')   # (winnames-1031, the 4.0 data, no longer builds on 4.2 (0x80ec); s1rank-int3 = c/REL42i3's data, and the rc7 save loads on it)
+        src = world_data()   # (the released 4.0's data: an old save needs the data it was played on)
         if not os.path.isdir(src):
             return True, f'SKIP: private data {src} missing'
         order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
@@ -19848,7 +20007,7 @@ def world_winners_mls():
     the stronger side (simdraw's table 3-0); at the season end (saved before CONTINUA, reloaded) the page lists
     SUPPORTERS' SHIELD, PLAYOFF - MLS CUP (the final, tie 16), then the conference champions (ties 14 / 15), each as
     GP_ST.ko holds it; continued into 2027-28 (WN): its second page the same four"""
-    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    src = world_data()
     if not os.path.isdir(src):
         return True, f'SKIP: private data {src} missing'
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
@@ -19950,7 +20109,7 @@ def world_lib3_sud():
     result screen showing SUDAMERICANA (the play-off, January), the club in it. (The rest of the Sudamericana - from
     February - and a 1st / 2nd's Libertadores round of 16 are simulated at the season end: Argentina's season ends in
     December, seasonFinished comes before conti can add the next round; declared, 4.0.2)"""
-    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    src = world_data()
     if not os.path.isdir(src):
         return True, f'SKIP: private data {src} missing'
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
@@ -19988,7 +20147,7 @@ def world_winners_poule():
     0FFFCh: the game's winner, the slot's DIY +39h): LIGORNA forced 1st of girone A (GPLAY_FORCE=1); mid-Poule (saved
     once slot 3 holds it a while) its line POULE SCUDETTO SERIE D = IN CORSO; at the season end (saved before
     CONTINUA) the club slot 3's +39h names (squads' rc10 finding: the line was missing)"""
-    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-s1rank-int3')   # (the 4.0 winnames-1031 no longer builds on 4.2: 0x80ec)
+    src = world_data()
     if not os.path.isdir(src):
         return True, f'SKIP: private data {src} missing'
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
@@ -20039,7 +20198,7 @@ def world_cuplist():
     slot 2 (COPPA ITALIA SERIE C: 17 clubs) by their team lists. New careers: RENATE (Serie C, in neither), CARPI
     (Serie C, in the Serie C cup), NAPOLI (in the COPPA ITALIA), CATANZARO (Serie B, not in it), SCHIO (a Coppa D
     club: as before - no COPPA ITALIA; its Coppa D comes later), PALMEIRAS (its state championship in slot 1)"""
-    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    src = world_data()
     if not os.path.isdir(src):
         return True, f'SKIP: private data {src} missing'
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
@@ -20916,7 +21075,7 @@ def _groupb_forced_exe(force):
     """A GPLAY_FORCE=<force> test build over the release data's packs (W2627REL_DATA, else the released 4.0's winnames-1031;
     the order of its .txt, as world_winners_state): the career club is put in its play-off (CONVENTIONS rule 15, never by
     re-running seasons); None when that data is missing."""
-    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    src = world_data()
     if not os.path.isfile(src + '.txt'):
         return None
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
@@ -21020,7 +21179,7 @@ def cf_follow(name, team, pack, cid, gpforce, career_div):
     cup cid's list (the slot buffer: +2Dh id, +31h clubs, team words +24Dh) has the career club (now in division
     career_div) and, by every club's CURRENT division (base + someLeaguesTable), exactly the real list's format:
     n_d entrants per division, b_d of them byes at the list's end; VISUAL. COMPETIZ. lists the cup."""
-    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    src = world_data()
     if not os.path.isdir(src):
         return True, f'SKIP: private data {src} missing'
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
@@ -21225,7 +21384,7 @@ def world_sc_esp():
     the season record (REGISTRO GESTIONE at the season end) has the SUPERCOPPA DI SPAGNA line, VINCITORI (the final
     won: the record's bytes, the shot 'record').
     (Without the switch a lost semi-final ends it: SC_ST round 3, no final - seen on a plain build.)"""
-    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    src = world_data()
     if not os.path.isdir(src):
         return True, f'SKIP: private data {src} missing'
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
@@ -21290,7 +21449,7 @@ def sc_title(c):
     import json as _j
     nm = _j.load(open(os.path.join(ROOT, 'tools', 'supercups2627.json')))[c]['names']
     nm = nm.get(UI) or nm['en']
-    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    src = world_data()
     m = _j.load(open(os.path.join(src, c, 'pack.json')))
     country = ((m.get('button_names') or {}).get(UI) or m.get('button') or '').upper()
     keep = list(complist.LANG)
@@ -21306,7 +21465,7 @@ def conti_drop(tag, force, team, word):
     that tie at every season end) and CONTI_KOLOSE (it loses its conti ties): season 1, then season 2 from its save
     played to its end - the tie lost, the club goes on in the other cup (a match of it played: word in a result
     screen's title) and the season ends (no stale slot-3 day replayed)"""
-    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    src = world_data()
     if not os.path.isdir(src):
         return True, f'SKIP: private data {src} missing'
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
@@ -21347,7 +21506,7 @@ def world_conti_q1q2():
     end) and CONTI_KOWIN (it wins its conti ties): season 2 from AURORA's career plays q1, q2 and q3 BOTH legs each
     (three ANDATA and three RITORNO Libertadores titles) and the season ends. (MC 11/11: a club of an association with a q1 place - Bolivia's
     3rd - so the '!' keeps the association counts the data's; FLAMENGO holds the Libertadores on the 2026-27 data)"""
-    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    src = world_data()
     if not os.path.isdir(src):
         return True, f'SKIP: private data {src} missing'
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
@@ -21421,7 +21580,7 @@ def conti_month(tag, force, team, word, week0):
     calendar's current week at its first match (GP_CALTRACE's [calt]: slot/week of the cursor's entry) is in the
     month: week0 (month x 8, conti._month) up to the month's end (a tie never built into a week already played, so a
     later week of the month)"""
-    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    src = world_data()
     if not os.path.isdir(src):
         return True, f'SKIP: private data {src} missing'
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
@@ -21468,7 +21627,7 @@ def world_conti_ic_dec():
     already played); the calendar weeks from GP_CALTRACE's [calt]. CONTI_FORCE 'r2b!': FLAMENGO takes the Libertadores
     holder's place (its confederation's entrant; as a 3rd entrant of the one tie a club could go on unpaired, and in the
     CONCACAF holder's place the Derby would be two Brazilian clubs)."""
-    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    src = world_data()
     if not os.path.isdir(src):
         return True, f'SKIP: private data {src} missing'
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
@@ -21517,7 +21676,7 @@ def conti_holder(tag, env, team, words):
     reported), so the holders' cup was never built. Season 2 must play the main cup's groups and a match of each of
     words (result screens' titles, in that order), the holders' ones after the club's last main-cup match unless the
     club is still in the main cup at the season end; and end (world8485 ok)."""
-    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    src = world_data()
     if not os.path.isdir(src):
         return True, f'SKIP: private data {src} missing'
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
@@ -21573,7 +21732,7 @@ def world_conti_bra_sud():
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import conti
     import glob
-    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    src = world_data()
     if not os.path.isdir(src):
         return True, f'SKIP: private data {src} missing'
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
@@ -21683,7 +21842,7 @@ def world_sc_bra_sud():
     (slot 3, set at the season start) when slot 3 changes cup. world_sc_bra on a CONTI_GPLACE=3 test build (FLAMENGO
     3rd in its Libertadores group): season 2 must play the Sudamericana play-off and its round of 16 BOTH legs (the
     supercup final in between) and end (before: R16 return or SF return replayed for ever)"""
-    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    src = world_data()
     if not os.path.isdir(src):
         return True, f'SKIP: private data {src} missing'
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
@@ -21712,7 +21871,7 @@ def world_sc_bra_sud():
 def sc_from2(team, word, tag):
     """world_sc_eng / world_sc_bra: a supercup from the world's second season - none in season 1, its FINALE once in
     season 2 (season 1's save loaded) - on a GPLAY_FORCE=1 build (the career club the champion)."""
-    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    src = world_data()
     if not os.path.isdir(src):
         return True, f'SKIP: private data {src} missing'
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
@@ -21747,7 +21906,7 @@ def world_usc():
     game's three holders in SC_ST's last entry (season byte, CL / EL / UECL words: none FFFFh, three clubs, reported by
     name; the save reloaded); season 2 (from season 1's save): the SUPERCOPPA UEFA FINALE played once v the Europa
     League holder of the snapshot, THEN the FA COMMUNITY SHIELD (its week after: slot 4 one at a time); the season ends"""
-    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    src = world_data()
     if not os.path.isdir(src):
         return True, f'SKIP: private data {src} missing'
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
@@ -21809,7 +21968,7 @@ def world_sc_tur():
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import simdraw
     from le import LE
-    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    src = world_data()
     if not os.path.isdir(src):
         return True, f'SKIP: private data {src} missing'
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
@@ -21848,7 +22007,7 @@ def world_sc_reload():
     (W8485_MIDSAVE on gplay.c SC_TRACE = 1), then loaded and played to the season's end: slot 4 still holds the tie
     after the load, the supercup is played exactly once (not built again: SC_ST's season byte is saved), the season
     ends (world8485 ok)"""
-    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    src = world_data()
     if not os.path.isdir(src):
         return True, f'SKIP: private data {src} missing'
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
@@ -21880,7 +22039,7 @@ def world_sc_early():
     SUPERCOPPA row scrolled to (shots 'fixtures18'..'24': the rows are drawn, read by eye; VISUAL. COMPETIZ. has 4
     fixed entries, slots 0-3: no slot-4 contest is ever there);
     the season played on from it: the tie played once, in December, the season ends"""
-    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    src = world_data()
     if not os.path.isdir(src):
         return True, f'SKIP: private data {src} missing'
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
@@ -21993,7 +22152,7 @@ def world_winners_sc():
     'ITALIA SUPERCOPPA ...:' with DA GIOCARE; after its result the winner (INTER or LAZIO, as the saved result); then slot 4
     reused (forced: D8CAA[4] and the slot's buffer cleared, as a later play-off / Coppa D tie takes it): VISUAL.
     COMPETIZ. has no 5th entry, the VINCITORI line keeps the winner (gplay.c SC_ST +8, the 'SC' item)"""
-    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    src = world_data()
     if not os.path.isdir(src):
         return True, f'SKIP: private data {src} missing'
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
@@ -22142,7 +22301,7 @@ def world_contiview():
     RUNS cv_s2.CAR): CT_SEG / CT_ED / CT_OUT byte-identical before and after every page (the view's replay), each
     confederation's page with its cups' names, no line over the font / page (the game's own text entries)
     (W2627REL_DATA: the world's release data)"""
-    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    src = world_data()
     if not os.path.isdir(src):
         return True, f'SKIP: private data {src} missing'
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
@@ -22281,7 +22440,7 @@ def world_s1conti():
     (W2627REL_DATA: the world's release data; CV_BUILD / CV_S2 as world_contiview)"""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import conti
-    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    src = world_data()
     if not os.path.isdir(src) and not os.environ.get('CV_BUILD'):
         return True, f'SKIP: private data {src} missing'
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
@@ -22344,7 +22503,7 @@ def world_s1conti_oldsave():
         return False, f'{car} already has an edition: not an old save'
     exe = os.environ.get('WINNERS_W27')
     if not exe:
-        src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+        src = world_data()
         if not os.path.isdir(src):
             return True, f'SKIP: private data {src} missing'
         order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
@@ -22384,7 +22543,7 @@ def world_cgame_view():
     each cup button -> its rounds menu (title = the cup, the rounds' own labels), every round opened and back,
     RIEPILOGO = that cup's part only, ESCI -> the career menu, CT state unchanged. CV_OWN=<club>: a save with the club
     in a conti round in progress - its round on screen through the game's slot 3 (CG_G's opens unchanged)"""
-    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    src = world_data()
     if not os.path.isdir(src) and not os.environ.get('CV_BUILD'):
         return True, f'SKIP: private data {src} missing'
     exe = os.environ.get('CV_BUILD')
@@ -22991,7 +23150,7 @@ def world_ctcursor():
     plain one. VIEW WORLD's cup buttons (the other way in, cw_after) the same. 4.1 cdall (Davide 07/11): every
     menu with a round opens straight on that round's view (season 1, season 2, week FF, VIEW WORLD's cup), its ESCI
     on the menu, the cursor on that round. Shots ctc_<part>_<k>. (CV_BUILD / W2627REL_DATA as world_cgame_view)"""
-    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    src = world_data()
     if not os.path.isdir(src) and not os.environ.get('CV_BUILD'):
         return True, f'SKIP: private data {src} missing'
     exe = os.environ.get('CV_BUILD')
@@ -23109,7 +23268,7 @@ def world_ctsum():
     first entry) without it. 4.1 P: the week forced to FF, CONMEBOL's RIEPILOGO groups 'place NAME points', places
     up / points down, a 4-club double round robin 24..36 points. Season-2 save as world_ctcursor (CV_BUILD / CV_S2 /
     W2627REL_DATA). Shots ctsum_*."""
-    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    src = world_data()
     if not os.path.isdir(src) and not os.environ.get('CV_BUILD'):
         return True, f'SKIP: private data {src} missing'
     exe = os.environ.get('CV_BUILD')
@@ -23341,7 +23500,7 @@ def world_uesum():
     back on STAT. The career league's STAT without it. UES_EXPECT: 'ko' / 'lp' the CL's stage kind in the save."""
     exe, car = os.environ.get('UES_BUILD') or os.environ.get('CV_BUILD'), os.environ.get('UES_CAR')
     if not exe:                                         # (default: world_ctsum's season-2 career, CV_S2 / W2627REL_DATA)
-        src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+        src = world_data()
         if not os.path.isdir(src):
             return True, f'SKIP: private data {src} missing'
         order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
@@ -23691,7 +23850,7 @@ def world_c23_ct():
     to come must be kept. Found 10/11: the control (42-s1rank, no relink: DIY+27h STALE until the first conti build)
     gives the same calendar, step by step - the build reloads the pointer (ptr ok from Q2 on) and nothing is lost on
     this path; the scenario stays as the regression guard and logs 'ptr ok / STALE' with the slot-3 entries."""
-    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    src = world_data()
     if not os.path.isdir(src):
         return True, f'SKIP: private data {src} missing'
     errs, info = [], []
@@ -23826,7 +23985,7 @@ def world_uesum_ko():
     internal/uesum/cv_s2_cl_<UI>.CAR (IT: ARSENAL in the CL); none -> SKIP (rec / recold cover the language)."""
     exe, car = os.environ.get('UES_BUILD') or os.environ.get('CV_BUILD'), os.environ.get('UES_CAR')
     if not exe:                                         # (default: world_uesum's - world_contiview's build)
-        src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+        src = world_data()
         if not os.path.isdir(src):
             return True, f'SKIP: private data {src} missing'
         order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
@@ -24072,7 +24231,7 @@ def world_uprize():
     by its place in that table; UP sum = the table's amounts for all that (uprize.amounts, K). Saved and reloaded: UP the same, ok 1."""
     exe = os.environ.get('UPR_BUILD') or os.environ.get('UES_BUILD') or os.environ.get('CV_BUILD')
     if not exe:
-        src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+        src = world_data()
         if not os.path.isdir(src):
             return True, f'SKIP: private data {src} missing'
         order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
@@ -24246,7 +24405,7 @@ def world_uprize_ui():
     box (complist.px <= SW_W - 4); fired -> SWITCH[UI][1] and UP's off byte 1, fired again -> ON, 0. Shots uprize_ui_*."""
     exe = os.environ.get('UPR_BUILD') or os.environ.get('UES_BUILD') or os.environ.get('CV_BUILD')
     if not exe:
-        src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+        src = world_data()
         if not os.path.isdir(src):
             return True, f'SKIP: private data {src} missing'
         order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
@@ -24325,7 +24484,7 @@ def world_uprize_ss():
     way). The switch kept over the season end."""
     exe = os.environ.get('UPR_BUILD') or os.environ.get('UES_BUILD') or os.environ.get('CV_BUILD')
     if not exe:
-        src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+        src = world_data()
         if not os.path.isdir(src):
             return True, f'SKIP: private data {src} missing'
         order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
@@ -24425,7 +24584,7 @@ def world_usmenu():
     progress: that box alone, the game's table screen). Shots usm_*."""
     exe, car = os.environ.get('UES_BUILD') or os.environ.get('CV_BUILD'), os.environ.get('USM_CAR')
     if not exe:
-        src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+        src = world_data()
         if not os.path.isdir(src):
             return True, f'SKIP: private data {src} missing'
         order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
@@ -24850,7 +25009,7 @@ def world_contiview_tie():
     groups DA GIOCARE; CT_SEG / CT_ED unchanged by the view (CV_TIE_S2: a cached season-2 save). On a release exe
     (CV_TIE_BUILD=<release dir>: no CONTI_FORCE / CONTI_KOWIN) set CV_TIE_S2 to the test build's season-2 save - its
     'CE' item has FLAMENGO through q1 / q2 and the release exe only replays it (the names from TMW5.nnn)"""
-    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    src = world_data()
     if not os.path.isdir(src):
         return True, f'SKIP: private data {src} missing'
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
@@ -24863,8 +25022,9 @@ def world_contiview_tie():
     seg_at, ed_at = tr[0], tr[1]
     import ctview
     T = [ui_label(x) for x in ctview.TEXTS[UI]]
-    team = 'SUDAMERICA,BOLIVIA,?DIVISION PROFESIONAL|DIV. PROFESIONAL|PROFESIONAL,AURORA'
-    mid = os.environ.get('CV_TIE_S2') or os.path.join(RUNS, f'cv_tie_{UI}.CAR')
+    team, _ = pick_club('bol', 0, need=conti_free_s1('conmebol'), why='no season-1 CONMEBOL cup: never the holder')
+    club = team.rsplit(',', 1)[1]                       # (root fix F: derived from the data - AURORA on h2)
+    mid = os.environ.get('CV_TIE_S2') or os.path.join(RUNS, f'cv_tie_{UI}-{build_hash(exe)}-{club.replace(" ", "_")}.CAR')
     opp = None
     if not os.path.exists(mid):
         ok, msg, _ = sc_season(team, dict(W8485_BUILD=exe))
@@ -24880,7 +25040,7 @@ def world_contiview_tie():
         shutil.copy(msg.split(': ', 1)[1], mid)
         res = [ln for ln in l2 if ln.startswith('[') and 'LIBERTADORES' in ln.split('|')[0] and '- RISULTATO -' in ln]
         if res:                                         # (the last one: q3's first leg - its two clubs)
-            opp = [t for t in (x.strip() for x in res[-1].split('|')) if t and t != 'AURORA']
+            opp = [t for t in (x.strip() for x in res[-1].split('|')) if t and t != club]
     errs, info = [], []
     with Session('world_contiview_tie', exe, {'W84A.CAR': mid}, 'dump:2', 300) as s:
         s.wait()
@@ -24914,13 +25074,13 @@ def world_contiview_tie():
                 break
             if x == 'COPA LIBERTADORES' or lib:
                 lib.append(x)
-        fl = [x for x in lib if 'AURORA' in x]
-        info.append(f'AURORA lines {fl}')
-        check(len(fl) >= 3, f'AURORA in fewer than 3 Libertadores rounds: {lib}', errs)
+        fl = [x for x in lib if club in x]
+        info.append(f'{club} lines {fl}')
+        check(len(fl) >= 3, f'{club} in fewer than 3 Libertadores rounds: {lib}', errs)
         if len(fl) >= 3:
-            check(all('(AURORA)' in x for x in fl[:2]), f"q1 / q2 without AURORA in brackets: {fl[:2]}", errs)
+            check(all(f'({club})' in x for x in fl[:2]), f"q1 / q2 without {club} in brackets: {fl[:2]}", errs)
             check('(' not in fl[2], f"q3 (its next game) with brackets: {fl[2]}", errs)
-            other = [x.strip(' ()') for x in fl[2].split(' - ') if 'AURORA' not in x]
+            other = [x.strip(' ()') for x in fl[2].split(' - ') if club not in x]
             if opp is not None:                         # (its other club exactly one of that screen's texts)
                 check(len(other) == 1 and other[0] in opp, f'q3 tie {fl[2]!r} is not the result screen\'s', errs)
             later = lib[lib.index(fl[2]) + 1:]
@@ -24978,7 +25138,7 @@ def world_cgame_guard():
     then season 2 from its save on A and on B, the random state pinned at every pause (W8485_RNGSTEP): the two
     season-2 .CARs byte-identical, B's guard (CG_G) opened views, no bad sum, no fallback, no failed build. CGG_TEAM
     (default HAMRUN SPARTANS: a short league)."""
-    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    src = world_data()
     if not os.path.isdir(src) and not (os.environ.get('CGG_A') and os.environ.get('CGG_B')):
         return True, f'SKIP: private data {src} missing'
     exes = {}
@@ -25057,7 +25217,7 @@ def world_ctgoals():
     in no conti cup)."""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import conti
-    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    src = world_data()
     if not os.path.isdir(src):
         return True, f'SKIP: private data {src} missing'
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
@@ -25128,7 +25288,7 @@ def world_cgame_self():
     its group stage; q1 is built at the season start) is rebuilt at once by cg_build from conti.c's replay and must be byte-identical to slot 3 (cg_selftest:
     CG_T builds / mismatches / first diff), the team cache unchanged by it (every club already in). CG_FILL=1: the
     scratch filled with 5Ah first (DOS/4GW leaves it as it was - the builder must clear what it uses)."""
-    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    src = world_data()
     if not os.path.isdir(src):
         return True, f'SKIP: private data {src} missing'
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
@@ -25142,8 +25302,9 @@ def world_cgame_self():
     if not tr:
         return False, 'no CGTRPTR block (ctgame not in the build)'
     t_at = tr[0]
-    team = 'SUDAMERICA,BOLIVIA,?DIVISION PROFESIONAL|DIV. PROFESIONAL|PROFESIONAL,AURORA'
-    s1 = os.environ.get('CG_S1') or os.path.join(RUNS, f'cg_self_s1_{UI}.CAR')
+    team, _ = pick_club('bol', 0, need=conti_free_s1('conmebol'), why='no season-1 CONMEBOL cup: never the holder')
+    club = team.rsplit(',', 1)[1]                       # (root fix F: derived from the data - AURORA on h2)
+    s1 = os.environ.get('CG_S1') or os.path.join(RUNS, f'cg_self_s1_{UI}-{build_hash(exe)}-{club.replace(" ", "_")}.CAR')
     if not os.path.exists(s1):
         ok, msg, _ = sc_season(team, dict(W8485_BUILD=exe))
         car = os.path.join(RUNS, w84_tag() + '_1', 'SWOS', 'W84A.CAR')
@@ -25189,7 +25350,7 @@ def world_winners_sc_semi():
     on a GPLAY_KOFORCE=1 test build (the career club loses its played knockout ties - the SUPERCOPPA DI SPAGNA
     SEMIFINALE v ATLETICO MADRID), saved once the tie is recorded (SC_TRACE 41h): the LALIGA page's line
     'SUPERCOPPA DI SPAGNA:' names ATLETICO MADRID, REAL MADRID or REAL SOCIEDAD (not BARCELONA, not DA GIOCARE)"""
-    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    src = world_data()
     if not os.path.isdir(src):
         return True, f'SKIP: private data {src} missing'
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
@@ -25226,7 +25387,7 @@ def world_vc5():
     TOP SCORERS, REGISTRO) without overlaps above ESCI, reached through the links, its view opens and ESCI comes back;
     (2) saved once the supercup's result is recorded (SC_TRACE 41h): the entry still there for the decided supercup, its view
     opens (shots vc_before_*, vc_after_*)"""
-    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    src = world_data()
     if not os.path.isdir(src):
         return True, f'SKIP: private data {src} missing'
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
@@ -25249,7 +25410,7 @@ def world_sc_oldsave():
     """4.0.5 supercups on an older career: season 1 of an INTER career on the 4.0.2 release exe (SC_OLD, default
     c/REL402rc2/SWOS: no 'SC' item, no supercups), its season-2 save loaded by this build and season 2 played: no
     supercup that season (SC_ST loaded zeroed: no cup winner known), no hang, the season ends"""
-    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    src = world_data()
     old = os.environ.get('SC_OLD') or os.path.join(MAIN, 'c', 'REL402rc2', 'SWOS')
     if not os.path.isdir(src) or not os.path.isdir(old):
         return True, f'SKIP: private data {src} or old release {old} missing'
@@ -25315,7 +25476,7 @@ def world_sc_mex():
     end (its WN_ST has no title of play-off 2; the Apertura / Clausura ones, 0 / 1, are there); season 2 (season 1's
     save, its WN_ST poked: AMERICA the Apertura winner, the next club of its file the Clausura's): the CAMPEON DE
     CAMPEONES FINALE played once, in July, before the Apertura's match days; both seasons end"""
-    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    src = world_data()
     if not os.path.isdir(src):
         return True, f'SKIP: private data {src} missing'
     dd, order = sc_mexdata(src)
@@ -25356,7 +25517,7 @@ def world_sc_mexold():
     """4.0.5 MEX supercup on an older career: season 1 of an AMERICA career on the 4.0.2 release exe (SC_OLD, default
     c/REL402rc2/SWOS: its Campeon de Campeones at the season end), its season-2 save loaded by a build of the flagged
     data (sc_mexdata) and season 2 played to its end (no hang; a July CAMPEON DE CAMPEONES at most once)"""
-    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    src = world_data()
     old = os.environ.get('SC_OLD') or os.path.join(MAIN, 'c', 'REL402rc2', 'SWOS')
     if not os.path.isdir(src) or not os.path.isdir(old):
         return True, f'SKIP: private data {src} or old release {old} missing'
@@ -25385,7 +25546,7 @@ def world_sc_cups():
     (team words + global numbers): only the national cups of the supercup countries (COPPA ITALIA 82h, not the
     COPPA SERIE C 83h); step 2: season 1 plays the SUPERCOPPA ITALIANA, INTER v LAZIO (the real edition's
     entrants, from tools/supercups2627.json), and SC_ST's byte 3 = the season handled (the game's season byte); winner != finalist, both of the country's team files; reported with the names"""
-    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    src = world_data()
     if not os.path.isdir(src):
         return True, f'SKIP: private data {src} missing'
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
@@ -25517,7 +25678,7 @@ def world_cuplist_promoted():
     promoted), the season played and the next one saved and reloaded: in Serie C, VISUAL. COMPETIZ. lists the COPPA
     ITALIA SERIE C (4.0.1 cupsf: its clubs follow the divisions, the career club first) and not the COPPA ITALIA
     (16 Serie A / B clubs)"""
-    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    src = world_data()
     if not os.path.isdir(src):
         return True, f'SKIP: private data {src} missing'
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
@@ -25556,7 +25717,7 @@ def world_winners_lastdiv():
     text keyed 01h 'H' file division): LIGORNA forced 1st of Serie D girone A (GPLAY_FORCE=1) through the Poule,
     promoted; next season (its Serie C group's view: A, or B since 4.0.5's real Lega Pro groups - clubs.csv area 'B,A!/A') its second page 'VINCITORI 2026-27:' = SERIE D GIRONE A: LIGORNA
     and the POULE SCUDETTO SERIE D's winner, not Serie C's titles"""
-    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    src = world_data()
     if not os.path.isdir(src):
         return True, f'SKIP: private data {src} missing'
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
@@ -27210,8 +27371,7 @@ def world_gplay_cupd(team='EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA', two=False, e
     decided at the calendar advances (the real results where known), the cup over by the season end"""
     import json
     import shutil
-    src = os.environ.get('W2627P_DATA') or os.environ.get('W2627REL_DATA') or \
-        os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')   # (the released data has the Coppa D)
+    src = os.environ.get('W2627P_DATA') or world_data()   # (the default data has the Coppa D: h2, cupd.json)
     br = os.path.join(MAIN, 'internal', 'world2526', 'formats', 'coppa_italia_serie_d_2627.json')
     if not (os.path.isdir(src) and os.path.exists(br)):
         return True, 'SKIP: private data (world5tm-poule, the Coppa D bracket) missing'
@@ -29301,7 +29461,7 @@ def world_full_uefa():
     import json
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import uefacoef
-    data = os.environ.get('W2627FULL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm')
+    data = os.environ.get('W2627FULL_DATA') or world_data()
     order = [ln.split()[0].lower() for ln in open(data + '.txt') if ln.split()[1:2] == ['file']]
     seeds = []
     for k, cc in enumerate(order):
@@ -30892,6 +31052,18 @@ def world_gplay_nzgf_lost():
     return world_gplay_nzchamp(kof='1')
 
 
+def run_serial(names):
+    """Root fix E (MC 12/11): run (-j1) with several names = one fresh process per scenario, one after the other -
+    no module caches, globals (HOLD, SPP_STEP, W84_HOOK...) or os.environ left by the scenario before it: the same
+    isolation as run -jN and the FAIL re-run, so a scenario's verdict never depends on the list's order. Output
+    streamed as it comes. SWOSTEST_INPROC=1: the old single process (debugging the harness itself)."""
+    t0, rcs = time.time(), []
+    for n in names:
+        rcs.append(subprocess.run([sys.executable, os.path.abspath(__file__), 'run', n]).returncode)
+    print(f'{len(names)} scenarios, one process each: {time.time() - t0:.0f} s', flush=True)
+    return 1 if any(rc and rc != 3 for rc in rcs) else 3 if 3 in rcs else 0
+
+
 def run_parallel(names, jobs):
     """run -jN: each scenario in its own process (own run dirs and DOSBox-X, one host core each in turbo); the
     builds are made once here first. Output in the order of the names; exit code 1 on a failure."""
@@ -31376,12 +31548,17 @@ def main(argv):
         jobs = int(next((a[2:] for a in argv[1:] if a.startswith('-j')), 1) or 4)
         if jobs > 1 and len(names) > 1:
             return run_parallel(names, jobs)
+        if len(names) > 1 and not os.environ.get('SWOSTEST_INPROC'):
+            return run_serial(names)
         bad = flaky = 0
         for n in names:
             t = time.time()
             setup = False
             os.environ['SWOSTEST_SCENARIO'] = n
             try:
+                BUILDS_USED.clear()
+                DATA_USED.clear()
+                del PICKED[:]
                 del LABEL_ERRS[:]
                 LABEL_STATS.update(rows=0, keyed=0, fallback=set())
                 del CTSD_ERRS[:]
@@ -31436,6 +31613,12 @@ def main(argv):
                     msg += f' [alone: {last[-1][:160]}]'
             bad += res in ('FAIL', 'SETUP-ERROR')
             flaky += res == 'FLAKY'
+            if PICKED or DATA_USED:                        # (root fix F: the data and the clubs derived from it)
+                msg += ' [data: ' + ', '.join(f'{v}={k}' for k, v in DATA_USED.items()) + \
+                    (f'; picked {", ".join(PICKED[:4])}' if PICKED else '') + ']'
+            if BUILDS_USED:                                # (root fix E: which exe + data gave this verdict)
+                msg += ' [builds: ' + ', '.join(f'{v}={k}' for k, v in list(BUILDS_USED.items())[:4]) + \
+                    (f' +{len(BUILDS_USED) - 4}' if len(BUILDS_USED) > 4 else '') + ']'
             print(f'{res} {n} ({time.time() - t:.0f} s) {msg}', flush=True)
         return 1 if bad else 3 if flaky else 0         # (root fix B: 3 = FLAKY only)
     print(__doc__)

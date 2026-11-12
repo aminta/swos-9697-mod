@@ -116,7 +116,9 @@ typedef struct {
     void *ctx;
     /* the career club's play-off pidx, played: 1 and its winner when it holds the tie a v b */
     int32_t (*played_tie)(void *ctx, int32_t pidx, uint16_t a, uint16_t b, uint16_t *winner);
-    /* a title play-off pidx played as a group contest: 1 and its champion, runner-up */
+    /* a title play-off pidx played: 1 and its champion, runner-up -- a group contest's, or (4.2, the Mod's
+     * GP_IN.pl_fw / pl_fl) a knockout contest's final winner and loser, whatever the season end's re-run would
+     * seed (Malta's decider: a Finalissima at the league end, the Final Four at the season end) */
     int32_t (*played_title)(void *ctx, int32_t pidx, uint16_t *champion, uint16_t *runner_up);
     /* the career club's division's stage title k (0..2) decided mid-season: 1 and its champion,
      * runner-up (team words, global numbers) */
@@ -269,6 +271,15 @@ const uint8_t *sr_spec_at(const sr_league *lg, int32_t pidx);
  * contest) in other[9]; -2 - its index when it is a group contest; -1 none. Uses st->t. */
 int32_t sr_club_playoff(sr_state *st, const sr_league *lg, const sr_season *se, int32_t d, const sr_row *table,
                         int32_t n, uint16_t club, uint8_t *other, int32_t *nother);
+
+/* 4.2: the career club played decider pidx (a play-off flagged 'decider', two entrants), winner
+ * the team that won it; its 'then_build' play-off `then` is played as the club's next contest
+ * (the Mod's gplay.c then_dec) -- returns then if the club is one of its entrants once the
+ * decider's result is applied (the winner the lower placed: the two rows exchanged), they are
+ * all of division d (nothing simulated mid-season) and a tie is left to play; else -1 (it is
+ * decided at the season end). Uses st->t. */
+int32_t sr_club_then(sr_state *st, const sr_league *lg, const sr_season *se, int32_t d, const sr_row *table,
+                     int32_t n, uint16_t club, int32_t pidx, int32_t then, uint16_t winner);
 
 /* Play-off pidx's entrants as the season end would resolve them (ko_build), from nt tables
  * (divs[0] the club's division, then the ones simulated early) and the stage tables: in entrant

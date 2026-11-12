@@ -32274,6 +32274,221 @@ def trial_role():
     return not errs, '; '.join(errs + info)
 
 
+def t3_desc(r, exe):
+    """t3.py's descriptor (after its 'T3PG' tag in obj4): {name: linear address} (t3.DESC), or None."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lepatch
+    import t3
+    p = lepatch.LEPatch(os.path.join(exe, 'ITALIAN.EXE'))
+    if len(p.le.objs) < 4:
+        return None
+    k = p.le.obj_bytes(4).find(b'T3PG')
+    if k < 0 or r.base4 is None:
+        return None
+    return dict(zip(t3.DESC, struct.unpack('<%dI' % len(t3.DESC), r.read(r.base4 + k + 4, 4 * len(t3.DESC)))))
+
+
+@scenario
+def giovani_t3():
+    """4.2.y T3 "mini primavera" (t3.py / t3.c, Davide 12/11 via Regia) on T3_BUILD (the release recipe; default the
+    suite's build). A new INTER career (World 2026-27): ACQUISTA GIOCATORE shows entry 11, the language's PRIMAVERA
+    label (t3.LABEL), right of VIS. SQUADRA on its row, within its box, font characters only. Fire: the page - six
+    rows (entries 2..7) visible, each 'POS AGE NAME +..' with the exe's position abbreviation (trial.POS), age 17-19,
+    1-5 '+', within 280 px, font characters; the message S_OPEN; T3_STATE 0; T3_CODE = 1 + (currentSeasonNumber x 64
+    + the calendar week / 4) mod 255. ESCI and again: the same rows. The week poked + 4: another code, other rows;
+    poked back: the first rows. Saved + loaded (another session): the same rows, T3_ITEM 0. Fire on the third boy:
+    careerNumPlayers + 1, his record = the shown one (bought mark, status 0) in the squad order, T3_ITEM = the code,
+    the rows hidden, S_DONE; reopened: still closed. Saved + loaded again: T3_ITEM kept, closed. Shots: the menu, the
+    page, the page after the signing. IT only: an older save (a new INTER career saved by T3_OLD_BUILD, default c/TRT3 =
+    42-trial dd4f719, no 'T3'), T3_ITEM poked 5Ah before the load: 0 after it, the page open, the first rows."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import complist
+    import t3
+    import trial
+    exe = os.environ.get('T3_BUILD') or builds()['it']
+    lab, title, (m_open, m_done, m_full) = t3.texts(UI)
+    pos = trial.POS[UI]
+    path = ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27', 'EUROPA', 'ITALIA', 'SERIE A', 'INTER']
+    errs, info = [], []
+    font = lambda t: not complist.font_odd(t)
+    rd = lambda r, a, n: bytes(r.read(a, n))
+    u8 = lambda r, a: rd(r, a, 1)[0]
+    u16 = lambda r, a: struct.unpack('<H', rd(r, a, 2))[0]
+    u32 = lambda r, a: struct.unpack('<I', rd(r, a, 4))[0]
+    cstr = lambda b: b.split(b'\0')[0].decode('latin1')
+
+    def leave(s):
+        for _ in range(10):
+            if 'PROSS. PARTITA' in s.screen().texts():
+                return
+            press(s, s.screen(), 'CONTINUA', 3) or press(s, s.screen(), 'ESCI', 3) or s.send('fire dump:2')
+
+    def to_main(s):
+        for _ in range(8):
+            if s.screen().find('SALVA CARRIERA', exact=True) is not None:
+                return
+            press(s, s.screen(), 'ESCI', 3) or press(s, s.screen(), 'ABBANDONA', 3)
+
+    def buy_menu(s):
+        walk(s, 'TRASFERIMENTI', 3)
+        walk(s, 2, 3)
+        return s.screen()
+
+    def page(s, tag, shot=False):                       # from PROSS. PARTITA: the page; (state, code, rows, msg)
+        scr = buy_menu(s)
+        if len(scr.entries) <= 11:
+            errs.append(f'{tag}: no entry 11 in ACQUISTA GIOCATORE')
+            return None
+        t, inv, (x, y, w, h) = scr.raw_texts[11], bool(scr.entries[11][2]), scr.geom[11]
+        g6 = scr.geom[6]
+        check(t == lab and not inv and complist.px(t) <= w - 8 and font(t) and y == g6[1] and x >= g6[0] + g6[2],
+              f'{tag}: button {t!r} inv {inv} {(x, y, w, h)} (VIS. SQUADRA {g6})', errs)
+        shot and s.shot(f't3_menu_{UI}')
+        walk(s, 11, 3)
+        scr = s.screen()
+        r = s.result
+        d = t3_desc(r, exe)
+        if not d:
+            errs.append(f'{tag}: no T3PG descriptor')
+            return None
+        st, code = u32(r, d['STATE']), u32(r, d['CODE'])
+        rows = [(scr.raw_texts[2 + k], bool(scr.entries[2 + k][2]), scr.geom[2 + k]) for k in range(6)]
+        mem = [cstr(rd(r, d['LBL'] + 40 * k, 40)) for k in range(6)]
+        msg = scr.raw_texts[1] if len(scr.raw_texts) > 1 else None
+        check([x[0] for x in rows] == mem, f'{tag}: rows on screen {[x[0] for x in rows]} != T3_LBL {mem}', errs)
+        check(scr.raw_texts[0] == title, f'{tag}: title {scr.raw_texts[0]!r}', errs)
+        cal_cur = u16(r, d['CAL_CUR'])
+        week, csn = u8(r, d['CAL'] + cal_cur + 1), u16(r, d['CSN'])
+        check(code == 1 + (csn * 64 + week // 4) % 255, f'{tag}: code {code}, season {csn} week {week}', errs)
+        for k, (t, inv, (x, y, w, h)) in enumerate(rows):
+            if inv != (st != 0):
+                errs.append(f'{tag}: row {k} invisible {inv}, state {st}')
+            m = re.fullmatch(r'(\S+) (\d\d) (.+) (\++)', t or '')
+            check(m and m.group(1) in pos and 17 <= int(m.group(2)) <= 19 and 1 <= len(m.group(4)) <= 5
+                  and complist.px(t) <= w - 4 and font(t), f'{tag}: row {k} {t!r} {complist.px(t) if t else 0}/{w} px', errs)
+        if shot:
+            s.shot(f't3_{tag}_{UI}')
+        return dict(state=st, code=code, rows=mem, msg=msg, week=week, d=d, rec=[rd(r, d['REC'] + 38 * k, 38) for k in range(6)])
+
+    def close(s):                                       # the page -> PROSS. PARTITA
+        leave(s)
+
+    car = None
+    with Session('giovani_t3', exe, {}, 'dump:2', 900) as s:
+        s.wait()
+        if not pick_career(s, path):
+            return False, 'new career: ' + str(s.screen().texts()[:8])
+        s.send('fire dump:3')
+        leave(s)
+        a = page(s, 'open', shot=True)
+        if not a:
+            return False, '; '.join(errs)
+        check(a['state'] == 0 and a['msg'] == m_open, f'open: state {a["state"]}, message {a["msg"]!r}', errs)
+        info.append(f'code {a["code"]} week {a["week"]}: ' + ' | '.join(a['rows']))
+        close(s)
+        b = page(s, 'again')
+        check(b and b['rows'] == a['rows'] and b['code'] == a['code'], f'again: {b and b["rows"]}', errs)
+        close(s)
+        r = s.result
+        wk = a['d']['CAL'] + u16(r, a['d']['CAL_CUR']) + 1
+        s.poke(wk, bytes([(a['week'] + 4) & 0xFF]))
+        c = page(s, 'week+4')
+        check(c and c['code'] != a['code'] and c['rows'] != a['rows'], f'week + 4: code {c and c["code"]}, rows '
+              f'{c and c["rows"]}', errs)
+        c and info.append(f'week + 4: code {c["code"]}: ' + ' | '.join(c['rows']))
+        close(s)
+        s.poke(wk, bytes([a['week']]))
+        c = page(s, 'week back')
+        check(c and c['rows'] == a['rows'], f'week back: {c and c["rows"]}', errs)
+        close(s)
+        to_main(s)
+        walk(s, 'SALVA CARRIERA', 2)
+        s.send(name_entry('GIOV') + ' dump:3')
+        car = os.path.join(s.run, 'SWOS', 'GIOV.CAR')
+    if not car or not os.path.exists(car):
+        return False, '; '.join(errs + ['no GIOV.CAR'])
+    car2 = None
+    with Session('giovani_t3_load', exe, {'GIOV.CAR': car}, 'dump:2', 900) as s:
+        s.wait()
+        s.send(LOAD1 + ' dump:3')
+        leave(s)
+        b = page(s, 'loaded')
+        if not b:
+            return False, '; '.join(errs)
+        r = s.result
+        check(b['rows'] == a['rows'] and u8(r, b['d']['ITEM']) == 0, f'loaded: rows {b["rows"]}, item '
+              f'{u8(r, b["d"]["ITEM"])}', errs)
+        d = b['d']
+        n0 = u16(r, d['CNP'])
+        sq0 = set(rd(r, d['CMP'], n0))
+        k = 2
+        walk(s, 2 + k, 3)
+        r = s.result
+        scr = s.screen()
+        s.shot(f't3_signed_{UI}')
+        n1 = u16(r, d['CNP'])
+        new = [x for x in rd(r, d['CMP'], n1) if x not in sq0]
+        check(n1 == n0 + 1 and len(new) == 1, f'signing: careerNumPlayers {n0} -> {n1}, new slots {new}', errs)
+        if new:
+            got = rd(r, d['CT'] + 76 + 38 * new[0], 38)
+            check(got[:0x21] == b['rec'][k][:0x21] and got[0x25] == 0 and got[0x1A] & 4, f'signing: record '
+                  f'{got.hex()} != shown {b["rec"][k].hex()}', errs)
+            info.append(f'signed {cstr(got[3:25])} slot {new[0]} pos {got[0x1A] >> 5} price {got[0x20]}')
+        check(u8(r, d['ITEM']) == b['code'] and u32(r, d['STATE']) == 1 and u32(r, d['SIGNED']) == 1,
+              f'signing: item {u8(r, d["ITEM"])} (code {b["code"]}), state {u32(r, d["STATE"])}, signed '
+              f'{u32(r, d["SIGNED"])}', errs)
+        check(all(scr.entries[2 + j][2] for j in range(6)) and scr.raw_texts[1] == m_done,
+              f'signing: rows {[bool(scr.entries[2 + j][2]) for j in range(6)]}, message {scr.raw_texts[1]!r}', errs)
+        close(s)
+        c = page(s, 'closed')
+        check(c and c['state'] == 1 and c['msg'] == m_done, f'closed: {c and (c["state"], c["msg"])}', errs)
+        close(s)
+        to_main(s)
+        walk(s, 'SALVA CARRIERA', 2)
+        s.send(name_entry('GIO2') + ' dump:3')
+        car2 = os.path.join(s.run, 'SWOS', 'GIO2.CAR')
+    if not car2 or not os.path.exists(car2):
+        return False, '; '.join(errs + ['no GIO2.CAR'])
+    with Session('giovani_t3_load2', exe, {'GIO2.CAR': car2}, 'dump:2', 900) as s:
+        s.wait()
+        s.send(LOAD1 + ' dump:3')
+        leave(s)
+        c = page(s, 'loaded2')
+        r = s.result
+        check(c and c['state'] == 1 and u8(r, c['d']['ITEM']) == b['code'], f'loaded2: {c and c["state"]}', errs)
+    ob = os.environ.get('T3_OLD_BUILD') or os.path.join(MAIN, 'c', 'TRT3', 'SWOS')   # (42-trial dd4f719: no 'T3')
+    if UI != 'it':
+        info.append('old save: IT only')
+    elif not os.path.exists(os.path.join(ob, 'ITALIAN.EXE')):
+        info.append(f'old save: no build {ob}')
+    else:
+        old = None
+        with Session('giovani_t3_oldmake', ob, {}, 'dump:2', 900) as s:
+            s.wait()
+            if pick_career(s, path):
+                s.send('fire dump:3')
+                leave(s)
+                to_main(s)
+                walk(s, 'SALVA CARRIERA', 2)
+                s.send(name_entry('OLDT') + ' dump:3')
+                old = os.path.join(s.run, 'SWOS', 'OLDT.CAR')
+        if not old or not os.path.exists(old):
+            errs.append('old save: not made')
+        else:
+            with Session('giovani_t3_old', exe, {'OLDT.CAR': old}, 'dump:2', 900) as s:
+                s.wait()
+                d = t3_desc(s.result, exe)
+                d and s.poke(d['ITEM'], b'\x5a')       # (poisoned: the load must clear it)
+                s.send(LOAD1 + ' dump:3')
+                leave(s)
+                c = page(s, 'old save')
+                r = s.result
+                check(c and u8(r, c['d']['ITEM']) == 0 and c['state'] == 0 and c['rows'] == a['rows'],
+                      f'old save: item {c and u8(r, c["d"]["ITEM"])}, state {c and c["state"]}, rows '
+                      f'{c and c["rows"]}', errs)
+    return not errs, '; '.join(errs + info)
+
+
 @scenario
 def xtra_cpu_refill_labels():
     """4.0.6 the CPU replacements switch's labels (cpurefill.TEXTS), SWOSTEST_UI's exe (it / en / fr / de: that language's exe

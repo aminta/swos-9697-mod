@@ -49,6 +49,7 @@ COLOR = 0x0E
 FLOOR_BELOW = 3                        # T2: the floor = the squad median's level - this (Davide picks)
 TRIES = 64                             # T2: source-team draws looking for the career club's division
 LABELS = {}
+SITES = {}                             # (the last patch's sites(): t3.py reads them after the hooks went in)
 
 
 def texts(lang):
@@ -268,6 +269,8 @@ def patch(p, at, lang, cr):
     import lepatch
     from complist import px, font_odd
     s = sites(p)
+    SITES.clear()
+    SITES.update(s)
     labs, qlabs = texts(lang)
     assert all(px(t) <= 113 for t in labs) and all(px(t) <= QBUTTON[2] - 8 for t in qlabs), \
         [(t, px(t)) for t in labs + qlabs]

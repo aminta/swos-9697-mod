@@ -13,8 +13,9 @@ What the game does (ref/swos.asm):
 Here:
   T1  the button 'PROVA: QUALSIASI / P / TD / TS / D / MD / MS / M / A' (each exe's own position abbreviations, POS; 4
       languages) in ACQUISTA GIOCATORE, bottom row left of ESCI (cpurefill's obj3 copy of buyPlayerMenu gets the entries:
-      cpurefill.EXTRA). tr_add replaces AddTrialPlayer's `mov [A0], offset dseg_17D0D4`: QUALSIASI keeps the game's table
-      (and its one Rand), a position points [A0] at an 11-entry table of that position only.
+      cpurefill.EXTRA; the code: obj4 swreg.TRIAL_AT 0xC800..0xCF00, 4.2 MC 12/11, was obj3). tr_add replaces
+      AddTrialPlayer's `mov [A0], offset dseg_17D0D4`: QUALSIASI keeps the game's table (and its one Rand), a position
+      points [A0] at an 11-entry table of that position only.
   T2  the button "QUALITA'+: SI / NO" (default SI, all worlds; Davide 12/11), above the trial one. While the trial flag is
       set: tr_same makes the source-team loop of cseg_567B5 accept only a team of the career club's division (team record
       +25; after TRIES draws any team of the file, as the game); tr_floor raises the final level (cseg_56B30, before the
@@ -257,9 +258,11 @@ def sites(p):
 
 
 def patch(p, at, lang, cr):
-    """Code at obj3:at (the obj3 chain's end, before cpurefill: cr = the cpurefill module, its menu copy gets the
-    button through cpurefill.EXTRA); returns the end."""
+    """Code at obj4 swreg.TRIAL_AT..TRIAL_END (4.2, MC 12/11: out of obj3, whose room the 4.2 line ran out of; obj1's
+    three call sites = type-8 fixups into obj4); cr = the cpurefill module, its obj3 menu copy gets the buttons through
+    cpurefill.EXTRA (their text / function pointers into obj4). at = the obj3 chain's end, returned unchanged."""
     import engine
+    import swreg
     import gkinj
     import xbrowse
     import lepatch
@@ -281,32 +284,34 @@ def patch(p, at, lang, cr):
     sym = {'A0': (2, s['A0']), 'D0': (2, s['D0']), 'D2': (2, s['D2']), 'SELT': s['sel'], 'CAREER': career,
            'ORIGTAB': s['tab'], 'SETCUR': (1, xb['setcur']),
            'DRAWMENU': (1, xb['drawmenu'])}
-    at = (at + 15) & ~15
-    code, fix, rel = nasmcave.assemble_obj(src, at, sym, 3)
+    at3, at = at, swreg.TRIAL_AT
+    code, fix, rel = nasmcave.assemble_obj(src, at, sym, 4)
     lab = nasmcave.labels(src, at, sym)
-    assert not any(p.get(3, at, len(code)))
-    p.put(3, at, code)
+    assert p.le.obj(4).npages * 0x1000 >= swreg.TRIAL_END, 'trial: obj4 pages (patch.py)'
+    assert at + len(code) <= swreg.TRIAL_END, ('trial: past its obj4 room', hex(at + len(code)), hex(swreg.TRIAL_END))
+    assert not any(p.get(4, at, swreg.TRIAL_END - at)), 'trial: obj4 room not free'
+    p.put(4, at, code)
     for o, t_obj, t_off in fix:
-        p.add_ptr(3, at + o, t_obj, t_off)
+        p.add_ptr(4, at + o, t_obj, t_off)
     for o, t_obj, t_off in rel:
-        p.add_rel(3, at + o, t_obj, t_off)
+        p.add_rel(4, at + o, t_obj, t_off)
     # AddTrialPlayer: mov [A0], offset dseg_17D0D4 (10 B) -> call tr_add; 5 x nop
     t = s['tab_site']
     p.remove(1, t + 2)
     p.remove(1, t + 6)
     p.put(1, t, b'\xe8' + struct.pack('<i', 0) + b'\x90' * 5)
-    p.branch(1, t, 0xE8, 3, lab['tr_add'])
+    p.branch(1, t, 0xE8, 4, lab['tr_add'])
     # cseg_567B5: mov al, byte [selTeamNumber]; mov byte [D0], al (10 B) -> call tr_same; 5 x nop
     q = s['same']
     p.remove(1, q + 1)
     p.remove(1, q + 6)
     p.put(1, q, b'\xe8' + struct.pack('<i', 0) + b'\x90' * 5)
-    p.branch(1, q, 0xE8, 3, lab['tr_same'])
+    p.branch(1, q, 0xE8, 4, lab['tr_same'])
     # cseg_56B30: mov ax, [D2] (6 B) -> call tr_floor; nop
     c = s['clamp']
     p.remove(1, c + 2)
     p.put(1, c, b'\xe8' + struct.pack('<i', 0) + b'\x90')
-    p.branch(1, c, 0xE8, 3, lab['tr_floor'])
+    p.branch(1, c, 0xE8, 4, lab['tr_floor'])
     if os.environ.get('TRIAL_FORCE'):                # test builds only: a trial player every week (< 30 players)
         p.put(1, s['roll'] + 7, b'\xff')
     # the buttons: entries appended to cpurefill's buyPlayerMenu copy (cr.EXTRA): the trial button left of ESCI
@@ -319,15 +324,15 @@ def patch(p, at, lang, cr):
         e += struct.pack('<IH', 0, 13)
         f_at = len(e)
         e += struct.pack('<IH', 0, 0)
-        return {'bytes': e, 'ptrs': [(b_at, 3, lab[buf]), (f_at, 3, lab[fn])]}
+        return {'bytes': e, 'ptrs': [(b_at, 4, lab[buf]), (f_at, 4, lab[fn])]}
     cr.EXTRA.append(dict(entry(BUTTON, (0xFF, cr.NEWENT - 1, qent, 0xFF), 'tr_buf', 'tr_toggle'), esci_left=ent))
     cr.EXTRA.append(dict(entry(QBUTTON, (0xFF, cr.NEWENT - 2, cr.NEWENT - 3, ent), 'tr_qbuf', 'tr_qtoggle'),
                          links={cr.NEWENT - 2: (0, qent)}))
-    engine.ITEM_AT['TR'] = (3, lab['tr_mode'])
-    engine.CALL_AT['tr_load'] = (3, lab['tr_load'])
-    engine.CALL_AT['tr_new'] = (3, lab['tr_new'])
+    engine.ITEM_AT['TR'] = (4, lab['tr_mode'])
+    engine.CALL_AT['tr_load'] = (4, lab['tr_load'])
+    engine.CALL_AT['tr_new'] = (4, lab['tr_new'])
     LABELS.update(lab)
     print(f'exe: trial players (T1 role button entry {ent}, QUALITA+ entry {qent}, T2 all worlds'
-          f', floor median/3 - {FLOOR_BELOW}{", TRIAL_FORCE" if os.environ.get("TRIAL_FORCE") else ""}): code obj3+{at:#x} '
+          f', floor median/3 - {FLOOR_BELOW}{", TRIAL_FORCE" if os.environ.get("TRIAL_FORCE") else ""}): code obj4+{at:#x} '
           f'({len(code)} B), AddTrialPlayer obj1+{t:#x}, source test obj1+{q:#x}, clamp obj1+{c:#x}')
-    return at + len(code)
+    return at3

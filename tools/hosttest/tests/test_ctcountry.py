@@ -8,7 +8,6 @@ import struct
 import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
-import conti  # noqa: E402
 
 REC = 0x2AC
 
@@ -39,6 +38,17 @@ def _run(L, lay, assocs, a, table, champ, top9, cup):
 
 
 def test_ctcountry_champion_not_leader():
+    before = set(sys.modules)                   # (the modules conti.load imports - mkseason reads SEASON_PACKS at import
+    try:                                        #  and caches its packs: dropped after, so a later test such as
+        return _test()                          #  test_globnum imports them fresh under its own SEASON_PACKS)
+    finally:
+        for k in set(sys.modules) - before:
+            if k != __name__:
+                del sys.modules[k]
+
+
+def _test():
+    import conti
     spec, assocs, cups = conti.load(['concacaf'])
     L = conti._native()
     lay = (ctypes.c_uint32 * 22).in_dll(L, 'CT_LAYOUT')

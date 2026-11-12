@@ -868,6 +868,8 @@ def patch_exe(src, dst, remap, lang='it'):
     st_end = gkinj.patch(p, (st_end + 15) & ~15, lang)       # ON by default), the obj3 chain's end
     import slow                                  # 4.2 EXPERIMENTAL (Davide 12/11): MATCH SPEED 100/90/80/70 % (an OPTIONS
     slow.patch(p, lang)                          # row after gkinj's; GameLoop's @@flip_it; SPEED.CFG), obj4 page 13
+    import namefit                               # 4.2 names-fit (Marco (b) step 2): menu names cut by pixels, obj4 page 13
+    namefit.patch(p)
     if ct_pg:                                    # 4.0.6 B2: the season-1 edition's block (conti.c CT_S1 -> it)
         st_end = conti.s1_patch(p, (st_end + 15) & ~15)
     assert st_end <= LT3_AT, hex(st_end)

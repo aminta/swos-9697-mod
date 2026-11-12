@@ -33894,6 +33894,287 @@ def match_names14():
 
 
 
+NF_NAMES = ['BASTIAN SCHWEINSTEIGER', 'MAREK SWIERCZEWSKI', 'DAVIDE GIANNASCOLI', 'GARY WHITTINGHAM',
+            'JOSE ANTONIO CAMACHO', 'RUUD VAN NISTELROOY', 'A. ANAGNOSTOPOULOS', 'A WWWWWWWWWWWWWW', 'ROBERTO_CARLOS',
+            'MUELLER', 'KOEN DE VLEESCHAUWER', 'OLE GUNNAR SOLSKJAER', 'M. SALEH AL-BUSHAIT', 'I IIIIIIIIIIIIIIIIIII',
+            'A ANAGNOSTOPOULOS ', 'JAN STOECKLINGE']   # (4.2 names-fit: the survey's cases, narrow I's, a trailing space)
+assert len(NF_NAMES) == 16 and all(len(n) <= 22 for n in NF_NAMES)
+
+
+def nf_game_cut(name, flags):
+    """Did the game's ExtractSurname (D0 = flags | limit, as n14_extract) cut `name`? (800Dh: the initial + the words
+    past the first, 13 at most.)"""
+    lim = flags & 0x3fff
+    s = name.lstrip(' ')
+    if ' ' not in s.rstrip(' '):
+        txt, d6 = s, 0
+    else:
+        txt, d6 = s[s.index(' ') + 1:], (3 if flags & 0x8000 else 0)
+    for k, ch in enumerate(txt):
+        if k + 1 == len(txt):
+            return False
+        d6 += 1
+        if d6 == lim:
+            return True
+    return False
+
+
+def nf_width(r):
+    """GetTextWidth(text, smallCharsTable) from the game's own font in memory: glyph width + charSpacing, a space =
+    spaceWidth (the asm's measure; nf_go fits width - 1)."""
+    small, gptr = modver_glyphs()
+    ct = r.read(r.base2 + small, 14 + 224)
+    sp_, spw, off = struct.unpack_from('<hhh', ct, 8)
+    tab = struct.unpack('<I', r.read(r.base2 + gptr, 4))[0]
+    cache = {}
+    def cw(ch):
+        if ch not in cache:
+            cache[ch] = spw if ch == ' ' else struct.unpack_from('<H', r.read(struct.unpack('<I', r.read(
+                tab + 4 * (ct[14 + ord(ch) - 32] + off), 4))[0], 24), 10)[0] + sp_
+        return cache[ch]
+    return lambda t: sum(cw(ch) for ch in t)
+
+
+def nf_rows(r, s, ring):
+    """[(entry, text, x, w)] of the menu entries whose text pointer is in names-fit's ring (the cut rows), and the
+    count of entries pointing elsewhere with a text."""
+    import namefit
+    m = r.base2 + s.info['menu']
+    n = min(struct.unpack('<H', r.read(m + 0x10, 2))[0], 120)
+    mem = r.read(m, 0x16 + n * 0x38)
+    out = []
+    for i in range(n):
+        e = 0x16 + i * 0x38
+        p = struct.unpack_from('<I', mem, e + 0x26)[0]
+        if ring <= p < ring + namefit.RING * namefit.BUF:
+            x, y, w, h = struct.unpack_from('<4h', mem, e + 0x14)
+            out.append((i, r.read(p, namefit.BUF).split(b'\0')[0].decode('latin-1'), x, w))
+    return out
+
+
+@scenario
+def namefit_menus():
+    """4.2 names-fit (Marco (b) step 2, scope A): the squad screen's list and the tactics editor's (800Dh) cut names
+    by pixels. A friendly, HAMBURG named NF_NAMES: every row the game cuts is names-fit's (its text pointer in the
+    obj4 ring), its text = namefit.model (whole initial + surname, else dropping leading words, else cut by pixels +
+    '.') and inside its column (GetTextWidth - 1 <= the entry's width - 3). Shots: squad.png, tactics.png"""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import namefit
+    b = ui_build(os.environ.get('SWOSTEST_BUILD') or builds()['it'])   # (SWOSTEST_UI: that language's exe)
+    src = os.path.join(b, 'DATA', 'TEAM.014')
+    d = bytearray(open(src if os.path.exists(src) else os.path.join(MAIN, 'orig', 'DATA', 'TEAM.014'), 'rb').read())
+    for t in range(struct.unpack('>H', d[:2])[0]):
+        o = 2 + t * 684
+        if d[o + 5:o + 22].split(b'\0')[0] == b'HAMBURG':
+            for k, nm in enumerate(NF_NAMES):
+                d[o + 76 + k * 38 + 3:o + 76 + k * 38 + 26] = nm.encode().ljust(23, b'\0')
+    team = os.path.join(WORK, 'saves', 'TEAM014_HAMBURG_NF.BIN')
+    os.makedirs(os.path.dirname(team), exist_ok=True)
+    open(team, 'wb').write(d)
+    errs, info = [], []
+
+    def rows_check(s, tag):
+        r = s.result
+        ring = r.base4 + namefit.ring_off()
+        W = nf_width(r)
+        got = nf_rows(r, s, ring)                   # (the list's rows reuse one entry: only the last drawn row points
+        check(got, f'{tag}: no row in the names-fit ring', errs)   #  into the ring - its width = the column's)
+        if not got:
+            return
+        room = got[0][3] - 3
+        buf = r.read(ring, namefit.RING * namefit.BUF)
+        have = sorted({buf[k * namefit.BUF:(k + 1) * namefit.BUF].split(b'\0')[0].decode('latin-1')
+                       for k in range(namefit.RING)} - {''})
+        want = sorted({t for t in (namefit.model(n, room, 0, W, nf_game_cut(n, 0x800D)) for n in NF_NAMES) if t})
+        check(have == want, f'{tag}: ring texts {have}, want {want}', errs)   # (16 buffers, 15 cut rows: one pass)
+        for t in have:
+            check(W(t) - 1 <= room, f'{tag}: {t!r} {W(t) - 1} px > {room}', errs)
+        info.append(f'{tag}: {len(have)} names fitted in {room} px: ' + ', '.join(f'{t} {W(t) - 1}' for t in have))
+        return ring
+
+    with Session('namefit_menus', b, {'DATA/TEAM.014': team}, 'dump:3', 300) as s:
+        s.wait()
+        w9697(s)
+        walk_seq(s, ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB', 'EUROPA', 'GERMANIA', '1. LIGA',
+                     'HAMBURG'), 2)
+        s.send('fire dump:2')
+        walk(s, 'SCHALKE', 2)
+        for _ in range(12):
+            scr = s.screen()
+            if scr.selected == 55:
+                break
+            s.send(('right' if scr.selected in (56, 57) else 'down') + ' dump:0.5')
+        s.send('fire dump:4')                           # (AMICHEVOLE: HAMBURG's squad screen)
+        s.shot('squad')
+        ring = rows_check(s, 'squad')
+        scr = s.screen()
+        k = scr.find('MOD. TATTICA')
+        check(k is not None, f'squad screen: no MOD. TATTICA ({[t for _, t, inv, _ in scr.entries if t and not inv][:40]})', errs)
+        if k is not None and ring:
+            s.poke(ring, bytes(namefit.RING * namefit.BUF))   # (the tactics editor's rows only)
+            press(s, scr, 'MOD. TATTICA', wait=3)
+            sc2 = s.screen()                        # (UTN A / USER A / ...: the first slot, any language)
+            ua = sc2.find('UTN A')
+            if ua is None:
+                ua = next((i for i, t, inv, _ in sc2.entries if t and not inv and re.search(r'[ _]A$', t)), None)
+            check(ua is not None, f'tactics: no first slot ({sc2.texts()[:10]})', errs)
+            if ua is not None:
+                press(s, sc2, ua, wait=3)
+            s.send('dump:1')
+            s.shot('tactics')
+            rows_check(s, 'tactics')
+    return not errs, '; '.join(errs + info)
+
+
+
+NF_LONG = 'KOEN DE VLEESCHAUWERS'      # (4.2 names-fit lists: 21 characters, past the market's / scorers' limits)
+
+
+@scenario
+def namefit_lists():
+    """4.2 names-fit (scope A) on the two lists that set every row in one pass: the transfer market (TRASFERIMENTI >
+    ACQUISTA GIOCATORE > VISUAL. MERCATO NAZIONALE > ELENCA) and CAPO CANNONIERI NAZIONALE, a World 2026-27 career
+    (NF_TEAM, default NAPOLI) saved after 4 match days (W8485_MIDTEXT; NF_CAR: a save of it). Each list opened once,
+    its last drawn row's player (names-fit's nf_name: the last call's name pointer) renamed NF_LONG (+ an X: 22
+    characters, the field's room) and the list opened again: that row = namefit.model (the whole name when it fits,
+    else the initial + surname, ...), in the ring, inside its room (market: to the club's right edge minus '(club)'
+    and a gap; scorers: to the club column), and every cut row's text in the ring fits that list's widest room.
+    Shots: market0/1.png, scorers0/1.png"""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import namefit
+    b = ui_build(os.environ.get('SWOSTEST_BUILD') or builds()['it'])   # (SWOSTEST_UI: that language's exe)
+    errs, info = [], []
+    car = os.environ.get('NF_CAR')
+    if not car:
+        keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_ONE',
+                'W8485_MIDTEXT')
+        keep = {k: os.environ.get(k) for k in keys}
+        os.environ.update(W8485_BUILD=b, W8485_WORLD='MONDO 2026-27', W8485_TEAM=os.environ.get(
+            'NF_TEAM', 'EUROPA,ITALIA,SERIE A,NAPOLI'), W8485_WNUM='5', W8485_K='0+', W8485_NOSACK='1', W8485_ONE='1',
+            W8485_MIDTEXT=os.environ.get('NF_MIDTEXT', 'SERIE A:4'))
+        try:
+            ok, msg = world8485()
+        finally:
+            for k, v in keep.items():
+                if v is None:
+                    os.environ.pop(k, None)
+                else:
+                    os.environ[k] = v
+        if not ok or 'saved mid-season' not in msg:
+            return False, f'setup: no mid-season save: {msg[:300]}'
+        car = os.path.join(RUNS, 'namefit_mid.CAR')
+        shutil.copy(msg.split(': ', 1)[1], car)
+    long_ = NF_LONG + 'X'
+    assert len(long_) == 22
+
+    def ring_rows(s):
+        r = s.result
+        return nf_rows(r, s, r.base4 + namefit.ring_off())
+
+    def rename_last(s):
+        r = s.result
+        p = struct.unpack('<I', r.read(r.base4 + namefit.ring_off('nf_name'), 4))[0]
+        old = r.read(p, 23).split(b'\0')[0].decode('latin-1')
+        s.poke(p, long_.encode() + b'\0')
+        s.poke(r.base4 + namefit.ring_off(), bytes(namefit.RING * namefit.BUF))
+        return old
+
+    def check_list(s, tag, room_of):
+        r = s.result
+        W = nf_width(r)
+        scr = s.screen()
+        rows = ring_rows(s) or [(i, raw.decode('latin-1'), g[0], g[2]) for i, raw, g in zip(range(len(scr.raw)), scr.raw,
+                                                                                    scr.geom) if raw and i + 1 < len(scr.raw)]
+        hit = None                                  # (scorers: the row template holds its own copy, not the pointer)
+        for i, t, x, w in rows:
+            room = room_of(scr, i, W)
+            want = namefit.model(long_, room, 1, W, True)
+            if t == want:
+                hit = (i, t, room)
+        buf = r.read(r.base4 + namefit.ring_off(), namefit.RING * namefit.BUF)
+        texts = sorted({buf[k * namefit.BUF:(k + 1) * namefit.BUF].split(b'\0')[0].decode('latin-1')
+                        for k in range(namefit.RING)} - {''})
+        if hit is None:                             # (scorers: one row template, drawn for each row in its own order -
+            for i, t, x, w in rows:                 #  the screen holds another row; the renamed one's text in the ring)
+                if x < 60 and scr.geom[i][1] > 40 and not t.startswith('('):
+                    room = room_of(scr, i, W)
+                    want = namefit.model(long_, room, 1, W, True)
+                    if want in texts:
+                        hit = (i, want, room)
+        check(hit, f'{tag}: the renamed row not in the ring ({rows}; want model of {long_!r})', errs)
+        if hit:
+            i, t, room = hit
+            check(W(t) - 1 <= room, f'{tag}: {t!r} {W(t) - 1} px > {room}', errs)
+            info.append(f'{tag}: {long_} -> {t!r} ({W(t) - 1} px of {room})')
+        info.append(f'{tag}: ring {texts}')
+
+    def sc_room(scr, i, W):                        # (nf_sc: the club entry's x - the name's x - 4)
+        return scr.geom[i + 1][0] - scr.geom[i][0] - 4
+
+    def mk_room(scr, i, W):                        # (nf_mk: the club's right edge - the name's x - 6 - '(club)')
+        club = scr.raw[i + 1].decode('latin-1')
+        return scr.geom[i + 1][0] + scr.geom[i + 1][2] - scr.geom[i][0] - 6 - W(club if club.startswith('(') else
+                                                                                   '(' + club + ')')
+
+    def market_open(s):
+        walk(s, 'TRASFERIMENTI', 3)
+        walk(s, 2, 3)                              # ACQUISTA GIOCATORE
+        scr = s.screen()
+        walk(s, next(e[0] for e in scr.entries if e[1] and 'VISUAL. MERCATO NAZIONALE' in e[1]), 3)
+        walk(s, 7, 3)                              # ELENCA
+        s.send('dump:1')
+
+    def home(s):                                    # (xtra_market's leave: the career menu = PROSS. PARTITA)
+        for _ in range(8):
+            if 'PROSS. PARTITA' in s.screen().texts():
+                return True
+            press(s, s.screen(), 'CONTINUA', 3) or press(s, s.screen(), 'ESCI', 3) or s.send('fire dump:2')
+        s.shot('nohome')
+        return False
+
+    def scorers_open(s):
+        if press(s, s.screen(), 'VISUAL. COMPETIZ.', wait=3) is None:
+            return False
+        t = next((x for x in SCORERS_TITLE if s.screen().find(x, exact=True) is not None), None)
+        return t is not None and press(s, s.screen(), t, wait=3) is not None
+
+    with Session('namefit_market', b, {}, 'dump:2', 600) as s:   # (a new career: the transfer window open)
+        s.wait()
+        path = ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27'] + os.environ.get(
+            'NF_TEAM', 'EUROPA,ITALIA,SERIE A,NAPOLI').split(',')
+        if not pick_career(s, path):
+            return False, 'new career: ' + str(s.screen().texts()[:8])
+        s.send('fire dump:3')
+        if not home(s):
+            return False, f'the career menu not reached: {s.screen().texts()[:16]}'
+        market_open(s)
+        s.shot('market0')
+        old = rename_last(s)
+        info.append(f'market: last row {old!r} renamed')
+        home(s)
+        market_open(s)
+        s.shot('market1')
+        check_list(s, 'market', mk_room)
+    with Session('namefit_lists', b, {'NFMID.CAR': car}, 'dump:2', 600) as s:
+        s.wait()
+        s.send('down down down down down fire dump:2')     # (world8485's W8485_FROM load: CARICA VECCHIA COMP.)
+        s.send('fire dump:3')
+        if not home(s):
+            return False, f'the career menu not reached after the load: {s.screen().texts()[:16]}'
+        if not scorers_open(s):
+            errs.append(f'scorers not reached: {s.screen().texts()[:10]}')
+        else:
+            s.shot('scorers0')
+            old = rename_last(s)
+            info.append(f'scorers: last row {old!r} renamed')
+            home(s)
+            scorers_open(s)
+            s.shot('scorers1')
+            check_list(s, 'scorers', sc_room)
+    return not errs, '; '.join(errs + info)
+
+
+
 def scorer_sites(orig):
     """(4.1 match_scorer14) obj2 offsets in the UI language's original exe: lastPlayerPlayed / lastKeeperPlayed
     (CheckIfBallOutOfPlay: mov eax, [lpp] / mov [A0], eax / mov eax, [lkp] / or / jz / cmp [A0], offset goalie1),

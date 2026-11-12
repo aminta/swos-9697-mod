@@ -126,3 +126,23 @@ def test_fport_world_sane():
                     bad.append((cc, d, x))
     again = fport.world(H2, EXE)
     return not bad and again == w and n > 100, f'{len(w)} countries, {n} windows; bad {bad[:5]}'
+
+
+def test_fport_stage_cap():
+    """forced: a stage title whose B + days + 1 passes 255 (ARG's Clausura knockout given 60 two-leg rounds of gap 2)
+    -> E clamps at 255 (the season's byte range; END = 65535 stays the season end). Pins the cap for the swcc
+    cross-check (OpenSWOS 12/11), which h2 alone never reaches"""
+    s = _skip()
+    if s:
+        return s
+    import copy
+    import json
+    pk = json.load(open(os.path.join(H2, 'arg', 'pack.json')))
+    pk['dir'] = os.path.join(H2, 'arg')
+    pk = copy.deepcopy(pk)
+    po = next(p for p in fport._league(pk)['ko_playoffs'] if p.get('key') == 'arg_cl_ko')
+    po['rounds'] = [{'legs': 2, 'gap': 2}] * 60
+    w = next(x for x in fport.windows(pk, EXE)[0] if x[2] == 'stage:arg_cl_ko')
+    tr = next(x for x in fport.windows(pk, EXE)[0] if x[2] == 'stage:arg_trofeo')
+    ok = w[1] == 255 and w[0] + fport.po_days(po) + 1 > 255 and tr[0] == 255 and tr[1] == 255
+    return ok, f'cl_ko {w}, trofeo {tr} (days {fport.po_days(po)})'

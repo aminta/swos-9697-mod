@@ -330,7 +330,8 @@ class Pack:
                 self.tourney(c) if c['type'] == 'tourney' else self.round_robin(c)     # validates
             return
         self.league = next(c for c in self.comps if c['key'] == m['season']['league'])
-        self.league_clubs = [k for k, c in self.clubs.items() if c['file'] == self.league['clubs']]
+        lroles = self.league_roles()               # (S7: a league over two team files - every 'divisions' role)
+        self.league_clubs = [k for k, c in self.clubs.items() if c['file'] in lroles]
         nd = len(self.divisions())                 # (a club of the 'reserve' (gplay loser_div 'reserve', league
         self.division = {k: nd if self.clubs[k].get('division') == 'reserve' else   # 'reserve'): out of every
                          int(self.clubs[k].get('division') or 0) for k in self.league_clubs}   # division, = nd)
@@ -854,6 +855,48 @@ class Pack:
               '(a table read from one team file: not split silently)')
         return fl[0]
 
+    # --- S7 struct B: one league struct per team file (MC 11/11 §3 (a); Shaved 12/11, handoff shaved-s7ctry) --------
+    def shaped(self):
+        """True for a league over two team files ('divisions' in pack.json 'files'): dormant packs are False."""
+        return bool(getattr(self, 'league', None)) and any('divisions' in v for v in self.meta['files'].values())
+
+    def levels(self):
+        """The league's levels top-down: [[global divisions]] (a level of parallel groups = one entry)."""
+        par = self.league.get('parallel') if self.league else None
+        pars = {q['first']: q['count'] for q in (par if isinstance(par, list) else [par] if par else [])}
+        out, d = [], 0
+        while d < len(self.divisions()):
+            n = pars.get(d, 1)
+            out.append(list(range(d, d + n)))
+            d += n
+        return out
+
+    def struct_divisions(self, f):
+        """The division records of league struct f (div_key's local order). Dormant: pk.divisions() unchanged.
+        Shaped (B1): a struct never moves a club across the boundary itself - its last level's 'relegated' = 0 when a
+        lower level lives in another struct, its first level's 'promoted' = 0 when a higher one does (the crossing =
+        the season-end file <-> file swaps, MC). A level split over two structs is refused."""
+        divs = self.divisions()
+        if not self.shaped():
+            return divs
+        lv = self.levels()
+        own = [x for x in lv if self.div_key(x[0])[0] == f]
+        for x in lv:
+            _need(len({self.div_key(d)[0] for d in x}) == 1,
+                  f"{self.meta['id']}: level of divisions {[d + 1 for d in x]} over two league structs")
+        _need(own and [d for x in own for d in x] == self.struct_divs(f),
+              f"{self.meta['id']}: struct {f}: its divisions are not whole consecutive levels")
+        first, last = lv.index(own[0]), lv.index(own[-1])
+        out = []
+        for d in self.struct_divs(f):
+            dv = dict(divs[d])
+            if last < len(lv) - 1 and d in own[-1]:
+                dv['relegated'] = 0
+            if first > 0 and d in own[0]:
+                dv['promoted'] = 0
+            out.append(dv)
+        return out
+
     # --- TEAM files --------------------------------------------------------------------------------------------------
     def team_files(self):
         out = {}
@@ -880,6 +923,23 @@ class Pack:
             out[f] = bytes(r)                             # teams of league 0 only; the career skips them (nat_table)
         if getattr(self, 'unused', ()):
             self.log(f'{len(self.unused)} unused nations: league {UNUSED_LEAGUE} (hidden from the team lists)')
+        if self.shaped():                               # S7 struct B (B5): a record's league byte = its LOCAL division
+            nd = len(self.divisions())                  # in its file's struct (cseg_3283C keeps the records whose byte
+            for k in self.league_clubs:                 # == the division; a count != the struct's size = int 3 freeze)
+                d = self.division[k]
+                if d < nd:
+                    f, i = self.where[k]
+                    _need(f in out, f"{self.meta['id']}: {k}: team file {f} not built")
+                    r = bytearray(out[f])
+                    r[2 + TEAM_SIZE * i + TF_LEAGUE] = self.div_key(d)[1]
+                    out[f] = bytes(r)
+            for f in self.league_files():
+                n = (len(out[f]) - 2) // TEAM_SIZE
+                got = [sum(1 for i in range(n) if out[f][2 + TEAM_SIZE * i + TF_LEAGUE] == ld)
+                       for ld in range(len(self.struct_divs(f)))]
+                want = [dv['teams'] for dv in self.struct_divisions(f)]
+                _need(got == want and sum(want) == n, f"{self.meta['id']}: struct {f}: league-byte counts {got} "
+                      f"!= its division sizes {want} ({n} records; B5: cseg_3283C's int 3)")
         self.pool_data = out.pop(self.files['pool'][0], None) if getattr(self, 'pool_key', None) else None
         self.xtra.pop(self.files['pool'][0], None) if getattr(self, 'pool_key', None) else None
         return out                                      # (the off-file pool: rs_files)
@@ -1895,7 +1955,11 @@ def world_defs():
         roots = [pk for pk in pks if 'world_cups' in pk.meta]
         _need(len(roots) == 1, f'world {n}: exactly one pack must have world_cups')
         wc = roots[0].meta['world_cups']
-        w = {'n': n, 'countries': [pk.files[pk.league['clubs']][0] for pk in pks], 'places': {}, 'cups': {},
+        # (S7 struct B: a league's other team file - Serie D, 144 - is a country of its own, walked at the season end
+        # right after its league file: seasonEndList / WMAP; never in a continent list, places or coefficients - B2/B3)
+        w = {'n': n, 'countries': [f for pk in pks for f in (pk.league_files() if pk.shaped() else
+                                                             [pk.files[pk.league['clubs']][0]])],
+             'places': {}, 'cups': {},
              'clubs': {}, 'tmd': 'WORLD%02d.TMD' % n, 'pool': None}
         w['squad_numbers'] = bool(roots[0].meta.get('squad_numbers'))   # benchnum.py: real numbers on the bench
         if roots[0].meta.get('pool'):                     # its foreign market (worldpool.py): POOLnn.DAT
@@ -1967,6 +2031,10 @@ def world_defs():
                 for c, v in uc.get('clubs', {}).items():
                     _need(c in pk.league_clubs, f"{pk.meta['id']}: uefa_coef: {c} is not a league club")
                     w['coef']['clubs'].append((pk.where[c], v))
+        sb = {f for pk in pks if pk.shaped() for f in pk.league_files()[1:]}
+        _need(not sb & ({f for key in w['places'] for f in w['places'][key]} | {f for f, _ in w['coef']['countries']}
+                        | set(w['codes'].values())),
+              f'world {n}: a league struct B file {sorted(sb)} has European places / coefficients / a country code (B2)')
         out.append(w)
     return out
 
@@ -2318,7 +2386,7 @@ def _patch_pack(pk, p, lang, area, at, env):
     for c in pk.comps:
         names = c['names'].get(lang) or c['names']['*']
         if c['type'] == 'league':
-            body = _league_body(p, lang, area, comp, c, lfile, pk.divisions())
+            body = _league_body(p, lang, area, comp, c, lfile, pk.struct_divisions(lfile))
         elif c['type'] == 'state':                      # a state championship (statecup.py: slot 1 by the club's state)
             import statecup
             sp = pk.state(c)
@@ -2382,6 +2450,23 @@ def _patch_pack(pk, p, lang, area, at, env):
     p.put(1, at, struct.pack('<i', -1))
     at += 4
     _tab(p, env, pk.world, 'comp', lfile, 1, table)
+    lg = next(c for c in pk.comps if c['key'] == s['league'])
+    for fb in pk.league_files()[1:] if pk.shaped() else []:
+        # S7 struct B (MC 11/11 §3 (a)): the league's other team file is a club country of its own -
+        # competitionsTable[fb] = [its struct (byte 2 = fb, local divisions), -2, -1]; the same contest id (a world's
+        # leagues share one); countriesTable / teamsCountryNumbers above (every pack file); seasonEndList: world_defs
+        _need(pk.world is not None, f"{m['id']}: a league over two team files outside a career world")
+        body = _league_body(p, lang, area, comp, lg, fb, pk.struct_divisions(fb))
+        p.put(1, at, body)
+        LEAGUE_AT[(pk.world, fb)] = at
+        sb = at
+        at = (at + len(body) + 3) & ~3
+        p.add_ptr(1, at, 1, sb)
+        p.put(1, at + 4, struct.pack('<ii', -2, -1))
+        _tab(p, env, pk.world, 'comp', fb, 1, at)
+        pk.log(f"exe: S7 struct B: country {fb}, league struct @ obj1+{sb:#x} ({len(pk.struct_divs(fb))} divisions "
+               f"{[dv['teams'] for dv in pk.struct_divisions(fb)]}), table @ obj1+{at:#x}")
+        at += 12
     emap = bytearray(len(pk.league_clubs))
     for club, cup in s.get('europe', {}).items():
         emap[pk.league_clubs.index(club)] = europe.index(cup) + 1

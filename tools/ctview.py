@@ -857,6 +857,72 @@ def test(lang='it', confs=('conmebol',)):
     conti.test(confs, seasons=int(os.environ.get('CTVIEW_SEASONS', 2)), L=L, hook=hook)
 
 
+def test_refused(lang='it'):
+    """4.2 P7 (MC 11/11): a refused group draw (conti CT_SDRAW_FORCE: the Libertadores group stage from season 2, its
+    CT_OUT.res[c][r][0] = ND_MARK, no entrants) on the page: that round shows no clubs (absent, or its name with
+    'to be played' and nothing under it), the cup's later rounds the same, no winner line; the text within its buffer,
+    the state unchanged (test()'s own asserts). The page shows no 'draw not made' line (obj3: no room - 59409b2)."""
+    import contextlib
+    import ctypes
+    import io
+    tab, _ = table(lang, ('conmebol',))
+    fm = {c['key']: c for c in conti._read('conmebol', 'format')['cups']}
+    spec, assocs, cups = conti.load(['conmebol'])
+    lib = [k for _, k in cups].index('lib')
+    rounds = fm['lib']['rounds']
+    gr = next(j for j, r in enumerate(rounds) if r['kind'] == 'groups')
+    names = [round_name(r, lang) for r in rounds]
+    force = 2 << 16 | (lib << 4 | gr) + 1
+    orig = conti._native
+    seen = []
+
+    def native(extra=(), flags=()):
+        L = orig(extra, flags)
+        ctypes.c_uint32.in_dll(L, 'CT_SDRAW_FORCE').value = force
+        seen.append(L)
+        return L
+    conti._native = native
+    os.environ['CTVIEW_SHOW'] = 'all'
+    f = io.StringIO()
+    try:
+        with contextlib.redirect_stdout(f):
+            test(lang, ('conmebol',))
+    finally:
+        conti._native = orig
+        os.environ.pop('CTVIEW_SHOW')
+    L = seen[-1]
+    err = ctypes.c_uint32.in_dll(L, 'CT_SDRAW_ERR').value
+    assert err & 0xFFFF == ((lib << 4 | gr) << 8 | 2), hex(err)
+    out = f.getvalue()
+    s2 = out[out.index('=== s2'):] if '=== s2' in out else ''
+    assert s2, 'no season-2 page'
+    cupname = (fm['lib']['names'].get(lang) or fm['lib']['names']['en'])[0].upper()
+    pages = [p for p in s2.split('  +') if cupname in p]
+    assert pages, 'no Libertadores page in season 2'
+    bad = []
+    for pg in pages:
+        lines = [l[4:] for l in pg.split('\n') if l.startswith('  | ')]
+        i0 = next(i for i, l in enumerate(lines) if l.startswith(cupname))
+        nxt = next((i for i in range(i0 + 1, len(lines)) if lines[i] and not lines[i].startswith(' ') and
+                    not any(lines[i].startswith(n.upper() + ':') or lines[i].startswith(n + ':') for n in names)), len(lines))
+        part = lines[i0:nxt]
+        k = None
+        for i, l in enumerate(part):
+            if any(l.startswith(n + ':') for n in names[gr:]):
+                k = i
+        if k is not None:
+            after = [l for l in part[k + 1:] if l.strip()]
+            if after:
+                bad.append(('lines under a refused round', part[k], after[:3]))
+        if any(l.startswith(txt) for l in part for txt in (TEXTS[lang][2].decode('latin1') + ':',)):
+            bad.append(('a winner line', part))
+    assert not bad, bad[:2]
+    print(f'PASS: ctview with a refused Libertadores group stage (season 2, ERR {err:#x}): {len(pages)} season-2 pages, '
+          f'the round and the later ones without clubs, no winner line')
+
+
 if __name__ == '__main__':
-    if sys.argv[1:2] == ['--test']:
+    if sys.argv[1:2] == ['--test-refused']:
+        test_refused(*(sys.argv[2:3] or ['it']))
+    elif sys.argv[1:2] == ['--test']:
         test(*(sys.argv[2:3] or ['it']), confs=tuple(sys.argv[3:]) or ('conmebol',))

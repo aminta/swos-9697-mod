@@ -2799,7 +2799,13 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
                                                                    'SEC_COPY': careerworld.SITES['sltcopy'],
                                                                    'GP_HLT': (2, hlt), 'GP_SEASP': uesum.season_var(p)},
                                 limit=limit)
-    assert bss <= GP_BSS, hex(bss)                  # (patch.py: GP_BSS: the reserves' state, GD 16, GP_ST)
+    __import__('sys').stderr.write(f'gplay .bss {bss:#x} GP_BSS {GP_BSS:#x} banks {SS_BANKS[0]} headroom '
+                                   f'{GP_BSS - bss:#x}\n')   # (buildrel.sh: fails under 0x200, MC 11/11)
+    assert bss <= GP_BSS, (                         # (patch.py: GP_BSS: the reserves' state, GD 16, GP_ST)
+        f'gplay.c .bss {bss:#x} > GP_BSS {GP_BSS:#x} ({SS_BANKS[0]} stage bank(s) x SS_ITEM {SS_ITEM:#x}, page-rounded, '
+        f'+ 0x6000; one bank: 0x7000): the room comes from the stage banks\' rounding - a world with few split-table '
+        f'leagues leaves too little. Scenario builds: set W2627REL_DATA to the current snapshot (world5tm-h2, '
+        f'notes/harness.md); a release build: patch.py\'s GP_BSS base must grow (MC 11/11)')
     keys = ('RSZ', 'GT_N', 'O_N', 'O_T', 'O_SPEC', 'O_MV', 'MSZ', 'GD_N')
     lay = dict(zip(keys, struct.unpack(f'<{len(keys)}I', p.get(1, syms['GP_LAYOUT'][1], 4 * len(keys)))))
     keys = ('O_MGR', 'O_WEEK', 'O_MDIV', 'O_GT', 'O_SIM', 'KO_SIZE', 'ST_KO', 'KO_SEAS', 'KO_CID', 'KO_N', 'KO_TEAM',

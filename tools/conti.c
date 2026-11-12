@@ -25,12 +25,22 @@ struct ct_state CT_ST;
 struct ct_out CT_OUT;
 struct ct_ed CT_ED;
 #define ED_R 4                          /* (CT_ED.pad: an edition made from 4.1.1 on - pts() / draw_groups) */
+#define ND_MARK 0xFF                    /* (CT_OUT.res[c][r][0] of a round with no entrants: not drawn, P7) */
+#define ED_S 8                          /* (CT_ED.pad, 4.2 P7: an edition made from 4.2 on, after season 1 - its group
+                                           draws by the rules library, ct_sdraw: clash-free whenever a draw exists) */
 struct ct_seg CT_SEG;
 #ifdef NATIVE
 const u8 *CT_S1;
 const u8 *CT_S1R0, *CT_S1H0, *CT_RK;
 u8 CT_NOR;                              /* (conti.season1_old: the build's run of a 4.1 edition, ED_R off) */
+u8 CT_NOS;                              /* (4.2 P7: an edition as 4.1.1 made it, ED_S off - the old-save tests) */
+int ct_place(int m, int ng, int gs, int mode, u16 *x, u8 *v, u8 *k, const u8 *as, u32 *rng, int tag);   /* (ctdraw.c) */
+#define SDRAW ct_place
+u32 CT_NCLASH, CT_NGDRAW;               /* (4.2 P7 native tests: group draws made / with a clash, both draw paths) */
 #else
+int (*CT_SDRAW)(int, int, int, int, u16 *, u8 *, u8 *, const u8 *, u32 *, int) __attribute__((section(".data"))) = 0;
+                                        /* (4.2 P7: ctdraw.c's ct_place in obj4 - conti.py sdraw_patch; 0 = not linked) */
+#define SDRAW CT_SDRAW
 const u8 *CT_S1 __attribute__((section(".data"))) = 0;   /* (4.0.6 B2: the season-1 block, obj3) */
 const u8 *CT_S1R0 __attribute__((section(".data"))) = 0; /* (4.1.1: the 4.1 build's season-1 block and its 2027 winners,
                                            obj3, for a season-1 edition saved before ED_R: it replays as it began) */
@@ -50,6 +60,7 @@ static int g_live = -1;                 /* 4.1.1: the cup whose game contest the
 
 /* --- the spec ----------------------------------------------------------------------------------------------------- */
 static u8 ncup, na, fcup, frnd;         /* (test builds, CONTI_FORCE: the career club into this cup's round) */
+#define FORCING (fcup < ncup || gid[ncup + 1] < ncup)   /* (test builds: CONTI_FORCE / CONTI_FORCE2 set) */
 static const u8 *cupr[NCUP];            /* first round of each cup */
 static u8 nrd[NCUP];
 static const u8 *acc;                   /* access entries: assoc, cup, round, code */
@@ -117,14 +128,17 @@ static u32 sq(int c) { u32 s = CT_IN.club[c - 1].str / 16; if (s < 1) s = 1; if 
 #define RANKED 0x10000u
 #ifdef NATIVE
 #define EDR (CT_NOR ? 0 : ED_R)
+#define EDS (CT_NOR || CT_NOS ? 0 : ED_S)
 #else
 #define EDR ED_R
+#define EDS ED_S
 #endif
 static __attribute__((noinline)) u32 pts(int c) {
     if ((CT_ED.pad & ED_R) && CT_IN.club[c - 1].pts) return RANKED + CT_IN.club[c - 1].pts;
     return CT_IN.club[c - 1].str / 64;
 }
 static int assoc(int c) { return CT_IN.club[c - 1].assoc; }
+#define ZONE(c) (assoc(c) < na ? areg[assoc(c)] & 1 : 1)   /* (4.2 AFC mode: a club's region; an unknown association East) */
 
 /* goals of one side: binomial(8, m / 8), m in eighths */
 static int goals(u32 m8) { int g = 0; for (int i = 0; i < 8; i++) if (below(64) < m8) g++; return g; }
@@ -251,27 +265,10 @@ static void access(void) {
         if (k) { enter(e[1], e[2] & 0x1F, k, 0, e[3]); taken[k] = 1; if (e[2] & 0x80) own[k] = e[1] + 1; }
         /* (a holder may hold places in two cups: the Recopa; own[]: CAF, its league place in the cup is its own) */
     }
-    if (fcup < ncup && CT_IN.manager && !taken[CT_IN.manager]) {   /* (test builds: the forced place) */
-        int fr = frnd & 15;
-        if (frnd & 0x80 && EN[fcup][fr]) {          /* ('!': the place of the entrant of its confederation - the */
-            int j = 0, bj = -1;                     /* most cups shared with its association; that club out) */
-            for (int i = 0; i < EN[fcup][fr]; i++) {
-                int n = 0;
-                for (int c = 0; c < ncup; c++) n += !in_cup(c, assoc(E[fcup][fr][i])) == !in_cup(c, assoc(CT_IN.manager));
-                if (n > bj) { bj = n; j = i; }
-            }
-            taken[E[fcup][fr][j]] = 0; E[fcup][fr][j] = CT_IN.manager; EV[fcup][fr][j] = 0;
-        } else
-            enter(fcup, fr, CT_IN.manager, 0, 0);
-        taken[CT_IN.manager] = 1;
-    }
-    if (gid[ncup + 1] < ncup && CT_IN.manager) {   /* (4.1.1 test builds, CONTI_FORCE2: a second cup's round as well -
-                                                      the Recopa holder in the Libertadores) */
-        int c2 = gid[ncup + 1], r2 = gid[ncup + 2] & 15, in = 0;
-        for (int r = 0; r < nrd[c2]; r++) for (int i = 0; i < EN[c2][r]; i++) if (E[c2][r][i] == CT_IN.manager) in = 1;
-        if (!in) enter(c2, r2, CT_IN.manager, 0, 0);
-        taken[CT_IN.manager] = 1;
-    }
+    /* (test builds, CONTI_FORCE / CONTI_FORCE2 - MC 11/11 root fix D: the career club is held out of the access,
+       so its own league places pass down the table as the game does for a club already in; it takes a place in the
+       forced round when that round is played - force_in(), ct_round -, never an extra entrant) */
+    if (CT_IN.manager && FORCING) taken[CT_IN.manager] = 1;
     for (int i = 0; i < nacc; i++) {
         const u8 *e = acc + 4 * i;
         int a = e[0], c = e[1], r = e[2], k = e[3], club = 0;
@@ -288,8 +285,14 @@ static void access(void) {
         else if (k >= 2 && k <= NL) club = CT_IN.league[a][k - 1];
         if (club && taken[club] && own[club] == c + 1) { own[club] = 0; continue; }   /* (the holder's own place) */
         if (club && taken[club]) club = 0;          /* already in: the place passes down the table */
-        if (!club) club = next_club(a);
+        if (!club) club = next_club(a);   /* (the place passes to the association's next-ranked club not yet in -
+                                             CONMEBOL Reglamento Sudamericana: a vacant place goes to the next club of
+                                             the same association) */
         if (club) { enter(c, r, club, 0, 0); taken[club] = 1; }
+        else if (!CT_OUT.pad[1] && a < na && CT_IN.league[a][0]) CT_OUT.pad[1] = (u8)(a + 1);   /* (none left: the first such association,
+                                             a table that ran out, sticky for the exe run -
+                                             release builds too: harmless, CT_OUT is not saved and only the harness
+                                             reads it - ctfield check 4 names it) */
     }
     for (int v = 0; v < nvac; v++) {    /* a vacant holder place: the best ranked club not yet in (declared) */
         const u8 *e = hol + 4 * vac[v];
@@ -360,7 +363,20 @@ static void draw_ko(int c, int r, const u8 *R) {
         return;
     }
     if (dr == D_ORDER || dr == D_BRACKET) {
-        for (int i = 0; i < n; i++) { D[i] = x[i]; DV[i] = v[i]; DK[i] = k[i]; }
+        int pr = 0;                     /* (4.2 AFC mode, ED_S editions: a per-region cup's 'order' knockout - the
+                                           ACLE / ACL Two play-offs - West first, then East, each in its order: no
+                                           tie across the regions, the groups' halves kept. Older editions as made) */
+        if (dr == D_ORDER && areg && CT_ED.pad & EDS)   /* (a knockout whose winners or losers go to a per-region
+                                                           group round: ACLE pre -> acl2 groups, acl2 pre -> its) */
+            for (int q = 10; q < 12; q++) {
+                int t = R[q];
+                if (t < 0xF0 && (t >> 4) < ncup && (t & 15) < nrd[t >> 4] && RND(t >> 4, t & 15)[0] == K_GROUPS)
+                    pr |= RND(t >> 4, t & 15)[16] & 2;
+            }
+        int m = 0;
+        for (int z = 0; z < 2; z++)
+            for (int i = 0; i < n; i++)
+                if (!pr ? !z : ZONE(x[i]) == z) { D[m] = x[i]; DV[m] = v[i]; DK[m] = k[i]; m++; }
         return;
     }
     if (dr == D_SAMEPAIRS) {            /* clubs of one association against each other, the first drawn at home */
@@ -449,6 +465,7 @@ static int in_cup(int c, int a) {       /* an association with a place in the cu
     }
     return 0;
 }
+#ifdef NATIVE                           /* (4.2 P7: the native tests' clash count; the exe's in ctdraw.c ct_place) */
 static int clash(int ng, int gs, int rule) {   /* two clubs of a group that may not meet (the draw's rule) */
     for (int g = 0; g < ng; g++)
         for (int p = 1; p < gs; p++)
@@ -458,7 +475,8 @@ static int clash(int ng, int gs, int rule) {   /* two clubs of a group that may 
             }
     return 0;
 }
-static void draw_groups(int c, int r, const u8 *R) {
+#endif
+static int draw_groups(int c, int r, const u8 *R) {   /* 0, or -1: not drawn (ED_S: CONVENTIONS 14a) */
     int n = EN[c][r], ng = R[6], gs = R[7], rule = R[5];
     u16 x[NE]; u8 v[NE], k[NE];
     int m = 0;
@@ -467,20 +485,39 @@ static void draw_groups(int c, int r, const u8 *R) {
             if ((pass == 1 && !EV[c][r][i]) || (pass == 2 && EV[c][r][i])) {
                 x[m] = E[c][r][i]; v[m] = EV[c][r][i]; k[m] = EK[c][r][i]; m++;
             }
-    int size = ng * gs;
+    int size = ng * gs, pr = R[16] & 2 && areg, hw = size / 2;
+    /* 4.2 AFC mode, per region (ct_place: size / 2 clubs a half): the trim takes the weakest of the OVERFULL half,
+       the fill the best club of the UNDERFULL half's region - a qualified club never makes room for an invented one;
+       halves still unbalanced at full size (too many qualified in one region: impossible data) are ct_place's -5 */
     while (m > size) {                  /* more clubs than places (a forced test place): the weakest out */
-        int w = -1;
+        int w = -1, nw = 0, h = -1;
+        if (pr) {
+            for (int i = 0; i < m; i++) nw += !ZONE(x[i]);
+            h = nw > hw ? 0 : m - nw > hw ? 1 : -1;
+        }
         for (int i = 0; i < m; i++)
-            if (x[i] != CT_IN.manager && (w < 0 || pts(x[i]) < pts(x[w]))) w = i;
+            if (x[i] != CT_IN.manager && (h < 0 || ZONE(x[i]) == h) && (w < 0 || pts(x[i]) < pts(x[w])))
+                w = i;
         if (w < 0) break;
         for (int i = w; i + 1 < m; i++) { x[i] = x[i + 1]; v[i] = v[i + 1]; k[i] = k[i + 1]; }
         m--;
     }
     while (m < size && !R[23]) {        /* fewer (the world could not fill the rounds before): the best ranked
                                            club in no cup this edition (declared), so the game's contest is full */
-        int b = 0;
+        int b = 0, nw = 0, h = -1;      /* (per region: of the underfull half's region) */
+        if (pr) {
+            for (int i = 0; i < m; i++) nw += !ZONE(x[i]);
+            h = nw < hw ? 0 : m - nw < hw ? 1 : -1;
+        }
+        int cap = R[5] == A_NO || R[5] == A_NOVIA ? ng : R[5] == A_NO2 ? 2 * ng : NE;
         for (int i = 1; i <= CT_IN.nclub; i++)
-            if (!taken[i] && in_cup(c, assoc(i)) && (!b || pts(i) > pts(b))) b = i;
+            if (!taken[i] && in_cup(c, assoc(i)) && (h < 0 || ZONE(i) == h) && (!b || pts(i) > pts(b))) {
+                int na_ = 0, a = assoc(i);  /* (4.2, MC 11/11: never past the round's association rule - one a group:
+                                               ng clubs, CAF's two: 2 ng - else no draw exists: hold_rec's Sud groups,
+                                               a 9th Argentine for 8 groups, rc -2; the next best club instead) */
+                for (int q = 0; q < m; q++) na_ += assoc(x[q]) == a;
+                if (na_ < cap) b = i;
+            }
         if (!b) break;
         taken[b] = 1;
         reached(b, c, r);
@@ -499,12 +536,12 @@ static void draw_groups(int c, int r, const u8 *R) {
                 D[g * gs + fill[g]] = x[i]; DV[g * gs + fill[g]] = v[i]; DK[g * gs + fill[g]] = k[i]; fill[g]++;
                 x[i] = 0;
             }
-        return;
+        return 0;
     }
     int nd = 0;
     while (nd < m && !v[nd]) nd++;
     sort_by_pts(x, v, k, nd);
-    int hold = R[16] && CT_ST.hold[c].id;
+    int hold = R[16] & 1 && CT_ST.hold[c].id;   /* (R[16]: bit 0 the holder in A, bit 1 per region) */
     if (hold)                           /* the holder first (pot 1, group A) */
         for (int i = 0; i < nd; i++)
             if (CT_IN.club[x[i] - 1].id == CT_ST.hold[c].id) {
@@ -513,40 +550,15 @@ static void draw_groups(int c, int r, const u8 *R) {
                 x[0] = t; v[0] = tv; k[0] = tk;
                 break;
             }
-    for (int tr = 0, tries = CT_ED.pad & ED_R ? 16 : 1; tr < tries; tr++) {   /* (4.1.1: drawn again while it
-                                        clashes, up to 16 times, the last draw kept; the fill above stays out) */
-        for (int i = 0; i < NE; i++) D[i] = 0;
-        for (int p = 0; p < gs; p++) {
-            int base = p * ng;
-            u16 px[NE]; u8 pv[NE], pk[NE];
-            int pn = 0;
-            for (int i = base; i < base + ng && i < m; i++) { px[pn] = x[i]; pv[pn] = v[i]; pk[pn] = k[i]; pn++; }
-            if (p == 0 && hold) {
-                D[0] = px[0]; DV[0] = pv[0]; DK[0] = pk[0];
-                for (int i = 1; i < pn; i++) { px[i - 1] = px[i]; pv[i - 1] = pv[i]; pk[i - 1] = pk[i]; }
-                pn--;
-            } else
-                ;
-            shuffle(px, pv, pk, pn);
-            for (int i = 0; i < pn; i++) {
-                int best = -1, g0 = below(ng);
-                for (int t = 0; t < ng; t++) {     /* (every group once, from a drawn one) */
-                    int g = (t + g0) % ng, s = g * gs + p;
-                    if (D[s]) continue;
-                    int bad = 0;
-                    for (int q = 0; q < p; q++)
-                        if (D[g * gs + q] && conflict(D[g * gs + q], px[i], DV[g * gs + q], pv[i], rule)) bad = 1;
-                    if (!bad) { best = s; break; }
-                    if (best < 0) best = -2 - s;            /* (a slot with a conflict: the last resort) */
-                }
-                if (best < -1) best = -2 - best;
-                if (best < 0)                               /* (every free slot taken by the loop's order: any free) */
-                    for (int g = 0; g < ng; g++) if (!D[g * gs + p]) { best = g * gs + p; break; }
-                if (best >= 0) { D[best] = px[i]; DV[best] = pv[i]; DK[best] = pk[i]; }
-            }
-        }
-        if (!clash(ng, gs, rule)) break;
-    }
+    u8 as[NE];                          /* 4.2 P7: the placement in obj4 (ctdraw.c ct_place: the 411 draw, or under ED_S
+                                           the rules library's - obj1 had no room), x / v / k back in slot order */
+    for (int i = 0; i < m; i++) { int a = assoc(x[i]); as[i] = (u8)(a | (R[16] & 2 ? areg[a] << 7 : 0)); }
+                                        /* (4.2 AFC mode: per region - bit 7 = the club's region, areg 0 / 1, a < 0x80) */
+    int rc = SDRAW ? SDRAW(m, ng, gs, rule | hold << 4 | (CT_ED.pad & ED_S ? 0x20 : 0) | (R[16] & 2) << 5 |
+                           (CT_ED.pad & ED_R ? 16 : 1) << 8,
+                           x, v, k, as, &rng, (CT_ST.season & 0xFF) << 8 | c << 4 | r) : -4;
+    for (int i = 0; i < NE; i++) { int in = rc >= 0 && i < ng * gs; D[i] = in ? x[i] : 0; DV[i] = in ? v[i] : 0; DK[i] = in ? k[i] : 0; }
+    return rc < 0 ? -1 : 0;
 }
 
 /* --- rounds ------------------------------------------------------------------------------------------------------- */
@@ -587,8 +599,46 @@ static int forced(int c, int r) {
     for (int i = 0; i < CT_ED.nf; i++) if (CT_ED.f[i].c == c && CT_ED.f[i].r == r) return CT_ED.f[i].v;
     return -1;
 }
+/* a cup no access place enters (the Recopa, the Intercontinental, the CAF Super Cup): holders and routes only,
+   no association rule in its draws */
+static int holders_cup(int c, int r) {   /* (and a round no access place enters: the Intercontinental's r2a / r2b,
+                                           fed by the continental winners - the confederation's slot, not a country's) */
+    for (int i = 0; i < nacc; i++) if (acc[4 * i + 1] == c && (acc[4 * i + 2] & 0x1F) == r) return 0;
+    return 1;
+}
+static void force_in(int c, int r) {
+    /* MC 11/11 root fix D (test builds: CONTI_FORCE / CONTI_FORCE2 name cup c's round r): the career club takes the
+       place of an entrant of its own ASSOCIATION in that round - the weakest by ranking points; the association
+       counts stay exactly the data's, so the draws test the game, not the force. A holders' cup (no association
+       rule) or a round no access place enters (fed by winners / holders: the Intercontinental's r2a / r2b): the entrant
+       of its own confederation's slot (the most cups shared with its association). Already in
+       that cup: nothing. No such entrant: added as an extra entrant and CT_OUT.pad[0] = 1 (SETUP-ERROR: the
+       harness's, never a game FAIL) */
+    int m = CT_IN.manager;
+    if (!m) return;
+    for (int rr = 0; rr <= r && rr < nrd[c]; rr++)
+        for (int i = 0; i < EN[c][rr]; i++) if (E[c][rr][i] == m) return;
+    int n = EN[c][r], j = -1, am = assoc(m);
+    for (int i = 0; i < n; i++)
+        if (assoc(E[c][r][i]) == am && (j < 0 || pts(E[c][r][i]) < pts(E[c][r][j]))) j = i;
+    if (j < 0 && n && holders_cup(c, r)) {
+        int bj = -1;
+        for (int i = 0; i < n; i++) {
+            int k = 0, a = assoc(E[c][r][i]);
+            for (int cc = 0; cc < ncup; cc++) k += !in_cup(cc, a) == !in_cup(cc, am);
+            if (k > bj) { bj = k; j = i; }
+        }
+    }
+    if (j >= 0) { E[c][r][j] = (u16)m; EV[c][r][j] = 0; return; }
+    if (!n && holders_cup(c, r)) { enter(c, r, m, 0, 0); return; }   /* (an empty winners' round - season 1's IC,
+                                           its list fixed: no association count to keep, the old documented extra) */
+    CT_OUT.pad[0] = 1;
+    enter(c, r, m, 0, 0);
+}
 static int ct_round(int c, int r) {
     const u8 *R = RND(c, r);
+    if (c == fcup && r == (frnd & 15)) force_in(c, r);
+    if (c == gid[ncup + 1] && r == (gid[ncup + 2] & 15)) force_in(c, r);
     int n = EN[c][r];
     if (!n) return 0;
     int fm = 0;
@@ -631,7 +681,19 @@ static int ct_round(int c, int r) {
         EN[c][r] = --n;
     }
     if (fix) ;
-    else if (R[0] == K_GROUPS) { draw_groups(c, r, R); n = R[6] * R[7]; } else draw_ko(c, r, R);
+    else if (R[0] == K_GROUPS) {
+        if (draw_groups(c, r, R) < 0) {  /* (4.2 P7, not drawn - a bug the build's bound rules out: the edition stops
+                                           here, no club goes on, no winner (the holder stays: ct_finish), the game's
+                                           contest gets no list; ctview shows the round as not drawn - CT_SDRAW_ERR) */
+            CT_OUT.nent[c][r] = 0;
+            CT_OUT.res[c][r][0] = ND_MARK;  /* (no entrants: the view's "draw not made") */
+            return 0;
+        }
+        n = R[6] * R[7];
+#ifdef NATIVE
+        if (!R[19] || !areg) { CT_NGDRAW++; if (clash(R[6], R[7], R[5] >= A_NO2 ? A_ANY : R[5])) CT_NCLASH++; }
+#endif
+    } else draw_ko(c, r, R);
     CT_OUT.nent[c][r] = n;
     for (int i = 0; i < n && i < NE; i++) { CT_OUT.ent[c][r][i] = D[i]; if (D[i]) reached(D[i], c, r); }
     if (R[17] && CT_LP[c]) {            /* the main round: the game's contest plays it with the career club */
@@ -763,7 +825,9 @@ void ct_begin(void) {                   /* the season end's first country: this 
     ct_finish();
     u8 *b = (u8 *)&CT_IN;
     for (u32 i = 0; i < sizeof(CT_IN); i++) b[i] = 0;
-    ntab = 0;
+    /* (ntab kept: the first country is the career club's own - cseg_91428 runs it first -, its top division's whole
+       table caught by ct_table just before this call; clearing it here left that country only its top 9 records -
+       4.2 root fix b: Brazil 10-11 clubs for 13 places. ct_country checks TAB[0] against the champion) */
 }
 /* one country of the season end (after its season: the top 9 records in stand, the cup winner's record) */
 void ct_country(const u8 *stand, const u8 *cuprec) {
@@ -828,7 +892,7 @@ static void lp_clear(int c) {           /* (only its own places: the Recopa's li
 }
 static void clear_run(void) {
     for (int c = 0; c < NCUP; c++) for (int r = 0; r < NRD; r++) EN[c][r] = 0;
-    CT_OUT.ncup = ncup;
+    CT_OUT.ncup = ncup;   /* (CT_OUT.pad[0], force_in's error: sticky for the exe run, the harness reads it at a pause) */
     for (int i = 0; i < NC; i++) { CT_OUT.last[i] = OUT; CT_OUT.out_of[i] = 0; }
     for (int c = 0; c < NCUP; c++) { CT_OUT.winner[c] = CT_OUT.second[c] = 0;
         for (int r = 0; r < NRD; r++) { CT_OUT.nent[c][r] = 0; for (int i = 0; i < NE; i++) { CT_OUT.ent[c][r][i] = 0; CT_OUT.res[c][r][i] = 0; } } }
@@ -853,12 +917,16 @@ static int assoc_of(u16 id) {           /* a team word's association: its file's
 static void snapshot(void) {            /* the edition's entrants (after access) + the reserve clubs for group fills */
     static u8 seen[NC + 1];
     for (int i = 0; i <= NC; i++) seen[i] = 0;
-    CT_ED.ne = 0; CT_ED.nf = 0; CT_ED.pad = ED_G2 | EDR;
+    CT_ED.ne = 0; CT_ED.nf = 0; CT_ED.pad = ED_G2 | EDR | EDS;
     CT_ED.seed = rng;
     CT_ED.mgr = CT_IN.manager ? CT_IN.club[CT_IN.manager - 1].id : 0;
     for (int c = 0; c < ncup; c++)
         for (int r = 0; r < nrd[c]; r++)
             for (int i = 0; i < EN[c][r]; i++) { seen[E[c][r][i]] = 1; ed_add(E[c][r][i], c << 4 | r, EK[c][r][i]); }
+    if (CT_IN.manager && FORCING && !seen[CT_IN.manager]) {   /* (a forced club in no round yet: kept in the
+                                                                 edition with no place, for force_in; never a fill) */
+        seen[CT_IN.manager] = 1; ed_add(CT_IN.manager, 0xFF, 0);
+    }
     for (int c = 0; c < ncup; c++)      /* up to 4 reserves per cup: its associations' best clubs in no cup */
         for (int k = 0; k < 4; k++) {
             int b = 0;
@@ -917,6 +985,7 @@ static int run(int stop) {              /* the edition from its entrants, the ca
         idx[i] = k;
         if (CT_ED.e[i].cr != 0xFF) taken[k] = 1;
     }
+    if (CT_IN.manager && FORCING) taken[CT_IN.manager] = 1;
     rng = CT_ED.seed ? CT_ED.seed : 1;
     clear_run();
     for (int i = 0; i < CT_ED.ne; i++)
@@ -971,7 +1040,7 @@ void ct_finish(void) {                  /* this season's edition finished, as pl
 void ct_season(void) {                  /* the season end (after ct_finish and the tables): the next edition built */
     parse();
     CT_ED.mark = 0;
-    CT_ED.pad = ED_G2 | EDR;            /* (the new edition's rules from its access on: snapshot keeps them) */
+    CT_ED.pad = ED_G2 | EDR | EDS;      /* (the new edition's rules from its access on: snapshot keeps them) */
     rng = CT_IN.seed ? CT_IN.seed : 1;
     for (int c = 0; c < NCUP; c++) for (int r = 0; r < NRD; r++) EN[c][r] = 0;
     for (int c = 0; c < ncup; c++) if (CT_LP[c]) lp_clear(c);

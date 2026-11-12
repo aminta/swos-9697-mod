@@ -210,6 +210,35 @@ the forced case never happens and the scenario FAILs on the wrong contest (e.g. 
 'Championship kind 0 n 0'). In a release gate run them with no *_BUILD in their env (self-built from the release
 sha's tree); give the release dir only to the natural scenarios (oldsave set, s1conti, cupd_format, euro_money...).
 
+**CONTI_FORCE=<cup>:<round>[!]**, **CONTI_FORCE2=<cup>:<round>** (conti.c, test builds only; root fix D, MC
+11/11: plain and '!' are now the same). The career club is held out of the access - its own league / cup places pass
+down the table, as the game does for a club already in a cup - and kept in the edition with no place (never a group
+fill). When the forced round is played (ct_round, every re-run) it TAKES THE PLACE of the weakest (ranking points)
+entrant of its own ASSOCIATION in that round, the round's order kept: the association counts stay exactly the data's,
+so the draws test the game, not the force. A holders' cup (no access place: the Recopa, the Intercontinental, the CAF
+Super Cup - no association rule): the entrant sharing the most cups with its association. Already in that cup: nothing.
+No entrant of its association (e.g. a Brazilian on lib:q1, an empty round fed only by routes): the club is added as an
+extra and conti.c sets CT_OUT.pad[0] = 1 (sticky for the exe run); the harness reads it at every pause (force_check,
+the build dir's .conti_force marker) and the scenario ends **SETUP-ERROR** (counted as bad, never PASS or FAIL: the
+scenario's set-up is wrong, pick a club of an association WITH a place in that round - lib:q1 -> a Bolivian club).
+Before D a plain force was an extra entrant: one Brazilian more than the data left the Sudamericana groups with no
+draw (CT_SDRAW_ERR 0x11102, rc -2).
+
+**Field invariants** (root fix C, MC 11/11; `tools/ctfield.py`, the harness's `field_check`). At the end of every
+session that has a conti edition in memory (CT_ED 'CE'; needs the exe's conti symbols: scenario builds always, a release
+exe through CT_SYMS) the harness reads CT_IN / CT_OUT / CT_ST and checks, natural and forced runs alike: (1) per round,
+per association, no more clubs than the data can give - that association's direct places in the round + the holder
+places whose holder (CT_ST.hold) is of it (a vacant one: any association, access()'s stand-in) + the round's 'outside'
+places + a group stage's unfed places (draw_groups' fill: the best club with no cup, e.g. an earlier round's loser) +
+the clubs of it the feeder rounds hold (a knockout's winners / losers, a group stage's places: the spec's targets);
+(2) no club twice in a round; (3) the career club enters each cup once. (1) skips season 1's edition (the S1 block:
+the data's real entrant lists, not the access) and the Intercontinental (holders by slot). On a forced build the career
+club in a holders' cup (D: another association by design) is a note, not a violation. A violation FAILs the scenario
+(`field: ...`), a pass appends `[field: n checks, 0 violations]`. The bound is the data's: a forced extra entrant
+(the pre-D hold_rec / hold_rec4 / hold_ic: one Brazilian more in the Libertadores groups) is flagged before any draw
+refuses. `python3 tools/ctfield.py`: native natural seasons of every confederation + a forced one, 0 violations.
+A refused group draw also dumps conti's state into the run dir (`ctsd_dump/`, `tools/ctsd_replay.py <run dir>`).
+
 ## 6. Adding a scenario
 
 1. Write `@scenario def name(): """one-line purpose"""` returning `(ok, message)`.
@@ -218,10 +247,25 @@ sha's tree); give the release dir only to the natural scenarios (oldsave set, s1
 3. Use `Session(...)`, `press`, `advance`, `next_season_save`; force rare events with `poke` (find the variable's
    address by a byte pattern in the exe, not a fixed offset).
 4. Check with `check(cond, message, errs)`; put what you saw in the message: the report is the evidence.
+   A PRECONDITION of the scenario (its data, a club it picks, a forced set-up, a menu path it assumes) is
+   `require(cond, message)`, never `check`: unmet, it raises SetupError and the result is SETUP-ERROR - the scenario
+   is wrong, not the game (root fix A, MC 11/11).
 5. Run it twice: same result (the feeder is deterministic; match results may vary between runs because game time
    leaks in, so never assert a specific score or winner).
 6. Line-ups: leave the default minimal line-up (§3); set `SWOSTEST_LINEUP=full` in the scenario only when it checks
    the career club's results or strength (the full best-reserve search costs about half of a career's run time).
+
+**World 2026-27 data for gates (MC 11/11)**: the scenarios on the 2026-27 world (world_conti_*, world_cgame_*,
+world_contiview_*...) default to the old snapshot world5tm-rel40-winnames-1031; with the 4.2 gplay.c its .bss no
+longer fits (`gplay.c .bss 0x80ec > GP_BSS 0x8000`: 4 stage banks). Run them with
+`W2627REL_DATA=~/swos-mod/internal/world2526/world5tm-h2` (EURO_OPTIONAL=1), as the gates do.
+
+**Results (root fix A/B/D, MC 11/11)**: `PASS`, `FAIL`, `SETUP-ERROR` (a `require()` unmet, or a CONTI_FORCE that
+replaced no entrant of its association - see CONTI_FORCE), `FLAKY`. Every FAIL is re-run ALONE at once, in a fresh
+process (no module caches, globals or os.environ left by earlier scenarios) and its own run dir (`<RUNS>-rerun`; the
+FAIL's dirs are kept for decoding): PASS there -> `FLAKY` (the harness, the host load or the order: not a product
+verdict - find its cause, do not ignore it), FAIL again -> `FAIL` with the alone line appended. Exit code 1 = a FAIL
+or a SETUP-ERROR, 3 = only FLAKY, 0 = all PASS. `SWOSTEST_NO_RERUN=1`: no re-run (bisects, scenario development).
 
 ## 7. What the tests do not cover (a person still has to look)
 

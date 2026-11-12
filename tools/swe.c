@@ -44,6 +44,15 @@ int swe_init(void)
     return SWE_VERSION;
 }
 
+void swe_ready(void)                    /* 4.2 P7: the C stack ready for cstack_call, the arena left as it is (a load's
+                                           it_load fills the registry first: swe_init would wipe it - MC 10/11) */
+{
+    if (SWE_STATE != 1) {
+        cstack_init();
+        SWE_STATE = 1;
+    }
+}
+
 static u32 rd32(const u8 *p) { return p[0] | p[1] << 8 | p[2] << 16 | (u32)p[3] << 24; }
 
 int reg_count(void) { return SWE_REG[6]; }

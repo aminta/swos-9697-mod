@@ -383,7 +383,11 @@ def build(name, env=None, branch=None, lang='it', euro=False):
             benv.pop('EURO_OPTIONAL', None)
         elif 'EURO_OPTIONAL' not in (env or {}):     # (not in the key: the exe is the same whenever the patch went in)
             benv['EURO_OPTIONAL'] = '1'
+        benv.setdefault('HOSTTEST_SYMS', '1')         # (4.2 AFC mode: ctdraw's counters for ctsd_check - the exe the
+                                                     #  same, its labels beside it; not in the key)
         subprocess.run([sys.executable, '-c', code, tmp, MAIN], cwd=src, check=True, env=benv)
+        if benv.get('CONTI_FORCE') or benv.get('CONTI_FORCE2'):   # (root fix D: force_check reads CT_OUT.pad[0])
+            open(os.path.join(tmp, '.conti_force'), 'w').write(f"{benv.get('CONTI_FORCE', '')} {benv.get('CONTI_FORCE2', '')}\n")
         if os.path.exists(miss):                     # not a reference build: never reused, rebuilt next time
             print(f'BUILD WARNING {name}: C objects compiled here, not the reference Mac\'s: {open(miss).read().strip()}',
                   flush=True)
@@ -775,6 +779,18 @@ def dosbox_cpu(pid):
 
 ANSI = re.compile(rb'\x1b\[[0-9;?]*[a-zA-Z]|\x1b\(B')
 MEMSIZE = 0x2000000                                   # memsize=32: linear 0..32 MB
+
+
+class SetupError(BaseException):   # (BaseException: a scenario's own 'except Exception' does not swallow it)
+    """root fix A (MC 11/11): a scenario's precondition not met - its data, its forced set-up, a club or a menu path
+    it assumes. The run loop prints SETUP-ERROR (counted as bad, never a game FAIL): fix the scenario, not the game"""
+
+
+def require(cond, msg):
+    """root fix A: a scenario's PRECONDITION (not the game's behaviour - that is check()): unmet -> SetupError"""
+    if not cond:
+        raise SetupError(msg)
+    return cond
 
 
 class BuildOnly(BaseException):
@@ -1347,11 +1363,25 @@ class Session:
         self.box = Dosbox(self.run, timeout, shots)
         self.result = None
         self.log = []
+        self.ctsd = ctsd_syms(exe_dir)
+        self.ctout = ctout_at(exe_dir)
 
     def __enter__(self):
         return self
 
     def __exit__(self, *a):
+        try:                                            # (4.2 AFC mode: ctdraw's counters, the game still paused)
+            ctsd_check(self)
+        except Exception as e:
+            self.log.append(f'ctdraw: counters not read ({type(e).__name__}: {e})')
+        try:
+            force_check(self)
+        except Exception as e:
+            self.log.append(f'force: error byte not read ({type(e).__name__}: {e})')
+        try:                                            # (root fix C: the field invariants, natural runs too)
+            field_check(self)
+        except Exception as e:
+            self.log.append(f'field: not checked ({type(e).__name__}: {e})')
         self.box.kill()
         el = time.time() - self.box.t0
         if getattr(self.box, 'status', None):
@@ -2299,6 +2329,158 @@ def nat_callups(s, limit=120):
 # slot 4: the country's play-offs, the supercups, the Coppa D), else -- an id the data does not know (the continental
 # cups, the original game's contests) -- one of every known name (logged as a fallback). Errors FAIL the scenario.
 LABEL_ERRS, LABEL_STATS = [], {'rows': 0, 'keyed': 0, 'fallback': set()}
+CTSD_ERRS, CTSD_STATS = [], {'sessions': 0, 'n': 0, 'nosyms': 0}
+_CTSD_SYMS = {}
+FORCE_ERRS, _CTOUT_AT = [], {}                   # (MC 11/11 root fix D: conti.c force_in's error byte, SETUP-ERROR)
+
+
+def ctout_at(exe_dir):
+    """obj2 offset of conti.c's CT_OUT (cv_trace) for a CONTI_FORCE / CONTI_FORCE2 test build, else None"""
+    if exe_dir not in _CTOUT_AT:
+        got = None
+        try:
+            if os.path.isfile(os.path.join(exe_dir, 'ITALIAN.EXE')) and \
+                    os.path.isfile(os.path.join(exe_dir, '.conti_force')):
+                tr = cv_trace(exe_dir)
+                got = tr[2] if tr else None
+        except Exception:
+            got = None
+        _CTOUT_AT[exe_dir] = got
+    return _CTOUT_AT[exe_dir]
+
+
+def force_check(s):
+    """MC 11/11 root fix D: a CONTI_FORCE / CONTI_FORCE2 test build's club found no entrant of its own association
+    to replace in the forced round (conti.c force_in: CT_OUT.pad[0] = 1, sticky for the exe run): the scenario's set-up
+    is wrong, not the game - SETUP-ERROR (the run loop), never a game FAIL or a PASS"""
+    at = getattr(s, 'ctout', None)
+    r = s.result
+    if at is None or r is None or getattr(r, 'outcome', None) != 'dump' or r.box is None or r.base2 is None:
+        return
+    v = bytes(r.obj2(at + 1, 1))[0]
+    s.log.append(f'force: CT_OUT.pad[0] {v}')
+    if v:
+        FORCE_ERRS.append(f'{os.path.basename(s.run)}: the forced club replaced no entrant of its association '
+                          f'(CONTI_FORCE / CONTI_FORCE2: added as an extra)')
+
+
+def ctsd_syms(exe_dir):
+    """4.2 AFC mode (MC 11/11 gate item 4): ctdraw's counters in obj4 -> {'N': off, 'ERR': off, 'HIT': off,
+    'force': bool} or None. From the exe dir's ITALIAN.syms.json (a HOSTTEST_SYMS=1 build: scenario builds always),
+    else CT_SYMS=<dir> holding <md5 of the exe>.syms.json (a release build's, rebuilt with HOSTTEST_SYMS=1: the exe
+    byte-identical)."""
+    exe = exe_dir if os.path.isfile(exe_dir) else os.path.join(exe_dir, 'ITALIAN.EXE')
+    if not os.path.isfile(exe):
+        exe = os.path.join(exe_dir, 'ENGLISH.EXE')
+    if exe in _CTSD_SYMS:
+        return _CTSD_SYMS[exe]
+    path = os.path.splitext(exe)[0] + '.syms.json'
+    if not os.path.isfile(path) and os.environ.get('CT_SYMS') and os.path.isfile(exe):
+        path = os.path.join(os.environ['CT_SYMS'], hashlib.md5(open(exe, 'rb').read()).hexdigest() + '.syms.json')
+    got = None
+    if os.path.isfile(path):
+        lr = json.load(open(path)).get('lrank', {})
+        if all(f'CT_SDRAW_{k}' in lr for k in ('N', 'ERR', 'HIT')):
+            got = {k: lr[f'CT_SDRAW_{k}'][1] for k in ('N', 'ERR', 'HIT')}
+            got['force'] = 'CT_SDRAW_FORCE' in lr
+            cs = json.load(open(path)).get('conti', {})
+            got['conti'] = {k[5:]: v for k, v in cs.items() if k.lower().startswith('syms.ct_') and k[5:].isupper()}
+            cs = cs.get('syms.CT_SDRAW') or cs.get('SYMS.CT_SDRAW')
+            if cs and cs[0] == 1 and lr.get('ct_place', [0])[0] == 4:   # (obj4's base from conti's obj1 pointer to
+                got['ptr'] = (cs[1], lr['ct_place'][1])                #  ct_place: 4 bytes, not base4's 32 MB scan)
+            assert all(lr[f'CT_SDRAW_{k}'][0] == 4 for k in ('N', 'ERR', 'HIT')), ('ctsd: not obj4', path)
+    _CTSD_SYMS[exe] = got
+    return got
+
+
+FIELD_ERRS, FIELD_STATS = [], {'checks': 0, 'notes': []}
+
+
+def field_check(s):
+    """root fix C (MC 11/11): the continental cups' field invariants on the edition in memory at the session's last
+    pause (tools/ctfield.py: per round, per association, no more clubs than the data's places + holders + feeders +
+    outside / fill places; no club twice in a round; the career club entering a cup once) - natural and forced runs
+    alike; a violation FAILs the scenario (FIELD_ERRS, the run loop). Needs the exe's conti symbols (ctsd_syms)."""
+    sy = getattr(s, 'ctsd', None)
+    r = s.result
+    cs = (sy or {}).get('conti') or {}
+    if not all(k in cs for k in ('CT_IN', 'CT_OUT', 'CT_ST', 'CT_ED', 'CT_LAYOUT')) or r is None or \
+            getattr(r, 'outcome', None) != 'dump' or r.box is None or r.base1 is None or r.base2 is None:
+        return
+    base = lambda k: (r.base2 if cs[k][0] == 2 else r.base1) + cs[k][1]
+    if struct.unpack('<H', bytes(r.read(base('CT_ED'), 2)))[0] != 0x4543:    # ('CE': no edition built yet)
+        return
+    lay = struct.unpack('<22I', bytes(r.read(base('CT_LAYOUT'), 88)))
+    ib, st, o = (bytes(r.read(base(k), n)) for k, n in (('CT_IN', lay[0]), ('CT_ST', lay[1]), ('CT_OUT', lay[2])))
+    import ctfield
+    notes = []
+    forced = getattr(s, 'ctout', None) is not None       # (ctout_at: a CONTI_FORCE / CONTI_FORCE2 build's marker)
+    bad = ctfield.check(ib, o, lay, st, forced=forced, notes=notes)
+    FIELD_STATS['checks'] += 1
+    FIELD_STATS['notes'] += [x for x in notes if x not in FIELD_STATS['notes']]
+    s.log.append(f'field: {len(bad)} violation(s), season {struct.unpack_from("<H", st, 2)[0]}' +
+                 (f', notes {notes}' if notes else ''))
+    for x in bad:
+        s.log.append(f'field: {x}')
+    if bad:
+        FIELD_ERRS.append(f'{os.path.basename(s.run)}: {bad[:3]}')
+
+
+def ctsd_check(s):
+    """the session's ctdraw counters at its last pause (cumulative since the exe started): ERR == 0 (a refused group
+    draw; a CTDRAW_FORCE test build excepted) and HIT == 0 (a draw out of its search budget) - else the scenario
+    FAILs (the run loop, as LABEL_ERRS)"""
+    sy = getattr(s, 'ctsd', None)
+    r = s.result
+    if not sy or r is None or getattr(r, 'outcome', None) != 'dump' or r.box is None or r.base1 is None:
+        if not sy:
+            CTSD_STATS['nosyms'] += 1
+        return
+    if sy.get('ptr'):
+        b4 = struct.unpack('<I', bytes(r.read(r.base1 + sy['ptr'][0], 4)))[0] - sy['ptr'][1]
+    else:
+        b4 = r.base4
+    if b4 is None or b4 <= 0:
+        return
+    v = {k: struct.unpack('<I', bytes(r.read(b4 + sy[k], 4)))[0] for k in ('N', 'ERR', 'HIT')}
+    CTSD_STATS['sessions'] += 1
+    CTSD_STATS['n'] += v['N']
+    s.log.append(f'ctdraw: CT_SDRAW_N {v["N"]} ERR {v["ERR"]:#x} HIT {v["HIT"]}')
+    if v['HIT']:
+        CTSD_ERRS.append(f'{os.path.basename(s.run)}: CT_SDRAW_HIT {v["HIT"]} (a group draw out of its search budget)')
+    if v['ERR'] and (v['ERR'] & 0xFF) == 5 and os.environ.get('CTSD_ALLOW') == 'halves':
+        s.log.append('ctdraw: rc 5 halves - allowed (world_conti_drop_acl_add, the negative case: MC 11/11)')
+        CTSD_STATS['halves'] = CTSD_STATS.get('halves', 0) + 1
+    elif v['ERR'] and not sy['force']:
+        CTSD_ERRS.append(f'{os.path.basename(s.run)}: CT_SDRAW_ERR {v["ERR"]:#x} (a group draw refused: tag << 8 | -rc)')
+        ctsd_dump(s, r, sy, v)
+
+
+def ctsd_dump(s, r, sy, v):
+    """(MC 11/11) a refused group draw: conti's state into the run dir - ctsd_dump/<CT_x>.bin (CT_IN: the season
+    end's clubs, words, associations, strengths; CT_ST, CT_ED, CT_OUT: the rounds' entrants; CT_SEG; CT_SPEC: the
+    spec it points to, 64 KB) + ctsd_dump.json (the counters, the symbols) - tools/ctsd_replay.py replays it natively.
+    Harness-side only: the exe is unchanged."""
+    try:
+        d = os.path.join(s.run, 'ctsd_dump')
+        os.makedirs(d, exist_ok=True)
+        meta = {'ERR': v['ERR'], 'N': v['N'], 'HIT': v['HIT'], 'syms': sy.get('conti', {}), 'sizes': {}}
+        nxt = sorted(o for ob, o in meta['syms'].values() if ob == 2)
+        for k, (ob, off) in sorted(meta['syms'].items()):
+            if ob != 2 or k == 'CT_SPEC':
+                continue
+            n = min([x - off for x in nxt if x > off] + [0x8000])       # (up to the next symbol, 32 KB at most)
+            open(os.path.join(d, k + '.bin'), 'wb').write(bytes(r.read(r.base2 + off, n)))
+            meta['sizes'][k] = n
+        if 'CT_SPEC' in meta['syms']:
+            ob, off = meta['syms']['CT_SPEC']
+            p = struct.unpack('<I', bytes(r.read((r.base2 if ob == 2 else r.base1) + off, 4)))[0]
+            if 0 < p < MEMSIZE - 0x10000:
+                open(os.path.join(d, 'CT_SPEC.bin'), 'wb').write(bytes(r.read(p, 0x10000)))
+        json.dump(meta, open(os.path.join(s.run, 'ctsd_dump.json'), 'w'), indent=1)
+        s.log.append(f'ctdraw: state dumped to {d}')
+    except Exception as e:                      # (a dump never turns a FAIL into a crash)
+        s.log.append(f'ctdraw: dump failed: {e!r}')
 CAL_CUR_AT, D8CAA_AT, D6CDC_AT, STR_BASE_AT = 0x1B52A, 0x18DF4, 0x16E26, 0x16F8   # (obj2, every language's exe)
 GLA_AT, ARR_AT = 0xB440C, 0x18E40                 # gameListArray, arrayOfPointers (CareerGameListCommon; every exe)
 _WORLD_AT = {}                                    # (game dir, exe, mtime, size) -> someLeaguesTable[1845] (cf_slt)
@@ -20713,24 +20895,24 @@ def conti_drop(tag, force, team, word):
 def world_conti_q1q2():
     """4.0.5 rc20 (Regia's blocker, NACIONAL season 2): two Libertadores rounds of one month (q1 and q2, month 8) -
     the next tie was built into weeks already played: no first leg of q2, only RITORNO, ESCI on it crashed to DOS.
-    A test build with CONTI_FORCE=lib:q1 (the career club into the first qualifying round at every season end) and
-    CONTI_KOWIN (it wins its conti ties): season 2 from FLAMENGO's career plays q1, q2 and q3 BOTH legs each (three
-    ANDATA and three RITORNO Libertadores titles) and the season ends"""
+    A test build with CONTI_FORCE=lib:q1! (the career club takes a first qualifying round entrant's place at every season
+    end) and CONTI_KOWIN (it wins its conti ties): season 2 from AURORA's career plays q1, q2 and q3 BOTH legs each
+    (three ANDATA and three RITORNO Libertadores titles) and the season ends. (MC 11/11: a club of an association with a q1 place - Bolivia's
+    3rd - so the '!' keeps the association counts the data's; FLAMENGO holds the Libertadores on the 2026-27 data)"""
     src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
     if not os.path.isdir(src):
         return True, f'SKIP: private data {src} missing'
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
-    exe = os.environ.get('Q1Q2_BUILD') or build('world_conti_q1q2', env={
-        'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]),
-        'CONTI_FORCE': 'lib:q1', 'CONTI_KOWIN': '1'})
+    exe = os.environ.get('Q1Q2_BUILD') or build('world_conti_q1q2', env={   # ('!', MC 11/11: the club takes an
+        'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]),   # entrant's place - q1
+        'CONTI_FORCE': 'lib:q1!', 'CONTI_KOWIN': '1'})                 # full, no extra club: CT_SDRAW_ERR asserted)
     keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_ONE',
             'W8485_FROM', 'W8485_TMO')
     keep = {k: os.environ.get(k) for k in keys}
     try:
         for k in keys:
             os.environ.pop(k, None)
-        os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM='SUDAMERICA,BRASILE,BRASILEIRAO '
-                          'SERIE A,FLAMENGO', W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1', W8485_TMO='900')
+        os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM='SUDAMERICA,BOLIVIA,?DIVISION PROFESIONAL|DIV. PROFESIONAL|PROFESIONAL,AURORA', W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1', W8485_TMO='900')
         ok, msg = world8485()
     finally:
         for k, v in keep.items():
@@ -20752,16 +20934,37 @@ def world_conti_q1q2():
 
 @scenario
 def world_conti_drop_lib():
-    """conti_drop: FLAMENGO forced into the Libertadores' third qualifying round (lib:q3), losing it -> the
-    Sudamericana groups (conmebol 'losers' q3 -> sud:groups): a Sudamericana group match played, season 2 ends"""
-    return conti_drop('lib', 'lib:q3', 'SUDAMERICA,BRASILE,BRASILEIRAO SERIE A,FLAMENGO', 'SUDAMERICANA')
+    """conti_drop: AURORA (Bolivia) forced into the Libertadores' third qualifying round (lib:q3), losing it -> the
+    Sudamericana groups (conmebol 'losers' q3 -> sud:groups): a Sudamericana group match played, season 2 ends.
+    (MC 11/11: q3 has no direct entrants - only q2's winners - so '!' has no one to replace: the club is an extra one.
+    A small association's club: FLAMENGO, one Brazilian more than the data's, left the Sudamericana groups with no
+    draw under "same_assoc": "no" - CT_SDRAW_ERR 0x11102, rc -2, no SUD match)"""
+    return conti_drop('lib', 'lib:q3', 'SUDAMERICA,BOLIVIA,?DIVISION PROFESIONAL|DIV. PROFESIONAL|PROFESIONAL,AURORA', 'SUDAMERICANA')
 
 
 @scenario
 def world_conti_drop_acl():
-    """conti_drop: KASHIWA REYSOL forced into the AFC Champions League Elite's preliminary round (acle:pre), losing
-    it -> the ACL Two groups (afc 'losers' pre -> acl2:groups): an ACL Two match played, season 2 ends"""
-    return conti_drop('acl', 'acle:pre', 'ASIA,GIAPPONE,J1 LEAGUE,KASHIWA REYSOL', 'TWO')
+    """conti_drop: KASHIWA REYSOL forced into the AFC Champions League Elite's preliminary round in an East entrant's
+    place (acle:pre!, MC 11/11: '!' keeps the round's regions), losing it -> the ACL Two groups (afc 'losers' pre ->
+    acl2:groups, per region): an ACL Two match played, season 2 ends, CT_SDRAW_ERR 0"""
+    return conti_drop('acl', 'acle:pre!', 'ASIA,GIAPPONE,J1 LEAGUE,KASHIWA REYSOL', 'TWO')
+
+
+@scenario
+def world_conti_drop_acl_add():
+    """the negative case of world_conti_drop_acl (MC 11/11): plain acle:pre - the forced club an EXTRA entrant (9 in
+    the play-offs, the East half one over): draw_groups' region-aware trim / fill keeps the ACL Two halves, or the
+    round goes region-blind with CT_SDRAW_ERR rc 5 ('halves') - never a hole or a trap: season 2 ends. ERR asserted
+    by the harness: this scenario expects it 0 or rc 5 only (ctsd_check's 'halves' allowance below)"""
+    os.environ['CTSD_ALLOW'] = 'halves'
+    h0 = CTSD_STATS.get('halves', 0)
+    try:
+        ok, msg = conti_drop('acla', 'acle:pre', 'ASIA,GIAPPONE,J1 LEAGUE,KASHIWA REYSOL', 'TWO')
+    finally:
+        os.environ.pop('CTSD_ALLOW', None)
+    if CTSD_STATS.get('halves', 0) == h0:               # (MC 11/11: allowed but absent = the negative case tests
+        return False, 'negative case: no CT_SDRAW_ERR rc 5 recorded; ' + msg   # nothing)
+    return ok, 'rc 5 halves recorded, no trap; ' + msg
 
 
 def conti_month(tag, force, team, word, week0):
@@ -24130,7 +24333,9 @@ def world_conti411_oldsave():
 
 @scenario
 def world_contiview_tie():
-    """4.0.6 COPPE CONTINENTALI with the career club in a conti cup (M4): a FLAMENGO career on a test build with
+    """(MC 11/11: AURORA with lib:q1! - on the 2026-27 data FLAMENGO holds the Libertadores, into its groups;
+    a plain extra entrant left later draws outside the gate's bound. FLAMENGO below reads AURORA.)
+    4.0.6 COPPE CONTINENTALI with the career club in a conti cup (M4): a FLAMENGO career on a test build with
     CONTI_FORCE=lib:q1 (the club into the Libertadores' first qualifying round at every season end) and CONTI_KOWIN (it
     wins its conti ties). Season 1 played; season 2 (its save) saved at its 5th Libertadores result screen (q3's first
     leg, September: q1 and q2, August, are over). The view (CONMEBOL first, the club's own): q1 and q2 list FLAMENGO's
@@ -24144,14 +24349,14 @@ def world_contiview_tie():
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
     exe = os.environ.get('CV_TIE_BUILD') or build('world_contiview_tie', env={
         'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]),
-        'CONTI_FORCE': 'lib:q1', 'CONTI_KOWIN': '1'}, lang=UI)
+        'CONTI_FORCE': 'lib:q1!', 'CONTI_KOWIN': '1'}, lang=UI)
     tr = cv_trace(exe)
     if not tr:
         return False, 'no CVTRPTR block (ctview not in the build)'
     seg_at, ed_at = tr[0], tr[1]
     import ctview
     T = [ui_label(x) for x in ctview.TEXTS[UI]]
-    team = 'SUDAMERICA,BRASILE,BRASILEIRAO SERIE A,FLAMENGO'
+    team = 'SUDAMERICA,BOLIVIA,?DIVISION PROFESIONAL|DIV. PROFESIONAL|PROFESIONAL,AURORA'
     mid = os.environ.get('CV_TIE_S2') or os.path.join(RUNS, f'cv_tie_{UI}.CAR')
     opp = None
     if not os.path.exists(mid):
@@ -24168,7 +24373,7 @@ def world_contiview_tie():
         shutil.copy(msg.split(': ', 1)[1], mid)
         res = [ln for ln in l2 if ln.startswith('[') and 'LIBERTADORES' in ln.split('|')[0] and '- RISULTATO -' in ln]
         if res:                                         # (the last one: q3's first leg - its two clubs)
-            opp = [t for t in (x.strip() for x in res[-1].split('|')) if t and t != 'FLAMENGO']
+            opp = [t for t in (x.strip() for x in res[-1].split('|')) if t and t != 'AURORA']
     errs, info = [], []
     with Session('world_contiview_tie', exe, {'W84A.CAR': mid}, 'dump:2', 300) as s:
         s.wait()
@@ -24202,13 +24407,13 @@ def world_contiview_tie():
                 break
             if x == 'COPA LIBERTADORES' or lib:
                 lib.append(x)
-        fl = [x for x in lib if 'FLAMENGO' in x]
-        info.append(f'FLAMENGO lines {fl}')
-        check(len(fl) >= 3, f'FLAMENGO in fewer than 3 Libertadores rounds: {lib}', errs)
+        fl = [x for x in lib if 'AURORA' in x]
+        info.append(f'AURORA lines {fl}')
+        check(len(fl) >= 3, f'AURORA in fewer than 3 Libertadores rounds: {lib}', errs)
         if len(fl) >= 3:
-            check(all('(FLAMENGO)' in x for x in fl[:2]), f"q1 / q2 without FLAMENGO in brackets: {fl[:2]}", errs)
+            check(all('(AURORA)' in x for x in fl[:2]), f"q1 / q2 without AURORA in brackets: {fl[:2]}", errs)
             check('(' not in fl[2], f"q3 (its next game) with brackets: {fl[2]}", errs)
-            other = [x.strip(' ()') for x in fl[2].split(' - ') if 'FLAMENGO' not in x]
+            other = [x.strip(' ()') for x in fl[2].split(' - ') if 'AURORA' not in x]
             if opp is not None:                         # (its other club exactly one of that screen's texts)
                 check(len(other) == 1 and other[0] in opp, f'q3 tie {fl[2]!r} is not the result screen\'s', errs)
             later = lib[lib.index(fl[2]) + 1:]
@@ -24409,7 +24614,8 @@ def world_ctgoals():
 
 @scenario
 def world_cgame_self():
-    """4.0.6 option C, P1 gate: the builder (ctgame.c - the view's contests by the game's own code into the scratch)
+    """(MC 11/11: AURORA with lib:q1!, as world_contiview_tie. FLAMENGO below reads AURORA.)
+    4.0.6 option C, P1 gate: the builder (ctgame.c - the view's contests by the game's own code into the scratch)
     against the game's own slot-3 contests. A FLAMENGO career on a CONTI_FORCE=lib:q1 + CONTI_KOWIN + CONTI_CGTEST
     test build: in season 2 every contest conti's ct_build puts in slot 3 from the daily (the Libertadores' q2, q3 ties,
     its group stage; q1 is built at the season start) is rebuilt at once by cg_build from conti.c's replay and must be byte-identical to slot 3 (cg_selftest:
@@ -24421,7 +24627,7 @@ def world_cgame_self():
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
     fill = os.environ.get('CG_FILL')
     env = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]),
-           'CONTI_FORCE': 'lib:q1', 'CONTI_KOWIN': '1', 'CONTI_CGTEST': '1'}
+           'CONTI_FORCE': 'lib:q1!', 'CONTI_KOWIN': '1', 'CONTI_CGTEST': '1'}
     if fill:
         env['CG_FILL_TEST'] = '5A'
     exe = os.environ.get('CG_BUILD') or build('world_cgame_self' + ('_fill' if fill else ''), env=env, lang=UI)
@@ -24429,7 +24635,7 @@ def world_cgame_self():
     if not tr:
         return False, 'no CGTRPTR block (ctgame not in the build)'
     t_at = tr[0]
-    team = 'SUDAMERICA,BRASILE,BRASILEIRAO SERIE A,FLAMENGO'
+    team = 'SUDAMERICA,BOLIVIA,?DIVISION PROFESIONAL|DIV. PROFESIONAL|PROFESIONAL,AURORA'
     s1 = os.environ.get('CG_S1') or os.path.join(RUNS, f'cg_self_s1_{UI}.CAR')
     if not os.path.exists(s1):
         ok, msg, _ = sc_season(team, dict(W8485_BUILD=exe))
@@ -30198,7 +30404,8 @@ def run_parallel(names, jobs):
                 print(out[n][1], flush=True)
                 del running[n]
     print(f'{len(names)} scenarios, {jobs} at a time: {time.time() - t0:.0f} s', flush=True)
-    return 1 if any(rc for rc, _ in out.values()) else 0
+    rcs = [rc for rc, _ in out.values()]
+    return 1 if any(rc and rc != 3 for rc in rcs) else 3 if 3 in rcs else 0   # (root fix B: 3 = FLAKY only)
 
 
 NS_W4 = ('EUROPA 1984-85', 'MALTA', 131)             # world_ns: Malta 1984-85 (TEAM.131) and Cyprus 2025-26 (TMW5.131,
@@ -30662,16 +30869,33 @@ def main(argv):
         jobs = int(next((a[2:] for a in argv[1:] if a.startswith('-j')), 1) or 4)
         if jobs > 1 and len(names) > 1:
             return run_parallel(names, jobs)
-        bad = 0
+        bad = flaky = 0
         for n in names:
             t = time.time()
+            setup = False
             os.environ['SWOSTEST_SCENARIO'] = n
             try:
                 del LABEL_ERRS[:]
                 LABEL_STATS.update(rows=0, keyed=0, fallback=set())
+                del CTSD_ERRS[:]
+                del FORCE_ERRS[:]
+                setup = False
+                del FIELD_ERRS[:]
+                FIELD_STATS.update(checks=0, notes=[])
+                CTSD_STATS.update(sessions=0, n=0, nosyms=0)
                 ok, msg = SCENARIOS[n]()
                 if ok and LABEL_ERRS:                       # (4.0.5: a wrong competition name FAILs the scenario)
                     ok, msg = False, f'contest names: {LABEL_ERRS[:3]}; ' + msg
+                if CTSD_ERRS:                               # (4.2 AFC mode: a refused / out-of-budget group draw -
+                    ok, msg = False, f'ctdraw: {CTSD_ERRS[:3]}; ' + msg   # named on a FAIL too: often its cause)
+                if FIELD_ERRS:                              # (root fix C: a club the data cannot give in a round)
+                    ok, msg = False, f'field: {FIELD_ERRS[:3]}; ' + msg
+                elif FIELD_STATS['checks']:
+                    msg += f" [field: {FIELD_STATS['checks']} checks, 0 violations" + \
+                        (f", notes {FIELD_STATS['notes'][:2]}" if FIELD_STATS['notes'] else '') + ']'
+                if CTSD_STATS['sessions']:
+                    msg += f" [ctdraw: {CTSD_STATS['sessions']} sessions, {CTSD_STATS['n']} draws, ERR/HIT 0]" \
+                        if not CTSD_ERRS else ''
                 if LABEL_STATS['rows']:
                     msg += f" [names: {LABEL_STATS['rows']} rows, {LABEL_STATS['keyed']} keyed" + \
                         (f", fallback {sorted(LABEL_STATS['fallback'])[:6]}" if LABEL_STATS['fallback'] else '') + ']'
@@ -30681,13 +30905,32 @@ def main(argv):
             except BuildOnly:
                 print(f'BUILT {n} ({time.time() - t:.0f} s)', flush=True)
                 continue
+            except SetupError as e:                        # (root fix A: a precondition, not the game)
+                ok, msg, setup = False, f'setup: {e}', True
             except Exception as e:                         # (one scenario's exception: a FAIL, the suite goes on)
                 import traceback
                 at = [f'{os.path.basename(x.filename)}:{x.lineno} {x.name}' for x in traceback.extract_tb(e.__traceback__)][-3:]
                 ok, msg = False, f'exception {type(e).__name__}: {e} (at {" < ".join(reversed(at))})'
-            bad += not ok
-            print(f'{"PASS" if ok else "FAIL"} {n} ({time.time() - t:.0f} s) {msg}', flush=True)
-        return 1 if bad else 0
+            res = 'SETUP-ERROR' if FORCE_ERRS or setup else 'PASS' if ok else 'FAIL'   # (root fix D: the force's
+            if FORCE_ERRS:                                                                # set-up, not the game)
+                msg = f'force: {FORCE_ERRS[:3]}; was {"PASS" if ok else "FAIL"}: ' + msg
+            if res == 'FAIL' and not os.environ.get('SWOSTEST_RERUN') and not os.environ.get('SWOSTEST_NO_RERUN'):
+                # root fix B (MC 11/11): every FAIL is re-run ALONE - a fresh process (no module caches, no globals,
+                # no os.environ left by earlier scenarios) in its own run dir (RUNS-rerun: the FAIL's dirs kept).
+                # PASS there: FLAKY (the harness, the host or the order - not a product verdict; exit code 3); FAIL
+                # again: FAIL. SWOSTEST_NO_RERUN=1: no re-run (bisects, scenario development)
+                print(f'RERUN {n} alone: {msg[:200]}', flush=True)
+                rr = subprocess.run([sys.executable, os.path.abspath(__file__), 'run', n], capture_output=True, text=True,
+                                    env=dict(os.environ, SWOSTEST_RERUN='1', SWOSTEST_RUNS=RUNS.rstrip('/') + '-rerun'))
+                last = [ln for ln in rr.stdout.splitlines() if re.match(r'(PASS|FAIL|SETUP-ERROR) ', ln)]
+                if last and last[-1].startswith('PASS '):
+                    res, msg = 'FLAKY', f'FAILed in the batch, PASSed alone ({RUNS.rstrip("/")}-rerun): ' + msg
+                elif last:
+                    msg += f' [alone: {last[-1][:160]}]'
+            bad += res in ('FAIL', 'SETUP-ERROR')
+            flaky += res == 'FLAKY'
+            print(f'{res} {n} ({time.time() - t:.0f} s) {msg}', flush=True)
+        return 1 if bad else 3 if flaky else 0         # (root fix B: 3 = FLAKY only)
     print(__doc__)
     return 2
 

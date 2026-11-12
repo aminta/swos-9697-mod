@@ -30068,6 +30068,157 @@ def menu_levels():
     return not errs, '; '.join(errs) or 'ITALIA: SERIE A, B, C, D -> SERIE D GIRONE A..I -> ESCI -> GIRONE I -> TRAPANI career; ' + '; '.join(notes)
 
 
+def _menu_levels_s7():
+    """menu_levels_s7's body (the wrapper sets the SWOS++ feed)"""
+    b = os.environ.get('S7_BUILD')
+    if not b:
+        return True, 'SKIP: S7_BUILD (a shaped build) not set'
+    b = ui_build(os.path.realpath(b))       # (SWOSTEST_UI=en/fr/de: that language's exe as ITALIAN.EXE)
+    extra, timer, spp = {}, False, bool(os.environ.get('SWOSPP_BUILD'))
+    if spp:                                 # SWOS++ (SWOSPP_BUILD=1 or a dir: S7_BUILD's EN exe under SWOS++)
+        if UI != 'en':
+            return True, 'SKIP: SWOS++ is English only (SWOSTEST_UI=en)'
+        import swospp
+        pp = os.path.join(MAIN, 'internal', 'swospp-test')
+        src, b = b, xdir('menu_levels_s7')
+        shutil.rmtree(b, ignore_errors=True)
+        shutil.copytree(src, b)
+        swospp.install(os.path.join(src, 'ITALIAN.EXE'), os.path.join(b, 'ITALIAN.EXE'))
+        extra = {'LOADER.BIN': os.path.join(pp, 'loader.bin'), 'SWOSPP.BIN': os.path.join(pp, 'swospp.bin'),
+                 'SETUP.DAT': setup_file('menu_levels_s7', 0)}   # (World 2026-27 saved: the slow feed's set_world
+        timer = True                                              #  missed the switch)
+    t = open(os.path.join(b, 'DATA', 'TMW5.144'), 'rb').read()
+    n = struct.unpack('>H', t[:2])[0]
+    want = [t[2 + 684 * i + 5:2 + 684 * i + 22].split(b'\0')[0].decode('latin-1') for i in range(n)
+            if t[2 + 684 * i + 25] == 0]
+    vis = lambda scr: [x for i, x, inv, _ in scr.entries if 11 <= i <= 86 and x and not inv]
+    errs, notes = [], []
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import careerworld
+    import lepatch
+    cfb = careerworld.sites(lepatch.LEPatch(os.path.join(ROOT, 'orig', UI_ORIG)))['cfb']   # careerFileBuffer (obj2)
+
+    def country(c):                         # (menu_levels_cursor's: the countries' grid one key at a time by the
+        for _ in range(60):                 #  geometry - SWOS++ taps overshot ITALIA)
+            scr = s.screen()
+            k = scr.find(c, exact=True)
+            if k is None:
+                raise AssertionError(f'{c} not on screen ({scr.texts()[:12]})')
+            if scr.selected == k:
+                s.send('dump:1')
+                if s.screen().selected == k:
+                    break
+                continue
+            (x, y, _, _), (tx, ty, _, _) = scr.geom[scr.selected], scr.geom[k]
+            s.send(('right' if x < tx else 'left' if x > tx else 'down' if y < ty else 'up') + ' dump:0.5')
+        fire_send(s, 'fire dump:3')
+
+    def serie_d(tag, levels=None):
+        e0 = len(errs)
+        lv = vis(s.screen())
+        if levels is not None:
+            check(lv[:4] == levels, f'{tag}: ITALIA levels {lv}', errs)
+        walk(s, 'SERIE D', 3)
+        gr = vis(s.screen())
+        check(gr == [f'SERIE D GIRONE {g}' for g in 'ABCDEFGHI'], f'{tag}: SERIE D groups {gr}', errs)
+        title = [x for x in s.screen().texts()[:1] if x not in gr]
+        if title:
+            check(title[0].endswith('SERIE D'), f'{tag}: title {title[0]!r}', errs)
+        else:                                   # (DE: WAHLEN's umlaut - the decoder drops the line; see the shot)
+            notes.append(f'{tag}: title not decoded')
+        s.shot(f'{tag}_groups')
+        check(menu_down_to(s, 88), f'{tag}: ESCI not reached from the groups', errs)
+        fire_send(s, 'fire dump:3')
+        back = vis(s.screen())
+        check(back[:4] == ['SERIE A', 'SERIE B', 'SERIE C', 'SERIE D'], f'{tag}: ESCI -> {back}', errs)
+        walk(s, 'SERIE D', 3)
+        walk(s, 'SERIE D GIRONE A', 3)
+        scr = s.screen()                    # (picker: entries from 0; VIEW WORLD: a standings table, names = texts)
+        clubs = [x for _, x, inv, _ in scr.entries if x and not inv] + scr.texts()
+        got = sorted({c for c in clubs if c in want})
+        if 'GC' in scr.texts():                 # VIEW WORLD: the standings draw most names as graphics (shot only):
+            t0 = scr.texts()[0]                 # its title + every name read is file 144's (bug shape: SERIE A's)
+            check('SERIE D GIRONE A' in t0 and got, f'{tag}: standings {t0!r} names {got}', errs)
+        else:
+            check(got == sorted(want), f'{tag}: GIRONE A {got} (file 144 division 0: {want})', errs)
+        s.shot(f'{tag}_girone_a')
+        notes.append(f'{tag} ok' if len(errs) == e0 else f'{tag} ?')
+        return clubs
+    with Session('menu_levels_s7', b, extra, 'dump:2', 900, timer=timer) as s:
+        s.wait()
+        try:
+            if spp:
+                on, why = swospp_on(s.result, os.path.join(b, 'ITALIAN.EXE'))
+                check(on, f'SWOS++ not running: {why}', errs)
+            set_world(s, 0)
+            for x in ('CARRIERA', 'SCEGLI SQUADRA', 'EUROPA'):
+                walk(s, x, 3)
+            country('ITALIA')
+            clubs = serie_d('career', ['SERIE A', 'SERIE B', 'SERIE C', 'SERIE D'])
+            walk(s, want[0], 3)
+            fire_send(s, 'fire dump:3')
+            for _ in range(12):                 # (the chairman's note)
+                tx = s.screen().texts()
+                if 'VISUALIZZA MONDO' in tx:
+                    break
+                if 'ESCI' in tx:                # (SWOS++: a doubled fire opened a career submenu - the team screen,
+                                                # the table: back; the chairman's note has no ESCI)
+                    walk(s, 'ESCI', 3)
+                    continue
+                fire_send(s, 'fire dump:2')
+            sel = struct.unpack('<H', s.result.obj2(cfb + 0xD74A, 2))[0]   # (.CAR layout: IT 0x96D6 + 0xD74A)
+            check(sel & 0xFF == 144, f'career {want[0]}: selTeamNumber {sel:#06x} (low byte != 144)', errs)
+            notes.append(f'selTeamNumber {sel:#06x}')
+            walk(s, 'VISUALIZZA MONDO', 3)
+            for _ in range(3):                  # (SWOS++'s timer feed: a fire can be lost - the career menu still on)
+                if 'PROSS. PARTITA' not in s.screen().texts():
+                    break
+                fire_send(s, 'fire dump:3')
+            for x in ('CARR. STORICHE', 'MONDO 2026-27', 'EUROPA'):
+                if s.screen().find(x, exact=True) is not None:
+                    walk(s, x, 3)
+            country('ITALIA')
+            serie_d('viewworld')
+        except AssertionError as e:
+            return False, f'{e}; {"; ".join(errs)}; screen {s.screen().texts()[:40]}'
+    with Session('menu_levels_s7_fr', b, extra, 'dump:2', 600, timer=timer) as s:
+        s.wait()
+        try:
+            set_world(s, 0)
+            path = ['AMICHEVOLE', 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB', 'EUROPA']
+            for k, x in enumerate(path):
+                sc = s.screen()                 # (SWOS++: a fire taken twice - the next step already on: logged)
+                if spp and sc.find(x, exact=True) is None and k + 1 < len(path) and \
+                        sc.find(path[k + 1], exact=True) is not None:
+                    s.log.append(f'[spp skip] {x!r} not on screen, {path[k + 1]!r} is')
+                    notes.append(f'friendly: {x} skipped (SWOS++ doubled fire)')
+                    continue
+                walk(s, x, 3)
+            country('ITALIA')
+            serie_d('friendly', ['SERIE A', 'SERIE B', 'SERIE C', 'SERIE D'])
+        except AssertionError as e:
+            return False, f'{e}; {"; ".join(errs)}; screen {s.screen().texts()[:40]}'
+    return not errs, '; '.join(errs + notes)
+
+
+@scenario
+def menu_levels_s7():
+    """4.2 S7 struct B (MC's criteria for menulevels' external level, 12/11): a SHAPED build (S7_BUILD = its SWOS dir:
+    Italy over TEAM 102 + 144, file 144 a hidden country with Serie D's struct). ITALIA's SERIE D level opens country
+    144's list: SERIE D GIRONE A lists exactly file 144's local division 0 (TMW5.144 records, league byte 0 - the bug
+    shape would list division 0 of 102 = SERIE A); ESCI -> ITALIA's levels. Paths: CARRIERA (the club's
+    selTeamNumber = careerFileBuffer + 0xD74A, IT obj2+0x16E20, low byte = 144), VIEW WORLD of that career, AMICHEVOLE's
+    team choice. Shots per path; SWOSTEST_UI=en/fr/de with the build's own exe (ui_build); SWOSPP_BUILD=1 with
+    SWOSTEST_UI=en: the EN exe under SWOS++ (internal/swospp-test)."""
+    global SPP_FIRE_HOLD
+    if os.environ.get('SWOSPP_BUILD') and UI == 'en':   # (SWOS++'s timer feed: a fire held HOLD ticks was taken twice
+        SPP_FIRE_HOLD = SPP_TAP                         #  - the groups' ESCI ran on out of ITALIA: SPP_TAP ticks)
+    try:
+        return _menu_levels_s7()
+    finally:
+        SPP_FIRE_HOLD = 0
+
+
 @scenario
 def menu_levels_cursor():
     """4.0.6 (Davide via Regia 04/11, menulevels setsel): a level of groups opens on its first group, ESCI back on the

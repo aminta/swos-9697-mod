@@ -342,7 +342,7 @@ def tables(lang):
         par = pk.parallel()
         if not par:
             continue
-        if pk.shaped():                         # S7 struct B (Davide 12/11: file 144 hidden, reached through Italy)
+        if getattr(pk, 'shaped', False):        # S7 struct B (Davide 12/11: file 144 hidden, reached through Italy)
             out += _shaped_tables(pk, lang)
             continue
         lfile = pk.files[pk.league['clubs']][0]

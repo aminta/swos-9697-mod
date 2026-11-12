@@ -34276,6 +34276,8 @@ def sell_offers():
     return not errs, '; '.join(errs + notes)
 
 
+__import__('zonetest').register(sys.modules[__name__])   # 4.1.2 zone positions (tools/zonetest.py)
+
 if __name__ == '__main__':
     sys.exit(main(sys.argv[1:]))
 

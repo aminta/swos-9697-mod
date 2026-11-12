@@ -33218,7 +33218,8 @@ def xleft_oldpool():
 
 N14_NAMES = (['ROBERTO_CARLOS', 'LUIS_ENRIQUE', 'SCHWEINSTEIGER', 'JAN STOECKLINGE', 'MUELLER',
               'BASTIAN SCHWEINSTEIGER', 'RUUD VAN NISTELROOY', 'MARCO VAN BASTEN', 'GIO VAN BRONCKHORST',
-              'A WWWWWWWWWWWWWW', 'A MMMMMMMMMMMMMM'] * 2)[:16]   # (4.1 41-namelong, Marco: the last five)
+              'A WWWWWWWWWWWWWW', 'A MMMMMMMMMMMMMM', 'JOSE ANTONIO CAMACHO', 'KOEN DE VLEESCHAUWER',
+              'A. ANAGNOSTOPOULOS'] * 2)[:16]   # (4.1 41-namelong, Marco: the 5 before; 4.2 names14: the last 3)
 
 
 def n14_extract(name, flags):
@@ -33264,6 +33265,11 @@ def n14_short(name):
         alt, cut2 = n14_extract(name, 0x4000)
         if not cut2:
             return alt
+        w = name.strip(' ').split()[1:]          # 4.2 names14: the last words that fit 14, else the last word 13 + '.'
+        for k in range(len(w)):
+            if len(' '.join(w[k:])) <= 14:
+                return ' '.join(w[k:])
+        return n14_extract(w[-1], 0x4000)[0]
     return sh
 
 
@@ -33486,7 +33492,7 @@ def scorer_sites(orig):
             'SC': [U(x + 16) for x in sc]}
 
 
-SCORER_TARGETS = ('VAN NISTELROOY', 'WWWWWWWWWWWWWW')
+SCORER_TARGETS = ('VAN NISTELROOY', 'WWWWWWWWWWWWWW', 'VLEESCHAUWER')   # (4.2 names14: KOEN DE VLEESCHAUWER, words dropped)
 
 
 @scenario

@@ -362,6 +362,9 @@ def patch_exe(src, dst, remap, lang='it'):
     if xtra_on:                                        # 4.2.y T3 PRIMAVERA (MC 12/11, 23bis): its own page, the 14th
                                                        # (the pages between stay zero)
         swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, swreg.T3_END // 0x1000)
+    import swefile
+    if swefile.on():                                   # 4.2 file layer (MC 12/11): page 18, only when linked
+        swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, swefile.page_end() // 0x1000)
     if lr_tabs:                                        # (the career league's head-to-head block)
         engine.save_item('LR', lrank.LR_SIZE, world_only=True)
         import swreg                                   # 4.2: a groups stage's state (engine ST, sr_stled.c; A1's room)

@@ -2252,7 +2252,7 @@ def ss_banks(sp_tabs):
 
 
 GS_ON = [False]          # (patch.py: the engine block saves GP_GS - rc19's preview may keep 9 early tables)
-GP_BSS = 0x6000          # the C .bss pages (obj2 after careerworld's BSS): GP_IN at GT 32 / GD 16, GP_SS, PR, RS, GP_ST, RI, PS
+GP_BSS = 0x6000          # (set by patch() from the measured .bss, MC 12/11) the C .bss pages (obj2 after careerworld's BSS): GP_IN at GT 32 / GD 16, GP_SS, PR, RS, GP_ST, RI, PS
 
 
 def _cardiv(p):
@@ -2799,6 +2799,10 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
                                                                    'SEC_COPY': careerworld.SITES['sltcopy'],
                                                                    'GP_HLT': (2, hlt), 'GP_SEASP': uesum.season_var(p)},
                                 limit=limit)
+    global GP_BSS                                    # 4.2 class B (MC 12/11, Motore option a): the room = the measured
+    GP_BSS = (bss + 0x200 + 0xFFF) & ~0xFFF          # .bss + 0x200, page-rounded (was 0x6000 + the stage banks' rounding
+                                                     # / 0x7000 in patch.py: too small in scenario builds); patch.py adds
+                                                     # it to careerworld.BSS_SIZE only after this link
     __import__('sys').stderr.write(f'gplay .bss {bss:#x} GP_BSS {GP_BSS:#x} banks {SS_BANKS[0]} headroom '
                                    f'{GP_BSS - bss:#x}\n')   # (buildrel.sh: fails under 0x200, MC 11/11)
     assert bss <= GP_BSS, (                         # (patch.py: GP_BSS: the reserves' state, GD 16, GP_ST)

@@ -2892,7 +2892,38 @@ def builds():
         tag = '_' + os.environ['SWOSTEST_TAG'] if os.environ.get('SWOSTEST_TAG') else ''   # (parallel sessions: their own
         builds.cache = {'it': os.environ.get('SWOSTEST_BUILD') or     # build dir, not a shared builds/it overwritten
                         build((re.sub(r'\W', '_', br) if br else 'it') + tag, branch=br)}   # under a running suite)
+        builds.cache['it'] = ui_build(builds.cache['it'])
     return builds.cache
+
+
+def ui_build(b):
+    """(4.2, Regia: a 4-language gate must run 4 languages) SWOSTEST_UI=en/fr/de on a release dir (all four exes):
+    the harness runs ITALIAN.EXE with the UI language's addresses (UI_ORIG) and texts, so give it a copy whose
+    ITALIAN.EXE is the UI language's exe (builds-x/ui_<lang>_<hash>, remade when the exe changes). A dir already
+    prepared that way (ITALIAN.EXE = that exe, as REL..-en), or with no such exe, is used as it is."""
+    if UI == 'it' or not b:
+        return b
+    src = os.path.join(b, UI_ORIG)
+    if not os.path.isfile(src):
+        return b
+    md5 = lambda f: hashlib.md5(open(f, 'rb').read()).hexdigest()
+    want = md5(src)
+    if md5(os.path.join(b, 'ITALIAN.EXE')) == want:
+        return b
+    d = os.path.join(WORK, 'builds-x', f'ui_{UI}_' + hashlib.md5(os.path.abspath(b).encode()).hexdigest()[:8])
+    exe = os.path.join(d, 'ITALIAN.EXE')
+    if not (os.path.isfile(exe) and md5(exe) == want):
+        tmp = f'{d}.{os.getpid()}'
+        shutil.rmtree(tmp, ignore_errors=True)
+        shutil.copytree(b, tmp, symlinks=True)
+        shutil.copyfile(src, os.path.join(tmp, 'ITALIAN.EXE'))
+        shutil.rmtree(d, ignore_errors=True)
+        try:
+            os.rename(tmp, d)
+        except OSError:                                # (a parallel run made it first)
+            shutil.rmtree(tmp, ignore_errors=True)
+    print(f'harness: SWOSTEST_UI={UI}: {b} -> {d} (ITALIAN.EXE = {UI_ORIG})', file=sys.stderr)
+    return d
 
 
 POKE_SYNC = 8                                         # Session.poke: SMs between sync reads

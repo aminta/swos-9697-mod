@@ -9565,6 +9565,23 @@ FR_CASES = {        # (4.0.6 bench_friendly) case: (world, home path, away path,
 }
 FR_KICK = ('kick9697', 'kickseriea')
 
+
+def reg_worlds(exe):
+    """(Regia 12/11) the world numbers in an exe's world registry (swreg: obj4+REG_AT 'SWRG', u8 worlds at +6, per
+    world a REC record whose first byte is its number): [] for an exe without one. 5 = World 2026-27 (the release
+    recipe's; a plain scenario build of the checkout has 0 and 4 only)"""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lepatch
+    import swreg
+    p = lepatch.LEPatch(exe)
+    if len(p.le.objs) < 4:
+        return []
+    d = p.le.obj_bytes(4)
+    r = d[swreg.REG_AT:swreg.REG_AT + swreg.HDR]
+    if r[:4] != swreg.MAGIC:
+        return []
+    return [d[swreg.REG_AT + swreg.HDR + swreg.REC * k] for k in range(r[6])]
+
 FR_B = ('mixed', 'diy', 'diycup')               # (B) the cases with the own-order check (fr_order)
 FR_ONE = {'onelist': 'human', 'onelist_cpu': 'cpu'}   # (4.1, Davide 06/11) both clubs from ONE list, one after the
                                                 # other (no way back up): the first club human / computer, the other the
@@ -9613,6 +9630,12 @@ def bench_friendly():
     top, bot = p.target(1, m.start() + 6)[1], p.target(1, m.start() + 26)[1]
     errs, info = [], []
     cases = [c for c in (os.environ.get('BENCH_FR') or ','.join(FR_CASES)).split(',') if c]
+    w27, rw = [c for c in cases if FR_CASES[c][0] == 0], reg_worlds(exe)   # (Regia / MC 12/11) the World 2026-27
+    require(not w27 or not rw or 5 in rw,            # picker's cases: on a registry build without world 5 the picker is
+            # the 1996-97 world's - the game's bench of 5 everywhere (a pre-registry build, rw [], is not judged here)
+            f'bench_friendly: no World 2026-27 (world registry 5) in {b}: set BENCH_BUILD (a World 2026-27 build), '
+            f'or BENCH_FR= only {",".join(c for c in FR_CASES if FR_CASES[c][0] != 0)} (cases {",".join(w27)}): '
+            f'a harness environment, never a game FAIL')
     fs = fr_sites(exe)                          # (B) None: a build without the friendly clubs' own order
 
     def go(s, t):

@@ -9525,7 +9525,7 @@ def bench_world():
     return not errs, '; '.join(errs + info)
 
 
-BENCH_TICKS = {'top': '1234', 'bottom': '4000'}   # (12/11) CAREER_TICK per side of bench_world_home / _away: the
+BENCH_TICKS = {'top': '1234', 'bottom': '4000'}   # (12/11) CAREER_TICK per side of bench_world_top / _bottom: the
                                                 # career's seed (CAREER_TICK + the club's press, 376 ticks on
                                                 # REL42i19-en) draws the first opponent and the club's dugout
 
@@ -9548,14 +9548,14 @@ def bench_world_side(side):
 
 @scenario
 @spp_restore
-def bench_world_home():
+def bench_world_top():
     """bench_world, the club on the top dugout (the in-match top team) on a pinned draw (bench_world_side)."""
     return bench_world_side('top')
 
 
 @scenario
 @spp_restore
-def bench_world_away():
+def bench_world_bottom():
     """bench_world, the club on the bottom dugout (benchY 485) on a pinned draw (bench_world_side)."""
     return bench_world_side('bottom')
 

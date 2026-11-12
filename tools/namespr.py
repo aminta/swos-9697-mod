@@ -140,7 +140,9 @@ nl_init:                                ; replaces InitInGamePlayer's `call Extr
     jne .ws
     inc esi
     jmp .wd
-.ws:mov ebx, esi                        ; ebx -> this word
+.ws:cmp byte [esi], 0                   ; (MC 12/11: a trailing space - no word left: the game's cut, never an
+    je .game                            ;  empty shortName)
+    mov ebx, esi                        ; ebx -> this word
     xor ecx, ecx
 .ln:cmp byte [esi + ecx], 0
     je .lz

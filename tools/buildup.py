@@ -23,7 +23,7 @@ import nasmcave
 
 G1_DIST, G1_LOOK, FREE = 40000, 230, 30         # 200 px; stoppage ticks; px
 H1_DEEP = 270000                                # 520 px from the opponents' goal: about the own penalty area
-P1_NEAR, P1_FAR, P1_P, P1_MIN, P1_MAX = 40000, 250000, 48, 1600, 22500
+P1_NEAR, P1_FAR, P1_P, P1_MIN, P1_MAX = 40000, 250000, 96, 1600, 32400   # (13/11: 0-2 per match at 48 / 18h / 150 px)
 
 ASM = r"""
     jmp bu_frame                        ; (BU_AT + 0: difficulty's df_frame calls it in DIFF_TRACE builds)
@@ -176,7 +176,7 @@ bu_p1:
     jb .o
     cmp dword [D6_], P1_FAR
     ja .o
-    test byte [CGT], 18h
+    test byte [CGT], 10h
     jnz .o
     cmp byte [AIRAND], P1_P
     jae .o

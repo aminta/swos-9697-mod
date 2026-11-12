@@ -354,6 +354,7 @@ def patch_exe(src, dst, remap, lang='it'):
     import lrank
     import swe
     swe.OBJ4_PAGES = max(swe.OBJ4_BASE, lrank.LR_AT // 0x1000 + lrank.LR_PAGES) if lr_tabs else swe.OBJ4_BASE
+    swe.OBJ4_PAGES = sreg.obj4_pages(swe.OBJ4_PAGES)   # (4.2 N7: + the old-save import's 12th page, SREG2_AT)
     if lr_tabs:                                        # (the career league's head-to-head block)
         engine.save_item('LR', lrank.LR_SIZE, world_only=True)
         import swreg                                   # 4.2: a groups stage's state (engine ST, sr_stled.c; A1's room)

@@ -125,6 +125,25 @@ def section_bytes():
     return 4 + 12 + (10 * n + 7) // 8 if n else 0
 
 
+def obj4_pages(cur):
+    """obj4's file pages with the old-save import's page (swreg.SREG2_AT..SREG2_END, the 12th): cur, raised to it
+    only with a registry shape (dormant builds: cur, their bytes unchanged)."""
+    import swreg
+    return max(cur, swreg.SREG2_END // 0x1000) if section_bytes() else cur
+
+
+def sreg2_check(p):
+    """The import's page is obj4's and free (nothing else linked there), above lrank's LR_TAB page (MC 12/11)."""
+    import lrank
+    import swreg
+    tab_end = getattr(lrank, 'TAB_AT', lrank.LR_AT + 0x1000 * lrank.LR_PAGES) + 0x1000   # (LR_TAB's page: 42-int)
+    assert swreg.SREG2_AT >= tab_end and swreg.SREG2_END - swreg.SREG2_AT == 0x1000, \
+        ('sreg: SREG2 overlaps lrank\'s LR_TAB page', hex(swreg.SREG2_AT), hex(tab_end))
+    assert p.le.obj(4).npages * 0x1000 >= swreg.SREG2_END, ('sreg: obj4 has no SREG2 page (obj4_pages)',
+                                                            p.le.obj(4).npages)
+    assert not any(p.get(4, swreg.SREG2_AT, 0x1000)), ('sreg: obj4+SREG2_AT not free', hex(swreg.SREG2_AT))
+
+
 def patch(p, syms_swe):
     """sreg.c at obj4+SREG_AT and swe.c's SREG_FN; returns the end (or None, dormant)."""
     if not section_bytes():
@@ -152,6 +171,7 @@ def patch(p, syms_swe):
     assert p.le.obj(4).npages * 0x1000 >= lrank.LR_AT, ('sreg: obj4 has no page at SREG_AT (a world build: lrank)',
                                                          p.le.obj(4).npages)
     assert not any(p.get(4, swreg.SREG_AT, lrank.LR_AT - swreg.SREG_AT)), 'sreg: obj4+SREG_AT not free'
+    sreg2_check(p)                                      # (the import's page: free until piece 4 links there)
     syms, end, bss = cobj.link(p, obj, swreg.SREG_AT, (4, 0), externs={'SREG_DIV': (4, swreg.SREG_DIV_AT), 'SREG_SWC1': syms_swe['SWC1']},
                                limit=lrank.LR_AT, text_obj=4, roots=roots)
     syms['SREG_DIV'] = (4, swreg.SREG_DIV_AT)

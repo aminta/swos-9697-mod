@@ -1042,7 +1042,8 @@ def patch(p, at, lang):
     p.put(2, hdr, struct.pack('<I', lab['ct_optinit']))
     p.put(2, hdr + 4, struct.pack('<I', lab['ct_optret']))
     p.add_ptr(2, hdr + 4, 1, lab['ct_optret'])
-    LAST.update(lab=lab, base=base, off=off, ptrs=ptrs, m_at=m_at, data=bytes(data), code_at=at, code_len=len(code))
+    LAST.update(lab=lab, base=base, off=off, ptrs=ptrs, m_at=m_at, data=bytes(data), code_at=at, code_len=len(code),
+                sym_vj=vj)                        # (4.2 slow: sl_boot chains on ct_boot at joyfix's call)
     print(f'exe: CONTROLS page ({T["title"]}): code obj1+{at:#x} ({len(code)} B), page obj1+{base + m_at:#x}, '
           f'options menu obj2+{hdr:#x}')
     return at + len(code)

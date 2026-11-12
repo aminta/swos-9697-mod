@@ -4799,6 +4799,26 @@ def se_goto(s, i):
     return scr
 
 
+def se_box(s, tag, notes, errs):
+    """4.2 (Marco 11/11, shirtbox): the lit number box in shot `tag` is a solid 14 x 8 square (the whole number column)
+    with the number on it in white: no black (the font's shadow, se_unsh) inside, nothing of the box outside."""
+    from PIL import Image
+    im = Image.open(os.path.join(s.run, 'shots', tag + '.png')).convert('RGB')
+    G = lambda c: c[2] == 0 and 0x70 < c[1] and c[0] < 0x40     # HL_COLOR 0x0E's greens (the menu's shading)
+    pts = [(x, y) for y in range(200) for x in range(64) if G(im.getpixel((x, y)))]
+    if not pts:
+        check(False, f'{tag}: no lit box', errs)
+        return
+    x0, x1 = min(x for x, _ in pts), max(x for x, _ in pts)
+    y0, y1 = min(y for _, y in pts), max(y for _, y in pts)
+    inside = [im.getpixel((x, y)) for y in range(y0, y1 + 1) for x in range(x0, x1 + 1)]
+    white = sum(c == (255, 255, 255) for c in inside)
+    other = {c for c in inside if c != (255, 255, 255) and not G(c)}
+    check((x1 - x0 + 1, y1 - y0 + 1) == (14, 8), f'{tag}: lit box {x1 - x0 + 1}x{y1 - y0 + 1} at ({x0},{y0}), want 14x8', errs)
+    check(white >= 8 and not other, f'{tag}: box pixels white {white}, not green/white {sorted(other)[:4]}', errs)
+    notes.append(f'{tag} box ({x0},{y0}) {x1 - x0 + 1}x{y1 - y0 + 1} white {white}')
+
+
 @scenario
 def shirt_edit():
     """4.0.2 editable shirt numbers (shirtedit.py): JUVEFIX3 play-match screen: LEFT on a row lights the number, UP =
@@ -4829,6 +4849,7 @@ def shirt_edit():
         scr = se_goto(s, 20)
         s.send('left dump:1')
         s.shot('lit')
+        se_box(s, 'lit', notes, errs)
         before = se_team(s)[1]                         # (after the first edit's one-number-per-player pass)
         check(len({before[i] for i in sq}) == len(sq), f'first edit: numbers not unique {[before[i] for i in sq]}', errs)
         s.send('up dump:1')
@@ -4844,8 +4865,14 @@ def shirt_edit():
             # typed '2' '3': 23 (swapped with its holder if any)
             holder = next((i for i in sq if after[i] == 23 and i != k), None)
             s.send('2 3 dump:1')
+            s.shot('lit23')
+            se_box(s, 'lit23', notes, errs)
             t3 = se_team(s)[1]
             check(t3[k] == 23 and (holder is None or t3[holder] == nw), f'typed 23: {t3[:16]} (holder {holder})', errs)
+            s.send('9 9 dump:1')                       # (4.2: the widest number on the box too)
+            s.shot('lit99')
+            se_box(s, 'lit99', notes, errs)
+            check(se_team(s)[1][k] == 99, f'typed 99: {se_team(s)[1][:16]}', errs)
             # ESC: everything as before the edit
             s.send('esc dump:1')
             t4 = se_team(s)[1]
@@ -4977,6 +5004,7 @@ def squad_numbers():
         s.send('dump:1')
         s.send('left dump:1')
         s.shot('lit')
+        se_box(s, 'lit', notes, errs)
         before = sq_team(s)[1]
         check(len({before[i] for i in sq}) == len(sq), f'first edit: numbers not unique {[before[i] for i in sq]}', errs)
         s.send('up dump:1')
@@ -12525,13 +12553,14 @@ def options_gap():
         for k in range(2):
             press(s, s.screen(), 'OPZIONI', 2)
             r, menu = s.result, s.info['menu']
-            e = {i: ct_entry(r, menu, i) for i in range(26)}
-            rows = [i for i in e if i not in (0, 17, 18, 19) and e[i][5] == 11]
+            n = s.screen().n                    # (4.2 slow.py: 28 entries, the 12 rows 10 high at an 11 px pitch)
+            e = {i: ct_entry(r, menu, i) for i in range(n)}
+            rows = [i for i in e if i not in (0, 17, 18, 19) and e[i][5] == (10 if n == 28 else 11)]
             top = min(e[i][3] for i in rows)
             bot = max(e[i][3] + e[i][5] for i in rows)
             gaps = (top - (e[0][3] + e[0][5]), e[17][3] - bot)
             btn = tuple(e[i][3] for i in (17, 19, 18))
-            check(len(rows) == 22 and gaps == (3, 2) and btn == (controls.QUIT_Y, controls.BTN_Y, 185),
+            check(len(rows) == (24 if n == 28 else 22) and gaps == (3, 2) and btn == (controls.QUIT_Y, controls.BTN_Y, 185),
                   f'pass {k}: {len(rows)} rows, gaps {gaps}, EXIT TO DOS / CONTROLS / EXIT y {btn}', errs)
             notes.append(f'pass {k}: gaps {gaps}, buttons {btn}')
             s.shot(f'options_{k}')
@@ -33414,6 +33443,10 @@ def match_names14():
                         check(worst <= 112, f'{mode}: the widest name \'99 \' + 14 x {wl[1]!r} = {worst} px > 112: '
                               f'Text2Sprite would draw nothing', errs)
                         info.append(f'{mode}: widest letter {wl[1]!r} {wl[0]} px, digit {wd}, worst name {worst} px of 112')
+                if os.environ.get('N14_SHOTS'):         # (4.2 names survey: the name strip on screen while playing)
+                    for i in range(int(os.environ['N14_SHOTS'])):
+                        s.send('dump:0.7')
+                        s.shot(f'm{i:02d}')
                 img = Image.new('L', (112, 32 * 8), 0)
                 for k, (*_, rows) in enumerate(sp):
                     for y, xs in enumerate(rows):
@@ -34444,7 +34477,9 @@ def cpu_cards():
                     lab = scr.find(label, exact=True)
                     lab_i = scr.find(cpucards.LABEL_I[UI], exact=True)
                     import gkinj                     # (4.0.6 gkinj: its row's two entries 24 / 25 after ours)
-                    n_opt = 24 + 2 * (scr.find(gkinj.LABEL[UI], exact=True) is not None)
+                    import slow                      # (4.2 slow: MATCH SPEED's two entries 26 / 27 after gkinj's)
+                    n_opt = 24 + 2 * (scr.find(gkinj.LABEL[UI], exact=True) is not None) \
+                        + 2 * (scr.find(slow.LABEL[UI], exact=True) is not None)
                     check(lab == 20 and lab_i == 22 and scr.n == n_opt, f'OPTIONS: {label} at {lab}, '
                           f'{cpucards.LABEL_I[UI]} at {lab_i}, {scr.n} entries', errs)
                     s.shot('options')
@@ -34584,6 +34619,152 @@ def cpu_inj():
             else:
                 check(not inj and not any(l2), f'{tag}: CPU injuries kept with INFORTUNI OFF {l1} / {l2}', errs)
     return not errs, '; '.join(errs + notes)
+
+
+def slow_sites(exe_dir):
+    """slow.py in a built exe: its data block (obj4, swreg.SLOW_AT's page: SL_W, SL_ACC, SL_FLIPS, SL_STALLS, SL_LVL,
+    SL_READS, SL_WRITES after the tag) and currentGameTick / currentTick / paused (slow.find on the original)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import slow
+    import lepatch
+    p = lepatch.LEPatch(os.path.join(exe_dir, 'ITALIAN.EXE'))
+    import swreg
+    d4 = bytes(p.get(4, swreg.SLOW_AT, swreg.SLOW_END - swreg.SLOW_AT))
+    assert d4.count(slow.TAG) == 1, d4.count(slow.TAG)
+    f = slow.find(lepatch.LEPatch(os.path.join(ROOT, 'orig', UI_ORIG)))
+    return (4, swreg.SLOW_AT + d4.index(slow.TAG) + 4), f['CGT'], f['PAUSED']
+
+
+def slow_rw(s, sl):
+    """(SL_READS, SL_WRITES): SPEED.CFG read at boot / written by the OPTIONS row"""
+    return struct.unpack('<II', s.result.read(s.result.lin(sl) + 16, 8))
+
+
+def slow_read(s, sl, cgt):
+    """(SL_W, SL_ACC, flips, stalls, currentGameTick, currentTick): the ticks as 16-bit counters"""
+    w, acc, fl, st = struct.unpack('<HHII', s.result.read(s.result.lin(sl), 12))
+    g, t = struct.unpack('<HH', s.result.read(s.result.base2 + cgt[1], 4))
+    return w, acc, fl, st, g, t
+
+
+@scenario
+def slow_speed():
+    """4.2 EXPERIMENTAL (Davide 12/11): MATCH SPEED (slow.py). OPTIONS: the row VELOCITA' PARTITA (26 / 27, 28 entries)
+    under CHAIRMAN SCENES, the 12 rows at an 11 px pitch from y 16 (the last ends above EXIT TO DOS), the label within
+    its box, font characters; fire on the value: 90% -> 80% -> 70% -> 100% (SL_W 1, 2, 3, 0). Then a friendly HAMBURG -
+    SCHALKE per level (SLOW_LEVELS, default 0,2,3 = 100 / 80 / 70 %; SL_W poked in the menus): over two in-match dumps,
+    flips per real tick (currentTick) ~ level / 100, game ticks per flip ~ 1 at every level (the clock moves with the
+    steps: every rule per step identical), extra retraces per flip ~ (100 - level) / level; 100 %: none. Shots
+    options_<level> for the visual tour.
+    SPEED.CFG (kept across restarts): no file = 100 % and not read; each change writes it (6 writes, the file = the
+    last value, 80 % = 2); a restart with that file starts at 80 %; a bad file (07h) = 100 %, and a read-only one is
+    not rewritten (the change silent: SL_W moves, SL_WRITES not, the menu goes on, the file as it was)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import slow
+    from complist import px, SMALL_W
+    errs, notes = [], []
+    b = builds()['it'] if UI == 'it' else build(f'slow_ui_{UI}', lang=UI)
+    sl, cgt, paused = slow_sites(b)
+    label = slow.LABEL[UI]
+    with Session(f'slow_ui_{UI}', b, {}, 'dump:3', 300) as s:
+        s.wait()
+        scr = walk(s, 'OPZIONI', 2)
+        lab = scr.find(label, exact=True)
+        check(lab == 26 and scr.n == 28 and slow_read(s, sl, cgt)[0] == 0, f'OPTIONS: {label} at {lab}, {scr.n} entries, '
+              f'SL_W {slow_read(s, sl, cgt)[0]}', errs)   # (a string-table value: the harness reads the table, not the text)
+        if lab == 26:
+            g = {e[0]: scr.geom[j] for j, e in enumerate(scr.entries)}
+            rows = sorted({g[k][1] for k in g if g[k][2] == 140 and slow.TOP <= g[k][1] <= 160})
+            quit_y = min(g[k][1] for k in g if g[k][1] > rows[-1] and k != 27 and k != 26)
+            check(rows == [slow.TOP + slow.PITCH * k for k in range(12)] and g[26][1] == rows[-1] and g[27][1] == rows[-1]
+                  and all(g[k][3] == slow.HEIGHT for k in g if g[k][2] == 140 and g[k][1] in rows)
+                  and rows[-1] + slow.HEIGHT < quit_y, f'OPTIONS rows {rows}, 26 {g[26]}, 27 {g[27]}, below {quit_y}', errs)
+            check(px(label) <= g[26][2] - 2 and set(label) <= set(SMALL_W) | {' '}, f'{label!r}: {px(label)} px in '
+                  f'{g[26][2]}', errs)
+        s.shot('options_100')
+        w = []
+        for v in (90, 80, 70, 100):
+            scr = walk(s, 27, 2)
+            w.append(slow_read(s, sl, cgt)[0])
+            s.shot(f'options_{v}')
+        check(w == [1, 2, 3, 0], f'OPTIONS toggles (SL_W): {w} (want 1, 2, 3, 0 = 90, 80, 70, 100 %)', errs)
+        notes.append(f'ui {w}')
+        rw0 = slow_rw(s, sl)
+        for _ in range(2):                          # (90 %, 80 %: kept for the restart)
+            walk(s, 27, 2)
+        rw = slow_rw(s, sl), slow_read(s, sl, cgt)[0]
+        cfg = os.path.join(s.run, 'SWOS', slow.FILE)
+    got = open(cfg, 'rb').read() if os.path.exists(cfg) else None
+    check(rw0[0] == 0 and rw == ((0, 6), 2) and got == b'\x02', f'{slow.FILE}: reads/writes {rw0} -> {rw[0]}, SL_W '
+          f'{rw[1]}, the file {got!r} (want no read, 6 writes, 80 % = 02)', errs)
+    if got == b'\x02':
+        with Session(f'slow_cfg_{UI}', b, {slow.FILE: cfg}, 'dump:3', 300) as s:
+            s.wait()
+            walk(s, 'OPZIONI', 2)
+            r = slow_rw(s, sl), slow_read(s, sl, cgt)[0]
+            s.shot('options_restart')
+        check(r == ((1, 0), 2), f'{slow.FILE} 02 at the restart: reads/writes {r[0]}, SL_W {r[1]} (want 1, 0, 2)', errs)
+        notes.append(f'restart: SL_W {r[1]}')
+    bad = os.path.join(RUNS, f'slow_bad_{UI}.cfg')
+    open(bad, 'wb').write(b'\x07')
+    with Session(f'slow_bad_{UI}', b, {slow.FILE: bad}, 'dump:3', 300) as s:
+        ro = os.path.join(s.run, 'SWOS', slow.FILE)
+        os.chmod(ro, 0o444)                         # (read-only: the change silent, not kept)
+        s.wait()
+        walk(s, 'OPZIONI', 2)
+        r0 = slow_rw(s, sl), slow_read(s, sl, cgt)[0]
+        scr = walk(s, 27, 2)
+        r1 = slow_rw(s, sl), slow_read(s, sl, cgt)[0], scr.find(slow.LABEL[UI], exact=True)
+    rb = open(ro, 'rb').read()
+    os.chmod(ro, 0o644)
+    check(r0 == ((1, 0), 0) and r1 == ((1, 0), 1, 26) and rb == b'\x07', f'{slow.FILE} 07, read-only: {r0} -> {r1}, '
+          f'the file {rb!r} (want 100 %, then SL_W 1 not written, the menu on, 07 kept)', errs)
+    keep = os.environ.get('TURBO')
+    os.environ['TURBO'] = '0'                       # (the matches in real time: in turbo the emulated frame time follows
+    try:                                            #  the host's load - 13 % of the 100 % frames took 2 ticks there)
+        slow_matches(b, sl, cgt, paused, errs, notes)
+    finally:
+        if keep is None:
+            os.environ.pop('TURBO', None)
+        else:
+            os.environ['TURBO'] = keep
+    return not errs, '; '.join(errs + notes)
+
+
+def slow_matches(b, sl, cgt, paused, errs, notes):
+    import slow
+    for lv in [int(x) for x in os.environ.get('SLOW_LEVELS', '0,2,3').split(',')]:
+        pct = slow.LEVELS[lv]
+        with Session(f'slow_match_{pct}_{UI}', b, {}, 'dump:3', 600, match=True) as s:
+            s.wait()
+            s.poke(s.result.lin(sl), struct.pack('<HH', lv, 0))
+            friendly_prematch(s, 'HAMBURG', 'SCHALKE')
+            for _ in range(22):                     # pre-match: down the rows to VIS. PARTITA
+                s.send('down dump:0.5')
+                if s.screen().selected == 9:
+                    break
+            s.send('fire ' + 'fire:3 ' * 30 + 'dump:2')
+            a = slow_read(s, sl, cgt)
+            for _ in range(15):                     # (the match running first: 12/11 slowDE on a loaded server, the
+                s.send('dump:2')                    #  first read before the kick-off, currentGameTick reset after it)
+                z = slow_read(s, sl, cgt)
+                if z[2] - a[2] >= 60 and (z[4] - a[4]) & 0xFFFF <= 4 * (z[2] - a[2]):
+                    a = z
+                    break
+                a = z
+            s.send('dump:20')
+            z = slow_read(s, sl, cgt)
+            fl, st = z[2] - a[2], z[3] - a[3]
+            gt, rt = (z[4] - a[4]) & 0xFFFF, (z[5] - a[5]) & 0xFFFF
+            pz = s.result.read(s.result.base2 + paused[1], 2)
+            r1, r2, r3 = fl / max(rt, 1), gt / max(fl, 1), st / max(fl, 1)
+            notes.append(f'{pct}%: {fl} flips, {st} stalls, {gt} game ticks, {rt} real ticks: flips/tick {r1:.3f}, '
+                         f'game ticks/flip {r2:.3f}, stalls/flip {r3:.3f}')
+            check(z[0] == lv and fl >= 500, f'{pct}%: SL_W {z[0]}, {fl} flips (want a match running)', errs)
+            check(abs(r1 - pct / 100) <= 0.04, f'{pct}%: flips per real tick {r1:.3f} (want {pct / 100:.2f})', errs)
+            check(abs(r2 - 1) <= 0.04, f'{pct}%: game ticks per flip {r2:.3f} (want 1: the clock moves with the steps)', errs)
+            check(abs(r3 - (100 - pct) / pct) <= 0.02 if lv else st == 0, f'{pct}%: stalls per flip {r3:.3f}', errs)
+            check(pz == b'\0\0', f'{pct}%: paused {pz.hex()}', errs)
 
 
 def gk_sites(exe_dir):
@@ -34767,7 +34948,8 @@ def gk_inj():
             if mode == '1m':                            # draw pinned - the roll count depends on the day's other ties)
                 scr = walk(s, 'OPZIONI', 2)
                 lab, lab_r = scr.find(label, exact=True), scr.find(cpucards_label(), exact=True)
-                check(lab == 24 and lab_r == 20 and scr.n == 26, f'OPTIONS: {label} at {lab}, red cards at {lab_r}, '
+                import slow                         # (4.2 slow: +2 entries)
+                check(lab == 24 and lab_r == 20 and scr.n == 26 + 2 * (scr.find(slow.LABEL[UI], exact=True) is not None), f'OPTIONS: {label} at {lab}, red cards at {lab_r}, '
                       f'{scr.n} entries', errs)
                 if lab == 24:
                     g = {e[0]: scr.geom[j] for j, e in enumerate(scr.entries)}

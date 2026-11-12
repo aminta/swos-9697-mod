@@ -19,6 +19,10 @@ career club gets a free number).
 Hooks: MenuProc's `call MenuCheckControls` -> `call se_ctl` (which calls it first; the controls are consumed while the
 box is lit, so the cursor does not move and fire does not swap players); in DrawPlayerEntries the number entry's
 (entry 32) `mov word [esi + isInvisible], 0` -> `call se_hl; nop` (the lit box: a coloured background on that row).
+4.2 (Marco 11/11): the lit box covers the whole number column (x - 2, 14 px: a two-digit number is 12 px from x - 1),
+and se_unsh (the entry's afterDraw while lit) paints the font's black shadow pixels (DrawChar's nibble 8) inside it in
+the box's own colour: the number in white on a solid square. se_unsh is in obj4 at swreg.BOX_AT (MC 12/11: the career
+cave is full), the number entry's own afterDraw is chained (se_ad). squadnum.py's squad screen gets the same box.
 """
 import re
 import struct
@@ -29,6 +33,43 @@ HL_COLOR = 0x0E                 # the lit number box's background colour (menu p
 WAIT = 28                       # menu frames for a second digit (~1 s)
 DWELL = 8                       # menu frames on a row before LEFT lights its number (~0.3 s)
 INFO = {}                       # patch()'s labels and sites for squadnum.py (4.0.6: the squad screen) and edteam.py
+
+BOX_ASM = r"""
+se_unsh:                                ; 4.2: the lit box's afterDraw. DrawChar draws a font's shadow pixels (nibble 8)
+    pushad                              ; in black: inside the box they become the box's own colour (its top-left
+    mov esi, [A5]                       ; pixel, left of the number), so the digits sit on a solid square
+    movzx eax, word [esi + 16h]
+    movzx ebx, word [CAMY]              ; (DrawChar's rows: y + (g_cameraY & 15))
+    and ebx, 0Fh
+    add eax, ebx
+    imul eax, eax, 320
+    movsx ebx, word [esi + 14h]
+    add eax, ebx
+    add eax, [LINADR]
+    mov edi, eax
+    mov dl, [edi]
+    movzx ebp, word [esi + 1Ah]
+.r: push edi
+    movzx ecx, word [esi + 18h]
+.c: cmp byte [edi], 8
+    jne .n
+    mov [edi], dl
+.n: inc edi
+    dec ecx
+    jnz .c
+    pop edi
+    add edi, 320
+    dec ebp
+    jnz .r
+    popad
+    mov eax, [se_ad]                    ; (the entry's own afterDraw, if it had one)
+    or eax, eax
+    jz .x
+    jmp eax
+.x: ret
+
+se_ad: dd 0                             ; (the number entry's afterDraw before se_unsh, set by se_hl)
+"""
 
 ASM = r"""
 se_ctl:                                 ; MenuProc: replaces `call MenuCheckControls`
@@ -413,13 +454,28 @@ se_hl:                                  ; DrawPlayerEntries, number entry: repla
     jne .plain
     mov word [esi + 1Ch], 2             ; a coloured background
     mov word [esi + 1Eh], HL
-    mov word [esi + 18h], 11            ; (4.0.5 Marco: 11 px - the two-digit number's shadow column too, numcol.py)
-    pop eax
+    cmp word [esi + 18h], 14            ; 4.2 (Marco 11/11: 28 looked bad - a two-digit number is 12 px from x - 1,
+    je .w                               ; past the 11 px box on both sides): the box = the whole number column,
+    sub word [esi + 14h], 2             ; x - 2 .. x + 11 (14 px, between the face and the name bar), the number
+    mov word [esi + 18h], 14            ; centred as before (x - 2 + 7 = x + 5), a 1 px margin each side
+.w: cmp dword [esi + 34h], se_unsh      ; and the digits without their black shadow (se_unsh, afterDraw)
+    je .d
+    mov eax, [esi + 34h]
+    mov [se_ad], eax
+    mov dword [esi + 34h], se_unsh
+.d: pop eax
     ret
 .plain:
     mov word [esi + 1Ch], 0
-    mov word [esi + 18h], 10
-    pop eax
+    cmp word [esi + 18h], 14            ; (the entry is the rows' one template: x, width, afterDraw back)
+    jne .p
+    add word [esi + 14h], 2
+.p: mov word [esi + 18h], 10
+    cmp dword [esi + 34h], se_unsh
+    jne .q
+    mov eax, [se_ad]
+    mov [esi + 34h], eax
+.q: pop eax
     ret
 
 align 4
@@ -517,9 +573,28 @@ def patch(p, cave):
     import benchnum
     s = sites(p)
     sym = {k: v for k, v in s.items() if not k.endswith('_SITE')}
+    import quietend
+    _, _, _, linadr, a0 = quietend.draw_sites(p)
+    cy = [m.start() + 2 for m in re.finditer(rb'\x66\xa1....\x83\xe0\x0f\x03\xf8\xc1\xe7\x06', p.le.obj_bytes(1), re.S)]
+    assert len(cy) == 1, ('DrawChar g_cameraY', cy)
+    sym.update(LINADR=linadr, CAMY=p.target(1, cy[0]), A5=(sym['A0'][0], sym['A0'][1] + 20))
     sym.update(PIN_AT=(0, benchnum.PIN_AT), PIN_BIT=(0, benchnum.PIN_BIT), HL=(0, HL_COLOR), WAIT=(0, WAIT),
                DWELL=(0, DWELL))
     cave = (cave + 3) & ~3
+    import swreg
+    at = swreg.BOX_AT                   # 4.2 (MC 12/11): se_unsh in obj4 0xCF00..0xD000 (the career cave is full)
+    bsym = {k: sym[k] for k in ('LINADR', 'CAMY', 'A5')}
+    bcode, bfix, brel = nasmcave.assemble_obj(BOX_ASM, at, bsym, 4)
+    blab = nasmcave.labels(BOX_ASM, at, bsym)
+    assert at + len(bcode) <= swreg.BOX_END, ('shirtbox: past its obj4 room', hex(at + len(bcode)))
+    assert p.le.obj(4).npages * 0x1000 >= swreg.BOX_END, 'shirtbox: obj4 pages (patch.py)'
+    assert not any(p.get(4, at, swreg.BOX_END - at)), 'shirtbox: obj4 room not free'
+    p.put(4, at, bcode)
+    for o, t_obj, t_off in bfix:
+        p.add_ptr(4, at + o, t_obj, t_off)
+    for o, t_obj, t_off in brel:
+        p.add_rel(4, at + o, t_obj, t_off)
+    sym.update(se_unsh=(4, blab['se_unsh']), se_ad=(4, blab['se_ad']))
     code, fix = nasmcave.assemble(ASM, cave, sym)
     lab = nasmcave.labels(ASM, cave, sym)
     assert not any(p.get(1, cave, len(code)))

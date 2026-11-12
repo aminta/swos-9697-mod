@@ -38,8 +38,12 @@ ST_AT, ST_SIZE = 0x5000, 144             # 4.2: the engine's ledger item 'ST' (s
 CONTI4_AT = 0x4B00                      # 4.1.1: conti's read-only data (the CONMEBOL ranking, the 4.1 season-1 lists +
 CONTI4_END = 0x5000                     # winners) at the 5th page's top, above uprize part 2 (Regia / MC 10/11; 4.2 keeps
                                         # it: lrank from 0x6000)
+SLOW_AT = 0xC000                        # 4.2 slow (MATCH SPEED, slow.py): obj4's 13th page, its own (MC 12/11; a
+SLOW_END = 0xD000                       # CONVENTIONS 23bis exception: Davide's ok via Regia 12/11)
 assert UPRIZE2_END <= CONTI4_AT, 'uprize part 2 would cross conti / ST'   # (4.2: bands never cross)
 assert CONTI4_END <= ST_AT, 'conti data would cross ST'
+BOX_AT = 0xCF00                         # 4.2 shirtbox (Marco's lit number box, shirtedit se_unsh): obj4's 13th page top,
+BOX_END = 0xD000                        # slow's page (SLOW_AT 0xC000, its code below BOX_AT); Mercato CPU's T3 from 0xD000 (MC 12/11)
 MAGIC = b'SWRG'
 VERSION = 2
 HDR = 32

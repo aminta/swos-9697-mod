@@ -351,6 +351,9 @@ def patch_exe(src, dst, remap, lang='it'):
     swe.OBJ4_PAGES = max(swe.OBJ4_BASE, lrank.TAB_AT // 0x1000 + 1) \
         if lr_tabs or ct_pg else swe.OBJ4_BASE  # (4.2 AFC mode: + LR_TAB's own page, the 11th - MC 11/11 option b;
                                                 # P7: conti linked = lrank's band too, even with no tie-breaker list)
+    import swreg
+    swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, swreg.BOX_END // 0x1000)   # 4.2 shirtbox: se_unsh at the 13th page's top
+    swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, swreg.SLOW_END // 0x1000)   # 4.2 slow (MC 12/11, 23bis exception): page 13
     if lr_tabs:                                        # (the career league's head-to-head block)
         engine.save_item('LR', lrank.LR_SIZE, world_only=True)
         import swreg                                   # 4.2: a groups stage's state (engine ST, sr_stled.c; A1's room)
@@ -854,6 +857,8 @@ def patch_exe(src, dst, remap, lang='it'):
         cg_bss = 0
     import gkinj                                 # 4.0.6 (Davide): goalkeeper injuries after a match (an OPTIONS row,
     st_end = gkinj.patch(p, (st_end + 15) & ~15, lang)       # ON by default), the obj3 chain's end
+    import slow                                  # 4.2 EXPERIMENTAL (Davide 12/11): MATCH SPEED 100/90/80/70 % (an OPTIONS
+    slow.patch(p, lang)                          # row after gkinj's; GameLoop's @@flip_it; SPEED.CFG), obj4 page 13
     if ct_pg:                                    # 4.0.6 B2: the season-1 edition's block (conti.c CT_S1 -> it)
         st_end = conti.s1_patch(p, (st_end + 15) & ~15)
     assert st_end <= LT3_AT, hex(st_end)

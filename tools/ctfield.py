@@ -164,7 +164,13 @@ def check(ib, o, lay, st, confs=None, forced=False, notes=None):
                 bad.append(f'{a}: the data gives it {want[a]} places, CT_IN holds {len(held)} of its clubs')
         if o[2]:                        # (conti.c access(): CT_OUT.pad[1], the first association whose table ran out)
             a = p['assocs'][o[2] - 1] if o[2] - 1 < len(p['assocs']) else f'#{o[2] - 1}'
-            bad.append(f'{a}: access() found no club left for one of its places')
+            ai = o[2] - 1                # (MC 12/11, class D: the association's table as CT_IN holds it, for the diagnosis)
+            lg = struct.unpack_from(f'<{NL}H', ib, o_lg + 2 * NL * ai) if ai < NA else ()
+            cw = struct.unpack_from('<H', ib, o_cup + 2 * ai)[0] if ai < NA else 0
+            nlg = sum(1 for x in lg if x)
+            bad.append(f'{a}: access() found no club left for one of its places (CT_IN: {nlg} league clubs, cup '
+                       f'winner {"none" if not cw else "in the league" if cw in lg else "not in the league"}, the data '
+                       f'{want[a]} places)')
     if mgr:
         for ci in range(len(p['cups'])):
             entries = [j for j in range(NRD) if mgr in ent[(ci, j)]

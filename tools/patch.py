@@ -360,6 +360,9 @@ def patch_exe(src, dst, remap, lang='it'):
     import swreg
     swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, swreg.BOX_END // 0x1000)   # 4.2 shirtbox: se_unsh at the 13th page's top
     swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, swreg.SLOW_END // 0x1000)   # 4.2 slow (MC 12/11, 23bis exception): page 13
+    import difficulty
+    if difficulty.on():                                # 42-diff: the difficulty page (provisional DIFF_AT)
+        swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, swreg.DIFF_END // 0x1000)
     if xtra_on:                                        # 4.2.y T3 PRIMAVERA (MC 12/11, 23bis): its own page, the 14th
                                                        # (the pages between stay zero)
         swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, swreg.T3_END // 0x1000)
@@ -872,6 +875,8 @@ def patch_exe(src, dst, remap, lang='it'):
     slow.patch(p, lang)                          # row after gkinj's; GameLoop's @@flip_it; SPEED.CFG), obj4 page 13
     import namefit                               # 4.2 names-fit (Marco (b) step 2): menu names cut by pixels, obj4 page 13
     namefit.patch(p)
+    import difficulty                            # 42-diff: selectable difficulty + DRIBBLING (DIFF_TEST only for now)
+    difficulty.patch(p, lang)
     if ct_pg:                                    # 4.0.6 B2: the season-1 edition's block (conti.c CT_S1 -> it)
         st_end = conti.s1_patch(p, (st_end + 15) & ~15)
     assert st_end <= LT3_AT, hex(st_end)

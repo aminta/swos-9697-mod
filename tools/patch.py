@@ -33,6 +33,7 @@ import pgroups
 import engine
 import menunum
 import avgprice
+import subcard
 import joyfix
 import fmtpage
 import menumusic
@@ -614,6 +615,7 @@ def patch_exe(src, dst, remap, lang='it'):
     assert bl_end <= bl_at + 0xE00, hex(bl_end)          # cave is full) in controls' last data page, after its data
     cos = menunum.patch(p, cos, num_bss + shirtnum.BSS_SIZE + blond.BSS_SIZE)   # 3.3.4: menu numbers 17..99
     cos = avgprice.patch(p, cos)                 # 3.3.4: average player price >= 1 (divide error, 1984-85 Iceland)
+    subcard.patch(p)                             # 4.2 (Marco): a booked player on a carried yellow can be substituted
     import devname                               # 4.0.2: DOS device names (CON, PRN, AUX ...) refused as save names
     devname.patch(p, lang)
     joyfix.patch(p)                              # 4.0.1: ReadSetupDat -> VerifyJoypadControls (no pad + controls != 1 = frozen menus)

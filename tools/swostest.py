@@ -27538,6 +27538,57 @@ def world_s7cross_diff():
 
 
 @scenario
+def world_s7cross_c20():
+    """S7 (4.2, MC 13/11; CONVENTIONS load hooks rule): career_20seasons (C20_SEASONS, default 2: a save + reload
+    every season, checkw1 at each) on world_s7cross_down's shaped build at UNION BRESCIA (GPLAY_FORCE=20: it crosses
+    102 -> 144 at season 1's end), with the registry checked every season from its session log (S7_LOG / S7_LD):
+    season 1 crosses (OK, 9 swaps); every later season, loaded from the previous save, applies the crossed
+    registry at its first load (OK, rows moved) and no S7_LD fails."""
+    import json
+    env = s7_env({'GPLAY_FORCE': '20'})
+    if env is None:
+        return True, 'SKIP: S7_PACK (the shaped Italy pack) or internal world5tm-h2 missing'
+    exe = os.environ.get('S7_BUILD') or build('s7cross', env=env)
+    sy = json.load(open(os.path.join(exe, 'ITALIAN.syms.json')))
+    s7 = sy.get('s7swap', {})
+    if 'S7_LD' not in s7:
+        return False, f'{exe}: no S7 swap builder'
+    lg, ldk = f'o4/{s7["S7_LOG"][1]:x}', f'o4/{s7["S7_LD"][1]:x}'
+    keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'C20_TEAM', 'C20_SEASONS', 'W8485_HEX')}
+    os.environ.update(W8485_BUILD=exe, C20_TEAM='EUROPA,ITALIA,SERIE C GIRONE A,UNION BRESCIA',
+                      C20_SEASONS=os.environ.get('C20_SEASONS') or '2', W8485_HEX=f'{lg}:8,{ldk}:16')
+    errs, info = [], []
+    try:
+        ok, msg = career_20seasons()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    check(ok, f'career_20seasons: {msg[:300]}', errs)
+    n = int(os.environ.get('C20_SEASONS') or 2)
+    for season in range(1, min(n, 2) + 1):              # (seasons 2..n share run dir _2: the last one is checked)
+        f = os.path.join(RUNS, w84_tag() + f'_{season}', 'session.log')
+        lines = open(f, errors='replace').read().splitlines() if os.path.exists(f) else []
+        hx = lambda k: [bytes.fromhex(ln.split()[2]) for ln in lines if ln.startswith(f'HEX {k} ') and len(ln.split()) > 2]
+        logs = [b for b in hx(lg) if b[0]]
+        lds = [struct.unpack('<BBBBHHIi', b) for b in hx(ldk)]
+        bad = [x for x in lds if x[0] not in (1, 2) or (x[0] == 2 and season > 1)]
+        check(not bad, f'season {season if season == 1 else n}: S7_LD failed {bad[:3]}', errs)
+        if season == 1:
+            check(logs and logs[-1][0] == 1 and logs[-1][2] == 9, f'season 1: S7_LOG {[b.hex() for b in logs[-2:]]} '
+                  f'(want OK, 9 swaps)', errs)
+        else:
+            ok1 = [x for x in lds if x[0] == 1]
+            check(ok1 and ok1[0][4] > 0, f'season {n}: the first applied load {ok1[:1]} moved no rows (the save\'s '
+                  f'registry not the crossed one)', errs)
+        info.append(f'season {season if season == 1 else n}: S7_LOG {logs[-1].hex() if logs else None}, '
+                    f'{len(lds)} S7_LD logged')
+    return not errs, '; '.join(errs) or f'{msg[:200]}; ' + '; '.join(info)
+
+
+@scenario
 def world_s7cross_up():
     """S7 (4.2): the career club promoted from Serie D girone A (LIGORNA first) to Serie C, two seasons"""
     return s7cross(1, 'EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA', 144)

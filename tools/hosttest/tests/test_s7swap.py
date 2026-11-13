@@ -261,6 +261,61 @@ def test_s7swap():
                                              f'sreg_new / sreg_build / sreg_load')
 
 
+def test_s7wndisk():
+    """42-s7wn (MC 13/11): winners.py's wn_disk reads a club's name from DATA\\TEAM.nnn - the disk rows are the HOME layout -
+    so a crossed club's current word must be mapped to its home word first (ri_wnhome, the patched exe's real wn_disk
+    entry: call ri_wnhome -> s7_home_word -> the original body). Run under Unicorn up to its first DOS call (the file
+    open): WN_FN names TEAM.<home file> and ESI (the word the body goes on with) = the home word. After the 9 swaps the
+    18 crossers map to their shipped home word, the 244 other rows to themselves; before any swap every club does."""
+    if not os.path.exists(EXE) or not os.path.exists(EXE[:-4] + '.syms.json'):
+        return True, f'SKIP: {EXE} (a shaped HOSTTEST_SYMS=1 build) missing'
+    sy = json.load(open(EXE[:-4] + '.syms.json'))
+    if 'WN_DISK' not in sy.get('s7swap', {}):
+        return True, f'SKIP: {EXE}: no wn_disk hook (a build without the WINNERS page / S7_WNOFF)'
+    from unicorn import UcError
+    from unicorn.x86_const import UC_X86_REG_EAX, UC_X86_REG_ESI
+    m = M(EXE)
+    base = {1: tr.B1, 2: tr.B2, 3: tr.B3, 4: tr.B4}
+    s7 = sy['s7swap']
+    where = lambda k: base[s7[k][0] or 1] + s7[k][1]
+    errs = []
+
+    def look(w):
+        m.w(where('WN_FN'), b'data/team.000\0')
+        try:
+            ts._run(m.uc, where('WN_DISK'), tr.RET, {UC_X86_REG_EAX: 0xABCD0000 | w})
+        except UcError:
+            pass                                        # (int 21h: the file open)
+        fn = bytes(m.rd(where('WN_FN'), 13))
+        return int(fn[10:13]), m.uc.reg_read(UC_X86_REG_ESI) & 0xFFFF
+    m.fresh()
+    fs, word, at, rdiv, rows = reg_parse(m.regb())
+    bad0 = [(hex(w), look(w)) for w in word[:40] if look(w) != (w & 0xFF, w)]
+    if bad0:
+        errs.append(f'before any swap: {bad0[:3]} (want each club by itself)')
+    down, up = crossings(fs, m.gb)
+    st, nsw, ncr, _ = run(m, down, up)
+    if (st, nsw, ncr) != (OK, 9, 18):
+        return False, f'status {st} swaps {nsw} crossers {ncr}'
+    fs1, word1, at1, rdiv1, rows1 = reg_parse(m.regb())
+    moved = other = 0
+    for fi, f in enumerate(fs1):
+        for o in range(rows1[fi]):
+            i = at1[fi][o]
+            if i >= len(word):
+                continue
+            cur = f[0] | o << 8
+            if look(cur) != (word[i] & 0xFF, word[i]):
+                errs.append(f'row {hex(cur)} (ident {i}): file / word {look(cur)}, want home {hex(word[i])}')
+            moved += cur != word[i]
+            other += cur == word[i]
+    if moved != 18:
+        errs.append(f'{moved} crossers, want 18')
+    hp = s7['S7_HPTR'] if 'S7_HPTR' in s7 else None
+    return not errs, '; '.join(errs[:5]) or (f'wn_disk (patched entry): before the swaps every club by itself; after them {moved} '
+                                              f'crossers read their home TEAM file / record, {other} others their own')
+
+
 TB = 0x6200000                                          # (the team buffer: 2 + 162 x 684 B)
 LD_OK, LD_NOREG, LD_READ, LD_SIZE, LD_FILE = 1, 2, 3, 4, 5
 KEPT = (0, 1, 2, 3, 4, 23, 25)

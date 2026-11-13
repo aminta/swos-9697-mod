@@ -236,8 +236,23 @@ def patch(p, ssyms, rsyms, gsyms, pgsyms, fsyms, risyms):
     cobj.add_ptr(p, rsyms['SREG_CHG'][1], *syms['s7_flush'], rsyms['SREG_CHG'][0])   # (a load / new career: the word caches)
     if 'S7_HPTR' in risyms:                             # (ri_home, xtra_readto's hook: a crossed club's XTRA block)
         cobj.add_ptr(p, risyms['S7_HPTR'][1], *syms['s7_home_word'], 1)
+    import winners
+    wnoff = bool(os.environ.get('S7_WNOFF'))            # (test builds: wn_disk left native - world_s7cross_winners' control)
+    if wnoff:
+        import modver
+        assert modver.is_test()
+    if 'wn_disk' in winners.LABELS and not wnoff:       # (the WINNERS page's disk names by the home word - MC 13/11)
+        assert 'ri_wnhome' in risyms, 's7swap: a WINNERS page without ripool\'s ri_wnhome (S7 + XTRA)'
+        o = winners.LABELS['wn_disk'][1]
+        want = b'\x60\x89\xC6\x0F\xB6\xC0'           # pushad / mov esi, eax / movzx eax, al (p.get: chained hooks)
+        assert p.get(1, o, 6) == want, ('s7swap: wn_disk entry', p.get(1, o, 6).hex())
+        p.put(1, o, b'\xE8' + struct.pack('<i', risyms['ri_wnhome'][1] - (o + 5)) + b'\x90')
+        WNL = {'WN_DISK': winners.LABELS['wn_disk'], 'WN_FN': winners.LABELS['WN_FN']}   # (host tests)
+    else:
+        WNL = {}
     LABELS.clear()
     LABELS.update(syms)
+    LABELS.update(WNL)
     LABELS.update({k: ext[k] for k in ('S7_NUMSEL', 'S7_SELBASE', 'S7_CFB', 'S7_ENI', 'S7_SELTEAM', 'S7_CTLEAGUE', 'S7_CTEAM')})   # (host tests)
     print(f'exe: S7 swap builder (s7swap.c) obj4+{swreg.S7SWAP_AT:#x}..{end:#x} of {swreg.S7SWAP_END:#x}: structs '
           f'{fa} / {fb}, boundary levels {up} / {lo}, globals {gb}, {len(area)} idents (homes {hr}); S7_LOG obj4+{syms["S7_LOG"][1]:#x}; load apply: {names[0]} / {names[1]} '

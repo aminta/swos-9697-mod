@@ -1,5 +1,5 @@
 """4.2 S7 season-end swap builder (s7swap.c at obj4+swreg.S7SWAP_AT; internal/handoff/s7-swap-plan.md piece 2), on the
-static image of HT_S7_EXE (else c/S7W-p6: a shaped IT build - the S7 test pack - with HOSTTEST_SYMS=1). The registry
+static image of HT_S7_EXE (else c/S7W-i32 (post-b4f05d4): a shaped IT build - the S7 test pack - with HOSTTEST_SYMS=1). The registry
 comes from the build's spec (sreg_get); gplay.c's snapshots S7X are poked (a test switch in memory, no season played):
 S7X[0] = file 102's 9 clubs down (each Serie C group's last place direct, then 2 play-out losers per group), S7X[1] =
 file 144's 9 up (each Serie D group's first). SLTCOPY = a buffer: no in-struct move (all 0), then one in-struct move.
@@ -30,7 +30,7 @@ import test_sreg as tg  # noqa: E402
 import test_swc1 as ts  # noqa: E402
 
 HOME = os.path.expanduser('~')
-EXE = os.environ.get('HT_S7_EXE') or os.path.join(HOME, 'swos-mod', 'c', 'S7W-p6', 'SWOS', 'ITALIAN.EXE')
+EXE = os.environ.get('HT_S7_EXE') or os.path.join(HOME, 'swos-mod', 'c', 'S7W-i32', 'SWOS', 'ITALIAN.EXE')
 OK, STALE, BAD, COUNT, PLACE = 1, 3, 4, 5, 6
 FA, FB = 102, 144
 SEASON = 7

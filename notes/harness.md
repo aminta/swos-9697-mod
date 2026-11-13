@@ -501,6 +501,10 @@ index (0x65109 -> 0xbdfe6) that a sprite's picture follows: a real-time input. T
 df_frame (TimerProc's timerBoolean block nopped); this changed every outcome (REF 13077 / 13110 by team order) but NEW
 still differs (always 13091, before frame 2048). Each result's `order` = the first team record's name at obj2 0x20a8c (IT),
 which varies run to run in REF too: compare only same-order runs. Handoff: internal/handoff/42-diff-cc-hunt.md.
+MC's stack-residue hypothesis (stubs writing under esp, the AI reading left-over locals) ruled out 13/11: DIFF_STKZ=n
+(both trace builds zero the n bytes under esp at the kick-off) with 2048: REF vs REF equal at the same order (2/2),
+NEW vs REF still not (HAMBURG / HAMBURG 13110 / 13057); and with every knob / build-up hook skipped no stub runs in
+the match at all, cc still differs.
 `DIFF_STOPF=n` halts at frame n and diffs obj2 word by word (REF vs NEW): the way to find the next input.
 `DIFF_PAD=code,buildup` (REF + a nop band of NEW's obj4 sizes) was equal to REF in every run: code size is not a cause.
 DIFF_SKIP is a comma list matched as a set ('BU' is not 'BUFRAME').

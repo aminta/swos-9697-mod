@@ -87,3 +87,28 @@ def test_cal_window_at_and_data():
     finally:
         cal.season_start = cal_s
     return not bad, '; '.join(bad) or f'{len(cases)} lookups, data override, 2 refusals, defaults'
+
+
+def test_cal_season_end():
+    """4.3 per-country season end (Davide 13/11): every shipped country with a league has one - 'native' exactly when a
+    reserved phase runs at the season end (E FFFFh), else the later of its last league unit and last reserved E, inside
+    [S, S + 96); a calendar-year league seen from another S lands in that frame too"""
+    s = _skip()
+    if s:
+        return s
+    import cal
+    bad, kinds = [], {}
+    for cc, m in cal.world(H2, EXE).items():
+        if m['S'] is None:
+            continue
+        e, src = m['end']
+        kinds[src] = kinds.get(src, 0) + 1
+        opn = any(x[1] == cal.OPEN for ws in m['reserved'].values() for x in ws)
+        if (src == 'native') != opn:
+            bad.append(f'{cc}: {src} with open phases {opn}')
+        if src != 'native':
+            lu = max(w for ws in m['league'].values() for w in ws)
+            r = max((x[1] for ws in m['reserved'].values() for x in ws), default=-1)
+            if not (m['S'] <= e < m['S'] + 96) or (e - max(lu, r)) % 96:
+                bad.append(f'{cc}: end {e} ({src}), S {m["S"]}, league {lu}, reserved {r}')
+    return not bad, '; '.join(bad[:5]) or f'{sum(kinds.values())} countries: {kinds}'

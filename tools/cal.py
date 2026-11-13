@@ -15,6 +15,12 @@ adds the windows the game itself does not have:
     later: January for an August start, July for a February one) for W_WINTER weeks. The defaults are Davide's open W decision (Regia),
     marked 'default' in the output so a world can be audited for missing data.
 - FIFA windows: none yet (4.5), the kind exists so the table layout does not change.
+- the season end, per country (4.3: the CPU market's ageing / youth / squads at each country's own league end -
+  Davide 13/11): season_end(pk) -> (E, source), the career week at whose END the country's season is over:
+  - 'native' when a phase of the country runs at the career's season end (a reserved window open to FFFFh: play-offs,
+    finals, promotion phases gplay plays then) - the game's own season end, InitializeNewSeason's;
+  - else the last league unit or the last reserved window's E, whichever is later ('league' / 'reserved');
+  E is brought into the career season [S, S + 96) as the transfer windows are; one end a country a career season.
 
 A window is (kind, B, E, source): B the first week the window is open, E its last (inclusive), source 'data' /
 'default'. window_at(windows, week) -> (kind, w) with w = week - B, or None.
@@ -85,6 +91,29 @@ def transfer_windows(pk, exe=None):
     return out
 
 
+OPEN = 0xFFFF                                   # (fport: a reserved window's E when the phase runs at the season end)
+
+
+def season_end(pk, exe=None, s=None):
+    """(E, source) - see the module doc; s: the career season's first week (default: the country's own S)"""
+    s = season_start(pk, exe) if s is None else s
+    lu = [w for ws in league_units(pk, exe).values() for w in ws]
+    rs = [x for ws in reserved(pk, exe).values() for x in ws]
+    if not lu or s is None:
+        return None
+    if any(x[1] == OPEN for x in rs):
+        return None, 'native'
+    e, src = max(lu), 'league'
+    r = max((x[1] for x in rs), default=-1)
+    if r > e:
+        e, src = r, 'reserved'
+    while e < s:
+        e += 96
+    while e >= s + 96:
+        e -= 96
+    return e, src
+
+
 def window_at(wins, week):
     """(kind, w) when career week `week` is inside a window of wins ([(kind, B, E, source)]), w = week - B; else None"""
     for kind, b, e, _ in wins:
@@ -96,7 +125,7 @@ def window_at(wins, week):
 def country(pk, exe=None):
     """the whole model of one country: {'S', 'league', 'reserved', 'transfer'}"""
     return {'S': season_start(pk, exe), 'league': league_units(pk, exe), 'reserved': reserved(pk, exe),
-            'transfer': transfer_windows(pk, exe)}
+            'transfer': transfer_windows(pk, exe), 'end': season_end(pk, exe)}
 
 
 def world(src, exe=None):
@@ -123,5 +152,6 @@ if __name__ == '__main__':
         sys.exit(0)
     nd = sum(1 for m in w.values() for t in m['transfer'] if t[3] == 'default')
     for cc, m in w.items():
-        print(cc, 'S', m['S'], ' '.join(f'{k}[{b},{e}]{"*" if s == "default" else ""}' for k, b, e, s in m['transfer']))
+        print(cc, 'S', m['S'], ' '.join(f'{k}[{b},{e}]{"*" if s == "default" else ""}' for k, b, e, s in m['transfer']),
+              'end', m['end'])
     print(f'{len(w)} countries, {nd} default transfer windows (* = no data yet)')

@@ -36117,7 +36117,8 @@ def kits_sites(exe_dir, exe='ITALIAN.EXE'):
     import swreg
     p = lepatch.LEPatch(os.path.join(exe_dir, exe))
     d4 = bytes(p.get(4, swreg.KITS_AT, 0x1000))
-    assert d4.count(b'KITS') == 1, d4.count(b'KITS')
+    assert d4.count(b'KITS') >= 1 and d4.index(b'KITS') % 4 == 0, d4.count(b'KITS')   # (the first: the keeper
+                                                    # page's texts come after the block - EN 'TEAM KITS')
     f = kits.find(lepatch.LEPatch(os.path.join(ROOT, 'orig', UI_ORIG)))
     return (4, swreg.KITS_AT + d4.index(b'KITS') + 4), f['SGP']
 

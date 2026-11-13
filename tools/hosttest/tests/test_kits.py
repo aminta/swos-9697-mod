@@ -87,7 +87,8 @@ def test_kits_exe():
     f = kits.find(o)
     va = lambda t: (B1 if t[0] == 1 else B2) + t[1]
     page = rd(B4 + swreg.KITS_AT, 0x1000)
-    assert page.count(b'KITS') == 1, 'the KITS block'
+    assert page.count(b'KITS') >= 1 and page.index(b'KITS') % 4 == 0, 'the KITS block'   # (the first: EN 'TEAM KITS'
+                                                                                    #  comes after it)
     kb = B4 + swreg.KITS_AT + page.index(b'KITS') + 4
     REF, KK1, KK2, HS1 = kb, kb + 4, kb + 8, kb + 12
     CALLS, KT1, KT2 = kb + 20, kb + 44, kb + 76

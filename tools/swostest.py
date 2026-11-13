@@ -23880,7 +23880,8 @@ def world_c23():
     """4.2 (42-c23, Shaved 10/11): a career save from another build, loaded mid-season with a continental cup running:
     the continental slots' long-name pointer (DIY+27h, absolute - gp_repoint_c skipped slots 2 / 3 before) must land on
     the slot's own saved title (DIY+4, the long name), else the running cup's name and its season-record line
-    (+1Eh / +22h = DIY+27h - STR_BASE at the season end) are another build's string. C23_CAR (default the 4.1
+    (+1Eh / +22h = DIY+27h - STR_BASE at the season end) are another build's string. C23_STATIC=3 (comma list): those slots must
+    point at a static name, not at their own title b + 4 (gp_repoint_c's candidates: careerworld's W<n>_CC...). C23_CAR (default the 4.1
     world_uesum save internal/swostest/suite-41s37-itl/cv_s2_<UI>.CAR) on C23_BUILD; C23_EXPECT=stale: the control
     build (no fix) must show at least one stale pointer."""
     exe = os.environ.get('C23_BUILD')
@@ -23914,6 +23915,10 @@ def world_c23():
             got = bytes(s.result.read(p27, 42)).split(b'\0')[0] if p27 < 0x8000000 else b'(out of memory)'
             ok = got == title or (len(title) == 34 and got.startswith(title))
             seen.append(ok)
+            if str(k) in os.environ.get('C23_STATIC', '').split(','):   # (MC 13/11: a struct's static long name,
+                stat = p27 != lin + 4                                   # not the slot's own title b + 4 - which the
+                check(stat, f'slot {k}: DIY+27h {p27:#x} = its own title (b + 4), not a static name', errs)   # next draw overwrites)
+                info.append(f'slot {k} static {p27:#x}' if stat else f'slot {k} self')
             s.log.append(f'[c23] slot {k}: title {title!r} DIY+27h {p27:#x} -> {got!r} {"OK" if ok else "STALE"}')
             info.append(f'slot {k} {title.decode("latin-1")} -> {got.decode("latin-1")!r}')
             if k == 3:                                  # (the European slot: its line +1Eh at the season end)

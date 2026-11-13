@@ -3127,11 +3127,17 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     LABELS.update(CAL=(2, ps['cal']), CAL_CUR=(2, ps['cal_cur']))   # (4.0.6 ctview: the career calendar's week)
     LABELS['csyms'] = dict(syms)                       # (every C symbol: tools/hosttest's ITALIAN.syms.json)
     import cobj as _cobj                                # 4.2 (Regia 13/11, perf): gp_repoint_c's slot 2 / 3 candidates
-    rps = sacups.SLOT23
+    import careerworld                                  # (+ the career worlds' euro templates W<n>_CC / _CWC / _UEFA:
+    cwt = sorted(k for k in careerworld.LABELS if re.fullmatch(r'W\d+_(CC|CWC|UEFA)', k))   # their static long names,
+    rps = sacups.SLOT23 + [(1, careerworld.LABELS[k]) for k in cwt]     # UCL in a 2026-27 save - MC 13/11)
     assert 0 < len(rps) <= 64, ('gplay: GP_RPS', len(rps))
+    import mkseason                                     # (no silent empty list - MC 13/11: a build with career worlds
+    want = sorted(f'W{n}_{k}' for n in mkseason.worlds() for k in ('CC', 'CWC', 'UEFA'))   # has their 3 templates each,
+    assert cwt == want, ('gplay: GP_RPS career world templates (careerworld.patch must run first)', cwt, want)   # in GP_RPS
     for i, (o, off) in enumerate(rps):
         _cobj.add_ptr(p, syms['GP_RPS'][1] + 4 * i, o, off, objn=syms['GP_RPS'][0])
     p.put(*syms['GP_RPSN'], struct.pack('<I', len(rps)))
+    print(f'exe: gp_repoint_c candidates GP_RPS: {len(rps)} structs ({len(sacups.SLOT23)} slot chain, worlds {cwt})')
     LABELS.update(lab, GP_USRP=syms['GP_USRP'], GP_TOPW=top_w, GP_TOPR=top_r, CD_ST=syms['CD_ST'], SC_ST=syms['SC_ST'], SC_TRACE=syms['SC_TRACE'], CF_ST=syms['CF_ST'], CN_ST=syms['CN_ST'], SEC_BQ=syms['SEC_BQ'], GP_GS=syms['GP_GS'], GP_KOLAY=kolay, GP_IN=syms['GP_IN'], GP_OUT=syms['GP_OUT'], GP_ST=syms['GP_ST'], GP_LOG=syms['GP_LOG'], layout=lay, pg_season=syms['pg_season'], pg_place=syms['pg_place'], rs_season=syms['rs_season'], gp_stage=syms['gp_stage'], gp_overall=syms['gp_overall'], F1_ST=syms['F1_ST'], f1_capture=syms['f1_capture'], f1_valid=syms['f1_valid'], f1_auto=syms['f1_auto'], f1_build=syms['f1_build'], ap_mask=syms['ap_mask'], ap_next=syms['ap_next'], ap_label=syms['ap_label'], ap_build=syms['ap_build'], CAREERTEAM=(2, ct), SEASONPLAYING=(2, s['season']), gp_stitle_c=syms['gp_stitle_c'], gp_hplan_c=syms['gp_hplan_c'], gp_hlabel_c=syms['gp_hlabel_c'], GP_HP=syms['GP_HP'], GP_HGP=syms['GP_HGP'], GP_HG=syms['GP_HG'], GP_HV=syms['GP_HV'], GP_HF=syms['GP_HF'], GP_HL=syms['GP_HL'], GP_HON=syms['GP_HON'], GP_OV_ORD=syms['GP_OV_ORD'], GP_OV_ROWS=syms['GP_OV_ROWS'], GP_OV_N=syms['GP_OV_N'], GP_OV_ANNUAL=syms['GP_OV_ANNUAL'], GP_SS=syms['GP_SSB'], GP_SHB=syms['GP_SHB'], CFB=(2, ps['cfb']), PR_STATE=syms['PR_STATE'],
                   RS_STATE=syms['RS_STATE'], ri_season=syms['ri_season'], ri_apply=syms['ri_apply'],
                   ri_cache=syms['ri_cache'], RI_STATE=syms['RI_STATE'], RI_MGR=syms['RI_MGR'],

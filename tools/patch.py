@@ -82,6 +82,9 @@ CAREER_CAVE = 0xa6000        # 6th + 7th added pages (3.1: two; three with sever
 CAREER_DATA = 0xa8000        # 8th + 9th added pages (same builds; after the cave): the career packs' structs (mkseason)
 HIST2_PAGE = 0x1000          # 3.2: one more page after the others (0xa6000, or 0xaa000 with a world): tourney packs'
                              # contests and the ESCI fix (historic.patch; the world cave was nearly full)
+ARG_FROZEN = 0xa5fe0          # 4.2 (MC 13/11): the arg cave is closed at its 4.0 end (32 B left, no growth since 4.0):
+                              # nothing new goes there - new obj1 code moves out to obj4's OBJ1MV band (swreg.OBJ1MV_AT),
+                              # as obj2's page freeze; every obj1 claim updates internal/handoff/obj1-room.md
 ARG_LOAD_HOOK = True
 
 LEAGUES_OLD = bytes.fromhex('3c00144020150000000202033512')
@@ -622,7 +625,12 @@ def patch_exe(src, dst, remap, lang='it'):
         careerworld.BSS_SIZE += conti.BSS
     assert cave <= WORLD_CAVE, hex(cave)
     print(f'exe: caves: world end {world:#x} (limit {NZ_CAVE:#x}), arg end {arg_end:#x} (limit {OBJ1_NEW_VSIZE:#x})')
-    world = cafcups.intl_list(p, caf, world)
+    intl_x = bool(xtra_pg and LT_SPACE)          # 4.2 OBJ1MV step 4 (MC 13/11): the intl contests list (224 B) on the
+    if not intl_x:                               # extra pages after supercup, so the world cave keeps >= 512 B (obj1-room.md)
+        world = cafcups.intl_list(p, caf, world)
+    print(f'exe: world cave end {world:#x}: {NZ_CAVE - world} B left (to {NZ_CAVE:#x})')
+    assert arg_end <= ARG_FROZEN, (f'arg cave frozen at {ARG_FROZEN:#x} (MC 13/11): new obj1 code goes to obj4 OBJ1MV '
+                                   f'(swreg.OBJ1MV_AT) or a ledgered region (internal/handoff/obj1-room.md)', hex(arg_end))
     num_bss = obj2_free + o2pages * p.le.page_size + (careerworld.BSS_SIZE if bigw else 0)
     if CAREER_END[0] is not None:                # 4.0.1: with worlds, in the career cave (the world cave is full)
         CAREER_END[0] = shirtnum.patch(p, (CAREER_END[0] + 3) & ~3, num_bss)
@@ -753,6 +761,8 @@ def patch_exe(src, dst, remap, lang='it'):
             xe = quietend.patch(p, (xe + 15) & ~15, min(w27s), lang)   # the season end + a progress line (World 2026-27)
         if sc_on:                                        # 4.0.5: the season end's cup winners / finalists (supercups)
             xe = supercup.patch(p, xe)
+        if intl_x:                                       # 4.2 OBJ1MV step 4: the intl contests list (dd + fixups)
+            xe = cafcups.intl_list(p, caf, (xe + 3) & ~3)
         assert xe <= xp + 0x1000 * xpg, hex(xe)
         print(f'exe: extra pages obj1+{xp:#x}..{xe:#x} (free to {xp + 0x1000 * xpg:#x}: {xp + 0x1000 * xpg - xe} B left)')
         if LT_SPACE:                                     # 4.2 (MC 13/11): lgreal on the extra pages' tail, after supercup

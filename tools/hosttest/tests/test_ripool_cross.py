@@ -386,7 +386,37 @@ def test_s7_pool_names():
     except AssertionError:
         pass
     pk.pool_data = orig
-    return not errs, '; '.join(errs) or f'{n} pool rows = RS5144 clubs by name, both ways; two refusals'
+    # (Shaved 13/11, MC: s7swap.pool_order - the order, and the check skipped only with no pool on BOTH sides)
+    p0, np_ = s7swap.pool_order(pk, home)
+    if (p0, np_) != (home.index(0xFFFF), n):
+        errs.append(f'pool_order {p0, np_}: want ({home.index(0xFFFF)}, {n})')
+    sw = bytearray(orig)                               # RS records 0 and 1 swapped: the same set, another order
+    sw[2:2 + 684], sw[2 + 684:2 + 2 * 684] = orig[2 + 684:2 + 2 * 684], orig[2:2 + 684]
+    pk.pool_data = bytes(sw)
+    try:
+        s7swap.pool_order(pk, home)
+        errs.append('RS records 0 / 1 swapped: pool_order not refused')
+    except AssertionError as e:
+        if 'not RS record j' not in str(e):
+            errs.append(f'swapped order: wrong message {e}')
+    keep_pf = getattr(pk, 'pool_file', None)
+    pk.pool_data, pk.pool_file = None, None            # registry pool rows, no RS file: refused, never skipped
+    try:
+        s7swap.pool_order(pk, home)
+        errs.append('pool rows without an RS file: not refused')
+    except AssertionError as e:
+        if 'no RS file' not in str(e):
+            errs.append(f'no RS file: wrong message {e}')
+    pk.pool_data, pk.pool_file = orig, keep_pf
+    s7t = os.environ.get('HT_S7T_PACK') or '/private/tmp/claude-501/-Users-davide/161293a9-d461-4832-8300-ab312d6d3a9a/scratchpad/s7t/ita'
+    if os.path.isfile(os.path.join(s7t, 'pack.json')):  # (the s7t test pack: no off-file pool on either side - skipped)
+        pt = mkseason.Pack(s7t)
+        ht, _ = s7swap.homes(pt)
+        if s7swap.pool_order(pt, ht) != (0xFFFF, 0):
+            errs.append(f's7t: pool_order {s7swap.pool_order(pt, ht)}: want (0xFFFF, 0)')
+    return not errs, '; '.join(errs) or (f'{n} pool rows = RS5144 clubs by name, both ways, in order (idents '
+                                         f'{p0}..{p0 + n - 1}); four refusals' + ('; s7t skipped' if os.path.isfile(
+                                             os.path.join(s7t, 'pack.json')) else ''))
 
 
 def test_cd_str_s7():

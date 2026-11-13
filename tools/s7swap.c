@@ -72,6 +72,19 @@ static uint16_t home_of(int32_t id)
     return 0xFFFF;
 }
 char S7_NAME[2][16] DATA = {{0}};       /* the two files' names (DATA\\TMW5.102 ...) */
+
+/* S7 x pool (MC 13/11, s7-ri-fix.md Changes: the registry is the one truth). The off-file pool's clubs are registry
+   idents S7_POOL0 .. + S7_NPOOL - 1, ident S7_POOL0 + j = the RS file's record j (s7swap.py pool_order asserts it by
+   name); a row's record comes from its occupant's ident (s7_load). ri_pool (gplay.c) decides the pool's moves and logs
+   them in RI_MOVES; s7_season applies them to the registry. */
+uint16_t S7_POOL0 DATA = 0xFFFF, S7_NPOOL DATA = 0;
+uint8_t *S7_RIPOOL DATA = 0;            /* ripool's RI_POOL of FB (obj2): u16 BE records, then 684 B each - read by ri_load
+                                           once per DOS session; s7_load reads it itself when still empty (S7_RSNAME) */
+char S7_RSNAME[16] DATA = {0};          /* its RS file (DATA\\RS5144.DAT) */
+extern uint16_t RI_MOVES[][3];          /* s7ri.c (included below): this season end's pool moves {row of FB, out, in ident} */
+extern int32_t RI_NMOVES;
+struct { uint8_t n, status; uint16_t row; } S7_RIMV DATA = {0};   /* (harness: the moves applied, 1 ok / 2 refused,
+                                                                     the refused move's row) */
 uint32_t S7_OAT[2] DATA = {0};          /* their ORIG buffers' offsets in S7_ORIG */
 uint16_t S7_ONREC[2] DATA = {0};        /* their records as shipped */
 uint32_t S7_FNV[2] DATA = {0};          /* their FNV-1a as read into S7_ORIG (orig_read); every load checks it */
@@ -99,7 +112,8 @@ extern uint8_t S7_ORIG[];               /* swe.c .bss (swreg.S7_ORIG_SZ) */
    record by the last call, calls */
 enum { LD_OK = 1, LD_NOREG = 2, LD_READ = 3, LD_SIZE = 4, LD_FILE = 5 };   /* (LD_FILE: the file read is not the
                                            one on disk even after a fresh ORIG read: nothing applied) */
-struct { uint8_t status, oread, file, pad; uint16_t moved, rows; uint32_t calls; int32_t rc; } S7_LD DATA = {0};
+struct { uint8_t status, oread, file, nopool; uint16_t moved, rows; uint32_t calls; int32_t rc; } S7_LD DATA = {0};
+                                        /* (nopool: rows of a pool club with no RS record to give - never) */
 #ifdef S7_LDFAIL
 uint32_t S7_LDFAILN DATA = S7_LDFAIL;    /* (S7_LDFAIL test builds: that call's ORIG read fails once - MC 13/11) */
 #endif
@@ -127,7 +141,7 @@ struct { uint16_t old, neww; int16_t league, pad; } S7_CLOG DATA = {0};   /* the
 
 /* the result (harness: S7_LOG) */
 enum { S7_OK = 1, S7_NOREG = 2, S7_STALE = 3, S7_BAD = 4, S7_COUNT = 5, S7_PLACE = 6, S7_REG = 7, S7_NOCLUB = 8,
-       S7_WSITE = 9, S7_WMAP = 10, S7_SKIP = 11 };
+       S7_WSITE = 9, S7_WMAP = 10, S7_SKIP = 11, S7_RIMV_BAD = 12 };
 struct { uint8_t status, season, nswap, ncross; int32_t rc; } S7_LOG DATA = {0};   /* (the swaps: the arena's SW_AT) */
 
 static int32_t fi_of(uint8_t file) {
@@ -154,9 +168,9 @@ struct args { int8_t *sltcopy; };
 #define ND_AT ((W_AT + sizeof(sr_reg_work) + 15) & ~15u)
 #define ORD_AT (ND_AT + SR_REG_CLUBS)
 #define SW_AT ((ORD_AT + 2 * 48 + 15) & ~15u)     /* sr_reg_swap[S7_NSW]: the last season's swaps (piece 4's wmap) */
-#define S7_NSW 32
+#define S7_NSW 96                        /* (S7 x pool: ri's moves too - Italy 36 + 18 crossers) */
 #define PR_AT ((SW_AT + S7_NSW * sizeof(sr_reg_swap) + 15) & ~15u)   /* the word map: sr_wpair[S7_NPR] */
-#define S7_NPR 128
+#define S7_NPR 256
 #define WR_AT ((PR_AT + S7_NPR * sizeof(sr_wpair) + 15) & ~15u)   /* S7_WRES[WS_MAX] */
 #ifndef SWE_ARENA
 #define SWE_ARENA 0x8000
@@ -288,6 +302,25 @@ static int32_t run(void *pv) {
     return S7_LOG.status = S7_SKIP;     /* (S7_NOSWAP test builds: no swap at all - world_s7cross_diff's control) */
 #endif
     if (!sreg_get()) return S7_LOG.status = S7_NOREG;
+    /* ri_pool's moves first (it ran before us, pg_fix order), whatever else this season end does: the registry
+       follows ri's queue. Each as {a, NONE, on}: the occupant off the files (queued in ri's q[]), the pool head onto
+       its row - the row and its division stay. All checked before any is applied. */
+    sr_reg_swap *sw = (sr_reg_swap *)(SWE_ARENA_AT + SW_AT);
+    int32_t nri = RI_NMOVES, fb0 = fi_of(S7_FB);
+    S7_RIMV.n = 0; S7_RIMV.status = 1; S7_RIMV.row = 0;
+    for (int32_t k = 0; k < nri; k++) {
+        uint32_t row = RI_MOVES[k][0], out = RI_MOVES[k][1], in = RI_MOVES[k][2];
+        int32_t ok = nri <= S7_NSW / 2 && fb0 >= 0 && row < R->rows[fb0] && R->at[fb0][row] == out &&
+                     in < (uint32_t)R->nclub && R->word[in] == SR_REG_NONE && in != out;
+        for (int32_t j = 0; ok && j < k; j++) ok = RI_MOVES[j][0] != row && RI_MOVES[j][2] != in;
+        if (!ok) { S7_RIMV.status = 2; S7_RIMV.row = (uint16_t)row; return S7_LOG.status = S7_RIMV_BAD; }
+    }
+    for (int32_t k = 0; k < nri; k++) {
+        uint16_t row = RI_MOVES[k][0], out = RI_MOVES[k][1], in = RI_MOVES[k][2], wd = (uint16_t)(S7_FB | row << 8);
+        R->word[out] = SR_REG_NONE; R->at[fb0][row] = in; R->word[in] = wd;
+        sw[k].a = wd; sw[k].b = SR_REG_NONE; sw[k].on = in;
+    }
+    S7_RIMV.n = (uint8_t)nri;
     const struct s7x *A = &S7X[0], *B = &S7X[1];
     S7_LOG.season = A->season;
     if (A->file != S7_FA || B->file != S7_FB || !A->season || A->season != B->season) return S7_LOG.status = S7_STALE;
@@ -339,9 +372,10 @@ static int32_t run(void *pv) {
     S7_WLOG.row = (int16_t)wcheck(); S7_WLOG.rc = 0; S7_WLOG.changed = S7_WLOG.cache = S7_WLOG.npair = S7_WLOG.rows = 0;
     if (S7_WLOG.row >= 0) return S7_LOG.status = S7_WSITE;     /* (before the registry changes: nothing done) */
     sr_reg_work *w = (sr_reg_work *)(SWE_ARENA_AT + W_AT);
-    int32_t c = sr_reg_season(R, nd, order, no, 0, w, (sr_reg_swap *)(SWE_ARENA_AT + SW_AT), S7_NSW);
+    int32_t c = sr_reg_season(R, nd, order, no, 0, w, sw + nri, S7_NSW - nri);
     S7_LOG.rc = c;
     if (c < 0) return S7_LOG.status = S7_REG;
+    c += nri;                           /* (the walk: ri's moves, then the crossings) */
     S7_LOG.nswap = (uint8_t)c;
     s7_flush();
     /* next season's deltas: every row's division (rdiv, the league's) as its file's local, minus the slot's base */
@@ -382,6 +416,25 @@ static int32_t orig_read(void)         /* both files as read into S7_ORIG: 1, el
     return 1;
 }
 
+uint32_t s7_poolk(uint32_t x)            /* GP_POOLK (gplay.c): an ident's index among the pool idents, 0xFFFF none;
+                                           0x10000 | k: RS record k's ident (ri's queue seed), 0xFFFF past the pool */
+{
+    if (x & 0x10000) return (x & 0xFFFF) < S7_NPOOL ? S7_POOL0 + (x & 0xFFFF) : 0xFFFF;
+    x &= 0xFFFF;
+    return x >= S7_POOL0 && x < (uint32_t)S7_POOL0 + S7_NPOOL ? x - S7_POOL0 : 0xFFFF;
+}
+
+static void pool_read(void)             /* RI_POOL still empty (ri_load reads it with the first FB load of a DOS session;
+                                           a pool club promoted into FA can be loaded before): the RS file, as ri_load */
+{
+    uint32_t want = 2 + 684u * S7_NPOOL;
+    int h = swe_fopen_r(S7_RSNAME);
+    if (h < 0) return;
+    int r = swe_fread(h, S7_RIPOOL, want);
+    swe_fclose(h);
+    if (r != (int)want || be16(S7_RIPOOL) != S7_NPOOL) S7_RIPOOL[0] = S7_RIPOOL[1] = 0;
+}
+
 static void rec_copy(uint8_t *d, const uint8_t *s)   /* gplay.c ri_copy's rule: all but the row's own bytes */
 {
     for (int32_t b = 0; b < 684; b++)
@@ -400,7 +453,7 @@ static int32_t load_run(void *pv)
     uint32_t file = ((struct largs *)pv)->file & 0xFF;
     int32_t s = file == S7_FA ? 0 : file == S7_FB ? 1 : -1;
     if (s < 0) return 0;
-    S7_LD.calls++; S7_LD.file = (uint8_t)file; S7_LD.moved = S7_LD.rows = 0;
+    S7_LD.calls++; S7_LD.file = (uint8_t)file; S7_LD.moved = S7_LD.rows = 0; S7_LD.nopool = 0;
     if (!sreg_get()) return S7_LD.status = LD_NOREG;
     if (be16(buf) != S7_ONREC[s] || be16(orig) != S7_ONREC[s]) return S7_LD.status = LD_SIZE;
     uint32_t h = s7_fnv(orig, 2 + 684u * S7_ONREC[s]);
@@ -420,7 +473,16 @@ static int32_t load_run(void *pv)
         if (id < 0 || id >= R->nclub) continue;
         uint16_t h = home_of(id);
         int32_t hs = (h & 0xFF) == S7_FA ? 0 : (h & 0xFF) == S7_FB ? 1 : -1;
-        if (hs < 0 || (h >> 8) >= S7_ONREC[hs]) continue;
+        if (hs < 0) {                                   /* (no home row: a pool club - RS record S7_POOL0 + k) */
+            uint32_t k = s7_poolk((uint32_t)id);
+            if (k == 0xFFFF) continue;
+            if (S7_RIPOOL && !be16(S7_RIPOOL)) pool_read();
+            if (!S7_RIPOOL || k >= (uint32_t)be16(S7_RIPOOL)) { S7_LD.nopool++; continue; }
+            rec_copy(buf + 2 + 684 * o, S7_RIPOOL + 2 + 684 * k);
+            moved++;
+            continue;
+        }
+        if ((h >> 8) >= S7_ONREC[hs]) continue;
         if (hs == s && (h >> 8) == o) continue;      /* (its own row: the record as read) */
         rec_copy(buf + 2 + 684 * o, S7_ORIG + S7_OAT[hs] + 2 + 684 * (h >> 8));
         moved++;
@@ -446,6 +508,23 @@ static int32_t home_run(void *pv)
     return h == 0xFFFF ? (int32_t)w : h;
 }
 
+static int32_t ident_run(void *pv)      /* the registry club in team word w's row of the two league files, 0xFFFF none */
+{
+    uint32_t w = *(uint32_t *)pv & 0xFFFF, file = w & 0xFF, ord = w >> 8;
+    if ((file != S7_FA && file != S7_FB) || !sreg_get()) return 0xFFFF;
+    const sr_registry *R = SREG_REG;
+    int32_t fi = fi_of((uint8_t)file);
+    if (fi < 0 || ord >= R->rows[fi]) return 0xFFFF;
+    int32_t id = R->at[fi][ord];
+    return id >= R->nclub ? 0xFFFF : id;
+}
+
+uint32_t s7_ident(uint32_t w)           /* GP_IDENT (gplay.c ri_pool / ri_cache / cd_str): cdecl, -> the engine's C stack */
+{
+    int32_t r = cstack_call(ident_run, &w);
+    return r < 0 ? 0xFFFF : (uint32_t)r;  /* (CSTACK_REFUSED: none - ri_pool counts it in RI_S7_BAD) */
+}
+
 uint32_t s7_home_word(uint32_t w)       /* xtra_readto (S7_HPTR): cdecl, the game's stack -> the engine's C stack */
 {
     uint32_t w0 = w & 0xFFFF;
@@ -467,3 +546,7 @@ int32_t s7_season(int8_t *sltcopy)     /* pg_fix: cdecl, the game's stack -> the
     a.sltcopy = sltcopy;
     return cstack_call(run, &a);
 }
+
+/* S7 x ri: Panchina's s7ri.c (MC ruling (b) 13/11: S7-only logic in obj4) - one translation unit with this file: it calls
+   s7_ident / s7_poolk / s7_home_word, its RI_MOVES is read by s7_season above */
+#include "s7ri.c"

@@ -2712,7 +2712,7 @@ static void cd_make(void) {             /* a later season's rounds 0-1 (CD_ST.ge
 /* s7-ri-fix.md "Changes" (MC 13/11): in S7 builds the REGISTRY decides and ri's maps[] is unused. The logic is s7ri.c (obj4,
    included by s7swap.c); gplay.c keeps these two hook pointers (set by s7swap.py; 0 = today's path, dormant). */
 int (*GP_RIPOOL)(const u8 *e, u16 *q, u8 *qn, int init, int file, const s8 *slt, s8 *copy, int manager, u16 *og, int *nog,
-                 u16 *out, int *no) GP_DATA_SECTION;
+                 u16 *out, int *no, u16 *map, int nmap) GP_DATA_SECTION;
 u32 (*GP_CDSTR)(u16 w, const u8 *s) GP_DATA_SECTION;      /* (0: not applicable here) */
 #endif
 int cd_ident(int m, int i);             /* (the RI section: a pooled slot's identity) */
@@ -4143,7 +4143,7 @@ static const u8 *ri_pool(const u8 *e, struct ri_file *f, int fi, u16 *q, u8 *qn,
 #if GP_S7
         int s7p = 0;
         if (run && GP_RIPOOL) {                 /* S7 builds (s7ri.c): the registry decides for the S7 pooled file (-1: another file) */
-            m = GP_RIPOOL(e, q, qn, *f->init, RI_FILES_FILE[fi], slt, copy, manager, ri_og, &ri_no, out, &no);
+            m = GP_RIPOOL(e, q, qn, *f->init, RI_FILES_FILE[fi], slt, copy, manager, ri_og, &ri_no, out, &no, f->map, f->n);
             if (m >= 0) s7p = 1; else m = 0;
         }
         if (!s7p)

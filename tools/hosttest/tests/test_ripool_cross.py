@@ -78,6 +78,8 @@ class Reg:
             return i - POOL_FIRST if POOL_FIRST <= i < POOL_FIRST + POOL else NONE
         self.poolk = self.cb(pk)
         self.home = self.cb(lambda w: w)
+        self.homes = {}                              # ident -> home word (a pool club: 0xFFFF); default: native on row i = FILE | i << 8
+        self.homeof = self.cb(lambda i: self.homes.get(i, 0xFFFF))
 
 
 WRAP = (
@@ -86,8 +88,11 @@ WRAP = (
     'uint32_t s7_ident(uint32_t w) { return t_ident(w); }\n'
     'uint32_t s7_poolk(uint32_t i) { return t_poolk(i); }\n'
     'uint32_t s7_home_word(uint32_t w) { return t_home(w); }\n'
+    'uint32_t (*t_homeof)(uint32_t);\n'
+    'static uint16_t home_of(int32_t id) { return (uint16_t)t_homeof((uint32_t)id); }\n'
     '#define DATA\n#undef S7_FB\nuint8_t S7_FB = 144;\nuint8_t RI_FRESH = 0;\n#include "s7ri.c"\n'
     'void t_wire(void) { GP_RIPOOL = s7ri_pool; GP_CDSTR = s7ri_cdstr; }\n'
+    'void t_unhint(void) { s7ri_unhint(); }\n'
     'void t_unwire(void) { GP_RIPOOL = 0; GP_CDSTR = 0; }\n'
     'u32 t_cd_str(u16 w) { return cd_str(w); }\n'
     'void t_cdd(const u8 *p) { GP_CDD = p; }\n')
@@ -110,7 +115,7 @@ def s7_lib(tag='s7', extra=(), s7ri=None):
 def s7_hooks(L, reg):
     if os.environ.get('RIX_MUTANT_NOIDENT'):         # (control of the test: the registry answers "none")
         reg.ident = reg.cb(lambda w: NONE)
-    for name, fn in (('t_ident', reg.ident), ('t_poolk', reg.poolk), ('t_home', reg.home)):
+    for name, fn in (('t_ident', reg.ident), ('t_poolk', reg.poolk), ('t_home', reg.home), ('t_homeof', reg.homeof)):
         ctypes.c_void_p.in_dll(L, name).value = ctypes.cast(fn, ctypes.c_void_p).value
     L.t_wire()
 
@@ -155,14 +160,125 @@ def s7_checks(L, reg, q, universe, errs, tag):
     if sorted(allv) != sorted(universe):
         dup = sorted({x for x in allv if allv.count(x) > 1})
         errs.append(f'{tag}: rows {reg.occ} + queue {q}: duplicates {dup}, missing {sorted(set(universe) - set(allv))}')
+    L.t_unhint()                                     # (ri_ida's transient hints end with the pg_fix: s7_season's first statement)
     _q, maps = read_state(L)
-    if any(maps):
-        errs.append(f'{tag}: maps[] written {maps}')
+    if any(maps) or ctypes.c_int.in_dll(L, 'RI_HINTN').value:
+        errs.append(f'{tag}: maps[] not clear after s7ri_unhint {maps}')
     if ctypes.c_int.in_dll(L, 'RI_S7_BAD').value:
         errs.append(f'{tag}: RI_S7_BAD {ctypes.c_int.in_dll(L, "RI_S7_BAD").value}')
     sw = bytes((ctypes.c_uint8 * (8 * (RIS // 8))).in_dll(L, 'RI_SWAPPED'))
     if any(sw):
         errs.append(f'{tag}: RI_SWAPPED set')
+
+
+def hint_words(L, n=SLOTS):
+    RF = 8
+    raw = bytes((ctypes.c_uint8 * (RF + RP + 2 * RQT + 2 * RP * RO + 2 * RMT)).in_dll(L, 'RI_STATE'))
+    return list(struct.unpack_from(f'<{n}H', raw, RF + RP + 2 * RQT + 2 * RP * RO))
+
+
+def hint_case(L):
+    """The transient hints ri_ida reads (s7-ri-fix.md, MC 13/11): row 0 a pool club (100, RS record 0), row 1 a native whose home
+    is row 2 (moved inside the file), row 2 a native on its own row (12, relegated: out 12, in 101 = RS record 1), row 3 a club of
+    the other file. After s7ri_pool: [257, 3, 258, 0] = pool k + 257 / home slot + 1 / the INCOMING club's / 0."""
+    reg = Reg([100, 11, 12, 50])
+    reg.homes = {11: FILE | 2 << 8, 12: FILE | 2 << 8, 50: 102 | 7 << 8}      # (pool clubs: 0xFFFF by default)
+    s7_hooks(L, reg)
+    mv, q = s7_season(L, reg, [2], queue=[101, 102, 10])
+    return mv, hint_words(L), reg
+
+
+def test_ripool_hints():
+    L = s7_lib('hint')
+    errs = []
+    mv, hw, reg = hint_case(L)
+    if mv != [(2, 12, 101)] or hw != [257, 3, 258, 0]:
+        errs.append(f'moves {mv}, hint words {hw} (want [(2, 12, 101)] / [257, 3, 258, 0])')
+    if ctypes.c_int.in_dll(L, 'RI_HINTN').value != SLOTS:
+        errs.append(f'RI_HINTN {ctypes.c_int.in_dll(L, "RI_HINTN").value} (want {SLOTS})')
+    if ctypes.c_uint8.in_dll(L, 'RI_SWAPPED').value if False else any(bytes((ctypes.c_uint8 * 32).in_dll(L, 'RI_SWAPPED'))):
+        errs.append('RI_SWAPPED set')
+    L.t_unhint()
+    if any(hint_words(L)) or ctypes.c_int.in_dll(L, 'RI_HINTN').value:
+        errs.append(f'not clear after s7ri_unhint: {hint_words(L)}')
+    # the regional rule on the real pack: ri_ida1's lookup of hint 256 + k + 1 = the identity slots + k = pool club k's areas
+    pack = os.path.join(os.path.expanduser('~'), 'swos-mod', 'internal', 's7pack-real', 'ita')
+    if os.path.isfile(os.path.join(pack, 'pack.json')):
+        import mkseason
+        import ripool
+        pk = mkseason.Pack(pack)
+        tabs = [pk.off_pool()]
+        ida = ripool.ida_bytes(tabs)
+        n, o = ida[0], 1
+        hdr = 14 if ripool.ida_two(tabs) else 10
+        base, moff, slots, nid, na = struct.unpack_from('<HHHHB', ida, o + 1)
+        o += hdr
+        areas = [list(ida[o + i * na:o + (i + 1) * na]) for i in range(nid)]
+        pools = list(pk.pool_clubs)
+        bad = []
+        for k, key in enumerate(pools):
+            want = [mkseason.area_byte(x) for x in pk.clubs[key]['area'].split('/')] if '/' in (pk.clubs[key].get('area') or '') else \
+                   [mkseason.area_byte(pk.clubs[key]['area']) if pk.clubs[key].get('area') else 0xFF] * na
+            if areas[slots + k] != want:
+                bad.append((key, areas[slots + k], want))
+        if bad:
+            errs.append(f'IDA identity slots + k is not pool club k\'s areas: {bad[:2]}')
+    return not errs, '; '.join(errs) or ('hints: pool k -> 257 + k, a moved native -> home + 1, the incoming club\'s for the swap row, a foreign club -> 0, '
+                                         'transient (clear after s7ri_unhint, RI_SWAPPED unset); IDA identity slots + k = pool club k\'s areas')
+
+
+def ri_where(sy, file):
+    """(k, moff) of a pooled team file from the exe's .syms.json (ripool LABELS RI_F{k} / RI_MOFF{k}), or None."""
+    rs = sy['ripool']
+    for k in range(8):
+        if f'RI_F{k}' in rs and rs[f'RI_F{k}'][1] == file:
+            return k, rs[f'RI_MOFF{k}'][1], None, None
+    return None
+
+
+def test_s7_unhint_first():
+    """MC 13/11 (conditions 1 + 2): s7_season clears the transient hint words FIRST, before any early return: here with a registry
+    refusal path (poked refused moves) and the plain season. Hint words poked into file 144's maps[] + RI_HINTMAP / RI_HINTN as
+    s7ri_pool leaves them: after s7_season (any status) every word is 0 and RI_HINTN 0."""
+    import test_s7rimoves as rm
+    import test_s7swap as t7
+    m, why = rm.setup()
+    if not m:
+        return why.startswith('SKIP'), why
+    sy = json.load(open(rm.EXE[:-4] + '.syms.json'))
+    w = ri_where(sy, t7.FB)
+    if w is None:
+        return False, 'RI_F / RI_MOFF of 144 not exported'
+    k, moff, _o, _p = w
+    import ripool
+    maps = m.at('gplay', 'RI_STATE') + ripool.OVR_AT + 2 * ripool.RP * ripool.RO + 2 * moff
+    fs, word, at, rdiv, rows = t7.reg_parse(m.regb())
+    errs = []
+    for tag, mv in (('plain season', []), ('refused move', [(rows[[f[0] for f in fs].index(t7.FB)] + 5, 0, 0)])):
+        m.fresh()
+        m.w(m.at('swefile', 'swe_fopen_r'), b'\xb8\xfe\xff\xff\xff\xc3')
+        m.w(maps, struct.pack('<162H', *range(1, 163)))
+        m.w(m.at('s7swap', 'RI_HINTMAP'), struct.pack('<I', maps))
+        m.w(m.at('s7swap', 'RI_HINTN'), struct.pack('<i', 162))
+        rm.poke_moves(m, mv)
+        m.w(m.at('s7swap', 'RI_FRESH'), b'\x01')
+        t7.run(m, *t7.crossings(fs, m.gb))
+        got = struct.unpack('<162H', m.rd(maps, 324))
+        hn = struct.unpack('<i', m.rd(m.at('s7swap', 'RI_HINTN'), 4))[0]
+        if any(got) or hn:
+            errs.append(f'{tag}: hint words not clear after s7_season: {sum(1 for x in got if x)} non-zero, RI_HINTN {hn}')
+    return not errs, '; '.join(errs) or 'maps[] of file 144 clear after s7_season (plain and refused-move paths), RI_HINTN 0'
+
+
+def test_ripool_hints_mutant():
+    """Control: no hint words written (the registry-model state as 905a7bf had it) must make test_ripool_hints' case FAIL."""
+    src = open(os.path.join(cd.TOOLS, 's7ri.c')).read()
+    mut = src.replace("map[i] = s7ri_hint(s7_ident", "map[i] = 0 * s7ri_hint(s7_ident", 1).replace(
+        "map[RI_MOVES[j][0]] = s7ri_hint(", "map[RI_MOVES[j][0]] = 0 * s7ri_hint(", 1)
+    assert mut != src
+    L = s7_lib('hintm', s7ri=mut)
+    mv, hw, reg = hint_case(L)
+    return hw == [0, 0, 0, 0], f'mutant (no hints): hint words {hw}: ri_ida would see every slot as its own (no regional placement)'
 
 
 def test_ripool_cross_queue():

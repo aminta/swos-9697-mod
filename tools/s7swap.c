@@ -585,8 +585,10 @@ void s7_load(uint8_t *buf, uint32_t file, const uint8_t *orig)   /* ri_load (S7_
     cstack_call(load_run, &a);
 }
 
+void s7ri_unhint(void);                 /* (s7ri.c, included below) */
 int32_t s7_season(int8_t *sltcopy)     /* pg_fix: cdecl, the game's stack -> the engine's C stack */
 {
+    s7ri_unhint();                      /* (FIRST, before any early return: ri_ida's transient maps[] words never outlive the pg_fix) */
     struct args a;
     a.sltcopy = sltcopy;
     return cstack_call(run, &a);

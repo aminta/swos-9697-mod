@@ -23,13 +23,32 @@ uint16_t S7RI_STR[S7RI_NSTR] DATA = {0};        /* the strength of each of its r
 uint16_t RI_MOVES[S7RI_MV][3] DATA = {{0}};    /* this season end's pool moves {row, out ident, in ident} */
 int32_t RI_NMOVES DATA = 0;
 int32_t RI_S7_BAD DATA = 0;
+uint16_t *RI_HINTMAP DATA = 0;                  /* ri_ida's transient input (s7-ri-fix.md, MC 13/11): the file's maps[] words, written here from the */
+int32_t RI_HINTN DATA = 0;                      /* registry before ri_ida, alive only inside one pg_fix: s7_season clears them first of all (s7ri_unhint) */
 
 /* e: ri_pool's table entry (db kind, db n, db low, dw ns, ns x {dw global, db base, db area}, n x db area, n x db RS record);
    q / qn: the pool's queue (idents) and its length; init: the pool's first order is due (ri_season's *init == 1); file: the
    team file; manager: its club's global number; og / nog: ri_pool's list of the relegated globals; out / no: the identities
    going out. Returns the number of swaps made (m), or -1: not the S7 pooled file (the caller runs its own path). */
+static uint16_t s7ri_hint(uint32_t ident, int32_t file, int32_t row)
+{                                               /* ri_ida's maps[] word of a club on a row: identity + 1 (identity: the file's own
+                                                   record index, or 256 + the pool record k); 0 = the row's own record */
+    if (ident == 0xFFFF) return 0;
+    uint32_t k = s7_poolk(ident);
+    if (k != 0xFFFF) return (uint16_t)(257 + k);                    /* a pool club: its RS record's areas */
+    uint16_t hw = home_of((int32_t)ident);
+    if (hw != 0xFFFF && (hw & 0xFF) == (uint32_t)file && (uint32_t)(hw >> 8) != (uint32_t)row) return (uint16_t)((hw >> 8) + 1);
+    return 0;                                   /* a native on its own row, or a club of the other file (S7_AREA's: the crossers) */
+}
+
+void s7ri_unhint(void)                          /* the FIRST statement of s7_season: the transient words never outlive the pg_fix */
+{
+    for (int32_t i = 0; RI_HINTMAP && i < RI_HINTN; i++) RI_HINTMAP[i] = 0;
+    RI_HINTN = 0;
+}
+
 int32_t s7ri_pool(const uint8_t *e, uint16_t *q, uint8_t *qn, int32_t init, int32_t file, const int8_t *slt, int8_t *copy,
-                  int32_t manager, uint16_t *og, int32_t *nog, uint16_t *out, int32_t *no)
+                  int32_t manager, uint16_t *og, int32_t *nog, uint16_t *out, int32_t *no, uint16_t *map, int32_t nmap)
 {
     if (file != S7_FB) return -1;                   /* (not the S7 pooled file: the world has other kind-0 pools - Spain, Germany,
                                                        the Netherlands, Portugal -: gplay.c's own maps[] path handles those) */
@@ -61,6 +80,14 @@ int32_t s7ri_pool(const uint8_t *e, uint16_t *q, uint8_t *qn, int32_t init, int3
         og[(*nog)++] = (uint16_t)g;
         copy[g] = slt[g];                           /* (the slot stays; pg_season places its new club by area) */
     }
+    /* ri_ida (right after ri_season, before pg_season) gives every club entry of the file the areas of its slot's identity from
+       maps[]: in S7 builds those words are DERIVED here from the registry, for every row: the occupant's identity, and for this
+       season's moves the INCOMING club's (a pool club enters its region's Serie D group). Transient: s7ri_unhint clears them. */
+    if (nmap > 256) nmap = 256;
+    RI_HINTMAP = map; RI_HINTN = nmap;
+    for (int32_t i = 0; i < nmap; i++) map[i] = s7ri_hint(s7_ident((uint32_t)file | (uint32_t)i << 8), file, i);
+    for (int32_t j = 0; j < RI_NMOVES; j++)
+        if (RI_MOVES[j][0] < nmap) map[RI_MOVES[j][0]] = s7ri_hint(RI_MOVES[j][2], file, RI_MOVES[j][0]);
     return m;
 }
 

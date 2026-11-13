@@ -186,9 +186,11 @@ static int32_t wcheck(void)            /* S7_WRES resolved; -1 every row resolva
             for (uint32_t e = 0; e < S7_ENN; e++)
                 if ((S7_ENI[3 * e + 2] & 0xFFFF) == s->item) { S7_WRES[k].ptr = S7_ENI[3 * e]; S7_WRES[k].len = S7_ENI[3 * e + 1]; }
         uint32_t len = s->item == WI_CACHE ? 684 : S7_WRES[k].len;
-        if (s->form != WS_W && s->form != WS_G) return k;
+        if (s->form != WS_W && s->form != WS_G && s->form != WS_R) return k;
         if (s->item != WI_CACHE && !S7_WRES[k].ptr) return k;
-        if (s->count && (s->off + (uint32_t)(s->count - 1) * s->stride + 2 > len || (s->count > 1 && s->stride < 2)))
+        uint32_t wd = s->form == WS_R ? 1 : 2;      /* (a WS_R entry is a u8: <= 256 of them, the file byte inside the item) */
+        if (s->count && (s->off + (uint32_t)(s->count - 1) * s->stride + wd > len || (s->count > 1 && s->stride < wd) ||
+                         (wd == 1 && (s->count > 256 || s->aux >= len))))
             return k;
     }
     return -1;

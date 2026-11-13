@@ -3007,6 +3007,9 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     import cupsf                                              # 4.0.1: the World 2026-27 cups follow promotions
     cfw = [w for w in cupsf.worlds() if cupsf.year(w) >= 2026] if cds else []
     cft = cupsf.table(cfw[-1]) if cfw else None
+    if (os.environ.get('S7_NEED_CF') or cds) and gp_s7() and not cft:   # (MC 13/11: a shaped build that must carry the CF code: on by default when a pack has cup_d, S7_NEED_CF=1 forces it - the
+        raise RuntimeError('gplay: this shaped build needs CF (a pack has cup_d, or S7_NEED_CF=1) but has no CF table (cf_cap not linked: the CF code is part of '   # winners
+                           'the Coppa D block, linked only when a league pack has cup_d: cds=%d, CF worlds=%s)' % (len(cds), cfw))   # scenarios)
     if cft:
         cd_src = nasmcave.sub(cd_src, '    jz .r\n    movzx ecx, byte [esi + 10]\n',
                               '    jz .r\n    call cf_mem\n    cmp eax, 2\n    je .cfd\n    test eax, eax\n'

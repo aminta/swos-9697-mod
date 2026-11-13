@@ -31645,7 +31645,9 @@ def diff_trace():
     new = build('diff_new', {'DIFF_TRACE': '1', 'DIFF_TEST': '3', **sh}, lang=lang)
     base = os.environ.get('DIFF_BASE')                  # (42-drp: REF = NEW's recipe built from that git ref, e.g.
     if base:                                            #  42-diff = the 0da9536 line; compared at DIFF_BASE_DR, default
-        ref = build('diff_base', {'DIFF_TRACE': '1', 'DIFF_TEST': '3', **sh}, branch=base, lang=lang)   # 0,1)
+        ref = os.environ.get('DIFF_BASE_BUILD') or \
+            build('diff_base', {'DIFF_TRACE': '1', 'DIFF_TEST': '3', **sh}, branch=base, lang=lang)   # 0,1; a ready
+        #  build dir in DIFF_BASE_BUILD: the server has no git - built here, synced by remote_run)
     padc = os.environ.get('DIFF_PAD')                   # (MC 13/11: REF+PAD = REF with a nop band of NEW's obj4 sizes
     if padc:                                            #  'code,buildup'; NORMAL then = REF+PAD, no EASY run)
         new = build('diff_refpad', {'DIFF_TRACE': '1', 'DIFF_PAD': padc,

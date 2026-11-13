@@ -110,6 +110,19 @@ def test_drp():
             n += 1
             if act != want_act:
                 errs.append(f'{lang} bu_opp pa {pa} pb {pb} DF_DACT {dact} mix {mix}: acts {act}, want {want_act}')
+        # the 'DF' byte: df_load (DF_SV) -> DF_W / DF_DR, then df_pack back into DF_SV / DF_SH
+        for v in range(64):
+            un.mem_write(0, sn)
+            un.mem_write(a4(ld['DF_SV']), bytes([v]))
+            _call(un, a4(ld['df_load']))
+            n += 1
+            w = struct.unpack('<H', bytes(un.mem_read(a4(ld['DF_W']), 2)))[0]
+            dr = struct.unpack('<H', bytes(un.mem_read(a4(ld['DF_DR']), 2)))[0]
+            sv, sh = bytes(un.mem_read(a4(ld['DF_SV']), 1))[0], bytes(un.mem_read(a4(ld['DF_SH']), 1))[0]
+            ww = v & 15 if v & 15 <= 4 else 0
+            wd = (v >> 4) & 3 if (v >> 4) & 3 <= 2 else 0
+            if (w, dr, sv, sh) != (ww, wd, ww | wd << 4, ww | wd << 4):
+                errs.append(f'{lang} df_load {v:#x}: W {w} DR {dr} SV {sv:#x} SH {sh:#x}, want {ww} {wd}')
     return not errs, '; '.join(errs[:10]) + (f' (+{len(errs) - 10})' if len(errs) > 10 else '') or \
         f'4 languages, {n} cases: dp_build = the host model (defaults = BLK_U / BLK_O), df_blk and bu_opp per DRIBBLING'
 

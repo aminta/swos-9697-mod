@@ -120,18 +120,23 @@ def strengths(pk, lfile):
         fl, i = pk.where.get(k, (None, None))
         if fl == lfile and i < 256:
             st[i] = strength(pk, k)
-    out = (struct.pack('<HHH', moff, nmap, len(pool)) + struct.pack('<256H', *st)
-           + b''.join(struct.pack('<H', strength(pk, k)) for k in pool))
-    if cd2():                               # S7 (s7-ri-fix.md, MC 13/11): a club of the OTHER league file in this file's rows by its
-        other = [f for f in pk.league_files() if f != lfile]    # real strength, the same rule (gplay.c cd_str, its home word)
-        assert len(other) == 1, ('cupd: S7 league files', pk.league_files(), lfile)
-        so = [5] * 256
-        for k in pk.clubs:
-            fl, i = pk.where.get(k, (None, None))
-            if fl == other[0] and i < 256:
-                so[i] = strength(pk, k)
-        out += struct.pack('<H', other[0]) + struct.pack('<256H', *so)
-    return out
+    return (struct.pack('<HHH', moff, nmap, len(pool)) + struct.pack('<256H', *st)
+            + b''.join(struct.pack('<H', strength(pk, k)) for k in pool))
+
+
+def other_strengths(pk, lfile):
+    """S7 (s7-ri-fix.md, MC 13/11): (the OTHER league file's number, [strength of each of its rows]) - s7ri.c's S7RI_STRF /
+    S7RI_STR (obj4, written by s7swap.py: only S7 code reads them, so they stay out of the gplay pages), the same rule as
+    strength(): a club of the other file sitting in this file's rows is seeded by its real strength (its home row)."""
+    other = [f for f in pk.league_files() if f != lfile]
+    assert len(other) == 1, ('cupd: S7 league files', pk.league_files(), lfile)
+    rows = {}
+    for k in pk.clubs:
+        fl, i = pk.where.get(k, (None, None))
+        if fl == other[0]:
+            rows[i] = strength(pk, k)
+    n = max(rows) + 1 if rows else 0
+    return other[0], [rows.get(i, 5) for i in range(n)]
 
 
 def cd2():

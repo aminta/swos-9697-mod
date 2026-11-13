@@ -422,7 +422,7 @@ def test_s7_pool_names():
 def test_cd_str_s7():
     """MC 13/11 (point 1): in S7 builds cd_str gives the Coppa D tie seeding a club's REAL strength whoever sits on the row:
     a native of this file by its home row, a pool club by its RS index, a club of the OTHER league file by its home row in the
-    table block cupd.strengths appends (db other file, 256 x dw), never the floor 5 unless its strength is that low.
+    obj4 table S7RI_STRF / S7RI_STR (cupd.other_strengths), never the floor 5 unless its strength is that low.
     gplay.c is #included natively (cd_str is static); GP_IDENT / GP_POOLK / GP_HOME stand-ins; CD_DT built like cupd's."""
     import cupd
     import mkseason
@@ -433,9 +433,10 @@ def test_cd_str_s7():
     pool = [40, 41, 42]
     oth = [9 + 3 * i for i in range(256)]
     oth[2] = 3                                       # a very weak club: the floor 5 applies by the rule, not by default
-    blk = struct.pack('<HHH', 0, 162, len(pool)) + struct.pack('<256H', *nat) + b''.join(struct.pack('<H', x) for x in pool) \
-        + struct.pack('<H', OTHER) + struct.pack('<256H', *oth)
+    blk = struct.pack('<HHH', 0, 162, len(pool)) + struct.pack('<256H', *nat) + b''.join(struct.pack('<H', x) for x in pool)
     dt = bytes(CD_O + 256) + blk
+    ctypes.c_uint16.in_dll(L, 'S7RI_STRF').value = OTHER                 # (s7swap.py writes these: obj4, not the gplay pages)
+    (ctypes.c_uint16 * 256).in_dll(L, 'S7RI_STR')[:] = oth
     buf = ctypes.create_string_buffer(dt, len(dt))
     L.t_cdd.argtypes = [ctypes.c_void_p]
     L.t_cdd(ctypes.addressof(buf))
@@ -461,25 +462,21 @@ def test_cd_str_s7():
         got = L.t_cd_str(FILE_ | row << 8)
         if got != want:
             errs.append(f'{what}: {got} != {want}')
-    # cupd.strengths on the real pack: the block is there in a cd2 build and holds the other file's strengths
+    # cupd on the real pack: other_strengths = the other file's rows by the same rule; strengths() keeps today's bytes even in cd2
     src_pack = os.path.join(os.path.expanduser('~'), 'swos-mod', 'internal', 's7pack-real', 'ita')
     if os.path.isfile(os.path.join(src_pack, 'pack.json')):
         pk = mkseason.Pack(src_pack)
+        f_o, rows = cupd.other_strengths(pk, 144)
+        k0 = next(k for k in pk.clubs if pk.where.get(k, (None, None))[0] == 102)
+        i0 = pk.where[k0][1]
+        if f_o != 102 or not 0 < len(rows) <= 256 or rows[i0] != cupd.strength(pk, k0):
+            errs.append(f'cupd.other_strengths: file {f_o}, {len(rows)} rows, row {i0} {rows[i0] if i0 < len(rows) else None}')
         real = cupd.cd2
         cupd.cd2 = lambda: True
         try:
             b = cupd.strengths(pk, 144)
         finally:
             cupd.cd2 = real
-        npool = struct.unpack_from('<H', b, 4)[0]
-        o = 6 + 512 + 2 * npool
-        if len(b) != o + 2 + 512 or struct.unpack_from('<H', b, o)[0] != 102:
-            errs.append(f'cupd.strengths: length {len(b)} / other file {struct.unpack_from("<H", b, o)[0] if len(b) > o else None}')
-        else:
-            k0 = next(k for k in pk.clubs if pk.where.get(k, (None, None))[0] == 102)
-            i0 = pk.where[k0][1]
-            if struct.unpack_from('<H', b, o + 2 + 2 * i0)[0] != cupd.strength(pk, k0):
-                errs.append('cupd.strengths: a 102 club\'s strength differs from cupd.strength')
-        if len(cupd.strengths(pk, 144)) != 6 + 512 + 2 * npool:      # (not cd2: today's bytes)
-            errs.append('cupd.strengths changed the non-cd2 bytes')
+        if len(b) != 6 + 512 + 2 * struct.unpack_from('<H', b, 4)[0]:
+            errs.append(f'cupd.strengths grew in a cd2 build: {len(b)} B')
     return not errs, '; '.join(errs) or 'cd_str S7: native / moved native / pool / other-file / floor-by-rule; cupd block ok, non-cd2 bytes unchanged'

@@ -13,7 +13,12 @@
 uint32_t s7_ident(uint32_t w);          /* (s7swap.c: the registry ident of the club at a team word, 0xFFFF none) */
 uint32_t s7_poolk(uint32_t id);         /* (index among the pool idents; 0x10000 | k = the ident of RS record k; 0xFFFF none) */
 
+#ifndef S7RI_NSTR
+#define S7RI_NSTR 256                           /* (s7swap.py: -DS7RI_NSTR = the other league file's rows) */
+#endif
 enum { S7RI_MV = 64 };
+uint16_t S7RI_STRF DATA = 0;                    /* the OTHER league file (cupd.other_strengths), written by s7swap.py */
+uint16_t S7RI_STR[S7RI_NSTR] DATA = {0};        /* the strength of each of its rows (cupd.strength's rule) */
 uint16_t RI_MOVES[S7RI_MV][3] DATA = {{0}};    /* this season end's pool moves {row, out ident, in ident} */
 int32_t RI_NMOVES DATA = 0;
 int32_t RI_S7_BAD DATA = 0;
@@ -62,10 +67,10 @@ uint32_t s7ri_cdstr(uint16_t w, const uint8_t *s)
     int32_t moff = s[0] | s[1] << 8, nmap = s[2] | s[3] << 8, np = s[4] | s[5] << 8;
     if (moff == 0xFFFF || (w >> 8) >= nmap) return 0;      /* (not a pooled file's row: gplay.c's own rule) */
     uint32_t k = s7_poolk(s7_ident(w)), hm = s7_home_word(w) & 0xFFFF, v = 5;
-    const uint8_t *p = 0, *o = s + 6 + 512 + 2 * np;
-    if (k != 0xFFFF) { if ((int32_t)k < np) p = o - 2 * np + 2 * k; }
+    const uint8_t *p = 0;
+    if (k != 0xFFFF) { if ((int32_t)k < np) p = s + 6 + 512 + 2 * k; }
     else if ((hm & 0xFF) == (w & 0xFFu)) { if ((hm >> 8) < 256) p = s + 6 + 2 * (hm >> 8); }
-    else if ((hm & 0xFF) == (uint32_t)(o[0] | o[1] << 8) && (hm >> 8) < 256) p = o + 2 + 2 * (hm >> 8);
+    else if ((hm & 0xFF) == S7RI_STRF && (hm >> 8) < S7RI_NSTR) v = S7RI_STR[hm >> 8];
     if (p) v = p[0] | p[1] << 8;
     if (v < 5) v = 5;
     return v * v;

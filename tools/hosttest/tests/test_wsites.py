@@ -148,7 +148,7 @@ def test_wsites_layout():
     return not errs, '; '.join(errs[:6]) or f'{len(rows)} rows = the structs\' sites ({len(sizes)} items, sizes = sizeof)'
 
 
-def test_wsites_walk():
+def test_wsites_walk(shift=False):
     if not os.path.exists(EXE) or not os.path.exists(EXE[:-4] + '.syms.json'):
         return True, f'SKIP: {EXE} (shaped, HOSTTEST_SYMS=1) missing'
     import engine
@@ -185,6 +185,11 @@ def test_wsites_walk():
     absent = sorted({r[0] for r in wsites.ROWS if isinstance(r[0], str)} - {r[0] for r in want})
     if raw != wsites.table(want):
         errs.append(f'WSITES in the exe ({len(tab)} rows) != wsites.table of ROWS on its EN items ({len(want)})')
+    if shift:                                           # CONTROL (MC 13/11): ONE row (uefaq br's a, CFB stride 6) 2 bytes early in the
+        k6 = next((k for k, r in enumerate(tab) if r[0] == wsites.WI_CFB and r[2] == 6 and r[3] == 320 and r[4] == wsites.WS_W), None)
+        if k6 is None:                                  # exe's table only: the decoys / expected bytes stay as for the right rows,
+            return False, 'control: no br row'          # so the walker sees the decoy bytes as the word
+        m.w(ws + 10 * k6 + 2, struct.pack('<H', tab[k6][1] - 2))
     dn = [e[1] for e in down]
     upw = [e[1] for e in up]
     stay = t7.FA | 10 << 8
@@ -304,6 +309,19 @@ def test_wsites_walk():
     return not errs, '; '.join(errs[:6]) or (f'{len(tab)} rows on {len(before)} items: {moved} moved words / globals '
                                              f'now their clubs\' new ones, the other sites and bytes unchanged ({decoys} decoys: a crosser\'s word in a non-team field, untouched); SLTCOPY re-based for every row '
                                              f'({hi} globals >= 2000: BT_EXT\'s range) (items not saved by this build: {absent})')
+
+
+def test_wsites_walk_control():
+    """MC's control for the decoys: the walk with ONE row shifted 2 bytes early (in the exe's table only) must FAIL - the
+    walker then remaps the decoys planted in br's r / aw bytes (and leaves the real a words): the test sees a mis-placed row."""
+    if not os.path.exists(EXE) or not os.path.exists(EXE[:-4] + '.syms.json'):
+        return True, f'SKIP: {EXE} (shaped, HOSTTEST_SYMS=1) missing'
+    ok, msg = test_wsites_walk(shift=True)
+    if ok:
+        return False, 'a row shifted 2 bytes was NOT caught by the walk test'
+    if 'differs' not in msg and 'S7_WLOG' not in msg:
+        return False, f'the shifted row failed for another reason: {msg[:160]}'
+    return True, f'a row 2 bytes early is caught ({msg[:90]})'
 
 
 # ---- 4b: careerFileBuffer rows against real saves (completeness) ----------------------------------------------------

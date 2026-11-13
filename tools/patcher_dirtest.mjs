@@ -283,6 +283,18 @@ for (const lang of ['it', 'en', 'fr', 'de']) {
       { const [top, dir] = joyGame('joycloudnone', true, 'GOG', null); fs.mkdirSync(path.join(dir, 'cloud_saves')); T.setJoy(true, false);   // (an empty overlay dir)
         await T.installDir(new DH(top), say); ok(md5(path.join(dir, 'SETUP.DAT')) === cal && !fs.existsSync(path.join(dir, 'cloud_saves', 'SETUP.DAT')), `${lang} joypad cloud_saves empty: nothing created there`); }
     }
+    for (const [kind, gog] of [['CD', false], ['GOG', true]]) {          // 4.2 KEEPKIT.DAT (kits.py, MC 13/11): the player's keeper kits, written by the game
+      const [top, dir] = joyGame('keepkit' + kind, gog, kind, null);     // in its own folder; the patcher never ships, overwrites, backs up or removes it
+      const kk = path.join(dir, 'KEEPKIT.DAT'), mine = Buffer.from('KEEP\x01\x00\x02\x00\x07\x00\x00\x00' + 'user data '.repeat(30), 'latin1');
+      fs.writeFileSync(kk, mine);
+      const same_ = () => fs.existsSync(kk) && Buffer.compare(fs.readFileSync(kk), mine) === 0 && !fs.existsSync(kk + '.bak');
+      for (const [tick, what] of [[[true, true], 'ticked'], [[false, false], 'unticked (undone)'], [[true, true], 'ticked again']]) {
+        T.setJoy(...tick); const n = await T.installDir(new DH(top), say);
+        ok(!log.at(-1).startsWith('!') && same_() && (what !== 'ticked' || n > 0), `${lang} KEEPKIT.DAT ${kind} install ${what}: the player's file byte for byte, no .bak`);
+      }
+      await T.installDir(new DH(top), say);
+      ok(same_(), `${lang} KEEPKIT.DAT ${kind} re-run: untouched`);
+    }
     { const [top, dir] = joyGame('joycustom', true, null, null);
       const mine = Buffer.from(fs.readFileSync(fac('GOG'))); mine[6] = 2; mine[100] = 0x39; fs.writeFileSync(path.join(dir, 'SETUP.DAT'), mine);
       T.setJoy(true, false); const n = await T.installDir(new DH(top), say), l1 = log.at(-1);

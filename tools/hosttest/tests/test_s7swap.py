@@ -458,6 +458,23 @@ def test_s7walk():
     wl = struct.unpack('<hhHHHH', m.rd(m.at('s7swap', 'S7_WLOG'), 12))
     if wl[0] != -1 or wl[5] != 3 or wl[3] != 2:
         errs.append(f'S7_WLOG {wl} (row -1, rows 3, cache 2)')
+    # (MC 13/11) the game's own in-memory global: the crossed record through SetLoadedTeamsGlobalNumbers
+    ri = sy.get('ripool', {})
+    if 'SETGLOBALS' in ri:
+        tb = m.at('ripool', 'TEAMBUF')                  # (the mov's immediate: teamFileBuffer itself)
+        rec0 = bytearray(cache[0:684])
+        rec0[2:4] = b'\0\0'
+        m.w(tb, b'\0\1' + bytes(rec0))
+        from test_registry import _call as rcall
+        if m.call('swe', 'reg_enter', 5) != 1:          # (world 5's teamsCountryNumbers, as in the game after the load)
+            errs.append('reg_enter(5) refused')
+        rcall(m.uc, m.at('ripool', 'SETGLOBALS'))
+        m.call('swe', 'reg_leave')
+        gg = struct.unpack_from('<H', m.rd(tb + 2, 4), 2)[0]
+        if gg != struct.unpack_from('<H', cache, 2)[0]:
+            errs.append(f'crossed record {cache[0]}/{cache[1]} global {struct.unpack_from("<H", cache, 2)[0]} != the game\'s {gg} (world {tg.WORLD})')
+    else:
+        errs.append('no ripool SETGLOBALS / TEAMBUF in the syms')
     c2 = nw(dn[0])                                      # the career club
     sel = struct.unpack('<H', m.rd(m.at('s7swap', 'S7_SELTEAM'), 2))[0]
     lg = struct.unpack('<H', m.rd(m.at('s7swap', 'S7_CTLEAGUE'), 2))[0]

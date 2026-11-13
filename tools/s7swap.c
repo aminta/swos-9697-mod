@@ -82,6 +82,9 @@ extern uint8_t S7_ORIG[];               /* swe.c .bss (swreg.S7_ORIG_SZ) */
 enum { LD_OK = 1, LD_NOREG = 2, LD_READ = 3, LD_SIZE = 4, LD_FILE = 5 };   /* (LD_FILE: the file read is not the
                                            one on disk even after a fresh ORIG read: nothing applied) */
 struct { uint8_t status, oread, file, pad; uint16_t moved, rows; uint32_t calls; int32_t rc; } S7_LD DATA = {0};
+#ifdef S7_LDFAIL
+uint32_t S7_LDFAILN DATA = S7_LDFAIL;    /* (S7_LDFAIL test builds: that call's ORIG read fails once - MC 13/11) */
+#endif
 
 /* piece 4: the saved words after the swaps. WSITES = wsites.py's rows (Panchina's, sreg_walk.h), S7_WRES the bytes
    each row's item resolves to (s7swap.py late(): careerFileBuffer's fixed part, an engine item; 0 = the team cache,
@@ -353,6 +356,9 @@ static int32_t load_run(void *pv)
     if (be16(buf) != S7_ONREC[s]) return S7_LD.status = LD_SIZE;
     uint32_t h = s7_fnv(buf, 2 + 684u * S7_ONREC[s]);
     if (S7_LD.oread == 1 && h != S7_FNV[s]) S7_LD.oread = 0;   /* (the file changed since ORIG was read: read again) */
+#ifdef S7_LDFAIL
+    if (S7_LD.calls == S7_LDFAILN) { S7_LD.oread = 2; S7_LD.rc = -0x5F; return S7_LD.status = LD_READ; }
+#endif
     if (S7_LD.oread != 1) S7_LD.oread = (uint8_t)orig_read();
     if (S7_LD.oread != 1) return S7_LD.status = LD_READ;
     if (h != S7_FNV[s]) return S7_LD.status = LD_FILE;         /* (read again, still not the file LoadTeamFile read) */

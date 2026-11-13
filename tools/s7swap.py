@@ -192,7 +192,12 @@ def patch(p, ssyms, rsyms, gsyms, pgsyms, fsyms, risyms):
     assert sel[0] == 2 and gplay._cardiv(p) == sel[1] + 6, ('s7swap: selTeamNumber / careerTeamLeague / D6CDC not '
                                                             'adjacent (obj2 +0 / +4 / +6)', sel, hex(gplay._cardiv(p)))
     ext.update({'S7_SELTEAM': sel, 'S7_CTLEAGUE': (2, sel[1] + 4), 'S7_CTEAM': (2, dplay._sites(p)[5])})
-    obj = cobj.compile_c(SRC, (f'-DS7_NID={NID}',), sections=True)
+    flags = (f'-DS7_NID={NID}',)
+    if os.environ.get('S7_LDFAIL'):                     # (test builds: the n-th s7_load's ORIG read fails once)
+        import modver
+        assert modver.is_test()
+        flags += (f"-DS7_LDFAIL={int(os.environ['S7_LDFAIL'])}",)
+    obj = cobj.compile_c(SRC, flags, sections=True)
     syms, end, bss = cobj.link(p, obj, swreg.S7SWAP_AT, (4, 0), externs=ext, limit=swreg.S7SWAP_END, text_obj=4,
                                roots=['s7_season', 's7_load', 'S7_HRUN', 'S7_FNV', 'S7_WLOG', 'S7_CLOG', 'WSITES', 'WS_KEYS', 'S7_ENN', 'S7_CFBLEN', 'S7_NAME', 'S7_OAT', 'S7_ONREC', 'S7_LD', 'S7_FA', 'S7_FB', 'S7_NUP', 'S7_NLO', 'S7_UP', 'S7_LO', 'S7_GB',
                                       'S7_AREA', 'S7_LOG'] + LIB)

@@ -26991,6 +26991,120 @@ def world_gplay_sd_rest_out():
     return gplay_sd_rest('8')
 
 
+def s7_env(extra=None):
+    """(4.2 S7) SEASON_PACKS of the release world world5tm-h2 with Italy replaced by the shaped pack S7_PACK (two
+    league structs: file 102 Serie A..C, file 144 Serie D) - None when either is missing."""
+    pk = os.environ.get('S7_PACK')
+    w = os.path.join(MAIN, 'internal', 'world2526', 'world5tm-h2')
+    if not pk or not os.path.isdir(pk) or not os.path.isdir(w):
+        return None
+    eu = ','.join(sorted(os.path.join(ROOT, 'packs', 'europe-1984-85', d) for d in os.listdir(os.path.join(
+        ROOT, 'packs', 'europe-1984-85')) if os.path.isdir(os.path.join(ROOT, 'packs', 'europe-1984-85', d))))
+    order = [ln.split()[0].lower() for ln in open(w + '.txt') if ' file ' in ln]
+    packs = ','.join(pk if x == 'ita' else os.path.join(w, x) for x in order)
+    env = {'SEASON_PACKS': f'ddr-1988-89,italia-1947-48,world-cup-1934,{eu},{packs}'}
+    env.update(extra or {})
+    return env
+
+
+def s7cross(force, team, start_file, ldfail=None):
+    """The career club crosses between the two league structs (4.2 S7, s7swap.c option B, MC 13/11): GPLAY_FORCE puts
+    it on place `force` of its group at the season end (a Serie C group's last: down; a Serie D group's first: up);
+    two seasons (season 1 played, saved; season 2 loaded from that save and played). Checks (S7_LOG / S7_CLOG /
+    S7_LD / selTeamNumber from the exe's syms, logged as they change):
+    - season 1's end: S7_LOG OK, 9 swaps, 18 crossers; S7_CLOG = the club's old word -> a word of the other file;
+      selTeamNumber = that word, careerTeamLeague = its row's base division;
+    - season 2 (the save loaded): selTeamNumber and careerTeamLeague as saved, D6CDC a division of the new struct
+      (Serie D: 0..8; Serie C: 2..4), the club plays its season there (the session reaches its end);
+    - S7_LD (the load apply) never failed in either session (status 0 / OK only - MC 13/11: a failed load = the
+      native files seen), and it applied at least once in season 2."""
+    import json
+    env = s7_env(dict({'GPLAY_FORCE': str(force)}, **({'S7_LDFAIL': str(ldfail)} if ldfail else {})))
+    if env is None:
+        return True, 'SKIP: S7_PACK (the shaped Italy pack) or internal world5tm-h2 missing'
+    exe = os.environ.get('S7_BUILD') or build('s7cross', env=env)
+    sy = json.load(open(os.path.join(exe, 'ITALIAN.syms.json')))
+    s7 = sy.get('s7swap', {})
+    if 'S7_CLOG' not in s7:
+        return False, f'{exe}: no S7 swap builder (not a shaped build, or before piece 4)'
+    at = lambda k: s7[k][1]
+    sel = s7['S7_SELTEAM'][1]
+    keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
+                                            'W8485_NOSACK', 'W8485_HEX', 'W8485_ONE')}
+    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+',
+                      W8485_NOSACK='1', W8485_HEX=f'o4/{at("S7_LOG"):x}:8,o4/{at("S7_CLOG"):x}:6,'
+                      f'o4/{at("S7_WLOG"):x}:12,o4/{at("S7_LD"):x}:16,{sel:x}:8')
+    os.environ.pop('W8485_ONE', None)
+    try:
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    errs = []
+    check(ok, msg[:300], errs)
+    hexes = []
+    for season in (1, 2):
+        f = os.path.join(RUNS, w84_tag() + f'_{season}', 'session.log')
+        lines = open(f, errors='replace').read().splitlines() if os.path.exists(f) else []
+        hexes.append([(ln.split()[1], bytes.fromhex(ln.split()[2])) for ln in lines if ln.startswith('HEX ')
+                      and len(ln.split()) > 2])
+    get = lambda s, k: [b for o, b in hexes[s] if o == k]
+    logs = get(0, f'o4/{at("S7_LOG"):x}')
+    st = [b for b in logs if b[0]]
+    check(bool(st) and st[-1][0] == 1 and st[-1][2] == 9 and st[-1][3] == 18,
+          f'S7_LOG {[b.hex() for b in st[-3:]]} (want status 1, 9 swaps, 18 crossers)', errs)
+    cl = [struct.unpack('<HHh', b) for b in get(0, f'o4/{at("S7_CLOG"):x}')]
+    cross = [c for c in cl if c[1]]
+    new = cross[-1][1] if cross else None
+    check(bool(cross) and cross[-1][0] & 0xFF == start_file and new & 0xFF != start_file,
+          f'career club crossing {[(hex(a), hex(b), lg) for a, b, lg in cl[-3:]]} (from file {start_file})', errs)
+    sels = [struct.unpack('<HHHH', b) for b in get(0, f'{sel:x}')]
+    check(new is not None and sels and sels[-1][0] == new and sels[-1][2] == cross[-1][2],
+          f'season 1 end: selTeamNumber / careerTeamLeague {[(hex(a), c) for a, _, c, _ in sels[-3:]]}, '
+          f'want {new and hex(new)} / {cross and cross[-1][2]}', errs)
+    sels2 = [struct.unpack('<HHHH', b) for b in get(1, f'{sel:x}')]
+    lo, hi = (0, 8) if start_file == 102 else (2, 4)
+    check(bool(sels2) and all(s_[0] == new for s_ in sels2 if s_[0] not in (0, 0xFFFF)) and lo <= sels2[-1][3] <= hi,
+          f'season 2: selTeamNumber / D6CDC {[(hex(a), d) for a, _, _, d in sels2[-3:]]} (want {new and hex(new)}, '
+          f'D6CDC {lo}..{hi})', errs)
+    for s_ in (0, 1):
+        lds = [struct.unpack('<BBBBHHIi', b) for b in get(s_, f'o4/{at("S7_LD"):x}')]
+        bad = [x for x in lds if x[0] not in (0, 1)]
+        if ldfail and s_ == 0:                          # (S7_LDFAIL: that call failed - seen - and the next recovered)
+            k = next((i for i, x in enumerate(lds) if x[0] == 3 and x[6] == ldfail), None)
+            check(k is not None and any(x[0] == 1 and x[6] > ldfail for x in lds[k + 1:]),
+                  f'S7_LDFAIL={ldfail}: no failed load then a recovered one {lds[:6]}', errs)
+            bad = [x for x in bad if not (x[0] == 3 and x[6] == ldfail)]
+        check(not bad, f'season {s_ + 1}: S7_LD failed {bad[:3]}', errs)
+        if s_ == 1:
+            check(any(x[0] == 1 for x in lds), f'season 2: S7_LD never applied {lds[-3:]}', errs)
+    return not errs, '; '.join(errs) or (f'{start_file} -> {new & 0xFF}: crossed at the season end (9 swaps, 18 '
+                                         f'crossers), selTeamNumber {new:#x}, season 2 loaded and played in the new '
+                                         f'struct (D6CDC {sels2[-1][3]}), S7_LD OK')
+
+
+@scenario
+def world_s7cross_down():
+    """S7 (4.2): the career club relegated from Serie C girone A (UNION BRESCIA last) to Serie D, two seasons"""
+    return s7cross(20, 'EUROPA,ITALIA,SERIE C GIRONE A,UNION BRESCIA', 102)
+
+
+@scenario
+def world_s7cross_ldfail():
+    """S7 (4.2): world_s7cross_down with the 2nd load apply's ORIG read failing (S7_LDFAIL=2, MC 13/11): S7_LD shows
+    it (LD_READ: the native files seen on that load) and the next load recovers"""
+    return s7cross(20, 'EUROPA,ITALIA,SERIE C GIRONE A,UNION BRESCIA', 102, ldfail=2)
+
+
+@scenario
+def world_s7cross_up():
+    """S7 (4.2): the career club promoted from Serie D girone A (LIGORNA first) to Serie C, two seasons"""
+    return s7cross(1, 'EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA', 144)
+
+
 @scenario
 def world_gplay_poule(force='1', team='EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA'):
     """The Poule Scudetto played (gplay: a group contest as the game's type 2 in slot 3): the data session's snapshot

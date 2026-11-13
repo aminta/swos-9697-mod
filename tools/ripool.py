@@ -429,6 +429,7 @@ def patch(p, at, bss, tabs):
                                                 # fills this dword; a test ranking keeps its own)
     if 'S7_LPTR' in lab:
         LABELS['S7_LPTR'] = (1, lab['S7_LPTR'])
+        LABELS.update(SETGLOBALS=sym['SETGLOBALS'], TEAMBUF=sym['TEAMBUF'])   # (host tests: the game's own globals)
     LABELS['RI_PRE_PTR'] = (1, lab['RI_PRE_PTR'])    # (statesim: every state's ranking before ri_season)
     LABELS['RI_POST_PTR'] = (1, lab['RI_POST_PTR'])  # (statecup: the contest overrides applied after it)
     return (tab + len(tb) + 15) & ~15, {'RI_TAB': (1, tab), 'RI_SEASON': gplay.LABELS['ri_season'],

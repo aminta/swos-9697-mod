@@ -1,5 +1,5 @@
 """4.2 S7 season-end swap builder (s7swap.c at obj4+swreg.S7SWAP_AT; internal/handoff/s7-swap-plan.md piece 2), on the
-static image of HT_S7_EXE (else c/S7W-h1: a shaped IT build - the S7 test pack - with HOSTTEST_SYMS=1). The registry
+static image of HT_S7_EXE (else c/S7W-p6: a shaped IT build - the S7 test pack - with HOSTTEST_SYMS=1). The registry
 comes from the build's spec (sreg_get); gplay.c's snapshots S7X are poked (a test switch in memory, no season played):
 S7X[0] = file 102's 9 clubs down (each Serie C group's last place direct, then 2 play-out losers per group), S7X[1] =
 file 144's 9 up (each Serie D group's first). SLTCOPY = a buffer: no in-struct move (all 0), then one in-struct move.
@@ -30,7 +30,7 @@ import test_sreg as tg  # noqa: E402
 import test_swc1 as ts  # noqa: E402
 
 HOME = os.path.expanduser('~')
-EXE = os.environ.get('HT_S7_EXE') or os.path.join(HOME, 'swos-mod', 'c', 'S7W-p3', 'SWOS', 'ITALIAN.EXE')
+EXE = os.environ.get('HT_S7_EXE') or os.path.join(HOME, 'swos-mod', 'c', 'S7W-p6', 'SWOS', 'ITALIAN.EXE')
 OK, STALE, BAD, COUNT, PLACE = 1, 3, 4, 5, 6
 FA, FB = 102, 144
 SEASON = 7
@@ -356,13 +356,13 @@ def test_s7load():
                                              f'a wrong count / LD_READ / LD_NOREG with the buffer kept; other files ignored')
 
 
-EXE4 = os.environ.get('HT_S7W_EXE') or os.path.join(HOME, 'swos-mod', 'c', 'S7W-p4', 'SWOS', 'ITALIAN.EXE')
+EXE4 = os.environ.get('HT_S7W_EXE') or os.path.join(HOME, 'swos-mod', 'c', 'S7W-p6w', 'SWOS', 'ITALIAN.EXE')
 CACHE_AT = 0x6300000                                    # (a stand-in team cache: S7_SELBASE -> here)
 S7_WSITE = 9
 
 
 def test_s7walk():
-    """piece 4 on c/S7W-p4 (shaped, S7_WSITES_TEST=1: wsites.TEST_ROWS = a cache row of 3 words at record +100, a
+    """piece 4 on c/S7W-p6w (shaped, S7_WSITES_TEST=1: wsites.TEST_ROWS = a cache row of 3 words at record +100, a
     careerFileBuffer row of 4 globals at +0x200, the engine item ST's 4 words at +16): after the 9 swaps
     - every listed word / global of a club that moved is its club's new one (the registry's), a global of a split
       file's second run included when one moves, the others kept (unmoved, none 0 / FFFF, another file);

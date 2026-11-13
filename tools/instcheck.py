@@ -150,8 +150,9 @@ def asm(wmenus, lang):
     return ASM + '\n'.join(tab + data) + '\n'
 
 
-def place(p, at, lang):
-    """The check at obj1 offset at (the career cave) and cont_check's stub -> jmp to it. Returns the end."""
+def place(p, at, lang, obj=1):
+    """The check at obj offset at (the career cave in obj1; 4.2 OBJ1MV: obj4's band, MC 13/11) and cont_check's stub
+    -> jmp to it. Returns the end."""
     import mkseason
     import nasmcave
     import sacups
@@ -160,12 +161,17 @@ def place(p, at, lang):
         return at
     sym = dict(sites(p), D7REG=(2, sacups.regs(p.le.obj_bytes(1))['D7']))
     src = asm({mkseason.WMENU + n: n for n in mkseason.worlds()}, lang)
-    code, fix = nasmcave.assemble(src, at, sym)
+    code, fix, rel = nasmcave.assemble_obj(src, at, sym, obj)
     lab = nasmcave.labels(src, at, sym)
-    assert not any(p.get(1, at, len(code)))
-    p.put(1, at, code)
+    if obj == 4:
+        import swreg
+        assert swreg.OBJ1MV_CC <= at and at + len(code) <= swreg.OBJ1MV_END, ('instcheck: outside OBJ1MV', hex(at))
+    assert not any(p.get(obj, at, len(code)))
+    p.put(obj, at, code)
     for o, tobj, toff in fix:
-        p.add_ptr(1, at + o, tobj, toff)
-    p.put(1, stub, b'\xe9' + struct.pack('<i', lab['inst_chk'] - (stub + 5)))
-    print(f'exe: world files check obj1+{at:#x} ({len(code)} B), worlds {sorted(mkseason.worlds())}')
+        p.add_ptr(obj, at + o, tobj, toff)
+    for o, tobj, toff in rel:
+        p.add_rel(obj, at + o, tobj, toff)
+    p.branch(1, stub, 0xE9, obj, lab['inst_chk'])
+    print(f'exe: world files check obj{obj}+{at:#x} ({len(code)} B), worlds {sorted(mkseason.worlds())}')
     return (at + len(code) + 3) & ~3

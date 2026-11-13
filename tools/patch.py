@@ -378,8 +378,8 @@ def patch_exe(src, dst, remap, lang='it'):
         swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, swefile.page_end() // 0x1000)
     if s7swap.on():                                    # 4.2 S7 swap builder + the registry library (MC 13/11): pages 18-19,
         swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, s7swap.page_end() // 0x1000)   # only with a registry shape
-    OBJ1MV_ON[0] = bool(mkseason.worlds() and gp_on and xtra_pg)   # 4.2 OBJ1MV (MC 13/11): the SEASON WINNERS page's
-    if OBJ1MV_ON[0]:                                   # condition (fmtpage wn=: worlds, gplay's LT_SPACE, the extra pages)
+    OBJ1MV_ON[0] = bool(mkseason.worlds())             # 4.2 OBJ1MV (MC 13/11): every build with worlds (shirtedit +
+    if OBJ1MV_ON[0]:                                   # instcheck; the SEASON WINNERS page when fmtpage has it)
         swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, (swreg.OBJ1MV_END + 0xFFF) // 0x1000)   # (its band's pages, out of obj1)
     swe.OBJ4_PAGES = sreg.obj4_pages(swe.OBJ4_PAGES)   # (4.2 N7: + the old-save import's 12th page, SREG2_AT)
     if lr_tabs:                                        # (the career league's head-to-head block)
@@ -534,9 +534,11 @@ def patch_exe(src, dst, remap, lang='it'):
                               globnum.exe_split())               # (S7-G: a league over two files, else None)
         end = benchnum.patch(p, end, nasmcave, [w['n'] for w in mkseason.world_defs() if w['squad_numbers']])
         import shirtedit                          # 4.0.2: editable shirt numbers on the team screen (pins the team
-        end = shirtedit.patch(p, end)             # through benchnum's hooks)
-        import instcheck
-        end = instcheck.place(p, end, lang)       # 4.0.1: a world's missing files -> a message, not DOS
+        import instcheck                          # through benchnum's hooks); 4.0.1 instcheck: a world's missing files
+        assert OBJ1MV_ON[0], 'OBJ1MV: worlds without the band (patch.py OBJ1MV_ON)'   # -> a message, not DOS. 4.2
+        cc = shirtedit.patch(p, swreg.OBJ1MV_CC, obj=4)                   # (MC 13/11): both in obj4's OBJ1MV band
+        cc = instcheck.place(p, cc, lang, obj=4)                          # (the career cave overflowed with S7)
+        print(f'exe: OBJ1MV career-cave modules obj4+{swreg.OBJ1MV_CC:#x}..{cc:#x} ({swreg.OBJ1MV_END - cc} B left to {swreg.OBJ1MV_END:#x})')
         import fillfix
         end = fillfix.patch(p, end, nasmcave)     # 4.0.5: the menu texture reloaded after a job-offer letter
         assert end <= CAREER_CAVE + mkseason.CAREER_CAVE_SIZE, hex(end)
@@ -744,7 +746,7 @@ def patch_exe(src, dst, remap, lang='it'):
             import winners                                       # obj4's OBJ1MV band (MC 13/11: the extra pages full)
             assert OBJ1MV_ON[0], 'winners: OBJ1MV band not given its obj4 pages (OBJ1MV_ON vs fmtpage wn=)'
             OBJ1MV_NEXT[0] = winners.patch(p, swreg.OBJ1MV_AT, lang, careerworld.SITES)
-            print(f'exe: OBJ1MV obj4+{swreg.OBJ1MV_AT:#x}..{OBJ1MV_NEXT[0]:#x} ({swreg.OBJ1MV_END - OBJ1MV_NEXT[0]} B left to {swreg.OBJ1MV_END:#x})')
+            print(f'exe: OBJ1MV winners obj4+{swreg.OBJ1MV_AT:#x}..{OBJ1MV_NEXT[0]:#x} ({swreg.OBJ1MV_CC - OBJ1MV_NEXT[0]} B left to OBJ1MV_CC {swreg.OBJ1MV_CC:#x})')
         w27s = [pk.world for pk in mkseason.packs() if pk.meta.get('id', '').startswith('world-2026-27-')] if worlds else []
         if w27s and not os.environ.get('QUIETEND_OFF'):  # (QUIETEND_OFF=1: a control build for the identical-results check)
             import quietend                              # 4.0.1: the other countries' competitions simulated unseen at
@@ -753,6 +755,9 @@ def patch_exe(src, dst, remap, lang='it'):
             xe = supercup.patch(p, xe)
         assert xe <= xp + 0x1000 * xpg, hex(xe)
         print(f'exe: extra pages obj1+{xp:#x}..{xe:#x} (free to {xp + 0x1000 * xpg:#x}: {xp + 0x1000 * xpg - xe} B left)')
+        if LT_SPACE:                                     # 4.2 (MC 13/11): lgreal on the extra pages' tail, after supercup
+            LG_ROOM[:] = [(xe + 15) & ~15, xp + 0x1000 * xpg]   # (OBJ1MV freed them; gplay's tail stays gplay's: it grows
+                                                         # with the engine work, the real S7 pack left lgreal 4 B there)
     elif xtra_on:
         world = xtra.patch(p, world)
         import xbrowse

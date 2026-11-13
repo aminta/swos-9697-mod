@@ -52,6 +52,8 @@ assert SWEFILE_END <= S7SWAP_AT < S7SWAP_END, 'swreg: SWEFILE_END <= S7SWAP_AT <
 OBJ1MV_AT = 0x15000                     # 4.2 obj1 relief (MC 13/11, Shaved's census): whole modules moved out of obj1's full
 OBJ1MV_END = 0x16800                    # regions (237 pages frozen): winners.py (the extra pages), then instcheck + shirtedit
                                         # (the career cave); linked with the SEASON WINNERS page (worlds + gplay + extra pages)
+OBJ1MV_CC = 0x15C00                     # (step 2: the career cave's shirtedit + instcheck from here; winners below it)
+assert OBJ1MV_AT < OBJ1MV_CC < OBJ1MV_END, 'swreg: OBJ1MV_CC inside the band'
 MKTHOOK_AT = 0x16800                    # 4.3 the CPU market's exe hooks (mkthook.c, Mercato CPU): the LAST band (MC 13/11),
 MKTHOOK_END = 0x18000                   # so a 4.2 release carries no empty page for it
 MKTAGE_AT = 0x18000                     # 4.3 reserved (Mercato CPU, MC 13/11 final layout); past MKTAGE_END only with MC's ok

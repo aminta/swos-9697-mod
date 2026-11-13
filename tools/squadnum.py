@@ -86,7 +86,8 @@ def patch(p, at):
         return at
     s = sites(p)
     import benchx
-    sym = {'SE_ROW': (1, info['se_row']), 'SADC': s['SADC'], 'SQT': s['SQT'], 'BX_SQ': (3, benchx.LABELS['bx_sq'])}
+    so = info.get('obj', 1)                             # (4.2 OBJ1MV: shirtedit in obj4)
+    sym = {'SE_ROW': (so, info['se_row']), 'SADC': s['SADC'], 'SQT': s['SQT'], 'BX_SQ': (3, benchx.LABELS['bx_sq'])}
     sym.update({k: info[k] for k in ('CT', 'A0', 'D1', 'GPIBP')})
     code, fix, rel = nasmcave.assemble_obj(ASM, at, sym, 3)
     assert not any(p.get(3, at, len(code))), hex(at)
@@ -96,11 +97,11 @@ def patch(p, at):
     for o, t_obj, t_off in rel:
         p.add_rel(3, at + o, t_obj, t_off)
     cs = info['row_call']                               # se_ctl's `call se_row`
-    assert p.call_target(1, cs) == (1, info['se_row']), hex(cs)
-    p.branch(1, cs, 0xE8, 3, at)
+    assert p.call_target(so, cs) == (so, info['se_row']), hex(cs)
+    p.branch(so, cs, 0xE8, 3, at)
     hl = s['HL_SITE']
     assert p.get(1, hl, 6) == b'\x66\xc7\x46\x04\x00\x00'
-    p.put(1, hl, b'\xe8' + struct.pack('<i', info['se_hl'] - (hl + 5)) + b'\x90')
+    p.branch(1, hl, 0xE8, so, info['se_hl'], 6)
     print(f'exe: squadnum: editable shirt numbers on the squad screen, obj3+{at:#x} ({len(code)} B), '
           f'number obj1+{hl:#x}')
     return at + len(code)

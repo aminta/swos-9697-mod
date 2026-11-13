@@ -568,8 +568,8 @@ def sites(p):
     return out
 
 
-def patch(p, cave):
-    """Code at obj1:cave (the career cave); returns its end."""
+def patch(p, cave, obj=1):
+    """Code at obj:cave (the career cave in obj1; 4.2 OBJ1MV: obj4's band, MC 13/11); returns its end."""
     import benchnum
     s = sites(p)
     sym = {k: v for k, v in s.items() if not k.endswith('_SITE')}
@@ -595,27 +595,32 @@ def patch(p, cave):
     for o, t_obj, t_off in brel:
         p.add_rel(4, at + o, t_obj, t_off)
     sym.update(se_unsh=(4, blab['se_unsh']), se_ad=(4, blab['se_ad']))
-    code, fix = nasmcave.assemble(ASM, cave, sym)
+    code, fix, rel = nasmcave.assemble_obj(ASM, cave, sym, obj)
     lab = nasmcave.labels(ASM, cave, sym)
-    assert not any(p.get(1, cave, len(code)))
-    p.put(1, cave, code)
+    if obj == 4:
+        assert swreg.OBJ1MV_CC <= cave and cave + len(code) <= swreg.OBJ1MV_END, ('shirtedit: outside OBJ1MV', hex(cave))
+        assert p.le.obj(4).npages * 0x1000 >= swreg.OBJ1MV_END, 'shirtedit: obj4 pages (patch.py OBJ1MV_ON)'
+    assert not any(p.get(obj, cave, len(code)))
+    p.put(obj, cave, code)
     for off, tobj, toff in fix:
-        p.add_ptr(1, cave + off, tobj, toff)
+        p.add_ptr(obj, cave + off, tobj, toff)
+    for off, tobj, toff in rel:
+        p.add_rel(obj, cave + off, tobj, toff)
     mc = s['MCC_SITE']
-    assert p.get(1, mc, 1) == b'\xe8' and mc + 5 + struct.unpack('<i', p.get(1, mc + 1, 4))[0] == s['MCC'][1], 'MenuProc call'
-    p.put(1, mc + 1, struct.pack('<i', lab['se_ctl'] - (mc + 5)))
+    assert p.call_target(1, mc) == s['MCC'], 'MenuProc call'
+    p.branch(1, mc, 0xE8, obj, lab['se_ctl'])
     hl = s['HL_SITE']
     assert p.get(1, hl, 6) == b'\x66\xc7\x46\x04\x00\x00'
-    p.put(1, hl, b'\xe8' + struct.pack('<i', lab['se_hl'] - (hl + 5)) + b'\x90')
+    p.branch(1, hl, 0xE8, obj, lab['se_hl'], 6)
     rc = [cave + m.start() for m in re.finditer(rb'\xe8', code)
           if cave + m.start() + 5 + struct.unpack_from('<i', code, m.start() + 1)[0] == lab['se_row']]
     assert len(rc) == 1, ('call se_row', rc)
     dc = [cave + m.start() for m in re.finditer(re.escape(b'\x66\x83\x3d' + struct.pack('<I', sym['MCD'][1]) + b'\x06'),
                                                  code)]
     assert len(dc) == 1, ('cmp word [MCD], 6', dc)     # (se_ctl's idle: the direction that opens the box - edteam's)
-    INFO.update(se_row=lab['se_row'], se_hl=lab['se_hl'], row_call=rc[0], GPIBP=s['GPIBP'], se_on=lab['se_on'],
+    INFO.update(obj=obj, se_row=lab['se_row'], se_hl=lab['se_hl'], row_call=rc[0], GPIBP=s['GPIBP'], se_on=lab['se_on'],
                 se_rec=lab['se_rec'], se_ent=lab['se_ent'], dir_at=dc[0],
                 **{k: sym[k] for k in ('CT', 'A0', 'D1', 'MCD', 'CURMENU')})
     print(f'exe: editable shirt numbers (MenuProc obj1+{mc:#x}, DrawPlayerEntries number obj1+{hl:#x}, '
-          f'code obj1+{cave:#x}..{cave + len(code):#x})')
+          f'code obj{obj}+{cave:#x}..{cave + len(code):#x})')
     return (cave + len(code) + 3) & ~3

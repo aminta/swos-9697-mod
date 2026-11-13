@@ -196,10 +196,11 @@ def patch(p, at):
     s = sites(p)
     d = p.le.obj_bytes(1)
     cs = info['row_call']                               # se_ctl's `call se_row` (squadnum's sq_row by now)
-    prev = p.call_target(1, cs)
+    so = info.get('obj', 1)                             # (4.2 OBJ1MV: shirtedit in obj4)
+    prev = p.call_target(so, cs)
     sym = {k: v for k, v in s.items() if not k.endswith('_SITE')}
-    sym.update(PREV=prev, SE_ON=(1, info['se_on']), SE_REC=(1, info['se_rec']), HL=(0, shirtedit.HL_COLOR),
-               SE_ENT=(1, info['se_ent']), MCD=info['MCD'], CURMENU=info['CURMENU'])
+    sym.update(PREV=prev, SE_ON=(so, info['se_on']), SE_REC=(so, info['se_rec']), HL=(0, shirtedit.HL_COLOR),
+               SE_ENT=(so, info['se_ent']), MCD=info['MCD'], CURMENU=info['CURMENU'])
     code, fix, rel = nasmcave.assemble_obj(ASM, at, sym, 3)
     lab = nasmcave.labels(ASM, at, sym)
     assert not any(p.get(3, at, len(code))), hex(at)
@@ -208,15 +209,15 @@ def patch(p, at):
         p.add_ptr(3, at + o, t_obj, t_off)
     for o, t_obj, t_off in rel:
         p.add_rel(3, at + o, t_obj, t_off)
-    p.branch(1, cs, 0xE8, 3, lab['et_row'])
+    p.branch(so, cs, 0xE8, 3, lab['et_row'])
     for site, n, fx, name in ((s['HL_SITE'], 10, 6, 'et_hl'), (s['CYC_SITE'], 8, 3, 'et_next')):
         assert bytes(p.get(1, site, n)) == d[site:site + n], ('edteam: site already patched', name, hex(site))
         p.remove(1, site + fx)
         p.branch(1, site, 0xE8, 3, lab[name], n)
     da = info['dir_at']                                 # se_ctl's `cmp word [MCD], 6` (8 bytes, its MCD fixup at +3)
-    assert bytes(p.get(1, da, 3)) == b'\x66\x83\x3d' and p.get(1, da + 7, 1) == b'\x06', ('edteam: dir site', hex(da))
-    p.remove(1, da + 3)
-    p.branch(1, da, 0xE8, 3, lab['et_dir'], 8)
+    assert bytes(p.get(so, da, 3)) == b'\x66\x83\x3d' and p.get(so, da + 7, 1) == b'\x06', ('edteam: dir site', hex(da))
+    p.remove(so, da + 3)
+    p.branch(so, da, 0xE8, 3, lab['et_dir'], 8)
     print(f'exe: edteam: EDIT CUSTOM TEAMS looks (10) + number box, obj3+{at:#x}..{at + len(code):#x} ({len(code)} B), '
           f'face obj1+{s["CYC_SITE"]:#x}, number obj1+{s["HL_SITE"]:#x}')
     return at + len(code)

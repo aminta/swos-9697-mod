@@ -144,6 +144,9 @@ def _asm(nf, two=False):
 .c{k}:
     mov edi, RI_ORIG{k}
     call ri_copyb
+%if S7_ON
+    mov dword [RI_S7SRC], RI_ORIG{k}    ; (S7, MC 13/11: s7_load checks the file as read, not TEAMBUF after ri_apply)
+%endif
     cmp byte [RI_PLOADED + {k}], 0      ; its RS file, once per DOS session
     jne .a{k}
     mov byte [RI_PLOADED + {k}], 1
@@ -211,6 +214,9 @@ def _asm(nf, two=False):
     return f'''
 ri_load:                                ; replaces `call SetLoadedTeamsGlobalNumbers` after LoadTeamFile read TEAM.nnn
     pushad
+%if S7_ON
+    mov dword [RI_S7SRC], TEAMBUF       ; (S7: the file as read; a pooled file's: its ORIG copy, set below)
+%endif
     cmp word [GAMETYPE], 4              ; a career
     jne .x
 {''.join(load)}
@@ -220,17 +226,19 @@ ri_load:                                ; replaces `call SetLoadedTeamsGlobalNum
     jne .y                              ; registry clubs' records (cdecl: the buffer, the file read)
     cmp dword [S7_LPTR], 0
     je .y
+    push dword [RI_S7SRC]               ; (the file as read: TEAMBUF, or a pooled file's ORIG copy before ri_apply)
     movzx eax, byte [WTPHYS]
     push eax
     push dword TEAMBUF
     call [S7_LPTR]
-    add esp, 8
+    add esp, 12
 .y:
 %endif
     popad
     jmp SETGLOBALS
 %if S7_ON
 S7_LPTR: dd 0                           ; (s7swap.py: -> obj4 s7_load)
+RI_S7SRC: dd 0                          ; (s7_load's third argument: the bytes LoadTeamFile read)
 %endif
 %if S7_XTRA
 

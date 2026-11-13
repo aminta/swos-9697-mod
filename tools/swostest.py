@@ -27123,6 +27123,7 @@ def s7_env(extra=None):
 
 
 CD_ENT, CD_LF = 348, 144                    # (gplay.c cd_state.ent; the real pack's Serie D file: cupd.pack_table)
+RI_MAPS = 8 + 20 + 2 * 192 + 2 * 20 * 16    # (gplay.c ri_state.maps: RF + RP + 2 RQT + 2 RP RO)
 
 
 def s7cross(force, team, start_file, ldfail=None):
@@ -27160,7 +27161,9 @@ def s7cross(force, team, start_file, ldfail=None):
                       + (f',o4/{sy["swe"]["SWC1"][1]:x}:4' if 'SWC1' in sy.get('swe', {}) else '')    # (SWC1 header: ver,
                       + (f',{sy["swe"]["SWE_CWB"][1]:x}:1' if 'SWE_CWB' in sy.get('swe', {}) else '')    # world; the world byte)
                       + (f',o4/{sy["lrank"]["LR_BLK"][1]:x}:8' if 'LR_BLK' in sy.get('lrank', {}) else '')   # (the LR block's key)
-                      + (f',{cdst:x}:8,{cdst + CD_ENT:x}:264' if cdst else ''))   # (Coppa D: header; ent[256] + efresh..)
+                      + (f',{cdst:x}:8,{cdst + CD_ENT:x}:264' if cdst else '')   # (Coppa D: header; ent[256] + efresh..)
+                      + ''.join(f',{sy["gplay"][k][1] + o:x}:{n}' for k, o, n in (('RI_STATE', RI_MAPS, 1280),
+                                ('RI_FILES_FILE', 0, 8)) if sy.get('gplay', {}).get(k, [0])[0] == 2))   # (ri: maps, files)
     os.environ.pop('W8485_ONE', None)
     try:
         ok, msg = world8485()

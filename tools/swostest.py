@@ -15295,6 +15295,11 @@ def swospp_menu():
         s.send('dump:1')                                        # (3) a career loaded - one pause first: back from
         spp_go(s, 'CARICA VECCHIA COMPETIZIONE', 3)   # SWOS++'s menu the selection read stale
         s.send('fire dump:3')                                   # and the fire reopened it (M3 05/11, 1 in 3)
+        for _ in range(20):                                     # (13/11: a 4.2 load of an old save takes ~6 s of
+            if {'TRASFERIMENTI', 'TRANSFERS', 'CONTINUA CARRIERA'} & set(s.screen().texts()):   # game time - 42-c23's
+                break                                           # gp_repoint_c scan - and the timer feed's 3 s
+                                                                # caught it mid-load, the main
+            s.send('dump:1')                                    # menu half-drawn: poll up to 20 s more)
         try:
             go(s, 'ESCI')
         except AssertionError as x:                             # (the earlier steps' checks and the menu as it is)

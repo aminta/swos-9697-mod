@@ -3007,7 +3007,7 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     import cupsf                                              # 4.0.1: the World 2026-27 cups follow promotions
     cfw = [w for w in cupsf.worlds() if cupsf.year(w) >= 2026] if cds else []
     cft = cupsf.table(cfw[-1]) if cfw else None
-    if os.environ.get('S7_NEED_CF') and gp_s7() and not cft:      # (MC 13/11: a shaped build that must carry the CF / Coppa D code - the
+    if (os.environ.get('S7_NEED_CF') or cds) and gp_s7() and not cft:   # (MC 13/11: a shaped build that must carry the CF code: on by default when a pack has cup_d, S7_NEED_CF=1 forces it - the
         raise RuntimeError('gplay: S7_NEED_CF=1 but this shaped build has no CF table (cf_cap not linked: the CF code is part of '   # winners
                            'the Coppa D block, linked only when a league pack has cup_d: cds=%d, CF worlds=%s)' % (len(cds), cfw))   # scenarios)
     if cft:

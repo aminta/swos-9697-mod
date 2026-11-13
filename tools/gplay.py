@@ -3131,6 +3131,9 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     cwt = sorted(k for k in careerworld.LABELS if re.fullmatch(r'W\d+_(CC|CWC|UEFA)', k))   # their static long names,
     rps = sacups.SLOT23 + [(1, careerworld.LABELS[k]) for k in cwt]     # UCL in a 2026-27 save - MC 13/11)
     assert 0 < len(rps) <= 64, ('gplay: GP_RPS', len(rps))
+    import mkseason                                     # (no silent empty list - MC 13/11: a build with career worlds
+    want = sorted(f'W{n}_{k}' for n in mkseason.worlds() for k in ('CC', 'CWC', 'UEFA'))   # has their 3 templates each,
+    assert cwt == want, ('gplay: GP_RPS career world templates (careerworld.patch must run first)', cwt, want)   # in GP_RPS
     for i, (o, off) in enumerate(rps):
         _cobj.add_ptr(p, syms['GP_RPS'][1] + 4 * i, o, off, objn=syms['GP_RPS'][0])
     p.put(*syms['GP_RPSN'], struct.pack('<I', len(rps)))

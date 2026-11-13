@@ -577,7 +577,13 @@ df_tkick:
     popad
     ret
 
-df_tpre:                                ; InitGameRestoreTeams' first Rand: the generators pinned already here
+df_tpre2:                               ; InitGameRestoreTeams' first Rand (playerCardChance...): pinned again here
+    call df_pin
+    jmp RAND
+df_tpre:                                ; InitGameRestoreTeams' first call (before 0x61aa5's / 0x73ed3's Rands): pinned here
+    call df_pin
+    jmp PRET                            ; (the hooked call's own target)
+df_pin:
     pushad                              ; (teamPlayingUp / teamStarting / gameRandValue / playerCardChance come
     mov esi, DF_SEED                    ;  before the kick-off; the menus' Rand calls follow real time)
     mov edi, RNG1
@@ -588,7 +594,7 @@ df_tpre:                                ; InitGameRestoreTeams' first Rand: the 
     movsb
     mov word [MUTEC], -1                ; (and the commentary already muted: no audio-timed Rand before the kick-off)
     popad
-    jmp RAND
+    ret
 
 df_frame:
     call PREV_FLIP
@@ -703,7 +709,7 @@ def start_dr():
     return v
 
 
-PRE_AT = [None]
+PRE_AT = [None, None]
 
 
 def _one(pat, d, name, n=1):
@@ -813,6 +819,12 @@ def patch(p, lang):
         assert len(pre) == 1, ('InitGameRestoreTeams: Rand / and D0, 1Eh', pre)
         PRE_AT[0] = pre[0]                              # (its first Rand: playerCardChance, then gameRandValue,
         sym['RAND'] = p.call_target(1, pre[0])          #  teamPlayingUp, teamStarting - before the kick-off pin)
+        e0 = [m.start() + 17 for m in re.finditer(rb'\xbe....\xbf....\xb9\x30\x00\x00\x00\xf3\xa4\xe8',
+                                                 d[pre[0] - 0x200:pre[0]], re.S)]
+        assert len(e0) == 1, ('InitGameRestoreTeams: first call', e0)   # (hc 13/11: the Rands of the calls before
+        PRE_AT[0] = pre[0] - 0x200 + e0[0]              #  the old pin (0x61aa5, 0x73ed3 in IT) followed the menus' time)
+        PRE_AT[1] = pre[0]                              # (and again at that first Rand: the calls between read menu state)
+        sym['PRET'] = p.call_target(1, PRE_AT[0])
         sym['MUTEC'] = p.target(1, mc + 45)             # (g_muteCommentary: the commentary picks its sample by Rand
         #  when AIL says the last one stopped - audio time, not frames: muted in trace builds, 13/11 hunt)            # (lastGameTick: pinned with currentGameTick, 13/11 hunt)
         gt = [m.start() for m in re.finditer(rb'\xa1....\xa3....\xa1....\xa3', d[s['KICK'] - 0x600:s['KICK']], re.S)]
@@ -900,6 +912,7 @@ def patch(p, lang):
                                                                f'{swreg.DIFF_MARGIN} B (MC)', margin)
     if tr:
         _hook(p, PRE_AT[0], 5, 5, lab['df_tpre'])
+        _hook(p, PRE_AT[1], 5, 5, lab['df_tpre2'])
         p.branch(1, sl['FLIP_AT'], 0xE8, 4, lab['df_frame'])
         p.remove(1, tp + 3)
         p.put(1, tp, b'\x90' * 7)

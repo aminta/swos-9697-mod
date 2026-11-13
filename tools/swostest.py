@@ -31651,11 +31651,16 @@ def diff_trace():
     ctls = dict(hc=(2, 1), cc=(1, 1), hh=(2, 2))
     errs, info = [], []
     for pr in os.environ.get('DIFF_PAIRS', 'hc,cc,hh').split(','):
-        a = diff_match(f'diff_trace_{pr}_ref', ref, 'HAMBURG', 'SCHALKE', ctls[pr], seed, 0, frames)
-        if os.environ.get('DIFF_SELF'):                 # (the harness's own determinism: REF twice)
+        if os.environ.get('DIFF_SELF') == 'easy':       # (MC 13/11: EASY+NEW judged by its own stability, NEW twice)
+            a = diff_match(f'diff_trace_{pr}_easy', new, 'HAMBURG', 'SCHALKE', ctls[pr], seed, 1, frames, drib=1)
+            runs = [('EASY+NEW again', diff_match(f'diff_trace_{pr}_easy2', new, 'HAMBURG', 'SCHALKE', ctls[pr],
+                                                  seed, 1, frames, drib=1))]
+        elif os.environ.get('DIFF_SELF'):               # (the harness's own determinism: REF twice)
+            a = diff_match(f'diff_trace_{pr}_ref', ref, 'HAMBURG', 'SCHALKE', ctls[pr], seed, 0, frames)
             runs = [('REF again', diff_match(f'diff_trace_{pr}_ref2', ref, 'HAMBURG', 'SCHALKE', ctls[pr], seed, 0,
                                              frames))]
         else:
+            a = diff_match(f'diff_trace_{pr}_ref', ref, 'HAMBURG', 'SCHALKE', ctls[pr], seed, 0, frames)
             runs = [('NORMAL', diff_match(f'diff_trace_{pr}_new', new, 'HAMBURG', 'SCHALKE', ctls[pr], seed, 0,
                                           frames))]
         if pr in ('cc', 'hh') and not os.environ.get('DIFF_SELF') and not padc:

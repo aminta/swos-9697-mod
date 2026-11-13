@@ -481,13 +481,19 @@ last round, never before the plain week's pick; shots ctc_<s1|s2|end>_<k>, ctc_w
 hook only) and NEW. What the game reads from real time, and how the trace build pins it:
 - InitGameRestoreTeams calls Rand before the kick-off: playerCardChance, gameRandValue, teamPlayingUp (which team plays
   up: the two teams swap in memory), teamStarting. The menus advance the generator in real time, so the trace pins both
-  generators at that first Rand (df_tpre), not only at the kick-off. Without it a run plays one of two different matches.
+  generators before the kick-off too. Without it a run plays one of two different matches. Two pins (13/11 hc hunt):
+  df_tpre at the function's first call (the call after its 30h-byte rep movsb; IT 0x5ddb4), because 0x61aa5 and
+  0x73ed3 (IT) call Rand before its own first Rand; and df_tpre2 again at that first Rand (`call Rand / and D0, 1Eh`,
+  IT 0x5deed), because how many Rands run between the two depends on the build (early pin alone: hh REF 13082 frames,
+  NEW 13110, every run). With the early pin only, hc diverged after frame 4096; with the late pin only, at frame
+  ~240 (the teams swapped).
 - The commentary: IsSamplePlaying asks AIL whether the last sample ended (audio time), then PlayCommentarySample picks
   the next one by Rand. Muted (g_muteCommentary) from df_tpre in trace builds.
 - currentGameTick / lastGameTick / currentTick: one tick per frame from the kick-off (TimerProc's own increments off).
-With these, hh (two humans) is equal over the whole match, NORMAL and EASY+NEW, alone and in batch. hc / cc still vary
-now and then from run to run, REF too (13064 / 13067 frames): one more real-time input is left (not found within MC's
-4 h). So the NORMAL gate = Unicorn host test + short traces + full traces as a check (hh must PASS), not hc / cc alone.
+With these, hh and hc are equal over the whole match (13110 frames). Gate (MC 13/11): host test + short traces + hh full
++ hc / cc NORMAL NEW vs REF no worse than REF vs REF (DIFF_SELF=1, N >= 4 each, SWOSTEST_NO_RERUN=1); EASY+NEW is not
+compared with REF (the knobs change the CPU's play) but with itself: DIFF_SELF=easy (cc EASY+NEW twice), no worse
+than REF vs REF.
 `DIFF_STOPF=n` halts at frame n and diffs obj2 word by word (REF vs NEW): the way to find the next input.
 `DIFF_PAD=code,buildup` (REF + a nop band of NEW's obj4 sizes) was equal to REF in every run: code size is not a cause.
 DIFF_SKIP is a comma list matched as a set ('BU' is not 'BUFRAME').

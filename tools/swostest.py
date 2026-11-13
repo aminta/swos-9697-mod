@@ -2613,9 +2613,10 @@ def _label_data():
 # every career-menu screen of advance(), read from the live game (no exe code, no test switch) - the same C1..C4 as
 # hosttest test_calendar_lib (Panchina's goldens of the 4.0.5 bugs):
 #  C1 well formed: `count` entries of len >= 8, weeks non-decreasing;
-#  C2 at most one career day (byte 6 > 0, byte 4 = 0, round != FFh) per (slot, week), the league (slot 0) excepted: a
+#  C2 at most one career day (byte 6 > 0, byte 4 = 0, round != FFh) per (slot, week), the league (slot 0) at most two: a
 #     real midweek round shares the weekend's career week at 8 weeks a month (MLS, Honduras, Peru, Colombia; MC 13/11) -
-#     counted in CAL_STATS['c2l'], never a FAIL; test_calendar_lib's FF_SLOTS;
+#     counted in CAL_STATS['c2l']; a third league day in one week (a duplicated round: Panchina) FAILs; test_calendar_lib's
+#     LEAGUE_MAX;
 #  C3 no career day ahead of the cursor in a week already reached;
 #  C4 careerFinished (FINISH SEASON) == 1 iff no career day is ahead, on the screens that show the menu's button (not
 #     between seasons: seasonFinished set; other screens read the flag only after their own rescan).
@@ -2652,7 +2653,7 @@ def cal_check(s, step, scr=None):
     for i, off, slot, week, b4, b6, rnd, ln in rows:
         if b6 > 0 and b4 == 0 and rnd != 0xFF:
             seen.setdefault((slot, week), []).append(i)
-    two = {k: v for k, v in seen.items() if len(v) > 1 and k[0] != 0}
+    two = {k: v for k, v in seen.items() if len(v) > (2 if k[0] == 0 else 1)}   # (the league: 2, a third = a duplicate)
     CAL_STATS['c2l'] = max(CAL_STATS['c2l'], sum(1 for k, v in seen.items() if len(v) > 1 and k[0] == 0))
     if two:
         bad.append(f'C2 two career days of one contest in a week {two}')

@@ -50,8 +50,8 @@ def test_wnkeys_s7():
     if sorted(keys) != want:
         errs.append(f'key lines {sorted(keys)}: want {want}')
     k_lines = sorted({s for b in blocks for _, s in b if s[0] == 'K' and b[0][1].startswith('H90')})
-    if k_lines != ['K00', 'K14']:                       # (dA_title = 144's 0, poule_scudetto = 144's 20)
-        errs.append(f'Serie D play-off lines {k_lines}: want K00 (dA_title) and K14 (the Poule, 144\'s 20th)')
+    if k_lines != ['K00', 'K14']:                       # (hex: dA_title = 144's 0, poule_scudetto = 144's 20 = 14h)
+        errs.append(f'Serie D play-off lines {k_lines}: want K00 (dA_title) and K14 (the Poule, 144\'s 20 = 14h)')
     keep = fmtgame.s7_keys                               # (control: the dormant numbering - no H90xx, Serie D's
     fmtgame.s7_keys = lambda d, m: None                  # play-offs K05 / K19 as before the fix)
     try:

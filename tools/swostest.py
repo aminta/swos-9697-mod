@@ -27123,6 +27123,7 @@ def s7_env(extra=None):
 
 
 CD_ENT, CD_LF = 348, 144                    # (gplay.c cd_state.ent; the real pack's Serie D file: cupd.pack_table)
+RI_MAPS = 8 + 20 + 2 * 192 + 2 * 20 * 16    # (gplay.c ri_state.maps: RF + RP + 2 RQT + 2 RP RO)
 
 
 def s7cross(force, team, start_file, ldfail=None):
@@ -27160,7 +27161,9 @@ def s7cross(force, team, start_file, ldfail=None):
                       + (f',o4/{sy["swe"]["SWC1"][1]:x}:4' if 'SWC1' in sy.get('swe', {}) else '')    # (SWC1 header: ver,
                       + (f',{sy["swe"]["SWE_CWB"][1]:x}:1' if 'SWE_CWB' in sy.get('swe', {}) else '')    # world; the world byte)
                       + (f',o4/{sy["lrank"]["LR_BLK"][1]:x}:8' if 'LR_BLK' in sy.get('lrank', {}) else '')   # (the LR block's key)
-                      + (f',{cdst:x}:8,{cdst + CD_ENT:x}:264' if cdst else ''))   # (Coppa D: header; ent[256] + efresh..)
+                      + (f',{cdst:x}:8,{cdst + CD_ENT:x}:264' if cdst else '')   # (Coppa D: header; ent[256] + efresh..)
+                      + ''.join(f',{sy["gplay"][k][1] + o:x}:{n}' for k, o, n in (('RI_STATE', RI_MAPS, 1280),
+                                ('RI_FILES_FILE', 0, 8)) if sy.get('gplay', {}).get(k, [0])[0] == 2))   # (ri: maps, files)
     os.environ.pop('W8485_ONE', None)
     try:
         ok, msg = world8485()
@@ -27199,12 +27202,9 @@ def s7cross(force, team, start_file, ldfail=None):
     #  plays a natural season there; any later selTeamNumber must be a season-2 S7_CLOG crossing out of `new`)
     cl2 = [struct.unpack('<HHh', b) for b in get(1, f'o4/{at("S7_CLOG"):x}')]
     ok2 = {new} | {c[1] for c in cl2 if c[1] and c[0] == new}
-    # (real pack, MC 13/11: a natural season 2 may drop the club to the off-file pool - ripool gives it another row of
-    #  the same file at the season end, before the swap; S7_CLOG then logs that word with no crossing (new 0))
-    ok2 |= {c[0] for c in cl2 if not c[1] and new is not None and c[0] & 0xFF == new & 0xFF}
     check(bool(sels2) and sels2[0][0] == new and lo <= sels2[0][3] <= hi and all(s_[0] in ok2 for s_ in sels2),
           f'season 2: selTeamNumber / D6CDC {[(hex(a), d) for a, _, _, d in sels2[:3]]} (want {new and hex(new)} as '
-          f'loaded, D6CDC {lo}..{hi}; later only a season-2 crossing or pool move {sorted(hex(x) for x in ok2 if x)})', errs)
+          f'loaded, D6CDC {lo}..{hi}; later only a season-2 crossing {sorted(hex(x) for x in ok2 if x)})', errs)
     swc = sy.get('swe', {}).get('SWC1')
     for s_ in (0, 1):
         lds = [struct.unpack('<BBBBHHIi', b) for b in get(s_, f'o4/{at("S7_LD"):x}')]

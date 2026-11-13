@@ -388,18 +388,22 @@ static void rec_copy(uint8_t *d, const uint8_t *s)   /* gplay.c ri_copy's rule: 
         if (b > 4 && b != 23 && b != 25) d[b] = s[b];
 }
 
-struct largs { uint8_t *buf; uint32_t file; };
+struct largs { uint8_t *buf; uint32_t file; const uint8_t *orig; };   /* (orig: the file as read - TEAMBUF, or a
+                                           pooled file's RI_ORIG copy taken before ri_apply wrote its identities into
+                                           TEAMBUF: MC 13/11, option B; the hash checks the file on disk, the apply
+                                           writes TEAMBUF as before) */
 
 static int32_t load_run(void *pv)
 {
     uint8_t *buf = ((struct largs *)pv)->buf;
+    const uint8_t *orig = ((struct largs *)pv)->orig ? ((struct largs *)pv)->orig : buf;
     uint32_t file = ((struct largs *)pv)->file & 0xFF;
     int32_t s = file == S7_FA ? 0 : file == S7_FB ? 1 : -1;
     if (s < 0) return 0;
     S7_LD.calls++; S7_LD.file = (uint8_t)file; S7_LD.moved = S7_LD.rows = 0;
     if (!sreg_get()) return S7_LD.status = LD_NOREG;
-    if (be16(buf) != S7_ONREC[s]) return S7_LD.status = LD_SIZE;
-    uint32_t h = s7_fnv(buf, 2 + 684u * S7_ONREC[s]);
+    if (be16(buf) != S7_ONREC[s] || be16(orig) != S7_ONREC[s]) return S7_LD.status = LD_SIZE;
+    uint32_t h = s7_fnv(orig, 2 + 684u * S7_ONREC[s]);
     if (S7_LD.oread == 1 && h != S7_FNV[s]) S7_LD.oread = 0;   /* (the file changed since ORIG was read: read again) */
 #ifdef S7_LDFAIL
     if (S7_LD.calls == S7_LDFAILN) { S7_LD.oread = 2; S7_LD.rc = -0x5F; return S7_LD.status = LD_READ; }
@@ -449,10 +453,11 @@ uint32_t s7_home_word(uint32_t w)       /* xtra_readto (S7_HPTR): cdecl, the gam
     return r < 0 ? w0 : (uint32_t)r;    /* (CSTACK_REFUSED: the word itself) */
 }
 
-void s7_load(uint8_t *buf, uint32_t file)    /* ri_load (S7_LPTR): cdecl, the game's stack -> the engine's C stack */
+void s7_load(uint8_t *buf, uint32_t file, const uint8_t *orig)   /* ri_load (S7_LPTR): cdecl, the game's stack -> the
+                                                                    engine's C stack; orig: the file as read */
 {
     struct largs a;
-    a.buf = buf; a.file = file;
+    a.buf = buf; a.file = file; a.orig = orig;
     cstack_call(load_run, &a);
 }
 

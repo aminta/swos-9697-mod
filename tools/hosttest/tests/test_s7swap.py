@@ -446,7 +446,7 @@ def test_s7load():
         marked = bytes(buf)
         # the marks change the FNV: the file check would refuse -> the call sees the file as read, marks after
         m.w(TB, fil[f])
-        m.call('s7swap', 's7_load', TB, f)
+        m.call('s7swap', 's7_load', TB, f, 0)
         st, oread, moved, calls = ld(m)
         if (st, oread) != (LD_OK, 1) or moved != 9:
             errs.append(f'{f}: status {st} oread {oread} moved {moved} (want {LD_OK}, 1, 9)')
@@ -458,7 +458,7 @@ def test_s7load():
         fn[fi] = s7swap.fnv(marked)
         m.w(m.at('s7swap', 'S7_FNV'), struct.pack('<II', *fn))
         m.w(TB, marked)
-        m.call('s7swap', 's7_load', TB, f)
+        m.call('s7swap', 's7_load', TB, f, 0)
         st2 = ld(m)[0]
         got2 = m.rd(TB, len(fil[f]))
         m.w(m.at('s7swap', 'S7_FNV'), fsave)
@@ -487,7 +487,7 @@ def test_s7load():
         b = bytearray(fil[FB])
         prep(b)
         m.w(TB, bytes(b))
-        m.call('s7swap', 's7_load', TB, FB)
+        m.call('s7swap', 's7_load', TB, FB, 0)
         if ld(m)[0] != want or m.rd(TB, len(b)) != bytes(b):
             errs.append(f'{name}: status {ld(m)[0]} (want {want}), buffer {"kept" if m.rd(TB, len(b)) == bytes(b) else "changed"}')
     b = bytearray(m.rd(m.at('s7swap', 'S7_LD'), 16))   # ORIG not readable: oread 2 -> LD_READ, retried next load
@@ -495,21 +495,104 @@ def test_s7load():
     m.w(m.at('s7swap', 'S7_LD'), bytes(b))
     m.w(TB, fil[FB])
     c0 = ld(m)[3]
-    m.call('s7swap', 's7_load', TB, FB)                 # (Unicorn: no DOS - the retry's read fails again)
+    m.call('s7swap', 's7_load', TB, FB, 0)                 # (Unicorn: no DOS - the retry's read fails again)
     if ld(m)[0] != LD_READ or m.rd(TB, len(fil[FB])) != fil[FB] or ld(m)[3] != c0 + 1:
         errs.append(f'LD_READ: status {ld(m)[0]}, buffer {"kept" if m.rd(TB, len(fil[FB])) == fil[FB] else "changed"}')
     c1 = ld(m)[3]
-    m.call('s7swap', 's7_load', TB, 103)
+    m.call('s7swap', 's7_load', TB, 103, 0)
     if ld(m)[3] != c1:
         errs.append('file 103 counted')
     m.world(0)                                          # (a new career in another world: no registry)
     m.new_career()
-    m.call('s7swap', 's7_load', TB, FB)
+    m.call('s7swap', 's7_load', TB, FB, 0)
     if ld(m)[0] != LD_NOREG:
         errs.append(f'no world: status {ld(m)[0]} (want {LD_NOREG})')
     return not errs, '; '.join(errs[:6]) or (f'9 + 9 rows given their registry club\'s home record, bytes {KEPT} kept '
                                              f'(one mark each), unmoved rows as read; refused a changed file (re-read) / '
                                              f'a wrong count / LD_READ / LD_NOREG with the buffer kept; other files ignored')
+
+
+OB = TB + 0x20000                                       # (a pooled file's RI_ORIG stand-in: the file as read)
+
+
+def test_s7load_pooled():
+    """MC 13/11 (2a, option B): on a pooled file ripool's ri_apply writes the pool identities into TEAMBUF BEFORE
+    s7_load; s7_load must hash the file AS READ (ri's ORIG copy, its third argument) and apply to TEAMBUF. After the
+    9-swap season: LD_OK, 9 rows given their registry club's home record, every other row exactly as ri_apply left it
+    (its pool identity kept). CONTROL: the old call (orig 0 = hash TEAMBUF) on the same buffer is refused (LD_FILE /
+    LD_READ), nothing applied - the bug seen on the real pack (S7_LD 5 at every load of file 144)."""
+    if not os.path.exists(EXE) or not os.path.exists(EXE[:-4] + '.syms.json'):
+        return True, f'SKIP: {EXE} (a shaped HOSTTEST_SYMS=1 build) missing'
+    sy = json.load(open(EXE[:-4] + '.syms.json'))
+    if 's7_load' not in sy.get('s7swap', {}):
+        return False, f'{EXE}: no s7_load (piece 3 not linked)'
+    data = os.path.join(os.path.dirname(EXE), 'DATA')
+    fil = {f: open(os.path.join(data, f'TMW5.{f}'), 'rb').read() for f in (FA, FB)}
+    m = M(EXE)
+    m.uc.mem_map(TB, 0x40000)
+    import s7swap
+    oat = struct.unpack('<II', m.rd(m.at('s7swap', 'S7_OAT'), 8))
+    onrec = struct.unpack('<HH', m.rd(m.at('s7swap', 'S7_ONREC'), 4))
+    m.fresh()
+    fs, word, at, rdiv, rows = reg_parse(m.regb())
+    m.w(m.at('swefile', 'swe_fopen_r'), b'\xb8\xfe\xff\xff\xff\xc3')   # (no DOS: a re-read fails)
+    down, up = crossings(fs, m.gb)
+    st, nsw, _, _ = run(m, down, up)
+    if st != OK:
+        return False, f'season status {st}'
+    fs1, word1, at1, rdiv1, rows1 = reg_parse(m.regb())
+    orig = m.at('swe', 'S7_ORIG')
+
+    def fill_orig():
+        for s_, f in enumerate((FA, FB)):
+            m.w(orig + oat[s_], fil[f])
+        b = bytearray(m.rd(m.at('s7swap', 'S7_LD'), 16))
+        b[1] = 1
+        m.w(m.at('s7swap', 'S7_LD'), bytes(b))
+        m.w(m.at('s7swap', 'S7_FNV'), struct.pack('<II', *(s7swap.fnv(fil[f]) for f in (FA, FB))))
+    f, fi = FB, 1
+    rec = lambda f_, o: fil[f_][2 + 684 * o:2 + 684 * (o + 1)]
+    pooled = bytearray(fil[f])                          # (ri_apply's stand-in: every row a pool identity - its name
+    for o in range(onrec[fi]):                          #  bytes and the rest of its record changed, row bytes kept)
+        for b in range(5, 684):
+            if b not in KEPT:
+                pooled[2 + 684 * o + b] ^= 0x5A
+    errs = []
+    fill_orig()
+    m.w(TB, bytes(pooled))
+    m.call('s7swap', 's7_load', TB, f, 0)               # CONTROL: the old call (hash TEAMBUF after ri_apply)
+    st0 = ld(m)[0]
+    if st0 == LD_OK or m.rd(TB, len(pooled)) != bytes(pooled):
+        errs.append(f'control (old order / hash): status {st0}, buffer {"kept" if m.rd(TB, len(pooled)) == bytes(pooled) else "changed"} '
+                    f'(want a refusal: the bug)')
+    fill_orig()
+    m.w(OB, fil[f])
+    m.w(TB, bytes(pooled))
+    m.call('s7swap', 's7_load', TB, f, OB)              # (option B: the file as read hashed, TEAMBUF applied)
+    st1, oread, moved, _ = ld(m)
+    if (st1, moved) != (LD_OK, 9):
+        errs.append(f'pooled: status {st1} moved {moved} (want {LD_OK}, 9)')
+    got = m.rd(TB, len(pooled))
+    kept = mv = 0
+    for o in range(rows1[fi]):
+        h = word[at1[fi][o]]
+        r = got[2 + 684 * o:2 + 684 * (o + 1)]
+        if h == (f | o << 8):
+            kept += 1
+            if r != bytes(pooled[2 + 684 * o:2 + 684 * (o + 1)]):
+                errs.append(f'row {o}: its own club, but not as ri_apply left it')
+        else:
+            mv += 1
+            want = bytearray(rec(h & 0xFF, h >> 8))
+            for b in KEPT:
+                want[b] = pooled[2 + 684 * o + b]
+            if r != bytes(want):
+                errs.append(f'row {o} (home {h & 0xFF}/{h >> 8}): not its registry club\'s home record')
+    if m.rd(OB, len(fil[f])) != fil[f]:
+        errs.append('the ORIG copy was written')
+    return not errs, '; '.join(errs[:6]) or (f'file {f} pooled: control (old hash of TEAMBUF) refused with status {st0}, '
+                                             f'nothing applied; option B: LD_OK, {mv} rows their registry club\'s home '
+                                             f'record, {kept} rows exactly as ri_apply left them, ORIG untouched')
 
 
 EXE4 = os.environ.get('HT_S7W_EXE') or os.path.join(HOME, 'swos-mod', 'c', 'S7W-p6w', 'SWOS', 'ITALIAN.EXE')

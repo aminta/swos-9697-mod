@@ -6,7 +6,7 @@ a clang -target i686 probe (the exe's own layout, cobj.CFLAGS' target) - and the
 xleft.XLMAX): the same set of rows, no more, no less; each row inside its item's saved size (the
 modules' *_SIZE = sizeof); no two rows share a byte; forms W / G only (O8 / K: their pieces).
 
-test_wsites_walk (Unicorn, HT_WS_EXE else c/S7W-ws4b: a shaped IT build - the S7 test pack - with the real rows and
+test_wsites_walk (Unicorn, HT_WS_EXE else c/S7W-ws4c: a shaped IT build - the S7 test pack - with the real rows and
 HOSTTEST_SYMS=1; recipe: buildrel's bfull.py with every test switch cleared, SEASON_PACKS = world5tm-h2's with ita ->
 internal/s7pack-shaved/ita): the WSITES table in the exe = wsites.table() of the build's rows; every row's item resolves through
 S7_ENI (the build's EN_ITEMS) and fits its length; then every site of every row is poked - W sites cycle a club going
@@ -29,7 +29,7 @@ sys.path.insert(0, TOOLS)
 import wsites  # noqa: E402
 
 HOME = os.path.expanduser('~')
-EXE = os.environ.get('HT_WS_EXE') or os.path.join(HOME, 'swos-mod', 'c', 'S7W-ws4b', 'SWOS', 'ITALIAN.EXE')
+EXE = os.environ.get('HT_WS_EXE') or os.path.join(HOME, 'swos-mod', 'c', 'S7W-ws4c', 'SWOS', 'ITALIAN.EXE')
 
 PROBE = r'''
 typedef unsigned char u8; typedef unsigned short u16; typedef unsigned int u32; typedef signed char s8;
@@ -329,13 +329,125 @@ def test_wsites_cfb():
         if bad:
             errs.append(f'{os.path.basename(p)}: {len(bad)} file-102 words outside the rows: {[hex(o) for o in bad[:6]]}')
     dead = []
-    for r in rows:
+    code = set(cfb_code_rows()[0])                  # (4c: rows from the code need no save to prove them)
+    for r in [x for x in rows if x not in code]:
         c2 = _cfb_covered([x for x in rows if x is not r])
         if not any(len(_stale(d, c2)) for d in data.values()):
             dead.append(hex(r[1] + (0x10000 if r[0] == wsites.WI_CFBH else 0)))
     if dead:
         errs.append(f'rows no save needs (nothing clustered without them): {dead}')
     return not errs, '; '.join(errs[:5]) or f'{len(saves)} real saves: every clustered file-102 word is in one of {len(rows)} CFB rows, each row needed'
+
+
+
+# ---- 4c: careerFileBuffer rows from the code (MC's code pass 13/11) ------------------------------------------------
+LISTING = os.path.join(HOME, 'swos-mod', 'ref', 'swos.asm')
+
+
+def cfb_code_rows():
+    """([(item, off, stride, count, form, aux)] the CFB rows whose extent the code gives, [errors]): the mod's structs in
+    tmdFileBuffer's 80-record area (uefacoef.py's block at NG = bigtables.LIMIT, uefaq.c's uq_state, dplay.c's dp_save and
+    its log) from offsetof / the modules' constants, the game's arrays from ref/swos.asm (their declarations and the
+    writers' bounds)."""
+    import bigtables
+    import dplay
+    import uefacoef as uc
+    W, G, C, H = wsites.WS_W, wsites.WS_G, wsites.WI_CFB, wsites.WI_CFBH
+    errs = []
+    on = bigtables.ON[0]
+    bigtables.ON[0] = True                       # (the S7 world numbers clubs 2000+: NG = LIMIT)
+    try:
+        uc.layout()
+        prev, size, cb = uc.PREV, uc.SIZE, uc.CB_OFF
+    finally:
+        bigtables.ON[0] = on
+        uc.layout()
+    q = probe('#include "uefaq.c"', [('st', 'sizeof(struct uq_state)'), ('m', 'O(uq_state, m)'), ('s', 'O(uq_state, s)'),
+                                     ('gl', 'O(uq_state, gl)'), ('gln', 'Z(uq_state, gl) / 2'), ('br', 'O(uq_state, br)'),
+                                     ('brz', 'Z(uq_state, br[0])'), ('bra', 'O(uq_state, br[0].a)'),
+                                     ('brb', 'O(uq_state, br[0].b)'), ('NBR', 'NBR')])
+    d = probe('#include "dplay.c"', [('sv', 'sizeof(struct dp_save)'), ('res', 'O(dp_save, res)'),
+                                     ('team', 'O(dp_save, team)'), ('SN', 'SN'), ('srow', 'O(dp_save, srow)'),
+                                     ('srz', 'sizeof(struct dp_srow)'), ('srt', 'O(dp_srow, team)'), ('SR', 'SR'),
+                                     ('mv', 'O(dp_out, mv)'), ('mvz', 'sizeof(struct dp_mv)'), ('nmv', 'Z(dp_out, mv) / sizeof(struct dp_mv)'),
+                                     ('mvg', 'O(dp_mv, glob)'), ('mvt', 'O(dp_mv, team)')])
+    tmd = wsites.TMD
+    if q['m'] + 2 != q['s'] or q['bra'] != q['br'] + 2 or q['brb'] != q['br'] + 4:
+        errs.append('uq_state: m, s not adjacent or br[] not {r, aw, a, b}')
+    st_end = cb + size + q['st']
+    save_at = dplay.SAVE_AT if st_end <= dplay.SAVE_AT else (st_end + 15) & ~15     # (dplay.patch's rule)
+    sv = tmd + save_at
+    log = sv + dplay.LOG_AT + 4
+    rows = [(C, tmd + cb + prev + 36 * c + 4, 2, 16, W, 0) for c in range(3)] + [
+        (C, tmd + cb + prev + 0x6C, 2, 6, W, 0),
+        (C, tmd + cb + size + q['m'], 2, 2, W, 0),
+        (C, tmd + cb + size + q['gl'], 2, q['gln'], W, 0),
+        (C, tmd + cb + size + q['bra'], q['brz'], q['NBR'], W, 0),
+        (C, tmd + cb + size + q['brb'], q['brz'], q['NBR'], W, 0)]
+    for base in (sv, log):
+        rows += [(C, base + d['res'], 2, 1, W, 0), (C, base + d['team'], 2, d['SN'], W, 0),
+                 (C, base + d['srow'] + d['srt'], d['srz'], 2 * d['SR'], W, 0)]
+    rows += [(C, log + d['sv'] + d['mv'] + d['mvg'], d['mvz'], d['nmv'], G, 0),
+             (C, log + d['sv'] + d['mv'] + d['mvt'], d['mvz'], d['nmv'], W, 0)]
+    if save_at + dplay.LOG_AT != save_at + 0x400 or d['sv'] > dplay.LOG_AT - 4:
+        errs.append('dplay: the log does not follow the state')
+    # the game's arrays (ref/swos.asm): CFB = IDA - IDA_CFB, the label map checked on two known labels
+    if not os.path.exists(LISTING):
+        return rows, errs + [f'{LISTING} missing']
+    a = open(LISTING, encoding='latin-1').read()
+    ida = wsites.IDA_CFB
+    need = [('careerFileBuffer dw 0', 'the CFB start'), ('tmdFileBuffer db 54720 dup(0)', 'the 80 records'),
+            ('cmp     numForeignMarketPlayers, 15', 'AddForeignMarketPlayer bound'),
+            ('cmp     numHomeMarketPlayers, 25', 'AddPlayerToCareerContest bound'),
+            ('foreignMarketPlayers dd 15 dup(0)', 'foreign market'), ('JobOffer struc ; (sizeof=0x1A', 'JobOffer 26 B'),
+            ('newJobOffers JobOffer 5 dup', 'newJobOffers[5]'), ('jobOffers JobOffer 5 dup', 'jobOffers[5]'),
+            ('mov     word ptr D5, 16h', 'career calendar record 16h B (cseg_8C2AE)'),
+            ('cmp     A4, offset dseg_DF4F4', 'calendar bound (cseg_8C516)'),
+            ('dseg_DB3E6 db 1870 dup(0)', 'the calendar'), ('\ndseg_DF4F4 dw 0', 'the calendar end')]
+    for text, what in need:
+        if text not in a:
+            errs.append(f'listing: {what} ({text!r}) not found')
+    # CFB of the named arrays: from dseg_ labels around them (numOffers = dseg_D6D18 + 2 is not named: count the bytes)
+    fm = 0xD6D1A - ida                                   # foreignMarketPlayers (numOffers dw at D6D18)
+    hm = fm + 4 * 15
+    nj = 0xD6E12 - ida                                   # newJobOffers (numNewJobOffers dw at D6E10)
+    jo = nj + 5 * 26 + 2
+    if jo + 5 * 26 + 2 + 2 + 10 != 0xD6F26 - ida:      # (timeToNegotiate, numPlayers.., playersOnTransferMarket[5])
+        errs.append('jobOffers .. dseg_D6F26: not 5 x 26 B')
+    if hm + 4 * 25 != 0xD6DBA - ida:
+        errs.append('homeMarketPlayers .. dseg_D6DBA: not 25 x 4 B')
+    if 0xD6CDC - ida != 0xD750:                          # (s7-bp-run.md: dseg_D6CDC = obj2+16E26h = .CAR +D750h)
+        errs.append('IDA_CFB: dseg_D6CDC not at CFB D750h')
+    cal, cend = 0xDB3E6 - ida, 0xDF4F4 - ida
+    rows += [(C, fm, 4, 15, W, 0), (C, hm, 4, 25, W, 0), (C, nj, 26, 5, W, 0), (C, jo, 26, 5, W, 0),
+             (H, cal - 0x10000 + 12, 22, (cend - cal) // 22, W, 0), (H, cal - 0x10000 + 14, 22, (cend - cal) // 22, W, 0)]
+    return rows, errs
+
+
+def test_wsites_cfb_layout():
+    """WSITES 4c: every CFB row whose extent the code gives (cfb_code_rows: uefacoef PREV[3] x 16 / FIN[3] x 2, uefaq
+    uq_state m, s, gl[3][36], br[NBR] a / b, dplay dp_save + its log res / team[SN] / srow[2][SR] / mv[4], the foreign /
+    home markets 15 / 25, the job offers 5 + 5, the career calendar's CAL_N 16h-B records) is in wsites.ROWS with that
+    offset, stride and count - the capacity, not what the saves showed; CFB rows share no byte and stay inside the
+    fixed part."""
+    rows, errs = cfb_code_rows()
+    have = [r for r in wsites.ROWS if r[0] in (wsites.WI_CFB, wsites.WI_CFBH)]
+    miss = [r for r in rows if r not in have]
+    if miss:
+        errs.append(f'not in ROWS: {[(r[0], hex(r[1]), r[2], r[3]) for r in miss[:4]]}')
+    used = {}
+    for it, off, st, cnt, form, aux in have:
+        base = (0x10000 if it == wsites.WI_CFBH else 0) + off
+        if base + (cnt - 1) * st + 2 > FIX_LEN:
+            errs.append(f'{base:#x}: past the fixed part')
+        for k in range(cnt):
+            for b in (base + k * st, base + k * st + 1):
+                if b in used:
+                    errs.append(f'{b:#x}: in rows {used[b]:#x} and {base:#x}')
+                used[b] = base
+    return not errs, '; '.join(errs[:6]) or (f'{len(rows)} CFB rows = the code\'s extents (uefaq br {rows[6][3]}, '
+                                             f'calendar {rows[-1][3]} records, markets 15 / 25, job offers 5 + 5); '
+                                             f'{len(have)} CFB rows, no shared byte')
 
 
 # ---- CF_ST in the S7 swap (cf-st-s7.md): the career club's division winner word (CN pad) ---------------------------------

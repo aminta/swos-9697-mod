@@ -11,6 +11,34 @@ TEST = os.environ.get('S7_WSITES_TEST') == '1'       # (host-test builds only: T
 WI_CFB, WI_CACHE, WI_MAIN, WI_CFBH, WS_END, WS_MAX = 0, 1, 2, 3, 0xFFFF, 128   # (WI_CFBH: careerFileBuffer + 0x10000)
 WS_W, WS_G, WS_O8, WS_K, WS_R = 1, 2, 3, 4, 5
 
+# careerFileBuffer layout (WSITES 4c): CFB offsets. TMD = tmdFileBuffer (careerFileBuffer dw, then the 80 records);
+# IDA_CFB: an IDA dseg address - IDA_CFB = its CFB offset (dseg_D6B4E = TMD + 54720)
+TMD, IDA_CFB = 2, 0xD6B4E - (2 + 54720)
+UC_PREV = TMD + 0x3800 + 0x89FC             # uefacoef CB + PREV (NG 2409: KPTS 0x1910 + 12 NG)
+UQ_ST = UC_PREV + 0x6C + 0xC                # uefacoef CB + SIZE: uefaq's state
+DP_SV = TMD + ((UQ_ST - TMD + 2152 + 15) & ~15)   # dplay save_at: uefaq.STATE_END rounded to 16
+CAL, CAL_N = 0xDB3E6 - IDA_CFB, (0xDF4F4 - 0xDB3E6) // 22
+
+
+def check_layout():
+    """At build (s7swap.late): the offsets above are this build's (uefacoef.layout(), uefaq.STATE_END, dplay's
+    save_at): a module that moves its block fails the build instead of leaving a row on stale bytes."""
+    import dplay
+    import uefacoef as uc
+    import uefaq
+    errs = []
+    if uefaq.STATE_END[0] is not None:          # (a league-phase world: uefacoef.layout() ran, uefaq linked)
+        if TMD + uc.CB_OFF + uc.PREV != UC_PREV or TMD + uc.CB_OFF + uc.SIZE != UQ_ST:
+            errs.append(f'uefacoef PREV / SIZE moved ({uc.PREV:#x} / {uc.SIZE:#x})')
+        if TMD + uefaq.STATE_END[0] != UQ_ST + 2152:
+            errs.append(f'uefaq state size ({uefaq.STATE_END[0]:#x})')
+    if dplay.SAVE_OFF[0] is not None and TMD + dplay.SAVE_OFF[0] != DP_SV:
+        errs.append(f'dplay save_at {dplay.SAVE_OFF[0]:#x}')
+    assert not errs, ('wsites: careerFileBuffer rows off this build\'s layout', errs)
+    print(f'wsites: CFB layout checked (uefacoef / uefaq: {uefaq.STATE_END[0] is not None}, dplay save_at: '
+          f'{dplay.SAVE_OFF[0] is not None})')
+
+
 # WSITES 4a (Panchina 13/11): the engine items' word / global sites (n7-s7-clubmap.md §4a), forms W and G only - the
 # walker's (O8 / K rows wait for their pieces: CD ent and CF rank (O8, file 102 by ordinal), F1 / ST / LR / SH / the SS
 # banks' key byte (K: WS_KEYS callbacks, Shaved)). Offsets from the structs (i686, clang -target i686: test_wsites
@@ -22,28 +50,47 @@ WS_W, WS_G, WS_O8, WS_K, WS_R = 1, 2, 3, 4, 5
 # data by the HOME word, MC 13/11 - compared with BAGE's again: walking them would break the match; the S7 audit's
 # bteam item). rows() keeps a build's own items only (an item it does not save: no row).
 ROWS = [
-    # careerFileBuffer (WI_CFB: the .CAR's fixed part, 95151 B), WSITES 4b (Panchina 13/11): the 17 regions of
-    # n7-s7-clubmap.md 4b, named by their observed layout in 26 real saves (stride, parity, count); every slot of an
-    # array is walked as a word (a slot of another file, 0 or FFFFh is kept by the walker). PROVISIONAL extents:
-    # the arrays' true bounds come from the game's code (the region's writer); test_wsites_cfb pins what the saves show.
-    (WI_CFB, 0x00034, 2, 22, WS_W, 0),         # header: a 22-word by-file list (every save)
-    (WI_CFB, 0x0C202, 2, 137, WS_W, 0),        # season 2+: word lists (3 x 16, 34, 35) - draws / entrant lists
-    (WI_CFB, 0x0CAE4, 2, 31, WS_W, 0),         # season 8+: ~30 words
-    (WI_CFB, 0x0CBF2, 16, 40, WS_W, 0),        # season 4+: 40 table rows, word at +2 (26h at +4)
-    (WI_CFB, 0x0CED2, 2, 42, WS_W, 0),         # season 8+: ~30 words
-    (WI_CFB, 0x0CFF6, 16, 40, WS_W, 0),        # season 8+: a second 40-row table, word at +6
-    (WI_CFB, 0x0D27C, 8, 3, WS_W, 0),          # season 2+: stride 8
-    (WI_CFB, 0x0D7CA, 4, 25, WS_W, 0),         # stride 4 (the career's league clubs)
-    (WI_CFB, 0x0D886, 26, 5, WS_W, 0),         # season 2+: stride 26, word + FFh
-    (WI_CFB, 0x0F9CB, 2, 15, WS_W, 0),         # stride 2 (odd address)
-    (WI_CFBH, 0x051D, 2, 16, WS_W, 0),         # stride 2 (odd address)
-    (WI_CFBH, 0x0960, 2, 28, WS_W, 0),         # season 8+: 28 words
-    (WI_CFBH, 0x0BF9, 2, 4, WS_W, 0),          # 4 words (odd address)
-    (WI_CFBH, 0x10AC, 2, 4, WS_W, 0),          # 4 words
-    (WI_CFBH, 0x11C2, 2, 36, WS_W, 0),         # season 2+: a by-file sorted list, 36 words
-    (WI_CFBH, 0x1E66, 22, 67, WS_W, 0),        # the league's fixture list: 22-byte records, home word +0, away word +2
-    (WI_CFBH, 0x1E68, 22, 67, WS_W, 0),
-    (WI_CFBH, 0x6097, 2, 20, WS_W, 0),         # a 20-club list (odd address)
+    # careerFileBuffer (WI_CFB: the .CAR's fixed part, 95151 B). WSITES 4b (Panchina 13/11) found the regions in 26 real
+    # saves; 4c (13/11, MC's code pass) gives each one its writer and its capacity from the code: the mod's structs in
+    # tmdFileBuffer's 80-record area (CFB + TMD; a big world's save keeps only the W1 block there, careerworld.py) and the
+    # game's own arrays (ref/swos.asm: CFB = IDA address - IDA_CFB). test_wsites_cfb_layout recomputes every row below
+    # from offsetof / the modules / the listing; check_layout() asserts the build's real offsets (dplay's save_at).
+    (WI_CFB, 0x00034, 2, 22, WS_W, 0),         # W1 block (careerworld w_save_tail: rewritten from the cache at every save)
+    # uefacoef.py block CB (TMD + CB_OFF; NG = bigtables.LIMIT): PREV[3] {dd count; dw team[16]} (uc_draw: ja 16), FIN[3]
+    # {dw a, b} (the final's two clubs)
+    *[(WI_CFB, UC_PREV + 36 * c + 4, 2, 16, WS_W, 0) for c in range(3)],
+    (WI_CFB, UC_PREV + 0x6C, 2, 6, WS_W, 0),
+    # uefaq.c struct uq_state (TMD + CB_OFF + SIZE, 2152 B): m, s at +2 (career club, stand-in); gl[3][36] at +16;
+    # br[NBR 320] {u8 r, aw; u16 a, b} 6 B at +232 (uq_season: every qualifying tie)
+    (WI_CFB, UQ_ST + 2, 2, 2, WS_W, 0),
+    (WI_CFB, UQ_ST + 16, 2, 3 * 36, WS_W, 0),
+    (WI_CFB, UQ_ST + 232 + 2, 6, 320, WS_W, 0),
+    (WI_CFB, UQ_ST + 232 + 4, 6, 320, WS_W, 0),
+    # dplay.c struct dp_save (TMD + save_at, 912 B): res at +2 (dp_rec), team[SN 28] at +8, srow[2][SR 20] {u16 team; ..}
+    # 16 B at +0x110; its log copy (DP_LOG = + LOG_AT: 'DPLG', the state, then dp_out's head + mv[4] {u16 glob, team; ..})
+    *[r for base in (DP_SV, DP_SV + 0x400 + 4) for r in (
+        (WI_CFB, base + 2, 2, 1, WS_W, 0),
+        (WI_CFB, base + 8, 2, 28, WS_W, 0),
+        (WI_CFB, base + 0x110, 16, 40, WS_W, 0))],
+    (WI_CFB, DP_SV + 0x400 + 4 + 912 + 4, 8, 4, WS_G, 0),
+    (WI_CFB, DP_SV + 0x400 + 4 + 912 + 6, 8, 4, WS_W, 0),
+    # the game's arrays: foreignMarketPlayers / homeMarketPlayers {u16 team; u8 player, pad} (AddForeignMarketPlayer
+    # cmp 15, AddPlayerToCareerContest cmp 25); newJobOffers / jobOffers JobOffer[5] {u16 teamNo; ..} 1Ah B
+    (WI_CFB, 0x0D78E, 4, 15, WS_W, 0),
+    (WI_CFB, 0x0D7CA, 4, 25, WS_W, 0),
+    (WI_CFB, 0x0D886, 26, 5, WS_W, 0),
+    (WI_CFB, 0x0D90A, 26, 5, WS_W, 0),
+    (WI_CFB, 0x0F9CB, 2, 15, WS_W, 0),         # (4b, by the saves: not in the code pass) stride 2 (odd address)
+    (WI_CFBH, 0x051D, 2, 16, WS_W, 0),         # (4b) stride 2 (odd address)
+    (WI_CFBH, 0x0960, 2, 28, WS_W, 0),         # (4b) season 8+: 28 words
+    (WI_CFBH, 0x0BF9, 2, 4, WS_W, 0),          # (4b) 4 words (odd address)
+    (WI_CFBH, 0x10AC, 2, 4, WS_W, 0),          # (4b) 4 words
+    (WI_CFBH, 0x11C2, 2, 36, WS_W, 0),         # (4b) season 2+: a by-file sorted list, 36 words
+    # the career calendar dseg_DB3E6 .. dseg_DF4F4 (cseg_8C516's bound): records of 16h B in a career (cseg_8C2AE: one
+    # match: +0Ah its entry, home word +0Ch, away word +0Eh), CAL_N of them at most
+    (WI_CFBH, CAL - 0x10000 + 12, 22, CAL_N, WS_W, 0),
+    (WI_CFBH, CAL - 0x10000 + 14, 22, CAL_N, WS_W, 0),
+    (WI_CFBH, 0x6097, 2, 20, WS_W, 0),         # (4b) a 20-club list (odd address, dseg_DF623: the DIY buffer)
     # GP (gplay.c struct gp_state, 2048 B): srow[SD 2][GT 32] {u16 team; ...} 10 B at +8; ko[2] (674 B at +648):
     # team[KN 24] at +474; dec[3] (12 B at +1996): team[2] at +4, glob[2] at +8
     ('GP', 8, 10, 64, WS_W, 0),

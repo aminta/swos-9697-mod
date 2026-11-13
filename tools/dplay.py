@@ -35,6 +35,7 @@ DP_CPO, DP_PO, DP_OUT = 0xFC, 0xFD, 0xFE      # contest ids (mkseason.RESERVED_I
 NAMES = (b'PLAY-OFF SERIE B', b'PLAY-OUT SERIE B', b'PLAY-OFF SERIE C')
 SAVE_AT = 0xC000                # dp_save in tmdFileBuffer (the 80-record area; after uefaq's state, before BIGC)
 LOG_AT = 0x400                  # (+ SAVE_AT) the season's log: 'DPLG', the state, dp_out's head and moves
+SAVE_OFF = [None]               # this build's save_at (wsites.check_layout: the WSITES rows over it)
 
 ASM = '''
 dp_find:                                ; edx = a league struct -> esi = its DP_TAB entry in the running world, or ZF = 1
@@ -820,6 +821,7 @@ def patch(p, at, limit, tables, bss_at, area):
     save_at = SAVE_AT if se <= SAVE_AT else (se + 15) & ~15      # (global numbers 2000+: uefacoef's block is longer)
     top = bigtables.ext_off() if bigtables.ON[0] else careerworld.BIGC_AT
     assert save_at + LOG_AT + 0x500 <= top, (hex(se), hex(save_at), hex(top))
+    SAVE_OFF[0] = save_at
     force = int(os.environ.get('DPLAY_FORCE') or 0)          # (test builds: the career club's Serie B place)
     cupw = int(os.environ.get('DPLAY_CUPW') or 0)            # (test builds: the cup winner's place in that group)
     cg = cgaps()                                             # (4.2: each group's play-out gap, as gp_season reads it)

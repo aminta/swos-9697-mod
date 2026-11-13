@@ -755,6 +755,9 @@ def patch_exe(src, dst, remap, lang='it'):
             xe = supercup.patch(p, xe)
         assert xe <= xp + 0x1000 * xpg, hex(xe)
         print(f'exe: extra pages obj1+{xp:#x}..{xe:#x} (free to {xp + 0x1000 * xpg:#x}: {xp + 0x1000 * xpg - xe} B left)')
+        if LT_SPACE:                                     # 4.2 (MC 13/11): lgreal on the extra pages' tail, after supercup
+            LG_ROOM[:] = [(xe + 15) & ~15, xp + 0x1000 * xpg]   # (OBJ1MV freed them; gplay's tail stays gplay's: it grows
+                                                         # with the engine work, the real S7 pack left lgreal 4 B there)
     elif xtra_on:
         world = xtra.patch(p, world)
         import xbrowse

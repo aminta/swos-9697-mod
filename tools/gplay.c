@@ -2761,6 +2761,16 @@ static u32 cd_str(u16 w) {
                                                    row, a club from the other file has no entry here (the floor, 5) */
         u32 k = gp_poolk(gp_ident(w)), hm = gp_home(w);
         id = k != 0xFFFF ? 256 + k : (hm & 0xFF) == (w & 0xFF) ? (int)(hm >> 8) : 1000;
+        if (id == 1000) {                       /* a club of the other league file: its real strength by its home row (cupd.py
+                                                   strengths: db other file after the pool's, then its 256 ordinals) */
+            const u8 *o = s + 6 + 512 + 2 * np;
+            if ((hm & 0xFF) == (o[0] | o[1] << 8) && (hm >> 8) < 256) {
+                const u8 *q = o + 2 + 2 * (hm >> 8);
+                u32 v = q[0] | q[1] << 8;
+                if (v < 5) v = 5;
+                return v * v;
+            }
+        }
     }
 #endif
     const u8 *p = id < 256 ? s + 6 + 2 * id : id - 256 < np ? s + 6 + 512 + 2 * (id - 256) : 0;

@@ -120,8 +120,18 @@ def strengths(pk, lfile):
         fl, i = pk.where.get(k, (None, None))
         if fl == lfile and i < 256:
             st[i] = strength(pk, k)
-    return (struct.pack('<HHH', moff, nmap, len(pool)) + struct.pack('<256H', *st)
-            + b''.join(struct.pack('<H', strength(pk, k)) for k in pool))
+    out = (struct.pack('<HHH', moff, nmap, len(pool)) + struct.pack('<256H', *st)
+           + b''.join(struct.pack('<H', strength(pk, k)) for k in pool))
+    if cd2():                               # S7 (s7-ri-fix.md, MC 13/11): a club of the OTHER league file in this file's rows by its
+        other = [f for f in pk.league_files() if f != lfile]    # real strength, the same rule (gplay.c cd_str, its home word)
+        assert len(other) == 1, ('cupd: S7 league files', pk.league_files(), lfile)
+        so = [5] * 256
+        for k in pk.clubs:
+            fl, i = pk.where.get(k, (None, None))
+            if fl == other[0] and i < 256:
+                so[i] = strength(pk, k)
+        out += struct.pack('<H', other[0]) + struct.pack('<256H', *so)
+    return out
 
 
 def cd2():

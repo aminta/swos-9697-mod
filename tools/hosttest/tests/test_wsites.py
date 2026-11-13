@@ -213,6 +213,25 @@ def test_wsites_walk():
             v = vals[(i + k) % len(vals)]
             struct.pack_into('<H', before[iid], off + i * st, v)
             sites[iid, off + i * st] = (form, v)
+    # DECOYS (MC 13/11): in every record of a strided row (stride >= 4) the two bytes before its word field, when no row
+    # covers them (uefaq br's r / aw, the calendar's entry word, ...), hold the going-down crosser's word: a non-team
+    # value equal to a crosser's word must come out untouched (the expected bytes keep it as planted)
+    cov = {(i, o + d) for (i, o) in sites for d in (0, 1)}
+    cov |= {(r[0], r[1] + k) for r in rrows for k in range(r[2])}
+    decoys = 0
+    for iid, off, st, cnt, form, aux in tab:
+        if form == wsites.WS_R or st < 4 or cnt < 2:
+            continue
+        if iid == wsites.WI_CFBH:
+            iid, off = wsites.WI_CFB, off + 0x10000
+        for i in range(cnt):
+            o = off + i * st - 2
+            if o >= 0 and (iid, o) not in cov and (iid, o + 1) not in cov:
+                struct.pack_into('<H', before[iid], o, dn[0])
+                cov |= {(iid, o), (iid, o + 1)}
+                decoys += 1
+    if not decoys:
+        errs.append('no decoy planted (a strided row with a free word before its field)')
     if errs:
         return False, '; '.join(errs[:6])
     for iid, b in before.items():
@@ -283,7 +302,7 @@ def test_wsites_walk():
     if not moved:
         errs.append('no site moved (crossings?)')
     return not errs, '; '.join(errs[:6]) or (f'{len(tab)} rows on {len(before)} items: {moved} moved words / globals '
-                                             f'now their clubs\' new ones, the other sites and bytes unchanged; SLTCOPY re-based for every row '
+                                             f'now their clubs\' new ones, the other sites and bytes unchanged ({decoys} decoys: a crosser\'s word in a non-team field, untouched); SLTCOPY re-based for every row '
                                              f'({hi} globals >= 2000: BT_EXT\'s range) (items not saved by this build: {absent})')
 
 

@@ -263,6 +263,8 @@ def patch_exe(src, dst, remap, lang='it'):
     engine.save_item('SWC1', swe.SWC1_SIZE, grow=True)   # engine P: the engine's state (swe.c SWC1: a versioned header,
     engine.before_save('swe_st_save')            # then sections; older, shorter versions load - grow)
     engine.after_load('swe_st_load')
+    if swe.SWC1_SIZE > swe.SWC1_BASE:            # (MC 13/11: a registry shape - swe.c SWC1_BSS - writes the new
+        engine.after_new('swe_st_new')           # career's world byte at once; dormant: not registered, same bytes)
     if os.environ.get('EN_RETIRE_PROBE'):        # (test builds only: a load-only item, hosttest test_swc1)
         engine.retire_item('RPRB', 4)
     import finance

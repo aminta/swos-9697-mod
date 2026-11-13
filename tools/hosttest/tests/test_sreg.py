@@ -104,10 +104,11 @@ class N7:
     def call(self, m, k, *args):
         return tr._call(self.uc, self.at(m, k), *args)
 
-    def new_career(self):                                       # (new_career_defaults: en_reset, en_finish; after_new)
-        self.w(self.found, b'\0' * (self.en_n + 1))
-        ts._run(self.uc, self.at('trailer', 'en_finish'), tr.RET)
-        self.call('swe', 'swe_st_load')
+    def new_career(self):                                       # (new_career_defaults: en_reset, en_finish, then the
+        self.w(self.found, b'\0' * (self.en_n + 1))            # after_new callbacks - swe_st_new in a registry build;
+        ts._run(self.uc, self.at('trailer', 'en_finish'), tr.RET)   # no swe_st_load: the game loads nothing there,
+        if 'swe_st_new' in self.sy.get('swe', {}):             # MC 13/11 - the model before hid Shaved's NOREG)
+            self.call('swe', 'swe_st_new')
 
     def load(self, swc1):                                       # (en_read + en_finish + swe_st_load, SWC1 garbage)
         sid = engine.item_id('SWC1')
@@ -176,11 +177,24 @@ def test_sreg():
     m.new_career()
     d.new_career()
     head, dhead = m.rd(m.swc1, size), d.rd(d.swc1, 32)
-    if head[:32] != dhead or any(head[32:]) or sections(dhead):
-        errs.append(f'new career: SWC1 head {head[:HDR].hex()} vs the dormant {dhead[:HDR].hex()}, '
+    if head[:2] + b'\0\0' + head[4:32] != dhead or any(head[32:]) or sections(dhead):
+        errs.append(f'new career: SWC1 head {head[:HDR].hex()} vs the dormant {dhead[:HDR].hex()} (bar the world), '
                     f'{sum(map(bool, head[HDR:]))} non-zero byte(s) after it, dormant sections {sections(dhead)}')
     if regb() != R0:
         errs.append('new career: the registry not the spec\'s')
+    # Shaved 13/11 (world_s7cross_down / _up: S7_NOREG at the end of season 1 of a career never saved): a new career's
+    # SWC1 carries its world at once (swe_st_new), so sreg's gate is open before any save; a new world-4 career: shut
+    if 'swe_st_new' in d.sy.get('swe', {}):
+        errs.append('dormant: swe_st_new compiled (SWC1_BSS only)')
+    for wn, open_ in ((4, False), (WORLD, True)):
+        m.world(wn)
+        m.new_career()
+        hw, n = struct.unpack('<H', m.rd(m.swc1 + 2, 2))[0], m.call('sreg', 'sreg_size')
+        if hw != wn or (n > 0) != open_:
+            errs.append(f'new world-{wn} career, never saved: SWC1 world {hw}, sreg_size {n} '
+                        f'(want {wn}, {"> 0" if open_ else "0"})')
+    if regb() != R0:
+        errs.append('new career after the world gate: the registry not the spec\'s')
     m.call('swe', 'swe_st_save')
     d.call('swe', 'swe_st_save')
     s = sections(m.rd(m.swc1, size))

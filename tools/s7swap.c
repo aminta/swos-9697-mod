@@ -340,6 +340,9 @@ static int32_t run(void *pv) {
     uint16_t *order = (uint16_t *)(SWE_ARENA_AT + ORD_AT);
     sr_registry *R = SREG_REG;
     S7_LOG.nswap = S7_LOG.ncross = 0; S7_LOG.rc = 0;
+    extern uint8_t RI_FRESH;                /* (consumed first, before any early return: never 1 after s7_season - MC 13/11) */
+    int32_t nri = RI_FRESH ? RI_NMOVES : 0;  /* (RI_NMOVES / RI_MOVES stay as logged: the harness) */
+    RI_FRESH = 0;
 #ifdef S7_NOSWAP
     return S7_LOG.status = S7_SKIP;     /* (S7_NOSWAP test builds: no swap at all - world_s7cross_diff's control) */
 #endif
@@ -348,9 +351,7 @@ static int32_t run(void *pv) {
        follows ri's queue. Each as {a, NONE, on}: the occupant off the files (queued in ri's q[]), the pool head onto
        its row - the row and its division stay. All checked before any is applied. */
     sr_reg_swap *sw = (sr_reg_swap *)(SWE_ARENA_AT + SW_AT);
-    extern uint8_t RI_FRESH;
-    int32_t nri = RI_FRESH ? RI_NMOVES : 0, fb0 = fi_of(S7_FB);   /* (RI_NMOVES / RI_MOVES stay as logged: the harness) */
-    RI_FRESH = 0;
+    int32_t fb0 = fi_of(S7_FB);
     S7_RIMV.n = 0; S7_RIMV.status = 1; S7_RIMV.row = 0;
     for (int32_t k = 0; k < nri; k++) {
         uint32_t row = RI_MOVES[k][0], out = RI_MOVES[k][1], in = RI_MOVES[k][2];

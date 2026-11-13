@@ -84,6 +84,8 @@ def test_s7rimoves():
         r0 = m.regb()
         poke_moves(m, bad)
         st = t7.run(m, *t7.crossings(fs, m.gb))[0]
+        if m.rd(m.at('s7swap', 'RI_FRESH'), 1) != b'\0':
+            errs.append(f'{name}: RI_FRESH still set after a refused s7_season')
         if st != RIMV_BAD or rimv(m)[1] != 2 or m.regb() != r0:
             errs.append(f'{name}: status {st}, S7_RIMV {rimv(m)}, registry {"kept" if m.regb() == r0 else "changed"}')
     # RI_FRESH 0 (a stale log: a career start, a second career): nothing applied, the plain 9-swap season
@@ -161,7 +163,13 @@ def test_s7rimoves():
             want[kb] = buf[2 + 684 * r + kb]
         if got[2 + 684 * r:2 + 684 * (r + 1)] != bytes(want):
             errs.append(f's7_load row {r}: not RS record {k} (kept bytes from the row)')
+    m.w(m.at('s7swap', 'RI_FRESH'), b'\1')              # (an early return - no registry: NOREG - consumes it too)
+    m.world(0)
+    m.new_career()
+    m.call('s7swap', 's7_season', t7.SLT_AT)
+    if m.rd(m.at('s7swap', 'RI_FRESH'), 1) != b'\0' or m.rd(m.log, 1)[0] == t7.OK:
+        errs.append(f'no registry: status {m.rd(m.log, 1)[0]}, RI_FRESH {m.rd(m.at("s7swap", "RI_FRESH"), 1)[0]} (want not OK, 0)')
     return not errs, '; '.join(errs[:6]) or (f'pool idents {p0}..{p0 + np_ - 1} seeded, s7_poolk both ways; 2 moves + '
                                              f'9 swaps: outs off the files, ins at rows {ends}, one row per ident, '
-                                             f'RI_S7_BAD 0; RI_FRESH one-shot (stale log: none applied, second season: none again); s7_load: RS records 0 / 1 on those rows, nopool 0; '
+                                             f'RI_S7_BAD 0; RI_FRESH one-shot (stale log: none applied, second season: none again, 0 after every exit incl. refusals / NOREG); s7_load: RS records 0 / 1 on those rows, nopool 0; '
                                              f'6 refusals with the registry kept')

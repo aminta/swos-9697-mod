@@ -27156,7 +27156,7 @@ def s7pool_hex(sy):
     ob, oa = s7['RI_MOVES'][0], swe['SWE_ARENA_AT']
     return (f',o{ob}/{s7["RI_MOVES"][1]:x}:384,o{ob}/{s7["RI_NMOVES"][1]:x}:4,o{ob}/{s7["RI_S7_BAD"][1]:x}:4'
             f',o{ob}/{s7["S7_RIMV"][1]:x}:4,{gp["RI_STATE"][1]:x}:{8 + 20 + 384}'
-            f',o{oa[0]}/{oa[1]:x}:{s7reg_dims()[4]}')
+            f',o{oa[0]}/{oa[1]:x}:{s7reg_dims()[4]}' + (f',o{ob}/{s7["RI_FRESH"][1]:x}:1' if 'RI_FRESH' in s7 else ''))
 
 
 def s7pool_checks(sy, hexes, errs):
@@ -27176,6 +27176,9 @@ def s7pool_checks(sy, hexes, errs):
     for s_ in (0, 1):
         seq = lambda key: [b for o, b in hexes[s_] if o == key]
         bad = [struct.unpack('<i', b)[0] for b in seq(kb)]
+        if 'RI_FRESH' in s7:                         # (MC 13/11: s7ri_pool's one-shot never seen set - after a load, at boot, in the
+            fr = [b[0] for b in seq(k(ob, s7['RI_FRESH'][1]))]   # menus: s7_season consumes it in the same season end)
+            check(not any(fr), f'season {s_ + 1}: RI_FRESH seen set {fr} (a stale ri log s7_season did not consume)', errs)
         check(not any(bad), f'season {s_ + 1}: RI_S7_BAD {bad} (a can\'t-happen: an occupant the registry did not know, or RI_SWAPPED set)', errs)
         rimv = [struct.unpack('<BBH', b) for b in seq(kr)]
         check(all(x[1] in (0, 1) for x in rimv), f'season {s_ + 1}: S7_RIMV refused a move {rimv[-3:]}', errs)

@@ -55,7 +55,13 @@ def reserved(pk, exe=None):
 
 
 def transfer_windows(pk, exe=None):
-    """[(kind, B, E, source)] for one country pack, summer first"""
+    """[(kind, B, E, source)] for one country pack, in career-week order inside the career season [S, S + 96).
+
+    The real dates (data) are calendar dates; the career season runs from S (its first advance) for 96 weeks. A real
+    window is brought into it: one that ends before S is next year's (+96: the January window of an August season, the
+    pre-season window of a calendar-year league seen from a mid-year S), and B is clipped to S (the market opens at
+    InitializeNewSeason at the earliest: a summer window that opened in June starts for the career at S). A window
+    left with nothing inside the season is refused, never dropped."""
     import split
     tw = pk.get('transfer_windows') or {}
     s = season_start(pk, exe)
@@ -65,11 +71,17 @@ def transfer_windows(pk, exe=None):
         if d:
             b, e = split.week_of(d['from']), split.week_of(d['to'])
             assert e >= b, f"{pk.get('id')}: transfer window {kind} ends before it starts ({d})"
+            if s is not None:
+                while e < s:
+                    b, e = b + 96, e + 96
+                b = max(b, s)
+                assert b <= e < s + 96, f"{pk.get('id')}: transfer window {kind} {d} outside the season from {s}"
             out.append((kind, b, e, 'data'))
         elif s is not None:
             out.append((kind, s + off, s + off + w - 1, 'default'))
-    if len(out) == 2:
-        assert out[0][2] < out[1][1], f"{pk.get('id')}: summer and winter windows overlap {out}"
+    out.sort(key=lambda x: x[1])
+    for a, c in zip(out, out[1:]):
+        assert a[2] < c[1], f"{pk.get('id')}: transfer windows overlap {out}"
     return out
 
 

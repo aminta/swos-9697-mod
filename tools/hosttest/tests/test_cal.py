@@ -32,8 +32,8 @@ def test_cal_reserved_is_fport():
 
 
 def test_cal_world_transfer():
-    """every shipped country: S known, a summer and a winter window, summer before winter, both inside the season's
-    96 weeks from S, no transfer week inside the league's own first unit range before S"""
+    """every shipped country: S known, a summer and a winter window, in career-week order without overlap, both
+    inside the career season [S, S + 96)"""
     s = _skip()
     if s:
         return s
@@ -44,11 +44,11 @@ def test_cal_world_transfer():
         t = m['transfer']
         if m['S'] is None:
             continue
-        if [k for k, *_ in t] != ['summer', 'winter']:
+        if sorted(k for k, *_ in t) != ['summer', 'winter']:
             bad.append(f'{cc}: windows {t}')
             continue
-        (_, b1, e1, _), (_, b2, e2, _) = t
-        if not (m['S'] <= b1 <= e1 < b2 <= e2 < m['S'] + 96):
+        (_, b1, e1, _), (_, b2, e2, _) = t                  # (career-week order: a calendar-year league's winter
+        if not (m['S'] <= b1 <= e1 < b2 <= e2 < m['S'] + 96):   # can come first)
             bad.append(f'{cc}: S {m["S"]} {t}')
         nd += sum(1 for x in t if x[3] == 'default')
     return not bad, '; '.join(bad[:5]) or f'{len(w)} countries, {nd} default windows (no data yet)'
@@ -67,9 +67,13 @@ def test_cal_window_at_and_data():
     cal_s = cal.season_start
     cal.season_start = lambda pk, exe=None: 56
     try:
-        t = cal.transfer_windows(pk)
-        if t != [('summer', 48, 64, 'data'), ('winter', 96, 104, 'data')]:
+        t = cal.transfer_windows(pk)                    # (summer 01/07 = 48 opens before S 56: clipped to S)
+        if t != [('summer', 56, 64, 'data'), ('winter', 96, 104, 'data')]:
             bad.append(f'data windows {t}')
+        cy = cal.transfer_windows({'id': 'zz', 'transfer_windows': {     # (a calendar-year league seen from S 56:
+            'summer': {'from': '05/01', 'to': '03/03'}, 'winter': {'from': '20/07', 'to': '11/09'}}})  # Brazil's dates)
+        if cy != [('winter', 56, 66, 'data'), ('summer', 97, 112, 'data')]:
+            bad.append(f'calendar-year windows {cy}')
         for tw in ({'summer': {'from': '01/09', 'to': '01/07'}},
                    {'summer': {'from': '01/07', 'to': '01/03+1'}, 'winter': {'from': '02/01+1', 'to': '02/02+1'}}):
             try:

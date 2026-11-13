@@ -34,7 +34,9 @@ FIX = os.path.join(HOME, 'swos-mod', 'internal', 'hosttest', 'fixtures')
 NEXT_SCAN = 0x7EA7F                     # (test_nzgf: the game's cseg_8EC2B, obj1, unpatched game code)
 SEASON_OVER = 0x18DF2                   # (its result, obj2 word careerFinished: 1 = no career day ahead - FINISCI STAGIONE)
 SEASON_FIN = 0x18DF0                    # (obj2 word seasonFinished: set, the scan answers 1 at once - between seasons)
-FF_SLOTS = ()                           # slots allowed two career days in one week (a final four's slot, when a fixture has one)
+FF_SLOTS = (1, 2, 3, 4)                 # slots whose contest may be played in a block in one week (a final four, the national
+                                        # team's finals: world8485_nat's Euro 88 group, slot 1 week 152 x 3; MC 13/11) - swostest
+                                        # logs them as info
 LEAGUE_MAX = 2                          # the league's career days in one week (a real midweek round; a third = a duplicate)
 
 

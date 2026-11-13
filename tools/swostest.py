@@ -2613,15 +2613,16 @@ def _label_data():
 # every career-menu screen of advance(), read from the live game (no exe code, no test switch) - the same C1..C4 as
 # hosttest test_calendar_lib (Panchina's goldens of the 4.0.5 bugs):
 #  C1 well formed: `count` entries of len >= 8, weeks non-decreasing;
-#  C2 at most one career day (byte 6 > 0, byte 4 = 0, round != FFh) per (slot, week), the league (slot 0) at most two: a
-#     real midweek round shares the weekend's career week at 8 weeks a month (MLS, Honduras, Peru, Colombia; MC 13/11) -
-#     counted in CAL_STATS['c2l']; a third league day in one week (a duplicated round: Panchina) FAILs; test_calendar_lib's
-#     LEAGUE_MAX;
+#  C2 the league (slot 0) at most two career days (byte 6 > 0, byte 4 = 0, round != FFh) in one week: a real midweek
+#     round shares the weekend's career week at 8 weeks a month (MLS, Honduras, Peru, Colombia; MC 13/11), counted in
+#     CAL_STATS['c2l']; a third is a duplicated round (Panchina) and FAILs. The other slots' contests may be played in a
+#     block (a final four, the national team's finals: world8485_nat's Euro 88 group, slot 1 week 152 x 3 - the game's own
+#     calendar, 3.1): logged as info, never a FAIL (C3 keeps the crash class). test_calendar_lib: LEAGUE_MAX, FF_SLOTS;
 #  C3 no career day ahead of the cursor in a week already reached;
 #  C4 careerFinished (FINISH SEASON) == 1 iff no career day is ahead, on the screens that show the menu's button (not
 #     between seasons: seasonFinished set; other screens read the flag only after their own rescan).
 # Errors FAIL the scenario (the run loop, as LABEL_ERRS); SWOSTEST_CALCHECK=0 turns it off for a debug run only.
-CAL_ERRS, CAL_STATS = [], {'checks': 0, 'c4': 0, 'c2l': 0}
+CAL_ERRS, CAL_STATS = [], {'checks': 0, 'c4': 0, 'c2l': 0, 'c2b': 0, 'c2b_last': None}
 CAL_SEASON_OVER, CAL_SEASON_FIN = 0x18DF2, 0x18DF0   # (obj2 careerFinished / seasonFinished, test_calendar_lib)
 
 
@@ -2653,8 +2654,13 @@ def cal_check(s, step, scr=None):
     for i, off, slot, week, b4, b6, rnd, ln in rows:
         if b6 > 0 and b4 == 0 and rnd != 0xFF:
             seen.setdefault((slot, week), []).append(i)
-    two = {k: v for k, v in seen.items() if len(v) > (2 if k[0] == 0 else 1)}   # (the league: 2, a third = a duplicate)
+    two = {k: v for k, v in seen.items() if k[0] == 0 and len(v) > 2}    # (the league: 2, a third = a duplicate)
     CAL_STATS['c2l'] = max(CAL_STATS['c2l'], sum(1 for k, v in seen.items() if len(v) > 1 and k[0] == 0))
+    blk = sorted(k for k, v in seen.items() if k[0] != 0 and len(v) > 1)   # (a cup played in a block: counted, logged)
+    if blk and blk != CAL_STATS.get('c2b_last'):
+        CAL_STATS['c2b'] = CAL_STATS.get('c2b', 0) + len(blk)
+        CAL_STATS['c2b_last'] = blk
+        s.log.append(f'[calcheck] step {step}: C2 info: a contest played in a block (slot, week) {blk}')
     if two:
         bad.append(f'C2 two career days of one contest in a week {two}')
     now = next((x[3] for x in rows if x[1] == cur), None)
@@ -31958,7 +31964,7 @@ def main(argv):
                 del PICKED[:]
                 del LABEL_ERRS[:]
                 del CAL_ERRS[:]
-                CAL_STATS.update(checks=0, c4=0, c2l=0)
+                CAL_STATS.update(checks=0, c4=0, c2l=0, c2b=0, c2b_last=None)
                 LABEL_STATS.update(rows=0, keyed=0, fallback=set())
                 del CTSD_ERRS[:]
                 del FORCE_ERRS[:]
@@ -31972,7 +31978,7 @@ def main(argv):
                 if ok and CAL_ERRS:                         # (4.2 C3: a broken calendar invariant FAILs it)
                     ok, msg = False, f'calendar: {CAL_ERRS[:3]}; ' + msg
                 elif CAL_STATS['checks']:
-                    msg += f" [cal: {CAL_STATS['checks']} checks ({CAL_STATS['c4']} C4 at the menu), 0 violations" + (f", {CAL_STATS['c2l']} league midweek week(s)" if CAL_STATS['c2l'] else '') + ']'
+                    msg += f" [cal: {CAL_STATS['checks']} checks ({CAL_STATS['c4']} C4 at the menu), 0 violations" + (f", {CAL_STATS['c2l']} league midweek week(s)" if CAL_STATS['c2l'] else '') + (f", {CAL_STATS['c2b']} cup block(s)" if CAL_STATS.get('c2b') else '') + ']'
                 if CTSD_ERRS:                               # (4.2 AFC mode: a refused / out-of-budget group draw -
                     ok, msg = False, f'ctdraw: {CTSD_ERRS[:3]}; ' + msg   # named on a FAIL too: often its cause)
                 if FIELD_ERRS:                              # (root fix C: a club the data cannot give in a round)

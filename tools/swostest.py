@@ -27247,9 +27247,12 @@ def s7cross(force, team, start_file, ldfail=None):
     cdo = sy.get('gplay', {}).get('CD_ST')
     cdst = cdo[1] if cdo and cdo[0] == 2 and 'cd_season' in sy.get('gplay', {}) else None   # (obj2: plain hex)
     keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
-                                            'W8485_NOSACK', 'W8485_HEX', 'W8485_ONE')}
+                                            'W8485_NOSACK', 'W8485_RENEW', 'W8485_HEX', 'W8485_ONE')}
+    # (2b, 13/11: W8485_RENEW too - NOSACK stops the sacking but not the season end's contract non-renewal (message 38,
+    #  a random draw on a bad verdict): the career moved to another club's word, ALBALONGA 0x6f90, and the season-2
+    #  check read it as a crossing gone wrong. Forced, never retried; a non-renewal seen anyway = SETUP-ERROR below)
     os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+',
-                      W8485_NOSACK='1', W8485_HEX=f'o4/{at("S7_LOG"):x}:8,o4/{at("S7_CLOG"):x}:6,'
+                      W8485_NOSACK='1', W8485_RENEW='1', W8485_HEX=f'o4/{at("S7_LOG"):x}:8,o4/{at("S7_CLOG"):x}:6,'
                       f'o4/{at("S7_WLOG"):x}:12,o4/{at("S7_LD"):x}:16,{sel:x}:8'
                       + (f',o4/{sy["swe"]["SWC1"][1]:x}:4' if 'SWC1' in sy.get('swe', {}) else '')    # (SWC1 header: ver,
                       + (f',{sy["swe"]["SWE_CWB"][1]:x}:1' if 'SWE_CWB' in sy.get('swe', {}) else '')    # world; the world byte)
@@ -27273,6 +27276,9 @@ def s7cross(force, team, start_file, ldfail=None):
     for season in (1, 2):
         f = os.path.join(RUNS, w84_tag() + f'_{season}', 'session.log')
         lines = open(f, errors='replace').read().splitlines() if os.path.exists(f) else []
+        if any(ln.startswith('[job]') and 'RINNOVARVI IL CONTRATTO' in ln for ln in lines):   # (the club changed:
+            raise SetupError(f'season {season}: the contract was not renewed (W8485_RENEW did not hold) - the career '   # not
+                             f'left {team}; the S7 checks would read another club\'s word')                      # a game FAIL)
         hexes.append([(ln.split()[1], bytes.fromhex(ln.split()[2])) for ln in lines if ln.startswith('HEX ')
                       and len(ln.split()) > 2])
     get = lambda s, k: [b for o, b in hexes[s] if o == k]

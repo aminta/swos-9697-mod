@@ -809,12 +809,16 @@ def start_dr():
 DP_Y, DP_DY, DP_BACK_Y = 26, 14, 152    # the page: row k at y DP_Y + DP_DY * k (labels x 10, values x 154, 140 x 11)
 
 
-def dp_asm(lang):
+def dp_asm(lang, page=True):
     """The DRIBBLING PERSONALIZZATO page's data (nasm): strings, string tables, DP_K / DP_N / DP_TAB, the packed
-    menu DP_MENU (entries: 0 title, 1..8 labels, 9..16 values, 17 INDIETRO)."""
+    menu DP_MENU (entries: 0 title, 1..8 labels, 9..16 values, 17 INDIETRO). page=False (DIFF_TRACE test builds only:
+    the trace code leaves no room for it; never opened in a traced match): DP_K / DP_N / DP_TAB, DP_MENU = 0."""
     li = ('it', 'en', 'fr', 'de').index(lang)
     db = lambda x: ', '.join(str(c) for c in x.encode('latin-1') + b'\0')
     n = len(DP_ROWS)
+    if not page:
+        return 'DP_MENU equ 0\n' + dp_asm(lang).split('DP_K: ', 1)[1].split('align 4\nDP_MENU:', 1)[0].join(
+            ('DP_K: ', ''))
     out = f'S_PT: db {db(DP_TITLE[lang])}\nS_EX: db {db(DP_EXTRA[lang])}\nS_BK: db {db(DP_BACK[lang])}\n'
     out += ''.join(f'S_L{i}: db {db(r[0][li])}\n' for i, r in enumerate(DP_ROWS))
     out += 'align 4\n'
@@ -997,7 +1001,7 @@ def patch(p, lang):
         strs = (f'S_LBL: db {db(LABEL[lang])}\n' + ''.join(f'S_V{i}: db {db(t)}\n' for i, t in enumerate(v))
                 + 'align 4\nTAB_D: dd DF_W\n    dw 0\n    dd ' + ', '.join(f'S_V{i}' for i in range(5)) + '\n'
                 + f'S_RLBL: db {db(DRLABEL[lang])}\n' + ''.join(f'S_R{i}: db {db(t)}\n' for i, t in enumerate(DRVALUES[lang]))
-                + 'align 4\nTAB_R: dd DF_DR\n    dw 0\n    dd S_R0, S_R1, S_R2\n' + dp_asm(lang))
+                + 'align 4\nTAB_R: dd DF_DR\n    dw 0\n    dd S_R0, S_R1, S_R2\n' + dp_asm(lang, not tr))
     skips = set(os.environ.get('DIFF_SKIP', '').split(','))   # (a set: 'BU' in 'BUFRAME' as a string is True)
     bu = knobs() and os.environ.get('DIFF_BU', '1') != '0' and 'BU' not in skips
     sym['BU_ENTRY'] = (4, swreg.BU_AT)

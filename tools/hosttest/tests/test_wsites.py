@@ -111,7 +111,7 @@ def expected_rows():
     rows += [('GS', g['gsrow'], g['srz'], g['GSD'] * g['GSR'], W)]
     for it in ('SS', 'SS2'):
         rows += [(it, g['ssr'] + g[f], g['rowz'], g['SS_N'] * g['GT'], form) for f, form in (('rteam', W), ('rglob', G))]
-    rows += [('CD', g['cdgen'], 2, g['ngen'], W), ('WN', g['wne'] + g['wnt'], g['wnz'], g['WN_N'], W)]
+    rows += [('CD', g['cdgen'], 2, g['ngen'], W), ('WN', g['wne'] + g['wnz'] + g['wnt'], g['wnz'], g['WN_N'] - 1, W)]
     rows += [('RS', g['rs'] * k + g['rsq'], 2, g['RQ'], G) for k in range(g['RC'])]
     rows += [('PR', g['prc'] + g['prg'], g['prz'], g['PR_N'], G)]
     n = g['SC_NE'] - 1                   # (the cups below the UEFA entry: {db file, cid, 0, 0; dw w, wg, f, fg})
@@ -452,3 +452,41 @@ def test_wsites_cn_oldsaves():
     if not seen:
         return True, 'SKIP: no old saves'
     return not errs, '; '.join(errs) or f'fallback path in every old save ({", ".join(seen)})'
+
+
+def test_wsites_wn_m():
+    """WN_ST entry 0 is 'M': the career club's last-season division (its team file + local division - the key of the
+    WINNERS page's division title). Its word is not walked: after a crossing the page must keep naming the OLD division
+    (Panchina 13/11: a walked word gave 'SERIE A (STAGIONE REGOLARE)' for a Serie D club that went up). Entry 1.. (a
+    division winner's word) are walked: a crosser -> its new word. Planted on the shaped build: e0 = 'M' + a crosser's word,
+    e1 = 'L' + the same word, e2 = 'L' + a staying club."""
+    import test_s7swap as t7
+    if not os.path.exists(EXE) or not os.path.exists(EXE[:-4] + '.syms.json'):
+        return True, f'SKIP: {EXE} (shaped, HOSTTEST_SYMS=1) missing'
+    import engine
+    m = t7.M(EXE)
+    m.fresh()
+    enn = struct.unpack('<I', m.rd(m.at('s7swap', 'S7_ENN'), 4))[0]
+    eni = struct.unpack(f'<{3 * enn}I', m.rd(m.at('s7swap', 'S7_ENI'), 12 * enn))
+    wn = next((eni[3 * e] for e in range(enn) if eni[3 * e + 2] & 0xFFFF == engine.item_id('WN')), None)
+    if wn is None:
+        return False, 'item WN not in S7_ENI'
+    fs, word, at, rdiv, rows_ = t7.reg_parse(m.regb())
+    down, up = t7.crossings(fs, m.gb)
+    ident = {w: i for i, w in enumerate(word)}
+    cross, stay = down[0][1], t7.FA | 10 << 8
+    m.w(wn, struct.pack('<HBBB', 0x4E57, 0x7E, 3, 0) + struct.pack('<BBH', ord('M'), 1, cross) +
+        struct.pack('<BBH', ord('L'), 0, cross) + struct.pack('<BBH', ord('L'), 1, stay))
+    stt, *_ = t7.run(m, down, up)
+    new = t7.reg_parse(m.regb())[1][ident[cross]]
+    e = [struct.unpack_from('<BBH', m.rd(wn + 4, 12), 4 * k) for k in range(3)]
+    errs = []
+    if stt != t7.OK or new == cross:
+        errs.append(f'status {stt}, the crosser moved: {new != cross}')
+    if e[0] != (ord('M'), 1, cross):
+        errs.append(f'M entry changed: {e[0]} (want the old word {cross:#x})')
+    if e[1] != (ord('L'), 0, new):
+        errs.append(f"L entry: {e[1]} (want the new word {new:#x})")
+    if e[2] != (ord('L'), 1, stay):
+        errs.append(f'staying winner changed: {e[2]}')
+    return not errs, '; '.join(errs) or "WN 'M' (last season's division key) kept, a crossing winner's word walked, a stayer untouched"

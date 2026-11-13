@@ -62,8 +62,12 @@ ROWS = [
     ('SS2', 8, 12, 128, WS_G, 0),
     # CD (struct cd_state, 1032 B): gen[2 x (CDP 41 + CD1 64)] at +612 (ent[256] at +348: O8, later)
     ('CD', 612, 2, 210, WS_W, 0),
-    # WN (struct wn_state, 164 B): e[WN_N 40] {u8 type, idx; u16 team} at +4
-    ('WN', 6, 4, 40, WS_W, 0),
+    # WN (struct wn_state, 164 B): e[WN_N 40] {u8 type, idx; u16 team} at +4. Entry 0 is always 'M' (gplay.c gp_season:
+    # wn_add('M', wn_div, GP_IN.mgr) first): the career club's LAST-SEASON division = its team file + local division,
+    # the key of the page's division title (winners.py wn_lastdiv) - the old division's identity, so its word is NOT walked
+    # (walked, a club that crossed gets the new file with the old division index: 'SERIE A (STAGIONE REGOLARE)' for a Serie
+    # D winner, Panchina 13/11); entries 1.. ('L' / 'K' / stage titles: winners' words) are
+    ('WN', 10, 4, 39, WS_W, 0),
     # RS (RS_STATE[RC 8], struct rs_state 132 B): q[RQ 64] globals at +4 of each
     *[('RS', 132 * c + 4, 2, 64, WS_G, 0) for c in range(8)],
     # PR (struct pr_state, 388 B): c[PR_N 48] {u16 glob, p[2]; u8 m[2]} 8 B at +4

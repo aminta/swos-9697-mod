@@ -349,6 +349,43 @@ def test_ripool_world_season_mutant():
     return nm == 0 and mv == [], f'mutant (reset per pool call): RI_NMOVES {nm}, moves {mv}: the 144 moves are lost, as the first M4 run saw (want 0, [])'
 
 
+def test_ripool_fresh_flag():
+    """MC 13/11: is s7ri_pool(144) called EVERY ri_season? No - ri_season returns at once when nothing moved (a career's start,
+    InitializeNewSeason: copy == slt for every global), and for other worlds. So the 144 log can be stale. What keeps s7_season
+    from applying it twice is the one-shot RI_FRESH (set only by the S7_FB call, consumed by s7_season - emulated here): case 1
+    a season with 144 relegations -> RI_FRESH 1, 2 moves; s7_season consumes (RI_FRESH 0); case 2 a ri_season that returns at
+    once (nothing moved): RI_FRESH stays 0 (no stale re-application), the log is kept for the harness; case 3 a season where only
+    103 relegates (moved != 0, 144 has no relegated row): the 144 call RUNS - RI_NMOVES 0, RI_FRESH 1, an empty log (never last
+    season's moves)."""
+    L = s7_lib('fresh')
+    errs = []
+    fresh = lambda: ctypes.c_uint8.in_dll(L, 'RI_FRESH').value
+    nmv = lambda: ctypes.c_int.in_dll(L, 'RI_NMOVES').value
+    reg = Reg([10, 11, 12, 13])
+    s7_hooks(L, reg)
+    base = {144: 192, 103: 400}
+    files = [(144, base[144], 4, 0, 3), (103, base[103], 4, 4, 3)]
+    out, mv, nm = world_season(L, files, {144: [0, 2]})
+    if (fresh(), nm) != (1, 2):
+        errs.append(f'case 1: RI_FRESH {fresh()}, RI_NMOVES {nm} (want 1, 2)')
+    ctypes.c_uint8.in_dll(L, 'RI_FRESH').value = 0               # (s7_season consumed it)
+    t = ctypes.create_string_buffer(ri_table_world(files), 512)
+    slt = (ctypes.c_int8 * 2400)()
+    copy = (ctypes.c_int8 * 2400)()                              # nothing moved: ri_season returns at once
+    L.ri_season.argtypes = [ctypes.c_void_p] * 3 + [ctypes.c_int, ctypes.c_void_p]
+    L.ri_season(ctypes.addressof(t), ctypes.addressof(slt), ctypes.addressof(copy), WORLD, None)
+    if (fresh(), nmv()) != (0, 2):
+        errs.append(f'case 2: after a ri_season with nothing moved RI_FRESH {fresh()}, RI_NMOVES {nmv()} (want 0, the old log kept)')
+    copy[base[103] + 1] = 1                                      # only 103 relegates
+    ctypes.c_uint8.in_dll(L, 'RI_FRESH').value = 0
+    # (the state as after case 1's season, init 2: the queues kept)
+    L.ri_season(ctypes.addressof(t), ctypes.addressof(slt), ctypes.addressof(copy), WORLD, None)
+    if (fresh(), nmv()) != (1, 0):
+        errs.append(f'case 3: only 103 relegates: RI_FRESH {fresh()}, RI_NMOVES {nmv()} (want 1, 0: the 144 call ran, an empty log)')
+    return not errs, '; '.join(errs) or ('s7ri_pool(144) runs on every ri_season that moved something (an empty log when 144 has no '
+                                         'relegation), not on one that moved nothing; RI_FRESH one-shot: no stale re-application')
+
+
 def s7_checks_ids(reg, q, universe, errs, tag):
     allv = reg.occ + q
     if sorted(allv) != sorted(universe):

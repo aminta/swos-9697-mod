@@ -31715,13 +31715,14 @@ def diff_trace():
 
 @scenario
 def diff_menu():
-    """42-diff: the OPTIONS rows DIFFICULTY (entries 28 / 29) and DRIBBLING (30 / 31) under slow's MATCH SPEED
-    (difficulty.py, DIFF_TEST build): 32 entries, the 14 rows at PITCH from y TOP, HEIGHT high, the last ending above
-    EXIT TO DOS; labels and values in their boxes, font characters; fire on 29: NORMAL -> HARD -> EASY -> NORMAL
-    (DF_W 2, 1, 0); fire on 31: CLASSIC -> NEW -> CLASSIC (DF_DR 1, 0); the save byte DF_SV follows both.
+    """42-diff: the OPTIONS rows DIFFICULTY (entries NB / NB+1) and DRIBBLING (NB+2 / NB+3) under the bottom row (NB = 26:
+    gkinj's, MATCH SPEED out since 13/11; 28 with slow) (difficulty.py, DIFF_TEST build): NB+4 entries, the NROWS rows at PITCH from y TOP, HEIGHT high, the last ending above
+    EXIT TO DOS; labels and values in their boxes, font characters; fire on NB+1: NORMAL -> HARD -> EASY -> NORMAL
+    (DF_W 2, 1, 0); fire on NB+3: CLASSIC -> NEW -> CLASSIC (DF_DR 1, 0); the save byte DF_SV follows both.
     Shots options_diff_<n> (the visual tour / the geometry probe). SWOSTEST_UI it / en / fr / de."""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import difficulty as dfm
+    NB = dfm.NB
     from complist import px, SMALL_W
     errs, notes = [], []
     b = build(f'diff_menu_{UI}', {'DIFF_TEST': '3', 'MODVER_TAG': 'DRIBBLING TEST', 'DIFF_MARGIN_BETA': '384'}, lang=UI)   # (42-drp: the beta's page-15 floor, MC 13/11)
@@ -31735,52 +31736,52 @@ def diff_menu():
         rdr = lambda: struct.unpack('<H', s.result.read(blk + DIFF_OFF['DR'], 2))[0]
         rsv = lambda: s.result.read(blk + DIFF_OFF['SV'], 1)[0]
         lab2 = scr.find(dfm.DRLABEL[UI], exact=True)
-        check(lab2 == 30, f'OPTIONS: {dfm.DRLABEL[UI]} at {lab2}', errs)
-        check(lab == 28 and scr.n == 32 and blk is not None and rdw() == 0,
+        check(lab2 == NB + 2, f'OPTIONS: {dfm.DRLABEL[UI]} at {lab2}', errs)
+        check(lab == NB and scr.n == NB + 4 and blk is not None and rdw() == 0,
               f'OPTIONS: {label} at {lab}, {scr.n} entries, DF_W {rdw() if blk else None}', errs)
-        if lab == 28:
+        if lab == NB:
             g = {e[0]: scr.geom[j] for j, e in enumerate(scr.entries)}
             rows = sorted({g[k][1] for k in g if g[k][2] == 140 and dfm.TOP <= g[k][1] <= 160})
-            quit_y = min(g[k][1] for k in g if g[k][1] > rows[-1] and k not in (28, 29, 30, 31))
-            check(rows == [dfm.TOP + dfm.PITCH * k for k in range(14)] and g[28][1] == rows[-2] and g[29][1] == rows[-2]
-                  and g[30][1] == rows[-1] and g[31][1] == rows[-1]
+            quit_y = min(g[k][1] for k in g if g[k][1] > rows[-1] and k not in range(NB, NB + 4))
+            check(rows == [dfm.TOP + dfm.PITCH * k for k in range(dfm.NROWS)] and g[NB][1] == rows[-2] and g[NB + 1][1] == rows[-2]
+                  and g[NB + 2][1] == rows[-1] and g[NB + 3][1] == rows[-1]
                   and all(g[k][3] == dfm.HEIGHT for k in g if g[k][2] == 140 and g[k][1] in rows)
-                  and rows[-1] + dfm.HEIGHT < quit_y, f'OPTIONS rows {rows}, 28 {g[28]}, 29 {g[29]}, below {quit_y}', errs)
+                  and rows[-1] + dfm.HEIGHT < quit_y, f'OPTIONS rows {rows}, {NB} {g[NB]}, {NB + 1} {g[NB + 1]}, below {quit_y}', errs)
             for t in (label, dfm.DRLABEL[UI]) + dfm.VALUES[UI] + dfm.DRVALUES[UI]:
-                check(px(t) <= g[28][2] - 2 and set(t) <= set(SMALL_W) | {' '}, f'{t!r}: {px(t)} px in {g[28][2]}', errs)
+                check(px(t) <= g[NB][2] - 2 and set(t) <= set(SMALL_W) | {' '}, f'{t!r}: {px(t)} px in {g[NB][2]}', errs)
             notes.append(f'rows {rows[0]}..{rows[-1]} (+{dfm.HEIGHT}), EXIT TO DOS at {quit_y}')
         s.shot('options_diff_0')
         w = []
         for n in range(3):
-            walk(s, 29, 2)
+            walk(s, NB + 1, 2)
             w.append(rdw())
             s.shot(f'options_diff_{n + 1}')
         check(w == [2, 1, 0], f'toggles (DF_W): {w} (want 2, 1, 0 = HARD, EASY, NORMAL)', errs)
-        walk(s, 29, 2)                                  # HARD, then DRIBBLING NEW: the save byte 0x12
+        walk(s, NB + 1, 2)                                  # HARD, then DRIBBLING NEW: the save byte 0x12
         dr = []
-        walk(s, 31, 2)
+        walk(s, NB + 3, 2)
         dr.append((rdr(), rsv()))
         s.shot('options_drib_1')
-        pg = walk(s, 31, 2)                             # CUSTOM (0x22): the PERSONALIZZATO page opens
+        pg = walk(s, NB + 3, 2)                             # CUSTOM (0x22): the PERSONALIZZATO page opens
         dr.append((rdr(), rsv()))
         check(dr == [(1, 0x12), (2, 0x22)], f'DRIBBLING toggles (DF_DR, DF_SV): {dr} (want (1, 0x12), (2, 0x22))', errs)
         notes.append(diff_dp_page(s, pg, blk, errs))
         sc = s.screen()
-        check(sc.n == 32 and rdr() == 2, f'back in OPTIONS: {sc.n} entries, DF_DR {rdr()}', errs)   # (the reader
+        check(sc.n == NB + 4 and rdr() == 2, f'back in OPTIONS: {sc.n} entries, DF_DR {rdr()}', errs)   # (the reader
         # leaves string-table entries' texts empty: the values are checked in memory, the texts on the shots)
         s.shot('options_drib_2')
-        walk(s, 31, 2)
+        walk(s, NB + 3, 2)
         dr.append((rdr(), rsv()))
         check(dr[-1] == (0, 0x02), f'DRIBBLING CUSTOM -> CLASSIC: {dr[-1]} (want (0, 0x02))', errs)
-        walk(s, 31, 2)                                  # NEW, CUSTOM again: the page keeps the session's values
-        pg = walk(s, 31, 2)                             # (row 0 one step on; dp_fall wrote the texts at the open)
+        walk(s, NB + 3, 2)                                  # NEW, CUSTOM again: the page keeps the session's values
+        pg = walk(s, NB + 3, 2)                             # (row 0 one step on; dp_fall wrote the texts at the open)
         want0 = f'{dfm.DP_PCT[0][dfm.DP_DEFAULT[0] + 1]}%'
         check(pg.n == 2 * len(dfm.DP_ROWS) + 2 and pg.entries[9][1] == want0 and
               all(pg.entries[9 + i][1] == f'{dfm.DP_PCT[i][dfm.DP_DEFAULT[i]]}%' for i in range(1, dfm.DP_NNUM)),
               f'page reopened: {[e[1] for e in pg.entries[9:9 + dfm.DP_NNUM]]} (row 0 {want0!r})', errs)
         s.shot('drp_page_3')
         walk(s, 2 * len(dfm.DP_ROWS) + 1, 2)
-        walk(s, 31, 2)
+        walk(s, NB + 3, 2)
         dr.append((rdr(), rsv()))
         check(dr[-1] == (0, 0x02), f'DRIBBLING back to CLASSIC: {dr[-1]}', errs)
         notes.append(f'toggles {w}, dribbling {dr}')
@@ -31852,7 +31853,7 @@ def diff_dp_page(s, pg, blk, errs):
 @scenario
 def diff_beta():
     """42-diff beta check (MC 13/11) on a ready build (SWOSTEST_BUILD = c/REL42diff/SWOS, DIFF_TEST=3 + MODVER_TAG, no
-    trace switch): OPTIONS has DIFFICULTY at 28 and DRIBBLING at 30 (32 entries), starting at NORMAL + CLASSIC (DF_W 0,
+    trace switch): OPTIONS has DIFFICULTY at NB and DRIBBLING at NB+2 (NB+4 entries; NB 26 without MATCH SPEED), starting at NORMAL + CLASSIC (DF_W 0,
     DF_DR 0); then a friendly HAMBURG v SCHALKE played for DIFF_POLLS x 5 s of game time with no key after the
     kick-off: the kick-off hook ran (DF_KICKS > 0, DF_ACT 0, DF_DACT 0) and the match never hangs (topTeamData keeps
     changing, every poll a dump). SWOSTEST_UI it / en / fr / de."""
@@ -31869,7 +31870,8 @@ def diff_beta():
         if blk is None:
             return False, '; '.join(errs)
         bb = s.result.read(blk, 32)
-        check(scr.find(dfm.LABEL[UI], exact=True) == 28 and scr.find(dfm.DRLABEL[UI], exact=True) == 30 and scr.n == 32,
+        check(scr.find(dfm.LABEL[UI], exact=True) == dfm.NB and scr.find(dfm.DRLABEL[UI], exact=True) == dfm.NB + 2
+              and scr.n == dfm.NB + 4,
               f'OPTIONS: {dfm.LABEL[UI]} / {dfm.DRLABEL[UI]} at {scr.find(dfm.LABEL[UI], exact=True)} / '
               f'{scr.find(dfm.DRLABEL[UI], exact=True)}, {scr.n} entries', errs)
         check(bb[DIFF_OFF['W']] == 0 and bb[DIFF_OFF['DR']] == 0, f'start DF_W {bb[4]} DF_DR {bb[28]} (want 0 0)', errs)

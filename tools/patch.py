@@ -116,6 +116,9 @@ SHORT = {sacups.LIB_ID: b'COPA LIB.', sacups.SUP_ID: b'SUPERCOPA', sacups.CON_ID
 SHORT_INT = {'it': b'COPPA INTERC.', 'en': b'INTERC. CUP', 'fr': b'COUPE INTERC.', 'de': None}   # WELTPOKAL is short
 
 
+SLOW = False                    # 4.2 MATCH SPEED (slow.py): off in every build (Davide 13/11); OBJ4_PAGES stays 13
+
+
 def short_names(p, area, lang):
     """Second name dword of the SA, CAF, CONCACAF and Asian cups -> a short name in the new obj2 page."""
     short = dict(SHORT)
@@ -876,8 +879,10 @@ def patch_exe(src, dst, remap, lang='it'):
         cg_bss = 0
     import gkinj                                 # 4.0.6 (Davide): goalkeeper injuries after a match (an OPTIONS row,
     st_end = gkinj.patch(p, (st_end + 15) & ~15, lang)       # ON by default), the obj3 chain's end
-    import slow                                  # 4.2 EXPERIMENTAL (Davide 12/11): MATCH SPEED 100/90/80/70 % (an OPTIONS
-    slow.patch(p, lang)                          # row after gkinj's; GameLoop's @@flip_it; SPEED.CFG), obj4 page 13
+    if SLOW:                                     # (Davide 13/11: out of every build for now - no row, no sl_flip, no
+        import slow                              #  SPEED.CFG read or written; Shaved's switch, as on 42-int)
+        slow.patch(p, lang)                      # 4.2 EXPERIMENTAL (Davide 12/11): MATCH SPEED 100/90/80/70 % (an OPTIONS
+                                                 # row after gkinj's; GameLoop's @@flip_it; SPEED.CFG), obj4 page 13
     import namefit                               # 4.2 names-fit (Marco (b) step 2): menu names cut by pixels, obj4 page 13
     namefit.patch(p)
     import difficulty                            # 42-diff: selectable difficulty + DRIBBLING (DIFF_TEST only for now)

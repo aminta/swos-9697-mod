@@ -40,6 +40,12 @@ LABEL = {'it': "DIFFICOLTA'", 'en': 'DIFFICULTY', 'fr': 'DIFFICULTE', 'de': 'SCH
 VALUES = {'it': ('NORMALE', 'FACILE', 'DIFFICILE'), 'en': ('NORMAL', 'EASY', 'HARD'),
           'fr': ('NORMAL', 'FACILE', 'DIFFICILE'), 'de': ('NORMAL', 'LEICHT', 'SCHWER')}   # (DF_W 0, 1, 2; 3 / 4 = L2 / L4,
 PITCH, HEIGHT, TOP = 9, 8, 18           # test values only: 'L2' / 'L4'); the 14 rows: y 18 + 9 k, 8 high (EXIT TO DOS 151)
+SLOW_ROW = False                        # = patch.SLOW (Davide 13/11: MATCH SPEED out of every build; asserted at the build).
+NB, BR, SRCP, KMAX = (28, 26, 11, 13) if SLOW_ROW else (26, 15, 12, 12)   # our first entry, the bottom row's (the game's
+# CHAIRMAN SCENES 15 / 16, or slow's 26 / 27), the rows' pitch before us, the last row k
+if not SLOW_ROW:                        # (without slow: gkinj's 11 rows at 12 px + ours = 13 rows: y 18 + 10 k, 9 high)
+    PITCH, HEIGHT = 10, 9
+NROWS = KMAX + 1
 LVMAP = (3, 1, 5, 2, 4)                 # DF_W -> level
 #              L1      L2      L3      L4      L5
 K1 = (80, 90, 100, 105, 110)            # opposition skills %
@@ -450,7 +456,8 @@ align 2
 """
 
 ASM_ROW = r"""
-; ---- the OPTIONS rows DIFFICULTY (entries 28 / 29) and DRIBBLING (30 / 31) after slow's 26 / 27; 14 rows at PITCH
+; ---- the OPTIONS rows DIFFICULTY (entries NB / NB+1) and DRIBBLING (NB+2 / NB+3) after the bottom row BR / BR+1 (the game's
+;      15 / 16 with NB 26; slow's 26 / 27, NB 28 when patch.SLOW); NROWS rows at PITCH
 df_init:
     call PREV_INIT
     jmp df_add
@@ -461,67 +468,67 @@ df_add:
     cmp byte [SWOSPP], 0FFh             ; SWOS++ running: no rows (both options stay off there: df_kick)
     jne .x
     mov ebx, MENU_
-    cmp word [ebx + 10h], 28            ; (slow's 28 entries, nothing after them)
+    cmp word [ebx + 10h], NB            ; (gkinj's 26 entries, or slow's 28: nothing after them)
     jne .x
-    lea eax, [ebx + 16h + 28 * 38h]
+    lea eax, [ebx + 16h + NB * 38h]
     cmp [ebx + 12h], eax
     jne .x
-    mov edi, eax                        ; entries 28 / 29 and 30 / 31 = copies of slow's row (26 / 27)
-    lea esi, [ebx + 16h + 26 * 38h]
+    mov edi, eax                        ; entries NB..NB+3 = copies of the bottom row (BR / BR+1)
+    lea esi, [ebx + 16h + BR * 38h]
     mov ecx, 2 * 38h
     rep movsb
-    lea esi, [ebx + 16h + 26 * 38h]
+    lea esi, [ebx + 16h + BR * 38h]
     mov ecx, 2 * 38h
     rep movsb
     mov edi, eax
-    mov word [edi + 2], 28
+    mov word [edi + 2], NB
     mov dword [edi + 26h], S_LBL
-    mov word [edi + 38h + 2], 29
+    mov word [edi + 38h + 2], NB + 1
     mov dword [edi + 38h + 26h], TAB_D
     mov dword [edi + 38h + 2Ah], df_tog
-    mov word [edi + 2 * 38h + 2], 30
+    mov word [edi + 2 * 38h + 2], NB + 2
     mov dword [edi + 2 * 38h + 26h], S_RLBL
-    mov word [edi + 3 * 38h + 2], 31
+    mov word [edi + 3 * 38h + 2], NB + 3
     mov dword [edi + 3 * 38h + 26h], TAB_R
     mov dword [edi + 3 * 38h + 2Ah], df_rtog
-    movzx ecx, byte [ebx + 16h + 27 * 38h + 0Bh]   ; (27's down: EXIT TO DOS - now 31's)
-    mov byte [edi + 38h + 0Ah], 27      ; 27 -> 29 -> 31 -> EXIT TO DOS
-    mov byte [edi + 38h + 0Bh], 31
-    mov byte [edi + 38h + 12h], 27
-    mov byte [edi + 38h + 13h], 31
-    mov byte [edi + 3 * 38h + 0Ah], 29
+    movzx ecx, byte [ebx + 16h + (BR + 1) * 38h + 0Bh]   ; (BR+1's down: EXIT TO DOS - now NB+3's)
+    mov byte [edi + 38h + 0Ah], BR + 1  ; BR+1 -> NB+1 -> NB+3 -> EXIT TO DOS
+    mov byte [edi + 38h + 0Bh], NB + 3
+    mov byte [edi + 38h + 12h], BR + 1
+    mov byte [edi + 38h + 13h], NB + 3
+    mov byte [edi + 3 * 38h + 0Ah], NB + 1
     mov [edi + 3 * 38h + 0Bh], cl
-    mov byte [edi + 3 * 38h + 12h], 29
+    mov byte [edi + 3 * 38h + 12h], NB + 1
     mov [edi + 3 * 38h + 13h], cl
-    mov byte [ebx + 16h + 27 * 38h + 0Bh], 29
-    mov byte [ebx + 16h + 27 * 38h + 13h], 29
+    mov byte [ebx + 16h + (BR + 1) * 38h + 0Bh], NB + 1
+    mov byte [ebx + 16h + (BR + 1) * 38h + 13h], NB + 1
     cmp cl, 0FFh
     je .n
-    imul ecx, ecx, 38h                  ; (and the entry below: up 27 -> 31)
+    imul ecx, ecx, 38h                  ; (and the entry below: up BR+1 -> NB+3)
     lea ecx, [ebx + 16h + ecx]
-    cmp byte [ecx + 0Ah], 27
+    cmp byte [ecx + 0Ah], BR + 1
     jne .u
-    mov byte [ecx + 0Ah], 31
-.u: cmp byte [ecx + 12h], 27
+    mov byte [ecx + 0Ah], NB + 3
+.u: cmp byte [ecx + 12h], BR + 1
     jne .n
-    mov byte [ecx + 12h], 31
-.n: mov word [ebx + 10h], 32
+    mov byte [ecx + 12h], NB + 3
+.n: mov word [ebx + 10h], NB + 4
     add dword [ebx + 12h], 4 * 38h
-    lea esi, [ebx + 16h]                ; every row at slow's pitch (y TOP + 11 * k, 140 wide; ours at k = 12 / 13
-    mov ecx, 32                         ; once copied: 26's y + 11 / + 22) -> y TOP + PITCH * k, HEIGHT high
-    add word [ebx + 16h + 28 * 38h + 16h], 11
-    add word [ebx + 16h + 29 * 38h + 16h], 11
-    add word [ebx + 16h + 30 * 38h + 16h], 22
-    add word [ebx + 16h + 31 * 38h + 16h], 22
+    lea esi, [ebx + 16h]                ; every row at the source pitch SRCP (12: gkinj's; 11: slow's; ours one / two
+    mov ecx, NB + 4                     ; rows below the bottom once copied) -> y TOP + PITCH * k, HEIGHT high
+    add word [ebx + 16h + NB * 38h + 16h], SRCP
+    add word [ebx + 16h + (NB + 1) * 38h + 16h], SRCP
+    add word [ebx + 16h + (NB + 2) * 38h + 16h], 2 * SRCP
+    add word [ebx + 16h + (NB + 3) * 38h + 16h], 2 * SRCP
 .c: cmp word [esi + 18h], 140
     jne .cn
     movzx eax, word [esi + 16h]
     sub eax, TOP
     jb .cn
-    cmp eax, 13 * 11
+    cmp eax, KMAX * SRCP
     ja .cn
     xor edx, edx
-    mov edi, 11
+    mov edi, SRCP
     div edi
     test edx, edx
     jnz .cn
@@ -992,7 +999,11 @@ def patch(p, lang):
         sym0 = controls.locate(p)
         hdr = controls.menu_header(p, sym0['OMBD'][1])
         prev = [p.target(2, hdr + k) for k in (0, 4)]
-        assert prev == [(4, slow.LABELS['sl_init']), (4, slow.LABELS['sl_ret'])], ('OPTIONS init / return', prev)
+        import patch as _pt
+        assert getattr(_pt, 'SLOW', True) == SLOW_ROW, ('difficulty.SLOW_ROW != patch.SLOW', SLOW_ROW)
+        want = [(4, slow.LABELS['sl_init']), (4, slow.LABELS['sl_ret'])] if SLOW_ROW else \
+            [(3, gkinj.LABELS['gk_init']), (3, gkinj.LABELS['gk_ret'])]
+        assert prev == want, ('OPTIONS init / return', prev, want)
         sym.update(PREV_INIT=prev[0], PREV_RET=prev[1], MENU_=zones._current_menu(p),
                    DRAWITEM=(1, cpucards.find(p)['DRAWITEM']))
         sym['S_OFF'], sym['S_ON'] = cpucards.strings(p, hdr)          # (the exe's own OFF / ON)
@@ -1071,7 +1082,7 @@ def patch(p, lang):
     sym['BU_ENTRY'] = (4, swreg.BU_AT)
     bf = bu and 'BUFRAME' not in skips
     src = (f'%define BUF {int(bf)}\n%define CKSH {int(os.environ.get("DIFF_CKSH", "11"))}\n%define STKZ {int(os.environ.get("DIFF_STKZ", "0") or 0)}\n%define STOPF {int(os.environ.get("DIFF_STOPF", "0"))}\n%define BU {int(bu)}\n%define DIFF_FORCE {int(force)}\n%define ROW {int(row)}\n%define DIFF_TRACE {int(tr)}\n%define DF_START {start_w()}\n%define DR_START {start_dr()}\n'
-           f'%define TOP {TOP}\n%define PITCH {PITCH}\n%define HEIGHT {HEIGHT}\n' + ASM
+           f'%define TOP {TOP}\n%define PITCH {PITCH}\n%define HEIGHT {HEIGHT}\n%define NB {NB}\n%define BR {BR}\n%define SRCP {SRCP}\n%define KMAX {KMAX}\n' + ASM
            + (ASM_ROW if row else '') + (ASM_T if tr else '') + data_asm() + strs)
     code, fix, rel = nasmcave.assemble_obj(src, at, sym, 4)
     pad = [int(x) for x in os.environ.get('DIFF_PAD', '').split(',') if x]   # (test only, MC 13/11 REF+PAD control:

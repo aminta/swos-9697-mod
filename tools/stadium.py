@@ -44,6 +44,25 @@ NS_STEM = '''    movzx ecx, byte [WCUR]               ; several worlds: the curr
 .stem:
     mov ax, [st_key]
 '''
+S7_HOME = """    mov [st_cur], ax
+    movzx eax, ax                       ; (S7, MC 13/11: a crossed club's stadium by its HOME word - CONVENTIONS 14d,
+    cmp dword [st_hptr], 0              ; identity by home: s7swap.c s7_home_word(ax), ax kept when the registry has
+    je .home                            ; no row for it; NS_STEM below reads al = the home file too)
+    push ecx
+    push edx
+    push eax
+    call [st_hptr]
+    pop edx
+    pop edx
+    pop ecx
+.home:
+    mov [st_hkey], ax
+"""
+S7_HPTR = """st_hptr: dd 0                           ; (s7swap.py: -> obj4 s7_home_word; 0 = the word as it is)
+st_cur: dw 0                            ; (the harness, world_s7cross_*: the last lookup's CURRENT word, then the
+st_hkey: dw 0                           ; HOME word it keyed - one 4-byte read)
+"""
+LABELS = {}
 MAGIC = b'STAD'
 VERSION = 3
 NAME = 49                               # 48 chars + NUL (v2: 33)
@@ -106,6 +125,7 @@ st_find:                                ; ZF = 0: st_name = the home club's stad
     cmp eax, TOP                        ; (a highlights replay: the in-game copies)
     je .no
     mov ax, [eax]                       ; al = countryNumber (the TEAM file), ah = teamOrdinal
+;S7_HOME
     mov [st_key], ax
     mov dword [st_fn + 9], 'team'       ; data\stad<stem>.dat: the team file's namespace (careerworld's w_ns_stem)
 ;NS_STEM
@@ -259,6 +279,7 @@ align 4
 st_rsz: dd 0                            ; this file's record / venue-row size (v2 34 / 114, v3 50 / 130)
 st_vsz: dd 0
 st_regs: times 15 dd 0
+;S7_HPTR
 """
 
 
@@ -330,6 +351,9 @@ def patch(p, at):
     if ns:
         sym.update({k: (1, careerworld.LABELS[k]) for k in ('WCUR', 'WNSB', 'WSTEM')})
     asm = ASM.replace(';NS_STEM\n', NS_STEM if ns else '')
+    import gplay
+    s7 = bool(gplay.gp_s7())                            # (S7 builds only: the release exes byte-identical without it)
+    asm = asm.replace(';S7_HOME\n', S7_HOME if s7 else '').replace(';S7_HPTR\n', S7_HPTR if s7 else '')
     code, fix, rel = nasmcave.assemble_obj(asm, at, sym, 3)
     lab = nasmcave.labels(asm, at, sym)
     assert not any(p.get(3, at, len(code))), hex(at)
@@ -339,6 +363,13 @@ def patch(p, at):
     for o, t_obj, t_off in rel:
         p.add_rel(3, at + o, t_obj, t_off)
     p.branch(1, s['vs'], 0xE8, 3, lab['st_vs'])
+    LABELS.clear()
+    if s7:
+        LABELS['st_hptr'] = (3, lab['st_hptr'])
+        LABELS['st_cur'] = (3, lab['st_cur'])
+        LABELS['st_find'] = (3, lab['st_find'])
+        LABELS['GT1'] = s['GT1']
+        LABELS['TOP'] = s['TOP']
     print(f'exe: stadium: the home club\'s stadium on the versus screen, obj3+{at:#x} ({len(code)} B'
           f'{", namespaces" if ns else ""}), VersusInit obj1+{s["vs"]:#x}')
     return at + len(code)

@@ -802,13 +802,18 @@ def patch(p, lang):
                 + 'align 4\nTAB_D: dd DF_W\n    dw 0\n    dd ' + ', '.join(f'S_V{i}' for i in range(5)) + '\n'
                 + f'S_RLBL: db {db(DRLABEL[lang])}\n' + ''.join(f'S_R{i}: db {db(t)}\n' for i, t in enumerate(DRVALUES[lang]))
                 + 'align 4\nTAB_R: dd DF_DR\n    dw 0\n    dd S_R0, S_R1\n')
-    bu = knobs() and os.environ.get('DIFF_BU', '1') != '0' and 'BU' not in os.environ.get('DIFF_SKIP', '')
+    skips = set(os.environ.get('DIFF_SKIP', '').split(','))   # (a set: 'BU' in 'BUFRAME' as a string is True)
+    bu = knobs() and os.environ.get('DIFF_BU', '1') != '0' and 'BU' not in skips
     sym['BU_ENTRY'] = (4, swreg.BU_AT)
-    bf = bu and 'BUFRAME' not in os.environ.get('DIFF_SKIP', '')
+    bf = bu and 'BUFRAME' not in skips
     src = (f'%define BUF {int(bf)}\n%define CKSH {int(os.environ.get("DIFF_CKSH", "11"))}\n%define BU {int(bu)}\n%define DIFF_FORCE {int(force)}\n%define DIFF_TRACE {int(tr)}\n%define DF_START {start_w()}\n%define DR_START {start_dr()}\n'
            f'%define TOP {TOP}\n%define PITCH {PITCH}\n%define HEIGHT {HEIGHT}\n' + ASM
            + (ASM_ROW if row else '') + (ASM_T if tr else '') + data_asm() + strs)
     code, fix, rel = nasmcave.assemble_obj(src, at, sym, 4)
+    pad = [int(x) for x in os.environ.get('DIFF_PAD', '').split(',') if x]   # (test only, MC 13/11 REF+PAD control:
+    if pad and pad[0] > len(code):                      #  a REF build whose obj4 band has NEW's sizes, all nops)
+        src += f'\ntimes {pad[0] - len(code)} db 90h\n'
+        code, fix, rel = nasmcave.assemble_obj(src, at, sym, 4)
     lab = nasmcave.labels(src, at, sym)
     assert at + len(code) <= swreg.BU_AT, ('difficulty: past its obj4 room', hex(at + len(code)))
     assert p.le.obj(4).npages * 0x1000 >= swreg.DIFF_END, 'difficulty: obj4 pages (patch.py)'
@@ -844,6 +849,9 @@ def patch(p, lang):
         bu_end = buildup.patch(p, lang, sym, lab, swreg.BU_AT, swreg.BU_END)
     else:
         bu_end = swreg.BU_AT
+        if len(pad) > 1 and pad[1]:
+            p.put(4, swreg.BU_AT, b'\x90' * pad[1])
+            bu_end = swreg.BU_AT + pad[1]
     used = (at + len(code) - swreg.DIFF_AT) + (bu_end - swreg.BU_AT)
     margin = swreg.DIFF_END - swreg.DIFF_AT - used
     shape = 'test (TRACE / FORCE)' if tr or force else 'release'

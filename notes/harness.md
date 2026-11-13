@@ -475,3 +475,11 @@ asserts every rounds menu opens on a visible round button; `world_ctcursor` (DOS
 world_cgame_view): season 1 (new INTER career) every menu on its first round; the season-2 save on a round; the
 current calendar entry's week poked to FF (restored, nothing saved) every menu and VIEW WORLD's SUDAMERICA cup on its
 last round, never before the plain week's pick; shots ctc_<s1|s2|end>_<k>, ctc_world_cup.
+
+## Full-match frame traces are not a gate (42-diff, 2026-11-13)
+`diff_trace` (DIFF_TRACE builds: both generators and currentGameTick / currentTick pinned at the kick-off, one tick per
+frame) compares a 13000-frame match hash every 2048 frames. Control run (MC): REF against REF+PAD (`DIFF_PAD=code,buildup`
+= REF with a nop band of NEW's obj4 sizes, no hook) differed at frame 2048 in a batch run (hh) and was equal alone: the
+full-match trace is still sensitive to timing outside the pins (DOSBox-X turbo scheduling), with no change in game code.
+So NORMAL = the original is gated by the Unicorn host test (every site, 4 languages) + short traces (~200 frames) per hook
+group, not by full-match traces. DIFF_SKIP is a comma list matched as a set ('BU' is not 'BUFRAME').

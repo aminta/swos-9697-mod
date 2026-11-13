@@ -31637,6 +31637,10 @@ def diff_trace():
     # counters are trace-only code whose CPU cost alone shifts a still timer-driven part of the match: 13/11 bisection)
     ref = build('diff_ref', {'DIFF_TRACE': '1', **{k: v for k, v in sh.items() if k != 'DIFF_SKIP'}}, lang=lang)
     new = build('diff_new', {'DIFF_TRACE': '1', 'DIFF_TEST': '3', **sh}, lang=lang)
+    padc = os.environ.get('DIFF_PAD')                   # (MC 13/11: REF+PAD = REF with a nop band of NEW's obj4 sizes
+    if padc:                                            #  'code,buildup'; NORMAL then = REF+PAD, no EASY run)
+        new = build('diff_refpad', {'DIFF_TRACE': '1', 'DIFF_PAD': padc,
+                                    **{k: v for k, v in sh.items() if k != 'DIFF_SKIP'}}, lang=lang)
     seed = bytes.fromhex(os.environ.get('DIFF_SEED', '0102030405a6'))
     frames = int(os.environ.get('DIFF_FRAMES', '13000'))
     ctls = dict(hc=(2, 1), cc=(1, 1), hh=(2, 2))
@@ -31649,7 +31653,7 @@ def diff_trace():
         else:
             runs = [('NORMAL', diff_match(f'diff_trace_{pr}_new', new, 'HAMBURG', 'SCHALKE', ctls[pr], seed, 0,
                                           frames))]
-        if pr in ('cc', 'hh') and not os.environ.get('DIFF_SELF'):
+        if pr in ('cc', 'hh') and not os.environ.get('DIFF_SELF') and not padc:
             runs.append(('EASY+NEW', diff_match(f'diff_trace_{pr}_easy', new, 'HAMBURG', 'SCHALKE', ctls[pr], seed,
                                                 1, frames, drib=1)))
         if a['errs'] or 'ck' not in a:

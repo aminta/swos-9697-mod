@@ -188,9 +188,13 @@ static int32_t wcheck(void)            /* S7_WRES resolved; -1 every row resolva
         uint32_t len = s->item == WI_CACHE ? 684 : S7_WRES[k].len;
         if (s->form != WS_W && s->form != WS_G && s->form != WS_R) return k;
         if (s->item != WI_CACHE && !S7_WRES[k].ptr) return k;
-        uint32_t wd = s->form == WS_R ? 1 : 2;      /* (a WS_R entry is a u8: <= 256 of them, the file byte inside the item) */
-        if (s->count && (s->off + (uint32_t)(s->count - 1) * s->stride + wd > len || (s->count > 1 && s->stride < wd) ||
-                         (wd == 1 && (s->count > 256 || s->aux >= len))))
+        if (s->form == WS_R) {                      /* (u8 entries, contiguous, <= 256; stride = fill | file << 8: file 0 =
+                                                       the item's byte at aux) */
+            if (s->count && (s->off + (uint32_t)s->count > len || s->count > 256 || (!(s->stride >> 8) && s->aux >= len)))
+                return k;
+            continue;
+        }
+        if (s->count && (s->off + (uint32_t)(s->count - 1) * s->stride + 2 > len || (s->count > 1 && s->stride < 2)))
             return k;
     }
     return -1;

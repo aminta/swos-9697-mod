@@ -27464,7 +27464,7 @@ def world_s7cross_diff():
             st[k] = {'ct': bytes(r.obj2(ct, 684 + 38 * 16)), 'cnp': struct.unpack('<H', r.obj2(cnp, 2))[0],
                      'cmp': bytes(r.obj2(cmp_, 32)), 'nb': struct.unpack('<i', r.obj2(nbo, 4))[0],
                      'ob': struct.unpack('<i', r.obj2(obo, 4))[0], 'job': struct.unpack('<H', r.obj2(job, 2))[0],
-                     'fin': bytes(r.obj2(nbo - 0x10, 0x60)),
+                     'fin': bytes(r.obj2(nbo - 0x10, 0x60)), 'ca2': struct.unpack('<H', r.obj2(fs['D6CA2'][1], 2))[0],
                      'sel': struct.unpack('<HHHH', r.obj2(sel, 8)), 'cal': cal_league(bytes(r.obj2(CAL_AT - 4, 0x2000))),
                      'cache': {cache[684 * i] | cache[684 * i + 1] << 8: cache[684 * i:684 * i + 684] for i in range(n)}}
             s.log.append(f'[diff {k}] sel {st[k]["sel"]} cnp {st[k]["cnp"]} funds {st[k]["nb"]}/{st[k]["ob"]} '
@@ -27525,7 +27525,11 @@ def world_s7cross_diff():
     okb = set(range(nbo - (nbo - 0x10), nbo - (nbo - 0x10) + 4)) | set(range(t2, t2 + 4)) | set(range(wg - 6, wg + 6))
     fd = [hex(nbo - 0x10 + i) for i in range(0x60) if a['fin'][i] != b['fin'][i] and i not in okb]
     check(not fd, f'finance bytes A != B beyond NEWBAL / T2 / the wage bill: {fd[:8]}', errs)
-    info.append(f'expected: TV share T2 A {dw(a["fin"], t2)} B {dw(b["fin"], t2)}, wage bill D6B9E A '
+    wa_, wb_ = struct.unpack_from('<H', a['fin'], wg)[0], struct.unpack_from('<H', b['fin'], wg)[0]
+    check(a['ca2'] and b['ca2'] and wa_ and abs((wa_ / wb_) / (b['ca2'] / a['ca2']) - 1) <= 0.01,
+          f'wage bill D6B9E A {wa_} B {wb_} not the inverse of the season lengths D6CA2 A {a["ca2"]} B {b["ca2"]} '
+          f'(MC 13/11: cseg_5E345 wage = price x 1000/768 x 96 / D6CA2, the same prices)', errs)
+    info.append(f'season weeks D6CA2 A {a["ca2"]} B {b["ca2"]}; expected: TV share T2 A {dw(a["fin"], t2)} B {dw(b["fin"], t2)}, wage bill D6B9E A '
                 f'{struct.unpack_from("<H", a["fin"], wg)[0]} B {struct.unpack_from("<H", b["fin"], wg)[0]}')
     ra = a['cache'].get(wa)
     check(ra is not None and a['sel'][3] == a['ct'][25] == ra[25] and a['sel'][2] <= a['sel'][3],

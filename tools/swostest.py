@@ -27014,10 +27014,13 @@ def s7cross(force, team, start_file, ldfail=None):
     S7_LD / selTeamNumber from the exe's syms, logged as they change):
     - season 1's end: S7_LOG OK, 9 swaps, 18 crossers; S7_CLOG = the club's old word -> a word of the other file;
       selTeamNumber = that word, careerTeamLeague = its row's base division;
+    - season 1 is a new career never saved before its end (42-swcnew: the world is in SWC1 from after_new on);
     - season 2 (the save loaded): selTeamNumber and careerTeamLeague as saved, D6CDC a division of the new struct
-      (Serie D: 0..8; Serie C: 2..4), the club plays its season there (the session reaches its end);
+      (Serie D: 0..8; Serie C: 2..4), the club plays its season there (the session reaches its end); a second
+      crossing at its end (natural result: the force is out of the new group's range) only as a season-2 S7_CLOG;
     - S7_LD (the load apply) never failed in either session (status 0 / OK only - MC 13/11: a failed load = the
-      native files seen), and it applied at least once in season 2."""
+      native files seen; season 1's NOREG loads before after_new wrote the world are allowed: nothing crossed yet),
+      and it applied at least once in season 2."""
     import json
     env = s7_env(dict({'GPLAY_FORCE': str(force)}, **({'S7_LDFAIL': str(ldfail)} if ldfail else {})))
     if env is None:
@@ -27068,12 +27071,23 @@ def s7cross(force, team, start_file, ldfail=None):
           f'season 1 end: selTeamNumber / careerTeamLeague {[(hex(a), c) for a, _, c, _ in sels[-3:]]}, '
           f'want {new and hex(new)} / {cross and cross[-1][2]}', errs)
     sels2 = [struct.unpack('<HHHH', b) for b in get(1, f'{sel:x}')]
+    sels2 = [s_ for s_ in sels2 if s_[0] not in (0, 0xFFFF)]
     lo, hi = (0, 8) if start_file == 102 else (2, 4)
-    check(bool(sels2) and all(s_[0] == new for s_ in sels2 if s_[0] not in (0, 0xFFFF)) and lo <= sels2[-1][3] <= hi,
-          f'season 2: selTeamNumber / D6CDC {[(hex(a), d) for a, _, _, d in sels2[-3:]]} (want {new and hex(new)}, '
-          f'D6CDC {lo}..{hi})', errs)
+    # (13/11: season 2's own end may cross again - the force is out of range in the other struct's group, so the club
+    #  plays a natural season there; any later selTeamNumber must be a season-2 S7_CLOG crossing out of `new`)
+    cl2 = [struct.unpack('<HHh', b) for b in get(1, f'o4/{at("S7_CLOG"):x}')]
+    ok2 = {new} | {c[1] for c in cl2 if c[1] and c[0] == new}
+    check(bool(sels2) and sels2[0][0] == new and lo <= sels2[0][3] <= hi and all(s_[0] in ok2 for s_ in sels2),
+          f'season 2: selTeamNumber / D6CDC {[(hex(a), d) for a, _, _, d in sels2[:3]]} (want {new and hex(new)} as '
+          f'loaded, D6CDC {lo}..{hi}; later only a season-2 crossing {sorted(hex(x) for x in ok2 if x)})', errs)
+    swc = sy.get('swe', {}).get('SWC1')
     for s_ in (0, 1):
         lds = [struct.unpack('<BBBBHHIi', b) for b in get(s_, f'o4/{at("S7_LD"):x}')]
+        if s_ == 0 and swc:                             # (a new career's loads before after_new's swe_st_new wrote the
+            ks = f'o4/{swc[1]:x}'                       #  world into SWC1: NOREG = nothing crossed yet, native = right)
+            w = next((i for i, (o, b) in enumerate(hexes[0]) if o == ks and b[2] == 5), len(hexes[0]))
+            pre = sum(1 for o, _ in hexes[0][:w] if o == f'o4/{at("S7_LD"):x}')
+            lds = [x for x in lds[:pre] if x[0] != 2] + lds[pre:]
         bad = [x for x in lds if x[0] not in (0, 1)]
         if ldfail and s_ == 0:                          # (S7_LDFAIL: that call failed - seen - and the next recovered)
             k = next((i for i, x in enumerate(lds) if x[0] == 3 and x[6] == ldfail), None)

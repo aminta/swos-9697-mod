@@ -8,6 +8,8 @@
        WI_CFB   (0)  careerFileBuffer (the .CAR fixed part: obj2+0x96D6 = .CAR +0),
        WI_CACHE (1)  the team cache: EACH cached record (off / stride inside one 684-byte record),
        WI_MAIN  (2)  the save's main block (C6, trailer.py),
+       WI_CFBH  (3)  careerFileBuffer from byte 0x10000 on (a row's off is a u16: Panchina 13/11, WSITES 4b - 8 of the 17
+                     regions lie above 0xFFFF; off here = the .CAR offset - 0x10000),
        any other     an engine item 'EN' by its id = engine.item_id(name) (crc32 & 0xFFFF; wsites.py asserts it is
                      none of 0, 1, 2, WS_END and unique);
      WS_END (0xFFFF) ends the table.
@@ -24,7 +26,7 @@ typedef struct { uint8_t file, rows; uint16_t base; uint8_t ord0, pad[3]; } sreg
                                            globals [base, base + rows) = ordinals [ord0, ord0 + rows); rows 0 = 256
                                            (a split file - G144 - has two runs) */
 enum { WS_W = 1, WS_G = 2, WS_O8 = 3, WS_K = 4 };
-enum { WI_CFB = 0, WI_CACHE = 1, WI_MAIN = 2 };
+enum { WI_CFB = 0, WI_CACHE = 1, WI_MAIN = 2, WI_CFBH = 3 };
 #define WS_END 0xFFFF
 #define WS_MAX 128                              /* WSITES' room: rows + the WS_END row (wsites.py asserts) */
 extern sreg_wsite WSITES[WS_MAX];                /* s7swap.c (.data, filled by s7swap.py from wsites.ROWS) */

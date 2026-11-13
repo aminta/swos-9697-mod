@@ -143,6 +143,8 @@ def late(p):
         assert iid != wsites.WI_MAIN, ('s7swap: WSITES WI_MAIN rows are not walked yet', k)
         if iid == wsites.WI_CACHE:
             size = 684
+        elif iid == wsites.WI_CFBH:
+            size = trailer.INFO['FIXED'][1] - 0x10000
         elif iid == wsites.WI_CFB:
             size = trailer.INFO['FIXED'][1]
         else:

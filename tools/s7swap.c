@@ -163,6 +163,7 @@ static int32_t wcheck(void)            /* S7_WRES resolved; -1 every row resolva
         const sreg_wsite *s = &WSITES[k];
         S7_WRES[k].ptr = S7_WRES[k].len = 0;
         if (s->item == WI_CFB) { S7_WRES[k].ptr = (uint32_t)S7_CFB; S7_WRES[k].len = S7_CFBLEN; }
+        else if (s->item == WI_CFBH) { S7_WRES[k].ptr = (uint32_t)S7_CFB + 0x10000; S7_WRES[k].len = S7_CFBLEN - 0x10000; }
         else if (s->item != WI_CACHE)
             for (uint32_t e = 0; e < S7_ENN; e++)
                 if ((S7_ENI[3 * e + 2] & 0xFFFF) == s->item) { S7_WRES[k].ptr = S7_ENI[3 * e]; S7_WRES[k].len = S7_ENI[3 * e + 1]; }

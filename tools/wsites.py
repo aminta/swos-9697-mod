@@ -8,7 +8,7 @@ import struct
 
 TEST = os.environ.get('S7_WSITES_TEST') == '1'       # (host-test builds only: TEST_ROWS instead of ROWS)
 
-WI_CFB, WI_CACHE, WI_MAIN, WS_END, WS_MAX = 0, 1, 2, 0xFFFF, 128
+WI_CFB, WI_CACHE, WI_MAIN, WI_CFBH, WS_END, WS_MAX = 0, 1, 2, 3, 0xFFFF, 128   # (WI_CFBH: careerFileBuffer + 0x10000)
 WS_W, WS_G, WS_O8, WS_K = 1, 2, 3, 4
 
 # WSITES 4a (Panchina 13/11): the engine items' word / global sites (n7-s7-clubmap.md §4a), forms W and G only - the
@@ -22,6 +22,28 @@ WS_W, WS_G, WS_O8, WS_K = 1, 2, 3, 4
 # data by the HOME word, MC 13/11 - compared with BAGE's again: walking them would break the match; the S7 audit's
 # bteam item). rows() keeps a build's own items only (an item it does not save: no row).
 ROWS = [
+    # careerFileBuffer (WI_CFB: the .CAR's fixed part, 95151 B), WSITES 4b (Panchina 13/11): the 17 regions of
+    # n7-s7-clubmap.md 4b, named by their observed layout in 26 real saves (stride, parity, count); every slot of an
+    # array is walked as a word (a slot of another file, 0 or FFFFh is kept by the walker). PROVISIONAL extents:
+    # the arrays' true bounds come from the game's code (the region's writer); test_wsites_cfb pins what the saves show.
+    (WI_CFB, 0x00034, 2, 22, WS_W, 0),         # header: a 22-word by-file list (every save)
+    (WI_CFB, 0x0C202, 2, 137, WS_W, 0),        # season 2+: word lists (3 x 16, 34, 35) - draws / entrant lists
+    (WI_CFB, 0x0CAE4, 2, 31, WS_W, 0),         # season 8+: ~30 words
+    (WI_CFB, 0x0CBF2, 16, 40, WS_W, 0),        # season 4+: 40 table rows, word at +2 (26h at +4)
+    (WI_CFB, 0x0CED2, 2, 42, WS_W, 0),         # season 8+: ~30 words
+    (WI_CFB, 0x0CFF6, 16, 40, WS_W, 0),        # season 8+: a second 40-row table, word at +6
+    (WI_CFB, 0x0D27C, 8, 3, WS_W, 0),          # season 2+: stride 8
+    (WI_CFB, 0x0D7CA, 4, 25, WS_W, 0),         # stride 4 (the career's league clubs)
+    (WI_CFB, 0x0D886, 26, 5, WS_W, 0),         # season 2+: stride 26, word + FFh
+    (WI_CFB, 0x0F9CB, 2, 15, WS_W, 0),         # stride 2 (odd address)
+    (WI_CFBH, 0x051D, 2, 16, WS_W, 0),         # stride 2 (odd address)
+    (WI_CFBH, 0x0960, 2, 28, WS_W, 0),         # season 8+: 28 words
+    (WI_CFBH, 0x0BF9, 2, 4, WS_W, 0),          # 4 words (odd address)
+    (WI_CFBH, 0x10AC, 2, 4, WS_W, 0),          # 4 words
+    (WI_CFBH, 0x11C2, 2, 36, WS_W, 0),         # season 2+: a by-file sorted list, 36 words
+    (WI_CFBH, 0x1E66, 22, 67, WS_W, 0),        # the league's fixture list: 22-byte records, home word +0, away word +2
+    (WI_CFBH, 0x1E68, 22, 67, WS_W, 0),
+    (WI_CFBH, 0x6097, 2, 20, WS_W, 0),         # a 20-club list (odd address)
     # GP (gplay.c struct gp_state, 2048 B): srow[SD 2][GT 32] {u16 team; ...} 10 B at +8; ko[2] (674 B at +648):
     # team[KN 24] at +474; dec[3] (12 B at +1996): team[2] at +4, glob[2] at +8
     ('GP', 8, 10, 64, WS_W, 0),
@@ -98,7 +120,7 @@ def table(rows=None):
             assert not set(span) & set(OWN), ('wsites: a WI_CACHE row on the record\'s own bytes (s7swap.c\'s)', off)
         if isinstance(item, str):
             item = engine.item_id(item)
-            assert item not in (WI_CFB, WI_CACHE, WI_MAIN, WS_END), ('wsites: an item id clashes', item)
+            assert item not in (WI_CFB, WI_CACHE, WI_MAIN, WI_CFBH, WS_END), ('wsites: an item id clashes', item)
             ids.add(item)
         assert form in (WS_W, WS_G, WS_O8, WS_K) and 0 <= off < 0x10000 and count < 0x10000, ('wsites: row', item, off)
         assert count <= 1 or stride >= (1 if form == WS_O8 else 2), ('wsites: stride', item, off)

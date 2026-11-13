@@ -2732,20 +2732,11 @@ static void cd_make(void) {             /* a later season's rounds 0-1 (CD_ST.ge
 #ifndef GP_DATA_SECTION
 #define GP_DATA_SECTION __attribute__((section(".data")))      /* (host tests build gplay.c natively: -DGP_DATA_SECTION=) */
 #endif
-u32 (*GP_HOME)(u32) GP_DATA_SECTION;   /* (S7: s7swap.c s7_home_word in obj4, set by s7swap.py; 0 =
-                                                   none. In .data, not .bss: the glue's fixup needs the dword in obj1) */
-__attribute__((unused)) static u32 gp_home(u32 w) { return GP_HOME ? GP_HOME(w) & 0xFFFF : w; }   /* (a team word -> its club's home word) */
-/* s7-ri-fix.md "Changes" (MC 13/11): in S7 builds the REGISTRY is the single source of truth, ri's maps[] is not used.
-   GP_IDENT(word) = the registry ident of the club playing at that team word (0xFFFF none); GP_POOLK(ident) = its index among
-   the pool idents (0xFFFF: not a pool club). Both set by s7swap.py (0 = not an S7 build: today's ri). */
-u32 (*GP_IDENT)(u32) GP_DATA_SECTION;
-u32 (*GP_POOLK)(u32) GP_DATA_SECTION;
-__attribute__((unused)) static u32 gp_ident(u32 w) { return GP_IDENT ? GP_IDENT(w) & 0xFFFF : 0xFFFF; }
-__attribute__((unused)) static u32 gp_poolk(u32 id) { return GP_POOLK ? GP_POOLK(id) & 0xFFFF : 0xFFFF; }
-#define RI_S7ON (GP_IDENT != 0)
-#else
-#define RI_S7ON 0
-__attribute__((unused)) static u32 gp_home(u32 w) { return w; }         /* (no S7: every club sits in its home row) */
+/* s7-ri-fix.md "Changes" (MC 13/11): in S7 builds the REGISTRY decides and ri's maps[] is unused. The logic is s7ri.c (obj4,
+   included by s7swap.c); gplay.c keeps these two hook pointers (set by s7swap.py; 0 = today's path, dormant). */
+int (*GP_RIPOOL)(const u8 *e, u16 *q, u8 *qn, int init, int file, const s8 *slt, s8 *copy, int manager, u16 *og, int *nog,
+                 u16 *out, int *no) GP_DATA_SECTION;
+u32 (*GP_CDSTR)(u16 w, const u8 *s) GP_DATA_SECTION;      /* (0: not applicable here) */
 #endif
 int cd_ident(int m, int i);             /* (the RI section: a pooled slot's identity) */
 static u32 cd_below(u32 n) {            /* (below() for n past 65535: the product in 64 bits) */
@@ -2757,21 +2748,7 @@ static u32 cd_str(u16 w) {
     int i = w >> 8, moff = s[0] | s[1] << 8, nmap = s[2] | s[3] << 8, np = s[4] | s[5] << 8, id = i;
     if (moff != 0xFFFF && i < nmap) id = cd_ident(moff + i, i);
 #if GP_S7
-    if (moff != 0xFFFF && i < nmap && RI_S7ON) {    /* the occupant's strength: a pool club's own, a native of this file by its home
-                                                   row, a club from the other file has no entry here (the floor, 5) */
-        u32 k = gp_poolk(gp_ident(w)), hm = gp_home(w);
-        id = k != 0xFFFF ? 256 + k : (hm & 0xFF) == (w & 0xFF) ? (int)(hm >> 8) : 1000;
-        if (id == 1000) {                       /* a club of the other league file: its real strength by its home row (cupd.py
-                                                   strengths: db other file after the pool's, then its 256 ordinals) */
-            const u8 *o = s + 6 + 512 + 2 * np;
-            if ((hm & 0xFF) == (o[0] | o[1] << 8) && (hm >> 8) < 256) {
-                const u8 *q = o + 2 + 2 * (hm >> 8);
-                u32 v = q[0] | q[1] << 8;
-                if (v < 5) v = 5;
-                return v * v;
-            }
-        }
-    }
+    if (GP_CDSTR) { u32 v = GP_CDSTR(w, s); if (v) return v; }     /* (s7ri.c: the occupant's real strength) */
 #endif
     const u8 *p = id < 256 ? s + 6 + 2 * id : id - 256 < np ? s + 6 + 512 + 2 * (id - 256) : 0;
     u32 v = p ? (u32)(p[0] | p[1] << 8) : 5;
@@ -4137,14 +4114,6 @@ struct ri_file { u8 *init; u16 *map; int n; };   /* (a file's view of RI_STATE) 
 struct ri_state RI_STATE;
 u8 RI_SWAPPED[RF][RIS / 8];                     /* (this season end's swapped slots: ri_cache) */
 int RI_MGR;                                     /* (the manager's club, global number: set by the glue, never swapped) */
-#if GP_S7
-enum { RIMV = 64 };
-u16 RI_MOVES[RIMV][3];                          /* (S7 builds: this season end's pool moves {row, out ident, in ident}: ri_pool
-                                                   decides and logs, the registry applies them at s7_season) */
-int RI_NMOVES;
-int RI_S7_BAD;                                  /* (S7 builds: never > 0 - a row's occupant unknown to the registry, or
-                                                   RI_SWAPPED set: both are bugs; the host tests assert it) */
-#endif
 int RI_RULE = 2;
 u8 RI_FILES_FILE[RF];                           /* (each table file's team file number, set by ri_season) */
 const u32 RI_STATE_SIZE = sizeof(struct ri_state);   /* (the engine item 'RI': ripool.RI_SIZE) */
@@ -4194,7 +4163,13 @@ static const u8 *ri_pool(const u8 *e, struct ri_file *f, int fi, u16 *q, u8 *qn,
         int low = p[0], ns = p[1] | p[2] << 8;
         const u8 *sl = p + 3, *pa = sl + 4 * ns;
         order = pa + n;
-        if (run && *f->init == 1 && !RI_S7ON) {     /* (S7 builds: the registry seed fills q[] with idents) */
+#if GP_S7
+        if (run && GP_RIPOOL)                   /* S7 builds (s7ri.c): the registry decides; the first order, the moves, the log */
+            m = GP_RIPOOL(e, q, qn, *f->init, RI_FILES_FILE[fi], slt, copy, manager, ri_og, &ri_no, out, &no);
+        else
+#endif
+        {
+        if (run && *f->init == 1) {
             for (int i = 0; i < n; i++) q[i] = RIS + order[i];
             *qn = n;
         }
@@ -4210,25 +4185,10 @@ static const u8 *ri_pool(const u8 *e, struct ri_file *f, int fi, u16 *q, u8 *qn,
                 copy[g] = slt[g];
                 continue;
             }
-#if GP_S7
-            if (RI_S7ON) {                      /* the registry's rule: the occupant's ident goes to the queue tail, the
-                                                   head ident comes in; the registry applies it (RI_MOVES) at s7_season */
-                u32 id = gp_ident(RI_FILES_FILE[fi] | i << 8);
-                if (id == 0xFFFF || RI_NMOVES >= RIMV) {
-                    RI_S7_BAD++;                /* (never: every row has a club) - the club stays, as the manager's */
-                    copy[g] = slt[g];
-                    continue;
-                }
-                out[no++] = id;
-                RI_MOVES[RI_NMOVES][0] = i;
-                RI_MOVES[RI_NMOVES][1] = id;
-                RI_MOVES[RI_NMOVES][2] = q[m++];
-                RI_NMOVES++;
-            } else
-#endif
             ri_swap(f, fi, i, q, *qn, m++, out, &no);
             ri_og[ri_no++] = g;
             copy[g] = slt[g];                   /* (the slot stays; pg_season places its new identity by area) */
+        }
         }
     } else {
         int key = p[0] | p[1] << 8, rel = p[2], ns = p[3], file = RI_FILES_FILE[fi];
@@ -4326,9 +4286,6 @@ static const u8 *ri_pool(const u8 *e, struct ri_file *f, int fi, u16 *q, u8 *qn,
 
 void ri_season(const u8 *t, const s8 *slt, s8 *copy, int world, u8 *sr) {
     ri_no = 0;
-#if GP_S7
-    RI_NMOVES = 0;
-#endif
     for (int fi = 0; fi < RF; fi++)
         for (int i = 0; i < RIS / 8; i++) RI_SWAPPED[fi][i] = 0;
     u32 h = 0x9E3779B9u;                        /* (the draw: the season's own table as seed) */
@@ -4359,11 +4316,6 @@ void ri_season(const u8 *t, const s8 *slt, s8 *copy, int world, u8 *sr) {
         }
         if (run) *f->init = 2;
     }
-#if GP_S7
-    if (RI_S7ON)                                /* (S7: RI_SWAPPED is never set: ri_cache would copy the DISK record of a row) */
-        for (int fi = 0; fi < RF; fi++)
-            for (int i = 0; i < RIS / 8; i++) if (RI_SWAPPED[fi][i]) RI_S7_BAD++;
-#endif
     if (sr) sr[0] = sr[1] = 0;                  /* (the rankings used: a season end without any has none) */
 }
 

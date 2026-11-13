@@ -36,13 +36,13 @@ def ri_table(slots=SLOTS, pool=POOL, moff=0):
     return t + pl
 
 
-def plant(L, maps, queue):
+def plant(L, maps, queue, init=2):
     """The one place that knows RI_STATE's layout (struct ri_state: init[RF] qn[RP] q[RQT] ovr[RP][RO] maps[RMT])."""
     RF = 8
     st = (ctypes.c_uint8 * (RF + RP + 2 * RQT + 2 * RP * RO + 2 * RMT)).in_dll(L, 'RI_STATE')
     raw = bytearray(len(st))
-    raw[0] = 2                                       # file 0 init: a first season end already done
-    raw[RF] = len(queue)                             # qn[0]
+    raw[0] = init                                    # file 0 init: 2 = a first season end already done, 0 = a new career
+    raw[RF] = len(queue) if init else 0              # qn[0]
     struct.pack_into(f'<{len(queue)}H', raw, RF + RP, *queue)
     struct.pack_into(f'<{len(maps)}H', raw, RF + RP + 2 * RQT + 2 * RP * RO, *maps)
     ctypes.memmove(st, bytes(raw), len(raw))
@@ -70,25 +70,46 @@ class Reg:
         self.occ = list(occ)
         self.cb = ctypes.CFUNCTYPE(ctypes.c_uint32, ctypes.c_uint32)
         self.ident = self.cb(lambda w: self.occ[w >> 8] if (w & 0xFF) == FILE and (w >> 8) < len(self.occ) else NONE)
-        self.poolk = self.cb(lambda i: i - POOL_FIRST if POOL_FIRST <= i < POOL_FIRST + POOL else NONE)
-        self.home = self.cb(lambda w: w)             # (HOME: not used by ri_pool's S7 branch)
+
+        def pk(i):
+            if i & 0x10000:                          # 0x10000 | k = the ident of RS record k (s7swap's one place of the rule)
+                k = i & 0xFFFF
+                return POOL_FIRST + k if k < POOL else NONE
+            return i - POOL_FIRST if POOL_FIRST <= i < POOL_FIRST + POOL else NONE
+        self.poolk = self.cb(pk)
+        self.home = self.cb(lambda w: w)
 
 
-def s7_lib(tag='s7'):
+WRAP = (
+    '#include <stdint.h>\n#include "gplay.c"\n'
+    'uint32_t (*t_ident)(uint32_t); uint32_t (*t_poolk)(uint32_t); uint32_t (*t_home)(uint32_t);\n'
+    'uint32_t s7_ident(uint32_t w) { return t_ident(w); }\n'
+    'uint32_t s7_poolk(uint32_t i) { return t_poolk(i); }\n'
+    'uint32_t s7_home_word(uint32_t w) { return t_home(w); }\n'
+    '#define DATA\n#include "s7ri.c"\n'
+    'void t_wire(void) { GP_RIPOOL = s7ri_pool; GP_CDSTR = s7ri_cdstr; }\n'
+    'void t_unwire(void) { GP_RIPOOL = 0; GP_CDSTR = 0; }\n'
+    'u32 t_cd_str(u16 w) { return cd_str(w); }\n'
+    'void t_cdd(const u8 *p) { GP_CDD = p; }\n')
+
+
+def s7_lib(tag='s7', extra=()):
+    """gplay.c + s7ri.c in one native translation unit (as s7swap.c includes s7ri.c in the exe)."""
     prev = cd.FLAGS
-    cd.FLAGS = S7_FLAGS
+    cd.FLAGS = S7_FLAGS + list(extra)
     try:
         d = tempfile.mkdtemp(prefix='ris7')
-        return cd._lib(d, open(os.path.join(cd.TOOLS, 'gplay.c')).read(), 1, tag)
+        return cd._lib(d, WRAP, 1, tag)
     finally:
         cd.FLAGS = prev
 
 
 def s7_hooks(L, reg):
-    if os.environ.get('RIX_MUTANT_NOIDENT'):         # (control of the test: the hook unset = today's slot-keyed ri path)
+    if os.environ.get('RIX_MUTANT_NOIDENT'):         # (control of the test: the registry answers "none")
         reg.ident = reg.cb(lambda w: NONE)
-    for name, fn in (('GP_IDENT', reg.ident), ('GP_POOLK', reg.poolk), ('GP_HOME', reg.home)):
+    for name, fn in (('t_ident', reg.ident), ('t_poolk', reg.poolk), ('t_home', reg.home)):
         ctypes.c_void_p.in_dll(L, name).value = ctypes.cast(fn, ctypes.c_void_p).value
+    L.t_wire()
 
 
 def s7_season(L, reg, relegated, queue=None, qn=None):
@@ -96,7 +117,7 @@ def s7_season(L, reg, relegated, queue=None, qn=None):
     applies the moves (what s7_season does): the row's occupant = the incoming ident."""
     RF = 8
     if queue is not None:
-        plant(L, [], queue)
+        plant(L, [], queue, 2 if queue else 0)
     t = ctypes.create_string_buffer(ri_table(), 256)
     slt = (ctypes.c_int8 * 2400)()
     copy = (ctypes.c_int8 * 2400)()
@@ -160,6 +181,13 @@ def test_ripool_cross_queue():
     if mv != [(0, 13, 100)] or q != [101, 102, 13]:
         errs.append(f'case 1/2: moves {mv}, queue {q} (want [(0, 13, 100)] / [101, 102, 13])')
     s7_checks(L, reg, q, universe, errs, 'case 1/2')
+    # the first order (a new career, init 0): q[] = the idents of RS records 0, 1, 2 in the table's order, then the swap
+    reg = Reg([10, 11, 12, 13])
+    s7_hooks(L, reg)
+    mv, q = s7_season(L, reg, [0], queue=[])
+    if mv != [(0, 10, 100)] or q != [101, 102, 10]:
+        errs.append(f'first order: moves {mv}, queue {q} (want [(0, 10, 100)] / [101, 102, 10])')
+    s7_checks(L, reg, q, universe, errs, 'first order')
     # 3: a foreign club (50) on row 2 relegated; a native sits away (its ident 12 is in the queue: crossed out earlier)
     reg = Reg([10, 11, 50, 13])
     s7_hooks(L, reg)
@@ -368,16 +396,7 @@ def test_cd_str_s7():
     gplay.c is #included natively (cd_str is static); GP_IDENT / GP_POOLK / GP_HOME stand-ins; CD_DT built like cupd's."""
     import cupd
     import mkseason
-    d = tempfile.mkdtemp(prefix='cdstr')
-    src = ('#include "gplay.c"\n'
-           'u32 t_cd_str(u16 w) { return cd_str(w); }\n'
-           'void t_cdd(const u8 *p) { GP_CDD = p; }\n')
-    prev = cd.FLAGS
-    cd.FLAGS = S7_FLAGS + ['-DGP_CD2=1']
-    try:
-        L = cd._lib(d, src, 1, 'str')
-    finally:
-        cd.FLAGS = prev
+    L = s7_lib('str', ['-DGP_CD2=1'])
     CD_O = 8                                         # (GP_CD2)
     OTHER, FILE_ = 102, 144
     nat = [5 + 7 * i for i in range(256)]            # the file's own ordinals' strengths
@@ -399,10 +418,11 @@ def test_cd_str_s7():
            9: (51, OTHER | 2 << 8)}                 # the weak one (strength 3 -> 5)
     cb = ctypes.CFUNCTYPE(ctypes.c_uint32, ctypes.c_uint32)
     ident = cb(lambda w: occ[w >> 8][0] if (w >> 8) in occ else NONE)
-    poolk = cb(lambda i: i - 100 if 100 <= i <= 102 else NONE)
+    poolk = cb(lambda i: i - 100 if 100 <= i <= 102 else NONE)      # (cd_str never asks the 0x10000 form)
     home = cb(lambda w: occ[w >> 8][1] if (w >> 8) in occ else w)
-    for name, fn in (('GP_IDENT', ident), ('GP_POOLK', poolk), ('GP_HOME', home)):
+    for name, fn in (('t_ident', ident), ('t_poolk', poolk), ('t_home', home)):
         ctypes.c_void_p.in_dll(L, name).value = ctypes.cast(fn, ctypes.c_void_p).value
+    L.t_wire()
     sq = lambda v: max(5, v) ** 2
     errs = []
     for row, want, what in ((5, sq(nat[5]), 'a native on its home row'), (6, sq(nat[20]), 'a native on another row (home 20)'),

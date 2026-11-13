@@ -31724,7 +31724,7 @@ def diff_menu():
     import difficulty as dfm
     from complist import px, SMALL_W
     errs, notes = [], []
-    b = build(f'diff_menu_{UI}', {'DIFF_TEST': '3'}, lang=UI)
+    b = build(f'diff_menu_{UI}', {'DIFF_TEST': '3', 'MODVER_TAG': 'DRIBBLING TEST', 'DIFF_MARGIN_BETA': '384'}, lang=UI)   # (42-drp: the beta's page-15 floor, MC 13/11)
     label = dfm.LABEL[UI]
     with Session(f'diff_menu_{UI}', b, {}, 'dump:3', 300) as s:
         s.wait()
@@ -31772,15 +31772,27 @@ def diff_menu():
         walk(s, 31, 2)
         dr.append((rdr(), rsv()))
         check(dr[-1] == (0, 0x02), f'DRIBBLING CUSTOM -> CLASSIC: {dr[-1]} (want (0, 0x02))', errs)
+        walk(s, 31, 2)                                  # NEW, CUSTOM again: the page keeps the session's values
+        pg = walk(s, 31, 2)                             # (row 0 one step on; dp_fall wrote the texts at the open)
+        want0 = f'{dfm.DP_PCT[0][dfm.DP_DEFAULT[0] + 1]}%'
+        check(pg.n == 2 * len(dfm.DP_ROWS) + 2 and pg.entries[9][1] == want0 and
+              all(pg.entries[9 + i][1] == f'{dfm.DP_PCT[i][dfm.DP_DEFAULT[i]]}%' for i in range(1, dfm.DP_NNUM)),
+              f'page reopened: {[e[1] for e in pg.entries[9:9 + dfm.DP_NNUM]]} (row 0 {want0!r})', errs)
+        s.shot('drp_page_3')
+        walk(s, 2 * len(dfm.DP_ROWS) + 1, 2)
+        walk(s, 31, 2)
+        dr.append((rdr(), rsv()))
+        check(dr[-1] == (0, 0x02), f'DRIBBLING back to CLASSIC: {dr[-1]}', errs)
         notes.append(f'toggles {w}, dribbling {dr}')
     return not errs, '; '.join(errs + notes)
 
 
 def diff_dp_page(s, pg, blk, errs):
     """42-drp: the DRIBBLING PERSONALIZZATO page just opened (pg its screen): 18 entries (title, 8 labels, 8 values,
-    INDIETRO), the texts in the exe's language and in their boxes, every value at its default (NUOVO steps, switches
-    ON); fire on each value row steps it (the step rows 3 values, the switches 2, wrapping: DP_K follows and the shown
-    text is the step's); INDIETRO leaves. Returns a note."""
+    INDIETRO), the texts in the exe's language and in their boxes, every value at its default (NUOVO's value as its %,
+    switches ON). Each value row: fire = the next step, RIGHT past the last step stays there, LEFT past the first stays
+    at 0 (the original, 100%), fire from the last wraps to 0 - DP_K follows and the shown text is the step's %; each
+    switch: fire / LEFT / RIGHT. Every row back at its default, INDIETRO leaves. Returns a note."""
     import difficulty as dfm
     from complist import px, SMALL_W
     li = ('it', 'en', 'fr', 'de').index(UI)
@@ -31798,33 +31810,43 @@ def diff_dp_page(s, pg, blk, errs):
           f'{pg.entries[0][1]!r}', errs)
     if pg.n != 2 * n + 2:
         return 'page not opened'
-    vals = lambda i, st: (dfm.DRVALUES[UI][0], dfm.DRVALUES[UI][1], dfm.DP_EXTRA[UI])[st] \
-        if len(dfm.DP_ROWS[i][4]) == 3 else None
+    txt = lambda i, st: f'{dfm.DP_PCT[i][st]}%' if i < dfm.DP_NNUM else ''
     for i, row in enumerate(dfm.DP_ROWS):
         check(pg.entries[1 + i][1] == row[0][li], f'label {i}: {pg.entries[1 + i][1]!r}', errs)
         t = row[0][li]
         check(px(t) <= pg.geom[1 + i][2] - 2 and set(t) <= set(SMALL_W) | {' '}, f'{t!r}: {px(t)} px', errs)
-        check(pg.entries[9 + i][1] in ('', vals(i, 1)), f'value {i}: {pg.entries[9 + i][1]!r}', errs)
+        check(pg.entries[9 + i][1] in ('', txt(i, dfm.DP_DEFAULT[i])) if i >= dfm.DP_NNUM else
+              pg.entries[9 + i][1] == txt(i, dfm.DP_DEFAULT[i]), f'value {i}: {pg.entries[9 + i][1]!r}', errs)
     check(rdk() == list(dfm.DP_DEFAULT), f'DP_K at open {rdk()}', errs)
     s.shot('drp_page_0')
-    steps = []
-    for i, row in enumerate(dfm.DP_ROWS):
-        m = len(row[4])
-        seen = []
-        for j in range(m):
-            sc = walk(s, 9 + i, 2)
-            st = rdk()[i]
-            seen.append(st)
-            check(sc.entries[9 + i][1] in ('', vals(i, st)), f'row {i} step {st}: {sc.entries[9 + i][1]!r}', errs)
-        want = [(dfm.DP_DEFAULT[i] + 1 + j) % m for j in range(m)]
-        check(seen == want, f'row {i} steps {seen} (want {want})', errs)
-        steps.append(seen)
-    s.shot('drp_page_1')
-    check(rdk() == list(dfm.DP_DEFAULT), f'DP_K after full cycles {rdk()}', errs)
-    walk(s, 9, 2)                                       # (row 0 one step on: EXTRA, kept for the session)
-    walk(s, 2 * n + 1, 2)                               # INDIETRO
-    return f'page OK: {pg.n} entries, steps {steps}, DP_K at exit {rdk()}'
+    notes = []
 
+    def keys(i, key, times, want, what):
+        s.send(' '.join([f'{key}:0.3'] * times) + ' dump:1')
+        sc = s.screen()
+        st = rdk()[i]
+        check(st == want and (i >= dfm.DP_NNUM or sc.entries[9 + i][1] == txt(i, want)),
+              f'row {i} {what}: step {st} {sc.entries[9 + i][1]!r} (want {want} {txt(i, want)!r})', errs)
+        return st
+    for i, row in enumerate(dfm.DP_ROWS):
+        m, d = len(row[4]), dfm.DP_DEFAULT[i]
+        walk(s, 9 + i, 2)                               # (fire: the next step)
+        seen = [rdk()[i]]
+        check(seen[0] == (d + 1) % m, f'row {i} fire: step {seen[0]} (want {(d + 1) % m})', errs)
+        seen.append(keys(i, 'right', m, m - 1, 'RIGHT x m (clamped)'))
+        seen.append(keys(i, 'fire', 1, 0, 'fire at the last (wraps)'))
+        seen.append(keys(i, 'left', 1, 0, 'LEFT at 0 (clamped)'))
+        seen.append(keys(i, 'right', m - 1, m - 1, 'RIGHT x (m - 1)'))
+        seen.append(keys(i, 'left', m - 1 - d, d, 'LEFT back to the default'))
+        notes.append(seen)
+        if i == 1:
+            s.shot('drp_page_1')
+    check(rdk() == list(dfm.DP_DEFAULT), f'DP_K after the rows {rdk()}', errs)
+    walk(s, 9, 2)                                       # (row 0 one step on by fire, kept for the session)
+    check(rdk() == [dfm.DP_DEFAULT[0] + 1] + list(dfm.DP_DEFAULT[1:]), f'row 0 one on: DP_K {rdk()}', errs)
+    s.shot('drp_page_2')
+    walk(s, 2 * n + 1, 2)                               # INDIETRO
+    return f'page OK: {pg.n} entries, steps {notes}, DP_K at exit {rdk()}'
 
 
 @scenario

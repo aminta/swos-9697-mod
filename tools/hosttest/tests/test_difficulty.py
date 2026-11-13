@@ -34,14 +34,15 @@ def _build(lang):
     import patch
     out = tempfile.mkdtemp(prefix=f'diff_{lang}_')
     os.makedirs(os.path.join(out, 'DATA'))
-    old = os.environ.get('DIFF_TEST')
-    os.environ['DIFF_TEST'] = '1'
+    keep = {k: os.environ.get(k) for k in ('DIFF_TEST', 'MODVER_TAG', 'DIFF_MARGIN_BETA')}
+    os.environ.update(DIFF_TEST='1', MODVER_TAG='DRIBBLING TEST', DIFF_MARGIN_BETA='384')  # (42-drp: the beta's floor)
     try:
         r = patch.patch_teams(os.path.join(ORIG, 'DATA/TEAM.020'), os.path.join(out, 'DATA/TEAM.020'))
         patch.write_new_teams(os.path.join(ORIG, 'DATA'), os.path.join(out, 'DATA'))
         patch.patch_exe(os.path.join(ORIG, f'{LANGS[lang]}.EXE'), os.path.join(out, 'ITALIAN.EXE'), r, lang)
     finally:
-        os.environ.pop('DIFF_TEST', None) if old is None else os.environ.__setitem__('DIFF_TEST', old)
+        for k, v in keep.items():
+            os.environ.pop(k, None) if v is None else os.environ.__setitem__(k, v)
     return os.path.join(out, 'ITALIAN.EXE')
 
 

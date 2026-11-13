@@ -1,4 +1,5 @@
 """42-drp DRIBBLING PERSONALIZZATO (difficulty.py dp_build / df_blk, buildup.py bu_opp) in Unicorn, every language.
+- dp_fmt: every value row at every step: its % text (DP_PCT).
 - dp_build: for every row at every step (the others at their defaults) and mixed settings, BLK_CU / BLK_CO = BLK_U /
   BLK_O with the rows' values at their fields (the host model below); the default settings = BLK_U / BLK_O exactly.
 - df_blk with DRIBBLING 2: the human's side BLK_CU, the opposition BLK_CO, every other pairing BLK_N; with 0 / 1 as
@@ -24,8 +25,8 @@ def _build(lang):
     import difficulty
     out = tempfile.mkdtemp(prefix=f'drp_{lang}_')
     os.makedirs(os.path.join(out, 'DATA'))
-    keep = {k: os.environ.get(k) for k in ('DIFF_TEST', 'DIFF_DRIB')}
-    os.environ['DIFF_TEST'] = '3'
+    keep = {k: os.environ.get(k) for k in ('DIFF_TEST', 'DIFF_DRIB', 'MODVER_TAG', 'DIFF_MARGIN_BETA')}
+    os.environ.update(DIFF_TEST='3', MODVER_TAG='DRIBBLING TEST', DIFF_MARGIN_BETA='384')   # (the beta's recipe)
     os.environ.pop('DIFF_DRIB', None)
     try:
         r = patch.patch_teams(os.path.join(td.ORIG, 'DATA/TEAM.020'), os.path.join(out, 'DATA/TEAM.020'))
@@ -68,7 +69,8 @@ def test_drp():
             k = list(df.DP_DEFAULT)
             k[i] = st
             sets.append(k)
-    sets += [[2, 2, 2, 2, 2, 2, 1, 1], [0, 0, 0, 0, 0, 0, 0, 0], [0, 2, 1, 2, 0, 1, 1, 0], [2, 0, 2, 0, 2, 0, 0, 1]]
+    sets += [[2, 2, 2, 2, 2, 2, 1, 1], [0, 0, 0, 0, 0, 0, 0, 0], [0, 2, 1, 2, 0, 1, 1, 0], [2, 0, 2, 0, 2, 0, 0, 1],
+             [len(r[4]) - 1 for r in df.DP_ROWS], [len(r[4]) // 2 for r in df.DP_ROWS]]
     for lang, name in td.LANGS.items():
         p = lepatch.LEPatch(os.path.join(td.ORIG, f'{name}.EXE'))
         s, sym = df.find(p)
@@ -88,6 +90,17 @@ def test_drp():
                             f'{model(k)[1].hex()}')
             if k == list(df.DP_DEFAULT) and (cu, co) != (u0, o0):
                 errs.append(f'{lang} dp_build defaults: not BLK_U / BLK_O')
+        # dp_fmt: every value row at every step -> DP_S + 5 * row = DP_PCT's % as text
+        for row in range(df.DP_NNUM):
+            for st, pct in enumerate(df.DP_PCT[row]):
+                un.mem_write(0, sn)
+                un.mem_write(a4(ld['DP_K']) + 2 * row, struct.pack('<H', st))
+                _call(un, a4(ld['dp_fmt']), row)
+                n += 1
+                got = bytes(un.mem_read(a4(ld['DP_S']) + 5 * row, 5))
+                want = f'{pct}%'.encode().ljust(5, b'\0')
+                if got[:len(f'{pct}%') + 1] != want[:len(f'{pct}%') + 1]:
+                    errs.append(f'{lang} dp_fmt row {row} step {st}: {got!r}, want {want!r}')
         # df_blk / bu_opp: (pa, pb) controls of TA / TB; ebx = TA or TB
         for (pa, pb), team, dact, mix in itertools.product(((1, 0), (1, 1), (0, 0)), (td.TA, td.TB), (0, 1, 2),
                                                            (0, 1)):
@@ -124,7 +137,7 @@ def test_drp():
             if (w, dr, sv, sh) != (ww, wd, ww | wd << 4, ww | wd << 4):
                 errs.append(f'{lang} df_load {v:#x}: W {w} DR {dr} SV {sv:#x} SH {sh:#x}, want {ww} {wd}')
     return not errs, '; '.join(errs[:10]) + (f' (+{len(errs) - 10})' if len(errs) > 10 else '') or \
-        f'4 languages, {n} cases: dp_build = the host model (defaults = BLK_U / BLK_O), df_blk and bu_opp per DRIBBLING'
+        f'4 languages, {n} cases: dp_build = the host model (defaults = BLK_U / BLK_O), dp_fmt texts, df_blk and bu_opp per DRIBBLING'
 
 
 if __name__ == '__main__':

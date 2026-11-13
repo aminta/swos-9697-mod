@@ -64,31 +64,41 @@ OPP = dict(NORM, lockl=16, box=16, hold=4400, slide=160)
 DRLABEL = {'it': 'DRIBBLING', 'en': 'DRIBBLING', 'fr': 'DRIBBLE', 'de': 'DRIBBLING'}
 DRVALUES = {'it': ('CLASSICO', 'NUOVO', 'PERSONALIZZATO'), 'en': ('CLASSIC', 'NEW', 'CUSTOM'),
             'fr': ('CLASSIQUE', 'NOUVEAU', 'PERSONNALISE'), 'de': ('KLASSISCH', 'NEU', 'INDIVIDUELL')}
-# 4.2 DRIBBLING PERSONALIZZATO (Davide 13/11, "GO A"): DRIBBLING's third value opens a page of 8 rows. Each step row
-# CLASSICO / NUOVO / EXTRA = the original value / DRIBBLING NEW's / one step further the same way (easier for the
-# human); the two switch rows ON / OFF (the exe's own strings). At the kick-off with DRIBBLING 2 the blocks BLK_CU /
-# BLK_CO (copies of BLK_U / BLK_O) take the rows' values; the values live in the session only (DP_K; the beta).
-#        (label it, en, fr, de)                                                block field size  CLASSICO NUOVO EXTRA
+# 4.2 DRIBBLING PERSONALIZZATO (Davide 13/11, "GO A"; numeric rows 13/11 evening): DRIBBLING's third value opens a
+# page of 8 rows. The 6 value rows move the knob's raw value in steps (LEFT / RIGHT clamped, FIRE the next, wrapping)
+# from the original (step 0, CLASSICO) one way only (easier for the human); shown as % of the original game:
+# ballDistance compares (K5 slide, K8 hold) are squared distances - their % is of the distance; K4 (the carrier's
+# slowdown speed * k / 32) as % of the original speed. The two switch rows ON / OFF (the exe's own strings). At the
+# kick-off with DRIBBLING 2 the blocks BLK_CU / BLK_CO (copies of BLK_U / BLK_O) take the rows' values; the values live
+# in the session only (DP_K; the beta). Default = DRIBBLING NEW's value (asserted below).
+def _prog(lo, step, n):
+    return tuple(lo + i * step for i in range(n))
+
+
+#        (label it, en, fr, de)                                                block field size  raw values (step 0 = CLASSICO)
 DP_ROWS = (
-    (('CONDUZIONE PALLA', 'BALL CARRYING', 'CONDUITE DE BALLE', 'BALLFUEHRUNG'), 'U', 0, 2, (4, 2, 1)),        # K4
-    (('CAMBIO DIREZIONE', 'SHARP TURNS', 'CROCHETS', 'HAKEN'), 'U', 6, 2, (256, 224, 192)),                   # K10
-    (('PROTEZIONE PALLA', 'BALL SHIELDING', 'PROTECTION BALLE', 'BALLSCHUTZ'), 'U', 2, 2, (12, 16, 20)),      # K9w
-    (('SCIVOLATE CPU', 'CPU SLIDES', 'TACLES CPU', 'CPU GRAETSCHEN'), 'O', 16, 4, (200, 160, 120)),          # K5
-    (('RADDOPPIO CPU', 'CPU DOUBLING', 'DOUBLEMENT CPU', 'CPU DOPPELN'), 'O', 12, 4, (3200, 4400, 5600)),   # K8
-    (('RIPRESA CPU', 'CPU WIN BACK', 'REPRISE CPU', 'CPU BALLGEWINN'), 'O', 4, 2, (12, 16, 20)),            # K9l
+    (('CONDUZIONE PALLA', 'BALL CARRYING', 'CONDUITE DE BALLE', 'BALLFUEHRUNG'), 'U', 0, 2, _prog(4, -1, 5)),     # K4
+    (('CAMBIO DIREZIONE', 'SHARP TURNS', 'CROCHETS', 'HAKEN'), 'U', 6, 2, _prog(256, -8, 11)),                  # K10
+    (('PROTEZIONE PALLA', 'BALL SHIELDING', 'PROTECTION BALLE', 'BALLSCHUTZ'), 'U', 2, 2, _prog(12, 1, 13)),     # K9w
+    (('SCIVOLATE CPU', 'CPU SLIDES', 'TACLES CPU', 'CPU GRAETSCHEN'), 'O', 16, 4, _prog(200, -10, 16)),         # K5
+    (('RADDOPPIO CPU', 'CPU DOUBLING', 'DOUBLEMENT CPU', 'CPU DOPPELN'), 'O', 12, 4, _prog(3200, 400, 16)),     # K8
+    (('RIPRESA CPU', 'CPU WIN BACK', 'REPRISE CPU', 'CPU BALLGEWINN'), 'O', 4, 2, _prog(12, 1, 13)),            # K9l
     (('AREA SENZA SCIVOLATE', 'NO SLIDES IN BOX', 'SURFACE SANS TACLE', 'STRAFRAUM SCHUTZ'), 'O', 8, 2, (16, 0)),  # K11
     (('COSTRUZIONE CPU', 'CPU BUILD UP', 'CONSTRUCTION CPU', 'CPU AUFBAU'), None, 0, 0, (1, 0)),            # MIX
 )
+DP_NNUM = 6                             # the value rows (then the two switches)
+_PCT = {0: lambda v: 100 * (32 - v) / 28, 6: lambda v: 100 * v / 256, 2: lambda v: 100 * v / 12,
+        4: lambda v: 100 * v / 12, 16: lambda v: 100 * (v / 200) ** 0.5, 12: lambda v: 100 * (v / 3200) ** 0.5}
+DP_PCT = tuple(tuple(int(_PCT[r[2]](v) + 0.5) for v in r[4]) for r in DP_ROWS[:DP_NNUM])   # (the shown %)
 DP_TITLE = {'it': 'DRIBBLING PERSONALIZZATO', 'en': 'CUSTOM DRIBBLING', 'fr': 'DRIBBLE PERSONNALISE',
             'de': 'DRIBBLING INDIVIDUELL'}
-DP_EXTRA = {'it': 'EXTRA', 'en': 'EXTRA', 'fr': 'EXTRA', 'de': 'EXTRA'}
 DP_BACK = {'it': 'INDIETRO', 'en': 'BACK', 'fr': 'RETOUR', 'de': 'ZURUECK'}
-DP_DEFAULT = tuple(1 if len(r[4]) == 3 else 0 for r in DP_ROWS)   # NUOVO's steps, the switches ON
 _FOFF = {0: 'k', 2: 'lockw', 4: 'lockl', 6: 'turn', 8: 'box', 12: 'hold', 16: 'slide'}
-for _r in DP_ROWS:                      # (CLASSICO = the original, NUOVO = DRIBBLING NEW's: the blocks' own values)
-    if _r[1] and len(_r[4]) == 3:
-        assert _r[4][0] == NORM[_FOFF[_r[2]]] and _r[4][1] == (USER if _r[1] == 'U' else OPP)[_FOFF[_r[2]]], _r
-assert DP_ROWS[6][4][0] == OPP['box']
+DP_DEFAULT = tuple(r[4].index((USER if r[1] == 'U' else OPP)[_FOFF[r[2]]]) if r[1] else 0 for r in DP_ROWS)  # NUOVO; MIX ON
+for _r, _p in zip(DP_ROWS, DP_PCT + ((),) * 2):     # (step 0 = the original; every row fits 4 bits; % shown 3 digits)
+    assert not _p or _r[4][0] == NORM[_FOFF[_r[2]]], _r
+    assert 2 <= len(_r[4]) <= 16 and all(0 < x < 256 for x in _p) and (not _p or _p[0] == 100), (_r, _p)
+assert DP_ROWS[6][4][0] == OPP['box'] and DP_DEFAULT[6] == 0 and DP_DEFAULT[7] == 0
 assert K1[2] == 100 and K2[2] == 0 and K2B[2] == 0 and K3[2] == (6, 4, 3, 2, 1, 0, 0, 0)
 
 ASM = r"""
@@ -549,27 +559,72 @@ df_rtog:                                ; DRIBBLING (fire): CLASSIC -> NEW -> CU
     cmp ax, 2
     je .p
     jmp DRAWITEM
-.p: mov dword [A6_], DP_MENU            ; the page (OPTIONS comes back unpacked: df_ret, CUSTOM shown)
+.p: call dp_fall
+    mov dword [A6_], DP_MENU            ; the page (OPTIONS comes back unpacked: df_ret, CUSTOM shown)
     jmp SHOW_MENU
 
-; ---- DRIBBLING PERSONALIZZATO: the page's rows (fire: the next step, wrapping) and INDIETRO
+; ---- DRIBBLING PERSONALIZZATO: the page's rows and INDIETRO. A row (type 14, mask 0E0h) gets MenuProc's controls
+;      in D7: 40h LEFT = the step before, 80h RIGHT = the next (both clamped), 20h FIRE = the next, wrapping
 dp_tog:                                 ; (the row: the selected entry's ordinal - 9; Menu.selectedEntry +0Ch)
     mov ebx, [MENU_ + 0Ch]
     movzx ebx, word [ebx + 2]
     sub ebx, 9
-    mov ax, [DP_K + ebx * 2]
-    inc ax
+    movzx eax, word [DP_K + ebx * 2]
+    test byte [D7_], 40h
+    jz .r
+    dec eax
+    jns .s
+    inc eax
+    jmp .s
+.r: inc eax
     cmp al, [DP_N + ebx]
     jb .s
+    dec eax
+    test byte [D7_], 20h
+    jz .s
     xor eax, eax
 .s: mov [DP_K + ebx * 2], ax
+    call dp_fmt
     jmp DRAWITEM
+dp_fall:                                ; every value row's text (the page opens)
+    push ebx
+    mov ebx, DP_NNUM
+.l: dec ebx
+    call dp_fmt
+    jnz .l
+    pop ebx
+    ret
+dp_fmt:                                 ; ebx = the row: a value row's text DP_S + 5 * row = its % ('88%', '133%');
+    pushad                              ; ZF = (ebx = 0)
+    cmp ebx, DP_NNUM
+    jae .x
+    movzx eax, word [DP_K + ebx * 2]
+    movzx edx, byte [DP_PO + ebx]
+    movzx eax, byte [DP_PCT + edx + eax]
+    lea edi, [ebx * 4 + ebx + DP_S]
+    xor edx, edx
+    mov ecx, 100
+    cmp eax, ecx
+    jb .t
+    div ecx
+    add al, '0'
+    stosb
+    mov eax, edx
+.t: mov cl, 10
+    div cl
+    add ax, '00'
+    stosw
+    mov ax, '%'
+    stosw
+.x: popad
+    test ebx, ebx
+    ret
 dp_back:
     mov word [EXITM], 1
     ret
 
 ; ---- the kick-off with DRIBBLING 2: BLK_CU / BLK_CO = BLK_U / BLK_O with the page's steps (DP_TAB: 7 rows of
-;      block offset (0 CU, 32 CO), field, size 2 / 4, the step values as words)
+;      block offset (0 CU, 32 CO), field, size 2 / 4, 0, the raw value at step 0 and the step as words: lo + k * step)
 dp_build:
     pushad
     mov esi, BLK_U
@@ -583,13 +638,16 @@ dp_build:
     add edi, eax
     add edi, BLK_CU
     movzx eax, word [DP_K + ebx * 2]
-    movzx eax, word [esi + 4 + eax * 2]
+    movsx edx, word [esi + 6]
+    imul eax, edx
+    movzx edx, word [esi + 4]
+    add eax, edx
     cmp byte [esi + 2], 4
     jne .w
     mov [edi], eax
     jmp .n
 .w: mov [edi], ax
-.n: add esi, 10
+.n: add esi, 8
     inc ebx
     cmp ebx, DP_NTAB
     jb .r
@@ -810,38 +868,44 @@ DP_Y, DP_DY, DP_BACK_Y = 26, 14, 152    # the page: row k at y DP_Y + DP_DY * k 
 
 
 def dp_asm(lang, page=True):
-    """The DRIBBLING PERSONALIZZATO page's data (nasm): strings, string tables, DP_K / DP_N / DP_TAB, the packed
-    menu DP_MENU (entries: 0 title, 1..8 labels, 9..16 values, 17 INDIETRO). page=False (DIFF_TRACE test builds only:
-    the trace code leaves no room for it; never opened in a traced match): DP_K / DP_N / DP_TAB, DP_MENU = 0."""
+    """The DRIBBLING PERSONALIZZATO page's data (nasm): strings, the value rows' texts DP_S (5 B each, the defaults'),
+    the switch rows' string tables, DP_K / DP_N / DP_TAB / DP_PO / DP_PCT, the packed menu DP_MENU (entries: 0 title,
+    1..8 labels, 9..16 values, 17 INDIETRO). page=False (DIFF_TRACE test builds only: the trace code leaves no room for
+    the page; never opened in a traced match): DP_K / DP_N / DP_TAB, DP_MENU = 0 (no dp_fmt data either)."""
     li = ('it', 'en', 'fr', 'de').index(lang)
     db = lambda x: ', '.join(str(c) for c in x.encode('latin-1') + b'\0')
     n = len(DP_ROWS)
-    if not page:
-        return 'DP_MENU equ 0\n' + dp_asm(lang).split('DP_K: ', 1)[1].split('align 4\nDP_MENU:', 1)[0].join(
-            ('DP_K: ', ''))
-    out = f'S_PT: db {db(DP_TITLE[lang])}\nS_EX: db {db(DP_EXTRA[lang])}\nS_BK: db {db(DP_BACK[lang])}\n'
-    out += ''.join(f'S_L{i}: db {db(r[0][li])}\n' for i, r in enumerate(DP_ROWS))
-    out += 'align 4\n'
-    for i, r in enumerate(DP_ROWS):
-        out += f'TAB_K{i}: dd DP_K + {2 * i}\n    dw 0\n    dd ' + ('S_R0, S_R1, S_EX' if len(r[4]) == 3 else
-                                                                  'S_ON, S_OFF') + '\n'
-    out += 'DP_K: dw ' + ', '.join(map(str, DP_DEFAULT)) + '\n'
-    out += 'DP_N: db ' + ', '.join(str(len(r[4])) for r in DP_ROWS) + '\n'
     tab = [r for r in DP_ROWS if r[1]]
     assert DP_ROWS[:len(tab)] == tuple(tab), 'the block rows first (dp_build: row = knob index)'
-    out += f'DP_NTAB equ {len(tab)}\nDP_TAB:\n'
+    core = 'DP_K: dw ' + ', '.join(map(str, DP_DEFAULT)) + '\n'
+    core += 'DP_N: db ' + ', '.join(str(len(r[4])) for r in DP_ROWS) + '\n'
+    core += f'DP_NTAB equ {len(tab)}\nDP_NNUM equ {DP_NNUM}\nDP_TAB:\n'
     for r in tab:
-        v = tuple(r[4]) + (0,) * (3 - len(r[4]))
-        out += f'    db {0 if r[1] == "U" else 32}, {r[2]}, {r[3]}, 0\n    dw {v[0]}, {v[1]}, {v[2]}\n'
-    out += 'align 4\nDP_MENU:\n    dd 0, 0, 0, 9\n'
+        v = r[4]
+        st = v[1] - v[0]
+        assert v == _prog(v[0], st, len(v)) and 0 <= v[0] < 65536 and -32768 <= st < 32768, r
+        core += f'    db {0 if r[1] == "U" else 32}, {r[2]}, {r[3]}, 0\n    dw {v[0]}, {st}\n'
+    if not page:
+        return 'DP_MENU equ 0\nDP_S equ 0\nDP_PO equ 0\nDP_PCT equ 0\n' + core
+    out = core + f'S_PT: db {db(DP_TITLE[lang])}\nS_BK: db {db(DP_BACK[lang])}\n'
+    out += ''.join(f'S_L{i}: db {db(r[0][li])}\n' for i, r in enumerate(DP_ROWS))
+    out += 'DP_S:\n' + ''.join(f'    db {", ".join(str(c) for c in (str(p[DP_DEFAULT[i]]) + "%").encode().ljust(5, bytes(1)))}\n'
+                               for i, p in enumerate(DP_PCT))
+    po = [sum(len(p) for p in DP_PCT[:i]) for i in range(DP_NNUM)]
+    out += 'DP_PO: db ' + ', '.join(map(str, po)) + '\nDP_PCT: db ' + ', '.join(str(x) for p in DP_PCT for x in p) + '\n'
+    out += 'align 4\n'
+    for i in range(DP_NNUM, n):
+        out += f'TAB_K{i}: dd DP_K + {2 * i}\n    dw 0\n    dd S_ON, S_OFF\n'
+    out += 'DP_MENU:\n    dd 0, 0, 0, 9\n'
     out += '    dw 12, 0, 280, 15, 4, 17h, 8, 0\n    dd S_PT\n    dw 0\n'
     for i in range(n):
         out += f'    dw 10, {DP_Y + DP_DY * i}, 140, 11, 4, 9, 8, 0\n    dd S_L{i}\n    dw 0\n'
     for i in range(n):
         up = 9 + i - 1 if i else 255
         dn = 9 + i + 1 if i < n - 1 else 9 + n
-        out += (f'    dw 154, {DP_Y + DP_DY * i}, 140, 11, 2\n    db 255, 255, {up}, {dn}\n    dw 4, 13, 10, 0\n'
-                f'    dd TAB_K{i}\n    dw 13\n    dd dp_tog\n    dw 0\n')
+        txt = f'8, 0\n    dd DP_S + {5 * i}' if i < DP_NNUM else f'10, 0\n    dd TAB_K{i}'
+        out += (f'    dw 154, {DP_Y + DP_DY * i}, 140, 11, 2\n    db 255, 255, {up}, {dn}\n    dw 4, 13, {txt}\n'
+                f'    dw 14, 0E0h\n    dd dp_tog\n    dw 0\n')
     out += (f'    dw 92, {DP_BACK_Y}, 120, 15, 2\n    db 255, 255, {9 + n - 1}, 255\n    dw 4, 0Eh, 8, 0\n    dd S_BK\n'
             '    dw 13\n    dd dp_back\n    dw 0\n    dw -999\n')
     return out
@@ -876,7 +940,7 @@ def find(p):
     s = dict(SC=sc + 36, GK=gk + 39, PS=ps, GL=gl, SL=sl, TU=tu, CAR=car, HOLD=hold, LOCK=lock)
     d0 = t(gk + 40)
     var = lambda k: (2, d0[1] + 4 * k)                  # D0..D7, A0..A6: consecutive dwords
-    sym = dict(D0_=d0, D1_=var(1), D2_=var(2), D3_=var(3), A1_=var(9), A2_=var(10), A3_=var(11), A4_=var(12),
+    sym = dict(D0_=d0, D1_=var(1), D2_=var(2), D3_=var(3), D7_=var(7), A1_=var(9), A2_=var(10), A3_=var(11), A4_=var(12),
                A6_=var(14), T1APP=t(sc + 2), KFAIL=t(ps + 6))
     assert t(sc + 38) == sym['D2_'] and t(sc + 45) == sym['D3_'] and t(sc + 14) == sym['A4_'], 'ScaleSkill vars'
     assert t(gk + 46) == sym['A6_'] and t(ps + 2) == sym['A1_'] and t(gl + 3) == sym['D1_'], 'vars'
@@ -934,7 +998,7 @@ def patch(p, lang):
         sym['S_OFF'], sym['S_ON'] = cpucards.strings(p, hdr)          # (the exe's own OFF / ON)
         sym['SHOW_MENU'], sym['EXITM'] = sym0['SHOW_MENU'], sym0['EXITM']
         li = ('it', 'en', 'fr', 'de').index(lang)
-        for t in ((LABEL[lang], DRLABEL[lang]) + VALUES[lang] + DRVALUES[lang] + (DP_EXTRA[lang], DP_BACK[lang])
+        for t in ((LABEL[lang], DRLABEL[lang]) + VALUES[lang] + DRVALUES[lang] + (DP_BACK[lang],)
                   + tuple(r[0][li] for r in DP_ROWS)):
             assert px(t) <= 138 and re.fullmatch(r"[A-Z ']+", t), t
         assert px(DP_TITLE[lang]) <= 278, DP_TITLE[lang]
@@ -1056,8 +1120,16 @@ def patch(p, lang):
     margin = swreg.DIFF_END - swreg.DIFF_AT - used
     shape = 'test (TRACE / FORCE)' if tr or force else 'release'
     print(f'exe: difficulty page 15: {used} B used, margin {margin} B ({shape} shape)')
-    assert shape != 'release' or margin >= swreg.DIFF_MARGIN, ('difficulty page 15: release margin under '
-                                                               f'{swreg.DIFF_MARGIN} B (MC)', margin)
+    floor = swreg.DIFF_MARGIN
+    mb = os.environ.get('DIFF_MARGIN_BETA')             # (MC 13/11: a BETA-only floor - the PERSONALIZZATO value rows.
+    if mb:                                              #  A build switch: buildrel.sh clears it; a beta tag needed; never
+        assert os.environ.get('MODVER_TAG'), 'DIFF_MARGIN_BETA: beta builds only (MODVER_TAG), never the release'
+        floor = int(mb)                                 #  under 256 B; this exe is never a merge base)
+        assert floor >= 256, ('DIFF_MARGIN_BETA under the 256 B floor (MC)', floor)
+        print('\n' + '!' * 78 + f'\n!!! BETA ONLY: page 15 margin {margin} B (release floor {swreg.DIFF_MARGIN} B, '
+              f'DIFF_MARGIN_BETA {floor} B) - NOT A RELEASE, NOT A MERGE BASE !!!\n' + '!' * 78)
+    assert shape != 'release' or margin >= floor, ('difficulty page 15: release margin under '
+                                                   f'{floor} B (MC)', margin)
     if tr:
         _hook(p, PRE_AT[0], 5, 5, lab['df_tpre'])
         _hook(p, PRE_AT[1], 5, 5, lab['df_tpre2'])

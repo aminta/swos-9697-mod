@@ -1,6 +1,6 @@
 #!/bin/zsh
 # tools/hosttest/mkfixtures.sh [world data]: the host suite's (tools/hosttest/run.py) fixtures, from this checkout.
-#   1. c/HTW, c/HTO4, c/HTOMM, c/HTPC2: one release-recipe build (buildrel.sh's: the packs + the world data, every
+#   1. c/HTW, c/HTO4, c/HTOMM, c/HTPC2 (and 1b: c/HTn7rf / HTn7rd, test_sreg's, world5tm-h2): one release-recipe build (buildrel.sh's: the packs + the world data, every
 #      test switch cleared) of ITALIAN.EXE with HOSTTEST_SYMS=1 (ITALIAN.syms.json next to it; the log build-it.log),
 #      copied to the dirs test_registry / test_wmodes, test_swe, test_wtphys and test_swc1 (test_ledger...) read.
 #      World data: $1, else world5tm-s1rank-int3.
@@ -33,6 +33,24 @@ echo "$(git rev-parse --short HEAD), data ${W:t}, HOSTTEST_SYMS=1 (tools/hosttes
 for d in HTW HTO4 HTOMM HTPC2; do
   rm -rf $C/$d.old; [ -e $C/$d ] && mv $C/$d $C/$d.old
   cp -a $T $C/$d && rm -rf $C/$d.old
+  echo "c/$d: $(md5 -q $C/$d/SWOS/ITALIAN.EXE)  $(tail -1 $C/$d/build-it.log)"
+done
+
+# 1b. test_sreg's pair (42-fixn7, MC 13/11): c/HTn7rf (SREG_FORCE=1) and c/HTn7rd (dormant), HOSTTEST_SYMS=1, the release
+#     recipe on world5tm-h2 (its own SEASON_PACKS); hand-built before, stale after 42-swcnew (a FAIL on the old exes)
+W2=$M/internal/world2526/world5tm-h2
+P2="ddr-1988-89,italia-1947-48,world-cup-1934,$EU,$(grep ' file ' $W2.txt | awk -v w=$W2 '{print w"/"tolower($1)}' | paste -sd, -)"
+for d in HTn7rf HTn7rd; do
+  N=$C/HTfix7.$$; rm -rf $N; mkdir -p $N/SWOS/DATA
+  rsync -a --exclude DATA --exclude ITALIAN.EXE --exclude ENGLISH.EXE --exclude FRENCH.EXE --exclude GERMAN.EXE $C/REL40rc2/SWOS/ $N/SWOS/
+  cp -p orig/DATA/* $N/SWOS/DATA/
+  F=(); [ $d = HTn7rf ] && F=(SREG_FORCE=1)
+  env SEASON_PACKS=$P2 $F python3 $M/internal/release-tools/bfull.py orig/ITALIAN.EXE $N/SWOS/ITALIAN.EXE it $N/SWOS/DATA \
+    > $N/build-it.log 2>&1 || { tail -20 $N/build-it.log; rm -rf $N; exit 1; }
+  test -s $N/SWOS/ITALIAN.syms.json
+  echo "$(git rev-parse --short HEAD), data ${W2:t}, HOSTTEST_SYMS=1 ${F[*]} (tools/hosttest/mkfixtures.sh $(date +%F))" >> $N/build-it.log
+  rm -rf $C/$d.old; [ -e $C/$d ] && mv $C/$d $C/$d.old
+  mv $N $C/$d && rm -rf $C/$d.old
   echo "c/$d: $(md5 -q $C/$d/SWOS/ITALIAN.EXE)  $(tail -1 $C/$d/build-it.log)"
 done
 

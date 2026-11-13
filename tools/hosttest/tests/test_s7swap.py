@@ -189,9 +189,21 @@ def test_s7swap():
     if xc is None or xl is None:
         errs.append('no xtra xcache / xleft xlbt symbols (a shaped build has XTRA)')
     else:
-        v = [m.rd(xc + k * xtra.ENT + 3, 1)[0] for k in range(xtra.NC)]
-        if any(v) or m.rd(xl, 2) != b'\xff\xff':
-            errs.append(f'after the swaps: xcache valid bytes {v}, xlbt {m.rd(xl, 2).hex()} (want all 0 / ffff)')
+        xt = m.at('xtra', 'xteam')
+
+        def warm():
+            for k in range(xtra.NC):
+                m.w(xc + k * xtra.ENT, struct.pack('<HBB', 0x1266, 5, 1))
+            m.w(xl, struct.pack('<H', 0x1266))
+            m.w(xt, struct.pack('<H', 0x1266))
+
+        def cold(what):
+            v = [m.rd(xc + k * xtra.ENT + 3, 1)[0] for k in range(xtra.NC)]
+            if any(v) or m.rd(xl, 2) != b'\xff\xff' or m.rd(xt, 2) != b'\xff\xff':
+                errs.append(f'{what}: xcache valid bytes {v}, xlbt {m.rd(xl, 2).hex()}, xteam {m.rd(xt, 2).hex()} '
+                            f'(want all 0 / ffff / ffff)')
+        if any(m.rd(xc + k * xtra.ENT + 3, 1)[0] for k in range(xtra.NC)) or m.rd(xl, 2) != b'\xff\xff':
+            errs.append('after the swaps: the XTRA caches not flushed')
     fs1, word1, at1, rdiv1, rows1 = reg_parse(m.regb())
     for i, d in want.items():
         f = word1[i] & 0xFF
@@ -235,9 +247,18 @@ def test_s7swap():
             errs.append(f'{name}: status {stx} (want {code}), registry {"changed" if m.regb() != r0 else "kept"}, '
                         f'SLTCOPY {"touched" if any(sltx) else "kept"}')
     dn = sorted(want[i] for i in want if want[i] in m.lo)
+    if xc is not None and xl is not None:
+        for fn in ('sreg_new', 'sreg_build'):          # (a load / new career: SREG_CHG -> s7_flush, MC 13/11)
+            warm()
+            m.call('sreg', fn)
+            cold(f'after {fn}')
+        warm()
+        m.call('sreg', 'sreg_load', ts.BUF, 0)          # (a load with no / a bad 'IT': cold all the same)
+        cold('after sreg_load')
     return not errs, '; '.join(errs[:6]) or (f'9 down + 9 up as 9 registry swaps; down into groups {dn}, sizes kept, '
                                              f'SLTCOPY re-based, deterministic; in-struct move kept its row; refused '
-                                             f'COUNT / BAD / STALE / PLACE with nothing changed')
+                                             f'COUNT / BAD / STALE / PLACE with nothing changed; the XTRA word caches cold after the swaps, '
+                                             f'sreg_new / sreg_build / sreg_load')
 
 
 TB = 0x6200000                                          # (the team buffer: 2 + 162 x 684 B)

@@ -612,7 +612,8 @@ def patch(p, at):
     LABELS['xt_block'] = lab['xt_block']
     LABELS['xr_hook'] = lab['xr_hook']            # (ripool.py, S7: the store -> ri_home)
     LABELS['xrteam'] = lab['xrteam']
-    LABELS['xcache'] = lab['xcache']                # (s7swap.c: flushed after a registry move)
+    LABELS['xcache'] = lab['xcache']
+    LABELS['xteam'] = lab['xteam']                # (s7swap.c: flushed after a registry move)
     LABELS['CT'] = ct                               # careerTeam (obj2 offset)
     LABELS['XSOLD'] = lab['xsold']                  # the bought XTRA players (engine item 'XS')
     import engine

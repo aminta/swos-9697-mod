@@ -81,6 +81,12 @@ uint32_t S7_FNV[2] DATA = {0};          /* their FNV-1a as read into S7_ORIG (or
 #ifndef S7_XLB
 #define S7_XLB 0
 #endif
+#ifndef S7_XT
+#define S7_XT 0
+#endif
+#if S7_XT
+extern uint16_t S7_XTEAM;               /* xtra.py xteam (obj1): xtra_read's cached block's team word, -1 none */
+#endif
 #if S7_XLB
 extern uint16_t S7_XLBT;                /* xleft.py xlbt (obj3): xl_find's cached block's team word, -1 none */
 #endif
@@ -249,6 +255,22 @@ static int32_t walk(int32_t nsw, const int8_t *slt)
     return 0;
 }
 
+/* The caches keyed by a team word (xtra.py xt_block's xcache, xleft.py xlbt, xtra_read's xteam): after the
+   registry moved clubs (s7_season) or may have (sreg_load / sreg_new: SREG_CHG) a word may name another club - every
+   entry dropped; the reads go by the home word (MC 13/11). None of them is saved: after a load they start cold. */
+void s7_flush(void)
+{
+#if S7_XNC
+    for (int32_t k = 0; k < S7_XNC; k++) S7_XCACHE[k * S7_XENT + 3] = 0;
+#endif
+#if S7_XLB
+    S7_XLBT = 0xFFFF;
+#endif
+#if S7_XT
+    S7_XTEAM = 0xFFFF;
+#endif
+}
+
 static int32_t run(void *pv) {
     int8_t *slt = ((struct args *)pv)->sltcopy;
     uint8_t *nd = SWE_ARENA_AT + ND_AT;
@@ -314,14 +336,7 @@ static int32_t run(void *pv) {
     S7_LOG.rc = c;
     if (c < 0) return S7_LOG.status = S7_REG;
     S7_LOG.nswap = (uint8_t)c;
-#if S7_XNC
-    /* xtra.py xt_block's cache of other clubs' XTRA blocks is keyed by the current word: after the registry moved
-       clubs a word may name another club - every entry invalid (MC 13/11; the reads go by the home word) */
-    for (int32_t k = 0; k < S7_XNC; k++) S7_XCACHE[k * S7_XENT + 3] = 0;
-#endif
-#if S7_XLB
-    S7_XLBT = 0xFFFF;                   /* (xleft.py xl_find's one cached block, keyed the same way) */
-#endif
+    s7_flush();
     /* next season's deltas: every row's division (rdiv, the league's) as its file's local, minus the slot's base */
     for (int32_t s = 0; s < 2; s++) {
         int32_t fi = s ? fb : fa;

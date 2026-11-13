@@ -49,6 +49,18 @@ def check_layout():
 # InitializeNewSeason's copy (cseg_8CC4E, loop widened to LIMIT by bigtables.py) carries them over; test_wsites_walk), BU (bteam.py: its B team words are DATA\\BAGE.nnn's, HOME words - identity
 # data by the HOME word, MC 13/11 - compared with BAGE's again: walking them would break the match; the S7 audit's
 # bteam item). rows() keeps a build's own items only (an item it does not save: no row).
+# K keys (MC 13/11): states KEYED over team words are NOT rows - no WS_K / WS_O8 row may be registered (table() asserts it).
+# Each key's consumer discards its state on a mismatch and rebuilds it; one line per key, with its evidence:
+#   F1 (F1_ST.key = the league's first team word): K, discard-on-mismatch, tests/test_wsites_keys.py test_k_f1
+#      (f1_valid / f1_auto / f1_build return 0, f1_capture rewrites it - captured after the swap, nothing lost)
+#   LR (LR_BLK ss / n / t0 = season stamp, club count, first word): K, discard-on-mismatch (lr_res wipes and re-keys, a
+#      season under way is VOID until the next one; lr_rank drops the head-to-head, the table still sorts) - lrank.c:74-115
+#   SH (sp_sh +0 = file, division | 80h): K, discard-on-mismatch (sp_shsel zeroes and re-keys outside a simulation, a
+#      scratch block inside one) - split.py sp_shsel
+#   ST (the engine item 'ST', sr_stled: FNV-1a of the entrants' words): K, discard-on-mismatch (sr_st_check returns 0 =
+#      not started); NO CALLER in this tree - test_k_unconsumed pins it
+#   SS (gp_ss.key = the bank's league file): follows the STRUCT, not the club (a bank describes a division, like WN's 'M');
+#      only the SS_NB > 1 build reads it (ss_set / ss_view re-key and reset) - the default build has none (test_k_unconsumed)
 ROWS = [
     # careerFileBuffer (WI_CFB: the .CAR's fixed part, 95151 B). WSITES 4b (Panchina 13/11) found the regions in 26 real
     # saves; 4c (13/11, MC's code pass) gives each one its writer and its capacity from the code: the mod's structs in
@@ -178,7 +190,8 @@ def table(rows=None):
             item = engine.item_id(item)
             assert item not in (WI_CFB, WI_CACHE, WI_MAIN, WI_CFBH, WS_END), ('wsites: an item id clashes', item)
             ids.add(item)
-        assert form in (WS_W, WS_G, WS_O8, WS_K, WS_R) and 0 <= off < 0x10000 and count < 0x10000, ('wsites: row', item, off)
+        assert form not in (WS_O8, WS_K), ('wsites: no O8 / K row is ever registered (K keys discard on mismatch; CD ent is WS_R with a fill byte)', item, off)
+        assert form in (WS_W, WS_G, WS_R) and 0 <= off < 0x10000 and count < 0x10000, ('wsites: row', item, off)
         assert count <= 1 or stride >= (1 if form in (WS_O8, WS_R) else 2), ('wsites: stride', item, off)
         out += struct.pack('<4H2B', item, off, stride, count, form, aux)
     assert len(rows) < WS_MAX, ('wsites: rows past WS_MAX', len(rows))

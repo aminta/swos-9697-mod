@@ -75,6 +75,7 @@ def expected_rows():
         ('ss', 'sizeof(struct gp_ss)'), ('ssr', 'O(gp_ss, r)'), ('rowz', 'sizeof(struct gp_row)'),
         ('rteam', 'O(gp_row, team)'), ('rglob', 'O(gp_row, glob)'), ('SS_N', 'SS_N'),
         ('cd', 'sizeof(struct cd_state)'), ('cdgen', 'O(cd_state, gen)'), ('ngen', 'Z(cd_state, gen) / 2'),
+        ('cdent', 'O(cd_state, ent)'), ('nent', 'Z(cd_state, ent)'),
         ('wn', 'sizeof(struct wn_state)'), ('wne', 'O(wn_state, e)'), ('wnz', 'sizeof(struct wn_e)'),
         ('wnt', 'O(wn_e, team)'), ('WN_N', 'WN_N'),
         ('rs', 'sizeof(struct rs_state)'), ('rsq', 'O(rs_state, q)'), ('RQ', 'RQ'), ('RC', 'RC'),
@@ -111,7 +112,7 @@ def expected_rows():
     rows += [('GS', g['gsrow'], g['srz'], g['GSD'] * g['GSR'], W)]
     for it in ('SS', 'SS2'):
         rows += [(it, g['ssr'] + g[f], g['rowz'], g['SS_N'] * g['GT'], form) for f, form in (('rteam', W), ('rglob', G))]
-    rows += [('CD', g['cdgen'], 2, g['ngen'], W), ('WN', g['wne'] + g['wnz'] + g['wnt'], g['wnz'], g['WN_N'] - 1, W)]
+    rows += [('CD', g['cdgen'], 2, g['ngen'], W), ('CD', g['cdent'], wsites.CD_FILL, g['nent'], wsites.WS_R), ('WN', g['wne'] + g['wnz'] + g['wnt'], g['wnz'], g['WN_N'] - 1, W)]
     rows += [('RS', g['rs'] * k + g['rsq'], 2, g['RQ'], G) for k in range(g['RC'])]
     rows += [('PR', g['prc'] + g['prg'], g['prz'], g['PR_N'], G)]
     n = g['SC_NE'] - 1                   # (the cups below the UEFA entry: {db file, cid, 0, 0; dw w, wg, f, fg})
@@ -119,7 +120,7 @@ def expected_rows():
     rows += [('SC', g['SC_H'] + 12 * n + 4, 2, 4, W)]
     rows += [('CT', c['hold'], c['holdz'], c['NCUP'], W), ('CE', c['mgr'], 0, 1, W), ('CE', c['e'], c['ez'], c['NED'], W)]
     rows += [('US', c['t'] + c[f], c['tz'], c['NTIE'], W) for f in ('tx', 'ty')] + [('US', c['lw'], 2, c['NLP'], W)]
-    rows += [('CF', g['cfrank'], 1, g['cfn'], wsites.WS_R), ('CN', g['cnpad'], 2, 1, W)]
+    rows += [('CF', g['cfrank'], 0, g['cfn'], wsites.WS_R), ('CN', g['cnpad'], 2, 1, W)]
     rows += [('XS', 2, 3, xtra.XSOLD, W), ('XL', 5, 3, xleft.XLMAX, W)]   # (BU: HOME words, not walked)
     return rows, sizes
 
@@ -136,12 +137,14 @@ def test_wsites_layout():
         errs.append(f'ROWS not in the structs: {sorted(set(got) - set(rows))[:4]}; missing {sorted(set(rows) - set(got))[:4]}')
     used = {}
     for it, off, st, cnt, form, aux in [r for r in wsites.ROWS if isinstance(r[0], str)]:
-        if form not in (wsites.WS_W, wsites.WS_G, wsites.WS_R) or aux != (cffile if form == wsites.WS_R else 0):
-            errs.append(f'{it}+{off}: form {form} aux {aux} (W / G; R only on CF with its file byte at +{cffile})')
-        if off + max(cnt - 1, 0) * st + (1 if form == wsites.WS_R else 2) > sizes[it][1]:
+        R = form == wsites.WS_R
+        if form not in (wsites.WS_W, wsites.WS_G, wsites.WS_R) or aux != ({'CF': cffile, 'CD': 0}.get(it, -1) if R else 0):
+            errs.append(f'{it}+{off}: form {form} aux {aux} (W / G; R on CF with its file byte at +{cffile}, on CD with '
+                        f'the file literal)')
+        if off + (cnt if R else max(cnt - 1, 0) * st + 2) > sizes[it][1]:
             errs.append(f'{it}+{off}: past its item ({sizes[it][1]} B)')
         for k in range(cnt):
-            for b in ((off + k * st,) if form == wsites.WS_R else (off + k * st, off + k * st + 1)):
+            for b in ((off + k,) if R else (off + k * st, off + k * st + 1)):
                 if (it, b) in used:
                     errs.append(f'{it}+{b}: in two rows ({used[it, b]}, {off})')
                 used[it, b] = off
@@ -181,7 +184,9 @@ def test_wsites_walk(shift=False):
     item[wsites.WI_CFB] = (m.at('s7swap', 'S7_CFB'), cfblen)
     item[wsites.WI_CFBH] = (m.at('s7swap', 'S7_CFB') + 0x10000, cfblen - 0x10000)
     ids[wsites.WI_CFB], ids[wsites.WI_CFBH] = 'CFB', 'CFBH'
-    want = [r for r in wsites.ROWS if (r[0] if isinstance(r[0], int) else engine.item_id(r[0])) in item]    # (rows(): the build's own items, = EN_ITEMS)
+    if 'CD_TAB' in sy.get('gplay', {}):                 # (CD ent's literal file: the exe's Serie D file, CD_TAB[2])
+        wsites.CD_FILE[0] = m.rd(m.at('gplay', 'CD_TAB') + 2, 1)[0]
+    want = wsites.resolve([r for r in wsites.ROWS if (r[0] if isinstance(r[0], int) else engine.item_id(r[0])) in item])    # (rows(): the build's own items, = EN_ITEMS)
     absent = sorted({r[0] for r in wsites.ROWS if isinstance(r[0], str)} - {r[0] for r in want})
     if raw != wsites.table(want):
         errs.append(f'WSITES in the exe ({len(tab)} rows) != wsites.table of ROWS on its EN items ({len(want)})')
@@ -201,17 +206,18 @@ def test_wsites_walk(shift=False):
             errs.append(f'row {k}: item {ids.get(iid, iid)} not in S7_ENI')
             continue
         ptr, ln = item[iid]
-        if off + max(cnt - 1, 0) * st + (1 if form == wsites.WS_R else 2) > ln:
+        if off + (cnt if form == wsites.WS_R else max(cnt - 1, 0) * st + 2) > ln:
             errs.append(f'row {k}: {ids.get(iid)}+{off} past its {ln} B')
         if iid == wsites.WI_CFBH:                       # (one buffer with CFB: the same bytes from +0x10000)
             iid, off = wsites.WI_CFB, off + 0x10000
         if iid not in before:
             before[iid] = bytearray((j * 7 + 0x31) & 0xFF for j in range(item[iid][1]))
-        if form == wsites.WS_R:                          # (a place per ordinal, all nonzero; the file byte = 102)
-            for i in range(cnt):
-                before[iid][off + i] = 1 + i % 31
-            before[iid][aux] = t7.FA
-            rrows.append((iid, off, cnt, aux))
+        if form == wsites.WS_R:                          # (a place per ordinal, all 2+ (cd_season's places: an up-crosser's
+            for i in range(cnt):                         # old row must become the fill, MC 13/11); the file byte = 102,
+                before[iid][off + i] = 2 + i % 30        # or the row's literal file: stride = fill | file << 8)
+            if not st >> 8:
+                before[iid][aux] = t7.FA
+            rrows.append((iid, off, cnt, aux, st))
             continue
         vals = wv if form == wsites.WS_W else gv
         for i in range(cnt):
@@ -223,6 +229,7 @@ def test_wsites_walk(shift=False):
     # value equal to a crosser's word must come out untouched (the expected bytes keep it as planted)
     cov = {(i, o + d) for (i, o) in sites for d in (0, 1)}
     cov |= {(r[0], r[1] + k) for r in rrows for k in range(r[2])}
+    cov |= {(r[0], r[3]) for r in rrows if not r[4] >> 8}
     decoys = 0
     for iid, off, st, cnt, form, aux in tab:
         if form == wsites.WS_R or st < 4 or cnt < 2:
@@ -256,6 +263,7 @@ def test_wsites_walk(shift=False):
                     return glob(w2 & 0xFF, w2 >> 8)
         return g
     moved = cleared = 0
+    rfill = {}
     for iid, b in before.items():
         exp = bytearray(b)
         for (j, off), (form, v) in sites.items():
@@ -264,14 +272,20 @@ def test_wsites_walk(shift=False):
             v2 = (nw(v) if v not in (0, 0xFFFF) else v) if form == wsites.WS_W else nglob(v)
             moved += v2 != v
             struct.pack_into('<H', exp, off, v2)
-        for r_iid, roff, rcnt, raux in rrows:
+        for r_iid, roff, rcnt, raux, rst in rrows:
             if r_iid != iid:
                 continue
-            fi = [x[0] for x in fs].index(b[raux])
-            for k in range(rcnt):
-                if at[fi][k] != at1[fi][k]:               # (the row's club changed: cleared; the rest as planted)
-                    exp[roff + k] = 0
+            fl = [x[0] for x in fs]
+            rf = rst >> 8 or b[raux]
+            if rf not in fl:
+                errs.append(f'{ids.get(iid)}+{roff}: WS_R file {rf} not one of the registry\'s {fl}')
+                continue
+            fi = fl.index(rf)
+            for k in range(min(rcnt, len(at[fi]))):
+                if at[fi][k] != at1[fi][k]:               # (the row's club changed: the fill; the rest as planted)
+                    exp[roff + k] = rst & 0xFF
                     cleared += 1
+                    rfill[rst & 0xFF] = rfill.get(rst & 0xFF, 0) + 1
         got = m.rd(item[iid][0], len(b))
         if got != bytes(exp):
             bad = [o for o in range(len(b)) if got[o] != exp[o]]
@@ -304,11 +318,15 @@ def test_wsites_walk(shift=False):
         errs.append(f'S7_WLOG {wl} (row -1, rows {len(tab)}, changed {moved} + cleared {cleared})')
     if rrows and not cleared:
         errs.append('WS_R: no row changed its club (crossings?)')
+    cdr = [r for r in rrows if r[4] >> 8]               # (CD ent: literal file, fill 1 - MC 13/11: every changed row of the
+    if cdr and not rfill.get(wsites.CD_FILL):           #  Serie D file -> 1, an up-crosser's 2+ place included)
+        errs.append(f'CD ent: no changed row of file {cdr[0][4] >> 8} set to {wsites.CD_FILL} (fills {rfill})')
     if not moved:
         errs.append('no site moved (crossings?)')
     return not errs, '; '.join(errs[:6]) or (f'{len(tab)} rows on {len(before)} items: {moved} moved words / globals '
                                              f'now their clubs\' new ones, the other sites and bytes unchanged ({decoys} decoys: a crosser\'s word in a non-team field, untouched); SLTCOPY re-based for every row '
-                                             f'({hi} globals >= 2000: BT_EXT\'s range) (items not saved by this build: {absent})')
+                                             f'({hi} globals >= 2000: BT_EXT\'s range); WS_R fills {rfill} (CD ent: changed rows of its '
+                                             f'file -> 1 over planted 2+ places, the rest kept) (items not saved by this build: {absent})')
 
 
 def test_wsites_walk_control():

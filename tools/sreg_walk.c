@@ -37,16 +37,17 @@ static int32_t gindex(const sreg_gfile *g, int32_t ng, uint32_t file, uint32_t o
 }
 
 static int32_t walk_rows(const sreg_wsite *s, uint8_t *b, int32_t len, const sr_wpair *m, int32_t n)
-{                                               /* WS_R: clear the entries of the rows whose club changed */
+{                                               /* WS_R: the entries of the rows whose club changed -> fill */
     if (!s->count) return 0;
-    if (s->count > 256 || s->off + (int32_t)s->count > len || s->aux >= len) return -1;
+    uint32_t fill = s->stride & 0xFF, lit = s->stride >> 8;     /* (stride = fill | file << 8; file 0: the item's b[aux]) */
+    if (s->count > 256 || s->off + (int32_t)s->count > len || (!lit && s->aux >= len)) return -1;
     int32_t changed = 0;
-    uint32_t file = b[s->aux];
+    uint32_t file = lit ? lit : b[s->aux];
     for (uint32_t k = 0; k < s->count; k++) {
         uint16_t w = (uint16_t)(file | k << 8);
         for (int32_t i = 0; i < n; i++)                     /* (its club left or a club arrived: a pair names the row) */
             if ((m[i].from == w || m[i].to == w) && m[i].from != m[i].to) {
-                if (b[s->off + k]) { b[s->off + k] = 0; changed++; }
+                if (b[s->off + k] != fill) { b[s->off + k] = (uint8_t)fill; changed++; }
                 break;
             }
     }

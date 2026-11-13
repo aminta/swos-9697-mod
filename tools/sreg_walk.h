@@ -17,10 +17,11 @@
    - form: WS_W a u16 team word (file | ordinal << 8; 0 / FFFFh = none); WS_G a u16 global number; WS_O8 a u8 ordinal
      whose file is the byte at aux (0FFh: file 102 fixed) - not handled yet (-2); WS_K a key computed over words:
      aux = the index of its owner's re-key callback in WS_KEYS[] (run once after the whole walk) - not handled yet (-2).
-   - WS_R (Panchina 13/11, cf-st-s7.md): a u8 array indexed by ORDINAL of a file (off, count <= 256, stride 1; aux = the
-     offset in the same item of the byte holding that file): each entry whose row's registry club CHANGED (its word is the
-     old or the new word of a swap pair) is cleared to 0 = "unknown" - the entry described the departed club; entries of
-     rows that kept their club are untouched. Not a permutation: such a table is one file's, a crosser has no entry in
+   - WS_R (Panchina 13/11, cf-st-s7.md): a u8 array indexed by ORDINAL of a file (off, count <= 256; the entries are
+     contiguous, so stride is not a step: stride = fill | file << 8 (MC 13/11, CD ent); file 0 = the file is the item's
+     byte at aux, else aux is unused): each entry whose row's registry club CHANGED (its word is the old or the new word
+     of a swap pair) is set to fill (CF: 0 = "unknown", the entry described the departed club; CD ent: 1 = new to Serie
+     D); entries of rows that kept their club are untouched. Not a permutation: such a table is one file's, a crosser has no entry in
      the other file's.
    - aux: per form above, else 0. */
 #ifndef SREG_WALK_H

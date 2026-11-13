@@ -133,6 +133,8 @@ def late(p):
     import trailer
     import wsites
     wsites.check_layout()
+    import gplay
+    wsites.CD_FILE[0] = p.get(1, gplay.LABELS['CD_TAB'] + 2, 1)[0] if 'CD_TAB' in gplay.LABELS else None   # (gplay's lf)
     rows = wsites.rows()
     p.put(*LABELS['WSITES'], wsites.table(rows))
     en = trailer.INFO['en_n']
@@ -151,7 +153,8 @@ def late(p):
         else:
             assert iid in names, ('s7swap: WSITES row on an engine item this build does not save', k, item)
             size = engine.SAVE_ITEMS[names[iid]][0]
-        assert off + max(count - 1, 0) * stride + (1 if form == wsites.WS_R else 2) <= size, ('s7swap: WSITES row past its item', k, item, size)
+        span = count if form == wsites.WS_R else max(count - 1, 0) * stride + 2   # (WS_R: stride = fill | file << 8)
+        assert off + span <= size, ('s7swap: WSITES row past its item', k, item, size)
     if 'ST' in engine.ITEM_AT:
         LABELS['ST_ITEM'] = engine.ITEM_AT['ST']          # (host tests: the TEST rows' engine item)
     print(f's7swap: WSITES {len(rows)} rows{" (TEST rows: S7_WSITES_TEST)" if wsites.TEST else ""}')

@@ -10,6 +10,10 @@ TEST = os.environ.get('S7_WSITES_TEST') == '1'       # (host-test builds only: T
 
 WI_CFB, WI_CACHE, WI_MAIN, WI_CFBH, WS_END, WS_MAX = 0, 1, 2, 3, 0xFFFF, 128   # (WI_CFBH: careerFileBuffer + 0x10000)
 WS_W, WS_G, WS_O8, WS_K, WS_R = 1, 2, 3, 4, 5
+# WS_R rows: entries are u8 and contiguous, so stride is not a step: stride = fill | file << 8 (file 0 = the file is the
+# item's byte at aux). CD ent's file is the build's Serie D file: CD_FILE[0], set by s7swap.late (CD_TAB[2]) before rows()
+CD_FILL = 1
+CD_FILE = [None]
 
 # careerFileBuffer layout (WSITES 4c): CFB offsets. TMD = tmdFileBuffer (careerFileBuffer dw, then the 80 records);
 # IDA_CFB: an IDA dseg address - IDA_CFB = its CFB offset (dseg_D6B4E = TMD + 54720)
@@ -49,6 +53,18 @@ def check_layout():
 # InitializeNewSeason's copy (cseg_8CC4E, loop widened to LIMIT by bigtables.py) carries them over; test_wsites_walk), BU (bteam.py: its B team words are DATA\\BAGE.nnn's, HOME words - identity
 # data by the HOME word, MC 13/11 - compared with BAGE's again: walking them would break the match; the S7 audit's
 # bteam item). rows() keeps a build's own items only (an item it does not save: no row).
+# K keys (MC 13/11): states KEYED over team words are NOT rows - no WS_K / WS_O8 row may be registered (table() asserts it).
+# Each key's consumer discards its state on a mismatch and rebuilds it; one line per key, with its evidence:
+#   F1 (F1_ST.key = the league's first team word): K, discard-on-mismatch, tests/test_wsites_keys.py test_k_f1
+#      (f1_valid / f1_auto / f1_build return 0, f1_capture rewrites it - captured after the swap, nothing lost)
+#   LR (LR_BLK ss / n / t0 = season stamp, club count, first word): K, discard-on-mismatch (lr_res wipes and re-keys, a
+#      season under way is VOID until the next one; lr_rank drops the head-to-head, the table still sorts) - lrank.c:74-115
+#   SH (sp_sh +0 = file, division | 80h): K, discard-on-mismatch (sp_shsel zeroes and re-keys outside a simulation, a
+#      scratch block inside one; discard, rebuilt at the next real pass) - split.py sp_shsel
+#   ST (the engine item 'ST', sr_stled: FNV-1a of the entrants' words): K, discard-on-mismatch (sr_st_check returns 0 =
+#      not started); NO CALLER in this tree - test_k_unconsumed pins it
+#   SS (gp_ss.key = the bank's league file): follows the STRUCT, not the club (a bank describes a division, like WN's 'M');
+#      only the SS_NB > 1 build reads it (ss_set / ss_view re-key and reset) - the default build has none (test_k_unconsumed)
 ROWS = [
     # careerFileBuffer (WI_CFB: the .CAR's fixed part, 95151 B). WSITES 4b (Panchina 13/11) found the regions in 26 real
     # saves; 4c (13/11, MC's code pass) gives each one its writer and its capacity from the code: the mod's structs in
@@ -107,8 +123,14 @@ ROWS = [
     ('SS', 8, 12, 128, WS_G, 0),
     ('SS2', 6, 12, 128, WS_W, 0),
     ('SS2', 8, 12, 128, WS_G, 0),
-    # CD (struct cd_state, 1032 B): gen[2 x (CDP 41 + CD1 64)] at +612 (ent[256] at +348: O8, later)
+    # CD (struct cd_state, 1032 B): gen[2 x (CDP 41 + CD1 64)] at +612; ent[256] at +348 (cd_season, run BEFORE the swap:
+    # per ordinal of the Serie D file lf, the entry order's key) - WS_R with fill 1 = 'new to Serie D' (MC 13/11): every
+    # changed row of the Serie D file holds a club that arrived from another division (a down-crosser now; Eccellenza
+    # promotions later are new to Serie D too), so a changed row's key is 1 whatever cd_season wrote for the club that left
+    # it (an up-crosser's 2+ place too). The file is literal (cd_state has no file byte): rows() puts CD_FILE in stride's
+    # high byte (s7swap.late reads it from CD_TAB[2], gplay's lf)
     ('CD', 612, 2, 210, WS_W, 0),
+    ('CD', 348, CD_FILL, 256, WS_R, 0),
     # WN (struct wn_state, 164 B): e[WN_N 40] {u8 type, idx; u16 team} at +4. Entry 0 is always 'M' (gplay.c gp_season:
     # wn_add('M', wn_div, GP_IN.mgr) first): the career club's LAST-SEASON division = its team file + local division,
     # the key of the page's division title (winners.py wn_lastdiv) - the old division's identity, so its word is NOT walked
@@ -139,7 +161,7 @@ ROWS = [
     # CF (gplay.c struct cf_state, 260 B: u16 magic, u8 season, file; u8 rank[256]) - WS_R: last season's places by ordinal of
     # file CF_ST.file (byte +3); a crosser's row is cleared (cf-st-s7.md); CN (struct cn_state, 36 B: u8 season, pad[3],
     # name[32]): pad[0..1] = the career club's division winner's WORD, pad[2] = 'W' marks it (S7 builds)
-    ('CF', 4, 1, 256, WS_R, 3),
+    ('CF', 4, 0, 256, WS_R, 3),                 # (WS_R stride = fill | file << 8: fill 0, file 0 = the item's byte +3)
     ('CN', 1, 2, 1, WS_W, 0),
     # XS (xtra.py xsold, 2 + 3 x XSOLD 128): dw count, then {dw seller's word, db index} (S7 audit, MC 13/11)
     ('XS', 2, 3, 128, WS_W, 0),
@@ -162,7 +184,18 @@ def rows():
         assert modver.is_test(), 'S7_WSITES_TEST: test builds only'
         return TEST_ROWS
     import engine
-    return [r for r in ROWS if not isinstance(r[0], str) or r[0] in engine.SAVE_ITEMS]   # (this build's items)
+    return resolve([r for r in ROWS if not isinstance(r[0], str) or r[0] in engine.SAVE_ITEMS])   # (this build's items)
+
+
+def resolve(rows):
+    """rows with CD ent's literal file in its stride (CD_FILE[0]: this exe's Serie D file)."""
+    out = []
+    for r in rows:
+        if r[0] == 'CD' and r[4] == WS_R:                               # (CD ent: the Serie D file, literal)
+            assert CD_FILE[0] and 0 < CD_FILE[0] < 255, ('wsites: CD saved but no Serie D file (CD_FILE)', CD_FILE[0])
+            r = (r[0], r[1], r[2] & 0xFF | CD_FILE[0] << 8) + tuple(r[3:])
+        out.append(r)
+    return out
 
 
 def table(rows=None):
@@ -178,8 +211,10 @@ def table(rows=None):
             item = engine.item_id(item)
             assert item not in (WI_CFB, WI_CACHE, WI_MAIN, WI_CFBH, WS_END), ('wsites: an item id clashes', item)
             ids.add(item)
-        assert form in (WS_W, WS_G, WS_O8, WS_K, WS_R) and 0 <= off < 0x10000 and count < 0x10000, ('wsites: row', item, off)
-        assert count <= 1 or stride >= (1 if form in (WS_O8, WS_R) else 2), ('wsites: stride', item, off)
+        assert form not in (WS_O8, WS_K), ('wsites: no O8 / K row is ever registered (K keys discard on mismatch; CD ent is WS_R with a fill byte)', item, off)
+        assert form in (WS_W, WS_G, WS_R) and 0 <= off < 0x10000 and count < 0x10000, ('wsites: row', item, off)
+        assert form == WS_R or count <= 1 or stride >= 2, ('wsites: stride', item, off)
+        assert form != WS_R or (count <= 256 and (stride >> 8 or aux)), ('wsites: WS_R row', item, off)
         out += struct.pack('<4H2B', item, off, stride, count, form, aux)
     assert len(rows) < WS_MAX, ('wsites: rows past WS_MAX', len(rows))
     return (out + struct.pack('<4H2B', WS_END, 0, 0, 0, 0, 0)).ljust(10 * WS_MAX, b'\0')

@@ -27122,6 +27122,9 @@ def s7_env(extra=None):
     return env
 
 
+CD_ENT, CD_LF = 348, 144                    # (gplay.c cd_state.ent; the real pack's Serie D file: cupd.pack_table)
+
+
 def s7cross(force, team, start_file, ldfail=None):
     """The career club crosses between the two league structs (4.2 S7, s7swap.c option B, MC 13/11): GPLAY_FORCE puts
     it on place `force` of its group at the season end (a Serie C group's last: down; a Serie D group's first: up);
@@ -27147,13 +27150,17 @@ def s7cross(force, team, start_file, ldfail=None):
         return False, f'{exe}: no S7 swap builder (not a shaped build, or before piece 4)'
     at = lambda k: s7[k][1]
     sel = s7['S7_SELTEAM'][1]
+    cdo = sy.get('gplay', {}).get('CD_ST')
+    cdst = cdo[1] if cdo and cdo[0] == 2 and 'cd_season' in sy.get('gplay', {}) else None   # (obj2: plain hex)
     keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
                                             'W8485_NOSACK', 'W8485_HEX', 'W8485_ONE')}
     os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+',
                       W8485_NOSACK='1', W8485_HEX=f'o4/{at("S7_LOG"):x}:8,o4/{at("S7_CLOG"):x}:6,'
                       f'o4/{at("S7_WLOG"):x}:12,o4/{at("S7_LD"):x}:16,{sel:x}:8'
                       + (f',o4/{sy["swe"]["SWC1"][1]:x}:4' if 'SWC1' in sy.get('swe', {}) else '')    # (SWC1 header: ver,
-                      + (f',{sy["swe"]["SWE_CWB"][1]:x}:1' if 'SWE_CWB' in sy.get('swe', {}) else ''))  # world; the world byte)
+                      + (f',{sy["swe"]["SWE_CWB"][1]:x}:1' if 'SWE_CWB' in sy.get('swe', {}) else '')    # world; the world byte)
+                      + (f',o4/{sy["lrank"]["LR_BLK"][1]:x}:8' if 'LR_BLK' in sy.get('lrank', {}) else '')   # (the LR block's key)
+                      + (f',{cdst:x}:8,{cdst + CD_ENT:x}:264' if cdst else ''))   # (Coppa D: header; ent[256] + efresh..)
     os.environ.pop('W8485_ONE', None)
     try:
         ok, msg = world8485()
@@ -27192,9 +27199,12 @@ def s7cross(force, team, start_file, ldfail=None):
     #  plays a natural season there; any later selTeamNumber must be a season-2 S7_CLOG crossing out of `new`)
     cl2 = [struct.unpack('<HHh', b) for b in get(1, f'o4/{at("S7_CLOG"):x}')]
     ok2 = {new} | {c[1] for c in cl2 if c[1] and c[0] == new}
+    # (real pack, MC 13/11: a natural season 2 may drop the club to the off-file pool - ripool gives it another row of
+    #  the same file at the season end, before the swap; S7_CLOG then logs that word with no crossing (new 0))
+    ok2 |= {c[0] for c in cl2 if not c[1] and new is not None and c[0] & 0xFF == new & 0xFF}
     check(bool(sels2) and sels2[0][0] == new and lo <= sels2[0][3] <= hi and all(s_[0] in ok2 for s_ in sels2),
           f'season 2: selTeamNumber / D6CDC {[(hex(a), d) for a, _, _, d in sels2[:3]]} (want {new and hex(new)} as '
-          f'loaded, D6CDC {lo}..{hi}; later only a season-2 crossing {sorted(hex(x) for x in ok2 if x)})', errs)
+          f'loaded, D6CDC {lo}..{hi}; later only a season-2 crossing or pool move {sorted(hex(x) for x in ok2 if x)})', errs)
     swc = sy.get('swe', {}).get('SWC1')
     for s_ in (0, 1):
         lds = [struct.unpack('<BBBBHHIi', b) for b in get(s_, f'o4/{at("S7_LD"):x}')]
@@ -27217,9 +27227,48 @@ def s7cross(force, team, start_file, ldfail=None):
             ok1 = [x for x in lds if x[0] == 1]
             check(ok1 and ok1[0][4] > 0, f'season 2: the first applied load {ok1[:1]} moved no rows (the save\'s '
                   f'registry not the crossed one)', errs)
+    lrnote = ''
+    if 'LR_BLK' in sy.get('lrank', {}):                 # (MC 13/11: LR's key after a crossing - lr_res re-keys at the first
+        k = f'o4/{sy["lrank"]["LR_BLK"][1]:x}'          #  result of the new season; VOID only if the season is under way)
+        lr = [[tuple(b[:4]) for o, b in hexes[s_] if o == k] for s_ in (0, 1)]
+        l2 = lr[1]
+        # (season 2's first value: the block as the save carried it, season 1's key; the last: after play)
+        check(len(l2) >= 2, f'season 2: LR_BLK logged {l2} (want the loaded key, then a re-key)', errs)
+        if len(l2) >= 2:
+            ss0, n0, t0 = l2[0][0], l2[0][1], l2[0][2] | l2[0][3] << 8
+            ss1, n1, t1 = l2[-1][0], l2[-1][1], l2[-1][2] | l2[-1][3] << 8
+            check(ss1 != ss0, f'season 2: LR_BLK stamp {ss0} -> {ss1}: the old key never matches (stamp)', errs)
+            check(not n1 & 0x80 and n1 >= 2, f'season 2: LR_BLK n {n1:#x}: VOID (a crossed group losing its head-to-head '
+                  f'for the season) - lr_res first ran with results already in', errs)
+            lrnote = f'; LR_BLK season 2: stamp {ss0}->{ss1}, n {n0:#x}->{n1:#x}, first word {t0:#x}->{t1:#x} (re-keyed, live)'
+    cdnote = ''
+    if cdst and new is not None and new & 0xFF == CD_LF:   # (MC 13/11, CD ent = WS_R fill 1: down into Serie D)
+        e1 = [b for o, b in hexes[0] if o == f'{cdst + CD_ENT:x}']
+        e2 = [b for o, b in hexes[1] if o == f'{cdst + CD_ENT:x}']
+        h2 = [b for o, b in hexes[1] if o == f'{cdst:x}']
+        check(bool(e1) and bool(e2), f'Coppa D ent not logged (season 1 {len(e1)}, season 2 {len(e2)})', errs)
+        if e1 and e2:
+            ent = e2[0][:256]                           # (season 2 as loaded: season 1's end, after cd_season + the swap)
+            check(ent == e1[-1][:256], 'Coppa D ent: season 2 loaded != season 1\'s last', errs)
+            nd = sum(1 for v in ent if v)
+            ones = [i for i, v in enumerate(ent) if v == 1]
+            bad = [(i, v) for i, v in enumerate(ent[:nd]) if v == 0 or (v != 1 and not 2 <= v <= 19 and v != 0x40)]
+            nfc, nfp = e2[0][259], e2[0][260]           # (cd_season's own arrivals, before the swap: from Serie C natively,
+            want = 9 + nfc + nfp                        #  from the pool; then the swap's 9 down-crossers, fill 1)
+            check(len(ones) == want and (new >> 8) in ones, f'Coppa D ent: {len(ones)} rows at 1 (new to Serie D) {ones[:12]} '
+                  f'(want {want}: 9 down-crossers + cd_season\'s {nfc} from Serie C + {nfp} from the pool; the career '
+                  f'club\'s row {new >> 8} among them)', errs)
+            check(nd == 162 and not bad and e2[0][256] == 1, f'Coppa D ent: {nd} rows (want 162), stayers not a place '
+                  f'{bad[:6]}, efresh {e2[0][256]}', errs)
+            rounds = max((b[3] for b in h2), default=0)  # (cd_state +3 round: the season's rounds played)
+            gen = max((b[257] for b in e2), default=0)
+            check(rounds >= 1 and gen, f'Coppa D season 2: round {rounds}, gen_on {gen} (the draw did not run)', errs)
+            cdnote = (f'; Coppa D ent season 2: {len(ones)} rows at 1 (9 down-crossers incl. the career club ord '
+                      f'{new >> 8}, + {nfc} + {nfp} cd_season arrivals), '
+                      f'{nd - len(ones)} stayers\' places 2..19, draw ran (round {rounds}, gen_on {gen})')
     return not errs, '; '.join(errs) or (f'{start_file} -> {new & 0xFF}: crossed at the season end (9 swaps, 18 '
                                          f'crossers), selTeamNumber {new:#x}, season 2 loaded and played in the new '
-                                         f'struct (D6CDC {sels2[-1][3]}), S7_LD OK')
+                                         f'struct (D6CDC {sels2[-1][3]}), S7_LD OK' + lrnote + cdnote)
 
 
 @scenario

@@ -94,17 +94,25 @@ def build(src, groups, out, base=None, fileno=144, deciders=None):
     lg2['reserve']['first'] = [k for k in rs.get('first', []) if k in pool]
     if deciders:                                # (dA_title / dA_reltie: Serie D girone A's promotion / relegation deciders, in
         ref = json.load(open(os.path.join(deciders, 'pack.json'), encoding='utf-8'))     # the data session's dataset
-        rl = next(c for c in ref['competitions'] if c['key'] == ref['season']['league'])  # world5tm-s1rank-int3, not in
-        ko = lg2['ko_playoffs']                                                          # the release world5tm-h2)
+        rl = next((c for c in ref['competitions'] if c['key'] == ref['season']['league']), None)  # world5tm-s1rank-int3, not in
+        assert rl is not None, ('s7pack --deciders: no league competition in', deciders)           # the release world5tm-h2)
+        ko = lg2['ko_playoffs']
         have = {k['key'] for k in ko}
         for key, before in (('dA_title', 'dA_playoff'), ('dA_reltie', 'dA_playout')):
             if key in have:
                 continue
-            e = next(k for k in rl['ko_playoffs'] if k['key'] == key)
-            ko.insert(next(i for i, k in enumerate(ko) if k['key'] == before), e)
-        d5 = rl['divisions'][5]                 # (girone A: promoted 0 / relegated 1 - the deciders take the other place)
+            e = next((k for k in rl['ko_playoffs'] if k['key'] == key), None)
+            assert e is not None, (f"s7pack --deciders: {deciders} has no ko_playoffs '{key}'", [k['key'] for k in rl['ko_playoffs']])
+            at = next((i for i, k in enumerate(ko) if k['key'] == before), None)
+            assert at is not None, (f"s7pack: the source pack has no ko_playoffs '{before}' to put '{key}' before", [k['key'] for k in ko])
+            ko.insert(at, e)
+        GA = 'SERIE D GIRONE A'                 # (girone A: promoted 0 / relegated 1 - the deciders take the other place;
+        d5, dd = rl['divisions'][5], lg2['divisions'][5]       # found by name in BOTH packs, not trusted by index)
+        for tag, d in ((deciders, d5), ('the source pack', dd)):
+            nm = [n for v in d.get('names', {}).values() for n in v]
+            assert nm and all(n == GA for n in nm), (f"s7pack --deciders: divisions[5] of {tag} is not '{GA}'", nm)
         for f in ('promoted', 'relegated'):
-            lg2['divisions'][5][f] = d5[f]
+            dd[f] = d5[f]
     assert sorted(lg2['reserve']['pool']) == sorted(pool), 's7pack: reserve pool != the stand-ins'
 
     os.makedirs(out)                            # (refused if it exists: never over another folder)

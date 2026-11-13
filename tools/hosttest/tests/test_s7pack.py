@@ -220,6 +220,25 @@ def test_s7pack_deciders():
             want = [k for k in k1 if k not in ('dA_title', 'dA_reltie')]
             if want != k0 or k1.index('dA_title') + 1 != k1.index('dA_playoff') or k1.index('dA_reltie') + 1 != k1.index('dA_playout'):
                 errs.append(f'ko_playoffs order {k1}')
+            # refusals (MC 13/11): a deciders pack without dA_title, with girone A not at divisions[5] (checked by NAME), a source
+            # pack without dA_playoff - each a clear AssertionError, not a StopIteration / a silent wrong division
+            def mut(tag, fn):
+                d = os.path.join(tmp, 'ref_' + tag)
+                shutil.copytree(REF, d)
+                m = json.load(open(os.path.join(d, 'pack.json')))
+                fn(next(c for c in m['competitions'] if c['key'] == m['season']['league']))
+                json.dump(m, open(os.path.join(d, 'pack.json'), 'w'))
+                return d
+            for tag, fn, want_msg in (
+                    ('nokey', lambda lg: lg['ko_playoffs'].__setitem__(slice(None), [k for k in lg['ko_playoffs'] if k['key'] != 'dA_title']),
+                     "no ko_playoffs 'dA_title'"),
+                    ('swapped', lambda lg: lg['divisions'].insert(5, lg['divisions'].pop(6)), "is not 'SERIE D GIRONE A'")):
+                try:
+                    s7pack.build(SRC, GROUPS, os.path.join(tmp, 'bad_' + tag), BASE, deciders=mut(tag, fn))
+                    errs.append(f'--deciders {tag}: not refused')
+                except AssertionError as e:
+                    if want_msg not in str(e):
+                        errs.append(f'--deciders {tag}: refused with {str(e)[:100]}')
             d5 = p1['divisions'][5]
             if (d5['promoted'], d5['relegated']) != (0, 1):
                 errs.append(f'girone A promoted / relegated {d5["promoted"]} / {d5["relegated"]} (want 0 / 1)')

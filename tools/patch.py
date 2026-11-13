@@ -196,6 +196,8 @@ def cave_pages():
 
 
 LT_SPACE = []
+OBJ1MV_ON = [False]                             # 4.2: modules moved out of obj1 to obj4 swreg.OBJ1MV_AT (MC 13/11)
+OBJ1MV_NEXT = [None]                            # (the band's next free offset)
 LR_ROOM = []                                    # 4.0.5 lpreal: [start, end] after simdraw on the coefficients page
 LG_ROOM = []                                    # 4.0.5 lgreal: [start, end] after longtable / mainbtn
 
@@ -376,6 +378,9 @@ def patch_exe(src, dst, remap, lang='it'):
         swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, swefile.page_end() // 0x1000)
     if s7swap.on():                                    # 4.2 S7 swap builder + the registry library (MC 13/11): pages 18-19,
         swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, s7swap.page_end() // 0x1000)   # only with a registry shape
+    OBJ1MV_ON[0] = bool(mkseason.worlds() and gp_on and xtra_pg)   # 4.2 OBJ1MV (MC 13/11): the SEASON WINNERS page's
+    if OBJ1MV_ON[0]:                                   # condition (fmtpage wn=: worlds, gplay's LT_SPACE, the extra pages)
+        swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, (swreg.OBJ1MV_END + 0xFFF) // 0x1000)   # (its band's pages, out of obj1)
     swe.OBJ4_PAGES = sreg.obj4_pages(swe.OBJ4_PAGES)   # (4.2 N7: + the old-save import's 12th page, SREG2_AT)
     if lr_tabs:                                        # (the career league's head-to-head block)
         engine.save_item('LR', lrank.LR_SIZE, world_only=True)
@@ -735,9 +740,11 @@ def patch_exe(src, dst, remap, lang='it'):
             gplay.link_reserve(p, ri)                            # (the reserves: gp_sack's tables)
         if bigtables.ON[0]:                                      # the .CAR's 2000 bytes <-> the moved tables,
             xe = bigtables.hooks(p, (xe + 15) & ~15)             # numbers 2000+ (after every finder of the tables)
-        if fmtpage.WN:                                           # the WINNERS page (fmtpage's VINCITORI entry; gplay's
-            import winners                                       # pages are full)
-            xe = winners.patch(p, xe, lang, careerworld.SITES)
+        if fmtpage.WN:                                           # the WINNERS page (fmtpage's VINCITORI entry): 4.2 in
+            import winners                                       # obj4's OBJ1MV band (MC 13/11: the extra pages full)
+            assert OBJ1MV_ON[0], 'winners: OBJ1MV band not given its obj4 pages (OBJ1MV_ON vs fmtpage wn=)'
+            OBJ1MV_NEXT[0] = winners.patch(p, swreg.OBJ1MV_AT, lang, careerworld.SITES)
+            print(f'exe: OBJ1MV obj4+{swreg.OBJ1MV_AT:#x}..{OBJ1MV_NEXT[0]:#x} ({swreg.OBJ1MV_END - OBJ1MV_NEXT[0]} B left to {swreg.OBJ1MV_END:#x})')
         w27s = [pk.world for pk in mkseason.packs() if pk.meta.get('id', '').startswith('world-2026-27-')] if worlds else []
         if w27s and not os.environ.get('QUIETEND_OFF'):  # (QUIETEND_OFF=1: a control build for the identical-results check)
             import quietend                              # 4.0.1: the other countries' competitions simulated unseen at

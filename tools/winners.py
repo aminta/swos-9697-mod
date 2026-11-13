@@ -796,8 +796,8 @@ def sel_ptr(p):
 
 
 def patch(p, at, lang, sites):
-    """The page's code at obj1:at (gplay's pages, after longtable); fmtpage.WN's entry and onInit pointers turned to
-    it. sites: careerworld.SITES. Returns the code end."""
+    """The page's code at obj4:at (4.2: swreg's OBJ1MV band; before, obj1's extra pages); fmtpage.WN's entry and onInit
+    pointers turned to it. sites: careerworld.SITES. Returns the code end."""
     import fmtpage
     import gplay
     import nasmcave
@@ -835,21 +835,28 @@ def patch(p, at, lang, sites):
         lay = dplay.LABELS['layout']
         sym.update({'DP_ST': dplay.LABELS['DP_ST'], 'DP_SAVE': (2, dplay.LABELS['save']), 'SV_KIND': (0, lay['SV_KIND']),
                     'SV_TEAM': (0, lay['SV_TEAM'])})
-    at = (at + 15) & ~15
-    code, cfix = nasmcave.assemble(src, at, sym)
+    import swreg                                       # 4.2 (MC 13/11): in obj4's OBJ1MV band, out of obj1's full
+    at = (at + 15) & ~15                               # extra pages (its calls into obj1: rel32 fixups)
+    assert swreg.OBJ1MV_AT <= at < swreg.OBJ1MV_END, ('winners: not in the OBJ1MV band', hex(at))
+    code, cfix, crel = nasmcave.assemble_obj(src, at, sym, 4)
     lab = nasmcave.labels(src, at, sym)
-    assert not any(p.get(1, at, len(code)))
-    p.put(1, at, code)
+    assert p.le.obj(4).npages * 0x1000 >= swreg.OBJ1MV_END, 'winners: obj4 pages (patch.py OBJ1MV_ON)'
+    assert at + len(code) <= swreg.OBJ1MV_END, ('winners: past OBJ1MV_END', hex(at + len(code)))
+    assert not any(p.get(4, at, len(code))), 'winners: OBJ1MV room not free'
+    p.put(4, at, code)
     for o, t_obj, t_off in cfix:
-        p.add_ptr(1, at + o, t_obj, t_off)
+        p.add_ptr(4, at + o, t_obj, t_off)
+    for o, t_obj, t_off in crel:
+        p.add_rel(4, at + o, t_obj, t_off)
     for off, name in ((wn['sel'], 'wn_open'), (wn['init'], 'wn_init'), (wn['init'] + 4, 'wn_init')):   # (onInit,
                                                                                     # 4.0.2: onReturn)
-        p.retarget(2, off, 1, lab[name])
+        p.retarget(2, off, 4, lab[name])
         p.put(2, off, struct.pack('<I', lab[name]))
     LABELS.clear()
-    LABELS['wn_disk'] = (1, lab['wn_disk'])
-    LABELS['WN_FN'] = (1, lab['WN_FN'])            # (S7: s7swap.py turns its entry into ripool's ri_wnhome)
-    print(f'exe: SEASON WINNERS page: entry obj2+{wn["sel"]:#x}, code obj1+{at:#x} ({len(code)} B)')
+    LABELS['wn_disk'] = (4, lab['wn_disk'])
+    LABELS['WN_FN'] = (4, lab['WN_FN'])            # (S7: s7swap.py turns its entry into ripool's ri_wnhome)
+    print(f'exe: SEASON WINNERS page: entry obj2+{wn["sel"]:#x}, code obj4+{at:#x} ({len(code)} B, '
+          f'{len(crel)} rel32 into obj1)')
     return at + len(code)
 
 

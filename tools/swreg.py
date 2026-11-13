@@ -49,6 +49,15 @@ S7SWAP_END = 0x15000                    # one copy (sr_reg_season, sr_wmap_*: th
 # (MC 13/11: 0x15000, CF_ST + s7_home_word; obj4 0x14000..0x15000 was free; the next free obj4 room starts at 0x15000)
                                         # linked only with a registry shape (sreg.shape(), = GP_S7)
 assert SWEFILE_END <= S7SWAP_AT < S7SWAP_END, 'swreg: SWEFILE_END <= S7SWAP_AT < S7SWAP_END'
+OBJ1MV_AT = 0x15000                     # 4.2 obj1 relief (MC 13/11, Shaved's census): whole modules moved out of obj1's full
+OBJ1MV_END = 0x16800                    # regions (237 pages frozen): winners.py (the extra pages), then instcheck + shirtedit
+                                        # (the career cave); linked with the SEASON WINNERS page (worlds + gplay + extra pages)
+MKTHOOK_AT = 0x16800                    # 4.3 the CPU market's exe hooks (mkthook.c, Mercato CPU): the LAST band (MC 13/11),
+MKTHOOK_END = 0x18000                   # so a 4.2 release carries no empty page for it
+MKTAGE_AT = 0x18000                     # 4.3 reserved (Mercato CPU, MC 13/11 final layout); past MKTAGE_END only with MC's ok
+MKTAGE_END = 0x19000
+assert S7SWAP_END <= OBJ1MV_AT < OBJ1MV_END <= MKTHOOK_AT < MKTHOOK_END <= MKTAGE_AT < MKTAGE_END <= 0x19000, \
+    'swreg: S7SWAP_END <= OBJ1MV_AT < OBJ1MV_END <= MKTHOOK_AT < MKTHOOK_END <= MKTAGE_AT < MKTAGE_END <= 0x19000'
 S7_ORIG_SZ = 0x2C000                    # 4.2 S7: s7swap.c's ORIG buffers in swe.c's .bss (shaped builds only; MC 13/11):
                                         # the two league files as read (Italy: 102 = 100 records, 144 = 162: 179212 B;
                                         # s7swap.py asserts they fit)

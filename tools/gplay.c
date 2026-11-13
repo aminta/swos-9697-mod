@@ -4101,6 +4101,13 @@ struct ri_file { u8 *init; u16 *map; int n; };   /* (a file's view of RI_STATE) 
 struct ri_state RI_STATE;
 u8 RI_SWAPPED[RF][RIS / 8];                     /* (this season end's swapped slots: ri_cache) */
 int RI_MGR;                                     /* (the manager's club, global number: set by the glue, never swapped) */
+#if GP_S7
+u32 (*GP_HOME)(u32) __attribute__((section(".data")));   /* (S7: s7swap.c s7_home_word in obj4, set by s7swap.py; 0 =
+                                                   none. In .data, not .bss: the glue's fixup needs the dword in obj1) */
+__attribute__((unused)) static u32 gp_home(u32 w) { return GP_HOME ? GP_HOME(w) & 0xFFFF : w; }   /* (a team word -> its club's home word) */
+#else
+__attribute__((unused)) static u32 gp_home(u32 w) { return w; }         /* (no S7: every club sits in its home row) */
+#endif
 int RI_RULE = 2;
 u8 RI_FILES_FILE[RF];                           /* (each table file's team file number, set by ri_season) */
 const u32 RI_STATE_SIZE = sizeof(struct ri_state);   /* (the engine item 'RI': ripool.RI_SIZE) */

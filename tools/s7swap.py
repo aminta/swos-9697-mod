@@ -242,6 +242,10 @@ def patch(p, ssyms, rsyms, gsyms, pgsyms, fsyms, risyms):
     cobj.add_ptr(p, rsyms['SREG_CHG'][1], *syms['s7_flush'], rsyms['SREG_CHG'][0])   # (a load / new career: the word caches)
     if 'S7_HPTR' in risyms:                             # (ri_home, xtra_readto's hook: a crossed club's XTRA block)
         cobj.add_ptr(p, risyms['S7_HPTR'][1], *syms['s7_home_word'], 1)
+    import gplay
+    assert 'GP_HOME' in gplay.LABELS, 's7swap: gplay.c built without GP_S7 (no GP_HOME: ri_pool would key the pools by slot)'
+    cobj.add_ptr(p, gplay.LABELS['GP_HOME'][1], *syms['s7_home_word'], gplay.LABELS['GP_HOME'][0])   # (gplay.c gp_home: ri_pool /
+    # ri_cache / cd_ident key a pooled club by its home word - s7-ri-fix.md)
     import stadium
     if 'st_hptr' in stadium.LABELS:                     # (st_find: a crossed club's stadium by its home word, obj3)
         cobj.add_ptr(p, stadium.LABELS['st_hptr'][1], *syms['s7_home_word'], stadium.LABELS['st_hptr'][0])

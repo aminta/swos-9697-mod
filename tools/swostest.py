@@ -3373,6 +3373,7 @@ HOLDERS = 0xC058B         # CC / CWC / UEFA holder team numbers (words, FFFF non
 
 
 W84_HOOK = None           # world8485: f(session, season, screen) at every step (set by a scenario, then reset)
+W84_AFTER = None          # world8485: f(session, season) once, after the season's save (set by a scenario, then reset)
 
 
 AG_STORE = 0x18F08        # obj1: after cseg_28E76's 'mov [esi], al' (DIY+89h+tie = cseg_2AE97's D7; IT exe)
@@ -4599,6 +4600,8 @@ def world8485():
             path = next_season_save(s, 'W84' + 'AB'[season - 1])
             if s.result.outcome == 'dump':             # (after the season end: its logs)
                 hexlog()
+            if W84_AFTER is not None and s.result.outcome == 'dump':   # (a scenario's own steps in this session,
+                W84_AFTER(s, season)                                     #  after the save: world_s7cross_newnoload)
             if W84_HOOK is not None and s.result.outcome == 'dump':   # (once more in the new season: the holders
                 W84_HOOK(s, season, None)                                # are set by now)
             if not path.endswith('.CAR'):
@@ -27122,16 +27125,19 @@ def world_s7cross_ldfail():
     return s7cross(20, 'EUROPA,ITALIA,SERIE C GIRONE A,UNION BRESCIA', 102, ldfail=9)
 
 
-@scenario
-def world_s7cross_newafter():
-    """S7 (4.2, MC 13/11): a crossed world-5 career loaded, then a NEW world-5 career in the same DOSBox session. The
-    loaded career's SWC1 (world 5) and registry (built, its crossings) stay live until the new career's after_new: its
-    setup loads must not apply the old crossings. Season 1 of world_s7cross_down makes the save (UNION BRESCIA 102 ->
-    144; S7_NEWAFTER_CAR: a given one); then (CORE=normal: a breakpoint at s7_load's entry logs S7_LD - the previous
-    call's result - at every call) the save loaded (selTeamNumber in file 144), ESCI to the main menu, CARRIERA ->
+def s7newcareer(loaded):
+    """S7 (4.2, MC 13/11): a crossed world-5 career, then a NEW world-5 career in the same DOSBox session. The old
+    career's SWC1 (world 5) and registry (built, its crossings) must not reach the new career's setup loads (the team
+    picker, InitCareer): 42-cstart shuts the gate at NEW CAREER (SWC1 world 0, sreg_new), after_new opens it again.
+    loaded: season 1 of world_s7cross_down makes the save (UNION BRESCIA 102 -> 144; S7_NEWAFTER_CAR: a given one),
+    a session (CORE=normal) loads it; else (no load) the career crossed in this very session - season 1 of
+    world_s7cross_down, then (world8485's W84_AFTER, after its save) the same steps. The steps: a breakpoint at
+    s7_load's entry logs S7_LD (the previous call's result) at every call; ESCI to the main menu, CARRIERA ->
     ABBANDONA -> a new career at UNION BRESCIA (SERIE C GIRONE A: listed there only with the spec's files) up to the
-    career menu. Checks: every s7_load call after the new career's start NOREG or OK with 0 rows moved; the new
-    selTeamNumber the club's native word (file 102, as at season 1's start); SWC1 world 5 at the end."""
+    career menu, then on until the first load with the gate open. Checks: the old career's registry crossed (a load
+    moved rows - else nothing is proven); every s7_load call of the new career's setup NOREG or OK with 0 moved, the
+    calls contiguous (no hit missed); the new selTeamNumber the club's native word (file 102); SWC1 world 5 after
+    after_new; the first load after it OK, 0 moved, the registry the spec's (its hash as rebuilt)."""
     import json
     team = 'EUROPA,ITALIA,SERIE C GIRONE A,UNION BRESCIA'
     env = s7_env({'GPLAY_FORCE': '20'})
@@ -27139,121 +27145,167 @@ def world_s7cross_newafter():
         return True, 'SKIP: S7_PACK (the shaped Italy pack) or internal world5tm-h2 missing'
     exe = os.environ.get('S7_BUILD') or build('s7cross', env=env)
     sy = json.load(open(os.path.join(exe, 'ITALIAN.syms.json')))
-    s7, swe = sy.get('s7swap', {}), sy.get('swe', {})
-    if 'S7_CLOG' not in s7 or 'SWC1' not in swe:
-        return False, f'{exe}: no S7 swap builder / SWC1 (not a shaped build)'
+    s7, swe, sr = sy.get('s7swap', {}), sy.get('swe', {}), sy.get('sreg', {})
+    if 'S7_CLOG' not in s7 or 'SWC1' not in swe or 'SREG_REG' not in sr:
+        return False, f'{exe}: no S7 swap builder / SWC1 / sreg (not a shaped build)'
     at = lambda k: s7[k][1]
     sel = s7['S7_SELTEAM'][1]
-    errs, native = [], None
-    car = os.environ.get('S7_NEWAFTER_CAR')
-    if not car:
-        keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
-                                                'W8485_NOSACK', 'W8485_HEX', 'W8485_ONE')}
-        os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5',
-                          W8485_K='108+', W8485_NOSACK='1', W8485_ONE='1',
-                          W8485_HEX=f'o4/{at("S7_LOG"):x}:8,o4/{at("S7_CLOG"):x}:6,{sel:x}:8')
-        try:
-            ok, msg = world8485()
-        finally:
-            for k, v in keep.items():
-                if v is None:
-                    os.environ.pop(k, None)
-                else:
-                    os.environ[k] = v
-        car = os.path.join(RUNS, w84_tag() + '_1', 'SWOS', 'W84A.CAR')
-        if not check(ok and os.path.exists(car), f'season 1 (the crossed save): {msg[:300]}', errs):
-            return False, '; '.join(errs)
-        lines = open(os.path.join(RUNS, w84_tag() + '_1', 'session.log'), errors='replace').read().splitlines()
-        cl = [struct.unpack('<HHh', bytes.fromhex(ln.split()[2])) for ln in lines
-              if ln.startswith(f'HEX o4/{at("S7_CLOG"):x} ') and len(ln.split()) > 2]
-        cross = [c for c in cl if c[1]]
-        if not check(bool(cross) and cross[-1][0] & 0xFF == 102 and cross[-1][1] & 0xFF == 144,
-                     f'season 1 did not cross 102 -> 144: S7_CLOG {[(hex(a), hex(b)) for a, b, _ in cl[-3:]]}', errs):
-            return False, '; '.join(errs)
-        native = cross[-1][0]
-    keep_core = os.environ.get('CORE')
-    os.environ['CORE'] = 'normal'                       # (the s7_load breakpoint)
     ld = lambda r: struct.unpack('<BBBBHHIi', bytes(r.read(r.lin((4, at('S7_LD'))), 16)))
     hdr = lambda r: struct.unpack('<HH', bytes(r.read(r.lin((4, swe['SWC1'][1])), 4)))
-    sr = sy['sreg']
     _h = open(os.path.join(ROOT, 'tools', 'swce', 'swosrules.h')).read()
     nf, ncl, nd = (int(re.search(rf'#define {k}\s+(\d+)', _h).group(1)) for k in ('SR_REG_FILES', 'SR_REG_CLUBS',
                                                                                    'SR_DIVS'))
     regsize = 8 + nf * (4 + 2 * nd) + 2 * ncl + nf * 256 * 3 + 2 * nf       # (test_sreg.REGSIZE: sr_registry)
 
-    def reg(r):                                         # (the registry's hash, SREG_LAST, 'built' unknown: static)
+    def reg(r):                                         # (the registry's hash, SREG_LAST, SREG_FLAGS)
         p_ = struct.unpack('<I', bytes(r.read(r.lin((4, sr['SREG_REG'][1])), 4)))[0]
         last = struct.unpack('<i', bytes(r.read(r.lin((4, sr['SREG_LAST'][1])), 4)))[0]
         fl = struct.unpack('<I', bytes(r.read(r.lin((4, sr['SREG_FLAGS'][1])), 4)))[0]
         return hashlib.md5(bytes(r.read(p_, regsize))).hexdigest()[:8], last, hex(fl)
-    try:
-        with Session('world_s7cross_newafter', exe, {'W84A.CAR': car}, 'dump:2', 900) as s:
-            if s.wait().outcome != 'dump':
-                return False, f'START: no first pause ({s.result})'
-            s.send(LOAD1 + ' dump:3')
-            r = s.result
-            w0, h0, x0 = struct.unpack('<HHHH', r.obj2(sel, 8)), hdr(r), ld(r)
-            c0 = x0[6]
-            g0 = reg(r)
-            s.log.append(f'[loaded] selTeamNumber {w0[0]:#x} SWC1 {h0} S7_LD {x0} REG {g0}')
-            check(w0[0] & 0xFF == 144 and h0[1] == 5, f'the loaded career: selTeamNumber {w0[0]:#x}, SWC1 world '
-                  f'{h0[1]} (want a file-144 word, world 5)', errs)
-            check(x0[0] == 1 and x0[4] > 0, f'the loaded career\'s own last load {x0}: want OK with rows moved (its '
-                  f'crossed registry live - else this scenario proves nothing)', errs)
-            seen = []
+    errs, st = [], {}
 
-            def hit(r):
-                x = ld(r)
-                if x[6] > c0 and (not seen or seen[-1] != x):
-                    seen.append(x)
-                    s.log.append(f'[s7_load] prev {x} SWC1 {hdr(r)} REG {reg(r)}')
-            s.bp(r.lin(tuple(s7['s7_load'])), hit)
-            for _ in range(10):                         # (the career menu -> the main menu)
-                sc = s.screen()
-                if 'MOD. TATTICA' in sc.texts():
+    def steps(s):                                       # (the old career on screen: its career menu)
+        r = s.result
+        w0, h0, x0 = struct.unpack('<HHHH', r.obj2(sel, 8)), hdr(r), ld(r)
+        st.update(w0=w0, x0=x0, c0=x0[6], g0=reg(r))
+        s.log.append(f'[old career] selTeamNumber {w0[0]:#x} SWC1 {h0} S7_LD {x0} REG {st["g0"]}')
+        check(w0[0] & 0xFF == 144 and h0[1] == 5, f'the old career: selTeamNumber {w0[0]:#x}, SWC1 world {h0[1]} '
+              f'(want a file-144 word, world 5)', errs)
+        check(x0[0] == 1 and x0[4] > 0, f'the old career\'s last load {x0}: want OK with rows moved (its crossed '
+              f'registry live - else this scenario proves nothing)', errs)
+        seen = st['seen'] = []
+
+        def hit(r):
+            x = ld(r)
+            if x[6] > st['c0'] and (not seen or seen[-1][0] != x):
+                seen.append((x, hdr(r), reg(r)))
+                s.log.append(f'[s7_load] prev {x} SWC1 {seen[-1][1]} REG {seen[-1][2]}')
+        s.bp(r.lin(tuple(s7['s7_load'])), hit)
+        for _ in range(12):                             # (the career menu -> the main menu)
+            sc = s.screen()
+            if 'MOD. TATTICA' in sc.texts():
+                break
+            press(s, sc, 'CONTINUA' if sc.find('CONTINUA', exact=True) is not None else 'ESCI', 3) \
+                or s.send('fire dump:2')
+        try:
+            set_world(s, 0)                             # (the main menu's world: 2026-27 - its continents at once)
+        except AssertionError as e:
+            s.log.append(f'[set_world] {e}')
+        press(s, s.screen(), 'CARRIERA', 3)
+        if 'ABBANDONA' in s.screen().texts():           # (a career in memory: CONTINUA / ABBANDONA first)
+            press(s, s.screen(), 'ABBANDONA', 3)
+            for _ in range(4):
+                if 'SCEGLI SQUADRA' in s.screen().texts():
                     break
-                press(s, sc, 'ESCI', 3) or s.send('fire dump:2')
+                press(s, s.screen(), 'SI', 3) or press(s, s.screen(), 'CONTINUA', 3) or s.send('fire dump:2')
+        if not check(pick_career(s, ['SCEGLI SQUADRA'] + team.split(',')),
+                     f'new career: UNION BRESCIA not reached in SERIE C GIRONE A ({s.screen()})', errs):
+            return
+        s.send('fire dump:3')
+        for _ in range(8):
+            if s.screen().find('VISUAL. COMPETIZ.', exact=True) is not None:
+                break
+            press(s, s.screen(), 'CONTINUA', 3) or s.send('fire dump:2')
+        r = s.result
+        st.update(w1=struct.unpack('<HHHH', r.obj2(sel, 8)), h1=hdr(r), x1=ld(r), g1=reg(r), n1=len(seen))
+        s.log.append(f'[new career] selTeamNumber {st["w1"][0]:#x} SWC1 {st["h1"]} S7_LD {st["x1"]} REG {st["g1"]} '
+                     f'({len(seen)} calls logged)')
+        x_ = st['x1']                                   # (on: the first load after after_new - gate open)
+        ok, msg = advance(s, lambda scr: ld(s.result)[6] > x_[6] and ld(s.result)[0] != 2, 60)
+        st.update(x2=ld(s.result), g2=reg(s.result), adv=msg)
+        s.log.append(f'[first open load] S7_LD {st["x2"]} REG {st["g2"]} ({msg[:80]})')
+
+    keep_core = os.environ.get('CORE')
+    try:
+        if loaded:
+            native = None
+            car = os.environ.get('S7_NEWAFTER_CAR')
+            if not car:
+                car, native = s7cross_save(exe, team, at, sel, errs)
+                if not car:
+                    return False, '; '.join(errs)
+            os.environ['CORE'] = 'normal'               # (the s7_load breakpoint)
+            with Session('world_s7cross_newafter', exe, {'W84A.CAR': car}, 'dump:2', 900) as s:
+                if s.wait().outcome != 'dump':
+                    return False, f'START: no first pause ({s.result})'
+                s.send(LOAD1 + ' dump:3')
+                steps(s)
+        else:
+            global W84_AFTER
+            W84_AFTER = lambda s, season: steps(s)
             try:
-                set_world(s, 0)                         # (the main menu's world: 2026-27 - its continents at once)
-            except AssertionError as e:
-                s.log.append(f'[set_world] {e}')
-            press(s, s.screen(), 'CARRIERA', 3)
-            if 'ABBANDONA' in s.screen().texts():       # (a career loaded: CONTINUA / ABBANDONA first)
-                press(s, s.screen(), 'ABBANDONA', 3)
-                for _ in range(4):
-                    if 'SCEGLI SQUADRA' in s.screen().texts():
-                        break
-                    press(s, s.screen(), 'SI', 3) or press(s, s.screen(), 'CONTINUA', 3) or s.send('fire dump:2')
-            if not check(pick_career(s, ['SCEGLI SQUADRA'] + team.split(',')),
-                         f'new career: UNION BRESCIA not reached in SERIE C GIRONE A ({s.screen()})', errs):
-                return False, '; '.join(errs)
-            s.send('fire dump:3')
-            for _ in range(8):
-                if s.screen().find('VISUAL. COMPETIZ.', exact=True) is not None:
-                    break
-                press(s, s.screen(), 'CONTINUA', 3) or s.send('fire dump:2')
-            r = s.result
-            last = ld(r)
-            if last[6] > c0 and (not seen or seen[-1] != last):
-                seen.append(last)
-            w1, h1 = struct.unpack('<HHHH', r.obj2(sel, 8)), hdr(r)
-            g1 = reg(r)
-            s.log.append(f'[new career] selTeamNumber {w1[0]:#x} SWC1 {h1} S7_LD {last} REG {g1} ({len(seen)} calls logged)')
+                car, native = s7cross_save(exe, team, at, sel, errs)
+            finally:
+                W84_AFTER = None
     finally:
         if keep_core is None:
             os.environ.pop('CORE', None)
         else:
             os.environ['CORE'] = keep_core
-    check(seen, f'no s7_load call logged after the load (calls {c0})', errs)
-    bad = [x for x in seen if x[0] not in (1, 2) or x[4]]
-    check(not bad, f'new career: s7_load moved rows / failed {bad[:4]} (want NOREG or OK with 0 moved)', errs)
+    if 'w1' not in st:
+        check(False, f'the new career not reached ({st.get("x0")})', errs)
+        return False, '; '.join(errs)
+    seen = [x for x, _, _ in st['seen']]
+    last = st['x1']
+    calls = [x[6] for x in seen] + ([last[6]] if not seen or seen[-1] != last else [])
+    check(calls and calls == list(range(st['c0'] + 1, calls[-1] + 1)),
+          f'new career: s7_load calls {calls} not contiguous from {st["c0"] + 1} (a breakpoint hit missed)', errs)
+    setup = seen + ([last] if not seen or seen[-1] != last else [])
+    bad = [x for x in setup if x[0] not in (1, 2) or x[4]]
+    check(not bad, f'new career setup: s7_load moved rows / failed {bad[:4]} (want NOREG or OK with 0 moved)', errs)
+    w1, h1, x2 = st['w1'], st['h1'], st['x2']
     check(w1[0] & 0xFF == 102 and (native is None or w1[0] == native),
           f'new career: selTeamNumber {w1[0]:#x} (want the native {native and hex(native)}, file 102)', errs)
-    check(h1[1] == 5, f'new career: SWC1 world {h1[1]} (want 5)', errs)
-    return not errs, '; '.join(errs) or (f'crossed career loaded (selTeamNumber {w0[0]:#x}, its load moved '
-                                         f'{x0[4]} rows of file {x0[2]}), then a new one: '
-                                         f'{len(seen)} s7_load calls, statuses {sorted({x[0] for x in seen})}, '
-                                         f'0 moved; UNION BRESCIA {w1[0]:#x} native, SWC1 world 5')
+    check(h1[1] == 5, f'new career: SWC1 world {h1[1]} after after_new (want 5)', errs)
+    check(x2[6] > last[6] and x2[0] == 1 and not x2[4] and st['g2'][0] != st['g0'][0],
+          f'new career: the first load with the gate open {x2} REG {st["g2"]} (want OK, 0 moved, the registry '
+          f'rebuilt - not the old {st["g0"]}) ({st["adv"][:80]})', errs)
+    return not errs, '; '.join(errs) or (
+        f'{"loaded" if loaded else "in-session"} crossed career (selTeamNumber {st["w0"][0]:#x}, its load moved '
+        f'{st["x0"][4]} rows of file {st["x0"][2]}, REG {st["g0"][0]}), then a new one: setup s7_load calls '
+        f'{calls[0]}..{calls[-1]} statuses {sorted({x[0] for x in setup})}, 0 moved; UNION BRESCIA {w1[0]:#x} native, '
+        f'SWC1 world 5; first open load {x2[:7]} REG {st["g2"][0]} (spec)')
+
+
+def s7cross_save(exe, team, at, sel, errs):
+    """Season 1 of world_s7cross_down (world8485, W8485_ONE): the save of a career that crossed 102 -> 144;
+    -> (save path, the club's native word) or (None, None) with errs."""
+    keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
+                                            'W8485_NOSACK', 'W8485_HEX', 'W8485_ONE')}
+    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5',
+                      W8485_K='108+', W8485_NOSACK='1', W8485_ONE='1',
+                      W8485_HEX=f'o4/{at("S7_LOG"):x}:8,o4/{at("S7_CLOG"):x}:6,{sel:x}:8')
+    try:
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    car = os.path.join(RUNS, w84_tag() + '_1', 'SWOS', 'W84A.CAR')
+    if not check(ok and os.path.exists(car), f'season 1 (the crossed save): {msg[:300]}', errs):
+        return None, None
+    lines = open(os.path.join(RUNS, w84_tag() + '_1', 'session.log'), errors='replace').read().splitlines()
+    cl = [struct.unpack('<HHh', bytes.fromhex(ln.split()[2])) for ln in lines
+          if ln.startswith(f'HEX o4/{at("S7_CLOG"):x} ') and len(ln.split()) > 2]
+    cross = [c for c in cl if c[1]]
+    if not check(bool(cross) and cross[-1][0] & 0xFF == 102 and cross[-1][1] & 0xFF == 144,
+                 f'season 1 did not cross 102 -> 144: S7_CLOG {[(hex(a), hex(b)) for a, b, _ in cl[-3:]]}', errs):
+        return None, None
+    return car, cross[-1][0]
+
+
+@scenario
+def world_s7cross_newafter():
+    """S7 (4.2, MC 13/11): a crossed career saved and loaded, then a new one in the same session (s7newcareer)"""
+    return s7newcareer(True)
+
+
+@scenario
+def world_s7cross_newnoload():
+    """S7 (4.2, MC 13/11): a career crossed in this session (no load), ABBANDONA, a new one (s7newcareer)"""
+    return s7newcareer(False)
 
 
 @scenario

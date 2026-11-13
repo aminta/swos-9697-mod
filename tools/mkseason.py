@@ -924,6 +924,20 @@ class Pack:
             out.append(dv)
         return out
 
+    def s7_direct(self):
+        """S7 (Shaved 13/11, s7-swap-plan.md piece 1): the direct crossings B1 zeroed - [(struct file, local division,
+        1 up / 0 down, count)] for the swap builder (gplay.c S7_DIR); [] for an unshaped pack."""
+        if not getattr(self, 'shaped', False):
+            return []
+        divs, out = self.divisions(), []
+        for f in sorted({self.div_key(d)[0] for d in range(len(divs))}, key=lambda f: min(self.struct_divs(f))):
+            for loc, (d, dv) in enumerate(zip(self.struct_divs(f), self.struct_divisions(f))):
+                for up, k in ((1, 'promoted'), (0, 'relegated')):
+                    n = int(divs[d].get(k) or 0)
+                    if n and not dv.get(k):
+                        out.append((f, loc, up, n))
+        return out
+
     # --- TEAM files --------------------------------------------------------------------------------------------------
     def team_files(self):
         out = {}

@@ -75,4 +75,10 @@ int32_t sreg_load(const uint8_t *in, int32_t len)
     return SREG_LAST = r;
 }
 
+int32_t sreg_get(void)                 /* S7 (s7swap.c, the season-end builder): 1 = REG holds this career's registry */
+{
+    if (!built) sreg_build();                           /* (another world's career: in_world 0, nothing built) */
+    return built;
+}
+
 void sreg_new(void) { built = 0; SREG_LAST = 0; SREG_FLAGS = 0; }     /* a new career: built from the spec at its first save */

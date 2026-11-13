@@ -27014,7 +27014,8 @@ def world_gplay_poule(force='1', team='EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA'):
                                             'W8485_NOSACK', 'W8485_HEX', 'W8485_ONE')}
     os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+',
                       W8485_NOSACK='1', W8485_HEX=f'{log_at:x}:{log_n},{st_at:x}:{st_n},' + ','.join(
-                          f'{a:x}:{4 if i == 0 else 106 if i == 4 else 2}' for i, a in enumerate(eu)), W8485_ONE='1')
+                          f'{a:x}:{4 if i == 0 else 106 if i == 4 else 2}' for i, a in enumerate(eu))
+                      + (f",{int(os.environ['GPLAY_EXT'], 16):x}:68" if os.environ.get('GPLAY_EXT') else ''), W8485_ONE='1')
     try:
         ok, msg = world8485()
     finally:
@@ -27026,6 +27027,15 @@ def world_gplay_poule(force='1', team='EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA'):
     lines = open(os.path.join(RUNS, w84_tag() + '_1', 'session.log'), errors='replace').read().splitlines()
     errs = []
     check(ok, msg, errs)
+    if os.environ.get('GPLAY_EXT'):                                     # (S7 shaped builds, GP_S7=1: gplay.py's
+        xa = int(os.environ['GPLAY_EXT'], 16)                             # 'S7 GP_EXT obj2+..' build line; the
+        xs = [bytes.fromhex(ln.split()[2]) for ln in lines if ln.startswith(f'HEX {xa:x} ')]   # season end's list)
+        for b in xs:
+            ents = [x for x in (struct.unpack_from('<HHBB', b, 4 + 8 * k) for k in range(8)) if x[1]]   # (n: this
+            # country's - the next country's gp_season resets it, so the entries left behind are printed too)
+            print(f"  GP_EXT n {b[0]} full {b[1]}: " + ', '.join(f'glob {g} team {t:#06x} entry {e} '
+                                                             f"{'winner' if o == 0 else 'loser'}" for g, t, e, o in ents))
+        check(not xs or xs[-1][1] == 0, f'GP_EXT full: {xs[-1][:2].hex() if xs else ""}', errs)   # (never logged: stayed 0)
     sts = [bytes.fromhex(ln.split()[2]) for ln in lines if ln.startswith(f'HEX {st_at:x} ')]
     sts = [b for b in sts if b[:2] == b'GK']
     if not sts:

@@ -66,6 +66,12 @@ new rule. If a rule seems wrong for a case, ask the regia session; don't silentl
     then takes the fewest same-country pairs a legal field allows ('fewest', per region), nothing more. Everything else
     (Elite league stage, CAF, CONMEBOL, OFC, UEFA) refuses. CONMEBOL's rule for clubs coming from the qualifying round
     is a fixed class, not a relaxation. Sources and article numbers: internal/handoff/nota-draw-rules.md.
+14c. **S7 crossings: Serie D groups by area, an approximation** (Davide via Regia, 2026-11-13). The LND recomposes the
+    Serie D groups every year; the mod does not. A club relegated from Serie C goes into the Serie D group of its
+    clubs.csv area (else the nearest group with room), taking the place of a club promoted from that group, so every
+    group keeps its size; a promoted club takes the Serie C group by area the same way. Direct relegations first, then
+    play-out losers. Not exact: declared in the release notes (EN + IT) and in "Rebuilt exactly" as approximated.
+    Unequal counts or a bad snapshot = the season's crossings refused and logged (S7_LOG), never guessed.
 
 ## Tests
 15. Result-dependent cases are **forced** (pokes / *_FORCE / CONTI_GPLACE ...), never re-run hoping. Test switches

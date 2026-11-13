@@ -58,44 +58,157 @@ def read_state(L):
     return q, maps
 
 
-def run_season(L, maps, queue, relegated):
-    plant(L, maps, queue)
+S7_FLAGS = ['-DGP_S7=1', '-DS7_FA=102', '-DS7_FB=144', '-DS7_DIRS={1,2,3,4}', '-DGP_DATA_SECTION=', '-DSS_NB=1',
+            '-DGP_FORCE=0', '-DGP_SPST=0', '-DGP_SPGRP=0', '-DGP_SPPRE=0', '-DGP_SPMAGIC=0']
+NONE = 0xFFFF
+POOL_FIRST = 100                                     # (the stand-in registry's pool idents: 100, 101, 102)
+
+
+class Reg:
+    """A stand-in S7 registry: occupant[row] = the ident playing at word FILE | row << 8; ri_pool decides, we apply."""
+    def __init__(self, occ):
+        self.occ = list(occ)
+        self.cb = ctypes.CFUNCTYPE(ctypes.c_uint32, ctypes.c_uint32)
+        self.ident = self.cb(lambda w: self.occ[w >> 8] if (w & 0xFF) == FILE and (w >> 8) < len(self.occ) else NONE)
+        self.poolk = self.cb(lambda i: i - POOL_FIRST if POOL_FIRST <= i < POOL_FIRST + POOL else NONE)
+        self.home = self.cb(lambda w: w)             # (HOME: not used by ri_pool's S7 branch)
+
+
+def s7_lib(tag='s7'):
+    prev = cd.FLAGS
+    cd.FLAGS = S7_FLAGS
+    try:
+        d = tempfile.mkdtemp(prefix='ris7')
+        return cd._lib(d, open(os.path.join(cd.TOOLS, 'gplay.c')).read(), 1, tag)
+    finally:
+        cd.FLAGS = prev
+
+
+def s7_hooks(L, reg):
+    if os.environ.get('RIX_MUTANT_NOIDENT'):         # (control of the test: the hook unset = today's slot-keyed ri path)
+        reg.ident = reg.cb(lambda w: NONE)
+    for name, fn in (('GP_IDENT', reg.ident), ('GP_POOLK', reg.poolk), ('GP_HOME', reg.home)):
+        ctypes.c_void_p.in_dll(L, name).value = ctypes.cast(fn, ctypes.c_void_p).value
+
+
+def s7_season(L, reg, relegated, queue=None, qn=None):
+    """One season end: ri_season with the registry stand-in; returns (moves [(row, out, in)], queue). The stand-in registry
+    applies the moves (what s7_season does): the row's occupant = the incoming ident."""
+    RF = 8
+    if queue is not None:
+        plant(L, [], queue)
     t = ctypes.create_string_buffer(ri_table(), 256)
     slt = (ctypes.c_int8 * 2400)()
     copy = (ctypes.c_int8 * 2400)()
-    for s in relegated:
-        copy[BASE_G + s] = 1                         # relegated from the lowest level (division 5 -> 6)
+    for r in relegated:
+        copy[BASE_G + r] = 1
     ctypes.c_int32.in_dll(L, 'RI_MGR').value = 99999
     L.ri_season.argtypes = [ctypes.c_void_p] * 3 + [ctypes.c_int, ctypes.c_void_p]
     L.ri_season(ctypes.addressof(t), ctypes.addressof(slt), ctypes.addressof(copy), WORLD, None)
-    return read_state(L)
+    n = ctypes.c_int.in_dll(L, 'RI_NMOVES').value
+    mv = [tuple((ctypes.c_uint16 * 3).in_dll(L, 'RI_MOVES')[0:0]) for _ in range(0)]
+    arr = (ctypes.c_uint16 * (64 * 3)).in_dll(L, 'RI_MOVES')
+    mv = [(arr[3 * k], arr[3 * k + 1], arr[3 * k + 2]) for k in range(n)]
+    for row, out, inn in mv:
+        reg.occ[row] = inn
+    q, _maps = read_state(L)
+    return mv, q
+
+
+def read_raw(L):
+    RF = 8
+    return bytes((ctypes.c_uint8 * (RF + RP + 2 * RQT + 2 * RP * RO + 2 * RMT)).in_dll(L, 'RI_STATE'))
+
+
+def write_raw(L, raw):
+    ctypes.memmove(ctypes.addressof((ctypes.c_uint8 * len(raw)).in_dll(L, 'RI_STATE')), raw, len(raw))
+
+
+def s7_checks(L, reg, q, universe, errs, tag):
+    """The invariants: every ident of the universe exactly once across the rows + the queue; maps[] untouched (all 0);
+    RI_SWAPPED never set; RI_S7_BAD 0."""
+    allv = reg.occ + q
+    if sorted(allv) != sorted(universe):
+        dup = sorted({x for x in allv if allv.count(x) > 1})
+        errs.append(f'{tag}: rows {reg.occ} + queue {q}: duplicates {dup}, missing {sorted(set(universe) - set(allv))}')
+    _q, maps = read_state(L)
+    if any(maps):
+        errs.append(f'{tag}: maps[] written {maps}')
+    if ctypes.c_int.in_dll(L, 'RI_S7_BAD').value:
+        errs.append(f'{tag}: RI_S7_BAD {ctypes.c_int.in_dll(L, "RI_S7_BAD").value}')
+    sw = bytes((ctypes.c_uint8 * (8 * (RIS // 8))).in_dll(L, 'RI_SWAPPED'))
+    if any(sw):
+        errs.append(f'{tag}: RI_SWAPPED set')
 
 
 def test_ripool_cross_queue():
-    import tempfile as tf
-    d = tf.mkdtemp(prefix='ricross')
-    gsrc = open(os.path.join(cd.TOOLS, 'gplay.c')).read()
-    L = cd._lib(d, gsrc, 1, 'ri')
-    X = 7                                            # the identity (file record 7: not slot 0's own) the S7 swap moved away
-    # slot 0 holds X (map word X + 1); slots 1..3 their own; the queue: 3 pool identities (256 + k)
-    # control of the control: X's slot NOT relegated (slot 1 is): nothing of X reaches the queue, the invariant holds
-    q0, m0 = run_season(L, [X + 1, 0, 0, 0], [RIS + 0, RIS + 1, RIS + 2], [1])
-    ids0 = [(m - 1) if m else i for i, m in enumerate(m0)]
-    if X in q0 or len(set(ids0)) != len(ids0) or set(ids0) & set(q0):
-        return False, f'the invariant check itself fails on a clean season: queue {q0}, slots {ids0}'
-    # slot 0 holds X (map word X + 1); slots 1..3 their own; the queue: 3 pool identities (256 + k); slot 0 relegated
-    q, maps = run_season(L, [X + 1, 0, 0, 0], [RIS + 0, RIS + 1, RIS + 2], [0])
-    left = {X}                                       # identities the S7 swap moved to the other file
+    """MC 13/11 rulings (s7-ri-fix.md "Changes"): S7 builds, the REGISTRY decides, maps[] unused. (b) oracle: no ident twice
+    across the rows + the queue. gplay.c built natively with GP_S7=1, a stand-in registry through GP_IDENT / GP_POOLK, a
+    planted table (4 slots) + queue of the pool idents. Cases: 1 a native relegated (row 0); 2 a native on another row
+    (the occupants permuted: ri only reads the occupant's ident); 3 a foreign club (an ident of the other file) relegated;
+    a pool club relegated; several rows at once; 5 seasons with a save / load of RI_STATE in the middle, a native out and
+    back into another row."""
+    L = s7_lib()
     errs = []
-    if left & set(q):
-        errs.append(f'identity {sorted(left & set(q))} left by S7 is in the queue {q}')
-    ids = [(m - 1) if m else i for i, m in enumerate(maps)]
-    if len(set(ids)) != len(ids):
-        errs.append(f'an identity on two slots: {ids}')
-    if set(ids) & set(q):
-        errs.append(f'in the queue AND on a slot: {sorted(set(ids) & set(q))} (slots {ids}, queue {q})')
-    ok_swap = maps[0] != X + 1 and maps[0] != 0 and len(q) == POOL        # (the swap ran: slot 0 took the queue head)
-    return not errs, '; '.join(errs) or f'swap ran ({ok_swap}); queue {q}, slots {ids}: no left-by-S7 identity queued, no duplicate'
+    natives = [10, 11, 12, 13]                      # idents of the file's 4 rows; foreign = 50 (a 102 club)
+    pool = [100, 101, 102]
+    universe = natives + pool
+    # 1 + 2: a permuted native occupancy, row 0 relegated: the occupant (13) out, the head (100) in
+    reg = Reg([13, 11, 12, 10])
+    s7_hooks(L, reg)
+    mv, q = s7_season(L, reg, [0], queue=pool)
+    if mv != [(0, 13, 100)] or q != [101, 102, 13]:
+        errs.append(f'case 1/2: moves {mv}, queue {q} (want [(0, 13, 100)] / [101, 102, 13])')
+    s7_checks(L, reg, q, universe, errs, 'case 1/2')
+    # 3: a foreign club (50) on row 2 relegated; a native sits away (its ident 12 is in the queue: crossed out earlier)
+    reg = Reg([10, 11, 50, 13])
+    s7_hooks(L, reg)
+    mv, q = s7_season(L, reg, [2], queue=[101, 102, 12])
+    uni3 = [10, 11, 50, 13, 101, 102, 12]
+    if mv != [(2, 50, 101)] or q != [102, 12, 50]:
+        errs.append(f'case 3: moves {mv}, queue {q}')
+    s7_checks(L, reg, q, uni3, errs, 'case 3')
+    # a pool club on a row relegated, two rows at once
+    reg = Reg([100, 11, 101, 13])
+    s7_hooks(L, reg)
+    mv, q = s7_season(L, reg, [0, 2], queue=[102, 10, 12])
+    if mv != [(0, 100, 102), (2, 101, 10)] or q != [12, 100, 101]:
+        errs.append(f'two rows: moves {mv}, queue {q}')
+    s7_checks(L, reg, q, [100, 11, 101, 13, 102, 10, 12], errs, 'two rows')
+    # a row whose occupant the registry does not know: the club stays, RI_S7_BAD counts (control of the checks)
+    reg = Reg([10, NONE, 12, 13])
+    s7_hooks(L, reg)
+    before = ctypes.c_int.in_dll(L, 'RI_S7_BAD').value
+    mv, q = s7_season(L, reg, [1], queue=pool)
+    if mv or ctypes.c_int.in_dll(L, 'RI_S7_BAD').value != before + 1:
+        errs.append(f'unknown occupant: moves {mv}, RI_S7_BAD {ctypes.c_int.in_dll(L, "RI_S7_BAD").value}')
+    ctypes.c_int.in_dll(L, 'RI_S7_BAD').value = 0
+    # 5 seasons, RI_STATE saved and reloaded between seasons 2 and 3; native 10 goes out in season 1 and must be back by 4
+    reg = Reg([10, 11, 12, 13])
+    s7_hooks(L, reg)
+    mv, q = s7_season(L, reg, [0], queue=pool)       # 10 out
+    s7_checks(L, reg, q, universe, errs, 's1')
+    mv, q = s7_season(L, reg, [1])
+    s7_checks(L, reg, q, universe, errs, 's2')
+    saved, occ = read_raw(L), list(reg.occ)          # (the career is saved here: RI_STATE + the registry)
+    mv3, q3 = s7_season(L, reg, [2])
+    s7_checks(L, reg, q3, universe, errs, 's3')
+    occ3 = list(reg.occ)
+    write_raw(L, saved)                              # a load: the same state again; season 3 replayed must be the same
+    reg.occ = list(occ)
+    mv3b, q3b = s7_season(L, reg, [2])
+    if (mv3b, q3b, reg.occ) != (mv3, q3, occ3):
+        errs.append(f'save/load in the middle: replay {mv3b} {q3b} {reg.occ} != {mv3} {q3} {occ3}')
+    mv, q = s7_season(L, reg, [3])
+    s7_checks(L, reg, q, universe, errs, 's4')
+    if reg.occ[3] != 10:                             # the native out in season 1 is the queue head in season 4: back, on ANOTHER row
+        errs.append(f'native 10 should be back on row 3 after season 4: rows {reg.occ}, queue {q}')
+    mv, q = s7_season(L, reg, [0])
+    s7_checks(L, reg, q, universe, errs, 's5')
+    if 10 not in reg.occ + q:
+        errs.append('the native 10 vanished')
+    return not errs, '; '.join(errs[:6]) or ('S7 ri_pool: the occupant out / the head in, logged; no ident twice across rows + queue in '
+                                             'cases 1/2/3, two rows, 5 seasons with a save/load; maps[] untouched, RI_SWAPPED never set')
 
 
 # ---------------------------------------------------------------------------------------------------------------------

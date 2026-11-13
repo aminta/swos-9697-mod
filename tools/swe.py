@@ -55,7 +55,8 @@ MAGIC = b'SWOS-ENG'
 VERSION = 3                    # (swe.c SWE_VERSION; 2 = step W, the registry; 3 = W-modes M2, the pickers' worlds)
 CODE_AT = 0x40
 ARENA = 0x8000                 # (swe.c SWE_ARENA)
-SWC1_SIZE = 32                 # engine P: the career state item (swe.c SWC1: header 20 B + sections; grows by version)
+SWC1_BASE = SWC1_SIZE = 32     # engine P: the career state item (swe.c SWC1: header 20 B + sections; grows by version)
+SWEFILE = False                # 4.2: the engine's file layer linked (swefile.py, obj4+swreg.SWEFILE_AT): a consumer sets it
 SRC = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'swe.c')
 LABELS = {}
 
@@ -256,6 +257,21 @@ def imports():
     return out, at
 
 
+def cstart_site(p):
+    """obj2 offset of the career menu's NEW CAREER on-select pointer (-> ChooseTeamAndStartCareer: call
+    SelectTeamToManage; cmp [A0], 0; jz; call InitCareer; mov [A6], contestMenu; jmp ActivateMenu), the original
+    exe's fixup; one only (orig IT 0xb4a32 -> obj1 0x23f4d)"""
+    import re
+    d1 = p.le.obj_bytes(1)
+    pat = re.compile(rb'\xe8.{4}\x83\x3d.{4}\x00(?:\x0f\x84.{4}|\x74.)\xe8.{4}\xc7\x05.{8}\xe9', re.S)
+    fx = [f for f in p.le.fixups() if f[0] == 2 and f[3] == 1 and f[4] is not None]
+    hits = sorted({f[4] for f in fx if pat.match(d1, f[4])})
+    assert len(hits) == 1, ('swe: ChooseTeamAndStartCareer not found once', [hex(h) for h in hits])
+    sites = [f[1] for f in fx if f[4] == hits[0]]
+    assert len(sites) == 1, ('swe: NEW CAREER on-select pointer not found once', [hex(x) for x in sites])
+    return sites[0]
+
+
 def patch(p):
     """links swe.c into obj4 (after obj3's vsize / base are final), the world registry (swreg.py) and the picker's
     trampoline; returns the code's end"""
@@ -289,23 +305,36 @@ def patch(p):
     if careerworld.SITES.get('slt'):                # engine P: the career's world byte, SWC1's header
         so, soff = careerworld.SITES['slt']
         ext['SWE_CWB'] = (so, soff + careerworld.WORLD_BYTE)
+    import benchx
+    if 'TRAIN' in benchx.INFO:                      # 4.2 kits: swe_match_w27's training-game test (g_trainingGame)
+        ext['SWE_TRAIN'] = benchx.INFO['TRAIN']
     if careerworld.SITES.get('season') is not None:     # engine P 5: the season (the game's seasonPlaying byte)
         ext['SWE_SEASON'] = (2, careerworld.SITES['season'])
     imp, imp_size = imports()                       # engine P 3: the load-only items' slots / found bytes
     if imp:
         import trailer
         ext['SWE_ENF'] = (1, trailer.LABELS['EN_FOUND'][1] + trailer.INFO['EN_NS'])
-    flags = (('-DNS',) if ns else ()) + (('-DSTFM',) if 'SWE_STFM' in ext else ()) + (('-DNAT',) if 'CW_PLNAT' in ext else ()) + (('-DMB',) if 'MB_STR' in ext else ()) + (('-DOMM',) if 'MB_OMM' in ext else ()) + (('-DFNAT',) if 'CW_FNAT' in ext else ()) + (('-DAV',) if 'SWE_PREPICK' in ext else ()) + (('-DCWB',) if 'SWE_CWB' in ext else ()) + (('-DSEAS',) if 'SWE_SEASON' in ext else ()) + (f'-DSWC1_SIZE={SWC1_SIZE}',)
+    flags = (('-DNS',) if ns else ()) + (('-DSTFM',) if 'SWE_STFM' in ext else ()) + (('-DNAT',) if 'CW_PLNAT' in ext else ()) + (('-DMB',) if 'MB_STR' in ext else ()) + (('-DOMM',) if 'MB_OMM' in ext else ()) + (('-DFNAT',) if 'CW_FNAT' in ext else ()) + (('-DAV',) if 'SWE_PREPICK' in ext else ()) + (('-DCWB',) if 'SWE_CWB' in ext else ()) + (('-DSEAS',) if 'SWE_SEASON' in ext else ()) + (('-DTRAIN',) if 'SWE_TRAIN' in ext else ()) + (f'-DSWC1_SIZE={SWC1_SIZE}',) + (('-DSWC1_BSS',) if SWC1_SIZE > SWC1_BASE else ())
+    import s7swap
+    if s7swap.on():                                 # 4.2 S7: s7swap.c's ORIG buffers (the two league files as read)
+        flags += (f'-DS7_ORIG_SZ={swreg.S7_ORIG_SZ}',)
+    if os.environ.get('SWEFILE_TEST') == '1':         # 4.2: the file layer's self-test buffers + SWEF_HOOK (swefile.py)
+        flags += ('-DSWEFILE_TEST',)
     if imp:
         flags += (f'-DIMP_N={len(imp)}', f'-DSWE_IMP_SIZE={max(imp_size, 4)}') + tuple(
             d for n, k, off in imp for d in (f'-DIMPK_{n}={k}',) + ((f'-DIMP_{n}={off}',) if off is not None else ()))
     syms, end, bss = cobj.link(p, cobj.compile_c(SRC, flags), CODE_AT, (4, room), externs=ext, limit=swreg.REG_AT,
                                text_obj=4)
     arena = syms['SWE_ARENA_AT']
+    import swefile
+    if swefile.on():                                # 4.2: the file layer's own range (page 18; dormant: nothing)
+        swefile.patch(p, syms)
     import engine                                   # engine P: SWC1 and its hooks (trailer.late binds them)
     engine.ITEM_AT['SWC1'] = syms['SWC1']
     engine.CALL_AT['swe_st_save'] = syms['swe_st_save']
     engine.CALL_AT['swe_st_load'] = syms['swe_st_load']
+    if 'swe_st_new' in syms:                        # (SWC1_BSS: a registry shape; patch.py's after_new)
+        engine.CALL_AT['swe_st_new'] = syms['swe_st_new']
     for n, k, off in imp:                           # (a load-only item with no old place: its SWE_IMP slot)
         if off is not None:
             engine.ITEM_AT[n] = (syms['SWE_IMP'][0], syms['SWE_IMP'][1] + off)
@@ -346,6 +375,12 @@ def patch(p):
         if p.rel_target(1, cs + 1):
             p.remove(1, cs + 1)
         p.add_rel(1, cs + 1, *syms[tr])
+    if 'swe_cstart' in syms:                        # (SWC1_BSS, a registry shape: NEW CAREER first resets SWC1's world
+        cs = cstart_site(p)                         # and the registry - MC 13/11, S7 newafter; dormant: untouched)
+        prev = p.target(2, cs)
+        p.retarget(2, cs, *syms['swe_cstart'])
+        p.put(2, cs, struct.pack('<I', syms['swe_cstart'][1]))
+        cobj.add_ptr(p, syms['SWE_CSTART'][1], prev[0], prev[1], 4)
     p.set_vsize(4, room + bss, bss=bss)
     p.set_base_after(4)
     LABELS.clear()

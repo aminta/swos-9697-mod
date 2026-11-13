@@ -62,6 +62,10 @@ from strpool import StrPool
 
 ROOT = os.path.join(os.path.dirname(__file__), '..')
 ITALY = 20
+SLOW = False               # 4.2 MATCH SPEED (slow.py) PARKED (Davide 13/11 via Regia, MC ok): judder on Android - the
+                           # doubled frames show, and SPEED.CFG keeps a level across runs. Off in every build: no row,
+                           # no GameLoop hook, SPEED.CFG never read (slow.assert_off). A module constant on purpose: no
+                           # env var can turn it on in a release. PERS2 imports it (one switch for both builds).
 ITALY_BASE = 1850          # free global numbers: ~1794..1999
 OBJ1_NEW_VSIZE = 0xa6000     # + five added pages (lepatch.add_object_page)
 OBJ3_ARENA = 0x20000         # 4.0.6 obj3 (mod code after obj2, CONVENTIONS 23): its file pages (mod pages, then the C
@@ -83,6 +87,9 @@ CAREER_CAVE = 0xa6000        # 6th + 7th added pages (3.1: two; three with sever
 CAREER_DATA = 0xa8000        # 8th + 9th added pages (same builds; after the cave): the career packs' structs (mkseason)
 HIST2_PAGE = 0x1000          # 3.2: one more page after the others (0xa6000, or 0xaa000 with a world): tourney packs'
                              # contests and the ESCI fix (historic.patch; the world cave was nearly full)
+ARG_FROZEN = 0xa5fe0          # 4.2 (MC 13/11): the arg cave is closed at its 4.0 end (32 B left, no growth since 4.0):
+                              # nothing new goes there - new obj1 code moves out to obj4's OBJ1MV band (swreg.OBJ1MV_AT),
+                              # as obj2's page freeze; every obj1 claim updates internal/handoff/obj1-room.md
 ARG_LOAD_HOOK = True
 
 LEAGUES_OLD = bytes.fromhex('3c00144020150000000202033512')
@@ -116,7 +123,6 @@ SHORT = {sacups.LIB_ID: b'COPA LIB.', sacups.SUP_ID: b'SUPERCOPA', sacups.CON_ID
 SHORT_INT = {'it': b'COPPA INTERC.', 'en': b'INTERC. CUP', 'fr': b'COUPE INTERC.', 'de': None}   # WELTPOKAL is short
 
 
-SLOW = False                    # 4.2 MATCH SPEED (slow.py): off in every build (Davide 13/11); OBJ4_PAGES stays 13
 
 
 def short_names(p, area, lang):
@@ -200,6 +206,8 @@ def cave_pages():
 
 
 LT_SPACE = []
+OBJ1MV_ON = [False]                             # 4.2: modules moved out of obj1 to obj4 swreg.OBJ1MV_AT (MC 13/11)
+OBJ1MV_NEXT = [None]                            # (the band's next free offset)
 LR_ROOM = []                                    # 4.0.5 lpreal: [start, end] after simdraw on the coefficients page
 LG_ROOM = []                                    # 4.0.5 lgreal: [start, end] after longtable / mainbtn
 
@@ -267,9 +275,13 @@ def patch_exe(src, dst, remap, lang='it'):
         engine.after_load('df_load')             # load / a new career as cpucards)
         engine.after_new('df_new')
     import swe
+    import sreg                                  # 4.2 N7: SWC1 + the club registry's section 'IT' (0 dormant: no
+    swe.SWC1_SIZE = swe.SWC1_BASE + sreg.section_bytes()   # registry shape, 32 B as before; the trailer's room sums it)
     engine.save_item('SWC1', swe.SWC1_SIZE, grow=True)   # engine P: the engine's state (swe.c SWC1: a versioned header,
     engine.before_save('swe_st_save')            # then sections; older, shorter versions load - grow)
     engine.after_load('swe_st_load')
+    if swe.SWC1_SIZE > swe.SWC1_BASE:            # (MC 13/11: a registry shape - swe.c SWC1_BSS - writes the new
+        engine.after_new('swe_st_new')           # career's world byte at once; dormant: not registered, same bytes)
     if os.environ.get('EN_RETIRE_PROBE'):        # (test builds only: a load-only item, hosttest test_swc1)
         engine.retire_item('RPRB', 4)
     import finance
@@ -368,12 +380,26 @@ def patch_exe(src, dst, remap, lang='it'):
     import swreg
     swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, swreg.BOX_END // 0x1000)   # 4.2 shirtbox: se_unsh at the 13th page's top
     swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, swreg.SLOW_END // 0x1000)   # 4.2 slow (MC 12/11, 23bis exception): page 13
+    swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, swreg.KITS_END // 0x1000)   # 4.2 kits (MC 12/11): page 16 + KEEPKIT's 17th
+    swe.SWEFILE = True                                 # (4.2 KEEPKIT.DAT, kits.py: the engine's file layer, page 18)
     if xtra_on:                                        # 4.2.y T3 PRIMAVERA (MC 12/11, 23bis): its own page, the 14th
                                                        # (the pages between stay zero)
         swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, swreg.T3_END // 0x1000)
     import difficulty
     if difficulty.on():                                # 42-diff: difficulty's 2 KB on page 15 (MC 12/11)
         swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, (swreg.DIFF_END + 0xFFF) // 0x1000)
+    import s7swap
+    if s7swap.on():                                    # 4.2 S7: s7_load reads the two league files (the file layer)
+        swe.SWEFILE = True
+    import swefile
+    if swefile.on():                                   # 4.2 file layer (MC 12/11): page 18, only when linked
+        swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, swefile.page_end() // 0x1000)
+    if s7swap.on():                                    # 4.2 S7 swap builder + the registry library (MC 13/11): pages 18-19,
+        swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, s7swap.page_end() // 0x1000)   # only with a registry shape
+    OBJ1MV_ON[0] = bool(mkseason.worlds())             # 4.2 OBJ1MV (MC 13/11): every build with worlds (shirtedit +
+    if OBJ1MV_ON[0]:                                   # instcheck; the SEASON WINNERS page when fmtpage has it)
+        swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, (swreg.OBJ1MV_END + 0xFFF) // 0x1000)   # (its band's pages, out of obj1)
+    swe.OBJ4_PAGES = sreg.obj4_pages(swe.OBJ4_PAGES)   # (4.2 N7: + the old-save import's 12th page, SREG2_AT)
     if lr_tabs:                                        # (the career league's head-to-head block)
         engine.save_item('LR', lrank.LR_SIZE, world_only=True)
         import swreg                                   # 4.2: a groups stage's state (engine ST, sr_stled.c; A1's room)
@@ -526,9 +552,11 @@ def patch_exe(src, dst, remap, lang='it'):
                               globnum.exe_split())               # (S7-G: a league over two files, else None)
         end = benchnum.patch(p, end, nasmcave, [w['n'] for w in mkseason.world_defs() if w['squad_numbers']])
         import shirtedit                          # 4.0.2: editable shirt numbers on the team screen (pins the team
-        end = shirtedit.patch(p, end)             # through benchnum's hooks)
-        import instcheck
-        end = instcheck.place(p, end, lang)       # 4.0.1: a world's missing files -> a message, not DOS
+        import instcheck                          # through benchnum's hooks); 4.0.1 instcheck: a world's missing files
+        assert OBJ1MV_ON[0], 'OBJ1MV: worlds without the band (patch.py OBJ1MV_ON)'   # -> a message, not DOS. 4.2
+        cc = shirtedit.patch(p, swreg.OBJ1MV_CC, obj=4)                   # (MC 13/11): both in obj4's OBJ1MV band
+        cc = instcheck.place(p, cc, lang, obj=4)                          # (the career cave overflowed with S7)
+        print(f'exe: OBJ1MV career-cave modules obj4+{swreg.OBJ1MV_CC:#x}..{cc:#x} ({swreg.OBJ1MV_END - cc} B left to {swreg.OBJ1MV_END:#x})')
         import fillfix
         end = fillfix.patch(p, end, nasmcave)     # 4.0.5: the menu texture reloaded after a job-offer letter
         assert end <= CAREER_CAVE + mkseason.CAREER_CAVE_SIZE, hex(end)
@@ -612,7 +640,12 @@ def patch_exe(src, dst, remap, lang='it'):
         careerworld.BSS_SIZE += conti.BSS
     assert cave <= WORLD_CAVE, hex(cave)
     print(f'exe: caves: world end {world:#x} (limit {NZ_CAVE:#x}), arg end {arg_end:#x} (limit {OBJ1_NEW_VSIZE:#x})')
-    world = cafcups.intl_list(p, caf, world)
+    intl_x = bool(xtra_pg and LT_SPACE)          # 4.2 OBJ1MV step 4 (MC 13/11): the intl contests list (224 B) on the
+    if not intl_x:                               # extra pages after supercup, so the world cave keeps >= 512 B (obj1-room.md)
+        world = cafcups.intl_list(p, caf, world)
+    print(f'exe: world cave end {world:#x}: {NZ_CAVE - world} B left (to {NZ_CAVE:#x})')
+    assert arg_end <= ARG_FROZEN, (f'arg cave frozen at {ARG_FROZEN:#x} (MC 13/11): new obj1 code goes to obj4 OBJ1MV '
+                                   f'(swreg.OBJ1MV_AT) or a ledgered region (internal/handoff/obj1-room.md)', hex(arg_end))
     num_bss = obj2_free + o2pages * p.le.page_size + (careerworld.BSS_SIZE if bigw else 0)
     if CAREER_END[0] is not None:                # 4.0.1: with worlds, in the career cave (the world cave is full)
         CAREER_END[0] = shirtnum.patch(p, (CAREER_END[0] + 3) & ~3, num_bss)
@@ -733,17 +766,24 @@ def patch_exe(src, dst, remap, lang='it'):
             gplay.link_reserve(p, ri)                            # (the reserves: gp_sack's tables)
         if bigtables.ON[0]:                                      # the .CAR's 2000 bytes <-> the moved tables,
             xe = bigtables.hooks(p, (xe + 15) & ~15)             # numbers 2000+ (after every finder of the tables)
-        if fmtpage.WN:                                           # the WINNERS page (fmtpage's VINCITORI entry; gplay's
-            import winners                                       # pages are full)
-            xe = winners.patch(p, xe, lang, careerworld.SITES)
+        if fmtpage.WN:                                           # the WINNERS page (fmtpage's VINCITORI entry): 4.2 in
+            import winners                                       # obj4's OBJ1MV band (MC 13/11: the extra pages full)
+            assert OBJ1MV_ON[0], 'winners: OBJ1MV band not given its obj4 pages (OBJ1MV_ON vs fmtpage wn=)'
+            OBJ1MV_NEXT[0] = winners.patch(p, swreg.OBJ1MV_AT, lang, careerworld.SITES)
+            print(f'exe: OBJ1MV winners obj4+{swreg.OBJ1MV_AT:#x}..{OBJ1MV_NEXT[0]:#x} ({swreg.OBJ1MV_CC - OBJ1MV_NEXT[0]} B left to OBJ1MV_CC {swreg.OBJ1MV_CC:#x})')
         w27s = [pk.world for pk in mkseason.packs() if pk.meta.get('id', '').startswith('world-2026-27-')] if worlds else []
         if w27s and not os.environ.get('QUIETEND_OFF'):  # (QUIETEND_OFF=1: a control build for the identical-results check)
             import quietend                              # 4.0.1: the other countries' competitions simulated unseen at
             xe = quietend.patch(p, (xe + 15) & ~15, min(w27s), lang)   # the season end + a progress line (World 2026-27)
         if sc_on:                                        # 4.0.5: the season end's cup winners / finalists (supercups)
             xe = supercup.patch(p, xe)
+        if intl_x:                                       # 4.2 OBJ1MV step 4: the intl contests list (dd + fixups)
+            xe = cafcups.intl_list(p, caf, (xe + 3) & ~3)
         assert xe <= xp + 0x1000 * xpg, hex(xe)
         print(f'exe: extra pages obj1+{xp:#x}..{xe:#x} (free to {xp + 0x1000 * xpg:#x}: {xp + 0x1000 * xpg - xe} B left)')
+        if LT_SPACE:                                     # 4.2 (MC 13/11): lgreal on the extra pages' tail, after supercup
+            LG_ROOM[:] = [(xe + 15) & ~15, xp + 0x1000 * xpg]   # (OBJ1MV freed them; gplay's tail stays gplay's: it grows
+                                                         # with the engine work, the real S7 pack left lgreal 4 B there)
     elif xtra_on:
         world = xtra.patch(p, world)
         import xbrowse
@@ -879,10 +919,11 @@ def patch_exe(src, dst, remap, lang='it'):
         cg_bss = 0
     import gkinj                                 # 4.0.6 (Davide): goalkeeper injuries after a match (an OPTIONS row,
     st_end = gkinj.patch(p, (st_end + 15) & ~15, lang)       # ON by default), the obj3 chain's end
-    if SLOW:                                     # (Davide 13/11: out of every build for now - no row, no sl_flip, no
-        import slow                              #  SPEED.CFG read or written; Shaved's switch, as on 42-int)
-        slow.patch(p, lang)                      # 4.2 EXPERIMENTAL (Davide 12/11): MATCH SPEED 100/90/80/70 % (an OPTIONS
-                                                 # row after gkinj's; GameLoop's @@flip_it; SPEED.CFG), obj4 page 13
+    import slow                                  # 4.2 EXPERIMENTAL (Davide 12/11): MATCH SPEED 100/90/80/70 % (an OPTIONS
+    if SLOW:                                     # row after gkinj's; GameLoop's @@flip_it; SPEED.CFG), obj4 page 13 -
+        slow.patch(p, lang)                      # PARKED 13/11 (SLOW = False): nothing of it linked, asserted
+    else:
+        slow.assert_off(p)
     import namefit                               # 4.2 names-fit (Marco (b) step 2): menu names cut by pixels, obj4 page 13
     namefit.patch(p)
     import difficulty                            # 42-diff: selectable difficulty + DRIBBLING (DIFF_TEST only for now)
@@ -981,9 +1022,21 @@ def patch_exe(src, dst, remap, lang='it'):
             assert swreg.ST_AT + swreg.ST_SIZE <= lrank.LR_AT, ('ST', hex(swreg.ST_AT), hex(lrank.LR_AT))
             p.put(4, swreg.ST_AT, bytes(swreg.ST_SIZE))
             engine.ITEM_AT['ST'] = (4, swreg.ST_AT)
+            assert swreg.ST_AT + swreg.ST_SIZE <= swreg.SREG_AT, ('ST / SREG', hex(swreg.ST_AT), hex(swreg.SREG_AT))
     assert not conti.LABELS.get('syms') or 'ct_place' in lrank.LABELS, ('4.2 P7: conti linked without ct_place (lrank\'s '
                                                      'band): every group draw would be refused')
+    import sreg                                  # 4.2 N7: the club registry (dormant without a shape: nothing linked)
+    sreg_end = sreg.patch(p, swe.LABELS)
+    if sreg_end is not None and s7swap.on():     # 4.2 S7: the season-end swap builder (s7swap.py; pg_fix's S7_PTR)
+        import gplay
+        import ripool
+        import swefile
+        s7swap.patch(p, swe.LABELS, sreg.LABELS, gplay.LABELS, pgroups.LABELS, swefile.LABELS, ripool.LABELS)
+    if sreg_end is not None:
+        assert sreg_end <= lrank.LR_AT, ('sreg past LR_AT', hex(sreg_end), hex(lrank.LR_AT))
     benchx.link_w27(p)                           # (4.0.6 step 2.5: the friendlies' long bench by SWE_W27)
+    import kits                                  # 4.2 K2 keepers + R1 referee (after swe: swe_match_w27)
+    kits.patch(p)
     tailzero.patch(p, tz_at, obj2_free + o2pages * p.le.page_size, (tail + 3) & ~3, nasmcave,   # (DOS/4GW: not zeroed;
                    0x1000 * OBJ3_PAGES, (cg_bss + 3) & ~3)                  # 4.0.6: obj3's tail too)
     o1n, o2n = p.le.obj(1).npages, p.le.obj(2).npages
@@ -993,6 +1046,7 @@ def patch_exe(src, dst, remap, lang='it'):
     p.add_flags(1, 0x2)            # writable: season end rewrites the SA cup team lists in the cave
     split.late(p)                                # split's after-stage routines (engine.after_stage)
     trailer.late(p)                              # the engine block's late addresses (RS_STATE ...)
+    s7swap.late(p)                               # 4.2 S7: WSITES + their resolved bytes (engine items bound now)
     import uefaname
     print(f'exe: UEFA cup name fixed in {uefaname.patch(p)} strings (the original exes: EUFA)')   # 4.1.2 (Marco)
     delta, shift = p.save(dst)

@@ -58,6 +58,8 @@ def test_ctplace_differential():
     x = tl.Exe()
     allsyms = json.load(open(os.path.join(tl.BUILD, 'ITALIAN.syms.json')))
     cs = allsyms['conti'].get('syms.CT_SDRAW') or allsyms['conti'].get('SYMS.CT_SDRAW')
+    if not cs:                                  # (an older build without ctdraw's CT_SDRAW, e.g. the old c/S1R: MC 12/11)
+        return True, f'SKIP: {tl.BUILD} has no CT_SDRAW (a build before ctdraw; set HT_LRANK_BUILD to a current one)'
     ptr = struct.unpack('<I', x.rd(x.base[cs[0]] + cs[1], 4))[0]
     bad = []
     if ptr != x.lin('ct_place'):

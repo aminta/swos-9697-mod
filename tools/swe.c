@@ -23,12 +23,24 @@ typedef unsigned int u32;
 #define M_FRIENDLY 1                    /* (swreg.py M_*) */
 #define M_CAREER 8
 
-u8 SWE_ARENA_AT[SWE_ARENA];
+u8 SWE_ARENA_AT[SWE_ARENA];             /* [0, sizeof(sr_registry)) = sreg.c's club registry (N7, SREG_REG; sreg.c
+                                           asserts it fits); any other user above it */
 u32 SWE_STATE;                          /* 0 = not initialised, 1 = swe_init ran */
 #define CSTACK_SYM SWE_CSTACK           /* 4.2 engine P2: the engine's C stack (the game's is 4 KB), outside the arena */
 #define CSTACK_IMPL
 #include "cstack.h"
 u8 SWE_CSTACK[CSTACK_SIZE] __attribute__((aligned(16)));
+#ifdef S7_ORIG_SZ                       /* 4.2 S7 (shaped builds only: s7swap.py): the two league files as read (s7swap.c
+                                           s7_load's ORIG buffers, swreg.S7_ORIG_SZ); release builds: no byte */
+u8 S7_ORIG[S7_ORIG_SZ] __attribute__((aligned(16)));
+#endif
+#ifdef SWEFILE_TEST                     /* SWEFILE_TEST=1 builds only: the file layer's self-test (swefile.c swef_selftest) -
+                                           its buffers here in the .bss (swefile.c has none), its entry put in SWEF_HOOK by
+                                           swefile.py; swe_sel_pre calls it once */
+u8 SWEF_BIG[1441792] __attribute__((aligned(16)));     /* 22 x 64 KB: one-call and chunked writes / reads */
+u8 SWEF_RB[65536] __attribute__((aligned(16)));
+void (*SWEF_HOOK)(void) __attribute__((section(".data"))) = 0;   /* (.data: a file dword for the fixup) */
+#endif
 extern const u8 SWE_REG[];              /* obj4+REG_AT: the manifest */
 u32 REG_PREV = 0xFFFFFFFF;              /* the namespace reg_enter left (WCUR), ~0 = none entered */
 u32 SEL_C254 = 0;                       /* competitionsTable[254] at the picker's entry */
@@ -458,6 +470,13 @@ void swe_stfm_guard(void)
 
 void swe_sel_pre(u32 mode)
 {
+#ifdef SWEFILE_TEST
+    if (SWEF_HOOK) {
+        void (*f)(void) = SWEF_HOOK;
+        SWEF_HOOK = 0;
+        f();
+    }
+#endif
     SEL_MODE = mode;
     u32 *c254 = (u32 *)rd32(SWE_REG + 12);
     SEL_C254 = *c254;
@@ -807,7 +826,12 @@ __attribute__((naked)) void swe_pre_load_tramp(void)
    save of an older, shorter version loads its bytes, the rest zeroed. No pointers, integers only (PLAN §3.4). */
 #define SWC1_VER 1
 #define SWC1_HDR 20                     /* u16 version, u16 world, u32 spec hash, u16 season, u16 flags, u64 seed */
+#ifdef SWC1_BSS                        /* (a registry's 'IT' - N7: past the code band's room, so .bss; en_reset (a
+                                           new career) or a load writes it before any use) */
+u8 SWC1[SWC1_SIZE];
+#else
 u8 SWC1[SWC1_SIZE] DATA = {0};
+#endif
 u32 SWC1_LOADED DATA = 0;               /* the last load's SWC1 version: 0 = a save from before P */
 #ifdef CWB
 extern u8 SWE_CWB[];                    /* careerworld: the career's world byte (someLeaguesTable[WORLD_BYTE]) */
@@ -822,11 +846,45 @@ static u32 cw_byte(void) { return SWE_CWB[0]; }
 static u32 cw_byte(void) { return 0; }
 #endif
 
+/* 4.2 kits (MC 12/11): 1 when the match being set up is World 2026-27's (SET_W[0]), for the yellow referee (kits.py);
+   cdecl, no side effects. 1. a career: its world byte; 2. a friendly / DIY (gameType 0 / 1, not a training game): the
+   contest's SWE_W27; 3. else (seasons, presets, competitions): the namespace in the tables, WCUR. Anything else, or a
+   build without namespaces: 0 = the game's black referee.
+   (cw_byte reads the mod's moved SLT - careerworld.SITES['slt'] of the patched exe -, not the original
+   someLeaguesTable: host tests take its address from this function's own cmp.) */
+#ifdef TRAIN
+extern u8 SWE_TRAIN[];                  /* the game's g_trainingGame (benchx) */
+#define TRAINING() (*(u16 *)SWE_TRAIN != 0)
+#else
+#define TRAINING() 0
+#endif
+u32 swe_match_w27(void)
+{
+#ifdef NS
+    u32 gt = *(u16 *)SWE_GTYPE;
+    u8 *wcur = (u8 *)rd32(SWE_REG + 8);
+    if (gt == GAME_TYPE_CAREER)
+        return cw_byte() == SET_W[0];
+    if (gt <= 1)
+        return !TRAINING() && SWE_W27 == 1;
+    return wcur && *wcur == SET_W[0];
+#else
+    return 0;
+#endif
+}
+
 #ifdef SEAS
 extern u8 SWE_SEASON[];                 /* the game's seasonPlaying (the year - 1900) */
 static u32 season(void) { return SWE_SEASON[0]; }
 #else
 static u32 season(void) { return 0; }
+#endif
+
+#ifdef SWC1_BSS                         /* (N7: a registry's 'IT' - swe.py sets SWC1_BSS only when sreg.section_bytes()
+                                           grows SWC1: a world with a registry shape, or SREG_FORCE. A dormant build
+                                           compiles none of it: its exe byte-identical to the build before N7) */
+static void it_save(void);
+static void it_load(void);
 #endif
 
 void swe_st_save(void)                  /* engine.before_save: the header as this build writes it (engine P 5: the
@@ -835,6 +893,9 @@ void swe_st_save(void)                  /* engine.before_save: the header as thi
     *(u16 *)SWC1 = SWC1_VER;
     *(u16 *)(SWC1 + 2) = (u16)cw_byte();
     *(u16 *)(SWC1 + 8) = (u16)season();
+#ifdef SWC1_BSS
+    it_save();
+#endif
 }
 
 /* SWC1's sections: u16 id, u16 length, the bytes; id 0 (or the item's end) ends them. */
@@ -871,6 +932,59 @@ u8 *swc1_add(u32 id, u32 len)           /* a new last section of len zero bytes,
     return p + 4;
 }
 
+#ifdef SWC1_BSS
+/* a section out, the ones after it moved down (a section whose size changed: written again at the end) */
+static void swc1_cut(u8 *sec)           /* sec = the section's bytes (swc1_find) */
+{
+    volatile u8 *d = sec - 4;           /* (volatile: no memmove call) */
+    u8 *s = sec + *(u16 *)(sec - 2), *e = SWC1 + SWC1_SIZE;
+    while (s < e)
+        *d++ = *s++;
+    while (d < e)
+        *d++ = 0;
+}
+
+/* N7 piece 3: the club registry's section 'IT' (tools/sreg.py: sreg.c at obj4+SREG_AT, linked for a world with a
+   registry shape only). SREG_FN: sreg_size, sreg_save, sreg_load, sreg_new, sreg_build; 0 = dormant - no 'IT'
+   written, none read (a save byte-identical to the build before). */
+#define SEC_IT 0x5449
+u32 SREG_FN[5] DATA = {0};
+typedef int (*sreg_size_t)(void);
+typedef int (*sreg_save_t)(u8 *out, int room, u32 season);
+typedef int (*sreg_load_t)(const u8 *in, int len);
+typedef void (*sreg_void_t)(void);
+
+static void it_save(void)
+{
+    if (!SREG_FN[0])
+        return;
+    int n = ((sreg_size_t)SREG_FN[0])();
+    u32 len;
+    u8 *d = swc1_find(SEC_IT, &len);   /* (no 'IT' yet - a new career, an older save - writes the registry as it is:
+                                           swe_st_new / it_load already started it from the spec; a reset here threw
+                                           a crossing before the first save away - Shaved 13/11, S7 newafter) */
+    if (d && (int)len != n) {           /* (another layout's section: out, written again) */
+        swc1_cut(d);
+        d = 0;
+    }
+    if (n > 0 && (d || (d = swc1_add(SEC_IT, (u32)n))))
+        ((sreg_save_t)SREG_FN[1])(d, n, season());
+}
+
+static void it_load(void)               /* 1 loaded; 0 absent / another layout, -1 corrupt: built from the spec (the
+                                           old-save import, piece 4, takes 0 over) */
+{
+    if (!SREG_FN[0])
+        return;
+    u32 len;
+    const u8 *d = swc1_find(SEC_IT, &len);
+    if (d)
+        ((sreg_load_t)SREG_FN[2])(d, (int)len);
+    else
+        ((sreg_void_t)SREG_FN[4])();
+}
+#endif
+
 /* Engine P 3: the load-only items (engine.retire_item, swe.py imports()). A save from before P carries a legacy item
    the engine now keeps in SWC1: the trailer reads it into its slot of SWE_IMP (or its old place), SWE_ENF[k] says it
    was in the save, and swe_import turns it into its SWC1 section. Each step that retires an item adds its import. */
@@ -903,4 +1017,41 @@ void swe_st_load(void)                  /* engine.after_load: the save's version
         swe_import();
     }
     *(u16 *)SWC1 = SWC1_VER;
+#ifdef SWC1_BSS
+    it_load();
+#endif
 }
+
+#ifdef SWC1_BSS
+void swe_st_new(void)                   /* engine.after_new, a registry-shaped build only (patch.py; the dormant build
+                                           compiles none of it): a new career's header carries its world byte at once.
+                                           swe_st_save / swe_st_load wrote it only at a save or an old save's load, so
+                                           a career never saved kept the header of before - 0 at boot, or a loaded
+                                           save's world - and sreg's in_world failed: no S7 at season 1's end (Shaved
+                                           13/11, world_s7cross_down / _up). The registry starts from the spec. */
+{
+    *(u16 *)(SWC1 + 2) = (u16)cw_byte();
+    if (SREG_FN[3])
+        ((sreg_void_t)SREG_FN[3])();
+}
+#endif
+
+#ifdef SWC1_BSS
+/* NEW CAREER (the career menu's on-select ChooseTeamAndStartCareer: SelectTeamToManage, then InitCareer) lands here
+   first (swe.py cstart_site, a registry-shaped build only): SWC1's world 0 and the registry dropped, so the new
+   career's picker and InitCareer loads never see a career loaded before it - its world and its crossings (Shaved 13/11,
+   world_s7cross_newafter: calls 4..7 on file 102 moved 9 of the old career's crossers). swe_st_new (after_new) then
+   opens the gate with the new career's world; a LOAD writes SWC1 + 'IT' itself. CONTINUE never comes here. */
+u32 SWE_CSTART DATA = 0;                /* what the on-select reached before (chained) */
+void swe_cstart_pre(void)
+{
+    *(u16 *)(SWC1 + 2) = 0;
+    if (SREG_FN[3])
+        ((sreg_void_t)SREG_FN[3])();
+}
+
+__attribute__((naked)) void swe_cstart(void)
+{
+    __asm__ volatile("pushal\n\tcall swe_cstart_pre\n\tpopal\n\tjmp *SWE_CSTART");
+}
+#endif

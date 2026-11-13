@@ -29,13 +29,26 @@ def _key(lg, it, f, i):
     return [po['key'] for po in lg['ko_playoffs'] if it.po_local(po)[0] == f][i]
 
 
+def _drop_tools():
+    """Drop the tools/ modules already imported (mkseason reads SEASON_PACKS at import and caches its packs: a test run
+    before this one under another SEASON_PACKS left them - the full suite's ko_external without dA_title, Integratore
+    12/11; the same class as test_ctcountry's 6efdcf4)."""
+    tools = os.path.realpath(os.path.dirname(os.path.dirname(HERE)))
+    for k, m in list(sys.modules.items()):
+        f = getattr(m, '__file__', None) or ''
+        if os.path.dirname(os.path.realpath(f)) == tools:
+            del sys.modules[k]
+
+
 def test_s7div():
     import test_globnum
     prev = os.environ.get('SEASON_PACKS')
+    _drop_tools()                               # (fresh imports under test_globnum's SEASON_PACKS, before and after)
     test_globnum._env()
     try:
         return _test()
     finally:
+        _drop_tools()
         if prev is None:
             os.environ.pop('SEASON_PACKS', None)
         else:
@@ -66,6 +79,9 @@ def _test():
     import mkseason
     out, bad = [], []
     it = next(pk for pk in mkseason.packs() if pk.world == 5 and pk.files.get('league', (0,))[0] == 102)
+    if 'dA_title' not in [po['key'] for po in it.league.get('ko_playoffs') or []]:
+        return True, ('SKIP: the data has no dA_title (a pre-10/11 snapshot, e.g. world5tm-h2): '
+                      f"HT_GLOB_WORLD={os.environ.get('HT_GLOB_WORLD') or 'default'}")
     nd = len(it.divisions())
     if nd != 14:
         return False, f'dormant Italy: {nd} divisions'
@@ -158,16 +174,23 @@ def _test():
         r = _refused(lambda: cupsf.pack_cups(it, 102))
         it.where[k5] = w5
         bad.append('cupsf: a cup over both files not refused') if not r else out.append(f'cupsf refused ({r})')
-        # cupd: Serie D's file (its CD_DT two-run base is Panchina's: until then S7-G's refusal)
+        # cupd: Serie D's file; its CD_DT head carries file 144's two global runs (42-n7reg bd8e5bc, GP_CD2 builds:
+        # no refusal any more - was S7-G's until Panchina's two-run CD_DT)
         import cupd
-        try:
-            cupd.pack_table(it)
-            bad.append('cupd: CD_DT over two runs not refused')
-        except globnum.GlobError:
-            pass
+        import struct
         par = it.league['parallel']
         if it.div_file(par[-1]['first'])[0] != 144:
             bad.append('cupd: Serie D file')
+        runs, cd2 = globnum.runs_of(it, 144), cupd.cd2
+        cupd.cd2 = lambda: True                         # (a GP_CD2 build's head; this test's packs set no exe split)
+        try:
+            h = cupd.head(it, 144, par[-1]['first'], par[-1]['count'])
+        finally:
+            cupd.cd2 = cd2
+        want = bytes((par[-1]['first'], par[-1]['count'])) + struct.pack('<HHH', runs[0][0], *(
+            (runs[1][0], runs[0][1]) if len(runs) == 2 else (0xFFFF, 256)))
+        if h != want:
+            bad.append(f'cupd: CD_DT head {h.hex()} != {want.hex()}')
         # refusals of div_file (every site goes through it) and dplay
         _shape(it, range(6), range(5, 14))
         r = _refused(lambda: it.div_file(5))

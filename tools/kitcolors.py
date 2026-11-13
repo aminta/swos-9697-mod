@@ -105,6 +105,23 @@ TEXTS = {
                k1=b'HEIMTRIKOT', k2=b'AUSWAERTS', cancel=b'ABBRUCH', ok=b'OK', reset=b'RESET',
                match=b'NUR DIESES SPIEL', always=b'IMMER'),
 }
+GK_TEXTS = {      # 4.2 keepers (kits.py kg_*): entry 24's label + state, the kit page's title, the way back
+    'it': dict(gk=b'PORTIERE: ', gauto=b'AUTO', gset=b'SCELTO', glabel=b'PORTIERE', gback=b'MAGLIE SQUADRA'),
+    'en': dict(gk=b'GOALKEEPER: ', gauto=b'AUTO', gset=b'SET', glabel=b'GOALKEEPER', gback=b'TEAM KITS'),
+    'fr': dict(gk=b'GARDIEN: ', gauto=b'AUTO', gset=b'CHOISI', glabel=b'GARDIEN', gback=b'TENUES EQUIPE'),
+    'de': dict(gk=b'TORWART: ', gauto=b'AUTO', gset=b'FEST', glabel=b'TORWART', gback=b'TEAMTRIKOTS')}
+GK_ENTRY = 24
+KG_SITES = {'kg_open': 0xC1, 'kg_new': 0xC2, 'kg_load': 0xC3, 'kg_vis': 0xC4, 'kg_save': 0xC5, 'kg_reset': 0xC6,
+            'kg_ok': 0xC7, 'kg_cancel1': 0xC8, 'kg_cancel2': 0xC9}   # 4.2: KITS_ASM's 5-byte NOPs (0F 1F 44 00 id) that
+                                # kits.py turns into calls to its kg_* (obj4); without kits.py they stay NOPs
+
+
+def kg_site(code, i):
+    """the offset of the 5-byte NOP 0F 1F 44 00 i in KITS_ASM's code (once)"""
+    m = bytes((0x0F, 0x1F, 0x44, 0, i))
+    assert code.count(m) == 1, (hex(i), code.count(m))
+    return code.index(m)
+GK_BUF = 24                     # entry 24's text buffer (obj2, kg_vis writes it)
 KITS_ENTRY = 68
 BUTTON = (20, 10, 88)           # packed y, height; screen right edge (team name at 90). Left edge = the player names'
                                 # (entry 13: packed x 23 + the menu origin before it, -6 in IT/FR/DE, 0 in EN), so the
@@ -200,6 +217,7 @@ KM_ALWAYS_FN:
 %endif
 km_open:                                ; fire on the KITS button (playMatchMenu entry 68)
     pushad
+    db 0Fh, 1Fh, 44h, 0, 0xc1           ; (4.2: the editor opens on the team's kits)
     call same_match
     je .show                            ; same two teams: keep the edits
     mov byte [KM_ACTIVE], 0
@@ -212,6 +230,7 @@ km_open:                                ; fire on the KITS button (playMatchMenu
     mov edi, SLOTS + SLOT_
     call fill_slot
     call auto_wear                      ; start from the game's automatic choice (Marco, 3.3.1)
+    db 0Fh, 1Fh, 44h, 0, 0xc2           ; (4.2: the keepers' slots for these two teams)
 .show:
     popad
     push dword [A6]
@@ -307,6 +326,7 @@ km_init:                                ; SELECT KITS menu: init, and after ever
     mov edi, EDIT_TEAM + 26
     mov ecx, 10
     rep movsb
+    db 0Fh, 1Fh, 44h, 0, 0xc3           ; (4.2: the goalkeeper's kit in the first kit's place)
     call PRIM_CONV
     call SEC_CONV
     call MARK1
@@ -345,6 +365,7 @@ km_init:                                ; SELECT KITS menu: init, and after ever
     mov esi, [A0]
     mov dword [esi + 26h], OTHER_BUF
     call KM_MODE                        ; (4.0.5: entry 23, SOLO PARTITA / SEMPRE - in the career cave)
+    db 0Fh, 1Fh, 44h, 0, 0xc4           ; (4.2: entry 24's text, the keeper page's entries)
     pop edi
     pop ebx
     mov esi, ebx                        ; "NAME: KIT"
@@ -369,12 +390,16 @@ km_init:                                ; SELECT KITS menu: init, and after ever
     ret
 
 save_kits:                              ; editTeamsTeam kits -> slot being edited
+    xor eax, eax
+    db 0Fh, 1Fh, 44h, 0, 0xc5           ; (4.2: on the keeper page, the goalkeeper's slot instead)
+    test eax, eax
+    jnz .k
     call cur_slot
     lea edi, [edi + 18]
     mov esi, EDIT_TEAM + 26
     mov ecx, 10
     rep movsb
-    ret
+.k: ret
 
 km_switch:                              ; entry 1: edit the other team
     pushad
@@ -395,9 +420,13 @@ km_wear:                                ; entry 2: first / second kit
 
 km_reset:                               ; entry 22: this team's kits from its team file
     pushad
+    xor eax, eax
+    db 0Fh, 1Fh, 44h, 0, 0xc6           ; (4.2: on the keeper page, the goalkeeper back to AUTO)
+    test eax, eax
+    jnz .k
     call cur_slot
     call reset_kits
-    popad
+.k: popad
     call km_init
     jmp DRAW_MENU
 
@@ -405,6 +434,7 @@ km_ok:                                  ; entry 21
     pushad
     call save_kits
     call KM_KEEP
+    db 0Fh, 1Fh, 44h, 0, 0xc7           ; (4.2: the goalkeepers' choice armed; SEMPRE: KEEPKIT.DAT)
     mov byte [KM_ACTIVE], 1
     mov esi, TXT_SET
     call set_button
@@ -415,6 +445,7 @@ km_cancel:                              ; entry 20
     pushad
     mov byte [KM_ACTIVE], 0
     mov dword [SLOTS + 32], 0           ; edits discarded
+    db 0Fh, 1Fh, 44h, 0, 0xc8           ; (4.2: the goalkeepers' too)
     mov esi, TXT_AUTO
     call set_button
     popad
@@ -513,6 +544,7 @@ pm_show:                                ; replaces `call ShowMenu` in ShowPlayMa
     je .keep                            ; that match only (Marco, 3.2.4)
     mov byte [KM_ACTIVE], 0
     mov dword [SLOTS + 32], 0
+    db 0Fh, 1Fh, 44h, 0, 0xc9           ; (4.2: the goalkeepers' choice too)
     mov esi, TXT_AUTO
     call set_button
 .keep:
@@ -706,6 +738,7 @@ def button(p, at, lang, area, extra=None):
     put('empty', b'')
     for k in ('title', 'cancel', 'ok', 'reset', 'k1', 'k2', 'auto', 'set', 'match', 'always'):
         put(k, T[k])
+    put('gkbuf', b'', GK_BUF)                                            # (4.2 entry 24, kits.py kg_vis)
     put('wear1', T['wears'] + T['k1'])
     put('wear2', T['wears'] + T['k2'])
     while len(data) % 4:
@@ -732,7 +765,7 @@ def button(p, at, lang, area, extra=None):
         menu.extend(b + b'\0\0')
     entry(0, 0, 193, 12, color=0x0A, text='title', flags=0x10)                                       # 0
     entry(0, 26, 193, 12, nav=(-1, 5, -1, 2), color=0x0B, text='empty', flags=0x10, select='km_switch')  # 1
-    entry(0, 46, 193, 12, nav=(-1, 9, 1, 20), color=0x0E, text='empty', select='km_wear')             # 2
+    entry(0, 46, 193, 12, nav=(-1, 9, 1, GK_ENTRY), color=0x0E, text='empty', select='km_wear')       # 2
     entry(0, 66, 193, 10, text='empty')                                                              # 3
     kits = bytearray(d2[k0:k1])
     for o, t_obj, t_off in _fix_targets(p, 2, k0, k1):
@@ -749,8 +782,10 @@ def button(p, at, lang, area, extra=None):
     entry(164, 185, 40, 15, nav=(23, 22, 2, -1), color=0x0E, text='cancel', select='km_cancel')      # 20
     entry(264, 185, 40, 15, nav=(22, -1, 19, -1), color=0x0E, text='ok', select='km_ok')             # 21
     entry(214, 185, 40, 15, nav=(20, 21, 11, -1), color=0x0C, text='reset', select='km_reset')       # 22
-    entry(52, 185, 108, 15, nav=(-1, 20, 2, -1), color=0x0D, text='match', select='KM_ALWAYS_FN')    # 23 (4.0.5,
-    menu.extend(struct.pack('<h', -999))                # careers: SOLO PARTITA / SEMPRE; km_init sets its text)
+    entry(52, 185, 108, 15, nav=(-1, 20, GK_ENTRY, -1), color=0x0D, text='match', select='KM_ALWAYS_FN')   # 23
+    entry(0, 86, 193, 12, nav=(-1, 5, 1, 20), color=0x0C, text='gkbuf', select='@gk')                 # 24 (4.2:
+    menu.extend(struct.pack('<h', -999))                # 23: careers' SOLO PARTITA / SEMPRE, km_init sets its text;
+                                                        # 24: PORTIERE: AUTO / SCELTO, kits.py kg_vis)
     data.extend(menu)
     assert _entries(menu, 16, len(menu) - 2) is not None or True
     base = area.add(bytes(data))
@@ -819,6 +854,12 @@ def button(p, at, lang, area, extra=None):
             p.add_ptr(1, xat + o, t_obj, t_off)
         extra[0] = xat + len(xcode)
     INFO.update(find_slot=lab['find_slot'], slots=(2, base + 4), xat=xat)   # (4.0.6 kittrain.py: training's A / B)
+    INFO.update(kg_sites={k: at + kg_site(code, v) for k, v in KG_SITES.items()},
+                sym=dict({k: v for k, v in sym.items()
+                          if k in ('D0', 'A0', 'CALC', 'EDIT_TEAM', 'SLOTS', 'KM_TEAM', 'KM_ALWAYS', 'DRAW_MENU',
+                                   'GAMETYPE', 'CAREER_TEAM', 'PM_TEAM1', 'PM_TEAM2')},
+                         SAVE_KITS=(1, lab['save_kits']), KM_INIT=(1, lab['km_init'])),
+                gkbuf=(2, base + off['gkbuf']), lang=lang)       # (4.2 kits.py: the keeper page)
     INFO['km_measure'] = lab['km_measure']          # purple.py: jmp pk_sim (purple vs maroon)
     INFO['km_fix'] = lab['km_fix']                  # purple.py: jmp pk_fix (manual kits)
     assert not any(d[at:at + len(code)])
@@ -826,6 +867,9 @@ def button(p, at, lang, area, extra=None):
     for o, t_obj, t_off in fix:
         p.add_ptr(1, at + o, t_obj, t_off)
     for o, t_obj, t in ptrs:
+        if t == '@gk':                              # (4.2: entry 24's select function, kits.py's kg_gk in obj4)
+            INFO['gk_sel'] = base + o
+            continue
         if isinstance(t, str):
             t = lab[t] if t_obj == 1 else base + off[t]
         p.add_ptr(2, base + o, t_obj, t)

@@ -229,6 +229,8 @@ SAVED_GLOBAL = 1740      # 1.0/1.1 saves: someLeaguesTable[1740..1842]: 'S2' + 3
 CT_PRE_PTR = [None]     # obj1 offset of the dword conti.patch fills with its ct_pre
 LISTS_OUT = [None]       # career code's lists_out, called at season end
 SEL_ADDR = [None]        # obj2 offset of selTeamNumber (the career club's word), set by career_hooks
+SLOT23 = []              # career_hooks: [(obj, off)] the contest structs slots 2 / 3 can hold after a load (the euro
+                         # chain's copies and originals, the SA cups, the extra cups): gplay.c GP_RPS (gp_repoint_c)
 SITES = {}               # career_hooks: E092F, D8CBE (cup kind), cseg_8B2D3, the slot-3 buffer (uefaq.py)
 
 # ITA bytes (obj-relative offsets as stored in the file), see notes/STATUS.md
@@ -552,6 +554,13 @@ def career_hooks(p, cups, cave, cups_all=None, caf=None):
     done = found + 12                                                     # call cseg_8DAC3
     assert d1[init + 9:init + 11] == b'\xeb\x0c'
     assert struct.unpack_from('<I', d1, load + 13)[0] == a0
+    fx = {f[1]: (f[3], f[4]) for f in p.le.fixups() if f[0] == 1 and init - 0x60 <= f[1] < init}
+    pat = b'\xc7\x05' + struct.pack('<I', a0)
+    copies3 = [fx[init - 0x60 + m.start() + 6] for m in re.finditer(re.escape(pat), d1[init - 0x60:init])]
+    assert len(copies3) == 3, ('sacups: the euro chain\'s copies', copies3)
+    d2o = p.le.obj_bytes(2)
+    SLOT23[:] = copies3 + [(2, unique(d2o, h)) for h in (EUROCUP_HDR, CWC_HDR, UEFA_HDR)] + \
+        [(1, o) for o in cups] + [(1, o) for o in (caf or {}).get('structs', [])]
     load_map, load_out = load + 12, load + 12 + 10                        # mov eax,[A0] ; @@out
     assert d1[load + 10:load + 12] == b'\xeb\x0a'
     # ProcessCareerFile start of the mapping: cmp word [E092F],-1; jz out; mov dword [A0], euroCupCopy

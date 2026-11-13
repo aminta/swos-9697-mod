@@ -70,6 +70,14 @@ pg_fix:                                 ; replaces `call cseg_7CAA2` (leaguesTab
     call CD_SEASON
     add esp, 20
 %endif
+%if S7_ON
+    cmp dword [S7_PTR], 0               ; S7 (shaped league, s7swap.c in obj4): the crossings between the two league
+    je .nos7                            ; structs as registry swaps, SLTCOPY re-based (before the balance byte)
+    push dword SLTCOPY
+    call [S7_PTR]
+    add esp, 4
+.nos7:
+%endif
     xor eax, eax                        ; cseg_9487A traps unless leaguesTableCopy adds up to 0 (8 bits): a move of
     mov esi, SLTCOPY                    ; several divisions (a group winner up two levels of groups, a club down into
     mov ecx, NSUM                       ; a farther group) breaks the game's +1 / -1 pairs: the balance byte BAL
@@ -83,6 +91,9 @@ pg_fix:                                 ; replaces `call cseg_7CAA2` (leaguesTab
 %endif
     popad
     jmp C7CAA2
+%if S7_ON
+S7_PTR: dd 0                            ; (s7swap.py: -> obj4 s7_season)
+%endif
 PG_TAB: TAB_BYTES
 RS_TAB: RS_BYTES
 '''
@@ -170,6 +181,8 @@ def patch(p, at, tables, pg_season, rs_tables=(), rs_season=None, ri=None, cd=No
            'NSUM': (0, bigtables.LIMIT if bigtables.ON[0] else 2000),
            'TAB_BYTES': (0, 'db ' + ', '.join(str(b) for b in table_bytes(tables))), 'RI_ON': (0, int(bool(ri)))}
     sym.update(ri or {})
+    import gplay
+    sym['S7_ON'] = (0, gplay.gp_s7())                    # (S7: the swap builder's call, shaped builds only)
     sym['CD_ON'] = (0, int(bool(cd)))
     sym.update(cd or {})
     if ri:                                              # (youreSacked: gplay's gp_sack sites)
@@ -183,6 +196,8 @@ def patch(p, at, tables, pg_season, rs_tables=(), rs_season=None, ri=None, cd=No
         p.add_ptr(1, at + off, tobj, toff)
     p.put(1, site + 1, struct.pack('<i', lab['pg_fix'] - (site + 5)))   # (a relative call: no fixup)
     LABELS.update(RS_TAB=lab['RS_TAB'], PG_TAB=lab['PG_TAB'])
+    if 'S7_PTR' in lab:
+        LABELS['S7_PTR'] = (1, lab['S7_PTR'])
     print(f'exe: parallel groups: {len(tables)} countries, reserves {len(rs_tables)}, copy-back call obj1+{site:#x}, code obj1+{at:#x}..'
           f'{at + len(code):#x}')
     return at + len(code)

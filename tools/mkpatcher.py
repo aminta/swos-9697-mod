@@ -210,6 +210,9 @@ def world_entries(data_dir=None):
 
 _k = next(i for i, f in enumerate(FILES) if f[0].endswith('(GOG)'))
 FILES[_k:_k] = world_entries()
+# 4.2 KEEPKIT.DAT (kits.py, MC 13/11): the player's keeper kits (SELECT KITS > SEMPRE), written by the game in its own
+# folder - a user file: the patcher never ships, overwrites or removes it
+assert not any(t.upper().rsplit('/', 1)[-1] == 'KEEPKIT.DAT' for _, _, _, t in FILES), 'mkpatcher: KEEPKIT.DAT is the player\'s'
 
 
 def root_unlisted(build_dir=None):

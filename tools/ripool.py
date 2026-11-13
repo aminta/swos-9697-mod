@@ -76,10 +76,32 @@ def table_bytes(tabs):
     return bytes(out)
 
 
+def _runs2(base, slots):
+    """(base2, ord2) of a league pool whose slots' globals are two runs (S7-G: globnum.split's file 144, run 1 from
+    base, run 2 from base2 at ordinal ord2), or None for one run (global = base + ordinal)."""
+    gs = [g for g, *_ in slots]
+    k = next((i for i, g in enumerate(gs) if g != base + i), len(gs))
+    if k == len(gs):
+        return None
+    assert gs[k:] == list(range(gs[k], gs[k] + len(gs) - k)), 'IDA: a league pool\'s globals past two runs'
+    assert not base <= gs[k] < base + k, 'IDA: run 2 inside run 1'
+    return gs[k], k
+
+
+def ida_two(tabs):
+    """True when an IDA entry's slots are two runs (a shaped build): ida_bytes' 14-byte headers + ri_ida1's two-run
+    code; else (every dormant build) today's bytes exactly."""
+    return any(pl[0] == 'league' and len(pl) > 5 and pl[5] and _runs2(base, pl[2])
+               for _w, _f, pools, base, *_ in tabs for pl in pools)
+
+
 def ida_bytes(tabs):
     """IDA_TAB (4.0.5, ri_ida): db entries; per league pool with levels of groups db world, dw base (its slots' global
     numbers), dw map offset, dw slots, dw identities (slots + pool records), db na (areas per club: pgroups' levels of
-    groups), identities x na x db area (pgroups' bytes: the file's own records in file order, then the RS records)."""
+    groups), [ida_two builds only: dw base2, dw ord2 - run 2's first global and its first ordinal (S7-G); FFFFh /
+    slots for a one-run entry], identities x na x db area (pgroups' bytes: the file's own records in file order, then
+    the RS records)."""
+    two = ida_two(tabs)
     out = bytearray()
     n = 0
     for (world, fl, pools, base, *_), (moff, *_r) in zip(tabs, layout(tabs)[0]):
@@ -89,6 +111,8 @@ def ida_bytes(tabs):
                 na = len(ida[0])
                 assert all(len(r) == na for r in ida) and len(pl[2]) + len(pl[3]) == len(ida)
                 out += bytes((world,)) + struct.pack('<HHHHB', base, moff, len(pl[2]), len(ida), na)
+                if two:
+                    out += struct.pack('<HH', *(_runs2(base, pl[2]) or (0xFFFF, len(pl[2]))))
                 out += b''.join(bytes(r) for r in ida)
                 n += 1
     return bytes((n,)) + bytes(out)
@@ -101,7 +125,7 @@ def keys_bytes(tabs):
     return b''.join(struct.pack('<H', k) for k in (ks + [0] * RP)[:RP])
 
 
-def _asm(nf):
+def _asm(nf, two=False):
     load, after = [], []
     for k in range(nf):
         load.append(f'''
@@ -120,6 +144,9 @@ def _asm(nf):
 .c{k}:
     mov edi, RI_ORIG{k}
     call ri_copyb
+%if S7_ON
+    mov dword [RI_S7SRC], RI_ORIG{k}    ; (S7, MC 13/11: s7_load checks the file as read, not TEAMBUF after ri_apply)
+%endif
     cmp byte [RI_PLOADED + {k}], 0      ; its RS file, once per DOS session
     jne .a{k}
     mov byte [RI_PLOADED + {k}], 1
@@ -164,15 +191,86 @@ def _asm(nf):
     add esp, 28
 .n{k}:''')
     names = ''.join(f'RI_NAME{k}: db RI_FNAME{k}, 0\n' for k in range(nf))
+    SLOT = ('''    mov eax, ebx                        ; its slot: run 2 (global >= base2) = ord2 + global - base2,
+    movzx edx, word [edi + 10]          ; else global - base below ord2 (S7-G: a split file's two runs; one-run
+    cmp eax, edx                        ; entries: base2 FFFFh, ord2 = slots)
+    jb .s1
+    sub eax, edx
+    movzx edx, word [edi + 12]
+    add eax, edx
+    jmp .s2
+.s1:
+    movzx edx, word [edi + 1]
+    sub eax, edx
+    movzx edx, word [edi + 12]
+    cmp eax, edx
+    jae .no
+.s2:
+''' if two else '''    mov eax, ebx
+    movzx edx, word [edi + 1]
+    sub eax, edx                        ; its slot (global - base)
+''')
+    HDR = 14 if two else 10
     return f'''
 ri_load:                                ; replaces `call SetLoadedTeamsGlobalNumbers` after LoadTeamFile read TEAM.nnn
     pushad
+%if S7_ON
+    mov dword [RI_S7SRC], TEAMBUF       ; (S7: the file as read; a pooled file's: its ORIG copy, set below)
+%endif
     cmp word [GAMETYPE], 4              ; a career
     jne .x
 {''.join(load)}
 .x:
+%if S7_ON
+    cmp word [GAMETYPE], 4              ; S7 (shaped league): s7swap.c s7_load gives the two league files' rows their
+    jne .y                              ; registry clubs' records (cdecl: the buffer, the file read)
+    cmp dword [S7_LPTR], 0
+    je .y
+    push dword [RI_S7SRC]               ; (the file as read: TEAMBUF, or a pooled file's ORIG copy before ri_apply)
+    movzx eax, byte [WTPHYS]
+    push eax
+    push dword TEAMBUF
+    call [S7_LPTR]
+    add esp, 12
+.y:
+%endif
     popad
     jmp SETGLOBALS
+%if S7_ON
+S7_LPTR: dd 0                           ; (s7swap.py: -> obj4 s7_load)
+RI_S7SRC: dd 0                          ; (s7_load's third argument: the bytes LoadTeamFile read)
+%endif
+%if S7_XTRA
+
+ri_home:                                ; xtra_readto's xr_hook (S7, MC 13/11): [xrteam] = the home word of the registry
+    movzx eax, ax                       ; club in team word ax's row (s7swap.c s7_home_word), else ax; eax / ecx / edx
+    cmp dword [S7_HPTR], 0              ; free there
+    je .id
+    push eax
+    call [S7_HPTR]
+    pop edx
+.id:
+    mov [XRTEAM], ax
+    ret
+S7_HPTR: dd 0                           ; (s7swap.py: -> obj4 s7_home_word)
+
+ri_wnhome:                              ; winners.py wn_disk's first 6 bytes (pushad / mov esi, eax / movzx eax, al),
+    xchg eax, [esp]                     ; rewritten by s7swap.py to a call here (S7, MC 13/11): the same frame and
+    mov [RI_WNR], eax                   ; registers, esi / eax from the HOME word - DATA\\TEAM.nnn rows are the home
+    pop eax                             ; layout (a crossed club's name by its home record)
+    pushad
+    movzx eax, ax
+    cmp dword [S7_HPTR], 0
+    je .id
+    push eax
+    call [S7_HPTR]
+    add esp, 4
+.id:
+    mov esi, eax
+    movzx eax, al
+    jmp [RI_WNR]
+RI_WNR: dd 0
+%endif
 
 ri_after:                               ; pg_fix, after ri_season and pg_season: the cache, LoadTeamFile's cache
     pushad
@@ -234,10 +332,7 @@ ri_ida1:                                ; esi = a club entry of the running worl
 .f:
     dec ebp
     js .r
-    mov eax, ebx
-    movzx edx, word [edi + 1]
-    sub eax, edx                        ; its slot (global - base)
-    movzx edx, word [edi + 5]
+{SLOT}    movzx edx, word [edi + 5]
     cmp eax, edx
     jae .no
     mov cl, [edi]
@@ -259,7 +354,7 @@ ri_ida1:                                ; esi = a club entry of the running worl
     cmp eax, edx
     jae .no
     imul eax, ecx
-    lea eax, [edi + 10 + eax]
+    lea eax, [edi + {HDR} + eax]
 .cp:
     mov dl, [eax + ecx - 1]
     mov [esi + 2 + ecx], dl
@@ -269,7 +364,7 @@ ri_ida1:                                ; esi = a club entry of the running worl
     movzx eax, word [edi + 7]
     movzx ecx, byte [edi + 9]
     imul eax, ecx
-    lea edi, [edi + 10 + eax]
+    lea edi, [edi + {HDR} + eax]
     jmp .f
 .r:
     popad
@@ -335,14 +430,19 @@ def patch(p, at, bss, tabs):
            'NUMSEL': trailer.INFO['NUMSEL'], 'SELBASEV': (1, trailer.INFO['selbasev']),
            'TEAMSLOADED': (2, s['teamsloaded']), 'LASTEXT': s['lastext'],
            'RI_MAPS': (gplay.LABELS['RI_STATE'][0], gplay.LABELS['RI_STATE'][1] + OVR_AT + 2 * RP * RO),
-           'IDA_BYTES': (0, 'db ' + ', '.join(str(b) for b in ida_bytes(tabs)))}
+           'IDA_BYTES': (0, 'db ' + ', '.join(str(b) for b in ida_bytes(tabs))),
+           'S7_ON': (0, int(bool(gplay.gp_s7())))}          # (S7: s7swap.c s7_load's call, shaped builds only)
+    import xtra
+    sym['S7_XTRA'] = (0, int(bool(sym['S7_ON'][1] and 'xrteam' in xtra.LABELS)))   # (S7 + XTRA: ri_home)
+    if sym['S7_XTRA'][1]:
+        sym['XRTEAM'] = (1, xtra.LABELS['xrteam'])
     names = []
     for k, ((world, fl, *_), (moff, nmap, osz, psz, bo)) in enumerate(zip(tabs, layout(tabs)[0])):
         o = bss + bo
         names.append('data/rs%d%03d.dat' % (world, fl))
         sym.update({f'RI_W{k}': (0, world), f'RI_F{k}': (0, fl), f'RI_ORIG{k}': (2, o), f'RI_OSZ{k}': (0, osz),
                     f'RI_POOL{k}': (2, o + osz), f'RI_MOFF{k}': (0, moff), f'RI_FNAME{k}': (0, '"%s"' % names[-1])})
-    src = _asm(len(tabs))
+    src = _asm(len(tabs), ida_two(tabs))
     code, fix = nasmcave.assemble(src, at, sym)
     lab = nasmcave.labels(src, at, sym)
     p.put(1, at, code)
@@ -370,6 +470,18 @@ def patch(p, at, bss, tabs):
         print(f'exe: off-file pools: TEST ranking {test} at obj1+{at_sr:#x}')
     LABELS['RI_SR_PTR'] = (1, lab['RI_SR_DUMMY' if test else 'RI_SR_PTR'])   # (statecup places ST_RANK later: it
                                                 # fills this dword; a test ranking keeps its own)
+    if 'S7_LPTR' in lab:
+        LABELS['S7_LPTR'] = (1, lab['S7_LPTR'])
+        LABELS.update(SETGLOBALS=sym['SETGLOBALS'], TEAMBUF=sym['TEAMBUF'])   # (host tests: the game's own globals)
+    if 'ri_home' in lab:
+        LABELS['S7_HPTR'] = (1, lab['S7_HPTR'])
+        LABELS['ri_wnhome'] = (1, lab['ri_wnhome'])     # (s7swap.py: winners.py wn_disk's entry -> here)
+        import xtra
+        o = xtra.LABELS['xr_hook']                  # (xtra_readto's `mov [xrteam], ax`: a crossed club's XTRA block
+        want = b'\x66\xA3' + struct.pack('<I', xtra.LABELS['xrteam'])    # by its home word; p.get: chained
+        assert p.get(1, o, 6) == want, ('ripool: xr_hook not mov [xrteam], ax', p.get(1, o, 6).hex())   # hooks rule)
+        p.remove(1, o + 2)
+        p.put(1, o, b'\xE8' + struct.pack('<i', lab['ri_home'] - (o + 5)) + b'\x90')
     LABELS['RI_PRE_PTR'] = (1, lab['RI_PRE_PTR'])    # (statesim: every state's ranking before ri_season)
     LABELS['RI_POST_PTR'] = (1, lab['RI_POST_PTR'])  # (statecup: the contest overrides applied after it)
     return (tab + len(tb) + 15) & ~15, {'RI_TAB': (1, tab), 'RI_SEASON': gplay.LABELS['ri_season'],

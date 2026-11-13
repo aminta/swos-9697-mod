@@ -701,7 +701,7 @@ def patch(p, at, lang, scr_at):
     sym = {k: ws[k] for k in ('A6', 'SHOW_MENU', 'TITLE', 'PAGE', 'FOUND', 'TXT', 'TXTMAX_', 'FMTMENU')}
     assert wn.get('sumsel'), 'ctview: fmtpage RIEPILOGO (4.1)'
     wi = p.target(2, wn['init'])                        # (winners' wn_init: STAT's onInit and onReturn)
-    assert wi == p.target(2, wn['init'] + 4) and wi[0] == 1, wi
+    assert wi == p.target(2, wn['init'] + 4) and wi[0] in (1, 4), wi   # (4.2 OBJ1MV: winners in obj4)
     sym.update(WN_INIT=wi, MENU_=ws['MENU_'])
     sym.update(FP_FILL=(1, wn['fill']), EXIT_T=wn['exit'][0], EXIT_F=wn['exit'][1], CT_SPEC=cs['CT_SPEC'],
                SPEC=cl['SPEC'], CT_LPF=(1, cl['ct_lp']), CV_CONFS=syms['cv_confs'], CV_TEXT=syms['cv_text'],

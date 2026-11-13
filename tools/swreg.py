@@ -42,6 +42,27 @@ SLOW_AT = 0xC000                        # 4.2 slow (MATCH SPEED, slow.py): obj4'
 SLOW_END = 0xD000                       # CONVENTIONS 23bis exception: Davide's ok via Regia 12/11)
 T3_AT = 0xD000                          # 4.2.y T3 "mini primavera" (t3.py / t3.c): obj4's 14th page, its own (MC 12/11;
 T3_END = 0xE000                         # CONVENTIONS 23bis); 0xC000 = 42-slow's, 0xE000 = the conti CT spare
+SWEFILE_AT = 0x11000                    # 4.2 the engine's file layer (swefile.c, MC 12/11): obj4 page 18, after Difficolta's
+SWEFILE_END = 0x11800                   # page 15 (0xE000..0xF000) and Panchina's kits (0xF000..0x11000); dormant until a consumer
+S7SWAP_AT = 0x11800                     # 4.2 S7 season-end swap builder (s7swap.c, Shaved; MC 13/11) + the registry library's
+S7SWAP_END = 0x15000                    # one copy (sr_reg_season, sr_wmap_*: the import in SREG2 calls it here), pages 18-20 (MC 13/11: 0x14000, WSITES with the code);
+# (MC 13/11: 0x15000, CF_ST + s7_home_word; obj4 0x14000..0x15000 was free; the next free obj4 room starts at 0x15000)
+                                        # linked only with a registry shape (sreg.shape(), = GP_S7)
+assert SWEFILE_END <= S7SWAP_AT < S7SWAP_END, 'swreg: SWEFILE_END <= S7SWAP_AT < S7SWAP_END'
+OBJ1MV_AT = 0x15000                     # 4.2 obj1 relief (MC 13/11, Shaved's census): whole modules moved out of obj1's full
+OBJ1MV_END = 0x16800                    # regions (237 pages frozen): winners.py (the extra pages), then instcheck + shirtedit
+                                        # (the career cave); linked with the SEASON WINNERS page (worlds + gplay + extra pages)
+OBJ1MV_CC = 0x15C00                     # (step 2: the career cave's shirtedit + instcheck from here; winners below it)
+assert OBJ1MV_AT < OBJ1MV_CC < OBJ1MV_END, 'swreg: OBJ1MV_CC inside the band'
+MKTHOOK_AT = 0x16800                    # 4.3 the CPU market's exe hooks (mkthook.c, Mercato CPU): the LAST band (MC 13/11),
+MKTHOOK_END = 0x18000                   # so a 4.2 release carries no empty page for it
+MKTAGE_AT = 0x18000                     # 4.3 reserved (Mercato CPU, MC 13/11 final layout); past MKTAGE_END only with MC's ok
+MKTAGE_END = 0x19000
+assert S7SWAP_END <= OBJ1MV_AT < OBJ1MV_END <= MKTHOOK_AT < MKTHOOK_END <= MKTAGE_AT < MKTAGE_END <= 0x19000, \
+    'swreg: S7SWAP_END <= OBJ1MV_AT < OBJ1MV_END <= MKTHOOK_AT < MKTHOOK_END <= MKTAGE_AT < MKTAGE_END <= 0x19000'
+S7_ORIG_SZ = 0x2C000                    # 4.2 S7: s7swap.c's ORIG buffers in swe.c's .bss (shaped builds only; MC 13/11):
+                                        # the two league files as read (Italy: 102 = 100 records, 144 = 162: 179212 B;
+                                        # s7swap.py asserts they fit)
 assert UPRIZE2_END <= CONTI4_AT, 'uprize part 2 would cross conti / ST'   # (4.2: bands never cross)
 assert CONTI4_END <= ST_AT, 'conti data would cross ST'
 NAMEFIT_AT = 0xC400                     # 4.2 names-fit (namefit.py, Marco (b) step 2: menu names by pixels; MC 12/11): page 13
@@ -59,6 +80,19 @@ BU_AT = 0xEC00                          # difficulty 0xE000..BU_AT, the build-up
 BU_END = DIFF_END                       # when the release shape leaves under DIFF_MARGIN B of the page. (4.2 42-drp: 0xE900 -> 0xEC00, the PERSONALIZZATO page)
 DIFF_MARGIN = 512
 assert T3_END <= DIFF_AT < BU_AT < BU_END == DIFF_END <= 0x10000, 'page 15: T3 < difficulty < build-up'
+SREG_AT = 0x5100                        # 4.2 N7: the club registry's code + data (sreg.py, sreg.c), after ST, under
+                                        # lrank.LR_AT (MC 10/11: the band 0x5100..0x6000); linked only with a shape
+SREG_DIV_AT = 0x4600                    # 4.2 N7: sreg.c's SREG_DIV (SR_REG_CLUBS bytes, 0x4600..0x4A00), above 4.1's
+                                        # uprize2 (0x4000..0x42c8), under conti (CONTI4_AT 0x4B00; MC 10/11)
+SREG2_AT = 0xB000                       # 4.2 N7 piece 4: obj4's 12th page (0xB000..0xC000; MC 12/11: the 11th,
+SREG2_END = 0xC000                      # 0xA000..0xB000, is lrank's LR_TAB alone since MC's 11/11 option b), the
+                                        # old-save import (old_ord, the walker, its sites); only with a shape (sreg.py
+                                        # obj4_pages / sreg2_check). 0xC000: Shaved's 42-slow; the CT spare: 0xD000
+KITS_AT = 0xF000                        # 4.2 kits (kits.py, Panchina; MC 12/11): K2 keepers + R1 referee code and the
+KITS_END = 0x11000                      # sprite masks on obj4's 16th page (end asserted <= 0x10000), the KEEPKIT table
+                                        # (128 x 24 B, zero-filled) on the 17th
+KITS_PAGE16_END = 0x10000               # (code + masks; the 17th: KEEPKIT.DAT's 'KKST' block, table and kk_* code, MC 13/11)
+assert T3_END <= globals().get('DIFF_END', KITS_AT) <= KITS_AT < KITS_PAGE16_END < KITS_END, 'kits: above T3 and the difficulty band'
 MAGIC = b'SWRG'
 VERSION = 2
 HDR = 32

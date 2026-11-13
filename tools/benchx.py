@@ -2218,13 +2218,16 @@ def sites5(p, regs, s4):
     c = [x for x in re.finditer(rb'\xe8(....)\x66\xc7\x05(....)\x00\x00\xe8(....)', d[m[0]:m[0] + 0x100], re.S)]
     assert len(c) == 1, ('MenuCheckControls call', len(c))
     mc = m[0] + c[0].start(3) - 1
-    se = mc + 5 + struct.unpack('<i', bytes(p.get(1, mc + 1, 4)))[0]
+    so, se = p.call_target(1, mc)                   # (4.2 OBJ1MV: se_ctl in obj4, its GPI call a rel32 fixup)
     out['se'] = None
-    if se != rel(mc):
-        code = bytes(p.get(1, se, 0x600))
-        g = [se + o for o in range(len(code) - 5) if code[o] == 0xE8 and se + o + 5 + struct.unpack_from('<i', code, o + 1)[0] == gpi]
+    if (so, se) != (1, rel(mc)):
+        code = bytes(p.get(so, se, 0x600))
+        if so == 1:
+            g = [se + o for o in range(len(code) - 5) if code[o] == 0xE8 and se + o + 5 + struct.unpack_from('<i', code, o + 1)[0] == gpi]
+        else:
+            g = [se + o for o in range(len(code) - 5) if code[o] == 0xE8 and p.rel_target(so, se + o + 1) == (1, gpi)]
         assert len(g) == 1, ('se_ctl GPI', g)
-        out['se'] = g[0]
+        out['se'] = (so, g[0])
     return out
 
 
@@ -2745,11 +2748,13 @@ def patch(p, at, ns_at, lang='it'):
     rcalls = [(s5['dgpi'], 'pm_gpi'), (s5['rot'], 'pm_rot')] + [(o, 'pm_gpi2') for o in s5['sgpi']]
     rcalls += [(o, 'et_gpi') for o in s6['dgpi']] + [(s6['fgpi'], 'et_gpi2'), (s6['rot'], 'et_rot')]
     rcalls += [(s9['gpi'][0], 'vw_gpiv'), (s9['gpi'][1], 'vw_gpi')] + [(o, 'vw_rot') for o in s9['rot']] + [(etc, 'bx_et')]
-    if s5['se']:
-        rcalls.append((s5['se'], 'pm_gpi2'))        # shirtedit's se_ctl (row -> place)
     for o, lbl in rcalls:                           # call rel32 (no fixup)
         assert bytes(p.get(1, o, 1)) == b'\xe8', hex(o)
         go(o, lbl)
+    if s5['se']:                                    # shirtedit's se_ctl (row -> place; 4.2 OBJ1MV: in obj4)
+        so, o = s5['se']
+        assert bytes(p.get(so, o, 1)) == b'\xe8', (so, hex(o))
+        p.branch(so, o, 0xE8, 3, lab['pm_gpi2'])
     if sfr:                                         # (B) a friendly / DIY club with a long bench: its own order
         go(sfr['ga'], 'fr_ga')                      # GetPlayerAtIndex: call xs_ga -> call fr_ga (-> jmp xs_ga)
         for k, lbl in (('swpm', 'fr_sw_pm'), ('swet', 'fr_sw_et')):   # mov eax, [team] (A1 addr) -> jmp

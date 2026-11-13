@@ -880,7 +880,18 @@ def supercup_of(m, d):
     return json.load(open(supercup.DATA)).get((m.get('id') or '').rsplit('-', 1)[-1])
 
 
-def win_lines(comp, div, k, cc='', tfile=None):
+def s7_keys(d, m):
+    """4.2 S7, a league over two team files (pack.json 'files' entries with 'divisions'): mkseason.Pack's div_key (the
+    division -> (struct file, local division)) and po_keys (play-off -> (struct file, local number)) - the numbers
+    gplay.c keeps in WN_ST / GP_ST ('M', 'L', 'K', 'T'). None otherwise (one struct: global = local)."""
+    if not any(isinstance(v, dict) and 'divisions' in v for v in (m.get('files') or {}).values()):
+        return None
+    import mkseason
+    pk = mkseason.Pack(d)
+    return pk.div_key, pk.po_keys() if pk.league.get('ko_playoffs') else [], pk.league['key']
+
+
+def win_lines(comp, div, k, cc='', tfile=None, s7=None):
     """The SEASON WINNERS page of division k of a league: {lang: [(title, source)]}, {} when it has no title beyond its
     table (the page's entry stays hidden). Sources (winners.py wn_src): 'L' the table's 1st once the league is over;
     'K' + pi (2 hex digits) the last tie's winner of play-off pi (gplay GP_ST.ko: the career club's, played);
@@ -891,9 +902,14 @@ def win_lines(comp, div, k, cc='', tfile=None):
     pos = comp.get('ko_playoffs') or []
     lines = {lang: [] for lang in LANGS}
     title_po = False
-    for pi, po in enumerate(pos if isinstance(pos, list) else []):
+    kl, lpi = k, lambda pi: pi
+    if s7 and comp.get('key') == s7[2]:                         # (4.2 S7: the division and play-off numbers inside
+        tfile, kl = s7[0](k)                                    # their own struct - mkseason.div_key / po_keys)
+        lpi = lambda pi: s7[1][pi][1]
+    for gpi, po in enumerate(pos if isinstance(pos, list) else []):
+        pi = lpi(gpi)
         divs = _po_divs(po)
-        if po.get('kind') in WN_SKIP or po.get('supercup') or not po.get('names') or k not in divs or pi > 0xFF:
+        if po.get('kind') in WN_SKIP or po.get('supercup') or not po.get('names') or k not in divs or gpi > 0xFF:
             continue
         title_po |= po.get('kind') == 'title' and divs == {k}       # (its champion is not the table's 1st)
         st = po.get('stage') if po.get('kind') == 'stage_title' else None
@@ -929,7 +945,7 @@ def win_lines(comp, div, k, cc='', tfile=None):
         src = f"S{2 if any(st.get('annual') for st in tabs) else tabs[-1]['table']}{days:02X}"
     elif not tabs and end is not None:
         src = f'L{end:02X}'
-    src = src and src + f'{k:02X}'                              # (+ the division: 4.0.1's last season, WN_ST 'L')
+    src = src and src + f'{kl:02X}'                             # (+ the division: 4.0.1's last season, WN_ST 'L')
     if src:
         for lang in LANGS:
             own = _wn_title(cc, None, lang) if title_po or tabs else None   # (the regular season's own title;
@@ -939,7 +955,7 @@ def win_lines(comp, div, k, cc='', tfile=None):
                                    _wn_fit(div['name'], lang, WN[lang]['reg'] if title_po else ''), src))
     if tfile is not None and 0 <= tfile < 256:                  # 4.0.1: its key first for the last season's page (the
         for lang in LANGS:                                      # division the career club played in: WN_ST 'M')
-            lines[lang].insert(0, ('', f'H{tfile:02X}{k:02X}'))
+            lines[lang].insert(0, ('', f'H{tfile:02X}{kl:02X}'))
     return lines
 
 
@@ -1013,6 +1029,7 @@ def from_pack(d):
     tp = os.path.join(d, 'ties.csv')
     ties = list(complist.csv.DictReader(open(tp, encoding='utf-8'))) if os.path.exists(tp) else []
     bn = m.get('button_names') or {}
+    s7k = s7_keys(d, m)
     T = TEXTS
     if m.get('world') is not None and world_year(m['world'], d) >= 2021:   # (no away goals: the round's ET / penalties)
         T = {lang: dict(TEXTS[lang], r=dict(TEXTS[lang]['r'], two_legs=NOAWAY[lang])) for lang in TEXTS}
@@ -1074,7 +1091,7 @@ def from_pack(d):
                             texts[lang]['prose'] = texts[lang]['prose'] + [texts[lang]['super']]
                     out.append((world, cid, titles, texts))
                     wl = win_lines(comp, div, k, (m.get('id') or '').rsplit('-', 1)[-1],
-                                   ((m.get('files') or {}).get(comp.get('clubs')) or {}).get('file'))
+                                   ((m.get('files') or {}).get(comp.get('clubs')) or {}).get('file'), s7k)
                     if wl:
                         out.append((world, cid, titles, {'win': wl}))
                     k += 1

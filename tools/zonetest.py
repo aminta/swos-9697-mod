@@ -24,7 +24,8 @@ stage decisions, the season record. Checks:
 - world_zone_mlt (control, no zones): Malta on this checkout and on ZONE_BASE (default: the 4.1.2 base d33bc3d built
   the same way): both follow the game's own rules on the whole table. (A pinned-RNG byte compare is no use: the two
   exes' seasons diverge.)
-Env: W2627REL_DATA (the world data; default world5tm-403c19), ZONE_BUILD / ZONE_KBUILD / ZONE_BASE (ready builds).
+Env: W2627REL_DATA (the world data; default world5tm-403c19), ZONE_BUILD / ZONE_KBUILD / ZONE_BASE / ZONE_412 (ready
+builds).
 Titles: GPLAY_KOFORCE=2 test builds (the career club wins the knockout ties it plays), never in a release.
 """
 import json
@@ -48,10 +49,11 @@ def _build(name, env=None, branch=None):
 
 
 def _exe(kind):
-    var = {'w': 'ZONE_BUILD', 'k': 'ZONE_KBUILD', 'base': 'ZONE_BASE'}[kind]
+    var = {'w': 'ZONE_BUILD', 'k': 'ZONE_KBUILD', 'base': 'ZONE_BASE', '412': 'ZONE_412'}[kind]
     if not os.environ.get(var):
         os.environ[var] = (_build('zonepos_w') if kind == 'w' else
                            _build('zonepos_wk2', {'GPLAY_KOFORCE': '2'}) if kind == 'k' else
+                           _build('zonepos_412', branch=os.environ.get('ZONE_412_REF', '41d8668')) if kind == '412' else
                            _build('zonepos_base', branch=os.environ.get('ZONE_BASE_REF', 'd33bc3d')))
     return os.environ[var]
 
@@ -86,10 +88,52 @@ def _addrs():
            re.finditer(rb'\x66\xa1' + A(a0 - 20) + rb'\x66\xa3' + A(a0 - 24) + rb'\x66\xa3(.{4})\xc3', d1, re.S)]
     assert len(sel) == 1 and len(mec) == 1, (sel, mec)
     return sel.pop(), mec[0]
+
+
+def _force(place, exp, exe):
+    """A world8485 W84_HOOK forcing the season-end opinion's place and expected place (test only: a debugger poke on
+    the release exe, nothing built in). ShowChairmanOpinionAboutTheSeason: call 2B6EDh (the place -> D1: the zone hook
+    zp_find), call GetMoreExpensiveTeamsCount (-> D2), D3 = N, then `mov ax, [D2]; mov [D0], ax; mov ax, [D1];
+    sub [D0], ax` (obj1 2C025h, IT): a breakpoint there writes D1 = place and D2 = exp, once, then goes. (The season
+    record and the warnings keep the real table; the emulator test test_opsign forces the same two values.)"""
+    import re
+    sys.path.insert(0, os.path.join(T.ROOT, 'tools'))
+    import lepatch
+    import sacups
+    d1 = lepatch.LEPatch(os.path.join(T.MAIN, 'orig', 'ITALIAN.EXE')).le.obj_bytes(1)
+    a0 = sacups.regs(d1)['A0']
+    A = lambda x: re.escape(struct.pack('<I', x))
+    pat = (rb'\x66\xa1' + A(a0 - 24) + rb'\x66\xa3' + A(a0 - 32) + rb'\x66\xa1' + A(a0 - 28) + rb'\x66\x29\x05' + A(a0 - 32)
+           + rb'\x0f\xbf\x05' + A(a0 - 32) + rb'\xbb\x64\x00\x00\x00')
+    at = [m.start() for m in re.finditer(pat, d1, re.S)]
+    assert len(at) == 1, at
+    b1 = lepatch.LEPatch(os.path.join(exe, 'ITALIAN.EXE')).le.obj_bytes(1)
+    assert b1[at[0]:at[0] + 40] == d1[at[0]:at[0] + 40], 'the opinion\'s D2 - D1 is not the original code in this exe'
+    st = {'armed': False, 'done': False}
+
+    def hook(s, season, scr):
+        if st['armed'] or scr is None:
+            return
+        st['armed'] = True
+        base1, base2 = s.result.base1, s.result.base2
+
+        def hit(r):
+            if st['done']:
+                return
+            was = (struct.unpack('<h', bytes(r.obj2(a0 - 28, 2)))[0], struct.unpack('<h', bytes(r.obj2(a0 - 24, 2)))[0])
+            s.poke(base2 + a0 - 28, struct.pack('<H', place))
+            s.poke(base2 + a0 - 24, struct.pack('<H', exp))
+            s.log.append(f'FORCE place {place} expected {exp} (the opinion\'s D1 / D2; were {was[0]} / {was[1]})')
+            st['done'] = True
+            s.bps.pop(base1 + at[0], None)
+            s.box.watch.discard(base1 + at[0])
+        s.bp(base1 + at[0], hit)
+    hook.st = st
+    return hook
 DEC = 0x7cc                     # offsetof(struct gp_state, dec) (i486 layout: gplay.c, clang -target i686)
 
 
-def _run(tag, exe, team, rng=None):
+def _run(tag, exe, team, rng=None, force=None):
     """One season; -> (ok, msg, session.log path, offsets)."""
     ns = T.nosack_off(os.path.join(exe, 'ITALIAN.EXE'))
     cfb = _cfb(exe)
@@ -122,11 +166,22 @@ def _run(tag, exe, team, rng=None):
             pass
         return press0(s_, scr, *a, **k)
     T.press = press
+    hook0, core0 = T.W84_HOOK, os.environ.get('CORE')
+    if force is not None:
+        T.W84_HOOK = _force(*force, exe)
+        os.environ['CORE'] = 'normal'       # (debugger breakpoints)
     try:
         ok, msg = T.world8485()
+        if force is not None and not T.W84_HOOK.st['done']:
+            ok, msg = False, f'opinion not forced (no breakpoint hit): {msg}'
         path = os.path.join(T.RUNS, T.w84_tag() + '_1', 'session.log')
     finally:
         T.press = press0
+        T.W84_HOOK = hook0
+        if core0 is None:
+            os.environ.pop('CORE', None)
+        else:
+            os.environ['CORE'] = core0
         for k, v in keep.items():
             if v is None:
                 os.environ.pop(k, None)
@@ -316,6 +371,8 @@ def _check_zoned(r, errs, want_titles=False):
     if r['at_msg']:
         text, cur, exp, t, c = r['at_msg']
         p = cur.get('scaled', 0)
+        if r.get('force'):                  # (world_zone_below: the opinion's D1 / D2 poked)
+            p, exp = r['force']
         if c is None:                       # (a tournament among the career competitions: only "no worse")
             top = _verdict(p, exp, n, t, signed=r['signed'])
             got = next((i for i, m in enumerate(MSG) if m in text), 9)
@@ -378,6 +435,40 @@ def register(mod):
         """4.1.2 zone positions + stage titles: VERAGUAS UNITED (Panama, zone 2's strongest: it reaches the play-offs)
         on the GPLAY_KOFORCE=2 test build"""
         return _zoned('zone_pant', 'pan', 'veraguasunited', 'NORDAMERICA,PANAMA,VERAGUAS UNITED', 'k')
+
+    @sc
+    def world_zone_below():
+        """4.2 opsign in a league in zones (MC 12/11): ALDOSIVI (Argentina, zone 2) with the season-end opinion's place
+        and expected place forced (_force: a debugger poke, the exe untouched) to scaled 4 (3rd of its zone) and 0 (1st):
+        the club BELOW its expected place, every season. On this checkout (the release recipe: opsign's signed ratio)
+        and on ZONE_412 (default: 412-zonepos 41d8668 built the same way - 4.1.2's zone positions, the original
+        unsigned ratio): each opinion = _verdict with its exe's own rule, and the
+        two verdicts differ (the run takes the fixed path)."""
+        out, errs, got = [], [], {}
+        P, E = 4, 0
+        for tag, kind, sgn in (('zone_belw', 'w', True), ('zone_belo', '412', False)):
+            ok, msg, log, offs = _run(tag, _exe(kind), 'SUDAMERICA,ARGENTINA,LIGA PROFESIONAL,ALDOSIVI', force=(P, E))
+            if not ok:
+                return False, f'{kind}: the season: {msg}'
+            r = _read(log, 'arg', 'aldosivi', offs)
+            r['force'] = (P, E)
+            e = []
+            T.check(r['zones'], 'no zones in the pack', e)
+            T.check(r['signed'] == sgn, f'the exe\'s opinion ratio is {"signed" if r["signed"] else "unsigned"}', e)
+            T.check(any(ln.startswith('FORCE place') for ln in open(log, errors='replace')), 'no FORCE line in the log', e)
+            s1 = _check_zoned(r, e)
+            if r['at_msg']:
+                text, _, _, t, c = r['at_msg']
+                T.check(c is not None, 'a tournament among the career competitions: the verdict is not exact', e)
+                if c is not None:
+                    got[kind] = _verdict(P, E, r['n'], t, c, sgn)
+                    T.check(got[kind] in text, f'opinion {text!r}: expected {got[kind]}', e)
+            out.append(f'{kind}: {s1}')
+            errs += [f'{kind}: {x}' for x in e]
+        if len(got) == 2:
+            T.check(got['w'] != got['412'], f'the two rules give the same verdict {got["w"]}: the fixed path untested',
+                    errs)
+        return not errs, '; '.join(errs) or ' / '.join(out)
 
     @sc
     def world_zone_mlt():

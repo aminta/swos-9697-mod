@@ -32,7 +32,7 @@ typedef unsigned short u16;
 typedef unsigned int u32;
 typedef signed char s8;
 
-enum { GT = 32, GD = 16, GN = 64, RESERVE = 0xFE };   /* (GD: Italy 2026-27 has 14 divisions; GT: Argentina's 30) */
+enum { GT = 32, GD = 16, GN = 64, RESERVE = 0xFE, EXTERNAL = 0xFD };   /* (EXTERNAL, S7: gplay.py's) */   /* (GD: Italy 2026-27 has 14 divisions; GT: Argentina's 30) */
 enum { HOST_LISTED, HOST_BETTER, HOST_DRAWN, HOST_NEUTRAL, HOST_UEFA_FINAL = 0x40, HOST_SKIP_SAME = 0x80 };
 enum { LV_BETTER, LV_ET_PENS, LV_ET_BETTER, LV_PENS, LV_AWAY_PENS, LV_AWAY_BETTER,
        LV_BETTER_PTS, LV_SECOND };      /* (4.2 s3shape: the better placed unless level on points, then e.t. + penalties;
@@ -323,6 +323,76 @@ static void move(int c, int delta) {
     struct gp_mv *m = &GP_OUT.mv[GP_OUT.nmv++];
     m->glob = row(c)->glob; m->team = row(c)->team; m->delta = delta;
 }
+
+/* S7 glue (MC 12/11, mc-s7-glue.md §3.5): a play-off destination in the OTHER league struct (Italy: Serie C's
+   play-out losers -> file 144's Serie D, the Serie D title winner -> file 102's Serie C) is compiled as EXTERNAL
+   (gplay.py, mkseason Pack.po_local). The game moves nobody across structs: the club stays where it is (no GP_OUT
+   move) and is listed here - entry, outcome, its global number - for the season-end swap builder, which reads the
+   entry's target division_key from mkseason's ko_external table (the one place of that policy). Not in GP_OUT
+   (its layout is the season-end log's, GP_LOG). The preview (GP_PRE) lists nothing. Dormant: no EXTERNAL byte in
+   any spec, n stays 0. Full (8): the last ones lost - the builder refuses that season by its
+   flag (GP_EXT.full), never a guess. */
+#if GP_S7
+enum { GP_EXT_N = 8, EXT_WINNER = 0, EXT_LOSER = 1 };
+struct gp_ext { u8 n, full, pad[2]; struct { u16 glob, team; u8 pidx, outcome, pad[2]; } e[GP_EXT_N]; };
+struct gp_ext GP_EXT;
+
+extern u8 GP_PRE;                       /* (the preview flag, defined below) */
+static void dest(int c, int to, int pidx, int outcome) {
+    if (to != EXTERNAL) {
+        move(c, to - DV(c));
+        return;
+    }
+    if (GP_PRE) return;
+    if (GP_EXT.n >= GP_EXT_N) { GP_EXT.full = 1; return; }
+    GP_EXT.e[GP_EXT.n].glob = row(c)->glob; GP_EXT.e[GP_EXT.n].team = row(c)->team;
+    GP_EXT.e[GP_EXT.n].pidx = (u8)pidx; GP_EXT.e[GP_EXT.n].outcome = (u8)outcome;
+    GP_EXT.n++;
+}
+
+/* S7 snapshot (Shaved 13/11, s7-swap-plan.md piece 1; MC's Q2): GP_IN and GP_EXT are one country's, so at the end of
+   each league struct's gp_season its crossings are copied into S7X[its file's index] for the season-end swap builder
+   (obj4 s7swap.c, in pg_fix before InitializeNewSeason): the DIRECT ones - a division's original 'promoted' /
+   'relegated' count that B1 zeroed in the struct records (mkseason Pack.s7_direct -> S7_DIR {file, local division,
+   up 1 / down 0, count}), taken from its final table (GP_IN.t, after the play-offs' deciders) - then the play-out
+   ones (GP_EXT, its order). dir: the struct's side of the boundary (S7_FA = the upper struct's file: its clubs go
+   down). bad: a division not captured, a short table or GP_EXT.full - the builder refuses the season, never guesses.
+   season: GP_SEASP's stamp (the builder takes only this season's two snapshots). */
+enum { S7X_N = 24, S7_KDIRECT = 0, S7_KPLAYOUT = 1 };
+struct s7x { u16 file; u8 n, bad, season, pad[3]; struct { u16 glob, team; u8 kind, dir, div, rank; } e[S7X_N]; };
+struct s7x S7X[2];
+static const u8 S7_DIR[][4] = { S7_DIRS };
+static void s7_add(struct s7x *x, const struct gp_row *r, int kind, int dir, int div, int rank) {
+    if (x->n >= S7X_N) { x->bad |= 4; return; }
+    x->e[x->n].glob = r->glob; x->e[x->n].team = r->team;
+    x->e[x->n].kind = (u8)kind; x->e[x->n].dir = (u8)dir; x->e[x->n].div = (u8)div; x->e[x->n].rank = (u8)rank;
+    x->n++;
+}
+static void s7_snap(void) {
+    if (GP_PRE || !GP_IN.n[0]) return;
+    u16 f = GP_IN.t[0][0].team & 0xFF;          /* (the struct: its top division's file) */
+    struct s7x *x = &S7X[f == S7_FA ? 0 : 1];
+    if (f != S7_FA && f != S7_FB) return;
+    x->file = f; x->n = x->bad = 0; x->season = (u8)(GP_SEASP + 1);
+    for (u32 k = 0; k < sizeof S7_DIR / sizeof S7_DIR[0]; k++) {
+        const u8 *z = S7_DIR[k];
+        if (z[0] != f || !z[3]) continue;
+        int d = z[1], n = d < GD ? GP_IN.n[d] : 0;
+        if (n <= z[3]) { x->bad |= 1; continue; }
+        for (int i = 0; i < z[3]; i++) {
+            int pl = z[2] ? i : n - z[3] + i;   /* (up: the first places; down: the last ones, best first) */
+            s7_add(x, &GP_IN.t[d][pl], S7_KDIRECT, f == S7_FA, d, pl);
+        }
+    }
+    if (GP_EXT.full) x->bad |= 2;
+    for (int i = 0; i < GP_EXT.n; i++) {
+        struct gp_row r; r.glob = GP_EXT.e[i].glob; r.team = GP_EXT.e[i].team;
+        s7_add(x, &r, S7_KPLAYOUT, f == S7_FA, 0xFF, i);
+    }
+}
+#else
+#define dest(c, to, pidx, outcome) move((c), (to) - DV(c))   /* (dormant: the game's own move) */
+#endif
 
 static int sbetter_cmp(int a, int b) { return better(a, b); }
 
@@ -774,6 +844,9 @@ static int pr_row(int d, u16 g) {               /* a global number -> its row of
     return -1;
 }
 
+#if GP_S7
+static int pr_pidx;                     /* (S7: the promedio entry's index, for GP_EXT) */
+#endif
 static void promedio(int d, int mnow, int ldiv) {
     if (!PR_STATE.init) pr_seed();
     int n = SSB->n[2];
@@ -806,8 +879,13 @@ static void promedio(int d, int mnow, int ldiv) {
         if (ca >= 0 && cb >= 0) down2 = tie(ca, cb, 1, HOST_NEUTRAL, LV_ET_PENS) == ca ? l2 : l;
     }
     int c1 = pr_row(d, a[down1].glob), c2 = pr_row(d, a[down2].glob);
+#if GP_S7
+    if (c1 >= 0) dest(c1, ldiv, pr_pidx, EXT_LOSER);   /* (S7: an EXTERNAL loser_div - listed, not moved) */
+    if (c2 >= 0) dest(c2, ldiv, pr_pidx, EXT_LOSER);
+#else
     if (c1 >= 0) move(c1, ldiv - d);
     if (c2 >= 0) move(c2, ldiv - d);
+#endif
     static struct pr_club nx[PR_N];             /* next season's history: this season and the one before */
     int nn = 0;
     for (int i = 0; i < n && nn < PR_N; i++) {
@@ -1135,6 +1213,9 @@ GP_KOSIZE void gp_season(void) {
     GP_OUT.nmv = 0;
     GP_OUT.nres = 0;
     ch_low = 0;
+#if GP_S7
+    if (!GP_PRE) GP_EXT.n = GP_EXT.full = 0;   /* (S7: this season end's cross-struct list) */
+#endif
     for (int k = 0; k < 3; k++) {               /* (stage titles: this season's, from the specs below) */
         GP_OUT.sres[k].kind = 0;
         GP_OUT.sres[k].team[0] = GP_OUT.sres[k].team[1] = GP_OUT.sres[k].glob[0] = GP_OUT.sres[k].glob[1] = 0xFFFF;
@@ -1170,7 +1251,11 @@ GP_KOSIZE void gp_season(void) {
             if (x[0] == E_SEEDED) x_seeded |= 1u << (x[1] & 31);
         }
         if (kind == K_PROM) {                   /* (no entrants, no rounds) */
+#if GP_S7
+            if (!GP_PRE) { pr_pidx = pidx; promedio(0, wdiv, ldiv); }   /* (the preview: no promedio - its history is written) */
+#else
             if (!GP_PRE) promedio(0, wdiv, ldiv);   /* (the preview: no promedio - its history is written) */
+#endif
             s = r;
             continue;
         }
@@ -1344,17 +1429,17 @@ GP_KOSIZE void gp_season(void) {
                 for (int k = 0; k < winners; k++) if (P[glast + k] == c) top = 1;
                 if (top) to = wdiv;
                 else if (DV(c) == wdiv) to = ldiv;
-                move(c, to - DV(c));
+                dest(c, to, pidx, top ? EXT_WINNER : EXT_LOSER);
             }
         } else if (ok && last >= 0 && kind == 4) {     /* playout: the last round's losers down */
-            for (int t = lastr; t < lastr + nlast && t < GN; t++) move(L[t], ldiv - DV(L[t]));
+            for (int t = lastr; t < lastr + nlast && t < GN; t++) dest(L[t], ldiv, pidx, EXT_LOSER);
         } else if (ok && last >= 0) {           /* the winner to winner_div; another winner_div entrant down */
             int w = W[last];
             for (int i = 0; i < n; i++) {
                 int c = club[i], to = DV(c);
                 if (c == w) to = wdiv;
                 else if (DV(c) == wdiv) to = ldiv;
-                move(c, to - DV(c));
+                dest(c, to, pidx, c == w ? EXT_WINNER : EXT_LOSER);
             }
         }
         if (kind == K_STAGE)                    /* (WN_ST: this play-off's winner) */
@@ -1379,6 +1464,9 @@ GP_KOSIZE void gp_season(void) {
     x_sfrom = 0; x_lvl = 0;                     /* (4.2: this season end's only - a contest reads the places as they are) */
     if (ss_used && !GP_PRE) SSB->fresh = 0;   /* (this league's stage tables used: next season's are new ones) */
     while (ndsw) { ndsw--; dswap(dsw[2 * ndsw], dsw[2 * ndsw + 1]); }   /* (the preview: the tables as they were) */
+#if GP_S7
+    s7_snap();                                  /* (S7: this struct's crossings for the swap builder) */
+#endif
 }
 
 /* ---- The playable play-offs (gp_lend .. gp_end in gplay.py): the career club's play-off or play-out is played in
@@ -2194,8 +2282,22 @@ const u32 CD_STSZ = sizeof(struct cd_state);
 const u8 *GP_CDT;                       /* (the glue: CD_TAB of the running world, or 0) */
 u32 GP_CDFORCE;                         /* (the glue: CD_FORCE test builds, the career club wins its Coppa D ties) */
 u16 *GP_CDS1;                           /* 4.0 (the glue): the Coppa D's slot-1 contest team list (64 words), 0 = none */
-const u8 *GP_CDD;                       /* (its CD_DT: db first Serie D division, groups; dw global base; 256 x db
-                                           base division, FFh none) */
+const u8 *GP_CDD;                       /* (its CD_DT: db first Serie D division, groups; dw global base; [GP_CD2 builds:
+                                           dw base2, dw ord2]; 256 x db base division, FFh none) */
+/* S7-G (MC 11/11): a league over two team files (gplay.py: globnum.exe_split) - CD_DT's file B rows from ord2 on
+   take run 2 (global base2 + ordinal - ord2); without GP_CD2 (every dormant build) the readers expand to today's
+   tokens */
+#ifndef GP_CD2
+#define GP_CD2 0
+#endif
+#if GP_CD2
+#define CD_O 8
+#define CD_G(dt, gb, i) ((i) >= ((dt)[6] | (dt)[7] << 8) ? ((dt)[4] | (dt)[5] << 8) + (i) - ((dt)[6] | (dt)[7] << 8) \
+                         : (gb) + (i))
+#else
+#define CD_O 4
+#define CD_G(dt, gb, i) (gb + i)
+#endif
 const u32 *GP_CDNM;                     /* (its names: dd long, short) */
 u32 GP_CDFIRST;                         /* (the career's first season in the world) */
 #define CDREC(r) (GP_CDT + 4 + 8 * (r))
@@ -2535,14 +2637,14 @@ extern u8 RI_FILES_FILE[CD_RF];
 void cd_season(const u8 *tab, const u8 *dt, const s8 *slt, const s8 *copy, int world) {
     if (tab[0] != world) return;
     int df = dt[0], dc = dt[1], gb = dt[2] | dt[3] << 8, lf = tab[2], moved = 0, fi = -1;
-    for (int i = 0; i < 256; i++) if (dt[4 + i] != 0xFF && copy[gb + i] != slt[gb + i]) moved = 1;
+    for (int i = 0; i < 256; i++) if (dt[CD_O + i] != 0xFF && copy[CD_G(dt, gb, i)] != slt[CD_G(dt, gb, i)]) moved = 1;
     if (!moved) return;                 /* (InitializeNewSeason at a career's start: the world's real bracket) */
     for (int k = 0; k < CD_RF; k++) if (RI_FILES_FILE[k] == lf) fi = k;
     CD_ST.nfc = CD_ST.nfp = 0;
     for (int i = 0; i < 256; i++) {
-        int b = dt[4 + i], e = 0;
+        int b = dt[CD_O + i], e = 0;
         if (b != 0xFF) {
-            int nd = b + copy[gb + i], od = b + slt[gb + i];
+            int nd = b + copy[CD_G(dt, gb, i)], od = b + slt[CD_G(dt, gb, i)];
             if (nd >= df && nd < df + dc) {
                 if (fi >= 0 && (RI_SWAPPED[fi][i >> 3] & 1 << (i & 7))) {
                     e = 1;              /* (a new arrival: a new identity from the pool) */
@@ -2587,9 +2689,9 @@ static void cd_make(void) {             /* a later season's rounds 0-1 (CD_ST.ge
     u16 key[256], side[256];
     rng = GP_SEAS * 104729u + 17;
     for (int i = 0; i < 256; i++) {
-        int b = dt[4 + i];
+        int b = dt[CD_O + i];
         if (b == 0xFF || !GP_SLT) continue;
-        int dv = b + GP_SLT[gb + i];
+        int dv = b + GP_SLT[CD_G(dt, gb, i)];
         if (dv < df || dv >= df + dc) continue;
         int e = CD_ST.efresh ? CD_ST.ent[i] : 0;
         ord[n] = i; grp[n] = dv - df; key[n] = (e ? e : 0x40) << 8 | below(256); n++;
@@ -2632,7 +2734,7 @@ static u32 cd_below(u32 n) {            /* (below() for n past 65535: the produc
     return (u32)(((unsigned long long)(rng >> 16) * n) >> 16);
 }
 static u32 cd_str(u16 w) {
-    const u8 *s = GP_CDD + 260;
+    const u8 *s = GP_CDD + CD_O + 256;
     int i = w >> 8, moff = s[0] | s[1] << 8, nmap = s[2] | s[3] << 8, np = s[4] | s[5] << 8, id = i;
     if (moff != 0xFFFF && i < nmap) id = cd_ident(moff + i, i);
     const u8 *p = id < 256 ? s + 6 + 2 * id : id - 256 < np ? s + 6 + 512 + 2 * (id - 256) : 0;
@@ -2723,9 +2825,9 @@ u32 cd_step_c(void) {
 u32 cd_member_c(u32 team) {
     const u8 *dt = GP_CDD;
     if (!GP_CDT || !dt || !GP_SLT || (team & 0xFF) != GP_CDT[2]) return 0;
-    int i = team >> 8 & 0xFF, b = dt[4 + i];
+    int i = team >> 8 & 0xFF, b = dt[CD_O + i];
     if (b == 0xFF) return 0;
-    int dv = b + GP_SLT[(dt[2] | dt[3] << 8) + i];
+    int dv = b + GP_SLT[CD_G(dt, (dt[2] | dt[3] << 8), i)];
     return dv >= dt[0] && dv < dt[0] + dt[1];
 }
 
@@ -3407,6 +3509,16 @@ static int title_is(const u8 *t, const u8 *s) {  /* a slot's title (DIY+4, 34 ch
     while (j < 34 && t[j] && t[j] == s[j]) j++;
     return j && (j == 34 || (!t[j] && !s[j]));
 }
+/* 4.2 (Regia 13/11, perf): the contest structs slots 2 / 3 can hold after a load (sacups.SLOT23: the euro chain's
+   copies and originals, the SA cups, the extra / continental cups; gplay.py fills them after the link): their long
+   names are where a slot's title is searched, else the slot's own title (b + 4). No byte scan of obj2 any more: a
+   title in no candidate scanned all of it at every load (W84E's slot 3 ' COPPA CAMPIONI EUROPEA', in no exe: 36 of
+   that load's 110 ticks at 486 speed); one it found was the slot's own title (4.1.1 cv_s2: INGHILTERRA EFL CUP,
+   UEFA CHAMPIONS LEAGUE at b + 4, the lowest copy). */
+#define GP_RPMAX 64
+const u8 *GP_RPS[GP_RPMAX] = { (const u8 *)1 };   /* (not in .bss) */
+u32 GP_RPSN = 1;
+
 void gp_repoint_c(u8 *const *slots, u8 *const *structs, u32 base, u32 div, u32 lim) {
     for (int k = 0; k < 5; k++) {
         u8 *b = slots[k];
@@ -3416,7 +3528,8 @@ void gp_repoint_c(u8 *const *slots, u8 *const *structs, u32 base, u32 div, u32 l
                                            D8CAA[3] may already be conti's next contest while the buffer is still
                                            this season's. The old absolute DIY+27h (another build's obj2) gave a
                                            wrong title and the season record's +1Eh / +22h line (DIY+27h -
-                                           STR_BASE) at the season end. */
+                                           STR_BASE) at the season end. The candidates: D8CAA[k], the old
+                                           pointer, GP_RPS (no obj2 byte scan, Regia 13/11). */
             if (!b || !b[4]) continue;
             const u8 *cur = *(const u8 *const *)(b + 0x27);
             if (!cur) continue;
@@ -3427,8 +3540,15 @@ void gp_repoint_c(u8 *const *slots, u8 *const *structs, u32 base, u32 div, u32 l
                     ln = (const u8 *)(base + r);
             }
             if (!ln && (u32)cur > base && (u32)cur < lim && str_ok(cur) && title_is(b + 4, cur)) continue;
-            for (const u8 *q = (const u8 *)base + 1; !ln && (u32)q < lim; q++)
-                if (*q == b[4] && !q[-1] && title_is(b + 4, q) && str_ok(q)) ln = q;
+            for (u32 i = 0; !ln && i < GP_RPSN && i < GP_RPMAX; i++) {
+                const u8 *c = GP_RPS[i];
+                if ((u32)c < 0x1000) continue;
+                u32 r = *(const u32 *)(c + 5 + c[5]);
+                if (r && r < lim - base && str_ok((const u8 *)(base + r)) && title_is(b + 4, (const u8 *)(base + r)))
+                    ln = (const u8 *)(base + r);
+            }
+            if (!ln && str_ok(b + 4)) ln = b + 4;   /* (no candidate: the slot's own title - where 5c658a3's byte
+                                                       scan landed for such a save anyway: the lowest copy in obj2) */
             if (ln) *(const u8 **)(b + 0x27) = ln;
             continue;
         }
@@ -4251,6 +4371,11 @@ struct cn_state { u8 season, pad[3]; u8 name[CN_N]; };
 struct cn_state CN_ST;                  /* 4.0.5: the career club's division at the last season end (its name) */
 const u32 CN_SIZE = sizeof(struct cn_state);
 static u32 cf_last1(void) {              /* 4.0.5 (gp_wn_c 'E', last season): the 1st of the career club's level */
+#if GP_S7
+    if (CN_ST.pad[2] == 'W' && (u8)(CN_ST.season + 1) == GP_SEAS)    /* (4.2 S7: the career club's OWN last season, kept
+                                           as a word by cf_cap_c - a club that crossed files since is still its old division's) */
+        return (u32)(CN_ST.pad[0] | CN_ST.pad[1] << 8);
+#endif
     if (CF_ST.magic != 0x4643 || (u8)(CF_ST.season + 1) != GP_SEAS || (GP_MGR & 0xFF) != CF_ST.file) return 0xFFFE;
     int lv = CF_ST.rank[GP_MGR >> 8] >> 5;
     for (int i = 0; i < 256; i++)
@@ -4288,6 +4413,15 @@ void cf_cap_c(u32 dv, const u8 *diy, u32 season) {     /* a division's final tab
             int i = 0;
             for (; i < CN_N - 1 && diy[4 + i]; i++) CN_ST.name[i] = diy[4 + i];
             CN_ST.name[i] = 0;
+#if GP_S7
+            {                           /* (4.2 S7, cf-st-s7.md: the 1st of this division, as the career club's own last
+                                           season: its WORD (walked by WSITES row 'CN' +1: a winner that crosses at a
+                                           later swap keeps its identity); pad[2] = 'W' marks it - word 0 is a real club) */
+                int r0 = (diy[0x6D] | diy[0x6E] << 8) / 0x12;
+                u16 w0 = (u16)(diy[0x12D + 2 * r0] | diy[0x12E + 2 * r0] << 8);
+                CN_ST.pad[0] = (u8)w0; CN_ST.pad[1] = (u8)(w0 >> 8); CN_ST.pad[2] = 'W';
+            }
+#endif
         }
         if ((w & 0xFF) != CF_ST.file) continue;
         const u8 *dt = cf_dt(CF_ST.file);

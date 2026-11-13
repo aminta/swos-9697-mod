@@ -125,11 +125,30 @@ def _split_cached(w):
     return split(w)
 
 
+_OWN = {}
+
+
+def _split_of(pk):
+    """split() of pk's world with pk as its split league: the world's packs (mkseason.packs / nationals) when pk is
+    one of them, else those with pk in place of the pack of the same id (a pack built outside the enabled list:
+    s7pack's output, its host tests) - cached per pack folder."""
+    import os
+    here = os.path.realpath(pk.path)
+    ws = _world_packs(pk.world)
+    if any(os.path.realpath(q.path) == here for q in ws):
+        return _split_cached(pk.world)
+    key = (pk.world, here)
+    if key not in _OWN:
+        pid = pk.meta.get('id')
+        _OWN[key] = split(pk.world, [q for q in ws if q.meta.get('id') != pid] + [pk])
+    return _OWN[key]
+
+
 def glob(pk, f, i):
     """The global number of ordinal i of pack pk's team file f."""
     sp = split_file(pk)
     if sp and f == sp[0] and pk.world is not None:
-        for lo, n in _split_cached(pk.world)[f]:
+        for lo, n in _split_of(pk)[f]:
             if i < n:
                 return lo + i
             i -= n
@@ -146,7 +165,7 @@ def runs_of(pk, f):
     """[(lo, n)] of file f's global numbers (one run, or a split file's two)."""
     sp = split_file(pk)
     if sp and f == sp[0] and pk.world is not None:
-        return list(_split_cached(pk.world)[f])
+        return list(_split_of(pk)[f])
     key = next(k for k, (ff, _) in pk.files.items() if ff == f)
     return [(pk.files[key][1], pk.count.get(key, 0))]
 

@@ -475,7 +475,7 @@ def test_wsites_wn_m():
     down, up = t7.crossings(fs, m.gb)
     ident = {w: i for i, w in enumerate(word)}
     cross, stay = down[0][1], t7.FA | 10 << 8
-    m.w(wn, struct.pack('<HBBB', 0x4E57, 0x7E, 3, 0) + struct.pack('<BBH', ord('M'), 1, cross) +
+    m.w(wn, struct.pack('<HBB', 0x4E57, 0x7E, 3) + struct.pack('<BBH', ord('M'), 1, cross) +
         struct.pack('<BBH', ord('L'), 0, cross) + struct.pack('<BBH', ord('L'), 1, stay))
     stt, *_ = t7.run(m, down, up)
     new = t7.reg_parse(m.regb())[1][ident[cross]]

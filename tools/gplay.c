@@ -358,38 +358,15 @@ static void dest(int c, int to, int pidx, int outcome) {
    ones (GP_EXT, its order). dir: the struct's side of the boundary (S7_FA = the upper struct's file: its clubs go
    down). bad: a division not captured, a short table or GP_EXT.full - the builder refuses the season, never guesses.
    season: GP_SEASP's stamp (the builder takes only this season's two snapshots). */
-enum { S7X_N = 24, S7_KDIRECT = 0, S7_KPLAYOUT = 1 };
-struct s7x { u16 file; u8 n, bad, season, pad[3]; struct { u16 glob, team; u8 kind, dir, div, rank; } e[S7X_N]; };
-struct s7x S7X[2];
-static const u8 S7_DIR[][4] = { S7_DIRS };
-static void s7_add(struct s7x *x, const struct gp_row *r, int kind, int dir, int div, int rank) {
-    if (x->n >= S7X_N) { x->bad |= 4; return; }
-    x->e[x->n].glob = r->glob; x->e[x->n].team = r->team;
-    x->e[x->n].kind = (u8)kind; x->e[x->n].dir = (u8)dir; x->e[x->n].div = (u8)div; x->e[x->n].rank = (u8)rank;
-    x->n++;
-}
-static void s7_snap(void) {
-    if (GP_PRE || !GP_IN.n[0]) return;
-    u16 f = GP_IN.t[0][0].team & 0xFF;          /* (the struct: its top division's file) */
-    struct s7x *x = &S7X[f == S7_FA ? 0 : 1];
-    if (f != S7_FA && f != S7_FB) return;
-    x->file = f; x->n = x->bad = 0; x->season = (u8)(GP_SEASP + 1);
-    for (u32 k = 0; k < sizeof S7_DIR / sizeof S7_DIR[0]; k++) {
-        const u8 *z = S7_DIR[k];
-        if (z[0] != f || !z[3]) continue;
-        int d = z[1], n = d < GD ? GP_IN.n[d] : 0;
-        if (n <= z[3]) { x->bad |= 1; continue; }
-        for (int i = 0; i < z[3]; i++) {
-            int pl = z[2] ? i : n - z[3] + i;   /* (up: the first places; down: the last ones, best first) */
-            s7_add(x, &GP_IN.t[d][pl], S7_KDIRECT, f == S7_FA, d, pl);
-        }
-    }
-    if (GP_EXT.full) x->bad |= 2;
-    for (int i = 0; i < GP_EXT.n; i++) {
-        struct gp_row r; r.glob = GP_EXT.e[i].glob; r.team = GP_EXT.e[i].team;
-        s7_add(x, &r, S7_KPLAYOUT, f == S7_FA, 0xFF, i);
-    }
-}
+#ifndef GP_DATA_SECTION
+#define GP_DATA_SECTION __attribute__((section(".data")))      /* (host tests build gplay.c natively: -DGP_DATA_SECTION=) */
+#endif
+struct s7x { u16 file; u8 n, bad, season, pad[3]; struct { u16 glob, team; u8 kind, dir, div, rank; } e[24]; };
+struct s7x S7X[2];                      /* (written by s7swap.c s7_snap, read by its s7_season) */
+void (*GP_S7SNAP)(const struct gp_in *in, const struct gp_ext *ext, u32 pre, u32 seasp) GP_DATA_SECTION;   /* (s7swap.py:
+                                           -> obj4 s7_snap - MC ruling (b) 13/11: the S7-only code out of obj1) */
+_Static_assert(__builtin_offsetof(struct gp_in, t) == 22 && sizeof(struct gp_row) == 12 && GD == 16 && GT == 32,
+               "s7swap.c s7_in: gp_in's head as gplay.c has it");
 #else
 #define dest(c, to, pidx, outcome) move((c), (to) - DV(c))   /* (dormant: the game's own move) */
 #endif
@@ -1465,7 +1442,7 @@ GP_KOSIZE void gp_season(void) {
     if (ss_used && !GP_PRE) SSB->fresh = 0;   /* (this league's stage tables used: next season's are new ones) */
     while (ndsw) { ndsw--; dswap(dsw[2 * ndsw], dsw[2 * ndsw + 1]); }   /* (the preview: the tables as they were) */
 #if GP_S7
-    s7_snap();                                  /* (S7: this struct's crossings for the swap builder) */
+    if (GP_S7SNAP) GP_S7SNAP(&GP_IN, &GP_EXT, GP_PRE, GP_SEASP);   /* (S7: this struct's crossings for the swap builder) */
 #endif
 }
 

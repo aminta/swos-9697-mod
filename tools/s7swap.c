@@ -47,6 +47,48 @@ typedef int int32_t;
 struct s7x { uint16_t file; uint8_t n, bad, season, pad[3];
              struct { uint16_t glob, team; uint8_t kind, dir, div, rank; } e[24]; };   /* (gplay.c's) */
 extern struct s7x S7X[2];               /* obj2 (gplay.c .bss) */
+
+/* S7 snapshot (s7-swap-plan.md piece 1; moved here from gplay.c, MC ruling (b) 13/11): gplay.c's gp_season calls it
+   (GP_S7SNAP) at the end of each league struct's pass - GP_IN and GP_EXT are that country's - to copy the struct's
+   crossings into S7X[its file's index]: the DIRECT ones (a division's original promoted / relegated count that B1 zeroed
+   in the struct records: S7_DIR {file, local division, up 1 / down 0, count}, mkseason Pack.s7_direct), from its final
+   table, then the play-out ones (GP_EXT, its order). dir: the struct's side (FA: its clubs go down). bad: a division not
+   captured / a short table (1), GP_EXT.full (2), S7X full (4) - the builder refuses the season. season: the stamp. */
+struct s7_row { uint16_t team, glob, won, gf, ga, pts; };
+struct s7_in { uint8_t nd, pad[3]; uint8_t n[16], pad2[2]; struct s7_row t[16][32]; };   /* (gplay.c gp_in's head: its
+                                           _Static_assert keeps t at 22, rows of 12 B, GD 16, GT 32) */
+struct s7_ext { uint8_t n, full, pad[2]; struct { uint16_t glob, team; uint8_t pidx, outcome, pad[2]; } e[8]; };
+_Static_assert(__builtin_offsetof(struct s7_in, t) == 22 && sizeof(struct s7_row) == 12, "gplay.c gp_in");
+extern uint8_t S7_FA, S7_FB;            /* (below: the two struct files) */
+uint8_t S7_DIR[16][4] DATA = {{0}};     /* (s7swap.py: Pack.s7_direct) */
+uint8_t S7_NDIR DATA = 0;
+static void s7_add(struct s7x *x, uint16_t glob, uint16_t team, int32_t kind, int32_t dir, int32_t div, int32_t rank)
+{
+    if (x->n >= 24) { x->bad |= 4; return; }
+    x->e[x->n].glob = glob; x->e[x->n].team = team;
+    x->e[x->n].kind = (uint8_t)kind; x->e[x->n].dir = (uint8_t)dir; x->e[x->n].div = (uint8_t)div; x->e[x->n].rank = (uint8_t)rank;
+    x->n++;
+}
+void s7_snap(const struct s7_in *in, const struct s7_ext *ext, uint32_t pre, uint32_t seasp)
+{
+    if ((pre & 0xFF) || !in->n[0]) return;
+    uint16_t f = in->t[0][0].team & 0xFF;       /* (the struct: its top division's file) */
+    if (f != S7_FA && f != S7_FB) return;
+    struct s7x *x = &S7X[f == S7_FA ? 0 : 1];
+    x->file = f; x->n = x->bad = 0; x->season = (uint8_t)(seasp + 1);
+    for (uint32_t k = 0; k < S7_NDIR && k < 16; k++) {
+        const uint8_t *z = S7_DIR[k];
+        if (z[0] != f || !z[3]) continue;
+        int32_t d = z[1], n = d < 16 ? in->n[d] : 0;
+        if (n <= z[3]) { x->bad |= 1; continue; }
+        for (int32_t i = 0; i < z[3]; i++) {
+            int32_t pl = z[2] ? i : n - z[3] + i;   /* (up: the first places; down: the last ones, best first) */
+            s7_add(x, in->t[d][pl].glob, in->t[d][pl].team, 0, f == S7_FA, d, pl);
+        }
+    }
+    if (ext->full) x->bad |= 2;
+    for (int32_t i = 0; i < ext->n && i < 8; i++) s7_add(x, ext->e[i].glob, ext->e[i].team, 1, f == S7_FA, 0xFF, i);
+}
 extern sr_registry *SREG_REG;           /* sreg.c: -> the engine arena */
 extern uint8_t SWE_ARENA_AT[];          /* swe.c: the registry at its start, the work area after it */
 int32_t sreg_get(void);                 /* sreg.c: 1 = REG holds this career's registry (built from the spec if needed) */

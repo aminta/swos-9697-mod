@@ -61,6 +61,10 @@ from strpool import StrPool
 
 ROOT = os.path.join(os.path.dirname(__file__), '..')
 ITALY = 20
+SLOW = False               # 4.2 MATCH SPEED (slow.py) PARKED (Davide 13/11 via Regia, MC ok): judder on Android - the
+                           # doubled frames show, and SPEED.CFG keeps a level across runs. Off in every build: no row,
+                           # no GameLoop hook, SPEED.CFG never read (slow.assert_off). A module constant on purpose: no
+                           # env var can turn it on in a release. PERS2 imports it (one switch for both builds).
 ITALY_BASE = 1850          # free global numbers: ~1794..1999
 OBJ1_NEW_VSIZE = 0xa6000     # + five added pages (lepatch.add_object_page)
 OBJ3_ARENA = 0x20000         # 4.0.6 obj3 (mod code after obj2, CONVENTIONS 23): its file pages (mod pages, then the C
@@ -904,7 +908,10 @@ def patch_exe(src, dst, remap, lang='it'):
     import gkinj                                 # 4.0.6 (Davide): goalkeeper injuries after a match (an OPTIONS row,
     st_end = gkinj.patch(p, (st_end + 15) & ~15, lang)       # ON by default), the obj3 chain's end
     import slow                                  # 4.2 EXPERIMENTAL (Davide 12/11): MATCH SPEED 100/90/80/70 % (an OPTIONS
-    slow.patch(p, lang)                          # row after gkinj's; GameLoop's @@flip_it; SPEED.CFG), obj4 page 13
+    if SLOW:                                     # row after gkinj's; GameLoop's @@flip_it; SPEED.CFG), obj4 page 13 -
+        slow.patch(p, lang)                      # PARKED 13/11 (SLOW = False): nothing of it linked, asserted
+    else:
+        slow.assert_off(p)
     import namefit                               # 4.2 names-fit (Marco (b) step 2): menu names cut by pixels, obj4 page 13
     namefit.patch(p)
     if ct_pg:                                    # 4.0.6 B2: the season-1 edition's block (conti.c CT_S1 -> it)

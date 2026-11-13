@@ -846,6 +846,11 @@ def require(cond, msg):
     return cond
 
 
+class Skipped(BaseException):
+    """A scenario whose feature is not in the build (13/11: slow_speed with MATCH SPEED parked): the run loop prints
+    SKIP, never PASS, and does not count it as bad."""
+
+
 class BuildOnly(BaseException):
     """SWOSTEST_BUILD_ONLY=1 (remote_run.sh's local pre-build): a scenario stops at its first game start, its builds
     done. A BaseException, so the scenarios' own 'except Exception' don't catch it."""
@@ -32617,6 +32622,9 @@ def main(argv):
             except BuildOnly:
                 print(f'BUILT {n} ({time.time() - t:.0f} s)', flush=True)
                 continue
+            except Skipped as e:
+                print(f'SKIP {n} ({time.time() - t:.0f} s) {e}', flush=True)
+                continue
             except SetupError as e:                        # (root fix A: a precondition, not the game)
                 ok, msg, setup = False, f'setup: {e}', True
             except Exception as e:                         # (one scenario's exception: a FAIL, the suite goes on)
@@ -36821,6 +36829,11 @@ def slow_speed():
     from complist import px, SMALL_W
     errs, notes = [], []
     b = builds()['it'] if UI == 'it' else build(f'slow_ui_{UI}', lang=UI)
+    import lepatch
+    import swreg
+    p_ = lepatch.LEPatch(os.path.join(b, 'ITALIAN.EXE'))   # (every UI: run as ITALIAN.EXE)
+    if slow.TAG not in bytes(p_.get(4, swreg.SLOW_AT, swreg.SLOW_END - swreg.SLOW_AT)):   # (PARKED 13/11: SKIP, never PASS)
+        raise Skipped('no SLOW tag in the exe: MATCH SPEED parked (patch.SLOW False, Davide 13/11)')
     sl, cgt, paused = slow_sites(b)
     label = slow.LABEL[UI]
     with Session(f'slow_ui_{UI}', b, {}, 'dump:3', 300) as s:

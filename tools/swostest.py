@@ -34742,6 +34742,141 @@ def xleft_job():
     return not errs, '; '.join(errs + info)
 
 
+def exclub_browse(s, league_path, club):
+    """TRASFERIMENTI > ACQUISTA GIOCATORE > ACQ. ALTRO GIOCAT. NAZION. > league_path... > club -> (screen, [screens seen])."""
+    seen = []
+    walk(s, 'TRASFERIMENTI', 3)
+    walk(s, 2, 3)
+    walk(s, 4, 3)
+    for t in list(league_path) + [club]:
+        seen.append(s.screen().texts()[:12])
+        walk(s, t, 3)
+    return s.screen(), seen
+
+
+@scenario
+def exclub_list():
+    """4.2 (Enzo De Luca, 4.1.2, NZ career): after a JOB CHANGE the buy list of the EX club showed only page 1. World 2026-27
+    career at ATALANTA (release recipe, SWOSTEST_BUILD), the job offer of EXCLUB_JOB (BOLOGNA) forced as xleft_job does,
+    the season played, ACCETTA, the new season's menu. PASS: in the club browse (ACQ. ALTRO GIOCAT. NAZION. > SERIE A)
+    ATALANTA (the ex club, extras in its XTRA block) has the button PAG. SUCC. and page 2 lists its extras; a control club
+    (EXCLUB_CTRL, TORINO) has it too."""
+    import lepatch
+    exe = builds()['it']
+    nz = bool(os.environ.get('EXCLUB_NZ'))              # Enzo's case: New Zealand (Northern League)
+    club, me, ctrl = ((os.environ.get('EXCLUB_JOB', 'AUCKLAND CITY'), 'EASTERN SUBURBS', os.environ.get('EXCLUB_CTRL', 'PETONE'))
+                      if nz else (os.environ.get('EXCLUB_JOB', 'BOLOGNA'), 'ATALANTA', os.environ.get('EXCLUB_CTRL', 'TORINO')))
+    lg = os.environ.get('EXCLUB_LG', 'NORTHERN LGE') if nz else 'SERIE A'
+    mine = xtra_club_block(exe, me)
+    if not mine or not xtra_club_block(exe, ctrl):
+        return False, f'no XTRA block: {me} {bool(mine)}, {ctrl}'
+    jword = xtra_club_block(exe, club)[0]
+    num, offers = job_offer_sites(exe)
+    path = ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27'] + (
+        ['OCEANIA', 'NUOVA ZELANDA', lg, me] if nz else ['EUROPA', 'ITALIA', 'SERIE A', me])
+    errs, info = [], []
+
+    def leave(s):
+        for _ in range(8):
+            if 'PROSS. PARTITA' in s.screen().texts():
+                break
+            press(s, s.screen(), 'CONTINUA', 3) or press(s, s.screen(), 'ESCI', 3) or s.send('fire dump:2')
+
+    def button(scr):
+        return next(((e[1], e[2]) for e in scr.entries if e[0] == 31), None)
+
+    def consider(s, i):
+        walk(s, i, 3)
+        letter = s.screen()
+        if letter.find('CONSIDERA', exact=True) is None:
+            rows = [j for j, g in enumerate(letter.geom) if g[0] == 8 and g[2] == 304 and not letter.entries[j][2]
+                    and not letter.entries[j][3]]
+            if rows:
+                walk(s, rows[0], 3)
+        press(s, s.screen(), 'CONSIDERA', 3)
+        for _ in range(6):
+            if 'TRASFERIMENTI' in s.screen().texts():
+                break
+            press(s, s.screen(), 'CONTINUA', 3) or press(s, s.screen(), 'ESCI', 3) or s.send('fire dump:2')
+
+    with Session('exclub_list', exe, {}, 'dump:2', 600) as s:
+        s.wait()
+        if not pick_career(s, path):
+            return False, 'new career: ' + str(s.screen().texts()[:8])
+        s.send('fire dump:3')
+        leave(s)
+        r = s.result
+        s.poke(r.base2 + offers, struct.pack('<H', jword) + b'\xff' + bytes(17) + struct.pack('<I', 500000) + bytes(2))
+        s.poke(r.base2 + num, struct.pack('<H', 1))
+        walk(s, s.screen().find('VISUAL. COMPETIZ.', exact=True), 3)
+        press(s, s.screen(), 'ESCI', 3)
+        leave(s)
+        i = next((e[0] for e in s.screen().entries if e[1] and ('LAVORO' in e[1]) and not e[2] and not e[3]), None)
+        if i is None:
+            return False, f'no job offer entry: {s.screen().texts()[:20]}'
+        consider(s, i)
+        for _ in range(6):
+            if s.screen().find('SALVA CARRIERA', exact=True) is not None:
+                break
+            press(s, s.screen(), 'ESCI', 3) or press(s, s.screen(), 'ABBANDONA', 3)
+        walk(s, 'SALVA CARRIERA', 2)
+        s.send(name_entry('XLJB') + ' dump:3')
+        car = os.path.join(s.run, 'SWOS', 'XLJB.CAR')
+    if not os.path.exists(car):
+        return False, 'no XLJB.CAR'
+    keys = ('W8485_BUILD', 'W8485_FROM', 'W8485_NOSACK', 'W8485_SAVE_END', 'SWOSTEST_SCENARIO')
+    keep = {k: os.environ.get(k) for k in keys}
+    try:
+        os.environ.update(W8485_BUILD=exe, W8485_FROM=car, W8485_NOSACK='1', W8485_SAVE_END='XLJE',
+                          SWOSTEST_SCENARIO='xleft_job_season')
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    if 'saved ' not in msg:
+        return False, f'season: {msg[:200]}'
+    end = msg.split('saved ', 1)[1].strip()
+    with Session('exclub_list_next', exe, {'XLJE.CAR': end}, 'dump:2', 600) as s:
+        s.wait()
+        s.send(LOAD1 + ' dump:3')
+        if press(s, s.screen(), 'OFFERTE LAVORO', 3) is None:
+            return False, f'season end: no OFFERTE LAVORO {s.screen().texts()[:14]}'
+        scr = s.screen()
+        row = next((e[0] for e in scr.entries if e[1] and club in e[1] and not e[2] and not e[3]), None)
+        if row is None:
+            return False, f'season end: no offer of {club}: {scr.texts()[:10]}'
+        rows = [j for j, g in enumerate(scr.geom) if g[0] == 8 and g[2] == 304 and not scr.entries[j][2]
+                and not scr.entries[j][3]]
+        walk(s, next((j for j in rows if abs(scr.geom[j][1] - scr.geom[row][1]) <= 4), rows[-1] if rows else row), 3)
+        if press(s, s.screen(), 'ACCETTA', 3) is None:
+            return False, f'season end: no ACCETTA {s.screen().texts()[:14]}'
+        for _ in range(8):                              # CONTINUA CARRIERA: the new job, the new season's menu
+            scr = s.screen()
+            if 'TRASFERIMENTI' in scr.texts() and 'PROSS. PARTITA' in scr.texts():
+                break
+            press(s, scr, 'CONTINUA CARRIERA', 3) or press(s, scr, 'CONTINUA', 3) or press(s, scr, 'ESCI', 3) or s.send('fire dump:2')
+        s.shot('newjob')
+        for who, tag in ((me, 'exclub'), (ctrl, 'control')):
+            scr, seen = exclub_browse(s, [lg], who)
+            b = button(scr)
+            s.shot(tag + '_p1')
+            info.append(f'{who}: button {b}')
+            check(b is not None and b[0] == 'PAG. SUCC.' and not b[1], f'{who} ({tag}): page 1 button {b}; path {seen}', errs)
+            if b is not None:
+                walk(s, 'PAG. SUCC.', 3)
+                b2 = button(s.screen())
+                s.shot(tag + '_p2')
+                check(b2 is not None and b2[0] == 'PAG. PREC.', f'{who} ({tag}): page 2 button {b2}', errs)
+            for _ in range(5):
+                if 'TRASFERIMENTI' in s.screen().texts() and 'PROSS. PARTITA' in s.screen().texts():
+                    break
+                press(s, s.screen(), 'ESCI', 3) or s.send('fire dump:2')
+    return not errs, '; '.join(errs + info)
+
+
 @scenario
 def xtra_gk_clone():
     """4.0.6 (Jacopo on 4.0.5, TRIESTINA: "a clone of my goalkeeper", the game crashed when he sold it): a World 2026-27

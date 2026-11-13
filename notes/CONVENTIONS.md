@@ -162,7 +162,8 @@ new rule. If a rule seems wrong for a case, ask the regia session; don't silentl
       0x3000, uesum moved to UESUM_AT 0x4000 and usmenu after it - Regia 09/11). The engine's code
       + registry stay below swreg.OBJ4_END (0x2000 in 4.1), each view has its own range assert, and the 23bis gates
       below apply to it as to engine code.
-    - 4.2 slow: obj4 page 13, SLOW_AT 0xC000 (slow.py, the OPTIONS row MATCH SPEED + its SPEED.CFG; MC 12/11,
+    - 4.2 slow (PARKED 13/11: patch.SLOW = False, SLOW_AT..NAMEFIT_AT asserted zero; page 13 stays for the rest):
+      obj4 page 13, SLOW_AT 0xC000 (slow.py, the OPTIONS row MATCH SPEED + its SPEED.CFG; MC 12/11,
       SREG2 0xB000 below it, T3 0xD000 (Mercato CPU), CT spare 0xE000; a 23bis exception, Davide's ok via Regia 12/11).
     - 4.2 shirtbox: obj4 0xCF00..0xD000 (in slow's page 13, top; swreg.BOX_AT / BOX_END, MC 12/11): shirtedit's
       se_unsh (the lit number box's afterDraw) + its 4 data bytes, because the career cave is full. Slow's code stays below TRIAL_AT.

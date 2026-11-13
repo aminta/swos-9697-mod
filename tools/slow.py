@@ -1,4 +1,8 @@
-"""4.2 EXPERIMENTAL (Davide 12/11, way A of internal/handoff/slowspeed-estimate.md): a slower match - an OPTIONS row
+"""PARKED 13/11 (Davide via Regia, MC): off in every build (patch.SLOW = False, assert_off) - judder on Android
+(1-3 doubled frames in 10 show as stutter, and SPEED.CFG keeps the level across DOSBox Pure runs). Kept for a possible
+redesign without judder (e.g. a uniform tick slowdown): a design note first.
+
+4.2 EXPERIMENTAL (Davide 12/11, way A of internal/handoff/slowspeed-estimate.md): a slower match - an OPTIONS row
 MATCH SPEED 100% / 90% / 80% / 70%, 100% by default (no change).
 
 How the game paces a match: TimerProc (AIL, PIT divisor 17045 = 70 Hz) increments currentTick and, when not paused,
@@ -289,6 +293,29 @@ def patch(p, lang):
           f'{", SLOW_LEVEL=" + str(start) if start else ""}): code obj4+{at:#x} ({len(code)} B), '
           f'@@flip_it obj1+{s["FLIP_AT"]:#x} (was {flip})')
     return at + len(code)
+
+
+
+def assert_off(p):
+    """patch.SLOW False (PARKED 13/11, MC): NOTHING of slow is in the exe - a partial unhook would be worse than the
+    stutter. Its room SLOW_AT..NAMEFIT_AT all zero, no SLOW data tag on page 13, GameLoop's @@flip_it still calls
+    obj1's Flip, joyfix's call still goes to controls' ct_boot (no sl_boot: SPEED.CFG never read), the OPTIONS
+    header's init / return still gkinj's (no sl_init / sl_ret: no row, the game's 12 px pitch)."""
+    import controls
+    import gkinj
+    import swreg
+    assert not LABELS, 'slow off: slow.patch ran'
+    assert not any(p.get(4, swreg.SLOW_AT, swreg.NAMEFIT_AT - swreg.SLOW_AT)), 'slow off: SLOW_AT..NAMEFIT_AT not all zero'
+    assert TAG not in bytes(p.get(4, swreg.SLOW_AT, swreg.SLOW_END - swreg.SLOW_AT)), 'slow off: its data tag on page 13'
+    t = p.call_target(1, find(p)['FLIP_AT'])
+    assert t[0] == 1, ('slow off: @@flip_it does not call obj1 (sl_flip?)', t)
+    vj = controls.LAST['lab']['ct_boot']
+    assert p.call_target(1, controls.LAST['sym_vj']) == (1, vj), 'slow off: joyfix\'s call is not ct_boot (sl_boot?)'
+    hdr = controls.menu_header(p, controls.locate(p)['OMBD'][1])
+    assert [p.target(2, hdr + k) for k in (0, 4)] == [(3, gkinj.LABELS['gk_init']), (3, gkinj.LABELS['gk_ret'])], \
+        'slow off: OPTIONS init / return not gkinj\'s (sl_init / sl_ret?)'
+    print(f'exe: match speed PARKED (patch.SLOW False): obj4+{swreg.SLOW_AT:#x}..{swreg.NAMEFIT_AT:#x} zero, @@flip_it -> '
+          f'obj1+{t[1]:#x}, ct_boot and OPTIONS init / return unhooked')
 
 
 LABELS = {}

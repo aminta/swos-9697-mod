@@ -490,3 +490,30 @@ def test_wsites_wn_m():
     if e[2] != (ord('L'), 1, stay):
         errs.append(f'staying winner changed: {e[2]}')
     return not errs, '; '.join(errs) or "WN 'M' (last season's division key) kept, a crossing winner's word walked, a stayer untouched"
+
+
+def test_wsites_wn_kinds():
+    """MC 13/11: the WN row starts at entry 1 because entry 0 is the ONLY non-club entry of WN_ST. Read from gplay.c at
+    test time, every writer of WN_ST entries: wn_add('M', division, career club) - the last-season DIVISION KEY, first, once
+    (right after WN_ST.n = 0); wn_add('L', division, its winner), wn_add('K', play-off id, its winner),
+    wn_add(0x80 | play-off id, place, a club): all club words (walked); the preview marker WN_PRE 'p' (idx = the season,
+    team word 0: nothing to walk). A new kind, a second 'M' or a different first call FAILs here: it needs a decision on the
+    WN row (a fixed 'start at 1' would be wrong for another division key)."""
+    import re
+    src = open(os.path.join(TOOLS, 'gplay.c')).read()
+    calls = [(m.start(), m.group(1).strip()) for m in re.finditer(r"\bwn_add\(\s*([^,]+),", src)
+             if not src[max(0, m.start() - 12):m.start()].endswith('void ')]
+    kinds = [k for _, k in calls]
+    errs = []
+    allowed = {"'M'", "'L'", "'K'", '0x80 | (pidx & 0x7F)'}
+    for k in set(kinds) - allowed:
+        errs.append(f'new wn_add kind {k}: decide the WN row')
+    if kinds.count("'M'") != 1:
+        errs.append(f"wn_add('M') x {kinds.count(chr(39) + 'M' + chr(39))} (want exactly 1)")
+    first = src.index("wn_add('M'")
+    reset = src.rindex('WN_ST.n = 0', 0, first)
+    if any(reset < p < first for p, _ in calls):
+        errs.append("a wn_add call between WN_ST.n = 0 and wn_add('M'): 'M' is not entry 0")
+    if "x->type = WN_PRE; x->idx = GP_SEAS; x->team = 0;" not in src:
+        errs.append('the preview marker no longer has team word 0')
+    return not errs, '; '.join(errs) or f"wn_add kinds {sorted(allowed)} + the 'p' marker (team 0); 'M' once, entry 0: the WN row's \"start at 1\" holds"

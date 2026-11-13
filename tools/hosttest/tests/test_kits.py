@@ -5,7 +5,7 @@
 - test_kits_reference: kits.match over every pair of a sample of worn kits: the two keepers never wear the same shirt
   (but the game's old one), no keeper clashes with the referee or either team's shirt / stripes; on the original
   TEAM.* home kits the old keeper look is under 1 % of matches (kits.eval_pairs);
-- test_kits_exe: the exe's own code (HT_KITS_EXE, else c/K42a/SWOS/ITALIAN.EXE: a build with kits) on its static
+- test_kits_exe: the exe's own code (HT_KITS_EXE, else c/HTO4/SWOS/ITALIAN.EXE: mkfixtures.sh's release-recipe build, with kits) on its static
   image in Unicorn (test_registry's machine): swe_match_w27 per mode (career world byte, friendly / DIY SWE_W27,
   else WCUR; WCUR absent -> 0); kt_chain (its `call ChainFont` nopped) on fake TeamGame pairs = kits.match, the
   referee's shirt masks on fake all-black sprites (3 -> his colour on the mask's pixels only); kt_conv1 / kt_conv2 on
@@ -25,7 +25,9 @@ import kitmasks  # noqa: E402
 
 HOME = os.path.expanduser('~')
 GAME = os.environ.get('HT_KITS_GAME') or os.path.join(HOME, 'swos-mod', 'c', 'REL40rc2', 'SWOS')
-EXE = os.environ.get('HT_KITS_EXE') or os.path.join(HOME, 'swos-mod', 'c', 'K42a', 'SWOS', 'ITALIAN.EXE')
+EXE = os.environ.get('HT_KITS_EXE') or os.path.join(HOME, 'swos-mod', 'c', 'HTO4', 'SWOS', 'ITALIAN.EXE')
+                                                # (mkfixtures.sh's release-recipe obj4 fixture, rebuilt every run;
+                                                # 13/11: the old default c/K42a predates KEEPKIT's KKST block)
 SCR = 0x4000000                                 # (our fake TeamGames, sprite table and sprites)
 
 

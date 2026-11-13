@@ -27421,8 +27421,9 @@ def world_s7cross_diff():
     the job count (D6E00 = D6CDC + 0x124), selTeamNumber / careerTeamLeague / D6CDC, the league calendar, the team
     cache. Checks (A against B):
     - EXPECTED differences only: careerTeam's own bytes (0-1 word, 2-3 global number, 25 league), selTeamNumber,
-      careerTeamLeague, D6CDC; every other careerTeam byte (the 30 players byte by byte), careerNumPlayers, the order,
-      the funds and the job count as B's - the season end's native changes the same in both;
+      careerTeamLeague, D6CDC, and the new division's money (finance.py's TV share T2, the wage bill D6B9E and the
+      running costs: NEWBAL apart by T2's difference only); every other careerTeam byte (the 30 players byte by
+      byte), careerNumPlayers, the order, the funds carried (OLDBAL) and the job count as B's;
     - A: selTeamNumber a file-144 word, careerTeam's word the same, D6CDC = careerTeam[25] = its cache record's
       league byte (careerTeamLeague: the row's base division, D6CDC = base + delta, as InitializeNewSeason sets it);
       every league calendar match of the club against file-144 clubs; B: against file-102 clubs;
@@ -27510,13 +27511,22 @@ def world_s7cross_diff():
           f'{[((i - 76) // 38, (i - 76) % 38) for i in d[:6] if i >= 76]})', errs)
     check(a['ct'][0] | a['ct'][1] << 8 == wa and b['ct'][0] | b['ct'][1] << 8 == wb,
           f'careerTeam word A {a["ct"][:2].hex()} B {b["ct"][:2].hex()} vs selTeamNumber', errs)
-    for f_, nm in (('cnp', 'careerNumPlayers'), ('cmp', 'squad order'), ('nb', 'funds (NEWBAL)'),
-                   ('ob', 'funds (OLDBAL)'), ('job', 'job count')):
+    for f_, nm in (('cnp', 'careerNumPlayers'), ('cmp', 'squad order'), ('ob', 'funds carried (OLDBAL)'),
+                   ('job', 'job count')):
         check(a[f_] == b[f_], f'{nm}: A {a[f_]!r} B {b[f_]!r}', errs)
-    fd = [(hex(nbo - 0x10 + 4 * i), struct.unpack_from('<i', a['fin'], 4 * i)[0], struct.unpack_from('<i', b['fin'], 4 * i)[0])
-          for i in range(0x18) if a['fin'][4 * i:4 * i + 4] != b['fin'][4 * i:4 * i + 4]]
-    if fd:
-        info.append(f'finance dwords A != B (obj2, A, B): {fd}')
+    # EXPECTED (13/11): the new season's division-level money, as for any club in that division - finance.py's TV
+    # share (T2, per match charge, BASE[level]: Serie D one level below C), the wage bill D6B9E (and the running
+    # costs after it) from the new league; NEWBAL - OLDBAL apart by T2's difference only, every other dword equal
+    t2, wg = fs['T2'][1] - (nbo - 0x10), fs['D6B9E'][1] - (nbo - 0x10)
+    dw = lambda d, o: struct.unpack_from('<i', d, o)[0]
+    check(a['nb'] - b['nb'] == dw(a['fin'], t2) - dw(b['fin'], t2),
+          f'funds: NEWBAL A {a["nb"]} B {b["nb"]} apart by more than the TV share (T2 A {dw(a["fin"], t2)} B '
+          f'{dw(b["fin"], t2)})', errs)
+    okb = set(range(nbo - (nbo - 0x10), nbo - (nbo - 0x10) + 4)) | set(range(t2, t2 + 4)) | set(range(wg - 6, wg + 6))
+    fd = [hex(nbo - 0x10 + i) for i in range(0x60) if a['fin'][i] != b['fin'][i] and i not in okb]
+    check(not fd, f'finance bytes A != B beyond NEWBAL / T2 / the wage bill: {fd[:8]}', errs)
+    info.append(f'expected: TV share T2 A {dw(a["fin"], t2)} B {dw(b["fin"], t2)}, wage bill D6B9E A '
+                f'{struct.unpack_from("<H", a["fin"], wg)[0]} B {struct.unpack_from("<H", b["fin"], wg)[0]}')
     ra = a['cache'].get(wa)
     check(ra is not None and a['sel'][3] == a['ct'][25] == ra[25] and a['sel'][2] <= a['sel'][3],
           f'A: careerTeamLeague {a["sel"][2]} / D6CDC {a["sel"][3]} / careerTeam[25] {a["ct"][25]} vs its cache '

@@ -4141,9 +4141,12 @@ static const u8 *ri_pool(const u8 *e, struct ri_file *f, int fi, u16 *q, u8 *qn,
         const u8 *sl = p + 3, *pa = sl + 4 * ns;
         order = pa + n;
 #if GP_S7
-        if (run && GP_RIPOOL)                   /* S7 builds (s7ri.c): the registry decides; the first order, the moves, the log */
+        int s7p = 0;
+        if (run && GP_RIPOOL) {                 /* S7 builds (s7ri.c): the registry decides for the S7 pooled file (-1: another file) */
             m = GP_RIPOOL(e, q, qn, *f->init, RI_FILES_FILE[fi], slt, copy, manager, ri_og, &ri_no, out, &no);
-        else
+            if (m >= 0) s7p = 1; else m = 0;
+        }
+        if (!s7p)
 #endif
         {
         if (run && *f->init == 1) {

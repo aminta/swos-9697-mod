@@ -26,10 +26,12 @@ int32_t RI_S7_BAD DATA = 0;
 /* e: ri_pool's table entry (db kind, db n, db low, dw ns, ns x {dw global, db base, db area}, n x db area, n x db RS record);
    q / qn: the pool's queue (idents) and its length; init: the pool's first order is due (ri_season's *init == 1); file: the
    team file; manager: its club's global number; og / nog: ri_pool's list of the relegated globals; out / no: the identities
-   going out. Returns the number of swaps made (m). */
+   going out. Returns the number of swaps made (m), or -1: not the S7 pooled file (the caller runs its own path). */
 int32_t s7ri_pool(const uint8_t *e, uint16_t *q, uint8_t *qn, int32_t init, int32_t file, const int8_t *slt, int8_t *copy,
                   int32_t manager, uint16_t *og, int32_t *nog, uint16_t *out, int32_t *no)
 {
+    if (file != S7_FB) return -1;                   /* (not the S7 pooled file: the world has other kind-0 pools - Spain, Germany,
+                                                       the Netherlands, Portugal -: gplay.c's own maps[] path handles those) */
     int32_t n = e[1], low = e[2], ns = e[3] | e[4] << 8, m = 0;
     const uint8_t *sl = e + 5, *order = sl + 4 * ns + n;
     RI_NMOVES = 0;                                  /* (a new season end's log: the S7 world has ONE kind-0 pool, file 144) */

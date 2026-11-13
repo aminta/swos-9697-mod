@@ -23,10 +23,10 @@ POOL = 3                                            # RS records
 BASE_G = 192                                        # slot i's global number
 
 
-def ri_table(slots=SLOTS, pool=POOL, moff=0):
+def ri_table(slots=SLOTS, pool=POOL, moff=0, file=None):
     """gplay.c ri_season's table (ripool.table_bytes' layout): one file, one kind-0 pool."""
     t = bytes([1])                                   # db files
-    t += bytes((WORLD, FILE, 1)) + struct.pack('<HHHB', BASE_G, moff, slots, 0)   # world, file, pools; base, moff, nmap, nspare
+    t += bytes((WORLD, FILE if file is None else file, 1)) + struct.pack('<HHHB', BASE_G, moff, slots, 0)   # world, file, pools; base, moff, nmap, nspare
     pl = bytes((0, pool))                            # db kind, n
     pl += bytes((5,)) + struct.pack('<H', slots)     # low = 5, slots
     for i in range(slots):
@@ -86,7 +86,7 @@ WRAP = (
     'uint32_t s7_ident(uint32_t w) { return t_ident(w); }\n'
     'uint32_t s7_poolk(uint32_t i) { return t_poolk(i); }\n'
     'uint32_t s7_home_word(uint32_t w) { return t_home(w); }\n'
-    '#define DATA\n#include "s7ri.c"\n'
+    '#define DATA\n#undef S7_FB\nuint8_t S7_FB = 144;\n#include "s7ri.c"\n'
     'void t_wire(void) { GP_RIPOOL = s7ri_pool; GP_CDSTR = s7ri_cdstr; }\n'
     'void t_unwire(void) { GP_RIPOOL = 0; GP_CDSTR = 0; }\n'
     'u32 t_cd_str(u16 w) { return cd_str(w); }\n'
@@ -112,13 +112,13 @@ def s7_hooks(L, reg):
     L.t_wire()
 
 
-def s7_season(L, reg, relegated, queue=None, qn=None):
+def s7_season(L, reg, relegated, queue=None, qn=None, file=None):
     """One season end: ri_season with the registry stand-in; returns (moves [(row, out, in)], queue). The stand-in registry
     applies the moves (what s7_season does): the row's occupant = the incoming ident."""
     RF = 8
     if queue is not None:
         plant(L, [], queue, 2 if queue else 0)
-    t = ctypes.create_string_buffer(ri_table(), 256)
+    t = ctypes.create_string_buffer(ri_table(file=file), 256)
     slt = (ctypes.c_int8 * 2400)()
     copy = (ctypes.c_int8 * 2400)()
     for r in relegated:
@@ -211,6 +211,17 @@ def test_ripool_cross_queue():
     if mv or ctypes.c_int.in_dll(L, 'RI_S7_BAD').value != before + 1:
         errs.append(f'unknown occupant: moves {mv}, RI_S7_BAD {ctypes.c_int.in_dll(L, "RI_S7_BAD").value}')
     ctypes.c_int.in_dll(L, 'RI_S7_BAD').value = 0
+    # another pooled file (103: Spain's pool in the same world): s7ri_pool declines (-1), gplay.c's own maps[] path runs - the
+    # relegated slot keeps today's behaviour, RI_NMOVES / RI_S7_BAD untouched (the world has several kind-0 pools)
+    reg = Reg([10, 11, 12, 13])
+    s7_hooks(L, reg)
+    bad0 = ctypes.c_int.in_dll(L, 'RI_S7_BAD').value
+    plant(L, [], [], 0)
+    mv, q = s7_season(L, reg, [0], file=103)
+    _q, maps = read_state(L)
+    if mv or ctypes.c_int.in_dll(L, 'RI_S7_BAD').value != bad0 or maps[0] != 257 or q != [257, 258, 0]:
+        errs.append(f'other file 103: moves {mv}, RI_S7_BAD {ctypes.c_int.in_dll(L, "RI_S7_BAD").value}, maps[0] {maps[0]}, queue {q} '
+                    f'(want no moves, the old path: maps[0] 257, queue [257, 258, 0])')
     # 5 seasons, RI_STATE saved and reloaded between seasons 2 and 3; native 10 goes out in season 1 and must be back by 4
     reg = Reg([10, 11, 12, 13])
     s7_hooks(L, reg)

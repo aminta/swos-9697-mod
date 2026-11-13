@@ -27126,6 +27126,96 @@ CD_ENT, CD_LF = 348, 144                    # (gplay.c cd_state.ent; the real pa
 RI_MAPS = 8 + 20 + 2 * 192 + 2 * 20 * 16    # (gplay.c ri_state.maps: RF + RP + 2 RQT + 2 RP RO)
 
 
+def s7reg_dims():
+    """(FILES, CLUBS, DIVS, FSIZE, REGSIZE) of swce/sr_reg's sr_registry (swosrules.h), as tools/hosttest's test_sreg."""
+    h = open(os.path.join(ROOT, 'tools', 'swce', 'swosrules.h')).read()
+    fl, cl, dv = (int(re.search(rf'#define {k}\s+(\d+)', h).group(1)) for k in ('SR_REG_FILES', 'SR_REG_CLUBS', 'SR_DIVS'))
+    fsz = 2 + 2 * dv + 2
+    return fl, cl, dv, fsz, 8 + fl * fsz + 2 * cl + fl * 256 * 2 + fl * 256 + 2 * fl
+
+
+def s7reg_parse(b):
+    """(word[ident], at[fi][:rows], rows) of a registry dump (hosttest's reg_parse)."""
+    fl, cl, dv, fsz, _ = s7reg_dims()
+    nf, nc = struct.unpack_from('<ii', b, 0)
+    w = 8 + fl * fsz
+    word = list(struct.unpack_from(f'<{nc}H', b, w))
+    at_ = w + 2 * cl
+    rd_ = at_ + fl * 512
+    rows = list(struct.unpack_from(f'<{nf}H', b, rd_ + fl * 256))
+    at = [list(struct.unpack_from('<256H', b, at_ + 512 * i))[:rows[i]] for i in range(nf)]
+    return word, at, rows
+
+
+def s7pool_hex(sy):
+    """(M4, 4.2 S7 x pool, s7-ri-fix.md) W8485_HEX items: ri's log (s7ri.c RI_MOVES / RI_NMOVES / RI_S7_BAD, s7swap.c S7_RIMV),
+    ri's state head (gplay RI_STATE: init, qn, q) and the registry (engine arena), logged when they change."""
+    s7, gp, swe = sy.get('s7swap', {}), sy.get('gplay', {}), sy.get('swe', {})
+    if 'RI_S7_BAD' not in s7 or 'RI_STATE' not in gp or 'SWE_ARENA_AT' not in swe:
+        return ''
+    ob, oa = s7['RI_MOVES'][0], swe['SWE_ARENA_AT']
+    return (f',o{ob}/{s7["RI_MOVES"][1]:x}:384,o{ob}/{s7["RI_NMOVES"][1]:x}:4,o{ob}/{s7["RI_S7_BAD"][1]:x}:4'
+            f',o{ob}/{s7["S7_RIMV"][1]:x}:4,{gp["RI_STATE"][1]:x}:{8 + 20 + 384}'
+            f',o{oa[0]}/{oa[1]:x}:{s7reg_dims()[4]}')
+
+
+def s7pool_checks(sy, hexes, errs):
+    """(M4) per session (season 1 played, season 2 = the saved career loaded and played): RI_S7_BAD never != 0 (a can't-happen:
+    any != 0 FAILs); S7_RIMV never refused (status 2); every season end's moves = the queue's head in / the occupants out
+    (q after == q before[m:] + outs, ins == q before[:m]); season 1 had ri moves (Serie D's relegations rotate the pool);
+    at the end of each session the registry's rows + the queue hold every ident once (no club twice, none lost)."""
+    s7, gp, swe = sy.get('s7swap', {}), sy.get('gplay', {}), sy.get('swe', {})
+    if 'RI_S7_BAD' not in s7 or 'RI_STATE' not in gp or 'SWE_ARENA_AT' not in swe:
+        return ''
+    ob, oa = s7['RI_MOVES'][0], swe['SWE_ARENA_AT']
+    k = lambda o, off: f'o{o}/{off:x}'
+    kb, kn, kv, kr = (k(ob, s7[x][1]) for x in ('RI_S7_BAD', 'RI_NMOVES', 'RI_MOVES', 'S7_RIMV'))
+    ks, kg = f'{gp["RI_STATE"][1]:x}', k(oa[0], oa[1])
+    p0 = None
+    notes = []
+    for s_ in (0, 1):
+        seq = lambda key: [b for o, b in hexes[s_] if o == key]
+        bad = [struct.unpack('<i', b)[0] for b in seq(kb)]
+        check(not any(bad), f'season {s_ + 1}: RI_S7_BAD {bad} (a can\'t-happen: an occupant the registry did not know, or RI_SWAPPED set)', errs)
+        rimv = [struct.unpack('<BBH', b) for b in seq(kr)]
+        check(all(x[1] in (0, 1) for x in rimv), f'season {s_ + 1}: S7_RIMV refused a move {rimv[-3:]}', errs)
+        moves = []                                       # (the last logged moves of each season end: NMOVES with RI_MOVES)
+        nm = [struct.unpack('<i', b)[0] for b in seq(kn)]
+        mvs = seq(kv)
+        reg = seq(kg)
+        sts = seq(ks)
+        if s_ == 0:
+            check(any(nm), f'season 1: ri logged no moves ({nm}): the pool never rotated at a natural season end', errs)
+        # the queue before / after each ri_season: consecutive distinct RI_STATE heads
+        qs = []
+        for b in sts:
+            qn = b[8]
+            qs.append(list(struct.unpack_from(f'<{qn}H', b, 8 + 20)) if qn else [])
+        if reg:
+            word, at, rows = s7reg_parse(reg[-1])
+            allr = [x for fi in range(len(at)) for x in at[fi]]
+            off = sorted(i for i, w in enumerate(word) if w == 0xFFFF)
+            q1 = qs[-1] if qs else []
+            seen = allr + q1
+            dup = sorted({x for x in seen if seen.count(x) > 1})
+            check(not dup and sorted(seen) == list(range(len(word))),
+                  f'season {s_ + 1} end: registry rows + queue: duplicates {dup[:5]}, missing {sorted(set(range(len(word))) - set(seen))[:5]} '
+                  f'({len(allr)} rows + {len(q1)} queued, {len(word)} idents)', errs)
+            if p0 is None:
+                p0 = (off[0] if off else None)
+            notes.append(f's{s_ + 1}: {len(allr)} rows + {len(q1)} queued = {len(seen)} idents once, moves {nm[-1] if nm else 0}')
+        # rotation: the first non-empty queue after its predecessor
+        qq = [q for q in qs if q]
+        if len(qq) >= 2 and mvs and nm and nm[-1]:
+            q0, q1 = qq[-2], qq[-1]
+            mv = [struct.unpack_from('<3H', mvs[-1], 6 * j) for j in range(nm[-1])]
+            m = len(mv)
+            check(len(q0) == len(q1) and [x[2] for x in mv] == q0[:m] and q1 == q0[m:] + [x[1] for x in mv],
+                  f'season {s_ + 1}: the moves {[(x[1], x[2]) for x in mv[:3]]} are not the queue\'s head in / the occupants out '
+                  f'(q {q0[:4]}.. -> {q1[:4]}..)', errs)
+    return '; ' + ' | '.join(notes) + '; RI_S7_BAD 0'
+
+
 def s7cross(force, team, start_file, ldfail=None):
     """The career club crosses between the two league structs (4.2 S7, s7swap.c option B, MC 13/11): GPLAY_FORCE puts
     it on place `force` of its group at the season end (a Serie C group's last: down; a Serie D group's first: up);
@@ -27163,7 +27253,8 @@ def s7cross(force, team, start_file, ldfail=None):
                       + (f',o4/{sy["lrank"]["LR_BLK"][1]:x}:8' if 'LR_BLK' in sy.get('lrank', {}) else '')   # (the LR block's key)
                       + (f',{cdst:x}:8,{cdst + CD_ENT:x}:264' if cdst else '')   # (Coppa D: header; ent[256] + efresh..)
                       + ''.join(f',{sy["gplay"][k][1] + o:x}:{n}' for k, o, n in (('RI_STATE', RI_MAPS, 1280),
-                                ('RI_FILES_FILE', 0, 8)) if sy.get('gplay', {}).get(k, [0])[0] == 2))   # (ri: maps, files)
+                                ('RI_FILES_FILE', 0, 8)) if sy.get('gplay', {}).get(k, [0])[0] == 2)   # (ri: maps, files)
+                      + s7pool_hex(sy))
     os.environ.pop('W8485_ONE', None)
     try:
         ok, msg = world8485()
@@ -27266,9 +27357,10 @@ def s7cross(force, team, start_file, ldfail=None):
             cdnote = (f'; Coppa D ent season 2: {len(ones)} rows at 1 (9 down-crossers incl. the career club ord '
                       f'{new >> 8}, + {nfc} + {nfp} cd_season arrivals), '
                       f'{nd - len(ones)} stayers\' places 2..19, draw ran (round {rounds}, gen_on {gen})')
+    pnote = s7pool_checks(sy, hexes, errs)
     return not errs, '; '.join(errs) or (f'{start_file} -> {new & 0xFF}: crossed at the season end (9 swaps, 18 '
                                          f'crossers), selTeamNumber {new:#x}, season 2 loaded and played in the new '
-                                         f'struct (D6CDC {sels2[-1][3]}), S7_LD OK' + lrnote + cdnote)
+                                         f'struct (D6CDC {sels2[-1][3]}), S7_LD OK' + lrnote + cdnote + pnote)
 
 
 @scenario

@@ -371,7 +371,9 @@ kk_keep:                                ; OK with SEMPRE in a career: the club's
     mov [edi], ax
     mov ax, [KK_FILE + 8]
     mov [edi + 2], ax
-    inc word [KK_FILE + 8]
+    inc word [KK_FILE + 8]              ; (no renormalisation at the u16 wrap, MC 13/11: one step per OK with SEMPRE
+                                        ; and a set keeper kit only, so 65535 is out of reach; past it the newest
+                                        ; stamps restart low and could be evicted, and only with all 128 places used)
     xor ecx, ecx
 .nm:
     mov al, [CAREER_TEAM + 5 + ecx]

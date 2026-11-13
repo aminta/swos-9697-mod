@@ -442,6 +442,8 @@ def patch(p, at, bss, tabs):
         names.append('data/rs%d%03d.dat' % (world, fl))
         sym.update({f'RI_W{k}': (0, world), f'RI_F{k}': (0, fl), f'RI_ORIG{k}': (2, o), f'RI_OSZ{k}': (0, osz),
                     f'RI_POOL{k}': (2, o + osz), f'RI_MOFF{k}': (0, moff), f'RI_FNAME{k}': (0, '"%s"' % names[-1])})
+        LABELS.update({f'RI_ORIG{k}': (2, o), f'RI_POOL{k}': (2, o + osz), f'RI_MOFF{k}': (0, moff),   # (host tests /
+                       f'RI_F{k}': (0, fl)})                                                        # s7swap.py: no exe bytes)
     src = _asm(len(tabs), ida_two(tabs))
     code, fix = nasmcave.assemble(src, at, sym)
     lab = nasmcave.labels(src, at, sym)

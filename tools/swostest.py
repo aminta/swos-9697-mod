@@ -27421,9 +27421,10 @@ def world_s7cross_diff():
     the job count (D6E00 = D6CDC + 0x124), selTeamNumber / careerTeamLeague / D6CDC, the league calendar, the team
     cache. Checks (A against B):
     - EXPECTED differences only: careerTeam's own bytes (0-1 word, 2-3 global number, 25 league), selTeamNumber,
-      careerTeamLeague, D6CDC, and the new division's money (finance.py's TV share T2, the wage bill D6B9E and the
-      running costs: NEWBAL apart by T2's difference only); every other careerTeam byte (the 30 players byte by
-      byte), careerNumPlayers, the order, the funds carried (OLDBAL) and the job count as B's;
+      careerTeamLeague, D6CDC, and the new division's money (finance.py's TV share T2 and the running costs: NEWBAL
+      apart by T2's difference only); every other careerTeam byte (the 30 players byte by byte), careerNumPlayers,
+      the order, the funds carried (OLDBAL), the job count, the season length D6CA2, the wage bill D6B9E and every
+      wage D6BA6[30] as B's (the extras at 66%: their home word's XTRA block, MC 13/11);
     - A: selTeamNumber a file-144 word, careerTeam's word the same, D6CDC = careerTeam[25] = its cache record's
       league byte (careerTeamLeague: the row's base division, D6CDC = base + delta, as InitializeNewSeason sets it);
       every league calendar match of the club against file-144 clubs; B: against file-102 clubs;
@@ -27465,6 +27466,7 @@ def world_s7cross_diff():
                      'cmp': bytes(r.obj2(cmp_, 32)), 'nb': struct.unpack('<i', r.obj2(nbo, 4))[0],
                      'ob': struct.unpack('<i', r.obj2(obo, 4))[0], 'job': struct.unpack('<H', r.obj2(job, 2))[0],
                      'fin': bytes(r.obj2(nbo - 0x10, 0x60)), 'ca2': struct.unpack('<H', r.obj2(fs['D6CA2'][1], 2))[0],
+                     'wages': struct.unpack('<30I', r.obj2(fs['D6B9E'][1] + 8, 120)),
                      'sel': struct.unpack('<HHHH', r.obj2(sel, 8)), 'cal': cal_league(bytes(r.obj2(CAL_AT - 4, 0x2000))),
                      'cache': {cache[684 * i] | cache[684 * i + 1] << 8: cache[684 * i:684 * i + 684] for i in range(n)}}
             s.log.append(f'[diff {k}] sel {st[k]["sel"]} cnp {st[k]["cnp"]} funds {st[k]["nb"]}/{st[k]["ob"]} '
@@ -27528,11 +27530,13 @@ def world_s7cross_diff():
     fd = [hex(nbo - 0x10 + i) for i in range(0x60) if a['fin'][i] != b['fin'][i] and i not in okb]
     check(not fd, f'finance bytes A != B beyond NEWBAL / T2 / the wage bill: {fd[:8]}', errs)
     wa_, wb_ = struct.unpack_from('<H', a['fin'], wg)[0], struct.unpack_from('<H', b['fin'], wg)[0]
-    check(a['ca2'] and b['ca2'] and wa_ and abs((wa_ / wb_) / (b['ca2'] / a['ca2']) - 1) <= 0.01,
-          f'wage bill D6B9E A {wa_} B {wb_} not the inverse of the season lengths D6CA2 A {a["ca2"]} B {b["ca2"]} '
-          f'(MC 13/11: cseg_5E345 wage = price x 1000/768 x 96 / D6CA2, the same prices)', errs)
-    info.append(f'season weeks D6CA2 A {a["ca2"]} B {b["ca2"]}; expected: TV share T2 A {dw(a["fin"], t2)} B {dw(b["fin"], t2)}, wage bill D6B9E A '
-                f'{struct.unpack_from("<H", a["fin"], wg)[0]} B {struct.unpack_from("<H", b["fin"], wg)[0]}')
+    wd = [(i, a['wages'][i], b['wages'][i]) for i in range(30) if a['wages'][i] != b['wages'][i]]
+    check(a['ca2'] == b['ca2'] and wa_ == wb_ and not wd,
+          f'wages: D6CA2 A {a["ca2"]} B {b["ca2"]}, wage bill D6B9E A {wa_} B {wb_}, D6BA6 (slot, A, B) {wd[:10]} - the '
+          f'same players, prices and season length pay the same (MC 13/11: a crossed club\'s extras are its home '
+          f'word\'s XTRA block, ripool ri_home -> s7_home_word; else 100% instead of 66%)', errs)
+    info.append(f'season weeks D6CA2 A {a["ca2"]} B {b["ca2"]}; expected: TV share T2 A {dw(a["fin"], t2)} B {dw(b["fin"], t2)}; equal: wage bill D6B9E A '
+                f'{wa_} B {wb_}, extras\' wages D6BA6[16..25] {a["wages"][16:26]}')
     ra = a['cache'].get(wa)
     check(ra is not None and a['sel'][3] == a['ct'][25] == ra[25] and a['sel'][2] <= a['sel'][3],
           f'A: careerTeamLeague {a["sel"][2]} / D6CDC {a["sel"][3]} / careerTeam[25] {a["ct"][25]} vs its cache '

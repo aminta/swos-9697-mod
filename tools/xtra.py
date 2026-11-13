@@ -78,7 +78,8 @@ xtra_readto:                            ; ax = team word, edi -> MAXE_ * PLAYER_
     push esi
     push edi
     mov [xrdst], edi
-    mov [xrteam], ax
+xr_hook:                                ; S7 (MC 13/11, the wage item): ripool.py makes this store `call ri_home / nop`
+    mov [xrteam], ax                    ; (a crossed club's extras are its HOME word's block; the page is full)
     mov byte [xrc], 0
     mov ecx, MAXE_ * PLAYER_
     xor eax, eax
@@ -609,6 +610,9 @@ def patch(p, at):
     LABELS['SITES'] = (s, cnp, ct, cmp, sel)        # (sites(p) reads the original bytes only)
     LABELS['XTRA_NAMEP'] = lab['xtra_namep']
     LABELS['xt_block'] = lab['xt_block']
+    LABELS['xr_hook'] = lab['xr_hook']            # (ripool.py, S7: the store -> ri_home)
+    LABELS['xrteam'] = lab['xrteam']
+    LABELS['xcache'] = lab['xcache']                # (s7swap.c: flushed after a registry move)
     LABELS['CT'] = ct                               # careerTeam (obj2 offset)
     LABELS['XSOLD'] = lab['xsold']                  # the bought XTRA players (engine item 'XS')
     import engine

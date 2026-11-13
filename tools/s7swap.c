@@ -75,6 +75,18 @@ char S7_NAME[2][16] DATA = {{0}};       /* the two files' names (DATA\\TMW5.102 
 uint32_t S7_OAT[2] DATA = {0};          /* their ORIG buffers' offsets in S7_ORIG */
 uint16_t S7_ONREC[2] DATA = {0};        /* their records as shipped */
 uint32_t S7_FNV[2] DATA = {0};          /* their FNV-1a as read into S7_ORIG (orig_read); every load checks it */
+#ifndef S7_XNC
+#define S7_XNC 0
+#endif
+#ifndef S7_XLB
+#define S7_XLB 0
+#endif
+#if S7_XLB
+extern uint16_t S7_XLBT;                /* xleft.py xlbt (obj3): xl_find's cached block's team word, -1 none */
+#endif
+#if S7_XNC
+extern uint8_t S7_XCACHE[];             /* xtra.py xcache (obj1): S7_XNC entries of S7_XENT bytes, +3 = valid */
+#endif
 extern uint8_t S7_ORIG[];               /* swe.c .bss (swreg.S7_ORIG_SZ) */
 
 /* the load apply's result (harness: S7_LD): status, both files read (1) / failed (2) / not yet (0), rows given another
@@ -302,6 +314,14 @@ static int32_t run(void *pv) {
     S7_LOG.rc = c;
     if (c < 0) return S7_LOG.status = S7_REG;
     S7_LOG.nswap = (uint8_t)c;
+#if S7_XNC
+    /* xtra.py xt_block's cache of other clubs' XTRA blocks is keyed by the current word: after the registry moved
+       clubs a word may name another club - every entry invalid (MC 13/11; the reads go by the home word) */
+    for (int32_t k = 0; k < S7_XNC; k++) S7_XCACHE[k * S7_XENT + 3] = 0;
+#endif
+#if S7_XLB
+    S7_XLBT = 0xFFFF;                   /* (xleft.py xl_find's one cached block, keyed the same way) */
+#endif
     /* next season's deltas: every row's division (rdiv, the league's) as its file's local, minus the slot's base */
     for (int32_t s = 0; s < 2; s++) {
         int32_t fi = s ? fb : fa;
@@ -381,6 +401,30 @@ static int32_t load_run(void *pv)
     }
     S7_LD.moved = (uint16_t)moved; S7_LD.rows = R->rows[fi];
     return S7_LD.status = LD_OK;
+}
+
+/* S7 (MC 13/11, the wage item): data keyed by a club's team word (XTRA.nnn blocks...) belongs to the club's HOME
+   word (CONVENTIONS 14d: identity = home, place = current). The word -> the registry club in that row of the two
+   league files -> its home word; any other word, no registry or a club without a home: the word itself. */
+static int32_t home_run(void *pv)
+{
+    uint32_t w = *(uint32_t *)pv & 0xFFFF, file = w & 0xFF, ord = w >> 8;
+    if (file != S7_FA && file != S7_FB) return (int32_t)w;
+    if (!sreg_get()) return (int32_t)w;
+    const sr_registry *R = SREG_REG;
+    int32_t fi = fi_of((uint8_t)file);
+    if (fi < 0 || ord >= R->rows[fi]) return (int32_t)w;
+    int32_t id = R->at[fi][ord];
+    if (id < 0 || id >= R->nclub) return (int32_t)w;
+    uint16_t h = home_of(id);
+    return h == 0xFFFF ? (int32_t)w : h;
+}
+
+uint32_t s7_home_word(uint32_t w)       /* xtra_readto (S7_HPTR): cdecl, the game's stack -> the engine's C stack */
+{
+    uint32_t w0 = w & 0xFFFF;
+    int32_t r = cstack_call(home_run, &w);
+    return r < 0 ? w0 : (uint32_t)r;    /* (CSTACK_REFUSED: the word itself) */
 }
 
 void s7_load(uint8_t *buf, uint32_t file)    /* ri_load (S7_LPTR): cdecl, the game's stack -> the engine's C stack */

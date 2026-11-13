@@ -27144,7 +27144,8 @@ def s7reg_parse(b):
     rd_ = at_ + fl * 512
     rows = list(struct.unpack_from(f'<{nf}H', b, rd_ + fl * 256))
     at = [list(struct.unpack_from('<256H', b, at_ + 512 * i))[:rows[i]] for i in range(nf)]
-    return word, at, rows
+    rdiv = [list(b[rd_ + 256 * i:rd_ + 256 * i + rows[i]]) for i in range(nf)]
+    return word, at, rows, rdiv
 
 
 def s7_nri(sy, hexes):
@@ -27160,6 +27161,18 @@ def s7_nri(sy, hexes):
     return max([struct.unpack('<i', b)[0] for o, b in hexes if o == key] or [0])
 
 
+def s7pool_maps_at(sy):
+    """obj2 offset of RI_STATE.maps[moff(the S7 pooled file) ..] (gplay's RI_STATE + the maps' offset + 2 * moff), 0 when unknown: the
+    transient hint words s7ri_pool writes for ri_ida (the real pack's file 144: 162 rows, 324 bytes)."""
+    rs, gp = sy.get('ripool', {}), sy.get('gplay', {})
+    if 'RI_STATE' not in gp or gp['RI_STATE'][0] != 2:
+        return 0
+    for k in range(8):
+        if f'RI_F{k}' in rs and rs[f'RI_F{k}'][1] == 144:
+            return gp['RI_STATE'][1] + (8 + 20 + 2 * 192 + 2 * 20 * 16) + 2 * rs[f'RI_MOFF{k}'][1]
+    return 0
+
+
 def s7pool_hex(sy):
     """(M4, 4.2 S7 x pool, s7-ri-fix.md) W8485_HEX items: ri's log (s7ri.c RI_MOVES / RI_NMOVES / RI_S7_BAD, s7swap.c S7_RIMV),
     ri's state head (gplay RI_STATE: init, qn, q) and the registry (engine arena), logged when they change."""
@@ -27169,7 +27182,45 @@ def s7pool_hex(sy):
     ob, oa = s7['RI_MOVES'][0], swe['SWE_ARENA_AT']
     return (f',o{ob}/{s7["RI_MOVES"][1]:x}:384,o{ob}/{s7["RI_NMOVES"][1]:x}:4,o{ob}/{s7["RI_S7_BAD"][1]:x}:4'
             f',o{ob}/{s7["S7_RIMV"][1]:x}:4,{gp["RI_STATE"][1]:x}:{8 + 20 + 384}'
-            f',o{oa[0]}/{oa[1]:x}:{s7reg_dims()[4]}' + (f',o{ob}/{s7["RI_FRESH"][1]:x}:1' if 'RI_FRESH' in s7 else ''))
+            f',o{oa[0]}/{oa[1]:x}:{s7reg_dims()[4]}' + (f',o{ob}/{s7["RI_FRESH"][1]:x}:1' if 'RI_FRESH' in s7 else '')
+            + (f',{s7pool_maps_at(sy):x}:324' if s7pool_maps_at(sy) else ''))
+
+
+def s7pool_region(sy, hexes, errs):
+    """(MC 13/11, cond. 5) the REGIONAL PLACEMENT: every pool club that came into file 144 at season 1's end sits in the Serie D
+    group of its region: the registry's row division (rdiv, local to the file: group A = 0 ...) == the club's clubs.csv area letter
+    (the last '/' part). Needs S7_PACK (the real pack's clubs.csv); '' when the build does not log the moves."""
+    s7, swe = sy.get('s7swap', {}), sy.get('swe', {})
+    pack = os.environ.get('S7_PACK')
+    if 'RI_NMOVES' not in s7 or not pack or not os.path.isfile(os.path.join(pack, 'clubs.csv')) or 'SWE_ARENA_AT' not in swe:
+        return 'region: not checked'
+    import csv
+    pool = [r for r in csv.DictReader(open(os.path.join(pack, 'clubs.csv'), encoding='utf-8')) if r['file'] == 'pool']
+    ob, oa = s7['RI_MOVES'][0], swe['SWE_ARENA_AT']
+    kv, kg = f'o{ob}/{s7["RI_MOVES"][1]:x}', f'o{oa[0]}/{oa[1]:x}'
+    nm = [struct.unpack('<i', b)[0] for o, b in hexes if o == f'o{ob}/{s7["RI_NMOVES"][1]:x}']
+    mvs = [b for o, b in hexes if o == kv]
+    reg = [b for o, b in hexes if o == kg]
+    if not (nm and nm[-1] and mvs and reg):
+        return 'region: no moves'
+    word, at, rows, rdiv = s7reg_parse(reg[-1])
+    fb = len(at) - 1                                 # (the lower struct: file 144)
+    first_pool = len(word) - len(pool)               # (the pool idents are the last len(pool): S7_POOL0)
+    bad, n = [], 0
+    for j in range(nm[-1]):
+        row, out, inn = struct.unpack_from('<3H', mvs[-1], 6 * j)
+        k = inn - first_pool
+        if not 0 <= k < len(pool) or not pool[k].get('area'):
+            continue                                 # (a native coming back from the queue, or a club without an area)
+        letter = pool[k]['area'].split('/')[-1][:1]
+        if letter not in 'ABCDEFGHIJ':
+            continue
+        n += 1
+        if rdiv[fb][row] != 'ABCDEFGHIJ'.index(letter) and at[fb][row] == inn:
+            bad.append((pool[k]['name'], row, rdiv[fb][row], letter))
+    check(not bad, f'regional placement: {len(bad)} of {n} pool arrivals not in their region\'s Serie D group (name, row, group, area) '
+          f'{bad[:4]}', errs)
+    return f'region: {n} pool arrivals in their region\'s Serie D group'
 
 
 def s7pool_checks(sy, hexes, errs):
@@ -27192,6 +27243,11 @@ def s7pool_checks(sy, hexes, errs):
         if 'RI_FRESH' in s7:                         # (MC 13/11: s7ri_pool's one-shot never seen set - after a load, at boot, in the
             fr = [b[0] for b in seq(k(ob, s7['RI_FRESH'][1]))]   # menus: s7_season consumes it in the same season end)
             check(not any(fr), f'season {s_ + 1}: RI_FRESH seen set {fr} (a stale ri log s7_season did not consume)', errs)
+        mp = s7pool_maps_at(sy)
+        if mp:                                       # (MC 13/11 cond. 2: ri_ida's transient hint words are 0 outside pg_fix: any sample set FAILs)
+            hs = [b for o, b in hexes[s_] if o == f'{mp:x}']
+            check(all(not any(b) for b in hs), f'season {s_ + 1}: maps[] hint words of file 144 seen set outside pg_fix '
+                  f'({sum(1 for b in hs if any(b))} sample(s), {sum(1 for x in struct.unpack("<162H", hs[-1]) if x) if hs else 0} words)', errs)
         check(not any(bad), f'season {s_ + 1}: RI_S7_BAD {bad} (a can\'t-happen: an occupant the registry did not know, or RI_SWAPPED set)', errs)
         rimv = [struct.unpack('<BBH', b) for b in seq(kr)]
         check(all(x[1] in (0, 1) for x in rimv), f'season {s_ + 1}: S7_RIMV refused a move {rimv[-3:]}', errs)
@@ -27208,7 +27264,7 @@ def s7pool_checks(sy, hexes, errs):
             qn = b[8]
             qs.append(list(struct.unpack_from(f'<{qn}H', b, 8 + 20)) if qn else [])
         if reg:
-            word, at, rows = s7reg_parse(reg[-1])
+            word, at, rows, rdiv = s7reg_parse(reg[-1])
             allr = [x for fi in range(len(at)) for x in at[fi]]
             off = sorted(i for i, w in enumerate(word) if w == 0xFFFF)
             q1 = qs[-1] if qs else []
@@ -27229,6 +27285,7 @@ def s7pool_checks(sy, hexes, errs):
             check(len(q0) == len(q1) and [x[2] for x in mv] == q0[:m] and q1 == q0[m:] + [x[1] for x in mv],
                   f'season {s_ + 1}: the moves {[(x[1], x[2]) for x in mv[:3]]} are not the queue\'s head in / the occupants out '
                   f'(q {q0[:4]}.. -> {q1[:4]}..)', errs)
+    notes.append(s7pool_region(sy, hexes[0], errs))
     return '; ' + ' | '.join(notes) + '; RI_S7_BAD 0'
 
 

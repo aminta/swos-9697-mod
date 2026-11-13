@@ -193,6 +193,7 @@ kt_chain:                               ; ConvertColorsAndTextSprites' `call Cha
     cmp ecx, REF0_ + REFN_
     jb .rl
 .k:
+    call kg_match                       ; (4.2: HS1 / HS2 from SELECT KITS' keeper page, by the teams' names)
     xor ecx, ecx                        ; keeper 1: own A5, other A6, no other keeper yet
     mov ebx, HS1
     mov ebp, KK1
@@ -388,6 +389,288 @@ kt_mask:                                ; ecx = sprite, edx = mask, bl -> bh on 
 .x: popad
     ret
 
+
+; --- 4.2 SELECT KITS keeper page (kitcolors' kg_slot -> kg_hook; Davide 12/11: SELECT KITS only, SOLO PARTITA /
+; SEMPRE, a hand-set kit that clashes falls back to the automatic colour for that match) ------------------------------
+kg_match:                               ; esi / edi -> TeamGame 1 / 2: HS1 / HS2 <- an armed keeper slot of that name
+    pushad                              ; (team 1 tries slot 0 first, team 2 slot 1: a training game's two teams
+    mov ebx, HS1                        ;  share one name), else the build's HD1 / HD2 (0 = automatic)
+    mov edx, HD1
+    mov ebp, KS
+    call .one
+    mov esi, edi
+    mov ebx, HS2
+    mov edx, HD2
+    mov ebp, KS + KS_
+    call .one
+    popad
+    ret
+.one:
+    mov eax, [edx]
+    mov [ebx], eax
+    cmp byte [KG_ARM], 0
+    je .x
+    call .try
+    jnc .x
+    add ebp, KS_                        ; (the other slot)
+    cmp ebp, KS + 2 * KS_
+    jb .o2
+    mov ebp, KS
+.o2:
+    call .try
+.x: ret
+.try:                                   ; ebp -> slot: CF = 1 not taken
+    cmp byte [ebp + 21], 0
+    je .no
+    push esi
+    push edi
+    add esi, 16h                        ; TeamGame.teamName
+    mov edi, ebp
+    mov ecx, 17
+.c: mov al, [esi]
+    cmp al, [edi]
+    jne .ne
+    test al, al
+    jz .eq
+    inc esi
+    inc edi
+    loop .c
+.eq:
+    pop edi
+    pop esi
+    push esi
+    mov esi, KT_CODE
+    movzx eax, byte [ebp + 18]
+    mov al, [esi + eax]
+    mov [ebx], al
+    movzx eax, byte [ebp + 19]
+    mov al, [esi + eax]
+    mov [ebx + 1], al
+    movzx eax, byte [ebp + 20]
+    mov al, [esi + eax]
+    mov [ebx + 2], al
+    mov byte [ebx + 3], 1
+    pop esi
+    clc
+    ret
+.ne:
+    pop edi
+    pop esi
+.no:
+    stc
+    ret
+
+kg_open:                                ; kitcolors' 5-byte sites (KG_SITES) -> these; eax out, the rest kept
+    mov eax, 9
+    jmp kg_hook
+kg_new:
+    mov eax, 1
+    jmp kg_hook
+kg_load:
+    mov eax, 2
+    jmp kg_hook
+kg_vis:
+    mov eax, 3
+    jmp kg_hook
+kg_save:
+    mov eax, 4
+    jmp kg_hook
+kg_reset:
+    mov eax, 5
+    jmp kg_hook
+kg_ok:
+    mov eax, 7
+    jmp kg_hook
+kg_cancel1:
+kg_cancel2:
+    mov eax, 8
+    jmp kg_hook
+
+kg_gk:                                  ; SELECT KITS entry 24: the editor on the goalkeeper's kit / back on the team's
+    pushad
+    call SAVE_KITS
+    xor byte [KG_MODE], 1
+    popad
+    call KM_INIT
+    jmp DRAW_MENU
+
+kg_hook:                                ; eax = op, eax out; the rest kept
+    push ebx
+    push ecx
+    push edx
+    push esi
+    push edi
+    push ebp
+    push dword [D0]
+    push dword [A0]
+    movzx ecx, byte [KM_TEAM]
+    imul ebp, ecx, KS_
+    add ebp, KS                         ; ebp -> the edited team's keeper slot
+    mov edx, eax
+    xor eax, eax
+    cmp edx, 1
+    je .new
+    cmp edx, 9
+    je .open
+    cmp edx, 7
+    je .ok
+    cmp edx, 8
+    je .cancel
+    cmp byte [KG_MODE], 0               ; the rest act on the keeper page only (3: entry 24's text always)
+    jne .page
+    cmp edx, 3
+    je .vis
+    jmp .out
+.page:
+    cmp edx, 2
+    je .load
+    cmp edx, 3
+    je .vis
+    cmp edx, 4
+    je .save
+    cmp edx, 5
+    je .reset
+.out:
+    pop dword [A0]
+    pop dword [D0]
+    pop ebp
+    pop edi
+    pop esi
+    pop edx
+    pop ecx
+    pop ebx
+    ret
+
+.new:                                   ; KITS on a new match: both slots named, AUTO, nothing armed
+    mov byte [KG_ARM], 0
+    mov edi, KS
+    mov esi, SLOTS
+    call .name
+    mov edi, KS + KS_
+    mov esi, SLOTS + SLOT_
+    call .name
+    jmp .out
+.name:
+    push edi
+    mov ecx, KS_ / 4
+    xor eax, eax
+    rep stosd
+    pop edi
+    mov ecx, 18
+    rep movsb
+    ret
+.open:
+    mov byte [KG_MODE], 0
+    jmp .out
+.ok:
+    mov byte [KG_ARM], 1
+    jmp .out
+.cancel:
+    mov byte [KG_ARM], 0
+    jmp .out
+
+.load:                                  ; editTeamsTeam's first kit <- the keeper's: plain shirt, shorts, socks
+    lea esi, [ebp + 18]
+    cmp byte [ebp + 21], 0
+    jne .l
+    mov esi, GK_DEF                     ; (AUTO: David's look shown, grey / black / black)
+.l: mov edi, EDIT_TEAM + 26
+    mov byte [edi], 0
+    mov al, [esi]
+    mov [edi + 1], al
+    mov [edi + 2], al
+    mov al, [esi + 1]
+    mov [edi + 3], al
+    mov al, [esi + 2]
+    mov [edi + 4], al
+    jmp .out
+
+.save:                                  ; the keeper page's first kit -> the keeper slot (set); eax = 1: the team's
+    mov esi, EDIT_TEAM + 26             ; kits untouched. Unchanged from AUTO's shown look: still AUTO
+    mov al, [esi + 1]
+    mov ah, [esi + 3]
+    mov dl, [esi + 4]
+    cmp byte [ebp + 21], 0
+    jne .sv
+    cmp al, [GK_DEF]
+    jne .sv
+    cmp ah, [GK_DEF + 1]
+    jne .sv
+    cmp dl, [GK_DEF + 2]
+    je .one1
+.sv:
+    mov [ebp + 18], al
+    mov [ebp + 19], ah
+    mov [ebp + 20], dl
+    mov byte [ebp + 21], 1
+.one1:
+    mov eax, 1
+    jmp .out
+.reset:
+    mov byte [ebp + 21], 0
+    mov eax, 1
+    jmp .out
+
+.vis:                                   ; entry 24's text; the keeper page hides 2 and 8..19, entry 4 = its title
+    mov edi, GK_BUF
+    cmp byte [KG_MODE], 0
+    je .t1
+    mov esi, TXT_GBACK
+    call .cat
+    jmp .t2
+.t1:
+    mov esi, TXT_GK
+    call .cat
+    mov esi, TXT_GAUTO
+    cmp byte [ebp + 21], 0
+    je .t3
+    mov esi, TXT_GSET
+.t3:
+    call .cat
+.t2:
+    mov byte [edi], 0
+    movzx ebx, byte [KG_MODE]
+    mov ecx, 2
+    call .hide
+    mov ecx, 8
+.h: call .hide
+    inc ecx
+    cmp ecx, 20
+    jb .h
+    mov dword [D0], 4                   ; entry 4: FIRST KIT / the keeper title
+    call CALC
+    mov esi, [A0]
+    mov eax, [esi + 26h]
+    cmp eax, TXT_GLABEL
+    je .g
+    mov [KG_ORIG4], eax
+.g: mov eax, [KG_ORIG4]
+    cmp byte [KG_MODE], 0
+    je .g2
+    mov eax, TXT_GLABEL
+.g2:
+    mov [esi + 26h], eax
+    jmp .out
+.hide:                                  ; entry ecx hidden = bl
+    push ebx
+    push ecx
+    mov [D0], ecx
+    call CALC
+    pop ecx
+    pop ebx
+    mov esi, [A0]
+    movzx eax, bl
+    mov [esi + 4], ax
+    ret
+.cat:
+    lodsb
+    test al, al
+    jz .c2
+    stosb
+    jmp .cat
+.c2:
+    ret
+
     align 4
     db 'KITS'
 KT_REF: db 0                            ; this match's referee shirt (3 / 15), swe_match_w27's answer
@@ -395,8 +678,8 @@ KT_W27: db 0
     db 0, 0
 KK1: db 0, 0, 0, 0                      ; the keepers' kits (shirt, shorts, socks entries)
 KK2: db 0, 0, 0, 0
-HS1: db HAND1_                          ; hand-set keeper kits (shirt, shorts, socks entries, on): SELECT KITS /
-HS2: db HAND2_                          ; KEEPKIT.DAT (KITS_HAND1 / 2 in test builds)
+HS1: db 0, 0, 0, 0                      ; hand-set keeper kits (shirt, shorts, socks entries, on) at this kick-off:
+HS2: db 0, 0, 0, 0                      ; kg_match (SELECT KITS / KEEPKIT.DAT, else HD1 / HD2)
 KT_CALLS: dd 0                          ; (harness: kt_chain runs, keeper sprites masked)
 KT_CONV: dd 0
 KT_IN: times 8 db 0
@@ -404,6 +687,15 @@ KT_W27P: dd W27V                        ; (harness: -> the engine's SWE_W27, 0 =
 KT_W27F: dd W27FN                       ; (host test: -> swe_match_w27, 0 = none)
 KT1: times 16 dw 0
 KT2: times 16 dw 0
+KG_MODE: db 0                           ; (4.2 keeper page) SELECT KITS on the keeper's kit
+KG_ARM: db 0                            ; OK pressed: the slots' set kits are this match's
+    db 0, 0
+KG_ORIG4: dd 0                          ; entry 4's own text (FIRST KIT)
+KS: times 2 * KS_ db 0                  ; per team: name 18, shirt, shorts, socks (kit colours 0..10), set, pad
+HD1: db HAND1_                          ; (test builds: KITS_HAND1 / 2)
+HD2: db HAND2_
+KT_CODE: db 1, 2, 3, 6, 10, 11, 12, 13, 14, 15, 12   ; kit colour -> palette entry (shirtColorTable; purple 10 -> 12)
+GK_DEF: db 0, 2, 2                      ; AUTO's look on the page: grey, black, black
 """
 
 KEEPN, REFN = 116, 11
@@ -481,8 +773,19 @@ def hand_env(name):
     return ', '.join(map(str, a + [1]))
 
 
+KS_ = 24                                # a keeper slot: name 18, shirt, shorts, socks, set, pad 2
+
+
+def gk_texts():
+    """the keeper page's texts in the exe's language (kitcolors.GK_TEXTS)"""
+    import kitcolors
+    t = kitcolors.GK_TEXTS[kitcolors.INFO['lang']]
+    return ''.join(f"\nTXT_{k.upper()}: db {', '.join(map(str, v + bytes(1)))}" for k, v in t.items())
+
+
 def patch(p):
     """Code + masks at obj4+swreg.KITS_AT (page 16, MC 12/11); after swe.patch (swe_match_w27). Returns the end."""
+    import kitcolors
     import nasmcave
     import swe
     import swreg
@@ -495,10 +798,13 @@ def patch(p):
         + f'%define HAND1_ {hand_env("KITS_HAND1")}\n%define HAND2_ {hand_env("KITS_HAND2")}\n' + ASM
         + 'KT_EB: dw ' + ', '.join(map(str, EB)) + '\nKT_ES: dw ' + ', '.join(map(str, ES))
         + '\nKT_PREF: db ' + ', '.join(map(str, PREF + (0,))) + '\nKT_MOFF: dw ' + ', '.join(map(str, moff))
-        + '\nKT_MS: db ' + ', '.join(map(str, ms)) + '\nKT_END:\n')
+        + '\nKT_MS: db ' + ', '.join(map(str, ms)) + gk_texts() + '\nKT_END:\n')
     at = swreg.KITS_AT
     sym = {'CHAINFONT': p.call_target(1, s['CF_AT']), 'TAB1': s['TAB1'], 'TAB2': s['TAB2'], 'SGP': s['SGP'],
            **{k: s[k] for k in ('D0', 'A0', 'A5', 'A6')}}
+    kc = kitcolors.INFO
+    assert kc.get('kg_sites') and kc.get('sym'), 'kits: kitcolors.button first (the keeper page)'
+    sym.update(kc['sym'], GK_BUF=kc['gkbuf'], KS_=(0, KS_), SLOT_=(0, kitcolors.SLOT))
     sym['W27V'] = swe.LABELS.get('SWE_W27', (0, 0))
     sym['W27FN'] = swe.LABELS.get('swe_match_w27', (0, 0))
     if w27:
@@ -516,6 +822,11 @@ def patch(p):
     for o, t_obj, t_off in rel:
         p.add_rel(4, at + o, t_obj, t_off)
     p.branch(1, s['CF_AT'], 0xE8, 4, lab['kt_chain'])
+    for k, o in kc['kg_sites'].items():                 # (4.2: SELECT KITS' keeper page)
+        assert p.get(1, o, 5) == bytes((0x0F, 0x1F, 0x44, 0, kitcolors.KG_SITES[k])), k
+        p.branch(1, o, 0xE8, 4, lab[k])
+    assert p.get(2, kc['gk_sel'], 4) == bytes(4)
+    p.add_ptr(2, kc['gk_sel'], 4, lab['kg_gk'])         # (entry 24's select function)
     for lim, o in s['LOOPS'].items():
         assert p.get(1, o, 2) == b'\xc7\x05' and p.target(1, o + 6) == (s['TAB1'] if lim < 1100 else s['TAB2'])
         p.remove(1, o + 2)                              # (A0's and the table's fixups: the 10 bytes are overwritten)

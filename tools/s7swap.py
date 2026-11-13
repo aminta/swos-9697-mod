@@ -249,10 +249,15 @@ def patch(p, ssyms, rsyms, gsyms, pgsyms, fsyms, risyms):
         assert modver.is_test()
     if 'wn_disk' in winners.LABELS and not wnoff:       # (the WINNERS page's disk names by the home word - MC 13/11)
         assert 'ri_wnhome' in risyms, 's7swap: a WINNERS page without ripool\'s ri_wnhome (S7 + XTRA)'
-        o = winners.LABELS['wn_disk'][1]
+        wo, o = winners.LABELS['wn_disk']
         want = b'\x60\x89\xC6\x0F\xB6\xC0'           # pushad / mov esi, eax / movzx eax, al (p.get: chained hooks)
-        assert p.get(1, o, 6) == want, ('s7swap: wn_disk entry', p.get(1, o, 6).hex())
-        p.put(1, o, b'\xE8' + struct.pack('<i', risyms['ri_wnhome'][1] - (o + 5)) + b'\x90')
+        assert p.get(wo, o, 6) == want, ('s7swap: wn_disk entry', p.get(wo, o, 6).hex())
+        ro, ra = risyms['ri_wnhome']
+        if wo == ro:
+            p.put(wo, o, b'\xE8' + struct.pack('<i', ra - (o + 5)) + b'\x90')
+        else:                                          # (4.2 OBJ1MV: winners in obj4, ri_wnhome in obj1: a rel32 fixup)
+            p.put(wo, o, b'\xE8\0\0\0\0\x90')
+            p.add_rel(wo, o + 1, ro, ra)
         WNL = {'WN_DISK': winners.LABELS['wn_disk'], 'WN_FN': winners.LABELS['WN_FN']}   # (host tests)
     else:
         WNL = {}

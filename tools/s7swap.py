@@ -132,6 +132,7 @@ def late(p):
     import engine
     import trailer
     import wsites
+    wsites.check_layout()
     rows = wsites.rows()
     p.put(*LABELS['WSITES'], wsites.table(rows))
     en = trailer.INFO['en_n']

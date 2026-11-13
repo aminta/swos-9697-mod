@@ -140,6 +140,266 @@ def kits():
     return out
 
 
+KK_ASM = r"""
+kk_kit:                                 ; [esi + 18..20] kit colours -> [ebx] palette entries, on
+    push eax
+    push edx
+    mov edx, KT_CODE
+    movzx eax, byte [esi + 18]
+    mov al, [edx + eax]
+    mov [ebx], al
+    movzx eax, byte [esi + 19]
+    mov al, [edx + eax]
+    mov [ebx + 1], al
+    movzx eax, byte [esi + 20]
+    mov al, [edx + eax]
+    mov [ebx + 2], al
+    mov byte [ebx + 3], 1
+    pop edx
+    pop eax
+    ret
+
+kk_same:                                ; ZF = 1: the names at esi / edi are equal up to the 0, 17 B at most (as
+    push eax                            ; stored: the '_' joiner a character like any other)
+    push ecx
+    push esi
+    push edi
+    mov ecx, 17
+.c: mov al, [esi]
+    cmp al, [edi]
+    jne .x
+    test al, al
+    jz .x
+    inc esi
+    inc edi
+    loop .c
+    cmp eax, eax
+.x: pop edi
+    pop esi
+    pop ecx
+    pop eax
+    ret
+
+; --- 4.2 KEEPKIT.DAT (MC 13/11): SEMPRE's keeper kit of the career club, per game folder (every career / save with
+; that club shares it). Table on obj4 page 17 (KK_FILE = the file's image): header 'KEEP', u16 1, u16 count, u16 next
+; stamp, u16 0; KK_N records of KK_ B: world byte, country, u16 stamp (the OK that wrote it), name 17, shirt, shorts,
+; socks (kit colours 0..10). Key: world + country + name (a club clubmap moves between files keeps its country).
+kk_load:                                ; once: KEEPKIT.DAT -> KK_FILE (swe_recover first); none / short / bad = empty
+    cmp byte [KK_LOADED], 0
+    jne .x
+    pushad
+    mov byte [KK_LOADED], 1
+    push KK_NAME
+    call SWE_RECOVER
+    add esp, 4
+    push KK_NAME
+    call SWE_FOPEN_R
+    add esp, 4
+    mov [KK_ERR], eax
+    test eax, eax
+    js .empty
+    mov ebx, eax
+    push KK_HDR + KK_N * KK_
+    push KK_FILE
+    push ebx
+    call SWE_FREAD
+    add esp, 12
+    mov esi, eax
+    push ebx
+    call SWE_FCLOSE
+    add esp, 4
+    cmp esi, KK_HDR
+    jl .empty
+    cmp dword [KK_FILE], 'KEEP'
+    jne .empty
+    cmp word [KK_FILE + 4], 1
+    jne .empty
+    movzx ecx, word [KK_FILE + 6]
+    cmp ecx, KK_N
+    ja .empty
+    imul eax, ecx, KK_
+    add eax, KK_HDR
+    cmp esi, eax
+    jl .empty
+    mov edi, KK_FILE + KK_HDR
+.v: jecxz .ok
+    cmp byte [edi + 21], 10
+    ja .empty
+    cmp byte [edi + 22], 10
+    ja .empty
+    cmp byte [edi + 23], 10
+    ja .empty
+    add edi, KK_
+    dec ecx
+    jmp .v
+.empty:
+    mov dword [KK_FILE], 'KEEP'
+    mov dword [KK_FILE + 4], 1
+    mov dword [KK_FILE + 8], 1
+.ok:
+    popad
+.x: ret
+
+kk_find:                                ; esi -> a name, al = world, ah = country: edi -> its record, or 0
+    push ecx
+    movzx ecx, word [KK_FILE + 6]
+    mov edi, KK_FILE + KK_HDR
+.l: jecxz .no
+    cmp [edi], ax
+    jne .n
+    add edi, 4
+    call kk_same
+    lea edi, [edi - 4]
+    je .x
+.n: add edi, KK_
+    dec ecx
+    jmp .l
+.no:
+    xor edi, edi
+.x: pop ecx
+    ret
+
+kk_club:                                ; a career: ebp -> the career club's keeper slot, CF = 0; else CF = 1
+    cmp word [GAMETYPE], 4
+    jne .no
+    push esi
+    push edi
+    mov esi, CAREER_TEAM + 5
+    mov edi, KS
+    call kk_same
+    je .y
+    add edi, KS_
+    call kk_same
+    je .y
+    pop edi
+    pop esi
+.no:
+    stc
+    ret
+.y: mov ebp, edi
+    pop edi
+    pop esi
+    clc
+    ret
+
+kk_mine:                                ; esi = CAREER_TEAM's name, ax = world, country; kk_find
+    call kk_load
+    mov esi, CAREER_TEAM + 5
+    mov al, [CWB]
+    mov ah, [CAREER_TEAM]
+    jmp kk_find
+
+kk_fill:                                ; a career's new match: the club's keeper slot <- its record (SET)
+    call kk_club
+    jc .x
+    call kk_mine
+    test edi, edi
+    jz .x
+    mov eax, [edi + 20]
+    shr eax, 8
+    mov [ebp + 18], ax
+    shr eax, 16
+    mov [ebp + 20], al
+    mov byte [ebp + 21], 1
+.x: ret
+
+kk_rec:                                 ; kick-off, esi -> TeamGame: the career club's record -> [ebx]
+    cmp word [GAMETYPE], 4
+    jne .x
+    push esi
+    push edi
+    add esi, 16h
+    mov edi, CAREER_TEAM + 5
+    call kk_same
+    jne .o
+    call kk_mine
+    test edi, edi
+    jz .o
+    lea esi, [edi + 3]                  ; (kk_kit reads +18..20: the record's 21..23)
+    call kk_kit
+.o: pop edi
+    pop esi
+.x: ret
+
+kk_keep:                                ; OK with SEMPRE in a career: the club's keeper slot -> its record (AUTO: the
+    cmp byte [KM_ALWAYS], 0             ; record removed); KEEPKIT.DAT saved (swe_save_atomic). Full: the record with
+    je .x                               ; the lowest stamp replaced (KK_EVICT)
+    call kk_club
+    jc .x
+    call kk_mine
+    cmp byte [ebp + 21], 0
+    jne .set
+    test edi, edi
+    jz .x
+    movzx ecx, word [KK_FILE + 6]       ; AUTO: the last record into its place
+    dec ecx
+    mov [KK_FILE + 6], cx
+    imul esi, ecx, KK_
+    add esi, KK_FILE + KK_HDR
+    mov ecx, KK_ / 4
+    rep movsd
+    jmp .save
+.set:
+    test edi, edi
+    jnz .w
+    movzx ecx, word [KK_FILE + 6]
+    imul edi, ecx, KK_
+    add edi, KK_FILE + KK_HDR
+    cmp ecx, KK_N
+    jb .add
+    mov edi, KK_FILE + KK_HDR           ; full: the oldest (lowest stamp)
+    mov esi, edi
+    mov ecx, KK_N
+.m: mov ax, [esi + 2]
+    cmp ax, [edi + 2]
+    jae .m2
+    mov edi, esi
+.m2:
+    add esi, KK_
+    loop .m
+    inc dword [KK_EVICT]
+    jmp .w
+.add:
+    inc word [KK_FILE + 6]
+.w: push edi
+    xor eax, eax
+    mov ecx, KK_ / 4
+    rep stosd
+    pop edi
+    mov al, [CWB]
+    mov ah, [CAREER_TEAM]
+    mov [edi], ax
+    mov ax, [KK_FILE + 8]
+    mov [edi + 2], ax
+    inc word [KK_FILE + 8]
+    xor ecx, ecx
+.nm:
+    mov al, [CAREER_TEAM + 5 + ecx]
+    test al, al
+    jz .nd
+    mov [edi + 4 + ecx], al
+    inc ecx
+    cmp ecx, 17
+    jb .nm
+.nd:
+    mov ax, [ebp + 18]
+    mov [edi + 21], ax
+    mov al, [ebp + 20]
+    mov [edi + 23], al
+.save:
+    movzx eax, word [KK_FILE + 6]
+    imul eax, eax, KK_
+    add eax, KK_HDR
+    push eax
+    push KK_FILE
+    push KK_NAME
+    call SWE_SAVE
+    add esp, 12
+    mov [KK_ERR], eax
+    inc dword [KK_SAVES]
+.x: ret
+"""
+
 ASM = r"""
 kt_chain:                               ; ConvertColorsAndTextSprites' `call ChainFont` (D0 = 227)
     call CHAINFONT
@@ -409,7 +669,7 @@ kg_match:                               ; esi / edi -> TeamGame 1 / 2: HS1 / HS2
     mov eax, [edx]
     mov [ebx], eax
     cmp byte [KG_ARM], 0
-    je .x
+    je .rec
     call .try
     jnc .x
     add ebp, KS_                        ; (the other slot)
@@ -418,44 +678,28 @@ kg_match:                               ; esi / edi -> TeamGame 1 / 2: HS1 / HS2
     mov ebp, KS
 .o2:
     call .try
+    jnc .x
+.rec:
+    call kk_rec                         ; (no armed slot of that name: the career club's KEEPKIT.DAT record)
 .x: ret
-.try:                                   ; ebp -> slot: CF = 1 not taken
-    cmp byte [ebp + 21], 0
-    je .no
-    push esi
+.try:                                   ; ebp -> slot: CF = 1 not this team's; its name: CF = 0, SET -> [ebx] (AUTO:
+    push esi                            ; as is - SOLO PARTITA's AUTO wins over a stored record too)
     push edi
     add esi, 16h                        ; TeamGame.teamName
     mov edi, ebp
-    mov ecx, 17
-.c: mov al, [esi]
-    cmp al, [edi]
-    jne .ne
-    test al, al
-    jz .eq
-    inc esi
-    inc edi
-    loop .c
-.eq:
+    call kk_same
     pop edi
     pop esi
+    jne .no
+    cmp byte [ebp + 21], 0
+    je .tk
     push esi
-    mov esi, KT_CODE
-    movzx eax, byte [ebp + 18]
-    mov al, [esi + eax]
-    mov [ebx], al
-    movzx eax, byte [ebp + 19]
-    mov al, [esi + eax]
-    mov [ebx + 1], al
-    movzx eax, byte [ebp + 20]
-    mov al, [esi + eax]
-    mov [ebx + 2], al
-    mov byte [ebx + 3], 1
+    mov esi, ebp
+    call kk_kit
     pop esi
+.tk:
     clc
     ret
-.ne:
-    pop edi
-    pop esi
 .no:
     stc
     ret
@@ -549,6 +793,7 @@ kg_hook:                                ; eax = op, eax out; the rest kept
     mov edi, KS + KS_
     mov esi, SLOTS + SLOT_
     call .name
+    call kk_fill                        ; (a career: the club's KEEPKIT.DAT record, SET)
     jmp .out
 .name:
     push edi
@@ -564,6 +809,8 @@ kg_hook:                                ; eax = op, eax out; the rest kept
     jmp .out
 .ok:
     mov byte [KG_ARM], 1
+    call kk_keep                        ; (SEMPRE in a career: KEEPKIT.DAT)
+    xor eax, eax
     jmp .out
 .cancel:
     mov byte [KG_ARM], 0
@@ -774,6 +1021,22 @@ def hand_env(name):
 
 
 KS_ = 24                                # a keeper slot: name 18, shirt, shorts, socks, set, pad 2
+KK_, KK_N, KK_HDR = 24, 128, 12         # 4.2 KEEPKIT.DAT (MC 13/11): record, records, header ('KEEP', 1, count, stamp, 0)
+KK_NAME = b'KEEPKIT.DAT'                # (the game folder: a user file, never shipped - mkpatcher asserts it)
+# obj4 page 17 (swreg.KITS_PAGE16_END): 'KKST', the harness / host test block, then the file's image KK_FILE
+KK_OFF = {'KK_LOADED': 4, 'KK_ERR': 8, 'KK_SAVES': 12, 'KK_EVICT': 16, 'KK_NAME': 72, 'KK_FILE': 88}
+KK_PTRS = ('kk_keep', 'kk_load', 'kg_match', 'kg_new', 'CWB', 'GAMETYPE', 'CAREER_TEAM', 'KM_ALWAYS', 'KS', 'KG_ARM',
+           'kk_fill', 'kk_rec')           # (dd at +20.., in this order)
+
+
+def kk_page():
+    """page 17's bytes before the pointers (KK_PTRS at +20, fixups): tag, state, name, an empty table"""
+    b = bytearray(KK_OFF['KK_FILE'] + KK_HDR + KK_N * KK_)
+    b[0:4] = b'KKST'
+    assert 20 + 4 * len(KK_PTRS) <= KK_OFF['KK_NAME']
+    b[KK_OFF['KK_NAME']:KK_OFF['KK_NAME'] + len(KK_NAME)] = KK_NAME
+    b[KK_OFF['KK_FILE']:KK_OFF['KK_FILE'] + 12] = b'KEEP' + bytes((1, 0, 0, 0, 1, 0, 0, 0))
+    return bytes(b)
 
 
 def gk_texts():
@@ -785,6 +1048,7 @@ def gk_texts():
 
 def patch(p):
     """Code + masks at obj4+swreg.KITS_AT (page 16, MC 12/11); after swe.patch (swe_match_w27). Returns the end."""
+    import re
     import kitcolors
     import nasmcave
     import swe
@@ -809,8 +1073,28 @@ def patch(p):
     sym['W27FN'] = swe.LABELS.get('swe_match_w27', (0, 0))
     if w27:
         sym['SWE_W27F'] = swe.LABELS['swe_match_w27']
+    import careerworld                                  # 4.2 KEEPKIT.DAT: the career's world byte (the moved SLT,
+    import swefile                                      #  as swe.c's SWE_CWB), the file layer, page 17
+    k17 = swreg.KITS_PAGE16_END
+    kkw = careerworld.SITES.get('slt')
+    sym['CWB'] = (kkw[0], kkw[1] + careerworld.WORLD_BYTE) if kkw else (4, k17 + KK_OFF['KK_LOADED'] + 1)
+    assert swefile.LABELS, 'kits: KEEPKIT.DAT needs the file layer (swe.SWEFILE, patch.py)'
+    sym.update(SWE_RECOVER=swefile.LABELS['swe_recover'], SWE_FOPEN_R=swefile.LABELS['swe_fopen_r'],
+               SWE_FREAD=swefile.LABELS['swe_fread'], SWE_FCLOSE=swefile.LABELS['swe_fclose'],
+               SWE_SAVE=swefile.LABELS['swe_save_atomic'], KK_=(0, KK_), KK_N=(0, KK_N), KK_HDR=(0, KK_HDR),
+               **{k: (4, k17 + v) for k, v in KK_OFF.items()})
+    kat = k17 + (len(kk_page()) + 15 & ~15)            # (4.2 KEEPKIT's code on page 17 after the table: page 16 is
+    kk_names = re.findall(r'^(kk_\w+):', KK_ASM, re.M)  #  full; the two blocks call each other: labels first)
+    dummy = {**sym, **{k: (4, 0) for k in ('KS', 'KT_CODE')}}     # (sym has no kk_* yet)
+    klab = nasmcave.labels(KK_ASM, kat, dummy)
+    sym.update({k: (4, klab[k]) for k in kk_names})
     code, fix, rel = nasmcave.assemble_obj(src, at, sym, 4)
     lab = nasmcave.labels(src, at, sym)
+    ksym = {**{k: v for k, v in sym.items() if k not in kk_names}, 'KS': (4, lab['KS']), 'KT_CODE': (4, lab['KT_CODE'])}
+    kcode, kfix, krel = nasmcave.assemble_obj(KK_ASM, kat, ksym, 4)
+    assert nasmcave.labels(KK_ASM, kat, ksym) == klab
+    assert kat + len(kcode) <= swreg.KITS_END, ('kits: KEEPKIT code past page 17', hex(kat + len(kcode)))
+    lab.update(klab)
     end = at + len(code)
     page = swreg.KITS_PAGE16_END
     assert end <= page, ('kits: code + masks past page 16 (MC: masks to page 17, never cut code)', hex(end))
@@ -822,6 +1106,19 @@ def patch(p):
     for o, t_obj, t_off in rel:
         p.add_rel(4, at + o, t_obj, t_off)
     p.branch(1, s['CF_AT'], 0xE8, 4, lab['kt_chain'])
+    kp = kk_page()                                      # (4.2 KEEPKIT.DAT: page 17)
+    assert k17 + len(kp) <= swreg.KITS_END and p.le.obj(4).npages * 0x1000 >= swreg.KITS_END, 'kits: page 17'
+    assert not any(p.get(4, k17, swreg.KITS_END - k17)), 'kits: page 17 not free'
+    p.put(4, k17, kp)
+    p.put(4, kat, kcode)
+    for o, t_obj, t_off in kfix:
+        p.add_ptr(4, kat + o, t_obj, t_off)
+    for o, t_obj, t_off in krel:
+        p.add_rel(4, kat + o, t_obj, t_off)
+    for i, k in enumerate(KK_PTRS):
+        t = sym[k] if k in sym else (4, lab[k])
+        p.put(4, k17 + 20 + 4 * i, bytes(4))
+        p.add_ptr(4, k17 + 20 + 4 * i, t[0], t[1])
     for k, o in kc['kg_sites'].items():                 # (4.2: SELECT KITS' keeper page)
         assert p.get(1, o, 5) == bytes((0x0F, 0x1F, 0x44, 0, kitcolors.KG_SITES[k])), k
         p.branch(1, o, 0xE8, 4, lab[k])
@@ -835,6 +1132,8 @@ def patch(p):
     LABELS.clear()
     LABELS.update(lab)
     print(f'exe: kits (K2 keepers, R1 referee{"" if w27 else " - no swe_match_w27: always black"}): obj4+{at:#x}..'
-          f'{end:#x} ({len(code)} B, masks {len(ms) + 2 * len(moff)} B; page 16 margin {page - end} B), '
+          f'{end:#x} ({len(code)} B, masks {len(ms) + 2 * len(moff)} B; page 16 margin {page - end} B), KEEPKIT.DAT '
+          f'table obj4+{k17:#x}..{k17 + len(kp):#x} ({KK_N} x {KK_} B) + code ..{kat + len(kcode):#x} '
+          f'({swreg.KITS_END - kat - len(kcode)} B left), '
           f'ChainFont call obj1+{s["CF_AT"]:#x}, keeper loops ' + ', '.join(f'{v:#x}' for v in s['LOOPS'].values()))
     return end

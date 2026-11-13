@@ -12,8 +12,10 @@ The compiler is deterministic: the same pack gives the same TEAM files and the s
 written ddr89.py / euro8889.py of 2.6 (the DDR 1988-89 is now packs/ddr-1988-89, byte-identical output).
 
 Engine facts used here (see the hex manual, chapter 17):
-- a country's team count = teamsCountryNumbers[n+1] - [n]: a single-league country must hold exactly its league, so
-  cup-only clubs live in their own file ('cuponly');
+- teamsCountryNumbers[n] = the global number of file n's first club; the game reads it only in SetTeamGlobalNumbers
+  (global = tcn[byte 0] + byte 1), so a row's base is what matters and the mod's closing entry after a pack's last own
+  file is filler (an own base always wins over it: _tcn, MC 13/11); a single-league country still holds exactly its
+  league, cup-only clubs in their own file ('cuponly');
 - Season menu: CLASSIC SEASONS = pseudo-continent 97, listing the packs' countries;
 - InitNewSeason: the country table [league, -2, cup, <European cup> or <league cup>, -1] fills slot 0, 1, 2;
   euro_slot2 swaps slot 2 for the cup of the first human-controlled club of the league that played in Europe (or skips
@@ -2320,6 +2322,25 @@ def _tourney_leagues(p, lang, area, at, env):
 POOL_IDS = range(190, 200)              # pseudo-countries of the worlds' foreign-market pools (worldpool.py): no world file
 NS = {}                                 # several worlds: world -> {country number: {'ct': (obj, off), 'comp': (obj, off),
 NS_INFO = {}                            # 'tcn': base}} (its namespace); NS_INFO: where patch() put the tables (ns_emit)
+TCN_ROLE = {}                           # (world, country) -> (role, value, pack id) of its teamsCountryNumbers row: role
+                                        # 'base' (an own-base file), 'closing' (the entry after a pack's last own file),
+                                        # 'shared' (a shared-base file)
+
+
+def _tcn(p, env, w, n, val, role, who):
+    """a teamsCountryNumbers row, independent of the pack order (MC 13/11, Shaved's S7 find: Albania's closing
+    tcn[144] = 1062 overwrote the shaped Serie D's base 192 because ALB comes after ITA in the world's file list).
+    The game reads the table only in SetTeamGlobalNumbers (global = tcn[byte 0] + byte 1; ref/swos.asm, its one xref),
+    so a row's BASE is what matters: an own base always wins, a closing entry (the row after a pack's last own file)
+    never overwrites a base, two different own bases on one row are refused. A shared-base file overwrites as before."""
+    k = (w, n)
+    old = TCN_ROLE.get(k)
+    if old and role == 'base' and old[0] == 'base' and old[1] != val:
+        _need(False, f'world {w}: teamsCountryNumbers[{n}] is the base {old[1]} of {old[2]} and {val} of {who}')
+    if old and role == 'closing' and old[0] in ('base', 'shared'):
+        return                                  # (a base already there: the closing entry yields)
+    TCN_ROLE[k] = (role, val, who)
+    _tab(p, env, w, 'tcn', n, val)
 
 
 def _tab(p, env, w, kind, n, *val):
@@ -2397,15 +2418,16 @@ def _patch_pack(pk, p, lang, area, at, env):
     rec = area.add(bytes((countries.CONTINENT[m['continent']],)) + button.encode('latin1') + b'\0'
                    + button.encode('latin1') + b'\0')
     # every pack file is a country entry (a club's country is never null); bases in teamsCountryNumbers; the entry
-    # after the last own-base file closes its team count (a country's count = next base - its base); shared-base
-    # files last: their bases overwrite that closing entry when they follow it
+    # after the last own-base file is a closing filler (never read: _tcn lets any base win over it); shared-base files
+    # last
     own = sorted(v for _, v in pk.team_file_items() if not shares_base(v[0]))
     for f, base in own + sorted(v for _, v in pk.team_file_items() if shares_base(v[0])):
         _need(ct + 4 * f not in fx2 and comp + 4 * f not in fx2, f'{pk.meta["id"]}: country {f} is already used')
         _tab(p, env, pk.world, 'ct', f, 2, rec)
-        _tab(p, env, pk.world, 'tcn', f, globnum.base(pk, f))          # (S7-G: a split file's run 1)
+        _tcn(p, env, pk.world, f, globnum.base(pk, f), 'shared' if shares_base(f) else 'base',
+             pk.meta['id'])                                            # (S7-G: a split file's run 1)
         if (f, base) == own[-1]:
-            _tab(p, env, pk.world, 'tcn', f + 1, sum(globnum.runs_of(pk, f)[-1]))
+            _tcn(p, env, pk.world, f + 1, sum(globnum.runs_of(pk, f)[-1]), 'closing', pk.meta['id'])
 
     ptr = {}
     for c in pk.comps:
@@ -2527,6 +2549,7 @@ def patch(p, lang, area, cave):
     ct, tcn, _, _ = countries.tables(p)
     comp = countries.COMP[0]
     NS.clear()                                 # (several worlds: this exe's namespaces; a release builds 8 exes in one run)
+    TCN_ROLE.clear()
     NS_INFO.clear()
     W0_IDS.clear()
     env = (p.le.obj_bytes(2), ct, tcn, comp, {f[1] for f in p.le.fixups() if f[0] == 2})

@@ -366,6 +366,9 @@ def patch_exe(src, dst, remap, lang='it'):
     if xtra_on:                                        # 4.2.y T3 PRIMAVERA (MC 12/11, 23bis): its own page, the 14th
                                                        # (the pages between stay zero)
         swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, swreg.T3_END // 0x1000)
+    import s7swap
+    if s7swap.on():                                    # 4.2 S7: s7_load reads the two league files (the file layer)
+        swe.SWEFILE = True
     import swefile
     if swefile.on():                                   # 4.2 file layer (MC 12/11): page 18, only when linked
         swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, swefile.page_end() // 0x1000)
@@ -982,7 +985,9 @@ def patch_exe(src, dst, remap, lang='it'):
     sreg_end = sreg.patch(p, swe.LABELS)
     if sreg_end is not None and s7swap.on():     # 4.2 S7: the season-end swap builder (s7swap.py; pg_fix's S7_PTR)
         import gplay
-        s7swap.patch(p, swe.LABELS, sreg.LABELS, gplay.LABELS, pgroups.LABELS)
+        import ripool
+        import swefile
+        s7swap.patch(p, swe.LABELS, sreg.LABELS, gplay.LABELS, pgroups.LABELS, swefile.LABELS, ripool.LABELS)
     if sreg_end is not None:
         assert sreg_end <= lrank.LR_AT, ('sreg past LR_AT', hex(sreg_end), hex(lrank.LR_AT))
     benchx.link_w27(p)                           # (4.0.6 step 2.5: the friendlies' long bench by SWE_W27)

@@ -17,7 +17,15 @@
      sr_reg_season (contiguous 0: a club staying in its file keeps its row; the rows freed in a file go to the clubs
      coming in, by rank = S7X order) gives the swaps; then every row's delta in SLTCOPY is its new division (the
      registry's rdiv, local to its file) - the slot's base (+25 as shipped: the spec's range of that row).
-   Not here yet: the records themselves (piece 3, the load apply) and the saved words (piece 4, the WSITES walker). */
+   s7_load (piece 3, the load apply): ri_load (ripool.py, LoadTeamFile after TEAM.nnn is read, through S7_LPTR) passes
+   the team buffer and the file read. In a career whose registry is this build's (sreg_get), for the two league files:
+   every row gets the record of the club the registry puts there - its ident's home record (S7_HRUN: its file and
+   ordinal as shipped, = the spec's first registry) from the two files AS READ (S7_ORIG, swe.c .bss, read once per DOS
+   session through the engine's file layer; MC 13/11: every load compares the file read with its ORIG's FNV-1a and reads
+   both again on a difference - never a stale ORIG; still different, or a failed read: nothing applied, S7_LD.status
+   LD_FILE / LD_READ, retried at the next load), all but the row's own bytes (file, ordinal, global number, 23, the
+   division byte 25: ri_copy's rule). A file that cannot be read or does not match the shipped count: nothing applied,
+   S7_LD says why. Not here yet: the saved words (piece 4, the WSITES walker) and the career cache's records. */
 #define SWOSRULES_HAVE_STDINT
 typedef unsigned char uint8_t;
 typedef signed char int8_t;
@@ -27,6 +35,8 @@ typedef unsigned int uint32_t;
 typedef int int32_t;
 #include "swce/sr_reg.c"            /* (its own copy: sreg.c's band has no room for sr_reg_season) */
 #include "swce/sr_regsave.c"         /* (sr_wmap_build, for piece 4) */
+
+#include "swefile.h"                /* (prototypes: swefile.c is linked at obj4+SWEFILE_AT) */
 
 #define DATA __attribute__((section(".data")))
 #ifndef S7_NID
@@ -50,9 +60,31 @@ uint16_t S7_GB[2][3] DATA = {{0}};      /* per file (FA, FB): global base, the o
                                            that run's global base (G144: rows 156.. at 2283..) */
 uint8_t S7_AREA[S7_NID] DATA = {0};   /* per ident: low nibble the upper level's group, high the lower's (F none) */
 
+/* the idents' home team words as shipped, as runs (s7swap.py: <= 8): idents [first, first + n) are file's ordinals
+   [ord, ord + n); an ident in no run has none */
+struct { uint16_t first, n; uint8_t file, ord, pad[2]; } S7_HRUN[8] DATA = {{0}};
+static uint16_t home_of(int32_t id)
+{
+    for (int32_t k = 0; k < 8; k++)
+        if (S7_HRUN[k].n && id >= S7_HRUN[k].first && id < S7_HRUN[k].first + S7_HRUN[k].n)
+            return (uint16_t)(S7_HRUN[k].file | (S7_HRUN[k].ord + id - S7_HRUN[k].first) << 8);
+    return 0xFFFF;
+}
+char S7_NAME[2][16] DATA = {{0}};       /* the two files' names (DATA\\TMW5.102 ...) */
+uint32_t S7_OAT[2] DATA = {0};          /* their ORIG buffers' offsets in S7_ORIG */
+uint16_t S7_ONREC[2] DATA = {0};        /* their records as shipped */
+uint32_t S7_FNV[2] DATA = {0};          /* their FNV-1a as read into S7_ORIG (orig_read); every load checks it */
+extern uint8_t S7_ORIG[];               /* swe.c .bss (swreg.S7_ORIG_SZ) */
+
+/* the load apply's result (harness: S7_LD): status, both files read (1) / failed (2) / not yet (0), rows given another
+   record by the last call, calls */
+enum { LD_OK = 1, LD_NOREG = 2, LD_READ = 3, LD_SIZE = 4, LD_FILE = 5 };   /* (LD_FILE: the file read is not the
+                                           one on disk even after a fresh ORIG read: nothing applied) */
+struct { uint8_t status, oread, file, pad; uint16_t moved, rows; uint32_t calls; int32_t rc; } S7_LD DATA = {0};
+
 /* the result (harness: S7_LOG) */
 enum { S7_OK = 1, S7_NOREG = 2, S7_STALE = 3, S7_BAD = 4, S7_COUNT = 5, S7_PLACE = 6, S7_REG = 7, S7_NOCLUB = 8 };
-struct { uint8_t status, season, nswap, ncross; int32_t rc; sr_reg_swap sw[32]; } S7_LOG DATA = {0};
+struct { uint8_t status, season, nswap, ncross; int32_t rc; } S7_LOG DATA = {0};   /* (the swaps: the arena's SW_AT) */
 
 static int32_t fi_of(uint8_t file) {
     for (int32_t i = 0; i < SREG_REG->nfiles; i++) if (SREG_REG->f[i].file == file) return i;
@@ -72,11 +104,17 @@ static int32_t base_local(int32_t fi, uint32_t ord) {  /* the row's division as 
 }
 
 struct args { int8_t *sltcopy; };
-/* the work area: the engine arena after the registry (swe.c SWE_ARENA; s7swap.py asserts the sum fits) - sr_reg_work,
-   then nd[SR_REG_CLUBS], then order[48]; no .bss of s7swap.c's own (swe.c's is the arena) */
-#define W_AT ((sr_reg_size() + 15) & ~15u)
-#define ND_AT ((W_AT + sr_reg_work_size() + 15) & ~15u)
+/* the work area: the engine arena after the registry (swe.c SWE_ARENA; asserted below) - sr_reg_work,
+   then nd[SR_REG_CLUBS], then order[48], then the swaps; no .bss of s7swap.c's own (swe.c's is the arena) */
+#define W_AT ((sizeof(sr_registry) + 15) & ~15u)
+#define ND_AT ((W_AT + sizeof(sr_reg_work) + 15) & ~15u)
 #define ORD_AT (ND_AT + SR_REG_CLUBS)
+#define SW_AT ((ORD_AT + 2 * 48 + 15) & ~15u)     /* sr_reg_swap[S7_NSW]: the last season's swaps (piece 4's wmap) */
+#define S7_NSW 32
+#ifndef SWE_ARENA
+#define SWE_ARENA 0x8000
+#endif
+typedef char s7_work_fits_the_arena[SW_AT + S7_NSW * sizeof(sr_reg_swap) <= SWE_ARENA ? 1 : -1];
 
 /* the group of the level (n groups, free[] places) for an area nibble a: a, else the nearest with room */
 static int32_t place(uint8_t *free, int32_t n, int32_t a) {
@@ -145,7 +183,7 @@ static int32_t run(void *pv) {
     }
     S7_LOG.ncross = (uint8_t)no;
     sr_reg_work *w = (sr_reg_work *)(SWE_ARENA_AT + W_AT);
-    int32_t c = sr_reg_season(R, nd, order, no, 0, w, S7_LOG.sw, 32);
+    int32_t c = sr_reg_season(R, nd, order, no, 0, w, (sr_reg_swap *)(SWE_ARENA_AT + SW_AT), S7_NSW);
     S7_LOG.rc = c;
     if (c < 0) return S7_LOG.status = S7_REG;
     S7_LOG.nswap = (uint8_t)c;
@@ -160,6 +198,77 @@ static int32_t run(void *pv) {
         }
     }
     return S7_LOG.status = S7_OK;
+}
+
+static int32_t be16(const uint8_t *b) { return b[0] << 8 | b[1]; }
+
+static uint32_t s7_fnv(const uint8_t *b, uint32_t n)
+{
+    uint32_t h = 2166136261u;
+    for (uint32_t i = 0; i < n; i++) h = (h ^ b[i]) * 16777619u;
+    return h;
+}
+
+static int32_t orig_read(void)         /* both files as read into S7_ORIG: 1, else 2 (S7_LD.rc: which, why) */
+{
+    for (int32_t s = 0; s < 2; s++) {
+        uint8_t *o = S7_ORIG + S7_OAT[s];
+        uint32_t want = 2 + 684u * S7_ONREC[s];
+        int h = swe_fopen_r(S7_NAME[s]);
+        if (h < 0) { S7_LD.rc = (s + 1) << 16 | (h & 0xFFFF); return 2; }
+        int r = swe_fread(h, o, want + 1);           /* (one more: a longer file is refused) */
+        swe_fclose(h);
+        if (r != (int)want || be16(o) != S7_ONREC[s]) { S7_LD.rc = (s + 1) << 16 | 0x8000 | (r & 0x7FFF); return 2; }
+        S7_FNV[s] = s7_fnv(o, want);
+    }
+    return 1;
+}
+
+static void rec_copy(uint8_t *d, const uint8_t *s)   /* gplay.c ri_copy's rule: all but the row's own bytes */
+{
+    for (int32_t b = 0; b < 684; b++)
+        if (b > 4 && b != 23 && b != 25) d[b] = s[b];
+}
+
+struct largs { uint8_t *buf; uint32_t file; };
+
+static int32_t load_run(void *pv)
+{
+    uint8_t *buf = ((struct largs *)pv)->buf;
+    uint32_t file = ((struct largs *)pv)->file & 0xFF;
+    int32_t s = file == S7_FA ? 0 : file == S7_FB ? 1 : -1;
+    if (s < 0) return 0;
+    S7_LD.calls++; S7_LD.file = (uint8_t)file; S7_LD.moved = S7_LD.rows = 0;
+    if (!sreg_get()) return S7_LD.status = LD_NOREG;
+    if (be16(buf) != S7_ONREC[s]) return S7_LD.status = LD_SIZE;
+    uint32_t h = s7_fnv(buf, 2 + 684u * S7_ONREC[s]);
+    if (S7_LD.oread == 1 && h != S7_FNV[s]) S7_LD.oread = 0;   /* (the file changed since ORIG was read: read again) */
+    if (S7_LD.oread != 1) S7_LD.oread = (uint8_t)orig_read();
+    if (S7_LD.oread != 1) return S7_LD.status = LD_READ;
+    if (h != S7_FNV[s]) return S7_LD.status = LD_FILE;         /* (read again, still not the file LoadTeamFile read) */
+    const sr_registry *R = SREG_REG;
+    int32_t fi = fi_of((uint8_t)file), n = be16(buf);
+    if (fi < 0 || n != S7_ONREC[s] || R->rows[fi] > n) return S7_LD.status = LD_SIZE;
+    uint32_t moved = 0;
+    for (uint32_t o = 0; o < R->rows[fi]; o++) {
+        int32_t id = R->at[fi][o];
+        if (id < 0 || id >= R->nclub) continue;
+        uint16_t h = home_of(id);
+        int32_t hs = (h & 0xFF) == S7_FA ? 0 : (h & 0xFF) == S7_FB ? 1 : -1;
+        if (hs < 0 || (h >> 8) >= S7_ONREC[hs]) continue;
+        if (hs == s && (h >> 8) == o) continue;      /* (its own row: the record as read) */
+        rec_copy(buf + 2 + 684 * o, S7_ORIG + S7_OAT[hs] + 2 + 684 * (h >> 8));
+        moved++;
+    }
+    S7_LD.moved = (uint16_t)moved; S7_LD.rows = R->rows[fi];
+    return S7_LD.status = LD_OK;
+}
+
+void s7_load(uint8_t *buf, uint32_t file)    /* ri_load (S7_LPTR): cdecl, the game's stack -> the engine's C stack */
+{
+    struct largs a;
+    a.buf = buf; a.file = file;
+    cstack_call(load_run, &a);
 }
 
 int32_t s7_season(int8_t *sltcopy)     /* pg_fix: cdecl, the game's stack -> the engine's C stack */

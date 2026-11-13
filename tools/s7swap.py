@@ -7,7 +7,12 @@ Fills s7swap.c's tables from the shaped pack: S7_FA / S7_FB (the upper / lower s
 divisions (S7_UP: the upper struct's last level, S7_LO: the lower's first; group order), the two files' global runs
 (S7_GB: base, the second run's first ordinal and base - G144), and S7_AREA per ident (sreg's ident order = clubs.csv):
 low nibble the upper level's group, high nibble the lower level's (clubs.csv 'area', one entry per level of groups;
-else the club's own group on that level; else F = none). pg_fix's S7_PTR (pgroups.py) -> s7_season."""
+else the club's own group on that level; else F = none). pg_fix's S7_PTR (pgroups.py) -> s7_season.
+
+Piece 3 (the load apply): S7_HRUN (runs of S7_HOME words) per ident (its home team word as shipped: its role's file, its rank among the role's
+clubs in clubs.csv order = the ordinal mkseason writes = the spec registry's first word), the two files' names (the
+world's stem, mkseason.ns_stem), their record counts and ORIG offsets (swe.c S7_ORIG, swreg.S7_ORIG_SZ); ri_load's
+S7_LPTR (ripool.py) -> s7_load; the engine's file layer (swefile.c) linked for it (patch.py sets swe.SWEFILE)."""
 import os
 import struct
 
@@ -65,9 +70,62 @@ def tables(pk):
     return fa, fb, up, lo, gb, area
 
 
-def patch(p, ssyms, rsyms, gsyms, pgsyms):
-    """links s7swap.c at obj4+S7SWAP_AT (ssyms swe.c's, rsyms sreg.c's, gsyms gplay's, pgsyms pgroups'); returns the
-    end, or None (dormant)."""
+def homes(pk):
+    """(S7_HOME words per ident, {file: records}) from the pack's roles: a club of a role with divisions has its role's
+    file and its rank among the role's clubs (clubs.csv order); the rest FFFF."""
+    fs = pk.meta['files']
+    roles = {k: v for k, v in fs.items() if 'divisions' in v}
+    n, out = {}, []
+    for c in pk.clubs.values():
+        r = c['file']
+        if r not in roles:
+            out.append(0xFFFF)
+            continue
+        o = n.get(r, 0)
+        n[r] = o + 1
+        out.append(roles[r]['file'] | o << 8)
+    return out, {roles[r]['file']: k for r, k in n.items()}
+
+
+def home_runs(home):
+    """S7_HRUN: [(first ident, n, file, first ordinal)] - home's words as runs (consecutive idents, consecutive
+    ordinals of one file); FFFF entries in none"""
+    runs = []
+    for i, w in enumerate(home):
+        if w == 0xFFFF:
+            continue
+        f, o = w & 0xFF, w >> 8
+        r = runs[-1] if runs else None
+        if r and r[2] == f and r[0] + r[1] == i and r[3] + r[1] == o:
+            r[1] += 1
+        else:
+            runs.append([i, 1, f, o])
+    assert len(runs) <= 8, ('s7swap: S7_HRUN past 8 runs', runs)
+    return [tuple(r) for r in runs]
+
+
+def fnv(b):
+    """FNV-1a 32 (s7swap.c fnv)"""
+    h = 2166136261
+    for x in b:
+        h = (h ^ x) * 16777619 & 0xFFFFFFFF
+    return h
+
+
+def orig_layout(nrec):
+    """[(offset, records)] for (fa, fb): each 2 + 684 n bytes, 16-aligned"""
+    import swreg
+    at, out = 0, []
+    for k in nrec:
+        out.append((at, k))
+        at = (at + 2 + 684 * k + 15) & ~15
+    assert at <= swreg.S7_ORIG_SZ, ('s7swap: ORIG buffers past swreg.S7_ORIG_SZ', at, hex(swreg.S7_ORIG_SZ))
+    return out
+
+
+def patch(p, ssyms, rsyms, gsyms, pgsyms, fsyms, risyms):
+    """links s7swap.c at obj4+S7SWAP_AT (ssyms swe.c's, rsyms sreg.c's, gsyms gplay's, pgsyms pgroups', fsyms swefile's,
+    risyms ripool's); returns the end, or None (dormant)."""
     if not on():
         return None
     import cobj
@@ -79,11 +137,23 @@ def patch(p, ssyms, rsyms, gsyms, pgsyms):
     assert 'S7_PTR' in pgsyms, 's7swap: pg_fix without its S7 call (pgroups.py S7_ON)'
     assert p.le.obj(4).npages * 0x1000 >= page_end(), 's7swap: obj4 pages (patch.py)'
     assert not any(p.get(4, swreg.S7SWAP_AT, swreg.S7SWAP_END - swreg.S7SWAP_AT)), 's7swap: obj4+S7SWAP_AT not free'
+    assert 'S7_LPTR' in risyms, 's7swap: ri_load without its S7 call (ripool.py S7_ON)'
+    assert 'S7_ORIG' in ssyms, 's7swap: swe.c without S7_ORIG (swe.py S7_ORIG_SZ)'
+    home, nrec = homes(pk)
+    assert len(home) == len(area) and set(nrec) == {fa, fb}, ('s7swap: homes', len(home), nrec)
+    lay = orig_layout([nrec[fa], nrec[fb]])
+    built = pk.team_files()                             # (MC 13/11: S7_ORIG_SZ against the files as built)
+    for f in (fa, fb):
+        d = built[f]
+        assert len(d) == 2 + 684 * nrec[f] and d[0] << 8 | d[1] == nrec[f], ('s7swap: team file as built', f, len(d), nrec[f])
+    stem = mkseason.ns_stem(pk.world).upper()
+    names = [f'DATA\\{stem}.{f:03d}' for f in (fa, fb)]
     ext = {'S7X': gsyms['S7X'], 'SREG_REG': rsyms['SREG_REG'], 'sreg_get': rsyms['sreg_get'],
-           'SWE_ARENA_AT': ssyms['SWE_ARENA_AT'], 'cstack_call': ssyms['cstack_call']}
+           'SWE_ARENA_AT': ssyms['SWE_ARENA_AT'], 'cstack_call': ssyms['cstack_call'], 'S7_ORIG': ssyms['S7_ORIG']}
+    ext.update({k: fsyms[k] for k in ('swe_fopen_r', 'swe_fread', 'swe_fclose')})
     obj = cobj.compile_c(SRC, (f'-DS7_NID={NID}',), sections=True)
     syms, end, bss = cobj.link(p, obj, swreg.S7SWAP_AT, (4, 0), externs=ext, limit=swreg.S7SWAP_END, text_obj=4,
-                               roots=['s7_season', 'S7_FA', 'S7_FB', 'S7_NUP', 'S7_NLO', 'S7_UP', 'S7_LO', 'S7_GB',
+                               roots=['s7_season', 's7_load', 'S7_HRUN', 'S7_FNV', 'S7_NAME', 'S7_OAT', 'S7_ONREC', 'S7_LD', 'S7_FA', 'S7_FB', 'S7_NUP', 'S7_NLO', 'S7_UP', 'S7_LO', 'S7_GB',
                                       'S7_AREA', 'S7_LOG'] + LIB)
     assert not bss, ('s7swap.c: no .bss (it would land on swe.c\'s)', bss)
     p.put(*syms['S7_FA'], bytes((fa,)))
@@ -94,9 +164,18 @@ def patch(p, ssyms, rsyms, gsyms, pgsyms):
     p.put(*syms['S7_LO'], bytes(lo))
     p.put(*syms['S7_GB'], b''.join(struct.pack('<3H', *x) for x in gb))
     p.put(*syms['S7_AREA'], area)
+    hr = home_runs(home)
+    p.put(*syms['S7_HRUN'], b''.join(struct.pack('<HHBB2x', *r) for r in hr))
+    for s, nm in enumerate(names):
+        assert len(nm) < 16
+        p.put(syms['S7_NAME'][0], syms['S7_NAME'][1] + 16 * s, nm.encode() + b'\0')
+    p.put(*syms['S7_OAT'], struct.pack('<II', lay[0][0], lay[1][0]))
+    p.put(*syms['S7_ONREC'], struct.pack('<HH', lay[0][1], lay[1][1]))
+    cobj.add_ptr(p, risyms['S7_LPTR'][1], *syms['s7_load'], 1)     # (ri_load's dword in obj1 -> obj4)
     cobj.add_ptr(p, pgsyms['S7_PTR'][1], *syms['s7_season'], 1)   # (pg_fix's dword in obj1 -> obj4)
     LABELS.clear()
     LABELS.update(syms)
     print(f'exe: S7 swap builder (s7swap.c) obj4+{swreg.S7SWAP_AT:#x}..{end:#x} of {swreg.S7SWAP_END:#x}: structs '
-          f'{fa} / {fb}, boundary levels {up} / {lo}, globals {gb}, {len(area)} idents; S7_LOG obj4+{syms["S7_LOG"][1]:#x}')
+          f'{fa} / {fb}, boundary levels {up} / {lo}, globals {gb}, {len(area)} idents (homes {hr}); S7_LOG obj4+{syms["S7_LOG"][1]:#x}; load apply: {names[0]} / {names[1]} '
+          f'({nrec[fa]} / {nrec[fb]} records) in S7_ORIG, S7_LD obj4+{syms["S7_LD"][1]:#x}')
     return end

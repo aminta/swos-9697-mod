@@ -11,7 +11,14 @@ file 144's 9 up (each Serie D group's first). SLTCOPY = a buffer: no in-struct m
   same start = the same registry and SLTCOPY);
 - an in-struct move (a Serie B club relegated: delta +1 on its global) keeps its row, its rdiv follows;
 - refused, nothing changed (registry, SLTCOPY): counts unequal (COUNT), a bad snapshot (BAD), last season's stamp on
-  one side (STALE), a crosser not on its boundary level (PLACE)."""
+  one side (STALE), a crosser not on its boundary level (PLACE).
+
+test_s7load (piece 3, s7_load: ri_load's call after LoadTeamFile read TEAM.102 / .144), on the same build with its
+DATA\\TMW5.102 / .144: S7_HRUN = the spec registry's first words; S7_FNV = the files' FNV-1a; after the 9 swaps every
+row of both files holds its registry club's home record (S7_ORIG, filled as orig_read would) and keeps its own bytes
+0..4, 23 and 25 (one check per kept byte, MC 13/11: each poked in the row before the call and found again after);
+rows of clubs that did not move stay as read; moved = 9 per file; a file that differs from its ORIG's FNV (ORIG read again - its open fails here: LD_READ), ORIG not read (oread 2: LD_READ, retried at the next load), a wrong count: nothing applied; another file: no call
+counted; no registry (no world byte): LD_NOREG."""
 import json
 import os
 import struct
@@ -23,7 +30,7 @@ import test_sreg as tg  # noqa: E402
 import test_swc1 as ts  # noqa: E402
 
 HOME = os.path.expanduser('~')
-EXE = os.environ.get('HT_S7_EXE') or os.path.join(HOME, 'swos-mod', 'c', 'S7W-h1', 'SWOS', 'ITALIAN.EXE')
+EXE = os.environ.get('HT_S7_EXE') or os.path.join(HOME, 'swos-mod', 'c', 'S7W-p3', 'SWOS', 'ITALIAN.EXE')
 OK, STALE, BAD, COUNT, PLACE = 1, 3, 4, 5, 6
 FA, FB = 102, 144
 SEASON = 7
@@ -218,3 +225,132 @@ def test_s7swap():
     return not errs, '; '.join(errs[:6]) or (f'9 down + 9 up as 9 registry swaps; down into groups {dn}, sizes kept, '
                                              f'SLTCOPY re-based, deterministic; in-struct move kept its row; refused '
                                              f'COUNT / BAD / STALE / PLACE with nothing changed')
+
+
+TB = 0x6200000                                          # (the team buffer: 2 + 162 x 684 B)
+LD_OK, LD_NOREG, LD_READ, LD_SIZE, LD_FILE = 1, 2, 3, 4, 5
+KEPT = (0, 1, 2, 3, 4, 23, 25)
+
+
+def ld(m):
+    st, oread, f, _, moved, rows, calls, rc = struct.unpack('<BBBBHHIi', m.rd(m.at('s7swap', 'S7_LD'), 16))
+    return st, oread, moved, calls
+
+
+def test_s7load():
+    if not os.path.exists(EXE) or not os.path.exists(EXE[:-4] + '.syms.json'):
+        return True, f'SKIP: {EXE} (a shaped HOSTTEST_SYMS=1 build) missing'
+    sy = json.load(open(EXE[:-4] + '.syms.json'))
+    if 's7_load' not in sy.get('s7swap', {}):
+        return False, f'{EXE}: no s7_load (piece 3 not linked)'
+    data = os.path.join(os.path.dirname(EXE), 'DATA')
+    fil = {f: open(os.path.join(data, f'TMW5.{f}'), 'rb').read() for f in (FA, FB)}
+    m = M(EXE)
+    m.uc.mem_map(TB, 0x20000)
+    errs = []
+    oat = struct.unpack('<II', m.rd(m.at('s7swap', 'S7_OAT'), 8))
+    onrec = struct.unpack('<HH', m.rd(m.at('s7swap', 'S7_ONREC'), 4))
+    hrun = [struct.unpack_from('<HHBB2x', m.rd(m.at('s7swap', 'S7_HRUN'), 64), 8 * k) for k in range(8)]
+    import s7swap
+    for s, f in enumerate((FA, FB)):
+        if (len(fil[f]) - 2) // 684 != onrec[s]:
+            return False, f'TMW5.{f}: {len(fil[f])} B vs the exe\'s {onrec[s]} records'
+    m.fresh()
+    fs, word, at, rdiv, rows = reg_parse(m.regb())
+
+    def home(i):
+        for a, n, f, o in hrun:
+            if n and a <= i < a + n:
+                return f | (o + i - a) << 8
+        return 0xFFFF
+    if [home(i) for i in range(len(word))] != word:
+        errs.append('S7_HRUN != the spec registry\'s words')
+    orig = m.at('swe', 'S7_ORIG')
+
+    def fill_orig():
+        for s, f in enumerate((FA, FB)):
+            m.w(orig + oat[s], fil[f])
+        b = bytearray(m.rd(m.at('s7swap', 'S7_LD'), 16))
+        b[1] = 1
+        m.w(m.at('s7swap', 'S7_LD'), bytes(b))
+        m.w(m.at('s7swap', 'S7_FNV'), struct.pack('<II', *(s7swap.fnv(fil[f]) for f in (FA, FB))))
+    m.w(m.at('swefile', 'swe_fopen_r'), b'\xb8\xfe\xff\xff\xff\xc3')   # (Unicorn: no DOS - every open fails, -2)
+    down, up = crossings(fs, m.gb)
+    st, nsw, _, _ = run(m, down, up)
+    if st != OK:
+        return False, f'season status {st}'
+    fs1, word1, at1, rdiv1, rows1 = reg_parse(m.regb())
+    fill_orig()
+    rec = lambda f, o: fil[f][2 + 684 * o:2 + 684 * (o + 1)]
+    for fi, f in enumerate((FA, FB)):
+        buf = bytearray(fil[f])
+        for k, b in enumerate(KEPT):                    # (a per-byte mark in every row: found again after the call)
+            for o in range(onrec[fi]):
+                buf[2 + 684 * o + b] = (0x40 + k * 7 + o) & 0xFF
+        marked = bytes(buf)
+        # the marks change the FNV: the file check would refuse -> the call sees the file as read, marks after
+        m.w(TB, fil[f])
+        m.call('s7swap', 's7_load', TB, f)
+        st, oread, moved, calls = ld(m)
+        if (st, oread) != (LD_OK, 1) or moved != 9:
+            errs.append(f'{f}: status {st} oread {oread} moved {moved} (want {LD_OK}, 1, 9)')
+        got = m.rd(TB, len(fil[f]))
+        # the kept bytes: rerun on a buffer whose row bytes differ from the file - by patching the FNV check's input:
+        # poke the marked buffer, recompute S7_FNV for it (the exe's own data: a test switch in memory)
+        fsave = m.rd(m.at('s7swap', 'S7_FNV'), 8)
+        fn = list(struct.unpack('<II', fsave))
+        fn[fi] = s7swap.fnv(marked)
+        m.w(m.at('s7swap', 'S7_FNV'), struct.pack('<II', *fn))
+        m.w(TB, marked)
+        m.call('s7swap', 's7_load', TB, f)
+        st2 = ld(m)[0]
+        got2 = m.rd(TB, len(fil[f]))
+        m.w(m.at('s7swap', 'S7_FNV'), fsave)
+        if st2 != LD_OK:
+            errs.append(f'{f} marked: status {st2}')
+        for o in range(rows1[fi]):
+            i = at1[fi][o]
+            h = word[i]
+            want = bytearray(rec(h & 0xFF, h >> 8))
+            for b in KEPT:
+                want[b] = fil[f][2 + 684 * o + b]
+            r = got[2 + 684 * o:2 + 684 * (o + 1)]
+            if r != bytes(want):
+                errs.append(f'{f} row {o} (ident {i}, home {h & 0xFF}/{h >> 8}): record differs at '
+                            f'{[b for b in range(684) if r[b] != want[b]][:6]}')
+            r2 = got2[2 + 684 * o:2 + 684 * (o + 1)]
+            for k, b in enumerate(KEPT):
+                if r2[b] != marked[2 + 684 * o + b]:
+                    errs.append(f'{f} row {o}: kept byte {b} not kept ({r2[b]:#x} != {marked[2 + 684 * o + b]:#x})')
+            if h == (f | o << 8) and r != rec(f, o):
+                errs.append(f'{f} row {o}: unmoved club changed')
+    # refusals: nothing applied
+    for name, prep, want in (('changed file (ORIG read again: fails here)', lambda b: b.__setitem__(700, b[700] ^ 1), LD_READ),
+                             ('LD_SIZE', lambda b: b.__setitem__(1, b[1] - 1), LD_SIZE)):
+        fill_orig()
+        b = bytearray(fil[FB])
+        prep(b)
+        m.w(TB, bytes(b))
+        m.call('s7swap', 's7_load', TB, FB)
+        if ld(m)[0] != want or m.rd(TB, len(b)) != bytes(b):
+            errs.append(f'{name}: status {ld(m)[0]} (want {want}), buffer {"kept" if m.rd(TB, len(b)) == bytes(b) else "changed"}')
+    b = bytearray(m.rd(m.at('s7swap', 'S7_LD'), 16))   # ORIG not readable: oread 2 -> LD_READ, retried next load
+    b[1] = 2
+    m.w(m.at('s7swap', 'S7_LD'), bytes(b))
+    m.w(TB, fil[FB])
+    c0 = ld(m)[3]
+    m.call('s7swap', 's7_load', TB, FB)                 # (Unicorn: no DOS - the retry's read fails again)
+    if ld(m)[0] != LD_READ or m.rd(TB, len(fil[FB])) != fil[FB] or ld(m)[3] != c0 + 1:
+        errs.append(f'LD_READ: status {ld(m)[0]}, buffer {"kept" if m.rd(TB, len(fil[FB])) == fil[FB] else "changed"}')
+    c1 = ld(m)[3]
+    m.call('s7swap', 's7_load', TB, 103)
+    if ld(m)[3] != c1:
+        errs.append('file 103 counted')
+    m.world(0)                                          # (a new career in another world: no registry)
+    m.new_career()
+    m.call('s7swap', 's7_load', TB, FB)
+    if ld(m)[0] != LD_NOREG:
+        errs.append(f'no world: status {ld(m)[0]} (want {LD_NOREG})')
+    return not errs, '; '.join(errs[:6]) or (f'9 + 9 rows given their registry club\'s home record, bytes {KEPT} kept '
+                                             f'(one mark each), unmoved rows as read; refused a changed file (re-read) / '
+                                             f'a wrong count / LD_READ / LD_NOREG with the buffer kept; other files ignored')

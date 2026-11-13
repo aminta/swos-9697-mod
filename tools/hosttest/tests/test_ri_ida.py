@@ -71,7 +71,8 @@ def test_ri_ida():
         exec(compile(old, 'ripool_old', 'exec'), om)
         if om['ida_bytes']([one]) != ripool.ida_bytes([one]):
             errs.append('dormant ida_bytes changed')
-        if om['_asm'](1) != ripool._asm(1) or om['_asm'](3) != ripool._asm(3):
+        nos7 = lambda s: re.sub(r'%if S7_ON\n.*?%endif\n', '', s, flags=re.S)   # (S7's blocks: off when dormant)
+        if om['_asm'](1) != nos7(ripool._asm(1)) or om['_asm'](3) != nos7(ripool._asm(3)):
             errs.append('dormant asm changed')
     if ripool.ida_two([one]) or not ripool.ida_two([split, one]):
         errs.append('ida_two')

@@ -215,8 +215,23 @@ ri_load:                                ; replaces `call SetLoadedTeamsGlobalNum
     jne .x
 {''.join(load)}
 .x:
+%if S7_ON
+    cmp word [GAMETYPE], 4              ; S7 (shaped league): s7swap.c s7_load gives the two league files' rows their
+    jne .y                              ; registry clubs' records (cdecl: the buffer, the file read)
+    cmp dword [S7_LPTR], 0
+    je .y
+    movzx eax, byte [WTPHYS]
+    push eax
+    push dword TEAMBUF
+    call [S7_LPTR]
+    add esp, 8
+.y:
+%endif
     popad
     jmp SETGLOBALS
+%if S7_ON
+S7_LPTR: dd 0                           ; (s7swap.py: -> obj4 s7_load)
+%endif
 
 ri_after:                               ; pg_fix, after ri_season and pg_season: the cache, LoadTeamFile's cache
     pushad
@@ -376,7 +391,8 @@ def patch(p, at, bss, tabs):
            'NUMSEL': trailer.INFO['NUMSEL'], 'SELBASEV': (1, trailer.INFO['selbasev']),
            'TEAMSLOADED': (2, s['teamsloaded']), 'LASTEXT': s['lastext'],
            'RI_MAPS': (gplay.LABELS['RI_STATE'][0], gplay.LABELS['RI_STATE'][1] + OVR_AT + 2 * RP * RO),
-           'IDA_BYTES': (0, 'db ' + ', '.join(str(b) for b in ida_bytes(tabs)))}
+           'IDA_BYTES': (0, 'db ' + ', '.join(str(b) for b in ida_bytes(tabs))),
+           'S7_ON': (0, int(bool(gplay.gp_s7())))}          # (S7: s7swap.c s7_load's call, shaped builds only)
     names = []
     for k, ((world, fl, *_), (moff, nmap, osz, psz, bo)) in enumerate(zip(tabs, layout(tabs)[0])):
         o = bss + bo
@@ -411,6 +427,8 @@ def patch(p, at, bss, tabs):
         print(f'exe: off-file pools: TEST ranking {test} at obj1+{at_sr:#x}')
     LABELS['RI_SR_PTR'] = (1, lab['RI_SR_DUMMY' if test else 'RI_SR_PTR'])   # (statecup places ST_RANK later: it
                                                 # fills this dword; a test ranking keeps its own)
+    if 'S7_LPTR' in lab:
+        LABELS['S7_LPTR'] = (1, lab['S7_LPTR'])
     LABELS['RI_PRE_PTR'] = (1, lab['RI_PRE_PTR'])    # (statesim: every state's ranking before ri_season)
     LABELS['RI_POST_PTR'] = (1, lab['RI_POST_PTR'])  # (statecup: the contest overrides applied after it)
     return (tab + len(tb) + 15) & ~15, {'RI_TAB': (1, tab), 'RI_SEASON': gplay.LABELS['ri_season'],

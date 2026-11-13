@@ -27153,6 +27153,10 @@ def s7_nri(sy, hexes):
     if 'RI_NMOVES' not in s7:
         return 0
     key = f'o{s7["RI_NMOVES"][0]}/{s7["RI_NMOVES"][1]:x}'
+    lg = f'o{s7["S7_LOG"][0]}/{s7["S7_LOG"][1]:x}'    # (one season end per session: s7cross plays one; a second would make 'the largest
+    ends = [b for o, b in hexes if o == lg and b[0] not in (0, 2)]   # RI_NMOVES' ambiguous - NOREG (2) is a load before the world is in)
+    if len(ends) > 1:
+        raise SetupError(f's7_nri: {len(ends)} season ends in one session, pair NMOVES per season')
     return max([struct.unpack('<i', b)[0] for o, b in hexes if o == key] or [0])
 
 

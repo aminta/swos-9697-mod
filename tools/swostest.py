@@ -27415,6 +27415,215 @@ def world_s7cross_newnoload():
 
 
 @scenario
+def world_s7cross_diff():
+    """S7 (4.2, MC 13/11 gate 1): the career club's crossing (option B) against a control career, CONVENTIONS 14d. One
+    save early in season 1 (UNION BRESCIA, Serie C girone A, world_s7cross_down's build: W8485_MIDTEXT, the first
+    match screen), then season 1's rest from it twice with the random generators pinned at every pause
+    (W8485_RNGSTEP): (A) GPLAY_FORCE=20 - last, the club crosses 102 -> 144; (B) the same plus S7_NOSWAP (test
+    switch: the season end swaps nothing) - last as well, it stays in Serie C (file 102 has no division below): the
+    same season, the same place, only the crossing apart. At season 2's start (world8485's W84_AFTER, after the next season's save)
+    both dump: careerTeam with all 32 slots + careerNumPlayers + the squad order, the funds (finance NEWBAL / OLDBAL),
+    the job count (D6E00 = D6CDC + 0x124), selTeamNumber / careerTeamLeague / D6CDC, the league calendar, the team
+    cache. Checks (A against B):
+    - EXPECTED differences only: careerTeam's own bytes (0-1 word, 2-3 global number, 25 league), selTeamNumber,
+      careerTeamLeague, D6CDC, and the new division's money (finance.py's TV share T2 and the running costs: NEWBAL
+      apart by T2's difference only); every other careerTeam byte (the 30 players byte by byte), careerNumPlayers,
+      the order, the funds carried (OLDBAL), the job count, the season length D6CA2, the wage bill D6B9E and every
+      wage D6BA6[30] as B's (the extras at 66%: their home word's XTRA block, MC 13/11);
+    - A: selTeamNumber a file-144 word, careerTeam's word the same, D6CDC = careerTeam[25] = its cache record's
+      league byte (careerTeamLeague: the row's base division, D6CDC = base + delta, as InitializeNewSeason sets it);
+      every league calendar match of the club against file-144 clubs; B: against file-102 clubs;
+    - A: the club's old word, when in the cache, holds another club, and no other record is UNION BRESCIA; the
+      club's own cache record (A: the new word) = B's (the old word) bar the own bytes - no squad written to a
+      record, its own or the partner's (the filler's record is not careerTeam's players)."""
+    import json
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import finance, lepatch, xtra
+    team = 'EUROPA,ITALIA,SERIE C GIRONE A,UNION BRESCIA'
+    errs, info = [], []
+    exes = {}
+    for k, x in (('A', {}), ('B', {'S7_NOSWAP': '1'})):
+        env = s7_env(dict({'GPLAY_FORCE': '20'}, **x))
+        if env is None:
+            return True, 'SKIP: S7_PACK (the shaped Italy pack) or internal world5tm-h2 missing'
+        exes[k] = build('s7cross', env=env)
+    sy = json.load(open(os.path.join(exes['A'], 'ITALIAN.syms.json')))
+    s7 = sy.get('s7swap', {})
+    if 'S7_SELBASE' not in s7:
+        return False, f'{exes["A"]}: no S7 swap builder'
+    _, cnp, ct, cmp_, sel = xtra.sites(lepatch.LEPatch(os.path.join(exes['A'], 'ITALIAN.EXE')))
+    fs = finance.find(lepatch.LEPatch(os.path.join(ROOT, 'orig', UI_ORIG_OF['it'])))
+    nbo, obo = fs['NEWBAL'][1], fs['OLDBAL'][1]
+    job = sel + 6 + 0x124                               # (D6E00: jobs held - InitCareer 0, +1 per job, 7 max)
+    for k in ('A', 'B'):
+        _, cnp2, ct2, _, sel2 = xtra.sites(lepatch.LEPatch(os.path.join(exes[k], 'ITALIAN.EXE')))
+        if (cnp2, ct2, sel2) != (cnp, ct, sel):
+            return False, f'build {k}: obj2 sites {cnp2:#x} {ct2:#x} {sel2:#x} not A\'s'
+    st = {}
+
+    def dump(k):
+        def f(s, season):
+            r = s.result
+            pb = struct.unpack('<I', bytes(r.read(r.lin(tuple(s7['S7_SELBASE'])), 4)))[0]
+            n = struct.unpack('<H', r.obj2(s7['S7_NUMSEL'][1], 2))[0]
+            cache = bytes(r.read(pb, 684 * n))
+            st[k] = {'ct': bytes(r.obj2(ct, 684 + 38 * 16)), 'cnp': struct.unpack('<H', r.obj2(cnp, 2))[0],
+                     'cmp': bytes(r.obj2(cmp_, 32)), 'nb': struct.unpack('<i', r.obj2(nbo, 4))[0],
+                     'ob': struct.unpack('<i', r.obj2(obo, 4))[0], 'job': struct.unpack('<H', r.obj2(job, 2))[0],
+                     'fin': bytes(r.obj2(nbo - 0x10, 0x60)), 'ca2': struct.unpack('<H', r.obj2(fs['D6CA2'][1], 2))[0],
+                     'wages': struct.unpack('<30I', r.obj2(fs['D6B9E'][1] + 8, 120)),
+                     'sel': struct.unpack('<HHHH', r.obj2(sel, 8)), 'cal': cal_league(bytes(r.obj2(CAL_AT - 4, 0x2000))),
+                     'cache': {cache[684 * i] | cache[684 * i + 1] << 8: cache[684 * i:684 * i + 684] for i in range(n)}}
+            s.log.append(f'[diff {k}] sel {st[k]["sel"]} cnp {st[k]["cnp"]} funds {st[k]["nb"]}/{st[k]["ob"]} '
+                         f'jobs {st[k]["job"]} cal {len(st[k]["cal"])} cache {n}')
+        return f
+    keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_ONE',
+            'W8485_FROM', 'W8485_MIDTEXT', 'W8485_RNGSTEP', 'W8485_HEX', 'SWOSTEST_SCENARIO')
+    keep = {k: os.environ.get(k) for k in keys}
+    global W84_AFTER
+    try:
+        os.environ.update(W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+',
+                          W8485_NOSACK='1', W8485_RNGSTEP='s7diff')
+        save = os.environ.get('S7_DIFF_CAR')
+        if not save:                                    # the shared save: season 1, the first match screen
+            os.environ.update(W8485_BUILD=exes['A'], W8485_ONE='1', W8485_MIDTEXT='UNION BRESCIA:1',
+                              SWOSTEST_SCENARIO='world_s7cross_diff_save')
+            ok, msg = world8485()
+            save = os.path.join(RUNS, w84_tag() + '_1', 'SWOS', 'W84A.CAR')
+            if not check(ok and os.path.exists(save), f'the shared save: {msg[:200]}', errs):
+                return False, '; '.join(errs)
+        for k in ('W8485_ONE', 'W8485_MIDTEXT'):
+            os.environ.pop(k, None)
+        for k in ('A', 'B'):
+            os.environ.update(W8485_BUILD=exes[k], W8485_FROM=save, SWOSTEST_SCENARIO=f'world_s7cross_diff_{k}',
+                              W8485_HEX=f'{fs["D6CA2"][1]:x}:2,{fs["D6B9E"][1]:x}:2,{fs["D6B9E"][1] + 8:x}:120,'
+                                        f'{sel:x}:8')   # (MC 13/11: D6CA2, the wage bill, D6BA6[30] as they change)
+            W84_AFTER = dump(k)
+            ok, msg = world8485()
+            W84_AFTER = None
+            check(ok and k in st, f'{k}: season 1 from the save: {msg[:200]}', errs)
+    finally:
+        W84_AFTER = None
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    if errs:
+        return False, '; '.join(errs)
+    a, b = st['A'], st['B']
+    wa, wb = a['sel'][0], b['sel'][0]
+    check(wa & 0xFF == 144 and wb & 0xFF == 102, f'selTeamNumber A {wa:#x} B {wb:#x} (want file 144 / 102)', errs)
+    own = {0, 1, 2, 3, 25}
+    d = [i for i in range(len(a['ct'])) if a['ct'][i] != b['ct'][i] and i not in own]
+    check(not d, f'careerTeam differs beyond its own bytes at {d[:12]} (slot/offset '
+          f'{[((i - 76) // 38, (i - 76) % 38) for i in d[:6] if i >= 76]})', errs)
+    check(a['ct'][0] | a['ct'][1] << 8 == wa and b['ct'][0] | b['ct'][1] << 8 == wb,
+          f'careerTeam word A {a["ct"][:2].hex()} B {b["ct"][:2].hex()} vs selTeamNumber', errs)
+    for f_, nm in (('cnp', 'careerNumPlayers'), ('cmp', 'squad order'), ('ob', 'funds carried (OLDBAL)'),
+                   ('job', 'job count')):
+        check(a[f_] == b[f_], f'{nm}: A {a[f_]!r} B {b[f_]!r}', errs)
+    # EXPECTED (13/11): the new season's division-level money, as for any club in that division - finance.py's TV
+    # share (T2, per match charge, BASE[level]: Serie D one level below C), the wage bill D6B9E (and the running
+    # costs after it) from the new league; NEWBAL - OLDBAL apart by T2's difference only, every other dword equal
+    t2, wg = fs['T2'][1] - (nbo - 0x10), fs['D6B9E'][1] - (nbo - 0x10)
+    dw = lambda d, o: struct.unpack_from('<i', d, o)[0]
+    check(a['nb'] - b['nb'] == dw(a['fin'], t2) - dw(b['fin'], t2),
+          f'funds: NEWBAL A {a["nb"]} B {b["nb"]} apart by more than the TV share (T2 A {dw(a["fin"], t2)} B '
+          f'{dw(b["fin"], t2)})', errs)
+    okb = set(range(nbo - (nbo - 0x10), nbo - (nbo - 0x10) + 4)) | set(range(t2, t2 + 4)) | set(range(wg - 6, wg + 6))
+    fd = [hex(nbo - 0x10 + i) for i in range(0x60) if a['fin'][i] != b['fin'][i] and i not in okb]
+    check(not fd, f'finance bytes A != B beyond NEWBAL / T2 / the wage bill: {fd[:8]}', errs)
+    wa_, wb_ = struct.unpack_from('<H', a['fin'], wg)[0], struct.unpack_from('<H', b['fin'], wg)[0]
+    wd = [(i, a['wages'][i], b['wages'][i]) for i in range(30) if a['wages'][i] != b['wages'][i]]
+    check(a['ca2'] == b['ca2'] and wa_ == wb_ and not wd,
+          f'wages: D6CA2 A {a["ca2"]} B {b["ca2"]}, wage bill D6B9E A {wa_} B {wb_}, D6BA6 (slot, A, B) {wd[:10]} - the '
+          f'same players, prices and season length pay the same (MC 13/11: a crossed club\'s extras are its home '
+          f'word\'s XTRA block, ripool ri_home -> s7_home_word; else 100% instead of 66%)', errs)
+    info.append(f'season weeks D6CA2 A {a["ca2"]} B {b["ca2"]}; expected: TV share T2 A {dw(a["fin"], t2)} B {dw(b["fin"], t2)}; equal: wage bill D6B9E A '
+                f'{wa_} B {wb_}, extras\' wages D6BA6[16..25] {a["wages"][16:26]}')
+    ra = a['cache'].get(wa)
+    check(ra is not None and a['sel'][3] == a['ct'][25] == ra[25] and a['sel'][2] <= a['sel'][3],
+          f'A: careerTeamLeague {a["sel"][2]} / D6CDC {a["sel"][3]} / careerTeam[25] {a["ct"][25]} vs its cache '
+          f'record\'s {ra and ra[25]}', errs)
+    for k, w, fl in (('A', wa, 144), ('B', wb, 102)):
+        cl = [(h, aw) for _, h, aw in st[k]['cal'] if w in (h, aw)]
+        opp = [h if aw == w else aw for h, aw in cl]
+        check(cl and all(o & 0xFF == fl for o in opp),
+              f'{k}: league calendar {len(cl)} matches of {w:#x}, opponents {sorted({hex(o) for o in opp})[:6]} '
+              f'(want all file {fl})', errs)
+    old = wb                                            # (the club's word without the crossing)
+    ro = a['cache'].get(old)
+    check(ro is None or b'UNION BRESCIA' not in ro[5:30], f'A: the old word {old:#x} in the cache: '
+          f'{ro and ro[5:22].split(bytes(1))[0]} (want another club)', errs)
+    dup = [hex(w) for w, r_ in a['cache'].items() if w != wa and b'UNION BRESCIA' in r_[5:30]]
+    check(not dup, f'A: UNION BRESCIA also at {dup} in the cache', errs)
+    rb = b['cache'].get(wb)
+    if check(ra is not None and rb is not None, f'cache records A {wa:#x} {ra is not None} B {wb:#x} {rb is not None}',
+             errs):
+        dd = [i for i in range(684) if ra[i] != rb[i] and i not in own]
+        check(not dd, f'the club\'s cache record A vs B differs beyond its own bytes at {dd[:12]}', errs)
+    if ro is not None:
+        check(ro[76:684] != a['ct'][76:684], 'A: the old word\'s record holds careerTeam\'s players (squad written '
+              'to the partner)', errs)
+    info.append(f'A {wa:#x} B {wb:#x}: careerTeam = B bar the own bytes ({a["cnp"]} players), funds {a["nb"]}, '
+                f'jobs {a["job"]}; A calendar in file 144, the old word holds '
+                f'{ro and ro[5:22].split(bytes(1))[0].decode("latin-1")}')
+    return not errs, '; '.join(errs + info)
+
+
+@scenario
+def world_s7cross_c20():
+    """S7 (4.2, MC 13/11; CONVENTIONS load hooks rule): career_20seasons (C20_SEASONS, default 2: a save + reload
+    every season, checkw1 at each) on world_s7cross_down's shaped build at UNION BRESCIA (GPLAY_FORCE=20: it crosses
+    102 -> 144 at season 1's end), with the registry checked every season from its session log (S7_LOG / S7_LD):
+    season 1 crosses (OK, 9 swaps); every later season, loaded from the previous save, applies the crossed
+    registry at its first load (OK, rows moved) and no S7_LD fails."""
+    import json
+    env = s7_env({'GPLAY_FORCE': '20'})
+    if env is None:
+        return True, 'SKIP: S7_PACK (the shaped Italy pack) or internal world5tm-h2 missing'
+    exe = os.environ.get('S7_BUILD') or build('s7cross', env=env)
+    sy = json.load(open(os.path.join(exe, 'ITALIAN.syms.json')))
+    s7 = sy.get('s7swap', {})
+    if 'S7_LD' not in s7:
+        return False, f'{exe}: no S7 swap builder'
+    lg, ldk = f'o4/{s7["S7_LOG"][1]:x}', f'o4/{s7["S7_LD"][1]:x}'
+    keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'C20_TEAM', 'C20_SEASONS', 'W8485_HEX')}
+    os.environ.update(W8485_BUILD=exe, C20_TEAM='EUROPA,ITALIA,SERIE C GIRONE A,UNION BRESCIA',
+                      C20_SEASONS=os.environ.get('C20_SEASONS') or '2', W8485_HEX=f'{lg}:8,{ldk}:16')
+    errs, info = [], []
+    try:
+        ok, msg = career_20seasons()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    check(ok, f'career_20seasons: {msg[:300]}', errs)
+    n = int(os.environ.get('C20_SEASONS') or 2)
+    for season in range(1, min(n, 2) + 1):              # (seasons 2..n share run dir _2: the last one is checked)
+        f = os.path.join(RUNS, w84_tag() + f'_{season}', 'session.log')
+        lines = open(f, errors='replace').read().splitlines() if os.path.exists(f) else []
+        hx = lambda k: [bytes.fromhex(ln.split()[2]) for ln in lines if ln.startswith(f'HEX {k} ') and len(ln.split()) > 2]
+        logs = [b for b in hx(lg) if b[0]]
+        lds = [struct.unpack('<BBBBHHIi', b) for b in hx(ldk)]
+        bad = [x for x in lds if x[0] not in (1, 2) or (x[0] == 2 and season > 1)]
+        check(not bad, f'season {season if season == 1 else n}: S7_LD failed {bad[:3]}', errs)
+        if season == 1:
+            check(logs and logs[-1][0] == 1 and logs[-1][2] == 9, f'season 1: S7_LOG {[b.hex() for b in logs[-2:]]} '
+                  f'(want OK, 9 swaps)', errs)
+        else:
+            ok1 = [x for x in lds if x[0] == 1]
+            check(ok1 and ok1[0][4] > 0, f'season {n}: the first applied load {ok1[:1]} moved no rows (the save\'s '
+                  f'registry not the crossed one)', errs)
+        info.append(f'season {season if season == 1 else n}: S7_LOG {logs[-1].hex() if logs else None}, '
+                    f'{len(lds)} S7_LD logged')
+    return not errs, '; '.join(errs) or f'{msg[:200]}; ' + '; '.join(info)
+
+
+@scenario
 def world_s7cross_up():
     """S7 (4.2): the career club promoted from Serie D girone A (LIGORNA first) to Serie C, two seasons"""
     return s7cross(1, 'EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA', 144)

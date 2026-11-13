@@ -374,7 +374,6 @@ def patch_exe(src, dst, remap, lang='it'):
     import swefile
     if swefile.on():                                   # 4.2 file layer (MC 12/11): page 18, only when linked
         swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, swefile.page_end() // 0x1000)
-    import s7swap
     if s7swap.on():                                    # 4.2 S7 swap builder + the registry library (MC 13/11): pages 18-19,
         swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, s7swap.page_end() // 0x1000)   # only with a registry shape
     swe.OBJ4_PAGES = sreg.obj4_pages(swe.OBJ4_PAGES)   # (4.2 N7: + the old-save import's 12th page, SREG2_AT)

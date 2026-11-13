@@ -4,7 +4,7 @@ comes from the build's spec (sreg_get); gplay.c's snapshots S7X are poked (a tes
 S7X[0] = file 102's 9 clubs down (each Serie C group's last place direct, then 2 play-out losers per group), S7X[1] =
 file 144's 9 up (each Serie D group's first). SLTCOPY = a buffer: no in-struct move (all 0), then one in-struct move.
 
-- s7_season: status OK, 9 swaps, 18 crossers; every down club now in file 144 on a Serie D group, every up club in
+- s7_season: status OK, 9 swaps, 18 crossers; the XTRA caches keyed by word (xcache, xlbt) flushed; every down club now in file 144 on a Serie D group, every up club in
   file 102 on a Serie C group; each division keeps its size (rows per rdiv = the spec's); each crosser's group = a
   Python oracle of s7swap.c's rule (its area, else the nearest group with a free place; S7X order); every row's
   delta in SLTCOPY = its new local division - the row's shipped one (record +25); deterministic (twice from the
@@ -176,9 +176,22 @@ def test_s7swap():
     sizes0 = {d: n for f in fs for d, n in zip(f[1], f[2])}
     down, up = crossings(fs, m.gb)
     want = oracle(m, fs, word, down, up)
+    import xtra
+    xc = m.at('xtra', 'xcache') if 'xcache' in m.sy.get('xtra', {}) else None     # (obj1)
+    xl = tr.B3 + m.sy['xleft']['xlbt'][1] if 'xlbt' in m.sy.get('xleft', {}) else None   # (obj3: its LABELS are bare)
+    for k in range(xtra.NC if xc else 0):               # (MC 13/11: the XTRA caches keyed by the current word)
+        m.w(xc + k * xtra.ENT, struct.pack('<HBB', 0x1266, 5, 1))
+    if xl:
+        m.w(xl, struct.pack('<H', 0x1266))
     st, nsw, ncr, slt = run(m, down, up)
     if (st, nsw, ncr) != (OK, 9, 18):
         return False, f'status {st} swaps {nsw} crossers {ncr} (want {OK}, 9, 18); log {m.rd(m.log, 8).hex()}'
+    if xc is None or xl is None:
+        errs.append('no xtra xcache / xleft xlbt symbols (a shaped build has XTRA)')
+    else:
+        v = [m.rd(xc + k * xtra.ENT + 3, 1)[0] for k in range(xtra.NC)]
+        if any(v) or m.rd(xl, 2) != b'\xff\xff':
+            errs.append(f'after the swaps: xcache valid bytes {v}, xlbt {m.rd(xl, 2).hex()} (want all 0 / ffff)')
     fs1, word1, at1, rdiv1, rows1 = reg_parse(m.regb())
     for i, d in want.items():
         f = word1[i] & 0xFF

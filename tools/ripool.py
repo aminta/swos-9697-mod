@@ -232,6 +232,20 @@ ri_load:                                ; replaces `call SetLoadedTeamsGlobalNum
 %if S7_ON
 S7_LPTR: dd 0                           ; (s7swap.py: -> obj4 s7_load)
 %endif
+%if S7_XTRA
+
+ri_home:                                ; xtra_readto's xr_hook (S7, MC 13/11): [xrteam] = the home word of the registry
+    movzx eax, ax                       ; club in team word ax's row (s7swap.c s7_home_word), else ax; eax / ecx / edx
+    cmp dword [S7_HPTR], 0              ; free there
+    je .id
+    push eax
+    call [S7_HPTR]
+    pop edx
+.id:
+    mov [XRTEAM], ax
+    ret
+S7_HPTR: dd 0                           ; (s7swap.py: -> obj4 s7_home_word)
+%endif
 
 ri_after:                               ; pg_fix, after ri_season and pg_season: the cache, LoadTeamFile's cache
     pushad
@@ -393,6 +407,10 @@ def patch(p, at, bss, tabs):
            'RI_MAPS': (gplay.LABELS['RI_STATE'][0], gplay.LABELS['RI_STATE'][1] + OVR_AT + 2 * RP * RO),
            'IDA_BYTES': (0, 'db ' + ', '.join(str(b) for b in ida_bytes(tabs))),
            'S7_ON': (0, int(bool(gplay.gp_s7())))}          # (S7: s7swap.c s7_load's call, shaped builds only)
+    import xtra
+    sym['S7_XTRA'] = (0, int(bool(sym['S7_ON'][1] and 'xrteam' in xtra.LABELS)))   # (S7 + XTRA: ri_home)
+    if sym['S7_XTRA'][1]:
+        sym['XRTEAM'] = (1, xtra.LABELS['xrteam'])
     names = []
     for k, ((world, fl, *_), (moff, nmap, osz, psz, bo)) in enumerate(zip(tabs, layout(tabs)[0])):
         o = bss + bo
@@ -430,6 +448,14 @@ def patch(p, at, bss, tabs):
     if 'S7_LPTR' in lab:
         LABELS['S7_LPTR'] = (1, lab['S7_LPTR'])
         LABELS.update(SETGLOBALS=sym['SETGLOBALS'], TEAMBUF=sym['TEAMBUF'])   # (host tests: the game's own globals)
+    if 'ri_home' in lab:
+        LABELS['S7_HPTR'] = (1, lab['S7_HPTR'])
+        import xtra
+        o = xtra.LABELS['xr_hook']                  # (xtra_readto's `mov [xrteam], ax`: a crossed club's XTRA block
+        want = b'\x66\xA3' + struct.pack('<I', xtra.LABELS['xrteam'])    # by its home word; p.get: chained
+        assert p.get(1, o, 6) == want, ('ripool: xr_hook not mov [xrteam], ax', p.get(1, o, 6).hex())   # hooks rule)
+        p.remove(1, o + 2)
+        p.put(1, o, b'\xE8' + struct.pack('<i', lab['ri_home'] - (o + 5)) + b'\x90')
     LABELS['RI_PRE_PTR'] = (1, lab['RI_PRE_PTR'])    # (statesim: every state's ranking before ri_season)
     LABELS['RI_POST_PTR'] = (1, lab['RI_POST_PTR'])  # (statecup: the contest overrides applied after it)
     return (tab + len(tb) + 15) & ~15, {'RI_TAB': (1, tab), 'RI_SEASON': gplay.LABELS['ri_season'],

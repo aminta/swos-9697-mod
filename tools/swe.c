@@ -846,6 +846,33 @@ static u32 cw_byte(void) { return SWE_CWB[0]; }
 static u32 cw_byte(void) { return 0; }
 #endif
 
+/* 4.2 kits (MC 12/11): 1 when the match being set up is World 2026-27's (SET_W[0]), for the yellow referee (kits.py);
+   cdecl, no side effects. 1. a career: its world byte; 2. a friendly / DIY (gameType 0 / 1, not a training game): the
+   contest's SWE_W27; 3. else (seasons, presets, competitions): the namespace in the tables, WCUR. Anything else, or a
+   build without namespaces: 0 = the game's black referee.
+   (cw_byte reads the mod's moved SLT - careerworld.SITES['slt'] of the patched exe -, not the original
+   someLeaguesTable: host tests take its address from this function's own cmp.) */
+#ifdef TRAIN
+extern u8 SWE_TRAIN[];                  /* the game's g_trainingGame (benchx) */
+#define TRAINING() (*(u16 *)SWE_TRAIN != 0)
+#else
+#define TRAINING() 0
+#endif
+u32 swe_match_w27(void)
+{
+#ifdef NS
+    u32 gt = *(u16 *)SWE_GTYPE;
+    u8 *wcur = (u8 *)rd32(SWE_REG + 8);
+    if (gt == GAME_TYPE_CAREER)
+        return cw_byte() == SET_W[0];
+    if (gt <= 1)
+        return !TRAINING() && SWE_W27 == 1;
+    return wcur && *wcur == SET_W[0];
+#else
+    return 0;
+#endif
+}
+
 #ifdef SEAS
 extern u8 SWE_SEASON[];                 /* the game's seasonPlaying (the year - 1900) */
 static u32 season(void) { return SWE_SEASON[0]; }

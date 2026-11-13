@@ -305,13 +305,16 @@ def patch(p):
     if careerworld.SITES.get('slt'):                # engine P: the career's world byte, SWC1's header
         so, soff = careerworld.SITES['slt']
         ext['SWE_CWB'] = (so, soff + careerworld.WORLD_BYTE)
+    import benchx
+    if 'TRAIN' in benchx.INFO:                      # 4.2 kits: swe_match_w27's training-game test (g_trainingGame)
+        ext['SWE_TRAIN'] = benchx.INFO['TRAIN']
     if careerworld.SITES.get('season') is not None:     # engine P 5: the season (the game's seasonPlaying byte)
         ext['SWE_SEASON'] = (2, careerworld.SITES['season'])
     imp, imp_size = imports()                       # engine P 3: the load-only items' slots / found bytes
     if imp:
         import trailer
         ext['SWE_ENF'] = (1, trailer.LABELS['EN_FOUND'][1] + trailer.INFO['EN_NS'])
-    flags = (('-DNS',) if ns else ()) + (('-DSTFM',) if 'SWE_STFM' in ext else ()) + (('-DNAT',) if 'CW_PLNAT' in ext else ()) + (('-DMB',) if 'MB_STR' in ext else ()) + (('-DOMM',) if 'MB_OMM' in ext else ()) + (('-DFNAT',) if 'CW_FNAT' in ext else ()) + (('-DAV',) if 'SWE_PREPICK' in ext else ()) + (('-DCWB',) if 'SWE_CWB' in ext else ()) + (('-DSEAS',) if 'SWE_SEASON' in ext else ()) + (f'-DSWC1_SIZE={SWC1_SIZE}',) + (('-DSWC1_BSS',) if SWC1_SIZE > SWC1_BASE else ())
+    flags = (('-DNS',) if ns else ()) + (('-DSTFM',) if 'SWE_STFM' in ext else ()) + (('-DNAT',) if 'CW_PLNAT' in ext else ()) + (('-DMB',) if 'MB_STR' in ext else ()) + (('-DOMM',) if 'MB_OMM' in ext else ()) + (('-DFNAT',) if 'CW_FNAT' in ext else ()) + (('-DAV',) if 'SWE_PREPICK' in ext else ()) + (('-DCWB',) if 'SWE_CWB' in ext else ()) + (('-DSEAS',) if 'SWE_SEASON' in ext else ()) + (('-DTRAIN',) if 'SWE_TRAIN' in ext else ()) + (f'-DSWC1_SIZE={SWC1_SIZE}',) + (('-DSWC1_BSS',) if SWC1_SIZE > SWC1_BASE else ())
     import s7swap
     if s7swap.on():                                 # 4.2 S7: s7swap.c's ORIG buffers (the two league files as read)
         flags += (f'-DS7_ORIG_SZ={swreg.S7_ORIG_SZ}',)

@@ -8999,6 +8999,9 @@ def oppl_vars():
     return oppl_vars.v
 
 
+KITS_CTX = []                               # (4.2 kits: bench_world's (kits block, g_spriteGraphicsPtr, want w27))
+
+
 def bench_play(s, gmax, top, bot, wants, errs, info, mark, sub=None, icons=None, squad=None, stad=None):
     """benchx scenarios: from a career menu to a match played for real (PARTITA on the career menu and the squad
     screen: a player-coach), the kick-off checks (gameMaxSubstitutes = 15, each in-match team's named players =
@@ -9122,6 +9125,14 @@ def bench_play(s, gmax, top, bot, wants, errs, info, mark, sub=None, icons=None,
     teams = [ingame_team(r, top), ingame_team(r, bot)]
     gm = struct.unpack('<HH', r.obj2(gmax - 2, 4))      # (phase 2) gameMinSubstitutes, gameMaxSubstitutes
     info.append(f'kick-off named:used {gm[1]}:{gm[0]}')
+    if KITS_CTX:                            # (4.2 kits, KITS_CHECK=1: the career's referee / keepers at the kick-off;
+        for _ in range(12):                 #  under SWOS++ this pause comes before the match's sprites are loaded:
+            k_ = kits_read(s, KITS_CTX[0])  # wait for kt_chain and the keeper loops after it, no key - the timer's
+            if k_['calls'] and k_['conv'] >= 58:   # pause can fall between them)
+                break
+            s.send('dump:1')
+            r = s.result                    # (the later reads: this pause's memory)
+        kits_check('kits_career', s, KITS_CTX[0], KITS_CTX[1], KITS_CTX[2], errs, info)
     if sub:                                 # (4.0.5) the title bx_look looked up (bx_lkname = bx_bench + 18)
         info.append('kick-off title ' + r.read(r.lin(sub[0]) + 18, 41).split(bytes(1))[0].decode('latin-1'))
     if wants.get('_diy'):                   # (phase 2 study, BENCH_DIYDUMP) the current competition at the kick-off
@@ -9361,6 +9372,8 @@ def bench_world():
     b = os.environ.get('BENCH_BUILD') or os.environ.get('XTRA30_BUILD')
     if not b or not os.path.isdir(b):
         return True, 'SKIP: BENCH_BUILD not set'
+    KITS_CTX[:] = [*kits_sites(b), int(not os.environ.get('BENCH_BASE'))] if os.environ.get('KITS_CHECK') else []
+                                            # (4.2 kits: a 2026-27 career yellow, BENCH_BASE's 1996-97 one black)
     b = nop_league_int3('bench_world_' + os.path.basename(RUNS.rstrip('/')), b)   # ('- PARTITA -': the game's own
                                               # int 3 in DIYLeagueTournamentMatch; one copy per run dir)
     club = os.environ.get('BENCH_CLUB', 'CELLE VARAZZE')
@@ -9851,6 +9864,9 @@ FR_CASES = {        # (4.0.6 bench_friendly) case: (world, home path, away path,
             ('SQUADRE CLUB', 'EUROPA', 'SPAGNA', 'LALIGA', 'REAL MADRID'), 12, 5),
     'diycup': (0, ('SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE D', 'SERIE D GIRONE A', 'CELLE VARAZZE'),
                ('SQUADRE CLUB', 'EUROPA', 'SPAGNA', 'LALIGA', 'REAL MADRID'), 12, 5),
+    'diycup9697': (1, ('SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE A', 'INTER'),     # (4.2 kits: a DIY cup of the
+                   ('SQUADRE CLUB', 'EUROPA', 'ITALIA', 'SERIE A', 'MILAN'), 5, 3),  # 1996-97 world: black referee;
+                                                                                     # the DIY cup's 3 substitutes)
     'nat': (1, (NATS, 'EUROPA', ('ITALY', 'ITALIA')), (NATS, 'EUROPA', ('SPAIN', 'SPAGNA')), 5, 2),   # (step 2.5: the
                     # 2026-27 picker has no national teams yet, a message: the 1996-97 world's)
     '9697w': (0, ('SQUADRE CLUB', 'CARR. STORICHE', 'MONDO 1996-97', 'EUROPA', 'ITALIA', 'SERIE A', 'INTER'),
@@ -9888,6 +9904,7 @@ FR_ONE = {'onelist': 'human', 'onelist_cpu': 'cpu'}   # (4.1, Davide 06/11) both
 FR_W27 = ('9697w',)                             # (step 2.5) only with the engine's SWE_W27 (benchx bx_w27p linked)
 FR_PRE = {'diycup': ('COMPET. PERSONAL.', 'COPPA', 11, 11, 11, 'OK', 'SCEGLI SQUADRE')}   # (a real DIY cup: one round,
                                                 # the final; its menu's PROSS. PARTITA -> the pre-match screen)
+FR_PRE['diycup9697'] = FR_PRE['diycup']         # (4.2 kits: the same in the 1996-97 world)
 
 
 @scenario
@@ -9896,7 +9913,8 @@ def bench_friendly():
     """4.0.6 (Regia / Davide 05/11) the long bench in friendlies (benchx bx_frset): a FRIENDLY of the World 2026-27
     between two clubs = the longer real bench of their two (country, division): BENCH_FR=<cases> (FR_CASES, default
     all): 'mixed' Serie D (9) vs LaLiga (12) -> 12, 'same' two Serie D clubs -> 9, 'seriea' INTER - MILAN -> 15
-    and a change from place 21 ('diy': 'mixed' with g_gameType poked to 1 on the pre-match screen: a DIY match, the
+    and a change from place 21 (KITS_CHECK=1, 4.2 kits: at each kick-off kits_check - the referee yellow in the World
+    2026-27's contests, black in '9697w' / 'nat' / the 1996-97 ones, the keepers' kits = kits.match) ('diy': 'mixed' with g_gameType poked to 1 on the pre-match screen: a DIY match, the
     same rule; 'diycup': the same two clubs in a real DIY cup, COMPET. PERSONAL. > COPPA of one round; '9697w': INTER - MILAN
     of the 1996-97 world picked in the World 2026-27's picker (CARR. STORICHE) -> the game's 2 from 5: the gate is the
     contest's world, SWE_W27 - skipped on a build without it) (bench_sub: its save-under guard with two benches of 15, the strip, formwide), 'nat' two national teams (1996-97's:
@@ -9936,6 +9954,7 @@ def bench_friendly():
             f'or BENCH_FR= only {",".join(c for c in FR_CASES if FR_CASES[c][0] != 0)} (cases {",".join(w27)}): '
             f'a harness environment, never a game FAIL')
     fs = fr_sites(exe)                          # (B) None: a build without the friendly clubs' own order
+    kits_on = os.environ.get('KITS_CHECK') and kits_sites(b, 'ITALIAN.EXE.nospp' if files else 'ITALIAN.EXE')
 
     def go(s, t):
         if isinstance(t, tuple):
@@ -10055,6 +10074,9 @@ def bench_friendly():
                 errs.append(f'{case}: no match ({r})')
                 continue
             s.shot(f'{case}_match')
+            if kits_on:                             # (4.2 kits, MC 12/11: the referee by the match's world in every mode)
+                kits_check(f'kits_{case}', s, kits_on[0], kits_on[1],
+                           int(world == 0 and case not in ('9697w', 'nat')), errs, info)
             gm = struct.unpack('<HH', r.obj2(gmax - 2, 4))          # gameMinSubstitutes, gameMaxSubstitutes
             teams = [ingame_team(r, top), ingame_team(r, bot)]
             cap = 11 + max(5, min(gm[1], 15))
@@ -36411,6 +36433,528 @@ def slow_matches(b, sl, cgt, paused, errs, notes):
             check(abs(r2 - 1) <= 0.04, f'{pct}%: game ticks per flip {r2:.3f} (want 1: the clock moves with the steps)', errs)
             check(abs(r3 - (100 - pct) / pct) <= 0.02 if lv else st == 0, f'{pct}%: stalls per flip {r3:.3f}', errs)
             check(pz == b'\0\0', f'{pct}%: paused {pz.hex()}', errs)
+
+
+def kits_sites(exe_dir, exe='ITALIAN.EXE'):
+    """kits.py in a built exe: its data block (obj4, swreg.KITS_AT's page, after the tag 'KITS') and
+    g_spriteGraphicsPtr (kits.find on the exe language's original)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import kits
+    import lepatch
+    import swreg
+    p = lepatch.LEPatch(os.path.join(exe_dir, exe))
+    d4 = bytes(p.get(4, swreg.KITS_AT, 0x1000))
+    assert d4.count(b'KITS') >= 1 and d4.index(b'KITS') % 4 == 0, d4.count(b'KITS')   # (the first: the keeper
+                                                    # page's texts come after the block - EN 'TEAM KITS')
+    f = kits.find(lepatch.LEPatch(os.path.join(ROOT, 'orig', UI_ORIG)))
+    return (4, swreg.KITS_AT + d4.index(b'KITS') + 4), f['SGP']
+
+
+def kits_read(s, kb):
+    """the block after the tag: REF, W27, KK1, KK2, HS1, HS2, CALLS, CONV, IN (8), W27P, W27F, KT1, KT2"""
+    d = s.result.read(s.result.lin(kb), 4 + 16 + 8 + 8 + 8 + 64)
+    ref, w27, _, _ = d[:4]
+    kk1, kk2, hs1, hs2 = (tuple(d[4 + 4 * k:8 + 4 * k]) for k in range(4))
+    calls, conv = struct.unpack_from('<II', d, 20)
+    t_in, w27p = tuple(d[28:36]), struct.unpack_from('<I', d, 36)[0]
+    kt1, kt2 = struct.unpack_from('<16H', d, 44), struct.unpack_from('<16H', d, 76)
+    return dict(ref=ref, w27=w27, kk1=kk1[:3], kk2=kk2[:3], hs1=hs1, hs2=hs2, calls=calls, conv=conv,
+                t1=t_in[:4], t2=t_in[4:], w27p=w27p, kt1=kt1, kt2=kt2)
+
+
+def kits_sprite(s, sgp, n):
+    """sprite n's chunky pixels from memory: rows of palette indices (None if not 16 px wide)"""
+    tab = struct.unpack('<I', s.result.read(s.result.base2 + sgp[1], 4))[0]
+    g = struct.unpack('<I', s.result.read(tab + 4 * n, 4))[0]
+    hdr = s.result.read(g, 24)
+    data, nl, wq = struct.unpack_from('<I', hdr, 0)[0], *struct.unpack_from('<HH', hdr, 12)
+    if wq != 1:
+        s.kits_diag = f'sprite {n}: table {tab:#x}, entry {g:#x}, header {hdr.hex()}'
+        return None
+    b = s.result.read(data, 8 * nl)
+    return [[(b[y * 8 + x // 2] >> (0 if x & 1 else 4)) & 15 for x in range(16)] for y in range(nl)]
+
+
+def kits_check(tag, s, kb, sgp, want_w27, errs, notes, hand=(None, None)):
+    """one match's kits against kits.match (the reference) and the sprites in memory: the referee's shirt pixels
+    (1273..1283) = his colour, the keepers' (947 / 1063, main frame 0) = their kits' shirt, the other 8s = shadow"""
+    import kits
+    import kitmasks
+    k = kits_read(s, kb)
+    r, k1, k2 = kits.match(k['t1'], k['t2'], want_w27, *hand)
+    notes.append(f"{tag}: teams {k['t1']} / {k['t2']}, w27 {k['w27']}, referee {k['ref']}, keepers {k['kk1']} / "
+                 f"{k['kk2']}, calls {k['calls']}, masked {k['conv']}")
+    check(k['calls'] >= 1 and k['w27'] == want_w27, f"{tag}: kt_chain runs {k['calls']}, w27 {k['w27']} (want "
+          f"{want_w27})", errs)
+    check((k['ref'], k['kk1'], k['kk2']) == (r, k1, k2), f"{tag}: referee / keepers {k['ref']} {k['kk1']} {k['kk2']} "
+          f"(reference {r} {k1} {k2})", errs)
+    check(k['conv'] >= 58, f"{tag}: keeper sprites masked {k['conv']} (want >= 58)", errs)
+
+    def mask(i):
+        o = kitmasks.MOFF[i]
+        a, n = kitmasks.MS[o], kitmasks.MS[o + 1]
+        ws = struct.unpack_from(f'<{n}H', kitmasks.MS, o + 2)
+        return {(a + y, x) for y, w in enumerate(ws) for x in range(16) if w & (0x8000 >> x)}
+    for spr in range(1273, 1284):
+        g = kits_sprite(s, sgp, spr)
+        px = [g[y][x] for y, x in mask(116 + spr - 1273)] if g else []
+        check(px and set(px) == {k['ref']}, f"{tag}: referee sprite {spr} shirt pixels {sorted(set(px))} (want "
+              f"{k['ref']})", errs)
+    for spr, kk in ((947, k['kk1']), (1063, k['kk2'])):
+        g = kits_sprite(s, sgp, spr)
+        m = mask(0)
+        px = [g[y][x] for y, x in m] if g else []
+        rest8 = sum(1 for y, row in enumerate(g or []) for x, v in enumerate(row) if v == 8 and (y, x) not in m)
+        check(px and set(px) == {kk[0]} and rest8 > 0, f"{tag}: keeper sprite {spr} shirt pixels {sorted(set(px))} "
+              f"(want {kk[0]}), shadow 8s {rest8}", errs)
+    if getattr(s, 'kits_diag', None):
+        notes.append(s.kits_diag)
+    return k
+
+
+@scenario
+def gk_ref_kits():
+    """4.2 kits (kits.py; David's idea, Davide 12/11): K2 keeper colours and the R1 referee, on KITS_BUILD (default the
+    IT test build). Friendlies HAMBURG - SCHALKE: (a) as picked (1996-97 clubs: SWE_W27 0) - black referee; (b) SWE_W27
+    poked 1 before the kick-off (the engine's swe_match_w27: a friendly of the World 2026-27) - yellow referee unless a
+    team's shirt / stripes clash with yellow. Each: the chosen kits = kits.match on the kits worn (KT_IN), the
+    referee's 11 sprites' shirt pixels = his colour, the keepers' (947 / 1063) = their shirts, the other 8s left
+    (the shadow). KITS_HAND=1: the build's hand-set keeper 1 (KITS_HAND1 / KITS_HAND2, test switches) kept when free,
+    the automatic colour when it clashes (Davide: "passa al colore automatico"). Shots kits_<case>."""
+    errs, notes = [], []
+    b = os.environ.get('KITS_BUILD') or builds()['it']
+    kb, sgp = kits_sites(b)
+    hand = tuple(tuple(int(x) for x in os.environ[v].split(',')) if os.environ.get(v) else None
+                 for v in ('KITS_HAND1', 'KITS_HAND2'))
+    for case, w27 in (('fr9697', 0), ('frw27', 1)):
+        with Session(f'kits_{case}_{UI}', b, {}, 'dump:3', 600, match=True) as s:
+            s.wait()
+            friendly_prematch(s, os.environ.get('KITS_HOME', 'HAMBURG'), os.environ.get('KITS_AWAY', 'SCHALKE'))
+            if w27:
+                p = kits_read(s, kb)['w27p']
+                check(p, f'{case}: no SWE_W27 pointer in the block', errs)
+                if p:
+                    s.poke(p, struct.pack('<I', 1))
+            for _ in range(22):                         # pre-match: down the rows to VIS. PARTITA
+                s.send('down dump:0.5')
+                if s.screen().selected == 9:
+                    break
+            s.send('fire ' + 'fire:3 ' * 12 + 'dump:2')
+            s.shot(f'kits_{case}')
+            if os.environ.get('KITS_DUMP'):             # (debug: the whole memory + the bases)
+                open(os.path.join(s.run, 'mem.bin'), 'wb').write(s.result.mem)
+                open(os.path.join(s.run, 'bases.txt'), 'w').write(f'{s.result.base1} {s.result.base2} {s.result.base4}')
+            kits_check(case, s, kb, sgp, w27, errs, notes, hand)
+    return not errs, '; '.join(errs + notes)
+
+
+KG_OFF = 108                                # (4.2 keeper page, kits.py: KG_MODE, KG_ARM after KT2; KS at +8, 24 B a slot)
+
+
+def kg_read(s, kb):
+    """(KG_MODE, KG_ARM, [(name, shirt, shorts, socks, set) of the two keeper slots])"""
+    d = s.result.read(s.result.lin(kb) + KG_OFF, 8 + 48)
+    sl = [(d[8 + 24 * k:26 + 24 * k].split(bytes(1))[0].decode('latin-1'), *d[26 + 24 * k:30 + 24 * k]) for k in range(2)]
+    return d[0], d[1], sl
+
+
+def kg_fits(scr, k, tag, errs):
+    """(4.2 keeper page, MC 13/11) entry k's label fits its bar (complist.px <= width - 8) in the font's characters; a
+    label with no bar (width 0: entry 4, the kit's title, drawn centred on x) fits the free room on its row: the
+    screen (0..320) and the visible entries beside it (2 px gap each side). (13/11: the first rule, no wider than the
+    game's own label, failed EN's GOALKEEPER (60 px) against FIRST KIT (43) on a screen where it clearly fits)"""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import complist
+    if len(scr.entries) <= k:
+        errs.append(f'{tag}: no entry {k}')
+        return
+    t, (x, y, w, h) = scr.raw_texts[k], scr.geom[k]
+    if w:
+        room = w - 8
+    else:
+        lim, by = min(x, 320 - x), None
+        for e in scr.entries:
+            j, inv = e[0], e[2]
+            if j == k or inv or j >= len(scr.geom):
+                continue
+            xj, yj, wj, hj = scr.geom[j]
+            if wj and yj < y + (h or 8) and y < yj + hj:
+                l2 = x - (xj + wj) - 2 if xj + wj <= x else xj - x - 2 if xj >= x else 0
+                if l2 < lim:
+                    lim, by = l2, (j, scr.geom[j])
+        room = 2 * max(lim, 0)
+        tag += f' (x {x} y {y} h {h}, room set by {by})' if lim < min(x, 320 - x) else f' (x {x} y {y} h {h})'
+    check(complist.px(t) <= room and not complist.font_odd(t),
+          f'{tag}: entry {k} {t!r} {complist.px(t)} px in {room} (bar {w}), odd {complist.font_odd(t)}', errs)
+
+
+@scenario
+def kits_gkpage():
+    """4.2 kits, the goalkeeper's kit in SELECT KITS (Davide 12/11: SELECT KITS only; kitcolors entry 24 + kits.py
+    kg_hook) on KITS_BUILD (default the IT test build), friendly HAMBURG - SCHALKE. (set) KITS button > entry 24 reads
+    PORTIERE: AUTO (per exe language, GK_TEXTS); fire -> the keeper page: entries 2 and 8..19 hidden, entry 4 = PORTIERE,
+    24 = MAGLIE SQUADRA, KG_MODE 1; on the big shirt fire+right x3 (grey -> orange: kit colour 3); 24 again -> the team's
+    page (entries back, 4 = PRIMA TENUTA), 24 = PORTIERE: SCELTO, the slot set (3, 2, 2); OK -> KG_ARM 1; the match: at
+    the kick-off HS of that team = (6, 3, 3) and kits_check with that hand kit (kept, or the automatic colour on a
+    clash). (reset) the same, then RESET on the keeper page -> AUTO (slot not set), OK: HS both 0, the automatic keepers.
+    (clash) the shirt one step only (grey -> white, kit colour 1 = HAMBURG's white shirt): SCELTO, stored, HS (2, 3, 3)
+    at the kick-off, the keeper in the automatic colour for that match (kits_check's clash fallback). KITS_GKCASES
+    (default set,reset,clash). Shots gk_<case>_*."""
+    import kitcolors
+    errs, notes = [], []
+    b = os.environ.get('KITS_BUILD') or builds()['it']
+    kb, sgp = kits_sites(b)
+    T = {k: v.decode('latin-1') for k, v in kitcolors.GK_TEXTS[UI].items()}
+    for case in os.environ.get('KITS_GKCASES', 'set,reset,clash').split(','):
+        with Session(f'kits_gk_{case}_{UI}', b, {}, 'dump:3', 600, match=True) as s:
+            s.wait()
+            friendly_prematch(s, os.environ.get('KITS_HOME', 'HAMBURG'), os.environ.get('KITS_AWAY', 'SCHALKE'))
+            scr = walk(s, 68, 3)
+            t24 = scr.entries[24][1] if len(scr.entries) > 24 else None
+            check(t24 == T['gk'] + T['gauto'], f'{case}: entry 24 {t24!r} (want {T["gk"] + T["gauto"]!r})', errs)
+            kg_fits(scr, 24, f'{case} auto', errs)
+            team = scr.entries[1][1]
+            k1 = scr.entries[4][1]                      # (the game's own FIRST KIT label: FR PREMIERE TENUE, DE 1. GARNITUR)
+            k1raw = scr.raw_texts[4]
+            s.shot(f'gk_{case}_kits')
+            scr = walk(s, 24, 2)
+            mode, arm, sl = kg_read(s, kb)
+            hid = [i for i in [2] + list(range(8, 20)) if not scr.entries[i][2]]
+            check(mode == 1 and not hid and scr.entries[24][1] == T['gback'] and scr.entries[4][1] == T['glabel']
+                  and not scr.entries[5][2], f'{case}: keeper page: mode {mode}, shown {hid}, 4 {scr.entries[4][1]!r}, '
+                  f'24 {scr.entries[24][1]!r}', errs)
+            kg_fits(scr, 24, f'{case} page', errs)
+            kg_fits(scr, 4, f'{case} page title', errs)
+            s.shot(f'gk_{case}_page')
+            walk(s, 5, 0.5) if scr.selected != 5 else None
+            s.send(' '.join(['fire+right'] * (1 if case == 'clash' else 3)) + ' dump:1')
+            s.shot(f'gk_{case}_edited')
+            if case == 'reset':
+                walk(s, 22, 2)
+            scr = walk(s, 24, 2)
+            mode, arm, sl = kg_read(s, kb)
+            mine = next((x for x in sl if x[0] == team), None)
+            notes.append(f'{case}: {team}: slots {sl}, mode {mode}')
+            check(mode == 0 and mine and (mine[1:] == {'set': (3, 2, 2, 1), 'clash': (1, 2, 2, 1)}[case] if case != 'reset' else mine[4] == 0),
+                  f'{case}: back on the team\'s page: mode {mode}, slot {mine}', errs)
+            want24 = T['gk'] + (T['gauto'] if case == 'reset' else T['gset'])
+            kg_fits(scr, 24, f'{case} back', errs)
+            check(scr.entries[24][1] == want24 and not [i for i in range(8, 20) if scr.entries[i][2]]
+                  and scr.entries[4][1] == k1, f'{case}: team page: 24 {scr.entries[24][1]!r} (want {want24!r}), '
+                  f'4 {scr.entries[4][1]!r}', errs)
+            walk(s, 21, 3)                              # OK
+            mode, arm, sl = kg_read(s, kb)
+            check(arm == 1, f'{case}: KG_ARM {arm} after OK', errs)
+            for _ in range(22):                         # pre-match: down the rows to VIS. PARTITA
+                if s.screen().selected == 9:
+                    break
+                s.send('down dump:0.5')
+            s.send('fire ' + 'fire:3 ' * 12 + 'dump:2')
+            s.shot(f'gk_{case}_match')
+            k = kits_read(s, kb)
+            hs = [h for h in (k['hs1'], k['hs2']) if h[3]]
+            check(hs == {'set': [(6, 3, 3, 1)], 'clash': [(2, 3, 3, 1)], 'reset': []}[case], f'{case}: HS1 {k["hs1"]} HS2 {k["hs2"]}', errs)
+            hand = tuple(h[:3] if h[3] else None for h in (k['hs1'], k['hs2']))
+            kits_check(f'gk_{case}', s, kb, sgp, k['w27'], errs, notes, hand)
+    return not errs, '; '.join(errs + notes)
+
+
+def kk_prematch(s, errs, tag):
+    """(kits_keepkit) the career menu -> PROSS. PARTITA's PARTITA -> the fixture screen's '- PARTITA -' (as
+    bench_play: a fire on a team name there would make the club coach-only, ALLEN: with VIS. RISULTATI alone) -> the
+    squad screen (its KITS entry 68)"""
+    for _ in range(8):
+        if s.screen().find('PARTITA', exact=True) is not None:
+            break
+        press(s, s.screen(), 'CONTINUA', 3) or press(s, s.screen(), 'ESCI', 3) or s.send('fire dump:2')
+    press(s, s.screen(), 'PARTITA', 3)
+    for _ in range(5):
+        scr = s.screen()
+        if len(scr.entries) > 68 and scr.entries[68][1] in ('MAGLIE AUTO', 'MAGLIE FISSE'):
+            s.log.append(f'[kk_prematch] {tag}: ' + ' | '.join(f'{e[0]}:{e[1]}' for e in scr.entries[:11] if e[1]))
+            return scr
+        if scr.find('- PARTITA -', exact=True) is not None:
+            press(s, scr, '- PARTITA -', 3)
+        else:
+            s.send('fire dump:2')
+    errs.append(f'{tag}: no pre-match screen: {s.screen().texts()[:10]}')
+    return None
+
+
+def kk_kick(s, kb):
+    """(kits_keepkit) the career's pre-match screen -> its GIOCA PARTITA / PARTITA -> the kick-off (kt_chain run and
+    the keepers converted, as bench_play waits): the KITS block"""
+    scr = s.screen()
+    t = next((x for x in ('GIOCA PARTITA', 'PARTITA', TRAIN_TXT[UI][2]) if scr.find(x, exact=True) is not None), None)
+    s.log.append(f'[kk_kick] {t}: ' + ' | '.join(f'{e[0]}:{e[1]}' for e in scr.entries[:11] if e[1]))
+    if t is not None:
+        walk(s, t, 1)
+    s.send('fire:3 ' * 12 + 'dump:2')
+    for _ in range(12):
+        k = kits_read(s, kb)
+        if k['calls'] and k['conv'] >= 58:
+            break
+        s.send('dump:1')
+    return kits_read(s, kb)
+
+
+def kk_file(path):
+    """KEEPKIT.DAT's records [(world, country, stamp, name, (shirt, shorts, socks))], or None"""
+    if not os.path.exists(path):
+        return None
+    d = open(path, 'rb').read()
+    n = struct.unpack_from('<H', d, 6)[0] if d[:4] == b'KEEP' else 0
+    return [(r[0], r[1], struct.unpack('<H', r[2:4])[0], r[4:21].split(b'\0')[0].decode('latin-1'), tuple(r[21:24]))
+            for r in (d[12 + 24 * i:36 + 24 * i] for i in range(n))]
+
+
+@scenario
+def kits_keepkit():
+    """4.2 KEEPKIT.DAT (kits.py kk_*, MC 13/11) on KITS_BUILD (a release-recipe build, World 2026-27 data): the keeper
+    kit kept with SEMPRE in a career, per game folder, key world + country + name. (uru) a new career at NACIONAL
+    (URUGUAY): SELECT KITS > the club > PORTIERE: AUTO > SEMPRE > the keeper page, the shirt grey -> orange (kit 3) >
+    OK: KEEPKIT.DAT written in the game folder, one record (NACIONAL, 3 2 2); the career saved (KKUR). (par) a new
+    career at NACIONAL (PARAGUAY) with that KEEPKIT.DAT: PORTIERE: AUTO (another country: no cross-talk), the kick-off
+    automatic; then SEMPRE + kit 5 > OK: two records, the kick-off wears it. (season) KKUR played to the season's end
+    and saved in season 2 (world8485 W8485_FROM, results only), loaded with the two-record KEEPKIT.DAT: SELECT KITS
+    reads PORTIERE: SCELTO and, cancelled, the kick-off wears (6, 3, 3) (kits_check: kept or the clash fallback).
+    (old) the same save with no KEEPKIT.DAT = AUTO, the automatic keepers. KITS_KKCASES (default all, in order). Shots
+    kk_<case>_*."""
+    import kitcolors
+    errs, notes = [], []
+    b0 = os.environ.get('KITS_BUILD') or builds()['it']
+    kb, sgp = kits_sites(b0)
+    b = nop_league_int3('kits_keepkit_' + os.path.basename(RUNS.rstrip('/')), b0)   # (the career's fixture screen)
+    T = {k: v.decode('latin-1') for k, v in kitcolors.GK_TEXTS[UI].items()}
+    kt = {k: (UI_MAP.get(v.decode('latin1'), v.decode('latin1'))) for k, v in kitcolors.TEXTS[UI].items()}
+    st = {'kk': None, 'car': None, 'car2': None}
+    cases = os.environ.get('KITS_KKCASES', 'uru,par,season,old').split(',')
+
+    def new_career(s, nation, league):
+        try:
+            set_world(s, 0)
+            path = ['CARRIERA', 'SCEGLI SQUADRA', 'SUDAMERICA', nation] + ([league] if league else []) + ['NACIONAL']
+        except AssertionError:
+            path = ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27', 'SUDAMERICA', nation] \
+                + ([league] if league else []) + ['NACIONAL']
+        if not pick_career(s, path):
+            return False
+        s.send('fire dump:3')
+        return True
+
+    def kits_club(s, tag):                              # SELECT KITS on the career club's side
+        scr = walk(s, 68, 3)
+        if scr.entries[1][1] != 'NACIONAL':
+            scr = walk(s, 1, 2)
+        check(scr.entries[1][1] == 'NACIONAL' and not scr.entries[23][2], f'{tag}: SELECT KITS {scr.texts()[:6]}, '
+              f'entry 23 {scr.entries[23]}', errs)
+        return scr
+
+    def set_keeper(s, tag, n):                          # SEMPRE, the keeper page, the shirt n steps right, OK
+        scr = walk(s, 23, 2)
+        check(scr.entries[23][1] in (kt['always'], kitcolors.TEXTS['it']['always'].decode('latin1')),
+              f'{tag}: toggle {scr.entries[23]}', errs)
+        scr = walk(s, 24, 2)
+        check(scr.entries[24][1] == T['gback'], f'{tag}: keeper page 24 {scr.entries[24][1]!r}', errs)
+        s.shot(f'kk_{tag}_page')
+        walk(s, 5, 0.5) if scr.selected != 5 else None
+        s.send(' '.join(['fire+right'] * n) + ' dump:1')
+        scr = walk(s, 24, 2)
+        check(scr.entries[24][1] == T['gk'] + T['gset'], f'{tag}: 24 {scr.entries[24][1]!r} after the edit', errs)
+        s.shot(f'kk_{tag}_set')
+        walk(s, 21, 3)                                  # OK
+
+    def save(s, name):
+        for _ in range(6):
+            if s.screen().find('SALVA CARRIERA', exact=True) is not None:
+                break
+            press(s, s.screen(), 'ESCI', 3) or press(s, s.screen(), 'ABBANDONA', 3)
+        walk(s, 'SALVA CARRIERA', 2)
+        s.send(name_entry(name) + ' dump:3')
+        return os.path.join(s.run, 'SWOS', name + '.CAR')
+
+    def load(tag, car, kk):
+        files = {'W84A.CAR': car}
+        if kk:
+            files['KEEPKIT.DAT'] = kk
+        s = Session(f'kk_{tag}_{UI}', b, files, 'dump:2', 600, match=True)
+        s.__enter__()
+        s.wait()
+        s.send('down down down down down fire dump:2')
+        s.send('fire dump:3')
+        return s
+
+    def kick(s, tag, want):
+        k = kk_kick(s, kb)
+        s.shot(f'kk_{tag}_match')
+        hs = [h for h in (k['hs1'], k['hs2']) if h[3]]
+        check(hs == ([want + (1,)] if want else []), f'{tag}: kick-off HS1 {k["hs1"]} HS2 {k["hs2"]} (want {want})',
+              errs)
+        kits_check(f'kk_{tag}', s, kb, sgp, k['w27'], errs, notes,
+                   tuple(h[:3] if h[3] else None for h in (k['hs1'], k['hs2'])))
+
+    for case in cases:
+        if case == 'uru':
+            with Session(f'kk_uru_{UI}', b, {}, 'dump:2', 600, match=True) as s:
+                s.wait()
+                if not new_career(s, 'URUGUAY', 'CAMPEONATO URUGUAYO'):
+                    errs.append(f'uru: new career {s.screen().texts()[:8]}')
+                    break
+                if kk_prematch(s, errs, 'uru') is None:
+                    break
+                scr = kits_club(s, 'uru')
+                check(scr.entries[24][1] == T['gk'] + T['gauto'], f'uru: 24 {scr.entries[24][1]!r}', errs)
+                set_keeper(s, 'uru', 3)
+                kk = os.path.join(s.run, 'SWOS', 'KEEPKIT.DAT')
+                r = kk_file(kk)
+                notes.append(f'uru: KEEPKIT.DAT {r}')
+                check(r and len(r) == 1 and r[0][3] == 'NACIONAL' and r[0][4] == (3, 2, 2) and r[0][0] == 5,
+                      f'uru: KEEPKIT.DAT {r}', errs)
+                st['kk'], st['country'] = kk, r[0][1] if r else None
+                st['car'] = save(s, 'KKUR')
+                check(os.path.exists(st['car']), f'uru: no save {st["car"]}', errs)
+        elif case == 'par':
+            if not st['kk']:
+                errs.append('par: no KEEPKIT.DAT from uru')
+                break
+            with Session(f'kk_par_{UI}', b, {'KEEPKIT.DAT': st['kk']}, 'dump:2', 600, match=True) as s:
+                s.wait()
+                if not new_career(s, 'PARAGUAY', None):
+                    errs.append(f'par: new career {s.screen().texts()[:8]}')
+                    break
+                if kk_prematch(s, errs, 'par') is None:
+                    break
+                scr = kits_club(s, 'par')
+                check(scr.entries[24][1] == T['gk'] + T['gauto'], f'par: 24 {scr.entries[24][1]!r} (another '
+                      f'country\'s NACIONAL: AUTO)', errs)
+                s.shot('kk_par_kits')
+                set_keeper(s, 'par', 5)
+                kk = os.path.join(s.run, 'SWOS', 'KEEPKIT.DAT')
+                r = kk_file(kk)
+                notes.append(f'par: KEEPKIT.DAT {r}')
+                check(r and len(r) == 2 and {x[4] for x in r} == {(3, 2, 2), (5, 2, 2)} and r[0][1] != r[1][1]
+                      and {x[3] for x in r} == {'NACIONAL'}, f'par: KEEPKIT.DAT {r}', errs)
+                st['kk2'] = kk
+                kick(s, 'par', (11, 3, 3))
+        elif case == 'season':
+            if not st['car'] or not st.get('kk2'):
+                errs.append('season: no KKUR save / two-record KEEPKIT.DAT')
+                break
+            keys = ('W8485_BUILD', 'W8485_FROM', 'W8485_NOSACK', 'SWOSTEST_SCENARIO')
+            keep = {k: os.environ.get(k) for k in keys}
+            try:
+                os.environ.update(W8485_BUILD=b0, W8485_FROM=st['car'], W8485_NOSACK='1',
+                                  SWOSTEST_SCENARIO='kits_keepkit_season')
+                ok, msg = world8485()
+            finally:
+                for k, v in keep.items():
+                    os.environ.pop(k, None) if v is None else os.environ.__setitem__(k, v)
+            car2 = os.path.join(RUNS, 'kits_keepkit_season_w84_2', 'SWOS', 'W84B.CAR')
+            notes.append(f'season: {msg[:160]}')
+            if not os.path.exists(car2):
+                errs.append(f'season: no season-2 save {car2} ({msg[:200]})')
+                break
+            st['car2'] = car2
+            s = load('season', car2, st['kk2'])
+            try:
+                if kk_prematch(s, errs, 'season') is not None:
+                    scr = kits_club(s, 'season')
+                    check(scr.entries[24][1] == T['gk'] + T['gset'], f'season: 24 {scr.entries[24][1]!r} (SCELTO: '
+                          f'the stored kit)', errs)
+                    s.shot('kk_season_kits')
+                    walk(s, 20, 3)                      # ANNULLA: nothing armed, the record at the kick-off
+                    kick(s, 'season', (6, 3, 3))
+            finally:
+                s.__exit__(None, None, None)
+        elif case == 'old':
+            if not st['car2']:
+                errs.append('old: no season-2 save')
+                break
+            s = load('old', st['car2'], None)
+            try:
+                if kk_prematch(s, errs, 'old') is not None:
+                    scr = kits_club(s, 'old')
+                    check(scr.entries[24][1] == T['gk'] + T['gauto'], f'old: 24 {scr.entries[24][1]!r}', errs)
+                    walk(s, 20, 3)
+                    kick(s, 'old', None)
+            finally:
+                s.__exit__(None, None, None)
+    return not errs, '; '.join(errs + notes)
+
+
+class _KitsKick(Exception):
+    """kits_season: the kick-off read, the match not needed"""
+
+
+@scenario
+def kits_season():
+    """4.2 kits (MC 12/11, the 4 + 4 modes' SEASON row): a season's first match at its kick-off, kits_check (the
+    referee black, the keepers = kits.match) on KITS_BUILD (default BENCH_BUILD, a World 2026-27 build). Cases
+    (KITS_SEASONS, default all): 'hist' STAGIONE > STAG. STORICHE > ITALIA 1947-48 > JUVENTUS under the default World
+    2026-27 (a historic pack: black); 'hist9697' the same under the 1996-97 default; 'game' the 1996-97 game's own
+    STAGIONE (default 1996-97: EUROPA > ITALIA > SERIE A > INTER, the screens logged); 'w27' STAGIONE under the World
+    2026-27 = the step-2.5 message (no season of that world exists yet: nothing to kick off, av_rows_ok)."""
+    errs, notes = [], []
+    b0 = os.environ.get('KITS_BUILD') or os.environ.get('BENCH_BUILD') or builds()['it']
+    kb, sgp = kits_sites(b0)
+    b = nop_league_int3('kits_season_' + os.path.basename(RUNS.rstrip('/')), b0)
+    _, t1, t2, g1, _, _ = cc_sites(b)
+    cases = {'hist': (0, ('STAGIONE', 'STAG. STORICHE', 'ITALIA 1947-48', 'JUVENTUS')),
+             'hist9697': (1, ('STAGIONE', 'STAG. STORICHE', 'ITALIA 1947-48', 'JUVENTUS')),
+             'game': (1, ('STAGIONE', 'EUROPA', 'ITALIA', 'SERIE A', 'INTER')),
+             'w27': (0, ('STAGIONE',))}
+    for case in os.environ.get('KITS_SEASONS', ','.join(cases)).split(','):
+        world, path = cases[case]
+        tag = f'kits_season_{case}_{UI}'
+        with Session(tag, b, {'SETUP.DAT': setup_file(tag, world)}, 'dump:2', 600, match=True) as s:
+            if s.wait().outcome != 'dump':
+                errs.append(f'{case}: no first pause ({s.result})')
+                continue
+            for t in path:
+                if press(s, s.screen(), t, 2) is None:
+                    errs.append(f'{case}: {t} not reached ({s.screen().texts()[:10]})')
+                    break
+                s.log.append(f'[kits] {case} {t}: ' + ' | '.join(s.screen().texts())[:300])
+            else:
+                if case == 'w27':
+                    sc = s.screen()
+                    s.shot(f'{case}_message')
+                    ok = av_rows_ok(sc, 'season', errs, case)
+                    notes.append(f'{case}: STAGIONE under the World 2026-27 = the message {ok} (no season to kick off)')
+                    continue
+                if case == 'game':                      # (the game's picker, TUTTE SQ. SELEZ.: INTER made human by the
+                    sc = s.screen()                     #  press above, purple; its STAGIONE button, the last entry,
+                    st = sc.find('STAGIONE', exact=True)   # by the screen's own path)
+                    for _ in range(3):
+                        if sc.selected == st:
+                            break
+                        s.send(' '.join(k + ':0.15' for k in (sc.path(st) or ['down'])) + ' dump:0.5')
+                        sc = s.screen()
+                    s.log.append(f'[kits] game picker: selected {sc.selected} (STAGIONE {st})')
+                    s.send('fire dump:3')
+                    s.log.append('[kits] game after: ' + ' | '.join(s.screen().texts())[:300])
+                for _ in range(14 if case != 'game' else 0):   # the type screen's STAGIONE button, right of ABBANDONA
+                    sc = s.screen()
+                    if sc.entries and sc.entries[sc.selected][1] == 'STAGIONE':
+                        break
+                    s.send(('right' if sc.entries and sc.entries[sc.selected][1] == 'ABBANDONA' else 'down') + ' dump:0.5')
+                s.shot(f'{case}_type')
+                if case != 'game':
+                    s.send('fire dump:3')
+                got = []
+
+                def kick():
+                    s.shot(f'kits_{case}')
+                    got.append(kits_check(f'kits_{case}', s, kb, sgp, 0, errs, notes))
+                    raise _KitsKick()
+                try:
+                    cc_match(s, t1, t2, g1, case, kick=kick)
+                except _KitsKick:
+                    pass
+                except AssertionError as e:
+                    errs.append(f'{case}: {e}')
+                check(got, f'{case}: no kick-off reached', errs)
+    return not errs, '; '.join(errs + notes)
 
 
 def gk_sites(exe_dir):

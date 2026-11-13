@@ -6,7 +6,7 @@ a clang -target i686 probe (the exe's own layout, cobj.CFLAGS' target) - and the
 xleft.XLMAX): the same set of rows, no more, no less; each row inside its item's saved size (the
 modules' *_SIZE = sizeof); no two rows share a byte; forms W / G only (O8 / K: their pieces).
 
-test_wsites_walk (Unicorn, HT_WS_EXE else c/S7W-ws4a: a shaped IT build - the S7 test pack - with the real rows and
+test_wsites_walk (Unicorn, HT_WS_EXE else c/S7W-ws4b: a shaped IT build - the S7 test pack - with the real rows and
 HOSTTEST_SYMS=1; recipe: buildrel's bfull.py with every test switch cleared, SEASON_PACKS = world5tm-h2's with ita ->
 internal/s7pack-shaved/ita): the WSITES table in the exe = wsites.table() of the build's rows; every row's item resolves through
 S7_ENI (the build's EN_ITEMS) and fits its length; then every site of every row is poked - W sites cycle a club going
@@ -29,7 +29,7 @@ sys.path.insert(0, TOOLS)
 import wsites  # noqa: E402
 
 HOME = os.path.expanduser('~')
-EXE = os.environ.get('HT_WS_EXE') or os.path.join(HOME, 'swos-mod', 'c', 'S7W-ws4a', 'SWOS', 'ITALIAN.EXE')
+EXE = os.environ.get('HT_WS_EXE') or os.path.join(HOME, 'swos-mod', 'c', 'S7W-ws4b', 'SWOS', 'ITALIAN.EXE')
 
 PROBE = r'''
 typedef unsigned char u8; typedef unsigned short u16; typedef unsigned int u32; typedef signed char s8;
@@ -126,11 +126,11 @@ def test_wsites_layout():
     for it, (a, b) in sizes.items():
         if a != b:
             errs.append(f'{it}: sizeof {a} != the saved size {b}')
-    got = [(r[0], r[1], r[2], r[3], r[4]) for r in wsites.ROWS]
+    got = [(r[0], r[1], r[2], r[3], r[4]) for r in wsites.ROWS if isinstance(r[0], str)]   # (engine items; 4b: test_wsites_cfb)
     if sorted(got) != sorted(rows):
         errs.append(f'ROWS not in the structs: {sorted(set(got) - set(rows))[:4]}; missing {sorted(set(rows) - set(got))[:4]}')
     used = {}
-    for it, off, st, cnt, form, aux in wsites.ROWS:
+    for it, off, st, cnt, form, aux in [r for r in wsites.ROWS if isinstance(r[0], str)]:
         if form not in (wsites.WS_W, wsites.WS_G) or aux:
             errs.append(f'{it}+{off}: form {form} aux {aux} (W / G only)')
         if off + max(cnt - 1, 0) * st + 2 > sizes[it][1]:
@@ -168,12 +168,16 @@ def test_wsites_walk():
         if r[0] == wsites.WS_END:
             break
         tab.append(r)
-    ids = {engine.item_id(n): n for n in {r[0] for r in wsites.ROWS}}
+    ids = {engine.item_id(n): n for n in {r[0] for r in wsites.ROWS if isinstance(r[0], str)}}
     enn = struct.unpack('<I', m.rd(m.at('s7swap', 'S7_ENN'), 4))[0]
     eni = struct.unpack(f'<{3 * enn}I', m.rd(m.at('s7swap', 'S7_ENI'), 12 * enn))
     item = {eni[3 * e + 2] & 0xFFFF: (eni[3 * e], eni[3 * e + 1]) for e in range(enn)}
-    want = [r for r in wsites.ROWS if engine.item_id(r[0]) in item]    # (rows(): the build's own items, = EN_ITEMS)
-    absent = sorted({r[0] for r in wsites.ROWS} - {r[0] for r in want})
+    cfblen = struct.unpack('<I', m.rd(m.at('s7swap', 'S7_CFBLEN'), 4))[0]
+    item[wsites.WI_CFB] = (m.at('s7swap', 'S7_CFB'), cfblen)
+    item[wsites.WI_CFBH] = (m.at('s7swap', 'S7_CFB') + 0x10000, cfblen - 0x10000)
+    ids[wsites.WI_CFB], ids[wsites.WI_CFBH] = 'CFB', 'CFBH'
+    want = [r for r in wsites.ROWS if (r[0] if isinstance(r[0], int) else engine.item_id(r[0])) in item]    # (rows(): the build's own items, = EN_ITEMS)
+    absent = sorted({r[0] for r in wsites.ROWS if isinstance(r[0], str)} - {r[0] for r in want})
     if raw != wsites.table(want):
         errs.append(f'WSITES in the exe ({len(tab)} rows) != wsites.table of ROWS on its EN items ({len(want)})')
     dn = [e[1] for e in down]
@@ -189,8 +193,10 @@ def test_wsites_walk():
         ptr, ln = item[iid]
         if off + max(cnt - 1, 0) * st + 2 > ln:
             errs.append(f'row {k}: {ids.get(iid)}+{off} past its {ln} B')
+        if iid == wsites.WI_CFBH:                       # (one buffer with CFB: the same bytes from +0x10000)
+            iid, off = wsites.WI_CFB, off + 0x10000
         if iid not in before:
-            before[iid] = bytearray((j * 7 + 0x31) & 0xFF for j in range(ln))
+            before[iid] = bytearray((j * 7 + 0x31) & 0xFF for j in range(item[iid][1]))
         vals = wv if form == wsites.WS_W else gv
         for i in range(cnt):
             v = vals[(i + k) % len(vals)]
@@ -258,3 +264,54 @@ def test_wsites_walk():
     return not errs, '; '.join(errs[:6]) or (f'{len(tab)} rows on {len(before)} items: {moved} moved words / globals '
                                              f'now their clubs\' new ones, the other sites and bytes unchanged; SLTCOPY re-based for every row '
                                              f'({hi} globals >= 2000: BT_EXT\'s range) (items not saved by this build: {absent})')
+
+
+# ---- 4b: careerFileBuffer rows against real saves (completeness) ----------------------------------------------------
+MAINDIR = os.path.join(HOME, 'swos-mod', 'internal', 'swostest')
+CFB_SAVES = [os.path.join(MAINDIR, f) for f in ('s1mid_inter.CAR', 'davide_int.CAR', 'guests_end_squads.CAR')] + \
+    [os.path.join(MAINDIR, 'n7', 'saves', f'c20_after_s{n:02d}.CAR') for n in range(2, 20)]
+FIX_LEN = 95151                                   # careerFileBuffer's fixed part (trailer INFO FIXED)
+
+
+def _cfb_covered(rows):
+    cov = set()
+    for it, off, st, cnt, form, aux in rows:
+        if it in (wsites.WI_CFB, wsites.WI_CFBH) and form == wsites.WS_W:
+            base = 0x10000 if it == wsites.WI_CFBH else 0
+            for k in range(cnt):
+                cov.update((base + off + k * st, base + off + k * st + 1))
+    return cov
+
+
+def _stale(d, cov):
+    """file-102 words (low byte 66h, ordinal < 157) of the fixed part outside every CFB row, clustered (>2 within 64 B:
+    an isolated hit is noise level, 1 in 256 x 157 / 256 per byte pair)"""
+    loose = [o for o in range(FIX_LEN - 1) if d[o] == 0x66 and d[o + 1] < 0x9D and o not in cov]
+    return [o for o in loose if sum(abs(o - p) <= 64 for p in loose) > 2]
+
+
+def test_wsites_cfb():
+    """every file-102 word of the career block of every real 4.1 save (26: season 1, 2+, c20 seasons 2..19) lies in a
+    WI_CFB row (the rows' bytes: wsites.ROWS), clustered hits only (noise level ignored); each row pulled out is caught on a
+    save that uses it (no row is dead weight); every row inside the fixed part."""
+    saves = [p for p in CFB_SAVES if os.path.exists(p)]
+    if not saves:
+        return True, 'SKIP: no real 4.1 saves (internal/swostest)'
+    rows = [r for r in wsites.ROWS if r[0] in (wsites.WI_CFB, wsites.WI_CFBH)]
+    errs = []
+    data = {p: open(p, 'rb').read() for p in saves}
+    cov = _cfb_covered(rows)
+    if cov and max(cov) >= FIX_LEN:
+        errs.append(f'a row past the fixed part ({max(cov)})')
+    for p, d in data.items():
+        bad = _stale(d, cov)
+        if bad:
+            errs.append(f'{os.path.basename(p)}: {len(bad)} file-102 words outside the rows: {[hex(o) for o in bad[:6]]}')
+    dead = []
+    for r in rows:
+        c2 = _cfb_covered([x for x in rows if x is not r])
+        if not any(len(_stale(d, c2)) for d in data.values()):
+            dead.append(hex(r[1] + (0x10000 if r[0] == wsites.WI_CFBH else 0)))
+    if dead:
+        errs.append(f'rows no save needs (nothing clustered without them): {dead}')
+    return not errs, '; '.join(errs[:5]) or f'{len(saves)} real saves: every clustered file-102 word is in one of {len(rows)} CFB rows, each row needed'

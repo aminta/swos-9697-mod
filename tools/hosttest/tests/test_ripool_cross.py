@@ -213,3 +213,36 @@ def test_s7load_ri_home():
                         f'{"the DISK home record" if r == bytes(disk) else "some other record"} '
                         f'(want the {"pool" if wd > 256 else "ORIG"} record)')
     return not errs, '; '.join(errs[:5]) or f'{len(plan)} moved rows took their ri identity\'s record'
+
+
+def test_s7_pool_names():
+    """MC 13/11: s7swap.check_pool_names on the real S7 pack: the registry's 36 pool rows = RS5144's clubs by name, both
+    ways; CONTROLS: a pool club renamed in the RS file / a registry pool row missing are refused with both lists."""
+    import mkseason
+    import s7swap
+    src = os.path.join(os.path.expanduser('~'), 'swos-mod', 'internal', 's7pack-real', 'ita')
+    if not os.path.isfile(os.path.join(src, 'pack.json')):
+        return True, f'SKIP: {src} missing'
+    pk = mkseason.Pack(src)
+    home, _ = s7swap.homes(pk)
+    n = s7swap.check_pool_names(pk, home)
+    errs = []
+    bad = list(home)                                   # a registry pool row that is not a pool row any more
+    bad[home.index(0xFFFF)] = 144 | 0 << 8
+    try:
+        s7swap.check_pool_names(pk, bad)
+        errs.append('a registry pool row dropped: not refused')
+    except AssertionError as e:
+        if 'only in RS' not in str(e):
+            errs.append(f'wrong message {e}')
+    orig = pk.pool_data
+    ren = bytearray(orig)
+    ren[2 + 5:2 + 7] = b'ZZ'                           # record 0's name changed
+    pk.pool_data = bytes(ren)
+    try:
+        s7swap.check_pool_names(pk, home)
+        errs.append('a renamed RS club: not refused')
+    except AssertionError:
+        pass
+    pk.pool_data = orig
+    return not errs, '; '.join(errs) or f'{n} pool rows = RS5144 clubs by name, both ways; two refusals'

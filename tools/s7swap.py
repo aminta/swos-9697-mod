@@ -87,6 +87,24 @@ def homes(pk):
     return out, {roles[r]['file']: k for r, k in n.items()}
 
 
+def check_pool_names(pk, home):
+    """MC 13/11 (case 3 = marker in ri's queue): the registry's pool rows (idents whose home is FFFF) are exactly the clubs
+    of the off-file pool's RS file, by NAME, both ways and without repeats - so a future pack edit cannot silently break
+    the queue marker 0x4000 | registry ident (Name-level is enough: not the records' bytes)."""
+    if not hasattr(pk, 'pool_data'):                    # (the RS file's records: mkseason.rs_files' source)
+        pk.team_files()
+    rs = getattr(pk, 'pool_data', None)
+    assert rs, ('s7swap: no RS file for the pack\'s pool', pk.world, pk.pool_file)
+    n = rs[0] << 8 | rs[1]
+    rsn = [rs[2 + 684 * k + 5:2 + 684 * k + 22].split(b'\0')[0].decode('latin1') for k in range(n)]
+    regn = [c['name'] for c, h in zip(pk.clubs.values(), home) if h == 0xFFFF]
+    assert len(set(rsn)) == len(rsn) and len(set(regn)) == len(regn), ('s7swap: repeated pool club names',)
+    miss = sorted(set(regn) - set(rsn)), sorted(set(rsn) - set(regn))
+    assert not miss[0] and not miss[1], ('s7swap: registry pool rows != the RS file\'s clubs: only in the registry',
+                                        miss[0][:5], 'only in RS', miss[1][:5])
+    return n
+
+
 def home_runs(home):
     """S7_HRUN: [(first ident, n, file, first ordinal)] - home's words as runs (consecutive idents, consecutive
     ordinals of one file); FFFF entries in none"""
@@ -178,6 +196,7 @@ def patch(p, ssyms, rsyms, gsyms, pgsyms, fsyms, risyms):
     assert 'S7_ORIG' in ssyms, 's7swap: swe.c without S7_ORIG (swe.py S7_ORIG_SZ)'
     home, nrec = homes(pk)
     assert len(home) == len(area) and set(nrec) == {fa, fb}, ('s7swap: homes', len(home), nrec)
+    check_pool_names(pk, home)
     lay = orig_layout([nrec[fa], nrec[fb]])
     built = pk.team_files()                             # (MC 13/11: S7_ORIG_SZ against the files as built)
     for f in (fa, fb):

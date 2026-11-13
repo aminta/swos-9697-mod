@@ -36231,16 +36231,32 @@ def kg_read(s, kb):
     return d[0], d[1], sl
 
 
-def kg_fits(scr, k, tag, errs, ref=None):
+def kg_fits(scr, k, tag, errs):
     """(4.2 keeper page, MC 13/11) entry k's label fits its bar (complist.px <= width - 8) in the font's characters; a
-    label with no bar (width 0: entry 4, the kit's title) no wider than ref, the game's own label it replaces"""
+    label with no bar (width 0: entry 4, the kit's title, drawn centred on x) fits the free room on its row: the
+    screen (0..320) and the visible entries beside it (2 px gap each side). (13/11: the first rule, no wider than the
+    game's own label, failed EN's GOALKEEPER (60 px) against FIRST KIT (43) on a screen where it clearly fits)"""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import complist
     if len(scr.entries) <= k:
         errs.append(f'{tag}: no entry {k}')
         return
     t, (x, y, w, h) = scr.raw_texts[k], scr.geom[k]
-    room = w - 8 if w else complist.px(ref) if ref else 0
+    if w:
+        room = w - 8
+    else:
+        lim, by = min(x, 320 - x), None
+        for e in scr.entries:
+            j, inv = e[0], e[2]
+            if j == k or inv or j >= len(scr.geom):
+                continue
+            xj, yj, wj, hj = scr.geom[j]
+            if wj and yj < y + (h or 8) and y < yj + hj:
+                l2 = x - (xj + wj) - 2 if xj + wj <= x else xj - x - 2 if xj >= x else 0
+                if l2 < lim:
+                    lim, by = l2, (j, scr.geom[j])
+        room = 2 * max(lim, 0)
+        tag += f' (x {x} y {y} h {h}, room set by {by})' if lim < min(x, 320 - x) else f' (x {x} y {y} h {h})'
     check(complist.px(t) <= room and not complist.font_odd(t),
           f'{tag}: entry {k} {t!r} {complist.px(t)} px in {room} (bar {w}), odd {complist.font_odd(t)}', errs)
 
@@ -36281,7 +36297,7 @@ def kits_gkpage():
                   and not scr.entries[5][2], f'{case}: keeper page: mode {mode}, shown {hid}, 4 {scr.entries[4][1]!r}, '
                   f'24 {scr.entries[24][1]!r}', errs)
             kg_fits(scr, 24, f'{case} page', errs)
-            kg_fits(scr, 4, f'{case} page title', errs, k1raw)
+            kg_fits(scr, 4, f'{case} page title', errs)
             s.shot(f'gk_{case}_page')
             walk(s, 5, 0.5) if scr.selected != 5 else None
             s.send(' '.join(['fire+right'] * (1 if case == 'clash' else 3)) + ' dump:1')

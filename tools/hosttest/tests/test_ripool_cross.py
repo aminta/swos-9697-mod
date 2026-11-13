@@ -86,19 +86,22 @@ WRAP = (
     'uint32_t s7_ident(uint32_t w) { return t_ident(w); }\n'
     'uint32_t s7_poolk(uint32_t i) { return t_poolk(i); }\n'
     'uint32_t s7_home_word(uint32_t w) { return t_home(w); }\n'
-    '#define DATA\n#undef S7_FB\nuint8_t S7_FB = 144;\n#include "s7ri.c"\n'
+    '#define DATA\n#undef S7_FB\nuint8_t S7_FB = 144;\nuint8_t RI_FRESH = 0;\n#include "s7ri.c"\n'
     'void t_wire(void) { GP_RIPOOL = s7ri_pool; GP_CDSTR = s7ri_cdstr; }\n'
     'void t_unwire(void) { GP_RIPOOL = 0; GP_CDSTR = 0; }\n'
     'u32 t_cd_str(u16 w) { return cd_str(w); }\n'
     'void t_cdd(const u8 *p) { GP_CDD = p; }\n')
 
 
-def s7_lib(tag='s7', extra=()):
-    """gplay.c + s7ri.c in one native translation unit (as s7swap.c includes s7ri.c in the exe)."""
+def s7_lib(tag='s7', extra=(), s7ri=None):
+    """gplay.c + s7ri.c in one native translation unit (as s7swap.c includes s7ri.c in the exe). s7ri: a mutated s7ri.c text
+    (written next to the wrapper: a quoted include looks there first)."""
     prev = cd.FLAGS
     cd.FLAGS = S7_FLAGS + list(extra)
     try:
         d = tempfile.mkdtemp(prefix='ris7')
+        if s7ri is not None:
+            open(os.path.join(d, 's7ri.c'), 'w').write(s7ri)
         return cd._lib(d, WRAP, 1, tag)
     finally:
         cd.FLAGS = prev
@@ -248,6 +251,109 @@ def test_ripool_cross_queue():
         errs.append('the native 10 vanished')
     return not errs, '; '.join(errs[:6]) or ('S7 ri_pool: the occupant out / the head in, logged; no ident twice across rows + queue in '
                                              'cases 1/2/3, two rows, 5 seasons with a save/load; maps[] untouched, RI_SWAPPED never set')
+
+
+def ri_table_world(files):
+    """ri_season's table for several pooled files in the world's order: files = [(file, base global, slots, moff, pool n)]; each
+    file one kind-0 pool (low 5), the pool's RS order 0..n-1."""
+    t = bytes([len(files)])
+    for f, bg, slots, moff, n in files:
+        t += bytes((WORLD, f, 1)) + struct.pack('<HHHB', bg, moff, slots, 0)
+        t += bytes((0, n, 5)) + struct.pack('<H', slots)
+        for i in range(slots):
+            t += struct.pack('<HBB', bg + i, 5, 0)
+        t += bytes(n) + bytes(range(n))
+    return t
+
+
+def world_season(L, files, relegated):
+    """One whole ri_season over `files` (each a pool of 3, 4 slots, all fresh: init 0). relegated: {file: [rows]}.
+    Returns {file: (queue segment, maps segment)} and the logged moves."""
+    RF = 8
+    st = (ctypes.c_uint8 * (RF + RP + 2 * RQT + 2 * RP * RO + 2 * RMT)).in_dll(L, 'RI_STATE')
+    ctypes.memmove(st, bytes(len(st)), len(st))                  # a new career: init 0, queues empty
+    t = ctypes.create_string_buffer(ri_table_world(files), 512)
+    slt = (ctypes.c_int8 * 2400)()
+    copy = (ctypes.c_int8 * 2400)()
+    for f, bg, slots, moff, n in files:
+        for r in relegated.get(f, []):
+            copy[bg + r] = 1
+    ctypes.c_int32.in_dll(L, 'RI_MGR').value = 99999
+    L.ri_season.argtypes = [ctypes.c_void_p] * 3 + [ctypes.c_int, ctypes.c_void_p]
+    L.ri_season(ctypes.addressof(t), ctypes.addressof(slt), ctypes.addressof(copy), WORLD, None)
+    raw = bytes(st)
+    out, qo = {}, 0
+    for k, (f, bg, slots, moff, n) in enumerate(files):
+        qn = raw[RF + k]
+        q = list(struct.unpack_from(f'<{qn}H', raw, RF + RP + 2 * qo))
+        mp = list(struct.unpack_from(f'<{slots}H', raw, RF + RP + 2 * RQT + 2 * RP * RO + 2 * moff))
+        out[f] = (q, mp)
+        qo += n
+    arr = (ctypes.c_uint16 * (64 * 3)).in_dll(L, 'RI_MOVES')
+    nm = ctypes.c_int.in_dll(L, 'RI_NMOVES').value
+    return out, [(arr[3 * j], arr[3 * j + 1], arr[3 * j + 2]) for j in range(nm)], nm
+
+
+def test_ripool_world_season():
+    """MC 13/11 (after M4's first run found it): a WHOLE ri_season over the world's pooled files, 144 (the S7 file) and Spain /
+    Germany (103 / 104), in two orders (144 first, 144 in the middle). Asserts: the 144 moves survive to the end of the season
+    (RI_NMOVES == the 144 moves: it is reset only by the S7_FB call, never by a later pool's), the other files rotate their own
+    maps / queues exactly as today's code (the identity maps[slot] = in + 1, the queue = the rest + the outs), RI_S7_BAD 0, and
+    after the registry applies the moves the 144 rows + its queue hold every ident once.
+    MUTANT (RIX_MUTANT_RESET): RI_NMOVES reset at the top of s7ri_pool, before the file test = per pool call: FAILs."""
+    L = s7_lib('ws')
+    errs = []
+    natives = [10, 11, 12, 13]
+    pool = [100, 101, 102]
+    for order, tag in (((144, 103, 104), '144 first'), ((103, 144, 104), '144 in the middle')):
+        reg = Reg(natives)
+        s7_hooks(L, reg)
+        base = {144: 192, 103: 400, 104: 600}
+        files = [(f, base[f], 4, 4 * k, 3) for k, f in enumerate(order)]
+        out, mv, nm = world_season(L, files, {144: [0, 2], 103: [1], 104: [3, 0]})
+        if nm != 2 or mv != [(0, 10, 100), (2, 12, 101)]:
+            errs.append(f'{tag}: the 144 moves did not survive: RI_NMOVES {nm}, moves {mv} (want 2: (0, 10, 100), (2, 12, 101))')
+        for r, o, i in mv:
+            reg.occ[r] = i
+        q144, _ = out[144]
+        if q144 != [102, 10, 12]:
+            errs.append(f'{tag}: 144 queue {q144} (want [102, 10, 12])')
+        s7_checks_ids(reg, q144, natives + pool, errs, tag)
+        # the other files, today's path: first order 256 + k, relegated slot takes the head (map = in + 1), the queue the rest + outs
+        q103, m103 = out[103]
+        if q103 != [257, 258, 1] or m103[1] != 257:
+            errs.append(f'{tag}: 103 queue {q103} / maps {m103} (want [257, 258, 1], maps[1] 257)')
+        q104, m104 = out[104]
+        if q104 != [258, 0, 3] or m104[0] != 257 or m104[3] != 258:      # (rows in slot order: row 0 takes 256, row 3 takes 257)
+            errs.append(f'{tag}: 104 queue {q104} / maps {m104} (want [258, 0, 3], maps[0] 257, maps[3] 258)')
+        if ctypes.c_uint8.in_dll(L, 'RI_FRESH').value != 1:
+            errs.append(f'{tag}: RI_FRESH {ctypes.c_uint8.in_dll(L, "RI_FRESH").value} (the S7_FB call must leave it 1)')
+        if ctypes.c_int.in_dll(L, 'RI_S7_BAD').value:
+            errs.append(f'{tag}: RI_S7_BAD {ctypes.c_int.in_dll(L, "RI_S7_BAD").value}')
+    return not errs, '; '.join(errs[:5]) or ('whole ri_season, 144 + 103 + 104 in two orders: the 144 moves survive (RI_NMOVES 2, one reset per ri_season '
+                                             'by the S7_FB call), 103 / 104 rotate their own maps and queues as today, RI_S7_BAD 0, '
+                                             '144 rows + queue = every ident once')
+
+
+def test_ripool_world_season_mutant():
+    """The control of test_ripool_world_season: RI_NMOVES reset at the top of s7ri_pool (per pool call, before the file test)
+    must make it FAIL (here: the 144 moves are lost to the later 103 / 104 calls)."""
+    src = open(os.path.join(cd.TOOLS, 's7ri.c')).read()
+    mut = src.replace("    if (file != S7_FB) return -1;", "    RI_NMOVES = 0;\n    if (file != S7_FB) return -1;", 1)
+    assert mut != src, 'mutation site not found'
+    L = s7_lib('wsm', s7ri=mut)
+    reg = Reg([10, 11, 12, 13])
+    s7_hooks(L, reg)
+    files = [(144, 192, 4, 0, 3), (103, 400, 4, 4, 3), (104, 600, 4, 8, 3)]
+    out, mv, nm = world_season(L, files, {144: [0, 2], 103: [1], 104: [3, 0]})
+    return nm == 0 and mv == [], f'mutant (reset per pool call): RI_NMOVES {nm}, moves {mv}: the 144 moves are lost, as the first M4 run saw (want 0, [])'
+
+
+def s7_checks_ids(reg, q, universe, errs, tag):
+    allv = reg.occ + q
+    if sorted(allv) != sorted(universe):
+        dup = sorted({x for x in allv if allv.count(x) > 1})
+        errs.append(f'{tag}: rows {reg.occ} + queue {q}: duplicates {dup}, missing {sorted(set(universe) - set(allv))}')
 
 
 # ---------------------------------------------------------------------------------------------------------------------

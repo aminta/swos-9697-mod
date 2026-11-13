@@ -35,6 +35,9 @@ def setup():
         return None, f'{EXE}: no RI_MOVES (s7ri.c not linked)'
     m = t7.M(EXE)
     m.fresh()
+    p0, np_ = struct.unpack('<HH', m.rd(m.at('s7swap', 'S7_POOL0'), 4))
+    if not np_:                                          # (the s7t test pack: no off-file pool; a fixture choice, never a FAIL)
+        return None, f'SKIP: {EXE} has no pool idents (S7_NPOOL 0: the s7t test pack): build it with mkreal.sh (internal/s7pack-real/ita)'
     m.w(m.at('swefile', 'swe_fopen_r'), b'\xb8\xfe\xff\xff\xff\xc3')   # (Unicorn: no DOS - every open fails)
     return m, ''
 

@@ -16,6 +16,7 @@ uint32_t s7_poolk(uint32_t id);         /* (index among the pool idents; 0x10000
 #ifndef S7RI_NSTR
 #define S7RI_NSTR 256                           /* (s7swap.py: -DS7RI_NSTR = the other league file's rows) */
 #endif
+extern uint8_t RI_FRESH;                        /* (s7swap.c: one-shot, s7_season applies RI_MOVES only when a fresh ri_season logged them) */
 enum { S7RI_MV = 64 };
 uint16_t S7RI_STRF DATA = 0;                    /* the OTHER league file (cupd.other_strengths), written by s7swap.py */
 uint16_t S7RI_STR[S7RI_NSTR] DATA = {0};        /* the strength of each of its rows (cupd.strength's rule) */
@@ -35,6 +36,7 @@ int32_t s7ri_pool(const uint8_t *e, uint16_t *q, uint8_t *qn, int32_t init, int3
     int32_t n = e[1], low = e[2], ns = e[3] | e[4] << 8, m = 0;
     const uint8_t *sl = e + 5, *order = sl + 4 * ns + n;
     RI_NMOVES = 0;                                  /* (a new season end's log: the S7 world has ONE kind-0 pool, file 144) */
+    RI_FRESH = 1;                                   /* (s7_season consumes the log once: no stale moves at a career start / a second career) */
     if (init == 1) {
         for (int32_t i = 0; i < n; i++) q[i] = (uint16_t)s7_poolk(0x10000u | order[i]);
         *qn = (uint8_t)n;

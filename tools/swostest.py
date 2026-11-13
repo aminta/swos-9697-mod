@@ -27463,6 +27463,7 @@ def world_s7cross_diff():
             st[k] = {'ct': bytes(r.obj2(ct, 684 + 38 * 16)), 'cnp': struct.unpack('<H', r.obj2(cnp, 2))[0],
                      'cmp': bytes(r.obj2(cmp_, 32)), 'nb': struct.unpack('<i', r.obj2(nbo, 4))[0],
                      'ob': struct.unpack('<i', r.obj2(obo, 4))[0], 'job': struct.unpack('<H', r.obj2(job, 2))[0],
+                     'fin': bytes(r.obj2(nbo - 0x10, 0x60)),
                      'sel': struct.unpack('<HHHH', r.obj2(sel, 8)), 'cal': cal_league(bytes(r.obj2(CAL_AT - 4, 0x2000))),
                      'cache': {cache[684 * i] | cache[684 * i + 1] << 8: cache[684 * i:684 * i + 684] for i in range(n)}}
             s.log.append(f'[diff {k}] sel {st[k]["sel"]} cnp {st[k]["cnp"]} funds {st[k]["nb"]}/{st[k]["ob"]} '
@@ -27512,6 +27513,10 @@ def world_s7cross_diff():
     for f_, nm in (('cnp', 'careerNumPlayers'), ('cmp', 'squad order'), ('nb', 'funds (NEWBAL)'),
                    ('ob', 'funds (OLDBAL)'), ('job', 'job count')):
         check(a[f_] == b[f_], f'{nm}: A {a[f_]!r} B {b[f_]!r}', errs)
+    fd = [(hex(nbo - 0x10 + 4 * i), struct.unpack_from('<i', a['fin'], 4 * i)[0], struct.unpack_from('<i', b['fin'], 4 * i)[0])
+          for i in range(0x18) if a['fin'][4 * i:4 * i + 4] != b['fin'][4 * i:4 * i + 4]]
+    if fd:
+        info.append(f'finance dwords A != B (obj2, A, B): {fd}')
     ra = a['cache'].get(wa)
     check(ra is not None and a['sel'][3] == a['ct'][25] == ra[25] and a['sel'][2] <= a['sel'][3],
           f'A: careerTeamLeague {a["sel"][2]} / D6CDC {a["sel"][3]} / careerTeam[25] {a["ct"][25]} vs its cache '

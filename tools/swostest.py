@@ -6486,7 +6486,9 @@ def lp36_tourney():
 
 def converter_build(name, env):
     """internal/world2526/run.sh into builds/<name>-<key> (build_key with the converter's own files' times), under
-    world_lock; an existing complete dir of the same key is reused. Returns (dir, error text or '')."""
+    world_lock; an existing complete dir of the same key is reused. Returns (dir, error text or ''). Its callers pass
+    EURO_OPTIONAL=1 as the scenario builds do (MC 13/11: the converter's test world has no gplay tail / split page, so
+    patch.py's euro guard of 09/11 stopped world2526 / world2526q's builds since)."""
     conv = os.path.join(MAIN, 'internal', 'world2526')
     stamp = ''.join(f'{f}:{os.path.getmtime(f)}' for f in sorted(glob.glob(os.path.join(conv, '*.py')) +
                                                                   glob.glob(os.path.join(conv, '*.sh'))))
@@ -6534,7 +6536,7 @@ def world2526():
     run = os.path.join(MAIN, 'internal', 'world2526', 'run.sh')
     if not os.path.exists(run):
         return True, 'SKIP: private converter internal/world2526 missing'
-    out, err = converter_build('world2526', {'LP': '1', 'CONTI_CONFS': 'none'})   # (the UEFA test world: no other
+    out, err = converter_build('world2526', {'LP': '1', 'CONTI_CONFS': 'none', 'EURO_OPTIONAL': '1'})   # (the UEFA test world: no other
     if err:                                     # confederations' cups - its partial South America; its own dir)
         return False, err
     keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K')}
@@ -6559,7 +6561,7 @@ def world2526q():
     run = os.path.join(MAIN, 'internal', 'world2526', 'run.sh')
     if not os.path.exists(run):
         return True, 'SKIP: private converter internal/world2526 missing'
-    out, err = converter_build('world2526q', {'LP': '1', 'UEFAQ_FORCE': 'CL Q1'})
+    out, err = converter_build('world2526q', {'LP': '1', 'UEFAQ_FORCE': 'CL Q1', 'EURO_OPTIONAL': '1'})
     if err:
         return False, err
     keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_FILL')

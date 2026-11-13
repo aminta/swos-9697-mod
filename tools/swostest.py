@@ -27134,10 +27134,11 @@ def s7newcareer(loaded):
     world_s7cross_down, then (world8485's W84_AFTER, after its save) the same steps. The steps: a breakpoint at
     s7_load's entry logs S7_LD (the previous call's result) at every call; ESCI to the main menu, CARRIERA ->
     ABBANDONA -> a new career at UNION BRESCIA (SERIE C GIRONE A: listed there only with the spec's files) up to the
-    career menu, then on until the first load with the gate open. Checks: the old career's registry crossed (a load
+    career menu (the next s7_load comes at the season end, ~170 steps: the registry = the spec after after_new is
+    test_sreg's). Checks: the old career's registry crossed (a load
     moved rows - else nothing is proven); every s7_load call of the new career's setup NOREG or OK with 0 moved, the
     calls contiguous (no hit missed); the new selTeamNumber the club's native word (file 102); SWC1 world 5 after
-    after_new; the first load after it OK, 0 moved, the registry the spec's (its hash as rebuilt)."""
+    after_new."""
     import json
     team = 'EUROPA,ITALIA,SERIE C GIRONE A,UNION BRESCIA'
     env = s7_env({'GPLAY_FORCE': '20'})
@@ -27210,10 +27211,6 @@ def s7newcareer(loaded):
         st.update(w1=struct.unpack('<HHHH', r.obj2(sel, 8)), h1=hdr(r), x1=ld(r), g1=reg(r), n1=len(seen))
         s.log.append(f'[new career] selTeamNumber {st["w1"][0]:#x} SWC1 {st["h1"]} S7_LD {st["x1"]} REG {st["g1"]} '
                      f'({len(seen)} calls logged)')
-        x_ = st['x1']                                   # (on: the first load after after_new - gate open)
-        ok, msg = advance(s, lambda scr: ld(s.result)[6] > x_[6] and ld(s.result)[0] != 2, 60)
-        st.update(x2=ld(s.result), g2=reg(s.result), adv=msg)
-        s.log.append(f'[first open load] S7_LD {st["x2"]} REG {st["g2"]} ({msg[:80]})')
 
     keep_core = os.environ.get('CORE')
     try:
@@ -27253,18 +27250,15 @@ def s7newcareer(loaded):
     setup = seen + ([last] if not seen or seen[-1] != last else [])
     bad = [x for x in setup if x[0] not in (1, 2) or x[4]]
     check(not bad, f'new career setup: s7_load moved rows / failed {bad[:4]} (want NOREG or OK with 0 moved)', errs)
-    w1, h1, x2 = st['w1'], st['h1'], st['x2']
+    w1, h1 = st['w1'], st['h1']
     check(w1[0] & 0xFF == 102 and (native is None or w1[0] == native),
           f'new career: selTeamNumber {w1[0]:#x} (want the native {native and hex(native)}, file 102)', errs)
     check(h1[1] == 5, f'new career: SWC1 world {h1[1]} after after_new (want 5)', errs)
-    check(x2[6] > last[6] and x2[0] == 1 and not x2[4] and st['g2'][0] != st['g0'][0],
-          f'new career: the first load with the gate open {x2} REG {st["g2"]} (want OK, 0 moved, the registry '
-          f'rebuilt - not the old {st["g0"]}) ({st["adv"][:80]})', errs)
     return not errs, '; '.join(errs) or (
         f'{"loaded" if loaded else "in-session"} crossed career (selTeamNumber {st["w0"][0]:#x}, its load moved '
         f'{st["x0"][4]} rows of file {st["x0"][2]}, REG {st["g0"][0]}), then a new one: setup s7_load calls '
         f'{calls[0]}..{calls[-1]} statuses {sorted({x[0] for x in setup})}, 0 moved; UNION BRESCIA {w1[0]:#x} native, '
-        f'SWC1 world 5; first open load {x2[:7]} REG {st["g2"][0]} (spec)')
+        f'SWC1 world 5 after after_new')
 
 
 def s7cross_save(exe, team, at, sel, errs):

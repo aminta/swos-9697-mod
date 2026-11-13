@@ -245,6 +245,23 @@ ri_home:                                ; xtra_readto's xr_hook (S7, MC 13/11): 
     mov [XRTEAM], ax
     ret
 S7_HPTR: dd 0                           ; (s7swap.py: -> obj4 s7_home_word)
+
+ri_wnhome:                              ; winners.py wn_disk's first 6 bytes (pushad / mov esi, eax / movzx eax, al),
+    xchg eax, [esp]                     ; rewritten by s7swap.py to a call here (S7, MC 13/11): the same frame and
+    mov [RI_WNR], eax                   ; registers, esi / eax from the HOME word - DATA\\TEAM.nnn rows are the home
+    pop eax                             ; layout (a crossed club's name by its home record)
+    pushad
+    movzx eax, ax
+    cmp dword [S7_HPTR], 0
+    je .id
+    push eax
+    call [S7_HPTR]
+    add esp, 4
+.id:
+    mov esi, eax
+    movzx eax, al
+    jmp [RI_WNR]
+RI_WNR: dd 0
 %endif
 
 ri_after:                               ; pg_fix, after ri_season and pg_season: the cache, LoadTeamFile's cache
@@ -450,6 +467,7 @@ def patch(p, at, bss, tabs):
         LABELS.update(SETGLOBALS=sym['SETGLOBALS'], TEAMBUF=sym['TEAMBUF'])   # (host tests: the game's own globals)
     if 'ri_home' in lab:
         LABELS['S7_HPTR'] = (1, lab['S7_HPTR'])
+        LABELS['ri_wnhome'] = (1, lab['ri_wnhome'])     # (s7swap.py: winners.py wn_disk's entry -> here)
         import xtra
         o = xtra.LABELS['xr_hook']                  # (xtra_readto's `mov [xrteam], ax`: a crossed club's XTRA block
         want = b'\x66\xA3' + struct.pack('<I', xtra.LABELS['xrteam'])    # by its home word; p.get: chained

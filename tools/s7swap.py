@@ -239,8 +239,23 @@ def patch(p, ssyms, rsyms, gsyms, pgsyms, fsyms, risyms):
     import stadium
     if 'st_hptr' in stadium.LABELS:                     # (st_find: a crossed club's stadium by its home word, obj3)
         cobj.add_ptr(p, stadium.LABELS['st_hptr'][1], *syms['s7_home_word'], stadium.LABELS['st_hptr'][0])
+    import winners
+    wnoff = bool(os.environ.get('S7_WNOFF'))            # (test builds: wn_disk left native - world_s7cross_winners' control)
+    if wnoff:
+        import modver
+        assert modver.is_test()
+    if 'wn_disk' in winners.LABELS and not wnoff:       # (the WINNERS page's disk names by the home word - MC 13/11)
+        assert 'ri_wnhome' in risyms, 's7swap: a WINNERS page without ripool\'s ri_wnhome (S7 + XTRA)'
+        o = winners.LABELS['wn_disk'][1]
+        want = b'\x60\x89\xC6\x0F\xB6\xC0'           # pushad / mov esi, eax / movzx eax, al (p.get: chained hooks)
+        assert p.get(1, o, 6) == want, ('s7swap: wn_disk entry', p.get(1, o, 6).hex())
+        p.put(1, o, b'\xE8' + struct.pack('<i', risyms['ri_wnhome'][1] - (o + 5)) + b'\x90')
+        WNL = {'WN_DISK': winners.LABELS['wn_disk'], 'WN_FN': winners.LABELS['WN_FN']}   # (host tests)
+    else:
+        WNL = {}
     LABELS.clear()
     LABELS.update(syms)
+    LABELS.update(WNL)
     if 'st_cur' in stadium.LABELS:
         LABELS.update(ST_FIND=stadium.LABELS['st_find'], ST_GT1=stadium.LABELS['GT1'], ST_TOP=stadium.LABELS['TOP'])
         LABELS['ST_CUR'] = stadium.LABELS['st_cur']    # (world_s7cross_*: the versus screen's current / home word pair)

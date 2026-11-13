@@ -779,6 +779,9 @@ INC: INC_BYTES
 """
 
 
+LABELS = {}
+
+
 def sel_ptr(p):
     """selTeamsPtr: DIYLeagueTournament16BeforeDraw's row name (mov eax, [esi + 2B3h]; mov A1, eax; mov eax,
     selTeamsPtr; add A1, eax)."""
@@ -843,6 +846,9 @@ def patch(p, at, lang, sites):
                                                                                     # 4.0.2: onReturn)
         p.retarget(2, off, 1, lab[name])
         p.put(2, off, struct.pack('<I', lab[name]))
+    LABELS.clear()
+    LABELS['wn_disk'] = (1, lab['wn_disk'])
+    LABELS['WN_FN'] = (1, lab['WN_FN'])            # (S7: s7swap.py turns its entry into ripool's ri_wnhome)
     print(f'exe: SEASON WINNERS page: entry obj2+{wn["sel"]:#x}, code obj1+{at:#x} ({len(code)} B)')
     return at + len(code)
 

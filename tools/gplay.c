@@ -3509,6 +3509,16 @@ static int title_is(const u8 *t, const u8 *s) {  /* a slot's title (DIY+4, 34 ch
     while (j < 34 && t[j] && t[j] == s[j]) j++;
     return j && (j == 34 || (!t[j] && !s[j]));
 }
+/* 4.2 (Regia 13/11, perf): the contest structs slots 2 / 3 can hold after a load (sacups.SLOT23: the euro chain's
+   copies and originals, the SA cups, the extra / continental cups; gplay.py fills them after the link): their long
+   names are where a slot's title is searched, else the slot's own title (b + 4). No byte scan of obj2 any more: a
+   title in no candidate scanned all of it at every load (W84E's slot 3 ' COPPA CAMPIONI EUROPEA', in no exe: 36 of
+   that load's 110 ticks at 486 speed); one it found was the slot's own title (4.1.1 cv_s2: INGHILTERRA EFL CUP,
+   UEFA CHAMPIONS LEAGUE at b + 4, the lowest copy). */
+#define GP_RPMAX 64
+const u8 *GP_RPS[GP_RPMAX] = { (const u8 *)1 };   /* (not in .bss) */
+u32 GP_RPSN = 1;
+
 void gp_repoint_c(u8 *const *slots, u8 *const *structs, u32 base, u32 div, u32 lim) {
     for (int k = 0; k < 5; k++) {
         u8 *b = slots[k];
@@ -3518,7 +3528,8 @@ void gp_repoint_c(u8 *const *slots, u8 *const *structs, u32 base, u32 div, u32 l
                                            D8CAA[3] may already be conti's next contest while the buffer is still
                                            this season's. The old absolute DIY+27h (another build's obj2) gave a
                                            wrong title and the season record's +1Eh / +22h line (DIY+27h -
-                                           STR_BASE) at the season end. */
+                                           STR_BASE) at the season end. The candidates: D8CAA[k], the old
+                                           pointer, GP_RPS (no obj2 byte scan, Regia 13/11). */
             if (!b || !b[4]) continue;
             const u8 *cur = *(const u8 *const *)(b + 0x27);
             if (!cur) continue;
@@ -3529,8 +3540,15 @@ void gp_repoint_c(u8 *const *slots, u8 *const *structs, u32 base, u32 div, u32 l
                     ln = (const u8 *)(base + r);
             }
             if (!ln && (u32)cur > base && (u32)cur < lim && str_ok(cur) && title_is(b + 4, cur)) continue;
-            for (const u8 *q = (const u8 *)base + 1; !ln && (u32)q < lim; q++)
-                if (*q == b[4] && !q[-1] && title_is(b + 4, q) && str_ok(q)) ln = q;
+            for (u32 i = 0; !ln && i < GP_RPSN && i < GP_RPMAX; i++) {
+                const u8 *c = GP_RPS[i];
+                if ((u32)c < 0x1000) continue;
+                u32 r = *(const u32 *)(c + 5 + c[5]);
+                if (r && r < lim - base && str_ok((const u8 *)(base + r)) && title_is(b + 4, (const u8 *)(base + r)))
+                    ln = (const u8 *)(base + r);
+            }
+            if (!ln && str_ok(b + 4)) ln = b + 4;   /* (no candidate: the slot's own title - where 5c658a3's byte
+                                                       scan landed for such a save anyway: the lowest copy in obj2) */
             if (ln) *(const u8 **)(b + 0x27) = ln;
             continue;
         }

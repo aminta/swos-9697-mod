@@ -11,7 +11,61 @@ TEST = os.environ.get('S7_WSITES_TEST') == '1'       # (host-test builds only: T
 WI_CFB, WI_CACHE, WI_MAIN, WS_END, WS_MAX = 0, 1, 2, 0xFFFF, 128
 WS_W, WS_G, WS_O8, WS_K = 1, 2, 3, 4
 
+# WSITES 4a (Panchina 13/11): the engine items' word / global sites (n7-s7-clubmap.md §4a), forms W and G only - the
+# walker's (O8 / K rows wait for their pieces: CD ent and CF rank (O8, file 102 by ordinal), F1 / ST / LR / SH / the SS
+# banks' key byte (K: WS_KEYS callbacks, Shaved)). Offsets from the structs (i686, clang -target i686: test_wsites
+# test_wsites_layout recomputes every row from offsetof / the modules' constants). Not walked: CN, BQ, CR, CC, GI, FF,
+# TR, T3, UP, SWC1 (no team word), SR / SB (Brazilian state files only), RI (Italy retired by RB: feeds the import),
+# BT_EXT (someLeaguesTable bytes 2000+: one byte per global - a table indexed BY global, not a word site; the
+# swap builder's re-base owns such tables), BU (bteam.py: its B team words are DATA\\BAGE.nnn's, HOME words - identity
+# data by the HOME word, MC 13/11 - compared with BAGE's again: walking them would break the match; the S7 audit's
+# bteam item). rows() keeps a build's own items only (an item it does not save: no row).
 ROWS = [
+    # GP (gplay.c struct gp_state, 2048 B): srow[SD 2][GT 32] {u16 team; ...} 10 B at +8; ko[2] (674 B at +648):
+    # team[KN 24] at +474; dec[3] (12 B at +1996): team[2] at +4, glob[2] at +8
+    ('GP', 8, 10, 64, WS_W, 0),
+    ('GP', 648 + 474, 2, 24, WS_W, 0),
+    ('GP', 648 + 674 + 474, 2, 24, WS_W, 0),
+    ('GP', 1996 + 4, 12, 3, WS_W, 0),
+    ('GP', 1996 + 6, 12, 3, WS_W, 0),
+    ('GP', 1996 + 8, 12, 3, WS_G, 0),
+    ('GP', 1996 + 10, 12, 3, WS_G, 0),
+    # GS (struct gp_gs, 1408 B): srow[GSD 7][GSR 20] at +8, 10 B
+    ('GS', 8, 10, 140, WS_W, 0),
+    # SS / SS2 (struct gp_ss, one bank, 1542 B): r[SS_N 4][GT 32] {u16 team, glob; ...} 12 B at +6 (key byte +5: K, later)
+    ('SS', 6, 12, 128, WS_W, 0),
+    ('SS', 8, 12, 128, WS_G, 0),
+    ('SS2', 6, 12, 128, WS_W, 0),
+    ('SS2', 8, 12, 128, WS_G, 0),
+    # CD (struct cd_state, 1032 B): gen[2 x (CDP 41 + CD1 64)] at +612 (ent[256] at +348: O8, later)
+    ('CD', 612, 2, 210, WS_W, 0),
+    # WN (struct wn_state, 164 B): e[WN_N 40] {u8 type, idx; u16 team} at +4
+    ('WN', 6, 4, 40, WS_W, 0),
+    # RS (RS_STATE[RC 8], struct rs_state 132 B): q[RQ 64] globals at +4 of each
+    *[('RS', 132 * c + 4, 2, 64, WS_G, 0) for c in range(8)],
+    # PR (struct pr_state, 388 B): c[PR_N 48] {u16 glob, p[2]; u8 m[2]} 8 B at +4
+    ('PR', 4, 8, 48, WS_G, 0),
+    # SC (gplay.c SC_ST, supercup.py: SC_H 12 + 12 x SC_NE 16): the cups below the last entry {db file, cid, 0, 0;
+    # dw winner, winner global, finalist, finalist global}; the last entry (SC_U) the UEFA Super Cup's: db season, state,
+    # won, snapshot season; dw winner, holders CL, EL, UECL
+    ('SC', 12 + 4, 12, 15, WS_W, 0),
+    ('SC', 12 + 6, 12, 15, WS_G, 0),
+    ('SC', 12 + 8, 12, 15, WS_W, 0),
+    ('SC', 12 + 10, 12, 15, WS_G, 0),
+    ('SC', 12 + 12 * 15 + 4, 2, 4, WS_W, 0),
+    # CT (conti.h struct ct_state, 196 B): hold[NCUP 16] {u16 id; u8 assoc, pad; u32 str, pts} 12 B at +4
+    ('CT', 4, 12, 16, WS_W, 0),
+    # CE (struct ct_ed, 2260 B): mgr at +8; e[NED 440] {u8 id0, id1, cr, s0, s1} at +60 (id0 | id1 << 8: a word)
+    ('CE', 8, 0, 1, WS_W, 0),
+    ('CE', 60, 5, 440, WS_W, 0),
+    # US (uesum.h struct cup, 290 B): t[NTIE 22] {u16 x, y; u8 l1, l2, pn, fl} at +6; lw[NLP 36] at +182
+    ('US', 6, 8, 22, WS_W, 0),
+    ('US', 8, 8, 22, WS_W, 0),
+    ('US', 182, 2, 36, WS_W, 0),
+    # XS (xtra.py xsold, 2 + 3 x XSOLD 128): dw count, then {dw seller's word, db index} (S7 audit, MC 13/11)
+    ('XS', 2, 3, 128, WS_W, 0),
+    # XL (xleft.py, 5 + 3 x XLMAX 32): db on, dw count, dw oldest, then {dw managed club's word, db index} (S7 audit)
+    ('XL', 5, 3, 32, WS_W, 0),
 ]
 # S7_WSITES_TEST=1 (test builds, modver.is_test): a cache row inside the players' bytes, a careerFileBuffer row of
 # globals and an engine item's words - places the host test pokes (test_s7swap test_s7walk), never real data
@@ -28,7 +82,8 @@ def rows():
         import modver
         assert modver.is_test(), 'S7_WSITES_TEST: test builds only'
         return TEST_ROWS
-    return ROWS
+    import engine
+    return [r for r in ROWS if not isinstance(r[0], str) or r[0] in engine.SAVE_ITEMS]   # (this build's items)
 
 
 def table(rows=None):

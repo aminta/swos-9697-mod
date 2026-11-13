@@ -2609,6 +2609,82 @@ def _label_data():
     return _LABEL_DATA
 
 
+# 4.2 C3 (calendar contract, MC 13/11; internal/handoff/c-calendar-contract.md): the career calendar's invariants on
+# every career-menu screen of advance(), read from the live game (no exe code, no test switch) - the same C1..C4 as
+# hosttest test_calendar_lib (Panchina's goldens of the 4.0.5 bugs):
+#  C1 well formed: `count` entries of len >= 8, weeks non-decreasing;
+#  C2 the league (slot 0) at most two career days (byte 6 > 0, byte 4 = 0, round != FFh) in one week: a real midweek
+#     round shares the weekend's career week at 8 weeks a month (MLS, Honduras, Peru, Colombia; MC 13/11), counted in
+#     CAL_STATS['c2l']; a third is a duplicated round (Panchina) and FAILs. The other slots' contests may be played in a
+#     block (a final four, the national team's finals: world8485_nat's Euro 88 group, slot 1 week 152 x 3 - the game's own
+#     calendar, 3.1): logged as info, never a FAIL (C3 keeps the crash class). test_calendar_lib: LEAGUE_MAX, FF_SLOTS;
+#  C3 no career day ahead of the cursor in a week already reached;
+#  C4 careerFinished (FINISH SEASON) == 1 iff no career day is ahead, on the screens that show the menu's button (not
+#     between seasons: seasonFinished set; other screens read the flag only after their own rescan).
+# Errors FAIL the scenario (the run loop, as LABEL_ERRS); SWOSTEST_CALCHECK=0 turns it off for a debug run only.
+CAL_ERRS, CAL_STATS = [], {'checks': 0, 'c4': 0, 'c2l': 0, 'c2b': 0, 'c2b_last': None}
+CAL_SEASON_OVER, CAL_SEASON_FIN = 0x18DF2, 0x18DF0   # (obj2 careerFinished / seasonFinished, test_calendar_lib)
+
+
+def cal_check(s, step, scr=None):
+    try:
+        r = s.result
+        u16 = lambda off: struct.unpack('<H', bytes(r.obj2(off, 2)))[0]
+        cnt, cur = u16(CAL_AT - 4), u16(CAL_CUR_AT)
+        if cnt == 0 or cnt > 400:
+            return
+        rows, o = [], 0
+        for i in range(cnt):
+            h = bytes(r.obj2(CAL_AT + o, 8))
+            ln = struct.unpack_from('<H', h, 2)[0]
+            rows.append((i, o, h[0], h[1], h[4], struct.unpack('b', h[6:7])[0], h[7], ln))
+            if ln < 8:
+                break
+            o += ln
+    except Exception:
+        return
+    CAL_STATS['checks'] += 1
+    bad = []
+    if len(rows) != cnt or any(x[7] < 8 for x in rows):
+        bad.append(f'C1 {len(rows)} of {cnt} entries')
+    wk = [x[3] for x in rows]
+    if any(b < a for a, b in zip(wk, wk[1:])):
+        bad.append(f'C1 weeks out of order')
+    seen = {}
+    for i, off, slot, week, b4, b6, rnd, ln in rows:
+        if b6 > 0 and b4 == 0 and rnd != 0xFF:
+            seen.setdefault((slot, week), []).append(i)
+    two = {k: v for k, v in seen.items() if k[0] == 0 and len(v) > 2}    # (the league: 2, a third = a duplicate)
+    CAL_STATS['c2l'] = max(CAL_STATS['c2l'], sum(1 for k, v in seen.items() if len(v) > 1 and k[0] == 0))
+    blk = sorted(k for k, v in seen.items() if k[0] != 0 and len(v) > 1)   # (a cup played in a block: counted, logged)
+    if blk and blk != CAL_STATS.get('c2b_last'):
+        CAL_STATS['c2b'] = CAL_STATS.get('c2b', 0) + len(blk)
+        CAL_STATS['c2b_last'] = blk
+        s.log.append(f'[calcheck] step {step}: C2 info: a contest played in a block (slot, week) {blk}')
+    if two:
+        bad.append(f'C2 two career days of one contest in a week {two}')
+    now = next((x[3] for x in rows if x[1] == cur), None)
+    ahead = [x for x in rows if (x[1] == cur and x[5] != 0) or (x[1] >= cur and x[4] == 0 and x[5] != 0)]
+    past = [(x[0], x[2], x[3]) for x in ahead if now is not None and x[3] < now]
+    if past:
+        bad.append(f'C3 career days ahead in a week already reached (week {now}) {past[:3]}')
+    shown = [] if scr is None else [w for w in ('FINE STAGIONE', 'FINISCI STAGIONE', 'FINISH SEASON', 'PARTITA',
+                                                'PLAY MATCH') if scr.find(w) is not None]
+    if shown and u16(CAL_SEASON_FIN) == 0:            # (C4 only where the menu shows the button: the flag is what it
+        flag = u16(CAL_SEASON_OVER)                    # draws; mid-screens after a match read it after their rescan)
+        CAL_STATS['c4'] += 1
+        if (flag == 1) != (not ahead):
+            bad.append(f'C4 FINISH SEASON flag {flag} with {len(ahead)} career days ahead '
+                       f'{[(x[0], x[2], x[3], x[5]) for x in ahead][:3]}')
+    if bad:
+        bad = [b + f' [screen: {shown}]' for b in bad]
+    for b in bad:
+        e = f'step {step}: {b}'
+        s.log.append(f'[calcheck] {e}')
+        if e not in CAL_ERRS and len(CAL_ERRS) < 20:
+            CAL_ERRS.append(e)
+
+
 def label_check(s, step):
     """The fixture list's competition labels of this career-menu screen (see LABEL_ERRS); errors go to LABEL_ERRS.
     The rows are the ones CareerGameListCommon draws: gameListArray (obj2 GLA_AT, 14 x (calendar entry, game) pointers, filled
@@ -2701,6 +2777,8 @@ def advance(s, stop, max_steps=400):
         s.log.append(f'[{step}] {scr}')
         if os.environ.get('SWOSTEST_LABELS', '1') == '1' and scr.find('VISUAL. COMPETIZ.', exact=True) is not None:
             label_check(s, step)                         # (4.0.5: every competition name of the fixture list)
+        if os.environ.get('SWOSTEST_CALCHECK', '1') == '1':
+            cal_check(s, step, scr)                      # (4.2 C3: the calendar invariants C1..C4)
         if os.environ.get('GP_CALTRACE'):              # (debug: the calendar from the cursor - slot week b4 b5 b6)
             try:
                 cur = struct.unpack('<H', bytes(r.obj2(CAL_CUR_AT, 2)))[0]
@@ -6411,7 +6489,9 @@ def lp36_tourney():
 
 def converter_build(name, env):
     """internal/world2526/run.sh into builds/<name>-<key> (build_key with the converter's own files' times), under
-    world_lock; an existing complete dir of the same key is reused. Returns (dir, error text or '')."""
+    world_lock; an existing complete dir of the same key is reused. Returns (dir, error text or ''). Its callers pass
+    EURO_OPTIONAL=1 as the scenario builds do (MC 13/11: the converter's test world has no gplay tail / split page, so
+    patch.py's euro guard of 09/11 stopped world2526 / world2526q's builds since)."""
     conv = os.path.join(MAIN, 'internal', 'world2526')
     stamp = ''.join(f'{f}:{os.path.getmtime(f)}' for f in sorted(glob.glob(os.path.join(conv, '*.py')) +
                                                                   glob.glob(os.path.join(conv, '*.sh'))))
@@ -6459,7 +6539,7 @@ def world2526():
     run = os.path.join(MAIN, 'internal', 'world2526', 'run.sh')
     if not os.path.exists(run):
         return True, 'SKIP: private converter internal/world2526 missing'
-    out, err = converter_build('world2526', {'LP': '1', 'CONTI_CONFS': 'none'})   # (the UEFA test world: no other
+    out, err = converter_build('world2526', {'LP': '1', 'CONTI_CONFS': 'none', 'EURO_OPTIONAL': '1'})   # (the UEFA test world: no other
     if err:                                     # confederations' cups - its partial South America; its own dir)
         return False, err
     keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K')}
@@ -6484,7 +6564,7 @@ def world2526q():
     run = os.path.join(MAIN, 'internal', 'world2526', 'run.sh')
     if not os.path.exists(run):
         return True, 'SKIP: private converter internal/world2526 missing'
-    out, err = converter_build('world2526q', {'LP': '1', 'UEFAQ_FORCE': 'CL Q1'})
+    out, err = converter_build('world2526q', {'LP': '1', 'UEFAQ_FORCE': 'CL Q1', 'EURO_OPTIONAL': '1'})
     if err:
         return False, err
     keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_FILL')
@@ -32234,6 +32314,8 @@ def main(argv):
                 DATA_USED.clear()
                 del PICKED[:]
                 del LABEL_ERRS[:]
+                del CAL_ERRS[:]
+                CAL_STATS.update(checks=0, c4=0, c2l=0, c2b=0, c2b_last=None)
                 LABEL_STATS.update(rows=0, keyed=0, fallback=set())
                 del CTSD_ERRS[:]
                 del FORCE_ERRS[:]
@@ -32244,6 +32326,10 @@ def main(argv):
                 ok, msg = SCENARIOS[n]()
                 if ok and LABEL_ERRS:                       # (4.0.5: a wrong competition name FAILs the scenario)
                     ok, msg = False, f'contest names: {LABEL_ERRS[:3]}; ' + msg
+                if ok and CAL_ERRS:                         # (4.2 C3: a broken calendar invariant FAILs it)
+                    ok, msg = False, f'calendar: {CAL_ERRS[:3]}; ' + msg
+                elif CAL_STATS['checks']:
+                    msg += f" [cal: {CAL_STATS['checks']} checks ({CAL_STATS['c4']} C4 at the menu), 0 violations" + (f", {CAL_STATS['c2l']} league midweek week(s)" if CAL_STATS['c2l'] else '') + (f", {CAL_STATS['c2b']} cup block(s)" if CAL_STATS.get('c2b') else '') + ']'
                 if CTSD_ERRS:                               # (4.2 AFC mode: a refused / out-of-budget group draw -
                     ok, msg = False, f'ctdraw: {CTSD_ERRS[:3]}; ' + msg   # named on a FAIL too: often its cause)
                 if FIELD_ERRS:                              # (root fix C: a club the data cannot give in a round)

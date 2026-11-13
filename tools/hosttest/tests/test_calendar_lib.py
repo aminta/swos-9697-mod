@@ -9,8 +9,10 @@ round (FFh: a played tie's old entry, uefaq). The invariants (step C's checker):
   C1 well formed: `count` entries, each len >= 8, weeks in calendar order (non-decreasing; past 128 in a career that
      spans more - NZ's Grand Final at 141, 3.2.7);
   C2 one match a club a week: at most one career day per (slot, week) - two contests in one week are the game's own
-     (league weekend + continental midweek, h_uru week 72), two days of one contest are not; a slot's final four
-     (semi-finals + final in one week) is the documented exception (FF_SLOTS);
+     (league weekend + continental midweek, h_uru week 72), two days of one contest are not; exceptions: a slot's
+     final four (semi-finals + final in one week, FF_SLOTS) and the league (slot 0), at most LEAGUE_MAX = 2 a week: a
+     real midweek round - MLS, Honduras, Peru, Colombia - lands in the weekend's career week at 8 weeks a month (MC
+     13/11, 42-cal DOSBox gate); a third is a duplicated round (Panchina);
   C3 no career day ahead of the cursor in a week already reached (adce370's Libertadores q2: a first leg in a played
      week, only RITORNO left, ESCI crashed to DOS);
   C4 FINISH SEASON exactly when no career day is ahead: the game's next-day scan (NEXT_SCAN) sets SEASON_OVER 1 iff the
@@ -32,7 +34,10 @@ FIX = os.path.join(HOME, 'swos-mod', 'internal', 'hosttest', 'fixtures')
 NEXT_SCAN = 0x7EA7F                     # (test_nzgf: the game's cseg_8EC2B, obj1, unpatched game code)
 SEASON_OVER = 0x18DF2                   # (its result, obj2 word careerFinished: 1 = no career day ahead - FINISCI STAGIONE)
 SEASON_FIN = 0x18DF0                    # (obj2 word seasonFinished: set, the scan answers 1 at once - between seasons)
-FF_SLOTS = ()                           # slots allowed two career days in one week (a final four's slot, when a fixture has one)
+FF_SLOTS = (1, 2, 3, 4)                 # slots whose contest may be played in a block in one week (a final four, the national
+                                        # team's finals: world8485_nat's Euro 88 group, slot 1 week 152 x 3; MC 13/11) - swostest
+                                        # logs them as info
+LEAGUE_MAX = 2                          # the league's career days in one week (a real midweek round; a third = a duplicate)
 
 
 def build_dir(code):
@@ -98,7 +103,7 @@ def check(m, scan=True, glue=False):
     for r in rows:
         if r['b6'] > 0 and r['b4'] == 0 and r['rnd'] != 0xFF:
             seen.setdefault((r['slot'], r['week']), []).append(r['i'])
-    two = {k: v for k, v in seen.items() if len(v) > 1 and k[0] not in FF_SLOTS}
+    two = {k: v for k, v in seen.items() if len(v) > (LEAGUE_MAX if k[0] == 0 else 1) and k[0] not in FF_SLOTS}
     if two:
         bad.append(f'C2 two career days of one contest in one week (slot, week): {two}')
     now = next((r['week'] for r in rows if r['off'] == cur), None)

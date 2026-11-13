@@ -27147,6 +27147,15 @@ def s7reg_parse(b):
     return word, at, rows
 
 
+def s7_nri(sy, hexes):
+    """The pool moves ri logged in a session (the largest RI_NMOVES seen), 0 when the build does not log them."""
+    s7 = sy.get('s7swap', {})
+    if 'RI_NMOVES' not in s7:
+        return 0
+    key = f'o{s7["RI_NMOVES"][0]}/{s7["RI_NMOVES"][1]:x}'
+    return max([struct.unpack('<i', b)[0] for o, b in hexes if o == key] or [0])
+
+
 def s7pool_hex(sy):
     """(M4, 4.2 S7 x pool, s7-ri-fix.md) W8485_HEX items: ri's log (s7ri.c RI_MOVES / RI_NMOVES / RI_S7_BAD, s7swap.c S7_RIMV),
     ri's state head (gplay RI_STATE: init, qn, q) and the registry (engine arena), logged when they change."""
@@ -27284,8 +27293,9 @@ def s7cross(force, team, start_file, ldfail=None):
     get = lambda s, k: [b for o, b in hexes[s] if o == k]
     logs = get(0, f'o4/{at("S7_LOG"):x}')
     st = [b for b in logs if b[0]]
-    check(bool(st) and st[-1][0] == 1 and st[-1][2] == 9 and st[-1][3] == 18,
-          f'S7_LOG {[b.hex() for b in st[-3:]]} (want status 1, 9 swaps, 18 crossers)', errs)
+    nri = s7_nri(sy, hexes[0])                      # (S7 x pool, 13/11: ri's moves are registry swaps too: nswap = 9 crossings + the pool moves)
+    check(bool(st) and st[-1][0] == 1 and st[-1][2] == 9 + nri and st[-1][3] == 18,
+          f'S7_LOG {[b.hex() for b in st[-3:]]} (want status 1, {9 + nri} swaps = 9 + {nri} pool moves, 18 crossers)', errs)
     cl = [struct.unpack('<HHh', b) for b in get(0, f'o4/{at("S7_CLOG"):x}')]
     cross = [c for c in cl if c[1]]
     new = cross[-1][1] if cross else None
@@ -27354,9 +27364,9 @@ def s7cross(force, team, start_file, ldfail=None):
             ones = [i for i, v in enumerate(ent) if v == 1]
             bad = [(i, v) for i, v in enumerate(ent[:nd]) if v == 0 or (v != 1 and not 2 <= v <= 19 and v != 0x40)]
             nfc, nfp = e2[0][259], e2[0][260]           # (cd_season's own arrivals, before the swap: from Serie C natively,
-            want = 9 + nfc + nfp                        #  from the pool; then the swap's 9 down-crossers, fill 1)
+            want = 9 + nri + nfc + nfp                  #  from the pool; then the swap's 9 down-crossers, fill 1; S7 x pool: + ri's moves)
             check(len(ones) == want and (new >> 8) in ones, f'Coppa D ent: {len(ones)} rows at 1 (new to Serie D) {ones[:12]} '
-                  f'(want {want}: 9 down-crossers + cd_season\'s {nfc} from Serie C + {nfp} from the pool; the career '
+                  f'(want {want}: 9 down-crossers + {nri} pool moves (ri, in the registry) + cd_season\'s {nfc} from Serie C + {nfp} from the pool; the career '
                   f'club\'s row {new >> 8} among them)', errs)
             check(nd == 162 and not bad and e2[0][256] == 1, f'Coppa D ent: {nd} rows (want 162), stayers not a place '
                   f'{bad[:6]}, efresh {e2[0][256]}', errs)

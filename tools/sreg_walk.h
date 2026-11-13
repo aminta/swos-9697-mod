@@ -17,6 +17,11 @@
    - form: WS_W a u16 team word (file | ordinal << 8; 0 / FFFFh = none); WS_G a u16 global number; WS_O8 a u8 ordinal
      whose file is the byte at aux (0FFh: file 102 fixed) - not handled yet (-2); WS_K a key computed over words:
      aux = the index of its owner's re-key callback in WS_KEYS[] (run once after the whole walk) - not handled yet (-2).
+   - WS_R (Panchina 13/11, cf-st-s7.md): a u8 array indexed by ORDINAL of a file (off, count <= 256, stride 1; aux = the
+     offset in the same item of the byte holding that file): each entry whose row's registry club CHANGED (its word is the
+     old or the new word of a swap pair) is cleared to 0 = "unknown" - the entry described the departed club; entries of
+     rows that kept their club are untouched. Not a permutation: such a table is one file's, a crosser has no entry in
+     the other file's.
    - aux: per form above, else 0. */
 #ifndef SREG_WALK_H
 #define SREG_WALK_H
@@ -25,7 +30,7 @@ typedef struct { uint16_t item; uint16_t off, stride, count; uint8_t form, aux; 
 typedef struct { uint8_t file, rows; uint16_t base; uint8_t ord0, pad[3]; } sreg_gfile;   /* a WS_G run of a file:
                                            globals [base, base + rows) = ordinals [ord0, ord0 + rows); rows 0 = 256
                                            (a split file - G144 - has two runs) */
-enum { WS_W = 1, WS_G = 2, WS_O8 = 3, WS_K = 4 };
+enum { WS_W = 1, WS_G = 2, WS_O8 = 3, WS_K = 4, WS_R = 5 };
 enum { WI_CFB = 0, WI_CACHE = 1, WI_MAIN = 2, WI_CFBH = 3 };
 #define WS_END 0xFFFF
 #define WS_MAX 128                              /* WSITES' room: rows + the WS_END row (wsites.py asserts) */

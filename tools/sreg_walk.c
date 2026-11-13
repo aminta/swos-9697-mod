@@ -36,9 +36,27 @@ static int32_t gindex(const sreg_gfile *g, int32_t ng, uint32_t file, uint32_t o
     return -1;
 }
 
+static int32_t walk_rows(const sreg_wsite *s, uint8_t *b, int32_t len, const sr_wpair *m, int32_t n)
+{                                               /* WS_R: clear the entries of the rows whose club changed */
+    if (!s->count) return 0;
+    if (s->count > 256 || s->off + (int32_t)s->count > len || s->aux >= len) return -1;
+    int32_t changed = 0;
+    uint32_t file = b[s->aux];
+    for (uint32_t k = 0; k < s->count; k++) {
+        uint16_t w = (uint16_t)(file | k << 8);
+        for (int32_t i = 0; i < n; i++)                     /* (its club left or a club arrived: a pair names the row) */
+            if ((m[i].from == w || m[i].to == w) && m[i].from != m[i].to) {
+                if (b[s->off + k]) { b[s->off + k] = 0; changed++; }
+                break;
+            }
+    }
+    return changed;
+}
+
 int32_t sreg_walk_site(const sreg_wsite *s, uint8_t *b, int32_t len, const sr_wpair *m, int32_t n,
                        const sreg_gfile *g, int32_t ng)
 {
+    if (s->form == WS_R) return walk_rows(s, b, len, m, n);
     if (s->form != WS_W && s->form != WS_G) return -2;
     if (!s->count) return 0;
     if (s->off + (int32_t)(s->count - 1) * s->stride + 2 > len || (s->count > 1 && s->stride < 2)) return -1;

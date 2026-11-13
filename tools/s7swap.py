@@ -150,7 +150,7 @@ def late(p):
         else:
             assert iid in names, ('s7swap: WSITES row on an engine item this build does not save', k, item)
             size = engine.SAVE_ITEMS[names[iid]][0]
-        assert off + max(count - 1, 0) * stride + 2 <= size, ('s7swap: WSITES row past its item', k, item, size)
+        assert off + max(count - 1, 0) * stride + (1 if form == wsites.WS_R else 2) <= size, ('s7swap: WSITES row past its item', k, item, size)
     if 'ST' in engine.ITEM_AT:
         LABELS['ST_ITEM'] = engine.ITEM_AT['ST']          # (host tests: the TEST rows' engine item)
     print(f's7swap: WSITES {len(rows)} rows{" (TEST rows: S7_WSITES_TEST)" if wsites.TEST else ""}')

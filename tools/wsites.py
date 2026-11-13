@@ -9,7 +9,7 @@ import struct
 TEST = os.environ.get('S7_WSITES_TEST') == '1'       # (host-test builds only: TEST_ROWS instead of ROWS)
 
 WI_CFB, WI_CACHE, WI_MAIN, WI_CFBH, WS_END, WS_MAX = 0, 1, 2, 3, 0xFFFF, 128   # (WI_CFBH: careerFileBuffer + 0x10000)
-WS_W, WS_G, WS_O8, WS_K = 1, 2, 3, 4
+WS_W, WS_G, WS_O8, WS_K, WS_R = 1, 2, 3, 4, 5
 
 # WSITES 4a (Panchina 13/11): the engine items' word / global sites (n7-s7-clubmap.md §4a), forms W and G only - the
 # walker's (O8 / K rows wait for their pieces: CD ent and CF rank (O8, file 102 by ordinal), F1 / ST / LR / SH / the SS
@@ -85,6 +85,11 @@ ROWS = [
     ('US', 6, 8, 22, WS_W, 0),
     ('US', 8, 8, 22, WS_W, 0),
     ('US', 182, 2, 36, WS_W, 0),
+    # CF (gplay.c struct cf_state, 260 B: u16 magic, u8 season, file; u8 rank[256]) - WS_R: last season's places by ordinal of
+    # file CF_ST.file (byte +3); a crosser's row is cleared (cf-st-s7.md); CN (struct cn_state, 36 B: u8 season, pad[3],
+    # name[32]): pad[0..1] = the career club's division winner's WORD, pad[2] = 'W' marks it (S7 builds)
+    ('CF', 4, 1, 256, WS_R, 3),
+    ('CN', 1, 2, 1, WS_W, 0),
     # XS (xtra.py xsold, 2 + 3 x XSOLD 128): dw count, then {dw seller's word, db index} (S7 audit, MC 13/11)
     ('XS', 2, 3, 128, WS_W, 0),
     # XL (xleft.py, 5 + 3 x XLMAX 32): db on, dw count, dw oldest, then {dw managed club's word, db index} (S7 audit)
@@ -122,8 +127,8 @@ def table(rows=None):
             item = engine.item_id(item)
             assert item not in (WI_CFB, WI_CACHE, WI_MAIN, WI_CFBH, WS_END), ('wsites: an item id clashes', item)
             ids.add(item)
-        assert form in (WS_W, WS_G, WS_O8, WS_K) and 0 <= off < 0x10000 and count < 0x10000, ('wsites: row', item, off)
-        assert count <= 1 or stride >= (1 if form == WS_O8 else 2), ('wsites: stride', item, off)
+        assert form in (WS_W, WS_G, WS_O8, WS_K, WS_R) and 0 <= off < 0x10000 and count < 0x10000, ('wsites: row', item, off)
+        assert count <= 1 or stride >= (1 if form in (WS_O8, WS_R) else 2), ('wsites: stride', item, off)
         out += struct.pack('<4H2B', item, off, stride, count, form, aux)
     assert len(rows) < WS_MAX, ('wsites: rows past WS_MAX', len(rows))
     return (out + struct.pack('<4H2B', WS_END, 0, 0, 0, 0, 0)).ljust(10 * WS_MAX, b'\0')

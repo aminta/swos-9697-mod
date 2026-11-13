@@ -1767,7 +1767,9 @@ def pages(splits):
     if any(st.get('members') for *_, sp in splits for st in sp.get('stages') or []):
         size = 0x1100                              # 4.1.2 ZP_ASM in (a league in zones, as patch's 'zoned'): 0x10B8
                                                    # measured 13/11 (world_sa_uru: 0xE80 left it 0xF8 B over its pages;
-                                                   # world5tm-h2: estimate 0x5FB8 vs 0x5FA8 real, still 6 pages)
+                                                   # world5tm-h2: estimate 0x5FB8 vs 0x5FA8 real, still 6 pages).
+                                                   # Margin 0x48 only: whoever grows ZP_ASM / the split code raises this
+                                                   # guess (patch.py's sp_end assert catches it, loudly)
     size += 16                                     # (the table's end: an entry of length 0)
     for world, file, div, n, spec in splits:
         size += len(entry(world, file, div, n, spec, [(a, b) for a in range(n) for b in range(a + 1, n)])[0])

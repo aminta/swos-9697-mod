@@ -929,10 +929,9 @@ static void it_save(void)
         return;
     int n = ((sreg_size_t)SREG_FN[0])();
     u32 len;
-    u8 *d = swc1_find(SEC_IT, &len);
-    if (!d)                             /* (no 'IT' yet - a new career: its SWC1 zeroed - or an older save: the
-                                           registry from the spec, as it_load built it) */
-        ((sreg_void_t)SREG_FN[3])();
+    u8 *d = swc1_find(SEC_IT, &len);   /* (no 'IT' yet - a new career, an older save - writes the registry as it is:
+                                           swe_st_new / it_load already started it from the spec; a reset here threw
+                                           a crossing before the first save away - Shaved 13/11, S7 newafter) */
     if (d && (int)len != n) {           /* (another layout's section: out, written again) */
         swc1_cut(d);
         d = 0;

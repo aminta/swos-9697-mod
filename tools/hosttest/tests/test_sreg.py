@@ -203,6 +203,24 @@ def test_sreg():
     if sections(d.rd(d.swc1, 32)):
         errs.append(f'dormant save: sections {sections(d.rd(d.swc1, 32))}')
 
+    # Shaved 13/11 (world_s7cross_newafter): a crossing before a new career's first save (S7 at season 1's end) is what
+    # that save writes - it_save's first 'IT' keeps the registry as it is, never a rebuild from the spec - and a load
+    # gives it back
+    DX = list(ITALY_DIV)
+    DX[1], DX[151] = DX[151], DX[1]
+    m.new_career()
+    shape(ITALY, DX)
+    RX = fresh()                                            # (the crossed registry, built; then the spec back:
+    shape(ITALY, ITALY_DIV)                                 # REG is the career's, not the spec's)
+    m.call('swe', 'swe_st_save')
+    SX = m.rd(m.swc1, size)
+    m.new_career()
+    m.load(SX)
+    if RX == R0 or regb() != RX or last() != 1:
+        errs.append(f'a crossing before the first save: load {last()}, registry '
+                    f'{"the crossed one" if regb() == RX else "the spec" if regb() == R0 else "other"} (want the crossed)')
+    m.new_career()
+
     # save -> load: a registry other than the spec's (club 0, Serie A, and club 150, Serie D group 3, swapped)
     D2 = list(ITALY_DIV)
     D2[0], D2[150] = D2[150], D2[0]

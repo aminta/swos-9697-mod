@@ -155,7 +155,7 @@ def patch(p, syms_swe):
     with open(os.path.join(os.path.dirname(src), 'swe.c')) as h:            # (sreg.c: the registry fits the arena)
         arena = re.search(r'#define SWE_ARENA (0x[0-9A-Fa-f]+|\d+)', h.read()).group(1)
     obj = cobj.compile_c(src, (f'-DSWE_ARENA={arena}',), sections=True)
-    roots = ['sreg_build', 'sreg_size', 'sreg_save', 'sreg_load', 'sreg_new', 'SREG_NF', 'SREG_NCLUB', 'SREG_SPEC',
+    roots = ['sreg_build', 'sreg_size', 'sreg_save', 'sreg_load', 'sreg_new', 'SREG_CHG', 'SREG_NF', 'SREG_NCLUB', 'SREG_SPEC',
              'SREG_REG', 'SREG_LAST', 'SREG_WORLD', 'SREG_FLAGS'] + (['sreg_get'] if shape() else [])
     with open(os.path.join(os.path.dirname(src), 'swce', 'swosrules.h')) as h:
         hdr = h.read()

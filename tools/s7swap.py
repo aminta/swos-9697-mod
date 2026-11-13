@@ -205,13 +205,15 @@ def patch(p, ssyms, rsyms, gsyms, pgsyms, fsyms, risyms):
     if 'xcache' in xtra.LABELS:                         # (the market's XTRA cache: flushed when the registry moved clubs)
         flags += (f'-DS7_XNC={xtra.NC}', f'-DS7_XENT={xtra.ENT}')
         ext['S7_XCACHE'] = (1, xtra.LABELS['xcache'])
+        flags += ('-DS7_XT=1',)
+        ext['S7_XTEAM'] = (1, xtra.LABELS['xteam'])
     import xleft
     if 'xlbt' in xleft.LABELS:                          # (xl_find's cached block: the same)
         flags += ('-DS7_XLB=1',)
         ext['S7_XLBT'] = (3, xleft.LABELS['xlbt'])
     obj = cobj.compile_c(SRC, flags, sections=True)
     syms, end, bss = cobj.link(p, obj, swreg.S7SWAP_AT, (4, 0), externs=ext, limit=swreg.S7SWAP_END, text_obj=4,
-                               roots=['s7_season', 's7_load', 's7_home_word', 'S7_HRUN', 'S7_FNV', 'S7_WLOG', 'S7_CLOG', 'WSITES', 'WS_KEYS', 'S7_ENN', 'S7_CFBLEN', 'S7_NAME', 'S7_OAT', 'S7_ONREC', 'S7_LD', 'S7_FA', 'S7_FB', 'S7_NUP', 'S7_NLO', 'S7_UP', 'S7_LO', 'S7_GB',
+                               roots=['s7_season', 's7_load', 's7_home_word', 's7_flush', 'S7_HRUN', 'S7_FNV', 'S7_WLOG', 'S7_CLOG', 'WSITES', 'WS_KEYS', 'S7_ENN', 'S7_CFBLEN', 'S7_NAME', 'S7_OAT', 'S7_ONREC', 'S7_LD', 'S7_FA', 'S7_FB', 'S7_NUP', 'S7_NLO', 'S7_UP', 'S7_LO', 'S7_GB',
                                       'S7_AREA', 'S7_LOG'] + LIB)
     assert not bss, ('s7swap.c: no .bss (it would land on swe.c\'s)', bss)
     p.put(*syms['S7_FA'], bytes((fa,)))
@@ -231,6 +233,7 @@ def patch(p, ssyms, rsyms, gsyms, pgsyms, fsyms, risyms):
     p.put(*syms['S7_ONREC'], struct.pack('<HH', lay[0][1], lay[1][1]))
     cobj.add_ptr(p, risyms['S7_LPTR'][1], *syms['s7_load'], 1)     # (ri_load's dword in obj1 -> obj4)
     cobj.add_ptr(p, pgsyms['S7_PTR'][1], *syms['s7_season'], 1)   # (pg_fix's dword in obj1 -> obj4)
+    cobj.add_ptr(p, rsyms['SREG_CHG'][1], *syms['s7_flush'], rsyms['SREG_CHG'][0])   # (a load / new career: the word caches)
     if 'S7_HPTR' in risyms:                             # (ri_home, xtra_readto's hook: a crossed club's XTRA block)
         cobj.add_ptr(p, risyms['S7_HPTR'][1], *syms['s7_home_word'], 1)
     LABELS.clear()

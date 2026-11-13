@@ -36,6 +36,8 @@ uint32_t SREG_WORLD DATA = 0;           /* sreg.py: the shape's world byte (its 
 uint32_t SREG_FLAGS DATA = 0;           /* IMPORTED 1 | PENDING 2 | the pending import's season << 8 (u16 in 'IT') */
 sr_registry *SREG_REG DATA = 0;         /* sreg.py: -> the engine arena (swe.c SWE_ARENA_AT) */
 int32_t SREG_LAST DATA = 0;             /* the last sreg_load's result (1 / 0 / -1; harness) */
+void (*SREG_CHG)(void) DATA = 0;        /* S7 (s7swap.py: -> s7_flush): called when the registry may change - a load,
+                                           a new career; caches keyed by a team word drop their entries (MC 13/11) */
 static int32_t built DATA = 0;          /* *SREG_REG holds this career's registry */
 #define REG (*SREG_REG)
 typedef char registry_fits_the_arena[sizeof(sr_registry) <= SWE_ARENA ? 1 : -1];   /* (sreg.py: swe.c's SWE_ARENA) */
@@ -45,6 +47,8 @@ static int in_world(void) { return SREG_WORLD && *(const uint16_t *)(SREG_SWC1 +
 
 int32_t sreg_build(void)
 {
+    if (SREG_CHG) SREG_CHG();                           /* (the registry from the spec: an old save's load, a lazy
+                                                           sreg_get - the word caches start cold) */
     if (!in_world()) return built = 0;                  /* (another world's save: nothing to build) */
     built = !sr_reg_build(&REG, SREG_NF, SREG_SPEC, SREG_NCLUB, SREG_DIV);
     return built ? 0 : -1;
@@ -67,6 +71,7 @@ int32_t sreg_save(uint8_t *out, int32_t room, uint32_t season)
 int32_t sreg_load(const uint8_t *in, int32_t len)
 {
     SREG_FLAGS = 0;
+    if (SREG_CHG) SREG_CHG();                           /* (every load, any world: the word caches start cold) */
     if (!in_world()) return SREG_LAST = 0;              /* (another world's save: an 'IT' there is ignored) */
     if (sreg_build()) return SREG_LAST = -1;            /* (the spec first: sr_reg_load reads into a built shape) */
     int32_t r = sr_reg_load(&REG, layout(), in, len);
@@ -81,4 +86,4 @@ int32_t sreg_get(void)                 /* S7 (s7swap.c, the season-end builder):
     return built;
 }
 
-void sreg_new(void) { built = 0; SREG_LAST = 0; SREG_FLAGS = 0; }     /* a new career: built from the spec at its first save */
+void sreg_new(void) { built = 0; SREG_LAST = 0; SREG_FLAGS = 0; if (SREG_CHG) SREG_CHG(); }     /* a new career: built from the spec at its first save */

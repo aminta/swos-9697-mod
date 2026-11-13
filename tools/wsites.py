@@ -16,8 +16,9 @@ WS_W, WS_G, WS_O8, WS_K = 1, 2, 3, 4
 # banks' key byte (K: WS_KEYS callbacks, Shaved)). Offsets from the structs (i686, clang -target i686: test_wsites
 # test_wsites_layout recomputes every row from offsetof / the modules' constants). Not walked: CN, BQ, CR, CC, GI, FF,
 # TR, T3, UP, SWC1 (no team word), SR / SB (Brazilian state files only), RI (Italy retired by RB: feeds the import),
-# BT_EXT (someLeaguesTable bytes 2000+: one byte per global - a table indexed BY global, not a word site; the
-# swap builder's re-base owns such tables), BU (bteam.py: its B team words are DATA\\BAGE.nnn's, HOME words - identity
+# BT_EXT (someLeaguesTable bytes 2000+: one byte per global = per ROW, not per club - never permuted: s7_season's
+# re-base writes every row's delta of both files in leaguesTableCopy, file 144's split globals 2283.. included, and
+# InitializeNewSeason's copy (cseg_8CC4E, loop widened to LIMIT by bigtables.py) carries them over; test_wsites_walk), BU (bteam.py: its B team words are DATA\\BAGE.nnn's, HOME words - identity
 # data by the HOME word, MC 13/11 - compared with BAGE's again: walking them would break the match; the S7 audit's
 # bteam item). rows() keeps a build's own items only (an item it does not save: no row).
 ROWS = [

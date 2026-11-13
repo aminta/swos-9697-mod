@@ -13,7 +13,9 @@ S7_ENI (the build's EN_ITEMS) and fits its length; then every site of every row 
 down (102 -> 144), one going up (144 -> 102), a 102 club that stays, 0, FFFFh, another file's word; G sites the same
 clubs' globals and another country's - and every other byte of those items a pattern; after the season's 9 swaps
 (test_s7swap's crossings) each moved word / global is its club's new one, the rest of the sites and every other byte
-unchanged; S7_WLOG: no bad row, rows walked = the table's, words changed = the moved ones planted."""
+unchanged; S7_WLOG: no bad row, rows walked = the table's, words changed = the moved ones planted; BT_EXT (MC 13/11):
+SLTCOPY holds every row's new delta of both files - the split globals >= 2000 (BT_EXT's range) included - and no
+other byte changed (someLeaguesTable is per row: re-based, never permuted)."""
 import json
 import os
 import struct
@@ -226,10 +228,33 @@ def test_wsites_walk():
             bad = [o for o in range(len(b)) if got[o] != exp[o]]
             errs.append(f'{ids.get(iid)}: differs at +{bad[:6]} (got {got[bad[0]:bad[0] + 2].hex()} want '
                         f'{exp[bad[0]:bad[0] + 2].hex()})')
+    # BT_EXT (MC 13/11): someLeaguesTable bytes 2000+ are indexed by global = by ROW, not by club - no permutation;
+    # s7_season's re-base writes every row's delta of both files in SLTCOPY (leaguesTableCopy), file 144's split
+    # globals (2283.., BT_EXT's range) included, and InitializeNewSeason's copy (cseg_8CC4E, its loop widened to
+    # LIMIT by bigtables.py) puts them into someLeaguesTable: every row's delta = its new division - its base, every
+    # other byte of SLTCOPY untouched
+    _, _, _, rdiv1, rows1 = t7.reg_parse(m.regb())
+    mine, hi = set(), 0
+    for fi, f in enumerate(fs1):
+        for o in range(rows1[fi]):
+            b = t7.base_local(f, o)
+            if b < 0:
+                continue
+            g = t7.glob_of(gb[fi], o)
+            mine.add(g)
+            hi += g >= 2000
+            d = struct.unpack('b', slt[g:g + 1])[0]
+            if d != f[1].index(rdiv1[fi][o]) - b:
+                errs.append(f'SLTCOPY file {f[0]} row {o} (global {g}): delta {d} != {f[1].index(rdiv1[fi][o]) - b}')
+    if any(slt[g] for g in range(len(slt)) if g not in mine):
+        errs.append('SLTCOPY: a byte outside the two files\' rows changed')
+    if not hi:
+        errs.append('no row global >= 2000 in this build (BT_EXT range not exercised)')
     wl = struct.unpack('<hhHHHH', m.rd(m.at('s7swap', 'S7_WLOG'), 12))
     if wl[0] != -1 or wl[5] != len(tab) or wl[2] != moved:      # (row, rc, changed, cache, npair, rows)
         errs.append(f'S7_WLOG {wl} (row -1, rows {len(tab)}, changed {moved})')
     if not moved:
         errs.append('no site moved (crossings?)')
     return not errs, '; '.join(errs[:6]) or (f'{len(tab)} rows on {len(before)} items: {moved} moved words / globals '
-                                             f'now their clubs\' new ones, the other sites and bytes unchanged (items not saved by this build: {absent})')
+                                             f'now their clubs\' new ones, the other sites and bytes unchanged; SLTCOPY re-based for every row '
+                                             f'({hi} globals >= 2000: BT_EXT\'s range) (items not saved by this build: {absent})')

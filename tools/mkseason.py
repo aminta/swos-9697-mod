@@ -543,10 +543,7 @@ class Pack:
             return None
         import gplay
         try:
-            club = lambda e: ({'club_team': self.where[e['club']][0] | self.where[e['club']][1] << 8,
-                               'div': self.division[e['club']]}
-                              if isinstance(e, dict) and 'club' in e and e['club'] in self.league_clubs else e)
-            pos = [dict(po, entrants=[club(e) for e in po.get('entrants', [])]) for po in lg['ko_playoffs']]
+            pos = self.po_resolved()
             by, self.ko_external = {}, {}       # (S7: one spec per league struct, local divisions - div_key; the
             for po in pos:                      # destinations in the other struct: {struct: [(spec entry, outcome,
                 f, lp, ext = self.po_local(po)  # target div_key)]} for the season-end swap builder)
@@ -557,6 +554,23 @@ class Pack:
                    for f, ps in by.items()]
         except (ValueError, KeyError, TypeError) as e:
             _need(False, f"{self.meta['id']}: ko_playoffs: {e}")
+        return out
+
+    def po_resolved(self):
+        """The league's ko_playoffs, club entrants resolved to {'club_team', 'div'} (gplay's spec input)."""
+        club = lambda e: ({'club_team': self.where[e['club']][0] | self.where[e['club']][1] << 8,
+                           'div': self.division[e['club']]}
+                          if isinstance(e, dict) and 'club' in e and e['club'] in self.league_clubs else e)
+        return [dict(po, entrants=[club(e) for e in po.get('entrants', [])]) for po in self.league['ko_playoffs']]
+
+    def po_keys(self):
+        """[(struct file, index in that struct's spec)] per ko_playoffs entry, in gplay()'s order: the play-off number
+        gplay.c counts (pidx: WN_ST 'K' / 'T', GP_ST.ko pi) - 4.2 S7, fmtgame's WINNERS sources."""
+        by, out = {}, []
+        for po in self.po_resolved():
+            f = self.po_local(po)[0]
+            out.append((f, by.get(f, 0)))
+            by[f] = by.get(f, 0) + 1
         return out
 
     def cupd(self):

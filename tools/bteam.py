@@ -293,6 +293,15 @@ bt_load:                                ; ZF = 0 when this career world's DATA\\
 bt_team:                                ; ax = the parent's team word -> esi = its BAGE team row, or 0
     push ecx
     push edx
+%ifdef BT_S7
+    movzx eax, ax                       ; S7 (MC 13/11, identity data by the HOME word): BAGE's parent words are the
+    cmp dword [S7_HPTR], 0              ; shipped (home) ones; a club that crossed sits in another row -> its home word
+    je .hm                              ; (s7swap.c s7_home_word: cdecl, ecx / edx free here, else the word itself)
+    push eax
+    call [S7_HPTR]
+    pop edx
+.hm:
+%endif
     movzx ecx, byte [btbuf + 3]
     mov esi, btbuf + 4
 .t:
@@ -1460,6 +1469,10 @@ def patch(p, at, force=None, lang='it'):
         sym['CAL'], sym['CAL_CUR'] = gplay.LABELS['CAL'], gplay.LABELS['CAL_CUR']
     else:
         src = '%define NOCAL\n' + src
+    import ripool
+    if 'S7_HPTR' in ripool.LABELS:               # 4.2 S7 (+ XTRA): a crossed club's B team by its home word
+        src = '%define BT_S7\n' + src
+        sym['S7_HPTR'] = ripool.LABELS['S7_HPTR']
     if force:
         src = '%define BT_FORCE\n' + src
     at = (at + 15) & ~15

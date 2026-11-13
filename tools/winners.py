@@ -841,7 +841,7 @@ def patch(p, at, lang, sites):
     code, cfix, crel = nasmcave.assemble_obj(src, at, sym, 4)
     lab = nasmcave.labels(src, at, sym)
     assert p.le.obj(4).npages * 0x1000 >= swreg.OBJ1MV_END, 'winners: obj4 pages (patch.py OBJ1MV_ON)'
-    assert at + len(code) <= swreg.OBJ1MV_END, ('winners: past OBJ1MV_END', hex(at + len(code)))
+    assert at + len(code) <= swreg.OBJ1MV_CC, ('winners: past OBJ1MV_CC (the career-cave modules)', hex(at + len(code)))
     assert not any(p.get(4, at, len(code))), 'winners: OBJ1MV room not free'
     p.put(4, at, code)
     for o, t_obj, t_off in cfix:

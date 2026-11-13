@@ -109,7 +109,7 @@ struct { uint16_t old, neww; int16_t league, pad; } S7_CLOG DATA = {0};   /* the
 
 /* the result (harness: S7_LOG) */
 enum { S7_OK = 1, S7_NOREG = 2, S7_STALE = 3, S7_BAD = 4, S7_COUNT = 5, S7_PLACE = 6, S7_REG = 7, S7_NOCLUB = 8,
-       S7_WSITE = 9, S7_WMAP = 10 };
+       S7_WSITE = 9, S7_WMAP = 10, S7_SKIP = 11 };
 struct { uint8_t status, season, nswap, ncross; int32_t rc; } S7_LOG DATA = {0};   /* (the swaps: the arena's SW_AT) */
 
 static int32_t fi_of(uint8_t file) {
@@ -243,6 +243,9 @@ static int32_t run(void *pv) {
     uint16_t *order = (uint16_t *)(SWE_ARENA_AT + ORD_AT);
     sr_registry *R = SREG_REG;
     S7_LOG.nswap = S7_LOG.ncross = 0; S7_LOG.rc = 0;
+#ifdef S7_NOSWAP
+    return S7_LOG.status = S7_SKIP;     /* (S7_NOSWAP test builds: no swap at all - world_s7cross_diff's control) */
+#endif
     if (!sreg_get()) return S7_LOG.status = S7_NOREG;
     const struct s7x *A = &S7X[0], *B = &S7X[1];
     S7_LOG.season = A->season;

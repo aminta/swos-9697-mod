@@ -27414,17 +27414,19 @@ def world_s7cross_diff():
     """S7 (4.2, MC 13/11 gate 1): the career club's crossing (option B) against a control career, CONVENTIONS 14d. One
     save early in season 1 (UNION BRESCIA, Serie C girone A, world_s7cross_down's build: W8485_MIDTEXT, the first
     match screen), then season 1's rest from it twice with the random generators pinned at every pause
-    (W8485_RNGSTEP): (A) GPLAY_FORCE=20 - last, the club crosses 102 -> 144; (B) GPLAY_FORCE=10 - mid-table, it stays
-    (the same code bar the forced place). At season 2's start (world8485's W84_AFTER, after the next season's save)
+    (W8485_RNGSTEP): (A) GPLAY_FORCE=20 - last, the club crosses 102 -> 144; (B) the same plus S7_NOSWAP (test
+    switch: the season end swaps nothing) - last as well, it stays in Serie C (file 102 has no division below): the
+    same season, the same place, only the crossing apart. At season 2's start (world8485's W84_AFTER, after the next season's save)
     both dump: careerTeam with all 32 slots + careerNumPlayers + the squad order, the funds (finance NEWBAL / OLDBAL),
     the job count (D6E00 = D6CDC + 0x124), selTeamNumber / careerTeamLeague / D6CDC, the league calendar, the team
     cache. Checks (A against B):
     - EXPECTED differences only: careerTeam's own bytes (0-1 word, 2-3 global number, 25 league), selTeamNumber,
       careerTeamLeague, D6CDC; every other careerTeam byte (the 30 players byte by byte), careerNumPlayers, the order,
       the funds and the job count as B's - the season end's native changes the same in both;
-    - A: selTeamNumber a file-144 word, careerTeam's word the same, careerTeamLeague = its cache record's league;
+    - A: selTeamNumber a file-144 word, careerTeam's word the same, D6CDC = careerTeam[25] = its cache record's
+      league byte (careerTeamLeague: the row's base division, D6CDC = base + delta, as InitializeNewSeason sets it);
       every league calendar match of the club against file-144 clubs; B: against file-102 clubs;
-    - A: the club's old word in the cache holds another club (the filler / a promoted one), not UNION BRESCIA; the
+    - A: the club's old word, when in the cache, holds another club, and no other record is UNION BRESCIA; the
       club's own cache record (A: the new word) = B's (the old word) bar the own bytes - no squad written to a
       record, its own or the partner's (the filler's record is not careerTeam's players)."""
     import json
@@ -27433,8 +27435,8 @@ def world_s7cross_diff():
     team = 'EUROPA,ITALIA,SERIE C GIRONE A,UNION BRESCIA'
     errs, info = [], []
     exes = {}
-    for k, f in (('A', '20'), ('B', '10')):
-        env = s7_env({'GPLAY_FORCE': f})
+    for k, x in (('A', {}), ('B', {'S7_NOSWAP': '1'})):
+        env = s7_env(dict({'GPLAY_FORCE': '20'}, **x))
         if env is None:
             return True, 'SKIP: S7_PACK (the shaped Italy pack) or internal world5tm-h2 missing'
         exes[k] = build('s7cross', env=env)
@@ -27511,8 +27513,9 @@ def world_s7cross_diff():
                    ('ob', 'funds (OLDBAL)'), ('job', 'job count')):
         check(a[f_] == b[f_], f'{nm}: A {a[f_]!r} B {b[f_]!r}', errs)
     ra = a['cache'].get(wa)
-    check(ra is not None and a['sel'][2] == ra[25] and a['ct'][25] == ra[25],
-          f'A: careerTeamLeague {a["sel"][2]} / careerTeam[25] {a["ct"][25]} vs its cache record\'s {ra and ra[25]}', errs)
+    check(ra is not None and a['sel'][3] == a['ct'][25] == ra[25] and a['sel'][2] <= a['sel'][3],
+          f'A: careerTeamLeague {a["sel"][2]} / D6CDC {a["sel"][3]} / careerTeam[25] {a["ct"][25]} vs its cache '
+          f'record\'s {ra and ra[25]}', errs)
     for k, w, fl in (('A', wa, 144), ('B', wb, 102)):
         cl = [(h, aw) for _, h, aw in st[k]['cal'] if w in (h, aw)]
         opp = [h if aw == w else aw for h, aw in cl]
@@ -27521,8 +27524,10 @@ def world_s7cross_diff():
               f'(want all file {fl})', errs)
     old = wb                                            # (the club's word without the crossing)
     ro = a['cache'].get(old)
-    check(ro is not None and b'UNION BRESCIA' not in ro[5:30], f'A: the old word {old:#x} in the cache: '
+    check(ro is None or b'UNION BRESCIA' not in ro[5:30], f'A: the old word {old:#x} in the cache: '
           f'{ro and ro[5:22].split(bytes(1))[0]} (want another club)', errs)
+    dup = [hex(w) for w, r_ in a['cache'].items() if w != wa and b'UNION BRESCIA' in r_[5:30]]
+    check(not dup, f'A: UNION BRESCIA also at {dup} in the cache', errs)
     rb = b['cache'].get(wb)
     if check(ra is not None and rb is not None, f'cache records A {wa:#x} {ra is not None} B {wb:#x} {rb is not None}',
              errs):

@@ -197,6 +197,10 @@ def patch(p, ssyms, rsyms, gsyms, pgsyms, fsyms, risyms):
         import modver
         assert modver.is_test()
         flags += (f"-DS7_LDFAIL={int(os.environ['S7_LDFAIL'])}",)
+    if os.environ.get('S7_NOSWAP'):                     # (test builds: the season end swaps nothing - the control career)
+        import modver
+        assert modver.is_test()
+        flags += ('-DS7_NOSWAP=1',)
     obj = cobj.compile_c(SRC, flags, sections=True)
     syms, end, bss = cobj.link(p, obj, swreg.S7SWAP_AT, (4, 0), externs=ext, limit=swreg.S7SWAP_END, text_obj=4,
                                roots=['s7_season', 's7_load', 'S7_HRUN', 'S7_FNV', 'S7_WLOG', 'S7_CLOG', 'WSITES', 'WS_KEYS', 'S7_ENN', 'S7_CFBLEN', 'S7_NAME', 'S7_OAT', 'S7_ONREC', 'S7_LD', 'S7_FA', 'S7_FB', 'S7_NUP', 'S7_NLO', 'S7_UP', 'S7_LO', 'S7_GB',

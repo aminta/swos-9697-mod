@@ -586,6 +586,7 @@ df_tpre:                                ; InitGameRestoreTeams' first Rand: the 
     mov edi, RNG2
     movsw
     movsb
+    mov word [MUTEC], -1                ; (and the commentary already muted: no audio-timed Rand before the kick-off)
     popad
     jmp RAND
 

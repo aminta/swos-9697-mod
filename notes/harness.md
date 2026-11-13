@@ -476,10 +476,18 @@ world_cgame_view): season 1 (new INTER career) every menu on its first round; th
 current calendar entry's week poked to FF (restored, nothing saved) every menu and VIEW WORLD's SUDAMERICA cup on its
 last round, never before the plain week's pick; shots ctc_<s1|s2|end>_<k>, ctc_world_cup.
 
-## Full-match frame traces are not a gate (42-diff, 2026-11-13)
-`diff_trace` (DIFF_TRACE builds: both generators and currentGameTick / currentTick pinned at the kick-off, one tick per
-frame) compares a 13000-frame match hash every 2048 frames. Control run (MC): REF against REF+PAD (`DIFF_PAD=code,buildup`
-= REF with a nop band of NEW's obj4 sizes, no hook) differed at frame 2048 in a batch run (hh) and was equal alone: the
-full-match trace is still sensitive to timing outside the pins (DOSBox-X turbo scheduling), with no change in game code.
-So NORMAL = the original is gated by the Unicorn host test (every site, 4 languages) + short traces (~200 frames) per hook
-group, not by full-match traces. DIFF_SKIP is a comma list matched as a set ('BU' is not 'BUFRAME').
+## Full-match frame traces (42-diff, 2026-11-13)
+`diff_trace` (DIFF_TRACE builds) compares a 13000-frame match hash every 2048 frames (DIFF_CKSH) between REF (kick-off
+hook only) and NEW. What the game reads from real time, and how the trace build pins it:
+- InitGameRestoreTeams calls Rand before the kick-off: playerCardChance, gameRandValue, teamPlayingUp (which team plays
+  up: the two teams swap in memory), teamStarting. The menus advance the generator in real time, so the trace pins both
+  generators at that first Rand (df_tpre), not only at the kick-off. Without it a run plays one of two different matches.
+- The commentary: IsSamplePlaying asks AIL whether the last sample ended (audio time), then PlayCommentarySample picks
+  the next one by Rand. Muted (g_muteCommentary) from df_tpre in trace builds.
+- currentGameTick / lastGameTick / currentTick: one tick per frame from the kick-off (TimerProc's own increments off).
+With these, hh (two humans) is equal over the whole match, NORMAL and EASY+NEW, alone and in batch. hc / cc still vary
+now and then from run to run, REF too (13064 / 13067 frames): one more real-time input is left (not found within MC's
+4 h). So the NORMAL gate = Unicorn host test + short traces + full traces as a check (hh must PASS), not hc / cc alone.
+`DIFF_STOPF=n` halts at frame n and diffs obj2 word by word (REF vs NEW): the way to find the next input.
+`DIFF_PAD=code,buildup` (REF + a nop band of NEW's obj4 sizes) was equal to REF in every run: code size is not a cause.
+DIFF_SKIP is a comma list matched as a set ('BU' is not 'BUFRAME').

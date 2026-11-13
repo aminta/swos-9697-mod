@@ -42,10 +42,11 @@ def setup():
     return m, ''
 
 
-def poke_moves(m, mv):
+def poke_moves(m, mv, fresh=1):
     b = b''.join(struct.pack('<3H', *e) for e in mv)
     m.w(m.at('s7swap', 'RI_MOVES'), b)
     m.w(m.at('s7swap', 'RI_NMOVES'), struct.pack('<i', len(mv)))
+    m.w(m.at('s7swap', 'RI_FRESH'), bytes((fresh,)))     # (s7ri_pool(144)'s one-shot: a new log)
 
 
 def rimv(m):
@@ -85,9 +86,18 @@ def test_s7rimoves():
         st = t7.run(m, *t7.crossings(fs, m.gb))[0]
         if st != RIMV_BAD or rimv(m)[1] != 2 or m.regb() != r0:
             errs.append(f'{name}: status {st}, S7_RIMV {rimv(m)}, registry {"kept" if m.regb() == r0 else "changed"}')
+    # RI_FRESH 0 (a stale log: a career start, a second career): nothing applied, the plain 9-swap season
+    m.fresh()
+    poke_moves(m, mv, fresh=0)
+    st0, nsw0, _, _ = t7.run(m, *t7.crossings(fs, m.gb))
+    w0 = t7.reg_parse(m.regb())[1]
+    if (st0, nsw0, rimv(m)[0]) != (t7.OK, 9, 0) or any(w0[e[1]] == NONE or w0[e[2]] != NONE for e in mv):
+        errs.append(f'stale log (RI_FRESH 0): status {st0}, nswap {nsw0}, S7_RIMV {rimv(m)} (want OK, 9, n 0, no move)')
     m.fresh()
     poke_moves(m, mv)
     st, nsw, ncr, _ = t7.run(m, *t7.crossings(fs, m.gb))
+    if m.rd(m.at('s7swap', 'RI_FRESH'), 1) != b'\0':
+        errs.append('RI_FRESH not consumed by s7_season')
     n, mst, _ = rimv(m)
     if (st, n, mst) != (t7.OK, 2, 1) or nsw != 9 + 2:
         errs.append(f'moves: status {st}, S7_RIMV ({n}, {mst}), nswap {nsw} (want OK, (2, 1), 11)')
@@ -109,6 +119,12 @@ def test_s7rimoves():
                 errs.append(f'ident {i}: word {word1[i]:#x} != its row {fs1[fi][0]}/{o}')
     if struct.unpack('<i', m.rd(m.at('s7swap', 'RI_S7_BAD'), 4))[0]:
         errs.append('RI_S7_BAD != 0')
+    r1 = m.regb()                                       # (a second s7_season, no new ri log: the moves NOT again - the
+    m.w(m.at('s7swap', 'S7_LOG'), bytes(4))             #  snapshots as last time are stale for s7swap anyway; nothing changes)
+    t7.run(m, *t7.crossings(fs, m.gb))
+    if rimv(m)[0] != 0 or rimv(m)[1] == 2:
+        errs.append(f'second s7_season with no new log: S7_RIMV {rimv(m)} (want n 0, not refused)')
+    m.w(m.reg, r1)                                      # (back to the state after the moves, for s7_load)
     # s7_load of 144: the pool rows get their RS record
     data = os.path.join(os.path.dirname(EXE), 'DATA')
     fil = {f: open(os.path.join(data, f'TMW5.{f}'), 'rb').read() for f in (t7.FA, t7.FB)}
@@ -147,5 +163,5 @@ def test_s7rimoves():
             errs.append(f's7_load row {r}: not RS record {k} (kept bytes from the row)')
     return not errs, '; '.join(errs[:6]) or (f'pool idents {p0}..{p0 + np_ - 1} seeded, s7_poolk both ways; 2 moves + '
                                              f'9 swaps: outs off the files, ins at rows {ends}, one row per ident, '
-                                             f'RI_S7_BAD 0; s7_load: RS records 0 / 1 on those rows, nopool 0; '
+                                             f'RI_S7_BAD 0; RI_FRESH one-shot (stale log: none applied, second season: none again); s7_load: RS records 0 / 1 on those rows, nopool 0; '
                                              f'6 refusals with the registry kept')

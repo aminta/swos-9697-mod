@@ -348,7 +348,9 @@ static int32_t run(void *pv) {
        follows ri's queue. Each as {a, NONE, on}: the occupant off the files (queued in ri's q[]), the pool head onto
        its row - the row and its division stay. All checked before any is applied. */
     sr_reg_swap *sw = (sr_reg_swap *)(SWE_ARENA_AT + SW_AT);
-    int32_t nri = RI_NMOVES, fb0 = fi_of(S7_FB);
+    extern uint8_t RI_FRESH;
+    int32_t nri = RI_FRESH ? RI_NMOVES : 0, fb0 = fi_of(S7_FB);   /* (RI_NMOVES / RI_MOVES stay as logged: the harness) */
+    RI_FRESH = 0;
     S7_RIMV.n = 0; S7_RIMV.status = 1; S7_RIMV.row = 0;
     for (int32_t k = 0; k < nri; k++) {
         uint32_t row = RI_MOVES[k][0], out = RI_MOVES[k][1], in = RI_MOVES[k][2];
@@ -591,4 +593,6 @@ int32_t s7_season(int8_t *sltcopy)     /* pg_fix: cdecl, the game's stack -> the
 
 /* S7 x ri: Panchina's s7ri.c (MC ruling (b) 13/11: S7-only logic in obj4) - one translation unit with this file: it calls
    s7_ident / s7_poolk / s7_home_word, its RI_MOVES is read by s7_season above */
+uint8_t RI_FRESH DATA = 0;             /* s7ri_pool(144) sets it with a new log; s7_season consumes it once (no stale moves at a
+                                           career start - ri_season returns before its pools - or in a second career) */
 #include "s7ri.c"

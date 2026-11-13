@@ -1,7 +1,7 @@
 """4.2 S7 / bteam (Panchina 13/11, the S7 audit's 'bteam: BAGE by [SEL]'; MC rule: identity data by the HOME word):
 bt_team (bteam.py) finds a club's B team row in DATA\\BAGE.nnn, whose parent words are the shipped (home) ones. After a
 season-end swap a club that crossed sits at another word; bt_team maps the word it is given through s7swap.c's
-s7_home_word (ripool's S7_HPTR) first. On HT_BT_EXE (else c/S7W-bt1: a shaped IT build - the S7 test pack - with
+s7_home_word (ripool's S7_HPTR) first. On HT_BT_EXE (else c/S7W-ws4c: a shaped IT build - the S7 test pack - with
 HOSTTEST_SYMS=1), the registry after test_s7swap's 9 swaps, a poked BAGE buffer {row0: parent = a crosser's home word,
 row1: parent = a club that stays}:
 - bt_team(the crosser's NEW word) = row0 (found through its home word); the crosser's OLD word (now another club's) = no
@@ -18,7 +18,7 @@ import test_registry as tr  # noqa: E402
 import test_swc1 as ts  # noqa: E402
 
 HOME = os.path.expanduser('~')
-EXE = os.environ.get('HT_BT_EXE') or os.path.join(HOME, 'swos-mod', 'c', 'S7W-bt1', 'SWOS', 'ITALIAN.EXE')
+EXE = os.environ.get('HT_BT_EXE') or os.path.join(HOME, 'swos-mod', 'c', 'S7W-ws4c', 'SWOS', 'ITALIAN.EXE')
 
 
 def test_bteam_s7():

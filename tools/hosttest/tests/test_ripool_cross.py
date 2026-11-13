@@ -270,6 +270,37 @@ def test_s7_unhint_first():
     return not errs, '; '.join(errs) or 'maps[] of file 144 clear after s7_season (plain and refused-move paths), RI_HINTN 0'
 
 
+def test_s7_unhint_first_mutant():
+    """MC 13/11 (point 2): the control of test_s7_unhint_first on the host: the exe's s7_season (s7ri_unhint inlined as its first
+    statement) with the loop's first load patched to xor ecx, ecx must leave the hint words set - i.e. test_s7_unhint_first would
+    FAIL on it."""
+    import test_s7rimoves as rm
+    import test_s7swap as t7
+    m, why = rm.setup()
+    if not m:
+        return why.startswith('SKIP'), why
+    sy = json.load(open(rm.EXE[:-4] + '.syms.json'))
+    k, moff, _o, _p = ri_where(sy, t7.FB)
+    import ripool
+    maps = m.at('gplay', 'RI_STATE') + ripool.OVR_AT + 2 * ripool.RP * ripool.RO + 2 * moff
+    fs, word, at, rdiv, rows = t7.reg_parse(m.regb())
+    entry = m.at('s7swap', 's7_season')
+    code = m.rd(entry, 48)
+    i = code.find(b'\x8b\x0d')                        # (s7ri_unhint is inlined: `mov ecx, [RI_HINTMAP]` opens its loop)
+    if i < 0 or i > 24:
+        return False, f's7_season: no `mov ecx, [RI_HINTMAP]` in its first bytes {code.hex()}'
+    m.w(entry + i, b'\x31\xc9\x90\x90\x90\x90')      # -> xor ecx, ecx: the loop is skipped, the words are never cleared
+    m.fresh()
+    m.w(m.at('swefile', 'swe_fopen_r'), b'\xb8\xfe\xff\xff\xff\xc3')
+    m.w(maps, struct.pack('<162H', *range(1, 163)))
+    m.w(m.at('s7swap', 'RI_HINTMAP'), struct.pack('<I', maps))
+    m.w(m.at('s7swap', 'RI_HINTN'), struct.pack('<i', 162))
+    rm.poke_moves(m, [])
+    t7.run(m, *t7.crossings(fs, m.gb))
+    left = sum(1 for x in struct.unpack('<162H', m.rd(maps, 324)) if x)
+    return left == 162, f'mutant (the clear loop skipped): {left} of 162 hint words still set after s7_season (the real test would FAIL)'
+
+
 def test_ripool_hints_mutant():
     """Control: no hint words written (the registry-model state as 905a7bf had it) must make test_ripool_hints' case FAIL."""
     src = open(os.path.join(cd.TOOLS, 's7ri.c')).read()

@@ -354,3 +354,109 @@ def test_s7load():
     return not errs, '; '.join(errs[:6]) or (f'9 + 9 rows given their registry club\'s home record, bytes {KEPT} kept '
                                              f'(one mark each), unmoved rows as read; refused a changed file (re-read) / '
                                              f'a wrong count / LD_READ / LD_NOREG with the buffer kept; other files ignored')
+
+
+EXE4 = os.environ.get('HT_S7W_EXE') or os.path.join(HOME, 'swos-mod', 'c', 'S7W-p4', 'SWOS', 'ITALIAN.EXE')
+CACHE_AT = 0x6300000                                    # (a stand-in team cache: S7_SELBASE -> here)
+S7_WSITE = 9
+
+
+def test_s7walk():
+    """piece 4 on c/S7W-p4 (shaped, S7_WSITES_TEST=1: wsites.TEST_ROWS = a cache row of 3 words at record +100, a
+    careerFileBuffer row of 4 globals at +0x200, the engine item ST's 4 words at +16): after the 9 swaps
+    - every listed word / global of a club that moved is its club's new one (the registry's), a global of a split
+      file's second run included when one moves, the others kept (unmoved, none 0 / FFFF, another file);
+    - the team cache's records follow their clubs: a moved club's record gets its new row's word (0..1), global (2..3
+      BE) and division byte (25, the row's as shipped), its other bytes kept; unmoved records untouched;
+    - S7_WLOG: rows walked 3, words changed, cache records moved;
+    - a bad row (form O8 poked into WSITES): the season refused before the registry changes (S7_WSITE), nothing
+      written."""
+    if not os.path.exists(EXE4) or not os.path.exists(EXE4[:-4] + '.syms.json'):
+        return True, f'SKIP: {EXE4} (shaped, S7_WSITES_TEST=1 HOSTTEST_SYMS=1) missing'
+    sy = json.load(open(EXE4[:-4] + '.syms.json'))
+    if 'ST_ITEM' not in sy.get('s7swap', {}):
+        return False, f'{EXE4}: no WSITES test rows (S7_WSITES_TEST=1)'
+    m = M(EXE4)
+    m.uc.mem_map(CACHE_AT, 0x10000)
+    errs = []
+    m.fresh()
+    r0 = m.regb()
+    fs, word, at, rdiv, rows = reg_parse(r0)
+    down, up = crossings(fs, m.gb)
+    gb = m.gb
+
+    def glob(f, o):
+        return glob_of(gb[0 if f == FA else 1], o)
+    dn = [e[1] for e in down]                           # (moving words: 102's down, 144's up)
+    upw = [e[1] for e in up]
+    stay = FA | 10 << 8
+    words = [dn[0], upw[0], stay]
+    cfbg = [glob(FA, dn[1] >> 8), glob(FB, upw[1] >> 8), glob(FA, 10), 7]
+    stw = [dn[2], 0xFFFF, 0, 103 | 4 << 8]
+    data = os.path.join(os.path.dirname(EXE4), 'DATA')
+    fil = {f: open(os.path.join(data, f'TMW5.{f}'), 'rb').read() for f in (FA, FB)}
+    recs = []
+    for w in (dn[0], upw[0], stay):                     # the cache: 3 records (their file records), marked
+        r = bytearray(fil[w & 0xFF][2 + 684 * (w >> 8):2 + 684 * ((w >> 8) + 1)])
+        for k, x in enumerate(words):
+            struct.pack_into('<H', r, 100 + 2 * k, x)
+        r[200] = 0x5A
+        recs.append(bytes(r))
+    m.w(CACHE_AT, b''.join(recs))
+    m.w(m.at('s7swap', 'S7_NUMSEL'), struct.pack('<H', 3))
+    m.w(m.at('s7swap', 'S7_SELBASE'), struct.pack('<I', CACHE_AT))
+    cfb = m.at('s7swap', 'S7_CFB') + 0x200
+    st = m.at('s7swap', 'ST_ITEM') + 16
+    m.w(cfb, struct.pack('<4H', *cfbg))
+    m.w(st, struct.pack('<4H', *stw))
+    stt, nsw, ncr, _ = run(m, down, up)
+    if stt != OK:
+        return False, f'season status {stt}'
+    fs1, word1, at1, rdiv1, rows1 = reg_parse(m.regb())
+    ident = {w: i for i, w in enumerate(word)}
+    nw = lambda w: word1[ident[w]] if w in ident else w
+    gfile = {}
+
+    def nglob(g):
+        for f in (FA, FB):
+            for o in range(rows[[x[0] for x in fs].index(f)]):
+                if glob(f, o) == g:
+                    w2 = nw(f | o << 8)
+                    return glob(w2 & 0xFF, w2 >> 8)
+        return g
+    got_c = list(struct.unpack('<4H', m.rd(cfb, 8)))
+    if got_c != [nglob(g) for g in cfbg] or got_c[2] != cfbg[2] or got_c[3] != 7:
+        errs.append(f'CFB globals {got_c} (want {[nglob(g) for g in cfbg]})')
+    got_s = list(struct.unpack('<4H', m.rd(st, 8)))
+    if got_s != [nw(stw[0]), 0xFFFF, 0, stw[3]]:
+        errs.append(f'ST words {[hex(x) for x in got_s]}')
+    cache = m.rd(CACHE_AT, 3 * 684)
+    for k, w in enumerate((dn[0], upw[0], stay)):
+        r = cache[684 * k:684 * (k + 1)]
+        w2 = nw(w)
+        fi2 = [x[0] for x in fs1].index(w2 & 0xFF)
+        want = bytearray(recs[k])
+        for j, x in enumerate(words):
+            struct.pack_into('<H', want, 100 + 2 * j, nw(x))
+        if w2 != w:
+            want[0], want[1] = w2 & 0xFF, w2 >> 8
+            struct.pack_into('>H', want, 2, glob(w2 & 0xFF, w2 >> 8))
+            want[25] = base_local(fs1[fi2], w2 >> 8)
+        if r != bytes(want):
+            errs.append(f'cache record {k} ({w:#x} -> {w2:#x}): differs at {[b for b in range(684) if r[b] != want[b]][:8]}')
+    wl = struct.unpack('<hhHHHH', m.rd(m.at('s7swap', 'S7_WLOG'), 12))
+    if wl[0] != -1 or wl[5] != 3 or wl[3] != 2:
+        errs.append(f'S7_WLOG {wl} (row -1, rows 3, cache 2)')
+    m.fresh()                                           # a bad row: refused before anything changes
+    ws = m.at('s7swap', 'WSITES')
+    row = bytearray(m.rd(ws + 10, 10))
+    row[8] = 3
+    m.w(ws + 10, bytes(row))
+    m.w(cfb, struct.pack('<4H', *cfbg))
+    stt, _, _, slt = run(m, down, up)
+    wl = struct.unpack('<hhHHHH', m.rd(m.at('s7swap', 'S7_WLOG'), 12))
+    if stt != S7_WSITE or wl[0] != 1 or m.regb() != r0 or any(slt) or list(struct.unpack('<4H', m.rd(cfb, 8))) != cfbg:
+        errs.append(f'bad row: status {stt} row {wl[0]}, registry {"kept" if m.regb() == r0 else "changed"}')
+    return not errs, '; '.join(errs[:6]) or ('cache / CFB / ST rows remapped (moved words + globals, others kept), '
+                                             'cache records followed their clubs (0..3, 25 new; rest kept), bad row '
+                                             'refused before the registry changed')

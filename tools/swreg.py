@@ -45,7 +45,7 @@ T3_END = 0xE000                         # CONVENTIONS 23bis); 0xC000 = 42-slow's
 SWEFILE_AT = 0x11000                    # 4.2 the engine's file layer (swefile.c, MC 12/11): obj4 page 18, after Difficolta's
 SWEFILE_END = 0x11800                   # page 15 (0xE000..0xF000) and Panchina's kits (0xF000..0x11000); dormant until a consumer
 S7SWAP_AT = 0x11800                     # 4.2 S7 season-end swap builder (s7swap.c, Shaved; MC 13/11) + the registry library's
-S7SWAP_END = 0x13800                    # one copy (sr_reg_season, sr_wmap_*: the import in SREG2 calls it here), pages 18-19;
+S7SWAP_END = 0x14000                    # one copy (sr_reg_season, sr_wmap_*: the import in SREG2 calls it here), pages 18-20 (MC 13/11: 0x14000, WSITES with the code);
                                         # linked only with a registry shape (sreg.shape(), = GP_S7)
 assert SWEFILE_END <= S7SWAP_AT < S7SWAP_END, 'swreg: SWEFILE_END <= S7SWAP_AT < S7SWAP_END'
 S7_ORIG_SZ = 0x2C000                    # 4.2 S7: s7swap.c's ORIG buffers in swe.c's .bss (shaped builds only; MC 13/11):

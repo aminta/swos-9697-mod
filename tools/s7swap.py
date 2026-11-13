@@ -22,7 +22,7 @@ LABELS = {}
 
 
 LIB = ['sr_reg_season', 'sr_reg_ident', 'sr_reg_div', 'sr_reg_word', 'sr_reg_size', 'sr_reg_work_size', 'sr_wmap_build',
-       'sr_wmap_get', 'sr_wmap_import']
+       'sr_wmap_get', 'sr_wmap_import', 'sreg_walk_site']
 
 
 def on():
@@ -123,6 +123,37 @@ def orig_layout(nrec):
     return out
 
 
+def late(p):
+    """End of patch_exe (after trailer.late: every engine item bound): WSITES from wsites.rows(), S7_ENN (trailer's
+    EN_ITEMS count), S7_CFBLEN (careerFileBuffer's fixed part). Rows resolve at each season end (s7swap.c wcheck,
+    S7_WRES in the arena: MC 13/11); here each row's item is checked to be one this build saves, and in its bytes."""
+    if 'WSITES' not in LABELS:
+        return
+    import engine
+    import trailer
+    import wsites
+    rows = wsites.rows()
+    p.put(*LABELS['WSITES'], wsites.table(rows))
+    en = trailer.INFO['en_n']
+    p.put(*LABELS['S7_ENN'], struct.pack('<I', en))
+    p.put(*LABELS['S7_CFBLEN'], struct.pack('<I', trailer.INFO['FIXED'][1]))
+    names = {engine.item_id(n): n for n in engine.SAVE_ITEMS}
+    for k, (item, off, stride, count, form, aux) in enumerate(rows):
+        iid = engine.item_id(item) if isinstance(item, str) else item
+        assert iid != wsites.WI_MAIN, ('s7swap: WSITES WI_MAIN rows are not walked yet', k)
+        if iid == wsites.WI_CACHE:
+            size = 684
+        elif iid == wsites.WI_CFB:
+            size = trailer.INFO['FIXED'][1]
+        else:
+            assert iid in names, ('s7swap: WSITES row on an engine item this build does not save', k, item)
+            size = engine.SAVE_ITEMS[names[iid]][0]
+        assert off + max(count - 1, 0) * stride + 2 <= size, ('s7swap: WSITES row past its item', k, item, size)
+    if 'ST' in engine.ITEM_AT:
+        LABELS['ST_ITEM'] = engine.ITEM_AT['ST']          # (host tests: the TEST rows' engine item)
+    print(f's7swap: WSITES {len(rows)} rows{" (TEST rows: S7_WSITES_TEST)" if wsites.TEST else ""}')
+
+
 def patch(p, ssyms, rsyms, gsyms, pgsyms, fsyms, risyms):
     """links s7swap.c at obj4+S7SWAP_AT (ssyms swe.c's, rsyms sreg.c's, gsyms gplay's, pgsyms pgroups', fsyms swefile's,
     risyms ripool's); returns the end, or None (dormant)."""
@@ -151,9 +182,12 @@ def patch(p, ssyms, rsyms, gsyms, pgsyms, fsyms, risyms):
     ext = {'S7X': gsyms['S7X'], 'SREG_REG': rsyms['SREG_REG'], 'sreg_get': rsyms['sreg_get'],
            'SWE_ARENA_AT': ssyms['SWE_ARENA_AT'], 'cstack_call': ssyms['cstack_call'], 'S7_ORIG': ssyms['S7_ORIG']}
     ext.update({k: fsyms[k] for k in ('swe_fopen_r', 'swe_fread', 'swe_fclose')})
+    import trailer
+    ext.update({'S7_NUMSEL': trailer.INFO['NUMSEL'], 'S7_SELBASE': (1, trailer.INFO['selbasev']),
+                'S7_ENI': (1, trailer.INFO['en_items']), 'S7_CFB': trailer.INFO['CAREER']})
     obj = cobj.compile_c(SRC, (f'-DS7_NID={NID}',), sections=True)
     syms, end, bss = cobj.link(p, obj, swreg.S7SWAP_AT, (4, 0), externs=ext, limit=swreg.S7SWAP_END, text_obj=4,
-                               roots=['s7_season', 's7_load', 'S7_HRUN', 'S7_FNV', 'S7_NAME', 'S7_OAT', 'S7_ONREC', 'S7_LD', 'S7_FA', 'S7_FB', 'S7_NUP', 'S7_NLO', 'S7_UP', 'S7_LO', 'S7_GB',
+                               roots=['s7_season', 's7_load', 'S7_HRUN', 'S7_FNV', 'S7_WLOG', 'WSITES', 'WS_KEYS', 'S7_ENN', 'S7_CFBLEN', 'S7_NAME', 'S7_OAT', 'S7_ONREC', 'S7_LD', 'S7_FA', 'S7_FB', 'S7_NUP', 'S7_NLO', 'S7_UP', 'S7_LO', 'S7_GB',
                                       'S7_AREA', 'S7_LOG'] + LIB)
     assert not bss, ('s7swap.c: no .bss (it would land on swe.c\'s)', bss)
     p.put(*syms['S7_FA'], bytes((fa,)))
@@ -175,6 +209,7 @@ def patch(p, ssyms, rsyms, gsyms, pgsyms, fsyms, risyms):
     cobj.add_ptr(p, pgsyms['S7_PTR'][1], *syms['s7_season'], 1)   # (pg_fix's dword in obj1 -> obj4)
     LABELS.clear()
     LABELS.update(syms)
+    LABELS.update({k: ext[k] for k in ('S7_NUMSEL', 'S7_SELBASE', 'S7_CFB', 'S7_ENI')})   # (host tests)
     print(f'exe: S7 swap builder (s7swap.c) obj4+{swreg.S7SWAP_AT:#x}..{end:#x} of {swreg.S7SWAP_END:#x}: structs '
           f'{fa} / {fb}, boundary levels {up} / {lo}, globals {gb}, {len(area)} idents (homes {hr}); S7_LOG obj4+{syms["S7_LOG"][1]:#x}; load apply: {names[0]} / {names[1]} '
           f'({nrec[fa]} / {nrec[fb]} records) in S7_ORIG, S7_LD obj4+{syms["S7_LD"][1]:#x}')

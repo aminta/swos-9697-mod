@@ -20,12 +20,14 @@
 #define SREG_WALK_H
 
 typedef struct { uint16_t item; uint16_t off, stride, count; uint8_t form, aux; } sreg_wsite;   /* 10 bytes */
-typedef struct { uint8_t file, rows; uint16_t base; } sreg_gfile;     /* a WS_G file run: rows 0 = 256 */
+typedef struct { uint8_t file, rows; uint16_t base; uint8_t ord0, pad[3]; } sreg_gfile;   /* a WS_G run of a file:
+                                           globals [base, base + rows) = ordinals [ord0, ord0 + rows); rows 0 = 256
+                                           (a split file - G144 - has two runs) */
 enum { WS_W = 1, WS_G = 2, WS_O8 = 3, WS_K = 4 };
 enum { WI_CFB = 0, WI_CACHE = 1, WI_MAIN = 2 };
 #define WS_END 0xFFFF
 #define WS_MAX 128                              /* WSITES' room: rows + the WS_END row (wsites.py asserts) */
-extern const sreg_wsite WSITES[WS_MAX];          /* s7swap.c (.data, filled by s7swap.py from wsites.ROWS) */
+extern sreg_wsite WSITES[WS_MAX];                /* s7swap.c (.data, filled by s7swap.py from wsites.ROWS) */
 typedef void (*sreg_rekey)(void);
 extern sreg_rekey WS_KEYS[];                     /* WS_K's callbacks: none yet */
 

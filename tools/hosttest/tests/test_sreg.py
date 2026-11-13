@@ -384,14 +384,15 @@ def test_sreg_walk():
     if r.returncode:
         return False, 'cc: ' + r.stderr[-300:]
     L = ctypes.CDLL(lib)
-    pairs = sorted([(102 | 120 << 8, 144 | 20 << 8), (102 | 130 << 8, 144 | 30 << 8)])
-    m = (ctypes.c_uint16 * 4)(*[x for p in pairs for x in p])
-    g = struct.pack('<BBH', 102, 0, 92) + struct.pack('<BBH', 144, 0, 400) + struct.pack('<BBH', 120, 30, 600)
+    pairs = sorted([(102 | 120 << 8, 144 | 20 << 8), (102 | 130 << 8, 144 | 30 << 8), (144 | 30 << 8, 102 | 130 << 8)])
+    m = (ctypes.c_uint16 * (2 * len(pairs)))(*[x for p in pairs for x in p])
+    g = (struct.pack('<BBHB3x', 102, 0, 92, 0) + struct.pack('<BBHB3x', 144, 25, 400, 0) + struct.pack('<BBHB3x', 120, 30, 600, 0)
+         + struct.pack('<BBHB3x', 144, 50, 900, 25))      # (144 split: ordinals 0..24 at 400.., 25..74 at 900..)
 
     def walk(site, buf):
         b = (ctypes.c_uint8 * len(buf)).from_buffer(buf)
         s = ctypes.create_string_buffer(struct.pack('<HHHHBB', *site), 10)
-        return L.sreg_walk_site(s, b, len(buf), m, 2, ctypes.create_string_buffer(g, len(g)), 3)
+        return L.sreg_walk_site(s, b, len(buf), m, len(pairs), ctypes.create_string_buffer(g, len(g)), 4)
     errs = []
     W = [102 | 120 << 8, 0, 0xFFFF, 102 | 5 << 8, 102 | 130 << 8, 161 | 3 << 8]
     buf = bytearray(b'\xAA' * 2 + b''.join(struct.pack('<HH', w, 0x1234) for w in W))
@@ -401,11 +402,11 @@ def test_sreg_walk():
     if n != 2 or got != want or buf[:2] != b'\xAA\xAA' or any(struct.unpack_from('<H', buf, 4 + 4 * k)[0] != 0x1234
                                                               for k in range(len(W))):
         errs.append(f'W: {n} changed, {[hex(x) for x in got]}')
-    G = [92 + 120, 92 + 5, 92 + 130, 600 + 3, 7]
+    G = [92 + 120, 92 + 5, 92 + 130, 600 + 3, 7, 900 + 30 - 25]
     buf = bytearray(b''.join(struct.pack('<H', x) for x in G))
     n = walk((0, 0, 2, len(G), 2, 0), buf)
     got = list(struct.unpack(f'<{len(G)}H', buf))
-    if n != 2 or got != [400 + 20, 92 + 5, 400 + 30, 600 + 3, 7]:
+    if n != 3 or got != [400 + 20, 92 + 5, 900 + 30 - 25, 600 + 3, 7, 92 + 130]:   # (30: run 2; back: 102's)
         errs.append(f'G: {n} changed, {got}')
     buf = bytearray(struct.pack('<4H', 102 | 120 << 8, 0, 0, 0))
     before = bytes(buf)

@@ -1000,6 +1000,7 @@ def patch_exe(src, dst, remap, lang='it'):
     p.add_flags(1, 0x2)            # writable: season end rewrites the SA cup team lists in the cave
     split.late(p)                                # split's after-stage routines (engine.after_stage)
     trailer.late(p)                              # the engine block's late addresses (RS_STATE ...)
+    s7swap.late(p)                               # 4.2 S7: WSITES + their resolved bytes (engine items bound now)
     import uefaname
     print(f'exe: UEFA cup name fixed in {uefaname.patch(p)} strings (the original exes: EUFA)')   # 4.1.2 (Marco)
     delta, shift = p.save(dst)

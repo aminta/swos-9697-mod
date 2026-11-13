@@ -585,7 +585,8 @@ def patch(p, cave, items, tails=False):
     INFO.update({k: symbols[k] for k in ('NUMSEL', 'CAREER', 'D1', 'WRITEFILE', 'PROCESS', 'BLOCK', 'FIXED', 'ROOM',
                                          'MARK', 'SELBUF')})
     INFO.update(load_a1=load_a1, roomv=labels['ROOMV'], loadcopy=labels['LOADCOPY'], selbasev=labels['SELBASEV'],
-                cg_guardp=labels['CG_GUARDP'], items=list(items), en_found=labels['EN_FOUND'])
+                cg_guardp=labels['CG_GUARDP'], items=list(items), en_found=labels['EN_FOUND'],
+                en_items=labels['EN_ITEMS'], en_n=len(enr))   # (4.2 S7: s7swap.c resolves WSITES rows by them)
     if tails:
         INFO['tails'] = (labels['SAVE_TAIL'], labels['LOAD_TAIL'])
     INFO['EN'] = [(n, iid, sz) for n, iid, sz, _, _ in en]

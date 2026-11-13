@@ -25,7 +25,7 @@
    both again on a difference - never a stale ORIG; still different, or a failed read: nothing applied, S7_LD.status
    LD_FILE / LD_READ, retried at the next load), all but the row's own bytes (file, ordinal, global number, 23, the
    division byte 25: ri_copy's rule). A file that cannot be read or does not match the shipped count: nothing applied,
-   S7_LD says why. Not here yet: the saved words (piece 4, the WSITES walker) and the career cache's records. */
+   S7_LD says why. Not here yet: the career club's own crossing (the accepted-job path). */
 #define SWOSRULES_HAVE_STDINT
 typedef unsigned char uint8_t;
 typedef signed char int8_t;
@@ -37,6 +37,7 @@ typedef int int32_t;
 #include "swce/sr_regsave.c"         /* (sr_wmap_build, for piece 4) */
 
 #include "swefile.h"                /* (prototypes: swefile.c is linked at obj4+SWEFILE_AT) */
+#include "sreg_walk.c"               /* (the walker core: its one copy in the exe, here) */
 
 #define DATA __attribute__((section(".data")))
 #ifndef S7_NID
@@ -82,8 +83,26 @@ enum { LD_OK = 1, LD_NOREG = 2, LD_READ = 3, LD_SIZE = 4, LD_FILE = 5 };   /* (L
                                            one on disk even after a fresh ORIG read: nothing applied) */
 struct { uint8_t status, oread, file, pad; uint16_t moved, rows; uint32_t calls; int32_t rc; } S7_LD DATA = {0};
 
+/* piece 4: the saved words after the swaps. WSITES = wsites.py's rows (Panchina's, sreg_walk.h), S7_WRES the bytes
+   each row's item resolves to (s7swap.py late(): careerFileBuffer's fixed part, an engine item; 0 = the team cache,
+   resolved here per record): S7_WRES in the arena (WR_AT), resolved from trailer's EN_ITEMS at each season end. Every row is checked BEFORE the registry changes (a bad row = the season refused:
+   S7_WSITE, S7_WLOG.row; an item this build does not save: the same). The team cache's records follow their clubs (n7-s7-clubmap §3.3): a cached record whose word
+   moved gets the new row's own bytes - word 0..1, global 2..3 (BE), division 25 (the row's as shipped) - and keeps
+   the rest (its players, 4, 23); WSITES' WI_CACHE rows never cover those bytes (wsites.py asserts). */
+sreg_wsite WSITES[WS_MAX] DATA = {{0}};
+sreg_rekey WS_KEYS[1] DATA = {0};
+struct s7wres { uint32_t ptr, len; };   /* (S7_WRES: the arena's WR_AT, resolved at each season end - MC 13/11) */
+extern const uint32_t S7_ENI[];         /* trailer's EN_ITEMS: per engine item {ptr, size, id | flags << 16} */
+uint32_t S7_ENN DATA = 0;               /* their count (s7swap.py) */
+extern uint8_t S7_CFB[];                /* careerFileBuffer (obj2: the .CAR fixed part) */
+uint32_t S7_CFBLEN DATA = 0;            /* its fixed part's bytes (trailer FIXED) */
+extern uint16_t S7_NUMSEL;              /* trailer: the cache's records (obj2) */
+extern uint8_t *S7_SELBASE;             /* trailer SELBASEV: -> the cache's first record (obj1 dword) */
+struct { int16_t row, rc; uint16_t changed, cache, npair, rows; } S7_WLOG DATA = {0};
+
 /* the result (harness: S7_LOG) */
-enum { S7_OK = 1, S7_NOREG = 2, S7_STALE = 3, S7_BAD = 4, S7_COUNT = 5, S7_PLACE = 6, S7_REG = 7, S7_NOCLUB = 8 };
+enum { S7_OK = 1, S7_NOREG = 2, S7_STALE = 3, S7_BAD = 4, S7_COUNT = 5, S7_PLACE = 6, S7_REG = 7, S7_NOCLUB = 8,
+       S7_WSITE = 9, S7_WMAP = 10 };
 struct { uint8_t status, season, nswap, ncross; int32_t rc; } S7_LOG DATA = {0};   /* (the swaps: the arena's SW_AT) */
 
 static int32_t fi_of(uint8_t file) {
@@ -111,10 +130,14 @@ struct args { int8_t *sltcopy; };
 #define ORD_AT (ND_AT + SR_REG_CLUBS)
 #define SW_AT ((ORD_AT + 2 * 48 + 15) & ~15u)     /* sr_reg_swap[S7_NSW]: the last season's swaps (piece 4's wmap) */
 #define S7_NSW 32
+#define PR_AT ((SW_AT + S7_NSW * sizeof(sr_reg_swap) + 15) & ~15u)   /* the word map: sr_wpair[S7_NPR] */
+#define S7_NPR 128
+#define WR_AT ((PR_AT + S7_NPR * sizeof(sr_wpair) + 15) & ~15u)   /* S7_WRES[WS_MAX] */
 #ifndef SWE_ARENA
 #define SWE_ARENA 0x8000
 #endif
-typedef char s7_work_fits_the_arena[SW_AT + S7_NSW * sizeof(sr_reg_swap) <= SWE_ARENA ? 1 : -1];
+typedef char s7_work_fits_the_arena[WR_AT + WS_MAX * 8 <= SWE_ARENA ? 1 : -1];
+#define S7_WRES ((struct s7wres *)(SWE_ARENA_AT + WR_AT))
 
 /* the group of the level (n groups, free[] places) for an area nibble a: a, else the nearest with room */
 static int32_t place(uint8_t *free, int32_t n, int32_t a) {
@@ -125,6 +148,71 @@ static int32_t place(uint8_t *free, int32_t n, int32_t a) {
     }
     if (a >= n) for (int32_t g = 0; g < n; g++) if (free[g]) return g;
     return -1;
+}
+
+static int32_t wcheck(void)            /* S7_WRES resolved; -1 every row resolvable and in its bytes, else the first bad row */
+{
+    for (int32_t k = 0; k < WS_MAX && WSITES[k].item != WS_END; k++) {
+        const sreg_wsite *s = &WSITES[k];
+        S7_WRES[k].ptr = S7_WRES[k].len = 0;
+        if (s->item == WI_CFB) { S7_WRES[k].ptr = (uint32_t)S7_CFB; S7_WRES[k].len = S7_CFBLEN; }
+        else if (s->item != WI_CACHE)
+            for (uint32_t e = 0; e < S7_ENN; e++)
+                if ((S7_ENI[3 * e + 2] & 0xFFFF) == s->item) { S7_WRES[k].ptr = S7_ENI[3 * e]; S7_WRES[k].len = S7_ENI[3 * e + 1]; }
+        uint32_t len = s->item == WI_CACHE ? 684 : S7_WRES[k].len;
+        if (s->form != WS_W && s->form != WS_G) return k;
+        if (s->item != WI_CACHE && !S7_WRES[k].ptr) return k;
+        if (s->count && (s->off + (uint32_t)(s->count - 1) * s->stride + 2 > len || (s->count > 1 && s->stride < 2)))
+            return k;
+    }
+    return -1;
+}
+
+static void put_slot(uint8_t *r, uint16_t w, const sreg_gfile *g, int32_t ng)   /* a cache record's own bytes */
+{
+    int32_t j = gindex(g, ng, w & 0xFF, w >> 8), fi = fi_of(w & 0xFF);
+    r[0] = (uint8_t)w; r[1] = (uint8_t)(w >> 8);
+    if (j >= 0) { uint16_t gl = (uint16_t)(g[j].base + (w >> 8) - g[j].ord0); r[2] = (uint8_t)(gl >> 8); r[3] = (uint8_t)gl; }
+    if (fi >= 0) { int32_t b = base_local(fi, w >> 8); if (b >= 0) r[25] = (uint8_t)b; }
+}
+
+static int32_t walk(int32_t nsw)
+{
+    sr_wpair *m = (sr_wpair *)(SWE_ARENA_AT + PR_AT);
+    int32_t n = sr_wmap_build((const sr_reg_swap *)(SWE_ARENA_AT + SW_AT), nsw, m, S7_NPR);
+    S7_WLOG.npair = (uint16_t)(n < 0 ? 0 : n);
+    if (n < 0) { S7_WLOG.rc = (int16_t)n; return -1; }
+    sreg_gfile g[4];
+    int32_t ng = 0;
+    for (int32_t s = 0; s < 2; s++) {
+        int32_t fi = fi_of(s ? S7_FB : S7_FA);
+        uint32_t rows = SREG_REG->rows[fi], split = S7_GB[s][1];
+        g[ng].file = s ? S7_FB : S7_FA; g[ng].base = S7_GB[s][0]; g[ng].ord0 = 0;
+        g[ng++].rows = (uint8_t)(split ? split : rows);
+        if (split) { g[ng].file = s ? S7_FB : S7_FA; g[ng].base = S7_GB[s][2]; g[ng].ord0 = (uint8_t)split;
+                     g[ng++].rows = (uint8_t)(rows - split); }
+    }
+    uint32_t changed = 0, cache = 0, nsel = S7_NUMSEL;
+    for (int32_t k = 0; k < WS_MAX && WSITES[k].item != WS_END; k++) {
+        const sreg_wsite *s = &WSITES[k];
+        if (s->item == WI_CACHE) {
+            for (uint32_t i = 0; i < nsel; i++) {
+                int32_t c = sreg_walk_site(s, S7_SELBASE + 684 * i, 684, m, n, g, ng);
+                if (c > 0) changed += c;
+            }
+        } else {
+            int32_t c = sreg_walk_site(s, (uint8_t *)S7_WRES[k].ptr, (int32_t)S7_WRES[k].len, m, n, g, ng);
+            if (c > 0) changed += c;
+        }
+        S7_WLOG.rows = (uint16_t)(k + 1);
+    }
+    for (uint32_t i = 0; i < nsel; i++) {          /* the cache's records follow their clubs */
+        uint8_t *r = S7_SELBASE + 684 * i;
+        uint16_t w = (uint16_t)(r[0] | r[1] << 8), nw = sr_wmap_get(m, n, w);
+        if (nw != w && nw != SR_REG_NONE) { put_slot(r, nw, g, ng); cache++; }
+    }
+    S7_WLOG.changed = (uint16_t)changed; S7_WLOG.cache = (uint16_t)cache;
+    return 0;
 }
 
 static int32_t run(void *pv) {
@@ -182,11 +270,14 @@ static int32_t run(void *pv) {
         }
     }
     S7_LOG.ncross = (uint8_t)no;
+    S7_WLOG.row = (int16_t)wcheck(); S7_WLOG.rc = 0; S7_WLOG.changed = S7_WLOG.cache = S7_WLOG.npair = S7_WLOG.rows = 0;
+    if (S7_WLOG.row >= 0) return S7_LOG.status = S7_WSITE;     /* (before the registry changes: nothing done) */
     sr_reg_work *w = (sr_reg_work *)(SWE_ARENA_AT + W_AT);
     int32_t c = sr_reg_season(R, nd, order, no, 0, w, (sr_reg_swap *)(SWE_ARENA_AT + SW_AT), S7_NSW);
     S7_LOG.rc = c;
     if (c < 0) return S7_LOG.status = S7_REG;
     S7_LOG.nswap = (uint8_t)c;
+    if (walk(c) < 0) return S7_LOG.status = S7_WMAP;           /* (cannot happen: <= S7_NSW swaps, S7_NPR pairs) */
     /* next season's deltas: every row's division (rdiv, the league's) as its file's local, minus the slot's base */
     for (int32_t s = 0; s < 2; s++) {
         int32_t fi = s ? fb : fa;

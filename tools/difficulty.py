@@ -566,6 +566,8 @@ df_tkick:
     xor eax, eax
     mov [CGT], ax                       ; (currentGameTick: the AI reads its bits - pinned too)
     mov [CT], ax                        ; (currentTick: CalculateIfPlayerWinsBall reads it - pinned too)
+    mov [LGT], ax                       ; (lastGameTick: else the first lastFrameTicks = 0 - the old one, any value)
+    mov word [MUTEC], -1                ; (g_muteCommentary: no Rand call timed by the audio)
     mov [DF_FRAMES], eax
     mov [DF_PP], eax
     mov dword [DF_HASH], 2166136261
@@ -575,6 +577,18 @@ df_tkick:
     popad
     ret
 
+df_tpre:                                ; InitGameRestoreTeams' first Rand: the generators pinned already here
+    pushad                              ; (teamPlayingUp / teamStarting / gameRandValue / playerCardChance come
+    mov esi, DF_SEED                    ;  before the kick-off; the menus' Rand calls follow real time)
+    mov edi, RNG1
+    movsw
+    movsb
+    mov edi, RNG2
+    movsw
+    movsb
+    popad
+    jmp RAND
+
 df_frame:
     call PREV_FLIP
 %if BUF
@@ -583,7 +597,8 @@ df_frame:
     pushad
     inc word [CGT]
     inc word [CT]
-    mov byte [DF_LIVE], 8               ; (TimerProc leaves currentTick alone for 8 ticks: df_tick)
+    mov byte [DF_LIVE], 250             ; (TimerProc leaves currentTick alone for 250 ticks: df_tick; 8 was too
+                                        ;  short for a slow frame under load, 13/11 hunt)
     mov eax, [DF_HASH]
     mov esi, SPR0
     mov ecx, 23
@@ -613,6 +628,13 @@ df_frame:
 .np:mov ebx, [DF_FRAMES]
     inc ebx
     mov [DF_FRAMES], ebx
+%if STOPF
+    cmp ebx, STOPF                      ; (DIFF_STOPF, the 13/11 hunt: halt at that frame, the harness dumps memory)
+    jne .ns
+    int 3
+    jmp $
+.ns:
+%endif
     test ebx, (1 << CKSH) - 1
     jnz .x
     shr ebx, CKSH
@@ -678,6 +700,9 @@ def start_dr():
     v = int(os.environ.get('DIFF_DRIB', '0') or '0')
     assert v in (0, 1), 'DIFF_DRIB=0 (CLASSIC) / 1 (NEW)'
     return v
+
+
+PRE_AT = [None]
 
 
 def _one(pat, d, name, n=1):
@@ -775,6 +800,20 @@ def patch(p, lang):
         assert p.target(1, tp + 3) == sl['CGT'], 'TimerProc inc currentGameTick'
         assert d[tp - 25:tp - 22] == b'\x66\xff\x05', 'TimerProc inc currentTick'
         sym['CT'] = p.target(1, tp - 22)
+        rt = [o for o in _one(rb'\x66\xa1....\x66\xa3....\x66\xa1....\x66\x29\x05', d, 'ReadTimerDelta', None)
+              if _t(p, o + 2) == sl['CGT']]
+        rt = [o for o in rt if p.target(1, o + 14) == (sl['CGT'][0], sl['CGT'][1] - 2)]   # (lastGameTick: the word
+        assert len(rt) == 1, ('ReadTimerDelta', rt)     #  before currentGameTick; the other copy reads a replay counter)
+        sym['LGT'] = p.target(1, rt[0] + 14)
+        mc = _one(rb'\x66\x83\x3d....\x00\x0f\x85....\x66\x83\x3d....\x01\x0f\x84....\x66\x83\x3d....\xff\x74.'
+                  rb'\x90\x90\x90\x90\x66\x83\x3d....\xff\x74.', d, 'PlayCommentarySample')[0]
+        pre = [o for o in _one(rb'\xe8....\x66\x83\x25....\x1e', d, 'InitGameRestoreTeams Rand', None)
+               if _t(p, o + 8) == sym['D0_']]
+        assert len(pre) == 1, ('InitGameRestoreTeams: Rand / and D0, 1Eh', pre)
+        PRE_AT[0] = pre[0]                              # (its first Rand: playerCardChance, then gameRandValue,
+        sym['RAND'] = p.call_target(1, pre[0])          #  teamPlayingUp, teamStarting - before the kick-off pin)
+        sym['MUTEC'] = p.target(1, mc + 45)             # (g_muteCommentary: the commentary picks its sample by Rand
+        #  when AIL says the last one stopped - audio time, not frames: muted in trace builds, 13/11 hunt)            # (lastGameTick: pinned with currentGameTick, 13/11 hunt)
         gt = [m.start() for m in re.finditer(rb'\xa1....\xa3....\xa1....\xa3', d[s['KICK'] - 0x600:s['KICK']], re.S)]
         gt = [s['KICK'] - 0x600 + o for o in gt]
         gt = [o for o in gt if p.target(1, o + 1) == sym['A1_'] and p.target(1, o + 11) == sym['A2_']]
@@ -806,7 +845,7 @@ def patch(p, lang):
     bu = knobs() and os.environ.get('DIFF_BU', '1') != '0' and 'BU' not in skips
     sym['BU_ENTRY'] = (4, swreg.BU_AT)
     bf = bu and 'BUFRAME' not in skips
-    src = (f'%define BUF {int(bf)}\n%define CKSH {int(os.environ.get("DIFF_CKSH", "11"))}\n%define BU {int(bu)}\n%define DIFF_FORCE {int(force)}\n%define DIFF_TRACE {int(tr)}\n%define DF_START {start_w()}\n%define DR_START {start_dr()}\n'
+    src = (f'%define BUF {int(bf)}\n%define CKSH {int(os.environ.get("DIFF_CKSH", "11"))}\n%define STOPF {int(os.environ.get("DIFF_STOPF", "0"))}\n%define BU {int(bu)}\n%define DIFF_FORCE {int(force)}\n%define DIFF_TRACE {int(tr)}\n%define DF_START {start_w()}\n%define DR_START {start_dr()}\n'
            f'%define TOP {TOP}\n%define PITCH {PITCH}\n%define HEIGHT {HEIGHT}\n' + ASM
            + (ASM_ROW if row else '') + (ASM_T if tr else '') + data_asm() + strs)
     code, fix, rel = nasmcave.assemble_obj(src, at, sym, 4)
@@ -859,6 +898,7 @@ def patch(p, lang):
     assert shape != 'release' or margin >= swreg.DIFF_MARGIN, ('difficulty page 15: release margin under '
                                                                f'{swreg.DIFF_MARGIN} B (MC)', margin)
     if tr:
+        _hook(p, PRE_AT[0], 5, 5, lab['df_tpre'])
         p.branch(1, sl['FLIP_AT'], 0xE8, 4, lab['df_frame'])
         p.remove(1, tp + 3)
         p.put(1, tp, b'\x90' * 7)

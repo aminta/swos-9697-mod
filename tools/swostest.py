@@ -31590,6 +31590,11 @@ def diff_match(name, build, home, away, ctl, seed, level_w=0, frames=13000, poll
             r = s.send('fire dump:2')
         last, same = -1, 0
         for _ in range(polls):
+            if r.outcome == 'trap' and os.environ.get('DIFF_STOPF'):   # (the hunt: halted at DIFF_STOPF, obj2 saved)
+                n2 = 213 * 0x1000
+                with open(os.path.join(s.run, 'obj2_stop.bin'), 'wb') as f:
+                    f.write(r.obj2(0, n2))
+                return dict(errs=[], stop=os.path.join(s.run, 'obj2_stop.bin'))
             if r.outcome != 'dump':
                 errs.append(f'match: {r}')
                 break
@@ -31656,6 +31661,17 @@ def diff_trace():
         if pr in ('cc', 'hh') and not os.environ.get('DIFF_SELF') and not padc:
             runs.append(('EASY+NEW', diff_match(f'diff_trace_{pr}_easy', new, 'HAMBURG', 'SCHALKE', ctls[pr], seed,
                                                 1, frames, drib=1)))
+        if a.get('stop'):                               # (DIFF_STOPF: obj2 at that frame, the differing words)
+            for tag, b in runs:
+                if not b.get('stop'):
+                    errs.append(f'{pr} {tag}: no stop {b.get("errs")}')
+                    continue
+                x, y = open(a['stop'], 'rb').read(), open(b['stop'], 'rb').read()
+                d = [o for o in range(0, min(len(x), len(y)), 2) if x[o:o + 2] != y[o:o + 2]]
+                info.append(f'{pr} {tag} @{os.environ["DIFF_STOPF"]}: {len(d)} obj2 words differ: '
+                            + ' '.join(f'{o:x}:{x[o:o + 2].hex()}/{y[o:o + 2].hex()}' for o in d[:60]))
+                errs.append('stop') if d else None
+            continue
         if a['errs'] or 'ck' not in a:
             errs.append(f'{pr} REF: {a["errs"]}')
             continue

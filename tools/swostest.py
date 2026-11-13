@@ -36254,13 +36254,15 @@ def kits_gkpage():
     page (entries back, 4 = PRIMA TENUTA), 24 = PORTIERE: SCELTO, the slot set (3, 2, 2); OK -> KG_ARM 1; the match: at
     the kick-off HS of that team = (6, 3, 3) and kits_check with that hand kit (kept, or the automatic colour on a
     clash). (reset) the same, then RESET on the keeper page -> AUTO (slot not set), OK: HS both 0, the automatic keepers.
-    KITS_GKCASES (default set,reset). Shots gk_<case>_*."""
+    (clash) the shirt one step only (grey -> white, kit colour 1 = HAMBURG's white shirt): SCELTO, stored, HS (2, 3, 3)
+    at the kick-off, the keeper in the automatic colour for that match (kits_check's clash fallback). KITS_GKCASES
+    (default set,reset,clash). Shots gk_<case>_*."""
     import kitcolors
     errs, notes = [], []
     b = os.environ.get('KITS_BUILD') or builds()['it']
     kb, sgp = kits_sites(b)
     T = {k: v.decode('latin-1') for k, v in kitcolors.GK_TEXTS[UI].items()}
-    for case in os.environ.get('KITS_GKCASES', 'set,reset').split(','):
+    for case in os.environ.get('KITS_GKCASES', 'set,reset,clash').split(','):
         with Session(f'kits_gk_{case}_{UI}', b, {}, 'dump:3', 600, match=True) as s:
             s.wait()
             friendly_prematch(s, os.environ.get('KITS_HOME', 'HAMBURG'), os.environ.get('KITS_AWAY', 'SCHALKE'))
@@ -36282,7 +36284,7 @@ def kits_gkpage():
             kg_fits(scr, 4, f'{case} page title', errs, k1raw)
             s.shot(f'gk_{case}_page')
             walk(s, 5, 0.5) if scr.selected != 5 else None
-            s.send(' '.join(['fire+right'] * 3) + ' dump:1')
+            s.send(' '.join(['fire+right'] * (1 if case == 'clash' else 3)) + ' dump:1')
             s.shot(f'gk_{case}_edited')
             if case == 'reset':
                 walk(s, 22, 2)
@@ -36290,9 +36292,9 @@ def kits_gkpage():
             mode, arm, sl = kg_read(s, kb)
             mine = next((x for x in sl if x[0] == team), None)
             notes.append(f'{case}: {team}: slots {sl}, mode {mode}')
-            check(mode == 0 and mine and (mine[1:] == (3, 2, 2, 1) if case == 'set' else mine[4] == 0),
+            check(mode == 0 and mine and (mine[1:] == {'set': (3, 2, 2, 1), 'clash': (1, 2, 2, 1)}[case] if case != 'reset' else mine[4] == 0),
                   f'{case}: back on the team\'s page: mode {mode}, slot {mine}', errs)
-            want24 = T['gk'] + (T['gset'] if case == 'set' else T['gauto'])
+            want24 = T['gk'] + (T['gauto'] if case == 'reset' else T['gset'])
             kg_fits(scr, 24, f'{case} back', errs)
             check(scr.entries[24][1] == want24 and not [i for i in range(8, 20) if scr.entries[i][2]]
                   and scr.entries[4][1] == k1, f'{case}: team page: 24 {scr.entries[24][1]!r} (want {want24!r}), '
@@ -36308,7 +36310,7 @@ def kits_gkpage():
             s.shot(f'gk_{case}_match')
             k = kits_read(s, kb)
             hs = [h for h in (k['hs1'], k['hs2']) if h[3]]
-            check(hs == ([(6, 3, 3, 1)] if case == 'set' else []), f'{case}: HS1 {k["hs1"]} HS2 {k["hs2"]}', errs)
+            check(hs == {'set': [(6, 3, 3, 1)], 'clash': [(2, 3, 3, 1)], 'reset': []}[case], f'{case}: HS1 {k["hs1"]} HS2 {k["hs2"]}', errs)
             hand = tuple(h[:3] if h[3] else None for h in (k['hs1'], k['hs2']))
             kits_check(f'gk_{case}', s, kb, sgp, k['w27'], errs, notes, hand)
     return not errs, '; '.join(errs + notes)

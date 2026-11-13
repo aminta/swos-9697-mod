@@ -494,6 +494,13 @@ With these, hh and hc are equal over the whole match (13110 frames). Gate (MC 13
 + hc / cc NORMAL NEW vs REF no worse than REF vs REF (DIFF_SELF=1, N >= 4 each, SWOSTEST_NO_RERUN=1); EASY+NEW is not
 compared with REF (the knobs change the CPU's play) but with itself: DIFF_SELF=easy (cc EASY+NEW twice), no worse
 than REF vs REF.
+Open (cc hunt 13/11, MC timebox ended): cc NORMAL NEW is still deterministically not REF, with every knob / build-up
+hook skipped too (DIFF_SKIP), so the cause is in what NEW has without hooks (the 'DF' item and OPTIONS rows, df_kick,
+obj4 layout). Found on the way: TimerProc sets bumpBigSFrame (IT 0xa8a0e) every 2nd timer tick, which steps an animation
+index (0x65109 -> 0xbdfe6) that a sprite's picture follows: a real-time input. Trace builds now set it once per frame in
+df_frame (TimerProc's timerBoolean block nopped); this changed every outcome (REF 13077 / 13110 by team order) but NEW
+still differs (always 13091, before frame 2048). Each result's `order` = the first team record's name at obj2 0x20a8c (IT),
+which varies run to run in REF too: compare only same-order runs. Handoff: internal/handoff/42-diff-cc-hunt.md.
 `DIFF_STOPF=n` halts at frame n and diffs obj2 word by word (REF vs NEW): the way to find the next input.
 `DIFF_PAD=code,buildup` (REF + a nop band of NEW's obj4 sizes) was equal to REF in every run: code size is not a cause.
 DIFF_SKIP is a comma list matched as a set ('BU' is not 'BUFRAME').

@@ -603,7 +603,10 @@ df_frame:
 %endif
     pushad
     inc word [CGT]
-    inc word [CT]
+    cmp word [TGATE], 0                 ; (TimerProc's gate for bumpBigSFrame)
+    jne .ng
+    mov word [BUMPF], -1                ; (bumpBigSFrame once per frame, not every 2nd timer tick: cc hunt 13/11)
+.ng:inc word [CT]
     mov byte [DF_LIVE], 250             ; (TimerProc leaves currentTick alone for 250 ticks: df_tick; 8 was too
                                         ;  short for a slow frame under load, 13/11 hunt)
     mov eax, [DF_HASH]
@@ -807,6 +810,11 @@ def patch(p, lang):
         assert p.target(1, tp + 3) == sl['CGT'], 'TimerProc inc currentGameTick'
         assert d[tp - 25:tp - 22] == b'\x66\xff\x05', 'TimerProc inc currentTick'
         sym['CT'] = p.target(1, tp - 22)
+        assert d[tp - 11:tp - 9] == b'\x66\xa1' and d[tp + 7:tp + 10] == b'\x66\x83\x05' and \
+            d[tp + 15:tp + 18] == b'\x66\x83\x25' and d[tp + 23] == 0x75 and d[tp + 25:tp + 28] == b'\x66\xc7\x05', \
+            'TimerProc: timerBoolean / bumpBigSFrame'   # (cc hunt 13/11: every 2nd tick sets bumpBigSFrame, which
+        sym['TGATE'] = p.target(1, tp - 9)              #  steps an animation index (IT 0x65109 -> 0xbdfe6) that a
+        sym['BUMPF'] = p.target(1, tp + 28)             #  sprite's picture follows: real time; set per frame instead)
         rt = [o for o in _one(rb'\x66\xa1....\x66\xa3....\x66\xa1....\x66\x29\x05', d, 'ReadTimerDelta', None)
               if _t(p, o + 2) == sl['CGT']]
         rt = [o for o in rt if p.target(1, o + 14) == (sl['CGT'][0], sl['CGT'][1] - 2)]   # (lastGameTick: the word
@@ -916,6 +924,9 @@ def patch(p, lang):
         p.branch(1, sl['FLIP_AT'], 0xE8, 4, lab['df_frame'])
         p.remove(1, tp + 3)
         p.put(1, tp, b'\x90' * 7)
+        for o in (tp + 10, tp + 18, tp + 28):           # (timerBoolean / bumpBigSFrame out of TimerProc: df_frame)
+            p.remove(1, o)
+        p.put(1, tp + 7, b'\x90' * 27)
         p.remove(1, tp - 22)                            # (and currentTick: one per frame while the match is
         p.branch(1, tp - 25, 0xE8, 4, lab['df_tick'], n=7)   #  live, else TimerProc's own: df_tick)
     LABELS.clear()

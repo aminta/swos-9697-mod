@@ -31611,8 +31611,9 @@ def diff_match(name, build, home, away, ctl, seed, level_w=0, frames=13000, poll
             b = r.read(blk, DIFF_OFF['CK'] + 4 * DIFF_CKN)
             out = dict(frames=struct.unpack_from('<I', b, 20)[0], hash=struct.unpack_from('<I', b, 24)[0],
                        ck=list(struct.unpack_from(f'<{DIFF_CKN}I', b, DIFF_OFF['CK'])), act=b[6], dact=b[30],
-                       kicks=struct.unpack_from('<I', b, 8)[0])
-            s.shot(f'{name}_end')
+                       kicks=struct.unpack_from('<I', b, 8)[0],
+                       top=r.obj2(0x20a8c, 8).split(b'\0')[0].decode('latin1'))   # (IT: the first team record's name:
+            s.shot(f'{name}_end')                                                  #  the team order, 13/11 cc hunt)
     out['errs'] = errs
     return out
 
@@ -31673,7 +31674,8 @@ def diff_trace():
                     continue
                 x, y = open(a['stop'], 'rb').read(), open(b['stop'], 'rb').read()
                 d = [o for o in range(0, min(len(x), len(y)), 2) if x[o:o + 2] != y[o:o + 2]]
-                info.append(f'{pr} {tag} @{os.environ["DIFF_STOPF"]}: {len(d)} obj2 words differ: '
+                nm = [z[0x20a8c:0x20a94].split(b'\0')[0].decode('latin1') for z in (x, y)]   # (the team order)
+                info.append(f'{pr} {tag} @{os.environ["DIFF_STOPF"]} order {nm[0]}/{nm[1]}: {len(d)} obj2 words differ: '
                             + ' '.join(f'{o:x}:{x[o:o + 2].hex()}/{y[o:o + 2].hex()}' for o in d[:60]))
                 errs.append('stop') if d else None
             continue
@@ -31687,7 +31689,8 @@ def diff_trace():
             eq, k, n = diff_ck_compare(a, b)
             check(eq and n * DIFF_CKF >= min(frames, (DIFF_CKN - 1) * DIFF_CKF) - DIFF_CKF, f'{pr} {tag}: differs at checkpoint {k} (frame {k * DIFF_CKF if k else "-"})'
                   f' of {n}; frames {a["frames"]} / {b["frames"]}', errs)
-            info.append(f'{pr} {tag}: {n} checkpoints compared, equal {eq} (frames {a["frames"]} / {b["frames"]}, act {b["act"]})')
+            info.append(f'{pr} {tag}: {n} checkpoints compared, equal {eq} (frames {a["frames"]} / {b["frames"]}, act {b["act"]}'
+                        f', order {a.get("top")} / {b.get("top")})')
     return not errs, '; '.join(errs + info)
 
 

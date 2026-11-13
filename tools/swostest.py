@@ -27110,9 +27110,11 @@ def world_s7cross_down():
 
 @scenario
 def world_s7cross_ldfail():
-    """S7 (4.2): world_s7cross_down with the 2nd load apply's ORIG read failing (S7_LDFAIL=2, MC 13/11): S7_LD shows
-    it (LD_READ: the native files seen on that load) and the next load recovers"""
-    return s7cross(20, 'EUROPA,ITALIA,SERIE C GIRONE A,UNION BRESCIA', 102, ldfail=2)
+    """S7 (4.2): world_s7cross_down with the 9th load apply's ORIG read failing (S7_LDFAIL=9, MC 13/11): S7_LD shows
+    it (LD_READ: the native files seen on that load) and the next load recovers. (9: calls 1..8 are the new career's
+    setup loads before after_new wrote the world - NOREG before the switch is looked at; 9 = the first with a
+    registry, file 102)"""
+    return s7cross(20, 'EUROPA,ITALIA,SERIE C GIRONE A,UNION BRESCIA', 102, ldfail=9)
 
 
 @scenario

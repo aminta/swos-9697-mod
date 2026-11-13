@@ -5,8 +5,9 @@
 
    Forms (clubmap §4):
    - WS_W: a u16 team word (file | ordinal << 8); 0 and FFFFh are "none", never rewritten.
-   - WS_G: a u16 global number (someLeaguesTable index): the file whose [base, base + rows) holds it gives the
-     word (file | (g - base) << 8), the map the new word, its file's base the new global. A global in no listed
+   - WS_G: a u16 global number (someLeaguesTable index): the run whose [base, base + rows) holds it gives the
+     word (file | (ord0 + g - base) << 8), the map the new word, the run holding the new word's ordinal the new
+     global (a split file - G144 - has two runs, each its ord0). A global in no listed
      file (another country) is kept.
    - WS_O8 / WS_K: not here (O8 moves array rows between the two files' ordinals; K is its owner's re-key after the
      walk): -2, so a table with such a line fails loudly until its piece lands.
@@ -15,9 +16,7 @@
 #ifndef SREG_WALK_C
 #define SREG_WALK_C
 
-typedef struct { uint16_t item; uint16_t off, stride, count; uint8_t form, aux; } sreg_wsite;
-typedef struct { uint8_t file, rows; uint16_t base; } sreg_gfile;     /* rows 0 = 256 */
-enum { WS_W = 1, WS_G = 2, WS_O8 = 3, WS_K = 4 };
+#include "sreg_walk.h"                        /* (the row layout, forms, items: the contract) */
 
 static int32_t gfile_of(const sreg_gfile *g, int32_t ng, uint32_t glob)
 {
@@ -28,10 +27,12 @@ static int32_t gfile_of(const sreg_gfile *g, int32_t ng, uint32_t glob)
     return -1;
 }
 
-static int32_t gindex(const sreg_gfile *g, int32_t ng, uint32_t file)
+static int32_t gindex(const sreg_gfile *g, int32_t ng, uint32_t file, uint32_t ord)   /* the run holding (file, ord) */
 {
-    for (int32_t i = 0; i < ng; i++)
-        if (g[i].file == file) return i;
+    for (int32_t i = 0; i < ng; i++) {
+        uint32_t rows = g[i].rows ? g[i].rows : 256;
+        if (g[i].file == file && ord >= g[i].ord0 && ord < g[i].ord0 + rows) return i;
+    }
     return -1;
 }
 
@@ -50,9 +51,9 @@ int32_t sreg_walk_site(const sreg_wsite *s, uint8_t *b, int32_t len, const sr_wp
         } else {
             int32_t i = gfile_of(g, ng, v);
             if (i >= 0) {
-                uint16_t nw = sr_wmap_get(m, n, (uint16_t)(g[i].file | (v - g[i].base) << 8));
-                int32_t j = gindex(g, ng, nw & 0xFF);
-                if (j >= 0) w = (uint16_t)(g[j].base + (nw >> 8));
+                uint16_t nw = sr_wmap_get(m, n, (uint16_t)(g[i].file | (g[i].ord0 + v - g[i].base) << 8));
+                int32_t j = gindex(g, ng, nw & 0xFF, nw >> 8);
+                if (j >= 0) w = (uint16_t)(g[j].base + (nw >> 8) - g[j].ord0);
             }
         }
         if (w != v) {

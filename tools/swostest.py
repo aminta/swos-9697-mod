@@ -3373,6 +3373,7 @@ HOLDERS = 0xC058B         # CC / CWC / UEFA holder team numbers (words, FFFF non
 
 
 W84_HOOK = None           # world8485: f(session, season, screen) at every step (set by a scenario, then reset)
+W84_AFTER = None          # world8485: f(session, season) once, after the season's save (set by a scenario, then reset)
 
 
 AG_STORE = 0x18F08        # obj1: after cseg_28E76's 'mov [esi], al' (DIY+89h+tie = cseg_2AE97's D7; IT exe)
@@ -4599,6 +4600,8 @@ def world8485():
             path = next_season_save(s, 'W84' + 'AB'[season - 1])
             if s.result.outcome == 'dump':             # (after the season end: its logs)
                 hexlog()
+            if W84_AFTER is not None and s.result.outcome == 'dump':   # (a scenario's own steps in this session,
+                W84_AFTER(s, season)                                     #  after the save: world_s7cross_newnoload)
             if W84_HOOK is not None and s.result.outcome == 'dump':   # (once more in the new season: the holders
                 W84_HOOK(s, season, None)                                # are set by now)
             if not path.endswith('.CAR'):
@@ -26991,6 +26994,320 @@ def world_gplay_sd_rest_out():
     return gplay_sd_rest('8')
 
 
+def s7_env(extra=None):
+    """(4.2 S7) SEASON_PACKS of the release world world5tm-h2 with Italy replaced by the shaped pack S7_PACK (two
+    league structs: file 102 Serie A..C, file 144 Serie D) - None when either is missing."""
+    pk = os.environ.get('S7_PACK')
+    w = os.path.join(MAIN, 'internal', 'world2526', 'world5tm-h2')
+    if not pk or not os.path.isdir(pk) or not os.path.isdir(w):
+        return None
+    eu = ','.join(sorted(os.path.join(ROOT, 'packs', 'europe-1984-85', d) for d in os.listdir(os.path.join(
+        ROOT, 'packs', 'europe-1984-85')) if os.path.isdir(os.path.join(ROOT, 'packs', 'europe-1984-85', d))))
+    order = [ln.split()[0].lower() for ln in open(w + '.txt') if ' file ' in ln]
+    packs = ','.join(pk if x == 'ita' else os.path.join(w, x) for x in order)
+    env = {'SEASON_PACKS': f'ddr-1988-89,italia-1947-48,world-cup-1934,{eu},{packs}'}
+    env.update(extra or {})
+    return env
+
+
+def s7cross(force, team, start_file, ldfail=None):
+    """The career club crosses between the two league structs (4.2 S7, s7swap.c option B, MC 13/11): GPLAY_FORCE puts
+    it on place `force` of its group at the season end (a Serie C group's last: down; a Serie D group's first: up);
+    two seasons (season 1 played, saved; season 2 loaded from that save and played). Checks (S7_LOG / S7_CLOG /
+    S7_LD / selTeamNumber from the exe's syms, logged as they change):
+    - season 1's end: S7_LOG OK, 9 swaps, 18 crossers; S7_CLOG = the club's old word -> a word of the other file;
+      selTeamNumber = that word, careerTeamLeague = its row's base division;
+    - season 1 is a new career never saved before its end (42-swcnew: the world is in SWC1 from after_new on);
+    - season 2 (the save loaded): selTeamNumber and careerTeamLeague as saved, D6CDC a division of the new struct
+      (Serie D: 0..8; Serie C: 2..4), the club plays its season there (the session reaches its end); a second
+      crossing at its end (natural result: the force is out of the new group's range) only as a season-2 S7_CLOG;
+    - S7_LD (the load apply) never failed in either session (status 0 / OK only - MC 13/11: a failed load = the
+      native files seen; season 1's NOREG loads before after_new wrote the world are allowed: nothing crossed yet),
+      and it applied at least once in season 2."""
+    import json
+    env = s7_env(dict({'GPLAY_FORCE': str(force)}, **({'S7_LDFAIL': str(ldfail)} if ldfail else {})))
+    if env is None:
+        return True, 'SKIP: S7_PACK (the shaped Italy pack) or internal world5tm-h2 missing'
+    exe = os.environ.get('S7_BUILD') or build('s7cross', env=env)
+    sy = json.load(open(os.path.join(exe, 'ITALIAN.syms.json')))
+    s7 = sy.get('s7swap', {})
+    if 'S7_CLOG' not in s7:
+        return False, f'{exe}: no S7 swap builder (not a shaped build, or before piece 4)'
+    at = lambda k: s7[k][1]
+    sel = s7['S7_SELTEAM'][1]
+    keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
+                                            'W8485_NOSACK', 'W8485_HEX', 'W8485_ONE')}
+    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+',
+                      W8485_NOSACK='1', W8485_HEX=f'o4/{at("S7_LOG"):x}:8,o4/{at("S7_CLOG"):x}:6,'
+                      f'o4/{at("S7_WLOG"):x}:12,o4/{at("S7_LD"):x}:16,{sel:x}:8'
+                      + (f',o4/{sy["swe"]["SWC1"][1]:x}:4' if 'SWC1' in sy.get('swe', {}) else '')    # (SWC1 header: ver,
+                      + (f',{sy["swe"]["SWE_CWB"][1]:x}:1' if 'SWE_CWB' in sy.get('swe', {}) else ''))  # world; the world byte)
+    os.environ.pop('W8485_ONE', None)
+    try:
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    errs = []
+    check(ok, msg[:300], errs)
+    hexes = []
+    for season in (1, 2):
+        f = os.path.join(RUNS, w84_tag() + f'_{season}', 'session.log')
+        lines = open(f, errors='replace').read().splitlines() if os.path.exists(f) else []
+        hexes.append([(ln.split()[1], bytes.fromhex(ln.split()[2])) for ln in lines if ln.startswith('HEX ')
+                      and len(ln.split()) > 2])
+    get = lambda s, k: [b for o, b in hexes[s] if o == k]
+    logs = get(0, f'o4/{at("S7_LOG"):x}')
+    st = [b for b in logs if b[0]]
+    check(bool(st) and st[-1][0] == 1 and st[-1][2] == 9 and st[-1][3] == 18,
+          f'S7_LOG {[b.hex() for b in st[-3:]]} (want status 1, 9 swaps, 18 crossers)', errs)
+    cl = [struct.unpack('<HHh', b) for b in get(0, f'o4/{at("S7_CLOG"):x}')]
+    cross = [c for c in cl if c[1]]
+    new = cross[-1][1] if cross else None
+    check(bool(cross) and cross[-1][0] & 0xFF == start_file and new & 0xFF != start_file,
+          f'career club crossing {[(hex(a), hex(b), lg) for a, b, lg in cl[-3:]]} (from file {start_file})', errs)
+    sels = [struct.unpack('<HHHH', b) for b in get(0, f'{sel:x}')]
+    check(new is not None and sels and sels[-1][0] == new and sels[-1][2] == cross[-1][2],
+          f'season 1 end: selTeamNumber / careerTeamLeague {[(hex(a), c) for a, _, c, _ in sels[-3:]]}, '
+          f'want {new and hex(new)} / {cross and cross[-1][2]}', errs)
+    sels2 = [struct.unpack('<HHHH', b) for b in get(1, f'{sel:x}')]
+    sels2 = [s_ for s_ in sels2 if s_[0] not in (0, 0xFFFF)]
+    lo, hi = (0, 8) if start_file == 102 else (2, 4)
+    # (13/11: season 2's own end may cross again - the force is out of range in the other struct's group, so the club
+    #  plays a natural season there; any later selTeamNumber must be a season-2 S7_CLOG crossing out of `new`)
+    cl2 = [struct.unpack('<HHh', b) for b in get(1, f'o4/{at("S7_CLOG"):x}')]
+    ok2 = {new} | {c[1] for c in cl2 if c[1] and c[0] == new}
+    check(bool(sels2) and sels2[0][0] == new and lo <= sels2[0][3] <= hi and all(s_[0] in ok2 for s_ in sels2),
+          f'season 2: selTeamNumber / D6CDC {[(hex(a), d) for a, _, _, d in sels2[:3]]} (want {new and hex(new)} as '
+          f'loaded, D6CDC {lo}..{hi}; later only a season-2 crossing {sorted(hex(x) for x in ok2 if x)})', errs)
+    swc = sy.get('swe', {}).get('SWC1')
+    for s_ in (0, 1):
+        lds = [struct.unpack('<BBBBHHIi', b) for b in get(s_, f'o4/{at("S7_LD"):x}')]
+        if s_ == 0 and swc:                             # (a new career's loads before after_new's swe_st_new wrote the
+            ks = f'o4/{swc[1]:x}'                       #  world into SWC1: NOREG = nothing crossed yet, native = right)
+            w = next((i for i, (o, b) in enumerate(hexes[0]) if o == ks and b[2] == 5), len(hexes[0]))
+            pre = sum(1 for o, _ in hexes[0][:w] if o == f'o4/{at("S7_LD"):x}')
+            lds = [x for x in lds[:pre] if x[0] != 2] + lds[pre:]
+        bad = [x for x in lds if x[0] not in (0, 1)]
+        if ldfail and s_ == 0:                          # (S7_LDFAIL: that call failed - seen - and the next recovered)
+            k = next((i for i, x in enumerate(lds) if x[0] == 3 and x[6] == ldfail), None)
+            check(k is not None and any(x[0] == 1 and x[6] > ldfail for x in lds[k + 1:]),
+                  f'S7_LDFAIL={ldfail}: no failed load then a recovered one {lds[:6]}', errs)
+            bad = [x for x in bad if not (x[0] == 3 and x[6] == ldfail)]
+        check(not bad, f'season {s_ + 1}: S7_LD failed {bad[:3]}', errs)
+        if s_ == 1:
+            check(any(x[0] == 1 for x in lds), f'season 2: S7_LD never applied {lds[-3:]}', errs)
+            # (13/11: the reloaded career's registry is the crossed one - its first applied load moves the crossers'
+            #  rows; 0 = the save carried the spec's registry: it_save's sreg_new at a new career's first save)
+            ok1 = [x for x in lds if x[0] == 1]
+            check(ok1 and ok1[0][4] > 0, f'season 2: the first applied load {ok1[:1]} moved no rows (the save\'s '
+                  f'registry not the crossed one)', errs)
+    return not errs, '; '.join(errs) or (f'{start_file} -> {new & 0xFF}: crossed at the season end (9 swaps, 18 '
+                                         f'crossers), selTeamNumber {new:#x}, season 2 loaded and played in the new '
+                                         f'struct (D6CDC {sels2[-1][3]}), S7_LD OK')
+
+
+@scenario
+def world_s7cross_down():
+    """S7 (4.2): the career club relegated from Serie C girone A (UNION BRESCIA last) to Serie D, two seasons"""
+    return s7cross(20, 'EUROPA,ITALIA,SERIE C GIRONE A,UNION BRESCIA', 102)
+
+
+@scenario
+def world_s7cross_ldfail():
+    """S7 (4.2): world_s7cross_down with the 9th load apply's ORIG read failing (S7_LDFAIL=9, MC 13/11): S7_LD shows
+    it (LD_READ: the native files seen on that load) and the next load recovers. (9: calls 1..8 are the new career's
+    setup loads before after_new wrote the world - NOREG before the switch is looked at; 9 = the first with a
+    registry, file 102)"""
+    return s7cross(20, 'EUROPA,ITALIA,SERIE C GIRONE A,UNION BRESCIA', 102, ldfail=9)
+
+
+def s7newcareer(loaded):
+    """S7 (4.2, MC 13/11): a crossed world-5 career, then a NEW world-5 career in the same DOSBox session. The old
+    career's SWC1 (world 5) and registry (built, its crossings) must not reach the new career's setup loads (the team
+    picker, InitCareer): 42-cstart shuts the gate at NEW CAREER (SWC1 world 0, sreg_new), after_new opens it again.
+    loaded: season 1 of world_s7cross_down makes the save (UNION BRESCIA 102 -> 144; S7_NEWAFTER_CAR: a given one),
+    a session (CORE=normal) loads it; else (no load) the career crossed in this very session - season 1 of
+    world_s7cross_down, then (world8485's W84_AFTER, after its save) the same steps. The steps: a breakpoint at
+    s7_load's entry logs S7_LD (the previous call's result) at every call; ESCI to the main menu, CARRIERA ->
+    ABBANDONA -> a new career at UNION BRESCIA (SERIE C GIRONE A: listed there only with the spec's files) up to the
+    career menu (the next s7_load comes at the season end, ~170 steps: the registry = the spec after after_new is
+    test_sreg's). Checks: the old career's registry crossed (a load
+    moved rows - else nothing is proven); every s7_load call of the new career's setup NOREG or OK with 0 moved, the
+    calls contiguous (no hit missed); the new selTeamNumber the club's native word (file 102); SWC1 world 5 after
+    after_new."""
+    import json
+    team = 'EUROPA,ITALIA,SERIE C GIRONE A,UNION BRESCIA'
+    env = s7_env({'GPLAY_FORCE': '20'})
+    if env is None:
+        return True, 'SKIP: S7_PACK (the shaped Italy pack) or internal world5tm-h2 missing'
+    exe = os.environ.get('S7_BUILD') or build('s7cross', env=env)
+    sy = json.load(open(os.path.join(exe, 'ITALIAN.syms.json')))
+    s7, swe, sr = sy.get('s7swap', {}), sy.get('swe', {}), sy.get('sreg', {})
+    if 'S7_CLOG' not in s7 or 'SWC1' not in swe or 'SREG_REG' not in sr:
+        return False, f'{exe}: no S7 swap builder / SWC1 / sreg (not a shaped build)'
+    at = lambda k: s7[k][1]
+    sel = s7['S7_SELTEAM'][1]
+    ld = lambda r: struct.unpack('<BBBBHHIi', bytes(r.read(r.lin((4, at('S7_LD'))), 16)))
+    hdr = lambda r: struct.unpack('<HH', bytes(r.read(r.lin((4, swe['SWC1'][1])), 4)))
+    _h = open(os.path.join(ROOT, 'tools', 'swce', 'swosrules.h')).read()
+    nf, ncl, nd = (int(re.search(rf'#define {k}\s+(\d+)', _h).group(1)) for k in ('SR_REG_FILES', 'SR_REG_CLUBS',
+                                                                                   'SR_DIVS'))
+    regsize = 8 + nf * (4 + 2 * nd) + 2 * ncl + nf * 256 * 3 + 2 * nf       # (test_sreg.REGSIZE: sr_registry)
+
+    def reg(r):                                         # (the registry's hash, SREG_LAST, SREG_FLAGS)
+        p_ = struct.unpack('<I', bytes(r.read(r.lin((4, sr['SREG_REG'][1])), 4)))[0]
+        last = struct.unpack('<i', bytes(r.read(r.lin((4, sr['SREG_LAST'][1])), 4)))[0]
+        fl = struct.unpack('<I', bytes(r.read(r.lin((4, sr['SREG_FLAGS'][1])), 4)))[0]
+        return hashlib.md5(bytes(r.read(p_, regsize))).hexdigest()[:8], last, hex(fl)
+    errs, st = [], {}
+
+    def steps(s):                                       # (the old career on screen: its career menu)
+        r = s.result
+        w0, h0, x0 = struct.unpack('<HHHH', r.obj2(sel, 8)), hdr(r), ld(r)
+        st.update(w0=w0, x0=x0, c0=x0[6], g0=reg(r))
+        s.log.append(f'[old career] selTeamNumber {w0[0]:#x} SWC1 {h0} S7_LD {x0} REG {st["g0"]}')
+        check(w0[0] & 0xFF == 144 and h0[1] == 5, f'the old career: selTeamNumber {w0[0]:#x}, SWC1 world {h0[1]} '
+              f'(want a file-144 word, world 5)', errs)
+        check(x0[0] == 1 and x0[4] > 0, f'the old career\'s last load {x0}: want OK with rows moved (its crossed '
+              f'registry live - else this scenario proves nothing)', errs)
+        seen = st['seen'] = []
+
+        def hit(r):
+            x = ld(r)
+            if x[6] > st['c0'] and (not seen or seen[-1][0] != x):
+                seen.append((x, hdr(r), reg(r)))
+                s.log.append(f'[s7_load] prev {x} SWC1 {seen[-1][1]} REG {seen[-1][2]}')
+        s.bp(r.lin(tuple(s7['s7_load'])), hit)
+        for _ in range(12):                             # (the career menu -> the main menu)
+            sc = s.screen()
+            if 'MOD. TATTICA' in sc.texts():
+                break
+            press(s, sc, 'CONTINUA' if sc.find('CONTINUA', exact=True) is not None else 'ESCI', 3) \
+                or s.send('fire dump:2')
+        try:
+            set_world(s, 0)                             # (the main menu's world: 2026-27 - its continents at once)
+        except AssertionError as e:
+            s.log.append(f'[set_world] {e}')
+        press(s, s.screen(), 'CARRIERA', 3)
+        if 'ABBANDONA' in s.screen().texts():           # (a career in memory: CONTINUA / ABBANDONA first)
+            press(s, s.screen(), 'ABBANDONA', 3)
+            for _ in range(4):
+                if 'SCEGLI SQUADRA' in s.screen().texts():
+                    break
+                press(s, s.screen(), 'SI', 3) or press(s, s.screen(), 'CONTINUA', 3) or s.send('fire dump:2')
+        if not check(pick_career(s, ['SCEGLI SQUADRA'] + team.split(',')),
+                     f'new career: UNION BRESCIA not reached in SERIE C GIRONE A ({s.screen()})', errs):
+            return
+        s.send('fire dump:3')
+        for _ in range(8):
+            if s.screen().find('VISUAL. COMPETIZ.', exact=True) is not None:
+                break
+            press(s, s.screen(), 'CONTINUA', 3) or s.send('fire dump:2')
+        r = s.result
+        st.update(w1=struct.unpack('<HHHH', r.obj2(sel, 8)), h1=hdr(r), x1=ld(r), g1=reg(r), n1=len(seen))
+        s.log.append(f'[new career] selTeamNumber {st["w1"][0]:#x} SWC1 {st["h1"]} S7_LD {st["x1"]} REG {st["g1"]} '
+                     f'({len(seen)} calls logged)')
+
+    keep_core = os.environ.get('CORE')
+    try:
+        if loaded:
+            native = None
+            car = os.environ.get('S7_NEWAFTER_CAR')
+            if not car:
+                car, native = s7cross_save(exe, team, at, sel, errs)
+                if not car:
+                    return False, '; '.join(errs)
+            os.environ['CORE'] = 'normal'               # (the s7_load breakpoint)
+            with Session('world_s7cross_newafter', exe, {'W84A.CAR': car}, 'dump:2', 900) as s:
+                if s.wait().outcome != 'dump':
+                    return False, f'START: no first pause ({s.result})'
+                s.send(LOAD1 + ' dump:3')
+                steps(s)
+        else:
+            global W84_AFTER
+            W84_AFTER = lambda s, season: steps(s)
+            try:
+                car, native = s7cross_save(exe, team, at, sel, errs)
+            finally:
+                W84_AFTER = None
+    finally:
+        if keep_core is None:
+            os.environ.pop('CORE', None)
+        else:
+            os.environ['CORE'] = keep_core
+    if 'w1' not in st:
+        check(False, f'the new career not reached ({st.get("x0")})', errs)
+        return False, '; '.join(errs)
+    seen = [x for x, _, _ in st['seen']]
+    last = st['x1']
+    calls = [x[6] for x in seen] + ([last[6]] if not seen or seen[-1] != last else [])
+    check(calls and calls == list(range(st['c0'] + 1, calls[-1] + 1)),
+          f'new career: s7_load calls {calls} not contiguous from {st["c0"] + 1} (a breakpoint hit missed)', errs)
+    setup = seen + ([last] if not seen or seen[-1] != last else [])
+    bad = [x for x in setup if x[0] not in (1, 2) or x[4]]
+    check(not bad, f'new career setup: s7_load moved rows / failed {bad[:4]} (want NOREG or OK with 0 moved)', errs)
+    w1, h1 = st['w1'], st['h1']
+    check(w1[0] & 0xFF == 102 and (native is None or w1[0] == native),
+          f'new career: selTeamNumber {w1[0]:#x} (want the native {native and hex(native)}, file 102)', errs)
+    check(h1[1] == 5, f'new career: SWC1 world {h1[1]} after after_new (want 5)', errs)
+    return not errs, '; '.join(errs) or (
+        f'{"loaded" if loaded else "in-session"} crossed career (selTeamNumber {st["w0"][0]:#x}, its load moved '
+        f'{st["x0"][4]} rows of file {st["x0"][2]}, REG {st["g0"][0]}), then a new one: setup s7_load calls '
+        f'{calls[0]}..{calls[-1]} statuses {sorted({x[0] for x in setup})}, 0 moved; UNION BRESCIA {w1[0]:#x} native, '
+        f'SWC1 world 5 after after_new')
+
+
+def s7cross_save(exe, team, at, sel, errs):
+    """Season 1 of world_s7cross_down (world8485, W8485_ONE): the save of a career that crossed 102 -> 144;
+    -> (save path, the club's native word) or (None, None) with errs."""
+    keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
+                                            'W8485_NOSACK', 'W8485_HEX', 'W8485_ONE')}
+    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5',
+                      W8485_K='108+', W8485_NOSACK='1', W8485_ONE='1',
+                      W8485_HEX=f'o4/{at("S7_LOG"):x}:8,o4/{at("S7_CLOG"):x}:6,{sel:x}:8')
+    try:
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    car = os.path.join(RUNS, w84_tag() + '_1', 'SWOS', 'W84A.CAR')
+    if not check(ok and os.path.exists(car), f'season 1 (the crossed save): {msg[:300]}', errs):
+        return None, None
+    lines = open(os.path.join(RUNS, w84_tag() + '_1', 'session.log'), errors='replace').read().splitlines()
+    cl = [struct.unpack('<HHh', bytes.fromhex(ln.split()[2])) for ln in lines
+          if ln.startswith(f'HEX o4/{at("S7_CLOG"):x} ') and len(ln.split()) > 2]
+    cross = [c for c in cl if c[1]]
+    if not check(bool(cross) and cross[-1][0] & 0xFF == 102 and cross[-1][1] & 0xFF == 144,
+                 f'season 1 did not cross 102 -> 144: S7_CLOG {[(hex(a), hex(b)) for a, b, _ in cl[-3:]]}', errs):
+        return None, None
+    return car, cross[-1][0]
+
+
+@scenario
+def world_s7cross_newafter():
+    """S7 (4.2, MC 13/11): a crossed career saved and loaded, then a new one in the same session (s7newcareer)"""
+    return s7newcareer(True)
+
+
+@scenario
+def world_s7cross_newnoload():
+    """S7 (4.2, MC 13/11): a career crossed in this session (no load), ABBANDONA, a new one (s7newcareer)"""
+    return s7newcareer(False)
+
+
+@scenario
+def world_s7cross_up():
+    """S7 (4.2): the career club promoted from Serie D girone A (LIGORNA first) to Serie C, two seasons"""
+    return s7cross(1, 'EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA', 144)
+
+
 @scenario
 def world_gplay_poule(force='1', team='EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA'):
     """The Poule Scudetto played (gplay: a group contest as the game's type 2 in slot 3): the data session's snapshot
@@ -27014,7 +27331,8 @@ def world_gplay_poule(force='1', team='EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA'):
                                             'W8485_NOSACK', 'W8485_HEX', 'W8485_ONE')}
     os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+',
                       W8485_NOSACK='1', W8485_HEX=f'{log_at:x}:{log_n},{st_at:x}:{st_n},' + ','.join(
-                          f'{a:x}:{4 if i == 0 else 106 if i == 4 else 2}' for i, a in enumerate(eu)), W8485_ONE='1')
+                          f'{a:x}:{4 if i == 0 else 106 if i == 4 else 2}' for i, a in enumerate(eu))
+                      + (f",{int(os.environ['GPLAY_EXT'], 16):x}:68" if os.environ.get('GPLAY_EXT') else ''), W8485_ONE='1')
     try:
         ok, msg = world8485()
     finally:
@@ -27026,6 +27344,15 @@ def world_gplay_poule(force='1', team='EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA'):
     lines = open(os.path.join(RUNS, w84_tag() + '_1', 'session.log'), errors='replace').read().splitlines()
     errs = []
     check(ok, msg, errs)
+    if os.environ.get('GPLAY_EXT'):                                     # (S7 shaped builds, GP_S7=1: gplay.py's
+        xa = int(os.environ['GPLAY_EXT'], 16)                             # 'S7 GP_EXT obj2+..' build line; the
+        xs = [bytes.fromhex(ln.split()[2]) for ln in lines if ln.startswith(f'HEX {xa:x} ')]   # season end's list)
+        for b in xs:
+            ents = [x for x in (struct.unpack_from('<HHBB', b, 4 + 8 * k) for k in range(8)) if x[1]]   # (n: this
+            # country's - the next country's gp_season resets it, so the entries left behind are printed too)
+            print(f"  GP_EXT n {b[0]} full {b[1]}: " + ', '.join(f'glob {g} team {t:#06x} entry {e} '
+                                                             f"{'winner' if o == 0 else 'loser'}" for g, t, e, o in ents))
+        check(not xs or xs[-1][1] == 0, f'GP_EXT full: {xs[-1][:2].hex() if xs else ""}', errs)   # (never logged: stayed 0)
     sts = [bytes.fromhex(ln.split()[2]) for ln in lines if ln.startswith(f'HEX {st_at:x} ')]
     sts = [b for b in sts if b[:2] == b'GK']
     if not sts:

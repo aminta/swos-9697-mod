@@ -366,9 +366,15 @@ def patch_exe(src, dst, remap, lang='it'):
     if xtra_on:                                        # 4.2.y T3 PRIMAVERA (MC 12/11, 23bis): its own page, the 14th
                                                        # (the pages between stay zero)
         swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, swreg.T3_END // 0x1000)
+    import s7swap
+    if s7swap.on():                                    # 4.2 S7: s7_load reads the two league files (the file layer)
+        swe.SWEFILE = True
     import swefile
     if swefile.on():                                   # 4.2 file layer (MC 12/11): page 18, only when linked
         swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, swefile.page_end() // 0x1000)
+    import s7swap
+    if s7swap.on():                                    # 4.2 S7 swap builder + the registry library (MC 13/11): pages 18-19,
+        swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, s7swap.page_end() // 0x1000)   # only with a registry shape
     swe.OBJ4_PAGES = sreg.obj4_pages(swe.OBJ4_PAGES)   # (4.2 N7: + the old-save import's 12th page, SREG2_AT)
     if lr_tabs:                                        # (the career league's head-to-head block)
         engine.save_item('LR', lrank.LR_SIZE, world_only=True)
@@ -977,6 +983,11 @@ def patch_exe(src, dst, remap, lang='it'):
                                                      'band): every group draw would be refused')
     import sreg                                  # 4.2 N7: the club registry (dormant without a shape: nothing linked)
     sreg_end = sreg.patch(p, swe.LABELS)
+    if sreg_end is not None and s7swap.on():     # 4.2 S7: the season-end swap builder (s7swap.py; pg_fix's S7_PTR)
+        import gplay
+        import ripool
+        import swefile
+        s7swap.patch(p, swe.LABELS, sreg.LABELS, gplay.LABELS, pgroups.LABELS, swefile.LABELS, ripool.LABELS)
     if sreg_end is not None:
         assert sreg_end <= lrank.LR_AT, ('sreg past LR_AT', hex(sreg_end), hex(lrank.LR_AT))
     benchx.link_w27(p)                           # (4.0.6 step 2.5: the friendlies' long bench by SWE_W27)
@@ -989,6 +1000,7 @@ def patch_exe(src, dst, remap, lang='it'):
     p.add_flags(1, 0x2)            # writable: season end rewrites the SA cup team lists in the cave
     split.late(p)                                # split's after-stage routines (engine.after_stage)
     trailer.late(p)                              # the engine block's late addresses (RS_STATE ...)
+    s7swap.late(p)                               # 4.2 S7: WSITES + their resolved bytes (engine items bound now)
     import uefaname
     print(f'exe: UEFA cup name fixed in {uefaname.patch(p)} strings (the original exes: EUFA)')   # 4.1.2 (Marco)
     delta, shift = p.save(dst)

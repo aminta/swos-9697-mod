@@ -2727,6 +2727,20 @@ def gp_s7():
     return int(any(getattr(pk, 'ko_external', None) for pk in mkseason.packs()))
 
 
+def s7_flags():
+    """GP_S7 builds: gplay.c's S7 snapshot constants - S7_FA / S7_FB (the upper / lower struct's file) and S7_DIRS
+    (mkseason Pack.s7_direct); dormant: none (the code is compiled out)."""
+    if not gp_s7():
+        return []
+    import mkseason
+    pk = next(pk for pk in mkseason.packs() if getattr(pk, 'ko_external', None))
+    dirs = pk.s7_direct()
+    fs = sorted({pk.div_key(d)[0] for d in range(len(pk.divisions()))}, key=lambda f: min(pk.struct_divs(f)))
+    assert len(fs) == 2 and all(0 < f < 256 for f in fs), ('S7: two league structs', fs)
+    assert dirs, 'S7: a shaped pack without direct crossings (B1 zeroed nothing)'
+    return [f'-DS7_FA={fs[0]}', f'-DS7_FB={fs[1]}', '-DS7_DIRS=' + ','.join('{%d,%d,%d,%d}' % x for x in dirs)]
+
+
 def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     """tables: mkseason.gplay_tables(). C + glue + specs in obj1 at..limit, the C .bss at obj2 bss_at (BSS_SIZE).
     area: the contest names' string area (the playable play-offs). Returns the end."""
@@ -2787,6 +2801,7 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
                                 f"-DGP_GSON={int(GS_ON[0])}",
                                 f"-DCF_SEED={__import__('cupsf').SEED}",
                                 f"-DGP_S7={gp_s7()}",
+                                *s7_flags(),
                                 f"-DSM_LANG={['it', 'en', 'fr', 'de'].index(lang)}"]   # (gp_strmap_c's STRMAP41 section)
                                + (['-DHDR_TEST'] if os.environ.get('HDR_TEST') else [])   # (test builds: GROUP n headers)
                                + (['-DGP_CD2=1'] if __import__('cupd').cd2() else []))   # (S7-G: CD_DT two runs)
@@ -2841,7 +2856,7 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     tab_src, tab_syms = table_lines(tables)
     symbols = {k: (0, v) for k, v in lay.items()}
     symbols.update(tab_syms)
-    symbols.update({k: syms[k] for k in ('GP_EXT',) if k in syms})   # (S7: shaped builds only, GP_S7)
+    symbols.update({k: syms[k] for k in ('GP_EXT', 'S7X') if k in syms})   # (S7: shaped builds only, GP_S7)
     symbols.update({k: syms[k] for k in ('GP_SSB', 'GP_IN', 'GP_OUT', 'gp_season', 'gp_champ', 'gp_keep', 'GP_ST', 'GP_LOG', 'GP_NM', 'GP_DIYP', 'GP_K',
                                          'GP_W', 'GP_SKIP', 'GP_RB', 'GP_ALIVE', 'GP_LAST', 'GP_A', 'GP_B', 'GP_CID', 'GP_SEAS', 'GP_DIV',
                                          'GP_PT', 'GP_PL', 'gp_need', 'gp_simkeep', 'gp_need_pre', 'gp_simkeep_pre', 'gp_pre_c', 'GP_PRE', 'gp_restore', 'gp_lend_c', 'gp_ours_c',
@@ -3125,4 +3140,8 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     print(f"exe: knockout play-offs (gplay): {len(tables)} countries, C obj1+{at:#x}..{cend:#x}, glue ..{glue + len(code):#x}, "
           f"GP_IN obj2+{syms['GP_IN'][1]:#x}, state GP_ST obj2+{syms['GP_ST'][1]:#x} ({lay['ST_SIZE']} B), "
           f"log obj2+{syms['GP_LOG'][1]:#x}, .bss {bss:#x}")
+    if 'GP_EXT' in syms:                        # (S7, shaped builds: the season-end swap builder's input)
+        LABELS['GP_EXT'], LABELS['S7X'] = syms['GP_EXT'], syms['S7X']
+        print(f"exe: S7 GP_EXT obj2+{syms['GP_EXT'][1]:#x} (GP_S7=1: cross-struct play-off destinations listed), "
+              f"S7X obj2+{syms['S7X'][1]:#x} (the structs' crossing snapshots)")
     return glue + len(code)

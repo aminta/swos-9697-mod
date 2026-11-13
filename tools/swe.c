@@ -30,6 +30,10 @@ u32 SWE_STATE;                          /* 0 = not initialised, 1 = swe_init ran
 #define CSTACK_IMPL
 #include "cstack.h"
 u8 SWE_CSTACK[CSTACK_SIZE] __attribute__((aligned(16)));
+#ifdef S7_ORIG_SZ                       /* 4.2 S7 (shaped builds only: s7swap.py): the two league files as read (s7swap.c
+                                           s7_load's ORIG buffers, swreg.S7_ORIG_SZ); release builds: no byte */
+u8 S7_ORIG[S7_ORIG_SZ] __attribute__((aligned(16)));
+#endif
 #ifdef SWEFILE_TEST                     /* SWEFILE_TEST=1 builds only: the file layer's self-test (swefile.c swef_selftest) -
                                            its buffers here in the .bss (swefile.c has none), its entry put in SWEF_HOOK by
                                            swefile.py; swe_sel_pre calls it once */

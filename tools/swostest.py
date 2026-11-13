@@ -31953,6 +31953,15 @@ def diff_score_sites(exe_dir):
 DIFF_PAIRINGS = {'sw': ('BAYERN MUNICH', 'ST. PAULI'), 'eq': ('HAMBURG', 'SCHALKE'), 'ws': ('ST. PAULI', 'BAYERN MUNICH')}
 
 
+def _dp_model(dfm, k):
+    """DP_K -> (BLK_CU, BLK_CO) bytes (= test_drp.model)."""
+    cu, co = bytearray(dfm._blk(dfm.USER)), bytearray(dfm._blk(dfm.OPP))
+    for i, (_, blk, field, size, vals) in enumerate(dfm.DP_ROWS):
+        if blk:
+            struct.pack_into('<I' if size == 4 else '<H', cu if blk == 'U' else co, field, vals[k[i]])
+    return bytes(cu), bytes(co)
+
+
 @scenario
 def diff_ab():
     """42-diff proxy matches (difficulty-plan.md §5, Q1 Q3 Q4 Q8): a DIFF_TEST + DIFF_TRACE + DIFF_FORCE build; friendlies
@@ -31964,7 +31973,13 @@ def diff_ab():
     frames. DIFF_N (default 4) seeds; DIFF_FRAMES (13000). Results appended to DIFF_AB_OUT (json lines; default the
     run dir). PASS = every match played to DIFF_FRAMES; the numbers are the measurement (no threshold here)."""
     lang = os.environ.get('SWOSTEST_UI', 'it')
-    b = build('diff_ab', {'DIFF_TEST': '3', 'DIFF_TRACE': '1', 'DIFF_FORCE': '1'}, lang=lang)
+    tc = {'DIFF_TC': '1'} if os.environ.get('DIFF_TC') else {}     # (42-drp: per-site effect counters, DF_TC)
+    b = build('diff_ab' + ('_tc' if tc else ''), {'DIFF_TEST': '3', 'DIFF_TRACE': '1', 'DIFF_FORCE': '1', **tc}, lang=lang)
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import difficulty as dfm
+    import swreg
+    dpk = [int(x) for x in os.environ['DIFF_DPK'].split(',')] if os.environ.get('DIFF_DPK') else None   # (DRIBBLING 2's
+    #  page values poked into DP_K before the kick-off, e.g. Davide's 13/11 max 4,10,12,15,15,0,0,0)
     dribs = [int(x) for x in os.environ.get('DIFF_DRIBS', '0').split(',')]
     g1, g2, top = diff_score_sites(b)
     n = int(os.environ.get('DIFF_N', '4'))
@@ -31986,6 +32001,14 @@ def diff_ab():
                     s.poke(blk + DIFF_OFF['SEED'], seed + bytes((3, 1)))
                     s.poke(blk + DIFF_OFF['W'], bytes([w_of[lv], 0]))
                     s.poke(blk + DIFF_OFF['DR'], bytes([dr, 0]))
+                    nr = len(dfm.DP_ROWS)
+                    lo = s.result.base4 + (swreg.DIFF_AT & ~0xFFF) - 0x2000
+                    area = s.result.read(lo, 0x5000)
+                    kk = area.find(struct.pack(f'<{nr}H', *dfm.DP_DEFAULT) + bytes(len(x[4]) for x in dfm.DP_ROWS))
+                    kb = area.find(dfm._blk(dfm.NORM) + dfm._blk(dfm.USER) + dfm._blk(dfm.OPP))
+                    if dr == 2 and dpk:
+                        check(kk >= 0, f'{tag}: DP_K not found', errs)
+                        s.poke(lo + kk, struct.pack(f'<{nr}H', *dpk))
                     for _ in range(22):
                         s.send('down dump:0.5')
                         if s.screen().selected == 9:
@@ -31995,6 +32018,14 @@ def diff_ab():
                         if r.outcome != 'dump' or struct.unpack('<I', r.read(blk + DIFF_OFF['KICKS'], 4))[0]:
                             break
                         r = s.send('fire dump:2')
+                    if r.outcome == 'dump' and kb >= 0 and dr == 2:     # (the kick-off's dp_build: CU / CO = the page)
+                        got = r.read(lo + kb + 96, 64)
+                        k8 = list(struct.unpack(f'<{nr}H', r.read(lo + kk, 2 * nr))) if kk >= 0 else None
+                        want = b''.join(_dp_model(dfm, k8 or list(dfm.DP_DEFAULT)))
+                        check(got == want, f'{tag}: BLK_CU/CO {got.hex()} want {want.hex()} (DP_K {k8})', errs)
+                        blkck = f'DP_K {k8} -> CU/CO = page values {got == want}'
+                    else:
+                        blkck = None
                     last, same = -1, 0
                     for _ in range(150):
                         if r.outcome != 'dump':
@@ -32018,7 +32049,12 @@ def diff_ab():
                         bb = r.read(blk, DIFF_OFF['CK'])
                         res = dict(pairing=pr, level=lv, drib=dr, seed=seed.hex(), frames=f, act=act, dact=bb[30],
                                    goals=goals, stats=st, pens=struct.unpack_from('<H', bb, DIFF_OFF['PENS'])[0],
-                                   noslide=struct.unpack_from('<I', bb, DIFF_OFF['NOSL'])[0])
+                                   noslide=struct.unpack_from('<I', bb, DIFF_OFF['NOSL'])[0], blk=blkck)
+                        if tc:                          # [slide, hold] x [N, U, O, CU, CO]; press / tsl [zone][front, side, behind]
+                            t25 = struct.unpack('<10I', r.read(blk + 72, 40))
+                            res['tc'] = [list(t25[5 * j:5 * j + 5]) for j in range(2)]
+                            t19 = struct.unpack('<19I', r.read(blk + 112, 76))
+                            res['press'], res['tsl'], res['tf'] = list(t19[:9]), list(t19[9:18]), t19[18]
                         bu = diff_bu_block(r)
                         if bu is not None:              # build-up v1: G1 / H1 / P1 + [team][pass, kick, gk pass, gk kick]
                             bb = r.read(bu, 68)

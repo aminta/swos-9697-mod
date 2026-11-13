@@ -311,6 +311,19 @@ df_goal:
     pop eax
 .o: ret
 
+%macro TCN 1                          ; (DIFF_TC trace builds: count site %1 per block, ebx = the block; flags kept)
+%if TC
+    pushfd
+    push eax
+    mov eax, ebx
+    sub eax, BLK_N
+    shr eax, 5
+    inc dword [DF_TC + %1 * 20 + eax * 4]
+    pop eax
+    popfd
+%endif
+%endmacro
+
 ; ---- K4: the carrier (replaces UpdatePlayerSpeed's 37 B `D0 = speed >> 3; speed -= D0`; esi = A1, A6 his team)
 df_carrier:
     push ebx
@@ -334,6 +347,14 @@ df_hold:
     push ebx
     mov ebx, [A6_]
     call df_blk
+%if TC
+    push eax
+    mov eax, [ebx + 12]
+    cmp [esi + 4Ah], eax
+    ja .t
+    TCN 1
+.t: pop eax
+%endif
     mov ebx, [ebx + 12]
     cmp [esi + 4Ah], ebx
     pop ebx
@@ -348,7 +369,31 @@ df_slide:
     call df_blk
     cmp word [ebx + 8], 0
     jne .g
-.c: mov ebx, [ebx + 16]
+.c:
+%if TC
+    push eax
+    mov eax, [ebx + 16]
+    cmp [esi + 4Ah], eax
+    ja .t
+    TCN 0
+    pushfd
+    pushad
+    cmp word [esi], 2                   ; (a team-2 tackler on team 1's carrier: its angle / zone, DF_TS)
+    jne .tx
+    mov edi, [A6_]
+    mov edi, [edi]
+    cmp word [edi + 28h], 0
+    je .tx
+    mov edi, [edi + 20h]
+    test edi, edi
+    jz .tx
+    mov ebp, DF_TS
+    call tc_cls
+.tx:popad
+    popfd
+.t: pop eax
+%endif
+    mov ebx, [ebx + 16]
     cmp [esi + 4Ah], ebx
     pop ebx
     ret
@@ -404,6 +449,100 @@ df_slide:
     pop eax
     jmp .c
 
+%if TC
+; ---- DIFF_TC: esi = a team-2 player, edi = team 1's carrier, ebp = 9 counters [zone own half / opp half / box]
+;      [front / side / behind] (the angle between the carrier's direction and the player, 45 degree cones); team 1's
+;      goalie (SPR0) gives the end it defends
+tc_cls:
+    pushad
+    movsx eax, word [edi + 24h]
+    movsx ecx, word [edi + 20h]
+    movsx edx, word [SPR0 + 24h]
+    cmp edx, 449
+    jl .dn
+    neg eax
+    add eax, 898
+.dn:xor ebx, ebx
+    cmp eax, 449
+    jl .zd
+    inc ebx
+    cmp eax, 682
+    jl .zd
+    cmp ecx, 193
+    jl .zd
+    cmp ecx, 478
+    jg .zd
+    inc ebx
+.zd:imul ebx, 12
+    add ebp, ebx
+    movsx eax, word [esi + 20h]
+    movsx ecx, word [edi + 20h]
+    sub eax, ecx
+    movsx edx, word [esi + 24h]
+    movsx ecx, word [edi + 24h]
+    sub edx, ecx
+    movzx ecx, word [edi + 2Ah]
+    and ecx, 7
+    movsx ebx, byte [TC_VX + ecx]
+    movsx ecx, byte [TC_VY + ecx]
+    mov esi, eax
+    imul esi, ebx
+    mov edi, edx
+    imul edi, ecx
+    add esi, edi
+    imul edx, ebx
+    imul eax, ecx
+    sub edx, eax
+    mov eax, edx
+    cdq
+    xor eax, edx
+    sub eax, edx
+    mov ecx, 4
+    cmp esi, eax
+    jle .b
+    xor ecx, ecx
+    jmp .k
+.b: neg esi
+    cmp esi, eax
+    jle .k
+    mov ecx, 8
+.k: inc dword [ebp + ecx]
+    popad
+    ret
+; ---- every live frame: team 1's player nearest the ball (< 10 px: the carrier) and team 2's nearest to it (< 40 px)
+tc_frame:
+    mov esi, SPR0
+    xor edi, edi
+    mov edx, 100
+    mov ecx, 11
+.a: cmp [esi + 4Ah], edx
+    jae .an
+    mov edx, [esi + 4Ah]
+    mov edi, esi
+.an:add esi, 6Eh
+    loop .a
+    test edi, edi
+    jz .x
+    inc dword [DF_TF]
+    xor ebx, ebx
+    mov edx, 1600
+    mov ecx, 11
+.c: cmp [esi + 4Ah], edx
+    jae .cn
+    mov edx, [esi + 4Ah]
+    mov ebx, esi
+.cn:add esi, 6Eh
+    loop .c
+    test ebx, ebx
+    jz .x
+    mov esi, ebx
+    mov ebp, DF_TP
+    call tc_cls
+.x: ret
+TC_VX: db 0, 1, 1, 1, 0, -1, -1, -1
+TC_VY: db -1, -1, 0, 1, 1, 1, 0, -1
+%endif
+
 ; ---- K9: the won-the-ball protection (replaces `mov word [esi + TeamGeneralInfo.wonTheBallTimer], 12`; esi the team:
 ;      df_lockw the contact's winner (CalculateIfPlayerWinsBall), df_lockl a strong tackle's loser)
 df_lockw:
@@ -451,6 +590,12 @@ DF_NOSL: dd 0                           ; +32 K11: CPU slides skipped in the own
 DF_PP: dw 0                             ; +36 DIFF_TRACE: the previous frame's `penalty`
 DF_PENS: dw 0                           ; +38 DIFF_TRACE: penalties awarded since the kick-off (rising edges)
 DF_CK: times 8 dd 0                     ; +40 DIFF_TRACE: DF_HASH every 2048 frames (ring of 8: 16384 frames)
+%if TC
+DF_TC: times 10 dd 0                    ; +72 DIFF_TC: [site slide-in-radius, hold-in-radius][block N U O CU CO]
+DF_TP: times 9 dd 0                     ; +112 team 2's nearest to team 1's carrier, frames [zone][front side behind]
+DF_TS: times 9 dd 0                     ; +148 team 2's slides in radius on team 1's carrier [zone][front side behind]
+DF_TF: dd 0                             ; +184 frames with team 1 on the ball
+%endif
 LVMAP: db 3, 1, 5, 2, 4
 align 2
 """
@@ -760,6 +905,9 @@ df_frame:
     call BU_ENTRY                       ; (buildup.py's counters)
 %endif
     pushad
+%if TC
+    call tc_frame
+%endif
     inc word [CGT]
     cmp word [TGATE], 0                 ; (TimerProc's gate for bumpBigSFrame)
     jne .ng
@@ -767,6 +915,7 @@ df_frame:
 .ng:inc word [CT]
     mov byte [DF_LIVE], 250             ; (TimerProc leaves currentTick alone for 250 ticks: df_tick; 8 was too
                                         ;  short for a slow frame under load, 13/11 hunt)
+%if TC = 0                              ; (DIFF_TC builds: no frame hash - no room beside the counters)
     mov eax, [DF_HASH]
     mov esi, SPR0
     mov ecx, 23
@@ -786,6 +935,7 @@ df_frame:
     mov ecx, 3
     call df_fnv
     mov [DF_HASH], eax
+%endif
     mov ax, [PEN]                       ; (a penalty: `penalty` 0 -> non-zero)
     cmp ax, [DF_PP]
     je .np
@@ -803,12 +953,14 @@ df_frame:
     jmp $
 .ns:
 %endif
+%if TC = 0
     test ebx, (1 << CKSH) - 1
     jnz .x
     shr ebx, CKSH
     cmp ebx, 8                          ; (no wrap: checkpoints 1..7 = frames 1..7 << CKSH)
     jae .x
     mov [DF_CK + ebx * 4], eax
+%endif
 .x: popad
     ret
 
@@ -821,6 +973,7 @@ df_tick:                                ; TimerProc's `inc currentTick`, skipped
     ret
 DF_LIVE: db 0
 
+%if TC = 0
 df_fnv:                                 ; eax = FNV-1a(eax; esi, ecx bytes)
     movzx edx, byte [esi]
     xor eax, edx
@@ -828,6 +981,7 @@ df_fnv:                                 ; eax = FNV-1a(eax; esi, ecx bytes)
     inc esi
     loop df_fnv
     ret
+%endif
 """
 
 
@@ -1081,7 +1235,7 @@ def patch(p, lang):
     bu = knobs() and os.environ.get('DIFF_BU', '1') != '0' and 'BU' not in skips
     sym['BU_ENTRY'] = (4, swreg.BU_AT)
     bf = bu and 'BUFRAME' not in skips
-    src = (f'%define BUF {int(bf)}\n%define CKSH {int(os.environ.get("DIFF_CKSH", "11"))}\n%define STKZ {int(os.environ.get("DIFF_STKZ", "0") or 0)}\n%define STOPF {int(os.environ.get("DIFF_STOPF", "0"))}\n%define BU {int(bu)}\n%define DIFF_FORCE {int(force)}\n%define ROW {int(row)}\n%define DIFF_TRACE {int(tr)}\n%define DF_START {start_w()}\n%define DR_START {start_dr()}\n'
+    src = (f'%define BUF {int(bf)}\n%define CKSH {int(os.environ.get("DIFF_CKSH", "11"))}\n%define STKZ {int(os.environ.get("DIFF_STKZ", "0") or 0)}\n%define STOPF {int(os.environ.get("DIFF_STOPF", "0"))}\n%define BU {int(bu)}\n%define DIFF_FORCE {int(force)}\n%define ROW {int(row)}\n%define DIFF_TRACE {int(tr)}\n%define TC {int(bool(tr and os.environ.get("DIFF_TC")))}\n%define DF_START {start_w()}\n%define DR_START {start_dr()}\n'
            f'%define TOP {TOP}\n%define PITCH {PITCH}\n%define HEIGHT {HEIGHT}\n%define NB {NB}\n%define BR {BR}\n%define SRCP {SRCP}\n%define KMAX {KMAX}\n' + ASM
            + (ASM_ROW if row else '') + (ASM_T if tr else '') + data_asm() + strs)
     code, fix, rel = nasmcave.assemble_obj(src, at, sym, 4)

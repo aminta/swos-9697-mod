@@ -27544,7 +27544,7 @@ def world_s7cross_diff():
     info.append(f'A {wa:#x} B {wb:#x}: careerTeam = B bar the own bytes ({a["cnp"]} players), funds {a["nb"]}, '
                 f'jobs {a["job"]}; A calendar in file 144, the old word holds '
                 f'{ro and ro[5:22].split(bytes(1))[0].decode("latin-1")}')
-    return not errs, '; '.join(errs) or '; '.join(info)
+    return not errs, '; '.join(errs + info)
 
 
 @scenario

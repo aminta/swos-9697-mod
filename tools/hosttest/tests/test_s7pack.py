@@ -236,3 +236,44 @@ def test_s7pack_deciders():
             os.environ.pop('SEASON_PACKS', None)
         else:
             os.environ['SEASON_PACKS'] = prev
+
+
+def test_s7pack_cupd():
+    """MC 13/11: the Coppa D table follows ONE team file (gplay.py CD_TAB: db world, rounds, lfile; cupd.pack_table). On the
+    shaped pack it must be the Serie D file (league_b, 144) with the table's clubs = the 162 ordinals of file 144 (8 rounds,
+    161 ties), else the Coppa D has no Serie D clubs. cupd.pack_table asserts it for every shaped pack. (A subprocess: mkseason
+    reads SEASON_PACKS - the build's packs, Italy = the shaped one - at import.)"""
+    import subprocess
+    import test_globnum
+    prev = os.environ.get('SEASON_PACKS')
+    test_globnum._env()
+    try:
+        import s7pack
+        if not (os.path.isdir(SRC) and os.path.isfile(GROUPS)):
+            return True, f'SKIP: no {SRC} / {GROUPS}'
+        env = dict(os.environ)
+        tmp = tempfile.mkdtemp(prefix='s7pack')
+        try:
+            out = os.path.join(tmp, 'ita')
+            s7pack.build(SRC, GROUPS, out, BASE)
+            env['SEASON_PACKS'] = ','.join(out if 'world2526' in e and e.rstrip('/').endswith('/ita') else e for e in env['SEASON_PACKS'].split(','))
+            r = subprocess.run([sys.executable, '-c', "import sys; sys.path.insert(0, %r); import mkseason; "
+                                "pk = next(p for p in mkseason.packs() if p.path == %r); t = pk.cupd(); "
+                                "print(t[0], t[1], t[3], t[4], pk.league_files()[-1])" % (TOOLS, out)],
+                               env=env, capture_output=True, text=True)
+            if r.returncode:
+                return False, r.stderr.strip().splitlines()[-1][:300]
+            world, lfile, nr, nt, last = map(int, r.stdout.split()[-5:])
+            errs = []
+            if lfile != 144 or lfile != last:
+                errs.append(f'Coppa D follows file {lfile} (want the Serie D file 144 = league_b {last})')
+            if (nr, nt) != (8, 161):
+                errs.append(f'{nr} rounds / {nt} ties (want 8 / 161 for 162 clubs)')
+            return not errs, '; '.join(errs) or f'Coppa D table: world {world}, team file {lfile} = league_b, {nr} rounds, {nt} ties (162 Serie D clubs)'
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+    finally:
+        if prev is None:
+            os.environ.pop('SEASON_PACKS', None)
+        else:
+            os.environ['SEASON_PACKS'] = prev

@@ -240,243 +240,85 @@ def test_ripool_cross_queue():
 
 
 # ---------------------------------------------------------------------------------------------------------------------
-# (a) s7_load: a moved row's registry club whose HOME slot ri has swapped must get its CURRENT record (MC 13/11, Shaved:
-# RI_STATE.maps[moff(home file) + home slot]: word - 1 >= 256 = that file's pool record (id - 256), 1..255 = the ORIG
-# record id - 1, 0 = the home record as today).
-RIP_EXE = os.environ.get('HT_RIP_EXE') or os.path.join(os.path.expanduser('~'), 'swos-mod', 'c', 'S7W-rip1', 'SWOS',
-                                                       'ITALIAN.EXE')
-
-
-def s7swap_fnv(b):
-    import s7swap
-    return s7swap.fnv(b)
-
-
-def ri_where(sy, file):
-    """THE helper that knows where ri's state lives in the host exe: (k, moff, ORIG offset key, POOL key) of a pooled
-    team file, from the exe's .syms.json (ripool LABELS: RI_F{k} / RI_MOFF{k} / RI_ORIG{k} / RI_POOL{k})."""
-    rs = sy['ripool']
-    for k in range(8):
-        if f'RI_F{k}' in rs and rs[f'RI_F{k}'][1] == file:
-            return k, rs[f'RI_MOFF{k}'][1], f'RI_ORIG{k}', f'RI_POOL{k}'
-    return None
-
-
-def ri_plant(m, k, moff, okey, pkey, home_slots, orig_file, pool_recs):
-    """Plant ri's state: ORIG buffer = the file as read, POOL buffer = BE count + the given records, maps[moff + slot] for
-    each (slot, word)."""
-    import ripool
-    m.w(m.at('ripool', okey), orig_file)
-    pool = struct.pack('>H', len(pool_recs)) + b''.join(pool_recs)
-    m.w(m.at('ripool', pkey), pool)
-    base = m.at('gplay', 'RI_STATE') + ripool.OVR_AT + 2 * ripool.RP * ripool.RO         # maps[0]
-    for slot, word in home_slots:
-        m.w(base + 2 * (moff + slot), struct.pack('<H', word))
+# (a) s7_load, re-planted on the registry model (s7-ri-fix.md "Changes", MC 13/11): EVERY row of both league files gets the
+# record of the club the registry puts there, by its occupant's ident: a native (of either file) = its disk home record,
+# a pool ident = RS record k (S7_RIPOOL + 2 + 684 * k, k = s7_poolk(ident)); the row's own bytes (0..4, 23, 25) kept.
+# oracle unchanged from 4f2ebd0 ("each row = its occupant's right record"), independent of s7_load's code: the expected
+# record is computed here from the registry (at[]) and the pack's home words (s7swap.homes).
+import test_s7rimoves as rm  # noqa: E402
 
 
 def test_s7load_ri_home():
-    import test_s7swap as s7
-    if not os.path.exists(RIP_EXE) or not os.path.exists(RIP_EXE[:-4] + '.syms.json'):
-        return True, f'SKIP: {RIP_EXE} (a shaped HOSTTEST_SYMS=1 build with the ripool export) missing'
-    sy = json.load(open(RIP_EXE[:-4] + '.syms.json'))
-    w = ri_where(sy, s7.FB)
-    if w is None:
-        return False, f'{RIP_EXE}: RI_F{{k}} / RI_MOFF{{k}} not exported for file {s7.FB} (ripool LABELS)'
-    k, moff, okey, pkey = w
-    data = os.path.join(os.path.dirname(RIP_EXE), 'DATA')
-    fil = {f: open(os.path.join(data, f'TMW5.{f}'), 'rb').read() for f in (s7.FA, s7.FB)}
-    rec = lambda f, o: fil[f][2 + 684 * o:2 + 684 * (o + 1)]
-    m = s7.M(RIP_EXE)
-    m.uc.mem_map(s7.TB, 0x40000)
-    oat = struct.unpack('<II', m.rd(m.at('s7swap', 'S7_OAT'), 8))
-    m.fresh()
-    fs, word, at, rdiv, rows = s7.reg_parse(m.regb())
-    m.w(m.at('swefile', 'swe_fopen_r'), b'\xb8\xfe\xff\xff\xff\xc3')
-    down, up = s7.crossings(fs, m.gb)
-    st, nsw, _, _ = s7.run(m, down, up)
-    if st != s7.OK:
+    import mkseason
+    import s7swap
+    import test_s7swap as t7
+    m, why = rm.setup()
+    if not m:
+        return why.startswith('SKIP'), why
+    pack = os.path.join(os.path.expanduser('~'), 'swos-mod', 'internal', 's7pack-real', 'ita')
+    if not os.path.isfile(os.path.join(pack, 'pack.json')):
+        return True, f'SKIP: {pack} missing'
+    home, _ = s7swap.homes(mkseason.Pack(pack))
+    fs, word, at, rdiv, rows = t7.reg_parse(m.regb())
+    p0, np_ = struct.unpack('<HH', m.rd(m.at('s7swap', 'S7_POOL0'), 4))
+    fb = [f[0] for f in fs].index(t7.FB)
+    ends = [sum(fs[fb][2][:g + 1]) - 1 for g in range(2)]
+    mv = [(r, at[fb][r], p0 + k) for k, r in enumerate(ends)]          # two pool clubs into Serie D (ri's moves)
+    rm.poke_moves(m, mv)
+    st, nsw, _, _ = t7.run(m, *t7.crossings(fs, m.gb))
+    if st != t7.OK:
         return False, f'season status {st}'
-    fs1, word1, at1, rdiv1, rows1 = s7.reg_parse(m.regb())
+    fs1, word1, at1, rdiv1, rows1 = t7.reg_parse(m.regb())
+    data = os.path.join(os.path.dirname(rm.EXE), 'DATA')
+    fil = {f: open(os.path.join(data, f'TMW5.{f}'), 'rb').read() for f in (t7.FA, t7.FB)}
+    rs = open(os.path.join(data, 'RS5144.DAT'), 'rb').read()
+    oat = struct.unpack('<II', m.rd(m.at('s7swap', 'S7_OAT'), 8))
     orig = m.at('swe', 'S7_ORIG')
-    for s_, f in enumerate((s7.FA, s7.FB)):              # (the disk files, as the other tests)
+    for s_, f in enumerate((t7.FA, t7.FB)):
         m.w(orig + oat[s_], fil[f])
     b = bytearray(m.rd(m.at('s7swap', 'S7_LD'), 16))
     b[1] = 1
     m.w(m.at('s7swap', 'S7_LD'), bytes(b))
-    m.w(m.at('s7swap', 'S7_FNV'), struct.pack('<II', *(s7swap_fnv(fil[f]) for f in (s7.FA, s7.FB))))
-    # the moved rows of file FA whose registry club's HOME is in file FB (the pooled one): plant its ri state
-    fi = 0
-    cand = []
-    for o in range(rows1[fi]):
-        h = word[at1[fi][o]]
-        if h & 0xFF == s7.FB:
-            cand.append((o, h >> 8))
-    if len(cand) < 2:
-        return False, f'only {len(cand)} moved rows of {s7.FA} come from {s7.FB}'
-    pool_recs = []
-    plan = []                                            # (row, home slot, word, the record it must get)
-    for n, (o, hs) in enumerate(cand):
-        if n % 2 == 0:                                   # a pool identity: record 0, 1, ... (distinct bytes)
-            pr = bytearray(rec(s7.FB, hs))
-            for b_ in range(5, 684):
-                pr[b_] ^= 0x3C
-            plan.append((o, hs, 256 + len(pool_recs) + 1, bytes(pr)))
-            pool_recs.append(bytes(pr))
-        else:                                            # an ORIG identity of another slot
-            idn = (hs + 5) % 100                         # (another slot of the file, 0..99)
-            plan.append((o, hs, idn + 1, rec(s7.FB, idn)))
-    # control of the control: no ri state planted (maps all 0): the rows must be the disk home records (today's, and the
-    # fix's, rule for a word 0)
-    m.w(s7.TB, fil[s7.FA])
-    m.call('s7swap', 's7_load', s7.TB, s7.FA, 0)
-    got0 = m.rd(s7.TB, len(fil[s7.FA]))
-    for o, hs, _, _ in plan:
-        w0 = bytearray(rec(s7.FB, hs))
-        for b_ in s7.KEPT:
-            w0[b_] = fil[s7.FA][2 + 684 * o + b_]
-        if got0[2 + 684 * o:2 + 684 * (o + 1)] != bytes(w0):
-            return False, f'control of the control: row {o} is not its disk home record with no ri state'
-    ri_plant(m, k, moff, okey, pkey, [(hs, wd) for _, hs, wd, _ in plan], fil[s7.FB], pool_recs)
-    m.w(s7.TB, fil[s7.FA])
-    m.call('s7swap', 's7_load', s7.TB, s7.FA, 0)
-    got = m.rd(s7.TB, len(fil[s7.FA]))
-    errs = []
-    for o, hs, wd, want_rec in plan:
-        want = bytearray(want_rec)
-        for b_ in s7.KEPT:
-            want[b_] = fil[s7.FA][2 + 684 * o + b_]
-        r = got[2 + 684 * o:2 + 684 * (o + 1)]
-        if r != bytes(want):
-            disk = bytearray(rec(s7.FB, hs))                 # (today: the home record of the disk file)
-            for b_ in s7.KEPT:
-                disk[b_] = fil[s7.FA][2 + 684 * o + b_]
-            errs.append(f'row {o} (home {s7.FB}/{hs}, map word {wd}): '
-                        f'{"the DISK home record" if r == bytes(disk) else "some other record"} '
-                        f'(want the {"pool" if wd > 256 else "ORIG"} record)')
-    return not errs, '; '.join(errs[:5]) or f'{len(plan)} moved rows took their ri identity\'s record'
-
-
-def test_s7_pool_names():
-    """MC 13/11: s7swap.check_pool_names on the real S7 pack: the registry's 36 pool rows = RS5144's clubs by name, both
-    ways; CONTROLS: a pool club renamed in the RS file / a registry pool row missing are refused with both lists."""
-    import mkseason
-    import s7swap
-    src = os.path.join(os.path.expanduser('~'), 'swos-mod', 'internal', 's7pack-real', 'ita')
-    if not os.path.isfile(os.path.join(src, 'pack.json')):
-        return True, f'SKIP: {src} missing'
-    pk = mkseason.Pack(src)
-    home, _ = s7swap.homes(pk)
-    n = s7swap.check_pool_names(pk, home)
-    errs = []
-    bad = list(home)                                   # a registry pool row that is not a pool row any more
-    bad[home.index(0xFFFF)] = 144 | 0 << 8
-    try:
-        s7swap.check_pool_names(pk, bad)
-        errs.append('a registry pool row dropped: not refused')
-    except AssertionError as e:
-        if 'only in RS' not in str(e):
-            errs.append(f'wrong message {e}')
-    orig = pk.pool_data
-    ren = bytearray(orig)
-    ren[2 + 5:2 + 7] = b'ZZ'                           # record 0's name changed
-    pk.pool_data = bytes(ren)
-    try:
-        s7swap.check_pool_names(pk, home)
-        errs.append('a renamed RS club: not refused')
-    except AssertionError:
+    m.w(m.at('s7swap', 'S7_FNV'), struct.pack('<II', *(s7swap.fnv(fil[f]) for f in (t7.FA, t7.FB))))
+    ripool = struct.unpack('<I', m.rd(m.at('s7swap', 'S7_RIPOOL'), 4))[0]
+    if os.environ.get('RIX_MUTANT_NORS'):                # (control of the test: the pool buffer left empty)
         pass
-    pk.pool_data = orig
-    # (Shaved 13/11, MC: s7swap.pool_order - the order, and the check skipped only with no pool on BOTH sides)
-    p0, np_ = s7swap.pool_order(pk, home)
-    if (p0, np_) != (home.index(0xFFFF), n):
-        errs.append(f'pool_order {p0, np_}: want ({home.index(0xFFFF)}, {n})')
-    sw = bytearray(orig)                               # RS records 0 and 1 swapped: the same set, another order
-    sw[2:2 + 684], sw[2 + 684:2 + 2 * 684] = orig[2 + 684:2 + 2 * 684], orig[2:2 + 684]
-    pk.pool_data = bytes(sw)
-    try:
-        s7swap.pool_order(pk, home)
-        errs.append('RS records 0 / 1 swapped: pool_order not refused')
-    except AssertionError as e:
-        if 'not RS record j' not in str(e):
-            errs.append(f'swapped order: wrong message {e}')
-    keep_pf = getattr(pk, 'pool_file', None)
-    pk.pool_data, pk.pool_file = None, None            # registry pool rows, no RS file: refused, never skipped
-    try:
-        s7swap.pool_order(pk, home)
-        errs.append('pool rows without an RS file: not refused')
-    except AssertionError as e:
-        if 'no RS file' not in str(e):
-            errs.append(f'no RS file: wrong message {e}')
-    pk.pool_data, pk.pool_file = orig, keep_pf
-    s7t = os.environ.get('HT_S7T_PACK') or '/private/tmp/claude-501/-Users-davide/161293a9-d461-4832-8300-ab312d6d3a9a/scratchpad/s7t/ita'
-    if os.path.isfile(os.path.join(s7t, 'pack.json')):  # (the s7t test pack: no off-file pool on either side - skipped)
-        pt = mkseason.Pack(s7t)
-        ht, _ = s7swap.homes(pt)
-        if s7swap.pool_order(pt, ht) != (0xFFFF, 0):
-            errs.append(f's7t: pool_order {s7swap.pool_order(pt, ht)}: want (0xFFFF, 0)')
-    return not errs, '; '.join(errs) or (f'{n} pool rows = RS5144 clubs by name, both ways, in order (idents '
-                                         f'{p0}..{p0 + n - 1}); four refusals' + ('; s7t skipped' if os.path.isfile(
-                                             os.path.join(s7t, 'pack.json')) else ''))
-
-
-def test_cd_str_s7():
-    """MC 13/11 (point 1): in S7 builds cd_str gives the Coppa D tie seeding a club's REAL strength whoever sits on the row:
-    a native of this file by its home row, a pool club by its RS index, a club of the OTHER league file by its home row in the
-    obj4 table S7RI_STRF / S7RI_STR (cupd.other_strengths), never the floor 5 unless its strength is that low.
-    gplay.c is #included natively (cd_str is static); GP_IDENT / GP_POOLK / GP_HOME stand-ins; CD_DT built like cupd's."""
-    import cupd
-    import mkseason
-    L = s7_lib('str', ['-DGP_CD2=1'])
-    CD_O = 8                                         # (GP_CD2)
-    OTHER, FILE_ = 102, 144
-    nat = [5 + 7 * i for i in range(256)]            # the file's own ordinals' strengths
-    pool = [40, 41, 42]
-    oth = [9 + 3 * i for i in range(256)]
-    oth[2] = 3                                       # a very weak club: the floor 5 applies by the rule, not by default
-    blk = struct.pack('<HHH', 0, 162, len(pool)) + struct.pack('<256H', *nat) + b''.join(struct.pack('<H', x) for x in pool)
-    dt = bytes(CD_O + 256) + blk
-    ctypes.c_uint16.in_dll(L, 'S7RI_STRF').value = OTHER                 # (s7swap.py writes these: obj4, not the gplay pages)
-    (ctypes.c_uint16 * 256).in_dll(L, 'S7RI_STR')[:] = oth
-    buf = ctypes.create_string_buffer(dt, len(dt))
-    L.t_cdd.argtypes = [ctypes.c_void_p]
-    L.t_cdd(ctypes.addressof(buf))
-    L.t_cd_str.argtypes, L.t_cd_str.restype = [ctypes.c_uint16], ctypes.c_uint32
-    # stand-in registry: row -> (ident, home word); pool idents 100..102 -> k
-    occ = {5: (10, FILE_ | 5 << 8),                 # a native on its home row
-           6: (11, FILE_ | 20 << 8),                # a native on another row (home row 20)
-           7: (100 + 1, FILE_ | 7 << 8),            # a pool club (its home = its row)
-           8: (50, OTHER | 30 << 8),                # a club of the other file (home 102 / 30)
-           9: (51, OTHER | 2 << 8)}                 # the weak one (strength 3 -> 5)
-    cb = ctypes.CFUNCTYPE(ctypes.c_uint32, ctypes.c_uint32)
-    ident = cb(lambda w: occ[w >> 8][0] if (w >> 8) in occ else NONE)
-    poolk = cb(lambda i: i - 100 if 100 <= i <= 102 else NONE)      # (cd_str never asks the 0x10000 form)
-    home = cb(lambda w: occ[w >> 8][1] if (w >> 8) in occ else w)
-    for name, fn in (('t_ident', ident), ('t_poolk', poolk), ('t_home', home)):
-        ctypes.c_void_p.in_dll(L, name).value = ctypes.cast(fn, ctypes.c_void_p).value
-    L.t_wire()
-    sq = lambda v: max(5, v) ** 2
+    else:
+        m.w(ripool, rs)
+    m.uc.mem_map(t7.TB, 0x40000)
     errs = []
-    for row, want, what in ((5, sq(nat[5]), 'a native on its home row'), (6, sq(nat[20]), 'a native on another row (home 20)'),
-                            (7, sq(pool[1]), 'a pool club (RS index 1)'), (8, sq(oth[30]), 'a club of the other file (home 102/30)'),
-                            (9, sq(5), 'the weak club of the other file (3 -> the floor 5 by the rule)')):
-        got = L.t_cd_str(FILE_ | row << 8)
-        if got != want:
-            errs.append(f'{what}: {got} != {want}')
-    # cupd on the real pack: other_strengths = the other file's rows by the same rule; strengths() keeps today's bytes even in cd2
-    src_pack = os.path.join(os.path.expanduser('~'), 'swos-mod', 'internal', 's7pack-real', 'ita')
-    if os.path.isfile(os.path.join(src_pack, 'pack.json')):
-        pk = mkseason.Pack(src_pack)
-        f_o, rows = cupd.other_strengths(pk, 144)
-        k0 = next(k for k in pk.clubs if pk.where.get(k, (None, None))[0] == 102)
-        i0 = pk.where[k0][1]
-        if f_o != 102 or not 0 < len(rows) <= 256 or rows[i0] != cupd.strength(pk, k0):
-            errs.append(f'cupd.other_strengths: file {f_o}, {len(rows)} rows, row {i0} {rows[i0] if i0 < len(rows) else None}')
-        real = cupd.cd2
-        cupd.cd2 = lambda: True
-        try:
-            b = cupd.strengths(pk, 144)
-        finally:
-            cupd.cd2 = real
-        if len(b) != 6 + 512 + 2 * struct.unpack_from('<H', b, 4)[0]:
-            errs.append(f'cupd.strengths grew in a cd2 build: {len(b)} B')
-    return not errs, '; '.join(errs) or 'cd_str S7: native / moved native / pool / other-file / floor-by-rule; cupd block ok, non-cd2 bytes unchanged'
+    rec = lambda f, o: fil[f][2 + 684 * o:2 + 684 * (o + 1)]
+    for fi, f in enumerate((t7.FA, t7.FB)):
+        buf = bytearray(fil[f])
+        for o in range(rows1[fi]):                      # (every row's own bytes marked: kept from the buffer)
+            for k, kb in enumerate(t7.KEPT):
+                buf[2 + 684 * o + kb] = (0x40 + 7 * k + o) & 0xFF
+        m.w(t7.OB, fil[f])
+        m.w(t7.TB, bytes(buf))
+        m.call('s7swap', 's7_load', t7.TB, f, t7.OB)
+        st = struct.unpack('<B', m.rd(m.at('s7swap', 'S7_LD'), 1))[0]
+        if st != t7.LD_OK:
+            errs.append(f'{f}: status {st}')
+            continue
+        got = m.rd(t7.TB, len(buf))
+        bad = 0
+        for o in range(rows1[fi]):
+            ident = at1[fi][o]
+            h = home[ident]
+            if h == 0xFFFF:                              # a pool club: RS record k
+                want = bytearray(rs[2 + 684 * (ident - p0):2 + 684 * (ident - p0 + 1)])
+            else:                                        # a native: its disk home record
+                want = bytearray(rec(h & 0xFF, h >> 8))
+            for kb in t7.KEPT:
+                want[kb] = buf[2 + 684 * o + kb]
+            if got[2 + 684 * o:2 + 684 * (o + 1)] != bytes(want):
+                bad += 1
+                if bad <= 2:
+                    errs.append(f'file {f} row {o} (ident {ident}, home {h:#x}): not its occupant\'s record')
+        if bad > 2:
+            errs.append(f'file {f}: {bad} rows wrong')
+    if struct.unpack('<i', m.rd(m.at('s7swap', 'RI_S7_BAD'), 4))[0]:
+        errs.append('RI_S7_BAD != 0')
+    return not errs, '; '.join(errs[:5]) or (f'both files, every row = its occupant\'s record: natives their disk home record '
+                                             f'(crossers too), the {len(mv)} pool clubs RS records {[e[2] - p0 for e in mv]}; '
+                                             f'own bytes kept')

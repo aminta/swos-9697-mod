@@ -184,3 +184,55 @@ def _test():
     return not errs, '; '.join(errs) or (f"S7 Italy: 102 = 100 (as the one-file pack), 144 = 9 x 18, 36 stand-ins off-file (RS5144, newpool), "
                                          f"144 globals from globnum (192.., rows 155 / 156 / 161 = 347 / 2283 / 2288), "
                                          f"the 6 = {' '.join(s['join'])}; refused: bad shapes, a --base not globnum's")
+
+
+REF = os.environ.get('S7_DECIDERS') or os.path.join(ROOT, 'internal', 'world2526', 'world5tm-s1rank-int3', 'ita')
+
+
+def test_s7pack_deciders():
+    """Panchina 13/11 (backlog row 76): s7pack --deciders REF adds Serie D girone A's promotion decider (dA_title, before
+    dA_playoff) and relegation tie (dA_reltie, before dA_playout) from the data session's dataset (world5tm-s1rank-int3)
+    and takes girone A's promoted / relegated from it (0 / 1: the deciders give the other place), the release world's
+    h2 lacking them; every other ko_playoffs entry and division as in the source; the pack still loads (Pack, shape);
+    without --deciders the pack is as before (no dA_title / dA_reltie, girone A 1 / 2)."""
+    import test_globnum
+    prev = os.environ.get('SEASON_PACKS')
+    test_globnum._env()
+    try:
+        import mkseason
+        import s7pack
+        import sreg
+        if not (os.path.isdir(SRC) and os.path.isfile(GROUPS) and os.path.isdir(REF)):
+            return True, f'SKIP: no {SRC} / {GROUPS} / {REF}'
+        tmp = tempfile.mkdtemp(prefix='s7pack')
+        errs = []
+        try:
+            def league(o):
+                m = json.load(open(os.path.join(o, 'pack.json')))
+                return next(c for c in m['competitions'] if c['key'] == m['season']['league'])
+            src = league(SRC)
+            s7pack.build(SRC, GROUPS, os.path.join(tmp, 'plain'), BASE)
+            s7pack.build(SRC, GROUPS, os.path.join(tmp, 'dec'), BASE, deciders=REF)
+            p0, p1 = league(os.path.join(tmp, 'plain')), league(os.path.join(tmp, 'dec'))
+            k0, k1 = [k['key'] for k in p0['ko_playoffs']], [k['key'] for k in p1['ko_playoffs']]
+            if 'dA_title' in k0 or 'dA_reltie' in k0 or p0['divisions'][5]['promoted'] != src['divisions'][5]['promoted']:
+                errs.append('without --deciders the pack changed')
+            want = [k for k in k1 if k not in ('dA_title', 'dA_reltie')]
+            if want != k0 or k1.index('dA_title') + 1 != k1.index('dA_playoff') or k1.index('dA_reltie') + 1 != k1.index('dA_playout'):
+                errs.append(f'ko_playoffs order {k1}')
+            d5 = p1['divisions'][5]
+            if (d5['promoted'], d5['relegated']) != (0, 1):
+                errs.append(f'girone A promoted / relegated {d5["promoted"]} / {d5["relegated"]} (want 0 / 1)')
+            if [d for i, d in enumerate(p1['divisions']) if i != 5] != [d for i, d in enumerate(p0['divisions']) if i != 5]:
+                errs.append('another division changed')
+            pk = mkseason.Pack(os.path.join(tmp, 'dec'))
+            if not pk.shaped or len(sreg.shape_of(pk)[2]) != 298:
+                errs.append('the pack with the deciders does not load shaped')
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+        return not errs, '; '.join(errs) or 'dA_title / dA_reltie in place (before dA_playoff / dA_playout), girone A 0 / 1, the rest unchanged, loads shaped; without --deciders as before'
+    finally:
+        if prev is None:
+            os.environ.pop('SEASON_PACKS', None)
+        else:
+            os.environ['SEASON_PACKS'] = prev

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """S7: World 2026-27's Italy pack over two team files (n7-p4.md §1), from the one-file pack + the Serie D groups.
 
-    python3 tools/s7pack.py SRC_PACK GROUPS_CSV OUT_DIR [--base N] [--file 144]
+    python3 tools/s7pack.py SRC_PACK GROUPS_CSV OUT_DIR [--base N] [--file 144] [--deciders REF_PACK]
 
 SRC_PACK   the one-file Italy pack (e.g. internal/world2526/world5tm-h2/ita): TEAM.102 = Serie A, B, C (100) + Serie D
            (156, 6 groups of 17 + 3 of 18), the 42 reserve clubs off the files (file 'pool', RI swaps).
@@ -44,7 +44,7 @@ def _rows(path):
         return r.fieldnames, list(r)
 
 
-def build(src, groups, out, base=None, fileno=144):
+def build(src, groups, out, base=None, fileno=144, deciders=None):
     """Write the shaped pack to out; returns its summary (clubs per role, the 6 that join, pool rows)."""
     m = json.load(open(os.path.join(src, 'pack.json'), encoding='utf-8'))
     cols, clubs = _rows(os.path.join(src, 'clubs.csv'))
@@ -92,6 +92,19 @@ def build(src, groups, out, base=None, fileno=144):
     lg2['reserve'] = dict(rs)
     lg2['reserve']['pool'] = [k for k in rs['pool'] if k in pool]
     lg2['reserve']['first'] = [k for k in rs.get('first', []) if k in pool]
+    if deciders:                                # (dA_title / dA_reltie: Serie D girone A's promotion / relegation deciders, in
+        ref = json.load(open(os.path.join(deciders, 'pack.json'), encoding='utf-8'))     # the data session's dataset
+        rl = next(c for c in ref['competitions'] if c['key'] == ref['season']['league'])  # world5tm-s1rank-int3, not in
+        ko = lg2['ko_playoffs']                                                          # the release world5tm-h2)
+        have = {k['key'] for k in ko}
+        for key, before in (('dA_title', 'dA_playoff'), ('dA_reltie', 'dA_playout')):
+            if key in have:
+                continue
+            e = next(k for k in rl['ko_playoffs'] if k['key'] == key)
+            ko.insert(next(i for i, k in enumerate(ko) if k['key'] == before), e)
+        d5 = rl['divisions'][5]                 # (girone A: promoted 0 / relegated 1 - the deciders take the other place)
+        for f in ('promoted', 'relegated'):
+            lg2['divisions'][5][f] = d5[f]
     assert sorted(lg2['reserve']['pool']) == sorted(pool), 's7pack: reserve pool != the stand-ins'
 
     os.makedirs(out)                            # (refused if it exists: never over another folder)
@@ -140,8 +153,9 @@ def main(argv):
     ap.add_argument('out')
     ap.add_argument('--base', type=int)
     ap.add_argument('--file', type=int, default=144)
+    ap.add_argument('--deciders', help='a one-file pack folder with dA_title / dA_reltie (internal/world2526/world5tm-s1rank-int3/ita)')
     a = ap.parse_args(argv)
-    s = build(a.src, a.groups, a.out, a.base, a.file)
+    s = build(a.src, a.groups, a.out, a.base, a.file, a.deciders)
     print(f"s7pack: {a.out}: league {s['league']} + league_b {s['league_b']} (groups {sorted(set(s['sizes'].values()))}) "
           f"+ {s['pool']} stand-ins off-file; joining: {' '.join(s['join'])}")
 

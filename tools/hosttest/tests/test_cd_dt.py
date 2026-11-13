@@ -16,8 +16,10 @@ import tempfile
 TOOLS = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
 sys.path.insert(0, TOOLS)
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-FLAGS = ['-DSS_NB=1', '-DGP_FORCE=0', '-DGP_SPST=0', '-DGP_SPGRP=0', '-DGP_SPPRE=0', '-DGP_SPMAGIC=0']
-REF = os.environ.get('CD_DT_REF', '421691e')    # (gplay.c before the two-run change: the 42-int base)
+FLAGS = ['-DGP_S7=0', '-DSS_NB=1', '-DGP_FORCE=0', '-DGP_SPST=0', '-DGP_SPGRP=0', '-DGP_SPPRE=0', '-DGP_SPMAGIC=0']
+CD2_COMMIT = os.environ.get('CD_DT_COMMIT', 'bd8e5bc')   # (the commit that brought GP_CD2 into gplay.c: the dormant
+                                                           # reference = TODAY's gplay.c with its hunks reversed - MC
+                                                           # 13/11: no fixed sha, valid while gplay.c evolves)
 
 
 def _lib(d, src_text, cd2, tag=''):
@@ -52,15 +54,22 @@ def test_cd_dt():
     import cobj
     errs = []
     gsrc = open(os.path.join(TOOLS, 'gplay.c')).read()
-    old = subprocess.run(['git', '-C', TOOLS, 'show', REF + ':tools/gplay.c'], capture_output=True, text=True).stdout
-    if 'CD_G(' in old or 'cd_member_c' not in old:
-        errs.append(f'no dormant reference ({REF}:tools/gplay.c)')
-    else:
-        d = tempfile.mkdtemp(prefix='cddt')
-        p = os.path.join(d, 'gplay.c')
-        open(p, 'w').write(old)
-        if cobj.compile_c(p, FLAGS) != cobj.compile_c(os.path.join(TOOLS, 'gplay.c'), FLAGS):
-            errs.append('dormant gplay.c object changed')
+    diff = subprocess.run(['git', '-C', TOOLS, 'show', '--format=', CD2_COMMIT, '--', ':(top)tools/gplay.c'],
+                          capture_output=True, text=True).stdout
+    d = tempfile.mkdtemp(prefix='cddt')
+    os.makedirs(os.path.join(d, 'tools'))
+    p = os.path.join(d, 'tools', 'gplay.c')
+    open(p, 'w').write(gsrc)
+    r = subprocess.run(['patch', '-R', '-s', '-p1', '-d', d], input=diff, capture_output=True, text=True) \
+        if 'GP_CD2' in diff else None
+    skip = None
+    if r is None or r.returncode:
+        skip = (f'dormant check SKIPPED: {CD2_COMMIT}\'s gplay.c hunks no longer reverse onto today\'s file '
+                '(the release md5 gate covers the dormant bytes)')
+    elif 'CD_G(' in open(p).read() or 'cd_member_c' not in open(p).read():
+        errs.append(f'the reversed reference still has GP_CD2 code ({CD2_COMMIT})')
+    elif cobj.compile_c(p, FLAGS) != cobj.compile_c(os.path.join(TOOLS, 'gplay.c'), FLAGS):
+        errs.append('dormant gplay.c object changed')
     d = tempfile.mkdtemp(prefix='cddt')
     L = _lib(d, gsrc, 1)
     base = bytes([5 + i // 18 for i in range(162)] + [0xFF] * 94)       # (9 groups: divisions 5..13)
@@ -130,4 +139,5 @@ def test_cd_dt():
                 os.environ['SEASON_PACKS'] = prev
     return not errs, '; '.join(errs) or ('dormant gplay.c object and CD_DT head as today; GP_CD2: rows 0 / 155 / 156 / '
                                          '161 read slt at 192 / 347 / 2283 / 2288 (348 / 353 never), one-run CD_DT '
-                                         'as today; mutation (no run 2) caught; S7 head 144 = 192 + (2283, 156)')
+                                         'as today; mutation (no run 2) caught; S7 head 144 = 192 + (2283, 156)'
+                                         + (f'; {skip}' if skip else f' (reference: today\'s gplay.c - {CD2_COMMIT})'))

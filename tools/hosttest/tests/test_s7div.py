@@ -174,16 +174,23 @@ def _test():
         r = _refused(lambda: cupsf.pack_cups(it, 102))
         it.where[k5] = w5
         bad.append('cupsf: a cup over both files not refused') if not r else out.append(f'cupsf refused ({r})')
-        # cupd: Serie D's file (its CD_DT two-run base is Panchina's: until then S7-G's refusal)
+        # cupd: Serie D's file; its CD_DT head carries file 144's two global runs (42-n7reg bd8e5bc, GP_CD2 builds:
+        # no refusal any more - was S7-G's until Panchina's two-run CD_DT)
         import cupd
-        try:
-            cupd.pack_table(it)
-            bad.append('cupd: CD_DT over two runs not refused')
-        except globnum.GlobError:
-            pass
+        import struct
         par = it.league['parallel']
         if it.div_file(par[-1]['first'])[0] != 144:
             bad.append('cupd: Serie D file')
+        runs, cd2 = globnum.runs_of(it, 144), cupd.cd2
+        cupd.cd2 = lambda: True                         # (a GP_CD2 build's head; this test's packs set no exe split)
+        try:
+            h = cupd.head(it, 144, par[-1]['first'], par[-1]['count'])
+        finally:
+            cupd.cd2 = cd2
+        want = bytes((par[-1]['first'], par[-1]['count'])) + struct.pack('<HHH', runs[0][0], *(
+            (runs[1][0], runs[0][1]) if len(runs) == 2 else (0xFFFF, 256)))
+        if h != want:
+            bad.append(f'cupd: CD_DT head {h.hex()} != {want.hex()}')
         # refusals of div_file (every site goes through it) and dplay
         _shape(it, range(6), range(5, 14))
         r = _refused(lambda: it.div_file(5))

@@ -5,11 +5,11 @@
   pool rows (MC 11/11); ident order = clubs.csv: the 100, the groups A..I, the 36 stand-ins (off the files);
 - TEAM.102: the one-file pack's first 100 records, byte for byte (Serie A, B, C do not move);
 - TEAM.144: 162 records, file byte 144, ordinals 0..161, global numbers base + ordinal (a test base until globnum),
-  division byte = the group's (5..13); every other byte the club's one-file record (its TEAM.102 row, or its off-file
+  division byte = the group's local one (0..8, struct B: 42-s7ctry); every other byte the club's one-file record (its TEAM.102 row, or its off-file
   pool record for the 6 that join Serie D); an XTRA.102 and an XTRA.144 (the extra players);
 - the off-file pool: 36 RS records (the stand-ins in clubs.csv order, each its one-file pool record), on file 144
   (RS5144); newpool41.csv / sreg.new_pool: the 42 4.1 pool records -> their S7 RS index, 255 for the 6;
-- refused: mkseason.patch() with a shaped pack enabled (no exe side before MC's S7 glue), a division in two roles,
+- refused: a division in two roles,
   stand-ins without an off-file reserve, s7pack over an existing folder."""
 import json
 import os
@@ -92,8 +92,9 @@ def _test():
             errs.append(f'TEAM.144: {len(b)} records')
         for i, (k, r) in enumerate(zip(keys, b)):
             d = pk.division[k]
-            want_d = int(pk.clubs[k]['division'])
-            if (r[0], r[1], struct.unpack('>H', r[2:4])[0], r[25]) != (144, i, globnum.glob(pk, 144, i), want_d) or d != want_d:
+            want_d = int(pk.clubs[k]['division'])       # (+25: the LOCAL division of struct B, 0..8 - 42-s7ctry's B5)
+            if (r[0], r[1], struct.unpack('>H', r[2:4])[0], r[25]) != (144, i, globnum.glob(pk, 144, i),
+                                                                     pk.div_key(want_d)[1]) or d != want_d:
                 errs.append(f'TEAM.144 {k}: place {(r[0], r[1], struct.unpack(">H", r[2:4])[0], r[25])}')
                 break
             o = old.get(r[5:22].split(b'\0')[0])
@@ -142,21 +143,8 @@ def _test():
             if 'twice' not in str(e):
                 errs.append(f'old_ord dup: {e}')
 
-        # refused: the exe side (patch) and bad shapes
-        keep = getattr(mkseason.packs, 'cache', None)
-        mkseason.packs.cache = [pk]
-        try:
-            mkseason.patch(None, 'it', None, None)
-            errs.append('patch(): a shaped pack accepted')
-        except mkseason.PackError as e:
-            if 'two team files' not in str(e):
-                errs.append(f'patch(): {e}')
-        finally:
-            if keep is None:
-                del mkseason.packs.cache
-            else:
-                mkseason.packs.cache = keep
-
+        # (refused: bad shapes. mkseason.patch() with a shaped pack is no longer refused: 42-s7ctry's struct B is the
+        #  exe side - the guard dropped at the 42-n7reg -> 42-int merge, Shaved 13/11)
         def bad(tag, edit, want):
             d = os.path.join(tmp, tag.replace(' ', '_'))
             shutil.copytree(out, d)
@@ -195,4 +183,4 @@ def _test():
         shutil.rmtree(tmp, ignore_errors=True)
     return not errs, '; '.join(errs) or (f"S7 Italy: 102 = 100 (as the one-file pack), 144 = 9 x 18, 36 stand-ins off-file (RS5144, newpool), "
                                          f"144 globals from globnum (192.., rows 155 / 156 / 161 = 347 / 2283 / 2288), "
-                                         f"the 6 = {' '.join(s['join'])}; refused: patch(), bad shapes, a --base not globnum's")
+                                         f"the 6 = {' '.join(s['join'])}; refused: bad shapes, a --base not globnum's")

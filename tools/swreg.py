@@ -66,7 +66,7 @@ SREG2_END = 0xC000                      # 0xA000..0xB000, is lrank's LR_TAB alon
 KITS_AT = 0xF000                        # 4.2 kits (kits.py, Panchina; MC 12/11): K2 keepers + R1 referee code and the
 KITS_END = 0x11000                      # sprite masks on obj4's 16th page (end asserted <= 0x10000), the KEEPKIT table
                                         # (128 x 24 B, zero-filled) on the 17th
-KITS_PAGE16_END = 0x10000               # (code + masks; obj4 stays 16 pages until the KEEPKIT table fills the 17th, MC 12/11)
+KITS_PAGE16_END = 0x10000               # (code + masks; the 17th: KEEPKIT.DAT's 'KKST' block, table and kk_* code, MC 13/11)
 assert T3_END <= globals().get('DIFF_END', KITS_AT) <= KITS_AT < KITS_PAGE16_END < KITS_END, 'kits: above T3 and the difficulty band'
 MAGIC = b'SWRG'
 VERSION = 2

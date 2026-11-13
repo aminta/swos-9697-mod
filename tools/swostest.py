@@ -36315,7 +36315,9 @@ def kits_gkpage():
 
 
 def kk_prematch(s, errs, tag):
-    """(kits_keepkit) the career menu -> PROSS. PARTITA's PARTITA -> the pre-match screen (its KITS entry 68)"""
+    """(kits_keepkit) the career menu -> PROSS. PARTITA's PARTITA -> the fixture screen's '- PARTITA -' (as
+    bench_play: a fire on a team name there would make the club coach-only, ALLEN: with VIS. RISULTATI alone) -> the
+    squad screen (its KITS entry 68)"""
     for _ in range(8):
         if s.screen().find('PARTITA', exact=True) is not None:
             break
@@ -36324,8 +36326,12 @@ def kk_prematch(s, errs, tag):
     for _ in range(5):
         scr = s.screen()
         if len(scr.entries) > 68 and scr.entries[68][1] in ('MAGLIE AUTO', 'MAGLIE FISSE'):
+            s.log.append(f'[kk_prematch] {tag}: ' + ' | '.join(f'{e[0]}:{e[1]}' for e in scr.entries[:11] if e[1]))
             return scr
-        s.send('fire dump:2')
+        if scr.find('- PARTITA -', exact=True) is not None:
+            press(s, scr, '- PARTITA -', 3)
+        else:
+            s.send('fire dump:2')
     errs.append(f'{tag}: no pre-match screen: {s.screen().texts()[:10]}')
     return None
 
@@ -36334,7 +36340,8 @@ def kk_kick(s, kb):
     """(kits_keepkit) the career's pre-match screen -> its GIOCA PARTITA / PARTITA -> the kick-off (kt_chain run and
     the keepers converted, as bench_play waits): the KITS block"""
     scr = s.screen()
-    t = next((x for x in ('GIOCA PARTITA', 'PARTITA') if scr.find(x, exact=True) is not None), None)
+    t = next((x for x in ('GIOCA PARTITA', 'PARTITA', TRAIN_TXT[UI][2]) if scr.find(x, exact=True) is not None), None)
+    s.log.append(f'[kk_kick] {t}: ' + ' | '.join(f'{e[0]}:{e[1]}' for e in scr.entries[:11] if e[1]))
     if t is not None:
         walk(s, t, 1)
     s.send('fire:3 ' * 12 + 'dump:2')

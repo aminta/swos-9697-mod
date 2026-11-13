@@ -991,3 +991,17 @@ void swe_st_load(void)                  /* engine.after_load: the save's version
     it_load();
 #endif
 }
+
+#ifdef SWC1_BSS
+void swe_st_new(void)                   /* engine.after_new, a registry-shaped build only (patch.py; the dormant build
+                                           compiles none of it): a new career's header carries its world byte at once.
+                                           swe_st_save / swe_st_load wrote it only at a save or an old save's load, so
+                                           a career never saved kept the header of before - 0 at boot, or a loaded
+                                           save's world - and sreg's in_world failed: no S7 at season 1's end (Shaved
+                                           13/11, world_s7cross_down / _up). The registry starts from the spec. */
+{
+    *(u16 *)(SWC1 + 2) = (u16)cw_byte();
+    if (SREG_FN[3])
+        ((sreg_void_t)SREG_FN[3])();
+}
+#endif

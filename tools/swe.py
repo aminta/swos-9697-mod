@@ -312,6 +312,8 @@ def patch(p):
     engine.ITEM_AT['SWC1'] = syms['SWC1']
     engine.CALL_AT['swe_st_save'] = syms['swe_st_save']
     engine.CALL_AT['swe_st_load'] = syms['swe_st_load']
+    if 'swe_st_new' in syms:                        # (SWC1_BSS: a registry shape; patch.py's after_new)
+        engine.CALL_AT['swe_st_new'] = syms['swe_st_new']
     for n, k, off in imp:                           # (a load-only item with no old place: its SWE_IMP slot)
         if off is not None:
             engine.ITEM_AT[n] = (syms['SWE_IMP'][0], syms['SWE_IMP'][1] + off)

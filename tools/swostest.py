@@ -27202,12 +27202,9 @@ def s7cross(force, team, start_file, ldfail=None):
     #  plays a natural season there; any later selTeamNumber must be a season-2 S7_CLOG crossing out of `new`)
     cl2 = [struct.unpack('<HHh', b) for b in get(1, f'o4/{at("S7_CLOG"):x}')]
     ok2 = {new} | {c[1] for c in cl2 if c[1] and c[0] == new}
-    # (real pack, MC 13/11: a natural season 2 may drop the club to the off-file pool - ripool gives it another row of
-    #  the same file at the season end, before the swap; S7_CLOG then logs that word with no crossing (new 0))
-    ok2 |= {c[0] for c in cl2 if not c[1] and new is not None and c[0] & 0xFF == new & 0xFF}
     check(bool(sels2) and sels2[0][0] == new and lo <= sels2[0][3] <= hi and all(s_[0] in ok2 for s_ in sels2),
           f'season 2: selTeamNumber / D6CDC {[(hex(a), d) for a, _, _, d in sels2[:3]]} (want {new and hex(new)} as '
-          f'loaded, D6CDC {lo}..{hi}; later only a season-2 crossing or pool move {sorted(hex(x) for x in ok2 if x)})', errs)
+          f'loaded, D6CDC {lo}..{hi}; later only a season-2 crossing {sorted(hex(x) for x in ok2 if x)})', errs)
     swc = sy.get('swe', {}).get('SWC1')
     for s_ in (0, 1):
         lds = [struct.unpack('<BBBBHHIi', b) for b in get(s_, f'o4/{at("S7_LD"):x}')]

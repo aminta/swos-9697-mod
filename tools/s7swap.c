@@ -25,7 +25,7 @@
    both again on a difference - never a stale ORIG; still different, or a failed read: nothing applied, S7_LD.status
    LD_FILE / LD_READ, retried at the next load), all but the row's own bytes (file, ordinal, global number, 23, the
    division byte 25: ri_copy's rule). A file that cannot be read or does not match the shipped count: nothing applied,
-   S7_LD says why. Not here yet: the career club's own crossing (the accepted-job path). */
+   S7_LD says why. The career club's own crossing: walk() (option B, MC 13/11). */
 #define SWOSRULES_HAVE_STDINT
 typedef unsigned char uint8_t;
 typedef signed char int8_t;
@@ -87,7 +87,7 @@ struct { uint8_t status, oread, file, pad; uint16_t moved, rows; uint32_t calls;
    each row's item resolves to (s7swap.py late(): careerFileBuffer's fixed part, an engine item; 0 = the team cache,
    resolved here per record): S7_WRES in the arena (WR_AT), resolved from trailer's EN_ITEMS at each season end. Every row is checked BEFORE the registry changes (a bad row = the season refused:
    S7_WSITE, S7_WLOG.row; an item this build does not save: the same). The team cache's records follow their clubs (n7-s7-clubmap §3.3): a cached record whose word
-   moved gets the new row's own bytes - word 0..1, global 2..3 (BE), division 25 (the row's as shipped) - and keeps
+   moved gets the new row's own bytes - word 0..1, global 2..3 (LE, in memory), league 25 (base + next delta) - and keeps
    the rest (its players, 4, 23); WSITES' WI_CACHE rows never cover those bytes (wsites.py asserts). */
 sreg_wsite WSITES[WS_MAX] DATA = {{0}};
 sreg_rekey WS_KEYS[1] DATA = {0};
@@ -99,6 +99,10 @@ uint32_t S7_CFBLEN DATA = 0;            /* its fixed part's bytes (trailer FIXED
 extern uint16_t S7_NUMSEL;              /* trailer: the cache's records (obj2) */
 extern uint8_t *S7_SELBASE;             /* trailer SELBASEV: -> the cache's first record (obj1 dword) */
 struct { int16_t row, rc; uint16_t changed, cache, npair, rows; } S7_WLOG DATA = {0};
+extern uint16_t S7_SELTEAM;             /* selTeamNumber (obj2: the career club's word) */
+extern uint16_t S7_CTLEAGUE;            /* careerTeamLeague (obj2: its base division, record +25 at selection) */
+extern uint8_t S7_CTEAM[];              /* careerTeam (obj2: the career club's record copy) */
+struct { uint16_t old, neww; int16_t league, pad; } S7_CLOG DATA = {0};   /* the career club's crossing (harness) */
 
 /* the result (harness: S7_LOG) */
 enum { S7_OK = 1, S7_NOREG = 2, S7_STALE = 3, S7_BAD = 4, S7_COUNT = 5, S7_PLACE = 6, S7_REG = 7, S7_NOCLUB = 8,
@@ -168,15 +172,21 @@ static int32_t wcheck(void)            /* S7_WRES resolved; -1 every row resolva
     return -1;
 }
 
-static void put_slot(uint8_t *r, uint16_t w, const sreg_gfile *g, int32_t ng)   /* a cache record's own bytes */
+/* a record in memory (the cache, careerTeam) at its new row w: its own bytes as the game's loader leaves them -
+   word 0..1, global 2..3 (LE: SetTeamGlobalNumbers' in-memory form; a team FILE holds it BE), league 25 = the row's
+   base division + next season's delta (SetLeagueNumbers' rule, slt = leaguesTableCopy after the re-base). Returns the
+   row's base division (careerTeamLeague's form), -1 when w is not a row of the two files. */
+static int32_t put_slot(uint8_t *r, uint16_t w, const sreg_gfile *g, int32_t ng, const int8_t *slt)
 {
-    int32_t j = gindex(g, ng, w & 0xFF, w >> 8), fi = fi_of(w & 0xFF);
-    r[0] = (uint8_t)w; r[1] = (uint8_t)(w >> 8);
-    if (j >= 0) { uint16_t gl = (uint16_t)(g[j].base + (w >> 8) - g[j].ord0); r[2] = (uint8_t)(gl >> 8); r[3] = (uint8_t)gl; }
-    if (fi >= 0) { int32_t b = base_local(fi, w >> 8); if (b >= 0) r[25] = (uint8_t)b; }
+    int32_t j = gindex(g, ng, w & 0xFF, w >> 8), fi = fi_of(w & 0xFF), b = fi >= 0 ? base_local(fi, w >> 8) : -1;
+    if (j < 0 || b < 0) return -1;
+    uint16_t gl = (uint16_t)(g[j].base + (w >> 8) - g[j].ord0);
+    r[0] = (uint8_t)w; r[1] = (uint8_t)(w >> 8); r[2] = (uint8_t)gl; r[3] = (uint8_t)(gl >> 8);
+    r[25] = (uint8_t)(b + slt[gl]);
+    return b;
 }
 
-static int32_t walk(int32_t nsw)
+static int32_t walk(int32_t nsw, const int8_t *slt)
 {
     sr_wpair *m = (sr_wpair *)(SWE_ARENA_AT + PR_AT);
     int32_t n = sr_wmap_build((const sr_reg_swap *)(SWE_ARENA_AT + SW_AT), nsw, m, S7_NPR);
@@ -209,7 +219,16 @@ static int32_t walk(int32_t nsw)
     for (uint32_t i = 0; i < nsel; i++) {          /* the cache's records follow their clubs */
         uint8_t *r = S7_SELBASE + 684 * i;
         uint16_t w = (uint16_t)(r[0] | r[1] << 8), nw = sr_wmap_get(m, n, w);
-        if (nw != w && nw != SR_REG_NONE) { put_slot(r, nw, g, ng); cache++; }
+        if (nw != w && nw != SR_REG_NONE && put_slot(r, nw, g, ng, slt) >= 0) cache++;
+    }
+    /* the career club (MC 13/11, option B: a crossing is not a job change - squad, funds, job count kept): the words
+       cseg_5DB56 would set, nothing else; InitializeNewSeason (after pg_fix: our caller) then takes its league from
+       selTeamNumber's file (competitionsTable[file] -> D8CAA) and D6CDC = careerTeamLeague + slt[careerTeam global] */
+    uint16_t cw = S7_SELTEAM, cn = sr_wmap_get(m, n, cw);
+    S7_CLOG.old = cw; S7_CLOG.neww = 0; S7_CLOG.league = -1;
+    if (cn != cw && cn != SR_REG_NONE) {
+        int32_t b = put_slot(S7_CTEAM, cn, g, ng, slt);
+        if (b >= 0) { S7_SELTEAM = cn; S7_CTLEAGUE = (uint16_t)b; S7_CLOG.neww = cn; S7_CLOG.league = (int16_t)b; }
     }
     S7_WLOG.changed = (uint16_t)changed; S7_WLOG.cache = (uint16_t)cache;
     return 0;
@@ -277,7 +296,6 @@ static int32_t run(void *pv) {
     S7_LOG.rc = c;
     if (c < 0) return S7_LOG.status = S7_REG;
     S7_LOG.nswap = (uint8_t)c;
-    if (walk(c) < 0) return S7_LOG.status = S7_WMAP;           /* (cannot happen: <= S7_NSW swaps, S7_NPR pairs) */
     /* next season's deltas: every row's division (rdiv, the league's) as its file's local, minus the slot's base */
     for (int32_t s = 0; s < 2; s++) {
         int32_t fi = s ? fb : fa;
@@ -288,6 +306,7 @@ static int32_t run(void *pv) {
                 if (R->f[fi].div[k] == R->rdiv[fi][o]) slt[glob_of(s, o)] = (int8_t)(k - b);
         }
     }
+    if (walk(c, slt) < 0) return S7_LOG.status = S7_WMAP;      /* (cannot happen: <= S7_NSW swaps, S7_NPR pairs) */
     return S7_LOG.status = S7_OK;
 }
 

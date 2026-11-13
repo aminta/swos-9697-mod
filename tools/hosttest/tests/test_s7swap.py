@@ -366,8 +366,13 @@ def test_s7walk():
     careerFileBuffer row of 4 globals at +0x200, the engine item ST's 4 words at +16): after the 9 swaps
     - every listed word / global of a club that moved is its club's new one (the registry's), a global of a split
       file's second run included when one moves, the others kept (unmoved, none 0 / FFFF, another file);
-    - the team cache's records follow their clubs: a moved club's record gets its new row's word (0..1), global (2..3
-      BE) and division byte (25, the row's as shipped), its other bytes kept; unmoved records untouched;
+    - the team cache's records follow their clubs: a moved club's record gets its new row's word (0..1), global (2..3,
+      LE as in memory) and league byte (25 = the row's base + next season's delta), its other bytes kept; unmoved
+      records untouched;
+    - the career club (option B, MC 13/11) crossing down: selTeamNumber = its new word, careerTeamLeague = the new
+      row's base division, careerTeam's own bytes as a cache record's, the rest of careerTeam (its squad) kept; the
+      partner club (the one now at the career club's old word) keeps its own cached record (no squad written back);
+      a career club that does not cross: nothing of its words changes;
     - S7_WLOG: rows walked 3, words changed, cache records moved;
     - a bad row (form O8 poked into WSITES): the season refused before the registry changes (S7_WSITE), nothing
       written."""
@@ -409,7 +414,12 @@ def test_s7walk():
     st = m.at('s7swap', 'ST_ITEM') + 16
     m.w(cfb, struct.pack('<4H', *cfbg))
     m.w(st, struct.pack('<4H', *stw))
-    stt, nsw, ncr, _ = run(m, down, up)
+    cteam0 = bytearray(recs[0])                         # the career club = the cached dn[0] (its squad marked)
+    cteam0[300:310] = b'CAREERSQD!'
+    m.w(m.at('s7swap', 'S7_CTEAM'), bytes(cteam0))
+    m.w(m.at('s7swap', 'S7_SELTEAM'), struct.pack('<H', dn[0]))
+    m.w(m.at('s7swap', 'S7_CTLEAGUE'), struct.pack('<H', 4))
+    stt, nsw, ncr, slt = run(m, down, up)
     if stt != OK:
         return False, f'season status {stt}'
     fs1, word1, at1, rdiv1, rows1 = reg_parse(m.regb())
@@ -440,13 +450,40 @@ def test_s7walk():
             struct.pack_into('<H', want, 100 + 2 * j, nw(x))
         if w2 != w:
             want[0], want[1] = w2 & 0xFF, w2 >> 8
-            struct.pack_into('>H', want, 2, glob(w2 & 0xFF, w2 >> 8))
-            want[25] = base_local(fs1[fi2], w2 >> 8)
+            g2 = glob(w2 & 0xFF, w2 >> 8)
+            struct.pack_into('<H', want, 2, g2)
+            want[25] = (base_local(fs1[fi2], w2 >> 8) + struct.unpack('b', slt[g2:g2 + 1])[0]) & 0xFF
         if r != bytes(want):
             errs.append(f'cache record {k} ({w:#x} -> {w2:#x}): differs at {[b for b in range(684) if r[b] != want[b]][:8]}')
     wl = struct.unpack('<hhHHHH', m.rd(m.at('s7swap', 'S7_WLOG'), 12))
     if wl[0] != -1 or wl[5] != 3 or wl[3] != 2:
         errs.append(f'S7_WLOG {wl} (row -1, rows 3, cache 2)')
+    c2 = nw(dn[0])                                      # the career club
+    sel = struct.unpack('<H', m.rd(m.at('s7swap', 'S7_SELTEAM'), 2))[0]
+    lg = struct.unpack('<H', m.rd(m.at('s7swap', 'S7_CTLEAGUE'), 2))[0]
+    ct = m.rd(m.at('s7swap', 'S7_CTEAM'), 684)
+    want = bytearray(cteam0)
+    g2 = glob(c2 & 0xFF, c2 >> 8)
+    b2 = base_local(fs1[[x[0] for x in fs1].index(c2 & 0xFF)], c2 >> 8)
+    want[0], want[1] = c2 & 0xFF, c2 >> 8
+    struct.pack_into('<H', want, 2, g2)
+    want[25] = (b2 + struct.unpack('b', slt[g2:g2 + 1])[0]) & 0xFF
+    if sel != c2 or c2 & 0xFF != FB or lg != b2 or ct != bytes(want):
+        errs.append(f'career club: selTeamNumber {sel:#x} (want {c2:#x}), league {lg} (want {b2}), careerTeam '
+                    f'{"ok" if ct == bytes(want) else [b for b in range(684) if ct[b] != want[b]][:8]}')
+    if any(cache[684 * k + 300:684 * k + 310] == b'CAREERSQD!' for k in range(3)):
+        errs.append('the career squad was written into a cached record')
+    cl = struct.unpack('<HHh', m.rd(m.at('s7swap', 'S7_CLOG'), 6))
+    if cl != (dn[0], c2, b2):
+        errs.append(f'S7_CLOG {cl}')
+    m.fresh()                                           # a career club that does not cross: its words kept
+    m.w(m.at('s7swap', 'S7_SELTEAM'), struct.pack('<H', stay))
+    m.w(m.at('s7swap', 'S7_CTLEAGUE'), struct.pack('<H', 0))
+    m.w(m.at('s7swap', 'S7_CTEAM'), recs[2])
+    stt, _, _, _ = run(m, down, up)
+    if stt != OK or struct.unpack('<H', m.rd(m.at('s7swap', 'S7_SELTEAM'), 2))[0] != stay or \
+            m.rd(m.at('s7swap', 'S7_CTEAM'), 684) != recs[2] or m.rd(m.at('s7swap', 'S7_CTLEAGUE'), 2) != b'\0\0':
+        errs.append('a staying career club changed')
     m.fresh()                                           # a bad row: refused before anything changes
     ws = m.at('s7swap', 'WSITES')
     row = bytearray(m.rd(ws + 10, 10))
@@ -458,5 +495,5 @@ def test_s7walk():
     if stt != S7_WSITE or wl[0] != 1 or m.regb() != r0 or any(slt) or list(struct.unpack('<4H', m.rd(cfb, 8))) != cfbg:
         errs.append(f'bad row: status {stt} row {wl[0]}, registry {"kept" if m.regb() == r0 else "changed"}')
     return not errs, '; '.join(errs[:6]) or ('cache / CFB / ST rows remapped (moved words + globals, others kept), '
-                                             'cache records followed their clubs (0..3, 25 new; rest kept), bad row '
+                                             'cache records followed their clubs (0..3, 25 new; rest kept), the career club crossed (selTeamNumber, careerTeamLeague, careerTeam own bytes; squad kept, not written to the partner), a staying one untouched, bad row '
                                              'refused before the registry changed')

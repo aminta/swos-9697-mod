@@ -185,9 +185,16 @@ def patch(p, ssyms, rsyms, gsyms, pgsyms, fsyms, risyms):
     import trailer
     ext.update({'S7_NUMSEL': trailer.INFO['NUMSEL'], 'S7_SELBASE': (1, trailer.INFO['selbasev']),
                 'S7_ENI': (1, trailer.INFO['en_items']), 'S7_CFB': trailer.INFO['CAREER']})
+    import careerworld
+    import dplay
+    import gplay
+    sel = careerworld.SITES['nc']['selteam']
+    assert sel[0] == 2 and gplay._cardiv(p) == sel[1] + 6, ('s7swap: selTeamNumber / careerTeamLeague / D6CDC not '
+                                                            'adjacent (obj2 +0 / +4 / +6)', sel, hex(gplay._cardiv(p)))
+    ext.update({'S7_SELTEAM': sel, 'S7_CTLEAGUE': (2, sel[1] + 4), 'S7_CTEAM': (2, dplay._sites(p)[5])})
     obj = cobj.compile_c(SRC, (f'-DS7_NID={NID}',), sections=True)
     syms, end, bss = cobj.link(p, obj, swreg.S7SWAP_AT, (4, 0), externs=ext, limit=swreg.S7SWAP_END, text_obj=4,
-                               roots=['s7_season', 's7_load', 'S7_HRUN', 'S7_FNV', 'S7_WLOG', 'WSITES', 'WS_KEYS', 'S7_ENN', 'S7_CFBLEN', 'S7_NAME', 'S7_OAT', 'S7_ONREC', 'S7_LD', 'S7_FA', 'S7_FB', 'S7_NUP', 'S7_NLO', 'S7_UP', 'S7_LO', 'S7_GB',
+                               roots=['s7_season', 's7_load', 'S7_HRUN', 'S7_FNV', 'S7_WLOG', 'S7_CLOG', 'WSITES', 'WS_KEYS', 'S7_ENN', 'S7_CFBLEN', 'S7_NAME', 'S7_OAT', 'S7_ONREC', 'S7_LD', 'S7_FA', 'S7_FB', 'S7_NUP', 'S7_NLO', 'S7_UP', 'S7_LO', 'S7_GB',
                                       'S7_AREA', 'S7_LOG'] + LIB)
     assert not bss, ('s7swap.c: no .bss (it would land on swe.c\'s)', bss)
     p.put(*syms['S7_FA'], bytes((fa,)))
@@ -209,7 +216,7 @@ def patch(p, ssyms, rsyms, gsyms, pgsyms, fsyms, risyms):
     cobj.add_ptr(p, pgsyms['S7_PTR'][1], *syms['s7_season'], 1)   # (pg_fix's dword in obj1 -> obj4)
     LABELS.clear()
     LABELS.update(syms)
-    LABELS.update({k: ext[k] for k in ('S7_NUMSEL', 'S7_SELBASE', 'S7_CFB', 'S7_ENI')})   # (host tests)
+    LABELS.update({k: ext[k] for k in ('S7_NUMSEL', 'S7_SELBASE', 'S7_CFB', 'S7_ENI', 'S7_SELTEAM', 'S7_CTLEAGUE', 'S7_CTEAM')})   # (host tests)
     print(f'exe: S7 swap builder (s7swap.c) obj4+{swreg.S7SWAP_AT:#x}..{end:#x} of {swreg.S7SWAP_END:#x}: structs '
           f'{fa} / {fb}, boundary levels {up} / {lo}, globals {gb}, {len(area)} idents (homes {hr}); S7_LOG obj4+{syms["S7_LOG"][1]:#x}; load apply: {names[0]} / {names[1]} '
           f'({nrec[fa]} / {nrec[fb]} records) in S7_ORIG, S7_LD obj4+{syms["S7_LD"][1]:#x}')

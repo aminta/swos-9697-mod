@@ -72,6 +72,11 @@ new rule. If a rule seems wrong for a case, ask the regia session; don't silentl
     group keeps its size; a promoted club takes the Serie C group by area the same way. Direct relegations first, then
     play-out losers. Not exact: declared in the release notes (EN + IT) and in "Rebuilt exactly" as approximated.
     Unequal counts or a bad snapshot = the season's crossings refused and logged (S7_LOG), never guessed.
+14d. **A crossing of the career club is not a job change** (MC 13/11, option B): when the career club crosses between
+    Serie C and Serie D, its squad (all of it, 17..30 included), its funds and the job count are kept, no reserves are
+    invented and no squad is written back to a club record. Only the club's place changes: selTeamNumber,
+    careerTeamLeague and careerTeam's own bytes (word, global number, league), as a team record in memory has them;
+    the new season then takes its league from the club's new team file, as natively.
 
 ## Tests
 15. Result-dependent cases are **forced** (pokes / *_FORCE / CONTI_GPLACE ...), never re-run hoping. Test switches

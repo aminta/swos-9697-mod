@@ -233,8 +233,14 @@ def patch(p, ssyms, rsyms, gsyms, pgsyms, fsyms, risyms):
     cobj.add_ptr(p, pgsyms['S7_PTR'][1], *syms['s7_season'], 1)   # (pg_fix's dword in obj1 -> obj4)
     if 'S7_HPTR' in risyms:                             # (ri_home, xtra_readto's hook: a crossed club's XTRA block)
         cobj.add_ptr(p, risyms['S7_HPTR'][1], *syms['s7_home_word'], 1)
+    import stadium
+    if 'st_hptr' in stadium.LABELS:                     # (st_find: a crossed club's stadium by its home word, obj3)
+        cobj.add_ptr(p, stadium.LABELS['st_hptr'][1], *syms['s7_home_word'], stadium.LABELS['st_hptr'][0])
     LABELS.clear()
     LABELS.update(syms)
+    if 'st_cur' in stadium.LABELS:
+        LABELS.update(ST_FIND=stadium.LABELS['st_find'], ST_GT1=stadium.LABELS['GT1'], ST_TOP=stadium.LABELS['TOP'])
+        LABELS['ST_CUR'] = stadium.LABELS['st_cur']    # (world_s7cross_*: the versus screen's current / home word pair)
     LABELS.update({k: ext[k] for k in ('S7_NUMSEL', 'S7_SELBASE', 'S7_CFB', 'S7_ENI', 'S7_SELTEAM', 'S7_CTLEAGUE', 'S7_CTEAM')})   # (host tests)
     print(f'exe: S7 swap builder (s7swap.c) obj4+{swreg.S7SWAP_AT:#x}..{end:#x} of {swreg.S7SWAP_END:#x}: structs '
           f'{fa} / {fb}, boundary levels {up} / {lo}, globals {gb}, {len(area)} idents (homes {hr}); S7_LOG obj4+{syms["S7_LOG"][1]:#x}; load apply: {names[0]} / {names[1]} '

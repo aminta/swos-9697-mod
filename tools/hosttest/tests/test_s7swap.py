@@ -240,6 +240,73 @@ def test_s7swap():
                                              f'COUNT / BAD / STALE / PLACE with nothing changed')
 
 
+def test_s7stadium():
+    """42-s7stad (MC 13/11): stadium.py's st_find keys the versus screen's stadium by the HOME word. After the 9 swaps
+    every club of both files is looked up by its current team word (gameTeam1 -> a record in the test buffer):
+    ST_CUR = (current word, word keyed) - a crosser is keyed by its shipped home word, a club that did not move by
+    itself. st_find runs up to its first DOS call (the file open: an interrupt here, caught); before any swap every
+    club keys itself."""
+    if not os.path.exists(EXE) or not os.path.exists(EXE[:-4] + '.syms.json'):
+        return True, f'SKIP: {EXE} (a shaped HOSTTEST_SYMS=1 build) missing'
+    sy = json.load(open(EXE[:-4] + '.syms.json'))
+    if 'ST_CUR' not in sy.get('s7swap', {}):
+        return True, f'SKIP: {EXE}: no stadium hook (a build without stadium.py / the S7 stub)'
+    from unicorn import UcError
+    m = M(EXE)
+    base = {1: tr.B1, 2: tr.B2, 3: tr.B3, 4: tr.B4}
+    s7 = sy['s7swap']
+    where = lambda k: base[s7[k][0] or 1] + s7[k][1]
+    rec = ts.BUF + 0xA000
+    errs = []
+
+    def look(w):
+        m.w(rec, struct.pack('<H', w) + bytes(682))
+        m.w(where('ST_GT1'), struct.pack('<I', rec))
+        m.w(where('ST_CUR'), bytes(4))
+        try:
+            ts._run(m.uc, where('ST_FIND'), tr.RET)
+        except UcError:
+            pass                                        # (int 21h: the file open - the key is set by then)
+        return struct.unpack('<HH', m.rd(where('ST_CUR'), 4))
+    m.fresh()
+    fs, word, at, rdiv, rows = reg_parse(m.regb())
+    before = [look(w) for w in word[:40]]
+    bad0 = [(hex(c), hex(h)) for c, h in before if c != h]
+    if bad0 or any(c == 0 for c, _ in before):
+        errs.append(f'before any swap: keys {bad0[:3]} (want each club keyed by itself)')
+    down, up = crossings(fs, m.gb)
+    st, nsw, ncr, _ = run(m, down, up)
+    if (st, nsw, ncr) != (OK, 9, 18):
+        return False, f'status {st} swaps {nsw} crossers {ncr}'
+    fs1, word1, at1, rdiv1, rows1 = reg_parse(m.regb())
+    moved = other = 0
+    for fi, f in enumerate(fs1):
+        for o in range(rows1[fi]):
+            i = at1[fi][o]
+            if i >= len(word):
+                continue
+            cur = f[0] | o << 8
+            c, h = look(cur)
+            if c != cur or h != word[i]:
+                errs.append(f'row {hex(cur)} (ident {i}): current {hex(c)} keyed {hex(h)}, want home {hex(word[i])}')
+            moved += cur != word[i]
+            other += cur == word[i]
+    hp = where('st_hptr') if 'st_hptr' in s7 else None
+    sv = m.rd(sy['stadium']['st_hptr'][1] + tr.B3, 4) if 'stadium' in sy and 'st_hptr' in sy['stadium'] else None
+    cross = [f[0] | o << 8 for fi, f in enumerate(fs1) for o in range(rows1[fi]) if at1[fi][o] < len(word)
+             and (f[0] | o << 8) != word[at1[fi][o]]]
+    if sv is not None and cross:                        # (control: no hook = the current word keyed: the check bites)
+        m.w(sy['stadium']['st_hptr'][1] + tr.B3, bytes(4))
+        c0, h0 = look(cross[0])
+        m.w(sy['stadium']['st_hptr'][1] + tr.B3, sv)
+        if h0 != cross[0]:
+            errs.append(f'control (st_hptr 0): a crosser keyed {hex(h0)}, want its current word {hex(cross[0])}')
+    if moved != 18:
+        errs.append(f'{moved} rows whose home word differs from their place, want 18')
+    return not errs, '; '.join(errs[:5]) or (f'before the swaps every club keys itself; after them {moved} crossers keyed by '
+                                              f'their home word, {other} others by themselves')
+
+
 TB = 0x6200000                                          # (the team buffer: 2 + 162 x 684 B)
 LD_OK, LD_NOREG, LD_READ, LD_SIZE, LD_FILE = 1, 2, 3, 4, 5
 KEPT = (0, 1, 2, 3, 4, 23, 25)

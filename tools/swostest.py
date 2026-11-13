@@ -27033,7 +27033,9 @@ def s7cross(force, team, start_file, ldfail=None):
                                             'W8485_NOSACK', 'W8485_HEX', 'W8485_ONE')}
     os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+',
                       W8485_NOSACK='1', W8485_HEX=f'o4/{at("S7_LOG"):x}:8,o4/{at("S7_CLOG"):x}:6,'
-                      f'o4/{at("S7_WLOG"):x}:12,o4/{at("S7_LD"):x}:16,{sel:x}:8')
+                      f'o4/{at("S7_WLOG"):x}:12,o4/{at("S7_LD"):x}:16,{sel:x}:8'
+                      + (f',o4/{sy["swe"]["SWC1"][1]:x}:4' if 'SWC1' in sy.get('swe', {}) else '')    # (SWC1 header: ver,
+                      + (f',{sy["swe"]["SWE_CWB"][1]:x}:1' if 'SWE_CWB' in sy.get('swe', {}) else ''))  # world; the world byte)
     os.environ.pop('W8485_ONE', None)
     try:
         ok, msg = world8485()

@@ -27488,7 +27488,9 @@ def world_s7cross_diff():
         for k in ('W8485_ONE', 'W8485_MIDTEXT'):
             os.environ.pop(k, None)
         for k in ('A', 'B'):
-            os.environ.update(W8485_BUILD=exes[k], W8485_FROM=save, SWOSTEST_SCENARIO=f'world_s7cross_diff_{k}')
+            os.environ.update(W8485_BUILD=exes[k], W8485_FROM=save, SWOSTEST_SCENARIO=f'world_s7cross_diff_{k}',
+                              W8485_HEX=f'{fs["D6CA2"][1]:x}:2,{fs["D6B9E"][1]:x}:2,{fs["D6B9E"][1] + 8:x}:120,'
+                                        f'{sel:x}:8')   # (MC 13/11: D6CA2, the wage bill, D6BA6[30] as they change)
             W84_AFTER = dump(k)
             ok, msg = world8485()
             W84_AFTER = None

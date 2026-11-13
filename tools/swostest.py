@@ -31643,6 +31643,9 @@ def diff_trace():
     # counters are trace-only code whose CPU cost alone shifts a still timer-driven part of the match: 13/11 bisection)
     ref = build('diff_ref', {'DIFF_TRACE': '1', **{k: v for k, v in sh.items() if k != 'DIFF_SKIP'}}, lang=lang)
     new = build('diff_new', {'DIFF_TRACE': '1', 'DIFF_TEST': '3', **sh}, lang=lang)
+    base = os.environ.get('DIFF_BASE')                  # (42-drp: REF = NEW's recipe built from that git ref, e.g.
+    if base:                                            #  42-diff = the 0da9536 line; compared at DIFF_BASE_DR, default
+        ref = build('diff_base', {'DIFF_TRACE': '1', 'DIFF_TEST': '3', **sh}, branch=base, lang=lang)   # 0,1)
     padc = os.environ.get('DIFF_PAD')                   # (MC 13/11: REF+PAD = REF with a nop band of NEW's obj4 sizes
     if padc:                                            #  'code,buildup'; NORMAL then = REF+PAD, no EASY run)
         new = build('diff_refpad', {'DIFF_TRACE': '1', 'DIFF_PAD': padc,
@@ -31660,6 +31663,19 @@ def diff_trace():
             a = diff_match(f'diff_trace_{pr}_ref', ref, 'HAMBURG', 'SCHALKE', ctls[pr], seed, 0, frames)
             runs = [('REF again', diff_match(f'diff_trace_{pr}_ref2', ref, 'HAMBURG', 'SCHALKE', ctls[pr], seed, 0,
                                              frames))]
+        elif base:                                      # (the same DRIBBLING value on both builds: one pair per value)
+            for dr in (int(x) for x in os.environ.get('DIFF_BASE_DR', '0,1').split(',')):
+                a = diff_match(f'diff_trace_{pr}_base{dr}', ref, 'HAMBURG', 'SCHALKE', ctls[pr], seed, 0, frames, drib=dr)
+                b = diff_match(f'diff_trace_{pr}_new{dr}', new, 'HAMBURG', 'SCHALKE', ctls[pr], seed, 0, frames, drib=dr)
+                if a['errs'] or b['errs'] or 'ck' not in a or 'ck' not in b:
+                    errs.append(f'{pr} DR {dr}: {a["errs"]} / {b["errs"]}')
+                    continue
+                eq, k, n = diff_ck_compare(a, b)
+                same = a.get('top') == b.get('top')     # (the team order: another order = another match, not counted)
+                check(eq or not same, f'{pr} DR {dr} base / new: differs at checkpoint {k} at the same order', errs)
+                info.append(f'{pr} DR {dr} base / new: equal {eq} (frames {a["frames"]} / {b["frames"]}, order '
+                            f'{a.get("top")} / {b.get("top")}{"" if same else ": not comparable"})')
+            continue
         else:
             a = diff_match(f'diff_trace_{pr}_ref', ref, 'HAMBURG', 'SCHALKE', ctls[pr], seed, 0, frames)
             runs = [('NORMAL', diff_match(f'diff_trace_{pr}_new', new, 'HAMBURG', 'SCHALKE', ctls[pr], seed, 0,
@@ -31740,13 +31756,72 @@ def diff_menu():
         check(w == [2, 1, 0], f'toggles (DF_W): {w} (want 2, 1, 0 = HARD, EASY, NORMAL)', errs)
         walk(s, 29, 2)                                  # HARD, then DRIBBLING NEW: the save byte 0x12
         dr = []
-        for n in range(2):
-            walk(s, 31, 2)
-            dr.append((rdr(), rsv()))
-            s.shot(f'options_drib_{n + 1}')
-        check(dr == [(1, 0x12), (0, 0x02)], f'DRIBBLING toggles (DF_DR, DF_SV): {dr} (want (1, 0x12), (0, 0x02))', errs)
+        walk(s, 31, 2)
+        dr.append((rdr(), rsv()))
+        s.shot('options_drib_1')
+        pg = walk(s, 31, 2)                             # CUSTOM (0x22): the PERSONALIZZATO page opens
+        dr.append((rdr(), rsv()))
+        check(dr == [(1, 0x12), (2, 0x22)], f'DRIBBLING toggles (DF_DR, DF_SV): {dr} (want (1, 0x12), (2, 0x22))', errs)
+        notes.append(diff_dp_page(s, pg, blk, errs))
+        sc = s.screen()
+        check(sc.n == 32 and rdr() == 2, f'back in OPTIONS: {sc.n} entries, DF_DR {rdr()}', errs)   # (the reader
+        # leaves string-table entries' texts empty: the values are checked in memory, the texts on the shots)
+        s.shot('options_drib_2')
+        walk(s, 31, 2)
+        dr.append((rdr(), rsv()))
+        check(dr[-1] == (0, 0x02), f'DRIBBLING CUSTOM -> CLASSIC: {dr[-1]} (want (0, 0x02))', errs)
         notes.append(f'toggles {w}, dribbling {dr}')
     return not errs, '; '.join(errs + notes)
+
+
+def diff_dp_page(s, pg, blk, errs):
+    """42-drp: the DRIBBLING PERSONALIZZATO page just opened (pg its screen): 18 entries (title, 8 labels, 8 values,
+    INDIETRO), the texts in the exe's language and in their boxes, every value at its default (NUOVO steps, switches
+    ON); fire on each value row steps it (the step rows 3 values, the switches 2, wrapping: DP_K follows and the shown
+    text is the step's); INDIETRO leaves. Returns a note."""
+    import difficulty as dfm
+    from complist import px, SMALL_W
+    li = ('it', 'en', 'fr', 'de').index(UI)
+    n = len(dfm.DP_ROWS)
+    r = s.result
+    pg15 = r.read(r.base4 + __import__('swreg').DIFF_AT, 0x1000)
+    pat = struct.pack(f'<{n}H', *dfm.DP_DEFAULT) + bytes(len(x[4]) for x in dfm.DP_ROWS)
+    k = pg15.find(pat)
+    check(k >= 0, 'DP_K (defaults + DP_N) not found in page 15', errs)
+    if k < 0:
+        return 'no DP_K'
+    dpk = r.base4 + __import__('swreg').DIFF_AT + k
+    rdk = lambda: list(struct.unpack(f'<{n}H', s.result.read(dpk, 2 * n)))
+    check(pg.n == 2 * n + 2 and pg.entries[0][1] == dfm.DP_TITLE[UI], f'page: {pg.n} entries, title '
+          f'{pg.entries[0][1]!r}', errs)
+    if pg.n != 2 * n + 2:
+        return 'page not opened'
+    vals = lambda i, st: (dfm.DRVALUES[UI][0], dfm.DRVALUES[UI][1], dfm.DP_EXTRA[UI])[st] \
+        if len(dfm.DP_ROWS[i][4]) == 3 else None
+    for i, row in enumerate(dfm.DP_ROWS):
+        check(pg.entries[1 + i][1] == row[0][li], f'label {i}: {pg.entries[1 + i][1]!r}', errs)
+        t = row[0][li]
+        check(px(t) <= pg.geom[1 + i][2] - 2 and set(t) <= set(SMALL_W) | {' '}, f'{t!r}: {px(t)} px', errs)
+        check(pg.entries[9 + i][1] in ('', vals(i, 1)), f'value {i}: {pg.entries[9 + i][1]!r}', errs)
+    check(rdk() == list(dfm.DP_DEFAULT), f'DP_K at open {rdk()}', errs)
+    s.shot('drp_page_0')
+    steps = []
+    for i, row in enumerate(dfm.DP_ROWS):
+        m = len(row[4])
+        seen = []
+        for j in range(m):
+            sc = walk(s, 9 + i, 2)
+            st = rdk()[i]
+            seen.append(st)
+            check(sc.entries[9 + i][1] in ('', vals(i, st)), f'row {i} step {st}: {sc.entries[9 + i][1]!r}', errs)
+        want = [(dfm.DP_DEFAULT[i] + 1 + j) % m for j in range(m)]
+        check(seen == want, f'row {i} steps {seen} (want {want})', errs)
+        steps.append(seen)
+    s.shot('drp_page_1')
+    check(rdk() == list(dfm.DP_DEFAULT), f'DP_K after full cycles {rdk()}', errs)
+    walk(s, 9, 2)                                       # (row 0 one step on: EXTRA, kept for the session)
+    walk(s, 2 * n + 1, 2)                               # INDIETRO
+    return f'page OK: {pg.n} entries, steps {steps}, DP_K at exit {rdk()}'
 
 
 

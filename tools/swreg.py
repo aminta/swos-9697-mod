@@ -55,8 +55,8 @@ assert SLOW_AT < NAMEFIT_AT < NAMEFIT_END <= TRIAL_AT < TRIAL_END <= BOX_AT < BO
 assert SLOW_END <= T3_AT < T3_END, 'page 14: T3 above page 13'
 DIFF_AT = 0xE000                        # 42-diff (difficulty + DRIBBLING, difficulty.py + buildup.py): obj4's whole
 DIFF_END = 0xF000                       # page 15 (MC 12/11, option a; a future CT page goes to 0xF000+). Split:
-BU_AT = 0xE900                          # difficulty 0xE000..BU_AT, the build-up v1 BU_AT..DIFF_END. The build FAILs
-BU_END = DIFF_END                       # when the release shape leaves under DIFF_MARGIN B of the page.
+BU_AT = 0xEC00                          # difficulty 0xE000..BU_AT, the build-up v1 BU_AT..DIFF_END. The build FAILs
+BU_END = DIFF_END                       # when the release shape leaves under DIFF_MARGIN B of the page. (4.2 42-drp: 0xE900 -> 0xEC00, the PERSONALIZZATO page)
 DIFF_MARGIN = 512
 assert T3_END <= DIFF_AT < BU_AT < BU_END == DIFF_END <= 0x10000, 'page 15: T3 < difficulty < build-up'
 MAGIC = b'SWRG'

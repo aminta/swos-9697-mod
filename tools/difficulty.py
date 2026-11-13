@@ -62,8 +62,33 @@ NORM = dict(k=4, lockw=12, lockl=12, turn=256, box=0, hold=3200, slide=200)
 USER = dict(NORM, k=2, lockw=16, turn=224)
 OPP = dict(NORM, lockl=16, box=16, hold=4400, slide=160)
 DRLABEL = {'it': 'DRIBBLING', 'en': 'DRIBBLING', 'fr': 'DRIBBLE', 'de': 'DRIBBLING'}
-DRVALUES = {'it': ('CLASSICO', 'NUOVO'), 'en': ('CLASSIC', 'NEW'), 'fr': ('CLASSIQUE', 'NOUVEAU'),
-            'de': ('KLASSISCH', 'NEU')}
+DRVALUES = {'it': ('CLASSICO', 'NUOVO', 'PERSONALIZZATO'), 'en': ('CLASSIC', 'NEW', 'CUSTOM'),
+            'fr': ('CLASSIQUE', 'NOUVEAU', 'PERSONNALISE'), 'de': ('KLASSISCH', 'NEU', 'INDIVIDUELL')}
+# 4.2 DRIBBLING PERSONALIZZATO (Davide 13/11, "GO A"): DRIBBLING's third value opens a page of 8 rows. Each step row
+# CLASSICO / NUOVO / EXTRA = the original value / DRIBBLING NEW's / one step further the same way (easier for the
+# human); the two switch rows ON / OFF (the exe's own strings). At the kick-off with DRIBBLING 2 the blocks BLK_CU /
+# BLK_CO (copies of BLK_U / BLK_O) take the rows' values; the values live in the session only (DP_K; the beta).
+#        (label it, en, fr, de)                                                block field size  CLASSICO NUOVO EXTRA
+DP_ROWS = (
+    (('CONDUZIONE PALLA', 'BALL CARRYING', 'CONDUITE DE BALLE', 'BALLFUEHRUNG'), 'U', 0, 2, (4, 2, 1)),        # K4
+    (('CAMBIO DIREZIONE', 'SHARP TURNS', 'CROCHETS', 'HAKEN'), 'U', 6, 2, (256, 224, 192)),                   # K10
+    (('PROTEZIONE PALLA', 'BALL SHIELDING', 'PROTECTION BALLE', 'BALLSCHUTZ'), 'U', 2, 2, (12, 16, 20)),      # K9w
+    (('SCIVOLATE CPU', 'CPU SLIDES', 'TACLES CPU', 'CPU GRAETSCHEN'), 'O', 16, 4, (200, 160, 120)),          # K5
+    (('RADDOPPIO CPU', 'CPU DOUBLING', 'DOUBLEMENT CPU', 'CPU DOPPELN'), 'O', 12, 4, (3200, 4400, 5600)),   # K8
+    (('RIPRESA CPU', 'CPU WIN BACK', 'REPRISE CPU', 'CPU BALLGEWINN'), 'O', 4, 2, (12, 16, 20)),            # K9l
+    (('AREA SENZA SCIVOLATE', 'NO SLIDES IN BOX', 'SURFACE SANS TACLE', 'STRAFRAUM SCHUTZ'), 'O', 8, 2, (16, 0)),  # K11
+    (('COSTRUZIONE CPU', 'CPU BUILD UP', 'CONSTRUCTION CPU', 'CPU AUFBAU'), None, 0, 0, (1, 0)),            # MIX
+)
+DP_TITLE = {'it': 'DRIBBLING PERSONALIZZATO', 'en': 'CUSTOM DRIBBLING', 'fr': 'DRIBBLE PERSONNALISE',
+            'de': 'DRIBBLING INDIVIDUELL'}
+DP_EXTRA = {'it': 'EXTRA', 'en': 'EXTRA', 'fr': 'EXTRA', 'de': 'EXTRA'}
+DP_BACK = {'it': 'INDIETRO', 'en': 'BACK', 'fr': 'RETOUR', 'de': 'ZURUECK'}
+DP_DEFAULT = tuple(1 if len(r[4]) == 3 else 0 for r in DP_ROWS)   # NUOVO's steps, the switches ON
+_FOFF = {0: 'k', 2: 'lockw', 4: 'lockl', 6: 'turn', 8: 'box', 12: 'hold', 16: 'slide'}
+for _r in DP_ROWS:                      # (CLASSICO = the original, NUOVO = DRIBBLING NEW's: the blocks' own values)
+    if _r[1] and len(_r[4]) == 3:
+        assert _r[4][0] == NORM[_FOFF[_r[2]]] and _r[4][1] == (USER if _r[1] == 'U' else OPP)[_FOFF[_r[2]]], _r
+assert DP_ROWS[6][4][0] == OPP['box']
 assert K1[2] == 100 and K2[2] == 0 and K2B[2] == 0 and K3[2] == (6, 4, 3, 2, 1, 0, 0, 0)
 
 ASM = r"""
@@ -92,10 +117,16 @@ df_kick:
     cmp word [TRG], 0
     jne .d
     mov ax, [DF_DR]
-    cmp ax, 1
+    cmp ax, 2                           ; (2 = PERSONALIZZATO: the page's values, dp_build)
     jbe .d
     xor eax, eax
 .d: mov [DF_DACT], al
+%if ROW
+    cmp al, 2
+    jne .e
+    call dp_build
+.e:
+%endif
     inc dword [DF_KICKS]
     pop eax
     mov dword [A6_], T1APP
@@ -209,7 +240,10 @@ df_blk:
     cmp al, 2
     jne .u
     mov ebx, BLK_O
-.u: pop eax
+.u: cmp byte [DF_DACT], 2             ; (PERSONALIZZATO: BLK_CU / BLK_CO, 64 B on)
+    jne .v
+    add ebx, 64
+.v: pop eax
     ret
 .n0:
     pop eax
@@ -504,13 +538,63 @@ df_tog:                                 ; DIFFICULTY (fire): NORMAL -> HARD -> E
 .s: mov [DF_W], ax
     call df_pack
     jmp DRAWITEM
-df_rtog:                                ; DRIBBLING (fire): CLASSIC <-> NEW
+df_rtog:                                ; DRIBBLING (fire): CLASSIC -> NEW -> CUSTOM (and its page) -> CLASSIC
     mov ax, [DF_DR]
-    xor ax, 1
-    and ax, 1
-    mov [DF_DR], ax
+    inc ax
+    cmp ax, 2
+    jbe .s
+    xor eax, eax
+.s: mov [DF_DR], ax
     call df_pack
+    cmp ax, 2
+    je .p
     jmp DRAWITEM
+.p: mov dword [A6_], DP_MENU            ; the page (OPTIONS comes back unpacked: df_ret, CUSTOM shown)
+    jmp SHOW_MENU
+
+; ---- DRIBBLING PERSONALIZZATO: the page's rows (fire: the next step, wrapping) and INDIETRO
+dp_tog:                                 ; (the row: the selected entry's ordinal - 9; Menu.selectedEntry +0Ch)
+    mov ebx, [MENU_ + 0Ch]
+    movzx ebx, word [ebx + 2]
+    sub ebx, 9
+    mov ax, [DP_K + ebx * 2]
+    inc ax
+    cmp al, [DP_N + ebx]
+    jb .s
+    xor eax, eax
+.s: mov [DP_K + ebx * 2], ax
+    jmp DRAWITEM
+dp_back:
+    mov word [EXITM], 1
+    ret
+
+; ---- the kick-off with DRIBBLING 2: BLK_CU / BLK_CO = BLK_U / BLK_O with the page's steps (DP_TAB: 7 rows of
+;      block offset (0 CU, 32 CO), field, size 2 / 4, the step values as words)
+dp_build:
+    pushad
+    mov esi, BLK_U
+    mov edi, BLK_CU
+    mov ecx, 16
+    rep movsd
+    xor ebx, ebx
+    mov esi, DP_TAB
+.r: movzx edi, byte [esi]
+    movzx eax, byte [esi + 1]
+    add edi, eax
+    add edi, BLK_CU
+    movzx eax, word [DP_K + ebx * 2]
+    movzx eax, word [esi + 4 + eax * 2]
+    cmp byte [esi + 2], 4
+    jne .w
+    mov [edi], eax
+    jmp .n
+.w: mov [edi], ax
+.n: add esi, 10
+    inc ebx
+    cmp ebx, DP_NTAB
+    jb .r
+    popad
+    ret
 df_pack:                                ; DF_SV = DF_SH = DIFFICULTY | DRIBBLING << 4
     push eax
     mov al, [DF_DR]
@@ -535,8 +619,11 @@ df_unp:
 .w: mov [DF_W], ax
     pop eax
     shr al, 4
-    and eax, 1
-    mov [DF_DR], ax
+    and eax, 3                          ; (bits 4-5: 0 CLASSIC, 1 NEW, 2 CUSTOM; 3 -> CLASSIC)
+    cmp al, 2
+    jbe .d
+    xor eax, eax
+.d: mov [DF_DR], ax
     jmp df_pack
 """
 
@@ -694,6 +781,7 @@ def data_asm():
     out += 'K2T: db ' + ', '.join(str(v & 0xff) for v in K2) + '\n'
     out += 'K2BT: db ' + ', '.join(str(v & 0xff) for v in K2B) + '\n'
     out += 'align 16\nBLK_N: ' + db(_blk(NORM)) + 'BLK_U: ' + db(_blk(USER)) + 'BLK_O: ' + db(_blk(OPP))
+    out += 'BLK_CU: ' + db(_blk(USER)) + 'BLK_CO: ' + db(_blk(OPP))   # (PERSONALIZZATO: dp_build, df_blk = U / O + 64)
     out += 'K3T: ' + ''.join('dw ' + ', '.join(map(str, r)) + '\n' for r in K3)
     return out
 
@@ -714,8 +802,45 @@ def start_w():
 
 def start_dr():
     v = int(os.environ.get('DIFF_DRIB', '0') or '0')
-    assert v in (0, 1), 'DIFF_DRIB=0 (CLASSIC) / 1 (NEW)'
+    assert v in (0, 1, 2), 'DIFF_DRIB=0 (CLASSIC) / 1 (NEW) / 2 (CUSTOM)'
     return v
+
+
+DP_Y, DP_DY, DP_BACK_Y = 26, 14, 152    # the page: row k at y DP_Y + DP_DY * k (labels x 10, values x 154, 140 x 11)
+
+
+def dp_asm(lang):
+    """The DRIBBLING PERSONALIZZATO page's data (nasm): strings, string tables, DP_K / DP_N / DP_TAB, the packed
+    menu DP_MENU (entries: 0 title, 1..8 labels, 9..16 values, 17 INDIETRO)."""
+    li = ('it', 'en', 'fr', 'de').index(lang)
+    db = lambda x: ', '.join(str(c) for c in x.encode('latin-1') + b'\0')
+    n = len(DP_ROWS)
+    out = f'S_PT: db {db(DP_TITLE[lang])}\nS_EX: db {db(DP_EXTRA[lang])}\nS_BK: db {db(DP_BACK[lang])}\n'
+    out += ''.join(f'S_L{i}: db {db(r[0][li])}\n' for i, r in enumerate(DP_ROWS))
+    out += 'align 4\n'
+    for i, r in enumerate(DP_ROWS):
+        out += f'TAB_K{i}: dd DP_K + {2 * i}\n    dw 0\n    dd ' + ('S_R0, S_R1, S_EX' if len(r[4]) == 3 else
+                                                                  'S_ON, S_OFF') + '\n'
+    out += 'DP_K: dw ' + ', '.join(map(str, DP_DEFAULT)) + '\n'
+    out += 'DP_N: db ' + ', '.join(str(len(r[4])) for r in DP_ROWS) + '\n'
+    tab = [r for r in DP_ROWS if r[1]]
+    assert DP_ROWS[:len(tab)] == tuple(tab), 'the block rows first (dp_build: row = knob index)'
+    out += f'DP_NTAB equ {len(tab)}\nDP_TAB:\n'
+    for r in tab:
+        v = tuple(r[4]) + (0,) * (3 - len(r[4]))
+        out += f'    db {0 if r[1] == "U" else 32}, {r[2]}, {r[3]}, 0\n    dw {v[0]}, {v[1]}, {v[2]}\n'
+    out += 'align 4\nDP_MENU:\n    dd 0, 0, 0, 9\n'
+    out += '    dw 12, 0, 280, 15, 4, 17h, 8, 0\n    dd S_PT\n    dw 0\n'
+    for i in range(n):
+        out += f'    dw 10, {DP_Y + DP_DY * i}, 140, 11, 4, 9, 8, 0\n    dd S_L{i}\n    dw 0\n'
+    for i in range(n):
+        up = 9 + i - 1 if i else 255
+        dn = 9 + i + 1 if i < n - 1 else 9 + n
+        out += (f'    dw 154, {DP_Y + DP_DY * i}, 140, 11, 2\n    db 255, 255, {up}, {dn}\n    dw 4, 13, 10, 0\n'
+                f'    dd TAB_K{i}\n    dw 13\n    dd dp_tog\n    dw 0\n')
+    out += (f'    dw 92, {DP_BACK_Y}, 120, 15, 2\n    db 255, 255, {9 + n - 1}, 255\n    dw 4, 0Eh, 8, 0\n    dd S_BK\n'
+            '    dw 13\n    dd dp_back\n    dw 0\n    dw -999\n')
+    return out
 
 
 PRE_AT = [None, None]
@@ -802,8 +927,13 @@ def patch(p, lang):
         assert prev == [(4, slow.LABELS['sl_init']), (4, slow.LABELS['sl_ret'])], ('OPTIONS init / return', prev)
         sym.update(PREV_INIT=prev[0], PREV_RET=prev[1], MENU_=zones._current_menu(p),
                    DRAWITEM=(1, cpucards.find(p)['DRAWITEM']))
-        for t in (LABEL[lang], DRLABEL[lang]) + VALUES[lang] + DRVALUES[lang]:
+        sym['S_OFF'], sym['S_ON'] = cpucards.strings(p, hdr)          # (the exe's own OFF / ON)
+        sym['SHOW_MENU'], sym['EXITM'] = sym0['SHOW_MENU'], sym0['EXITM']
+        li = ('it', 'en', 'fr', 'de').index(lang)
+        for t in ((LABEL[lang], DRLABEL[lang]) + VALUES[lang] + DRVALUES[lang] + (DP_EXTRA[lang], DP_BACK[lang])
+                  + tuple(r[0][li] for r in DP_ROWS)):
             assert px(t) <= 138 and re.fullmatch(r"[A-Z ']+", t), t
+        assert px(DP_TITLE[lang]) <= 278, DP_TITLE[lang]
     if tr:
         import slow
         d = p.le.obj_bytes(1)
@@ -867,12 +997,12 @@ def patch(p, lang):
         strs = (f'S_LBL: db {db(LABEL[lang])}\n' + ''.join(f'S_V{i}: db {db(t)}\n' for i, t in enumerate(v))
                 + 'align 4\nTAB_D: dd DF_W\n    dw 0\n    dd ' + ', '.join(f'S_V{i}' for i in range(5)) + '\n'
                 + f'S_RLBL: db {db(DRLABEL[lang])}\n' + ''.join(f'S_R{i}: db {db(t)}\n' for i, t in enumerate(DRVALUES[lang]))
-                + 'align 4\nTAB_R: dd DF_DR\n    dw 0\n    dd S_R0, S_R1\n')
+                + 'align 4\nTAB_R: dd DF_DR\n    dw 0\n    dd S_R0, S_R1, S_R2\n' + dp_asm(lang))
     skips = set(os.environ.get('DIFF_SKIP', '').split(','))   # (a set: 'BU' in 'BUFRAME' as a string is True)
     bu = knobs() and os.environ.get('DIFF_BU', '1') != '0' and 'BU' not in skips
     sym['BU_ENTRY'] = (4, swreg.BU_AT)
     bf = bu and 'BUFRAME' not in skips
-    src = (f'%define BUF {int(bf)}\n%define CKSH {int(os.environ.get("DIFF_CKSH", "11"))}\n%define STKZ {int(os.environ.get("DIFF_STKZ", "0") or 0)}\n%define STOPF {int(os.environ.get("DIFF_STOPF", "0"))}\n%define BU {int(bu)}\n%define DIFF_FORCE {int(force)}\n%define DIFF_TRACE {int(tr)}\n%define DF_START {start_w()}\n%define DR_START {start_dr()}\n'
+    src = (f'%define BUF {int(bf)}\n%define CKSH {int(os.environ.get("DIFF_CKSH", "11"))}\n%define STKZ {int(os.environ.get("DIFF_STKZ", "0") or 0)}\n%define STOPF {int(os.environ.get("DIFF_STOPF", "0"))}\n%define BU {int(bu)}\n%define DIFF_FORCE {int(force)}\n%define ROW {int(row)}\n%define DIFF_TRACE {int(tr)}\n%define DF_START {start_w()}\n%define DR_START {start_dr()}\n'
            f'%define TOP {TOP}\n%define PITCH {PITCH}\n%define HEIGHT {HEIGHT}\n' + ASM
            + (ASM_ROW if row else '') + (ASM_T if tr else '') + data_asm() + strs)
     code, fix, rel = nasmcave.assemble_obj(src, at, sym, 4)

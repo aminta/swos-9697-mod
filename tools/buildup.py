@@ -104,6 +104,13 @@ bu_free:
 bu_opp:
     cmp byte [DF_DACT], 0
     je .n
+%if ROW
+    cmp byte [DF_DACT], 2               ; (PERSONALIZZATO: its CPU BUILD UP row, 0 = ON)
+    jne .y
+    cmp word [DP_K + 14], 0
+    jne .n
+.y:
+%endif
     push eax
     push ebx
     mov ebx, [A6_]
@@ -305,6 +312,9 @@ def patch(p, lang, sym, lab_df, at, end):
     sites, s = find(p, sym)
     s.update(D0_=sym['D0_'], A6_=sym['A6_'], CGT=slow.find(p)['CGT'], DF_DACT=(4, lab_df['DF_DACT']),
              df_who=(4, lab_df['df_who']))
+    row = 'DP_K' in lab_df
+    if row:
+        s['DP_K'] = (4, lab_df['DP_K'])
     orig = {k: p.get(1, sites[k], n) for k, n in (('G1', 6), ('H1', 10), ('P1', 10))}
     assert orig['G1'][:2] == b'\x66\xa1' and orig['H1'][:2] == orig['P1'][:2] == b'\x81\x3d', ('sites patched', orig)
     import difficulty as df0
@@ -318,7 +328,7 @@ def patch(p, lang, sym, lab_df, at, end):
             '%endif\n%endmacro\n') + ''.join(f'%define {k} {v}\n' for k, v in (('G1_DIST', G1_DIST), ('G1_LOOK', G1_LOOK), ('FREE', FREE),
                                                          ('H1_DEEP', H1_DEEP), ('P1_NEAR', P1_NEAR), ('P1_FAR', P1_FAR),
                                                          ('P1_P', P1_P), ('P1_MIN', P1_MIN), ('P1_MAX', P1_MAX)))
-    src = defs + ASM
+    src = defs + f'%define ROW {int(row)}\n' + ASM
     code, fix, rel = nasmcave.assemble_obj(src, at, s, 4)
     lab = nasmcave.labels(src, at, s)
     assert at + len(code) <= end, ('build-up: past its obj4 room', hex(at + len(code)))

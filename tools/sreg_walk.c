@@ -15,9 +15,7 @@
 #ifndef SREG_WALK_C
 #define SREG_WALK_C
 
-typedef struct { uint16_t item; uint16_t off, stride, count; uint8_t form, aux; } sreg_wsite;
-typedef struct { uint8_t file, rows; uint16_t base; } sreg_gfile;     /* rows 0 = 256 */
-enum { WS_W = 1, WS_G = 2, WS_O8 = 3, WS_K = 4 };
+#include "sreg_walk.h"                        /* (the row layout, forms, items: the contract) */
 
 static int32_t gfile_of(const sreg_gfile *g, int32_t ng, uint32_t glob)
 {

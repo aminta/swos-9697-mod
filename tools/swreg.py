@@ -93,6 +93,10 @@ KITS_END = 0x11000                      # sprite masks on obj4's 16th page (end 
                                         # (128 x 24 B, zero-filled) on the 17th
 KITS_PAGE16_END = 0x10000               # (code + masks; the 17th: KEEPKIT.DAT's 'KKST' block, table and kk_* code, MC 13/11)
 assert T3_END <= globals().get('DIFF_END', KITS_AT) <= KITS_AT < KITS_PAGE16_END < KITS_END, 'kits: above T3 and the difficulty band'
+DRIB1V1_AT = 0xC000                     # 42-drp (MC 14/11): the PERSONALIZZATO page's code + strings and W1, the 1-v-1
+DRIB1V1_END = 0xC400                    # knob, in MATCH SPEED's parked room (page 13 under NAMEFIT_AT, its link limit);
+assert DRIB1V1_AT == SLOW_AT and DRIB1V1_END == NAMEFIT_AT, 'the 42-drp band = slow\'s room (only with patch.SLOW off)'
+assert (NAMEFIT_AT, TRIAL_AT, BOX_AT) == (0xC400, 0xC800, 0xCF00), 'page 13 bands unchanged (MC 14/11)'
 MAGIC = b'SWRG'
 VERSION = 2
 HDR = 32

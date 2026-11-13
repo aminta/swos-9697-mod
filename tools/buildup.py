@@ -107,7 +107,7 @@ bu_opp:
 %if ROW
     cmp byte [DF_DACT], 2               ; (PERSONALIZZATO: its CPU BUILD UP row, 0 = ON)
     jne .y
-    cmp word [DP_K + 14], 0
+    cmp word [DP_K + 16], 0           ; (DP_K + 2 * difficulty.DP_MIX)
     jne .n
 .y:
 %endif

@@ -63,8 +63,8 @@ K3 = ((9, 7, 6, 5, 4, 3, 2, 1), (7, 5, 4, 3, 2, 1, 1, 0), (6, 4, 3, 2, 1, 0, 0, 
 #   box   CPU slide gate: no slide while the carrier is inside the CPU's own penalty area + box px (0 = off; Davide's
 #         playtest 12/11: a penalty after every dribble in the box). Every foul in the area is a penalty.
 #   hold  second-chaser hold-back radius (sq px), slide the CPU slide radius (sq px)
-FIELDS = ('k', 'lockw', 'lockl', 'turn', 'box', 'hold', 'slide')
-NORM = dict(k=4, lockw=12, lockl=12, turn=256, box=0, hold=3200, slide=200)
+FIELDS = ('k', 'lockw', 'lockl', 'turn', 'box', 'hold', 'slide', 'wait')
+NORM = dict(k=4, lockw=12, lockl=12, turn=256, box=0, hold=3200, slide=200, wait=0)
 USER = dict(NORM, k=2, lockw=16, turn=224)
 OPP = dict(NORM, lockl=16, box=16, hold=4400, slide=160)
 DRLABEL = {'it': 'DRIBBLING', 'en': 'DRIBBLING', 'fr': 'DRIBBLE', 'de': 'DRIBBLING'}
@@ -83,15 +83,22 @@ def _prog(lo, step, n):
 
 #        (label it, en, fr, de)                                                block field size  raw values (step 0 = CLASSICO)
 DP_ROWS = (
-    (('CONDUZIONE PALLA', 'BALL CARRYING', 'CONDUITE DE BALLE', 'BALLFUEHRUNG'), 'U', 0, 2, _prog(4, -1, 5)),     # K4
-    (('CAMBIO DIREZIONE', 'SHARP TURNS', 'CROCHETS', 'HAKEN'), 'U', 6, 2, _prog(256, -8, 11)),                  # K10
-    (('PROTEZIONE PALLA', 'BALL SHIELDING', 'PROTECTION BALLE', 'BALLSCHUTZ'), 'U', 2, 2, _prog(12, 1, 13)),     # K9w
-    (('SCIVOLATE CPU', 'CPU SLIDES', 'TACLES CPU', 'CPU GRAETSCHEN'), 'O', 16, 4, _prog(200, -10, 16)),         # K5
-    (('RADDOPPIO CPU', 'CPU DOUBLING', 'DOUBLEMENT CPU', 'CPU DOPPELN'), 'O', 12, 4, _prog(3200, 400, 16)),     # K8
-    (('RIPRESA CPU', 'CPU WIN BACK', 'REPRISE CPU', 'CPU BALLGEWINN'), 'O', 4, 2, _prog(12, 1, 13)),            # K9l
+    (('VELOCITA CON PALLA', 'SPEED WITH BALL', 'VITESSE AVEC BALLE', 'TEMPO AM BALL'), 'U', 0, 2, _prog(4, -1, 5)),        # K4
+    (('PALLA INCOLLATA', 'BALL CLOSE ON TURNS', 'BALLE COLLEE', 'BALLNAH BEIM HAKEN'), 'U', 6, 2, _prog(256, -8, 11)),   # K10
+    (('PROTEZIONE PALLA', 'BALL SHIELDING', 'PROTECTION BALLE', 'BALLSCHUTZ'), 'U', 2, 2, _prog(12, 1, 13)),            # K9w
+    (('MENO SCIVOLATE CPU', 'FEWER CPU SLIDES', 'MOINS TACLES CPU', 'WENIGER GRAETSCHEN'), 'O', 16, 4, _prog(200, -10, 16)),  # K5
+    (('MENO RADDOPPI CPU', 'LESS CPU DOUBLING', 'MOINS DE DOUBLEMENTS', 'CPU DOPPELT WENIGER'), 'O', 12, 4,
+     _prog(3200, 400, 16)),                                                                                          # K8
+    (('CPU LENTA A RIPRENDERE', 'CPU WIN BACK DELAY', 'DELAI REPRISE CPU', 'CPU WARTET LAENGER'), 'O', 4, 2,
+     _prog(12, 1, 13)),                                                                                              # K9l
     (('AREA SENZA SCIVOLATE', 'NO SLIDES IN BOX', 'SURFACE SANS TACLE', 'STRAFRAUM SCHUTZ'), 'O', 8, 2, (16, 0)),  # K11
+    (('DIFENSORI CPU', 'CPU DEFENDERS', 'DEFENSEURS CPU', 'CPU VERTEIDIGER'), 'O', 20, 2, (0, 1)),               # W1 1-v-1
     (('COSTRUZIONE CPU', 'CPU BUILD UP', 'CONSTRUCTION CPU', 'CPU AUFBAU'), None, 0, 0, (1, 0)),            # MIX
 )
+# (switch rows' own value strings; the others ON / OFF, the exe's): W1 0 = today's engine, 1 = the 1-v-1 knob
+DP_SW = {7: {'it': ('INSEGUONO', 'ASPETTANO'), 'en': ('CHASE', 'WAIT'), 'fr': ('POURSUIVENT', 'ATTENDENT'),
+             'de': ('JAGEN', 'WARTEN')}}
+DP_MIX = 8                              # (buildup.py bu_opp reads DP_K + 2 * DP_MIX)
 DP_NNUM = 6                             # the value rows (then the two switches)
 _PCT = {0: lambda v: 100 * (32 - v) / 28, 6: lambda v: 100 * v / 256, 2: lambda v: 100 * v / 12,
         4: lambda v: 100 * v / 12, 16: lambda v: 100 * (v / 200) ** 0.5, 12: lambda v: 100 * (v / 3200) ** 0.5}
@@ -99,12 +106,16 @@ DP_PCT = tuple(tuple(int(_PCT[r[2]](v) + 0.5) for v in r[4]) for r in DP_ROWS[:D
 DP_TITLE = {'it': 'DRIBBLING PERSONALIZZATO', 'en': 'CUSTOM DRIBBLING', 'fr': 'DRIBBLE PERSONNALISE',
             'de': 'DRIBBLING INDIVIDUELL'}
 DP_BACK = {'it': 'INDIETRO', 'en': 'BACK', 'fr': 'RETOUR', 'de': 'ZURUECK'}
-_FOFF = {0: 'k', 2: 'lockw', 4: 'lockl', 6: 'turn', 8: 'box', 12: 'hold', 16: 'slide'}
+DP_RESET = {'it': 'PREDEFINITI', 'en': 'DEFAULTS', 'fr': 'PAR DEFAUT', 'de': 'STANDARD'}   # (every row: DRIBBLING NEW's value)
+DP_LEG = {'it': '0 = CLASSICO  DESTRA = PIU AIUTO', 'en': '0 = CLASSIC  RIGHT = MORE HELP',
+          'fr': '0 = CLASSIQUE  DROITE = PLUS D AIDE', 'de': '0 = KLASSISCH  RECHTS = MEHR HILFE'}
+_FOFF = {0: 'k', 2: 'lockw', 4: 'lockl', 6: 'turn', 8: 'box', 12: 'hold', 16: 'slide', 20: 'wait'}
 DP_DEFAULT = tuple(r[4].index((USER if r[1] == 'U' else OPP)[_FOFF[r[2]]]) if r[1] else 0 for r in DP_ROWS)  # NUOVO; MIX ON
 for _r, _p in zip(DP_ROWS, DP_PCT + ((),) * 2):     # (step 0 = the original; every row fits 4 bits; % shown 3 digits)
     assert not _p or _r[4][0] == NORM[_FOFF[_r[2]]], _r
     assert 2 <= len(_r[4]) <= 16 and all(0 < x < 256 for x in _p) and (not _p or _p[0] == 100), (_r, _p)
-assert DP_ROWS[6][4][0] == OPP['box'] and DP_DEFAULT[6] == 0 and DP_DEFAULT[7] == 0
+assert DP_ROWS[6][4][0] == OPP['box'] and DP_DEFAULT[6:] == (0, 0, 0) and DP_ROWS[DP_MIX][1] is None
+assert all(r[1] for r in DP_ROWS[:DP_MIX]), 'the block rows first (dp_build)'
 assert K1[2] == 100 and K2[2] == 0 and K2B[2] == 0 and K3[2] == (6, 4, 3, 2, 1, 0, 0, 0)
 
 ASM = r"""
@@ -715,65 +726,6 @@ df_rtog:                                ; DRIBBLING (fire): CLASSIC -> NEW -> CU
     mov dword [A6_], DP_MENU            ; the page (OPTIONS comes back unpacked: df_ret, CUSTOM shown)
     jmp SHOW_MENU
 
-; ---- DRIBBLING PERSONALIZZATO: the page's rows and INDIETRO. A row (type 14, mask 0E0h) gets MenuProc's controls
-;      in D7: 40h LEFT = the step before, 80h RIGHT = the next (both clamped), 20h FIRE = the next, wrapping
-dp_tog:                                 ; (the row: the selected entry's ordinal - 9; Menu.selectedEntry +0Ch)
-    mov ebx, [MENU_ + 0Ch]
-    movzx ebx, word [ebx + 2]
-    sub ebx, 9
-    movzx eax, word [DP_K + ebx * 2]
-    test byte [D7_], 40h
-    jz .r
-    dec eax
-    jns .s
-    inc eax
-    jmp .s
-.r: inc eax
-    cmp al, [DP_N + ebx]
-    jb .s
-    dec eax
-    test byte [D7_], 20h
-    jz .s
-    xor eax, eax
-.s: mov [DP_K + ebx * 2], ax
-    call dp_fmt
-    jmp DRAWITEM
-dp_fall:                                ; every value row's text (the page opens)
-    push ebx
-    mov ebx, DP_NNUM
-.l: dec ebx
-    call dp_fmt
-    jnz .l
-    pop ebx
-    ret
-dp_fmt:                                 ; ebx = the row: a value row's text DP_S + 5 * row = its % ('88%', '133%');
-    pushad                              ; ZF = (ebx = 0)
-    cmp ebx, DP_NNUM
-    jae .x
-    movzx eax, word [DP_K + ebx * 2]
-    movzx edx, byte [DP_PO + ebx]
-    movzx eax, byte [DP_PCT + edx + eax]
-    lea edi, [ebx * 4 + ebx + DP_S]
-    xor edx, edx
-    mov ecx, 100
-    cmp eax, ecx
-    jb .t
-    div ecx
-    add al, '0'
-    stosb
-    mov eax, edx
-.t: mov cl, 10
-    div cl
-    add ax, '00'
-    stosw
-    mov ax, '%'
-    stosw
-.x: popad
-    test ebx, ebx
-    ret
-dp_back:
-    mov word [EXITM], 1
-    ret
 
 ; ---- the kick-off with DRIBBLING 2: BLK_CU / BLK_CO = BLK_U / BLK_O with the page's steps (DP_TAB: 7 rows of
 ;      block offset (0 CU, 32 CO), field, size 2 / 4, 0, the raw value at step 0 and the step as words: lo + k * step)
@@ -985,13 +937,329 @@ df_fnv:                                 ; eax = FNV-1a(eax; esi, ecx bytes)
 """
 
 
+
+ASM_B = r"""
+%macro W1C 1
+%if TC
+    inc dword [W1_TC + %1 * 4]
+%endif
+%endmacro
+; ==== 42-drp band (MC 14/11: DRIB1V1_AT, MATCH SPEED's parked room on page 13): the PERSONALIZZATO page's code and
+;      strings, and W1, the 1-v-1 knob (CPU defenders wait goal-side instead of all chasing). Page 15 keeps DP_K / DP_N /
+;      DP_TAB / DP_DEF, dp_build and the packed menu DP_MENU.
+; ---- the page's rows (type 14, mask 0E0h) get MenuProc's controls in D7: 40h LEFT = the step before, 80h RIGHT = the
+;      next (both clamped), 20h FIRE = the next, wrapping. Step 0 = CLASSICO, RIGHT = more help for the human.
+dp_tog:                                 ; (the row: the selected entry's ordinal - DP_V0; Menu.selectedEntry +0Ch)
+    mov ebx, [MENU_ + 0Ch]
+    movzx ebx, word [ebx + 2]
+    sub ebx, DP_V0
+    movzx eax, word [DP_K + ebx * 2]
+    test byte [D7_], 40h
+    jz .r
+    dec eax
+    jns .s
+    inc eax
+    jmp .s
+.r: inc eax
+    cmp al, [DP_N + ebx]
+    jb .s
+    dec eax
+    test byte [D7_], 20h
+    jz .s
+    xor eax, eax
+.s: mov [DP_K + ebx * 2], ax
+    call dp_fmt
+    jmp DRAWITEM
+dp_fall:                                ; every value row's text (the page opens, PREDEFINITI)
+    push ebx
+    mov ebx, DP_NNUM
+.l: dec ebx
+    call dp_fmt
+    jnz .l
+    pop ebx
+    ret
+dp_fmt:                                 ; ebx = the row: a value row's text DP_S + 6 * row = 'step/last' (0 = CLASSICO);
+    pushad                              ; ZF = (ebx = 0)
+    cmp ebx, DP_NNUM
+    jae .x
+    lea edi, [ebx * 2 + ebx]
+    lea edi, [edi * 2 + DP_S]
+    mov al, [DP_K + ebx * 2]
+    call .n
+    mov al, '/'
+    stosb
+    mov al, [DP_N + ebx]
+    dec eax
+    call .n
+    mov byte [edi], 0
+.x: popad
+    test ebx, ebx
+    ret
+.n: cmp al, 10
+    jb .o
+    aam
+    xchg al, ah
+    add ax, 3030h
+    stosw
+    ret
+.o: add al, '0'
+    stosb
+    ret
+dp_back:
+    mov word [EXITM], 1
+    ret
+dp_reset:                               ; PREDEFINITI: every row back to DRIBBLING NEW's value (DP_DEF), the rows redrawn
+    mov esi, DP_DEF                     ;  (DrawMenuItem: A5 = the entry; entries 38h B, the first value row DP_V0)
+    mov edi, DP_K
+    mov ecx, DP_NR
+    rep movsw
+    call dp_fall
+    mov eax, [MENU_ + 0Ch]
+    push eax
+    movzx ecx, word [eax + 2]
+    imul ecx, ecx, 38h
+    sub eax, ecx
+    add eax, DP_V0 * 38h
+    mov ecx, DP_NR
+.l: mov [A5_], eax
+    push eax
+    push ecx
+    call DRAWITEM
+    pop ecx
+    pop eax
+    add eax, 38h
+    loop .l
+    pop eax
+    mov [A5_], eax
+    ret
+
+; ---- W1 (the DIFENSORI CPU row, block field +20): ebx = a team; ZF = 0 when the knob acts for it (its DRIBBLING block's
+;      wait - only BLK_CO, the CPU facing a human, with the page's row on - and the opponent on the ball)
+w1_on:
+    push ebx
+    push eax
+    mov eax, [ebx]                      ; (opponentsTeam)
+    call df_blk
+    cmp word [ebx + 20], 0
+    je .x
+    cmp word [eax + 28h], 0             ; (playerHasBall)
+.x: pop eax
+    pop ebx
+    ret
+w1_gs:                                  ; esi = a player of team ebx: CF = 1 goal-side (between the ball and his goal)
+    push eax
+    mov ax, [esi + 24h]
+    cmp ebx, [ebx]                      ; (topTeamData < bottomTeamData: the top team defends y small)
+    ja .b
+    cmp ax, [BALLY]
+    pop eax
+    ret
+.b: cmp [BALLY], ax
+    pop eax
+    ret
+w1_pt:                                  ; ebx = the team: eax = y << 16 | x, the point W1_D px goal-side of the ball,
+    push edx                            ;  an eighth of the way to the pitch's centre line x
+    movsx eax, word [ebx + 62h]
+    mov edx, 336
+    sub edx, eax
+    sar edx, 3
+    add eax, edx
+    movsx edx, word [ebx + 64h]
+    cmp ebx, [ebx]
+    ja .b
+    sub edx, W1_D
+    jmp .c
+.b: add edx, W1_D
+.c: shl edx, 16
+    mov dx, ax
+    mov eax, edx
+    pop edx
+    ret
+w1_dir:                                 ; edx = dx, eax = dy: eax = the 8-way direction (0 up, 2 right; 26.6 degree cuts)
+    push ebx
+    push ecx
+    mov ebx, edx
+    test ebx, ebx
+    jns .p1
+    neg ebx
+.p1:mov ecx, eax
+    test ecx, ecx
+    jns .p2
+    neg ecx
+.p2:lea ebx, [ebx * 2]
+    cmp ebx, ecx
+    jae .nv
+    test eax, eax                       ; vertical
+    mov eax, 0
+    js .x
+    mov eax, 4
+    jmp .x
+.nv:shr ebx, 1
+    add ecx, ecx
+    cmp ecx, ebx
+    jae .dg
+    test edx, edx                       ; horizontal
+    mov eax, 2
+    jns .x
+    mov eax, 6
+    jmp .x
+.dg:test edx, edx
+    js .l
+    test eax, eax
+    mov eax, 1
+    js .x
+    mov eax, 3
+    jmp .x
+.l: test eax, eax
+    mov eax, 7
+    js .x
+    mov eax, 5
+.x: pop ecx
+    pop ebx
+    ret
+
+; ---- W1 A: the presser's choice (replaces `mov eax, D5` / `cmp D1, eax` in UpdateControlledPlayer and twice in
+;      UpdatePlayerBeingPassedTo; A2 the candidate, A6 his team): a player not goal-side counts 4x his squared
+;      distance (2x the distance) - a goal-side defender up to twice as far presses first
+w1_pick:
+    push ebx
+    push esi
+    mov ebx, [A6_]
+    call w1_on
+    jz .o
+    mov esi, [A2_]
+    call w1_gs
+    jc .o
+    shl dword [D1_], 2
+    W1C 0
+.o: pop esi
+    pop ebx
+    mov eax, [D5_]
+    cmp [D1_], eax
+    ret
+
+; ---- W1 B: the second presser's target (replaces UpdatePlayers' @@player_chase_ball dest = TeamGeneralInfo.ballX / Y;
+;      A1 the player, A6 his team): the goal-side point instead of the ball
+w1_dest:
+    mov esi, [A6_]
+    mov ax, [esi + 62h]
+    mov esi, [A1_]
+    mov [esi + 3Ah], ax
+    mov esi, [A6_]
+    mov ax, [esi + 64h]
+    mov esi, [A1_]
+    mov [esi + 3Ch], ax
+    push ebx
+    mov ebx, [A6_]
+    call w1_on
+    jz .x
+    push eax
+    call w1_pt
+    mov [esi + 3Ah], eax                ; (destX, destY)
+    W1C 1
+    pop eax
+.x: pop ebx
+    ret
+
+; ---- W1 C: the CPU presser's aim (replaces UpdateCpuPlayerControls' @@decide_if_flipping_direction head; A5 the
+;      player, A6 his team): not goal-side -> run to the goal-side point; goal-side and W1_IN..W1_OUT from the ball ->
+;      wait there (direction -1); closer -> the game's own chase
+w1_aim:
+    push ebx
+    mov ebx, [A6_]
+    call w1_on
+    jz .o
+    push esi
+    mov esi, [A5_]
+    call w1_gs
+    jnc .g
+    mov eax, [esi + 4Ah]                ; (ballDistance, squared)
+    cmp eax, W1_IN
+    jb .op
+    cmp eax, W1_OUT
+    jae .g
+    W1C 2
+    mov eax, -1
+    jmp .set
+.g: W1C 3
+    push ecx
+    push edx
+    call w1_pt
+    movsx edx, ax
+    movsx ecx, word [esi + 20h]
+    sub edx, ecx
+    sar eax, 16
+    movsx ecx, word [esi + 24h]
+    sub eax, ecx
+    call w1_dir
+    pop edx
+    pop ecx
+.set:pop esi
+    pop ebx
+    mov esi, [A6_]
+    mov [esi + 2Ch], ax                 ; (currentAllowedDirection)
+    or ax, ax
+    lea esp, [esp + 4]                  ; (our return dropped: back to the routine's own caller, as its retn)
+    ret
+.op:pop esi
+.o: pop ebx
+    mov esi, [A5_]
+    mov ax, [esi + 52h]
+    mov [D0_], ax
+    ret
+
+; ---- W1 D: the standing ball win from behind (replaces `call CalculateIfPlayerWinsBall` in UpdatePlayers; A6 the
+;      team going for the ball): a CPU presser in the carrier's back 135 degrees gets 1 contact in 4
+w1_win:
+    push ebx
+    mov ebx, [A6_]
+    call w1_on
+    jz .g
+    pushad
+    mov esi, [ebx + 20h]                ; (controlledPlayer: the tackler)
+    mov edi, [ebx]
+    mov edi, [edi + 20h]                ; (the carrier)
+    test esi, esi
+    jz .n
+    test edi, edi
+    jz .n
+    movsx edx, word [esi + 20h]
+    movsx eax, word [edi + 20h]
+    sub edx, eax
+    movsx eax, word [esi + 24h]
+    movsx ecx, word [edi + 24h]
+    sub eax, ecx
+    call w1_dir                         ; (the tackler's octant seen from the carrier)
+    sub ax, [edi + 2Ah]
+    and eax, 7
+    sub eax, 3
+    cmp eax, 3                          ; (3..5 off his direction: behind -> CF = 1)
+    jnc .n
+    inc byte [W1_CNT]
+    test byte [W1_CNT], 3
+    jz .n
+    W1C 4
+    popad
+    pop ebx
+    ret                                 ; (no contact this time)
+.n: popad
+.g: pop ebx
+    jmp CIPWB
+W1_CNT: db 0
+%if TC
+align 4
+W1_TCT: db 'W1TC'                       ; DIFF_TC: W1's acts - [A biased, B dest, C wait, C aim, D refused]
+W1_TC: times 5 dd 0
+%endif
+"""
+
 def trace():
     return bool(os.environ.get('DIFF_TRACE'))
 
 
 def _blk(t):
-    """32 B: k +0, lockw +2, lockl +4, turn +6, box +8, hold +12, slide +16."""
-    return struct.pack('<HHHHIII12x', *(t[f] for f in FIELDS))
+    """32 B: k +0, lockw +2, lockl +4, turn +6, box +8, hold +12, slide +16, wait +20 (W1, the 1-v-1 knob)."""
+    return struct.pack('<HHHHIIIH10x', *(t[f] for f in FIELDS))
 
 
 def data_asm():
@@ -1025,14 +1293,15 @@ def start_dr():
     return v
 
 
-DP_Y, DP_DY, DP_BACK_Y = 26, 14, 152    # the page: row k at y DP_Y + DP_DY * k (labels x 10, values x 154, 140 x 11)
+DP_BACK_X, DP_RESET_X, DP_LEG_Y = 172, 22, 176   # (INDIETRO right, PREDEFINITI left, the legend under them)
+DP_Y, DP_DY, DP_BACK_Y = 26, 14, 156    # the page: row k at y DP_Y + DP_DY * k (labels x 10, values x 154, 140 x 11)
 
 
 def dp_asm(lang, page=True):
-    """The DRIBBLING PERSONALIZZATO page's data (nasm): strings, the value rows' texts DP_S (5 B each, the defaults'),
-    the switch rows' string tables, DP_K / DP_N / DP_TAB / DP_PO / DP_PCT, the packed menu DP_MENU (entries: 0 title,
-    1..8 labels, 9..16 values, 17 INDIETRO). page=False (DIFF_TRACE test builds only: the trace code leaves no room for
-    the page; never opened in a traced match): DP_K / DP_N / DP_TAB, DP_MENU = 0 (no dp_fmt data either)."""
+    """The DRIBBLING PERSONALIZZATO page's data (nasm), as (page 15's, the band's). Page 15: DP_K / DP_N / DP_DEF /
+    DP_TAB and the packed menu DP_MENU (entries: 0 title, 1..n labels, n+1..2n values, 2n+1 INDIETRO, 2n+2 PREDEFINITI,
+    2n+3 the legend). The band (DRIB1V1_AT): the strings, the value rows' texts DP_S (6 B each: 'k/max'), the switch
+    rows' string tables. page=False (DIFF_TRACE test builds: never opened in a traced match): no menu, no strings."""
     li = ('it', 'en', 'fr', 'de').index(lang)
     db = lambda x: ', '.join(str(c) for c in x.encode('latin-1') + b'\0')
     n = len(DP_ROWS)
@@ -1040,36 +1309,45 @@ def dp_asm(lang, page=True):
     assert DP_ROWS[:len(tab)] == tuple(tab), 'the block rows first (dp_build: row = knob index)'
     core = 'DP_K: dw ' + ', '.join(map(str, DP_DEFAULT)) + '\n'
     core += 'DP_N: db ' + ', '.join(str(len(r[4])) for r in DP_ROWS) + '\n'
-    core += f'DP_NTAB equ {len(tab)}\nDP_NNUM equ {DP_NNUM}\nDP_TAB:\n'
+    core += 'DP_DEF: dw ' + ', '.join(map(str, DP_DEFAULT)) + '\n'
+    core += f'DP_NTAB equ {len(tab)}\nDP_NNUM equ {DP_NNUM}\nDP_NR equ {n}\nDP_V0 equ {n + 1}\nDP_TAB:\n'
     for r in tab:
         v = r[4]
         st = v[1] - v[0]
         assert v == _prog(v[0], st, len(v)) and 0 <= v[0] < 65536 and -32768 <= st < 32768, r
         core += f'    db {0 if r[1] == "U" else 32}, {r[2]}, {r[3]}, 0\n    dw {v[0]}, {st}\n'
     if not page:
-        return 'DP_MENU equ 0\nDP_S equ 0\nDP_PO equ 0\nDP_PCT equ 0\n' + core
-    out = core + f'S_PT: db {db(DP_TITLE[lang])}\nS_BK: db {db(DP_BACK[lang])}\n'
-    out += ''.join(f'S_L{i}: db {db(r[0][li])}\n' for i, r in enumerate(DP_ROWS))
-    out += 'DP_S:\n' + ''.join(f'    db {", ".join(str(c) for c in (str(p[DP_DEFAULT[i]]) + "%").encode().ljust(5, bytes(1)))}\n'
-                               for i, p in enumerate(DP_PCT))
-    po = [sum(len(p) for p in DP_PCT[:i]) for i in range(DP_NNUM)]
-    out += 'DP_PO: db ' + ', '.join(map(str, po)) + '\nDP_PCT: db ' + ', '.join(str(x) for p in DP_PCT for x in p) + '\n'
-    out += 'align 4\n'
+        return 'DP_MENU equ 0\n' + core, 'DP_S equ 0\n'
+    strs = f'S_PT: db {db(DP_TITLE[lang])}\nS_BK: db {db(DP_BACK[lang])}\nS_RS: db {db(DP_RESET[lang])}\n'
+    strs += f'S_LG: db {db(DP_LEG[lang])}\n'
+    strs += ''.join(f'S_L{i}: db {db(r[0][li])}\n' for i, r in enumerate(DP_ROWS))
+    band = 'DP_S:\n' + ''.join(f'    db {", ".join(str(c) for c in f"{DP_DEFAULT[i]}/{len(DP_ROWS[i][4]) - 1}".encode().ljust(6, bytes(1)))}\n'
+                                 for i in range(DP_NNUM))
     for i in range(DP_NNUM, n):
-        out += f'TAB_K{i}: dd DP_K + {2 * i}\n    dw 0\n    dd S_ON, S_OFF\n'
-    out += 'DP_MENU:\n    dd 0, 0, 0, 9\n'
+        if i in DP_SW:
+            w = DP_SW[i][lang]
+            band += f'S_W{i}a: db {db(w[0])}\nS_W{i}b: db {db(w[1])}\n'
+    band += 'align 4\n'
+    for i in range(DP_NNUM, n):
+        st = f'S_W{i}a, S_W{i}b' if i in DP_SW else 'S_ON, S_OFF'
+        band += f'TAB_K{i}: dd DP_K + {2 * i}\n    dw 0\n    dd {st}\n'
+    v0, bk, rs = n + 1, 2 * n + 1, 2 * n + 2
+    out = core + strs + f'align 4\nDP_MENU:\n    dd 0, 0, 0, {v0}\n'
     out += '    dw 12, 0, 280, 15, 4, 17h, 8, 0\n    dd S_PT\n    dw 0\n'
     for i in range(n):
         out += f'    dw 10, {DP_Y + DP_DY * i}, 140, 11, 4, 9, 8, 0\n    dd S_L{i}\n    dw 0\n'
     for i in range(n):
-        up = 9 + i - 1 if i else 255
-        dn = 9 + i + 1 if i < n - 1 else 9 + n
-        txt = f'8, 0\n    dd DP_S + {5 * i}' if i < DP_NNUM else f'10, 0\n    dd TAB_K{i}'
+        up = v0 + i - 1 if i else 255
+        dn = v0 + i + 1 if i < n - 1 else bk
+        txt = f'8, 0\n    dd DP_S + {6 * i}' if i < DP_NNUM else f'10, 0\n    dd TAB_K{i}'
         out += (f'    dw 154, {DP_Y + DP_DY * i}, 140, 11, 2\n    db 255, 255, {up}, {dn}\n    dw 4, 13, {txt}\n'
                 f'    dw 14, 0E0h\n    dd dp_tog\n    dw 0\n')
-    out += (f'    dw 92, {DP_BACK_Y}, 120, 15, 2\n    db 255, 255, {9 + n - 1}, 255\n    dw 4, 0Eh, 8, 0\n    dd S_BK\n'
-            '    dw 13\n    dd dp_back\n    dw 0\n    dw -999\n')
-    return out
+    out += (f'    dw {DP_BACK_X}, {DP_BACK_Y}, 120, 15, 2\n    db {rs}, 255, {v0 + n - 1}, 255\n    dw 4, 0Eh, 8, 0\n    dd S_BK\n'
+            '    dw 13\n    dd dp_back\n    dw 0\n')
+    out += (f'    dw {DP_RESET_X}, {DP_BACK_Y}, 120, 15, 2\n    db 255, {bk}, {v0 + n - 1}, 255\n    dw 4, 0Eh, 8, 0\n'
+            '    dd S_RS\n    dw 13\n    dd dp_reset\n    dw 0\n')
+    out += f'    dw 12, {DP_LEG_Y}, 280, 11, 4, 9, 8, 0\n    dd S_LG\n    dw 0\n    dw -999\n'
+    return out, band
 
 
 PRE_AT = [None, None]
@@ -1111,6 +1389,43 @@ def find(p):
     assert len(ki) == 1, ('@@init_in_game_teams', ki)
     s['KICK'] = ki[0]
     return s, sym
+
+
+W1_D, W1_IN, W1_OUT = 16, 144, 576      # W1: the goal-side point 16 px from the ball; a goal-side presser waits 12..24 px
+
+
+def w1_find(p, sym):
+    """W1's sites (obj1 offsets, any language): A = UpdateControlledPlayer's / UpdatePlayerBeingPassedTo's `mov eax, D5`
+    / `cmp D1, eax` (11 B, 3), B = UpdatePlayers' @@player_chase_ball dest = ballX / ballY (40 B), C =
+    UpdateCpuPlayerControls' @@decide_if_flipping_direction head (16 B), D = the `call CalculateIfPlayerWinsBall`
+    (5 B); BALLY (ballSprite.y + 2), CIPWB."""
+    d = p.le.obj_bytes(1)
+    t = lambda o: _t(p, o)
+    d0 = sym['D0_']
+    var = lambda k: (2, d0[1] + 4 * k)
+    a = [m.start() for m in re.finditer(rb'\xa1....\x39\x05....\x73.\xa1....\xa3....\xa1....\xa3....', d, re.S)]
+    a = [o for o in a if t(o + 1) == var(5) and t(o + 7) == var(1) and t(o + 19) == var(5) and t(o + 24) == var(10)]
+    assert len(a) == 3, ('W1 A: closest-player compares', [hex(x) for x in a])
+    b = [m.start() for m in re.finditer(rb'\x8b\x35....\x66\x8b\x46\x62\x8b\x35....\x66\x89\x46\x3a\x8b\x35....'
+                                        rb'\x66\x8b\x46\x64\x8b\x35....\x66\x89\x46\x3c', d, re.S)]
+    b = [o for o in b if t(o + 2) == var(14) and t(o + 12) == var(9) and t(o + 22) == var(14) and t(o + 32) == var(9)]
+    assert len(b) == 1, ('W1 B: @@player_chase_ball', b)
+    c = [m.start() for m in re.finditer(rb'\x8b\x35....\x66\x8b\x46\x52\x66\xa3....\x80\x05....\x80\x66\x83\x05'
+                                        rb'....\x10', d, re.S)]
+    c = [o for o in c if t(o + 2) == var(13) and t(o + 12) == var(0) and d[o + 48:o + 50] == b'\x8b\x35'
+         and d[o + 54:o + 58] == b'\x66\x8b\x46\x2a']
+    assert len(c) == 1, ('W1 C: @@decide_if_flipping_direction', c)
+    k = [m.start() for m in re.finditer(rb'\xff\x35....\xff\x35....\xff\x35....\xff\x35....\xff\x35....\xe8', d, re.S)]
+    k = [o + 30 for o in k if [t(o + 2 + 6 * j) for j in range(5)] == [var(0), var(8), var(9), var(10), var(11)]]
+    tg = {o: p.call_target(1, o)[1] for o in k}
+    cw = [o for o, x in tg.items() if d[x:x + 2] == b'\x8b\x35' and t(x + 2) == var(14)
+          and d[x + 6:x + 9] == b'\x66\xc7\x86']
+    assert len(cw) == 1, ('W1 D: call CalculateIfPlayerWinsBall', cw)
+    bs = [o for o in range(a[0] - 0x200, a[0]) if d[o:o + 2] == b'\xc7\x05' and t(o + 2) == var(10)]
+    ball = t(bs[-1] + 6)                                # (UpdateControlledPlayer: mov A2, offset ballSprite)
+    for o in a + b + c + cw:
+        assert bytes(p.get(1, o, 5)) == d[o:o + 5], ('W1: site already patched', hex(o))
+    return dict(A=a, B=b[0], C=c[0], D=cw[0], CIPWB=(1, tg[cw[0]]), BALLY=(ball[0], ball[1] + 0x24))
 
 
 def _t(p, o):
@@ -1225,12 +1540,13 @@ def patch(p, lang):
     at = swreg.DIFF_AT
     db = lambda x: ', '.join(str(c) for c in x.encode() + b'\0')
     strs = ''
+    dp15, dpb = dp_asm(lang, not tr) if row else ('', '')
     if row:
         v = VALUES[lang] + ('L2', 'L4')
         strs = (f'S_LBL: db {db(LABEL[lang])}\n' + ''.join(f'S_V{i}: db {db(t)}\n' for i, t in enumerate(v))
                 + 'align 4\nTAB_D: dd DF_W\n    dw 0\n    dd ' + ', '.join(f'S_V{i}' for i in range(5)) + '\n'
                 + f'S_RLBL: db {db(DRLABEL[lang])}\n' + ''.join(f'S_R{i}: db {db(t)}\n' for i, t in enumerate(DRVALUES[lang]))
-                + 'align 4\nTAB_R: dd DF_DR\n    dw 0\n    dd S_R0, S_R1, S_R2\n' + dp_asm(lang, not tr))
+                + 'align 4\nTAB_R: dd DF_DR\n    dw 0\n    dd S_R0, S_R1, S_R2\n' + dp15)
     skips = set(os.environ.get('DIFF_SKIP', '').split(','))   # (a set: 'BU' in 'BUFRAME' as a string is True)
     bu = knobs() and os.environ.get('DIFF_BU', '1') != '0' and 'BU' not in skips
     sym['BU_ENTRY'] = (4, swreg.BU_AT)
@@ -1238,12 +1554,44 @@ def patch(p, lang):
     src = (f'%define BUF {int(bf)}\n%define CKSH {int(os.environ.get("DIFF_CKSH", "11"))}\n%define STKZ {int(os.environ.get("DIFF_STKZ", "0") or 0)}\n%define STOPF {int(os.environ.get("DIFF_STOPF", "0"))}\n%define BU {int(bu)}\n%define DIFF_FORCE {int(force)}\n%define ROW {int(row)}\n%define DIFF_TRACE {int(tr)}\n%define TC {int(bool(tr and os.environ.get("DIFF_TC")))}\n%define DF_START {start_w()}\n%define DR_START {start_dr()}\n'
            f'%define TOP {TOP}\n%define PITCH {PITCH}\n%define HEIGHT {HEIGHT}\n%define NB {NB}\n%define BR {BR}\n%define SRCP {SRCP}\n%define KMAX {KMAX}\n' + ASM
            + (ASM_ROW if row else '') + (ASM_T if tr else '') + data_asm() + strs)
+    band = None
+    if row:                                             # (42-drp, MC 14/11: the page's code + strings and W1 in the
+        import patch as _pt                             #  band DRIB1V1_AT, MATCH SPEED's parked room - never both)
+        assert not getattr(_pt, 'SLOW', True), 'slow and 1-v-1 share 0xC000: MC'
+        import buildup
+        assert 'DP_K + %d]' % (2 * DP_MIX) in buildup.ASM, 'buildup bu_opp: DP_K + 2 * DP_MIX'
+        w1 = w1_find(p, sym)
+        sym.update(A5_=(2, sym['D0_'][1] + 4 * 13),
+                   D5_=(2, sym['D0_'][1] + 4 * 5), BALLY=w1['BALLY'], CIPWB=w1['CIPWB'])
+        bsrc = f'%define TC {int(bool(tr and os.environ.get("DIFF_TC")))}\n%define W1_D {W1_D}\n%define W1_IN {W1_IN}\n%define W1_OUT {W1_OUT}\n' + ASM_B + dpb
+        bat = swreg.DRIB1V1_AT
+        bnames = re.findall(r'^([A-Za-z_][A-Za-z0-9_]*):', bsrc, re.M)
+        lab0 = nasmcave.labels(src, at, {**sym, **{k: (4, bat) for k in bnames}})     # (pass 1: the band's at a
+        symb = {**sym, **{k: (4, v) for k, v in lab0.items() if '.' not in k and k not in sym}}   #  placeholder)
+        symb.update(DP_V0=(0, len(DP_ROWS) + 1), DP_NNUM=(0, DP_NNUM), DP_NR=(0, len(DP_ROWS)))
+        bcode, bfix, brel = nasmcave.assemble_obj(bsrc, bat, symb, 4)
+        labb = nasmcave.labels(bsrc, bat, symb)
+        sym = {**sym, **{k: (4, labb[k]) for k in bnames if k in labb}}
+        band = (bat, bcode, bfix, brel, labb, w1, lab0)
     code, fix, rel = nasmcave.assemble_obj(src, at, sym, 4)
     pad = [int(x) for x in os.environ.get('DIFF_PAD', '').split(',') if x]   # (test only, MC 13/11 REF+PAD control:
     if pad and pad[0] > len(code):                      #  a REF build whose obj4 band has NEW's sizes, all nops)
         src += f'\ntimes {pad[0] - len(code)} db 90h\n'
         code, fix, rel = nasmcave.assemble_obj(src, at, sym, 4)
     lab = nasmcave.labels(src, at, sym)
+    if band:
+        bat, bcode, bfix, brel, labb, w1, lab0 = band
+        assert all(lab[k] == v for k, v in lab0.items() if k in lab), 'page 15 moved between the passes'
+        assert bat + len(bcode) <= swreg.DRIB1V1_END, ('42-drp band: past its room', hex(bat + len(bcode)))
+        assert p.le.obj(4).npages * 0x1000 >= swreg.DRIB1V1_END, '42-drp band: obj4 pages'
+        assert not any(p.get(4, bat, swreg.DRIB1V1_END - bat)), '42-drp band (0xC000) not free: slow linked?'
+        p.put(4, bat, bcode)
+        for o, t_obj, t_off in bfix:
+            p.add_ptr(4, bat + o, t_obj, t_off)
+        for o, t_obj, t_off in brel:
+            p.add_rel(4, bat + o, t_obj, t_off)
+        print(f'exe: 42-drp band obj4+{bat:#x}: {len(bcode)} B (room {swreg.DRIB1V1_END - bat - len(bcode)} B)')
+        lab = {**labb, **lab}
     assert at + len(code) <= swreg.BU_AT, ('difficulty: past its obj4 room', hex(at + len(code)))
     assert p.le.obj(4).npages * 0x1000 >= swreg.DIFF_END, 'difficulty: obj4 pages (patch.py)'
     assert not any(p.get(4, at, swreg.DIFF_END - at)), 'difficulty: obj4 room (page 15) not free'
@@ -1265,6 +1613,12 @@ def patch(p, lang):
             _hook(p, o, 7, 7, lab['df_hold'])
         for o, l in zip(s['LOCK'] * ('LOCK' not in skip), ('df_lockw', 'df_lockl')):
             _hook(p, o, 9, 9, lab[l])
+    if band and 'W1' not in skip:                     # W1, the 1-v-1 knob's four sites
+        for o in w1['A']:
+            _hook(p, o, 11, 11, lab['w1_pick'])
+        _hook(p, w1['B'], 40, 40, lab['w1_dest'])
+        _hook(p, w1['C'], 16, 16, lab['w1_aim'])
+        _hook(p, w1['D'], 5, 5, lab['w1_win'])
     if row and 'ROW' not in skip:
         for k, l in ((0, 'df_init'), (4, 'df_ret')):
             p.retarget(2, hdr + k, 4, lab[l])

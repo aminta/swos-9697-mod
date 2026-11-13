@@ -32801,12 +32801,14 @@ def diff_menu():
         check(dr[-1] == (0, 0x02), f'DRIBBLING CUSTOM -> CLASSIC: {dr[-1]} (want (0, 0x02))', errs)
         walk(s, NB + 3, 2)                                  # NEW, CUSTOM again: the page keeps the session's values
         pg = walk(s, NB + 3, 2)                             # (row 0 one step on; dp_fall wrote the texts at the open)
-        want0 = f'{dfm.DP_PCT[0][dfm.DP_DEFAULT[0] + 1]}%'
-        check(pg.n == 2 * len(dfm.DP_ROWS) + 2 and pg.entries[9][1] == want0 and
-              all(pg.entries[9 + i][1] == f'{dfm.DP_PCT[i][dfm.DP_DEFAULT[i]]}%' for i in range(1, dfm.DP_NNUM)),
-              f'page reopened: {[e[1] for e in pg.entries[9:9 + dfm.DP_NNUM]]} (row 0 {want0!r})', errs)
+        nr = len(dfm.DP_ROWS)
+        stx = lambda i, st: f'{st}/{len(dfm.DP_ROWS[i][4]) - 1}'
+        want0 = stx(0, dfm.DP_DEFAULT[0] + 1)
+        check(pg.n == 2 * nr + 4 and pg.entries[nr + 1][1] == want0 and
+              all(pg.entries[nr + 1 + i][1] == stx(i, dfm.DP_DEFAULT[i]) for i in range(1, dfm.DP_NNUM)),
+              f'page reopened: {[e[1] for e in pg.entries[nr + 1:nr + 1 + dfm.DP_NNUM]]} (row 0 {want0!r})', errs)
         s.shot('drp_page_3')
-        walk(s, 2 * len(dfm.DP_ROWS) + 1, 2)
+        walk(s, 2 * nr + 1, 2)
         walk(s, NB + 3, 2)
         dr.append((rdr(), rsv()))
         check(dr[-1] == (0, 0x02), f'DRIBBLING back to CLASSIC: {dr[-1]}', errs)
@@ -32815,15 +32817,18 @@ def diff_menu():
 
 
 def diff_dp_page(s, pg, blk, errs):
-    """42-drp: the DRIBBLING PERSONALIZZATO page just opened (pg its screen): 18 entries (title, 8 labels, 8 values,
-    INDIETRO), the texts in the exe's language and in their boxes, every value at its default (NUOVO's value as its %,
-    switches ON). Each value row: fire = the next step, RIGHT past the last step stays there, LEFT past the first stays
-    at 0 (the original, 100%), fire from the last wraps to 0 - DP_K follows and the shown text is the step's %; each
-    switch: fire / LEFT / RIGHT. Every row back at its default, INDIETRO leaves. Returns a note."""
+    """42-drp: the DRIBBLING PERSONALIZZATO page just opened (pg its screen): 2n + 4 entries (title, n labels, n values,
+    INDIETRO, PREDEFINITI, the legend), the texts in the exe's language and in their boxes (font characters), every
+    value at its default (DRIBBLING NEW's step as 'k/max', 0 = CLASSICO; switches at their first string). Each value row:
+    fire = the next step, RIGHT past the last stays there, LEFT past the first stays at 0, fire from the last wraps
+    to 0 - DP_K follows and the text is 'step/max'; each switch: fire / LEFT / RIGHT. Every row back at its default;
+    then rows changed and PREDEFINITI: every row back to NEW (DP_K and the texts); row 0 one on (kept for the session),
+    INDIETRO leaves. Returns a note."""
     import difficulty as dfm
     from complist import px, SMALL_W
     li = ('it', 'en', 'fr', 'de').index(UI)
     n = len(dfm.DP_ROWS)
+    v0, bk, rs, lg = n + 1, 2 * n + 1, 2 * n + 2, 2 * n + 3
     r = s.result
     pg15 = r.read(r.base4 + __import__('swreg').DIFF_AT, 0x1000)
     pat = struct.pack(f'<{n}H', *dfm.DP_DEFAULT) + bytes(len(x[4]) for x in dfm.DP_ROWS)
@@ -32833,17 +32838,22 @@ def diff_dp_page(s, pg, blk, errs):
         return 'no DP_K'
     dpk = r.base4 + __import__('swreg').DIFF_AT + k
     rdk = lambda: list(struct.unpack(f'<{n}H', s.result.read(dpk, 2 * n)))
-    check(pg.n == 2 * n + 2 and pg.entries[0][1] == dfm.DP_TITLE[UI], f'page: {pg.n} entries, title '
+    check(pg.n == 2 * n + 4 and pg.entries[0][1] == dfm.DP_TITLE[UI], f'page: {pg.n} entries, title '
           f'{pg.entries[0][1]!r}', errs)
-    if pg.n != 2 * n + 2:
+    if pg.n != 2 * n + 4:
         return 'page not opened'
-    txt = lambda i, st: f'{dfm.DP_PCT[i][st]}%' if i < dfm.DP_NNUM else ''
+    txt = lambda i, st: f'{st}/{len(dfm.DP_ROWS[i][4]) - 1}' if i < dfm.DP_NNUM else ''
+    fit = lambda t, j: check(px(t) <= pg.geom[j][2] - 2 and set(t) <= set(SMALL_W) | {' '},
+                             f'{t!r}: {px(t)} px in {pg.geom[j][2]}', errs)
+    for j, t in ((0, dfm.DP_TITLE[UI]), (bk, dfm.DP_BACK[UI]), (rs, dfm.DP_RESET[UI]), (lg, dfm.DP_LEG[UI])):
+        check(pg.entries[j][1] == t, f'entry {j}: {pg.entries[j][1]!r} (want {t!r})', errs)
+        fit(t, j)
     for i, row in enumerate(dfm.DP_ROWS):
         check(pg.entries[1 + i][1] == row[0][li], f'label {i}: {pg.entries[1 + i][1]!r}', errs)
-        t = row[0][li]
-        check(px(t) <= pg.geom[1 + i][2] - 2 and set(t) <= set(SMALL_W) | {' '}, f'{t!r}: {px(t)} px', errs)
-        check(pg.entries[9 + i][1] in ('', txt(i, dfm.DP_DEFAULT[i])) if i >= dfm.DP_NNUM else
-              pg.entries[9 + i][1] == txt(i, dfm.DP_DEFAULT[i]), f'value {i}: {pg.entries[9 + i][1]!r}', errs)
+        fit(row[0][li], 1 + i)
+        for t in dfm.DP_SW.get(i, {}).get(UI, ()):
+            fit(t, v0 + i)
+        check(pg.entries[v0 + i][1] == txt(i, dfm.DP_DEFAULT[i]), f'value {i}: {pg.entries[v0 + i][1]!r}', errs)
     check(rdk() == list(dfm.DP_DEFAULT), f'DP_K at open {rdk()}', errs)
     s.shot('drp_page_0')
     notes = []
@@ -32852,12 +32862,12 @@ def diff_dp_page(s, pg, blk, errs):
         s.send(' '.join([f'{key}:0.3'] * times) + ' dump:1')
         sc = s.screen()
         st = rdk()[i]
-        check(st == want and (i >= dfm.DP_NNUM or sc.entries[9 + i][1] == txt(i, want)),
-              f'row {i} {what}: step {st} {sc.entries[9 + i][1]!r} (want {want} {txt(i, want)!r})', errs)
+        check(st == want and (i >= dfm.DP_NNUM or sc.entries[v0 + i][1] == txt(i, want)),
+              f'row {i} {what}: step {st} {sc.entries[v0 + i][1]!r} (want {want} {txt(i, want)!r})', errs)
         return st
     for i, row in enumerate(dfm.DP_ROWS):
         m, d = len(row[4]), dfm.DP_DEFAULT[i]
-        walk(s, 9 + i, 2)                               # (fire: the next step)
+        walk(s, v0 + i, 2)                              # (fire: the next step)
         seen = [rdk()[i]]
         check(seen[0] == (d + 1) % m, f'row {i} fire: step {seen[0]} (want {(d + 1) % m})', errs)
         seen.append(keys(i, 'right', m, m - 1, 'RIGHT x m (clamped)'))
@@ -32869,11 +32879,21 @@ def diff_dp_page(s, pg, blk, errs):
         if i == 1:
             s.shot('drp_page_1')
     check(rdk() == list(dfm.DP_DEFAULT), f'DP_K after the rows {rdk()}', errs)
-    walk(s, 9, 2)                                       # (row 0 one step on by fire, kept for the session)
+    walk(s, v0, 2)                                      # (PREDEFINITI: rows 0, 3 and W1 changed first)
+    walk(s, v0 + 3, 2)
+    walk(s, v0 + 7, 2)
+    ch = rdk()
+    s.shot('drp_page_4')
+    sc = walk(s, rs, 2)
+    check(ch != list(dfm.DP_DEFAULT) and rdk() == list(dfm.DP_DEFAULT) and
+          all(sc.entries[v0 + i][1] == txt(i, dfm.DP_DEFAULT[i]) for i in range(n)),
+          f'PREDEFINITI: DP_K {ch} -> {rdk()}, texts {[e[1] for e in sc.entries[v0:v0 + dfm.DP_NNUM]]}', errs)
+    s.shot('drp_page_5')
+    walk(s, v0, 2)                                      # (row 0 one step on by fire, kept for the session)
     check(rdk() == [dfm.DP_DEFAULT[0] + 1] + list(dfm.DP_DEFAULT[1:]), f'row 0 one on: DP_K {rdk()}', errs)
     s.shot('drp_page_2')
-    walk(s, 2 * n + 1, 2)                               # INDIETRO
-    return f'page OK: {pg.n} entries, steps {notes}, DP_K at exit {rdk()}'
+    walk(s, bk, 2)                                      # INDIETRO
+    return f'page OK: {pg.n} entries, steps {notes}, PREDEFINITI from {ch}, DP_K at exit {rdk()}'
 
 
 @scenario
@@ -33081,6 +33101,10 @@ def diff_ab():
                             res['tc'] = [list(t25[5 * j:5 * j + 5]) for j in range(2)]
                             t19 = struct.unpack('<19I', r.read(blk + 112, 76))
                             res['press'], res['tsl'], res['tf'] = list(t19[:9]), list(t19[9:18]), t19[18]
+                            pb = r.read(r.base4 + swreg.DRIB1V1_AT, 0x400)    # (42-drp W1's acts: its 'W1TC' block)
+                            kw = pb.find(b'W1TC')
+                            if kw >= 0:
+                                res['w1'] = list(struct.unpack_from('<5I', pb, kw + 4))
                         bu = diff_bu_block(r)
                         if bu is not None:              # build-up v1: G1 / H1 / P1 + [team][pass, kick, gk pass, gk kick]
                             bb = r.read(bu, 68)

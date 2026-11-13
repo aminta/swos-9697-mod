@@ -257,6 +257,21 @@ def imports():
     return out, at
 
 
+def cstart_site(p):
+    """obj2 offset of the career menu's NEW CAREER on-select pointer (-> ChooseTeamAndStartCareer: call
+    SelectTeamToManage; cmp [A0], 0; jz; call InitCareer; mov [A6], contestMenu; jmp ActivateMenu), the original
+    exe's fixup; one only (orig IT 0xb4a32 -> obj1 0x23f4d)"""
+    import re
+    d1 = p.le.obj_bytes(1)
+    pat = re.compile(rb'\xe8.{4}\x83\x3d.{4}\x00(?:\x0f\x84.{4}|\x74.)\xe8.{4}\xc7\x05.{8}\xe9', re.S)
+    fx = [f for f in p.le.fixups() if f[0] == 2 and f[3] == 1 and f[4] is not None]
+    hits = sorted({f[4] for f in fx if pat.match(d1, f[4])})
+    assert len(hits) == 1, ('swe: ChooseTeamAndStartCareer not found once', [hex(h) for h in hits])
+    sites = [f[1] for f in fx if f[4] == hits[0]]
+    assert len(sites) == 1, ('swe: NEW CAREER on-select pointer not found once', [hex(x) for x in sites])
+    return sites[0]
+
+
 def patch(p):
     """links swe.c into obj4 (after obj3's vsize / base are final), the world registry (swreg.py) and the picker's
     trampoline; returns the code's end"""
@@ -354,6 +369,12 @@ def patch(p):
         if p.rel_target(1, cs + 1):
             p.remove(1, cs + 1)
         p.add_rel(1, cs + 1, *syms[tr])
+    if 'swe_cstart' in syms:                        # (SWC1_BSS, a registry shape: NEW CAREER first resets SWC1's world
+        cs = cstart_site(p)                         # and the registry - MC 13/11, S7 newafter; dormant: untouched)
+        prev = p.target(2, cs)
+        p.retarget(2, cs, *syms['swe_cstart'])
+        p.put(2, cs, struct.pack('<I', syms['swe_cstart'][1]))
+        cobj.add_ptr(p, syms['SWE_CSTART'][1], prev[0], prev[1], 4)
     p.set_vsize(4, room + bss, bss=bss)
     p.set_base_after(4)
     LABELS.clear()

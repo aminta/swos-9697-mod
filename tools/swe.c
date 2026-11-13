@@ -1004,3 +1004,23 @@ void swe_st_new(void)                   /* engine.after_new, a registry-shaped b
         ((sreg_void_t)SREG_FN[3])();
 }
 #endif
+
+#ifdef SWC1_BSS
+/* NEW CAREER (the career menu's on-select ChooseTeamAndStartCareer: SelectTeamToManage, then InitCareer) lands here
+   first (swe.py cstart_site, a registry-shaped build only): SWC1's world 0 and the registry dropped, so the new
+   career's picker and InitCareer loads never see a career loaded before it - its world and its crossings (Shaved 13/11,
+   world_s7cross_newafter: calls 4..7 on file 102 moved 9 of the old career's crossers). swe_st_new (after_new) then
+   opens the gate with the new career's world; a LOAD writes SWC1 + 'IT' itself. CONTINUE never comes here. */
+u32 SWE_CSTART DATA = 0;                /* what the on-select reached before (chained) */
+void swe_cstart_pre(void)
+{
+    *(u16 *)(SWC1 + 2) = 0;
+    if (SREG_FN[3])
+        ((sreg_void_t)SREG_FN[3])();
+}
+
+__attribute__((naked)) void swe_cstart(void)
+{
+    __asm__ volatile("pushal\n\tcall swe_cstart_pre\n\tpopal\n\tjmp *SWE_CSTART");
+}
+#endif

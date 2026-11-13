@@ -195,6 +195,36 @@ def test_sreg():
                         f'(want {wn}, {"> 0" if open_ else "0"})')
     if regb() != R0:
         errs.append('new career after the world gate: the registry not the spec\'s')
+    # Shaved 13/11 (world_s7cross_newafter): NEW CAREER after a crossed career was loaded - the career menu's on-select
+    # goes through swe_cstart (its pointer in obj2 retargeted, the game's ChooseTeamAndStartCareer chained), whose
+    # swe_cstart_pre shuts the gate (SWC1 world 0, the registry dropped) before the picker / InitCareer load a file
+    if 'swe_cstart' in d.sy.get('swe', {}):
+        errs.append('dormant: swe_cstart compiled (SWC1_BSS only)')
+    if 'swe_cstart' not in m.sy.get('swe', {}):
+        errs.append('SREG_FORCE build: no swe_cstart')
+    else:
+        import swe as swe_mod
+        from le import LE
+        orig = LE(open(os.path.join(os.path.dirname(TOOLS), 'orig', 'ITALIAN.EXE'), 'rb').read())
+        site = swe_mod.cstart_site(type('P', (), {'le': orig})())   # (the original exe's pointer, same obj2 offset)
+        ptr = struct.unpack('<I', m.rd(tr.B2 + site, 4))[0]
+        chained = struct.unpack('<I', m.rd(m.at('swe', 'SWE_CSTART'), 4))[0]
+        if ptr != m.at('swe', 'swe_cstart') or chained != tr.B1 + 0x23f4d:
+            errs.append(f'NEW CAREER on-select {ptr:#x} (want swe_cstart {m.at("swe", "swe_cstart"):#x}), chained '
+                        f'{chained:#x} (want ChooseTeamAndStartCareer {tr.B1 + 0x23f4d:#x})')
+        DY = list(ITALY_DIV)
+        DY[2], DY[152] = DY[152], DY[2]
+        shape(ITALY, DY)
+        RY = fresh()                                        # (a loaded career's crossed registry, its world 5)
+        shape(ITALY, ITALY_DIV)
+        m.call('swe', 'swe_cstart_pre')
+        hw, n = struct.unpack('<H', m.rd(m.swc1 + 2, 2))[0], m.call('sreg', 'sreg_size')
+        if hw != 0 or n != 0:
+            errs.append(f'NEW CAREER after a loaded career: SWC1 world {hw}, sreg_size {n} (want 0, 0: the gate shut)')
+        m.new_career()
+        m.call('sreg', 'sreg_size')                         # (the gate open again: built from the spec at first use)
+        if regb() != R0 or RY == R0:
+            errs.append('NEW CAREER after a loaded career, then after_new: the registry not the spec\'s')
     m.call('swe', 'swe_st_save')
     d.call('swe', 'swe_st_save')
     s = sections(m.rd(m.swc1, size))

@@ -60,7 +60,7 @@ def check_layout():
 #   LR (LR_BLK ss / n / t0 = season stamp, club count, first word): K, discard-on-mismatch (lr_res wipes and re-keys, a
 #      season under way is VOID until the next one; lr_rank drops the head-to-head, the table still sorts) - lrank.c:74-115
 #   SH (sp_sh +0 = file, division | 80h): K, discard-on-mismatch (sp_shsel zeroes and re-keys outside a simulation, a
-#      scratch block inside one) - split.py sp_shsel
+#      scratch block inside one; discard, rebuilt at the next real pass) - split.py sp_shsel
 #   ST (the engine item 'ST', sr_stled: FNV-1a of the entrants' words): K, discard-on-mismatch (sr_st_check returns 0 =
 #      not started); NO CALLER in this tree - test_k_unconsumed pins it
 #   SS (gp_ss.key = the bank's league file): follows the STRUCT, not the club (a bank describes a division, like WN's 'M');

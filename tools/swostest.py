@@ -27153,7 +27153,8 @@ def s7cross(force, team, start_file, ldfail=None):
                       W8485_NOSACK='1', W8485_HEX=f'o4/{at("S7_LOG"):x}:8,o4/{at("S7_CLOG"):x}:6,'
                       f'o4/{at("S7_WLOG"):x}:12,o4/{at("S7_LD"):x}:16,{sel:x}:8'
                       + (f',o4/{sy["swe"]["SWC1"][1]:x}:4' if 'SWC1' in sy.get('swe', {}) else '')    # (SWC1 header: ver,
-                      + (f',{sy["swe"]["SWE_CWB"][1]:x}:1' if 'SWE_CWB' in sy.get('swe', {}) else ''))  # world; the world byte)
+                      + (f',{sy["swe"]["SWE_CWB"][1]:x}:1' if 'SWE_CWB' in sy.get('swe', {}) else '')    # world; the world byte)
+                      + (f',o4/{sy["lrank"]["LR_BLK"][1]:x}:8' if 'LR_BLK' in sy.get('lrank', {}) else ''))   # (the LR block's key)
     os.environ.pop('W8485_ONE', None)
     try:
         ok, msg = world8485()
@@ -27217,9 +27218,23 @@ def s7cross(force, team, start_file, ldfail=None):
             ok1 = [x for x in lds if x[0] == 1]
             check(ok1 and ok1[0][4] > 0, f'season 2: the first applied load {ok1[:1]} moved no rows (the save\'s '
                   f'registry not the crossed one)', errs)
+    lrnote = ''
+    if 'LR_BLK' in sy.get('lrank', {}):                 # (MC 13/11: LR's key after a crossing - lr_res re-keys at the first
+        k = f'o4/{sy["lrank"]["LR_BLK"][1]:x}'          #  result of the new season; VOID only if the season is under way)
+        lr = [[tuple(b[:4]) for o, b in hexes[s_] if o == k] for s_ in (0, 1)]
+        l2 = lr[1]
+        # (season 2's first value: the block as the save carried it, season 1's key; the last: after play)
+        check(len(l2) >= 2, f'season 2: LR_BLK logged {l2} (want the loaded key, then a re-key)', errs)
+        if len(l2) >= 2:
+            ss0, n0, t0 = l2[0][0], l2[0][1], l2[0][2] | l2[0][3] << 8
+            ss1, n1, t1 = l2[-1][0], l2[-1][1], l2[-1][2] | l2[-1][3] << 8
+            check(ss1 != ss0, f'season 2: LR_BLK stamp {ss0} -> {ss1}: the old key never matches (stamp)', errs)
+            check(not n1 & 0x80 and n1 >= 2, f'season 2: LR_BLK n {n1:#x}: VOID (a crossed group losing its head-to-head '
+                  f'for the season) - lr_res first ran with results already in', errs)
+            lrnote = f'; LR_BLK season 2: stamp {ss0}->{ss1}, n {n0:#x}->{n1:#x}, first word {t0:#x}->{t1:#x} (re-keyed, live)'
     return not errs, '; '.join(errs) or (f'{start_file} -> {new & 0xFF}: crossed at the season end (9 swaps, 18 '
                                          f'crossers), selTeamNumber {new:#x}, season 2 loaded and played in the new '
-                                         f'struct (D6CDC {sels2[-1][3]}), S7_LD OK')
+                                         f'struct (D6CDC {sels2[-1][3]}), S7_LD OK' + lrnote)
 
 
 @scenario

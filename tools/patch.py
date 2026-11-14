@@ -385,6 +385,9 @@ def patch_exe(src, dst, remap, lang='it'):
         swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, swefile.page_end() // 0x1000)
     if s7swap.on():                                    # 4.2 S7 swap builder + the registry library (MC 13/11): pages 18-19,
         swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, s7swap.page_end() // 0x1000)   # only with a registry shape
+    import cdkn
+    if cdkn.on():                                      # 4.2 S2 knockouts (MC 14/11): the CDKN band's pages, CD_KN builds only
+        swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, cdkn.page_end() // 0x1000)
     OBJ1MV_ON[0] = bool(mkseason.worlds())             # 4.2 OBJ1MV (MC 13/11): every build with worlds (shirtedit +
     if OBJ1MV_ON[0]:                                   # instcheck; the SEASON WINNERS page when fmtpage has it)
         swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, (swreg.OBJ1MV_END + 0xFFF) // 0x1000)   # (its band's pages, out of obj1)
@@ -1020,6 +1023,9 @@ def patch_exe(src, dst, remap, lang='it'):
         s7swap.patch(p, swe.LABELS, sreg.LABELS, gplay.LABELS, pgroups.LABELS, swefile.LABELS, ripool.LABELS)
     if sreg_end is not None:
         assert sreg_end <= lrank.LR_AT, ('sreg past LR_AT', hex(sreg_end), hex(lrank.LR_AT))
+    if cdkn.on():                                # 4.2 S2 knockouts: the Coppa D's rounds 0-1 by the engine (gplay.c GP_CDKN)
+        import gplay
+        cdkn.patch(p, swe.LABELS, gplay.LABELS)
     benchx.link_w27(p)                           # (4.0.6 step 2.5: the friendlies' long bench by SWE_W27)
     import kits                                  # 4.2 K2 keepers + R1 referee (after swe: swe_match_w27)
     kits.patch(p)

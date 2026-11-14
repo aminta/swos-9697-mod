@@ -41,6 +41,10 @@ u8 SWEF_BIG[1441792] __attribute__((aligned(16)));     /* 22 x 64 KB: one-call a
 u8 SWEF_RB[65536] __attribute__((aligned(16)));
 void (*SWEF_HOOK)(void) __attribute__((section(".data"))) = 0;   /* (.data: a file dword for the fixup) */
 #endif
+#ifdef CDKN_WORK_SZ                     /* 4.2 S2 knockouts (CD_KN builds only: cdkn.py): cdkn.c's work area (sr_kn_work, lists,
+                                           records, ties; MC 14/11: .bss, no file pages, no band bytes) */
+u8 CDKN_WORK[CDKN_WORK_SZ] __attribute__((aligned(16)));
+#endif
 extern const u8 SWE_REG[];              /* obj4+REG_AT: the manifest */
 u32 REG_PREV = 0xFFFFFFFF;              /* the namespace reg_enter left (WCUR), ~0 = none entered */
 u32 SEL_C254 = 0;                       /* competitionsTable[254] at the picker's entry */

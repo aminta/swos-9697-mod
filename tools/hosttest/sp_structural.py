@@ -215,7 +215,7 @@ def main():
         r_ = live[k][0]
         L.append(f'| {k} | {o:#x} | {n} | {l} | ' + ' | '.join(cells) + f' | {r_ if isinstance(r_, str) else r_[0]} |')
     ok_s, sl = save_check(ni, json.load(open(os.path.join(a.new, 'ITALIAN.syms.json'))), lab)
-    L += ['', '## 3. The save item (bit 6 of \'DF\'): df_pack, sp_load_j, sp_new_j on the host', ''] + sl
+    L += ['', '## 3. The save item (bits 6-7 of \'DF\'): df_pack, sp_load_j, sp_new_j on the host', ''] + sl
     ok_f, fl_ = fk_check(ni, lab, c, trg)
     L += ['', '## 4. §3 free kicks on the host (NUOVI): sp_kick / sp_grav / sp_at / sp_blo', ''] + fl_
     v = ok_b and ok_e and ok_c and ok_s and ok_f
@@ -227,8 +227,8 @@ def main():
 
 
 def save_check(ni, sj, lab):
-    """df_pack (moved here): DF_SV = DF_SH = W | DR << 4 | SP_W << 6 for every W 0..4, DR 0..2, SP 0..1; sp_load_j /
-    sp_new_j: SP_W = bit 6 of DF_SV / DF_SH (every byte), then on to difficulty's df_load / df_new."""
+    """df_pack (moved here): DF_SV = DF_SH = W | DR << 4 | SP_W << 6 for every W 0..4, DR 0..2, SP 0..2; sp_load_j /
+    sp_new_j: SP_W = bits 6-7 of DF_SV / DF_SH (3 -> 0; every byte), then on to difficulty's df_load / df_new."""
     d = {k: v[1] for k, v in sj['difficulty'].items()}
     R = B4 + swreg.SETPIECE_END - 16                   # (a return address nobody jumps to: the run's end)
     allowed = tuple((B4 + lo, B4 + hi) for lo, hi in AIMED)
@@ -243,7 +243,7 @@ def save_check(ni, sj, lab):
         return m, log, err
     for w in range(5):
         for dr in range(3):
-            for sp_ in range(2):
+            for sp_ in range(3):
                 def prep(m):
                     m.w16(B4 + d['DF_W'], w)
                     m.w16(B4 + d['DF_DR'], dr)
@@ -262,15 +262,15 @@ def save_check(ni, sj, lab):
             m, log, err = go(lab[lbl], B4 + d[dst], prep)
             n += 1
             got = struct.unpack('<H', m.read(B4 + lab['SP_W'], 2))[0]
-            if err or log or got != (byte >> 6) & 1 or m.read(B4 + d[src], 1)[0] != byte:
+            if err or log or got != ((byte >> 6) & 3 if (byte >> 6) & 3 < 3 else 0) or m.read(B4 + d[src], 1)[0] != byte:
                 bad.append(f'{lbl} {src} {byte:#x}: SP_W {got:#x} {err}')
     return not bad, [f'- {n} cases: {"all as wanted" if not bad else "FAIL"}'] + [f'  - {b}' for b in bad[:10]]
 
 
 def fk_check(ni, lab, c, trg):
     """§3 on the host, NUOVI: sp_kick records a wall-zone free kick (SHOOTING weight, side, start); sp_grav flown tick by
-    tick with the game's ball rules (tools/fkmodel.py) brings a cleared kick to SP_FKT at the line for weight 4, today's
-    flight for weight 0, nothing for a drive; sp_at holds facing +- 2 on the open side; sp_blo raises the low bound."""
+    tick with the game's ball rules (tools/fkmodel.py) brings a cleared kick to its target FK_TT = SP_FKT +- the
+    SHOOTING aim error (SP_FKW px) at the line, nothing for a drive; sp_at holds facing +- 2 on the open side; sp_blo raises the low bound."""
     from unicorn.x86_const import UC_X86_REG_EAX
     import fkmodel
     k = sp.knobs()
@@ -353,10 +353,12 @@ def fk_check(ni, lab, c, trg):
                 rows.append((sh, dist, kind, zl, ref, b8(m, 'FK_ST')))
                 if kind == 'drive' and extra_used:
                     bad.append(f'drive dipped: sh {sh} d {dist}')
-                if w == 0 and extra_used:
-                    bad.append(f'weight 0 not today: sh {sh} d {dist} {kind}: gravity changed by {extra_used}')
-                if kind.startswith('high') and w == 4 and 100 <= dist <= 150 and not (zl is not None and 0 < zl < 15):
-                    bad.append(f'weight 4 high kick not under the bar: sh {sh} d {dist} {kind}: z at the line {zl}')
+                tt = int.from_bytes(m.read(B4 + lab['FK_TT'], 4), 'little', signed=True) / 65536
+                if not (k['FKT'] / 65536 - w <= tt <= k['FKT'] / 65536 + w):
+                    bad.append(f'aim target off: sh {sh} d {dist} {kind}: FK_TT {tt} (amplitude {w})')
+                if kind.startswith('high') and 100 <= dist <= 175 and not (zl is not None and zl <= tt + 3 and
+                                                                          (dist > 150 or abs(zl - tt) <= 3)):
+                    bad.append(f'high kick not at its target: sh {sh} d {dist} {kind}: z at the line {zl}, target {tt}')
     for case, args, want in (('in play', dict(gsp=100), 0), ('corner state', dict(gs=4), 0), ('too far', dict(y=129 + 210), 0),
                              ('too close', dict(y=129 + 80), 0), ('bottom goal', dict(y=769 - 120), 1)):
         m = mach('c' + case)

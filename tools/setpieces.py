@@ -32,8 +32,8 @@ TAG = b'SETP'
 
 
 LABEL = {'it': 'CALCI PIAZZATI', 'en': 'SET PIECES', 'fr': 'PHASES ARRETEES', 'de': 'STANDARDS'}
-VALUES = {'it': ('CLASSICI', 'NUOVI'), 'en': ('CLASSIC', 'NEW'), 'fr': ('CLASSIQUES', 'NOUVELLES'),
-          'de': ('KLASSISCH', 'NEU')}
+VALUES = {'it': ('CLASSICI', 'REALISTICI', 'ARCADE'), 'en': ('CLASSIC', 'REALISTIC', 'ARCADE'),
+          'fr': ('CLASSIQUES', 'REALISTES', 'ARCADE'), 'de': ('KLASSISCH', 'REALISTISCH', 'ARCADE')}   # (Davide 14/11)
 
 
 def on():
@@ -52,8 +52,10 @@ def _iv(k, d):
 def knobs():
     return dict(JZ=_iv('SP_JZ', -0x800), JST=_iv('SP_JST', 0x400), FZ=_iv('SP_FZ', 0x8000), CEIL=_iv('SP_CEIL', 17),
                 BAND=_iv('SP_BAND', 22), CPU=_iv('SP_CPU', 900), FKT=_iv('SP_FKT', 11 << 16), BLO=_iv('SP_BLO', 13),
-                FKW=[int(x) for x in (os.environ.get('SP_FKW') or '0,0,0,0,1,2,3,4').split(',')],
-                FKC=_iv('SP_FKC', 1), FKMAX=_iv('SP_FKMAX', 0x2000), FKMIN=_iv('SP_FKMIN', -0x1000),
+                FKW=[int(x) for x in (os.environ.get('SP_FKW') or '10,9,8,7,6,4,3,2').split(',')],          # REALISTICI
+                FKW2=[int(x) for x in (os.environ.get('SP_FKW2') or '6,5,5,4,4,3,2,1').split(',')],        # ARCADE
+                FKC2=_iv('SP_FKC2', 0),
+                FKC=_iv('SP_FKC', 1), FKMAX=_iv('SP_FKMAX', 0x3000), FKMIN=_iv('SP_FKMIN', -0x1000),
                 FKWALL=_iv('SP_FKWALL', 40), FKCLR=_iv('SP_FKCLR', 15))
 
 
@@ -145,12 +147,12 @@ ASM = r"""
 align 4
 SPB: dd O2BASE
 TAGS: db 'SETP'
-SP_W: dw SP_START                       ; the option: 0 CLASSICI, 1 NUOVI (a word: the game's string table reads one)
+SP_W: dw SP_START                       ; the option: 0 CLASSICI, 1 REALISTICI, 2 ARCADE (a word: the string table)
 SP_OK: db 0                             ; 1 = a kick-off without SWOS++ seen (df_kick: sp_set; SWOS++ never changes)
     db 0
 TAB_P: dd 0                             ; (the row's string table, its pointers filled by sp_add: no fixups)
     dw 0
-    dd 0, 0
+    dd 0, 0, 0
 sp_base:
     call .n
 .n: pop ebp
@@ -166,7 +168,7 @@ sp_on:
     jne .z
     test byte [ebp + SP_OK - SPB], 1
     jz .x
-    test byte [ebp + SP_W - SPB], 1
+    cmp word [ebp + SP_W - SPB], 0
     jmp .x
 .z: cmp ecx, ecx
 .x: pop ecx
@@ -219,23 +221,25 @@ df_rtog:                                ; DRIBBLING (fire): CLASSIC -> NEW -> CU
     mov [ecx + A6_O], eax               ; the page (OPTIONS comes back unpacked: df_ret, CUSTOM shown)
     pop ebp
     jmp near SHOW_MENU
-sp_tog:                                 ; CALCI PIAZZATI (fire): CLASSICI <-> NUOVI
+sp_tog:                                 ; CALCI PIAZZATI (fire): CLASSICI -> REALISTICI -> ARCADE -> CLASSICI
     push ebp
     call sp_base
-    xor word [ebp + SP_W - SPB], 1
-    pop ebp
+    inc word [ebp + SP_W - SPB]
+    cmp word [ebp + SP_W - SPB], 2
+    jbe .s
+    mov word [ebp + SP_W - SPB], 0
+.s: pop ebp
     jmp df_draw
-df_pack:                                ; DF_SV = DF_SH = DIFFICULTY | DRIBBLING << 4 | CALCI PIAZZATI << 6
+df_pack:                                ; DF_SV = DF_SH = DIFFICULTY | DRIBBLING << 4 | CALCI PIAZZATI << 6 (bits 6-7)
     push eax
     push ebp
     call sp_base
-    mov al, [dword ebp + DF_DR - SPB]
+    mov al, [ebp + SP_W - SPB]
+    shl al, 2
+    or al, [dword ebp + DF_DR - SPB]
     shl al, 4
     or al, [dword ebp + DF_W - SPB]
-    test byte [ebp + SP_W - SPB], 1
-    jz .w
-    or al, 40h
-.w: mov [dword ebp + DF_SV - SPB], al
+    mov [dword ebp + DF_SV - SPB], al
     mov [dword ebp + DF_SH - SPB], al
     pop ebp
     pop eax
@@ -250,10 +254,13 @@ sp_new_j:                               ; (engine: after a new career's defaults
     mov al, [dword ebp + DF_SH - SPB]
     call sp_unp
     jmp near DF_NEW
-sp_unp:                                 ; (CALCI PIAZZATI = bit 6 of al)
+sp_unp:                                 ; (CALCI PIAZZATI = bits 6-7 of al: 3 -> CLASSICI; a 4.2 beta's NUOVI = 1)
     shr al, 6
-    and eax, 1
-    mov [ebp + SP_W - SPB], ax
+    and eax, 3
+    cmp eax, 2
+    jbe .s
+    xor eax, eax
+.s: mov [ebp + SP_W - SPB], ax
     ret
 
 ; ---- in ebx = the OPTIONS menu, entries NB..NB+3 in (df_add, before its layout loop): NB+4 / NB+5 = copies of
@@ -272,12 +279,14 @@ sp_add:
     mov word [edi + 38h + 2], NB + 5
     lea eax, [ebp + TAB_P - SPB]
     mov [edi + 38h + 26h], eax
-    lea ecx, [ebp + SP_W - SPB]         ; (the string table: the word, then the two strings)
+    lea ecx, [ebp + SP_W - SPB]         ; (the string table: the word, then the three strings)
     mov [eax], ecx
     lea ecx, [ebp + S_P0 - SPB]
     mov [eax + 6], ecx
     lea ecx, [ebp + S_P1 - SPB]
     mov [eax + 10], ecx
+    lea ecx, [ebp + S_P2 - SPB]
+    mov [eax + 14], ecx
     lea eax, [ebp + sp_tog - SPB]
     mov [edi + 38h + 2Ah], eax
     add word [edi + 16h], 3 * SRCP      ; (copies of the bottom row's y still: three source rows below it, one
@@ -462,15 +471,17 @@ sp_wide:                                ; ax = direction; ZF = 1: 2 / 6 and the 
 
 ; ---- §3 free kicks (NUOVI; a kick from a wall-zone free kick, states 6..12, 87..202 px from the line)
 FK_ST: db 0                             ; 0 off, 1 kicked (before the wall), 2 dipping
-FK_SH: db 0                             ; the taker's SHOOTING weight (x / 4)
+FK_SH: db 0                             ; the taker's aim error amplitude (px at the line, by SHOOTING: FK_WT)
 FK_CU: db 0                             ; the CPU curl: 0 none, 1 toward +x, 2 toward -x
 FK_UP: db 0                             ; 1 = attacking the top goal (line y 129)
 FK_TM: dd 0                             ; the kicking team (TeamGeneralInfo)
 FK_Y0: dw 0                             ; the ball's y at the kick
 FK_N: dw 0                              ; ticks since the kick
 FK_E: dd 0                              ; the extra gravity per tick after the wall (16.16)
+FK_TT: dd 0                             ; this kick's target z at the line (16.16): FK_T +- FK_SH px
 FK_R: dd 12345                          ; (the curl's own LCG: the game's RNGs untouched)
-FK_WT: db FKW0, FKW1, FKW2, FKW3, FKW4, FKW5, FKW6, FKW7
+FK_WT: db FKW0, FKW1, FKW2, FKW3, FKW4, FKW5, FKW6, FKW7         ; (REALISTICI)
+    db FKX0, FKX1, FKX2, FKX3, FKX4, FKX5, FKX6, FKX7             ; (ARCADE)
 
 ; the kick record (replaces PlayerKickingBall's `mov eax, kBallKickingDeltaZ`; A6 = the team, A1 = the taker)
 sp_kick:
@@ -511,7 +522,10 @@ sp_kick:
     add eax, [edi + 0Ah]
     movzx eax, byte [eax + HDO - 1]     ; SHOOTING (just before HEADING)
     and eax, 7
-    mov al, [ebp + FK_WT - SPB + eax]
+    cmp word [ebp + SP_W - SPB], 2
+    jb .r
+    add eax, 8                          ; (ARCADE's table)
+.r: mov al, [ebp + FK_WT - SPB + eax]
     mov [ebp + FK_SH - SPB], al
     mov byte [ebp + FK_CU - SPB], 0
     cmp word [edi + 4], 0               ; (playerNumber 0: the CPU's team)
@@ -522,7 +536,11 @@ sp_kick:
     add ax, [esi + BALL_O + 1Eh]        ; (the ball's x fraction)
     mov [ebp + FK_R - SPB], eax
     shr eax, 16
-    test eax, FK_C                      ; (1 in 2: else today's kick)
+    mov ecx, FK_C                       ; (REALISTICI 1 in 2: else today's kick; ARCADE FK_C2)
+    cmp word [ebp + SP_W - SPB], 2
+    jb .c
+    mov ecx, FK_C2
+.c: test eax, ecx
     jnz .k
     movsx ecx, word [esi + BALL_O + 20h]
     mov bl, 1                           ; the far post: from the left (x < 324) curl toward +x
@@ -535,7 +553,20 @@ sp_kick:
     jz .s
     mov bl, 1
 .s: mov [ebp + FK_CU - SPB], bl
-.k: mov word [ebp + FK_N - SPB], 0
+.k: mov eax, [ebp + FK_R - SPB]       ; (the aim error: FK_T + uniform -a..+a px, a = FK_SH)
+    imul eax, eax, 1103515245
+    add eax, 12345
+    mov [ebp + FK_R - SPB], eax
+    shr eax, 16
+    movzx ecx, byte [ebp + FK_SH - SPB]
+    lea ebx, [ecx * 2 + 1]
+    xor edx, edx
+    div ebx
+    sub edx, ecx
+    shl edx, 16
+    add edx, FK_T
+    mov [ebp + FK_TT - SPB], edx
+    mov word [ebp + FK_N - SPB], 0
     mov byte [ebp + FK_ST - SPB], 1
 .d: popad
 .x: mov eax, [ebp]
@@ -591,7 +622,7 @@ sp_at:
     ret
 
 ; the dip (replaces UpdateBall's `mov eax, kBallAirFriction`, the ball in the air): past the wall (FK_WALL px) and over
-; its head (z > FK_CLR), the extra gravity that brings the ball to FK_T at the line, x the taker's weight / 4
+; its head (z > FK_CLR), the extra gravity that brings the ball to FK_TT at the line (FK_T +- the taker's aim error)
 sp_grav:
     push ebp
     call sp_on                         ; (ebp = SPB, ZF)
@@ -643,17 +674,14 @@ sp_grav:
     mov eax, [edi + 36h]
     imul eax, ebx                       ; n x deltaZ
     add eax, [edi + 26h]                ; + z
-    sub eax, FK_T                       ; - the target
+    sub eax, [ebp + FK_TT - SPB]        ; - this kick's target
     add eax, eax
     lea ecx, [ebx + 1]
     imul ecx, ebx                       ; n (n + 1)
     cdq
     idiv ecx                            ; G' = 2 (z + n dz - T) / (n (n + 1))
     mov ecx, [ebp]
-    sub eax, [ecx + KAF_O]              ; e = G' - g
-    movzx ecx, byte [ebp + FK_SH - SPB]
-    imul eax, ecx
-    sar eax, 2
+    sub eax, [ecx + KAF_O]              ; e = G' - g (the full dip: SHOOTING sets the aim error, FK_TT)
     cmp eax, FK_MAX
     jle .m1
     mov eax, FK_MAX
@@ -718,9 +746,9 @@ def _sym(p, start, df_lab, df_sym):
             #  never reached: a traced match never opens OPTIONS; M3 corner meter 14/11)
             'JZ_NEW': (0, k['JZ'] & 0xFFFFFFFF), 'JZ_STEP': (0, k['JST']), 'FZ_NEW': (0, k['FZ']),
             'CEIL_NEW': (0, k['CEIL']), 'BAND_NEW': (0, k['BAND']), 'CPU_NEW': (0, k['CPU']),
-            'FK_T': (0, k['FKT']), 'BLO_NEW': (0, k['BLO']), 'FK_C': (0, k['FKC']), 'FK_MAX': (0, k['FKMAX']),
+            'FK_T': (0, k['FKT']), 'BLO_NEW': (0, k['BLO']), 'FK_C': (0, k['FKC']), 'FK_C2': (0, k['FKC2']), 'FK_MAX': (0, k['FKMAX']),
             'FK_MIN': (0, k['FKMIN'] & 0xFFFFFFFF), 'FK_WALL': (0, k['FKWALL']), 'FK_CLR': (0, k['FKCLR']),
-            **{f'FKW{i}': (0, w) for i, w in enumerate(k['FKW'])}}, s
+            **{f'FKW{i}': (0, w) for i, w in enumerate(k['FKW'])}, **{f'FKX{i}': (0, w) for i, w in enumerate(k['FKW2'])}}, s
 
 
 def pass1(p, lang, df_sym):
@@ -746,7 +774,7 @@ def patch(p, lang):
     assert modver.is_test(), 'SP_TEST: test builds only (until the OPTIONS row)'
     assert df.SP_ROW and df.LABELS.get('df_add'), 'setpieces: after difficulty with its OPTIONS rows (SP_ROW)'
     start = int(os.environ.get('SP_TEST') or 0)
-    assert start in (0, 1), 'SP_TEST=0 (CLASSICI) / 1 (NUOVI)'
+    assert start in (0, 1, 2), 'SP_TEST=0 (CLASSICI) / 1 (REALISTICI) / 2 (ARCADE)'
     sym, s = _sym(p, start, df.LABELS, df.SYMS)
     at = swreg.SETPIECE_AT
     src = _src(lang)

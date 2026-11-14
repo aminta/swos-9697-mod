@@ -32826,7 +32826,7 @@ def sp_menu():
     """4.2 set pieces (setpieces.py, M2): the OPTIONS row CALCI PIAZZATI / SET PIECES (entries NB+4 / NB+5) under
     DRIBBLING (DIFF_TEST=3 SP_TEST=0 build): NB+6 entries, 14 rows at 9 px from y TOP, 8 high, the last above EXIT TO
     DOS; DIFFICULTY / DRIBBLING / CALCI PIAZZATI on the last three rows; texts in their boxes, font characters. Fire on
-    NB+5: CLASSICI -> NUOVI -> CLASSICI (SP_W 1, 0); the save byte DF_SV's bit 6 follows, and DIFFICULTY's toggle
+    NB+5: CLASSICI -> REALISTICI -> ARCADE -> CLASSICI (SP_W 1, 2, 0); the save byte DF_SV's bits 6-7 follow, and DIFFICULTY's toggle
     keeps it (df_pack, moved to the band). Shots options_sp_<n>. SWOSTEST_UI it / en / fr / de."""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import difficulty as dfm
@@ -32877,10 +32877,13 @@ def sp_menu():
         seen.append((rdw(), rsv()))
         walk(s, NB + 1, 2)
         walk(s, NB + 1, 2)                              # (EASY, NORMAL)
-        walk(s, NB + 5, 2)
+        walk(s, NB + 5, 2)                              # (REALISTICI -> ARCADE: bits 6-7 = 2)
         seen.append((rsp(), rsv()))
-        check(seen == [(1, 0x40), (2, 0x42), (0, 0x00)], f'CALCI PIAZZATI toggles (SP_W / DF_W, DF_SV): {seen} '
-              f'(want (1, 0x40), (2, 0x42), (0, 0x00))', errs)
+        s.shot('options_sp_arcade')
+        walk(s, NB + 5, 2)                              # (ARCADE -> CLASSICI)
+        seen.append((rsp(), rsv()))
+        check(seen == [(1, 0x40), (2, 0x42), (2, 0x80), (0, 0x00)], f'CALCI PIAZZATI toggles (SP_W / DF_W, DF_SV): '
+              f'{seen} (want (1, 0x40), (2, 0x42), (2, 0x80), (0, 0x00))', errs)
         s.shot('options_sp_2')
         notes.append(f'toggles {seen}')
     return not errs, '; '.join(errs + notes)

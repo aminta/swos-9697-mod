@@ -1441,7 +1441,8 @@ class Pack:
             if blocks:                             # XTRA.nnn only for a file with extra players
                 import xtra
                 self.xtra[self.files[fk][0]] = xtra.build(blocks, len(recs), extra)
-        tactic_spread(self._tactics, f"{'+'.join(sq['files'])}")   # 4.2: no tactic on > 70%
+        if not self.meta.get('tactic_spread_ok'):  # 4.2: no tactic on > 70% (pack.json "tactic_spread_ok": the reason,
+            tactic_spread(self._tactics, f"{self.meta['id']}: {'+'.join(sq['files'])}")   # for real historic data)
         self.log(f"{'+'.join(sq['files'])}: {sum(self.count[f] for f in sq['files'])} clubs, explicit records")
         return out
 

@@ -25,6 +25,7 @@ Engine facts used here (see the hex manual, chapter 17):
 Usage:
   python3 tools/mkseason.py check packs/ddr-1988-89     validate + summary
 """
+import collections
 import csv
 import json
 import complist
@@ -261,6 +262,12 @@ def tactic_of_squad(positions, prefer=None):
 
 TACTIC_SHARE_MAX = 0.70      # a world / pack of explicit clubs: no tactic on more than 70% of them (the original: 57% 4-4-2)
 TACTIC_SHARE_MIN_CLUBS = 40  # (small packs - a tourney, one cup - are not checked)
+
+
+# where a club's tactic comes from (clubs.csv 'tactic_src', else pack.json "tactic_src", else 'squad'; MC 14/11):
+# coach = its coach's real formation, record = a historic database's own byte (DaniSwos 1984-85, the original files),
+# squad = its squad's defender / midfielder / attacker split, spread = drawn from its country's coaches' formations
+TACTIC_SRCS = ('coach', 'record', 'squad', 'spread')
 
 
 def tactic_spread(tactics, where='clubs'):
@@ -1411,7 +1418,9 @@ class Pack:
                 r = self._empty_record(key, bytes(TEAM_SIZE))
                 where = f'clubs.csv: {key}'
                 r[24] = _num(c, 'tactic', 0, 15, where)
-                self._tactics.append(r[24])
+                src = (c.get('tactic_src') or '').strip() or self.meta.get('tactic_src', 'squad')
+                _need(src in TACTIC_SRCS, f'{where}: tactic_src {src!r}: one of {", ".join(TACTIC_SRCS)}')
+                self._tactics.append((r[24], src))
                 for col, at in (('kit1', 26), ('kit2', 31)):
                     v = _nums(c, col, 5, 0, 255, where)
                     r[at:at + 5] = bytes(v)
@@ -1441,8 +1450,14 @@ class Pack:
             if blocks:                             # XTRA.nnn only for a file with extra players
                 import xtra
                 self.xtra[self.files[fk][0]] = xtra.build(blocks, len(recs), extra)
-        if not self.meta.get('tactic_spread_ok'):  # 4.2: no tactic on > 70% (pack.json "tactic_spread_ok": the reason,
-            tactic_spread(self._tactics, f"{self.meta['id']}: {'+'.join(sq['files'])}")   # for real historic data)
+        # 4.2 (MC 14/11): only the tactics nobody gave (squad fallback, spread draw) may not crowd on one tactic (> 70%);
+        # a coach's formation or a historic database's own byte is real data, whatever its share
+        tactic_spread([t for t, src in self._tactics if src in ('squad', 'spread')],
+                      f"{self.meta['id']}: {'+'.join(sq['files'])} (squad / spread tactics)")
+        n = len(self._tactics)
+        k = collections.Counter(src for _, src in self._tactics)
+        print(f"pack {self.meta['id']}: tactics of {n} clubs: " + ', '.join(f'{s_} {100 * k[s_] / n:.0f}%' for s_ in TACTIC_SRCS)
+              if n else '', file=sys.stderr)
         self.log(f"{'+'.join(sq['files'])}: {sum(self.count[f] for f in sq['files'])} clubs, explicit records")
         return out
 

@@ -1,8 +1,8 @@
 {
  "format": 1,
  "id": "europe-1984-85-frg",
+ "tactic_src": "record",
  "numbers": "place",
- "tactic_spread_ok": "DaniSwos 1984-85 data: 63 of 67 West German clubs really played a libero system (3-5-2)",
  "kind": "career",
  "button": "WEST GERMANY",
  "button_names": {"it": "GERMANIA OVEST", "en": "WEST GERMANY", "fr": "RFA", "de": "BRD"},

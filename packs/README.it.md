@@ -126,7 +126,11 @@ ripropone il tabellone vero.
   - `explicit`: ogni byte viene dal pacchetto (nessun file di partenza, niente stimato). `clubs.csv` aggiunge
     `tactic` (0–15), `kit1` e `kit2` (5 numeri ciascuno: tipo di maglia, colori di maglia, strisce, pantaloncini,
     calzettoni; colori 0 grigio, 1 bianco, 2 nero, 3 arancio, 4 rosso, 5 blu, 6 amaranto, 7 azzurro, 8 verde,
-    9 giallo, 10 viola dalla 3.3.0) e `lineup` (16 numeri 0–15: quale giocatore occupa ogni posto della formazione). `players.csv` elenca
+    9 giallo, 10 viola dalla 3.3.0) e `lineup` (16 numeri 0–15: quale giocatore occupa ogni posto della formazione). Dalla 4.2 la colonna facoltativa `tactic_src` dice da dove viene la tattica: `coach` (il modulo reale
+    dell'allenatore), `record` (il byte di un database storico), `squad` (la divisione difensori / centrocampisti /
+    attaccanti della rosa) o `spread` (estratta dai moduli degli allenatori del paese); senza la colonna vale `"tactic_src"`
+    di pack.json, altrimenti `squad`. Fra le tattiche `squad` e `spread` di 40 o più club nessuna può superare il 70% (la
+    compilazione si ferma). `players.csv` elenca
     esattamente 16 giocatori per club nell'ordine del record e aggiunge `position` (`G RB LB D RW LW M A`, coerente
     con il ruolo), `number`, `nat` (il numero di nazionalità del gioco), `skin` (`light` chiara, `dark` scura,
     `ginger` rossa, dalla 3.3.0 `darkblond`: pelle scura e capelli biondi), le 7 abilità `pa ve he ta co sp fi` (passaggio, tiro, colpo di testa, contrasto, controllo di

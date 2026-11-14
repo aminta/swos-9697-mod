@@ -38922,7 +38922,7 @@ def s7winners(force, crossed):
 @scenario
 def world_s7cross_winners_same():
     """S7 (4.2, MC 14/11, cf-st-s7.md gate): an S7 career that does NOT cross keeps the VINCITORI last-season page byte-identical to
-    today. UNION BRESCIA (Serie C girone A, file 102) forced 10th: no crossing (S7_LOG: the club stays in file 102). Season 1 played, saved
+    today. INTER (Serie A, file 102; S7W_TEAM overrides: 'EUROPA,ITALIA,SERIE C GIRONE A,UNION BRESCIA' shows NO last-season page in either path) forced 10th: no crossing (S7_LOG: the club stays in file 102). Season 1 played, saved
     at season 2's start, loaded; the last-season page read with the career club's winner word as written (CN_ST.pad[2] = 'W', the S7
     path) and again with the marker poked to 0 (the old CF_ST path = today's page): the two pages' lines must be identical, and the
     page must exist (VINCITORI ..., a winner block). Control: the page's winner blocks name clubs of the Serie C file."""
@@ -38939,7 +38939,7 @@ def world_s7cross_winners_same():
     keep = {k: os.environ.get(k) for k in keys}
     sel = s7['S7_SELTEAM'][1]
     try:
-        os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM='EUROPA,ITALIA,SERIE C GIRONE A,UNION BRESCIA',
+        os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=os.environ.get('S7W_TEAM', 'EUROPA,ITALIA,SERIE A,INTER'),
                           W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1', W8485_RENEW='1', W8485_ONE='1',
                           W8485_HEX=f'o4/{s7["S7_LOG"][1]:x}:8,o4/{s7["S7_CLOG"][1]:x}:6,{sel:x}:8')
         ok, msg = world8485()

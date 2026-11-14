@@ -13,6 +13,9 @@ from le import LE
 
 ALIGN = 0x200
 HARNESS_ROOM = 64
+LE_FLOOR = HARNESS_ROOM + 64        # 4.2 (MC 14/11, Davide's GO): save() keeps >= this much padding before the data pages,
+                                    # moving them down (512-byte aligned) when the fixup records would leave less; was 64
+                                    # (HARNESS_ROOM alone). The harness's own test copies still add pages with 8 B each.
 
 
 class LEPatch:
@@ -198,8 +201,9 @@ class LEPatch:
         assert len(pt) == le.fix_rec_tab - le.fix_page_tab
         end = le.fix_rec_tab + len(table)
         old_data = le.data_pages
-        # keep >= 64 bytes of padding: the harness's test copy adds its page with add_object_page (8 bytes each)
-        new_data = old_data if end + HARNESS_ROOM <= old_data else (end + HARNESS_ROOM + ALIGN - 1) // ALIGN * ALIGN
+        # keep >= LE_FLOOR bytes of padding (HARNESS_ROOM for the harness's test pages + the MC margin)
+        new_data = old_data if end + LE_FLOOR <= old_data else (end + LE_FLOOR + ALIGN - 1) // ALIGN * ALIGN
+        assert new_data - end >= LE_FLOOR and new_data % ALIGN == old_data % ALIGN
         shift = new_data - old_data
         body = out[old_data:]
         out = out[:le.fix_page_tab] + pt + table + bytes(new_data - end) + body

@@ -26,11 +26,14 @@ def exe_for(tag):
 
 
 def records(exe):
-    """{name: 684-byte record} of every team file of the build's DATA (TEAM.1xx: the world's)."""
+    """{name: 684-byte record} of every World 2026-27 team file of the build's DATA (a release: its namespace TMW5.nnn;
+    a test build of the data dir alone: TEAM.1xx)."""
     out = {}
     d = os.path.join(exe, 'DATA')
-    for f in sorted(os.listdir(d)):
-        if re.fullmatch(r'TEAM\.1\d\d', f):
+    fs = sorted(os.listdir(d))
+    pat = r'TMW5\.\d\d\d' if any(re.fullmatch(r'TMW5\.\d\d\d', f) for f in fs) else r'TEAM\.1\d\d'
+    for f in fs:
+        if re.fullmatch(pat, f):
             b = open(os.path.join(d, f), 'rb').read()
             n = struct.unpack('>H', b[:2])[0]
             for i in range(n):
@@ -65,7 +68,7 @@ def run(path, club, tag):
         return False, f'{club} not in the DATA team files of {exe}'
     errs, info = [], []
     _, cnp, ct, cmp_, _ = xtra.sites(lepatch.LEPatch(os.path.join(exe, 'ITALIAN.EXE')))
-    with T.Session('tacgate_' + tag, exe, {}, 'dump:2', 600) as s:
+    with T.Session('tacgate_' + re.sub(r'[^A-Z]', '', club)[:12], exe, {}, 'dump:2', 600) as s:   # (one dir per club: -j)
         s.wait()
         for t in CAREER + list(path) + [club]:
             if T.press(s, s.screen(), t, 3) is None:

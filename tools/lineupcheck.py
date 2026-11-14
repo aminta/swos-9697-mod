@@ -71,6 +71,13 @@ def check_file(data, orig=None, shapes=()):
         got = [pos[j] for j in lu[:11]]
         slot = mkseason.slots_of(r[24])          # (4.2: the record's own tactic's slot roles, 4-4-2's for 0)
         best = [pos[j] for j in mkseason.auto_lineup(pos, r[24])[:11]]
+        if sorted(lu[:11]) == list(range(11)) and sum(1 for j in range(11) if pos[j] == 0) == 1 and \
+                _score(got, slot) < _score(best, slot):
+            # 4.2 real line-up (reallineups: rows 1..11 = the real XI, one keeper): the XI is the data's choice, so only
+            # its slots are checked - against the best of those 11, the flexible roles counted (mkseason.flex_positions)
+            vp = (getattr(mkseason, 'flex_positions', lambda *a: None)(pos[:11], r[24]) or pos[:11]) + pos[11:]
+            got = [vp[j] for j in lu[:11]]
+            best = [vp[j] for j in mkseason.auto_lineup(vp, r[24], pool=range(11))[:11]]
         if _score(got, slot) < _score(best, slot):
             wrong.append((i, name, got)); continue
         if got == slot:

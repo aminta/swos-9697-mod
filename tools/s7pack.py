@@ -44,6 +44,26 @@ def _rows(path):
         return r.fieldnames, list(r)
 
 
+TOWNS = os.path.join(os.path.dirname(os.path.abspath(__file__)), 's7pack_towns.csv')
+
+
+def add_towns(cols, rows):
+    """4.2 Serie D geography (MC / Davide 14/11): the town coordinates of tools/s7pack_towns.csv (key, name, town, lat, lon: the club's
+    town, geocoded and checked against its girone's region) as clubs.csv 'lat' / 'lon' columns of every Serie D (league_b) and pool
+    club; returns the column list. A club of those two files without an entry is REFUSED (never a pack with holes)."""
+    _, towns = _rows(TOWNS)
+    tw = {t['key']: t for t in towns}
+    cols = list(cols) + [c for c in ('lat', 'lon') if c not in cols]
+    miss = []
+    for r in rows:
+        t = tw.get(r['key'])
+        if r.get('file') in ('league_b', 'pool') and t is None:
+            miss.append(r['key'])
+        r['lat'], r['lon'] = (t['lat'], t['lon']) if t else ('', '')
+    assert not miss, ('s7pack: no town coordinates (tools/s7pack_towns.csv) for', miss[:10], len(miss))
+    return cols
+
+
 def build(src, groups, out, base=None, fileno=144, deciders=None):
     """Write the shaped pack to out; returns its summary (clubs per role, the 6 that join, pool rows)."""
     m = json.load(open(os.path.join(src, 'pack.json'), encoding='utf-8'))
@@ -123,6 +143,7 @@ def build(src, groups, out, base=None, fileno=144, deciders=None):
     with open(os.path.join(out, 'pack.json'), 'w', encoding='utf-8') as f:
         json.dump(m2, f, ensure_ascii=False, indent=1)
         f.write('\n')
+    cols = add_towns(cols, new)
     buf = io.StringIO()
     w = csv.DictWriter(buf, fieldnames=cols, lineterminator='\n')
     w.writeheader()

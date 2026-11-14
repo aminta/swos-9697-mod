@@ -2574,8 +2574,10 @@ def _label_data():
             for v in o:
                 walk(v, acc)
     src = world_data()
-    for d in (sorted(os.listdir(src)) if os.path.isdir(src) else []):
-        pj = os.path.join(src, d, 'pack.json')
+    pjs = [os.path.join(src, d, 'pack.json') for d in (sorted(os.listdir(src)) if os.path.isdir(src) else [])]
+    if os.environ.get('S7_PACK'):                       # (s7cross builds: Italy is the shaped pack - its own competitions' names, the Serie D
+        pjs.append(os.path.join(os.environ['S7_PACK'], 'pack.json'))   # promotion ties 'SP. PROM. G. A' the career club meets in a girone)
+    for pj in pjs:
         if not os.path.isfile(pj):
             continue
         m = _j.load(open(pj))

@@ -300,6 +300,9 @@ class Mach:
 
     def _fill(self, uc, access, addr, size, value, _):
         pg = addr & ~0xFFF
+        self.npages = getattr(self, 'npages', 0) + 1
+        if self.npages > 512:                           # (runaway code: stop, the run reports an error)
+            return False
         for q in (pg, (addr + size - 1) & ~0xFFF):
             try:
                 uc.mem_map(q, 0x1000, UC_PROT_ALL)
@@ -372,7 +375,7 @@ def run(m, start, end, allowed, max_steps=20000):
         steps[0] += 1
         if steps[0] > max_steps:
             raise External('steps')
-        if addr == end:
+        if addr in ends:
             uc.emu_stop()
             return
         if not any(lo <= addr < hi for lo, hi in allowed):
@@ -388,6 +391,8 @@ def run(m, start, end, allowed, max_steps=20000):
             uc.reg_write(UC_X86_REG_EFLAGS, 0x202 | ((h >> 64) & FLAGS))
             uc.reg_write(UC_X86_REG_EIP, ret)
 
+    ends = set(end) if isinstance(end, (tuple, list, set)) else {end}
+    end = min(ends)
     hk = uc.hook_add(UC_HOOK_CODE, code)
     err = None
     try:
@@ -396,7 +401,7 @@ def run(m, start, end, allowed, max_steps=20000):
         err = str(e)
     uc.hook_del(hk)
     eip = uc.reg_read(UC_X86_REG_EIP)
-    if err is None and eip != end:
+    if err is None and eip not in ends:
         err = f'stopped at {eip:#x}'
     return log, err
 
@@ -407,7 +412,7 @@ def state(m):
                 eip=uc.reg_read(UC_X86_REG_EIP), flags=uc.reg_read(UC_X86_REG_EFLAGS) & FLAGS)
 
 
-def trial(ri, ni, site, sym, lab, seed, act, dact, structured, dead_flags=False):
+def trial(ri, ni, site, sym, lab, seed, act, dact, structured, dead_flags=False, ends=None):
     name, o, ln, l = site
     r = random.Random(seed)
     ms = (Mach(ri, seed), Mach(ni, seed))
@@ -456,7 +461,7 @@ def trial(ri, ni, site, sym, lab, seed, act, dact, structured, dead_flags=False)
     reg = (start, end)
     out = []
     for m, allowed in ((ms[0], (reg,)), (ms[1], (reg,) + tuple((B4 + lo, B4 + hi) for lo, hi in ROOMS))):
-        log, err = run(m, start, end, allowed)
+        log, err = run(m, start, ends or end, allowed)
         out.append((state(m), log, err))
     (sa, la, ea), (sb, lb, eb) = out
     diffs = []
@@ -503,8 +508,13 @@ ALLW = {'cmp', 'test', 'add', 'sub', 'and', 'or', 'xor', 'neg', 'popf', 'popfd',
 READ_ALL = {'pushf', 'pushfd', 'pushfw', 'lahf', 'into', 'adc', 'sbb', 'rcl', 'rcr', 'salc'}
 
 
+_DIS = {}
+
+
 def disasm_one(img1, addr):
     """(mnemonic, operands, length) of the instruction at linear addr (obj1), by ndisasm."""
+    if (id(img1), addr) in _DIS:
+        return _DIS[(id(img1), addr)]
     import subprocess
     import tempfile
     o = addr - B1
@@ -522,7 +532,8 @@ def disasm_one(img1, addr):
             break
     txt = ln[2] if len(ln) > 2 else ''
     m, _, ops = txt.partition(' ')
-    return m.lower(), ops.strip(), len(hexb) // 2
+    _DIS[(id(img1), addr)] = r = (m.lower(), ops.strip(), len(hexb) // 2)
+    return r
 
 
 def callers(img1, fn):
@@ -540,6 +551,7 @@ def flag_liveness(img1, start, live='CPAZSO', max_n=80, fn=None):
     is read; ('LIVE', where) when one is read; ('UNKNOWN', where) at a ret / indirect branch / the step limit. Follows
     jmp, both arms of a jcc that reads no live flag, and calls (into the callee and back)."""
     todo, seen, path = [(start, frozenset(live), ())], set(), []
+    budget = [600]                                      # (instructions in all: past it, UNKNOWN)
     outer = set()
     res = 'dead'
     while todo:
@@ -550,6 +562,9 @@ def flag_liveness(img1, start, live='CPAZSO', max_n=80, fn=None):
             if (a, lv, stack) in seen:
                 break
             seen.add((a, lv, stack))
+            budget[0] -= 1
+            if budget[0] < 0:
+                return ('UNKNOWN', 'walk budget (600 instructions)'), path
             m, ops, n = disasm_one(img1, a)
             path.append(f'{a:#x} {m} {ops}')
             nxt = a + n

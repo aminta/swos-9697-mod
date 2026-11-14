@@ -54,12 +54,16 @@ OBJ1MV_END = 0x16800                    # regions (237 pages frozen): winners.py
                                         # (the career cave); linked with the SEASON WINNERS page (worlds + gplay + extra pages)
 OBJ1MV_CC = 0x15C00                     # (step 2: the career cave's shirtedit + instcheck from here; winners below it)
 assert OBJ1MV_AT < OBJ1MV_CC < OBJ1MV_END, 'swreg: OBJ1MV_CC inside the band'
-MKTHOOK_AT = 0x16800                    # 4.3 the CPU market's exe hooks (mkthook.c, Mercato CPU): the LAST band (MC 13/11),
-MKTHOOK_END = 0x18000                   # so a 4.2 release carries no empty page for it
-MKTAGE_AT = 0x18000                     # 4.3 reserved (Mercato CPU, MC 13/11 final layout); past MKTAGE_END only with MC's ok
-MKTAGE_END = 0x19000
-assert S7SWAP_END <= OBJ1MV_AT < OBJ1MV_END <= MKTHOOK_AT < MKTHOOK_END <= MKTAGE_AT < MKTAGE_END <= 0x19000, \
-    'swreg: S7SWAP_END <= OBJ1MV_AT < OBJ1MV_END <= MKTHOOK_AT < MKTHOOK_END <= MKTAGE_AT < MKTAGE_END <= 0x19000'
+FPORT_AT = 0x17000                      # 4.2 the fixture port's adapter (P2, Motore; MC 14/11): sr_port.o + port_step + the
+FPORT_END = 0x19000                     # slot-4 window table generated from fport.py, embedded; 2 pages, >= 256 B left at link
+                                        # (0x16800..0x17000: Difficolta's SETPIECE, 42-sp)
+MKTHOOK_AT = 0x19000                    # 4.3 the CPU market's exe hooks (mkthook.c, Mercato CPU): the LAST band (MC 13/11,
+MKTHOOK_END = 0x1A800                   # moved up by FPORT 14/11), so a 4.2 release carries no empty page for it
+MKTAGE_AT = 0x1A800                     # 4.3 reserved (Mercato CPU, MC 13/11 final layout); past MKTAGE_END only with MC's ok
+MKTAGE_END = 0x1B800
+assert S7SWAP_END <= OBJ1MV_AT < OBJ1MV_END <= FPORT_AT < FPORT_END <= MKTHOOK_AT < MKTHOOK_END <= MKTAGE_AT < \
+    MKTAGE_END <= 0x1B800, \
+    'swreg: S7SWAP_END <= OBJ1MV_AT < OBJ1MV_END <= FPORT_AT < FPORT_END <= MKTHOOK_AT < MKTHOOK_END <= MKTAGE_AT < MKTAGE_END'
 S7_ORIG_SZ = 0x2C000                    # 4.2 S7: s7swap.c's ORIG buffers in swe.c's .bss (shaped builds only; MC 13/11):
                                         # the two league files as read (Italy: 102 = 100 records, 144 = 162: 179212 B;
                                         # s7swap.py asserts they fit)

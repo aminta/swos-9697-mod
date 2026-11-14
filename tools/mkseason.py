@@ -172,23 +172,25 @@ def slots_of(tactic):
     return TACTIC_SLOTS.get(tactic & 15, SLOT_POS)
 
 
-def auto_lineup(positions, tactic=0):
+def auto_lineup(positions, tactic=0, pool=None):
     """16-byte lineup (record bytes 60..75) from the 16 players' position bytes (0 G 1 RB 2 LB 3 D 4 RW 5 LW 6 M 7 A,
     file order): the 11 starters take the slot roles of the tactic (slots_of: 4-4-2 = GK RB D D LB RW M M LW A A;
     exact position first, then the same class), the bench is the rest in file order. A squad of the real record order
-    is not touched (it has its own)."""
-    assert len(positions) == 16
+    is not touched (it has its own). pool = the 11 indices that must start (a real XI: only the slots are chosen)."""
+    assert len(positions) == 16 and (pool is None or len(set(pool)) == 11)
+    cand = sorted(pool) if pool is not None else range(16)
     used, start = set(), [None] * 11
     for exact in (True, False):
         for k, want in enumerate(slots_of(tactic)):
             if start[k] is not None:
                 continue
-            for j, ps in enumerate(positions):
+            for j in cand:
+                ps = positions[j]
                 if j not in used and (ps == want if exact else _POS_CLASS[ps] == _POS_CLASS[want]):
                     start[k] = j; used.add(j); break
     for k in range(11):
         if start[k] is None:
-            start[k] = next(j for j in range(16) if j not in used); used.add(start[k])
+            start[k] = next(j for j in cand if j not in used); used.add(start[k])
     return start + [j for j in range(16) if j not in used]
 
 
@@ -213,17 +215,17 @@ def tactic_of_formation(f):
     return _FORMATION.get(f, _FORMATION.get(f.split(' ')[0] if f else ''))
 
 
-def tactic_of_squad(positions):
+def tactic_of_squad(positions, prefer=None):
     """Fallback without a known formation: the tactic (of 4-4-2, 5-4-1, 4-5-1, 5-3-2, 3-5-2, 4-3-3, 3-4-3) whose
     defender / midfielder / attacker split is nearest the squad's outfield split (16 position bytes); ties -> the
-    first (4-4-2)."""
+    first (4-4-2), or prefer (the coach's formation) when it is one of the nearest."""
     n = [sum(1 for p in positions if _POS_CLASS[p] == c) for c in (1, 2, 3)]
     tot = sum(n) or 1
     best = None
     for t in (0, 1, 2, 3, 4, 5, 7):
         want = [sum(1 for p in TACTIC_SLOTS[t] if _POS_CLASS[p] == c) for c in (1, 2, 3)]
         d = sum((10 * x / tot - w) ** 2 for x, w in zip(n, want))
-        if best is None or d < best[0] - 1e-9:
+        if best is None or d < best[0] - 1e-9 or (abs(d - best[0]) <= 1e-9 and t == prefer):
             best = (d, t)
     return best[1]
 

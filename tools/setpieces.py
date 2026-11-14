@@ -51,7 +51,9 @@ def _iv(k, d):
 
 def knobs():
     return dict(JZ=_iv('SP_JZ', -0x800), JST=_iv('SP_JST', 0x400), FZ=_iv('SP_FZ', 0x8000), CEIL=_iv('SP_CEIL', 17),
-                BAND=_iv('SP_BAND', 22), CPU=_iv('SP_CPU', 900))
+                BAND=_iv('SP_BAND', 22), CPU=_iv('SP_CPU', 900), FKT=_iv('SP_FKT', 11 << 16), BLO=_iv('SP_BLO', 13),
+                FKW=[int(x) for x in (os.environ.get('SP_FKW') or '0,0,0,0,1,2,3,4').split(',')],
+                FKC=_iv('SP_FKC', 1), FKMAX=_iv('SP_FKMAX', 0x2000), FKMIN=_iv('SP_FKMIN', -0x1000))
 
 
 def _one(d, pat, name, n=1):
@@ -99,11 +101,33 @@ def find(p):
     ft = [o for o in _one(d, rb'\x66\x83\x3d....\x01\x0f\x85', 'facing top', None) if cpu - 0x40 < o < cpu]
     assert len(ft) == 1 and fb < ft[0] < cpu and t(fb + 3) == t(ft[0] + 3) == d7, ('facing top', ft)
     ft = ft[0]
-    for k in (ball, a2, a4, a5, d7, t(band + 3), t(gka[0] + 2), t(jz + 1), t(fz + 1)):
+    # §3 free kicks: PlayerKickingBall's `mov eax, kBallKickingDeltaZ` (then mov esi, A2 / mov [esi + deltaZ], eax /
+    # call ResetBothTeamSpinTimers / cmp gameStatePl, 100 / jz / cmp gameState, 15); UpdateBall's `mov eax,
+    # kBallAirFriction` (then sub D3, eax / or D3, 1); ApplyBallAfterTouch's head (mov esi, A6 / mov ax, [esi +
+    # passInProgress]); the catch band's low bound (cmp ballDefensiveZ, 12 / jle)
+    kd = [o for o in _one(d, rb'\xa1....\x8b\x35....\x89\x46\x36\xe8....\x66\x83\x3d....\x64\x74.\x66\x83\x3d....\x0f',
+                          'PlayerKickingBall: kBallKickingDeltaZ', None) if t(o + 7) == a2 and val(o) == 0x14000]
+    assert len(kd) == 1, ('kBallKickingDeltaZ', kd)
+    kd = kd[0]
+    d3 = (2, sym['D0_'][1] + 4 * 3)
+    gr = [o for o in _one(d, rb'\xa1....\x29\x05....\x83\x0d....\x01', 'UpdateBall: kBallAirFriction', None)
+          if val(o) == 3291 and t(o + 7) == d3 and t(o + 13) == d3]
+    assert len(gr) == 1, ('kBallAirFriction', gr)
+    gr = gr[0]
+    a6 = sym['A6_']
+    at = [o for o in _one(d, rb'\x8b\x35....\x66\x8b\x86\x80\x00\x00\x00\x66\x0b\xc0\x0f\x85', 'ApplyBallAfterTouch', None)
+          if t(o + 2) == a6]
+    assert len(at) == 1, ('ApplyBallAfterTouch', at)
+    at = at[0]
+    blo = band + 14
+    assert d[blo + 7:blo + 9] == b'\x0c\x7e', 'band low: cmp 12 / jle'
+    for k in (ball, a2, a4, a5, d7, t(band + 3), t(gka[0] + 2), t(jz + 1), t(fz + 1), t(kd + 1), t(kd + 22), t(kd + 32),
+              t(gr + 1), a6):
         assert k and k[0] == 2, k
     s = dict(JZ=jz, FZ=fz, HD=hd, CEIL0=ceil[0], CEIL1=ceil[1], BAND=band, GKA0=gka[0], GKA1=gka[1], CPU=cpu, FB=fb,
-             FT=ft)
-    c = dict(BALL_O=ball[1], A2_O=a2[1], A4_O=a4[1], A5_O=a5[1], D7_O=d7[1], BDZ_O=t(band + 3)[1],
+             FT=ft, KD=kd, GR=gr, AT=at, BLO=blo)
+    c = dict(KDZ_O=t(kd + 1)[1], GSP_O=t(kd + 22)[1], GS_O=t(kd + 32)[1], KAF_O=t(gr + 1)[1], A6T_O=a6[1],
+             A1_O=sym['D0_'][1] + 4 * 9, BALL_O=ball[1], A2_O=a2[1], A4_O=a4[1], A5_O=a5[1], D7_O=d7[1], BDZ_O=t(band + 3)[1],
              GKA_O=t(gka[0] + 2)[1], KJZ_O=t(jz + 1)[1], KFZ_O=t(fz + 1)[1], DZO=dz, ZO=zo, HDO=d[hd + 8])
     return s, c
 
@@ -111,7 +135,8 @@ def find(p):
 # (region length, stub) per site; FB / FT keep their own branches after the call
 HOOKS = (('JZ', 5, 'sp_jz'), ('FZ', 5, 'sp_fz'), ('HD', 9, 'sp_head'), ('CEIL0', 11, 'sp_ceil'),
          ('CEIL1', 11, 'sp_ceil'), ('BAND', 8, 'sp_band'), ('GKA0', 9, 'sp_gka'), ('GKA1', 9, 'sp_gka'),
-         ('CPU', 13, 'sp_cpu'), ('FB', 15, 'sp_fb'), ('FT', 14, 'sp_ft'))
+         ('CPU', 13, 'sp_cpu'), ('FB', 15, 'sp_fb'), ('FT', 14, 'sp_ft'), ('KD', 5, 'sp_kick'), ('GR', 5, 'sp_grav'),
+         ('AT', 13, 'sp_at'), ('BLO', 8, 'sp_blo'))
 
 ASM = r"""
 ; ---- the base: ebp = SPB (PC-relative: no fixup); [ebp] = obj2's base (the band's only fixup). The DIFFICULTY /
@@ -287,6 +312,7 @@ sp_jz:
     mov eax, [eax + KJZ_O]
     jz .x
     mov eax, JZ_NEW
+    mov byte [ebp + FK_ST - SPB], 0     ; (a header: the free kick's dip ends)
 .x: pop ebp
     ret
 sp_fz:
@@ -296,6 +322,7 @@ sp_fz:
     mov eax, [eax + KFZ_O]
     jz .x
     mov eax, FZ_NEW
+    mov byte [ebp + FK_ST - SPB], 0     ; (a header: the free kick's dip ends)
 .x: pop ebp
     ret
 
@@ -429,6 +456,238 @@ sp_wide:                                ; ax = direction; ZF = 1: 2 / 6 and the 
 .yes:cmp ecx, ecx
 .x: pop ecx
     ret
+
+; ---- §3 free kicks (NUOVI; a kick from a wall-zone free kick, states 6..12, 87..202 px from the line)
+FK_ST: db 0                             ; 0 off, 1 kicked (before the wall), 2 dipping
+FK_SH: db 0                             ; the taker's SHOOTING weight (x / 4)
+FK_CU: db 0                             ; the CPU curl: 0 none, 1 toward +x, 2 toward -x
+FK_UP: db 0                             ; 1 = attacking the top goal (line y 129)
+FK_TM: dd 0                             ; the kicking team (TeamGeneralInfo)
+FK_Y0: dw 0                             ; the ball's y at the kick
+FK_N: dw 0                              ; ticks since the kick
+FK_E: dd 0                              ; the extra gravity per tick after the wall (16.16)
+FK_R: dd 12345                          ; (the curl's own LCG: the game's RNGs untouched)
+FK_WT: db FKW0, FKW1, FKW2, FKW3, FKW4, FKW5, FKW6, FKW7
+
+; the kick record (replaces PlayerKickingBall's `mov eax, kBallKickingDeltaZ`; A6 = the team, A1 = the taker)
+sp_kick:
+    push ebp
+    call sp_on                         ; (ebp = SPB, ZF)
+    jz .x
+    pushad
+    mov byte [ebp + FK_ST - SPB], 0
+    mov esi, [ebp]
+    cmp word [esi + GSP_O], 100         ; (a kick in play: not a free kick)
+    je .d
+    movzx eax, word [esi + GS_O]
+    cmp eax, 6
+    jb .d
+    cmp eax, 12
+    ja .d
+    movsx eax, word [esi + BALL_O + 24h]
+    mov [ebp + FK_Y0 - SPB], ax
+    lea ecx, [eax - 129]                ; (to the top line)
+    mov edx, 769
+    sub edx, eax                        ; (to the bottom line)
+    mov bl, 1
+    cmp ecx, edx
+    jle .u
+    mov ecx, edx
+    mov bl, 0
+.u: cmp ecx, 87
+    jl .d
+    cmp ecx, 202
+    jg .d
+    mov [ebp + FK_UP - SPB], bl
+    mov edi, [esi + A6T_O]
+    mov [ebp + FK_TM - SPB], edi
+    mov edx, [esi + A1_O]
+    movzx eax, word [edx + 2]           ; (GetPlayerPointerFromShirtNumber: inGameTeamPtr + (ordinal - 1) x 61)
+    dec eax
+    imul eax, eax, 61
+    add eax, [edi + 0Ah]
+    movzx eax, byte [eax + HDO - 1]     ; SHOOTING (just before HEADING)
+    and eax, 7
+    mov al, [ebp + FK_WT - SPB + eax]
+    mov [ebp + FK_SH - SPB], al
+    mov byte [ebp + FK_CU - SPB], 0
+    cmp word [edi + 4], 0               ; (playerNumber 0: the CPU's team)
+    jne .k
+    mov eax, [ebp + FK_R - SPB]
+    imul eax, eax, 1103515245
+    add eax, 12345
+    add ax, [esi + BALL_O + 1Eh]        ; (the ball's x fraction)
+    mov [ebp + FK_R - SPB], eax
+    shr eax, 16
+    test eax, FK_C                      ; (1 in 2: else today's kick)
+    jnz .k
+    movsx ecx, word [esi + BALL_O + 20h]
+    mov bl, 1                           ; the far post: from the left (x < 324) curl toward +x
+    cmp ecx, 324
+    jl .s
+    mov bl, 2
+    cmp ecx, 344
+    jg .s
+    test eax, 10h                       ; (central: either side)
+    jz .s
+    mov bl, 1
+.s: mov [ebp + FK_CU - SPB], bl
+.k: mov word [ebp + FK_N - SPB], 0
+    mov byte [ebp + FK_ST - SPB], 1
+.d: popad
+.x: mov eax, [ebp]
+    mov eax, [eax + KDZ_O]
+    pop ebp
+    ret
+
+; the CPU's curl (replaces ApplyBallAfterTouch's `mov esi, A6` / `mov ax, [esi + passInProgress]`): the direction
+; held = facing +- 2 (the human's normal kick with spin), the side whose x sign is FK_CU's
+sp_at:
+    push ebp
+    call sp_on                         ; (ebp = SPB, ZF)
+    jz .x
+    cmp byte [ebp + FK_ST - SPB], 0
+    je .x
+    cmp byte [ebp + FK_CU - SPB], 0
+    je .x
+    push eax
+    push ecx
+    push edx
+    mov esi, [ebp]
+    mov esi, [esi + A6T_O]
+    cmp esi, [ebp + FK_TM - SPB]
+    jne .p
+    cmp word [esi + 76h], 0             ; (spinTimer: the after-touch window)
+    jl .p
+    movzx eax, word [esi + 38h]         ; (controlledPlDirection)
+    and eax, 7
+    lea ecx, [eax + 2]
+    and ecx, 7
+    mov dl, 1                           ; x sign of direction ecx: 1..3 -> 1 (+x), 5..7 -> 2 (-x), 0 / 4 -> 0
+    cmp ecx, 4
+    jb .a
+    mov dl, 2
+    ja .a
+    mov dl, 0
+.a: test ecx, ecx
+    jnz .b
+    mov dl, 0
+.b: cmp dl, [ebp + FK_CU - SPB]
+    je .w
+    lea ecx, [eax + 6]
+    and ecx, 7
+.w: mov [esi + 2Ch], cx                 ; (currentAllowedDirection)
+.p: pop edx
+    pop ecx
+    pop eax
+.x: mov esi, [ebp]
+    mov esi, [esi + A6T_O]
+    mov ax, [esi + 80h]
+    pop ebp
+    ret
+
+; the dip (replaces UpdateBall's `mov eax, kBallAirFriction`, the ball in the air): past the wall (55 px) and over
+; its head (z > CEIL_NEW), the extra gravity that brings the ball to FK_T at the line, x the taker's weight / 4
+sp_grav:
+    push ebp
+    call sp_on                         ; (ebp = SPB, ZF)
+    mov eax, [ebp]
+    mov eax, [eax + KAF_O]
+    jz .x
+    cmp byte [ebp + FK_ST - SPB], 0
+    je .x
+    pushad
+    mov esi, [ebp]
+    lea edi, [esi + BALL_O]
+    inc word [ebp + FK_N - SPB]
+    cmp word [ebp + FK_N - SPB], 100
+    ja .off
+    movsx eax, word [edi + 24h]         ; y
+    movsx ecx, word [ebp + FK_Y0 - SPB]
+    mov edx, [edi + 32h]                ; deltaY (16.16)
+    cmp byte [ebp + FK_UP - SPB], 1
+    jne .dn
+    sub ecx, eax                        ; travelled (toward the top line: y falls)
+    sub eax, 129                        ; remaining
+    neg edx                             ; (deltaY toward the goal)
+    jmp .g
+.dn:sub ecx, eax
+    neg ecx
+    neg eax
+    add eax, 769
+.g: cmp byte [ebp + FK_ST - SPB], 2
+    je .dip
+    cmp ecx, 55
+    jl .k                               ; (before the wall)
+    test edx, edx
+    jle .off                            ; (not toward the goal: a touch)
+    cmp word [edi + 28h], CEIL_NEW
+    jle .off                            ; (a drive: the wall's to head, no dip)
+    test eax, eax
+    jle .off
+    shl eax, 16
+    mov ebx, edx
+    lea eax, [eax + ebx - 1]
+    xor edx, edx
+    div ebx                             ; n = the ticks to the line: ceil(remaining / deltaY) + 1 (the ball slows by
+    inc eax                             ;  4 a tick and y is read whole: tools/hosttest fk_check, z 8..13 at the line)
+    test eax, eax
+    jz .off
+    cmp eax, 200
+    ja .off
+    mov ebx, eax
+    mov eax, [edi + 36h]
+    imul eax, ebx                       ; n x deltaZ
+    add eax, [edi + 26h]                ; + z
+    sub eax, FK_T                       ; - the target
+    add eax, eax
+    lea ecx, [ebx + 1]
+    imul ecx, ebx                       ; n (n + 1)
+    cdq
+    idiv ecx                            ; G' = 2 (z + n dz - T) / (n (n + 1))
+    mov ecx, [ebp]
+    sub eax, [ecx + KAF_O]              ; e = G' - g
+    movzx ecx, byte [ebp + FK_SH - SPB]
+    imul eax, ecx
+    sar eax, 2
+    cmp eax, FK_MAX
+    jle .m1
+    mov eax, FK_MAX
+.m1:cmp eax, FK_MIN
+    jge .m2
+    mov eax, FK_MIN
+.m2:mov [ebp + FK_E - SPB], eax
+    mov byte [ebp + FK_ST - SPB], 2
+    jmp .ad
+.dip:test edx, edx
+    jle .off
+    cmp word [edi + 28h], 0
+    jle .off                            ; (on the ground: a bounce)
+.ad:mov eax, [ebp + FK_E - SPB]
+    add [esp + 28], eax                 ; (pushad's eax)
+    jmp .k
+.off:mov byte [ebp + FK_ST - SPB], 0
+.k: popad
+.x: pop ebp
+    ret
+
+; the catch band's low bound for a dipping free kick (replaces `cmp ballDefensiveZ, 12`, then `jle`)
+sp_blo:
+    push ebp
+    push eax
+    push ecx
+    call sp_on                         ; (ebp = SPB, ZF)
+    mov eax, 12
+    jz .c
+    cmp byte [ebp + FK_ST - SPB], 2
+    jne .c
+    mov eax, BLO_NEW
+.c: mov ecx, [ebp]
+    cmp [ecx + BDZ_O], ax
+    pop ecx
+    pop eax
+    pop ebp
+    ret
 """
 
 
@@ -454,7 +713,10 @@ def _sym(p, start, df_lab, df_sym):
             # (DIFF_TRACE builds have no PERSONALIZZATO page - dp_asm page=False -: DP_MENU / dp_fall point at DF_W,
             #  never reached: a traced match never opens OPTIONS; M3 corner meter 14/11)
             'JZ_NEW': (0, k['JZ'] & 0xFFFFFFFF), 'JZ_STEP': (0, k['JST']), 'FZ_NEW': (0, k['FZ']),
-            'CEIL_NEW': (0, k['CEIL']), 'BAND_NEW': (0, k['BAND']), 'CPU_NEW': (0, k['CPU'])}, s
+            'CEIL_NEW': (0, k['CEIL']), 'BAND_NEW': (0, k['BAND']), 'CPU_NEW': (0, k['CPU']),
+            'FK_T': (0, k['FKT']), 'BLO_NEW': (0, k['BLO']), 'FK_C': (0, k['FKC']), 'FK_MAX': (0, k['FKMAX']),
+            'FK_MIN': (0, k['FKMIN'] & 0xFFFFFFFF),
+            **{f'FKW{i}': (0, w) for i, w in enumerate(k['FKW'])}}, s
 
 
 def pass1(p, lang, df_sym):

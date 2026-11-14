@@ -55,7 +55,7 @@ def classify(ev):
     g0 = ev[0]['g']
     k = 0
     for k, e in enumerate(ev):                    # the taker: the first touch with the corner state up
-        if e['t'] == T_TOUCH and e['gs'] in (4, 5):
+        if e['t'] == T_TOUCH and (e['gs'] in (4, 5) or 6 <= e['gs'] <= 14):   # (a corner, or MODE 1's free kick)
             r['team'] = e['team']
             break
     if r['team'] is None:
@@ -68,6 +68,14 @@ def classify(ev):
         return r
     r['kicked'] = True
     seq = ev[kick + 1:]
+    r['fk'] = 6 <= ev[k]['gs'] <= 12
+    r['dist'] = min(abs(ev[k]['y'] - 129), abs(769 - ev[k]['y']))
+    if r['fk']:                                     # (a free kick: the first touch after the kick by a defending
+        fk0 = ev[kick]['f']                         #  outfielder within 40 frames = the wall)
+        first = next((e for e in seq if e['t'] == T_TOUCH), None)
+        if first and first['team'] != att and first['ord'] != 1 and first['f'] - fk0 <= 40:
+            r['outcome'] = 'WALL'
+            return r
     last_keeper_ps = None
     open_header = None                              # (index in r['headers']) awaiting its result
 
@@ -176,7 +184,7 @@ def main(argv):
                 by[v].append(c)
                 if verbose:
                     print(v, row['pairing'], row['seed'], i, c)
-    outs = ['GOAL', 'OVER', 'WIDE', 'CORNER', 'KEEPER CATCH', 'KEEPER CLAIM', 'KEEPER CLAIM6', 'THROW-IN', 'FOUL',
+    outs = ['GOAL', 'WALL', 'OVER', 'WIDE', 'CORNER', 'KEEPER CATCH', 'KEEPER CLAIM', 'KEEPER CLAIM6', 'THROW-IN', 'FOUL',
             'PLAY ON', 'CONCEDED', 'NOT KICKED', 'NO TAKER']
     for v, cs in sorted(by.items()):
         kicked = [c for c in cs if c['kicked']]
@@ -191,6 +199,12 @@ def main(argv):
         print('   outcomes: ' + ', '.join(f'{o} {cnt[o]} ({se_pct(cnt[o], n)})' for o in outs if cnt[o]))
         print(f'   attacking headers: {hn} contacts / {att} attempts; per corner {hn / n if n else 0:.2f}; '
               + ', '.join(f'{k} {v2} ({se_pct(v2, hn)})' for k, v2 in hc.most_common()))
+        fks = [c for c in kicked if c.get('fk')]
+        if fks:
+            for d in sorted({c['dist'] for c in fks}):
+                g = [c for c in fks if c['dist'] == d]
+                cc = collections.Counter(c['outcome'] for c in g)
+                print(f'   free kicks from {d} px: {len(g)}: ' + ', '.join(f'{o} {cc[o]}' for o in outs if cc[o]))
         print(f'   corners with an attacking header: {se_pct(sum(1 for c in kicked if any(h[0] == c["team"] for h in c["headers"])), n)}')
     return 0
 

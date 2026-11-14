@@ -26,14 +26,14 @@ import struct
 
 import nasmcave
 
-SPM_AT = 0x1C000
-SPM_END = 0x20000
+SPM_AT = 0x1D000                         # (MC 14/11: past S7GEO 0x19000..0x1A000 and MKTAGE 0x1B800..0x1C800)
+SPM_END = 0x21000
 LOG_AT = 0x1000                         # (from SPM_AT: 3 pages = 768 entries of 16 B)
 LOGMAX = (SPM_END - SPM_AT - LOG_AT) // 16
 TAG = b'SPMT'
 # the block's fields, from the tag (the harness reads / pokes them)
 OFF = dict(ST=4, FK=5, NC=6, NF=8, NFAIL=10, T0=12, LAST=16, LN=20, LDROP=24, GAP=28, WIN=30, MAXC=32, MODE=34,
-           FKORD=35, FKD=36, FKX=44)
+           FKORD=35, FKD=36, FKX=44, FKSH=50)
 
 
 def on():
@@ -192,6 +192,22 @@ spm_foul:
     jz .t
     xchg eax, edx
 .t: mov [edi + A6_O], edx
+    cmp byte [dword ebp + FKSH - SPB], 0FFh
+    je .ns
+    push edx                            ; (SP_METER_SH: the attacking team's outfielders' SHOOTING = FKSH - whoever
+    push ecx                            ;  takes the kick)
+    mov edx, [eax + 0Ah]                ; (inGameTeamPtr + (ordinal - 1) x 61: ordinals 2..11)
+    add edx, 61 + SHO
+    mov ecx, 10
+.sh:mov bl, [edx]
+    and bl, 0F8h
+    or bl, [dword ebp + FKSH - SPB]
+    mov [edx], bl
+    add edx, 61
+    loop .sh
+    pop ecx
+    pop edx
+.ns:
     mov bx, [eax + 12h]                 ; its TeamGeneralInfo.teamNumber
     push ecx
     lea esi, [edi + SPR0_O]
@@ -386,6 +402,7 @@ MODE: db SM_MODE                        ; +34 0 corners, 1 free kicks (spm_foul)
 FKORD: db 10                            ; +35 MODE 1: the fouled attacker's ordinal (he is put at the foul point)
 FKD: dw 100, 125, 150, 175              ; +36 MODE 1: px from the goal line (the wall zone 87..202)
 FKX: dw 336, 290, 382                   ; +44 MODE 1: x (CENTER, LEFT3 / RIGHT1 side bands)
+FKSH: db SM_SH                          ; +50 MODE 1: the attackers' SHOOTING (0..7), 0FFh = their own
 align 4
 RSAVE: times 15 dd 0
 PGS: dw 0FFFFh
@@ -464,6 +481,12 @@ def find(p):
                 A2_O=sym['D0_'][1] + 4 * 10, A6_O=sym['A6_'][1], TESTFOUL=tf[0])
 
 
+def _sho(p):
+    """SHOOTING's offset in the in-game player record: just before HEADING (PlayerHittingJumpHeader's operand)."""
+    import setpieces
+    return (setpieces.FOUND.get(id(p)) or setpieces.find(p))[1]['HDO'] - 1
+
+
 def patch(p, lang):
     if not on():
         return None
@@ -478,7 +501,8 @@ def patch(p, lang):
     sym = {**{k: (0, v) for k, v in c.items() if k != 'TESTFOUL'}, 'TESTFOUL': (1, c['TESTFOUL']), 'O2BASE': (2, 0),
            'SM_MODE': (0, iv('SP_METER_MODE', 0)), 'DF_FRAMES': (4, df.LABELS['DF_FRAMES']),
            'LOG_AT': (0, LOG_AT), 'LOGMAX': (0, LOGMAX), 'SM_GAP': (0, iv('SP_METER_GAP', 120)),
-           'SM_WIN': (0, iv('SP_METER_WIN', 420)), 'SM_MAXC': (0, iv('SP_METER_MAXC', 200))}
+           'SM_WIN': (0, iv('SP_METER_WIN', 420)), 'SM_MAXC': (0, iv('SP_METER_MAXC', 200)),
+           'SM_SH': (0, iv('SP_METER_SH', 0xFF)), 'SHO': (0, _sho(p))}
     code, fix, rel = nasmcave.assemble_obj(ASM, SPM_AT, sym, 4)
     lab = nasmcave.labels(ASM, SPM_AT, sym)
     assert lab['spm_frame'] == SPM_AT, 'spm_frame first (difficulty calls SPM_AT)'

@@ -55,14 +55,17 @@ OBJ1MV_END = 0x16800                    # regions (237 pages frozen): winners.py
 OBJ1MV_CC = 0x15C00                     # (step 2: the career cave's shirtedit + instcheck from here; winners below it)
 assert OBJ1MV_AT < OBJ1MV_CC < OBJ1MV_END, 'swreg: OBJ1MV_CC inside the band'
 SETPIECE_AT = 0x16800                   # 4.2 set pieces 1+2 (setpieces.py, MC 14/11): the unused half of page 0x16 (no new
-SETPIECE_END = 0x16C00                  # page), linked in every build; >= SETPIECE_MIN B left (build check)
+SETPIECE_END = 0x17000                  # page), linked in every build; >= SETPIECE_MIN B left (build check). MC 14/11:
+                                        # +0x400 in place for set pieces §3-§5 (0x16C00 -> 0x17000), same SPB base
 SETPIECE_MIN = 128
-MKTHOOK_AT = 0x16C00                    # 4.3 the CPU market's exe hooks (mkthook.c, Mercato CPU): the LAST band (MC 13/11;
-MKTHOOK_END = 0x18400                   # +0x400 for SETPIECE, MC 14/11), so a 4.2 release carries no empty page for it
-MKTAGE_AT = 0x18400                     # 4.3 reserved (Mercato CPU, MC 13/11 final layout); past MKTAGE_END only with MC's ok
-MKTAGE_END = 0x19400
+MKTHOOK_AT = 0x18000                    # 4.3 the CPU market's exe hooks (mkthook.c, Mercato CPU): the LAST band (MC 13/11;
+MKTHOOK_END = 0x19800                   # +0x400 for SETPIECE, MC 14/11), so a 4.2 release carries no empty page for it
+MKTAGE_AT = 0x19800                     # 4.3 reserved (Mercato CPU, MC 13/11 final layout); past MKTAGE_END only with MC's ok
+MKTAGE_END = 0x1A800
 assert S7SWAP_END <= OBJ1MV_AT < OBJ1MV_END <= SETPIECE_AT < SETPIECE_END <= MKTHOOK_AT < MKTHOOK_END <= MKTAGE_AT \
-    < MKTAGE_END <= 0x19400, 'swreg: ... OBJ1MV_END <= SETPIECE_AT < SETPIECE_END <= MKTHOOK_AT ... <= 0x19400'
+    < MKTAGE_END <= 0x1A800, 'swreg: ... OBJ1MV_END <= SETPIECE_AT < SETPIECE_END <= MKTHOOK_AT ... <= 0x1A800'
+# (MC 14/11 layout: SETPIECE ..0x17000, FPORT 0x17000..0x18000 (Motore), MKTHOOK 0x18000..0x19800, MKTAGE ..0x1A800;
+#  the Integratore aligns the other bands at merge)
 S7_ORIG_SZ = 0x2C000                    # 4.2 S7: s7swap.c's ORIG buffers in swe.c's .bss (shaped builds only; MC 13/11):
                                         # the two league files as read (Italy: 102 = 100 records, 144 = 162: 179212 B;
                                         # s7swap.py asserts they fit)

@@ -38919,6 +38919,73 @@ def s7winners(force, crossed):
     return not errs, '; '.join(errs) or f'last season {last[:1]} {blk}: {home} from the Serie D file ({len(fb)} / {len(fa)} names)'
 
 
+@scenario
+def world_s7cross_winners_same():
+    """S7 (4.2, MC 14/11, cf-st-s7.md gate): an S7 career that does NOT cross keeps the VINCITORI last-season page byte-identical to
+    today. UNION BRESCIA (Serie C girone A, file 102) forced 10th: no crossing (S7_LOG: the club stays in file 102). Season 1 played, saved
+    at season 2's start, loaded; the last-season page read with the career club's winner word as written (CN_ST.pad[2] = 'W', the S7
+    path) and again with the marker poked to 0 (the old CF_ST path = today's page): the two pages' lines must be identical, and the
+    page must exist (VINCITORI ..., a winner block). Control: the page's winner blocks name clubs of the Serie C file."""
+    import json
+    env = s7_env({'GPLAY_FORCE': '10'})
+    if env is None:
+        return True, 'SKIP: S7_PACK (the shaped Italy pack) or internal world5tm-h2 missing'
+    exe = os.environ.get('S7_BUILD') or build('s7cross_wnsame', env=env)
+    sy = json.load(open(os.path.join(exe, 'ITALIAN.syms.json')))
+    s7 = sy.get('s7swap', {})
+    if 'S7_CLOG' not in s7 or 'CN_ST' not in sy.get('gplay', {}):
+        return False, f'{exe}: no S7 swap builder / CN_ST label'
+    keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_RENEW', 'W8485_ONE', 'W8485_HEX')
+    keep = {k: os.environ.get(k) for k in keys}
+    sel = s7['S7_SELTEAM'][1]
+    try:
+        os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM='EUROPA,ITALIA,SERIE C GIRONE A,UNION BRESCIA',
+                          W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1', W8485_RENEW='1', W8485_ONE='1',
+                          W8485_HEX=f'o4/{s7["S7_LOG"][1]:x}:8,o4/{s7["S7_CLOG"][1]:x}:6,{sel:x}:8')
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    errs, info = [], []
+    check(ok, msg[:300], errs)
+    f1 = os.path.join(RUNS, w84_tag() + '_1', 'session.log')
+    hx = [(ln.split()[1], bytes.fromhex(ln.split()[2])) for ln in (open(f1, errors='replace').read().splitlines()
+                                                                    if os.path.exists(f1) else [])
+          if ln.startswith('HEX ') and len(ln.split()) > 2]
+    cl = [struct.unpack('<HHh', b) for o, b in hx if o == f'o4/{s7["S7_CLOG"][1]:x}']
+    sl = [struct.unpack('<HHHH', b)[0] for o, b in hx if o == f'{sel:x}']
+    if [c for c in cl if c[1]] or not sl or sl[-1] & 0xFF != 102:
+        return False, f'SETUP (not the situation under test): the career club crossed {[(hex(a), hex(b)) for a, b, _ in cl if b]} / selTeamNumber {[hex(x) for x in sl[-2:]]} (want none, file 102) [{msg[:100]}]'
+    car = os.path.join(RUNS, w84_tag() + '_1', 'SWOS', 'W84A.CAR')
+    if not (ok and os.path.exists(car)):
+        return False, f'no W84A.CAR: {msg[:200]}'
+    cn = sy['gplay']['CN_ST']
+    with Session('world_s7cross_winners_same', exe, {'W84A.CAR': car}, 'dump:2', 300) as s:
+        s.wait()
+        s.send(LOAD1 + ' dump:3')
+        pad2 = s.result.read(s.result.base2 + cn[1] + 3, 1)[0] if cn[0] == 2 else None
+        info.append(f'CN_ST.pad[2] after the load: {pad2!r}')
+        check(pad2 == ord('W'), f'CN_ST.pad[2] = {pad2!r} after the load (want 87 = W: the S7 winner word is stored)', errs)
+        more1 = []
+        winners_page(s, more1)
+        s.poke(s.result.base2 + cn[1] + 3, b'\x00')            # (the marker off: cf_last1 takes the old CF_ST path = today's page)
+        for _ in range(8):                                     # back to the career menu, then the page again
+            if 'PROSS. PARTITA' in s.screen().texts():
+                break
+            press(s, s.screen(), 'ESCI', 3) or s.send('fire dump:2')
+        more2 = []
+        winners_page(s, more2)
+    l1 = [[x.strip() for x in m] for m in more1]
+    l2 = [[x.strip() for x in m] for m in more2]
+    check(bool(l1) and l1[0] and l1[0][0].startswith('VINCITORI '), f'S7 page: no last-season page {l1[:1]}', errs)
+    check(l1 == l2, f'the last-season page differs: S7 path {l1[:1]} vs CF path {l2[:1]}', errs)
+    info.append(f'last-season page {l1[:1]}')
+    return not errs, '; '.join(errs + info)[:900]
+
+
 if __name__ == '__main__':
     sys.exit(main(sys.argv[1:]))
 

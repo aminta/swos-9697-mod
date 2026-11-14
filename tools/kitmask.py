@@ -160,8 +160,10 @@ def build(game_dir):
     assert len(goal) == KEEPER_N and len(bench) >= REF_FIRST - BENCH_FIRST + REF_N
     assert all(len(g[0]) == 16 for g in goal + bench[REF_FIRST - BENCH_FIRST:REF_FIRST - BENCH_FIRST + REF_N])
     tw = _twins(team)
-    keeper, how = [], []
+    import gkgloves                                          # (4.2 gloves: the hands, pixel lists, not row masks: 268 pixels in 116 frames)
+    keeper, how, hand = [], [], []
     for g in goal:
+        hand.append(sorted(gkgloves.hands(g)))
         t = tw.get(sil(g))
         px, m = keeper_shirt(g, team[t] if t is not None else None)
         keeper.append((len(g), words(px, len(g))))
@@ -170,7 +172,7 @@ def build(game_dir):
     for spr, roles in referee_roles(bench, team).items():
         nl = len(bench[spr - BENCH_FIRST])
         ref[spr] = {r: (nl, words([p for p, v in roles.items() if v == r], nl)) for r in ROLES}
-    return {'keeper': keeper, 'keeper_how': how, 'ref': ref}
+    return {'keeper': keeper, 'keeper_how': how, 'ref': ref, 'hands': hand}
 
 
 def sheet(game_dir, out, scale=5):

@@ -37202,6 +37202,28 @@ def kits_check(tag, s, kb, sgp, want_w27, errs, notes, hand=(None, None)):
         rest8 = sum(1 for y, row in enumerate(g or []) for x, v in enumerate(row) if v == 8 and (y, x) not in m)
         check(px and set(px) == {kk[0]} and rest8 > 0, f"{tag}: keeper sprite {spr} shirt pixels {sorted(set(px))} "
               f"(want {kk[0]}), shadow 8s {rest8}", errs)
+    # 4.2 gloves (David Foster; World 2026-27 only): every keeper frame's hand pixels (kitmasks.HC / HP = kitmask.build's 'hands') are entry 7
+    # (white in the keeper's table) in a w27 match, untouched skin (5 / 6) in any other; both sets of 116 sprites (947.. / 1063..)
+    nh = nf = 0
+    for base in (947, 1063):
+        for i in range(116):
+            off = sum(h & 7 for h in kitmasks.HC[:i])
+            n, y0 = kitmasks.HC[i] & 7, kitmasks.HC[i] >> 3
+            m = {((kitmasks.HP[off + k] >> 4) + y0, kitmasks.HP[off + k] & 15) for k in range(n)}
+            if not m:
+                continue
+            g = kits_sprite(s, sgp, base + i)
+            if g is None:
+                continue
+            px = {g[y][x] for y, x in m}
+            nh += len(m)
+            ok = px == {7} if want_w27 else px <= {4, 5, 6}
+            if not ok:
+                nf += 1
+                if nf <= 3:
+                    errs.append(f"{tag}: glove pixels of keeper sprite {base + i} (frame {i}) are {sorted(px)} (want {'{7}' if want_w27 else 'skin 4 / 5 / 6'})")
+    check(nh >= 2 * 250, f"{tag}: glove pixels checked {nh} (want >= 500)", errs)
+    notes.append(f"{tag}: glove pixels {nh}, frames off {nf}")
     if getattr(s, 'kits_diag', None):
         notes.append(s.kits_diag)
     return k

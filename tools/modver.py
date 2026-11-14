@@ -26,6 +26,8 @@ BUILD_SWITCHES = TEST_VARS + (                     # 4.0.6: every switch a test 
     'TAILZERO_FILL_TEST', 'TAILZERO_FILL3_TEST', 'SIMDRAW_G0', 'SIMDRAW_G1', 'SIMDRAW_K', 'SIMDRAW_D0', 'SIMDRAW_D1', 'XTRA_HOOK',
     'AFTER_PROCESS_PROBE', 'QUIETEND_OFF', 'SELLA_N', 'SELLA_MARGIN', 'SELLA_OFF', 'EURO_OPTIONAL', 'DRIBBLE_TEST', 'DIFF_TEST', 'DIFF_FORCE', 'DIFF_TRACE', 'DIFF_DRIB', 'DIFF_BU', 'DIFF_CKSH', 'DIFF_SKIP', 'DIFF_PAD', 'DIFF_STOPF', 'DIFF_STKZ', 'DIFF_MARGIN_BETA', 'DIFF_TC', 'DIFF_W1SH', 'DIFF_DELAY')   # (4.1: buildrel
     # clears EURO_OPTIONAL, so the release recipe always keeps patch.py's euro assert)
+TEST_VARS += ('JOYNAME_FAKE',)                     # 4.2 joyname: the harness's stick flags (own lines: 42-drp's
+BUILD_SWITCHES += ('JOYNAME_FAKE',)                # DIFF_* edits above cherry-pick without a conflict)
 
 
 def is_test():

@@ -172,6 +172,35 @@ def slots_of(tactic):
     return TACTIC_SLOTS.get(tactic & 15, SLOT_POS)
 
 
+# 4.2 real line-ups, flexible fit (Davide 14/11): a full-back may take a midfield slot (wing-back), a winger a forward
+# slot (RW / LW count as midfielders, yet play up front in a 4-3-3 / 3-4-2-1)
+FLEX_CLASS = {1: (1, 2), 2: (1, 2), 4: (2, 3), 5: (2, 3)}
+FLEX_AS = {(1, 2): 4, (2, 2): 5, (4, 3): 7, (5, 3): 7}      # (position, new class) -> the position it plays as
+
+
+def flex_positions(positions, tactic):
+    """The XI's position bytes (11, one keeper) with the fewest FLEX_CLASS moves that fill tactic's slot classes
+    (a moved RB plays as RW, LB as LW, RW / LW as A), or None when no such fill exists."""
+    import itertools
+    need = [sum(1 for p in slots_of(tactic) if _POS_CLASS[p] == q) for q in (1, 2, 3)]
+    idx = [k for k, p in enumerate(positions) if p != 0]
+    if len(idx) != 10:
+        return None
+    best = None
+    for c in itertools.product(*[FLEX_CLASS.get(positions[k], (_POS_CLASS[positions[k]],)) for k in idx]):
+        if [c.count(q) for q in (1, 2, 3)] == need:
+            moves = sum(1 for k, q in zip(idx, c) if q != _POS_CLASS[positions[k]])
+            if best is None or moves < best[0]:
+                best = (moves, c)
+    if best is None:
+        return None
+    out = list(positions)
+    for k, q in zip(idx, best[1]):
+        if q != _POS_CLASS[positions[k]]:
+            out[k] = FLEX_AS[(positions[k], q)]
+    return out
+
+
 def auto_lineup(positions, tactic=0, pool=None):
     """16-byte lineup (record bytes 60..75) from the 16 players' position bytes (0 G 1 RB 2 LB 3 D 4 RW 5 LW 6 M 7 A,
     file order): the 11 starters take the slot roles of the tactic (slots_of: 4-4-2 = GK RB D D LB RW M M LW A A;

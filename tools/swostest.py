@@ -33108,6 +33108,7 @@ def diff_ab():
                             st.append(list(struct.unpack('<7H', r.read(sp, 14))))
                         bb = r.read(blk, DIFF_OFF['CK'])
                         res = dict(recipe=recipe, pairing=pr, level=lv, drib=dr, seed=seed.hex(), frames=f, act=act, dact=bb[30],
+                                   top=r.obj2(0x20a8c, 8).split(b'\0')[0].decode('latin1'),   # (IT: stats[0]'s team)
                                    goals=goals, stats=st, pens=struct.unpack_from('<H', bb, DIFF_OFF['PENS'])[0],
                                    noslide=struct.unpack_from('<I', bb, DIFF_OFF['NOSL'])[0], blk=blkck)
                         if tc:                          # [slide, hold] x [N, U, O, CU, CO]; press / tsl [zone][front, side, behind]

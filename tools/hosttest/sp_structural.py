@@ -341,7 +341,7 @@ def fk_check(ni, lab, c, trg):
                 log, err = kick(m, sh, 129 + dist)
                 n += 1
                 w = k['FKW'][sh]
-                if err or log or (b8(m, 'FK_ST'), b8(m, 'FK_SH'), b8(m, 'FK_UP'), b8(m, 'FK_CU')) != (1, w, 1, 0):
+                if err or log or (b8(m, 'FK_ST'), b8(m, 'FK_SH'), b8(m, 'FK_UP'), b8(m, 'FK_CU'), b8(m, 'FK_SI')) != (1, w, 1, 0, sh):
                     bad.append(f'kick sh {sh} d {dist}: {err} st {b8(m, "FK_ST")} sh {b8(m, "FK_SH")}')
                     continue
                 # the flight (UpdateBall per tick: z += dz - g', y moves speed / 512 x 41 / 64 px)
@@ -516,20 +516,24 @@ def steer_check(ni, lab, c):
         m.w32(ds.STACK, R)
         return ds.run(m, B4 + lab[entry], R, allowed)
     for cu in (1, 2):
-        for a in (0, 1, 4, 10):
+        for si, sh in [(0, 0), (0, 1), (3, 4), (7, 10)] + [(i, 3) for i in range(8, 16)]:    # (fk5: FK_SI 8..15 ARCADE)
+            a = sh if si < 8 else k['FKA2'][si - 8]
+            xm = k['FKXC'] if si < 8 else k['FKXC2']
             seen = set()
             for t in range(400):
-                m = mach(f'tx{cu}{a}{t}')
+                m = mach(f'tx{cu}{si}{sh}{t}')
                 m.w8(B4 + lab['FK_CU'], cu)
-                m.w8(B4 + lab['FK_SH'], a)
+                m.w8(B4 + lab['FK_SH'], sh)
+                m.w8(B4 + lab['FK_SI'], si)
+                m.w16(B4 + lab['FK_XM'], 77)
                 m.w32(B4 + lab['FK_R'], (0x9E3779B9 * (t + 1)) & 0xFFFFFFFF)
                 log, err = call(m, 'sp_tx')
                 n += 1
                 tx = rd16(m, B4 + lab['FK_TX'])
                 base = 366 - k['FKXI'] if cu == 1 else 302 + k['FKXI']
                 seen.add(tx - base)
-                if err or log or abs(tx - base) > a:
-                    bad.append(f'sp_tx cu {cu} a {a}: {tx} {err}')
+                if err or log or abs(tx - base) > a or rd16(m, B4 + lab['FK_XM']) != xm:
+                    bad.append(f'sp_tx cu {cu} si {si} a {a}: {tx} xm {rd16(m, B4 + lab["FK_XM"])} {err}')
             if seen != set(range(-a, a + 1)):
                 bad.append(f'sp_tx cu {cu} a {a}: offsets {sorted(seen)}')
     r = random.Random('steer')
@@ -547,6 +551,8 @@ def steer_check(ni, lab, c):
         m.w8(B4 + lab['FK_CU'], cu)
         m.w8(B4 + lab['FK_UP'], up)
         m.w16(B4 + lab['FK_TX'], tx)
+        xm = r.choice((k['FKXC'], k['FKXC2']))
+        m.w16(B4 + lab['FK_XM'], xm)
         m.w16(ball + 0x20, x)
         m.w16(ball + 0x24, y)
         m.w16(ball + 0x3A, destx)
@@ -567,12 +573,13 @@ def steer_check(ni, lab, c):
             continue
         xc0 = x + (destx - x) * ly / dyy
         xc1 = x + (nd - x) * ly / dyy
-        want = max(-k['FKXC'], min(k['FKXC'], tx - xc0))
+        want = max(-xm, min(xm, tx - xc0))
         tol = 1 + abs(ly / dyy)                         # (integer rounding of xc and destX)
         if abs((xc1 - xc0) - want) > tol + 1:
             bad.append(f'steer {t}: xc {xc0:.1f} -> {xc1:.1f}, tx {tx}, want {want:+.1f}')
     return not bad, [f'- {n} cases: {"all as wanted" if not bad else str(len(bad)) + " WRONG: " + "; ".join(bad[:6])}',
-                     f'- FK_XI {k["FKXI"]} px inside the post, FK_XC {k["FKXC"]} px a tick']
+                     f'- FK_XI {k["FKXI"]} px inside the post, FK_XC {k["FKXC"]} px a tick (ARCADE {k["FKXC2"]}, '
+                     f'x aim error {k["FKA2"]} px by SHOOTING)']
 
 
 def _trial_with_prep(ri, ni, site, sym, lab, seed, on, prep, dead, ends):

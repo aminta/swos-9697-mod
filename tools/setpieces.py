@@ -61,7 +61,9 @@ def knobs():
                 FKWALL=_iv('SP_FKWALL', 40), FKCLR=_iv('SP_FKCLR', 15),
                 AFP=_iv('SP_AFP', 21845), AFD0=_iv('SP_AFD0', 88), AFD1=_iv('SP_AFD1', 170),      # ARCADE fouls: 1 in 3,
                 AFX0=_iv('SP_AFX0', 150), AFX1=_iv('SP_AFX1', 520),
-                FKXI=_iv('SP_FKXI', 8), FKXC=_iv('SP_FKXC', 3))                                  # §3 sideways steer                                 #  the FK zone
+                FKXI=_iv('SP_FKXI', 8), FKXC=_iv('SP_FKXC', 3),
+                FKXC2=_iv('SP_FKXC2', 1),                                                     # fk5: ARCADE's steer (px a tick)
+                FKA2=[int(x) for x in (os.environ.get('SP_FKA2') or '24,22,20,17,14,10,7,5').split(',')])  # fk5: ARCADE x aim error by SHOOTING                                  # §3 sideways steer                                 #  the FK zone
 
 
 def _one(d, pat, name, n=1):
@@ -492,6 +494,7 @@ sp_wide:                                ; ax = direction; ZF = 1: 2 / 6 and the 
 ; ---- §3 free kicks (NUOVI; a kick from a wall-zone free kick, states 6..12, 87..202 px from the line)
 FK_ST: db 0                             ; 0 off, 1 kicked (before the wall), 2 dipping
 FK_SH: db 0                             ; the taker's aim error amplitude (px at the line, by SHOOTING: FK_WT)
+FK_SI: db 0                             ; (fk5) FK_WT's index: SHOOTING, + 8 in ARCADE
 FK_CU: db 0                             ; the CPU curl: 0 none, 1 toward +x, 2 toward -x
 FK_UP: db 0                             ; 1 = attacking the top goal (line y 129)
 FK_TM: dd 0                             ; the kicking team (TeamGeneralInfo)
@@ -545,7 +548,8 @@ sp_kick:
     cmp word [ebp + SP_W - SPB], 2
     jb .r
     add eax, 8                          ; (ARCADE's table)
-.r: mov al, [ebp + FK_WT - SPB + eax]
+.r: mov [ebp + FK_SI - SPB], al        ; (fk5: the table index, sp_tx's ARCADE x error)
+    mov al, [ebp + FK_WT - SPB + eax]
     mov [ebp + FK_SH - SPB], al
     mov byte [ebp + FK_CU - SPB], 0
     cmp word [edi + 4], 0               ; (playerNumber 0: the CPU's team)
@@ -756,7 +760,8 @@ ASM_X = r"""
 ;      a CPU curled kick dips (sp_grav, edi = the ball, ebp = SPB, inside its pushad): the line crossing
 ;      x_c = x + (destX - x) (yL - y) / (destY - y) moves toward FK_TX by at most FK_XC px a tick (destX moved to match).
 FK_TX: dw 0                             ; this kick's target x at the line
-    dw 0
+FK_XM: dw FK_XC                         ; (fk5) this kick's steer, px a tick: FK_XC, ARCADE FK_XC2
+FK_XA: db FKA0, FKA1, FKA2, FKA3, FKA4, FKA5, FKA6, FKA7          ; (fk5: ARCADE's x aim error by SHOOTING, px)
 sp_tx:                                  ; (at the dip's start) FK_TX = the open side's inside post (FK_CU 1: 366 - FK_XI,
     push eax                            ;  2: 302 + FK_XI) + uniform -a..+a, a = FK_SH (the same aim error table)
     push ecx
@@ -766,12 +771,19 @@ sp_tx:                                  ; (at the dip's start) FK_TX = the open 
     add eax, 12345
     mov [ebp + FK_R - SPB], eax
     shr eax, 16
-    movzx ecx, byte [ebp + FK_SH - SPB]
-    lea ecx, [ecx * 2 + 1]
+    push ebx
+    movzx ebx, byte [ebp + FK_SH - SPB]
+    mov word [ebp + FK_XM - SPB], FK_XC
+    movzx ecx, byte [ebp + FK_SI - SPB]
+    sub ecx, 8
+    jb .r                               ; (REALISTICI: as fk4)
+    mov word [ebp + FK_XM - SPB], FK_XC2
+    movzx ebx, byte [ebp + FK_XA - SPB + ecx]
+.r: lea ecx, [ebx * 2 + 1]
     xor edx, edx
     div ecx
-    movzx eax, byte [ebp + FK_SH - SPB]
-    sub edx, eax                        ; (-a..+a)
+    sub edx, ebx                        ; (-a..+a)
+    pop ebx
     add edx, 366 - FK_XI
     cmp byte [ebp + FK_CU - SPB], 1
     je .s
@@ -811,13 +823,15 @@ sp_steer:
     idiv ecx                            ; x_c - x
     add eax, ebx
     movsx edx, word [ebp + FK_TX - SPB]
-    sub edx, eax                        ; s = FK_TX - x_c
-    cmp edx, FK_XC
+    sub edx, eax                        ; s = FK_TX - x_c, clamped to +-FK_XM
+    movsx ebx, word [ebp + FK_XM - SPB]
+    cmp edx, ebx
     jle .a
-    mov edx, FK_XC
-.a: cmp edx, -FK_XC
+    mov edx, ebx
+.a: neg ebx
+    cmp edx, ebx
     jge .b
-    mov edx, -FK_XC
+    mov edx, ebx
 .b: mov eax, edx
     imul eax, ecx
     cdq
@@ -902,9 +916,9 @@ def _sym(p, start, df_lab, df_sym):
             'CEIL_NEW': (0, k['CEIL']), 'BAND_NEW': (0, k['BAND']), 'CPU_NEW': (0, k['CPU']),
             'FK_T': (0, k['FKT']), 'BLO_NEW': (0, k['BLO']), 'FK_C': (0, k['FKC']), 'FK_C2': (0, k['FKC2']), 'FK_MAX': (0, k['FKMAX']),
             'AF_P': (0, k['AFP']), 'AF_D0': (0, k['AFD0']), 'AF_D1': (0, k['AFD1']), 'AF_X0': (0, k['AFX0']),
-            'AF_X1': (0, k['AFX1']), 'FK_XI': (0, k['FKXI']), 'FK_XC': (0, k['FKXC']), 'SPXE': (4, __import__('swreg').SPX_AT),
+            'AF_X1': (0, k['AFX1']), 'FK_XI': (0, k['FKXI']), 'FK_XC': (0, k['FKXC']), 'FK_XC2': (0, k['FKXC2']), 'SPXE': (4, __import__('swreg').SPX_AT),
             'FK_MIN': (0, k['FKMIN'] & 0xFFFFFFFF), 'FK_WALL': (0, k['FKWALL']), 'FK_CLR': (0, k['FKCLR']),
-            **{f'FKW{i}': (0, w) for i, w in enumerate(k['FKW'])}, **{f'FKX{i}': (0, w) for i, w in enumerate(k['FKW2'])}}, s
+            **{f'FKW{i}': (0, w) for i, w in enumerate(k['FKW'])}, **{f'FKX{i}': (0, w) for i, w in enumerate(k['FKW2'])}, **{f'FKA{i}': (0, w) for i, w in enumerate(k['FKA2'])}}, s
 
 
 def pass1(p, lang, df_sym):

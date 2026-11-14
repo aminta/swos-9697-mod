@@ -23,7 +23,7 @@ import argparse
 
 G = 3291
 AIR = 4
-WALL = 55
+WALL = 38                                # (the wall stands ~35-40 px from the ball: meter 14/11; dseg_17E991 is not px)
 BAR = 15
 
 

@@ -53,7 +53,8 @@ def knobs():
     return dict(JZ=_iv('SP_JZ', -0x800), JST=_iv('SP_JST', 0x400), FZ=_iv('SP_FZ', 0x8000), CEIL=_iv('SP_CEIL', 17),
                 BAND=_iv('SP_BAND', 22), CPU=_iv('SP_CPU', 900), FKT=_iv('SP_FKT', 11 << 16), BLO=_iv('SP_BLO', 13),
                 FKW=[int(x) for x in (os.environ.get('SP_FKW') or '0,0,0,0,1,2,3,4').split(',')],
-                FKC=_iv('SP_FKC', 1), FKMAX=_iv('SP_FKMAX', 0x2000), FKMIN=_iv('SP_FKMIN', -0x1000))
+                FKC=_iv('SP_FKC', 1), FKMAX=_iv('SP_FKMAX', 0x2000), FKMIN=_iv('SP_FKMIN', -0x1000),
+                FKWALL=_iv('SP_FKWALL', 40), FKCLR=_iv('SP_FKCLR', 15))
 
 
 def _one(d, pat, name, n=1):
@@ -357,6 +358,8 @@ sp_ceil:
     mov esi, [ebp]
     mov esi, [esi + A2_O]
     jz .c
+    cmp byte [ebp + FK_ST - SPB], 1     ; (a free kick on its way to the wall: the wall heads as today, ceiling 15)
+    je .c
     cmp word [esi + ZO], CEIL_NEW
     pop ebp
     ret
@@ -541,7 +544,8 @@ sp_kick:
     ret
 
 ; the CPU's curl (replaces ApplyBallAfterTouch's `mov esi, A6` / `mov ax, [esi + passInProgress]`): the direction
-; held = facing +- 2 (the human's normal kick with spin), the side whose x sign is FK_CU's
+; held = facing + 3 or + 5 (back-diagonal: the human's high kick with spin, over the wall at ~38 px - the wall's real
+; distance, meter 14/11 - then the dip), the side whose x sign is FK_CU's
 sp_at:
     push ebp
     call sp_on                         ; (ebp = SPB, ZF)
@@ -561,7 +565,7 @@ sp_at:
     jl .p
     movzx eax, word [esi + 38h]         ; (controlledPlDirection)
     and eax, 7
-    lea ecx, [eax + 2]
+    lea ecx, [eax + 3]
     and ecx, 7
     mov dl, 1                           ; x sign of direction ecx: 1..3 -> 1 (+x), 5..7 -> 2 (-x), 0 / 4 -> 0
     cmp ecx, 4
@@ -574,7 +578,7 @@ sp_at:
     mov dl, 0
 .b: cmp dl, [ebp + FK_CU - SPB]
     je .w
-    lea ecx, [eax + 6]
+    lea ecx, [eax + 5]
     and ecx, 7
 .w: mov [esi + 2Ch], cx                 ; (currentAllowedDirection)
 .p: pop edx
@@ -586,8 +590,8 @@ sp_at:
     pop ebp
     ret
 
-; the dip (replaces UpdateBall's `mov eax, kBallAirFriction`, the ball in the air): past the wall (55 px) and over
-; its head (z > CEIL_NEW), the extra gravity that brings the ball to FK_T at the line, x the taker's weight / 4
+; the dip (replaces UpdateBall's `mov eax, kBallAirFriction`, the ball in the air): past the wall (FK_WALL px) and over
+; its head (z > FK_CLR), the extra gravity that brings the ball to FK_T at the line, x the taker's weight / 4
 sp_grav:
     push ebp
     call sp_on                         ; (ebp = SPB, ZF)
@@ -617,11 +621,11 @@ sp_grav:
     add eax, 769
 .g: cmp byte [ebp + FK_ST - SPB], 2
     je .dip
-    cmp ecx, 55
+    cmp ecx, FK_WALL
     jl .k                               ; (before the wall)
     test edx, edx
     jle .off                            ; (not toward the goal: a touch)
-    cmp word [edi + 28h], CEIL_NEW
+    cmp word [edi + 28h], FK_CLR
     jle .off                            ; (a drive: the wall's to head, no dip)
     test eax, eax
     jle .off
@@ -715,7 +719,7 @@ def _sym(p, start, df_lab, df_sym):
             'JZ_NEW': (0, k['JZ'] & 0xFFFFFFFF), 'JZ_STEP': (0, k['JST']), 'FZ_NEW': (0, k['FZ']),
             'CEIL_NEW': (0, k['CEIL']), 'BAND_NEW': (0, k['BAND']), 'CPU_NEW': (0, k['CPU']),
             'FK_T': (0, k['FKT']), 'BLO_NEW': (0, k['BLO']), 'FK_C': (0, k['FKC']), 'FK_MAX': (0, k['FKMAX']),
-            'FK_MIN': (0, k['FKMIN'] & 0xFFFFFFFF),
+            'FK_MIN': (0, k['FKMIN'] & 0xFFFFFFFF), 'FK_WALL': (0, k['FKWALL']), 'FK_CLR': (0, k['FKCLR']),
             **{f'FKW{i}': (0, w) for i, w in enumerate(k['FKW'])}}, s
 
 

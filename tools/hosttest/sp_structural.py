@@ -310,7 +310,7 @@ def fk_check(ni, lab, c, trg):
     b8 = lambda m, l: m.read(B4 + lab[l], 1)[0]
     for sh in range(8):
         for dist in (90, 100, 125, 150, 175, 200):
-            for kind in ('normal', 'normal_diag', 'drive'):
+            for kind in ('normal', 'normal_diag', 'high', 'high_diag', 'drive'):
                 m = mach(f'fk{sh}{dist}{kind}')
                 log, err = kick(m, sh, 129 + dist)
                 n += 1
@@ -322,9 +322,9 @@ def fk_check(ni, lab, c, trg):
                 z, dz, sp_, yy, extra_used = 0, 0x14000, 2208, float(129 + dist), 0
                 zl = None
                 for t in range(1, 120):
-                    if t == 4 and kind.startswith('normal'):
-                        dz, sp_ = 0x16000, 2560
-                        sp_ = sp_ - (sp_ >> 2) if kind == 'normal' else sp_ - (sp_ >> 2) + (sp_ >> 3)
+                    if t == 4 and kind != 'drive':
+                        dz, sp_ = (0x16000, 2560) if kind.startswith('normal') else (0x20000, 2688)
+                        sp_ = sp_ - (sp_ >> 2) + (sp_ >> 3 if kind.endswith('diag') else 0)
                     sp_ = max(0, sp_ - 4)
                     step = sp_ / 512 * 41 / 64
                     m.w16(ball + 0x24, int(yy))
@@ -349,15 +349,14 @@ def fk_check(ni, lab, c, trg):
                     if z < 0:
                         zl = -1
                         break
-                ref = fkmodel.z_at(fkmodel.fly(kind), dist)
+                ref = fkmodel.z_at(fkmodel.fly(kind), dist) if kind in ('normal', 'normal_diag', 'drive') else None
                 rows.append((sh, dist, kind, zl, ref, b8(m, 'FK_ST')))
                 if kind == 'drive' and extra_used:
                     bad.append(f'drive dipped: sh {sh} d {dist}')
                 if w == 0 and extra_used:
                     bad.append(f'weight 0 not today: sh {sh} d {dist} {kind}: gravity changed by {extra_used}')
-                zw = fkmodel.z_at(fkmodel.fly(kind), 55)
-                if kind != 'drive' and w == 4 and zw > k['CEIL'] + 1 and not (zl is not None and 8 <= zl <= 13.5):
-                    bad.append(f'weight 4 off target: sh {sh} d {dist} {kind}: z at the line {zl}')
+                if kind.startswith('high') and w == 4 and 100 <= dist <= 150 and not (zl is not None and 0 < zl < 15):
+                    bad.append(f'weight 4 high kick not under the bar: sh {sh} d {dist} {kind}: z at the line {zl}')
     for case, args, want in (('in play', dict(gsp=100), 0), ('corner state', dict(gs=4), 0), ('too far', dict(y=129 + 210), 0),
                              ('too close', dict(y=129 + 80), 0), ('bottom goal', dict(y=769 - 120), 1)):
         m = mach('c' + case)
@@ -381,8 +380,8 @@ def fk_check(ni, lab, c, trg):
             call(m, 'sp_at')
             got = struct.unpack('<H', m.read(tm + 0x2C, 2))[0]
             u = b8(m, 'FK_CU')
-            want = 0xFFFF if not u else next(d for d in ((face + 2) & 7, (face + 6) & 7)
-                                             if (1 if 1 <= d <= 3 else 2 if d >= 5 else 0) == u)
+            c1, c2 = (face + 3) & 7, (face + 5) & 7
+            want = 0xFFFF if not u else c1 if (1 if 1 <= c1 <= 3 else 2 if c1 >= 5 else 0) == u else c2
             n += 1
             if got != want:
                 bad.append(f'sp_at face {face} cu {u}: {got:#x} want {want:#x}')
@@ -407,7 +406,7 @@ def fk_check(ni, lab, c, trg):
     tab = ['', 'z at the line: the bar is 15, a wall header needs z 8..17; -1 = the ball lands before the line.', '',
            '| SHOOTING | dist px | kick | z at the line (stub) | today (fkmodel) |', '|---|---|---|---|---|']
     for sh, dist, kind, zl, ref, _ in rows:
-        if kind in ('normal', 'normal_diag') and sh in (0, 4, 5, 6, 7):
+        if kind in ('normal', 'high', 'high_diag') and sh in (0, 4, 6, 7):
             tab.append(f'| {sh} | {dist} | {kind} | {"-" if zl is None else f"{zl:.1f}"} | '
                        f'{"-" if ref is None else f"{ref:.1f}"} |')
     out = [f'- {n} cases: {"all as wanted" if not bad else "FAIL"}; CPU curl share {share:.2f}'] + \

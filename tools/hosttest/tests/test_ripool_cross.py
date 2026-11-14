@@ -93,6 +93,10 @@ WRAP = (
     '#define DATA\n#undef S7_FB\nuint8_t S7_FB = 144;\nuint8_t RI_FRESH = 0;\n#include "s7geo.c"\n#include "s7ri.c"\n'
     'void t_wire(void) { GP_RIPOOL = s7ri_pool; GP_CDSTR = s7ri_cdstr; }\n'
     'void t_unhint(void) { s7ri_unhint(); }\n'
+    'void t_geo(int on) { GP_GEOCH = on ? s7geochain : 0; }\n'
+    'void t_og_set(int g) { ri_og[ri_no++] = (u16)g; }\n'
+    'void t_og_clear(void) { ri_no = 0; }\n'
+    'void t_mgr(int g) { RI_MGR = g; }\n'
     'void t_unwire(void) { GP_RIPOOL = 0; GP_CDSTR = 0; }\n'
     'u32 t_cd_str(u16 w) { return cd_str(w); }\n'
     'void t_cdd(const u8 *p) { GP_CDD = p; }\n')

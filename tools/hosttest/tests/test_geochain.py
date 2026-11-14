@@ -133,3 +133,76 @@ def test_geochain():
 if __name__ == '__main__':
     test_geochain()
     print('PASS test_geochain')
+
+
+def pg_world(L, hook, demand_order, mgr_g=-1):
+    """pg_season (the real pg_one) on a Serie D-shaped table: 9 gironi of 18 seats, 14 stayers each + 4 freed rows each (the
+    relegated clubs' seats) taken by 36 pool arrivals (ri_over) whose own girone is demand_order[k] (row k of the freed rows).
+    Returns {arrival k: final girone}, {stayer global: (from, to)} for the stayers that moved."""
+    lists = pack_lists()
+    Gi(L, lists)                                         # (S7GEO table + log reset; the entries below are our own)
+    L.t_geo(1 if hook else 0)
+    L.t_og_clear()
+    L.t_mgr(mgr_g)
+    ents, slt, copy = bytearray(), (ctypes.c_int8 * 2400)(), (ctypes.c_int8 * 2400)()
+    arr, stay, k = {}, {}, 0
+    for x in range(G):
+        for j in range(18):
+            g = 400 + x * 18 + j
+            area = 15
+            if j >= 14:                                   # a freed row: a pool arrival takes it
+                area = demand_order[k]
+                L.t_og_set(g)
+                arr[k] = g
+                k += 1
+            else:
+                stay[g] = x
+                area = x
+            ents += bytes((g & 255, g >> 8, 0, area))
+            slt[g] = copy[g] = FL + x
+    hdr = bytes((5, 1, FL, G)) + bytes([SZ] * G) + bytes((1, G * 18 & 255, G * 18 >> 8))
+    t = bytes((1,)) + hdr + bytes(ents)
+    buf = ctypes.create_string_buffer(t, len(t))
+    L.pg_season.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_int]
+    L.pg_season(ctypes.addressof(buf), ctypes.addressof(slt), ctypes.addressof(copy), 5)
+    final = {kk: copy[g] - FL for kk, g in arr.items()}
+    moved = {g: (x, copy[g] - FL) for g, x in stay.items() if copy[g] - FL != x}
+    return final, moved
+
+
+def test_geochain_pg_one():
+    """The chain through the real pg_one: the real pack's demand (A3 B3 C4 D3 E5 F5 G4 H5 I4 own-girone arrivals over 4 freed rows
+    per girone): with GP_GEOCH every arrival ends in its own girone, each girone holds 18, the stayers that moved moved once,
+    the manager's club never; control (no hook = today's pg_room fallback): some arrival lands elsewhere."""
+    lists = pack_lists()
+    if not lists:
+        print('SKIP: no ita pack.json geo.neighbours')
+        return
+    L = rc.s7_lib('geo2')
+    dem = [0] * 3 + [1] * 3 + [2] * 4 + [3] * 3 + [4] * 5 + [5] * 5 + [6] * 4 + [7] * 5 + [8] * 4
+    errs = []
+    mgr = 400 + 4 * 18                                   # (E's first stayer: the lowest-row mover otherwise)
+    final, moved = pg_world(L, True, dem, mgr)
+    out = [k for k in final if final[k] != dem[k]]
+    if out:
+        errs.append(f'hook on: arrivals {out} not in their own girone {[(k, dem[k], final[k]) for k in out]}')
+    cnt = [0] * G
+    for kk, x in final.items():
+        cnt[x] += 1
+    for g, (x, y) in moved.items():
+        cnt[y] += 1
+    stay = [0] * G
+    for x in range(G):
+        stay[x] = 14 - sum(1 for g, (a, b) in moved.items() if a == x)
+    tot = [stay[x] + cnt[x] - sum(1 for g, (a, b) in moved.items() if b == x) + sum(1 for g, (a, b) in moved.items() if b == x) for x in range(G)]
+    if mgr in moved:
+        errs.append(f'the manager club moved {moved[mgr]}')
+    if not moved or any(abs(a - b) != 1 and (a, b) not in {(0, 3), (3, 0), (3, 1), (1, 3), (3, 2), (2, 3), (3, 4), (4, 3), (3, 5), (5, 3), (4, 5), (5, 4), (4, 6), (6, 4), (5, 6), (6, 5), (5, 7), (7, 5), (6, 7), (7, 6), (7, 8), (8, 7), (1, 2), (2, 1), (0, 1), (1, 0)} for a, b in moved.values()):
+        errs.append(f'moves not along the adjacency or none: {moved}')
+    sizes = [sum(1 for k in final if final[k] == x) + 14 - sum(1 for g, (a, b) in moved.items() if a == x) + sum(1 for g, (a, b) in moved.items() if b == x) for x in range(G)]
+    if sizes != [SZ] * G:
+        errs.append(f'girone sizes {sizes} (want 18 each)')
+    f0, m0 = pg_world(L, False, dem, mgr)
+    if all(f0[k] == dem[k] for k in f0):
+        errs.append('control (no hook): every arrival in its own girone - the test does not need the chain')
+    assert not errs, '; '.join(errs)

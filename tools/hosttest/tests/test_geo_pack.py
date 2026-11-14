@@ -47,3 +47,34 @@ def test_geo_table():
         if s7swap.geo_table(real, len(real['files']['league_b']['divisions'])) != tab:
             errs.append('the real pack\'s table differs from tools/s7pack_geo.json')
     assert not errs, '; '.join(errs)
+
+
+class FakePk:
+    def __init__(self, rows):
+        self.clubs = {r['key']: r for r in rows}
+
+
+def test_geo_coords():
+    """s7swap.geo_coords: no lat/lon columns = None (dormant, lowest row); with them every Serie D / pool club needs one inside Italy's
+    box, else the build is refused (missing, outside the box, not a number); other clubs' may be empty."""
+    errs = []
+    ok = [{'key': 'a', 'file': 'league_b', 'lat': '44.27', 'lon': '9.39'}, {'key': 'b', 'file': 'pool', 'lat': '37.50', 'lon': '15.09'},
+          {'key': 'c', 'file': 'league', 'lat': '', 'lon': ''}]
+    if s7swap.geo_coords(FakePk([{'key': 'a', 'file': 'league_b'}])) is not None:
+        errs.append('no columns: not None')
+    if s7swap.geo_coords(FakePk(ok)) != [(4427, 939), (3750, 1509), (0, 0)]:
+        errs.append(f'values {s7swap.geo_coords(FakePk(ok))}')
+    bads = {
+        'missing for a Serie D club': [dict(ok[0], lat='', lon='')] + ok[1:],
+        'missing for a pool club': [ok[0], dict(ok[1], lat='', lon='')],
+        'outside Italy (Paris)': [dict(ok[0], lat='48.85', lon='2.35')] + ok[1:],
+        'swapped lat/lon': [dict(ok[0], lat='9.39', lon='44.27')] + ok[1:],
+        'not a number': [dict(ok[0], lat='x')] + ok[1:],
+    }
+    for what, rows in bads.items():
+        try:
+            s7swap.geo_coords(FakePk(rows))
+            errs.append(f'{what}: not refused')
+        except SystemExit:
+            pass
+    assert not errs, '; '.join(errs)

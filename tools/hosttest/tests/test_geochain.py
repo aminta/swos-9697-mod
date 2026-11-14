@@ -206,3 +206,82 @@ def test_geochain_pg_one():
     if all(f0[k] == dem[k] for k in f0):
         errs.append('control (no hook): every arrival in its own girone - the test does not need the chain')
     assert not errs, '; '.join(errs)
+
+
+# --- town coordinates: the mover is the club nearest to the target girone's centroid ------------------------------------------------
+BASE = 300                                                   # (Gi's clubs: global 300 + i, row i = its registry ident here)
+
+
+def plant_xy(L, have, xy, ident_keep=[]):
+    ctypes.c_uint8.in_dll(L, 'S7GEO_HAVE').value = 1 if have else 0
+    ctypes.c_uint16.in_dll(L, 'S7GEO_FILE').value = 144
+    ctypes.c_int.in_dll(L, 'S7GEO_BASE').value = BASE
+    arr = (ctypes.c_int16 * (2 * 320)).from_address(ctypes.addressof(ctypes.c_int16.in_dll(L, 'S7GEO_XY')))
+    for i in range(320):
+        arr[2 * i], arr[2 * i + 1] = xy.get(i, (0, 0))
+    cb = ctypes.CFUNCTYPE(ctypes.c_uint32, ctypes.c_uint32)(lambda w: w >> 8 if (w & 255) == 144 else 0xFFFF)
+    ident_keep[:] = [cb]                                     # (kept alive)
+    ctypes.c_void_p.in_dll(L, 'S7GEO_IDENT').value = ctypes.cast(cb, ctypes.c_void_p).value
+
+
+def geo_case(L, lists, have=True):
+    """E (4) full, D (3) has the seat: the mover from E goes to D. D's stayers sit around (44.50, 11.00); E's clubs: row 0 far south
+    (41.0, 14.0), row 5 (44.40, 11.10) next to D's centroid, the others between."""
+    g = Gi(L, lists, occ_with([D_]))
+    xy = {}
+    for k in range(SZ):                                      # D: a tight cluster around 44.50 / 11.00
+        xy[D_ * SZ + k] = (4450 + (k % 3) - 1, 1100 + (k % 5) - 2)
+    for k in range(SZ):                                      # E: far, except row 5
+        xy[E_ * SZ + k] = (4100 + 10 * k, 1400)
+    xy[E_ * SZ + 5] = (4440, 1110)
+    plant_xy(L, have, xy)
+    return g, g.call(E_)
+
+
+def test_geochain_nearest():
+    lists = pack_lists()
+    if not lists:
+        print('SKIP: no ita pack.json geo.neighbours')
+        return
+    L = rc.s7_lib('geoxy')
+    errs = []
+    g, r = geo_case(L, lists)
+    want = g.club(E_, 5)
+    if (r, [x[0] for x in g.log()]) != (1, [want]):
+        errs.append(f'nearest: {r} {g.log()} (want the club of E row 5, global {want}, not the lowest row {g.club(E_, 0)})')
+    g, r = geo_case(L, lists, have=False)
+    if [x[0] for x in g.log()] != [g.club(E_, 0)]:
+        errs.append(f'no coordinates (HAVE 0): {g.log()} (want the lowest row)')
+    # a tie: two E clubs at the same distance: the lowest row of the two
+    g = Gi(L, lists, occ_with([D_]))
+    xy = {D_ * SZ + k: (4450, 1100) for k in range(SZ)}
+    for k in range(SZ):
+        xy[E_ * SZ + k] = (4100, 1400)
+    xy[E_ * SZ + 7] = xy[E_ * SZ + 3] = (4300, 1200)
+    plant_xy(L, True, xy)
+    g.call(E_)
+    if [x[0] for x in g.log()] != [g.club(E_, 3)]:
+        errs.append(f'tie: {g.log()} (want E row 3, the lower of the two equal ones)')
+    # a candidate without a coordinate is skipped, never chosen over one that has it
+    g = Gi(L, lists, occ_with([D_]))
+    xy = {D_ * SZ + k: (4450, 1100) for k in range(SZ)}
+    for k in range(1, SZ):
+        xy[E_ * SZ + k] = (4400 - 10 * k, 1100)
+    plant_xy(L, True, xy)                                    # (E row 0 has none)
+    g.call(E_)
+    if [x[0] for x in g.log()] != [g.club(E_, 1)]:
+        errs.append(f'a club without a coordinate: {g.log()} (want E row 1, the nearest of those that have one)')
+    assert not errs, '; '.join(errs)
+
+
+def test_geochain_nearest_mutant():
+    """Control: the same planted case with the comparison inverted (nearest -> farthest) must NOT pick the nearest club."""
+    lists = pack_lists()
+    if not lists:
+        print('SKIP: no ita pack.json geo.neighbours')
+        return
+    src = open(os.path.join(os.path.dirname(__file__), '..', '..', 's7geo.c')).read()
+    assert 'if (best < 0 || d < bd)' in src
+    L = rc.s7_lib('geoxym', s7geo=src.replace('if (best < 0 || d < bd)', 'if (best < 0 || d > bd)'))
+    g, r = geo_case(L, lists)
+    assert [x[0] for x in g.log()] != [g.club(E_, 5)], 'mutant (farthest) still picked the nearest club: the planted case proves nothing'

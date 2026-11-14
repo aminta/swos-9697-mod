@@ -390,7 +390,7 @@ def patch_exe(src, dst, remap, lang='it'):
         swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, (swreg.DIFF_END + 0xFFF) // 0x1000)
     import setpieces
     if setpieces.on():                                 # 4.2 set pieces (MC 14/11): the SETPIECE band, page 0x16 (no new page)
-        swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, (swreg.SETPIECE_END + 0xFFF) // 0x1000)
+        swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, (swreg.SETPIECE_END + 0xFFF) // 0x1000, (swreg.SPX_END + 0xFFF) // 0x1000)
     import spmeter
     if spmeter.on():                                   # 4.2 set pieces M3: the corner meter, test builds only (SP_METER)
         swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, spmeter.SPM_END // 0x1000)
@@ -996,6 +996,8 @@ def patch_exe(src, dst, remap, lang='it'):
     p.set_base_after(3)                          # (obj3's header base above obj2's final end)
     swe.LANG[0] = lang
     s4_end = swe.patch(p)                        # (obj4: the engine, its base above obj3's)
+    if setpieces.on():                           # (the practice gate: PR_WORK's place, known only after swe.patch)
+        setpieces.late(p)
     import ctview
     if ctview.CR_PTRS.get('usok'):               # 4.1 S2a: STAT > RIEPILOGO of a world's UEFA cup, obj4 after swe.c
         import uesum

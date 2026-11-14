@@ -56,7 +56,10 @@ def knobs():
                 FKW2=[int(x) for x in (os.environ.get('SP_FKW2') or '6,5,5,4,4,3,2,1').split(',')],        # ARCADE
                 FKC2=_iv('SP_FKC2', 0),
                 FKC=_iv('SP_FKC', 1), FKMAX=_iv('SP_FKMAX', 0x3000), FKMIN=_iv('SP_FKMIN', -0x1000),
-                FKWALL=_iv('SP_FKWALL', 40), FKCLR=_iv('SP_FKCLR', 15))
+                FKWALL=_iv('SP_FKWALL', 40), FKCLR=_iv('SP_FKCLR', 15),
+                AFP=_iv('SP_AFP', 21845), AFD0=_iv('SP_AFD0', 88), AFD1=_iv('SP_AFD1', 170),      # ARCADE fouls: 1 in 3,
+                AFX0=_iv('SP_AFX0', 150), AFX1=_iv('SP_AFX1', 520),
+                FKXI=_iv('SP_FKXI', 8), FKXC=_iv('SP_FKXC', 3))                                  # §3 sideways steer                                 #  the FK zone
 
 
 def _one(d, pat, name, n=1):
@@ -127,11 +130,22 @@ def find(p):
     for k in (ball, a2, a4, a5, d7, t(band + 3), t(gka[0] + 2), t(jz + 1), t(fz + 1), t(kd + 1), t(kd + 22), t(kd + 32),
               t(gr + 1), a6):
         assert k and k[0] == 2, k
+    # ARCADE fouls (Davide GO 14/11): PlayerTacklingTestFoul's `mov esi, A1 / mov ax, [esi + tackleState] / or ax, ax /
+    # jz foul / mov esi, A1 / cmp [esi + tackleState], TS_GOOD_TACKLE / jz comment`; the hook = the second mov + cmp + jz
+    a1 = (2, sym['D0_'][1] + 4 * 9)
+    af = [m for m in re.finditer(rb'\x8b\x35....\x66\x8b\x46(.)\x66\x0b\xc0\x74(.)\x8b\x35....\x66\x83\x7e(.)\x02\x0f\x84',
+                                 d, re.S) if t(m.start() + 2) == a1 and t(m.start() + 17) == a1 and m.group(1) == m.group(3)]
+    assert len(af) == 1, ('PlayerTacklingTestFoul: the clean-tackle test', [hex(m.start()) for m in af])
+    tks = af[0].group(1)[0]
+    af_foul = af[0].start() + 15 + struct.unpack_from('<b', d, af[0].start() + 14)[0]
+    af = af[0].start() + 15
+    af_cmt = af + 17 + struct.unpack_from('<i', d, af + 13)[0]
+    assert d[af_foul:af_foul + 2] == b'\x8b\x35' and t(af_foul + 2) == a6, 'foul_concedeed: mov esi, A6'
     s = dict(JZ=jz, FZ=fz, HD=hd, CEIL0=ceil[0], CEIL1=ceil[1], BAND=band, GKA0=gka[0], GKA1=gka[1], CPU=cpu, FB=fb,
-             FT=ft, KD=kd, GR=gr, AT=at, BLO=blo)
+             FT=ft, KD=kd, GR=gr, AT=at, BLO=blo, AF=af, AF_FOUL=af_foul, AF_CMT=af_cmt)
     c = dict(KDZ_O=t(kd + 1)[1], GSP_O=t(kd + 22)[1], GS_O=t(kd + 32)[1], KAF_O=t(gr + 1)[1], A6T_O=a6[1],
              A1_O=sym['D0_'][1] + 4 * 9, BALL_O=ball[1], A2_O=a2[1], A4_O=a4[1], A5_O=a5[1], D7_O=d7[1], BDZ_O=t(band + 3)[1],
-             GKA_O=t(gka[0] + 2)[1], KJZ_O=t(jz + 1)[1], KFZ_O=t(fz + 1)[1], DZO=dz, ZO=zo, HDO=d[hd + 8])
+             GKA_O=t(gka[0] + 2)[1], KJZ_O=t(jz + 1)[1], KFZ_O=t(fz + 1)[1], DZO=dz, ZO=zo, HDO=d[hd + 8], TKS=tks)
     return s, c
 
 
@@ -139,7 +153,7 @@ def find(p):
 HOOKS = (('JZ', 5, 'sp_jz'), ('FZ', 5, 'sp_fz'), ('HD', 9, 'sp_head'), ('CEIL0', 11, 'sp_ceil'),
          ('CEIL1', 11, 'sp_ceil'), ('BAND', 8, 'sp_band'), ('GKA0', 9, 'sp_gka'), ('GKA1', 9, 'sp_gka'),
          ('CPU', 13, 'sp_cpu'), ('FB', 15, 'sp_fb'), ('FT', 14, 'sp_ft'), ('KD', 5, 'sp_kick'), ('GR', 5, 'sp_grav'),
-         ('AT', 13, 'sp_at'), ('BLO', 8, 'sp_blo'))
+         ('AT', 13, 'sp_at'), ('BLO', 8, 'sp_blo'), ('AF', 17, 'sp_af'))
 
 ASM = r"""
 ; ---- the base: ebp = SPB (PC-relative: no fixup); [ebp] = obj2's base (the band's only fixup). The DIFFICULTY /
@@ -150,6 +164,7 @@ TAGS: db 'SETP'
 SP_W: dw SP_START                       ; the option: 0 CLASSICI, 1 REALISTICI, 2 ARCADE (a word: the string table)
 SP_OK: db 0                             ; 1 = a kick-off without SWOS++ seen (df_kick: sp_set; SWOS++ never changes)
     db 0
+PR_D: dd 0                              ; (practice: PR_WORK + 1 - SPB, filled by setpieces.late; 0 = no practice)
 TAB_P: dd 0                             ; (the row's string table, its pointers filled by sp_add: no fixups)
     dw 0
     dd 0, 0, 0
@@ -164,13 +179,16 @@ sp_on:
     call sp_base
     push ecx
     mov ecx, [ebp]
-    cmp word [ecx + TRG_O], 0           ; (a training game)
-    jne .z
-    test byte [ebp + SP_OK - SPB], 1
+    cmp word [ecx + TRG_O], 0           ; (a training game: original unless a practice - PR_D = PR_WORK + 1 - SPB, the
+    je .c                               ;  practice's KIND, 0 = none; setpieces.late fills PR_D after swe.patch)
+    mov ecx, [ebp + PR_D - SPB]
+    test ecx, ecx
+    jz .x
+    cmp byte [ebp + ecx], 0
+    je .x
+.c: test byte [ebp + SP_OK - SPB], 1
     jz .x
     cmp word [ebp + SP_W - SPB], 0
-    jmp .x
-.z: cmp ecx, ecx
 .x: pop ecx
     ret
 
@@ -689,13 +707,15 @@ sp_grav:
     jge .m2
     mov eax, FK_MIN
 .m2:mov [ebp + FK_E - SPB], eax
+    call SPXE + 5                       ; (sp_tx: this kick's line target x, SPX)
     mov byte [ebp + FK_ST - SPB], 2
     jmp .ad
 .dip:test edx, edx
     jle .off
     cmp word [edi + 28h], 0
     jle .off                            ; (on the ground: a bounce)
-.ad:mov eax, [ebp + FK_E - SPB]
+.ad:call SPXE                           ; (sp_steer, SPX: the sideways steer)
+    mov eax, [ebp + FK_E - SPB]
     add [esp + 28], eax                 ; (pushad's eax)
     jmp .k
 .off:mov byte [ebp + FK_ST - SPB], 0
@@ -723,6 +743,138 @@ sp_blo:
 """
 
 
+ASM_X = r"""
+; ==== SPX (MC 14/11: setpieces' overflow band 0x1A400..0x1A800, its own unit; PC-relative to SPB through sp_on's ebp:
+;      no fixups)
+    jmp near sp_steer                   ; SPX + 0 (the main band calls these two: assembled before SPX)
+    jmp near sp_tx                      ; SPX + 5
+
+; ---- §3 the sideways steer (14/11, fk3: the curled CPU kick crossed the line 40-60 px wide). The ball flies at its
+;      dest (UpdateBall: CalculateDeltaXAndY toward destX / destY each tick; the after-touch curls by moving dest). While
+;      a CPU curled kick dips (sp_grav, edi = the ball, ebp = SPB, inside its pushad): the line crossing
+;      x_c = x + (destX - x) (yL - y) / (destY - y) moves toward FK_TX by at most FK_XC px a tick (destX moved to match).
+FK_TX: dw 0                             ; this kick's target x at the line
+    dw 0
+sp_tx:                                  ; (at the dip's start) FK_TX = the open side's inside post (FK_CU 1: 366 - FK_XI,
+    push eax                            ;  2: 302 + FK_XI) + uniform -a..+a, a = FK_SH (the same aim error table)
+    push ecx
+    push edx
+    mov eax, [ebp + FK_R - SPB]
+    imul eax, eax, 1103515245
+    add eax, 12345
+    mov [ebp + FK_R - SPB], eax
+    shr eax, 16
+    movzx ecx, byte [ebp + FK_SH - SPB]
+    lea ecx, [ecx * 2 + 1]
+    xor edx, edx
+    div ecx
+    movzx eax, byte [ebp + FK_SH - SPB]
+    sub edx, eax                        ; (-a..+a)
+    add edx, 366 - FK_XI
+    cmp byte [ebp + FK_CU - SPB], 1
+    je .s
+    add edx, 302 + FK_XI - (366 - FK_XI)
+.s: mov [ebp + FK_TX - SPB], dx
+    pop edx
+    pop ecx
+    pop eax
+    ret
+sp_steer:
+    cmp byte [ebp + FK_CU - SPB], 0     ; (CPU curled kicks only: the human aims his own)
+    je .x
+    movsx eax, word [edi + 24h]
+    movsx ecx, word [edi + 3Ch]
+    sub ecx, eax                        ; dy = destY - y
+    mov esi, 129
+    cmp byte [ebp + FK_UP - SPB], 1
+    je .u
+    mov esi, 769
+.u: sub esi, eax                        ; ly = yL - y
+    mov eax, esi
+    xor eax, ecx
+    js .x                               ; (dest behind the ball: leave it)
+    mov eax, esi
+    cdq
+    xor eax, edx
+    sub eax, edx
+    cmp eax, 4
+    jl .x                               ; (at the line)
+    test ecx, ecx
+    jz .x
+    movsx ebx, word [edi + 20h]         ; x
+    movsx eax, word [edi + 3Ah]
+    sub eax, ebx
+    imul eax, esi
+    cdq
+    idiv ecx                            ; x_c - x
+    add eax, ebx
+    movsx edx, word [ebp + FK_TX - SPB]
+    sub edx, eax                        ; s = FK_TX - x_c
+    cmp edx, FK_XC
+    jle .a
+    mov edx, FK_XC
+.a: cmp edx, -FK_XC
+    jge .b
+    mov edx, -FK_XC
+.b: mov eax, edx
+    imul eax, ecx
+    cdq
+    idiv esi                            ; destX += s dy / ly
+    add [edi + 3Ah], ax
+.x: ret
+
+; ARCADE fouls (Davide GO 14/11; replaces `mov esi, A1 / cmp [esi + tackleState], TS_GOOD_TACKLE`, then after the
+; call: jz comment / jc foul_concedeed). A clean tackle on a victim (A2) in the free-kick zone - AF_D0..AF_D1 px from
+; the fouling team's (A6) goal line, x AF_X0..AF_X1: outside the area - is a foul 1 in 3 (AF_P / 65536) in ARCADE.
+; ZF = 1: a clean tackle, no foul (today); CF = 1 (ZF = 0): a foul; neither: not clean (today's direction test).
+; esi = A1 on exit, as the original
+sp_af:
+    pushad
+    call sp_on                          ; (ebp = SPB; ZF = 1 the original game)
+    mov ecx, [ebp]
+    mov esi, [ecx + A1_O]
+    mov [esp + 4], esi
+    setz bl
+    cmp word [esi + TKS], 2             ; (TS_GOOD_TACKLE)
+    jne .no
+    or bl, [ebp + SP_W - SPB]           ; (ARCADE = 2 and not the original game: bl = 2)
+    cmp bl, 2
+    jne .ct
+    mov edx, [ecx + A2_O]
+    mov ax, [edx + 20h]
+    sub ax, AF_X0
+    cmp ax, AF_X1 - AF_X0
+    ja .ct
+    mov ax, [edx + 24h]
+    mov ebx, [ecx + A6T_O]
+    sub ax, 129                         ; (the top team - topTeamData < its opponentsTeam - defends y 129)
+    cmp ebx, [ebx]
+    jb .d
+    neg ax
+    add ax, 769 - 129
+.d: sub ax, AF_D0
+    cmp ax, AF_D1 - AF_D0
+    ja .ct
+    mov eax, [ebp + FK_R - SPB]
+    imul eax, eax, 1103515245
+    add eax, 12345
+    mov [ebp + FK_R - SPB], eax
+    cmp eax, AF_P << 16
+    jae .ct
+    popad
+    test esp, esp
+    stc
+    ret
+.ct:popad
+    cmp eax, eax
+    ret
+.no:popad
+    test esp, esp
+    ret
+
+"""
+
+
 FROM_DF = ('df_tog', 'df_rtog', 'df_pack', 'sp_add', 'sp_set')     # (difficulty.py's page 15 calls / points to these)
 
 
@@ -747,6 +899,8 @@ def _sym(p, start, df_lab, df_sym):
             'JZ_NEW': (0, k['JZ'] & 0xFFFFFFFF), 'JZ_STEP': (0, k['JST']), 'FZ_NEW': (0, k['FZ']),
             'CEIL_NEW': (0, k['CEIL']), 'BAND_NEW': (0, k['BAND']), 'CPU_NEW': (0, k['CPU']),
             'FK_T': (0, k['FKT']), 'BLO_NEW': (0, k['BLO']), 'FK_C': (0, k['FKC']), 'FK_C2': (0, k['FKC2']), 'FK_MAX': (0, k['FKMAX']),
+            'AF_P': (0, k['AFP']), 'AF_D0': (0, k['AFD0']), 'AF_D1': (0, k['AFD1']), 'AF_X0': (0, k['AFX0']),
+            'AF_X1': (0, k['AFX1']), 'FK_XI': (0, k['FKXI']), 'FK_XC': (0, k['FKXC']), 'SPXE': (4, __import__('swreg').SPX_AT),
             'FK_MIN': (0, k['FKMIN'] & 0xFFFFFFFF), 'FK_WALL': (0, k['FKWALL']), 'FK_CLR': (0, k['FKCLR']),
             **{f'FKW{i}': (0, w) for i, w in enumerate(k['FKW'])}, **{f'FKX{i}': (0, w) for i, w in enumerate(k['FKW2'])}}, s
 
@@ -794,6 +948,18 @@ def patch(p, lang):
         p.add_ptr(4, at + o, t_obj, t_off)
     for o, t_obj, t_off in rel:
         p.add_rel(4, at + o, t_obj, t_off)
+    xsym = {**sym, **{n: (4, v) for n, v in lab.items() if '.' not in n and n not in sym}}
+    xcode, xfix, xrel = nasmcave.assemble_obj(ASM_X, swreg.SPX_AT, xsym, 4)
+    assert not xfix and not xrel, ('SPX: no fixups', xfix, xrel)
+    xleft = swreg.SPX_END - swreg.SPX_AT - len(xcode)
+    assert xleft >= swreg.SETPIECE_MIN, ('SPX: band room', xleft)
+    assert p.le.obj(4).npages * 0x1000 >= swreg.SPX_END, 'SPX: obj4 pages (patch.py)'
+    assert not any(p.get(4, swreg.SPX_AT, swreg.SPX_END - swreg.SPX_AT)), 'SPX band not free'
+    p.put(4, swreg.SPX_AT, xcode)
+    xl = nasmcave.labels(ASM_X, swreg.SPX_AT, xsym)
+    assert (xl['sp_steer'], xl['sp_tx']) == (xcode[1] + 5 + swreg.SPX_AT + struct.unpack_from('<i', xcode, 1)[0] - xcode[1],
+                                             swreg.SPX_AT + 10 + struct.unpack_from('<i', xcode, 6)[0]), 'SPX jump table'
+    lab = {**lab, **{n: v for n, v in nasmcave.labels(ASM_X, swreg.SPX_AT, xsym).items() if n not in lab}}
     assert engine.CALL_AT.get('df_load') == (4, df.LABELS['df_load']), 'engine: df_load'
     engine.CALL_AT['df_load'] = (4, lab['sp_load_j'])  # (CALCI PIAZZATI from the item's bit 6 first: same fixup count)
     engine.CALL_AT['df_new'] = (4, lab['sp_new_j'])
@@ -811,6 +977,10 @@ def patch(p, lang):
         r8 = fb_f - (o + 7)
         assert -128 <= r8 < 128
         p.put(1, o + 5, struct.pack('<Bb', 0x74, r8) + b'\xe9' + struct.pack('<i', fb_n - (o + 12)) + b'\x90' * 3)
+    if 'AF' not in skip:                                # call sp_af / jz comment / jc foul_concedeed
+        o = s['AF']
+        p.put(1, o + 5, b'\x0f\x84' + struct.pack('<i', s['AF_CMT'] - (o + 11)) + b'\x0f\x82'
+              + struct.pack('<i', s['AF_FOUL'] - (o + 17)))
     if 'FT' not in skip:                                # call sp_ft / jnz no_fire / 3 nops
         o = s['FT']
         p.put(1, o + 5, b'\x0f\x85' + struct.pack('<i', ft_n - (o + 11)) + b'\x90' * 3)
@@ -818,8 +988,22 @@ def patch(p, lang):
     LABELS.update(lab)
     SITES.clear()
     SITES.update(s)
-    print(f'exe: set pieces (SP_TEST={start}): code obj4+{at:#x} ({len(code)} B, {left} B left), {len(HOOKS)} obj1 sites')
+    print(f'exe: set pieces (SP_TEST={start}): code obj4+{at:#x} ({len(code)} B, {left} B left), SPX obj4+{swreg.SPX_AT:#x} '
+          f'({len(xcode)} B, {xleft} B left), {len(HOOKS)} obj1 sites')
     return at + len(code)
+
+
+def late(p):
+    """After swe.patch: PR_D = the practice's KIND byte (Shaved's PR_WORK + 1, swe.LABELS, obj4) - SPB; 0 = no practice."""
+    import swe
+    if not LABELS:
+        return
+    pr = getattr(swe, 'LABELS', {}).get('PR_WORK')
+    if pr is None:
+        return
+    assert pr[0] == 4, ('PR_WORK: obj4 (Shaved 14/11)', pr)
+    p.put(4, LABELS['PR_D'], struct.pack('<i', pr[1] + 1 - LABELS['SPB']))
+    print(f'exe: set pieces: practice gate PR_WORK obj4+{pr[1]:#x}')
 
 
 LABELS = {}

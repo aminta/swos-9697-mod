@@ -66,6 +66,14 @@ assert S7SWAP_END <= OBJ1MV_AT < OBJ1MV_END <= SETPIECE_AT < SETPIECE_END <= MKT
     < MKTAGE_END <= 0x1A800, 'swreg: ... OBJ1MV_END <= SETPIECE_AT < SETPIECE_END <= MKTHOOK_AT ... <= 0x1A800'
 # (MC 14/11 layout: SETPIECE ..0x17000, FPORT 0x17000..0x18000 (Motore), MKTHOOK 0x18000..0x19800, MKTAGE ..0x1A800;
 #  the Integratore aligns the other bands at merge)
+DIFF2_AT = 0x1A000                      # 4.2 the difficulty family's overflow band (MC 14/11, after S7GEO 0x19000..0x1A000):
+DIFF2_END = 0x1A800                     # W1's cover role (w1_cov) now, set pieces §4-§5 if SETPIECE runs short; linked
+DIFF2_MIN = 128                         # whenever the OPTIONS rows are; >= DIFF2_MIN B left at link (asserted)
+assert globals().get('S7GEO_END', DIFF2_AT) <= DIFF2_AT < DIFF2_END, 'swreg: S7GEO (0x19000..0x1A000) < DIFF2'
+DIFF2_SPLIT = 0x1A400                   # MC 14/11 split: DIFF2_AT..DIFF2_SPLIT = difficulty's code (link limit DIFF2_SPLIT - 128),
+SPX_AT = DIFF2_SPLIT                    # SPX_AT..SPX_END = setpieces' overflow (its own unit, PC-relative from SPB: ARCADE fouls,
+SPX_END = DIFF2_END                     # the §3 sideways steer, §4 takers); each side >= 128 B left on the release shape
+assert DIFF2_AT < DIFF2_SPLIT == SPX_AT < SPX_END == globals().get('CDKN_AT', SPX_END), 'swreg: DIFF2 | SPX split (MC 14/11)'
 S7_ORIG_SZ = 0x2C000                    # 4.2 S7: s7swap.c's ORIG buffers in swe.c's .bss (shaped builds only; MC 13/11):
                                         # the two league files as read (Italy: 102 = 100 records, 144 = 162: 179212 B;
                                         # s7swap.py asserts they fit)

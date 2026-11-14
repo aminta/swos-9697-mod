@@ -145,11 +145,11 @@ df_kick:
     xor eax, eax                        ; DRIBBLING: the same gates (SWOS++, a training game)
     cmp byte [SWOSPP], 0FFh
     jne .d
+%if SP
+    call sp_set                         ; (setpieces: no SWOS++ seen, training games too - sp_on keeps a training game
+%endif                                  ;  original unless it is a practice: PR_WORK's KIND, Shaved 14/11)
     cmp word [TRG], 0
     jne .d
-%if SP
-    call sp_set                         ; (setpieces: no SWOS++ seen - the training gate is the stubs' own)
-%endif
     mov ax, [DF_DR]
     cmp ax, 2                           ; (2 = PERSONALIZZATO: the page's values, dp_build)
     jbe .d

@@ -30,6 +30,7 @@ from lepatch import LEPatch
 
 B1, B2, B3, B4 = ds.B1, ds.B2, ds.B3, ds.B4
 ROOM = (swreg.SETPIECE_AT, swreg.SETPIECE_END)
+SPX = (swreg.SPX_AT, swreg.SPX_END)                    # (setpieces' overflow, MC 14/11 split)
 DF_AREAS = ((swreg.DIFF_AT, swreg.DIFF_END), (swreg.DRIB1V1_AT, swreg.DRIB1V1_END))
 AIMED = DF_AREAS + (ROOM,)        # (the engine's after-load calls: df_load / df_new -> sp_load_j / sp_new_j)
 
@@ -43,6 +44,10 @@ def expected(a, o, n, l, lab, key):
     if key == 'FT':
         nf = o + 14 + struct.unpack_from('<i', a, o + 10)[0]
         return want + b'\x0f\x85' + struct.pack('<i', nf - (o + 11)) + b'\x90' * 3
+    if key == 'AF':                                     # (call sp_af / jz comment / jc foul_concedeed)
+        foul = o - 15 + 15 + struct.unpack_from('<b', a, o - 1)[0]
+        cmt = o + 17 + struct.unpack_from('<i', a, o + 13)[0]
+        return want + b'\x0f\x84' + struct.pack('<i', cmt - (o + 11)) + b'\x0f\x82' + struct.pack('<i', foul - (o + 17))
     return want + b'\x90' * (n - 5)
 
 
@@ -62,18 +67,24 @@ def main():
     k0 = lab['sp_on'] + 5                               # (the training flag: sp_on's own operand, obj2)
     assert ni[4][k0:k0 + 7] == bytes.fromhex('518b4d006683b9'), ni[4][k0:k0 + 12].hex()
     trg = (2, struct.unpack_from('<I', ni[4], k0 + 7)[0])
-    ds.ROOMS = (ROOM,)                                  # (NEW's own code / state: the SETPIECE band)
+    ds.ROOMS = (ROOM, SPX)                                # (NEW's own code / state: the SETPIECE band)
     L = [f'# 42-sp set pieces: CLASSICI = original, structural: {a.out}', '', f'REF `{ref_exe}`  ',
          f'NEW `{new_exe}` (SP_TEST=0: CALCI PIAZZATI = CLASSICI)', '', '## 1. Byte diff', '']
     ok_b, blocks = True, []
+    grow = 0
     for obj in (1, 2, 3, 4):
         x, y = ri[obj], ni[obj]
         if x is None:
             continue
         if len(x) != len(y):
             L.append(f'- obj{obj}: sizes {len(x):#x} / {len(y):#x}')
-            ok_b = False
-            continue
+            tail = [i for i in range(len(x), len(y)) if y[i]] if obj == 4 and len(y) > len(x) else None
+            if tail is None or any(not SPX[0] <= i < SPX[1] for i in tail):
+                ok_b = False
+                continue
+            L.append(f'  - obj4\'s new pages (SPX up to {SPX[1]:#x}): every non-zero byte inside SPX')
+            grow = len(y) - len(x)
+            y = y[:len(x)]
         diff = [i for i in range(len(x)) if x[i] != y[i]] if x != y else []
         cover = set()
         if obj == 1:
@@ -84,13 +95,19 @@ def main():
                 L.append(f'- obj1 {k} {o:#x}+{n}: `{bytes(x[o:o + n]).hex()}` -> `{bytes(y[o:o + n]).hex()}` '
                          f'({"ok" if g else "WRONG"})')
         elif obj == 4:
-            cover = set(range(*ROOM))
+            cover = set(range(*ROOM)) | set(range(*SPX))
         stray = ds.ranges([i for i in diff if i not in cover])
         L.append(f'- obj{obj}: {len(ds.ranges(diff))} changed ranges, {len(stray)} outside the hooks / band')
         if not stray:
             continue
         if obj == 4:                                    # (difficulty.py's code: page 15 relaid by the OPTIONS row's
             dfa = [r for r in stray if any(lo <= r[0] and r[1] <= hi for lo, hi in DF_AREAS)]   #  move, MC 14/11)
+            bss = [r for r in stray if grow and r not in dfa and any(           # (the engine's .bss above obj4's file
+                w + 4 >= r[1] and (struct.unpack_from('<I', y, w)[0] - struct.unpack_from('<I', x, w)[0]) & 0xFFFFFFFF
+                == grow and struct.unpack_from('<I', x, w)[0] - B4 >= len(x) for w in range(r[0] - 3, r[0] + 1))]
+            if bss:                                                              #  pages: moved by the SPX pages)
+                L.append(f'  - {len(bss)} operands into swe.c\'s .bss moved by +{grow:#x} (the SPX pages)')
+            dfa += bss
             bad = [(hex(r[0]), r[1] - r[0]) for r in stray if r not in dfa]
             L.append(f'  - {len(dfa)} inside difficulty\'s own areas (page 15, the 42-drp band): its code relaid')
             L.append(f'  - obj4 unexplained: {bad or "none"}')
@@ -157,6 +174,8 @@ def main():
                 m.w32(tm + 0x0A, pl + 0x200)
                 m.w32(B2 + c['A1_O'], pl + 0x400)
                 m.w16(pl + 0x402, r.randrange(1, 12))
+                m.w16(pl + 0x400 + c['TKS'], r.choice((0, 1, 2, 2)))     # (ARCADE fouls: the tackler's state,
+                m.w32(tm, r.choice((tm + 0x91, tm - 0x91)))             #  the fouling team's side)
                 m.w16(B2 + c['GS_O'], r.choice((3, 6, 9, 12, 13, 100)))
                 m.w16(B2 + c['GSP_O'], r.choice((100, 101, 102)))
                 m.w16(ball + 0x24, r.randrange(120, 780))
@@ -183,6 +202,9 @@ def main():
             ends[k] = (B1 + o + 10 + struct.unpack_from('<b', x, o + 9)[0], B1 + o + 15 + struct.unpack_from('<i', x, o + 11)[0])
         elif k == 'FT':
             ends[k] = (B1 + o + 14, B1 + o + 14 + struct.unpack_from('<i', x, o + 10)[0])
+        elif k == 'AF':
+            ends[k] = (B1 + o + 17, B1 + o + 17 + struct.unpack_from('<i', x, o + 13)[0],
+                       B1 + o + struct.unpack_from('<b', x, o - 1)[0])
         else:
             ends[k] = B1 + o + n
 
@@ -218,7 +240,11 @@ def main():
     L += ['', '## 3. The save item (bits 6-7 of \'DF\'): df_pack, sp_load_j, sp_new_j on the host', ''] + sl
     ok_f, fl_ = fk_check(ni, lab, c, trg)
     L += ['', '## 4. §3 free kicks on the host (NUOVI): sp_kick / sp_grav / sp_at / sp_blo', ''] + fl_
-    v = ok_b and ok_e and ok_c and ok_s and ok_f
+    ok_a, al = af_check(ni, lab, c, trg)
+    L += ['', '## 5. ARCADE fouls on the host: sp_af (a clean tackle in the free-kick zone -> a foul 1 in 3)', ''] + al
+    ok_x, xl_ = steer_check(ni, lab, c)
+    L += ['', '## 6. §3 the sideways steer on the host: sp_tx / sp_steer (SPX)', ''] + xl_
+    v = ok_b and ok_e and ok_c and ok_s and ok_f and ok_a and ok_x
     L += ['', f'- byte diff: {"ok" if ok_b else "FAIL"}; CLASSICI: {"every site equal in every trial" if ok_e else "FAIL"}; '
           f'NUOVI control: {"every knob site differs" if ok_c else "UNEXPECTED"}.', '', f'Verdict: **{"PASS" if v else "FAIL"}**', '']
     d = os.path.expanduser('~/swos-mod/internal/swostest/outcome-gate')
@@ -275,7 +301,7 @@ def fk_check(ni, lab, c, trg):
     import fkmodel
     k = sp.knobs()
     R = B4 + swreg.SETPIECE_END - 16
-    allowed = ((B4 + ROOM[0], B4 + ROOM[1]),)
+    allowed = ((B4 + ROOM[0], B4 + ROOM[1]), (B4 + SPX[0], B4 + SPX[1]))
     tm, pl = ds.SCR + 0x34000, ds.SCR + 0x30000
     ball = B2 + c['BALL_O']
     bad, rows, n = [], [], 0
@@ -416,6 +442,139 @@ def fk_check(ni, lab, c, trg):
     return not bad, out
 
 
+def af_check(ni, lab, c, trg):
+    """sp_af called directly: flags out (ZF clean / CF foul / neither), esi = A1, over tackle states, modes, training,
+    sides and a grid of victim spots; the foul rate in the zone ~1 in 3 (AF_P)."""
+    from unicorn.x86_const import UC_X86_REG_EFLAGS as EFL
+    k = sp.knobs()
+    R = B4 + swreg.SETPIECE_END - 16
+    allowed = ((B4 + ROOM[0], B4 + ROOM[1]), (B4 + SPX[0], B4 + SPX[1]))
+    tm, pl = ds.SCR + 0x34000, ds.SCR + 0x30000
+    bad, n, zone_n, zone_f = [], 0, 0, 0
+    for mode in (0, 1, 2):
+        for trn in (0, 1):
+            for top in (1, 0):
+                for ts in (0, 1, 2):
+                    for x in (k['AFX0'] - 1, k['AFX0'], 336, k['AFX1'], k['AFX1'] + 1):
+                        for dist in (60, k['AFD0'] - 1, k['AFD0'], 120, k['AFD1'], k['AFD1'] + 1, 250):
+                            for rep in range(12 if (mode, trn, ts) == (2, 0, 2) else 1):
+                                m = ds.Mach(ni, f'af{mode}{trn}{top}{ts}{x}{dist}{rep}')
+                                m.w16(B4 + lab['SP_W'], mode)
+                                m.w8(B4 + lab['SP_OK'], 1)
+                                m.w16(B2 + trg[1], trn)
+                                m.w32(B4 + lab['FK_R'], 0x9E3779B9 * (n + 1) & 0xFFFFFFFF)
+                                m.w32(B2 + c['A1_O'], pl)
+                                m.w16(pl + c['TKS'], ts)
+                                m.w32(B2 + c['A2_O'], pl + 0x100)
+                                m.w16(pl + 0x120, x)
+                                m.w16(pl + 0x124, 129 + dist if top else 769 - dist)
+                                m.w32(B2 + c['A6T_O'], tm)
+                                m.w32(tm, tm + 0x91 if top else tm - 0x91)
+                                m.uc.reg_write(UC_X86_REG_ESP, ds.STACK)
+                                m.w32(ds.STACK, R)
+                                log, err = ds.run(m, B4 + lab['sp_af'], R, allowed)
+                                n += 1
+                                f = m.uc.reg_read(EFL)
+                                zf, cf = bool(f & 0x40), bool(f & 1)
+                                inz = mode == 2 and not trn and ts == 2 and k['AFX0'] <= x <= k['AFX1'] \
+                                    and k['AFD0'] <= dist <= k['AFD1']
+                                esi = m.uc.reg_read(UC_X86_REG_ESI)
+                                if err or log or esi != pl or (ts != 2 and (zf or cf)) or (ts == 2 and not inz and (not zf or cf)) \
+                                        or (inz and zf == cf):
+                                    bad.append(f'mode {mode} trn {trn} top {top} ts {ts} x {x} d {dist}: zf {zf} cf {cf} '
+                                               f'esi {esi:#x} {err}')
+                                if inz:
+                                    zone_n += 1
+                                    zone_f += cf
+    rate = zone_f / max(1, zone_n)
+    ok = not bad and abs(rate - k['AFP'] / 65536) < 0.08
+    return ok, [f'- {n} cases: {"all as wanted" if not bad else str(len(bad)) + " WRONG: " + "; ".join(bad[:5])}',
+                f'- in the zone (ARCADE, clean tackle, not training): {zone_f} fouls / {zone_n} = {rate:.2f} '
+                f'(AF_P {k["AFP"] / 65536:.2f})']
+
+
+def steer_check(ni, lab, c):
+    """sp_tx: FK_TX = the open side's inside post -+ FK_XI, +- FK_SH, every value reached; sp_steer: the line crossing
+    moves toward FK_TX by at most FK_XC px a call (exactly onto it when within), nothing for FK_CU 0, a dest behind the
+    ball or the ball at the line; only destX changes."""
+    from unicorn.x86_const import UC_X86_REG_EDI, UC_X86_REG_EBP
+    k = sp.knobs()
+    R = B4 + swreg.SETPIECE_END - 16
+    allowed = ((B4 + ROOM[0], B4 + ROOM[1]), (B4 + swreg.SPX_AT, B4 + swreg.SPX_END))
+    ball = B2 + c['BALL_O']
+    bad, n = [], 0
+    rd16 = lambda m, a: struct.unpack('<h', m.read(a, 2))[0]
+
+    def mach(seed):
+        m = ds.Mach(ni, seed)
+        m.uc.reg_write(UC_X86_REG_EBP, B4 + lab['SPB'])
+        m.uc.reg_write(UC_X86_REG_EDI, ball)
+        return m
+
+    def call(m, entry):
+        m.uc.reg_write(UC_X86_REG_ESP, ds.STACK)
+        m.w32(ds.STACK, R)
+        return ds.run(m, B4 + lab[entry], R, allowed)
+    for cu in (1, 2):
+        for a in (0, 1, 4, 10):
+            seen = set()
+            for t in range(400):
+                m = mach(f'tx{cu}{a}{t}')
+                m.w8(B4 + lab['FK_CU'], cu)
+                m.w8(B4 + lab['FK_SH'], a)
+                m.w32(B4 + lab['FK_R'], (0x9E3779B9 * (t + 1)) & 0xFFFFFFFF)
+                log, err = call(m, 'sp_tx')
+                n += 1
+                tx = rd16(m, B4 + lab['FK_TX'])
+                base = 366 - k['FKXI'] if cu == 1 else 302 + k['FKXI']
+                seen.add(tx - base)
+                if err or log or abs(tx - base) > a:
+                    bad.append(f'sp_tx cu {cu} a {a}: {tx} {err}')
+            if seen != set(range(-a, a + 1)):
+                bad.append(f'sp_tx cu {cu} a {a}: offsets {sorted(seen)}')
+    r = random.Random('steer')
+    for t in range(3000):
+        m = mach(f'st{t}')
+        cu, up = r.choice((0, 1, 2, 1, 2)), r.choice((0, 1))
+        yl = 129 if up else 769
+        dist = r.randrange(-10, 200)
+        y = yl + dist if up else yl - dist
+        x, tx = r.randrange(150, 520), r.randrange(280, 390)
+        dfar = r.randrange(-100, 600)
+        dy = y - yl + dfar if up else yl - y + dfar
+        desty = y - dy if up else y + dy
+        destx = x + r.randrange(-300, 300)
+        m.w8(B4 + lab['FK_CU'], cu)
+        m.w8(B4 + lab['FK_UP'], up)
+        m.w16(B4 + lab['FK_TX'], tx)
+        m.w16(ball + 0x20, x)
+        m.w16(ball + 0x24, y)
+        m.w16(ball + 0x3A, destx)
+        m.w16(ball + 0x3C, desty)
+        m.writes.clear()
+        log, err = call(m, 'sp_steer')
+        n += 1
+        nd = rd16(m, ball + 0x3A)
+        ly, dyy = yl - y, desty - y
+        wr = {a_ for a_ in m.writes if not (ds.STACK - 0x1000 <= a_ < ds.STACK + 4)}
+        if err or log or not wr <= {ball + 0x3A, ball + 0x3B} or rd16(m, ball + 0x3C) != desty:
+            bad.append(f'steer {t}: {err} writes {sorted(hex(a_) for a_ in wr)}')
+            continue
+        live = cu and ly * dyy > 0 and abs(ly) >= 4
+        if not live:
+            if nd != destx:
+                bad.append(f'steer {t}: moved dest though off (cu {cu} ly {ly} dy {dyy})')
+            continue
+        xc0 = x + (destx - x) * ly / dyy
+        xc1 = x + (nd - x) * ly / dyy
+        want = max(-k['FKXC'], min(k['FKXC'], tx - xc0))
+        tol = 1 + abs(ly / dyy)                         # (integer rounding of xc and destX)
+        if abs((xc1 - xc0) - want) > tol + 1:
+            bad.append(f'steer {t}: xc {xc0:.1f} -> {xc1:.1f}, tx {tx}, want {want:+.1f}')
+    return not bad, [f'- {n} cases: {"all as wanted" if not bad else str(len(bad)) + " WRONG: " + "; ".join(bad[:6])}',
+                     f'- FK_XI {k["FKXI"]} px inside the post, FK_XC {k["FKXC"]} px a tick']
+
+
 def _trial_with_prep(ri, ni, site, sym, lab, seed, on, prep, dead, ends):
     import random as _r
     name, o, ln, l = site
@@ -437,7 +596,7 @@ def _trial_with_prep(ri, ni, site, sym, lab, seed, on, prep, dead, ends):
     start, end = B1 + o, B1 + o + ln
     reg = (start, end)
     out = []
-    for m, allowed in ((ms[0], (reg,)), (ms[1], (reg, (B4 + ROOM[0], B4 + ROOM[1])))):
+    for m, allowed in ((ms[0], (reg,)), (ms[1], (reg, (B4 + ROOM[0], B4 + ROOM[1]), (B4 + SPX[0], B4 + SPX[1])))):
         log, err = ds.run(m, start, ends, allowed)
         out.append((ds.state(m), log, err))
     (sa, la, ea), (sb, lb, eb) = out
@@ -451,7 +610,7 @@ def _trial_with_prep(ri, ni, site, sym, lab, seed, on, prep, dead, ends):
         diffs.append('calls out differ')
     esp = min(sa['esp'], sb['esp'])
     for adr in ms[0].writes | ms[1].writes:
-        if ds.STACK - 0x1000 <= adr < esp or B4 + ROOM[0] <= adr < B4 + ROOM[1]:
+        if ds.STACK - 0x1000 <= adr < esp or B4 + ROOM[0] <= adr < B4 + ROOM[1] or B4 + SPX[0] <= adr < B4 + SPX[1]:
             continue
         if ms[0].read(adr, 1) != ms[1].read(adr, 1):
             diffs.append(f'mem {adr:#x}')

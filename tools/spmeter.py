@@ -60,6 +60,19 @@ spm_frame:                              ; difficulty's df_frame calls this once 
     je .forcing
     cmp al, 2
     je .window
+    cmp byte [dword ebp + MODE - SPB], 2
+    jne .idl
+    mov ax, [edi + GS_O]                ; MODE 2 (census, ARCADE fouls 14/11): no forcing - every free kick / foul /
+    cmp ax, 6                           ;  penalty state the game sets opens a window (entry 1: its gameState; entry
+    jb .done                            ;  11: the ball's spot at the kick)
+    cmp ax, 14
+    ja .done
+    inc word [dword ebp + NF - SPB]
+    mov al, 1
+    xor esi, esi
+    call spm_log
+    jmp .got
+.idl:
     cmp word [edi + GSP_O], 100         ; idle: play live, the gap over, corners left
     jne .done
     cmp word [edi + GS_O], 100

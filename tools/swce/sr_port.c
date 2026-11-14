@@ -43,8 +43,7 @@ static int reserved(const sr_port_host *h, uint16_t s4first, const sr_port_fixtu
         int32_t n = 1;
         w[0][0] = s4first; w[0][1] = SR_PORT_NONE;
         if (h && h->slot4_windows) n = h->slot4_windows(h->ctx, s ? x->away : x->home, w, SR_PORT_WINDOWS);
-        if (n < 0 || n > SR_PORT_WINDOWS) return 1;     /* (a host past the cap: refused, never a window dropped - MC
-                                                           P2 review: a merged or cut window is a fidelity loss) */
+        if (n > SR_PORT_WINDOWS || n < 0) return 1;    /* (windows it could not hand over: refused, never unread) */
         for (int32_t k = 0; k < n; k++)
             if (!(x->unit2 < w[k][0] || inst(h, x->unit1) >= (int32_t)w[k][1])) return 1;
     }

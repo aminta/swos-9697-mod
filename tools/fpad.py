@@ -202,7 +202,7 @@ def patch(p, ssyms, gsyms):
     ets, et0 = fp_et_sites(p)
     d1w = gsyms['D1R']
     ext.update(FP_D1W=d1w, FP_D2W=(d1w[0], d1w[1] + 4), FP_D3W=(d1w[0], d1w[1] + 8), FP_D4W=(d1w[0], d1w[1] + 12),
-               FP_ETX=p.call_target(1, ets[0]))
+               FP_ETX=p.call_target(1, ets[0]), FP_STKLOWP=(2, 0xC3178), FP_CDIV=(2, __import__('gplay')._cardiv(p)))   # (FPORT_TEST: the game's _STACKLOW pointer)
     for o in ets:                                       # (MC guard 1: each site, through its chain, ends at cseg_2B81B)
         assert p.call_target(1, o) == ext['FP_ETX'] and et_chain_end(p, p.call_target(1, o), (1, et0)) == (1, et0), \
             ('fpad: an extra-time call does not reach cseg_2B81B', hex(o), p.call_target(1, o), hex(et0))

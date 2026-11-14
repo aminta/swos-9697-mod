@@ -16,6 +16,14 @@ TEAM = os.environ.get('FPGATE_TEAM') or 'EUROPA,ITALIA,SERIE A,INTER'
 # (file 103) at 95 / 97 and one tie away at 99 (flag 4) - odd units: Serie A plays every even unit 94-128 (rule 1);
 # one after the league's end window (B 128: refused)
 SCHED_A = os.environ.get('FPGATE_SCHED') or '60/60/1/1/0/0/103;95/97/2/1/0/0/103;99/99/1/1/4/1/103;134/134/1/1/0/2/103'
+# Serie D girone A (CELLE VARAZZE, ita division 5: 9 distinct windows - placement / play-out / poule [60, 61] [62, 63]
+# [71, 73], Coppa D [77, 78] .. [106, 112], season end [128, end]): 115 between them (no league match: accepted), 107
+# in the 8th window and 130 in the last (refused at add: every window read, SR_PORT_WINDOWS 24 - MC 14/11)
+TEAM_SD = 'EUROPA,ITALIA,SERIE D,SERIE D GIRONE A,CELLE VARAZZE'
+SCHED_SD = '115/115/1/1/0/0/103;107/107/1/1/0/0/103;130/130/1/1/0/0/103'
+# fp_step's deepest static chain on the game stack (cobj -fstack-usage, engine 1522654): fp_step 60 > sr_port_poll 32 >
+# check 44 > reserved 120 > h_prev 24, + return addresses: 300 B; MC's rule: free at entry >= chain + 512
+STK_CHAIN = 300
 FL = {1: 'ADD', 2: 'INST', 3: 'RES', 4: 'REFUSED', 5: 'MISSED', 6: 'REVAL', 7: 'SIM', 8: 'ORPHAN', 9: 'NEW', 10: 'LOAD',
       11: 'SEASON', 12: 'LEG', 13: 'LEGX'}
 MAGIC, ST_SIZE = 0x50504631, 420
@@ -132,12 +140,28 @@ def seasons2(team, extra):
     return ok, msg, lines
 
 
+def stk_free(exe, lines):
+    """FP_STKFREE's last value in the session's HEX lines (the least free stack at fp_step's entry), or None"""
+    at = sym(exe, 'fpad', 'FP_STKFREE', 4)
+    v = [struct.unpack('<I', bytes.fromhex(ln.split()[2]))[0] for ln in lines if ln.startswith(f'HEX o4/{at:x} ')]
+    v = [x for x in v if x != 0xFFFFFFFF]
+    return min(v) if v else None
+
+
+def check_stk(exe, lines, errs):
+    f = stk_free(exe, lines)
+    T.check(f is not None and f >= STK_CHAIN + 512, f'free stack at fp_step {f} B < chain {STK_CHAIN} + 512', errs)
+    return f
+
+
 def run_a(tag='fpgate_a', sched=SCHED_A, extra=None):
     exe, skip = gate_exe(tag, sched)
     if skip:
         return True, skip
     off, sp = fp_st_at(exe), sym(exe, 'gplay', 'SEASONPLAYING', 2)
-    ok, msg, lines = T.sc_season(TEAM, dict(W8485_BUILD=exe, W8485_HEX=f'{sp:x}:1,o4/{off:x}:{ST_SIZE}', **(extra or {})))
+    stk = sym(exe, 'fpad', 'FP_STKFREE', 4)
+    ok, msg, lines = T.sc_season(TEAM, dict(W8485_BUILD=exe, W8485_HEX=f'{sp:x}:1,o4/{off:x}:{ST_SIZE},o4/{stk:x}:4',
+                                            **(extra or {})))
     log = season_log(lines, off)
     inits, seen = season_inits(lines, off, sp)
     open(os.path.join(T.RUNS, f'{tag}.txt'), 'w').write('\n'.join(map(str, log)) + '\n')
@@ -155,8 +179,38 @@ def run_a(tag='fpgate_a', sched=SCHED_A, extra=None):
     bad = [e for e in log if e[0] in ('REFUSED', 'ORPHAN')]
     T.check(not bad, f'refused / orphan {bad}', errs)
     check_inits(inits, seen, errs, 1)
+    fs = check_stk(exe, lines, errs)
     return not errs, '; '.join(errs) or f'{len(log)} log entries: adds {[e[2] for e in adds]}, installs {len(inst)}, ' \
-        f'legs {[(e[1], e[4] & 255, e[4] >> 8) for e in legs]}, results {[(e[1], e[4] & 15) for e in res]}; {msg[:60]}'
+        f'legs {[(e[1], e[4] & 255, e[4] >> 8) for e in legs]}, results {[(e[1], e[4] & 15) for e in res]}; ' \
+        f'free stack at fp_step {fs} B (chain {STK_CHAIN} + 512); {msg[:60]}'
+
+
+def run_sd(tag='fpgate_sd'):
+    """CELLE VARAZZE (Serie D girone A, 9 slot-4 windows): SCHED_SD - 115 accepted, installed, played, its result
+    accepted; 107 and 130 refused at add (-16: the 8th and the last window read)"""
+    exe, skip = gate_exe(tag, SCHED_SD)
+    if skip:
+        return True, skip
+    off, sp = fp_st_at(exe), sym(exe, 'gplay', 'SEASONPLAYING', 2)
+    stk = sym(exe, 'fpad', 'FP_STKFREE', 4)
+    ok, msg, lines = T.sc_season(TEAM_SD, dict(W8485_BUILD=exe, W8485_HEX=f'{sp:x}:1,o4/{off:x}:{ST_SIZE},o4/{stk:x}:4'))
+    log = season_log(lines, off)
+    inits, seen = season_inits(lines, off, sp)
+    open(os.path.join(T.RUNS, f'{tag}.txt'), 'w').write('\n'.join(map(str, log)) + '\n')
+    errs = []
+    T.check(ok, f'season: {msg}', errs)
+    adds = [e[2] for e in log if e[0] == 'ADD']
+    T.check(adds[:3] == [0, -16, -16], f'adds rc {adds[:3]}, want [0, -16, -16] (115 free, 107 / 130 in windows 8 / 9)', errs)
+    inst = [e for e in log if e[0] == 'INST']
+    res = [e for e in log if e[0] == 'RES']
+    T.check(len(inst) == 1, f'installs {inst} (115 only)', errs)
+    T.check(len(res) == 1 and res[0][4] >> 4 & 15 == 0, f'results {res} (accepted)', errs)
+    bad = [e for e in log if e[0] in ('REFUSED', 'ORPHAN')]
+    T.check(not bad, f'refused / orphan {bad}', errs)
+    check_inits(inits, seen, errs, 1)
+    fs = check_stk(exe, lines, errs)
+    return not errs, '; '.join(errs) or f'adds {adds}, install {inst}, result {[(e[1], e[4] & 15) for e in res]}; ' \
+        f'free stack at fp_step {fs} B; {msg[:60]}'
 
 
 def legs_detail(log):
@@ -218,6 +272,13 @@ def register(mod):
         """4.2 fixture port P2 gate A: INTER, SCHED_A as port fixtures - two refused by slot-4 windows at add, a two-leg
         tie and a one-match tie installed through gplay, played, their results accepted by the engine"""
         return run_a()
+
+    @sc
+    def world_fport_sd():
+        """4.2 fixture port (MC 14/11, SR_PORT_WINDOWS 24): a Serie D girone career (CELLE VARAZZE, 9 slot-4 windows):
+        a fixture between the windows accepted and played, one in the 8th window and one in the last refused at add -
+        every window of the division read"""
+        return run_sd()
 
     @sc
     def world_fport_etp():

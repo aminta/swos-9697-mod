@@ -991,8 +991,7 @@ typedef struct {
     int32_t  (*slot4_windows)(void *ctx, uint16_t team, uint16_t (*out)[2], int32_t max);   /* rule 6: the slot-4
                                        windows [B, E] the exe's own users reserve for team's division (B: the unit whose
                                        advance builds the contest, E: its last match; dplay / gp_lend at the season
-                                       end, split finals, gplay stages, Coppa D, supercups), up to max; the count
-                                       (above max or below 0: rule 6 refuses - the host keeps every window exactly).
+                                       end, split finals, gplay stages, Coppa D, supercups), up to max; the count.
                                        NULL: one window [s4first, SR_PORT_NONE]. Read live: a club change or a window
                                        known late is seen at poll (probe Q6) */
     void     *ctx;
@@ -1010,8 +1009,9 @@ enum { SR_PORT_E_ARGS = -1, SR_PORT_E_FULL = -2, SR_PORT_E_R1 = -11, SR_PORT_E_R
        SR_PORT_E_R4 = -14, SR_PORT_E_R5 = -15, SR_PORT_E_SLOT4_RESERVED = -16, SR_PORT_E_LEVEL = -17, SR_PORT_E_ID = -18,
        SR_PORT_E_PENDING = -19, SR_PORT_E_RESULT = -20, SR_PORT_E_WINNER = -21, SR_PORT_E_MISSED = -22,
        SR_PORT_E_SIM = -23, SR_PORT_E_SAVE = -24 };
-#define SR_PORT_WINDOWS 16          /* slot-4 windows a division, at most (the worst real case 11: Serie D-like tiers;
-                                       a host returning more: every fixture of that club refused) */
+#define SR_PORT_WINDOWS 24          /* slot-4 windows a division, at most (World 2026-27: up to 13, a Serie D
+                                       division's season end + Coppa D rounds; slot4_windows returning more, or < 0,
+                                       refuses the fixture: never a window left unread) */
 #define SR_PORT_E_R6 SR_PORT_E_SLOT4_RESERVED          /* rule 6: a slot-4 reserved window met (swcc SWC_E_SLOT4_RESERVED) */
 #define SR_PORT_E_SEASON_END SR_PORT_E_SLOT4_RESERVED  /* (its season-end case, B = L) */
 void    sr_port_init(sr_port *p, uint16_t career, uint16_t unit, uint16_t s4first, uint32_t pack_hash);

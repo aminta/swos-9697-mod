@@ -30,6 +30,7 @@ typedef void ko_one_fn(struct gp_ko *, u16, u16, int, int, int, int, int, int, c
 extern void *const GP_PAPI[1];          /* gplay.c (obj1): ko_one */
 extern u8 GP_GST[];                     /* gplay.c GP_ST (obj2) */
 extern const u8 GP_GIN[];               /* gplay.c GP_IN (obj2) */
+extern const u16 FP_CDIV[1];            /* the game's career-club division word (D6CDC, obj2: gplay._cardiv) */
 extern const u8 GP_SEAS;                /* gplay.c: the season gp_ours / the advance last saw */
 extern const u32 GP_K;                  /* gplay.c: gp_ours' contest index (ko[GP_K]) */
 extern const u8 *const GP_SCT;          /* gplay.c: the supercup table (0 = none) */
@@ -78,6 +79,18 @@ u16 FP_NDIV FP_DATA;
 #ifdef FPORT_TEST
 u8 FP_TEST[FP_NTEST_][7] FP_DATA;   /* (test builds: the probe's entries, fpad.test_entries' form) */
 u16 FP_NTEST FP_DATA;
+/* MC 14/11 (SR_PORT_WINDOWS 24: reserved()'s window buffer +32 B): the least free game stack seen at fp_step's entry
+   (ESP - the game's _STACKLOW, its pointer at obj2+0xC3178; fp_step runs on the game's own 4 KB stack) - fpgate checks
+   it against the port's deepest static chain + 512 B */
+extern u32 FP_STKLOWP[1];
+u32 FP_STKFREE FP_DATA = 0xFFFFFFFFu;
+static void stk_probe(void)
+{
+    u32 e;
+    __asm__ volatile ("movl %%esp, %0" : "=r"(e));
+    e -= FP_STKLOWP[0];
+    if (e < FP_STKFREE) FP_STKFREE = e;
+}
 #endif
 
 /* fp_et's capture of the 90 minutes (below) */
@@ -135,7 +148,8 @@ static i32 h_windows(void *ctx, u16 team, u16 (*out)[2], i32 max)
     (void)ctx;
     if (team != GP_MGR) return 0;
     const u8 c = FP_FMAP[team & 0xFF];
-    const u16 d = GP_GIN[O_MDIV];   /* (the career club's division: its slot-4 windows) */
+    const u16 d = FP_CDIV[0];       /* (the career club's division now: the game's D6CDC - gplay's GP_IN.mdiv is set
+                                       only by gp_setup at the league's end, stale before: world_fport_sd, Serie D) */
     i32 n = 0;
     for (u32 i = 0; i < FP_NDIV; i++)
         if (FP_DIV[i][0] == c && FP_DIV[i][1] == d) {
@@ -265,6 +279,9 @@ static u32 install(const sr_port_fixture *f)   /* slot 4's contest for the fixtu
 
 u32 fp_step(void)                       /* sc_step_c's head: 1 = the career club's fixture built into ko[0] */
 {
+#ifdef FPORT_TEST
+    stk_probe();
+#endif
     if (FP_CWB != FP_WORLD) return 0;   /* (P2: the windows / file map are this world's only - another world: off) */
     if (FP_ST.magic == FP_ARM) fresh();
     if (!valid()) return 0;             /* (no explicit init this career / season: the port is off - never inferred) */

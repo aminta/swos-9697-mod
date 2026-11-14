@@ -23,7 +23,7 @@ FLAGS = ['-DGP_S7=0', '-DSS_NB=1', '-DGP_FORCE=0', '-DGP_SPST=0', '-DGP_SPGRP=0'
          '-DGP_DATA_SECTION=', '-DGP_CD2=0']
 G, SZ, LF, NR = 9, 18, 144, 8                          # (9 gironi of 18, the Serie D file, 8 rounds: n1 = 64)
 ENT, EFRESH, GENON, NP, GEN = 348, 604, 605, 606, 612   # (struct cd_state offsets: the scenario's)
-DECL = re.compile(r'#ifndef GP_DATA_SECTION\n#define GP_DATA_SECTION [^\n]*\n#endif\n/\* 4\.2 S2 knockouts \(MC 14/11, 42-cdkn\).*?int n\) GP_DATA_SECTION;\n', re.S)
+DECL = re.compile(r'#ifndef GP_DATA_SECTION\n(?:#[^\n]*\n){6}/\* 4\.2 S2 knockouts \(MC 14/11, 42-cdkn\).*?int n\) GP_DATA_SECTION;\n', re.S)
 HOOK = re.compile(r'    if \(GP_CDKN && GP_CDKN\(ord, grp, key, n\)\) return;[^\n]*\n[^\n]*\n')
 
 

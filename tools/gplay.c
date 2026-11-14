@@ -359,7 +359,11 @@ static void dest(int c, int to, int pidx, int outcome) {
    down). bad: a division not captured, a short table or GP_EXT.full - the builder refuses the season, never guesses.
    season: GP_SEASP's stamp (the builder takes only this season's two snapshots). */
 #ifndef GP_DATA_SECTION
+#if defined(__MACH__)                   /* (a native host build - mach-o has no ".data" section name; the exe is always ELF) */
+#define GP_DATA_SECTION
+#else
 #define GP_DATA_SECTION __attribute__((section(".data")))      /* (host tests build gplay.c natively: -DGP_DATA_SECTION=) */
+#endif
 #endif
 struct s7x { u16 file; u8 n, bad, season, pad[3]; struct { u16 glob, team; u8 kind, dir, div, rank; } e[24]; };
 struct s7x S7X[2];                      /* (written by s7swap.c s7_snap, read by its s7_season) */
@@ -2660,7 +2664,11 @@ static void cd_pair(u16 *side, u8 *sg, int m, int at) {   /* m sides -> ties fro
 }
 
 #ifndef GP_DATA_SECTION
+#if defined(__MACH__)                   /* (a native host build - mach-o has no ".data" section name; the exe is always ELF) */
+#define GP_DATA_SECTION
+#else
 #define GP_DATA_SECTION __attribute__((section(".data")))      /* (host tests build gplay.c natively: -DGP_DATA_SECTION=) */
+#endif
 #endif
 /* 4.2 S2 knockouts (MC 14/11, 42-cdkn): rounds 0-1 by the engine's sr_kn (cdkn.c, obj4 band CDKN; cdkn.py sets it in
    CD_KN builds; 0 = today's cd_make). ord / grp / key as cd_make's loop leaves them (key >> 8: the entry key); 1 = CD_ST
@@ -2716,7 +2724,11 @@ static void cd_make(void) {             /* a later season's rounds 0-1 (CD_ST.ge
    level after the legs: the penalties, weighted 2:1 to the stronger. */
 #if GP_S7
 #ifndef GP_DATA_SECTION
+#if defined(__MACH__)                   /* (a native host build - mach-o has no ".data" section name; the exe is always ELF) */
+#define GP_DATA_SECTION
+#else
 #define GP_DATA_SECTION __attribute__((section(".data")))      /* (host tests build gplay.c natively: -DGP_DATA_SECTION=) */
+#endif
 #endif
 /* s7-ri-fix.md "Changes" (MC 13/11): in S7 builds the REGISTRY decides and ri's maps[] is unused. The logic is s7ri.c (obj4,
    included by s7swap.c); gplay.c keeps these two hook pointers (set by s7swap.py; 0 = today's path, dormant). */

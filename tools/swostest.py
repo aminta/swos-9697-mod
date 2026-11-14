@@ -5976,7 +5976,7 @@ def squad_numgap():
         if go(lbl(0), 'career menu'):
             n, two = numgap_check(s, 'squad', errs, info)
             check(two >= 3, f'squad: {two} two-digit numbers seen (ROMA has 99, 43, 86...)', errs)
-            if go(lbl(1), 'squad screen'):
+            if go(lbl(1), 'squad screen') and practice_pick(s, 0, errs):   # (4.2: the practice page's TRAINING)
                 numgap_check(s, 'team', errs, info)
                 if go({'MOD. TATTICA'}, 'team screen') and go({'UTN A', 'USER_A', 'UTIL A', 'SPIEL A'}, 'tactics menu'):
                     numgap_check(s, 'tactics', errs, info)
@@ -9686,11 +9686,39 @@ def train_start(s, path, errs):
         if t is None or press(s, scr, t, 3) is None:
             errs.append(f'{where}: {TRAIN_TXT[UI][k]} not reached ({s.result})')
             return None
+    if not practice_pick(s, 0, errs):           # (4.2: TRAINING opens the practice page - its first row, the game)
+        return None
     scr = s.screen()
     if not {TRAIN_TXT[UI][2], TRAIN_TXT['it'][2]} & set(scr.texts()):
         errs.append('training: no pre-match screen (' + ', '.join(scr.texts())[:120] + ')')
         return None
     return scr
+
+
+def practice_rows():
+    """4.2 set-piece practice: the page's texts in the exe's language (practice.py: title, TRAINING, FREE KICK,
+    PENALTY, CORNER, ATTACK, DEFENCE, BACK)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import practice
+    return practice.texts(UI if UI in practice.ROWS else 'it')
+
+
+def practice_pick(s, row, errs):
+    """On the practice page (TRAINING pressed): press row (0 TRAINING .. 3 CORNER, 4 the switch, 5 BACK). A build
+    without the page (no row text shown): True, nothing pressed, when row is 0 (the game was started)."""
+    t = practice_rows()
+    scr = s.screen()
+    on = scr.find(t[1], exact=True) is not None
+    if not on:
+        if row == 0:
+            return True
+        errs.append(f'practice page not shown ({", ".join(scr.texts())[:120]})')
+        return False
+    lab = t[1 + row] if row < 4 else (t[5] if t[5] in scr.texts() else t[6]) if row == 4 else t[7]
+    if press(s, scr, lab, 3) is None:
+        errs.append(f'practice page: {lab} not reached ({s.result})')
+        return False
+    return True
 
 
 def train_kickoff(s, top, bot, both, steps=25):
@@ -10611,6 +10639,81 @@ def bench_kick_panel_world():
             os.environ.pop('BENCH_KICKSUB', None)
         else:
             os.environ['BENCH_KICKSUB'] = keep
+
+
+@scenario
+def practice_menu():
+    """4.2 set-piece practice, step 1 (MC 14/11): a World 2026-27 career (PRACTICE_BUILD / BENCH_BUILD: a release dir;
+    TRAIN_PATH), SQUADRA -> TRAINING opens the practice page: its title and six rows in the exe's language (SWOSTEST_UI),
+    the cursor on TRAINING; BACK -> the squad screen, the cursor on TRAINING again; the switch ATTACK <-> DEFENCE (the
+    page shown again on that row, the other text); TRAINING (the first row) -> the training game's pre-match screen
+    (entry 6's old target: SelectTraining)."""
+    b = os.environ.get('PRACTICE_BUILD') or os.environ.get('BENCH_BUILD')
+    if not b or not os.path.isdir(b):
+        return True, 'SKIP: PRACTICE_BUILD not set'
+    b = ui_build(os.path.realpath(b))                   # (SWOSTEST_UI=en/fr/de: that language's exe as ITALIAN.EXE)
+    path = os.environ.get('TRAIN_PATH', 'EUROPA,ITALIA,SERIE A,ROMA').split(',')
+    t = practice_rows()
+    errs, info = [], []
+    with Session('practice_menu', b, {}, 'dump:2', 900) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'START: no first pause ({s.result})'
+        for x in ('CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27'):
+            if press(s, s.screen(), x) is None:
+                return False, f'new career: {x} not reached ({s.result})'
+        if not pick_career(s, path):
+            return False, f'new career: {path} not reached ({s.result})'
+        s.send('fire dump:2')
+
+        def to_label(k, where):
+            scr = s.screen()
+            lab = next((x for x in {TRAIN_TXT[UI][k], TRAIN_TXT['it'][k]} if scr.find(x, exact=True) is not None), None)
+            if lab is None or press(s, scr, lab, 3) is None:
+                errs.append(f'{where}: {TRAIN_TXT[UI][k]} not reached ({s.result})')
+                return None
+            return lab
+        if to_label(0, 'career menu') is None:
+            return False, '; '.join(errs)
+
+        def open_page(n):
+            if to_label(1, f'squad screen ({n})') is None:
+                return None
+            scr = s.screen()
+            tx = scr.texts()
+            miss = [x for x in (t[0],) + t[1:5] + (t[7],) if x not in tx] + ([] if {t[5], t[6]} & set(tx) else ['switch'])
+            check(not miss, f'page ({n}): missing {miss} ({", ".join(tx)[:140]})', errs)
+            return scr
+        scr = open_page(1)
+        if scr is None:
+            return False, '; '.join(errs)
+        s.shot('practice_page')
+        check(scr.selected == 1, f'page: the cursor on entry {scr.selected} (want 1, TRAINING)', errs)
+        check(t[5] in scr.texts(), f'page: the switch shows {t[6]!r}, want {t[5]!r} (ATTACK first)', errs)
+        if not practice_pick(s, 5, errs):                   # BACK
+            return False, '; '.join(errs)
+        q = s.screen()
+        tl = next((x for x in {TRAIN_TXT[UI][1], TRAIN_TXT['it'][1]} if q.find(x, exact=True) is not None), None)
+        check(tl is not None and q.selected == q.find(tl, exact=True),
+              f'BACK: squad screen cursor on {q.selected} (TRAINING = {tl and q.find(tl, exact=True)})', errs)
+        info.append('BACK -> squad screen, cursor on TRAINING')
+        if open_page(2) is None:
+            return False, '; '.join(errs)
+        for k, want in ((1, t[6]), (2, t[5])):
+            if not practice_pick(s, 4, errs):
+                return False, '; '.join(errs)
+            q = s.screen()
+            check(want in q.texts() and q.selected == 5,
+                  f'switch {k}: shows {[x for x in (t[5], t[6]) if x in q.texts()]}, cursor {q.selected} (want {want!r}, 5)', errs)
+            if k == 1:
+                s.shot('practice_defence')
+        info.append('switch ATTACK -> DEFENCE -> ATTACK on its row')
+        if not practice_pick(s, 0, errs):
+            return False, '; '.join(errs)
+        q = s.screen()
+        check({TRAIN_TXT[UI][2], TRAIN_TXT['it'][2]} & set(q.texts()),
+              f'TRAINING: no pre-match screen ({", ".join(q.texts())[:120]})', errs)
+        info.append('TRAINING -> the training pre-match screen')
+    return not errs, '; '.join(errs) or f'UI {UI}: ' + '; '.join(info)
 
 
 @scenario

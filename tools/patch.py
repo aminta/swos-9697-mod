@@ -396,6 +396,7 @@ def patch_exe(src, dst, remap, lang='it'):
     OBJ1MV_ON[0] = bool(mkseason.worlds())             # 4.2 OBJ1MV (MC 13/11): every build with worlds (shirtedit +
     if OBJ1MV_ON[0]:                                   # instcheck; the SEASON WINNERS page when fmtpage has it)
         swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, (swreg.OBJ1MV_END + 0xFFF) // 0x1000)   # (its band's pages, out of obj1)
+    swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, swreg.PRACTICE_END // 0x1000)   # 4.2 set-piece practice (MC 14/11: the last band)
     swe.OBJ4_PAGES = sreg.obj4_pages(swe.OBJ4_PAGES)   # (4.2 N7: + the old-save import's 12th page, SREG2_AT)
     if lr_tabs:                                        # (the career league's head-to-head block)
         engine.save_item('LR', lrank.LR_SIZE, world_only=True)
@@ -922,6 +923,8 @@ def patch_exe(src, dst, remap, lang='it'):
         slow.assert_off(p)
     import namefit                               # 4.2 names-fit (Marco (b) step 2): menu names cut by pixels, obj4 page 13
     namefit.patch(p)
+    import practice                              # 4.2 set-piece practice: squadMenu's sites before bteam copies it
+    practice.sites(p)
     if ct_pg:                                    # 4.0.6 B2: the season-1 edition's block (conti.c CT_S1 -> it)
         st_end = conti.s1_patch(p, (st_end + 15) & ~15)
     assert st_end <= LT3_AT, hex(st_end)
@@ -979,6 +982,7 @@ def patch_exe(src, dst, remap, lang='it'):
     p.set_base_after(3)                          # (obj3's header base above obj2's final end)
     swe.LANG[0] = lang
     s4_end = swe.patch(p)                        # (obj4: the engine, its base above obj3's)
+    practice.patch(p, lang)                      # (obj4 PRACTICE band: needs swe.c's PR_WORK)
     import ctview
     if ctview.CR_PTRS.get('usok'):               # 4.1 S2a: STAT > RIEPILOGO of a world's UEFA cup, obj4 after swe.c
         import uesum

@@ -81,7 +81,8 @@ def build(src, groups, out, base=None, fileno=144, deciders=None):
 
     fs2 = {'league': dict(fs['league'], divisions=list(range(5))),
            'league_b': {'file': fileno, 'base': 0, 'divisions': SERIE_D}, 'pool': fs['pool']}   # ('base': below)
-    m2 = dict(m, files=fs2)
+    geo = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 's7pack_geo.json'), encoding='utf-8'))
+    m2 = dict(m, files=fs2, geo={'note': geo['_note'], 'neighbours': geo['neighbours']})   # (4.2 geography: s7swap.geo_table checks it)
     for sq in m2['squads']:
         if 'league' in sq['files'] and 'league_b' not in sq['files']:
             sq['files'] = sq['files'] + ['league_b']   # (Serie D's squads: now file 144's)

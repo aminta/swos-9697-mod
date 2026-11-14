@@ -196,6 +196,40 @@ def late(p):
     print(f's7swap: WSITES {len(rows)} rows{" (TEST rows: S7_WSITES_TEST)" if wsites.TEST else ""}')
 
 
+def geo_table(meta, ngroups):
+    """4.2 Serie D geography (MC 14/11): the pack's pack.json 'geo.neighbours' as the 9 x 9 byte table of s7geo.c (a girone's
+    neighbours in list order, 0xFF-terminated). REFUSED (never an empty table) when the key is missing, or the table does not
+    name all `ngroups` gironi A.., lists a girone itself or twice, is not symmetric (x lists y <=> y lists x) or leaves a
+    girone unreachable from A."""
+    geo = (meta.get('geo') or {}).get('neighbours')
+    if not geo:
+        raise SystemExit("s7swap: the pack has no 'geo.neighbours' (4.2 Serie D geography): a GP_S7 build is refused, never linked "
+                         "with an empty table (tools/s7pack_geo.json is copied in by s7pack.py)")
+    letters = [chr(65 + i) for i in range(ngroups)]
+    if sorted(geo) != letters or ngroups > 9:
+        raise SystemExit(f"s7swap: geo.neighbours must name exactly the gironi {letters}: {sorted(geo)}")
+    for L in letters:
+        nb = list(geo[L])
+        if len(set(nb)) != len(nb) or L in nb or any(c not in letters for c in nb):
+            raise SystemExit(f"s7swap: geo.neighbours[{L}] = {geo[L]!r}: a girone itself, twice or unknown")
+        for c in nb:
+            if L not in geo[c]:
+                raise SystemExit(f"s7swap: geo.neighbours is not symmetric: {L} lists {c} but {c} does not list {L}")
+    seen, todo = {'A'}, ['A']
+    while todo:
+        for c in geo[todo.pop()]:
+            if c not in seen:
+                seen.add(c)
+                todo.append(c)
+    if len(seen) != ngroups:
+        raise SystemExit(f"s7swap: geo.neighbours leaves {sorted(set(letters) - seen)} unreachable from A")
+    tab = bytearray(b'\xff' * 81)
+    for i, L in enumerate(letters):
+        nb = [ord(c) - 65 for c in geo[L]]
+        tab[9 * i:9 * i + len(nb)] = bytes(nb)
+    return bytes(tab)
+
+
 def patch(p, ssyms, rsyms, gsyms, pgsyms, fsyms, risyms):
     """links s7swap.c at obj4+S7SWAP_AT (ssyms swe.c's, rsyms sreg.c's, gsyms gplay's, pgsyms pgroups', fsyms swefile's,
     risyms ripool's); returns the end, or None (dormant)."""
@@ -307,23 +341,14 @@ def patch(p, ssyms, rsyms, gsyms, pgsyms, fsyms, risyms):
     assert 0 < len(dirs) <= 16 and all(len(z) == 4 for z in dirs), ('s7swap: S7_DIR', dirs)
     p.put(*syms['S7_DIR'], b''.join(bytes(z) for z in dirs))
     p.put(*syms['S7_NDIR'], bytes((len(dirs),)))
-    geo = (pk.meta.get('geo') or {}).get('neighbours') or {}     # (4.2 Serie D geography, MC 14/11: the pack's neighbour list per girone)
-    if geo:
-        letters = sorted(geo)
-        assert letters == [chr(65 + i) for i in range(len(letters))] and len(letters) <= 9, ('s7swap: geo.neighbours keys', letters)
-        tab = bytearray(b'\xff' * 81)
-        for i, L in enumerate(letters):
-            nb = [ord(ch) - 65 for ch in geo[L]]
-            assert len(set(nb)) == len(nb) and i not in nb and all(0 <= x < len(letters) for x in nb), ('s7swap: geo list', L, geo[L])
-            tab[9 * i:9 * i + len(nb)] = bytes(nb)
-        p.put(*gsy['S7GEO_NEIGH'], bytes(tab))
-        p.put(*gsy['S7GEO_ON'], b'\x01')
+    geotab = geo_table(pk.meta, len(pk.meta['files']['league_b']['divisions']))   # (4.2 geography, MC 14/11: required, checked)
+    p.put(*gsy['S7GEO_NEIGH'], geotab)
+    p.put(*gsy['S7GEO_ON'], b'\x01')
     for k, f in (('GP_RIPOOL', 's7ri_pool'), ('GP_CDSTR', 's7ri_cdstr'), ('GP_S7SNAP', 's7_snap')):   # (gplay.c's two S7 hooks -> s7ri.c, Panchina's:
         assert k in gplay.LABELS, ('s7swap: gplay.c without', k)       # MC ruling (b), S7-only logic in obj4)
         cobj.add_ptr(p, gplay.LABELS[k][1], *syms[f], gplay.LABELS[k][0])
-    if geo:                                             # (4.2 geography: gplay.c's pg_one hook -> the S7GEO band; 0 = today's fallbacks)
-        assert 'GP_GEOCH' in gplay.LABELS, 's7swap: gplay.c without GP_GEOCH'
-        cobj.add_ptr(p, gplay.LABELS['GP_GEOCH'][1], *gsy['s7geochain'][:2], gplay.LABELS['GP_GEOCH'][0])
+    assert 'GP_GEOCH' in gplay.LABELS, 's7swap: gplay.c without GP_GEOCH'     # (4.2 geography: gplay.c's pg_one hook -> the S7GEO band)
+    cobj.add_ptr(p, gplay.LABELS['GP_GEOCH'][1], *gsy['s7geochain'][:2], gplay.LABELS['GP_GEOCH'][0])
     import stadium
     if 'st_hptr' in stadium.LABELS:                     # (st_find: a crossed club's stadium by its home word, obj3)
         cobj.add_ptr(p, stadium.LABELS['st_hptr'][1], *syms['s7_home_word'], stadium.LABELS['st_hptr'][0])

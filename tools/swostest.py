@@ -38688,9 +38688,11 @@ __import__('zonetest').register(sys.modules[__name__])   # 4.1.2 zone positions 
 
 @scenario
 def world_s7cross_winners():
-    """S7 (4.2, MC 13/11) variant (c): the career club stays in Serie D (LIGORNA forced 2nd, girone A's winner X crosses
-    up into Serie C): the last-season page of its league. See s7winners."""
-    return s7winners(2, False)
+    """S7 (4.2, MC 13/11) variant (c): the career club stays in Serie D (LIGORNA forced 6th: out of the promotion
+    play-off places 2..5 - Panchina 14/11: a forced 2nd won its unforced play-off and went up, a SETUP by dice; and
+    GPLAY_KOFORCE builds keep no last-season WINNERS page; girone A's winner X crosses up into Serie C): the
+    last-season page of its league. See s7winners."""
+    return s7winners(6, False)
 
 
 @scenario
@@ -38771,7 +38773,7 @@ def s7winners(force, crossed):
         setup.append(f'S7_LOG {[b.hex() for b in lg[-1:]]}: want status 1, 9 + {nri} swaps, 18 crossers')
     crossing = [c for c in cl if c[1]]
     if bool(crossing) != crossed:
-        setup.append(f'the career club crossed {[(hex(a), hex(b)) for a, b, _ in crossing]}: want {"a crossing" if crossed else "none (it stays 2nd of its group)"}')
+        setup.append(f'the career club crossed {[(hex(a), hex(b)) for a, b, _ in crossing]}: want {"a crossing" if crossed else "none (it stays in its group)"}')
     if not sl or sl[-1] & 0xFF != (102 if crossed else 144):
         setup.append(f'selTeamNumber {[hex(x) for x in sl[-2:]]}: LIGORNA not in file {102 if crossed else 144}')
     if setup:

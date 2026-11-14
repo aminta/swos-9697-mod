@@ -38834,6 +38834,59 @@ def s7winners(force, crossed):
     return not errs, '; '.join(errs) or f'last season {last[:1]} {blk}: {home} from the Serie D file ({len(fb)} / {len(fa)} names)'
 
 
+@scenario
+def gk_gloves_dark():
+    """4.2 gloves gate item (Regia 14/11): a World 2026-27 friendly whose HUMAN club has a dark-skinned goalkeeper (default MILAN, MIKE
+    MAIGNAN, face 2): at the kick-off every keeper sprite's hand pixels are white (kits_check, w27) whatever the skin, and the home keeper's
+    record face is dark. GLV_PATH = 'EUROPA,ITALIA,SERIE A,MILAN', GLV_OPP = the opponent (INTER), GLV_KEEPER = the keeper's name (MAIGNAN); SWOSTEST_BUILD = a release build."""
+    b = builds()['it']
+    kb, sgp = kits_sites(b)
+    errs, info = [], []
+    path = os.environ.get('GLV_PATH', 'EUROPA,ITALIA,SERIE A,MILAN').split(',')
+    with Session('gk_gloves_dark', b, {}, 'dump:3', 300, match=True) as s:
+        s.wait()
+        set_world(s, 0)
+        walk(s, 'AMICHEVOLE', 2)
+        for t in ('OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB') + tuple(path):
+            try:
+                walk(s, t, 2)
+            except Exception as e:
+                for _ in range(30):                 # (a long list: the last clubs come into view by going down)
+                    s.send('down dump:0.3')
+                try:
+                    walk(s, t, 2)
+                except Exception as e2:
+                    return False, f'path {t!r}: {str(e2)[:120]} screen {s.screen().texts()[:20]}'
+        s.send('fire dump:2')                   # COMPUTER -> GIOCA-ALLENA
+        scr = s.screen()
+        opp = os.environ.get('GLV_OPP', 'INTER')
+        walk(s, opp, 2)
+        for _ in range(12):
+            scr = s.screen()
+            i = scr.find(FRIENDLY_PLAY, exact=True)
+            if i is None:
+                break
+            if scr.selected == i:
+                s.send('fire dump:4')
+                break
+            s.send(('right' if scr.selected in (i + 1, i + 2) else 'down') + ' dump:0.5')
+        tm = se_team(s)[0]
+        who = os.environ.get('GLV_KEEPER', 'MAIGNAN')
+        recs = [s.result.read(tm + 76 + 38 * j, 38) for j in range(16)]
+        k = next((j for j, r_ in enumerate(recs) if who in bytes(r_[3:25]).split(b'\0')[0].decode('latin-1')), None)
+        face = (recs[k][26] >> 3) & 3 if k is not None else None
+        check(face == 2, f'{who}: record {k}, face {face} (want 2, dark); the 16: {[bytes(r_[3:25]).split(bytes(1))[0].decode("latin-1") for r_ in recs]}', errs)
+        info.append(f'{who} slot {k} face {face}')
+        for _ in range(22):
+            s.send('down dump:0.5')
+            if s.screen().selected == 9:
+                break
+        r = s.send('fire ' + 'fire:3 ' * 12 + 'dump:2')
+        s.shot('gloves_dark')
+        kits_check('glv_dark', s, kb, sgp, 1, errs, info)
+    return not errs, '; '.join(errs + info)
+
+
 if __name__ == '__main__':
     sys.exit(main(sys.argv[1:]))
 

@@ -1,5 +1,5 @@
 """Starter-role check of every team record in a DATA dir (or files): the 11 starters (lineup bytes 60..65 first 11)
-must hold the game's 4-4-2 slot roles GK RB D D LB RW M M LW A A (mkseason.SLOT_POS). A squad that cannot supply the
+must hold the slot roles of the record's tactic (mkseason.slots_of: 4-4-2 = GK RB D D LB RW M M LW A A). A squad that cannot supply the
 exact positions is checked by class (GK / defender / midfielder / attacker) and, below that, counted as 'short'.
 python3 tools/lineupcheck.py DATA_DIR  -> per-file counts, exit 1 on any wrong record."""
 import os, struct, sys
@@ -32,8 +32,8 @@ def check_dir(d, orig_dir=None):
     return lines, tot, errs
 
 
-def _score(got):
-    return (sum(g == w for g, w in zip(got, SLOT)), sum(CLS[g] == CLS[w] for g, w in zip(got, SLOT)))
+def _score(got, slot=SLOT):
+    return (sum(g == w for g, w in zip(got, slot)), sum(CLS[g] == CLS[w] for g, w in zip(got, slot)))
 
 
 def orig_shapes(d):
@@ -69,10 +69,11 @@ def check_file(data, orig=None, shapes=()):
         if sorted(lu) != list(range(16)):
             wrong.append((i, name, 'not a permutation')); continue
         got = [pos[j] for j in lu[:11]]
-        best = [pos[j] for j in mkseason.auto_lineup(pos)[:11]]
-        if _score(got) < _score(best):
+        slot = mkseason.slots_of(r[24])          # (4.2: the record's own tactic's slot roles, 4-4-2's for 0)
+        best = [pos[j] for j in mkseason.auto_lineup(pos, r[24])[:11]]
+        if _score(got, slot) < _score(best, slot):
             wrong.append((i, name, got)); continue
-        if got == SLOT:
+        if got == slot:
             ex += 1
         else:
             ok_other += 1

@@ -148,18 +148,39 @@ def _nums(row, col, n, lo, hi, where):
           f'{where}: {col} must be {n} numbers {lo}..{hi} separated by spaces')
     return [int(x) for x in v]
 
-SLOT_POS = [0, 1, 3, 3, 2, 4, 6, 6, 5, 7, 7]    # the game's 4-4-2 starter slots: GK RB D D LB RW M M LW A A (position bytes)
+# 4.2 (Davide GO 14/11, club tactics): the starter slot roles of each tactic (record byte 24), as the original game's
+# TEAM.0xx records line up for it (the most common order of the 1587 clubs, 0 G 1 RB 2 LB 3 D 4 RW 5 LW 6 M 7 A)
+TACTICS = ['4-4-2', '5-4-1', '4-5-1', '5-3-2', '3-5-2', '4-3-3', '4-2-4', '3-4-3', 'SWEEP', '5-2-3', 'ATTACK', 'DEFEND']
+TACTIC_SLOTS = {
+    0: [0, 1, 3, 3, 2, 4, 6, 6, 5, 7, 7],      # 4-4-2   GK RB D D LB RW M M LW A A (895 of 910)
+    1: [0, 1, 3, 3, 2, 4, 3, 6, 5, 6, 7],      # 5-4-1   GK RB D D LB RW D M LW M A (24 of 28)
+    2: [0, 1, 3, 3, 2, 4, 6, 6, 5, 6, 7],      # 4-5-1   GK RB D D LB RW M M LW M A (37 of 40)
+    3: [0, 1, 3, 3, 2, 4, 3, 6, 5, 7, 7],      # 5-3-2   GK RB D D LB RW D M LW A A (94 of 98)
+    4: [0, 1, 3, 6, 2, 4, 6, 6, 5, 7, 7],      # 3-5-2   GK RB D M LB RW M M LW A A (136 of 145)
+    5: [0, 1, 3, 3, 2, 4, 6, 7, 5, 7, 7],      # 4-3-3   GK RB D D LB RW M A LW A A (178 of 192)
+    6: [0, 1, 3, 3, 2, 7, 4, 5, 7, 7, 7],      # 4-2-4   GK RB D D LB A RW LW A A A (3 of 5)
+    7: [0, 1, 3, 6, 2, 4, 6, 7, 5, 7, 7],      # 3-4-3   GK RB D M LB RW M A LW A A (22 of 22)
+    8: [0, 1, 3, 3, 2, 4, 6, 6, 5, 7, 7],      # SWEEP   as 4-4-2 (125 of 131)
+    9: [0, 1, 3, 3, 2, 7, 3, 4, 7, 5, 7],      # 5-2-3   GK RB D D LB A D RW A LW A (13 of 16)
+}
+SLOT_POS = TACTIC_SLOTS[0]    # the game's 4-4-2 starter slots: GK RB D D LB RW M M LW A A (position bytes)
 _POS_CLASS = {0: 0, 1: 1, 2: 1, 3: 1, 4: 2, 5: 2, 6: 2, 7: 3}     # GK / defender / midfielder / attacker
 
 
-def auto_lineup(positions):
+def slots_of(tactic):
+    """The starter slot roles (position bytes) of a tactic byte; ATTACK / DEFEND / user tactics: 4-4-2's."""
+    return TACTIC_SLOTS.get(tactic & 15, SLOT_POS)
+
+
+def auto_lineup(positions, tactic=0):
     """16-byte lineup (record bytes 60..75) from the 16 players' position bytes (0 G 1 RB 2 LB 3 D 4 RW 5 LW 6 M 7 A,
-    file order): the 11 starters take the slot roles GK RB D D LB RW M M LW A A (exact position first, then the same
-    class), the bench is the rest in file order. A squad of the real record order is not touched (it has its own)."""
+    file order): the 11 starters take the slot roles of the tactic (slots_of: 4-4-2 = GK RB D D LB RW M M LW A A;
+    exact position first, then the same class), the bench is the rest in file order. A squad of the real record order
+    is not touched (it has its own)."""
     assert len(positions) == 16
     used, start = set(), [None] * 11
     for exact in (True, False):
-        for k, want in enumerate(SLOT_POS):
+        for k, want in enumerate(slots_of(tactic)):
             if start[k] is not None:
                 continue
             for j, ps in enumerate(positions):
@@ -173,6 +194,54 @@ def auto_lineup(positions):
 
 class PackError(Exception):
     pass
+
+
+# TM / press formations -> the SWOS tactic of the same shape (4.2 club tactics: the club's usual formation)
+_FORMATION = {'4-4-2': 0, '4-4-1-1': 0, '4-2-2-2': 0, '4-1-2-1-2': 0, '4-3-1-2': 0, '4-1-3-2': 0,
+              '5-4-1': 1, '5-3-1-1': 1, '5-2-2-1': 1,
+              '4-5-1': 2, '4-1-4-1': 2, '4-2-3-1': 2, '4-3-2-1': 2, '4-4-2 double 6': 0,
+              '5-3-2': 3, '5-2-1-2': 3, '5-1-2-2': 3,
+              '3-5-2': 4, '3-4-1-2': 4, '3-1-4-2': 4, '3-5-1-1': 4, '3-3-2-2': 4,
+              '4-3-3': 5, '4-3-3 attacking': 5, '4-3-3 defending': 5, '4-1-2-3': 5, '4-2-1-3': 5,
+              '4-2-4': 6, '3-4-3': 7, '3-4-2-1': 7, '3-4-3 diamond': 7, '3-2-4-1': 7, '3-3-3-1': 7,
+              '5-2-3': 9}
+
+
+def tactic_of_formation(f):
+    """SWOS tactic byte of a formation string ('4-2-3-1' -> 2 = 4-5-1), None when it is not one of _FORMATION."""
+    f = ' '.join((f or '').replace('–', '-').split()).lower()
+    return _FORMATION.get(f, _FORMATION.get(f.split(' ')[0] if f else ''))
+
+
+def tactic_of_squad(positions):
+    """Fallback without a known formation: the tactic (of 4-4-2, 5-4-1, 4-5-1, 5-3-2, 3-5-2, 4-3-3, 3-4-3) whose
+    defender / midfielder / attacker split is nearest the squad's outfield split (16 position bytes); ties -> the
+    first (4-4-2)."""
+    n = [sum(1 for p in positions if _POS_CLASS[p] == c) for c in (1, 2, 3)]
+    tot = sum(n) or 1
+    best = None
+    for t in (0, 1, 2, 3, 4, 5, 7):
+        want = [sum(1 for p in TACTIC_SLOTS[t] if _POS_CLASS[p] == c) for c in (1, 2, 3)]
+        d = sum((10 * x / tot - w) ** 2 for x, w in zip(n, want))
+        if best is None or d < best[0] - 1e-9:
+            best = (d, t)
+    return best[1]
+
+
+TACTIC_SHARE_MAX = 0.70      # a world / pack of explicit clubs: no tactic on more than 70% of them (the original: 57% 4-4-2)
+TACTIC_SHARE_MIN_CLUBS = 40  # (small packs - a tourney, one cup - are not checked)
+
+
+def tactic_spread(tactics, where='clubs'):
+    """Refuse (PackError) a set of >= TACTIC_SHARE_MIN_CLUBS clubs where one tactic holds more than TACTIC_SHARE_MAX."""
+    import collections
+    tactics = [t & 15 for t in tactics]
+    if len(tactics) < TACTIC_SHARE_MIN_CLUBS:
+        return None
+    t, k = collections.Counter(tactics).most_common(1)[0]
+    _need(k <= TACTIC_SHARE_MAX * len(tactics), f'{where}: {k} of {len(tactics)} clubs on tactic '
+          f'{TACTICS[t] if t < len(TACTICS) else t} (> {TACTIC_SHARE_MAX:.0%}): set each club\'s real tactic')
+    return t, k
 
 
 def _need(cond, msg):
@@ -1300,6 +1369,7 @@ class Pack:
         number, position, nat, skin, the 7 skills and price (see EXPLICIT_*). squads "extra": E (1..14): rows 17..16+E
         of a club go to XTRA.nnn, the players the managed club of a career gets beyond its 16 (xtra.py)."""
         out = {}
+        self._tactics = []
         extra = sq.get('extra', 0)
         _need(isinstance(extra, int) and 0 <= extra <= 14, 'squads "extra" must be 0..14')
         for fk in sq['files']:
@@ -1310,6 +1380,7 @@ class Pack:
                 r = self._empty_record(key, bytes(TEAM_SIZE))
                 where = f'clubs.csv: {key}'
                 r[24] = _num(c, 'tactic', 0, 15, where)
+                self._tactics.append(r[24])
                 for col, at in (('kit1', 26), ('kit2', 31)):
                     v = _nums(c, col, 5, 0, 255, where)
                     r[at:at + 5] = bytes(v)
@@ -1318,9 +1389,9 @@ class Pack:
                 _need(sorted(lineup) == list(range(16)), f'{where}: lineup must list 0..15 once each')
                 if lineup == list(range(16)):          # no explicit lineup (blank / identity): from the positions
                     ps = [EXPLICIT_POS.index(row['position']) for row in rows[:16]]
-                    lineup = auto_lineup(ps)
-                    _need(sorted(lineup) == list(range(16)) and ([ps[j] for j in lineup[:11]] == SLOT_POS or not all(
-                        ps.count(p_) >= SLOT_POS.count(p_) for p_ in set(SLOT_POS))), f'{where}: auto lineup')
+                    lineup, sl = auto_lineup(ps, r[24]), slots_of(r[24])
+                    _need(sorted(lineup) == list(range(16)) and ([ps[j] for j in lineup[:11]] == sl or not all(
+                        ps.count(p_) >= sl.count(p_) for p_ in set(sl))), f'{where}: auto lineup')
                 r[60:76] = bytes(lineup)
                 _need(16 <= len(rows) <= 16 + extra, f'players.csv: {key}: explicit squads need 16 players'
                       + (f' + at most {extra} more (squads "extra")' if extra else '') + f' ({len(rows)})')
@@ -1339,6 +1410,7 @@ class Pack:
             if blocks:                             # XTRA.nnn only for a file with extra players
                 import xtra
                 self.xtra[self.files[fk][0]] = xtra.build(blocks, len(recs), extra)
+        tactic_spread(self._tactics, f"{'+'.join(sq['files'])}")   # 4.2: no tactic on > 70%
         self.log(f"{'+'.join(sq['files'])}: {sum(self.count[f] for f in sq['files'])} clubs, explicit records")
         return out
 

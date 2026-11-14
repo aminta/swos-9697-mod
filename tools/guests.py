@@ -95,7 +95,7 @@ def record(conf, i, c, base):
         row.setdefault('club', c['key'])
         r[76 + j * 38:76 + (j + 1) * 38] = mkseason.Pack._explicit_player(None, row)
     if lineup == list(range(16)):                  # no explicit lineup: the starters from the positions
-        r[60:76] = bytes(mkseason.auto_lineup([r[76 + j * 38 + 26] >> 5 for j in range(16)]))
+        r[60:76] = bytes(mkseason.auto_lineup([r[76 + j * 38 + 26] >> 5 for j in range(16)], r[24]))
     return bytes(r)
 
 

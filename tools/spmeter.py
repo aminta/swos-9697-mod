@@ -26,8 +26,8 @@ import struct
 
 import nasmcave
 
-SPM_AT = 0x1D000                         # (MC 14/11: past S7GEO 0x19000..0x1A000 and MKTAGE 0x1B800..0x1C800)
-SPM_END = 0x21000
+SPM_AT = 0x30000                         # (MC 14/11: the high test region 0x30000.., clear of every live 4.2 band)
+SPM_END = 0x34000
 LOG_AT = 0x1000                         # (from SPM_AT: 3 pages = 768 entries of 16 B)
 LOGMAX = (SPM_END - SPM_AT - LOG_AT) // 16
 TAG = b'SPMT'

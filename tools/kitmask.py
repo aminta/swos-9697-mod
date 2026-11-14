@@ -162,8 +162,8 @@ def build(game_dir):
     tw = _twins(team)
     import gkgloves                                          # (4.2 gloves: the hands, pixel lists, not row masks: 268 pixels in 116 frames)
     keeper, how, hand = [], [], []
-    for g in goal:
-        hand.append(sorted(gkgloves.hands(g)))
+    for i, g in enumerate(goal):
+        hand.append([] if i % (KEEPER_N // 2) in gkgloves.NO_GLOVES else sorted(gkgloves.hands(g)))
         t = tw.get(sil(g))
         px, m = keeper_shirt(g, team[t] if t is not None else None)
         keeper.append((len(g), words(px, len(g))))

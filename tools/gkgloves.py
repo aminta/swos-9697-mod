@@ -12,6 +12,8 @@ import sys
 import kitmask
 
 SKIN = (5, 6)
+NO_GLOVES = {6, 9, 12, 13, 15, 16, 20, 23, 54}   # (Davide 15/11: the profile poses with the hands raised stay WITHOUT gloves - the white sat over the face / chest;
+                                                 # frame numbers mod 58: with their twins 64 67 70 71 73 74 78 81 112. The dives keep theirs)
 
 
 def hands(g):

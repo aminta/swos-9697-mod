@@ -302,6 +302,9 @@ or a SETUP-ERROR, 3 = only FLAKY, 0 = all PASS. `SWOSTEST_NO_RERUN=1`: no re-run
 - `MEMDUMPBIN ...: no file`: the debugger lost a typed command (the dump is retried 3 times; if it still fails, DOSBox
   probably died: see `debugger.raw`).
 - Breakpoints (`Session.bp`, `SWOSTEST_BP`) need `CORE=normal` (the dynamic core does not re-check translated code).
+- Frame-by-frame trace comparisons (diff_trace) need `CORE=normal` + a fixed `CYCLES` (40000) to repeat at all, and even
+  then they only hold between builds with the same per-frame code cost: a pure delay loop (DIFF_DELAY, no logic) moves
+  the match, even the team order (14/11). Code added to the match loop is judged by match outcomes, not by the trace.
 - Never run `config -wcd` inside DOSBox-X: it overwrote the user's DOSBox-X preferences once.
 - `SWOSTEST_UI=fr` / `de` full seasons stuck at the season end's 'TERMINER LA SAISON' / 'SAISON BEENDEN' until
   2026-10-20: the label map (tools/swostest_lang.json) had no FINISCI STAGIONE for them; added (FR / DE seasons with

@@ -27131,6 +27131,171 @@ CD_ENT, CD_LF = 348, 144                    # (gplay.c cd_state.ent; the real pa
 RI_MAPS = 8 + 20 + 2 * 192 + 2 * 20 * 16    # (gplay.c ri_state.maps: RF + RP + 2 RQT + 2 RP RO)
 
 
+def s7reg_dims():
+    """(FILES, CLUBS, DIVS, FSIZE, REGSIZE) of swce/sr_reg's sr_registry (swosrules.h), as tools/hosttest's test_sreg."""
+    h = open(os.path.join(ROOT, 'tools', 'swce', 'swosrules.h')).read()
+    fl, cl, dv = (int(re.search(rf'#define {k}\s+(\d+)', h).group(1)) for k in ('SR_REG_FILES', 'SR_REG_CLUBS', 'SR_DIVS'))
+    fsz = 2 + 2 * dv + 2
+    return fl, cl, dv, fsz, 8 + fl * fsz + 2 * cl + fl * 256 * 2 + fl * 256 + 2 * fl
+
+
+def s7reg_parse(b):
+    """(word[ident], at[fi][:rows], rows) of a registry dump (hosttest's reg_parse)."""
+    fl, cl, dv, fsz, _ = s7reg_dims()
+    nf, nc = struct.unpack_from('<ii', b, 0)
+    w = 8 + fl * fsz
+    word = list(struct.unpack_from(f'<{nc}H', b, w))
+    at_ = w + 2 * cl
+    rd_ = at_ + fl * 512
+    rows = list(struct.unpack_from(f'<{nf}H', b, rd_ + fl * 256))
+    at = [list(struct.unpack_from('<256H', b, at_ + 512 * i))[:rows[i]] for i in range(nf)]
+    rdiv = [list(b[rd_ + 256 * i:rd_ + 256 * i + rows[i]]) for i in range(nf)]
+    return word, at, rows, rdiv
+
+
+def s7_nri(sy, hexes):
+    """The pool moves ri logged in a session (the largest RI_NMOVES seen), 0 when the build does not log them."""
+    s7 = sy.get('s7swap', {})
+    if 'RI_NMOVES' not in s7:
+        return 0
+    key = f'o{s7["RI_NMOVES"][0]}/{s7["RI_NMOVES"][1]:x}'
+    lg = f'o{s7["S7_LOG"][0]}/{s7["S7_LOG"][1]:x}'    # (one season end per session: s7cross plays one; a second would make 'the largest
+    ends = [b for o, b in hexes if o == lg and b[0] not in (0, 2)]   # RI_NMOVES' ambiguous - NOREG (2) is a load before the world is in)
+    if len(ends) > 1:
+        raise SetupError(f's7_nri: {len(ends)} season ends in one session, pair NMOVES per season')
+    return max([struct.unpack('<i', b)[0] for o, b in hexes if o == key] or [0])
+
+
+def s7pool_maps_at(sy):
+    """obj2 offset of RI_STATE.maps[moff(the S7 pooled file) ..] (gplay's RI_STATE + the maps' offset + 2 * moff), 0 when unknown: the
+    transient hint words s7ri_pool writes for ri_ida (the real pack's file 144: 162 rows, 324 bytes)."""
+    rs, gp = sy.get('ripool', {}), sy.get('gplay', {})
+    if 'RI_STATE' not in gp or gp['RI_STATE'][0] != 2:
+        return 0
+    for k in range(8):
+        if f'RI_F{k}' in rs and rs[f'RI_F{k}'][1] == 144:
+            return gp['RI_STATE'][1] + (8 + 20 + 2 * 192 + 2 * 20 * 16) + 2 * rs[f'RI_MOFF{k}'][1]
+    return 0
+
+
+def s7pool_hex(sy):
+    """(M4, 4.2 S7 x pool, s7-ri-fix.md) W8485_HEX items: ri's log (s7ri.c RI_MOVES / RI_NMOVES / RI_S7_BAD, s7swap.c S7_RIMV),
+    ri's state head (gplay RI_STATE: init, qn, q) and the registry (engine arena), logged when they change."""
+    s7, gp, swe = sy.get('s7swap', {}), sy.get('gplay', {}), sy.get('swe', {})
+    if 'RI_S7_BAD' not in s7 or 'RI_STATE' not in gp or 'SWE_ARENA_AT' not in swe:
+        return ''
+    ob, oa = s7['RI_MOVES'][0], swe['SWE_ARENA_AT']
+    return (f',o{ob}/{s7["RI_MOVES"][1]:x}:384,o{ob}/{s7["RI_NMOVES"][1]:x}:4,o{ob}/{s7["RI_S7_BAD"][1]:x}:4'
+            f',o{ob}/{s7["S7_RIMV"][1]:x}:4,{gp["RI_STATE"][1]:x}:{8 + 20 + 384}'
+            f',o{oa[0]}/{oa[1]:x}:{s7reg_dims()[4]}' + (f',o{ob}/{s7["RI_FRESH"][1]:x}:1' if 'RI_FRESH' in s7 else '')
+            + (f',{s7pool_maps_at(sy):x}:324' if s7pool_maps_at(sy) else ''))
+
+
+def s7pool_region(sy, hexes, errs):
+    """(MC 13/11, cond. 5) the REGIONAL PLACEMENT: every pool club that came into file 144 at season 1's end sits in the Serie D
+    group of its region: the registry's row division (rdiv, local to the file: group A = 0 ...) == the club's clubs.csv area letter
+    (the last '/' part). Needs S7_PACK (the real pack's clubs.csv); '' when the build does not log the moves."""
+    s7, swe = sy.get('s7swap', {}), sy.get('swe', {})
+    pack = os.environ.get('S7_PACK')
+    if 'RI_NMOVES' not in s7 or not pack or not os.path.isfile(os.path.join(pack, 'clubs.csv')) or 'SWE_ARENA_AT' not in swe:
+        return 'region: not checked'
+    import csv
+    pool = [r for r in csv.DictReader(open(os.path.join(pack, 'clubs.csv'), encoding='utf-8')) if r['file'] == 'pool']
+    ob, oa = s7['RI_MOVES'][0], swe['SWE_ARENA_AT']
+    kv, kg = f'o{ob}/{s7["RI_MOVES"][1]:x}', f'o{oa[0]}/{oa[1]:x}'
+    nm = [struct.unpack('<i', b)[0] for o, b in hexes if o == f'o{ob}/{s7["RI_NMOVES"][1]:x}']
+    mvs = [b for o, b in hexes if o == kv]
+    reg = [b for o, b in hexes if o == kg]
+    if not (nm and nm[-1] and mvs and reg):
+        return 'region: no moves'
+    word, at, rows, rdiv = s7reg_parse(reg[-1])
+    fb = len(at) - 1                                 # (the lower struct: file 144)
+    first_pool = len(word) - len(pool)               # (the pool idents are the last len(pool): S7_POOL0)
+    bad, n = [], 0
+    gd = [min(rdiv[fb]) + i for i in range(10)]      # (the file's own division numbering: Serie D's groups A.. are its lowest divisions - 5..13 in the real pack)
+    for j in range(nm[-1]):
+        row, out, inn = struct.unpack_from('<3H', mvs[-1], 6 * j)
+        k = inn - first_pool
+        if not 0 <= k < len(pool) or not pool[k].get('area'):
+            continue                                 # (a native coming back from the queue, or a club without an area)
+        letter = pool[k]['area'].split('/')[-1][:1]
+        if letter not in 'ABCDEFGHIJ':
+            continue
+        n += 1
+        if rdiv[fb][row] != gd['ABCDEFGHIJ'.index(letter)] and at[fb][row] == inn:
+            bad.append((pool[k]['name'], row, rdiv[fb][row], letter))
+    # (MC 14/11: PARKED backlog item 'Serie D pool arrivals placed geographically' - the pg_one/pg_room fallback puts the last arrivals
+    #  in a far girone when the gironi are full, pre-existing and not an S7 x pool regression: reported, not a FAIL. 31 of 36 on the real pack.)
+    return (f'region: {n - len(bad)} of {n} pool arrivals in their region\'s Serie D group'
+            + (f', {len(bad)} elsewhere (parked, pre-existing): {[x[0] for x in bad]}' if bad else ''))
+
+
+def s7pool_checks(sy, hexes, errs):
+    """(M4) per session (season 1 played, season 2 = the saved career loaded and played): RI_S7_BAD never != 0 (a can't-happen:
+    any != 0 FAILs); S7_RIMV never refused (status 2); every season end's moves = the queue's head in / the occupants out
+    (q after == q before[m:] + outs, ins == q before[:m]); season 1 had ri moves (Serie D's relegations rotate the pool);
+    at the end of each session the registry's rows + the queue hold every ident once (no club twice, none lost)."""
+    s7, gp, swe = sy.get('s7swap', {}), sy.get('gplay', {}), sy.get('swe', {})
+    if 'RI_S7_BAD' not in s7 or 'RI_STATE' not in gp or 'SWE_ARENA_AT' not in swe:
+        return ''
+    ob, oa = s7['RI_MOVES'][0], swe['SWE_ARENA_AT']
+    k = lambda o, off: f'o{o}/{off:x}'
+    kb, kn, kv, kr = (k(ob, s7[x][1]) for x in ('RI_S7_BAD', 'RI_NMOVES', 'RI_MOVES', 'S7_RIMV'))
+    ks, kg = f'{gp["RI_STATE"][1]:x}', k(oa[0], oa[1])
+    p0 = None
+    notes = []
+    for s_ in (0, 1):
+        seq = lambda key: [b for o, b in hexes[s_] if o == key]
+        bad = [struct.unpack('<i', b)[0] for b in seq(kb)]
+        if 'RI_FRESH' in s7:                         # (MC 13/11: s7ri_pool's one-shot never seen set - after a load, at boot, in the
+            fr = [b[0] for b in seq(k(ob, s7['RI_FRESH'][1]))]   # menus: s7_season consumes it in the same season end)
+            check(not any(fr), f'season {s_ + 1}: RI_FRESH seen set {fr} (a stale ri log s7_season did not consume)', errs)
+        mp = s7pool_maps_at(sy)
+        if mp:                                       # (MC 13/11 cond. 2: ri_ida's transient hint words are 0 outside pg_fix: any sample set FAILs)
+            hs = [b for o, b in hexes[s_] if o == f'{mp:x}' and len(b) == 324]   # (another watch item can share the address: 1280 bytes there)
+            check(all(not any(b) for b in hs), f'season {s_ + 1}: maps[] hint words of file 144 seen set outside pg_fix '
+                  f'({sum(1 for b in hs if any(b))} sample(s), {sum(1 for x in struct.unpack("<162H", hs[-1]) if x) if hs else 0} words)', errs)
+        check(not any(bad), f'season {s_ + 1}: RI_S7_BAD {bad} (a can\'t-happen: an occupant the registry did not know, or RI_SWAPPED set)', errs)
+        rimv = [struct.unpack('<BBH', b) for b in seq(kr)]
+        check(all(x[1] in (0, 1) for x in rimv), f'season {s_ + 1}: S7_RIMV refused a move {rimv[-3:]}', errs)
+        moves = []                                       # (the last logged moves of each season end: NMOVES with RI_MOVES)
+        nm = [struct.unpack('<i', b)[0] for b in seq(kn)]
+        mvs = seq(kv)
+        reg = seq(kg)
+        sts = seq(ks)
+        if s_ == 0:
+            check(any(nm), f'season 1: ri logged no moves ({nm}): the pool never rotated at a natural season end', errs)
+        # the queue before / after each ri_season: consecutive distinct RI_STATE heads
+        qs = []
+        for b in sts:
+            qn = b[8]
+            qs.append(list(struct.unpack_from(f'<{qn}H', b, 8 + 20)) if qn else [])
+        if reg:
+            word, at, rows, rdiv = s7reg_parse(reg[-1])
+            allr = [x for fi in range(len(at)) for x in at[fi]]
+            off = sorted(i for i, w in enumerate(word) if w == 0xFFFF)
+            q1 = qs[-1] if qs else []
+            seen = allr + q1
+            dup = sorted({x for x in seen if seen.count(x) > 1})
+            check(not dup and sorted(seen) == list(range(len(word))),
+                  f'season {s_ + 1} end: registry rows + queue: duplicates {dup[:5]}, missing {sorted(set(range(len(word))) - set(seen))[:5]} '
+                  f'({len(allr)} rows + {len(q1)} queued, {len(word)} idents)', errs)
+            if p0 is None:
+                p0 = (off[0] if off else None)
+            notes.append(f's{s_ + 1}: {len(allr)} rows + {len(q1)} queued = {len(seen)} idents once, moves {nm[-1] if nm else 0}')
+        # rotation: the first non-empty queue after its predecessor
+        qq = [q for q in qs if q]
+        if len(qq) >= 2 and mvs and nm and nm[-1]:
+            q0, q1 = qq[-2], qq[-1]
+            mv = [struct.unpack_from('<3H', mvs[-1], 6 * j) for j in range(nm[-1])]
+            m = len(mv)
+            check(len(q0) == len(q1) and [x[2] for x in mv] == q0[:m] and q1 == q0[m:] + [x[1] for x in mv],
+                  f'season {s_ + 1}: the moves {[(x[1], x[2]) for x in mv[:3]]} are not the queue\'s head in / the occupants out '
+                  f'(q {q0[:4]}.. -> {q1[:4]}..)', errs)
+    notes.append(s7pool_region(sy, hexes[0], errs))
+    return '; ' + ' | '.join(notes) + '; RI_S7_BAD 0'
+
+
 def s7cross(force, team, start_file, ldfail=None):
     """The career club crosses between the two league structs (4.2 S7, s7swap.c option B, MC 13/11): GPLAY_FORCE puts
     it on place `force` of its group at the season end (a Serie C group's last: down; a Serie D group's first: up);
@@ -27159,16 +27324,20 @@ def s7cross(force, team, start_file, ldfail=None):
     cdo = sy.get('gplay', {}).get('CD_ST')
     cdst = cdo[1] if cdo and cdo[0] == 2 and 'cd_season' in sy.get('gplay', {}) else None   # (obj2: plain hex)
     keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
-                                            'W8485_NOSACK', 'W8485_HEX', 'W8485_ONE')}
+                                            'W8485_NOSACK', 'W8485_RENEW', 'W8485_HEX', 'W8485_ONE')}
+    # (2b, 13/11: W8485_RENEW too - NOSACK stops the sacking but not the season end's contract non-renewal (message 38,
+    #  a random draw on a bad verdict): the career moved to another club's word, ALBALONGA 0x6f90, and the season-2
+    #  check read it as a crossing gone wrong. Forced, never retried; a non-renewal seen anyway = SETUP-ERROR below)
     os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+',
-                      W8485_NOSACK='1', W8485_HEX=f'o4/{at("S7_LOG"):x}:8,o4/{at("S7_CLOG"):x}:6,'
+                      W8485_NOSACK='1', W8485_RENEW='1', W8485_HEX=f'o4/{at("S7_LOG"):x}:8,o4/{at("S7_CLOG"):x}:6,'
                       f'o4/{at("S7_WLOG"):x}:12,o4/{at("S7_LD"):x}:16,{sel:x}:8'
                       + (f',o4/{sy["swe"]["SWC1"][1]:x}:4' if 'SWC1' in sy.get('swe', {}) else '')    # (SWC1 header: ver,
                       + (f',{sy["swe"]["SWE_CWB"][1]:x}:1' if 'SWE_CWB' in sy.get('swe', {}) else '')    # world; the world byte)
                       + (f',o4/{sy["lrank"]["LR_BLK"][1]:x}:8' if 'LR_BLK' in sy.get('lrank', {}) else '')   # (the LR block's key)
                       + (f',{cdst:x}:8,{cdst + CD_ENT:x}:264' if cdst else '')   # (Coppa D: header; ent[256] + efresh..)
                       + ''.join(f',{sy["gplay"][k][1] + o:x}:{n}' for k, o, n in (('RI_STATE', RI_MAPS, 1280),
-                                ('RI_FILES_FILE', 0, 8)) if sy.get('gplay', {}).get(k, [0])[0] == 2))   # (ri: maps, files)
+                                ('RI_FILES_FILE', 0, 8)) if sy.get('gplay', {}).get(k, [0])[0] == 2)   # (ri: maps, files)
+                      + s7pool_hex(sy))
     os.environ.pop('W8485_ONE', None)
     try:
         ok, msg = world8485()
@@ -27184,13 +27353,17 @@ def s7cross(force, team, start_file, ldfail=None):
     for season in (1, 2):
         f = os.path.join(RUNS, w84_tag() + f'_{season}', 'session.log')
         lines = open(f, errors='replace').read().splitlines() if os.path.exists(f) else []
+        if any(ln.startswith('[job]') and 'RINNOVARVI IL CONTRATTO' in ln for ln in lines):   # (the club changed:
+            raise SetupError(f'season {season}: the contract was not renewed (W8485_RENEW did not hold) - the career '   # not
+                             f'left {team}; the S7 checks would read another club\'s word')                      # a game FAIL)
         hexes.append([(ln.split()[1], bytes.fromhex(ln.split()[2])) for ln in lines if ln.startswith('HEX ')
                       and len(ln.split()) > 2])
     get = lambda s, k: [b for o, b in hexes[s] if o == k]
     logs = get(0, f'o4/{at("S7_LOG"):x}')
     st = [b for b in logs if b[0]]
-    check(bool(st) and st[-1][0] == 1 and st[-1][2] == 9 and st[-1][3] == 18,
-          f'S7_LOG {[b.hex() for b in st[-3:]]} (want status 1, 9 swaps, 18 crossers)', errs)
+    nri = s7_nri(sy, hexes[0])                      # (S7 x pool, 13/11: ri's moves are registry swaps too: nswap = 9 crossings + the pool moves)
+    check(bool(st) and st[-1][0] == 1 and st[-1][2] == 9 + nri and st[-1][3] == 18,
+          f'S7_LOG {[b.hex() for b in st[-3:]]} (want status 1, {9 + nri} swaps = 9 + {nri} pool moves, 18 crossers)', errs)
     cl = [struct.unpack('<HHh', b) for b in get(0, f'o4/{at("S7_CLOG"):x}')]
     cross = [c for c in cl if c[1]]
     new = cross[-1][1] if cross else None
@@ -27259,9 +27432,9 @@ def s7cross(force, team, start_file, ldfail=None):
             ones = [i for i, v in enumerate(ent) if v == 1]
             bad = [(i, v) for i, v in enumerate(ent[:nd]) if v == 0 or (v != 1 and not 2 <= v <= 19 and v != 0x40)]
             nfc, nfp = e2[0][259], e2[0][260]           # (cd_season's own arrivals, before the swap: from Serie C natively,
-            want = 9 + nfc + nfp                        #  from the pool; then the swap's 9 down-crossers, fill 1)
+            want = 9 + nri + nfc + nfp                  #  from the pool; then the swap's 9 down-crossers, fill 1; S7 x pool: + ri's moves)
             check(len(ones) == want and (new >> 8) in ones, f'Coppa D ent: {len(ones)} rows at 1 (new to Serie D) {ones[:12]} '
-                  f'(want {want}: 9 down-crossers + cd_season\'s {nfc} from Serie C + {nfp} from the pool; the career '
+                  f'(want {want}: 9 down-crossers + {nri} pool moves (ri, in the registry) + cd_season\'s {nfc} from Serie C + {nfp} from the pool; the career '
                   f'club\'s row {new >> 8} among them)', errs)
             check(nd == 162 and not bad and e2[0][256] == 1, f'Coppa D ent: {nd} rows (want 162), stayers not a place '
                   f'{bad[:6]}, efresh {e2[0][256]}', errs)
@@ -27271,9 +27444,10 @@ def s7cross(force, team, start_file, ldfail=None):
             cdnote = (f'; Coppa D ent season 2: {len(ones)} rows at 1 (9 down-crossers incl. the career club ord '
                       f'{new >> 8}, + {nfc} + {nfp} cd_season arrivals), '
                       f'{nd - len(ones)} stayers\' places 2..19, draw ran (round {rounds}, gen_on {gen})')
+    pnote = s7pool_checks(sy, hexes, errs)
     return not errs, '; '.join(errs) or (f'{start_file} -> {new & 0xFF}: crossed at the season end (9 swaps, 18 '
                                          f'crossers), selTeamNumber {new:#x}, season 2 loaded and played in the new '
-                                         f'struct (D6CDC {sels2[-1][3]}), S7_LD OK' + lrnote + cdnote)
+                                         f'struct (D6CDC {sels2[-1][3]}), S7_LD OK' + lrnote + cdnote + pnote)
 
 
 @scenario

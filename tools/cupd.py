@@ -124,6 +124,21 @@ def strengths(pk, lfile):
             + b''.join(struct.pack('<H', strength(pk, k)) for k in pool))
 
 
+def other_strengths(pk, lfile):
+    """S7 (s7-ri-fix.md, MC 13/11): (the OTHER league file's number, [strength of each of its rows]) - s7ri.c's S7RI_STRF /
+    S7RI_STR (obj4, written by s7swap.py: only S7 code reads them, so they stay out of the gplay pages), the same rule as
+    strength(): a club of the other file sitting in this file's rows is seeded by its real strength (its home row)."""
+    other = [f for f in pk.league_files() if f != lfile]
+    assert len(other) == 1, ('cupd: S7 league files', pk.league_files(), lfile)
+    rows = {}
+    for k in pk.clubs:
+        fl, i = pk.where.get(k, (None, None))
+        if fl == other[0]:
+            rows[i] = strength(pk, k)
+    n = max(rows) + 1 if rows else 0
+    return other[0], [rows.get(i, 5) for i in range(n)]
+
+
 def cd2():
     """True in a build with a league over two team files (globnum.exe_split): gplay.c is compiled with GP_CD2 and
     every CD_DT carries base2 / ord2 (head); else today's CD_DT bytes exactly."""

@@ -87,6 +87,41 @@ def homes(pk):
     return out, {roles[r]['file']: k for r, k in n.items()}
 
 
+def check_pool_names(pk, home):
+    """MC 13/11 (case 3 = marker in ri's queue): the registry's pool rows (idents whose home is FFFF) are exactly the clubs
+    of the off-file pool's RS file, by NAME, both ways and without repeats - so a future pack edit cannot silently break
+    the queue marker 0x4000 | registry ident (Name-level is enough: not the records' bytes)."""
+    if not hasattr(pk, 'pool_data'):                    # (the RS file's records: mkseason.rs_files' source)
+        pk.team_files()
+    rs = getattr(pk, 'pool_data', None)
+    assert rs, ('s7swap: no RS file for the pack\'s pool', pk.world, pk.pool_file)
+    n = rs[0] << 8 | rs[1]
+    rsn = [rs[2 + 684 * k + 5:2 + 684 * k + 22].split(b'\0')[0].decode('latin1') for k in range(n)]
+    regn = [c['name'] for c, h in zip(pk.clubs.values(), home) if h == 0xFFFF]
+    assert len(set(rsn)) == len(rsn) and len(set(regn)) == len(regn), ('s7swap: repeated pool club names',)
+    miss = sorted(set(regn) - set(rsn)), sorted(set(rsn) - set(regn))
+    assert not miss[0] and not miss[1], ('s7swap: registry pool rows != the RS file\'s clubs: only in the registry',
+                                        miss[0][:5], 'only in RS', miss[1][:5])
+    return n
+
+
+def pool_order(pk, home):
+    """S7 x pool (MC 13/11, one registry): (first pool ident, pool size). The pool idents (home FFFF) are consecutive and
+    pool ident first + j is the RS file's record j, by name, in order: s7_load gives that ident RI_POOL's record j,
+    the seed queues the RS order's records as these idents (s7swap.c s7_poolk). check_pool_names first (the sets)."""
+    ids = [i for i, h in enumerate(home) if h == 0xFFFF]
+    if not ids and getattr(pk, 'pool_file', None) is None:
+        return 0xFFFF, 0                                # (no off-file pool: the s7t test pack)
+    n = check_pool_names(pk, home)
+    rs = pk.pool_data
+    rsn = [rs[2 + 684 * k + 5:2 + 684 * k + 22].split(b'\0')[0].decode('latin1') for k in range(n)]
+    assert ids == list(range(ids[0], ids[0] + len(ids))), ('s7swap: pool idents not consecutive', ids[:3], ids[-3:])
+    regn = [c['name'] for c, h in zip(pk.clubs.values(), home) if h == 0xFFFF]
+    bad = [(j, a, b) for j, (a, b) in enumerate(zip(regn, rsn)) if a != b]
+    assert len(regn) == n and not bad, ('s7swap: pool ident first + j is not RS record j (by name)', bad[:3])
+    return ids[0], n
+
+
 def home_runs(home):
     """S7_HRUN: [(first ident, n, file, first ordinal)] - home's words as runs (consecutive idents, consecutive
     ordinals of one file); FFFF entries in none"""
@@ -178,6 +213,11 @@ def patch(p, ssyms, rsyms, gsyms, pgsyms, fsyms, risyms):
     assert 'S7_ORIG' in ssyms, 's7swap: swe.c without S7_ORIG (swe.py S7_ORIG_SZ)'
     home, nrec = homes(pk)
     assert len(home) == len(area) and set(nrec) == {fa, fb}, ('s7swap: homes', len(home), nrec)
+    pool0, npool = pool_order(pk, home)
+    assert not npool or (npool <= 255 and pool0 + npool <= len(home)), ('s7swap: pool', pool0, npool)
+    pk_ri = [k for k in range(8) if risyms.get(f'RI_F{k}') and risyms[f'RI_F{k}'][1] == fb]
+    assert len(pk_ri) == (1 if npool else len(pk_ri)) and not [k for k in range(8) if risyms.get(f'RI_F{k}') and risyms[f'RI_F{k}'][1] == fa], \
+        ('s7swap: ripool must pool the lower file only (s7_load: RI_POOL of FB)', pk_ri)
     lay = orig_layout([nrec[fa], nrec[fb]])
     built = pk.team_files()                             # (MC 13/11: S7_ORIG_SZ against the files as built)
     for f in (fa, fb):
@@ -217,12 +257,18 @@ def patch(p, ssyms, rsyms, gsyms, pgsyms, fsyms, risyms):
     if 'xlbt' in xleft.LABELS:                          # (xl_find's cached block: the same)
         flags += ('-DS7_XLB=1',)
         ext['S7_XLBT'] = (3, xleft.LABELS['xlbt'])
+    import cupd                                         # (S7 cd_str: the other league file's strengths, s7ri.c S7RI_STR - Panchina 4a27315)
+    sfo, srows = cupd.other_strengths(pk, fb)
+    assert sfo == fa and 0 < len(srows) <= 256, ('s7swap: other_strengths', sfo, fa, len(srows))
+    flags += (f'-DS7RI_NSTR={len(srows)}',)
     obj = cobj.compile_c(SRC, flags, sections=True)
     syms, end, bss = cobj.link(p, obj, swreg.S7SWAP_AT, (4, 0), externs=ext, limit=swreg.S7SWAP_END, text_obj=4,
-                               roots=['s7_season', 's7_load', 's7_home_word', 's7_flush', 'S7_HRUN', 'S7_FNV', 'S7_WLOG', 'S7_CLOG', 'WSITES', 'WS_KEYS', 'S7_ENN', 'S7_CFBLEN', 'S7_NAME', 'S7_OAT', 'S7_ONREC', 'S7_LD', 'S7_FA', 'S7_FB', 'S7_NUP', 'S7_NLO', 'S7_UP', 'S7_LO', 'S7_GB',
+                               roots=['s7_season', 's7_load', 's7_home_word', 's7_ident', 's7_poolk', 's7ri_pool', 's7ri_cdstr', 'S7RI_STR', 'S7RI_STRF', 's7_snap', 'S7_DIR', 'S7_NDIR', 'RI_MOVES', 'RI_NMOVES', 'RI_S7_BAD', 'RI_HINTN', 'RI_HINTMAP', 'RI_FRESH', 'S7_POOL0', 'S7_NPOOL', 'S7_RIPOOL', 'S7_RSNAME', 'S7_RIMV', 's7_flush', 'S7_HRUN', 'S7_FNV', 'S7_WLOG', 'S7_CLOG', 'WSITES', 'WS_KEYS', 'S7_ENN', 'S7_CFBLEN', 'S7_NAME', 'S7_OAT', 'S7_ONREC', 'S7_LD', 'S7_FA', 'S7_FB', 'S7_NUP', 'S7_NLO', 'S7_UP', 'S7_LO', 'S7_GB',
                                       'S7_AREA', 'S7_LOG'] + LIB)
     assert not bss, ('s7swap.c: no .bss (it would land on swe.c\'s)', bss)
     p.put(*syms['S7_FA'], bytes((fa,)))
+    p.put(*syms['S7RI_STRF'], struct.pack('<H', sfo))
+    p.put(*syms['S7RI_STR'], b''.join(struct.pack('<H', x) for x in srows))
     p.put(*syms['S7_FB'], bytes((fb,)))
     p.put(*syms['S7_NUP'], bytes((len(up),)))
     p.put(*syms['S7_NLO'], bytes((len(lo),)))
@@ -230,6 +276,14 @@ def patch(p, ssyms, rsyms, gsyms, pgsyms, fsyms, risyms):
     p.put(*syms['S7_LO'], bytes(lo))
     p.put(*syms['S7_GB'], b''.join(struct.pack('<3H', *x) for x in gb))
     p.put(*syms['S7_AREA'], area)
+    p.put(*syms['S7_POOL0'], struct.pack('<H', pool0))
+    p.put(*syms['S7_NPOOL'], struct.pack('<H', npool))
+    if npool:
+        cobj.add_ptr(p, syms['S7_RIPOOL'][1], *risyms[f'RI_POOL{pk_ri[0]}'], 4)   # (obj4 dword -> ripool's RS records, obj2)
+    assert not npool or risyms[f'RI_PSZ{pk_ri[0]}'][1] >= 2 + 684 * npool, ('s7swap: RI_POOL room', risyms[f'RI_PSZ{pk_ri[0]}'], npool)
+    rsn = risyms[f'RI_RSNAME{pk_ri[0]}'][1].upper().replace('/', '\\') if npool else ''
+    assert len(rsn) < 16, rsn
+    p.put(*syms['S7_RSNAME'], rsn.encode() + b'\0')
     hr = home_runs(home)
     p.put(*syms['S7_HRUN'], b''.join(struct.pack('<HHBB2x', *r) for r in hr))
     for s, nm in enumerate(names):
@@ -242,6 +296,14 @@ def patch(p, ssyms, rsyms, gsyms, pgsyms, fsyms, risyms):
     cobj.add_ptr(p, rsyms['SREG_CHG'][1], *syms['s7_flush'], rsyms['SREG_CHG'][0])   # (a load / new career: the word caches)
     if 'S7_HPTR' in risyms:                             # (ri_home, xtra_readto's hook: a crossed club's XTRA block)
         cobj.add_ptr(p, risyms['S7_HPTR'][1], *syms['s7_home_word'], 1)
+    import gplay
+    dirs = pk.s7_direct()                               # (s7_snap's direct crossings: gplay.c's S7_DIRS before)
+    assert 0 < len(dirs) <= 16 and all(len(z) == 4 for z in dirs), ('s7swap: S7_DIR', dirs)
+    p.put(*syms['S7_DIR'], b''.join(bytes(z) for z in dirs))
+    p.put(*syms['S7_NDIR'], bytes((len(dirs),)))
+    for k, f in (('GP_RIPOOL', 's7ri_pool'), ('GP_CDSTR', 's7ri_cdstr'), ('GP_S7SNAP', 's7_snap')):   # (gplay.c's two S7 hooks -> s7ri.c, Panchina's:
+        assert k in gplay.LABELS, ('s7swap: gplay.c without', k)       # MC ruling (b), S7-only logic in obj4)
+        cobj.add_ptr(p, gplay.LABELS[k][1], *syms[f], gplay.LABELS[k][0])
     import stadium
     if 'st_hptr' in stadium.LABELS:                     # (st_find: a crossed club's stadium by its home word, obj3)
         cobj.add_ptr(p, stadium.LABELS['st_hptr'][1], *syms['s7_home_word'], stadium.LABELS['st_hptr'][0])

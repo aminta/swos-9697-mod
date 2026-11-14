@@ -37243,8 +37243,8 @@ def gk_ref_kits():
     kb, sgp = kits_sites(b)
     hand = tuple(tuple(int(x) for x in os.environ[v].split(',')) if os.environ.get(v) else None
                  for v in ('KITS_HAND1', 'KITS_HAND2'))
-    has_w27 = any(b'MONDO 2026-27' in open(os.path.join(b, f), 'rb').read() for f in ('ITALIAN.EXE', 'ENGLISH.EXE', 'FRENCH.EXE', 'GERMAN.EXE')
-                  if os.path.exists(os.path.join(b, f)))      # (MC 14/11: the plain test build has no 2026-27 world: swe_match_w27 is 0 there)
+    has_w27 = any(b'2026-27' in open(os.path.join(b, f), 'rb').read() for f in ('ITALIAN.EXE', 'ENGLISH.EXE', 'FRENCH.EXE', 'GERMAN.EXE')
+                  if os.path.exists(os.path.join(b, f)))      # (MC 14/11: the plain test build has no 2026-27 world: swe_match_w27 is 0 there; '2026-27' is in every language's world menu text)
     for case, w27 in (('fr9697', 0), ('frw27', 1)):
         if w27 and not has_w27:
             notes.append('frw27: SKIPPED - needs a release-recipe build (the 2026-27 world); a SKIP is never a PASS: the kits gate runs on the release build')

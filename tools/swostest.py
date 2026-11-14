@@ -32916,8 +32916,9 @@ def diff_dp_page(s, pg, blk, errs):
     if pg.n != 2 * n + 4:
         return 'page not opened'
     txt = lambda i, st: f'{st}/{len(dfm.DP_ROWS[i][4]) - 1}' if i < dfm.DP_NNUM else ''
-    fit = lambda t, j: check(px(t) <= pg.geom[j][2] - 2 and set(t) <= set(SMALL_W) | {' '},
-                             f'{t!r}: {px(t)} px in {pg.geom[j][2]}', errs)
+    from complist import font_odd                       # (FONT, not SMALL_W: the width table has '=' too - a box glyph)
+    fit = lambda t, j: check(px(t) <= pg.geom[j][2] - 2 and not font_odd(t),
+                             f'{t!r}: {px(t)} px in {pg.geom[j][2]}, odd {font_odd(t)}', errs)
     for j, t in ((0, dfm.DP_TITLE[UI]), (bk, dfm.DP_BACK[UI]), (rs, dfm.DP_RESET[UI]), (lg, dfm.DP_LEG[UI])):
         check(pg.entries[j][1] == t, f'entry {j}: {pg.entries[j][1]!r} (want {t!r})', errs)
         fit(t, j)

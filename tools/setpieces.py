@@ -34,6 +34,8 @@ TAG = b'SETP'
 LABEL = {'it': 'CALCI PIAZZATI', 'en': 'SET PIECES', 'fr': 'PHASES ARRETEES', 'de': 'STANDARDS'}
 VALUES = {'it': ('CLASSICI', 'REALISTICI', 'ARCADE'), 'en': ('CLASSIC', 'REALISTIC', 'ARCADE'),
           'fr': ('CLASSIQUES', 'REALISTES', 'ARCADE'), 'de': ('KLASSISCH', 'REALISTISCH', 'ARCADE')}   # (Davide 14/11)
+assert not [t for x in (LABEL, VALUES) for v in x.values() for t in ((v,) if isinstance(v, str) else v)
+            if __import__('complist').font_odd(t)], 'setpieces: menu texts outside the font (box glyphs)'
 
 
 def on():

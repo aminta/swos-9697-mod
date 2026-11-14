@@ -111,8 +111,8 @@ DP_TITLE = {'it': 'DRIBBLING PERSONALIZZATO', 'en': 'CUSTOM DRIBBLING', 'fr': 'D
             'de': 'DRIBBLING INDIVIDUELL'}
 DP_BACK = {'it': 'INDIETRO', 'en': 'BACK', 'fr': 'RETOUR', 'de': 'ZURUECK'}
 DP_RESET = {'it': 'PREDEFINITI', 'en': 'DEFAULTS', 'fr': 'PAR DEFAUT', 'de': 'STANDARD'}   # (every row: DRIBBLING NEW's value)
-DP_LEG = {'it': '0 = CLASSICO  DESTRA = PIU AIUTO', 'en': '0 = CLASSIC  RIGHT = MORE HELP',
-          'fr': '0 = CLASSIQUE  DROITE = PLUS D AIDE', 'de': '0 = KLASSISCH  RECHTS = MEHR HILFE'}
+DP_LEG = {'it': '0: CLASSICO  DESTRA: PIU AIUTO', 'en': '0: CLASSIC  RIGHT: MORE HELP',     # (no '=': not a glyph,
+          'fr': '0: CLASSIQUE  DROITE: PLUS D AIDE', 'de': '0: KLASSISCH  RECHTS: MEHR HILFE'}  #  Davide's MiSTer 14/11)
 _FOFF = {0: 'k', 2: 'lockw', 4: 'lockl', 6: 'turn', 8: 'box', 12: 'hold', 16: 'slide', 20: 'wait'}
 DP_DEFAULT = tuple(r[4].index((USER if r[1] == 'U' else OPP)[_FOFF[r[2]]]) if r[1] else 0 for r in DP_ROWS)  # NUOVO; MIX ON
 for _r, _p in zip(DP_ROWS, DP_PCT + ((),) * 2):     # (step 0 = the original; every row fits 4 bits; % shown 3 digits)
@@ -121,6 +121,28 @@ for _r, _p in zip(DP_ROWS, DP_PCT + ((),) * 2):     # (step 0 = the original; ev
 assert DP_ROWS[6][4][0] == OPP['box'] and DP_DEFAULT[6:] == (0, 0, 0) and DP_ROWS[DP_MIX][1] is None
 assert all(r[1] for r in DP_ROWS[:DP_MIX]), 'the block rows first (dp_build)'
 assert K1[2] == 100 and K2[2] == 0 and K2B[2] == 0 and K3[2] == (6, 4, 3, 2, 1, 0, 0, 0)
+
+def _font_guard(*tabs):
+    """Every menu text (str, tuple / dict of them) only in characters the game's menu fonts draw (complist.FONT): a
+    stray char is a box glyph on screen ('=' in DP_LEG, Davide's MiSTer 14/11) - fail the build, all four languages."""
+    import complist
+    out = []
+
+    def walk(x):
+        if isinstance(x, str):
+            out.extend(f'{x!r}: {complist.font_odd(x)}' for _ in [0] if complist.font_odd(x))
+        elif isinstance(x, (tuple, list)):
+            for y in x:
+                walk(y)
+        elif isinstance(x, dict):
+            for y in x.values():
+                walk(y)
+    for t in tabs:
+        walk(t)
+    assert not out, 'menu texts outside the font: ' + '; '.join(out)
+
+
+_font_guard(LABEL, VALUES, DRLABEL, DRVALUES, DP_TITLE, DP_BACK, DP_RESET, DP_LEG, [r[0] for r in DP_ROWS], DP_SW)
 
 ASM = r"""
 ; ---- the kick-off: DF_ACT for this match (replaces `mov A6, offset team1AppPercent` at @@init_in_game_teams)

@@ -51,8 +51,8 @@ void (*SWEF_HOOK)(void) __attribute__((section(".data"))) = 0;   /* (.data: a fi
                                            records, ties; MC 14/11: .bss, no file pages, no band bytes) */
 u8 CDKN_WORK[CDKN_WORK_SZ] __attribute__((aligned(16)));
 #endif
-u8 PR_WORK[16] __attribute__((aligned(4)));   /* 4.2 set-piece practice (practice.py, MC 14/11: its work state here,
-                                           not in the PRACTICE band): GO +0, KIND +1, DEF +2 */
+u8 PR_WORK[32] __attribute__((aligned(4)));   /* 4.2 set-piece practice (practice.py, MC 14/11: its work state here,
+                                           not in the PRACTICE band): GO +0, KIND +1, DEF +2, step 2's engine +3.. (practice.WK) */
 extern const u8 SWE_REG[];              /* obj4+REG_AT: the manifest */
 u32 REG_PREV = 0xFFFFFFFF;              /* the namespace reg_enter left (WCUR), ~0 = none entered */
 u32 SEL_C254 = 0;                       /* competitionsTable[254] at the picker's entry */

@@ -10,13 +10,44 @@ the page (g_exitMenu); back in pr_open:
   call (step 2's engine reads it; 0 outside a practice);
 - the switch flips PR_DEF (0 ATTACK: the human takes, 1 DEFENCE: the CPU takes) and shows the page again on its row;
 - BACK -> nothing: ShowMenu's caller, the squad screen, with its cursor still on TRAINING.
-Work state (PR_GO, PR_KIND, PR_DEF) in swe.c's .bss (PR_WORK: MC 14/11, not in the band)."""
+Work state (PR_GO, PR_KIND, PR_DEF) in swe.c's .bss (PR_WORK: MC 14/11, not in the band).
+
+Step 2, the engine (release code, its own frame hook; the forcing ported from 42-sp spmeter's test-only meter, MC 14/11
+rule 1): GameLoop's per-pass `call nullsub_F10` (GameLoop+0x416, after MainKeysCheck: the live match only, between two
+whole game steps - no match code in flight; the routine is a bare ret, SWOS++ hooks none of it) goes to pr_frame,
+which returns at once unless PR_KIND != 0 inside the training game (g_trainingGame): practice off = the same match.
+pr_frame's state machine (PR_WORK +3 ST, +4 TMR frames in the state):
+- 0 idle: WAITF frames of live play (gameStatePl = gameState = ST_GAME_IN_PROGRESS) -> pick the side: the human team
+  (TeamGeneralInfo.playerNumber != 0, top first) attacks (ATTACK) or the other one (DEFENCE);
+- 1 forcing: FREE KICK / PENALTY: once, a foul through the game's own TestFoulForPenaltyAndFreeKick (A6 = the
+  defending team, A2 = the attacking team's ordinal-10 player put at the foul point; the 15 pseudo registers saved
+  around it): free kicks cycle x 336 / 290 / 382 (CENTRE, the two side bands) x 100 / 125 / 150 / 175 px from the goal
+  line (the wall zone), penalties 40 px (inside the area); CORNER: the ball past the goal line wide of the posts (x 150
+  / 520 alternating, z / speed / deltas 0) with lastTeamPlayed = the defending team, each frame until the game awards
+  the corner itself (CheckIfBallOutOfPlay). Awarded = gameState 4 / 5 (corner) or 6..14 (free kick / foul / penalty);
+  not in 30 frames: NFAIL + 1, idle again;
+- 2 awarded: until the kick (gameState back to play): attempts (NT) + 1;
+- 3 live: the attempt ends on a goal (NG + 1), the ball out of play / a stoppage (gameState != play: 4 settles the
+  goal count SETTLE frames), the ball cleared CLEAR px from the attacked goal line, or ATTF frames; then the cycle
+  index (CY) + 1, idle.
+The way out (Davide 14/11, A + B): ESC any time (the game's own, MainKeysCheck: playGame 0), or by itself after PR_N
+attempts (playGame 0 at the PR_N-th attempt's end, without ESC's abandonment branch). Then, back in pr_open, a result
+page (pr_result: the kind's name, TIRI n, GOL m, OK) when there was an attempt, and the squad screen."""
+import re
 import struct
 
 import nasmcave
 
 LABELS = {}
-WORK_SZ = 16                            # (swe.c PR_WORK: GO +0, KIND +1, DEF +2; step 2: counters, the cycle index)
+WORK_SZ = 32                            # (swe.c PR_WORK: WK below)
+WK = dict(GO=0, KIND=1, DEF=2, ST=3, TMR=4, CY=6, ATK=7, NT=8, NG=10, NFAIL=12, PG=14, NFR=16, HUM=20, LGS=21,
+          RST=22, MAXR=24, END=26)
+WAITF, ATTF, SETTLE, CLEAR = 20, 560, 25, 240   # frames of play before forcing; an attempt's 8 s (70 Hz); frames after a
+                                                # stoppage that still count a goal; px from the goal line = cleared (~40 m)
+FKD, FKX, FKORD, PEN_D = (100, 125, 150, 175), (336, 290, 382), 10, 40
+PR_N = 10                               # (Davide 14/11, A + B: a practice ends by itself after 10 attempts; ESC any time)
+RES = {'it': ('TIRI ', 'GOL ', 'OK'), 'en': ('SHOTS ', 'GOALS ', 'OK'), 'fr': ('TIRS ', 'BUTS ', 'OK'),
+       'de': ('SCHUESSE ', 'TORE ', 'OK')}  # (the result page: 'TIRI 10', 'GOL 3', OK - the counts drawn up to 3 digits)
 ROWS = {      # TRAINING, FREE KICK, PENALTY, CORNER, ATTACK, DEFENCE, BACK (the title = the squad screen's button)
     'it': ('ALLENAMENTO', 'PROVA PUNIZIONI', 'PROVA RIGORI', "PROVA CALCI D'ANGOLO", 'ATTACCO', 'DIFESA', 'INDIETRO'),
     'en': ('TRAINING MATCH', 'FREE KICK PRACTICE', 'PENALTY PRACTICE', 'CORNER PRACTICE', 'ATTACK', 'DEFENCE', 'BACK'),
@@ -55,8 +86,21 @@ pr_open:                                ; squadMenu entry 6 (TRAINING), on selec
     jz .x
     dec eax
     mov [KIND], al                      ; 0 training, 1 free kicks, 2 penalties, 3 corners
+    push edi                            ; (the engine's state and counters from zero: W_ST .. W_END)
+    push ecx
+    mov edi, KIND + 2
+    mov ecx, W_END_ - 3
+    xor al, al
+    rep stosb
+    pop ecx
+    pop edi
     call OLD_SEL                        ; entry 6's previous target (SelectTraining: the game, the squad screen)
-    mov byte [KIND], 0
+    cmp byte [KIND], 0                  ; a practice with attempts: the result page (the kind, TIRI n, GOL m, OK)
+    je .x0
+    cmp word [KIND - 1 + W_NT_], 0
+    je .x0
+    call pr_result
+.x0:mov byte [KIND], 0
 .x: ret
 
 pr_go:                                  ; a row: al = PR_GO; leave the page
@@ -78,6 +122,283 @@ pr_mode:
 pr_back:
     xor eax, eax
     jmp pr_go
+
+pr_result:                              ; after a practice: the result page (the kind's name, TIRI n, GOL m, OK)
+    pushad
+    movzx eax, byte [KIND]
+    mov esi, [KTAB + eax * 4 - 4]
+    mov edi, RT
+    call pr_cpy
+    mov esi, S_SH
+    mov edi, R1
+    call pr_cpy
+    dec edi
+    movzx eax, word [KIND - 1 + W_NT_]
+    call pr_num
+    mov esi, S_GL
+    mov edi, R2
+    call pr_cpy
+    dec edi
+    movzx eax, word [KIND - 1 + W_NG_]
+    call pr_num
+    popad
+    mov dword [A6], PR_RES
+    jmp SHOW_MENU                       ; (OK: pr_back, the page left; then the squad screen)
+
+pr_cpy:                                 ; esi -> edi with its 0; edi past the 0
+    lodsb
+    stosb
+    test al, al
+    jnz pr_cpy
+    ret
+
+pr_num:                                 ; eax (< 1000) in decimal at edi, then a 0
+    mov ecx, 10
+    xor ebx, ebx
+.d: xor edx, edx
+    div ecx
+    push edx
+    inc ebx
+    test eax, eax
+    jnz .d
+.p: pop eax
+    add al, '0'
+    stosb
+    dec ebx
+    jnz .p
+    mov byte [edi], 0
+    ret
+
+; ---- step 2: the engine. GameLoop's per-pass call (nullsub_F10, a bare ret) comes here
+pr_frame:
+    cmp byte [KIND], 0
+    jne .on
+    ret
+.on:pushad
+    mov ebx, KIND - 1                   ; ebx = PR_WORK, ebp = obj2's base (the game's variables: constants from it)
+    mov ebp, O2BASE
+    cmp word [ebp + GTR_O], 0           ; (only inside the training game)
+    je .x
+    cmp word [ebp + PLAYG_O], 0         ; (the match left this pass - ESC: its abandonment goals are not ours)
+    je .x
+    inc dword [ebx + W_NFR_]
+    mov al, [ebx + W_ST_]
+    cmp al, 2                           ; (idle / forcing: the restart's frames, RST)
+    jae .r0
+    inc word [ebx + W_RST_]
+.r0:
+    cmp al, 1
+    je .force
+    cmp al, 2
+    je .award
+    cmp al, 3
+    je .live
+    cmp al, 4
+    je .settle
+    cmp word [ebp + GSP_O], 100         ; ---- 0 idle: WAITF frames of live play
+    jne .z
+    cmp word [ebp + GS_O], 100
+    jne .z
+    inc word [ebx + W_TMR_]
+    cmp word [ebx + W_TMR_], WAITF_
+    jb .x
+    xor ecx, ecx                        ; the side: the human team (playerNumber != 0, the top one first)
+    cmp word [ebp + TOPT_O + 4], 0
+    jne .h
+    inc ecx                             ; (ecx 0 the top team human, 1 the bottom one)
+.h: mov [ebx + W_HUM_], cl
+    xor cl, 1                           ; ATTACK: the human attacks (ATK 1 = the top team attacks the bottom goal)
+    cmp byte [ebx + W_DEF_], 0
+    je .a
+    xor cl, 1                           ; DEFENCE: the other team
+.a: mov [ebx + W_ATK_], cl
+    mov byte [ebx + W_ST_], 1
+    mov word [ebx + W_TMR_], 0
+.force:                                 ; ---- 1 forcing
+    inc word [ebx + W_TMR_]
+    mov ax, [ebp + GS_O]
+    cmp byte [ebx + W_KIND_], 3
+    je .corner
+    cmp ax, 6                           ; a free kick (6..12), a foul (13), a penalty (14)
+    jb .f1
+    cmp ax, 14
+    jbe .got
+.f1:cmp word [ebx + W_TMR_], 1
+    jne .f2
+    call pr_foul                        ; (once: the game's TestFoulForPenaltyAndFreeKick sets the state)
+    jmp .x
+.f2:cmp word [ebx + W_TMR_], 30
+    jb .x
+    jmp .fail
+.corner:
+    cmp ax, 4                           ; ST_CORNER_LEFT / RIGHT: awarded by the game
+    je .got
+    cmp ax, 5
+    je .got
+    cmp word [ebx + W_TMR_], 30
+    ja .fail
+    call pr_poke                        ; (each frame: a dribbler may drag the ball back for a frame)
+    jmp .x
+.fail:
+    inc word [ebx + W_NFAIL_]
+    jmp .z
+.got:
+    mov byte [ebx + W_ST_], 2
+    mov [ebx + W_LGS_], al              ; (the state awarded; the longest restart since the last kick: MAXR -
+    cmp word [ebx + W_NT_], 0           ;  not the first one: the match start's walk-on and kick-off)
+    je .g1
+    mov ax, [ebx + W_RST_]
+    cmp ax, [ebx + W_MAXR_]
+    jbe .g1
+    mov [ebx + W_MAXR_], ax
+.g1:mov word [ebx + W_RST_], 0
+    jmp .t0
+.award:                                 ; ---- 2 awarded: until the kick
+    cmp word [ebp + GS_O], 100
+    jne .x
+    inc word [ebx + W_NT_]
+    mov ax, [ebp + G1_O]
+    add ax, [ebp + G2_O]
+    mov [ebx + W_PG_], ax
+    mov byte [ebx + W_ST_], 3
+.t0:mov word [ebx + W_TMR_], 0
+    jmp .x
+.live:                                  ; ---- 3 the attempt
+    inc word [ebx + W_TMR_]
+    call pr_goal
+    jc .over
+    cmp word [ebp + GS_O], 100
+    jne .stop
+    cmp word [ebx + W_TMR_], ATTF_
+    jae .over
+    movsx eax, word [ebp + BALL_O + 24h]    ; the ball's y: CLEAR px from the attacked goal line = cleared
+    cmp byte [ebx + W_ATK_], 0
+    je .up
+    neg eax
+    add eax, 769
+    jmp .cl
+.up:sub eax, 129
+.cl:cmp eax, CLEAR_
+    jg .over
+    jmp .x
+.stop:
+    mov byte [ebx + W_ST_], 4
+    jmp .t0
+.settle:                                ; ---- 4 a stoppage: a goal still counts for SETTLE frames
+    inc word [ebx + W_TMR_]
+    call pr_goal
+    jc .over
+    cmp word [ebx + W_TMR_], SETTLE_
+    jb .x
+.over:
+    inc byte [ebx + W_CY_]
+    cmp word [ebx + W_NT_], PR_N_       ; PR_N attempts: the game over (playGame 0, what ESC does, without its
+    jb .z                               ;  abandonment branch): GameLoop's next pass leaves the match
+    mov word [ebp + PLAYG_O], 0
+.z: mov byte [ebx + W_ST_], 0
+    mov word [ebx + W_TMR_], 0
+.x: popad
+    ret
+
+pr_goal:                                ; CF = a goal since the kick (NG + 1)
+    mov ax, [ebp + G1_O]
+    add ax, [ebp + G2_O]
+    cmp ax, [ebx + W_PG_]
+    je .n
+    mov [ebx + W_PG_], ax
+    inc word [ebx + W_NG_]
+    stc
+    ret
+.n: clc
+    ret
+
+pr_teams:                               ; eax = the attacking team, edx = the defending one (TeamGeneralInfo)
+    lea eax, [ebp + TOPT_O]
+    lea edx, [ebp + BOTT_O]
+    cmp byte [ebx + W_ATK_], 0
+    jne .r
+    xchg eax, edx
+.r: ret
+
+pr_poke:                                ; CORNER: the ball past the attacked goal line, wide of the posts
+    call pr_teams
+    lea esi, [ebp + BALL_O]
+    mov eax, 150 << 16
+    test byte [ebx + W_CY_], 1
+    jz .xl
+    mov eax, 520 << 16
+.xl:mov [esi + 1Eh], eax
+    mov eax, 120 << 16
+    cmp byte [ebx + W_ATK_], 0
+    je .yt
+    mov eax, 778 << 16
+.yt:mov [esi + 22h], eax
+    xor eax, eax
+    mov [esi + 26h], eax                ; z 0
+    mov [esi + 2Ch], ax                 ; speed 0
+    mov [esi + 2Eh], eax                ; deltaX / deltaY / deltaZ 0
+    mov [esi + 32h], eax
+    mov [esi + 36h], eax
+    mov [ebp + LTP_O], edx              ; lastTeamPlayed = the team defending that goal
+    ret
+
+pr_foul:                                ; FREE KICK / PENALTY: a foul on the attackers' FKORD player at the point
+    lea esi, [ebp + D0_O]               ; (the game's 15 pseudo registers D0..A6 saved: we run between two steps)
+    mov ecx, 15
+.sv:push dword [esi]
+    add esi, 4
+    loop .sv
+    call pr_teams
+    mov [ebp + A6_O], edx               ; A6 = the fouling team
+    mov cx, [eax + 12h]                 ; the attackers' TeamGeneralInfo.teamNumber
+    lea esi, [ebp + SPR0_O]
+    mov edi, 22
+.f: cmp [esi], cx                       ; Sprite.teamNumber, .playerOrdinal
+    jne .fn
+    cmp byte [esi + 2], FKORD_
+    je .ff
+.fn:add esi, 6Eh
+    dec edi
+    jnz .f
+    jmp .r                              ; (not found: no foul, the forcing gives up after 30 frames)
+.ff:mov ecx, PEN_D_                     ; ecx = px from the goal line, edi = x
+    mov edi, 336
+    cmp byte [ebx + W_KIND_], 2
+    je .y
+    movzx eax, byte [ebx + W_CY_]       ; free kicks: x FKX[CY % 3], distance FKD[CY / 3 % 4]
+    xor edx, edx
+    mov ecx, 3
+    div ecx
+    and eax, 3
+    imul ecx, eax, FKD_STEP_
+    add ecx, FKD0_
+    cmp edx, 1
+    jb .y
+    mov edi, FKX1_
+    je .y
+    mov edi, FKX2_
+.y: mov eax, 129                        ; the attacked goal line: top 129 (+ d), bottom 769 (- d)
+    add eax, ecx
+    cmp byte [ebx + W_ATK_], 0
+    je .yy
+    mov eax, 769
+    sub eax, ecx
+.yy:shl eax, 16
+    mov [esi + 22h], eax
+    shl edi, 16
+    mov [esi + 1Eh], edi
+    mov [ebp + A2_O], esi
+    push ebx
+    push ebp
+    call near TESTFOUL
+    pop ebp
+    pop ebx
+.r: lea esi, [ebp + D0_O + 14 * 4]
+    mov ecx, 15
+.rs:pop dword [esi]
+    sub esi, 4
+    loop .rs
+    ret
 """
 
 
@@ -85,12 +406,17 @@ def texts(lang):
     return (TITLE[lang],) + ROWS[lang]
 
 
+def res_texts(lang):
+    """The result page's lines as drawn (the widest counts: 999)."""
+    return (RES[lang][0] + '999', RES[lang][1] + '999', RES[lang][2])
+
+
 def check_texts():
     """Width + font in all 4 languages (MC 14/11: no stray characters)."""
     from complist import px, font_odd
     bad = []
     for lang in ROWS:
-        for t in texts(lang):
+        for t in texts(lang) + res_texts(lang):
             if px(t) > W - 12 or font_odd(t):
                 bad.append((lang, t, px(t), font_odd(t)))
     assert not bad, ('practice: texts', bad)
@@ -112,6 +438,83 @@ def old_target(p, sel_fix):
     return tobj, toff
 
 
+def _t(p, o):
+    try:
+        return p.target(1, o)
+    except AssertionError:
+        return None
+
+
+def hook_site(p):
+    """GameLoop's per-pass `call nullsub_F10` (@@clear_background_check_keys: call ClearBackground / GetKey /
+    MainKeysCheck / nullsub_F10, then mov ax, playGame / or / jz @@end_of_game): (its obj1 offset, its target)."""
+    d = p.le.obj_bytes(1)
+    m = [x.start() for x in re.finditer(rb'\xe8....\xe8....\xe8....\xe8....\x66\xa1....\x66\x0b\xc0\x0f\x84....'
+                                        rb'\x66\xa1....\x66\x0b\xc0\x74.\xe8', d, re.S)]
+    assert len(m) == 1, ('practice: GameLoop @@clear_background_check_keys', [hex(x) for x in m])
+    at = m[0] + 15
+    t = p.call_target(1, at)
+    assert t[0] == 1 and d[t[1]] == 0xC3, ('practice: GameLoop\'s nullsub call hooked already (a new chain: add it)', t)
+    return at, t
+
+
+def find_game(p, a6, ptg):
+    """The obj2 offsets the engine reads (any language): D0 = A6 - 14 x 4 (A6 from bteam's ui_sites), g_trainingGame
+    (PlayTrainingGame's head, ptg); the rest as 42-sp spmeter.find (its regexes; SPR0 = ballSprite - 22 x 6Eh)."""
+    d = p.le.obj_bytes(1)
+    assert a6[0] == 2, a6
+    d0 = (2, a6[1] - 14 * 4)
+    a0 = (2, d0[1] + 4 * 8)
+    gtr = _t(p, ptg + 3)
+    # CheckIfBallOutOfPlay: mov eax, [lastPlayerPlayed] / mov [A0], eax / mov eax, [lastKeeperPlayed] / or / jz /
+    # cmp [A0], offset goalie1Sprite
+    m = [x.start() for x in re.finditer(rb'\xa1....\xa3....\xa1....\x0b\xc0\x74.\x81\x3d', d, re.S)]
+    m = [o for o in m if _t(p, o + 6) == a0 and _t(p, o + 21) == a0]
+    assert len(m) == 1, ('practice: lastPlayerPlayed (A0 = D0 + 32)', m)
+    # its head: cmp [gameStatePl], ST_STOPPED / ... / mov [A6], offset ballSprite / mov esi, [A6] / mov ax, [esi + x + 2]
+    b = [x.start() for x in re.finditer(rb'\xc7\x05........\x8b\x35....\x66\x8b\x46\x20', d, re.S)]
+    b = [o for o in b if _t(p, o + 2) == a6 and _t(p, o + 12) == a6]
+    g = [o for o in b if any(d[k:k + 3] == b'\x66\x83\x3d' and d[k + 7] == 0x65 for k in range(o - 0x30, o))]
+    assert g, 'practice: CheckIfBallOutOfPlay head'
+    o = g[0]
+    k = [k for k in range(o - 0x30, o) if d[k:k + 3] == b'\x66\x83\x3d' and d[k + 7] == 0x65]
+    gsp = _t(p, k[-1] + 3)
+    ball = _t(p, o + 6)
+    # its corners: mov [A6], offset topTeamData / cmp word [D2], 129 / jge / mov eax, [lastTeamPlayed] / cmp [A6], eax
+    # / jnz / mov [A6], offset bottomTeamData
+    lt = [x.start() for x in re.finditer(rb'\xc7\x05........\x66\x81\x3d....\x81\x00\x7d.\xa1....\x39\x05....'
+                                         rb'\x0f\x85....\xc7\x05', d, re.S)]
+    lt = [o for o in lt if _t(p, o + 2) == a6 and _t(p, o + 28) == a6 and _t(p, o + 40) == a6]
+    assert len(lt) == 1, ('practice: lastTeamPlayed', lt)
+    topt, ltp, bott = _t(p, lt[0] + 6), _t(p, lt[0] + 22), _t(p, lt[0] + 44)
+    assert topt and bott and bott[1] - topt[1] == 0x91, ('practice: top / bottomTeamData', topt, bott)
+    # BenchMenuHandleControls: cmp gameState, ST_KEEPER_HOLDS_BALL / jz / mov [subsBlockDirections], 1 / cmp
+    gs = [x.start() for x in re.finditer(rb'\x66\x83\x3d....\x03\x0f\x84....\x66\xc7\x05....\x01\x00\x66\x83\x3d',
+                                         d, re.S)]
+    assert len(gs) == 1, ('practice: gameState', gs)
+    gstate = _t(p, gs[0] + 3)
+    gg = set()                          # the goals: mov ax, g1 / sub ax, g2 ... mov dx, g1 / add dx, g2
+    for x in re.finditer(rb'\x66\xa1....\x66\x2b\x05....', d, re.S):
+        o = x.start()
+        g1, g2 = _t(p, o + 2), _t(p, o + 9)
+        y = re.compile(rb'\x66\x8b\x15....\x66\x03\x15....', re.S).search(d, o + 13, o + 0x40)
+        if g1 and g2 and y and _t(p, y.start() + 3) == g1 and _t(p, y.start() + 10) == g2:
+            gg.add((g1, g2))
+    assert len(gg) == 1, ('practice: statsTeamGoals', gg)
+    g1, g2 = gg.pop()
+    a2 = (2, d0[1] + 4 * 10)
+    tf = [x.start() for x in re.finditer(rb'\x66\x83\x3d....\x65\x0f\x84....\xe8....\x8b\x35....\x66\x8b\x46\x20'
+                                         rb'\x66\xa3', d, re.S)]
+    tf = [o for o in tf if _t(p, o + 3) == gsp and _t(p, o + 21) == a2]
+    assert len(tf) == 1, ('practice: TestFoulForPenaltyAndFreeKick', tf)
+    for v in (gtr, _t(p, m[0] + 1), gsp, ball, ltp, topt, bott, gstate, g1, g2):
+        assert v and v[0] == 2, ('practice: an obj2 variable', v)
+    return dict(GTR_O=gtr[1], GSP_O=gsp[1], GS_O=gstate[1], BALL_O=ball[1], LTP_O=ltp[1], TOPT_O=topt[1],
+                BOTT_O=bott[1], G1_O=g1[1], G2_O=g2[1], SPR0_O=ball[1] - 22 * 0x6E, D0_O=d0[1], A2_O=a2[1],
+                A6_O=a6[1], TESTFOUL=tf[0])
+
+
+TAG = 'PRWK'                            # (the harness finds PR_WORK by it: the tag, then a pointer)
 SITES = {}
 
 
@@ -171,10 +574,35 @@ def patch(p, lang):
     data += f'S_T: db {q(tx[0])}\n' + ''.join(f'S_{i}: db {q(tx[1 + i])}\n' for i in range(4))
     data += f'S_ATT: db {q(tx[5])}\nS_DEF: db {q(tx[6])}\nS_5: db {q(tx[7])}\n'
     data += 'MTXT: times 24 db 0\n'
+    rs = RES[lang]
+    data += 'align 4\nPR_RES:\n    dd 0, 0, 0, 3\n'                     # (the result page: its OK row the default)
+    data += '    dw 0, 12, 304, 14\n    dw 4, 17h, 8, 0\n    dd RT\n    dw 0\n'
+    for i, b in ((1, 'R1'), (2, 'R2')):
+        data += f'    dw {X}, {Y0 + DY * (i - 1)}, {W}, {H}\n    dw 4, 0Eh, 8, 0\n    dd {b}\n    dw 0\n'
+    data += (f'    dw {X}, {Y0 + DY * 3}, {W}, {H}, 2\n    db 255, 255, 255, 255\n'
+             f'    dw 4, 0Ch, 8, 0\n    dd S_OK\n    dw 13\n    dd pr_back\n    dw 0\n    dw -999\n')
+    data += f'S_SH: db {q(rs[0])}\nS_GL: db {q(rs[1])}\nS_OK: db {q(rs[2])}\n'
+    data += 'align 4\nKTAB: dd S_1, S_2, S_3\n'
+    data += 'RT: times 24 db 0\nR1: times 16 db 0\nR2: times 16 db 0\n'
+    assert max(len(t) for t in tx[2:5]) < 24 and max(len(t) for t in res_texts(lang)) < 16
+    data += f'align 4\nPRTAG: db {q(TAG)[:-3]}\n    dd KIND - 1\n'   # (the harness: the tag, then PR_WORK)
     assert max(len(tx[5]), len(tx[6])) < 24
-    src = f'%define R_TRAIN_ {R_TRAIN}\n%define R_MODE_ {R_MODE}\n' + ASM + data
+    d1 = p.le.obj_bytes(1)
+    ptg = old[1] + 5 + struct.unpack('<i', d1[old[1] + 1:old[1] + 5])[0]     # (SelectTraining's call PlayTrainingGame)
+    g = find_game(p, u['a6'], ptg)
+    hk, hk_old = hook_site(p)
+    pg = _t(p, hk + 7)                  # (the site's next instruction: mov ax, [playGame])
+    assert pg and pg[0] == 2, ('practice: playGame', pg)
+    g = dict(g, PLAYG_O=pg[1])
+    assert FKD == tuple(FKD[0] + (FKD[1] - FKD[0]) * k for k in range(4)) and FKX[0] == 336
+    assert work[1] % 4 == 0 and WORK_SZ >= WK['END'], 'practice: PR_WORK (swe.c u8 PR_WORK[WORK_SZ], aligned 4)'
+    defs = {f'W_{k}_': v for k, v in WK.items()}
+    defs.update(R_TRAIN_=R_TRAIN, R_MODE_=R_MODE, WAITF_=WAITF, ATTF_=ATTF, SETTLE_=SETTLE, CLEAR_=CLEAR,
+                FKORD_=FKORD, PEN_D_=PEN_D, PR_N_=PR_N, FKD0_=FKD[0], FKD_STEP_=FKD[1] - FKD[0], FKX1_=FKX[1], FKX2_=FKX[2])
+    src = ''.join(f'%define {k} {v}\n' for k, v in defs.items()) + ASM + data
     sym = {'A6': u['a6'], 'SHOW_MENU': (1, u['show']), 'EXITM': u['exitm'], 'OLD_SEL': old,
-           'GO': (4, work[1]), 'KIND': (4, work[1] + 1), 'DEF': (4, work[1] + 2)}
+           'GO': (4, work[1]), 'KIND': (4, work[1] + 1), 'DEF': (4, work[1] + 2), 'O2BASE': (2, 0),
+           'TESTFOUL': (1, g['TESTFOUL']), **{k: (0, v) for k, v in g.items() if k != 'TESTFOUL'}}
     code, fix, rel = nasmcave.assemble_obj(src, at, sym, 4)
     lab = nasmcave.labels(src, at, sym)
     assert p.le.obj(4).npages * 0x1000 >= swreg.PRACTICE_END, 'practice: obj4 pages (patch.py)'
@@ -188,9 +616,13 @@ def patch(p, lang):
         p.add_rel(4, at + o, t_obj, t_off)
     p.remove(2, sel)                                    # squadMenu entry 6's on-select: SelectTraining -> pr_open
     p.add_ptr(2, sel, 4, lab['pr_open'])
+    p.branch(1, hk, 0xE8, 4, lab['pr_frame'])           # GameLoop's per-pass nullsub call -> pr_frame (step 2)
     LABELS.clear()
     LABELS.update(lab)
     LABELS['PR_WORK'] = work
     LABELS['ENT6_SEL'] = (2, sel)
+    LABELS['HOOK'] = (1, hk)
+    LABELS['GAME'] = g
     print(f'exe: practice page (squadMenu entry 6 obj2+{sel:#x} -> obj4 pr_open; its old target obj1+{old[1]:#x}): '
-          f'obj4+{at:#x} ({len(code)} B, {left} B left), work PR_WORK obj4+{work[1]:#x}')
+          f'obj4+{at:#x} ({len(code)} B, {left} B left), work PR_WORK obj4+{work[1]:#x}; engine: GameLoop obj1+{hk:#x} '
+          f'(was obj1+{hk_old[1]:#x}, a ret) -> pr_frame obj4+{lab["pr_frame"]:#x}, {len(fix)} fixups + {len(rel)} rel')

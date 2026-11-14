@@ -10716,6 +10716,234 @@ def practice_menu():
     return not errs, '; '.join(errs) or f'UI {UI}: ' + '; '.join(info)
 
 
+PR_KINDS = {'fk': (1, 'free kicks', 6, set(range(6, 14))), 'pen': (2, 'penalties', 4, {14}),
+            'corner': (3, 'corners', 4, {4, 5})}   # (row / PR_KIND, name, attempts wanted, the states awarded)
+
+
+def practice_work_at(r):
+    """PR_WORK's linear address (the 'PRWK' tag in obj4's PRACTICE band, then the pointer), or None."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import practice
+    import swreg
+    if r.base4 is None:
+        return None
+    band = r.read(r.base4 + swreg.PRACTICE_AT, swreg.PRACTICE_END - swreg.PRACTICE_AT)
+    k = band.find(practice.TAG.encode())
+    return struct.unpack_from('<I', band, k + 4)[0] if k >= 0 else None
+
+
+def practice_work(r):
+    """4.2 practice step 2: PR_WORK (practice.WK fields) found by the 'PRWK' tag in obj4's PRACTICE band, or None."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import practice
+    import swreg
+    a = practice_work_at(r)
+    if a is None:
+        return None
+    w = r.read(a, practice.WORK_SZ)
+    f = {}
+    for n, o in practice.WK.items():
+        if n == 'END':
+            continue
+        size = 4 if n == 'NFR' else 2 if n in ('TMR', 'NT', 'NG', 'NFAIL', 'PG', 'RST', 'MAXR') else 1
+        f[n] = int.from_bytes(w[o:o + size], 'little')
+    return f
+
+
+def practice_play(kind, side, esc_at=None):
+    """4.2 set-piece practice, step 2 (the engine, MC 14/11): a World 2026-27 career (PRACTICE_BUILD / BENCH_BUILD: a
+    release dir; TRAIN_PATH), SQUADRA -> TRAINING -> (DEFENCE: the switch) -> the kind's row -> the training game:
+    the engine forces the set piece again and again (fire pressed throughout: the human takes its own kicks). Gates:
+    PR_KIND / PR_DEF as chosen, the game over by itself after exactly PR_N (10) attempts (esc_at: ESC after that many),
+    no forcing failed (NFAIL 0), every state
+    awarded of the kind (free kick 6..13 / penalty 14 / corner 4, 5), the attacking side = the human team (ATTACK) or
+    the CPU one (DEFENCE) and the ball before the kick on that goal's half, the cycle index moving on, the longest
+    restart after the first kick <= 8 s (560 frames); then the result page (the kind, TIRI n, GOL m, OK on OK), OK:
+    back on the squad screen with PR_KIND 0, the counters kept, and the league match after
+    it: its kick-off reached with the engine idle (PR_WORK's frame count unchanged)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lepatch
+    import practice
+    b = os.environ.get('PRACTICE_BUILD') or os.environ.get('BENCH_BUILD')
+    if not b or not os.path.isdir(b):
+        return True, 'SKIP: PRACTICE_BUILD not set'
+    b = ui_build(os.path.realpath(b))
+    b = nop_league_int3(f'practice_{kind}_{side}_' + os.path.basename(RUNS.rstrip('/')), b)
+    path = os.environ.get('TRAIN_PATH', 'EUROPA,ITALIA,SERIE A,ROMA').split(',')
+    club = path[-1]
+    row, name, _, states = PR_KINDS[kind]
+    want = esc_at or practice.PR_N                     # (Davide 14/11, A + B: the game ends by itself after PR_N; ESC)
+    lang = UI if UI in practice.RES else 'it'
+    tx = practice_rows()
+    p = lepatch.LEPatch(os.path.join(b, 'ITALIAN.EXE'))
+    m = re.search(rb'(?:\xc7\x05.{8}){4}\x66\xc7\x05.{4}\xa7\x06', p.le.obj_bytes(1), re.S)
+    top, bot = p.target(1, m.start() + 6)[1], p.target(1, m.start() + 26)[1]
+    g = practice_game()
+    errs, info = [], []
+    tag = f'practice_{kind}_{side}' + ('_esc' if esc_at else '')
+    with Session(tag, b, {}, 'dump:2', 1500, match=True) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'START: no first pause ({s.result})'
+        for x in ('CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27'):
+            if press(s, s.screen(), x) is None:
+                return False, f'new career: {x} not reached ({s.result})'
+        if not pick_career(s, path):
+            return False, f'new career: {path} not reached ({s.result})'
+        s.send('fire dump:2')
+        for k, where in ((0, 'career menu'), (1, 'squad screen')):
+            scr = s.screen()
+            t = next((x for x in {TRAIN_TXT[UI][k], TRAIN_TXT['it'][k]} if scr.find(x, exact=True) is not None), None)
+            if t is None or press(s, scr, t, 3) is None:
+                return False, f'{where}: {TRAIN_TXT[UI][k]} not reached ({s.result})'
+        if side == 'def' and not practice_pick(s, 4, errs):
+            return False, '; '.join(errs)
+        if not practice_pick(s, row, errs):
+            return False, '; '.join(errs)
+        scr = s.screen()
+        if not {TRAIN_TXT[UI][2], TRAIN_TXT['it'][2]} & set(scr.texts()):
+            return False, 'no pre-match screen (' + ', '.join(scr.texts())[:120] + ')'
+        press(s, scr, TRAIN_TXT[UI][2], 3)
+        r = train_kickoff(s, top, bot, True)
+        if r is None:
+            return False, f'training: no kick-off ({s.result}; names {getattr(s, "kick_names", None)})'
+        w = practice_work(s.result)
+        if w is None:
+            return False, 'PR_WORK not found (no PRWK tag in the PRACTICE band)'
+        check(w['KIND'] == row and w['DEF'] == (side == 'def'), f'kick-off: PR_KIND {w["KIND"]} PR_DEF {w["DEF"]} '
+              f'(want {row}, {int(side == "def")})', errs)
+        awards, shots, rst, last = {}, 0, [], 0
+        for it in range(int(os.environ.get('PRACTICE_STEPS', '160'))):
+            r = s.send('fire:1 dump:1')
+            if r.outcome != 'dump':
+                errs.append(f'step {it}: {r}')
+                break
+            w = practice_work(r)
+            if w['ST'] in (0, 1):
+                last = max(last, w['RST'])
+            gs = struct.unpack('<h', r.obj2(g['GS_O'], 2))[0]
+            if w['ST'] == 2 and gs != 100:      # (an award before its kick: the last sample = the ball placed; gameState
+                if w['NT'] not in awards:       #  100 with ST 2 = kicked this frame, the engine not run yet: skipped)
+                    rst.append(last)
+                    last = 0
+                by = struct.unpack('<i', r.obj2(g['BALL_O'] + 0x22, 4))[0] >> 16
+                pn = [struct.unpack('<H', r.obj2(g[t] + 4, 2))[0] for t in ('TOPT_O', 'BOTT_O')]
+                awards[w['NT']] = (w['NT'], gs, by, w['ATK'], w['HUM'], pn, w['CY'])
+                if shots < 3 and len(awards) > shots:
+                    s.shot(f'practice_{kind}_{side}_{shots}')
+                    shots += 1
+            if w['NT'] >= want and (esc_at or w['ST'] in (0, 1, 3, 4)):
+                break
+        awards = list(awards.values())
+        info.append(f'restarts seen (frames, sampled ~1 s; the first = the kick-off, not gated) {rst}')
+        info.append(f'{name}: attempts {w["NT"]} goals {w["NG"]} fails {w["NFAIL"]} cycle {w["CY"]} longest restart '
+                    f'{w["MAXR"]} frames, {w["NFR"]} frames; awards (n, state, ball y, ATK, HUM, playerNumbers, CY) '
+                    f'{awards[:6]}')
+        check(w['NFAIL'] == 0, f'{name}: {w["NFAIL"]} forcings not awarded', errs)
+        check(w['MAXR'] <= 560, f'{name}: a restart took {w["MAXR"]} frames (> 8 s)', errs)
+        check(w['CY'] >= min(w['NT'], want) - 1, f'{name}: the cycle index {w["CY"]} after {w["NT"]} attempts', errs)
+        for n_, gs, by, atk, hum, pn, cy in awards:
+            check(gs in states, f'{name} #{n_}: state {gs} awarded (want {sorted(states)})', errs)
+            human_top = pn[0] != 0
+            check(hum == (0 if human_top else 1), f'{name} #{n_}: HUM {hum} with playerNumbers {pn}', errs)
+            att_top = human_top if side == 'att' else not human_top
+            check(atk == int(att_top), f'{name} #{n_}: ATK {atk} (the {"top" if att_top else "bottom"} team attacks)', errs)
+            if gs in states:                    # (the top team attacks the bottom goal, y 769)
+                check((by > 449) == att_top, f'{name} #{n_}: the ball at y {by} at the award (attacked goal '
+                      f'{"bottom" if att_top else "top"})', errs)
+        if kind == 'fk':
+            xs = {cy % 3 for *_, cy in awards}
+            check(len(xs) >= min(3, len(awards)), f'{name}: the cycle covered x bands {sorted(xs)}', errs)
+        nt_esc = w['NT']
+        if esc_at:                              # (ESC before PR_N: MainKeysCheck's playGame 0, the result page; the
+            s.send('esc:0.5 dump:2')            #  attempt in flight may still count: nt_esc or nt_esc + 1)
+        res, scr = None, None
+        for _ in range(40):                     # (the match over: by itself at PR_N, or ESC - then the result page)
+            try:
+                scr = s.screen()
+                t = scr.texts()
+            except Exception:                   # (still in the match: no menu)
+                t = []
+            if practice.RES[lang][2] in t and tx[1 + row] in t:
+                res = t
+                break
+            s.send('dump:1')
+        w = practice_work(s.result)
+        nt, ng = w['NT'], w['NG']
+        if esc_at:
+            check(want <= nt_esc and nt in (nt_esc, nt_esc + 1) and nt < practice.PR_N,
+                  f'{name}: ESC at {nt_esc} attempts, the game ended after {nt} (want {nt_esc} or +1, < {practice.PR_N})',
+                  errs)
+        else:
+            check(nt == want, f'{name}: the game ended after {nt} attempts (want exactly {want})', errs)
+        if res is None:
+            s.shot(f'{tag}_nores')
+            return False, '; '.join(errs + info + ['no result page (' + ', '.join(t)[:120] + ')'])
+        s.shot(f'{tag}_result')
+        want_t = [tx[1 + row], f'{practice.RES[lang][0]}{nt}', f'{practice.RES[lang][1]}{ng}', practice.RES[lang][2]]
+        check(all(x in res for x in want_t), f'result page {res} (want {want_t})', errs)
+        check(scr.selected == 3, f'result page: the cursor on entry {scr.selected} (want 3, OK)', errs)
+        info.append(f'result page {res}' + (' (after ESC)' if esc_at else ' (by itself)'))
+        if press(s, scr, practice.RES[lang][2], 3) is None:
+            return False, '; '.join(errs + info + [f'result page: OK not pressed ({s.result})'])
+        q = s.screen()
+        check({TRAIN_TXT[UI][1], TRAIN_TXT['it'][1]} & set(q.texts()),
+              f'after OK: not the squad screen ({", ".join(q.texts())[:120]})', errs)
+        s.healed = heal_first16(s)              # (as train_out: a training injury would hide the league's play button)
+        w = practice_work(s.result)
+        check(w['KIND'] == 0, f'after the training game: PR_KIND {w["KIND"]} (want 0)', errs)
+        check(w['NT'] == nt and w['NG'] == ng, f'after the training game: the counters {nt}/{ng} -> {w["NT"]}/{w["NG"]}',
+              errs)
+        nfr = w['NFR']
+        r = to_league(s, top, bot, club, errs)
+        if r is not None:
+            s.send('dump:3')
+            w = practice_work(s.result)
+            check(w['KIND'] == 0 and w['NFR'] == nfr, f'league match: PR_KIND {w["KIND"]}, engine frames {nfr} -> '
+                  f'{w["NFR"]} (want idle)', errs)
+            info.append('league match after it: engine idle')
+    return not errs, '; '.join(errs + info)
+
+
+def practice_game(p=None):
+    """practice.find_game's obj2 offsets (gameState, ball, top / bottom TeamGeneralInfo) - on the original exe of the
+    UI language (the mod never moves obj2's variables; bteam's sites are the original's)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import bteam
+    import lepatch
+    import practice
+    p = lepatch.LEPatch(os.path.join(MAIN, 'orig', ORIG_EXE.get(UI, 'ITALIAN.EXE')))
+    u = bteam.ui_sites(p)
+    return practice.find_game(p, u['a6'], practice_ptg(p))
+
+
+def practice_ptg(p):
+    """PlayTrainingGame's offset in a built exe (mov word [g_trainingGame], 1; mov [A0], offset careerTeam; mov word
+    [D0], 1; mov word [D1], 2)."""
+    d1 = p.le.obj_bytes(1)
+    m = [x.start() for x in re.finditer(rb'\x66\xc7\x05....\x01\x00\xc7\x05........\x66\xc7\x05....\x01\x00\x66\xc7\x05'
+                                        rb'....\x02\x00\xe8', d1, re.S)]
+    assert len(m) == 1, ('PlayTrainingGame', m)
+    return m[0]
+
+
+for _k in PR_KINDS:
+    for _sd in ('att', 'def'):
+        def _mk(k=_k, sd=_sd):
+            def f():
+                return practice_play(k, sd)
+            f.__name__ = f'practice_{k}_{sd}'
+            f.__doc__ = f'practice_play({k!r}, {sd!r}): ' + (practice_play.__doc__ or '').split('\n')[0]
+            return f
+        scenario(_mk())
+
+
+@scenario
+def practice_fk_esc():
+    """practice_play('fk', 'att', esc_at=3): ESC after 3 attempts (before PR_N) ends the practice: the result page shows
+    3 attempts, OK -> the squad screen, the league match after it."""
+    return practice_play('fk', 'att', esc_at=int(os.environ.get('PRACTICE_ESC_AT', '3')))
+
+
 @scenario
 def bench_training():
     """(4.0.6, Marco on 4.0.5) A training game keeps the game's bench (PlayTrainingGame: 2 from 2), not the league's

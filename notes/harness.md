@@ -309,6 +309,10 @@ or a SETUP-ERROR, 3 = only FLAKY, 0 = all PASS. `SWOSTEST_NO_RERUN=1`: no re-run
 - Country names in another language's exe: the harness maps the labels it knows (swostest_lang.json, the 1996-97
   menus) back to Italian, so a 1996-97 country keeps its Italian name in `W8485_TEAM` (BRASILE in the EN exe), while a
   world-only one needs that language's name (NEW ZEALAND, NOUV. ZELANDE, NEUSEELAND: the pack's `button_names`).
+- Exe identity across branches (4.2, MC 14/11): `lepatch.save()` keeps >= 128 B of LE padding (`LE_FLOOR`) and moves the
+  data pages down 0x200 at a time when the fixup records would leave less. Two builds of the same objects can then
+  differ only by the data-pages offset (header 0x80) and the zero padding: a "dormant == other build" proof compares
+  the header + fixup tables + every page with le.py (not the file md5) when the padding differs between the two.
 - A scenario that PASSes here and FAILs on the second Mac (remote_run.sh) with a scenario-built exe: compare the two
   builds (`md5` of `ITALIAN.EXE` and `DATA/*`). Since 2026-10-30 they are byte-identical for one commit + env:
   - every build writes `INPUTS.txt` (the files of `~/swos-mod/{internal,c,orig,ref}` it read, sha1 + size + time, and

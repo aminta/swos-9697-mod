@@ -27184,7 +27184,7 @@ def s7pool_hex(sy):
             f',o{ob}/{s7["S7_RIMV"][1]:x}:4,{gp["RI_STATE"][1]:x}:{8 + 20 + 384}'
             f',o{oa[0]}/{oa[1]:x}:{s7reg_dims()[4]}' + (f',o{ob}/{s7["RI_FRESH"][1]:x}:1' if 'RI_FRESH' in s7 else '')
             + (f',{s7pool_maps_at(sy):x}:324' if s7pool_maps_at(sy) else '')
-            + (f',o{ob}/{s7["S7GEO_NLOG"][1]:x}:4,o{ob}/{s7["S7GEO_LOG"][1]:x}:192,o{ob}/{s7["S7GEO_BAD"][1]:x}:4' if 'S7GEO_LOG' in s7 else ''))
+            + (f',o{ob}/{s7["S7GEO_NLOG"][1]:x}:4,o{ob}/{s7["S7GEO_LOG"][1]:x}:128,o{ob}/{s7["S7GEO_BAD"][1]:x}:4' if 'S7GEO_LOG' in s7 else ''))
 
 
 def s7pool_region(sy, hexes, errs):
@@ -27234,7 +27234,7 @@ def s7pool_region(sy, hexes, errs):
         nm = gn[-1] if gn else 0
         mv = []
         if gl and nm:
-            for j in range(min(nm, 48)):
+            for j in range(min(nm, 32)):
                 h, ft = struct.unpack_from('<HH', gl[-1], 4 * j)
                 mv.append((h, chr(65 + (ft >> 8)), chr(65 + (ft & 255))))
         return f'region: {n - len(bad)} of {n} pool arrivals in their region\'s Serie D group; chain moved {nm} natives {mv[:12]}'

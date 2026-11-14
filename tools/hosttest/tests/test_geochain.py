@@ -1,4 +1,4 @@
-"""4.2 Serie D geography (MC 14/11): s7ri.c's s7ri_geochain, the chain of one-step moves that makes a seat in a full girone for
+"""4.2 Serie D geography (MC 14/11): s7geo.c's s7geochain, the chain of one-step moves that makes a seat in a full girone for
 a pool arrival. Native (gplay.c + s7ri.c, test_ripool_cross.s7_lib): 9 gironi of 18 stayers, the pack's neighbour table
 (ita pack.json 'geo'), the cases: a neighbour with a seat = one step; only a far girone with a seat = a chain of single steps
 along the edges (never one big jump); the manager's club, this season end's arrivals and pending clubs never move; no seat
@@ -55,7 +55,7 @@ class Gi:
         for h in pending:
             self.pend[h >> 3] |= 1 << (h & 7)
         ogs = (ctypes.c_uint16 * max(1, len(og)))(*og)
-        f = self.L.s7ri_geochain
+        f = self.L.s7geochain
         f.restype = ctypes.c_int32
         f.argtypes = [ctypes.c_void_p, ctypes.c_int32, ctypes.c_int32, ctypes.c_int32, ctypes.c_int32, ctypes.c_int32,
                       ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_int32,

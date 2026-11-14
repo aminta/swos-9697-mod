@@ -90,7 +90,7 @@ WRAP = (
     'uint32_t s7_home_word(uint32_t w) { return t_home(w); }\n'
     'uint32_t (*t_homeof)(uint32_t);\n'
     'static uint16_t home_of(int32_t id) { return (uint16_t)t_homeof((uint32_t)id); }\n'
-    '#define DATA\n#undef S7_FB\nuint8_t S7_FB = 144;\nuint8_t RI_FRESH = 0;\n#include "s7ri.c"\n'
+    '#define DATA\n#undef S7_FB\nuint8_t S7_FB = 144;\nuint8_t RI_FRESH = 0;\n#include "s7geo.c"\n#include "s7ri.c"\n'
     'void t_wire(void) { GP_RIPOOL = s7ri_pool; GP_CDSTR = s7ri_cdstr; }\n'
     'void t_unhint(void) { s7ri_unhint(); }\n'
     'void t_unwire(void) { GP_RIPOOL = 0; GP_CDSTR = 0; }\n'

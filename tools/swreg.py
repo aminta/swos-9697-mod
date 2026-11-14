@@ -60,6 +60,10 @@ MKTAGE_AT = 0x18000                     # 4.3 reserved (Mercato CPU, MC 13/11 fi
 MKTAGE_END = 0x19000
 assert S7SWAP_END <= OBJ1MV_AT < OBJ1MV_END <= MKTHOOK_AT < MKTHOOK_END <= MKTAGE_AT < MKTAGE_END <= 0x19000, \
     'swreg: S7SWAP_END <= OBJ1MV_AT < OBJ1MV_END <= MKTHOOK_AT < MKTHOOK_END <= MKTAGE_AT < MKTAGE_END <= 0x19000'
+S7GEO_AT = 0x19000                      # 4.2 Serie D geography (MC 14/11 room ruling, 42-geo-d): the geography chain's own TU (s7geo.c:
+S7GEO_END = 0x1A000                     # code + neighbour table + log + the per-club coordinates), after MKTAGE here (the Integratore
+                                        # aligns it after FPORT 0x17000..0x19000 at the merge); linked only with GP_S7; >= 256 B left
+assert MKTAGE_END <= S7GEO_AT < S7GEO_END, 'swreg: MKTAGE_END <= S7GEO_AT < S7GEO_END'
 S7_ORIG_SZ = 0x2C000                    # 4.2 S7: s7swap.c's ORIG buffers in swe.c's .bss (shaped builds only; MC 13/11):
                                         # the two league files as read (Italy: 102 = 100 records, 144 = 162: 179212 B;
                                         # s7swap.py asserts they fit)

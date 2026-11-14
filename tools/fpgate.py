@@ -13,11 +13,11 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 T = None
 TEAM = os.environ.get('FPGATE_TEAM') or 'EUROPA,ITALIA,SERIE A,INTER'
 # A: 60 inside INTER's Supercoppa window [56, 93] (rule 6: refused at add, never installed); two legs v a Spanish club
-# (file 103, no league clash: the probe's run B) at 100 / 102; one tie away at 106 (flag 4); one after the league's end
-# window (B 128: refused)
-SCHED_A = os.environ.get('FPGATE_SCHED') or '60/60/1/1/0/0/103;100/102/2/1/0/0/103;106/106/1/1/4/1/103;134/134/1/1/0/2/103'
+# (file 103) at 95 / 97 and one tie away at 99 (flag 4) - odd units: Serie A plays every even unit 94-128 (rule 1);
+# one after the league's end window (B 128: refused)
+SCHED_A = os.environ.get('FPGATE_SCHED') or '60/60/1/1/0/0/103;95/97/2/1/0/0/103;99/99/1/1/4/1/103;134/134/1/1/0/2/103'
 FL = {1: 'ADD', 2: 'INST', 3: 'RES', 4: 'REFUSED', 5: 'MISSED', 6: 'REVAL', 7: 'SIM', 8: 'ORPHAN', 9: 'NEW', 10: 'LOAD',
-      11: 'SEASON', 12: 'LEG'}
+      11: 'SEASON', 12: 'LEG', 13: 'LEGX'}
 MAGIC, ST_SIZE = 0x50504631, 420
 
 
@@ -30,7 +30,7 @@ def world_env(extra=None):
 
 
 def gate_exe(name, sched, extra=None):
-    src, env = world_env(dict(FPORT='1', FPORT_TEST=sched, **(extra or {})))
+    src, env = world_env(dict(FPORT='1', FPORT_TEST=sched, **(extra or {})))   # (extra: BPLACE_FORCE / FPORT_ETFORCE)
     if not os.path.isdir(src):
         return None, f'SKIP: private data {src} missing'
     return os.environ.get('FPGATE_BUILD') or T.build(name, env=env), None
@@ -76,13 +76,70 @@ def season_log(lines, off):
     return out
 
 
+INITS = ('NEW', 'SEASON', 'LOAD')
+
+
+def season_inits(lines, off, sp):
+    """MC (P2 review 2): [(init code, its season y, seasonPlaying then)] in log order, and the seasons in which the port
+    ran (seasonPlaying - W8485_HEX on the game's byte, obj2 sp - at every FP_ST state under the magic): every init must
+    carry the season then current, every season the port ran in exactly one init"""
+    cur, seen, out, last = None, set(), [], []
+    pk, ps = f'HEX o4/{off:x} ', f'HEX {sp:x} '
+    for ln in lines:
+        if ln.startswith(ps):
+            cur = bytes.fromhex(ln.split()[2])[0]
+        elif ln.startswith(pk):
+            m, _s, _ld, _n, e = decode(bytes.fromhex(ln.split()[2]))
+            if m != MAGIC:
+                continue
+            seen.add(cur)                       # (a season in which the port ran: an FP_ST state under FP_MAGIC)
+            if len(e) < len(last) or e[:len(last)] != last:
+                last = []
+            out += [(x[0], x[4], cur) for x in e[len(last):] if x[0] in INITS]
+            last = e
+    return out, seen
+
+
+def check_inits(inits, seen, errs, nseasons):
+    bad = [i for i in inits if i[1] != i[2]]
+    T.check(not bad, f'inits whose season is not the one current {bad}', errs)
+    ran = sorted(x for x in seen if x is not None)
+    have = sorted(i[1] for i in inits if i[0] != 'LOAD')   # (a load is an explicit init of its own, MC 2: extra)
+    want = ran if not inits or inits[0][0] != 'LOAD' else ran[1:]   # (a run from a load: its first season's init is it)
+    T.check(have == want and len(ran) >= nseasons, f'inits {inits}: one NEW / SEASON per season the port ran in {ran} '
+            f'(>= {nseasons}; LOAD inits extra)', errs)
+
+
+def seasons2(team, extra):
+    """swostest.sc_season with W8485_ONE '' (two seasons: sc_season forces '1') -> (ok, msg, lines of both seasons)"""
+    keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_ONE', 'W8485_HEX')
+    keep = {k: os.environ.get(k) for k in keys}
+    os.environ.update(W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1',
+                      W8485_ONE='', **extra)
+    try:
+        ok, msg = T.world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    lines = []
+    for n in (1, 2):
+        p = os.path.join(T.RUNS, T.w84_tag() + f'_{n}', 'session.log')
+        if os.path.exists(p):
+            lines += open(p, errors='replace').read().splitlines()
+    return ok, msg, lines
+
+
 def run_a(tag='fpgate_a', sched=SCHED_A, extra=None):
     exe, skip = gate_exe(tag, sched)
     if skip:
         return True, skip
-    off = fp_st_at(exe)
-    ok, msg, lines = T.sc_season(TEAM, dict(W8485_BUILD=exe, W8485_HEX=f'o4/{off:x}:{ST_SIZE}', **(extra or {})))
+    off, sp = fp_st_at(exe), sym(exe, 'gplay', 'SEASONPLAYING', 2)
+    ok, msg, lines = T.sc_season(TEAM, dict(W8485_BUILD=exe, W8485_HEX=f'{sp:x}:1,o4/{off:x}:{ST_SIZE}', **(extra or {})))
     log = season_log(lines, off)
+    inits, seen = season_inits(lines, off, sp)
     open(os.path.join(T.RUNS, f'{tag}.txt'), 'w').write('\n'.join(map(str, log)) + '\n')
     errs = []
     T.check(ok, f'season: {msg}', errs)
@@ -97,9 +154,58 @@ def run_a(tag='fpgate_a', sched=SCHED_A, extra=None):
     T.check(len(res) == 2 and all(e[4] >> 4 & 15 == 0 for e in res), f'results {res}', errs)
     bad = [e for e in log if e[0] in ('REFUSED', 'ORPHAN')]
     T.check(not bad, f'refused / orphan {bad}', errs)
-    T.check(log and log[0][0] == 'NEW', f'first entry {log[:1]} (fp_new -> init at the first step)', errs)
+    check_inits(inits, seen, errs, 1)
     return not errs, '; '.join(errs) or f'{len(log)} log entries: adds {[e[2] for e in adds]}, installs {len(inst)}, ' \
         f'legs {[(e[1], e[4] & 255, e[4] >> 8) for e in legs]}, results {[(e[1], e[4] & 15) for e in res]}; {msg[:60]}'
+
+
+def legs_detail(log):
+    """every leg fp_leg stored, from the log's LEG + LEGX pairs: [(unit, home, g90 home, g90 away, et (h, a) or None,
+    pens (h, a) or None)]"""
+    out, pend = [], None
+    for c, u, _rc, mid, y in log:
+        if c == 'LEG':
+            pend = (u, mid, y & 255, y >> 8)
+        elif c == 'LEGX' and pend:
+            out.append((*pend, None if mid == 0xFFFF else (mid & 255, mid >> 8),
+                        None if y == 0xFFFF else (y & 255, y >> 8)))
+            pend = None
+    return out
+
+
+def run_et(tag, extra, want_pens):
+    """MC guard 3: BPLACE_FORCE (every decisive match level after 90 minutes / on aggregate, bf_et: no e.t. goals)
+    with fp_et chained after it - SCHED_A's single match (99) and the two-leg tie's second leg (97) go to e.t.;
+    want_pens: e.t. level -> penalties (BPLACE_FORCE alone); else FPORT_ETFORCE's 1-0 to the home side, no penalties.
+    Each leg's 90 minutes / e.t. / penalties against the forced result; the engine's winner check (fp_done's game
+    winner vs sr_port_winner: E_WINNER) against the game's own"""
+    exe, skip = gate_exe(tag, SCHED_A, dict(BPLACE_FORCE='1', **extra))
+    if skip:
+        return True, skip
+    off, sp = fp_st_at(exe), sym(exe, 'gplay', 'SEASONPLAYING', 2)
+    ok, msg, lines = T.sc_season(TEAM, dict(W8485_BUILD=exe, W8485_HEX=f'{sp:x}:1,o4/{off:x}:{ST_SIZE}'))
+    log = season_log(lines, off)
+    legs = legs_detail(log)
+    open(os.path.join(T.RUNS, f'{tag}.txt'), 'w').write('\n'.join(map(str, log + legs)) + '\n')
+    errs = []
+    T.check(ok, f'season: {msg}', errs)
+    T.check(len(legs) >= 3, f'legs {legs} (95, 97, 99)', errs)
+    if len(legs) >= 3:
+        l1, l2, l3 = legs[:3]
+        agg = (l1[2] + l2[3], l1[3] + l2[2])           # (side 0 = leg 1's home: its goals in leg 2 are the away ones)
+        T.check(l1[4] is None and l1[5] is None, f'leg 1 (not decisive) {l1}: no e.t. / penalties', errs)
+        T.check(agg[0] == agg[1], f'leg 2 {l2}: aggregate after 90 minutes level (BPLACE_FORCE) {agg}', errs)
+        T.check(l3[2] == l3[3], f'single match {l3}: level after 90 minutes (BPLACE_FORCE)', errs)
+        et = (0, 0) if want_pens else (1, 0)
+        for leg in (l2, l3):
+            T.check(leg[4] == et, f'{leg}: e.t. {leg[4]}, want {et}', errs)
+            T.check((leg[5] is not None and leg[5][0] != leg[5][1]) if want_pens else leg[5] is None,
+                    f'{leg}: penalties {leg[5]} ({"decisive" if want_pens else "none"})', errs)
+    res = [e for e in log if e[0] == 'RES']
+    T.check(len(res) == 2 and all(e[4] >> 4 & 15 == 0 for e in res), f'results {res} (accepted)', errs)
+    bad = [e for e in log if e[0] in ('REFUSED', 'ORPHAN')]
+    T.check(not bad, f'refused / orphan {bad}', errs)
+    return not errs, '; '.join(errs) or f'legs {legs[:3]}; results {[(e[1], e[4] & 15) for e in res]}; {msg[:60]}'
 
 
 def register(mod):
@@ -114,29 +220,69 @@ def register(mod):
         return run_a()
 
     @sc
+    def world_fport_etp():
+        """4.2 fixture port P2 (MC guard 3 + guard 1's combined build): BPLACE_FORCE + FPORT - the single match and
+        the second leg level, e.t. 0-0 (bf_et, chained before fp_et's capture), penalties; each leg's 90 minutes /
+        e.t. / penalties as forced, both results accepted"""
+        return run_et('fpgate_etp', {}, True)
+
+    @sc
+    def world_fport_etx():
+        """4.2 fixture port P2 (MC guard 3): BPLACE_FORCE + FPORT_ETFORCE - the single match and the second leg level
+        after 90 minutes, e.t. 1-0 to the home side, no penalties; each leg as forced, both results accepted"""
+        return run_et('fpgate_etx', dict(FPORT_ETFORCE='1'), False)
+
+    @sc
+    def world_fport_mlt():
+        """4.2 fixture port P2 gate (MC: 'every career'): HAMRUN SPARTANS (Malta: no play-offs, no S7), two season
+        ends - pg_fix (InitializeNewSeason) re-arms every season: exactly one init per season, each carrying the season
+        then played (seasonPlaying)"""
+        exe, skip = gate_exe('fpgate_a', SCHED_A)
+        if skip:
+            return True, skip
+        off, sp = fp_st_at(exe), sym(exe, 'gplay', 'SEASONPLAYING', 2)
+        team = 'EUROPA,MALTA,?MALTESE PREMIER LEAGUE|PREMIER LEAGUE,HAMRUN SPARTANS'
+        ok, msg, lines = seasons2(team, dict(W8485_BUILD=exe, W8485_HEX=f'{sp:x}:1,o4/{off:x}:{ST_SIZE}'))
+        inits, seen = season_inits(lines, off, sp)
+        open(os.path.join(T.RUNS, 'fpgate_mlt.txt'), 'w').write(f'{inits}\n{seen}\n')
+        errs = []
+        T.check(ok, f'seasons: {msg}', errs)
+        check_inits(inits, seen, errs, 2)
+        return not errs, '; '.join(errs) or f'inits {inits}, seasons {sorted(seen)}; {msg[:60]}'
+
+    @sc
     def world_fport_load():
-        """4.2 fixture port P2 gate (MC 2): a save mid-season between the two-leg tie's legs (GP_WK 102), loaded: fp_load
+        """4.2 fixture port P2 gate (MC 2): a save mid-season between the two-leg tie's legs (GP_PMID, the port tie's legs played, 1:
+        after its first leg), loaded: fp_load
         arms, the next step inits with the flag, REVAL logged before any poll / install; interim before P5 (no FP save
         section): the tie's second leg is played and logged as an ORPHAN (not credited), the queue re-added by
-        FPORT_TEST, the one-match tie at 106 then installed, played, accepted"""
+        FPORT_TEST, the one-match tie at 99 then installed, played, accepted"""
         exe, skip = gate_exe('fpgate_a', SCHED_A)
         if skip:
             return True, skip
         off = fp_st_at(exe)
-        wk = sym(exe, 'gplay', 'GP_WK', 2)
-        ok, msg, l1 = T.sc_season(TEAM, dict(W8485_BUILD=exe, W8485_MIDSAVE=f'{wk:x}:102:1',
+        pm = sym(exe, 'gplay', 'GP_PMID', 2)       # (fp_leg: the port tie's legs played, 1 = after the first)
+        ok, msg, l1 = T.sc_season(TEAM, dict(W8485_BUILD=exe, W8485_MIDSAVE=f'{pm:x}:1:1',
                                               W8485_HEX=f'o4/{off:x}:{ST_SIZE}'))
-        mid = os.path.join(T.RUNS, T.w84_tag() + '_1', 'mid')
-        ok2, msg2, l2 = T.sc_season(TEAM, dict(W8485_BUILD=exe, W8485_FROM=mid, W8485_HEX=f'o4/{off:x}:{ST_SIZE}'), 2)
+        import re
+        m = re.search(r'saved mid-season: (\S+\.CAR)', msg)
+        if not (ok and m):
+            return False, f'no mid-season save: {msg[:300]}'
+        mid = m.group(1)
+        sp = sym(exe, 'gplay', 'SEASONPLAYING', 2)
+        ok2, msg2, l2 = T.sc_season(TEAM, dict(W8485_BUILD=exe, W8485_FROM=mid, W8485_HEX=f'{sp:x}:1,o4/{off:x}:{ST_SIZE}'), 2)
+        li, _seen = season_inits(l2, off, sp)
         log = season_log(l2, off)
         open(os.path.join(T.RUNS, 'fpgate_load.txt'), 'w').write('\n'.join(map(str, log)) + '\n')
         errs = []
         T.check(ok and ok2, f'seasons: {msg} / {msg2}', errs)
         codes = [e[0] for e in log]
         T.check(codes[:2] == ['LOAD', 'REVAL'], f'after the load {codes[:4]}, want LOAD, REVAL first', errs)
+        T.check(li and li[0][0] == 'LOAD' and all(i[1] == i[2] for i in li) and all(i[0] == 'SEASON' for i in li[1:]),
+                f'inits after the load {li} (LOAD first, then one SEASON per new season)', errs)
         T.check(codes.count('ORPHAN') == 1, f'orphans {codes.count("ORPHAN")} (the second leg after the load: 1)', errs)
         res = [e for e in log if e[0] == 'RES']
-        T.check(len(res) == 1 and res[0][4] >> 4 & 15 == 0, f'results after the load {res} (the 106 tie)', errs)
+        T.check(len(res) == 1 and res[0][4] >> 4 & 15 == 0, f'results after the load {res} (the 99 tie)', errs)
         T.check('REFUSED' not in codes, f'refused {[e for e in log if e[0] == "REFUSED"]}', errs)
         return not errs, '; '.join(errs) or f'{codes}; {msg2[:60]}'
 

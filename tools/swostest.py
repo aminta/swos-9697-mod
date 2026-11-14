@@ -38685,6 +38685,114 @@ def sell_offers():
 
 __import__('zonetest').register(sys.modules[__name__])   # 4.1.2 zone positions (tools/zonetest.py)
 
+
+@scenario
+def world_s7cross_winners():
+    """S7 (4.2, MC 13/11) variant (c): the career club stays in Serie D (LIGORNA forced 2nd, girone A's winner X crosses
+    up into Serie C): the last-season page of its league. See s7winners."""
+    return s7winners(2, False)
+
+
+@scenario
+def world_s7cross_winners_x():
+    """S7 (4.2, MC 13/11) variant (x): the career club itself crosses (LIGORNA forced 1st in Serie D girone A: promoted into
+    Serie C, file 102): the last-season page of its new league names LIGORNA. See s7winners."""
+    return s7winners(1, True)
+
+
+def s7winners(force, crossed):
+    """The WINNERS page's last season after an S7 crossing (world5tm-h2 + the S7 test pack): season 1 is played with the
+    career club (LIGORNA, Serie D girone A) forced to place `force` of its group, saved at season 2's start and loaded in
+    a fresh session; the career league's VINCITORI page, its second (last-season) page. SETUP, not FAIL, unless season
+    1's end is the assumed situation (S7_LOG: 9 swaps, 18 crossers; the career club crossed or not as `crossed`,
+    LIGORNA's file 102 / 144 accordingly). Then:
+    - not crossed (x wins, LIGORNA 2nd): a winner from the Serie D file only (X by its home record), none from Serie C's
+      (wn_disk on a current word reads Y's row of the crossed file; the CF_ST 'E' line after a crossing);
+    - crossed (LIGORNA 1st): the page exists and names LIGORNA (it won its group), the club now in the Serie C file.
+    Today both FAIL (CF_ST.file / rank[] stale after a crossing: Panchina's 'CF rank' row, O8). S7_WNOFF=1 (test builds):
+    wn_disk left native."""
+    import glob
+    import json
+    env = s7_env(dict({'GPLAY_FORCE': str(force)}, **({'S7_WNOFF': '1'} if os.environ.get('S7_WNOFF') else {})))
+    if env is None:
+        return True, 'SKIP: S7_PACK (the shaped Italy pack) or internal world5tm-h2 missing'
+    exe = os.environ.get('S7_BUILD') or build(f's7cross_wn{force}' + ('_off' if os.environ.get('S7_WNOFF') else ''), env=env)
+    sy = json.load(open(os.path.join(exe, 'ITALIAN.syms.json')))
+    if 'S7_CLOG' not in sy.get('s7swap', {}):
+        return False, f'{exe}: no S7 swap builder'
+
+    def names(file):                                    # (a team file's disk names: TeamFile.teamName at 2 + 684 x ord + 5)
+        out = set()
+        for fn in glob.glob(os.path.join(exe, 'DATA', f'*.{file:03d}')):
+            b = open(fn, 'rb').read()
+            out |= {b[7 + 684 * o:24 + 684 * o].split(bytes(1))[0].decode('latin-1').strip()
+                    for o in range((len(b) - 2) // 684)}
+        return out - {''}
+    fb, fa = names(144), names(102)
+    got = {}
+    keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_RENEW', 'W8485_ONE', 'W8485_HEX')
+    keep = {k: os.environ.get(k) for k in keys}
+    s7 = sy['s7swap']
+    sel = s7['S7_SELTEAM'][1]
+    try:
+        os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM='EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA',
+                          W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1', W8485_RENEW='1', W8485_ONE='1',
+                          W8485_HEX=f'o4/{s7["S7_LOG"][1]:x}:8,o4/{s7["S7_CLOG"][1]:x}:6,{sel:x}:8'
+                          + (f',o{s7["RI_NMOVES"][0]}/{s7["RI_NMOVES"][1]:x}:4' if 'RI_NMOVES' in s7 else ''))
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    car = os.path.join(RUNS, w84_tag() + '_1', 'SWOS', 'W84A.CAR')      # (season 2's start: the career as saved)
+    if ok and os.path.exists(car):
+        with Session('world_s7cross_winners', exe, {'W84A.CAR': car}, 'dump:2', 300) as s:
+            s.wait()
+            s.send(LOAD1 + ' dump:3')
+            more = []
+            e, title, lines = winners_page(s, more)
+            got.update(e=e, title=title, lines=lines, last=[x.strip() for x in more[0]] if more else [])
+    errs = []
+    check(ok, msg[:300], errs)
+    # (force, don't hope - MC 13/11: SETUP, not FAIL, unless season 1's end really is the situation this check assumes:
+    #  the 9 group winners crossed up - LIGORNA 2nd, so not among them - and LIGORNA still sits in the Serie D file)
+    f1 = os.path.join(RUNS, w84_tag() + '_1', 'session.log')
+    hx = [(ln.split()[1], bytes.fromhex(ln.split()[2])) for ln in (open(f1, errors='replace').read().splitlines()
+                                                                    if os.path.exists(f1) else [])
+          if ln.startswith('HEX ') and len(ln.split()) > 2]
+    lg = [b for o, b in hx if o == f'o4/{s7["S7_LOG"][1]:x}' and b[0]]
+    cl = [struct.unpack('<HHh', b) for o, b in hx if o == f'o4/{s7["S7_CLOG"][1]:x}']
+    sl = [struct.unpack('<HHHH', b)[0] for o, b in hx if o == f'{sel:x}']
+    setup = []
+    nri = s7_nri(sy, hx)                                # (S7 x pool: ri's moves are registry swaps too - 9 + nri)
+    if not (lg and lg[-1][0] == 1 and lg[-1][2] == 9 + nri and lg[-1][3] == 18):
+        setup.append(f'S7_LOG {[b.hex() for b in lg[-1:]]}: want status 1, 9 + {nri} swaps, 18 crossers')
+    crossing = [c for c in cl if c[1]]
+    if bool(crossing) != crossed:
+        setup.append(f'the career club crossed {[(hex(a), hex(b)) for a, b, _ in crossing]}: want {"a crossing" if crossed else "none (it stays 2nd of its group)"}')
+    if not sl or sl[-1] & 0xFF != (102 if crossed else 144):
+        setup.append(f'selTeamNumber {[hex(x) for x in sl[-2:]]}: LIGORNA not in file {102 if crossed else 144}')
+    if setup:
+        return False, 'SETUP (not the situation under test): ' + '; '.join(setup) + f' [{msg[:120]}]'
+    last = got.get('last', [])
+    blk = winner_blocks(last)
+    blk.pop(last[0][:-1] if last else '', None)
+    vals = [v for v in blk.values() if v and v not in ('DA GIOCARE', 'IN CORSO')]
+    home = [v for v in vals if v in fb and v not in fa]
+    if crossed:
+        check(bool(last) and last[0].startswith('VINCITORI ') and 'LIGORNA' in vals,
+              f'last season {last[:1]} {blk}: want LIGORNA (it won girone A, now in the Serie C file)', errs)
+    else:
+        check(bool(last) and last[0].startswith('VINCITORI ') and home and 'LIGORNA' not in home,
+              f'last season {last[:1]} {blk}: want a winner from the Serie D file only (X by its home record)', errs)
+        check(not [v for v in vals if v in fa and v not in fb],
+              f'last season names a Serie C file club {[v for v in vals if v in fa and v not in fb]} (Y: the disk row at '
+              f'X\'s new ordinal)', errs)
+    return not errs, '; '.join(errs) or f'last season {last[:1]} {blk}: {home} from the Serie D file ({len(fb)} / {len(fa)} names)'
+
+
 if __name__ == '__main__':
     sys.exit(main(sys.argv[1:]))
 

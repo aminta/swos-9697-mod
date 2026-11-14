@@ -2579,8 +2579,10 @@ def _label_data():
             for v in o:
                 walk(v, acc)
     src = world_data()
-    for d in (sorted(os.listdir(src)) if os.path.isdir(src) else []):
-        pj = os.path.join(src, d, 'pack.json')
+    pjs = [os.path.join(src, d, 'pack.json') for d in (sorted(os.listdir(src)) if os.path.isdir(src) else [])]
+    if os.environ.get('S7_PACK'):                       # (s7cross builds: Italy is the shaped pack - its own competitions' names, the Serie D
+        pjs.append(os.path.join(os.environ['S7_PACK'], 'pack.json'))   # promotion ties 'SP. PROM. G. A' the career club meets in a girone)
+    for pj in pjs:
         if not os.path.isfile(pj):
             continue
         m = _j.load(open(pj))
@@ -27188,7 +27190,8 @@ def s7pool_hex(sy):
     return (f',o{ob}/{s7["RI_MOVES"][1]:x}:384,o{ob}/{s7["RI_NMOVES"][1]:x}:4,o{ob}/{s7["RI_S7_BAD"][1]:x}:4'
             f',o{ob}/{s7["S7_RIMV"][1]:x}:4,{gp["RI_STATE"][1]:x}:{8 + 20 + 384}'
             f',o{oa[0]}/{oa[1]:x}:{s7reg_dims()[4]}' + (f',o{ob}/{s7["RI_FRESH"][1]:x}:1' if 'RI_FRESH' in s7 else '')
-            + (f',{s7pool_maps_at(sy):x}:324' if s7pool_maps_at(sy) else ''))
+            + (f',{s7pool_maps_at(sy):x}:324' if s7pool_maps_at(sy) else '')
+            + (f',o{ob}/{s7["S7GEO_NLOG"][1]:x}:4,o{ob}/{s7["S7GEO_LOG"][1]:x}:128,o{ob}/{s7["S7GEO_BAD"][1]:x}:4' if 'S7GEO_LOG' in s7 else ''))
 
 
 def s7pool_region(sy, hexes, errs):
@@ -27226,6 +27229,22 @@ def s7pool_region(sy, hexes, errs):
             bad.append((pool[k]['name'], row, rdiv[fb][row], letter))
     # (MC 14/11: PARKED backlog item 'Serie D pool arrivals placed geographically' - the pg_one/pg_room fallback puts the last arrivals
     #  in a far girone when the gironi are full, pre-existing and not an S7 x pool regression: reported, not a FAIL. 31 of 36 on the real pack.)
+    geo = 'S7GEO_LOG' in s7                          # (4.2 geography: the chain makes every arrival's own girone a seat - elsewhere is a FAIL)
+    if geo:
+        kn, kl, kb = (f'o{ob}/{s7[x][1]:x}' for x in ('S7GEO_NLOG', 'S7GEO_LOG', 'S7GEO_BAD'))
+        gn = [struct.unpack('<i', b)[0] for o, b in hexes if o == kn]
+        gb = [struct.unpack('<i', b)[0] for o, b in hexes if o == kb]
+        gl = [b for o, b in hexes if o == kl]
+        check(not bad, f'regional placement: {len(bad)} of {n} pool arrivals not in their region\'s Serie D group with the chain on '
+              f'(name, row, group, area) {bad[:5]}; S7GEO_BAD {gb[-1:]}', errs)
+        check(not any(gb), f'S7GEO_BAD {gb[-3:]}: a chain refused (no mover / longer than 8 steps)', errs)
+        nm = gn[-1] if gn else 0
+        mv = []
+        if gl and nm:
+            for j in range(min(nm, 32)):
+                h, ft = struct.unpack_from('<HH', gl[-1], 4 * j)
+                mv.append((h, chr(65 + (ft >> 8)), chr(65 + (ft & 255))))
+        return f'region: {n - len(bad)} of {n} pool arrivals in their region\'s Serie D group; chain moved {nm} natives {mv[:12]}'
     return (f'region: {n - len(bad)} of {n} pool arrivals in their region\'s Serie D group'
             + (f', {len(bad)} elsewhere (parked, pre-existing): {[x[0] for x in bad]}' if bad else ''))
 
@@ -38682,9 +38701,11 @@ __import__('zonetest').register(sys.modules[__name__])   # 4.1.2 zone positions 
 
 @scenario
 def world_s7cross_winners():
-    """S7 (4.2, MC 13/11) variant (c): the career club stays in Serie D (LIGORNA forced 2nd, girone A's winner X crosses
-    up into Serie C): the last-season page of its league. See s7winners."""
-    return s7winners(2, False)
+    """S7 (4.2, MC 13/11) variant (c): the career club stays in Serie D (LIGORNA forced 6th: out of the promotion
+    play-off places 2..5 - Panchina 14/11: a forced 2nd won its unforced play-off and went up, a SETUP by dice; and
+    GPLAY_KOFORCE builds keep no last-season WINNERS page; girone A's winner X crosses up into Serie C): the
+    last-season page of its league. See s7winners."""
+    return s7winners(6, False)
 
 
 @scenario
@@ -38765,7 +38786,7 @@ def s7winners(force, crossed):
         setup.append(f'S7_LOG {[b.hex() for b in lg[-1:]]}: want status 1, 9 + {nri} swaps, 18 crossers')
     crossing = [c for c in cl if c[1]]
     if bool(crossing) != crossed:
-        setup.append(f'the career club crossed {[(hex(a), hex(b)) for a, b, _ in crossing]}: want {"a crossing" if crossed else "none (it stays 2nd of its group)"}')
+        setup.append(f'the career club crossed {[(hex(a), hex(b)) for a, b, _ in crossing]}: want {"a crossing" if crossed else "none (it stays in its group)"}')
     if not sl or sl[-1] & 0xFF != (102 if crossed else 144):
         setup.append(f'selTeamNumber {[hex(x) for x in sl[-2:]]}: LIGORNA not in file {102 if crossed else 144}')
     if setup:

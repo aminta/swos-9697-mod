@@ -23,6 +23,8 @@ uint16_t S7RI_STR[S7RI_NSTR] DATA = {0};        /* the strength of each of its r
 uint16_t RI_MOVES[S7RI_MV][3] DATA = {{0}};    /* this season end's pool moves {row, out ident, in ident} */
 int32_t RI_NMOVES DATA = 0;
 int32_t RI_S7_BAD DATA = 0;
+
+extern int32_t S7GEO_NLOG;                    /* (s7geo.c, its own band: the geography chain's log, reset with each season end) */
 uint16_t *RI_HINTMAP DATA = 0;                  /* ri_ida's transient input (s7-ri-fix.md, MC 13/11): the file's maps[] words, written here from the */
 int32_t RI_HINTN DATA = 0;                      /* registry before ri_ida, alive only inside one pg_fix: s7_season clears them first of all (s7ri_unhint) */
 
@@ -54,6 +56,7 @@ int32_t s7ri_pool(const uint8_t *e, uint16_t *q, uint8_t *qn, int32_t init, int3
                                                        the Netherlands, Portugal -: gplay.c's own maps[] path handles those) */
     int32_t n = e[1], low = e[2], ns = e[3] | e[4] << 8, m = 0;
     const uint8_t *sl = e + 5, *order = sl + 4 * ns + n;
+    S7GEO_NLOG = 0;                                 /* (the geography chain's log: this season end's, ahead of the first arrival) */
     RI_NMOVES = 0;                                  /* (a new season end's log: the S7 world has ONE kind-0 pool, file 144) */
     RI_FRESH = 1;                                   /* (s7_season consumes the log once: no stale moves at a career start / a second career) */
     if (init == 1) {

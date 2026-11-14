@@ -17,6 +17,7 @@ import os
 import struct
 
 SRC = os.path.join(os.path.dirname(os.path.abspath(__file__)), 's7swap.c')
+SRC_GEO = os.path.join(os.path.dirname(os.path.abspath(__file__)), 's7geo.c')
 NID = 320                       # (s7swap.c S7_NID: S7_AREA's room)
 LABELS = {}
 
@@ -36,7 +37,7 @@ def on():
 
 def page_end():
     import swreg
-    return (swreg.S7SWAP_END + 0xFFF) & ~0xFFF
+    return (swreg.S7GEO_END + 0xFFF) & ~0xFFF           # (4.2 geography: the S7GEO band is the last of the S7 bands)
 
 
 def tables(pk):
@@ -261,6 +262,11 @@ def patch(p, ssyms, rsyms, gsyms, pgsyms, fsyms, risyms):
     sfo, srows = cupd.other_strengths(pk, fb)
     assert sfo == fa and 0 < len(srows) <= 256, ('s7swap: other_strengths', sfo, fa, len(srows))
     flags += (f'-DS7RI_NSTR={len(srows)}',)
+    gobj = cobj.compile_c(SRC_GEO, (), sections=True)    # (4.2 geography: its own band, linked first: s7ri.c's reset of the log is an extern)
+    gsy, gend, gbss = cobj.link(p, gobj, swreg.S7GEO_AT, (4, 0), limit=swreg.S7GEO_END - 256, text_obj=4,
+                                roots=['s7geochain', 'S7GEO_NEIGH', 'S7GEO_ON', 'S7GEO_LOG', 'S7GEO_NLOG', 'S7GEO_BAD'])
+    assert not gbss, ('s7geo.c: no .bss', gbss)
+    ext['S7GEO_NLOG'] = gsy['S7GEO_NLOG'][:2]
     obj = cobj.compile_c(SRC, flags, sections=True)
     syms, end, bss = cobj.link(p, obj, swreg.S7SWAP_AT, (4, 0), externs=ext, limit=swreg.S7SWAP_END, text_obj=4,
                                roots=['s7_season', 's7_load', 's7_home_word', 's7_ident', 's7_poolk', 's7ri_pool', 's7ri_cdstr', 'S7RI_STR', 'S7RI_STRF', 's7_snap', 'S7_DIR', 'S7_NDIR', 'RI_MOVES', 'RI_NMOVES', 'RI_S7_BAD', 'RI_HINTN', 'RI_HINTMAP', 'RI_FRESH', 'S7_POOL0', 'S7_NPOOL', 'S7_RIPOOL', 'S7_RSNAME', 'S7_RIMV', 's7_flush', 'S7_HRUN', 'S7_FNV', 'S7_WLOG', 'S7_CLOG', 'WSITES', 'WS_KEYS', 'S7_ENN', 'S7_CFBLEN', 'S7_NAME', 'S7_OAT', 'S7_ONREC', 'S7_LD', 'S7_FA', 'S7_FB', 'S7_NUP', 'S7_NLO', 'S7_UP', 'S7_LO', 'S7_GB',
@@ -301,9 +307,23 @@ def patch(p, ssyms, rsyms, gsyms, pgsyms, fsyms, risyms):
     assert 0 < len(dirs) <= 16 and all(len(z) == 4 for z in dirs), ('s7swap: S7_DIR', dirs)
     p.put(*syms['S7_DIR'], b''.join(bytes(z) for z in dirs))
     p.put(*syms['S7_NDIR'], bytes((len(dirs),)))
+    geo = (pk.meta.get('geo') or {}).get('neighbours') or {}     # (4.2 Serie D geography, MC 14/11: the pack's neighbour list per girone)
+    if geo:
+        letters = sorted(geo)
+        assert letters == [chr(65 + i) for i in range(len(letters))] and len(letters) <= 9, ('s7swap: geo.neighbours keys', letters)
+        tab = bytearray(b'\xff' * 81)
+        for i, L in enumerate(letters):
+            nb = [ord(ch) - 65 for ch in geo[L]]
+            assert len(set(nb)) == len(nb) and i not in nb and all(0 <= x < len(letters) for x in nb), ('s7swap: geo list', L, geo[L])
+            tab[9 * i:9 * i + len(nb)] = bytes(nb)
+        p.put(*gsy['S7GEO_NEIGH'], bytes(tab))
+        p.put(*gsy['S7GEO_ON'], b'\x01')
     for k, f in (('GP_RIPOOL', 's7ri_pool'), ('GP_CDSTR', 's7ri_cdstr'), ('GP_S7SNAP', 's7_snap')):   # (gplay.c's two S7 hooks -> s7ri.c, Panchina's:
         assert k in gplay.LABELS, ('s7swap: gplay.c without', k)       # MC ruling (b), S7-only logic in obj4)
         cobj.add_ptr(p, gplay.LABELS[k][1], *syms[f], gplay.LABELS[k][0])
+    if geo:                                             # (4.2 geography: gplay.c's pg_one hook -> the S7GEO band; 0 = today's fallbacks)
+        assert 'GP_GEOCH' in gplay.LABELS, 's7swap: gplay.c without GP_GEOCH'
+        cobj.add_ptr(p, gplay.LABELS['GP_GEOCH'][1], *gsy['s7geochain'][:2], gplay.LABELS['GP_GEOCH'][0])
     import stadium
     if 'st_hptr' in stadium.LABELS:                     # (st_find: a crossed club's stadium by its home word, obj3)
         cobj.add_ptr(p, stadium.LABELS['st_hptr'][1], *syms['s7_home_word'], stadium.LABELS['st_hptr'][0])
@@ -328,6 +348,7 @@ def patch(p, ssyms, rsyms, gsyms, pgsyms, fsyms, risyms):
         WNL = {}
     LABELS.clear()
     LABELS.update(syms)
+    LABELS.update({k: v for k, v in gsy.items() if k.startswith('S7GEO_')})   # (the S7GEO band's data: the harness's chain log)
     LABELS.update(WNL)
     if 'st_cur' in stadium.LABELS:
         LABELS.update(ST_FIND=stadium.LABELS['st_find'], ST_GT1=stadium.LABELS['GT1'], ST_TOP=stadium.LABELS['TOP'])

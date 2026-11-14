@@ -30149,9 +30149,11 @@ def world_cupd_format():
         check(ok, msg[:300], errs)                      #  screens: TRENTADUES... - other languages info only)
     exe = os.environ.get('GPLAY_BUILD') or os.environ.get('W8485_BUILD') or ''   # (the build world_gplay_cupd played:
     fmt = os.path.join(exe, 'DATA', f'FMT{UI.upper()}5.DAT')                       #  GPLAY_BUILD, else its own / SWOSTEST_BUILD)
-    if not os.path.isfile(fmt):
-        return (not errs, '; '.join(errs) or f'SKIP (page compare): no {fmt} in the build played (a test build without '
-                f'the World 2026-27 FORMAT data; set GPLAY_BUILD / SWOSTEST_BUILD to a release dir); {msg[:200]}')
+    if not os.path.isfile(fmt):                        # (MC 14/11: a skipped compare is a SKIP, never a PASS)
+        if errs:
+            return False, '; '.join(errs)
+        raise Skipped(f'page compare: no {fmt} in the build played (a test build without the World 2026-27 FORMAT '
+                      f'data; set GPLAY_BUILD to a release dir: <rel>/SWOS); {msg[:200]}')
     pg = st.get('page')
     check(pg is not None, f'Coppa D FORMAT page not reached {st}', errs)
     if pg:

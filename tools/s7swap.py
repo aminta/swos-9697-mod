@@ -235,11 +235,16 @@ GEO_BOX = (35.4, 47.2, 6.5, 18.6)         # (Italy's bounding box: lat min / max
 
 def geo_coords(pk):
     """4.2 Serie D geography, town coordinates (MC / Davide 14/11): clubs.csv 'lat' / 'lon' (decimal degrees of the club's town) ->
-    [(lat, lon) in 0.01 degree, (0, 0) = none] per ident, or None when the pack has no such columns (the movers stay the lowest row).
+    [(lat, lon) in 0.01 degree, (0, 0) = none] per ident. No such columns: REFUSED (MC 14/11), except under the test switch S7_GEO_NOCOORD (None: the movers stay the lowest row).
     With the columns, EVERY club of the Serie D file and of the pool must have one inside GEO_BOX: refused otherwise."""
     rows = list(pk.clubs.values())
     if not any('lat' in r or 'lon' in r for r in rows):
-        return None
+        if os.environ.get('S7_GEO_NOCOORD'):             # (test builds only - modver.BUILD_SWITCHES: buildrel clears it: the lowest-row control)
+            import modver
+            assert modver.is_test()
+            return None
+        raise SystemExit("s7swap: clubs.csv has no lat / lon columns (4.2 Serie D geography: the town coordinates are required, Davide "
+                         "14/11): a GP_S7 build is refused; regenerate the pack with tools/s7pack.py (tools/s7pack_towns.csv)")
     out, bad = [], []
     for r in rows:
         la, lo = (r.get('lat') or '').strip(), (r.get('lon') or '').strip()

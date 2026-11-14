@@ -55,13 +55,22 @@ class FakePk:
 
 
 def test_geo_coords():
-    """s7swap.geo_coords: no lat/lon columns = None (dormant, lowest row); with them every Serie D / pool club needs one inside Italy's
+    """s7swap.geo_coords: no lat/lon columns = REFUSED (MC 14/11; only the test switch S7_GEO_NOCOORD gives None = lowest row); with them every Serie D / pool club needs one inside Italy's
     box, else the build is refused (missing, outside the box, not a number); other clubs' may be empty."""
     errs = []
     ok = [{'key': 'a', 'file': 'league_b', 'lat': '44.27', 'lon': '9.39'}, {'key': 'b', 'file': 'pool', 'lat': '37.50', 'lon': '15.09'},
           {'key': 'c', 'file': 'league', 'lat': '', 'lon': ''}]
-    if s7swap.geo_coords(FakePk([{'key': 'a', 'file': 'league_b'}])) is not None:
-        errs.append('no columns: not None')
+    try:
+        s7swap.geo_coords(FakePk([{'key': 'a', 'file': 'league_b'}]))
+        errs.append('no columns: not refused')
+    except SystemExit:
+        pass
+    os.environ['S7_GEO_NOCOORD'] = '1'                       # (the test switch: lowest-row control; modver.is_test() must hold in a test build)
+    try:
+        if s7swap.geo_coords(FakePk([{'key': 'a', 'file': 'league_b'}])) is not None:
+            errs.append('switch: not None')
+    finally:
+        del os.environ['S7_GEO_NOCOORD']
     if s7swap.geo_coords(FakePk(ok)) != [(4427, 939), (3750, 1509), (0, 0)]:
         errs.append(f'values {s7swap.geo_coords(FakePk(ok))}')
     bads = {

@@ -27836,9 +27836,10 @@ def world_s7cross_c20():
     if 'S7_LD' not in s7:
         return False, f'{exe}: no S7 swap builder'
     lg, ldk = f'o4/{s7["S7_LOG"][1]:x}', f'o4/{s7["S7_LD"][1]:x}'
+    nmv = f'o4/{s7["RI_NMOVES"][1]:x}' if 'RI_NMOVES' in s7 else lg    # (S7 x pool: the season end's swaps = 9 crossings + ri's pool moves)
     keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'C20_TEAM', 'C20_SEASONS', 'W8485_HEX')}
     os.environ.update(W8485_BUILD=exe, C20_TEAM='EUROPA,ITALIA,SERIE C GIRONE A,UNION BRESCIA',
-                      C20_SEASONS=os.environ.get('C20_SEASONS') or '2', W8485_HEX=f'{lg}:8,{ldk}:16')
+                      C20_SEASONS=os.environ.get('C20_SEASONS') or '2', W8485_HEX=f'{lg}:8,{ldk}:16,{nmv}:4')
     errs, info = [], []
     try:
         ok, msg = career_20seasons()
@@ -27859,8 +27860,9 @@ def world_s7cross_c20():
         bad = [x for x in lds if x[0] not in (1, 2) or (x[0] == 2 and season > 1)]
         check(not bad, f'season {season if season == 1 else n}: S7_LD failed {bad[:3]}', errs)
         if season == 1:
-            check(logs and logs[-1][0] == 1 and logs[-1][2] == 9, f'season 1: S7_LOG {[b.hex() for b in logs[-2:]]} '
-                  f'(want OK, 9 swaps)', errs)
+            nri = max((struct.unpack('<i', b[:4])[0] for b in hx(nmv) if len(b) == 4), default=0) if nmv != lg else 0
+            check(logs and logs[-1][0] == 1 and logs[-1][2] == 9 + nri, f'season 1: S7_LOG {[b.hex() for b in logs[-2:]]} '
+                  f'(want OK, {9 + nri} swaps = 9 crossings + {nri} pool moves)', errs)
         else:
             ok1 = [x for x in lds if x[0] == 1]
             check(ok1 and ok1[0][4] > 0, f'season {n}: the first applied load {ok1[:1]} moved no rows (the save\'s '

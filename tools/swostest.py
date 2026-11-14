@@ -27207,6 +27207,7 @@ def s7pool_region(sy, hexes, errs):
     fb = len(at) - 1                                 # (the lower struct: file 144)
     first_pool = len(word) - len(pool)               # (the pool idents are the last len(pool): S7_POOL0)
     bad, n = [], 0
+    gd = [min(rdiv[fb]) + i for i in range(10)]      # (the file's own division numbering: Serie D's groups A.. are its lowest divisions - 5..13 in the real pack)
     for j in range(nm[-1]):
         row, out, inn = struct.unpack_from('<3H', mvs[-1], 6 * j)
         k = inn - first_pool
@@ -27216,7 +27217,7 @@ def s7pool_region(sy, hexes, errs):
         if letter not in 'ABCDEFGHIJ':
             continue
         n += 1
-        if rdiv[fb][row] != 'ABCDEFGHIJ'.index(letter) and at[fb][row] == inn:
+        if rdiv[fb][row] != gd['ABCDEFGHIJ'.index(letter)] and at[fb][row] == inn:
             bad.append((pool[k]['name'], row, rdiv[fb][row], letter))
     check(not bad, f'regional placement: {len(bad)} of {n} pool arrivals not in their region\'s Serie D group (name, row, group, area) '
           f'{bad[:4]}', errs)
@@ -27245,7 +27246,7 @@ def s7pool_checks(sy, hexes, errs):
             check(not any(fr), f'season {s_ + 1}: RI_FRESH seen set {fr} (a stale ri log s7_season did not consume)', errs)
         mp = s7pool_maps_at(sy)
         if mp:                                       # (MC 13/11 cond. 2: ri_ida's transient hint words are 0 outside pg_fix: any sample set FAILs)
-            hs = [b for o, b in hexes[s_] if o == f'{mp:x}']
+            hs = [b for o, b in hexes[s_] if o == f'{mp:x}' and len(b) == 324]   # (another watch item can share the address: 1280 bytes there)
             check(all(not any(b) for b in hs), f'season {s_ + 1}: maps[] hint words of file 144 seen set outside pg_fix '
                   f'({sum(1 for b in hs if any(b))} sample(s), {sum(1 for x in struct.unpack("<162H", hs[-1]) if x) if hs else 0} words)', errs)
         check(not any(bad), f'season {s_ + 1}: RI_S7_BAD {bad} (a can\'t-happen: an occupant the registry did not know, or RI_SWAPPED set)', errs)

@@ -102,7 +102,7 @@ WRAP = (
     'void t_cdd(const u8 *p) { GP_CDD = p; }\n')
 
 
-def s7_lib(tag='s7', extra=(), s7ri=None):
+def s7_lib(tag='s7', extra=(), s7ri=None, s7geo=None):
     """gplay.c + s7ri.c in one native translation unit (as s7swap.c includes s7ri.c in the exe). s7ri: a mutated s7ri.c text
     (written next to the wrapper: a quoted include looks there first)."""
     prev = cd.FLAGS
@@ -111,6 +111,8 @@ def s7_lib(tag='s7', extra=(), s7ri=None):
         d = tempfile.mkdtemp(prefix='ris7')
         if s7ri is not None:
             open(os.path.join(d, 's7ri.c'), 'w').write(s7ri)
+        if s7geo is not None:
+            open(os.path.join(d, 's7geo.c'), 'w').write(s7geo)
         return cd._lib(d, WRAP, 1, tag)
     finally:
         cd.FLAGS = prev

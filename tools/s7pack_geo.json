@@ -1,0 +1,4 @@
+{
+ "_note": "4.2 Serie D geography (MC 14/11): the ADJACENT gironi of each Serie D girone (LND 2025-26 areas: A Piemonte-Liguria, B Lombardia, C Triveneto, D Emilia, E Toscana-Umbria, F Marche-Abruzzo, G Lazio-Sardegna, H Campania-Puglia, I Calabria-Sicilia), each list in order of preference. Copied by tools/s7pack.py into the shaped pack's pack.json 'geo.neighbours'; s7swap.py refuses a build without it (s7swap.geo_table: 9 gironi, symmetric, every girone reachable). Review / change it with the LND layout.",
+ "neighbours": {"A": "BD", "B": "ACD", "C": "BD", "D": "ECBAF", "E": "DFG", "F": "EDHG", "G": "EHF", "H": "GIF", "I": "H"}
+}

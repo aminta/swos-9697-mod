@@ -38845,7 +38845,8 @@ def gk_gloves_dark():
     path = os.environ.get('GLV_PATH', 'EUROPA,ITALIA,SERIE A,MILAN').split(',')
     with Session('gk_gloves_dark', b, {}, 'dump:3', 300, match=True) as s:
         s.wait()
-        set_world(s, 0)
+        gw = int(os.environ.get('GLV_WORLD', 0))      # (0 = World 2026-27: gloves; 1 = the 1996-97 game, 2 = Europe 1984-85: hands untouched)
+        set_world(s, gw)
         walk(s, 'AMICHEVOLE', 2)
         for t in ('OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB') + tuple(path):
             try:
@@ -38871,11 +38872,11 @@ def gk_gloves_dark():
                 break
             s.send(('right' if scr.selected in (i + 1, i + 2) else 'down') + ' dump:0.5')
         tm = se_team(s)[0]
-        who = os.environ.get('GLV_KEEPER', 'MAIGNAN')
+        who = os.environ.get('GLV_KEEPER', 'MAIGNAN' if gw == 0 else '')
         recs = [s.result.read(tm + 76 + 38 * j, 38) for j in range(16)]
         k = next((j for j, r_ in enumerate(recs) if who in bytes(r_[3:25]).split(b'\0')[0].decode('latin-1')), None)
         face = (recs[k][26] >> 3) & 3 if k is not None else None
-        check(face == 2, f'{who}: record {k}, face {face} (want 2, dark); the 16: {[bytes(r_[3:25]).split(bytes(1))[0].decode("latin-1") for r_ in recs]}', errs)
+        check(not who or face == 2, f'{who}: record {k}, face {face} (want 2, dark); the 16: {[bytes(r_[3:25]).split(bytes(1))[0].decode("latin-1") for r_ in recs]}', errs)
         info.append(f'{who} slot {k} face {face}')
         for _ in range(22):
             s.send('down dump:0.5')
@@ -38883,7 +38884,7 @@ def gk_gloves_dark():
                 break
         r = s.send('fire ' + 'fire:3 ' * 12 + 'dump:2')
         s.shot('gloves_dark')
-        kits_check('glv_dark', s, kb, sgp, 1, errs, info)
+        kits_check('glv_dark', s, kb, sgp, 1 if gw == 0 else 0, errs, info)
     return not errs, '; '.join(errs + info)
 
 

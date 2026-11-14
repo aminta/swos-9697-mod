@@ -590,7 +590,9 @@ kt_conv:
     mov bx, 0B08h                       ; his shirt mask: 8 -> 11
     call kt_mask
 %if W27_
-    cmp byte [KT_W27], 0                ; 4.2 gloves (David Foster; World 2026-27 only: KT_W27, the yellow referee's flag): the hand pixels
+    cmp byte [KT_W27], 0                ; 4.2 gloves (David Foster; World 2026-27 only). KT_W27 = 'this match is World 2026-27's' (the engine's
+                                        ; swe_match_w27, stored by kt_chain): a WORLD flag, read by the referee rule AND here, not the referee's own
+                                        ; switch - a later referee-kit change must keep it as it is. The hand pixels
     je .ng                              ; (skin 5 / 6 touching the shirt: gkgloves.py) -> entry 7, which this table maps to white
     mov word [edi + 14], WHITE_
     call kt_gl

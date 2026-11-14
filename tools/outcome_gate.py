@@ -28,6 +28,7 @@ METRICS = (
 )
 PAIRINGS = {'sw': ('BAYERN MUNICH', 'ST. PAULI'), 'eq': ('HAMBURG', 'SCHALKE'), 'ws': ('ST. PAULI', 'BAYERN MUNICH')}
 POWER = ('CPU goal difference', lambda m: m['g_cpu'] - m['g_coach'], 'abs', 0.3)
+SUPPORT = ('CPU shots on target', lambda m: m['ont_cpu'], 'rel', 0.15)   # (reported, not required: MC 14/11)
 
 
 def load(paths):
@@ -53,7 +54,7 @@ def per_match(r):
     coach_top = home.startswith(top)
     coach, cpu = (st[0], st[1]) if coach_top else (st[1], st[0])
     tot = [a + b for a, b in zip(st[0], st[1])]
-    return dict(g_coach=r['goals'][0], g_cpu=r['goals'][1], att=tot[5], ont=tot[6],
+    return dict(g_coach=r['goals'][0], g_cpu=r['goals'][1], att=tot[5], ont=tot[6], ont_cpu=cpu[6],
                 poss=100.0 * cpu[0] / max(1, cpu[0] + coach[0]), fouls=tot[2], book=tot[3], corn=tot[1],
                 off=tot[4], pens=r['pens'])
 
@@ -82,25 +83,28 @@ def side(paths):
 
 def main():
     ap = argparse.ArgumentParser()
-    for k in ('ref', 'cal', 'hard', 'new'):
+    for k in ('ref', 'cal', 'hard', 'easy', 'new'):
         ap.add_argument('--' + k, action='append', required=True)
     ap.add_argument('--out', required=True)
     a = ap.parse_args()
-    ref, cal, hard, new = side(a.ref), side(a.cal), side(a.hard), side(a.new)
+    ref, cal, hard, easy, new = side(a.ref), side(a.cal), side(a.hard), side(a.easy), side(a.new)
     res = {'cal': [compare(ref, cal, m) for m in METRICS + (POWER,)],
-           'hard': [compare(ref, hard, POWER)],
+           'hard': [compare(ref, hard, POWER), compare(ref, hard, SUPPORT)],
+           'easy': [compare(ref, easy, POWER), compare(ref, easy, SUPPORT)],
            'new': [compare(ref, new, m) for m in METRICS + (POWER,)]}
     cal_ok = all(x['ok'] for x in res['cal'])
-    h = res['hard'][0]
-    power_ok = not h['ok'] and h['delta'] > 0
+    h, e = res['hard'][0], res['easy'][0]
+    power_ok = not h['ok'] and h['delta'] > 0 and not e['ok'] and e['delta'] < 0   # (both directions, MC 14/11)
     valid = cal_ok and power_ok
     new_ok = all(x['ok'] for x in res['new'])
     verdict = ('PASS' if new_ok else 'FAIL') if valid else 'VOID'
     lines = [f'# 4.2 outcome gate: {a.out}', '',
              f'Verdict: **{verdict}** (CAL vs REF {"passes" if cal_ok else "FAILS"}; DIFFICILE vs REF on the CPU goal '
-             f'difference {"fails with the CPU better: the gate sees a real change" if power_ok else "does NOT fail the right way: gate too weak"}).',
-             f'Matches: REF {len(ref)}, CAL {len(cal)}, DIFFICILE {len(hard)}, NEW {len(new)}. Rule: |delta| <= max(3 x Welch SE, floor).', '']
-    for k, title in (('cal', 'CAL (REF + pure delay) vs REF'), ('hard', 'DIFFICILE vs REF (power check)'),
+             f'difference {"fails with the CPU better and FACILE fails with the CPU worse: the gate sees one real step" if power_ok else "and/or FACILE do NOT both fail the right way: gate too weak"}).',
+             f'Matches: REF {len(ref)}, CAL {len(cal)}, DIFFICILE {len(hard)}, FACILE {len(easy)}, NEW {len(new)}. '
+             f'Rule: |delta| <= max(3 x Welch SE, floor). CPU shots on target in the power tables: supporting, not required.', '']
+    for k, title in (('cal', 'CAL (REF + pure delay) vs REF'), ('hard', 'DIFFICILE vs REF (power check: CPU better)'),
+                     ('easy', 'FACILE vs REF (power check: CPU worse)'),
                      ('new', 'NEW (NORMALE + CLASSICO) vs REF')):
         lines += [f'## {title}', '', '| metric | REF mean | other mean | delta | Welch SE | threshold | verdict |',
                   '|---|---|---|---|---|---|---|']

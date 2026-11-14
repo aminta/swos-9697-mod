@@ -64,6 +64,10 @@ S7GEO_AT = 0x19000                      # 4.2 Serie D geography (MC 14/11 room r
 S7GEO_END = 0x1A000                     # code + neighbour table + log + the per-club coordinates), after MKTAGE here (the Integratore
                                         # aligns it after FPORT 0x17000..0x19000 at the merge); linked only with GP_S7; >= 256 B left
 assert MKTAGE_END <= S7GEO_AT < S7GEO_END, 'swreg: MKTAGE_END <= S7GEO_AT < S7GEO_END'
+CDKN_AT = 0x1A800                       # 4.2 S2 knockouts (cdkn.c: the Coppa D's rounds 0-1 by the engine's sr_kn; MC 14/11, 42-cdkn):
+CDKN_END = 0x1C800                      # code + const after DIFF2 (0x1A000..0x1A800 at the merge), >= 256 B left at link; its work
+                                        # area in swe.c's .bss (CDKN_WORK), linked only in CD_KN builds
+assert S7GEO_END <= CDKN_AT < CDKN_END, 'swreg: S7GEO_END <= CDKN_AT < CDKN_END'
 S7_ORIG_SZ = 0x2C000                    # 4.2 S7: s7swap.c's ORIG buffers in swe.c's .bss (shaped builds only; MC 13/11):
                                         # the two league files as read (Italy: 102 = 100 records, 144 = 162: 179212 B;
                                         # s7swap.py asserts they fit)

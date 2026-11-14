@@ -2659,6 +2659,13 @@ static void cd_pair(u16 *side, u8 *sg, int m, int at) {   /* m sides -> ties fro
     }
 }
 
+#ifndef GP_DATA_SECTION
+#define GP_DATA_SECTION __attribute__((section(".data")))      /* (host tests build gplay.c natively: -DGP_DATA_SECTION=) */
+#endif
+/* 4.2 S2 knockouts (MC 14/11, 42-cdkn): rounds 0-1 by the engine's sr_kn (cdkn.c, obj4 band CDKN; cdkn.py sets it in
+   CD_KN builds; 0 = today's cd_make). ord / grp / key as cd_make's loop leaves them (key >> 8: the entry key); 1 = CD_ST
+   written (cdkn.c reads GP_CDT / GP_SEAS / CD_ST itself: the fewest bytes here). */
+int (*GP_CDKN)(const u8 *ord, const u8 *grp, const u16 *key, int n) GP_DATA_SECTION;
 static void cd_make(void) {             /* a later season's rounds 0-1 (CD_ST.gen) */
     const u8 *dt = GP_CDD;
     int df = dt[0], dc = dt[1], gb = dt[2] | dt[3] << 8, lf = GP_CDT[2], n = 0;
@@ -2673,6 +2680,8 @@ static void cd_make(void) {             /* a later season's rounds 0-1 (CD_ST.ge
         int e = CD_ST.efresh ? CD_ST.ent[i] : 0;
         ord[n] = i; grp[n] = dv - df; key[n] = (e ? e : 0x40) << 8 | below(256); n++;
     }
+    if (GP_CDKN && GP_CDKN(ord, grp, key, n)) return;   /* (4.2 S2 knockouts: the engine's draw, cdkn.c - CD_ST's gen /
+                                                           np / gen_on / efresh written there; 0 = refused, logged) */
     for (int i = 1; i < n; i++)         /* (the entry order: insertion sort by key) */
         for (int j = i; j > 0 && key[j - 1] > key[j]; j--) {
             u16 k = key[j]; key[j] = key[j - 1]; key[j - 1] = k;

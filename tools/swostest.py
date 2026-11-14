@@ -28433,7 +28433,7 @@ def world_coef_seed():
 
 
 @scenario
-def world_gplay_cupd(team='EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA', two=False, extra=None, tag=''):
+def world_gplay_cupd(team='EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA', two=False, extra=None, tag='', hexf=None):
     """The Coppa Italia Serie D (cupd.py, gplay.c cd_step_c): world5tm-poule with Italy's 'cup_d' = the data session's
     real 2026-27 bracket (internal/world2526/formats/coppa_italia_serie_d_2627.json); a season at LIGORNA (it enters
     at the PRIMO TURNO, away at Sestri Levante): its ties built in slot 4 at their weeks and played, every other tie
@@ -28444,7 +28444,7 @@ def world_gplay_cupd(team='EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA', two=False, e
     br = os.path.join(MAIN, 'internal', 'world2526', 'formats', 'coppa_italia_serie_d_2627.json')
     if not (os.path.isdir(src) and os.path.exists(br)):
         return True, 'SKIP: private data (world5tm-poule, the Coppa D bracket) missing'
-    w = os.path.join(WORK, 'world_gplay_cupd')
+    w = os.path.join(WORK, 'world_gplay_cupd' + tag)   # (per tag: world_cdkn_* run side by side)
     shutil.rmtree(w, ignore_errors=True)
     shutil.copytree(src, os.path.join(w, 'world5tm'))
     shutil.rmtree(os.path.join(w, 'world5tm', 'guests'), ignore_errors=True)    # (the released data's guest lists are no packs)
@@ -28467,7 +28467,7 @@ def world_gplay_cupd(team='EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA', two=False, e
                                             'W8485_NOSACK', 'W8485_HEX', 'W8485_ONE', 'W8485_TMO', 'W8485_SAVE_END',
                                             'W8485_SAVE_END_SEASON')}
     os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+',
-                      W8485_NOSACK='1', W8485_HEX=f'{st_at:x}:{st_n},{cd_at:x}:{CD_SIZE}', W8485_ONE='0' if two else '1',
+                      W8485_NOSACK='1', W8485_HEX=f'{st_at:x}:{st_n},{cd_at:x}:{CD_SIZE}' + (hexf(exe) if hexf else ''), W8485_ONE='0' if two else '1',
                       W8485_TMO='900')       # (the released data's season takes longer than the 240 s default)
     if two:                                  # (season 2's end saved: the slot-1 cup's final read from it)
         os.environ.update(W8485_SAVE_END='WCD2', W8485_SAVE_END_SEASON='2')
@@ -28518,6 +28518,7 @@ def world_gplay_cupd(team='EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA', two=False, e
             return False, '; '.join(errs + ['season 2: the cup never ran'])
         b2 = cd2[-1]                    # (the cup's end; its entry: the first state with the bracket generated, ent
         b0 = next((b for b in cd2 if b[605] == 1), b2)   # then the order used - the season end rewrites it)
+        world_gplay_cupd.exe, world_gplay_cupd.lines2, world_gplay_cupd.b0 = exe, lines2, b0   # (world_cdkn reads them)
         np_, nfc, nfp = b0[606], b0[607], b0[608]
         ent = b0[348:604]
         gen = struct.unpack_from(f'<{2 * (41 + 64)}H', b0, 612)
@@ -28547,7 +28548,12 @@ def world_gplay_cupd(team='EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA', two=False, e
             check(fin and 'FINALE' in fin[0] and any('VINCE' in x for x in fin),
                   f'season 2: the slot-1 cup (the career club in the 1/32) not over: {fin[:8]}', errs)
         d_in = [ent[i] for i in range(256) if ent[i] and i not in pre]
-        p_old = [ent[i] for i in pre if ent[i] != 1]
+        tm = os.environ.get('W8485_MGR_AT') if (extra or {}).get('CDKN_TMGR') == '1' else None
+        mgr_o = None                          # (cdkn's entry scenario: the career club forced in as an arrival - its own
+        if tm:                                # ent is last season's place, not 1: left out of the place rule)
+            mv = [ln.split()[2] for ln in lines2 if ln.startswith(f'HEX {tm} ')]
+            mgr_o = int(mv[-1][2:4], 16) if mv else None
+        p_old = [ent[i] for i in pre if ent[i] != 1 and i != mgr_o]
         check(not p_old or not d_in or max(p_old) <= min(d_in),
               f'season 2: the preliminary\'s old clubs not the lowest placed ({max(p_old)} > {min(d_in)})', errs)
         check(nfc > 0 and nfp > 0 and arr and arr <= pre,
@@ -30163,6 +30169,104 @@ def world_cupd_format():
         alt = {'it': 'FINO AI QUARTI', 'en': 'TO THE QUARTER-FINALS', 'fr': 'JUSQU AUX QUARTS', 'de': 'VIERTELFINAL'}[UI]
         check(alt in ' '.join(got), f'no alternation line with {alt!r}: {got}', errs)   # (the page wraps the text)
     return not errs, '; '.join(errs) or f'FORMAT {pg[0]!r}: {len(pg[1])} lines ok; {msg[:200]}'
+
+
+def cdkn_run(extra, tag):
+    """world_gplay_cupd2 on a CD_KN build (4.2 S2 knockouts, cdkn.c) + the engine's counters (obj4 CDKN_LOG / NLOG / OK,
+    dumped every screen): (ok, msg, info) - info: season 2's CD_ST at the bracket (b0), the counters' last values, the
+    career club's team word, its ordinal in the preliminary / round 1."""
+    sy = {}
+
+    def hexf(exe):
+        js = json.load(open(os.path.join(exe, 'ITALIAN.syms.json')))
+        sy.update(js['cdkn'])
+        gm = js['gplay']['GP_MGR']
+        assert gm[0] == 2, gm
+        sy['GP_MGR'] = gm
+        os.environ['W8485_MGR_AT'] = f'{gm[1]:x}'       # (world_gplay_cupd's place rule: the forced club's line)
+        return ''.join(f',o4/{sy[k][1]:x}:{n}' for k, n in (('CDKN_LOG', 32), ('CDKN_NLOG', 4), ('CDKN_OK', 4))) + f',{gm[1]:x}:2'
+    import json
+    ok, msg = world_gplay_cupd(two=True, extra=dict(extra, CD_KN='1'), tag=tag, hexf=hexf)
+    lines2 = getattr(world_gplay_cupd, 'lines2', None)
+    if not sy or lines2 is None:
+        return False, f'{msg}; no season 2 / no cdkn symbols', {}
+    last = {}
+    for ln in lines2:
+        for k in ('CDKN_LOG', 'CDKN_NLOG', 'CDKN_OK'):
+            if ln.startswith(f'HEX o4/{sy[k][1]:x} '):
+                last[k] = bytes.fromhex(ln.split()[2])
+    b0 = world_gplay_cupd.b0
+    np_ = b0[606]
+    gen = struct.unpack_from(f'<{2 * (41 + 64)}H', b0, 612)
+    sts2 = [bytes.fromhex(ln.split()[2]) for ln in lines2 if ln.startswith('HEX ') and len(ln.split()[2]) > 2 * GP_STKO
+            and bytes.fromhex(ln.split()[2])[GP_STKO:GP_STKO + 2] == b'GK']
+    mine = [gp_ko(b[GP_STKO:]) for b in sts2]
+    mine = [k for k in mine if k['kind'] == 9 and k['slot'] == 4]
+    pre = [w for w in gen[:2 * np_]]
+    r1 = [w for w in gen[2 * np_:2 * (np_ + 64)]]
+    mv = [ln.split()[2] for ln in lines2 if ln.startswith(f'HEX {sy["GP_MGR"][1]:x} ')]
+    mgr = struct.unpack('<H', bytes.fromhex(mv[-1]))[0] if mv else None    # (the career club's team word: GP_MGR)
+    info = dict(b0=b0, np=np_, gen=gen, pre=pre, r1=r1, mgr=mgr, nlog=struct.unpack('<I', last.get('CDKN_NLOG', bytes(4)))[0],
+                okc=struct.unpack('<I', last.get('CDKN_OK', bytes(4)))[0], log=struct.unpack('<8I', last.get('CDKN_LOG', bytes(32))))
+    return ok, msg, info
+
+
+def cdkn_shape(info, errs):
+    """The engine bracket's invariants in-game: every Serie D club of the bracket once, each preliminary winner once in
+    round 1 (CD_REF), the engine counters (OK >= 1, no log entry)."""
+    np_, pre, r1 = info['np'], info['pre'], info['r1']
+    refs = sorted(w >> 8 for w in r1 if w & 0xFF == 0xFF)
+    clubs = [w for w in r1 if w & 0xFF != 0xFF]
+    check(refs == list(range(np_)), f'round 1 preliminary winners {refs[:8]}.. (want 0..{np_ - 1} once)', errs)
+    check(len(set(pre + clubs)) == len(pre + clubs) == 2 * np_ + len(clubs), 'a club twice in rounds 0-1', errs)
+    check(info['okc'] >= 1 and info['nlog'] == 0, f'engine draws {info["okc"]}, fallbacks {info["nlog"]} '
+                                                  f'{[hex(x) for x in info["log"][:info["nlog"]]]}', errs)
+
+
+@scenario
+def world_cdkn_entry():
+    """4.2 S2 knockouts (cdkn.c, MC 14/11), an ENTRY ROUND: world_gplay_cupd2 on a CD_KN build, the career club (LIGORNA)
+    forced into the preliminary (CDKN_TMGR=1: an arrival - the entry order puts the arrivals first, then the others from
+    the bottom of last season's tables, PLACE_DESC with place = 200 - ent, unknown last). Season 2's rounds 0-1 drawn by
+    the engine (CDKN_OK, no fallback logged); every club once, each preliminary winner once in round 1; the club's
+    first slot-4 tie = a preliminary tie; the cup played to its end (world_gplay_cupd2's checks). Side a = the engine's
+    home counts only where the table's host is 'listed': rounds 0-1 are 'drawn' (cd_step_c draws the host)."""
+    ok, msg, info = cdkn_run({'CDKN_TMGR': '1', 'CD_FORCE': '1'}, '_kn1')
+    errs = [] if ok else [msg]
+    if info:
+        cdkn_shape(info, errs)
+        check(info['mgr'] in info['pre'], f'the career club {info["mgr"]} not in the preliminary', errs)
+    return not errs, '; '.join(errs) or (f'{msg}; engine draws {info["okc"]}, no fallback; {info["np"]} preliminary ties, '
+                                         f'the club {info["mgr"]:#x} in the preliminary')
+
+
+@scenario
+def world_cdkn_bye():
+    """4.2 S2 knockouts, a BYE: as world_cdkn_entry with the career club last in the entry order (CDKN_TMGR=2: unknown):
+    it skips the preliminary and enters at round 1 (PRIMO TURNO) as a club of its own, not a preliminary winner."""
+    ok, msg, info = cdkn_run({'CDKN_TMGR': '2', 'CD_FORCE': '1'}, '_kn2')
+    errs = [] if ok else [msg]
+    if info:
+        cdkn_shape(info, errs)
+        check(info['mgr'] not in info['pre'] and info['mgr'] in info['r1'],
+              f'the career club {info["mgr"]} in the preliminary or not in round 1', errs)
+    return not errs, '; '.join(errs) or (f'{msg}; engine draws {info["okc"]}, no fallback; the club {info["mgr"]:#x} '
+                                         f'enters at round 1 (a bye)')
+
+
+@scenario
+def world_cdkn_fall():
+    """4.2 S2 knockouts, the FALLBACK is never silent (MC 14/11): a CD_KN build with CDKN_TFALL=1 (every draw refused):
+    season 2's rounds 0-1 = today's cd_make (gen generated, the cup played - world_gplay_cupd2's checks), CDKN_LOG holds
+    season << 8 | 9 and CDKN_NLOG counts it, CDKN_OK 0. (gen = the old cd_make byte for byte: host test_cdkn.)"""
+    ok, msg, info = cdkn_run({'CDKN_TFALL': '1'}, '_knf')
+    errs = [] if ok else [msg]
+    if info:
+        check(info['nlog'] >= 1 and info['okc'] == 0 and all(x & 0xFF == 9 for x in info['log'][:min(info['nlog'], 8)]),
+              f'fallback log {info["nlog"]} {[hex(x) for x in info["log"]]}, engine draws {info["okc"]}', errs)
+        check(info['b0'][605] == 1 and info['np'] > 0, 'today\'s cd_make did not generate the bracket', errs)
+    return not errs, '; '.join(errs) or (f'{msg}; fallback logged {[hex(x) for x in info["log"][:info["nlog"]]]}, '
+                                         f'today\'s draw ({info["np"]} preliminary ties)')
 
 
 @scenario

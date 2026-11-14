@@ -318,6 +318,9 @@ def patch(p):
     import s7swap
     if s7swap.on():                                 # 4.2 S7: s7swap.c's ORIG buffers (the two league files as read)
         flags += (f'-DS7_ORIG_SZ={swreg.S7_ORIG_SZ}',)
+    import cdkn
+    if cdkn.on():                                   # 4.2 S2 knockouts: cdkn.c's work area in this .bss (MC 14/11)
+        flags += (f'-DCDKN_WORK_SZ={cdkn.WORK_SZ}',)
     if os.environ.get('SWEFILE_TEST') == '1':         # 4.2: the file layer's self-test buffers + SWEF_HOOK (swefile.py)
         flags += ('-DSWEFILE_TEST',)
     if imp:

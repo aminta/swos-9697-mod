@@ -81,6 +81,19 @@ HOSTS = {'listed': 0, 'better': 1, 'drawn': 2, 'neutral': 3}
 LEVELS = {'better': 0, 'et_pens': 1, 'et_better': 2, 'pens': 3, 'away_pens': 4, 'away_better': 5,
           'better_pts': 6, 'second': 7}    # (4.2 s3shape: the better placed unless level on points, then e.t. + pens;
                                            # the listed second - a seeded round's seed)
+S3_ONLY_LEVELS = ('better_pts', 'second')   # (4.2 S3 step 1: the levels only the Serie B play-off / play-out use)
+S3_KEYS = ('b_po', 'b_pout')
+S3_PACKS = ('world-2026-27-ita',)            # (the pack id of the one league with the S3 Serie B play-off, ita_s3.json)
+
+
+def check_s3_levels(pack_id, pos):
+    """4.2 S3 step 1 (MC 14/11): levels better_pts / second only in the play-offs b_po / b_pout of the Italian world pack
+    (pack id AND key), so no other pack - nor another pack's b_po key - picks them up before step 2 makes them general."""
+    for po in pos:
+        for rd in po.get('rounds') or []:
+            if rd.get('level') in S3_ONLY_LEVELS and not (po.get('key') in S3_KEYS and pack_id in S3_PACKS):
+                raise ValueError(f"{pack_id}: play-off '{po.get('key')}' level '{rd['level']}': only {sorted(S3_KEYS)} of the pack "
+                                 f"{list(S3_PACKS)} (4.2 S3 step 1: gplay.c GP_S3SKIP); other specs wait for step 2")
 PO_EXT = 0x40                   # 4.2 s3shape: kind | 0x40 = an extension block after the header (gplay.c ents_of)
 E_DIRECT, E_LEVEL, E_SEEDED, E_BEST = 1, 2, 3, 4
 SKIP_SAME = 0x80                # host byte bit 7: a tie of one club with itself is not played (4.0 package 6)
@@ -235,6 +248,9 @@ def compile_spec(pos, ndiv, league_names=None):
                 legs = 3
             if legs not in (1, 2, 3) or rd.get('host', 'listed') not in HOSTS or rd.get('level', 'et_pens') not in LEVELS:
                 raise ValueError(f'{key}: legs 1 / 2, host {sorted(HOSTS)}, level {sorted(LEVELS)}')
+            if rd.get('level') in S3_ONLY_LEVELS and key not in S3_KEYS:      # (MC 14/11: no pack picks levels 6 / 7 up silently)
+                raise ValueError(f"{key}: level '{rd['level']}' is only for the Serie B play-off / play-out {sorted(S3_KEYS)} "
+                                 "(4.2 S3 step 1: gplay.c GP_S3SKIP); other specs wait for step 2 to make it general")
             gap = rd.get('gap', 0)
             if not (isinstance(gap, int) and 0 <= gap < 256):
                 raise ValueError(f'{key}: gap 0..255 points')
@@ -1712,6 +1728,12 @@ gp_end:                                 ; replaces `call cseg_9228D` (after dpla
     mov [GP_SEAS], al
     mov eax, gp_played_c                ; the career club's played play-off: its results
     call gp_c
+%if S3SKIP
+    cmp byte [DP_BHOLD], 0              ; (4.2 S3: dplay finished a Serie B phase of an old save this season end: gp_season
+    je .nsk                             ; skips b_po / b_pout once - transient, gp_season clears it)
+    mov dword [GP_SKIPPO], S3MASK
+.nsk:
+%endif
     mov eax, gp_season
     call gp_c
     mov eax, gp_champ                   ; a title play-off's winner = the champion in the qualifiers' top-9 list
@@ -2801,6 +2823,7 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
                                 f"-DGP_GSON={int(GS_ON[0])}",
                                 f"-DCF_SEED={__import__('cupsf').SEED}",
                                 f"-DGP_S7={gp_s7()}",
+                                f"-DGP_S3SKIP={int(bool(__import__('dplay').s3_b_mask()))}",   # (4.2 S3: gplay.c GP_SKIPPO)
                                 *s7_flags(),
                                 f"-DSM_LANG={['it', 'en', 'fr', 'de'].index(lang)}"]   # (gp_strmap_c's STRMAP41 section)
                                + (['-DHDR_TEST'] if os.environ.get('HDR_TEST') else [])   # (test builds: GROUP n headers)
@@ -2857,6 +2880,13 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     symbols = {k: (0, v) for k, v in lay.items()}
     symbols.update(tab_syms)
     symbols.update({k: syms[k] for k in ('GP_EXT', 'S7X') if k in syms})   # (S7: shaped builds only, GP_S7)
+    import dplay as _dp
+    _m = _dp.s3_b_mask()                                  # (4.2 S3 glue: b_po + b_pout in ko_playoffs, dplay holds C only)
+    symbols['S3SKIP'] = (0, int(bool(_m)))
+    symbols['S3MASK'] = (0, _m)
+    if _m:
+        symbols['DP_BHOLD'] = _dp.LABELS['DP_BHOLD']
+        symbols['GP_SKIPPO'] = syms['GP_SKIPPO']
     symbols.update({k: syms[k] for k in ('GP_SSB', 'GP_IN', 'GP_OUT', 'gp_season', 'gp_champ', 'gp_keep', 'GP_ST', 'GP_LOG', 'GP_NM', 'GP_DIYP', 'GP_K',
                                          'GP_W', 'GP_SKIP', 'GP_RB', 'GP_ALIVE', 'GP_LAST', 'GP_A', 'GP_B', 'GP_CID', 'GP_SEAS', 'GP_DIV',
                                          'GP_PT', 'GP_PL', 'gp_need', 'gp_simkeep', 'gp_need_pre', 'gp_simkeep_pre', 'gp_pre_c', 'GP_PRE', 'gp_restore', 'gp_lend_c', 'gp_ours_c',

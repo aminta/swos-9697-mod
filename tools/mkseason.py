@@ -544,6 +544,7 @@ class Pack:
         import gplay
         try:
             pos = self.po_resolved()
+            gplay.check_s3_levels(self.meta['id'], pos)    # (4.2 S3: levels 6 / 7 only in the Italian pack's b_po / b_pout)
             by, self.ko_external = {}, {}       # (S7: one spec per league struct, local divisions - div_key; the
             for po in pos:                      # destinations in the other struct: {struct: [(spec entry, outcome,
                 f, lp, ext = self.po_local(po)  # target div_key)]} for the season-end swap builder)

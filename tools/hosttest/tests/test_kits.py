@@ -187,12 +187,20 @@ def test_kits_exe():
                 want = list(tab)
                 want[10] = want[11] = kk[0]
                 want[14], want[15] = kk[1], kk[2]
+                if w27:                              # (4.2 gloves, World 2026-27 only: entry 7 -> white (kits.WHITE) in the table copy)
+                    want[7] = kits.WHITE
                 if u32(va(f['A0'])) != kt or list(struct.unpack('<16H', rd(kt, 32))) != want:
                     errs.append(f'kt_conv {lim}: A0 {u32(va(f["A0"])):#x} table {struct.unpack("<16H", rd(kt, 32))} '
                                 f'(want {kt:#x} {want})')
                 m = _mask(frame)
                 g = pixels(first + frame)
-                bad = sum(1 for y in range(20) for x in range(16) if g[y][x] != (11 if (y, x) in m else 8))
+                hands = set()
+                if w27:                              # (the frame's glove pixels, frame mod 58: whatever entry they held -> 7)
+                    import kitmasks
+                    j = frame % 58
+                    off, n, y0 = sum(h & 7 for h in kitmasks.HC[:j]), kitmasks.HC[j] & 7, kitmasks.HC[j] >> 3
+                    hands = {((kitmasks.HP[off + q] >> 4) + y0, kitmasks.HP[off + q] & 15) for q in range(n)}
+                bad = sum(1 for y in range(20) for x in range(16) if g[y][x] != (7 if (y, x) in hands else 11 if (y, x) in m else 8))
                 if bad:
                     errs.append(f'keeper sprite {first + frame} (frame {frame}): {bad} pixels wrong')
     notes.append(f'kt_chain 300 pairs: {mism} off the reference, referee colours {sorted(ref_seen)}; '

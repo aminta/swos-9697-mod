@@ -32,7 +32,8 @@ LOG_AT = 0x1000                         # (from SPM_AT: 3 pages = 768 entries of
 LOGMAX = (SPM_END - SPM_AT - LOG_AT) // 16
 TAG = b'SPMT'
 # the block's fields, from the tag (the harness reads / pokes them)
-OFF = dict(ST=4, FK=5, NC=6, NF=8, NFAIL=10, T0=12, LAST=16, LN=20, LDROP=24, GAP=28, WIN=30, MAXC=32)
+OFF = dict(ST=4, FK=5, NC=6, NF=8, NFAIL=10, T0=12, LAST=16, LN=20, LDROP=24, GAP=28, WIN=30, MAXC=32, MODE=34,
+           FKORD=35, FKD=36, FKX=44)
 
 
 def on():
@@ -79,12 +80,29 @@ spm_frame:                              ; difficulty's df_frame calls this once 
     call spm_log
 .forcing:
     mov ax, [edi + GS_O]
+    cmp byte [dword ebp + MODE - SPB], 0
+    jne .fkw
     cmp ax, 4                           ; ST_CORNER_LEFT / RIGHT: awarded by the game
     je .got
     cmp ax, 5
     je .got
+    jmp .fk0
+.fkw:cmp ax, 6                          ; MODE 1: a wall free kick (ST_FREE_KICK_LEFT1 .. RIGHT3), a penalty or a foul
+    jb .fk1
+    cmp ax, 14
+    jbe .got
+.fk1:inc byte [dword ebp + FK - SPB]
+    cmp byte [dword ebp + FK - SPB], 1
+    jne .fk2
+    call spm_foul                       ; (once: the game's TestFoulForPenaltyAndFreeKick sets the state)
+    jmp .done
+.fk2:cmp byte [dword ebp + FK - SPB], 30
+    jb .done
+    jmp .fail
+.fk0:
     cmp byte [dword ebp + FK - SPB], 30
     jb .poke
+.fail:
     inc word [dword ebp + NFAIL - SPB]
     mov al, 10                          ; (entry 10: not awarded in 30 frames)
     xor esi, esi
@@ -152,6 +170,75 @@ spm_frame:                              ; difficulty's df_frame calls this once 
     lea edi, [dword ebp + PREVB - SPB]
     movsd
     movsw
+    ret
+
+; ---- MODE 1: a foul on the attacking team's FKORD player, put at FKX[k / 4 % 3], FKD[k % 4 >> ...] px from the goal
+;      line: kick k = NC; bit 0 = the goal (0 top: topTeamData fouls), (k >> 1) % 4 = the distance, (k >> 3) % 3 = x.
+;      The game's pseudo registers are saved around the call (we run at the frame's end).
+spm_foul:
+    pushad
+    lea esi, [edi + D0_O]
+    lea ebx, [dword ebp + RSAVE - SPB]
+    mov ecx, 15
+.sv:mov eax, [esi]
+    mov [ebx], eax
+    add esi, 4
+    add ebx, 4
+    loop .sv
+    movzx ecx, word [dword ebp + NC - SPB]
+    lea edx, [edi + TOPT_O]             ; the fouling team
+    lea eax, [edi + BOTT_O]             ; the attacking team
+    test cl, 1
+    jz .t
+    xchg eax, edx
+.t: mov [edi + A6_O], edx
+    mov bx, [eax + 12h]                 ; its TeamGeneralInfo.teamNumber
+    push ecx
+    lea esi, [edi + SPR0_O]
+    mov ecx, 22
+.f: cmp [esi], bx
+    jne .fn
+    mov al, [dword ebp + FKORD - SPB]
+    cmp [esi + 2], al
+    je .ff
+.fn:add esi, 6Eh
+    loop .f
+    pop ecx
+    jmp .r
+.ff:pop ecx
+    mov eax, ecx
+    shr eax, 1
+    and eax, 3
+    movzx edx, word [dword ebp + FKD - SPB + eax * 2]
+    test cl, 1
+    jnz .bt
+    add edx, 129
+    jmp .y
+.bt:neg edx
+    add edx, 769
+.y: shl edx, 16
+    mov [esi + 22h], edx
+    mov eax, ecx
+    shr eax, 3
+    xor edx, edx
+    push ecx
+    mov ecx, 3
+    div ecx
+    pop ecx
+    movzx eax, word [dword ebp + FKX - SPB + edx * 2]
+    shl eax, 16
+    mov [esi + 1Eh], eax
+    mov [edi + A2_O], esi
+    call near TESTFOUL
+.r: lea esi, [dword ebp + RSAVE - SPB]
+    lea ebx, [edi + D0_O]
+    mov ecx, 15
+.rs:mov eax, [esi]
+    mov [ebx], eax
+    add esi, 4
+    add ebx, 4
+    loop .rs
+    popad
     ret
 
 ; ---- every frame: the watched values; a change is logged while ST != 0 (and always remembered)
@@ -295,6 +382,12 @@ LDROP: dd 0                             ; +24 entries dropped (log full)
 GAP: dw SM_GAP                          ; +28 frames of play between two corners
 WIN: dw SM_WIN                          ; +30 frames of play logged after the corner kick
 MAXC: dw SM_MAXC                        ; +32 corners per match
+MODE: db SM_MODE                        ; +34 0 corners, 1 free kicks (spm_foul)
+FKORD: db 10                            ; +35 MODE 1: the fouled attacker's ordinal (he is put at the foul point)
+FKD: dw 100, 125, 150, 175              ; +36 MODE 1: px from the goal line (the wall zone 87..202)
+FKX: dw 336, 290, 382                   ; +44 MODE 1: x (CENTER, LEFT3 / RIGHT1 side bands)
+align 4
+RSAVE: times 15 dd 0
 PGS: dw 0FFFFh
 PGSP: dw 0FFFFh
 PG1: dw 0
@@ -360,10 +453,15 @@ def find(p):
             gg.add((g1, g2))
     assert len(gg) == 1, ('statsTeamGoals', gg)
     g1, g2 = gg.pop()
+    tf = [x.start() for x in re.finditer(rb'\x66\x83\x3d....\x65\x0f\x84....\xe8....\x8b\x35....\x66\x8b\x46\x20\x66\xa3',
+                                         d, re.S)]
+    tf = [o for o in tf if _t(p, o + 3) == gsp and _t(p, o + 21) == (2, sym['D0_'][1] + 4 * 10)]
+    assert len(tf) == 1, ('TestFoulForPenaltyAndFreeKick', tf)
     for v in (lpp, lkp, gsp, ball, ltp, bott, gstate, g1, g2):
         assert v and v[0] == 2, v
     return dict(LPP_O=lpp[1], LKP_O=lkp[1], GSP_O=gsp[1], BALL_O=ball[1], LTP_O=ltp[1], TOPT_O=topt[1],
-                BOTT_O=bott[1], GS_O=gstate[1], G1_O=g1[1], G2_O=g2[1], SPR0_O=sym['SPR0'][1])
+                BOTT_O=bott[1], GS_O=gstate[1], G1_O=g1[1], G2_O=g2[1], SPR0_O=sym['SPR0'][1], D0_O=sym['D0_'][1],
+                A2_O=sym['D0_'][1] + 4 * 10, A6_O=sym['A6_'][1], TESTFOUL=tf[0])
 
 
 def patch(p, lang):
@@ -377,17 +475,20 @@ def patch(p, lang):
     assert not any(p.get(4, SPM_AT, SPM_END - SPM_AT)), 'spmeter: pages not free'
     c = find(p)
     iv = lambda k, v: int(os.environ.get(k) or str(v), 0)
-    sym = {**{k: (0, v) for k, v in c.items()}, 'O2BASE': (2, 0), 'DF_FRAMES': (4, df.LABELS['DF_FRAMES']),
+    sym = {**{k: (0, v) for k, v in c.items() if k != 'TESTFOUL'}, 'TESTFOUL': (1, c['TESTFOUL']), 'O2BASE': (2, 0),
+           'SM_MODE': (0, iv('SP_METER_MODE', 0)), 'DF_FRAMES': (4, df.LABELS['DF_FRAMES']),
            'LOG_AT': (0, LOG_AT), 'LOGMAX': (0, LOGMAX), 'SM_GAP': (0, iv('SP_METER_GAP', 120)),
            'SM_WIN': (0, iv('SP_METER_WIN', 420)), 'SM_MAXC': (0, iv('SP_METER_MAXC', 200))}
     code, fix, rel = nasmcave.assemble_obj(ASM, SPM_AT, sym, 4)
     lab = nasmcave.labels(ASM, SPM_AT, sym)
     assert lab['spm_frame'] == SPM_AT, 'spm_frame first (difficulty calls SPM_AT)'
-    assert len(fix) == 1 and not rel, ('spmeter: SPB only', fix, rel)
+    assert len(fix) == 1 and len(rel) == 1, ('spmeter: SPB + the TestFoul call only', fix, rel)
     assert SPM_AT + len(code) <= SPM_AT + LOG_AT, 'spmeter: code + block under the log'
     p.put(4, SPM_AT, code)
     for o, t_obj, t_off in fix:
         p.add_ptr(4, SPM_AT + o, t_obj, t_off)
+    for o, t_obj, t_off in rel:
+        p.add_rel(4, SPM_AT + o, t_obj, t_off)
     blk = lab['TAGM']
     assert p.get(4, blk, 4) == TAG
     print(f'exe: SP_METER corner meter obj4+{SPM_AT:#x} ({len(code)} B, block +{blk - SPM_AT:#x}, log {LOGMAX} entries)')

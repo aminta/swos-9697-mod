@@ -33025,7 +33025,13 @@ def diff_ab():
     run dir). PASS = every match played to DIFF_FRAMES; the numbers are the measurement (no threshold here)."""
     lang = os.environ.get('SWOSTEST_UI', 'it')
     tc = {'DIFF_TC': '1'} if os.environ.get('DIFF_TC') else {}     # (42-drp: per-site effect counters, DF_TC)
-    b = build('diff_ab' + ('_tc' if tc else ''), {'DIFF_TEST': '3', 'DIFF_TRACE': '1', 'DIFF_FORCE': '1', **tc}, lang=lang)
+    recipe = os.environ.get('DIFF_AB_RECIPE', 'new')    # (outcome gate, MC 14/11: ref = the trace recipe without knobs,
+    knob = recipe == 'new'                              #  cal = ref + DIFF_DELAY 4000; new = the knob build, levels by
+    if knob:                                            #  DIFF_LEVELS. 42-diff-outcome-gate.md)
+        b = build('diff_ab' + ('_tc' if tc else ''), {'DIFF_TEST': '3', 'DIFF_TRACE': '1', 'DIFF_FORCE': '1', 'DIFF_DELAY': '',
+                                                      **tc}, lang=lang)
+    else:
+        b = build('diff_ab' + recipe, {'DIFF_TRACE': '1', 'DIFF_DELAY': '4000' if recipe == 'cal' else ''}, lang=lang)
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import difficulty as dfm
     import swreg
@@ -33037,6 +33043,8 @@ def diff_ab():
     frames = int(os.environ.get('DIFF_FRAMES', '13000'))
     w_of = {1: 1, 2: 3, 3: 0, 4: 4, 5: 2}
     seeds = [hashlib.md5(f'diff:{k}'.encode()).digest()[:6] for k in range(n)]
+    if os.environ.get('DIFF_AB_SEEDS'):                 # (the outcome gate's 8 fixed seeds, hex)
+        seeds = [bytes.fromhex(x) for x in os.environ['DIFF_AB_SEEDS'].split(',')]
     out = os.environ.get('DIFF_AB_OUT') or os.path.join(RUNS, 'diff_ab.jsonl')
     errs, rows = [], []
     for pr in os.environ.get('DIFF_PAIRINGS', 'sw,eq,ws').split(','):
@@ -33050,8 +33058,9 @@ def diff_ab():
                     friendly_prematch(s, home, away)
                     blk = diff_block(s.result)
                     s.poke(blk + DIFF_OFF['SEED'], seed + bytes((3, 1)))
-                    s.poke(blk + DIFF_OFF['W'], bytes([w_of[lv], 0]))
-                    s.poke(blk + DIFF_OFF['DR'], bytes([dr, 0]))
+                    if knob:
+                        s.poke(blk + DIFF_OFF['W'], bytes([w_of[lv], 0]))
+                        s.poke(blk + DIFF_OFF['DR'], bytes([dr, 0]))
                     nr = len(dfm.DP_ROWS)
                     lo = s.result.base4 + (swreg.DIFF_AT & ~0xFFF) - 0x2000
                     area = s.result.read(lo, 0x5000)
@@ -33098,7 +33107,7 @@ def diff_ab():
                             sp = struct.unpack('<I', r.obj2(t + 0x0E, 4))[0]
                             st.append(list(struct.unpack('<7H', r.read(sp, 14))))
                         bb = r.read(blk, DIFF_OFF['CK'])
-                        res = dict(pairing=pr, level=lv, drib=dr, seed=seed.hex(), frames=f, act=act, dact=bb[30],
+                        res = dict(recipe=recipe, pairing=pr, level=lv, drib=dr, seed=seed.hex(), frames=f, act=act, dact=bb[30],
                                    goals=goals, stats=st, pens=struct.unpack_from('<H', bb, DIFF_OFF['PENS'])[0],
                                    noslide=struct.unpack_from('<I', bb, DIFF_OFF['NOSL'])[0], blk=blkck)
                         if tc:                          # [slide, hold] x [N, U, O, CU, CO]; press / tsl [zone][front, side, behind]
@@ -33120,8 +33129,8 @@ def diff_ab():
                         res = dict(pairing=pr, level=lv, drib=dr, seed=seed.hex(), error=str(r))
                 rows.append(res)
                 open(out, 'a').write(json.dumps(res) + '\n')
-                check('error' not in res and res['frames'] >= frames and res['act'] == (0 if lv == 3 else lv)
-                      and res['dact'] == dr,
+                check('error' not in res and res['frames'] >= frames and (not knob or res['act'] == (0 if lv == 3 else lv)
+                      and res['dact'] == dr),
                       f'{tag}: {res}', errs)
     summ = collections.defaultdict(list)
     for r in rows:

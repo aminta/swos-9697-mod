@@ -26,6 +26,7 @@ METRICS = (
     ('penalties', lambda m: m['pens'], 'abs', 0.1),
     ('sendings off', lambda m: m['off'], 'abs', 0.1),
 )
+PAIRINGS = {'sw': ('BAYERN MUNICH', 'ST. PAULI'), 'eq': ('HAMBURG', 'SCHALKE'), 'ws': ('ST. PAULI', 'BAYERN MUNICH')}
 POWER = ('CPU goal difference', lambda m: m['g_cpu'] - m['g_coach'], 'abs', 0.3)
 
 
@@ -45,10 +46,11 @@ def load(paths):
 
 def per_match(r):
     st = r['stats']
-    ctl = r.get('topctl')
-    if not ctl:
-        raise SystemExit(f'no topctl (diff_ab before ff3460b): {r}')
-    coach_top = ctl[1] != 0
+    home, away = PAIRINGS[r['pairing']]                 # (team 1 = home = the coach side; topctl reads 0 for a coach
+    top = r.get('top') or ''                            #  team, so the side comes from the top team's name, 8 chars)
+    if not top or home.startswith(top) == away.startswith(top):
+        raise SystemExit(f'top team {top!r} is neither {home} nor {away}: {r}')
+    coach_top = home.startswith(top)
     coach, cpu = (st[0], st[1]) if coach_top else (st[1], st[0])
     tot = [a + b for a, b in zip(st[0], st[1])]
     return dict(g_coach=r['goals'][0], g_cpu=r['goals'][1], att=tot[5], ont=tot[6],

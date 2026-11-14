@@ -2714,6 +2714,12 @@ static void cd_make(void) {             /* a later season's rounds 0-1 (CD_ST.ge
 int (*GP_RIPOOL)(const u8 *e, u16 *q, u8 *qn, int init, int file, const s8 *slt, s8 *copy, int manager, u16 *og, int *nog,
                  u16 *out, int *no, u16 *map, int nmap) GP_DATA_SECTION;
 u32 (*GP_CDSTR)(u16 w, const u8 *s) GP_DATA_SECTION;      /* (0: not applicable here) */
+/* 4.2 Serie D geography (MC 14/11): a pool arrival whose own girone is full takes it anyway by a CHAIN of one-step moves of
+   stayers along s7ri.c's neighbour table to the nearest girone with a seat (tbl c / rs / nc = the table's clubs, fl = the level's
+   first division, a = the arrival's girone, cnt / sz / occ the level's groups, pend = pg_pend, og / nog = this season end's
+   arrivals, mgr = the manager's club); returns 1 when girone a has a seat now (0 = no chain: today's fallbacks). */
+int (*GP_GEOCH)(const u8 *c, int rs, int nc, int fl, int a, int cnt, const u8 *sz, u8 *occ, const s8 *slt, s8 *copy,
+                const u8 *pend, int npend, const u16 *og, int nog, int mgr) GP_DATA_SECTION;
 #endif
 int cd_ident(int m, int i);             /* (the RI section: a pooled slot's identity) */
 static u32 cd_below(u32 n) {            /* (below() for n past 65535: the product in 64 bits) */
@@ -3837,6 +3843,7 @@ static int pg_level(int d, int nl, const u8 *first, const u8 *cnt) {
    ri_ida gives each swapped slot's pgroups entry its current identity's areas before pg_season). */
 enum { RIO = 64 };
 static u16 ri_og[RIO];
+extern int RI_MGR;                     /* (the manager's club, below: the geography chain never moves it) */
 static int ri_no;
 static int ri_over(int g) {
     for (int i = 0; i < ri_no; i++) if (ri_og[i] == g) return i;
@@ -3923,6 +3930,12 @@ static const u8 *pg_one(const u8 *t, const s8 *slt, s8 *copy, int run) {
                 for (int k = 0; k < 2 && to < 0; k++) {     /* its 1st choice, then its 2nd: room, else make room */
                     int w = k ? area2 : area;
                     if (w >= cnt[tl]) continue;
+#if GP_S7
+                    if (!k && ov >= 0 && GP_GEOCH && occ[tl][w] >= sz[tl][w] &&     /* (a pool arrival: the chain, 4.2 geography) */
+                        GP_GEOCH(c, rs, nc, first[tl], w, cnt[tl], sz[tl], occ[tl], slt, copy, pg_pend, (int)sizeof pg_pend * 8,
+                                 ri_og, ri_no, RI_MGR))
+                        { to = w; continue; }
+#endif
                     if (occ[tl][w] < sz[tl][w] || pg_make_room(c, rs, nc, g, tl, w, first, cnt, sz, occ, ao, copy))
                         to = w;
                 }

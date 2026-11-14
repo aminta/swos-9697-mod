@@ -263,7 +263,7 @@ def patch(p, ssyms, rsyms, gsyms, pgsyms, fsyms, risyms):
     flags += (f'-DS7RI_NSTR={len(srows)}',)
     obj = cobj.compile_c(SRC, flags, sections=True)
     syms, end, bss = cobj.link(p, obj, swreg.S7SWAP_AT, (4, 0), externs=ext, limit=swreg.S7SWAP_END, text_obj=4,
-                               roots=['s7_season', 's7_load', 's7_home_word', 's7_ident', 's7_poolk', 's7ri_pool', 's7ri_cdstr', 'S7RI_STR', 'S7RI_STRF', 's7_snap', 'S7_DIR', 'S7_NDIR', 'RI_MOVES', 'RI_NMOVES', 'RI_S7_BAD', 'RI_HINTN', 'RI_HINTMAP', 'RI_FRESH', 'S7_POOL0', 'S7_NPOOL', 'S7_RIPOOL', 'S7_RSNAME', 'S7_RIMV', 's7_flush', 'S7_HRUN', 'S7_FNV', 'S7_WLOG', 'S7_CLOG', 'WSITES', 'WS_KEYS', 'S7_ENN', 'S7_CFBLEN', 'S7_NAME', 'S7_OAT', 'S7_ONREC', 'S7_LD', 'S7_FA', 'S7_FB', 'S7_NUP', 'S7_NLO', 'S7_UP', 'S7_LO', 'S7_GB',
+                               roots=['s7_season', 's7_load', 's7_home_word', 's7_ident', 's7_poolk', 's7ri_pool', 's7ri_cdstr', 'S7RI_STR', 'S7RI_STRF', 's7_snap', 'S7_DIR', 'S7_NDIR', 'RI_MOVES', 'RI_NMOVES', 'RI_S7_BAD', 'RI_HINTN', 'RI_HINTMAP', 's7ri_geochain', 'S7GEO_NEIGH', 'S7GEO_ON', 'S7GEO_LOG', 'S7GEO_NLOG', 'S7GEO_BAD', 'RI_FRESH', 'S7_POOL0', 'S7_NPOOL', 'S7_RIPOOL', 'S7_RSNAME', 'S7_RIMV', 's7_flush', 'S7_HRUN', 'S7_FNV', 'S7_WLOG', 'S7_CLOG', 'WSITES', 'WS_KEYS', 'S7_ENN', 'S7_CFBLEN', 'S7_NAME', 'S7_OAT', 'S7_ONREC', 'S7_LD', 'S7_FA', 'S7_FB', 'S7_NUP', 'S7_NLO', 'S7_UP', 'S7_LO', 'S7_GB',
                                       'S7_AREA', 'S7_LOG'] + LIB)
     assert not bss, ('s7swap.c: no .bss (it would land on swe.c\'s)', bss)
     p.put(*syms['S7_FA'], bytes((fa,)))
@@ -301,7 +301,18 @@ def patch(p, ssyms, rsyms, gsyms, pgsyms, fsyms, risyms):
     assert 0 < len(dirs) <= 16 and all(len(z) == 4 for z in dirs), ('s7swap: S7_DIR', dirs)
     p.put(*syms['S7_DIR'], b''.join(bytes(z) for z in dirs))
     p.put(*syms['S7_NDIR'], bytes((len(dirs),)))
-    for k, f in (('GP_RIPOOL', 's7ri_pool'), ('GP_CDSTR', 's7ri_cdstr'), ('GP_S7SNAP', 's7_snap')):   # (gplay.c's two S7 hooks -> s7ri.c, Panchina's:
+    geo = (pk.meta.get('geo') or {}).get('neighbours') or {}     # (4.2 Serie D geography, MC 14/11: the pack's neighbour list per girone)
+    if geo:
+        letters = sorted(geo)
+        assert letters == [chr(65 + i) for i in range(len(letters))] and len(letters) <= 9, ('s7swap: geo.neighbours keys', letters)
+        tab = bytearray(b'\xff' * 81)
+        for i, L in enumerate(letters):
+            nb = [ord(ch) - 65 for ch in geo[L]]
+            assert len(set(nb)) == len(nb) and i not in nb and all(0 <= x < len(letters) for x in nb), ('s7swap: geo list', L, geo[L])
+            tab[9 * i:9 * i + len(nb)] = bytes(nb)
+        p.put(*syms['S7GEO_NEIGH'], bytes(tab))
+        p.put(*syms['S7GEO_ON'], b'\x01')
+    for k, f in (('GP_RIPOOL', 's7ri_pool'), ('GP_CDSTR', 's7ri_cdstr'), ('GP_S7SNAP', 's7_snap')) + ((('GP_GEOCH', 's7ri_geochain'),) if geo else ()):   # (gplay.c's two S7 hooks -> s7ri.c, Panchina's:
         assert k in gplay.LABELS, ('s7swap: gplay.c without', k)       # MC ruling (b), S7-only logic in obj4)
         cobj.add_ptr(p, gplay.LABELS[k][1], *syms[f], gplay.LABELS[k][0])
     import stadium

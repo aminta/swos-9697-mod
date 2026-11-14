@@ -604,6 +604,10 @@ kt_conv:
 
 kt_gl:                                  ; ecx = sprite, edx = keeper frame: its glove pixels (KT_HC: count | first row << 3, KT_HP: one
     pushad                              ; byte a pixel, (row - first row) << 4 | x) 5 / 6 -> 7
+    cmp edx, 58                         ; (the two sets of 58 poses are the same: frame mod 58)
+    jb .m
+    sub edx, 58
+.m:
     mov esi, [SGP]
     mov esi, [esi + ecx * 4]
     test esi, esi
@@ -1029,12 +1033,13 @@ def build_masks(game):
 
 def build_hands(game):
     """(HC: per keeper frame count | first row << 3, HP: the glove pixels, one byte each: (row - first row) << 4 | x - frame by
-    frame) - 4.2 gloves, kt_gl (page 16 had room for ~400 B: one byte a pixel)"""
+    frame) - 4.2 gloves, kt_gl. GOAL1.DAT holds the 58 keeper poses twice (frame i == i + 58, asserted): the data is the first 58
+    frames and kt_gl reads frame mod 58 (page 16's room)."""
     import kitmask
     hands = kitmask.build(game)['hands']
-    assert len(hands) == KEEPN
+    assert len(hands) == KEEPN and all(hands[i] == hands[i + KEEPN // 2] for i in range(KEEPN // 2)), 'kits: the two keeper sets differ'
     hc, hp = bytearray(), bytearray()
-    for h in hands:
+    for h in hands[:KEEPN // 2]:
         y0 = min((y for y, _ in h), default=0)
         assert len(h) < 8 and y0 < 32 and all(y - y0 < 16 and x < 16 for y, x in h), h
         hc.append(len(h) | y0 << 3)

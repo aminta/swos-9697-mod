@@ -34,7 +34,56 @@ def hands(g):
                 adj = {g[n[0]][n[1]] for p in c for n in nb(*p) if 0 <= n[0] < h and 0 <= n[1] < w} - set(SKIN)
                 if 8 in adj and not adj & {14, 15, 3, 4}:
                     out |= set(c)
+    return out or curated(g)
+
+
+def _groups(g):
+    h, w = len(g), len(g[0])
+    seen, out = set(), []
+    for y in range(h):
+        for x in range(w):
+            if g[y][x] in SKIN and (y, x) not in seen:
+                st, c = [(y, x)], []
+                seen.add((y, x))
+                while st:
+                    a, b = st.pop()
+                    c.append((a, b))
+                    for n in ((a + 1, b), (a - 1, b), (a, b + 1), (a, b - 1)):
+                        if 0 <= n[0] < h and 0 <= n[1] < w and g[n[0]][n[1]] in SKIN and n not in seen:
+                            seen.add(n)
+                            st.append(n)
+                out.append(c)
     return out
+
+
+def _adj(g, c):
+    h, w = len(g), len(g[0])
+    return {g[n[0]][n[1]] for a, b in c for n in ((a + 1, b), (a - 1, b), (a, b + 1), (a, b - 1))
+            if 0 <= n[0] < h and 0 <= n[1] < w} - set(SKIN)
+
+
+def curated(g):
+    """4.2 hand curation (Davide's option 1, 14/11; reviewed frame by frame on enlarged sheets): for a frame the first rule finds
+    nothing in (profile frames with the hands raised in front of the chest, lying / diving frames with the arms forward):
+    (1) skin groups wholly above the shorts' first row (the hands raised); else (2) skin groups touching neither the shorts nor
+    the socks (the head end of a lying keeper); at most 7 pixels (HC's 3 bits), the ones farthest from the shirt's centre. Frames
+    whose arms are hidden (lying, 44 / 51 / 102 / 109 of the 116) stay without."""
+    h = len(g)
+    shorts = [y for y in range(h) if any(v == 14 for v in g[y])]
+    top = min(shorts) if shorts else h
+    res = set()
+    for c in _groups(g):
+        if all(y < top for y, _ in c):
+            res |= set(c)
+    if not res:
+        for c in _groups(g):
+            if not _adj(g, c) & {14, 15}:
+                res |= set(c)
+    if len(res) > 7:
+        sh = [(y, x) for y, r in enumerate(g) for x, v in enumerate(r) if v == 8]
+        cy, cx = (sum(y for y, _ in sh) / len(sh), sum(x for _, x in sh) / len(sh)) if sh else (h / 2, 8)
+        res = set(sorted(res, key=lambda p: -((p[0] - cy) ** 2 + (p[1] - cx) ** 2))[:7])
+    return res
 
 
 def masks(path):

@@ -37206,8 +37206,9 @@ def kits_check(tag, s, kb, sgp, want_w27, errs, notes, hand=(None, None)):
     nh = nf = 0
     for base in (947, 1063):
         for i in range(116):
-            off = sum(h & 7 for h in kitmasks.HC[:i])
-            n, y0 = kitmasks.HC[i] & 7, kitmasks.HC[i] >> 3
+            j = i % 58                                  # (the two sets of 58 poses: the data is the first 58)
+            off = sum(h & 7 for h in kitmasks.HC[:j])
+            n, y0 = kitmasks.HC[j] & 7, kitmasks.HC[j] >> 3
             m = {((kitmasks.HP[off + k] >> 4) + y0, kitmasks.HP[off + k] & 15) for k in range(n)}
             if not m:
                 continue

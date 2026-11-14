@@ -1060,6 +1060,27 @@ gp_rec:                                 ; at cseg_2AE97's end (the match's resul
     pushad                              ; match of ours -> its tie's winner (the state)
     call gp_ours
     jz .x
+%if PORT_ON
+    mov esi, D1R                        ; (4.2 fixture port: every match of ours -> GP_PD = D1..D7 (D1 / D2 the goals,
+    mov edi, GP_PD                      ; e.t. included; D3 / D4 the e.t. goals, D5 / D6 the penalties, D7 the flags),
+    mov ecx, 7                          ; GP_A / GP_B, legs left; gp_pleg_c: a K_PORT one -> fpad.c)
+.pd:
+    mov ax, [esi]
+    mov [edi], ax
+    add esi, 4
+    add edi, 2
+    loop .pd
+    call gp_pair
+    mov ax, [GP_A]
+    mov [GP_PD + 14], ax
+    mov ax, [GP_B]
+    mov [GP_PD + 16], ax
+    mov ax, [DIY + 149h]
+    mov [GP_PD + 18], ax
+    call gp_week
+    mov eax, gp_pleg_c
+    call gp_c
+%endif
     call gp_decisive
     jz .x
     test byte [D7R], 2
@@ -2798,6 +2819,7 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
                                 f"-DGP_GFREST={int(os.environ.get('GPLAY_GFREST') or 0)}",
                                 f"-DGP_GFIDX={int(os.environ.get('GPLAY_GFIDX') or 0)}",
                                 f"-DGP_GOUT={int(os.environ.get('GPLAY_GOUT') or 0)}",
+                                f"-DGP_PORT={int(__import__('fpad').on())}",   # (4.2 fixture port P2: fpad.py)
                                 f"-DGP_GSON={int(GS_ON[0])}",
                                 f"-DCF_SEED={__import__('cupsf').SEED}",
                                 f"-DGP_S7={gp_s7()}",
@@ -2908,6 +2930,10 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     symbols['GP_CDFORCE'] = syms['GP_CDFORCE']
     symbols['CDFORCE_'] = (0, int(os.environ.get('CD_FORCE') or 0))   # (test builds only)
     symbols['FORCE_ON'] = (0, int(bool(force)))
+    import fpad
+    symbols['PORT_ON'] = (0, int(fpad.on()))
+    if fpad.on():                                             # (4.2 fixture port P2: gp_rec's leg copy -> gp_pleg_c)
+        symbols.update({k: syms[k] for k in ('GP_PD', 'gp_pleg_c')})
     import longtable                                          # 4.0 stage titles (table, calendar): the table in area
     stg = longtable.stage_table(lang, b'\0' * 2 + struct.pack('<4HIH', split.ST, split.ST + split.OFF['frozen'],
                                                                   split.ST + split.OFF['grp'], split.MAGIC, 0,
@@ -3147,7 +3173,10 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
                   RI_RULE=syms['RI_RULE'], cd_season=syms['cd_season'],
                   gp_wn_c=syms['gp_wn_c'], sc_wline_c=syms['sc_wline_c'], GP_WNSRC=syms['GP_WNSRC'], GP_WNFILE=syms['GP_WNFILE'], GP_SEAS=syms['GP_SEAS'],   # (winners.py)
                   WN_ST=syms['WN_ST'], GP_MGR=syms['GP_MGR'])
-    LABELS.update({k: syms[k] for k in ('GP_RIPOOL', 'GP_CDSTR', 'GP_S7SNAP') if k in syms})   # (GP_S7: s7swap.py points them at s7ri.c's s7ri_pool / s7ri_cdstr)
+    LABELS.update({k: syms[k] for k in ('GP_RIPOOL', 'GP_CDSTR', 'GP_S7SNAP') if k in syms})
+    if fpad.on():                                             # (4.2 fixture port P2: fpad.py links fpad.c to these)
+        LABELS.update({k: syms[k] for k in ('GP_PAPI', 'GP_PSTEP', 'GP_PDONE', 'GP_PLEG', 'GP_PSEAS', 'GP_WK')})
+        LABELS['SC_ON'] = bool(sct)   # (GP_S7: s7swap.py points them at s7ri.c's s7ri_pool / s7ri_cdstr)
     LABELS.update({k: symbols[k] for k in ('VC_VIEW', 'VC_CALC') if k in symbols})   # (4.0.6 P3: ctview's rounds menu)
     assert struct.unpack('<I', p.get(1, syms['WN_SIZE'][1], 4))[0] == WN_SIZE   # (the engine block's 'WN')
     assert struct.unpack('<I', p.get(1, syms['F1_SIZE'][1], 4))[0] == F1_SIZE   # (the engine block's 'F1')

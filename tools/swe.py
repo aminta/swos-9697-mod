@@ -318,6 +318,9 @@ def patch(p):
     import s7swap
     if s7swap.on():                                 # 4.2 S7: s7swap.c's ORIG buffers (the two league files as read)
         flags += (f'-DS7_ORIG_SZ={swreg.S7_ORIG_SZ}',)
+    import fpad
+    if fpad.on():                                   # 4.2 fixture port P2: fpad.c's state (FP_PORT, FP_ST) in .bss
+        flags += (f'-DFPORT_ON={fpad.PORT_SIZE}', f'-DFP_ST_SZ={fpad.ST_SIZE}')
     if os.environ.get('SWEFILE_TEST') == '1':         # 4.2: the file layer's self-test buffers + SWEF_HOOK (swefile.py)
         flags += ('-DSWEFILE_TEST',)
     if imp:

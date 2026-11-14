@@ -949,4 +949,105 @@ int32_t sr_kns_idents(const uint8_t *blk, int32_t len, uint8_t stamp, uint8_t id
 int32_t sr_kns_dpre(const uint8_t *blk, int32_t len, uint8_t stamp, const uint16_t *dorder, int32_t nd,
                     uint16_t *pre, uint16_t *rest, int32_t *npre);
 
+/* ---- sr_port.c: the fixture port (docs/fixture-port.md, 4.2; FP save version 0 = DRAFT until the slot-4 probe's
+ * Q1 / Q4) -- the engine side of every non-league fixture: producers queue the fixtures, the exe asks at each
+ * calendar advance whether the career club plays one, installs it in slot 4 (ko_one), plays it and submits the
+ * result; every other fixture is simulated through the host. No allocation, no globals (the caller's sr_port). ----
+ * A team word is the game's: file | ordinal << 8 (gplay.c GP_MGR / ko_one). Units: the career calendar's (GP_WK). */
+#define SR_PORT_MAX    48           /* fixtures a season, all port competitions (~25 real: supercups, Coppa D,
+                                       deciders, 4 friendlies, Recopa / IC; the rest headroom, MC 12/11) */
+#define SR_PORT_SIZE   2368         /* sizeof(sr_port), asserted below: the exe budgets it (obj4 block / own page,
+                                       never gplay's .bss) */
+#define SR_PORT_NONE   0xFFFF       /* no club, no unit */
+#define SR_PORT_VERSION 0           /* the FP section: 0 = draft (a release build must not read it) */
+#define SR_PORT_TEAM(file, ord) ((uint16_t)((file) | (ord) << 8))   /* a team word: the registry file | ordinal << 8 */
+/* level: what settles a tie still level -- only the slot-4 contest byte's (the Mod's gplay.c LV_* values, checked by
+ * tests/rules/port_lv.sh against a Mod checkout): extra time then penalties / penalties / extra time then the
+ * listed (home) side / away goals then e.t. + penalties / away goals then the listed side. */
+enum { SR_PORT_LV_ET_PENS = 1, SR_PORT_LV_ET_BETTER = 2, SR_PORT_LV_PENS = 3, SR_PORT_LV_AWAY_PENS = 4,
+       SR_PORT_LV_AWAY_BETTER = 5 };
+enum { SR_PORT_F_CAREER_HOME = 1, SR_PORT_F_REPLAY = 2, SR_PORT_F_FRIENDLY = 4 };
+typedef struct {                    /* 32 B, the doc's SwcFixture */
+    uint32_t match_id;
+    uint16_t unit1, unit2, comp_id, label_id, home, away;
+    uint8_t  legs, level, neutral, kind, lfile, flags;
+    uint16_t prev_id;
+    uint8_t  names[8];
+} sr_port_fixture;
+typedef struct {                    /* 16 B, the doc's SwcPortResult: each leg as played (that leg's home first) */
+    uint32_t match_id;
+    uint8_t  g90[2], g90b[2], get[2], pens[2], cards[2];   /* get / pens: 0xFF none */
+    uint8_t  status, winner;        /* status 0 played, 1 / 2 forfeit home / away; winner 0 home (the fixture's), 1 away */
+} sr_port_result;
+enum { SR_PORT_QUEUED, SR_PORT_INSTALLED, SR_PORT_PLAYED };
+typedef struct {
+    int32_t  (*league_plays)(void *ctx, uint16_t team, uint16_t unit);  /* rule 1: 1 = a league match that unit */
+    int32_t  (*sim)(void *ctx, const sr_port_fixture *f, sr_port_result *r);   /* a non-career fixture: 0 ok */
+    void     (*done)(void *ctx, const sr_port_fixture *f, const sr_port_result *r);  /* the producer's outcome */
+    int32_t  (*prev_unit)(void *ctx, uint16_t unit);    /* the game's advance before unit (its calendar skips units:
+                                       56 57 58 59 61 63 ...), -1 none; NULL: every unit (unit - 1). Rule 5: a club's
+                                       next fixture is installed there, so the one before must end strictly earlier
+                                       (no slot clear: the next install overwrites slot 4, probe Q2 / Q3) */
+    int32_t  (*slot4_windows)(void *ctx, uint16_t team, uint16_t (*out)[2], int32_t max);   /* rule 6: the slot-4
+                                       windows [B, E] the exe's own users reserve for team's division (B: the unit whose
+                                       advance builds the contest, E: its last match; dplay / gp_lend at the season
+                                       end, split finals, gplay stages, Coppa D, supercups), up to max; the count
+                                       (above max or below 0: rule 6 refuses - the host keeps every window exactly).
+                                       NULL: one window [s4first, SR_PORT_NONE]. Read live: a club change or a window
+                                       known late is seen at poll (probe Q6) */
+    void     *ctx;
+} sr_port_host;
+typedef struct {
+    uint16_t n, unit, career, s4first;      /* s4first: rule 6's one window [s4first, NONE] without slot4_windows */
+    uint32_t pending, pack_hash;
+    uint8_t  state[SR_PORT_MAX];
+    sr_port_fixture f[SR_PORT_MAX];
+    sr_port_result  r[SR_PORT_MAX];
+} sr_port;
+typedef char sr_port_size_is[sizeof(sr_port) == SR_PORT_SIZE ? 1 : -1];
+/* errors: one code per rule, so a test can tell them apart */
+enum { SR_PORT_E_ARGS = -1, SR_PORT_E_FULL = -2, SR_PORT_E_R1 = -11, SR_PORT_E_R2 = -12, SR_PORT_E_R3 = -13,
+       SR_PORT_E_R4 = -14, SR_PORT_E_R5 = -15, SR_PORT_E_SLOT4_RESERVED = -16, SR_PORT_E_LEVEL = -17, SR_PORT_E_ID = -18,
+       SR_PORT_E_PENDING = -19, SR_PORT_E_RESULT = -20, SR_PORT_E_WINNER = -21, SR_PORT_E_MISSED = -22,
+       SR_PORT_E_SIM = -23, SR_PORT_E_SAVE = -24 };
+#define SR_PORT_WINDOWS 16          /* slot-4 windows a division, at most (the worst real case 11: Serie D-like tiers;
+                                       a host returning more: every fixture of that club refused) */
+#define SR_PORT_E_R6 SR_PORT_E_SLOT4_RESERVED          /* rule 6: a slot-4 reserved window met (swcc SWC_E_SLOT4_RESERVED) */
+#define SR_PORT_E_SEASON_END SR_PORT_E_SLOT4_RESERVED  /* (its season-end case, B = L) */
+void    sr_port_init(sr_port *p, uint16_t career, uint16_t unit, uint16_t s4first, uint32_t pack_hash);
+/* The static rules 2-6 + the fields (legs, level, neutral, ids) of f[0 .. n) against each other, rule 1 through
+ * league_plays (NULL: skipped) -- the one implementation, sr_port_add's and (milestone C) swcc's. 0; the first
+ * broken rule's code, *bad = its fixture's index. */
+int32_t sr_port_check(const sr_port_fixture *f, int32_t n, uint16_t unit, uint16_t s4first,
+                      const sr_port_host *h, int32_t *bad);
+int32_t sr_port_add(sr_port *p, const sr_port_host *h, const sr_port_fixture *f);   /* 0; a rule's code */
+/* The calendar advance to unit: every queued fixture without the career club whose unit2 <= unit simulated (sim),
+ * checked as a result and passed to done. The number played; SR_PORT_E_SIM / _RESULT / _WINNER. */
+int32_t sr_port_advance(sr_port *p, const sr_port_host *h, uint16_t unit);
+/* At the advance to unit, the game's next advance being next_unit (its calendar skips units): the career club's next
+ * fixture if due (unit1 <= next_unit): 1 and *f (installed, pending; asked again: the same one until its result);
+ * 0 none; SR_PORT_E_MISSED a career fixture with unit1 <= unit, never installed; SR_PORT_E_SLOT4_RESERVED a due one
+ * meeting a reserved window (rule 6, read live through h): never installed, slot 4 left to the exe's user. */
+int32_t sr_port_poll(sr_port *p, const sr_port_host *h, uint16_t unit, uint16_t next_unit, sr_port_fixture *f);
+/* After SR_PORT_E_MISSED / _SLOT4_RESERVED: every queued career fixture that is due (unit1 <= next_unit) and either
+ * missed (unit1 <= unit) or in a reserved window is simulated (sim) and done, never installed; one not yet due stays
+ * queued (no result before its date). The exe logs `[port] refused ...` and polls again. The number simulated;
+ * SR_PORT_E_SIM / _RESULT / _WINNER. */
+int32_t sr_port_missed(sr_port *p, const sr_port_host *h, uint16_t unit, uint16_t next_unit);
+/* After a load (which has no host, so no rule 1): the loaded queue against the league WITH the host, at the first
+ * advance. 0; the broken rule's code, *bad = the fixture -- a refusal and a message then, never a double booking. */
+int32_t sr_port_revalidate(const sr_port *p, const sr_port_host *h, int32_t *bad);
+/* The pending fixture's result: checked (match_id, legs, extra time / penalties only where the level allows,
+ * the winner against the engine's own reading -- a mismatch refused, never overridden), stored, passed to done. */
+int32_t sr_port_result_in(sr_port *p, const sr_port_host *h, const sr_port_result *r);
+/* The career club changes (a job taken): the pending fixture is simulated (sim) and done, then the new club. */
+int32_t sr_port_club_change(sr_port *p, const sr_port_host *h, uint16_t career);
+/* The engine's reading of a result: 0 / 1 the winner, -1 not decided by the level (or inconsistent). */
+int32_t sr_port_winner(const sr_port_fixture *f, const sr_port_result *r);
+/* The FP section (SWC1): little-endian, no pointers; its length (sr_port_save_size(p)); load: 0, SR_PORT_E_SAVE a
+ * version other than SR_PORT_VERSION, a pack hash not the given one, a bad length or a state the rules refuse. */
+int32_t sr_port_save_size(const sr_port *p);
+int32_t sr_port_save(const sr_port *p, uint8_t *out, int32_t max);
+int32_t sr_port_load(sr_port *p, const uint8_t *in, int32_t len, uint32_t pack_hash);
+
 #endif

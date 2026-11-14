@@ -3001,6 +3001,22 @@ static void ko_copy(struct gp_ko *d, const struct gp_ko *s) {   /* (no memcpy in
     for (unsigned n = 0; n < sizeof *d; n++) o[n] = i[n];
 }
 
+#ifndef GP_PORT
+#define GP_PORT 0                       /* (4.2 fixture port P2 builds: fpad.py; 0 = no byte of it) */
+#endif
+#if GP_PORT
+#ifndef GP_DATA_SECTION
+#define GP_DATA_SECTION __attribute__((section(".data")))      /* (host tests build gplay.c natively: -DGP_DATA_SECTION=) */
+#endif
+/* 4.2 fixture port P2 (internal/handoff/motore-fixport-plan.md 1b): the adapter fpad.c lives in obj4 (swreg FPORT band,
+   fpad.py) and fills these hooks; gplay keeps slot 4's builder (ko_one) and hands it over through GP_PAPI. */
+enum { K_PORT = 12 };
+u32 (*GP_PSTEP)(void) GP_DATA_SECTION;                          /* sc_step_c's head: 1 = a fixture built into ko[0] */
+void (*GP_PDONE)(const struct gp_ko *k) GP_DATA_SECTION;        /* gp_rec_c: the K_PORT tie decided */
+void (*GP_PLEG)(const struct gp_ko *k, const u16 *d) GP_DATA_SECTION;   /* every K_PORT match: GP_PD (gp_pleg_c) */
+void (*GP_PSEAS)(void) GP_DATA_SECTION;                         /* gp_end_c: a season end (the port re-armed) */
+u16 GP_PD[10];                          /* (gp_rec's copy of cseg_2AE97's D1..D7 at its end, then GP_A, GP_B, legs left) */
+#endif
 void gp_rec_c(void) {
     struct gp_ko *k = &GP_ST.ko[GP_K];
     int a = kidx(k, GP_A), b = kidx(k, GP_B), g = k->gcur;
@@ -3020,6 +3036,9 @@ void gp_rec_c(void) {
     if (k->kind == K_CUPD) { cd_done(k); return; }
     if (k->kind == K_SC) { sc_done(k); return; }   /* (4.0.5 supercup: a final four's semi -> its final) */
     if (k->kind == K_GF) { gf_done(k); return; }   /* (4.0.5 NZ: the Grand Final) */
+#if GP_PORT
+    if (k->kind == K_PORT) { if (GP_PDONE) GP_PDONE(k); return; }   /* (K_PORT: the fixture port's tie, fpad.c) */
+#endif
     GP_LAST = 0;
     int left = 0;
     for (int p = k->gp0[g]; p < k->gp0[g + 1]; p++) if (k->pw[p] == NOC) left++;
@@ -3159,6 +3178,9 @@ void gp_end_c(void) {                   /* after gp_season: the log, the state v
         GP_LOG.tag = 0x474C5047;        /* 'GPLG' */
     }
     if (GP_CDT && GP_CDD) cd_rank();          /* (the Coppa D: the Serie D groups' final places) */
+#if GP_PORT
+    if (GP_PSEAS) GP_PSEAS();
+#endif
     GP_ST.magic = 0;
     GP_ST.nsim = 0;
     GP_ST.ko[0].magic = GP_ST.ko[1].magic = 0;
@@ -4594,7 +4616,38 @@ static int usc_step(void) {             /* 4.0.6 the UEFA Super Cup at the advan
     SC_U[1] = 1; SC_TRACE = 0x11;
     return 1;
 }
+#if GP_PORT
+static u32 fp_install(u16 home, u16 away, u32 w1, u32 w2, u32 legs, u32 level, u32 neutral, u32 lfile,
+                      const u8 *names) {   /* slot 4's contest for the fixture (fpad.c fp_step): 1 built, 0 slot busy */
+    if (!sc_free()) return 0;
+    ko_one(&GP_ST.ko[0], home, away, (int)w1, (int)w2, (int)legs, K_PORT, (int)level, (int)lfile, names);
+    if (neutral) GP_ST.ko[0].rs[0][2] = HOST_NEUTRAL;
+    return 1;
+}
+static u32 fp_live(void) {              /* slot 4 holds a K_PORT tie of this season: 1 undecided, 2 decided, 0 none */
+    const struct gp_ko *k = &GP_ST.ko[0];
+    if (!(GP_ST.magic == MAGIC && k->magic == MAGIC && k->season == GP_SEAS && k->kind == K_PORT)) return 0;
+    return k->tw[0] == NOC ? 1 : 2;
+}
+static void fp_kinfo(const struct gp_ko *k, u16 *o) {   /* o: team[0], team[1], the winner's side (0 / 1, FFh none),
+                                           d1, d2 */
+    o[0] = k->team[0]; o[1] = k->team[1];
+    o[2] = k->tw[0] == NOC ? 0xFF : k->team[k->tw[0]] == k->team[0] ? 0 : 1;
+    o[3] = k->d1; o[4] = k->d2;
+}
+static u32 fp_mdiv(void) { return GP_IN.mdiv; }   /* (the career club's division: its slot-4 windows) */
+struct gp_papi { u32 (*install)(u16, u16, u32, u32, u32, u32, u32, u32, const u8 *); u32 (*live)(void);
+                 void (*kinfo)(const struct gp_ko *, u16 *); u32 (*mdiv)(void); const struct gp_ko *ko0; };
+struct gp_papi GP_PAPI GP_DATA_SECTION = { fp_install, fp_live, fp_kinfo, fp_mdiv, &GP_ST.ko[0] };
+void gp_pleg_c(void) {                  /* gp_rec (PORT_ON): a match of ours just played - a K_PORT one -> fpad.c */
+    const struct gp_ko *k = &GP_ST.ko[GP_K];
+    if (GP_K == 0 && k->kind == K_PORT && GP_PLEG) GP_PLEG(k, GP_PD);
+}
+#endif
 u32 sc_step_c(void) {                   /* the calendar advance: 1 = the career club's tie built into ko[0] */
+#if GP_PORT
+    if (GP_MGR && GP_PSTEP) { u32 r = GP_PSTEP(); if (r) return 1; }   /* (the port first: never "clear" - Q2 / Q3) */
+#endif
     if (!GP_SCT || !GP_MGR) return 0;
     { int u = usc_step(); if (u) return u > 0; }   /* (4.0.6: the UEFA Super Cup first) */
     const u8 *e = 0;

@@ -32667,7 +32667,8 @@ def diff_trace():
     sh = {'DIFF_CKSH': os.environ['DIFF_CKSH']} if os.environ.get('DIFF_CKSH') else {}
     sh['DIFF_SKIP'] = os.environ.get('DIFF_SKIP', 'BUFRAME')   # (NEW only. BUFRAME: the build-up's per-frame
     # counters are trace-only code whose CPU cost alone shifts a still timer-driven part of the match: 13/11 bisection)
-    ref = build('diff_ref', {'DIFF_TRACE': '1', **{k: v for k, v in sh.items() if k != 'DIFF_SKIP'}}, lang=lang)
+    ref = build('diff_ref', {'DIFF_TRACE': '1', 'DIFF_DELAY': '', **{k: v for k, v in sh.items() if k != 'DIFF_SKIP'}},
+                lang=lang)   # (DIFF_DELAY '': difficulty.py reads the process env - REF stays delay-free)
     new = build('diff_new', {'DIFF_TRACE': '1', 'DIFF_TEST': '3', **sh}, lang=lang)
     base = os.environ.get('DIFF_BASE')                  # (42-drp: REF = NEW's recipe built from that git ref, e.g.
     if base:                                            #  42-diff = the 0da9536 line; compared at DIFF_BASE_DR, default
@@ -32677,6 +32678,10 @@ def diff_trace():
     padc = os.environ.get('DIFF_PAD')                   # (MC 13/11: REF+PAD = REF with a nop band of NEW's obj4 sizes
     if padc:                                            #  'code,buildup'; NORMAL then = REF+PAD, no EASY run)
         new = build('diff_refpad', {'DIFF_TRACE': '1', 'DIFF_PAD': padc,
+                                    **{k: v for k, v in sh.items() if k != 'DIFF_SKIP'}}, lang=lang)
+    delc = os.environ.get('DIFF_DELAY')                 # (MC 14/11: REF+DELAY = REF + a pure per-frame loop of n
+    if delc:                                            #  iterations; NORMAL then = REF+DELAY, no EASY run)
+        new = build('diff_refdel', {'DIFF_TRACE': '1', 'DIFF_DELAY': delc,
                                     **{k: v for k, v in sh.items() if k != 'DIFF_SKIP'}}, lang=lang)
     seed = bytes.fromhex(os.environ.get('DIFF_SEED', '0102030405a6'))
     frames = int(os.environ.get('DIFF_FRAMES', '13000'))
@@ -32708,7 +32713,7 @@ def diff_trace():
             a = diff_match(f'diff_trace_{pr}_ref', ref, 'HAMBURG', 'SCHALKE', ctls[pr], seed, 0, frames)
             runs = [('NORMAL', diff_match(f'diff_trace_{pr}_new', new, 'HAMBURG', 'SCHALKE', ctls[pr], seed, 0,
                                           frames))]
-        if pr in ('cc', 'hh') and not os.environ.get('DIFF_SELF') and not padc:
+        if pr in ('cc', 'hh') and not os.environ.get('DIFF_SELF') and not padc and not delc:
             runs.append(('EASY+NEW', diff_match(f'diff_trace_{pr}_easy', new, 'HAMBURG', 'SCHALKE', ctls[pr], seed,
                                                 1, frames, drib=1)))
         if a.get('stop'):                               # (DIFF_STOPF: obj2 at that frame, the differing words)

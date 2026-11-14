@@ -530,7 +530,8 @@ def steer_check(ni, lab, c):
                 log, err = call(m, 'sp_tx')
                 n += 1
                 tx = rd16(m, B4 + lab['FK_TX'])
-                base = 366 - k['FKXI'] if cu == 1 else 302 + k['FKXI']
+                xi = k['FKXI'] if si < 8 else k['FKXI2']
+                base = 366 - xi if cu == 1 else 302 + xi
                 seen.add(tx - base)
                 if err or log or abs(tx - base) > a or rd16(m, B4 + lab['FK_XM']) != xm:
                     bad.append(f'sp_tx cu {cu} si {si} a {a}: {tx} xm {rd16(m, B4 + lab["FK_XM"])} {err}')
@@ -578,7 +579,7 @@ def steer_check(ni, lab, c):
         if abs((xc1 - xc0) - want) > tol + 1:
             bad.append(f'steer {t}: xc {xc0:.1f} -> {xc1:.1f}, tx {tx}, want {want:+.1f}')
     return not bad, [f'- {n} cases: {"all as wanted" if not bad else str(len(bad)) + " WRONG: " + "; ".join(bad[:6])}',
-                     f'- FK_XI {k["FKXI"]} px inside the post, FK_XC {k["FKXC"]} px a tick (ARCADE {k["FKXC2"]}, '
+                     f'- FK_XI {k["FKXI"]} px inside the post, FK_XC {k["FKXC"]} px a tick (ARCADE {k["FKXI2"]} px, {k["FKXC2"]} px a tick, '
                      f'x aim error {k["FKA2"]} px by SHOOTING)']
 
 

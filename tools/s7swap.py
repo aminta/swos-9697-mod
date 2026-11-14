@@ -329,7 +329,7 @@ def patch(p, ssyms, rsyms, gsyms, pgsyms, fsyms, risyms):
     flags += (f'-DS7RI_NSTR={len(srows)}',)
     gobj = cobj.compile_c(SRC_GEO, (), sections=True)    # (4.2 geography: its own band, linked first: s7ri.c's reset of the log is an extern)
     gsy, gend, gbss = cobj.link(p, gobj, swreg.S7GEO_AT, (4, 0), limit=swreg.S7GEO_END - 256, text_obj=4,
-                                roots=['s7geochain', 'S7GEO_NEIGH', 'S7GEO_ON', 'S7GEO_LOG', 'S7GEO_NLOG', 'S7GEO_BAD', 'S7GEO_XY', 'S7GEO_HAVE',
+                                roots=['s7geochain', 's7geo_ll', 'S7GEO_NEIGH', 'S7GEO_ON', 'S7GEO_LOG', 'S7GEO_NLOG', 'S7GEO_BAD', 'S7GEO_XY', 'S7GEO_HAVE',
                                        'S7GEO_FILE', 'S7GEO_BASE', 'S7GEO_IDENT'])
     assert not gbss, ('s7geo.c: no .bss', gbss)
     ext['S7GEO_NLOG'] = gsy['S7GEO_NLOG'][:2]

@@ -37,12 +37,22 @@ static int geo_eligible(const uint8_t *e, int fl, int x, const int8_t *slt, cons
     return 1;
 }
 
-static int geo_xy(int h, int32_t *la, int32_t *lo)             /* a club's town coordinates by its registry ident; 0 = none */
+/* The ONE read interface of the town coordinates (also for 42-cdkn's PAIR_GEO): s7geo_ll(w, &lat, &lon) - w = a team word (file | row << 8) of
+   a club in the Serie D file or the pool; lat / lon in 0.01 degree; returns 1 when the club has a coordinate, else 0 (lat / lon untouched). */
+int32_t s7geo_ll(uint32_t w, int16_t *lat, int16_t *lon)
 {
-    if (!S7GEO_IDENT) return 0;
-    uint32_t id = S7GEO_IDENT((uint32_t)S7GEO_FILE | (uint32_t)(h - S7GEO_BASE) << 8);
+    if (!S7GEO_HAVE || !S7GEO_IDENT) return 0;
+    uint32_t id = S7GEO_IDENT(w);
     if (id >= S7GEO_NID || !S7GEO_XY[id][0]) return 0;
-    *la = S7GEO_XY[id][0]; *lo = S7GEO_XY[id][1];
+    *lat = S7GEO_XY[id][0]; *lon = S7GEO_XY[id][1];
+    return 1;
+}
+
+static int geo_xy(int h, int32_t *la, int32_t *lo)             /* a club's town coordinates by its global number; 0 = none */
+{
+    int16_t a, b;
+    if (!s7geo_ll((uint32_t)S7GEO_FILE | (uint32_t)(h - S7GEO_BASE) << 8, &a, &b)) return 0;
+    *la = a; *lo = b;
     return 1;
 }
 

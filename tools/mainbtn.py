@@ -276,20 +276,33 @@ mb_wfile:                               ; SETUP.DAT +105 = the byte (the rest as
 .r:     ret
 
 mb_d0:  mov byte [D0], 0FFh             ; (replaced: SelectTeamsFinalMenu from the top list)
-        cmp dword [HDR], STR            ; only SELECT TEAM TO MANAGE (not a player purchase's team choice)
-        jne .r
         push eax
-        call .g
+        cmp dword [HDR], STR            ; SELECT TEAM TO MANAGE (not a player purchase's team choice): the career's
+        je .car                         ; world (mb_car's flag)
+        cmp dword [HDR], ISTR           ; 4.2 (Gianfranco 14/11): EDIT TEAMS > IMPORT, club teams: the default world
+        jne .r                          ; (the nationals stay the game's)
+        cmp word [TTYPE], 1
+        jne .r
+        call .o
+.o:     pop eax
+        cmp byte [eax + mb_omm - .o], 0 ; (the patcher's 'Original main menu': the game's list)
+        jne .r
+        call mb_wsel                    ; (as mb_car: setting 0 World 2026-27 -> 1, 1 the game's -> 0, 2 stays)
+        cmp al, 1
+        ja .s
+        xor al, 1
+        jmp .s
+.car:   call .g
 .g:     pop eax
         mov al, [eax + mb_flag - .g]
-        cmp al, 1
+.s:     cmp al, 1
         jne .n1
         mov byte [D0], WID_             ; the world's list (CLASSIC CAREERS > WORLD 2026-27): its continents
 .n1:    cmp al, 2
-        jne .n2
+        jne .r
         mov byte [D0], WID84_           ; (CLASSIC CAREERS > EUROPA 1984-85: its countries)
-.n2:    pop eax
-.r:     ret
+.r:     pop eax
+        ret
 
 mb_flag: db 0
 mb_ommk: db "SWOSMOD-OMM"               ; (the patcher finds the option byte by this marker, OMM_MARK)
@@ -301,7 +314,9 @@ LABELS_
 
 def choose_sites(p):
     """ChooseTeamsDialog's `mov byte [D0], 255; call SelectTeamsFinalMenu` (obj1 offset, the game's bytes), the title
-    pointer it reads (HDR) and SELECT TEAM TO MANAGE's string (STR): (cs, (obj, off), (obj, off))."""
+    pointer it reads (HDR), SELECT TEAM TO MANAGE's string (STR), EDIT TEAMS > IMPORT's (ISTR: SELECT TEAM TO IMPORT,
+    its call D2 = D3 = 1, D4 = 0, the same ChooseTeamsDialog) and teamsType (TTYPE: the category menu's choice, read
+    right after ShowMenu): (cs, (obj, off) x 4)."""
     c = p.le.obj_bytes(1)
     fx = {s: (t, o) for so, s, _, t, o, *_ in p.le.fixups() if so == 1}
     cs = [m.start() for m in re.finditer(rb'\xc6\x05....\xff\xe8....\x66\xa1', c, re.S)]
@@ -311,7 +326,17 @@ def choose_sites(p):
     st = [fx[m.start() + 6] for m in re.finditer(rb'\xc7\x05........\xc7\x05....\x00\x00\x00\x00\x66\xc7\x05....'
                                                  rb'\x01\x00\x66\xc7\x05....\x00\x00\x66\xc7\x05....\x00\x00\xe8', c, re.S)]
     st = [x for x in st if p.le.obj_bytes(2)[x[1]:x[1] + 1] != b'\0']
-    return cs, hdr, st[0]
+    imp = [m for m in re.finditer(rb'\xc7\x05........\xc7\x05....\x00\x00\x00\x00\x66\xc7\x05....\x01\x00'
+                                  rb'\x66\xc7\x05....\x01\x00\x66\xc7\x05....\x00\x00\xe8', c, re.S)]
+    assert len(imp) == 1, ('ImportTeamsMenu: ChooseTeamsDialog call', [hex(m.start()) for m in imp])
+    ic = imp[0].end() - 1
+    ent = ic + 5 + struct.unpack_from('<i', c, ic + 1)[0]
+    assert ent < cs < ent + 0x100, ('ImportTeamsMenu calls ChooseTeamsDialog', hex(ent), hex(cs))
+    ist = fx[imp[0].start() + 6]
+    assert ist[0] == 2 and p.le.obj_bytes(2)[ist[1]:ist[1] + 1] != b'\0', ist
+    tt = [fx[cs - 0x60 + k.start() + 2] for k in re.finditer(rb'\x66\xa1....\x66\x0b\xc0\x78', c[cs - 0x60:cs], re.S)]
+    assert len(tt) == 1, ('teamsType after ShowMenu', tt)
+    return cs, hdr, st[0], ist, tt[0]
 
 
 def patch(p, at, lang, wid, onsel=None, obj=1, wid84=None):
@@ -352,8 +377,8 @@ def patch(p, at, lang, wid, onsel=None, obj=1, wid84=None):
     sym = {'D0': d0[0], 'A0': a0, 'CALC': (1, calc), 'GAP_': (0, GAP), 'X_': (0, X), 'W_': (0, W), 'H_': (0, H),
            'GREEN_': (0, GREEN)}
     sym['ONSELF'] = onsel
-    cs, hdr, st = choose_sites(p)
-    sym.update({'HDR': hdr, 'STR': st, 'WID_': (0, wid), 'WID84_': (0, wid84 or wid), 'FNAME': fx[rs[0] + 1],
+    cs, hdr, st, ist, tt = choose_sites(p)
+    sym.update({'HDR': hdr, 'STR': st, 'ISTR': ist, 'TTYPE': tt, 'WID_': (0, wid), 'WID84_': (0, wid84 or wid), 'FNAME': fx[rs[0] + 1],
                 'BUF': fx[rs[0] + 17], 'SET_OFF_': (0, SET_OFF), 'MAXW_': (0, len(labs) - 1), 'LAB_W_': (0, LAB_W)})
     import zones
     code = zones._put_obj(p, src, at, sym, obj)
@@ -362,7 +387,7 @@ def patch(p, at, lang, wid, onsel=None, obj=1, wid84=None):
     p.branch(1, off + 6, 0xE9, obj, lab['mb_off'], n=7)
     p.remove(1, cs + 2)                              # (the overwritten instruction's fixup: [D0])
     p.branch(1, cs, 0xE8, obj, lab['mb_d0'], n=7)
-    CHOOSE[0] = {'site': cs + 7, 'HDR': hdr, 'STR': st}
+    CHOOSE[0] = {'site': cs + 7, 'HDR': hdr, 'STR': st, 'ISTR': ist}
     FLAG[0] = (obj, lab['mb_flag'])                  # (4.0.3: careerworld's nat_init reads it: the coach's list)
     SETTING[0] = (sym['BUF'][0], sym['BUF'][1] + SET_OFF)   # (W-modes: the registry's pointer, swreg)
     OMM[0] = (obj, lab['mb_omm'])                    # (modver's line and swe's default world read it too)

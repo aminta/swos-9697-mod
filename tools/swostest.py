@@ -5479,6 +5479,183 @@ def edteam_right():
     return not errs, '; '.join(errs + notes)
 
 
+IMP_PATH = ('EUROPA', 'ITALIA', 'SERIE A', 'INTER')   # (screen() reads the list's buttons in Italian in every UI)
+
+
+def imp_world(top):
+    """The import list is World 2026-27's: its title says so, or (DE: the title's umlaut, no text read) its continents
+    in the world's order (SUDAMERICA before NORDAMERICA; the 1996-97 game: NORDAMERICA first)."""
+    if top and '2026-27' in top[0]:
+        return True
+    return 'SUDAMERICA' in top and 'NORDAMERICA' in top and top.index('SUDAMERICA') < top.index('NORDAMERICA')
+
+
+def imp_rec(data, pat, name):
+    """The first 684-byte team record named `name` in the files DATA/<pat> (sorted): (file, record) or (None, None)."""
+    import glob
+    for f in sorted(glob.glob(os.path.join(data, pat))):
+        d = open(f, 'rb').read()
+        for i in range((len(d) - 2) // 684):
+            r = d[2 + 684 * i:2 + 684 * (i + 1)]
+            if r[5:22].split(b'\0')[0] == name.encode():
+                return os.path.basename(f), r
+    return None, None
+
+
+def imp_names(rec):
+    return [bytes(rec[76 + 38 * i + 3:76 + 38 * i + 25]).split(b'\0')[0].decode('latin-1') for i in range(16)]
+
+
+def imp_pick(s, path, errs):
+    """In EDIT CUSTOM TEAMS: the IMPORT entry, the club category, then `path` (the list's own buttons); True when the
+    editor is back. The list's first screen goes to s.imp_top (its texts)."""
+    scr = s.screen()
+    ie = next((i for i, t, inv, _ in scr.entries if t and t.startswith('IMPORT') and not inv), None)
+    if ie is None:
+        errs.append(f'no IMPORT entry in the editor ({scr})')
+        return False
+    press(s, scr, ie, 3)
+    scr = s.screen()                                # the category menu (ChooseTeamsDialog: club / national)
+    ce = next((i for i, t, inv, _ in scr.entries if t and 'CLUB' in t and not inv), None)
+    if ce is None and UI == 'de':                   # (VEREINSMANNSCHAFTEN: no CLUB in it; the first entry with text)
+        ce = next((i for i, t, inv, _ in scr.entries if t and not inv), None)
+    if ce is None:
+        errs.append(f'no club category after IMPORT ({scr})')
+        return False
+    press(s, scr, ce, 3)
+    s.imp_top = s.screen().texts()
+    for t in path:
+        if press(s, s.screen(), t, 3) is None:
+            errs.append(f'{t} not in the import list ({s.screen()})')
+            return False
+    for _ in range(4):
+        if et_editor(s):
+            return True
+        s.send('dump:2')
+    errs.append(f'the editor not back after the import ({s.screen()})')
+    return False
+
+
+@scenario
+def edit_import():
+    """4.2 (Gianfranco 14/11, Android): EDIT CUSTOM TEAMS > IMPORT lists the default world (mainbtn mb_d0 + swe.c
+    swe_car_pre on SELECT TEAM TO IMPORT, club teams). (1) World 2026-27 (the factory default): IMPORT > club teams
+    opens the world's list (the title's world: '- MONDO 2026-27'), EUROPA > ITALIA > SERIE A > INTER over 90 MINUTES XI gives the
+    2026-27 INTER's players (TMW5.* record, not the 1996-97 TEAM.* one), the custom team's own country / league bytes
+    kept; OK + SAVE: CUSTOMS.EDT holds it. (2) A friendly with SQUADRE MODIFICATE: the imported team on the team screen
+    with those names (the base namespace back after the import). (3) MONDO: 1996-97 on the main menu: IMPORT gives the
+    game's 1996-97 INTER. Any SWOSTEST_UI; SWOSTEST_BUILD = a release dir."""
+    b = builds()['it']
+    team, path = '90 MINUTES XI', IMP_PATH
+    data = os.path.join(b, 'DATA')
+    f27, r27 = imp_rec(data, 'TMW5.*', 'INTER')
+    f97, r97 = imp_rec(data, 'TEAM.0*', 'INTER')
+    if not r27 or not r97:
+        return False, f'SETUP-ERROR: INTER not in {data} (2026-27 {f27}, 1996-97 {f97})'
+    n27, n97 = imp_names(r27), imp_names(r97)
+    errs, notes = [], []
+    with Session('edit_import', b, {}, 'dump:3', 400) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'START: no first pause ({s.result})'
+        set_world(s, 0)
+        if not et_open(s, team, errs):
+            return False, '; '.join(errs)
+        d0 = et_team(s)[0]
+        if not imp_pick(s, path, errs):
+            return False, '; '.join(errs + [f'top list {s.imp_top[:12]}'])
+        check(imp_world(s.imp_top), f'the import list is not World 2026-27\'s: {s.imp_top[:14]}', errs)
+        d1 = et_team(s)[0]
+        got = imp_names(d1)
+        check(got == n27, f'imported players {got[:4]}.. != 2026-27 INTER ({f27}) {n27[:4]}.. (1996-97: {n97[:4]}..)', errs)
+        check(d1[5:22].split(b'\0')[0] == b'INTER', f'team name {d1[5:22]}', errs)
+        check(d1[0] == d0[0] and d1[0x19] == d0[0x19], f'country / league {d0[0]}/{d0[0x19]} -> {d1[0]}/{d1[0x19]}', errs)
+        notes.append(f'2026-27 INTER from {f27}: {got[0]}, {got[1]}..; top list {s.imp_top[:6]}')
+        s.shot('imported')
+        et_off_face(s)
+        press(s, s.screen(), 21, 3)                   # OK
+        for _ in range(8):                            # the save prompt (as edit_custom_teams)
+            scr = s.screen()
+            t = scr.texts()
+            sv = next((x for x in t if x.startswith(('SALVA', 'SAVE', 'SAUV', 'ENREG', 'SPEICH'))), None)
+            if sv and len(t) < 8:
+                press(s, scr, sv, 3)
+                break
+            if scr.find('ESCI') is not None:
+                press(s, scr, 'ESCI', 2)
+            else:
+                s.send('esc dump:2')
+        else:
+            errs.append(f'no save prompt ({s.screen()})')
+        game = s.result.game
+    cp = os.path.join(game, 'CUSTOMS.EDT')
+    d = open(cp, 'rb').read() if os.path.exists(cp) else b''
+    slot = next((2 + i * 684 for i in range((len(d) - 2) // 684) if d[2 + i * 684 + 5:2 + i * 684 + 22].split(b'\0')[0]
+                 == b'INTER'), None)
+    check(slot is not None and imp_names(d[slot:slot + 684]) == n27, f'CUSTOMS.EDT: INTER {"missing" if slot is None else imp_names(d[slot:slot + 684])[:3]}', errs)
+    if slot is None:
+        return False, '; '.join(errs + notes)
+    keep = os.path.join(WORK, 'saves', f'IMP_CUSTOMS_{UI}.EDT')
+    shutil.copy(cp, keep)
+    # (2) a friendly with the edited list: INTER (custom) on the team screen with the 2026-27 names
+    with Session('edit_import2', b, {'CUSTOMS.EDT': keep}, 'dump:3', 400) as s:
+        s.wait()
+        set_world(s, 0)
+        for t in ('AMICHEVOLE', 'OK'):
+            walk(s, t, 2)
+        scr = s.screen()
+        ch = scr.find('SCEGLI SQUADRE')
+        if ch is None:
+            ch = scr.find({'fr': 'CHOISIR LES EQUIPES', 'de': 'MANNSCHAFTEN W'}.get(UI, 'SCEGLI SQUADRE'))
+        if ch is None and UI == 'de' and scr.find('ESCI', exact=True):
+            ch = scr.find('ESCI', exact=True) - 1
+        if ch is None:
+            return False, '; '.join(errs + notes + [f'no team choice entry ({scr})'])
+        walk(s, ch, 2)
+        lab, scr = et_label('edited'), s.screen()
+        ie = next((i for i, t, inv, _ in scr.entries if lab in t and not inv), None)
+        if ie is None and UI == 'de' and scr.find('ESCI', exact=True):
+            ie = scr.find('ESCI', exact=True) - 1
+        if ie is None or press(s, scr, ie, 3) is None:
+            return False, '; '.join(errs + notes + [f'{lab} not in the team choice ({s.screen()})'])
+        scr = s.screen()                               # (the legend's colour boxes: GIOCA-ALLENA's, as edit_custom_teams)
+        leg = [i for i in range(1, 8) if not scr.entries[i][1]][:3]
+        human = scr.colors[leg[1]] if len(leg) == 3 else None
+        walk(s, 'INTER', 2)
+        for _ in range(4):                             # COMPUTER -> the human: INTER is the team screen's team
+            scr = s.screen()
+            i = scr.find('INTER', exact=True)
+            if i is None or scr.colors[i] == human:
+                break
+            s.send('fire dump:2')
+        check(human is not None and scr.find('INTER', exact=True) is not None and
+              scr.colors[scr.find('INTER', exact=True)] == human, f'INTER not human-controlled ({scr})', errs)
+        walk(s, 'A C ARTISAN', 2)
+        scr = s.screen()
+        if scr.find(FRIENDLY_PLAY) is None:
+            return False, '; '.join(errs + notes + [f'no play button after the team choice ({scr})'])
+        walk(s, FRIENDLY_PLAY, 4)
+        if not se_rows(s):
+            return False, '; '.join(errs + notes + [f'no team screen after the team choice ({s.screen()})'])
+        tm = se_team(s)[0]
+        ts = imp_names(s.result.read(tm, 684))
+        check(set(ts) == set(n27), f'team screen players {ts[:4]}.. != the imported {n27[:4]}..', errs)
+        s.shot('teamscreen')
+        notes.append(f'friendly team screen: {ts[0]}, {ts[1]}..')
+    # (3) MONDO: 1996-97 on the main menu: the game's list, the 1996-97 INTER
+    with Session('edit_import97', b, {}, 'dump:3', 400) as s:
+        s.wait()
+        set_world(s, 1)
+        if not et_open(s, team, errs):
+            return False, '; '.join(errs + notes)
+        if imp_pick(s, path, errs):
+            got = imp_names(et_team(s)[0])
+            check(not imp_world(s.imp_top), f'1996-97 default: the import list is the world\'s {s.imp_top[:8]}', errs)
+            check(got == n97, f'1996-97 default: imported {got[:4]}.. != 1996-97 INTER ({f97}) {n97[:4]}..', errs)
+            notes.append(f'1996-97 default: {got[0]}, {got[1]}.. from {f97}; top {s.imp_top[:6]}')
+            s.shot('imported97')
+    return not errs, '; '.join(errs + notes)
+
+
 def et_reopen(s, face):
     """The number box again on the face it was used on (4.0.6: RIGHT to the name, LEFT back, RIGHT), by the cursor:
     a RIGHT the box's release guard swallows (SWOS++'s timer-fed keys) is sent again."""

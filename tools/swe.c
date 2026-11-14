@@ -569,10 +569,14 @@ void swe_sel_post(void)
 /* W-modes M3: the career's team choice (ChooseTeamsDialog's SelectTeamsFinalMenu call after mainbtn's mb_d0, only for
    SELECT TEAM TO MANAGE: a player purchase's team choice stays the game's) lists the worlds as the friendly picker
    (the default world's list, MONDO 2026-27 next to STORICO), with no lock (one club). The namespace stays the one the
-   path left (careerworld w_ns_menu): InitCareer's w_load1 reads it for the career's world. */
+   path left (careerworld w_ns_menu): InitCareer's w_load1 reads it for the career's world.
+   4.2 (Gianfranco 14/11): EDIT TEAMS > IMPORT (SELECT TEAM TO IMPORT, MB_ISTR) with club teams lists the worlds the
+   same way (mainbtn's mb_d0 opens the default world's list), so a World 2026-27 club can be imported; its nationals stay
+   the game's. After the pick the base namespace is back (the editor shows the game's countries; the record is already
+   picked: ImportTeamsMenu copies its bytes and keeps the custom team's own country and league). */
 #ifdef MB                               /* (a build with mainbtn's world switch: else no career picker hook) */
-extern u8 MB_HDR[], MB_STR[];
-u32 CAR_ON DATA = 0;
+extern u8 MB_HDR[], MB_STR[], MB_ISTR[];
+u32 CAR_ON DATA = 0;                    /* 1 = the career's team choice, 2 = the editor's import */
 #endif
 
 /* M3 (Davide 04/11): the coach's nationality list follows the career's world, chosen with the team (careerworld nat_init
@@ -612,7 +616,8 @@ const u32 NAT_X[6] = {(u32)swe_nat_fix, (u32)CW_PLNAT, (u32)NATMAP27, (u32)NATMA
 #ifdef MB
 void swe_car_pre(void)
 {
-    CAR_ON = rd32(MB_HDR) == (u32)MB_STR;
+    u32 h = rd32(MB_HDR);
+    CAR_ON = h == (u32)MB_STR ? 1 : h == (u32)MB_ISTR && *(u16 *)SWE_TTYPE == CLUB_TEAMS ? 2 : 0;
     if (!CAR_ON)
         return;
     NS_LEFT = 0;                        /* (the career's picker owns the namespace: no guard after it) */
@@ -624,9 +629,11 @@ void swe_car_post(void)
     if (!CAR_ON)
         return;
     sel_restore();
+    if (CAR_ON == 2)
+        ns_left(0);                     /* (the import: the base namespace back, the editor's own) */
 #ifdef NAT
     u8 *wcur = (u8 *)rd32(SWE_REG + 8);
-    if (wcur)
+    if (wcur && CAR_ON == 1)
         swe_nat_fix(*wcur == SET_W[0]);   /* (the namespace the path left: World 2026-27's = its number) */
 #endif
     SEL_ON = 0;

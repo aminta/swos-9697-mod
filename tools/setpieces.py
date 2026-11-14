@@ -31,8 +31,17 @@ import nasmcave
 TAG = b'SETP'
 
 
+LABEL = {'it': 'CALCI PIAZZATI', 'en': 'SET PIECES', 'fr': 'PHASES ARRETEES', 'de': 'STANDARDS'}
+VALUES = {'it': ('CLASSICI', 'NUOVI'), 'en': ('CLASSIC', 'NEW'), 'fr': ('CLASSIQUES', 'NOUVELLES'),
+          'de': ('KLASSISCH', 'NEU')}
+
+
 def on():
-    return bool(os.environ.get('SP_TEST'))
+    """The band and the row: whenever difficulty.py's OPTIONS rows are in (DIFF_TEST; MC 14/11). SP_TEST = SP_W's start
+    value only (0 CLASSICI, the default; 1 NUOVI), and needs DIFF_TEST."""
+    import difficulty as df
+    assert df.knobs() or not os.environ.get('SP_TEST'), 'SP_TEST needs DIFF_TEST (the OPTIONS rows)'
+    return df.knobs()
 
 
 def _iv(k, d):
@@ -105,48 +114,186 @@ HOOKS = (('JZ', 5, 'sp_jz'), ('FZ', 5, 'sp_fz'), ('HD', 9, 'sp_head'), ('CEIL0',
          ('CPU', 13, 'sp_cpu'), ('FB', 15, 'sp_fb'), ('FT', 14, 'sp_ft'))
 
 ASM = r"""
-; ---- the base: ebp = SPB (PC-relative: no fixup); [ebp] = obj2's base (the band's only fixup)
+; ---- the base: ebp = SPB (PC-relative: no fixup); [ebp] = obj2's base (the band's only fixup). The DIFFICULTY /
+;      DRIBBLING data (difficulty.py, page 15) is in this object too: [dword ebp + X - SPB], no fixup either
+align 4
 SPB: dd O2BASE
-    dd O1BASE                           ; ([ebp + 4]: obj1's base, for SWOS++'s flag)
 TAGS: db 'SETP'
-SP_W: db SP_START                       ; the option: 0 CLASSICI, 1 NUOVI
-SP_SV: db SP_START                      ; (the save item, M2)
+SP_W: dw SP_START                       ; the option: 0 CLASSICI, 1 NUOVI (a word: the game's string table reads one)
+SP_OK: db 0                             ; 1 = a kick-off without SWOS++ seen (df_kick: sp_set; SWOS++ never changes)
+    db 0
+TAB_P: dd 0                             ; (the row's string table, its pointers filled by sp_add: no fixups)
     dw 0
+    dd 0, 0
 sp_base:
     call .n
 .n: pop ebp
     sub ebp, .n - SPB
     ret
 
-; ---- ZF = 1: the original game (CLASSICI, or SWOS++); in ebp = SPB; every register kept
+; ---- ebp = SPB; ZF = 1: the original game (CLASSICI, SWOS++ or a training game); every other register kept
 sp_on:
+    call sp_base
     push ecx
-    mov ecx, [ebp + 4]
-    cmp byte [ecx + SWOSPP_O], 0FFh     ; (0FFh = no SWOS++)
+    mov ecx, [ebp]
+    cmp word [ecx + TRG_O], 0           ; (a training game)
     jne .z
-    cmp byte [ebp + SP_W - SPB], 0
+    test byte [ebp + SP_OK - SPB], 1
+    jz .x
+    test byte [ebp + SP_W - SPB], 1
     jmp .x
 .z: cmp ecx, ecx
 .x: pop ecx
     ret
 
+sp_set:                                 ; (df_kick, past its SWOS++ / training gates)
+    push ebp
+    call sp_base
+    mov byte [ebp + SP_OK - SPB], 1
+    pop ebp
+    ret
+
+; ---- DIFFICULTY's OPTIONS handlers and the save item's pack, moved here from page 15 (MC 14/11), PC-relative
+df_tog:                                 ; DIFFICULTY (fire): NORMAL -> HARD -> EASY -> NORMAL (L2 / L4: back to NORMAL)
+    push ebp
+    call sp_base
+    mov ax, [dword ebp + DF_W - SPB]
+    cmp ax, 0
+    jne .a
+    mov ax, 2
+    jmp .s
+.a: cmp ax, 2
+    jne .b
+    mov ax, 1
+    jmp .s
+.b: xor eax, eax
+.s: mov [dword ebp + DF_W - SPB], ax
+    pop ebp
+df_draw:
+    call df_pack
+    jmp near DRAWITEM
+df_rtog:                                ; DRIBBLING (fire): CLASSIC -> NEW -> CUSTOM (and its page) -> CLASSIC
+    push ebp
+    call sp_base
+    mov ax, [dword ebp + DF_DR - SPB]
+    inc ax
+    cmp ax, 2
+    jbe .s
+    xor eax, eax
+.s: mov [dword ebp + DF_DR - SPB], ax
+    cmp ax, 2
+    je .p
+    pop ebp
+    jmp df_draw
+.p: call df_pack
+    call near DP_FALL
+    call sp_base
+    lea eax, [dword ebp + DP_MENU - SPB]
+    mov ecx, [ebp]
+    mov [ecx + A6_O], eax               ; the page (OPTIONS comes back unpacked: df_ret, CUSTOM shown)
+    pop ebp
+    jmp near SHOW_MENU
+sp_tog:                                 ; CALCI PIAZZATI (fire): CLASSICI <-> NUOVI
+    push ebp
+    call sp_base
+    xor word [ebp + SP_W - SPB], 1
+    pop ebp
+    jmp df_draw
+df_pack:                                ; DF_SV = DF_SH = DIFFICULTY | DRIBBLING << 4 | CALCI PIAZZATI << 6
+    push eax
+    push ebp
+    call sp_base
+    mov al, [dword ebp + DF_DR - SPB]
+    shl al, 4
+    or al, [dword ebp + DF_W - SPB]
+    test byte [ebp + SP_W - SPB], 1
+    jz .w
+    or al, 40h
+.w: mov [dword ebp + DF_SV - SPB], al
+    mov [dword ebp + DF_SH - SPB], al
+    pop ebp
+    pop eax
+    ret
+sp_load_j:                              ; (engine, pushad around it: after a career load - then df_load)
+    call sp_base
+    mov al, [dword ebp + DF_SV - SPB]
+    call sp_unp
+    jmp near DF_LOAD
+sp_new_j:                               ; (engine: after a new career's defaults - then df_new)
+    call sp_base
+    mov al, [dword ebp + DF_SH - SPB]
+    call sp_unp
+    jmp near DF_NEW
+sp_unp:                                 ; (CALCI PIAZZATI = bit 6 of al)
+    shr al, 6
+    and eax, 1
+    mov [ebp + SP_W - SPB], ax
+    ret
+
+; ---- in ebx = the OPTIONS menu, entries NB..NB+3 in (df_add, before its layout loop): NB+4 / NB+5 = copies of
+;      NB+2 / NB+3 (DRIBBLING) one row lower; NB+3 -> NB+5 -> what was below NB+3 (EXIT TO DOS)
+sp_add:
+    pushad
+    call sp_base
+    lea edi, [ebx + 16h + (NB + 4) * 38h]
+    lea esi, [ebx + 16h + (NB + 2) * 38h]
+    mov ecx, 2 * 38h
+    rep movsb
+    sub edi, 2 * 38h
+    mov word [edi + 2], NB + 4
+    lea eax, [ebp + S_PLBL - SPB]
+    mov [edi + 26h], eax
+    mov word [edi + 38h + 2], NB + 5
+    lea eax, [ebp + TAB_P - SPB]
+    mov [edi + 38h + 26h], eax
+    lea ecx, [ebp + SP_W - SPB]         ; (the string table: the word, then the two strings)
+    mov [eax], ecx
+    lea ecx, [ebp + S_P0 - SPB]
+    mov [eax + 6], ecx
+    lea ecx, [ebp + S_P1 - SPB]
+    mov [eax + 10], ecx
+    lea eax, [ebp + sp_tog - SPB]
+    mov [edi + 38h + 2Ah], eax
+    add word [edi + 16h], 3 * SRCP      ; (copies of the bottom row's y still: three source rows below it, one
+    add word [edi + 38h + 16h], 3 * SRCP ;  below DRIBBLING once df_add moves that one; the layout loop places it)
+    lea esi, [ebx + 16h + (NB + 3) * 38h]
+    movzx ecx, byte [esi + 0Bh]         ; (NB+3's down: EXIT TO DOS - now NB+5's)
+    mov byte [edi + 38h + 0Ah], NB + 3
+    mov [edi + 38h + 0Bh], cl
+    mov byte [edi + 38h + 12h], NB + 3
+    mov [edi + 38h + 13h], cl
+    mov byte [esi + 0Bh], NB + 5
+    mov byte [esi + 13h], NB + 5
+    cmp cl, 0FFh
+    je .n
+    imul ecx, ecx, 38h                  ; (and the entry below: up NB+3 -> NB+5)
+    lea ecx, [ebx + 16h + ecx]
+    cmp byte [ecx + 0Ah], NB + 3
+    jne .u
+    mov byte [ecx + 0Ah], NB + 5
+.u: cmp byte [ecx + 12h], NB + 3
+    jne .n
+    mov byte [ecx + 12h], NB + 5
+.n: add word [ebx + 10h], 2
+    add dword [ebx + 12h], 2 * 38h
+    popad
+    ret
+
 ; ---- headers go down (replaces `mov eax, kBallJumpHeaderDeltaZ` / `mov eax, kFlyingHeaderBallDeltaZ`)
 sp_jz:
     push ebp
-    call sp_base
+    call sp_on                         ; (ebp = SPB, ZF; only mov / push / pop until the jz)
     mov eax, [ebp]
     mov eax, [eax + KJZ_O]
-    call sp_on
     jz .x
     mov eax, JZ_NEW
 .x: pop ebp
     ret
 sp_fz:
     push ebp
-    call sp_base
+    call sp_on                         ; (ebp = SPB, ZF; only mov / push / pop until the jz)
     mov eax, [ebp]
     mov eax, [eax + KFZ_O]
-    call sp_on
     jz .x
     mov eax, FZ_NEW
 .x: pop ebp
@@ -156,11 +303,10 @@ sp_fz:
 ;      deltaZ is set): a jump header's ball deltaZ = JZ_NEW - heading x JZ_STEP
 sp_head:
     push ebp
-    call sp_base
+    call sp_on                         ; (ebp = SPB, ZF; only mov / push / pop until the jz)
     mov esi, [ebp]
     mov esi, [esi + A4_O]
     mov al, [esi + HDO]
-    call sp_on
     jz .x
     push ebx
     push ecx
@@ -180,10 +326,9 @@ sp_head:
 ; ---- the contact window's ceiling (replaces `mov esi, A2` / `cmp word [esi + z], 15`, then `ja`)
 sp_ceil:
     push ebp
-    call sp_base
+    call sp_on                         ; (ebp = SPB, ZF; only mov / push / pop until the jz)
     mov esi, [ebp]
     mov esi, [esi + A2_O]
-    call sp_on
     jz .c
     cmp word [esi + ZO], CEIL_NEW
     pop ebp
@@ -197,9 +342,8 @@ sp_band:
     push ebp
     push eax
     push ecx
-    call sp_base
+    call sp_on                         ; (ebp = SPB, ZF; only mov / push / pop until the jz)
     mov eax, 27
-    call sp_on
     jz .c
     mov eax, BAND_NEW
 .c: mov ecx, [ebp]
@@ -212,12 +356,11 @@ sp_band:
 ; ---- the 6-yard-box bypass of the word29 gate (replaces `mov ax, ballInGoalkeeperArea` / `or ax, ax`, then `jnz`)
 sp_gka:
     push ebp
-    call sp_base
+    call sp_on                         ; (ebp = SPB, ZF; only mov / push / pop until the jz)
     push ecx
     mov ecx, [ebp]
     mov ax, [ecx + GKA_O]
     pop ecx
-    call sp_on
     jz .c
     xor ax, ax                          ; (NUOVI: no bypass)
 .c: or ax, ax
@@ -228,10 +371,9 @@ sp_gka:
 sp_cpu:
     push ebp
     push eax
-    call sp_base
+    call sp_on                         ; (ebp = SPB, ZF; only mov / push / pop until the jz)
     mov esi, [ebp]
     mov eax, 648
-    call sp_on
     jz .c
     cmp word [esi + BALL_O + ZO], 8     ; (the ball in the air)
     jb .c
@@ -247,10 +389,9 @@ sp_cpu:
 sp_fb:
     push ebp
     push eax
-    call sp_base
+    call sp_on                         ; (ebp = SPB, ZF; only mov / push / pop until the jz)
     mov eax, [ebp]
     mov ax, [eax + D7_O]
-    call sp_on
     jz .c
     call sp_wide
     jz .x
@@ -261,10 +402,9 @@ sp_fb:
 sp_ft:
     push ebp
     push eax
-    call sp_base
+    call sp_on                         ; (ebp = SPB, ZF; only mov / push / pop until the jz)
     mov eax, [ebp]
     mov ax, [eax + D7_O]
-    call sp_on
     jz .c
     call sp_wide
     jz .x
@@ -292,27 +432,63 @@ sp_wide:                                ; ax = direction; ZF = 1: 2 / 6 and the 
 """
 
 
+FROM_DF = ('df_tog', 'df_rtog', 'df_pack', 'sp_add', 'sp_set')     # (difficulty.py's page 15 calls / points to these)
+
+
+def _src(lang):
+    db = lambda x: ', '.join(str(ch) for ch in x.encode() + b'\0')
+    return ASM + f'S_PLBL: db {db(LABEL[lang])}\n' + ''.join(f'S_P{i}: db {db(t)}\n' for i, t in enumerate(VALUES[lang]))
+
+
+def _sym(p, start, df_lab, df_sym):
+    import difficulty as df
+    s, c = FOUND.get(id(p)) or find(p)             # (pass 1 runs before difficulty's hooks: df.find needs them unpatched)
+    FOUND.clear()
+    FOUND[id(p)] = (s, c)
+    k = knobs()
+    return {**{n: (0, v) for n, v in c.items()}, 'O2BASE': (2, 0), 'SP_START': (0, start),
+            'NB': (0, df.NB), 'SRCP': (0, df.SRCP), 'TRG_O': (0, df_sym['TRG'][1]), 'A6_O': (0, df_sym['A6_'][1]),
+            'DRAWITEM': df_sym['DRAWITEM'], 'SHOW_MENU': df_sym['SHOW_MENU'],
+            **{n.upper() if n.islower() else n: (4, df_lab[n]) for n in ('DF_W', 'DF_DR', 'DF_SV', 'DF_SH', 'DP_MENU',
+                                                                       'dp_fall', 'df_load', 'df_new')},
+            'JZ_NEW': (0, k['JZ'] & 0xFFFFFFFF), 'JZ_STEP': (0, k['JST']), 'FZ_NEW': (0, k['FZ']),
+            'CEIL_NEW': (0, k['CEIL']), 'BAND_NEW': (0, k['BAND']), 'CPU_NEW': (0, k['CPU'])}, s
+
+
+def pass1(p, lang, df_sym):
+    """The band's labels before difficulty.py is assembled (its data at placeholder offsets: every reference to it
+    is a dword displacement / rel32, so the sizes don't move; patch() asserts the same labels)."""
+    import swreg
+    ph = {n: 0x2000 + 0x10 * i for i, n in enumerate(('DF_W', 'DF_DR', 'DF_SV', 'DF_SH', 'DP_MENU', 'dp_fall',
+                                                         'df_load', 'df_new'))}
+    sym, _ = _sym(p, 0, ph, df_sym)
+    lab = nasmcave.labels(_src(lang), swreg.SETPIECE_AT, sym)
+    PASS1.clear()
+    PASS1.update(lab)
+    return lab
+
+
 def patch(p, lang):
     if not on():
         return None
-    import controls
     import difficulty as df
+    import engine
     import modver
     import swreg
     assert modver.is_test(), 'SP_TEST: test builds only (until the OPTIONS row)'
-    s, c = find(p)
-    sw = controls.locate(p)['SWOSPP']
-    assert sw[0] == 1, sw
-    k = knobs()
+    assert df.SP_ROW and df.LABELS.get('df_add'), 'setpieces: after difficulty with its OPTIONS rows (SP_ROW)'
     start = int(os.environ.get('SP_TEST') or 0)
     assert start in (0, 1), 'SP_TEST=0 (CLASSICI) / 1 (NUOVI)'
-    sym = {**{n: (0, v) for n, v in c.items()}, 'O2BASE': (2, 0), 'O1BASE': (1, 0), 'SWOSPP_O': (0, sw[1]), 'SP_START': (0, start),
-           'JZ_NEW': (0, k['JZ'] & 0xFFFFFFFF), 'JZ_STEP': (0, k['JST']), 'FZ_NEW': (0, k['FZ']),
-           'CEIL_NEW': (0, k['CEIL']), 'BAND_NEW': (0, k['BAND']), 'CPU_NEW': (0, k['CPU'])}
+    sym, s = _sym(p, start, df.LABELS, df.SYMS)
     at = swreg.SETPIECE_AT
-    code, fix, rel = nasmcave.assemble_obj(ASM, at, sym, 4)
-    lab = nasmcave.labels(ASM, at, sym)
-    assert len(fix) == 2 and not rel, ('setpieces: two fixups (SPB) only', fix, rel)
+    src = _src(lang)
+    code, fix, rel = nasmcave.assemble_obj(src, at, sym, 4)
+    lab = nasmcave.labels(src, at, sym)
+    assert all(lab[k] == v for k, v in PASS1.items()), 'setpieces: labels moved since pass 1'
+    assert len(fix) == 1 and len(rel) == 2, ('setpieces: SPB + DRAWITEM / SHOW_MENU only', fix, rel)
+    from complist import px
+    for t in (LABEL[lang],) + VALUES[lang]:
+        assert px(t) <= 138 and re.fullmatch(r"[A-Z ']+", t), t
     left = swreg.SETPIECE_END - at - len(code)
     assert left >= swreg.SETPIECE_MIN, ('setpieces: band room', left)
     assert p.le.obj(4).npages * 0x1000 >= swreg.SETPIECE_END, 'setpieces: obj4 pages (patch.py)'
@@ -320,6 +496,11 @@ def patch(p, lang):
     p.put(4, at, code)
     for o, t_obj, t_off in fix:
         p.add_ptr(4, at + o, t_obj, t_off)
+    for o, t_obj, t_off in rel:
+        p.add_rel(4, at + o, t_obj, t_off)
+    assert engine.CALL_AT.get('df_load') == (4, df.LABELS['df_load']), 'engine: df_load'
+    engine.CALL_AT['df_load'] = (4, lab['sp_load_j'])  # (CALCI PIAZZATI from the item's bit 6 first: same fixup count)
+    engine.CALL_AT['df_new'] = (4, lab['sp_new_j'])
     d = p.le.obj_bytes(1)
     fb_f = s['FB'] + 10 + struct.unpack_from('<b', d, s['FB'] + 9)[0]          # (jz facing)
     fb_n = s['FB'] + 15 + struct.unpack_from('<i', d, s['FB'] + 11)[0]         # (jmp no_fire)
@@ -347,3 +528,5 @@ def patch(p, lang):
 
 LABELS = {}
 SITES = {}
+PASS1 = {}
+FOUND = {}

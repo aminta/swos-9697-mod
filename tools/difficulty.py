@@ -45,6 +45,10 @@ NB, BR, SRCP, KMAX = (28, 26, 11, 13) if SLOW_ROW else (26, 15, 12, 12)   # our 
 # CHAIRMAN SCENES 15 / 16, or slow's 26 / 27), the rows' pitch before us, the last row k
 if not SLOW_ROW:                        # (without slow: gkinj's 11 rows at 12 px + ours = 13 rows: y 18 + 10 k, 9 high)
     PITCH, HEIGHT = 10, 9
+SP_ROW = True                           # (setpieces.py, MC 14/11: the CALCI PIAZZATI row under DRIBBLING whenever the
+if SP_ROW:                              #  OPTIONS rows are in - the SETPIECE band linked; 14 rows: 9 px, 8 high)
+    assert not SLOW_ROW, 'CALCI PIAZZATI + MATCH SPEED: 15 rows'
+    PITCH, HEIGHT, KMAX = 9, 8, 13
 NROWS = KMAX + 1
 LVMAP = (3, 1, 5, 2, 4)                 # DF_W -> level
 #              L1      L2      L3      L4      L5
@@ -143,6 +147,9 @@ df_kick:
     jne .d
     cmp word [TRG], 0
     jne .d
+%if SP
+    call sp_set                         ; (setpieces: no SWOS++ seen - the training gate is the stubs' own)
+%endif
     mov ax, [DF_DR]
     cmp ax, 2                           ; (2 = PERSONALIZZATO: the page's values, dp_build)
     jbe .d
@@ -670,8 +677,11 @@ df_add:
     mov byte [ecx + 12h], NB + 3
 .n: mov word [ebx + 10h], NB + 4
     add dword [ebx + 12h], 4 * 38h
+%if SP
+    call sp_add                         ; (setpieces: CALCI PIAZZATI, entries NB + 4 / NB + 5)
+%endif
     lea esi, [ebx + 16h]                ; every row at the source pitch SRCP (12: gkinj's; 11: slow's; ours one / two
-    mov ecx, NB + 4                     ; rows below the bottom once copied) -> y TOP + PITCH * k, HEIGHT high
+    mov ecx, NB + 4 + 2 * SP            ; rows below the bottom once copied) -> y TOP + PITCH * k, HEIGHT high
     add word [ebx + 16h + NB * 38h + 16h], SRCP
     add word [ebx + 16h + (NB + 1) * 38h + 16h], SRCP
     add word [ebx + 16h + (NB + 2) * 38h + 16h], 2 * SRCP
@@ -697,6 +707,8 @@ df_add:
 .x: popad
     ret
 
+%if SP == 0                             ; (with CALCI PIAZZATI: df_tog / df_rtog / df_pack in setpieces.py's band, MC
+                                        ;  14/11 - page 15's margin)
 df_tog:                                 ; DIFFICULTY (fire): NORMAL -> HARD -> EASY -> NORMAL (L2 / L4: back to NORMAL)
     mov ax, [DF_W]
     cmp ax, 0
@@ -725,6 +737,7 @@ df_rtog:                                ; DRIBBLING (fire): CLASSIC -> NEW -> CU
 .p: call dp_fall
     mov dword [A6_], DP_MENU            ; the page (OPTIONS comes back unpacked: df_ret, CUSTOM shown)
     jmp SHOW_MENU
+%endif
 
 
 ; ---- the kick-off with DRIBBLING 2: BLK_CU / BLK_CO = BLK_U / BLK_O with the page's steps (DP_TAB: 7 rows of
@@ -757,6 +770,7 @@ dp_build:
     jb .r
     popad
     ret
+%if SP == 0
 df_pack:                                ; DF_SV = DF_SH = DIFFICULTY | DRIBBLING << 4
     push eax
     mov al, [DF_DR]
@@ -766,6 +780,7 @@ df_pack:                                ; DF_SV = DF_SH = DIFFICULTY | DRIBBLING
     mov [DF_SH], al
     pop eax
     ret
+%endif
 
 df_load:                                ; after a career load: the save's options (0 = NORMAL + CLASSIC without 'DF')
     mov al, [DF_SV]
@@ -1557,8 +1572,11 @@ def patch(p, lang):
     sym['BU_ENTRY'] = (4, swreg.BU_AT)
     bf = bu and 'BUFRAME' not in skips
     src = (f'%define BUF {int(bf)}\n%define CKSH {int(os.environ.get("DIFF_CKSH", "11"))}\n%define STKZ {int(os.environ.get("DIFF_STKZ", "0") or 0)}\n%define DELAY {int(os.environ.get("DIFF_DELAY", "0") or 0)}\n%define STOPF {int(os.environ.get("DIFF_STOPF", "0"))}\n%define BU {int(bu)}\n%define DIFF_FORCE {int(force)}\n%define ROW {int(row)}\n%define DIFF_TRACE {int(tr)}\n%define TC {int(bool(tr and os.environ.get("DIFF_TC")))}\n%define DF_START {start_w()}\n%define DR_START {start_dr()}\n'
-           f'%define TOP {TOP}\n%define PITCH {PITCH}\n%define HEIGHT {HEIGHT}\n%define NB {NB}\n%define BR {BR}\n%define SRCP {SRCP}\n%define KMAX {KMAX}\n' + ASM
+           f'%define SP {int(SP_ROW and row)}\n%define TOP {TOP}\n%define PITCH {PITCH}\n%define HEIGHT {HEIGHT}\n%define NB {NB}\n%define BR {BR}\n%define SRCP {SRCP}\n%define KMAX {KMAX}\n' + ASM
            + (ASM_ROW if row else '') + (ASM_T if tr else '') + data_asm() + strs)
+    if SP_ROW and row:                                  # (setpieces.py's band: its labels from a first pass)
+        import setpieces
+        sym.update({k: (4, v) for k, v in setpieces.pass1(p, lang, sym).items() if k in setpieces.FROM_DF})
     band = None
     if row:                                             # (42-drp, MC 14/11: the page's code + strings and W1 in the
         import patch as _pt                             #  band DRIB1V1_AT, MATCH SPEED's parked room - never both)
@@ -1667,6 +1685,8 @@ def patch(p, lang):
         p.branch(1, tp - 25, 0xE8, 4, lab['df_tick'], n=7)   #  live, else TimerProc's own: df_tick)
     LABELS.clear()
     LABELS.update(lab)
+    SYMS.clear()
+    SYMS.update(sym)
     SITES.clear()
     SITES.update(s)
     print(f'exe: difficulty test (DIFF_TEST={os.environ.get("DIFF_TEST", "")}{", DIFF_FORCE" if force else ""}'
@@ -1676,4 +1696,5 @@ def patch(p, lang):
 
 
 LABELS = {}
+SYMS = {}
 SITES = {}

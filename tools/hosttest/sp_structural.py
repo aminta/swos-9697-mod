@@ -29,6 +29,8 @@ from lepatch import LEPatch
 
 B1, B2, B3, B4 = ds.B1, ds.B2, ds.B3, ds.B4
 ROOM = (swreg.SETPIECE_AT, swreg.SETPIECE_END)
+DF_AREAS = ((swreg.DIFF_AT, swreg.DIFF_END), (swreg.DRIB1V1_AT, swreg.DRIB1V1_END))
+AIMED = DF_AREAS + (ROOM,)        # (the engine's after-load calls: df_load / df_new -> sp_load_j / sp_new_j)
 
 
 def expected(a, o, n, l, lab, key):
@@ -52,13 +54,13 @@ def main():
     a = ap.parse_args()
     ref_exe, new_exe = os.path.join(a.ref, 'ITALIAN.EXE'), os.path.join(a.new, 'ITALIAN.EXE')
     lab = {k: v[1] for k, v in json.load(open(os.path.join(a.new, 'ITALIAN.syms.json')))['setpieces'].items()}
-    p = LEPatch(ref_exe)
+    p = LEPatch(os.path.join(HERE, '..', '..', 'orig', 'ITALIAN.EXE'))   # (the sites: REF may carry difficulty's hooks)
     s, c = sp.find(p)
     hooks = [(k, s[k], n, l) for k, n, l in sp.HOOKS]
     ri, ni = ds.images(ref_exe), ds.images(new_exe)
-    k0 = lab['sp_on']                                   # (SWOS++'s flag: sp_on's own operand, obj1)
-    assert ni[4][k0:k0 + 6] == bytes.fromhex('518b4d0480b9'), ni[4][k0:k0 + 12].hex()
-    swpp = (1, struct.unpack_from('<I', ni[4], k0 + 6)[0])
+    k0 = lab['sp_on'] + 5                               # (the training flag: sp_on's own operand, obj2)
+    assert ni[4][k0:k0 + 7] == bytes.fromhex('518b4d006683b9'), ni[4][k0:k0 + 12].hex()
+    trg = (2, struct.unpack_from('<I', ni[4], k0 + 7)[0])
     ds.ROOMS = (ROOM,)                                  # (NEW's own code / state: the SETPIECE band)
     L = [f'# 42-sp set pieces: CLASSICI = original, structural: {a.out}', '', f'REF `{ref_exe}`  ',
          f'NEW `{new_exe}` (SP_TEST=0: CALCI PIAZZATI = CLASSICI)', '', '## 1. Byte diff', '']
@@ -84,9 +86,31 @@ def main():
             cover = set(range(*ROOM))
         stray = ds.ranges([i for i in diff if i not in cover])
         L.append(f'- obj{obj}: {len(ds.ranges(diff))} changed ranges, {len(stray)} outside the hooks / band')
-        if obj == 4 or not stray:
-            ok_b &= not stray
+        if not stray:
             continue
+        if obj == 4:                                    # (difficulty.py's code: page 15 relaid by the OPTIONS row's
+            dfa = [r for r in stray if any(lo <= r[0] and r[1] <= hi for lo, hi in DF_AREAS)]   #  move, MC 14/11)
+            bad = [(hex(r[0]), r[1] - r[0]) for r in stray if r not in dfa]
+            L.append(f'  - {len(dfa)} inside difficulty\'s own areas (page 15, the 42-drp band): its code relaid')
+            L.append(f'  - obj4 unexplained: {bad or "none"}')
+            ok_b &= not bad
+            continue
+        base = {1: B1, 2: B2, 3: B3}[obj]
+        dfr = []                                        # (operands - abs or rel32 - aimed into difficulty's areas in
+        for r in stray:                                 #  both: its hooks' calls, the OPTIONS init / return)
+            for w in range(r[0] - 3, r[0] + 1):
+                if w + 4 < r[1] or w < 0:
+                    continue
+                va, vb = struct.unpack_from('<I', x, w)[0], struct.unpack_from('<I', y, w)[0]
+                tg = [(v - B4, (base + w + 4 + v - B4) & 0xFFFFFFFF) for v in (va, vb)]
+                if all(any(lo <= t[0] < hi for lo, hi in AIMED) for t in tg) or \
+                        all(any(lo <= t[1] < hi for lo, hi in AIMED) for t in tg):
+                    dfr.append(r)
+                    break
+        if dfr:
+            L.append(f'  - {len(dfr)} operands aimed into difficulty\'s relaid code in both (its hooks\' calls, OPTIONS '
+                     f'init / return): {[hex(u) for u, v in dfr]}')
+        stray = [r for r in stray if r not in dfr]
         if obj == 1:                                    # (the version tag "TEST" moves obj1's tail: insert blocks and
             cls, bad, blocks = ds.classify(x, y, stray)  #  operands into them, as in 42drp-structural)
         else:
@@ -101,8 +125,8 @@ def main():
         fn = max((q for q in calls if q <= B1 + o), default=None)
         live[k] = ds.flag_liveness(ri[1], B1 + o + n, fn=fn)
     syms = dict(D0_=(2, c['A2_O'] - 4 * 10), A2_=(2, c['A2_O']), A3_=(2, c['A2_O'] + 4), A6_=(2, c['A2_O'] + 16),
-                SWOSPP=swpp, TRG=('lin', ds.SCR + 0x50000))           # (diff_structural.trial's state names; TRG unused here)
-    nl = {'DF_W': lab['SP_W'], 'DF_DR': lab['SP_W'], 'DF_ACT': lab['SP_W'], 'DF_DACT': lab['SP_W'], **lab}
+                SWOSPP=('lin', ds.SCR + 0x50000), TRG=trg)           # (diff_structural.trial's state names; SWOSPP unused)
+    nl = {'DF_W': lab['SP_W'], 'DF_DR': lab['SP_W'], 'DF_ACT': lab['SP_OK'], 'DF_DACT': lab['SP_OK'], **lab}
 
     def trial(site, seed, on, near):
         k = site[0]
@@ -121,8 +145,8 @@ def main():
             m.w32(pl + 0x4A, r.randrange(400, 1100))
             m.w32(B2 + c['A4_O'], pl + 0x100)
             m.w8(pl + 0x100 + c['HDO'], r.randrange(0, 8))
-            m.w8(B1 + swpp[1], 0xFF)
-        diffs, own, cl = ds.trial(ri, ni, site, syms, nl, seed, on, on, False, live[k][0] == 'dead', ends[k]) \
+            m.w16(B2 + trg[1], 0)
+        diffs, own, cl = ds.trial(ri, ni, site, syms, nl, seed, 1, 1, False, live[k][0] == 'dead', ends[k]) \
             if not near else _near(site, seed, on, prep, live[k][0] == 'dead')
         return diffs, cl
 
@@ -165,12 +189,55 @@ def main():
                                                         if table[(k, m[0])][0] and m[1] == 0 else '') for m in modes]
         r_ = live[k][0]
         L.append(f'| {k} | {o:#x} | {n} | {l} | ' + ' | '.join(cells) + f' | {r_ if isinstance(r_, str) else r_[0]} |')
-    v = ok_b and ok_e and ok_c
+    ok_s, sl = save_check(ni, json.load(open(os.path.join(a.new, 'ITALIAN.syms.json'))), lab)
+    L += ['', '## 3. The save item (bit 6 of \'DF\'): df_pack, sp_load_j, sp_new_j on the host', ''] + sl
+    v = ok_b and ok_e and ok_c and ok_s
     L += ['', f'- byte diff: {"ok" if ok_b else "FAIL"}; CLASSICI: {"every site equal in every trial" if ok_e else "FAIL"}; '
           f'NUOVI control: {"every knob site differs" if ok_c else "UNEXPECTED"}.', '', f'Verdict: **{"PASS" if v else "FAIL"}**', '']
     d = os.path.expanduser('~/swos-mod/internal/swostest/outcome-gate')
     open(os.path.join(d, a.out + '.md'), 'w').write('\n'.join(L))
     print('\n'.join(L))
+
+
+def save_check(ni, sj, lab):
+    """df_pack (moved here): DF_SV = DF_SH = W | DR << 4 | SP_W << 6 for every W 0..4, DR 0..2, SP 0..1; sp_load_j /
+    sp_new_j: SP_W = bit 6 of DF_SV / DF_SH (every byte), then on to difficulty's df_load / df_new."""
+    d = {k: v[1] for k, v in sj['difficulty'].items()}
+    R = B4 + swreg.SETPIECE_END - 16                   # (a return address nobody jumps to: the run's end)
+    allowed = tuple((B4 + lo, B4 + hi) for lo, hi in AIMED)
+    bad, n = [], 0
+
+    def go(entry, end, prep):
+        m = ds.Mach(ni, 'save')
+        m.uc.reg_write(UC_X86_REG_ESP, ds.STACK)
+        m.w32(ds.STACK, R)
+        prep(m)
+        log, err = ds.run(m, B4 + entry, end, allowed)
+        return m, log, err
+    for w in range(5):
+        for dr in range(3):
+            for sp_ in range(2):
+                def prep(m):
+                    m.w16(B4 + d['DF_W'], w)
+                    m.w16(B4 + d['DF_DR'], dr)
+                    m.w16(B4 + lab['SP_W'], sp_)
+                m, log, err = go(lab['df_pack'], R, prep)
+                want = w | dr << 4 | sp_ << 6
+                got = (m.read(B4 + d['DF_SV'], 1)[0], m.read(B4 + d['DF_SH'], 1)[0])
+                n += 1
+                if err or log or got != (want, want):
+                    bad.append(f'df_pack W {w} DR {dr} SP {sp_}: {got} {err} {log[:1]}')
+    for lbl, src, dst in (('sp_load_j', 'DF_SV', 'df_load'), ('sp_new_j', 'DF_SH', 'df_new')):
+        for byte in range(256):
+            def prep(m):
+                m.w8(B4 + d[src], byte)
+                m.w16(B4 + lab['SP_W'], 0x5A5A)
+            m, log, err = go(lab[lbl], B4 + d[dst], prep)
+            n += 1
+            got = struct.unpack('<H', m.read(B4 + lab['SP_W'], 2))[0]
+            if err or log or got != (byte >> 6) & 1 or m.read(B4 + d[src], 1)[0] != byte:
+                bad.append(f'{lbl} {src} {byte:#x}: SP_W {got:#x} {err}')
+    return not bad, [f'- {n} cases: {"all as wanted" if not bad else "FAIL"}'] + [f'  - {b}' for b in bad[:10]]
 
 
 def _trial_with_prep(ri, ni, site, sym, lab, seed, on, prep, dead, ends):
@@ -188,7 +255,8 @@ def _trial_with_prep(ri, ni, site, sym, lab, seed, on, prep, dead, ends):
         m.read(ds.STACK - 0x100, 0x200)
         prep(m)
         m.writes.clear()
-    ms[1].w8(B4 + lab['SP_W'], on)
+    ms[1].w16(B4 + lab['SP_W'], on)
+    ms[1].w8(B4 + lab['SP_OK'], 1)
     ms[1].writes.clear()
     start, end = B1 + o, B1 + o + ln
     reg = (start, end)

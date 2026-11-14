@@ -933,6 +933,8 @@ def patch_exe(src, dst, remap, lang='it'):
     difficulty.patch(p, lang)
     import setpieces                             # 4.2 set pieces 1+2 (SP_TEST only until the OPTIONS row)
     setpieces.patch(p, lang)
+    assert not difficulty.LABELS.get('df_add') or setpieces.LABELS.get('sp_add'), \
+        'the OPTIONS rows need the SETPIECE band linked (MC 14/11)'
     if ct_pg:                                    # 4.0.6 B2: the season-1 edition's block (conti.c CT_S1 -> it)
         st_end = conti.s1_patch(p, (st_end + 15) & ~15)
     assert st_end <= LT3_AT, hex(st_end)

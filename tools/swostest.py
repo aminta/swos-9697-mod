@@ -37314,6 +37314,28 @@ def kits_check(tag, s, kb, sgp, want_w27, errs, notes, hand=(None, None)):
         rest8 = sum(1 for y, row in enumerate(g or []) for x, v in enumerate(row) if v == 8 and (y, x) not in m)
         check(px and set(px) == {kk[0]} and rest8 > 0, f"{tag}: keeper sprite {spr} shirt pixels {sorted(set(px))} "
               f"(want {kk[0]}), shadow 8s {rest8}", errs)
+    # 4.2 gloves (David Foster; World 2026-27 only): every keeper frame's hand pixels (kitmasks.HC / HP = kitmask.build's 'hands') are WHITE (palette 2: the sprite's entry 7, which the keeper's table maps to white) in a w27 match, untouched skin (5 / 6) in any other; both sets of 116 sprites (947.. / 1063..)
+    nh = nf = 0
+    for base in (947, 1063):
+        for i in range(116):
+            j = i % 58                                  # (the two sets of 58 poses: the data is the first 58)
+            off = sum(h & 7 for h in kitmasks.HC[:j])
+            n, y0 = kitmasks.HC[j] & 7, kitmasks.HC[j] >> 3
+            m = {((kitmasks.HP[off + k] >> 4) + y0, kitmasks.HP[off + k] & 15) for k in range(n)}
+            if not m:
+                continue
+            g = kits_sprite(s, sgp, base + i)
+            if g is None:
+                continue
+            px = {g[y][x] for y, x in m}
+            nh += len(m)
+            ok = px == {2} if want_w27 else px <= {4, 5, 6}
+            if not ok:
+                nf += 1
+                if nf <= 3:
+                    errs.append(f"{tag}: glove pixels of keeper sprite {base + i} (frame {i}) are {sorted(px)} (want {'{2} = white' if want_w27 else 'skin 4 / 5 / 6'})")
+    check(nh >= 2 * 250, f"{tag}: glove pixels checked {nh} (want >= 500)", errs)
+    notes.append(f"{tag}: glove pixels {nh}, frames off {nf}")
     if getattr(s, 'kits_diag', None):
         notes.append(s.kits_diag)
     return k
@@ -37333,7 +37355,12 @@ def gk_ref_kits():
     kb, sgp = kits_sites(b)
     hand = tuple(tuple(int(x) for x in os.environ[v].split(',')) if os.environ.get(v) else None
                  for v in ('KITS_HAND1', 'KITS_HAND2'))
+    has_w27 = any(b'2026-27' in open(os.path.join(b, f), 'rb').read() for f in ('ITALIAN.EXE', 'ENGLISH.EXE', 'FRENCH.EXE', 'GERMAN.EXE')
+                  if os.path.exists(os.path.join(b, f)))      # (MC 14/11: the plain test build has no 2026-27 world: swe_match_w27 is 0 there; '2026-27' is in every language's world menu text)
     for case, w27 in (('fr9697', 0), ('frw27', 1)):
+        if w27 and not has_w27:
+            notes.append('frw27: SKIPPED - needs a release-recipe build (the 2026-27 world); a SKIP is never a PASS: the kits gate runs on the release build')
+            continue
         with Session(f'kits_{case}_{UI}', b, {}, 'dump:3', 600, match=True) as s:
             s.wait()
             friendly_prematch(s, os.environ.get('KITS_HOME', 'HAMBURG'), os.environ.get('KITS_AWAY', 'SCHALKE'))
@@ -38919,6 +38946,60 @@ def s7winners(force, crossed):
               f'last season names a Serie C file club {[v for v in vals if v in fa and v not in fb]} (Y: the disk row at '
               f'X\'s new ordinal)', errs)
     return not errs, '; '.join(errs) or f'last season {last[:1]} {blk}: {home} from the Serie D file ({len(fb)} / {len(fa)} names)'
+
+
+@scenario
+def gk_gloves_dark():
+    """4.2 gloves gate item (Regia 14/11): a World 2026-27 friendly whose HUMAN club has a dark-skinned goalkeeper (default MILAN, MIKE
+    MAIGNAN, face 2): at the kick-off every keeper sprite's hand pixels are white (kits_check, w27) whatever the skin, and the home keeper's
+    record face is dark. GLV_PATH = 'EUROPA,ITALIA,SERIE A,MILAN', GLV_OPP = the opponent (INTER), GLV_KEEPER = the keeper's name (MAIGNAN); SWOSTEST_BUILD = a release build."""
+    b = builds()['it']
+    kb, sgp = kits_sites(b)
+    errs, info = [], []
+    path = os.environ.get('GLV_PATH', 'EUROPA,ITALIA,SERIE A,MILAN').split(',')
+    with Session('gk_gloves_dark', b, {}, 'dump:3', 300, match=True) as s:
+        s.wait()
+        gw = int(os.environ.get('GLV_WORLD', 0))      # (0 = World 2026-27: gloves; 1 = the 1996-97 game, 2 = Europe 1984-85: hands untouched)
+        set_world(s, gw)
+        walk(s, 'AMICHEVOLE', 2)
+        for t in ('OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB') + tuple(path):
+            try:
+                walk(s, t, 2)
+            except Exception as e:
+                for _ in range(30):                 # (a long list: the last clubs come into view by going down)
+                    s.send('down dump:0.3')
+                try:
+                    walk(s, t, 2)
+                except Exception as e2:
+                    return False, f'path {t!r}: {str(e2)[:120]} screen {s.screen().texts()[:20]}'
+        s.send('fire dump:2')                   # COMPUTER -> GIOCA-ALLENA
+        scr = s.screen()
+        opp = os.environ.get('GLV_OPP', 'INTER')
+        walk(s, opp, 2)
+        for _ in range(12):
+            scr = s.screen()
+            i = scr.find(FRIENDLY_PLAY, exact=True)
+            if i is None:
+                break
+            if scr.selected == i:
+                s.send('fire dump:4')
+                break
+            s.send(('right' if scr.selected in (i + 1, i + 2) else 'down') + ' dump:0.5')
+        tm = se_team(s)[0]
+        who = os.environ.get('GLV_KEEPER', 'MAIGNAN' if gw == 0 else '')
+        recs = [s.result.read(tm + 76 + 38 * j, 38) for j in range(16)]
+        k = next((j for j, r_ in enumerate(recs) if who in bytes(r_[3:25]).split(b'\0')[0].decode('latin-1')), None)
+        face = (recs[k][26] >> 3) & 3 if k is not None else None
+        check(not who or face == 2, f'{who}: record {k}, face {face} (want 2, dark); the 16: {[bytes(r_[3:25]).split(bytes(1))[0].decode("latin-1") for r_ in recs]}', errs)
+        info.append(f'{who} slot {k} face {face}')
+        for _ in range(22):
+            s.send('down dump:0.5')
+            if s.screen().selected == 9:
+                break
+        r = s.send('fire ' + 'fire:3 ' * 12 + 'dump:2')
+        s.shot('gloves_dark')
+        kits_check('glv_dark', s, kb, sgp, 1 if gw == 0 else 0, errs, info)
+    return not errs, '; '.join(errs + info)
 
 
 if __name__ == '__main__':

@@ -1008,6 +1008,7 @@ GK_DEF: db 0, 2, 2                      ; AUTO's look on the page: grey, black, 
 """
 
 KEEPN, REFN = 116, 11
+KITS_P16_FLOOR = 64                      # (MC 14/11: page 16 had 74-81 B left with the gloves; >= 64 or the build fails: new kit code goes to page 17)
 LABELS = {}
 
 
@@ -1184,6 +1185,7 @@ def patch(p):
     end = at + len(code)
     page = swreg.KITS_PAGE16_END
     assert end <= page, ('kits: code + masks past page 16 (MC: masks to page 17, never cut code)', hex(end))
+    assert page - end >= KITS_P16_FLOOR, ('kits: page 16 is CLOSED for new code (MC 14/11): fewer than', KITS_P16_FLOOR, 'bytes left', page - end)
     assert p.le.obj(4).npages * 0x1000 >= page, 'kits: obj4 pages (patch.py)'
     assert not any(p.get(4, at, page - at)), 'kits: obj4 room not free'
     p.put(4, at, code)

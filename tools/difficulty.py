@@ -1130,7 +1130,7 @@ w1_pick:
     mov esi, [A2_]
     call w1_gs
     jc .o
-    shl dword [D1_], 2
+    shl dword [D1_], W1_SH
     W1C 0
 .o: pop esi
     pop ebx
@@ -1391,6 +1391,7 @@ def find(p):
     return s, sym
 
 
+W1_SH = 4                               # W1 A: a player not goal-side counts his squared distance << W1_SH (test: DIFF_W1SH)
 W1_D, W1_IN, W1_OUT = 16, 144, 576      # W1: the goal-side point 16 px from the ball; a goal-side presser waits 12..24 px
 
 
@@ -1563,7 +1564,7 @@ def patch(p, lang):
         w1 = w1_find(p, sym)
         sym.update(A5_=(2, sym['D0_'][1] + 4 * 13),
                    D5_=(2, sym['D0_'][1] + 4 * 5), BALLY=w1['BALLY'], CIPWB=w1['CIPWB'])
-        bsrc = f'%define TC {int(bool(tr and os.environ.get("DIFF_TC")))}\n%define W1_D {W1_D}\n%define W1_IN {W1_IN}\n%define W1_OUT {W1_OUT}\n' + ASM_B + dpb
+        bsrc = f'%define TC {int(bool(tr and os.environ.get("DIFF_TC")))}\n%define W1_SH {int(os.environ.get("DIFF_W1SH") or W1_SH)}\n%define W1_D {W1_D}\n%define W1_IN {W1_IN}\n%define W1_OUT {W1_OUT}\n' + ASM_B + dpb
         bat = swreg.DRIB1V1_AT
         bnames = re.findall(r'^([A-Za-z_][A-Za-z0-9_]*):', bsrc, re.M)
         lab0 = nasmcave.labels(src, at, {**sym, **{k: (4, bat) for k in bnames}})     # (pass 1: the band's at a

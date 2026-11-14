@@ -54,20 +54,22 @@ OBJ1MV_END = 0x16800                    # regions (237 pages frozen): winners.py
                                         # (the career cave); linked with the SEASON WINNERS page (worlds + gplay + extra pages)
 OBJ1MV_CC = 0x15C00                     # (step 2: the career cave's shirtedit + instcheck from here; winners below it)
 assert OBJ1MV_AT < OBJ1MV_CC < OBJ1MV_END, 'swreg: OBJ1MV_CC inside the band'
-MKTHOOK_AT = 0x16800                    # 4.3 the CPU market's exe hooks (mkthook.c, Mercato CPU): the LAST band (MC 13/11),
-MKTHOOK_END = 0x18000                   # so a 4.2 release carries no empty page for it
-MKTAGE_AT = 0x18000                     # 4.3 reserved (Mercato CPU, MC 13/11 final layout); past MKTAGE_END only with MC's ok
-MKTAGE_END = 0x19000
-assert S7SWAP_END <= OBJ1MV_AT < OBJ1MV_END <= MKTHOOK_AT < MKTHOOK_END <= MKTAGE_AT < MKTAGE_END <= 0x19000, \
-    'swreg: S7SWAP_END <= OBJ1MV_AT < OBJ1MV_END <= MKTHOOK_AT < MKTHOOK_END <= MKTAGE_AT < MKTAGE_END <= 0x19000'
+FPORT_AT = 0x17000                      # 4.2 the fixture port's adapter (P2, Motore; MC 14/11): sr_port.o + port_step + the
+FPORT_END = 0x19000                     # slot-4 window table generated from fport.py, embedded; 2 pages, >= 256 B left at link
+                                        # (0x16800..0x17000: Difficolta's SETPIECE, 42-sp, not merged yet)
 S7GEO_AT = 0x19000                      # 4.2 Serie D geography (MC 14/11 room ruling, 42-geo-d): the geography chain's own TU (s7geo.c:
-S7GEO_END = 0x1A000                     # code + neighbour table + log + the per-club coordinates), after MKTAGE here (the Integratore
-                                        # aligns it after FPORT 0x17000..0x19000 at the merge); linked only with GP_S7; >= 256 B left
-assert MKTAGE_END <= S7GEO_AT < S7GEO_END, 'swreg: MKTAGE_END <= S7GEO_AT < S7GEO_END'
+S7GEO_END = 0x1A000                     # code + neighbour table + log + the per-club coordinates), after FPORT; linked only with
+                                        # GP_S7; >= 256 B left
 CDKN_AT = 0x1A800                       # 4.2 S2 knockouts (cdkn.c: the Coppa D's rounds 0-1 by the engine's sr_kn; MC 14/11, 42-cdkn):
-CDKN_END = 0x1C800                      # code + const after DIFF2 (0x1A000..0x1A800 at the merge), >= 256 B left at link; its work
-                                        # area in swe.c's .bss (CDKN_WORK), linked only in CD_KN builds
-assert S7GEO_END <= CDKN_AT < CDKN_END, 'swreg: S7GEO_END <= CDKN_AT < CDKN_END'
+CDKN_END = 0x1C800                      # code + const after DIFF2 (0x1A000..0x1A800, 42-drp, not merged yet), >= 256 B left at link;
+                                        # its work area in swe.c's .bss (CDKN_WORK), linked only in CD_KN builds
+MKTHOOK_AT = 0x1C800                    # 4.3 reservations only (MC 14/11: sizes 6 KB + 4 KB, final addresses at 4.3 start, after the
+MKTHOOK_END = 0x1E000                   # last 4.2 band): the CPU market's exe hooks (mkthook.c) and MKTAGE (Mercato CPU); unlinked
+MKTAGE_AT = 0x1E000                     # in 4.2 (a 4.2 release carries no empty page for them)
+MKTAGE_END = 0x1F000
+assert S7SWAP_END <= OBJ1MV_AT < OBJ1MV_END <= FPORT_AT < FPORT_END <= S7GEO_AT < S7GEO_END <= CDKN_AT < CDKN_END <= MKTHOOK_AT < \
+    MKTHOOK_END <= MKTAGE_AT < MKTAGE_END <= 0x1F000, \
+    'swreg: S7SWAP_END <= OBJ1MV_AT < OBJ1MV_END <= FPORT_AT < FPORT_END <= S7GEO_AT < S7GEO_END <= CDKN_AT < CDKN_END <= MKTHOOK_AT < MKTHOOK_END <= MKTAGE_AT < MKTAGE_END'
 S7_ORIG_SZ = 0x2C000                    # 4.2 S7: s7swap.c's ORIG buffers in swe.c's .bss (shaped builds only; MC 13/11):
                                         # the two league files as read (Italy: 102 = 100 records, 144 = 162: 179212 B;
                                         # s7swap.py asserts they fit)

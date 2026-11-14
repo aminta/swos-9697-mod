@@ -321,6 +321,9 @@ def patch(p):
     import cdkn
     if cdkn.on():                                   # 4.2 S2 knockouts: cdkn.c's work area in this .bss (MC 14/11)
         flags += (f'-DCDKN_WORK_SZ={cdkn.WORK_SZ}',)
+    import fpad
+    if fpad.on():                                   # 4.2 fixture port P2: fpad.c's state (FP_PORT, FP_ST) in .bss
+        flags += (f'-DFPORT_ON={fpad.PORT_SIZE}', f'-DFP_ST_SZ={fpad.ST_SIZE}')
     if os.environ.get('SWEFILE_TEST') == '1':         # 4.2: the file layer's self-test buffers + SWEF_HOOK (swefile.py)
         flags += ('-DSWEFILE_TEST',)
     if imp:

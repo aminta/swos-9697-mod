@@ -388,6 +388,11 @@ def patch_exe(src, dst, remap, lang='it'):
     import cdkn
     if cdkn.on():                                      # 4.2 S2 knockouts (MC 14/11): the CDKN band's pages, CD_KN builds only
         swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, cdkn.page_end() // 0x1000)
+    import fpad
+    if fpad.on():                                      # 4.2 fixture port P2 (fpad.py, test builds until a producer): its
+        swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, (swreg.FPORT_END + 0xFFF) // 0x1000)   # band; explicit init (MC 14/11):
+        engine.after_new('fp_new')                     # a new career and a load arm it, the next calendar step inits
+        engine.after_process('fp_load')
     OBJ1MV_ON[0] = bool(mkseason.worlds())             # 4.2 OBJ1MV (MC 13/11): every build with worlds (shirtedit +
     if OBJ1MV_ON[0]:                                   # instcheck; the SEASON WINNERS page when fmtpage has it)
         swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, (swreg.OBJ1MV_END + 0xFFF) // 0x1000)   # (its band's pages, out of obj1)
@@ -1022,6 +1027,9 @@ def patch_exe(src, dst, remap, lang='it'):
         import ripool
         import swefile
         s7swap.patch(p, swe.LABELS, sreg.LABELS, gplay.LABELS, pgroups.LABELS, swefile.LABELS, ripool.LABELS)
+    import fpad                                  # 4.2 fixture port P2: fpad.c at obj4+FPORT_AT (dormant: nothing)
+    import gplay
+    fpad.patch(p, swe.LABELS, gplay.LABELS)
     if sreg_end is not None:
         assert sreg_end <= lrank.LR_AT, ('sreg past LR_AT', hex(sreg_end), hex(lrank.LR_AT))
     if cdkn.on():                                # 4.2 S2 knockouts: the Coppa D's rounds 0-1 by the engine (gplay.c GP_CDKN)

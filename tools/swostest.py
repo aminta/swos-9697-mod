@@ -38807,6 +38807,7 @@ def sell_offers():
 
 
 __import__('zonetest').register(sys.modules[__name__])   # 4.1.2 zone positions (tools/zonetest.py)
+__import__('fpgate').register(sys.modules[__name__])   # 4.2 fixture port P2 gate (tools/fpgate.py, Motore)
 
 
 @scenario

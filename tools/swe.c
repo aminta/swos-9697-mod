@@ -34,6 +34,12 @@ u8 SWE_CSTACK[CSTACK_SIZE] __attribute__((aligned(16)));
                                            s7_load's ORIG buffers, swreg.S7_ORIG_SZ); release builds: no byte */
 u8 S7_ORIG[S7_ORIG_SZ] __attribute__((aligned(16)));
 #endif
+#ifdef FPORT_ON                         /* 4.2 fixture port P2 (fport builds only: fpad.py): fpad.c's state - FP_PORT (the
+                                           engine's sr_port, SR_PORT_SIZE) and FP_ST (fpad.c struct fp_st, FP_ST_SZ); valid only
+                                           under fpad.c's magic + season (MC 14/11); release builds: no byte */
+u8 FP_PORT[FPORT_ON] __attribute__((aligned(16)));
+u8 FP_ST[FP_ST_SZ] __attribute__((aligned(4)));
+#endif
 #ifdef SWEFILE_TEST                     /* SWEFILE_TEST=1 builds only: the file layer's self-test (swefile.c swef_selftest) -
                                            its buffers here in the .bss (swefile.c has none), its entry put in SWEF_HOOK by
                                            swefile.py; swe_sel_pre calls it once */

@@ -3016,6 +3016,22 @@ static void ko_copy(struct gp_ko *d, const struct gp_ko *s) {   /* (no memcpy in
     for (unsigned n = 0; n < sizeof *d; n++) o[n] = i[n];
 }
 
+#ifndef GP_PORT
+#define GP_PORT 0                       /* (4.2 fixture port P2 builds: fpad.py; 0 = no byte of it) */
+#endif
+#if GP_PORT
+#ifndef GP_DATA_SECTION
+#define GP_DATA_SECTION __attribute__((section(".data")))      /* (host tests build gplay.c natively: -DGP_DATA_SECTION=) */
+#endif
+/* 4.2 fixture port P2 (internal/handoff/motore-fixport-plan.md 1b): the adapter fpad.c lives in obj4 (swreg FPORT band,
+   fpad.py) and fills these hooks; gplay keeps slot 4's builder (ko_one) and hands it over through GP_PAPI. */
+enum { K_PORT = 12 };
+u32 (*GP_PSTEP)(void) GP_DATA_SECTION;                          /* sc_step_c's head: 1 = a fixture built into ko[0] */
+void (*GP_PDONE)(void) GP_DATA_SECTION;                         /* gp_rec_c: ko[0]'s K_PORT tie decided */
+void (*GP_PLEG)(void) GP_DATA_SECTION;                          /* gp_rec: every match of ours (fp_leg: K_PORT ones) */
+void (*GP_PSEAS)(void) GP_DATA_SECTION;                         /* pg_season's end: a new season (fp_season) */
+u8 GP_PMID;                             /* (.bss, obj2: fpad.c's legs played of the K_PORT tie - the gate's mid-tie save) */
+#endif
 void gp_rec_c(void) {
     struct gp_ko *k = &GP_ST.ko[GP_K];
     int a = kidx(k, GP_A), b = kidx(k, GP_B), g = k->gcur;
@@ -3035,6 +3051,9 @@ void gp_rec_c(void) {
     if (k->kind == K_CUPD) { cd_done(k); return; }
     if (k->kind == K_SC) { sc_done(k); return; }   /* (4.0.5 supercup: a final four's semi -> its final) */
     if (k->kind == K_GF) { gf_done(k); return; }   /* (4.0.5 NZ: the Grand Final) */
+#if GP_PORT
+    if (k->kind == K_PORT) { if (GP_PDONE) GP_PDONE(); return; }   /* (K_PORT: the fixture port's tie, fpad.c) */
+#endif
     GP_LAST = 0;
     int left = 0;
     for (int p = k->gp0[g]; p < k->gp0[g + 1]; p++) if (k->pw[p] == NOC) left++;
@@ -3971,6 +3990,11 @@ static const u8 *pg_one(const u8 *t, const s8 *slt, s8 *copy, int run) {
 void pg_season(const u8 *t, const s8 *slt, s8 *copy, int world) {
     for (int k = *t++; k > 0; k--)
         t = pg_one(t, slt, copy, t[0] == world);
+#if GP_PORT
+    if (GP_PSEAS) GP_PSEAS();           /* (4.2 fixture port: pg_fix, InitializeNewSeason - every career, seasonPlaying
+                                           already the new one: fpad.c fp_season arms, the next fp_step inits; MC 14/11:
+                                           0 B in pgroups' extra pages) */
+#endif
 }
 
 /* A save from before the groups (3.x: pgroups.py's table on a chain the save's divisions don't know). Every club of
@@ -4616,7 +4640,22 @@ static int usc_step(void) {             /* 4.0.6 the UEFA Super Cup at the advan
     SC_U[1] = 1; SC_TRACE = 0x11;
     return 1;
 }
+#if GP_PORT
+/* 4.2 fixture port (MC 14/11 (b)+(c)): fpad.c (obj4) builds the K_PORT tie itself, through ko_one's pointer; the rest
+   - GP_ST, GP_IN, GP_SCT, the pseudo registers - it reads at their symbols, the struct offsets from GP_OFFS (a
+   -DGP_OFFSETS compile of this file, fpad.py: no byte of them in the exe) */
+void *GP_PAPI[1] GP_DATA_SECTION = { (void *)ko_one };
+#ifdef GP_OFFSETS
+#define OF(t, f) __builtin_offsetof(t, f)
+const u16 GP_OFFS[] = { OF(struct gp_state, ko), OF(struct gp_ko, season), OF(struct gp_ko, kind), OF(struct gp_ko, tw),
+                        OF(struct gp_ko, team), OF(struct gp_ko, d1), OF(struct gp_ko, d2), OF(struct gp_ko, rs),
+                        OF(struct gp_in, mdiv), MAGIC, NOC, K_PORT, HOST_NEUTRAL, SC_E, SC_UEFA, sizeof(struct gp_ko) };
+#endif
+#endif
 u32 sc_step_c(void) {                   /* the calendar advance: 1 = the career club's tie built into ko[0] */
+#if GP_PORT
+    if (GP_MGR && GP_PSTEP) { u32 r = GP_PSTEP(); if (r) return 1; }   /* (the port first: never "clear" - Q2 / Q3) */
+#endif
     if (!GP_SCT || !GP_MGR) return 0;
     { int u = usc_step(); if (u) return u > 0; }   /* (4.0.6: the UEFA Super Cup first) */
     const u8 *e = 0;

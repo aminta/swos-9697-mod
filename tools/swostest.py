@@ -27183,7 +27183,8 @@ def s7pool_hex(sy):
     return (f',o{ob}/{s7["RI_MOVES"][1]:x}:384,o{ob}/{s7["RI_NMOVES"][1]:x}:4,o{ob}/{s7["RI_S7_BAD"][1]:x}:4'
             f',o{ob}/{s7["S7_RIMV"][1]:x}:4,{gp["RI_STATE"][1]:x}:{8 + 20 + 384}'
             f',o{oa[0]}/{oa[1]:x}:{s7reg_dims()[4]}' + (f',o{ob}/{s7["RI_FRESH"][1]:x}:1' if 'RI_FRESH' in s7 else '')
-            + (f',{s7pool_maps_at(sy):x}:324' if s7pool_maps_at(sy) else ''))
+            + (f',{s7pool_maps_at(sy):x}:324' if s7pool_maps_at(sy) else '')
+            + (f',o{ob}/{s7["S7GEO_NLOG"][1]:x}:4,o{ob}/{s7["S7GEO_LOG"][1]:x}:192,o{ob}/{s7["S7GEO_BAD"][1]:x}:4' if 'S7GEO_LOG' in s7 else ''))
 
 
 def s7pool_region(sy, hexes, errs):
@@ -27221,6 +27222,22 @@ def s7pool_region(sy, hexes, errs):
             bad.append((pool[k]['name'], row, rdiv[fb][row], letter))
     # (MC 14/11: PARKED backlog item 'Serie D pool arrivals placed geographically' - the pg_one/pg_room fallback puts the last arrivals
     #  in a far girone when the gironi are full, pre-existing and not an S7 x pool regression: reported, not a FAIL. 31 of 36 on the real pack.)
+    geo = 'S7GEO_LOG' in s7                          # (4.2 geography: the chain makes every arrival's own girone a seat - elsewhere is a FAIL)
+    if geo:
+        kn, kl, kb = (f'o{ob}/{s7[x][1]:x}' for x in ('S7GEO_NLOG', 'S7GEO_LOG', 'S7GEO_BAD'))
+        gn = [struct.unpack('<i', b)[0] for o, b in hexes if o == kn]
+        gb = [struct.unpack('<i', b)[0] for o, b in hexes if o == kb]
+        gl = [b for o, b in hexes if o == kl]
+        check(not bad, f'regional placement: {len(bad)} of {n} pool arrivals not in their region\'s Serie D group with the chain on '
+              f'(name, row, group, area) {bad[:5]}; S7GEO_BAD {gb[-1:]}', errs)
+        check(not any(gb), f'S7GEO_BAD {gb[-3:]}: a chain refused (no mover / longer than 8 steps)', errs)
+        nm = gn[-1] if gn else 0
+        mv = []
+        if gl and nm:
+            for j in range(min(nm, 48)):
+                h, ft = struct.unpack_from('<HH', gl[-1], 4 * j)
+                mv.append((h, chr(65 + (ft >> 8)), chr(65 + (ft & 255))))
+        return f'region: {n - len(bad)} of {n} pool arrivals in their region\'s Serie D group; chain moved {nm} natives {mv[:12]}'
     return (f'region: {n - len(bad)} of {n} pool arrivals in their region\'s Serie D group'
             + (f', {len(bad)} elsewhere (parked, pre-existing): {[x[0] for x in bad]}' if bad else ''))
 

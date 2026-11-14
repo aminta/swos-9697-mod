@@ -872,6 +872,9 @@ df_frame:
     call BU_ENTRY                       ; (buildup.py's counters)
 %endif
     pushad
+%if SPM
+    call SPM_ENTRY                      ; (spmeter.py: the M3 corner meter, SP_METER test builds)
+%endif
 %if DELAY                               ; (DIFF_DELAY=n, MC 14/11 CPU-cost control: a pure n-iteration loop per frame,
     mov ecx, DELAY                      ;  no logic - does REF+delay drift from REF like NEW does?)
 .dl:loop .dl
@@ -1570,8 +1573,10 @@ def patch(p, lang):
     skips = set(os.environ.get('DIFF_SKIP', '').split(','))   # (a set: 'BU' in 'BUFRAME' as a string is True)
     bu = knobs() and os.environ.get('DIFF_BU', '1') != '0' and 'BU' not in skips
     sym['BU_ENTRY'] = (4, swreg.BU_AT)
+    import spmeter
+    sym['SPM_ENTRY'] = (4, spmeter.SPM_AT)
     bf = bu and 'BUFRAME' not in skips
-    src = (f'%define BUF {int(bf)}\n%define CKSH {int(os.environ.get("DIFF_CKSH", "11"))}\n%define STKZ {int(os.environ.get("DIFF_STKZ", "0") or 0)}\n%define DELAY {int(os.environ.get("DIFF_DELAY", "0") or 0)}\n%define STOPF {int(os.environ.get("DIFF_STOPF", "0"))}\n%define BU {int(bu)}\n%define DIFF_FORCE {int(force)}\n%define ROW {int(row)}\n%define DIFF_TRACE {int(tr)}\n%define TC {int(bool(tr and os.environ.get("DIFF_TC")))}\n%define DF_START {start_w()}\n%define DR_START {start_dr()}\n'
+    src = (f'%define BUF {int(bf)}\n%define CKSH {int(os.environ.get("DIFF_CKSH", "11"))}\n%define STKZ {int(os.environ.get("DIFF_STKZ", "0") or 0)}\n%define DELAY {int(os.environ.get("DIFF_DELAY", "0") or 0)}\n%define STOPF {int(os.environ.get("DIFF_STOPF", "0"))}\n%define BU {int(bu)}\n%define DIFF_FORCE {int(force)}\n%define ROW {int(row)}\n%define DIFF_TRACE {int(tr)}\n%define SPM {int(bool(tr and os.environ.get("SP_METER")))}\n%define TC {int(bool(tr and os.environ.get("DIFF_TC")))}\n%define DF_START {start_w()}\n%define DR_START {start_dr()}\n'
            f'%define SP {int(SP_ROW and row)}\n%define TOP {TOP}\n%define PITCH {PITCH}\n%define HEIGHT {HEIGHT}\n%define NB {NB}\n%define BR {BR}\n%define SRCP {SRCP}\n%define KMAX {KMAX}\n' + ASM
            + (ASM_ROW if row else '') + (ASM_T if tr else '') + data_asm() + strs)
     if SP_ROW and row:                                  # (setpieces.py's band: its labels from a first pass)

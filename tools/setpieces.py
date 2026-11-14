@@ -449,8 +449,10 @@ def _sym(p, start, df_lab, df_sym):
     return {**{n: (0, v) for n, v in c.items()}, 'O2BASE': (2, 0), 'SP_START': (0, start),
             'NB': (0, df.NB), 'SRCP': (0, df.SRCP), 'TRG_O': (0, df_sym['TRG'][1]), 'A6_O': (0, df_sym['A6_'][1]),
             'DRAWITEM': df_sym['DRAWITEM'], 'SHOW_MENU': df_sym['SHOW_MENU'],
-            **{n.upper() if n.islower() else n: (4, df_lab[n]) for n in ('DF_W', 'DF_DR', 'DF_SV', 'DF_SH', 'DP_MENU',
-                                                                       'dp_fall', 'df_load', 'df_new')},
+            **{n.upper() if n.islower() else n: (4, df_lab[n] if n in df_lab or not df.trace() else df_lab['DF_W'])
+               for n in ('DF_W', 'DF_DR', 'DF_SV', 'DF_SH', 'DP_MENU', 'dp_fall', 'df_load', 'df_new')},
+            # (DIFF_TRACE builds have no PERSONALIZZATO page - dp_asm page=False -: DP_MENU / dp_fall point at DF_W,
+            #  never reached: a traced match never opens OPTIONS; M3 corner meter 14/11)
             'JZ_NEW': (0, k['JZ'] & 0xFFFFFFFF), 'JZ_STEP': (0, k['JST']), 'FZ_NEW': (0, k['FZ']),
             'CEIL_NEW': (0, k['CEIL']), 'BAND_NEW': (0, k['BAND']), 'CPU_NEW': (0, k['CPU'])}, s
 

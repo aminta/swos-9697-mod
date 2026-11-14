@@ -391,6 +391,9 @@ def patch_exe(src, dst, remap, lang='it'):
     import setpieces
     if setpieces.on():                                 # 4.2 set pieces (MC 14/11): the SETPIECE band, page 0x16 (no new page)
         swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, (swreg.SETPIECE_END + 0xFFF) // 0x1000)
+    import spmeter
+    if spmeter.on():                                   # 4.2 set pieces M3: the corner meter, test builds only (SP_METER)
+        swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, spmeter.SPM_END // 0x1000)
     import s7swap
     if s7swap.on():                                    # 4.2 S7: s7_load reads the two league files (the file layer)
         swe.SWEFILE = True
@@ -933,6 +936,8 @@ def patch_exe(src, dst, remap, lang='it'):
     difficulty.patch(p, lang)
     import setpieces                             # 4.2 set pieces 1+2 (SP_TEST only until the OPTIONS row)
     setpieces.patch(p, lang)
+    import spmeter                               # (M3 corner meter: SP_METER test builds only, after difficulty's df_frame)
+    spmeter.patch(p, lang)
     assert not difficulty.LABELS.get('df_add') or setpieces.LABELS.get('sp_add'), \
         'the OPTIONS rows need the SETPIECE band linked (MC 14/11)'
     if ct_pg:                                    # 4.0.6 B2: the season-1 edition's block (conti.c CT_S1 -> it)

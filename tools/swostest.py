@@ -33214,6 +33214,102 @@ def diff_ab():
 
 
 
+def sp_meter_block(r):
+    """(the linear address of spmeter's block - its 'SPMT' tag in obj4 - , the log's linear address) or (None, None)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import spmeter
+    pg = r.read(r.base4 + spmeter.SPM_AT, spmeter.LOG_AT)
+    k = pg.find(spmeter.TAG)
+    while k >= 0 and k % 4:
+        k = pg.find(spmeter.TAG, k + 1)
+    if k < 0:
+        return None, None
+    return r.base4 + spmeter.SPM_AT + k, r.base4 + spmeter.SPM_AT + spmeter.LOG_AT
+
+
+@scenario
+def sp_corners():
+    """4.2 set pieces M3 (MC GO 14/11; setpieces-wingplay-design.md section 6): the corner measure. A DIFF_TEST=3 +
+    DIFF_TRACE + SP_METER build with SP_TEST = SPC_SP (0 CLASSICI, 1 NUOVI; SPC_ENV = extra build switches, e.g.
+    SP_JZ=-0x1000); friendlies at NORMALE, both sides computer-played (DF_CTL 3 / 1), both generators pinned per seed
+    (SPC_SEEDS hex list, else SPC_N seeds md5('spc:k')), no key after the kick-off: one deterministic match each, played
+    to SPC_FRAMES (13000). The meter forces a corner through the game's own path every SP_METER_GAP frames of play
+    and logs SP_METER_WIN frames after it (spmeter.py); its block + log go to SPC_OUT (json lines; default the run dir)
+    and tools/sp_corners.py classifies them. Pairings SPC_PAIRINGS (default eq,sw). PASS = every match played to
+    SPC_FRAMES with corners awarded, none failed to force, no log entry dropped; the numbers are the measurement."""
+    lang = os.environ.get('SWOSTEST_UI', 'it')
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import spmeter
+    sp = os.environ.get('SPC_SP', '0')
+    extra = dict(x.split('=', 1) for x in os.environ.get('SPC_ENV', '').split(',') if x)
+    env = {'DIFF_TEST': '3', 'DIFF_TRACE': '1', 'DIFF_DELAY': '', 'SP_TEST': sp, 'SP_METER': '1', **extra}
+    b = build('sp_corners', env, lang=lang)
+    n = int(os.environ.get('SPC_N', '4'))
+    frames = int(os.environ.get('SPC_FRAMES', '13000'))
+    seeds = [hashlib.md5(f'spc:{k}'.encode()).digest()[:6] for k in range(n)]
+    if os.environ.get('SPC_SEEDS'):
+        seeds = [bytes.fromhex(x) for x in os.environ['SPC_SEEDS'].split(',')]
+    out = os.environ.get('SPC_OUT') or os.path.join(RUNS, 'sp_corners.jsonl')
+    tagv = os.environ.get('SPC_TAG') or f'sp{sp}' + ''.join(f'_{k}{v}' for k, v in extra.items())
+    errs, info = [], []
+    for pr in os.environ.get('SPC_PAIRINGS', 'eq,sw').split(','):
+        home, away = DIFF_PAIRINGS[pr]
+        for k, seed in enumerate(seeds):
+            tag = f'sp_corners_{pr}_{k}'
+            res = dict(variant=tagv, sp=int(sp), env=extra, pairing=pr, seed=seed.hex())
+            with Session(tag, b, {}, 'dump:3', 900, match=True) as s:
+                s.wait()
+                friendly_prematch(s, home, away)
+                blk = diff_block(s.result)
+                mb, lg = sp_meter_block(s.result)
+                if blk is None or mb is None:
+                    errs.append(f'{tag}: no DIFF / SPMT block')
+                    continue
+                s.poke(blk + DIFF_OFF['SEED'], seed + bytes((3, 1)))
+                s.poke(blk + DIFF_OFF['W'], bytes([0, 0]))
+                for _ in range(22):
+                    s.send('down dump:0.5')
+                    if s.screen().selected == 9:
+                        break
+                r = s.send('fire dump:2')
+                for _ in range(40):
+                    if r.outcome != 'dump' or struct.unpack('<I', r.read(blk + DIFF_OFF['KICKS'], 4))[0]:
+                        break
+                    r = s.send('fire dump:2')
+                last, same = -1, 0
+                for _ in range(200):
+                    if r.outcome != 'dump':
+                        break
+                    f = struct.unpack('<I', r.read(blk + DIFF_OFF['FRAMES'], 4))[0]
+                    if f >= frames:
+                        break
+                    same = same + 1 if f == last else 0
+                    if same >= 6:
+                        break
+                    last = f
+                    r = s.send('dump:5')
+                if r.outcome == 'dump':
+                    o = spmeter.OFF
+                    m = r.read(mb, 40)
+                    w = lambda k: struct.unpack_from('<H', m, o[k])[0]
+                    d = lambda k: struct.unpack_from('<I', m, o[k])[0]
+                    ln = d('LN')
+                    raw = r.read(lg, 16 * min(ln, spmeter.LOGMAX))
+                    res.update(frames=struct.unpack('<I', r.read(blk + DIFF_OFF['FRAMES'], 4))[0], nc=w('NC'),
+                               nf=w('NF'), nfail=w('NFAIL'), ln=ln, drop=d('LDROP'), log=raw.hex())
+                    s.shot(f'{tag}_end')
+                else:
+                    res['error'] = str(r)
+            open(out, 'a').write(json.dumps(res) + '\n')
+            check('error' not in res and res['frames'] >= frames and res['nc'] > 0 and not res['nfail']
+                  and not res['drop'], f'{tag}: ' + json.dumps({k: v for k, v in res.items() if k != 'log'}), errs)
+            info.append(f"{pr}/{k}: corners {res.get('nc')} (forced {res.get('nf')}, failed {res.get('nfail')}), "
+                        f"log {res.get('ln')}")
+    return not errs, '; '.join(errs[:6] + info + [f'rows in {out}'])
+
+
+
+
 def main(argv):
     if not argv or argv[0] == 'list':
         for k, f in SCENARIOS.items():

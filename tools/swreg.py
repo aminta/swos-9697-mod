@@ -74,6 +74,14 @@ MKTAGE_END = 0x20800
 assert S7SWAP_END <= OBJ1MV_AT < OBJ1MV_END <= FPORT_AT < FPORT_END <= S7GEO_AT < S7GEO_END <= CDKN_AT < CDKN_END <= PRACTICE_AT < \
     PRACTICE_END <= MKTHOOK_AT < MKTHOOK_END <= MKTLOAD_AT < MKTLOAD_END <= MKTAGE_AT < MKTAGE_END <= 0x20800, \
     'swreg: S7SWAP_END <= OBJ1MV_AT < OBJ1MV_END <= FPORT_AT < FPORT_END <= S7GEO_AT < S7GEO_END <= CDKN_AT < CDKN_END <= PRACTICE_AT < PRACTICE_END <= MKTHOOK_AT < MKTHOOK_END <= MKTLOAD_AT < MKTLOAD_END <= MKTAGE_AT < MKTAGE_END'
+DIFF2_AT = 0x1A000                      # 4.2 the difficulty family's overflow band (MC 14/11, after S7GEO 0x19000..0x1A000):
+DIFF2_END = 0x1A800                     # W1's cover role (w1_cov) now, set pieces §4-§5 if SETPIECE runs short; linked
+DIFF2_MIN = 128                         # whenever the OPTIONS rows are; >= DIFF2_MIN B left at link (asserted)
+assert S7GEO_END <= DIFF2_AT < DIFF2_END <= CDKN_AT, 'swreg: S7GEO < DIFF2 < CDKN'
+DIFF2_SPLIT = 0x1A400                   # MC 14/11 split: DIFF2_AT..DIFF2_SPLIT = difficulty's code (link limit DIFF2_SPLIT - 128),
+SPX_AT = DIFF2_SPLIT                    # SPX_AT..SPX_END = setpieces' overflow (its own unit, PC-relative from SPB: ARCADE fouls,
+SPX_END = DIFF2_END                     # the §3 sideways steer, §4 takers); each side >= 128 B left on the release shape
+assert DIFF2_AT < DIFF2_SPLIT == SPX_AT < SPX_END == CDKN_AT, 'swreg: DIFF2 | SPX split (MC 14/11)'
 S7_ORIG_SZ = 0x2C000                    # 4.2 S7: s7swap.c's ORIG buffers in swe.c's .bss (shaped builds only; MC 13/11):
                                         # the two league files as read (Italy: 102 = 100 records, 144 = 162: 179212 B;
                                         # s7swap.py asserts they fit)
@@ -88,6 +96,12 @@ BOX_END = 0xD000                        # slow's page (SLOW_AT 0xC000, its code 
 assert SLOW_AT < NAMEFIT_AT < NAMEFIT_END <= TRIAL_AT < TRIAL_END <= BOX_AT < BOX_END <= SLOW_END, \
     'page 13: slow < namefit < trial < shirtbox'
 assert SLOW_END <= T3_AT < T3_END, 'page 14: T3 above page 13'
+DIFF_AT = 0xE000                        # 42-diff (difficulty + DRIBBLING, difficulty.py + buildup.py): obj4's whole
+DIFF_END = 0xF000                       # page 15 (MC 12/11, option a; a future CT page goes to 0xF000+). Split:
+BU_AT = 0xEC00                          # difficulty 0xE000..BU_AT, the build-up v1 BU_AT..DIFF_END. The build FAILs
+BU_END = DIFF_END                       # when the release shape leaves under DIFF_MARGIN B of the page. (4.2 42-drp: 0xE900 -> 0xEC00, the PERSONALIZZATO page)
+DIFF_MARGIN = 512
+assert T3_END <= DIFF_AT < BU_AT < BU_END == DIFF_END <= 0x10000, 'page 15: T3 < difficulty < build-up'
 SREG_AT = 0x5100                        # 4.2 N7: the club registry's code + data (sreg.py, sreg.c), after ST, under
                                         # lrank.LR_AT (MC 10/11: the band 0x5100..0x6000); linked only with a shape
 SREG_DIV_AT = 0x4600                    # 4.2 N7: sreg.c's SREG_DIV (SR_REG_CLUBS bytes, 0x4600..0x4A00), above 4.1's
@@ -101,6 +115,10 @@ KITS_END = 0x11000                      # sprite masks on obj4's 16th page (end 
                                         # (128 x 24 B, zero-filled) on the 17th
 KITS_PAGE16_END = 0x10000               # (code + masks; the 17th: KEEPKIT.DAT's 'KKST' block, table and kk_* code, MC 13/11)
 assert T3_END <= globals().get('DIFF_END', KITS_AT) <= KITS_AT < KITS_PAGE16_END < KITS_END, 'kits: above T3 and the difficulty band'
+DRIB1V1_AT = 0xC000                     # 42-drp (MC 14/11): the PERSONALIZZATO page's code + strings and W1, the 1-v-1
+DRIB1V1_END = 0xC400                    # knob, in MATCH SPEED's parked room (page 13 under NAMEFIT_AT, its link limit);
+assert DRIB1V1_AT == SLOW_AT and DRIB1V1_END == NAMEFIT_AT, 'the 42-drp band = slow\'s room (only with patch.SLOW off)'
+assert (NAMEFIT_AT, TRIAL_AT, BOX_AT) == (0xC400, 0xC800, 0xCF00), 'page 13 bands unchanged (MC 14/11)'
 MAGIC = b'SWRG'
 VERSION = 2
 HDR = 32

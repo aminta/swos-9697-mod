@@ -35,6 +35,7 @@ import menunum
 import avgprice
 import opsign
 import subcard
+import dribble
 import joyfix
 import fmtpage
 import menumusic
@@ -120,6 +121,8 @@ SHORT = {sacups.LIB_ID: b'COPA LIB.', sacups.SUP_ID: b'SUPERCOPA', sacups.CON_ID
          cafcups.CAFCL_ID: b'CAF CL', cafcups.CAFCWC_ID: b'CAF CWC', cafcups.CAFCUP_ID: b'CAF CUP',
          cafcups.CCC_ID: b'CONCACAF CUP', cafcups.ACC_ID: b'ASIAN CC', cafcups.ACWC_ID: b'ASIAN CWC'}
 SHORT_INT = {'it': b'COPPA INTERC.', 'en': b'INTERC. CUP', 'fr': b'COUPE INTERC.', 'de': None}   # WELTPOKAL is short
+
+
 
 
 def short_names(p, area, lang):
@@ -266,6 +269,11 @@ def patch_exe(src, dst, remap, lang='it'):
     engine.save_item('GI', 2)                    # 4.0.6 the OPTIONS row 'goalkeeper injuries' (gkinj.py: 0 = ON; the session's
     engine.after_load('gk_load')                 # value kept by a load / a new career)
     engine.after_new('gk_new')
+    import difficulty
+    if difficulty.knobs():                       # 42-diff: the OPTIONS row DIFFICULTY (difficulty.py: DF_W's low byte, 0 =
+        engine.save_item('DF', 1)                # NORMAL; a save without it loads NORMAL; the session's level kept by a
+        engine.after_load('df_load')             # load / a new career as cpucards)
+        engine.after_new('df_new')
     import swe
     import sreg                                  # 4.2 N7: SWC1 + the club registry's section 'IT' (0 dormant: no
     swe.SWC1_SIZE = swe.SWC1_BASE + sreg.section_bytes()   # registry shape, 32 B as before; the trailer's room sums it)
@@ -373,10 +381,18 @@ def patch_exe(src, dst, remap, lang='it'):
     swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, swreg.BOX_END // 0x1000)   # 4.2 shirtbox: se_unsh at the 13th page's top
     swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, swreg.SLOW_END // 0x1000)   # 4.2 slow (MC 12/11, 23bis exception): page 13
     swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, swreg.KITS_END // 0x1000)   # 4.2 kits (MC 12/11): page 16 + KEEPKIT's 17th
+    if os.environ.get('DIFF_TC') and os.environ.get('DIFF_TRACE'):    # (DIFF_TC test builds: the counters' page)
+        import difficulty as _df
+        swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, _df.TCX_AT // 0x1000 + 1)
     swe.SWEFILE = True                                 # (4.2 KEEPKIT.DAT, kits.py: the engine's file layer, page 18)
     if xtra_on:                                        # 4.2.y T3 PRIMAVERA (MC 12/11, 23bis): its own page, the 14th
                                                        # (the pages between stay zero)
         swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, swreg.T3_END // 0x1000)
+    import difficulty
+    if difficulty.on():                                # 42-diff: difficulty's 2 KB on page 15 (MC 12/11)
+        swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, (swreg.DIFF_END + 0xFFF) // 0x1000)
+    if difficulty.knobs():                             # 4.2 DIFF2 (MC 14/11): the OPTIONS rows' overflow band
+        swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, (swreg.DIFF2_END + 0xFFF) // 0x1000)
     import s7swap
     if s7swap.on():                                    # 4.2 S7: s7_load reads the two league files (the file layer)
         swe.SWEFILE = True
@@ -670,6 +686,7 @@ def patch_exe(src, dst, remap, lang='it'):
     cos = avgprice.patch(p, cos)                 # 3.3.4: average player price >= 1 (divide error, 1984-85 Iceland)
     opsign.patch(p)                              # 4.2: the season-end opinion's ratio signed (cdq)
     subcard.patch(p)                             # 4.2 (Marco): a booked player on a carried yellow can be substituted
+    dribble.patch(p)                             # 4.2 DRIBBLING test (DRIBBLE_TEST=1 only; calm-match-study.md)
     import devname                               # 4.0.2: DOS device names (CON, PRN, AUX ...) refused as save names
     devname.patch(p, lang)
     joyfix.patch(p)                              # 4.0.1: ReadSetupDat -> VerifyJoypadControls (no pad + controls != 1 = frozen menus)
@@ -922,6 +939,8 @@ def patch_exe(src, dst, remap, lang='it'):
         slow.assert_off(p)
     import namefit                               # 4.2 names-fit (Marco (b) step 2): menu names cut by pixels, obj4 page 13
     namefit.patch(p)
+    import difficulty                            # 42-diff: selectable difficulty + DRIBBLING (DIFF_TEST only for now)
+    difficulty.patch(p, lang)
     if ct_pg:                                    # 4.0.6 B2: the season-1 edition's block (conti.c CT_S1 -> it)
         st_end = conti.s1_patch(p, (st_end + 15) & ~15)
     assert st_end <= LT3_AT, hex(st_end)

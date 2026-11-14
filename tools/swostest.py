@@ -32860,6 +32860,652 @@ def statespec_test():
 
     return not errs, '; '.join(errs + [f'{msg}; snapshots {sorted(snaps)}, last {snaps.get(max(snaps)) if snaps else None}'])
 
+# ---- 42-diff: selectable difficulty (tools/difficulty.py; internal/handoff/difficulty-plan.md) ----------------------
+DIFF_OFF = dict(W=4, ACT=6, KICKS=8, SEED=12, CTL=18, FRAMES=20, HASH=24, DR=28, DACT=30, SV=31, NOSL=32, PENS=38, CK=40)
+DIFF_CKN, DIFF_CKF = 8, 1 << int(os.environ.get('DIFF_CKSH', '11'))   # ring size, frames between two (build: DIFF_CKSH)
+
+
+def diff_block(r):
+    """The linear address of difficulty's data block (its 'DIFF' tag in obj4's DIFF page), or None."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import swreg
+    b4 = r.base4
+    if b4 is None:
+        return None
+    pg = r.read(b4 + swreg.DIFF_AT, 0x1000)
+    k = pg.find(b'DIFF')
+    while k >= 0 and k % 4:
+        k = pg.find(b'DIFF', k + 1)
+    return b4 + swreg.DIFF_AT + k if k >= 0 else None
+
+
+def diff_bu_block(r):
+    """buildup.py's counter block (its 'BUP1' tag at swreg.BU_AT's page), or None."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import swreg
+    if r.base4 is None:
+        return None
+    at = swreg.BU_AT & ~0xFFF
+    pg = r.read(r.base4 + at, 0x1000)
+    k = pg.find(b'BUP1')
+    while k >= 0 and k % 4:
+        k = pg.find(b'BUP1', k + 1)
+    return r.base4 + at + k if k >= 0 else None
+
+
+def diff_match(name, build, home, away, ctl, seed, level_w=0, frames=13000, polls=120, drib=0, dpk=None):
+    """One deterministic friendly (a DIFF_TRACE build): main menu -> AMICHEVOLE home v away (1996-97 1. LIGA) -> the
+    pre-match screen; DF_SEED / DF_CTL / DF_W poked into the DIFF block; PLAY MATCH; no key after the kick-off
+    (DF_KICKS > 0); played until DF_FRAMES >= frames. Returns dict(frames, hash, ck, act, goals, stats, errs)."""
+    errs, out = [], {}
+    with Session(name, build, {}, 'dump:3', 900, match=True) as s:
+        s.wait()
+        scr = friendly_prematch(s, home, away)
+        r = s.result
+        blk = diff_block(r)
+        if blk is None:
+            return dict(errs=['no DIFF block in obj4 (not a DIFF_TRACE build?)'])
+        s.poke(blk + DIFF_OFF['SEED'], seed + bytes(ctl))
+        s.poke(blk + DIFF_OFF['W'], bytes([level_w, 0]))
+        s.poke(blk + DIFF_OFF['DR'], bytes([drib, 0]))
+        if dpk is not None:                             # (PERSONALIZZATO's steps: DP_K in page 15, found by its defaults)
+            import difficulty as dfm
+            pg15 = r.read(r.base4 + __import__('swreg').DIFF_AT, 0x1000)
+            k = pg15.find(struct.pack(f'<{len(dfm.DP_ROWS)}H', *dfm.DP_DEFAULT) + bytes(len(x[4]) for x in dfm.DP_ROWS))
+            if k < 0:
+                return dict(errs=['DP_K not found'])
+            s.poke(r.base4 + __import__('swreg').DIFF_AT + k, struct.pack(f'<{len(dpk)}H', *dpk))
+        for _ in range(22):
+            s.send('down dump:0.5')
+            if s.screen().selected == 9:
+                break
+        r = s.send('fire dump:2')
+        for _ in range(40):                     # to the kick-off: fire only while no kick-off was seen
+            if r.outcome != 'dump':
+                break
+            if struct.unpack('<I', r.read(blk + DIFF_OFF['KICKS'], 4))[0]:
+                break
+            r = s.send('fire dump:2')
+        last, same = -1, 0
+        for _ in range(polls):
+            if r.outcome == 'trap' and os.environ.get('DIFF_STOPF'):   # (the hunt: halted at DIFF_STOPF, obj2 saved)
+                n2 = 213 * 0x1000
+                with open(os.path.join(s.run, 'obj2_stop.bin'), 'wb') as f:
+                    f.write(r.obj2(0, n2))
+                return dict(errs=[], stop=os.path.join(s.run, 'obj2_stop.bin'))
+            if r.outcome != 'dump':
+                errs.append(f'match: {r}')
+                break
+            f = struct.unpack('<I', r.read(blk + DIFF_OFF['FRAMES'], 4))[0]
+            if f >= frames:
+                break
+            same = same + 1 if f == last else 0
+            if same >= 6:
+                if 'REPLAY' in s.screen().texts():      # (drp_setp: the friendly over - the post-match menu)
+                    out['ended'] = f
+                else:
+                    errs.append(f'frames stuck at {f}')
+                break
+            last = f
+            r = s.send('dump:5')
+        if r.outcome == 'dump':
+            b = r.read(blk, DIFF_OFF['CK'] + 4 * DIFF_CKN)
+            out = dict(out, frames=struct.unpack_from('<I', b, 20)[0], hash=struct.unpack_from('<I', b, 24)[0],
+                       ck=list(struct.unpack_from(f'<{DIFF_CKN}I', b, DIFF_OFF['CK'])), act=b[6], dact=b[30],
+                       kicks=struct.unpack_from('<I', b, 8)[0],
+                       top=r.obj2(0x20a8c, 8).split(b'\0')[0].decode('latin1'))   # (IT: the first team record's name:
+            s.shot(f'{name}_end')                                                  #  the team order, 13/11 cc hunt)
+    out['errs'] = errs
+    return out
+
+
+def diff_ck_compare(a, b):
+    """(equal, first differing checkpoint (every DIFF_CKF frames), checkpoints compared) over the frames both reached."""
+    n = min(a['frames'], b['frames']) // DIFF_CKF
+    n = min(n, DIFF_CKN - 1)
+    for k in range(1, n + 1):
+        if a['ck'][k % DIFF_CKN] != b['ck'][k % DIFF_CKN]:
+            return False, k, n
+    return True, None, n
+
+
+@scenario
+def diff_trace():
+    """42-diff: NORMAL is today's game, frame by frame. Two DIFF_TRACE builds - REF = the kick-off hook only (no
+    knob site), NEW = every knob site with the level at NORMAL (DIFF_TEST=3) - play the same friendly HAMBURG v
+    SCHALKE with both generators pinned at the kick-off (DIFF_SEED, 6 bytes hex), every frame = 1 tick, no key after the
+    kick-off. Pairings (DIFF_PAIRS, default hc,cc,hh): hc = human v computer (teamControls 2 / 1), cc = computer v
+    computer, hh = two humans; on NEW at NORMAL + CLASSIC, and for cc / hh also EASY + NEW (DF_W 1, DF_DR 1), which
+    must equal it. PASS = every 2048-frame checkpoint of the hash (23 sprites' x / y / z + both RNG states) equal over the whole match (>= DIFF_FRAMES,
+    default 13000 frames). SWOSTEST_UI picks the language (the friendly walk: IT / EN)."""
+    lang = os.environ.get('SWOSTEST_UI', 'it')
+    sh = {'DIFF_CKSH': os.environ['DIFF_CKSH']} if os.environ.get('DIFF_CKSH') else {}
+    sh['DIFF_SKIP'] = os.environ.get('DIFF_SKIP', 'BUFRAME')   # (NEW only. BUFRAME: the build-up's per-frame
+    # counters are trace-only code whose CPU cost alone shifts a still timer-driven part of the match: 13/11 bisection)
+    ref = build('diff_ref', {'DIFF_TRACE': '1', 'DIFF_DELAY': '', **{k: v for k, v in sh.items() if k != 'DIFF_SKIP'}},
+                lang=lang)   # (DIFF_DELAY '': difficulty.py reads the process env - REF stays delay-free)
+    new = build('diff_new', {'DIFF_TRACE': '1', 'DIFF_TEST': '3', **sh}, lang=lang)
+    base = os.environ.get('DIFF_BASE')                  # (42-drp: REF = NEW's recipe built from that git ref, e.g.
+    if base:                                            #  42-diff = the 0da9536 line; compared at DIFF_BASE_DR, default
+        ref = os.environ.get('DIFF_BASE_BUILD') or \
+            build('diff_base', {'DIFF_TRACE': '1', 'DIFF_TEST': '3', **sh}, branch=base, lang=lang)   # 0,1; a ready
+        #  build dir in DIFF_BASE_BUILD: the server has no git - built here, synced by remote_run)
+    padc = os.environ.get('DIFF_PAD')                   # (MC 13/11: REF+PAD = REF with a nop band of NEW's obj4 sizes
+    if padc:                                            #  'code,buildup'; NORMAL then = REF+PAD, no EASY run)
+        new = build('diff_refpad', {'DIFF_TRACE': '1', 'DIFF_PAD': padc,
+                                    **{k: v for k, v in sh.items() if k != 'DIFF_SKIP'}}, lang=lang)
+    delc = os.environ.get('DIFF_DELAY')                 # (MC 14/11: REF+DELAY = REF + a pure per-frame loop of n
+    if delc:                                            #  iterations; NORMAL then = REF+DELAY, no EASY run)
+        new = build('diff_refdel', {'DIFF_TRACE': '1', 'DIFF_DELAY': delc,
+                                    **{k: v for k, v in sh.items() if k != 'DIFF_SKIP'}}, lang=lang)
+    seed = bytes.fromhex(os.environ.get('DIFF_SEED', '0102030405a6'))
+    frames = int(os.environ.get('DIFF_FRAMES', '13000'))
+    ctls = dict(hc=(2, 1), cc=(1, 1), hh=(2, 2))
+    errs, info = [], []
+    for pr in os.environ.get('DIFF_PAIRS', 'hc,cc,hh').split(','):
+        if os.environ.get('DIFF_SELF') == 'easy':       # (MC 13/11: EASY+NEW judged by its own stability, NEW twice)
+            a = diff_match(f'diff_trace_{pr}_easy', new, 'HAMBURG', 'SCHALKE', ctls[pr], seed, 1, frames, drib=1)
+            runs = [('EASY+NEW again', diff_match(f'diff_trace_{pr}_easy2', new, 'HAMBURG', 'SCHALKE', ctls[pr],
+                                                  seed, 1, frames, drib=1))]
+        elif os.environ.get('DIFF_SELF'):               # (the harness's own determinism: REF twice)
+            a = diff_match(f'diff_trace_{pr}_ref', ref, 'HAMBURG', 'SCHALKE', ctls[pr], seed, 0, frames)
+            runs = [('REF again', diff_match(f'diff_trace_{pr}_ref2', ref, 'HAMBURG', 'SCHALKE', ctls[pr], seed, 0,
+                                             frames))]
+        elif base:                                      # (the same DRIBBLING value on both builds: one pair per value)
+            for dr in (int(x) for x in os.environ.get('DIFF_BASE_DR', '0,1').split(',')):
+                a = diff_match(f'diff_trace_{pr}_base{dr}', ref, 'HAMBURG', 'SCHALKE', ctls[pr], seed, 0, frames, drib=dr)
+                b = diff_match(f'diff_trace_{pr}_new{dr}', new, 'HAMBURG', 'SCHALKE', ctls[pr], seed, 0, frames, drib=dr)
+                if a['errs'] or b['errs'] or 'ck' not in a or 'ck' not in b:
+                    errs.append(f'{pr} DR {dr}: {a["errs"]} / {b["errs"]}')
+                    continue
+                eq, k, n = diff_ck_compare(a, b)
+                same = a.get('top') == b.get('top')     # (the team order: another order = another match, not counted)
+                check(eq or not same, f'{pr} DR {dr} base / new: differs at checkpoint {k} at the same order', errs)
+                info.append(f'{pr} DR {dr} base / new: equal {eq} (frames {a["frames"]} / {b["frames"]}, order '
+                            f'{a.get("top")} / {b.get("top")}{"" if same else ": not comparable"})')
+            continue
+        else:
+            a = diff_match(f'diff_trace_{pr}_ref', ref, 'HAMBURG', 'SCHALKE', ctls[pr], seed, 0, frames)
+            runs = [('NORMAL', diff_match(f'diff_trace_{pr}_new', new, 'HAMBURG', 'SCHALKE', ctls[pr], seed, 0,
+                                          frames))]
+        if pr in ('cc', 'hh') and not os.environ.get('DIFF_SELF') and not padc and not delc:
+            runs.append(('EASY+NEW', diff_match(f'diff_trace_{pr}_easy', new, 'HAMBURG', 'SCHALKE', ctls[pr], seed,
+                                                1, frames, drib=1)))
+        if a.get('stop'):                               # (DIFF_STOPF: obj2 at that frame, the differing words)
+            for tag, b in runs:
+                if not b.get('stop'):
+                    errs.append(f'{pr} {tag}: no stop {b.get("errs")}')
+                    continue
+                x, y = open(a['stop'], 'rb').read(), open(b['stop'], 'rb').read()
+                d = [o for o in range(0, min(len(x), len(y)), 2) if x[o:o + 2] != y[o:o + 2]]
+                nm = [z[0x20a8c:0x20a94].split(b'\0')[0].decode('latin1') for z in (x, y)]   # (the team order)
+                info.append(f'{pr} {tag} @{os.environ["DIFF_STOPF"]} order {nm[0]}/{nm[1]}: {len(d)} obj2 words differ: '
+                            + ' '.join(f'{o:x}:{x[o:o + 2].hex()}/{y[o:o + 2].hex()}' for o in d[:60]))
+                errs.append('stop') if d else None
+            continue
+        if a['errs'] or 'ck' not in a:
+            errs.append(f'{pr} REF: {a["errs"]}')
+            continue
+        for tag, b in runs:
+            if b['errs'] or 'ck' not in b:
+                errs.append(f'{pr} {tag}: {b["errs"]}')
+                continue
+            eq, k, n = diff_ck_compare(a, b)
+            check(eq and n * DIFF_CKF >= min(frames, (DIFF_CKN - 1) * DIFF_CKF) - DIFF_CKF, f'{pr} {tag}: differs at checkpoint {k} (frame {k * DIFF_CKF if k else "-"})'
+                  f' of {n}; frames {a["frames"]} / {b["frames"]}', errs)
+            info.append(f'{pr} {tag}: {n} checkpoints compared, equal {eq} (frames {a["frames"]} / {b["frames"]}, act {b["act"]}'
+                        f', order {a.get("top")} / {b.get("top")})')
+    return not errs, '; '.join(errs + info)
+
+
+
+@scenario
+def drp_setp():
+    """14/11 (Davide's MiSTer, drp5: a human corner never taken, DIFENSORI CPU ASPETTANO, DRIBBLING PERSONALIZZATO at
+    max): human v computer friendlies (teamControls 2 / 1), no key after the kick-off - the human side's restarts are
+    taken by the game's own timer - with PERSONALIZZATO at every value row's max, AREA on and W1 = each of DRP_W1
+    (default 1,2). PASS = every match reaches DRP_FRAMES live frames (default 19500, a whole friendly ~19900; a restart nobody takes stops the
+    live-frame count: 'frames stuck'). DRP_SEEDS seeds (default 4, md5('drp:k')); DRP_BRANCH = build from that ref."""
+    import difficulty as dfm
+    br = os.environ.get('DRP_BRANCH') or None
+    b = build('drp_setp', {'DIFF_TRACE': '1', 'DIFF_TEST': '3'}, branch=br)
+    frames = int(os.environ.get('DRP_FRAMES', '19500'))
+    errs, info = [], []
+    for w in (int(x) for x in os.environ.get('DRP_W1', '1,2').split(',')):
+        dpk = tuple(len(r[4]) - 1 for r in dfm.DP_ROWS[:dfm.DP_NNUM]) + (1, w, 0)
+        k0 = int(os.environ.get('DRP_SEED0', '0'))
+        for k in range(k0, k0 + int(os.environ.get('DRP_SEEDS', '4'))):
+            seed = __import__('hashlib').md5(f'drp:{k}'.encode()).digest()[:6]
+            for home, away in (('HAMBURG', 'SCHALKE'), ('SCHALKE', 'HAMBURG')):
+                m = diff_match(f'drp_setp_w{w}_{k}_{home[:3]}', b, home, away, (2, 1), seed, 0, frames, polls=400,
+                               drib=2, dpk=dpk)
+                tag = f'W1 {w} seed {k} {home[:3]}'
+                check(not m['errs'] and (m.get('frames', 0) >= frames or m.get('ended', 0) >= 15000),
+                      f'{tag}: {m["errs"]} frames {m.get("frames")}', errs)
+                info.append(f'{tag}: frames {m.get("frames")}{" (match over)" if m.get("ended") else ""} dact {m.get("dact")}')
+    return not errs, '; '.join(errs + info)
+
+
+@scenario
+def diff_menu():
+    """42-diff: the OPTIONS rows DIFFICULTY (entries NB / NB+1) and DRIBBLING (NB+2 / NB+3) under the bottom row (NB = 26:
+    gkinj's, MATCH SPEED out since 13/11; 28 with slow) (difficulty.py, DIFF_TEST build): NB+4 entries, the NROWS rows at PITCH from y TOP, HEIGHT high, the last ending above
+    EXIT TO DOS; labels and values in their boxes, font characters; fire on NB+1: NORMAL -> HARD -> EASY -> NORMAL
+    (DF_W 2, 1, 0); fire on NB+3: CLASSIC -> NEW -> CLASSIC (DF_DR 1, 0); the save byte DF_SV follows both.
+    Shots options_diff_<n> (the visual tour / the geometry probe). SWOSTEST_UI it / en / fr / de."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import difficulty as dfm
+    NB = dfm.NB
+    from complist import px, SMALL_W
+    errs, notes = [], []
+    b = build(f'diff_menu_{UI}', {'DIFF_TEST': '3', 'MODVER_TAG': 'DRIBBLING TEST', 'DIFF_MARGIN_BETA': '384'}, lang=UI)   # (42-drp: the beta's page-15 floor, MC 13/11)
+    label = dfm.LABEL[UI]
+    with Session(f'diff_menu_{UI}', b, {}, 'dump:3', 300) as s:
+        s.wait()
+        scr = walk(s, 'OPZIONI', 2)
+        blk = diff_block(s.result)
+        rdw = lambda: struct.unpack('<H', s.result.read(blk + DIFF_OFF['W'], 2))[0]
+        lab = scr.find(label, exact=True)
+        rdr = lambda: struct.unpack('<H', s.result.read(blk + DIFF_OFF['DR'], 2))[0]
+        rsv = lambda: s.result.read(blk + DIFF_OFF['SV'], 1)[0]
+        lab2 = scr.find(dfm.DRLABEL[UI], exact=True)
+        check(lab2 == NB + 2, f'OPTIONS: {dfm.DRLABEL[UI]} at {lab2}', errs)
+        check(lab == NB and scr.n == NB + 4 and blk is not None and rdw() == 0,
+              f'OPTIONS: {label} at {lab}, {scr.n} entries, DF_W {rdw() if blk else None}', errs)
+        if lab == NB:
+            g = {e[0]: scr.geom[j] for j, e in enumerate(scr.entries)}
+            rows = sorted({g[k][1] for k in g if g[k][2] == 140 and dfm.TOP <= g[k][1] <= 160})
+            quit_y = min(g[k][1] for k in g if g[k][1] > rows[-1] and k not in range(NB, NB + 4))
+            check(rows == [dfm.TOP + dfm.PITCH * k for k in range(dfm.NROWS)] and g[NB][1] == rows[-2] and g[NB + 1][1] == rows[-2]
+                  and g[NB + 2][1] == rows[-1] and g[NB + 3][1] == rows[-1]
+                  and all(g[k][3] == dfm.HEIGHT for k in g if g[k][2] == 140 and g[k][1] in rows)
+                  and rows[-1] + dfm.HEIGHT < quit_y, f'OPTIONS rows {rows}, {NB} {g[NB]}, {NB + 1} {g[NB + 1]}, below {quit_y}', errs)
+            for t in (label, dfm.DRLABEL[UI]) + dfm.VALUES[UI] + dfm.DRVALUES[UI]:
+                check(px(t) <= g[NB][2] - 2 and set(t) <= set(SMALL_W) | {' '}, f'{t!r}: {px(t)} px in {g[NB][2]}', errs)
+            notes.append(f'rows {rows[0]}..{rows[-1]} (+{dfm.HEIGHT}), EXIT TO DOS at {quit_y}')
+        s.shot('options_diff_0')
+        w = []
+        for n in range(3):
+            walk(s, NB + 1, 2)
+            w.append(rdw())
+            s.shot(f'options_diff_{n + 1}')
+        check(w == [2, 1, 0], f'toggles (DF_W): {w} (want 2, 1, 0 = HARD, EASY, NORMAL)', errs)
+        walk(s, NB + 1, 2)                                  # HARD, then DRIBBLING NEW: the save byte 0x12
+        dr = []
+        walk(s, NB + 3, 2)
+        dr.append((rdr(), rsv()))
+        s.shot('options_drib_1')
+        pg = walk(s, NB + 3, 2)                             # CUSTOM (0x22): the PERSONALIZZATO page opens
+        dr.append((rdr(), rsv()))
+        check(dr == [(1, 0x12), (2, 0x22)], f'DRIBBLING toggles (DF_DR, DF_SV): {dr} (want (1, 0x12), (2, 0x22))', errs)
+        notes.append(diff_dp_page(s, pg, blk, errs))
+        sc = s.screen()
+        check(sc.n == NB + 4 and rdr() == 2, f'back in OPTIONS: {sc.n} entries, DF_DR {rdr()}', errs)   # (the reader
+        # leaves string-table entries' texts empty: the values are checked in memory, the texts on the shots)
+        s.shot('options_drib_2')
+        walk(s, NB + 3, 2)
+        dr.append((rdr(), rsv()))
+        check(dr[-1] == (0, 0x02), f'DRIBBLING CUSTOM -> CLASSIC: {dr[-1]} (want (0, 0x02))', errs)
+        walk(s, NB + 3, 2)                                  # NEW, CUSTOM again: the page keeps the session's values
+        pg = walk(s, NB + 3, 2)                             # (row 0 one step on; dp_fall wrote the texts at the open)
+        nr = len(dfm.DP_ROWS)
+        stx = lambda i, st: f'{st}/{len(dfm.DP_ROWS[i][4]) - 1}'
+        want0 = stx(0, dfm.DP_DEFAULT[0] + 1)
+        check(pg.n == 2 * nr + 4 and pg.entries[nr + 1][1] == want0 and
+              all(pg.entries[nr + 1 + i][1] == stx(i, dfm.DP_DEFAULT[i]) for i in range(1, dfm.DP_NNUM)),
+              f'page reopened: {[e[1] for e in pg.entries[nr + 1:nr + 1 + dfm.DP_NNUM]]} (row 0 {want0!r})', errs)
+        s.shot('drp_page_3')
+        walk(s, 2 * nr + 1, 2)
+        walk(s, NB + 3, 2)
+        dr.append((rdr(), rsv()))
+        check(dr[-1] == (0, 0x02), f'DRIBBLING back to CLASSIC: {dr[-1]}', errs)
+        notes.append(f'toggles {w}, dribbling {dr}')
+    return not errs, '; '.join(errs + notes)
+
+
+def diff_dp_page(s, pg, blk, errs):
+    """42-drp: the DRIBBLING PERSONALIZZATO page just opened (pg its screen): 2n + 4 entries (title, n labels, n values,
+    INDIETRO, PREDEFINITI, the legend), the texts in the exe's language and in their boxes (font characters), every
+    value at its default (DRIBBLING NEW's step as 'k/max', 0 = CLASSICO; switches at their first string). Each value row:
+    fire = the next step, RIGHT past the last stays there, LEFT past the first stays at 0, fire from the last wraps
+    to 0 - DP_K follows and the text is 'step/max'; each switch: fire / LEFT / RIGHT. Every row back at its default;
+    then rows changed and PREDEFINITI: every row back to NEW (DP_K and the texts); row 0 one on (kept for the session),
+    INDIETRO leaves. Returns a note."""
+    import difficulty as dfm
+    from complist import px, SMALL_W
+    li = ('it', 'en', 'fr', 'de').index(UI)
+    n = len(dfm.DP_ROWS)
+    v0, bk, rs, lg = n + 1, 2 * n + 1, 2 * n + 2, 2 * n + 3
+    r = s.result
+    pg15 = r.read(r.base4 + __import__('swreg').DIFF_AT, 0x1000)
+    pat = struct.pack(f'<{n}H', *dfm.DP_DEFAULT) + bytes(len(x[4]) for x in dfm.DP_ROWS)
+    k = pg15.find(pat)
+    check(k >= 0, 'DP_K (defaults + DP_N) not found in page 15', errs)
+    if k < 0:
+        return 'no DP_K'
+    dpk = r.base4 + __import__('swreg').DIFF_AT + k
+    rdk = lambda: list(struct.unpack(f'<{n}H', s.result.read(dpk, 2 * n)))
+    check(pg.n == 2 * n + 4 and pg.entries[0][1] == dfm.DP_TITLE[UI], f'page: {pg.n} entries, title '
+          f'{pg.entries[0][1]!r}', errs)
+    if pg.n != 2 * n + 4:
+        return 'page not opened'
+    txt = lambda i, st: f'{st}/{len(dfm.DP_ROWS[i][4]) - 1}' if i < dfm.DP_NNUM else ''
+    from complist import font_odd                       # (FONT, not SMALL_W: the width table has '=' too - a box glyph)
+    fit = lambda t, j: check(px(t) <= pg.geom[j][2] - 2 and not font_odd(t),
+                             f'{t!r}: {px(t)} px in {pg.geom[j][2]}, odd {font_odd(t)}', errs)
+    for j, t in ((0, dfm.DP_TITLE[UI]), (bk, dfm.DP_BACK[UI]), (rs, dfm.DP_RESET[UI]), (lg, dfm.DP_LEG[UI])):
+        check(pg.entries[j][1] == t, f'entry {j}: {pg.entries[j][1]!r} (want {t!r})', errs)
+        fit(t, j)
+    for i, row in enumerate(dfm.DP_ROWS):
+        check(pg.entries[1 + i][1] == row[0][li], f'label {i}: {pg.entries[1 + i][1]!r}', errs)
+        fit(row[0][li], 1 + i)
+        for t in dfm.DP_SW.get(i, {}).get(UI, ()):
+            fit(t, v0 + i)
+        check(pg.entries[v0 + i][1] == txt(i, dfm.DP_DEFAULT[i]), f'value {i}: {pg.entries[v0 + i][1]!r}', errs)
+    check(rdk() == list(dfm.DP_DEFAULT), f'DP_K at open {rdk()}', errs)
+    s.shot('drp_page_0')
+    notes = []
+
+    def keys(i, key, times, want, what):
+        s.send(' '.join([f'{key}:0.3'] * times) + ' dump:1')
+        sc = s.screen()
+        st = rdk()[i]
+        check(st == want and (i >= dfm.DP_NNUM or sc.entries[v0 + i][1] == txt(i, want)),
+              f'row {i} {what}: step {st} {sc.entries[v0 + i][1]!r} (want {want} {txt(i, want)!r})', errs)
+        return st
+    for i, row in enumerate(dfm.DP_ROWS):
+        m, d = len(row[4]), dfm.DP_DEFAULT[i]
+        walk(s, v0 + i, 2)                              # (fire: the next step)
+        seen = [rdk()[i]]
+        check(seen[0] == (d + 1) % m, f'row {i} fire: step {seen[0]} (want {(d + 1) % m})', errs)
+        seen.append(keys(i, 'right', m, m - 1, 'RIGHT x m (clamped)'))
+        seen.append(keys(i, 'fire', 1, 0, 'fire at the last (wraps)'))
+        seen.append(keys(i, 'left', 1, 0, 'LEFT at 0 (clamped)'))
+        seen.append(keys(i, 'right', m - 1, m - 1, 'RIGHT x (m - 1)'))
+        seen.append(keys(i, 'left', m - 1 - d, d, 'LEFT back to the default'))
+        notes.append(seen)
+        if i == 1:
+            s.shot('drp_page_1')
+    check(rdk() == list(dfm.DP_DEFAULT), f'DP_K after the rows {rdk()}', errs)
+    walk(s, v0, 2)                                      # (PREDEFINITI: rows 0, 3 and W1 changed first)
+    walk(s, v0 + 3, 2)
+    walk(s, v0 + 7, 2)
+    ch = rdk()
+    s.shot('drp_page_4')
+    sc = walk(s, rs, 2)
+    check(ch != list(dfm.DP_DEFAULT) and rdk() == list(dfm.DP_DEFAULT) and
+          all(sc.entries[v0 + i][1] == txt(i, dfm.DP_DEFAULT[i]) for i in range(n)),
+          f'PREDEFINITI: DP_K {ch} -> {rdk()}, texts {[e[1] for e in sc.entries[v0:v0 + dfm.DP_NNUM]]}', errs)
+    s.shot('drp_page_5')
+    walk(s, v0, 2)                                      # (row 0 one step on by fire, kept for the session)
+    check(rdk() == [dfm.DP_DEFAULT[0] + 1] + list(dfm.DP_DEFAULT[1:]), f'row 0 one on: DP_K {rdk()}', errs)
+    s.shot('drp_page_2')
+    walk(s, bk, 2)                                      # INDIETRO
+    return f'page OK: {pg.n} entries, steps {notes}, PREDEFINITI from {ch}, DP_K at exit {rdk()}'
+
+
+@scenario
+def diff_beta():
+    """42-diff beta check (MC 13/11) on a ready build (SWOSTEST_BUILD = c/REL42diff/SWOS, DIFF_TEST=3 + MODVER_TAG, no
+    trace switch): OPTIONS has DIFFICULTY at NB and DRIBBLING at NB+2 (NB+4 entries; NB 26 without MATCH SPEED), starting at NORMAL + CLASSIC (DF_W 0,
+    DF_DR 0); then a friendly HAMBURG v SCHALKE played for DIFF_POLLS x 5 s of game time with no key after the
+    kick-off: the kick-off hook ran (DF_KICKS > 0, DF_ACT 0, DF_DACT 0) and the match never hangs (topTeamData keeps
+    changing, every poll a dump). SWOSTEST_UI it / en / fr / de."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import difficulty as dfm
+    errs, notes = [], []
+    b = builds()['it']
+    g1, g2, top = diff_score_sites(b)
+    with Session(f'diff_beta_{UI}', b, {}, 'dump:3', 300) as s:
+        s.wait()
+        scr = walk(s, 'OPZIONI', 2)
+        blk = diff_block(s.result)
+        check(blk is not None, 'DIFF block in obj4', errs)
+        if blk is None:
+            return False, '; '.join(errs)
+        bb = s.result.read(blk, 32)
+        check(scr.find(dfm.LABEL[UI], exact=True) == dfm.NB and scr.find(dfm.DRLABEL[UI], exact=True) == dfm.NB + 2
+              and scr.n == dfm.NB + 4,
+              f'OPTIONS: {dfm.LABEL[UI]} / {dfm.DRLABEL[UI]} at {scr.find(dfm.LABEL[UI], exact=True)} / '
+              f'{scr.find(dfm.DRLABEL[UI], exact=True)}, {scr.n} entries', errs)
+        check(bb[DIFF_OFF['W']] == 0 and bb[DIFF_OFF['DR']] == 0, f'start DF_W {bb[4]} DF_DR {bb[28]} (want 0 0)', errs)
+        s.shot('beta_options')
+    with Session(f'diff_beta_m_{UI}', b, {}, 'dump:3', 900, match=True) as s:
+        s.wait()
+        friendly_prematch(s, 'HAMBURG', 'SCHALKE')
+        blk = diff_block(s.result)
+        for _ in range(22):
+            s.send('down dump:0.5')
+            if s.screen().selected == 9:
+                break
+        r = s.send('fire dump:2')
+        for _ in range(40):
+            if r.outcome != 'dump' or struct.unpack('<I', r.read(blk + DIFF_OFF['KICKS'], 4))[0]:
+                break
+            r = s.send('fire dump:2')
+        last, same, n = None, 0, 0
+        for n in range(int(os.environ.get('DIFF_POLLS', '30'))):
+            if r.outcome != 'dump':
+                errs.append(f'match poll {n}: {r}')
+                break
+            t = r.obj2(top, 0x91 * 2)
+            same = same + 1 if t == last else 0
+            if same >= 4:
+                errs.append(f'match stuck at poll {n} (topTeamData unchanged x4)')
+                break
+            last = t
+            r = s.send('dump:5')
+        if r.outcome == 'dump':
+            bb = r.read(blk, 32)
+            k = struct.unpack_from('<I', bb, DIFF_OFF['KICKS'])[0]
+            goals = struct.unpack('<2H', r.obj2(g1, 2) + r.obj2(g2, 2))
+            check(k > 0 and bb[DIFF_OFF['ACT']] == 0 and bb[DIFF_OFF['DACT']] == 0,
+                  f'kick-offs {k}, DF_ACT {bb[6]}, DF_DACT {bb[30]} (want > 0, 0, 0)', errs)
+            notes.append(f'{n + 1} polls played, kick-offs {k}, score {goals[0]}-{goals[1]}')
+            s.shot('beta_match')
+    return not errs, '; '.join(errs + notes)
+
+
+
+def diff_score_sites(exe_dir):
+    """(statsTeam1Goals, statsTeam2Goals, topTeamData) obj2 offsets of a build's exe (the 'equalizer' test; the A6 =
+    offset topTeamData / bottomTeamData pair, 0x91 apart)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import collections
+    import lepatch
+    p = lepatch.LEPatch(os.path.join(exe_dir, 'ITALIAN.EXE'))
+    d = p.le.obj_bytes(1)
+    m = []
+    for x in re.finditer(rb'\x66\xa1....\x66\x2b\x05....', d, re.S):   # (goal difference, then goal sum:
+        o = x.start()                                             #  mov ax, g1 / sub ax, g2 ... mov dx, g1 / add dx, g2)
+        try:
+            g1, g2 = p.target(1, o + 2), p.target(1, o + 9)
+        except AssertionError:
+            continue
+        y = re.compile(rb'\x66\x8b\x15....\x66\x03\x15....', re.S).search(d, o + 13, o + 0x40)
+        try:
+            if y and p.target(1, y.start() + 3) == g1 and p.target(1, y.start() + 10) == g2:
+                m.append((g1[1], g2[1]))
+        except AssertionError:
+            pass
+    assert len(set(m)) == 1, ('statsTeamGoals', m)
+    g1, g2 = m[0]
+    c = collections.Counter()
+    a6 = None
+    for x in re.finditer(rb'\xc7\x05', d):
+        try:
+            t, v = p.target(1, x.start() + 2), p.target(1, x.start() + 6)
+        except AssertionError:
+            continue
+        c[(t, v)] += 1
+    tops = [(k, n) for k, n in c.items() if k[1][0] == 2 and ((k[0], (2, k[1][1] + 0x91)) in c)]
+    tops.sort(key=lambda kn: -kn[1])
+    assert tops, 'topTeamData'
+    return g1, g2, tops[0][0][1][1]
+
+
+DIFF_PAIRINGS = {'sw': ('BAYERN MUNICH', 'ST. PAULI'), 'eq': ('HAMBURG', 'SCHALKE'), 'ws': ('ST. PAULI', 'BAYERN MUNICH')}
+
+
+def _dp_model(dfm, k):
+    """DP_K -> (BLK_CU, BLK_CO) bytes (= test_drp.model)."""
+    cu, co = bytearray(dfm._blk(dfm.USER)), bytearray(dfm._blk(dfm.OPP))
+    for i, (_, blk, field, size, vals) in enumerate(dfm.DP_ROWS):
+        if blk:
+            struct.pack_into('<I' if size == 4 else '<H', cu if blk == 'U' else co, field, vals[k[i]])
+    return bytes(cu), bytes(co)
+
+
+@scenario
+def diff_ab():
+    """42-diff proxy matches (difficulty-plan.md §5, Q1 Q3 Q4 Q8): a DIFF_TEST + DIFF_TRACE + DIFF_FORCE build; friendlies
+    in which team 1 is a coach team (teamControls 3: computer-played, counted as the human by DIFF_FORCE) and team 2 the
+    computer (1), both generators pinned at the kick-off per match (DIFF_SEEDS: n seeds from md5('diff:k')), every frame
+    = 1 tick, no key after the kick-off: each (pairing, level, seed) is one deterministic match - forced, never re-run.
+    Pairings (DIFF_PAIRINGS, default sw,eq,ws): sw BAYERN MUNICH v ST. PAULI, eq HAMBURG v SCHALKE, ws ST. PAULI v BAYERN
+    MUNICH. Levels (DIFF_LEVELS, default 1,3,5 = DF_W 1, 0, 2). Per match: the score, both teams' TeamStatisticsData,
+    frames. DIFF_N (default 4) seeds; DIFF_FRAMES (13000). Results appended to DIFF_AB_OUT (json lines; default the
+    run dir). PASS = every match played to DIFF_FRAMES; the numbers are the measurement (no threshold here)."""
+    lang = os.environ.get('SWOSTEST_UI', 'it')
+    tc = {'DIFF_TC': '1'} if os.environ.get('DIFF_TC') else {}     # (42-drp: per-site effect counters, DF_TC)
+    recipe = os.environ.get('DIFF_AB_RECIPE', 'new')    # (outcome gate, MC 14/11: ref = the trace recipe without knobs,
+    knob = recipe == 'new'                              #  cal = ref + DIFF_DELAY 4000; new = the knob build, levels by
+    if knob:                                            #  DIFF_LEVELS. 42-diff-outcome-gate.md)
+        b = build('diff_ab' + ('_tc' if tc else ''), {'DIFF_TEST': '3', 'DIFF_TRACE': '1', 'DIFF_FORCE': '1', 'DIFF_DELAY': '',
+                                                      **tc}, lang=lang)
+    else:
+        b = build('diff_ab' + recipe, {'DIFF_TRACE': '1', 'DIFF_DELAY': '4000' if recipe == 'cal' else ''}, lang=lang)
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import difficulty as dfm
+    import swreg
+    dpk = [int(x) for x in os.environ['DIFF_DPK'].split(',')] if os.environ.get('DIFF_DPK') else None   # (DRIBBLING 2's
+    #  page values poked into DP_K before the kick-off, e.g. Davide's 13/11 max 4,10,12,15,15,0,0,0)
+    dribs = [int(x) for x in os.environ.get('DIFF_DRIBS', '0').split(',')]
+    g1, g2, top = diff_score_sites(b)
+    n = int(os.environ.get('DIFF_N', '4'))
+    frames = int(os.environ.get('DIFF_FRAMES', '13000'))
+    w_of = {1: 1, 2: 3, 3: 0, 4: 4, 5: 2}
+    seeds = [hashlib.md5(f'diff:{k}'.encode()).digest()[:6] for k in range(n)]
+    if os.environ.get('DIFF_AB_SEEDS'):                 # (the outcome gate's 8 fixed seeds, hex)
+        seeds = [bytes.fromhex(x) for x in os.environ['DIFF_AB_SEEDS'].split(',')]
+    out = os.environ.get('DIFF_AB_OUT') or os.path.join(RUNS, 'diff_ab.jsonl')
+    errs, rows = [], []
+    for pr in os.environ.get('DIFF_PAIRINGS', 'sw,eq,ws').split(','):
+        home, away = DIFF_PAIRINGS[pr]
+        for lv, dr in ((int(x), d) for x in os.environ.get('DIFF_LEVELS', '1,3,5').split(',') for d in dribs):
+            for k, seed in enumerate(seeds):
+                tag = f'diff_ab_{pr}_L{lv}_D{dr}_{k}'
+                res = {}
+                with Session(tag, b, {}, 'dump:3', 900, match=True) as s:
+                    s.wait()
+                    friendly_prematch(s, home, away)
+                    blk = diff_block(s.result)
+                    s.poke(blk + DIFF_OFF['SEED'], seed + bytes((2 if os.environ.get('DIFF_HUMAN') else 3, 1)))
+                    if knob:
+                        s.poke(blk + DIFF_OFF['W'], bytes([w_of[lv], 0]))
+                        s.poke(blk + DIFF_OFF['DR'], bytes([dr, 0]))
+                    nr = len(dfm.DP_ROWS)
+                    lo = s.result.base4 + (swreg.DIFF_AT & ~0xFFF) - 0x2000
+                    area = s.result.read(lo, 0x5000)
+                    kk = area.find(struct.pack(f'<{nr}H', *dfm.DP_DEFAULT) + bytes(len(x[4]) for x in dfm.DP_ROWS))
+                    kb = area.find(dfm._blk(dfm.NORM) + dfm._blk(dfm.USER) + dfm._blk(dfm.OPP))
+                    if dr == 2 and dpk:
+                        check(kk >= 0, f'{tag}: DP_K not found', errs)
+                        s.poke(lo + kk, struct.pack(f'<{nr}H', *dpk))
+                    for _ in range(22):
+                        s.send('down dump:0.5')
+                        if s.screen().selected == 9:
+                            break
+                    r = s.send('fire dump:2')
+                    for _ in range(40):
+                        if r.outcome != 'dump' or struct.unpack('<I', r.read(blk + DIFF_OFF['KICKS'], 4))[0]:
+                            break
+                        r = s.send('fire dump:2')
+                    if r.outcome == 'dump' and kb >= 0 and dr == 2:     # (the kick-off's dp_build: CU / CO = the page)
+                        got = r.read(lo + kb + 96, 64)
+                        k8 = list(struct.unpack(f'<{nr}H', r.read(lo + kk, 2 * nr))) if kk >= 0 else None
+                        want = b''.join(_dp_model(dfm, k8 or list(dfm.DP_DEFAULT)))
+                        check(got == want, f'{tag}: BLK_CU/CO {got.hex()} want {want.hex()} (DP_K {k8})', errs)
+                        blkck = f'DP_K {k8} -> CU/CO = page values {got == want}'
+                    else:
+                        blkck = None
+                    last, same = -1, 0
+                    for _ in range(150):
+                        if r.outcome != 'dump':
+                            break
+                        f = struct.unpack('<I', r.read(blk + DIFF_OFF['FRAMES'], 4))[0]
+                        if f >= frames:
+                            break
+                        same = same + 1 if f == last else 0
+                        if same >= 6:
+                            break
+                        last = f
+                        r = s.send('dump:5')
+                    if r.outcome == 'dump':
+                        f = struct.unpack('<I', r.read(blk + DIFF_OFF['FRAMES'], 4))[0]
+                        act = r.read(blk + DIFF_OFF['ACT'], 1)[0]
+                        goals = struct.unpack('<2H', r.obj2(g1, 2) + r.obj2(g2, 2))
+                        st = []
+                        for t in (top, top + 0x91):
+                            sp = struct.unpack('<I', r.obj2(t + 0x0E, 4))[0]
+                            st.append(list(struct.unpack('<7H', r.read(sp, 14))))
+                        bb = r.read(blk, DIFF_OFF['CK'])
+                        res = dict(recipe=recipe, pairing=pr, level=lv, drib=dr, seed=seed.hex(), frames=f, act=act, dact=bb[30],
+                                   top=r.obj2(0x20a8c, 8).split(b'\0')[0].decode('latin1'),   # (IT: the first team record)
+                                   topctl=list(struct.unpack('<3H', r.obj2(top + 4, 6))),   # (topTeamData playerNumber /
+                                   #  playerCoachNumber / isPlCoach: non-zero coach number = stats[0] is the coach side)
+                                   goals=goals, stats=st, pens=struct.unpack_from('<H', bb, DIFF_OFF['PENS'])[0],
+                                   noslide=struct.unpack_from('<I', bb, DIFF_OFF['NOSL'])[0], blk=blkck)
+                        if tc:                          # [slide, hold] x [N, U, O, CU, CO]; press / tsl [zone][front, side, behind]
+                            t25 = struct.unpack('<10I', r.read(blk + 72, 40))
+                            res['tc'] = [list(t25[5 * j:5 * j + 5]) for j in range(2)]
+                            t19 = struct.unpack('<19I', r.read(blk + 112, 76))
+                            res['press'], res['tsl'], res['tf'] = list(t19[:9]), list(t19[9:18]), t19[18]
+                            t24 = struct.unpack('<24I', r.read(blk + 188, 96))     # (the cover role, 14/11)
+                            res['eng'] = [list(t24[4 * z:4 * z + 4]) for z in range(3)]   # [zone][0, 1, 2, 3+]
+                            res['poss'] = [list(t24[12 + 4 * d:16 + 4 * d]) for d in range(3)]   # [distinct][most]
+                            pb = r.read(r.base4 + swreg.DRIB1V1_AT, 0x400)    # (42-drp W1's acts: its 'W1TC' block)
+                            kw = pb.find(b'W1TC')
+                            if kw >= 0:
+                                res['w1'] = list(struct.unpack_from('<5I', pb, kw + 4))
+                            pc = r.read(r.base4 + swreg.DIFF2_AT, 0x800)       # (the cover role's calls: 'W1CV')
+                            kc = pc.find(b'W1CV')
+                            if kc >= 0:
+                                res['cov'] = list(struct.unpack_from('<5I', pc, kc + 4))
+                                res['cov2'] = list(struct.unpack_from('<3I', pc, kc + 24))
+                            pt = r.read(r.base4 + dfm.TCX_AT, 0x1000)   # (the duels: 'TCDU')
+                            kt = pt.find(b'TCDU')
+                            if kt >= 0:
+                                du = struct.unpack_from('<16I', pt, kt + 4)
+                                res['duel'], res['dk'], res['dd'] = list(du[:6]), list(du[6:10]), list(du[10:12])
+                                res['dw'] = list(du[12:16])
+                        bu = diff_bu_block(r)
+                        if bu is not None:              # build-up v1: G1 / H1 / P1 + [team][pass, kick, gk pass, gk kick]
+                            bb = r.read(bu, 68)
+                            res['budbg'] = list(struct.unpack_from('<8I', bb, 36))
+                            res['bu'] = list(struct.unpack_from('<3I', bb, 4))
+                            res['rel'] = [list(struct.unpack_from('<4H', bb, 16 + 8 * t)) for t in (0, 1)]
+                    else:
+                        res = dict(pairing=pr, level=lv, drib=dr, seed=seed.hex(), error=str(r))
+                rows.append(res)
+                open(out, 'a').write(json.dumps(res) + '\n')
+                check('error' not in res and res['frames'] >= frames and (not knob or res['act'] == (0 if lv == 3 else lv)
+                      and res['dact'] == dr),
+                      f'{tag}: {res}', errs)
+    summ = collections.defaultdict(list)
+    for r in rows:
+        if 'goals' in r:
+            summ[(r['pairing'], r['level'], r['drib'])].append((r['goals'][0] - r['goals'][1], r['stats'][0][2],
+                                                               r['stats'][1][2], r['pens'],
+                                                               r.get('rel', [[0] * 4] * 2)[1]))
+    info = [f'{k[0]} L{k[1]} D{k[2]}: goal diff {[x[0] for x in v]} mean {sum(x[0] for x in v) / len(v):+.2f}, fouls '
+            f'{sum(x[1] for x in v)}/{sum(x[2] for x in v)}, penalties {sum(x[3] for x in v)}, CPU passes/kicks/gk '
+            f'{[sum(x[4][j] for x in v) for j in range(4)]}'
+            for k, v in sorted(summ.items())]
+    return not errs, '; '.join(errs[:6] + info + [f'rows in {out}'])
+
+
+
 def main(argv):
     if not argv or argv[0] == 'list':
         for k, f in SCENARIOS.items():

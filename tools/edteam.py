@@ -14,7 +14,9 @@ name (39..54), the position. The team being edited is editTeamsTeam (684 bytes; 
   to the name; UP / DOWN, digits, swap,
   FIRE / ENTER / LEFT / RIGHT done, ESC undo, the first edit pins the team (benchnum.PIN_BIT in editTeamsTeam's byte 23,
   saved with it); EditTeamsPlayersBeforeDraw's `mov [esi + 26h], ax / mov ax, [D7]` (entry 55's number) -> et_hl: the
-  lit box's background on the edited row (entry 55 is one entry drawn for every row: plain on the others).
+  lit box's background on the edited row (entry 55 is one entry drawn for every row: plain on the others), 1 px wider
+  on each side there and the digits without their shadow (4.2, Marco: two digits inside the green; shirtbox's
+  se_unsh as its afterDraw; x / w / afterDraw restored on the other rows).
 The original game ignores byte 25 (a look is a plain face there) and keeps the numbers as typed.
 Code in obj3 at the chain's end (CONVENTIONS 23). Nothing without shirtedit (no career worlds).
 """
@@ -85,21 +87,43 @@ et_dir:                                 ; se_ctl's idle `cmp word [MCD], 6` (jnz
     pop ebx
     ret
 et_sel: dd 0
+et_xw: dd 0
 
 et_hl:                                  ; EditTeamsPlayersBeforeDraw: replaces `mov [esi + 26h], ax / mov ax, [D7]`
     mov [esi + 26h], ax
     push eax
     mov word [esi + 1Ch], 0
+    mov eax, [et_xw]                    ; the entry's own x / w (kept the first time; restored on every row)
+    test eax, eax
+    jnz .k
+    mov ax, [esi + 18h]
+    shl eax, 16
+    mov ax, [esi + 14h]
+    mov [et_xw], eax
+.k: mov [esi + 14h], ax
+    shr eax, 16
+    mov [esi + 18h], ax
     cmp byte [SE_ON], 0
     je .p
     mov eax, [A6]
     add eax, 76
     cmp eax, [SE_REC]
     jne .p
-    mov word [esi + 1Ch], 2             ; a coloured background (shirtedit's lit box)
-    mov word [esi + 1Eh], HL
-.p:
-    pop eax
+    mov word [esi + 1Ch], 2             ; a coloured background (shirtedit's lit box), 1 px wider on each side: two
+    mov word [esi + 1Eh], HL            ; digits fit (Marco 4.2: the 2 of 23 out of the green; 12 px = the whole gap
+    dec word [esi + 14h]                ; between the face's frame and the name bar), the number's centre unchanged
+    add word [esi + 18h], 2
+    cmp dword [esi + 34h], UNSH         ; and the digits without their black shadow (shirtbox's se_unsh, afterDraw)
+    je .d
+    mov eax, [esi + 34h]
+    mov [SEAD], eax
+    mov dword [esi + 34h], UNSH
+    jmp .d
+.p: cmp dword [esi + 34h], UNSH         ; (not lit: the entry's own afterDraw back)
+    jne .d
+    mov eax, [SEAD]
+    mov [esi + 34h], eax
+.d: pop eax
     mov ax, [D7]
     ret
 
@@ -201,7 +225,7 @@ def patch(p, at):
     prev = p.call_target(so, cs)
     sym = {k: v for k, v in s.items() if not k.endswith('_SITE')}
     sym.update(PREV=prev, SE_ON=(so, info['se_on']), SE_SKIP=(so, info['se_skip']), SE_REC=(so, info['se_rec']), HL=(0, shirtedit.HL_COLOR),
-               SE_ENT=(so, info['se_ent']), MCD=info['MCD'], CURMENU=info['CURMENU'])
+               SE_ENT=(so, info['se_ent']), UNSH=info['se_unsh'], SEAD=info['se_ad'], MCD=info['MCD'], CURMENU=info['CURMENU'])
     code, fix, rel = nasmcave.assemble_obj(ASM, at, sym, 3)
     lab = nasmcave.labels(ASM, at, sym)
     assert not any(p.get(3, at, len(code))), hex(at)

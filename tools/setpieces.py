@@ -62,8 +62,8 @@ def knobs():
                 AFP=_iv('SP_AFP', 21845), AFD0=_iv('SP_AFD0', 88), AFD1=_iv('SP_AFD1', 170),      # ARCADE fouls: 1 in 3,
                 AFX0=_iv('SP_AFX0', 150), AFX1=_iv('SP_AFX1', 520),
                 FKXI=_iv('SP_FKXI', 8), FKXC=_iv('SP_FKXC', 3),
-                FKXC2=_iv('SP_FKXC2', 2), FKXI2=_iv('SP_FKXI2', -4),          # fk7: ARCADE steer px a tick, aim 4 px outside the post
-                FKA2=[int(x) for x in (os.environ.get('SP_FKA2') or '24,22,20,17,14,10,7,5').split(',')])  # fk5: ARCADE x aim error by SHOOTING                                  # §3 sideways steer                                 #  the FK zone
+                FKXC2=_iv('SP_FKXC2', 2), FKXI2=_iv('SP_FKXI2', -12), FKXMS=_iv('SP_FKXMS', 4),  # fk8: ARCADE steer px a tick; a miss aims 8..16 px outside
+                FKA2=[int(x) for x in (os.environ.get('SP_FKA2') or '5,9,13,23,33,46,61,77').split(',')])  # fk8: ARCADE on-target chance /256 by SHOOTING                                  # §3 sideways steer                                 #  the FK zone
 
 
 def _one(d, pat, name, n=1):
@@ -761,7 +761,8 @@ ASM_X = r"""
 ;      x_c = x + (destX - x) (yL - y) / (destY - y) moves toward FK_TX by at most FK_XC px a tick (destX moved to match).
 FK_TX: dw 0                             ; this kick's target x at the line
 FK_XM: dw FK_XC                         ; (fk5) this kick's steer, px a tick: FK_XC, ARCADE FK_XC2
-FK_XA: db FKA0, FKA1, FKA2, FKA3, FKA4, FKA5, FKA6, FKA7          ; (fk5: ARCADE's x aim error by SHOOTING, px)
+FK_XA: db FKA0, FKA1, FKA2, FKA3, FKA4, FKA5, FKA6, FKA7          ; (fk8: ARCADE's on-target chance by SHOOTING, /256)
+FK_XV: db 0                             ; (fk8) this ARCADE kick's px inside the post: FK_XI on target, FK_XI2 a miss
 sp_tx:                                  ; (at the dip's start) FK_TX = the open side's inside post (FK_CU 1: 366 - FK_XI,
     push eax                            ;  2: 302 + FK_XI) + uniform -a..+a, a = FK_SH (the same aim error table)
     push ecx
@@ -778,16 +779,23 @@ sp_tx:                                  ; (at the dip's start) FK_TX = the open 
     sub ecx, 8
     jb .r                               ; (REALISTICI: as fk4)
     mov word [ebp + FK_XM - SPB], FK_XC2
-    movzx ebx, byte [ebp + FK_XA - SPB + ecx]
+    mov byte [ebp + FK_XV - SPB], FK_XI ; (fk8 ARCADE: on target 1 in FK_XA[SHOOTING] / 256 - the inside point, FK_SH)
+    cmp byte [ebp + FK_CU - SPB], 0
+    je .r                               ; (the human's kick: no roll, his own aim)
+    cmp al, [ebp + FK_XA - SPB + ecx]
+    jb .h
+    mov byte [ebp + FK_XV - SPB], FK_XI2 ; (a miss: FK_XI2 -+ FK_XMS px outside the post)
+    mov ebx, FK_XMS
+.h: shr eax, 8                          ; (the spread: the roll's bits not reused)
 .r: lea ecx, [ebx * 2 + 1]
     xor edx, edx
     div ecx
     sub edx, ebx                        ; (-a..+a)
     pop ebx
-    mov eax, FK_XI                      ; (the target's px inside the post: REALISTICI FK_XI, ARCADE FK_XI2 - fk7)
+    mov eax, FK_XI                      ; (the target's px inside the post: REALISTICI FK_XI, ARCADE FK_XV)
     cmp byte [ebp + FK_SI - SPB], 8
     jb .c
-    mov eax, FK_XI2
+    movsx eax, byte [ebp + FK_XV - SPB]
 .c: neg eax
     add eax, 366                        ; (FK_CU 1: 366 - xi)
     cmp byte [ebp + FK_CU - SPB], 1
@@ -923,7 +931,7 @@ def _sym(p, start, df_lab, df_sym):
             'CEIL_NEW': (0, k['CEIL']), 'BAND_NEW': (0, k['BAND']), 'CPU_NEW': (0, k['CPU']),
             'FK_T': (0, k['FKT']), 'BLO_NEW': (0, k['BLO']), 'FK_C': (0, k['FKC']), 'FK_C2': (0, k['FKC2']), 'FK_MAX': (0, k['FKMAX']),
             'AF_P': (0, k['AFP']), 'AF_D0': (0, k['AFD0']), 'AF_D1': (0, k['AFD1']), 'AF_X0': (0, k['AFX0']),
-            'AF_X1': (0, k['AFX1']), 'FK_XI': (0, k['FKXI']), 'FK_XC': (0, k['FKXC']), 'FK_XC2': (0, k['FKXC2']), 'FK_XI2': (0, k['FKXI2']), 'SPXE': (4, __import__('swreg').SPX_AT),
+            'AF_X1': (0, k['AFX1']), 'FK_XI': (0, k['FKXI']), 'FK_XC': (0, k['FKXC']), 'FK_XC2': (0, k['FKXC2']), 'FK_XI2': (0, k['FKXI2']), 'FK_XMS': (0, k['FKXMS']), 'SPXE': (4, __import__('swreg').SPX_AT),
             'FK_MIN': (0, k['FKMIN'] & 0xFFFFFFFF), 'FK_WALL': (0, k['FKWALL']), 'FK_CLR': (0, k['FKCLR']),
             **{f'FKW{i}': (0, w) for i, w in enumerate(k['FKW'])}, **{f'FKX{i}': (0, w) for i, w in enumerate(k['FKW2'])}, **{f'FKA{i}': (0, w) for i, w in enumerate(k['FKA2'])}}, s
 

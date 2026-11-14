@@ -515,11 +515,13 @@ def steer_check(ni, lab, c):
         m.uc.reg_write(UC_X86_REG_ESP, ds.STACK)
         m.w32(ds.STACK, R)
         return ds.run(m, B4 + lab[entry], R, allowed)
-    for cu in (1, 2):
-        for si, sh in [(0, 0), (0, 1), (3, 4), (7, 10)] + [(i, 3) for i in range(8, 16)]:    # (fk5: FK_SI 8..15 ARCADE)
-            a = sh if si < 8 else k['FKA2'][si - 8]
+    for cu in (0, 1, 2):
+        for si, sh in [(0, 0), (0, 1), (3, 4), (7, 10)] + [(i, 3) for i in range(8, 16)]:    # (FK_SI 8..15 ARCADE)
             xm = k['FKXC'] if si < 8 else k['FKXC2']
-            seen = set()
+            roll = si >= 8 and cu != 0                  # (fk8: ARCADE CPU kicks roll on target / miss; the human never)
+            hit_b = 366 - k['FKXI'] if cu == 1 else 302 + k['FKXI']
+            miss_b = 366 - k['FKXI2'] if cu == 1 else 302 + k['FKXI2']
+            seen, hits = set(), 0
             for t in range(400):
                 m = mach(f'tx{cu}{si}{sh}{t}')
                 m.w8(B4 + lab['FK_CU'], cu)
@@ -530,13 +532,20 @@ def steer_check(ni, lab, c):
                 log, err = call(m, 'sp_tx')
                 n += 1
                 tx = rd16(m, B4 + lab['FK_TX'])
-                xi = k['FKXI'] if si < 8 else k['FKXI2']
-                base = 366 - xi if cu == 1 else 302 + xi
-                seen.add(tx - base)
-                if err or log or abs(tx - base) > a or rd16(m, B4 + lab['FK_XM']) != xm:
-                    bad.append(f'sp_tx cu {cu} si {si} a {a}: {tx} xm {rd16(m, B4 + lab["FK_XM"])} {err}')
-            if seen != set(range(-a, a + 1)):
-                bad.append(f'sp_tx cu {cu} a {a}: offsets {sorted(seen)}')
+                ok = abs(tx - hit_b) <= sh
+                if ok:
+                    hits += 1
+                    seen.add(tx - hit_b)
+                elif roll:
+                    ok = abs(tx - miss_b) <= k['FKXMS']
+                if err or log or not ok or rd16(m, B4 + lab['FK_XM']) != xm:
+                    bad.append(f'sp_tx cu {cu} si {si} sh {sh}: {tx} xm {rd16(m, B4 + lab["FK_XM"])} {err}')
+            if not roll and seen != set(range(-sh, sh + 1)):
+                bad.append(f'sp_tx cu {cu} si {si} sh {sh}: offsets {sorted(seen)}')
+            if roll:
+                p_ = k['FKA2'][si - 8] / 256
+                if abs(hits / 400 - p_) > 0.06 + 3 * (p_ * (1 - p_) / 400) ** 0.5:
+                    bad.append(f'sp_tx cu {cu} si {si}: on target {hits}/400, want {p_:.3f}')
     r = random.Random('steer')
     for t in range(3000):
         m = mach(f'st{t}')
@@ -579,8 +588,8 @@ def steer_check(ni, lab, c):
         if abs((xc1 - xc0) - want) > tol + 1:
             bad.append(f'steer {t}: xc {xc0:.1f} -> {xc1:.1f}, tx {tx}, want {want:+.1f}')
     return not bad, [f'- {n} cases: {"all as wanted" if not bad else str(len(bad)) + " WRONG: " + "; ".join(bad[:6])}',
-                     f'- FK_XI {k["FKXI"]} px inside the post, FK_XC {k["FKXC"]} px a tick (ARCADE {k["FKXI2"]} px, {k["FKXC2"]} px a tick, '
-                     f'x aim error {k["FKA2"]} px by SHOOTING)']
+                     f'- FK_XI {k["FKXI"]} px inside the post, FK_XC {k["FKXC"]} px a tick (ARCADE {k["FKXC2"]} px a tick, '
+                     f'on target {k["FKA2"]} / 256 by SHOOTING, a miss {k["FKXI2"]} +- {k["FKXMS"]} px)']
 
 
 def _trial_with_prep(ri, ni, site, sym, lab, seed, on, prep, dead, ends):

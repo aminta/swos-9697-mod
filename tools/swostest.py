@@ -27102,7 +27102,7 @@ def world_title_mlt_out():
 
 
 
-def title_ita(tie):
+def title_ita(tie, kof='2'):
     """4.2 world_title_ita (MC 15/11, backlog-42 row 25): Italy's SPAREGGIO SCUDETTO (a_title: 1st v 2nd, one match at
     the better placed's, played only if they finish level - gap 1) on the 42-int release data (W2627REL_DATA, default
     world5tm-h3p), a Serie A career (TITLEITA_TEAM, default BOLOGNA) built with GPLAY_FORCE=2 + GPLAY_KOFORCE=2 (the
@@ -27120,9 +27120,10 @@ def title_ita(tie):
         return True, f'SKIP: private data {src} missing'
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
     env = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'GPLAY_FORCE': '2',
-           'GPLAY_KOFORCE': '2'}
-    exe = os.environ.get('TITLEITA_BUILD') or build('world_title_ita', env=env)
-    os.environ['TITLEITA_BUILD'] = exe                   # (the control reuses it)
+           'GPLAY_KOFORCE': kof}                         # (kof '1': the career club loses its ties - world_title_ita_lose)
+    benv = 'TITLEITA_BUILD' + ('' if kof == '2' else kof)
+    exe = os.environ.get(benv) or build('world_title_ita' + ('' if kof == '2' else '_k' + kof), env=env)
+    os.environ[benv] = exe                               # (the control reuses it)
     log_at, st_at, log_n, st_n = gp_ptrs(exe)
     gsym = json.load(open(os.path.join(exe, 'ITALIAN.syms.json')))['gplay']
     cfb, ctm = gsym['CFB'][1], gsym['CAREERTEAM'][1]     # (competitionFileBuffer; the career club's team word)
@@ -27211,14 +27212,17 @@ def title_ita(tie):
         check(pts[0] == pts[1], f'the two clubs not level: points {pts}', errs)
         win = ko['team'][ko['tw'][0]] if ko['tw'] and ko['tw'][0] < 2 else None
         mine = ko['team'][ko['code'].index(1)] if 1 in ko['code'] else None
-        check(win is not None and win == mine, f'winner {win and hex(win)} is not the career club (2nd, '
-              f'GPLAY_KOFORCE=2) {mine and hex(mine)}', errs)
+        first = ko['team'][ko['code'].index(0)] if 0 in ko['code'] else None
+        want = mine if kof == '2' else first             # (KOFORCE 2: the career club wins; 1: it loses - the 1st)
+        check(win is not None and win == want, f'winner {win and hex(win)} is not the '
+              f"{'career club (2nd' if kof == '2' else '1st (the career club loses'}, GPLAY_KOFORCE={kof}) "
+              f'{want and hex(want)}', errs)
         check(top and top[0] == win, f'the spareggio winner {win and hex(win)} not first of the top-9 list '
               f'{[hex(w) for w in top or []]}', errs)
         check(shown, 'SPAREGGIO SCUDETTO never on screen', errs)
         return not errs, '; '.join(errs) or (
             f"{msg}; spareggio {[hex(t) for t in ko['team']]} (1st, 2nd = the career club) level on points {pts}, "
-            f"won by the career club {win:#x} = first of the top-9 list {[hex(w) for w in top]}, all in Serie A / B "
+            f"won by {'the career club' if kof == '2' else 'the 1st (the career club lost)'} {win:#x} = first of the top-9 list {[hex(w) for w in top]}, all in Serie A / B "
             f"after the season; on screen: {shown[0][:120]}")
     check(not sts, f'a spareggio ran with the leader 5 points clear: {[gp_ko(b[GP_STKO:]) for b in sts[:1]]}', errs)
     check(not shown, f'SPAREGGIO on screen with no spareggio: {shown[:1]}', errs)
@@ -27234,6 +27238,13 @@ def world_title_ita():
     """4.2 (MC 15/11): Italy's spareggio scudetto played - 1st and 2nd level on points (poked one day before the end),
     the career club 2nd wins it -> first of the qualifiers' top-9 list (title_ita)"""
     return title_ita(True)
+
+
+@scenario
+def world_title_ita_lose():
+    """world_title_ita with the career club (2nd) LOSING the spareggio (GPLAY_KOFORCE=1, MC 15/11): the 1st wins it and
+    is first of the top-9 list - the list follows the spareggio's winner, whoever it is"""
+    return title_ita(True, kof='1')
 
 
 @scenario

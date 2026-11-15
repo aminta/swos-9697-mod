@@ -763,3 +763,107 @@ def test_wsites_wn_kinds():
     if "x->type = WN_PRE; x->idx = GP_SEAS; x->team = 0;" not in src:
         errs.append('the preview marker no longer has team word 0')
     return not errs, '; '.join(errs) or f"wn_add kinds {sorted(allowed)} + the 'p' marker (team 0); 'M' once, entry 0: the WN row's \"start at 1\" holds"
+
+
+# ---- MC 15/11: the old-save import (42-s7import's s7_imp_walk) over the offers / accepted-job rows ------------------
+IMP_SAVES = [os.path.join(MAINDIR, 's7imp', f) for f in ('ligorna41_mid.CAR', 'trento41_mid.CAR')]
+
+
+def test_wsites_import(drop=False):
+    """The 4.1 -> S7 import's walk (s7swap.c s7_imp_walk, the word map sr_wmap_import gives - here a stand-in: every
+    4.1 Serie D word 102|x (x >= 100) -> 144|x-100, the rest kept) on two real 4.1 mid-season saves with a pending
+    transfer offer (ligorna41_mid: offer from 102|115, a Serie D club - moves; trento41_mid: from 102|71 - kept), each
+    loaded into careerFileBuffer (S7_CFB) of HT_WS_EXE. The accepted job (teamNoOfferAccepted, set between the season
+    end and the next season) is planted: a moving club in both. Differential: run A = the save with the five offer
+    words and the accepted job cleared (0 / FFFFh), run B = the save as is + the job; the two CFBs after the walk differ
+    exactly at the planted words, each its club's new word (or kept), every other offer byte (records +2..+13) as
+    loaded, a decoy (the moving club's old word at +4 of the next free record: a non-team field) untouched; S7_WLOG
+    row -1 (every site resolved), B's changed count = A's + the planted words that move."""
+    if not os.path.exists(EXE) or not os.path.exists(EXE[:-4] + '.syms.json'):
+        return True, f'SKIP: {EXE} (shaped, HOSTTEST_SYMS=1) missing'
+    saves = [p for p in IMP_SAVES if os.path.exists(p)]
+    if not saves:
+        return True, 'SKIP: no 4.1 mid-season saves (internal/swostest/s7imp)'
+    import test_s7swap as t7
+    import test_swc1 as ts
+    sy = json.load(open(EXE[:-4] + '.syms.json'))
+    if 's7_imp_walk' not in sy.get('s7swap', {}):
+        return False, f'{EXE}: no s7_imp_walk (a 42-s7import build?)'
+    m = t7.M(EXE)
+    if drop:                                            # (the control: the offers / accepted-job rows count 0 in the exe)
+        ws = m.at('s7swap', 'WSITES')
+        for k in range(wsites.WS_MAX):
+            r = struct.unpack('<4H2B', m.rd(ws + 10 * k, 10))
+            if r[0] == wsites.WS_END:
+                break
+            if r[0] == wsites.WI_CFB and r[1] in (wsites.OFFERS, wsites.JOBACC):
+                m.w(ws + 10 * k + 6, b'\0\0')
+    cfb = m.at('s7swap', 'S7_CFB')
+    cfblen = struct.unpack('<I', m.rd(m.at('s7swap', 'S7_CFBLEN'), 4))[0]
+    MAP_AT, SLT_AT = ts.BUF, ts.BUF + 0x8000
+    pairs = [(102 | x << 8, 144 | (x - 100) << 8) for x in range(100, 256)]
+    pairs.sort()
+    nw = dict(pairs)
+    W = lambda d, o: struct.unpack_from('<H', d, o)[0]          # noqa: E731
+    OFF = [wsites.OFFERS + 14 * k for k in range(5)]
+    errs, notes = [], []
+
+    def walk(img):
+        m.fresh()
+        m.w(cfb, bytes(cfblen))
+        m.w(cfb, img[:cfblen])
+        m.w(MAP_AT, b''.join(struct.pack('<HH', a, b) for a, b in pairs))
+        m.w(SLT_AT, bytes(2400))
+        rc = m.call('s7swap', 's7_imp_walk', MAP_AT, len(pairs), SLT_AT)
+        wl = struct.unpack('<hhHHHH', m.rd(m.at('s7swap', 'S7_WLOG'), 12))
+        return rc, wl, m.rd(cfb, cfblen)
+    for p in saves:
+        tag = os.path.basename(p)
+        d = open(p, 'rb').read()
+        offer = W(d, OFF[0])
+        job = offer if offer >> 8 >= 100 else 102 | 120 << 8          # (a moving club either way)
+        a = bytearray(d)
+        for o in OFF:
+            struct.pack_into('<H', a, o, 0)
+        struct.pack_into('<H', a, wsites.JOBACC, 0xFFFF)
+        b = bytearray(d)
+        struct.pack_into('<H', b, wsites.JOBACC, job)
+        free = next(k for k in range(5) if W(d, OFF[k]) == 0)
+        struct.pack_into('<H', a, OFF[free] + 4, offer)                 # (the decoy, both runs)
+        struct.pack_into('<H', b, OFF[free] + 4, offer)
+        planted = {o: W(b, o) for o in OFF if W(b, o) not in (0, 0xFFFF)}
+        planted[wsites.JOBACC] = job
+        ra, wa, oa = walk(bytes(a))
+        rb, wb, ob = walk(bytes(b))
+        if (ra, rb, wa[0], wb[0]) != (0, 0, -1, -1):
+            errs.append(f'{tag}: rc {ra} / {rb}, S7_WLOG.row {wa[0]} / {wb[0]}')
+            continue
+        diff = {o & ~1 for o in range(cfblen) if oa[o] != ob[o]}
+        want = set(planted)
+        if not diff <= want:
+            errs.append(f'{tag}: A / B differ outside the planted words: {[hex(o) for o in sorted(diff - want)[:6]]}')
+        for o, v in planted.items():
+            if W(ob, o) != nw.get(v, v):
+                errs.append(f'{tag}: +{o:#x} {v:#x} -> {W(ob, o):#x}, want {nw.get(v, v):#x}')
+        for k, o in enumerate(OFF):
+            if ob[o + 2:o + 14] != b[o + 2:o + 14] or oa[o + 2:o + 14] != a[o + 2:o + 14]:
+                errs.append(f'{tag}: offer {k} bytes +2..+13 changed (decoy {"here" if k == free else "no"})')
+        moves = sum(nw.get(v, v) != v for v in planted.values())
+        if wb[2] != wa[2] + moves:
+            errs.append(f'{tag}: changed {wb[2]} != {wa[2]} + {moves}')
+        notes.append(f'{tag}: offer {offer:#x} -> {W(ob, OFF[0]):#x}, job {job:#x} -> {W(ob, wsites.JOBACC):#x} '
+                     f'({wa[2]} background words moved in both, +{moves})')
+    return not errs, '; '.join(errs[:6]) or '; '.join(notes) + '; decoys and the other offer bytes untouched'
+
+
+def test_wsites_import_control():
+    """test_wsites_import with the offers and accepted-job rows switched off in the exe's WSITES (count 0): must FAIL -
+    the words stay 4.1's (the rows are what remaps them)."""
+    if not os.path.exists(EXE) or not os.path.exists(EXE[:-4] + '.syms.json'):
+        return True, f'SKIP: {EXE} (shaped, HOSTTEST_SYMS=1) missing'
+    ok, msg = test_wsites_import(drop=True)
+    if msg.startswith('SKIP'):
+        return True, msg
+    if ok:
+        return False, 'the import moved the offer / job words with their rows off'
+    return True, f'rows off: caught ({msg[:120]})'

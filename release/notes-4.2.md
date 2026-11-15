@@ -29,6 +29,9 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 #### Winners page: last season's winner of Serie B / Serie C
 - Winners page (VINCITORI): in the 2026-27 world the last-season page now names the right winner of Serie B and Serie C (and of Serie D when the winner has since moved up). Before, a winner who had left the division could show the name of an unrelated club, or the page was missing altogether in Serie C. It now reads the names from the 2026-27 world's own clubs.
 
+#### Malta's title decider
+- Malta: when the title is decided by a play-off (the Finalissima or the Final Four), the champion is now always the club that won that play-off's final. Before, the game could crown a different club at the end of the season.
+
 #### Decisions of this release
 - (every gameplay or market decision of 4.2 goes here and in the README, EN + IT: Davide 15/11, rc gate item)
 
@@ -62,6 +65,9 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 
 #### Winners page: last season's winner of Serie B / Serie C
 - Pagina dei vincitori: nel mondo 2026-27 la pagina della stagione scorsa indica il vincitore giusto di Serie B e Serie C (e di Serie D quando il vincitore è nel frattempo salito). Prima, un vincitore che aveva lasciato la categoria poteva mostrare il nome di un club qualunque, oppure in Serie C la pagina mancava del tutto. Ora i nomi vengono letti dai club del mondo 2026-27.
+
+#### Spareggio per il titolo a Malta
+- Malta: quando il titolo si decide con uno spareggio (la Finalissima o la Final Four), il campione ora è sempre la squadra che ha vinto la finale di quello spareggio. Prima il gioco poteva incoronare un'altra squadra a fine stagione.
 
 #### Decisioni di questa release
 - (every gameplay or market decision of 4.2 goes here and in the README, EN + IT: Davide 15/11, rc gate item)

@@ -11379,9 +11379,20 @@ def practice_play(kind, side, esc_at=None, again=False):
     g = practice_game()
     errs, info = [], []
     tag = f'practice_{kind}_{side}' + ('_esc' if esc_at else '')
+    # (Davide on i62 15/11: the versus screen - PRATICA / the teams / the stadium - still before a practice; PR_WORK's
+    # STS / STN only see the stadium menu: a breakpoint after VersusInit's fade-in counts the screens really drawn)
+    vsbp = os.environ.get('PRACTICE_VSBP', '1') == '1'
+    if vsbp:
+        os.environ['CORE'] = 'normal'           # (one process per scenario)
+        vs = [x.start() for x in re.finditer(rb'\xe8....\xe8....\xe8....\xe8....\xb9\x64\x00\x00\x00\x51\xe8',
+                                             lepatch.LEPatch(os.path.join(ROOT, 'orig', ORIG_EXE[UI])).le.obj_bytes(1), re.S)]
+        assert len(vs) == 1, ('VersusInit end', vs)
+    vsn = []
     with Session(tag, b, {}, 'dump:2', 1500, match=True) as s:
         if s.wait().outcome != 'dump':
             return False, f'START: no first pause ({s.result})'
+        if vsbp:
+            s.bp(s.result.base1 + vs[0] + 20, lambda q: vsn.append(1))     # (its `mov ecx, 100`)
         for x in ('CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27'):
             if press(s, s.screen(), x) is None:
                 return False, f'new career: {x} not reached ({s.result})'
@@ -11406,6 +11417,9 @@ def practice_play(kind, side, esc_at=None, again=False):
         w = practice_work(s.result)
         if w is None:
             return False, 'PR_WORK not found (no PRWK tag in the PRACTICE band)'
+        if vsbp:
+            check(not vsn, f'kick-off: the versus screen (competition, teams, stadium) drawn {len(vsn)} times before '
+                  'the practice (want 0)', errs)
         if 'STS' in practice.WK:                # (bug 4, Davide 15/11: no stadium / teams / line-ups before a practice)
             check(w['STS'] == 1 and w['STN'] == 0, f'kick-off: the presentation skipped {w["STS"]}, shown {w["STN"]} '
                   '(want 1 / 0)', errs)
@@ -11574,6 +11588,8 @@ def practice_play(kind, side, esc_at=None, again=False):
             w = practice_work(s.result)
             if 'STN' in practice.WK:            # (the positive control: the league match keeps its presentation)
                 check(w['STN'] >= 1, f'league match: the presentation shown {w["STN"]} times (want >= 1)', errs)
+            if vsbp:                            # (and its versus screen)
+                check(len(vsn) >= 1, f'league match: the versus screen drawn {len(vsn)} times (want >= 1)', errs)
             check(w['KIND'] == 0 and w['NFR'] == nfr, f'league match: PR_KIND {w["KIND"]}, engine frames {nfr} -> '
                   f'{w["NFR"]} (want idle)', errs)
             info.append('league match after it: engine idle')

@@ -12,7 +12,7 @@ On every exe (obj4 = the engine object; its file pages = OBJ4_PAGES of that buil
  (b) every release band that is linked (bytes in the exe or an extent in build.log) lies wholly below
      OBJ4_PAGES * 0x1000 and, if it is an obj4-map band (obj1-room.md's '## obj4 map' table), keeps its floor
      free: END - the band's used end >= FLOOR (256 B; 128 B for the bands the obj4
-     map gives 128: SETPIECE, DIFF2, SPX). The used end = max(the last non-zero byte in the band, the end of every extent
+     map gives 128: DIFF2, SPX). The used end = max(the last non-zero byte in the band, the end of every extent
      the build's log gives inside it for that exe - 'obj4+0xA..0xB', 'obj4+0xA (N B') - so zero-filled tables that the
      log reports count as used; a band holding other bands (SLOW: NAMEFIT, TRIAL, BOX) owns up to the first of them.
      Older bands (REG, CONTI4, NAMEFIT, BOX...) get their free bytes listed as info;
@@ -35,7 +35,7 @@ sys.path.insert(0, TOOLS)
 
 PAGE = 0x1000
 FLOOR = 256
-FLOOR_128 = {'SETPIECE', 'DIFF2', 'SPX'}            # obj1-room.md obj4 map: '>= 128 B left'
+FLOOR_128 = {'DIFF2', 'SPX'}                        # obj1-room.md obj4 map: '>= 128 B left' (SETPIECE 256 since MC 15/11)
 MAP_DEFAULT = os.path.join(os.path.dirname(TOOLS), 'internal', 'handoff', 'obj1-room.md')
 # (MC 15/11: a band's class comes from the obj4 map alone - obj1-room.md, MC's file - never from what a build linked)
 _MAP = {'path': MAP_DEFAULT, 'rows': None}

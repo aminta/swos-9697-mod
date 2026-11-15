@@ -16,6 +16,7 @@ SelectTeamsFinalMenu; that call (chained: whatever it reaches now) goes to swe_s
 swe_sel_pre(M_FRIENDLY), the picker, swe_sel_post. In step W they only keep competitionsTable[254] as it was: the
 picker lists what it listed before (W-modes adds World 2026-27). obj1 changes by that call's rel32 only."""
 import os
+import re
 import struct
 
 LANG = ['it']                  # (patch.py: the exe's language, for LOCK_LINE)
@@ -329,8 +330,14 @@ def patch(p):
     if imp:
         flags += (f'-DIMP_N={len(imp)}', f'-DSWE_IMP_SIZE={max(imp_size, 4)}') + tuple(
             d for n, k, off in imp for d in (f'-DIMPK_{n}={k}',) + ((f'-DIMP_{n}={off}',) if off is not None else ()))
+    # 4.2 rc (MC 15/11 GO): swe.c ALONE at -Oz - 42-import's picker took it 52 B past REG_AT at -Os; -Oz frees ~490 B
+    # (menu / picker / save-load / season hooks, no per-frame code). Never the rules library (sr_*, market): asserted.
+    _inc = re.findall(r'^\s*#\s*include\s+"([^"]+)"', open(SRC).read(), re.M)
+    assert os.path.basename(SRC) == 'swe.c' and _inc == ['cstack.h'], ('swe: -Oz is for swe.c alone', SRC, _inc)
+    flags += ('-Oz',)
     syms, end, bss = cobj.link(p, cobj.compile_c(SRC, flags), CODE_AT, (4, room), externs=ext, limit=swreg.REG_AT,
                                text_obj=4)
+    assert swreg.REG_AT - end >= 256, ('swe: the engine code needs >= 256 B free before REG_AT (MC 15/11)', hex(end))
     arena = syms['SWE_ARENA_AT']
     import swefile
     if swefile.on():                                # 4.2: the file layer's own range (page 18; dormant: nothing)

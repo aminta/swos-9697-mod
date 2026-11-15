@@ -12,7 +12,7 @@ Proposal (a release build dir: its 8 exes + build.log, measured on this checkout
  - each band's used bytes = max over the 8 exes of obj4check's used end - AT (non-zero bytes + build.log extents;
    a band holding others owns up to the first of them);
  (a) the release map bands are packed in map order from the first of them (no holes): each sized to its used bytes +
-     its floor (obj4check: 256 B, 128 B for SETPIECE / DIFF2 / SPX), rounded up to 0x100 - so a band under its floor
+     its floor (obj4check: 256 B, 128 B for DIFF2 / SPX), rounded up to 0x100 - so a band under its floor
      (KITS) grows and an oversized one shrinks. Bands that are not map bands (REG, SLOW + its inner bands, T3, ...) and
      map bands nested inside one stay where they are; the packing jumps over them. A release map band with no byte in
      any of the 8 exes (not linked in this release build) is NOT packed: it goes to the test region with the

@@ -102,7 +102,7 @@ def test_obj4pack_layout():
         assert p['end'] - p['at'] - p['used'] >= p['floor'], p                        # floors met
         assert p['end'] - p['at'] - p['used'] < p['floor'] + 0x100, p                 # no more than the rounding
     assert P['KITS']['end'] == 0x11100 and P['KITS']['at'] == 0xF000, P['KITS']          # KITS grown (164 -> 420 B)
-    assert P['SETPIECE']['floor'] == 128
+    assert P['SETPIECE']['floor'] == 256                                              # (MC 15/11: 128 -> 256)
     assert P['OBJ1MV']['used'] == 3250
     assert P['OBJ1MV']['at'] == 0x11800 and any('jumps over fixed band WALL' in n for n in notes), (P['OBJ1MV'], notes)
     for a, b in zip(rel[1:], rel[2:]):

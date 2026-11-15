@@ -63,7 +63,10 @@ def knobs():
                 AFX0=_iv('SP_AFX0', 150), AFX1=_iv('SP_AFX1', 520),
                 FKXI=_iv('SP_FKXI', 8), FKXC=_iv('SP_FKXC', 3),
                 FKXC2=_iv('SP_FKXC2', 2), FKXI2=_iv('SP_FKXI2', -12), FKXMS=_iv('SP_FKXMS', 4),  # fk8: ARCADE steer px a tick; a miss aims 8..16 px outside
-                FKA2=[int(x) for x in (os.environ.get('SP_FKA2') or '10,17,24,38,54,72,88,100').split(',')])  # fk8: ARCADE on-target chance /256 by SHOOTING                                  # §3 sideways steer                                 #  the FK zone
+                FKA2=[int(x) for x in (os.environ.get('SP_FKA2') or '10,17,24,38,54,72,88,100').split(',')],
+                # fk14: REALISTICI CPU kicks on target 1 in FKR[SHOOTING] / 256, else aimed over the bar (z FKTZM +- FKZMS px)
+                FKR=[int(x) for x in (os.environ.get('SP_FKR') or '83,94,105,116,127,139,150,161').split(',')],
+                FKTZM=_iv('SP_FKTZM', 22 << 16), FKZMS=_iv('SP_FKZMS', 4))  # fk8: ARCADE on-target chance /256 by SHOOTING                                  # §3 sideways steer                                 #  the FK zone
 
 
 def _one(d, pat, name, n=1):
@@ -584,7 +587,8 @@ sp_kick:
     jz .s
     mov bl, 1
 .s: mov [ebp + FK_CU - SPB], bl
-.k: mov eax, [ebp + FK_R - SPB]       ; (the aim error: FK_T + uniform -a..+a px, a = FK_SH)
+.k: call SPXE + 10                     ; (fk14 sp_roll, SPX: FK_TT = this kick's target height, FK_T or a miss's)
+    mov eax, [ebp + FK_R - SPB]       ; (the aim error: FK_TT + uniform -a..+a px, a = FK_SH)
     imul eax, eax, 1103515245
     add eax, 12345
     mov [ebp + FK_R - SPB], eax
@@ -595,7 +599,7 @@ sp_kick:
     div ebx
     sub edx, ecx
     shl edx, 16
-    add edx, FK_T
+    add edx, [ebp + FK_TT - SPB]
     mov [ebp + FK_TT - SPB], edx
     mov word [ebp + FK_N - SPB], 0
     mov byte [ebp + FK_ST - SPB], 1
@@ -761,6 +765,33 @@ ASM_X = r"""
 ;      no fixups)
     jmp near sp_steer                   ; SPX + 0 (the main band calls these two: assembled before SPX)
     jmp near sp_tx                      ; SPX + 5
+    jmp near sp_roll                    ; SPX + 10 (fk14)
+
+; ---- (fk14, Davide 15/11 via Regia: REALISTICI SH7 ~10-12%, SH2 ~3-4% - fk13: the aim error alone saturates, a low
+;      miss still bounces in under the bar) sp_kick, before the aim error (edi = the kicking team): FK_TT = FK_T; a
+;      REALISTICI CPU kick is on target 1 in FK_XR[SHOOTING] / 256, else FK_TT = FK_TZM (over the bar), FK_SH = FK_ZMS
+FK_XR: db FKR0, FKR1, FKR2, FKR3, FKR4, FKR5, FKR6, FKR7
+sp_roll:
+    mov dword [ebp + FK_TT - SPB], FK_T
+    cmp word [ebp + SP_W - SPB], 2
+    jae .x                              ; (ARCADE rolls in sp_tx)
+    cmp word [edi + 4], 0
+    jne .x                              ; (the human aims his own)
+    push eax
+    push ecx
+    mov eax, [ebp + FK_R - SPB]
+    imul eax, eax, 1103515245
+    add eax, 12345
+    mov [ebp + FK_R - SPB], eax
+    shr eax, 24
+    movzx ecx, byte [ebp + FK_SI - SPB]
+    cmp al, [ebp + FK_XR - SPB + ecx]
+    jb .h
+    mov dword [ebp + FK_TT - SPB], FK_TZM
+    mov byte [ebp + FK_SH - SPB], FK_ZMS
+.h: pop ecx
+    pop eax
+.x: ret
 
 ; ---- §3 the sideways steer (14/11, fk3: the curled CPU kick crossed the line 40-60 px wide). The ball flies at its
 ;      dest (UpdateBall: CalculateDeltaXAndY toward destX / destY each tick; the after-touch curls by moving dest). While
@@ -938,9 +969,9 @@ def _sym(p, start, df_lab, df_sym):
             'CEIL_NEW': (0, k['CEIL']), 'BAND_NEW': (0, k['BAND']), 'CPU_NEW': (0, k['CPU']),
             'FK_T': (0, k['FKT']), 'BLO_NEW': (0, k['BLO']), 'FK_C': (0, k['FKC']), 'FK_C2': (0, k['FKC2']), 'FK_MAX': (0, k['FKMAX']),
             'AF_P': (0, k['AFP']), 'AF_D0': (0, k['AFD0']), 'AF_D1': (0, k['AFD1']), 'AF_X0': (0, k['AFX0']),
-            'AF_X1': (0, k['AFX1']), 'FK_XI': (0, k['FKXI']), 'FK_XC': (0, k['FKXC']), 'FK_XC2': (0, k['FKXC2']), 'FK_XI2': (0, k['FKXI2']), 'FK_XMS': (0, k['FKXMS']), 'SPXE': (4, __import__('swreg').SPX_AT),
+            'AF_X1': (0, k['AFX1']), 'FK_XI': (0, k['FKXI']), 'FK_XC': (0, k['FKXC']), 'FK_XC2': (0, k['FKXC2']), 'FK_XI2': (0, k['FKXI2']), 'FK_XMS': (0, k['FKXMS']), 'FK_TZM': (0, k['FKTZM']), 'FK_ZMS': (0, k['FKZMS']), 'SPXE': (4, __import__('swreg').SPX_AT),
             'FK_MIN': (0, k['FKMIN'] & 0xFFFFFFFF), 'FK_WALL': (0, k['FKWALL']), 'FK_CLR': (0, k['FKCLR']),
-            **{f'FKW{i}': (0, w) for i, w in enumerate(k['FKW'])}, **{f'FKX{i}': (0, w) for i, w in enumerate(k['FKW2'])}, **{f'FKA{i}': (0, w) for i, w in enumerate(k['FKA2'])}}, s
+            **{f'FKW{i}': (0, w) for i, w in enumerate(k['FKW'])}, **{f'FKX{i}': (0, w) for i, w in enumerate(k['FKW2'])}, **{f'FKA{i}': (0, w) for i, w in enumerate(k['FKA2'])}, **{f'FKR{i}': (0, w) for i, w in enumerate(k['FKR'])}}, s
 
 
 def pass1(p, lang, df_sym):

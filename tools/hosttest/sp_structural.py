@@ -305,7 +305,7 @@ def fk_check(ni, lab, c, trg):
     allowed = ((B4 + ROOM[0], B4 + ROOM[1]), (B4 + SPX[0], B4 + SPX[1]))
     tm, pl = ds.SCR + 0x34000, ds.SCR + 0x30000
     ball = B2 + c['BALL_O']
-    bad, rows, n = [], [], 0
+    bad, rows, n, rows_roll = [], [], 0, []
 
     def mach(seed):
         m = ds.Mach(ni, seed)
@@ -383,8 +383,9 @@ def fk_check(ni, lab, c, trg):
                 tt = int.from_bytes(m.read(B4 + lab['FK_TT'], 4), 'little', signed=True) / 65536
                 if not (k['FKT'] / 65536 - w <= tt <= k['FKT'] / 65536 + w):
                     bad.append(f'aim target off: sh {sh} d {dist} {kind}: FK_TT {tt} (amplitude {w})')
-                if kind.startswith('high') and 100 <= dist <= 175 and not (zl is not None and zl <= tt + 3 and
-                                                                          (dist > 150 or abs(zl - tt) <= 3)):
+                if kind.startswith('high') and 100 <= dist <= 175 and not (zl is not None and (zl <= tt + 3 or (tt < 0 and zl == -1)) and
+                                                                          (dist > 150 or abs(zl - tt) <= 3 or (tt < 0 and zl == -1))):
+                    # (fk13: a target below the ground, z < 0 at the line = the ball lands before the line, zl -1)
                     bad.append(f'high kick not at its target: sh {sh} d {dist} {kind}: z at the line {zl}, target {tt}')
     for case, args, want in (('in play', dict(gsp=100), 0), ('corner state', dict(gs=4), 0), ('too far', dict(y=129 + 210), 0),
                              ('too close', dict(y=129 + 80), 0), ('bottom goal', dict(y=769 - 120), 1)):
@@ -414,6 +415,39 @@ def fk_check(ni, lab, c, trg):
             n += 1
             if got != want:
                 bad.append(f'sp_at face {face} cu {u}: {got:#x} want {want:#x}')
+    # fk14: a REALISTICI CPU kick is on target (FK_TT = FK_T +- FK_W[sh], FK_SH = FK_W[sh]) 1 in FKR[sh] / 256, else
+    # aimed over the bar (FK_TT = FK_TZM +- FK_ZMS, FK_SH = FK_ZMS); ARCADE (SP_W 2) never rolls here; the human never
+    if 'FKR' in k:
+        for sh in (0, 2, 7):
+            hit = 0
+            for i in range(600):
+                m = mach(f'roll{sh}:{i}')
+                m.w32(B4 + lab['FK_R'], i * 7919 + sh)
+                m.w16(ball + 0x1E, i * 2654435761 & 0xFFFF)
+                kick(m, sh, 129 + 120, cpu=1)
+                n += 1
+                tt = int.from_bytes(m.read(B4 + lab['FK_TT'], 4), 'little', signed=True) / 65536
+                w, t0 = k['FKW'][sh], k['FKT'] / 65536
+                if b8(m, 'FK_SH') == w and t0 - w <= tt <= t0 + w and not (w == k['FKZMS'] and abs(tt - k['FKTZM'] / 65536) <= w):
+                    hit += 1
+                elif not (b8(m, 'FK_SH') == k['FKZMS'] and abs(tt - k['FKTZM'] / 65536) <= k['FKZMS']):
+                    bad.append(f'roll sh {sh}: FK_SH {b8(m, "FK_SH")} FK_TT {tt}')
+            want = k['FKR'][sh] / 256
+            if abs(hit / 600 - want) > 0.07:
+                bad.append(f'roll sh {sh}: on target {hit}/600, want {want:.2f}')
+            rows_roll.append(f'- fk14 REALISTICI CPU roll sh {sh}: on target {hit}/600 = {hit / 6:.1f}% (FKR {k["FKR"][sh]}/256 = {want * 100:.1f}%); misses over the bar at z {k["FKTZM"] / 65536:.0f} +- {k["FKZMS"]}')
+        for spw, cpu in ((2, 1), (1, 0)):
+            for i in range(200):
+                m = mach(f'noroll{spw}{cpu}:{i}')
+                m.w16(B4 + lab['SP_W'], spw)
+                m.w32(B4 + lab['FK_R'], i * 7919)
+                kick(m, 7, 129 + 120, cpu=cpu)
+                n += 1
+                tt = int.from_bytes(m.read(B4 + lab['FK_TT'], 4), 'little', signed=True) / 65536
+                w = b8(m, 'FK_SH')
+                if not (k['FKT'] / 65536 - w <= tt <= k['FKT'] / 65536 + w) or w == k['FKZMS'] and w != (k['FKW2'] if spw == 2 else k['FKW'])[7]:
+                    bad.append(f'no roll SP_W {spw} cpu {cpu}: FK_SH {w} FK_TT {tt}')
+        rows_roll.append('- no roll: ARCADE CPU kicks and the human\'s REALISTICI kicks keep FK_T +- FK_SH (400 cases)')
     for x in (290, 382):
         side = 1 if x < 324 else 2
         if cu[(x, 3 - side)]:
@@ -439,7 +473,7 @@ def fk_check(ni, lab, c, trg):
             tab.append(f'| {sh} | {dist} | {kind} | {"-" if zl is None else f"{zl:.1f}"} | '
                        f'{"-" if ref is None else f"{ref:.1f}"} |')
     out = [f'- {n} cases: {"all as wanted" if not bad else "FAIL"}; CPU curl share {share:.2f}'] + \
-        [f'  - {b}' for b in bad[:12]] + tab
+        [f'  - {b}' for b in bad[:12]] + rows_roll + tab
     return not bad, out
 
 

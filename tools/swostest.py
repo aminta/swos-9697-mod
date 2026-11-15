@@ -19234,6 +19234,54 @@ def world_s3_b(force='5', team='EUROPA,ITALIA,SERIE B,MODENA'):
                                          f"{ko['code'][:ko['n']]}, winner {win:#x}, moves {mv}")
 
 
+def nt_fixture_build(tag='ntfx'):
+    """5.0 NT piece 2: an exe of the World 2026-27 (the h3p data) + the SYNTHETIC 211-NT national pack of tools/hosttest/ntfixture
+    (explicit bases 2409.., physical files 200..205 for 80..85): (exe dir, the data dir, the fixture pack)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools', 'hosttest'))
+    import ntfixture
+    src = (os.environ.get('W2627NT_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-h3p')).rstrip('/')
+    if not os.path.isdir(src):
+        return None, src, None
+    w = os.path.join(WORK, tag)
+    shutil.rmtree(w, ignore_errors=True)
+    pk = ntfixture.make(os.path.join(w, 'national'), players=True)
+    order = [os.path.join(src, ln.split()[0].lower()) for ln in open(src + '.txt') if ' file ' in ln]
+    env = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + order + [os.path.join(w, 'national')])}
+    return build(tag, env=env, lang=UI), src, pk
+
+
+@scenario
+def nt_fixture_season():
+    """5.0 NT piece 2 (MC 15/11, tests 3 / 4 at the harness level): a World 2026-27 CLUB career on the exe WITH the NT tables (the synthetic
+    211-NT fixture: tcn[80..86] = 2409 .. 2620, someLeaguesTable / leaguesTableCopy of 2624 B in the obj2 tail) - MODENA, two seasons
+    (the second from the first's save: bt_save / bt_load, the sum-check loops over LIMIT_CLUBS, SetLeagueNumbers' reads at the NT
+    globals on any NT team file the career loads): no calendar / field violation, the game's own checks as every season scenario"""
+    exe, src, pk = nt_fixture_build('ntfx')
+    if exe is None:
+        return True, f'SKIP: private data {src} missing'
+    keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W2627REL_DATA')}
+    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM='EUROPA,ITALIA,SERIE B,MODENA', W8485_WNUM='5',
+                      W8485_K='108+', W8485_NOSACK='1', W2627REL_DATA=src)
+    try:
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    return ok, msg
+
+
+@scenario
+def nt_fixture_smoke():
+    """5.0 NT piece 2: the fixture world builds (no assert: bases, tail claims, the per-file global assert)"""
+    exe, src, pk = nt_fixture_build()
+    if exe is None:
+        return True, f'SKIP: private data {src} missing'
+    return True, f'built {exe}'
+
+
 @scenario
 def world_s3_b_out():
     """world_s3_b with the career club forced 16th: the Serie B play-out through gplay (b_pout, index 25)"""

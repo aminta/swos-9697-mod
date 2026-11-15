@@ -9,6 +9,8 @@ synthetic 211-NT national pack (ntfixture: 55 / 53 / 10 / 35 / 47 / 11 teams, ex
                       assert), none the bare LIMIT; the per-global C arrays (gplay.c pg_pend, ctgame.c CG_TAB) hold LIMIT_ALL_MAX.
 The runtime tests of the same list (LoadTeamFile's +2 words, SetLeagueNumbers' league byte, the save round trip, the UEFA guard)
 need an exe built WITH the NT data: with pieces (2) / (3) - the squads of the 68 appended NTs are not built yet."""
+# TODO (piece 2, MC 15/11): the RUNTIME tests of §11 are NOT here - 2 (SetLeagueNumbers' league byte), 3 (no table write past 2409),
+# 4 (bt_save / bt_load round trip) and 5 (the UEFA guard) come with piece (2) on a fixture-world build: 4/4 below is not tests 1-6.
 import os
 import re
 import sys

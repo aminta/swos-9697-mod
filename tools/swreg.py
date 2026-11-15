@@ -76,12 +76,12 @@ FPORT2_END = 0x3A000                    # FP item glue), its own link unit; FPOR
 S3C_AT = 0x19100                        # 4.2 S3 step 2 (MC 15/11): cuprule.c, the Serie C play-off's cup place (C.U. 209/A) - ONE implementation, a
 S3C_END = 0x19500                       # state-free leaf TU called by gplay.c and dplay.c; S3 builds only; >= 256 B left (584 B used). After FPORT2 /
                                         # PRACTICE's growth (0x1D000..0x1E400, the Integratore's merges); the 4.3 chain starts at 0x1E800 (MC 15/11)
-MKTHOOK_AT = 0x1BE00                    # 4.3 reservations only (MC 14/11: sizes 6 KB + 4 KB + 4 KB, final addresses at 4.3 start, after
-MKTHOOK_END = 0x1D600                   # the last 4.2 band): the CPU market's exe hooks (mkthook.c), then MKTLOAD (the .MKT load half),
-MKTLOAD_AT = 0x1D600                    # then MKTAGE (Mercato CPU); unlinked in 4.2 (the unlinked bands go last, so a release never
-MKTLOAD_END = 0x1E600                   # carries an empty page for them). DIFF2 0x1A000..0x1A400 + SPX 0x1A400..0x1A800 stay free
-MKTAGE_AT = 0x1E600                     # here for 42-drp / 42-sp (their swreg lines are taken verbatim)
-MKTAGE_END = 0x1F600
+MKTHOOK_AT = 0x1CA00                    # 4.3 reservations only (MC 14/11: sizes 6 KB + 4 KB + 4 KB, final addresses at 4.3 start, after
+MKTHOOK_END = 0x1E200                   # the last 4.2 band): the CPU market's exe hooks (mkthook.c), then MKTLOAD (the .MKT load half),
+MKTLOAD_AT = 0x1E200                    # then MKTAGE (Mercato CPU); unlinked in 4.2 (the unlinked bands go last, so a release never
+MKTLOAD_END = 0x1F200                   # carries an empty page for them). DIFF2 0x1A000..0x1A400 + SPX 0x1A400..0x1A800 stay free
+MKTAGE_AT = 0x1F200                     # here for 42-drp / 42-sp (their swreg lines are taken verbatim)
+MKTAGE_END = 0x20200
 GPLX_AT = 0x19800                       # 4.2 GPLX "gplay overflow" (MC 15/11, obj1-room.md): gplx.c (gplay.c code out of the full
 GPLX_END = 0x19B00                      # gplay pages: the supercups' sc_rule); a RELEASE band, >= 256 B left; temporary address after
                                         # the MKT reservations and R17 (0x22000..0x22400, Panchina), packed at the rc freeze
@@ -104,6 +104,9 @@ SREG2_AT = 0x19E00                      # 4.2 N7 piece 4 / 42-s7import (MC 15/11
 SREG2_END = 0x1BE00                     # sreg2.c + sreg_import.c at -Oz, ~7.5 KB + 256 floor; was the one page 0xB000..0xC000,
                                         # too small); only in a shaped S7 build. A release map band (obj1-room.md), packed at
                                         # the rc freeze
+TKUI_AT = 0x1BE00                       # 4.2 takers UI (MC 15/11, Difficolta): the TIRATORI page, the in-match CHI TIRA, the practice
+TKUI_END = 0x1CA00                      # picker; a RELEASE band (0xC00) right after SREG2; its linker adds OBJ4_PAGES in ceiling form
+                                        # (-(-swreg.TKUI_END // 0x1000) = 0x1D); the 4.3 MKT reservations follow it
 assert UPRIZE2_END <= CONTI4_AT, 'uprize part 2 would cross conti / ST'   # (4.2: bands never cross)
 assert CONTI4_END <= ST_AT, 'conti data would cross ST'
 NAMEFIT_AT = 0xC400                     # 4.2 names-fit (namefit.py, Marco (b) step 2: menu names by pixels; MC 12/11): page 13
@@ -225,7 +228,7 @@ assert 0xB000 <= SWEFILE_AT < SWEFILE_END <= SETPIECE_AT < SETPIECE_END <= DRP8D
     'swreg (4.2 freeze): the 0xB000 page: SWEFILE < SETPIECE < DRP8D, below SLOW'
 assert DIFF_END <= KITS_AT < KITS_END <= S7SWAP_AT < S7SWAP_END <= OBJ1MV_AT < OBJ1MV_END <= S7GEO_AT < S7GEO_END <= DIFF2_AT < \
     DIFF2_END <= TAKERS_AT < TAKERS_END <= GAMEPLAY_AT < GAMEPLAY_END <= PRACTICE_AT < PRACTICE_END <= S3C_AT < S3C_END <= \
-    R17_AT < R17_END <= GPLX_AT < GPLX_END <= SESTRIP_AT < SESTRIP_END <= SREG2_AT < SREG2_END <= MKTHOOK_AT < MKTHOOK_END <= \
+    R17_AT < R17_END <= GPLX_AT < GPLX_END <= SESTRIP_AT < SESTRIP_END <= SREG2_AT < SREG2_END <= TKUI_AT < TKUI_END <= MKTHOOK_AT < MKTHOOK_END <= \
     MKTLOAD_AT < MKTLOAD_END <= MKTAGE_AT < MKTAGE_END < 0x30000, \
     'swreg (4.2 freeze): the release bands in map order, then the 4.3 reservations (obj4pack, MC 15/11)'
 assert 0x35000 <= FPORT_AT < FPORT_END <= CDKN_AT < CDKN_END <= FPORT2_AT < FPORT2_END, \

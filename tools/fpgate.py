@@ -19,13 +19,18 @@ SCHED_A = os.environ.get('FPGATE_SCHED') or '60/60/1/1/0/0/103;95/97/2/1/0/0/103
 # Serie D girone A (CELLE VARAZZE, ita division 5: 9 distinct windows - placement / play-out / poule [60, 61] [62, 63]
 # [71, 73], Coppa D [77, 78] .. [106, 112], season end [128, end]): 115 between them (no league match: accepted), 107
 # in the 8th window and 130 in the last (refused at add: every window read, SR_PORT_WINDOWS 24 - MC 14/11)
+# W (P5 world_fport_ld_win, MC 15/11): one match at 95 (PLAYED when the save is made), two legs at 99 / 103 (the save
+# after the first), one at 107 (queued) - odd units, after INTER's Supercoppa window [56, 93] (the calendar starts at 56)
+SCHED_W = '95/95/1/1/0/0/103;99/103/2/1/0/0/103;107/107/1/1/4/1/103'
+ID_W = {95: 0x7E00, 99: 0x7E01, 107: 0x7E02}            # (the test fixtures' match ids' low word - the log's: season 126
+#   (7Eh) << 8 | their index; fpad.c test_add: 7E000000h | season << 8 | index)
 TEAM_SD = 'EUROPA,ITALIA,SERIE D,SERIE D GIRONE A,CELLE VARAZZE'
 SCHED_SD = '115/115/1/1/0/0/103;107/107/1/1/0/0/103;130/130/1/1/0/0/103'
 # fp_step's deepest static chain on the game stack (cobj -fstack-usage, engine 1522654): fp_step 60 > sr_port_poll 32 >
 # check 44 > reserved 120 > h_prev 24, + return addresses: 300 B; MC's rule: free at entry >= chain + 512
 STK_CHAIN = 300
 FL = {1: 'ADD', 2: 'INST', 3: 'RES', 4: 'REFUSED', 5: 'MISSED', 6: 'REVAL', 7: 'SIM', 8: 'ORPHAN', 9: 'NEW', 10: 'LOAD',
-      11: 'SEASON', 12: 'LEG', 13: 'LEGX'}
+      11: 'SEASON', 12: 'LEG', 13: 'LEGX', 14: 'PLOAD'}
 MAGIC, ST_SIZE = 0x50504631, 420
 
 
@@ -315,9 +320,10 @@ def register(mod):
     def world_fport_load():
         """4.2 fixture port P2 gate (MC 2): a save mid-season between the two-leg tie's legs (GP_PMID, the port tie's legs played, 1:
         after its first leg), loaded: fp_load
-        arms, the next step inits with the flag, REVAL logged before any poll / install; interim before P5 (no FP save
-        section): the tie's second leg is played and logged as an ORPHAN (not credited), the queue re-added by
-        FPORT_TEST, the one-match tie at 99 then installed, played, accepted"""
+        arms, the next step inits with the flag; P5 (MC option A): the FP item restores the queue (PLOAD rc = the
+        fixtures, 1 leg played), REVAL before any poll / install, no ADD (the test fixtures are in the loaded queue),
+        the tie's second leg credited (RES accepted, no ORPHAN), the one-match tie at 99 then installed, played,
+        accepted"""
         exe, skip = gate_exe('fpgate_a', SCHED_A)
         if skip:
             return True, skip
@@ -338,14 +344,202 @@ def register(mod):
         errs = []
         T.check(ok and ok2, f'seasons: {msg} / {msg2}', errs)
         codes = [e[0] for e in log]
-        T.check(codes[:2] == ['LOAD', 'REVAL'], f'after the load {codes[:4]}, want LOAD, REVAL first', errs)
+        T.check(codes[:3] == ['LOAD', 'PLOAD', 'REVAL'], f'after the load {codes[:4]}, want LOAD, PLOAD, REVAL first', errs)
+        pl = [e for e in log if e[0] == 'PLOAD']
+        T.check(len(pl) == 1 and pl[0][2] >= 2 and pl[0][4] == 1,
+                f'PLOAD {pl} (rc: the queue - >= 2 fixtures; y: 1 leg played)', errs)
+        first = codes[:codes.index('SEASON')] if 'SEASON' in codes else codes
+        T.check('ADD' not in first, f'ADD after the load {first} (the loaded queue holds the test fixtures)', errs)
         T.check(li and li[0][0] == 'LOAD' and all(i[1] == i[2] for i in li) and all(i[0] == 'SEASON' for i in li[1:]),
                 f'inits after the load {li} (LOAD first, then one SEASON per new season)', errs)
-        T.check(codes.count('ORPHAN') == 1, f'orphans {codes.count("ORPHAN")} (the second leg after the load: 1)', errs)
-        res = [e for e in log if e[0] == 'RES']
-        T.check(len(res) == 1 and res[0][4] >> 4 & 15 == 0, f'results after the load {res} (the 99 tie)', errs)
+        T.check('ORPHAN' not in first, f'orphans {first.count("ORPHAN")} (P5: the second leg is credited)', errs)
+        res = [e for e in log[:len(first)] if e[0] == 'RES']
+        T.check(len(res) == 2 and all(e[4] >> 4 & 15 == 0 for e in res) and [e[1] for e in res] == [97, 99],
+                f'results after the load {res} (the two-leg tie at 97, then the 99 tie: accepted)', errs)
         T.check('REFUSED' not in codes, f'refused {[e for e in log if e[0] == "REFUSED"]}', errs)
         return not errs, '; '.join(errs) or f'{codes}; {msg2[:60]}'
+
+    @sc
+    def world_fport_ld_bad():
+        """4.2 fixture port P5 (MC option A): world_fport_load's mid save with a bad FP item - its port section's pack
+        hash flipped (refused: PLOAD rc < 0) and with no FP item at all (an older save: PLOAD rc 0, nothing) - each
+        loads with an empty queue: the tie in slot 4 an ORPHAN, the test fixtures re-added, the 99 tie accepted"""
+        exe, skip = gate_exe('fpgate_a', SCHED_A)
+        if skip:
+            return True, skip
+        errs, info = [], []
+        for how, rc in (('hash', True), ('old', False)):
+            ok, msg, log = ld_variant(exe, how)
+            T.check(ok, f'{how}: {msg[:300]}', errs)
+            check_refused(how, log, rc, errs)
+            info.append(f'{how}: {[e[0] for e in log]}')
+        return not errs, '; '.join(errs) or '; '.join(info)
+
+    def ld_win(cases):
+        """SCHED_W's mid save (95 PLAYED, 99 / 103 after its first leg, 107 queued) loaded by builds whose slot-4 window
+        table differs (FPORT_WINEDIT; FP_HASH ignores the windows: accepted) - cases [(name, edit)]"""
+        exe, skip = gate_exe('fpgate_w', SCHED_W)
+        if skip:
+            return True, skip
+        mid, err = mid_save(exe)
+        if not mid:
+            return False, err
+        it = fp_item(mid)
+        if not it or it[0] != 1 or it[1] != ID_W[99] or it[2].get(ID_W[95]) != 2:
+            return False, f'the mid save is not after 99\'s first leg with 95 played: FP item {it}'
+        errs, info = [], []
+        for how, edit in cases:
+            lx, _ = gate_exe('fpgate_w' + how, SCHED_W, dict(FPORT_WINEDIT=edit))
+            ok, msg, log = load_log(lx, mid, 'win_' + how)
+            codes = [e[0] for e in log]
+            info.append(f'{how}: {codes}')
+            T.check(ok, f'{how}: {msg[:300]}', errs)
+            errs += win_errs(how, log)
+        return not errs, '; '.join(errs + info)
+
+    @sc
+    def world_fport_ld_win():
+        """4.2 fixture port P5 (MC 15/11): a save loaded by a build with another slot-4 window table (accepted: FP_HASH
+        ignores the windows). rem: a window removed (INTER's Supercoppa [56, 93]) - nothing moves: REVAL 0, the tie's
+        second leg and 107 credited. addq: a window [105, 109] over the queued 107 - REVAL refuses it (rule 6), the tie
+        still credited, 107 stays queued and is simulated at its poll (never installed). addp: a window [94, 96] over
+        the PLAYED 95 - never touched (engine 52301fb: rules 1 / 6 skip PLAYED fixtures): REVAL 0, everything credited.
+        REVAL logs every failing fixture (sr_port_revalidate_all: one entry per id, y = how many)"""
+        return ld_win((('rem', '-56'), ('addq', '+105:109'), ('addp', '+94:96')))
+
+    @sc
+    def world_fport_ld_s4():
+        """4.2 fixture port P5 (MC option A, the slot-4 cross-check): world_fport_load's mid save, the pending
+        fixture's home side changed in the FP item (slot 4 holds the real tie): refused (PLOAD rc < 0), an empty
+        queue - the tie in slot 4 an ORPHAN, the test fixtures re-added, the 99 tie accepted"""
+        exe, skip = gate_exe('fpgate_a', SCHED_A)
+        if skip:
+            return True, skip
+        errs = []
+        ok, msg, log = ld_variant(exe, 's4')
+        T.check(ok, f's4: {msg[:300]}', errs)
+        check_refused('s4', log, True, errs)
+        return not errs, '; '.join(errs) or f's4: {[e[0] for e in log]}'
+
+
+def win_errs(how, log):
+    """ld_win's checks of one case's decoded log (the window-edit build's load of SCHED_W's mid save): [error, ..].
+    addq (MC 15/11): REVAL refuses the queued 107 once, 107 stays queued, refused + simulated at its poll (a SIM, then
+    its RES) and never installed; the other cases: REVAL 0, 107 installed and credited. Control (a 107 wrongly
+    installed in addq must FAIL): tools/hosttest/tests/test_fpgate_win.py."""
+    errs, codes = [], [e[0] for e in log]
+
+    def chk(c, m):
+        if not c:
+            errs.append(m)
+
+    pl = [e for e in log if e[0] == 'PLOAD']
+    chk(codes[:3] == ['LOAD', 'PLOAD', 'REVAL'] and pl[0][2] == 3 and pl[0][4] == 1,
+        f'{how}: after the load {log[:3]} (want LOAD, PLOAD rc 3 / 1 leg, REVAL)')
+    rv = [e for e in log if e[0] == 'REVAL']
+    res = {e[3]: e[4] >> 4 & 15 for e in log if e[0] == 'RES'}
+    inst = [e[3] for e in log if e[0] == 'INST']
+    chk('ORPHAN' not in codes and res.get(ID_W[99]) == 0, f'{how}: the tie 99 / 103 not credited ({res})')
+    if how == 'addq':                   # (MC 15/11: stays QUEUED, SLOT4_RESERVED at its poll -> simulated)
+        chk(len(rv) == 1 and rv[0][2] < 0 and rv[0][3] == ID_W[107] and rv[0][4] == 1,
+            f'{how}: REVAL {rv} (want one entry: < 0 naming 107, 1 failing)')
+        sim = [e for e in log if e[0] == 'SIM' and e[3] == ID_W[107]]      # (simulated at its poll: SIM, then
+        chk(ID_W[107] not in inst and len(sim) == 1 and 'REFUSED' in codes,   # its RES - never installed)
+            f'{how}: 107 installed / not simulated ({inst}, SIM {sim}, {codes})')
+    else:
+        chk(len(rv) == 1 and rv[0][2] == 0 and rv[0][4] == 0, f'{how}: REVAL {rv} (want 0: nothing moves)')
+        chk(ID_W[107] in inst and res.get(ID_W[107]) == 0, f'{how}: 107 not installed + credited ({inst}, {res})')
+    return errs
+
+
+def mid_save(exe):
+    """world_fport_load's mid-season save (the two-leg tie after its first leg), made once per build (cached by exe)."""
+    import re, shutil
+    keep = os.path.join(T.RUNS, 'fpgate_mid-' + os.path.basename(exe.rstrip('/')) + '.CAR')
+    if os.path.exists(keep):
+        return keep, ''
+    pm = sym(exe, 'gplay', 'GP_PMID', 2)
+    ok, msg, _ = T.sc_season(TEAM, dict(W8485_BUILD=exe, W8485_MIDSAVE=f'{pm:x}:1:1'))
+    m = re.search(r'saved mid-season: (\S+\.CAR)', msg)
+    if not (ok and m):
+        return None, f'no mid-season save: {msg[:300]}'
+    shutil.copy(m.group(1), keep + '.tmp')
+    os.replace(keep + '.tmp', keep)
+    return keep, ''
+
+
+def ld_variant(exe, how):
+    """The mid save with its FP item edited (P5 gates): 'hash' the port section's pack hash flipped, 'old' no FP item
+    (its tag cleared: an older save), 's4' the pending fixture's home side another club (slot 4 disagrees). Loaded,
+    played to the season end: (ok, msg, the decoded log up to the next SEASON)."""
+    import fpad
+    mid, err = mid_save(exe)
+    if not mid:
+        return False, err, []
+    d = bytearray(open(mid, 'rb').read())
+    k = d.find(struct.pack('<HH', __import__('engine').item_id('FP'), fpad.SAVE_SIZE))
+    if k < 0:
+        return False, 'no FP item in the mid save', []
+    b, h = k + 4, k + 4 + fpad.SAVE_HDR             # (the item; its sr_port section)
+    if how == 'hash':
+        d[h + 4] ^= 0xFF
+    elif how == 'old':
+        d[b:b + 4] = bytes(4)
+    elif how == 's4':
+        pend = struct.unpack_from('<I', d, h + 8)[0]
+        n = struct.unpack_from('<H', d, h + 2)[0]
+        i8, hit = h + 20, False
+        for _ in range(n):
+            if struct.unpack_from('<I', d, i8)[0] == pend:
+                d[i8 + 13] ^= 0x01                  # (home's ordinal: another club of the same file)
+                hit = True
+            i8 += 33 + (16 if d[i8 + 32] == 2 else 0)
+        if not hit:
+            return False, f'no pending fixture {pend} in the FP item', []
+    car = os.path.join(T.RUNS, f'fpgate_ld_{how}.CAR')
+    open(car, 'wb').write(d)
+    return load_log(exe, car, how)
+
+
+def load_log(exe, car, how):
+    """car loaded by exe, played to the season end: (ok, msg, the decoded log up to the next SEASON)"""
+    off, sp = fp_st_at(exe), sym(exe, 'gplay', 'SEASONPLAYING', 2)
+    ok, msg, lines = T.sc_season(TEAM, dict(W8485_BUILD=exe, W8485_FROM=car, W8485_HEX=f'{sp:x}:1,o4/{off:x}:{ST_SIZE}'), 2)
+    log = season_log(lines, off)
+    open(os.path.join(T.RUNS, f'fpgate_ld_{how}.txt'), 'w').write('\n'.join(map(str, log)) + '\n')
+    codes = [e[0] for e in log]
+    return ok, msg, log[:codes.index('SEASON')] if 'SEASON' in codes else log
+
+
+def fp_item(car):
+    """(header nleg, pending match id, {match id: state}) of a .CAR's FP item (ids: low words), or None"""
+    import fpad
+    d = open(car, 'rb').read()
+    k = d.find(struct.pack('<HH', __import__('engine').item_id('FP'), fpad.SAVE_SIZE))
+    if k < 0:
+        return None
+    b = k + 4
+    h = b + fpad.SAVE_HDR
+    n, pend = struct.unpack_from('<H', d, h + 2)[0], struct.unpack_from('<I', d, h + 8)[0]
+    st, i8 = {}, h + 20
+    for _ in range(n):
+        st[struct.unpack_from('<I', d, i8)[0]] = d[i8 + 32]
+        i8 += 33 + (16 if d[i8 + 32] == 2 else 0)
+    return d[b + 5], pend & 0xFFFF, {k & 0xFFFF: v for k, v in st.items()}   # (ids: their low word, as the log's)
+
+
+def check_refused(how, log, want_rc, errs):
+    """A refused / absent FP item: an empty queue - the tie in slot 4 plays as an ORPHAN, FPORT_TEST re-adds its
+    fixtures, the 99 tie installed, played, accepted; no crash"""
+    codes = [e[0] for e in log]
+    T.check(codes[:3] == ['LOAD', 'PLOAD', 'REVAL'], f'{how}: after the load {codes[:4]}', errs)
+    pl = [e for e in log if e[0] == 'PLOAD']
+    T.check(len(pl) == 1 and (pl[0][2] < 0 if want_rc else pl[0][2] == 0) and pl[0][4] == 0,
+            f'{how}: PLOAD {pl} (want rc {"< 0" if want_rc else "0: none"}, no tie in progress)', errs)
+    T.check(codes.count('ORPHAN') == 1, f'{how}: orphans {codes.count("ORPHAN")} (the tie in slot 4: 1)', errs)
+    T.check('ADD' in codes, f'{how}: no ADD (the empty queue: FPORT_TEST re-adds)', errs)
+    res = [e for e in log if e[0] == 'RES']
+    T.check(len(res) == 1 and res[0][1] == 99 and res[0][4] >> 4 & 15 == 0, f'{how}: results {res} (the 99 tie)', errs)
 
 
 if __name__ == '__main__':

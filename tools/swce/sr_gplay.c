@@ -482,6 +482,80 @@ static int resolve_entrants(sr_state *st, const sr_league *lg, const u8 *s, int 
     return ok;
 }
 
+/* =====================================================================
+ * S4 average_table (the promedio): points per match over this season and the seasons before,
+ * generalised from gplay.c's promedio (Argentina: seasons 3, current_only), which promedio below
+ * runs through. Every compare is a cross-multiplication (P_a * M_b vs P_b * M_a: 4/3 and 1.333..
+ * level exactly), 32-bit.
+ * ===================================================================== */
+
+static const sr_avg_club *avg_find(const sr_avg_club *h, int32_t nh, uint16_t g)
+{
+    for (int32_t i = 0; i < nh; i++) if (h[i].glob == g) return &h[i];
+    return 0;
+}
+
+int32_t sr_average_sums(int32_t seasons, int32_t newcomer, const sr_avg_club *h, int32_t nh, const sr_row *a,
+                        int32_t n, int32_t mnow, uint32_t *P, uint32_t *M)
+{
+    const int32_t H = seasons - 1;
+    if (seasons < 2 || seasons > SR_AVG_HIST + 1 || (newcomer != SR_NEWCOMER_CURRENT_ONLY &&
+        newcomer != SR_NEWCOMER_FILL_WITH) || n < 1 || n > SR_CLUBS || mnow < 1 || mnow > 255 || nh < 0 || (nh && !h))
+        return -1;
+    for (int32_t i = 0; i < n; i++) {
+        const sr_avg_club *c = avg_find(h, nh, a[i].glob);
+        uint32_t p = a[i].pts, m = (uint32_t)mnow;
+        for (int32_t k = SR_AVG_HIST - H; k < SR_AVG_HIST; k++) {   /* (the last H seasons: p[SR_AVG_HIST - 1] the last) */
+            if (newcomer == SR_NEWCOMER_FILL_WITH && !(c && c->m[k])) { p += a[i].pts; m += (uint32_t)mnow; }
+            else if (c) { p += c->p[k]; m += c->m[k]; }   /* (current_only, as the Mod: a season not in the
+                                                             league is 0 / 0) */
+        }
+        P[i] = p; M[i] = m;
+    }
+    return n;
+}
+
+int32_t sr_average_last(int32_t n, const uint32_t *P, const uint32_t *M, int32_t *level)
+{
+    int32_t w = 0, w2 = -1;
+    if (n < 1) return -1;
+    for (int32_t i = 1; i < n; i++) if (P[i] * M[w] < P[w] * M[i] || (P[i] * M[w] == P[w] * M[i] && i > w)) w = i;
+    for (int32_t i = 0; i < n; i++) if (i != w && (w2 < 0 || P[i] * M[w2] < P[w2] * M[i])) w2 = i;
+    *level = w2 >= 0 && P[w2] * M[w] == P[w] * M[w2] ? w2 : -1;
+    return w;
+}
+
+int32_t sr_average_rank(int32_t n, const uint32_t *P, const uint32_t *M, uint8_t *ord)
+{
+    if (n < 1 || n > SR_CLUBS) return -1;
+    for (int32_t i = 0; i < n; i++) {           /* insertion: the better promedio first, level the annual order */
+        int32_t j = i;
+        while (j > 0 && P[i] * M[ord[j - 1]] > P[ord[j - 1]] * M[i]) { ord[j] = ord[j - 1]; j--; }
+        ord[j] = (uint8_t)i;
+    }
+    return n;
+}
+
+int32_t sr_average_next(int32_t seasons, const sr_avg_club *h, int32_t nh, const sr_row *a, int32_t n, int32_t mnow,
+                        int32_t skip1, int32_t skip2, sr_avg_club *out, int32_t room)
+{
+    const int32_t H = seasons - 1;
+    int32_t nn = 0;
+    if (seasons < 2 || seasons > SR_AVG_HIST + 1 || n < 0 || n > SR_CLUBS || nh < 0 || (nh && !h) || room < 0)
+        return -1;
+    for (int32_t i = 0; i < n && nn < room; i++) {
+        if (i == skip1 || i == skip2) continue;
+        const sr_avg_club *c = avg_find(h, nh, a[i].glob);
+        sr_avg_club *o = &out[nn++];
+        o->glob = a[i].glob;
+        for (int32_t k = 0; k < SR_AVG_HIST; k++) { o->p[k] = 0; o->m[k] = 0; }
+        for (int32_t k = SR_AVG_HIST - H; k < SR_AVG_HIST - 1; k++)
+            if (c) { o->p[k] = c->p[k + 1]; o->m[k] = c->m[k + 1]; }
+        o->p[SR_AVG_HIST - 1] = a[i].pts; o->m[SR_AVG_HIST - 1] = (uint8_t)mnow;
+    }
+    return nn;
+}
+
 /* Argentina's relegation (the Mod's promedio, gplay.c; LPF reglamento 2026 art. 26, AFA statute
  * art. 93): kind 7 (no entrants, no rounds; winner_div byte = the season's matches counted,
  * loser_div = where the relegated go): the last of the promedios (points per match over this
@@ -489,12 +563,6 @@ static int resolve_entrants(sr_state *st, const sr_league *lg, const u8 *s, int 
  * table (the stage bank's 2) go down; a tie in a relegation place -> a play-off match at a
  * neutral ground. The history per club (se->promedio, the caller's) is the league's seed at a
  * new career, shifted after every season end. */
-static sr_promedio_club *pr_find(sr_promedio *pr, u16 g)
-{
-    for (int i = 0; i < pr->n; i++) if (pr->c[i].glob == g) return &pr->c[i];
-    return 0;
-}
-
 static void pr_seed(sr_promedio *pr, const sr_league *lg)
 {
     pr->n = 0;
@@ -517,57 +585,47 @@ static void promedio(sr_state *st, const sr_league *lg, int d, int mnow, int ldi
     const sr_row *a = b->r[2];
     if (!(b->fresh & 4) || n != st->t.n[d]) {   /* (no annual table this season: the league's final table) */
         n = st->t.n[d];
-        a = 0;
+        a = st->t.t[d];
     }
     st->gp.ss_used = 1;
     if (n < 3) return;
-#define PR_GLOB(i) (a ? a[i].glob : st->t.t[d][i].glob)
-#define PR_PTS(i) (a ? a[i].pts : st->t.t[d][i].pts)
-    u32 P[GT], M[GT];
-    for (int i = 0; i < n; i++) {
-        sr_promedio_club *c = pr_find(pr, PR_GLOB(i));
-        P[i] = PR_PTS(i) + (c ? c->p[0] + c->p[1] : 0);
-        M[i] = (u32)mnow + (c ? c->m[0] + c->m[1] : 0);
+    enum { PR_SEASONS = 3, H0 = SR_AVG_HIST - 2 };  /* (this season and the two before: sr_average's last two) */
+    sr_avg_club *h = st->gp.ph;
+    for (int i = 0; i < pr->n; i++) {
+        h[i].glob = pr->c[i].glob;
+        for (int k = 0; k < SR_AVG_HIST; k++) { h[i].p[k] = 0; h[i].m[k] = 0; }
+        h[i].p[H0] = pr->c[i].p[0]; h[i].m[H0] = pr->c[i].m[0];
+        h[i].p[H0 + 1] = pr->c[i].p[1]; h[i].m[H0 + 1] = pr->c[i].m[1];
     }
-    int w = 0, w2 = -1;                         /* the worst promedio (P / M), then the next worst */
-    for (int i = 1; i < n; i++) if (P[i] * M[w] < P[w] * M[i] || (P[i] * M[w] == P[w] * M[i] && i > w)) w = i;
-    for (int i = 0; i < n; i++) if (i != w && (w2 < 0 || P[i] * M[w2] < P[w2] * M[i])) w2 = i;
+    u32 P[GT], M[GT];
+    sr_average_sums(PR_SEASONS, SR_NEWCOMER_CURRENT_ONLY, h, pr->n, a, n, mnow, P, M);
+    int w2, w = sr_average_last(n, P, M, &w2);  /* the worst promedio (P / M); w2 level with it */
     int down1 = w;
-    if (w2 >= 0 && P[w2] * M[w] == P[w] * M[w2]) {          /* level: a play-off match, the loser goes down */
-        int ca = glob_club(st, d, PR_GLOB(w)), cb = glob_club(st, d, PR_GLOB(w2));
+    if (w2 >= 0) {                              /* level: a play-off match, the loser goes down */
+        int ca = glob_club(st, d, a[w].glob), cb = glob_club(st, d, a[w2].glob);
         if (ca >= 0 && cb >= 0) down1 = gp_tie(st, ca, cb, 1, HOST_NEUTRAL, LV_ET_PENS) == ca ? w2 : w;
     }
     int l = n - 1;                              /* the annual table's last, the promedio's relegated apart */
     if (l == down1) l--;
     int l2 = l - 1 == down1 ? l - 2 : l - 1, down2 = l;
-    if (l2 >= 0 && PR_PTS(l2) == PR_PTS(l)) {
-        int ca = glob_club(st, d, PR_GLOB(l)), cb = glob_club(st, d, PR_GLOB(l2));
+    if (l2 >= 0 && a[l2].pts == a[l].pts) {
+        int ca = glob_club(st, d, a[l].glob), cb = glob_club(st, d, a[l2].glob);
         if (ca >= 0 && cb >= 0) down2 = gp_tie(st, ca, cb, 1, HOST_NEUTRAL, LV_ET_PENS) == ca ? l2 : l;
     }
-    int c1 = glob_club(st, d, PR_GLOB(down1)), c2 = glob_club(st, d, PR_GLOB(down2));
+    int c1 = glob_club(st, d, a[down1].glob), c2 = glob_club(st, d, a[down2].glob);
     LOG("[promedio] down by the promedio %04X (%u / %u), the annual table's last %04X\n",
         c1 >= 0 ? (unsigned)gp_row(st, c1)->team : 0u, (unsigned)P[down1], (unsigned)M[down1],
         c2 >= 0 ? (unsigned)gp_row(st, c2)->team : 0u);
     if (c1 >= 0) gp_move(st, c1, ldiv - d);
     if (c2 >= 0) gp_move(st, c2, ldiv - d);
-    sr_promedio_club *nx = st->gp.nx;           /* next season's history: this season and the one before */
-    int nn = 0;
-    for (int i = 0; i < n && nn < SR_PROMEDIO_CLUBS; i++) {
-        if (i == down1 || i == down2) continue;
-        sr_promedio_club *c = pr_find(pr, PR_GLOB(i)), *o = &nx[nn++];
-        o->glob = PR_GLOB(i);
-        o->p[0] = c ? c->p[1] : 0; o->m[0] = c ? c->m[1] : 0;
-        o->p[1] = (u16)PR_PTS(i); o->m[1] = (u8)mnow;
-    }
-    for (int i = 0; i < nn; i++) {
-        pr->c[i].glob = nx[i].glob;
-        pr->c[i].p[0] = nx[i].p[0]; pr->c[i].p[1] = nx[i].p[1];
-        pr->c[i].m[0] = nx[i].m[0]; pr->c[i].m[1] = nx[i].m[1];
+    int nn = sr_average_next(PR_SEASONS, h, pr->n, a, n, mnow, down1, down2, st->gp.nx, SR_PROMEDIO_CLUBS);
+    for (int i = 0; i < nn; i++) {              /* next season's history: this season and the one before */
+        pr->c[i].glob = st->gp.nx[i].glob;
+        pr->c[i].p[0] = st->gp.nx[i].p[H0]; pr->c[i].p[1] = st->gp.nx[i].p[H0 + 1];
+        pr->c[i].m[0] = st->gp.nx[i].m[H0]; pr->c[i].m[1] = st->gp.nx[i].m[H0 + 1];
     }
     pr->n = (u8)nn;
     pr->init = 1;
-#undef PR_GLOB
-#undef PR_PTS
 }
 
 static int team_code(const sr_state *st, u16 team)  /* a team word -> its club, or -1 (gplay.c team_club) */
@@ -929,6 +987,57 @@ int32_t sr_knockouts(sr_state *st, const sr_league *lg, const sr_season *se)
     }
     gp_season(st, lg);
     return st->nmv - before;
+}
+
+/* =====================================================================
+ * A fixture stage's end (gp_stage): its table into the bank, the annual table
+ * ===================================================================== */
+
+static void row_copy(sr_row *d, const sr_row *s)
+{
+    d->team = s->team; d->glob = s->glob; d->won = s->won; d->gf = s->gf; d->ga = s->ga; d->pts = s->pts;
+}
+
+int32_t sr_stage_end(sr_stage_bank *b, int32_t k, const sr_row *rows, int32_t n, int32_t annual, int32_t force,
+                     uint16_t mgr)
+{
+    if (!b || !rows || k < 0 || k >= SS_N || n < 1 || n > GT)
+        return -1;
+    sr_row *o = b->r[k];
+    for (int32_t i = 0; i < n; i++) row_copy(&o[i], &rows[i]);
+    b->n[k] = (u8)n;
+    b->fresh |= (u8)(1 << k);
+    if (force && mgr && force <= n)             /* (test builds: the career club at place force of the kept table) */
+        for (int32_t i = 0; i < n; i++)
+            if (o[i].team == mgr && i != force - 1) {
+                sr_row x;
+                row_copy(&x, &o[i]); row_copy(&o[i], &o[force - 1]); row_copy(&o[force - 1], &x);
+                break;
+            }
+    if (!annual || k == 0 || b->n[0] != n)
+        return n;
+    sr_row *a = b->r[2], tmp;                   /* every stage table of this season but the annual's own, by club
+                                                   (Uruguay's Apertura + Intermedio + Clausura); 16-bit sums, as the Mod */
+    for (int32_t i = 0; i < n; i++) row_copy(&a[i], &b->r[0][i]);
+    for (int32_t q = 1; q < SS_N; q++) {
+        if (q == 2 || !(b->fresh & 1 << q) || b->n[q] != n) continue;
+        const sr_row *o2 = b->r[q];
+        for (int32_t i = 0; i < n; i++)
+            for (int32_t j = 0; j < n; j++) if (o2[j].glob == a[i].glob) {
+                a[i].won += o2[j].won; a[i].gf += o2[j].gf; a[i].ga += o2[j].ga; a[i].pts += o2[j].pts;
+            }
+    }
+    for (int32_t i = 1; i < n; i++)             /* insertion sort: stable (the earlier stage's order on a tie) */
+        for (int32_t j = i; j > 0; j--) {
+            int32_t dp = a[j].pts - a[j - 1].pts,
+                    dd = (a[j].gf - a[j].ga) - (a[j - 1].gf - a[j - 1].ga);
+            if (dp > 0 || (dp == 0 && (dd > 0 || (dd == 0 && a[j].gf > a[j - 1].gf)))) {
+                row_copy(&tmp, &a[j]); row_copy(&a[j], &a[j - 1]); row_copy(&a[j - 1], &tmp);
+            } else break;
+        }
+    b->n[2] = (u8)n;
+    b->fresh |= 4;
+    return n;
 }
 
 /* =====================================================================

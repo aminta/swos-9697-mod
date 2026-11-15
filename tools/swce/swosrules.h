@@ -63,6 +63,31 @@ typedef struct { uint16_t glob, p[2]; uint8_t m[2]; } sr_promedio_club;
 typedef struct { uint8_t init, n, pad[2]; sr_promedio_club c[SR_PROMEDIO_CLUBS]; } sr_promedio;
 typedef struct { uint16_t glob, points2, points1; uint8_t matches2, matches1; } sr_promedio_seed;
 
+/* S4 average_table (rules/sr_gplay.c; the Mod's promedio, generalised): points per match over this season and
+ * up to SR_AVG_HIST before. A club's history: p[k], m[k] its points and matches k seasons before the end of the
+ * array -- p[SR_AVG_HIST - 1] last season --, 0 / 0 a season not in the league. newcomer, for a season a club has
+ * no history of: current_only -- it counts only the seasons it has (AFA's promedio: a promoted club's own top-flight
+ * seasons); fill_with -- this season's points and matches stand in for it (a promoted club's season counted for
+ * each it lacks). seasons: 2 .. SR_AVG_HIST + 1, this one included. */
+#define SR_AVG_HIST 4
+enum { SR_NEWCOMER_CURRENT_ONLY = 0, SR_NEWCOMER_FILL_WITH = 1 };
+typedef struct { uint16_t glob, p[SR_AVG_HIST]; uint8_t m[SR_AVG_HIST]; } sr_avg_club;
+/* Each club of this season's table a (annual or final, n clubs) -> P[i], M[i]: its points and matches over the
+ * seasons counted (mnow: this season's matches, 1..255). Returns n, -1 refused. */
+int32_t sr_average_sums(int32_t seasons, int32_t newcomer, const sr_avg_club *h, int32_t nh, const sr_row *a,
+                        int32_t n, int32_t mnow, uint32_t *P, uint32_t *M);
+/* The last of the promedios (the Mod's choice: level, the later in a's order); *level = the next worst when it is
+ * level with it (a play-off match between them), else -1. Returns its index, -1 for n < 1. */
+int32_t sr_average_last(int32_t n, const uint32_t *P, const uint32_t *M, int32_t *level);
+/* The whole table: ord[0 .. n) indexes into a, the best promedio first, level ones in a's order (ord[n - 1] is
+ * sr_average_last's club). Returns n, -1 for n outside 1..SR_CLUBS. */
+int32_t sr_average_rank(int32_t n, const uint32_t *P, const uint32_t *M, uint8_t *ord);
+/* Next season's history: every club of a but skip1 / skip2 (the relegated; -1 none), in a's order, its history
+ * shifted one season (the oldest of the seasons - 1 dropped) and this season last. out must not be h. Returns the
+ * clubs written (at most room), -1 refused. */
+int32_t sr_average_next(int32_t seasons, const sr_avg_club *h, int32_t nh, const sr_row *a, int32_t n, int32_t mnow,
+                        int32_t skip1, int32_t skip2, sr_avg_club *out, int32_t room);
+
 /* The SEASON WINNERS page's last season (gplay.c WN_ST), written for the career club's league:
  * 'M' the division the club played in, 'L' each division's 1st, 'K' each play-off's winner,
  * 0x80 | play-off: a title play-off's last three ties' winners (idx: the tie); team words. */
@@ -217,7 +242,7 @@ typedef struct sr_state {
         sr_stage_bank *ssb, no_bank;
         const sr_season *se;
         sr_gs    ps[64], ms[SR_CLUBS];
-        sr_promedio_club nx[SR_PROMEDIO_CLUBS];
+        sr_avg_club ph[SR_PROMEDIO_CLUBS], nx[SR_PROMEDIO_CLUBS];   /* (promedio: the history as sr_average's, the next) */
         int32_t  ce_club[64], ce_n; /* the last contest's entrants (sr_contest_entrants) */
         int32_t  lvl;               /* 42-s3shape: this play-off ranks a level of groups (place, then the record) */
         int32_t  scroll_div, scroll_from;   /* its cup place's scroll: that division's places from it move up one */
@@ -256,6 +281,15 @@ int32_t sr_playoff_held(uint16_t pts3, uint16_t pts4);
  * st->gp.sres (the career club's division's stage titles); the SEASON WINNERS page in
  * se->winners when the career club is in the league. The count of moves it added. */
 int32_t sr_knockouts(sr_state *st, const sr_league *lg, const sr_season *se);
+
+/* A fixture stage's end (gplay.c gp_stage, S4 aggregate_table): its table (rows[0 .. n), place order, the
+ * groups partitioned as split's sp_sort leaves them) into b->r[k], fresh bit k. annual (k > 0, n = r[0]'s):
+ * b->r[2] = every table written this season but r[2] summed by club (glob) -- won, gf, ga, pts, 16-bit as
+ * the Mod --, by points, goal difference, goals, the earlier stage's order on a tie; fresh bit 2. force, mgr:
+ * the Mod's test builds (GPLAY_FORCE=force: club mgr moved to place force of the table), 0 otherwise. Which
+ * bank (one per league, keyed) is the caller's. Returns n, -1 refused (k outside 0..3, n outside 1..32). */
+int32_t sr_stage_end(sr_stage_bank *b, int32_t k, const sr_row *rows, int32_t n, int32_t annual, int32_t force,
+                     uint16_t mgr);
 
 /* ---- The career club's own play-off, played as a contest (gplay.c ko_build, gp_need, t2_shape)
  * -- the contest itself is the game's ---- */
@@ -949,6 +983,64 @@ int32_t sr_kns_idents(const uint8_t *blk, int32_t len, uint8_t stamp, uint8_t id
 int32_t sr_kns_dpre(const uint8_t *blk, int32_t len, uint8_t stamp, const uint16_t *dorder, int32_t nd,
                     uint16_t *pre, uint16_t *rest, int32_t *npre);
 
+/* ---- sr_split.c: mid-season splits (S4; the Mod's tools/split.py, its SP_TAB entry byte for byte) ----
+ * A division's table split after some match days into groups of consecutive places (Albania, Korea, Malta ...), or
+ * a list of fixtures by row (Apertura / Clausura: Argentina, Mexico ...). sr_split_entry compiles one division's
+ * spec into the exe's SP_TAB entry, identical to split.py's entry() (tests/rules/s4split: the Mod's own Python as
+ * the oracle on every split of World 2026-27). The calendar after the split: circle-method round robins, home /
+ * away from split.py's _orient search (ceil / floor home games, the extra ones to the best placed, a third game
+ * running home or away costs 1; exhaustive up to 10 clubs, the best found in 300000 nodes past that). */
+#define SR_SPLIT_N        30            /* clubs a division (split.py NMAX) */
+#define SR_SPLIT_STAGES   8
+#define SR_SPLIT_DAYS     104           /* match days in all (MAXDAYS) */
+#define SR_SPLIT_FPAIRS   (SR_SPLIT_DAYS * (SR_SPLIT_N / 2))
+#define SR_SPLIT_NODES    300000u       /* _orient's search budget (only once an orientation is found) */
+#ifndef SR_SPLIT_FIRST
+#define SR_SPLIT_FIRST    200000000u    /* ours: no orientation found within this many nodes = refused (-1).
+                                         * split.py has no such bound: 24, 26-28, 30 clubs never end there. */
+#endif
+enum { SR_SPLIT_SEEDED = 0, SR_SPLIT_BALANCE = 1 };  /* home; 1 + K = reverseK (the club away in meeting K hosts) */
+enum { SR_SPLIT_P_FULL, SR_SPLIT_P_HALF_UP, SR_SPLIT_P_HALF_DOWN, SR_SPLIT_P_RESET, SR_SPLIT_P_H2H_HALF };
+typedef struct {
+    uint8_t  fixtures;                  /* 1: a fixture list (its days in the spec's pool), 0: groups */
+    uint8_t  after, reset, keep, home, cb, table, annual, wins;   /* cb / table: split.py's (index + 1, 0 none) */
+    uint8_t  ngroups, groups[4], rounds[4], points[4];            /* groups: sizes (a groups stage) */
+    uint8_t  has_perm, perm[SR_SPLIT_N], has_mem, mem[SR_SPLIT_N]; /* perm: new place k = the old place perm[k] */
+    uint8_t  nfdays;                    /* a fixture stage: its days, from fday0 in the pool */
+    uint16_t fday0;
+} sr_split_stage;
+typedef struct {
+    uint8_t  world, file, div, n, games, nstages, nweeks;
+    uint8_t  weeks[SR_SPLIT_DAYS];      /* nweeks = 0 or every day's (d1 + d2) */
+    sr_split_stage st[SR_SPLIT_STAGES];
+    uint8_t  fcount[SR_SPLIT_DAYS];     /* the fixture pool: pairs a day */
+    uint16_t nfpairs;
+    uint8_t  fpair[2 * SR_SPLIT_FPAIRS];
+} sr_split_spec;
+typedef struct {                        /* _orient's search state (no recursion: the DOS stack) */
+    uint8_t  fa[SR_SPLIT_N * (SR_SPLIT_N - 1) / 2], fb[SR_SPLIT_N * (SR_SPLIT_N - 1) / 2];
+    uint8_t  oh[SR_SPLIT_N * (SR_SPLIT_N - 1) / 2][2], ov[SR_SPLIT_N * (SR_SPLIT_N - 1) / 2][2];
+    uint16_t oc[SR_SPLIT_N * (SR_SPLIT_N - 1) / 2][2];
+    uint8_t  no[SR_SPLIT_N * (SR_SPLIT_N - 1) / 2], cur[SR_SPLIT_N * (SR_SPLIT_N - 1) / 2];
+    int8_t   sl[SR_SPLIT_N * (SR_SPLIT_N - 1) / 2][2], sr_[SR_SPLIT_N * (SR_SPLIT_N - 1) / 2][2];  /* undo */
+    uint8_t  out[SR_SPLIT_N * (SR_SPLIT_N - 1) / 2][2], best[SR_SPLIT_N * (SR_SPLIT_N - 1) / 2][2];
+    uint8_t  home[SR_SPLIT_N], want[SR_SPLIT_N], rem[SR_SPLIT_N], rnd[SR_SPLIT_N * (SR_SPLIT_N - 1) / 2];
+    int8_t   last[SR_SPLIT_N], run[SR_SPLIT_N];
+    uint8_t  days[SR_SPLIT_DAYS][SR_SPLIT_N / 2][3], dn[SR_SPLIT_DAYS];
+    uint8_t  one[SR_SPLIT_N][SR_SPLIT_N / 2][3];  /* one group's oriented rounds */
+    uint8_t  hb[SR_SPLIT_N][SR_SPLIT_N];        /* the matrix's meeting counts / reverseK bits */
+} sr_split_work;
+/* The days before the split (cseg_2653B): n(n-1)/2 / (n/2) x games. */
+int32_t sr_split_days_before(int32_t n, int32_t games);
+/* One single round robin of m clubs, oriented as split.py's _orient: rounds x pairs (home, away) into
+ * day[r][k][0..1], *npr = pairs a round. The rounds (m - 1 + m % 2); -1 bad m, or no orientation within
+ * SR_SPLIT_FIRST nodes (split.py's search never ends there: 24, 26, 27, 28, 30 clubs; 20 needs ~35M nodes). */
+int32_t sr_split_orient(int32_t m, sr_split_work *w, uint8_t (*day)[SR_SPLIT_N / 2][3], int32_t *npr);
+/* The SP_TAB entry of one division (split.py entry()): table = the game's phase-1 pairs of n clubs (dseg_11F356[n-2],
+ * as patched: ntable = n(n-1)/2 pairs, a b a b ...; none past 24 clubs). Its length; -1 a spec split.py refuses
+ * (or a group sr_split_orient refuses), -2 room. */
+int32_t sr_split_entry(const sr_split_spec *sp, const uint8_t *table, int32_t ntable, sr_split_work *w,
+                       uint8_t *out, int32_t max);
 /* ---- sr_port.c: the fixture port (docs/fixture-port.md, 4.2; FP save version 0 = DRAFT until the slot-4 probe's
  * Q1 / Q4) -- the engine side of every non-league fixture: producers queue the fixtures, the exe asks at each
  * calendar advance whether the career club plays one, installs it in slot 4 (ko_one), plays it and submits the
@@ -1020,6 +1112,11 @@ void    sr_port_init(sr_port *p, uint16_t career, uint16_t unit, uint16_t s4firs
  * broken rule's code, *bad = its fixture's index. */
 int32_t sr_port_check(const sr_port_fixture *f, int32_t n, uint16_t unit, uint16_t s4first,
                       const sr_port_host *h, int32_t *bad);
+/* The same rules over a queue: rule 2 (unit1 after `unit`) only for f[from ..), rules 1 and 6 (the league's matches,
+ * the slot-4 windows: live data that may change after a fixture is played) only where state[i] != SR_PORT_PLAYED
+ * (state NULL: every fixture live) -- the check sr_port_add / _revalidate / _load run, for a host's save code. */
+int32_t sr_port_check_queue(const sr_port_fixture *f, int32_t n, int32_t from, const uint8_t *state, uint16_t unit,
+                            uint16_t s4first, const sr_port_host *h, int32_t *bad);
 int32_t sr_port_add(sr_port *p, const sr_port_host *h, const sr_port_fixture *f);   /* 0; a rule's code */
 /* The calendar advance to unit: every queued fixture without the career club whose unit2 <= unit simulated (sim),
  * checked as a result and passed to done. The number played; SR_PORT_E_SIM / _RESULT / _WINNER. */
@@ -1035,8 +1132,14 @@ int32_t sr_port_poll(sr_port *p, const sr_port_host *h, uint16_t unit, uint16_t 
  * SR_PORT_E_SIM / _RESULT / _WINNER. */
 int32_t sr_port_missed(sr_port *p, const sr_port_host *h, uint16_t unit, uint16_t next_unit);
 /* After a load (which has no host, so no rule 1): the loaded queue against the league WITH the host, at the first
- * advance. 0; the broken rule's code, *bad = the fixture -- a refusal and a message then, never a double booking. */
+ * advance; rules 1 and 6 only for fixtures not played. 0; the first broken rule's code, *bad = the fixture -- a refusal
+ * and a message then, never a double booking. */
 int32_t sr_port_revalidate(const sr_port *p, const sr_port_host *h, int32_t *bad);
+/* The same, every failing fixture: *nbad of them, the first max_ids match ids into ids (in queue order); the first
+ * failure's code and *bad as sr_port_revalidate. A PLAYED fixture is never failed by rules 1 / 6 (window or data
+ * changes after it was played). */
+int32_t sr_port_revalidate_all(const sr_port *p, const sr_port_host *h, int32_t *bad, int32_t *nbad, uint32_t *ids,
+                               int32_t max_ids);
 /* The pending fixture's result: checked (match_id, legs, extra time / penalties only where the level allows,
  * the winner against the engine's own reading -- a mismatch refused, never overridden), stored, passed to done. */
 int32_t sr_port_result_in(sr_port *p, const sr_port_host *h, const sr_port_result *r);

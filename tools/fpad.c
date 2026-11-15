@@ -11,16 +11,11 @@
  * revalidates (MC 2a: before the poll and before any season-end path), a refusal goes to sr_port_missed with a log
  * line (2b), nothing touches FP_PORT between the load and there (2c).
  *
- * Interim until P5 (the FP save section): a load starts an empty queue; a K_PORT tie left in slot 4 is played by
- * gplay and its result logged as an orphan (FL_ORPHAN), not credited. P5 is required before a release (MC 14/11). */
-#include <stdint.h>
-#include "swce/swosrules.h"
+ * P5 (the FP save section, fpsave.c): a load restores the queue and the tie in progress (FL_PLOAD); a refused or
+ * absent section starts an empty queue - a K_PORT tie left in slot 4 is then played by gplay and its result logged
+ * as an orphan (FL_ORPHAN), not credited. */
+#include "fpad.h"
 #include "swce/sr_port.c"
-
-typedef uint8_t u8;
-typedef uint16_t u16;
-typedef uint32_t u32;
-typedef int32_t i32;
 
 /* gplay (MC 14/11 (b)+(c)): slot 4's builder ko_one through GP_PAPI[0]; GP_ST / GP_IN / GP_SCT and the game's pseudo
    registers at their symbols (fpad.py externs); the struct offsets and constants (O_*, C_*) from gplay.c's GP_OFFS -
@@ -43,26 +38,13 @@ extern const u16 FP_CALCUR;             /* obj2: the current calendar entry's of
 #define KW(o) (*(const u16 *)(KO0 + (o)))
 extern u32 GP_WK;                       /* gplay.c: the current calendar entry's week (the unit) */
 extern u16 GP_MGR;                      /* gplay.c: the career club's team word */
-extern const u8 FP_SEASON;              /* obj2: the game's seasonPlaying byte (always current) */
-extern const u8 FP_CWB;                 /* obj2: the career's world byte (careerworld; fpad.py's world: FP_WORLD) */
 extern u8 FP_CAL[];                     /* obj2: the career calendar (count word at -4, entries: slot, week, len word) */
-extern sr_port FP_PORT;                 /* swe.c .bss */
 
-enum { FP_MAGIC = 0x50504631, FL_N = 48 };   /* 'FPP1' */
+enum { FP_NREV = 4 };                   /* (REVAL: failing fixtures logged one by one, at most) */
 enum { FL_ADD = 1, FL_INST, FL_RES, FL_REFUSED, FL_MISSED, FL_REVAL, FL_SIM, FL_ORPHAN, FL_NEW, FL_LOAD, FL_SEASON,
-       FL_LEG, FL_LEGX };                /* (FL_LEGX: the leg's e.t. (id) and penalties (y), home | away << 8, FFFFh none) */
-struct fp_logent { u8 code, unit; int8_t rc; u8 x; u16 id, y; };
-struct fp_st {
-    u32 magic;
-    u8 season, loaded, tadded, nlog;    /* (tadded: FPORT_TEST's fixtures queued this season) */
-    u16 leg[2][4];                      /* this tie's legs as played: home team word, away, home goals (90'), away */
-    u16 et[2], pens[2];                 /* the deciding leg's e.t. goals / penalties (FFFFh none), its home first */
-    u8 nleg, pad[3];
-    struct fp_logent log[FL_N];
-};
-extern struct fp_st FP_ST;              /* swe.c .bss */
-
-typedef char fp_st_size_is[sizeof(struct fp_st) == FP_ST_SZ ? 1 : -1];   /* (swe.c's FP_ST: fpad.py ST_SIZE) */
+       FL_LEG, FL_LEGX, FL_PLOAD };      /* (FL_LEGX: the leg's e.t. (id) and penalties (y), home | away << 8, FFFFh none) */
+                                         /* (FL_PLOAD, P5: the FP item at a load - rc the fixtures loaded / 0 none / < 0 refused, y the tie's legs played) */
+/* (FP_ST, struct fp_st, FP_MAGIC / FP_ARM: fpad.h) */
 
 /* the slot-4 windows (fport.py, written by fpad.py): FP_FMAP[team file] = country index (FFh none); FP_DIV rows by
    country then division, FP_NDIV of them; FP_SET their (shared) window lists. (volatile reads: the bytes are put after the
@@ -205,21 +187,25 @@ static int valid(void) { return FP_ST.magic == FP_MAGIC && FP_ST.season == FP_SE
    are not yet this career's (a load's ProcessCareerFile, a new career's defaults, InitializeNewSeason's pg_fix - also
    run by InitCareer, so arming is idempotent); the first fp_step after them (sc_step_c: GP_MGR, GP_WK, FP_SEASON current)
    initialises. A state neither armed nor FP_MAGIC + this season: the port is off. */
-enum { FP_ARM = 0x4D524146 };           /* 'FARM' */
 static void arm(u8 why) { FP_ST.magic = FP_ARM; FP_ST.loaded = why; }
 void fp_new(void) { arm(FL_NEW); }      /* engine.after_new: a new career */
 void fp_load(void) { arm(FL_LOAD); }    /* engine.after_process: a career load (MC 2: the flag -> revalidate first) */
 void fp_season(void) { if (FP_ST.magic == FP_MAGIC || FP_ST.magic == FP_ARM) arm(FL_SEASON); }   /* gplay pg_season's end (GP_PSEAS): pg_fix, InitializeNewSeason */
 
+/* ---- P5 (MC option A): the FP item - fp_save / fps_load (the load + the slot-4 cross-check) in fpsave.c, obj4
+   FPORT2 (MC 15/11) ---- */
 static void fresh(void)
 {
     const u8 why = FP_ST.loaded;
-    sr_port_init(&FP_PORT, GP_MGR, (u16)GP_WK, SR_PORT_NONE, 0);   /* (s4first NONE: the host's windows - plan 1) */
-    FP_ST.magic = FP_MAGIC; FP_ST.season = FP_SEASON; FP_ST.tadded = 0; FP_ST.nleg = 0; FP_ST.nlog = 0;
-    GP_PMID = 0;
-    FP_ST.loaded = why == FL_LOAD;      /* (interim before P5: a load's queue starts empty; the flag still runs the
-                                           revalidate path, so 2a-2c hold once P5 restores the queue) */
+    FP_ST.magic = FP_MAGIC; FP_ST.season = FP_SEASON; FP_ST.nlog = 0;
+    FP_ST.loaded = why == FL_LOAD;      /* (MC 2a: revalidate before the first poll) */
     flog(why, 0, 0, FP_SEASON);          /* (y: the season initialised - the gate checks it is the one played) */
+    if (why == FL_LOAD) {               /* (P5: the FP item - fpsave.c; none or refused: an empty port, as fps_reset) */
+        const i32 got = fps_load();
+        flog(FL_PLOAD, got, 0, (u16)FP_ST.nleg);
+        FP_ST.tadded = got > 0;         /* (FPORT_TEST: the loaded queue holds the test fixtures already) */
+    } else
+        fps_reset();
 }
 
 #ifdef FPORT_TEST
@@ -287,8 +273,12 @@ u32 fp_step(void)                       /* sc_step_c's head: 1 = the career club
     if (!valid()) return 0;             /* (no explicit init this career / season: the port is off - never inferred) */
     const u16 unit = (u16)GP_WK, next = next_unit(unit);
     if (FP_ST.loaded) {                 /* MC 2a: the first advance after a load, before the poll */
-        i32 bad = -1, rc = sr_port_revalidate(&FP_PORT, &HOST, &bad);
-        flog(FL_REVAL, rc, bad >= 0 ? (u16)FP_PORT.f[bad].match_id : 0, 0);
+        i32 bad = -1, nbad = 0;         /* (MC 15/11: every failing fixture - the first FP_NREV ids, one entry each;
+                                           y = how many failed; a PLAYED one is never failed by rules 1 / 6) */
+        u32 ids[FP_NREV];
+        const i32 rc = sr_port_revalidate_all(&FP_PORT, &HOST, &bad, &nbad, ids, FP_NREV);
+        flog(FL_REVAL, rc, nbad ? (u16)ids[0] : 0, (u16)nbad);
+        for (i32 i = 1; i < nbad && i < FP_NREV; i++) flog(FL_REVAL, rc, (u16)ids[i], (u16)nbad);
         if (rc) flog(FL_MISSED, sr_port_missed(&FP_PORT, &HOST, unit, next), 0, 0);   /* (2b: never dropped silently) */
         FP_ST.loaded = 0;
     }

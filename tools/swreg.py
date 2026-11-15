@@ -57,12 +57,17 @@ assert OBJ1MV_AT < OBJ1MV_CC < OBJ1MV_END, 'swreg: OBJ1MV_CC inside the band'
 FPORT_AT = 0x17000                      # 4.2 the fixture port's adapter (P2, Motore; MC 14/11): sr_port.o + port_step + the
 FPORT_END = 0x19000                     # slot-4 window table generated from fport.py, embedded; 2 pages, >= 256 B left at link
                                         # (0x16800..0x17000: Difficolta's SETPIECE, 42-sp)
-MKTHOOK_AT = 0x19000                    # 4.3 the CPU market's exe hooks (mkthook.c, Mercato CPU): the LAST band (MC 13/11,
-MKTHOOK_END = 0x1A800                   # moved up by FPORT 14/11), so a 4.2 release carries no empty page for it
-MKTAGE_AT = 0x1A800                     # 4.3 reserved (Mercato CPU, MC 13/11 final layout); past MKTAGE_END only with MC's ok
-MKTAGE_END = 0x1B800
+FPORT2_AT = 0x1D400                     # 4.2 P5 (MC 15/11): the fixture port's save - fpsave.c (sr_port_save / sr_port_load + the
+FPORT2_END = 0x1E400                    # FP item glue), its own link unit; FPORT_ON builds only, >= 256 B left (release shape);
+                                        # right after Shaved's PRACTICE (0x1C800..0x1D400, merged by the Integratore)
+assert globals().get('PRACTICE_END', FPORT2_AT) == FPORT2_AT, 'swreg: PRACTICE_END == FPORT2_AT'
+MKTHOOK_AT = 0x1EC00                    # 4.3 the CPU market's exe hooks (mkthook.c, Mercato CPU): size reservation (MC 13/11;
+MKTHOOK_END = 0x20400                   # moved up by FPORT 14/11, by FPORT2 15/11), final address at 4.3 start
+MKTAGE_AT = 0x21400                     # 4.3 reserved (Mercato CPU; MKTLOAD 0x20400..0x21400 between: MC 15/11), LAST
+MKTAGE_END = 0x22400
+assert FPORT_END <= FPORT2_AT < FPORT2_END <= MKTHOOK_AT, 'swreg: FPORT_END <= FPORT2_AT < FPORT2_END <= MKTHOOK_AT'   # (S3C, Nazionali cuprule.c: 0x1E400..0x1EC00 between)
 assert S7SWAP_END <= OBJ1MV_AT < OBJ1MV_END <= FPORT_AT < FPORT_END <= MKTHOOK_AT < MKTHOOK_END <= MKTAGE_AT < \
-    MKTAGE_END <= 0x1B800, \
+    MKTAGE_END <= 0x22400, \
     'swreg: S7SWAP_END <= OBJ1MV_AT < OBJ1MV_END <= FPORT_AT < FPORT_END <= MKTHOOK_AT < MKTHOOK_END <= MKTAGE_AT < MKTAGE_END'
 S7_ORIG_SZ = 0x2C000                    # 4.2 S7: s7swap.c's ORIG buffers in swe.c's .bss (shaped builds only; MC 13/11):
                                         # the two league files as read (Italy: 102 = 100 records, 144 = 162: 179212 B;

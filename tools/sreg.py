@@ -129,7 +129,7 @@ def obj4_pages(cur):
     """obj4's file pages with the old-save import's band (swreg.SREG2_AT..SREG2_END): cur, raised to it only when the
     import links (import_on: a shaped S7 build; dormant builds: cur, their bytes unchanged)."""
     import swreg
-    return max(cur, swreg.SREG2_END // 0x1000) if import_on() else cur
+    return max(cur, (swreg.SREG2_END + 0xFFF) // 0x1000) if import_on() else cur
 
 
 def sreg2_check(p):

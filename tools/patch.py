@@ -379,16 +379,16 @@ def patch_exe(src, dst, remap, lang='it'):
         if lr_tabs or ct_pg else swe.OBJ4_BASE  # (4.2 AFC mode: + LR_TAB's own page, the 11th - MC 11/11 option b;
                                                 # P7: conti linked = lrank's band too, even with no tie-breaker list)
     import swreg
-    swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, swreg.BOX_END // 0x1000)   # 4.2 shirtbox: se_unsh at the 13th page's top
-    swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, swreg.SLOW_END // 0x1000)   # 4.2 slow (MC 12/11, 23bis exception): page 13
-    swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, swreg.KITS_END // 0x1000)   # 4.2 kits (MC 12/11): page 16 + KEEPKIT's 17th
+    swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, (swreg.BOX_END + 0xFFF) // 0x1000)   # 4.2 shirtbox: se_unsh at the 13th page's top
+    swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, (swreg.SLOW_END + 0xFFF) // 0x1000)   # 4.2 slow (MC 12/11, 23bis exception): page 13
+    swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, (swreg.KITS_END + 0xFFF) // 0x1000)   # 4.2 kits (MC 12/11): page 16 + KEEPKIT's 17th
     if os.environ.get('DIFF_TC') and os.environ.get('DIFF_TRACE'):    # (DIFF_TC test builds: the counters' page)
         import difficulty as _df
         swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, _df.TCX_AT // 0x1000 + 1)
     swe.SWEFILE = True                                 # (4.2 KEEPKIT.DAT, kits.py: the engine's file layer, page 18)
     if xtra_on:                                        # 4.2.y T3 PRIMAVERA (MC 12/11, 23bis): its own page, the 14th
                                                        # (the pages between stay zero)
-        swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, swreg.T3_END // 0x1000)
+        swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, (swreg.T3_END + 0xFFF) // 0x1000)
     import difficulty
     if difficulty.on():                                # 42-diff: difficulty's 2 KB on page 15 (MC 12/11)
         swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, (swreg.DIFF_END + 0xFFF) // 0x1000)

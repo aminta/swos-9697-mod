@@ -11487,6 +11487,8 @@ def practice_play(kind, side, esc_at=None, again=False):
                     if struct.unpack('<h', r.obj2(g['GSP_O'], 2))[0] == 102 else prev[2] if prev else None
                 pn = [struct.unpack('<H', r.obj2(g[t] + 4, 2))[0] for t in ('TOPT_O', 'BOTT_O')]
                 awards[w['NT']] = (w['NT'], gs, by, w['ATK'], w['HUM'], pn, w['CY'])
+                if PRACTICE_PROBE and struct.unpack('<h', r.obj2(g['GSP_O'], 2))[0] == 102:
+                    PRACTICE_PROBE[0](s, r, g, w, gs)   # (takers: who walks to the ball, every 102 sample)
                 if shots < 3 and len(awards) > shots:
                     s.shot(f'practice_{kind}_{side}_{shots}')
                     shots += 1
@@ -11928,6 +11930,121 @@ for _k in PR_KINDS:
             f.__doc__ = f'practice_play({k!r}, {sd!r}): ' + (practice_play.__doc__ or '').split('\n')[0]
             return f
         scenario(_mk())
+
+
+PRACTICE_PROBE = []            # (practice_takers: a callback on every gameStatePl 102 sample of practice_play)
+
+
+def takers_state(r):
+    """4.2 takers: the TAKERS band's tag 'TAKR' -> (TK_W, TK_LAST, TK_NSW, TK_TAB 18 bytes, TK_SIDE), or None."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import swreg
+    import takers
+    if r.base4 is None:
+        return None
+    band = r.read(r.base4 + swreg.TAKERS_AT, swreg.TAKERS_END - swreg.TAKERS_AT)
+    k = band.find(takers.TAG)
+    if k < 0:
+        return None
+    tkb = k - 4
+    tab = tkb + struct.unpack_from('<I', band, k + 4)[0]
+    return dict(W=band[k + 8], LAST=band[k + 9], NSW=struct.unpack_from('<H', band, k + 10)[0],
+                SIDE=struct.unpack_from('<II', band, tab - 8), TAB=band[tab:tab + 18], TAB_AT=r.base4 + swreg.TAKERS_AT + tab)
+
+
+def practice_takers(kind):
+    """4.2 takers (A), the hook (TAKERS_BUILD: a release dir built with TAKERS_TEST=1 TAKERS_LIST='fk:P;pen:P;cor:P',
+    P a file player index; default practice): practice_play(kind, 'att') with a probe on every gameStatePl 102
+    sample (the ball placed, waiting on the taker): the kicking team's controlled player = the player whose in-match
+    PlayerInfo.playerIndex is the list's pick (when he is on the pitch, ordinals 2..11), TK_NSW moving; the rest of
+    practice_play's gates as they are. TAKERS_EXPECT=orig: the control (TK_W 0 or no list) - the original ordinals
+    (free kicks 9 / 10 / 6, penalty 10, corners 5 / 2) and TK_NSW 0. TAKERS_SIDE=def: the CPU kicks (practice DEFENCE,
+    a build with TK_W 1 and no TAKERS_LIST): the taker = AUTOMATICO, the best SHOOTING outfielder on the pitch (free
+    kicks, penalties) / PASSING (corners), the lower ordinal on a tie, read from the in-match PlayerInfo."""
+    b = os.environ.get('TAKERS_BUILD')
+    if not b or not os.path.isdir(b):
+        return True, 'SKIP: TAKERS_BUILD not set'
+    orig = os.environ.get('TAKERS_EXPECT') == 'orig'
+    side = os.environ.get('TAKERS_SIDE', 'att')
+    near = {4: 5, 5: 2, 6: 9, 7: 9, 8: 9, 9: 10, 10: 6, 11: 6, 12: 6, 14: 10}
+    seen, errs, diag = [], [], []
+
+    def probe(s, r, g, w, gs):
+        t = takers_state(r)
+        kt = g['TOPT_O'] if w['ATK'] else g['BOTT_O']
+        cp = struct.unpack('<I', r.obj2(kt + 0x20, 4))[0]
+        igt = struct.unpack('<I', r.obj2(kt + 0x0A, 4))[0]
+        if not cp or not igt:
+            return
+        ordn = struct.unpack('<H', r.read(cp + 2, 2))[0]
+        pinf = [r.read(igt + 42 + 61 * i, 61) for i in range(11)]
+        pidx = [x[1] for x in pinf]
+        sk = 0x1B if gs in (4, 5) else 0x1C
+        spt = struct.unpack('<I', r.obj2(kt + 0x14, 4))[0]
+        sprs = [struct.unpack('<I', r.read(spt + 4 * i, 4))[0] for i in range(11)]
+        out = [i for i in range(1, 11) if sprs[i] and struct.unpack('<H', r.read(sprs[i] + 0x6C, 2))[0] == 0]
+        best = max(out, key=lambda i: (pinf[i][sk], -i)) + 1 if out else None
+        seen.append((w['NT'], gs, ordn, pidx[ordn - 1] if 1 <= ordn <= 11 else None, t and t['NSW'], t and t['LAST'],
+                     pidx, best))
+        if t and not diag:
+            pn = [struct.unpack('<HH', r.obj2(x + 4, 4)) for x in (g['TOPT_O'], g['BOTT_O'])]
+            igts = [struct.unpack('<I', r.obj2(x + 0x0A, 4))[0] for x in (g['TOPT_O'], g['BOTT_O'])]
+            diag.append(f'TK_W {t["W"]} TK_SIDE {[hex(x) for x in t["SIDE"]]} in-match teams {[hex(x) for x in igts]} '
+                        f'(playerNumber, coach) {pn} TK_TAB {t["TAB"].hex()} kicking {"top" if w["ATK"] else "bottom"}')
+    PRACTICE_PROBE[:] = [probe]
+    old = os.environ.get('PRACTICE_BUILD')
+    os.environ['PRACTICE_BUILD'] = b
+    try:
+        ok, msg = practice_play(kind, side)
+    finally:
+        PRACTICE_PROBE[:] = []
+        if old is None:
+            os.environ.pop('PRACTICE_BUILD', None)
+        else:
+            os.environ['PRACTICE_BUILD'] = old
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import takers
+    last = {}
+    for nt, gs, ordn, pi, nsw, lst, pidx, best in seen:  # (the last 102 sample of each attempt: the taker settled)
+        last[nt] = (gs, ordn, pi, nsw, lst, pidx, best)
+    pick = None
+    lst_env = dict(x.split(':') for x in filter(None, (os.environ.get('TAKERS_LIST') or '').split(';')))
+    role = {'fk': 'fk', 'pen': 'pen', 'corner': 'cor'}[kind]
+    if role in lst_env:
+        pick = [int(x) for x in lst_env[role].split(',') if x != '']
+    check(bool(last), f'takers {kind}: no gameStatePl 102 sample', errs)
+    for nt, (gs, ordn, pi, nsw, lst, pidx, best) in sorted(last.items()):
+        on = [x for x in (pick or []) if x in pidx[1:11]]
+        if side == 'def' and not orig:
+            check(ordn == best, f'takers {kind} #{nt}: state {gs} CPU taker ordinal {ordn} (want AUTOMATICO: {best})',
+                  errs)
+        elif orig or not on:
+            check(ordn == near.get(gs), f'takers {kind} #{nt}: state {gs} taker ordinal {ordn} (want the original '
+                  f'{near.get(gs)}{"" if orig else ", no pick on the pitch"})', errs)
+        else:
+            check(pi == on[0], f'takers {kind} #{nt}: state {gs} taker ordinal {ordn} file index {pi} (want the pick '
+                  f'{on[0]}, ordinal {pidx.index(on[0]) + 1})', errs)
+    nsw = max((v[3] or 0) for v in last.values()) if last else 0
+    swaps = orig is False and (side == 'def' or bool(pick))
+    if side == 'def' and not orig and last and all(v[6] == near.get(v[0]) for v in last.values()):
+        swaps = False                                    # (AUTOMATICO = the original slot every time: no swap)
+    check((nsw > 0) == swaps, f'takers {kind}: TK_NSW {nsw} (want {"> 0" if swaps else "0"})', errs)
+    info = [f'takers {kind}: (attempt, state, ordinal, file index, NSW, LAST) '
+            + ' '.join(f'{nt}:{v[0]}/{v[1]}/{v[2]}/{v[3]}/{v[4]:#x}' for nt, v in sorted(last.items()) if v[4] is not None)]
+    if last:
+        info.append(f'lineup file indexes {next(iter(last.values()))[5]}, AUTOMATICO ordinal per attempt '
+                    f'{[v[6] for _, v in sorted(last.items())]}')
+    return ok and not errs, '; '.join(errs + info + diag + [msg])
+
+
+for _k in ('fk', 'pen', 'corner'):
+    def _mk(k=_k):
+        def f():
+            return practice_takers(k)
+        f.__name__ = f'practice_takers_{k}'
+        f.__doc__ = practice_takers.__doc__
+        return f
+    scenario(_mk())
 
 
 @scenario

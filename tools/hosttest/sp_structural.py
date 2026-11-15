@@ -258,7 +258,8 @@ def save_check(ni, sj, lab):
     sp_new_j: SP_W = bits 6-7 of DF_SV / DF_SH (3 -> 0; every byte), then on to difficulty's df_load / df_new."""
     d = {k: v[1] for k, v in sj['difficulty'].items()}
     R = B4 + swreg.SETPIECE_END - 16                   # (a return address nobody jumps to: the run's end)
-    allowed = tuple((B4 + lo, B4 + hi) for lo, hi in AIMED)
+    allowed = tuple((B4 + lo, B4 + hi) for lo, hi in AIMED) + \
+        ((B4 + swreg.TAKERS_AT, B4 + swreg.TAKERS_END), (B4 + swreg.TKUI_AT, B4 + swreg.TKUI_END))   # (sp_load_j -> tk_load)
     bad, n = [], 0
 
     def go(entry, end, prep):

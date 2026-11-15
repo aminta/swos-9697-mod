@@ -102,7 +102,7 @@ def run(path, club, tag):
             if not ks:
                 continue
             seen += 1
-            if any(m[k + 24] != w[24] or m[k + 60:k + 76] != bytes(w[60:76]) for k in ks):
+            if copy_diffs(m, w, ks):
                 bad.append(nm)
             tacs[w[24]] = tacs.get(w[24], 0) + 1
         T.check(seen >= 10, f'only {seen} other club records found in memory', errs)
@@ -135,6 +135,12 @@ def game_copies(m, w):
             out.append(k - 5)
         k = m.find(name, k + 1)
     return out
+
+
+def copy_diffs(m, w, ks):
+    """The copies (offsets ks in m) whose tactic (+24) or lineup (+60..76) differ from DATA record w - every copy, so
+    one corrupted copy among several is caught (MC 15/11; control: tools/hosttest/tests/test_tacgate.py)."""
+    return [k for k in ks if m[k + 24] != w[24] or m[k + 60:k + 76] != bytes(w[60:76])]
 
 
 def group_of(club):

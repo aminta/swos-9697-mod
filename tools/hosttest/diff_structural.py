@@ -56,6 +56,7 @@ GDT_AT = 0x1FF0000
 GPR = (('eax', UC_X86_REG_EAX), ('ebx', UC_X86_REG_EBX), ('ecx', UC_X86_REG_ECX), ('edx', UC_X86_REG_EDX),
        ('esi', UC_X86_REG_ESI), ('edi', UC_X86_REG_EDI), ('ebp', UC_X86_REG_EBP))
 FLAGS = 0x8D5                            # CF PF AF ZF SF OF
+SP_COVER = []                                       # (set pieces' obj1 hook regions, when NEW links them)
 ROOMS = ((swreg.DRIB1V1_AT, swreg.DRIB1V1_END), (swreg.DIFF_AT, swreg.DIFF_END), (swreg.DIFF2_AT, swreg.DIFF2_END))
 HOOKS = (('KICK', 10, 'df_kick'), ('SC', 13, 'df_scale'), ('GK', 11, 'df_gk'), ('PS', 10, 'df_pass'),
          ('GL', 8, 'df_goal'), ('SL', 7, 'df_slide'), ('TU', 6, 'df_turn'), ('CAR', 37, 'df_carrier'))
@@ -141,6 +142,10 @@ def byte_diff(ri, ni, hooks, lab):
                 res.append(f'obj1 {name} {o:#x}+{ln}: REF {bytes(a[o:o + ln]).hex()} -> NEW `call {l}` + {ln - 5} nop '
                            f'{"ok" if good else "WRONG " + got.hex()}')
             stray = [r for r in rs if any(x not in cover for x in range(*r))]
+            spc = [r for r in stray if any(lo <= r[0] and r[1] <= hi for lo, hi in SP_COVER)]
+            if SP_COVER:                                # (disk A: CALCI PIAZZATI's own hooks, proved by sp_structural)
+                res.append(f'obj1: {len(spc)} changed ranges inside the set pieces\' hook regions (sp_structural.py)')
+                stray = [r for r in stray if r not in spc]
             cls, bad, BLOCKS[:] = classify(a, b, stray)
             res.append(f'obj1: {len(rs)} changed ranges, {len(stray)} outside the hook regions, classified:')
             res += ['  ' + x for x in cls]
@@ -320,6 +325,9 @@ class Mach:
 
     def _fill(self, uc, access, addr, size, value, _):
         pg = addr & ~0xFFF
+        self.npages = getattr(self, 'npages', 0) + 1
+        if self.npages > 512:                           # (runaway code: stop, the run reports an error)
+            return False
         for q in (pg, (addr + size - 1) & ~0xFFF):
             try:
                 uc.mem_map(q, 0x1000, UC_PROT_ALL)
@@ -392,7 +400,7 @@ def run(m, start, end, allowed, max_steps=20000):
         steps[0] += 1
         if steps[0] > max_steps:
             raise External('steps')
-        if addr == end:
+        if addr in ends:
             uc.emu_stop()
             return
         if not any(lo <= addr < hi for lo, hi in allowed):
@@ -408,6 +416,8 @@ def run(m, start, end, allowed, max_steps=20000):
             uc.reg_write(UC_X86_REG_EFLAGS, 0x202 | ((h >> 64) & FLAGS))
             uc.reg_write(UC_X86_REG_EIP, ret)
 
+    ends = set(end) if isinstance(end, (tuple, list, set)) else {end}
+    end = min(ends)
     hk = uc.hook_add(UC_HOOK_CODE, code)
     err = None
     try:
@@ -416,7 +426,7 @@ def run(m, start, end, allowed, max_steps=20000):
         err = str(e)
     uc.hook_del(hk)
     eip = uc.reg_read(UC_X86_REG_EIP)
-    if err is None and eip != end:
+    if err is None and eip not in ends:
         err = f'stopped at {eip:#x}'
     return log, err
 
@@ -427,7 +437,7 @@ def state(m):
                 eip=uc.reg_read(UC_X86_REG_EIP), flags=uc.reg_read(UC_X86_REG_EFLAGS) & FLAGS)
 
 
-def trial(ri, ni, site, sym, lab, seed, act, dact, structured, dead_flags=False, gspl=None):
+def trial(ri, ni, site, sym, lab, seed, act, dact, structured, dead_flags=False, gspl=None, ends=None):
     name, o, ln, l = site
     r = random.Random(seed)
     ms = (Mach(ri, seed), Mach(ni, seed))
@@ -483,7 +493,7 @@ def trial(ri, ni, site, sym, lab, seed, act, dact, structured, dead_flags=False,
     reg = (start, end)
     out = []
     for m, allowed in ((ms[0], (reg,)), (ms[1], (reg,) + tuple((B4 + lo, B4 + hi) for lo, hi in ROOMS))):
-        log, err = run(m, start, end, allowed)
+        log, err = run(m, start, ends or end, allowed)
         out.append((state(m), log, err))
     (sa, la, ea), (sb, lb, eb) = out
     diffs = []
@@ -530,8 +540,13 @@ ALLW = {'cmp', 'test', 'add', 'sub', 'and', 'or', 'xor', 'neg', 'popf', 'popfd',
 READ_ALL = {'pushf', 'pushfd', 'pushfw', 'lahf', 'into', 'adc', 'sbb', 'rcl', 'rcr', 'salc'}
 
 
+_DIS = {}
+
+
 def disasm_one(img1, addr):
     """(mnemonic, operands, length) of the instruction at linear addr (obj1), by ndisasm."""
+    if (id(img1), addr) in _DIS:
+        return _DIS[(id(img1), addr)]
     import subprocess
     import tempfile
     o = addr - B1
@@ -549,7 +564,8 @@ def disasm_one(img1, addr):
             break
     txt = ln[2] if len(ln) > 2 else ''
     m, _, ops = txt.partition(' ')
-    return m.lower(), ops.strip(), len(hexb) // 2
+    _DIS[(id(img1), addr)] = r = (m.lower(), ops.strip(), len(hexb) // 2)
+    return r
 
 
 def callers(img1, fn):
@@ -567,6 +583,7 @@ def flag_liveness(img1, start, live='CPAZSO', max_n=80, fn=None):
     is read; ('LIVE', where) when one is read; ('UNKNOWN', where) at a ret / indirect branch / the step limit. Follows
     jmp, both arms of a jcc that reads no live flag, and calls (into the callee and back)."""
     todo, seen, path = [(start, frozenset(live), ())], set(), []
+    budget = [600]                                      # (instructions in all: past it, UNKNOWN)
     outer = set()
     res = 'dead'
     while todo:
@@ -577,6 +594,9 @@ def flag_liveness(img1, start, live='CPAZSO', max_n=80, fn=None):
             if (a, lv, stack) in seen:
                 break
             seen.add((a, lv, stack))
+            budget[0] -= 1
+            if budget[0] < 0:
+                return ('UNKNOWN', 'walk budget (600 instructions)'), path
             m, ops, n = disasm_one(img1, a)
             path.append(f'{a:#x} {m} {ops}')
             nxt = a + n
@@ -657,6 +677,12 @@ def main():
     sym['CIPWB'] = w1['CIPWB']
     sym['GSPL'] = w1['GSPL']
     ri, ni = images(ref_exe), images(new_exe)
+    if 'setpieces' in json.load(open(os.path.join(a.new, 'ITALIAN.syms.json'))):   # (disk A, 15/11: CALCI PIAZZATI
+        global ROOMS                                    #  linked with the OPTIONS rows - its band = NEW's own code /
+        import setpieces as sp                          #  state; df_kick's sp_set runs in it; sp_structural proves
+        ROOMS = ROOMS + ((swreg.SETPIECE_AT, swreg.SETPIECE_END),)   # its own obj1 hooks)
+        s0, _ = sp.find(LEPatch(os.path.join(HERE, '..', '..', 'orig', 'ITALIAN.EXE')))
+        SP_COVER[:] = [(s0[k0], s0[k0] + n) for k0, n, _l in sp.HOOKS]
     k = lab['df_kick']                                  # (SWOS++ / training-game flags: df_kick's own operands,
     assert ni[4][k:k + 5] == bytes.fromhex('5031c0803d') and ni[4][k + 9] == 0xFF, ni[4][k:k + 16].hex()   #  linear)
     sym['SWOSPP'] = ('lin', struct.unpack_from('<I', ni[4], k + 5)[0])

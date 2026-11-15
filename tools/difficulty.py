@@ -46,6 +46,10 @@ NB, BR, SRCP, KMAX = (28, 26, 11, 13) if SLOW_ROW else (26, 15, 12, 12)   # our 
 # CHAIRMAN SCENES 15 / 16, or slow's 26 / 27), the rows' pitch before us, the last row k
 if not SLOW_ROW:                        # (without slow: gkinj's 11 rows at 12 px + ours = 13 rows: y 18 + 10 k, 9 high)
     PITCH, HEIGHT = 10, 9
+SP_ROW = True                           # (setpieces.py, MC 14/11: the CALCI PIAZZATI row under DRIBBLING whenever the
+if SP_ROW:                              #  OPTIONS rows are in - the SETPIECE band linked; 14 rows: 9 px, 8 high)
+    assert not SLOW_ROW, 'CALCI PIAZZATI + MATCH SPEED: 15 rows'
+    PITCH, HEIGHT, KMAX = 9, 8, 13
 NROWS = KMAX + 1
 LVMAP = (3, 1, 5, 2, 4)                 # DF_W -> level
 #              L1      L2      L3      L4      L5
@@ -143,6 +147,28 @@ def _font_guard(*tabs):
 
 _font_guard(LABEL, VALUES, DRLABEL, DRVALUES, DP_TITLE, DP_BACK, DP_RESET, DP_LEG, [r[0] for r in DP_ROWS], DP_SW)
 
+def _font_guard(*tabs):
+    """Every menu text (str, tuple / dict of them) only in characters the game's menu fonts draw (complist.FONT): a
+    stray char is a box glyph on screen ('=' in DP_LEG, Davide's MiSTer 14/11) - fail the build, all four languages."""
+    import complist
+    out = []
+
+    def walk(x):
+        if isinstance(x, str):
+            out.extend(f'{x!r}: {complist.font_odd(x)}' for _ in [0] if complist.font_odd(x))
+        elif isinstance(x, (tuple, list)):
+            for y in x:
+                walk(y)
+        elif isinstance(x, dict):
+            for y in x.values():
+                walk(y)
+    for t in tabs:
+        walk(t)
+    assert not out, 'menu texts outside the font: ' + '; '.join(out)
+
+
+_font_guard(LABEL, VALUES, DRLABEL, DRVALUES, DP_TITLE, DP_BACK, DP_RESET, DP_LEG, [r[0] for r in DP_ROWS], DP_SW)
+
 ASM = r"""
 ; ---- the kick-off: DF_ACT for this match (replaces `mov A6, offset team1AppPercent` at @@init_in_game_teams)
 df_kick:
@@ -166,6 +192,9 @@ df_kick:
     xor eax, eax                        ; DRIBBLING: the same gates (SWOS++, a training game)
     cmp byte [SWOSPP], 0FFh
     jne .d
+%if SP
+    call sp_set                         ; (setpieces: no SWOS++ seen, training games too - sp_on keeps a training game
+%endif                                  ;  original unless it is a practice: PR_WORK's KIND, Shaved 14/11)
     cmp word [TRG], 0
     jne .d
     mov ax, [DF_DR]
@@ -610,8 +639,11 @@ df_add:
     mov byte [ecx + 12h], NB + 3
 .n: mov word [ebx + 10h], NB + 4
     add dword [ebx + 12h], 4 * 38h
+%if SP
+    call sp_add                         ; (setpieces: CALCI PIAZZATI, entries NB + 4 / NB + 5)
+%endif
     lea esi, [ebx + 16h]                ; every row at the source pitch SRCP (12: gkinj's; 11: slow's; ours one / two
-    mov ecx, NB + 4                     ; rows below the bottom once copied) -> y TOP + PITCH * k, HEIGHT high
+    mov ecx, NB + 4 + 2 * SP            ; rows below the bottom once copied) -> y TOP + PITCH * k, HEIGHT high
     add word [ebx + 16h + NB * 38h + 16h], SRCP
     add word [ebx + 16h + (NB + 1) * 38h + 16h], SRCP
     add word [ebx + 16h + (NB + 2) * 38h + 16h], 2 * SRCP
@@ -637,6 +669,8 @@ df_add:
 .x: popad
     ret
 
+%if SP == 0                             ; (with CALCI PIAZZATI: df_tog / df_rtog / df_pack in setpieces.py's band, MC
+                                        ;  14/11 - page 15's margin)
 df_tog:                                 ; DIFFICULTY (fire): NORMAL -> HARD -> EASY -> NORMAL (L2 / L4: back to NORMAL)
     mov ax, [DF_W]
     cmp ax, 0
@@ -665,6 +699,7 @@ df_rtog:                                ; DRIBBLING (fire): CLASSIC -> NEW -> CU
 .p: call dp_fall
     mov dword [A6_], DP_MENU            ; the page (OPTIONS comes back unpacked: df_ret, CUSTOM shown)
     jmp SHOW_MENU
+%endif
 
 
 ; ---- the kick-off with DRIBBLING 2: BLK_CU / BLK_CO = BLK_U / BLK_O with the page's steps (DP_TAB: 7 rows of
@@ -697,6 +732,7 @@ dp_build:
     jb .r
     popad
     ret
+%if SP == 0
 df_pack:                                ; DF_SV = DF_SH = DIFFICULTY | DRIBBLING << 4
     push eax
     mov al, [DF_DR]
@@ -706,6 +742,7 @@ df_pack:                                ; DF_SV = DF_SH = DIFFICULTY | DRIBBLING
     mov [DF_SH], al
     pop eax
     ret
+%endif
 
 df_load:                                ; after a career load: the save's options (0 = NORMAL + CLASSIC without 'DF')
     mov al, [DF_SV]
@@ -797,6 +834,9 @@ df_frame:
     call BU_ENTRY                       ; (buildup.py's counters)
 %endif
     pushad
+%if SPM
+    call SPM_ENTRY                      ; (spmeter.py: the M3 corner meter, SP_METER test builds)
+%endif
 %if DELAY                               ; (DIFF_DELAY=n, MC 14/11 CPU-cost control: a pure n-iteration loop per frame,
     mov ecx, DELAY                      ;  no logic - does REF+delay drift from REF like NEW does?)
 .dl:loop .dl
@@ -2180,10 +2220,15 @@ def patch(p, lang):
     sym['BU_ENTRY'] = (4, swreg.BU_AT)
     sym['TC_FRAME'] = (4, TCX_AT)
     sym['TC_CLS'] = (4, TCX_AT + 5)
+    import spmeter
+    sym['SPM_ENTRY'] = (4, spmeter.SPM_AT)
     bf = bu and 'BUFRAME' not in skips
-    src = (f'%define BUF {int(bf)}\n%define CKSH {int(os.environ.get("DIFF_CKSH", "11"))}\n%define STKZ {int(os.environ.get("DIFF_STKZ", "0") or 0)}\n%define DELAY {int(os.environ.get("DIFF_DELAY", "0") or 0)}\n%define STOPF {int(os.environ.get("DIFF_STOPF", "0"))}\n%define BU {int(bu)}\n%define DIFF_FORCE {int(force)}\n%define ROW {int(row)}\n%define DIFF_TRACE {int(tr)}\n%define TC {int(bool(tr and os.environ.get("DIFF_TC")))}\n%define DF_START {start_w()}\n%define DR_START {start_dr()}\n'
-           f'%define TOP {TOP}\n%define PITCH {PITCH}\n%define HEIGHT {HEIGHT}\n%define NB {NB}\n%define BR {BR}\n%define SRCP {SRCP}\n%define KMAX {KMAX}\n' + ASM
+    src = (f'%define BUF {int(bf)}\n%define CKSH {int(os.environ.get("DIFF_CKSH", "11"))}\n%define STKZ {int(os.environ.get("DIFF_STKZ", "0") or 0)}\n%define DELAY {int(os.environ.get("DIFF_DELAY", "0") or 0)}\n%define STOPF {int(os.environ.get("DIFF_STOPF", "0"))}\n%define BU {int(bu)}\n%define DIFF_FORCE {int(force)}\n%define ROW {int(row)}\n%define DIFF_TRACE {int(tr)}\n%define SPM {int(bool(tr and os.environ.get("SP_METER")))}\n%define TC {int(bool(tr and os.environ.get("DIFF_TC")))}\n%define DF_START {start_w()}\n%define DR_START {start_dr()}\n'
+           f'%define SP {int(SP_ROW and row)}\n%define TOP {TOP}\n%define PITCH {PITCH}\n%define HEIGHT {HEIGHT}\n%define NB {NB}\n%define BR {BR}\n%define SRCP {SRCP}\n%define KMAX {KMAX}\n' + ASM
            + (ASM_ROW if row else '') + (ASM_T if tr else '') + data_asm() + strs)
+    if SP_ROW and row:                                  # (setpieces.py's band: its labels from a first pass)
+        import setpieces
+        sym.update({k: (4, v) for k, v in setpieces.pass1(p, lang, sym).items() if k in setpieces.FROM_DF})
     band = None
     if row:                                             # (42-drp, MC 14/11: the page's code + strings and W1 in the
         import patch as _pt                             #  band DRIB1V1_AT, MATCH SPEED's parked room - never both)
@@ -2342,6 +2387,8 @@ def patch(p, lang):
         p.branch(1, tp - 25, 0xE8, 4, lab['df_tick'], n=7)   #  live, else TimerProc's own: df_tick)
     LABELS.clear()
     LABELS.update(lab)
+    SYMS.clear()
+    SYMS.update(sym)
     SITES.clear()
     SITES.update(s)
     kind = f'test (DIFF_TEST={os.environ["DIFF_TEST"]})' if os.environ.get('DIFF_TEST') else 'release (NORMAL + CLASSIC)'
@@ -2352,4 +2399,5 @@ def patch(p, lang):
 
 
 LABELS = {}
+SYMS = {}
 SITES = {}

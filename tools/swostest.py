@@ -33089,7 +33089,7 @@ def drp_setp():
 @scenario
 def diff_menu():
     """42-diff: the OPTIONS rows DIFFICULTY (entries NB / NB+1) and DRIBBLING (NB+2 / NB+3) under the bottom row (NB = 26:
-    gkinj's, MATCH SPEED out since 13/11; 28 with slow) (difficulty.py, DIFF_TEST build): NB+4 entries, the NROWS rows at PITCH from y TOP, HEIGHT high, the last ending above
+    gkinj's, MATCH SPEED out since 13/11; 28 with slow) (difficulty.py, DIFF_TEST build): NB+6 entries (CALCI PIAZZATI NB+4 / NB+5: sp_menu), the NROWS rows at PITCH from y TOP, HEIGHT high, the last ending above
     EXIT TO DOS; labels and values in their boxes, font characters; fire on NB+1: NORMAL -> HARD -> EASY -> NORMAL
     (DF_W 2, 1, 0); fire on NB+3: CLASSIC -> NEW -> CLASSIC (DF_DR 1, 0); the save byte DF_SV follows both.
     Shots options_diff_<n> (the visual tour / the geometry probe). SWOSTEST_UI it / en / fr / de."""
@@ -33110,14 +33110,14 @@ def diff_menu():
         rsv = lambda: s.result.read(blk + DIFF_OFF['SV'], 1)[0]
         lab2 = scr.find(dfm.DRLABEL[UI], exact=True)
         check(lab2 == NB + 2, f'OPTIONS: {dfm.DRLABEL[UI]} at {lab2}', errs)
-        check(lab == NB and scr.n == NB + 4 and blk is not None and rdw() == 0,
+        check(lab == NB and scr.n == NB + 6 and blk is not None and rdw() == 0,   # (+ CALCI PIAZZATI NB+4 / NB+5: sp_menu)
               f'OPTIONS: {label} at {lab}, {scr.n} entries, DF_W {rdw() if blk else None}', errs)
         if lab == NB:
             g = {e[0]: scr.geom[j] for j, e in enumerate(scr.entries)}
             rows = sorted({g[k][1] for k in g if g[k][2] == 140 and dfm.TOP <= g[k][1] <= 160})
-            quit_y = min(g[k][1] for k in g if g[k][1] > rows[-1] and k not in range(NB, NB + 4))
-            check(rows == [dfm.TOP + dfm.PITCH * k for k in range(dfm.NROWS)] and g[NB][1] == rows[-2] and g[NB + 1][1] == rows[-2]
-                  and g[NB + 2][1] == rows[-1] and g[NB + 3][1] == rows[-1]
+            quit_y = min(g[k][1] for k in g if g[k][1] > rows[-1] and k not in range(NB, NB + 6))
+            check(rows == [dfm.TOP + dfm.PITCH * k for k in range(dfm.NROWS)] and g[NB][1] == rows[-3] and g[NB + 1][1] == rows[-3]
+                  and g[NB + 2][1] == rows[-2] and g[NB + 3][1] == rows[-2]
                   and all(g[k][3] == dfm.HEIGHT for k in g if g[k][2] == 140 and g[k][1] in rows)
                   and rows[-1] + dfm.HEIGHT < quit_y, f'OPTIONS rows {rows}, {NB} {g[NB]}, {NB + 1} {g[NB + 1]}, below {quit_y}', errs)
             for t in (label, dfm.DRLABEL[UI]) + dfm.VALUES[UI] + dfm.DRVALUES[UI]:
@@ -33140,7 +33140,7 @@ def diff_menu():
         check(dr == [(1, 0x12), (2, 0x22)], f'DRIBBLING toggles (DF_DR, DF_SV): {dr} (want (1, 0x12), (2, 0x22))', errs)
         notes.append(diff_dp_page(s, pg, blk, errs))
         sc = s.screen()
-        check(sc.n == NB + 4 and rdr() == 2, f'back in OPTIONS: {sc.n} entries, DF_DR {rdr()}', errs)   # (the reader
+        check(sc.n == NB + 6 and rdr() == 2, f'back in OPTIONS: {sc.n} entries, DF_DR {rdr()}', errs)   # (the reader
         # leaves string-table entries' texts empty: the values are checked in memory, the texts on the shots)
         s.shot('options_drib_2')
         walk(s, NB + 3, 2)
@@ -33160,6 +33160,74 @@ def diff_menu():
         dr.append((rdr(), rsv()))
         check(dr[-1] == (0, 0x02), f'DRIBBLING back to CLASSIC: {dr[-1]}', errs)
         notes.append(f'toggles {w}, dribbling {dr}')
+    return not errs, '; '.join(errs + notes)
+
+
+@scenario
+def sp_menu():
+    """4.2 set pieces (setpieces.py, M2): the OPTIONS row CALCI PIAZZATI / SET PIECES (entries NB+4 / NB+5) under
+    DRIBBLING (DIFF_TEST=3 SP_TEST=0 build): NB+6 entries, 14 rows at 9 px from y TOP, 8 high, the last above EXIT TO
+    DOS; DIFFICULTY / DRIBBLING / CALCI PIAZZATI on the last three rows; texts in their boxes, font characters. Fire on
+    NB+5: CLASSICI -> REALISTICI -> ARCADE -> CLASSICI (SP_W 1, 2, 0); the save byte DF_SV's bits 6-7 follow, and DIFFICULTY's toggle
+    keeps it (df_pack, moved to the band). Shots options_sp_<n>. SWOSTEST_UI it / en / fr / de."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import difficulty as dfm
+    import setpieces as spm
+    import swreg
+    NB = dfm.NB
+    PITCH, HEIGHT, NROWS = dfm.PITCH, dfm.HEIGHT, dfm.NROWS
+    assert (PITCH, HEIGHT, NROWS) == (9, 8, 14), 'difficulty.SP_ROW\'s layout'
+    from complist import px, SMALL_W
+    errs, notes = [], []
+    b = build(f'sp_menu_{UI}', {'DIFF_TEST': '3'}, lang=UI)
+    with Session(f'sp_menu_{UI}', b, {}, 'dump:3', 300) as s:
+        s.wait()
+        scr = walk(s, 'OPZIONI', 2)
+        r = s.result
+        blk = diff_block(r)
+        pg = r.read(r.base4 + swreg.SETPIECE_AT, 0x100) if r.base4 is not None else b''
+        k = pg.find(b'SETP')                           # (SPB = the tag - 4: O2BASE, 'SETP', SP_W)
+        spb = r.base4 + swreg.SETPIECE_AT + k - 4 if k >= 4 else None
+        check(spb is not None and blk is not None, f'SETP / DIFF blocks {spb} {blk}', errs)
+        if spb is None or blk is None:
+            return False, '; '.join(errs)
+        rsp = lambda: struct.unpack('<H', s.result.read(spb + 8, 2))[0]
+        rsv = lambda: s.result.read(blk + DIFF_OFF['SV'], 1)[0]
+        rdw = lambda: struct.unpack('<H', s.result.read(blk + DIFF_OFF['W'], 2))[0]
+        lab = scr.find(spm.LABEL[UI], exact=True)
+        check(lab == NB + 4 and scr.n == NB + 6 and rsp() == 0 and scr.find(dfm.DRLABEL[UI], exact=True) == NB + 2,
+              f'OPTIONS: {spm.LABEL[UI]} at {lab}, {scr.n} entries, SP_W {rsp()}', errs)
+        if lab == NB + 4:
+            g = {e[0]: scr.geom[j] for j, e in enumerate(scr.entries)}
+            rows = sorted({g[k][1] for k in g if g[k][2] == 140 and dfm.TOP <= g[k][1] <= 160})
+            quit_y = min(g[k][1] for k in g if g[k][1] > rows[-1] and k not in range(NB, NB + 6))
+            check(rows == [dfm.TOP + PITCH * k for k in range(NROWS)]
+                  and [g[NB + i][1] for i in range(6)] == [rows[-3]] * 2 + [rows[-2]] * 2 + [rows[-1]] * 2
+                  and all(g[k][3] == HEIGHT for k in g if g[k][2] == 140 and g[k][1] in rows)
+                  and rows[-1] + HEIGHT < quit_y, f'OPTIONS rows {rows}, {[g[NB + i] for i in range(6)]}, below {quit_y}',
+                  errs)
+            for t in (spm.LABEL[UI],) + spm.VALUES[UI]:
+                check(px(t) <= g[NB + 4][2] - 2 and set(t) <= set(SMALL_W) | {' '}, f'{t!r}: {px(t)} px in {g[NB + 4][2]}',
+                      errs)
+            notes.append(f'rows {rows[0]}..{rows[-1]} (+{HEIGHT}), EXIT TO DOS at {quit_y}')
+        s.shot('options_sp_0')
+        seen = []
+        walk(s, NB + 5, 2)
+        seen.append((rsp(), rsv()))
+        s.shot('options_sp_1')
+        walk(s, NB + 1, 2)                              # DIFFICULTY -> HARD: bit 6 kept (df_pack)
+        seen.append((rdw(), rsv()))
+        walk(s, NB + 1, 2)
+        walk(s, NB + 1, 2)                              # (EASY, NORMAL)
+        walk(s, NB + 5, 2)                              # (REALISTICI -> ARCADE: bits 6-7 = 2)
+        seen.append((rsp(), rsv()))
+        s.shot('options_sp_arcade')
+        walk(s, NB + 5, 2)                              # (ARCADE -> CLASSICI)
+        seen.append((rsp(), rsv()))
+        check(seen == [(1, 0x40), (2, 0x42), (2, 0x80), (0, 0x00)], f'CALCI PIAZZATI toggles (SP_W / DF_W, DF_SV): '
+              f'{seen} (want (1, 0x40), (2, 0x42), (2, 0x80), (0, 0x00))', errs)
+        s.shot('options_sp_2')
+        notes.append(f'toggles {seen}')
     return not errs, '; '.join(errs + notes)
 
 
@@ -33247,7 +33315,7 @@ def diff_dp_page(s, pg, blk, errs):
 @scenario
 def diff_beta():
     """42-diff beta check (MC 13/11) on a ready build (SWOSTEST_BUILD = c/REL42diff/SWOS, DIFF_TEST=3 + MODVER_TAG, no
-    trace switch): OPTIONS has DIFFICULTY at NB and DRIBBLING at NB+2 (NB+4 entries; NB 26 without MATCH SPEED), starting at NORMAL + CLASSIC (DF_W 0,
+    trace switch): OPTIONS has DIFFICULTY at NB and DRIBBLING at NB+2 (NB+6 entries with CALCI PIAZZATI; NB 26 without MATCH SPEED), starting at NORMAL + CLASSIC (DF_W 0,
     DF_DR 0); then a friendly HAMBURG v SCHALKE played for DIFF_POLLS x 5 s of game time with no key after the
     kick-off: the kick-off hook ran (DF_KICKS > 0, DF_ACT 0, DF_DACT 0) and the match never hangs (topTeamData keeps
     changing, every poll a dump). SWOSTEST_UI it / en / fr / de."""
@@ -33265,7 +33333,7 @@ def diff_beta():
             return False, '; '.join(errs)
         bb = s.result.read(blk, 32)
         check(scr.find(dfm.LABEL[UI], exact=True) == dfm.NB and scr.find(dfm.DRLABEL[UI], exact=True) == dfm.NB + 2
-              and scr.n == dfm.NB + 4,
+              and scr.n == dfm.NB + 6,
               f'OPTIONS: {dfm.LABEL[UI]} / {dfm.DRLABEL[UI]} at {scr.find(dfm.LABEL[UI], exact=True)} / '
               f'{scr.find(dfm.DRLABEL[UI], exact=True)}, {scr.n} entries', errs)
         check(bb[DIFF_OFF['W']] == 0 and bb[DIFF_OFF['DR']] == 0, f'start DF_W {bb[4]} DF_DR {bb[28]} (want 0 0)', errs)
@@ -33503,6 +33571,102 @@ def diff_ab():
             f'{[sum(x[4][j] for x in v) for j in range(4)]}'
             for k, v in sorted(summ.items())]
     return not errs, '; '.join(errs[:6] + info + [f'rows in {out}'])
+
+
+
+def sp_meter_block(r):
+    """(the linear address of spmeter's block - its 'SPMT' tag in obj4 - , the log's linear address) or (None, None)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import spmeter
+    pg = r.read(r.base4 + spmeter.SPM_AT, spmeter.LOG_AT)
+    k = pg.find(spmeter.TAG)
+    while k >= 0 and k % 4:
+        k = pg.find(spmeter.TAG, k + 1)
+    if k < 0:
+        return None, None
+    return r.base4 + spmeter.SPM_AT + k, r.base4 + spmeter.SPM_AT + spmeter.LOG_AT
+
+
+@scenario
+def sp_corners():
+    """4.2 set pieces M3 (MC GO 14/11; setpieces-wingplay-design.md section 6): the corner measure. A DIFF_TEST=3 +
+    DIFF_TRACE + SP_METER build with SP_TEST = SPC_SP (0 CLASSICI, 1 NUOVI; SPC_ENV = extra build switches, e.g.
+    SP_JZ=-0x1000); friendlies at NORMALE, both sides computer-played (DF_CTL 3 / 1), both generators pinned per seed
+    (SPC_SEEDS hex list, else SPC_N seeds md5('spc:k')), no key after the kick-off: one deterministic match each, played
+    to SPC_FRAMES (13000). The meter forces a corner through the game's own path every SP_METER_GAP frames of play
+    and logs SP_METER_WIN frames after it (spmeter.py); its block + log go to SPC_OUT (json lines; default the run dir)
+    and tools/sp_corners.py classifies them. Pairings SPC_PAIRINGS (default eq,sw). PASS = every match played to
+    SPC_FRAMES with corners awarded, none failed to force, no log entry dropped; the numbers are the measurement."""
+    lang = os.environ.get('SWOSTEST_UI', 'it')
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import spmeter
+    sp = os.environ.get('SPC_SP', '0')
+    extra = dict(x.split('=', 1) for x in os.environ.get('SPC_ENV', '').split(',') if x)
+    env = {'DIFF_TEST': '3', 'DIFF_TRACE': '1', 'DIFF_DELAY': '', 'SP_TEST': sp, 'SP_METER': '1', **extra}
+    b = build('sp_corners', env, lang=lang)
+    n = int(os.environ.get('SPC_N', '4'))
+    frames = int(os.environ.get('SPC_FRAMES', '13000'))
+    seeds = [hashlib.md5(f'spc:{k}'.encode()).digest()[:6] for k in range(n)]
+    if os.environ.get('SPC_SEEDS'):
+        seeds = [bytes.fromhex(x) for x in os.environ['SPC_SEEDS'].split(',')]
+    out = os.environ.get('SPC_OUT') or os.path.join(RUNS, 'sp_corners.jsonl')
+    tagv = os.environ.get('SPC_TAG') or f'sp{sp}' + ''.join(f'_{k}{v}' for k, v in extra.items())
+    errs, info = [], []
+    for pr in os.environ.get('SPC_PAIRINGS', 'eq,sw').split(','):
+        home, away = DIFF_PAIRINGS[pr]
+        for k, seed in enumerate(seeds):
+            tag = f'sp_corners_{pr}_{k}'
+            res = dict(variant=tagv, sp=int(sp), env=extra, pairing=pr, seed=seed.hex())
+            with Session(tag, b, {}, 'dump:3', 900, match=True) as s:
+                s.wait()
+                friendly_prematch(s, home, away)
+                blk = diff_block(s.result)
+                mb, lg = sp_meter_block(s.result)
+                if blk is None or mb is None:
+                    errs.append(f'{tag}: no DIFF / SPMT block')
+                    continue
+                s.poke(blk + DIFF_OFF['SEED'], seed + bytes((3, 1)))
+                s.poke(blk + DIFF_OFF['W'], bytes([0, 0]))
+                for _ in range(22):
+                    s.send('down dump:0.5')
+                    if s.screen().selected == 9:
+                        break
+                r = s.send('fire dump:2')
+                for _ in range(40):
+                    if r.outcome != 'dump' or struct.unpack('<I', r.read(blk + DIFF_OFF['KICKS'], 4))[0]:
+                        break
+                    r = s.send('fire dump:2')
+                last, same = -1, 0
+                for _ in range(200):
+                    if r.outcome != 'dump':
+                        break
+                    f = struct.unpack('<I', r.read(blk + DIFF_OFF['FRAMES'], 4))[0]
+                    if f >= frames:
+                        break
+                    same = same + 1 if f == last else 0
+                    if same >= 6:
+                        break
+                    last = f
+                    r = s.send('dump:5')
+                if r.outcome == 'dump':
+                    o = spmeter.OFF
+                    m = r.read(mb, 40)
+                    w = lambda k: struct.unpack_from('<H', m, o[k])[0]
+                    d = lambda k: struct.unpack_from('<I', m, o[k])[0]
+                    ln = d('LN')
+                    raw = r.read(lg, 16 * min(ln, spmeter.LOGMAX))
+                    res.update(frames=struct.unpack('<I', r.read(blk + DIFF_OFF['FRAMES'], 4))[0], nc=w('NC'),
+                               nf=w('NF'), nfail=w('NFAIL'), ln=ln, drop=d('LDROP'), log=raw.hex())
+                    s.shot(f'{tag}_end')
+                else:
+                    res['error'] = str(r)
+            open(out, 'a').write(json.dumps(res) + '\n')
+            check('error' not in res and res['frames'] >= frames and res['nc'] > 0 and not res['nfail']
+                  and not res['drop'], f'{tag}: ' + json.dumps({k: v for k, v in res.items() if k != 'log'}), errs)
+            info.append(f"{pr}/{k}: corners {res.get('nc')} (forced {res.get('nf')}, failed {res.get('nfail')}), "
+                        f"log {res.get('ln')}")
+    return not errs, '; '.join(errs[:6] + info + [f'rows in {out}'])
+
 
 
 

@@ -54,6 +54,10 @@ OBJ1MV_END = 0x16800                    # regions (237 pages frozen): winners.py
                                         # (the career cave); linked with the SEASON WINNERS page (worlds + gplay + extra pages)
 OBJ1MV_CC = 0x15C00                     # (step 2: the career cave's shirtedit + instcheck from here; winners below it)
 assert OBJ1MV_AT < OBJ1MV_CC < OBJ1MV_END, 'swreg: OBJ1MV_CC inside the band'
+SETPIECE_AT = 0x16800                   # 4.2 set pieces 1+2 (setpieces.py, MC 14/11): the unused half of page 0x16 (no new
+SETPIECE_END = 0x17000                  # page), linked in every build; >= SETPIECE_MIN B left (build check). MC 14/11:
+                                        # +0x400 in place for set pieces §3-§5 (0x16C00 -> 0x17000), same SPB base
+SETPIECE_MIN = 128
 FPORT_AT = 0x17000                      # 4.2 the fixture port's adapter (P2, Motore; MC 14/11): sr_port.o + port_step + the
 FPORT_END = 0x19000                     # slot-4 window table generated from fport.py, embedded; 2 pages, >= 256 B left at link
                                         # (0x16800..0x17000: Difficolta's SETPIECE, 42-sp, not merged yet)
@@ -74,6 +78,7 @@ MKTAGE_END = 0x20800
 assert S7SWAP_END <= OBJ1MV_AT < OBJ1MV_END <= FPORT_AT < FPORT_END <= S7GEO_AT < S7GEO_END <= CDKN_AT < CDKN_END <= PRACTICE_AT < \
     PRACTICE_END <= MKTHOOK_AT < MKTHOOK_END <= MKTLOAD_AT < MKTLOAD_END <= MKTAGE_AT < MKTAGE_END <= 0x20800, \
     'swreg: S7SWAP_END <= OBJ1MV_AT < OBJ1MV_END <= FPORT_AT < FPORT_END <= S7GEO_AT < S7GEO_END <= CDKN_AT < CDKN_END <= PRACTICE_AT < PRACTICE_END <= MKTHOOK_AT < MKTHOOK_END <= MKTLOAD_AT < MKTLOAD_END <= MKTAGE_AT < MKTAGE_END'
+assert OBJ1MV_END <= SETPIECE_AT < SETPIECE_END <= FPORT_AT, 'swreg: OBJ1MV < SETPIECE < FPORT (diskA merge)'
 DIFF2_AT = 0x1A000                      # 4.2 the difficulty family's overflow band (MC 14/11, after S7GEO 0x19000..0x1A000):
 DIFF2_END = 0x1A800                     # W1's cover role (w1_cov) now, set pieces §4-§5 if SETPIECE runs short; linked
 DIFF2_MIN = 128                         # whenever the OPTIONS rows are; >= DIFF2_MIN B left at link (asserted)

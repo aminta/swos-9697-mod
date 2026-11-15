@@ -61,6 +61,9 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 #### Malta's title decider
 - Malta: when the title is decided by a play-off (the Finalissima or the Final Four), the champion is now always the club that won that play-off's final. Before, the game could crown a different club at the end of the season.
 
+#### SEASON after a career in another world
+- A 1996-97 SEASON started after a career in World 2026-27 or Europe 1984-85 (in the same game, without quitting) kept that career's world in the background. Its national cups could get that world's fixed pairs (for example the Coppa Italia), and a SEASON saved this way loaded back in the other world. A SEASON is now always 1996-97. A SEASON saved with 4.1.2 or earlier after such a career still loads in the other world: start that SEASON again.
+
 #### Shirt numbers: keypad digits and taken numbers
 - While a shirt-number box is lit (the team screen before a match, the squad screen), the digits of the numeric keypad now type the number like the digits above the letters. Everywhere else the keypad moves the cursor as before.
 - UP / DOWN in the box now go through every number from 1 to 99, one at a time, taken ones included. When you stop on a number another player already wears, the coach's line at the bottom of the screen shows who wears it, for example '7 A. DI LIVIO SWAP'. Leave the box any way except ESC and the two players swap numbers; ESC puts your number back as it was. Typing a number works as before. In EDIT CUSTOM TEAMS UP / DOWN still skip the taken numbers.
@@ -139,6 +142,9 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 
 #### Spareggio per il titolo a Malta
 - Malta: quando il titolo si decide con uno spareggio (la Finalissima o la Final Four), il campione ora è sempre la squadra che ha vinto la finale di quello spareggio. Prima il gioco poteva incoronare un'altra squadra a fine stagione.
+
+#### STAGIONE dopo una carriera in un altro mondo
+- Una STAGIONE 1996-97 iniziata dopo una carriera nel Mondo 2026-27 o in Europa 1984-85 (nella stessa partita, senza uscire dal gioco) si teneva dietro il mondo di quella carriera. Le sue coppe nazionali potevano avere gli accoppiamenti fissi di quel mondo (per esempio la Coppa Italia), e una STAGIONE salvata così si ricaricava nell'altro mondo. Ora una STAGIONE è sempre 1996-97. Una STAGIONE salvata con la 4.1.2 o prima dopo una carriera così si ricarica ancora nell'altro mondo: ricomincia quella STAGIONE.
 
 #### Numeri di maglia: tastierino numerico e numeri occupati
 - Quando il riquadro del numero di maglia è acceso (schermata della squadra prima della partita, schermata della rosa), le cifre del tastierino numerico ora scrivono il numero come quelle sopra le lettere. Altrove il tastierino muove il cursore come prima.

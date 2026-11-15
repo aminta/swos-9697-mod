@@ -15108,6 +15108,143 @@ def engine_sea_ns():
     return not errs, '; '.join(errs + info)
 
 
+def _season_world0(tag, career):
+    """4.2 (MC 15/11): a world career, then a 1996-97 SEASON in the same run, saved as a .SEA and reloaded in a new
+    run. Before the fix SeasonMenu left the career's world byte (someLeaguesTable[1845]) in the season and its .SEA;
+    the reload took that world's namespace (w_ns_ld / w_loadcopy) and its team files. Default world 1996-97:
+    `career` (the selector path of a CARR. STORICHE club), main menu, WORLD switch to 1996-97, STAGIONE > EUROPA > ITALIA > SERIE A > JUVENTUS,
+    the team screen read (world byte 0), SALVA STAGIONE as SEAW; new run: CARICA VECCHIA COMPETIZIONE > SEAW, world
+    byte 0 and the same team screen (the 1996-97 names). Reference: a clean 1996-97 season (no career; SeasonMenu sets
+    seed 0): the career's season shows the same team screen. The first Coppa Italia screens are listed, not compared
+    (a career before the season moves the draw even with world byte 0); the world draws' (cup id, round size) gate is
+    test_seaw0 on the host (historic DRAWS / lib97 byes need WORLDB = their world: 0 here)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import careerworld
+    b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
+    slt = cf_slt(b) + careerworld.WORLD_BYTE          # (the LIVE table: bigtables moves it out of the .CAR fixed part)
+    errs, info = [], []
+    wb = lambda s: tuple(s.result.obj2(slt, 2))       # noqa: E731  (world byte, balance)
+
+    cups = {}
+
+    def to_team(s, key):                        # the STAGIONE button (right of MODIFICA SQUADRE / ABBANDONA) on the club
+        for _ in range(3):                      # list, then on CAMBIA SQUADRE PER ... (the divisions' screen)
+            scr = s.screen()
+            if scr.find('STAGIONE', exact=True) is None or 'VISUAL. COMPETIZ.' in scr.texts():   # (the season's menu)
+                break
+            for _ in range(20):
+                scr = s.screen()
+                cur = scr.entries[scr.selected][1]
+                if cur == 'STAGIONE':
+                    break
+                s.send(('right' if cur in ('ABBANDONA', 'MODIFICA SQUADRE') else 'down') + ' dump:0.5')
+            s.send('fire dump:3')
+        for _ in range(12):                     # (se_to_playmatch, the first cup round's screen kept: its pairs)
+            scr = s.screen()
+            t = scr.texts()
+            if 'MOD. TATTICA' in t and 'AVVERSARI' in t:
+                return scr
+            if '- PARTITA -' in t:
+                cups.setdefault(key, [x for x in t if x])
+                press(s, scr, '- PARTITA -', 2)
+            elif 'PARTITA' in t:
+                press(s, scr, 'PARTITA', 2)
+            else:
+                s.send('fire dump:2')
+        return None
+
+    def season(s):
+        for t in ('EUROPA', 'ITALIA', 'SERIE A', 'JUVENTUS'):
+            if press(s, s.screen(), t, 2) is None:
+                return f'season: {t} not reached ({s.screen().texts()[:8]})'
+        return None
+    with Session(tag + '0', b, {'SETUP.DAT': setup_file(tag + '0', 1)}, 'dump:2', 600) as s:   # (the reference: a
+        if s.wait().outcome != 'dump':                                                       # clean 1996-97 season,
+            return False, f'(reference) no first pause ({s.result})'                         # SeasonMenu's seed 0)
+        press(s, s.screen(), 'STAGIONE', 2)
+        why = season(s)
+        if why:
+            return False, '(reference) ' + why
+        sc = to_team(s, 'ref')
+        if sc is None:
+            return False, f'(reference) no team screen ({s.screen().texts()[:8]})'
+        t0 = [t for t in sc.texts() if t]
+    with Session(tag, b, {'SETUP.DAT': setup_file(tag, 1)}, 'dump:2', 900) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'no first pause ({s.result})'
+        for t in ('CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE') + career[:1]:
+            if press(s, s.screen(), t, 2) is None:
+                return False, f'{t} not reached ({s.screen().texts()[:8]})'
+        if not pick_career(s, list(career[1:])):
+            return False, f'career {career} not started ({s.screen().texts()[:8]})'
+        for _ in range(3):                      # (the president's letter)
+            if s.screen().find('CONTINUA', exact=True) is None:
+                break
+            press(s, s.screen(), 'CONTINUA', 2)
+        w0 = wb(s)
+        info.append(f'career {career[-1]}: world byte {w0[0]}')
+        check(w0[0] != 0, f'the career set no world byte ({w0})', errs)
+        if not wm_to_main(s):
+            return False, f'no main menu after the career ({s.screen().texts()[:8]})'
+        set_world(s, 1)                         # (the main menu's WORLD switch follows the career: back to 1996-97)
+        press(s, s.screen(), 'STAGIONE', 2)
+        if s.screen().find('CONTINUA', exact=True) is not None:
+            press(s, s.screen(), 'CONTINUA', 2)
+        why = season(s)
+        if why:
+            return False, why
+        sc = to_team(s, 'after')
+        if sc is None:
+            return False, f'(season) no team screen ({s.screen().texts()[:8]})'
+        t1 = [t for t in sc.texts() if t]
+        w1 = wb(s)
+        s.shot('team_1')
+        check(w1 == (0, 0), f'season start: world byte / balance {w1} (want 0, 0)', errs)
+        check(t1 == t0, f'season start: team screen {t1[:8]} != a clean season\'s {t0[:8]}', errs)
+        for _ in range(6):
+            scr = s.screen()
+            if 'SALVA STAGIONE' in scr.texts():
+                break
+            press(s, scr, 'ESCI', 2) or s.send('fire dump:2')
+        press(s, s.screen(), 'SALVA STAGIONE', 2)
+        s.send(name_entry('seaw') + ' dump:3')
+        game = s.result.game
+    saves = [f for f in os.listdir(game) if f.upper().endswith('.SEA')]
+    if not saves:
+        return False, '; '.join(errs + info + [f'no .SEA saved ({sorted(os.listdir(game))})'])
+    files = {'SETUP.DAT': setup_file(tag + '2', 1), saves[0]: os.path.join(game, saves[0])}
+    with Session(tag + '2', b, files, 'dump:3', 600) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'(reload) no first pause ({s.result})'
+        press(s, s.screen(), 'CARICA VECCHIA COMPETIZIONE', 2)
+        if press(s, s.screen(), 'SEAW', 3, exact=False) is None:
+            return False, '; '.join(errs + info + [f'SEAW not listed ({s.screen().texts()[:8]})'])
+        w2 = wb(s)
+        sc = se_to_playmatch(s)
+        t2 = [t for t in sc.texts() if t] if sc else []
+        s.shot('team_2')
+        check(w2 == (0, 0), f'.SEA reloaded: world byte / balance {w2} (want 0, 0)', errs)
+        check(t2 == t1, f'.SEA reloaded: team screen {t2[:10]} != the season\'s {t1[:10]}', errs)
+    if not errs:
+        info.append(f'season start + reload: world byte 0, team screen {t1[:6]}, first Coppa Italia screen '
+                    f'{cups.get("after", [])[5:12]} (a clean season: {cups.get("ref", [])[5:12]}; not compared, the career\'s '
+                    f'state moves the draws)')
+    return not errs, '; '.join(errs + info)
+
+
+@scenario
+def season_world0():
+    """4.2 (MC 15/11, Motore): a 1996-97 SEASON after a World 2026-27 career (RADOMIAK RADOM) is world 0 at its start
+    and after its .SEA reload, with the same team screen (_season_world0)."""
+    return _season_world0('season_world0', ('MONDO 2026-27', 'EUROPA', 'POLONIA', 'RADOMIAK RADOM'))
+
+
+@scenario
+def season_world0_8485():
+    """4.2 (MC 15/11): the same after a Europe 1984-85 career (VOLSUNGUR, Iceland)."""
+    return _season_world0('season_world0_8485', ('EUROPA 1984-85', 'ISLANDA', 'VOLSUNGUR'))
+
+
 @scenario
 def engine_avail():
     """Step 2.5 (Davide 2026-11-05): 'not available in this world' -> a message on the spot, 2 rows in the list area

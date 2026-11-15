@@ -57,7 +57,7 @@ assert OBJ1MV_AT < OBJ1MV_CC < OBJ1MV_END, 'swreg: OBJ1MV_CC inside the band'
 SETPIECE_AT = 0xB500                   # 4.2 set pieces 1+2 (setpieces.py, MC 14/11): the unused half of page 0x16 (no new
 SETPIECE_END = 0xC000                  # page), linked in every build; >= SETPIECE_MIN B left (build check). MC 14/11:
                                         # +0x400 in place for set pieces §3-§5 (0x16C00 -> 0x17000), same SPB base
-SETPIECE_MIN = 128
+SETPIECE_MIN = 256                      # (MC 15/11: the release floor, as every band)
 FPORT_AT = 0x35000                      # 4.2 the fixture port's adapter (P2, Motore; MC 14/11): sr_port.o + port_step + the
 FPORT_END = 0x37000                     # slot-4 window table generated from fport.py, embedded; 2 pages, >= 256 B left at link
                                         # (0x16800..0x17000: Difficolta's SETPIECE, 42-sp, not merged yet)

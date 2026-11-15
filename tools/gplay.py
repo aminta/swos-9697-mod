@@ -2460,7 +2460,8 @@ def s3_local():
         for f, keys in by.items():
             mb = sum(1 << keys.index(k) for k in ('b_po', 'b_pout') if k in keys)
             mc = 1 << keys.index('c_po') if 'c_po' in keys else 0
-            out[(pk.world, f)] = (mb, mc)
+            if mb or mc:                        # (a struct with no Serie B / C play-off - England's, in a world whose other countries
+                out[(pk.world, f)] = (mb, mc)     # are not S7-shaped - needs no skip bits: its row stays (0, 0) = skip nothing, as before S3)
     return out
 
 
@@ -2483,7 +2484,6 @@ def table_lines(tables):
     loc = s3_local()
     rows = [loc.get((world, lfile), (0, 0)) for world, lfile, spec in tables]
     for k, v in loc.items():                    # (MC 15/11: a zero pair = skip nothing = the double promotion with no trace)
-        assert v != (0, 0), ('S3 skip bits: a struct of a pack with a Serie B / C play-off has no mask', k)
         assert k in {(w, f) for w, f, _ in tables}, ('S3 skip bits: no GP_TAB row for', k)
     if loc:
         import dplay as _d

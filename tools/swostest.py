@@ -11077,6 +11077,9 @@ def practice_play(kind, side, esc_at=None):
         w = practice_work(s.result)
         if w is None:
             return False, 'PR_WORK not found (no PRWK tag in the PRACTICE band)'
+        if 'STS' in practice.WK:                # (bug 4, Davide 15/11: no stadium / teams / line-ups before a practice)
+            check(w['STS'] == 1 and w['STN'] == 0, f'kick-off: the presentation skipped {w["STS"]}, shown {w["STN"]} '
+                  '(want 1 / 0)', errs)
         check(w['KIND'] == row and w['DEF'] == (side == 'def'), f'kick-off: PR_KIND {w["KIND"]} PR_DEF {w["DEF"]} '
               f'(want {row}, {int(side == "def")})', errs)
         awards, shots, clock, ko = {}, 0, 0, 0
@@ -11183,8 +11186,18 @@ def practice_play(kind, side, esc_at=None):
         if press(s, scr, practice.RES[lang][2], 3) is None:
             return False, '; '.join(errs + info + [f'result page: OK not pressed ({s.result})'])
         q = s.screen()
+        t = practice_rows()                     # (bug 3, Davide 15/11: OK -> the PRACTICE page, the cursor on its row)
+        if q.find(t[1], exact=True) is not None:
+            check(q.selected == 1 + row, f'after OK: the practice page, cursor on entry {q.selected} (want {1 + row})',
+                  errs)
+            info.append('after OK: the practice page')
+            if not practice_pick(s, 5, errs):   # (BACK: the squad screen)
+                return False, '; '.join(errs + info)
+            q = s.screen()
+        else:
+            errs.append(f'after OK: not the practice page ({", ".join(q.texts())[:120]})')
         check({TRAIN_TXT[UI][1], TRAIN_TXT['it'][1]} & set(q.texts()),
-              f'after OK: not the squad screen ({", ".join(q.texts())[:120]})', errs)
+              f'after BACK: not the squad screen ({", ".join(q.texts())[:120]})', errs)
         s.healed = heal_first16(s)              # (as train_out: a training injury would hide the league's play button)
         w = practice_work(s.result)
         check(w['KIND'] == 0, f'after the training game: PR_KIND {w["KIND"]} (want 0)', errs)
@@ -11195,6 +11208,8 @@ def practice_play(kind, side, esc_at=None):
         if r is not None:
             s.send('dump:3')
             w = practice_work(s.result)
+            if 'STN' in practice.WK:            # (the positive control: the league match keeps its presentation)
+                check(w['STN'] >= 1, f'league match: the presentation shown {w["STN"]} times (want >= 1)', errs)
             check(w['KIND'] == 0 and w['NFR'] == nfr, f'league match: PR_KIND {w["KIND"]}, engine frames {nfr} -> '
                   f'{w["NFR"]} (want idle)', errs)
             info.append('league match after it: engine idle')
@@ -11292,6 +11307,9 @@ def practice_car_run(mode, errs, info):
                 w = practice_work(s.result)
                 info.append(f'{mode}: result page {t[:4]}, attempts {w["NT"]}')
                 press(s, s.screen(), practice.RES['it'][2], 3)
+                continue
+            if tx[1] in t and tx[7] in t:       # (bug 3, Davide 15/11: OK -> the practice page; BACK -> the squad screen)
+                press(s, s.screen(), tx[7], 3)
                 continue
             if TRAIN_TXT['it'][1] in t:
                 break

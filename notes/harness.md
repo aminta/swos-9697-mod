@@ -296,6 +296,11 @@ or a SETUP-ERROR, 3 = only FLAKY, 0 = all PASS. `SWOSTEST_NO_RERUN=1`: no re-run
   so periodic shots and the `final.png` of a timeout need `SWOSTEST_SCREENCAPTURE=1` (window screencapture as before).
 - `timeout` with no trap: the script went astray; `runs/<name>/session.log` lists every screen and the keys sent
   (with `SWOSTEST_SCREENCAPTURE=1`, `shots/final.png` the last screen).
+- `trap at obj1+0x38B79` after `- PARTITA -` on a league / career fixture is the harness, not a game bug:
+  DIYLeagueTournamentMatch starts with the game's own `int 3` (in the original exe too; harmless on a real PC or in a
+  plain DOSBox), and the harness's `BPINT 3` takes it for a crash. Play a career match through GIOCA PARTITA, compare
+  menu screens instead, or NOP it in a test copy (world_darkblond / NAMEFIX_BUILD: pattern CC 8B 35 .. 66 8B 46 02 66
+  A3 .. 66 C7 05 .. 02 00).
 - DOSBox-X windows open on screen and can take the focus: keys or a Cmd+Q meant for another application can end a
   run (`DOSBox-X ended: ...` in session.log); `SWOSTEST_NOEXIT=1` keeps DOSBox-X at the DOS prompt when the game
   exits to DOS, so its message stays on screen.

@@ -28,8 +28,9 @@ oc.set_map(text=MAP)
 BL = oc.bands()
 B = {n: (a, e) for n, a, e in BL}
 # the freeze's shape (obj1-room.md Release order rule): every test-only band moved into the test region (>= 0x30000)
-BLF = sorted([(n, a, e) for n, a, e in BL if oc.kind(n) != 'test-only']
-             + [(n, 0x30000 + a, 0x30000 + e) for n, a, e in BL if oc.kind(n) == 'test-only'], key=lambda b: b[1])
+BLF = sorted([(n, a, e) for n, a, e in BL if oc.kind(n) != 'test-only']        # (4.2 freeze: already there in swreg)
+             + [(n, a if a >= 0x30000 else 0x30000 + a, e if a >= 0x30000 else 0x30000 + e) for n, a, e in BL
+                if oc.kind(n) == 'test-only'], key=lambda b: b[1])
 
 
 def shape(pages, fill=()):
@@ -46,7 +47,7 @@ def shape(pages, fill=()):
 def clean(BL=BLF):
     """A release shape (the freeze's bands, BLF): every release band below OBJ4_PAGES linked with 1 KB (or less)
     used, every page non-zero."""
-    pages = -(-B['PRACTICE'][1] // 0x1000)
+    pages = -(-max(e for n, a, e in BL if oc.kind(n) == 'release' and e < 0x30000) // 0x1000)   # (4.2 freeze: SREG2 last)
     fill = []
     for n, a, e in BL:
         if oc.kind(n) != 'release' or e > pages * 0x1000:
@@ -104,7 +105,7 @@ def test_obj4check_control_overflow():
 
 def test_obj4check_control_test_only():
     o = clean()
-    o += bytes(max(0, B['MKTHOOK'][0] + 0x1000 - len(o)))
+    o += bytes(max(0, B['MKTHOOK'][0] + 0x1000 - len(o), B['CDKN'][1] - len(o)))
     a, e = B['CDKN']
     o[a + 0x10] = 0xC3
     o[B['MKTHOOK'][0] + 4] = 0xC3
@@ -130,23 +131,24 @@ def test_obj4check_nested_and_log():
 
 
 def test_obj4check_grep():
+    P = f'{swreg.PRACTICE_AT:#X}'.replace('0X', '0x')                # (PRACTICE_AT's literal, whatever the layout)
     files = {
-        'tools/a.py': 'X = 1\nsite = p.get(4, 0x1C800, 16)\n# obj4 band at 0x1C800\n'
-                      'def f():\n    """obj4 docstring 0x1C800\n    more 0x1D000"""\n    return 0x1C800\n',
-        'tools/b.c': 'int x = 0x1C800; /* obj4 0x1D400 */\n// obj4 0x1A800\n',
-        'tools/c.py': 'NAME_AT = 0x1C800                # a band kept outside swreg\nprint("obj4")\n',
+        'tools/a.py': f'X = 1\nsite = p.get(4, {P}, 16)\n# obj4 band at {P}\n'
+                      f'def f():\n    """obj4 docstring {P}\n    more 0x1D000"""\n    return {P}\n',
+        'tools/b.c': f'int x = {P}; /* obj4 0x1D400 */\n// obj4 0x1A800\n',
+        'tools/c.py': f'NAME_AT = {P}                # a band kept outside swreg\nprint("obj4")\n',
     }
     hits = oc.grep_files(files)
     code = sorted((f, n, lit) for f, n, lit, s, c in hits if not c)
     com = sorted((f, n, lit) for f, n, lit, s, c in hits if c)
-    assert ('tools/a.py', 2, '0x1C800') in code, code
-    assert ('tools/a.py', 7, '0x1C800') not in code + com, (code, com)        # (no obj4 context on that line)
-    assert ('tools/a.py', 3, '0x1C800') in com and ('tools/a.py', 5, '0x1C800') in com, com
-    assert ('tools/b.c', 1, '0x1C800') in code and ('tools/b.c', 1, '0x1D400') in com and ('tools/b.c', 2, '0x1A800') in com, (code, com)
+    assert ('tools/a.py', 2, P) in code, code
+    assert ('tools/a.py', 7, P) not in code + com, (code, com)        # (no obj4 context on that line)
+    assert ('tools/a.py', 3, P) in com and ('tools/a.py', 5, P) in com, com
+    assert ('tools/b.c', 1, P) in code and ('tools/b.c', 1, '0x1D400') in com and ('tools/b.c', 2, '0x1A800') in com, (code, com)
     sym = {lit: s for f, n, lit, s, c in hits}
-    assert 'PRACTICE_AT' in sym['0x1C800'], sym
+    assert 'PRACTICE_AT' in sym[P], sym
     asg = oc.grep_assign(files)
-    assert ('tools/c.py', 1, '0x1C800', [s for s in [sym['0x1C800']]][0]) in asg, asg
+    assert ('tools/c.py', 1, P, [s for s in [sym[P]]][0]) in asg, asg
     return True, f'{len(code)} code / {len(com)} comment hits, {len(asg)} assignment'
 
 
@@ -157,6 +159,7 @@ def test_obj4check_map_classes():
     assert oc.kind('T3') == 'release'                                   # (outside the map)
     o = clean()
     a, e = B['FPORT']
+    o += bytes(max(0, B['CDKN'][1] - len(o), e - len(o)))              # (4.2 freeze: test bands >= 0x35000)
     o[a + 0x10] = 0xC3                                                  # (control: a test switch's band linked)
     f, _, _ = oc.check_obj4(o, BL)
     assert any(x.startswith('(c) test-only band FPORT') for x in f), f
@@ -164,6 +167,7 @@ def test_obj4check_map_classes():
         oc.set_map(text=MAP.replace('| CDKN (test) |', '| CDKN |'))
         assert oc.kind('CDKN') == 'release'
         o2 = clean()
+        o2 += bytes(max(0, B['CDKN'][1] - len(o2)))
         o2[B['CDKN'][0] + 0x10] = 0xC3
         f2, _, _ = oc.check_obj4(o2, BL)
         assert not any('(c)' in x and 'CDKN' in x for x in f2), f2

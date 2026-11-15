@@ -30462,6 +30462,68 @@ def world_s7cross_c20():
     return not errs, '; '.join(errs) or f'{msg[:200]}; ' + '; '.join(info)
 
 
+def s7_division_counts(car, src):
+    """4.2 S3 x S7 (MC 15/11): clubs per division of Italy's S7 pack after a season end: the pack's division
+    (pk.division) + the signed delta byte of its global in the save's SLTCOPY (CAR 0xE8DC, one byte per global; the
+    game's own 8-bit sum check is absorbed by the BAL byte, so only membership shows a double move). Returns (before,
+    after) {division: clubs}; 0 = Serie A, 1 = B, 2..4 = the Serie C groups, 5.. = Serie D. src = the world data dir"""
+    import collections
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    eu = sorted(os.path.join(ROOT, 'packs', 'europe-1984-85', d) for d in os.listdir(os.path.join(ROOT, 'packs', 'europe-1984-85'))
+                if os.path.isdir(os.path.join(ROOT, 'packs', 'europe-1984-85', d)))
+    order = [ln.split()[0].lower() for ln in open(src.rstrip('/') + '.txt') if ' file ' in ln]
+    old = os.environ.get('SEASON_PACKS')
+    os.environ['SEASON_PACKS'] = ','.join(['ddr-1988-89', 'italia-1947-48', 'world-cup-1934'] + eu + [os.path.join(src, x) for x in order])
+    try:
+        pk = next(p for p in mkseason_now().packs() if p.meta.get('id') == 'world-2026-27-ita')
+    finally:
+        if old is None:
+            os.environ.pop('SEASON_PACKS')
+        else:
+            os.environ['SEASON_PACKS'] = old
+    slt = open(car, 'rb').read()[0xE8DC:0xE8DC + 2000]
+    base = {ff: b for fk, (ff, b) in pk.files.items()}
+    c0, c1 = collections.Counter(), collections.Counter()
+    for k in pk.league_clubs:
+        fl, i = pk.where[k]
+        c0[pk.division[k]] += 1
+        c1[pk.division[k] + struct.unpack('b', slt[base[fl] + i:base[fl] + i + 1])[0]] += 1
+    return dict(sorted(c0.items())), dict(sorted(c1.items()))
+
+
+@scenario
+def world_s3dbl_fresh():
+    """4.2 BLOCKER (TRENTO double promotion, MC 15/11): a NEW S7 career, the club forced into / winning the Serie C
+    play-off (S3_BUILD = a build with DPLAY_FORCE=105; W2627REL_DATA = the S7 data, default internal/world2526/
+    world5tm-h3s7), one season: after the season end every division of Italy keeps its size (Serie B 20, the Serie C
+    groups 20 each, D 18): a club promoted by both dplay and gplay leaves Serie B at 21 and a C group at 19"""
+    src = (os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-h3s7')).rstrip('/')
+    exe = os.environ.get('S3_BUILD')
+    if not exe or not os.path.isdir(src):
+        return True, f'SKIP: S3_BUILD ({exe}) or the S7 data {src} missing'
+    team = os.environ.get('S3_TEAM', 'EUROPA,ITALIA,SERIE C GIRONE A,TRENTO')
+    keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
+                                            'W8485_NOSACK', 'W8485_ONE', 'W2627REL_DATA')}
+    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+',
+                      W8485_NOSACK='1', W8485_ONE='1', W2627REL_DATA=src)
+    try:
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    errs = []
+    check(ok, msg, errs)
+    car = os.path.join(RUNS, w84_tag() + '_1', 'SWOS', 'W84A.CAR')
+    if not os.path.exists(car):
+        return False, f'{msg}; no season-end save {car}'
+    c0, c1 = s7_division_counts(car, src)
+    check(c0 == c1, f'division sizes changed at the season end: before {c0} after {c1}', errs)
+    return not errs, '; '.join(errs) or f'{msg[:120]}; division sizes kept {c1}'
+
+
 @scenario
 def world_s7cross_up():
     """S7 (4.2): the career club promoted from Serie D girone A (LIGORNA first) to Serie C, two seasons"""

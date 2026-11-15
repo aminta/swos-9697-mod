@@ -63,6 +63,7 @@ def ext_off():
     import careerworld
     return (careerworld.BIGC_AT - (LIMIT_CLUBS - 2000)) & ~3
 ON = [False]
+LABELS = {}                    # (HOSTTEST_SYMS: the tables' obj2 offsets and LIMIT_ALL, patch.hosttest_syms; the exe itself unchanged)
 MOVED = {}                      # old obj2 offset -> new obj2 offset (someLeaguesTable, leaguesTableCopy)
 SITES = {}
 
@@ -158,6 +159,7 @@ def retarget(p, area, tail0=None):
     loops = [k for k in loops if any(abs(f[1] - k) < 24 for f in fx)]
     assert len(loops) == 4, [hex(k) for k in loops]
     MOVED.update({table[1]: new_t, copy[1]: new_c})
+    LABELS.update(SOME=(2, new_t), COPY=(2, new_c), LIMIT_ALL=(0, nall), LIMIT_CLUBS=(0, LIMIT_CLUBS))
     import engine                               # world 0 (not a big world): numbers 2000+ in the .CAR engine block;
     engine.save_item('BT_EXT', LIMIT - 2000, clear=False)   # a big world keeps them in its 80-record area too, and
     engine.ITEM_AT['BT_EXT'] = (2, new_t + 2000)            # bt_load already set them (no 'EN': left as loaded)

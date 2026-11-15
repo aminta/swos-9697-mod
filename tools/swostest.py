@@ -19246,7 +19246,7 @@ def nt_fixture_build(tag='ntfx'):
     shutil.rmtree(w, ignore_errors=True)
     pk = ntfixture.make(os.path.join(w, 'national'), players=True)
     order = [os.path.join(src, ln.split()[0].lower()) for ln in open(src + '.txt') if ' file ' in ln]
-    env = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + order + [os.path.join(w, 'national')])}
+    env = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + order + [os.path.join(w, 'national')]), 'HOSTTEST_SYMS': '1'}   # (the tables' offsets)
     return build(tag, env=env, lang=UI), src, pk
 
 
@@ -19259,9 +19259,15 @@ def nt_fixture_season():
     exe, src, pk = nt_fixture_build('ntfx')
     if exe is None:
         return True, f'SKIP: private data {src} missing'
-    keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W2627REL_DATA')}
+    lab = json.load(open(os.path.join(exe, 'ITALIAN.syms.json')))['bigtables']
+    t_some, t_copy = lab['SOME'][1], lab['COPY'][1]
+    assert lab['LIMIT_ALL'][1] == 2620 and lab['LIMIT_CLUBS'][1] == 2409, lab
+    n = 2620 - 2409 + 4                                   # (bytes 2409..2623: the NT globals + the table's 4 spare bytes)
+    hx = f'{t_some + 2409:x}:{n},{t_copy + 2409:x}:{n}'
+    keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK',
+                                            'W2627REL_DATA', 'W8485_HEX')}
     os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM='EUROPA,ITALIA,SERIE B,MODENA', W8485_WNUM='5',
-                      W8485_K='108+', W8485_NOSACK='1', W2627REL_DATA=src)
+                      W8485_K='108+', W8485_NOSACK='1', W2627REL_DATA=src, W8485_HEX=hx)
     try:
         ok, msg = world8485()
     finally:
@@ -19270,7 +19276,19 @@ def nt_fixture_season():
                 os.environ.pop(k, None)
             else:
                 os.environ[k] = v
-    return ok, msg
+    errs = []
+    check(ok, msg, errs)
+    seen = {t_some + 2409: [], t_copy + 2409: []}
+    for sfx in ('_1', '_2'):                              # (the two seasons' sessions: the second one loads the first's save)
+        lp = os.path.join(RUNS, w84_tag() + sfx, 'session.log')
+        for ln in (open(lp, errors='replace') if os.path.exists(lp) else []):
+            q = ln.split()
+            if len(q) == 3 and q[0] == 'HEX' and int(q[1], 16) in seen:
+                seen[int(q[1], 16)].append(bytes.fromhex(q[2]))
+    for off, vals in seen.items():
+        check(len(vals) >= 2, f'table bytes 2409..2623 at obj2+{off - 2409:#x}: read {len(vals)} times (want one per session)', errs)
+        check(all(not any(v) for v in vals), f'table bytes 2409..2623 at obj2+{off - 2409:#x} not all zero: a write past LIMIT_CLUBS', errs)
+    return not errs, '; '.join(errs) or f'{msg}; both tables\' bytes 2409..2623 read {sum(len(v) for v in seen.values())} times, all zero'
 
 
 @scenario

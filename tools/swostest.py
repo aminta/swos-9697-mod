@@ -5707,6 +5707,78 @@ def et_open(s, team, errs):
     return False
 
 
+JN_UP, JN_DOWN, JN_LEFT, JN_RIGHT, JN_FIRE = 1, 2, 4, 8, 0x20
+
+
+@scenario
+def joy_names():
+    """4.2 (Gianfranco 14/11, Android, joystick only): names with the stick (joyname.py, InputTextKeyLoop's FilterKeys
+    call). A JOYNAME_FAKE build (the stick's flags poked at jn_fake, after its 'JNFAKE' marker in obj3), EDIT CUSTOM
+    TEAMS, 90 MINUTES XI, row 4's name opened with FIRE (the cursor at its end):
+    (1) UP = 'A' appended, UP again = 'B', RIGHT, UP = 'A', DOWN = back to a space, FIRE released: the name + 'B' (the
+        trailing space trimmed);
+    (2) reopened: FIRE + LEFT = the 'B' deleted, UP = 'A', a long FIRE = cancelled: the name + 'B' kept;
+    (3) reopened with no stick: the keyboard's UP arrow appends 'A', ENTER: the name + 'BA';
+    (4) a held UP repeats: 'A', then B, C ... (more than 2 letters after a long hold), ESC: unchanged.
+    The rest of the editor's typing is the game's (edteam_right, keytext scenarios)."""
+    exe = build('joyname' + ('' if UI == 'it' else '_' + UI), env={'JOYNAME_FAKE': '1'}, lang=UI)
+    from le import LE
+    o3 = LE(open(os.path.join(exe, 'ITALIAN.EXE'), 'rb').read()).obj_bytes(3)
+    mk = o3.find(b'JNFAKE')
+    if mk < 0:
+        return False, f'{exe}: no JNFAKE marker (not a JOYNAME_FAKE build)'
+    team, k = '90 MINUTES XI', 4
+    errs, notes = [], []
+    with Session('joy_names', exe, {}, 'dump:3', 400) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'START: no first pause ({s.result})'
+        if not et_open(s, team, errs):
+            return False, '; '.join(errs)
+        fk = s.result.base3 + mk + 6
+        stick = lambda f, w=0.2: (s.poke(fk, struct.pack('<H', 0x8000 | f)), s.send(f'dump:{w}'))   # (a tap: shorter
+        # than the repeat's JN_REP1 loops)
+        off = lambda: s.poke(fk, struct.pack('<H', 0))
+        name = lambda: bytes(et_team(s)[1][k][3:25]).split(bytes(1))[0].decode('latin-1')
+        n0 = name()
+
+        def open_():
+            se_goto(s, 39 + k)
+            s.send('fire dump:2')
+            stick(0)                                    # (released: the picker armed)
+        open_()
+        for f in (JN_UP, 0, JN_UP, 0, JN_RIGHT, 0, JN_UP, 0, JN_DOWN, 0, JN_FIRE, 0):
+            stick(f)
+        stick(0, 2)
+        off()
+        n1 = name()
+        check(n1 == n0 + 'B', f'(1) UP, UP, RIGHT, UP, DOWN, FIRE: {n0!r} -> {n1!r} (want {n0 + "B"!r})', errs)
+        s.shot('joy1')
+        open_()
+        for f in (JN_FIRE, JN_FIRE | JN_LEFT, JN_FIRE, 0, JN_UP, 0):
+            stick(f)
+        stick(JN_FIRE, 4)                               # a long FIRE (JN_LONG loops): cancel
+        stick(0, 2)
+        off()
+        n2 = name()
+        check(n2 == n1, f'(2) FIRE + LEFT, UP, long FIRE (cancel): {n1!r} -> {n2!r}', errs)
+        se_goto(s, 39 + k)                              # (3) the keyboard's UP arrow, no stick
+        s.send('fire dump:2')
+        s.send('up dump:1')
+        s.send('enter dump:2')
+        n3 = name()
+        check(n3 == n1 + 'A', f'(3) keyboard UP + ENTER: {n1!r} -> {n3!r} (want {n1 + "A"!r})', errs)
+        open_()                                         # (4) a held UP repeats
+        stick(JN_UP, 8)
+        off()
+        s.send('dump:1')
+        buf = s.screen()
+        s.send('esc dump:2')
+        n4 = name()
+        check(n4 == n3, f'(4) held UP then ESC: {n3!r} -> {n4!r}', errs)
+        notes.append(f'{n0!r} -> {n1!r} (1) -> {n2!r} (2) -> {n3!r} (3); held UP shown {[t for t in buf.texts() if t.startswith(n3)][:1]}')
+    return not errs, '; '.join(errs + notes)
+
+
 @scenario
 def edteam_right():
     """4.0.6 (Davide, RC3 on the MiSTer) EDIT CUSTOM TEAMS: the shirt number is reached the way it is drawn - right of

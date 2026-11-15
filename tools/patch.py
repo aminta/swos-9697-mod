@@ -933,6 +933,9 @@ def patch_exe(src, dst, remap, lang='it'):
     import keytext                               # 4.0.6 (Marco): - . / ' ? + ( ) : , in typed names (the exe language's
     kb_end = keytext.patch(p, (kb_end + 15) & ~15, lang)     # keyboard, SHIFT layer, arrows move the cursor), obj3
     assert kb_end <= LT3_AT, hex(kb_end)                     # after kbfirst (chained onto kbd2's kb_set)
+    import joyname                               # 4.2 (Gianfranco 14/11): names with the joystick only (UP / DOWN cycle
+    kb_end = joyname.patch(p, (kb_end + 15) & ~15, lang)     # the letter, FIRE confirms), obj3 after keytext
+    assert kb_end <= LT3_AT, hex(kb_end)
     import stoppage                              # 4.0.6 (Davide + Marco): stoppage time, the clock's "+N", 45+2 goals;
     st_end = stoppage.patch(p, (kb_end + 15) & ~15, lang,    # in obj3 after kbd2 (bteam between them when merged)
                             stoppage.career_worlds(), stoppage.pack_files())

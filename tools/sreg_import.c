@@ -219,13 +219,16 @@ int32_t sreg_import(sr_registry *r, const sr_reg_file *spec, int32_t nf, const u
    new_ri = the S7 one. Every file of new_lay found in old_lay (same world and file; Italy's: file_old -> file_new)
    gets its state: another file's copied as it is (same slots and pools, else SREG_RI_LAYOUT), Italy's translated:
    - init: the old one; 0 (no season end with RI yet) -> maps / queue empty, and no pool swap allowed;
-   - maps[o] (o < file_new's rows = its slots): 0 if the club the registry puts on row o owns the record there, else
-     the club's identity + 1 (none: SREG_RI_NOID);
-   - the queue (its one pool): the old entries in order, each the club with that 4.1 identity (old_ord; none:
-     SREG_RI_QUEUE): a club on a row in the registry now leaves it (a joiner, a filler: sreg_import's PENDING and
-     substitutions, MC 12/11 option B), any other -> its S7 identity; then, at its tail in slot order, every club on
-     a 4.1 slot that is off the files now (a stand-in sreg_import substituted out of Serie C); the length = the S7
-     pool's n (else SREG_RI_LAYOUT). (SREG_RI_SIX, -26: retired with option B.)
+   - maps[o] (o < file_new's rows = its slots): ZERO (42-s7import, MC 15/11: S7 builds keep Italy's maps[] zero and the
+     registry decides - s7-ri-fix.md, MC's 13/11 ruling, after this function's first design); every row's occupant
+     still has to have an RI identity (none: SREG_RI_NOID) - the check stays;
+   - the queue (its one pool): REGISTRY IDENTS (s7-ri-fix.md ruling 1; s7ri_pool / s7_season read q[] so): the old
+     entries in order, each the club with that 4.1 identity (old_ord; none: SREG_RI_QUEUE): a club on a row in the
+     registry now leaves it (a joiner, a filler: sreg_import's PENDING and substitutions, MC 12/11 option B), any other
+     -> its ident (checked to have an S7 identity); then, at its tail in slot order, every club on a 4.1 slot that is off
+     the files now (a stand-in sreg_import substituted out of Serie C); the length = the S7 pool's n (else
+     SREG_RI_LAYOUT). (SREG_RI_SIX, -26: retired with option B.) A stand-in's ident is its pool row's (pool ident j <->
+     RS record j, s7swap.check_pool_names), so newpool's RS index and the ident agree.
    SREG_RI_KIND (a pool swap off file_new, a record owner moved off it) stays as an assert: sreg_import substitutes
    such a stand-in, so it never fires on an import's own output.
    0, or a refusal with *bad = the club's ident (-1: no club). Deterministic; old_ri never written. */
@@ -339,11 +342,10 @@ int32_t sreg_ri_import(const sr_registry *r, const sr_reg_file *spec, int32_t nf
             if (npsw) return SREG_RI_LAYOUT;
             continue;
         }
-        for (int32_t o = 0; o < ne.nmap; o++) {
+        for (int32_t o = 0; o < ne.nmap; o++) {         /* (every row's occupant has an RI identity: checked, not written -
+                                                           S7 builds keep maps[] zero, s7-ri-fix.md ruling 4, MC 13/11) */
             const uint16_t c = r->at[fi][o];
-            if (c == w->rec.at[fi][o]) continue;
-            if (w->id[c] == SR_REG_NONE) { *bad = c; return SREG_RI_NOID; }
-            ri_put(new_ri, SREG_RI_MAPS + 2 * (ne.moff + o), (uint16_t)(w->id[c] + 1));
+            if (c != w->rec.at[fi][o] && w->id[c] == SR_REG_NONE) { *bad = c; return SREG_RI_NOID; }
         }
         int32_t m = 0;
         const int32_t qn = old_ri[SREG_RI_QN + oe.pi];
@@ -355,7 +357,7 @@ int32_t sreg_ri_import(const sr_registry *r, const sr_reg_file *spec, int32_t nf
             if (c == n) return SREG_RI_QUEUE;
             if (r->word[c] != SR_REG_NONE) continue;        /* (on a row now: a joiner / a filler leaves it) */
             if (w->id[c] == SR_REG_NONE || m == ne.n[0]) { *bad = c; return SREG_RI_QUEUE; }
-            ri_put(new_ri, SREG_RI_Q + 2 * (ne.qo + m++), w->id[c]);
+            ri_put(new_ri, SREG_RI_Q + 2 * (ne.qo + m++), (uint16_t)c);   /* (S7: q[] holds registry idents, ruling 1) */
         }
         for (int32_t x = 0; x < oe.nmap; x++) {         /* a stand-in substituted off a 4.1 slot: the queue's tail */
             const uint16_t mo = ri_get(old_ri, SREG_RI_MAPS + 2 * (oe.moff + x));
@@ -364,7 +366,7 @@ int32_t sreg_ri_import(const sr_registry *r, const sr_reg_file *spec, int32_t nf
             while (c < n && old_ord[c] != e) c++;
             if (c == n || r->word[c] != SR_REG_NONE) continue;
             if (w->id[c] == SR_REG_NONE || m == ne.n[0]) { *bad = c; return SREG_RI_QUEUE; }
-            ri_put(new_ri, SREG_RI_Q + 2 * (ne.qo + m++), w->id[c]);
+            ri_put(new_ri, SREG_RI_Q + 2 * (ne.qo + m++), (uint16_t)c);
         }
         if (m != ne.n[0]) return SREG_RI_LAYOUT;
         new_ri[SREG_RI_QN + ne.pi] = (uint8_t)m;

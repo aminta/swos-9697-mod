@@ -725,12 +725,14 @@ def test_sreg_riimport():
     divisions 0, 1 x 4; 144 = groups 5, 6 x 3; J the joiner, p1 p2 the stand-ins, 4.1 pool 0, 1, 2). Two RI tables:
     4.1 = another file (161, 4 slots, pools of 2 and 1) then Italy (102, 13 slots, pool 3); S7 = Italy (144, 6 slots,
     pool 2) then 161: 161's init / maps / queues / overrides land at their new offsets byte for byte.
-    - an RI season end (p1 on 4.1 slot 9, d1 queued as identity 9; b0 / d0 traded across files): map[1] = p1's S7
-      identity (256 + 0) + 1, the record at row 1 still d1's; the queue J (out: joiner), p2 -> 257, d1 -> 1;
-    - a Serie C club relegated twice (b3: 4.1 slot 7 holds p2, b3 queued as 7): the import's cross-file move carries
-      b3's record to 144 row 0, so b3's identity is 0 and map[0] = p2's (257) + 1;
+    42-s7import (MC 15/11, s7-ri-fix.md's 13/11 ruling): Italy's maps[] stay ZERO and its queue holds registry IDENTS
+    (s7ri_pool / s7_season read it so: the old RI identities there were S7_RIMV_BAD at the first season end of a real
+    imported save, c20_after_s02);
+    - an RI season end (p1 on 4.1 slot 9, d1 queued as identity 9; b0 / d0 traded across files): maps zero; the queue
+      J (out: joiner), p2, d1 as idents;
+    - a Serie C club relegated twice (b3: 4.1 slot 7 holds p2, b3 queued as 7): maps zero, the queue p1, b3;
     - a stand-in RI-promoted into Serie C (p1 on 4.1 slot 4, p2 on d1's slot 9, queue J / b0 / d1): substituted (MC
-      12/11, option B): J and d1 (the filler on slot 4) leave the queue, b0 -> its record's row, p1 at the tail;
+      12/11, option B): J and d1 (the filler on slot 4) leave the queue, b0 stays, p1 at the tail;
     - init 0 (no RI season end): Italy's state empty; deterministic (two garbage fills);
     - refused: an identity no club has (QUEUE), newpool not 0xFF for J (POOLMAP),
       161 with another slot count (LAYOUT), init 0 with a pool swap (LAYOUT)."""
@@ -820,8 +822,8 @@ def test_sreg_riimport():
     s1 = list(slot0)
     s1[4], s1[8], s1[3], s1[5] = 5, 1, 1, 0
     g = run(m1, s1, [256, 258, 9])
-    if g[0] != 'ok' or g[2]['init'][0] != 2 or g[2]['maps'][:6] != [0, 257, 0, 0, 0, 0] or g[2]['qn'][0] != 2 or \
-            g[2]['q'][:2] != [257, 1]:
+    if g[0] != 'ok' or g[2]['init'][0] != 2 or any(g[2]['maps'][:6]) or g[2]['qn'][0] != 2 or \
+            g[2]['q'][:2] != [I['p2'], I['d1']]:
         errs.append(f"season: {g[:2]} maps {g[2]['maps'][:6] if len(g) > 2 else ''} q {g[2]['q'][:2] if len(g) > 2 else ''}")
     else:
         chk161(g[2], 'season')
@@ -834,17 +836,17 @@ def test_sreg_riimport():
     s2 = list(slot0)
     s2[7], s2[8] = 5, 1
     g = run(m2, s2, [256, 257, 7])
-    if g[0] != 'ok' or g[2]['maps'][:6] != [258, 0, 0, 0, 0, 0] or g[2]['q'][:2] != [256, 0]:
+    if g[0] != 'ok' or any(g[2]['maps'][:6]) or g[2]['q'][:2] != [I['p1'], I['b3']]:
         errs.append(f"twice: {g[:2]} maps {g[2]['maps'][:6] if len(g) > 2 else ''} q {g[2]['q'][:2] if len(g) > 2 else ''}")
     # a stand-in RI-promoted into Serie C (MC 12/11: substituted, no longer refused): p1 on 4.1 slot 4 (division 1),
     # b0 off; p2 on slot 9, d1 off; queue [J, b0, d1]. sreg_import gives slot 4 to d1 (the filler): J leaves the queue
-    # (PENDING on its row), b0 -> its record's S7 identity, d1 leaves (on 102 now), p1 at the tail (256 + 0)
+    # (PENDING on its row), b0 stays (its ident), d1 leaves (on 102 now), p1 at the tail (its ident)
     m3 = [0] * 13
     m3[4], m3[9] = 257 + 1, 258 + 1
     g = run(m3, list(slot0), [256, 4, 9])
-    if g[0] != 'ok' or g[2]['qn'][0] != 2 or g[2]['q'][1] != 256 or g[2]['q'][0] >= 6:
+    if g[0] != 'ok' or g[2]['qn'][0] != 2 or g[2]['q'][:2] != [I['b0'], I['p1']] or any(g[2]['maps'][:6]):
         errs.append(f"stand-in in Serie C: {g[:2]} q {g[2]['q'][:2] if len(g) > 2 else ''} qn "
-                    f"{g[2]['qn'][0] if len(g) > 2 else ''} (want ok, [b0's row, 256])")
+                    f"{g[2]['qn'][0] if len(g) > 2 else ''} (want ok, [b0, p1] as idents)")
     else:
         g2 = run(m3, list(slot0), [256, 4, 9], fill=0x33)
         if g2[2]['rest'] != g[2]['rest']:
@@ -864,8 +866,8 @@ def test_sreg_riimport():
         g = run(**kw)
         if g[0] != want:
             errs.append(f'{tag}: {g[:2]}')
-    return not errs, '; '.join(errs) or ('RI season end: stand-in map, queue joiner out / p2 / d1; relegated twice: the '
-                                         'record via the cross move; a stand-in in Serie C substituted (fillers out, it at the tail); init 0 empty; 161 '
+    return not errs, '; '.join(errs) or ('RI season end: maps zero, queue idents (joiner out, p2, d1); relegated twice: '
+                                         'queue p1, b3; a stand-in in Serie C substituted (fillers out, it at the tail); init 0 empty; 161 '
                                          'moved byte for byte; deterministic; refused QUEUE / POOLMAP / LAYOUT')
 
 
@@ -969,3 +971,84 @@ def test_sreg_sltimport():
                                          'new globals (2 in 144\'s second run), J and the old unused global 0, another '
                                          'country\'s kept; refused: past the runs (GLOB, e1), division past ndiv and '
                                          'delta past +127 (DELTA, e2 / a0)')
+
+
+def test_sreg_ccnmove():
+    """sreg2.c ccn_move (42-s7import, LIGORNA 15/11: the career club changed file at the import, 102 -> 144), built
+    natively on a synthetic competitionsTable (obj2 addresses = arena offsets through IMP_PTR):
+    - compCountryNumber = the new file; D8CAA = its league, D8CAE / D8CB2 = its cups past the -2 up to the -1 (none, one,
+      two), D8CBA / D8CC0 = the career division's sub-contest (its byte +12h, 0: both 0);
+    - the live DIY league's rules (+53h..+59h words) = the new division's record (a negative play-off byte (-x) >> 1),
+      as cseg_8F1F2 copies them; a DIY that is not a league (type word != 0) untouched;
+    - a country with no table entry: D8CAA.. cleared, nothing read."""
+    import ctypes
+    import re
+    import subprocess
+    import tempfile
+    src = open(os.path.join(TOOLS, 'sreg2.c')).read()
+    body = re.search(r'#define D8W.*?\n}\n', src, re.S).group(0)
+    d = tempfile.mkdtemp()
+    c = os.path.join(d, 'c.c')
+    with open(c, 'w') as f:
+        f.write('#include <stdint.h>\nuint8_t ARENA[0x1000];\n#define IMP_PTR(x) (ARENA + (x))\n'
+                'uint8_t IMP_CCN; uint32_t IMP_COMPTAB[256]; uint8_t IMP_D8[26]; uint8_t IMP_DIY[0x733]; '
+                'uint16_t IMP_D6CDC;\n' + body + 'void t_ccn(uint8_t f) { ccn_move(f); }\n')
+    lib = os.path.join(d, 'c.dylib')
+    r = subprocess.run(['cc', '-shared', '-fPIC', '-O1', '-Wall', '-Werror', '-o', lib, c], capture_output=True, text=True)
+    if r.returncode:
+        return False, 'cc: ' + r.stderr[-400:]
+    L = ctypes.CDLL(lib)
+    A = (ctypes.c_uint8 * 0x1000).in_dll(L, 'ARENA')
+    T = (ctypes.c_uint32 * 256).in_dll(L, 'IMP_COMPTAB')
+    D8 = (ctypes.c_uint8 * 26).in_dll(L, 'IMP_D8')
+    DIY = (ctypes.c_uint8 * 0x733).in_dll(L, 'IMP_DIY')
+    CCN = ctypes.c_uint8.in_dll(L, 'IMP_CCN')
+    DIV = ctypes.c_uint16.in_dll(L, 'IMP_D6CDC')
+    LG = 0x100                                          # the league struct (division d's record at +0x0D + 6d)
+
+    def setup(cups, div, rec, sub=None, diy_type=0):
+        ctypes.memset(A, 0, 0x1000)
+        ctypes.memset(D8, 0x77, 26)
+        ctypes.memset(DIY, 0x66, 0x733)
+        DIY[0], DIY[1] = diy_type & 0xFF, diy_type >> 8
+        lst = [LG, 0xFFFFFFFE] + cups + [0xFFFFFFFF]
+        struct.pack_into(f'<{len(lst)}I', A, 0x40, *lst)
+        for i in range(256):
+            T[i] = 0
+        T[144] = 0x40
+        CCN.value = 102
+        DIV.value = div
+        a1 = LG + 6 * div
+        A[a1 + 0x0D:a1 + 0x13] = list(rec) + [0]
+        if sub is not None:
+            A[a1 + 0x12] = 0x10
+            struct.pack_into('<II', A, a1 + 0x22, *sub)
+
+    def d8():
+        b = bytes(D8)
+        return list(struct.unpack_from('<3I', b)) + [struct.unpack_from('<I', b, 16)[0], struct.unpack_from('<I', b, 22)[0]]
+
+    def rules():
+        return list(struct.unpack_from('<4H', bytes(DIY), 0x53))
+    errs = []
+    for tag, cups, want in (('two cups', [0x300, 0x340], [LG, 0x300, 0x340]), ('one cup', [0x300], [LG, 0x300, 0]),
+                            ('no cup', [], [LG, 0, 0])):
+        setup(cups, 3, [18, 1, 0xFC, 3, 0])
+        L.t_ccn(144)
+        if CCN.value != 144 or d8() != want + [0, 0] or rules() != [1, 2, 3, 0]:
+            errs.append(f'{tag}: ccn {CCN.value} D8 {[hex(x) for x in d8()]} rules {rules()}')
+    setup([0x300], 5, [16, 1, 0, 2, 0xFA], sub=(0x500, 0x540))
+    L.t_ccn(144)
+    if d8() != [LG, 0x300, 0, 0x500, 0x540] or rules() != [1, 0, 2, 3]:
+        errs.append(f'sub-contest: D8 {[hex(x) for x in d8()]} rules {rules()}')
+    setup([0x300], 3, [18, 1, 0xFC, 3, 0], diy_type=1)
+    L.t_ccn(144)
+    if rules() != [0x6666] * 4 or d8()[:3] != [LG, 0x300, 0]:
+        errs.append(f'DIY not a league: rules {rules()}')
+    setup([0x300], 3, [18, 1, 0xFC, 3, 0])
+    L.t_ccn(99)
+    if CCN.value != 99 or d8() != [0] * 5 or rules() != [0x6666] * 4:
+        errs.append(f'no table entry: ccn {CCN.value} D8 {d8()} rules {rules()}')
+    return not errs, '; '.join(errs) or ('compCountryNumber + D8CAA/AE/B2 (2, 1, 0 cups) + D8CBA/C0 (sub-contest or 0); '
+                                         'DIY rules from the new division (negative play-off (-x)>>1), a non-league DIY '
+                                         'kept; no table entry: cleared')

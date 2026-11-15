@@ -91,6 +91,7 @@ void s7_snap(const struct s7_in *in, const struct s7_ext *ext, uint32_t pre, uin
 }
 extern sr_registry *SREG_REG;           /* sreg.c: -> the engine arena */
 extern uint8_t SWE_ARENA_AT[];          /* swe.c: the registry at its start, the work area after it */
+extern uint32_t SREG_FLAGS;             /* sreg.c: 'IT' flags (IMPORTED 1 | PENDING 2 | season << 8) */
 int32_t sreg_get(void);                 /* sreg.c: 1 = REG holds this career's registry (built from the spec if needed) */
 int32_t cstack_call(int32_t (*fn)(void *), void *arg);
 
@@ -270,12 +271,31 @@ static int32_t put_slot(uint8_t *r, uint16_t w, const sreg_gfile *g, int32_t ng,
     return b;
 }
 
+static int32_t walkm(const sr_wpair *m, int32_t n, const int8_t *slt);
 static int32_t walk(int32_t nsw, const int8_t *slt)
 {
     sr_wpair *m = (sr_wpair *)(SWE_ARENA_AT + PR_AT);
     int32_t n = sr_wmap_build((const sr_reg_swap *)(SWE_ARENA_AT + SW_AT), nsw, m, S7_NPR);
     S7_WLOG.npair = (uint16_t)(n < 0 ? 0 : n);
     if (n < 0) { S7_WLOG.rc = (int16_t)n; return -1; }
+    return walkm(m, n, slt);
+}
+
+/* 42-s7import (MC 15/11): the old-save import's walk (sreg2.c, obj4+SREG2_AT) - its word map m (sr_wmap_import's, n
+   pairs) over the same rows, the cache and the career club, the sites checked first (S7_WLOG.row >= 0: -1, nothing
+   walked). S7_AREG: the arena's room the import may use while no season end runs: [W_AT, WR_AT) and [WR end, SWE_ARENA)
+   (WR_AT..WR end = S7_WRES, this walk's). */
+uint32_t S7_AREG[3] DATA = {W_AT, WR_AT, WR_AT + WS_MAX * 8};
+int32_t s7_imp_walk(const sr_wpair *m, int32_t n, const int8_t *slt)
+{
+    S7_WLOG.row = (int16_t)wcheck(); S7_WLOG.rc = 0; S7_WLOG.changed = S7_WLOG.cache = S7_WLOG.rows = 0;
+    S7_WLOG.npair = (uint16_t)n;
+    if (S7_WLOG.row >= 0) return -1;
+    return walkm(m, n, slt);
+}
+
+static int32_t walkm(const sr_wpair *m, int32_t n, const int8_t *slt)
+{
     sreg_gfile g[4];
     int32_t ng = 0;
     for (int32_t s = 0; s < 2; s++) {
@@ -434,6 +454,8 @@ static int32_t run(void *pv) {
         }
     }
     if (walk(c, slt) < 0) return S7_LOG.status = S7_WMAP;      /* (cannot happen: <= S7_NSW swaps, S7_NPR pairs) */
+    SREG_FLAGS &= ~(uint32_t)(SR_REGSAVE_PENDING | 0xFF00);    /* (42-s7import: an imported save's PENDING clears at its
+                                                                  first S7 season end - n7-p4 §9a.1; IMPORTED stays) */
     return S7_LOG.status = S7_OK;
 }
 

@@ -85,6 +85,20 @@ def _gl(files):                                 # sreg_slt_import's run tables (
                                           for fl, rs in files)
 
 
+def _rowbase(files, w):
+    """the S7 row's shipped division (the league's index) of team word w, 0 off the files (sreg2.c rowbase)"""
+    if w == NONE:
+        return 0
+    for f, divs, _ in files:
+        if f == w & 0xFF:
+            r = 0
+            for d, k in divs:
+                r += k
+                if (w >> 8) < r:
+                    return d
+    return 0
+
+
 def _sides(tmp):
     """(the S7 pack, its shape / old_ord / newpool, the 4.1 and S7 RI layouts, the S7 globals) - mkseason on REL41rc3's
     world, then the same packs with Italy replaced by s7pack's (ENABLED / caches restored after)."""
@@ -178,9 +192,10 @@ def _import(L, S, car, fill):
     rk = L.sreg_ri_import(R, spec, nf, bytes(S['divs']), n, old, sw, ns, S['newpool'], 42, S['lay41'], S['lay7'],
                           S['world'], 102, 144, ri, new_ri, riw, ctypes.byref(rbad))
     out['rk'], out['rbad'], out['new_ri'] = rk, rbad.value, new_ri.raw
-    # someLeaguesTable: old base = the 4.1 slot's +25 (ri_copy keeps it), new base = the club's registry division
+    # someLeaguesTable: old base = the 4.1 slot's +25 (ri_copy keeps it), new base = the S7 ROW's shipped division (the
+    # exe's convention, MC 15/11: s7_load's rec_copy keeps a row's byte 25, as s7_season / put_slot; sreg2.c rowbase)
     ob = bytes(t102[ow >> 8][25] if ow != NONE else 0 for ow in out['old_word'])
-    nb = bytes(nd if nd < POOL else 0 for nd in out['nd'])
+    nb = bytes(_rowbase(S['files'], w) for w in out['word'])
     new_slt = ctypes.create_string_buffer(bytes([fill]) * 2400, 2400)
     sbad = ctypes.c_int32()
     sk = L.sreg_slt_import(R, wk, n, _gl([(102, [(92, 256)])]), S['gl7'], ob, nb, 14, slt + bytes(400), new_slt, 2400,
@@ -292,13 +307,19 @@ def _check(S, o, tag):
     want_fl = 1 | 2 | (S['season'] & 0xFF) << 8
     if o['flags'] != want_fl:
         errs.append(f'{tag}: flags {o["flags"]:#x} (want {want_fl:#x})')
-    # someLeaguesTable: delta 0 for every Italy club on a row (its record carries its actual division); others kept
+    # someLeaguesTable: every Italy club on a row gets delta = its actual division - the row's shipped base (the exe's
+    # convention, MC 15/11: s7_season / put_slot read record +25 = the row's base); others kept
     g7 = set(S['glob7'].values())
-    nz = [(keys[c], S['glob7'][(w & 0xFF, w >> 8)], o['new_slt'][S['glob7'][(w & 0xFF, w >> 8)]])
-          for c, w in enumerate(o['word']) if w != NONE and o['old_word'][c] != NONE
-          and o['new_slt'][S['glob7'][(w & 0xFF, w >> 8)]]]
+    nz = []
+    for c, w in enumerate(o['word']):
+        if w == NONE or o['old_word'][c] == NONE:
+            continue
+        g = S['glob7'][(w & 0xFF, w >> 8)]
+        want = (o['nd'][c] - _rowbase(S['files'], w)) & 0xFF
+        if o['new_slt'][g] != want:
+            nz.append((keys[c], g, o['new_slt'][g], want))
     if nz:
-        errs.append(f'{tag}: S7 deltas not 0: {nz[:4]}')
+        errs.append(f'{tag}: S7 deltas != actual - row base: {nz[:4]}')
     kept = [g for g in range(2000) if g not in g7 and not 92 <= g < 348 and o['new_slt'][g] != o['slt'][g]]
     if kept:
         errs.append(f'{tag}: other globals changed: {kept[:6]}')
@@ -373,5 +394,5 @@ def test_italy_import():
     return not errs, '; '.join(errs) or (f'{len(stats)} real 4.1 saves imported (swaps / 4.1 RI maps: '
                                          f'{", ".join(stats)}): every slot word mapped once, no 102 ordinal >= 100, '
                                          'registry = actual divisions, the 6 pending (option B: joiners off + fillers by queue / spec order, '
-                                         'substitutions), queue cut short (s05: 0 / 3 entries) the same, RI + slt translated (S7 deltas 0, '
+                                         'substitutions), queue cut short (s05: 0 / 3 entries) the same, RI + slt translated (S7 deltas = actual - row base, '
                                          'other countries kept), IT round trip a fixed point, deterministic; s04 pergolettese queued, s05 on 144')

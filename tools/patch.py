@@ -405,7 +405,7 @@ def patch_exe(src, dst, remap, lang='it'):
     import dplay as _dps
     if _dps.s3_b_mask() or _dps.s3_c_mask():                 # 4.2 S3 step 2: cuprule.c's band (S3 builds only)
         swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, (swreg.S3C_END + 0xFFF) // 0x1000)
-    swe.OBJ4_PAGES = sreg.obj4_pages(swe.OBJ4_PAGES)   # (4.2 N7: + the old-save import's 12th page, SREG2_AT)
+    swe.OBJ4_PAGES = sreg.obj4_pages(swe.OBJ4_PAGES)   # (4.2 N7 / 42-s7import: + the old-save import's band, SREG2)
     if lr_tabs:                                        # (the career league's head-to-head block)
         engine.save_item('LR', lrank.LR_SIZE, world_only=True)
         import swreg                                   # 4.2: a groups stage's state (engine ST, sr_stled.c; A1's room)
@@ -1045,6 +1045,7 @@ def patch_exe(src, dst, remap, lang='it'):
         import ripool
         import swefile
         s7swap.patch(p, swe.LABELS, sreg.LABELS, gplay.LABELS, pgroups.LABELS, swefile.LABELS, ripool.LABELS)
+        sreg.patch_import(p, swe.LABELS, s7swap.LABELS)  # 42-s7import: the old-save import (SREG2, SREG_FN[4])
     import fpad                                  # 4.2 fixture port P2: fpad.c at obj4+FPORT_AT (dormant: nothing)
     import gplay
     fpad.patch(p, swe.LABELS, gplay.LABELS)

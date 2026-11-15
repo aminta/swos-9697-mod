@@ -98,11 +98,11 @@ def run(path, club, tag):
         for nm, w in recs.items():
             if nm == club:
                 continue
-            k = m.find(bytes(w[:22]))
-            if k < 0:
+            ks = game_copies(m, w)
+            if not ks:
                 continue
             seen += 1
-            if m[k + 24] != w[24] or m[k + 60:k + 76] != bytes(w[60:76]):
+            if any(m[k + 24] != w[24] or m[k + 60:k + 76] != bytes(w[60:76]) for k in ks):
                 bad.append(nm)
             tacs[w[24]] = tacs.get(w[24], 0) + 1
         T.check(seen >= 10, f'only {seen} other club records found in memory', errs)
@@ -111,9 +111,9 @@ def run(path, club, tag):
         if grp:
             got = {}
             for nm in grp:
-                k = m.find(bytes(recs[nm][:22])) if nm in recs else -1
-                if k >= 0:
-                    got[nm] = m[k + 24]
+                ks = game_copies(m, recs[nm]) if nm in recs else []
+                if ks:
+                    got[nm] = m[ks[0] + 24]
             tl = {mkseason.TACTICS[t] if t < 12 else t for t in got.values()}
             T.check(len(got) >= 3 and len(tl) >= 2, f'{club} group opponents in memory {len(got)}, tactics {tl}', errs)
             info.append(f'group opponents: ' + ', '.join(f'{nm} {mkseason.TACTICS[t] if t < 12 else t}'
@@ -121,6 +121,20 @@ def run(path, club, tag):
         info.append(f'{seen} other clubs in memory = DATA, tactics ' +
                     ', '.join(f'{mkseason.TACTICS[t] if t < 12 else t} {k}' for t, k in sorted(tacs.items(), key=lambda x: -x[1])))
     return (not errs), '; '.join(errs + info)
+
+
+def game_copies(m, w):
+    """Offsets of the game's own copies of DATA record w in memory m. The file holds the header's word at +2 (the
+    global team number) big-endian, the game's loaded copies little-endian, and +4 is 0 / 1 there (a second copy);
+    matching w[:22] as it is found only a raw file buffer still in memory (Shaved 15/11: the S7 second file's,
+    TMW5.144, so world_tactics_seried PASSed on it; at JUVENTUS no TMW5.102 buffer is left: 'only 1 other club')."""
+    head, name, out = bytes(w[:2]) + bytes(w[2:4])[::-1], bytes(w[5:22]), []
+    k = m.find(name)
+    while k >= 0:
+        if k >= 5 and m[k - 5:k - 1] == head and m[k - 1] in (0, 1):
+            out.append(k - 5)
+        k = m.find(name, k + 1)
+    return out
 
 
 def group_of(club):

@@ -10956,7 +10956,7 @@ def practice_car_run(mode, errs, info):
     """practice_car's half: a World 2026-27 career at ROMA saved (PRA0) and loaded again, SQUADRA -> TRAINING ->
     mode 'ctrl': the plain training game (row 0), ESC after PRACTICE_CTRL_STEPS (default 120) steps of ~1 s;
     mode 'fk': the free-kick practice to its result page (10 attempts by itself), OK;
-    then heal_first16 (a training injury), ESCI, saved again (PRA1). {offset: (before, after)} of the .CAR, or None."""
+    then heal_first16 (a training injury), ESCI, saved again (PRA1). ({offset: (before, after)} of the .CAR, PRA1 bytes), or None."""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import lepatch
     import practice
@@ -11026,7 +11026,7 @@ def practice_car_run(mode, errs, info):
         d0, d1 = (open(os.path.join(s.run, 'SWOS', n + '.CAR'), 'rb').read() for n in ('PRA0', 'PRA1'))
         if len(d0) != len(d1):
             errs.append(f'{mode}: .CAR size {len(d0)} -> {len(d1)}')
-        return {i: (d0[i], d1[i]) for i in range(min(len(d0), len(d1))) if d0[i] != d1[i]}
+        return {i: (d0[i], d1[i]) for i in range(min(len(d0), len(d1))) if d0[i] != d1[i]}, d1
 
 
 @scenario
@@ -11043,24 +11043,15 @@ def practice_car():
     pr = practice_car_run('fk', errs, info)
     if ctrl is None or pr is None:
         return False, '; '.join(errs + info)
-    # (q7 15/11) A field both halves write with values of different length - a name ('DRAMEH' / 'PULISIC'), the
-    # line-up order - changes one byte more in one half: a practice-only byte inside a run of changed bytes that holds
-    # a byte the control changed too is that field (listed as info), anything else fails.
-    def run_of(i):
-        lo = hi = i
-        while lo - 1 in pr:
-            lo -= 1
-        while hi + 1 in pr:
-            hi += 1
-        return lo, hi
-    extra, longer = [], []
-    for i in sorted(set(pr) - set(ctrl)):
-        lo, hi = run_of(i)
-        (longer if any(j in ctrl for j in range(lo, hi + 1)) else extra).append(i)
-    if longer:
+    ctrl, ctrl1 = ctrl
+    pr, pr1 = pr
+    # (MC 15/11) A practice-only byte passes only inside a named field the control changed too (carfields: a player
+    # name one byte longer - 'DRAMEH' / 'PULISIC' -, a line-up order array); anything else fails.
+    import carfields
+    extra, named = carfields.classify(ctrl, pr, ctrl1, pr1)
+    if named:
         info.append('practice-only bytes inside fields the control writes too: '
-                    + ', '.join(f'{i:#x} {pr[i][0]:02x}->{pr[i][1]:02x} (run {run_of(i)[0]:#x}..{run_of(i)[1]:#x})'
-                                for i in longer[:16]))
+                    + ', '.join(f'{i:#x} {pr[i][0]:02x}->{pr[i][1]:02x} {fld}' for i, fld in named[:16]))
     same = sum(1 for i in pr if i in ctrl and pr[i][1] == ctrl[i][1])
     info.append(f'.CAR bytes changed: plain training {len(ctrl)}, practice {len(pr)}, practice only {len(extra)}; '
                 f'both {len(set(pr) & set(ctrl))}, of them the same value {same}'

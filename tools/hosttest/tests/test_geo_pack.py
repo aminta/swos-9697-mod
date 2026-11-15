@@ -8,6 +8,8 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 import s7swap  # noqa: E402
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from s7path import S7PACK  # noqa: E402
 
 TOOLS = os.path.join(os.path.dirname(__file__), '..', '..')
 SRC = json.load(open(os.path.join(TOOLS, 's7pack_geo.json'), encoding='utf-8'))
@@ -41,7 +43,7 @@ def test_geo_table():
         m = refuses(copy.deepcopy(meta))
         if m is None:
             errs.append(f'{what}: not refused')
-    p = os.path.join(os.path.expanduser('~'), 'swos-mod', 'internal', 's7pack-real', 'ita', 'pack.json')
+    p = os.path.join(S7PACK, 'pack.json')
     if os.path.exists(p):
         real = json.load(open(p, encoding='utf-8'))
         if s7swap.geo_table(real, len(real['files']['league_b']['divisions'])) != tab:

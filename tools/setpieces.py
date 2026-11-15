@@ -63,7 +63,7 @@ def knobs():
                 AFX0=_iv('SP_AFX0', 150), AFX1=_iv('SP_AFX1', 520),
                 FKXI=_iv('SP_FKXI', 8), FKXC=_iv('SP_FKXC', 3),
                 FKXC2=_iv('SP_FKXC2', 2), FKXI2=_iv('SP_FKXI2', -12), FKXMS=_iv('SP_FKXMS', 4),  # fk8: ARCADE steer px a tick; a miss aims 8..16 px outside
-                FKA2=[int(x) for x in (os.environ.get('SP_FKA2') or '10,17,24,38,54,72,92,115').split(',')])  # fk8: ARCADE on-target chance /256 by SHOOTING                                  # §3 sideways steer                                 #  the FK zone
+                FKA2=[int(x) for x in (os.environ.get('SP_FKA2') or '10,17,24,38,54,72,88,100').split(',')])  # fk8: ARCADE on-target chance /256 by SHOOTING                                  # §3 sideways steer                                 #  the FK zone
 
 
 def _one(d, pat, name, n=1):

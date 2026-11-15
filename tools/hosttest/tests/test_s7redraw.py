@@ -220,6 +220,9 @@ def test_s7redraw_exe():
         bad = [(i, want[i], got[i]) for i in want if want[i] != got[i]]
         if bad or e:
             errs.append(f'season 1 end, career {sel:#06x}: {len(bad)} clubs differ {bad[:4]} {e}')
+        fl = struct.unpack('<I', m.rd(m.at('sreg', 'SREG_FLAGS'), 4))[0]
+        if 'S7RD_LOG' in m.sy['s7swap'] and (fl >> 4 & 0xF) != 1:
+            errs.append(f'career {sel:#06x}: SREG_FLAGS {fl:#x} (want the rule version 1 in bits 4..7 after a redraw season end)')
         reg1 = m.regb()
         m.fresh()
         _exe_case(m, t7, down, up, t7.SEASON, sel)

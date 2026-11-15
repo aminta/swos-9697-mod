@@ -365,6 +365,7 @@ void s7_flush(void)
 #endif
 }
 
+#define S7RD_RULE_VER 1u              /* (the frozen rule: 42-redraw 31db319, STAY 540, isqrt((4 dlat)^2 + (3 dlon)^2), integer Hungarian) */
 /* the redraw (s7geo.c's s7rd_level, obj4+S7GEO; s7swap.py sets it; 0: no redraw, the crossers' place() groups stay) */
 int32_t (*S7RD_PTR)(int32_t, int32_t, const uint16_t *, const uint8_t *, int32_t, int32_t, const uint16_t *, const uint8_t *, int32_t,
                     const uint8_t *, uint32_t, uint8_t *, uint8_t *) DATA = 0;
@@ -497,6 +498,9 @@ static int32_t run(void *pv) {
     if (walk(c, slt) < 0) return S7_LOG.status = S7_WMAP;      /* (cannot happen: <= S7_NSW swaps, S7_NPR pairs) */
     SREG_FLAGS &= ~(uint32_t)(SR_REGSAVE_PENDING | 0xFF00);    /* (42-s7import: an imported save's PENDING clears at its
                                                                   first S7 season end - n7-p4 §9a.1; IMPORTED stays) */
+    if (S7RD_PTR)                       /* 4.2 redraw: the rule version in the 'IT' flags' spare bits 4..7 (s7-redraw.md 3: a later rule
+                                           change can tell an old career's groups from its own; 0 = no redraw season end yet) */
+        SREG_FLAGS = (SREG_FLAGS & ~(uint32_t)0xF0) | S7RD_RULE_VER << 4;
     return S7_LOG.status = S7_OK;
 }
 

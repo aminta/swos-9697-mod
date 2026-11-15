@@ -30296,6 +30296,80 @@ def world_s7cross_c20():
 
 
 @scenario
+def world_s7redraw_regroup():
+    """S7 redraw (4.2, s7-redraw.md gate 3; Davide 15/11 "regola attuale al 78% e basta"): the career club changes GROUP inside its
+    file at a season end - the redraw's own path (CONVENTIONS 14d: not a job change; the row, squad, money and record kept).
+    CAMPOBASSO (Serie C girone B; the frozen rule on the real 2026-27 pack moves it to girone C at season 1's end: test_s7redraw_exe
+    on c/HTRD1), GPLAY_FORCE=10 (mid-table: no crossing, the regroup alone); S7_PACK = the release Italy data (world5tm-h3s7r/ita:
+    its coordinates). Two seasons (season 1 played and saved; season 2 loaded and played). Checks: season 1's end S7_LOG OK and
+    S7RD_LOG both levels OK (status 1), Serie C >= 1 regrouped; selTeamNumber and careerTeamLeague unchanged by the season end
+    (same row, same base division); D6CDC 3 (girone B) in season 1, 4 (girone C) in season 2 as loaded and to its end; S7_LD never
+    failed."""
+    import json
+    team = os.environ.get('S7RD_TEAM') or 'EUROPA,ITALIA,SERIE C GIRONE B,CAMPOBASSO'
+    d0, d1 = (int(x) for x in (os.environ.get('S7RD_DIVS') or '3,4').split(','))
+    env = s7_env({'GPLAY_FORCE': os.environ.get('S7RD_FORCE') or '10'})
+    if env is None:
+        return True, 'SKIP: S7_PACK (the Italy pack: world5tm-h3s7r/ita for the redraw) or internal world5tm-h2 missing'
+    exe = os.environ.get('S7_BUILD') or build('s7redraw', env=env)
+    sy = json.load(open(os.path.join(exe, 'ITALIAN.syms.json')))
+    s7 = sy.get('s7swap', {})
+    if 'S7RD_LOG' not in s7 or 'S7RD_PTR' not in s7:
+        return False, f'{exe}: no S7 redraw (S7RD_LOG / S7RD_PTR not in the syms)'
+    at = lambda k: s7[k][1]
+    sel = s7['S7_SELTEAM'][1]
+    keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
+                                            'W8485_NOSACK', 'W8485_RENEW', 'W8485_HEX', 'W8485_ONE')}
+    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+',
+                      W8485_NOSACK='1', W8485_RENEW='1',
+                      W8485_HEX=f'o4/{at("S7_LOG"):x}:8,o4/{at("S7RD_LOG"):x}:8,o4/{at("S7_LD"):x}:16,{sel:x}:8,o4/{at("S7RD_PTR"):x}:4')
+    os.environ.pop('W8485_ONE', None)
+    try:
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    errs = []
+    check(ok, msg[:300], errs)
+    hexes = []
+    for season in (1, 2):
+        f = os.path.join(RUNS, w84_tag() + f'_{season}', 'session.log')
+        lines = open(f, errors='replace').read().splitlines() if os.path.exists(f) else []
+        if any(ln.startswith('[job]') and 'RINNOVARVI IL CONTRATTO' in ln for ln in lines):
+            raise SetupError(f'season {season}: the contract was not renewed (W8485_RENEW did not hold)')
+        hexes.append([(ln.split()[1], bytes.fromhex(ln.split()[2])) for ln in lines if ln.startswith('HEX ')
+                      and len(ln.split()) > 2])
+    get = lambda s_, k: [b for o, b in hexes[s_] if o == k]
+    ptr = get(0, f'o4/{at("S7RD_PTR"):x}')
+    check(bool(ptr) and any(ptr[-1]), f'S7RD_PTR {[b.hex() for b in ptr[-1:]]}: the redraw is off in this build', errs)
+    st = [b for b in get(0, f'o4/{at("S7_LOG"):x}') if b[0]]
+    check(bool(st) and st[-1][0] == 1, f'season 1 end: S7_LOG {[b.hex() for b in st[-3:]]} (want status 1)', errs)
+    rd = [b for b in get(0, f'o4/{at("S7RD_LOG"):x}') if b[0] or b[4]]
+    check(bool(rd) and rd[-1][0] == 1 and rd[-1][4] == 1 and rd[-1][2] >= 1,
+          f'season 1 end: S7RD_LOG {[b.hex() for b in rd[-3:]]} (want C and D status 1, C >= 1 regrouped)', errs)
+    sels = [struct.unpack('<HHHH', b) for b in get(0, f'{sel:x}')]
+    sels = [x for x in sels if x[0] not in (0, 0xFFFF)]
+    sels2 = [struct.unpack('<HHHH', b) for b in get(1, f'{sel:x}')]
+    sels2 = [x for x in sels2 if x[0] not in (0, 0xFFFF)]
+    check(bool(sels) and sels[0][3] == d0, f'season 1: D6CDC {[x[3] for x in sels[:3]]} (want {d0}, the club\'s girone)', errs)
+    check(bool(sels) and bool(sels2) and all(x[0] == sels[0][0] and x[2] == sels[0][2] for x in sels + sels2),
+          f'selTeamNumber / careerTeamLeague changed: season 1 {[(hex(x[0]), x[2]) for x in sels[-2:]]}, season 2 '
+          f'{[(hex(x[0]), x[2]) for x in sels2[:2]]} (a regroup keeps the row)', errs)
+    check(bool(sels2) and all(x[3] == d1 for x in sels2),
+          f'season 2: D6CDC {sorted({x[3] for x in sels2})} (want {d1} from the load to the end: the new girone)', errs)
+    for s_ in (0, 1):
+        lds = [struct.unpack('<BBBBHHIi', b) for b in get(s_, f'o4/{at("S7_LD"):x}')]
+        bad = [x for x in lds if x[0] not in (0, 1, 2) or (x[0] == 2 and s_)]
+        check(not bad, f'season {s_ + 1}: S7_LD failed {bad[:3]}', errs)
+    return not errs, '; '.join(errs) or (f'{team.split(",")[-1]} regrouped girone {d0} -> {d1} at season 1\'s end (S7RD_LOG '
+                                         f'{rd[-1].hex()}: C {rd[-1][2]} / D {rd[-1][6]} regrouped), row {sels[0][0]:#x} and '
+                                         f'careerTeamLeague {sels[0][2]} kept, season 2 loaded and played in girone {d1}, S7_LD OK')
+
+
+@scenario
 def world_s7cross_up():
     """S7 (4.2): the career club promoted from Serie D girone A (LIGORNA first) to Serie C, two seasons"""
     return s7cross(1, 'EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA', 144)

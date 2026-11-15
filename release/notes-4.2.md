@@ -34,8 +34,13 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 - The set piece comes again and again, the ball placed for you each time: free kicks from the centre and from both sides at four distances from goal, penalties, corners from both sides. There is no match clock, no pre-match screen and no score bar flashing up at each restart: just the set pieces.
 - A practice ends by itself after 10 attempts, or press ESC whenever you like (handy on a joypad). A results page then shows your shots and goals (SHOTS / GOALS) and takes you back to the squad screen. A practice never changes your career beyond what a training game already does.
 
+#### Shirt numbers: keypad digits and taken numbers
+- While a shirt-number box is lit (the team screen before a match, the squad screen), the digits of the numeric keypad now type the number like the digits above the letters. Everywhere else the keypad moves the cursor as before.
+- UP / DOWN in the box now go through every number from 1 to 99, one at a time, taken ones included. When you stop on a number another player already wears, the coach's line at the bottom of the screen shows who wears it, for example '7 A. DI LIVIO SWAP'. Leave the box any way except ESC and the two players swap numbers; ESC puts your number back as it was. Typing a number works as before. In EDIT CUSTOM TEAMS UP / DOWN still skip the taken numbers.
+
 #### Decisions of this release
 - Set-piece practice: a practice lasts 10 attempts and then shows its results page (ESC ends it earlier); a practice has no match clock, no pre-match screen and no score bar at the restarts. Ordinary matches and friendlies are unchanged.
+- Shirt numbers: UP / DOWN stop on taken numbers and show who wears them; leaving the box swaps the numbers, ESC undoes; keypad digits type only while the box is lit; EDIT CUSTOM TEAMS keeps skipping taken numbers.
 - (every gameplay or market decision of 4.2 goes here and in the README, EN + IT: Davide 15/11, rc gate item)
 
 
@@ -74,6 +79,11 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 - Il calcio piazzato si ripete di continuo, con il pallone rimesso a posto ogni volta: punizioni dal centro e dai due lati a quattro distanze dalla porta, rigori, calci d'angolo da entrambi i lati. Niente cronometro, niente schermata prepartita e nessuna barra del risultato che compare a ogni ripresa del gioco: solo i calci piazzati.
 - La prova finisce da sola dopo 10 tentativi, oppure premi ESC quando vuoi (comodo col joypad). Una pagina finale mostra tiri e gol (TIRI / GOL) e ti riporta alla schermata della rosa. La prova non cambia mai la tua carriera più di quanto faccia già una partitella di allenamento.
 
+#### Numeri di maglia: tastierino numerico e numeri occupati
+- Quando il riquadro del numero di maglia è acceso (schermata della squadra prima della partita, schermata della rosa), le cifre del tastierino numerico ora scrivono il numero come quelle sopra le lettere. Altrove il tastierino muove il cursore come prima.
+- SU / GIÙ nel riquadro ora passano per tutti i numeri da 1 a 99, uno alla volta, anche quelli occupati. Se ti fermi su un numero che porta già un altro giocatore, la riga dell'allenatore in basso mostra chi lo porta, per esempio '7 A. DI LIVIO SCAMBIO'. Esci dal riquadro in qualunque modo tranne ESC e i due giocatori si scambiano i numeri; ESC rimette il tuo numero com'era. Scrivere un numero funziona come prima. In MODIFICA SQUADRE SU / GIÙ saltano ancora i numeri occupati.
+
 #### Decisioni di questa release
 - Prova dei calci piazzati: una prova dura 10 tentativi e poi mostra la sua pagina dei risultati (ESC la chiude prima); in una prova non ci sono cronometro, schermata prepartita né barra del risultato alle riprese del gioco. Le partite normali e le amichevoli restano come prima.
+- Numeri di maglia: SU / GIÙ si fermano anche sui numeri occupati e mostrano chi li porta; uscendo dal riquadro i numeri si scambiano, ESC annulla; le cifre del tastierino scrivono solo con il riquadro acceso; MODIFICA SQUADRE continua a saltare i numeri occupati.
 - (every gameplay or market decision of 4.2 goes here and in the README, EN + IT: Davide 15/11, rc gate item)

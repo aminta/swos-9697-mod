@@ -74,6 +74,7 @@ def test_drp():
     for lang, name in td.LANGS.items():
         p = lepatch.LEPatch(os.path.join(td.ORIG, f'{name}.EXE'))
         s, sym = df.find(p)
+        sym['GSPL'] = df.w1_find(p, sym)['GSPL']        # (live play for df_blk, see td._setup)
         exe, ld, lb = _build(lang)
         un, sn, b2n, B4 = td._load(exe)
         a4 = lambda k: B4 + k

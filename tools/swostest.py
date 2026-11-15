@@ -11489,6 +11489,8 @@ def practice_tour():
                     s.shot(f'tour_{kind}_result')
                     info.append(f'{kind}: {t[:4]}')
                     press(s, s.screen(), practice.RES[lang][2], 3)
+                    s.send('dump:1')
+                    s.shot(f'tour_{kind}_back')     # (item 3: OK -> the practice page)
                     break
                 s.send('dump:1')
             else:

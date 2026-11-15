@@ -242,12 +242,16 @@ static int32_t wcheck(void)            /* S7_WRES resolved; -1 every row resolva
             for (uint32_t e = 0; e < S7_ENN; e++)
                 if ((S7_ENI[3 * e + 2] & 0xFFFF) == s->item) { S7_WRES[k].ptr = S7_ENI[3 * e]; S7_WRES[k].len = S7_ENI[3 * e + 1]; }
         uint32_t len = s->item == WI_CACHE ? 684 : S7_WRES[k].len;
-        if (s->form != WS_W && s->form != WS_G && s->form != WS_R) return k;
+        if (s->form != WS_W && s->form != WS_G && s->form != WS_R && s->form != WS_D) return k;
         if (s->item != WI_CACHE && !S7_WRES[k].ptr) return k;
         if (s->form == WS_R) {                      /* (u8 entries, contiguous, <= 256; stride = fill | file << 8: file 0 =
                                                        the item's byte at aux) */
             if (s->count && (s->off + (uint32_t)s->count > len || s->count > 256 || (!(s->stride >> 8) && s->aux >= len)))
                 return k;
+            continue;
+        }
+        if (s->form == WS_D) {                      /* (a DIY contest: count 1, stride = its room) */
+            if (s->count != 1 || s->item == WI_CACHE || s->off + (uint32_t)s->stride > len) return k;
             continue;
         }
         if (s->count && (s->off + (uint32_t)(s->count - 1) * s->stride + 2 > len || (s->count > 1 && s->stride < 2)))

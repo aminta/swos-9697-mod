@@ -18,6 +18,7 @@ SLTCOPY holds every row's new delta of both files - the split globals >= 2000 (B
 other byte changed (someLeaguesTable is per row: re-based, never permuted)."""
 import json
 import os
+import re
 import struct
 import subprocess
 import sys
@@ -201,12 +202,13 @@ def test_wsites_walk(shift=False):
     wv = [dn[0], upw[0], stay, 0, 0xFFFF, 103 | 4 << 8, dn[1], upw[1]]
     gv = [glob(t7.FA, dn[0] >> 8), glob(t7.FB, upw[0] >> 8), glob(t7.FA, 10), 7, glob(t7.FA, dn[2] >> 8)]
     before, sites, rrows = {}, {}, []
+    dslot = dstale = 0
     for k, (iid, off, st, cnt, form, aux) in enumerate(tab):
         if iid not in item:
             errs.append(f'row {k}: item {ids.get(iid, iid)} not in S7_ENI')
             continue
         ptr, ln = item[iid]
-        if off + (cnt if form == wsites.WS_R else max(cnt - 1, 0) * st + 2) > ln:
+        if off + (cnt if form == wsites.WS_R else st if form == wsites.WS_D else max(cnt - 1, 0) * st + 2) > ln:
             errs.append(f'row {k}: {ids.get(iid)}+{off} past its {ln} B')
         if iid == wsites.WI_CFBH:                       # (one buffer with CFB: the same bytes from +0x10000)
             iid, off = wsites.WI_CFB, off + 0x10000
@@ -218,6 +220,24 @@ def test_wsites_walk(shift=False):
             if not st >> 8:
                 before[iid][aux] = t7.FA
             rrows.append((iid, off, cnt, aux, st))
+            continue
+        if form == wsites.WS_D:                          # (a DIY contest per slot, MC 15/11: league / cup / type 2 with a
+            t, n, stg = (1, 17, None) if st == 0x443 else [(0, 20, None), (2, 36, (1, 2)), (2, 36, (0, 36))][dslot % 3]
+            dslot += 1                                   #  cup or a league stage; the other types' list areas and the
+            for ca, tt, nn in [(off, t, n)] + ([(off + 0x41F, stg[0], stg[1])] if stg else []):   # stale tail: decoys
+                struct.pack_into('<HH', before[iid], ca, tt, 0)
+                struct.pack_into('<H', before[iid], ca + 49, nn)
+                lo = DIY_LIST[tt]
+                for i in range(64):
+                    v = wv[(i + k) % len(wv)]
+                    struct.pack_into('<H', before[iid], ca + lo + 2 * i, v if i < nn else dn[0])
+                    if i < nn:
+                        sites[iid, ca + lo + 2 * i] = (wsites.WS_W, v)
+                for t2, lo2 in DIY_LIST.items():         # (another type's list area: a crosser's word, untouched)
+                    if t2 != tt and lo2 + 2 <= (0x41F if ca == off and t == 2 else DIY_SIZE[tt]) and \
+                            not any(lo2 <= x - ca < lo2 + 2 for x in [o for (j, o) in sites if j == iid]):
+                        struct.pack_into('<H', before[iid], ca + lo2, dn[0])
+                        dstale += 1
             continue
         vals = wv if form == wsites.WS_W else gv
         for i in range(cnt):
@@ -323,7 +343,7 @@ def test_wsites_walk(shift=False):
         errs.append(f'CD ent: no changed row of file {cdr[0][4] >> 8} set to {wsites.CD_FILL} (fills {rfill})')
     if not moved:
         errs.append('no site moved (crossings?)')
-    return not errs, '; '.join(errs[:6]) or (f'{len(tab)} rows on {len(before)} items: {moved} moved words / globals '
+    return not errs, '; '.join(errs[:6]) or (f'{len(tab)} rows on {len(before)} items ({dslot} DIY slots, {dstale} decoys in other types\' list areas + stale tails kept): {moved} moved words / globals '
                                              f'now their clubs\' new ones, the other sites and bytes unchanged ({decoys} decoys: a crosser\'s word in a non-team field, untouched); SLTCOPY re-based for every row '
                                              f'({hi} globals >= 2000: BT_EXT\'s range); WS_R fills {rfill} (CD ent: changed rows of its '
                                              f'file -> 1 over planted 2+ places, the rest kept) (items not saved by this build: {absent})')
@@ -349,9 +369,31 @@ CFB_SAVES = [os.path.join(MAINDIR, f) for f in ('s1mid_inter.CAR', 'davide_int.C
 FIX_LEN = 95151                                   # careerFileBuffer's fixed part (trailer INFO FIXED)
 
 
-def _cfb_covered(rows):
+DIY_LIST, DIY_SIZE = {0: 301, 1: 589, 2: 153}, {0: 0x733, 1: 0x443, 2: 0xB52}
+
+
+def diy_lists(c, room):
+    """[(offset, count)] a DIY contest's live team list(s) (sreg_walk.c WS_D's rule), [] when WS_D would refuse it"""
+    def one(b, rm, maxt):
+        t, n = struct.unpack_from('<H', b, 0)[0], struct.unpack_from('<H', b, 49)[0]
+        return (t, DIY_LIST[t], n) if t <= maxt and DIY_SIZE[t] <= rm and n <= 64 else None
+    a = one(c, room, 2)
+    if not a:
+        return []
+    if a[0] != 2:
+        return [a[1:]]
+    b = one(c[0x41F:], 0xB52 - 0x41F, 1)
+    return [a[1:], (0x41F + b[1], b[2])] if b else []
+
+
+def _cfb_covered(rows, d=None):
     cov = set()
     for it, off, st, cnt, form, aux in rows:
+        if it in (wsites.WI_CFB, wsites.WI_CFBH) and form == wsites.WS_D and d is not None:
+            base = (0x10000 if it == wsites.WI_CFBH else 0) + off
+            for lo, n in diy_lists(d[base:base + st], st):
+                for k in range(n):
+                    cov.update((base + lo + 2 * k, base + lo + 2 * k + 1))
         if it in (wsites.WI_CFB, wsites.WI_CFBH) and form == wsites.WS_W:
             base = 0x10000 if it == wsites.WI_CFBH else 0
             for k in range(cnt):
@@ -379,19 +421,28 @@ def test_wsites_cfb():
     cov = _cfb_covered(rows)
     if cov and max(cov) >= FIX_LEN:
         errs.append(f'a row past the fixed part ({max(cov)})')
+    rooms = set()                                    # (WS_D buffers: words past numTeams / in another type's list area
+    for it, off, st, cnt, form, aux in rows:         #  are stale by the layout - nothing reads them - counted, not walked)
+        if form == wsites.WS_D:
+            b0 = (0x10000 if it == wsites.WI_CFBH else 0) + off
+            rooms.update(range(b0, b0 + st))
+    stale = 0
     for p, d in data.items():
-        bad = _stale(d, cov)
+        bad = _stale(d, _cfb_covered(rows, d))
+        stale += sum(o in rooms for o in bad)
+        bad = [o for o in bad if o not in rooms]
         if bad:
             errs.append(f'{os.path.basename(p)}: {len(bad)} file-102 words outside the rows: {[hex(o) for o in bad[:6]]}')
     dead = []
     code = set(cfb_code_rows()[0])                  # (4c: rows from the code need no save to prove them)
     for r in [x for x in rows if x not in code]:
-        c2 = _cfb_covered([x for x in rows if x is not r])
-        if not any(len(_stale(d, c2)) for d in data.values()):
+        if not any([o for o in _stale(d, _cfb_covered([x for x in rows if x is not r], d)) if o not in rooms]
+                   for d in data.values()):
             dead.append(hex(r[1] + (0x10000 if r[0] == wsites.WI_CFBH else 0)))
     if dead:
         errs.append(f'rows no save needs (nothing clustered without them): {dead}')
-    return not errs, '; '.join(errs[:5]) or f'{len(saves)} real saves: every clustered file-102 word is in one of {len(rows)} CFB rows, each row needed'
+    return not errs, '; '.join(errs[:5]) or (f'{len(saves)} real saves: every clustered file-102 word is in one of {len(rows)} CFB rows, each row needed '
+                                         f'({stale} stale words in DIY buffers outside their live lists: not walked, by the layout)')
 
 
 
@@ -473,6 +524,33 @@ def cfb_code_rows():
         errs.append('homeMarketPlayers .. dseg_D6DBA: not 25 x 4 B')
     if 0xD6CDC - ida != 0xD750:                          # (s7-bp-run.md: dseg_D6CDC = obj2+16E26h = .CAR +D750h)
         errs.append('IDA_CFB: dseg_D6CDC not at CFB D750h')
+    # full pass (Motore 15/11): incoming offers dseg_D6DBA 5 x 14 B (+0 teamOffering), teamNoOfferAccepted (after dseg_D6CA2);
+    # the 5 DIY contest slots (ProcessCareerFile's arrayOfPointers) as WS_D, room = the biggest type each holds: the
+    # copy sizes of cseg_8B71C / 8B7EA (733h / 443h / B52h - 1 counts), slots 2 / 4 = 443h apart (cups only)
+    need = [('dseg_D6DBA db 70 dup(0)', 'the offers (5 x 14)'), ('cmp     numOffers, 5', 'the offers bound'),
+            ('mov     teamOffering, ax', 'offer +0 = teamOffering (OffersCommon)'),
+            ('dseg_D6CA2 dw 0', 'the word before teamNoOfferAccepted'), ('\nteamNoOfferAccepted dw 0', 'teamNoOfferAccepted'),
+            ('mov     teamNoOfferAccepted, ax', 'AcceptJobOffer writes it'),
+            ('mov     word ptr D0, 732h', 'league copy 733h'), ('mov     word ptr D0, 442h', 'cup copy 443h'),
+            ('mov     word ptr D0, 0B51h', 'type-2 copy B52h'),
+            ('add     eax, 301    ; league offset', 'league list +301'), ('add     eax, 589    ; cup offset', 'cup list +589'),
+            ('add     eax, 153    ; tournament offset', 'type-2 list +153')]
+    for text, what in need:
+        if text not in a:
+            errs.append(f'listing: {what} ({text!r}) not found')
+    pcf = a[a.index('ProcessCareerFile proc near'):a.index('ProcessCareerFile endp')]
+    slots = re.findall(r'mov     dword ptr \[esi\], offset (\w+)', pcf)
+    addr = {'competitionFileBuffer': 0xDF4F6, 'dseg_D8D0A': 0xD8D0A, 'dseg_D985C': 0xD985C, 'dseg_DA0E2': 0xDA0E2,
+            'dseg_D9C9F': 0xD9C9F}
+    if slots != list(addr):
+        errs.append(f'arrayOfPointers: {slots}')
+    ext = {0xD8D0A: 0xD985C, 0xD985C: 0xD9C9F, 0xD9C9F: 0xDA0E2, 0xDA0E2: 0xDACB4, 0xDF4F6: 0xDF4F6 + 0xB53}   # (next label)
+    for o, room in wsites.DIY_SLOTS:
+        if o + ida + room > ext[o + ida] or room not in (0x443, 0xB52) or (room == 0x443) != (ext[o + ida] - o - ida < 0xB52):
+            errs.append(f'DIY slot {o + ida:#x}: room {room:#x} vs its extent {ext[o + ida] - o - ida:#x}')
+    rows += [(C, 0xD6DBA - ida, 14, 5, W, 0), (C, 0xD6CA4 - ida, 0, 1, W, 0)]
+    rows += [(C if o < 0x10000 else H, o & 0xFFFF, room, 1, wsites.WS_D, 0)
+             for o, room in [(addr[n] - ida, 0x443 if ext[addr[n]] - addr[n] < 0xB52 else 0xB52) for n in slots]]
     cal, cend = 0xDB3E6 - ida, 0xDF4F4 - ida
     rows += [(C, fm, 4, 15, W, 0), (C, hm, 4, 25, W, 0), (C, nj, 26, 5, W, 0), (C, jo, 26, 5, W, 0),
              (H, cal - 0x10000 + 12, 22, (cend - cal) // 22, W, 0), (H, cal - 0x10000 + 14, 22, (cend - cal) // 22, W, 0)]
@@ -493,10 +571,11 @@ def test_wsites_cfb_layout():
     used = {}
     for it, off, st, cnt, form, aux in have:
         base = (0x10000 if it == wsites.WI_CFBH else 0) + off
-        if base + (cnt - 1) * st + 2 > FIX_LEN:
+        span = st if form == wsites.WS_D else (cnt - 1) * st + 2
+        if base + span > FIX_LEN:
             errs.append(f'{base:#x}: past the fixed part')
         for k in range(cnt):
-            for b in (base + k * st, base + k * st + 1):
+            for b in (range(base, base + st) if form == wsites.WS_D else (base + k * st, base + k * st + 1)):
                 if b in used:
                     errs.append(f'{b:#x}: in rows {used[b]:#x} and {base:#x}')
                 used[b] = base

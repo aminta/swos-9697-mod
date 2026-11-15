@@ -466,6 +466,110 @@ def test_sreg_walk():
                                          'globals, others kept; past the bytes -1, untouched; O8 / K -2'
 
 
+def test_sreg_walk_diy():
+    """sreg_walk.c WS_D (Motore 15/11, wsites-full-pass.md): a DIY contest buffer, its type word deciding the list -
+    league +301, cup +589, type 2 +153 + the stage contest at +0x41F (type 0 / 1); numTeams +49. Planted: crossers'
+    words in the live list(s), the SAME words as decoys in every other type's list area and past numTeams (stale):
+    only the live words move. Cases: league 20, cup 64 (the cap), type 2 + league stage (36), type 2 + cup stage with a
+    decoy in the stage's league list area (MC). Refused (-1, nothing written): type 3, numTeams 65, a league in a
+    0x443 room, a type-2 stage of type 2, the room past the bytes. Control: a static WS_W row over the cup area of a
+    league buffer (today's 4b rows) rewrites a decoy."""
+    import ctypes
+    import subprocess
+    import tempfile
+    d = tempfile.mkdtemp()
+    src = os.path.join(d, 'w.c')
+    with open(src, 'w') as f:
+        f.write('#define SWOSRULES_HAVE_STDINT\n#include <stdint.h>\n'
+                f'#include "{TOOLS}/swce/sr_reg.c"\n#include "{TOOLS}/swce/sr_regsave.c"\n#include "{TOOLS}/sreg_walk.c"\n')
+    lib = os.path.join(d, 'w.dylib')
+    r = subprocess.run(['cc', '-shared', '-fPIC', '-O1', '-I', os.path.join(TOOLS, 'swce'), '-o', lib, src],
+                       capture_output=True, text=True)
+    if r.returncode:
+        return False, 'cc: ' + r.stderr[-300:]
+    L = ctypes.CDLL(lib)
+    A, B, C, D = 102 | 120 << 8, 144 | 20 << 8, 102 | 130 << 8, 144 | 30 << 8     # (A <-> B, C <-> D: two swaps)
+    pairs = sorted([(A, B), (B, A), (C, D), (D, C)])
+    m = (ctypes.c_uint16 * (2 * len(pairs)))(*[x for p in pairs for x in p])
+    nw = {A: B, B: A, C: D, D: C}
+    LIST, SIZE, STAGE = {0: 301, 1: 589, 2: 153}, {0: 0x733, 1: 0x443, 2: 0xB52}, 0x41F
+
+    def walk(site, buf):
+        b = (ctypes.c_uint8 * len(buf)).from_buffer(buf)
+        s = ctypes.create_string_buffer(struct.pack('<HHHHBB', *site), 10)
+        return L.sreg_walk_site(s, b, len(buf), m, len(pairs), None, 0)
+
+    def words(k):                       # (the live words: crossers, a stayer, 0 / FFFFh, another country)
+        base = [A, 102 | 5 << 8, C, 0, 0xFFFF, 161 | 3 << 8, B, D]
+        return [base[i % len(base)] for i in range(k)]
+
+    def contest(buf, at, t, n, others):
+        struct.pack_into('<H', buf, at, t)
+        struct.pack_into('<H', buf, at + 49, n)
+        live = [(at + LIST[t] + 2 * i, w) for i, w in enumerate(words(n))]
+        for o, w in live:
+            struct.pack_into('<H', buf, o, w)
+        for i in range(n, 64):         # (stale words past numTeams: never walked)
+            struct.pack_into('<H', buf, at + LIST[t] + 2 * i, A)
+        for o in others:                # (decoys: the other types' list areas, crossers' words)
+            for i in range(8):
+                struct.pack_into('<H', buf, at + o + 2 * i, C if i & 1 else A)
+        return live
+
+    def case(name, room, t, n, stage=None, extra=0):
+        buf = bytearray((i * 7 + 0x31) & 0xFF for i in range(0x40 + room + extra))
+        off = 0x40
+        live = contest(buf, off, t, n, [v for k, v in LIST.items() if k != t and v + 16 <= 0x41F] if t != 2 else [301 + 32])
+        if stage is not None:
+            st, sn = stage
+            live += contest(buf, off + STAGE, st, sn, [LIST[1 - st]])
+        exp = bytearray(buf)
+        for o, w in live:
+            struct.pack_into('<H', exp, o, nw.get(w, w))
+        moved = sum(nw.get(w, w) != w for o, w in live)
+        got = walk((0, off, room, 1, 6, 0), buf)
+        if got != moved or buf != exp:
+            bad = [i for i in range(len(buf)) if buf[i] != exp[i]][:4]
+            return f'{name}: {got} changed (want {moved}), differs at {bad}'
+        return None
+    errs = [e for e in (
+        case('league 20', 0xB52, 0, 20),
+        case('cup 64', 0x443, 1, 64),
+        case('type 2 + league stage 36', 0xB52, 2, 36, (0, 36)),
+        case('type 2 + cup stage 2', 0xB52, 2, 36, (1, 2))) if e]
+
+    def refused(name, room, t, n, stage=None, short=0):
+        buf = bytearray(0x40 + room)
+        struct.pack_into('<HH', buf, 0x40, t, 0)
+        struct.pack_into('<H', buf, 0x40 + 49, n)
+        for i in range(64):
+            struct.pack_into('<H', buf, 0x40 + 153 + 2 * i, A)
+        if stage is not None:
+            struct.pack_into('<H', buf, 0x40 + STAGE, stage)
+            struct.pack_into('<H', buf, 0x40 + STAGE + 49, 2)
+        if short:
+            buf = buf[:-short]
+        before = bytes(buf)
+        got = walk((0, 0x40, room, 1, 6, 0), buf)
+        return None if got == -1 and bytes(buf) == before else f'{name}: {got}, written {bytes(buf) != before}'
+    errs += [e for e in (
+        refused('type 3', 0xB52, 3, 2),
+        refused('numTeams 65', 0xB52, 0, 65),
+        refused('a league in a 0x443 room', 0x443, 0, 2),
+        refused('a type 2 in a 0x443 room', 0x443, 2, 2),
+        refused('a type-2 stage of type 2', 0xB52, 2, 2, stage=2),
+        refused('room past the bytes', 0xB52, 0, 2, short=1)) if e]
+    # CONTROL: today's static rows - a WS_W row over a league buffer's cup area (+589) rewrites the decoy there
+    buf = bytearray(0x40 + 0xB52)
+    contest(buf, 0x40, 0, 20, [589])
+    if walk((0, 0x40 + 589, 2, 16, 1, 0), buf) <= 0:
+        errs.append('control: a static row over the cup area did not rewrite the decoy')
+    return not errs, '; '.join(errs) or ('WS_D: league 20 / cup 64 / type 2 + league stage / type 2 + cup stage: only the '
+                                         'live lists moved (decoys in the other types\' areas and stale words past '
+                                         'numTeams kept); 6 refusals -1, nothing written; control: a static row '
+                                         'over the cup area rewrites a decoy')
+
+
 def test_sreg_oldwords():
     """sreg_import.c (n7-p4.md §4 step 1) built natively: sreg_old_words from old_ord (a row 0..255, or 256 + a pool
     index, or FFFFh) and an RI slot map (gplay ri_apply: maps[x] 0 = its own record, else identity maps[x] - 1).

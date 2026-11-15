@@ -133,9 +133,9 @@ def obj4_pages(cur):
 
 
 def sreg2_check(p):
-    """The import's band (swreg.SREG2_AT..SREG2_END, two pages since 42-s7import, MC 15/11) is obj4's and free."""
+    """The import's band (swreg.SREG2_AT..SREG2_END, 8 KB since 42-s7import, packed at the 4.2 freeze, MC 15/11) is obj4's and free."""
     import swreg
-    assert swreg.SREG2_AT % 0x1000 == 0 and swreg.SREG2_END > swreg.SREG2_AT, ('sreg: SREG2', hex(swreg.SREG2_AT))
+    assert swreg.SREG2_AT % 0x100 == 0 and swreg.SREG2_END > swreg.SREG2_AT, ('sreg: SREG2', hex(swreg.SREG2_AT))   # (4.2 freeze: packed, 0x100-aligned)
     assert p.le.obj(4).npages * 0x1000 >= swreg.SREG2_END, ('sreg: obj4 has no SREG2 pages (obj4_pages)',
                                                             p.le.obj(4).npages)
     assert not any(p.get(4, swreg.SREG2_AT, swreg.SREG2_END - swreg.SREG2_AT)), ('sreg: obj4+SREG2_AT not free',

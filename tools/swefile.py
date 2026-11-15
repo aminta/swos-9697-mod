@@ -43,7 +43,8 @@ def patch(p, ssyms):
     import swreg
     import modver
     at = swreg.SWEFILE_AT
-    assert getattr(swreg, 'KITS_END', at) <= at < swreg.SWEFILE_END, 'swreg: KITS_END <= SWEFILE_AT < SWEFILE_END'
+    assert at < swreg.SWEFILE_END and not (getattr(swreg, 'KITS_AT', at) < swreg.SWEFILE_END and at < getattr(swreg, 'KITS_END', at)), \
+        'swreg: SWEFILE_AT < SWEFILE_END, clear of KITS (4.2 freeze: SWEFILE in the 0xB000 page, below KITS)'
     assert p.le.obj(4).npages * 0x1000 >= page_end(), 'swefile: obj4 pages (patch.py)'
     _, rel_end, rel_bss = cobj.link(_Rec(), cobj.compile_c(SRC), at, (4, 0), limit=swreg.SWEFILE_END - MARGIN, text_obj=4)
     assert not rel_bss, 'swefile.c: no .bss (it would land on swe.c\'s)'

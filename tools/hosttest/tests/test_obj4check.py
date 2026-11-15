@@ -16,6 +16,15 @@ sys.path.insert(0, TOOLS)
 import obj4check as oc  # noqa: E402
 import swreg  # noqa: E402
 
+# (MC 15/11: classes come from the obj4 map only - a synthetic map with the freeze's classes, so these tests do not
+# follow obj1-room.md's live edits; test_obj4check_real reads the real one)
+MAP_ROWS = [('DRIB1V1', ''), ('DIFF', ''), ('KITS', ''), ('SWEFILE', ''), ('S7SWAP', ''), ('OBJ1MV', ''),
+            ('SETPIECE', ''), ('FPORT', ' (test)'), ('S7GEO', ''), ('DIFF2', ''), ('SPX', ''), ('CDKN', ' (test)'),
+            ('PRACTICE', ''), ('FPORT2', ' (test)'), ('S3C', ''), ('MKTHOOK', ' (4.3)'), ('MKTLOAD', ' (4.3)'),
+            ('MKTAGE', ' (4.3)'), ('SP_METER', ' (test)'), ('DIFF_TC', ' (test)')]
+MAP = '## obj4 map (synthetic)\n\n| band | range | owner | linked |\n|---|---|---|---|\n' + ''.join(
+    f'| {n}{c} | x | x | x |\n' for n, c in MAP_ROWS)
+oc.set_map(text=MAP)
 BL = oc.bands()
 B = {n: (a, e) for n, a, e in BL}
 # the freeze's shape (obj1-room.md Release order rule): every test-only band moved into the test region (>= 0x30000)
@@ -141,11 +150,37 @@ def test_obj4check_grep():
     return True, f'{len(code)} code / {len(com)} comment hits, {len(asg)} assignment'
 
 
+def test_obj4check_map_classes():
+    """The classes are the map's: a row's '(test)' / '(4.3)' and nothing else - the same band test-only in one map,
+    release in another (MC 15/11: a CDKN reclassed by MC packs; a test-only CDKN with bytes is (c))."""
+    assert oc.kind('CDKN') == 'test-only' and oc.kind('MKTAGE') == 'unlinked (4.3)' and oc.kind('KITS') == 'release'
+    assert oc.kind('T3') == 'release'                                   # (outside the map)
+    o = clean()
+    a, e = B['FPORT']
+    o[a + 0x10] = 0xC3                                                  # (control: a test switch's band linked)
+    f, _, _ = oc.check_obj4(o, BL)
+    assert any(x.startswith('(c) test-only band FPORT') for x in f), f
+    try:
+        oc.set_map(text=MAP.replace('| CDKN (test) |', '| CDKN |'))
+        assert oc.kind('CDKN') == 'release'
+        o2 = clean()
+        o2[B['CDKN'][0] + 0x10] = 0xC3
+        f2, _, _ = oc.check_obj4(o2, BL)
+        assert not any('(c)' in x and 'CDKN' in x for x in f2), f2
+    finally:
+        oc.set_map(text=MAP)
+    return True, 'FPORT bytes (test) -> (c); CDKN release in the map -> no (c); classes only from the map'
+
+
 def test_obj4check_real():
     rel = os.environ.get('HT_OBJ4_REL')
     if not rel:
         return True, 'SKIP: HT_OBJ4_REL not set'
-    ok, rep = oc.check_release(rel)
+    oc.set_map()
+    try:
+        ok, rep = oc.check_release(rel)
+    finally:
+        oc.set_map(text=MAP)
     lines = rep.splitlines()
     return True, f'report only ({"PASS" if ok else "FAIL"}): ' + ' | '.join(lines[:3])
 

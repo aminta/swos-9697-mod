@@ -10,13 +10,14 @@ On every exe (obj4 = the engine object; its file pages = OBJ4_PAGES of that buil
      used (MC 15/11: info, not --allow - a page with no linked thing still FAILs); an extent equal to a band's whole
      AT..END (a reservation printed in the log) does not count;
  (b) every release band that is linked (bytes in the exe or an extent in build.log) lies wholly below
-     OBJ4_PAGES * 0x1000 and, if it is an obj4-map band (MAP_BANDS: obj1-room.md, the list MC named), keeps its floor
+     OBJ4_PAGES * 0x1000 and, if it is an obj4-map band (obj1-room.md's '## obj4 map' table), keeps its floor
      free: END - the band's used end >= FLOOR (256 B; 128 B for the bands the obj4
      map gives 128: SETPIECE, DIFF2, SPX). The used end = max(the last non-zero byte in the band, the end of every extent
      the build's log gives inside it for that exe - 'obj4+0xA..0xB', 'obj4+0xA (N B') - so zero-filled tables that the
      log reports count as used; a band holding other bands (SLOW: NAMEFIT, TRIAL, BOX) owns up to the first of them.
      Older bands (REG, CONTI4, NAMEFIT, BOX...) get their free bytes listed as info;
- (c) a test-only band (TEST_ONLY) and a 4.3 reservation (MKT*) have no byte in a release exe.
+ (c) a test-only band ('(test)' in its map row) and a 4.3 reservation ('(4.3)') have no byte in a release exe.
+Band classes come from the obj4 map only (MC 15/11): never inferred from what a build linked.
 Bands come from tools/swreg.py: every NAME_AT with a NAME_END (or NAME_SIZE), whatever the branch defines; bands named
 in the obj4 map but absent from this swreg are listed as 'not in swreg' (info). --allow NAME: a zero page inside that
 band is reported but not counted (an intentional zero block MC has ruled on).
@@ -35,10 +36,48 @@ sys.path.insert(0, TOOLS)
 PAGE = 0x1000
 FLOOR = 256
 FLOOR_128 = {'SETPIECE', 'DIFF2', 'SPX'}            # obj1-room.md obj4 map: '>= 128 B left'
-TEST_ONLY = {'FPORT', 'CDKN', 'FPORT2', 'SP_METER', 'DIFF_TC'}
-UNLINKED_PREFIX = ('MKT',)                          # 4.3 reservations: no bytes in 4.2
-MAP_BANDS = ['DRIB1V1', 'DIFF', 'KITS', 'SWEFILE', 'S7SWAP', 'OBJ1MV', 'SETPIECE', 'FPORT', 'S7GEO', 'DIFF2', 'SPX',
-             'CDKN', 'PRACTICE', 'FPORT2', 'S3C', 'MKTHOOK', 'MKTLOAD', 'MKTAGE', 'SP_METER', 'DIFF_TC']
+MAP_DEFAULT = os.path.join(os.path.dirname(TOOLS), 'internal', 'handoff', 'obj1-room.md')
+# (MC 15/11: a band's class comes from the obj4 map alone - obj1-room.md, MC's file - never from what a build linked)
+_MAP = {'path': MAP_DEFAULT, 'rows': None}
+
+
+def read_map(text, names=None):
+    """[(name, class)] in the obj4 map table's order (section '## obj4 map'); class 'release' / 'test' ('(test)' in the
+    band cell) / '4.3' ('(4.3)'). names: the swreg band names (a row's band = the first of its upper-case words that
+    is one; else its first upper-case word)."""
+    out, on = [], False
+    for ln in text.splitlines():
+        if ln.startswith('## '):
+            on = 'obj4 map' in ln
+            continue
+        if not on or not ln.startswith('|') or ln.startswith('|---') or ln.lower().startswith('| band'):
+            continue
+        c0 = ln.split('|')[1]
+        words = re.findall(r'\b[A-Z][A-Z0-9_]+\b', c0)
+        if not words:
+            continue
+        nm = next((w for w in words if names and w in names), words[0])
+        out.append((nm, 'test' if '(test)' in c0 else '4.3' if '(4.3)' in c0 else 'release'))
+    return out
+
+
+def set_map(path=None, text=None):
+    """Use another map (a path, or its text - the host tests' synthetic maps); None, None = obj1-room.md again."""
+    _MAP['path'], _MAP['rows'] = path or MAP_DEFAULT, (read_map(text) if text is not None else None)
+
+
+def map_rows():
+    if _MAP['rows'] is None:
+        if not os.path.exists(_MAP['path']):
+            raise SystemExit(f'obj4check: the obj4 map {_MAP["path"]} is missing (band classes come from it only)')
+        _MAP['rows'] = read_map(open(_MAP['path']).read())
+    return _MAP['rows']
+
+
+def map_bands():
+    return [n for n, c in map_rows()]
+
+
 EXES = [f'{d}/{e}.EXE' for d in ('SWOS', 'gog') for e in ('ITALIAN', 'ENGLISH', 'FRENCH', 'GERMAN')]
 
 
@@ -62,11 +101,8 @@ def bands(mod=None):
 
 
 def kind(name):
-    if name in TEST_ONLY:
-        return 'test-only'
-    if name.startswith(UNLINKED_PREFIX):
-        return 'unlinked (4.3)'
-    return 'release'
+    c = dict(map_rows()).get(name, 'release')        # (bands outside the map: release, as REG / SLOW / T3)
+    return {'test': 'test-only', '4.3': 'unlinked (4.3)'}.get(c, 'release')
 
 
 def log_extents(log_text):
@@ -149,7 +185,7 @@ def check_obj4(o4, bl, extents=(), allow=(), items=()):
         if e > size:
             fails.append(f'(b) band {n} {a:#x}..{e:#x} crosses OBJ4_PAGES ({size // PAGE:#x} pages, end {size:#x})')
         fl = 128 if n in FLOOR_128 else FLOOR
-        if free < fl and n not in MAP_BANDS:
+        if free < fl and n not in map_bands():
             infos.append(f'(b) band {n} {a:#x}..{e:#x}: {free} B free (not an obj4-map band: no floor, info)')
         elif free < fl:
             fails.append(f'(b) band {n} {a:#x}..{e:#x}: {free} B free, floor {fl} B (used to {used:#x})')
@@ -165,8 +201,10 @@ def check_release(rel, mod=None, allow=()):
     ext, its = log_extents(lt), log_items(lt)
     out, bad = [], 0
     names = {b[0] for b in bl}
-    miss = [n for n in MAP_BANDS if n not in names]
+    miss = [n for n in map_bands() if n not in names]
     out.append(f'obj4check {rel}: {len(bl)} bands from swreg; obj4 map bands not in this swreg: {", ".join(miss) or "none"}')
+    out.append('obj4 map classes: test-only ' + (', '.join(n for n, c in map_rows() if c == 'test') or 'none')
+               + '; 4.3 ' + (', '.join(n for n, c in map_rows() if c == '4.3') or 'none') + f' ({_MAP["path"]})')
     first_rows = None
     for x in EXES:
         p = os.path.join(rel, x)

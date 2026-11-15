@@ -5,8 +5,10 @@ writes swreg.py and builds nothing.
     python3 tools/obj4pack.py --verify c/RELyy DIR/obj4pack.json [--allow NAME,...]
 
 Proposal (a release build dir: its 8 exes + build.log, measured on this checkout's swreg):
- - the bands and their classes come from obj1-room.md's obj4 map (its table order = the map order): '(test)' rows and
-   obj4check.TEST_ONLY are test-only, '(4.3)' / MKT* rows are the 4.3 reservations, the rest release;
+ - the bands and their classes come from obj1-room.md's obj4 map only (its table order = the map order; obj4check's
+   parser): '(test)' rows are test-only, '(4.3)' rows the 4.3 reservations, the rest release. A map test-only band
+   with bytes in a release exe is a FAIL of the proposal (MC 15/11: a test switch leaking into a release; MC reclasses
+   the band in the map, or the recipe stops linking it) - never packed;
  - each band's used bytes = max over the 8 exes of obj4check's used end - AT (non-zero bytes + build.log extents;
    a band holding others owns up to the first of them);
  (a) the release map bands are packed in map order from the first of them (no holes): each sized to its used bytes +
@@ -43,32 +45,10 @@ TEST_BASE = 0x30000
 # through swreg only), with their alignment there: SREG2 = the old-save import's page (sreg.py: exactly one page,
 # obj4_pages floors SREG2_END, SREG2_AT >= lrank's LR_TAB end)
 EXTRA_MOVABLE = {'SREG2': 0x1000}
-MAP_DEFAULT = os.path.join(os.path.dirname(TOOLS), 'internal', 'handoff', 'obj1-room.md')
+MAP_DEFAULT = oc.MAP_DEFAULT
 
 
-def read_map(text, names=None):
-    """[(name, class)] in the obj4 map table's order; class 'release' / 'test' / '4.3'. names: the swreg band names
-    (a row's band = the first of its upper-case words that is one; else its first upper-case word)."""
-    out, on = [], False
-    for ln in text.splitlines():
-        if ln.startswith('## '):
-            on = 'obj4 map' in ln
-            continue
-        if not on or not ln.startswith('|') or ln.startswith('|---') or ln.lower().startswith('| band'):
-            continue
-        c0 = ln.split('|')[1]
-        words = re.findall(r'\b[A-Z][A-Z0-9_]+\b', c0)
-        if not words:
-            continue
-        nm = next((w for w in words if names and w in names), words[0])
-        if '(test)' in c0 or nm in oc.TEST_ONLY:
-            cl = 'test'
-        elif '(4.3)' in c0 or nm.startswith(oc.UNLINKED_PREFIX):
-            cl = '4.3'
-        else:
-            cl = 'release'
-        out.append((nm, cl))
-    return out
+read_map = oc.read_map            # (one parser: the obj4 map is the single source of band classes, MC 15/11)
 
 
 def floor(name):
@@ -106,13 +86,13 @@ def nested(bl):
 
 
 def pack(bl, mp, used, ship=(), test=()):
-    """-> (plan, notes, obj4_pages). plan: [{name, cls, old_at, old_end, at, end, used, floor, why}] in placement
+    """-> (plan, notes, obj4_pages, fails). plan: [{name, cls, old_at, old_end, at, end, used, floor, why}] in placement
     order. bl: swreg bands [(name, at, end)]; mp: read_map(); used: measure()."""
     B = {n: (a, e) for n, a, e in bl}
     inner = nested(bl)
     mx = {n: max([u[n] for u in used.values() if u.get(n) is not None], default=None) for n in B}
     cls = {n: c for n, c in mp}
-    notes = []
+    notes, fails = [], []
     for n in test:
         cls[n] = 'test'
     rel_order = [n for n, c in mp if c == 'release' and n in B and n not in test]
@@ -173,12 +153,13 @@ def pack(bl, mp, used, ship=(), test=()):
         t += e0 - a0
     for p in plan:
         if p['cls'] == 'test' and p['used']:
-            notes.append(f"{p['name']}: test-only band with {p['used']} B in a release exe (obj4check (c))")
+            fails.append(f"{p['name']}: linked ({p['used']} B in a release exe) but test-only in the obj4 map: MC must "
+                         f"reclass it in obj1-room.md, or the recipe must not link it")
     known = {p['name'] for p in plan}
     for n, a, e in bl:
         if n not in known and n not in {f[2] for f in fixed} and n not in inner:
             notes.append(f'{n}: swreg band not in the obj4 map - left where it is')
-    return plan, notes, pages
+    return plan, notes, pages, fails
 
 
 SYM = re.compile(r'^([A-Z][A-Z0-9_]*)(\s*=\s*)(0x[0-9A-Fa-f]+|\d+)\b', re.M)
@@ -252,8 +233,9 @@ def chain_order(test, g):
     return '\n    required order: ' + ' '.join(out) + tail
 
 
-def report(plan, notes, pages, used, inner, afails):
-    out = ['obj4pack proposal (map order; sizes = max used over the 8 exes + floor, rounded to 0x100):',
+def report(plan, notes, pages, used, inner, afails, fails=()):
+    out = (['PROPOSAL FAIL:'] + ['  ' + f for f in fails] if fails else []) + [
+           'obj4pack proposal (map order; sizes = max used over the 8 exes + floor, rounded to 0x100):',
            f"  {'band':<10} {'class':<16} {'old':<17} {'new':<17} {'used':>6} {'free':>6}  why"]
     for p in plan:
         u = '-' if p['used'] is None else str(p['used'])
@@ -278,18 +260,18 @@ def propose(rel, mapfile=MAP_DEFAULT, ship=(), test=(), out=None, mod=None):
     bl = oc.bands(mod)
     mp = read_map(open(mapfile).read(), {b[0] for b in bl})
     used = measure(rel, bl)
-    plan, notes, pages = pack(bl, mp, used, ship, test)
+    plan, notes, pages, fails = pack(bl, mp, used, ship, test)
     text = open(mod.__file__).read()
     new, inner, afails, _ = swreg_patch(text, plan)
-    rep = report(plan, notes, pages, used, inner, afails)
+    rep = report(plan, notes, pages, used, inner, afails, fails)
     diff = ''.join(difflib.unified_diff(text.splitlines(True), new.splitlines(True), 'a/tools/swreg.py', 'b/tools/swreg.py'))
     if out:
         os.makedirs(out, exist_ok=True)
-        json.dump(dict(rel=os.path.abspath(rel), plan=plan, obj4_pages=pages, used=used, notes=notes), open(
+        json.dump(dict(rel=os.path.abspath(rel), plan=plan, obj4_pages=pages, used=used, notes=notes, fails=fails), open(
             os.path.join(out, 'obj4pack.json'), 'w'), indent=1)
         open(os.path.join(out, 'swreg.patch'), 'w').write(diff)
         open(os.path.join(out, 'report.txt'), 'w').write(rep + '\n')
-    return plan, rep, diff
+    return plan, rep, diff, fails
 
 
 def compare(prop, bl, now):
@@ -352,10 +334,10 @@ def main(argv):
     rel = args[0]
     out = opt('--out')
     args = [a for a in args if a not in (out, opt('--map'), opt('--ship'), opt('--test'))]
-    plan, rep, diff = propose(rel, opt('--map', MAP_DEFAULT), split(opt('--ship')), split(opt('--test')), out)
+    plan, rep, diff, fails = propose(rel, opt('--map', MAP_DEFAULT), split(opt('--ship')), split(opt('--test')), out)
     print(rep)
     print(diff if not out else f'(swreg.patch, obj4pack.json, report.txt in {out})')
-    return 0
+    return 1 if fails else 0
 
 
 if __name__ == '__main__':

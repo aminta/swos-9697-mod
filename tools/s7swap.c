@@ -476,7 +476,8 @@ static int32_t run(void *pv) {
     S7RD_NEWER = (uint8_t)(rver > S7RD_RULE_VER);   /* (MC 15/11: a save from a newer build's rule keeps its groups - no redraw,
                                                        the crossers' place() only, the version kept - never a crash) */
     if (S7RD_PTR && !S7RD_NEWER) {      /* 4.2 redraw: Serie C (the upper boundary level, second teams constrained) and Serie D */
-        uint32_t seed = (uint32_t)S7_SELTEAM ^ A->season;   /* (the career club's word ^ the season: per career, per season) */
+        uint32_t seed = (uint32_t)S7_SELTEAM * 2654435761u ^ (uint32_t)A->season * 0x9E3779B9u;   /* (MC 15/11, the engine's
+                                           groups.redraw_geo seed: per career, per season, spread over consecutive seasons) */
         redraw(0, R, nd, pre, S7_UP, S7_NUP, 1, seed);
         redraw(1, R, nd, pre, S7_LO, S7_NLO, 0, seed);
     }

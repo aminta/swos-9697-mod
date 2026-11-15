@@ -550,8 +550,8 @@ Cearense, Pernambucano, Alagoano and Mato-Grossense.
   again after promotions and relegations, as the leagues really do, by one fixed geographic rule: every club to the
   group whose clubs live nearest (last season's groups), every group its size (Serie C 3 x 20, Serie D 9 x 18), a club
   already in a fitting group stays; island clubs count from their mainland port. Your club can change group too and
-  keeps squad, money and record. Serie C second teams: never two in a group and a new group every summer (Lega Pro
-  rule), the group drawn with the career's seed. The leagues publish no formula and move some border clubs back and
+  keeps squad, money and record. Serie C second teams: never two in a group (Lega Pro rule); the mod draws a new
+  group for each one every summer with the career's seed. The leagues publish no formula and move some border clubs back and
   forth each summer: from the real 2025-26 groups the rule finds the real 2026-27 group of 92% of the Serie C clubs and
   78% of the Serie D ones (75% on the summer before); no hand-made exceptions (Davide). If the groups can't be drawn,
   the placement by area above stays.
@@ -1278,8 +1278,8 @@ Baiano, Cearense, Pernambucano, Alagoano e Mato-Grossense.
   ogni club nel girone le cui squadre abitano più vicine (i gironi della stagione prima), ogni girone della sua misura
   (Serie C 3 da 20, Serie D 9 da 18), un club già in un girone adatto ci resta; i club delle isole contano dal loro
   porto sul continente. Anche la tua squadra può cambiare girone e tiene rosa, soldi e curriculum. Seconde squadre di
-  Serie C: mai due in un girone e un girone nuovo ogni estate (regola della Lega Pro), il girone sorteggiato con il seme
-  della carriera. Le leghe non pubblicano una formula e spostano avanti e indietro ogni estate alcuni club al confine:
+  Serie C: mai due in un girone (regola della Lega Pro); la mod sorteggia ogni estate un girone nuovo per ciascuna con
+  il seme della carriera. Le leghe non pubblicano una formula e spostano avanti e indietro ogni estate alcuni club al confine:
   dai gironi veri 2025-26 la regola trova il girone vero 2026-27 del 92% dei club di Serie C e del 78% di quelli di
   Serie D (75% sull'estate prima); nessuna eccezione fatta a mano (Davide). Se i gironi non si possono rifare, resta la
   collocazione per area descritta sopra.

@@ -106,7 +106,7 @@ def test_s7redraw_controls():
 # (test_s7swap's crossings: 9 Serie C clubs down, the 9 Serie D winners up), first with S7RD_PTR poked 0 (the crossers' place() groups:
 # the members of each level after the crossings), then with the redraw; the oracle (tools/s7redraw.py rule()) gets those members, their
 # last group (the registry before the season end), the anchors = centroids of last season's members (leavers included), the exe's own
-# coordinates through travel(), the C second teams (S7RD_SEC) with their last group, seed = the career club's word ^ the season. The
+# coordinates through travel(), the C second teams (S7RD_SEC) with their last group, seed = (the career club's word * 2654435761) ^ (the season * 0x9E3779B9) (MC 15/11). The
 # registry's division of every club of both levels == the oracle's, byte for byte; sizes 20 / 18; no club twice / lost; twice = same.
 # Cases: season 1 end (career club = a Serie C club), the same with two other career clubs (the seed: the second teams' draw), a
 # 3-season chain (each season's crossers picked from the registry as it stands: the redraw's own groups become the next last season).
@@ -184,7 +184,7 @@ def _exe_case(m, t7, down, up, season, sel):
         s2 = sorted(i for i in mem if lvl == 0 and sec[i >> 3] >> (i & 7) & 1)
         prev = {i: last[i] for i in s2 if last[i] is not None}
         size = len(mem) // len(lv)
-        out = O.rule(clubs, anchors, size, last, set(s2), prev, (sel ^ season) & 0xFFFFFFFF)
+        out = O.rule(clubs, anchors, size, last, set(s2), prev, ((sel * 2654435761) ^ (season * 0x9E3779B9)) & 0xFFFFFFFF)
         for i in mem:
             want[i] = lv[out[i]]
         cnt = [sum(1 for i in mem if got.get(i) == d) for d in lv]

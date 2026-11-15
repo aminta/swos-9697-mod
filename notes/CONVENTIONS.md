@@ -73,7 +73,7 @@ new rule. If a rule seems wrong for a case, ask the regia session; don't silentl
     anchors = last season's group centroids, travel points (island clubs from their mainland port), cost isqrt((4 dlat)^2 +
     (3 dlon)^2) in 1/100 degree minus STAY 540 for a club's last group, the integer Hungarian on the group slots (tie order =
     the registry ident). Serie C second teams (clubs.csv second_of): never two in a group, never in last season's group,
-    the arrangement drawn by seed = the career club's word ^ the season. The C equals the oracle tools/s7redraw.py byte for
+    the arrangement drawn by seed = (the career club's word * 2654435761) ^ (the season * 0x9E3779B9). The C equals the oracle tools/s7redraw.py byte for
     byte (host tests test_s7redraw_golden / _exe). No per-club exceptions. The rule's version is in the 'IT' flags bits 4..7
     (S7RD_RULE_VER 1); a save with a newer version keeps its groups (place() only). Fallback, logged (S7RD_LOG status 2):
     the redraw refusing, S7_REDRAW_OFF or a pack without coordinates = the crossers' place() groups by area. Validation

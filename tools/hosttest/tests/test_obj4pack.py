@@ -1,5 +1,5 @@
 """obj4pack (tools/obj4pack.py, MC 15/11: the 4.2 rc freeze's layout proposer) on a synthetic obj4 map:
-- the map table's order and classes (release / '(test)' / '(4.3)', obj4check.TEST_ONLY);
+- the map table's order and classes (release / '(test)' / '(4.3)': the map only, obj4check's parser);
 - holes between release bands removed, a fixed non-map band jumped over, every band sized used + floor rounded to
   0x100 (a band under its floor grows, an oversized one shrinks; 128 B for SETPIECE / DIFF2 / SPX);
 - test-only bands moved from 0x30000 (SREG2, unlinked, page-aligned there) with their sizes (after the ones already there), a release band with no byte in
@@ -24,7 +24,7 @@ MAP = """# x
 | KITS | 0xF000..0x11000 | p | always |
 | OBJ1MV | 0x15000..0x16800 | s | always |
 | SETPIECE | 0x16800..0x17000 | d | >= 128 B left |
-| FPORT | 0x17000..0x19000 | m | GP_PORT |
+| FPORT (test) | 0x17000..0x19000 | m | GP_PORT |
 | S7GEO | 0x19000..0x1A000 | p | GP_S7 |
 | PRACTICE | 0x1C800..0x1D400 | s | x |
 | MKTHOOK (4.3) | 6 KB | c | reservation |
@@ -79,7 +79,8 @@ def setup(ship=()):
     mp = op.read_map(MAP, {b[0] for b in bl})
     used = {x: dict(USED) for x in ('SWOS/ITALIAN.EXE', 'gog/GERMAN.EXE')}
     used['gog/GERMAN.EXE']['OBJ1MV'] = 3250                         # (the max over the exes counts)
-    plan, notes, pages = op.pack(bl, mp, used, ship)
+    plan, notes, pages, fails = op.pack(bl, mp, used, ship)
+    assert not fails, fails
     return bl, mp, used, plan, notes, pages
 
 
@@ -88,7 +89,7 @@ def test_obj4pack_map():
     assert mp == [('KITS', 'release'), ('OBJ1MV', 'release'), ('SETPIECE', 'release'), ('FPORT', 'test'),
                   ('S7GEO', 'release'), ('PRACTICE', 'release'), ('MKTHOOK', '4.3'), ('SESTRIP', 'release'),
                   ('SP_METER', 'test')], mp
-    return True, f'{len(mp)} rows, classes from (test) / (4.3) / TEST_ONLY, the next section ignored'
+    return True, f'{len(mp)} rows, classes from (test) / (4.3) only, the next section ignored'
 
 
 def test_obj4pack_layout():
@@ -113,6 +114,23 @@ def test_obj4pack_layout():
     assert P['S7GEO']['cls'] == 'release-unlinked' and P['S7GEO']['at'] >= 0x30000, P['S7GEO']
     assert any(n.startswith('S7GEO: release map band with no byte') for n in notes), notes
     assert P['SREG2']['at'] % 0x1000 == 0 and P['SREG2']['at'] >= 0x30000 and P['SREG2']['end'] - P['SREG2']['at'] == 0x1000, P['SREG2']
+    # (MC 15/11) control: a map test-only band linked in the release (FPORT, a test switch) is a proposal FAIL, never
+    # packed; a CDKN the map classes release is packed with its floor; a map test-only CDKN with bytes FAILs
+    used3 = {x: dict(d, FPORT=700) for x, d in used.items()}
+    plan3, _, _, f3 = op.pack(bl, mp, used3)
+    assert any(x.startswith('FPORT: linked (700 B') and 'test-only in the obj4 map' in x for x in f3), f3
+    assert {p['name']: p for p in plan3}['FPORT']['at'] >= 0x30000
+    sw = SWREG + 'CDKN_AT = 0x1A800\nCDKN_END = 0x1C800\n'
+    m4 = type('M', (), {})()
+    m4.__dict__.update(op.oc.swreg_ns(sw))
+    bl4 = op.oc.bands(m4)
+    used4 = {x: dict(d, CDKN=3000) for x, d in used.items()}
+    rel_map = MAP.replace('| PRACTICE |', '| CDKN | 0x1A800..0x1C800 | s | x |\n| PRACTICE |')
+    plan4, _, _, f4 = op.pack(bl4, op.read_map(rel_map, {b[0] for b in bl4}), used4)
+    P4 = {p['name']: p for p in plan4}
+    assert not f4 and P4['CDKN']['cls'] == 'release' and P4['CDKN']['end'] - P4['CDKN']['at'] == 0xD00, (f4, P4['CDKN'])
+    _, _, _, f5 = op.pack(bl4, op.read_map(rel_map.replace('| CDKN |', '| CDKN (test) |'), {b[0] for b in bl4}), used4)
+    assert any(x.startswith('CDKN: linked (3000 B') for x in f5), f5
     _, _, _, plan2, _, _ = setup(ship=['S7GEO'])
     P2 = {p['name']: p for p in plan2}
     assert P2['S7GEO']['cls'] == 'release' and P2['S7GEO']['end'] - P2['S7GEO']['at'] == 0x1000, P2['S7GEO']
@@ -166,5 +184,5 @@ def test_obj4pack_real():
     rel = os.environ.get('HT_OBJ4PACK_REL')
     if not rel:
         return True, 'SKIP: HT_OBJ4PACK_REL not set'
-    plan, rep, diff = op.propose(rel)
+    plan, rep, diff, fails = op.propose(rel)
     return True, 'report only: ' + ' | '.join(rep.splitlines()[2:5])

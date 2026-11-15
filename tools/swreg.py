@@ -81,7 +81,7 @@ MKTHOOK_END = 0x1E500                   # the last 4.2 band): the CPU market's e
 MKTLOAD_AT = 0x1E500                    # then MKTAGE (Mercato CPU); unlinked in 4.2 (the unlinked bands go last, so a release never
 MKTLOAD_END = 0x1F500                   # carries an empty page for them). DIFF2 0x1A000..0x1A400 + SPX 0x1A400..0x1A800 stay free
 MKTAGE_AT = 0x1F500                     # here for 42-drp / 42-sp (their swreg lines are taken verbatim)
-MKTAGE_END = 0x20500
+MKTAGE_END = 0x21500                    # (MC 15/11: 0x20500 -> 0x21500, Mercato measured 0x205FB + floor + h3_team + sweep)
 GPLX_AT = 0x19B00                       # 4.2 GPLX "gplay overflow" (MC 15/11, obj1-room.md): gplx.c (gplay.c code out of the full
 GPLX_END = 0x19E00                      # gplay pages: the supercups' sc_rule); a RELEASE band, >= 256 B left; temporary address after
                                         # the MKT reservations and R17 (0x22000..0x22400, Panchina), packed at the rc freeze
@@ -218,8 +218,10 @@ def patch(p, add_ptr):
 # 4.3 reservations after the last release band; the test-only bands in the test region after SP_METER / DIFF_TC (0x35000).
 # New release bands (official lines): DRP8D (42-drp8d clamp, 451 B), TAKERS (Difficolta's set-piece takers), GAMEPLAY
 # (reserve: the GAMEPLAY page, gameplay-menu-design.md).
-DRP8D_AT = 0x20500                      # 0x300, a 4.3 reservation after MKTAGE, unlinked (MC 15/11: drp8d not in 4.2;
-DRP8D_END = 0x20800                     # SETPIECE took its 0xBD00..0xC000, 160 B left on REL42i64)
+DRP8D_AT = 0x21500                      # 0x300, a 4.3 reservation after MKTAGE, unlinked (MC 15/11: drp8d not in 4.2;
+DRP8D_END = 0x21800                     # SETPIECE took its 0xBD00..0xC000, 160 B left on REL42i64; after MKTAGE's growth)
+S6_AT = 0x21800                         # 4.3 S6 (MC 15/11, Motore 43-s6a): s6sea.c, world SEASONs' picker, its own unit out of
+S6_END = 0x21A00                        # swe.c (-Oz, 256 B floor; 161 B on the IT release recipe); after DRP8D
 TAKERS_AT = 0x17F00                     # 0x500 (~1 KB + floor 256)
 TAKERS_END = 0x18400
 GAMEPLAY_AT = 0x18400                   # 0x680 reserve (MC 15/11: Panchina ~1.1 KB + floor 256; +0x80 15/11, taken from
@@ -231,7 +233,7 @@ assert 0xB000 <= SWEFILE_AT < SWEFILE_END <= SETPIECE_AT < SETPIECE_END <= SLOW_
 assert DIFF_END <= KITS_AT < KITS_END <= S7SWAP_AT < S7SWAP_END <= OBJ1MV_AT < OBJ1MV_END <= S7GEO_AT < S7GEO_END <= DIFF2_AT < \
     DIFF2_END <= TAKERS_AT < TAKERS_END <= GAMEPLAY_AT < GAMEPLAY_END <= PRACTICE_AT < PRACTICE_END <= S3C_AT < S3C_END <= \
     R17_AT < R17_END <= GPLX_AT < GPLX_END <= SESTRIP_AT < SESTRIP_END <= SREG2_AT < SREG2_END <= TKUI_AT < TKUI_END <= MKTHOOK_AT < MKTHOOK_END <= \
-    MKTLOAD_AT < MKTLOAD_END <= MKTAGE_AT < MKTAGE_END <= DRP8D_AT < DRP8D_END < 0x30000, \
+    MKTLOAD_AT < MKTLOAD_END <= MKTAGE_AT < MKTAGE_END <= DRP8D_AT < DRP8D_END <= S6_AT < S6_END < 0x30000, \
     'swreg (4.2 freeze): the release bands in map order, then the 4.3 reservations (obj4pack, MC 15/11)'
 assert 0x35000 <= FPORT_AT < FPORT_END <= CDKN_AT < CDKN_END <= FPORT2_AT < FPORT2_END, \
     'swreg (4.2 freeze): the test-only bands after SP_METER (0x30000..0x34000) and DIFF_TC (0x34000..0x35000)'

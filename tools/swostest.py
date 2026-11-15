@@ -37729,6 +37729,73 @@ def drp_setp():
 
 
 @scenario
+def gameplay_menu():
+    """4.2 GAMEPLAY (gameplay.py, Panchina): OPTIONS has ONE mod row GAMEPLAY (entries NB / NB+1 = 20 / 21, 22 entries, the six
+    old rows gone: no entry labelled with the old texts), the 9 rows at PITCH from TOP and above QUIT TO DOS, texts in their boxes;
+    fire on NB+1: PERSONALIZZATO -> ORIGINALE (GM_W 1, the live CPU cards / injuries / keeper-injury words forced to 1 = OFF),
+    fire again: back, the page opens (16 entries: title, 6 labels, 6 values, INDIETRO, PREDEFINITI, legend). The swap is lossless
+    (non-default CC / CI / GI poked, 3 round trips, the page's BACK between), PREDEFINITI zeroes the switches. SWOSTEST_UI it."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import difficulty as dfm
+    import gameplay as gm
+    import swreg
+    from complist import px, SMALL_W
+    NB = dfm.NB
+    errs, notes = [], []
+    b = build(f'gameplay_menu_{UI}', {}, lang=UI)
+    cc, gk = cc_sites(b)[0], gk_sites(b)[0]
+    with Session(f'gameplay_menu_{UI}', b, {}, 'dump:3', 300) as s:
+        s.wait()
+        scr = walk(s, 'OPZIONI', 2)
+        gmw = s.result.lin((4, swreg.GAMEPLAY_AT + gm.GM_W_OFF))
+        gmu = s.result.lin((4, swreg.GAMEPLAY_AT + gm.GM_U_OFF))
+        rw = lambda: struct.unpack('<HHHH', s.result.read(s.result.lin(cc), 8))       # CC_W, CC_I, the session copy
+        rg = lambda: struct.unpack('<HH', s.result.read(s.result.lin((gk[0], gk[1] + 8 + 8)), 4))   # (see gk_read: GI_W, GI_SH)
+        gi = lambda: gk_read(s, gk)[4:6]
+        gv = lambda: struct.unpack('<H', s.result.read(gmw, 2))[0]
+        lab = scr.find(gm.LABEL[UI], exact=True)
+        check(lab == NB and scr.n == NB + 2, f'OPTIONS: {gm.LABEL[UI]} at {lab}, {scr.n} entries (want {NB}, {NB + 2})', errs)
+        for old in (dfm.LABEL[UI], dfm.DRLABEL[UI]):
+            check(scr.find(old, exact=True) is None, f'OPTIONS: the old row {old!r} is still there', errs)
+        if lab == NB:
+            g = {e[0]: scr.geom[j] for j, e in enumerate(scr.entries)}
+            rows = sorted({g[k][1] for k in g if g[k][2] == 140 and dfm.TOP <= g[k][1] <= 160})
+            quit_y = min(g[k][1] for k in g if g[k][1] > rows[-1] and k < NB)
+            check(rows == [dfm.TOP + dfm.PITCH * k for k in range(dfm.NROWS)] and g[NB][1] == rows[-1] and g[NB + 1][1] == rows[-1]
+                  and rows[-1] + dfm.HEIGHT < quit_y, f'OPTIONS rows {rows}, {NB} {g[NB]}, below {quit_y}', errs)
+            for t in (gm.LABEL[UI],) + gm.VALUES[UI]:
+                check(px(t) <= g[NB][2] - 2 and set(t) <= set(SMALL_W) | {' '}, f'{t!r}: {px(t)} px in {g[NB][2]}', errs)
+            notes.append(f'rows {rows[0]}..{rows[-1]} (+{dfm.HEIGHT}), QUIT at {quit_y}')
+        check(gv() == 0 and rw()[:2] == (0, 0) and gi()[0] == 0, f'start: GM_W {gv()}, CC {rw()}, GI {gi()}', errs)
+        s.shot('gameplay_0')
+        # non-default user values, parked and restored (MC 15/11: lossless, many times, PREDEFINITI)
+        s.poke(s.result.lin(cc), struct.pack('<HH', 0, 1))                     # CC_W 0 (ON), CC_I 1 (OFF)
+        s.poke(s.result.lin((gk[0], gk[1] + 16)), struct.pack('<H', 1)) if False else None
+        trips = []
+        for n in range(3):
+            walk(s, NB + 1, 2)                                                 # -> ORIGINALE
+            trips.append(('orig', gv(), rw()[:2], bytes(s.result.read(gmu, 3))))
+            if n == 0:
+                s.shot('gameplay_orig')
+            pg = walk(s, NB + 1, 2)                                            # -> PERSONALIZZATO: the page opens
+            trips.append(('pers', gv(), rw()[:2], pg.n))
+            if n == 0:
+                s.shot('gameplay_page')
+            walk(s, 2 * 6 + 1, 2)                                              # INDIETRO
+        want = [('orig', 1, (1, 1), bytes((0, 1, 0))), ('pers', 0, (0, 1), 16)] * 3
+        check(trips == want, f'swap round trips {trips} (want {want})', errs)
+        # PREDEFINITI
+        pg = walk(s, NB + 1, 2)
+        walk(s, NB + 1, 2)
+        pg = s.screen()
+        walk(s, 2 * 6 + 2, 2)                                                  # PREDEFINITI
+        check(rw()[:2] == (0, 0) and gv() == 0, f'PREDEFINITI: CC {rw()}, GM_W {gv()}', errs)
+        s.shot('gameplay_page_reset')
+        notes.append(f'trips {len(trips)}')
+    return not errs, '; '.join(errs + notes)
+
+
+@scenario
 def diff_menu():
     """42-diff: the OPTIONS rows DIFFICULTY (entries NB / NB+1) and DRIBBLING (NB+2 / NB+3) under the bottom row (NB = 26:
     gkinj's, MATCH SPEED out since 13/11; 28 with slow) (difficulty.py, DIFF_TEST build): NB+6 entries (CALCI PIAZZATI NB+4 / NB+5: sp_menu), the NROWS rows at PITCH from y TOP, HEIGHT high, the last ending above

@@ -75,6 +75,7 @@ def on():
 # ---- the exe side: the GAMEPLAY band (swreg.GAMEPLAY_AT). Every reference to the other bands is PC-relative (ebp = the band's
 #      start, label differences are assemble-time constants): the only fixups are the obj2 / obj3 bases and the two obj1 calls.
 #      The page is built in the band from a byte image (the packed menu, its pointers zero) + a fill table at each opening.
+GM_W_OFF, GM_U_OFF, GM_SH_OFF = 0x12, 0x14, 0x1A   # the data's offsets in the band (asserted at the build; the harness reads them)
 GM_Y, GM_DY, GM_BACK_X, GM_RESET_X, GM_BACK_Y, GM_LEG_Y = difficulty.DP_Y, difficulty.DP_DY, difficulty.DP_BACK_X, \
     difficulty.DP_RESET_X, difficulty.DP_BACK_Y, difficulty.DP_LEG_Y
 
@@ -351,6 +352,8 @@ def patch(p, lang):
     code, fix, rel = nasmcave.assemble_obj(src, at, base, 4)
     lab = nasmcave.labels(src, at, base)
     assert all(lab[k] == v for k, v in lab0.items() if k in lab and k != 'GM_MENU'), 'gameplay: labels moved between passes'
+    assert (lab['GM_W'] - at, lab['GM_U'] - at, lab['GM_SH'] - at) == (GM_W_OFF, GM_U_OFF, GM_SH_OFF), \
+        ('gameplay: data offsets (the harness reads them)', hex(lab['GM_W'] - at), hex(lab['GM_U'] - at), hex(lab['GM_SH'] - at))
     assert lab['gm_chk'] == at + 5, ('gameplay: gm_chk is the jump table slot 2', hex(lab['gm_chk']))
     assert len(fix) == 2 and len(rel) == 3, ('gameplay: fixups (GM3, GM2, DRAWITEM x2, SHOW_MENU only)', fix, rel)
     left = swreg.GAMEPLAY_END - at - len(code)

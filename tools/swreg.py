@@ -67,7 +67,7 @@ S7GEO_END = 0x17700                     # code + neighbour table + log + the per
 CDKN_AT = 0x37000                       # 4.2 S2 knockouts (cdkn.c: the Coppa D's rounds 0-1 by the engine's sr_kn; MC 14/11, 42-cdkn):
 CDKN_END = 0x39000                      # code + const after DIFF2 (0x1A000..0x1A800, 42-drp, not merged yet), >= 256 B left at link;
                                         # its work area in swe.c's .bss (CDKN_WORK), linked only in CD_KN builds
-PRACTICE_AT = 0x18A00                   # 4.2 set-piece practice (Shaved, 42-practice; MC 14/11): the last 4.2 band; unlinked until 42-practice
+PRACTICE_AT = 0x18A80                   # 4.2 set-piece practice (Shaved, 42-practice; MC 14/11): the last 4.2 band; unlinked until 42-practice
 PRACTICE_END = 0x19400                  # is merged; 3 KB (MC 15/11, option B: +0x400 for Davide's practice fixes; the 4.3
                                         # reservations below +0x400; the release's obj4 ends inside page 0x1D)
 FPORT2_AT = 0x39000                     # 4.2 P5 (MC 15/11): the fixture port's save - fpsave.c (sr_port_save / sr_port_load + the
@@ -222,8 +222,10 @@ DRP8D_AT = 0x20500                      # 0x300, a 4.3 reservation after MKTAGE,
 DRP8D_END = 0x20800                     # SETPIECE took its 0xBD00..0xC000, 160 B left on REL42i64)
 TAKERS_AT = 0x17F00                     # 0x500 (~1 KB + floor 256)
 TAKERS_END = 0x18400
-GAMEPLAY_AT = 0x18400                   # 0x600 reserve (MC 15/11: Panchina ~1.1 KB + floor 256)
-GAMEPLAY_END = 0x18A00
+GAMEPLAY_AT = 0x18400                   # 0x680 reserve (MC 15/11: Panchina ~1.1 KB + floor 256; +0x80 15/11, taken from
+GAMEPLAY_END = 0x18A80                  # PRACTICE's start: 480 B free on 42-int 9749ced (used to 0x19220) -> 352 B, floor 256)
+assert (GAMEPLAY_END - GAMEPLAY_AT, PRACTICE_END - PRACTICE_AT) == (0x680, 0x980) and GAMEPLAY_END == PRACTICE_AT, \
+    'swreg: GAMEPLAY 0x680 | PRACTICE 0x980, adjacent (MC 15/11: GAMEPLAY +0x80 out of PRACTICE)'
 assert 0xB000 <= SWEFILE_AT < SWEFILE_END <= SETPIECE_AT < SETPIECE_END <= SLOW_AT, \
     'swreg (4.2 freeze): the 0xB000 page: SWEFILE < SETPIECE, below SLOW'
 assert DIFF_END <= KITS_AT < KITS_END <= S7SWAP_AT < S7SWAP_END <= OBJ1MV_AT < OBJ1MV_END <= S7GEO_AT < S7GEO_END <= DIFF2_AT < \

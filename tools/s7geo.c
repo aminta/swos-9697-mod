@@ -270,3 +270,42 @@ void s7rd_centroid(int32_t n, const int16_t *la, const int16_t *lo, const uint8_
     for (int32_t i = 0; i < n; i++) if (grp[i] < ng) { ala[grp[i]] += la[i]; alo[grp[i]] += lo[i]; c[grp[i]]++; }
     for (int32_t g = 0; g < ng; g++) if (c[g]) { ala[g] /= c[g]; alo[g] /= c[g]; }
 }
+
+/* s7rd_level: one level's redraw from registry idents (s7swap.c's run, through S7RD_PTR): n next-season members id[] (ident order),
+   last[k] their group last season at this level (0xFF none); nl last-season members lid[] / lgrp[] (the anchors: their centroids,
+   leavers included - the oracle's 'last season's groups'); use_sec: the second teams' constraint (Serie C; Serie D: none, the
+   oracle's rule); seed: the draw's. The coordinates: S7GEO_XY (0 = none -> -2), each through s7rd_travel. out[k] = the new group.
+   S7RD_LOG[lvl]: {status 1 ok / 2 refused, n, moved (group changed for a club with a last group), rc}. work: S7RD_LWORK bytes. */
+enum { S7RD_LWORK = (S7RD_WORK + 3) / 4 * 4 + 6 * S7RD_MAXN * 2 + 2 * S7RD_MAXN };
+typedef char s7rd_lwork_fits[S7RD_LWORK <= 0x2800 ? 1 : -1];   /* (s7swap.c RD_WSZ) */
+uint8_t S7RD_SEC[(S7GEO_NID + 7) / 8] DATA = {0};           /* per ident: a second team (clubs.csv second_of; s7swap.py) */
+struct { uint8_t status, n, moved; int8_t rc; } S7RD_LOG[2] DATA = {{0}};
+
+int32_t s7rd_level(int32_t lvl, int32_t n, const uint16_t *id, const uint8_t *last, int32_t use_sec, int32_t nl, const uint16_t *lid,
+                   const uint8_t *lgrp, int32_t ng, const uint8_t *cap, uint32_t seed, uint8_t *out, uint8_t *work)
+{
+    int16_t *la = (int16_t *)(work + (S7RD_WORK + 3) / 4 * 4), *lo = la + S7RD_MAXN, *pla = lo + S7RD_MAXN, *plo = pla + 2 * S7RD_MAXN;
+    uint8_t *sec = (uint8_t *)(plo + 2 * S7RD_MAXN), *prv = sec + S7RD_MAXN;
+    int32_t ala[S7RD_MAXG], alo[S7RD_MAXG], rc = -1;
+    S7RD_LOG[lvl & 1].status = 2; S7RD_LOG[lvl & 1].n = (uint8_t)n; S7RD_LOG[lvl & 1].moved = 0;
+    if (n > S7RD_MAXN || nl > 2 * S7RD_MAXN || ng > S7RD_MAXG || !S7GEO_HAVE) goto done;
+    rc = -2;
+    for (int32_t k = 0; k < n + nl; k++) {
+        uint32_t i = k < n ? id[k] : lid[k - n];
+        if (i >= S7GEO_NID || !S7GEO_XY[i][0]) goto done;
+        int32_t a = S7GEO_XY[i][0], b = S7GEO_XY[i][1];
+        s7rd_travel(&a, &b);
+        if (k < n) { la[k] = (int16_t)a; lo[k] = (int16_t)b; } else { pla[k - n] = (int16_t)a; plo[k - n] = (int16_t)b; }
+    }
+    for (int32_t k = 0; k < n; k++) { sec[k] = use_sec && (S7RD_SEC[id[k] >> 3] >> (id[k] & 7) & 1); prv[k] = last[k]; }
+    s7rd_centroid(nl, pla, plo, lgrp, ng, ala, alo);
+    rc = s7rd_rule(n, la, lo, last, prv, sec, ng, cap, ala, alo, seed, out, work);
+    if (!rc) {
+        int32_t mv = 0;
+        for (int32_t k = 0; k < n; k++) mv += last[k] != 0xFF && last[k] != out[k];
+        S7RD_LOG[lvl & 1].status = 1; S7RD_LOG[lvl & 1].moved = (uint8_t)mv;
+    }
+done:
+    S7RD_LOG[lvl & 1].rc = (int8_t)rc;
+    return rc;
+}

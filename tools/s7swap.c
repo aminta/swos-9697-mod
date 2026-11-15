@@ -218,7 +218,14 @@ struct args { int8_t *sltcopy; };
 #ifndef SWE_ARENA
 #define SWE_ARENA 0x8000
 #endif
-typedef char s7_work_fits_the_arena[WR_AT + WS_MAX * 8 <= SWE_ARENA ? 1 : -1];
+/* 4.2 S7 redraw (s7-redraw.md): pre[SR_REG_CLUBS] = every club's division BEFORE this season end (last season's groups), then the
+   redraw's lists and s7geo.c's work (S7RD_LWORK <= RD_WSZ, asserted there) */
+#define PRE_AT ((WR_AT + WS_MAX * 8 + 15) & ~15u)
+#define RD_AT ((PRE_AT + SR_REG_CLUBS + 15) & ~15u)
+#define RD_N 168                         /* (s7geo.c S7RD_MAXN) */
+#define RD_WSZ 0x2800
+#define RD_WORK_AT ((RD_AT + RD_N * 2 + RD_N + 2 * RD_N * 2 + 2 * RD_N + RD_N + 16 + 15) & ~15u)
+typedef char s7_work_fits_the_arena[RD_WORK_AT + RD_WSZ <= SWE_ARENA ? 1 : -1];
 #define S7_WRES ((struct s7wres *)(SWE_ARENA_AT + WR_AT))
 
 /* the group of the level (n groups, free[] places) for an area nibble a: a, else the nearest with room */
@@ -358,6 +365,29 @@ void s7_flush(void)
 #endif
 }
 
+/* the redraw (s7geo.c's s7rd_level, obj4+S7GEO; s7swap.py sets it; 0: no redraw, the crossers' place() groups stay) */
+int32_t (*S7RD_PTR)(int32_t, int32_t, const uint16_t *, const uint8_t *, int32_t, int32_t, const uint16_t *, const uint8_t *, int32_t,
+                    const uint8_t *, uint32_t, uint8_t *, uint8_t *) DATA = 0;
+
+/* one level (lv[0..ng) its divisions, group order): every club whose nd is there gets its group from the rule - last season's
+   group from pre[], the anchors from last season's members (pre[]), the sizes as they stand (the crossers placed) */
+static void redraw(int32_t lvl, const sr_registry *R, uint8_t *nd, const uint8_t *pre, const uint8_t *lv, int32_t ng, int32_t sec,
+                   uint32_t seed)
+{
+    uint16_t *id = (uint16_t *)(SWE_ARENA_AT + RD_AT), *lid = id + RD_N;
+    uint8_t *last = (uint8_t *)(lid + 2 * RD_N), *lgrp = last + RD_N, *out = lgrp + 2 * RD_N, *cap = out + RD_N;
+    int32_t n = 0, nl = 0;
+    for (int32_t g = 0; g < ng; g++) cap[g] = 0;
+    for (int32_t i = 0; i < R->nclub; i++) {
+        int32_t gn = -1, gp = -1;
+        for (int32_t g = 0; g < ng; g++) { if (lv[g] == nd[i]) gn = g; if (lv[g] == pre[i]) gp = g; }
+        if (gp >= 0) { if (nl == 2 * RD_N) return; lid[nl] = (uint16_t)i; lgrp[nl++] = (uint8_t)gp; }
+        if (gn >= 0) { if (n == RD_N) return; id[n] = (uint16_t)i; last[n++] = gp >= 0 ? (uint8_t)gp : 0xFF; cap[gn]++; }
+    }
+    if (!n || S7RD_PTR(lvl, n, id, last, sec, nl, lid, lgrp, ng, cap, seed, out, SWE_ARENA_AT + RD_WORK_AT)) return;
+    for (int32_t k = 0; k < n; k++) nd[id[k]] = lv[out[k]];
+}
+
 static int32_t run(void *pv) {
     int8_t *slt = ((struct args *)pv)->sltcopy;
     uint8_t *nd = SWE_ARENA_AT + ND_AT;
@@ -371,6 +401,8 @@ static int32_t run(void *pv) {
     return S7_LOG.status = S7_SKIP;     /* (S7_NOSWAP test builds: no swap at all - world_s7cross_diff's control) */
 #endif
     if (!sreg_get()) return S7_LOG.status = S7_NOREG;
+    uint8_t *pre = SWE_ARENA_AT + PRE_AT;   /* (the redraw's last season: before ri's moves and the crossings) */
+    for (int32_t i = 0; i < R->nclub && i < SR_REG_CLUBS; i++) pre[i] = (uint8_t)sr_reg_div(R, i);
     /* ri_pool's moves first (it ran before us, pg_fix order), whatever else this season end does: the registry
        follows ri's queue. Each as {a, NONE, on}: the occupant off the files (queued in ri's q[]), the pool head onto
        its row - the row and its division stay. All checked before any is applied. */
@@ -438,6 +470,11 @@ static int32_t run(void *pv) {
         }
     }
     S7_LOG.ncross = (uint8_t)no;
+    if (S7RD_PTR) {                     /* 4.2 redraw: Serie C (the upper boundary level, second teams constrained) and Serie D */
+        uint32_t seed = (uint32_t)S7_SELTEAM ^ A->season;   /* (the career club's word ^ the season: per career, per season) */
+        redraw(0, R, nd, pre, S7_UP, S7_NUP, 1, seed);
+        redraw(1, R, nd, pre, S7_LO, S7_NLO, 0, seed);
+    }
     S7_WLOG.row = (int16_t)wcheck(); S7_WLOG.rc = 0; S7_WLOG.changed = S7_WLOG.cache = S7_WLOG.npair = S7_WLOG.rows = 0;
     if (S7_WLOG.row >= 0) return S7_LOG.status = S7_WSITE;     /* (before the registry changes: nothing done) */
     sr_reg_work *w = (sr_reg_work *)(SWE_ARENA_AT + W_AT);

@@ -54,7 +54,7 @@ def _iv(k, d):
 def knobs():
     return dict(JZ=_iv('SP_JZ', -0x800), JST=_iv('SP_JST', 0x400), FZ=_iv('SP_FZ', 0x8000), CEIL=_iv('SP_CEIL', 17),
                 BAND=_iv('SP_BAND', 22), CPU=_iv('SP_CPU', 900), FKT=_iv('SP_FKT', 11 << 16), BLO=_iv('SP_BLO', 13),
-                FKW=[int(x) for x in (os.environ.get('SP_FKW') or '10,9,8,7,6,4,3,2').split(',')],          # REALISTICI
+                FKW=[int(x) for x in (os.environ.get('SP_FKW') or '30,27,24,17,13,10,9,7').split(',')],          # REALISTICI
                 FKW2=[int(x) for x in (os.environ.get('SP_FKW2') or '6,5,5,4,4,3,2,1').split(',')],        # ARCADE
                 FKC2=_iv('SP_FKC2', 0),
                 FKC=_iv('SP_FKC', 1), FKMAX=_iv('SP_FKMAX', 0x3000), FKMIN=_iv('SP_FKMIN', -0x1000),

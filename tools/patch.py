@@ -275,6 +275,10 @@ def patch_exe(src, dst, remap, lang='it'):
         engine.save_item('DF', 1)                # NORMAL; a save without it loads NORMAL; the session's level kept by a
         engine.after_load('df_load')             # load / a new career as cpucards)
         engine.after_new('df_new')
+        import takers                            # 4.2 takers (MC 15/11 option 1): the career club's lists, 9 x {file index + 1,
+        engine.save_item('TK', takers.TK_SV_SIZE)   # name hash}; an old save / a stale pick = the original taker
+        engine.before_save('tk_save')
+        engine.after_load('tk_load')
     import swe
     import sreg                                  # 4.2 N7: SWC1 + the club registry's section 'IT' (0 dormant: no
     swe.SWC1_SIZE = swe.SWC1_BASE + sreg.section_bytes()   # registry shape, 32 B as before; the trailer's room sums it)
@@ -433,6 +437,8 @@ def patch_exe(src, dst, remap, lang='it'):
     R17_ON[0] = bool(mkseason.worlds())                  # 4.2 row-17 hint (r17.py, MC 15/11: a release band): only with career worlds
     if R17_ON[0]:                                        # (long benches: the lists have more than 16 places)
         swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, -(-swreg.R17_END // 0x1000))
+    if setpieces.on():                                 # 4.2 takers UI (Shaved 15/11, 42-tkui): the TKUI band
+        swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, -(-swreg.TKUI_END // 0x1000))
     swe.OBJ4_PAGES = sreg.obj4_pages(swe.OBJ4_PAGES)   # (4.2 N7 / 42-s7import: + the old-save import's band, SREG2)
     if lr_tabs:                                        # (the career league's head-to-head block)
         engine.save_item('LR', lrank.LR_SIZE, world_only=True)
@@ -974,6 +980,8 @@ def patch_exe(src, dst, remap, lang='it'):
     difficulty.patch(p, lang)
     import setpieces                             # 4.2 set pieces 1+2 (SP_TEST only until the OPTIONS row)
     setpieces.patch(p, lang)
+    import takers                                # 4.2 set-piece takers (A)(B)(C): the TAKERS band (after setpieces' SPB)
+    takers.patch(p, lang)
     import spmeter                               # (M3 corner meter: SP_METER test builds only, after difficulty's df_frame)
     spmeter.patch(p, lang)
     assert not difficulty.LABELS.get('df_add') or setpieces.LABELS.get('sp_add'), \

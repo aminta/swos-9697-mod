@@ -208,7 +208,7 @@ sp_set:                                 ; (df_kick, past its SWOS++ / training g
     call sp_base
     mov byte [ebp + SP_OK - SPB], 1
     pop ebp
-    ret
+    jmp TKE                             ; (4.2 takers: tk_kick, the TAKERS band's entry - its own ret)
 
 ; ---- DIFFICULTY's OPTIONS handlers and the save item's pack, moved here from page 15 (MC 14/11), PC-relative
 df_tog:                                 ; DIFFICULTY (fire): NORMAL -> HARD -> EASY -> NORMAL (L2 / L4: back to NORMAL)
@@ -969,7 +969,7 @@ def _sym(p, start, df_lab, df_sym):
             'CEIL_NEW': (0, k['CEIL']), 'BAND_NEW': (0, k['BAND']), 'CPU_NEW': (0, k['CPU']),
             'FK_T': (0, k['FKT']), 'BLO_NEW': (0, k['BLO']), 'FK_C': (0, k['FKC']), 'FK_C2': (0, k['FKC2']), 'FK_MAX': (0, k['FKMAX']),
             'AF_P': (0, k['AFP']), 'AF_D0': (0, k['AFD0']), 'AF_D1': (0, k['AFD1']), 'AF_X0': (0, k['AFX0']),
-            'AF_X1': (0, k['AFX1']), 'FK_XI': (0, k['FKXI']), 'FK_XC': (0, k['FKXC']), 'FK_XC2': (0, k['FKXC2']), 'FK_XI2': (0, k['FKXI2']), 'FK_XMS': (0, k['FKXMS']), 'FK_TZM': (0, k['FKTZM']), 'FK_ZMS': (0, k['FKZMS']), 'SPXE': (4, __import__('swreg').SPX_AT),
+            'AF_X1': (0, k['AFX1']), 'FK_XI': (0, k['FKXI']), 'FK_XC': (0, k['FKXC']), 'FK_XC2': (0, k['FKXC2']), 'FK_XI2': (0, k['FKXI2']), 'FK_XMS': (0, k['FKXMS']), 'FK_TZM': (0, k['FKTZM']), 'FK_ZMS': (0, k['FKZMS']), 'SPXE': (4, __import__('swreg').SPX_AT), 'TKE': (4, __import__('swreg').TAKERS_AT),
             'FK_MIN': (0, k['FKMIN'] & 0xFFFFFFFF), 'FK_WALL': (0, k['FKWALL']), 'FK_CLR': (0, k['FKCLR']),
             **{f'FKW{i}': (0, w) for i, w in enumerate(k['FKW'])}, **{f'FKX{i}': (0, w) for i, w in enumerate(k['FKW2'])}, **{f'FKA{i}': (0, w) for i, w in enumerate(k['FKA2'])}, **{f'FKR{i}': (0, w) for i, w in enumerate(k['FKR'])}}, s
 

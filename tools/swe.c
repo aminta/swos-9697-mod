@@ -291,7 +291,7 @@ static u32 set_w(void)                  /* the default-world setting (SETUP.DAT 
     return set ? *(u8 *)set : 0;
 }
 
-static u32 av_world(void)               /* the default world (SETUP.DAT +105 -> SET_W), 0 = the 1996-97 game */
+u32 av_world(void)                      /* (S6a s6sea.c too) the default world (SETUP.DAT +105 -> SET_W), 0 = the 1996-97 game */
 {
     u32 s = set_w();
     return s < sizeof SET_W ? SET_W[s] : 0;
@@ -557,7 +557,7 @@ void swe_sel_ns(u32 w)                  /* careerworld w_ns_menu, every list: w 
     sel_lists();
 }
 
-static void sel_restore(void)           /* the game's lists back */
+void sel_restore(void)                  /* the game's lists back (S6a s6sea.c too) */
 {
     *(u32 *)rd32(SWE_REG + 12) = SEL_C254;
     if (SEL_ON) {
@@ -814,51 +814,12 @@ __attribute__((naked)) void swe_pre_tramp(void)
                      : : "i"(AV_PRESET));
 }
 
-#ifdef SEAW
-/* S6a (4.3, MC 15/11): SEASON under a default world whose registry record has M_SEASON: the picker runs on that
-   world's lists, as the career's team choice (swe_sel_pre(M_SEASON): the default world's list only, no STORICO, no
-   lock; the path's lists swap the namespace, careerworld w_ns_menu) - SelectTeamsFinalMenu (SWE_SELECT) with the
-   CLASSIC CAREERS selector's world table on top instead of mkseason's season_sel (SEASON_WORLD, the 1996-97 lists).
-   The namespace the path left stays: careerworld's SeasonMenu tramp (sw_init) reads it for the season's world. A
-   default world without seasons keeps step 2.5's message (swe_av_pre). */
-extern u8 SWE_SELECT[], CW_SEAW[];
-
-void swe_sea_post(void)
-{
-    sel_restore();
-    SEL_ON = 0;
-    SEL_MODE = 0xFFFFFFFF;
-}
-
-u32 swe_sea_pre(void)
-{
-    u32 w = av_world();
-    const u8 *r = w ? reg_world(w) : 0;
-    CW_SEAW[0] = 0;                     /* (careerworld sw_init: the season's world, when the path left its namespace) */
-    if (!r || !(r[6] & M_SEASON))
-        return 0;
-    NS_LEFT = 0;                        /* (the picker owns the namespace: no guard after it) */
-    swe_sel_pre(M_SEASON);
-    if (SEL_ON && SEL_DW == w)
-        return CW_SEAW[0] = (u8)w;
-    swe_sea_post();
-    return 0;
-}
-#endif
 
 __attribute__((naked)) void swe_sea_tramp(void)
 {
-#ifdef SEAW
-    __asm__ volatile("pushal\n\tcall swe_sea_pre\n\ttestl %%eax, %%eax\n\tpopal\n\tjnz 2f\n\t"
-                     "pushal\n\tpushl %0\n\tcall swe_av_pre\n\taddl $4, %%esp\n\tpopal\n\t"
-                     "call SWE_SEAPICK\n\tpushfl\n\tpushal\n\tcall swe_av_post\n\tpopal\n\tpopfl\n\tret\n"
-                     "2:\tcall SWE_SELECT\n\tpushfl\n\tpushal\n\tcall swe_sea_post\n\tpopal\n\tpopfl\n\tret"
-                     : : "i"(AV_SEASON));
-#else
     __asm__ volatile("pushal\n\tpushl %0\n\tcall swe_av_pre\n\taddl $4, %%esp\n\tpopal\n\t"
                      "call SWE_SEAPICK\n\tpushfl\n\tpushal\n\tcall swe_av_post\n\tpopal\n\tpopfl\n\tret"
                      : : "i"(AV_SEASON));
-#endif
 }
 #endif
 

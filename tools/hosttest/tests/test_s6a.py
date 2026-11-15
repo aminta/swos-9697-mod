@@ -62,7 +62,7 @@ def test_s6a_sites():
 
 
 def test_s6a_registry():
-    """The SEASON picker's worlds = the registry's: swe.c swe_sea_pre lists a default world only when its record has
+    """The SEASON picker's worlds = the registry's: s6sea.c s6_sea_pre lists a default world only when its record has
     M_SEASON, and swreg gives it to every world (SEASON_WORLDS) - with the release packs (world5tm-h3p)."""
     import sys
     sys.path.insert(0, TOOLS)
@@ -76,7 +76,7 @@ def test_s6a_registry():
     ws = swreg.worlds()
     no = [n for n, _, _, _, modes, _, _, _ in ws if not modes & swreg.M_SEASON]
     assert not no, f'worlds without M_SEASON: {no}'
-    src = open(os.path.join(TOOLS, 'swe.c')).read()
-    assert 'if (!r || !(r[6] & M_SEASON))' in src and 'swe_sel_pre(M_SEASON)' in src, 'swe_sea_pre: not the registry'
+    src = open(os.path.join(TOOLS, 's6sea.c')).read()
+    assert 'if (!r || !(r[6] & M_SEASON))' in src and 'swe_sel_pre(M_SEASON)' in src, 's6_sea_pre: not the registry'
     return True, f'{len(ws)} worlds, all M_SEASON: ' + ', '.join(f'{n} ({y})' for n, _, _, _, _, y, _, _ in [
         (w[0], 0, 0, 0, 0, w[3], 0, 0) for w in ws])

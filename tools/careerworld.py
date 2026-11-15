@@ -1121,7 +1121,7 @@ w_tcache:                               ; replaces `mov al, [lastLoadedExtNumber
     ret
 WTPHYS: db 0
 W_FNAT: db 0                            ; (swe.c FNAT: 0, or the 1984-85 world for its nationals)
-W_SEAW: db 0                            ; (S6a: swe.c swe_sea_pre - the world whose lists the SEASON picker showed, 0)
+W_SEAW: db 0                            ; (S6a: s6sea.c s6_sea_pre - the world whose lists the SEASON picker showed, 0)
 
 w_gt:                                   ; S6a (4.3, MC 15/11): the world rules' gate (W_GT, every module's `call W_GT`
     cmp word [GAMETYPE], 4              ; where it had `cmp word [GAMETYPE], 4` - s6a-audit.md's W sites): ZF = 1 in a
@@ -2726,7 +2726,7 @@ sw_init:                                ; SeasonMenu's `call InitNewSeason` (4.2
 .go:
 %if SEAW_ON
     cmp byte [SWW], 0                   ; S6a (4.3): a world SEASON - the picker showed world SWW's lists (swe.c
-    je .n                               ; swe_sea_pre) and the path left its namespace (a STAG. STORICHE pack from the
+    je .n                               ; s6sea.c s6_sea_pre) and the path left its namespace (a STAG. STORICHE pack from the
     push eax                            ; same picker leaves the base one: world 0). The world byte + its balance byte
     mov al, [SWW]                       ; (the tables sum to 0) in someLeaguesTable, as InitCareer's w_load1 - not
     cmp al, [WCURV]                     ; leaguesTableCopy (UnpackMenu's buffer outside a career season end) -
@@ -2839,7 +2839,7 @@ def patch_tails(p, at, nasmcave):
     sym['SW_PICK_NEXT'] = p.call_target(1, sea['pick'])
     sym['WCURV'] = (1, LABELS['WCUR']) if 'WCUR' in LABELS else (0, 0)
     sym['WNSBV'] = (1, LABELS['WNSB']) if 'WNSB' in LABELS else (0, 0)
-    import swreg                                 # (S6a: world SEASONs - the picker's world, W_SEAW, swe.c sets it)
+    import swreg                                 # (S6a: world SEASONs - the picker's world, W_SEAW, s6sea.c sets it)
     sym['SEAW_ON'] = (0, int(swreg.SEASON_WORLDS and 'W_SEAW' in LABELS and 'WCUR' in LABELS))
     sym['SWW'] = (1, LABELS['W_SEAW']) if 'W_SEAW' in LABELS else (0, 0)
     sym['WNS_MAX'] = (0, NS.get('maxw', 0))

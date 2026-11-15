@@ -11243,6 +11243,20 @@ def bench_kick_panel_world():
             os.environ['BENCH_KICKSUB'] = keep
 
 
+def practice_vs_site():
+    """(Davide i62 15/11) The versus screen's breakpoint (obj1 offset of VersusInit's `mov ecx, 100`, after its fade-in:
+    a screen really drawn), from the original exe; PRACTICE_VSBP=0: off. (on, offset); on sets CORE=normal (one
+    process per scenario)."""
+    import lepatch
+    if os.environ.get('PRACTICE_VSBP', '1') != '1':
+        return False, None
+    os.environ['CORE'] = 'normal'
+    vs = [x.start() for x in re.finditer(rb'\xe8....\xe8....\xe8....\xe8....\xb9\x64\x00\x00\x00\x51\xe8',
+                                         lepatch.LEPatch(os.path.join(ROOT, 'orig', ORIG_EXE[UI])).le.obj_bytes(1), re.S)]
+    assert len(vs) == 1, ('VersusInit end', vs)
+    return True, vs[0] + 20
+
+
 @scenario
 def practice_menu():
     """4.2 set-piece practice, step 1 (MC 14/11): a World 2026-27 career (PRACTICE_BUILD / BENCH_BUILD: a release dir;
@@ -11257,9 +11271,13 @@ def practice_menu():
     path = os.environ.get('TRAIN_PATH', 'EUROPA,ITALIA,SERIE A,ROMA').split(',')
     t = practice_rows()
     errs, info = [], []
-    with Session('practice_menu', b, {}, 'dump:2', 900) as s:
+    vsbp, vs = practice_vs_site()
+    vsn = []
+    with Session('practice_menu', b, {}, 'dump:2', 900, match=vsbp) as s:
         if s.wait().outcome != 'dump':
             return False, f'START: no first pause ({s.result})'
+        if vsbp:
+            s.bp(s.result.base1 + vs, lambda q: vsn.append(1))
         for x in ('CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27'):
             if press(s, s.screen(), x) is None:
                 return False, f'new career: {x} not reached ({s.result})'
@@ -11315,6 +11333,21 @@ def practice_menu():
         check({TRAIN_TXT[UI][2], TRAIN_TXT['it'][2]} & set(q.texts()),
               f'TRAINING: no pre-match screen ({", ".join(q.texts())[:120]})', errs)
         info.append('TRAINING -> the training pre-match screen')
+        if vsbp:                                # (MC 15/11: a training match keeps its versus screen, PR_KIND 0)
+            check(not vsn, f'menus: the versus screen drawn {len(vsn)} times before the training match', errs)
+            pl = next((x for x in (TRAIN_TXT[UI][2], TRAIN_TXT['it'][2]) if q.find(x, exact=True) is not None), None)
+            if pl is None or press(s, q, pl, 3) is None:
+                errs.append(f'training: {TRAIN_TXT[UI][2]} not pressed ({s.result})')
+            else:
+                import lepatch
+                lp = lepatch.LEPatch(os.path.join(b, 'ITALIAN.EXE'))     # (as practice_play: the in-match teams)
+                m = re.search(rb'(?:\xc7\x05.{8}){4}\x66\xc7\x05.{4}\xa7\x06', lp.le.obj_bytes(1), re.S)
+                top, bot = lp.target(1, m.start() + 6)[1], lp.target(1, m.start() + 26)[1]
+                if train_kickoff(s, top, bot, True) is None:
+                    errs.append(f'training: no kick-off ({s.result}; names {getattr(s, "kick_names", None)})')
+                else:
+                    check(len(vsn) >= 1, f'training match: the versus screen drawn {len(vsn)} times (want >= 1)', errs)
+                    info.append(f'training match: the versus screen drawn {len(vsn)} times')
     return not errs, '; '.join(errs) or f'UI {UI}: ' + '; '.join(info)
 
 
@@ -11383,9 +11416,15 @@ def practice_play(kind, side, esc_at=None, again=False):
     g = practice_game()
     errs, info = [], []
     tag = f'practice_{kind}_{side}' + ('_esc' if esc_at else '')
+    # (Davide on i62 15/11: the versus screen - PRATICA / the teams / the stadium - still before a practice; PR_WORK's
+    # STS / STN only see the stadium menu: a breakpoint after VersusInit's fade-in counts the screens really drawn)
+    vsbp, vs = practice_vs_site()
+    vsn = []
     with Session(tag, b, {}, 'dump:2', 1500, match=True) as s:
         if s.wait().outcome != 'dump':
             return False, f'START: no first pause ({s.result})'
+        if vsbp:
+            s.bp(s.result.base1 + vs, lambda q: vsn.append(1))
         for x in ('CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27'):
             if press(s, s.screen(), x) is None:
                 return False, f'new career: {x} not reached ({s.result})'
@@ -11410,6 +11449,9 @@ def practice_play(kind, side, esc_at=None, again=False):
         w = practice_work(s.result)
         if w is None:
             return False, 'PR_WORK not found (no PRWK tag in the PRACTICE band)'
+        if vsbp:
+            check(not vsn, f'kick-off: the versus screen (competition, teams, stadium) drawn {len(vsn)} times before '
+                  'the practice (want 0)', errs)
         if 'STS' in practice.WK:                # (bug 4, Davide 15/11: no stadium / teams / line-ups before a practice)
             check(w['STS'] == 1 and w['STN'] == 0, f'kick-off: the presentation skipped {w["STS"]}, shown {w["STN"]} '
                   '(want 1 / 0)', errs)
@@ -11536,6 +11578,8 @@ def practice_play(kind, side, esc_at=None, again=False):
                 errs.append('RIPROVA: ' + e)
             if train_kickoff(s, top, bot, True) is None:
                 return False, '; '.join(errs + info + [f'RIPROVA: no kick-off ({s.result})'])
+            if vsbp:
+                check(not vsn, f'RIPROVA: the versus screen drawn {len(vsn)} times (want 0)', errs)
             w = practice_work(s.result)
             check(w['KIND'] == row and w['DEF'] == (side == 'def') and w['NT'] == 0 and w['STS'] == 1,
                   f'RIPROVA kick-off: PR_KIND {w["KIND"]} DEF {w["DEF"]} NT {w["NT"]} presentation skipped {w["STS"]} '
@@ -11578,6 +11622,8 @@ def practice_play(kind, side, esc_at=None, again=False):
             w = practice_work(s.result)
             if 'STN' in practice.WK:            # (the positive control: the league match keeps its presentation)
                 check(w['STN'] >= 1, f'league match: the presentation shown {w["STN"]} times (want >= 1)', errs)
+            if vsbp:                            # (and its versus screen)
+                check(len(vsn) >= 1, f'league match: the versus screen drawn {len(vsn)} times (want >= 1)', errs)
             check(w['KIND'] == 0 and w['NFR'] == nfr, f'league match: PR_KIND {w["KIND"]}, engine frames {nfr} -> '
                   f'{w["NFR"]} (want idle)', errs)
             info.append('league match after it: engine idle')

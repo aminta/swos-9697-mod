@@ -68,7 +68,7 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 
 #### Decisions of this release
 - Serie C / Serie D exchange (2026-27 world): every season the nine Serie D group winners go up and the Serie C clubs relegated (last of each group + play-out losers) go down, your club included; groups by area, an approximation (the real league redraws the Serie D groups every summer); a move of your club keeps its squad, money and record.
-- Set-piece practice: a practice lasts 10 attempts and then shows its results page (ESC ends it earlier); a practice has no match clock, no pre-match screen and no score bar at the restarts. Ordinary matches and friendlies are unchanged.
+- Set-piece practice: a practice lasts 10 attempts and then shows its results page (ESC ends it earlier); a practice has no match clock, no presentation screen (competition, teams, stadium), no pre-match screen and no score bar at the restarts. Ordinary matches and friendlies are unchanged.
 - Shirt numbers: UP / DOWN stop on taken numbers and show who wears them; leaving the box swaps the numbers, ESC undoes; keypad digits type only while the box is lit; EDIT CUSTOM TEAMS keeps skipping taken numbers.
 - (every gameplay or market decision of 4.2 goes here and in the README, EN + IT: Davide 15/11, rc gate item)
 - Difficulty, dribbling and set pieces start at NORMAL, CLASSIC and CLASSIC: a new install plays exactly the original game until you change them in OPTIONS.
@@ -148,7 +148,7 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 
 #### Decisioni di questa release
 - Scambio Serie C / Serie D (Mondo 2026-27): ogni stagione le nove vincitrici dei gironi di Serie D salgono e le retrocesse dalla Serie C (ultima di ogni girone + perdenti dei play-out) scendono, anche la tua squadra; gironi per zona, un'approssimazione (la Lega vera ricompone i gironi di Serie D ogni estate); un passaggio della tua squadra tiene rosa, soldi e curriculum.
-- Prova dei calci piazzati: una prova dura 10 tentativi e poi mostra la sua pagina dei risultati (ESC la chiude prima); in una prova non ci sono cronometro, schermata prepartita né barra del risultato alle riprese del gioco. Le partite normali e le amichevoli restano come prima.
+- Prova dei calci piazzati: una prova dura 10 tentativi e poi mostra la sua pagina dei risultati (ESC la chiude prima); in una prova non ci sono cronometro, schermata di presentazione (competizione, squadre, stadio), schermata prepartita né barra del risultato alle riprese del gioco. Le partite normali e le amichevoli restano come prima.
 - Numeri di maglia: SU / GIÙ si fermano anche sui numeri occupati e mostrano chi li porta; uscendo dal riquadro i numeri si scambiano, ESC annulla; le cifre del tastierino scrivono solo con il riquadro acceso; MODIFICA SQUADRE continua a saltare i numeri occupati.
 - (every gameplay or market decision of 4.2 goes here and in the README, EN + IT: Davide 15/11, rc gate item)
 - Difficoltà, dribbling e calci piazzati partono da NORMALE, CLASSICO e CLASSICI: una nuova installazione gioca esattamente il gioco originale finché non li cambi in OPZIONI.

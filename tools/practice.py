@@ -377,6 +377,13 @@ pr_stad:                                ; GameLoop's `mov [A6], offset stadiumMe
 .r: inc byte [KIND - 1 + W_STS_]
     ret
 
+pr_vs:                                  ; InitializeInGameTeamsAndStartGame's `mov [A6], offset versusMenu / call
+    cmp byte [KIND], 0                  ;  ShowMenu`: no versus screen (competition, teams, stadium name) before a
+    jne .r                              ;  practice either (Davide on i62 15/11: PRATICA / INTER A c INTER B / the
+    mov dword [A6], VSM                 ;  stadium); the training match keeps it. VersusInit leaves nothing the
+    jmp near VSSHOW                     ;  match reads (stad.256 in title memory, mouseInstalled: as ShowStadiumInit)
+.r: ret
+
 pr_pmm:                                 ; ShowPlayMatchMenu's `mov [A6], offset playMatchMenu / call ShowMenu`: no
     cmp byte [KIND], 0                  ;  pre-match screen in a practice (Davide 15/11) - what the screen leaves:
     jne .p                              ;  its init's bench numbers (SetBenchPlayersNumbers, team 1; game data), then
@@ -696,6 +703,28 @@ def stad_site(p, a6, playg):
     return m[0], st[1], p.call_target(1, m[0] + 10)
 
 
+def vs_site(p, a6):
+    """InitializeInGameTeamsAndStartGame's `mov [A6], offset versusMenu / call ShowMenu` (inside 15 pushes / pops):
+    versusMenu = the menu whose init is VersusInit (stadium.sites' vs in it) -> (obj1 offset, versusMenu, the call's
+    target)."""
+    d = p.le.obj_bytes(1)
+    # (VersusInit's end as stadium.sites finds it - not its call: stadium.py has hooked that place by now)
+    vs = [x.start() for x in re.finditer(rb'\xe8....\xe8....\xe8....\xe8....\xb9\x64\x00\x00\x00\x51\xe8', d, re.S)]
+    assert len(vs) == 1, ('practice: VersusInit end', vs)
+    vs = vs[0]
+    m = []
+    for x in re.finditer(rb'\xff\x35....\xc7\x05........\xe8....\x8f\x05', d, re.S):
+        o = x.start() + 6
+        mt = _t(p, o + 6)
+        if _t(p, o + 2) != a6 or not mt or mt[0] != 2:
+            continue
+        ini = p.target(2, mt[1])
+        if ini and ini[0] == 1 and ini[1] <= vs < ini[1] + 0x400:
+            m.append((o, mt[1]))
+    assert len(m) == 1, ('practice: versusMenu ShowMenu', m)
+    return m[0][0], m[0][1], p.call_target(1, m[0][0] + 10)
+
+
 def time_site(p):
     """UpdateTime's @@make_time_visible: mov ax, [currentTimeSprite.visible] / or / jnz / mov word [..visible], 1 / call
     InitDisplaySprites: (the mov's obj1 offset, visible's obj2 offset, InitDisplaySprites' obj1 offset)."""
@@ -832,6 +861,7 @@ def patch(p, lang):
     assert pg and pg[0] == 2, ('practice: playGame', pg)
     g = dict(g, PLAYG_O=pg[1])
     sd, stadm, stshow = stad_site(p, u['a6'], pg[1])
+    vsd, vsm, vshow = vs_site(p, u['a6'])
     assert FKD == tuple(FKD[0] + (FKD[1] - FKD[0]) * k for k in range(4)) and FKX[0] == 336
     assert work[1] % 4 == 0 and WORK_SZ >= WK['END'], 'practice: PR_WORK (swe.c u8 PR_WORK[WORK_SZ], aligned 4)'
     assert WK['END'] <= min(o for o, _ in BUF.values()) and max(o + n for o, n in BUF.values()) <= WORK_SZ
@@ -842,6 +872,7 @@ def patch(p, lang):
     sym = {'A6': u['a6'], 'SHOW_MENU': (1, u['show']), 'EXITM': u['exitm'], 'OLD_SEL': old,
            'GO': (4, work[1]), 'KIND': (4, work[1] + 1), 'DEF': (4, work[1] + 2), 'O2BASE': (2, 0),
            'TESTFOUL': (1, g['TESTFOUL']), 'TVIS': (2, tvis), 'RTIM': (2, rtim), 'INITDS': (1, ids), 'PMMENU': (2, pmmenu), 'STADM': (2, stadm), 'STADSHOW': stshow,
+           'VSM': (2, vsm), 'VSSHOW': vshow,
            'SHOWMENU': pmshow, 'PNTS': (2, pnts), 'PMT1': (2, pmt1), 'SETBENCH': sbench,
            'KMA': (2, kma), 'KSL': (2, ksl), 'TXTA': (2, txta), 'SETBTN': setbtn,
            **{k: (4, work[1] + o) for k, (o, _) in BUF.items()},
@@ -876,9 +907,15 @@ def patch(p, lang):
     if p.rel_target(1, sd + 11):
         p.remove(1, sd + 11)
     p.branch(1, sd, 0xE8, 4, lab['pr_stad'], n=15)
+    p.remove(1, vsd + 2)                                # InitializeInGameTeamsAndStartGame's mov [A6], versusMenu +
+    p.remove(1, vsd + 6)                                #  call ShowMenu (15 B) -> call pr_vs (no versus screen either)
+    if p.rel_target(1, vsd + 11):
+        p.remove(1, vsd + 11)
+    p.branch(1, vsd, 0xE8, 4, lab['pr_vs'], n=15)
     LABELS.clear()
     LABELS.update(lab)
     LABELS['STAD'] = (1, sd)
+    LABELS['VS'] = (1, vsd)
     LABELS['PR_WORK'] = work
     kg = code.find(b'\x0f\x1f\x44\x00\xd8')
     assert kg > 0 and code.count(b'\x0f\x1f\x44\x00\xd8') == 1

@@ -28,6 +28,11 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 #### Player prices from the market value
 - 2026-27 world: a player's price now follows his real market value (Transfermarkt) and nothing else. A young player worth a lot costs more than a veteran near the end of his career, whatever his club. Skills are exactly as before, and prices across the world keep the same range as before.
 
+#### Promotion and relegation between Serie C and Serie D
+- 2026-27 world: Serie C and Serie D now exchange clubs at the end of every season, as in real Italian football. The nine Serie D group winners go up to Serie C; the clubs relegated from Serie C (the last club of each group and the play-out losers) go down to Serie D. That includes your club: win your Serie D group and next season you play in Serie C; go down from Serie C and you play in Serie D.
+- When your club moves between the two, it is still the same career: your whole squad, your money and your record stay with you. Only the league changes.
+- Not exact: the real league redraws the Serie D groups every summer. The mod keeps its groups: a club coming down from Serie C joins the Serie D group of its own area (see Serie D placement), and a club going up joins the Serie C group of its area.
+
 #### Winners page after a move between Serie C and Serie D
 - Winners page (VINCITORI): the last-season page now also works when your club has just moved between Serie C and Serie D (promotion or relegation across the two files), and it now exists for a career in Serie D itself: it names the winner of the division your club played in last season.
 
@@ -61,6 +66,7 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 - UP / DOWN in the box now go through every number from 1 to 99, one at a time, taken ones included. When you stop on a number another player already wears, the coach's line at the bottom of the screen shows who wears it, for example '7 A. DI LIVIO SWAP'. Leave the box any way except ESC and the two players swap numbers; ESC puts your number back as it was. Typing a number works as before. In EDIT CUSTOM TEAMS UP / DOWN still skip the taken numbers.
 
 #### Decisions of this release
+- Serie C / Serie D exchange (2026-27 world): every season the nine Serie D group winners go up and the Serie C clubs relegated (last of each group + play-out losers) go down, your club included; groups by area, an approximation (the real league redraws the Serie D groups every summer); a move of your club keeps its squad, money and record.
 - Set-piece practice: a practice lasts 10 attempts and then shows its results page (ESC ends it earlier); a practice has no match clock, no pre-match screen and no score bar at the restarts. Ordinary matches and friendlies are unchanged.
 - Shirt numbers: UP / DOWN stop on taken numbers and show who wears them; leaving the box swaps the numbers, ESC undoes; keypad digits type only while the box is lit; EDIT CUSTOM TEAMS keeps skipping taken numbers.
 - (every gameplay or market decision of 4.2 goes here and in the README, EN + IT: Davide 15/11, rc gate item)
@@ -101,6 +107,11 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 #### Player prices from the market value
 - Mondo 2026-27: il prezzo di un giocatore ora segue solo il suo valore di mercato reale (Transfermarkt). Un giovane che vale molto costa più di un veterano a fine carriera, qualunque sia la sua squadra. Le abilità sono esattamente quelle di prima, e i prezzi nel mondo restano nella stessa fascia di prima.
 
+#### Promozioni e retrocessioni tra Serie C e Serie D
+- Mondo 2026-27: Serie C e Serie D ora si scambiano le squadre alla fine di ogni stagione, come nel calcio vero. Le nove vincitrici dei gironi di Serie D salgono in Serie C; le retrocesse dalla Serie C (l'ultima di ogni girone e le perdenti dei play-out) scendono in Serie D. Vale anche per la tua squadra: vinci il tuo girone di Serie D e la stagione dopo giochi in Serie C; retrocedi dalla Serie C e giochi in Serie D.
+- Quando la tua squadra passa da una all'altra, la carriera resta la stessa: tutta la rosa, i soldi e il tuo curriculum restano con te. Cambia solo il campionato.
+- Non esatto: la Lega vera ricompone i gironi di Serie D ogni estate. La mod tiene i suoi gironi: una squadra che scende dalla Serie C entra nel girone di Serie D della sua zona (vedi la collocazione in Serie D), e una squadra che sale entra nel girone di Serie C della sua zona.
+
 #### Winners page after a move between Serie C and Serie D
 - Pagina dei vincitori: la pagina della stagione scorsa funziona anche quando il tuo club è appena passato tra Serie C e Serie D (promozione o retrocessione), e ora c'è anche per una carriera in Serie D: indica il vincitore del campionato in cui il tuo club ha giocato la stagione scorsa.
 
@@ -134,6 +145,7 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 - SU / GIÙ nel riquadro ora passano per tutti i numeri da 1 a 99, uno alla volta, anche quelli occupati. Se ti fermi su un numero che porta già un altro giocatore, la riga dell'allenatore in basso mostra chi lo porta, per esempio '7 A. DI LIVIO SCAMBIO'. Esci dal riquadro in qualunque modo tranne ESC e i due giocatori si scambiano i numeri; ESC rimette il tuo numero com'era. Scrivere un numero funziona come prima. In MODIFICA SQUADRE SU / GIÙ saltano ancora i numeri occupati.
 
 #### Decisioni di questa release
+- Scambio Serie C / Serie D (Mondo 2026-27): ogni stagione le nove vincitrici dei gironi di Serie D salgono e le retrocesse dalla Serie C (ultima di ogni girone + perdenti dei play-out) scendono, anche la tua squadra; gironi per zona, un'approssimazione (la Lega vera ricompone i gironi di Serie D ogni estate); un passaggio della tua squadra tiene rosa, soldi e curriculum.
 - Prova dei calci piazzati: una prova dura 10 tentativi e poi mostra la sua pagina dei risultati (ESC la chiude prima); in una prova non ci sono cronometro, schermata prepartita né barra del risultato alle riprese del gioco. Le partite normali e le amichevoli restano come prima.
 - Numeri di maglia: SU / GIÙ si fermano anche sui numeri occupati e mostrano chi li porta; uscendo dal riquadro i numeri si scambiano, ESC annulla; le cifre del tastierino scrivono solo con il riquadro acceso; MODIFICA SQUADRE continua a saltare i numeri occupati.
 - (every gameplay or market decision of 4.2 goes here and in the README, EN + IT: Davide 15/11, rc gate item)

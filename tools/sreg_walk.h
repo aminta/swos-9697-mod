@@ -23,6 +23,12 @@
      of a swap pair) is set to fill (CF: 0 = "unknown", the entry described the departed club; CD ent: 1 = new to Serie
      D); entries of rows that kept their club are untouched. Not a permutation: such a table is one file's, a crosser has no entry in
      the other file's.
+   - WS_D (Motore 15/11, wsites-full-pass.md): a DIY contest buffer (ProcessCareerFile's slots). off = the buffer, stride
+     = its room (bytes), count 1. Its first word is the contest TYPE and its team words are exactly the type's list:
+     type 0 (league, 0x733 B) +301, type 1 (cup, 0x443 B) +589, type 2 (0xB52 B) +153 AND the current stage's contest at
+     +0x41F (type 0 / 1, same rule: DIY_competitionStart = diyFileBufferCopy + 0x41F); numTeams = the word at +49 of each.
+     Only the live list(s) are walked as WS_W (never another type's bytes, never the stale words past numTeams). -1 with
+     nothing written: the type's size past the room or the item, numTeams > 64, a type above 2, a stage type above 1.
    - aux: per form above, else 0. */
 #ifndef SREG_WALK_H
 #define SREG_WALK_H
@@ -31,7 +37,7 @@ typedef struct { uint16_t item; uint16_t off, stride, count; uint8_t form, aux; 
 typedef struct { uint8_t file, rows; uint16_t base; uint8_t ord0, pad[3]; } sreg_gfile;   /* a WS_G run of a file:
                                            globals [base, base + rows) = ordinals [ord0, ord0 + rows); rows 0 = 256
                                            (a split file - G144 - has two runs) */
-enum { WS_W = 1, WS_G = 2, WS_O8 = 3, WS_K = 4, WS_R = 5 };
+enum { WS_W = 1, WS_G = 2, WS_O8 = 3, WS_K = 4, WS_R = 5, WS_D = 6 };
 enum { WI_CFB = 0, WI_CACHE = 1, WI_MAIN = 2, WI_CFBH = 3 };
 #define WS_END 0xFFFF
 #define WS_MAX 128                              /* WSITES' room: rows + the WS_END row (wsites.py asserts) */

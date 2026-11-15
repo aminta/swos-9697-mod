@@ -189,7 +189,7 @@ def late(p):
         else:
             assert iid in names, ('s7swap: WSITES row on an engine item this build does not save', k, item)
             size = engine.SAVE_ITEMS[names[iid]][0]
-        span = count if form == wsites.WS_R else max(count - 1, 0) * stride + 2   # (WS_R: stride = fill | file << 8)
+        span = count if form == wsites.WS_R else stride if form == wsites.WS_D else max(count - 1, 0) * stride + 2   # (WS_R: stride = fill | file << 8; WS_D: stride = the room)
         assert off + span <= size, ('s7swap: WSITES row past its item', k, item, size)
     if 'ST' in engine.ITEM_AT:
         LABELS['ST_ITEM'] = engine.ITEM_AT['ST']          # (host tests: the TEST rows' engine item)

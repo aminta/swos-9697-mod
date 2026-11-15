@@ -9,7 +9,7 @@ import struct
 TEST = os.environ.get('S7_WSITES_TEST') == '1'       # (host-test builds only: TEST_ROWS instead of ROWS)
 
 WI_CFB, WI_CACHE, WI_MAIN, WI_CFBH, WS_END, WS_MAX = 0, 1, 2, 3, 0xFFFF, 128   # (WI_CFBH: careerFileBuffer + 0x10000)
-WS_W, WS_G, WS_O8, WS_K, WS_R = 1, 2, 3, 4, 5
+WS_W, WS_G, WS_O8, WS_K, WS_R, WS_D = 1, 2, 3, 4, 5, 6
 # WS_R rows: entries are u8 and contiguous, so stride is not a step: stride = fill | file << 8 (file 0 = the file is the
 # item's byte at aux). CD ent's file is the build's Serie D file: CD_FILE[0], set by s7swap.late (CD_TAB[2]) before rows()
 CD_FILL = 1
@@ -22,6 +22,9 @@ UC_PREV = TMD + 0x3800 + 0x89FC             # uefacoef CB + PREV (NG 2409: KPTS 
 UQ_ST = UC_PREV + 0x6C + 0xC                # uefacoef CB + SIZE: uefaq's state
 DP_SV = TMD + ((UQ_ST - TMD + 2152 + 15) & ~15)   # dplay save_at: uefaq.STATE_END rounded to 16
 CAL, CAL_N = 0xDB3E6 - IDA_CFB, (0xDF4F4 - 0xDB3E6) // 22
+OFFERS, JOBACC = 0xD6DBA - IDA_CFB, 0xD6CA4 - IDA_CFB          # dseg_D6DBA (offers), teamNoOfferAccepted
+DIY_SLOTS = [(0xDF4F6 - IDA_CFB, 0xB52), (0xD8D0A - IDA_CFB, 0xB52), (0xD985C - IDA_CFB, 0x443),
+             (0xDA0E2 - IDA_CFB, 0xB52), (0xD9C9F - IDA_CFB, 0x443)]   # competitionFileBuffer, slots 1, 2, 3, 4
 
 
 def check_layout():
@@ -96,17 +99,19 @@ ROWS = [
     (WI_CFB, 0x0D7CA, 4, 25, WS_W, 0),
     (WI_CFB, 0x0D886, 26, 5, WS_W, 0),
     (WI_CFB, 0x0D90A, 26, 5, WS_W, 0),
-    (WI_CFB, 0x0F9CB, 2, 15, WS_W, 0),         # (4b, by the saves: not in the code pass) stride 2 (odd address)
-    (WI_CFBH, 0x051D, 2, 16, WS_W, 0),         # (4b) stride 2 (odd address)
-    (WI_CFBH, 0x0960, 2, 28, WS_W, 0),         # (4b) season 8+: 28 words
-    (WI_CFBH, 0x0BF9, 2, 4, WS_W, 0),          # (4b) 4 words (odd address)
-    (WI_CFBH, 0x10AC, 2, 4, WS_W, 0),          # (4b) 4 words
-    (WI_CFBH, 0x11C2, 2, 36, WS_W, 0),         # (4b) season 2+: a by-file sorted list, 36 words
+    # incoming transfer offers dseg_D6DBA: 5 x 14 B (cmp numOffers, 5), +0 the offering club (OffersCommon: teamOffering);
+    # teamNoOfferAccepted (AcceptJobOffer: the accepted job's club, consumed by ContinueCareerNextSeason's cseg_942F2).
+    # Both harmless at the swap (cleared / FFFFh by then), needed by the old-save import (Motore full pass 15/11)
+    (WI_CFB, OFFERS, 14, 5, WS_W, 0),
+    (WI_CFB, JOBACC, 0, 1, WS_W, 0),
+    # the 5 DIY contest buffers (ProcessCareerFile's arrayOfPointers): WS_D walks each one's live team list(s) by its
+    # type word (league +301, cup +589, type 2 +153 + the stage contest at +0x41F; numTeams +49) - wsites-full-pass.md.
+    # stride = the room: the biggest type the slot holds (slots 2 / 4: 0x443, cups only; a type-2 or league there refused)
+    *[(WI_CFB if o < 0x10000 else WI_CFBH, o & 0xFFFF, room, 1, WS_D, 0) for o, room in DIY_SLOTS],
     # the career calendar dseg_DB3E6 .. dseg_DF4F4 (cseg_8C516's bound): records of 16h B in a career (cseg_8C2AE: one
     # match: +0Ah its entry, home word +0Ch, away word +0Eh), CAL_N of them at most
     (WI_CFBH, CAL - 0x10000 + 12, 22, CAL_N, WS_W, 0),
     (WI_CFBH, CAL - 0x10000 + 14, 22, CAL_N, WS_W, 0),
-    (WI_CFBH, 0x6097, 2, 20, WS_W, 0),         # (4b) a 20-club list (odd address, dseg_DF623: the DIY buffer)
     # GP (gplay.c struct gp_state, 2048 B): srow[SD 2][GT 32] {u16 team; ...} 10 B at +8; ko[2] (674 B at +648):
     # team[KN 24] at +474; dec[3] (12 B at +1996): team[2] at +4, glob[2] at +8
     ('GP', 8, 10, 64, WS_W, 0),
@@ -212,8 +217,9 @@ def table(rows=None):
             assert item not in (WI_CFB, WI_CACHE, WI_MAIN, WI_CFBH, WS_END), ('wsites: an item id clashes', item)
             ids.add(item)
         assert form not in (WS_O8, WS_K), ('wsites: no O8 / K row is ever registered (K keys discard on mismatch; CD ent is WS_R with a fill byte)', item, off)
-        assert form in (WS_W, WS_G, WS_R) and 0 <= off < 0x10000 and count < 0x10000, ('wsites: row', item, off)
+        assert form in (WS_W, WS_G, WS_R, WS_D) and 0 <= off < 0x10000 and count < 0x10000, ('wsites: row', item, off)
         assert form == WS_R or count <= 1 or stride >= 2, ('wsites: stride', item, off)
+        assert form != WS_D or (count == 1 and stride in (0x443, 0xB52) and item in (WI_CFB, WI_CFBH)), ('wsites: WS_D row', item, off)
         assert form != WS_R or (count <= 256 and (stride >> 8 or aux)), ('wsites: WS_R row', item, off)
         out += struct.pack('<4H2B', item, off, stride, count, form, aux)
     assert len(rows) < WS_MAX, ('wsites: rows past WS_MAX', len(rows))

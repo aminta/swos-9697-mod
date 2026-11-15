@@ -6,7 +6,7 @@ the game state zero but for what each case sets, the obj2 offsets from practice.
 - PR_KIND set outside the training game (g_trainingGame 0): the same;
 - (playGame 0 - the match left this pass, ESC - is skipped the same way: the case below sets it 1);
 - CORNER practice (PR_KIND 3, ATTACK, the top team human, play live): WAITF frames write only PR_WORK (the idle
-  count), the next frame forces the corner for the top team (it attacks the bottom goal): the ball at x 150, y 778,
+  count; step 3: and gameTime, held at 0), the next frame forces the corner for the top team (it attacks the bottom goal): the ball at x 150, y 778,
   z / speed / deltas 0, lastTeamPlayed = bottomTeamData, ST 1 - and nothing else in the game is written."""
 import os
 import re
@@ -96,20 +96,24 @@ def test_practice_off():
     uc.mem_write(B2 + g['GSP_O'], struct.pack('<H', 100))
     uc.mem_write(B2 + g['GS_O'], struct.pack('<H', 100))
     uc.mem_write(B2 + g['TOPT_O'] + 4, b'\x01\x00')
-    pw = range(work, work + practice.WORK_SZ)
+    gt = {B2 + g['GT_O'] + i for i in range(4)}                     # (step 3: gameTime held at 0 - no clock)
+    uc.mem_write(B2 + g['GT_O'], struct.pack('<I', 1234))
+    pw = set(range(work, work + practice.WORK_SZ)) | gt
     for f in range(practice.WAITF - 1):
         w = [x for x in _frame(uc, writes, hk) if x[0] not in pw]
         if w:
             errs.append(f'idle frame {f}: writes outside PR_WORK {[hex(a) for a, _ in w[:4]]}')
             break
     ball = B2 + g['BALL_O']
-    allowed = set(pw) | {B2 + g['LTP_O'] + i for i in range(4)} | {ball + o + i for o in (0x1E, 0x22, 0x26, 0x2E, 0x32,
+    allowed = pw | {B2 + g['LTP_O'] + i for i in range(4)} | {ball + o + i for o in (0x1E, 0x22, 0x26, 0x2E, 0x32,
                                                                                          0x36) for i in range(4)} \
         | {ball + 0x2C, ball + 0x2D}
     w = [x for x in _frame(uc, writes, hk) if x[0] not in allowed]
     if w:
         errs.append(f'forcing frame: writes outside PR_WORK / the ball / lastTeamPlayed {[hex(a) for a, _ in w[:4]]}')
     rd = lambda a, n: bytes(uc.mem_read(a, n))
+    if rd(B2 + g['GT_O'], 4) != bytes(4):
+        errs.append(f"gameTime {rd(B2 + g['GT_O'], 4).hex()} (want held at 0)")
     bx, by = (struct.unpack('<i', rd(ball + o, 4))[0] >> 16 for o in (0x1E, 0x22))
     ltp = struct.unpack('<I', rd(B2 + g['LTP_O'], 4))[0]
     st, atk, hum = rd(work + practice.WK['ST'], 1)[0], rd(work + practice.WK['ATK'], 1)[0], rd(work + practice.WK['HUM'], 1)[0]
@@ -120,3 +124,68 @@ def test_practice_off():
     info.append(f'corner practice: {practice.WAITF - 1} idle frames write PR_WORK only; frame {practice.WAITF}: '
                 f'ball {bx}/{by}, lastTeamPlayed = bottomTeamData, ATTACK by the top (human) team')
     return not errs, '; '.join(errs) or f'GameLoop obj1+{hk:#x} -> obj4+{tgt[1]:#x}: ' + '; '.join(info)
+
+
+REF = os.environ.get('HT_PRACTICE_REF') or os.path.join(HOME, 'swos-mod', 'c', 'RELpr5', 'SWOS', 'ITALIAN.EXE')
+
+
+def _run_site(exe, site, n, skip):
+    """obj1+site run with practice off (PR_KIND 0: a zeroed .bss) until the first instruction outside the site's n bytes
+    and the `skip` range (the practice band): (that instruction's address, the return address on the stack, the writes
+    outside the stack as {address: bytes})"""
+    from emu import relocate
+    from unicorn import UC_HOOK_CODE
+    from unicorn.x86_const import UC_X86_REG_ESP
+    i1, i2, le = relocate(exe, B1, B2, base4=B4)
+    uc, writes = _machine((i1, i2, le.img4))
+    out = []
+
+    def hook(u, a, sz, d):
+        if not (B1 + site <= a < B1 + site + n or skip[0] <= a < skip[1]):
+            out.append((a, struct.unpack('<I', bytes(u.mem_read(u.reg_read(UC_X86_REG_ESP), 4)))[0]))
+            u.emu_stop()
+    uc.hook_add(UC_HOOK_CODE, hook)
+    uc.reg_write(UC_X86_REG_ESP, STACK)
+    uc.emu_start(B1 + site, B1 + site + n, count=10_000)
+    w = {}
+    for a, k in writes:
+        if not STACK - 0x1000 <= a < STACK + 16:
+            w[a] = bytes(uc.mem_read(a, k))
+    img = {B1: i1, B4: le.img4}
+    pc, ret = out[0] if out else (None, None)
+    while ret is not None and ret < B1 + len(i1) and i1[ret - B1] == 0x90:     # (the branch's nop padding)
+        ret += 1
+    code = None
+    if pc is not None:
+        base = B1 if pc < B2 else B4
+        code = bytes(img[base][pc - base:pc - base + 48])
+    return pc, ret, w, code
+
+
+def test_practice_off_sites():
+    """MC 15/11 (step 3's obj1 sites): with practice off, ShowPlayMatchMenu's call pr_pmm and UpdateTime's call
+    pr_time reach the very code the exe without them runs (HT_PRACTICE_REF, else c/RELpr5: 4.2 with practice step 2):
+    the same next instruction (kitcolors' pm_show chain / InitDisplaySprites) and its 48 code bytes, the same return
+    address, the same writes ([A6] = playMatchMenu / currentTimeSprite.visible = 1) - nothing else."""
+    for f in (EXE, REF, ORIG):
+        if not os.path.exists(f):
+            return False, f'{f} missing'
+    import lepatch
+    import practice
+    import bteam
+    import swreg
+    o = lepatch.LEPatch(ORIG)
+    pm = practice.pm_site(o, bteam.ui_sites(o)['a6'])[0]
+    tm = practice.time_site(o)[0]
+    band = (B4 + swreg.PRACTICE_AT, B4 + swreg.PRACTICE_END)
+    errs, info = [], []
+    for name, site, n in (('ShowPlayMatchMenu', pm, 15), ('UpdateTime', tm, 14)):
+        new = _run_site(EXE, site, n, band)
+        ref = _run_site(REF, site, n, (0, 0))
+        if new[0] is None or new != ref:
+            errs.append(f'{name} obj1+{site:#x}: practice off {new[:3]} vs the reference {ref[:3]}'
+                        + ('' if new[3] == ref[3] else ' (code differs)'))
+        else:
+            info.append(f'{name} obj1+{site:#x} -> {new[0]:#x} (ret {new[1]:#x}, writes '
+                        f'{ {hex(a): v.hex() for a, v in new[2].items()} })')
+    return not errs, '; '.join(errs) or 'practice off = the exe without the sites: ' + '; '.join(info)

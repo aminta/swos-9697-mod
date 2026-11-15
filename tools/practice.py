@@ -33,15 +33,17 @@ pr_frame's state machine (PR_WORK +3 ST, +4 TMR frames in the state):
 The way out (Davide 14/11, A + B): ESC any time (the game's own, MainKeysCheck: playGame 0), or by itself after PR_N
 attempts (playGame 0 at the PR_N-th attempt's end, without ESC's abandonment branch). Then, back in pr_open, a result
 page (pr_result: the kind's name, TIRI n, GOL m, OK) when there was an attempt, and the squad screen."""
+import os
 import re
 import struct
 
 import nasmcave
 
 LABELS = {}
-WORK_SZ = 32                            # (swe.c PR_WORK: WK below)
+WORK_SZ = 112                           # (swe.c PR_WORK: WK below, then the text buffers BUF - .bss, not band bytes)
 WK = dict(GO=0, KIND=1, DEF=2, ST=3, TMR=4, CY=6, ATK=7, NT=8, NG=10, NFAIL=12, PG=14, NFR=16, HUM=20, LGS=21,
           RST=22, MAXR=24, END=26)
+BUF = dict(MTXT=(32, 24), RT=(56, 24), R1=(80, 16), R2=(96, 16))   # (written before each page is shown)
 WAITF, ATTF, SETTLE, CLEAR = 20, 560, 25, 240   # frames of play before forcing; an attempt's 8 s (70 Hz); frames after a
                                                 # stoppage that still count a goal; px from the goal line = cleared (~40 m)
 FKD, FKX, FKORD, PEN_D = (100, 125, 150, 175), (336, 290, 382), 10, 40
@@ -182,11 +184,13 @@ pr_frame:
     cmp word [ebp + PLAYG_O], 0         ; (the match left this pass - ESC: its abandonment goals are not ours)
     je .x
     inc dword [ebx + W_NFR_]
+    mov dword [ebp + GT_O], 0           ; (gameTime: the clock held at 0 - no half time in a practice)
     mov al, [ebx + W_ST_]
-    cmp al, 2                           ; (idle / forcing: the restart's frames, RST)
-    jae .r0
-    inc word [ebx + W_RST_]
-.r0:
+    dec al                              ; (1 forcing / 2 awarded: the formation at once - pr_tele)
+    cmp al, 1
+    ja .r1
+    call pr_tele
+.r1:mov al, [ebx + W_ST_]
     cmp al, 1
     je .force
     cmp al, 2
@@ -195,13 +199,24 @@ pr_frame:
     je .live
     cmp al, 4
     je .settle
-    cmp word [ebp + GSP_O], 100         ; ---- 0 idle: WAITF frames of live play
+    mov ax, [ebp + GS_O]                ; ---- 0 idle. A stopped game (the walk-on ST_STARTING_GAME, a goal's kick-off,
+    cmp ax, 100                         ;  a goal kick / throw-in / corner after an attempt): no restart of its own
+    je .i0                              ;  (Davide 15/11) - the game live at once and the next set piece forced this
+    cmp ax, 22                          ;  pass (stoppageEventTimer 0); half / full time states (22..): the game's
+    jae .z
+    mov word [ebp + SET_O], 0
+    mov ax, 100
+    mov [ebp + GSP_O], ax
+    mov [ebp + GS_O], ax
+    jmp .side
+.i0:cmp word [ebp + GSP_O], 100         ; live play: WAITF frames of it
     jne .z
     cmp word [ebp + GS_O], 100
     jne .z
     inc word [ebx + W_TMR_]
     cmp word [ebx + W_TMR_], WAITF_
     jb .x
+.side:
     xor ecx, ecx                        ; the side: the human team (playerNumber != 0, the top one first)
     cmp word [ebp + TOPT_O + 4], 0
     jne .h
@@ -244,18 +259,27 @@ pr_frame:
     jmp .z
 .got:
     mov byte [ebx + W_ST_], 2
-    mov [ebx + W_LGS_], al              ; (the state awarded; the longest restart since the last kick: MAXR -
-    cmp word [ebx + W_NT_], 0           ;  not the first one: the match start's walk-on and kick-off)
-    je .g1
-    mov ax, [ebx + W_RST_]
-    cmp ax, [ebx + W_MAXR_]
-    jbe .g1
-    mov [ebx + W_MAXR_], ax
-.g1:mov word [ebx + W_RST_], 0
+    mov [ebx + W_LGS_], al              ; (the state awarded)
     jmp .t0
 .award:                                 ; ---- 2 awarded: until the kick
-    cmp word [ebp + GS_O], 100
-    jne .x
+    cmp word [ebp + BCM_O], 7           ; (the hand-over's state 7 waits for the restart team's controlled player -
+    jne .aw                             ;  none for 50 frames: the game's own dead stall, its CPU penalty taker never
+    call pr_teams                       ;  chosen; the attackers' passTo (the fouled player, at the spot) takes it)
+    cmp dword [eax + 20h], 0
+    jne .aw
+    inc word [ebx + W_TMR_]
+    cmp word [ebx + W_TMR_], 50
+    jb .aw
+    mov ecx, [eax + 24h]
+    jecxz .aw
+    mov [eax + 20h], ecx
+.aw:mov ax, [ebp + GS_O]
+    cmp ax, 100
+    je .kick
+    cmp al, [ebx + W_LGS_]              ; (another stoppage instead - a throw-in from a corner's ball: not an attempt,
+    je .x                               ;  idle: forced again at once)
+    jmp .z
+.kick:
     inc word [ebx + W_NT_]
     mov ax, [ebp + G1_O]
     add ax, [ebp + G2_O]
@@ -298,6 +322,46 @@ pr_frame:
 .z: mov byte [ebx + W_ST_], 0
     mov word [ebx + W_TMR_], 0
 .x: popad
+    ret
+
+pr_tele:                                ; the restart's formation at once: every player armed for it (destReachedState
+    lea esi, [ebp + SPR0_O]             ;  1 / 2, the hand-over's state 2 on) put on his destination - movePlayer
+    mov ecx, 22                         ;  sees him there (3): no walk to the spot
+.l: mov ax, [esi + 64h]
+    dec ax
+    cmp ax, 1
+    ja .n
+    mov ax, [esi + 3Ah]                 ; (x / y: integer parts = destX / destY)
+    mov [esi + 20h], ax
+    mov ax, [esi + 3Ch]
+    mov [esi + 24h], ax
+.n: add esi, 6Eh
+    loop .l
+    ret
+
+pr_time:                                ; UpdateTime's `mov currentTimeSprite.visible, 1 / call InitDisplaySprites`:
+    cmp byte [KIND], 0                  ;  no clock in a practice (Davide 15/11)
+    jne .r
+    mov word [TVIS], 1
+    jmp near INITDS
+.r: ret
+
+pr_pmm:                                 ; ShowPlayMatchMenu's `mov [A6], offset playMatchMenu / call ShowMenu`: no
+    cmp byte [KIND], 0                  ;  pre-match screen in a practice (Davide 15/11) - what the screen leaves:
+    jne .p                              ;  its init's bench numbers (SetBenchPlayersNumbers, team 1; game data), then
+    mov dword [A6], PMMENU              ;  PLAY by player 1 (PlayMatchSelected: playerNumThatStarted 1)
+    jmp near SHOWMENU
+.p: mov byte [KMA], 0                ; a kit choice left by a pre-match screen exited without playing is dropped
+    mov dword [KSL], 0                  ;  (MC 15/11: kitcolors' km_cancel for another match - KM_ACTIVE, the
+    pushad                              ;  SELECT KITS edits, the keepers' choice, the button back to AUTO): the
+    db 0Fh, 1Fh, 44h, 0, 0D8h           ;  practice plays the A / B training kits (link_kits: kits.py's kg_cancel)
+    mov esi, TXTA
+    call near SETBTN
+    popad
+    mov eax, [PMT1]
+    mov [A6 - 24], eax                  ; (A0 = A6 - 24)
+    call near SETBENCH
+    mov word [PNTS], 1
     ret
 
 pr_goal:                                ; CF = a goal since the kick (NG + 1)
@@ -507,11 +571,99 @@ def find_game(p, a6, ptg):
                                          rb'\x66\xa3', d, re.S)]
     tf = [o for o in tf if _t(p, o + 3) == gsp and _t(p, o + 21) == a2]
     assert len(tf) == 1, ('practice: TestFoulForPenaltyAndFreeKick', tf)
-    for v in (gtr, _t(p, m[0] + 1), gsp, ball, ltp, topt, bott, gstate, g1, g2):
+    # StartingMatch: call InitTeamsData / mov stoppageEventTimer, 100 / mov gameState, ST_STARTING_GAME / mov
+    # breakCameraMode, -1 / mov gameStatePl, ST_STOPPED
+    sm = [x.start() for x in re.finditer(rb'\xe8....\x66\xc7\x05....\x64\x00\x66\xc7\x05....\x15\x00\x66\xc7\x05'
+                                         rb'....\xff\xff\x66\xc7\x05....\x65\x00', d, re.S)]
+    sm = [o for o in sm if _t(p, o + 17) == gstate and _t(p, o + 35) == gsp]
+    assert len(sm) == 1, ('practice: StartingMatch', sm)
+    sev = _t(p, sm[0] + 8)
+    bc = [x.start() for x in re.finditer(rb'\x66\xc7\x05....\x0e\x00\x66\xc7\x05....\xff\xff', d, re.S)]
+    bc = [o for o in bc if _t(p, o + 3) == gstate]
+    assert bc and len({_t(p, o + 12) for o in bc}) == 1, ('practice: breakCameraMode', bc)
+    bcm = _t(p, bc[0] + 12)
+    # ResetTime: mov gameSeconds, 0 / mov gameTime, 0 (dword) / mov secondsSwitchAccumulator, 0 / mov copyTimeSprite, 1
+    # (a mod hook may have replaced the gameTime store with a call + 5 nops: gameTime = gameSeconds + 2, as the original)
+    rt = [x.start() for x in re.finditer(rb'\x66\xc7\x05....\x00\x00(?:\xc7\x05....\x00\x00\x00\x00|\xe8....\x90{5})'
+                                         rb'\x66\xc7\x05....\x00\x00\x66\xc7\x05....\x01\x00', d, re.S)]
+    rt = [o for o in rt if _t(p, o + 3) and _t(p, o + 3)[0] == 2]
+    assert len(rt) == 1, ('practice: ResetTime', rt)
+    gsec = _t(p, rt[0] + 3)
+    gt = (2, gsec[1] + 2)
+    assert _t(p, rt[0] + 11) in (None, gt), ('practice: gameTime', _t(p, rt[0] + 11), gt)
+    for v in (gtr, _t(p, m[0] + 1), gsp, ball, ltp, topt, bott, gstate, g1, g2, sev, gt, bcm):
         assert v and v[0] == 2, ('practice: an obj2 variable', v)
     return dict(GTR_O=gtr[1], GSP_O=gsp[1], GS_O=gstate[1], BALL_O=ball[1], LTP_O=ltp[1], TOPT_O=topt[1],
                 BOTT_O=bott[1], G1_O=g1[1], G2_O=g2[1], SPR0_O=ball[1] - 22 * 0x6E, D0_O=d0[1], A2_O=a2[1],
-                A6_O=a6[1], TESTFOUL=tf[0])
+                A6_O=a6[1], SET_O=sev[1], GT_O=gt[1], BCM_O=bcm[1], TESTFOUL=tf[0])
+
+
+def pm_site(p, a6):
+    """ShowPlayMatchMenu's tail: mov [A6], offset playMatchMenu / call ShowMenu (kitcolors: call pm_show) / mov ax,
+    [playerNumThatStarted] (benchx: call fr_pmend) / mov [D0], ax / ret - (its obj1 offset, playMatchMenu, the call's
+    target, playerNumThatStarted (PlayMatchSelected's `mov [..], 1 / 2`), playMatchTeam1Ptr, SetBenchPlayersNumbers
+    as its init calls it)."""
+    d = p.le.obj_bytes(1)
+    m = [x.start() for x in re.finditer(rb'\xc7\x05........\xe8....(?:\x66\xa1....|\xe8....\x90)\x66\xa3....\xc3',
+                                        d, re.S)]
+    m = [o for o in m if _t(p, o + 2) == a6 and any(_t(p, k + 1) == (2, a6[1] - 20) for k in range(o - 0x100, o)
+                                                    if d[k] == 0xA1 and d[k + 5] == 0xA3)]
+    assert len(m) == 1, ('practice: ShowPlayMatchMenu', [hex(x) for x in m])
+    o = m[0]
+    menu, show = _t(p, o + 6), p.call_target(1, o + 10)
+    k = [k for k in range(o - 0x100, o) if d[k] == 0xA1 and d[k + 5] == 0xA3 and _t(p, k + 1) == (2, a6[1] - 20)]
+    t1 = _t(p, k[-1] + 6)
+    ps = [x.start() for x in re.finditer(rb'\x66\xc7\x05....\x01\x00\x66\xc7\x05....\x00\x00\x66\xc7\x05....\x00\x00'
+                                         rb'\xe9', d, re.S)]
+    ps = [q for q in ps if _t(p, q + 3) and re.match(rb'\x66\xc7\x05....\x02\x00', d[q + 32:q + 41], re.S)
+          and _t(p, q + 35) == _t(p, q + 3)]
+    assert len(ps) == 1, ('practice: PlayMatchSelected', [hex(x) for x in ps])
+    pnts = _t(p, ps[0] + 3)
+    init = p.target(2, menu[1])
+    assert init[0] == 1, ('practice: PlayMatchMenuInit hooked (a new chain: add it)', init)
+    sb = [init[1] + x.start() for x in re.finditer(rb'\xa1....\xa3....\xe8....\x66\xc7\x05....\x00\x00',
+                                                   d[init[1]:init[1] + 0x400], re.S)]
+    sb = [q for q in sb if _t(p, q + 1) == t1 and _t(p, q + 6) == (2, a6[1] - 24)]
+    assert len(sb) == 1, ('practice: SetBenchPlayersNumbers', sb)
+    for v in (menu, pnts, t1):
+        assert v and v[0] == 2, ('practice: a ShowPlayMatchMenu variable', v)
+    return o, menu[1], show, pnts[1], t1[1], p.call_target(1, sb[0] + 10)
+
+
+def time_site(p):
+    """UpdateTime's @@make_time_visible: mov ax, [currentTimeSprite.visible] / or / jnz / mov word [..visible], 1 / call
+    InitDisplaySprites: (the mov's obj1 offset, visible's obj2 offset, InitDisplaySprites' obj1 offset)."""
+    d = p.le.obj_bytes(1)
+    m = [x.start() for x in re.finditer(rb'\x66\xa1....\x66\x0b\xc0\x75.\x66\xc7\x05....\x01\x00\xe8', d, re.S)]
+    m = [o for o in m if _t(p, o + 2) and _t(p, o + 2) == _t(p, o + 14)]
+    assert len(m) == 1, ('practice: UpdateTime @@make_time_visible', [hex(x) for x in m])
+    vis, ids = _t(p, m[0] + 2), p.call_target(1, m[0] + 20)
+    assert vis[0] == 2 and ids[0] == 1, ('practice: currentTimeSprite / InitDisplaySprites', vis, ids)
+    return m[0] + 11, vis[1], ids[1]
+
+
+def km_site(p):
+    """kitcolors' km_cancel (pushad / mov byte [KM_ACTIVE], 0 / mov dword [SLOTS + 32], 0 / its kg_cancel1 5-byte site /
+    mov esi, TXT_AUTO / call set_button): (KM_ACTIVE, SLOTS + 32, TXT_AUTO, set_button, the 5-byte site's obj1 offset)"""
+    d = p.get(1, 0, p.le.obj(1).npages * p.le.page_size)     # (mod code: the patched bytes, not obj_bytes)
+    m = [x.start() for x in re.finditer(rb'\x60\xc6\x05....\x00\xc7\x05....\x00\x00\x00\x00(?:\x0f\x1f\x44\x00\xc8|\xe8....)'
+                                        rb'\xbe....\xe8....\x61\xe9', d, re.S)]
+    assert len(m) == 1, ('practice: kitcolors km_cancel', [hex(x) for x in m])
+    o = m[0]
+    kma, ksl, txta = _t(p, o + 3), _t(p, o + 10), _t(p, o + 24)
+    assert all(v and v[0] == 2 for v in (kma, ksl, txta)), ('practice: km_cancel variables', kma, ksl, txta)
+    return kma[1], ksl[1], txta[1], p.call_target(1, o + 28), o + 18
+
+
+def link_kits(p):
+    """after kits.py: pr_pmm's 5-byte site (0F 1F 44 00 D8) -> the call km_cancel's kg_cancel1 site now makes"""
+    if 'KG_PR' not in LABELS:
+        return
+    at, ks = LABELS['KG_PR'], LABELS['KG_SITE']
+    assert p.get(4, at, 5) == b'\x0f\x1f\x44\x00\xd8', 'practice: pr_pmm kg site'
+    if p.get(1, ks, 1) == b'\xe8':
+        t = p.call_target(1, ks)
+        p.branch(4, at, 0xE8, t[0], t[1])
 
 
 TAG = 'PRWK'                            # (the harness finds PR_WORK by it: the tag, then a pointer)
@@ -573,7 +725,6 @@ def patch(p, lang):
     data += '    dw -999\n'
     data += f'S_T: db {q(tx[0])}\n' + ''.join(f'S_{i}: db {q(tx[1 + i])}\n' for i in range(4))
     data += f'S_ATT: db {q(tx[5])}\nS_DEF: db {q(tx[6])}\nS_5: db {q(tx[7])}\n'
-    data += 'MTXT: times 24 db 0\n'
     rs = RES[lang]
     data += 'align 4\nPR_RES:\n    dd 0, 0, 0, 3\n'                     # (the result page: its OK row the default)
     data += '    dw 0, 12, 304, 14\n    dw 4, 17h, 8, 0\n    dd RT\n    dw 0\n'
@@ -583,7 +734,6 @@ def patch(p, lang):
              f'    dw 4, 0Ch, 8, 0\n    dd S_OK\n    dw 13\n    dd pr_back\n    dw 0\n    dw -999\n')
     data += f'S_SH: db {q(rs[0])}\nS_GL: db {q(rs[1])}\nS_OK: db {q(rs[2])}\n'
     data += 'align 4\nKTAB: dd S_1, S_2, S_3\n'
-    data += 'RT: times 24 db 0\nR1: times 16 db 0\nR2: times 16 db 0\n'
     assert max(len(t) for t in tx[2:5]) < 24 and max(len(t) for t in res_texts(lang)) < 16
     data += f'align 4\nPRTAG: db {q(TAG)[:-3]}\n    dd KIND - 1\n'   # (the harness: the tag, then PR_WORK)
     assert max(len(tx[5]), len(tx[6])) < 24
@@ -591,23 +741,32 @@ def patch(p, lang):
     ptg = old[1] + 5 + struct.unpack('<i', d1[old[1] + 1:old[1] + 5])[0]     # (SelectTraining's call PlayTrainingGame)
     g = find_game(p, u['a6'], ptg)
     hk, hk_old = hook_site(p)
+    tm, tvis, ids = time_site(p)
+    pm, pmmenu, pmshow, pnts, pmt1, sbench = pm_site(p, u['a6'])
+    kma, ksl, txta, setbtn, kgsite = km_site(p)
     pg = _t(p, hk + 7)                  # (the site's next instruction: mov ax, [playGame])
     assert pg and pg[0] == 2, ('practice: playGame', pg)
     g = dict(g, PLAYG_O=pg[1])
     assert FKD == tuple(FKD[0] + (FKD[1] - FKD[0]) * k for k in range(4)) and FKX[0] == 336
     assert work[1] % 4 == 0 and WORK_SZ >= WK['END'], 'practice: PR_WORK (swe.c u8 PR_WORK[WORK_SZ], aligned 4)'
+    assert WK['END'] <= min(o for o, _ in BUF.values()) and max(o + n for o, n in BUF.values()) <= WORK_SZ
     defs = {f'W_{k}_': v for k, v in WK.items()}
     defs.update(R_TRAIN_=R_TRAIN, R_MODE_=R_MODE, WAITF_=WAITF, ATTF_=ATTF, SETTLE_=SETTLE, CLEAR_=CLEAR,
                 FKORD_=FKORD, PEN_D_=PEN_D, PR_N_=PR_N, FKD0_=FKD[0], FKD_STEP_=FKD[1] - FKD[0], FKX1_=FKX[1], FKX2_=FKX[2])
     src = ''.join(f'%define {k} {v}\n' for k, v in defs.items()) + ASM + data
     sym = {'A6': u['a6'], 'SHOW_MENU': (1, u['show']), 'EXITM': u['exitm'], 'OLD_SEL': old,
            'GO': (4, work[1]), 'KIND': (4, work[1] + 1), 'DEF': (4, work[1] + 2), 'O2BASE': (2, 0),
-           'TESTFOUL': (1, g['TESTFOUL']), **{k: (0, v) for k, v in g.items() if k != 'TESTFOUL'}}
+           'TESTFOUL': (1, g['TESTFOUL']), 'TVIS': (2, tvis), 'INITDS': (1, ids), 'PMMENU': (2, pmmenu),
+           'SHOWMENU': pmshow, 'PNTS': (2, pnts), 'PMT1': (2, pmt1), 'SETBENCH': sbench,
+           'KMA': (2, kma), 'KSL': (2, ksl), 'TXTA': (2, txta), 'SETBTN': setbtn,
+           **{k: (4, work[1] + o) for k, (o, _) in BUF.items()},
+           **{k: (0, v) for k, v in g.items() if k != 'TESTFOUL'}}
     code, fix, rel = nasmcave.assemble_obj(src, at, sym, 4)
     lab = nasmcave.labels(src, at, sym)
     assert p.le.obj(4).npages * 0x1000 >= swreg.PRACTICE_END, 'practice: obj4 pages (patch.py)'
     left = swreg.PRACTICE_END - at - len(code)
-    assert left >= 256, ('practice: past its obj4 band (MC: >= 256 B left; ask MC before more)', left)
+    floor = int(os.environ.get('PRACTICE_BAND_FLOOR', '256'))     # (MC's floor; a test build may lower it)
+    assert left >= floor, ('practice: past its obj4 band (MC: >= 256 B left; ask MC before more)', left)
     assert not any(p.get(4, at, swreg.PRACTICE_END - at)), 'practice: obj4 band not free'
     p.put(4, at, code)
     for o, t_obj, t_off in fix:
@@ -617,9 +776,19 @@ def patch(p, lang):
     p.remove(2, sel)                                    # squadMenu entry 6's on-select: SelectTraining -> pr_open
     p.add_ptr(2, sel, 4, lab['pr_open'])
     p.branch(1, hk, 0xE8, 4, lab['pr_frame'])           # GameLoop's per-pass nullsub call -> pr_frame (step 2)
+    p.remove(1, tm + 3)                                 # UpdateTime's mov visible, 1 + call InitDisplaySprites (14 B)
+    p.branch(1, tm, 0xE8, 4, lab['pr_time'], n=14)      #  -> call pr_time (no clock in a practice)
+    p.remove(1, pm + 2)                                 # ShowPlayMatchMenu's mov [A6], playMatchMenu + call ShowMenu
+    p.remove(1, pm + 6)                                 #  (15 B) -> call pr_pmm (no pre-match screen in a practice)
+    if p.rel_target(1, pm + 11):
+        p.remove(1, pm + 11)
+    p.branch(1, pm, 0xE8, 4, lab['pr_pmm'], n=15)
     LABELS.clear()
     LABELS.update(lab)
     LABELS['PR_WORK'] = work
+    kg = code.find(b'\x0f\x1f\x44\x00\xd8')
+    assert kg > 0 and code.count(b'\x0f\x1f\x44\x00\xd8') == 1
+    LABELS['KG_PR'], LABELS['KG_SITE'] = at + kg, kgsite
     LABELS['ENT6_SEL'] = (2, sel)
     LABELS['HOOK'] = (1, hk)
     LABELS['GAME'] = g

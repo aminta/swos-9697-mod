@@ -396,7 +396,7 @@ def patch_exe(src, dst, remap, lang='it'):
     OBJ1MV_ON[0] = bool(mkseason.worlds())             # 4.2 OBJ1MV (MC 13/11): every build with worlds (shirtedit +
     if OBJ1MV_ON[0]:                                   # instcheck; the SEASON WINNERS page when fmtpage has it)
         swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, (swreg.OBJ1MV_END + 0xFFF) // 0x1000)   # (its band's pages, out of obj1)
-    swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, swreg.PRACTICE_END // 0x1000)   # 4.2 set-piece practice (MC 14/11: the last band)
+    swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, -(-swreg.PRACTICE_END // 0x1000))   # 4.2 set-piece practice (MC 14/11: the last band)
     swe.OBJ4_PAGES = sreg.obj4_pages(swe.OBJ4_PAGES)   # (4.2 N7: + the old-save import's 12th page, SREG2_AT)
     if lr_tabs:                                        # (the career league's head-to-head block)
         engine.save_item('LR', lrank.LR_SIZE, world_only=True)
@@ -1042,6 +1042,7 @@ def patch_exe(src, dst, remap, lang='it'):
     benchx.link_w27(p)                           # (4.0.6 step 2.5: the friendlies' long bench by SWE_W27)
     import kits                                  # 4.2 K2 keepers + R1 referee (after swe: swe_match_w27)
     kits.patch(p)
+    practice.link_kits(p)                        # (4.2 practice: pr_pmm's kg_cancel site, after kits.py)
     tailzero.patch(p, tz_at, obj2_free + o2pages * p.le.page_size, (tail + 3) & ~3, nasmcave,   # (DOS/4GW: not zeroed;
                    0x1000 * OBJ3_PAGES, (cg_bss + 3) & ~3)                  # 4.0.6: obj3's tail too)
     o1n, o2n = p.le.obj(1).npages, p.le.obj(2).npages

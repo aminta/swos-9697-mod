@@ -40,7 +40,7 @@ typedef struct { uint8_t file, rows; uint16_t base; uint8_t ord0, pad[3]; } sreg
 enum { WS_W = 1, WS_G = 2, WS_O8 = 3, WS_K = 4, WS_R = 5, WS_D = 6 };
 enum { WI_CFB = 0, WI_CACHE = 1, WI_MAIN = 2, WI_CFBH = 3 };
 #define WS_END 0xFFFF
-#define WS_MAX 128                              /* WSITES' room: rows + the WS_END row (wsites.py asserts) */
+#define WS_MAX 96                               /* WSITES' room: rows + the WS_END row (wsites.py asserts) */
 extern sreg_wsite WSITES[WS_MAX];                /* s7swap.c (.data, filled by s7swap.py from wsites.ROWS) */
 typedef void (*sreg_rekey)(void);
 extern sreg_rekey WS_KEYS[];                     /* WS_K's callbacks: none yet */

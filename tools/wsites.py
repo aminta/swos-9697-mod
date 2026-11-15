@@ -8,7 +8,7 @@ import struct
 
 TEST = os.environ.get('S7_WSITES_TEST') == '1'       # (host-test builds only: TEST_ROWS instead of ROWS)
 
-WI_CFB, WI_CACHE, WI_MAIN, WI_CFBH, WS_END, WS_MAX = 0, 1, 2, 3, 0xFFFF, 128   # (WI_CFBH: careerFileBuffer + 0x10000)
+WI_CFB, WI_CACHE, WI_MAIN, WI_CFBH, WS_END, WS_MAX = 0, 1, 2, 3, 0xFFFF, 96    # (WI_CFBH: careerFileBuffer + 0x10000)
 WS_W, WS_G, WS_O8, WS_K, WS_R, WS_D = 1, 2, 3, 4, 5, 6
 # WS_R rows: entries are u8 and contiguous, so stride is not a step: stride = fill | file << 8 (file 0 = the file is the
 # item's byte at aux). CD ent's file is the build's Serie D file: CD_FILE[0], set by s7swap.late (CD_TAB[2]) before rows()

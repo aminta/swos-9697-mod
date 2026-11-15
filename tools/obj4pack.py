@@ -2,7 +2,7 @@
 writes swreg.py and builds nothing.
 
     python3 tools/obj4pack.py c/RELxx [--out DIR] [--map obj1-room.md] [--ship NAME,...] [--test NAME,...]
-    python3 tools/obj4pack.py --verify c/RELyy DIR/obj4pack.json
+    python3 tools/obj4pack.py --verify c/RELyy DIR/obj4pack.json [--allow NAME,...]
 
 Proposal (a release build dir: its 8 exes + build.log, measured on this checkout's swreg):
  - the bands and their classes come from obj1-room.md's obj4 map (its table order = the map order): '(test)' rows and
@@ -281,17 +281,26 @@ def compare(prop, bl, now):
     return errs
 
 
-def verify(rel, prop, mod=None):
-    """-> (ok, report). prop: obj4pack.json's dict."""
+def verify(rel, prop, mod=None, allow=()):
+    """-> (ok, report). prop: obj4pack.json's dict. obj4check's failures per exe (info lines left out); a zero page
+    below the first packed band is marked as outside the packing (there before the freeze too) - still a finding."""
+    import le
     if mod is None:
         import swreg as mod
     bl = oc.bands(mod)
     out = [f"obj4pack --verify {rel} against the proposal for {prop['rel']}"]
-    ok4, rep4 = oc.check_release(rel, mod)
+    lo = min([p['at'] for p in prop['plan'] if p['cls'] == 'release'], default=0)
+    logp = os.path.join(rel, 'build.log')
+    ext = oc.log_extents(open(logp, errors='replace').read()) if os.path.exists(logp) else {}
+    f4 = {}
+    for x in oc.EXES:
+        for f in oc.check_obj4(le.LE(os.path.join(rel, x)).obj_bytes(4), bl, ext.get(x, []), allow)[0]:
+            m = re.match(r'\(a\) zero page obj4\+(0x[0-9a-f]+)', f)
+            f4.setdefault(f + (' [below the packed range]' if m and int(m.group(1), 16) < lo else ''), []).append(x)
     errs = compare(prop, bl, measure(rel, bl))
-    if not ok4:
-        errs += ['obj4check findings on the new build:'] + ['  ' + s for s in rep4.splitlines() if s.startswith('  (')]
-    out.append(f"{len(prop['plan'])} bands planned; obj4check {'0 findings' if ok4 else 'FAIL'}; "
+    for f, xs in f4.items():
+        errs.append(f"obj4check {f} ({'all 8 exes' if len(xs) == len(oc.EXES) else ', '.join(xs)})")
+    out.append(f"{len(prop['plan'])} bands planned; obj4check {len(f4)} distinct finding(s); "
                f"used bytes compared on {len(prop['used'])} exes")
     return not errs, '\n'.join(out + errs + ['VERIFY ' + ('PASS' if not errs else 'FAIL')])
 
@@ -299,7 +308,8 @@ def verify(rel, prop, mod=None):
 def main(argv):
     if '--verify' in argv:
         i = argv.index('--verify')
-        ok, rep = verify(argv[i + 1], json.load(open(argv[i + 2])))
+        al = argv[argv.index('--allow') + 1].split(',') if '--allow' in argv else ()
+        ok, rep = verify(argv[i + 1], json.load(open(argv[i + 2])), allow=al)
         print(rep)
         return 0 if ok else 1
     args = [a for a in argv if not a.startswith('--')]

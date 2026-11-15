@@ -44,19 +44,20 @@ import nasmcave
 LABELS = {}
 WORK_SZ = 112                           # (swe.c PR_WORK: WK below, then the text buffers BUF - .bss, not band bytes)
 WK = dict(GO=0, KIND=1, DEF=2, ST=3, TMR=4, CY=6, ATK=7, NT=8, NG=10, NFAIL=12, PG=14, NFR=16, HUM=20, LGS=21,
-          RST=22, MAXR=24, END=26)
+          RST=22, MAXR=24, STS=26, STN=27, BRS=28, END=29)
 BUF = dict(MTXT=(32, 24), RT=(56, 24), R1=(80, 16), R2=(96, 16))   # (written before each page is shown)
 WAITF, ATTF, SETTLE, CLEAR = 20, 560, 25, 240   # frames of play before forcing; an attempt's 8 s (70 Hz); frames after a
                                                 # stoppage that still count a goal; px from the goal line = cleared (~40 m)
 FKD, FKX, FKORD, PEN_D = (100, 125, 150, 175), (336, 290, 382), 10, 40
 PR_N = 10                               # (Davide 14/11, A + B: a practice ends by itself after 10 attempts; ESC any time)
-RES = {'it': ('TIRI ', 'GOL ', 'OK'), 'en': ('SHOTS ', 'GOALS ', 'OK'), 'fr': ('TIRS ', 'BUTS ', 'OK'),
-       'de': ('SCHUESSE ', 'TORE ', 'OK')}  # (the result page: 'TIRI 10', 'GOL 3', OK - the counts drawn up to 3 digits)
+RES = {'it': ('TIRI ', 'GOL ', 'OK', 'RIPROVA'), 'en': ('SHOTS ', 'GOALS ', 'OK', 'TRY AGAIN'),
+       'fr': ('TIRS ', 'BUTS ', 'OK', 'REJOUER'), 'de': ('SCHUESSE ', 'TORE ', 'OK', 'NOCHMAL')}
+RW = 96                                 # (item 6, Davide 15/11: OK and RIPROVA side by side, each RW px wide)  # (the result page: 'TIRI 10', 'GOL 3', OK - the counts drawn up to 3 digits)
 ROWS = {      # TRAINING, FREE KICK, PENALTY, CORNER, ATTACK, DEFENCE, BACK (the title = the squad screen's button)
-    'it': ('ALLENAMENTO', 'PROVA PUNIZIONI', 'PROVA RIGORI', "PROVA CALCI D'ANGOLO", 'ATTACCO', 'DIFESA', 'INDIETRO'),
-    'en': ('TRAINING MATCH', 'FREE KICK PRACTICE', 'PENALTY PRACTICE', 'CORNER PRACTICE', 'ATTACK', 'DEFENCE', 'BACK'),
-    'fr': ('MATCH D ENTRAINEMENT', 'COUPS FRANCS', 'PENALTYS', 'CORNERS', 'ATTAQUE', 'DEFENSE', 'RETOUR'),
-    'de': ('TRAININGSSPIEL', 'FREISTOESSE', 'ELFMETER', 'ECKBAELLE', 'ANGRIFF', 'ABWEHR', 'ZURUECK'),
+    'it': ('ALLENAMENTO', 'PROVA PUNIZIONI', 'PROVA RIGORI', "PROVA CALCI D'ANGOLO", 'GIOCA IN ATTACCO', 'GIOCA IN DIFESA', 'INDIETRO'),
+    'en': ('TRAINING MATCH', 'FREE KICK PRACTICE', 'PENALTY PRACTICE', 'CORNER PRACTICE', 'PLAY IN ATTACK', 'PLAY IN DEFENCE', 'BACK'),
+    'fr': ('MATCH D ENTRAINEMENT', 'COUPS FRANCS', 'PENALTYS', 'CORNERS', 'JOUER EN ATTAQUE', 'JOUER EN DEFENSE', 'RETOUR'),
+    'de': ('TRAININGSSPIEL', 'FREISTOESSE', 'ELFMETER', 'ECKBAELLE', 'ANGRIFF SPIELEN', 'ABWEHR SPIELEN', 'ZURUECK'),
 }
 TITLE = {'it': 'PRATICA', 'en': 'TRAINING', 'fr': 'ENTRAINEMENT', 'de': 'TRAINING'}
 X, W, H, Y0, DY = 52, 200, 15, 40, 22   # the rows (menu coordinates), title at y 12
@@ -90,6 +91,7 @@ pr_open:                                ; squadMenu entry 6 (TRAINING), on selec
     jz .x
     dec eax
     mov [KIND], al                      ; 0 training, 1 free kicks, 2 penalties, 3 corners
+.again:
     push edi                            ; (the engine's state and counters from zero: W_ST .. W_END)
     push ecx
     mov edi, KIND + 2
@@ -103,8 +105,17 @@ pr_open:                                ; squadMenu entry 6 (TRAINING), on selec
     je .x0
     cmp word [KIND - 1 + W_NT_], 0
     je .x0
+    mov byte [GO], 0
     call pr_result
-.x0:mov byte [KIND], 0
+    cmp byte [GO], 81h                  ; (item 6: RIPROVA - the same KIND / DEF, the counters from zero)
+    je .again
+.x0:movzx eax, byte [KIND]              ; (bug 3, Davide 15/11: after a practice the PRACTICE page again, on its row;
+    mov byte [KIND], 0                  ;  the training match: the squad screen as before)
+    test eax, eax
+    jz .x
+    add eax, R_TRAIN_
+    mov [PR_MENU + 12], eax
+    jmp .show
 .x: ret
 
 pr_go:                                  ; a row: al = PR_GO; leave the page
@@ -125,6 +136,9 @@ pr_mode:
     jmp pr_go
 pr_back:
     xor eax, eax
+    jmp pr_go
+pr_again:                               ; (item 6: the result page's RIPROVA - the same drill and side again)
+    mov al, 81h
     jmp pr_go
 
 pr_result:                              ; after a practice: the result page (the kind's name, TIRI n, GOL m, OK)
@@ -354,6 +368,15 @@ pr_rbar:                                ; UpdateGameTimersAndCameraBreakMode's r
     mov word [RTIM], 31000
 .r: ret
 
+pr_stad:                                ; GameLoop's `mov [A6], offset stadiumMenu / call ShowMenu`: no presentation
+    cmp byte [KIND], 0                  ;  (stadium, teams, line-ups) before a practice (bug 4, Davide 15/11); the
+    jne .r                              ;  training match keeps it. ShowStadiumInit leaves nothing the match reads
+    inc byte [KIND - 1 + W_STN_]        ;  (stad.256 in title memory, the little players' colours, mouseInstalled)
+    mov dword [A6], STADM               ;  (the harness: STN screens shown, STS skipped)
+    jmp near STADSHOW
+.r: inc byte [KIND - 1 + W_STS_]
+    ret
+
 pr_pmm:                                 ; ShowPlayMatchMenu's `mov [A6], offset playMatchMenu / call ShowMenu`: no
     cmp byte [KIND], 0                  ;  pre-match screen in a practice (Davide 15/11) - what the screen leaves:
     jne .p                              ;  its init's bench numbers (SetBenchPlayersNumbers, team 1; game data), then
@@ -460,11 +483,30 @@ pr_foul:                                ; FREE KICK / PENALTY: a foul on the att
     shl edi, 16
     mov [esi + 1Eh], edi
     mov [ebp + A2_O], esi
+    push esi
     push ebx
     push ebp
     call near TESTFOUL
     pop ebp
     pop ebx
+    pop esi
+    movzx eax, word [ebp + GS_O]        ; (item 5, Davide 15/11: a foul awarded - gameState 6..14 - the ball at once on
+    cmp eax, 6                          ;  the ground at the foul point, still: a ball the keeper held or parried no
+    jb .r                               ;  longer hangs in the air by the goal while the wall forms)
+    cmp eax, 14
+    ja .r
+    lea edi, [ebp + BALL_O]
+    mov eax, [esi + 1Eh]
+    mov [edi + 1Eh], eax
+    mov eax, [esi + 22h]
+    mov [edi + 22h], eax
+    xor eax, eax
+    mov [edi + 26h], eax                ; z 0
+    mov [edi + 2Ch], ax                 ; speed 0
+    mov [edi + 2Eh], eax                ; deltaX / deltaY / deltaZ 0
+    mov [edi + 32h], eax
+    mov [edi + 36h], eax
+    inc byte [ebx + W_BRS_]             ; (the harness: balls reset)
 .r: lea esi, [ebp + D0_O + 14 * 4]
     mov ecx, 15
 .rs:pop dword [esi]
@@ -480,7 +522,7 @@ def texts(lang):
 
 def res_texts(lang):
     """The result page's lines as drawn (the widest counts: 999)."""
-    return (RES[lang][0] + '999', RES[lang][1] + '999', RES[lang][2])
+    return (RES[lang][0] + '999', RES[lang][1] + '999', RES[lang][2], RES[lang][3])
 
 
 def check_texts():
@@ -491,6 +533,7 @@ def check_texts():
         for t in texts(lang) + res_texts(lang):
             if px(t) > W - 12 or font_odd(t):
                 bad.append((lang, t, px(t), font_odd(t)))
+    bad += [(lang, t, px(t)) for lang in RES for t in RES[lang][2:] if px(t) > RW - 12]
     assert not bad, ('practice: texts', bad)
 
 
@@ -638,6 +681,21 @@ def pm_site(p, a6):
     return o, menu[1], show, pnts[1], t1[1], p.call_target(1, sb[0] + 10)
 
 
+def stad_site(p, a6, playg):
+    """GameLoop's `mov [A6], offset stadiumMenu / call ShowMenu` (after `mov playGame, 1`; ShowHighlights has the same
+    pair): (its obj1 offset, stadiumMenu's obj2 offset, the call's target)."""
+    d = p.le.obj_bytes(1)
+    m = [x.start() for x in re.finditer(rb'\xc7\x05........\xe8', d, re.S)]
+    m = [o for o in m if _t(p, o + 2) == a6 and _t(p, o + 6) and _t(p, o + 6)[0] == 2
+         and any(d[k:k + 3] == b'\x66\xc7\x05' and d[k + 7:k + 9] == b'\x01\x00' and _t(p, k + 3) == (2, playg)
+                 for k in range(o - 0xA0, o))]
+    assert len(m) == 1, ('practice: GameLoop stadiumMenu', [hex(x) for x in m])
+    st = _t(p, m[0] + 6)
+    ini = p.target(2, st[1])
+    assert ini[0] == 1 and d[ini[1]:ini[1] + 2] == b'\x66\xc7', ('practice: stadiumMenu -> ShowStadiumInit', ini)
+    return m[0], st[1], p.call_target(1, m[0] + 10)
+
+
 def time_site(p):
     """UpdateTime's @@make_time_visible: mov ax, [currentTimeSprite.visible] / or / jnz / mov word [..visible], 1 / call
     InitDisplaySprites: (the mov's obj1 offset, visible's obj2 offset, InitDisplaySprites' obj1 offset)."""
@@ -742,7 +800,7 @@ def patch(p, lang):
         up = i if i else 0xFF                               # (entry numbers: row i = entry i + 1)
         dn = i + 2 if i < 5 else 0xFF
         txt = 'MTXT' if i == 4 else f'S_{i}'
-        col = '0Ch' if i == 5 else '0Eh'
+        col = '0Ch' if i == 5 else '0Bh' if i == 4 else '0Eh'   # (C, Davide 15/11: the switch in its own colour)
         data += (f'    dw {X}, {Y0 + DY * i}, {W}, {H}, 2\n    db 255, 255, {up}, {dn}\n'
                  f'    dw 4, {col}, 8, 0\n    dd {txt}\n    dw 13\n    dd {sels[i]}\n    dw 0\n')
     data += '    dw -999\n'
@@ -753,9 +811,11 @@ def patch(p, lang):
     data += '    dw 0, 12, 304, 14\n    dw 4, 17h, 8, 0\n    dd RT\n    dw 0\n'
     for i, b in ((1, 'R1'), (2, 'R2')):
         data += f'    dw {X}, {Y0 + DY * (i - 1)}, {W}, {H}\n    dw 4, 0Eh, 8, 0\n    dd {b}\n    dw 0\n'
-    data += (f'    dw {X}, {Y0 + DY * 3}, {W}, {H}, 2\n    db 255, 255, 255, 255\n'
-             f'    dw 4, 0Ch, 8, 0\n    dd S_OK\n    dw 13\n    dd pr_back\n    dw 0\n    dw -999\n')
-    data += f'S_SH: db {q(rs[0])}\nS_GL: db {q(rs[1])}\nS_OK: db {q(rs[2])}\n'
+    data += (f'    dw {X}, {Y0 + DY * 3}, {RW}, {H}, 2\n    db 255, 4, 255, 255\n'
+             f'    dw 4, 0Ch, 8, 0\n    dd S_OK\n    dw 13\n    dd pr_back\n    dw 0\n'
+             f'    dw {X + W - RW}, {Y0 + DY * 3}, {RW}, {H}, 2\n    db 3, 255, 255, 255\n'
+             f'    dw 4, 0Eh, 8, 0\n    dd S_AG\n    dw 13\n    dd pr_again\n    dw 0\n    dw -999\n')
+    data += f'S_SH: db {q(rs[0])}\nS_GL: db {q(rs[1])}\nS_OK: db {q(rs[2])}\nS_AG: db {q(rs[3])}\n'
     data += 'align 4\nKTAB: dd S_1, S_2, S_3\n'
     assert max(len(t) for t in tx[2:5]) < 24 and max(len(t) for t in res_texts(lang)) < 16
     data += f'align 4\nPRTAG: db {q(TAG)[:-3]}\n    dd KIND - 1\n'   # (the harness: the tag, then PR_WORK)
@@ -771,6 +831,7 @@ def patch(p, lang):
     pg = _t(p, hk + 7)                  # (the site's next instruction: mov ax, [playGame])
     assert pg and pg[0] == 2, ('practice: playGame', pg)
     g = dict(g, PLAYG_O=pg[1])
+    sd, stadm, stshow = stad_site(p, u['a6'], pg[1])
     assert FKD == tuple(FKD[0] + (FKD[1] - FKD[0]) * k for k in range(4)) and FKX[0] == 336
     assert work[1] % 4 == 0 and WORK_SZ >= WK['END'], 'practice: PR_WORK (swe.c u8 PR_WORK[WORK_SZ], aligned 4)'
     assert WK['END'] <= min(o for o, _ in BUF.values()) and max(o + n for o, n in BUF.values()) <= WORK_SZ
@@ -780,7 +841,7 @@ def patch(p, lang):
     src = ''.join(f'%define {k} {v}\n' for k, v in defs.items()) + ASM + data
     sym = {'A6': u['a6'], 'SHOW_MENU': (1, u['show']), 'EXITM': u['exitm'], 'OLD_SEL': old,
            'GO': (4, work[1]), 'KIND': (4, work[1] + 1), 'DEF': (4, work[1] + 2), 'O2BASE': (2, 0),
-           'TESTFOUL': (1, g['TESTFOUL']), 'TVIS': (2, tvis), 'RTIM': (2, rtim), 'INITDS': (1, ids), 'PMMENU': (2, pmmenu),
+           'TESTFOUL': (1, g['TESTFOUL']), 'TVIS': (2, tvis), 'RTIM': (2, rtim), 'INITDS': (1, ids), 'PMMENU': (2, pmmenu), 'STADM': (2, stadm), 'STADSHOW': stshow,
            'SHOWMENU': pmshow, 'PNTS': (2, pnts), 'PMT1': (2, pmt1), 'SETBENCH': sbench,
            'KMA': (2, kma), 'KSL': (2, ksl), 'TXTA': (2, txta), 'SETBTN': setbtn,
            **{k: (4, work[1] + o) for k, (o, _) in BUF.items()},
@@ -810,8 +871,14 @@ def patch(p, lang):
     if p.rel_target(1, pm + 11):
         p.remove(1, pm + 11)
     p.branch(1, pm, 0xE8, 4, lab['pr_pmm'], n=15)
+    p.remove(1, sd + 2)                                 # GameLoop's mov [A6], stadiumMenu + call ShowMenu (15 B)
+    p.remove(1, sd + 6)                                 #  -> call pr_stad (no presentation before a practice)
+    if p.rel_target(1, sd + 11):
+        p.remove(1, sd + 11)
+    p.branch(1, sd, 0xE8, 4, lab['pr_stad'], n=15)
     LABELS.clear()
     LABELS.update(lab)
+    LABELS['STAD'] = (1, sd)
     LABELS['PR_WORK'] = work
     kg = code.find(b'\x0f\x1f\x44\x00\xd8')
     assert kg > 0 and code.count(b'\x0f\x1f\x44\x00\xd8') == 1

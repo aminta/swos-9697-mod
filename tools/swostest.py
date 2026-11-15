@@ -11049,7 +11049,7 @@ def practice_work(r):
     return f
 
 
-def practice_play(kind, side, esc_at=None):
+def practice_play(kind, side, esc_at=None, again=False):
     """4.2 set-piece practice, step 2 (the engine, MC 14/11): a World 2026-27 career (PRACTICE_BUILD / BENCH_BUILD: a
     release dir; TRAIN_PATH), SQUADRA -> TRAINING -> (DEFENCE: the switch) -> the kind's row -> the training game:
     the engine forces the set piece again and again (fire pressed throughout: the human takes its own kicks). Gates:
@@ -11107,10 +11107,14 @@ def practice_play(kind, side, esc_at=None):
         w = practice_work(s.result)
         if w is None:
             return False, 'PR_WORK not found (no PRWK tag in the PRACTICE band)'
+        if 'STS' in practice.WK:                # (bug 4, Davide 15/11: no stadium / teams / line-ups before a practice)
+            check(w['STS'] == 1 and w['STN'] == 0, f'kick-off: the presentation skipped {w["STS"]}, shown {w["STN"]} '
+                  '(want 1 / 0)', errs)
         check(w['KIND'] == row and w['DEF'] == (side == 'def'), f'kick-off: PR_KIND {w["KIND"]} PR_DEF {w["DEF"]} '
               f'(want {row}, {int(side == "def")})', errs)
         awards, shots, clock, ko = {}, 0, 0, 0
         bar, bar_gs = 0, {}                     # (Davide 15/11: no score bar on a practice restart - resultTimer != 0
+        hang = 0                                # (item 5, Davide 15/11: after the whistle no ball left in the air)
         for it in range(int(os.environ.get('PRACTICE_STEPS', '160'))):
             r = s.send('fire:1 dump:1')
             if r.outcome != 'dump':
@@ -11125,6 +11129,13 @@ def practice_play(kind, side, esc_at=None):
                 if bar == 1:
                     s.shot(f'{tag}_scorebar')
             ko += gs == 0 and w['NT'] == 0      # (ST_PLAYERS_TO_INITIAL_POSITIONS before the first attempt: a kick-off)
+            if w['ST'] == 2 and kind in ('fk', 'pen') and 6 <= gs <= 14:
+                bz = struct.unpack('<i', r.obj2(g['BALL_O'] + 0x26, 4))[0] >> 16
+                gsp = struct.unpack('<h', r.obj2(g['GSP_O'], 2))[0]
+                if bz > 1 and gsp in (101, 102):    # (the restart not taken yet: a kicked ball may fly)
+                    hang += 1
+                    if hang == 1:
+                        s.shot(f'{tag}_hang')
             if w['ST'] == 2 and gs != 100:      # (an award before its kick: the last sample = the ball placed; gameState
                 prev = awards.get(w['NT'])      # (the ball's y once placed: gameStatePl 102, waiting on the taker)
                 by = struct.unpack('<i', r.obj2(g['BALL_O'] + 0x22, 4))[0] >> 16 \
@@ -11137,6 +11148,9 @@ def practice_play(kind, side, esc_at=None):
             if w['NT'] >= want and (esc_at or w['ST'] in (0, 1, 3, 4)):
                 break
         awards = list(awards.values())
+        if kind in ('fk', 'pen') and 'BRS' in practice.WK:
+            check(hang == 0 and w['BRS'] >= 1, f'{name}: the ball in the air after the whistle in {hang} samples, '
+                  f'balls reset {w["BRS"]} (want 0 / >= 1)', errs)
         if w['NT'] < want and not esc_at:       # (a stalled attempt: who stands where - the post-mortem)
             r = s.result
             sp = lambda i, o, n=2: struct.unpack('<h' if n == 2 else '<b', r.obj2(g['SPR0_O'] + i * 0x6E + o, n))[0]
@@ -11210,11 +11224,45 @@ def practice_play(kind, side, esc_at=None):
         check(all(x in res for x in want_t), f'result page {res} (want {want_t})', errs)
         check(scr.selected == 3, f'result page: the cursor on entry {scr.selected} (want 3, OK)', errs)
         info.append(f'result page {res}' + (' (after ESC)' if esc_at else ' (by itself)'))
-        if press(s, scr, practice.RES[lang][2], 3) is None:
+        check(practice.RES[lang][3] in res, f'result page: no {practice.RES[lang][3]} button ({res})', errs)
+        if again:                               # (item 6, Davide 15/11: RIPROVA - the same drill and side again,
+            if press(s, scr, practice.RES[lang][3], 3) is None:     #  the counters from zero; ESC before an attempt:
+                return False, '; '.join(errs + info + [f'result page: {practice.RES[lang][3]} not pressed'])
+            e = practice_no_prematch(s)         #  no result page, the practice page)
+            if e:
+                errs.append('RIPROVA: ' + e)
+            if train_kickoff(s, top, bot, True) is None:
+                return False, '; '.join(errs + info + [f'RIPROVA: no kick-off ({s.result})'])
+            w = practice_work(s.result)
+            check(w['KIND'] == row and w['DEF'] == (side == 'def') and w['NT'] == 0 and w['STS'] == 1,
+                  f'RIPROVA kick-off: PR_KIND {w["KIND"]} DEF {w["DEF"]} NT {w["NT"]} presentation skipped {w["STS"]} '
+                  f'(want {row} / {int(side == "def")} / 0 / 1)', errs)
+            info.append('RIPROVA: the same drill again')
+            s.shot(f'{tag}_again')
+            s.send('esc:0.5 dump:2')
+            for _ in range(20):
+                try:
+                    if s.screen().find(practice_rows()[1], exact=True) is not None:
+                        break
+                except Exception:
+                    pass
+                s.send('dump:1')
+            nt = ng = 0
+        elif press(s, scr, practice.RES[lang][2], 3) is None:
             return False, '; '.join(errs + info + [f'result page: OK not pressed ({s.result})'])
         q = s.screen()
+        t = practice_rows()                     # (bug 3, Davide 15/11: OK -> the PRACTICE page, the cursor on its row)
+        if q.find(t[1], exact=True) is not None:
+            check(q.selected == 1 + row, f'after OK: the practice page, cursor on entry {q.selected} (want {1 + row})',
+                  errs)
+            info.append('after OK: the practice page')
+            if not practice_pick(s, 5, errs):   # (BACK: the squad screen)
+                return False, '; '.join(errs + info)
+            q = s.screen()
+        else:
+            errs.append(f'after OK: not the practice page ({", ".join(q.texts())[:120]})')
         check({TRAIN_TXT[UI][1], TRAIN_TXT['it'][1]} & set(q.texts()),
-              f'after OK: not the squad screen ({", ".join(q.texts())[:120]})', errs)
+              f'after BACK: not the squad screen ({", ".join(q.texts())[:120]})', errs)
         s.healed = heal_first16(s)              # (as train_out: a training injury would hide the league's play button)
         w = practice_work(s.result)
         check(w['KIND'] == 0, f'after the training game: PR_KIND {w["KIND"]} (want 0)', errs)
@@ -11225,6 +11273,8 @@ def practice_play(kind, side, esc_at=None):
         if r is not None:
             s.send('dump:3')
             w = practice_work(s.result)
+            if 'STN' in practice.WK:            # (the positive control: the league match keeps its presentation)
+                check(w['STN'] >= 1, f'league match: the presentation shown {w["STN"]} times (want >= 1)', errs)
             check(w['KIND'] == 0 and w['NFR'] == nfr, f'league match: PR_KIND {w["KIND"]}, engine frames {nfr} -> '
                   f'{w["NFR"]} (want idle)', errs)
             info.append('league match after it: engine idle')
@@ -11322,6 +11372,9 @@ def practice_car_run(mode, errs, info):
                 w = practice_work(s.result)
                 info.append(f'{mode}: result page {t[:4]}, attempts {w["NT"]}')
                 press(s, s.screen(), practice.RES['it'][2], 3)
+                continue
+            if tx[1] in t and tx[7] in t:       # (bug 3, Davide 15/11: OK -> the practice page; BACK -> the squad screen)
+                press(s, s.screen(), tx[7], 3)
                 continue
             if TRAIN_TXT['it'][1] in t:
                 break
@@ -11466,6 +11519,8 @@ def practice_tour():
                     s.shot(f'tour_{kind}_result')
                     info.append(f'{kind}: {t[:4]}')
                     press(s, s.screen(), practice.RES[lang][2], 3)
+                    s.send('dump:1')
+                    s.shot(f'tour_{kind}_back')     # (item 3: OK -> the practice page)
                     break
                 s.send('dump:1')
             else:
@@ -11524,6 +11579,14 @@ for _k in PR_KINDS:
             f.__doc__ = f'practice_play({k!r}, {sd!r}): ' + (practice_play.__doc__ or '').split('\n')[0]
             return f
         scenario(_mk())
+
+
+@scenario
+def practice_pen_again():
+    """practice_play('pen', 'att', esc_at=2, again=True): item 6 (Davide 15/11): the result page's RIPROVA starts the same
+    drill again (PR_KIND / DEF kept, the counters from zero, no presentation); ESC before an attempt -> the practice
+    page, BACK -> the squad screen, the league match after it."""
+    return practice_play('pen', 'att', esc_at=2, again=True)
 
 
 @scenario

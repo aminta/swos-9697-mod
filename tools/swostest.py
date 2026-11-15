@@ -32328,6 +32328,8 @@ def world_full_uefa():
                 os.environ.pop(k, None)
             else:
                 os.environ[k] = v
+    require(not msg.startswith('SKIP'), f'world_full_uefa needs the full 2026-27 build: set W2627FULL (+ W2627FULL_DATA) '
+            f'({msg})')                                # (MC 15/11: a SETUP, never a false FAIL, when no full build is given)
     errs = []
     check(ok, msg, errs)
     car = os.path.join(RUNS, w84_tag() + '_1', 'SWOS', 'W84A.CAR')

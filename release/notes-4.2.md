@@ -75,7 +75,7 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 
 ### Novità
 
-#### Posto in Serie D
+#### Collocazione in Serie D
 - Serie D: le squadre promosse in Serie D ora entrano nel girone della loro zona. Se quel girone è già pieno, una delle sue squadre passa a un girone confinante per fare posto. Non è mai la tua squadra e nessuna squadra viene spostata più di una volta a stagione, come fa la Lega con le squadre al confine tra due gironi.
 
 #### La tua carriera 4.1 nella nuova Italia della 4.2

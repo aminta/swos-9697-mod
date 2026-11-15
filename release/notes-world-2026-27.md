@@ -529,12 +529,15 @@ Cearense, Pernambucano, Alagoano and Mato-Grossense.
   every club that comes down to Serie C joins the group of its region (a fixed geography table: Lombardy, Piedmont,
   Aosta Valley, Trentino-Alto Adige, Veneto, Friuli-Venezia Giulia -> A; Emilia-Romagna, Liguria, Tuscany, Umbria,
   Marche, Lazio, Abruzzo, Molise, Sardinia -> B; Campania, Apulia, Basilicata, Calabria, Sicily -> C; Serie C clubs
-  keep their own group), then the groups are balanced to 20 clubs each. The Serie B and
+  keep their own group), then the groups are balanced to 20 clubs each. Since 4.2 this is only the first step: then
+  the Serie C and Serie D groups are drawn again every summer by geography (see "Serie C and Serie D groups drawn
+  again every summer" below). The Serie B and
   Serie C play-offs and the Serie B play-out are playable (see the engine notes).
 - Serie C relegates as in reality: in each group the 20th goes down and the 16th-19th
   play the play-out (16th v 19th, 17th v 18th, two legs, the return leg at the better placed club; level on aggregate:
   the better placed stays; no play-out when the two clubs are 8 or more points apart: the worse placed goes down).
-  The 9 relegated clubs go down to the Serie D and the 9 Serie D group winners come up into the group of their area.
+  The 9 relegated clubs go down to the Serie D and the 9 Serie D group winners come up into the group of their area
+  (then the summer redraw).
 - Serie D, 156 of 162: Italy's team file holds 256 clubs (20 + 20 + 60 + 156), so 6 of the real 162 Serie D clubs
   wait outside: the weakest newly promoted squads (Lascaris, Pavonese, Virtus Bolzano, Grassina, Citta di Anagni,
   Melfi). They are the first clubs of the Eccellenza pool and come up to the Serie D at the first season end. In 4.1:
@@ -542,8 +545,16 @@ Cearense, Pernambucano, Alagoano and Mato-Grossense.
 - The Eccellenza pool: 42 real clubs outside the team file, with real squads (the 6 above, then the 36 relegated from
   the Serie D in 2025-26, in order of their finish). Each season the 36 clubs relegated from the Serie D leave the
   world into the pool and the next 36 of the pool come up in their place, each into the Serie D group of its area
-  (the groups keep their sizes); the pool turns over, so a relegated club can come back later. Each season the Serie
-  D groups are re-formed by area, as in reality, so a club can move to a neighbouring group.
+  (the groups keep their sizes); the pool turns over, so a relegated club can come back later.
+- Serie C and Serie D groups drawn again every summer (4.2): from the end of season 1 both leagues' groups are drawn
+  again after promotions and relegations, as the leagues really do, by one fixed geographic rule: every club to the
+  group whose clubs live nearest (last season's groups), every group its size (Serie C 3 x 20, Serie D 9 x 18), a club
+  already in a fitting group stays; island clubs count from their mainland port. Your club can change group too and
+  keeps squad, money and record. Serie C second teams: never two in a group and a new group every summer (Lega Pro
+  rule), the group drawn with the career's seed. The leagues publish no formula and move some border clubs back and
+  forth each summer: from the real 2025-26 groups the rule finds the real 2026-27 group of 92% of the Serie C clubs and
+  78% of the Serie D ones (75% on the summer before); no hand-made exceptions (Davide). If the groups can't be drawn,
+  the placement by area above stays.
 - Your club relegated from the Serie D to the Eccellenza is sacked (job offers).
 - Nobody goes down from a country's lowest division in the world (except the Serie D, relegated to the Eccellenza pool), and play-offs against a tier outside the world are
   not played: e.g. Switzerland's 11th does not meet the Challenge League's 2nd, Korea's 10th and 11th play no K
@@ -1245,12 +1256,14 @@ Baiano, Cearense, Pernambucano, Alagoano e Mato-Grossense.
   ogni club che scende in Serie C va nel girone della sua regione (una tabella geografica fissa: Lombardia, Piemonte,
   Valle d'Aosta, Trentino-Alto Adige, Veneto, Friuli-Venezia Giulia -> A; Emilia-Romagna, Liguria, Toscana, Umbria,
   Marche, Lazio, Abruzzo, Molise, Sardegna -> B; Campania, Puglia, Basilicata, Calabria, Sicilia -> C; i club di
-  Serie C restano nel loro girone), poi i gironi vengono bilanciati a 20 club ciascuno. I play-off di Serie B e di Serie C e il play-out di Serie B si giocano (vedi le note del motore).
+  Serie C restano nel loro girone), poi i gironi vengono bilanciati a 20 club ciascuno. Dalla 4.2 è solo il primo passo:
+  poi i gironi di Serie C e di Serie D vengono rifatti ogni estate per geografia (vedi "Gironi di Serie C e Serie D
+  rifatti ogni estate" più sotto). I play-off di Serie B e di Serie C e il play-out di Serie B si giocano (vedi le note del motore).
 - La Serie C retrocede come nella realtà: in ogni girone la 20ª scende e
   dalla 16ª alla 19ª si gioca il play-out (16ª contro 19ª, 17ª contro 18ª, andata e ritorno, ritorno in casa della
   meglio piazzata; in parità nel totale resta la meglio piazzata; niente play-out se le due squadre sono a 8 o più
   punti di distanza: scende la peggio piazzata). Le 9 retrocesse scendono in Serie D e salgono le 9 vincitrici dei
-  gironi di Serie D, nel girone della loro area.
+  gironi di Serie D, nel girone della loro area (poi il rifacimento estivo).
 - Serie D, 156 su 162: il file delle squadre italiane contiene 256 club (20 + 20 + 60 + 156), quindi 6 dei 162 club
   veri di Serie D aspettano fuori: le neopromosse con la rosa più debole (Lascaris, Pavonese, Virtus Bolzano,
   Grassina, Città di Anagni, Melfi). Sono le prime della riserva di Eccellenza e salgono in Serie D alla fine della
@@ -1259,8 +1272,17 @@ Baiano, Cearense, Pernambucano, Alagoano e Mato-Grossense.
   retrocesse dalla Serie D nel 2025-26 nell'ordine di classifica). Ogni stagione le 36 retrocesse dalla Serie D
   lasciano il mondo per la riserva e le 36 successive della riserva salgono al loro posto, ognuna nel girone di Serie
   D della sua area (i gironi tengono le loro dimensioni); la riserva gira, quindi una retrocessa può tornare più
-  avanti. Ogni stagione i gironi di Serie D si ricompongono per area, come nella realtà, quindi un club può passare a
-  un girone vicino.
+  avanti.
+- Gironi di Serie C e Serie D rifatti ogni estate (4.2): dalla fine della stagione 1 i gironi dei due campionati
+  vengono rifatti dopo promozioni e retrocessioni, come fanno davvero le leghe, con una sola regola geografica fissa:
+  ogni club nel girone le cui squadre abitano più vicine (i gironi della stagione prima), ogni girone della sua misura
+  (Serie C 3 da 20, Serie D 9 da 18), un club già in un girone adatto ci resta; i club delle isole contano dal loro
+  porto sul continente. Anche la tua squadra può cambiare girone e tiene rosa, soldi e curriculum. Seconde squadre di
+  Serie C: mai due in un girone e un girone nuovo ogni estate (regola della Lega Pro), il girone sorteggiato con il seme
+  della carriera. Le leghe non pubblicano una formula e spostano avanti e indietro ogni estate alcuni club al confine:
+  dai gironi veri 2025-26 la regola trova il girone vero 2026-27 del 92% dei club di Serie C e del 78% di quelli di
+  Serie D (75% sull'estate prima); nessuna eccezione fatta a mano (Davide). Se i gironi non si possono rifare, resta la
+  collocazione per area descritta sopra.
 - Se la tua squadra retrocede dalla Serie D in Eccellenza vieni esonerato (offerte di lavoro).
 - Nessuna squadra retrocede dall'ultima divisione di una nazione nel mondo (tranne la Serie D, che retrocede nella
   riserva di Eccellenza), e gli spareggi contro una serie fuori dal

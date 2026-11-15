@@ -31,6 +31,14 @@
 #ifndef DP_CUPWF
 #define DP_CUPWF 0
 #endif
+/* (4.2 S3 glue: DP_NOB = 1 when the pack's ko_playoffs hold the Serie B play-off + play-out (gplay's S3 path plays them):
+   dp_season no longer simulates Serie B and dp_lend no longer starts the career club's B contest - except a B phase an
+   old save already runs on dplay (DP_IN.po_win / out_win from its saved state), which finishes here: dp_rec / dp_perm /
+   dp_draw / dp_end's use of the state are not conditional. DP_BHOLD = 1 then: gplay does not run its B play-offs that
+   season end (gplay.py gp_end -> GP_SKIPPO). Not compiled in without DP_NOB: the object is the 42-int one.) */
+#ifndef DP_NOB
+#define DP_NOB 0
+#endif
 /* (test builds, DPLAY_FORCE >= 16: the play-out is held whatever the points) */
 #define OUT_HELD(t) ((t)[15].pts <= (t)[16].pts + 4 || DP_FORCE >= 16)
 
@@ -303,6 +311,9 @@ static void cup_force(void) {
    relegation + the play-out loser's move) and the real 17th stayed up: one relegation lost, swostest world_dplay_out
    trapped in cseg_3283C a season later (Serie B 21, a Serie C group 19) */
 u8 *DP_CFB;
+#if DP_NOB
+u8 DP_BHOLD;                            /* (set by dp_season, read by gplay.py's gp_end: 0 / 1) */
+#endif
 void dp_forcecfb(void) {
     u8 *d = DP_CFB;
     int n = *(u16 *)(d + 0x31), m = -1, k = DP_FORCE > 100 ? DP_FORCE - 100 : DP_FORCE;
@@ -333,7 +344,12 @@ void dp_season(void) {
     cup_force();
     for (int i = 0; i < NDIV * NT; i++) lot[i] = below(256);
     DP_OUT.nmv = DP_OUT.ntie = 0;
+#if DP_NOB
+    DP_BHOLD = DP_IN.po_win || DP_IN.out_win;           /* (a B phase of an old save finished on dplay) */
+    if (DP_BHOLD) serie_b();
+#else
     serie_b();
+#endif
     serie_c();
 }
 
@@ -351,6 +367,9 @@ void dp_lend(void) {
     v->kind = 0;
     for (int i = 0; i < 8; i++) v->rb[i] = 0;
     if (DP_IN.mdiv) { c_lend(); return; }
+#if DP_NOB
+    return;                                             /* (Serie B: gplay's S3 plays the career club's contest) */
+#endif
     v->sg[0] = v->sg[1] = 0;
     for (int k = 0; k < n; k++) if (t[k].team == DP_IN.mgr) m = k;
     if (n < 17 || m < 0) return;

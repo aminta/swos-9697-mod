@@ -775,6 +775,26 @@ def _contests(p, area, lfile):
 LABELS = {}
 
 
+def s3_b_mask():
+    """4.2 S3 glue: 0 when no world's ko_playoffs hold the Serie B play-off, else the bitmask (bit = the play-off's index in the
+    country's spec) of 'b_po' + 'b_pout' - gplay.c GP_SKIPPO's bits. One competition is never on both paths: the Serie B
+    play-off and play-out are BOTH in ko_playoffs, in a league with the dplay entry ('playoffs': 'ita': Serie C stays on
+    dplay), or neither (MC 14/11). At most 32 play-offs (the mask's width)."""
+    import mkseason
+    for pk in mkseason.packs():
+        lg = pk.league or {}
+        keys = [po.get('key') for po in lg.get('ko_playoffs') or []]
+        has = [k in keys for k in ('b_po', 'b_pout')]
+        if not any(has):
+            continue
+        assert all(has), "ko_playoffs: 'b_po' and 'b_pout' go together (Serie B play-off + play-out on one path)"
+        assert pk.dplay(), "ko_playoffs 'b_po' / 'b_pout' without the dplay entry (league 'playoffs': 'ita' + 'parallel')"
+        assert len(keys) <= 32, f'ko_playoffs: {len(keys)} play-offs (GP_SKIPPO is 32 bits)'
+        assert keys.count('b_po') == 1 and keys.count('b_pout') == 1, 'ko_playoffs: b_po / b_pout once each'
+        return 1 << keys.index('b_po') | 1 << keys.index('b_pout')
+    return 0
+
+
 def cgaps():
     """4.2: Serie C's play-out gap per group (dplay.c DP_CG1..4, cup_out): the first round's gap of the first 'playout'
     of the dplay world's ko_playoffs whose entrants are all [the group's division, place] - the bytes gp_season's 'too
@@ -827,6 +847,7 @@ def patch(p, at, limit, tables, bss_at, area):
     cg = cgaps()                                             # (4.2: each group's play-out gap, as gp_season reads it)
     obj = cobj.compile_c(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'dplay.c'),
                          [f'-DDP_FORCE={force}'] + ([f'-DDP_CUPWF={cupw}'] if cupw else [])
+                         + (['-DDP_NOB=1'] if s3_b_mask() else [])          # (4.2 S3: Serie B on gplay; else the 42-int object)
                          + [f'-DDP_CG{g + 1}={v}' for g, v in enumerate(cg)])
     syms, cend, bss = cobj.link(p, obj, at, (2, bss_at), limit=limit)
     assert bss <= 0x1000, hex(bss)
@@ -886,6 +907,8 @@ def patch(p, at, limit, tables, bss_at, area):
     p.remove(1, ps['rec'] + 2)                               # mov ax, [dseg_11F9CC] (6 B) -> call dp_rec; nop
     p.put(1, ps['rec'], b'\xe8' + struct.pack('<i', lab['dp_rec'] - (ps['rec'] + 5)) + b'\x90')
     p.add_ptr(1, lib97.LABELS['NC_DPP'], 1, lab['dp_perm'])  # (lib97 nc_adv's slot)
+    if s3_b_mask():
+        LABELS['DP_BHOLD'] = syms['DP_BHOLD']                  # (gplay.py gp_end: a B phase of an old save finished here)
     LABELS.update(lab, diy=diy, a0=r['A0'], DP_IN=syms['DP_IN'], DP_OUT=syms['DP_OUT'], DP_ST=syms['DP_ST'],   # (winners.py)
                   layout=lay, contests=(c0, c1, c2), save=tmd + save_at,
                   sites=ps)

@@ -43,6 +43,17 @@ enum { PO_EXT = 0x40 };                 /* (4.2 s3shape: kind | 0x40 - an extens
                                            members i .. j-1 first) */
 enum { E_DIRECT = 1, E_LEVEL, E_SEEDED, E_BEST };
 static const u8 *ents_of(const u8 *s) { return s + 6 + (s[0] & PO_EXT ? 1 + s[6] : 0); }
+/* 4.2 S3 glue (MC 14/11): the career-club path (playable / gap_done / gp_need / ko_build / build_game / rbyte) is shared with
+   every shipped ko_playoffs country, so its S3 changes sit under GP_S3SKIP (the S3 builds: a pack with the Serie B play-off
+   in ko_playoffs): KIND / ENTS expand to the old expressions otherwise, the other additions are compiled out - the
+   non-S3 exes stay byte-identical to 42-int. */
+#if GP_S3SKIP
+#define KIND(s) ((s)[0] & 0x3F)
+#define ENTS(s) ents_of(s)
+#else
+#define KIND(s) ((s)[0])
+#define ENTS(s) ((s) + 6)
+#endif
 enum { K_TITLE = 5, K_CONT = 6, K_PROM = 7, K_STAGE = 8, GS = 2, BEST_LOSER = 0x3F };
 enum { PO_SUPER = 4, PO_SKIP2 = 0x80 };                  /* (a play-off spec's flag, pack 'supercup': not played at the season end) */
 enum { PO_DECIDER = 1 };                /* (4.2, Serie D Art. 51 c.6: flag bit 0 - 'skip_qualified' of the europe kind,
@@ -1185,6 +1196,15 @@ static void draw(int *c, int n) {       /* a draw: c[0 .. n) shuffled */
     for (int i = n - 1; i > 0; i--) { int j = below(i + 1), x = c[i]; c[i] = c[j]; c[j] = x; }
 }
 
+#ifndef GP_S3SKIP
+#define GP_S3SKIP 0
+#endif
+#if GP_S3SKIP
+/* (4.2 S3 glue, MC's guard: bit i = play-off i of the country's spec is not run THIS season end - dplay finished the Serie B
+   phase of an old save (gplay.py gp_end sets it from dplay's DP_BHOLD, only then). Transient: gp_season clears it at its end;
+   never saved; 0 when nothing holds. Compiled in S3 builds only.) */
+u32 GP_SKIPPO;
+#endif
 GP_KOSIZE void gp_season(void) {
     const u8 *s = GP_IN.spec;
     u32 h = 0;
@@ -1240,6 +1260,13 @@ GP_KOSIZE void gp_season(void) {
             s = r;
             continue;
         }
+#if GP_S3SKIP
+        if (GP_SKIPPO >> (pidx & 31) & 1) {     /* (S3 guard: dplay's B phase finished this one; its moves are dplay's) */
+            for (int k = nr; k; k--) r += 6 + 2 * r[0];
+            s = r;
+            continue;
+        }
+#endif
         int club[GN], ok = kind == 1 || kind == 4 || kind == K_TITLE || kind == K_CONT || kind == K_STAGE;
         const struct gp_dec *dec = kind == K_STAGE ? stage_dec(wdiv) : 0;   /* (decided mid-season) */
         if (dec) ok = 0;
@@ -1441,6 +1468,9 @@ GP_KOSIZE void gp_season(void) {
         }
         s = r;
     }
+#if GP_S3SKIP
+    GP_SKIPPO = 0;                              /* (transient: this season end's only) */
+#endif
     wn_on = 0;
     x_sfrom = 0; x_lvl = 0;                     /* (4.2: this season end's only - a contest reads the places as they are) */
     if (ss_used && !GP_PRE) SSB->fresh = 0;   /* (this league's stage tables used: next season's are new ones) */
@@ -1548,8 +1578,14 @@ static int ent_club(const u8 *e, int kind) {    /* an entrant -> its club (divis
 static int playable(const u8 *s) {      /* knockouts only (promotion, placement, playout, title, continental), entrants [div, place]
                                            or stage places, members entrants / W / L */
     int n = s[1], nr = s[2], nt = 0;
-    const u8 *e = s + 6, *r = e + 4 * n;
-    if ((s[0] < 1 || (s[0] > 6 && s[0] != K_STAGE) || s[0] == 2) || n > KN || nr > KR || nr < 1) return 0;   /* (not 'europe': uefaq's) */
+    const u8 *e = ENTS(s), *r = e + 4 * n;
+    if ((KIND(s) < 1 || (KIND(s) > 6 && KIND(s) != K_STAGE) || KIND(s) == 2) || n > KN || nr > KR || nr < 1) return 0;   /* (not 'europe': uefaq's) */
+#if GP_S3SKIP
+    if (s[0] & PO_EXT)                  /* (S3 step 1: the Serie B play-off's direct_gap only - rank 'level', seeded rounds and
+                                           best_first are Serie C's, step 2, not played yet) */
+        for (const u8 *x = s + 7; x < s + 7 + s[6]; x += x[0] == E_LEVEL ? 1 : x[0] == E_BEST ? 4 : 2)
+            if (x[0] != E_DIRECT) return 0;
+#endif
     if (s[5] & PO_SUPER) return 0;      /* (4.0.5: played as the next season's national supercup, sc_step_c) */
     for (int i = 0; i < n; i++)
         if (e[4 * i] != 0 && e[4 * i] != 3 && e[4 * i] != 5 && e[4 * i] != 6) return 0;   /* (5: the Trofeo, built by then_build; 6: Malta's split seeds) */
@@ -1557,6 +1593,11 @@ static int playable(const u8 *s) {      /* knockouts only (promotion, placement,
         if (r[1] < 1 || r[1] > 3 || (r[1] == 3 && k == nr - 1)) return 0;   /* (no group round; a series: not last) */
         for (int i = 0; i < 2 * r[0]; i++)
             if ((r[6 + i] >= BEST_LOSER && r[6 + i] < 0x80) || (k == 0 && r[6 + i] >= 0x80)) return 0;
+#if GP_S3SKIP
+        if (r[3] == LV_BETTER_PTS && r[0] != 1) return 0;   /* (decided by the two clubs' points: one tie a round; no shipped
+                                           spec has levels 6 / 7 - the Serie B play-out has this level without an extension) */
+        if (r[3] == LV_SECOND) return 0;    /* (a seeded round's: step 2) */
+#endif
         nt += r[0];
         r += 6 + 2 * r[0];
     }
@@ -1697,12 +1738,20 @@ void t2_pre(const u8 *con, u8 *diy, u32 sel) {
 
 static int gap_done(const u8 *s) {      /* 4.2: a one-round play-off whose ties are all decided by its gap on the final
                                            table (no tie to play: gp_season's 'too far apart') - not the club's contest */
-    const u8 *e = s + 6, *r = e + 4 * s[1];
+    const u8 *e = ENTS(s), *r = e + 4 * s[1];
+#if GP_S3SKIP
+    if (s[0] & PO_EXT)                  /* (S3: direct_gap - entrant 0 wins, nothing to play, if g+ points ahead of entrant 1) */
+        for (const u8 *x = s + 7; x < s + 7 + s[6]; x += x[0] == E_LEVEL ? 1 : x[0] == E_BEST ? 4 : 2)
+            if (x[0] == E_DIRECT) {
+                int a = ent_club(e, KIND(s)), b = ent_club(e + 4, KIND(s));
+                if (a >= 0 && b >= 0 && (int)row(a)->pts - (int)row(b)->pts >= x[1]) return 1;
+            }
+#endif
     if (s[2] != 1 || !r[5] || (r[1] & 0x80)) return 0;
     for (int i = 0; i < r[0]; i++) {
         int a = r[6 + 2 * i], b = r[7 + 2 * i];
         if (a >= s[1] || b >= s[1]) return 0;
-        a = ent_club(e + 4 * a, s[0]); b = ent_club(e + 4 * b, s[0]);
+        a = ent_club(e + 4 * a, KIND(s)); b = ent_club(e + 4 * b, KIND(s));
         if (a < 0 || b < 0) return 0;
         int d = (int)row(a)->pts - (int)row(b)->pts;
         if (d < r[5] && -d < r[5]) return 0;
@@ -1720,13 +1769,13 @@ u32 gp_need(void) {
     if (GP_FORCE) { int f = gp_force(); if (f >= 0) m = f; }
     if (GP_IN.gtype == 4 && m < 0) return 0;
     for (int pi = 0; cnt < (GP_IN.gtype == 4 ? 1 : 2); pi++) {
-        const u8 *s = po_at(pi), *e = s ? s + 6 : 0;
+        const u8 *s = po_at(pi), *e = s ? ENTS(s) : 0;
         if (!s) break;
-        if ((!playable(s) && !(GP_IN.gtype == 4 && t2_shape(s, 0))) || s[0] == K_STAGE || gap_done(s)) continue;
+        if ((!playable(s) && !(GP_IN.gtype == 4 && t2_shape(s, 0))) || KIND(s) == K_STAGE || gap_done(s)) continue;
                                                     /* (stage titles: gp_build, mid-season; a group contest: careers) */
         int in = 0, all = 1;
         for (int i = 0; i < s[1]; i++) {
-            int c = ent_club(e + 4 * i, s[0]);
+            int c = ent_club(e + 4 * i, KIND(s));
             if (c == d0 * GT + m) in = 1;
             if (e[4 * i + 1] != d0) all = 0;
         }
@@ -1873,6 +1922,13 @@ static int build_game(struct gp_ko *k, int g) {
         if (np >= KP) break;
         k->pa[np] = a; k->pb[np] = b; k->pw[np] = NOC; k->ptie[np++] = t;
     }
+#if GP_S3SKIP
+    if (k->rs[r][3] == LV_BETTER_PTS && np > k->gp0[g]) {   /* (S3: level -> the better placed, unless the two are level on
+                                           points: then e.t. + penalties - the round byte; one tie a round, extension specs) */
+        int pa = k->pa[k->gp0[g]], pb = k->pb[k->gp0[g]];
+        k->rb[g] = (u8)((k->rb[g] & ~0x14) | (k->pts[pa] == k->pts[pb] ? LV_BITS_ET_PENS : 0));
+    }
+#endif
     k->gp0[g + 1] = np;
     return np - k->gp0[g];
 }
@@ -1880,7 +1936,12 @@ static int build_game(struct gp_ko *k, int g) {
 static u8 rbyte(int legs, int level) {  /* (away goals: the contest's header, gp_lend_c) */
     static const u8 lv[6] = { LV_BITS_BETTER, LV_BITS_ET_PENS, LV_BITS_ET, LV_BITS_PENS, LV_BITS_ET_PENS,
                               LV_BITS_BETTER };
+#if GP_S3SKIP
+    return (legs == 2 ? 0x80 : 0x01) | (level >= 6 ? LV_BITS_BETTER : lv[level]);   /* (S3: better_pts / second: the better
+                                           placed; build_game adds e.t. + penalties when level on points) */
+#else
     return (legs == 2 ? 0x80 : 0x01) | lv[level < 6 ? level : 1];
+#endif
 }
 
 /* a group contest (t2_shape) as the game's type 2 in slot 3: the entrants in group order, the Champions Cup's header
@@ -1961,14 +2022,14 @@ static int ko_t2(struct gp_ko *k, const u8 *s, int pi, int cid, const struct t2s
 
 /* a contest for play-off pi in slot `slot` (id cid): k filled, 1 if there is something to play */
 static int ko_build(struct gp_ko *k, int pi, int slot, int cid) {
-    const u8 *s = po_at(pi), *e = s + 6, *r = e + 4 * s[1];
+    const u8 *s = po_at(pi), *e = ENTS(s), *r = e + 4 * s[1];
     int n = s[1];
     struct t2s x;
     by_rec = s[5] & 2;
     if (GP_IN.gtype == 4 && t2_shape(s, &x)) return ko_t2(k, s, pi, 0xFE, &x);   /* (career: slot 3, id FE) */
     k->bye[5] = k->bye[6] = k->bye[7] = 0;              /* (KT2: a knockout) */
     k->magic = 0;
-    k->slot = slot; k->cid = cid; k->pi = pi; k->kind = s[0]; k->n = n; k->nrs = s[2]; k->ldiv = s[4];
+    k->slot = slot; k->cid = cid; k->pi = pi; k->kind = KIND(s); k->n = n; k->nrs = s[2]; k->ldiv = s[4];
     k->ntie = 0; k->ngr = 0; k->gcur = 0;
     for (int i = 0; i < KT; i++) k->tw[i] = k->tl[i] = NOC;
     for (int j = 0; j < k->nrs; j++) {
@@ -1988,7 +2049,7 @@ static int ko_build(struct gp_ko *k, int pi, int slot, int cid) {
     int pm[GN];
     pot_perm(s, pm);                        /* (4.0.1: a drawn pot; else the identity) */
     for (int i = 0; i < n; i++) {
-        int c = ent_club(e + 4 * pm[i], s[0]);
+        int c = ent_club(e + 4 * pm[i], KIND(s));
         if (c < 0) return 0;
         k->ient[i] = i; k->code[i] = c;
         k->prio[i] = e[4 * pm[i]] == 3 ? e[4 * pm[i] + 2] - 1 : c > 255 ? 255 : c;   /* (stage entrants: the stage place) */

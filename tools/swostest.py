@@ -8107,7 +8107,6 @@ def wrap_reach(q, row1):
     to row 12 instead)."""
     r17 = row1 + 16
     t = q.path(r17)
-    nxt = None
     if t is not None:
         links, skips = q.nav[r17]
         nxt, alt = links[3], skips[3]
@@ -18562,6 +18561,186 @@ def gp_ko(b):
 
 
 @scenario
+def world_s3_b(force='5', team='EUROPA,ITALIA,SERIE B,MODENA'):
+    """4.2 S3 glue step 1: the career club's Serie B play-off (force 3..8) or play-out (16 / 17) played through gplay's
+    ko_playoffs (b_po / b_pout of internal/world2526/world5tm-s3b, the index 24 / 25 of the Italian league's spec), NOT
+    dplay (DP_NOB): the world built with GPLAY_FORCE (the club takes that place of Serie B at the league end); a season at
+    MODENA: the contest is built in slot 4 and played to its end (the session log's GP_ST / GP_LOG: the 6 clubs, the club's
+    place among them / the 2 of the play-out), every tie decided, the winner among the clubs, and the season end moves the
+    winner up (play-off) / the loser down (play-out). No dplay state of Serie B exists (dplay.c's B code is dormant)"""
+    src = (os.environ.get('W2627S3_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-s3b')).rstrip('/')
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    env = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'GPLAY_FORCE': force}
+    exe = os.environ.get('GPLAY_BUILD') or build('world_s3_b_' + force, env=env, lang=UI)
+    ptrs = gp_ptrs(exe)
+    if not ptrs:
+        return False, 'no GPLOGPTR block in the exe'
+    log_at, st_at, log_n, st_n = ptrs
+    keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
+                                            'W8485_NOSACK', 'W8485_HEX', 'W2627REL_DATA')}
+    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+',
+                      W8485_NOSACK='1', W8485_HEX=f'{log_at:x}:{log_n},{st_at:x}:{st_n}',
+                      W2627REL_DATA=src)               # (the contest-name check reads b_po / b_pout's names from the data built)
+    try:
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    hexes = {}
+    for ln in open(os.path.join(RUNS, w84_tag() + '_1', 'session.log'), errors='replace'):
+        p = ln.split()
+        if len(p) == 3 and p[0] == 'HEX':
+            hexes.setdefault(int(p[1], 16), []).append(bytes.fromhex(p[2]))
+    errs = []
+    check(ok, msg, errs)
+    sts = [b for b in hexes.get(st_at, []) if b[:2] == b'GK']
+    if not sts:
+        return False, f'{msg}; the play-off never ran (no GP_ST seen)'
+    logs = [b for b in hexes.get(log_at, []) if b[:4] == b'GPLG']
+    if not logs:
+        return False, f'{msg}; no season-end log (GP_LOG)'
+    lg = logs[-1]
+    ko = gp_ko(lg[8:])
+    nmv = lg[682]
+    mv = [struct.unpack_from('<HHb', lg, 686 + 8 * i) for i in range(min(nmv, 32))]
+    out = force in ('16', '17')
+    check(ko['pi'] == (25 if out else 24), f"played play-off index {ko['pi']} (b_po 24 / b_pout 25)", errs)
+    check(ko['magic'] == 0x4B47 and ko['n'] == (2 if out else 6) and 1 * GP_GT + int(force) - 1 in ko['code'],
+          f"contest n {ko['n']} codes {ko['code']}", errs)
+    check(all(x != 255 for x in ko['tw'][:ko['ntie']]), f"ties {ko['ntie']} winners {ko['tw']}", errs)
+    win = ko['team'][ko['tw'][ko['ntie'] - 1]] if ko['ntie'] and ko['tw'][ko['ntie'] - 1] < ko['n'] else None
+    if win is None:
+        errs.append('no final winner')
+    elif out:
+        lose = [t for t in ko['team'][:2] if t != win][0]
+        check(any(t == lose and dl == 1 for _, t, dl in mv), f'play-out loser {lose:#x} not moved down: {mv}', errs)
+    else:
+        check(any(t == win and dl == -1 for _, t, dl in mv), f'play-off winner {win:#x} not moved up: {mv}', errs)
+    return not errs, '; '.join(errs) or (f"{msg}; contest clubs {[hex(t) for t in ko['team'][:ko['n']]]} codes "
+                                         f"{ko['code'][:ko['n']]}, winner {win:#x}, moves {mv}")
+
+
+@scenario
+def world_s3_b_out():
+    """world_s3_b with the career club forced 16th: the Serie B play-out through gplay (b_pout, index 25)"""
+    return world_s3_b('16')
+
+
+@scenario
+def world_s3_oldsave():
+    """4.2 S3 glue, MC's old-save gate: a career saved INSIDE the Serie B play-off on an exe where dplay plays Serie B (the
+    42-int behaviour: world5tm-h2, DPLAY_FORCE=5, MODENA 5th; the save once dplay's state says kind 1 for two dumps) and
+    loaded on the S3 exe (world5tm-s3b: b_po / b_pout in ko_playoffs, DP_NOB): the Serie B play-off goes on on dplay to its
+    end - exactly ONE Serie B play-off (dplay's log: kind 1, 6 clubs, a winner among them; the winner moved up once) and
+    gplay's S3 does NOT run its own that season end (its season-end log: no play-off 24 / 25 played, no move of a club of
+    the six up besides dplay's)"""
+    before = os.environ.get('S3OLD_PHASE') == 'before'     # saved BEFORE the phase (dplay's state still empty)
+    h2 = world_data().rstrip('/')
+    s3b = (os.environ.get('W2627S3_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-s3b')).rstrip('/')
+    for d in (h2, s3b):
+        if not os.path.isdir(d):
+            return True, f'SKIP: private data {d} missing'
+
+    def packs(d):
+        return ','.join(['ddr-1988-89'] + [os.path.join(d, ln.split()[0].lower()) for ln in open(d + '.txt') if ' file ' in ln])
+    old = os.environ.get('W2627REL_DATA')
+    old_exe = build('world_s3_old_h2', env={'SEASON_PACKS': packs(h2), 'DPLAY_FORCE': '5'}, lang=UI)
+    new_exe = build('world_s3_new_s3b', env={'SEASON_PACKS': packs(s3b), 'DPLAY_FORCE': '5', 'GPLAY_FORCE': '5'}, lang=UI)
+    log_at, st_at, log_n, st_n = gp_ptrs(new_exe)
+    keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_HEX',
+            'W8485_ONE', 'W8485_MIDSAVE', 'W8485_FROM', 'W2627REL_DATA')
+    keep = {k: os.environ.get(k) for k in keys}
+    base = dict(W8485_WORLD='MONDO 2026-27', W8485_TEAM='EUROPA,ITALIA,SERIE B,MODENA', W8485_WNUM='5', W8485_K='108+',
+                W8485_NOSACK='1')
+    try:
+        for k in keys:
+            os.environ.pop(k, None)
+        dpst = json.load(open(os.path.join(old_exe, 'ITALIAN.syms.json')))['dplay']['DP_ST'][1]   # obj2 offset of DP_ST
+        os.environ.update(base, W8485_BUILD=old_exe, W8485_ONE='1', W8485_HEX=f'{dpst:x}:16',
+                          W8485_MIDSAVE=f'{dpst + 4:x}:{0 if before else 1}:{4 if before else 2}', W2627REL_DATA=h2)   # (the running state's kind byte)
+        ok, msg = world8485()
+        if not ok:
+            return False, f'first session (42-int behaviour): {msg}'
+        path = msg.split(': ', 1)[1]
+        for k in ('W8485_MIDSAVE', 'W8485_ONE'):
+            os.environ.pop(k, None)
+        os.environ.update(base, W8485_BUILD=new_exe, W8485_FROM=path, W2627REL_DATA=s3b,
+                          W8485_HEX=f'{log_at:x}:{log_n},{st_at:x}:{st_n}')
+        ok2, msg2 = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    errs = []
+    check(ok2, msg2, errs)
+    run2 = os.path.join(RUNS, w84_tag() + '_2')
+    lines = open(os.path.join(run2, 'session.log'), errors='replace').read().splitlines()
+    car = os.path.join(run2, 'SWOS', 'W84B.CAR')
+    d = open(car, 'rb').read() if os.path.exists(car) else b''
+    k = d.find(b'DPLG')
+    if k < 0 and not before:
+        return False, f'{msg2}; no dplay log (DPLG) in the reloaded season end'
+    if k < 0:
+        magic = res = kind = n = 0
+        teams, mv = (), []
+    else:
+        magic, res, kind, n = struct.unpack_from('<HHBB', d, k + 4)
+        teams = struct.unpack_from('<28H', d, k + 4 + 8)
+        nmv = d[k + 4 + 912]
+        mv = [struct.unpack_from('<HHb', d, k + 4 + 912 + 4 + 8 * i) for i in range(min(nmv, 8))]
+    if before:     # nothing was started on dplay: the S3 exe's gplay plays the B play-off itself
+        logs0 = [bytes.fromhex(ln.split()[2]) for ln in lines if ln.startswith(f'HEX {log_at:x} ')]
+        played = [b[6] for b in logs0 if b[:4] == b'GPLG']
+        check(not (magic == 0x5044 and kind == 1), f'dplay played the B play-off (kind {kind}) in a before-phase save', errs)
+        check(25 in played, f'gplay did not play its Serie B play-off 24 (log play-off ids {played})', errs)
+        return not errs, '; '.join(errs) or f'{msg2}; before-phase save: gplay played the B play-off, dplay did not'
+    check(magic == 0x5044 and (kind, n) == (1, 6), f'dplay state magic {magic:#x} kind {kind} n {n} (the B play-off of the old save)', errs)
+    check(res in teams[:6], f'dplay winner {res:#x} not among {[hex(t) for t in teams[:6]]}', errs)
+    ups = [t for _, t, dl in mv if dl == -1 and t in teams[:6]]
+    check(ups == [res], f'Serie B promotions among the six: {[hex(t) for t in ups]} (exactly dplay winner {res:#x}); moves {mv}', errs)
+    logs = [bytes.fromhex(ln.split()[2]) for ln in lines if ln.startswith(f'HEX {log_at:x} ')]
+    logs = [b for b in logs if b[:4] == b'GPLG']
+    if logs:
+        lg = logs[-1]
+        gm = [struct.unpack_from('<HHb', lg, 686 + 8 * i) for i in range(min(lg[682], 32))]
+        check(lg[6] not in (25, 26), f'gplay played play-off {lg[6]} (index + 1): its Serie B 24 / 25 must be skipped', errs)
+        check(not any(t in teams[:6] and dl == -1 for _, t, dl in gm), f'gplay moved a club of the B play-off up: {gm}', errs)
+    nxt = None
+    nxt = None
+    if not before and ok2:        # the NEXT season end, on the S3 exe from the season-end save: GP_SKIPPO is 0 again at its
+        sk = json.load(open(os.path.join(new_exe, 'ITALIAN.syms.json')))['gplay']['csyms.GP_SKIPPO'][1]   # start and gplay
+        saved2 = os.path.join(RUNS, 'S3OLD_W84B.CAR')                                       # plays its B play-off itself
+        shutil.copy(os.path.join(run2, 'SWOS', 'W84B.CAR'), saved2)
+        try:
+            os.environ.update(base, W8485_BUILD=new_exe, W8485_FROM=saved2, W2627REL_DATA=s3b,
+                              W8485_HEX=f'{sk:x}:4,{log_at:x}:{log_n}')
+            ok3, msg3 = world8485()
+        finally:
+            for k, v in keep.items():
+                if v is None:
+                    os.environ.pop(k, None)
+                else:
+                    os.environ[k] = v
+        run3 = os.path.join(RUNS, w84_tag() + '_2')        # (a FROM run is always the '_2' directory)
+        l3 = open(os.path.join(run3, 'session.log'), errors='replace').read().splitlines()
+        skv = [ln.split()[2] for ln in l3 if ln.startswith(f'HEX {sk:x} ')]
+        pl3 = [bytes.fromhex(ln.split()[2])[6] for ln in l3 if ln.startswith(f'HEX {log_at:x} ')
+               if bytes.fromhex(ln.split()[2])[:4] == b'GPLG']
+        check(ok3, f'next season: {msg3}', errs)
+        check(skv and skv[0] == '00000000' and skv[-1] == '00000000', f'GP_SKIPPO not 0 at the next season start / end: {skv}', errs)
+        check(25 in pl3, f'next season: gplay did not play its Serie B play-off 24 (ids {pl3})', errs)
+        nxt = f'next season: GP_SKIPPO {skv}, gplay play-offs {pl3}'
+    return not errs, '; '.join(errs) or f'{msg2}; one B play-off, dplay winner {res:#x}, moves {mv}; {nxt}'
+
+
+@scenario
 def world_gplay_play(force='2', team='EUROPA,SCOZIA,SCOTTISH LEAGUE TWO,CLYDE', div=3):
     """The career club's knockout play-off, played (gplay, the playable step): the world 2026-27 with Scotland's
     play-offs (GPLAY_SCO) built with GPLAY_FORCE=2 (at the league end the career club takes 2nd place of League
@@ -26320,6 +26499,8 @@ def gplay_host(test, src='gplay.c'):
     import tempfile
     with tempfile.TemporaryDirectory() as d:
         open(os.path.join(d, 't.c'), 'w').write(test % os.path.join(ROOT, 'tools', src))
+        if os.environ.get('GPLAY_HOST_KEEP'):                   # (debugging: the generated test source)
+            open(os.environ['GPLAY_HOST_KEEP'], 'w').write(test % os.path.join(ROOT, 'tools', src))
         stub = ''
         for _ in range(2):
             open(os.path.join(d, 's.c'), 'w').write(stub)
@@ -26720,6 +26901,262 @@ int main(void) {
     want = 'ACB AAA AAAA ABBA AEBA ABEF ABCE ACBA'
     ok, got = gplay_host(test)
     return ok and got == want, f'seeds {got} (expected {want})'
+
+
+@scenario
+def gplay_s3_diff():
+    """4.2 S3 glue (MC 14/11): gplay.c built with GP_S3SKIP 0 / 1 on the host - the career-club path (playable, gap_done,
+    ko_build: pairs / legs / round bytes / the whole struct gp_ko hashed) for every ko_playoffs spec of the world data
+    (world5tm-s3b: h2 + the Serie B play-off b_po / b_pout) with the first 3 entrants of each play-off as the career
+    club: only the S3 Serie B play-offs (the Italian league's index 24 / 25) may differ. Control: one non-extension
+    spec's first round at level 6 (better_pts) must differ (the S3 build refuses it, the old code maps it to e.t. + pens),
+    so the test bites"""
+    src = (os.environ.get('W2627S3_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-s3b')).rstrip('/')
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    old = os.environ.get('SEASON_PACKS')
+    os.environ['SEASON_PACKS'] = packs_font_safe(','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]))
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    try:
+        mk = mkseason_now()
+        tabs = [t for pk in mk.packs() for t in pk.gplay() or []]
+    finally:
+        if old is None:
+            os.environ.pop('SEASON_PACKS', None)
+        else:
+            os.environ['SEASON_PACKS'] = old
+    specs = [bytes(t[2]) for t in tabs]
+    ctl = None
+    for i, sp in enumerate(specs):          # the control: the first non-extension play-off with a round (ntie >= 1)
+        o = 0
+        while o < len(sp) and sp[o] and ctl is None:
+            ext = bool(sp[o] & 0x40)
+            n, nr = sp[o + 1], sp[o + 2]
+            r = o + 6 + (1 + sp[o + 6] if ext else 0) + 4 * n
+            if not ext and nr >= 1 and sp[r + 1] in (1, 2):
+                ctl = (i, r + 3)
+            for _ in range(nr):
+                r += 6 + 2 * sp[r]
+            o = r
+        if ctl:
+            break
+    if ctl is None:
+        return False, 'no control spec found'
+    specs.append(bytearray(specs[ctl[0]]))
+    specs[-1][ctl[1]] = 6                   # (level 6 = better_pts, a non-extension spec)
+    arr = ''.join('static const u8 SP%d[] = {%s, 0};\n' % (i, ','.join(str(b) for b in sp)) for i, sp in enumerate(specs))
+    arr += 'static const u8 *SPS[] = {%s};\nenum { NSP = %d };\n' % (','.join('SP%d' % i for i in range(len(specs))), len(specs))
+    test = r"""
+#define GP_S3SKIP @FLAG@
+#include "%s"
+#include <stdio.h>
+@ARR@
+static unsigned long long fnv(const void *p, int n) { const u8 *b = p; unsigned long long h = 1469598103934665603ULL; while (n--) h = (h ^ *b++) * 1099511628211ULL; return h; }
+int main(void) {
+    static u32 NMB[3 * 64];
+    GP_NM = NMB;
+    GP_IN.nd = GD;
+    for (int d = 0; d < GD; d++) {
+        GP_IN.n[d] = 20;
+        for (int p = 0; p < 20; p++) {
+            struct gp_row *w = &GP_IN.t[d][p];
+            w->team = (u16)(0x100 * (d + 1) + p + 1); w->glob = (u16)(d * 40 + p); w->won = 30 - p; w->gf = 60 - p; w->ga = 30 + p;
+            w->pts = (u16)(90 - 3 * p + (d %% 2) + (p == 3 ? 4 : 0));
+        }
+    }
+    GP_IN.week = 30; GP_IN.gtype = 0;
+    for (int i = 0; i < NSP; i++) {
+        GP_IN.spec = SPS[i];
+        for (int pi = 0; po_at(pi); pi++) {
+            const u8 *s = po_at(pi);
+            int pl = playable(s), gd = pl ? gap_done(s) : -1;
+            for (int j = 0; j < 3 && j < s[1]; j++) {
+                const u8 *e = ENTS(s);
+                int c = ent_club(e + 4 * j, KIND(s)), bd = -1;
+                unsigned long long hh = 0;
+                if (c >= 0) {
+                    struct gp_ko k;
+                    for (unsigned q = 0; q < sizeof k; q++) ((u8 *)&k)[q] = 0;
+                    GP_IN.mgr = row(c)->team; GP_IN.mdiv = DV(c);
+                    if (pl && !gd) { bd = ko_build(&k, pi, 4, 0xFE); hh = fnv(&k, sizeof k); }
+                }
+                printf("%%d %%d %%d: %%d %%d %%d %%llx\n", i, pi, j, pl, gd, bd, hh);
+            }
+        }
+    }
+    return 0;
+}
+""".replace('@ARR@', arr.replace('%', '%%'))
+    res = []
+    for flag in (0, 1):
+        ok, out = gplay_host(test.replace('@FLAG@', str(flag)))
+        if not ok:
+            return False, out
+        res.append(out.splitlines())
+    a, b = res
+    if len(a) != len(b):
+        return False, f'{len(a)} v {len(b)} lines'
+    nspec = len(specs) - 1                  # (the last is the control)
+
+    def count(sp):                          # play-offs in a spec blob
+        o = n = 0
+        while o < len(sp) and sp[o]:
+            ext = bool(sp[o] & 0x40)
+            r = o + 6 + (1 + sp[o + 6] if ext else 0) + 4 * sp[o + 1]
+            for _ in range(sp[o + 2]):
+                r += 6 + 2 * sp[r]
+            o, n = r, n + 1
+        return n
+    ital = [i for i in range(nspec) if count(specs[i]) >= 26]
+    if len(ital) != 1:
+        return False, f'the Italian spec not found ({ital})'
+    ital = ital[0]
+    diff = [(x, y) for x, y in zip(a, b) if x != y]
+    key = lambda ln: tuple(int(v) for v in ln.split(':')[0].split())
+    allowed = lambda k: (k[0] == ital and k[1] in (24, 25)) or k[0] == nspec
+    bad = [x for x, _ in diff if not allowed(key(x))]
+    ctl_d = [x for x, _ in diff if key(x)[0] == nspec]
+    s3b = [x for x, _ in diff if key(x)[0] == ital]
+    errs = []
+    check(not bad, f'{len(bad)} cases differ outside the S3 Serie B spec: {bad[:3]}', errs)
+    check(ctl_d, 'the control (a non-extension spec at level 6) did not differ: the test does not bite: %s | %s' % (
+        [x for x in a if key(x)[0] == nspec][:3], [x for x in b if key(x)[0] == nspec][:3]), errs)
+    return not errs, '; '.join(errs) or f'{len(a)} cases, {len(diff)} differ: {len(s3b)} in the S3 Serie B play-offs, {len(ctl_d)} in the control, none elsewhere'
+
+
+@scenario
+def gplay_s3_rules():
+    """4.2 S3 glue step 1 (host, GP_S3SKIP=1): the Serie B play-off / play-out of world5tm-s3b (the Italian spec's b_po /
+    b_pout, index 24 / 25) on tables built point by point: the 3rd leads the 4th by 15 -> gap_done (nothing to play, the 3rd
+    goes up), by 14 -> played; the 16th leads the 17th by 5 -> not played (the 17th goes down), by 4 -> played; the play-out
+    / the final level on points -> e.t. + penalties in the round byte (0x14), not level -> the better placed (0); the
+    contest of the club 5th (6 clubs, 3 rounds, byes) and of the 17th (2 clubs) is built, the final's pair 3rd v 4th"""
+    src = (os.environ.get('W2627S3_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-s3b')).rstrip('/')
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    old = os.environ.get('SEASON_PACKS')
+    os.environ['SEASON_PACKS'] = packs_font_safe(','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]))
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    try:
+        mk = mkseason_now()
+        tabs = [t for pk in mk.packs() for t in pk.gplay() or []]
+    finally:
+        if old is None:
+            os.environ.pop('SEASON_PACKS', None)
+        else:
+            os.environ['SEASON_PACKS'] = old
+
+    def count(sp):
+        o = n = 0
+        while o < len(sp) and sp[o]:
+            ext = bool(sp[o] & 0x40)
+            r = o + 6 + (1 + sp[o + 6] if ext else 0) + 4 * sp[o + 1]
+            for _ in range(sp[o + 2]):
+                r += 6 + 2 * sp[r]
+            o, n = r, n + 1
+        return n
+    ital = [bytes(t[2]) for t in tabs if count(bytes(t[2])) >= 26]
+    if len(ital) != 1:
+        return False, f'the Italian spec not found ({len(ital)})'
+    arr = 'static const u8 SP[] = {%s, 0};' % ','.join(str(b) for b in ital[0])
+    test = r"""
+#define GP_S3SKIP 1
+#include "%s"
+#include <stdio.h>
+@ARR@
+static void tab(int d3, int d16, int lvl) {   /* Serie B = division 1; the 3rd-4th gap d3, the 16th-17th gap d16 */
+    static u32 NMB[3 * 64];
+    GP_NM = NMB;
+    GP_IN.nd = GD; GP_IN.spec = SP; GP_IN.week = 30; GP_IN.gtype = 0;
+    for (int d = 0; d < GD; d++) {
+        GP_IN.n[d] = 20;
+        for (int p = 0; p < 20; p++) {
+            struct gp_row *w = &GP_IN.t[d][p];
+            w->team = (u16)(0x100 * (d + 1) + p + 1); w->glob = (u16)(d * 40 + p); w->won = 30 - p; w->gf = 60 - p; w->ga = 30 + p;
+            w->pts = (u16)(90 - 3 * p);
+        }
+    }
+    struct gp_row *b = GP_IN.t[1];
+    b[3].pts = b[2].pts - d3;                       /* the 3rd leads the 4th by d3 */
+    if (lvl) b[3].pts = b[2].pts;                   /* (level on points: 3rd = 4th) */
+    b[16].pts = b[15].pts - d16;                    /* the 16th leads the 17th by d16 (0 = level on points) */
+}
+int main(void) {
+    tab(15, 5, 0);
+    int pl0 = playable(po_at(24)), pl1 = playable(po_at(25));
+    printf("playable %%d %%d; gap15 %%d; gap5 %%d\n", pl0, pl1, gap_done(po_at(24)), gap_done(po_at(25)));
+    tab(14, 4, 0);
+    printf("gap14 %%d; gap4 %%d\n", gap_done(po_at(24)), gap_done(po_at(25)));
+    struct gp_ko k;
+    tab(14, 0, 0);                                  /* the play-out between clubs level on points */
+    for (unsigned q = 0; q < sizeof k; q++) ((u8 *)&k)[q] = 0;
+    GP_IN.mgr = GP_IN.t[1][16].team; GP_IN.mdiv = 1;
+    int bo = ko_build(&k, 25, 4, 0xFE);
+    printf("out level: built %%d n %%d rb0 %%02x\n", bo, k.n, k.rb[0]);
+    tab(14, 3, 0);
+    for (unsigned q = 0; q < sizeof k; q++) ((u8 *)&k)[q] = 0;
+    bo = ko_build(&k, 25, 4, 0xFE);
+    printf("out not level: built %%d n %%d rb0 %%02x\n", bo, k.n, k.rb[0]);
+    for (int lvl = 1; lvl >= 0; lvl--) {            /* the play-off: club 5th; the final 3rd v 4th, level on points or not */
+        tab(lvl ? 0 : 6, 0, lvl);
+        for (unsigned q = 0; q < sizeof k; q++) ((u8 *)&k)[q] = 0;
+        GP_IN.mgr = GP_IN.t[1][4].team; GP_IN.mdiv = 1;
+        bo = ko_build(&k, 24, 4, 0xFE);
+        int nt = k.ntie;
+        k.tw[0] = 0; k.tl[0] = 1; k.tw[1] = 2; k.tl[1] = 3;       /* the prelims: 5th and 6th win (list: 5th 8th 6th 7th 3rd 4th) */
+        k.tw[2] = 4; k.tl[2] = 2; k.tw[3] = 5; k.tl[3] = 0;       /* the semis: the 3rd and the 4th win */
+        k.gcur = 1;
+        int c = build_game(&k, 2);
+        printf("play-off lvl %%d: built %%d n %%d ties %%d rounds %%d; final pairs %%d (%%d v %%d) rb %%02x\n", lvl, bo, k.n, nt,
+               k.ngr, c, c ? k.pa[k.gp0[2]] : -1, c ? k.pb[k.gp0[2]] : -1, k.rb[2]);
+    }
+    return 0;
+}
+""".replace('@ARR@', arr.replace('%', '%%'))
+    ok, out = gplay_host(test)
+    if not ok:
+        return False, out
+    want = ['playable 1 1; gap15 1; gap5 1', 'gap14 0; gap4 0',
+            'out level: built 1 n 2 rb0 94', 'out not level: built 1 n 2 rb0 80']
+    got = out.splitlines()
+    errs = []
+    for w in want:
+        check(w in got, f'missing line "{w}" in {got}', errs)
+    fin = [ln for ln in got if ln.startswith('play-off lvl')]
+    check(len(fin) == 2 and fin[0].endswith('rb 94') and fin[1].endswith('rb 80'),
+          f'the final (level on points: 94 = 2 legs + e.t. + pens; not level: 80): {fin}', errs)
+    return not errs, '; '.join(errs) or ' | '.join(got)
+
+
+@scenario
+def gplay_s3_guard():
+    """4.2 S3 step 1 (MC 14/11): levels better_pts / second are accepted only for the play-offs b_po / b_pout of the Italian
+    world pack (pack id AND key): another pack with a b_po key, or the Italian pack with another key, or level 'second' in
+    another pack, is refused by gplay.check_s3_levels (mkseason.Pack.gplay: the message names the pack and the key)"""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import gplay
+
+    def po(key, level):
+        return {'key': key, 'rounds': [{'level': level, 'ties': [[0, 1]]}]}
+    cases = [('world-2026-27-ita', 'b_po', 'better_pts', True), ('world-2026-27-ita', 'b_pout', 'better_pts', True),
+             ('world-2026-27-esp', 'b_po', 'better_pts', False), ('world-2026-27-ita', 'x', 'better_pts', False),
+             ('world-2026-27-ita', 'b_po', 'second', True), ('world-2026-27-esp', 'b_pout', 'second', False),
+             ('world-2026-27-esp', 'x', 'et_pens', True), ('world-2026-27-ita', 'x', 'better', True)]
+    errs = []
+    for pid, key, lvl, ok in cases:
+        msg = ''
+        try:
+            gplay.check_s3_levels(pid, [po(key, lvl)])
+            got = True
+        except ValueError as e:
+            got = False
+            msg = str(e)
+        check(got == ok, f'{pid} {key} {lvl}: accepted {got}, expected {ok}', errs)
+        if not got:
+            check(pid in msg and key in msg, f'the refusal does not name the pack and the key: {msg}', errs)
+    return not errs, '; '.join(errs) or f'{len(cases)} cases'
 
 
 @scenario

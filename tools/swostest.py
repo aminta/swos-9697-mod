@@ -4558,6 +4558,7 @@ def world8485():
             midc = [0]                                 # a career save mid-season once the byte held that long
             midt = (os.environ.get('W8485_MIDTEXT', '').split(':') + [''])[:2] + [None, 0] if season == 1 or first \
                 else ['']                              # (W8485_FROM: its one season, the loaded one)
+            midthen = os.environ.get('W8485_MIDTEXT', '').split(':')[2:3] if len(midt) > 1 else []
 
             def stop(scr):                             # the player's European cup: no same-country tie in rounds 1-2
                 if os.environ.get('W8485_FILLWATCH') and not getattr(stop, 'fill_bad', False):   # (debug: the first
@@ -4623,7 +4624,9 @@ def world8485():
                         tuple(scr.texts()) != midt[2]:         # W8485_MIDTEXT 'text:n': save after the n-th
                     midt[2] = tuple(scr.texts())                # match screen showing that text
                     midt[3] += 1
-                    if midt[3] >= int(midt[1]):
+                    if midt[3] >= int(midt[1]) and midthen:   # ('text:n:then': on to the next match screen showing
+                        midt[:] = [midthen.pop(), 1, midt[2], 0]    # `then` - the n-th one played)
+                    elif midt[3] >= int(midt[1]):
                         mid[:] = ['t', 0, 0]
                         midc[0] = 1
                         return True
@@ -23762,7 +23765,7 @@ def conti_holder(tag, env, team, words):
     return not errs, '; '.join(errs + [f'season 2: {seen}'])
 
 
-def conti_komain(tag, env, team, cup, after):
+def conti_komain(tag, env, team, cup, after, then=None):
     """4.2 (Convergence 15/11, MC): a knockout main round's game contest (the ACL Elite / the Champions Cup: gid 0
     before, ct_gamein refused its results - since 4.1 conti.c never learned the career club's ties and simulated them
     at the season end). Season 1, then season 2 from its save, saved again after the match screen `after` (the
@@ -23792,7 +23795,7 @@ def conti_komain(tag, env, team, cup, after):
         keep1 = os.path.join(RUNS, w84_tag() + '_s1.CAR')
         if os.path.exists(car1):
             shutil.copy(car1, keep1)
-        os.environ.update(W8485_FROM=keep1, W8485_MIDTEXT=after + ':1')
+        os.environ.update(W8485_FROM=keep1, W8485_MIDTEXT=after + ':1' + (f':{then}' if then else ''))
         ok, msg = world8485()                       # (season 2 again, saved after `after`)
         check(ok and 'mid-season' in msg, f'season 2 to {after}: {msg[:300]}', errs)
     finally:
@@ -23811,6 +23814,15 @@ def conti_komain(tag, env, team, cup, after):
     check(ed and ed[:2] == b'CE', f'no edition in {car}', errs)
     f = [tuple(ed[12 + 3 * i:15 + 3 * i]) for i in range(ed[10])] if ed and ed[:2] == b'CE' else []
     mine = [(r, v) for c, r, v in f if c == ci]
+    if then:                                    # (a super cup's final: the game's own outcome, from its result screen)
+        log = os.path.join(RUNS, w84_tag() + '_2', 'session.log')
+        res = [ln for ln in open(log, errors='replace') if after in ln and '- RISULTATO -' in ln] if os.path.exists(log) else []
+        out = [x.strip() for ln in res[-1:] for x in ln.split('|') if re.search(r'\d+-\d+|VINCE', x)]
+        name = team.split(',')[-1]
+        won = 1 if any('VINCE' in x and name in x for x in out) else 0 if any('VINCE' in x for x in out) else None
+        check(mine, f'{cup}: the final not in the edition (CT_ED.f {f}): never reached conti.c', errs)
+        check(won is None or (mine and mine[-1][1] == won), f'{cup}: the edition {mine} != the game\'s {out}', errs)
+        return not errs, '; '.join(errs) or f'{cup}: CT_ED.f {f}, the cup\'s {mine}, the game\'s {out}'
     check(mine and mine[0][1] == 1, f'{cup}: the club\'s results not in the edition (CT_ED.f {f}): its game '
           f'contest\'s round of 16 never reached conti.c', errs)
     return not errs, '; '.join(errs) or f'{cup}: CT_ED.f {f}, the cup\'s {mine}'
@@ -23830,6 +23842,104 @@ def world_conti_komain_ccc():
     won): saved after its quarter-final's second leg, the edition holds its round of 16 won"""
     return conti_komain('ccc', {'CONTI_FORCE': 'ic:r2b!', 'CONTI_FORCE2': 'ccc:r16', 'CONTI_KOWIN': '1'},
                         'NORDAMERICA,MESSICO,LIGA MX,AMERICA', 'ccc', 'CUP QUARTI DI FINALE RITORNO')
+
+
+def _komain_ed(car, ci):
+    import conti
+    ed = car_item(car, 'CE', conti.ED_SIZE) if os.path.exists(car) else None
+    if not ed or ed[:2] != b'CE':
+        return None, []
+    f = [tuple(ed[12 + 3 * i:15 + 3 * i]) for i in range(ed[10])]
+    return f, [(r, v) for c, r, v in f if c == ci]
+
+
+@scenario
+def world_conti_komain_rec():
+    """conti_komain: FLAMENGO forced into the Recopa Sudamericana final: saved at its next league match, the edition
+    holds the final's result as the game played it (the human's, through ct_gamein - before 4.2 simulated)"""
+    return conti_komain('rec', {'CONTI_FORCE': 'rec:final'}, 'SUDAMERICA,BRASILE,BRASILEIRAO SERIE A,FLAMENGO', 'rec',
+                        'RECOPA SUDAMERICANA FINALE RITORNO', 'BRASILEIRAO')
+
+
+@scenario
+def world_conti_komain_cafsc():
+    """conti_komain: PYRAMIDS forced into the CAF Super Cup (one match, October): saved at its next league match, the
+    edition holds the final's result as the game played it"""
+    return conti_komain('cafsc', {'CONTI_FORCE': 'sc:final'}, 'AFRICA,EGITTO,PYRAMIDS', 'sc', 'CAF SUPER CUP',
+                        'EGITTO')
+
+
+@scenario
+def world_conti_komain_old():
+    """4.2 (MC + Panchina 15/11): an old save MID-EDITION in a knockout-main cup (gid 0): KASHIWA REYSOL's ACL Elite
+    round of 16, saved after its FIRST leg on the 42-int build before the fix (KOMAIN_OLD, default 9e46436 = REL42i59's
+    source), loaded on this build: saved again after its quarter-final (does the round of 16 reach conti.c now - once?),
+    then played on to the season end (no trap, an edition)."""
+    import contextlib
+    import io
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import conti
+    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    env = {'CONTI_FORCE': 'ic:r2a!', 'CONTI_FORCE2': 'acle:r16', 'CONTI_KOWIN': '1',
+           'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order])}
+    old = build('conti_komain_acle', env=env, branch=os.environ.get('KOMAIN_OLD', '9e46436'))
+    fix = build('conti_komain_acle', env=env)
+    keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_ONE',
+            'W8485_FROM', 'W8485_TMO', 'W8485_MIDTEXT', 'GP_CALTRACE')
+    keep = {k: os.environ.get(k) for k in keys}
+    errs, info = [], []
+    with contextlib.redirect_stdout(io.StringIO()):
+        _, _, cups = conti.load(list(conti.CONFS))
+    ci = cups.index(next(c for c in cups if c[1] == 'acle'))
+    car2 = os.path.join(RUNS, w84_tag() + '_2', 'SWOS', 'W84A.CAR')
+    saves = {k: os.path.join(RUNS, w84_tag() + f'_{k}.CAR') for k in ('s1', 'mid_old', 'qf_fix', 'fin_fix', 'end_fix')}
+    try:
+        for k in keys:
+            os.environ.pop(k, None)
+        os.environ.update(W8485_BUILD=old, W8485_WORLD='MONDO 2026-27', W8485_TEAM='ASIA,GIAPPONE,J1 LEAGUE,KASHIWA REYSOL',
+                          W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1', W8485_TMO='900', GP_CALTRACE='1')
+        s1 = os.environ.get('KOMAIN_S1')            # (a season-1 save of the old build, to skip season 1)
+        os.makedirs(RUNS, exist_ok=True)
+        if s1:
+            shutil.copy(s1, saves['s1'])
+        else:
+            os.environ['W8485_ONE'] = '1'
+            ok, msg = world8485()
+            os.environ.pop('W8485_ONE')
+            check(ok, f'old season 1: {msg[:300]}', errs)
+            shutil.copy(os.path.join(RUNS, w84_tag() + '_1', 'SWOS', 'W84A.CAR'), saves['s1'])
+        steps = (('mid_old', old, 's1', 'ELITE OTTAVI DI FINALE ANDATA:1'), ('qf_fix', fix, 'mid_old', 'ELITE QUARTI DI FINALE:1'),
+                 ('fin_fix', fix, 'qf_fix', 'ELITE FINALE:1'), ('end_fix', fix, 'fin_fix', None))
+        for name, exe, frm, mt in steps:
+            if errs:
+                break
+            os.environ.update(W8485_BUILD=exe, W8485_FROM=saves[frm])
+            os.environ.pop('W8485_MIDTEXT', None)
+            if mt:
+                os.environ['W8485_MIDTEXT'] = mt
+            ok, msg = world8485()
+            check(ok and (not mt or 'mid-season' in msg), f'{name}: {msg[:300]}', errs)
+            mine = []
+            if os.path.exists(car2):
+                shutil.copy(car2, saves[name])
+                f, mine = _komain_ed(saves[name], ci)
+                info.append(f'{name}: CT_ED.f {f} acle {mine}')
+            if name == 'qf_fix':                    # (the round of 16 played across the load: in once)
+                check(len(mine) == 1 and mine[0][1] == 1, f'qf_fix: the round of 16 not in once: {mine}', errs)
+            if name == 'fin_fix':                   # (the quarter-final and semi-final after it: in, each once)
+                check(len(mine) == 3 and len({r for r, _ in mine}) == 3, f'fin_fix: acle {mine}', errs)
+            if name == 'end_fix':
+                info.append(f'end_fix: {msg[-200:]}')
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    return not errs, '; '.join(errs + info)
 
 
 @scenario

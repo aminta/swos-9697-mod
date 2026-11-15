@@ -1024,6 +1024,9 @@ def test_sreg_ccnmove():
             A[a1 + 0x12] = 0x10
             struct.pack_into('<II', A, a1 + 0x22, *sub)
 
+    def setup_diy(dv):
+        return bytes([0, 0]) + bytes([0x66]) * (0x733 - 2)
+
     def d8():
         b = bytes(D8)
         return list(struct.unpack_from('<3I', b)) + [struct.unpack_from('<I', b, 16)[0], struct.unpack_from('<I', b, 22)[0]]
@@ -1049,6 +1052,36 @@ def test_sreg_ccnmove():
     L.t_ccn(99)
     if CCN.value != 99 or d8() != [0] * 5 or rules() != [0x6666] * 4:
         errs.append(f'no table entry: ccn {CCN.value} D8 {d8()} rules {rules()}')
+    # (MC 15/11, 1) every level the career club can land on: Serie A..C on 102 (0..4), Serie D groups on 144 (5..13), each
+    # division its own record (sizes, promoted, play-off promoted incl. negative, relegated, play-off relegated, sub byte)
+    def rec(dv):
+        return [20 if dv < 5 else 18, dv % 3 + 1, (0x100 - 2 * dv) & 0xFF if dv & 1 else dv, dv % 4, (0x100 - dv) & 0xFF if dv % 3 == 0 else 0]
+
+    def want_rules(r):
+        po = lambda x: (-(x - 0x100)) >> 1 if x & 0x80 else x
+        return [r[1], po(r[2]), r[3], po(r[4])]
+    for dv in range(14):
+        setup([0x300], dv, rec(dv))
+        for d2 in range(14):                            # (the other divisions' records too: only dv's may be read)
+            if d2 != dv:
+                A[LG + 6 * d2 + 0x0D:LG + 6 * d2 + 0x12] = [0xEE] * 5
+        A[LG + 6 * dv + 0x0D:LG + 6 * dv + 0x12] = rec(dv)
+        L.t_ccn(144)
+        if rules() != want_rules(rec(dv)):
+            errs.append(f'level {dv}: rules {rules()} want {want_rules(rec(dv))}')
+    # (MC 15/11, 2) a career that stays in its file: ccn_move on memory already as the game set it (ProcessCareerFile's D8,
+    # cseg_8F1F2's rule words from the same record) changes no byte of D8 / DIY / CCN
+    for dv in (0, 2, 4):
+        setup([0x300, 0x340], dv, rec(dv), sub=(0x500, 0x540) if dv == 2 else None)
+        T[102] = 0x40
+        L.t_ccn(102)
+        b8, bd, bc = bytes(D8), bytes(DIY), CCN.value
+        L.t_ccn(102)
+        if (bytes(D8), bytes(DIY), CCN.value) != (b8, bd, bc):
+            errs.append(f'stay in 102, level {dv}: bytes changed (D8 {b8 != bytes(D8)}, DIY {bd != bytes(DIY)})')
+        st = bytes(DIY)
+        if st[:0x53] + st[0x5B:] != bytes(setup_diy(dv)) [:0x53] + bytes(setup_diy(dv))[0x5B:]:
+            errs.append(f'stay in 102, level {dv}: DIY outside the rule words changed')
     return not errs, '; '.join(errs) or ('compCountryNumber + D8CAA/AE/B2 (2, 1, 0 cups) + D8CBA/C0 (sub-contest or 0); '
                                          'DIY rules from the new division (negative play-off (-x)>>1), a non-league DIY '
-                                         'kept; no table entry: cleared')
+                                         'kept; no table entry: cleared; every level 0..13 its own record\'s rules; a stay in 102 on the game\'s own state: no byte changed')

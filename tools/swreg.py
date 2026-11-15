@@ -107,6 +107,11 @@ S7_ORIG_SZ = 0x2C000                    # 4.2 S7: s7swap.c's ORIG buffers in swe
                                         # s7swap.py asserts they fit)
 assert MKTAGE_END <= R17_AT < R17_END <= GPLX_AT < GPLX_END <= SESTRIP_AT < SESTRIP_END, \
     'swreg: MKTAGE_END <= R17_AT < R17_END <= GPLX_AT < GPLX_END <= SESTRIP_AT < SESTRIP_END (ordered chain, MC 15/11)'
+SREG2_AT = 0x23000                      # 4.2 N7 piece 4 / 42-s7import (MC 15/11): the old-save import (sreg.py patch_import:
+SREG2_END = 0x25000                     # sreg2.c + sreg_import.c at -Oz, ~7.5 KB + 256 floor; was the one page 0xB000..0xC000,
+                                        # too small); only in a shaped S7 build. A release map band (obj1-room.md), packed at
+                                        # the rc freeze
+assert SESTRIP_END <= SREG2_AT < SREG2_END, 'swreg: SREG2 after SESTRIP'
 assert UPRIZE2_END <= CONTI4_AT, 'uprize part 2 would cross conti / ST'   # (4.2: bands never cross)
 assert CONTI4_END <= ST_AT, 'conti data would cross ST'
 NAMEFIT_AT = 0xC400                     # 4.2 names-fit (namefit.py, Marco (b) step 2: menu names by pixels; MC 12/11): page 13
@@ -128,10 +133,7 @@ SREG_AT = 0x5100                        # 4.2 N7: the club registry's code + dat
                                         # lrank.LR_AT (MC 10/11: the band 0x5100..0x6000); linked only with a shape
 SREG_DIV_AT = 0x4600                    # 4.2 N7: sreg.c's SREG_DIV (SR_REG_CLUBS bytes, 0x4600..0x4A00), above 4.1's
                                         # uprize2 (0x4000..0x42c8), under conti (CONTI4_AT 0x4B00; MC 10/11)
-SREG2_AT = 0xB000                       # 4.2 N7 piece 4: obj4's 12th page (0xB000..0xC000; MC 12/11: the 11th,
-SREG2_END = 0xC000                      # 0xA000..0xB000, is lrank's LR_TAB alone since MC's 11/11 option b), the
-                                        # old-save import (old_ord, the walker, its sites); only with a shape (sreg.py
-                                        # obj4_pages / sreg2_check). 0xC000: Shaved's 42-slow; the CT spare: 0xD000
+# (SREG2: below, after SESTRIP - 42-s7import moved it out of 0xB000..0xC000, MC 15/11)
 KITS_AT = 0xF000                        # 4.2 kits (kits.py, Panchina; MC 12/11): K2 keepers + R1 referee code and the
 KITS_END = 0x11000                      # sprite masks on obj4's 16th page (end asserted <= 0x10000), the KEEPKIT table
                                         # (128 x 24 B, zero-filled) on the 17th

@@ -296,7 +296,7 @@ def patch(p, ssyms, rsyms, gsyms, pgsyms, fsyms, risyms):
         assert len(d) == 2 + 684 * nrec[f] and d[0] << 8 | d[1] == nrec[f], ('s7swap: team file as built', f, len(d), nrec[f])
     stem = mkseason.ns_stem(pk.world).upper()
     names = [f'DATA\\{stem}.{f:03d}' for f in (fa, fb)]
-    ext = {'S7X': gsyms['S7X'], 'SREG_REG': rsyms['SREG_REG'], 'sreg_get': rsyms['sreg_get'],
+    ext = {'S7X': gsyms['S7X'], 'SREG_REG': rsyms['SREG_REG'], 'sreg_get': rsyms['sreg_get'], 'SREG_FLAGS': rsyms['SREG_FLAGS'],
            'SWE_ARENA_AT': ssyms['SWE_ARENA_AT'], 'cstack_call': ssyms['cstack_call'], 'S7_ORIG': ssyms['S7_ORIG']}
     ext.update({k: fsyms[k] for k in ('swe_fopen_r', 'swe_fread', 'swe_fclose')})
     import trailer
@@ -341,7 +341,7 @@ def patch(p, ssyms, rsyms, gsyms, pgsyms, fsyms, risyms):
     obj = cobj.compile_c(SRC, flags, sections=True)
     syms, end, bss = cobj.link(p, obj, swreg.S7SWAP_AT, (4, 0), externs=ext, limit=swreg.S7SWAP_END, text_obj=4,
                                roots=['s7_season', 's7_load', 's7_home_word', 's7_ident', 's7_poolk', 's7ri_pool', 's7ri_cdstr', 'S7RI_STR', 'S7RI_STRF', 's7_snap', 'S7_DIR', 'S7_NDIR', 'RI_MOVES', 'RI_NMOVES', 'RI_S7_BAD', 'RI_HINTN', 'RI_HINTMAP', 'RI_FRESH', 'S7_POOL0', 'S7_NPOOL', 'S7_RIPOOL', 'S7_RSNAME', 'S7_RIMV', 's7_flush', 'S7_HRUN', 'S7_FNV', 'S7_WLOG', 'S7_CLOG', 'WSITES', 'WS_KEYS', 'S7_ENN', 'S7_CFBLEN', 'S7_NAME', 'S7_OAT', 'S7_ONREC', 'S7_LD', 'S7_FA', 'S7_FB', 'S7_NUP', 'S7_NLO', 'S7_UP', 'S7_LO', 'S7_GB',
-                                      'S7_AREA', 'S7_LOG'] + LIB)
+                                      'S7_AREA', 'S7_LOG', 's7_imp_walk', 'S7_AREG'] + LIB)
     assert not bss, ('s7swap.c: no .bss (it would land on swe.c\'s)', bss)
     p.put(*syms['S7_FA'], bytes((fa,)))
     p.put(*syms['S7RI_STRF'], struct.pack('<H', sfo))

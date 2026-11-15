@@ -126,22 +126,20 @@ def section_bytes():
 
 
 def obj4_pages(cur):
-    """obj4's file pages with the old-save import's page (swreg.SREG2_AT..SREG2_END, the 12th): cur, raised to it
-    only with a registry shape (dormant builds: cur, their bytes unchanged)."""
+    """obj4's file pages with the old-save import's band (swreg.SREG2_AT..SREG2_END): cur, raised to it only when the
+    import links (import_on: a shaped S7 build; dormant builds: cur, their bytes unchanged)."""
     import swreg
-    return max(cur, swreg.SREG2_END // 0x1000) if section_bytes() else cur
+    return max(cur, swreg.SREG2_END // 0x1000) if import_on() else cur
 
 
 def sreg2_check(p):
-    """The import's page is obj4's and free (nothing else linked there), above lrank's LR_TAB page (MC 12/11)."""
-    import lrank
+    """The import's band (swreg.SREG2_AT..SREG2_END, two pages since 42-s7import, MC 15/11) is obj4's and free."""
     import swreg
-    tab_end = getattr(lrank, 'TAB_AT', lrank.LR_AT + 0x1000 * lrank.LR_PAGES) + 0x1000   # (LR_TAB's page: 42-int)
-    assert swreg.SREG2_AT >= tab_end and swreg.SREG2_END - swreg.SREG2_AT == 0x1000, \
-        ('sreg: SREG2 overlaps lrank\'s LR_TAB page', hex(swreg.SREG2_AT), hex(tab_end))
-    assert p.le.obj(4).npages * 0x1000 >= swreg.SREG2_END, ('sreg: obj4 has no SREG2 page (obj4_pages)',
+    assert swreg.SREG2_AT % 0x1000 == 0 and swreg.SREG2_END > swreg.SREG2_AT, ('sreg: SREG2', hex(swreg.SREG2_AT))
+    assert p.le.obj(4).npages * 0x1000 >= swreg.SREG2_END, ('sreg: obj4 has no SREG2 pages (obj4_pages)',
                                                             p.le.obj(4).npages)
-    assert not any(p.get(4, swreg.SREG2_AT, 0x1000)), ('sreg: obj4+SREG2_AT not free', hex(swreg.SREG2_AT))
+    assert not any(p.get(4, swreg.SREG2_AT, swreg.SREG2_END - swreg.SREG2_AT)), ('sreg: obj4+SREG2_AT not free',
+                                                                                hex(swreg.SREG2_AT))
 
 
 def patch(p, syms_swe):
@@ -171,7 +169,6 @@ def patch(p, syms_swe):
     assert p.le.obj(4).npages * 0x1000 >= lrank.LR_AT, ('sreg: obj4 has no page at SREG_AT (a world build: lrank)',
                                                          p.le.obj(4).npages)
     assert not any(p.get(4, swreg.SREG_AT, lrank.LR_AT - swreg.SREG_AT)), 'sreg: obj4+SREG_AT not free'
-    sreg2_check(p)                                      # (the import's page: free until piece 4 links there)
     syms, end, bss = cobj.link(p, obj, swreg.SREG_AT, (4, 0), externs={'SREG_DIV': (4, swreg.SREG_DIV_AT), 'SREG_SWC1': syms_swe['SWC1']},
                                limit=lrank.LR_AT, text_obj=4, roots=roots)
     syms['SREG_DIV'] = (4, swreg.SREG_DIV_AT)
@@ -190,10 +187,111 @@ def patch(p, syms_swe):
     p.put(*syms['SREG_WORLD'], struct.pack('<I', s[0] if s else FORCE_WORLD))
     fn = syms_swe['SREG_FN']
     for k, nm in enumerate(('sreg_size', 'sreg_save', 'sreg_load', 'sreg_new', 'sreg_build')):
+        if k == 4 and import_on():                      # (the absent case: patch_import's sreg_absent, after s7swap)
+            continue
         cobj.add_ptr(p, fn[1] + 4 * k, *syms[nm], 4)
     print(f'exe: club registry (N7, sreg.c) obj4+{swreg.SREG_AT:#x}..{end:#x} of {lrank.LR_AT:#x}, SREG_DIV '
           f'obj4+{swreg.SREG_DIV_AT:#x}..{swreg.SREG_DIV_AT + ndiv:#x}; SWC1 \'IT\' '
           f'{section_bytes()} B ({rows()} rows{"" if s else ", SREG_FORCE: an empty shape"})')
+    return end
+
+
+def import_on():
+    """42-s7import (MC 15/11): the old-save import is linked (SREG2) in a shaped S7 build; else SREG_FN[4] = sreg_build."""
+    import s7swap
+    return bool(shape()) and s7swap.on() and not os.environ.get('SREG_FORCE')
+
+
+IMPORT = {}                    # (hosttest / harness: sreg2.c's symbols)
+
+
+def patch_import(p, syms_swe, s7l):
+    """sreg2.c + sreg_import.c at obj4+SREG2_AT (42-s7import, MC 15/11): the absent-'IT' import (SREG_FN[4] =
+    sreg_absent). After sreg.patch and s7swap.patch: the library's copies are theirs (sr_reg_build / check: sreg.c's;
+    sr_reg_season / sr_wmap_import: s7swap.c's), the walk is s7swap.c's s7_imp_walk. The tables: the shaped pack's
+    old_ord / newpool, tools/import41_fixed.json (the 4.1 side), the S7 build's RI layout and globals."""
+    if not import_on():
+        return None
+    import bigtables
+    import careerworld
+    import cobj
+    import globnum
+    import gplay
+    import import41
+    import mkseason
+    import swreg
+    pk = next(pk for pk in mkseason.packs() if sum('divisions' in v for v in pk.meta.get('files', {}).values()) >= 2)
+    world, files, divs = shape()
+    fx = import41.fixed()
+    old, newpool = old_ord(pk), new_pool(pk)
+    lay41, lay7 = fx['ri_layout'], ri_layout(mkseason.off_pools())
+    gl41 = import41.glob_bytes(fx['glob'])
+    gl7 = import41.glob_bytes([(f, globnum.runs_of(pk, f)) for f, _, _ in files])
+    ndiv = 1 + max(d for _, ds, _ in files for d, _ in ds)
+    fb = s7l['S7_FB']
+    ri_file = p.get(*fb, 1)[0]
+    e41, e7 = import41.ri_entry(lay41, world, fx['file']), import41.ri_entry(lay7, world, ri_file)
+    assert e41 and e41[1] == 256 and len(e41[4]) == 1 and e7, ('sreg2: the 4.1 / S7 RI entries of Italy', e41, e7)
+    pd = import41.pool_diff(lay41, lay7, world, fx['file'], ri_file)
+    assert not pd, ('sreg2: the RI pools moved between the 4.1 and S7 tables: st_ovr (before the import) would read '
+                    'the wrong overrides', pd[:3])
+    assert len(newpool) == e41[4][0], ('sreg2: newpool41.csv vs 4.1\'s Italy pool', len(newpool), e41[4])
+    pool0 = struct.unpack('<H', p.get(*s7l['S7_POOL0'], 2))[0]           # (S7 RI's queue holds idents, pool ident j <->
+    bad = [(pk_k, k, c) for c, (pk_k, v) in enumerate(zip(pk.clubs, old)) if v != OLD_NONE and v >= 256   # RS record j:
+           for k in (v - 256,) if newpool[k] != 0xFF and c != pool0 + newpool[k]]   # a stand-in's ident = its RS index's)
+    assert not bad, ('sreg2: a 4.1 stand-in whose S7 ident is not S7_POOL0 + its newpool41 RS index', bad[:3])
+    assert bigtables.ON[0] and 'SOME' in bigtables.LABELS, 'sreg2: someLeaguesTable not moved (bigtables)'
+    nslt = bigtables.LABELS['LIMIT_ALL'][1]
+    with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'swe.c')) as h:
+        arena = re.search(r'#define SWE_ARENA (0x[0-9A-Fa-f]+|\d+)', h.read()).group(1)
+    layn, gln = max(len(lay41), len(lay7)), max(len(gl41), len(gl7))
+    src = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sreg2.c')
+    obj = cobj.compile_c(src, ('-Oz', f'-DIMP_NCLUB={len(divs)}', f'-DIMP_NPOOL41={len(newpool)}', f'-DIMP_LAYN={layn}',
+                               f'-DIMP_GLN={gln}', f'-DIMP_NSLT={nslt}', f'-DSWE_ARENA={arena}'), sections=True)
+    sel = careerworld.SITES['nc']['selteam']
+    import countries
+    if countries.COMP[0] is None:
+        countries.tables(p)
+    comp = countries.COMP[0]                    # (competitionsTable, in place in obj2)
+    ext = {k: LABELS[k] for k in ('SREG_REG', 'SREG_NF', 'SREG_NCLUB', 'SREG_SPEC', 'SREG_WORLD', 'SREG_FLAGS', 'sreg_build',
+                                  'sr_reg_build', 'sr_reg_check')}
+    ext.update({'SREG_DIV': (4, swreg.SREG_DIV_AT), 'SREG_SWC1': syms_swe['SWC1'], 'SWE_ARENA_AT': syms_swe['SWE_ARENA_AT'],
+                'cstack_call': syms_swe['cstack_call'], 'swe_ready': syms_swe['swe_ready'],
+                'IMP_RI': gplay.LABELS['RI_STATE'], 'IMP_SLT': bigtables.LABELS['SOME'],
+                'IMP_SEASON': (2, careerworld.SITES['season']), 'IMP_D6CDC': (sel[0], sel[1] + 6), 'IMP_D6CB8': (sel[0], sel[1] - 0x1E),
+                'IMP_CCN': (sel[0], sel[1] + 0x9C58), 'IMP_D8': (sel[0], sel[1] + 0x1FD4),     # (IDA E092E / D8CAA - selTeamNumber D6CD6)
+                'IMP_COMPTAB': (2, comp),
+                'IMP_DIY': (sel[0], sel[1] + 0x8820)})        # (IDA DF4F6 competitionFileBuffer - D6CD6)
+    ext.update({k: s7l[k] for k in ('S7_AREG', 'S7_CLOG', 's7_imp_walk', 's7_flush', 'sr_reg_season', 'sr_wmap_import')})
+    # (Panchina 15/11) the selTeamNumber-relative variables are the game's own in THIS exe (CD / GOG, every language): each
+    # address is the target of obj1 code fixups (ProcessCareerFile / InitializeNewSeason / cseg_8F1F2 read them)
+    import collections
+    refs = collections.Counter(t[4] for t in p.le.fixups() if t[0] == 1 and t[3] == sel[0])
+    rel = {'D6CB8': -0x1E, 'D6CDC': 6, 'D8CAA': 0x1FD4, 'D8CAE': 0x1FD8, 'D8CB2': 0x1FDC, 'D8CBA': 0x1FE4, 'D8CC0': 0x1FEA,
+           'compCountryNumber': 0x9C58, 'competitionFileBuffer': 0x8820}
+    miss = [k for k, v in rel.items() if not refs.get(sel[1] + v)]
+    assert not miss, ('sreg2: no game code references these selTeamNumber-relative variables in this exe', miss)
+    sreg2_check(p)
+    syms, end, bss = cobj.link(p, obj, swreg.SREG2_AT, (4, 0), externs=ext, limit=swreg.SREG2_END, text_obj=4,
+                               roots=['sreg_absent', 'SREG_IMP', 'IMP_OLD', 'IMP_NEWPOOL', 'IMP_BASE', 'IMP_LAY41', 'IMP_LAY7',
+                                      'IMP_GL41', 'IMP_GL7', 'IMP_FILES', 'IMP_NDIV'])
+    assert not bss and end <= swreg.SREG2_END, ('sreg2: past SREG2_END / .bss', hex(end), bss)
+    p.put(*syms['IMP_OLD'], old_ord_bytes(old))
+    p.put(*syms['IMP_NEWPOOL'], newpool)
+    p.put(*syms['IMP_BASE'], fx['base'])
+    p.put(*syms['IMP_LAY41'], lay41)
+    p.put(*syms['IMP_LAY7'], lay7)
+    p.put(*syms['IMP_GL41'], gl41)
+    p.put(*syms['IMP_GL7'], gl7)
+    p.put(*syms['IMP_FILES'], bytes((fx['file'], ri_file)))
+    p.put(*syms['IMP_NDIV'], bytes((ndiv,)))
+    cobj.add_ptr(p, syms_swe['SREG_FN'][1] + 16, *syms['sreg_absent'], 4)
+    IMPORT.clear()
+    IMPORT.update(syms)
+    LABELS['IMP'] = dict(syms)                         # (syms.json: sreg 'IMP.SREG_IMP' ...)
+    print(f'exe: engine item SREG2 old-save import (sreg2.c + sreg_import.c, 42-s7import) obj4+{swreg.SREG2_AT:#x}..{end:#x} '
+          f'of {swreg.SREG2_END:#x} ({swreg.SREG2_END - end} B left): {len(divs)} idents, 4.1 Italy RI {e41[:2]} pool {e41[4]}, '
+          f'S7 RI {e7[:2]} pool {e7[4]}, someLeaguesTable {nslt} B, {ndiv} divisions; SREG_IMP obj4+{syms["SREG_IMP"][1]:#x}')
     return end
 
 

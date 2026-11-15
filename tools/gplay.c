@@ -4534,17 +4534,21 @@ enum { CN_N = 32 };
 struct cn_state { u8 season, pad[3]; u8 name[CN_N]; };
 struct cn_state CN_ST;                  /* 4.0.5: the career club's division at the last season end (its name) */
 const u32 CN_SIZE = sizeof(struct cn_state);
-static u32 cf_last1(void) {              /* 4.0.5 (gp_wn_c 'E', last season): the 1st of the career club's level */
-#if GP_S7
-    if (CN_ST.pad[2] == 'W' && (u8)(CN_ST.season + 1) == GP_SEAS)    /* (4.2 S7: the career club's OWN last season, kept
-                                           as a word by cf_cap_c - a club that crossed files since is still its old division's) */
+static u32 cf_last1(void) {              /* 4.0.5 (gp_wn_c 'E', last season): the 1st of the career club's division */
+    if (CN_ST.pad[2] == 'W' && (u8)(CN_ST.season + 1) == GP_SEAS)    /* (the career club's OWN last division's 1st, kept
+                                           as a word by cf_cap_c - every build since 4.2 (MC 15/11; S7 4.2 before): a club
+                                           that crossed files since (S7, WSITES row 'CN') is still its old division's) */
         return (u32)(CN_ST.pad[0] | CN_ST.pad[1] << 8);
-#endif
     if (CF_ST.magic != 0x4643 || (u8)(CF_ST.season + 1) != GP_SEAS || (GP_MGR & 0xFF) != CF_ST.file) return 0xFFFE;
-    int lv = CF_ST.rank[GP_MGR >> 8] >> 5;
+    int lv = CF_ST.rank[GP_MGR >> 8] >> 5, hit = -1;    /* (no 'W': a save from before it, the first season end after
+                                           loading - CF_ST's places have no group: the 1st of the level only when the level
+                                           has ONE, else unknown, no line - was the lowest ordinal of every group's 1st) */
     for (int i = 0; i < 256; i++)
-        if (CF_ST.rank[i] == (1 | lv << 5)) return (u32)CF_ST.file | (u32)i << 8;
-    return 0xFFFE;
+        if (CF_ST.rank[i] == (1 | lv << 5)) {
+            if (hit >= 0) return 0xFFFE;
+            hit = i;
+        }
+    return hit < 0 ? 0xFFFE : (u32)CF_ST.file | (u32)hit << 8;
 }
 #ifndef CF_SEED
 #define CF_SEED 0
@@ -4577,15 +4581,15 @@ void cf_cap_c(u32 dv, const u8 *diy, u32 season) {     /* a division's final tab
             int i = 0;
             for (; i < CN_N - 1 && diy[4 + i]; i++) CN_ST.name[i] = diy[4 + i];
             CN_ST.name[i] = 0;
-#if GP_S7
-            {                           /* (4.2 S7, cf-st-s7.md: the 1st of this division, as the career club's own last
-                                           season: its WORD (walked by WSITES row 'CN' +1: a winner that crosses at a
-                                           later swap keeps its identity); pad[2] = 'W' marks it - word 0 is a real club) */
+            {                           /* (cf-st-s7.md: the 1st of this division, as the career club's own last
+                                           season: its WORD (S7: walked by WSITES row 'CN' +1: a winner that crosses at a
+                                           later swap keeps its identity); pad[2] = 'W' marks it - word 0 is a real club.
+                                           Every build since 4.2 (MC 15/11): cf_last1's group-blind fallback picked
+                                           another group's 1st on a level of 2+ groups; S7 builds only before) */
                 int r0 = (diy[0x6D] | diy[0x6E] << 8) / 0x12;
                 u16 w0 = (u16)(diy[0x12D + 2 * r0] | diy[0x12E + 2 * r0] << 8);
                 CN_ST.pad[0] = (u8)w0; CN_ST.pad[1] = (u8)(w0 >> 8); CN_ST.pad[2] = 'W';
             }
-#endif
         }
         if ((w & 0xFF) != CF_ST.file) continue;
         const u8 *dt = cf_dt(CF_ST.file);

@@ -171,16 +171,19 @@ tk_ent:
 ;      a human team (playerNumber / playerCoachNumber) = its session entry (none: no picks = the original slots), a
 ;      CPU team = AUTOMATICO: its 3 best SHOOTING outfielders on the pitch for free kicks and penalties, PASSING for
 ;      corners. TK_W 0 or a TAKERS_LIST build: nothing (the static list, both sides).
-tk_kick:
-%if TK_STATIC = 0
+tk_kick:                                ; (sp_set's tail: every register and flag as its own `ret` left them)
+    pushfd
     push ebp
     call .n
 .n: pop ebp
     sub ebp, .n - TKB
+    mov byte [ebp + TK_CT - TKB], 0     ; (no taker carried over from an earlier match)
+%if TK_STATIC = 0
     and dword [ebp + TK_SIDE - TKB], 0  ; (the sides are filled at the match's first set piece: tk_fill)
     and dword [ebp + TK_SIDE + 4 - TKB], 0
-    pop ebp
 %endif
+    pop ebp
+    popfd
     ret
 
 ; ---- esi -> the kicking team's TeamGeneralInfo, ecx = obj2's base, ebp = TKB -> eax = its side (0 / 1; its 9 picks
@@ -289,6 +292,23 @@ tk_fill:
     pop ebx
     ret
 
+; ---- ebp = TKB, ecx = obj2's base -> ZF set = takers off: TK_W 0 (AUTOMATICI, the original game), a training game
+;      that is no set-piece practice, SWOS++ (SP_OK clear). Every register kept
+tk_gate:
+    cmp byte [ebp + TK_W - TKB], 0
+    je .x
+    cmp word [ecx + TRG_O], 0           ; (a training game: only a set-piece practice)
+    je .c
+    push esi
+    mov esi, [dword ebp + PR_D - TKB]
+    test esi, esi
+    jz .y
+    cmp byte [dword ebp + SPB - TKB + esi], 0
+.y: pop esi
+    je .x
+.c: test byte [dword ebp + SP_OK - TKB], 1    ; (SWOS++: the original game)
+.x: ret
+
 ; ---- replaces `mov esi, A1` / `mov ax, [esi + playerOrdinal]` / `mov D0, ax` (eax, esi free after: the next
 ;      instruction is `sub D0, 1`); every other register kept
 tk_ord:
@@ -301,16 +321,7 @@ tk_ord:
     mov esi, [ecx + A1_O]
     mov ax, [esi + 2]
     mov [ecx + D0_O], ax
-    cmp byte [ebp + TK_W - TKB], 0
-    je .x
-    cmp word [ecx + TRG_O], 0           ; (a training game: only a set-piece practice)
-    je .c
-    mov esi, [dword ebp + PR_D - TKB]
-    test esi, esi
-    jz .x
-    cmp byte [dword ebp + SPB - TKB + esi], 0
-    je .x
-.c: test byte [dword ebp + SP_OK - TKB], 1    ; (SWOS++: the original game)
+    call tk_gate
     jz .x
     mov esi, [ecx + A6_O]
     cmp esi, [ecx + LTP_O]              ; (the kicking team only)
@@ -430,6 +441,9 @@ tk_ctl:
     push eax
     movzx eax, byte [ebp + TK_CT - TKB]
     test eax, eax
+    jz .y
+    call tk_gate                        ; (off: never - TK_CT may be an earlier match's, TK_W 1 then)
+    mov esi, [ecx + A6_O]
     jz .y
     cmp esi, [ebp + TK_CTT - TKB]
     jne .y

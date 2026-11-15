@@ -62,6 +62,7 @@ the game's 68400-B cache; a world career's whole 'EN' block fits there only up t
 | TR | 1 | trial (Mercato CPU) | 4.2.x | trial players: bits 0-3 the PROVA role (0 QUALSIASI, 1..8 = position 0..7), bit 4 QUALITA'+ off; all careers; a save without it: 0 = QUALSIASI with QUALITA'+ on |
 | T3 | 1 | t3 (Mercato CPU) | 4.2.y | PRIMAVERA: the period code of the last youth signing (t3.c T3_ITEM: 1 + (currentSeasonNumber x 64 + week / 4) mod 255; 0 = none); all careers (not world_only); a save without it: 0 = none signed, the list open. With its header 5 B, as TR (MC's room note 12/11: 414 B of the .CAR fixed part left) |
 | DF | 1 | difficulty (Difficoltà) | 4.2 | OPTIONS row DIFFICULTY: DF_W's low byte (0 = NORMAL); all careers (not world_only); after_load df_load / after_new df_new keep the session's level as cpucards. A save without it loads NORMAL. With its header 5 B, as TR / T3 |
+| TK | 27 | takers (Difficolta') | 4.2 | set-piece TAKERS (TIRATORI SCELTI): the career club's 9 picks (free kicks, penalties, corners x 3) as {u8 file player index + 1 (0 none), u16 name hash}; all careers (not world_only); before_save tk_save copies the club's session entry, after_load tk_load restores it (a stale pick - index / name hash not matching - = the original taker). A save without it: no picks = the original takers. With its header 31 B: big cache room 479 -> **448 B left** (release recipe, world5tm-h3s, 42-int 9749ced) |
 
 ## Engine P (2026-11-06, branch p-persist off engine = trymerge cd4e54c)
 

@@ -277,8 +277,7 @@ def patch_exe(src, dst, remap, lang='it'):
         engine.after_new('df_new')
         import takers                            # 4.2 takers (MC 15/11 option 1): the career club's lists, 9 x {file index + 1,
         engine.save_item('TK', takers.TK_SV_SIZE)   # name hash}; an old save / a stale pick = the original taker
-        engine.before_save('tk_save')
-        engine.after_load('tk_load')
+        engine.before_save('tk_save')            # (tk_load: from setpieces' sp_load_j, TKUI_AT + 0)
     import swe
     import sreg                                  # 4.2 N7: SWC1 + the club registry's section 'IT' (0 dormant: no
     swe.SWC1_SIZE = swe.SWC1_BASE + sreg.section_bytes()   # registry shape, 32 B as before; the trailer's room sums it)

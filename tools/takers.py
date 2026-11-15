@@ -125,7 +125,7 @@ def find_ctl(p):
 ASM = r"""
     jmp tk_kick                         ; (TAKERS_AT + 0: setpieces' sp_set calls it at every kick-off)
 align 4
-TKB: dd O2BASE                          ; obj2's base (the band's only fixup)
+TKB: dd 0                               ; (anchor; obj2's base = setpieces' [SPB]: no fixup of its own, MC padding 15/11)
 TAGS: db 'TAKR'
 TK_TABP: dd TK_TAB - TKB                ; (the harness: TAKR tag + 4 = TK_TAB's offset from TKB)
 TK_W: db TK_START                       ; TIRATORI: 0 AUTOMATICI (the original game) / 1 SCELTI
@@ -317,7 +317,7 @@ tk_ord:
     call .n
 .n: pop ebp
     sub ebp, .n - TKB
-    mov ecx, [ebp]
+    mov ecx, [dword ebp + SPB - TKB]
     mov esi, [ecx + A1_O]
     mov ax, [esi + 2]
     mov [ecx + D0_O], ax
@@ -422,6 +422,8 @@ tk_ord:
 
 
 ASM_UI = r"""
+    jmp near tk_load                    ; (TKUI_AT + 0: setpieces' sp_load_j calls it after a career load - no engine
+                                        ;  after_load entry of its own: MC padding 15/11)
 ; ---- UpdateControlledPlayer @@check_closest_active_player: replaces `mov esi, A6` / `mov ax, [esi + ballOutOfPlay]`
 ;      (then `or ax, ax` / `jz @@out`). In a break of the kicking team whose taker T was swapped in (tk_ord: TK_CT),
 ;      A3 (the closest active player) = T's sprite: T stays the controlled player while he walks to the ball, so
@@ -433,7 +435,7 @@ tk_ctl:
     call .n
 .n: pop ebp
     sub ebp, .n - TKB
-    mov ecx, [ebp]
+    mov ecx, [dword ebp + SPB - TKB]
     mov esi, [ecx + A6_O]
     mov ax, [esi + BOOP]
     test ax, ax
@@ -533,7 +535,7 @@ tk_save:
     inc ecx
     cmp ecx, 27
     jb .z
-    mov esi, [ebp]
+    mov esi, [dword ebp + SPB - TKB]
     add esi, CTEAM_O                    ; esi -> careerTeam
     movzx eax, word [esi + 2]
     inc eax
@@ -565,7 +567,7 @@ tk_load:
     call .n
 .n: pop ebp
     sub ebp, .n - TKB
-    mov esi, [ebp]
+    mov esi, [dword ebp + SPB - TKB]
     add esi, CTEAM_O
     movzx eax, word [esi + 2]
     inc eax
@@ -636,14 +638,12 @@ def patch(p, lang):
     at = swreg.TAKERS_AT
     src = _src(test_list())
     code, fix, rel = nasmcave.assemble_obj(src, at, sym, 4)
-    assert len(fix) == 1 and not rel, ('takers: TKB only', fix, rel)
+    assert not fix and not rel, ('takers: no fixups (obj2 base = [SPB])', fix, rel)
     left = swreg.TAKERS_END - at - len(code)
     assert left >= 256, ('takers: band room (floor 256)', left)
     assert p.le.obj(4).npages * 0x1000 >= swreg.TAKERS_END, 'takers: obj4 pages (patch.py)'
     assert not any(p.get(4, at, swreg.TAKERS_END - at)), 'takers: band not free'
     p.put(4, at, code)
-    for o, t_obj, t_off in fix:
-        p.add_ptr(4, at + o, t_obj, t_off)
     lab = nasmcave.labels(src, at, sym)
     df._hook(p, site, 16, 16, lab['tk_ord'])
     usym = {**sym, **{n: (4, v) for n, v in lab.items() if '.' not in n and n not in sym}}
@@ -660,7 +660,6 @@ def patch(p, lang):
     import engine
     engine.ITEM_AT['TK'] = (4, lab['TK_SV'])
     engine.CALL_AT['tk_save'] = (4, lab['tk_save'])
-    engine.CALL_AT['tk_load'] = (4, lab['tk_load'])
     LABELS.clear()
     LABELS.update({k: v for k, v in lab.items() if '.' not in k})
     SITES.clear()

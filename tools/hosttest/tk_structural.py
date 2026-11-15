@@ -157,7 +157,7 @@ def main():
                          f'({"ok" if g else "WRONG"})')
             stray = ds.ranges([i for i in diff if i not in cover])
             bss = [r for r in stray if bss_moved(x, y, r, grow, top)]
-            spm = [r for r in stray if r not in bss and moved_into(x, y, r, B1, B4 + SETP[0], B4 + SETP[1], 4)]
+            spm = [r for r in stray if r not in bss and moved_into(x, y, r, B1, B4 + SETP[0], B4 + SETP[1])]
             rest = [r for r in stray if r not in bss and r not in spm]
             te = tr                                     # (the trailer: its first change from tr, gaps < 0x400)
             for u, v in rest:
@@ -169,7 +169,7 @@ def main():
             bad = [r for r in rest if r not in tro]
             TRL[0] = (tr, te)
             L.append(f'- obj1: {len(ds.ranges(diff))} changed ranges: 2 hooks, {len(bss)} operands into the engine\'s '
-                     f'.bss moved by +{grow:#x} (obj4\'s TKUI pages), {len(spm)} calls / operands into the SETPIECE band moved by +4 (sp_set\'s `ret` -> `jmp tk_kick`), {len(tro)} operands into the trailer\'s data moved, {len(trl)} in the .CAR trailer obj1+{tr:#x}..'
+                     f'.bss moved by +{grow:#x} (obj4\'s TKUI pages), {len(spm)} calls / operands into the SETPIECE band moved by +4 / +9 (sp_set\'s `ret` -> `jmp tk_kick`, sp_load_j\'s `call tk_load`), {len(tro)} operands into the trailer\'s data moved, {len(trl)} in the .CAR trailer obj1+{tr:#x}..'
                      f'{te:#x} (engine.py\'s save-item tables: + TK, its loads / saves = the oldsave trio); unexplained '
                      f'{[(hex(u), v - u) for u, v in bad] or "none"}')
             ok_b &= not bad
@@ -177,7 +177,7 @@ def main():
             rr = ds.ranges(diff)
             ob = B2 if obj == 2 else B3
             bad = [r for r in rr if not bss_moved(x, y, r, grow, top) and not
-                   moved_into(x, y, r, ob, B4 + SETP[0], B4 + SETP[1], 4) and not
+                   moved_into(x, y, r, ob, B4 + SETP[0], B4 + SETP[1]) and not
                    moved_into(x, y, r, ob, B1 + TRL[0][0], B1 + TRL[0][1] + 0x2000)]
             L.append(f'- obj{obj}: {len(rr)} changed ranges, {len(rr) - len(bad)} operands into the .bss (+{grow:#x}), the '
                      f'SETPIECE band (+4) or the trailer\'s data; unexplained {[(hex(u), v - u) for u, v in bad] or "none"}')
@@ -193,10 +193,10 @@ def main():
                 if k is None and bss_moved(x, y, (u, v), grow, top):
                     where['.bss operands'] = where.get('.bss operands', 0) + 1
                 elif k is None and SPX[0] <= u < SPX[1] and moved_into(x, y, (u, v), 0, SETP[0] - spl['SPB'],
-                                                                     SETP[1] - spl['SPB'], 4):
-                    where['SPX: [ebp + label - SPB] +4'] = where.get('SPX: [ebp + label - SPB] +4', 0) + 1
-                elif k is None and moved_into(x, y, (u, v), B4, B4 + SETP[0], B4 + SETP[1], 4):
-                    where['operands into SETPIECE +4'] = where.get('operands into SETPIECE +4', 0) + 1
+                                                                     SETP[1] - spl['SPB']):
+                    where['SPX: [ebp + label - SPB] moved'] = where.get('SPX: [ebp + label - SPB] moved', 0) + 1
+                elif k is None and moved_into(x, y, (u, v), B4, B4 + SETP[0], B4 + SETP[1]):
+                    where['operands into SETPIECE moved'] = where.get('operands into SETPIECE moved', 0) + 1
                 elif k is None and moved_into(x, y, (u, v), B4, B1 + TRL[0][0], B1 + TRL[0][1] + 0x2000):
                     where['operands into the trailer'] = where.get('operands into the trailer', 0) + 1
                 elif k is None:

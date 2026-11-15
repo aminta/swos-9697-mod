@@ -102,6 +102,39 @@ UEFA_FINAL = 0x40               # bit 6 (4.2 S1.3, FIGC C.U. 244/A (iv)): not pl
 BEST_LOSER = 0x3F               # member 'BL': the best placed loser of the previous round (entrants are 0..62)
 
 
+def c_po_canonical(d0, wdiv, ldiv):
+    """The Serie C play-off shape ko_c supports (engine ita_s3.json 'c_po', C.U. 209/A II-V), without names: 27 places 2nd-10th of
+    the 3 groups d0..d0+2 + the cup place, 3 + 3 one-leg group rounds, two seeded national rounds, a drawn Final Four, the final."""
+    ents = [[d0 + g, p] for g in range(3) for p in range(2, 11)]
+    grp = lambda cl: {"legs": 1, "host": "better", "level": "better", "pairing": "best_worst", "clubs": cl}
+    r = [grp([3, 4, 5, 6, 7, 8]), grp([12, 13, 14, 15, 16, 17]), grp([21, 22, 23, 24, 25, 26]),
+         grp([2, "W0", "W1", "W2"]), grp([11, "W3", "W4", "W5"]), grp([20, "W6", "W7", "W8"])]
+    r.append({"legs": 2, "host": "listed", "level": "second", "seeds": [1, 10, 19, 27, "W9"],
+              "drawn": ["W10", "W11", "W12", "W13", "W14"], "best_first": [4, 10]})
+    r.append({"legs": 2, "host": "listed", "level": "second", "seeds": [0, 9, 18, "W15"],
+              "drawn": ["W16", "W17", "W18", "W19"], "best_first": [3, 8]})
+    r.append({"legs": 2, "host": "listed", "level": "et_pens", "pairing": "draw", "clubs": ["W20", "W21", "W22", "W23"]})
+    r.append({"legs": 2, "host": "listed", "level": "et_pens", "ties": [["W24", "W25"]]})
+    return {"key": "c_po", "kind": "promotion", "entrants": ents, "winner_div": wdiv, "loser_div": ldiv, "rank": "level",
+            "rounds": r}
+
+
+def check_c_po_shape(po):
+    """MC 15/11 (condition 1): ko_c supports exactly this shape, never a drifted one - a clear error otherwise."""
+    ents = [e for e in po.get('entrants', []) if not isinstance(e, dict)]
+    cup = [e for e in po.get('entrants', []) if isinstance(e, dict)]
+    if not ents or not (isinstance(ents[0], list) and len(ents[0]) == 2) or len(cup) != 1 or 'cup_place' not in cup[0]:
+        raise ValueError("c_po: 27 [division, place] entrants (2nd-10th of 3 groups) + one cup_place (ko_c supports only that shape)")
+    want = c_po_canonical(ents[0][0], po.get('winner_div'), po.get('loser_div'))
+    got = {k: v for k, v in po.items() if k not in ('names', 'flags')}
+    got['entrants'] = ents
+    cp = cup[0]['cup_place']
+    if want != got or cp.get('div') != ents[0][0] or cp.get('groups') != 3:
+        raise ValueError("c_po: the play-off differs from the shape ko_c supports (28 entrants, 3 groups, group rounds 5v10 / 6v9 / 7v8 + "
+                         "the 4th, seeded national rounds, drawn Final Four, final; engine ita_s3.json) - refused, not played "
+                         f"differently: expected {want}, got {got}")
+
+
 def compile_spec(pos, ndiv, league_names=None):
     """pack.json 'ko_playoffs' -> the bytes gplay.c walks (ended by a 0); raises ValueError on a bad entry.
     league_names: the league's names ({lang: [long, short]}): a 'title' play-off's record line by default (the season
@@ -109,6 +142,8 @@ def compile_spec(pos, ndiv, league_names=None):
     out = bytearray()
     for po in pos:
         key = po.get('key', '?')
+        if key == 'c_po':
+            check_c_po_shape(po)
         kind = KINDS.get(po.get('kind'))
         if not kind:
             raise ValueError(f'{key}: kind {" / ".join(KINDS)}')
@@ -1737,10 +1772,26 @@ gp_end:                                 ; replaces `call cseg_9228D` (after dpla
     mov eax, gp_played_c                ; the career club's played play-off: its results
     call gp_c
 %if S3SKIP
-    cmp byte [DP_BHOLD], 0              ; (4.2 S3: dplay finished a Serie B phase of an old save this season end: gp_season
-    je .nsk                             ; skips b_po / b_pout once - transient, gp_season clears it)
-    mov dword [GP_SKIPPO], S3MASK
+    xor eax, eax                        ; (4.2 S3: the play-offs dplay finished this season end - a Serie B phase of an old save,
+%if S3MB                                ; the career club's Serie C play-off: gp_season skips them once - transient, gp_season
+    cmp byte [DP_BHOLD], 0              ; clears it)
+    je .nsk
+    or eax, S3MB
 .nsk:
+%endif
+%if S3MC
+    cmp byte [DP_CHOLD], 0
+    je .nsc
+    or eax, S3MC
+.nsc:
+%endif
+    mov [GP_SKIPPO], eax
+%if S3MC
+    mov ax, [DPIN_CUPW]                 ; (the Coppa Italia Serie C's winner and finalist for c_po's cup place, the dplay-captured ones)
+    mov [GP_CUPW], ax
+    mov ax, [DPIN_CUPF]
+    mov [GP_CUPF], ax
+%endif
 %endif
     mov eax, gp_season
     call gp_c
@@ -2832,7 +2883,7 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
                                 f"-DGP_GSON={int(GS_ON[0])}",
                                 f"-DCF_SEED={__import__('cupsf').SEED}",
                                 f"-DGP_S7={gp_s7()}",
-                                f"-DGP_S3SKIP={int(bool(__import__('dplay').s3_b_mask()))}",   # (4.2 S3: gplay.c GP_SKIPPO)
+                                f"-DGP_S3SKIP={int(bool(__import__('dplay').s3_b_mask() or __import__('dplay').s3_c_mask()))}",   # (4.2 S3: gplay.c GP_SKIPPO)
                                 *s7_flags(),
                                 f"-DSM_LANG={['it', 'en', 'fr', 'de'].index(lang)}"]   # (gp_strmap_c's STRMAP41 section)
                                + (['-DHDR_TEST'] if os.environ.get('HDR_TEST') else [])   # (test builds: GROUP n headers)
@@ -2848,7 +2899,20 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     import zones
     hlt = area.add(zones.header_labels(lang, [e if os.sep in e else os.path.join(mkseason.PACKS, e)
                                               for e in mkseason.ENABLED]))
-    syms, cend, bss = cobj.link(p, obj, at, (2, bss_at), externs={'GP_PROM_TAB': (1, prom_at), 'SEC_TAB': (1, sec_at),
+    s3_ext = {}
+    import dplay as _dpc
+    if _dpc.s3_b_mask() or _dpc.s3_c_mask():       # 4.2 S3 step 2: cuprule.c (the cup rule, ONE implementation) in obj4's S3C band
+        import swreg
+        assert p.le.obj(4).npages * 0x1000 >= swreg.S3C_END, 'cuprule: obj4 pages (patch.py)'
+        assert not any(p.get(4, swreg.S3C_AT, swreg.S3C_END - swreg.S3C_AT)), 'cuprule: obj4 band not free'
+        cobj_rule = cobj.compile_c(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'cuprule.c'), ['-Oz'])
+        rsyms, rend, rbss = cobj.link(p, cobj_rule, swreg.S3C_AT, (4, swreg.S3C_END), limit=swreg.S3C_END - 256, text_obj=4)
+        assert rbss == 0, 'cuprule.c is state-free: no .bss'
+        s3_ext['cup_rule'] = rsyms['cup_rule']
+        print(f'exe: cup rule (cuprule.c) obj4+{swreg.S3C_AT:#x}..{rend:#x} ({rend - swreg.S3C_AT} B of {swreg.S3C_END - swreg.S3C_AT}, '
+              f'{swreg.S3C_END - rend} B left, floor 256)')
+        LABELS['S3C_RULE'] = rsyms['cup_rule']
+    syms, cend, bss = cobj.link(p, obj, at, (2, bss_at), externs={**s3_ext, 'GP_PROM_TAB': (1, prom_at), 'SEC_TAB': (1, sec_at),
                                                                    **({'GP_SSF': (1, ssf_at),
                                                                        'GP_CAREERW': (2, sacups.SEL_ADDR[0])}
                                                                       if ssf_at else {}),
@@ -2890,11 +2954,19 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     symbols.update(tab_syms)
     symbols.update({k: syms[k] for k in ('GP_EXT', 'S7X') if k in syms})   # (S7: shaped builds only, GP_S7)
     import dplay as _dp
-    _m = _dp.s3_b_mask()                                  # (4.2 S3 glue: b_po + b_pout in ko_playoffs, dplay holds C only)
-    symbols['S3SKIP'] = (0, int(bool(_m)))
-    symbols['S3MASK'] = (0, _m)
-    if _m:
+    _mb, _mc = _dp.s3_b_mask(), _dp.s3_c_mask()           # (4.2 S3 glue: b_po + b_pout / c_po in ko_playoffs)
+    symbols['S3SKIP'] = (0, int(bool(_mb or _mc)))
+    symbols['S3MB'] = (0, _mb)
+    symbols['S3MC'] = (0, _mc)
+    if _mb:
         symbols['DP_BHOLD'] = _dp.LABELS['DP_BHOLD']
+    if _mc:
+        symbols['DP_CHOLD'] = _dp.LABELS['DP_CHOLD']
+        _din, _lay = _dp.LABELS['DP_IN'], _dp.LABELS['layout']
+        symbols['DPIN_CUPW'] = (_din[0], _din[1] + _lay['O_CUPW'])
+        symbols['DPIN_CUPF'] = (_din[0], _din[1] + _lay['O_CUPF'])
+        symbols['GP_CUPW'], symbols['GP_CUPF'] = syms['GP_CUPW'], syms['GP_CUPF']
+    if _mb or _mc:
         symbols['GP_SKIPPO'] = syms['GP_SKIPPO']
     symbols.update({k: syms[k] for k in ('GP_SSB', 'GP_IN', 'GP_OUT', 'gp_season', 'gp_champ', 'gp_keep', 'GP_ST', 'GP_LOG', 'GP_NM', 'GP_DIYP', 'GP_K',
                                          'GP_W', 'GP_SKIP', 'GP_RB', 'GP_ALIVE', 'GP_LAST', 'GP_A', 'GP_B', 'GP_CID', 'GP_SEAS', 'GP_DIV',
@@ -3140,6 +3212,9 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
         p.add_ptr(1, dpp, 1, lab['gp_perm'])
         p.add_ptr(1, lab['GP_PNEXT'], *nxt)
         p.add_ptr(1, lib97.LABELS['NC_BYEP'], 1, lab['gp_bye'])   # (bye_find: our contest's byes, its rounds)
+        import dplay as _dpx
+        if _dpx.s3_c_mask():                                 # (4.2 S3 step 2: dplay's career contest calls the ONE cup rule)
+            p.add_ptr(1, _dpx.LABELS['DP_RULEP'][1], *LABELS['S3C_RULE'])
         import rnames
         if 'gp_rname' in lab and rnames.LABELS.get('RN_CDP'):   # (the Coppa D's and the packs' round names)
             p.add_ptr(1, rnames.LABELS['RN_CDP'], 1, lab['gp_rname'])

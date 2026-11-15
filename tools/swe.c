@@ -21,6 +21,7 @@ typedef unsigned int u32;
 #define REG_REC 24
 #define F_NS 2
 #define M_FRIENDLY 1                    /* (swreg.py M_*) */
+#define M_SEASON 4
 #define M_CAREER 8
 
 u8 SWE_ARENA_AT[SWE_ARENA];             /* [0, sizeof(sr_registry)) = sreg.c's club registry (N7, SREG_REG; sreg.c
@@ -174,7 +175,7 @@ static const u8 *list_ids(u32 l)        /* a list's menu ids: after its dd entri
 static int friendly_world(u32 n)        /* world n is listed by this picker (its mode: friendly / DIY, career) */
 {
     const u8 *r = reg_world(n);
-    return r && (r[6] & (SEL_MODE == M_CAREER ? M_CAREER : M_FRIENDLY));
+    return r && (r[6] & (SEL_MODE == M_CAREER || SEL_MODE == M_SEASON ? SEL_MODE : M_FRIENDLY));
 }
 
 static int locked(u32 n) { return SEL_CW && n && n != SEL_CW; }
@@ -183,7 +184,7 @@ static int locked(u32 n) { return SEL_CW && n && n != SEL_CW; }
    MONDO 2026-27 entry (the world is the main menu's WORLD button's); the friendly / DIY pickers keep both (mixing) */
 static int cur_entry(void)              /* MONDO 2026-27 is an entry of the default world's list */
 {
-    return SEL_MODE != M_CAREER && SEL_DW != SET_W[0] && friendly_world(SET_W[0]) && !locked(SET_W[0]);
+    return SEL_MODE != M_CAREER && SEL_MODE != M_SEASON && SEL_DW != SET_W[0] && friendly_world(SET_W[0]) && !locked(SET_W[0]);
 }
 
 static void put_ff(u8 *l) { l[0] = l[1] = l[2] = l[3] = 0xFF; }
@@ -201,7 +202,8 @@ static void sel_lists(void)
         *h++ = *p;
     }
     *h = 0xFF;
-    int hist = h > L_HIST + 4 && SEL_MODE != M_CAREER;   /* (an empty STORICO is left out; a career: none) */
+    int hist = h > L_HIST + 4 && SEL_MODE != M_CAREER && SEL_MODE != M_SEASON;   /* (an empty STORICO is left
+                                                                       out; a career / a world season: none) */
     if (!SEL_DW) {
         if (SEL_TOP) {
             u8 *t = SEL_TOP;
@@ -221,6 +223,10 @@ static void sel_lists(void)
         *d++ = WMENU + SET_W[0];
     if (hist)
         *d++ = CAREERS;
+#ifdef SEA_BOX
+    if (SEL_MODE == M_SEASON && *comp_slot(SEA_BOX))
+        *d++ = SEA_BOX;                 /* (S6a: the purple STAG. STORICHE box, as below the 1996-97 lists) */
+#endif
     *d = 0xFF;
 }
 
@@ -507,7 +513,7 @@ void swe_sel_pre(u32 mode)
         ns_left(0);                     /* (the national lists pass no w_ns_menu: a 2026-27 contest's namespace left
                                            here named TEAM.180.. / TEAM.080 tmw5.nnn - 2026-27's Saudi clubs) */
     }
-    if (!cw || !set || (mode != M_CAREER && *(u16 *)SWE_TTYPE != CLUB_TEAMS) || !*comp_slot(CAREERS))
+    if (!cw || !set || (mode == M_FRIENDLY && *(u16 *)SWE_TTYPE != CLUB_TEAMS) || !*comp_slot(CAREERS))
         return;
     u32 s = set_w(), dw = s < sizeof SET_W ? SET_W[s] : 0;
     if (dw && !friendly_world(dw))
@@ -540,7 +546,7 @@ void swe_sel_ns(u32 w)                  /* careerworld w_ns_menu, every list: w 
     if (SEL_MODE == 0xFFFFFFFF || !SEL_ON)
         return;
     u32 n = *(u16 *)SWE_NUMSEL;
-    if (SEL_MODE == M_CAREER)           /* (one club: no lock) */
+    if (SEL_MODE == M_CAREER || SEL_MODE == M_SEASON)   /* (one club: no lock) */
         n = 0;
     if (!n)
         SEL_CW = 0;
@@ -808,11 +814,51 @@ __attribute__((naked)) void swe_pre_tramp(void)
                      : : "i"(AV_PRESET));
 }
 
+#ifdef SEAW
+/* S6a (4.3, MC 15/11): SEASON under a default world whose registry record has M_SEASON: the picker runs on that
+   world's lists, as the career's team choice (swe_sel_pre(M_SEASON): the default world's list only, no STORICO, no
+   lock; the path's lists swap the namespace, careerworld w_ns_menu) - SelectTeamsFinalMenu (SWE_SELECT) with the
+   CLASSIC CAREERS selector's world table on top instead of mkseason's season_sel (SEASON_WORLD, the 1996-97 lists).
+   The namespace the path left stays: careerworld's SeasonMenu tramp (sw_init) reads it for the season's world. A
+   default world without seasons keeps step 2.5's message (swe_av_pre). */
+extern u8 SWE_SELECT[], CW_SEAW[];
+
+void swe_sea_post(void)
+{
+    sel_restore();
+    SEL_ON = 0;
+    SEL_MODE = 0xFFFFFFFF;
+}
+
+u32 swe_sea_pre(void)
+{
+    u32 w = av_world();
+    const u8 *r = w ? reg_world(w) : 0;
+    CW_SEAW[0] = 0;                     /* (careerworld sw_init: the season's world, when the path left its namespace) */
+    if (!r || !(r[6] & M_SEASON))
+        return 0;
+    NS_LEFT = 0;                        /* (the picker owns the namespace: no guard after it) */
+    swe_sel_pre(M_SEASON);
+    if (SEL_ON && SEL_DW == w)
+        return CW_SEAW[0] = (u8)w;
+    swe_sea_post();
+    return 0;
+}
+#endif
+
 __attribute__((naked)) void swe_sea_tramp(void)
 {
+#ifdef SEAW
+    __asm__ volatile("pushal\n\tcall swe_sea_pre\n\ttestl %%eax, %%eax\n\tpopal\n\tjnz 2f\n\t"
+                     "pushal\n\tpushl %0\n\tcall swe_av_pre\n\taddl $4, %%esp\n\tpopal\n\t"
+                     "call SWE_SEAPICK\n\tpushfl\n\tpushal\n\tcall swe_av_post\n\tpopal\n\tpopfl\n\tret\n"
+                     "2:\tcall SWE_SELECT\n\tpushfl\n\tpushal\n\tcall swe_sea_post\n\tpopal\n\tpopfl\n\tret"
+                     : : "i"(AV_SEASON));
+#else
     __asm__ volatile("pushal\n\tpushl %0\n\tcall swe_av_pre\n\taddl $4, %%esp\n\tpopal\n\t"
                      "call SWE_SEAPICK\n\tpushfl\n\tpushal\n\tcall swe_av_post\n\tpopal\n\tpopfl\n\tret"
                      : : "i"(AV_SEASON));
+#endif
 }
 #endif
 

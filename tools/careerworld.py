@@ -1121,6 +1121,7 @@ w_tcache:                               ; replaces `mov al, [lastLoadedExtNumber
     ret
 WTPHYS: db 0
 W_FNAT: db 0                            ; (swe.c FNAT: 0, or the 1984-85 world for its nationals)
+W_SEAW: db 0                            ; (S6a: swe.c swe_sea_pre - the world whose lists the SEASON picker showed, 0)
 
 w_holders:                              ; replaces `call cseg_92BBF`: in a world the holders get a place of their own
     push ebx                            ; (appended to the list + record), the game replaces a random qualifier
@@ -2695,6 +2696,20 @@ sw_init:                                ; SeasonMenu's `call InitNewSeason` (4.2
     pop edi
     pop ecx
 .go:
+%if SEAW_ON
+    cmp byte [SWW], 0                   ; S6a (4.3): a world SEASON - the picker showed world SWW's lists (swe.c
+    je .n                               ; swe_sea_pre) and the path left its namespace (a STAG. STORICHE pack from the
+    push eax                            ; same picker leaves the base one: world 0). The world byte + its balance byte
+    mov al, [SWW]                       ; (the tables sum to 0) in someLeaguesTable, as InitCareer's w_load1 - not
+    cmp al, [WCURV]                     ; leaguesTableCopy (UnpackMenu's buffer outside a career season end) -
+    jne .w0                             ; before InitNewSeason: its national cup draws / byes read it (lib97 WORLDB,
+    mov [SLTW], al                      ; historic DRAW_W)
+    neg al
+    mov [SLTW + 1], al
+.w0:
+    pop eax
+.n:
+%endif
     jmp SW_INIT_NEXT
 
 sw_load:                                ; LoadOldCompetitionMenu's .SEA `call j_LoadCareerFile`: w_loadcopy sees SWSEA
@@ -2796,6 +2811,9 @@ def patch_tails(p, at, nasmcave):
     sym['SW_PICK_NEXT'] = p.call_target(1, sea['pick'])
     sym['WCURV'] = (1, LABELS['WCUR']) if 'WCUR' in LABELS else (0, 0)
     sym['WNSBV'] = (1, LABELS['WNSB']) if 'WNSB' in LABELS else (0, 0)
+    import swreg                                 # (S6a: world SEASONs - the picker's world, W_SEAW, swe.c sets it)
+    sym['SEAW_ON'] = (0, int(swreg.SEASON_WORLDS and 'W_SEAW' in LABELS and 'WCUR' in LABELS))
+    sym['SWW'] = (1, LABELS['W_SEAW']) if 'W_SEAW' in LABELS else (0, 0)
     src = TAILS_ASM
     if os.environ.get('DIAG'):                   # diagnostic build: int 3 handler writes DIAG.BIN
         src = f"%define DIAG\n%define DIAG_TICKS {int(os.environ.get('DIAG_TICKS', 364))}\n" + nasmcave.sub(src, '.w:\n    pushad\n    mov esi, TMDBUF', '.w:\n    ' + ('times 5 nop' if os.environ.get('DIAG_NOINST') else 'call diag_install') + '\n    pushad\n    mov esi, TMDBUF')   # (DIAG_NOINST: the same layout, no handlers)

@@ -299,6 +299,9 @@ def patch(p):
         chain.update(swe_pre_tramp='SWE_PREPICK', swe_sea_tramp='SWE_SEAPICK')
     for cs, tr in calls:
         ext[chain[tr]] = p.call_target(1, cs)
+    if historic.CALLS and swreg.SEASON_WORLDS and 'W_SEAW' in careerworld.LABELS:   # S6a (4.3): a world season's
+        ext['SWE_SELECT'] = (1, historic._calls(p)[2])      # picker calls SelectTeamsFinalMenu; its world -> W_SEAW
+        ext['CW_SEAW'] = (1, careerworld.LABELS['W_SEAW'])
     if not ns:
         calls = [c for c in calls if c[1] not in ('swe_ns_tramp', 'swe_stfm_tramp')]
     if 'W_FNAT' in careerworld.LABELS:              # step 2.5: the friendly / DIY nationals' world (w_tmap)
@@ -315,7 +318,7 @@ def patch(p):
     if imp:
         import trailer
         ext['SWE_ENF'] = (1, trailer.LABELS['EN_FOUND'][1] + trailer.INFO['EN_NS'])
-    flags = (('-DNS',) if ns else ()) + (('-DSTFM',) if 'SWE_STFM' in ext else ()) + (('-DNAT',) if 'CW_PLNAT' in ext else ()) + (('-DMB',) if 'MB_STR' in ext else ()) + (('-DOMM',) if 'MB_OMM' in ext else ()) + (('-DFNAT',) if 'CW_FNAT' in ext else ()) + (('-DAV',) if 'SWE_PREPICK' in ext else ()) + (('-DCWB',) if 'SWE_CWB' in ext else ()) + (('-DSEAS',) if 'SWE_SEASON' in ext else ()) + (('-DTRAIN',) if 'SWE_TRAIN' in ext else ()) + (f'-DSWC1_SIZE={SWC1_SIZE}',) + (('-DSWC1_BSS',) if SWC1_SIZE > SWC1_BASE else ())
+    flags = (('-DNS',) if ns else ()) + (('-DSTFM',) if 'SWE_STFM' in ext else ()) + (('-DNAT',) if 'CW_PLNAT' in ext else ()) + (('-DMB',) if 'MB_STR' in ext else ()) + (('-DOMM',) if 'MB_OMM' in ext else ()) + (('-DFNAT',) if 'CW_FNAT' in ext else ()) + (('-DAV',) if 'SWE_PREPICK' in ext else ()) + (('-DSEAW', f'-DSEA_BOX={__import__("mkseason").SEASONS}') if 'SWE_SELECT' in ext else ()) + (('-DCWB',) if 'SWE_CWB' in ext else ()) + (('-DSEAS',) if 'SWE_SEASON' in ext else ()) + (('-DTRAIN',) if 'SWE_TRAIN' in ext else ()) + (f'-DSWC1_SIZE={SWC1_SIZE}',) + (('-DSWC1_BSS',) if SWC1_SIZE > SWC1_BASE else ())
     import s7swap
     if s7swap.on():                                 # 4.2 S7: s7swap.c's ORIG buffers (the two league files as read)
         flags += (f'-DS7_ORIG_SZ={swreg.S7_ORIG_SZ}',)

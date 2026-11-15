@@ -405,6 +405,8 @@ def patch_exe(src, dst, remap, lang='it'):
     import dplay as _dps
     if _dps.s3_b_mask() or _dps.s3_c_mask():                 # 4.2 S3 step 2: cuprule.c's band (S3 builds only)
         swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, (swreg.S3C_END + 0xFFF) // 0x1000)
+    if gplay.gplx_on():                                # 4.2 GPLX (MC 15/11): gplx.c's band (builds with worlds)
+        swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, -(-swreg.GPLX_END // 0x1000))
     swe.OBJ4_PAGES = sreg.obj4_pages(swe.OBJ4_PAGES)   # (4.2 N7: + the old-save import's 12th page, SREG2_AT)
     if lr_tabs:                                        # (the career league's head-to-head block)
         engine.save_item('LR', lrank.LR_SIZE, world_only=True)

@@ -378,6 +378,27 @@ def compile_spec(pos, ndiv, league_names=None):
 
 
 PLAY_ASM = '''
+%if SC_ON
+gp_scrow:                               ; 4.2 supercups-s1 (MC 15/11, finding B): replaces CareerGameListCommon's cup row
+    mov word [esi + 4], 0               ; `mov word [esi + 4], 0` (its first line, the label already in [esi + 38]): a
+    pushad                              ; slot-4 row of the played UEFA Super Cup keeps its own name after slot 4 holds
+    push es                             ; the national supercup (gp_scrow_c: 0 = the slot's label stays)
+    push ds
+    pop es
+    cld
+    push dword [A6R]                    ; (the row: [0] its slot, [1] its week)
+    call gp_scrow_c
+    add esp, 4
+    pop es
+    test eax, eax
+    jz .x
+    add eax, STR_BASE_
+    mov esi, [esp + 4]
+    mov [esi + 38], eax
+.x: popad
+    ret
+%endif
+
 %if STG_ON
 gp_cal:                                 ; 4.0: replaces the career calendar's league row `mov word [esi + 4], 1` (its
     mov word [esi + 4], 1               ; second line hidden): the league day's stage / group short title as its first
@@ -2857,6 +2878,55 @@ def s7_flags():
     return [f'-DS7_FA={fs[0]}', f'-DS7_FB={fs[1]}', '-DS7_DIRS=' + ','.join('{%d,%d,%d,%d}' % x for x in dirs)]
 
 
+
+GPLX_ROOTS = ['sc_rule']                             # (gplx.c's entry points gplay.c calls)
+GPLX_EXT = ('GP_SEAS', 'SC_ST', 'CF_ST', 'WN_ST', 'wn_find')   # (gplay.c's symbols gplx.c reads)
+
+
+def gplx_on():
+    """4.2 GPLX (MC 15/11, obj1-room.md): gplx.c in obj4's GPLX band - every build with worlds (the supercups' code);
+    the others include it into gplay.c"""
+    import mkseason
+    return bool(mkseason.worlds())
+
+
+def gplx_dry():
+    """(object, {gplx.c entry point: (4, offset)}, end): gplx.c laid out at GPLX_AT, its externs not resolved yet - the
+    same layout as the real link's (every reference a 32-bit field)"""
+    import swefile
+    import cobj
+    import swreg
+
+    class _Any(dict):
+        def __contains__(self, k):
+            return True
+
+        def __bool__(self):                          # (cobj.link: `externs or {}`)
+            return True
+
+        def __missing__(self, k):
+            return (2, 0)
+    obj_x = cobj.compile_c(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'gplx.c'), ['-Oz'], sections=True)
+    xs, end, xbss = cobj.link(swefile._Rec(), obj_x, swreg.GPLX_AT, (4, swreg.GPLX_END), externs=_Any(),
+                              limit=swreg.GPLX_END, text_obj=4, roots=GPLX_ROOTS)
+    assert xbss == 0, 'gplx.c holds no state: no .bss (its state stays gplay.c\'s)'
+    return obj_x, {k: xs[k] for k in GPLX_ROOTS}, end
+
+
+def gplx_link(p, gx, syms):
+    """gplx.c into obj4's GPLX band against gplay.c's symbols; floor 256 B"""
+    import cobj
+    import swreg
+    obj_x, want, dry_end = gx
+    assert p.le.obj(4).npages * 0x1000 >= swreg.GPLX_END, 'gplx: obj4 pages (patch.py)'
+    assert not any(p.get(4, swreg.GPLX_AT, swreg.GPLX_END - swreg.GPLX_AT)), 'gplx: obj4 band not free'
+    xs, end, _ = cobj.link(p, obj_x, swreg.GPLX_AT, (4, swreg.GPLX_END), externs={k: syms[k] for k in GPLX_EXT},
+                           limit=swreg.GPLX_END - 256, text_obj=4, roots=GPLX_ROOTS)
+    assert end == dry_end and all(xs[k] == want[k] for k in want), ('gplx: the dry layout moved', xs, want)
+    LABELS['GPLX'] = (swreg.GPLX_AT, end)
+    print(f'exe: gplay overflow (gplx.c) obj4+{swreg.GPLX_AT:#x}..{end:#x} ({end - swreg.GPLX_AT} B of '
+          f'{swreg.GPLX_END - swreg.GPLX_AT}, {swreg.GPLX_END - end} B left, floor 256)')
+
 def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     """tables: mkseason.gplay_tables(). C + glue + specs in obj1 at..limit, the C .bss at obj2 bss_at (BSS_SIZE).
     area: the contest names' string area (the playable play-offs). Returns the end."""
@@ -2921,6 +2991,7 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
                                 f"-DCF_SEED={__import__('cupsf').SEED}",
                                 f"-DGP_S7={gp_s7()}",
                                 f"-DGP_S3SKIP={int(bool(__import__('dplay').s3_b_mask() or __import__('dplay').s3_c_mask()))}",   # (4.2 S3: gplay.c GP_SKIPPO)
+                                f"-DGP_GPLX={int(gplx_on())}",   # (4.2 GPLX: gplx.c in obj4, builds with worlds)
                                 *s7_flags(),
                                 f"-DSM_LANG={['it', 'en', 'fr', 'de'].index(lang)}"]   # (gp_strmap_c's STRMAP41 section)
                                + (['-DHDR_TEST'] if os.environ.get('HDR_TEST') else [])   # (test builds: GROUP n headers)
@@ -2949,7 +3020,8 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
         print(f'exe: cup rule (cuprule.c) obj4+{swreg.S3C_AT:#x}..{rend:#x} ({rend - swreg.S3C_AT} B of {swreg.S3C_END - swreg.S3C_AT}, '
               f'{swreg.S3C_END - rend} B left, floor 256)')
         LABELS['S3C_RULE'] = rsyms['cup_rule']
-    syms, cend, bss = cobj.link(p, obj, at, (2, bss_at), externs={**s3_ext, 'GP_PROM_TAB': (1, prom_at), 'SEC_TAB': (1, sec_at),
+    gx = gplx_dry() if gplx_on() else None           # 4.2 GPLX (MC 15/11): gplx.c's addresses first (a dry link)
+    syms, cend, bss = cobj.link(p, obj, at, (2, bss_at), externs={**s3_ext, **(gx[1] if gx else {}), 'GP_PROM_TAB': (1, prom_at), 'SEC_TAB': (1, sec_at),
                                                                    **({'GP_SSF': (1, ssf_at),
                                                                        'GP_CAREERW': (2, sacups.SEL_ADDR[0])}
                                                                       if ssf_at else {}),
@@ -2958,6 +3030,8 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
                                                                    'SEC_COPY': careerworld.SITES['sltcopy'],
                                                                    'GP_HLT': (2, hlt), 'GP_SEASP': uesum.season_var(p)},
                                 limit=limit)
+    if gx:
+        gplx_link(p, gx, syms)
     global GP_BSS                                    # 4.2 class B (MC 12/11, Motore option a): the room = the measured
     GP_BSS = (bss + 0x200 + 0xFFF) & ~0xFFF          # .bss + 0x200, page-rounded (was 0x6000 + the stage banks' rounding
                                                      # / 0x7000 in patch.py: too small in scenario builds); patch.py adds
@@ -3050,7 +3124,7 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     symbols['ADDJOB'] = (1, addjob)
     symbols.update({k: syms[k] for k in ('GP_CFB', 'GP_LG', 'GP_RST', 'GP_RIT', 'GP_SEL', 'GP_MGR', 'GP_WORLD', 'GP_SLT',
                                          'gp_sack_c', 'gp_forcecfb', 'gp_pwin_c', 'gp_rlines_c', 'GP_RLN', 'GP_RLC', 'GP_RLPOULE', 'GP_REC', 'GP_CMB', 'gp_adv_c', 'GP_ADVWK', 'GP_WK', 'GP_TH', 'GP_RN',
-                                         'gp_defer_c', 't2_force', 'gf_step_c', 'gf_drop_c', 'gf_place_c', 'gf_hide_c', 'gf_unhide_c', 'gf_anchor_c', 'GP_S3', 'GP_S3B', 'GP_GFT', 'cd_step_c', 'sc_step_c', 'sc_rlines_c', 'GP_SCT', 'GP_SCFIRST', 'SC_ST', 'SC_TRACE', 'cd_fixload_c', 'gp_scal_c', 'gp_repoint_c', 'gp_fixload_c', 'gp_strmap_c', 'CD_ST', 'GP_CDT', 'GP_CDNM', 'GP_CDD',
+                                         'gp_defer_c', 't2_force', 'gf_step_c', 'gf_drop_c', 'gf_place_c', 'gf_hide_c', 'gf_unhide_c', 'gf_anchor_c', 'GP_S3', 'GP_S3B', 'GP_GFT', 'cd_step_c', 'sc_step_c', 'gp_scrow_c', 'sc_rlines_c', 'GP_SCT', 'GP_SCFIRST', 'SC_ST', 'SC_TRACE', 'cd_fixload_c', 'gp_scal_c', 'gp_repoint_c', 'gp_fixload_c', 'gp_strmap_c', 'CD_ST', 'GP_CDT', 'GP_CDNM', 'GP_CDD',
                                          'GP_CDFIRST')})
     symbols['CD_MEMBER'] = syms['cd_member_c']
     symbols['GP_CDS1'] = syms['GP_CDS1']
@@ -3131,6 +3205,13 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     sct = supercup.table(lang, (lambda x: _sadd(area, x) - sacups.STR_BASE) if area else (lambda x: 0)) \
         if mkseason.worlds() else None
     symbols['SC_ON'] = (0, int(bool(sct)))
+    scrow_sites = []
+    if sct:                                                   # (4.2 supercups-s1: CareerGameListCommon's two cup-row
+        d1 = p.le.obj_bytes(1)                                #  `mov word [esi + 4], 0` after `add D3, 16; add D4, 8;
+        scrow_sites = [m.start() + 22 for m in re.finditer(   #  mov esi, A5` - gp_scrow)
+            rb'\x66\x83\x05.{4}\x10\x66\x83\x05.{4}\x08\x8b\x35' + re.escape(struct.pack('<I', r['A0'] + 20))
+            + rb'\x66\xc7\x46\x04\x00\x00', d1, re.S)]
+        assert len(scrow_sites) == 2 and all(cgl <= x < cgl + 0x1100 for x in scrow_sites), ('cup rows', scrow_sites, cgl)
     if sct:
         import careerworld as cw_
         symbols['W_REC'] = (1, cw_.LABELS['w_rec'])
@@ -3272,6 +3353,9 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
         p.put(1, mrec + 1, struct.pack('<i', lab['gp_mrec'] - (mrec + 5)))   # (REGISTRO GESTIONE: our lines again)
         assert p.get(1, sk['site'], 5) == p.le.obj_bytes(1)[sk['site']:sk['site'] + 5], 'the season-end call is hooked'
         p.put(1, sk['site'] + 1, struct.pack('<i', lab['gp_sack'] - (sk['site'] + 5)))   # (the reserve: sacked)
+    for cs in scrow_sites:                                    # (4.2 supercups-s1: 6 bytes, no address)
+        assert bytes(p.get(1, cs, 6)) == b'\x66\xc7\x46\x04\x00\x00'
+        p.put(1, cs, b'\xe8' + struct.pack('<i', lab['gp_scrow'] - (cs + 5)) + b'\x90')
     for cs in cal_site or []:                                 # (6 bytes, no address: no fixup)
         assert bytes(p.get(1, cs, 6)) == b'\x66\xc7\x46\x04\x01\x00'
         p.put(1, cs, b'\xe8' + struct.pack('<i', lab['gp_cal'] - (cs + 5)) + b'\x90')

@@ -302,6 +302,9 @@ or a SETUP-ERROR, 3 = only FLAKY, 0 = all PASS. `SWOSTEST_NO_RERUN=1`: no re-run
 - `MEMDUMPBIN ...: no file`: the debugger lost a typed command (the dump is retried 3 times; if it still fails, DOSBox
   probably died: see `debugger.raw`).
 - Breakpoints (`Session.bp`, `SWOSTEST_BP`) need `CORE=normal` (the dynamic core does not re-check translated code).
+- Frame-by-frame trace comparisons (diff_trace) need `CORE=normal` + a fixed `CYCLES` (40000) to repeat at all, and even
+  then they only hold between builds with the same per-frame code cost: a pure delay loop (DIFF_DELAY, no logic) moves
+  the match, even the team order (14/11). Code added to the match loop is judged by match outcomes, not by the trace.
 - Never run `config -wcd` inside DOSBox-X: it overwrote the user's DOSBox-X preferences once.
 - `SWOSTEST_UI=fr` / `de` full seasons stuck at the season end's 'TERMINER LA SAISON' / 'SAISON BEENDEN' until
   2026-10-20: the label map (tools/swostest_lang.json) had no FINISCI STAGIONE for them; added (FR / DE seasons with
@@ -489,3 +492,36 @@ last round, never before the plain week's pick; shots ctc_<s1|s2|end>_<k>, ctc_w
 
 - Host fixtures: c/S7RI-hs (default exe of test_s7rimoves / test_s7_unhint_first / test_s7load_ri_home) is a REAL-pack IT build; rebuild it per tip (`S7PACK=internal/s7pack-real/ita HOSTTEST_SYMS=1`, same shaped-build recipe as c/S7W-ws4c) or those tests FAIL with KeyError RI_FRESH / RI_HINTMAP. Its S7_PACK for DOSBox: world_s7cross_down/up and world_s7cross_winners_same need s7pack-real/ita (_same needs the CF code, which gplay links only when the Italy pack has cup_d: with the shaved pack it FAILs as 'SETUP: ... no CF code', before 15/11 it failed as CN_ST.pad[2] = 0), world_s7cross_winners / _x need s7pack-shaved/ita (without S7_PACK they SKIP. In a GATE a SKIP never counts as PASS: list SKIPs separately in every gate report, and a scenario the gate needs that comes back SKIP blocks the gate).
 - internal/s7pack-shaved/ita (Shaved's S7 test pack, a 13/11 copy made before cup_d and the pool file existed) has since 15/11 the real pack's Coppa Serie D (`cup_d`, same cupd.json): its builds link the CF code (cf_cap) as the release shape does. It still differs from s7pack-real/ita (left as it was, the 13/11 test shape the s7cross scenarios ran on): no `pool` file (file 253), Serie A `relegated: 0`.
+
+## Full-match frame traces (42-diff, 2026-11-13)
+`diff_trace` (DIFF_TRACE builds) compares a 13000-frame match hash every 2048 frames (DIFF_CKSH) between REF (kick-off
+hook only) and NEW. What the game reads from real time, and how the trace build pins it:
+- InitGameRestoreTeams calls Rand before the kick-off: playerCardChance, gameRandValue, teamPlayingUp (which team plays
+  up: the two teams swap in memory), teamStarting. The menus advance the generator in real time, so the trace pins both
+  generators before the kick-off too. Without it a run plays one of two different matches. Two pins (13/11 hc hunt):
+  df_tpre at the function's first call (the call after its 30h-byte rep movsb; IT 0x5ddb4), because 0x61aa5 and
+  0x73ed3 (IT) call Rand before its own first Rand; and df_tpre2 again at that first Rand (`call Rand / and D0, 1Eh`,
+  IT 0x5deed), because how many Rands run between the two depends on the build (early pin alone: hh REF 13082 frames,
+  NEW 13110, every run). With the early pin only, hc diverged after frame 4096; with the late pin only, at frame
+  ~240 (the teams swapped).
+- The commentary: IsSamplePlaying asks AIL whether the last sample ended (audio time), then PlayCommentarySample picks
+  the next one by Rand. Muted (g_muteCommentary) from df_tpre in trace builds.
+- currentGameTick / lastGameTick / currentTick: one tick per frame from the kick-off (TimerProc's own increments off).
+With these, hh and hc are equal over the whole match (13110 frames). Gate (MC 13/11): host test + short traces + hh full
++ hc / cc NORMAL NEW vs REF no worse than REF vs REF (DIFF_SELF=1, N >= 4 each, SWOSTEST_NO_RERUN=1); EASY+NEW is not
+compared with REF (the knobs change the CPU's play) but with itself: DIFF_SELF=easy (cc EASY+NEW twice), no worse
+than REF vs REF.
+Open (cc hunt 13/11, MC timebox ended): cc NORMAL NEW is still deterministically not REF, with every knob / build-up
+hook skipped too (DIFF_SKIP), so the cause is in what NEW has without hooks (the 'DF' item and OPTIONS rows, df_kick,
+obj4 layout). Found on the way: TimerProc sets bumpBigSFrame (IT 0xa8a0e) every 2nd timer tick, which steps an animation
+index (0x65109 -> 0xbdfe6) that a sprite's picture follows: a real-time input. Trace builds now set it once per frame in
+df_frame (TimerProc's timerBoolean block nopped); this changed every outcome (REF 13077 / 13110 by team order) but NEW
+still differs (always 13091, before frame 2048). Each result's `order` = the first team record's name at obj2 0x20a8c (IT),
+which varies run to run in REF too: compare only same-order runs. Handoff: internal/handoff/42-diff-cc-hunt.md.
+MC's stack-residue hypothesis (stubs writing under esp, the AI reading left-over locals) ruled out 13/11: DIFF_STKZ=n
+(both trace builds zero the n bytes under esp at the kick-off) with 2048: REF vs REF equal at the same order (2/2),
+NEW vs REF still not (HAMBURG / HAMBURG 13110 / 13057); and with every knob / build-up hook skipped no stub runs in
+the match at all, cc still differs.
+`DIFF_STOPF=n` halts at frame n and diffs obj2 word by word (REF vs NEW): the way to find the next input.
+`DIFF_PAD=code,buildup` (REF + a nop band of NEW's obj4 sizes) was equal to REF in every run: code size is not a cause.
+DIFF_SKIP is a comma list matched as a set ('BU' is not 'BUFRAME').

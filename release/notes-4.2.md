@@ -10,6 +10,11 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 #### Serie D placement
 - Serie D: clubs promoted into Serie D now join the Serie D group of their own area. When that group is already full, one of its clubs moves over to a neighbouring group to make room. It's never your club, and no club moves more than once a season, just as the league does with clubs near the border between two groups.
 
+#### Your 4.1 career in 4.2's new Italy
+- A career saved in 4.1 loads in 4.2: nothing is lost and no message appears. Serie D now has 9 groups of 18 clubs (162 clubs).
+- The 6 new places go first to the 6 clubs that join Serie D in 2026-27, if your career has not already brought them in. Otherwise they go to the clubs relegated out of Serie D during your career, in the order the game would have brought them back. These clubs enter their group at the start of the next season.
+- Rare case: the game used provisional clubs (a "stand-in") to fill a Serie D place when a club dropped out of the pyramid. If a stand-in reached Serie C in your 4.1 career, a real Serie D club replaces it the first time you load the save in 4.2, and keeps the stand-in's points and table position.
+
 #### Keeper gloves
 - In the 2026-27 world the goalkeepers now wear white gloves: their hands show white, for every keeper whatever the skin colour. The historic worlds (1996-97, 1984-85 and the historic seasons) keep the bare hands of the original game.
 
@@ -48,6 +53,8 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 - Difficulty, dribbling and set pieces start at NORMAL, CLASSIC and CLASSIC: a new install plays exactly the original game until you change them in OPTIONS.
 - Difficulty only touches a computer team facing a human; dribbling settings only apply with the ball in play.
 - REALISTIC free kicks follow real-football rates (league average around 6-7% of direct free kicks scored, the best specialists 10-15%: Opta).
+- Stand-ins from a 4.1 career (Davide, 12/11): a stand-in that reached Serie C is replaced by a real Serie D club at the first load in 4.2, which keeps its points and table position (the alternative, showing the stand-in until the end of the season, was dropped).
+- Serie D, a full group (Davide): the club that moves to a neighbouring group is the one living nearest to the centre of that group, by the real location of the clubs' towns.
 
 
 ## Italiano
@@ -60,6 +67,11 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 
 #### Serie D placement
 - Serie D: le squadre promosse in Serie D ora entrano nel girone della loro zona. Se quel girone è già pieno, una delle sue squadre passa a un girone confinante per fare posto. Non è mai la tua squadra e nessuna squadra viene spostata più di una volta a stagione, come fa la Lega con le squadre al confine tra due gironi.
+
+#### La tua carriera 4.1 nella nuova Italia della 4.2
+- Una carriera salvata con la 4.1 si carica nella 4.2: non si perde niente e non compare nessun messaggio. La Serie D ora ha 9 gironi da 18 squadre (162 squadre).
+- I 6 posti nuovi vanno prima alle 6 squadre che entrano in Serie D nel 2026-27, se la tua carriera non le ha già fatte entrare. Altrimenti vanno alle squadre retrocesse dalla Serie D nella tua carriera, nell'ordine in cui il gioco le avrebbe riportate su. Queste squadre entrano nel loro girone all'inizio della stagione successiva.
+- Caso raro: il gioco usava squadre provvisorie (una "squadra riserva") per riempire un posto in Serie D quando una squadra usciva dalla piramide. Se una riserva è arrivata in Serie C nella tua carriera 4.1, al primo caricamento nella 4.2 viene sostituita da una vera squadra di Serie D, che tiene i punti e la posizione in classifica della riserva.
 
 #### Keeper gloves
 - Nel mondo 2026-27 i portieri portano i guanti bianchi: le mani si vedono bianche, per ogni portiere qualunque sia il colore della pelle. I mondi storici (1996-97, 1984-85 e le stagioni storiche) hanno le mani nude del gioco originale.
@@ -99,3 +111,5 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 - Difficoltà, dribbling e calci piazzati partono da NORMALE, CLASSICO e CLASSICI: una nuova installazione gioca esattamente il gioco originale finché non li cambi in OPZIONI.
 - La difficoltà tocca solo una squadra del computer contro un umano; le regolazioni del dribbling valgono solo a palla in gioco.
 - Le punizioni REALISTICHE seguono le percentuali del calcio reale (media di campionato circa 6-7% delle punizioni dirette segnate, i migliori specialisti 10-15%: Opta).
+- Squadre riserva di una carriera 4.1 (Davide, 12/11): una riserva arrivata in Serie C viene sostituita da una vera squadra di Serie D al primo caricamento nella 4.2, che tiene punti e posizione in classifica (l'alternativa, tenere la riserva visibile fino a fine stagione, è stata scartata).
+- Serie D, girone pieno (Davide): la squadra che passa a un girone confinante è quella la cui città è più vicina al centro di quel girone, secondo la posizione reale delle città.

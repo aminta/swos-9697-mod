@@ -248,3 +248,115 @@ def test_s7redraw_exe():
         moved += log[1]
     return not errs, '; '.join(errs[:4]) or (f'exe == oracle on season 1 end x3 career clubs (deterministic) + a 3-season chain '
                                              f'({moved} regroupings in the chain); {"; ".join(notes)}')
+
+
+# ---- MC 15/11 condition 1 (the rule version in the 'IT' flags' spare bits 4..7): every save we can load has bits 2..7 = 0 today -------------
+# Every .CAR under ~/swos-mod/internal (the oldsave trio's and the other scenarios' saves, the hosttest fixtures, Davide's and the players'
+# saves, the 4.1.x ones the import reads): its trailer's EN block -> SWC1 -> section 'IT' (the registry) -> the u16 flags at +8.
+def _it_flags(b):
+    """[(flags, season)] of every 'IT' section in a save's EN block(s) (none: no EN / SWC1 / 'IT')"""
+    import engine
+    import trailer
+    sid, out = engine.item_id('SWC1'), []
+    k = b.find(struct.pack('<H', trailer.EN_MARK))
+    while k >= 0:
+        p, end = k + 4, k + 4 + struct.unpack_from('<H', b, k + 2)[0]
+        ok = end <= len(b)
+        while ok and p + 4 <= end:
+            iid, ln = struct.unpack_from('<HH', b, p)
+            if p + 4 + ln > end:
+                break
+            if iid == sid and ln >= 24:
+                s, q = b[p + 4:p + 4 + ln], 20                  # (SWC1_HDR 20, then u16 id, u16 len sections, id 0 ends)
+                while q + 4 <= len(s) and struct.unpack_from('<H', s, q)[0]:
+                    i2, n2 = struct.unpack_from('<HH', s, q)
+                    if q + 4 + n2 > len(s):
+                        break
+                    if i2 == 0x5449 and n2 >= 12:
+                        out.append(struct.unpack_from('<HH', s, q + 4 + 8)[0:1] + struct.unpack_from('<H', s, q + 4 + 2))
+                    q += 4 + n2
+            p += 4 + ln
+        k = b.find(struct.pack('<H', trailer.EN_MARK), k + 2)
+    return out
+
+
+def test_s7redraw_saves():
+    root = os.path.join(os.path.expanduser('~'), 'swos-mod', 'internal')
+    if not os.path.isdir(root):
+        return True, 'SKIP: no internal/'
+    n = nit = 0
+    bad = []
+    for d, _, fs in os.walk(root):
+        for f in fs:
+            if not f.upper().endswith('.CAR'):
+                continue
+            n += 1
+            try:
+                b = open(os.path.join(d, f), 'rb').read()
+            except OSError:
+                continue
+            fl = _it_flags(b)
+            nit += bool(fl)
+            bad += [(os.path.relpath(os.path.join(d, f), root), hex(x)) for x, _ in fl if x & 0xFC]
+    assert not bad, (len(bad), bad[:8])
+    return True, f'{n} .CAR saves under internal/, {nit} with a registry section \'IT\': flags bits 2..7 all 0 (the rule version\'s room is free)'
+
+
+# ---- MC 15/11 conditions 1 + 2: the fallbacks, forced, on the exe -------------------------------------------------------------------------
+# (a) the redraw refuses (S7GEO_HAVE poked 0: s7rd_level -> rc -1 before any change), (b) S7_REDRAW_OFF (S7RD_PTR 0, as s7swap.py leaves it
+# under the switch), (c) a save from a newer rule (the 'IT' flags' version 2 > S7RD_RULE_VER): each season end = the crossers' place()
+# groups exactly (the registry of (b)), Serie B 20, Serie C 3 x 20, Serie D 9 x 18, every ident at most one row, rows = the files';
+# (a) S7RD_LOG status 2; (c) S7RD_NEWER 1 and the version kept at 2 (never lowered).
+def test_s7redraw_fallback():
+    if not os.path.exists(RD_EXE) or not os.path.exists(RD_EXE[:-4] + '.syms.json'):
+        return True, f'SKIP: {RD_EXE} missing'
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import test_s7swap as t7
+    m = t7.M(RD_EXE)
+    sy = m.sy['s7swap']
+    if 'S7RD_NEWER' not in sy or 'S7GEO_HAVE' not in sy:
+        return False, f'{RD_EXE}: no S7RD_NEWER / S7GEO_HAVE (a build before the fallback rules)'
+    ptr, have, flg = m.at('s7swap', 'S7RD_PTR'), m.at('s7swap', 'S7GEO_HAVE'), m.at('sreg', 'SREG_FLAGS')
+    pv, hv = m.rd(ptr, 4), m.rd(have, 1)
+    m.fresh()
+    fs, word, at, rdiv, rows = t7.reg_parse(m.regb())
+    down, up = t7.crossings(fs, m.gb)
+    errs, regs = [], {}
+
+    def shape(name):
+        fs1, word1, at1, rdiv1, rows1 = t7.reg_parse(m.regb())
+        cnt = {}
+        for fi in range(len(fs1)):
+            for o in range(rows1[fi]):
+                cnt[rdiv1[fi][o]] = cnt.get(rdiv1[fi][o], 0) + 1
+        allr = [at1[fi][o] for fi in range(len(fs1)) for o in range(rows1[fi])]
+        want = {1: 20, **{d: 20 for d in m.up}, **{d: 18 for d in m.lo}}
+        if any(cnt.get(d) != n for d, n in want.items()):
+            errs.append(f'{name}: sizes {[(d, cnt.get(d)) for d in sorted(want)]}')
+        if len(set(allr)) != len(allr) or any(word1[i] != (fs1[fi][0] | o << 8) for fi in range(len(fs1)) for o, i in enumerate(at1[fi][:rows1[fi]])):
+            errs.append(f'{name}: an ident twice / words and rows disagree')
+    for name, setup in (('off', lambda: m.w(ptr, bytes(4))), ('refused', lambda: m.w(have, b'\0')),
+                        ('newer', lambda: m.w(flg, struct.pack('<I', 2 << 4)))):
+        m.fresh()
+        m.w(ptr, pv)
+        m.w(have, hv)
+        setup()
+        st, nsw, ncr = _season(m, t7, down, up, t7.SEASON)
+        if (st, nsw, ncr) != (t7.OK, 9, 18):
+            errs.append(f'{name}: status {st} swaps {nsw} crossers {ncr} (want OK, 9, 18)')
+        shape(name)
+        regs[name] = m.regb()
+        if name == 'refused' and m.rd(m.at('s7swap', 'S7RD_LOG'), 1)[0] != 2:
+            errs.append(f'refused: S7RD_LOG {m.rd(m.at("s7swap", "S7RD_LOG"), 8).hex()} (want status 2)')
+        if name == 'newer':
+            fl = struct.unpack('<I', m.rd(flg, 4))[0]
+            if m.rd(m.at('s7swap', 'S7RD_NEWER'), 1)[0] != 1 or (fl >> 4 & 0xF) != 2:
+                errs.append(f'newer: S7RD_NEWER {m.rd(m.at("s7swap", "S7RD_NEWER"), 1)[0]}, SREG_FLAGS {fl:#x} (want 1, version 2 kept)')
+    for name in ('refused', 'newer'):
+        if regs[name] != regs['off']:
+            errs.append(f'{name}: registry != the place() groups of S7_REDRAW_OFF')
+    m.w(ptr, pv)
+    m.w(have, hv)
+    return not errs, '; '.join(errs[:5]) or ('S7_REDRAW_OFF, the redraw refused (rc -1) and a newer rule version (2) each end the season with '
+                                            'the crossers\' place() groups (the same registry), B 20 / C 3 x 20 / D 9 x 18, no ident twice; '
+                                            'refused: S7RD_LOG status 2; newer: S7RD_NEWER 1, the version kept')

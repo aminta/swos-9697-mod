@@ -365,6 +365,7 @@ void s7_flush(void)
 #endif
 }
 
+uint8_t S7RD_NEWER DATA = 0;            /* 1: the last season end met a newer rule version (no redraw; host tests / harness) */
 #define S7RD_RULE_VER 1u              /* (the frozen rule: 42-redraw 31db319, STAY 540, isqrt((4 dlat)^2 + (3 dlon)^2), integer Hungarian) */
 /* the redraw (s7geo.c's s7rd_level, obj4+S7GEO; s7swap.py sets it; 0: no redraw, the crossers' place() groups stay) */
 int32_t (*S7RD_PTR)(int32_t, int32_t, const uint16_t *, const uint8_t *, int32_t, int32_t, const uint16_t *, const uint8_t *, int32_t,
@@ -471,7 +472,10 @@ static int32_t run(void *pv) {
         }
     }
     S7_LOG.ncross = (uint8_t)no;
-    if (S7RD_PTR) {                     /* 4.2 redraw: Serie C (the upper boundary level, second teams constrained) and Serie D */
+    uint32_t rver = SREG_FLAGS >> 4 & 0xF;  /* (the rule version this career's groups were drawn with: 'IT' flags bits 4..7, 0 none yet) */
+    S7RD_NEWER = (uint8_t)(rver > S7RD_RULE_VER);   /* (MC 15/11: a save from a newer build's rule keeps its groups - no redraw,
+                                                       the crossers' place() only, the version kept - never a crash) */
+    if (S7RD_PTR && !S7RD_NEWER) {      /* 4.2 redraw: Serie C (the upper boundary level, second teams constrained) and Serie D */
         uint32_t seed = (uint32_t)S7_SELTEAM ^ A->season;   /* (the career club's word ^ the season: per career, per season) */
         redraw(0, R, nd, pre, S7_UP, S7_NUP, 1, seed);
         redraw(1, R, nd, pre, S7_LO, S7_NLO, 0, seed);
@@ -498,7 +502,7 @@ static int32_t run(void *pv) {
     if (walk(c, slt) < 0) return S7_LOG.status = S7_WMAP;      /* (cannot happen: <= S7_NSW swaps, S7_NPR pairs) */
     SREG_FLAGS &= ~(uint32_t)(SR_REGSAVE_PENDING | 0xFF00);    /* (42-s7import: an imported save's PENDING clears at its
                                                                   first S7 season end - n7-p4 §9a.1; IMPORTED stays) */
-    if (S7RD_PTR)                       /* 4.2 redraw: the rule version in the 'IT' flags' spare bits 4..7 (s7-redraw.md 3: a later rule
+    if (S7RD_PTR && !S7RD_NEWER)        /* 4.2 redraw: the rule version in the 'IT' flags' spare bits 4..7 (s7-redraw.md 3: a later rule
                                            change can tell an old career's groups from its own; 0 = no redraw season end yet) */
         SREG_FLAGS = (SREG_FLAGS & ~(uint32_t)0xF0) | S7RD_RULE_VER << 4;
     return S7_LOG.status = S7_OK;

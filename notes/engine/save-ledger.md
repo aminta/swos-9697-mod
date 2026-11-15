@@ -168,3 +168,14 @@ D 9 x 18 = 162 rows; the 36 stand-ins stay off-file, pool 253, as in 4.1) theref
   192..347 are those of the 4.1 slots (102, 100..255), so the import must move them with the clubs (OPEN, import
   piece: not covered by S7-G).
 - Dormant build (no league over two files): exe + DATA md5-identical to 42-s1rank 78fbf73.
+
+## Not save room: the S7 redraw's rule version in the registry's 'IT' flags (4.2, 42-redrawc, MC 15/11)
+- **0 B.** SWC1 section 'IT' (the club registry, sr_regsave) keeps its size: the u16 flags at +8 had bits 0 IMPORTED, 1 PENDING
+  and 8..15 the pending import's season. Bits **4..7 now hold the S7 redraw's rule version** (s7swap.c `S7RD_RULE_VER`, 1 = the
+  frozen rule of 42-redraw 31db319: integer, 1/100 degree, isqrt((4 dlat)^2 + (3 dlon)^2), integer Hungarian, STAY 540). The season
+  end writes it after every redraw; 0 = no redraw season end yet (a new career, a save from before the redraw, an import).
+  Bits 2..3 stay free.
+- Old saves: every save we have reads 0 there today (host test `test_s7redraw_saves`: 1074 .CAR under internal/ on 15/11, 177 with an 'IT',
+  bits 2..7 all 0), so they redraw with rule 1 from their next season end.
+- A save from a NEWER build (version > S7RD_RULE_VER): the season end keeps its groups (the crossers' place() only, no redraw,
+  `S7RD_NEWER` 1) and never lowers the version; no refusal, no crash (`test_s7redraw_fallback`).

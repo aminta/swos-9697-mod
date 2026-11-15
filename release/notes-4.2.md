@@ -62,6 +62,9 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 #### Malta's title decider
 - Malta: when the title is decided by a play-off (the Finalissima or the Final Four), the champion is now always the club that won that play-off's final. Before, the game could crown a different club at the end of the season.
 
+#### African club cups: the holder's place
+- CAF Champions League and Confederation Cup (article IV.5 of the CAF regulations): an association never has more than two clubs in the same cup, and the holder defending its title is one of them. If the holder is not already on one of its association's places, it takes the association's last place and the lowest qualifier drops (an association with a single place sends only the holder). Before, a holder could bring its association an extra club. A holder that is also the national champion (or cup winner) of the other cup defends in that one and its place there goes to the next club, as before.
+
 #### Shirt numbers: keypad digits and taken numbers
 - While a shirt-number box is lit (the team screen before a match, the squad screen), the digits of the numeric keypad now type the number like the digits above the letters. Everywhere else the keypad moves the cursor as before.
 - UP / DOWN in the box now go through every number from 1 to 99, one at a time, taken ones included. When you stop on a number another player already wears, the coach's line at the bottom of the screen shows who wears it, for example '7 A. DI LIVIO SWAP'. Leave the box any way except ESC and the two players swap numbers; ESC puts your number back as it was. Typing a number works as before. In EDIT CUSTOM TEAMS UP / DOWN still skip the taken numbers.
@@ -141,6 +144,9 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 
 #### Spareggio per il titolo a Malta
 - Malta: quando il titolo si decide con uno spareggio (la Finalissima o la Final Four), il campione ora è sempre la squadra che ha vinto la finale di quello spareggio. Prima il gioco poteva incoronare un'altra squadra a fine stagione.
+
+#### Coppe africane per club: il posto del detentore
+- CAF Champions League e Confederation Cup (articolo IV.5 del regolamento CAF): una federazione non ha mai più di due squadre nella stessa coppa e il detentore che difende il titolo è una di queste. Se il detentore non è già su uno dei posti della sua federazione, prende l'ultimo posto della federazione e la qualificata più bassa resta fuori (una federazione con un solo posto manda solo il detentore). Prima un detentore poteva portare alla sua federazione una squadra in più. Un detentore che è anche campione nazionale (o vincitore della coppa) dell'altra competizione difende il titolo in quella e il suo posto lì passa alla squadra successiva, come prima.
 
 #### Numeri di maglia: tastierino numerico e numeri occupati
 - Quando il riquadro del numero di maglia è acceso (schermata della squadra prima della partita, schermata della rosa), le cifre del tastierino numerico ora scrivono il numero come quelle sopra le lettere. Altrove il tastierino muove il cursore come prima.

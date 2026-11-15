@@ -1553,6 +1553,17 @@ def _round_robin(m):
     return out
 
 
+SR_SPLIT_FIRST = 200_000_000            # (the engine's cap, sr_split.c: dfs entries before the FIRST orientation; MC 14/11. The Python search is
+                                        # the same walk, one node per call of dfs: past the cap there is no orientation to wait for)
+SPLIT_PY_FIRST = 300_000                # (the cap this walk really applies: ~65k dfs entries a second here, ~1000x slower than the engine's C, so
+                                        # 200 M would be ~50 min; every size that works today finds its first orientation within 226k nodes
+                                        # (18 clubs: 225 661, 16: 145 371, 14: 541); a size the engine could still solve past 300k is
+                                        # refused here, never the other way round)
+# NOTE: sizes > 18 are refused by the Mod although the engine solves some of them (s4orient.txt in the engine repo, tests/rules/s4orient.txt: 19-23, 25,
+# 29); if a pack ever needs one, vendor the engine's orientation table rather than raising the cap. (No world uses one: the largest split group is 12.)
+LAST_NODES = [0]                        # (the node count of the last _orient: tests, parity with the engine's)
+
+
 def _orient(m, rounds):
     """Home / away of a single round robin: every club ceil or floor of its games at home, the extra home games to
     the best placed, no club 3 times running at home or away when avoidable. Returns rounds of (home, away)."""
@@ -1567,6 +1578,9 @@ def _orient(m, rounds):
 
     def dfs(i, home, last, run, cost, out):
         nodes[0] += 1
+        if best[0] is None and nodes[0] > min(SR_SPLIT_FIRST, SPLIT_PY_FIRST):    # no first orientation within the cap: never a hang (MC 14/11)
+            raise AssertionError(f'split: no home / away orientation for a group of {m} clubs within {min(SR_SPLIT_FIRST, SPLIT_PY_FIRST)} '
+                                 f'nodes (SR_SPLIT_FIRST {SR_SPLIT_FIRST} as sr_split.c, this walk is capped lower; largest size supported by the Mod: 18): {nodes[0]} nodes')
         if best[0] is not None and (cost >= best[0][0] or nodes[0] > 300000):   # 11+ clubs: no exhaustive search,
             return                                                               # the best orientation found so far
         if i == len(flat):
@@ -1595,7 +1609,10 @@ def _orient(m, rounds):
             if best[0] is not None and best[0][0] == 0:
                 return
 
-    dfs(0, [0] * m, {}, {}, 0, [])
+    try:
+        dfs(0, [0] * m, {}, {}, 0, [])
+    finally:
+        LAST_NODES[0] = nodes[0]
     assert best[0] is not None, m
     res, k = [[] for _ in rounds], 0
     for r in rnd:

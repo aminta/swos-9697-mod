@@ -170,7 +170,9 @@ def windows(pk, exe=None, sc=None):
             while key in keys and key not in seen:
                 seen.add(key)
                 po = keys[key]
-                e = min(b + po_days(po) + 1, 255)
+                e = b + po_days(po) + 1
+                assert e <= 255, (f'fport: stage {key!r} of division {si}: window end {e} = base {b} + days {po_days(po)} + 1 past '
+                                  f'255 (the unit byte: no silent clamp, MC 14/11)')
                 for d in sorted(_divs_of(po) | {si}):
                     if d < nd:
                         out[d].append((b, e, 'stage:' + key, None))

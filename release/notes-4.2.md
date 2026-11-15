@@ -93,7 +93,7 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 #### Real Serie A and Serie B line-ups
 - Serie A e Serie B 2026-27: gli undici titolari di ogni squadra ora sono quelli che giocano davvero in questa stagione (i giocatori con più presenze da titolare), in panchina vanno i più convocati (con il solito portiere di riserva) e gli altri restano fuori dai convocati. Per esempio la JUVENTUS schiera VICARIO in porta con NETO in panchina. La squadra mantiene il modulo del suo allenatore ogni volta che quegli undici possono giocarlo, con i terzini da esterni di centrocampo e le ali in attacco (JUVENTUS 3-4-3, INTER 3-5-2).
 
-#### Player prices from the market value
+#### Prezzi dei giocatori dal valore di mercato
 - Mondo 2026-27: il prezzo di un giocatore ora segue solo il suo valore di mercato reale (Transfermarkt). Un giovane che vale molto costa più di un veterano a fine carriera, qualunque sia la sua squadra. Le abilità sono esattamente quelle di prima, e i prezzi nel mondo restano nella stessa fascia di prima.
 
 #### Winners page after a move between Serie C and Serie D

@@ -1,40 +1,48 @@
-"""4.2 S3 x S7 (TRENTO, 15/11): the Serie B / Serie C play-off skip bits are LOCAL to each league struct's spec (GP_S3T row,
-gplay.s3_local). A shaped S7 pack has one spec per struct, so the global ko_playoffs index (bit 26..28) skipped nothing there and
-c_po's winner was promoted by gplay AND dplay. Checks on the shaped world (internal/world2526/world5tm-h3s7): the bits are the
-play-offs' positions in struct 102's spec (b_po + b_pout in mask B, c_po in mask C), none in another struct, and below the
-spec's play-off count. SKIP without the private world."""
+"""4.2 S3 x S7 (TRENTO, 15/11; MC review): the Serie B / Serie C play-off skip bits are LOCAL to each league struct's spec (GP_S3T row,
+gplay.s3_local). A shaped S7 pack has one spec per struct, so the global ko_playoffs index (bits 26..28) skipped nothing there and
+c_po's winner was promoted by gplay AND dplay (the Serie B skip had the same bug). Each case runs in its own process (mkseason caches
+its packs): the shaped world (internal/world2526/world5tm-h3s7): struct 102's spec lists b_po 5, b_pout 6, c_po 7 -> B 0x60, C 0x80, no
+other struct; the UNSHAPED one (world5tm-h3s, MC (2)): one struct, the rows equal the old global S3MB / S3MC. SKIP without the world."""
 import os
+import subprocess
 import sys
 
 HOME = os.path.expanduser('~')
-W = os.path.join(HOME, 'swos-mod', 'internal', 'world2526', 'world5tm-h3s7')
-TOOLS = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..')
+TOOLS = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
+CODE = """
+import os, sys
+sys.path.insert(0, %r)
+w = %r
+os.environ['SEASON_PACKS'] = ','.join(os.path.join(w, ln.split()[0].lower()) for ln in open(w + '.txt') if ' file ' in ln)
+import dplay, gplay
+loc = {k: v for k, v in gplay.s3_local().items() if v != (0, 0)}
+print(repr((loc, dplay.s3_b_mask(), dplay.s3_c_mask())))
+"""
+
+
+def _run(name):
+    w = os.path.join(HOME, 'swos-mod', 'internal', 'world2526', name)
+    if not os.path.exists(w + '.txt'):
+        return None
+    r = subprocess.run([sys.executable, '-c', CODE % (TOOLS, w)], capture_output=True, text=True, cwd=TOOLS)
+    assert r.returncode == 0, r.stderr[-400:]
+    return eval(r.stdout.strip().splitlines()[-1])
 
 
 def test_s3local():
-    if not os.path.exists(W + '.txt'):
-        return True, f'SKIP: {W}.txt missing'
-    sys.path.insert(0, TOOLS)
-    old = os.environ.get('SEASON_PACKS')
-    os.environ['SEASON_PACKS'] = ','.join(os.path.join(W, ln.split()[0].lower()) for ln in open(W + '.txt') if ' file ' in ln)
-    try:
-        import gplay
-        import mkseason
-        loc = gplay.s3_local()
-        rows = {k: v for k, v in loc.items() if v != (0, 0)}
-        assert list(rows) == [(5, 102)], rows
-        mb, mc = rows[(5, 102)]
-        for pk in mkseason.packs():
-            if 'c_po' not in [po.get('key') for po in (pk.league or {}).get('ko_playoffs') or []]:
-                continue
-            keys = [po.get('key') for po in pk.po_resolved() if (pk.world, pk.po_local(po)[0]) == (5, 102)]
-            assert mb == sum(1 << keys.index(k) for k in ('b_po', 'b_pout')), (mb, keys)
-            assert mc == 1 << keys.index('c_po'), (mc, keys)
-            assert mc < 1 << len(keys) and mb < 1 << len(keys)
-            return True, f'struct 102: B bits {mb:#x}, C bit {mc:#x} of {len(keys)} play-offs (global bits 26..28 would skip nothing)'
-        return False, 'no world-5 pack with ko_playoffs'
-    finally:
-        if old is None:
-            os.environ.pop('SEASON_PACKS', None)
-        else:
-            os.environ['SEASON_PACKS'] = old
+    got = _run('world5tm-h3s7')
+    if got is None:
+        return True, 'SKIP: world5tm-h3s7 missing'
+    loc, gb, gc = got
+    assert loc == {(5, 102): (0x60, 0x80)}, loc
+    assert (gb, gc) == (1 << 26 | 1 << 27, 1 << 28)            # (the old global bits: nothing in struct 102's 8 entries)
+    return True, 'struct 102: B 0x60, C 0x80 (global 26..28 skipped nothing)'
+
+
+def test_s3local_unshaped():
+    got = _run('world5tm-h3s')
+    if got is None:
+        return True, 'SKIP: world5tm-h3s missing'
+    loc, gb, gc = got
+    assert len(loc) == 1 and list(loc.values())[0] == (gb, gc) and gb and gc, (loc, gb, gc)
+    return True, f'one struct: (B {gb:#x}, C {gc:#x}) == the old global S3MB / S3MC'

@@ -2481,8 +2481,15 @@ def table_lines(tables):
     lines.append('    db 0FFh')
     lines.append('GP_S3T:')                   # (4.2 S3 / S7: per GP_TAB row the Serie B / Serie C play-offs' LOCAL skip bits in its spec)
     loc = s3_local()
-    for world, lfile, spec in tables:
-        lines.append('    dd %d, %d' % loc.get((world, lfile), (0, 0)))
+    rows = [loc.get((world, lfile), (0, 0)) for world, lfile, spec in tables]
+    for k, v in loc.items():                    # (MC 15/11: a zero pair = skip nothing = the double promotion with no trace)
+        assert v != (0, 0), ('S3 skip bits: a struct of a pack with a Serie B / C play-off has no mask', k)
+        assert k in {(w, f) for w, f, _ in tables}, ('S3 skip bits: no GP_TAB row for', k)
+    if loc:
+        import dplay as _d
+        assert (_d.s3_b_mask() != 0) == any(m[0] for m in rows) and (_d.s3_c_mask() != 0) == any(m[1] for m in rows), rows
+    for m in rows:
+        lines.append('    dd %d, %d' % m)
     for i, (_, _, spec) in enumerate(tables):
         lines.append(f'GPS{i}: db ' + ', '.join(str(b) for b in spec))
     return '\n'.join(lines), syms

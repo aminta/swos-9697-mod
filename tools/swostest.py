@@ -15128,17 +15128,7 @@ def _season_world0(tag, career):
     cups = {}
 
     def to_team(s, key):                        # the STAGIONE button (right of MODIFICA SQUADRE / ABBANDONA) on the club
-        for _ in range(3):                      # list, then on CAMBIA SQUADRE PER ... (the divisions' screen)
-            scr = s.screen()
-            if scr.find('STAGIONE', exact=True) is None or 'VISUAL. COMPETIZ.' in scr.texts():   # (the season's menu)
-                break
-            for _ in range(20):
-                scr = s.screen()
-                cur = scr.entries[scr.selected][1]
-                if cur == 'STAGIONE':
-                    break
-                s.send(('right' if cur in ('ABBANDONA', 'MODIFICA SQUADRE') else 'down') + ' dump:0.5')
-            s.send('fire dump:3')
+        sea_start(s)                            # list, then on CAMBIA SQUADRE PER ... (the divisions' screen)
         for _ in range(12):                     # (se_to_playmatch, the first cup round's screen kept: its pairs)
             scr = s.screen()
             t = scr.texts()
@@ -15243,6 +15233,131 @@ def season_world0():
 def season_world0_8485():
     """4.2 (MC 15/11): the same after a Europe 1984-85 career (VOLSUNGUR, Iceland)."""
     return _season_world0('season_world0_8485', ('EUROPA 1984-85', 'ISLANDA', 'VOLSUNGUR'))
+
+
+def sea_start(s):
+    """A SEASON's club list (and then CAMBIA SQUADRE PER ..., the divisions' screen): the start button, the entry after
+    ABBANDONA in the bottom row (STAGIONE; EN 'PLAY SEASON', not UI_MAP's 'SEASON'), reached right from the row's
+    other buttons, down from the list. Any language: ABBANDONA is UI_MAP's."""
+    for _ in range(3):
+        scr = s.screen()
+        ia = next((i for i, e in enumerate(scr.entries) if ui_it(e[1]) == 'ABBANDONA'), None)
+        if ia is None or 'VISUAL. COMPETIZ.' in scr.texts():   # (the season's menu)
+            return
+        for _ in range(24):
+            sel = s.screen().selected
+            if sel == ia + 1:
+                break
+            s.send(('right' if sel in (ia - 1, ia) else 'down') + ' dump:0.5')
+        s.send('fire dump:3')
+
+
+def _sea_team(s):
+    """1996-97 SEASON from the main menu (default world 1996-97): STAGIONE > EUROPA > ITALIA > SERIE A > JUVENTUS, the
+    STAGIONE button, the team screen before the first match (its texts), or a string why not."""
+    press(s, s.screen(), 'STAGIONE', 2)
+    if s.screen().find('CONTINUA', exact=True) is not None:
+        press(s, s.screen(), 'CONTINUA', 2)
+    for t in ('EUROPA', 'ITALIA', 'SERIE A', 'JUVENTUS'):
+        if press(s, s.screen(), t, 2) is None:
+            return f'season: {t} not reached ({s.screen().texts()[:8]})'
+    sea_start(s)
+    sc = se_to_playmatch(s)
+    return [t for t in sc.texts() if t] if sc else f'season: no team screen ({s.screen().texts()[:8]})'
+
+
+def _save_as(s, button, name):
+    for _ in range(6):
+        scr = s.screen()
+        if button in scr.texts():
+            break
+        press(s, scr, 'ESCI', 2) or s.send('fire dump:2')
+    press(s, s.screen(), button, 2)
+    s.send(name_entry(name) + ' dump:3')
+
+
+def _load(s, name):
+    press(s, s.screen(), 'CARICA VECCHIA COMPETIZIONE', 2)
+    if s.screen().find('CONTINUA', exact=True) is not None:     # (the running competition is dropped: CONTINUA)
+        press(s, s.screen(), 'CONTINUA', 2)
+    return press(s, s.screen(), name, 3, exact=False) is not None
+
+
+@scenario
+def season_then_car():
+    """4.2 (MC 15/11, 42-seaw gate): the team cache across modes in one run, both ways. Run 1: a 1996-97 SEASON
+    (Juventus' team screen; the game's cache, sw_pick), then CARICA VECCHIA COMPETIZIONE > POL2 (a World 2026-27 career,
+    internal/swostest/seaw/POL2.CAR): world byte 5, its career menu screen, saved as CARW. Run 2: CARW loads with byte 5 and the
+    same career menu screen (a stale OLDSEL / NEWSEL saves no records: 0x17064 here); then main menu, WORLD 1996-97, the same
+    SEASON (world byte 0, Juventus' screen), saved as SEAC. Run 3: SEAC loads, byte 0, the same screen."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import careerworld
+    b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
+    slt = cf_slt(b) + careerworld.WORLD_BYTE
+    wb = lambda s: tuple(s.result.obj2(slt, 2))       # noqa: E731
+    car = os.path.join(ROOT, 'internal', 'swostest', 'seaw', 'POL2.CAR')
+    errs, info = [], []
+    with Session('stc1', b, {'SETUP.DAT': setup_file('stc1', 1), 'POL2.CAR': car}, 'dump:2', 900) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'no first pause ({s.result})'
+        if os.environ.get('STC_NOSEASON'):          # (control: POL2 loaded first thing, no SEASON before)
+            t0 = []
+        else:
+            t0 = _sea_team(s)
+            if isinstance(t0, str):
+                return False, t0
+            check(wb(s) == (0, 0), f'(run 1) season: world byte {wb(s)}', errs)
+        if not wm_to_main(s):
+            return False, f'(run 1) no main menu after the season ({s.screen().texts()[:8]})'
+        if not _load(s, 'POL2'):
+            return False, f'(run 1) POL2 not listed ({s.screen().texts()[:8]})'
+        w1 = wb(s)
+        s.send('dump:2')                          # (the career menu's screen: '- PARTITA -' would run DIYLeagueTournament-
+        c1 = [t for t in s.screen().texts() if t]   # Match, whose first byte is the game's own int 3: a harness trap)
+        check(w1[0] == 5 and bool(c1), f'(run 1) POL2 after a SEASON: world byte {w1}, team screen {c1[:8]}', errs)
+        _save_as(s, 'SALVA CARRIERA', 'carw')
+        game = s.result.game
+    saves = [f for f in os.listdir(game) if f.upper().startswith('CARW')]
+    if not saves:
+        return False, '; '.join(errs + [f'no CARW saved ({sorted(os.listdir(game))[:20]})'])
+    with Session('stc2', b, {'SETUP.DAT': setup_file('stc2', 1), saves[0]: os.path.join(game, saves[0])}, 'dump:3',
+                 900) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'(run 2) no first pause ({s.result})'
+        if not _load(s, 'CARW'):
+            return False, '; '.join(errs + [f'(run 2) CARW not listed ({s.screen().texts()[:8]})'])
+        w2 = wb(s)
+        s.send('dump:2')                          # (the career menu's screen: '- PARTITA -' would run DIYLeagueTournament-
+        c2 = [t for t in s.screen().texts() if t]   # Match, whose first byte is the game's own int 3: a harness trap)
+        check(w2[0] == 5 and c2 == c1, f'(run 2) CARW reloaded: world byte {w2}, team screen {c2[:8]} (run 1: {c1[:8]})',
+              errs)
+        if not wm_to_main(s):
+            return False, '; '.join(errs + [f'(run 2) no main menu after the career ({s.screen().texts()[:8]})'])
+        set_world(s, 1)
+        t2 = _sea_team(s)
+        if isinstance(t2, str):
+            return False, '; '.join(errs + ['(run 2) ' + t2])
+        check(wb(s) == (0, 0) and t2 == t0, f'(run 2) season after the loaded career: world byte {wb(s)}, team screen '
+              f'{t2[:8]} (run 1: {t0[:8]})', errs)
+        _save_as(s, 'SALVA STAGIONE', 'seac')
+        game = s.result.game
+    saves = [f for f in os.listdir(game) if f.upper().endswith('.SEA')]
+    if not saves:
+        return False, '; '.join(errs + [f'(run 2) no .SEA saved ({sorted(os.listdir(game))[:20]})'])
+    with Session('stc3', b, {'SETUP.DAT': setup_file('stc3', 1), saves[0]: os.path.join(game, saves[0])}, 'dump:3',
+                 600) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'(run 3) no first pause ({s.result})'
+        if not _load(s, 'SEAC'):
+            return False, '; '.join(errs + [f'(run 3) SEAC not listed ({s.screen().texts()[:8]})'])
+        w3 = wb(s)
+        sc = se_to_playmatch(s)
+        t3 = [t for t in sc.texts() if t] if sc else []
+        check(w3 == (0, 0) and t3 == t0, f'(run 3) SEAC reloaded: world byte {w3}, team screen {t3[:8]}', errs)
+    if not errs:
+        info.append(f'SEASON -> POL2 (byte 5) -> CARW reload -> SEASON (byte 0) -> SEAC reload: team screens equal '
+                    f'({c1[:3]}, {t0[:3]})')
+    return not errs, '; '.join(errs + info)
 
 
 @scenario

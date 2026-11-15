@@ -11019,7 +11019,7 @@ def practice_work(r):
     return f
 
 
-def practice_play(kind, side, esc_at=None):
+def practice_play(kind, side, esc_at=None, again=False):
     """4.2 set-piece practice, step 2 (the engine, MC 14/11): a World 2026-27 career (PRACTICE_BUILD / BENCH_BUILD: a
     release dir; TRAIN_PATH), SQUADRA -> TRAINING -> (DEFENCE: the switch) -> the kind's row -> the training game:
     the engine forces the set piece again and again (fire pressed throughout: the human takes its own kicks). Gates:
@@ -11183,7 +11183,31 @@ def practice_play(kind, side, esc_at=None):
         check(all(x in res for x in want_t), f'result page {res} (want {want_t})', errs)
         check(scr.selected == 3, f'result page: the cursor on entry {scr.selected} (want 3, OK)', errs)
         info.append(f'result page {res}' + (' (after ESC)' if esc_at else ' (by itself)'))
-        if press(s, scr, practice.RES[lang][2], 3) is None:
+        check(practice.RES[lang][3] in res, f'result page: no {practice.RES[lang][3]} button ({res})', errs)
+        if again:                               # (item 6, Davide 15/11: RIPROVA - the same drill and side again,
+            if press(s, scr, practice.RES[lang][3], 3) is None:     #  the counters from zero; ESC before an attempt:
+                return False, '; '.join(errs + info + [f'result page: {practice.RES[lang][3]} not pressed'])
+            e = practice_no_prematch(s)         #  no result page, the practice page)
+            if e:
+                errs.append('RIPROVA: ' + e)
+            if train_kickoff(s, top, bot, True) is None:
+                return False, '; '.join(errs + info + [f'RIPROVA: no kick-off ({s.result})'])
+            w = practice_work(s.result)
+            check(w['KIND'] == row and w['DEF'] == (side == 'def') and w['NT'] == 0 and w['STS'] == 1,
+                  f'RIPROVA kick-off: PR_KIND {w["KIND"]} DEF {w["DEF"]} NT {w["NT"]} presentation skipped {w["STS"]} '
+                  f'(want {row} / {int(side == "def")} / 0 / 1)', errs)
+            info.append('RIPROVA: the same drill again')
+            s.shot(f'{tag}_again')
+            s.send('esc:0.5 dump:2')
+            for _ in range(20):
+                try:
+                    if s.screen().find(practice_rows()[1], exact=True) is not None:
+                        break
+                except Exception:
+                    pass
+                s.send('dump:1')
+            nt = ng = 0
+        elif press(s, scr, practice.RES[lang][2], 3) is None:
             return False, '; '.join(errs + info + [f'result page: OK not pressed ({s.result})'])
         q = s.screen()
         t = practice_rows()                     # (bug 3, Davide 15/11: OK -> the PRACTICE page, the cursor on its row)
@@ -11512,6 +11536,14 @@ for _k in PR_KINDS:
             f.__doc__ = f'practice_play({k!r}, {sd!r}): ' + (practice_play.__doc__ or '').split('\n')[0]
             return f
         scenario(_mk())
+
+
+@scenario
+def practice_pen_again():
+    """practice_play('pen', 'att', esc_at=2, again=True): item 6 (Davide 15/11): the result page's RIPROVA starts the same
+    drill again (PR_KIND / DEF kept, the counters from zero, no presentation); ESC before an attempt -> the practice
+    page, BACK -> the squad screen, the league match after it."""
+    return practice_play('pen', 'att', esc_at=2, again=True)
 
 
 @scenario

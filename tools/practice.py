@@ -50,8 +50,9 @@ WAITF, ATTF, SETTLE, CLEAR = 20, 560, 25, 240   # frames of play before forcing;
                                                 # stoppage that still count a goal; px from the goal line = cleared (~40 m)
 FKD, FKX, FKORD, PEN_D = (100, 125, 150, 175), (336, 290, 382), 10, 40
 PR_N = 10                               # (Davide 14/11, A + B: a practice ends by itself after 10 attempts; ESC any time)
-RES = {'it': ('TIRI ', 'GOL ', 'OK'), 'en': ('SHOTS ', 'GOALS ', 'OK'), 'fr': ('TIRS ', 'BUTS ', 'OK'),
-       'de': ('SCHUESSE ', 'TORE ', 'OK')}  # (the result page: 'TIRI 10', 'GOL 3', OK - the counts drawn up to 3 digits)
+RES = {'it': ('TIRI ', 'GOL ', 'OK', 'RIPROVA'), 'en': ('SHOTS ', 'GOALS ', 'OK', 'TRY AGAIN'),
+       'fr': ('TIRS ', 'BUTS ', 'OK', 'REJOUER'), 'de': ('SCHUESSE ', 'TORE ', 'OK', 'NOCHMAL')}
+RW = 96                                 # (item 6, Davide 15/11: OK and RIPROVA side by side, each RW px wide)  # (the result page: 'TIRI 10', 'GOL 3', OK - the counts drawn up to 3 digits)
 ROWS = {      # TRAINING, FREE KICK, PENALTY, CORNER, ATTACK, DEFENCE, BACK (the title = the squad screen's button)
     'it': ('ALLENAMENTO', 'PROVA PUNIZIONI', 'PROVA RIGORI', "PROVA CALCI D'ANGOLO", 'GIOCA IN ATTACCO', 'GIOCA IN DIFESA', 'INDIETRO'),
     'en': ('TRAINING MATCH', 'FREE KICK PRACTICE', 'PENALTY PRACTICE', 'CORNER PRACTICE', 'PLAY IN ATTACK', 'PLAY IN DEFENCE', 'BACK'),
@@ -90,6 +91,7 @@ pr_open:                                ; squadMenu entry 6 (TRAINING), on selec
     jz .x
     dec eax
     mov [KIND], al                      ; 0 training, 1 free kicks, 2 penalties, 3 corners
+.again:
     push edi                            ; (the engine's state and counters from zero: W_ST .. W_END)
     push ecx
     mov edi, KIND + 2
@@ -103,7 +105,10 @@ pr_open:                                ; squadMenu entry 6 (TRAINING), on selec
     je .x0
     cmp word [KIND - 1 + W_NT_], 0
     je .x0
+    mov byte [GO], 0
     call pr_result
+    cmp byte [GO], 81h                  ; (item 6: RIPROVA - the same KIND / DEF, the counters from zero)
+    je .again
 .x0:movzx eax, byte [KIND]              ; (bug 3, Davide 15/11: after a practice the PRACTICE page again, on its row;
     mov byte [KIND], 0                  ;  the training match: the squad screen as before)
     test eax, eax
@@ -131,6 +136,9 @@ pr_mode:
     jmp pr_go
 pr_back:
     xor eax, eax
+    jmp pr_go
+pr_again:                               ; (item 6: the result page's RIPROVA - the same drill and side again)
+    mov al, 81h
     jmp pr_go
 
 pr_result:                              ; after a practice: the result page (the kind's name, TIRI n, GOL m, OK)
@@ -495,7 +503,7 @@ def texts(lang):
 
 def res_texts(lang):
     """The result page's lines as drawn (the widest counts: 999)."""
-    return (RES[lang][0] + '999', RES[lang][1] + '999', RES[lang][2])
+    return (RES[lang][0] + '999', RES[lang][1] + '999', RES[lang][2], RES[lang][3])
 
 
 def check_texts():
@@ -506,6 +514,7 @@ def check_texts():
         for t in texts(lang) + res_texts(lang):
             if px(t) > W - 12 or font_odd(t):
                 bad.append((lang, t, px(t), font_odd(t)))
+    bad += [(lang, t, px(t)) for lang in RES for t in RES[lang][2:] if px(t) > RW - 12]
     assert not bad, ('practice: texts', bad)
 
 
@@ -783,9 +792,11 @@ def patch(p, lang):
     data += '    dw 0, 12, 304, 14\n    dw 4, 17h, 8, 0\n    dd RT\n    dw 0\n'
     for i, b in ((1, 'R1'), (2, 'R2')):
         data += f'    dw {X}, {Y0 + DY * (i - 1)}, {W}, {H}\n    dw 4, 0Eh, 8, 0\n    dd {b}\n    dw 0\n'
-    data += (f'    dw {X}, {Y0 + DY * 3}, {W}, {H}, 2\n    db 255, 255, 255, 255\n'
-             f'    dw 4, 0Ch, 8, 0\n    dd S_OK\n    dw 13\n    dd pr_back\n    dw 0\n    dw -999\n')
-    data += f'S_SH: db {q(rs[0])}\nS_GL: db {q(rs[1])}\nS_OK: db {q(rs[2])}\n'
+    data += (f'    dw {X}, {Y0 + DY * 3}, {RW}, {H}, 2\n    db 255, 4, 255, 255\n'
+             f'    dw 4, 0Ch, 8, 0\n    dd S_OK\n    dw 13\n    dd pr_back\n    dw 0\n'
+             f'    dw {X + W - RW}, {Y0 + DY * 3}, {RW}, {H}, 2\n    db 3, 255, 255, 255\n'
+             f'    dw 4, 0Eh, 8, 0\n    dd S_AG\n    dw 13\n    dd pr_again\n    dw 0\n    dw -999\n')
+    data += f'S_SH: db {q(rs[0])}\nS_GL: db {q(rs[1])}\nS_OK: db {q(rs[2])}\nS_AG: db {q(rs[3])}\n'
     data += 'align 4\nKTAB: dd S_1, S_2, S_3\n'
     assert max(len(t) for t in tx[2:5]) < 24 and max(len(t) for t in res_texts(lang)) < 16
     data += f'align 4\nPRTAG: db {q(TAG)[:-3]}\n    dd KIND - 1\n'   # (the harness: the tag, then PR_WORK)

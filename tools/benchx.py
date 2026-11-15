@@ -2662,6 +2662,7 @@ def patch(p, at, ns_at, lang='it'):
     lab = nasmcave.labels(asm, at, sym)
     INFO.update(TABLE=(3, lab['bx_table']), GMAX=(2, gmax), SUBST=v2['SUBST'], IDX=v2['IDX'])   # (oppl.py, 4.0.6)
     INFO['S7'] = s7                                 # (stadium.py, 4.0.6: the line-ups screen's sites)
+    INFO['SYM'] = {k: sym[k] for k in ('CT', 'CNP', 'NPS', 'ETNP', 'SQCNT', 'VOPP') if k in sym}   # (r17.py, 4.2: the row-17 hint's counts)
     LOG.append(f'benchx phase 2: {len(tab)} competitions with a real bench ({lang}), friendlies {len(FR_TAB)} entries')
     assert not any(p.get(3, at, len(code)))
     p.put(3, at, code)

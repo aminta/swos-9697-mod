@@ -78,6 +78,9 @@ MKTLOAD_AT = 0x20000                    # then MKTAGE (Mercato CPU); unlinked in
 MKTLOAD_END = 0x21000                   # carries an empty page for them). DIFF2 0x1A000..0x1A400 + SPX 0x1A400..0x1A800 stay free
 MKTAGE_AT = 0x21000                     # here for 42-drp / 42-sp (their swreg lines are taken verbatim)
 MKTAGE_END = 0x22000
+R17_AT = 0x22000                        # 4.2 row-17 hint (r17.py, Panchina; MC 15/11): a RELEASE band, 1 KB, floor >= 256 B; this address is
+R17_END = 0x22400                       # TEMPORARY (right after the MKT size reservations): the rc-freeze packing moves it in among the release bands
+assert MKTAGE_END <= R17_AT < R17_END, 'swreg: R17 above the MKT reservations'
 assert S7SWAP_END <= OBJ1MV_AT < OBJ1MV_END <= FPORT_AT < FPORT_END <= S7GEO_AT < S7GEO_END <= CDKN_AT < CDKN_END <= PRACTICE_AT < \
     PRACTICE_END <= FPORT2_AT < FPORT2_END <= S3C_AT < S3C_END <= MKTHOOK_AT < MKTHOOK_END <= MKTLOAD_AT < MKTLOAD_END <= MKTAGE_AT < MKTAGE_END <= 0x22000, \
     'swreg: S7SWAP_END <= OBJ1MV_AT < OBJ1MV_END <= FPORT_AT < FPORT_END <= S7GEO_AT < S7GEO_END <= CDKN_AT < CDKN_END <= PRACTICE_AT < PRACTICE_END <= FPORT2_AT < FPORT2_END <= S3C_AT < S3C_END <= MKTHOOK_AT < MKTHOOK_END <= MKTLOAD_AT < MKTLOAD_END <= MKTAGE_AT < MKTAGE_END'

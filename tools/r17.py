@@ -20,11 +20,12 @@ import struct
 import nasmcave
 import swreg
 
-PM_X = 168                              # (pre-match: right of the row's columns, left of the pitch panel)
+PM_X = 170                              # (pre-match: right of the row's columns, left of the pitch panel)
 ET_X = 122                              # (tactics editor: the list is on the right and its columns cover the row: left of the box, on the pitch's edge)
 WIDTH = 24
 FLAGS = 0x800F                          # (left aligned, yellow = colour 0Fh as SquadAfterDrawCommon's, the small font)
-SQ_X = 305                              # (SQUADRA: right of the value column - its row bar is only the name part; the NAZ / GOL / value columns follow)
+SQ_X = 100                              # (SQUADRA: the coach line under the list, right of the coach's name, left of ESCI: the columns of row 17 cover x<=300 and the
+SQ_Y = 191                              #  right edge reads as part of the price; Shaved's shirt-number strip (x 8..194) draws after it and wins while a taken number shows)
 
 ASM = r"""
 r17_pm:                                 ; PlayMatch30AfterDraw's tail (the pre-match screen)
@@ -32,47 +33,49 @@ r17_pm:                                 ; PlayMatch30AfterDraw's tail (the pre-m
     push esi
     call TGT_PM
     pop esi
+    pushad                              ; (every register as the game's tail left it: DrawMenuItem saves edx, the callers may rely on more)
     cmp word [VOPP], 0                  ; (VIEW OPPONENT: the opponent's list, left as it is)
-    jne .x
+    jne r17_out
     movzx eax, word [NPS]
     sub eax, 16
     mov edx, PM_X
+    xor ebp, ebp
     jmp r17_hint
-.x: ret
 
 r17_sq:                                 ; Squad45AfterDraw's tail (SQUADRA)
     mov esi, [A5]
     push esi
     call TGT_SQ
     pop esi
+    pushad
     cmp dword [SQT], CT                 ; (the career club's squad only)
-    jne .x
+    jne r17_out
     movzx eax, word [CNP]
     sub eax, 16
     mov edx, SQ_X
+    mov ebp, SQ_Y
     jmp r17_hint
-.x: ret
 
 r17_et:                                 ; EditTactics28AfterDraw's tail (the tactics editor)
     mov esi, [A5]
     push esi
     call TGT_ET
     pop esi
+    pushad
     movzx eax, word [ETNP]
     sub eax, 16
     mov edx, ET_X
+    xor ebp, ebp
     jmp r17_hint
-.x: ret
 
-r17_hint:                               ; esi = the row-17 entry, eax = N (<= 0: nothing), edx = the hint's x
+r17_hint:                               ; esi = the row-17 entry, eax = N (<= 0: nothing), edx = the hint's x, ebp = its y (0: the row's)
     cmp eax, 1
-    jl .x
+    jl r17_out
     cmp eax, 99
     jle .ok
     mov eax, 99
 .ok:
-    pushad                              ; (edx = x survives: pushad keeps it; the digits use edx below, so x is saved first)
-    push edx
+    push edx                            ; (the x: the digits use edx below)
     mov edi, R17_S
     mov byte [edi], '+'
     cmp eax, 10
@@ -96,6 +99,10 @@ r17_hint:                               ; esi = the row-17 entry, eax = N (<= 0:
     pop ecx
     mov [ebx + 14h], cx
     mov ax, [esi + 16h]                 ; y, height
+    test ebp, ebp
+    jz .hy
+    mov eax, ebp
+.hy:
     mov [ebx + 16h], ax
     mov ax, [esi + 1Ah]
     mov [ebx + 1Ah], ax
@@ -105,8 +112,9 @@ r17_hint:                               ; esi = the row-17 entry, eax = N (<= 0:
     mov [A5], ebx
     call DMI
     pop dword [A5]
+r17_out:
     popad
-.x: ret
+    ret
 
 R17_E:                                  ; the hint's MenuEntry (0x38 B): string, no background
     dw 0, 0, 0, 0                       ; alreadyDrawn, ordinal, isInvisible, isDisabled
@@ -166,7 +174,7 @@ def patch(p):
     sym = {'A5': (2, s['A5']), 'DMI': (1, s['DMI']), 'NPS': sy['NPS'], 'ETNP': sy['ETNP'], 'CNP': sy['CNP'], 'CT': sy['CT'],
            'VOPP': sy['VOPP'], 'SQT': (sy['SQCNT'][0], sy['SQCNT'][1] + 2),
            'TGT_PM': tg['pm'], 'TGT_SQ': tg['sq'], 'TGT_ET': tg['et'],
-           'HINT_W': (0, WIDTH), 'HINT_FLAGS': (0, FLAGS), 'SQ_X': (0, SQ_X), 'PM_X': (0, PM_X), 'ET_X': (0, ET_X)}
+           'HINT_W': (0, WIDTH), 'HINT_FLAGS': (0, FLAGS), 'SQ_X': (0, SQ_X), 'PM_X': (0, PM_X), 'ET_X': (0, ET_X), 'SQ_Y': (0, SQ_Y)}
     code, fix, rel = nasmcave.assemble_obj(ASM, at, sym, 4)
     lab = nasmcave.labels(ASM, at, sym)
     end = at + len(code)

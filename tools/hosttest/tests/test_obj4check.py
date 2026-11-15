@@ -173,3 +173,19 @@ def test_obj4check_static():
     bad = [r for r in real if r[3] in ('NOT ALIGNED', 'unresolved')]
     assert not bad, bad
     return True, f'BOX_END 0xd080 + page_end 0x1d400 caught; this checkout: {len(real)} lines, 0 bad'
+
+
+def test_obj4check_live_item_page():
+    """MC 15/11: a zero page holding a linked item the build log reports (patch.py 'engine item ST ... obj4+A..B', the
+    ledger's live zero state) is used - info, not a finding; control: the same page with no logged item FAILs (a)."""
+    o = clean()
+    a = 0x5000
+    if len(o) <= a + 0x1000:
+        o += bytes(a + 0x1000 - len(o))
+    o[a:a + 0x1000] = bytes(0x1000)
+    ex = oc.log_extents('exe: engine item ST (live state, 144 B) obj4+0x5000..0x5090\nOK /x/c/R/SWOS/ITALIAN.EXE\n')
+    f, i, _ = oc.check_obj4(o, BLF, ex['SWOS/ITALIAN.EXE'])
+    assert not any('0x5000' in x for x in f) and any('obj4+0x5000 used by a logged extent 0x5000..0x5090' in x for x in i), (f, i)
+    f2, _, _ = oc.check_obj4(o, BLF)
+    assert any(x.startswith('(a) zero page obj4+0x5000') for x in f2), f2
+    return True, 'ST page used via its logged extent; without the log line it FAILs (a)'

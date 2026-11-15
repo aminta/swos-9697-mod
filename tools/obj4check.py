@@ -5,7 +5,9 @@
     python3 tools/obj4check.py --static [REF ...]             patch.py OBJ4_PAGES lines that floor: END page-aligned
 
 On every exe (obj4 = the engine object; its file pages = OBJ4_PAGES of that build, read from the LE object table):
- (a) no all-zero obj4 file page: each one is listed with the bands it lies in ('no band' = a hole);
+ (a) no all-zero obj4 file page: each one is listed with the bands it lies in ('no band' = a hole); a page that a
+     build.log extent of that exe overlaps (a linked item's live zero state, e.g. 'engine item ST ... obj4+A..B') is
+     used (MC 15/11: info, not --allow - a page with no linked thing still FAILs);
  (b) every release band that is linked (bytes in the exe or an extent in build.log) lies wholly below
      OBJ4_PAGES * 0x1000 and, if it is an obj4-map band (MAP_BANDS: obj1-room.md, the list MC named), keeps its floor
      free: END - the band's used end >= FLOOR (256 B; 128 B for the bands the obj4
@@ -92,6 +94,11 @@ def check_obj4(o4, bl, extents=(), allow=()):
     size = len(o4)
     for p in range(size // PAGE):
         if any(o4[p * PAGE:(p + 1) * PAGE]):
+            continue
+        live = [(x, y) for x, y in extents if x < (p + 1) * PAGE and y > p * PAGE]
+        if live:                                # (MC 15/11: a page holding a linked item the log reports - ST's zero
+            infos.append(f'zero page obj4+{p * PAGE:#x} used by a logged extent '   # live state - is used)
+                         + ', '.join(f'{x:#x}..{y:#x}' for x, y in live))
             continue
         inb = [n for n, a, e in bl if a < (p + 1) * PAGE and e > p * PAGE]
         msg = f'zero page obj4+{p * PAGE:#x} ({", ".join(inb) if inb else "no band"})'

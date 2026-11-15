@@ -27101,6 +27101,147 @@ def world_title_mlt_out():
     return world_title('mlt', '1', kof='2', chf='1', fill=os.environ.get('MLTOUT_NATURAL') != '1')
 
 
+
+def title_ita(tie):
+    """4.2 world_title_ita (MC 15/11, backlog-42 row 25): Italy's SPAREGGIO SCUDETTO (a_title: 1st v 2nd, one match at
+    the better placed's, played only if they finish level - gap 1) on the 42-int release data (W2627REL_DATA, default
+    world5tm-h3p), a Serie A career (TITLEITA_TEAM, default BOLOGNA) built with GPLAY_FORCE=2 + GPLAY_KOFORCE=2 (the
+    career club 2nd at the league end, winning its knockout ties: force, don't retry). One match day before the end
+    the league's own table (competitionFileBuffer) is poked - tie: every club on the same points, so the last day's
+    winners finish level at the top (the spareggio is built and played, the career club beats the 1st); control: the
+    best club but the career one 5 points clear (no spareggio). Then: the spareggio's winner (tie) / the leader
+    (control) first of Italy's qualifiers' top-9 list after the Poule -> CL fix (4950c80: a lower tier's title, the
+    POULE SCUDETTO SERIE D, earns no place - every listed club in Serie A / B after the season); its name on screen
+    (SPAREGGIO SCUDETTO) only when played."""
+    global W84_HOOK
+    import json
+    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-h3p')
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    env = {'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'GPLAY_FORCE': '2',
+           'GPLAY_KOFORCE': '2'}
+    exe = os.environ.get('TITLEITA_BUILD') or build('world_title_ita', env=env)
+    os.environ['TITLEITA_BUILD'] = exe                   # (the control reuses it)
+    log_at, st_at, log_n, st_n = gp_ptrs(exe)
+    gsym = json.load(open(os.path.join(exe, 'ITALIAN.syms.json')))['gplay']
+    cfb, ctm = gsym['CFB'][1], gsym['CAREERTEAM'][1]     # (competitionFileBuffer; the career club's team word)
+    team = os.environ.get('TITLEITA_TEAM', 'EUROPA,ITALIA,SERIE A,BOLOGNA')
+    seen = {}
+
+    def table(r):                                        # the league's rows in table order: (row offset, team word,
+        d = r.obj2(cfb, 0x2B3 + 18 * 24)                 # played, points)
+        n = struct.unpack_from('<H', d, 0x31)[0]
+        if not 2 <= n <= 24:
+            return []
+        out = []
+        for i in range(n):
+            off = struct.unpack_from('<H', d, 0x6D + 2 * i)[0]
+            if off % 18 or off // 18 >= n:
+                return []
+            w = struct.unpack_from('<7H', d, 0x2B3 + off + 4)
+            out.append((off, struct.unpack_from('<H', d, 0x12D + 2 * (off // 18))[0], w[1] + w[2] + w[3], w[6]))
+        return out
+
+    def hook(s, season, scr):
+        t = table(s.result)
+        if not t or seen.get('poked'):
+            return
+        n = len(t)
+        if any(x[2] != 2 * (n - 1) - 1 for x in t):      # (one match day to go: every club on 2(n-1) - 1 played)
+            return
+        P = max(x[3] for x in t)
+        if tie:
+            pk = [(x[0], P) for x in t]
+        else:                                             # (the best club but the career one - gp_forcecfb moves the
+            car = struct.unpack('<H', s.result.obj2(ctm, 2))[0]   # career club to 2nd: the rest keep their order)
+            lead = next(x for x in t if x[1] != car)
+            pk = [(lead[0], P + 5)]
+            seen['lead'] = lead[1]
+        for off, v in pk:
+            s.poke(s.result.base2 + cfb + 0x2B3 + off + 16, struct.pack('<H', v))
+        seen['poked'] = 1
+        s.log.append(f'TITLEITA poked {"every club to" if tie else "the leader to"} {P if tie else P + 5}: '
+                     + ' '.join(f'{w:#x}/{pl}/{pt}' for _, w, pl, pt in t))
+
+    keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
+                                            'W8485_NOSACK', 'W8485_HEX', 'W8485_ONE', 'W2627REL_DATA')}
+    os.environ.update(W2627REL_DATA=src, W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+',
+                      W8485_NOSACK='1', W8485_HEX=f'{log_at:x}:{log_n},{st_at:x}:{st_n}', W8485_ONE='1')
+    W84_HOOK = hook
+    try:
+        ok, msg = world8485()
+    finally:
+        W84_HOOK = None
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    run = os.path.join(RUNS, w84_tag() + '_1')
+    lines = open(os.path.join(run, 'session.log'), errors='replace').read().splitlines()
+    errs = []
+    check(ok, msg, errs)
+    check(seen.get('poked'), 'the table never reached one match day to go (no poke)', errs)
+    hexes = {}
+    for ln in lines:
+        q = ln.split()
+        if len(q) == 3 and q[0] == 'HEX':
+            hexes.setdefault(int(q[1], 16), []).append(bytes.fromhex(q[2]))
+    sts = [b for b in hexes.get(st_at, []) if b[:2] == b'GK' and gp_ko(b[GP_STKO:])['kind'] == 5]
+    logs = [b for b in hexes.get(log_at, []) if b[:4] == b'GPLG']
+    if not logs:
+        return False, f'{msg}; no season-end log (GP_LOG)'
+    lg = logs[-1]
+    top = title_top(lg)
+    shown = [ln for ln in lines if ln.startswith('[') and 'SPAREGGIO' in ln]
+    car = os.path.join(run, 'SWOS', 'W84A.CAR')
+    dv = club_divisions(car, src, 'ita', set(top or [])) if os.path.exists(car) and top else {}
+    check(top and dv and all(dv.get(w, 9) <= 1 for w in top),
+          f"top-9 list {[hex(w) for w in top or []]}: divisions after the season {dv} (a Serie C / D club = the Poule's "
+          "champion listed: 4950c80)", errs)
+    if tie:
+        if not sts:
+            return False, f'{msg}; the spareggio never ran (no title GP_ST seen); {" ".join(errs)}'
+        ko = gp_ko(lg[8:])
+        check(ko['kind'] == 5 and ko['n'] == 2 and sorted(ko['code']) == [0, 1] and ko['ntie'] == 1
+              and ko['tw'][0] < 2, f"spareggio kind {ko['kind']} n {ko['n']} codes {ko['code']} ties {ko['ntie']} "
+              f"winner {ko['tw']}", errs)
+        pts = struct.unpack_from('<2H', lg, 8 + GP_KO['team'] + 2 * 24)   # (gp_ko pts[KN] after team[KN], KN 24)
+        check(pts[0] == pts[1], f'the two clubs not level: points {pts}', errs)
+        win = ko['team'][ko['tw'][0]] if ko['tw'] and ko['tw'][0] < 2 else None
+        mine = ko['team'][ko['code'].index(1)] if 1 in ko['code'] else None
+        check(win is not None and win == mine, f'winner {win and hex(win)} is not the career club (2nd, '
+              f'GPLAY_KOFORCE=2) {mine and hex(mine)}', errs)
+        check(top and top[0] == win, f'the spareggio winner {win and hex(win)} not first of the top-9 list '
+              f'{[hex(w) for w in top or []]}', errs)
+        check(shown, 'SPAREGGIO SCUDETTO never on screen', errs)
+        return not errs, '; '.join(errs) or (
+            f"{msg}; spareggio {[hex(t) for t in ko['team']]} (1st, 2nd = the career club) level on points {pts}, "
+            f"won by the career club {win:#x} = first of the top-9 list {[hex(w) for w in top]}, all in Serie A / B "
+            f"after the season; on screen: {shown[0][:120]}")
+    check(not sts, f'a spareggio ran with the leader 5 points clear: {[gp_ko(b[GP_STKO:]) for b in sts[:1]]}', errs)
+    check(not shown, f'SPAREGGIO on screen with no spareggio: {shown[:1]}', errs)
+    check(top and top[0] == seen.get('lead'), f"the leader {seen.get('lead') and hex(seen['lead'])} not first of the "
+          f"top-9 list {[hex(w) for w in top or []]}", errs)
+    return not errs, '; '.join(errs) or (
+        f"{msg}; no spareggio (the leader 5 points clear), the leader {seen['lead']:#x} first of the top-9 list "
+        f"{[hex(w) for w in top]}, all in Serie A / B after the season, SPAREGGIO never on screen")
+
+
+@scenario
+def world_title_ita():
+    """4.2 (MC 15/11): Italy's spareggio scudetto played - 1st and 2nd level on points (poked one day before the end),
+    the career club 2nd wins it -> first of the qualifiers' top-9 list (title_ita)"""
+    return title_ita(True)
+
+
+@scenario
+def world_title_ita_ctl():
+    """world_title_ita's control: the leader 5 points clear -> no spareggio (none built, never on screen), the leader
+    first of the top-9 list"""
+    return title_ita(False)
+
 def gplay_host(test, src='gplay.c'):
     """A C test that #includes tools/gplay.c (or src; %s: its path) compiled and run on the host (cc): (ok, stdout or
     the compiler's error); the exe's externs it never uses get stubs in a unit of their own."""

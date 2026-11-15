@@ -37944,6 +37944,83 @@ def gameplay_mask():
 
 
 @scenario
+def gameplay_swap():
+    """4.2 GAMEPLAY swap gate (MC 15/11), IT: the CPU cards / injuries / keeper-injury words are the ORIGINALE state's live words
+    (1 = OFF), the user's values parked in the GM item. (3) A new career in each state: GM_W, the live words and the parked bytes
+    are the session's. (2) A save taken in each state, loaded in each state: the save's state wins (GM_W, parked, live words), the
+    session copies CC_SH / GI_SH / GM_SH in step. (old) JUVE2F (no 'GM' item): loads PERSONALIZZATO, live words as the save (0 = ON),
+    nothing parked, whatever the session state was. SWOSTEST_UI it."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import difficulty as dfm
+    import gameplay as gm
+    import swreg
+    NB = dfm.NB
+    errs, notes = [], []
+    b = build(f'gameplay_swap_{UI}', {}, lang=UI)
+    cc, gk = cc_sites(b)[0], gk_sites(b)[0]
+
+    def probe(s):
+        r = s.result
+        gmw = r.lin((4, swreg.GAMEPLAY_AT + gm.GM_W_OFF))
+        w = struct.unpack('<HHHH', r.read(r.lin(cc), 8))                      # CC_W, CC_I, the session copy (dword)
+        g = gk_read(s, gk)[4:6]                                               # GI_W, GI_SH
+        return dict(gm=struct.unpack('<H', r.read(gmw, 2))[0], u=bytes(r.read(gmw + 2, 3)),
+                    sh=bytes(r.read(r.lin((4, swreg.GAMEPLAY_AT + gm.GM_SH_OFF)), 5)), cc=w[:2], ccsh=w[2:], gi=g)
+
+    def set_state(s, x):
+        """main menu -> OPTIONS: CPU injuries OFF (CC_I 1, the user's non-default), then ORIGINALE when x"""
+        s.poke(s.result.lin(cc), struct.pack('<HHHH', 0, 1, 0, 1))      # (the live words and the session copy, as the row's fire)
+        scr = walk(s, 'OPZIONI', 2)
+        gm_select(s, NB + 1)
+        if x:
+            s.send('left dump:1')
+        press(s, s.screen(), 'ESCI', 2) or walk(s, 18, 2)
+
+    def want(x):
+        return dict(gm=x, u=bytes((0, 1, 0)) if x else bytes(3), cc=(1, 1) if x else (0, 1), gi=(1,) if x else (0,))
+
+    def view(p):
+        return dict(gm=p['gm'], u=p['u'] if p['gm'] else bytes(3), cc=p['cc'], gi=p['gi'][:1])
+
+    saves = {}
+    for x in (0, 1):                                                           # (3) new career in each state + the saves
+        with Session(f'gameplay_swap_new{x}', b, {}, 'dump:3', 900) as s:
+            s.wait()
+            set_state(s, x)
+            new_career(s, 'ITALIA', 'SERIE A', 'JUVENTUS')
+            p = probe(s)
+            check(view(p) == want(x), f'new career in state {x}: {view(p)} (want {want(x)})', errs)
+            check(p['ccsh'][0] == p['cc'][0] and p['gi'][1] == p['gi'][0], f'session copies after the new career {p}', errs)
+            s.send(quit_and_save(f'GMS{x}') + ' dump:3')
+            path = os.path.join(s.run, 'SWOS', f'GMS{x}.CAR')
+            if os.path.exists(path):
+                saves[x] = shutil.copy(path, os.path.join(RUNS, f'gameplay_swap_GMS{x}.CAR'))
+            else:
+                errs.append(f'state {x}: GMS{x}.CAR not written')
+    for x in (0, 1):                                                           # (2) every save loaded in every state
+        if x not in saves:
+            continue
+        for y in (0, 1):
+            with Session(f'gameplay_swap_load{x}{y}', b, {f'GMS{x}.CAR': saves[x]}, 'dump:3', 300) as s:
+                s.wait()
+                set_state(s, y)
+                s.send(LOAD1 + ' dump:3')
+                p = probe(s)
+                check(view(p) == want(x), f'save of state {x} loaded in state {y}: {view(p)} (want {want(x)})', errs)
+                check(p['ccsh'][0] == p['cc'][0] and p['gi'][1] == p['gi'][0] and p['sh'][:2] == struct.pack('<H', p['gm']),
+                      f'save {x} loaded in {y}: session copies out of step {p}', errs)
+    with Session('gameplay_swap_old', b, {'JUVE2F.CAR': juve2(True)}, 'dump:3', 300) as s:   # (old) no 'GM' item
+        s.wait()
+        set_state(s, 1)
+        s.send(LOAD1 + ' dump:3')
+        p = probe(s)
+        check(p['gm'] == 0 and p['u'] == bytes(3) and p['cc'] == (0, 0) and p['gi'][0] == 0,
+              f'old save JUVE2F loaded in ORIGINALE: {p} (want PERSONALIZZATO, live 0 = ON, nothing parked)', errs)
+    notes.append(f'new careers x2, loads x4, old save')
+    return not errs, '; '.join(errs + notes)
+
+
+@scenario
 def diff_menu():
     """42-diff: the OPTIONS rows DIFFICULTY (entries NB / NB+1) and DRIBBLING (NB+2 / NB+3) under the bottom row (NB = 26:
     gkinj's, MATCH SPEED out since 13/11; 28 with slow) (difficulty.py, DIFF_TEST build): NB+6 entries (CALCI PIAZZATI NB+4 / NB+5: sp_menu), the NROWS rows at PITCH from y TOP, HEIGHT high, the last ending above

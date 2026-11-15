@@ -55,9 +55,9 @@ OBJ1MV_END = 0x16500                    # regions (237 pages frozen): winners.py
 OBJ1MV_CC = 0x15A00                     # (step 2: the career cave's shirtedit + instcheck from here; winners below it)
 assert OBJ1MV_AT < OBJ1MV_CC < OBJ1MV_END, 'swreg: OBJ1MV_CC inside the band'
 SETPIECE_AT = 0xB500                   # 4.2 set pieces 1+2 (setpieces.py, MC 14/11): the unused half of page 0x16 (no new
-SETPIECE_END = 0xBD00                  # page), linked in every build; >= SETPIECE_MIN B left (build check). MC 14/11:
+SETPIECE_END = 0xC000                  # page), linked in every build; >= SETPIECE_MIN B left (build check). MC 14/11:
                                         # +0x400 in place for set pieces §3-§5 (0x16C00 -> 0x17000), same SPB base
-SETPIECE_MIN = 128
+SETPIECE_MIN = 256                      # (MC 15/11: the release floor, as every band)
 FPORT_AT = 0x35000                      # 4.2 the fixture port's adapter (P2, Motore; MC 14/11): sr_port.o + port_step + the
 FPORT_END = 0x37000                     # slot-4 window table generated from fport.py, embedded; 2 pages, >= 256 B left at link
                                         # (0x16800..0x17000: Difficolta's SETPIECE, 42-sp, not merged yet)
@@ -218,18 +218,18 @@ def patch(p, add_ptr):
 # 4.3 reservations after the last release band; the test-only bands in the test region after SP_METER / DIFF_TC (0x35000).
 # New release bands (official lines): DRP8D (42-drp8d clamp, 451 B), TAKERS (Difficolta's set-piece takers), GAMEPLAY
 # (reserve: the GAMEPLAY page, gameplay-menu-design.md).
-DRP8D_AT = 0xBD00                       # 0x300: in the 0xB000 page after SWEFILE + SETPIECE
-DRP8D_END = 0xC000
+DRP8D_AT = 0x20500                      # 0x300, a 4.3 reservation after MKTAGE, unlinked (MC 15/11: drp8d not in 4.2;
+DRP8D_END = 0x20800                     # SETPIECE took its 0xBD00..0xC000, 160 B left on REL42i64)
 TAKERS_AT = 0x17F00                     # 0x500 (~1 KB + floor 256)
 TAKERS_END = 0x18400
 GAMEPLAY_AT = 0x18400                   # 0x600 reserve (MC 15/11: Panchina ~1.1 KB + floor 256)
 GAMEPLAY_END = 0x18A00
-assert 0xB000 <= SWEFILE_AT < SWEFILE_END <= SETPIECE_AT < SETPIECE_END <= DRP8D_AT < DRP8D_END <= SLOW_AT, \
-    'swreg (4.2 freeze): the 0xB000 page: SWEFILE < SETPIECE < DRP8D, below SLOW'
+assert 0xB000 <= SWEFILE_AT < SWEFILE_END <= SETPIECE_AT < SETPIECE_END <= SLOW_AT, \
+    'swreg (4.2 freeze): the 0xB000 page: SWEFILE < SETPIECE, below SLOW'
 assert DIFF_END <= KITS_AT < KITS_END <= S7SWAP_AT < S7SWAP_END <= OBJ1MV_AT < OBJ1MV_END <= S7GEO_AT < S7GEO_END <= DIFF2_AT < \
     DIFF2_END <= TAKERS_AT < TAKERS_END <= GAMEPLAY_AT < GAMEPLAY_END <= PRACTICE_AT < PRACTICE_END <= S3C_AT < S3C_END <= \
     R17_AT < R17_END <= GPLX_AT < GPLX_END <= SESTRIP_AT < SESTRIP_END <= SREG2_AT < SREG2_END <= TKUI_AT < TKUI_END <= MKTHOOK_AT < MKTHOOK_END <= \
-    MKTLOAD_AT < MKTLOAD_END <= MKTAGE_AT < MKTAGE_END < 0x30000, \
+    MKTLOAD_AT < MKTLOAD_END <= MKTAGE_AT < MKTAGE_END <= DRP8D_AT < DRP8D_END < 0x30000, \
     'swreg (4.2 freeze): the release bands in map order, then the 4.3 reservations (obj4pack, MC 15/11)'
 assert 0x35000 <= FPORT_AT < FPORT_END <= CDKN_AT < CDKN_END <= FPORT2_AT < FPORT2_END, \
     'swreg (4.2 freeze): the test-only bands after SP_METER (0x30000..0x34000) and DIFF_TC (0x34000..0x35000)'

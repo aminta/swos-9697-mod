@@ -492,6 +492,10 @@ last round, never before the plain week's pick; shots ctc_<s1|s2|end>_<k>, ctc_w
 
 - Host fixtures: c/S7RI-hs (default exe of test_s7rimoves / test_s7_unhint_first / test_s7load_ri_home) is a REAL-pack IT build; rebuild it per tip (`S7PACK=internal/s7pack-real/ita HOSTTEST_SYMS=1`, same shaped-build recipe as c/S7W-ws4c) or those tests FAIL with KeyError RI_FRESH / RI_HINTMAP. Its S7_PACK for DOSBox: world_s7cross_down/up and world_s7cross_winners_same need s7pack-real/ita (_same needs the CF code, which gplay links only when the Italy pack has cup_d: with the shaved pack it FAILs as 'SETUP: ... no CF code', before 15/11 it failed as CN_ST.pad[2] = 0), world_s7cross_winners / _x need s7pack-shaved/ita (without S7_PACK they SKIP. In a GATE a SKIP never counts as PASS: list SKIPs separately in every gate report, and a scenario the gate needs that comes back SKIP blocks the gate).
 - internal/s7pack-shaved/ita (Shaved's S7 test pack, a 13/11 copy made before cup_d and the pool file existed) has since 15/11 the real pack's Coppa Serie D (`cup_d`, same cupd.json): its builds link the CF code (cf_cap) as the release shape does. It still differs from s7pack-real/ita (left as it was, the 13/11 test shape the s7cross scenarios ran on): no `pool` file (file 253), Serie A `relegated: 0`.
+- Since 42-s7import (9e46436) s7pack-shaved/ita cannot build an exe that links the old-save import (SREG2): it has no
+  pool file, so no S7 RI entry (sreg2 asserts). The S7 gates (s7cross winners / _x / _same, oldsave) run with
+  `S7_PACK=internal/s7pack-real/ita`, the release shape; the shaved pack stays only for host tests that read its
+  clubs / groups (its import41.csv / newpool41.csv were trimmed to its 262 clubs on 15/11).
 
 ## Full-match frame traces (42-diff, 2026-11-13)
 `diff_trace` (DIFF_TRACE builds) compares a 13000-frame match hash every 2048 frames (DIFF_CKSH) between REF (kick-off

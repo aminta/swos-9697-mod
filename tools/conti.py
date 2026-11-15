@@ -721,12 +721,16 @@ def draw_bound(body, access, holders, gl, assocs, clubs):
 
 
 def guest_sub(key, ws, rd):
-    """CONTI_GUEST (test builds: 'cup:guest word[,guest word..]:club word', hex): the guests in place of the career
-    club's next group-mates / its opponent in cup key's main-round list ws (rd: that round); a new list."""
+    """CONTI_GUEST (test builds: 'cup:guest word[,guest word..]:club word[:force]', hex): the guests in place of the
+    career club's next group-mates / its opponent in cup key's main-round list ws (rd: that round); a new list.
+    ':force' (MC 15/11, world_conti_guest): a club the data gives no place in that list takes the list's first place
+    (its entrant drops out of the test build's season 1), so the guests' path never depends on the data's entrants."""
     ws = list(ws)
     g = os.environ.get('CONTI_GUEST')
     if g and g.split(':')[0] == key:
-        _, gws, cw = g.split(':')
+        _, gws, cw, *opt = g.split(':')
+        if 'force' in opt and ws and int(cw, 16) not in ws:
+            ws[0] = int(cw, 16)
         if int(cw, 16) in ws:
             i = ws.index(int(cw, 16))
             sz = rd['size'] if rd['kind'] == 'groups' else 2

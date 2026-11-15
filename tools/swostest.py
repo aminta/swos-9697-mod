@@ -20561,14 +20561,20 @@ def world_recopa_late():
 def world_conti_guest():
     """Guest clubs of the continental cups (guests.py, the integrator's option b): two guests built from a sample
     caf.guests.json (orig TEAM.064's first two clubs) into TEAM.191 on alias global numbers (guests.alloc), in
-    INDEPENDIENTE's Libertadores group in place of two group-mates (conti CONTI_GUEST, a test-build switch). A season
+    the career club's Libertadores group in place of two group-mates (conti CONTI_GUEST, a test-build switch). A season
     saved after the first match against a guest (W8485_MIDTEXT) and reloaded (W8485_FROM): the guests' matches with
     their names before and after the reload, the season's record (REGISTRO GESTIONE) with the Libertadores line;
-    then its end save reloaded for a second season"""
+    then its end save reloaded for a second season.
+    (MC 15/11, backlog-42 row 41: the club's season-1 Libertadores place is FORCED - CONTI_GUEST ':force', the first
+    Argentine club in no season-1 CONMEBOL cup - so the path never depends on the data's entrants: on 403c19
+    INDEPENDIENTE had none and the mid-save never came. GUEST_FORCE=0, the control: the same club unforced, no guest
+    match, 'no mid-season save'.)"""
     src = world_data()                                  # (root fix F: the line's data; rel40-names no longer builds on 4.2)
-    team, ckey = pick_club('arg', 0, need=conti_in_s1('conmebol', 'lib', 'groups'), src=src,
-                           why='a season-1 Libertadores group for the guests')
-    club = team.rsplit(',', 1)[1]                       # (INDEPENDIENTE on the old data: no season-1 Libertadores on 403c19)
+    force = os.environ.get('GUEST_FORCE', '1') != '0'
+    team, ckey = pick_club('arg', 0, need=conti_free_s1('conmebol'), src=src,
+                           why='no season-1 CONMEBOL cup: ' + ('its Libertadores place forced by CONTI_GUEST :force'
+                                                               if force else 'unforced (GUEST_FORCE=0, the control)'))
+    club = team.rsplit(',', 1)[1]
     if not os.path.isdir(src):
         return True, f'SKIP: private data {src} missing'
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
@@ -20586,7 +20592,8 @@ def world_conti_guest():
     else:
         os.environ['SEASON_PACKS'] = old
     exe = os.environ.get('GUEST_BUILD') or build('world_conti_guest', env={
-        'SEASON_PACKS': packs, 'GUESTS_DATA': sample, 'CONTI_GUEST': f"lib:{','.join('%04x' % w for w in gw)}:{ind:04x}"})
+        'SEASON_PACKS': packs, 'GUESTS_DATA': sample,
+        'CONTI_GUEST': f"lib:{','.join('%04x' % w for w in gw)}:{ind:04x}" + (':force' if force else '')})
     keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_ONE',
             'W8485_MIDTEXT', 'W8485_FROM', 'W8485_RECSHOT')
     keep = {k: os.environ.get(k) for k in keys}
@@ -20598,6 +20605,9 @@ def world_conti_guest():
         logs['a'] = open(os.path.join(RUNS, w84_tag() + '_1', 'session.log'), errors='replace').read()
         if not ok:
             return False, f'first session (to the mid-season save): {msg}'
+        if ': ' not in msg or not os.path.isfile(msg.split(': ', 1)[1]):   # (W8485_MIDTEXT never met: the session ran
+            return False, (f'no mid-season save: no match against a guest {names} in the first session '   # to its end)
+                           f'({"forced" if force else "unforced, GUEST_FORCE=0"}): {msg[:160]}')
         mid = cache_path('guests_mid_squads.CAR', exe)   # (root fix E: per build)
         shutil.copy(msg.split(': ', 1)[1], mid)
         for k in ('W8485_ONE', 'W8485_MIDTEXT'):

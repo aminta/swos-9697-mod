@@ -308,7 +308,7 @@ ASSIGN = re.compile(r'\s*(?:[A-Z][A-Z0-9_, ]*=|#define\s)')
 
 
 def grep_assign(files):
-    """files: {name: text}. Page-region constants (0x100-aligned, 0xC000..0x3FFFF) assigned at top level
+    """files: {name: text}. Page-region constants (0x80-aligned since GAMEPLAY | PRACTICE at 0x18A80, MC 15/11; 0xC000..0x3FFFF) assigned at top level
     (NAME = 0x... / #define) in a module that names obj4 - a band address kept outside swreg is one of these; obj2 / obj3
     constants of such modules show up too (check by hand). -> [(file, lineno, literal, swreg symbol or '')]."""
     import swreg
@@ -324,7 +324,7 @@ def grep_assign(files):
             if ASSIGN.match(ln):
                 for h in HEX.findall(re.split(r'#(?!define)|//', ln)[0]):
                     v = int(h, 16)
-                    if 0xC000 <= v < 0x40000 and v % 0x100 == 0:
+                    if 0xC000 <= v < 0x40000 and v % 0x80 == 0:
                         out.append((f, i, '0x' + h, '/'.join(vals.get(v, []))))
     return out
 

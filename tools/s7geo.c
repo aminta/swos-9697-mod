@@ -116,3 +116,157 @@ int32_t s7geochain(const uint8_t *c, int32_t rs, int32_t nc, int32_t fl, int32_t
     }
     return 1;                                               /* (girone a lost a club to its neighbour: a seat for the arrival) */
 }
+
+/* 4.2 S7 redraw (MC design internal/handoff/s7-redraw.md, Davide 15/11 "regola attuale al 78% e basta"): Serie C (3 x 20) and Serie D
+   (9 x 18) groups redrawn at every season end. s7rd_rule is the C twin of Panchina's oracle tools/s7redraw.py rule() (frozen 42-redraw
+   31db319): integer arithmetic only, the same groups bit for bit (host test test_s7redraw: the oracle's goldens). Pure: no global read
+   but its arguments; the caller (s7swap.c, through S7RD_PTR) builds the inputs from the registry and writes nd[].
+   - clubs: n, sorted by ident ascending (the oracle's tie-break order), their TRAVEL points (s7rd_travel) in 0.01 degree;
+     last[k] / prev[k] the group last season at this level (0xFF none), sec[k] 1 = a second team (U23 / Next Gen / Futuro).
+   - groups: ng anchors (the centroids of last season's groups, s7rd_centroid), cap[g] clubs each (sum = n).
+   - second teams: never two in a group, none in its prev group (the alternation clause); among the allowed arrangements (the
+     permutations of the groups in lexicographic order, itertools') the seed picks one: arr = allowed[seed % count]. Fixed first.
+   - the others: the min-cost assignment to the group slots (slots = groups in order, each repeated by its free places), cost =
+     isqrt(16 dlat^2 + 9 dlon^2) - S7RD_STAY if the slot's group is the club's last one; the Hungarian algorithm (Jonker-Volgenant
+     form, the oracle's loop order: the same optimum and the same tie choices). out[k] = the club's group.
+   Returns 0, or -1 (inputs out of range / no allowed arrangement / caps not summing to n): out untouched then (the caller keeps
+   today's placement). work: S7RD_WORK bytes, 4-aligned. */
+#ifndef S7RD_STAY_TEST
+#define S7RD_STAY_TEST 540                                  /* (host test control: 0 = no stability bonus) */
+#endif
+enum { S7RD_STAY = S7RD_STAY_TEST, S7RD_MAXN = 168, S7RD_MAXG = 9, S7RD_MAXSEC = 4 };
+struct s7rd_work {
+    int32_t u[S7RD_MAXN + 1], v[S7RD_MAXN + 1], minv[S7RD_MAXN + 1];
+    int16_t p[S7RD_MAXN + 1], way[S7RD_MAXN + 1], fr[S7RD_MAXN];
+    int16_t d[S7RD_MAXN][S7RD_MAXG];                        /* isqrt distance of club k to group g */
+    uint8_t used[S7RD_MAXN + 1], slot[S7RD_MAXN];
+};
+enum { S7RD_WORK = sizeof(struct s7rd_work) };
+
+static int32_t rd_isqrt(uint32_t x)                         /* floor(sqrt(x)), math.isqrt */
+{
+    uint32_t r = 0, b = 1u << 30;
+    while (b > x) b >>= 2;
+    while (b) {
+        if (x >= r + b) { x -= r + b; r = (r >> 1) + b; } else r >>= 1;
+        b >>= 2;
+    }
+    return (int32_t)r;
+}
+
+void s7rd_travel(int32_t *la, int32_t *lo)                 /* the oracle's travel(): an island club travels from its mainland port */
+{
+    if (*la >= 3880 && *la <= 4140 && *lo >= 800 && *lo <= 990) { *la = 4209; *lo = 1180; return; }      /* Sardinia: Civitavecchia */
+    if (*la >= 3650 && *la <= 3840 && *lo >= 1230 && *lo <= 1570) { *la = 3819; *lo = 1557; }           /* Sicily: the Messina strait */
+}
+
+/* the next permutation (lexicographic over 0..ng-1, length k) after a[]; 0 when a[] was the last (itertools.permutations' order) */
+static int32_t rd_nextperm(uint8_t *a, int32_t k, int32_t ng)
+{
+    for (int32_t i = k - 1; i >= 0; i--) {
+        for (int32_t c = a[i] + 1; c < ng; c++) {
+            int32_t taken = 0;
+            for (int32_t j = 0; j < i; j++) if (a[j] == c) taken = 1;
+            if (taken) continue;
+            a[i] = (uint8_t)c;
+            for (int32_t j = i + 1; j < k; j++) {           /* the rest: the smallest unused, ascending */
+                for (int32_t c2 = 0; c2 < ng; c2++) {
+                    int32_t t2 = 0;
+                    for (int32_t q = 0; q < j; q++) if (a[q] == c2) t2 = 1;
+                    if (!t2) { a[j] = (uint8_t)c2; break; }
+                }
+            }
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static int32_t rd_allowed(const uint8_t *a, int32_t k, const uint8_t *sp)
+{
+    for (int32_t i = 0; i < k; i++) if (sp[i] == a[i]) return 0;
+    return 1;
+}
+
+int32_t s7rd_rule(int32_t n, const int16_t *la, const int16_t *lo, const uint8_t *last, const uint8_t *prev, const uint8_t *sec,
+                  int32_t ng, const uint8_t *cap, const int32_t *ala, const int32_t *alo, uint32_t seed, uint8_t *out, void *work)
+{
+    struct s7rd_work *w = (struct s7rd_work *)work;
+    uint8_t si[S7RD_MAXSEC], sp[S7RD_MAXSEC], a[S7RD_MAXSEC], fixg[S7RD_MAXSEC], left[S7RD_MAXG];
+    int32_t k = 0, tot = 0;
+    if (n <= 0 || n > S7RD_MAXN || ng <= 0 || ng > S7RD_MAXG) return -1;
+    for (int32_t g = 0; g < ng; g++) { left[g] = cap[g]; tot += cap[g]; }
+    if (tot != n) return -1;
+    for (int32_t i = 0; i < n; i++) if (sec[i]) {
+        if (k == S7RD_MAXSEC) return -1;
+        si[k] = (uint8_t)i; sp[k] = prev[i]; k++;
+    }
+    if (k > ng) return -1;
+    if (k) {                                                /* the second teams' draw among the allowed arrangements */
+        uint32_t cnt = 0, pick;
+        for (int32_t i = 0; i < k; i++) a[i] = (uint8_t)i;
+        do cnt += rd_allowed(a, k, sp); while (rd_nextperm(a, k, ng));
+        if (!cnt) return -1;
+        pick = seed % cnt;
+        for (int32_t i = 0; i < k; i++) a[i] = (uint8_t)i;
+        for (;;) {
+            if (rd_allowed(a, k, sp)) { if (!pick) break; pick--; }
+            rd_nextperm(a, k, ng);
+        }
+        for (int32_t i = 0; i < k; i++) {
+            fixg[i] = a[i];
+            if (!left[a[i]]) return -1;
+            left[a[i]]--;
+        }
+    }
+    /* the free clubs (ident order) and the slots (groups in order, each its free places) */
+    int32_t m = 0, s = 0;
+    for (int32_t i = 0; i < n; i++) if (!sec[i]) w->fr[m++] = (int16_t)i;
+    for (int32_t g = 0; g < ng; g++) for (int32_t j = 0; j < left[g]; j++) w->slot[s++] = (uint8_t)g;
+    if (s != m) return -1;
+    for (int32_t r = 0; r < m; r++) {
+        int32_t i = w->fr[r];
+        for (int32_t g = 0; g < ng; g++) {
+            int32_t dla = la[i] - ala[g], dlo = lo[i] - alo[g];
+            w->d[r][g] = (int16_t)rd_isqrt((uint32_t)(16 * dla * dla + 9 * dlo * dlo));
+        }
+    }
+    /* Hungarian (the oracle's hungarian(): 1-based, column 0 the dummy) */
+    const int32_t INF = 0x3FFFFFFF;
+    for (int32_t j = 0; j <= m; j++) { w->u[j] = w->v[j] = 0; w->p[j] = w->way[j] = 0; }
+    for (int32_t i = 1; i <= m; i++) {
+        int32_t j0 = 0;
+        w->p[0] = (int16_t)i;
+        for (int32_t j = 0; j <= m; j++) { w->minv[j] = INF; w->used[j] = 0; }
+        for (;;) {
+            w->used[j0] = 1;
+            int32_t i0 = w->p[j0], delta = INF, j1 = 0, ci = w->fr[i0 - 1];
+            for (int32_t j = 1; j <= m; j++) {
+                if (w->used[j]) continue;
+                int32_t g = w->slot[j - 1];
+                int32_t cur = w->d[i0 - 1][g] - (last[ci] == g ? S7RD_STAY : 0) - w->u[i0] - w->v[j];
+                if (cur < w->minv[j]) { w->minv[j] = cur; w->way[j] = (int16_t)j0; }
+                if (w->minv[j] < delta) { delta = w->minv[j]; j1 = j; }
+            }
+            for (int32_t j = 0; j <= m; j++) {
+                if (w->used[j]) { w->u[w->p[j]] += delta; w->v[j] -= delta; }
+                else w->minv[j] -= delta;
+            }
+            j0 = j1;
+            if (!w->p[j0]) break;
+        }
+        while (j0) { int32_t j1 = w->way[j0]; w->p[j0] = w->p[j1]; j0 = j1; }
+    }
+    for (int32_t i = 0; i < k; i++) out[si[i]] = fixg[i];
+    for (int32_t j = 1; j <= m; j++) out[w->fr[w->p[j] - 1]] = w->slot[j - 1];
+    return 0;
+}
+
+/* the anchors: the integer mean (floor, Italy's coordinates are positive) of last season's members' travel points per group */
+void s7rd_centroid(int32_t n, const int16_t *la, const int16_t *lo, const uint8_t *grp, int32_t ng, int32_t *ala, int32_t *alo)
+{
+    int32_t c[S7RD_MAXG];
+    for (int32_t g = 0; g < ng; g++) { ala[g] = alo[g] = 0; c[g] = 0; }
+    for (int32_t i = 0; i < n; i++) if (grp[i] < ng) { ala[grp[i]] += la[i]; alo[grp[i]] += lo[i]; c[grp[i]]++; }
+    for (int32_t g = 0; g < ng; g++) if (c[g]) { ala[g] /= c[g]; alo[g] /= c[g]; }
+}

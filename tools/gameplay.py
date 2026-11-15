@@ -9,13 +9,19 @@ inside the reserve (asserted: room for 2 more rows).
 ORIGINALE is a MASK applied at kick-off (every switch acts as its original value; the sub-values are kept). GM_W, the engine
 item 'GM' (1 B): 0 = PERSONALIZZATO (default, today's defaults), 1 = ORIGINALE; a save without GM loads PERSONALIZZATO.
 SWOS++: the row is hidden and everything original (as every other row of ours)."""
+import re
+import struct
+
 import cpucards
 import difficulty
 import gkinj
+import nasmcave
 import setpieces
 
 GM_TAG = 'GM'
-GM_SIZE = 1                             # engine item 'GM': 0 = PERSONALIZZATO (default), 1 = ORIGINALE
+GM_SIZE = 5                             # engine item 'GM': GM_W (a word: the OPTIONS row's string table; 0 = PERSONALIZZATO, default,
+                                        # 1 = ORIGINALE) + 3 bytes parking the user's CPU cards / injuries / keeper injuries
+                                        # while ORIGINALE (the live words are then 1 = OFF = the original game)
 GM_PERSONALIZZATO, GM_ORIGINALE = 0, 1
 
 LABEL = {'it': 'GAMEPLAY', 'en': 'GAMEPLAY', 'fr': 'GAMEPLAY', 'de': 'SPIELWEISE'}
@@ -59,3 +65,310 @@ assert len(present()) + 2 <= PAGE_MAX_ROWS, 'gameplay: no room for takers + role
 assert len({r[0] for r in ROWS}) == len(ROWS)
 assert all(set(r[2]) == set(r[3]) == {'it', 'en', 'fr', 'de'} for r in ROWS), 'gameplay: a row misses a language'
 assert all(len(VALUES[k]) == 2 and VALUES[k][GM_PERSONALIZZATO] and VALUES[k][GM_ORIGINALE] for k in LABEL)
+
+
+def on():
+    """GAMEPLAY mode: the six mod switches live on the GAMEPLAY page (every build that has difficulty.py's OPTIONS rows)."""
+    return difficulty.GMODE and difficulty.knobs()
+
+
+# ---- the exe side: the GAMEPLAY band (swreg.GAMEPLAY_AT). Every reference to the other bands is PC-relative (ebp = the band's
+#      start, label differences are assemble-time constants): the only fixups are the obj2 / obj3 bases and the two obj1 calls.
+#      The page is built in the band from a byte image (the packed menu, its pointers zero) + a fill table at each opening.
+GM_Y, GM_DY, GM_BACK_X, GM_RESET_X, GM_BACK_Y, GM_LEG_Y = difficulty.DP_Y, difficulty.DP_DY, difficulty.DP_BACK_X, \
+    difficulty.DP_RESET_X, difficulty.DP_BACK_Y, difficulty.DP_LEG_Y
+
+
+def _rows(sdf, ssp, scc, sgk):
+    """the page's 6 rows: (label, table, handler) as (kind, offset): kind 0 = obj4 offset, 1 = obj3 offset."""
+    d, s = sdf, ssp
+    return [((0, d['S_LBL']), (0, d['TAB_D']), (0, s['df_tog'])),
+            ((0, d['S_RLBL']), (0, d['TAB_R']), (0, s['df_rtog'])),
+            ((0, s['S_PLBL']), (0, s['TAB_P']), (0, s['sp_tog'])),
+            ((1, scc['S_LR']), (1, scc['TAB_R']), (1, scc['cc_tog_r'])),
+            ((1, scc['S_LI']), (1, scc['TAB_I']), (1, scc['cc_tog_i'])),
+            ((1, sgk['S_LG']), (1, sgk['TAB_G']), (1, sgk['gk_tog']))]
+
+
+def menu_image(rows, fill_for):
+    """The packed page (bytes, pointers 0) and its fill table [(menu offset, kind, target)]. fill_for(name) -> (kind, offset)
+    for the band's own strings."""
+    n = len(rows)
+    v0 = n + 1
+    out, fill = bytearray(), []
+
+    def ptr(t):
+        fill.append((len(out), t[0], t[1]))
+        out.extend(b'\0\0\0\0')
+    out += struct.pack('<4I', 0, 0, 0, v0)
+    out += struct.pack('<8H', 12, 0, 280, 15, 4, 0x17, 8, 0)
+    ptr(fill_for('S_GT'))
+    out += struct.pack('<H', 0)
+    for i in range(n):
+        out += struct.pack('<8H', 10, GM_Y + GM_DY * i, 140, 11, 4, 9, 8, 0)
+        ptr(rows[i][0])
+        out += struct.pack('<H', 0)
+    for i in range(n):
+        up = v0 + i - 1 if i else 255
+        dn = v0 + i + 1 if i < n - 1 else 2 * n + 1
+        out += struct.pack('<5H4B4H', 154, GM_Y + GM_DY * i, 140, 11, 2, 255, 255, up, dn, 4, 13, 10, 0)
+        ptr(rows[i][1])
+        out += struct.pack('<2H', 14, 0xE0)
+        ptr(rows[i][2])
+        out += struct.pack('<H', 0)
+    for x, quad, strn, hn in ((GM_BACK_X, (2 * n + 2, 255, v0 + n - 1, 255), 'S_BK', 'dp_back'),
+                              (GM_RESET_X, (255, 2 * n + 1, v0 + n - 1, 255), 'S_RS', 'gm_reset')):
+        out += struct.pack('<5H4B4H', x, GM_BACK_Y, 120, 15, 2, *quad, 4, 0x0E, 8, 0)
+        ptr(fill_for(strn))
+        out += struct.pack('<H', 13)
+        ptr(fill_for(hn))
+        out += struct.pack('<H', 0)
+    out += struct.pack('<8H', 12, GM_LEG_Y, 280, 11, 4, 9, 8, 0)
+    ptr(fill_for('S_GLG'))
+    out += struct.pack('<Hh', 0, -999)
+    return bytes(out), fill
+
+
+ASM = r"""
+GMB0:
+    jmp near gm_row                     ; +0  (df_add: the OPTIONS row)
+gm_chk:                                 ; +5  (the kick-off masks: ZF = 1 PERSONALIZZATO, 0 ORIGINALE; eax kept)
+    push ebp
+    call gm_base
+    cmp word [ebp + GM_W - GMB0], 0
+    pop ebp
+    ret
+GM_W: dw 0                              ; +0Ah  the item 'GM': 0 PERSONALIZZATO / 1 ORIGINALE (a word: the string table's variable)
+GM_U: db 0, 0, 0                        ;       the user's CPU cards / injuries / keeper injuries while ORIGINALE
+    db 0, 0, 0
+GM_SH: dd 0, 0                          ; the session's copy (a new career zeroes the item)
+GM3: dd GM3S                            ; obj3's base (cpucards / gkinj: CC_W, CC_I, GI_W, their session copies)
+GM2: dd GM2S                            ; obj2's base (the game's variables)
+
+gm_base:                                ; ebp = the band's start (PC-relative: no fixups)
+    call .n
+.n: pop ebp
+    sub ebp, .n - GMB0
+    ret
+
+gm_row:                                 ; df_add: edi = the OPTIONS entry NB (label), NB+1 the value; edi kept
+    push ebp
+    push eax
+    push edx
+    call gm_base
+    lea eax, [ebp + S_GLBL - GMB0]
+    mov [edi + 26h], eax
+    lea edx, [ebp + TAB_GM - GMB0]
+    mov [edi + 38h + 26h], edx
+    lea eax, [ebp + gm_tog - GMB0]
+    mov [edi + 38h + 2Ah], eax
+    lea eax, [ebp + GM_W - GMB0]        ; (the string table: the word, the first index, the two strings)
+    mov [edx], eax
+    lea eax, [ebp + S_GV0 - GMB0]
+    mov [edx + 6], eax
+    lea eax, [ebp + S_GV1 - GMB0]
+    mov [edx + 10], eax
+    pop edx
+    pop eax
+    pop ebp
+    ret
+
+gm_keep:                                ; ebp = the band: the item -> the session's copy
+    mov eax, [ebp + GM_W - GMB0]
+    mov [ebp + GM_SH - GMB0], eax
+    mov eax, [ebp + GM_W + 4 - GMB0]
+    mov [ebp + GM_SH + 4 - GMB0], eax
+    ret
+gm_load:                                ; after a career load (engine, pushad around): the save's state is the session's
+    push ebp
+    call gm_base
+    call gm_keep
+    pop ebp
+    ret
+gm_new:                                 ; after a new career's defaults (the item zeroed): the session's state back
+    push ebp
+    call gm_base
+    mov eax, [ebp + GM_SH - GMB0]
+    mov [ebp + GM_W - GMB0], eax
+    mov eax, [ebp + GM_SH + 4 - GMB0]
+    mov [ebp + GM_W + 4 - GMB0], eax
+    pop ebp
+    ret
+
+gm_apply:                               ; ebp = the band, ax = the new GM_W (0 / 1): the swap of CPU cards / injuries / keeper
+    cmp ax, [ebp + GM_W - GMB0]         ; injuries (live words <-> the parked bytes), the session copies in step
+    je .x
+    mov [ebp + GM_W - GMB0], ax
+    mov ecx, [ebp + GM3 - GMB0]
+    test ax, ax
+    jz .b
+    mov al, [ecx + CC_W_O]
+    mov [ebp + GM_U - GMB0], al
+    mov al, [ecx + CC_I_O]
+    mov [ebp + GM_U + 1 - GMB0], al
+    mov al, [ecx + GI_W_O]
+    mov [ebp + GM_U + 2 - GMB0], al
+    mov dword [ecx + CC_W_O], 10001h    ; (1 = OFF: the original game)
+    mov word [ecx + GI_W_O], 1
+    jmp .s
+.b: movzx eax, byte [ebp + GM_U - GMB0]
+    mov [ecx + CC_W_O], ax
+    movzx eax, byte [ebp + GM_U + 1 - GMB0]
+    mov [ecx + CC_I_O], ax
+    movzx eax, byte [ebp + GM_U + 2 - GMB0]
+    mov [ecx + GI_W_O], ax
+.s: mov eax, [ecx + CC_W_O]
+    mov [ecx + CC_SH_O], eax
+    mov ax, [ecx + GI_W_O]
+    mov [ecx + GI_SH_O], ax
+    call gm_keep
+.x: ret
+
+gm_tog:                                 ; the OPTIONS row (fire): PERSONALIZZATO <-> ORIGINALE; landing on PERSONALIZZATO opens the page
+    push ebp
+    call gm_base
+    mov ax, [ebp + GM_W - GMB0]
+    xor ax, 1
+    call gm_apply
+    cmp word [ebp + GM_W - GMB0], 0
+    jne .d
+    call gm_fill
+    call SP_TABG                        ; (CALCI PIAZZATI's table pointers)
+    mov ecx, [ebp + GM2 - GMB0]
+    lea eax, [ebp + GM_MENU - GMB0]
+    mov [ecx + A6_O], eax               ; the page (OPTIONS comes back unpacked: df_ret re-adds its row)
+    pop ebp
+    jmp SHOW_MENU
+.d: pop ebp
+    jmp DRAWITEM
+
+gm_fill:                                ; the page's pointers (ebp = the band)
+    mov edx, [ebp + GM3 - GMB0]
+    lea edi, [ebp + GM_MENU - GMB0]
+    lea esi, [ebp + GM_FT - GMB0]
+    mov ecx, GM_NFT
+.l: movzx eax, word [esi]
+    mov ebx, [esi + 2]
+    test ah, 80h
+    jnz .o
+    add ebx, ebp
+    jmp .s
+.o: and ah, 7Fh
+    add ebx, edx
+.s: mov [edi + eax], ebx
+    add esi, 6
+    loop .l
+    ret
+
+gm_reset:                               ; PREDEFINITI: every switch back to its default (while ORIGINALE: the parked values)
+    pushad
+    call gm_base
+    mov ecx, [ebp + GM3 - GMB0]
+    xor eax, eax
+    cmp word [ebp + GM_W - GMB0], 0
+    jne .p
+    mov [ebp + DF_W - GMB0], ax
+    mov [ebp + DF_DR - GMB0], ax
+    mov [ebp + SP_W - GMB0], ax
+    mov [ecx + CC_W_O], eax
+    mov [ecx + GI_W_O], ax
+    call DF_PACK
+    mov [ecx + CC_SH_O], eax
+    mov [ecx + GI_SH_O], ax
+    jmp .k
+.p: mov [ebp + GM_U - GMB0], eax
+.k: call gm_keep
+    mov edx, [ebp + GM2 - GMB0]         ; the rows redrawn (as dp_reset: A5 = the entry, DrawMenuItem)
+    mov eax, [edx + MENU_O + 0Ch]
+    push eax
+    movzx ecx, word [eax + 2]
+    imul ecx, ecx, 38h
+    sub eax, ecx
+    add eax, GM_V0 * 38h
+    mov ecx, GM_N
+.l: mov [edx + A5_O], eax
+    push eax
+    push ecx
+    push edx
+    call DRAWITEM
+    pop edx
+    pop ecx
+    pop eax
+    add eax, 38h
+    loop .l
+    pop eax
+    mov [edx + A5_O], eax
+    popad
+    ret
+
+TAB_GM: dd 0
+    dw 0
+    dd 0, 0
+"""
+
+
+def _src(lang, rows, ft, img):
+    db = lambda x: ', '.join(str(c) for c in x.encode('latin-1') + b'\0')
+    src = f'%define GM_NFT {len(ft)}\n%define GM_N {len(rows)}\n%define GM_V0 {len(rows) + 1}\n' + ASM
+    src += f'S_GLBL: db {db(LABEL[lang])}\nS_GV0: db {db(VALUES[lang][0])}\nS_GV1: db {db(VALUES[lang][1])}\n'
+    src += f'S_GT: db {db(TITLE[lang])}\nS_GLG: db {db(LEG[lang])}\nalign 4\nGM_FT:\n'
+    return src, db
+
+
+def patch(p, lang):
+    """The GAMEPLAY band: after difficulty.patch and setpieces.patch (their labels), before the engine items are bound."""
+    if not on():
+        return None
+    import controls
+    import engine
+    import swreg
+    df, sp, cc, gk = difficulty, setpieces, cpucards, gkinj
+    dfl, spl = df.LABELS, sp.LABELS
+    assert dfl.get('df_add') and spl.get('sp_tabg'), 'gameplay: after difficulty + setpieces'
+    at = swreg.GAMEPLAY_AT
+    rows = _rows(dfl, spl, cc.LABELS, gk.LABELS)
+    assert [r[0] for r in present()] == ['difficulty', 'dribbling', 'setpieces', 'cpucards', 'cpuinj', 'gkinj']
+    syms = df.SYMS
+    for k in ('A6_', 'A5_', 'MENU_'):
+        assert syms[k][0] == 2, ('gameplay: obj2 variable', k, syms[k])
+    # pass 1: the label offsets (the page image's own strings: the band's labels), then the image
+    base = {'GM3S': (3, 0), 'GM2S': (2, 0), 'DRAWITEM': syms['DRAWITEM'], 'SHOW_MENU': syms['SHOW_MENU'],
+            'A6_O': (0, syms['A6_'][1]), 'A5_O': (0, syms['A5_'][1]), 'MENU_O': (0, syms['MENU_'][1]),
+            'CC_W_O': (0, cc.LABELS['CC_W']), 'CC_I_O': (0, cc.LABELS['CC_I']), 'CC_SH_O': (0, cc.LABELS['CC_SH']),
+            'GI_W_O': (0, gk.LABELS['GI_W']), 'GI_SH_O': (0, gk.LABELS['GI_SH']),
+            'DF_W': (4, dfl['DF_W']), 'DF_DR': (4, dfl['DF_DR']), 'SP_W': (4, spl['SP_W']), 'DF_PACK': (4, spl['df_pack']),
+            'SP_TABG': (4, spl['sp_tabg'])}
+    img_probe, ft_probe = menu_image(rows, lambda n: (0, 0))
+    src0, db = _src(lang, rows, ft_probe, img_probe)
+    ftsrc = ''.join(f'    dw {o | (k << 15)}\n    dd 0\n' for o, k, _ in ft_probe)
+    lab0 = nasmcave.labels(src0 + ftsrc + 'GM_MENU:\n    times %d db 0\n' % len(img_probe), at, base)
+    own = {'S_GT': lab0['S_GT'], 'S_GLG': lab0['S_GLG'], 'S_BK': dfl['S_BK'], 'S_RS': dfl['S_RS'], 'dp_back': dfl['dp_back'],
+           'gm_reset': lab0['gm_reset']}
+    img, ft = menu_image(rows, lambda n: (0, own[n]))
+    assert [(o, k) for o, k, _ in ft] == [(o, k) for o, k, _ in ft_probe]
+    ftsrc = ''.join(f'    dw {o | (k << 15)}\n    dd {(t - at) if k == 0 else t}\n' for o, k, t in ft)
+    src = src0 + ftsrc + 'GM_MENU:\n    db ' + ', '.join(map(str, img)) + '\n'
+    code, fix, rel = nasmcave.assemble_obj(src, at, base, 4)
+    lab = nasmcave.labels(src, at, base)
+    assert all(lab[k] == v for k, v in lab0.items() if k in lab and k != 'GM_MENU'), 'gameplay: labels moved between passes'
+    assert lab['gm_chk'] == at + 5, ('gameplay: gm_chk is the jump table slot 2', hex(lab['gm_chk']))
+    assert len(fix) == 2 and len(rel) == 3, ('gameplay: fixups (GM3, GM2, DRAWITEM x2, SHOW_MENU only)', fix, rel)
+    left = swreg.GAMEPLAY_END - at - len(code)
+    assert left >= 256, ('gameplay: band room (floor 256)', left)
+    assert p.le.obj(4).npages * 0x1000 >= swreg.GAMEPLAY_END, 'gameplay: obj4 pages'
+    assert not any(p.get(4, at, swreg.GAMEPLAY_END - at)), 'gameplay: band not free'
+    p.put(4, at, code)
+    for o, t_obj, t_off in fix:
+        p.add_ptr(4, at + o, t_obj, t_off)
+    for o, t_obj, t_off in rel:
+        p.add_rel(4, at + o, t_obj, t_off)
+    engine.ITEM_AT['GM'] = (4, lab['GM_W'])
+    engine.CALL_AT['gm_load'] = (4, lab['gm_load'])
+    engine.CALL_AT['gm_new'] = (4, lab['gm_new'])
+    LABELS.clear()
+    LABELS.update(lab)
+    print(f'exe: GAMEPLAY band obj4+{at:#x}: {len(code)} B, {left} B left (page image {len(img)} B)')
+    return at + len(code)
+
+
+LABELS = {}

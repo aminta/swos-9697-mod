@@ -278,6 +278,11 @@ def patch_exe(src, dst, remap, lang='it'):
         import takers                            # 4.2 takers (MC 15/11 option 1): the career club's lists, 9 x {file index + 1,
         engine.save_item('TK', takers.TK_SV_SIZE)   # name hash}; an old save / a stale pick = the original taker
         engine.before_save('tk_save')            # (tk_load: from setpieces' sp_load_j, TKUI_AT + 0)
+    import gameplay                              # 4.2 GAMEPLAY (Davide 15/11): the mask's state, 5 B (gameplay.py: GM_W + the parked
+    if gameplay.on():                            # CPU cards / injuries / keeper injuries while ORIGINALE)
+        engine.save_item('GM', gameplay.GM_SIZE)
+        engine.after_load('gm_load')
+        engine.after_new('gm_new')
     import swe
     import sreg                                  # 4.2 N7: SWC1 + the club registry's section 'IT' (0 dormant: no
     swe.SWC1_SIZE = swe.SWC1_BASE + sreg.section_bytes()   # registry shape, 32 B as before; the trailer's room sums it)
@@ -990,9 +995,11 @@ def patch_exe(src, dst, remap, lang='it'):
     setpieces.patch(p, lang)
     import takers                                # 4.2 set-piece takers (A)(B)(C): the TAKERS band (after setpieces' SPB)
     takers.patch(p, lang)
+    import gameplay                              # 4.2 GAMEPLAY: the page + the row's handlers (after difficulty / setpieces)
+    gameplay.patch(p, lang)
     import spmeter                               # (M3 corner meter: SP_METER test builds only, after difficulty's df_frame)
     spmeter.patch(p, lang)
-    assert not difficulty.LABELS.get('df_add') or setpieces.LABELS.get('sp_add'), \
+    assert not difficulty.LABELS.get('df_add') or setpieces.LABELS.get('sp_add') or setpieces.LABELS.get('sp_tabg'), \
         'the OPTIONS rows need the SETPIECE band linked (MC 14/11)'
     if ct_pg:                                    # 4.0.6 B2: the season-1 edition's block (conti.c CT_S1 -> it)
         st_end = conti.s1_patch(p, (st_end + 15) & ~15)

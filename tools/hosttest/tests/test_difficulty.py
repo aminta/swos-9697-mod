@@ -87,6 +87,8 @@ def _setup(uc, sym, case, B2):
         w(CARS + 0x24, '<H', case['cy'])
     w(SPR + 0x4A, '<I', case.get('dist', 0))
     v = lambda k: B2 + sym[k][1]
+    if 'GSPL' in sym:                                   # (14/11: the DRIBBLING stubs act in live play only -
+        w(v('GSPL'), '<H', case.get('gspl', 100))       #  gameStatePl 100 unless the case says otherwise)
     w(v('A6_'), '<I', case.get('a6', TB))
     w(v('A1_'), '<I', SPR)
     w(v('A2_'), '<I', case.get('a2', FB))
@@ -128,6 +130,7 @@ def test_difficulty():
     for lang, name in LANGS.items():
         p = lepatch.LEPatch(os.path.join(ORIG, f'{name}.EXE'))
         s, sym = df.find(p)
+        sym['GSPL'] = df.w1_find(p, sym)['GSPL']        # (live play for the DRIBBLING stubs, see _setup)
         import buildup as bu
         bs_, bsym = bu.find(p, sym)
         exe = _build(lang)

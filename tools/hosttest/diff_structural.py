@@ -716,7 +716,9 @@ def main():
             bad, first = 0, None
             for t in range(n):
                 diffs, own, calls = trial(ri, ni, site, sym, lab, f'{site[0]}:{mode}:{t}', act, dact, st,
-                                          live[site[0]][0] == 'dead')
+                                          live[site[0]][0] == 'dead',
+                                          100 if '(control)' in mode else None)  # (controls in live play: since
+                                          #  14/11 the DRIBBLING stubs read BLK_N outside gameStatePl 100)
                 own_all.setdefault(site[0], set()).update(own) if mode.startswith('NORMAL') else None
                 if diffs:
                     bad += 1

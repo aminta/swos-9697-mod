@@ -47,7 +47,7 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 - (every gameplay or market decision of 4.2 goes here and in the README, EN + IT: Davide 15/11, rc gate item)
 - Difficulty, dribbling and set pieces start at NORMAL, CLASSIC and CLASSIC: a new install plays exactly the original game until you change them in OPTIONS.
 - Difficulty only touches a computer team facing a human; dribbling settings only apply with the ball in play.
-- REALISTIC free kicks follow real-football rates (league average around 6-7% of direct free kicks scored, the best specialists 10-15%: Opta). The taker's SHOOTING decides how often the computer's free kick is on target; a miss goes over the bar.
+- REALISTIC free kicks follow real-football rates (league average around 6-7% of direct free kicks scored, the best specialists 10-15%: Opta). The taker's SHOOTING decides how often the computer's free kick is on target; a miss goes over the bar or hits the wall.
 
 
 ## Italiano
@@ -98,4 +98,4 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 - (every gameplay or market decision of 4.2 goes here and in the README, EN + IT: Davide 15/11, rc gate item)
 - Difficoltà, dribbling e calci piazzati partono da NORMALE, CLASSICO e CLASSICI: una nuova installazione gioca esattamente il gioco originale finché non li cambi in OPZIONI.
 - La difficoltà tocca solo una squadra del computer contro un umano; le regolazioni del dribbling valgono solo a palla in gioco.
-- Le punizioni REALISTICHE seguono le percentuali del calcio reale (media di campionato circa 6-7% delle punizioni dirette segnate, i migliori specialisti 10-15%: Opta). Il TIRO del battitore decide quanto spesso la punizione del computer va in porta; se sbaglia, finisce sopra la traversa.
+- Le punizioni REALISTICHE seguono le percentuali del calcio reale (media di campionato circa 6-7% delle punizioni dirette segnate, i migliori specialisti 10-15%: Opta). Il TIRO del battitore decide quanto spesso la punizione del computer va in porta; se sbaglia, va sopra la traversa o sulla barriera.

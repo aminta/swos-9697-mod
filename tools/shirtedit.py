@@ -304,147 +304,6 @@ se_cconf:                               ; 4.2 B1: a stepped candidate confirmed:
     popad
 .r: ret
 
-se_supd:                                ; 4.2 B1: the strip for the candidate - on while another player holds it
-    pushad
-    cmp byte [se_cand], 0
-    je .off
-    mov edi, [se_rec]
-    mov al, [edi + 2]
-    cmp al, [se_cbase]
-    je .off
-    call se_used
-    test esi, esi
-    jz .off
-    movzx eax, byte [edi + 2]           ; the text: '20 Z. SAVICEVIC SCAMBIO' (the number, the holder's short name
-    mov edi, se_sbuf                    ;  as the team screen's rows: initial + surname, at most SNMAX characters
-    cmp eax, 10                         ;  after the initial - the verb never cut, MC 15/11)
-    jb .one
-    xor edx, edx
-    mov ecx, 10
-    div ecx
-    add al, '0'
-    stosb
-    mov eax, edx
-.one:
-    add al, '0'
-    stosb
-    mov al, ' '
-    stosb
-    lea ebx, [esi + 3]                  ; (the record's name)
-    xor edx, edx
-.f: mov al, [ebx + edx]
-    test al, al
-    jz .whole
-    cmp al, ' '
-    je .sp
-    inc edx
-    cmp edx, 22
-    jb .f
-.whole:
-    mov esi, ebx
-    jmp .cp
-.sp:test edx, edx
-    jz .whole
-    mov al, [ebx]
-    mov ah, '.'
-    stosw
-    mov al, ' '
-    stosb
-    lea esi, [ebx + edx + 1]
-.cp:mov ecx, SNMAX
-.c2:lodsb
-    test al, al
-    jz .vb
-    stosb
-    loop .c2
-.vb:mov al, ' '
-    stosb
-    mov esi, se_verb
-.c3:lodsb
-    stosb
-    test al, al
-    jnz .c3
-    call se_sshow
-    popad
-    ret
-.off:
-    call se_soff
-    popad
-    ret
-
-se_sshow:                               ; the coach line (bottom left: its label entry, x <= 10 y >= 160 h 8, and the
-    cmp byte [se_son], 0                ; name entry right after it) becomes the strip: one bar in the lit box's
-    jne .r                              ; colour over both, the text se_sbuf (the menu draws it every frame)
-    movzx ecx, word [CURMENU + 10h]
-    lea ebx, [CURMENU + 16h]
-.l: test ecx, ecx
-    jz .r
-    cmp word [ebx + 4], 0
-    jne .n
-    cmp word [ebx + 1Ah], 8
-    jne .n
-    cmp word [ebx + 16h], 160           ; (team screen y 172, squad screen 192; x 8 both - the rows' number column
-    jl .n                               ;  is at x 14 / 20; the team screen's ALLENA: button is 15 px high)
-    cmp word [ebx + 14h], 10
-    jg .n
-    cmp dword [ebx + 26h], 0
-    jne .got
-.n: add ebx, 38h
-    dec ecx
-    jmp .l
-.got:
-    mov [se_slab], ebx
-    mov eax, [ebx + 26h]
-    mov [se_stxt], eax
-    mov eax, [ebx + 18h]                ; (width + height)
-    mov [se_swh], eax
-    mov eax, [ebx + 1Ch]                ; (background type + colour)
-    mov [se_sbg], eax
-    lea edx, [ebx + 38h]                ; the name entry: the next one, on the same line, right of the label
-    mov dword [se_snam], 0
-    dec ecx
-    jz .set
-    mov ax, [edx + 16h]
-    cmp ax, [ebx + 16h]
-    jne .set
-    mov ax, [edx + 14h]
-    cmp ax, [ebx + 14h]
-    jle .set
-    mov [se_snam], edx
-    add ax, [edx + 18h]
-    sub ax, [ebx + 14h]
-    mov [ebx + 18h], ax                 ; (the bar: the label's x .. the name's right end)
-    mov word [edx + 4], 1
-.set:
-    mov word [ebx + 1Ch], 2
-    mov word [ebx + 1Eh], HL
-    mov dword [ebx + 26h], se_sbuf
-    mov byte [se_son], 1
-.r: ret
-
-se_soff:                                ; the coach line back (only if this menu still shows the strip)
-    cmp byte [se_son], 0
-    je .r
-    mov byte [se_son], 0
-    push ebx
-    push eax
-    mov ebx, [se_slab]
-    cmp dword [ebx + 26h], se_sbuf
-    jne .x
-    mov eax, [se_stxt]
-    mov [ebx + 26h], eax
-    mov eax, [se_swh]
-    mov [ebx + 18h], eax
-    mov eax, [se_sbg]
-    mov [ebx + 1Ch], eax
-    mov ebx, [se_snam]
-    test ebx, ebx
-    jz .x
-    mov word [ebx + 4], 0
-.x: pop eax
-    pop ebx
-.r: ret
-
 se_clear:                               ; no move, no fire this frame
     mov word [MCD], -1
     mov word [FIRE], 0
@@ -731,14 +590,6 @@ se_on: db 0
 se_cand: db 0
 se_cbase: db 0
 se_skip: db 0
-se_son: db 0
-align 4
-se_slab: dd 0
-se_snam: dd 0
-se_stxt: dd 0
-se_swh: dd 0
-se_sbg: dd 0
-se_sbuf: times 48 db 0
 se_hold: db 0
 se_dig: db 0
 se_first: db 0
@@ -747,6 +598,160 @@ se_old: db 0
 se_pold: db 0
 se_base: db 0
 """
+
+
+STRIP_ASM = r"""
+se_supd:                                ; 4.2 B1: the strip for the candidate - on while another player holds it
+    pushad
+    cmp byte [se_cand], 0
+    je .off
+    mov edi, [se_rec]
+    mov al, [edi + 2]
+    cmp al, [se_cbase]
+    je .off
+    call se_used
+    test esi, esi
+    jz .off
+    movzx eax, byte [edi + 2]           ; the text: '20 Z. SAVICEVIC SCAMBIO' (the number, the holder's short name
+    mov edi, se_sbuf                    ;  as the team screen's rows: initial + surname, at most SNMAX characters
+    cmp eax, 10                         ;  after the initial - the verb never cut, MC 15/11)
+    jb .one
+    xor edx, edx
+    mov ecx, 10
+    div ecx
+    add al, '0'
+    stosb
+    mov eax, edx
+.one:
+    add al, '0'
+    stosb
+    mov al, ' '
+    stosb
+    lea ebx, [esi + 3]                  ; (the record's name)
+    xor edx, edx
+.f: mov al, [ebx + edx]
+    test al, al
+    jz .whole
+    cmp al, ' '
+    je .sp
+    inc edx
+    cmp edx, 22
+    jb .f
+.whole:
+    mov esi, ebx
+    jmp .cp
+.sp:test edx, edx
+    jz .whole
+    mov al, [ebx]
+    mov ah, '.'
+    stosw
+    mov al, ' '
+    stosb
+    lea esi, [ebx + edx + 1]
+.cp:mov ecx, SNMAX
+.c2:lodsb
+    test al, al
+    jz .vb
+    stosb
+    loop .c2
+.vb:mov al, ' '
+    stosb
+    mov esi, se_verb
+.c3:lodsb
+    stosb
+    test al, al
+    jnz .c3
+    call se_sshow
+    popad
+    ret
+.off:
+    call se_soff
+    popad
+    ret
+
+se_sshow:                               ; the coach line (bottom left: its label entry, x <= 10 y >= 160 h 8, and the
+    cmp byte [se_son], 0                ; name entry right after it) becomes the strip: one bar in the lit box's
+    jne .r                              ; colour over both, the text se_sbuf (the menu draws it every frame)
+    movzx ecx, word [CURMENU + 10h]
+    lea ebx, [CURMENU + 16h]
+.l: test ecx, ecx
+    jz .r
+    cmp word [ebx + 4], 0
+    jne .n
+    cmp word [ebx + 1Ah], 8
+    jne .n
+    cmp word [ebx + 16h], 160           ; (team screen y 172, squad screen 192; x 8 both - the rows' number column
+    jl .n                               ;  is at x 14 / 20; the team screen's ALLENA: button is 15 px high)
+    cmp word [ebx + 14h], 10
+    jg .n
+    cmp dword [ebx + 26h], 0
+    jne .got
+.n: add ebx, 38h
+    dec ecx
+    jmp .l
+.got:
+    mov [se_slab], ebx
+    mov eax, [ebx + 26h]
+    mov [se_stxt], eax
+    mov eax, [ebx + 18h]                ; (width + height)
+    mov [se_swh], eax
+    mov eax, [ebx + 1Ch]                ; (background type + colour)
+    mov [se_sbg], eax
+    lea edx, [ebx + 38h]                ; the name entry: the next one, on the same line, right of the label
+    mov dword [se_snam], 0
+    dec ecx
+    jz .set
+    mov ax, [edx + 16h]
+    cmp ax, [ebx + 16h]
+    jne .set
+    mov ax, [edx + 14h]
+    cmp ax, [ebx + 14h]
+    jle .set
+    mov [se_snam], edx
+    add ax, [edx + 18h]
+    sub ax, [ebx + 14h]
+    mov [ebx + 18h], ax                 ; (the bar: the label's x .. the name's right end)
+    mov word [edx + 4], 1
+.set:
+    mov word [ebx + 1Ch], 2
+    mov word [ebx + 1Eh], HL
+    mov dword [ebx + 26h], se_sbuf
+    mov byte [se_son], 1
+.r: ret
+
+se_soff:                                ; the coach line back (only if this menu still shows the strip)
+    cmp byte [se_son], 0
+    je .r
+    mov byte [se_son], 0
+    push ebx
+    push eax
+    mov ebx, [se_slab]
+    cmp dword [ebx + 26h], se_sbuf
+    jne .x
+    mov eax, [se_stxt]
+    mov [ebx + 26h], eax
+    mov eax, [se_swh]
+    mov [ebx + 18h], eax
+    mov eax, [se_sbg]
+    mov [ebx + 1Ch], eax
+    mov ebx, [se_snam]
+    test ebx, ebx
+    jz .x
+    mov word [ebx + 4], 0
+.x: pop eax
+    pop ebx
+.r: ret
+
+align 4
+se_slab: dd 0
+se_snam: dd 0
+se_stxt: dd 0
+se_swh: dd 0
+se_sbg: dd 0
+se_son: db 0
+se_sbuf: times 48 db 0
+"""
+# (4.2 B1, MC 15/11: the strip block in its own obj4 band SESTRIP; se_verb appended per language)
 
 
 def sites(p):
@@ -855,13 +860,35 @@ def patch(p, cave, obj=1, lang='it'):
     for o, t_obj, t_off in brel:
         p.add_rel(4, at + o, t_obj, t_off)
     sym.update(se_unsh=(4, blab['se_unsh']), se_ad=(4, blab['se_ad']))
-    src = ASM + 'se_verb: db ' + ', '.join(str(c) for c in VERB[lang].encode()) + ', 0\n'
+    # 4.2 B1 (MC 15/11): the strip (se_supd / se_sshow / se_soff, its buffer, the verb) in obj4's SESTRIP band; the
+    # main block calls it and it reads the main block's state: main first with the strip at the band's start (rel32 /
+    # absolute encodings do not depend on the value), the strip on the main labels, then main again on the real ones
+    assert obj == 4, 'shirtedit: the B1 strip lives in obj4 (SESTRIP)'
     assert all(c in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' for c in VERB[lang]), VERB[lang]
+    ssrc = STRIP_ASM + 'se_verb: db ' + ', '.join(str(c) for c in VERB[lang].encode()) + ', 0\n'
+    sa = swreg.SESTRIP_AT
+    lab0 = nasmcave.labels(ASM, cave, {**sym, 'se_supd': (4, sa), 'se_soff': (4, sa)})
+    ssym = {k: sym[k] for k in ('CURMENU', 'HL', 'SNMAX')}
+    ssym.update({k: (4, lab0[k]) for k in ('se_cand', 'se_rec', 'se_cbase', 'se_used')})
+    scode, sfix, srel = nasmcave.assemble_obj(ssrc, sa, ssym, 4)
+    slab = nasmcave.labels(ssrc, sa, ssym)
+    sleft = swreg.SESTRIP_END - sa - len(scode)
+    assert sleft >= 256, ('shirtedit strip: SESTRIP band (MC: >= 256 B left)', sleft)
+    assert p.le.obj(4).npages * 0x1000 >= swreg.SESTRIP_END, 'shirtedit strip: obj4 pages (patch.py OBJ1MV_ON)'
+    assert not any(p.get(4, sa, swreg.SESTRIP_END - sa)), 'shirtedit strip: SESTRIP band not free'
+    p.put(4, sa, scode)
+    for off, tobj, toff in sfix:
+        p.add_ptr(4, sa + off, tobj, toff)
+    for off, tobj, toff in srel:
+        p.add_rel(4, sa + off, tobj, toff)
+    sym.update(se_supd=(4, slab['se_supd']), se_soff=(4, slab['se_soff']))
+    src = ASM
     code, fix, rel = nasmcave.assemble_obj(src, cave, sym, obj)
     lab = nasmcave.labels(src, cave, sym)
-    if obj == 4:
-        assert swreg.OBJ1MV_CC <= cave and cave + len(code) <= swreg.OBJ1MV_END, ('shirtedit: outside OBJ1MV', hex(cave))
-        assert p.le.obj(4).npages * 0x1000 >= swreg.OBJ1MV_END, 'shirtedit: obj4 pages (patch.py OBJ1MV_ON)'
+    assert all(lab[k] == lab0[k] for k in lab0), 'shirtedit: main block moved between passes'
+    left = swreg.OBJ1MV_END - cave - len(code)
+    assert swreg.OBJ1MV_CC <= cave and left >= 0, ('shirtedit: outside OBJ1MV', hex(cave))
+    assert p.le.obj(4).npages * 0x1000 >= swreg.OBJ1MV_END, 'shirtedit: obj4 pages (patch.py OBJ1MV_ON)'
     assert not any(p.get(obj, cave, len(code)))
     p.put(obj, cave, code)
     for off, tobj, toff in fix:
@@ -884,5 +911,5 @@ def patch(p, cave, obj=1, lang='it'):
                 se_rec=lab['se_rec'], se_ent=lab['se_ent'], dir_at=dc[0], se_skip=lab['se_skip'],
                 **{k: sym[k] for k in ('CT', 'A0', 'D1', 'MCD', 'CURMENU')})
     print(f'exe: editable shirt numbers (MenuProc obj1+{mc:#x}, DrawPlayerEntries number obj1+{hl:#x}, '
-          f'code obj{obj}+{cave:#x}..{cave + len(code):#x})')
+          f'code obj{obj}+{cave:#x}..{cave + len(code):#x}, strip obj4+{sa:#x}..{sa + len(scode):#x}, {sleft} B left in SESTRIP)')
     return (cave + len(code) + 3) & ~3

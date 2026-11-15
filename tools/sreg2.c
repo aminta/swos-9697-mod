@@ -217,5 +217,7 @@ void sreg_absent(void)                          /* SREG_FN[4]: it_load, a save w
 {
     SREG_IMP.calls++;
     swe_ready();
-    if (cstack_call(run, 0) == -4)       /* (cstack.h CSTACK_REFUSED) */ fail(5, -6, -1);
+    SREG_IMP.stage = -1;                        /* (run() sets 0 first: still -1 after a -4 = cstack refused the call, never
+                                                   run's own -4 - Panchina 15/11: a gl_glob refusal kept its stage / bad) */
+    if (cstack_call(run, 0) == -4 && SREG_IMP.stage == -1) fail(5, -6, -1);   /* (cstack.h CSTACK_REFUSED) */
 }

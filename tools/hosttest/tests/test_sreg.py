@@ -1085,3 +1085,39 @@ def test_sreg_ccnmove():
     return not errs, '; '.join(errs) or ('compCountryNumber + D8CAA/AE/B2 (2, 1, 0 cups) + D8CBA/C0 (sub-contest or 0); '
                                          'DIY rules from the new division (negative play-off (-x)>>1), a non-league DIY '
                                          'kept; no table entry: cleared; every level 0..13 its own record\'s rules; a stay in 102 on the game\'s own state: no byte changed')
+
+
+def test_sreg_absent_refused():
+    """sreg2.c sreg_absent (Panchina 15/11): cstack's refusal (-4, run never entered) is fail(5, -6); run()'s own -4 refusal
+    (a gl_glob error: fail(1, -4, 0x8000 | slot)) keeps its stage and bad. Built natively from the function's source."""
+    import ctypes
+    import re
+    import subprocess
+    import tempfile
+    src = open(os.path.join(TOOLS, 'sreg2.c')).read()
+    body = re.search(r'void sreg_absent\(void\).*?\n}\n', src, re.S).group(0)
+    d = tempfile.mkdtemp()
+    c = os.path.join(d, 'a.c')
+    with open(c, 'w') as f:
+        f.write('#include <stdint.h>\nstruct { int32_t rc, stage, bad, nswap, nmap, npend; uint32_t flags, calls; uint16_t walked, cache; } SREG_IMP;\n'
+                'int MODE; static void swe_ready(void) {}\n'
+                'static int32_t fail(int32_t stage, int32_t rc, int32_t bad) { SREG_IMP.stage = stage; SREG_IMP.bad = bad; return SREG_IMP.rc = rc; }\n'
+                'static int run(void *pv) { (void)pv; SREG_IMP.stage = 0; return fail(1, -4, 0x8000 | 12); }\n'
+                'static int cstack_call(int (*fn)(void *), void *a) { return MODE ? -4 : fn(a); }\n' + body)
+    lib = os.path.join(d, 'a.dylib')
+    r = subprocess.run(['cc', '-shared', '-fPIC', '-O1', '-Wall', '-Werror', '-o', lib, c], capture_output=True, text=True)
+    if r.returncode:
+        return False, 'cc: ' + r.stderr[-400:]
+    L = ctypes.CDLL(lib)
+    imp = (ctypes.c_int32 * 6).in_dll(L, 'SREG_IMP')
+    mode = ctypes.c_int.in_dll(L, 'MODE')
+    errs = []
+    mode.value = 0
+    L.sreg_absent()
+    if (imp[0], imp[1], imp[2]) != (-4, 1, 0x8000 | 12):
+        errs.append(f'run refused -4: rc {imp[0]} stage {imp[1]} bad {imp[2]:#x} (want -4, 1, 0x800c)')
+    mode.value = 1
+    L.sreg_absent()
+    if (imp[0], imp[1], imp[2]) != (-6, 5, -1):
+        errs.append(f'cstack refused: rc {imp[0]} stage {imp[1]} bad {imp[2]} (want -6, 5, -1)')
+    return not errs, '; '.join(errs) or "run's own -4 keeps stage 1 / bad 0x800c; cstack's refusal -> stage 5, rc -6"

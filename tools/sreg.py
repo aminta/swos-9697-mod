@@ -263,6 +263,14 @@ def patch_import(p, syms_swe, s7l):
                 'IMP_COMPTAB': (2, comp),
                 'IMP_DIY': (sel[0], sel[1] + 0x8820)})        # (IDA DF4F6 competitionFileBuffer - D6CD6)
     ext.update({k: s7l[k] for k in ('S7_AREG', 'S7_CLOG', 's7_imp_walk', 's7_flush', 'sr_reg_season', 'sr_wmap_import')})
+    # (Panchina 15/11) the selTeamNumber-relative variables are the game's own in THIS exe (CD / GOG, every language): each
+    # address is the target of obj1 code fixups (ProcessCareerFile / InitializeNewSeason / cseg_8F1F2 read them)
+    import collections
+    refs = collections.Counter(t[4] for t in p.le.fixups() if t[0] == 1 and t[3] == sel[0])
+    rel = {'D6CB8': -0x1E, 'D6CDC': 6, 'D8CAA': 0x1FD4, 'D8CAE': 0x1FD8, 'D8CB2': 0x1FDC, 'D8CBA': 0x1FE4, 'D8CC0': 0x1FEA,
+           'compCountryNumber': 0x9C58, 'competitionFileBuffer': 0x8820}
+    miss = [k for k, v in rel.items() if not refs.get(sel[1] + v)]
+    assert not miss, ('sreg2: no game code references these selTeamNumber-relative variables in this exe', miss)
     sreg2_check(p)
     syms, end, bss = cobj.link(p, obj, swreg.SREG2_AT, (4, 0), externs=ext, limit=swreg.SREG2_END, text_obj=4,
                                roots=['sreg_absent', 'SREG_IMP', 'IMP_OLD', 'IMP_NEWPOOL', 'IMP_BASE', 'IMP_LAY41', 'IMP_LAY7',

@@ -6971,6 +6971,56 @@ def world_uq_nextmatch():
 
 
 @scenario
+def world_uq_record():
+    """4.2 (Enzo 15/11): the management record's European line follows the contest the club really plays. As world_uq_nextmatch (AJAX,
+    CL Q1 forced, simdraw: it loses CL Q1 and drops into the CONFERENCE LEAGUE Q2): in season 2, once the next fixture is a qualifying
+    tie of another cup than the Champions League, REGISTRO GESTIONE must not name the Champions League qualifying any more (the record's
+    +22h name was set once at the season's start: 'PRELIM. CHAMPIONS LEAGUE' stayed after the drop); reported: the record's texts"""
+    seen, recs, errs = [], [], []
+
+    def hook(s, season, scr):
+        if season != 2 or len(recs) >= 1 or scr is None or scr.find('TRASFERIMENTI') is None:
+            return
+        r = press(s, scr, 'PROSS. PARTITA')
+        if r is None:
+            return
+        nx = s.screen()
+        t = nx.entries[0][1] if nx.entries else '?'
+        seen.append(t)
+        if nx.find('ESCI') is not None:
+            press(s, nx, 'ESCI')
+        if (t.startswith('PRELIM.') or t.startswith('UEFA ')) and 'CHAMPIONS' not in t:
+            m = s.result.mem                                 # (the record screen shows no European line before the season ends: the
+            cs = s.result.base2 + 0x16F8                      #  season record's +22h name pointer, relative to STR_BASE = obj2 + 0x16F8)
+            nm, k, dbg = [], 0, [m[cs:cs + 15]]
+            while True:
+                k = m.find(b'AJAX AMSTERDAM\x00', k + 1)
+                if k < 0:
+                    break
+                r = struct.unpack_from('<I', m, k - 2 + 0x22)[0]
+                dbg.append(hex(r))
+                if 0 < r < 0x100000 and m[cs + r:cs + r + 4].isascii():
+                    nm.append(f'{k - 2 - s.result.base2:x}:' + m[cs + r:cs + r + 40].split(b'\0')[0].decode('latin1'))
+            recs.append((t, nm[-1] if nm else None, nm + [dbg]))
+
+    ok, msg, ties = q27_run(hook)
+    if ok is None:
+        return True, msg
+    check(ok, msg, errs)
+    check(bool(recs), f'no record read after a drop (next-match titles {seen}, ties {ties})', errs)
+    for t, last, allnm in recs:
+        ent = [(int(x.split(':', 1)[0], 16), x.split(':', 1)[1]) for x in allnm[:-1]]
+        chain = [(a, n) for a, n in ent if any(abs(a - b) == 0x6A for b, _ in ent)]       # (the season records: 106 B apart; two arrays:
+        low = [(a, n) for a, n in chain if a < 0x100000 + 0 * len(chain)] or chain         #  the live one in the game's data (obj2 low), and the
+        cur = max(low)[1] if low else None                                                  #  stale file buffer of the last load, higher up: the live
+                                                                                            #  array's last record = the current season's)
+        want = 'EUROPA' if 'EUROPA' in t else 'CONFERENCE'
+        check(cur is not None and want in cur and 'CHAMPIONS' not in cur,
+              f'after the drop ({t}) the current season record names {cur!r} (chain {chain})', errs)
+    return not errs, '; '.join(errs) or f'record names after the drop: {recs}'
+
+
+@scenario
 def world_uq_early():
     """4.0.1 (Pietro's polish): the next UEFA qualifying tie is built as soon as the return leg is decided (uefaq's
     uq_daily also at the end of the day played), so the career calendar lists it at once, not only after PARTITA. As

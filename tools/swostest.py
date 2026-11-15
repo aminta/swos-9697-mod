@@ -5180,6 +5180,7 @@ def shirt_edit():
             check(t5[k] == 7 and (h7 is None or t5[h7] == before[k]), f'typed 7: {t5[:16]} (holder {h7})', errs)
             check(len({t5[i] for i in sq}) == len(sq), f'duplicate numbers {[t5[i] for i in sq]}', errs)
             notes.append(f'typed 7 (holder slot {h7} got {before[k]})')
+            s.shot('swapped')                          # (the number swap alone: the visual tour's 'after the swap' panel)
             pin = se_team(s)[2]
             check(pin & 0x80, f'pin bit not set ({pin:#x})', errs)
             # the cursor moves again (edit over): DOWN goes to row 8

@@ -713,7 +713,9 @@ const u32 F1_SIZE = sizeof(struct f1_state);
 static u16 f1w(const u8 *b) { return b[0] | b[1] << 8; }
 void f1_capture(const u8 *diy, u32 season, u32 mgr) {
     int n = f1w(diy + 0x31), me = 0;
-    if (n < 2 || n > F1N) return;
+    if (!mgr || n < 2 || n > F1N) return;       /* (S6a: mgr 0 = an all-CPU world SEASON - no manager's league, no
+                                           FASE 1 table kept; split's sp_shsel keys no 'SH' either: every league the
+                                           scratch block, as the season end's simulations) */
     for (int i = 0; i < n; i++) if (f1w(diy + 0x12D + 2 * i) == (u16)mgr) me = 1;
     if (!me) return;                            /* (the career's league only: its state is the saved one) */
     int played = 0;                             /* (groups known from day 0 - split's sp_pregroup, the MLS: no */

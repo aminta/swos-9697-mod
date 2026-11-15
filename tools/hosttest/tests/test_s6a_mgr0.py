@@ -64,6 +64,15 @@ int d_sack(u32 mgr) {
     GP_MGR = (u16)mgr;
     return (int)gp_sack_c();
 }
+int d_f1(u32 mgr) {                     /* f1_capture on a 2-club table holding a 0 word: kept? */
+    static u8 diy[0x400];
+    for (unsigned i = 0; i < sizeof diy; i++) diy[i] = 0;
+    diy[0x31] = 2; diy[0x12D] = 0; diy[0x12E] = 0; diy[0x12F] = 0x65; diy[0x130] = 0x01;
+    diy[0x6D] = 0; diy[0x6F] = 18; diy[0x2B3 + 4] = 1; diy[0x2B3 + 18 + 4] = 1;
+    F1_ST.magic = 0;
+    f1_capture(diy, 1, mgr);
+    return F1_ST.magic == F1_MAGIC;
+}
 int d_alive(u32 n, u32 h0, u32 h1, u32 h2) {
     static const u16 t[4] = { 0x0165, 0x0265, 0x0365, 0x0465 };
     struct gp_ko k; kset(&k, t, 4);
@@ -92,7 +101,7 @@ def _lib(d, gsrc, tag):
         if r.returncode:
             raise RuntimeError(r.stderr[-600:])
     L = ctypes.CDLL(lib)
-    for f in ('d_kidx', 'd_ismgr', 'd_mgrdiv', 'd_gfplace', 'd_gfanchor', 'd_clubres', 'd_sack', 'd_alive'):
+    for f in ('d_kidx', 'd_ismgr', 'd_mgrdiv', 'd_gfplace', 'd_gfanchor', 'd_clubres', 'd_sack', 'd_alive', 'd_f1'):
         getattr(L, f).restype = ctypes.c_int
     return L
 
@@ -109,6 +118,7 @@ def _cases(L):
         ('club_res(k, 0) (the 0 word lost)', L.d_clubres(0), 0), ('club_res(k, 0x0365) (the last tie lost)', L.d_clubres(C), -100),
         ('gp_sack_c, GP_MGR 0 (the 0 word a play-out loser)', L.d_sack(0), 0),
         ('gp_sack_c, GP_MGR 0x0365 (a play-out loser)', L.d_sack(C), 1),
+        ('f1_capture, mgr 0 (a 0 word in the table)', L.d_f1(0), 0), ('f1_capture, mgr 0x0165', L.d_f1(A), 1),
         ('hum_alive, no human club', L.d_alive(0, A, B, C), 0), ('hum_alive {B} (lost)', L.d_alive(1, B, 0, 0), 0),
         ('hum_alive {A}', L.d_alive(1, A, 0, 0), 1), ('hum_alive {A, C}', L.d_alive(2, A, C, 0), 2),
         ('hum_alive {A, B, C}', L.d_alive(3, A, B, C), 2), ('hum_alive {E} (not in it)', L.d_alive(1, E, 0, 0), 0),
@@ -146,7 +156,9 @@ def test_s6a_mgr0():
     muts = (('kidx', '    if (!team) return NOC;', '    if (0) return NOC;', 'kidx(k, 0) with a 0 word in k'),
             ('IS_MGR', '#define IS_MGR(w) (GP_MGR && (u16)(w) == (u16)GP_MGR)', '#define IS_MGR(w) ((u16)(w) == (u16)GP_MGR)',
              'IS_MGR(0), GP_MGR 0'),
-            ('mgr_div', '    if (!GP_IN.mgr) return -1;\n', '', 'mgr_div, GP_IN.mgr 0 (a 0 row)'))
+            ('mgr_div', '    if (!GP_IN.mgr) return -1;\n', '', 'mgr_div, GP_IN.mgr 0 (a 0 row)'),
+            ('f1_capture', '    if (!mgr || n < 2 || n > F1N) return;', '    if (n < 2 || n > F1N) return;',
+             'f1_capture, mgr 0 (a 0 word in the table)'))
     for name, old, new, case in muts:
         if gsrc.count(old) != 1:
             errs.append(f'mutation {name}: pattern not found once')
@@ -156,4 +168,4 @@ def test_s6a_mgr0():
             errs.append(f'mutation {name} (no 0 guard): not caught')
     return not errs, '; '.join(errs) or (f'{len(_cases(L))} cases: GP_MGR 0 never matches (kidx, IS_MGR, mgr_div, '
                                          'gf_place / gf_anchor, club_res, gp_sack), hum_alive counts every human club; '
-                                         'no raw GP_MGR compare outside test switches; 3 mutations caught')
+                                         'f1_capture keeps no FASE 1 table; no raw GP_MGR compare outside test switches; 4 mutations caught')

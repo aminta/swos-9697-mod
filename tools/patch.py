@@ -559,7 +559,7 @@ def patch_exe(src, dst, remap, lang='it'):
         import shirtedit                          # 4.0.2: editable shirt numbers on the team screen (pins the team
         import instcheck                          # through benchnum's hooks); 4.0.1 instcheck: a world's missing files
         assert OBJ1MV_ON[0], 'OBJ1MV: worlds without the band (patch.py OBJ1MV_ON)'   # -> a message, not DOS. 4.2
-        cc = shirtedit.patch(p, swreg.OBJ1MV_CC, obj=4)                   # (MC 13/11): both in obj4's OBJ1MV band
+        cc = shirtedit.patch(p, swreg.OBJ1MV_CC, obj=4, lang=lang)                   # (MC 13/11): both in obj4's OBJ1MV band
         cc = instcheck.place(p, cc, lang, obj=4)                          # (the career cave overflowed with S7)
         print(f'exe: OBJ1MV career-cave modules obj4+{swreg.OBJ1MV_CC:#x}..{cc:#x} ({swreg.OBJ1MV_END - cc} B left to {swreg.OBJ1MV_END:#x})')
         import fillfix

@@ -114,6 +114,7 @@ se_ctl:                                 ; MenuProc: replaces `call MenuCheckCont
     jb .out
     test ebx, ebx
     jz .out
+    mov byte [se_skip], 0               ; (4.2 B1: edteam's et_row sets it - the custom-teams editor skips taken numbers)
     call se_row
     jc .out
     mov [se_rec], edi
@@ -164,6 +165,13 @@ se_ctl:                                 ; MenuProc: replaces `call MenuCheckCont
     mov byte [se_dig], 1
     mov byte [se_timer], WAIT
     mov edi, [se_rec]
+    cmp byte [se_cand], 0               ; (4.2 B1: typing drops a stepped candidate - back to the number before it)
+    je .nc
+    mov byte [se_cand], 0
+    mov cl, [se_cbase]
+    mov [edi + 2], cl
+    call se_soff
+.nc:
     mov al, [edi + 2]
     mov [se_base], al                   ; the number before this typing (for the swap)
     mov al, [se_first]
@@ -207,6 +215,8 @@ se_ctl:                                 ; MenuProc: replaces `call MenuCheckCont
     call se_step
     jmp .eaten
 .esc:
+    mov byte [se_cand], 0               ; (4.2 B1: a stepped candidate is dropped - the holder never changed)
+    call se_soff
     mov byte [se_dig], 0
     mov edi, [se_rec]
     mov al, [se_old]
@@ -218,6 +228,7 @@ se_ctl:                                 ; MenuProc: replaces `call MenuCheckCont
     mov [esi + 2], al
 .done:
     call se_first_commit
+    call se_cconf                       ; (4.2 B1: every exit but ESC confirms a stepped candidate - the swap)
     mov byte [se_on], 0
     mov byte [se_hold], 1
 .eaten:
@@ -226,6 +237,7 @@ se_ctl:                                 ; MenuProc: replaces `call MenuCheckCont
     jmp .out
 .stop:
     call se_first_commit
+    call se_cconf
     mov byte [se_on], 0
 .out:
     pop dword [A0]
@@ -273,6 +285,166 @@ se_nph:                                 ; the last key event a numpad digit key'
 
 se_npt: db 7, 8, 9, 0FFh, 4, 5, 6, 0FFh, 1, 2, 3, 0   ; 47h..52h: Home 8 PgUp - 4 5 6 + End 2 PgDn Ins
 
+se_cconf:                               ; 4.2 B1: a stepped candidate confirmed: its holder gets the number before
+    cmp byte [se_cand], 0               ; the stepping (one number per player, always)
+    je .r
+    mov byte [se_cand], 0
+    pushad
+    mov edi, [se_rec]
+    mov al, [edi + 2]
+    cmp al, [se_cbase]
+    je .p
+    call se_used
+    test esi, esi
+    jz .p
+    mov al, [se_cbase]
+    mov [esi + 2], al
+.p: call se_pin
+    call se_soff
+    popad
+.r: ret
+
+se_supd:                                ; 4.2 B1: the strip for the candidate - on while another player holds it
+    pushad
+    cmp byte [se_cand], 0
+    je .off
+    mov edi, [se_rec]
+    mov al, [edi + 2]
+    cmp al, [se_cbase]
+    je .off
+    call se_used
+    test esi, esi
+    jz .off
+    movzx eax, byte [edi + 2]           ; the text: '20 Z. SAVICEVIC SCAMBIO' (the number, the holder's short name
+    mov edi, se_sbuf                    ;  as the team screen's rows: initial + surname, at most SNMAX characters
+    cmp eax, 10                         ;  after the initial - the verb never cut, MC 15/11)
+    jb .one
+    xor edx, edx
+    mov ecx, 10
+    div ecx
+    add al, '0'
+    stosb
+    mov eax, edx
+.one:
+    add al, '0'
+    stosb
+    mov al, ' '
+    stosb
+    lea ebx, [esi + 3]                  ; (the record's name)
+    xor edx, edx
+.f: mov al, [ebx + edx]
+    test al, al
+    jz .whole
+    cmp al, ' '
+    je .sp
+    inc edx
+    cmp edx, 22
+    jb .f
+.whole:
+    mov esi, ebx
+    jmp .cp
+.sp:test edx, edx
+    jz .whole
+    mov al, [ebx]
+    mov ah, '.'
+    stosw
+    mov al, ' '
+    stosb
+    lea esi, [ebx + edx + 1]
+.cp:mov ecx, SNMAX
+.c2:lodsb
+    test al, al
+    jz .vb
+    stosb
+    loop .c2
+.vb:mov al, ' '
+    stosb
+    mov esi, se_verb
+.c3:lodsb
+    stosb
+    test al, al
+    jnz .c3
+    call se_sshow
+    popad
+    ret
+.off:
+    call se_soff
+    popad
+    ret
+
+se_sshow:                               ; the coach line (bottom left: its label entry, x <= 10 y >= 160 h 8, and the
+    cmp byte [se_son], 0                ; name entry right after it) becomes the strip: one bar in the lit box's
+    jne .r                              ; colour over both, the text se_sbuf (the menu draws it every frame)
+    movzx ecx, word [CURMENU + 10h]
+    lea ebx, [CURMENU + 16h]
+.l: test ecx, ecx
+    jz .r
+    cmp word [ebx + 4], 0
+    jne .n
+    cmp word [ebx + 1Ah], 8
+    jne .n
+    cmp word [ebx + 16h], 160           ; (team screen y 172, squad screen 192; x 8 both - the rows' number column
+    jl .n                               ;  is at x 14 / 20; the team screen's ALLENA: button is 15 px high)
+    cmp word [ebx + 14h], 10
+    jg .n
+    cmp dword [ebx + 26h], 0
+    jne .got
+.n: add ebx, 38h
+    dec ecx
+    jmp .l
+.got:
+    mov [se_slab], ebx
+    mov eax, [ebx + 26h]
+    mov [se_stxt], eax
+    mov eax, [ebx + 18h]                ; (width + height)
+    mov [se_swh], eax
+    mov eax, [ebx + 1Ch]                ; (background type + colour)
+    mov [se_sbg], eax
+    lea edx, [ebx + 38h]                ; the name entry: the next one, on the same line, right of the label
+    mov dword [se_snam], 0
+    dec ecx
+    jz .set
+    mov ax, [edx + 16h]
+    cmp ax, [ebx + 16h]
+    jne .set
+    mov ax, [edx + 14h]
+    cmp ax, [ebx + 14h]
+    jle .set
+    mov [se_snam], edx
+    add ax, [edx + 18h]
+    sub ax, [ebx + 14h]
+    mov [ebx + 18h], ax                 ; (the bar: the label's x .. the name's right end)
+    mov word [edx + 4], 1
+.set:
+    mov word [ebx + 1Ch], 2
+    mov word [ebx + 1Eh], HL
+    mov dword [ebx + 26h], se_sbuf
+    mov byte [se_son], 1
+.r: ret
+
+se_soff:                                ; the coach line back (only if this menu still shows the strip)
+    cmp byte [se_son], 0
+    je .r
+    mov byte [se_son], 0
+    push ebx
+    push eax
+    mov ebx, [se_slab]
+    cmp dword [ebx + 26h], se_sbuf
+    jne .x
+    mov eax, [se_stxt]
+    mov [ebx + 26h], eax
+    mov eax, [se_swh]
+    mov [ebx + 18h], eax
+    mov eax, [se_sbg]
+    mov [ebx + 1Ch], eax
+    mov ebx, [se_snam]
+    test ebx, ebx
+    jz .x
+    mov word [ebx + 4], 0
+.x: pop eax
+    pop ebx
+.r: ret
+
 se_clear:                               ; no move, no fire this frame
     mov word [MCD], -1
     mov word [FIRE], 0
@@ -306,7 +478,28 @@ se_commit:                              ; ecx = typed number 1..99: the player h
     mov [edi + 2], cl
     jmp se_pin
 
-se_step:                                ; edx = +1 / -1: the next number of 1..99 nobody else has
+se_step:                                ; edx = +1 / -1: 4.2 B1 (Davide 15/11): the next number of 1..99, taken or
+    cmp byte [se_skip], 0               ; not (a taken one: the strip, swapped on confirm - se_cconf); EDIT CUSTOM
+    jne .old                            ; TEAMS (se_skip): the next one nobody else has, as before
+    mov edi, [se_rec]
+    cmp byte [se_cand], 0
+    jne .b1
+    mov al, [edi + 2]
+    mov [se_cbase], al                  ; (the number before the stepping: the holder's on confirm)
+    mov byte [se_cand], 1
+.b1:movzx eax, byte [edi + 2]
+    add eax, edx
+    cmp eax, 99
+    jle .b1lo
+    mov eax, 1
+.b1lo:
+    cmp eax, 1
+    jge .b1s
+    mov eax, 99
+.b1s:
+    mov [edi + 2], al
+    jmp se_supd
+.old:
     mov edi, [se_rec]
     movzx eax, byte [edi + 2]
     mov ecx, 99
@@ -535,6 +728,17 @@ se_team: dd 0
 se_ent: dd 0
 se_prec: dd 0
 se_on: db 0
+se_cand: db 0
+se_cbase: db 0
+se_skip: db 0
+se_son: db 0
+align 4
+se_slab: dd 0
+se_snam: dd 0
+se_stxt: dd 0
+se_swh: dd 0
+se_sbg: dd 0
+se_sbuf: times 48 db 0
 se_hold: db 0
 se_dig: db 0
 se_first: db 0
@@ -615,7 +819,12 @@ def sites(p):
     return out
 
 
-def patch(p, cave, obj=1):
+VERB = {'it': 'SCAMBIO', 'en': 'SWAP', 'fr': 'ECHANGE', 'de': 'TAUSCH'}   # 4.2 B1: the strip's swap word
+SNMAX = 16                      # the holder's name in the strip: at most 16 characters after the initial (MC 15/11:
+                                # the name is cut, never the verb; the harness checks the widest release name)
+
+
+def patch(p, cave, obj=1, lang='it'):
     """Code at obj:cave (the career cave in obj1; 4.2 OBJ1MV: obj4's band, MC 13/11); returns its end."""
     import benchnum
     s = sites(p)
@@ -630,7 +839,7 @@ def patch(p, cave, obj=1):
     cs, kv = controls.locate(p), keytext.find(p)[1]       # 4.2 row 32 A: the numpad digits (se_np / se_nph)
     sym.update(SWOSPP=cs['SWOSPP'], SCAN=cs['SCAN'], PREV=kv['PREV'])
     sym.update(PIN_AT=(0, benchnum.PIN_AT), PIN_BIT=(0, benchnum.PIN_BIT), HL=(0, HL_COLOR), WAIT=(0, WAIT),
-               DWELL=(0, DWELL))
+               DWELL=(0, DWELL), SNMAX=(0, SNMAX))
     cave = (cave + 3) & ~3
     import swreg
     at = swreg.BOX_AT                   # 4.2 (MC 12/11): se_unsh in obj4 0xCF00..0xD000 (the career cave is full)
@@ -646,8 +855,10 @@ def patch(p, cave, obj=1):
     for o, t_obj, t_off in brel:
         p.add_rel(4, at + o, t_obj, t_off)
     sym.update(se_unsh=(4, blab['se_unsh']), se_ad=(4, blab['se_ad']))
-    code, fix, rel = nasmcave.assemble_obj(ASM, cave, sym, obj)
-    lab = nasmcave.labels(ASM, cave, sym)
+    src = ASM + 'se_verb: db ' + ', '.join(str(c) for c in VERB[lang].encode()) + ', 0\n'
+    assert all(c in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' for c in VERB[lang]), VERB[lang]
+    code, fix, rel = nasmcave.assemble_obj(src, cave, sym, obj)
+    lab = nasmcave.labels(src, cave, sym)
     if obj == 4:
         assert swreg.OBJ1MV_CC <= cave and cave + len(code) <= swreg.OBJ1MV_END, ('shirtedit: outside OBJ1MV', hex(cave))
         assert p.le.obj(4).npages * 0x1000 >= swreg.OBJ1MV_END, 'shirtedit: obj4 pages (patch.py OBJ1MV_ON)'
@@ -670,7 +881,7 @@ def patch(p, cave, obj=1):
                                                  code)]
     assert len(dc) == 1, ('cmp word [MCD], 6', dc)     # (se_ctl's idle: the direction that opens the box - edteam's)
     INFO.update(obj=obj, se_row=lab['se_row'], se_hl=lab['se_hl'], row_call=rc[0], GPIBP=s['GPIBP'], se_on=lab['se_on'],
-                se_rec=lab['se_rec'], se_ent=lab['se_ent'], dir_at=dc[0],
+                se_rec=lab['se_rec'], se_ent=lab['se_ent'], dir_at=dc[0], se_skip=lab['se_skip'],
                 **{k: sym[k] for k in ('CT', 'A0', 'D1', 'MCD', 'CURMENU')})
     print(f'exe: editable shirt numbers (MenuProc obj1+{mc:#x}, DrawPlayerEntries number obj1+{hl:#x}, '
           f'code obj{obj}+{cave:#x}..{cave + len(code):#x})')

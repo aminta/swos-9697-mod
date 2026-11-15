@@ -5145,16 +5145,24 @@ def shirt_edit():
         if len(ch) == 1:
             k, o, nw = ch[0], before[ch[0]], after[ch[0]]
             used = {before[i] for i in sq if i != k}
-            want = next(x for x in list(range(o + 1, 100)) + list(range(1, o)) if x not in used)
-            check(nw == want, f'UP: {o} -> {nw}, want {want} (next free)', errs)
+            want = o % 99 + 1                          # (4.2 B1, Davide 15/11: the next number, taken or not)
+            check(nw == want, f'UP: {o} -> {nw}, want {want} (B1: the next number)', errs)
             notes.append(f'UP {o} -> {nw}')
+            hb = next((j for j in sq if j != k and after[j] == nw), None)   # (4.2 B1: a taken candidate -> the strip)
+            sb = b1_strip(s)
+            q = s.screen()
+            check((hb is None) == (sb is None), f'team screen UP onto {nw} (holder {hb}): strip {sb}; low entries '
+                  f'{[(i, q.raw_texts[i], q.geom[i], q.entries[i][2]) for i in range(len(q.geom)) if q.geom[i][1] >= 160 and q.raw_texts[i]]}', errs)
+            if sb:
+                s.shot('strip_team')
+                notes.append(f'team screen strip {sb[1]!r} at {sb[2]}')
             # typed '2' '3': 23 (swapped with its holder if any)
             holder = next((i for i in sq if after[i] == 23 and i != k), None)
             s.send('2 3 dump:1')
             s.shot('lit23')
             se_box(s, 'lit23', notes, errs)
             t3 = se_team(s)[1]
-            check(t3[k] == 23 and (holder is None or t3[holder] == nw), f'typed 23: {t3[:16]} (holder {holder})', errs)
+            check(t3[k] == 23 and (holder is None or t3[holder] == o), f'typed 23 (B1: the candidate dropped, the holder gets {o}): {t3[:16]} (holder {holder})', errs)
             s.send('9 9 dump:1')                       # (4.2: the widest number on the box too)
             s.shot('lit99')
             se_box(s, 'lit99', notes, errs)
@@ -5296,10 +5304,10 @@ def squad_numpad():
         notes.append(f'numpad 2 3 -> 23 (holder slot {holder})')
         if k is not None:
             used = {t1[i] for i in sq if i != k}
-            want = next(x for x in list(range(24, 100)) + list(range(1, 23)) if x not in used)
+            want = 24                                  # (B1: the next number, taken or not)
             s.send('up dump:1')
             t2 = sq_team(s)[1]
-            check(t2[k] == want, f'grey UP after 23: {t2[k]} (want {want}, the next free)', errs)
+            check(t2[k] == want, f'grey UP after 23: {t2[k]} (want {want}, the next number)', errs)
             notes.append(f'grey UP 23 -> {t2[k]}')
         s.send('esc dump:1')
         t3 = sq_team(s)[1]
@@ -5315,6 +5323,173 @@ def squad_numpad():
               f'(want +1, back)', errs)
         check(t4 == before, f'outside the box: numbers changed {[t4[i] for i in sq]}', errs)
         notes.append(f'outside the box: numpad 2 / 8 {sel0} -> {sel1} -> {sel2}')
+    return not errs, '; '.join(errs + notes)
+
+
+def b1_short(raw):
+    """shirtedit se_supd's strip name: the record's name (NUL-ended, 22 scanned) -> initial + '. ' + what follows the
+    first space, at most SNMAX characters after the initial; no space (or a leading one): the name's first SNMAX."""
+    import shirtedit
+    nm = raw.split(b'\0')[0][:22].decode('latin-1')
+    k = nm.find(' ')
+    if k > 0:
+        return nm[0] + '. ' + nm[k + 1:][:shirtedit.SNMAX]
+    return nm[:shirtedit.SNMAX]
+
+
+def b1_strip(s):
+    """(the strip entry's index, its text, its geometry) - the coach label entry showing shirtedit's se_sbuf - or None"""
+    import shirtedit
+    q = s.screen()
+    verb = shirtedit.VERB[UI if UI in shirtedit.VERB else 'it']
+    for i, t in enumerate(q.raw_texts):
+        if t.endswith(' ' + verb) and t[:1].isdigit() and q.geom[i][1] >= 160:
+            return i, t, q.geom[i]
+    return None
+
+
+def b1_names(b):
+    """Every player's strip name (b1_short) in the build's team files (DATA/TEAM.*, TMW*.*)."""
+    import glob
+    import mkseason
+    out = set()
+    for f in glob.glob(os.path.join(b, 'DATA', 'TEAM.*')) + glob.glob(os.path.join(b, 'DATA', 'TMW*.*')):
+        d = open(f, 'rb').read()
+        if len(d) < 2:
+            continue
+        n = struct.unpack('>H', d[:2])[0]
+        if 2 + n * mkseason.TEAM_SIZE > len(d):
+            continue
+        for k in range(n):
+            for j in range(16):
+                o = 2 + k * mkseason.TEAM_SIZE + 76 + j * 38 + 3
+                out.add(b1_short(d[o:o + 23]))
+    return out
+
+
+@scenario
+def squad_numbers_b1():
+    """4.2 row 32 B1 (Davide 15/11, MC: every exit but ESC confirms): on the squad screen's lit number box UP / DOWN
+    step through every number 1..99, taken or not. On a taken one the coach line becomes the strip
+    ('N X. HOLDER SCAMBIO', the lit box's colour) and nobody is swapped yet; then
+    - FIRE confirms: the holder gets the number before the stepping, the strip goes, numbers unique;
+    - ESC: both as before, the strip goes;
+    - RIGHT (an exit that is not FIRE / ENTER) confirms as FIRE;
+    - typing after a stepped candidate drops it (the holder keeps his), the typed number swaps as before.
+    The strip's text = the holder's short name (b1_short) + the exe language's verb; its width inside the bar, and the
+    widest such text over every player of the build's team files too (the name cut, never the verb). SWOSTEST_UI on
+    a release dir: the 4 languages."""
+    import shirtedit
+    car = os.path.join(SAVES, 'JUVEFIX3.CAR')
+    errs, notes = [], []
+    verb = shirtedit.VERB[UI if UI in shirtedit.VERB else 'it']
+    b = builds()['it']
+    with Session('squad_numbers_b1', b, {'JUVEFIX3.CAR': car}, 'dump:2', 300) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'START: no first pause ({s.result})'
+        s.send('down down down down down fire dump:2')
+        s.send('fire dump:2')
+        if not sq_open(s):
+            return False, f'no squad screen ({s.screen()})'
+        ct = s.result.base2 + se_vars()['CT'][1]
+        name = lambda i: s.result.read(ct + 76 + 38 * i + 3, 23)
+        names = b1_names(b)
+        coach0 = [(i, t) for i, t in enumerate(s.screen().raw_texts) if t and s.screen().geom[i][1] >= 180
+                  and s.screen().geom[i][0] <= 16]
+
+        def open_box():
+            se_goto(s, 35)
+            s.send('dump:1')
+            s.send('left dump:1')
+            return sq_team(s)
+
+        def step_taken(before, sq):
+            """UP until the candidate is another player's: (k, o, n, holder) or None"""
+            k = o = None
+            for _ in range(30):
+                s.send('up dump:1')
+                t = sq_team(s)[1]
+                ch = [i for i in range(32) if before[i] != t[i]]
+                if len(ch) != 1:
+                    errs.append(f'UP: {len(ch)} numbers changed ({[before[i] for i in sq]} -> {[t[i] for i in sq]})')
+                    return None
+                k = ch[0]
+                o = before[k] if o is None else o
+                h = next((i for i in sq if i != k and t[i] == t[k]), None)
+                if h is not None:
+                    return k, o, t[k], h
+            return None
+
+        def unique(tag):
+            t, sq = sq_team(s)[1], sq_team(s)[3]
+            check(len({t[i] for i in sq}) == len(sq), f'{tag}: duplicate numbers {[t[i] for i in sq]}', errs)
+
+        # 1. FIRE confirms
+        _, before, _, sq = open_box()
+        st = step_taken(before, sq)
+        if st is None:
+            return False, '; '.join(errs + ['no taken number reached by UP'])
+        k, o, n, h = st
+        strip = b1_strip(s)
+        want = f'{n} {b1_short(name(h))} {verb}'
+        check(strip is not None and strip[1] == want, f'strip {strip} (want {want!r})', errs)
+        s.shot('strip')
+        if strip is not None:
+            w = nf_width(s.result)                     # (the font read now, in this pause: every character used)
+            w(''.join(sorted(set(''.join(names)) | set(strip[1]) | set('0123456789 ' + verb))))
+            check(w(strip[1]) <= strip[2][2] - 2, f'strip text {w(strip[1])} px in a {strip[2][2]} px bar', errs)
+            ww, wt = max((w(f'99 {x} {verb}'), f'99 {x} {verb}') for x in names) if names else (0, '')
+            check(ww <= strip[2][2] - 2, f'widest strip over the team files {ww} px ({wt!r}) > bar {strip[2][2]} - 2', errs)
+            notes.append(f'strip {strip[1]!r} {w(strip[1])} px in {strip[2][2]}; widest {ww} px {wt!r}')
+        t = sq_team(s)[1]
+        check(t[h] == n, f'stepping swapped already: holder {t[h]} (want {n} until confirm)', errs)
+        s.send('fire dump:1')
+        t = sq_team(s)[1]
+        check(t[k] == n and t[h] == o, f'FIRE: player {t[k]} holder {t[h]} (want {n}, {o})', errs)
+        check(b1_strip(s) is None, f'FIRE: the strip still shown {b1_strip(s)}', errs)
+        c1 = [(i, t_) for i, t_ in enumerate(s.screen().raw_texts) if t_ and s.screen().geom[i][1] >= 180
+              and s.screen().geom[i][0] <= 16]
+        check(c1 == coach0, f'FIRE: the coach line {c1} (want {coach0})', errs)
+        unique('FIRE')
+        notes.append(f'FIRE: {o} -> {n}, holder {n} -> {o}')
+        # 2. ESC restores
+        _, before, _, sq = open_box()
+        st = step_taken(before, sq)
+        if st:
+            k, o, n, h = st
+            s.send('esc dump:1')
+            t = sq_team(s)[1]
+            check(t == before, f'ESC: {[t[i] for i in sq]} != {[before[i] for i in sq]}', errs)
+            check(b1_strip(s) is None, 'ESC: the strip still shown', errs)
+            unique('ESC')
+            notes.append('ESC: as before')
+        # 3. RIGHT confirms (an exit other than FIRE / ENTER)
+        s.send('dump:2')
+        _, before, _, sq = open_box()
+        st = step_taken(before, sq)
+        if st:
+            k, o, n, h = st
+            s.send('right dump:1')
+            t = sq_team(s)[1]
+            check(t[k] == n and t[h] == o, f'RIGHT: player {t[k]} holder {t[h]} (want {n}, {o})', errs)
+            check(b1_strip(s) is None, 'RIGHT: the strip still shown', errs)
+            unique('RIGHT')
+            notes.append(f'RIGHT: {o} -> {n}, holder -> {o}')
+        # 4. typing drops a stepped candidate
+        s.send('dump:2')
+        _, before, _, sq = open_box()
+        st = step_taken(before, sq)
+        if st:
+            k, o, n, h = st
+            free = next(x for x in range(99, 0, -1) if x not in {before[i] for i in sq})
+            s.send(f'{free // 10} {free % 10} dump:2')
+            s.send('enter dump:1')
+            t = sq_team(s)[1]
+            check(t[k] == free and t[h] == n, f'typed {free} after a candidate: player {t[k]} holder {t[h]} '
+                  f'(want {free}, {n})', errs)
+            check(b1_strip(s) is None, 'typed: the strip still shown', errs)
+            unique('typed')
+            notes.append(f'typed {free} after candidate {n}: holder kept {n}')
     return not errs, '; '.join(errs + notes)
 
 
@@ -5356,13 +5531,13 @@ def squad_numbers():
         if len(ch) == 1:
             k, o, nw = ch[0], before[ch[0]], after[ch[0]]
             used = {before[i] for i in sq if i != k}
-            want = next(x for x in list(range(o + 1, 100)) + list(range(1, o)) if x not in used)
-            check(nw == want, f'UP: {o} -> {nw}, want {want} (next free)', errs)
+            want = o % 99 + 1                          # (4.2 B1, Davide 15/11: the next number, taken or not)
+            check(nw == want, f'UP: {o} -> {nw}, want {want} (B1: the next number)', errs)
             notes.append(f'UP {o} -> {nw}')
             holder = next((i for i in sq if after[i] == 23 and i != k), None)
             s.send('2 3 dump:1')
             t3 = sq_team(s)[1]
-            check(t3[k] == 23 and (holder is None or t3[holder] == nw), f'typed 23: {t3[:20]} (holder {holder})', errs)
+            check(t3[k] == 23 and (holder is None or t3[holder] == o), f'typed 23 (B1: the candidate dropped, the holder gets {o}): {t3[:20]} (holder {holder})', errs)
             s.shot('typed23')
             s.send('esc dump:1')
             t4 = sq_team(s)[1]

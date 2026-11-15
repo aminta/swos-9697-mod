@@ -40,6 +40,7 @@ et_row:                                 ; se_ctl's `call se_row` (ebx = the sele
     imul edi, eax, 38
     mov ebp, ETT
     lea edi, [ebp + 76 + edi]
+    mov byte [SE_SKIP], 1               ; (4.2 B1 is the team / squad screens': here UP / DOWN skip taken numbers)
     clc
     ret
 .no:
@@ -199,7 +200,7 @@ def patch(p, at):
     so = info.get('obj', 1)                             # (4.2 OBJ1MV: shirtedit in obj4)
     prev = p.call_target(so, cs)
     sym = {k: v for k, v in s.items() if not k.endswith('_SITE')}
-    sym.update(PREV=prev, SE_ON=(so, info['se_on']), SE_REC=(so, info['se_rec']), HL=(0, shirtedit.HL_COLOR),
+    sym.update(PREV=prev, SE_ON=(so, info['se_on']), SE_SKIP=(so, info['se_skip']), SE_REC=(so, info['se_rec']), HL=(0, shirtedit.HL_COLOR),
                SE_ENT=(so, info['se_ent']), MCD=info['MCD'], CURMENU=info['CURMENU'])
     code, fix, rel = nasmcave.assemble_obj(ASM, at, sym, 3)
     lab = nasmcave.labels(ASM, at, sym)

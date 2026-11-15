@@ -2221,7 +2221,7 @@ def sites5(p, regs, s4):
     so, se = p.call_target(1, mc)                   # (4.2 OBJ1MV: se_ctl in obj4, its GPI call a rel32 fixup)
     out['se'] = None
     if (so, se) != (1, rel(mc)):
-        code = bytes(p.get(so, se, 0x600))
+        code = bytes(p.get(so, se, 0xC00))         # (4.2 B1: se_ctl grew - se_row past 0x600; one GPI call)
         if so == 1:
             g = [se + o for o in range(len(code) - 5) if code[o] == 0xE8 and se + o + 5 + struct.unpack_from('<i', code, o + 1)[0] == gpi]
         else:

@@ -4701,12 +4701,19 @@ static int usc_step(void) {             /* 4.0.6 the UEFA Super Cup at the advan
     SC_U[0] = GP_SEAS; SC_U[1] = 3; SC_U[2] = 0; SC_U[4] = SC_U[5] = 0;
     if (GP_SCFIRST && (e[2] & 0x7F) > 1) { SC_TRACE = 0x91; return 0; }   /* (played before the world's first season) */
     u16 c[2];
-    c[0] = sc_rule(e, e[8]);
-    c[1] = sc_rule(e, e[9]);
+    if (GP_SCFIRST) {                   /* (4.2 supercups-s1, Davide 15/11: the world's first season plays the real 2026
+                                           edition - the entry's first_entrants words, the same field as the national
+                                           ones (MC); no season end has set the holders yet) */
+        c[0] = (u16)(e[12] | e[13] << 8);
+        c[1] = (u16)(e[14] | e[15] << 8);
+    } else {
+        c[0] = sc_rule(e, e[8]);
+        c[1] = sc_rule(e, e[9]);
 #if GP_USCFORCE
-    if (c[1] != GP_MGR) c[0] = GP_MGR;  /* (test builds, USC_FORCE=1: the career club the Champions League holder) */
+        if (c[1] != GP_MGR) c[0] = GP_MGR;   /* (test builds, USC_FORCE=1: the career club the Champions League holder) */
 #endif
-    if (c[1] && c[1] == c[0]) c[1] = sc_rule(e, e[9] >> 4);   /* (one club holds both: the Conference League's) */
+        if (c[1] && c[1] == c[0]) c[1] = sc_rule(e, e[9] >> 4);   /* (one club holds both: the Conference League's) */
+    }
     if (!c[0] || !c[1] || c[0] == c[1]) { SC_TRACE = 0x92; return 0; }
     if (c[0] != GP_MGR && c[1] != GP_MGR) { SC_TRACE = 0x94; return 0; }
     sc_ko(&GP_ST.ko[0], e, c[0], c[1], 1);

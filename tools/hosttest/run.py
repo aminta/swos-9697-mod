@@ -1,5 +1,6 @@
 """Host tests runner: python3 tools/hosttest/run.py [-k substring]  (re-runs itself in internal/hosttest/.venv, which
-has Unicorn). Every tools/hosttest/tests/test_*.py function test_*() -> (ok, message); exit 1 on any FAIL."""
+has Unicorn). Every tools/hosttest/tests/test_*.py function test_*() -> (ok, message); exit 1 on any FAIL. A test that
+returns (True, 'SKIP: ...') prints SKIP and is not counted as a PASS (a SKIP never counts as a PASS, MC 15/11)."""
 import glob
 import importlib.util
 import os
@@ -14,7 +15,7 @@ if __name__ == '__main__':
         os.execv(VENV, [VENV] + sys.argv)
     sys.path.insert(0, HERE)
     sel = sys.argv[sys.argv.index('-k') + 1] if '-k' in sys.argv else ''
-    bad = 0
+    bad, n = 0, {'PASS': 0, 'SKIP': 0, 'FAIL': 0}
     for f in sorted(glob.glob(os.path.join(HERE, 'tests', 'test_*.py'))):
         spec = importlib.util.spec_from_file_location(os.path.basename(f)[:-3], f)
         mod = importlib.util.module_from_spec(spec)
@@ -27,5 +28,8 @@ if __name__ == '__main__':
             except Exception as e:
                 ok, msg = False, f'{type(e).__name__}: {e}'
             bad += not ok
-            print(f'{"PASS" if ok else "FAIL"} {name} ({time.time() - t:.2f} s) {msg}')
+            st = 'FAIL' if not ok else 'SKIP' if str(msg).startswith('SKIP') else 'PASS'
+            n[st] += 1
+            print(f'{st} {name} ({time.time() - t:.2f} s) {msg}')
+    print(f"hosttest: {n['PASS']} PASS, {n['SKIP']} SKIP, {n['FAIL']} FAIL")
     sys.exit(1 if bad else 0)

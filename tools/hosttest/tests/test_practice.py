@@ -127,9 +127,12 @@ def test_practice_off():
 
 
 REF = os.environ.get('HT_PRACTICE_REF') or os.path.join(HOME, 'swos-mod', 'c', 'RELpr5', 'SWOS', 'ITALIAN.EXE')
+# (15/11 pr_rbar's reference: an exe with step 3's sites but not the score bar hook - 42-int 1856968's release build)
+REF_RBAR = os.environ.get('HT_PRACTICE_RBAR_REF') or os.path.join(HOME, 'swos-mod', 'c', 'REL42i53', 'SWOS',
+                                                                    'ITALIAN.EXE')
 
 
-def _run_site(exe, site, n, skip):
+def _run_site(exe, site, n, skip, kind=None):
     """obj1+site run with practice off (PR_KIND 0: a zeroed .bss) until the first instruction outside the site's n bytes
     and the `skip` range (the practice band): (that instruction's address, the return address on the stack, the writes
     outside the stack as {address: bytes})"""
@@ -138,6 +141,12 @@ def _run_site(exe, site, n, skip):
     from unicorn.x86_const import UC_X86_REG_ESP
     i1, i2, le = relocate(exe, B1, B2, base4=B4)
     uc, writes = _machine((i1, i2, le.img4))
+    if kind is not None:                    # (PR_KIND set: the PRWK tag's PR_WORK pointer in the relocated band)
+        import practice
+        import swreg
+        band = le.img4[swreg.PRACTICE_AT:swreg.PRACTICE_END]
+        k = band.find(practice.TAG.encode())
+        uc.mem_write(struct.unpack_from('<I', band, k + 4)[0] + practice.WK['KIND'], bytes([kind]))
     out = []
 
     def hook(u, a, sz, d):
@@ -152,7 +161,7 @@ def _run_site(exe, site, n, skip):
         if not STACK - 0x1000 <= a < STACK + 16:
             w[a] = bytes(uc.mem_read(a, k))
     img = {B1: i1, B4: le.img4}
-    pc, ret = out[0] if out else (None, None)
+    pc, ret = out[0] if out else (B1 + site + n, None)     # (no instruction outside: the site's end reached)
     while ret is not None and ret < B1 + len(i1) and i1[ret - B1] == 0x90:     # (the branch's nop padding)
         ret += 1
     code = None
@@ -164,10 +173,16 @@ def _run_site(exe, site, n, skip):
 
 def test_practice_off_sites():
     """MC 15/11 (step 3's obj1 sites): with practice off, ShowPlayMatchMenu's call pr_pmm and UpdateTime's call
-    pr_time reach the very code the exe without them runs (HT_PRACTICE_REF, else c/RELpr5: 4.2 with practice step 2):
+    pr_time (and 15/11 the restart's call pr_rbar) reach the very code the exe without them runs (HT_PRACTICE_REF, else c/RELpr5: 4.2 with practice step 2):
     the same next instruction (kitcolors' pm_show chain / InitDisplaySprites) and its 48 code bytes, the same return
-    address, the same writes ([A6] = playMatchMenu / currentTimeSprite.visible = 1) - nothing else."""
-    for f in (EXE, REF, ORIG):
+    address, the same writes ([A6] = playMatchMenu / currentTimeSprite.visible = 1) - nothing else.
+    Why gating the one 31000 store removes every score bar in a practice, goals included (MC 15/11, from ref/swos.asm):
+    the only stores that turn the bar on from 0 are `mov resultTimer, 31000` (UpdateGameTimersAndCameraBreakMode, after
+    a stoppage's camera break: pr_rbar now) and `mov resultTimer, 30000` (GoToHalftime / GameOver: never in a practice,
+    the clock held at 0). Every other writer is `neg resultTimer` (0 stays 0) or ShowResult's own countdown (it runs only
+    with the timer non-zero). A goal shows its result through the restart that follows it - the gated 31000 store. The
+    harness's bar counter (practice_play) is a coarse sampler on top of this argument, not the evidence itself."""
+    for f in (EXE, REF, REF_RBAR, ORIG):
         if not os.path.exists(f):
             return False, f'{f} missing'
     import lepatch
@@ -177,15 +192,23 @@ def test_practice_off_sites():
     o = lepatch.LEPatch(ORIG)
     pm = practice.pm_site(o, bteam.ui_sites(o)['a6'])[0]
     tm = practice.time_site(o)[0]
+    rb, rtim = practice.rbar_site(o)
     band = (B4 + swreg.PRACTICE_AT, B4 + swreg.PRACTICE_END)
     errs, info = [], []
-    for name, site, n in (('ShowPlayMatchMenu', pm, 15), ('UpdateTime', tm, 14)):
+    for name, site, n, rf in (('ShowPlayMatchMenu', pm, 15, REF), ('UpdateTime', tm, 14, REF),
+                              ('restart score bar', rb, 9, REF_RBAR)):
         new = _run_site(EXE, site, n, band)
-        ref = _run_site(REF, site, n, (0, 0))
+        ref = _run_site(rf, site, n, (0, 0))
         if new[0] is None or new != ref:
             errs.append(f'{name} obj1+{site:#x}: practice off {new[:3]} vs the reference {ref[:3]}'
                         + ('' if new[3] == ref[3] else ' (code differs)'))
         else:
-            info.append(f'{name} obj1+{site:#x} -> {new[0]:#x} (ret {new[1]:#x}, writes '
+            info.append(f'{name} obj1+{site:#x} -> {new[0]:#x} (ret {new[1] and hex(new[1])}, writes '
                         f'{ {hex(a): v.hex() for a, v in new[2].items()} })')
+    on = _run_site(EXE, rb, 9, band, kind=3)                # (Davide 15/11: a practice - CORNER - no score bar)
+    if on[0] != B1 + rb + 9 or on[2]:
+        errs.append(f'restart score bar, PR_KIND 3: next {on[0] and hex(on[0])} (want {B1 + rb + 9:#x}), writes '
+                    f'{ {hex(a): v.hex() for a, v in on[2].items()} } (want none)')
+    else:
+        info.append(f'PR_KIND 3: obj1+{rb:#x} -> its retn, nothing written (resultTimer obj2+{rtim:#x} untouched)')
     return not errs, '; '.join(errs) or 'practice off = the exe without the sites: ' + '; '.join(info)

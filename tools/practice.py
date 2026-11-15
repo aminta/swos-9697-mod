@@ -32,7 +32,9 @@ pr_frame's state machine (PR_WORK +3 ST, +4 TMR frames in the state):
   index (CY) + 1, idle.
 The way out (Davide 14/11, A + B): ESC any time (the game's own, MainKeysCheck: playGame 0), or by itself after PR_N
 attempts (playGame 0 at the PR_N-th attempt's end, without ESC's abandonment branch). Then, back in pr_open, a result
-page (pr_result: the kind's name, TIRI n, GOL m, OK) when there was an attempt, and the squad screen."""
+page (pr_result: the kind's name, TIRI n, GOL m, OK) when there was an attempt, and the squad screen.
+Step 3 (Davide 15/11): no clock (pr_time), no pre-match screen (pr_pmm), no score bar at the restarts (pr_rbar:
+UpdateGameTimersAndCameraBreakMode's `mov word [resultTimer], 31000`, its only restart store, gated on PR_KIND)."""
 import os
 import re
 import struct
@@ -346,6 +348,12 @@ pr_time:                                ; UpdateTime's `mov currentTimeSprite.vi
     jmp near INITDS
 .r: ret
 
+pr_rbar:                                ; UpdateGameTimersAndCameraBreakMode's restart `mov word [resultTimer], 31000`
+    cmp byte [KIND], 0                  ;  (every restart after a stoppage's camera break): no score bar in a practice
+    jne .r                              ;  (Davide 15/11, "La togliamo certo"); off: the same store, then its retn
+    mov word [RTIM], 31000
+.r: ret
+
 pr_pmm:                                 ; ShowPlayMatchMenu's `mov [A6], offset playMatchMenu / call ShowMenu`: no
     cmp byte [KIND], 0                  ;  pre-match screen in a practice (Davide 15/11) - what the screen leaves:
     jne .p                              ;  its init's bench numbers (SetBenchPlayersNumbers, team 1; game data), then
@@ -642,6 +650,21 @@ def time_site(p):
     return m[0] + 11, vis[1], ids[1]
 
 
+def rbar_site(p):
+    """UpdateGameTimersAndCameraBreakMode's restart score bar: mov ax, [g_inSubstitutesMenu] / or ax, ax / jnz @@out /
+    mov word [resultTimer], 31000 / retn - (the mov's obj1 offset, resultTimer's obj2 offset); the only 31000 store
+    followed by a retn (30000: GoToHalftime / GameOver, never in a practice: the clock held at 0)."""
+    d = p.le.obj_bytes(1)
+    m = [x.start() for x in re.finditer(rb'\x66\xa1....\x66\x0b\xc0\x75.\x66\xc7\x05....\x18\x79\xc3', d, re.S)]
+    assert len(m) == 1, ('practice: the restart score bar (resultTimer = 31000)', [hex(x) for x in m])
+    at = m[0] + 11
+    rt = _t(p, at + 3)
+    assert rt and rt[0] == 2, ('practice: resultTimer', rt)
+    cur = p.get(1, at, 9)
+    assert cur == d[at:at + 9], ('practice: the score bar store hooked already (a new chain: add it)', cur.hex())
+    return at, rt[1]
+
+
 def km_site(p):
     """kitcolors' km_cancel (pushad / mov byte [KM_ACTIVE], 0 / mov dword [SLOTS + 32], 0 / its kg_cancel1 5-byte site /
     mov esi, TXT_AUTO / call set_button): (KM_ACTIVE, SLOTS + 32, TXT_AUTO, set_button, the 5-byte site's obj1 offset)"""
@@ -742,6 +765,7 @@ def patch(p, lang):
     g = find_game(p, u['a6'], ptg)
     hk, hk_old = hook_site(p)
     tm, tvis, ids = time_site(p)
+    rb, rtim = rbar_site(p)
     pm, pmmenu, pmshow, pnts, pmt1, sbench = pm_site(p, u['a6'])
     kma, ksl, txta, setbtn, kgsite = km_site(p)
     pg = _t(p, hk + 7)                  # (the site's next instruction: mov ax, [playGame])
@@ -756,7 +780,7 @@ def patch(p, lang):
     src = ''.join(f'%define {k} {v}\n' for k, v in defs.items()) + ASM + data
     sym = {'A6': u['a6'], 'SHOW_MENU': (1, u['show']), 'EXITM': u['exitm'], 'OLD_SEL': old,
            'GO': (4, work[1]), 'KIND': (4, work[1] + 1), 'DEF': (4, work[1] + 2), 'O2BASE': (2, 0),
-           'TESTFOUL': (1, g['TESTFOUL']), 'TVIS': (2, tvis), 'INITDS': (1, ids), 'PMMENU': (2, pmmenu),
+           'TESTFOUL': (1, g['TESTFOUL']), 'TVIS': (2, tvis), 'RTIM': (2, rtim), 'INITDS': (1, ids), 'PMMENU': (2, pmmenu),
            'SHOWMENU': pmshow, 'PNTS': (2, pnts), 'PMT1': (2, pmt1), 'SETBENCH': sbench,
            'KMA': (2, kma), 'KSL': (2, ksl), 'TXTA': (2, txta), 'SETBTN': setbtn,
            **{k: (4, work[1] + o) for k, (o, _) in BUF.items()},
@@ -778,6 +802,9 @@ def patch(p, lang):
     p.branch(1, hk, 0xE8, 4, lab['pr_frame'])           # GameLoop's per-pass nullsub call -> pr_frame (step 2)
     p.remove(1, tm + 3)                                 # UpdateTime's mov visible, 1 + call InitDisplaySprites (14 B)
     p.branch(1, tm, 0xE8, 4, lab['pr_time'], n=14)      #  -> call pr_time (no clock in a practice)
+    p.remove(1, rb + 3)                                 # the restart's mov word [resultTimer], 31000 (9 B, its
+    p.branch(1, rb, 0xE8, 4, lab['pr_rbar'], n=9)       #  fixup removed) -> call pr_rbar + 4 nop (no score bar)
+    assert _t(p, rb + 3) is None and p.rel_target(1, rb + 1) == (4, lab['pr_rbar']), 'practice: pr_rbar fixups'
     p.remove(1, pm + 2)                                 # ShowPlayMatchMenu's mov [A6], playMatchMenu + call ShowMenu
     p.remove(1, pm + 6)                                 #  (15 B) -> call pr_pmm (no pre-match screen in a practice)
     if p.rel_target(1, pm + 11):
@@ -791,6 +818,7 @@ def patch(p, lang):
     LABELS['KG_PR'], LABELS['KG_SITE'] = at + kg, kgsite
     LABELS['ENT6_SEL'] = (2, sel)
     LABELS['HOOK'] = (1, hk)
+    LABELS['RBAR'] = (1, rb)
     LABELS['GAME'] = g
     print(f'exe: practice page (squadMenu entry 6 obj2+{sel:#x} -> obj4 pr_open; its old target obj1+{old[1]:#x}): '
           f'obj4+{at:#x} ({len(code)} B, {left} B left), work PR_WORK obj4+{work[1]:#x}; engine: GameLoop obj1+{hk:#x} '

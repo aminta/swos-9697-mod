@@ -10813,6 +10813,7 @@ def practice_play(kind, side, esc_at=None):
         check(w['KIND'] == row and w['DEF'] == (side == 'def'), f'kick-off: PR_KIND {w["KIND"]} PR_DEF {w["DEF"]} '
               f'(want {row}, {int(side == "def")})', errs)
         awards, shots, clock, ko = {}, 0, 0, 0
+        bar, bar_gs = 0, {}                     # (Davide 15/11: no score bar on a practice restart - resultTimer != 0
         for it in range(int(os.environ.get('PRACTICE_STEPS', '160'))):
             r = s.send('fire:1 dump:1')
             if r.outcome != 'dump':
@@ -10821,6 +10822,11 @@ def practice_play(kind, side, esc_at=None):
             w = practice_work(r)
             gs = struct.unpack('<h', r.obj2(g['GS_O'], 2))[0]
             clock += struct.unpack('<h', r.obj2(g['TVIS_O'], 2))[0] != 0
+            if (w['NT'] or w['ST']) and struct.unpack('<h', r.obj2(g['RTIM_O'], 2))[0] != 0:
+                bar += 1                        #  from the first forcing on; by gameState: a restart or a goal's)
+                bar_gs[gs] = bar_gs.get(gs, 0) + 1
+                if bar == 1:
+                    s.shot(f'{tag}_scorebar')
             ko += gs == 0 and w['NT'] == 0      # (ST_PLAYERS_TO_INITIAL_POSITIONS before the first attempt: a kick-off)
             if w['ST'] == 2 and gs != 100:      # (an award before its kick: the last sample = the ball placed; gameState
                 prev = awards.get(w['NT'])      # (the ball's y once placed: gameStatePl 102, waiting on the taker)
@@ -10856,6 +10862,12 @@ def practice_play(kind, side, esc_at=None):
                     f'{awards[:6]}')
         check(w['NFAIL'] == 0, f'{name}: {w["NFAIL"]} forcings not awarded', errs)
         check(not clock, f'{name}: the match clock shown in {clock} samples (want none)', errs)
+        if os.environ.get('PRACTICE_BAR_CONTROL'):   # (the control: a build without pr_rbar shows the bar)
+            check(bar > 0, f'{name}: CONTROL: no score bar in any sample (want some: a build without pr_rbar)', errs)
+        else:
+            check(not bar, f'{name}: the score bar (resultTimer != 0) in {bar} samples, by gameState {bar_gs} '
+                  f'(want none)', errs)
+        info.append(f'score bar samples {bar} {bar_gs}')
         check(not ko, f'{name}: a kick-off before the first attempt ({ko} samples in gameState 0)', errs)
         check(fpa <= practice.ATTF + 240, f'{name}: {fpa} frames an attempt (> ATTF + 240: a slow restart)', errs)
         check(w['CY'] >= min(w['NT'], want) - 1, f'{name}: the cycle index {w["CY"]} after {w["NT"]} attempts', errs)
@@ -11193,7 +11205,7 @@ def practice_game(p=None):
     d = p.le.obj_bytes(1)                   # (TestFoul: mov gameState, ST_PENALTY / mov breakCameraMode, -1 - diagnostics)
     bc = [x.start() for x in re.finditer(rb'\x66\xc7\x05....\x0e\x00\x66\xc7\x05....\xff\xff', d, re.S)]
     bc = [o for o in bc if p.target(1, o + 3) == (2, g['GS_O'])]
-    return dict(g, TVIS_O=practice.time_site(p)[1], BCM_O=p.target(1, bc[0] + 12)[1])
+    return dict(g, TVIS_O=practice.time_site(p)[1], BCM_O=p.target(1, bc[0] + 12)[1], RTIM_O=practice.rbar_site(p)[1])
 
 
 def practice_ptg(p):

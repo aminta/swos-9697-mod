@@ -6,6 +6,9 @@ moves); then
   - digits (the keyboard's top row, by scan code: any layout): one or two digits, the second within ~1 s; a number
     another player has is swapped with him (he gets the old one): never two players with one number;
   - FIRE, ENTER, LEFT, RIGHT: done; ESC: the numbers as they were before this edit.
+  - 4.2 (row 32 A, MC 15/11): the numpad's digits too while the box is lit (not E0-prefixed: g_prevScanCode != E0;
+    the grey arrows / Home / PgUp... still are what they were), and the direction a held numpad digit key also makes
+    (numpad 8 = up) is no move; outside the box the numpad moves the cursor as before. Off under SWOS++.
 Not on the opponent's / the computer's squads (VIEW OPPO, showingCpuTeams). The number is the player record's own
 shirtNumber byte, so it goes wherever the game keeps that team (career: careerTeam in the .CAR; seasons / competitions:
 their saves; a friendly: that session only).
@@ -135,6 +138,8 @@ se_ctl:                                 ; MenuProc: replaces `call MenuCheckCont
     je .esc
     cmp eax, 1Ch                        ; ENTER
     je .done
+    call se_np                          ; 4.2 (row 32 A): a numpad digit key (not E0) -> its digit
+    jnc .digit
     cmp eax, 2                          ; '1' .. '9' = 2 .. 10, '0' = 11
     jb .nokey
     cmp eax, 11
@@ -174,6 +179,9 @@ se_ctl:                                 ; MenuProc: replaces `call MenuCheckCont
     movsx eax, word [MCD]
     test eax, eax
     js .fire
+    call se_nph                         ; (a numpad digit key held: its direction is not a move - the digit it
+    jnc .eaten                          ;  typed stays)
+    test eax, eax
     jz .up
     cmp eax, 4
     je .down
@@ -225,6 +233,45 @@ se_ctl:                                 ; MenuProc: replaces `call MenuCheckCont
     pop dword [D0]
     popad
     ret
+
+se_np:                                  ; eax = lastKey: a numpad digit key (47h..52h, its make or a repeat, not
+    cmp eax, 47h                        ; E0-prefixed: g_prevScanCode != E0 - the grey arrows / Home / PgUp... are)
+    jb .no                              ; -> CF clear, eax = 0..9; else CF set, eax kept. Off under SWOS++
+    cmp eax, 52h
+    ja .no
+    cmp byte [SWOSPP], 0FFh
+    jne .no
+    cmp byte [PREV], 0E0h
+    je .no
+    cmp byte [se_npt + eax - 47h], 0FFh
+    je .no
+    movzx eax, byte [se_npt + eax - 47h]
+    clc
+    ret
+.no:stc
+    ret
+
+se_nph:                                 ; the last key event a numpad digit key's make (held; not E0): CF clear
+    push eax
+    movzx eax, byte [SCAN]
+    cmp al, 47h
+    jb .no
+    cmp al, 52h
+    ja .no
+    cmp byte [se_npt + eax - 47h], 0FFh
+    je .no
+    cmp byte [SWOSPP], 0FFh
+    jne .no
+    cmp byte [PREV], 0E0h
+    je .no
+    pop eax
+    clc
+    ret
+.no:pop eax
+    stc
+    ret
+
+se_npt: db 7, 8, 9, 0FFh, 4, 5, 6, 0FFh, 1, 2, 3, 0   ; 47h..52h: Home 8 PgUp - 4 5 6 + End 2 PgDn Ins
 
 se_clear:                               ; no move, no fire this frame
     mov word [MCD], -1
@@ -578,6 +625,10 @@ def patch(p, cave, obj=1):
     cy = [m.start() + 2 for m in re.finditer(rb'\x66\xa1....\x83\xe0\x0f\x03\xf8\xc1\xe7\x06', p.le.obj_bytes(1), re.S)]
     assert len(cy) == 1, ('DrawChar g_cameraY', cy)
     sym.update(LINADR=linadr, CAMY=p.target(1, cy[0]), A5=(sym['A0'][0], sym['A0'][1] + 20))
+    import controls
+    import keytext
+    cs, kv = controls.locate(p), keytext.find(p)[1]       # 4.2 row 32 A: the numpad digits (se_np / se_nph)
+    sym.update(SWOSPP=cs['SWOSPP'], SCAN=cs['SCAN'], PREV=kv['PREV'])
     sym.update(PIN_AT=(0, benchnum.PIN_AT), PIN_BIT=(0, benchnum.PIN_BIT), HL=(0, HL_COLOR), WAIT=(0, WAIT),
                DWELL=(0, DWELL))
     cave = (cave + 3) & ~3

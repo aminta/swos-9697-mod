@@ -5263,6 +5263,62 @@ def sq_open(s):
 
 
 @scenario
+def squad_numpad():
+    """4.2 row 32 A (MC 15/11): the numpad's digits in the lit number box (squad screen, JUVEFIX3 career): numpad 2, 3
+    (the feeder's kp2 kp3: unprefixed, as a real numpad) = 23 (its holder swapped), the cursor not moved by them; the
+    grey UP (E0-prefixed) still steps to the next free number; ESC undoes. Outside the box numpad 2 / 8 move the cursor
+    (down / up) and change no number. Off under SWOS++ (not tested here: the harness's SWOS++ path is controls_swospp)."""
+    car = os.path.join(SAVES, 'JUVEFIX3.CAR')
+    errs, notes = [], []
+    with Session('squad_numpad', builds()['it'], {'JUVEFIX3.CAR': car}, 'dump:2', 300) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'START: no first pause ({s.result})'
+        s.send('down down down down down fire dump:2')
+        s.send('fire dump:2')
+        if not sq_open(s):
+            return False, f'no squad screen ({s.screen()})'
+        team, n0, pin0, sq = sq_team(s)
+        se_goto(s, 35)
+        s.send('dump:1')
+        s.send('left dump:1')
+        s.shot('lit')
+        se_box(s, 'lit', notes, errs)
+        before = sq_team(s)[1]
+        holder = next((i for i in sq if before[i] == 23), None)
+        s.send('kp2 kp3 dump:1')
+        t1 = sq_team(s)[1]
+        ch = [i for i in range(32) if before[i] != t1[i]]
+        k = next((i for i in ch if t1[i] == 23), None)
+        check(k is not None and (holder is None or holder == k or t1[holder] == before[k]),
+              f'numpad 2 3: {[t1[i] for i in sq]} (changed {ch}, holder {holder})', errs)
+        check(s.screen().selected == 35, f'numpad 2 3 moved the cursor: selected {s.screen().selected}', errs)
+        s.shot('numpad23')
+        notes.append(f'numpad 2 3 -> 23 (holder slot {holder})')
+        if k is not None:
+            used = {t1[i] for i in sq if i != k}
+            want = next(x for x in list(range(24, 100)) + list(range(1, 23)) if x not in used)
+            s.send('up dump:1')
+            t2 = sq_team(s)[1]
+            check(t2[k] == want, f'grey UP after 23: {t2[k]} (want {want}, the next free)', errs)
+            notes.append(f'grey UP 23 -> {t2[k]}')
+        s.send('esc dump:1')
+        t3 = sq_team(s)[1]
+        check(t3 == before, f'ESC: {[t3[i] for i in sq]} != {[before[i] for i in sq]}', errs)
+        s.send('dump:2')
+        sel0 = s.screen().selected
+        s.send('kp2 dump:1')
+        sel1 = s.screen().selected
+        s.send('kp8 dump:1')
+        sel2 = s.screen().selected
+        t4 = sq_team(s)[1]
+        check(sel1 == sel0 + 1 and sel2 == sel0, f'outside the box: numpad 2 / 8 selected {sel0} -> {sel1} -> {sel2} '
+              f'(want +1, back)', errs)
+        check(t4 == before, f'outside the box: numbers changed {[t4[i] for i in sq]}', errs)
+        notes.append(f'outside the box: numpad 2 / 8 {sel0} -> {sel1} -> {sel2}')
+    return not errs, '; '.join(errs + notes)
+
+
+@scenario
 def squad_numbers():
     """4.0.6 (Marco) editable shirt numbers on the club's squad screen (squadnum.py: shirtedit's editor there): JUVEFIX3
     career, SQUADRA: LEFT on a row lights the number, UP = next free, typed 23 (its holder swapped), ESC undoes, typed 7

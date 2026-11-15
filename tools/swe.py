@@ -329,6 +329,8 @@ def patch(p):
     if imp:
         flags += (f'-DIMP_N={len(imp)}', f'-DSWE_IMP_SIZE={max(imp_size, 4)}') + tuple(
             d for n, k, off in imp for d in (f'-DIMPK_{n}={k}',) + ((f'-DIMP_{n}={off}',) if off is not None else ()))
+    flags += ('-Oz',)                               # (4.2 rc, MC: the engine core at -Oz - 42-import's picker took swe.c 52 B
+                                                    #  past REG_AT at -Os; -Oz frees ~490 B; no per-frame code in swe.c)
     syms, end, bss = cobj.link(p, cobj.compile_c(SRC, flags), CODE_AT, (4, room), externs=ext, limit=swreg.REG_AT,
                                text_obj=4)
     arena = syms['SWE_ARENA_AT']

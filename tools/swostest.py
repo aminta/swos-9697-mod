@@ -23762,6 +23762,76 @@ def conti_holder(tag, env, team, words):
     return not errs, '; '.join(errs + [f'season 2: {seen}'])
 
 
+def conti_komain(tag, env, team, cup, after):
+    """4.2 (Convergence 15/11, MC): a knockout main round's game contest (the ACL Elite / the Champions Cup: gid 0
+    before, ct_gamein refused its results - since 4.1 conti.c never learned the career club's ties and simulated them
+    at the season end). Season 1, then season 2 from its save, saved again after the match screen `after` (the
+    club's round of 16 played, CONTI_FORCE2 its entry, CONTI_KOWIN its other conti ties): the save's edition (CE)
+    must hold the club's results in that cup - its round of 16 won (the game's own tie got it to `after`)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import conti
+    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    exe = build(f'conti_komain_{tag}', env=dict(env, SEASON_PACKS=','.join(['ddr-1988-89'] + [os.path.join(src, x)
+                for x in order])), branch=os.environ.get('KOMAIN_BRANCH'))   # (KOMAIN_BRANCH: an older commit's
+                                                                            # build - v4.1.2: the fail-before)
+    keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_ONE',
+            'W8485_FROM', 'W8485_TMO', 'W8485_MIDTEXT', 'GP_CALTRACE')
+    keep = {k: os.environ.get(k) for k in keys}
+    errs = []
+    try:
+        for k in keys:
+            os.environ.pop(k, None)
+        os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5',
+                          W8485_K='108+', W8485_NOSACK='1', W8485_TMO='900', GP_CALTRACE='1')
+        ok, msg = world8485()                       # (seasons 1 and 2: the season-1 save W84A)
+        check(ok, f'seasons 1-2: {msg[:300]}', errs)
+        car1 = os.path.join(RUNS, w84_tag() + '_1', 'SWOS', 'W84A.CAR')
+        keep1 = os.path.join(RUNS, w84_tag() + '_s1.CAR')
+        if os.path.exists(car1):
+            shutil.copy(car1, keep1)
+        os.environ.update(W8485_FROM=keep1, W8485_MIDTEXT=after + ':1')
+        ok, msg = world8485()                       # (season 2 again, saved after `after`)
+        check(ok and 'mid-season' in msg, f'season 2 to {after}: {msg[:300]}', errs)
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    import contextlib
+    import io
+    with contextlib.redirect_stdout(io.StringIO()):
+        _, _, cups = conti.load(list(conti.CONFS))
+    ci = cups.index(next(c for c in cups if c[1] == cup))
+    car = os.path.join(RUNS, w84_tag() + '_2', 'SWOS', 'W84A.CAR')
+    ed = car_item(car, 'CE', conti.ED_SIZE) if os.path.exists(car) else None
+    check(ed and ed[:2] == b'CE', f'no edition in {car}', errs)
+    f = [tuple(ed[12 + 3 * i:15 + 3 * i]) for i in range(ed[10])] if ed and ed[:2] == b'CE' else []
+    mine = [(r, v) for c, r, v in f if c == ci]
+    check(mine and mine[0][1] == 1, f'{cup}: the club\'s results not in the edition (CT_ED.f {f}): its game '
+          f'contest\'s round of 16 never reached conti.c', errs)
+    return not errs, '; '.join(errs) or f'{cup}: CT_ED.f {f}, the cup\'s {mine}'
+
+
+@scenario
+def world_conti_komain_acle():
+    """conti_komain: KASHIWA REYSOL forced into the ACL Elite's round of 16 (and the African-Asian tie, won): saved
+    after its quarter-final, the edition holds its round of 16 won"""
+    return conti_komain('acle', {'CONTI_FORCE': 'ic:r2a!', 'CONTI_FORCE2': 'acle:r16', 'CONTI_KOWIN': '1'},
+                        'ASIA,GIAPPONE,J1 LEAGUE,KASHIWA REYSOL', 'acle', 'ELITE QUARTI DI FINALE')
+
+
+@scenario
+def world_conti_komain_ccc():
+    """conti_komain: AMERICA forced into the CONCACAF Champions Cup's round of 16 (and the Derby of the Americas,
+    won): saved after its quarter-final's second leg, the edition holds its round of 16 won"""
+    return conti_komain('ccc', {'CONTI_FORCE': 'ic:r2b!', 'CONTI_FORCE2': 'ccc:r16', 'CONTI_KOWIN': '1'},
+                        'NORDAMERICA,MESSICO,LIGA MX,AMERICA', 'ccc', 'CUP QUARTI DI FINALE RITORNO')
+
+
 @scenario
 def world_conti_bra_sud():
     """4.2 root fix b (Regia 12/11): a natural FLAMENGO career (no CONTI_FORCE) through its first season end. Brazil,

@@ -16260,6 +16260,69 @@ def season_then_car():
     return not errs, '; '.join(errs + info)
 
 
+def _world_season(tag, setw, path, want):
+    """S6a (4.3): a world SEASON from the main menu's WORLD setw (setup_file's: 0 = World 2026-27, 2 = Europe 1984-85):
+    STAGIONE > path (continent, country, club), the start button; world byte / balance = want, VISUAL. COMPETIZ. read;
+    SALVA STAGIONE as S6W; run 2: CARICA VECCHIA COMPETIZIONE > S6W, the same byte and competitions."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import careerworld
+    b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
+    slt = cf_slt(b) + careerworld.WORLD_BYTE
+    wb = lambda s: tuple(s.result.obj2(slt, 2))       # noqa: E731
+    errs, info = [], []
+
+    def comps(s):
+        press(s, s.screen(), 'VISUAL. COMPETIZ.', 2)
+        c = [t for t in s.screen().texts() if t]
+        press(s, s.screen(), 'ESCI', 2)
+        return c
+    with Session(tag, b, {'SETUP.DAT': setup_file(tag, setw)}, 'dump:2', 600) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'no first pause ({s.result})'
+        press(s, s.screen(), 'STAGIONE', 2)
+        if s.screen().find('CONTINUA', exact=True) is not None:
+            press(s, s.screen(), 'CONTINUA', 2)
+        for t in path:
+            if press(s, s.screen(), t, 2) is None:
+                return False, f'{t} not in the picker ({s.screen().texts()[:12]})'
+        sea_start(s)
+        w1 = wb(s)
+        c1 = comps(s)
+        check(w1 == want, f'season start: world byte / balance {w1} (want {want})', errs)
+        check('VISUAL. COMPETIZ.' in c1 and len(c1) > 2, f'no competitions ({c1[:8]})', errs)
+        _save_as(s, 'SALVA STAGIONE', 's6w')
+        game = s.result.game
+    saves = [f for f in os.listdir(game) if f.upper().endswith('.SEA')]
+    if not saves:
+        return False, '; '.join(errs + [f'no .SEA saved ({sorted(os.listdir(game))[:20]})'])
+    with Session(tag + '2', b, {'SETUP.DAT': setup_file(tag + '2', 1), saves[0]: os.path.join(game, saves[0])},
+                 'dump:3', 600) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'(reload) no first pause ({s.result})'
+        if not _load(s, 'S6W'):
+            return False, '; '.join(errs + [f'S6W not listed ({s.screen().texts()[:8]})'])
+        w2 = wb(s)
+        c2 = comps(s)
+        check(w2 == want, f'.SEA reloaded (default world 1996-97): world byte / balance {w2} (want {want})', errs)
+        check(c2 == c1, f'.SEA reloaded: competitions {c2[:8]} != {c1[:8]}', errs)
+    if not errs:
+        info.append(f'{path[-1]}: world byte {w1}, competitions {c1[1:6]}; .SEA reload the same')
+    return not errs, '; '.join(errs + info)
+
+
+@scenario
+def world_season_sea():
+    """S6a (4.3, MC 15/11 gate): a World 2026-27 SEASON (EUROPA > POLONIA > RADOMIAK RADOM) starts in world 5 and its
+    .SEA reloads in world 5 under the 1996-97 default (_world_season)."""
+    return _world_season('world_season_sea', 0, ('EUROPA', 'POLONIA', 'RADOMIAK RADOM'), (5, 251))
+
+
+@scenario
+def world_season_8485():
+    """S6a (4.3): a Europe 1984-85 SEASON (ISLANDA > VOLSUNGUR) in world 4, its .SEA reloaded in world 4."""
+    return _world_season('world_season_8485', 2, ('ISLANDA', 'VOLSUNGUR'), (4, 252))
+
+
 @scenario
 def engine_avail():
     """Step 2.5 (Davide 2026-11-05): 'not available in this world' -> a message on the spot, 2 rows in the list area

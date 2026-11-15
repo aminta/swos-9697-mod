@@ -2111,6 +2111,7 @@ def patch(p, worlds, at, nasmcave, comp, ct, cont_rec):
     ns = NS.get('info')                          # several worlds: a country namespace each (mkseason.ns_emit)
     if ns:
         maxw = max(w['n'] for w in worlds)
+        NS['maxw'] = maxw                        # (S6a: w_loadcopy's WNSB bound)
         bits = bytearray(32 * (maxw + 1))
         for w in worlds:
             for f in ns['files'][w['n']]:
@@ -2333,8 +2334,22 @@ w_loadcopy:                             ; trailer LOADCOPY: LoadCareerFile read 
     mov edi, CAREER
     mov ecx, FIXED
     call w_copy
-    cmp byte [SWSEA], 0                 ; 4.2 (MC 15/11): a .SEA is a 1996-97 season (no world seasons yet): world 0,
-    je .nsea                            ; whatever byte a 4.2 / 4.1.x save kept from an earlier world career
+    cmp byte [SWSEA], 0                 ; 4.2 (MC 15/11): a .SEA of a 1996-97 season is world 0, whatever byte a 4.2 /
+    je .nsea                            ; 4.1.x save kept from an earlier world career
+%if SEAW_ON
+    movzx eax, byte [SLTW]              ; S6a (4.3): a world SEASON's .SEA keeps its world - its clubs are that world's
+    test eax, eax                       ; (the first record's team file in world w's namespace files, WNSB: disjoint
+    jz .nsea                            ; from the 1996-97 files and the historic season packs' - a stale career byte
+    cmp eax, WNS_MAX                    ; over a 1996-97 / STAG. STORICHE season fails it)
+    ja .w0
+    cmp dword [D1R], FIXED              ; (bytes read: no records -> world 0)
+    jbe .w0
+    movzx ebx, byte [STAGE + FIXED]
+    shl eax, 5
+    bt [WNSBV + eax], ebx
+    jc .nsea
+.w0:
+%endif
     mov word [SLTW], 0                  ; (+ its balance byte: the table keeps summing to 0)
 .nsea:
 %if NS_ON
@@ -2814,6 +2829,7 @@ def patch_tails(p, at, nasmcave):
     import swreg                                 # (S6a: world SEASONs - the picker's world, W_SEAW, swe.c sets it)
     sym['SEAW_ON'] = (0, int(swreg.SEASON_WORLDS and 'W_SEAW' in LABELS and 'WCUR' in LABELS))
     sym['SWW'] = (1, LABELS['W_SEAW']) if 'W_SEAW' in LABELS else (0, 0)
+    sym['WNS_MAX'] = (0, NS.get('maxw', 0))
     src = TAILS_ASM
     if os.environ.get('DIAG'):                   # diagnostic build: int 3 handler writes DIAG.BIN
         src = f"%define DIAG\n%define DIAG_TICKS {int(os.environ.get('DIAG_TICKS', 364))}\n" + nasmcave.sub(src, '.w:\n    pushad\n    mov esi, TMDBUF', '.w:\n    ' + ('times 5 nop' if os.environ.get('DIAG_NOINST') else 'call diag_install') + '\n    pushad\n    mov esi, TMDBUF')   # (DIAG_NOINST: the same layout, no handlers)

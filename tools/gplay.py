@@ -936,6 +936,9 @@ gp_lend:                                ; replaces `call cseg_8ECAE` (the career
     call gp_c
     mov [GP_BUILT], eax
     push eax
+%if S3SKIP
+    call gp_s3pre                       ; (4.2 S3: the preview skips the play-offs dplay runs this season)
+%endif
     mov eax, gp_pre_c                   ; (rc19: the other play-offs previewed - the club's own are its contests)
     call gp_c
     pop eax
@@ -1008,6 +1011,9 @@ gp_pre:                                 ; rc19 (Davide): the career league over,
     test eax, eax
     jz .x
     call gp_sims
+%if S3SKIP
+    call gp_s3pre
+%endif
     mov eax, gp_pre_c
     call gp_c
 .x:
@@ -1671,6 +1677,35 @@ gp_find:                                ; edx = a league struct -> esi = its GP_
 .no:
     xor esi, esi
     ret
+
+%if S3SKIP
+gp_s3pre:                               ; (4.2 S3, MC 15/11: the VINCITORI preview runs gp_season before dplay's dp_end has set DP_BHOLD / DP_CHOLD: the
+    push eax                            ; skip mask comes from dplay's saved state itself - a Serie B (kind 1, 2) / Serie C (kind 3) play-off that
+    push ecx                            ; dplay runs THIS season is dplay's: the preview lists no gplay line for it. gp_season clears the mask)
+    xor ecx, ecx
+    cmp word [DPSAVE], 5044h
+    jne .w
+    mov al, [SEASONPLAYING]
+    cmp al, [DPSAVE + 6]
+    jne .w
+    mov al, [DPSAVE + 4]
+%if S3MB
+    cmp al, 3
+    jae .c
+    mov ecx, S3MB
+    jmp .w
+.c:
+%endif
+%if S3MC
+    cmp al, 3
+    jne .w
+    mov ecx, S3MC
+%endif
+.w: mov [GP_SKIPPO], ecx
+    pop ecx
+    pop eax
+    ret
+%endif
 
 gp_cap:                                 ; replaces `call cseg_9221F` (after dplay's dp_cap) in cseg_91D4D
     call GP_CAP_NEXT
@@ -2968,6 +3003,7 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
         symbols['GP_CUPW'], symbols['GP_CUPF'] = syms['GP_CUPW'], syms['GP_CUPF']
     if _mb or _mc:
         symbols['GP_SKIPPO'] = syms['GP_SKIPPO']
+        symbols['DPSAVE'] = (2, _dp.LABELS['save'])
     symbols.update({k: syms[k] for k in ('GP_SSB', 'GP_IN', 'GP_OUT', 'gp_season', 'gp_champ', 'gp_keep', 'GP_ST', 'GP_LOG', 'GP_NM', 'GP_DIYP', 'GP_K',
                                          'GP_W', 'GP_SKIP', 'GP_RB', 'GP_ALIVE', 'GP_LAST', 'GP_A', 'GP_B', 'GP_CID', 'GP_SEAS', 'GP_DIV',
                                          'GP_PT', 'GP_PL', 'gp_need', 'gp_simkeep', 'gp_need_pre', 'gp_simkeep_pre', 'gp_pre_c', 'GP_PRE', 'gp_restore', 'gp_lend_c', 'gp_ours_c',

@@ -303,11 +303,11 @@ def golden_cases():
 
 def golden_json(c):
     """A case with INTEGER idents as arrays (JSON object keys are strings): clubs [[id, lat, lon]], last [[id, group|null]], prev_second / out [[id, group]],
-    all sorted by ident; second = the sorted idents; anchors stay {group: [lat, lon]}."""
+    all sorted by ident; second = the sorted idents; anchors stay {group: [lat, lon]}; keys [[ident, clubs.csv key]] for readability only (the comparison is per ident)."""
     return dict(name=c['name'], level=c['level'], size=c['size'], seed=c['seed'], anchors={g: list(v) for g, v in c['anchors'].items()},
                 clubs=[[k, *c['clubs'][k]] for k in sorted(c['clubs'])], last=[[k, c['last'][k]] for k in sorted(c['last'])],
                 second=sorted(c['second']), prev_second=[[k, c['prev_second'][k]] for k in sorted(c['prev_second'])],
-                out=[[k, c['out'][k]] for k in sorted(c['out'])])
+                out=[[k, c['out'][k]] for k in sorted(c['out'])], keys=[[k, KEYS[k]] for k in sorted(c['clubs'])])
 
 
 def golden_inputs(j):

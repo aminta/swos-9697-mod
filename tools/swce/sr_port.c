@@ -43,19 +43,24 @@ static int reserved(const sr_port_host *h, uint16_t s4first, const sr_port_fixtu
         int32_t n = 1;
         w[0][0] = s4first; w[0][1] = SR_PORT_NONE;
         if (h && h->slot4_windows) n = h->slot4_windows(h->ctx, s ? x->away : x->home, w, SR_PORT_WINDOWS);
-        if (n < 0 || n > SR_PORT_WINDOWS) return 1;     /* (a host past the cap: refused, never a window dropped - MC
-                                                           P2 review: a merged or cut window is a fidelity loss) */
+        if (n > SR_PORT_WINDOWS || n < 0) return 1;    /* (windows it could not hand over: refused, never unread) */
         for (int32_t k = 0; k < n; k++)
             if (!(x->unit2 < w[k][0] || inst(h, x->unit1) >= (int32_t)w[k][1])) return 1;
     }
     return 0;
 }
 
-/* the rules over f[0 .. n), rule 2 only for f[from ..) (the fixtures not yet played) */
-static int32_t check(const sr_port_fixture *f, int32_t n, int32_t from, uint16_t unit, uint16_t s4first,
-                     const sr_port_host *h, int32_t *bad)
+/* the rules over f[0 .. n), rule 2 only for f[from ..) (the fixtures not yet played), rules 1 and 6 (the league's
+   matches, the slot-4 windows: live data) only for a fixture not PLAYED (state NULL: none played). nbad NULL: the
+   first broken rule; else every fixture's (*nbad of them, the first max_ids match ids into ids), the first's code */
+static int32_t check(const sr_port_fixture *f, int32_t n, int32_t from, const uint8_t *state, uint16_t unit,
+                     uint16_t s4first, const sr_port_host *h, int32_t *bad, int32_t *nbad, uint32_t *ids,
+                     int32_t max_ids)
 {
+    int32_t first = 0;
+    if (nbad) *nbad = 0;
     for (int32_t i = 0; i < n; i++) {
+        const int live = !state || state[i] != SR_PORT_PLAYED;
         const sr_port_fixture *x = &f[i];
         int32_t e = 0;
         if (x->legs != 1 && x->legs != 2) e = SR_PORT_E_R3;
@@ -68,7 +73,7 @@ static int32_t check(const sr_port_fixture *f, int32_t n, int32_t from, uint16_t
         else if (i >= from && x->unit1 <= unit) e = SR_PORT_E_R2;
         else if ((x->legs == 2 ? x->unit2 <= x->unit1 : x->unit2 != x->unit1) || x->unit2 == SR_PORT_NONE)
             e = SR_PORT_E_R3;                   /* (SR_PORT_NONE is no unit: fuzz_lib's find, a tie at FFFFh a load refused) */
-        else if (reserved(h, s4first, x)) e = SR_PORT_E_SLOT4_RESERVED;
+        else if (live && reserved(h, s4first, x)) e = SR_PORT_E_SLOT4_RESERVED;
         for (int32_t j = 0; !e && j < i; j++) {
             const sr_port_fixture *y = &f[j];
             if (y->match_id == x->match_id) e = SR_PORT_E_ID;
@@ -76,23 +81,35 @@ static int32_t check(const sr_port_fixture *f, int32_t n, int32_t from, uint16_t
                 e = SR_PORT_E_R5;           /* (the later one is installed over slot 4 at the advance before it: the
                                                earlier ends strictly before that; any club's, a job change keeps it) */
         }
-        if (!e && h && h->league_plays)
+        if (!e && live && h && h->league_plays)
             for (int32_t s = 0; s < 2 && !e; s++)
                 for (int32_t k = 0; k < x->legs && !e; k++)
                     if (h->league_plays(h->ctx, s ? x->away : x->home, k ? x->unit2 : x->unit1)) e = SR_PORT_E_R1;
         if (e) {
-            if (bad) *bad = i;
-            return e;
+            if (!first) {
+                first = e;
+                if (bad) *bad = i;
+            }
+            if (!nbad) return e;
+            if (*nbad < max_ids && ids) ids[*nbad] = x->match_id;
+            ++*nbad;
         }
     }
-    return 0;
+    return first;
 }
 
 int32_t sr_port_check(const sr_port_fixture *f, int32_t n, uint16_t unit, uint16_t s4first,
                       const sr_port_host *h, int32_t *bad)
 {
     if (!f || n < 0 || n > SR_PORT_MAX) return SR_PORT_E_ARGS;
-    return check(f, n, 0, unit, s4first, h, bad);
+    return check(f, n, 0, 0, unit, s4first, h, bad, 0, 0, 0);
+}
+
+int32_t sr_port_check_queue(const sr_port_fixture *f, int32_t n, int32_t from, const uint8_t *state, uint16_t unit,
+                            uint16_t s4first, const sr_port_host *h, int32_t *bad)
+{
+    if (!f || n < 0 || n > SR_PORT_MAX || from < 0 || from > n) return SR_PORT_E_ARGS;
+    return check(f, n, from, state, unit, s4first, h, bad, 0, 0, 0);
 }
 
 int32_t sr_port_add(sr_port *p, const sr_port_host *h, const sr_port_fixture *f)
@@ -100,7 +117,8 @@ int32_t sr_port_add(sr_port *p, const sr_port_host *h, const sr_port_fixture *f)
     if (!p || !f) return SR_PORT_E_ARGS;
     if (p->n >= SR_PORT_MAX) return SR_PORT_E_FULL;
     p->f[p->n] = *f;
-    const int32_t e = check(p->f, p->n + 1, p->n, p->unit, p->s4first, h, 0);
+    p->state[p->n] = SR_PORT_QUEUED;                    /* (counted only on success) */
+    const int32_t e = check(p->f, p->n + 1, p->n, p->state, p->unit, p->s4first, h, 0, 0, 0, 0);
     if (e) return e;
     p->state[p->n++] = SR_PORT_QUEUED;
     return 0;
@@ -206,7 +224,15 @@ int32_t sr_port_missed(sr_port *p, const sr_port_host *h, uint16_t unit, uint16_
 int32_t sr_port_revalidate(const sr_port *p, const sr_port_host *h, int32_t *bad)
 {
     if (!p || !h || !h->league_plays) return SR_PORT_E_ARGS;
-    return check(p->f, p->n, p->n, p->unit, p->s4first, h, bad);   /* (rule 2 off: a save's units are past) */
+    return check(p->f, p->n, p->n, p->state, p->unit, p->s4first, h, bad, 0, 0, 0);   /* (rule 2 off: a save's units
+                                                                                       are past) */
+}
+
+int32_t sr_port_revalidate_all(const sr_port *p, const sr_port_host *h, int32_t *bad, int32_t *nbad, uint32_t *ids,
+                               int32_t max_ids)
+{
+    if (!p || !h || !h->league_plays || !nbad || max_ids < 0 || (max_ids && !ids)) return SR_PORT_E_ARGS;
+    return check(p->f, p->n, p->n, p->state, p->unit, p->s4first, h, bad, nbad, ids, max_ids);
 }
 
 int32_t sr_port_result_in(sr_port *p, const sr_port_host *h, const sr_port_result *r)
@@ -305,7 +331,8 @@ static int32_t load(sr_port *p, const uint8_t *in, int32_t len, uint32_t pack_ha
     }
     p->n = n;
     p->pending = r32(in + 8);
-    if (i8 != end || installed != (p->pending != 0) || check(p->f, n, n, p->unit, p->s4first, 0, 0)) return SR_PORT_E_SAVE;
+    if (i8 != end || installed != (p->pending != 0) || check(p->f, n, n, p->state, p->unit, p->s4first, 0, 0, 0, 0, 0))
+        return SR_PORT_E_SAVE;
     return 0;
 }
 

@@ -393,6 +393,10 @@ def patch_exe(src, dst, remap, lang='it'):
         swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, (swreg.FPORT_END + 0xFFF) // 0x1000)   # band; explicit init (MC 14/11):
         engine.after_new('fp_new')                     # a new career and a load arm it, the next calendar step inits
         engine.after_process('fp_load')
+        engine.save_item('FP', fpad.SAVE_SIZE, world_only=True)   # P5 (MC option A): the port's queue + the tie in
+        engine.before_save('fp_save')                  # progress with the career (fpsave.c fp_save / fpad.c fresh's load)
+        careerworld.SEL_N = careerworld.SEL_N_FP       # (its room: a big world's save budgets 155 teams, not 159)
+        swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, (swreg.FPORT2_END + 0xFFF) // 0x1000)   # (P5: fpsave.c's band, MC 15/11)
     OBJ1MV_ON[0] = bool(mkseason.worlds())             # 4.2 OBJ1MV (MC 13/11): every build with worlds (shirtedit +
     if OBJ1MV_ON[0]:                                   # instcheck; the SEASON WINNERS page when fmtpage has it)
         swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, (swreg.OBJ1MV_END + 0xFFF) // 0x1000)   # (its band's pages, out of obj1)

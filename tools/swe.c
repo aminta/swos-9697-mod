@@ -39,6 +39,7 @@ u8 S7_ORIG[S7_ORIG_SZ] __attribute__((aligned(16)));
                                            under fpad.c's magic + season (MC 14/11); release builds: no byte */
 u8 FP_PORT[FPORT_ON] __attribute__((aligned(16)));
 u8 FP_ST[FP_ST_SZ] __attribute__((aligned(4)));
+u8 FP_SAVE[FP_SAVE_SZ] __attribute__((aligned(4)));    /* P5: the EN item 'FP' (fpad.c fp_save / its load) */
 #endif
 #ifdef SWEFILE_TEST                     /* SWEFILE_TEST=1 builds only: the file layer's self-test (swefile.c swef_selftest) -
                                            its buffers here in the .bss (swefile.c has none), its entry put in SWEF_HOOK by

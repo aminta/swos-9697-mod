@@ -50,6 +50,8 @@ B_TFB, TFB_SIZE = 0x31000, 0x2B000
 SEL_CAP, SEL_N = 160, 159        # the cache's memory (160 records) / what a save budgets for (4.2 A1: the trailer's room
                                  # is checked at 159 records, +684 B for 'EN'; a save with 160 cached drops 'EN' as any
                                  # save past ROOMV, trailer.EN_SAVE; every save seen caches <= 124)
+SEL_N_FP = 155                   # 4.2 fixture port P5 (MC option A): builds with the EN item 'FP' (fpad.SAVE_SIZE) budget
+                                 # 155 - a save caching 156..160 teams drops 'EN' (as 160 does without it)
 B_SEL, SEL_ROOM = 0x5C000, SEL_CAP * TEAM_SIZE + 0x4000 + 0x280  # (+ the trailer's blocks after the records: the main
                                                                # one + the engine block 'EN': ~14.6 KB in 4.0.1: 0x4000;
                                                                # 4.1 S2b: + 0x280, the two gaps around B_STAGE - B_UQ and

@@ -13,9 +13,21 @@ import struct
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SRC = os.path.join(HERE, 'fpad.c')
+SRC2 = os.path.join(HERE, 'fpsave.c')       # P5 (MC 15/11): fp_save / fps_load + sr_port_save / _load, obj4 FPORT2
 PORT_SIZE = 2368                    # (swosrules.h SR_PORT_SIZE: asserted against the header below)
 ST_SIZE = 4 + 4 + 16 + 8 + 4 + 8 * 48   # (fpad.c struct fp_st: magic, season..nlog, leg, et + pens, nleg + pad, log)
 SLACK = 256                         # (the band's room left at least - MC: stop and report under it)
+# P5 (MC option A): the EN item 'FP' = a 36-B header ('FPS1', season, the tie in progress: legs played, their goals, e.t.,
+# penalties - FP_ST's, not in sr_port) + sr_port_save's bytes, at most 20 + SR_PORT_MAX x (33 + 16) (all played)
+SAVE_HDR, SAVE_VERSION = 36, 1
+SAVE_SIZE = SAVE_HDR + 20 + 48 * (33 + 16)
+
+
+def fp_hash():
+    """MC P5 review: FP_HASH covers only what a saved fixture refers to by identity - the world byte and the format
+    (SR_PORT_SIZE, SR_PORT_MAX, the item header's version); never the window table (revalidated live)"""
+    import zlib
+    return zlib.crc32(struct.pack('<BHHB', world(), PORT_SIZE, 48, SAVE_VERSION)) & 0xFFFFFFFF
 LABELS = {}
 
 
@@ -54,7 +66,24 @@ def window_table():
             for b, e, _user, _cond in ws:      # (cond: on - the static superset)
                 rows.append((ci, int(d), b, e))
         ci += 1
+    rows = win_edit(rows)
     return bytes(fmap), rows, bad
+
+
+def win_edit(rows):
+    """FPORT_WINEDIT (test builds only - world_fport_ld_win): '+B:E' adds the window [B, E] to every division with
+    windows, '-B' drops every window starting at B; ',' between edits"""
+    ed = os.environ.get('FPORT_WINEDIT')
+    if not ed:
+        return rows
+    assert os.environ.get('FPORT_TEST'), 'fpad: FPORT_WINEDIT is for FPORT_TEST builds only'
+    for e in ed.split(','):
+        if e[0] == '+':
+            b, e2 = (int(x) for x in e[1:].split(':'))
+            rows = rows + [(c, d, b, e2) for c, d in sorted({(r[0], r[1]) for r in rows})]
+        else:
+            rows = [r for r in rows if r[2] != int(e[1:])]
+    return rows
 
 
 def test_entries():
@@ -178,13 +207,16 @@ def patch(p, ssyms, gsyms):
         assert k in gsyms, ('fpad: gplay without', k)
     import pgroups
     assert 'PG_TAB' in pgroups.LABELS, 'fpad: no pg_fix (pgroups) in this build: pg_season - the new-season arm - never runs'
-    assert 'FP_PORT' in ssyms and 'FP_ST' in ssyms, 'fpad: swe.c without FPORT_ON (swe.py)'
+    assert 'FP_PORT' in ssyms and 'FP_ST' in ssyms and 'FP_SAVE' in ssyms, 'fpad: swe.c without FPORT_ON (swe.py)'
     assert p.le.obj(4).npages * 0x1000 >= swreg.FPORT_END, 'fpad: obj4 pages (patch.py)'
     assert not any(p.get(4, swreg.FPORT_AT, swreg.FPORT_END - swreg.FPORT_AT)), 'fpad: obj4+FPORT_AT not free'
+    assert p.le.obj(4).npages * 0x1000 >= swreg.FPORT2_END, 'fpad: obj4 pages for FPORT2 (patch.py)'
+    assert not any(p.get(4, swreg.FPORT2_AT, swreg.FPORT2_END - swreg.FPORT2_AT)), 'fpad: obj4+FPORT2_AT not free'
     band = swe.OBJ4_PAGES * 0x1000
     obj_tab = p.le.hdr + struct.unpack_from('<I', p.out, p.le.hdr + 0x40)[0]
     vsize = struct.unpack_from('<I', p.out, obj_tab + 3 * 24)[0]   # (obj4's vsize as swe.py set it: p.set_vsize)
-    for k, n in (('FP_PORT', PORT_SIZE), ('FP_ST', ST_SIZE)):   # (swe.c's .bss: past every obj4 band, inside the vsize)
+    assert _hdr_define('SR_PORT_MAX') == 48, ('fpad: SR_PORT_MAX (SAVE_SIZE)', _hdr_define('SR_PORT_MAX'))
+    for k, n in (('FP_PORT', PORT_SIZE), ('FP_ST', ST_SIZE), ('FP_SAVE', SAVE_SIZE)):   # (swe.c's .bss: past every obj4 band, inside the vsize)
         o, a = ssyms[k]
         assert o == 4 and a >= band and a + n <= vsize, ('fpad: swe.c .bss', k, hex(a), hex(band), hex(vsize))
     fmap, rows, bad = window_table()
@@ -196,23 +228,47 @@ def patch(p, ssyms, gsyms):
     fdiv, fset = pack_windows(rows)
     ext = {'GP_PAPI': gsyms['GP_PAPI'], 'GP_WK': gsyms['GP_WK'], 'GP_MGR': gsyms['GP_MGR'],
            'FP_SEASON': gsyms['SEASONPLAYING'], 'FP_CAL': gsyms['CAL'], 'FP_PORT': ssyms['FP_PORT'], 'FP_ST': ssyms['FP_ST'],
+           'FP_SAVE': ssyms['FP_SAVE'],
            'FP_CWB': (so, soff + careerworld.WORLD_BYTE), 'GP_GST': gsyms['GP_ST'], 'GP_GIN': gsyms['GP_IN'],
            'FP_D1R': gsyms['D1R'], 'FP_A1R': gsyms['A1R'], 'FP_A2R': gsyms['A2R'],
            'FP_CALCUR': gsyms['CAL_CUR'], **{k: gsyms[k] for k in ('GP_SEAS', 'GP_K', 'GP_SCT', 'GP_PMID')}}
     ets, et0 = fp_et_sites(p)
     d1w = gsyms['D1R']
     ext.update(FP_D1W=d1w, FP_D2W=(d1w[0], d1w[1] + 4), FP_D3W=(d1w[0], d1w[1] + 8), FP_D4W=(d1w[0], d1w[1] + 12),
-               FP_ETX=p.call_target(1, ets[0]))
+               FP_ETX=p.call_target(1, ets[0]), FP_STKLOWP=(2, 0xC3178), FP_CDIV=(2, __import__('gplay')._cardiv(p)))   # (FPORT_TEST: the game's _STACKLOW pointer)
     for o in ets:                                       # (MC guard 1: each site, through its chain, ends at cseg_2B81B)
         assert p.call_target(1, o) == ext['FP_ETX'] and et_chain_end(p, p.call_target(1, o), (1, et0)) == (1, et0), \
             ('fpad: an extra-time call does not reach cseg_2B81B', hex(o), p.call_target(1, o), hex(et0))
     offs = gp_offsets(gsyms['GP_CFLAGS'])
-    flags = [f'-D{k}={v}' for k, v in offs.items()] + [f'-DFP_ST_SZ={ST_SIZE}', f'-DFP_WORLD={world()}', f'-DFP_NDIV_={max(1, len(fdiv) // 4)}', f'-DFP_NSET_={max(1, len(fset))}']
+    # (-Oz, MC 15/11 room: fpad.c + fpsave.c only - cobj's -Os for every other unit; the port runs once per calendar
+    #  step, size over speed: FPORT ~1.7 KB, FPORT2 ~0.35 KB smaller than at -Os, engine 52301fb)
+    flags = ['-Oz'] + [f'-D{k}={v}' for k, v in offs.items()] + [f'-DFP_ST_SZ={ST_SIZE}', f'-DFP_SAVE_SZ={SAVE_SIZE}', f'-DFP_SAVE_HDR={SAVE_HDR}', f'-DFP_HASH={fp_hash():#x}u', f'-DFP_WORLD={world()}', f'-DFP_NDIV_={max(1, len(fdiv) // 4)}', f'-DFP_NSET_={max(1, len(fset))}']
     roots = ['fp_step', 'fp_leg', 'fp_et', 'fp_done', 'fp_new', 'fp_load', 'fp_season', 'FP_FMAP', 'FP_DIV', 'FP_SET', 'FP_NDIV']
+    import collections
     import swefile
+
+    class _Dry(swefile._Rec):           # (the dry links' target: also a dword across a page boundary - cobj.add_ptr's
+        recs = collections.defaultdict(list)    # two records - 0x1D400's FPORT2 has one, swefile._Rec has no pages)
+
+        def _page(self, *a):
+            return 0, 0
+
+        def _record(self, *a):
+            return None
+    # P5 (MC 15/11): fpsave.c first, its own unit at FPORT2 (no fpad.c symbol in it); the same flags (no test code in it)
+    ext2 = {k: ext[k] for k in ('FP_PORT', 'FP_ST', 'FP_SAVE', 'FP_SEASON', 'FP_CWB', 'GP_GST', 'GP_SEAS', 'GP_PMID', 'GP_WK', 'GP_MGR')}
+    obj2 = cobj.compile_c(SRC2, tuple(flags), sections=True)
+    _, end2, _ = cobj.link(_Dry(), obj2, swreg.FPORT2_AT, (4, 0), externs=ext2, limit=swreg.FPORT2_END,
+                           text_obj=4, roots=['fp_save', 'fps_load', 'fps_reset'])     # (dry: the release shape's end)
+    left2 = swreg.FPORT2_END - end2
+    assert left2 >= SLACK, ('fpad: the FPORT2 band has under 256 B left (release shape) - stop and report to MC', left2)
+    syms2, e2, bss2 = cobj.link(p, obj2, swreg.FPORT2_AT, (4, 0), externs=ext2, limit=swreg.FPORT2_END, text_obj=4,
+                                roots=['fp_save', 'fps_load', 'fps_reset'])
+    assert not bss2 and e2 == end2, ('fpsave.c: no .bss, the dry link\'s end', bss2, hex(e2), hex(end2))
+    ext['fps_load'], ext['fps_reset'] = syms2['fps_load'], syms2['fps_reset']
     rel_flags = tuple(flags)
     rel = cobj.compile_c(SRC, rel_flags, sections=True)   # (MC's floor on the release shape - no test code -, as
-    _, rel_end, _ = cobj.link(swefile._Rec(), rel, swreg.FPORT_AT, (4, 0), externs=ext, limit=swreg.FPORT_END,
+    _, rel_end, _ = cobj.link(_Dry(), rel, swreg.FPORT_AT, (4, 0), externs=ext, limit=swreg.FPORT_END,
                               text_obj=4, roots=roots)        # swefile's MARGIN: a dry link, its size only)
     left = swreg.FPORT_END - rel_end
     assert left >= SLACK, ('fpad: the FPORT band has under 256 B left (release shape) - stop and report to MC', left)
@@ -240,10 +296,16 @@ def patch(p, ssyms, gsyms):
         p.branch(1, o, 0xE8, *syms['fp_et'])
     engine.CALL_AT['fp_new'] = syms['fp_new']
     engine.CALL_AT['fp_load'] = syms['fp_load']
+    engine.CALL_AT['fp_save'] = syms2['fp_save']       # P5: engine.before_save (fpsave.c), the FP item at swe.c's FP_SAVE
+    engine.ITEM_AT['FP'] = ssyms['FP_SAVE']
     LABELS.update(syms)
     LABELS['FP_PORT'], LABELS['FP_ST'] = ssyms['FP_PORT'], ssyms['FP_ST']
     print(f'exe: fixture port (fpad.c) obj4+{swreg.FPORT_AT:#x}..{rel_end:#x} of {swreg.FPORT_END:#x} ({left} B left, '
           f'release shape' + (f'; this test build to {end:#x}, {swreg.FPORT_END - end} B left' if end != rel_end else '') + '), '
           f'{len(rows)} slot-4 windows ({len(fdiv) // 4} divisions, {len(fset)} B of sets), {256 - fmap.count(255)} league files'
-          + (f', FPORT_TEST {len(test)} fixtures' if test else ''))
+          + (f', FPORT_TEST {len(test)} fixtures' if test else '')
+          + f'; FP save (fpsave.c) obj4+{swreg.FPORT2_AT:#x}..{end2:#x} of {swreg.FPORT2_END:#x} ({left2} B left)')
+    if os.environ.get('FPAD_BANDS'):                    # (the bands' report on stderr: a build's stdout is captured)
+        print(f'FPAD_BANDS FPORT end {rel_end:#x} ({left} B left){"" if end == rel_end else f", test build {end:#x}"}; '
+              f'FPORT2 end {end2:#x} ({left2} B left); obj4 pages {swe.OBJ4_PAGES}', file=__import__('sys').stderr)
     return end

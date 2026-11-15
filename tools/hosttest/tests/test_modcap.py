@@ -57,18 +57,21 @@ def test_split_orient_cap():
     assert not errs, '; '.join(errs)
 
 
+PRECAP = 'e08a633'                     # (the last commit before the cap, bcb9edc^: a FIXED base, not HEAD~1 - meaningless on a merge commit)
+
+
 def test_split_orient_parity_with_head():
     """the committed (pre-cap) split.py, from git, is the oracle: the same orientation for 2..18 clubs."""
     import subprocess
     import types
     here = os.path.join(os.path.dirname(__file__), '..', '..')
     try:
-        src = subprocess.check_output(['git', 'show', 'HEAD~1:tools/split.py'], cwd=here, stderr=subprocess.DEVNULL).decode()
+        src = subprocess.check_output(['git', 'show', PRECAP + ':tools/split.py'], cwd=here, stderr=subprocess.DEVNULL).decode()
     except Exception:
         print('SKIP: no git history for the oracle')
         return
     if 'SR_SPLIT_FIRST' in src:
-        print('SKIP: HEAD~1 already has the cap')
+        print('SKIP: the pre-cap oracle %s already has the cap' % PRECAP)
         return
     old = types.ModuleType('split_old')
     exec(compile(src, 'split_old', 'exec'), old.__dict__)

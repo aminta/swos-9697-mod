@@ -30,7 +30,7 @@ VALUES = {'it': ('PERSONALIZZATO', 'ORIGINALE'), 'en': ('CUSTOM', 'ORIGINAL'),  
 TITLE = {'it': 'GAMEPLAY PERSONALIZZATO', 'en': 'CUSTOM GAMEPLAY', 'fr': 'GAMEPLAY PERSONNALISE', 'de': 'INDIVIDUELLE SPIELWEISE'}
 YESNO = {'it': ('SI', 'NO'), 'en': ('YES', 'NO'), 'fr': ('OUI', 'NON'), 'de': ('JA', 'NEIN')}     # (the CPU rows: 0 = SI, today's default)
 PRACTICE = {'it': 'GAMEPLAY: ORIGINALE', 'en': 'GAMEPLAY: ORIGINAL', 'fr': 'GAMEPLAY: ORIGINAL', 'de': 'SPIELWEISE: ORIGINAL'}
-LEG = {'it': 'SIN/DES CAMBIA FUOCO: AVANTI', 'en': 'LEFT/RIGHT CHANGE FIRE: NEXT',
+LEG = {'it': 'SINISTRA/DESTRA CAMBIA FUOCO: AVANTI', 'en': 'LEFT/RIGHT CHANGE FIRE: NEXT',
        'fr': 'GAUCHE/DROITE CHANGE FEU: SUITE', 'de': 'LINKS/RECHTS AENDERT FEUER: WEITER'}
 # rows not in yet (after the freeze: takers, Marco's traits) - their texts are ready, the 'present' flag off
 TAKERS = {'it': 'TIRATORI', 'en': 'TAKERS', 'fr': 'TIREURS', 'de': 'SCHUETZEN'}
@@ -365,7 +365,7 @@ def _src(lang, rows, ft, h0, stride):
     src += f'S_GLBL: db {db(LABEL[lang])}\nS_GV0: db {db(VALUES[lang][0])}\nS_GV1: db {db(VALUES[lang][1])}\n'
     src += ('GM_RT:\n    dd DF_W - GMB0\n    db 2, 0\n    dd DF_DR - GMB0\n    db 2, 0\n    dd SP_W - GMB0\n    db 2, 0\n'
             '    dd CC_W_O\n    db 1, 1\n    dd CC_I_O\n    db 1, 1\n    dd GI_W_O\n    db 1, 1\n')
-    src += f'S_GT: db {db(TITLE[lang])}\nS_GLG: db {db(LEG[lang])}\nalign 4\nGM_FT:\n'
+    src += f'S_GT: db {db(TITLE[lang])}\nS_GLG: db {db(LEG[lang])}\nGM_FT:\n'
     return src, db
 
 

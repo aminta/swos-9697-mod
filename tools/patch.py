@@ -1168,11 +1168,12 @@ def write_new_teams(src_dir, dst_dir):
     for g in (careerworld.WORLD_BYTE, careerworld.WORLD_BYTE + 1):   # career packs: world byte + balance
         taken[g] = 'world'
     hist = historic.build_teams(src_dir)
+    ntf = {f for f, _, _ in bigtables.nt_files()}      # (5.0: the NT files' globals are 2409.. - up to LIMIT_ALL; every club file's below LIMIT_CLUBS)
     for n, data in list(files.items()) + list(hist.items()):
         k = struct.unpack('>H', data[:2])[0]
         base = tcn.get(n) or hist_base(n)
         for g in range(base, base + k):
-            assert g < (bigtables.LIMIT if mkseason.worlds() and bigtables.needed() else 2000) and \
+            assert g < (bigtables.limit_all() if n in ntf else bigtables.LIMIT_CLUBS if mkseason.worlds() and bigtables.needed() else 2000) and \
                 (mkseason.shares_base(n) or mkseason.career_file(n) or g not in taken), (n, g, taken.get(g))
             assert not (mkseason.career_file(n) and sacups.SAVED_GLOBAL <= g <= sacups.MARK3_GLOBAL + 2), \
                 (n, g, f'world clubs must skip the reserved global numbers {sacups.SAVED_GLOBAL}..{sacups.MARK3_GLOBAL + 2} '

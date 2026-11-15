@@ -1543,6 +1543,18 @@ class NationalPack(Pack):
             n = self.count.get(c['file'], 0)
             self.where[k] = (self.files[c['file']][0], n)
             self.count[c['file']] = n + 1
+        for k, (f, base) in self.files.items():      # (5.0, MC 15/11 D1): an NT file holds at most 255 ordinals (a team word's byte 1)
+            _need(self.count.get(k, 0) <= 255, f'{path}: national file {f}: {self.count.get(k, 0)} teams (at most 255 ordinals)')
+        nt = sorted((a, base, self.count.get(k, 0)) for k, (f, base) in self.files.items() for a in [self.as_file[f]]
+                    if base >= 2409)                  # (5.0 D2 = G1': NT globals above the clubs' range, explicit bases, in file order)
+        if nt:
+            import bigtables
+            _need(len(nt) == 6 and nt[0][1] >= bigtables.LIMIT_CLUBS and
+                  all(nt[i][1] + nt[i][2] == nt[i + 1][1] for i in range(5)),
+                  f'{path}: national files with bases >= {bigtables.LIMIT_CLUBS}: all six (80..85), contiguous in file order '
+                  f'(base + count = the next base): {nt}')
+            _need(nt[-1][1] + nt[-1][2] <= bigtables.LIMIT_ALL_MAX,
+                  f'{path}: national globals reach {nt[-1][1] + nt[-1][2]} > {bigtables.LIMIT_ALL_MAX}')
         self.division, self.comps, self.ties = {}, [], {}
         self.nations = {}                       # nations.csv: (game file, ordinal) -> code, nat, home, unused
         self.unused = []                        # (physical file, ordinal) of its unused nations (team_files)

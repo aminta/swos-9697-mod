@@ -68,7 +68,7 @@ def run1(w, packs=None, limit=None):
     """(file B, lo, n) of world w's split file's first run, or None: the free numbers right after file A's run."""
     import bigtables
     packs = packs if packs is not None else _world_packs(w)
-    limit = limit or bigtables.LIMIT
+    limit = limit or bigtables.LIMIT_CLUBS
     pk, sp = _split_pk(w, packs)
     if not pk:
         return None
@@ -92,7 +92,7 @@ def split(w, packs=None, guest_runs=None, limit=None):
     [(lo, hi)] of the guest files (default guests.alloc's of this world)."""
     import bigtables
     packs = packs if packs is not None else _world_packs(w)
-    limit = limit or bigtables.LIMIT
+    limit = limit or bigtables.LIMIT_CLUBS
     r1 = run1(w, packs, limit)
     if not r1:
         return {}

@@ -307,6 +307,8 @@ def table(p):
         ents += e
     tab = bytes(head + ents + extra)
     assert len(tab) <= CG_TAB_MAX, hex(len(tab))
+    import bigtables
+    assert bigtables.limit_all() <= 4096, 'ctgame.c CG_TAB[4096] is indexed by global number: LIMIT_ALL must stay <= 4096'
     return tab, ptrs
 
 

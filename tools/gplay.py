@@ -2816,6 +2816,8 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
         assert not any(p.get(1, at, len(ssf)))
         p.put(1, at, ssf)
         ssf_at, at = at, (at + len(ssf) + 15) & ~15
+    import bigtables as _bt
+    assert _bt.limit_all() <= 4096, 'gplay.c pg_pend (4096 bits, by global number): LIMIT_ALL must stay <= 4096'
     obj = cobj.compile_c(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'gplay.c'), (gp_cflags := [f'-DSS_NB={nb}', f'-DGP_FORCE={force}', f'-DGP_SPST={split.ST}', f"-DGP_SPGRP={split.OFF['grp']}", f"-DGP_SPPRE={split.OFF['pre']}", f'-DGP_SPMAGIC={split.MAGIC}', f"-DSEC_FORCE={int(os.environ.get('SEC_FORCE') or 0)}",
                                 f"-DSEC_FORCE_B={int(os.environ.get('SEC_FORCE_B') or 0xFFFF)}",
                                 f"-DGP_RLFORCE={int(os.environ.get('GPLAY_RLFORCE') or 0)}",
@@ -2920,7 +2922,7 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
                     'F846': (2, ps['f846']), 'SAVESEL': (1, ps['savesel']), 'RESTSEL': (1, ps['restsel']),
                     'C3ABB2': (1, ps['c3abb2']), 'NC_T': (1, lib97.LABELS['NC_T']), 'SDX_N': (0, 9),
                     'SEASONPLAYING': (2, s['season']),
-                    'BAL': (0, pgroups.BALANCE), 'GAMETYPE': split.sites(p)['GAMETYPE'], 'NSUM': (0, bigtables.LIMIT if bigtables.ON[0] else 2000)})
+                    'BAL': (0, pgroups.BALANCE), 'GAMETYPE': split.sites(p)['GAMETYPE'], 'NSUM': (0, bigtables.LIMIT_CLUBS if bigtables.ON[0] else 2000)})
     sk = _sack_sites(p)
     adv, adv_calls = _adv_sites(p)
     symbols['C8EA82'] = (1, adv)

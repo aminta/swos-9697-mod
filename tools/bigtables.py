@@ -21,14 +21,40 @@ or through sacups.TABLES (moved()); globals 1730..1849 stay reserved (career mar
 import re
 import struct
 
-LIMIT = 2409                    # global numbers 0..2408: what the 80-record area of a big world's save holds (W1 block,
-                                # UEFA coefficients for LIMIT clubs, uefaq's state, dplay's state, these LIMIT - 2000 bytes)
+LIMIT_CLUBS = 2409              # global numbers 0..2408: what the 80-record area of a big world's save holds (W1 block,
+                                # UEFA coefficients for LIMIT clubs, uefaq's state, dplay's state, these LIMIT - 2000 bytes):
+                                # the SAVED range - bt_save / bt_load, the sum-check loops, uefacoef's NG, the club files' globals
+LIMIT = LIMIT_CLUBS             # (the name every pre-5.0 user knows: always the clubs' saved range - see limit_all())
+LIMIT_ALL_MAX = 4096            # the per-global C arrays (gplay.c pg_pend 4096 bits, ctgame.c CG_TAB 4096 B) hold this many numbers
+# 5.0 (MC 15/11, D2 = G1'): the national teams' globals are 2409..2619 (211 NTs), above the club range, in the IN-MEMORY tables
+# only (nothing about them is saved): LIMIT_ALL = 2620 in a build with the 211-NT data (a NationalPack with explicit bases >=
+# LIMIT_CLUBS), else LIMIT_CLUBS: every 4.x build stays byte-identical.
+
+
+def nt_files(nats=None):
+    """[(physical file, base, count)] of the national packs' files numbered from LIMIT_CLUBS up (the 5.0 NT data), in file order
+    (nats: the NationalPacks, default the build's own - the host tests pass fixtures)."""
+    import mkseason
+    out = []
+    for pk in (mkseason.nationals() if nats is None else nats):
+        for key, (f, base) in sorted(pk.files.items(), key=lambda kv: kv[1][0]):
+            if base >= LIMIT_CLUBS:
+                out.append((f, base, pk.count.get(key, 0)))
+    return out
+
+
+def limit_all(nats=None):
+    """The in-memory tables' size: LIMIT_CLUBS, or just past the highest NT global when the 5.0 NT data is in the build."""
+    nt = nt_files(nats)
+    top = max([b + c for _, b, c in nt] + [LIMIT_CLUBS])
+    assert top <= LIMIT_ALL_MAX, f'LIMIT_ALL {top} > {LIMIT_ALL_MAX}: the per-global C arrays (gplay.c pg_pend, ctgame.c CG_TAB) are too small'
+    return top
 
 
 def ext_off():
     """tmdFileBuffer + ext_off(): table[2000..LIMIT) in a big world's save, right under careerworld's BIGC mark."""
     import careerworld
-    return (careerworld.BIGC_AT - (LIMIT - 2000)) & ~3
+    return (careerworld.BIGC_AT - (LIMIT_CLUBS - 2000)) & ~3
 ON = [False]
 MOVED = {}                      # old obj2 offset -> new obj2 offset (someLeaguesTable, leaguesTableCopy)
 SITES = {}
@@ -96,8 +122,9 @@ def _find(p):
 def retarget(p, area):
     """Early in patch_exe (before every user of the tables): new tables in obj2 (area), fixups and loops moved."""
     d1, a0, d0, table, copy = _find(p)
-    new_t = (area.add(bytes(LIMIT + 4)) + 3) & ~3
-    new_c = (area.add(bytes(LIMIT + 4)) + 3) & ~3
+    nall = limit_all()                          # (5.0: the NT globals above the clubs' range are zero entries of the tables; the loops
+    new_t = (area.add(bytes(nall + 4)) + 3) & ~3   # below stay over LIMIT_CLUBS: nothing writes the NT bytes, they stay 0)
+    new_c = (area.add(bytes(nall + 4)) + 3) & ~3
     fx = [f for f in p.le.fixups() if f[0] == 1 and f[3] == 2 and f[4] in (table[1], copy[1])]
     regs = [struct.pack('<I', a0 + 4 * k) for k in range(4)]        # A0..A3
     nt = nc = 0
@@ -119,7 +146,7 @@ def retarget(p, area):
     engine.ITEM_AT['BT_EXT'] = (2, new_t + 2000)            # bt_load already set them (no 'EN': left as loaded)
     SITES.update(old=table, new=(2, new_t), newcopy=(2, new_c), loops=loops)   # (the loops' 1999 -> LIMIT - 1 in
                                                 # hooks(): careerworld / worldpool / benchnum find the tables by them)
-    print(f'exe: global numbers up to {LIMIT - 1}: someLeaguesTable obj2+{table[1]:#x} -> +{new_t:#x}, '
+    print(f'exe: global numbers up to {LIMIT_CLUBS - 1} (tables {nall}): someLeaguesTable obj2+{table[1]:#x} -> +{new_t:#x}, '
           f'leaguesTableCopy obj2+{copy[1]:#x} -> +{new_c:#x}, {len(loops)} loops of {LIMIT}')
 
 

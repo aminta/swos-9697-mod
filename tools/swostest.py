@@ -4479,6 +4479,8 @@ def world8485():
                         for at, part in zip(rng_sites(os.path.join(exe, 'ITALIAN.EXE')), (v[:3], v[3:6])):   # its
                             s.poke(s.result.base2 + at, part)                       # CareerInitVars draws the
                         s.log.append(f'[rng early] {v.hex()}')                      # fixtures from them)
+                    if k == len(path) - 1:                # (CAREER_TICK: the career's draw pinned before the club's press -
+                        career_tick_pin(s, exe, t)            #  the exe's load time moves it otherwise, notes/harness.md bench_world_top)
                     if all(press(s, s.screen(), x) is None for x in ([t] + [x for x in alts if x != t])) \
                             or s.result.outcome != 'dump':
                         return False, f'new career: {t} not reached ({s.result})'

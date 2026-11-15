@@ -3149,10 +3149,12 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
         assert len(hits) == 2, ('career calendar rows', hits)
         cal_site = hits[:1]                                   # (CareerGameListCommon's league row, cseg_362DE; the
                                                               # second is another row kind: its esi - 56 is a team)
-        symbols.update({'STG_TAB': (2, stg_tab), 'SLOTS_': (2, split.sites(p)['SLOTS']), 'A6R': (2, r['A0'] + 24)})
+        symbols.update({'STG_TAB': (2, stg_tab), 'SLOTS_': (2, split.sites(p)['SLOTS'])})
         LABELS['STG_TAB'] = (2, stg_tab)
     symbols['STG_ON'] = (0, int(bool(stg)))
     import sacups
+    symbols['A6R'] = (2, r['A0'] + 24)      # (the calendar row: gp_scrow (SC_ON) too - a build with supercups and no
+                                            # stage tables, the NZ snapshot's, had no A6R: nasm 'A6R not defined')
     symbols.update({'SLOTS_': (2, split.sites(p)['SLOTS']), 'STR_BASE_': (2, sacups.STR_BASE), 'CAR_DIV': (2, _cardiv(p)),
                     'O2_END_': (2, area.end if area is not None else sacups.STR_BASE + 1)})   # (gp_repoint's name search)
     import strmap                                       # 4.2 option C: the release tag, the 4.1 save's EN item

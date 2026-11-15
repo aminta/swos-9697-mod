@@ -2,10 +2,10 @@
 - the map table's order and classes (release / '(test)' / '(4.3)', obj4check.TEST_ONLY);
 - holes between release bands removed, a fixed non-map band jumped over, every band sized used + floor rounded to
   0x100 (a band under its floor grows, an oversized one shrinks; 128 B for SETPIECE / DIFF2 / SPX);
-- test-only bands moved from 0x30000 with their sizes (after the ones already there), a release band with no byte in
+- test-only bands moved from 0x30000 (SREG2, unlinked, page-aligned there) with their sizes (after the ones already there), a release band with no byte in
   any exe moved with them (--ship packs it), the 4.3 reservations after the last release band;
 - the swreg patch: literal AT / END lines only, a band's inner constant (NAME_CC) moved with it, a chain assert that
-  the new values break reported, the patched module = the plan;
+  the new values break reported with its required order, the patched module = the plan;
 - --verify's compare: the planned layout PASSes; controls: a band whose used bytes grew past its packed size and a
   swreg value off the plan are caught.
 HT_OBJ4PACK_REL=<c/RELxx>: a proposal on the real release dir too (report only)."""
@@ -36,6 +36,8 @@ MAP = """# x
 """
 SWREG = """REG_AT = 0x1800
 OBJ4_END = 0x2000
+SREG2_AT = 0xB000
+SREG2_END = 0xC000
 T3_AT = 0xD000
 T3_END = 0xE000
 KITS_AT = 0xF000
@@ -63,7 +65,7 @@ assert OBJ1MV_AT < OBJ1MV_CC < OBJ1MV_END, 'OBJ1MV_CC inside'
 assert OBJ1MV_END <= FPORT_AT < FPORT_END <= PRACTICE_AT, 'chain'
 """
 USED = {'KITS': 8028, 'OBJ1MV': 3200, 'SETPIECE': 900, 'FPORT': None, 'S7GEO': None, 'PRACTICE': 1884,
-        'MKTHOOK': None, 'SESTRIP': 505, 'SP_METER': None, 'T3': 2000, 'WALL': 100, 'REG': 1100}
+        'MKTHOOK': None, 'SESTRIP': 505, 'SP_METER': None, 'T3': 2000, 'SREG2': None, 'WALL': 100, 'REG': 1100}
 
 
 def setup(ship=()):
@@ -110,6 +112,7 @@ def test_obj4pack_layout():
     assert P['SP_METER']['at'] == 0x30000
     assert P['S7GEO']['cls'] == 'release-unlinked' and P['S7GEO']['at'] >= 0x30000, P['S7GEO']
     assert any(n.startswith('S7GEO: release map band with no byte') for n in notes), notes
+    assert P['SREG2']['at'] % 0x1000 == 0 and P['SREG2']['at'] >= 0x30000 and P['SREG2']['end'] - P['SREG2']['at'] == 0x1000, P['SREG2']
     _, _, _, plan2, _, _ = setup(ship=['S7GEO'])
     P2 = {p['name']: p for p in plan2}
     assert P2['S7GEO']['cls'] == 'release' and P2['S7GEO']['end'] - P2['S7GEO']['at'] == 0x1000, P2['S7GEO']
@@ -126,6 +129,8 @@ def test_obj4pack_swreg_patch():
     assert g['OBJ1MV_CC'] == 0x15C00 + P['OBJ1MV']['at'] - 0x15000 and any(s.startswith('OBJ1MV_CC') for s in inner)
     assert 'KITS_END = 0x11100                      # (a comment kept)' in new, new
     assert any('chain' in f for f in fails) and not any('OBJ1MV_CC inside' in f for f in fails), fails
+    ch = next(f for f in fails if 'chain' in f)
+    assert 'required order: OBJ1MV_END <= PRACTICE_AT' in ch and 'test region now' in ch and 'FPORT_AT' in ch, ch
     old_l, new_l = SWREG.splitlines(), new.splitlines()
     changed = [o for o, n in zip(old_l, new_l) if o != n]
     assert all(o.split('=')[0].strip().endswith(('_AT', '_END', '_CC')) for o in changed), changed

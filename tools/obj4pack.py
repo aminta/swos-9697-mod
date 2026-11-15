@@ -39,6 +39,10 @@ import obj4check as oc  # noqa: E402
 
 ALIGN = 0x100
 TEST_BASE = 0x30000
+# non-map bands that go to the test region when no release exe links them (MC 15/11: shape-only bands addressed
+# through swreg only), with their alignment there: SREG2 = the old-save import's page (sreg.py: exactly one page,
+# obj4_pages floors SREG2_END, SREG2_AT >= lrank's LR_TAB end)
+EXTRA_MOVABLE = {'SREG2': 0x1000}
 MAP_DEFAULT = os.path.join(os.path.dirname(TOOLS), 'internal', 'handoff', 'obj1-room.md')
 
 
@@ -121,6 +125,11 @@ def pack(bl, mp, used, ship=(), test=()):
                          f'- moved to the test region with its size; --ship {n} packs it')
         else:
             packed.append(n)
+    for n, al in EXTRA_MOVABLE.items():
+        if n in B and n not in cls and mx[n] is None and n not in ship:
+            totest.append(n)
+            notes.append(f'{n}: shape-only band with no byte in any of the 8 exes - moved to the test region '
+                         f'({al:#x}-aligned); --ship {n} keeps it in place')
     moving = set(packed) | set(totest) | {n for n, c in cls.items() if c in ('test', '4.3') and n in B}
     fixed = sorted([(a, e, n) for n, a, e in bl if n not in moving and a < TEST_BASE], key=lambda f: f[0])
     plan, cur = [], (B[packed[0]][0] if packed else None)
@@ -157,7 +166,7 @@ def pack(bl, mp, used, ship=(), test=()):
             plan.append(dict(name=n, cls='test', old_at=a0, old_end=e0, at=a0, end=e0, used=mx[n], floor=None,
                              why='already in the test region'))
             continue
-        t = up(t)
+        t = up(t, EXTRA_MOVABLE.get(n, ALIGN))
         plan.append(dict(name=n, cls='test' if n not in totest else 'release-unlinked', old_at=a0, old_end=e0, at=t,
                          end=t + (e0 - a0), used=mx[n], floor=None, why='test region, size kept'))
         t += e0 - a0
@@ -213,10 +222,33 @@ def swreg_patch(text, plan):
                 ok, node.msg = False, ast.Constant(f'{type(ex).__name__}: {ex}')
             if not ok:
                 fails.append(f'line {node.lineno}: ' + (ast.literal_eval(node.msg) if isinstance(node.msg, ast.Constant)
-                                                        else ast.unparse(node.test)[:160]))
+                                                        else ast.unparse(node.test)[:160]) + chain_order(node.test, g))
         else:
             exec(compile(ast.Module([node], []), 'swreg', 'exec'), g)
     return out, inner, fails, {k: v for k, v in g.items() if isinstance(v, int)}
+
+
+def chain_order(test, g):
+    """For a failing comparison chain of NAME_AT / NAME_END names: the same names in the order the new values need
+    ('\n    required: A_END <= B_AT < B_END <= ...'), names of bands that left the chain's range listed apart."""
+    if not isinstance(test, ast.Compare):
+        return ''
+    names = [x.id for x in [test.left] + test.comparators if isinstance(x, ast.Name)]   # (literal bounds left out)
+    if len(names) < 3:
+        return ''
+    if not all(n in g and isinstance(g[n], int) for n in names):
+        return ''
+    test_side = [n for n in names if g[n] >= TEST_BASE]
+    rest = sorted([n for n in names if n not in test_side], key=lambda n: (g[n], not n.endswith('_END')))
+    out, prev = [], None
+    for n in rest:
+        if prev is not None:
+            out.append('<' if prev.endswith('_AT') and n.endswith('_END') and prev[:-3] == n[:-4] else '<=')
+        out.append(n)
+        prev = n
+    tail = '' if not test_side else ('\n    in the test region now (a chain of their own, >= 0x30000): '
+                                     + ', '.join(sorted(test_side, key=lambda n: g[n])))
+    return '\n    required order: ' + ' '.join(out) + tail
 
 
 def report(plan, notes, pages, used, inner, afails):

@@ -168,14 +168,19 @@ def norm(s):
     return re.sub(r'[^a-z0-9]', '', s)
 
 
+KEYS = {}                                # ident -> clubs.csv key (filled by load_ours: the name similarity of match_last uses it)
+
+
 def load_ours(level):
-    """[(key, name, group letter, (lat, lon), second)] of the level's real 2026-27 clubs (clubs.csv of the h3s7 data + the towns table)."""
+    """[(ident, name, group letter, (lat, lon), second)] of the level's real 2026-27 clubs. ident = the club's 0-based ROW in clubs.csv of the h3s7r data
+    (= the registry's ident, which is what the exe knows); the rule orders clubs and second teams by it (the goldens are keyed by it)."""
     fl, d0, size = LEVELS[level]
     towns = {r['key']: (float(r['lat']), float(r['lon'])) for r in csv.DictReader(open(TOWNS, encoding='utf-8'))}
     out = []
-    for r in csv.DictReader(open(os.path.join(DATA, 'clubs.csv'), encoding='utf-8')):
+    for i, r in enumerate(csv.DictReader(open(os.path.join(DATA, 'clubs.csv'), encoding='utf-8'))):
+        KEYS[i] = r['key']
         if r['file'] == fl and r['division'].isdigit() and d0 <= int(r['division']) < d0 + (3 if level == 'C' else 9):
-            out.append((r['key'], r['name'], 'ABCDEFGHI'[int(r['division']) - d0], towns[r['key']], bool(r['second_of'])))
+            out.append((i, r['name'], 'ABCDEFGHI'[int(r['division']) - d0], towns[r['key']], bool(r['second_of'])))
     return out
 
 
@@ -187,7 +192,7 @@ def match_last(ours, last_groups):
         best = None
         for g, m in members:
             d = km(pos, (m[2], m[3]))
-            r = max(difflib.SequenceMatcher(None, norm(name), norm(m[0])).ratio(), difflib.SequenceMatcher(None, norm(key), norm(m[0])).ratio())
+            r = max(difflib.SequenceMatcher(None, norm(name), norm(m[0])).ratio(), difflib.SequenceMatcher(None, norm(KEYS.get(key, str(key))), norm(m[0])).ratio())
             if d <= 25 and r >= 0.55 and (best is None or (r, -d) > best[0]):
                 best = ((r, -d), g, m)
         res[key] = (best[1], best[2]) if best else None
@@ -296,6 +301,21 @@ def golden_cases():
     return cases
 
 
+def golden_json(c):
+    """A case with INTEGER idents as arrays (JSON object keys are strings): clubs [[id, lat, lon]], last [[id, group|null]], prev_second / out [[id, group]],
+    all sorted by ident; second = the sorted idents; anchors stay {group: [lat, lon]}."""
+    return dict(name=c['name'], level=c['level'], size=c['size'], seed=c['seed'], anchors={g: list(v) for g, v in c['anchors'].items()},
+                clubs=[[k, *c['clubs'][k]] for k in sorted(c['clubs'])], last=[[k, c['last'][k]] for k in sorted(c['last'])],
+                second=sorted(c['second']), prev_second=[[k, c['prev_second'][k]] for k in sorted(c['prev_second'])],
+                out=[[k, c['out'][k]] for k in sorted(c['out'])])
+
+
+def golden_inputs(j):
+    """The inverse of golden_json: (clubs, anchors, size, last, second set, prev_second, seed) with integer idents."""
+    return ({k: (la, lo) for k, la, lo in j['clubs']}, {g: tuple(v) for g, v in j['anchors'].items()}, j['size'],
+            {k: g for k, g in j['last']}, set(j['second']), {k: g for k, g in j['prev_second']}, j['seed'])
+
+
 GOLDEN = os.path.join(os.path.dirname(os.path.abspath(__file__)), 's7redraw_golden.json')
 
 
@@ -304,7 +324,7 @@ if __name__ == '__main__':
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     if sys.argv[1:] == ['golden']:
         import json
-        cs = golden_cases()                              # (one case a line: later diffs stay readable)
+        cs = [golden_json(c) for c in golden_cases()]    # (one case a line: later diffs stay readable)
         with open(GOLDEN, 'w') as f:
             f.write('[\n' + ',\n'.join(json.dumps(c, sort_keys=True, separators=(',', ':')) for c in cs) + '\n]\n')
         print('wrote', GOLDEN, len(cs), 'cases')

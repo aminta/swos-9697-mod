@@ -16,27 +16,30 @@ def _cases():
 
 
 def _run(c):
-    clubs = {k: tuple(v) for k, v in c['clubs'].items()}
-    anchors = {g: tuple(v) for g, v in c['anchors'].items()}
-    return R.rule(clubs, anchors, c['size'], c['last'], set(c['second']), c['prev_second'], c['seed'])
+    return R.rule(*R.golden_inputs(c))
+
+
+def _out(c):
+    return {k: g for k, g in c['out']}
 
 
 def test_s7redraw_golden():
     cs = _cases()
     assert len(cs) >= 27
     for c in cs:
-        assert _run(c) == c['out'], c['name']
+        assert _run(c) == _out(c), c['name']
 
 
 def test_s7redraw_invariants():
     for c in _cases():
-        out = c['out']
-        assert set(out) == set(c['clubs']), ('a club lost or invented', c['name'])
+        out = _out(c)
+        assert set(out) == {x[0] for x in c['clubs']}, ('a club lost or invented', c['name'])
         for g in c['anchors']:
             assert sum(1 for v in out.values() if v == g) == c['size'], (c['name'], g)
         sec = c['second']
         assert len({out[k] for k in sec}) == len(sec), ('two second teams in one group', c['name'])
-        assert all(out[k] != c['prev_second'].get(k) for k in sec), ('a second team in last season\'s group', c['name'])
+        prev = {k: g for k, g in c['prev_second']}
+        assert all(out[k] != prev.get(k) for k in sec), ('a second team in last season\'s group', c['name'])
 
 
 def test_s7redraw_deterministic():
@@ -49,5 +52,6 @@ def test_s7redraw_seed_draw():
     by = {}
     for c in _cases():
         if c['name'] == 'real_C' or c['name'].startswith('C_seed'):
-            by[c['seed']] = tuple(c['out'][k] for k in sorted(c['second']))
+            o = _out(c)
+            by[c['seed']] = tuple(o[k] for k in sorted(c['second']))
     assert len(set(by.values())) == 2, by          # (Inter U23 A / Juventus NG B / Atalanta C last season: 2 derangements)

@@ -25,8 +25,9 @@ Knobs (sites found by bytes in obj1, every language; each overwritten instructio
 No stub calls Rand / Rand2; at DF_ACT 0 (and at L3) every register, flag that is read later and memory word ends as the
 original's.
 
-Test switches (modver TEST_VARS, never in a release build): DIFF_TEST=1..5 = the stubs in + DF_W's start level (until the
-OPTIONS row exists); DIFF_FORCE=1 = the proxy match: a coach team (TEAM_COACH / playerCoachNumber) counts as the human.
+Release (Davide 15/11 "si', nella 4.2"): every build carries the OPTIONS rows DIFFICULTY / DRIBBLING, starting at
+NORMAL + CLASSIC (= the original game). Test switches (modver TEST_VARS, never in a release build): DIFF_TEST=1..5 = only
+DF_W's start level; DIFF_FORCE=1 = the proxy match: a coach team (TEAM_COACH / playerCoachNumber) counts as the human.
 Harness: the data block's tag 'DIFF' (DF_W, DF_ACT, counters).
 """
 import os
@@ -1881,11 +1882,11 @@ def data_asm():
 
 
 def on():
-    return bool(os.environ.get('DIFF_TEST') or os.environ.get('DIFF_TRACE'))
+    return True                         # (4.2 ships the options, Davide 15/11; DIFF_TEST only sets the start level)
 
 
 def knobs():
-    return bool(os.environ.get('DIFF_TEST'))
+    return not trace() or bool(os.environ.get('DIFF_TEST'))   # (the OPTIONS rows: every build but a pure DIFF_TRACE one)
 
 
 def start_w():
@@ -2080,7 +2081,7 @@ def patch(p, lang):
     assert not dribble.on(), 'DIFF_TEST and DRIBBLE_TEST: the carrier site is one (difficulty has the DRIBBLING rows)'
     force = bool(os.environ.get('DIFF_FORCE'))
     import modver
-    assert modver.is_test(), 'DIFF_TEST / DIFF_TRACE: test builds only (until the OPTIONS row)'
+    assert not trace() or modver.is_test(), 'DIFF_TRACE: test builds only'
     s, sym = find(p)
     sym['SWOSPP'] = controls.locate(p)['SWOSPP']
     g = gkinj.find(p)
@@ -2343,8 +2344,9 @@ def patch(p, lang):
     LABELS.update(lab)
     SITES.clear()
     SITES.update(s)
-    print(f'exe: difficulty test (DIFF_TEST={os.environ.get("DIFF_TEST", "")}{", DIFF_FORCE" if force else ""}'
-          f'{", DIFF_TRACE" if tr else ""}): code obj4+{at:#x} ({len(code)} B), '
+    kind = f'test (DIFF_TEST={os.environ["DIFF_TEST"]})' if os.environ.get('DIFF_TEST') else 'release (NORMAL + CLASSIC)'
+    print(f'exe: difficulty {kind}{", DIFF_FORCE" if force else ""}'
+          f'{", DIFF_TRACE" if tr else ""}: code obj4+{at:#x} ({len(code)} B), '
           f'{len(hooks) + (4 if knobs() else 0)} obj1 sites{" + Flip / TimerProc" if tr else ""}')
     return at + len(code)
 

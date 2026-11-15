@@ -1032,6 +1032,7 @@ def patch_exe(src, dst, remap, lang='it'):
             assert swreg.ST_AT + swreg.ST_SIZE <= lrank.LR_AT, ('ST', hex(swreg.ST_AT), hex(lrank.LR_AT))
             p.put(4, swreg.ST_AT, bytes(swreg.ST_SIZE))
             engine.ITEM_AT['ST'] = (4, swreg.ST_AT)
+            print(f'exe: engine item ST (live state, {swreg.ST_SIZE} B) obj4+{swreg.ST_AT:#x}..{swreg.ST_AT + swreg.ST_SIZE:#x}')   # (obj4check: its page is used, MC 15/11)
             assert swreg.ST_AT + swreg.ST_SIZE <= swreg.SREG_AT, ('ST / SREG', hex(swreg.ST_AT), hex(swreg.SREG_AT))
     assert not conti.LABELS.get('syms') or 'ct_place' in lrank.LABELS, ('4.2 P7: conti linked without ct_place (lrank\'s '
                                                      'band): every group draw would be refused')

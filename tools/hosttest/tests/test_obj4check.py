@@ -173,3 +173,29 @@ def test_obj4check_static():
     bad = [r for r in real if r[3] in ('NOT ALIGNED', 'unresolved')]
     assert not bad, bad
     return True, f'BOX_END 0xd080 + page_end 0x1d400 caught; this checkout: {len(real)} lines, 0 bad'
+
+
+def test_obj4check_live_item_page():
+    """MC 15/11: a zero page holding a linked item the build log reports (patch.py 'engine item ST ... obj4+A..B', the
+    ledger's live zero state) is used - info, not a finding; controls: the same page with no logged item FAILs (a), and
+    a log line giving a whole band's AT..END over a zero page is no live item (FAILs (a))."""
+    o = clean()
+    a = 0x5000
+    if len(o) <= a + 0x1000:
+        o += bytes(a + 0x1000 - len(o))
+    o[a:a + 0x1000] = bytes(0x1000)
+    lg = 'exe: engine item ST (live state, 144 B) obj4+0x5000..0x5090\nOK /x/c/R/SWOS/ITALIAN.EXE\n'
+    ex, it = oc.log_extents(lg), oc.log_items(lg)
+    assert it['SWOS/ITALIAN.EXE'] == {(0x5000, 0x5090)}, it
+    f, i, _ = oc.check_obj4(o, BLF, ex['SWOS/ITALIAN.EXE'], items=it['SWOS/ITALIAN.EXE'])
+    assert not any('0x5000' in x for x in f) and any('obj4+0x5000 used by a logged extent 0x5000..0x5090' in x for x in i), (f, i)
+    f2, _, _ = oc.check_obj4(o, BLF)
+    assert any(x.startswith('(a) zero page obj4+0x5000') for x in f2), f2
+    a3, e3 = B['PRACTICE']                          # control 2 (MC 15/11): a log line with a whole band's range
+    o3 = clean()                                    # over its zero page is no live item: still (a)
+    p3 = a3 // 0x1000 * 0x1000
+    o3[p3:p3 + 0x1000] = bytes(0x1000)
+    ex3 = oc.log_extents(f'exe: PRACTICE band obj4+{a3:#x}..{e3:#x}\nOK /x/c/R/SWOS/ITALIAN.EXE\n')['SWOS/ITALIAN.EXE']
+    f3, i3, _ = oc.check_obj4(o3, BL, ex3)
+    assert any(x.startswith(f'(a) zero page obj4+{p3:#x}') for x in f3) and not any('logged extent' in x for x in i3), (f3, i3)
+    return True, 'ST page used via its logged extent; without the log line it FAILs (a); a whole-band log range FAILs (a)'

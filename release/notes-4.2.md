@@ -14,6 +14,7 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 - A career saved in 4.1 loads in 4.2: nothing is lost and no message appears. Serie D now has 9 groups of 18 clubs (162 clubs).
 - The 6 new places go first to the 6 clubs that join Serie D in 2026-27, if your career has not already brought them in. Otherwise they go to the clubs relegated out of Serie D during your career, in the order the game would have brought them back. These clubs enter their group at the start of the next season.
 - Rare case: the game used provisional clubs (a "stand-in") to fill a Serie D place when a club dropped out of the pyramid. If a stand-in reached Serie C in your 4.1 career, a real Serie D club replaces it the first time you load the save in 4.2, and keeps the stand-in's points and table position.
+- A 4.1 career loaded in the middle of a season finishes that season with the 4.2 rules: in Serie A the last two go down directly and the 17th and 18th play a relegation play-off over two legs, instead of the last three going down.
 
 #### Keeper gloves
 - In the 2026-27 world the goalkeepers now wear white gloves: their hands show white, for every keeper whatever the skin colour. The historic worlds (1996-97, 1984-85 and the historic seasons) keep the bare hands of the original game.
@@ -93,6 +94,7 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 - Una carriera salvata con la 4.1 si carica nella 4.2: non si perde niente e non compare nessun messaggio. La Serie D ora ha 9 gironi da 18 squadre (162 squadre).
 - I 6 posti nuovi vanno prima alle 6 squadre che entrano in Serie D nel 2026-27, se la tua carriera non le ha già fatte entrare. Altrimenti vanno alle squadre retrocesse dalla Serie D nella tua carriera, nell'ordine in cui il gioco le avrebbe riportate su. Queste squadre entrano nel loro girone all'inizio della stagione successiva.
 - Caso raro: il gioco usava squadre provvisorie (una "squadra riserva") per riempire un posto in Serie D quando una squadra usciva dalla piramide. Se una riserva è arrivata in Serie C nella tua carriera 4.1, al primo caricamento nella 4.2 viene sostituita da una vera squadra di Serie D, che tiene i punti e la posizione in classifica della riserva.
+- Una carriera della 4.1 caricata a metà stagione finisce quella stagione con le regole della 4.2: in Serie A le ultime due retrocedono direttamente e la 17ª e la 18ª giocano uno spareggio salvezza di andata e ritorno, invece delle ultime tre retrocesse.
 
 #### Guanti dei portieri
 - Nel mondo 2026-27 i portieri portano i guanti bianchi: le mani si vedono bianche, per ogni portiere qualunque sia il colore della pelle. I mondi storici (1996-97, 1984-85 e le stagioni storiche) hanno le mani nude del gioco originale.

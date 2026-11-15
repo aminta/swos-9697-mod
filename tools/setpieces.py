@@ -216,6 +216,7 @@ sp_set:                                 ; (df_kick, past its SWOS++ / training g
     jmp TKE                             ; (4.2 takers: tk_kick, the TAKERS band's entry - its own ret)
 
 ; ---- DIFFICULTY's OPTIONS handlers and the save item's pack, moved here from page 15 (MC 14/11), PC-relative
+%if GMODE == 0                          ; (4.2 GAMEPLAY: the rows' own handlers are gone - the page's gm_pg changes the variables)
 df_tog:                                 ; DIFFICULTY (fire): NORMAL -> HARD -> EASY -> NORMAL (L2 / L4: back to NORMAL)
     push ebp
     call sp_base
@@ -264,6 +265,7 @@ sp_tog:                                 ; CALCI PIAZZATI (fire): CLASSICI -> REA
     mov word [ebp + SP_W - SPB], 0
 .s: pop ebp
     jmp df_draw
+%endif
 df_pack:                                ; DF_SV = DF_SH = DIFFICULTY | DRIBBLING << 4 | CALCI PIAZZATI << 6 (bits 6-7)
     push eax
     push ebp
@@ -1035,7 +1037,7 @@ def patch(p, lang):
     code, fix, rel = nasmcave.assemble_obj(src, at, sym, 4)
     lab = nasmcave.labels(src, at, sym)
     assert all(lab[k] == v for k, v in PASS1.items()), 'setpieces: labels moved since pass 1'
-    assert len(fix) == 1 and len(rel) == 2, ('setpieces: SPB + DRAWITEM / SHOW_MENU only', fix, rel)
+    assert len(fix) == 1 and len(rel) == (0 if df.GMODE else 2), ('setpieces: SPB (+ DRAWITEM / SHOW_MENU without GAMEPLAY) only', fix, rel)
     from complist import px
     for t in (LABEL[lang],) + VALUES[lang]:
         assert px(t) <= 138 and re.fullmatch(r"[A-Z ']+", t), t

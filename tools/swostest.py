@@ -37729,18 +37729,59 @@ def drp_setp():
 
 
 @scenario
+def gameplay_dump():
+    """TEMP (Panchina): hex of two unpacked menu entries (OPTIONS NB+1 and the page's first value row)"""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import difficulty as dfm
+    import zones
+    import lepatch
+    NB = dfm.NB
+    b = build(f'gameplay_menu_{UI}', {}, lang=UI)
+    p = lepatch.LEPatch(os.path.join(ROOT, 'orig', UI_ORIG))
+    mo = zones._current_menu(p)
+    out = []
+    with Session(f'gameplay_dump_{UI}', b, {}, 'dump:3', 300) as s:
+        s.wait()
+        scr = walk(s, 'OPZIONI', 2)
+        base = s.result.lin(mo)
+        out.append('opt15 ' + s.result.read(base + 0x16 + 16 * 0x38, 0x38).hex())
+        out.append('optNB1 ' + s.result.read(base + 0x16 + (NB + 1) * 0x38, 0x38).hex())
+        walk(s, NB + 1, 2)
+        pg = walk(s, NB + 1, 2)
+        out.append('pagev0 ' + s.result.read(base + 0x16 + 7 * 0x38, 0x38).hex())
+        out.append('pageback ' + s.result.read(base + 0x16 + 13 * 0x38, 0x38).hex())
+    return True, ' | '.join(out)
+
+
+def gm_select(s, i, tries=40):
+    """Move the cursor to entry i (no fire); returns the screen."""
+    for _ in range(tries):
+        scr = s.screen()
+        if scr.selected == i:
+            return scr
+        p = scr.path(i)
+        assert p, f'no path to entry {i} from {scr.selected}'
+        s.send(p[0] + ' dump:0.5')
+    raise AssertionError(f'entry {i} not reached')
+
+
+@scenario
 def gameplay_menu():
-    """4.2 GAMEPLAY (gameplay.py, Panchina): OPTIONS has ONE mod row GAMEPLAY (entries NB / NB+1 = 20 / 21, 22 entries, the six
-    old rows gone: no entry labelled with the old texts), the 9 rows at PITCH from TOP and above QUIT TO DOS, texts in their boxes;
-    fire on NB+1: PERSONALIZZATO -> ORIGINALE (GM_W 1, the live CPU cards / injuries / keeper-injury words forced to 1 = OFF),
-    fire again: back, the page opens (16 entries: title, 6 labels, 6 values, INDIETRO, PREDEFINITI, legend). The swap is lossless
-    (non-default CC / CI / GI poked, 3 round trips, the page's BACK between), PREDEFINITI zeroes the switches. SWOSTEST_UI it."""
+    """4.2 GAMEPLAY (gameplay.py, Panchina; MC 15/11 input rules): OPTIONS has ONE mod row GAMEPLAY (entries NB / NB+1 = 20 / 21,
+    22 entries, the six old rows gone), the 9 rows at PITCH from TOP above QUIT TO DOS, texts in their boxes. Keys: on the row LEFT /
+    RIGHT toggle PERSONALIZZATO <-> ORIGINALE and never open the page (GM_W; ORIGINALE forces the live CPU cards / injuries /
+    keeper-injury words to 1, the user's values parked), FIRE on ORIGINALE -> PERSONALIZZATO (no page), FIRE on PERSONALIZZATO
+    opens the page (16 entries). The swap is lossless (non-default CC_I, 3 round trips, ESC = INDIETRO between). The page, as the
+    DRIBBLING page: LEFT / RIGHT = the previous / next value clamped, FIRE = the next value wrapping; DRIBBLING reaching
+    PERSONALIZZATO opens its page, ESC comes back; ESC leaves a page (INDIETRO); PREDEFINITI zeroes. SWOSTEST_UI it."""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import difficulty as dfm
     import gameplay as gm
     import swreg
     from complist import px, SMALL_W
     NB = dfm.NB
+    NR = 6
+    V0 = NR + 1
     errs, notes = [], []
     b = build(f'gameplay_menu_{UI}', {}, lang=UI)
     cc, gk = cc_sites(b)[0], gk_sites(b)[0]
@@ -37749,10 +37790,13 @@ def gameplay_menu():
         scr = walk(s, 'OPZIONI', 2)
         gmw = s.result.lin((4, swreg.GAMEPLAY_AT + gm.GM_W_OFF))
         gmu = s.result.lin((4, swreg.GAMEPLAY_AT + gm.GM_U_OFF))
+        blk = diff_block(s.result)
         rw = lambda: struct.unpack('<HHHH', s.result.read(s.result.lin(cc), 8))       # CC_W, CC_I, the session copy
-        rg = lambda: struct.unpack('<HH', s.result.read(s.result.lin((gk[0], gk[1] + 8 + 8)), 4))   # (see gk_read: GI_W, GI_SH)
         gi = lambda: gk_read(s, gk)[4:6]
         gv = lambda: struct.unpack('<H', s.result.read(gmw, 2))[0]
+        rdw = lambda: struct.unpack('<H', s.result.read(blk + DIFF_OFF['W'], 2))[0]
+        rdr = lambda: struct.unpack('<H', s.result.read(blk + DIFF_OFF['DR'], 2))[0]
+        key = lambda k: s.send(k + ' dump:1')
         lab = scr.find(gm.LABEL[UI], exact=True)
         check(lab == NB and scr.n == NB + 2, f'OPTIONS: {gm.LABEL[UI]} at {lab}, {scr.n} entries (want {NB}, {NB + 2})', errs)
         for old in (dfm.LABEL[UI], dfm.DRLABEL[UI]):
@@ -37763,35 +37807,79 @@ def gameplay_menu():
             quit_y = min(g[k][1] for k in g if g[k][1] > rows[-1] and k < NB)
             check(rows == [dfm.TOP + dfm.PITCH * k for k in range(dfm.NROWS)] and g[NB][1] == rows[-1] and g[NB + 1][1] == rows[-1]
                   and rows[-1] + dfm.HEIGHT < quit_y, f'OPTIONS rows {rows}, {NB} {g[NB]}, below {quit_y}', errs)
-            for t in (gm.LABEL[UI],) + gm.VALUES[UI]:
-                check(px(t) <= g[NB][2] - 2 and set(t) <= set(SMALL_W) | {' '}, f'{t!r}: {px(t)} px in {g[NB][2]}', errs)
+            for t in (gm.LABEL[UI],) + gm.VALUES[UI] + (gm.TITLE[UI], gm.LEG[UI]):
+                check(px(t) <= (g[NB][2] - 2 if t not in (gm.TITLE[UI], gm.LEG[UI]) else 278) and set(t) <= set(SMALL_W) | {' '},
+                      f'{t!r}: {px(t)} px', errs)
             notes.append(f'rows {rows[0]}..{rows[-1]} (+{dfm.HEIGHT}), QUIT at {quit_y}')
         check(gv() == 0 and rw()[:2] == (0, 0) and gi()[0] == 0, f'start: GM_W {gv()}, CC {rw()}, GI {gi()}', errs)
         s.shot('gameplay_0')
-        # non-default user values, parked and restored (MC 15/11: lossless, many times, PREDEFINITI)
-        s.poke(s.result.lin(cc), struct.pack('<HH', 0, 1))                     # CC_W 0 (ON), CC_I 1 (OFF)
-        s.poke(s.result.lin((gk[0], gk[1] + 16)), struct.pack('<H', 1)) if False else None
+        # OPTIONS row: LEFT / RIGHT toggle and never open the page; FIRE on ORIGINALE -> PERSONALIZZATO; FIRE on PERSONALIZZATO opens it
+        gm_select(s, NB + 1)
+        seq = []
+        for k in ('left', 'right', 'left', 'fire', 'fire'):
+            key(k)
+            sc = s.screen()
+            seq.append((k, gv(), sc.n))
+        want = [('left', 1, NB + 2), ('right', 0, NB + 2), ('left', 1, NB + 2), ('fire', 0, NB + 2), ('fire', 0, 2 * NR + 4)]
+        check(seq == want, f'OPTIONS row keys {seq} (want {want})', errs)
+        s.shot('gameplay_page')
+        # the page: DIFFICULTY (3 values: DF_W 0 NORMAL, 1 EASY, 2 HARD): LEFT stays at 0, RIGHT .. clamps at 2, FIRE wraps
+        gm_select(s, V0)
+        d = []
+        for k in ('left', 'right', 'right', 'right', 'fire', 'fire'):
+            key(k)
+            d.append((k, rdw()))
+        check(d == [('left', 0), ('right', 1), ('right', 2), ('right', 2), ('fire', 0), ('fire', 1)], f'DIFFICULTY keys {d}', errs)
+        key('left')
+        # a 2-value row (CPU red cards, entry V0 + 3): CC_W 0 / 1
+        gm_select(s, V0 + 3)
+        c = []
+        for k in ('left', 'right', 'right', 'fire', 'fire'):
+            key(k)
+            c.append((k, rw()[0], rw()[2]))
+        check(c == [('left', 0, 0), ('right', 1, 1), ('right', 1, 1), ('fire', 0, 0), ('fire', 1, 1)], f'CPU RED CARDS keys {c} (CC_W, session copy)', errs)
+        key('left')
+        # DRIBBLING: RIGHT, RIGHT reaches PERSONALIZZATO: its page opens, ESC = INDIETRO comes back to this page
+        gm_select(s, V0 + 1)
+        key('right')
+        key('right')
+        sc = s.screen()
+        check(rdr() == 2 and sc.n == 2 * len(dfm.DP_ROWS) + 4, f'DRIBBLING CUSTOM: DF_DR {rdr()}, {sc.n} entries (want the dribbling page)', errs)
+        s.shot('gameplay_drib_page')
+        key('esc')
+        sc = s.screen()
+        check(sc.n == 2 * NR + 4 and rdr() == 2, f'ESC from the dribbling page: {sc.n} entries (want {2 * NR + 4}), DF_DR {rdr()}', errs)
+        gm_select(s, V0 + 1)
+        key('left')
+        key('left')
+        # swap round trips: non-default CC_I / GI parked and restored, ESC leaves the page
+        s.poke(s.result.lin(cc), struct.pack('<HH', 0, 1))
         trips = []
+        key('esc')
         for n in range(3):
-            walk(s, NB + 1, 2)                                                 # -> ORIGINALE
-            trips.append(('orig', gv(), rw()[:2], bytes(s.result.read(gmu, 3))))
+            gm_select(s, NB + 1)
+            key('left')                                                        # -> ORIGINALE
+            trips.append(('orig', gv(), rw()[:2], bytes(s.result.read(gmu, 3))[:2]))
             if n == 0:
                 s.shot('gameplay_orig')
-            pg = walk(s, NB + 1, 2)                                            # -> PERSONALIZZATO: the page opens
-            trips.append(('pers', gv(), rw()[:2], pg.n))
-            if n == 0:
-                s.shot('gameplay_page')
-            walk(s, 2 * 6 + 1, 2)                                              # INDIETRO
-        want = [('orig', 1, (1, 1), bytes((0, 1, 0))), ('pers', 0, (0, 1), 16)] * 3
+            key('left')                                                        # -> PERSONALIZZATO
+            key('fire')                                                        # the page
+            sc = s.screen()
+            trips.append(('pers', gv(), rw()[:2], sc.n))
+            key('esc')
+        want = [('orig', 1, (1, 1), bytes((0, 1))), ('pers', 0, (0, 1), 2 * NR + 4)] * 3
         check(trips == want, f'swap round trips {trips} (want {want})', errs)
-        # PREDEFINITI
-        pg = walk(s, NB + 1, 2)
-        walk(s, NB + 1, 2)
-        pg = s.screen()
-        walk(s, 2 * 6 + 2, 2)                                                  # PREDEFINITI
-        check(rw()[:2] == (0, 0) and gv() == 0, f'PREDEFINITI: CC {rw()}, GM_W {gv()}', errs)
+        # PREDEFINITI zeroes the switches
+        gm_select(s, NB + 1)
+        key('fire')
+        gm_select(s, 2 * NR + 2)
+        key('fire')
+        check(rw()[:2] == (0, 0) and rdw() == 0 and rdr() == 0 and gv() == 0, f'PREDEFINITI: CC {rw()}, DF_W {rdw()}, DF_DR {rdr()}', errs)
         s.shot('gameplay_page_reset')
-        notes.append(f'trips {len(trips)}')
+        gm_select(s, 2 * NR + 1)
+        key('fire')
+        check(s.screen().n == NB + 2, f'INDIETRO: {s.screen().n} entries', errs)
+        notes.append(f'{len(trips)} swap trips')
     return not errs, '; '.join(errs + notes)
 
 

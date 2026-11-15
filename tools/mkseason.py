@@ -264,7 +264,8 @@ TACTIC_SHARE_MAX = 0.70      # a world / pack of explicit clubs: no tactic on mo
 TACTIC_SHARE_MIN_CLUBS = 40  # (small packs - a tourney, one cup - are not checked)
 
 
-# where a club's tactic comes from (clubs.csv 'tactic_src', else pack.json "tactic_src", else 'squad'; MC 14/11):
+# where a club's tactic comes from (clubs.csv 'tactic_src', else pack.json "tactic_src", else 'squad' - a clubs.csv
+# without the column and no pack key: pre-4.2 data, 'none', not checked; buildrel refuses it in a release; MC 14/11):
 # coach = its coach's real formation, record = a historic database's own byte (DaniSwos 1984-85, the original files),
 # squad = its squad's defender / midfielder / attacker split, spread = drawn from its country's coaches' formations
 TACTIC_SRCS = ('coach', 'record', 'squad', 'spread')
@@ -1418,8 +1419,9 @@ class Pack:
                 r = self._empty_record(key, bytes(TEAM_SIZE))
                 where = f'clubs.csv: {key}'
                 r[24] = _num(c, 'tactic', 0, 15, where)
-                src = (c.get('tactic_src') or '').strip() or self.meta.get('tactic_src', 'squad')
-                _need(src in TACTIC_SRCS, f'{where}: tactic_src {src!r}: one of {", ".join(TACTIC_SRCS)}')
+                src = (c.get('tactic_src') or '').strip() or self.meta.get('tactic_src') or \
+                    ('squad' if 'tactic_src' in c else 'none')   # (no column, no pack key: pre-4.2 data - not counted)
+                _need(src in TACTIC_SRCS + ('none',), f'{where}: tactic_src {src!r}: one of {", ".join(TACTIC_SRCS)}')
                 self._tactics.append((r[24], src))
                 for col, at in (('kit1', 26), ('kit2', 31)):
                     v = _nums(c, col, 5, 0, 255, where)
@@ -1457,6 +1459,7 @@ class Pack:
         n = len(self._tactics)
         k = collections.Counter(src for _, src in self._tactics)
         print(f"pack {self.meta['id']}: tactics of {n} clubs: " + ', '.join(f'{s_} {100 * k[s_] / n:.0f}%' for s_ in TACTIC_SRCS)
+              + (f', no tactic_src (pre-4.2 data, not checked) {100 * k["none"] / n:.0f}%' if k['none'] else '')
               if n else '', file=sys.stderr)
         self.log(f"{'+'.join(sq['files'])}: {sum(self.count[f] for f in sq['files'])} clubs, explicit records")
         return out

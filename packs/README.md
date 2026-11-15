@@ -124,7 +124,8 @@ real bracket.
     2 black, 3 orange, 4 red, 5 blue, 6 maroon, 7 light blue, 8 green, 9 yellow, 10 purple from 3.3.0) and `lineup` (16
     numbers 0–15: which player takes each line-up place). From 4.2 an optional `tactic_src` says where the tactic comes from: `coach` (the coach's real formation), `record`
     (a historic database's own byte), `squad` (the squad's defender / midfielder / attacker split) or `spread` (drawn from
-    the country's coaches' formations); without the column, pack.json `"tactic_src"`, else `squad`. Among the `squad` and
+    the country's coaches' formations); without the column, pack.json `"tactic_src"`; a column left empty means `squad`.
+    Data from before 4.2 (neither the column nor the pack key) still builds, unchecked, but a release build refuses it. Among the `squad` and
     `spread` tactics of 40 or more clubs, one tactic may not hold more than 70% (the build stops). `players.csv` lists exactly 16 players per club in record
     order and adds `position` (`G RB LB D RW LW M A`, matching the role), `number`, `nat` (the game's nationality
     number), `skin` (`light`, `dark`, `ginger`, from 3.3.0 `darkblond`: dark skin, blond hair), the 7 skills `pa ve he ta co sp fi` (passing, shooting, heading,

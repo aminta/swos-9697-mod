@@ -129,7 +129,8 @@ ripropone il tabellone vero.
     9 giallo, 10 viola dalla 3.3.0) e `lineup` (16 numeri 0–15: quale giocatore occupa ogni posto della formazione). Dalla 4.2 la colonna facoltativa `tactic_src` dice da dove viene la tattica: `coach` (il modulo reale
     dell'allenatore), `record` (il byte di un database storico), `squad` (la divisione difensori / centrocampisti /
     attaccanti della rosa) o `spread` (estratta dai moduli degli allenatori del paese); senza la colonna vale `"tactic_src"`
-    di pack.json, altrimenti `squad`. Fra le tattiche `squad` e `spread` di 40 o più club nessuna può superare il 70% (la
+    di pack.json; una cella vuota vale `squad`. I dati di prima della 4.2 (senza colonna né chiave nel pack) si compilano
+    ancora, senza controllo, ma una build di release li rifiuta. Fra le tattiche `squad` e `spread` di 40 o più club nessuna può superare il 70% (la
     compilazione si ferma). `players.csv` elenca
     esattamente 16 giocatori per club nell'ordine del record e aggiunge `position` (`G RB LB D RW LW M A`, coerente
     con il ruolo), `number`, `nat` (il numero di nazionalità del gioco), `skin` (`light` chiara, `dark` scura,

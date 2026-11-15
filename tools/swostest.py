@@ -39877,6 +39877,9 @@ def world_s7cross_winners_x():
     return s7winners(1, True)
 
 
+S7W_TICK = '1234'                       # (CAREER_TICK default of the S7 winners scenarios)
+
+
 def s7winners(force, crossed):
     """The WINNERS page's last season after an S7 crossing (world5tm-h2 + the S7 test pack): season 1 is played with the
     career club (LIGORNA, Serie D girone A) forced to place `force` of its group, saved at season 2's start and loaded in
@@ -39890,6 +39893,7 @@ def s7winners(force, crossed):
     wn_disk left native."""
     import glob
     import json
+    os.environ.setdefault('CAREER_TICK', S7W_TICK)      # (the draw pinned: 1234 = the draw whose Serie D winner left the contest - wn_disk read his name past the file; 15/11)
     env = s7_env(dict({'GPLAY_FORCE': str(force)}, **({'S7_WNOFF': '1'} if os.environ.get('S7_WNOFF') else {})))
     if env is None:
         return True, 'SKIP: S7_PACK (the shaped Italy pack) or internal world5tm-h2 missing'
@@ -39978,6 +39982,7 @@ def world_s7cross_winners_same():
     path) and again with the marker poked to 0 (the old CF_ST path = today's page): the two pages' lines must be identical, and the
     page must exist (VINCITORI ..., a winner block). Control: the page's winner blocks name clubs of the Serie C file."""
     import json
+    os.environ.setdefault('CAREER_TICK', S7W_TICK)
     env = s7_env({'GPLAY_FORCE': '10'})
     if env is None:
         return True, 'SKIP: S7_PACK (the shaped Italy pack) or internal world5tm-h2 missing'

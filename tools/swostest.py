@@ -11101,7 +11101,8 @@ def practice_play(kind, side, esc_at=None, again=False):
             ko += gs == 0 and w['NT'] == 0      # (ST_PLAYERS_TO_INITIAL_POSITIONS before the first attempt: a kick-off)
             if w['ST'] == 2 and kind in ('fk', 'pen') and 6 <= gs <= 14:
                 bz = struct.unpack('<i', r.obj2(g['BALL_O'] + 0x26, 4))[0] >> 16
-                if bz > 1:
+                gsp = struct.unpack('<h', r.obj2(g['GSP_O'], 2))[0]
+                if bz > 1 and gsp in (101, 102):    # (the restart not taken yet: a kicked ball may fly)
                     hang += 1
                     if hang == 1:
                         s.shot(f'{tag}_hang')

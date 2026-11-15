@@ -334,7 +334,7 @@ def patch(p, ssyms, rsyms, gsyms, pgsyms, fsyms, risyms):
     flags += (f'-DS7RI_NSTR={len(srows)}',)
     gobj = cobj.compile_c(SRC_GEO, (), sections=True)    # (4.2 geography: its own band, linked first: s7ri.c's reset of the log is an extern)
     gsy, gend, gbss = cobj.link(p, gobj, swreg.S7GEO_AT, (4, 0), limit=swreg.S7GEO_END - 256, text_obj=4,
-                                roots=['s7geochain', 's7geo_ll', 'S7GEO_NEIGH', 'S7GEO_ON', 'S7GEO_LOG', 'S7GEO_NLOG', 'S7GEO_BAD', 'S7GEO_XY', 'S7GEO_HAVE',
+                                roots=['s7geo_ll', 'S7GEO_NEIGH', 'S7GEO_ON', 'S7GEO_LOG', 'S7GEO_NLOG', 'S7GEO_BAD', 'S7GEO_XY', 'S7GEO_HAVE',
                                        'S7GEO_FILE', 'S7GEO_BASE', 'S7GEO_IDENT', 's7rd_level', 'S7RD_SEC', 'S7RD_LOG'])
     assert not gbss, ('s7geo.c: no .bss', gbss)
     ext['S7GEO_NLOG'] = gsy['S7GEO_NLOG'][:2]
@@ -406,7 +406,7 @@ def patch(p, ssyms, rsyms, gsyms, pgsyms, fsyms, risyms):
         assert k in gplay.LABELS, ('s7swap: gplay.c without', k)       # MC ruling (b), S7-only logic in obj4)
         cobj.add_ptr(p, gplay.LABELS[k][1], *syms[f], gplay.LABELS[k][0])
     assert 'GP_GEOCH' in gplay.LABELS, 's7swap: gplay.c without GP_GEOCH'     # (4.2 geography: gplay.c's pg_one hook -> the S7GEO band)
-    cobj.add_ptr(p, gplay.LABELS['GP_GEOCH'][1], *gsy['s7geochain'][:2], gplay.LABELS['GP_GEOCH'][0])
+    # (4.2 S7 redraw: GP_GEOCH stays 0 - the chain movers are removed, s7-redraw.md 3; pg_one's own placement, then the redraw)
     import stadium
     if 'st_hptr' in stadium.LABELS:                     # (st_find: a crossed club's stadium by its home word, obj3)
         cobj.add_ptr(p, stadium.LABELS['st_hptr'][1], *syms['s7_home_word'], stadium.LABELS['st_hptr'][0])
@@ -431,7 +431,7 @@ def patch(p, ssyms, rsyms, gsyms, pgsyms, fsyms, risyms):
         WNL = {}
     LABELS.clear()
     LABELS.update(syms)
-    LABELS.update({k: v for k, v in gsy.items() if k.startswith('S7GEO_')})   # (the S7GEO band's data: the harness's chain log)
+    LABELS.update({k: v for k, v in gsy.items() if k.startswith(('S7GEO_', 'S7RD_'))})   # (the S7GEO band's data: the harness's chain log, the redraw's tables / log)
     LABELS.update(WNL)
     if 'st_cur' in stadium.LABELS:
         LABELS.update(ST_FIND=stadium.LABELS['st_find'], ST_GT1=stadium.LABELS['GT1'], ST_TOP=stadium.LABELS['TOP'])

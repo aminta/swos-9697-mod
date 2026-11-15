@@ -37895,6 +37895,55 @@ def gameplay_menu():
 
 
 @scenario
+def gameplay_mask():
+    """4.2 GAMEPLAY mask at the kick-off (Panchina, MC 15/11 gate): friendly HAMBURG - SCHALKE with DIFFICULTY HARD (DF_W 2),
+    DRIBBLING NEW (DF_DR 1) and CALCI PIAZZATI ARCADE (SP_W 2) poked before the start. GM_W 0 (PERSONALIZZATO): the kick-off
+    sets DF_ACT != 0, DF_DACT 1 and SP_OK 1. GM_W 1 (ORIGINALE): DF_ACT 0, DF_DACT 0, SP_OK 0 - the values the structural
+    gates (diff_structural / sp_structural) prove are the original game. The two sessions differ in GM_W only."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import json
+    import swreg
+    errs, notes = [], []
+    b = build(f'gameplay_mask_{UI}', {}, lang=UI)
+    syms = json.load(open(os.path.join(b, 'ITALIAN.syms.json')))
+    sp = syms['setpieces']
+    g1, g2 = diff_score_sites(b)[:2]
+    top = diff_score_sites(b)[2]
+    import swreg as _sw
+    res = {}
+    for gmv in (0, 1):
+        with Session(f'gameplay_mask_{gmv}_{UI}', b, {}, 'dump:3', 900, match=True) as s:
+            s.wait()
+            friendly_prematch(s, 'HAMBURG', 'SCHALKE')
+            blk = diff_block(s.result)
+            base4 = s.result.base4
+            s.poke(blk + DIFF_OFF['W'], struct.pack('<H', 2))
+            s.poke(blk + DIFF_OFF['DR'], struct.pack('<H', 1))
+            s.poke(base4 + sp['SP_W'][1], struct.pack('<H', 2))
+            s.poke(base4 + _sw.GAMEPLAY_AT + 0x12, struct.pack('<H', gmv))
+            for _ in range(22):
+                s.send('down dump:0.5')
+                if s.screen().selected == 9:
+                    break
+            r = s.send('fire dump:2')
+            for _ in range(40):
+                if r.outcome != 'dump' or struct.unpack('<I', r.read(blk + DIFF_OFF['KICKS'], 4))[0]:
+                    break
+                r = s.send('fire dump:2')
+            if r.outcome == 'dump':
+                bb = r.read(blk, 32)
+                k = struct.unpack_from('<I', bb, DIFF_OFF['KICKS'])[0]
+                res[gmv] = (k, bb[DIFF_OFF['ACT']], bb[DIFF_OFF['DACT']], r.read(base4 + sp['SP_OK'][1], 1)[0])
+            else:
+                errs.append(f'GM_W {gmv}: no kick-off ({r})')
+    check(res.get(0) and res[0][0] > 0 and res[0][1] != 0 and res[0][2] == 1 and res[0][3] == 1,
+          f'PERSONALIZZATO kick-off (kicks, DF_ACT, DF_DACT, SP_OK) {res.get(0)}: want > 0, != 0, 1, 1', errs)
+    check(res.get(1) and res[1][0] > 0 and res[1][1:] == (0, 0, 0),
+          f'ORIGINALE kick-off (kicks, DF_ACT, DF_DACT, SP_OK) {res.get(1)}: want > 0, 0, 0, 0', errs)
+    return not errs, '; '.join(errs + [f'kick-off {res}'])
+
+
+@scenario
 def diff_menu():
     """42-diff: the OPTIONS rows DIFFICULTY (entries NB / NB+1) and DRIBBLING (NB+2 / NB+3) under the bottom row (NB = 26:
     gkinj's, MATCH SPEED out since 13/11; 28 with slow) (difficulty.py, DIFF_TEST build): NB+6 entries (CALCI PIAZZATI NB+4 / NB+5: sp_menu), the NROWS rows at PITCH from y TOP, HEIGHT high, the last ending above

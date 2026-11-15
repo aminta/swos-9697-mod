@@ -714,6 +714,13 @@ wn_disk:                                ; ax = a team word: edx = its name from 
     pushad                              ; ah: 2 + 684 x ah, TeamFile.teamName), unchanged if not read
     mov esi, eax
     movzx eax, al
+%if WNS_
+    push eax                            ; (4.2: the WORLD's team files - data/<stem>.nnn, careerworld's WSTEM[WCUR]: 'team' for the base world,
+    movzx ecx, byte [WCUR_]             ;  'tmwN' for the others - not always the original game's data/team.nnn)
+    mov ecx, [WSTEM_ + ecx * 4]
+    mov [WN_FN + 5], ecx
+    pop eax
+%endif
     mov edi, WN_FN + 10
     xor edx, edx
     mov ecx, 100
@@ -808,6 +815,12 @@ def patch(p, at, lang, sites):
     sym['D8CAA_'] = (2, dplay._play_sites(p, sacups.regs(bytes(p.le.obj_bytes(1))))['d8caa'])
     import gplay
     sym['CN_ST_'] = gplay.LABELS['CN_ST']                # (4.0.5: the career club's last-season division name)
+    import careerworld
+    ns = 'WCUR' in careerworld.LABELS and 'WSTEM' in careerworld.LABELS      # (a build with several worlds: TMWn.nnn files, stadium.py's test)
+    sym['WNS_'] = (0, int(ns))
+    if ns:
+        sym['WCUR_'] = (1, careerworld.LABELS['WCUR'])
+        sym['WSTEM_'] = (1, careerworld.LABELS['WSTEM'])
     sym['TXT2'] = (2, wn['sym']['BUF'][1] + fmtpage.WN_TXT2)   # (4.0.1 wn_lastdiv: the last season's division's text;
                                                                   # 4.0.1 South America: 0x5800, the index grew)
     ttl, tbp, inc = TEXTS[lang]

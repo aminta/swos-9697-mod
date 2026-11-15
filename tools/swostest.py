@@ -4479,6 +4479,8 @@ def world8485():
                         for at, part in zip(rng_sites(os.path.join(exe, 'ITALIAN.EXE')), (v[:3], v[3:6])):   # its
                             s.poke(s.result.base2 + at, part)                       # CareerInitVars draws the
                         s.log.append(f'[rng early] {v.hex()}')                      # fixtures from them)
+                    if k == len(path) - 1:                # (CAREER_TICK: the career's draw pinned before the club's press -
+                        career_tick_pin(s, exe, t)            #  the exe's load time moves it otherwise, notes/harness.md bench_world_top)
                     if all(press(s, s.screen(), x) is None for x in ([t] + [x for x in alts if x != t])) \
                             or s.result.outcome != 'dump':
                         return False, f'new career: {t} not reached ({s.result})'
@@ -40183,6 +40185,9 @@ def world_s7cross_winners_x():
     return s7winners(1, True)
 
 
+S7W_TICK = '1234'                       # (CAREER_TICK default of the S7 winners scenarios)
+
+
 def s7winners(force, crossed):
     """The WINNERS page's last season after an S7 crossing (world5tm-h2 + the S7 test pack): season 1 is played with the
     career club (LIGORNA, Serie D girone A) forced to place `force` of its group, saved at season 2's start and loaded in
@@ -40196,6 +40201,7 @@ def s7winners(force, crossed):
     wn_disk left native."""
     import glob
     import json
+    os.environ.setdefault('CAREER_TICK', S7W_TICK)      # (the draw pinned: 1234 = the draw whose Serie D winner left the contest - wn_disk read his name past the file; 15/11)
     env = s7_env(dict({'GPLAY_FORCE': str(force)}, **({'S7_WNOFF': '1'} if os.environ.get('S7_WNOFF') else {})))
     if env is None:
         return True, 'SKIP: S7_PACK (the shaped Italy pack) or internal world5tm-h2 missing'
@@ -40284,6 +40290,7 @@ def world_s7cross_winners_same():
     path) and again with the marker poked to 0 (the old CF_ST path = today's page): the two pages' lines must be identical, and the
     page must exist (VINCITORI ..., a winner block). Control: the page's winner blocks name clubs of the Serie C file."""
     import json
+    os.environ.setdefault('CAREER_TICK', S7W_TICK)
     env = s7_env({'GPLAY_FORCE': '10'})
     if env is None:
         return True, 'SKIP: S7_PACK (the shaped Italy pack) or internal world5tm-h2 missing'
@@ -40341,6 +40348,69 @@ def world_s7cross_winners_same():
     check(l1 == l2, f'the last-season page differs: S7 path {l1[:1]} vs CF path {l2[:1]}', errs)
     info.append(f'last-season page {l1[:1]}')
     return not errs, '; '.join(errs + info)[:900]
+
+
+WN_CASES = (                                # (world menu name, world byte, team path, the world's team-file stem)
+    ('MONDO 2026-27', '5', 'EUROPA,ITALIA,SERIE B,PALERMO', 'TMW5'),                  # (Serie B: the winner is promoted: it left the contest)
+    ('MONDO 2026-27', '5', 'EUROPA,ITALIA,SERIE C GIRONE A,UNION BRESCIA', 'TMW5'),   # (Serie C: row 41 of file 102 - no such row in the old TEAM.102)
+    ('EUROPA 1984-85', '4', 'INGHILTERRA,FOURTH DIVISION,DARLINGTON', 'TEAM'),        # (the base world: its files are TEAM.nnn; it has NO
+)                                           # last-season page, by design - checked on c/REL42-glv3, without the fix: the case guards 'still none')
+WN_NONE = ('4',)                            # (world bytes whose VINCITORI page has no last-season page: asserted as it is)
+
+
+@scenario
+def world_winners_names():
+    """4.2 (MC 14/11, winners.py wn_disk): the last-season page names a winner who left the contest from the WORLD's own team file: one
+    career per shipped career world (WN_CASE = index into WN_CASES, default all; SWOSTEST_BUILD = a release build): a season played, the career
+    saved and loaded; the VINCITORI last-season page must exist, and every winner it names must be a club of the world's team files (the stem's
+    files of the build's DATA) - for 2026-27 never a name of the old data/team.nnn only (Serie B 'BERWICK RANGERS', Serie C: no page)."""
+    exe = builds()['it']
+    sel = os.environ.get('WN_CASE')
+    cases = [WN_CASES[int(sel)]] if sel not in (None, '') else list(WN_CASES)
+    keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_RENEW', 'W8485_ONE')
+    out, errs = [], []
+    for world, wnum, team, stem in cases:
+        keep = {k: os.environ.get(k) for k in keys}
+        try:
+            os.environ.update(W8485_BUILD=exe, W8485_WORLD=world, W8485_WNUM=wnum, W8485_K='108+', W8485_NOSACK='1', W8485_RENEW='1',
+                              W8485_ONE='1', W8485_TEAM=team)
+            ok, msg = world8485()
+        finally:
+            for k, v in keep.items():
+                if v is None:
+                    os.environ.pop(k, None)
+                else:
+                    os.environ[k] = v
+        car = os.path.join(RUNS, w84_tag() + '_1', 'SWOS', 'W84A.CAR')
+        if not (ok and os.path.exists(car)):
+            errs.append(f'{team}: no W84A.CAR: {msg[:160]}')
+            continue
+        with Session('world_winners_names', exe, {'W84A.CAR': car}, 'dump:2', 300) as s:
+            s.wait()
+            s.send(LOAD1 + ' dump:3')
+            more = []
+            winners_page(s, more)
+        names, old = set(), set()
+        for fn in glob.glob(os.path.join(exe, 'DATA', f'{stem}.[0-9][0-9][0-9]')):
+            b = open(fn, 'rb').read()
+            names |= {b[7 + 684 * o:24 + 684 * o].split(bytes(1))[0].decode('latin-1').strip() for o in range((len(b) - 2) // 684)}
+        for fn in glob.glob(os.path.join(exe, 'DATA', 'TEAM.[0-9][0-9][0-9]')):
+            b = open(fn, 'rb').read()
+            old |= {b[7 + 684 * o:24 + 684 * o].split(bytes(1))[0].decode('latin-1').strip() for o in range((len(b) - 2) // 684)}
+        last = [x.strip() for m in more for x in m]
+        blk = winner_blocks(last)
+        vals = [v for k, v in blk.items() if v and v not in ('DA GIOCARE', 'IN CORSO') and not k.startswith('VINCITORI')]
+        if wnum in WN_NONE:                    # (the base world: the page stays as it was - only the current season's)
+            if last:
+                errs.append(f'{team}: a last-season page appeared where the world has none {last[:6]}')
+        elif not (last and last[0].startswith('VINCITORI ') and vals):
+            errs.append(f'{team}: no last-season page {last[:6]}')
+        else:
+            bad = [v for v in vals if v not in names]
+            if bad:
+                errs.append(f'{team}: winners {bad} are not clubs of {stem} files (blocks {blk})')
+        out.append(f'{team}: {blk}')
+    return not errs, '; '.join(errs + out)[:1500]
 
 
 if __name__ == '__main__':

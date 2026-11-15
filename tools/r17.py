@@ -24,7 +24,7 @@ PM_X = 170                              # (pre-match: right of the row's columns
 ET_X = 122                              # (tactics editor: the list is on the right and its columns cover the row: left of the box, on the pitch's edge)
 WIDTH = 24
 FLAGS = 0x800F                          # (left aligned, yellow = colour 0Fh as SquadAfterDrawCommon's, the small font)
-SQ_X = 100                              # (SQUADRA: the coach line under the list, right of the coach's name, left of ESCI: the columns of row 17 cover x<=300 and the
+SQ_X = 158                              # (SQUADRA: the coach line under the list, right of the coach's name (a long name reaches x ~125), left of ESCI (x 176): the columns of row 17 cover x<=300 and the
 SQ_Y = 191                              #  right edge reads as part of the price; Shaved's shirt-number strip (x 8..194) draws after it and wins while a taken number shows)
 
 ASM = r"""

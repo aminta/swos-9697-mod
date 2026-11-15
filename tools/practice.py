@@ -44,7 +44,7 @@ import nasmcave
 LABELS = {}
 WORK_SZ = 112                           # (swe.c PR_WORK: WK below, then the text buffers BUF - .bss, not band bytes)
 WK = dict(GO=0, KIND=1, DEF=2, ST=3, TMR=4, CY=6, ATK=7, NT=8, NG=10, NFAIL=12, PG=14, NFR=16, HUM=20, LGS=21,
-          RST=22, MAXR=24, STS=26, STN=27, END=28)
+          RST=22, MAXR=24, STS=26, STN=27, BRS=28, END=29)
 BUF = dict(MTXT=(32, 24), RT=(56, 24), R1=(80, 16), R2=(96, 16))   # (written before each page is shown)
 WAITF, ATTF, SETTLE, CLEAR = 20, 560, 25, 240   # frames of play before forcing; an attempt's 8 s (70 Hz); frames after a
                                                 # stoppage that still count a goal; px from the goal line = cleared (~40 m)
@@ -483,11 +483,30 @@ pr_foul:                                ; FREE KICK / PENALTY: a foul on the att
     shl edi, 16
     mov [esi + 1Eh], edi
     mov [ebp + A2_O], esi
+    push esi
     push ebx
     push ebp
     call near TESTFOUL
     pop ebp
     pop ebx
+    pop esi
+    movzx eax, word [ebp + GS_O]        ; (item 5, Davide 15/11: a foul awarded - gameState 6..14 - the ball at once on
+    cmp eax, 6                          ;  the ground at the foul point, still: a ball the keeper held or parried no
+    jb .r                               ;  longer hangs in the air by the goal while the wall forms)
+    cmp eax, 14
+    ja .r
+    lea edi, [ebp + BALL_O]
+    mov eax, [esi + 1Eh]
+    mov [edi + 1Eh], eax
+    mov eax, [esi + 22h]
+    mov [edi + 22h], eax
+    xor eax, eax
+    mov [edi + 26h], eax                ; z 0
+    mov [edi + 2Ch], ax                 ; speed 0
+    mov [edi + 2Eh], eax                ; deltaX / deltaY / deltaZ 0
+    mov [edi + 32h], eax
+    mov [edi + 36h], eax
+    inc byte [ebx + W_BRS_]             ; (the harness: balls reset)
 .r: lea esi, [ebp + D0_O + 14 * 4]
     mov ecx, 15
 .rs:pop dword [esi]

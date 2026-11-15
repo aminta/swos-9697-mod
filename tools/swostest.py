@@ -11084,6 +11084,7 @@ def practice_play(kind, side, esc_at=None, again=False):
               f'(want {row}, {int(side == "def")})', errs)
         awards, shots, clock, ko = {}, 0, 0, 0
         bar, bar_gs = 0, {}                     # (Davide 15/11: no score bar on a practice restart - resultTimer != 0
+        hang = 0                                # (item 5, Davide 15/11: after the whistle no ball left in the air)
         for it in range(int(os.environ.get('PRACTICE_STEPS', '160'))):
             r = s.send('fire:1 dump:1')
             if r.outcome != 'dump':
@@ -11098,6 +11099,12 @@ def practice_play(kind, side, esc_at=None, again=False):
                 if bar == 1:
                     s.shot(f'{tag}_scorebar')
             ko += gs == 0 and w['NT'] == 0      # (ST_PLAYERS_TO_INITIAL_POSITIONS before the first attempt: a kick-off)
+            if w['ST'] == 2 and kind in ('fk', 'pen') and 6 <= gs <= 14:
+                bz = struct.unpack('<i', r.obj2(g['BALL_O'] + 0x26, 4))[0] >> 16
+                if bz > 1:
+                    hang += 1
+                    if hang == 1:
+                        s.shot(f'{tag}_hang')
             if w['ST'] == 2 and gs != 100:      # (an award before its kick: the last sample = the ball placed; gameState
                 prev = awards.get(w['NT'])      # (the ball's y once placed: gameStatePl 102, waiting on the taker)
                 by = struct.unpack('<i', r.obj2(g['BALL_O'] + 0x22, 4))[0] >> 16 \
@@ -11110,6 +11117,9 @@ def practice_play(kind, side, esc_at=None, again=False):
             if w['NT'] >= want and (esc_at or w['ST'] in (0, 1, 3, 4)):
                 break
         awards = list(awards.values())
+        if kind in ('fk', 'pen') and 'BRS' in practice.WK:
+            check(hang == 0 and w['BRS'] >= 1, f'{name}: the ball in the air after the whistle in {hang} samples, '
+                  f'balls reset {w["BRS"]} (want 0 / >= 1)', errs)
         if w['NT'] < want and not esc_at:       # (a stalled attempt: who stands where - the post-mortem)
             r = s.result
             sp = lambda i, o, n=2: struct.unpack('<h' if n == 2 else '<b', r.obj2(g['SPR0_O'] + i * 0x6E + o, n))[0]

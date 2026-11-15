@@ -43,6 +43,13 @@ def nt_files(nats=None):
     return out
 
 
+def tail_sizes(nats=None):
+    """The in-memory tables claimed in the obj2 tail (obj2tail): [] unless the 211-NT data is in the build (then both tables, the
+    LIMIT_ALL + 4 bytes each; a 4.x build keeps them in the area's pages, byte-identical)."""
+    nall = limit_all(nats)
+    return [] if nall == LIMIT_CLUBS else [nall + 4, nall + 4]
+
+
 def limit_all(nats=None):
     """The in-memory tables' size: LIMIT_CLUBS, or just past the highest NT global when the 5.0 NT data is in the build."""
     nt = nt_files(nats)
@@ -56,6 +63,7 @@ def ext_off():
     import careerworld
     return (careerworld.BIGC_AT - (LIMIT_CLUBS - 2000)) & ~3
 ON = [False]
+LABELS = {}                    # (HOSTTEST_SYMS: the tables' obj2 offsets and LIMIT_ALL, patch.hosttest_syms; the exe itself unchanged)
 MOVED = {}                      # old obj2 offset -> new obj2 offset (someLeaguesTable, leaguesTableCopy)
 SITES = {}
 
@@ -119,12 +127,22 @@ def _find(p):
     return d1, a0, d0, table, copy.pop()
 
 
-def retarget(p, area):
-    """Early in patch_exe (before every user of the tables): new tables in obj2 (area), fixups and loops moved."""
+def retarget(p, area, tail0=None):
+    """Early in patch_exe (before every user of the tables): new tables in obj2 (area), fixups and loops moved. tail0: the obj2 tail's
+    start - with the 211-NT data (limit_all() > LIMIT_CLUBS) the tables are claims at its first bytes (obj2tail), not area pages."""
+    import obj2tail
     d1, a0, d0, table, copy = _find(p)
     nall = limit_all()                          # (5.0: the NT globals above the clubs' range are zero entries of the tables; the loops
-    new_t = (area.add(bytes(nall + 4)) + 3) & ~3   # below stay over LIMIT_CLUBS: nothing writes the NT bytes, they stay 0)
-    new_c = (area.add(bytes(nall + 4)) + 3) & ~3
+    if nall > LIMIT_CLUBS:                      # below stay over LIMIT_CLUBS: nothing writes the NT bytes, they stay 0)
+        assert tail0 is not None, 'bigtables.retarget: the obj2 tail start is needed for the NT tables'
+        obj2tail.claim('bigtables.someLeaguesTable', nall + 4)
+        obj2tail.claim('bigtables.leaguesTableCopy', nall + 4)
+        obj2tail.check()
+        new_t = obj2tail.where('bigtables.someLeaguesTable', tail0)
+        new_c = obj2tail.where('bigtables.leaguesTableCopy', tail0)
+    else:
+        new_t = (area.add(bytes(nall + 4)) + 3) & ~3
+        new_c = (area.add(bytes(nall + 4)) + 3) & ~3
     fx = [f for f in p.le.fixups() if f[0] == 1 and f[3] == 2 and f[4] in (table[1], copy[1])]
     regs = [struct.pack('<I', a0 + 4 * k) for k in range(4)]        # A0..A3
     nt = nc = 0
@@ -141,6 +159,7 @@ def retarget(p, area):
     loops = [k for k in loops if any(abs(f[1] - k) < 24 for f in fx)]
     assert len(loops) == 4, [hex(k) for k in loops]
     MOVED.update({table[1]: new_t, copy[1]: new_c})
+    LABELS.update(SOME=(2, new_t), COPY=(2, new_c), LIMIT_ALL=(0, nall), LIMIT_CLUBS=(0, LIMIT_CLUBS))
     import engine                               # world 0 (not a big world): numbers 2000+ in the .CAR engine block;
     engine.save_item('BT_EXT', LIMIT - 2000, clear=False)   # a big world keeps them in its 80-record area too, and
     engine.ITEM_AT['BT_EXT'] = (2, new_t + 2000)            # bt_load already set them (no 'EN': left as loaded)

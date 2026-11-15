@@ -2737,6 +2737,13 @@ def patch(p, lang, area, cave):
         else:
             at, info = _patch_pack(pk, p, lang, area, at, env)
         infos.append(info)
+    for nk in nationals():                      # 5.0 NT (D2 = G1'): explicit NT bases -> the world's teamsCountryNumbers[80..85] (the records
+        nt = sorted((nk.as_file[f], base, nk.count.get(key, 0)) for key, (f, base) in nk.files.items() if base >= 2409)
+        if nt:                                  # say 'as' 80..85: global = tcn[as] + ordinal) and the closing row 86 = the end, so base +
+            for a, base, _ in nt:               # ordinal and count = tcn[n + 1] - tcn[n] both hold; the 1996-97 / 1984-85 worlds: no NT
+                _tcn(p, env, nk.world, a, base, 'base', nk.meta['id'])   # pack with a base >= 2409, nothing here
+            _tcn(p, env, nk.world, 86, nt[-1][1] + nt[-1][2], 'closing', nk.meta['id'])
+        infos.append(info)
     import guests
     if guests.files():                          # the guest clubs' files (guests.py): a country label, a global base
         bases = guests.alloc()                  # each - no country / league entry

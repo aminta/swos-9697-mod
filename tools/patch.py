@@ -470,7 +470,11 @@ def patch_exe(src, dst, remap, lang='it'):
     os.remove(grown)
     o2 = p.le.obj(2)
     obj2_free = (o2.npages - o2pages) * p.le.page_size  # the free pages: above the stack top (ESP = old vsize)
-    careerworld.BSS[0] = obj2_free + o2pages * p.le.page_size if bigw else None
+    import obj2tail                        # 5.0 NT piece 2 (MC 15/11): the tail's first bytes are named claims (bigtables' NT tables),
+    obj2tail.reset()                       # the BSS chain starts after them; no claim (every 4.x build) = no shift
+    tail0 = obj2_free + o2pages * p.le.page_size
+    nt_pre = obj2tail.plan(bigtables.tail_sizes())
+    careerworld.BSS[0] = tail0 + nt_pre if bigw else None
     assert o2.vsize <= obj2_free and p.le.esp_obj == 2 and p.le.esp <= obj2_free
     if bigw:
         careerworld.big_team_buffer(p)     # world 2025-26: countries above 93 clubs (Italy A + B + C)
@@ -499,7 +503,7 @@ def patch_exe(src, dst, remap, lang='it'):
     area = countries.Obj2Area(p, obj2_free, obj2_free + o2pages * p.le.page_size)
     if bigtables.ON[0]:
         assert bigw, 'a world numbering clubs 2000+ is a big world (careerworld.big)'
-        bigtables.retarget(p, area)             # before every user of someLeaguesTable / leaguesTableCopy
+        bigtables.retarget(p, area, tail0)             # before every user of someLeaguesTable / leaguesTableCopy
     menutab.patch(p, area)                      # 4.0: the team-choice list of > 10 competitions (Italy 2026-27: 14)
     world, caf = cafcups.structs(p, area, WORLD_CAVE)
     world = countries.patch(p, lang, area, world, cafcups.continents(caf))
@@ -651,7 +655,7 @@ def patch_exe(src, dst, remap, lang='it'):
     print(f'exe: world cave end {world:#x}: {NZ_CAVE - world} B left (to {NZ_CAVE:#x})')
     assert arg_end <= ARG_FROZEN, (f'arg cave frozen at {ARG_FROZEN:#x} (MC 13/11): new obj1 code goes to obj4 OBJ1MV '
                                    f'(swreg.OBJ1MV_AT) or a ledgered region (internal/handoff/obj1-room.md)', hex(arg_end))
-    num_bss = obj2_free + o2pages * p.le.page_size + (careerworld.BSS_SIZE if bigw else 0)
+    num_bss = tail0 + nt_pre + (careerworld.BSS_SIZE if bigw else 0)
     if CAREER_END[0] is not None:                # 4.0.1: with worlds, in the career cave (the world cave is full)
         CAREER_END[0] = shirtnum.patch(p, (CAREER_END[0] + 3) & ~3, num_bss)
         assert CAREER_END[0] <= CAREER_CAVE + mkseason.CAREER_CAVE_SIZE, hex(CAREER_END[0])
@@ -985,7 +989,7 @@ def patch_exe(src, dst, remap, lang='it'):
     tail = (careerworld.BSS_SIZE if bigw else 0) + shirtnum.BSS_SIZE + blond.BSS_SIZE + menunum.BSS_SIZE + fmtpage.BSS_SIZE \
         + teamstab.BSS_SIZE + blond.BSS2_SIZE + (lgreal_bss() if LG_ROOM else 0)   # obj2 tail (4.0.3: the second
                                                 # pair of variant sets; 4.0.5 lgreal's LGB last)
-    p.set_vsize(2, obj2_free + o2pages * p.le.page_size + tail, bss=tail)
+    p.set_vsize(2, tail0 + nt_pre + tail, bss=tail + nt_pre)
     p.set_base_after(3)                          # (obj3's header base above obj2's final end)
     swe.LANG[0] = lang
     s4_end = swe.patch(p)                        # (obj4: the engine, its base above obj3's)
@@ -1050,7 +1054,7 @@ def patch_exe(src, dst, remap, lang='it'):
     import kits                                  # 4.2 K2 keepers + R1 referee (after swe: swe_match_w27)
     kits.patch(p)
     practice.link_kits(p)                        # (4.2 practice: pr_pmm's kg_cancel site, after kits.py)
-    tailzero.patch(p, tz_at, obj2_free + o2pages * p.le.page_size, (tail + 3) & ~3, nasmcave,   # (DOS/4GW: not zeroed;
+    tailzero.patch(p, tz_at, tail0, (tail + nt_pre + 3) & ~3, nasmcave,   # (DOS/4GW: not zeroed;
                    0x1000 * OBJ3_PAGES, (cg_bss + 3) & ~3)                  # 4.0.6: obj3's tail too)
     o1n, o2n = p.le.obj(1).npages, p.le.obj(2).npages
     print(f'exe: object pages: obj1 {o1n} (SWOS++ limit 237 with the harness page in obj1, CONVENTIONS 22), obj2 {o2n}, '

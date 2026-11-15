@@ -37746,8 +37746,9 @@ def gameplay_dump():
         base = s.result.lin(mo)
         out.append('opt15 ' + s.result.read(base + 0x16 + 16 * 0x38, 0x38).hex())
         out.append('optNB1 ' + s.result.read(base + 0x16 + (NB + 1) * 0x38, 0x38).hex())
-        walk(s, NB + 1, 2)
-        pg = walk(s, NB + 1, 2)
+        gm_select(s, NB + 1)
+        s.send('fire dump:1')
+        out.append('gmw ' + s.result.read(s.result.lin((4, __import__('swreg').GAMEPLAY_AT + 0x12)), 2).hex())
         out.append('pagev0 ' + s.result.read(base + 0x16 + 7 * 0x38, 0x38).hex())
         out.append('pageback ' + s.result.read(base + 0x16 + 13 * 0x38, 0x38).hex())
     return True, ' | '.join(out)
@@ -37849,6 +37850,9 @@ def gameplay_menu():
         key('esc')
         sc = s.screen()
         check(sc.n == 2 * NR + 4 and rdr() == 2, f'ESC from the dribbling page: {sc.n} entries (want {2 * NR + 4}), DF_DR {rdr()}', errs)
+        if sc.n != 2 * NR + 4:                                  # (ESC does not leave it: INDIETRO by fire, to go on)
+            gm_select(s, 2 * len(dfm.DP_ROWS) + 1)
+            key('fire')
         gm_select(s, V0 + 1)
         key('left')
         key('left')
@@ -37856,6 +37860,10 @@ def gameplay_menu():
         s.poke(s.result.lin(cc), struct.pack('<HH', 0, 1))
         trips = []
         key('esc')
+        if s.screen().n != NB + 2:
+            check(False, f'ESC from the GAMEPLAY page: still {s.screen().n} entries (want {NB + 2})', errs)
+            gm_select(s, 2 * NR + 1)
+            key('fire')
         for n in range(3):
             gm_select(s, NB + 1)
             key('left')                                                        # -> ORIGINALE
@@ -37867,6 +37875,9 @@ def gameplay_menu():
             sc = s.screen()
             trips.append(('pers', gv(), rw()[:2], sc.n))
             key('esc')
+            if s.screen().n != NB + 2:
+                gm_select(s, 2 * NR + 1)
+                key('fire')
         want = [('orig', 1, (1, 1), bytes((0, 1))), ('pers', 0, (0, 1), 2 * NR + 4)] * 3
         check(trips == want, f'swap round trips {trips} (want {want})', errs)
         # PREDEFINITI zeroes the switches

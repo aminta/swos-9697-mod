@@ -9,7 +9,6 @@ inside the reserve (asserted: room for 2 more rows).
 ORIGINALE is a MASK applied at kick-off (every switch acts as its original value; the sub-values are kept). GM_W, the engine
 item 'GM' (1 B): 0 = PERSONALIZZATO (default, today's defaults), 1 = ORIGINALE; a save without GM loads PERSONALIZZATO.
 SWOS++: the row is hidden and everything original (as every other row of ours)."""
-import os
 import re
 import struct
 
@@ -31,7 +30,7 @@ VALUES = {'it': ('PERSONALIZZATO', 'ORIGINALE'), 'en': ('CUSTOM', 'ORIGINAL'),  
 TITLE = {'it': 'GAMEPLAY PERSONALIZZATO', 'en': 'CUSTOM GAMEPLAY', 'fr': 'GAMEPLAY PERSONNALISE', 'de': 'INDIVIDUELLE SPIELWEISE'}
 YESNO = {'it': ('SI', 'NO'), 'en': ('YES', 'NO'), 'fr': ('OUI', 'NON'), 'de': ('JA', 'NEIN')}     # (the CPU rows: 0 = SI, today's default)
 PRACTICE = {'it': 'GAMEPLAY: ORIGINALE', 'en': 'GAMEPLAY: ORIGINAL', 'fr': 'GAMEPLAY: ORIGINAL', 'de': 'SPIELWEISE: ORIGINAL'}
-LEG = {'it': 'SINISTRA/DESTRA CAMBIA FUOCO: AVANTI', 'en': 'LEFT/RIGHT CHANGE FIRE: NEXT',
+LEG = {'it': 'SIN/DES CAMBIA FUOCO: AVANTI', 'en': 'LEFT/RIGHT CHANGE FIRE: NEXT',
        'fr': 'GAUCHE/DROITE CHANGE FEU: SUITE', 'de': 'LINKS/RECHTS AENDERT FEUER: WEITER'}
 # rows not in yet (after the freeze: takers, Marco's traits) - their texts are ready, the 'present' flag off
 TAKERS = {'it': 'TIRATORI', 'en': 'TAKERS', 'fr': 'TIREURS', 'de': 'SCHUETZEN'}
@@ -76,7 +75,7 @@ def on():
 # ---- the exe side: the GAMEPLAY band (swreg.GAMEPLAY_AT). Every reference to the other bands is PC-relative (ebp = the band's
 #      start, label differences are assemble-time constants): the only fixups are the obj2 / obj3 bases and the two obj1 calls.
 #      The page is built in the band from a byte image (the packed menu, its pointers zero) + a fill table at each opening.
-GM_W_OFF, GM_U_OFF, GM_SH_OFF, GM3_OFF = 0x12, 0x14, 0x1A, 0x22   # the data's offsets in the band (asserted at the build; the harness reads them)
+GM_W_OFF, GM_U_OFF, GM_SH_OFF, GM3_OFF = 0x12, 0x14, 0x1A, 0x1F   # the data's offsets in the band (asserted at the build; the harness reads them)
 GM_Y, GM_DY, GM_BACK_X, GM_RESET_X, GM_BACK_Y, GM_LEG_Y = difficulty.DP_Y, difficulty.DP_DY, difficulty.DP_BACK_X, \
     difficulty.DP_RESET_X, difficulty.DP_BACK_Y, difficulty.DP_LEG_Y
 
@@ -143,7 +142,8 @@ gm_chk:                                 ; +5  (the kick-off masks: ZF = 1 PERSON
 GM_W: dw 0                              ; +0Ah  the item 'GM': 0 PERSONALIZZATO / 1 ORIGINALE (a word: the string table's variable)
 GM_U: db 0, 0, 0                        ;       the user's CPU cards / injuries / keeper injuries while ORIGINALE
     db 0, 0, 0
-GM_SH: dd 0, 0                          ; the session's copy (a new career zeroes the item)
+GM_SH: dd 0
+    db 0                          ; the session's copy (a new career zeroes the item)
 GM3: dd GM3S                            ; obj3's base (cpucards / gkinj: CC_W, CC_I, GI_W, their session copies)
 
 gm_dri:                                 ; (one rel32 fixup each into the game: every call / jump goes through these)
@@ -177,8 +177,8 @@ gm_row:                                 ; df_add: edi = the OPTIONS entry NB (la
 gm_keep:                                ; ebp = the band: the item -> the session's copy
     mov eax, [ebp + GMO_W]
     mov [ebp + GMO_SH], eax
-    mov eax, [ebp + GMO_W + 4]
-    mov [ebp + GMO_SH + 4], eax
+    mov al, [ebp + GMO_W + 4]
+    mov [ebp + GMO_SH + 4], al
     ret
 gm_load:                                ; after a career load (engine, pushad around): the save's state is the session's
     call gm_base
@@ -187,8 +187,8 @@ gm_new:                                 ; after a new career's defaults (the ite
     call gm_base
     mov eax, [ebp + GMO_SH]
     mov [ebp + GMO_W], eax
-    mov eax, [ebp + GMO_SH + 4]
-    mov [ebp + GMO_W + 4], eax
+    mov al, [ebp + GMO_SH + 4]
+    mov [ebp + GMO_W + 4], al
     ret
 
 gm_var:                                 ; esi = a GM_RT entry: ebx = the variable's address (obj4: band-relative, obj3: + GM3)
@@ -306,6 +306,12 @@ gm_fill:                                ; the page's pointers (ebp = the band)
 .s: mov [edi + eax], ebx
     add esi, 6
     loop .l
+    lea edi, [ebp + GM_MENU - GMB0 + GM_H0] ; the value rows' fire / LEFT / RIGHT handler: gm_pg
+    lea eax, [ebp + gm_pg - GMB0]
+    mov ecx, GM_N
+.h: mov [edi], eax
+    add edi, GM_VSTRIDE
+    loop .h
     ret
 
 gm_reset:                               ; PREDEFINITI: every switch back to its default (while ORIGINALE: the parked values)
@@ -404,8 +410,7 @@ def patch(p, lang):
     assert lab['gm_chk'] == at + 5, ('gameplay: gm_chk is the jump table slot 2', hex(lab['gm_chk']))
     assert len(fix) == 1 and len(rel) == 2, ('gameplay: fixups (GM3, DRAWITEM, SHOW_MENU only: 3 records)', fix, rel)
     left = swreg.GAMEPLAY_END - at - len(code)
-    floor = int(os.environ.get('GAMEPLAY_FLOOR') or 256)   # (TEMP, until Shaved's swreg +0x80 lands: local tests only)
-    assert left >= floor, (f'gameplay: band room (floor {floor})', left)
+    assert left >= 256, ('gameplay: band room (floor 256)', left)
     assert p.le.obj(4).npages * 0x1000 >= swreg.GAMEPLAY_END, 'gameplay: obj4 pages'
     assert not any(p.get(4, at, swreg.GAMEPLAY_END - at)), 'gameplay: band not free'
     p.put(4, at, code)

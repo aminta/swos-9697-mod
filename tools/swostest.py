@@ -16150,6 +16150,8 @@ def sea_start(s):
             if sel == ia + 1:
                 break
             s.send(('right' if sel in (ia - 1, ia) else 'down') + ' dump:0.5')
+        if getattr(s, 'tick_pin', None):        # (season9697_same: currentTick pinned before the press that runs
+            s.tick_pin()                        # CareerInitVars - randomSeed = currentTick - and InitNewSeason)
         s.send('fire dump:3')
 
 
@@ -16371,6 +16373,63 @@ def world_season_end():
     the Puchar Polski to its final, world byte (5, 251) (_world_season_end; ~8 min)."""
     return _world_season_end('world_season_end', 0, ('EUROPA', 'POLONIA'), (5, 251), 'POLONIA EKSTRAKLASA',
                              'POLONIA PUCHAR POLSKI')
+
+
+@scenario
+def world_season_end_8485():
+    """S6a (4.3): a Europe 1984-85 SEASON of Iceland, all clubs the computer's, to FINISCI STAGIONE: the 1. Deild and
+    the Bikarkeppni to its final, world byte (4, 252) (_world_season_end)."""
+    return _world_season_end('world_season_end_8485', 2, ('ISLANDA',), (4, 252), 'ISLANDA 1. DEILD',
+                             'ISLANDA BIKARKEPPNI')
+
+
+@scenario
+def season9697_same():
+    """S6a (4.3, MC 15/11 gate): a 1996-97 SEASON is unchanged. EUROPA > MALTA, all clubs the computer's, both random
+    generators re-pinned at every pause (rng_pin) and currentTick pinned before the start press (the season's
+    randomSeed, as career_tick_pin), to FINISCI STAGIONE on this build and on SEA_REF_BUILD (default
+    c/SEAW1/SWOS: 42-seaw, before S6a): every screen's texts the same, in the same order, and the .SEA saved at the end
+    the same size."""
+    ref = os.environ.get('SEA_REF_BUILD') or os.path.join(MAIN, 'c', 'SEAW1', 'SWOS')
+    if not os.path.isdir(ref):
+        return True, f'SKIP: no reference build {ref}'
+    out = {}
+    for k, b in (('ref', ref), ('this', os.environ.get('SWOSTEST_BUILD') or builds()['it'])):
+        tag = f'season9697_same_{k}'
+        with Session(tag, b, {'SETUP.DAT': setup_file(tag, 1)}, 'dump:2', 1500) as s:
+            if s.wait().outcome != 'dump':
+                return False, f'({k}) no first pause ({s.result})'
+            s.rng_at = rng_sites(os.path.join(s.run, 'SWOS', 'ITALIAN.EXE'))
+            s.rng_pin, s.rng_n = 'season9697_same', 0
+            ct = career_seed_sites(os.path.join(s.run, 'SWOS', 'ITALIAN.EXE'))[2]
+            s.tick_pin = lambda s=s, ct=ct: s.poke(s.result.base2 + ct, struct.pack('<H', 0x1234))
+            press(s, s.screen(), 'STAGIONE', 2)
+            if s.screen().find('CONTINUA', exact=True) is not None:
+                press(s, s.screen(), 'CONTINUA', 2)
+            for t in ('EUROPA', 'MALTA'):
+                if press(s, s.screen(), t, 2) is None:
+                    return False, f'({k}) {t} not in the picker ({s.screen().texts()[:12]})'
+            sea_start(s)
+            seq = []
+            for step in range(2000):
+                if s.result.outcome != 'dump':
+                    return False, f'({k}) step {step}: {s.result}'
+                t = [x for x in s.screen().texts() if x]
+                seq.append(t)
+                if 'FINISCI STAGIONE' in t:
+                    break
+                s.send('fire dump:1')
+            _save_as(s, 'SALVA STAGIONE', 'same')
+            game = s.result.game
+        sea = [f for f in os.listdir(game) if f.upper().endswith('.SEA')]
+        out[k] = (seq, os.path.getsize(os.path.join(game, sea[0])) if sea else None)
+    (a, na), (b_, nb) = out['ref'], out['this']
+    diff = next((i for i, (x, y) in enumerate(zip(a, b_)) if x != y), None)
+    errs = []
+    check(len(a) == len(b_) and diff is None, f'screens differ: {len(a)} vs {len(b_)} steps, first at {diff}: '
+          f'{a[diff][:10] if diff is not None else ""} / {b_[diff][:10] if diff is not None else ""}', errs)
+    check(na == nb and na, f'.SEA sizes {na} / {nb}', errs)
+    return not errs, '; '.join(errs) or f'{len(a)} screens the same to FINISCI STAGIONE (Malta, RNG pinned); .SEA {na} B both'
 
 
 @scenario

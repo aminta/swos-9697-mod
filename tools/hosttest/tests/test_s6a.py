@@ -18,6 +18,7 @@ W = {('benchnum', 'bn_world'), ('careerworld', 'w_noaway'), ('careerworld', 'w_t
 OWN = {('careerworld', 'w_gt'), ('split', '.clean')}   # w_gt itself; split's league init (gameType 3 or 4: the byte)
 C = {('gplay', 'gp_notin'), ('gplay', 'cf_a6'), ('gplay', 'cf_mem'), ('gplay', 'gp_cdmem'),   # (S6a: the career
      # club's rules - CAREERTEAM / SEASONPLAYING: rule 11, the later seasons' fixed list, Coppa D membership)
+     ('gplay', 'gp_mgr'), ('gplay', 'gp_hum'),   # (S6a (c): a career's CAREERTEAM, else the SEASON's human clubs)
      ('benchx', '.car'), ('benchx', 'bx_xnamed'), ('careerworld', 'w_ntw'), ('careerworld', 'w_nc'),
      ('careerworld', 'w_dok'), ('careerworld', 'w_se'), ('gplay', 'gp_mrec'), ('gplay', 'gp_sack'), ('gplay', '.e'),
      ('gplay', 'gp_sc'), ('gplay', 'gp_scgl'), ('gplay', 'vc5_lay'), ('gplay', '.e8'), ('kitcolors', 'km_mode'),
@@ -91,20 +92,20 @@ def test_s6a_registry():
 # career (a C gate, or a career-only menu / path), 'W:<proof>' = reached from a W site in a world SEASON with the
 # scenario that proves it, 'W?' = reached from a W site, proof pending (MC item 2). A new read, or one more than
 # listed, FAILs. HT_S6_SYMS=<build dir> (default c/HTW, mkfixtures.sh's release-recipe build).
-CT_READS = {   # (W?: gp_gf / gp_adv - GP_MGR; split sp_shsel (the 'SH' block) / sp_freeze (FASE 1 capture), via split .f)
+CT_READS = {   # S6a (c), MC 15/11: GP_MGR / GP_IN.mgr and split's 'SH' block + FASE 1 capture take the manager's club
+    # from gplay gp_mgr: CAREERTEAM in a career (its only read, behind GAMETYPE == 4), else the SEASON's own human
+    # club from SELTEAMS (teamControls != 1, survives .SEA) or 0. Proof: swostest world_season_mgr (gp_gf / gp_adv /
+    # Coppa D identical with CAREERTEAM 0 / two stale clubs, all-CPU + one-human, .SEA reload before the GF).
     ('?obj2', ''): (1, 'C'), ('?obj3', ''): (4, 'C'), ('careerworld', 'w_kits'): (1, 'C'),
     ('ctview', 'cv_init'): (1, 'C'), ('difficulty', 'SYMS.BU_ENTRY'): (6, 'C'),
     ('difficulty', 'SYMS.PREV_RET'): (4, 'C'), ('dplay', 'dp_end'): (1, 'C'), ('dplay', 'dp_lend'): (1, 'C'),
-    ('gplay', 'cf_a6'): (1, 'C'), ('gplay', 'cf_mem'): (1, 'C'), ('gplay', 'gp_adv'): (1, 'W?'),
-    ('gplay', 'gp_after'): (1, 'C'), ('gplay', 'gp_cdmem'): (1, 'C'), ('gplay', 'gp_end'): (2, 'C'),
-    ('gplay', 'gp_gf'): (1, 'W?'), ('gplay', 'gp_install'): (2, 'C'), ('gplay', 'gp_notin'): (1, 'C'),
-    ('gplay', 'gp_perm'): (1, 'C'), ('gplay', 'gp_rl'): (1, 'C'), ('gplay', 'gp_sack'): (1, 'C'),
-    ('gplay', 'gp_sc'): (1, 'C'), ('gplay', 'gp_setup'): (1, 'C'), ('gplay', 't2_body'): (1, 'C'),
-    ('lrank', 'lr_res'): (1, 'C'), ('shirtnum', 'SPRIDX'): (2, 'C'), ('split', 'sp_freeze'): (1, 'W?'),
-    ('split', 'sp_shsel'): (1, 'W?'), ('t3', 't3_go'): (1, 'C'), ('t3', 't3_list'): (1, 'C'),
-    ('t3', 't3_sign'): (1, 'C'), ('uefaq', 'SYMS.W_QON'): (2, 'C'), ('uprize', 'up_ko'): (1, 'C'),
-    ('uprize', 'up_lp'): (1, 'C'), ('uprize', 'up_res'): (2, 'C'), ('winners', 'WN_FN'): (5, 'C'),
-    ('xbrowse', 'vs_init'): (1, 'C'), ('xbrowse', 'xs_tail'): (1, 'C'),
+    ('gplay', 'cf_a6'): (1, 'C'), ('gplay', 'cf_mem'): (1, 'C'), ('gplay', 'gp_cdmem'): (1, 'C'),
+    ('gplay', 'gp_mgr'): (1, 'C'), ('gplay', 'gp_notin'): (1, 'C'), ('gplay', 'gp_sack'): (1, 'C'),
+    ('gplay', 'gp_sc'): (1, 'C'), ('lrank', 'lr_res'): (1, 'C'), ('shirtnum', 'SPRIDX'): (2, 'C'),
+    ('t3', 't3_go'): (1, 'C'), ('t3', 't3_list'): (1, 'C'), ('t3', 't3_sign'): (1, 'C'),
+    ('uefaq', 'SYMS.W_QON'): (2, 'C'), ('uprize', 'up_ko'): (1, 'C'), ('uprize', 'up_lp'): (1, 'C'),
+    ('uprize', 'up_res'): (2, 'C'), ('winners', 'WN_FN'): (5, 'C'), ('xbrowse', 'vs_init'): (1, 'C'),
+    ('xbrowse', 'xs_tail'): (1, 'C'),
 }
 
 

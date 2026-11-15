@@ -483,7 +483,8 @@ sp_freeze:                              ; esi = DIY, edx = entry, eax = stage, e
     push ds
     pop es
     cld
-    movzx eax, word [F1_TEAM]
+    call GP_MGRF                        ; (S6a: the manager's club - gplay gp_mgr: a world SEASON's own, never a
+    movzx eax, ax                       ; stale CAREERTEAM)
     push eax
     movzx eax, byte [F1_SEAS]
     push eax
@@ -1207,6 +1208,12 @@ sp_shp: dd sp_shx                       ; the block in use (sp_shsel)
 sp_sh:  times 66 db 0                   ; engine item 'SH': the career league's key (team file, division) + its block
 sp_shx: times 64 db 0                   ; any other league's block (the season end's simulation)
 
+%if MGR_OWN
+sp_mgr:                                 ; (no gplay gp_mgr in this build: the career club)
+    mov ax, [CAREERTEAM]
+    ret
+%endif
+
 sp_shsel:                               ; edx = an entry -> [sp_shp]: the career league's block or the scratch one
     push eax                            ; (gplay's GP_SHB[0] / [1]: 'SH', the scratch - gp_keep)
     mov eax, sp_shx
@@ -1221,7 +1228,7 @@ sp_shsel:                               ; edx = an entry -> [sp_shp]: the career
     push edx                            ; sp_migrate's key already matches)
     mov esi, DIY
     movzx edx, word [esi + 31h]
-    mov ax, [CAREERTEAM]
+    call GP_MGRF                        ; (S6a: gplay gp_mgr, the manager's club; 0: none)
     test ax, ax
     jz .nt
 .ct:
@@ -1987,7 +1994,12 @@ def patch(p, cave, nasmcave, splits):
     f1 = gplay.LABELS.get('f1_capture')             # 4.0.5 the FASE 1 page's capture (gplay.c)
     sym.update(F1_ON=(0, int(bool(f1))))
     if f1:
-        sym.update(F1CAP=f1, F1_TEAM=gplay.LABELS['CAREERTEAM'], F1_SEAS=gplay.LABELS['SEASONPLAYING'])
+        sym.update(F1CAP=f1, F1_SEAS=gplay.LABELS['SEASONPLAYING'])
+    if gplay.LABELS.get('gp_mgr'):                  # S6a (MC 15/11 (c)): the manager's club, gplay's gp_mgr
+        sym.update(GP_MGRF=(1, gplay.LABELS['gp_mgr']), MGR_OWN=(0, 0))
+    else:
+        sym['MGR_OWN'] = (0, 1)
+        src = nasmcave.sub(src, 'call GP_MGRF', 'call sp_mgr', 2)
     if gplay.LABELS.get('GP_SHB'):                  # (4.0.1: gp_keep reads the 'keep' table from the block in use)
         sym['GP_SHB'] = gplay.LABELS['GP_SHB']
         src = nasmcave.sub(src, '    SHB_SET\n', '    mov dword [GP_SHB], sp_sh\n    mov dword [GP_SHB + 4], sp_shx\n')

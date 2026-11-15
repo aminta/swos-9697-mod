@@ -16480,6 +16480,179 @@ def world_season_bye():
                                                                 f'byes {sorted(byes)} absent')
 
 
+def _wsm_syms(b):
+    """(CAREERTEAM, GP_MGR, CD_ST, SELTEAMS, NUMSEL) obj2 offsets of build b (GP_MGR: None without HOSTTEST_SYMS)"""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import dplay
+    import lepatch
+    import mkseason
+    o = lepatch.LEPatch(os.path.join(MAIN, 'orig', 'ITALIAN.EXE'))
+    sel, nsel = mkseason._hook_sites(o)[3:5]
+    p = os.path.join(b, 'ITALIAN.syms.json')
+    mgr = json.load(open(p))['gplay'].get('GP_MGR', [0, None])[1] if os.path.exists(p) else None
+    return dplay._sites(o)[5], mgr, gp_cd(b), sel, nsel
+
+
+def _wsm_clubs(s, sel, nsel):
+    """[(team word, teamControls)] of the SEASON's clubs (SELTEAMS, league order)"""
+    n = struct.unpack('<H', bytes(s.result.obj2(nsel, 2)))[0]
+    ptr = struct.unpack('<I', bytes(s.result.obj2(sel, 4)))[0]
+    d = bytes(s.result.read(ptr, 684 * min(n, 400))) if n else b''
+    return [(d[684 * i] | d[684 * i + 1] << 8, d[684 * i + 4]) for i in range(min(n, 400))]
+
+
+def _wsm_run(tag, b, path, ct, steps, stop=None, save_at=None, load=None):
+    """One world SEASON (STAGIONE > path; RNG + currentTick pinned) with CAREERTEAM poked to ct before the start press
+    and after it (a stale career's club, or 0), fired to FINISCI STAGIONE (or until stop(s, clubs) is true): every
+    match by results (VIS. RISULTATI / - RISULTATO -). save_at = a step: SALVA STAGIONE there (name S6M) and stop;
+    load = a .SEA path: CARICA VECCHIA COMPETIZIONE > S6M instead of the picker, CAREERTEAM poked after the load.
+    Returns dict(seq = screens' texts, mgr = GP_MGR at the end, cd = CD_ST bytes, clubs, sea = the saved .SEA) or a
+    string why not."""
+    ct_off, mgr_off, cd_off, sel, nsel = _wsm_syms(b)
+    files = {'SETUP.DAT': setup_file(tag, 0)}
+    if load:
+        files[os.path.basename(load)] = load
+    out = {'seq': [], 'mgr': None, 'cd': b'', 'clubs': [], 'sea': None}
+    with Session(tag, b, files, 'dump:2', 3600) as s:
+        if s.wait().outcome != 'dump':
+            return f'{tag}: no first pause ({s.result})'
+        exe = os.path.join(s.run, 'SWOS', 'ITALIAN.EXE')
+        s.rng_at, s.rng_pin, s.rng_n = rng_sites(exe), 'world_season_mgr', 0
+        tick = career_seed_sites(exe)[2]
+        poke_ct = lambda: s.poke(s.result.base2 + ct_off, struct.pack('<H', ct))   # noqa: E731
+
+        def pin():
+            s.poke(s.result.base2 + tick, struct.pack('<H', 0x1234))
+            poke_ct()
+        if load:
+            if not _load(s, 'S6M'):
+                return f'{tag}: S6M not listed ({s.screen().texts()[:8]})'
+            poke_ct()
+        else:
+            press(s, s.screen(), 'STAGIONE', 2)
+            if s.screen().find('CONTINUA', exact=True) is not None:
+                press(s, s.screen(), 'CONTINUA', 2)
+            for alt in path:
+                sc = s.screen()
+                t = next((x for x in alt.split('|') if sc.find(x, exact=True) is not None), None)
+                if t is None or press(s, sc, t, 2) is None:
+                    return f'{tag}: {alt} not in the picker ({sc.texts()[:12]})'
+            s.tick_pin = pin
+            sea_start(s)
+            poke_ct()
+        out['clubs'] = _wsm_clubs(s, sel, nsel)
+        for step in range(steps):
+            if s.result.outcome != 'dump':
+                return f'{tag}: step {step}: {s.result}'
+            sc = s.screen()
+            t = [x for x in sc.texts() if x]
+            out['seq'].append(t)
+            if 'FINISCI STAGIONE' in t or (stop and stop(s, out)):
+                break
+            if save_at is not None and step == save_at:
+                _save_as(s, 'SALVA STAGIONE', 's6m')
+                game = s.result.game
+                sea = [f for f in os.listdir(game) if f.upper().startswith('S6M')]
+                out['sea'] = os.path.join(game, sea[0]) if sea else None
+                break
+            w = next((x for x in ('VIS. RISULTATI', '- RISULTATO -') if x in t), None)
+            if w:
+                press(s, sc, w, 1) or s.send('fire dump:1')
+            else:
+                s.send('fire dump:1')
+        else:
+            return f'{tag}: no FINISCI STAGIONE after {steps} steps ({out["seq"][-1][:8] if out["seq"] else ""})'
+        if mgr_off is not None:
+            out['mgr'] = struct.unpack('<H', bytes(s.result.obj2(mgr_off, 2)))[0]
+        out['cd'] = bytes(s.result.obj2(cd_off, CD_SIZE))
+    return out
+
+
+def _wsm_gf(seq):
+    """the Grand Final's days: (step, title) of every screen whose title has GRAND FINAL / FINALE (the play-offs'
+    finals) - the GF day as the harness sees it"""
+    return [(i, t[0]) for i, t in enumerate(seq) if t and ('GRAND' in t[0] or t[0].rstrip('E').endswith(' FINAL'))]
+
+
+@scenario
+def world_season_mgr():
+    """S6a (c), MC 15/11 condition 3: a world SEASON's manager club is its own (gplay gp_mgr: the human club of
+    SELTEAMS, 0 when all are the computer's), never a stale CAREERTEAM. World 2026-27 New Zealand (the Northern League,
+    the Championship and its Grand Final - WSM_PATH): CAREERTEAM poked to 0 and to two of the season's own clubs (a
+    stale career's), in an all-CPU SEASON and in a SEASON with one human club (WSM_CLUB): every screen to FINISCI
+    STAGIONE the same (the GF day, the play-offs' results - gp_adv), and GP_MGR = 0 / the human club (HOSTTEST_SYMS
+    build). Then a .SEA saved at step WSM_SAVE (before the GF) and reloaded with a stale CAREERTEAM: the screens after
+    it = the unbroken run's, the same GF day. Coppa D (WSM_CD=1, Italy all-CPU): CAREERTEAM 0 / two Serie D clubs, CD_ST
+    the same after its first rounds (WSM_CDSTEPS)."""
+    b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
+    path = os.environ.get('WSM_PATH', 'OCEANIA,NUOVA ZELANDA').split(',')
+    club = os.environ.get('WSM_CLUB', 'NORTHERN LGE|NORTHERN LEAGUE,WESTERN SPRINGS').split(',')
+    steps = int(os.environ.get('WSM_STEPS', 4000))
+    errs, info = [], []
+    for human in (False, True):
+        p = path + (club if human else [])
+        kind = 'one human' if human else 'all-CPU'
+        base = _wsm_run(f'wsm_{int(human)}_0', b, p, 0, steps)
+        if isinstance(base, str):
+            return False, '; '.join(errs + [base])
+        hum = [w for w, c in base['clubs'] if c != 1]
+        cpu = [w for w, c in base['clubs'] if c == 1]
+        want = hum[0] if hum else 0
+        check(len(hum) == int(human), f'{kind}: human clubs {[hex(w) for w in hum]}', errs)
+        check(base['mgr'] in (None, want), f'{kind}, CAREERTEAM 0: GP_MGR {base["mgr"]:#x} (want {want:#x})', errs)
+        gf0 = _wsm_gf(base['seq'])
+        check(bool(gf0), f'{kind}: no Grand Final screen in {len(base["seq"])} screens', errs)
+        for ct in (cpu[0], cpu[3]):
+            r = _wsm_run(f'wsm_{int(human)}_{ct:04x}', b, p, ct, steps)
+            if isinstance(r, str):
+                errs.append(r)
+                continue
+            d = next((i for i, (x, y) in enumerate(zip(base['seq'], r['seq'])) if x != y), None)
+            check(d is None and len(r['seq']) == len(base['seq']), f'{kind}, CAREERTEAM {ct:#x}: screens differ from '
+                  f'CAREERTEAM 0 ({len(r["seq"])} vs {len(base["seq"])}, first at {d}: '
+                  f'{r["seq"][d][:6] if d is not None else ""} / {base["seq"][d][:6] if d is not None else ""})', errs)
+            check(r['mgr'] in (None, want), f'{kind}, CAREERTEAM {ct:#x}: GP_MGR {r["mgr"]:#x} (want {want:#x})', errs)
+        info.append(f'{kind}: {len(base["seq"])} screens, GF days {gf0[:3]}, GP_MGR {base["mgr"]}')
+        if not human:
+            at = int(os.environ.get('WSM_SAVE', 0)) or (gf0[0][0] - 40 if gf0 else len(base['seq']) // 2)
+            sv = _wsm_run('wsm_save', b, p, 0, steps, save_at=at)
+            if isinstance(sv, str) or not sv['sea']:
+                errs.append(f'.SEA save at step {at}: {sv if isinstance(sv, str) else "no S6M saved"}')
+                continue
+            ld = _wsm_run('wsm_load', b, p, cpu[0], steps, load=sv['sea'])
+            if isinstance(ld, str):
+                errs.append(ld)
+                continue
+            tail = base['seq'][-len(ld['seq']):]
+            g1 = _wsm_gf(ld['seq'])
+            check(ld['seq'][-1] == base['seq'][-1] and [t for _, t in g1] == [t for _, t in gf0],
+                  f'.SEA reloaded (step {at}, CAREERTEAM {cpu[0]:#x}): GF {g1[:3]} vs {gf0[:3]}, end '
+                  f'{ld["seq"][-1][:6]} vs {base["seq"][-1][:6]}', errs)
+            same = tail == ld['seq']
+            info.append(f'.SEA at step {at} reloaded with CAREERTEAM {cpu[0]:#x}: GF {[t for _, t in g1][:2]}, '
+                        f'{len(ld["seq"])} screens to the end' + (' = the unbroken run\'s' if same else
+                                                                    ' (screen count differs: the load\'s own menus)'))
+    if os.environ.get('WSM_CD'):
+        cdp = os.environ.get('WSM_CDPATH', 'EUROPA,ITALIA').split(',')
+        n = int(os.environ.get('WSM_CDSTEPS', 400))
+        cd0 = _wsm_run('wsm_cd_0', b, cdp, 0, n, stop=lambda s, o: len(o['seq']) >= n)
+        if isinstance(cd0, str):
+            return False, '; '.join(errs + [cd0])
+        gen = [struct.unpack_from('<H', cd0['cd'], CD_SIZE - 2 * 64 + 2 * i)[0] for i in range(64)]
+        sd = [w for w in gen if w and w != 0xFFFF][:2] or [0x0190, 0x0590]
+        check(cd0['cd'][:2] == b'CD', f'Coppa D: no CD_ST after {n} steps ({cd0["cd"][:8].hex()})', errs)
+        for ct in sd:
+            r = _wsm_run(f'wsm_cd_{ct:04x}', b, cdp, ct, n, stop=lambda s, o: len(o['seq']) >= n)
+            if isinstance(r, str):
+                errs.append(r)
+                continue
+            check(r['cd'] == cd0['cd'] and r['seq'] == cd0['seq'], f'Coppa D, CAREERTEAM {ct:#x} (a Serie D club): '
+                  f'CD_ST / screens differ from CAREERTEAM 0 (round {r["cd"][3]} vs {cd0["cd"][3]})', errs)
+        info.append(f'Coppa D: CD_ST round {cd0["cd"][3]} after {n} steps, the same with CAREERTEAM '
+                    f'{", ".join(hex(w) for w in sd)}')
+    return not errs, '; '.join(errs + info)
+
+
 @scenario
 def season9697_same():
     """S6a (4.3, MC 15/11 gate): a 1996-97 SEASON is unchanged. EUROPA > MALTA, all clubs the computer's, both random

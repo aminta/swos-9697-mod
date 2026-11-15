@@ -40035,6 +40035,65 @@ def world_s7cross_winners_same():
     return not errs, '; '.join(errs + info)[:900]
 
 
+WN_CASES = (                                # (world menu name, world byte, team path, the world's team-file stem)
+    ('MONDO 2026-27', '5', 'EUROPA,ITALIA,SERIE B,PALERMO', 'TMW5'),                  # (Serie B: the winner is promoted: it left the contest)
+    ('MONDO 2026-27', '5', 'EUROPA,ITALIA,SERIE C GIRONE A,UNION BRESCIA', 'TMW5'),   # (Serie C: row 41 of file 102 - no such row in the old TEAM.102)
+    ('EUROPA 1984-85', '4', 'INGHILTERRA,FOURTH DIVISION,DARLINGTON', 'TEAM'),        # (the base world: its files are TEAM.nnn)
+)
+
+
+@scenario
+def world_winners_names():
+    """4.2 (MC 14/11, winners.py wn_disk): the last-season page names a winner who left the contest from the WORLD's own team file: one
+    career per shipped career world (WN_CASE = index into WN_CASES, default all; SWOSTEST_BUILD = a release build): a season played, the career
+    saved and loaded; the VINCITORI last-season page must exist, and every winner it names must be a club of the world's team files (the stem's
+    files of the build's DATA) - for 2026-27 never a name of the old data/team.nnn only (Serie B 'BERWICK RANGERS', Serie C: no page)."""
+    exe = builds()['it']
+    sel = os.environ.get('WN_CASE')
+    cases = [WN_CASES[int(sel)]] if sel not in (None, '') else list(WN_CASES)
+    keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_RENEW', 'W8485_ONE')
+    out, errs = [], []
+    for world, wnum, team, stem in cases:
+        keep = {k: os.environ.get(k) for k in keys}
+        try:
+            os.environ.update(W8485_BUILD=exe, W8485_WORLD=world, W8485_WNUM=wnum, W8485_K='108+', W8485_NOSACK='1', W8485_RENEW='1',
+                              W8485_ONE='1', W8485_TEAM=team)
+            ok, msg = world8485()
+        finally:
+            for k, v in keep.items():
+                if v is None:
+                    os.environ.pop(k, None)
+                else:
+                    os.environ[k] = v
+        car = os.path.join(RUNS, w84_tag() + '_1', 'SWOS', 'W84A.CAR')
+        if not (ok and os.path.exists(car)):
+            errs.append(f'{team}: no W84A.CAR: {msg[:160]}')
+            continue
+        with Session('world_winners_names', exe, {'W84A.CAR': car}, 'dump:2', 300) as s:
+            s.wait()
+            s.send(LOAD1 + ' dump:3')
+            more = []
+            winners_page(s, more)
+        names, old = set(), set()
+        for fn in glob.glob(os.path.join(exe, 'DATA', f'{stem}.[0-9][0-9][0-9]')):
+            b = open(fn, 'rb').read()
+            names |= {b[7 + 684 * o:24 + 684 * o].split(bytes(1))[0].decode('latin-1').strip() for o in range((len(b) - 2) // 684)}
+        for fn in glob.glob(os.path.join(exe, 'DATA', 'TEAM.[0-9][0-9][0-9]')):
+            b = open(fn, 'rb').read()
+            old |= {b[7 + 684 * o:24 + 684 * o].split(bytes(1))[0].decode('latin-1').strip() for o in range((len(b) - 2) // 684)}
+        last = [x.strip() for m in more for x in m]
+        blk = winner_blocks(last)
+        vals = [v for k, v in blk.items() if v and v not in ('DA GIOCARE', 'IN CORSO') and not k.startswith('VINCITORI')]
+        if not (last and last[0].startswith('VINCITORI ') and vals):
+            errs.append(f'{team}: no last-season page {last[:6]}')
+        else:
+            bad = [v for v in vals if v not in names]
+            if bad:
+                errs.append(f'{team}: winners {bad} are not clubs of {stem} files (blocks {blk})')
+        out.append(f'{team}: {blk}')
+    return not errs, '; '.join(errs + out)[:1500]
+
+
 if __name__ == '__main__':
     sys.exit(main(sys.argv[1:]))
 

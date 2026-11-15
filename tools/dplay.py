@@ -432,6 +432,16 @@ dp_cupin:                               ; the Coppa Italia Serie C winner of thi
     xor eax, eax
 .s:
     mov [DP_IN + O_CUPW], ax
+%if NOC
+    xor eax, eax                        ; (the other finalist: the same season's, kept beside the winner by dp_cupw)
+    mov ah, [SEASONPLAYING]
+    cmp ah, [DP_SAVE + CUPW_AT + 2]
+    mov ax, [DP_SAVE + CUPW_AT + 3]
+    je .f
+    xor eax, eax
+.f:
+    mov [DP_IN + O_CUPF], ax
+%endif
     pop eax
     ret
 
@@ -600,6 +610,15 @@ dp_cupw:                                ; the Coppa Italia Serie C's final decid
 .w:
     mov ax, [esi]
     mov [DP_SAVE + CUPW_AT], ax
+%if NOC
+    mov edx, [A2R]                      ; (the other side of the final: the finalist)
+    test byte [D7R], 1
+    jz .fn
+    mov edx, [A1R]
+.fn:
+    mov dx, [edx]
+    mov [DP_SAVE + CUPW_AT + 3], dx
+%endif
     mov al, [SEASONPLAYING]
     mov [DP_SAVE + CUPW_AT + 2], al
 .r:
@@ -795,6 +814,22 @@ def s3_b_mask():
     return 0
 
 
+def s3_c_mask():
+    """4.2 S3 glue step 2: 0 when no world's ko_playoffs hold the Serie C play-off 'c_po', else its bit (the play-off's index in the
+    country's spec) - gplay.c GP_SKIPPO's bit. Same both-ways rule as s3_b_mask: the league has the dplay entry, c_po once."""
+    import mkseason
+    for pk in mkseason.packs():
+        lg = pk.league or {}
+        keys = [po.get('key') for po in lg.get('ko_playoffs') or []]
+        if 'c_po' not in keys:
+            continue
+        assert pk.dplay(), "ko_playoffs 'c_po' without the dplay entry (league 'playoffs': 'ita' + 'parallel')"
+        assert len(keys) <= 32, f'ko_playoffs: {len(keys)} play-offs (GP_SKIPPO is 32 bits)'
+        assert keys.count('c_po') == 1, 'ko_playoffs: c_po once'
+        return 1 << keys.index('c_po')
+    return 0
+
+
 def cgaps():
     """4.2: Serie C's play-out gap per group (dplay.c DP_CG1..4, cup_out): the first round's gap of the first 'playout'
     of the dplay world's ko_playoffs whose entrants are all [the group's division, place] - the bytes gp_season's 'too
@@ -846,13 +881,15 @@ def patch(p, at, limit, tables, bss_at, area):
     cupw = int(os.environ.get('DPLAY_CUPW') or 0)            # (test builds: the cup winner's place in that group)
     cg = cgaps()                                             # (4.2: each group's play-out gap, as gp_season reads it)
     obj = cobj.compile_c(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'dplay.c'),
-                         [f'-DDP_FORCE={force}'] + ([f'-DDP_CUPWF={cupw}'] if cupw else [])
-                         + (['-DDP_NOB=1'] if s3_b_mask() else [])          # (4.2 S3: Serie B on gplay; else the 42-int object)
+                         [f'-DDP_FORCE={force}'] + ([f'-DDP_CUPWF={cupw}'] if cupw else []) + ([f'-DDP_CUPFF={int(os.environ["DPLAY_CUPF"])}'] if os.environ.get('DPLAY_CUPF') else [])
+                         + (['-DDP_NOB=1'] if s3_b_mask() else [])
+                         + (['-DDP_NOC=1'] if s3_c_mask() else [])          # (4.2 S3: Serie B on gplay; else the 42-int object)
                          + [f'-DDP_CG{g + 1}={v}' for g, v in enumerate(cg)])
     syms, cend, bss = cobj.link(p, obj, at, (2, bss_at), limit=limit)
     assert bss <= 0x1000, hex(bss)
     keys = ('IN_SIZE', 'OUT_SIZE', 'RSZ', 'NT', 'O_N', 'O_T', 'O_MV', 'MSZ', 'O_PO', 'O_MGR', 'SV_SIZE', 'SV_KIND',
-            'SV_TEAM', 'SV_PTS', 'SV_PRIO', 'SV_RB', 'O_CPO', 'O_MDIV', 'SV_SG', 'SV_SROW', 'SRSZ', 'O_CUPW')
+            'SV_TEAM', 'SV_PTS', 'SV_PRIO', 'SV_RB', 'O_CPO', 'O_MDIV', 'SV_SG', 'SV_SROW', 'SRSZ', 'O_CUPW') \
+        + (('O_CUPF',) if s3_c_mask() else ())             # (4.2 S3 step 2: the other finalist of the Coppa Italia Serie C)
     lay = dict(zip(keys, struct.unpack(f'<{len(keys)}I', p.get(1, syms['DP_LAYOUT'][1], 4 * len(keys)))))
     assert lay['RSZ'] == 12 and lay['MSZ'] == 8 and lay['SV_SIZE'] <= LOG_AT - 4 and lay['SV_KIND'] == 4, lay
     assert lay['SRSZ'] == 16 and lay['SV_SIZE'] == 912, lay           # (swostest world_dplay_b reads the log)
@@ -863,6 +900,7 @@ def patch(p, at, limit, tables, bss_at, area):
     cps = _contests(p, area, tables[0][5])
     tab_src, tab_syms = table_lines(tables)
     symbols = {k: (0, v) for k, v in lay.items()}
+    symbols['NOC'] = (0, int(bool(s3_c_mask())))
     symbols.update({'NDIV': (0, 5), 'DP_IN': syms['DP_IN'], 'DP_OUTB': syms['DP_OUT'], 'dp_season': syms['dp_season'],
                     'dp_lend_c': syms['dp_lend'], 'DP_SVP': syms['DP_SVP'], 'DP_FORCE_ON': (0, int(bool(force))),
                     'DP_CFBP': syms['DP_CFB'], 'dp_forcecfb_c': syms['dp_forcecfb'], 'A0R': (2, r['A0']), 'A1R': (2, r['A0'] + 4), 'A2R': (2, r['A0'] + 8),
@@ -908,7 +946,10 @@ def patch(p, at, limit, tables, bss_at, area):
     p.put(1, ps['rec'], b'\xe8' + struct.pack('<i', lab['dp_rec'] - (ps['rec'] + 5)) + b'\x90')
     p.add_ptr(1, lib97.LABELS['NC_DPP'], 1, lab['dp_perm'])  # (lib97 nc_adv's slot)
     if s3_b_mask():
-        LABELS['DP_BHOLD'] = syms['DP_BHOLD']                  # (gplay.py gp_end: a B phase of an old save finished here)
+        LABELS['DP_BHOLD'] = syms['DP_BHOLD']
+    if s3_c_mask():
+        LABELS['DP_RULEP'] = syms['DP_RULEP']                 # (gplay.py points it at gp_cuprule)
+        LABELS['DP_CHOLD'] = syms['DP_CHOLD']                  # (gplay.py gp_end: a C play-off played on dplay this season end)                  # (gplay.py gp_end: a B phase of an old save finished here)
     LABELS.update(lab, diy=diy, a0=r['A0'], DP_IN=syms['DP_IN'], DP_OUT=syms['DP_OUT'], DP_ST=syms['DP_ST'],   # (winners.py)
                   layout=lay, contests=(c0, c1, c2), save=tmd + save_at,
                   sites=ps)

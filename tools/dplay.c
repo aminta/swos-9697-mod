@@ -39,6 +39,12 @@
 #ifndef DP_NOB
 #define DP_NOB 0
 #endif
+/* (4.2 S3 glue step 2: DP_NOC = 1 when the pack's ko_playoffs hold the Serie C play-off 'c_po' (gplay plays it): dp_season no longer
+   simulates Serie C unless dplay played the career club's C play-off (a saved kind-3 state: DP_CHOLD = 1, gplay then skips
+   c_po that season end). Not compiled in without DP_NOC.) */
+#ifndef DP_NOC
+#define DP_NOC 0
+#endif
 /* (test builds, DPLAY_FORCE >= 16: the play-out is held whatever the points) */
 #define OUT_HELD(t) ((t)[15].pts <= (t)[16].pts + 4 || DP_FORCE >= 16)
 
@@ -46,6 +52,9 @@ typedef unsigned char u8;
 typedef unsigned short u16;
 typedef unsigned int u32;
 typedef signed char s8;
+#if DP_NOC
+#include "cupview.h"
+#endif
 
 enum { NT = 24, NDIV = 5 };
 struct dp_row { u16 team, glob, won, gf, ga, pts; };            /* a place of a final table (12 B) */
@@ -59,6 +68,9 @@ struct dp_in {
     u16 cpo_win;                        /* the career club's Serie C play-off: its winner (0 = simulated) */
     u8 mdiv, pad3;                      /* dp_lend: the career club's table (0 Serie B, 1.. the groups) */
     u16 cupw;                           /* the Coppa Italia Serie C winner (a played final: dp_cupw), 0 = unknown */
+#if DP_NOC
+    u16 cupf;                           /* (4.2 S3 step 2) the other finalist, 0 = unknown */
+#endif
 };
 /* the career club's play-off / play-out (Serie B) or play-off (Serie C) in slot 4 (dp_lend; saved with the career,
    tmdFileBuffer): its clubs in the contest's team list order */
@@ -99,7 +111,11 @@ const u32 DP_LAYOUT[] = { sizeof(struct dp_in), sizeof(struct dp_out), sizeof(st
                           __builtin_offsetof(struct dp_save, prio), __builtin_offsetof(struct dp_save, rb),
                           __builtin_offsetof(struct dp_in, cpo_win), __builtin_offsetof(struct dp_in, mdiv),
                           __builtin_offsetof(struct dp_save, sg), __builtin_offsetof(struct dp_save, srow),
-                          sizeof(struct dp_srow), __builtin_offsetof(struct dp_in, cupw) };
+                          sizeof(struct dp_srow), __builtin_offsetof(struct dp_in, cupw)
+#if DP_NOC
+                          , __builtin_offsetof(struct dp_in, cupf)
+#endif
+                          };
 
 static u32 rng;
 static u32 below(u32 n) {
@@ -222,6 +238,22 @@ static void serie_b(void) {
 #ifndef DP_CG4
 #define DP_CG4 8
 #endif
+#if DP_NOC
+/* (4.2 S3 step 2, MC 15/11: the cup place is ONE implementation, gplay.c cup_rule - FIGC C.U. 209/A; dplay holds no rule code: it
+   calls it through DP_RULEP, patched by gplay.py, on a view of its own tables (DP_IN, no copy) and applies the scroll to the
+   places it lists: pm) */
+volatile const u32 DP_RULEP = 0;
+static u8 sc_g, sc_from;                /* the scroll: group (1 ..), first place (1-based; 0 none) */
+static int pm(int g, int p) { return p + (g == sc_g && sc_from && p + 1 >= sc_from); }   /* a listed place -> the real place */
+static int cup_place(int ng) {
+    struct cup_view v;
+    v.ng = ng; v.gap = DP_CG1; v.real = 1; v.w = DP_IN.cupw; v.f = DP_IN.cupf;
+    for (int g = 0; g < ng; g++) { v.t[g] = (const struct cv_row *)DP_IN.t[g + 1]; v.n[g] = DP_IN.n[g + 1]; }
+    int r = ((int (*)(struct cup_view *))DP_RULEP)(&v);
+    sc_g = v.sfrom ? v.sg + 1 : 0; sc_from = v.sfrom;
+    return (1 + (r >> 5)) * NT + (r & 31);
+}
+#else
 static const u8 DP_CGAP[NDIV] = { 8, DP_CG1, DP_CG2, DP_CG3, DP_CG4 };
 static int cup_out(int g, int k) {     /* place k of group g relegated or in a play-out */
     const struct dp_row *t = DP_IN.t[g];
@@ -240,14 +272,24 @@ static int cup_place(int ng) {
     return best_of(e, ng);
 }
 
+#endif
+
 static void serie_c(void) {
     int ng = DP_IN.ng, q[8], nq = 0, thirds[4], seconds[4], cup, nr1[5], nr1o[5], w1[5], s2[4], o2[4], w2[4];
     if (ng < 2 || ng > 4) return;
     for (int g = 1; g <= ng; g++) if (DP_IN.n[g] < 11) return;
+#if DP_NOC
+    cup = cup_place(ng);                /* (first: its scroll moves the places below) */
+#endif
     for (int g = 1; g <= ng; g++) {
         int b = g * NT, r2[4];
+#if DP_NOC
+        r2[0] = b + pm(g, 3);
+        for (int k = 0; k < 3; k++) r2[1 + k] = tie(K_GR1, b + pm(g, 4 + k), b + pm(g, 9 - k), 1, b + pm(g, 4 + k));
+#else
         r2[0] = b + 3;
         for (int k = 0; k < 3; k++) r2[1 + k] = tie(K_GR1, b + 4 + k, b + 9 - k, 1, b + 4 + k);
+#endif
         sort_better(r2, 4);
         q[nq++] = tie(K_GR2, r2[0], r2[3], 1, r2[0]);
         q[nq++] = tie(K_GR2, r2[1], r2[2], 1, r2[1]);
@@ -301,8 +343,17 @@ static int force_place(int m) {        /* (DP_FORCE 1..20: Serie B place; 101..1
     return DP_FORCE - 1;
 }
 
+#if DP_NOC
+#ifndef DP_CUPFF
+#define DP_CUPFF 0                      /* (test builds, 4.2 S3 step 2: DPLAY_CUPF = group * 100 + place (1-based): the other finalist) */
+#endif
+#endif
 static void cup_force(void) {
     if (DP_CUPWF && DP_IN.mdiv && DP_CUPWF <= DP_IN.n[DP_IN.mdiv]) DP_IN.cupw = DP_IN.t[DP_IN.mdiv][DP_CUPWF - 1].team;
+#if DP_NOC
+    if (DP_CUPFF && DP_CUPFF / 100 >= 1 && DP_CUPFF / 100 <= DP_IN.ng && DP_CUPFF % 100 >= 1 && DP_CUPFF % 100 <= DP_IN.n[DP_CUPFF / 100])
+        DP_IN.cupf = DP_IN.t[DP_CUPFF / 100][DP_CUPFF % 100 - 1].team;
+#endif
 }
 
 /* test builds: the league's own final table too (competitionFileBuffer at DP_CFB, at the league end before dp_rows):
@@ -313,6 +364,9 @@ static void cup_force(void) {
 u8 *DP_CFB;
 #if DP_NOB
 u8 DP_BHOLD;                            /* (set by dp_season, read by gplay.py's gp_end: 0 / 1) */
+#endif
+#if DP_NOC
+u8 DP_CHOLD;                            /* (set by dp_season, read by gplay.py's gp_end: 0 / 1) */
 #endif
 void dp_forcecfb(void) {
     u8 *d = DP_CFB;
@@ -350,7 +404,12 @@ void dp_season(void) {
 #else
     serie_b();
 #endif
+#if DP_NOC
+    DP_CHOLD = DP_IN.cpo_win != 0;                      /* (a C play-off played on dplay: the career club's; else gplay's c_po) */
+    if (DP_CHOLD) serie_c();
+#else
     serie_c();
+#endif
 }
 
 /* The career club's Serie B league has ended (DP_IN.t[0] = its final table, mgr, week): its play-off (places 3-8:
@@ -410,10 +469,20 @@ static void c_lend(void) {
     cup_force();
     for (int k = 0; k < NDIV * NT; k++) lot[k] = (u8)(DP_IN.t[k / NT][k % NT].glob * 37 + 11);
     cup = cup_place(ng);
+#if DP_NOC
+    {   int in = 0;                     /* (the career club plays if it is in a group's lists after the scroll, or takes the cup seat) */
+        for (int p = 1; p <= 9; p++) if (pm(g0, p) == m) in = 1;
+        if (!in && cup != g0 * NT + m) return;
+    }
+    for (int g = 1; g <= ng; g++) for (int k = 0; k < 6; k++) { v->place[i] = pm(g, r1[k]); v->group[i++] = g; }
+    for (int p = 3; p >= 1; p--) {
+        for (int g = 1; g <= ng; g++) { v->place[i] = pm(g, p); v->group[i++] = g; }
+#else
     if (!(m >= 1 && m <= 9) && cup != g0 * NT + m) return;
     for (int g = 1; g <= ng; g++) for (int k = 0; k < 6; k++) { v->place[i] = r1[k]; v->group[i++] = g; }
     for (int p = 3; p >= 1; p--) {
         for (int g = 1; g <= ng; g++) { v->place[i] = p; v->group[i++] = g; }
+#endif
         if (p == 2) { v->place[i] = cup % NT; v->group[i++] = cup / NT; }
     }
     v->kind = 3; v->n = SN; v->cup = 24;

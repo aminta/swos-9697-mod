@@ -1162,6 +1162,32 @@ static void pot_perm(const u8 *s, int *pm) {
    finalist (the same preclusions); both precluded, the 4th of the winner's group; the club taking it from 4th-10th
    leaves its group's play-off and that group scrolls (the places below move up one, the 11th comes in). */
 u16 GP_CUPW, GP_CUPF;                   /* (the glue: the cup's winner and other finalist, team words; 0 unknown) */
+#if GP_S3SKIP
+/* The cup place: cuprule.c's cup_rule - the ONE implementation (MC 15/11, FIGC C.U. 209/A), a leaf TU in obj4's S3C band that
+   gplay's cup_code (the season-end play-off, GP_IN's tables) and dplay's career contest (DP_IN's tables) both call on a view
+   (cupview.h) of the groups' final tables, the cup's winner and finalist, the play-out gap and the rule (real: C.U. 209/A
+   II.1-II.2; else the Mod's 4.1 rule). Its result: the place g * 32 + k (k from 0), and the scroll: the club of group sg
+   leaves its play-off from place sfrom (1-based; 0 none). The host tests include it (GP_RULE_INLINE). */
+#include "cupview.h"
+#ifdef GP_RULE_INLINE
+#include "cuprule.c"
+#else
+extern int cup_rule(struct cup_view *v);
+#endif
+static int cup_code(const u8 *e) {
+    struct cup_view v;
+    int d0 = e[1], ng = e[2], r;
+    v.ng = ng < 4 ? ng : 4; v.gap = e[3] & 0x7F; v.real = e[3] >> 7; v.w = GP_CUPW; v.f = GP_CUPF;
+    for (int g = 0; g < v.ng; g++) {
+        int d = d0 + g;
+        v.t[g] = (const struct cv_row *)(d < GP_IN.nd ? GP_IN.t[d] : GP_IN.t[0]);
+        v.n[g] = d < GP_IN.nd ? GP_IN.n[d] : 0;
+    }
+    if ((r = cup_rule(&v)) < 0) return -1;
+    if (v.sfrom) { x_sdiv = d0 + v.sg; x_sfrom = v.sfrom; }
+    return (d0 + (r >> 5)) * GT + (r & 31);
+}
+#else
 static int cup_out(int d, int k, int gap) {     /* place k (from 0) precluded */
     const struct gp_row *t = GP_IN.t[d];
     int n = GP_IN.n[d];
@@ -1192,6 +1218,7 @@ static int cup_code(const u8 *e) {
         if (GP_IN.n[d] > 10 && (b < 0 || better(d * GT + 10, b))) b = d * GT + 10;
     return b;
 }
+#endif
 static void draw(int *c, int n) {       /* a draw: c[0 .. n) shuffled */
     for (int i = n - 1; i > 0; i--) { int j = below(i + 1), x = c[i]; c[i] = c[j]; c[j] = x; }
 }

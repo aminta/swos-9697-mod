@@ -397,6 +397,9 @@ def patch_exe(src, dst, remap, lang='it'):
     if OBJ1MV_ON[0]:                                   # instcheck; the SEASON WINNERS page when fmtpage has it)
         swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, (swreg.OBJ1MV_END + 0xFFF) // 0x1000)   # (its band's pages, out of obj1)
     swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, -(-swreg.PRACTICE_END // 0x1000))   # 4.2 set-piece practice (MC 14/11: the last band)
+    import dplay as _dps
+    if _dps.s3_b_mask() or _dps.s3_c_mask():                 # 4.2 S3 step 2: cuprule.c's band (S3 builds only)
+        swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, (swreg.S3C_END + 0xFFF) // 0x1000)
     swe.OBJ4_PAGES = sreg.obj4_pages(swe.OBJ4_PAGES)   # (4.2 N7: + the old-save import's 12th page, SREG2_AT)
     if lr_tabs:                                        # (the career league's head-to-head block)
         engine.save_item('LR', lrank.LR_SIZE, world_only=True)

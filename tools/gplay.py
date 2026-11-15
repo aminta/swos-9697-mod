@@ -1981,7 +1981,7 @@ CUP12 = '''
 gp_cdmem:                               ; ZF = 0 when the career club is a Coppa Italia Serie D entrant (cd_member_c),
     pushad                              ; every register kept
     xor ebx, ebx
-    call W_GT             
+    cmp word [GAMETYPE], 4
     jne .r
     mov al, [SLT + WORLD_BYTE]
     cmp al, [CD_TAB]
@@ -2006,7 +2006,7 @@ gp_cdmem:                               ; ZF = 0 when the career club is a Coppa
 gp_notin:                               ; al = a slot (1 / 2): ZF = 0 when the career club is not one of its cup's
     pushad                              ; clubs (rule 11; the cup's definition, D8CAA's slot pointer) -
     xor ebx, ebx                        ; careers of this world only; a Coppa D club: slot 1 hidden, slot 2 its Coppa D
-    call W_GT                           ; (as before)
+    cmp word [GAMETYPE], 4              ; (as before)
     jne .r
     mov cl, [SLT + WORLD_BYTE]
     cmp cl, [CD_TAB]
@@ -2125,7 +2125,7 @@ CF_ASM = '''
 cf_a6:                                  ; 4.0.1 (cupsf.py): a cup's fixed list (`mov [A6], eax`, A0 = its header): a
     mov [A6R], eax                      ; World 2026-27 career's later season takes gplay.c cf_list_c's (the clubs'
     pushad                              ; current divisions, the real format); the game's copy reads it through A6
-    call W_GT             
+    cmp word [GAMETYPE], 4
     jne .x
     mov al, [SLT + WORLD_BYTE]
     cmp al, [CF_DATA]
@@ -2155,7 +2155,7 @@ cf_a6:                                  ; 4.0.1 (cupsf.py): a cup's fixed list (
 cf_mem:                                 ; gp_notin (rule 11): esi = a cup's definition -> eax = cf_member_c (2: not a
     pushad                              ; followed cup / not this world: the definition's list decides), others kept
     mov dword [CF_RES], 2
-    call W_GT             
+    cmp word [GAMETYPE], 4
     jne .x
     mov al, [SLT + WORLD_BYTE]
     cmp al, [CF_DATA]

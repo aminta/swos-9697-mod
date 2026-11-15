@@ -16384,13 +16384,115 @@ def world_season_end_8485():
                              'BIKARKEPPNI')
 
 
+def _cup_slots(s, cid):
+    """the cup slots of id cid in obj2 (a cup record: active byte 1, id at +0x2D): sorted (clubs, rounds, round-1
+    matches) per slot (the game keeps two copies: the live one and the season's)"""
+    d = bytes(s.result.obj2(0, 0x100000))
+    out = []
+    for i in range(0x2D, len(d) - 0x443):
+        if d[i] == cid and d[i - 0x2D] == 1 and 2 <= struct.unpack_from('<H', d, i + 4)[0] <= 64:
+            c = d[i - 0x2D:i - 0x2D + 0x443]
+            out.append((struct.unpack_from('<H', c, 0x31)[0], c[0x59], struct.unpack_from('<HH', c, 0x4F)))
+    return sorted(out)
+
+
+@scenario
+def world_season_vs_career():
+    """S6a (4.3, MC 15/11 (a)): a World 2026-27 SEASON at RADOMIAK RADOM (Poland) against a World 2026-27 CAREER at the
+    same club, both at week 1: VISUAL. COMPETIZ. lists the same competitions (the career's own pages REGISTRO GESTIONE /
+    COPPE CONTINENTALI aside), and the Puchar Polski's cup slots (id 8E:
+    clubs, rounds, round-1 matches - the round the cup starts and the byes) are the same. Italian exe."""
+    if os.environ.get('SWOSTEST_UI', 'it') != 'it':
+        return True, 'SKIP: Italian exe only (the career path)'
+    b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
+    path = ['EUROPA', 'POLONIA', 'RADOMIAK RADOM']
+    errs, got = [], {}
+
+    def comps(s):
+        press(s, s.screen(), 'VISUAL. COMPETIZ.', 2)
+        c = [t for t in s.screen().texts() if t]
+        press(s, s.screen(), 'ESCI', 2)
+        return c
+    with Session('wsvc_car', b, {'SETUP.DAT': setup_file('wsvc_car', 0)}, 'dump:2', 600) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'career: no first pause ({s.result})'
+        for t in ('CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27'):
+            if press(s, s.screen(), t) is None:
+                return False, f'career: {t} not on screen ({s.screen().texts()[:10]})'
+        if not pick_career(s, path):
+            return False, f'career: {path} ({s.screen().texts()[:10]})'
+        for _ in range(4):                      # (the club president's welcome note first)
+            if 'VISUAL. COMPETIZ.' in s.screen().texts() or press(s, s.screen(), 'CONTINUA', 2) is None:
+                break
+        got['career'] = (comps(s), _cup_slots(s, 0x8E))
+    with Session('wsvc_sea', b, {'SETUP.DAT': setup_file('wsvc_sea', 0)}, 'dump:2', 600) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'season: no first pause ({s.result})'
+        press(s, s.screen(), 'STAGIONE', 2)
+        if s.screen().find('CONTINUA', exact=True) is not None:
+            press(s, s.screen(), 'CONTINUA', 2)
+        for t in path:
+            if press(s, s.screen(), t, 2) is None:
+                return False, f'season: {t} not in the picker ({s.screen().texts()[:12]})'
+        sea_start(s)
+        got['season'] = (comps(s), _cup_slots(s, 0x8E))
+    (cc, cs), (sc, ss) = got['career'], got['season']
+    cc = [x for x in cc if x not in ('REGISTRO GESTIONE', 'COPPE CONTINENTALI')]   # (the career's own pages)
+    check(cc == sc, f'VISUAL. COMPETIZ.: career {cc} != season {sc}', errs)
+    check(cs and cs == ss, f'Puchar Polski slots (clubs, rounds, round-1 matches): career {cs} != season {ss}', errs)
+    return not errs, '; '.join(errs) or f'VISUAL. COMPETIZ. {cc}; Puchar Polski slots {cs} (career = season)'
+
+
+@scenario
+def world_season_bye():
+    """S6a (4.3, MC 15/11 (b)): a world SEASON's cup with first-round byes (lib97 BYE_TAB, an entry of world 5): EUROPA >
+    MALTA in World 2026-27, every club the computer's, fired to the first MALTESE FA TROPHY screen with clubs. The
+    pack's bracket (world5 mlt, cup AE): 12 clubs, the last 4 byes - round 1 = the first 8 only; the 4 wait. Without
+    the world byte in the SEASON (WORLDB 0) BYE_TAB's world-5 entry would not match and the game would draw the byes."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
+    r1 = {'MARSAXLOKK', 'GZIRA UNITED', 'BIRZEBBUGA', 'HIBERNIANS', 'ZABBAR SP', 'BALZAN', 'MOSTA', 'BIRKIRKARA'}
+    byes = {'SLIEMA WANDERERS', 'FLORIANA', 'HAMRUN SPARTANS', 'VALLETTA'}
+    with Session('world_season_bye', b, {'SETUP.DAT': setup_file('world_season_bye', 0)}, 'dump:2', 1500) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'no first pause ({s.result})'
+        press(s, s.screen(), 'STAGIONE', 2)
+        if s.screen().find('CONTINUA', exact=True) is not None:
+            press(s, s.screen(), 'CONTINUA', 2)
+        for t in ('EUROPA', 'MALTA'):
+            if press(s, s.screen(), t, 2) is None:
+                return False, f'{t} not in the picker ({s.screen().texts()[:12]})'
+        sea_start(s)
+        for step in range(1500):
+            if s.result.outcome != 'dump':
+                return False, f'step {step}: {s.result}'
+            t = [x for x in s.screen().texts() if x]
+            if 'FINISCI STAGIONE' in t:
+                return False, 'no FA TROPHY screen with clubs before FINISCI STAGIONE'
+            seen = set(t) & (r1 | byes)
+            if t and 'FA TROPHY' in t[0] and seen:
+                break
+            s.send('fire dump:1')
+        else:
+            return False, 'no FA TROPHY screen with clubs after 1500 steps'
+    ok = seen == r1
+    return ok, f'{t[0]} (step {step}): clubs {sorted(seen)}' + ('' if ok else f'; want round 1 = {sorted(r1)}, '
+                                                                f'byes {sorted(byes)} absent')
+
+
 @scenario
 def season9697_same():
     """S6a (4.3, MC 15/11 gate): a 1996-97 SEASON is unchanged. EUROPA > MALTA, all clubs the computer's, both random
     generators re-pinned at every pause (rng_pin) and currentTick pinned before the start press (the season's
     randomSeed, as career_tick_pin), to FINISCI STAGIONE on this build and on SEA_REF_BUILD (default
     c/SEAW1/SWOS: 42-seaw, before S6a): every screen's texts the same, in the same order, and the .SEA saved at the end
-    the same size."""
+    the same size.
+    Why the currentTick pin (MC 15/11): the start press runs CareerInitVars, which seeds randomSeed from currentTick
+    (the timer word career_seed_sites()[2]); InitNewSeason's cup draws use it. rng_pin re-pins the two generators at
+    every pause, but the tick at that press depends on the exe's load time and the host load - two runs of the SAME
+    build in parallel drew different cup pairs (SEAW1 vs SEAW1 differed). So s.tick_pin pokes currentTick = 0x1234
+    right before the start press (sea_start calls it), on both builds: the draw is then the same, and any screen
+    that differs is the build's change. Without the pin this scenario is not deterministic: never drop it."""
     ref = os.environ.get('SEA_REF_BUILD') or os.path.join(MAIN, 'c', 'SEAW1', 'SWOS')
     if not os.path.isdir(ref):
         return True, f'SKIP: no reference build {ref}'

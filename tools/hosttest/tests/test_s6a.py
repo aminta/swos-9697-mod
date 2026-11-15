@@ -11,12 +11,14 @@ TOOLS = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)),
 
 W = {('benchnum', 'bn_world'), ('careerworld', 'w_noaway'), ('careerworld', 'w_tmap'), ('dplay', 'dp_find'),
      ('fmtpage', '.out'), ('gplay', '.nm'), ('gplay', 'gp_s3due'), ('gplay', 'gp_gf'), ('gplay', 'gp_adv'),
-     ('gplay', 'gp_find'), ('gplay', 'gp_cdmem'), ('gplay', 'gp_notin'), ('gplay', 'gp_cup12'), ('gplay', 'cf_a6'),
-     ('gplay', 'cf_mem'), ('lgreal', 'lg_init'), ('lpreal', 'lr_draw'), ('simdraw', 'sd_site'), ('statecup', 'sc_pick'),
+     ('gplay', 'gp_find'), ('gplay', 'gp_cup12'),
+     ('lgreal', 'lg_init'), ('lpreal', 'lr_draw'), ('simdraw', 'sd_site'), ('statecup', 'sc_pick'),
      ('stoppage', 'st_caps'), ('winners', 'wn_load'), ('worldpool', 'wp_load'), ('zones', '.k'), ('ripool', 'ri_load'),
      ('ripool', '.x'), ('split', '.f')}
 OWN = {('careerworld', 'w_gt'), ('split', '.clean')}   # w_gt itself; split's league init (gameType 3 or 4: the byte)
-C = {('benchx', '.car'), ('benchx', 'bx_xnamed'), ('careerworld', 'w_ntw'), ('careerworld', 'w_nc'),
+C = {('gplay', 'gp_notin'), ('gplay', 'cf_a6'), ('gplay', 'cf_mem'), ('gplay', 'gp_cdmem'),   # (S6a: the career
+     # club's rules - CAREERTEAM / SEASONPLAYING: rule 11, the later seasons' fixed list, Coppa D membership)
+     ('benchx', '.car'), ('benchx', 'bx_xnamed'), ('careerworld', 'w_ntw'), ('careerworld', 'w_nc'),
      ('careerworld', 'w_dok'), ('careerworld', 'w_se'), ('gplay', 'gp_mrec'), ('gplay', 'gp_sack'), ('gplay', '.e'),
      ('gplay', 'gp_sc'), ('gplay', 'gp_scgl'), ('gplay', 'vc5_lay'), ('gplay', '.e8'), ('kitcolors', 'km_mode'),
      ('kitcolors', 'km_keep'), ('kits', 'kk_club'), ('kits', 'kk_rec'), ('quietend', 'qe_call'), ('winners', '.close'),

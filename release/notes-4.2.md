@@ -29,8 +29,25 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 #### Winners page: last season's winner of Serie B / Serie C
 - Winners page (VINCITORI): in the 2026-27 world the last-season page now names the right winner of Serie B and Serie C (and of Serie D when the winner has since moved up). Before, a winner who had left the division could show the name of an unrelated club, or the page was missing altogether in Serie C. It now reads the names from the 2026-27 world's own clubs.
 
+#### Difficulty
+- New OPTIONS row DIFFICULTY: EASY, NORMAL or HARD. NORMAL is the original game. The level only changes a computer team playing against you: on EASY its players are 80% as good, its goalkeeper is 2 points weaker and its passes go astray more often; on HARD its players are 10% better, its goalkeeper 2 points stronger and its passes more accurate. Two humans, computer against computer, training games, SWOS++ and simulated results always play the original game.
+
+#### Dribbling
+- New OPTIONS row DRIBBLING: CLASSIC (the original game), NEW or CUSTOM. With NEW your ball carrier slows down less, the ball stays closer to his feet on sharp turns and you keep the ball a moment longer after winning it; the computer slides in less often, never slides while you dribble inside its own penalty area, its second man holds back further and it needs a moment longer to win the ball back after losing it to a strong tackle.
+- CUSTOM opens a page where you set each of these yourself, from the classic game (left) to more help (right), plus CPU DEFENDERS (CHASE as today; WAIT: they stay between you and the goal instead of chasing from behind; COVER and ONE AT A TIME: one man presses and a team-mate covers behind him) and CPU BUILD UP. DEFAULTS puts back the NEW values.
+- These settings only apply while the ball is in play: free kicks, corners, throw-ins, goal kicks and kick-offs keep the original game's behaviour.
+
+#### Set pieces
+- New OPTIONS row SET PIECES: CLASSIC (the original game), REALISTIC or ARCADE, for every match.
+- REALISTIC: headers from corners and crosses go down instead of over the bar (a good header keeps the ball under the bar from further out); keepers no longer catch everything that drops into the six-yard box; the computer goes for high balls more often; free kicks near the box dip over the wall the way real ones do, and how often they go in depends on the taker's SHOOTING, as in real football: [PLACEHOLDER until the last free-kick test: a top specialist about one in ten, a weak taker about one in thirty].
+- ARCADE: the same headers and keepers, more free kicks around the box (a clean tackle there is whistled as a foul one time in three), and the computer curls its free kicks at the far post: a top shooter scores about one in six from 20-25 metres, a weak one hardly ever.
+- Your own free kicks stay in your hands (direction and curl) in every mode.
+
 #### Decisions of this release
 - (every gameplay or market decision of 4.2 goes here and in the README, EN + IT: Davide 15/11, rc gate item)
+- Difficulty, dribbling and set pieces start at NORMAL, CLASSIC and CLASSIC: a new install plays exactly the original game until you change them in OPTIONS.
+- Difficulty only touches a computer team facing a human; dribbling settings only apply with the ball in play.
+- REALISTIC free kicks follow real-football rates (league average around 6-7% of direct free kicks scored, the best specialists 10-15%: Opta).
 
 
 ## Italiano
@@ -63,5 +80,22 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 #### Winners page: last season's winner of Serie B / Serie C
 - Pagina dei vincitori: nel mondo 2026-27 la pagina della stagione scorsa indica il vincitore giusto di Serie B e Serie C (e di Serie D quando il vincitore è nel frattempo salito). Prima, un vincitore che aveva lasciato la categoria poteva mostrare il nome di un club qualunque, oppure in Serie C la pagina mancava del tutto. Ora i nomi vengono letti dai club del mondo 2026-27.
 
+#### Difficulty
+- Nuova riga in OPZIONI, DIFFICOLTÀ: FACILE, NORMALE o DIFFICILE. NORMALE è il gioco originale. Il livello cambia solo una squadra del computer che gioca contro di te: a FACILE i suoi giocatori valgono l'80%, il portiere ha 2 punti in meno e i passaggi sbagliano più spesso; a DIFFICILE i giocatori sono migliori del 10%, il portiere ha 2 punti in più e i passaggi sono più precisi. Due giocatori umani, computer contro computer, allenamenti, SWOS++ e risultati simulati restano sempre il gioco originale.
+
+#### Dribbling
+- Nuova riga in OPZIONI, DRIBBLING: CLASSICO (il gioco originale), NUOVO o PERSONALIZZATO. Con NUOVO il tuo portatore di palla rallenta meno, la palla resta più vicina al piede nei cambi di direzione e dopo averla conquistata la tieni un attimo in più; il computer entra in scivolata meno spesso, non scivola mai mentre dribbli dentro la sua area, il secondo uomo resta più indietro e dopo aver perso palla su un contrasto forte ci mette un attimo in più a riprenderla.
+- PERSONALIZZATO apre una pagina dove regoli tu ognuna di queste voci, dal gioco classico (a sinistra) a più aiuto (a destra), più DIFENSORI CPU (INSEGUONO come oggi; ASPETTANO: restano tra te e la porta invece di rincorrerti da dietro; COPERTURA e UNO ALLA VOLTA: uno pressa e un compagno copre alle sue spalle) e COSTRUZIONE CPU. PREDEFINITI rimette i valori di NUOVO.
+- Queste regolazioni valgono solo a palla in gioco: punizioni, calci d'angolo, rimesse laterali, rinvii dal fondo e calci d'inizio restano come nel gioco originale.
+
+#### Set pieces
+- Nuova riga in OPZIONI, CALCI PIAZZATI: CLASSICI (il gioco originale), REALISTICI o ARCADE, per ogni partita.
+- REALISTICI: i colpi di testa su angoli e cross vanno verso il basso invece che sopra la traversa (chi è bravo di testa tiene la palla sotto la traversa anche da più lontano); i portieri non bloccano più tutto quello che cade nell'area piccola; il computer va più spesso sui palloni alti; le punizioni vicino all'area scendono dopo la barriera come quelle vere, e quante entrano dipende dal TIRO del battitore, come nel calcio reale: [SEGNAPOSTO fino all'ultimo test sulle punizioni: uno specialista circa una su dieci, uno scarso circa una su trenta].
+- ARCADE: gli stessi colpi di testa e portieri, più punizioni attorno all'area (lì un contrasto pulito viene fischiato fallo una volta su tre) e il computer tira le punizioni a giro sul secondo palo: un ottimo tiratore segna circa una su sei da 20-25 metri, uno scarso quasi mai.
+- Le tue punizioni restano nelle tue mani (direzione ed effetto) in ogni modalità.
+
 #### Decisioni di questa release
 - (every gameplay or market decision of 4.2 goes here and in the README, EN + IT: Davide 15/11, rc gate item)
+- Difficoltà, dribbling e calci piazzati partono da NORMALE, CLASSICO e CLASSICI: una nuova installazione gioca esattamente il gioco originale finché non li cambi in OPZIONI.
+- La difficoltà tocca solo una squadra del computer contro un umano; le regolazioni del dribbling valgono solo a palla in gioco.
+- Le punizioni REALISTICHE seguono le percentuali del calcio reale (media di campionato circa 6-7% delle punizioni dirette segnate, i migliori specialisti 10-15%: Opta).

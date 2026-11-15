@@ -175,7 +175,13 @@ def test_practice_off_sites():
     """MC 15/11 (step 3's obj1 sites): with practice off, ShowPlayMatchMenu's call pr_pmm and UpdateTime's call
     pr_time (and 15/11 the restart's call pr_rbar) reach the very code the exe without them runs (HT_PRACTICE_REF, else c/RELpr5: 4.2 with practice step 2):
     the same next instruction (kitcolors' pm_show chain / InitDisplaySprites) and its 48 code bytes, the same return
-    address, the same writes ([A6] = playMatchMenu / currentTimeSprite.visible = 1) - nothing else."""
+    address, the same writes ([A6] = playMatchMenu / currentTimeSprite.visible = 1) - nothing else.
+    Why gating the one 31000 store removes every score bar in a practice, goals included (MC 15/11, from ref/swos.asm):
+    the only stores that turn the bar on from 0 are `mov resultTimer, 31000` (UpdateGameTimersAndCameraBreakMode, after
+    a stoppage's camera break: pr_rbar now) and `mov resultTimer, 30000` (GoToHalftime / GameOver: never in a practice,
+    the clock held at 0). Every other writer is `neg resultTimer` (0 stays 0) or ShowResult's own countdown (it runs only
+    with the timer non-zero). A goal shows its result through the restart that follows it - the gated 31000 store. The
+    harness's bar counter (practice_play) is a coarse sampler on top of this argument, not the evidence itself."""
     for f in (EXE, REF, REF_RBAR, ORIG):
         if not os.path.exists(f):
             return False, f'{f} missing'

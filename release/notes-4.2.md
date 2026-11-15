@@ -18,7 +18,7 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 - 1984-85 world: clubs now line up in their own formation (a 3-5-2 side fields three defenders and five midfielders) instead of always the 4-4-2 positions.
 
 #### Real Serie A and Serie B line-ups
-- Serie A and Serie B 2026-27: the starting eleven of every club is now the one that really plays this season (the players with the most starts), the bench holds the players called up most often (with the usual reserve goalkeeper), and the others are not called up. For example JUVENTUS start VICARIO in goal with PINSOGLIO on the bench. The team keeps its coach's formation whenever those eleven can play it, with full-backs as wing-backs and wingers up front (JUVENTUS 3-4-3, INTER 3-5-2).
+- Serie A and Serie B 2026-27: the starting eleven of every club is now the one that really plays this season (the players with the most starts), the bench holds the players called up most often (with the usual reserve goalkeeper), and the others are not called up. For example JUVENTUS start VICARIO in goal with NETO on the bench. The team keeps its coach's formation whenever those eleven can play it, with full-backs as wing-backs and wingers up front (JUVENTUS 3-4-3, INTER 3-5-2).
 
 #### Player prices from the market value
 - 2026-27 world: a player's price now follows his real market value (Transfermarkt) and nothing else. A young player worth a lot costs more than a veteran near the end of his career, whatever his club. Skills are exactly as before, and prices across the world keep the same range as before.
@@ -31,6 +31,7 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 
 #### Decisions of this release
 - (every gameplay or market decision of 4.2 goes here and in the README, EN + IT: Davide 15/11, rc gate item)
+- JUVENTUS's bench keeper is NETO (Davide, 15/11), over the call-ups rule that would pick PINSOGLIO.
 
 
 ## Italiano
@@ -52,7 +53,7 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 - Mondo 1984-85: le squadre ora si schierano secondo il loro modulo (una squadra col 3-5-2 schiera tre difensori e cinque centrocampisti) invece che sempre nei ruoli del 4-4-2.
 
 #### Real Serie A and Serie B line-ups
-- Serie A e Serie B 2026-27: gli undici titolari di ogni squadra ora sono quelli che giocano davvero in questa stagione (i giocatori con più presenze da titolare), in panchina vanno i più convocati (con il solito portiere di riserva) e gli altri restano fuori dai convocati. Per esempio la JUVENTUS schiera VICARIO in porta con PINSOGLIO in panchina. La squadra mantiene il modulo del suo allenatore ogni volta che quegli undici possono giocarlo, con i terzini da esterni di centrocampo e le ali in attacco (JUVENTUS 3-4-3, INTER 3-5-2).
+- Serie A e Serie B 2026-27: gli undici titolari di ogni squadra ora sono quelli che giocano davvero in questa stagione (i giocatori con più presenze da titolare), in panchina vanno i più convocati (con il solito portiere di riserva) e gli altri restano fuori dai convocati. Per esempio la JUVENTUS schiera VICARIO in porta con NETO in panchina. La squadra mantiene il modulo del suo allenatore ogni volta che quegli undici possono giocarlo, con i terzini da esterni di centrocampo e le ali in attacco (JUVENTUS 3-4-3, INTER 3-5-2).
 
 #### Player prices from the market value
 - Mondo 2026-27: il prezzo di un giocatore ora segue solo il suo valore di mercato reale (Transfermarkt). Un giovane che vale molto costa più di un veterano a fine carriera, qualunque sia la sua squadra. Le abilità sono esattamente quelle di prima, e i prezzi nel mondo restano nella stessa fascia di prima.
@@ -65,3 +66,4 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 
 #### Decisioni di questa release
 - (every gameplay or market decision of 4.2 goes here and in the README, EN + IT: Davide 15/11, rc gate item)
+- Il portiere di riserva della JUVENTUS è NETO (Davide, 15/11), al posto di PINSOGLIO che la regola delle convocazioni sceglierebbe.

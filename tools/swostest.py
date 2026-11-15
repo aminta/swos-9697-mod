@@ -726,7 +726,8 @@ def test_exe(exe, steps, match=False, timer=False):
         assert c[t] == 0xE8
         calls, gk = [t], t + 5 + struct.unpack_from('<i', c, t + 1)[0]
     mcc = one(rb'\x66\x83\x3d....\x05\x0f\x85....\x66\x83\x3d....\xff\x0f\x84')
-    intro = one(rb'\x66\x83\x3d....\x00\x75.\xe8....\x75')
+    intro = rb'\x66\x83\x3d....\x00\x75.\xe8....\x75'      # (S6a: the mod's `cmp word [x], 0; jne; call W_GT; jne`
+    intro = one(intro if len(re.findall(intro, c, re.S)) == 1 else intro + rb'.\x9c')   # matches too: the game's pushf)
     mp = one(rb'\x66\x83\x3d....\x01\x74.\x66\x83\x3d....\xff\x75.\xe8....\x66\xa9\x00\x02\x75.'
              rb'\xe8....\xe8....\xe8....\xc7\x05')              # MenuProc: mov A6, offset g_currentMenu
     curmenu = fx[c.index(b'\xc7\x05', mp + 20) + 6]
@@ -16321,6 +16322,55 @@ def world_season_sea():
 def world_season_8485():
     """S6a (4.3): a Europe 1984-85 SEASON (ISLANDA > VOLSUNGUR) in world 4, its .SEA reloaded in world 4."""
     return _world_season('world_season_8485', 2, ('ISLANDA', 'VOLSUNGUR'), (4, 252))
+
+
+def _world_season_end(tag, setw, path, want, league, cup):
+    """S6a (4.3, MC 15/11 gate): a world SEASON with every club the computer's (no club picked, as season4748): STAGIONE
+    > path (continent, country), the start button, then fire to FINISCI STAGIONE. No trap; screens titled `league`
+    (the league's fixtures) and `cup` + ' FINALE' (the national cup to its final); the world byte / balance = want at
+    the start and at FINISCI STAGIONE."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import careerworld
+    b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
+    slt = cf_slt(b) + careerworld.WORLD_BYTE
+    wb = lambda s: tuple(s.result.obj2(slt, 2))       # noqa: E731
+    errs, titles = [], collections.Counter()
+    with Session(tag, b, {'SETUP.DAT': setup_file(tag, setw)}, 'dump:2', 3000) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'no first pause ({s.result})'
+        press(s, s.screen(), 'STAGIONE', 2)
+        if s.screen().find('CONTINUA', exact=True) is not None:
+            press(s, s.screen(), 'CONTINUA', 2)
+        for t in path:
+            if press(s, s.screen(), t, 2) is None:
+                return False, f'{t} not in the picker ({s.screen().texts()[:12]})'
+        sea_start(s)
+        w0 = wb(s)
+        check(w0 == want, f'season start: world byte / balance {w0} (want {want})', errs)
+        for step in range(3000):
+            if s.result.outcome != 'dump':
+                return False, '; '.join(errs + [f'step {step}: {s.result}'])
+            t = [x for x in s.screen().texts() if x]
+            if 'FINISCI STAGIONE' in t:
+                break
+            titles[ui_it(t[0]) if t else '?'] += 1
+            s.send('fire dump:1')
+        else:
+            return False, '; '.join(errs + [f'no FINISCI STAGIONE after 3000 steps ({t[:8]})'])
+        w1 = wb(s)
+    check(w1 == want, f'FINISCI STAGIONE: world byte / balance {w1} (want {want})', errs)
+    check(titles[league] > 0, f'no {league} fixture screen ({list(titles)[:12]})', errs)
+    check(any(k.startswith(cup) and k.endswith(' FINALE') for k in titles), f'{cup}: no FINALE ({list(titles)[:12]})', errs)
+    return not errs, '; '.join(errs) or (f'{step} steps to FINISCI STAGIONE, world byte {w1}: '
+                                         + ', '.join(f'{k} x{v}' for k, v in titles.items() if k != 'STAGIONE'))
+
+
+@scenario
+def world_season_end():
+    """S6a (4.3): a World 2026-27 SEASON of Poland, all clubs the computer's, to FINISCI STAGIONE: the Ekstraklasa and
+    the Puchar Polski to its final, world byte (5, 251) (_world_season_end; ~8 min)."""
+    return _world_season_end('world_season_end', 0, ('EUROPA', 'POLONIA'), (5, 251), 'POLONIA EKSTRAKLASA',
+                             'POLONIA PUCHAR POLSKI')
 
 
 @scenario

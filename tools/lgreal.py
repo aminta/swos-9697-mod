@@ -156,7 +156,7 @@ lg_init:                                ; replaces split's `call sp_init` (the e
     mov dword [DIY + MK_], 0
     cmp word [DIY], 0                   ; (a league)
     jne .x
-    cmp word [GAMETYPE], 4
+    call W_GT             
     jne .x
     call W_REC
     jz .x

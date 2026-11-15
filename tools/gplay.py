@@ -493,7 +493,7 @@ gp_after:                               ; 4.0 after a career load (arg97's arg_l
     mov ax, [CAREERTEAM]                ; 4.0.5 (phase 0: a one-tie contest's names - the Coppa D's, a supercup's -
     mov [GP_MGR], ax                    ; from this exe's tables: the career club, the tables as gp_adv sets them)
 %if CD_ON
-    cmp word [GAMETYPE], 4
+    call W_GT             
     jne .ncd
     mov al, [SLT + WORLD_BYTE]
     cmp al, [CD_TAB]
@@ -739,7 +739,7 @@ gp_s3busy:                              ; 4.0.5 NZ: ZF = 0 when the career calen
 
 gp_s3due:                               ; 4.0.5 NZ (gp_adv): a slot-3 ko waiting (t2_defer) and slot 3 free -> its
     pushad                              ; weeks from now on (t2_due), installed
-    cmp word [GAMETYPE], 4
+    call W_GT             
     jne .x
     push dword 0                        ; (any waiting: ko 0 / 1)
     call t2_waiting
@@ -763,7 +763,7 @@ gp_s3due:                               ; 4.0.5 NZ (gp_adv): a slot-3 ko waiting
 
 gp_gf:                                  ; 4.0.5 NZ (gp_adv): a type-2 group contest of ours waiting for its Grand
     pushad                              ; Final (gplay.c gf_step_c), slot 3 free -> the final built into slot 4 (ko[1])
-    cmp word [GAMETYPE], 4
+    call W_GT             
     jne .x
     call gp_s3busy
     jnz .x
@@ -1555,7 +1555,7 @@ gp_adv:                                 ; replaces the 4 `call cseg_8EA82` (the 
     popad
 %if CD_ON
     mov dword [GP_CDT], 0               ; the Coppa Italia Serie D (cd_step_c): a career in its world
-    cmp word [GAMETYPE], 4
+    call W_GT             
     jne .ncd
     mov al, [SLT + WORLD_BYTE]
     cmp al, [CD_TAB]
@@ -1677,7 +1677,7 @@ GP_RITP: dd 0                           ; (ripool's RI_TAB: link_reserve, or 0)
 ASM = '''
 gp_find:                                ; edx = a league struct -> esi = its GP_TAB entry in the running world, or ZF = 1
     xor eax, eax                        ; (a season or any other mode: world 0, the original one)
-    cmp word [GAMETYPE], 4
+    call W_GT             
     jne .w
     mov al, [SLT + WORLD_BYTE]          ; (a career: its world)
 .w:
@@ -1981,7 +1981,7 @@ CUP12 = '''
 gp_cdmem:                               ; ZF = 0 when the career club is a Coppa Italia Serie D entrant (cd_member_c),
     pushad                              ; every register kept
     xor ebx, ebx
-    cmp word [GAMETYPE], 4
+    call W_GT             
     jne .r
     mov al, [SLT + WORLD_BYTE]
     cmp al, [CD_TAB]
@@ -2006,7 +2006,7 @@ gp_cdmem:                               ; ZF = 0 when the career club is a Coppa
 gp_notin:                               ; al = a slot (1 / 2): ZF = 0 when the career club is not one of its cup's
     pushad                              ; clubs (rule 11; the cup's definition, D8CAA's slot pointer) -
     xor ebx, ebx                        ; careers of this world only; a Coppa D club: slot 1 hidden, slot 2 its Coppa D
-    cmp word [GAMETYPE], 4              ; (as before)
+    call W_GT                           ; (as before)
     jne .r
     mov cl, [SLT + WORLD_BYTE]
     cmp cl, [CD_TAB]
@@ -2093,7 +2093,7 @@ gp_vc2:                                 ; 4.0.1: the same for slot 2 (`mov eax, 
 
 gp_cup12:                               ; 4.0: InitNewSeason's `call cseg_8B2D3` of slots 1 / 2 (the country's cup and
     pushad                              ; league cup): a Coppa Italia Serie D club gets neither (cd_member_c), the slot
-    cmp word [GAMETYPE], 4              ; cleared (Davide's Schio: COPPA ITALIA / C. IT SERIE C rows never played)
+    call W_GT                           ; cleared (Davide's Schio: COPPA ITALIA / C. IT SERIE C rows never played)
     jne .game
     cmp word [D0R], 2                   ; (4.0 A: slot 1 stays the COPPA ITALIA - the game plays it through the
     jne .game                           ; calendar and the season end needs its winner; slot 2 becomes the Coppa D's)
@@ -2125,7 +2125,7 @@ CF_ASM = '''
 cf_a6:                                  ; 4.0.1 (cupsf.py): a cup's fixed list (`mov [A6], eax`, A0 = its header): a
     mov [A6R], eax                      ; World 2026-27 career's later season takes gplay.c cf_list_c's (the clubs'
     pushad                              ; current divisions, the real format); the game's copy reads it through A6
-    cmp word [GAMETYPE], 4
+    call W_GT             
     jne .x
     mov al, [SLT + WORLD_BYTE]
     cmp al, [CF_DATA]
@@ -2155,7 +2155,7 @@ cf_a6:                                  ; 4.0.1 (cupsf.py): a cup's fixed list (
 cf_mem:                                 ; gp_notin (rule 11): esi = a cup's definition -> eax = cf_member_c (2: not a
     pushad                              ; followed cup / not this world: the definition's list decides), others kept
     mov dword [CF_RES], 2
-    cmp word [GAMETYPE], 4
+    call W_GT             
     jne .x
     mov al, [SLT + WORLD_BYTE]
     cmp al, [CF_DATA]

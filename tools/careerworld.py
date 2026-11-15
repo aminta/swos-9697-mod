@@ -442,7 +442,7 @@ W_YEAR w_year95, 1995
 
 w_noaway:                               ; ZF = 1 in a career of a world from 2021-22 on (UEFA abolished away goals in
     push ebx                            ; 2021-22, and every 2026-27 two-legged round's rule has none: the data's
-    cmp word [GAMETYPE], 4              ; two_legs_2627.json); 1984-85 / 1996-97 keep them (real then)
+    call w_gt                           ; two_legs_2627.json); 1984-85 / 1996-97 keep them (real then)
     jne .away
     call w_rec
     jz .away
@@ -624,7 +624,7 @@ w_tmap:                                 ; eax = team file number (80..85) -> the
     ja .r
     push ebx
     movzx ebx, byte [W_FNAT]            ; (step 2.5: outside a career, the friendly / DIY nationals' world, swe.c;
-    cmp word [GAMETYPE], 4              ; a career: its world byte - stale outside a career)
+    call w_gt                           ; a career: its world byte - stale outside a career)
     jne .f
     movzx ebx, byte [SLT + WORLD_BYTE]
 .f:
@@ -1122,6 +1122,18 @@ w_tcache:                               ; replaces `mov al, [lastLoadedExtNumber
 WTPHYS: db 0
 W_FNAT: db 0                            ; (swe.c FNAT: 0, or the 1984-85 world for its nationals)
 W_SEAW: db 0                            ; (S6a: swe.c swe_sea_pre - the world whose lists the SEASON picker showed, 0)
+
+w_gt:                                   ; S6a (4.3, MC 15/11): the world rules' gate (W_GT, every module's `call W_GT`
+    cmp word [GAMETYPE], 4              ; where it had `cmp word [GAMETYPE], 4` - s6a-audit.md's W sites): ZF = 1 in a
+    je .r                               ; career or a world SEASON (gameType 3 with a world byte), else ZF = 0 - a
+    cmp word [GAMETYPE], 3              ; 1996-97 / STAG. STORICHE season (byte 0: 42-seaw) as before. Registers and
+    jne .r                              ; the other flags' meaning: the sites test ZF only (je / jne / setne)
+    cmp byte [SLT + WORLD_BYTE], 0
+    jne .y
+    or esp, esp                         ; (ZF = 0: esp is never 0)
+    ret
+.y: cmp eax, eax
+.r: ret
 
 w_holders:                              ; replaces `call cseg_92BBF`: in a world the holders get a place of their own
     push ebx                            ; (appended to the list + record), the game replaces a random qualifier
@@ -2257,6 +2269,7 @@ def patch(p, worlds, at, nasmcave, comp, ct, cont_rec):
             p.retarget(1, ref, 1, labels['WCLIST'])
     LABELS.clear()
     LABELS.update(labels)
+    nasmcave.GLOBAL['W_GT'] = (1, labels['w_gt'])    # (S6a: the modules' W sites; careerworld's call w_gt)
     LABELS['big'] = anybig
     LABELS['sites'] = s
     LABELS['end'] = (at + len(code) + 3) & ~3

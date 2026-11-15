@@ -94,7 +94,7 @@ sc_pick:
     je .r
     pushad
     xor ecx, ecx                        ; the running world: 0, or the career's world byte
-    cmp word [GAMETYPE], 4
+    call W_GT             
     jne .w
     mov cl, [SLT + WORLD_BYTE]
 .w:

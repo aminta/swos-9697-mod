@@ -85,11 +85,12 @@ sp_init:                                ; replaces `call cseg_2653B` at the end 
 .clean:
     mov esi, [A5]
     mov ah, [esi + 2]                   ; the struct's team file
-    xor al, al                          ; a season (one division, one year: 4.0) -> world 0, the original one
-    cmp word [GAMETYPE], 3
-    je .w
-    cmp word [GAMETYPE], 4              ; a career: its world byte
+    xor al, al                          ; a career or a season: the world byte (a 1996-97 season's is 0, 42-seaw;
+    cmp word [GAMETYPE], 3              ; a world SEASON's its world, S6a), else no split league
+    je .s
+    cmp word [GAMETYPE], 4
     jne .x
+.s:
     mov al, [SLT + WORLD_BYTE]
 .w:
     mov dl, [sp_div]
@@ -291,7 +292,7 @@ sp_entry_at:                            ; (esi = a league buffer: sp_migrate's D
     cmp [edx + 3], al
     jne .n
     xor al, al                          ; (the world: a career's byte, else world 0)
-    cmp word [GAMETYPE], 4
+    call W_GT             
     jne .w
     mov al, [SLT + WORLD_BYTE]
 .w: cmp [edx], al
@@ -1329,7 +1330,7 @@ zp_entry:                               ; esi = a league buffer -> edx = its ent
     cmp [edx + 3], al
     jne .n
     xor al, al
-    cmp word [GAMETYPE], 4
+    call W_GT             
     jne .w
     mov al, [SLT + WORLD_BYTE]
 .w: cmp [edx], al

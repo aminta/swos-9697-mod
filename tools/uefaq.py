@@ -597,6 +597,15 @@ uq_daily:                               ; replaces `call cseg_8EA56` at the star
     call C8B2D3
     popad
     mov word [SLOT3 + 39h], 0FFFFh      ; (no winner yet)
+    pushad                              ; 4.2 (Enzo 15/11): the management record's slot-3 name (season record +22h, the game's
+    push dword [A0R]                    ; InitializeNewSeason sets it once, from the contest of the season's start): the club that
+    call GETSEASON                      ; lost a CL qualifier and won the UECL read 'PRELIM. CHAMPIONS LEAGUE - WINNERS'. Every tie /
+    mov esi, [A0R]                      ; league phase built here puts its own name there
+    mov eax, [SLOT3 + 27h]
+    sub eax, STR_BASE
+    mov [esi + 22h], eax
+    pop dword [A0R]
+    popad
     ret
 
 uq_rn1:                                 ; the first instruction of cseg_280C0 (round name index, D0): our ties are
@@ -794,7 +803,13 @@ def patch(p, at, limit, sites):
         rb'\x66\xc7\x05.{4}\x01\x00\xe8.{4}\x66\xc7\x05.{4}\x00\x00\x66\xc7\x05(.{4})\x00\x00\x66\xc7\x05.{4}\x00\x00', d1, re.S)]
     stage_g = struct.unpack('<I', hits[0])[0]          # (the first of two: cseg_2573C precedes the other one)
     q = sites['qual']
+    A0 = sites['a0']
+    pk = lambda x: re.escape(struct.pack('<I', x))
+    gm = [x.start() for x in re.finditer(rb'\xc7\x05' + pk(A0) + rb'(.{4})\x66\xa1.{4}\x66\xa3' + pk(A0 - 32)
+                                         + rb'\x66\xa1' + pk(A0 - 32) + rb'\x66\xbb\x6a\x00', d1, re.S)]
+    assert len(gm) == 1, gm                             # GetCurrentSeasonPointer (A0 = the season record, 106 B; as gplay.py)
     symbols = {k: (0, v) for k, v in lay.items()}
+    symbols.update({'GETSEASON': (1, gm[0]), 'STR_BASE': (2, sacups.STR_BASE)})
     symbols.update({'UQ_IN': syms['UQ_IN'], 'UQ_OUT': syms['UQ_OUT'], 'uq_season': syms['uq_season'],
                     'UQREC': (2, bss_at + cw.UQ_BSS), 'STAND': q['STAND'], 'CUPREC': q['CUPREC'],
                     'HOLD_CC': q['HOLD_CC'], 'HOLD_CWC': q['HOLD_CWC'], 'HOLD_UEFA': q['HOLD_UEFA'],

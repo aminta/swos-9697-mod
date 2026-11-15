@@ -400,6 +400,7 @@ def patch_exe(src, dst, remap, lang='it'):
     OBJ1MV_ON[0] = bool(mkseason.worlds())             # 4.2 OBJ1MV (MC 13/11): every build with worlds (shirtedit +
     if OBJ1MV_ON[0]:                                   # instcheck; the SEASON WINNERS page when fmtpage has it)
         swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, (swreg.OBJ1MV_END + 0xFFF) // 0x1000)   # (its band's pages, out of obj1)
+        swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, (swreg.SESTRIP_END + 0xFFF) // 0x1000)   # (4.2 B1: shirtedit's strip band, MC 15/11)
     swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, -(-swreg.PRACTICE_END // 0x1000))   # 4.2 set-piece practice (MC 14/11: the last band)
     import dplay as _dps
     if _dps.s3_b_mask() or _dps.s3_c_mask():                 # 4.2 S3 step 2: cuprule.c's band (S3 builds only)
@@ -563,9 +564,10 @@ def patch_exe(src, dst, remap, lang='it'):
         import shirtedit                          # 4.0.2: editable shirt numbers on the team screen (pins the team
         import instcheck                          # through benchnum's hooks); 4.0.1 instcheck: a world's missing files
         assert OBJ1MV_ON[0], 'OBJ1MV: worlds without the band (patch.py OBJ1MV_ON)'   # -> a message, not DOS. 4.2
-        cc = shirtedit.patch(p, swreg.OBJ1MV_CC, obj=4)                   # (MC 13/11): both in obj4's OBJ1MV band
+        cc = shirtedit.patch(p, swreg.OBJ1MV_CC, obj=4, lang=lang)                   # (MC 13/11): both in obj4's OBJ1MV band
         cc = instcheck.place(p, cc, lang, obj=4)                          # (the career cave overflowed with S7)
         print(f'exe: OBJ1MV career-cave modules obj4+{swreg.OBJ1MV_CC:#x}..{cc:#x} ({swreg.OBJ1MV_END - cc} B left to {swreg.OBJ1MV_END:#x})')
+        assert swreg.OBJ1MV_END - cc >= 256, ('OBJ1MV: under 256 B left (MC 15/11 floor)', swreg.OBJ1MV_END - cc)
         import fillfix
         end = fillfix.patch(p, end, nasmcave)     # 4.0.5: the menu texture reloaded after a job-offer letter
         assert end <= CAREER_CAVE + mkseason.CAREER_CAVE_SIZE, hex(end)

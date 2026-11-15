@@ -78,12 +78,16 @@ MKTLOAD_AT = 0x20000                    # then MKTAGE (Mercato CPU); unlinked in
 MKTLOAD_END = 0x21000                   # carries an empty page for them). DIFF2 0x1A000..0x1A400 + SPX 0x1A400..0x1A800 stay free
 MKTAGE_AT = 0x21000                     # here for 42-drp / 42-sp (their swreg lines are taken verbatim)
 MKTAGE_END = 0x22000
+SESTRIP_AT = 0x22C00                    # 4.2 row 32 B1 (MC 15/11): shirtedit's number strip (se_supd / se_sshow / se_soff + buffer +
+SESTRIP_END = 0x23000                   # verb), out of OBJ1MV (A+B left 32 B there); temporary after Motore's GPLX, packed among
+                                        # the release bands at the rc freeze; >= 256 B left (asserted in shirtedit.patch)
 assert S7SWAP_END <= OBJ1MV_AT < OBJ1MV_END <= FPORT_AT < FPORT_END <= S7GEO_AT < S7GEO_END <= CDKN_AT < CDKN_END <= PRACTICE_AT < \
     PRACTICE_END <= FPORT2_AT < FPORT2_END <= S3C_AT < S3C_END <= MKTHOOK_AT < MKTHOOK_END <= MKTLOAD_AT < MKTLOAD_END <= MKTAGE_AT < MKTAGE_END <= 0x22000, \
     'swreg: S7SWAP_END <= OBJ1MV_AT < OBJ1MV_END <= FPORT_AT < FPORT_END <= S7GEO_AT < S7GEO_END <= CDKN_AT < CDKN_END <= PRACTICE_AT < PRACTICE_END <= FPORT2_AT < FPORT2_END <= S3C_AT < S3C_END <= MKTHOOK_AT < MKTHOOK_END <= MKTLOAD_AT < MKTLOAD_END <= MKTAGE_AT < MKTAGE_END'
 S7_ORIG_SZ = 0x2C000                    # 4.2 S7: s7swap.c's ORIG buffers in swe.c's .bss (shaped builds only; MC 13/11):
                                         # the two league files as read (Italy: 102 = 100 records, 144 = 162: 179212 B;
                                         # s7swap.py asserts they fit)
+assert MKTAGE_END <= SESTRIP_AT < SESTRIP_END, 'swreg: SESTRIP after the 4.3 reservations'
 assert UPRIZE2_END <= CONTI4_AT, 'uprize part 2 would cross conti / ST'   # (4.2: bands never cross)
 assert CONTI4_END <= ST_AT, 'conti data would cross ST'
 NAMEFIT_AT = 0xC400                     # 4.2 names-fit (namefit.py, Marco (b) step 2: menu names by pixels; MC 12/11): page 13

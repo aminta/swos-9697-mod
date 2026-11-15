@@ -484,6 +484,15 @@ SCAN = {'fire': 0x1D, 'up': 0x48, 'down': 0x50, 'left': 0x4B, 'right': 0x4D, 'es
         # (punctuation keys by position, 4.0.6 typed names: what they type depends on the exe's layout, keytext)
         'minus': 0x0C, 'equals': 0x0D, 'lbr': 0x1A, 'rbr': 0x1B, 'apos': 0x28, 'grave': 0x29, 'bslash': 0x2B,
         'comma': 0x33, 'period': 0x34, 'slash': 0x35, 'kpminus': 0x4A, 'kpplus': 0x4E, 'lt102': 0x56}
+# (4.2 numpad shirt digits, MC 15/11) A real keyboard sends the grey arrows / PGUP / PGDN E0-prefixed and the numpad's
+# 8 2 4 6 9 3 with the same scan codes unprefixed. The feeder sent every arrow unprefixed - the numpad's keys. Bit 7 of
+# a script byte (a scan code is < 80h) = E0-prefixed: the feeder strips it and sets g_prevScanCode = E0 before that
+# make / break, as Int9KeyboardHandler leaves it after a real arrow (keytext's kt_irq reads it). kp0..kp9: the numpad,
+# unprefixed. SWOSTEST_NOE0=1: the old unprefixed arrows (bisect).
+E0 = 0x80
+if not os.environ.get('SWOSTEST_NOE0'):
+    SCAN.update({k: SCAN[k] | E0 for k in ('up', 'down', 'left', 'right', 'pgup', 'pgdn')})
+SCAN.update({f'kp{d}': sc for d, sc in zip('0123456789', (0x52, 0x4F, 0x50, 0x51, 0x4B, 0x4C, 0x4D, 0x47, 0x48, 0x49))})
 SCAN.update({ch: sc for row, base in (('1234567890', 0x02), ('qwertyuiop', 0x10), ('asdfghjkl', 0x1E),
                                       ('zxcvbnm', 0x2C)) for sc, ch in enumerate(row, base)})
 SCRIPT_MAX = 200                                       # steps a pause can write
@@ -726,12 +735,12 @@ stub:   pushad
         dec word [hold]
         jnz .go
         movzx eax, byte [cur]           ; release after HOLD calls (screens that read the held state)
-        or al, 0x80
+        mov dl, 0x80
         call emu
         movzx eax, byte [cur+1]         ; second key of a combination (fire+right)
         or eax, eax
         jz .go
-        or al, 0x80
+        mov dl, 0x80
         call emu
         jmp .go
 .idle:  cmp word [KEYCOUNT], 0
@@ -749,23 +758,32 @@ stub:   pushad
         mov dword [ptr], script         ; the runner writes the next steps from the start of the script area
         int 3                           ; 'dump' step: the runner's BPINT 3 stops here (EIP in this page); to go
         jmp .go                         ; on, the runner sets EIP past it (and may write new steps)
-.key:   mov [KEYBUF], al                ; latched (menus' last key, text input) ...
+.key:   mov [cur], ax                   ; al = key, ah = second key held with it (0 = none); bit 7 = E0-prefixed
+        mov bl, al
+        and bl, 0x7F
+        mov [KEYBUF], bl                ; latched (menus' last key, text input) ...
         mov word [KEYCOUNT], 1
-        mov [cur], ax                   ; al = key, ah = second key held with it (0 = none)
         push eax
         movzx eax, al
+        xor dl, dl
         call emu                        ; ... and held, like Int9KeyboardHandler
         pop eax
         movzx eax, ah
         or eax, eax
         jz .held
+        xor dl, dl
         call emu
 .held:
         mov ax, [holdn]                 ; (HOLD, or a scenario's poke: kbd2's player 2 keys held longer)
         mov [hold], ax
 .go:    popad
         jmp GETKEY
-emu:    mov bx, [SCANCODE]
+emu:    mov bx, [SCANCODE]              ; eax = script byte (bit 7: E0-prefixed), dl = 80h for the break
+        test al, 0x80
+        jz .p
+        mov bx, 0xE0                    ; (an E0 key: Int9KeyboardHandler's prev scan code is the E0 byte)
+.p:     and al, 0x7F
+        or al, dl
         mov [PREVSCAN], bx
         mov [SCANCODE], ax
         call SETKBD

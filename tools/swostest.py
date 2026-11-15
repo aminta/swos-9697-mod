@@ -1982,10 +1982,10 @@ def lineup_places(s, n=16):
         return None
 
 
-def heal_first16(s):
-    """The career club's first 16 made fit again: the injury bits (cardsInjuries C0h) cleared in every copy of their
-    records (as BENCH_INJ sets them), so a result-dependent injury (a training game's) cannot hide PLAY MATCH. The
-    names healed; [] if none (or unreadable)."""
+def heal_first16(s, mask=0xC0):
+    """The career club's first 16 made fit again: the injury bits (cardsInjuries C0h; practice_car E0h, bit 5 too - a
+    one-match injury, a set piece's) cleared in every copy of their records (as BENCH_INJ sets them), so a
+    result-dependent injury (a training game's) cannot hide PLAY MATCH. The names healed; [] if none (or unreadable)."""
     if lineup_mem(s) is None:               # (caches s.ctsites)
         return []
     _, ct, cmp_ = s.ctsites
@@ -1994,12 +1994,12 @@ def heal_first16(s):
     healed = []
     for q in r.obj2(cmp_, 16):
         slot = ct + (76 + q * 38 if q < 16 else 684 + (q - 16) * 38)
-        if not r.obj2(slot + 27, 1)[0] & 0xC0:
+        if not r.obj2(slot + 27, 1)[0] & mask:
             continue
         nm = r.obj2(slot + 3, 22).split(b'\0')[0]
         for m_ in re.finditer(re.escape(nm) + b'\0', o2):
             h = m_.start() - 3
-            s.poke(r.base2 + h + 27, bytes((o2[h + 27] & 0x3F,)))
+            s.poke(r.base2 + h + 27, bytes((o2[h + 27] & ~mask & 0xFF,)))
         healed.append(nm.decode('latin-1'))
     return healed
 
@@ -10967,7 +10967,9 @@ def practice_car_run(mode, errs, info):
     top, bot = p.target(1, m.start() + 6)[1], p.target(1, m.start() + 26)[1]
     tx = practice_rows()
     with Session(f'practice_car_{mode}', b, {}, 'dump:2', 1500, match=True) as s:
-        if s.wait().outcome != 'dump':
+        if os.environ.get('PRACTICE_CAR_RNG', '1') != '0':     # (MC 15/11: both random generators pinned at every
+            s.rng_at, s.rng_pin = rng_sites(os.path.join(b, 'ITALIAN.EXE')), 'practice_car'   # pause, the same
+        if s.wait().outcome != 'dump':                         # seed sequence in both halves)
             errs.append(f'{mode}: no first pause ({s.result})')
             return None
         for x in ('CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27'):
@@ -11016,7 +11018,7 @@ def practice_car_run(mode, errs, info):
         else:
             errs.append(f'{mode}: no squad screen after the training game ({", ".join(t)[:120]})')
             return None
-        healed = heal_first16(s)
+        healed = heal_first16(s, 0xE0)          # (q7 15/11: SANTIAGO CASTRO 0x20 from the fk practice, missed by C0h)
         if healed:
             info.append(f'{mode}: healed {healed}')
         if not practice_car_save(s, 'PRA1', errs):
@@ -11041,8 +11043,28 @@ def practice_car():
     pr = practice_car_run('fk', errs, info)
     if ctrl is None or pr is None:
         return False, '; '.join(errs + info)
-    extra = sorted(set(pr) - set(ctrl))
-    info.append(f'.CAR bytes changed: plain training {len(ctrl)}, practice {len(pr)}, practice only {len(extra)}')
+    # (q7 15/11) A field both halves write with values of different length - a name ('DRAMEH' / 'PULISIC'), the
+    # line-up order - changes one byte more in one half: a practice-only byte inside a run of changed bytes that holds
+    # a byte the control changed too is that field (listed as info), anything else fails.
+    def run_of(i):
+        lo = hi = i
+        while lo - 1 in pr:
+            lo -= 1
+        while hi + 1 in pr:
+            hi += 1
+        return lo, hi
+    extra, longer = [], []
+    for i in sorted(set(pr) - set(ctrl)):
+        lo, hi = run_of(i)
+        (longer if any(j in ctrl for j in range(lo, hi + 1)) else extra).append(i)
+    if longer:
+        info.append('practice-only bytes inside fields the control writes too: '
+                    + ', '.join(f'{i:#x} {pr[i][0]:02x}->{pr[i][1]:02x} (run {run_of(i)[0]:#x}..{run_of(i)[1]:#x})'
+                                for i in longer[:16]))
+    same = sum(1 for i in pr if i in ctrl and pr[i][1] == ctrl[i][1])
+    info.append(f'.CAR bytes changed: plain training {len(ctrl)}, practice {len(pr)}, practice only {len(extra)}; '
+                f'both {len(set(pr) & set(ctrl))}, of them the same value {same}'
+                + (' (RNG pinned)' if os.environ.get('PRACTICE_CAR_RNG', '1') != '0' else ''))
     check(not extra, 'practice-only .CAR bytes: ' + ', '.join(f'{i:#x} {pr[i][0]:02x}->{pr[i][1]:02x}'
                                                               for i in extra[:16]), errs)
     return not errs, '; '.join(errs + info)

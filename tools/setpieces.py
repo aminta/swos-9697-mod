@@ -63,7 +63,7 @@ def knobs():
                 AFX0=_iv('SP_AFX0', 150), AFX1=_iv('SP_AFX1', 520),
                 FKXI=_iv('SP_FKXI', 8), FKXC=_iv('SP_FKXC', 3),
                 FKXC2=_iv('SP_FKXC2', 2), FKXI2=_iv('SP_FKXI2', -12), FKXMS=_iv('SP_FKXMS', 4),  # fk8: ARCADE steer px a tick; a miss aims 8..16 px outside
-                FKA2=[int(x) for x in (os.environ.get('SP_FKA2') or '5,9,13,23,33,46,61,77').split(',')])  # fk8: ARCADE on-target chance /256 by SHOOTING                                  # §3 sideways steer                                 #  the FK zone
+                FKA2=[int(x) for x in (os.environ.get('SP_FKA2') or '10,17,24,33,42,52,61,70').split(',')])  # fk8: ARCADE on-target chance /256 by SHOOTING                                  # §3 sideways steer                                 #  the FK zone
 
 
 def _one(d, pat, name, n=1):
@@ -150,6 +150,10 @@ def find(p):
     c = dict(KDZ_O=t(kd + 1)[1], GSP_O=t(kd + 22)[1], GS_O=t(kd + 32)[1], KAF_O=t(gr + 1)[1], A6T_O=a6[1],
              A1_O=sym['D0_'][1] + 4 * 9, BALL_O=ball[1], A2_O=a2[1], A4_O=a4[1], A5_O=a5[1], D7_O=d7[1], BDZ_O=t(band + 3)[1],
              GKA_O=t(gka[0] + 2)[1], KJZ_O=t(jz + 1)[1], KFZ_O=t(fz + 1)[1], DZO=dz, ZO=zo, HDO=d[hd + 8], TKS=tks)
+    import slow                                     # (fk10: currentGameTick, read before difficulty's trace hooks)
+    cgt = slow.find(p)['CGT']
+    assert cgt[0] == t(kd + 32)[0], ('currentGameTick not in GS_O\'s object', cgt)
+    c['CGT_O'] = cgt[1]
     return s, c
 
 
@@ -536,6 +540,9 @@ sp_kick:
     cmp ecx, 202
     jg .d
     mov [ebp + FK_UP - SPB], bl
+    movzx eax, word [esi + CGT_O]       ; (fk10: currentGameTick into the kick's own LCG - read only, the game's
+    imul eax, eax, 9E3779B1h            ;  generators untouched - so no two matches replay the same rolls)
+    xor [ebp + FK_R - SPB], eax
     mov edi, [esi + A6T_O]
     mov [ebp + FK_TM - SPB], edi
     mov edx, [esi + A1_O]

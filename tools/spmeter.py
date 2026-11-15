@@ -256,6 +256,14 @@ spm_foul:
     pop ecx
     movzx eax, word [dword ebp + FKX - SPB + edx * 2]
     shl eax, 16
+    mov edx, [dword ebp + DF_FRAMES - SPB]   ; (fk10, Regia 15/11: the spot spread per foul - x -8..+7 px and a random
+    imul edx, edx, 40503                ;  fraction, from the match's own frame count - so one arm is not one spot)
+    mov ax, dx
+    shr edx, 16
+    and edx, 15
+    sub edx, 8
+    shl edx, 16
+    add eax, edx
     mov [esi + 1Eh], eax
     mov [edi + A2_O], esi
     call near TESTFOUL

@@ -82,7 +82,8 @@ LEVELS = {'better': 0, 'et_pens': 1, 'et_better': 2, 'pens': 3, 'away_pens': 4, 
           'better_pts': 6, 'second': 7}    # (4.2 s3shape: the better placed unless level on points, then e.t. + pens;
                                            # the listed second - a seeded round's seed)
 S3_ONLY_LEVELS = ('better_pts', 'second')   # (4.2 S3 step 1: the levels only the Serie B play-off / play-out use)
-S3_KEYS = ('b_po', 'b_pout')
+S3_KEYS = ('b_po', 'b_pout', 'c_po',     # (the Italian pack's keys; c_po: the Serie C play-off of engine ita_s3.json, level 'second') and the
+           'ita.b.playoff', 'ita.b.playout', 'ita.c-po')   # keys the engine's swc_gplay.bridge gives them (its rules-check compiles them)
 S3_PACKS = ('world-2026-27-ita',)            # (the pack id of the one league with the S3 Serie B play-off, ita_s3.json)
 
 
@@ -249,7 +250,7 @@ def compile_spec(pos, ndiv, league_names=None):
             if legs not in (1, 2, 3) or rd.get('host', 'listed') not in HOSTS or rd.get('level', 'et_pens') not in LEVELS:
                 raise ValueError(f'{key}: legs 1 / 2, host {sorted(HOSTS)}, level {sorted(LEVELS)}')
             if rd.get('level') in S3_ONLY_LEVELS and key not in S3_KEYS:      # (MC 14/11: no pack picks levels 6 / 7 up silently)
-                raise ValueError(f"{key}: level '{rd['level']}' is only for the Serie B play-off / play-out {sorted(S3_KEYS)} "
+                raise ValueError(f"{key}: level '{rd['level']}' is only for the Serie B / C play-offs {sorted(S3_KEYS)} "
                                  "(4.2 S3 step 1: gplay.c GP_S3SKIP); other specs wait for step 2 to make it general")
             gap = rd.get('gap', 0)
             if not (isinstance(gap, int) and 0 <= gap < 256):

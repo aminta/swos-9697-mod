@@ -2,7 +2,8 @@
 - the map table's order and classes (release / '(test)' / '(4.3)', obj4check.TEST_ONLY);
 - holes between release bands removed, a fixed non-map band jumped over, every band sized used + floor rounded to
   0x100 (a band under its floor grows, an oversized one shrinks; 128 B for SETPIECE / DIFF2 / SPX);
-- test-only bands moved from 0x30000 (SREG2, unlinked, page-aligned there) with their sizes (after the ones already there), a release band with no byte in
+- test-only bands moved from 0x30000 (SREG2, unlinked, page-aligned there); a test-only band the release exes
+  link (CDKN in a CD_KN release) packed as release with their sizes (after the ones already there), a release band with no byte in
   any exe moved with them (--ship packs it), the 4.3 reservations after the last release band;
 - the swreg patch: literal AT / END lines only, a band's inner constant (NAME_CC) moved with it, a chain assert that
   the new values break reported with its required order, the patched module = the plan;
@@ -113,6 +114,11 @@ def test_obj4pack_layout():
     assert P['S7GEO']['cls'] == 'release-unlinked' and P['S7GEO']['at'] >= 0x30000, P['S7GEO']
     assert any(n.startswith('S7GEO: release map band with no byte') for n in notes), notes
     assert P['SREG2']['at'] % 0x1000 == 0 and P['SREG2']['at'] >= 0x30000 and P['SREG2']['end'] - P['SREG2']['at'] == 0x1000, P['SREG2']
+    bl3, mp3, used3 = bl, mp, {x: dict(d, FPORT=700) for x, d in used.items()}     # (FPORT linked in the release)
+    plan3, notes3, _ = op.pack(bl3, mp3, used3)
+    P3 = {p['name']: p for p in plan3}
+    assert P3['FPORT']['cls'] == 'release' and P3['FPORT']['at'] < 0x30000 and P3['FPORT']['end'] - P3['FPORT']['at'] == 0x400, P3['FPORT']
+    assert any(n.startswith('FPORT: test-only in the map but linked') for n in notes3), notes3
     _, _, _, plan2, _, _ = setup(ship=['S7GEO'])
     P2 = {p['name']: p for p in plan2}
     assert P2['S7GEO']['cls'] == 'release' and P2['S7GEO']['end'] - P2['S7GEO']['at'] == 0x1000, P2['S7GEO']

@@ -14,7 +14,8 @@ Proposal (a release build dir: its 8 exes + build.log, measured on this checkout
      (KITS) grows and an oversized one shrinks. Bands that are not map bands (REG, SLOW + its inner bands, T3, ...) and
      map bands nested inside one stay where they are; the packing jumps over them. A release map band with no byte in
      any of the 8 exes (not linked in this release build) is NOT packed: it goes to the test region with the
-     test-only bands and the report names it (--ship NAME packs it anyway at its current size);
+     test-only bands and the report names it (--ship NAME packs it anyway at its current size); a test-only map
+     band that the release exes DO link (CDKN in a CD_KN release) is packed as a release band, the report says so;
  (b) the test-only bands (and the unlinked ones) keep their sizes and go from 0x30000 (after the bands already there);
  (c) OBJ4_PAGES = ceil(the last packed release band's END / 0x1000); the 4.3 reservations follow the last release band
      in map order, sizes kept (unlinked: no file page in a release);
@@ -115,6 +116,16 @@ def pack(bl, mp, used, ship=(), test=()):
     notes = []
     for n in test:
         cls[n] = 'test'
+    # (MC 15/11: a band is classed by what the release exes link - a test-only map band (CDKN: CD_KN builds) with
+    # bytes in them is a release band here, packed with its floor; --test NAME forces the test region)
+    mp2 = []
+    for n, c in mp:
+        if c == 'test' and n in B and mx.get(n) is not None and n not in test:
+            notes.append(f'{n}: test-only in the map but linked in this release build ({mx[n]} B) - packed as a '
+                         f'release band (floor {floor(n)})')
+            c = 'release'
+        mp2.append((n, c))
+    mp = mp2
     rel_order = [n for n, c in mp if c == 'release' and n in B and n not in test]
     packed, totest = [], []
     for n in rel_order:
@@ -173,7 +184,8 @@ def pack(bl, mp, used, ship=(), test=()):
         t += e0 - a0
     for p in plan:
         if p['cls'] == 'test' and p['used']:
-            notes.append(f"{p['name']}: test-only band with {p['used']} B in a release exe (obj4check (c))")
+            notes.append(f"{p['name']}: forced to the test region (--test) with {p['used']} B in a release exe "
+                         f"(obj4check (c) on the packed build)")
     known = {p['name'] for p in plan}
     for n, a, e in bl:
         if n not in known and n not in {f[2] for f in fixed} and n not in inner:

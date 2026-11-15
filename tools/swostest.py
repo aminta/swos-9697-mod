@@ -39991,13 +39991,18 @@ def world_s7cross_winners_same():
     s7 = sy.get('s7swap', {})
     if 'S7_CLOG' not in s7 or 'CN_ST' not in sy.get('gplay', {}):
         return False, f'{exe}: no S7 swap builder / CN_ST label'
+    if 'cf_cap' not in sy.get('gplay', {}):             # (15/11: this scenario needs the CF code - gplay links it only when a league pack has cup_d: s7pack-REAL/ita
+        return False, (f'SETUP: {exe} carries no CF code (gplay cf_cap: the Italy pack has no cup_d, so CN_ST is never written) - run with '    # has it, s7pack-shaved/ita
+                       f'S7_PACK=internal/s7pack-real/ita (notes/harness.md)')                                                                      # has not)
     keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_RENEW', 'W8485_ONE', 'W8485_HEX')
     keep = {k: os.environ.get(k) for k in keys}
     sel = s7['S7_SELTEAM'][1]
     try:
         os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=os.environ.get('S7W_TEAM', 'EUROPA,ITALIA,SERIE A,INTER'),
                           W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1', W8485_RENEW='1', W8485_ONE='1',
-                          W8485_HEX=f'o4/{s7["S7_LOG"][1]:x}:8,o4/{s7["S7_CLOG"][1]:x}:6,{sel:x}:8')
+                          W8485_HEX=f'o4/{s7["S7_LOG"][1]:x}:8,o4/{s7["S7_CLOG"][1]:x}:6,{sel:x}:8,'
+                          f'{sy["gplay"]["CN_ST"][1]:x}:12,{sy["gplay"]["CF_ST"][1]:x}:8,{sy["gplay"]["GP_MGR"][1]:x}:2,'
+                          f'{sy["careerworld"]["sites.slt"][1] + 1845:x}:2')
         ok, msg = world8485()
     finally:
         for k, v in keep.items():

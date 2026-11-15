@@ -75,7 +75,7 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 
 ### Novità
 
-#### Serie D placement
+#### Collocazione in Serie D
 - Serie D: le squadre promosse in Serie D ora entrano nel girone della loro zona. Se quel girone è già pieno, una delle sue squadre passa a un girone confinante per fare posto. Non è mai la tua squadra e nessuna squadra viene spostata più di una volta a stagione, come fa la Lega con le squadre al confine tra due gironi.
 
 #### La tua carriera 4.1 nella nuova Italia della 4.2
@@ -83,26 +83,26 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 - I 6 posti nuovi vanno prima alle 6 squadre che entrano in Serie D nel 2026-27, se la tua carriera non le ha già fatte entrare. Altrimenti vanno alle squadre retrocesse dalla Serie D nella tua carriera, nell'ordine in cui il gioco le avrebbe riportate su. Queste squadre entrano nel loro girone all'inizio della stagione successiva.
 - Caso raro: il gioco usava squadre provvisorie (una "squadra riserva") per riempire un posto in Serie D quando una squadra usciva dalla piramide. Se una riserva è arrivata in Serie C nella tua carriera 4.1, al primo caricamento nella 4.2 viene sostituita da una vera squadra di Serie D, che tiene i punti e la posizione in classifica della riserva.
 
-#### Keeper gloves
+#### Guanti dei portieri
 - Nel mondo 2026-27 i portieri portano i guanti bianchi: le mani si vedono bianche, per ogni portiere qualunque sia il colore della pelle. I mondi storici (1996-97, 1984-85 e le stagioni storiche) hanno le mani nude del gioco originale.
 
-#### Club tactics
+#### Tattiche delle squadre
 - Nel mondo 2026-27 ogni squadra ora gioca con il suo modulo reale: quello che il suo allenatore usa in questa stagione (Transfermarkt), tradotto nella tattica SWOS più vicina (un 4-2-3-1 gioca 4-5-1, un 3-4-2-1 gioca 3-4-3). Le squadre senza questa informazione prendono il modulo più adatto alla loro rosa. Prima quasi tutte giocavano 4-4-2. Anche gli undici titolari ora si schierano secondo la loro tattica.
 - Mondo 1984-85: le squadre ora si schierano secondo il loro modulo (una squadra col 3-5-2 schiera tre difensori e cinque centrocampisti) invece che sempre nei ruoli del 4-4-2.
 
-#### Real Serie A and Serie B line-ups
+#### Formazioni reali di Serie A e Serie B
 - Serie A e Serie B 2026-27: gli undici titolari di ogni squadra ora sono quelli che giocano davvero in questa stagione (i giocatori con più presenze da titolare), in panchina vanno i più convocati (con il solito portiere di riserva) e gli altri restano fuori dai convocati. Per esempio la JUVENTUS schiera VICARIO in porta con NETO in panchina. La squadra mantiene il modulo del suo allenatore ogni volta che quegli undici possono giocarlo, con i terzini da esterni di centrocampo e le ali in attacco (JUVENTUS 3-4-3, INTER 3-5-2).
 
-#### Player prices from the market value
+#### Prezzi dei giocatori dal valore di mercato
 - Mondo 2026-27: il prezzo di un giocatore ora segue solo il suo valore di mercato reale (Transfermarkt). Un giovane che vale molto costa più di un veterano a fine carriera, qualunque sia la sua squadra. Le abilità sono esattamente quelle di prima, e i prezzi nel mondo restano nella stessa fascia di prima.
 
-#### Winners page after a move between Serie C and Serie D
+#### Pagina dei vincitori dopo un passaggio tra Serie C e Serie D
 - Pagina dei vincitori: la pagina della stagione scorsa funziona anche quando il tuo club è appena passato tra Serie C e Serie D (promozione o retrocessione), e ora c'è anche per una carriera in Serie D: indica il vincitore del campionato in cui il tuo club ha giocato la stagione scorsa.
 
-#### Winners page: last season's winner of Serie B / Serie C
+#### Pagina dei vincitori: il vincitore della stagione scorsa di Serie B / Serie C
 - Pagina dei vincitori: nel mondo 2026-27 la pagina della stagione scorsa indica il vincitore giusto di Serie B e Serie C (e di Serie D quando il vincitore è nel frattempo salito). Prima, un vincitore che aveva lasciato la categoria poteva mostrare il nome di un club qualunque, oppure in Serie C la pagina mancava del tutto. Ora i nomi vengono letti dai club del mondo 2026-27.
 
-#### Difficulty
+#### Difficoltà
 - Nuova riga in OPZIONI, DIFFICOLTÀ: FACILE, NORMALE o DIFFICILE. NORMALE è il gioco originale. Il livello cambia solo una squadra del computer che gioca contro di te: a FACILE i suoi giocatori valgono l'80%, il portiere ha 2 punti in meno e i passaggi sbagliano più spesso; a DIFFICILE i giocatori sono migliori del 10%, il portiere ha 2 punti in più e i passaggi sono più precisi. Due giocatori umani, computer contro computer, allenamenti, SWOS++ e risultati simulati restano sempre il gioco originale.
 
 #### Dribbling
@@ -110,7 +110,7 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 - PERSONALIZZATO apre una pagina dove regoli tu ognuna di queste voci, dal gioco classico (a sinistra) a più aiuto (a destra), più DIFENSORI CPU (INSEGUONO come oggi; ASPETTANO: restano tra te e la porta invece di rincorrerti da dietro; COPERTURA e UNO ALLA VOLTA: uno pressa e un compagno copre alle sue spalle) e COSTRUZIONE CPU. PREDEFINITI rimette i valori di NUOVO.
 - Queste regolazioni valgono solo a palla in gioco: punizioni, calci d'angolo, rimesse laterali, rinvii dal fondo e calci d'inizio restano come nel gioco originale.
 
-#### Set pieces
+#### Calci piazzati
 - Nuova riga in OPZIONI, CALCI PIAZZATI: CLASSICI (il gioco originale), REALISTICI o ARCADE, per ogni partita.
 - REALISTICI: i colpi di testa su angoli e cross vanno verso il basso invece che sopra la traversa (chi è bravo di testa tiene la palla sotto la traversa anche da più lontano); i portieri non bloccano più tutto quello che cade nell'area piccola; il computer va più spesso sui palloni alti; le punizioni vicino all'area scendono dopo la barriera come quelle vere, e quante entrano dipende dal TIRO del battitore, come nel calcio reale: [SEGNAPOSTO fino all'ultimo test sulle punizioni: uno specialista circa una su dieci, uno scarso circa una su trenta].
 - ARCADE: gli stessi colpi di testa e portieri, più punizioni attorno all'area (lì un contrasto pulito viene fischiato fallo una volta su tre) e il computer tira le punizioni a giro sul secondo palo: un ottimo tiratore segna circa una su sei da 20-25 metri, uno scarso quasi mai.

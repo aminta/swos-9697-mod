@@ -48,7 +48,13 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 - ARCADE: the same headers and keepers, more free kicks around the box (a clean tackle there is whistled as a foul one time in three), and the computer curls its free kicks at the far post: a top shooter scores about one in six from 20-25 metres, a weak one hardly ever.
 - Your own free kicks stay in your hands (direction and curl) in every mode.
 
+#### Set-piece practice
+- Career: the TRAINING button on your squad screen now opens a page of its own: TRAINING MATCH (the training game as before), FREE KICK PRACTICE, PENALTY PRACTICE, CORNER PRACTICE and an ATTACK / DEFENCE switch. In ATTACK your team takes the set piece; in DEFENCE the computer's team takes it and you defend.
+- The set piece comes again and again, the ball placed for you each time: free kicks from the centre and from both sides at four distances from goal, penalties, corners from both sides. There is no match clock, no pre-match screen and no score bar flashing up at each restart: just the set pieces.
+- A practice ends by itself after 10 attempts, or press ESC whenever you like (handy on a joypad). A results page then shows your shots and goals (SHOTS / GOALS) and takes you back to the squad screen. A practice never changes your career beyond what a training game already does.
+
 #### Decisions of this release
+- Set-piece practice: a practice lasts 10 attempts and then shows its results page (ESC ends it earlier); a practice has no match clock, no pre-match screen and no score bar at the restarts. Ordinary matches and friendlies are unchanged.
 - (every gameplay or market decision of 4.2 goes here and in the README, EN + IT: Davide 15/11, rc gate item)
 - Difficulty, dribbling and set pieces start at NORMAL, CLASSIC and CLASSIC: a new install plays exactly the original game until you change them in OPTIONS.
 - Difficulty only touches a computer team facing a human; dribbling settings only apply with the ball in play.
@@ -106,7 +112,13 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 - ARCADE: gli stessi colpi di testa e portieri, più punizioni attorno all'area (lì un contrasto pulito viene fischiato fallo una volta su tre) e il computer tira le punizioni a giro sul secondo palo: un ottimo tiratore segna circa una su sei da 20-25 metri, uno scarso quasi mai.
 - Le tue punizioni restano nelle tue mani (direzione ed effetto) in ogni modalità.
 
+#### Prova dei calci piazzati
+- Carriera: il pulsante ALLENAMENTO della schermata della rosa ora apre una pagina tutta sua: ALLENAMENTO (la partitella di sempre), PROVA PUNIZIONI, PROVA RIGORI, PROVA CALCI D'ANGOLO e un interruttore ATTACCO / DIFESA. In ATTACCO il calcio piazzato lo batte la tua squadra; in DIFESA lo batte la squadra del computer e tu difendi.
+- Il calcio piazzato si ripete di continuo, con il pallone rimesso a posto ogni volta: punizioni dal centro e dai due lati a quattro distanze dalla porta, rigori, calci d'angolo da entrambi i lati. Niente cronometro, niente schermata prepartita e nessuna barra del risultato che compare a ogni ripresa del gioco: solo i calci piazzati.
+- La prova finisce da sola dopo 10 tentativi, oppure premi ESC quando vuoi (comodo col joypad). Una pagina finale mostra tiri e gol (TIRI / GOL) e ti riporta alla schermata della rosa. La prova non cambia mai la tua carriera più di quanto faccia già una partitella di allenamento.
+
 #### Decisioni di questa release
+- Prova dei calci piazzati: una prova dura 10 tentativi e poi mostra la sua pagina dei risultati (ESC la chiude prima); in una prova non ci sono cronometro, schermata prepartita né barra del risultato alle riprese del gioco. Le partite normali e le amichevoli restano come prima.
 - (every gameplay or market decision of 4.2 goes here and in the README, EN + IT: Davide 15/11, rc gate item)
 - Difficoltà, dribbling e calci piazzati partono da NORMALE, CLASSICO e CLASSICI: una nuova installazione gioca esattamente il gioco originale finché non li cambi in OPZIONI.
 - La difficoltà tocca solo una squadra del computer contro un umano; le regolazioni del dribbling valgono solo a palla in gioco.

@@ -11014,6 +11014,10 @@ def practice_car_run(mode, errs, info):
                 continue
             if TRAIN_TXT['it'][1] in t:
                 break
+            if mode == 'ctrl' and not t and _ % 8 == 7:   # (q10 15/11, load 20: the ESC missed twice - still in the
+                s.send('esc:0.5 dump:2')                  # match, no menu text; q7 / q8 took it: ESC again)
+                info.append(f'{mode}: ESC again (pause {_})')
+                continue
             s.send('dump:1')
         else:
             errs.append(f'{mode}: no squad screen after the training game ({", ".join(t)[:120]})')

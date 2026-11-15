@@ -1422,6 +1422,7 @@ class Session:
         self.result = None
         self.log = []
         self.ctsd = ctsd_syms(exe_dir)
+        self.scrow = _gp_sym(exe_dir, 'csyms.GP_SCROW') if os.path.isdir(exe_dir) else None   # (4.2 supercups-s1)
         self.ctout = ctout_at(exe_dir)
 
     def __enter__(self):
@@ -2422,6 +2423,18 @@ def force_check(s):
                           f'(CONTI_FORCE / CONTI_FORCE2: added as an extra)')
 
 
+_GP_SYMS = {}
+
+
+def _gp_sym(exe_dir, name):
+    """[obj, offset] of a gplay symbol from the exe dir's ITALIAN.syms.json (scenario builds), or None."""
+    if exe_dir not in _GP_SYMS:
+        p = next((os.path.join(exe_dir, x) for x in ('ITALIAN.syms.json', 'ENGLISH.syms.json')
+                  if os.path.isfile(os.path.join(exe_dir, x))), None)
+        _GP_SYMS[exe_dir] = json.load(open(p)).get('gplay', {}) if p else {}
+    return _GP_SYMS[exe_dir].get(name)
+
+
 def ctsd_syms(exe_dir):
     """4.2 AFC mode (MC 11/11 gate item 4): ctdraw's counters in obj4 -> {'N': off, 'ERR': off, 'HIT': off,
     'force': bool} or None. From the exe dir's ITALIAN.syms.json (a HOSTTEST_SYMS=1 build: scenario builds always),
@@ -2745,8 +2758,12 @@ def label_check(s, step):
                 e = bytes(r.read(cp, 16))
                 cur = struct.unpack('<H', bytes(r.obj2(CAL_CUR_AT, 2)))[0]
                 cw = r.obj2(CAL_AT + cur + 1, 1)[0]
+                sr_ = ''
+                sy_ = getattr(s, 'scrow', None)                                          # (4.2 supercups-s1: gp_scrow's
+                if sy_:                                                                  #  trace, week << 16 | count)
+                    sr_ = f' scrow {struct.unpack("<I", bytes(r.read((r.base2 if sy_[0] == 2 else r.base1) + sy_[1], 4)))[0]:x}'
                 s.log.append(f'[slot4row] step {step} week {e[1]} plays {e[5]} cur {cw} teams '
-                             f'{struct.unpack_from("<H", e, 12)[0]:x} {struct.unpack_from("<H", e, 14)[0]:x} {txt}')
+                             f'{struct.unpack_from("<H", e, 12)[0]:x} {struct.unpack_from("<H", e, 14)[0]:x}{sr_} {txt}')
             except Exception:
                 pass
         bad = None
@@ -22504,10 +22521,11 @@ def world_sc_esp():
 @scenario
 def world_sc_eng():
     """4.0.5 supercups, a summer one: an ARSENAL career on a GPLAY_FORCE=1 test build (the career club 1st of its
-    division at the league end: the champion). Season 1: no FA COMMUNITY SHIELD (already played before the world's
-    first season); season 2 (from season 1's save): the FA COMMUNITY SHIELD FINALE played once in August, v the FA
-    CUP winner (or, after a double, the league's 2nd), before the league's later match days; both seasons end"""
-    return sc_from2('EUROPA,INGHILTERRA,PREMIER LEAGUE,ARSENAL', 'COMMUNITY', 'eng')
+    division at the league end: the champion). Season 1 (4.2 supercups-s1, Davide 15/11): the FA COMMUNITY SHIELD
+    FINALE once v MANCHESTER CITY (the real 2026 edition); season 2 (from season 1's save): the FA COMMUNITY SHIELD
+    FINALE played once in August, v the FA CUP winner (or, after a double, the league's 2nd), before the league's later
+    match days; every slot-4 row COMM. SHIELD; both seasons end"""
+    return sc_from2('EUROPA,INGHILTERRA,PREMIER LEAGUE,ARSENAL', 'COMMUNITY', 'eng', s1='MANCHESTER CITY', week=59)
 
 
 @scenario
@@ -22946,7 +22964,7 @@ def world_sc_bra_sud():
     return not errs, '; '.join(errs + [f'Sudamericana played {played}'])
 
 
-def sc_from2(team, word, tag):
+def sc_from2(team, word, tag, s1=None, week=None):
     """world_sc_eng / world_sc_bra: a supercup from the world's second season - none in season 1, its FINALE once in
     season 2 (season 1's save loaded) - on a GPLAY_FORCE=1 build (the career club the champion)."""
     src = world_data()
@@ -22969,9 +22987,16 @@ def sc_from2(team, word, tag):
     m1, m2 = shield(l1), shield(l2)
     errs = []
     check(ok2, f'season 2: {msg2}', errs)
-    check(not m1, f'season 1 played {m1}', errs)
+    if s1:                                      # (4.2 supercups-s1: season 1 plays the real 2026 edition)
+        o1 = [ln for ln in l1 if ln.startswith('[') and word in ln.split('|')[0] and '- PARTITA -' in ln
+              and '>- RISULTATO -' in ln]
+        check(len(m1) == 1 and 'FINAL' in m1[0] and o1 and s1 in o1[0], f'season 1 supercup matches {m1} (v {s1})', errs)
+        for sn, ll in ((1, l1), (2, l2)):
+            errs += [f'season {sn}: {e}' for e in slot4_label_errs(ll, {week: sc_short(tag)})]
+    else:
+        check(not m1, f'season 1 played {m1}', errs)
     check(len(m2) == 1 and 'FINAL' in m2[0], f'season 2 supercup matches {m2}', errs)   # (FINALE; EN FINAL)
-    return not errs, '; '.join(errs) or f'season 1: none; season 2: {m2}; {msg2[:80]}'
+    return not errs, '; '.join(errs) or f'season 1: {m1 or "none"}{" v " + s1 if s1 else ""}; season 2: {m2}; {msg2[:80]}'
 
 
 
@@ -22980,7 +23005,7 @@ def sc_from2(team, word, tag):
 def world_usc():
     """4.0.6 the UEFA Super Cup in game (gplay.c usc_step, internal/handoff/csup.md): an ARSENAL career on a test build
     with USC_FORCE=1 (the career club last season's Champions League holder) and GPLAY_FORCE=1 (the league's champion:
-    the FA COMMUNITY SHIELD too). Season 1: no SUPERCOPPA UEFA (played before the world); its end's snapshot of the
+    the FA COMMUNITY SHIELD too). Season 1: no SUPERCOPPA UEFA (4.2: the real 2026 pair, ARSENAL not in it); its end's snapshot of the
     game's three holders in SC_ST's last entry (season byte, CL / EL / UECL words: none FFFFh, three clubs, reported by
     name; the save reloaded); season 2 (from season 1's save): the SUPERCOPPA UEFA FINALE played once v the Europa
     League holder of the snapshot, THEN the FA COMMUNITY SHIELD (its week after: slot 4 one at a time); the season ends"""
@@ -23025,8 +23050,113 @@ def world_usc():
         errs.append(e)                          # shows there, as the COMMUNITY SHIELD: the calendar's rows instead)
     rows = [ln.split() for ln in l2 if ln.startswith('[slot4row] ') and ln.endswith(' SUPERC. UEFA')]
     check(rows and all(r[4] == '58' for r in rows), f"the calendar's SUPERC. UEFA row (week 58): {rows[:2]}", errs)
+    errs += [f'season 1: {e}' for e in slot4_label_errs(l1, {59: sc_short('eng')})]   # (4.2 supercups-s1, MC 15/11:
+    errs += [f'season 2: {e}' for e in slot4_label_errs(l2, {58: sc_short('uefa'), 59: sc_short('eng')})]   # every row)
     return not errs, '; '.join(errs) or (f'holders CL {names[0]}, EL {names[1]}, UECL {names[2]} (season {u[3]}); '
                                          f'season 2: {u2[0][1]}, then {sh[0][1]}; {msg2[:60]}')
+
+def sc_short(key, lang=None):
+    """A supercup's short name (the fixture list's label) in lang (default SWOSTEST_UI), tools/supercups2627.json."""
+    d = json.load(open(os.path.join(ROOT, 'tools', 'supercups2627.json')))[key]['names']
+    return (d.get(lang or UI) or d['en'])[1]
+
+
+def slot4_rows(lines):
+    """The fixture list's slot-4 rows of a session log ([slot4row], label_check): [(step, week, team words, label)]."""
+    out = []
+    for ln in lines:
+        m = re.match(r'\[slot4row\] step (\d+) week (\d+) plays \d+ cur \d+ teams (\w+) (\w+)(?: scrow (\w+))? (.*)$', ln)
+        if m:
+            out.append((int(m.group(1)), int(m.group(2)), (m.group(3), m.group(4)), m.group(6), int(m.group(5) or '0', 16)))
+    return out
+
+
+def slot4_label_errs(lines, want):
+    """4.2 supercups-s1 (MC 15/11, finding B): EVERY slot-4 row of the fixture list carries its own contest's label -
+    want {week: label}. A row's label is the slot's header label ([slot4row], label_check), unless gplay's gp_scrow
+    relabelled it as drawn: the header differing from want is accepted only for the UEFA Super Cup's row when
+    gp_scrow's trace (GP_SCROW: week << 16 | draws) shows that week relabelled since the step before (the drawn rows
+    reuse one set of menu entries, so the texts cannot be read back; the screenshot tour shows them). A row of another
+    week is an error. Returns the errors."""
+    rows, errs, prev = slot4_rows(lines), [], 0
+    uw, ul = next(((w, lb) for w, lb in want.items() if lb == sc_short('uefa')), (None, None))
+    bad = []
+    for st in sorted({r[0] for r in rows}):
+        rs = [r for r in rows if r[0] == st]
+        sr = max(r[4] for r in rs)
+        for _, w, t, lb, _ in rs:
+            if w not in want:
+                bad.append((st, w, t, lb, 'week'))
+            elif lb != want[w] and not (w == uw and sr >> 16 == w and (sr & 0xFFFF) != (prev & 0xFFFF)):
+                bad.append((st, w, t, lb, f'scrow {sr:x}'))
+        prev = sr or prev
+    if bad:
+        errs.append(f'slot-4 rows with a wrong label (step, week, teams, label; want {want}): {bad[:4]}')
+    return errs
+
+
+def sc_s1(team, plays, absent=(), tag='s1'):
+    """4.2 supercups-s1 (Davide 15/11): a World 2026-27 career at team, season 1 (release data, no test switch): the
+    supercups of plays [(json key, week, opponent)] each played once in that order (their FINALE screens), none of
+    absent; every slot-4 row of the fixture list with its own label (slot4_label_errs); the season ends."""
+    src = world_data()
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    exe = os.environ.get('SC_S1_BUILD') or build('world_sc_s1', env={
+        'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order])}, lang=UI)
+    ok, msg, l1 = sc_season(team, dict(W8485_BUILD=exe))
+    errs, info = [], []
+    check(ok, f'season 1: {msg}', errs)
+    d = json.load(open(os.path.join(ROOT, 'tools', 'supercups2627.json')))
+    longs = lambda k: (d[k]['names'].get(UI) or d[k]['names']['en'])[0]
+    scr = [(i, ln) for i, ln in enumerate(l1) if ln.startswith('[') and '- PARTITA -' in ln and '>- RISULTATO -' in ln]
+    seen = []
+    for k, wk, opp in plays:
+        m = [(i, ln) for i, ln in scr if longs(k) in ln.split('|')[0] or sc_short(k) in ln.split('|')[0]]
+        check(len(m) == 1, f'{longs(k)}: {len(m)} match screens (want 1)', errs)
+        if m:
+            check(opp in m[0][1] and 'FINAL' in m[0][1].split('|')[0], f'{longs(k)}: not the FINALE v {opp}: '
+                  f'{m[0][1][:120]}', errs)
+            seen.append((m[0][0], k))
+    check([k for _, k in sorted(seen)] == [k for k, _, _ in plays], f'order {sorted(seen)} != {[k for k, _, _ in plays]}', errs)
+    for k in absent:
+        m = [ln for _, ln in scr if longs(k) in ln.split('|')[0] or sc_short(k) in ln.split('|')[0]]
+        check(not m, f'{longs(k)} played in season 1: {m[:1]}', errs)
+    want = {wk: sc_short(k) for k, wk, _ in plays}
+    rows = slot4_rows(l1)
+    check(rows, 'no slot-4 row in the fixture list', errs)
+    errs += slot4_label_errs(l1, want)
+    for k, wk, opp in plays:
+        check(any(w == wk and lb == want[wk] for _, w, _, lb, _ in rows), f'no {want[wk]} row at week {wk}', errs)
+    info.append(', '.join(f'{longs(k)} v {opp} (week {wk})' for k, wk, opp in plays) + ' played in that order'
+                + (f'; none of {", ".join(longs(k) for k in absent)}' if absent else '')
+                + f'; {len(rows)} slot-4 rows, labels {sorted({(w, lb) for _, w, _, lb, _ in rows})}; relabelled draws {max([r[4] & 0xFFFF for r in rows] or [0])}')
+    return not errs, '; '.join(errs) or '; '.join(info) + f'; {msg[:60]}'
+
+
+@scenario
+def world_sc_uefa_s1():
+    """4.2 supercups-s1 (Davide 15/11, backlog-42 row 33): a PARIS-SG career, season 1 - the SUPERCOPPA UEFA FINALE v
+    ASTON VILLA (the real 2026 edition, week 58), THEN the TROPHEE DES CHAMPIONS FINALE v LENS (week 59), each once;
+    every slot-4 row of the fixture list with its own name (the played UEFA row keeps SUPERC. UEFA after slot 4 holds
+    the Trophee: gp_scrow); the season ends"""
+    return sc_s1('EUROPA,FRANCIA,LIGUE 1,PARIS-SG', [('uefa', 58, 'ASTON VILLA'), ('fra', 59, 'LENS')])
+
+
+@scenario
+def world_sc_villa_s1():
+    """4.2 supercups-s1, the control: an ASTON VILLA career, season 1 - the SUPERCOPPA UEFA FINALE v PARIS-SG (week 58)
+    once, no FA COMMUNITY SHIELD (Villa is not in it: ARSENAL v MANCHESTER CITY); slot-4 rows SUPERC. UEFA only"""
+    return sc_s1('EUROPA,INGHILTERRA,PREMIER LEAGUE,ASTON VILLA', [('uefa', 58, 'PARIS-SG')], absent=('eng',))
+
+
+@scenario
+def world_sc_ger_s1():
+    """4.2 supercups-s1: a BAYERN career, season 1 - the German supercup FINALE v DORTMUND (the real 2026 edition,
+    week 61) once, no SUPERCOPPA UEFA (Bayern is not in it); slot-4 rows its own label only"""
+    return sc_s1('EUROPA,GERMANIA,BUNDESLIGA,BAYERN', [('ger', 61, 'DORTMUND')], absent=('uefa',))
+
 
 # the game's extra-time simulation (cseg_2C0D3): the stronger side's margin per |rating difference| (32 rows x 4,
 # picked by Rand2 & 3) - zeroed by world_sc_tur so a level tie stays level after extra time and goes to penalties
@@ -26512,6 +26642,41 @@ def world_sc_oldsave():
     check(ok, f'season 2 on this build: {msg}', errs)
     check(not sc_matches(l2), f'a supercup in the old career\'s season 2: {sc_matches(l2)}', errs)
     return not errs, '; '.join(errs) or f'old save season 2 played, no supercup; {msg[:80]}'
+
+
+@scenario
+def world_sc_oldsave_s1():
+    """4.2 supercups-s1 on an older career (supercups-s1.md Q4): a PARIS-SG career saved at its first screen (week 56,
+    season 1) by the 4.1.2 release exe (SC_OLD, default c/REL412c/SWOS: summer supercups from season 2), loaded by this
+    build and season 1 played: the UEFA SUPER CUP and the TROPHEE DES CHAMPIONS each played at most once (built late,
+    or no edition that season - both documented), every slot-4 row with its own label, no hang, the season ends"""
+    src = world_data()
+    old = os.environ.get('SC_OLD') or os.path.join(MAIN, 'c', 'REL412c', 'SWOS')
+    if not os.path.isdir(src) or not os.path.isdir(old):
+        return True, f'SKIP: private data {src} or old release {old} missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    exe = os.environ.get('SC_S1_BUILD') or build('world_sc_s1', env={
+        'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order])}, lang=UI)
+    team = 'EUROPA,FRANCIA,LIGUE 1,PARIS-SG'
+    ok, msg, _ = sc_season(team, dict(W8485_BUILD=old, W8485_MIDSAVE=f'{CAL_CUR_AT:x}:0:1'))   # (the cursor 0: week 56)
+    car = os.path.join(RUNS, w84_tag() + '_1', 'SWOS', 'W84A.CAR')
+    if not ok or not os.path.exists(car):
+        return False, f'old exe, the save at week 56: {msg}'
+    old_car = os.path.join(RUNS, 'sc_oldsave_s1.CAR')
+    shutil.copy(car, old_car)
+    ok, msg, l1 = sc_season(team, dict(W8485_BUILD=exe, W8485_FROM=old_car), 2)
+    errs = []
+    check(ok, f'season 1 on this build: {msg}', errs)
+    d = json.load(open(os.path.join(ROOT, 'tools', 'supercups2627.json')))
+    got = {}
+    for k in ('uefa', 'fra'):
+        lo, sh = (d[k]['names'].get(UI) or d[k]['names']['en'])
+        got[k] = [ln for ln in l1 if ln.startswith('[') and (lo in ln.split('|')[0] or sh in ln.split('|')[0])
+                  and '- PARTITA -' in ln and '>- RISULTATO -' in ln]
+        check(len(got[k]) <= 1, f'{lo} played {len(got[k])} times', errs)
+    errs += slot4_label_errs(l1, {58: sc_short('uefa'), 59: sc_short('fra')})
+    out = ', '.join(f'{k} {"played once" if got[k] else "no edition"}' for k in got)
+    return not errs, '; '.join(errs) or f'4.1.2 save at week 56 loaded: {out}; {msg[:80]}'
 
 
 def sc_mexdata(src):

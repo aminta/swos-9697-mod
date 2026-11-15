@@ -4692,6 +4692,17 @@ static const u8 *usc_entry(void) {     /* 4.0.6 the UEFA Super Cup's GP_SCT entr
 static int usc_live(void) {             /* 4.0.6: slot 4's supercup tie this season is the UEFA Super Cup's */
     return SC_U[0] == GP_SEAS && SC_U[1] == 1;
 }
+u32 GP_SCROW;                            /* (4.2 supercups-s1: gp_scrow_c's trace - week << 16 | count) */
+u32 gp_scrow_c(const u8 *row) {        /* 4.2 supercups-s1 (MC 15/11): the fixture list's slot-4 row of this season's
+                                           played UEFA Super Cup (its week, the career club's tie decided: SC_U +4 the
+                                           winner) - its short name (STR_BASE-relative), not the label of the national
+                                           supercup slot 4 holds now; 0 = the slot's label */
+    const u8 *e = usc_entry();
+    if (!e || !row || row[0] != 4 || row[1] != e[3]) return 0;
+    if (SC_U[0] != GP_SEAS || SC_U[1] != 3 || !(SC_U[4] | SC_U[5])) return 0;
+    GP_SCROW = (u32)row[1] << 16 | ((GP_SCROW + 1) & 0xFFFF);   /* (the harness: the row's week, draws relabelled) */
+    return (u32)(e[24] | e[25] << 8 | e[26] << 16 | (u32)e[27] << 24);
+}
 static int usc_step(void) {             /* 4.0.6 the UEFA Super Cup at the advance: 1 = the career club's tie built,
                                            -1 = its tie pending (slot 4 held), 0 = nothing (the national one next) */
     const u8 *e = usc_entry();

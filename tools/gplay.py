@@ -343,6 +343,27 @@ def compile_spec(pos, ndiv, league_names=None):
 
 
 PLAY_ASM = '''
+%if SC_ON
+gp_scrow:                               ; 4.2 supercups-s1 (MC 15/11, finding B): replaces CareerGameListCommon's cup row
+    mov word [esi + 4], 0               ; `mov word [esi + 4], 0` (its first line, the label already in [esi + 38]): a
+    pushad                              ; slot-4 row of the played UEFA Super Cup keeps its own name after slot 4 holds
+    push es                             ; the national supercup (gp_scrow_c: 0 = the slot's label stays)
+    push ds
+    pop es
+    cld
+    push dword [A6R]                    ; (the row: [0] its slot, [1] its week)
+    call gp_scrow_c
+    add esp, 4
+    pop es
+    test eax, eax
+    jz .x
+    add eax, STR_BASE_
+    mov esi, [esp + 4]
+    mov [esi + 38], eax
+.x: popad
+    ret
+%endif
+
 %if STG_ON
 gp_cal:                                 ; 4.0: replaces the career calendar's league row `mov word [esi + 4], 1` (its
     mov word [esi + 4], 1               ; second line hidden): the league day's stage / group short title as its first
@@ -2940,7 +2961,7 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     symbols['ADDJOB'] = (1, addjob)
     symbols.update({k: syms[k] for k in ('GP_CFB', 'GP_LG', 'GP_RST', 'GP_RIT', 'GP_SEL', 'GP_MGR', 'GP_WORLD', 'GP_SLT',
                                          'gp_sack_c', 'gp_forcecfb', 'gp_pwin_c', 'gp_rlines_c', 'GP_RLN', 'GP_RLC', 'GP_RLPOULE', 'GP_REC', 'GP_CMB', 'gp_adv_c', 'GP_ADVWK', 'GP_WK', 'GP_TH', 'GP_RN',
-                                         'gp_defer_c', 't2_force', 'gf_step_c', 'gf_drop_c', 'gf_place_c', 'gf_hide_c', 'gf_unhide_c', 'gf_anchor_c', 'GP_S3', 'GP_S3B', 'GP_GFT', 'cd_step_c', 'sc_step_c', 'sc_rlines_c', 'GP_SCT', 'GP_SCFIRST', 'SC_ST', 'SC_TRACE', 'cd_fixload_c', 'gp_scal_c', 'gp_repoint_c', 'gp_fixload_c', 'gp_strmap_c', 'CD_ST', 'GP_CDT', 'GP_CDNM', 'GP_CDD',
+                                         'gp_defer_c', 't2_force', 'gf_step_c', 'gf_drop_c', 'gf_place_c', 'gf_hide_c', 'gf_unhide_c', 'gf_anchor_c', 'GP_S3', 'GP_S3B', 'GP_GFT', 'cd_step_c', 'sc_step_c', 'gp_scrow_c', 'sc_rlines_c', 'GP_SCT', 'GP_SCFIRST', 'SC_ST', 'SC_TRACE', 'cd_fixload_c', 'gp_scal_c', 'gp_repoint_c', 'gp_fixload_c', 'gp_strmap_c', 'CD_ST', 'GP_CDT', 'GP_CDNM', 'GP_CDD',
                                          'GP_CDFIRST')})
     symbols['CD_MEMBER'] = syms['cd_member_c']
     symbols['GP_CDS1'] = syms['GP_CDS1']
@@ -3021,6 +3042,13 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     sct = supercup.table(lang, (lambda x: _sadd(area, x) - sacups.STR_BASE) if area else (lambda x: 0)) \
         if mkseason.worlds() else None
     symbols['SC_ON'] = (0, int(bool(sct)))
+    scrow_sites = []
+    if sct:                                                   # (4.2 supercups-s1: CareerGameListCommon's two cup-row
+        d1 = p.le.obj_bytes(1)                                #  `mov word [esi + 4], 0` after `add D3, 16; add D4, 8;
+        scrow_sites = [m.start() + 22 for m in re.finditer(   #  mov esi, A5` - gp_scrow)
+            rb'\x66\x83\x05.{4}\x10\x66\x83\x05.{4}\x08\x8b\x35' + re.escape(struct.pack('<I', r['A0'] + 20))
+            + rb'\x66\xc7\x46\x04\x00\x00', d1, re.S)]
+        assert len(scrow_sites) == 2 and all(cgl <= x < cgl + 0x1100 for x in scrow_sites), ('cup rows', scrow_sites, cgl)
     if sct:
         import careerworld as cw_
         symbols['W_REC'] = (1, cw_.LABELS['w_rec'])
@@ -3159,6 +3187,9 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
         p.put(1, mrec + 1, struct.pack('<i', lab['gp_mrec'] - (mrec + 5)))   # (REGISTRO GESTIONE: our lines again)
         assert p.get(1, sk['site'], 5) == p.le.obj_bytes(1)[sk['site']:sk['site'] + 5], 'the season-end call is hooked'
         p.put(1, sk['site'] + 1, struct.pack('<i', lab['gp_sack'] - (sk['site'] + 5)))   # (the reserve: sacked)
+    for cs in scrow_sites:                                    # (4.2 supercups-s1: 6 bytes, no address)
+        assert bytes(p.get(1, cs, 6)) == b'\x66\xc7\x46\x04\x00\x00'
+        p.put(1, cs, b'\xe8' + struct.pack('<i', lab['gp_scrow'] - (cs + 5)) + b'\x90')
     for cs in cal_site or []:                                 # (6 bytes, no address: no fixup)
         assert bytes(p.get(1, cs, 6)) == b'\x66\xc7\x46\x04\x01\x00'
         p.put(1, cs, b'\xe8' + struct.pack('<i', lab['gp_cal'] - (cs + 5)) + b'\x90')

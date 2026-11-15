@@ -672,6 +672,7 @@ SC = {   # 4.0.5 the national supercup's paragraph (supercup(): from tools/super
                same='Se la stessa squadra vince entrambi i tornei, non si gioca.',
                summer="Si gioca prima del campionato: nella prima stagione del mondo la partita e gia stata giocata, quindi "
                       "si parte dalla seconda.",
+               first="Si gioca gia nella prima stagione del mondo, con le squadre dell'edizione vera del 2026.",
                mine="Nel gioco partecipi se la tua squadra ne ha diritto.",
                months='gennaio febbraio marzo aprile maggio giugno luglio agosto settembre ottobre novembre dicembre'),
     'en': dict(role=dict(champion='the league champion', second='the league runner-up', third='the league\'s third-placed club',
@@ -688,6 +689,7 @@ SC = {   # 4.0.5 the national supercup's paragraph (supercup(): from tools/super
                same='If the same club wins both tournaments, it is not played.',
                summer="It is played before the league starts: in the world's first season it has already been played, "
                       "so it begins in the second.",
+               first="It is played in the world's first season too, with the clubs of the real 2026 edition.",
                mine="In the game you play it when your club qualifies.",
                months='January February March April May June July August September October November December'),
     'fr': dict(role=dict(champion='le champion', second='le deuxième du championnat', third='le troisième du championnat',
@@ -705,6 +707,7 @@ SC = {   # 4.0.5 the national supercup's paragraph (supercup(): from tools/super
                same="Si le même club gagne les deux tournois, le match n'a pas lieu.",
                summer="Le match se joue avant le championnat : lors de la première saison du monde il a déjà eu lieu, on "
                       "commence donc à la deuxième.",
+               first="Le match se joue dès la première saison du monde, avec les clubs de la vraie édition 2026.",
                mine="Dans le jeu, tu y participes si ton club est qualifié.",
                months='janvier février mars avril mai juin juillet août septembre octobre novembre décembre'),
     'de': dict(role=dict(champion='der Meister', second='der Tabellenzweite', third='der Tabellendritte',
@@ -722,6 +725,7 @@ SC = {   # 4.0.5 the national supercup's paragraph (supercup(): from tools/super
                same='Gewinnt derselbe Verein beide Turniere, wird nicht gespielt.',
                summer="Gespielt wird vor dem Ligastart: in der ersten Saison der Welt ist das Spiel schon vorbei, es "
                       "beginnt also mit der zweiten.",
+               first="Gespielt wird schon in der ersten Saison der Welt, mit den Vereinen der echten Ausgabe 2026.",
                mine="Im Spiel bist du dabei, wenn dein Verein qualifiziert ist.",
                months='Januar Februar März April Mai Juni Juli August September Oktober November Dezember')}
 
@@ -744,6 +748,8 @@ def supercup(e, lang):
         s.append(t['same'])
     if e['from_season'] > 1:
         s.append(t['summer'])
+    elif '+' not in e['date'] and int(e['date'].split('/')[1]) in (7, 8):   # (4.2 supercups-s1, Davide 15/11: a summer
+        s.append(t['first'])                    # one played in season 1 too - the real 2026 edition's clubs)
     s.append(t['mine'])
     return ' '.join(_cap(x) for x in s)
 

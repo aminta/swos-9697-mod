@@ -15,7 +15,8 @@ import re
 import sys
 
 HOME = os.path.expanduser('~')
-PACK = os.environ.get('HT_S7PACK') or os.path.join(HOME, 'swos-mod', 'internal', 's7pack-real', 'ita')
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from s7path import S7PACK as PACK  # noqa: E402
 TOOLS = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..')
 
 

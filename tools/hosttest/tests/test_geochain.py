@@ -11,7 +11,8 @@ import sys
 sys.path.insert(0, os.path.dirname(__file__))
 import test_ripool_cross as rc  # noqa: E402
 
-PACK = os.path.join(os.path.expanduser('~'), 'swos-mod', 'internal', 's7pack-real', 'ita', 'pack.json')
+from s7path import S7PACK  # noqa: E402
+PACK = os.path.join(S7PACK, 'pack.json')
 FL, G, SZ = 5, 9, 18
 
 

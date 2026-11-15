@@ -14,6 +14,7 @@ import tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
+from s7path import S7PACK  # noqa: E402
 import test_cd_dt as cd                              # (its native gplay.c build: _lib, FLAGS, TOOLS)
 
 RIS, RP, RQT, RO, RMT = 256, 20, 192, 16, 640
@@ -208,7 +209,7 @@ def test_ripool_hints():
     if any(hint_words(L)) or ctypes.c_int.in_dll(L, 'RI_HINTN').value:
         errs.append(f'not clear after s7ri_unhint: {hint_words(L)}')
     # the regional rule on the real pack: ri_ida1's lookup of hint 256 + k + 1 = the identity slots + k = pool club k's areas
-    pack = os.path.join(os.path.expanduser('~'), 'swos-mod', 'internal', 's7pack-real', 'ita')
+    pack = S7PACK
     if os.path.isfile(os.path.join(pack, 'pack.json')):
         import mkseason
         import ripool
@@ -562,7 +563,7 @@ def test_s7load_ri_home():
     m, why = rm.setup()
     if not m:
         return why.startswith('SKIP'), why
-    pack = os.path.join(os.path.expanduser('~'), 'swos-mod', 'internal', 's7pack-real', 'ita')
+    pack = S7PACK
     if not os.path.isfile(os.path.join(pack, 'pack.json')):
         return True, f'SKIP: {pack} missing'
     home, _ = s7swap.homes(mkseason.Pack(pack))
@@ -638,7 +639,7 @@ def test_s7_pool_names():
     ways; CONTROLS: a pool club renamed in the RS file / a registry pool row missing are refused with both lists."""
     import mkseason
     import s7swap
-    src = os.path.join(os.path.expanduser('~'), 'swos-mod', 'internal', 's7pack-real', 'ita')
+    src = S7PACK
     if not os.path.isfile(os.path.join(src, 'pack.json')):
         return True, f'SKIP: {src} missing'
     pk = mkseason.Pack(src)
@@ -740,7 +741,7 @@ def test_cd_str_s7():
         if got != want:
             errs.append(f'{what}: {got} != {want}')
     # cupd on the real pack: other_strengths = the other file's rows by the same rule; strengths() keeps today's bytes even in cd2
-    src_pack = os.path.join(os.path.expanduser('~'), 'swos-mod', 'internal', 's7pack-real', 'ita')
+    src_pack = S7PACK
     if os.path.isfile(os.path.join(src_pack, 'pack.json')):
         pk = mkseason.Pack(src_pack)
         f_o, rows = cupd.other_strengths(pk, 144)

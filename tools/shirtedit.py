@@ -909,6 +909,7 @@ def patch(p, cave, obj=1, lang='it'):
     assert len(dc) == 1, ('cmp word [MCD], 6', dc)     # (se_ctl's idle: the direction that opens the box - edteam's)
     INFO.update(obj=obj, se_row=lab['se_row'], se_hl=lab['se_hl'], row_call=rc[0], GPIBP=s['GPIBP'], se_on=lab['se_on'],
                 se_rec=lab['se_rec'], se_ent=lab['se_ent'], dir_at=dc[0], se_skip=lab['se_skip'],
+                se_unsh=(4, blab['se_unsh']), se_ad=(4, blab['se_ad']),
                 **{k: sym[k] for k in ('CT', 'A0', 'D1', 'MCD', 'CURMENU')})
     print(f'exe: editable shirt numbers (MenuProc obj1+{mc:#x}, DrawPlayerEntries number obj1+{hl:#x}, '
           f'code obj{obj}+{cave:#x}..{cave + len(code):#x}, strip obj4+{sa:#x}..{sa + len(scode):#x}, {sleft} B left in SESTRIP)')

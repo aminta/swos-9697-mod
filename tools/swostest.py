@@ -5102,9 +5102,10 @@ def se_goto(s, i):
     return scr
 
 
-def se_box(s, tag, notes, errs):
-    """4.2 (Marco 11/11, shirtbox): the lit number box in shot `tag` is a solid 14 x 8 square (the whole number column)
-    with the number on it in white: no black (the font's shadow, se_unsh) inside, nothing of the box outside."""
+def se_box(s, tag, notes, errs, w=14):
+    """4.2 (Marco 11/11, shirtbox): the lit number box in shot `tag` is a solid w x 8 square (the whole number column:
+    14 px on the team / squad screens, 12 in EDIT CUSTOM TEAMS) with the number on it in white: no black (the font's
+    shadow, se_unsh) inside, nothing of the box outside."""
     from PIL import Image
     im = Image.open(os.path.join(s.run, 'shots', tag + '.png')).convert('RGB')
     G = lambda c: c[2] == 0 and 0x70 < c[1] and c[0] < 0x40     # HL_COLOR 0x0E's greens (the menu's shading)
@@ -5116,8 +5117,8 @@ def se_box(s, tag, notes, errs):
     y0, y1 = min(y for _, y in pts), max(y for _, y in pts)
     inside = [im.getpixel((x, y)) for y in range(y0, y1 + 1) for x in range(x0, x1 + 1)]
     white = sum(c == (255, 255, 255) for c in inside)
-    other = {c for c in inside if c != (255, 255, 255) and not G(c)}
-    check((x1 - x0 + 1, y1 - y0 + 1) == (14, 8), f'{tag}: lit box {x1 - x0 + 1}x{y1 - y0 + 1} at ({x0},{y0}), want 14x8', errs)
+    other = {c for c in inside if c != (255, 255, 255) and not G(c) and c != (68, 161, 0)}   # (a shade in the box too)
+    check((x1 - x0 + 1, y1 - y0 + 1) == (w, 8), f'{tag}: lit box {x1 - x0 + 1}x{y1 - y0 + 1} at ({x0},{y0}), want {w}x8', errs)
     check(white >= 8 and not other, f'{tag}: box pixels white {white}, not green/white {sorted(other)[:4]}', errs)
     notes.append(f'{tag} box ({x0},{y0}) {x1 - x0 + 1}x{y1 - y0 + 1} white {white}')
 
@@ -5803,6 +5804,7 @@ def edteam_right():
         check(s.screen().selected == face, f'RIGHT on the face: selected {s.screen().selected} (face {face}, name {name})',
               errs)
         s.shot('lit')
+        se_box(s, 'lit', notes, errs, w=12)
         s.send('8 8 dump:1')
         s.send('enter dump:1')
         n1 = [r[2] for r in et_team(s)[1]]
@@ -6107,6 +6109,7 @@ def edit_custom_teams():
         s.send('dump:1')
         s.send('right dump:1')
         s.shot('lit')
+        se_box(s, 'lit', notes, errs, w=12)
         before = [r[2] for r in et_team(s)[1]]
         check(len(set(before)) == 16, f'first edit: numbers not unique {before}', errs)
         look_k = et_look(et_team(s)[1][k])
@@ -6124,6 +6127,7 @@ def edit_custom_teams():
             t3 = [r[2] for r in et_team(s)[1]]
             check(t3[k] == 23 and (holder is None or t3[holder] == nw), f'typed 23: {t3} (holder {holder})', errs)
             s.shot('typed23')
+            se_box(s, 'typed23', notes, errs, w=12)
             s.send('esc dump:1')
             t4 = [r[2] for r in et_team(s)[1]]
             check(t4 == before, f'ESC: {t4} != {before}', errs)

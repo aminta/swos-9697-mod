@@ -60,6 +60,15 @@ def test_cd_dt():
     os.makedirs(os.path.join(d, 'tools'))
     p = os.path.join(d, 'tools', 'gplay.c')
     open(p, 'w').write(gsrc)
+    todo, seen = [gsrc], set()                          # (gplay.c's own #include "..." files, recursive: linked next to the
+    while todo:                                         #  copy - Integratore 15/11: gplx.c, 42-gplx; cupview.h, cuprule.c)
+        for f in re.findall(r'^\s*#\s*include\s+"([^"]+)"', todo.pop(), re.M):
+            src = os.path.join(TOOLS, f)
+            if f not in seen and os.path.exists(src) and not os.path.exists(os.path.join(d, 'tools', f)):
+                seen.add(f)
+                os.makedirs(os.path.dirname(os.path.join(d, 'tools', f)), exist_ok=True)
+                os.symlink(src, os.path.join(d, 'tools', f))
+                todo.append(open(src).read())
     r = subprocess.run(['patch', '-R', '-s', '-p1', '-d', d], input=diff, capture_output=True, text=True) \
         if 'GP_CD2' in diff else None
     skip = None

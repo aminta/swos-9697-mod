@@ -53,6 +53,9 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 - The set piece comes again and again, the ball placed for you each time: free kicks from the centre and from both sides at four distances from goal, penalties, corners from both sides. There is no match clock, no pre-match screen and no score bar flashing up at each restart: just the set pieces.
 - A practice ends by itself after 10 attempts, or press ESC whenever you like (handy on a joypad). A results page then shows your shots and goals (SHOTS / GOALS) and takes you back to the squad screen. A practice never changes your career beyond what a training game already does.
 
+#### Malta's title decider
+- Malta: when the title is decided by a play-off (the Finalissima or the Final Four), the champion is now always the club that won that play-off's final. Before, the game could crown a different club at the end of the season.
+
 #### Decisions of this release
 - Set-piece practice: a practice lasts 10 attempts and then shows its results page (ESC ends it earlier); a practice has no match clock, no pre-match screen and no score bar at the restarts. Ordinary matches and friendlies are unchanged.
 - (every gameplay or market decision of 4.2 goes here and in the README, EN + IT: Davide 15/11, rc gate item)
@@ -116,6 +119,9 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 - Carriera: il pulsante ALLENAMENTO della schermata della rosa ora apre una pagina tutta sua: ALLENAMENTO (la partitella di sempre), PROVA PUNIZIONI, PROVA RIGORI, PROVA CALCI D'ANGOLO e un interruttore ATTACCO / DIFESA. In ATTACCO il calcio piazzato lo batte la tua squadra; in DIFESA lo batte la squadra del computer e tu difendi.
 - Il calcio piazzato si ripete di continuo, con il pallone rimesso a posto ogni volta: punizioni dal centro e dai due lati a quattro distanze dalla porta, rigori, calci d'angolo da entrambi i lati. Niente cronometro, niente schermata prepartita e nessuna barra del risultato che compare a ogni ripresa del gioco: solo i calci piazzati.
 - La prova finisce da sola dopo 10 tentativi, oppure premi ESC quando vuoi (comodo col joypad). Una pagina finale mostra tiri e gol (TIRI / GOL) e ti riporta alla schermata della rosa. La prova non cambia mai la tua carriera più di quanto faccia già una partitella di allenamento.
+
+#### Spareggio per il titolo a Malta
+- Malta: quando il titolo si decide con uno spareggio (la Finalissima o la Final Four), il campione ora è sempre la squadra che ha vinto la finale di quello spareggio. Prima il gioco poteva incoronare un'altra squadra a fine stagione.
 
 #### Decisioni di questa release
 - Prova dei calci piazzati: una prova dura 10 tentativi e poi mostra la sua pagina dei risultati (ESC la chiude prima); in una prova non ci sono cronometro, schermata prepartita né barra del risultato alle riprese del gioco. Le partite normali e le amichevoli restano come prima.

@@ -304,8 +304,10 @@ if __name__ == '__main__':
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     if sys.argv[1:] == ['golden']:
         import json
-        json.dump(golden_cases(), open(GOLDEN, 'w'), indent=0, sort_keys=True)
-        print('wrote', GOLDEN, len(golden_cases()), 'cases')
+        cs = golden_cases()                              # (one case a line: later diffs stay readable)
+        with open(GOLDEN, 'w') as f:
+            f.write('[\n' + ',\n'.join(json.dumps(c, sort_keys=True, separators=(',', ':')) for c in cs) + '\n]\n')
+        print('wrote', GOLDEN, len(cs), 'cases')
         raise SystemExit
     for lv in (sys.argv[1:] or ['C', 'D']):
         validate(lv)

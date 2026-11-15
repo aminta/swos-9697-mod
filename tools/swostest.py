@@ -30520,8 +30520,46 @@ def world_s3dbl_fresh():
     if not os.path.exists(car):
         return False, f'{msg}; no season-end save {car}'
     c0, c1 = s7_division_counts(car, src)
-    check(c0 == c1, f'division sizes changed at the season end: before {c0} after {c1}', errs)
+    top = lambda c: {k: v for k, v in c.items() if k < 5}            # (A, B, the 3 Serie C groups: MC's gate; the Serie D / lower
+    check(top(c0) == top(c1), f'division sizes changed at the season end: before {top(c0)} after {top(c1)}', errs)   # pool
+    #  divisions move with the lower tiers' own pool moves, in the control too)
     return not errs, '; '.join(errs) or f'{msg[:120]}; division sizes kept {c1}'
+
+
+@scenario
+def world_s3dbl_c20():
+    """4.2 BLOCKER (TRENTO double promotion, MC 15/11): career_20seasons (C20_SEASONS, default 2: a save + reload every
+    season) on a fresh S7 career at TRENTO with the Serie C play-off forced (S3_BUILD = DPLAY_FORCE=105 build) - after
+    EVERY season end Serie A, Serie B and the three Serie C groups hold 20 clubs (pack division + the save's SLTCOPY
+    deltas, s7_division_counts): next season B 20 and C groups 20 each"""
+    src = (os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-h3s7')).rstrip('/')
+    exe = os.environ.get('S3_BUILD')
+    if not exe or not os.path.isdir(src):
+        return True, f'SKIP: S3_BUILD ({exe}) or the S7 data {src} missing'
+    keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'C20_TEAM', 'C20_SEASONS', 'W2627REL_DATA')}
+    os.environ.update(W8485_BUILD=exe, C20_TEAM=os.environ.get('S3_TEAM', 'EUROPA,ITALIA,SERIE C GIRONE A,TRENTO'),
+                      C20_SEASONS=os.environ.get('C20_SEASONS') or '2', W2627REL_DATA=src)
+    try:
+        ok, msg = career_20seasons()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    errs, info = [], []
+    check(ok, f'career_20seasons: {msg[:300]}', errs)
+    n = int(os.environ.get('C20_SEASONS') or 2)
+    for season in range(1, n + 1):
+        car = os.path.join(RUNS, f'c20_after_s{season:02d}.CAR')          # (career_20seasons' copy of every season end's save)
+        if not os.path.exists(car):
+            check(False, f'season {season}: no save {car}', errs)
+            continue
+        c0, c1 = s7_division_counts(car, src)
+        top = {k: v for k, v in c1.items() if k < 5}
+        check(all(v == 20 for v in top.values()) and len(top) == 5, f'season {season}: divisions A, B, C groups {top} (want 20 each)', errs)
+        info.append(f'season {season}: A/B/C {sorted(top.items())}')
+    return not errs, '; '.join(errs) or f'{msg[:120]}; ' + '; '.join(info)
 
 
 @scenario

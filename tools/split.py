@@ -1943,6 +1943,9 @@ def pair_table(p, s, n):
     return [(raw[2 * i], raw[2 * i + 1]) for i in range(n * (n - 1) // 2)]
 
 
+LABELS = {}                                         # (the last build's labels, obj1 offsets: hosttest symbols)
+
+
 def patch(p, cave, nasmcave, splits):
     """splits: [(world, team file, division, clubs, spec)]. Returns the cave end (nothing without splits)."""
     import careerworld
@@ -2009,6 +2012,8 @@ def patch(p, cave, nasmcave, splits):
     cave = (cave + 3) & ~3
     code, fix = nasmcave.assemble(src, cave, sym)
     lab = nasmcave.labels(src, cave, sym)
+    LABELS.clear()                                  # (HOSTTEST_SYMS: obj1 offsets; test_s6a_careerteam)
+    LABELS.update(lab)
     LATE[:] = [(name, lab['SP_CB'] + off, lab['sp_nostage']) for name, off in late]
     code_ = code
     MXH[:] = [cave + i for i in range(len(code_) - 4) if code_[i] == 0xE8 and

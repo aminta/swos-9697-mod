@@ -631,6 +631,9 @@ CV_BUTTONS
 """
 
 
+LABELS = {}                                             # (the last build's labels, (3, offset): hosttest symbols)
+
+
 def patch(p, at, lang, scr_at):
     """The view at obj3:at (the end of the obj3 chain): CV_TAB, ctview.c, the glue; gplay's entry 9 pointed at it.
     Returns the end (asserted within CAP)."""
@@ -721,6 +724,8 @@ def patch(p, at, lang, scr_at):
     sym.update(CR_LBL=(3, scr), CR_NAV=(3, scr + CR_N * CR_LW), CR_TITLE=(3, scr + CR_N * CR_LW + 4 * CR_N + 4))
     code, fix, rel = nasmcave.assemble_obj(src, at, sym, 3)
     lab = nasmcave.labels(src, at, sym)
+    LABELS.clear()                                      # (HOSTTEST_SYMS: obj3 labels; test_s6a_careerteam)
+    LABELS.update({k: (3, v) for k, v in lab.items()})
     assert not any(p.get(3, at, len(code)))
     p.put(3, at, code)
     for o, t_obj, t_off in fix:

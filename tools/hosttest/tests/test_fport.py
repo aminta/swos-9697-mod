@@ -129,20 +129,33 @@ def test_fport_world_sane():
 
 
 def test_fport_stage_cap():
-    """forced: a stage title whose B + days + 1 passes 255 (ARG's Clausura knockout given 60 two-leg rounds of gap 2)
-    -> E clamps at 255 (the season's byte range; END = 65535 stays the season end). Pins the cap for the swcc
-    cross-check (OpenSWOS 12/11), which h2 alone never reaches"""
+    """the unit byte's limit (MC 14/11: no silent clamp - 42-modcap made fport assert, MC 15/11 this test): ARG's
+    Clausura knockout (base 79, then the Trofeo, 2 days) forced to more rounds. 60 two-leg rounds of gap 2: its window
+    end past 255 -> fport's AssertionError naming arg_cl_ko. Control at the limit: 43 rounds (172 days) -> cl_ko
+    [79, 252], the Trofeo [252, 255] accepted; one day more -> the Trofeo's end 256: the AssertionError naming
+    arg_trofeo. Pins the limit for the swcc cross-check (OpenSWOS 12/11), which h2 alone never reaches"""
     s = _skip()
     if s:
         return s
     import copy
     import json
-    pk = json.load(open(os.path.join(H2, 'arg', 'pack.json')))
-    pk['dir'] = os.path.join(H2, 'arg')
-    pk = copy.deepcopy(pk)
-    po = next(p for p in fport._league(pk)['ko_playoffs'] if p.get('key') == 'arg_cl_ko')
-    po['rounds'] = [{'legs': 2, 'gap': 2}] * 60
-    w = next(x for x in fport.windows(pk, EXE)[0] if x[2] == 'stage:arg_cl_ko')
-    tr = next(x for x in fport.windows(pk, EXE)[0] if x[2] == 'stage:arg_trofeo')
-    ok = w[1] == 255 and w[0] + fport.po_days(po) + 1 > 255 and tr[0] == 255 and tr[1] == 255
-    return ok, f'cl_ko {w}, trofeo {tr} (days {fport.po_days(po)})'
+    base = json.load(open(os.path.join(H2, 'arg', 'pack.json')))
+    base['dir'] = os.path.join(H2, 'arg')
+
+    def run(rounds):
+        pk = copy.deepcopy(base)
+        po = next(p for p in fport._league(pk)['ko_playoffs'] if p.get('key') == 'arg_cl_ko')
+        po['rounds'] = rounds
+        try:
+            ws = fport.windows(pk, EXE)[0]
+        except AssertionError as e:
+            return None, str(e)
+        return {x[2]: x[:2] for x in ws if x[2] in ('stage:arg_cl_ko', 'stage:arg_trofeo')}, None
+
+    over, e_over = run([{'legs': 2, 'gap': 2}] * 60)
+    at, e_at = run([{'legs': 2, 'gap': 2}] * 43)
+    past, e_past = run([{'legs': 2, 'gap': 2}] * 43 + [{'legs': 1, 'gap': 1}])
+    ok = (over is None and "'arg_cl_ko'" in e_over and 'no silent clamp' in e_over
+          and e_at is None and at == {'stage:arg_cl_ko': (79, 252), 'stage:arg_trofeo': (252, 255)}
+          and past is None and "'arg_trofeo'" in e_past and 'window end 256' in e_past)
+    return ok, f'60 rounds: {e_over or over}; 43 rounds: {e_at or at}; 43 + 1 day: {e_past or past}'

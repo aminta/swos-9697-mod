@@ -18,6 +18,7 @@ SLTCOPY holds every row's new delta of both files - the split globals >= 2000 (B
 other byte changed (someLeaguesTable is per row: re-based, never permuted)."""
 import json
 import os
+import re
 import struct
 import subprocess
 import sys
@@ -201,12 +202,13 @@ def test_wsites_walk(shift=False):
     wv = [dn[0], upw[0], stay, 0, 0xFFFF, 103 | 4 << 8, dn[1], upw[1]]
     gv = [glob(t7.FA, dn[0] >> 8), glob(t7.FB, upw[0] >> 8), glob(t7.FA, 10), 7, glob(t7.FA, dn[2] >> 8)]
     before, sites, rrows = {}, {}, []
+    dslot = dstale = 0
     for k, (iid, off, st, cnt, form, aux) in enumerate(tab):
         if iid not in item:
             errs.append(f'row {k}: item {ids.get(iid, iid)} not in S7_ENI')
             continue
         ptr, ln = item[iid]
-        if off + (cnt if form == wsites.WS_R else max(cnt - 1, 0) * st + 2) > ln:
+        if off + (cnt if form == wsites.WS_R else st if form == wsites.WS_D else max(cnt - 1, 0) * st + 2) > ln:
             errs.append(f'row {k}: {ids.get(iid)}+{off} past its {ln} B')
         if iid == wsites.WI_CFBH:                       # (one buffer with CFB: the same bytes from +0x10000)
             iid, off = wsites.WI_CFB, off + 0x10000
@@ -218,6 +220,24 @@ def test_wsites_walk(shift=False):
             if not st >> 8:
                 before[iid][aux] = t7.FA
             rrows.append((iid, off, cnt, aux, st))
+            continue
+        if form == wsites.WS_D:                          # (a DIY contest per slot, MC 15/11: league / cup / type 2 with a
+            t, n, stg = (1, 17, None) if st == 0x443 else [(0, 20, None), (2, 36, (1, 2)), (2, 36, (0, 36))][dslot % 3]
+            dslot += 1                                   #  cup or a league stage; the other types' list areas and the
+            for ca, tt, nn in [(off, t, n)] + ([(off + 0x41F, stg[0], stg[1])] if stg else []):   # stale tail: decoys
+                struct.pack_into('<HH', before[iid], ca, tt, 0)
+                struct.pack_into('<H', before[iid], ca + 49, nn)
+                lo = DIY_LIST[tt]
+                for i in range(64):
+                    v = wv[(i + k) % len(wv)]
+                    struct.pack_into('<H', before[iid], ca + lo + 2 * i, v if i < nn else dn[0])
+                    if i < nn:
+                        sites[iid, ca + lo + 2 * i] = (wsites.WS_W, v)
+                for t2, lo2 in DIY_LIST.items():         # (another type's list area: a crosser's word, untouched)
+                    if t2 != tt and lo2 + 2 <= (0x41F if ca == off and t == 2 else DIY_SIZE[tt]) and \
+                            not any(lo2 <= x - ca < lo2 + 2 for x in [o for (j, o) in sites if j == iid]):
+                        struct.pack_into('<H', before[iid], ca + lo2, dn[0])
+                        dstale += 1
             continue
         vals = wv if form == wsites.WS_W else gv
         for i in range(cnt):
@@ -323,7 +343,7 @@ def test_wsites_walk(shift=False):
         errs.append(f'CD ent: no changed row of file {cdr[0][4] >> 8} set to {wsites.CD_FILL} (fills {rfill})')
     if not moved:
         errs.append('no site moved (crossings?)')
-    return not errs, '; '.join(errs[:6]) or (f'{len(tab)} rows on {len(before)} items: {moved} moved words / globals '
+    return not errs, '; '.join(errs[:6]) or (f'{len(tab)} rows on {len(before)} items ({dslot} DIY slots, {dstale} decoys in other types\' list areas + stale tails kept): {moved} moved words / globals '
                                              f'now their clubs\' new ones, the other sites and bytes unchanged ({decoys} decoys: a crosser\'s word in a non-team field, untouched); SLTCOPY re-based for every row '
                                              f'({hi} globals >= 2000: BT_EXT\'s range); WS_R fills {rfill} (CD ent: changed rows of its '
                                              f'file -> 1 over planted 2+ places, the rest kept) (items not saved by this build: {absent})')
@@ -349,9 +369,31 @@ CFB_SAVES = [os.path.join(MAINDIR, f) for f in ('s1mid_inter.CAR', 'davide_int.C
 FIX_LEN = 95151                                   # careerFileBuffer's fixed part (trailer INFO FIXED)
 
 
-def _cfb_covered(rows):
+DIY_LIST, DIY_SIZE = {0: 301, 1: 589, 2: 153}, {0: 0x733, 1: 0x443, 2: 0xB52}
+
+
+def diy_lists(c, room):
+    """[(offset, count)] a DIY contest's live team list(s) (sreg_walk.c WS_D's rule), [] when WS_D would refuse it"""
+    def one(b, rm, maxt):
+        t, n = struct.unpack_from('<H', b, 0)[0], struct.unpack_from('<H', b, 49)[0]
+        return (t, DIY_LIST[t], n) if t <= maxt and DIY_SIZE[t] <= rm and n <= 64 else None
+    a = one(c, room, 2)
+    if not a:
+        return []
+    if a[0] != 2:
+        return [a[1:]]
+    b = one(c[0x41F:], 0xB52 - 0x41F, 1)
+    return [a[1:], (0x41F + b[1], b[2])] if b else []
+
+
+def _cfb_covered(rows, d=None):
     cov = set()
     for it, off, st, cnt, form, aux in rows:
+        if it in (wsites.WI_CFB, wsites.WI_CFBH) and form == wsites.WS_D and d is not None:
+            base = (0x10000 if it == wsites.WI_CFBH else 0) + off
+            for lo, n in diy_lists(d[base:base + st], st):
+                for k in range(n):
+                    cov.update((base + lo + 2 * k, base + lo + 2 * k + 1))
         if it in (wsites.WI_CFB, wsites.WI_CFBH) and form == wsites.WS_W:
             base = 0x10000 if it == wsites.WI_CFBH else 0
             for k in range(cnt):
@@ -379,19 +421,28 @@ def test_wsites_cfb():
     cov = _cfb_covered(rows)
     if cov and max(cov) >= FIX_LEN:
         errs.append(f'a row past the fixed part ({max(cov)})')
+    rooms = set()                                    # (WS_D buffers: words past numTeams / in another type's list area
+    for it, off, st, cnt, form, aux in rows:         #  are stale by the layout - nothing reads them - counted, not walked)
+        if form == wsites.WS_D:
+            b0 = (0x10000 if it == wsites.WI_CFBH else 0) + off
+            rooms.update(range(b0, b0 + st))
+    stale = 0
     for p, d in data.items():
-        bad = _stale(d, cov)
+        bad = _stale(d, _cfb_covered(rows, d))
+        stale += sum(o in rooms for o in bad)
+        bad = [o for o in bad if o not in rooms]
         if bad:
             errs.append(f'{os.path.basename(p)}: {len(bad)} file-102 words outside the rows: {[hex(o) for o in bad[:6]]}')
     dead = []
     code = set(cfb_code_rows()[0])                  # (4c: rows from the code need no save to prove them)
     for r in [x for x in rows if x not in code]:
-        c2 = _cfb_covered([x for x in rows if x is not r])
-        if not any(len(_stale(d, c2)) for d in data.values()):
+        if not any([o for o in _stale(d, _cfb_covered([x for x in rows if x is not r], d)) if o not in rooms]
+                   for d in data.values()):
             dead.append(hex(r[1] + (0x10000 if r[0] == wsites.WI_CFBH else 0)))
     if dead:
         errs.append(f'rows no save needs (nothing clustered without them): {dead}')
-    return not errs, '; '.join(errs[:5]) or f'{len(saves)} real saves: every clustered file-102 word is in one of {len(rows)} CFB rows, each row needed'
+    return not errs, '; '.join(errs[:5]) or (f'{len(saves)} real saves: every clustered file-102 word is in one of {len(rows)} CFB rows, each row needed '
+                                         f'({stale} stale words in DIY buffers outside their live lists: not walked, by the layout)')
 
 
 
@@ -473,6 +524,33 @@ def cfb_code_rows():
         errs.append('homeMarketPlayers .. dseg_D6DBA: not 25 x 4 B')
     if 0xD6CDC - ida != 0xD750:                          # (s7-bp-run.md: dseg_D6CDC = obj2+16E26h = .CAR +D750h)
         errs.append('IDA_CFB: dseg_D6CDC not at CFB D750h')
+    # full pass (Motore 15/11): incoming offers dseg_D6DBA 5 x 14 B (+0 teamOffering), teamNoOfferAccepted (after dseg_D6CA2);
+    # the 5 DIY contest slots (ProcessCareerFile's arrayOfPointers) as WS_D, room = the biggest type each holds: the
+    # copy sizes of cseg_8B71C / 8B7EA (733h / 443h / B52h - 1 counts), slots 2 / 4 = 443h apart (cups only)
+    need = [('dseg_D6DBA db 70 dup(0)', 'the offers (5 x 14)'), ('cmp     numOffers, 5', 'the offers bound'),
+            ('mov     teamOffering, ax', 'offer +0 = teamOffering (OffersCommon)'),
+            ('dseg_D6CA2 dw 0', 'the word before teamNoOfferAccepted'), ('\nteamNoOfferAccepted dw 0', 'teamNoOfferAccepted'),
+            ('mov     teamNoOfferAccepted, ax', 'AcceptJobOffer writes it'),
+            ('mov     word ptr D0, 732h', 'league copy 733h'), ('mov     word ptr D0, 442h', 'cup copy 443h'),
+            ('mov     word ptr D0, 0B51h', 'type-2 copy B52h'),
+            ('add     eax, 301    ; league offset', 'league list +301'), ('add     eax, 589    ; cup offset', 'cup list +589'),
+            ('add     eax, 153    ; tournament offset', 'type-2 list +153')]
+    for text, what in need:
+        if text not in a:
+            errs.append(f'listing: {what} ({text!r}) not found')
+    pcf = a[a.index('ProcessCareerFile proc near'):a.index('ProcessCareerFile endp')]
+    slots = re.findall(r'mov     dword ptr \[esi\], offset (\w+)', pcf)
+    addr = {'competitionFileBuffer': 0xDF4F6, 'dseg_D8D0A': 0xD8D0A, 'dseg_D985C': 0xD985C, 'dseg_DA0E2': 0xDA0E2,
+            'dseg_D9C9F': 0xD9C9F}
+    if slots != list(addr):
+        errs.append(f'arrayOfPointers: {slots}')
+    ext = {0xD8D0A: 0xD985C, 0xD985C: 0xD9C9F, 0xD9C9F: 0xDA0E2, 0xDA0E2: 0xDACB4, 0xDF4F6: 0xDF4F6 + 0xB53}   # (next label)
+    for o, room in wsites.DIY_SLOTS:
+        if o + ida + room > ext[o + ida] or room not in (0x443, 0xB52) or (room == 0x443) != (ext[o + ida] - o - ida < 0xB52):
+            errs.append(f'DIY slot {o + ida:#x}: room {room:#x} vs its extent {ext[o + ida] - o - ida:#x}')
+    rows += [(C, 0xD6DBA - ida, 14, 5, W, 0), (C, 0xD6CA4 - ida, 0, 1, W, 0)]
+    rows += [(C if o < 0x10000 else H, o & 0xFFFF, room, 1, wsites.WS_D, 0)
+             for o, room in [(addr[n] - ida, 0x443 if ext[addr[n]] - addr[n] < 0xB52 else 0xB52) for n in slots]]
     cal, cend = 0xDB3E6 - ida, 0xDF4F4 - ida
     rows += [(C, fm, 4, 15, W, 0), (C, hm, 4, 25, W, 0), (C, nj, 26, 5, W, 0), (C, jo, 26, 5, W, 0),
              (H, cal - 0x10000 + 12, 22, (cend - cal) // 22, W, 0), (H, cal - 0x10000 + 14, 22, (cend - cal) // 22, W, 0)]
@@ -493,10 +571,11 @@ def test_wsites_cfb_layout():
     used = {}
     for it, off, st, cnt, form, aux in have:
         base = (0x10000 if it == wsites.WI_CFBH else 0) + off
-        if base + (cnt - 1) * st + 2 > FIX_LEN:
+        span = st if form == wsites.WS_D else (cnt - 1) * st + 2
+        if base + span > FIX_LEN:
             errs.append(f'{base:#x}: past the fixed part')
         for k in range(cnt):
-            for b in (base + k * st, base + k * st + 1):
+            for b in (range(base, base + st) if form == wsites.WS_D else (base + k * st, base + k * st + 1)):
                 if b in used:
                     errs.append(f'{b:#x}: in rows {used[b]:#x} and {base:#x}')
                 used[b] = base
@@ -684,3 +763,107 @@ def test_wsites_wn_kinds():
     if "x->type = WN_PRE; x->idx = GP_SEAS; x->team = 0;" not in src:
         errs.append('the preview marker no longer has team word 0')
     return not errs, '; '.join(errs) or f"wn_add kinds {sorted(allowed)} + the 'p' marker (team 0); 'M' once, entry 0: the WN row's \"start at 1\" holds"
+
+
+# ---- MC 15/11: the old-save import (42-s7import's s7_imp_walk) over the offers / accepted-job rows ------------------
+IMP_SAVES = [os.path.join(MAINDIR, 's7imp', f) for f in ('ligorna41_mid.CAR', 'trento41_mid.CAR')]
+
+
+def test_wsites_import(drop=False):
+    """The 4.1 -> S7 import's walk (s7swap.c s7_imp_walk, the word map sr_wmap_import gives - here a stand-in: every
+    4.1 Serie D word 102|x (x >= 100) -> 144|x-100, the rest kept) on two real 4.1 mid-season saves with a pending
+    transfer offer (ligorna41_mid: offer from 102|115, a Serie D club - moves; trento41_mid: from 102|71 - kept), each
+    loaded into careerFileBuffer (S7_CFB) of HT_WS_EXE. The accepted job (teamNoOfferAccepted, set between the season
+    end and the next season) is planted: a moving club in both. Differential: run A = the save with the five offer
+    words and the accepted job cleared (0 / FFFFh), run B = the save as is + the job; the two CFBs after the walk differ
+    exactly at the planted words, each its club's new word (or kept), every other offer byte (records +2..+13) as
+    loaded, a decoy (the moving club's old word at +4 of the next free record: a non-team field) untouched; S7_WLOG
+    row -1 (every site resolved), B's changed count = A's + the planted words that move."""
+    if not os.path.exists(EXE) or not os.path.exists(EXE[:-4] + '.syms.json'):
+        return True, f'SKIP: {EXE} (shaped, HOSTTEST_SYMS=1) missing'
+    saves = [p for p in IMP_SAVES if os.path.exists(p)]
+    if not saves:
+        return True, 'SKIP: no 4.1 mid-season saves (internal/swostest/s7imp)'
+    import test_s7swap as t7
+    import test_swc1 as ts
+    sy = json.load(open(EXE[:-4] + '.syms.json'))
+    if 's7_imp_walk' not in sy.get('s7swap', {}):
+        return False, f'{EXE}: no s7_imp_walk (a 42-s7import build?)'
+    m = t7.M(EXE)
+    if drop:                                            # (the control: the offers / accepted-job rows count 0 in the exe)
+        ws = m.at('s7swap', 'WSITES')
+        for k in range(wsites.WS_MAX):
+            r = struct.unpack('<4H2B', m.rd(ws + 10 * k, 10))
+            if r[0] == wsites.WS_END:
+                break
+            if r[0] == wsites.WI_CFB and r[1] in (wsites.OFFERS, wsites.JOBACC):
+                m.w(ws + 10 * k + 6, b'\0\0')
+    cfb = m.at('s7swap', 'S7_CFB')
+    cfblen = struct.unpack('<I', m.rd(m.at('s7swap', 'S7_CFBLEN'), 4))[0]
+    MAP_AT, SLT_AT = ts.BUF, ts.BUF + 0x8000
+    pairs = [(102 | x << 8, 144 | (x - 100) << 8) for x in range(100, 256)]
+    pairs.sort()
+    nw = dict(pairs)
+    W = lambda d, o: struct.unpack_from('<H', d, o)[0]          # noqa: E731
+    OFF = [wsites.OFFERS + 14 * k for k in range(5)]
+    errs, notes = [], []
+
+    def walk(img):
+        m.fresh()
+        m.w(cfb, bytes(cfblen))
+        m.w(cfb, img[:cfblen])
+        m.w(MAP_AT, b''.join(struct.pack('<HH', a, b) for a, b in pairs))
+        m.w(SLT_AT, bytes(2400))
+        rc = m.call('s7swap', 's7_imp_walk', MAP_AT, len(pairs), SLT_AT)
+        wl = struct.unpack('<hhHHHH', m.rd(m.at('s7swap', 'S7_WLOG'), 12))
+        return rc, wl, m.rd(cfb, cfblen)
+    for p in saves:
+        tag = os.path.basename(p)
+        d = open(p, 'rb').read()
+        offer = W(d, OFF[0])
+        job = offer if offer >> 8 >= 100 else 102 | 120 << 8          # (a moving club either way)
+        a = bytearray(d)
+        for o in OFF:
+            struct.pack_into('<H', a, o, 0)
+        struct.pack_into('<H', a, wsites.JOBACC, 0xFFFF)
+        b = bytearray(d)
+        struct.pack_into('<H', b, wsites.JOBACC, job)
+        free = next(k for k in range(5) if W(d, OFF[k]) == 0)
+        struct.pack_into('<H', a, OFF[free] + 4, offer)                 # (the decoy, both runs)
+        struct.pack_into('<H', b, OFF[free] + 4, offer)
+        planted = {o: W(b, o) for o in OFF if W(b, o) not in (0, 0xFFFF)}
+        planted[wsites.JOBACC] = job
+        ra, wa, oa = walk(bytes(a))
+        rb, wb, ob = walk(bytes(b))
+        if (ra, rb, wa[0], wb[0]) != (0, 0, -1, -1):
+            errs.append(f'{tag}: rc {ra} / {rb}, S7_WLOG.row {wa[0]} / {wb[0]}')
+            continue
+        diff = {o & ~1 for o in range(cfblen) if oa[o] != ob[o]}
+        want = set(planted)
+        if not diff <= want:
+            errs.append(f'{tag}: A / B differ outside the planted words: {[hex(o) for o in sorted(diff - want)[:6]]}')
+        for o, v in planted.items():
+            if W(ob, o) != nw.get(v, v):
+                errs.append(f'{tag}: +{o:#x} {v:#x} -> {W(ob, o):#x}, want {nw.get(v, v):#x}')
+        for k, o in enumerate(OFF):
+            if ob[o + 2:o + 14] != b[o + 2:o + 14] or oa[o + 2:o + 14] != a[o + 2:o + 14]:
+                errs.append(f'{tag}: offer {k} bytes +2..+13 changed (decoy {"here" if k == free else "no"})')
+        moves = sum(nw.get(v, v) != v for v in planted.values())
+        if wb[2] != wa[2] + moves:
+            errs.append(f'{tag}: changed {wb[2]} != {wa[2]} + {moves}')
+        notes.append(f'{tag}: offer {offer:#x} -> {W(ob, OFF[0]):#x}, job {job:#x} -> {W(ob, wsites.JOBACC):#x} '
+                     f'({wa[2]} background words moved in both, +{moves})')
+    return not errs, '; '.join(errs[:6]) or '; '.join(notes) + '; decoys and the other offer bytes untouched'
+
+
+def test_wsites_import_control():
+    """test_wsites_import with the offers and accepted-job rows switched off in the exe's WSITES (count 0): must FAIL -
+    the words stay 4.1's (the rows are what remaps them)."""
+    if not os.path.exists(EXE) or not os.path.exists(EXE[:-4] + '.syms.json'):
+        return True, f'SKIP: {EXE} (shaped, HOSTTEST_SYMS=1) missing'
+    ok, msg = test_wsites_import(drop=True)
+    if msg.startswith('SKIP'):
+        return True, msg
+    if ok:
+        return False, 'the import moved the offer / job words with their rows off'
+    return True, f'rows off: caught ({msg[:120]})'

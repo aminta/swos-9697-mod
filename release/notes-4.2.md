@@ -49,7 +49,7 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 
 #### Set pieces
 - New OPTIONS row SET PIECES: CLASSIC (the original game), REALISTIC or ARCADE, for every match.
-- REALISTIC: headers from corners and crosses go down instead of over the bar (a good header keeps the ball under the bar from further out); keepers no longer catch everything that drops into the six-yard box; the computer goes for high balls more often; free kicks near the box dip over the wall the way real ones do, and how often they go in depends on the taker's SHOOTING, as in real football: [PLACEHOLDER until the last free-kick test: a top specialist about one in ten, a weak taker about one in thirty].
+- REALISTIC: headers from corners and crosses go down instead of over the bar (a good header keeps the ball under the bar from further out); keepers no longer catch everything that drops into the six-yard box; the computer goes for high balls more often; free kicks near the box dip over the wall the way real ones do, and how often they go in depends on the taker's SHOOTING, as in real football: a top specialist scores about one in ten, an average taker one in fifteen, a weak one about one in thirty. When the computer's free kick misses, it goes over the bar or into the wall.
 - ARCADE: the same headers and keepers, more free kicks around the box (a clean tackle there is whistled as a foul one time in three), and the computer curls its free kicks at the far post: a top shooter scores about one in six from 20-25 metres, a weak one hardly ever.
 - Your own free kicks stay in your hands (direction and curl) in every mode.
 
@@ -72,7 +72,7 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 - (every gameplay or market decision of 4.2 goes here and in the README, EN + IT: Davide 15/11, rc gate item)
 - Difficulty, dribbling and set pieces start at NORMAL, CLASSIC and CLASSIC: a new install plays exactly the original game until you change them in OPTIONS.
 - Difficulty only touches a computer team facing a human; dribbling settings only apply with the ball in play.
-- REALISTIC free kicks follow real-football rates (league average around 6-7% of direct free kicks scored, the best specialists 10-15%: Opta).
+- REALISTIC free kicks follow real-football rates (league average around 6-7% of direct free kicks scored, the best specialists 10-15%: Opta). The taker's SHOOTING decides how often the computer's free kick is on target; a miss goes over the bar or hits the wall.
 - Stand-ins from a 4.1 career (Davide, 12/11): a stand-in that reached Serie C is replaced by a real Serie D club at the first load in 4.2, which keeps its points and table position (the alternative, showing the stand-in until the end of the season, was dropped).
 - Serie D, a full group (Davide): the club that moves to a neighbouring group is the one living nearest to the centre of that group, by the real location of the clubs' towns.
 - JUVENTUS's bench keeper is NETO (Davide, 15/11), over the call-ups rule that would pick PINSOGLIO.
@@ -128,7 +128,7 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 
 #### Calci piazzati
 - Nuova riga in OPZIONI, CALCI PIAZZATI: CLASSICI (il gioco originale), REALISTICI o ARCADE, per ogni partita.
-- REALISTICI: i colpi di testa su angoli e cross vanno verso il basso invece che sopra la traversa (chi è bravo di testa tiene la palla sotto la traversa anche da più lontano); i portieri non bloccano più tutto quello che cade nell'area piccola; il computer va più spesso sui palloni alti; le punizioni vicino all'area scendono dopo la barriera come quelle vere, e quante entrano dipende dal TIRO del battitore, come nel calcio reale: [SEGNAPOSTO fino all'ultimo test sulle punizioni: uno specialista circa una su dieci, uno scarso circa una su trenta].
+- REALISTICI: i colpi di testa su angoli e cross vanno verso il basso invece che sopra la traversa (chi è bravo di testa tiene la palla sotto la traversa anche da più lontano); i portieri non bloccano più tutto quello che cade nell'area piccola; il computer va più spesso sui palloni alti; le punizioni vicino all'area scendono dopo la barriera come quelle vere, e quante entrano dipende dal TIRO del battitore, come nel calcio reale: uno specialista segna circa una volta su dieci, un tiratore medio una su quindici, uno scarso circa una su trenta. Quando la punizione del computer non va in porta, finisce sopra la traversa o sulla barriera.
 - ARCADE: gli stessi colpi di testa e portieri, più punizioni attorno all'area (lì un contrasto pulito viene fischiato fallo una volta su tre) e il computer tira le punizioni a giro sul secondo palo: un ottimo tiratore segna circa una su sei da 20-25 metri, uno scarso quasi mai.
 - Le tue punizioni restano nelle tue mani (direzione ed effetto) in ogni modalità.
 
@@ -151,7 +151,7 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 - (every gameplay or market decision of 4.2 goes here and in the README, EN + IT: Davide 15/11, rc gate item)
 - Difficoltà, dribbling e calci piazzati partono da NORMALE, CLASSICO e CLASSICI: una nuova installazione gioca esattamente il gioco originale finché non li cambi in OPZIONI.
 - La difficoltà tocca solo una squadra del computer contro un umano; le regolazioni del dribbling valgono solo a palla in gioco.
-- Le punizioni REALISTICHE seguono le percentuali del calcio reale (media di campionato circa 6-7% delle punizioni dirette segnate, i migliori specialisti 10-15%: Opta).
+- Le punizioni REALISTICHE seguono le percentuali del calcio reale (media di campionato circa 6-7% delle punizioni dirette segnate, i migliori specialisti 10-15%: Opta). Il TIRO del battitore decide quanto spesso la punizione del computer va in porta; se sbaglia, va sopra la traversa o sulla barriera.
 - Squadre riserva di una carriera 4.1 (Davide, 12/11): una riserva arrivata in Serie C viene sostituita da una vera squadra di Serie D al primo caricamento nella 4.2, che tiene punti e posizione in classifica (l'alternativa, tenere la riserva visibile fino a fine stagione, è stata scartata).
 - Serie D, girone pieno (Davide): la squadra che passa a un girone confinante è quella la cui città è più vicina al centro di quel girone, secondo la posizione reale delle città.
 - Il portiere di riserva della JUVENTUS è NETO (Davide, 15/11), al posto di PINSOGLIO che la regola delle convocazioni sceglierebbe.

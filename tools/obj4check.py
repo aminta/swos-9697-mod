@@ -7,7 +7,8 @@
 On every exe (obj4 = the engine object; its file pages = OBJ4_PAGES of that build, read from the LE object table):
  (a) no all-zero obj4 file page: each one is listed with the bands it lies in ('no band' = a hole); a page that a
      build.log extent of that exe overlaps (a linked item's live zero state, e.g. 'engine item ST ... obj4+A..B') is
-     used (MC 15/11: info, not --allow - a page with no linked thing still FAILs);
+     used (MC 15/11: info, not --allow - a page with no linked thing still FAILs); an extent equal to a band's whole
+     AT..END (a reservation printed in the log) does not count;
  (b) every release band that is linked (bytes in the exe or an extent in build.log) lies wholly below
      OBJ4_PAGES * 0x1000 and, if it is an obj4-map band (MAP_BANDS: obj1-room.md, the list MC named), keeps its floor
      free: END - the band's used end >= FLOOR (256 B; 128 B for the bands the obj4
@@ -87,15 +88,36 @@ def log_extents(log_text):
     return out
 
 
-def check_obj4(o4, bl, extents=(), allow=()):
-    """o4: obj4's file bytes; bl: bands(); extents: [(start, end)] of the log. -> (fails, infos, rows):
+ITEM = re.compile(r'engine item [A-Z0-9_]+ .*?obj4\+0x([0-9a-fA-F]+)\s*\.\.\s*(?:obj4\+)?0x([0-9a-fA-F]+)\b')
+
+
+def log_items(log_text):
+    """{exe relative path: {(start, end)}} of the linked engine items a build.log reports ('exe: engine item ST (...)
+    obj4+A..B', patch.py) - sections as log_extents."""
+    out, cur = {}, set()
+    for ln in log_text.splitlines():
+        m = re.match(r'OK (.*/(SWOS|gog)/[A-Z]+\.EXE)$', ln.strip())
+        if m:
+            out[m.group(1).split('/')[-2] + '/' + m.group(1).split('/')[-1]] = cur
+            cur = set()
+            continue
+        for a, b in ITEM.findall(ln):
+            cur.add((int(a, 16), int(b, 16)))
+    return out
+
+
+def check_obj4(o4, bl, extents=(), allow=(), items=()):
+    """o4: obj4's file bytes; bl: bands(); extents: [(start, end)] of the log; items: the log's 'engine item' extents
+    (log_items: live items, counted even when one spans a whole band, e.g. ST). -> (fails, infos, rows):
     rows = [(name, kind, at, end, used_end or None, free or None)]."""
     fails, infos, rows = [], [], []
     size = len(o4)
     for p in range(size // PAGE):
         if any(o4[p * PAGE:(p + 1) * PAGE]):
             continue
-        live = [(x, y) for x, y in extents if x < (p + 1) * PAGE and y > p * PAGE]
+        whole = {(a, e) for n, a, e in bl}     # (MC 15/11: a log line printing a whole band's reservation is no
+        live = [(x, y) for x, y in extents      #  live item - it never makes an empty band page 'used' - unless
+                if x < (p + 1) * PAGE and y > p * PAGE and ((x, y) not in whole or (x, y) in items)]  # it is an item
         if live:                                # (MC 15/11: a page holding a linked item the log reports - ST's zero
             infos.append(f'zero page obj4+{p * PAGE:#x} used by a logged extent '   # live state - is used)
                          + ', '.join(f'{x:#x}..{y:#x}' for x, y in live))
@@ -139,7 +161,8 @@ def check_release(rel, mod=None, allow=()):
     import le
     bl = bands(mod)
     logp = os.path.join(rel, 'build.log')
-    ext = log_extents(open(logp, errors='replace').read()) if os.path.exists(logp) else {}
+    lt = open(logp, errors='replace').read() if os.path.exists(logp) else ''
+    ext, its = log_extents(lt), log_items(lt)
     out, bad = [], 0
     names = {b[0] for b in bl}
     miss = [n for n in MAP_BANDS if n not in names]
@@ -153,7 +176,7 @@ def check_release(rel, mod=None, allow=()):
             continue
         L = le.LE(p)
         o4 = L.obj_bytes(4)
-        f, i, rows = check_obj4(o4, bl, ext.get(x, []), allow)
+        f, i, rows = check_obj4(o4, bl, ext.get(x, []), allow, its.get(x, ()))
         bad += bool(f)
         out.append(f'{x}: OBJ4_PAGES {L.obj(4).npages:#x} (file {len(o4):#x}), {"FAIL" if f else "OK"}'
                    + (f' - {len(f)} finding(s)' if f else '') + ('' if x in ext else ' (no build.log section)'))

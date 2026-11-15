@@ -83,13 +83,14 @@ def measure(rel, bl):
     """{exe: {band: used bytes (used end - AT) or None}} over the release dir's 8 exes."""
     import le
     logp = os.path.join(rel, 'build.log')
-    ext = oc.log_extents(open(logp, errors='replace').read()) if os.path.exists(logp) else {}
+    lt = open(logp, errors='replace').read() if os.path.exists(logp) else ''
+    ext, its = oc.log_extents(lt), oc.log_items(lt)
     out = {}
     for x in oc.EXES:
         p = os.path.join(rel, x)
         if not os.path.exists(p):
             raise SystemExit(f'obj4pack: {p} missing')
-        rows = oc.check_obj4(le.LE(p).obj_bytes(4), bl, ext.get(x, []))[2]
+        rows = oc.check_obj4(le.LE(p).obj_bytes(4), bl, ext.get(x, []), items=its.get(x, ()))[2]
         out[x] = {n: (None if u is None else u - a) for n, k, a, e, u, fr in rows}
     return out
 
@@ -323,10 +324,11 @@ def verify(rel, prop, mod=None, allow=()):
     out = [f"obj4pack --verify {rel} against the proposal for {prop['rel']}"]
     lo = min([p['at'] for p in prop['plan'] if p['cls'] == 'release'], default=0)
     logp = os.path.join(rel, 'build.log')
-    ext = oc.log_extents(open(logp, errors='replace').read()) if os.path.exists(logp) else {}
+    lt = open(logp, errors='replace').read() if os.path.exists(logp) else ''
+    ext, its = oc.log_extents(lt), oc.log_items(lt)
     f4 = {}
     for x in oc.EXES:
-        for f in oc.check_obj4(le.LE(os.path.join(rel, x)).obj_bytes(4), bl, ext.get(x, []), allow)[0]:
+        for f in oc.check_obj4(le.LE(os.path.join(rel, x)).obj_bytes(4), bl, ext.get(x, []), allow, its.get(x, ()))[0]:
             m = re.match(r'\(a\) zero page obj4\+(0x[0-9a-f]+)', f)
             f4.setdefault(f + (' [below the packed range]' if m and int(m.group(1), 16) < lo else ''), []).append(x)
     errs = compare(prop, bl, measure(rel, bl))

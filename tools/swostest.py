@@ -8671,6 +8671,31 @@ def bench_et(s, o, gmax, bx, errs, info, mark):
           f'extra time: want extraTimeState -1 and {g0 + 1} substitutions, seen {seen}', errs)
 
 
+def r17_px(s, tag, box):
+    """4.2 row-17 hint (r17.py): the yellow pixels of the paused frame's region box (x0, y0, x1, y1), from shots/<tag>.png."""
+    from PIL import Image
+    path = os.path.join(s.box.run, 'shots', tag + '.png')
+    if not os.path.exists(path):
+        return None
+    im = Image.open(path).convert('RGB')
+    return sum(1 for y in range(box[1], box[3]) for x in range(box[0], box[2])
+               if im.getpixel((x, y))[0] > 200 and im.getpixel((x, y))[1] > 200 and im.getpixel((x, y))[2] < 100)
+
+
+R17_BOX = {'pm': (166, 154, 186, 170), 'sq': (150, 188, 176, 200), 'et': (118, 162, 138, 176)}     # (where r17.py draws "+N")
+
+
+def r17_check(s, tag, which, want, errs):
+    """want True: the "+N" is drawn (>= 8 yellow pixels in its region: a squad of more than 16); False: nothing there."""
+    n = r17_px(s, tag, R17_BOX[which])
+    if n is None:
+        return
+    if want and n < 8:
+        errs.append(f'r17 hint ({which}, {tag}): {n} yellow pixels in {R17_BOX[which]}, want the "+N" drawn')
+    if not want and n:
+        errs.append(f'r17 hint ({which}, {tag}): {n} yellow pixels in {R17_BOX[which]}, want none')
+
+
 def bench_oppo(s, scr, bx, wants, errs, info, mark):
     """(4.0.6, Davide's PANpt4 photo: VIEW OPPONENT showed a CPU club's 11 + 5 only) the pre-match screen's AVVERSARI:
     with a bench over 5 the CPU opponent's places 12.. (16 + its XTRA block's players, at most 11 + bench) in a window of 6
@@ -8688,6 +8713,7 @@ def bench_oppo(s, scr, bx, wants, errs, info, mark):
     rows = lambda q_: [q_.entries[k][1] for k in range(24, 30)]
     mark(f'oppo {name}: {n} places, sel {q.selected}, row 17 inv {q.entries[29][2]}, rows {rows(q)}')
     s.shot('oppo_win00')
+    r17_check(s, 'oppo_win00', 'pm', False, errs)         # (VIEW OPPONENT: the hint is the own team's)
     if n <= 16:
         info.append(f'oppo {name}: 16 places, no window')
         check(q.entries[29][2], f'oppo {name}: row 17 shown with 16 places', errs)
@@ -8732,6 +8758,7 @@ def bench_tactics(s, scr, squad, errs, info, mark):
             break
         s.send('fire:0.3 dump:0.6')
     s.shot('tactics')
+    r17_check(s, 'tactics', 'et', True, errs)             # (30 players: "+14" at the pitch's edge)
     bench_squad(s, q, *squad['args'], errs, info, mark, woff=8, box=28, row1=11, tag='tactics')
     for _ in range(4):
         q = s.screen()
@@ -9403,6 +9430,8 @@ def bench_play(s, gmax, top, bot, wants, errs, info, mark, sub=None, icons=None,
                 texts = scr.texts()
             s.shot(f'squad{step:02d}')
             if squad and not squad.get('done') and ('GIOCA PARTITA' in texts or UI != 'it' and 'GIOCA :' in texts):
+                r17_check(s, f'squad{step:02d}', 'pm', True, errs)      # (the own pre-match screen, 30 players)
+            if squad and not squad.get('done') and ('GIOCA PARTITA' in texts or UI != 'it' and 'GIOCA :' in texts):
                                             # (EN / FR / DE: the play button reads PARTITA, the player-coach 'GIOCA :')
                 squad['done'] = True
                 if 'AVVERSARI' not in texts:   # (4.0.6) the CPU opponent's window first
@@ -9863,6 +9892,7 @@ def bench_world():
             else:
                 q = s.screen()
                 s.shot('squadra')
+                r17_check(s, 'squadra', 'sq', True, errs)
                 mark('squadra: sel %s ' % q.selected + ', '.join(f'{e[0]}:{e[1]}' for e in q.entries if e[1])[:300])
                 bench_squad(s, q, bx, cmp, cnp, errs, info, mark, woff=2, box=45, row1=28, tag='squadra')
                 for _ in range(4):

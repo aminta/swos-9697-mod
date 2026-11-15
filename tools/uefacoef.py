@@ -33,11 +33,12 @@ assert CB_OFF + SIZE <= 80 * 684
 
 
 def layout():
-    """The block's layout for this build: NG = 2000, or bigtables.LIMIT when a world numbers clubs 2000+ (the
+    """The block's layout for this build: NG = 2000, or bigtables.LIMIT_CLUBS when a world numbers clubs 2000+ (the
     block then ends before bigtables.ext_off(), the save's numbers 2000+)."""
     global NG, KHIST, PREV, FIN, SIZE
     import bigtables
-    NG = bigtables.LIMIT if bigtables.ON[0] else 2000
+    NG = bigtables.LIMIT_CLUBS if bigtables.ON[0] else 2000
+    assert NG == (bigtables.LIMIT_CLUBS if bigtables.ON[0] else 2000), 'uefacoef NG must equal bigtables.LIMIT_CLUBS (the saved range), not LIMIT_ALL'
     KHIST = KPTS + 2 * NG
     PREV = KHIST + 10 * NG
     FIN = PREV + 0x6C

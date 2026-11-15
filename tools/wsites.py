@@ -72,7 +72,7 @@ ROWS = [
     # game's own arrays (ref/swos.asm: CFB = IDA address - IDA_CFB). test_wsites_cfb_layout recomputes every row below
     # from offsetof / the modules / the listing; check_layout() asserts the build's real offsets (dplay's save_at).
     (WI_CFB, 0x00034, 2, 22, WS_W, 0),         # W1 block (careerworld w_save_tail: rewritten from the cache at every save)
-    # uefacoef.py block CB (TMD + CB_OFF; NG = bigtables.LIMIT): PREV[3] {dd count; dw team[16]} (uc_draw: ja 16), FIN[3]
+    # uefacoef.py block CB (TMD + CB_OFF; NG = bigtables.LIMIT_CLUBS): PREV[3] {dd count; dw team[16]} (uc_draw: ja 16), FIN[3]
     # {dw a, b} (the final's two clubs)
     *[(WI_CFB, UC_PREV + 36 * c + 4, 2, 16, WS_W, 0) for c in range(3)],
     (WI_CFB, UC_PREV + 0x6C, 2, 6, WS_W, 0),

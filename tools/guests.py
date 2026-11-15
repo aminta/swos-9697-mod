@@ -126,7 +126,7 @@ def files():
 def alloc():
     """{file: global base} of the guest files (integrator's option b, 2026-10-20): ranges of global numbers that world
     world() never loads - not its packs' or national pack's clubs, not the reserved 1730..1849 (career marks, world
-    byte, the saved SA block; its pool 190 / off-file pools 253 sit there too) - below bigtables.LIMIT: numbers of
+    byte, the saved SA block; its pool 190 / off-file pools 253 sit there too) - below bigtables.LIMIT_CLUBS: numbers of
     1996-97 files that world never loads. Asserted at the build: enough room, no overlap."""
     import bigtables
     import globnum
@@ -139,9 +139,9 @@ def alloc():
         used.update(range(r1[1], r1[1] + r1[2]))
     out = {}
     for n, k in counts().items():
-        start = next((g for g in range(bigtables.LIMIT - k + 1) if not used & set(range(g, g + k))), None)
+        start = next((g for g in range(bigtables.LIMIT_CLUBS - k + 1) if not used & set(range(g, g + k))), None)
         mkseason._need(start is not None, f'guests file {n}: no {k} free global numbers in world {w} below '
-                                          f'{bigtables.LIMIT}')
+                                          f'{bigtables.LIMIT_CLUBS}')
         out[n] = start
         used.update(range(start, start + k))
     return out

@@ -178,7 +178,7 @@ def patch(p, at, tables, pg_season, rs_tables=(), rs_season=None, ri=None, cd=No
     sym = {'SLT': s['slt'], 'SLTCOPY': s['sltcopy'], 'WORLD_BYTE': (0, careerworld.WORLD_BYTE),
            'C7CAA2': (1, c7caa2), 'PG_SEASON': pg_season, 'BAL': (0, BALANCE), 'RS_SEASON': rs_season,
            'RS_BYTES': (0, 'db ' + ', '.join(str(b) for b in reserve_bytes(list(rs_tables)))),
-           'NSUM': (0, bigtables.LIMIT if bigtables.ON[0] else 2000),
+           'NSUM': (0, bigtables.LIMIT_CLUBS if bigtables.ON[0] else 2000),
            'TAB_BYTES': (0, 'db ' + ', '.join(str(b) for b in table_bytes(tables))), 'RI_ON': (0, int(bool(ri)))}
     sym.update(ri or {})
     import gplay

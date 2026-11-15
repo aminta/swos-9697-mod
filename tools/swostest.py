@@ -40045,8 +40045,9 @@ def world_s7cross_winners_same():
 WN_CASES = (                                # (world menu name, world byte, team path, the world's team-file stem)
     ('MONDO 2026-27', '5', 'EUROPA,ITALIA,SERIE B,PALERMO', 'TMW5'),                  # (Serie B: the winner is promoted: it left the contest)
     ('MONDO 2026-27', '5', 'EUROPA,ITALIA,SERIE C GIRONE A,UNION BRESCIA', 'TMW5'),   # (Serie C: row 41 of file 102 - no such row in the old TEAM.102)
-    ('EUROPA 1984-85', '4', 'INGHILTERRA,FOURTH DIVISION,DARLINGTON', 'TEAM'),        # (the base world: its files are TEAM.nnn)
-)
+    ('EUROPA 1984-85', '4', 'INGHILTERRA,FOURTH DIVISION,DARLINGTON', 'TEAM'),        # (the base world: its files are TEAM.nnn; it has NO
+)                                           # last-season page, by design - checked on c/REL42-glv3, without the fix: the case guards 'still none')
+WN_NONE = ('4',)                            # (world bytes whose VINCITORI page has no last-season page: asserted as it is)
 
 
 @scenario
@@ -40091,7 +40092,10 @@ def world_winners_names():
         last = [x.strip() for m in more for x in m]
         blk = winner_blocks(last)
         vals = [v for k, v in blk.items() if v and v not in ('DA GIOCARE', 'IN CORSO') and not k.startswith('VINCITORI')]
-        if not (last and last[0].startswith('VINCITORI ') and vals):
+        if wnum in WN_NONE:                    # (the base world: the page stays as it was - only the current season's)
+            if last:
+                errs.append(f'{team}: a last-season page appeared where the world has none {last[:6]}')
+        elif not (last and last[0].startswith('VINCITORI ') and vals):
             errs.append(f'{team}: no last-season page {last[:6]}')
         else:
             bad = [v for v in vals if v not in names]

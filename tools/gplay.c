@@ -1130,7 +1130,12 @@ static void wn_add(int type, int idx, u16 team) {
    tables kept) and rewrites WN_ST as the last season. */
 enum { WN_PRE = 'p' };
 u8 GP_PRE;
-__attribute__((minsize)) static u32 wn_find(int ty, int ix, int pre) {   /* the last season's entry (before a marker), or (pre) this
+#if GP_GPLX
+#define GP_XS                           /* (4.2 GPLX: gplx.c in obj4 calls it) */
+#else
+#define GP_XS static
+#endif
+__attribute__((minsize)) GP_XS u32 wn_find(int ty, int ix, int pre) {   /* the last season's entry (before a marker), or (pre) this
                                            season's previewed one (after its marker) */
     int i = 0;
     if (pre) {
@@ -4671,43 +4676,20 @@ u32 GP_SCFIRST;                         /* (the glue: the career's first season 
 u32 SC_TRACE;                           /* (the harness: 1 built, 2 final built, 0x81 summer skipped in season 1, 0x82
                                            entrants unknown, 0x84 career club not in it, | 0x40 decided) */
 
-static u16 sc_place(int file, int place) {     /* last season's top-division club at place (CF_ST), 0 = unknown */
-    if (CF_ST.magic != CF_MAGIC || CF_ST.file != file) return 0;
-    for (int i = 0; i < 256; i++) if (CF_ST.rank[i] == place) return (u16)(file | i << 8);   /* (level 0 << 5) */
-    return 0;
-}
 static int sc_rank(u16 w) {                    /* last season's place (top division), 9 = none */
     if (CF_ST.magic != CF_MAGIC || CF_ST.file != (w & 0xFF)) return 9;
     int r = CF_ST.rank[w >> 8];
     return r && r < 32 ? r : 9;
 }
-static u16 sc_cup(int id, int fin) {           /* the stored cup winner (fin 0) / finalist (1), 0 = unknown */
-    if ((SC_ST[0] | SC_ST[1] << 8) != 0x4353) return 0;
-    for (int i = 0; i < SC_ST[2] && i < SC_NE; i++) {
-        const u8 *e = SC_ST + SC_H + 12 * i;
-        if (e[1] == id) return (u16)(fin ? e[8] | e[9] << 8 : e[4] | e[5] << 8);
-    }
-    return 0;
-}
-static u16 sc_rule(const u8 *e, int r) {
-    switch (r & 15) {
-    case SCR_CHAMP: return sc_place(e[0], 1);
-    case SCR_SECOND: return sc_place(e[0], 2);
-    case SCR_CUPW: return sc_cup(e[1], 0);
-    case SCR_CUPF: return sc_cup(e[1], 1);
-    case SCR_THIRD: return sc_place(e[0], 3);
-    case SCR_FOURTH: return sc_place(e[0], 4);
-    case SCR_UCL: case SCR_UEL: case SCR_UECL: {   /* (4.0.6: last season's snapshot, SC_U +6) */
-        int i = (r & 15) - SCR_UCL;
-        u16 w = (u16)(SC_U[6 + 2 * i] | SC_U[7 + 2 * i] << 8);
-        return (u8)(SC_U[3] + 1) == GP_SEAS && w != 0xFFFF ? w : 0;
-    }
-    case SCR_TITLE0: case SCR_TITLE1:   /* (4.0.5 MEX: last season's stage-title winner, play-off e[30] / e[31]: WN_ST) */
-        if (WN_ST.magic != WN_MAGIC || (u8)(WN_ST.season + 1) != GP_SEAS) return 0;
-        { u32 w = wn_find('K', e[30 + (r & 15) - SCR_TITLE0], 0); return w == 0xFFFE ? 0 : w; }
-    }
-    return 0;
-}
+/* 4.2 GPLX (MC 15/11: gplay was 16 B free in the S3 release shape, h3s): the supercup entrants' rule (sc_rule, with
+   sc_place / sc_cup) lives in tools/gplx.c, linked into obj4's GPLX band (swreg.GPLX_AT) in builds with worlds
+   (GP_GPLX); the other builds and the host tests include it here. */
+#if GP_GPLX
+u16 sc_rule(const u8 *e, int r);
+#else
+#define GP_GPLX_INLINE 1
+#include "gplx.c"
+#endif
 static void sc_ko(struct gp_ko *k, const u8 *e, u16 home, u16 away, int final) {
     int w = final ? e[7] : e[3];
     ko_one(k, home, away, w, w + 1, e[4], K_SC, e[5], e[0], e + 20);

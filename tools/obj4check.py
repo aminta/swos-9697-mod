@@ -35,7 +35,7 @@ FLOOR_128 = {'SETPIECE', 'DIFF2', 'SPX'}            # obj1-room.md obj4 map: '>=
 TEST_ONLY = {'FPORT', 'CDKN', 'FPORT2', 'SP_METER', 'DIFF_TC'}
 UNLINKED_PREFIX = ('MKT',)                          # 4.3 reservations: no bytes in 4.2
 MAP_BANDS = ['DRIB1V1', 'DIFF', 'KITS', 'SWEFILE', 'S7SWAP', 'OBJ1MV', 'SETPIECE', 'FPORT', 'S7GEO', 'DIFF2', 'SPX',
-             'CDKN', 'PRACTICE', 'FPORT2', 'S3C', 'MKTHOOK', 'MKTLOAD', 'MKTAGE', 'SP_METER', 'DIFF_TC']
+             'CDKN', 'PRACTICE', 'FPORT2', 'S3C', 'GPLX', 'MKTHOOK', 'MKTLOAD', 'MKTAGE', 'SP_METER', 'DIFF_TC']
 EXES = [f'{d}/{e}.EXE' for d in ('SWOS', 'gog') for e in ('ITALIAN', 'ENGLISH', 'FRENCH', 'GERMAN')]
 
 

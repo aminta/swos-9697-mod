@@ -2878,6 +2878,55 @@ def s7_flags():
     return [f'-DS7_FA={fs[0]}', f'-DS7_FB={fs[1]}', '-DS7_DIRS=' + ','.join('{%d,%d,%d,%d}' % x for x in dirs)]
 
 
+
+GPLX_ROOTS = ['sc_rule']                             # (gplx.c's entry points gplay.c calls)
+GPLX_EXT = ('GP_SEAS', 'SC_ST', 'CF_ST', 'WN_ST', 'wn_find')   # (gplay.c's symbols gplx.c reads)
+
+
+def gplx_on():
+    """4.2 GPLX (MC 15/11, obj1-room.md): gplx.c in obj4's GPLX band - every build with worlds (the supercups' code);
+    the others include it into gplay.c"""
+    import mkseason
+    return bool(mkseason.worlds())
+
+
+def gplx_dry():
+    """(object, {gplx.c entry point: (4, offset)}, end): gplx.c laid out at GPLX_AT, its externs not resolved yet - the
+    same layout as the real link's (every reference a 32-bit field)"""
+    import swefile
+    import cobj
+    import swreg
+
+    class _Any(dict):
+        def __contains__(self, k):
+            return True
+
+        def __bool__(self):                          # (cobj.link: `externs or {}`)
+            return True
+
+        def __missing__(self, k):
+            return (2, 0)
+    obj_x = cobj.compile_c(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'gplx.c'), ['-Oz'], sections=True)
+    xs, end, xbss = cobj.link(swefile._Rec(), obj_x, swreg.GPLX_AT, (4, swreg.GPLX_END), externs=_Any(),
+                              limit=swreg.GPLX_END, text_obj=4, roots=GPLX_ROOTS)
+    assert xbss == 0, 'gplx.c holds no state: no .bss (its state stays gplay.c\'s)'
+    return obj_x, {k: xs[k] for k in GPLX_ROOTS}, end
+
+
+def gplx_link(p, gx, syms):
+    """gplx.c into obj4's GPLX band against gplay.c's symbols; floor 256 B"""
+    import cobj
+    import swreg
+    obj_x, want, dry_end = gx
+    assert p.le.obj(4).npages * 0x1000 >= swreg.GPLX_END, 'gplx: obj4 pages (patch.py)'
+    assert not any(p.get(4, swreg.GPLX_AT, swreg.GPLX_END - swreg.GPLX_AT)), 'gplx: obj4 band not free'
+    xs, end, _ = cobj.link(p, obj_x, swreg.GPLX_AT, (4, swreg.GPLX_END), externs={k: syms[k] for k in GPLX_EXT},
+                           limit=swreg.GPLX_END - 256, text_obj=4, roots=GPLX_ROOTS)
+    assert end == dry_end and all(xs[k] == want[k] for k in want), ('gplx: the dry layout moved', xs, want)
+    LABELS['GPLX'] = (swreg.GPLX_AT, end)
+    print(f'exe: gplay overflow (gplx.c) obj4+{swreg.GPLX_AT:#x}..{end:#x} ({end - swreg.GPLX_AT} B of '
+          f'{swreg.GPLX_END - swreg.GPLX_AT}, {swreg.GPLX_END - end} B left, floor 256)')
+
 def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     """tables: mkseason.gplay_tables(). C + glue + specs in obj1 at..limit, the C .bss at obj2 bss_at (BSS_SIZE).
     area: the contest names' string area (the playable play-offs). Returns the end."""
@@ -2942,6 +2991,7 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
                                 f"-DCF_SEED={__import__('cupsf').SEED}",
                                 f"-DGP_S7={gp_s7()}",
                                 f"-DGP_S3SKIP={int(bool(__import__('dplay').s3_b_mask() or __import__('dplay').s3_c_mask()))}",   # (4.2 S3: gplay.c GP_SKIPPO)
+                                f"-DGP_GPLX={int(gplx_on())}",   # (4.2 GPLX: gplx.c in obj4, builds with worlds)
                                 *s7_flags(),
                                 f"-DSM_LANG={['it', 'en', 'fr', 'de'].index(lang)}"]   # (gp_strmap_c's STRMAP41 section)
                                + (['-DHDR_TEST'] if os.environ.get('HDR_TEST') else [])   # (test builds: GROUP n headers)
@@ -2970,7 +3020,8 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
         print(f'exe: cup rule (cuprule.c) obj4+{swreg.S3C_AT:#x}..{rend:#x} ({rend - swreg.S3C_AT} B of {swreg.S3C_END - swreg.S3C_AT}, '
               f'{swreg.S3C_END - rend} B left, floor 256)')
         LABELS['S3C_RULE'] = rsyms['cup_rule']
-    syms, cend, bss = cobj.link(p, obj, at, (2, bss_at), externs={**s3_ext, 'GP_PROM_TAB': (1, prom_at), 'SEC_TAB': (1, sec_at),
+    gx = gplx_dry() if gplx_on() else None           # 4.2 GPLX (MC 15/11): gplx.c's addresses first (a dry link)
+    syms, cend, bss = cobj.link(p, obj, at, (2, bss_at), externs={**s3_ext, **(gx[1] if gx else {}), 'GP_PROM_TAB': (1, prom_at), 'SEC_TAB': (1, sec_at),
                                                                    **({'GP_SSF': (1, ssf_at),
                                                                        'GP_CAREERW': (2, sacups.SEL_ADDR[0])}
                                                                       if ssf_at else {}),
@@ -2979,6 +3030,8 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
                                                                    'SEC_COPY': careerworld.SITES['sltcopy'],
                                                                    'GP_HLT': (2, hlt), 'GP_SEASP': uesum.season_var(p)},
                                 limit=limit)
+    if gx:
+        gplx_link(p, gx, syms)
     global GP_BSS                                    # 4.2 class B (MC 12/11, Motore option a): the room = the measured
     GP_BSS = (bss + 0x200 + 0xFFF) & ~0xFFF          # .bss + 0x200, page-rounded (was 0x6000 + the stage banks' rounding
                                                      # / 0x7000 in patch.py: too small in scenario builds); patch.py adds

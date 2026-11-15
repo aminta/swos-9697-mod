@@ -36,6 +36,7 @@ def _rows(tab):
 
 
 def _clean(lab):
+    lab = re.sub(r'\{\{TA\|([^}|]*)\}\}', r'\1', lab)
     lab = re.sub(r'\{\{Calcio ([^|}]+)\|N\}\}', r'\1', lab)
     return re.sub(r"'{2,}|<[^>]+>", '', lab).strip()
 
@@ -64,7 +65,7 @@ def groups(season, level='C'):
         return out
     for fn in [f'itwiki-Serie_D_{season}_gironi_{g}.wikitext' for g in ('A-B-C', 'D-E-F', 'G-H-I')]:
         t = open(os.path.join(SRC, fn), encoding='utf-8').read()
-        for m in re.finditer(r'^== Girone ([A-I]) ==\n(.*?)(?=^== Girone |^== [A-Z][^=]|\Z)', t, re.S | re.M):
+        for m in re.finditer(r'^==\s*Girone ([A-I])\s*==\n(.*?)(?=^==\s*Girone |^==\s*[A-Z][^=]|\Z)', t, re.S | re.M):
             g = m.group(1)
             if g in out:
                 continue

@@ -168,7 +168,7 @@ def m2_sites(p, site):
     if mainbtn.CHOOSE[0]:                           # after mb_d0 (a build with the main menu's world switch)
         ch = mainbtn.CHOOSE[0]
         assert p.get(1, ch['site'], 1) == b'\xe8', ('ChooseTeamsDialog picker call', hex(ch['site']))
-        ext['MB_HDR'], ext['MB_STR'] = ch['HDR'], ch['STR']
+        ext['MB_HDR'], ext['MB_STR'], ext['MB_ISTR'] = ch['HDR'], ch['STR'], ch['ISTR']
         ext['MB_OMM'] = mainbtn.OMM[0]              # (4.1: the patcher's 'Original main menu' byte, set_w)
         calls.append((ch['site'], 'swe_car_tramp'))
         nat = careerworld.SITES.get('nat')

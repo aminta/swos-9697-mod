@@ -16329,7 +16329,7 @@ def world_season_8485():
 def _world_season_end(tag, setw, path, want, league, cup):
     """S6a (4.3, MC 15/11 gate): a world SEASON with every club the computer's (no club picked, as season4748): STAGIONE
     > path (continent, country), the start button, then fire to FINISCI STAGIONE. No trap; screens titled `league`
-    (the league's fixtures) and `cup` + ' FINALE' (the national cup to its final); the world byte / balance = want at
+    (the league's fixtures: a title containing it) and `cup`'s final (FINAL / FINALE: any language); the world byte / balance = want at
     the start and at FINISCI STAGIONE."""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import careerworld
@@ -16361,8 +16361,9 @@ def _world_season_end(tag, setw, path, want, league, cup):
             return False, '; '.join(errs + [f'no FINISCI STAGIONE after 3000 steps ({t[:8]})'])
         w1 = wb(s)
     check(w1 == want, f'FINISCI STAGIONE: world byte / balance {w1} (want {want})', errs)
-    check(titles[league] > 0, f'no {league} fixture screen ({list(titles)[:12]})', errs)
-    check(any(k.startswith(cup) and k.endswith(' FINALE') for k in titles), f'{cup}: no FINALE ({list(titles)[:12]})', errs)
+    check(any(league in k for k in titles), f'no {league} fixture screen ({list(titles)[:12]})', errs)
+    check(any(cup in k and k.rstrip('E').endswith(' FINAL') for k in titles), f'{cup}: no final ({list(titles)[:12]})',
+          errs)                                 # (any language: the league / cup names are the data's; FINAL(E))
     return not errs, '; '.join(errs) or (f'{step} steps to FINISCI STAGIONE, world byte {w1}: '
                                          + ', '.join(f'{k} x{v}' for k, v in titles.items() if k != 'STAGIONE'))
 
@@ -16371,16 +16372,16 @@ def _world_season_end(tag, setw, path, want, league, cup):
 def world_season_end():
     """S6a (4.3): a World 2026-27 SEASON of Poland, all clubs the computer's, to FINISCI STAGIONE: the Ekstraklasa and
     the Puchar Polski to its final, world byte (5, 251) (_world_season_end; ~8 min)."""
-    return _world_season_end('world_season_end', 0, ('EUROPA', 'POLONIA'), (5, 251), 'POLONIA EKSTRAKLASA',
-                             'POLONIA PUCHAR POLSKI')
+    return _world_season_end('world_season_end', 0, ('EUROPA', 'POLONIA'), (5, 251), 'EKSTRAKLASA',
+                             'PUCHAR POLSKI')
 
 
 @scenario
 def world_season_end_8485():
     """S6a (4.3): a Europe 1984-85 SEASON of Iceland, all clubs the computer's, to FINISCI STAGIONE: the 1. Deild and
     the Bikarkeppni to its final, world byte (4, 252) (_world_season_end)."""
-    return _world_season_end('world_season_end_8485', 2, ('ISLANDA',), (4, 252), 'ISLANDA 1. DEILD',
-                             'ISLANDA BIKARKEPPNI')
+    return _world_season_end('world_season_end_8485', 2, ('ISLANDA',), (4, 252), '1. DEILD',
+                             'BIKARKEPPNI')
 
 
 @scenario

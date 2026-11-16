@@ -1180,6 +1180,8 @@ def hosttest_syms(dst):
                 d.setdefault('@' + k, [0, v[0]])
         if d:
             out[name] = d
+    import srcstamp                             # (MC 16/11: the source this build was made from - the harness
+    out['_src'] = srcstamp.as_syms(srcstamp.stamp())   #  refuses it for any other tree, swostest build_stale)
     json.dump(out, open(os.path.splitext(dst)[0] + '.syms.json', 'w'), indent=0, sort_keys=True)
     print(f'exe: hosttest symbols {sum(len(v) for v in out.values())} in {len(out)} modules')
 

@@ -75,11 +75,17 @@ def test_wtphys():
     rd = lambda a, n: bytes(uc.mem_read(a, n))
     a = {k: tr.B1 + cw[k][1] for k in ('w_tmap', 'w_tfile', 'w_tcache', 'WTPHYS')}
     wfnat = a['WTPHYS'] + 1                                     # (W_FNAT: the byte after WTPHYS)
-    gametype = _find(rd, a['w_tmap'], 64, b'\x66\x83\x3d')      # cmp word [GAMETYPE], 4
+    code = rd(a['w_tmap'], 64)                                  # S6a: w_tmap's `call w_gt` (the world rules' gate,
+    at = code.find(b'\xe8')                                     # careerworld; was `cmp word [GAMETYPE], 4`): GAMETYPE
+    if at < 0:
+        return False, 'w_tmap has no call w_gt: a fixture from before S6a (rebuild: tools/hosttest/mkfixtures.sh)'
+    wgt = a['w_tmap'] + at + 5 + struct.unpack_from('<i', code, at + 1)[0]   # is the one w_gt compares
+    if 'w_gt' in cw and wgt != tr.B1 + cw['w_gt'][1]:
+        return False, f'w_tmap calls {wgt - tr.B1:#x}, not w_gt ({cw["w_gt"][1]:#x})'
+    gametype = _find(rd, wgt, 16, b'\x66\x83\x3d')            # cmp word [GAMETYPE], 4
     if _find(rd, a['w_tmap'], 64, b'\x0f\xb6\x1d') != wfnat:     # movzx ebx, byte [W_FNAT]
         return False, 'w_tmap: W_FNAT is not the byte after WTPHYS'
-    at = rd(a['w_tmap'], 64).find(b'\x66\x83\x3d')
-    slotw = _find(rd, a['w_tmap'] + at, 64, b'\x0f\xb6\x1d')    # movzx ebx, byte [SLT + WORLD_BYTE] (after the cmp)
+    slotw = _find(rd, a['w_tmap'] + at, 64, b'\x0f\xb6\x1d')    # movzx ebx, byte [SLT + WORLD_BYTE] (after the call)
     wnat = _find(rd, a['w_tmap'], 64, b'\x0f\xb6\x9b')          # movzx ebx, byte [WNAT + ebx]
     d0 = _find(rd, a['w_tfile'], 16, b'\x81\x25')               # and dword [D0R], 0FFh
     lastext = _find(rd, a['w_tcache'], 8, b'\xa0')              # mov al, [LASTEXT]
@@ -132,6 +138,13 @@ def test_wtphys():
     wb(slotw, 0)
     if tcache(81, 81) != 0xFE:
         errs.append('career slot world changed: a hit')
+    uc.mem_write(gametype, struct.pack('<H', 3))                # S6a: a world SEASON (gameType 3, a world byte) - the
+    wb(slotw, w)                                                # slot's world, as a career; a 1996-97 SEASON (byte 0)
+    if tfile(82) != (phys + 2, phys + 2):                       # - W_FNAT's (0 here: the file itself), as before
+        errs.append(f'world {w} SEASON: w_tfile(82) {tfile(82)}, want {phys + 2}')
+    wb(slotw, 0)
+    if tfile(82) != (82, 82):
+        errs.append(f'1996-97 SEASON: w_tfile(82) {tfile(82)}, want 82')
     wb(slotw, keep_slot)
 
     hdr = rd(tr.B4, 0x40)                                       # a namespace change: reg_enter(5) / reg_leave
@@ -147,5 +160,5 @@ def test_wtphys():
     if seen != [0xFF, 0xFF] or tcache(80, 80) != 0xFE:
         errs.append(f'after reg_enter / reg_leave WTPHYS {seen}, w_tcache(80) {tcache(80, 80):#x}')
     return not errs, '; '.join(errs) or (f'world {w} nationals = files {phys}..{phys + 5}: w_tfile / w_tcache hit '
-                                         f'only on the same world (friendly W_FNAT and career slot), a namespace '
+                                         f'only on the same world (friendly W_FNAT, career / world SEASON slot), a namespace '
                                          f'change = 0FFh = reload, club files untouched')

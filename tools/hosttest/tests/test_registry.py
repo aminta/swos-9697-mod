@@ -122,8 +122,11 @@ def test_registry():
         errs.append(f"menu ids {[worlds[n]['menu'] for n in (0, 4, 5)]}")
     if w5['year'] != 2026 or worlds[4]['year'] != 1984 or not all(worlds[n]['fl'] & swreg.F_NS for n in worlds):
         errs.append(f"years / flags {[(worlds[n]['year'], worlds[n]['fl']) for n in (0, 4, 5)]}")
-    if worlds[0]['modes'] != 15 or any(worlds[n]['modes'] != swreg.M_CAREER | swreg.M_FRIENDLY for n in (4, 5)):
-        errs.append(f"modes {[worlds[n]['modes'] for n in (0, 4, 5)]} (W-modes M2: the careers + the friendly / DIY)")
+    m0 = swreg.M_FRIENDLY | swreg.M_PRESET | swreg.M_SEASON | swreg.M_CAREER   # (swreg.worlds()'s rule, not a typed
+    mw = swreg.M_CAREER | swreg.M_FRIENDLY | (swreg.M_SEASON if swreg.SEASON_WORLDS else 0)   # number: S6a's M_SEASON)
+    if worlds[0]['modes'] != m0 or any(worlds[n]['modes'] != mw for n in (4, 5)):
+        errs.append(f"modes {[worlds[n]['modes'] for n in (0, 4, 5)]}, want [{m0}, {mw}, {mw}] (W-modes M2: the careers + "
+                    f"the friendly / DIY; S6a: SEASON when swreg.SEASON_WORLDS)")
     if not (B1 <= wcur < B1 + sizes[0] and c254 == B2 + comp + 4 * 254 and B1 <= nslist < B1 + sizes[0] and nsn):
         errs.append(f'header pointers WCUR {wcur:#x} C254 {c254:#x} NSLIST {nslist:#x} ({nsn})')
     import joyfix                                 # (v2, W-modes: -> setupDatBuffer + 105, the default world byte)

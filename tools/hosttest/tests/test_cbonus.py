@@ -1,5 +1,5 @@
 """4.2 the season start's euro-cup term for the other confederations' cups (uprize.c up_eurc / ct_term; Davide 11/11
-"1b 2 consigliato"), on the static image of HT_CBONUS_EXE (a release-recipe exe with HOSTTEST_SYMS=1).
+"1b 2 consigliato"), on the static image of HT_CBONUS_EXE (default c/HTW: the release-recipe exe with HOSTTEST_SYMS=1 that tools/hosttest/mkfixtures.sh builds from this checkout; before 16/11 the private fixture c/HTcbS, which no script made).
 
 cseg_5DEB9's `mov eax, [D8CB6]` calls up_eur(c): its value decides the game's own term (DA111 x the factor of
 D8CBE's kind, / 1000 x 1000, into competitionBonuses). For every conti cup, in its own contest (E092F = CT_D7 + its
@@ -23,7 +23,7 @@ import test_champ as tc  # noqa: E402
 import test_registry as tr  # noqa: E402
 
 HOME = os.path.expanduser('~')
-EXE = os.environ.get('HT_CBONUS_EXE') or os.path.join(HOME, 'swos-mod', 'c', 'HTcbS', 'SWOS', 'ITALIAN.EXE')
+EXE = os.environ.get('HT_CBONUS_EXE') or os.path.join(HOME, 'swos-mod', 'c', 'HTW', 'SWOS', 'ITALIAN.EXE')
 ORIG = os.path.join(HOME, 'swos-mod', 'orig', 'ITALIAN.EXE')
 KIND = {0: 0, 1: 2, 2: 1}                       # uprize.c's tier -> the game's D8CBE kind (0 CC, 2 UEFA, 1 CWC)
 

@@ -2715,6 +2715,8 @@ def _label_data():
             slot4 |= forms(v.get('names'))
     import dplay                                        # (the career club's Serie B / C play-offs and play-out:
     slot4 |= {n.decode('latin-1') for n in dplay.NAMES}   # dplay's own names, id FEh for the play-out, no pack name)
+    import frtext                                       # (4.2 friendlies, FRND builds: the slot-4 contest's name)
+    slot4 |= forms({**frtext.LABEL, 'de2': frtext.LABEL_NATIVE_DE})
     for po in GPLAY_SCO:                                # (the harness-injected Scottish play-offs, world_gplay*: their
         slot4 |= forms(po['names'])                     # real names - never the raw keys)
     every |= slot4
@@ -25877,6 +25879,214 @@ def world_sc_ger_s1():
     """4.2 supercups-s1: a BAYERN career, season 1 - the German supercup FINALE v DORTMUND (the real 2026 edition,
     week 61) once, no SUPERCOPPA UEFA (Bayern is not in it); slot-4 rows its own label only"""
     return sc_s1('EUROPA,GERMANIA,BUNDESLIGA,BAYERN', [('ger', 61, 'DORTMUND')], absent=('uefa',))
+
+
+def fr_syms(exe):
+    """4.2 friendlies (FRND): {name: (obj, offset)} of frnd.py's labels from the exe dir's ITALIAN.syms.json (a
+    HOSTTEST_SYMS=1 build: FR_ST in obj2, FR_TRACE / FR_FEE / FR_G / FR_FB / FR_GIVENW in obj4's FRND band) + finance's
+    NEWBAL (obj2) and FF_INC (obj3: the season's gate receipts, fi_gate's sum); None without frnd."""
+    p = next((os.path.join(exe, x) for x in ('ITALIAN.syms.json', 'ENGLISH.syms.json')
+              if os.path.isfile(os.path.join(exe, x))), None)
+    d = json.load(open(p)) if p else {}
+    f = d.get('frnd')
+    if not f or 'FR_TRACE' not in f:
+        return None
+    out = {k: tuple(v) for k, v in f.items()}
+    out['NEWBAL'] = (2, f['FR_D6BA2'][1] - 0x3A)   # (finance.py: D6B9E = b9a + 4, NEWBAL = b9a - 32h; FR_D6BA2 = D6B9E + 4)
+    ff = d.get('finance', {}).get('FF_INC')
+    if ff:
+        out['FF_INC'] = (3, ff[1])                  # (finance.py's FF_ST block in obj3: ffp.py sym[k] = (3, LABELS[k]))
+    return out
+
+
+def fr_fee_py(g, band, home):
+    """tools/frnd.c fr_fee in Python: floor(G x pct / 100), capped at 1048560, rounded down to 16"""
+    pct = ((100, 40), (50, 20), (30, 10), (120, 50), (20, 5))
+    if band > 4:
+        return 0
+    g = min(g, 0x1400000)
+    return min(g * pct[band][0 if home else 1] // 100, 1048560) & ~15
+
+
+@scenario
+def world_friendlies():
+    """4.2 preseason friendlies (a), the engine FRND end to end (tools/frstep.c): a LAZIO career, MONDO 2026-27 season 1,
+    on a FRND=1 HOSTTEST_SYMS=1 test build (FR_BUILD: a given one). FR_ST (SC_ST + 180), FR_TRACE, FR_FEE[4], FR_G,
+    the club's balance and the season's gate receipts (finance FF_INC) logged at every step (W8485_HEX); slot 4's
+    tie (teams, score) read at every step. Checks: (a) the fixture list's slot-4 rows are AMICHEVOLE (4 weeks, 2 apart)
+    or the SUPERCOPPA, nothing else; (b) 4 AMICHEVOLE matches played, each with its result screen, the first at the
+    season's first menu (FR_TRACE 20h there, before any other match); (c) FR_ST at the season's end (before the next
+    season's fr_season): 4 played, W + D + L = 4 and = the scores seen, FR_OPEN clear, FR_TRACE 40h seen, FR_FEE[k] > 0;
+    (d) each friendly's gate receipts (FF_INC's step) = its FR_FEE and = fr_fee(FR_G, a band, its venue); the balance
+    up; (e) the SUPERCOPPA ITALIANA (LAZIO v INTER) played once, after friendly 4, never shown while FR_OPEN;
+    (f) the season ends."""
+    global W84_HOOK
+    src = world_data()
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    exe = os.environ.get('FR_BUILD') or build('world_friendlies', env={
+        'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'FRND': '1',
+        'HOSTTEST_SYMS': '1', 'FRND_END_TEST': '0x20000'}, lang=UI)
+    sy = fr_syms(exe)
+    if sy is None:
+        return False, f'no frnd test symbols (FR_TRACE) in {exe}: a FRND=1 HOSTTEST_SYMS=1 build is needed'
+    import frtext
+    import lepatch
+    import split
+    lab = frtext.LABEL[UI]
+    keys = {'st': (sy['FR_ST'], 12), 'tr': (sy['FR_TRACE'], 1), 'fee': (sy['FR_FEE'], 16), 'g': (sy['FR_G'], 4),
+            'bal': (sy['NEWBAL'], 4)}
+    if 'FF_INC' in sy:
+        keys['inc'] = (sy['FF_INC'], 4)
+    hexarg = lambda a, n: (f'{a[1]:x}' if a[0] == 2 else f'o{a[0]}/{a[1]:x}') + f':{n}'
+    name_of = {hexarg(a, n).split(':')[0]: k for k, (a, n) in keys.items()}
+    sp = split.sites(lepatch.LEPatch(os.path.join(MAIN, 'orig', 'ITALIAN.EXE')))['SLOTS']
+
+    def hook(s, season, scr):                    # slot 4's tie (team a, team b, score word) when it changes
+        if scr is None:
+            return
+        lin = struct.unpack('<I', s.result.obj2(sp + 16, 4))[0]
+        if not lin:
+            return
+        d = s.result.read(lin, 0x450)
+        c = slot_scores(d)
+        if c['n'] != 1:
+            return
+        a, b, fl, sc, _ = c['ties'][0]
+        v = f'{a:x} {b:x} {fl:02x} {sc & 0xFF} {sc >> 8} id {c["id"]:x}'
+        if getattr(hook, 'last', None) != v:
+            hook.last = v
+            s.log.append(f'[fr slot4] {v}')
+
+    W84_HOOK = hook
+    try:
+        ok, msg, lines = sc_season('EUROPA,ITALIA,SERIE A,LAZIO', dict(
+            W8485_BUILD=exe, W8485_HEX=','.join(hexarg(a, n) for a, n in keys.values())))
+    finally:
+        W84_HOOK = None
+    errs, info = [], []
+    check(ok, f'season 1: {msg}', errs)                                   # (f)
+    # the state at every log line: (line index, {key: bytes}) whenever a HEX line changes it
+    cur, snaps = {}, []
+    for i, ln in enumerate(lines):
+        if ln.startswith('HEX '):
+            _, o, v = ln.split()
+            if o in name_of:
+                cur[name_of[o]] = bytes.fromhex(v)
+                snaps.append((i, dict(cur)))
+    if not snaps or 'st' not in snaps[-1][1]:
+        return False, f'no FR_ST logged; {msg[:200]}'
+    st_at = lambda i: next((sn for j, sn in reversed(snaps) if j <= i), {})
+    trace = [sn['tr'][0] for _, sn in snaps if 'tr' in sn]
+    tr_seq = [t for k, t in enumerate(trace) if not k or t != trace[k - 1]]
+    season0 = snaps[0][1]['st'][0]
+    fin = next((sn for _, sn in reversed(snaps) if sn.get('st') and sn['st'][0] == season0), snaps[-1][1])
+    st = fin['st']
+    words = struct.unpack_from('<4H', st, 2)
+    fl = st[10] | st[11] << 8
+    home = [fl >> k & 1 for k in range(4)]
+    w_, d_, l_ = fl >> 4 & 7, fl >> 7 & 7, fl >> 10 & 7
+    fees = struct.unpack('<4I', fin['fee']) if 'fee' in fin else (0,) * 4
+    g = struct.unpack('<I', fin['g'])[0] if 'g' in fin else 0
+    opp = [team_name(exe, w) or f'{w:04x}' for w in words]
+    info.append(f'FR_ST {st.hex()} (season {st[0]}, played {st[1] & 7}, open {st[1] >> 3 & 1}, W/D/L {w_}/{d_}/{l_}, '
+                f'home {home}); opponents {opp}; trace {" ".join(f"{t:02x}" for t in tr_seq)}; G {g}; fees {list(fees)}')
+    # (a) the fixture list: slot-4 rows AMICHEVOLE (4 weeks, 2 apart) or the supercup
+    scs = sc_short('ita')
+    rows = slot4_rows(lines)
+    fw = sorted({w for _, w, _, lb, _ in rows if lb == lab})
+    other = sorted({(w, lb) for _, w, _, lb, _ in rows if lb not in (lab, scs)})
+    errs += sc_labels(lines, lab)
+    check(not other, f'slot-4 rows with another label: {other[:4]}', errs)
+    check(len(fw) == 4 and all(fw[k + 1] - fw[k] == 2 for k in range(3)), f'{lab} rows at weeks {fw} (want 4, 2 apart)', errs)
+    scw = sorted({w for _, w, _, lb, _ in rows if lb == scs})
+    check(not set(scw) & set(fw), f'{scs} rows at friendly weeks {scw}', errs)
+    # (b) the friendlies played: the match screens, their result screens, the first at the first menu
+    title = lambda ln: ln.split('|')[0]
+    pre = [i for i, ln in enumerate(lines) if ln.startswith('[') and lab in title(ln) and '>- RISULTATO -' in ln]
+    post = [i for i, ln in enumerate(lines) if ln.startswith('[') and lab in title(ln) and '- RISULTATO -(inv)' in ln
+            and '>ESCI' in ln]
+    pre = [i for k, i in enumerate(pre) if not k or i - pre[k - 1] > 3]   # (one screen, logged on consecutive steps)
+    post = [i for k, i in enumerate(post) if not k or i - post[k - 1] > 3]
+    others = [i for i, ln in enumerate(lines) if ln.startswith('[') and '>- RISULTATO -' in ln and lab not in title(ln)]
+    check(len(pre) == 4, f'{len(pre)} {lab} match screens (want 4): {[lines[i][:80] for i in pre[:6]]}', errs)
+    check(len(post) >= 4, f'{len(post)} {lab} result screens (want 4)', errs)
+    check(pre and (not others or pre[0] < others[0]), f'friendly 1 not before every other match (first other '
+          f'{lines[others[0]][:80] if others else "-"})', errs)
+    first_tr = next((sn['tr'][0] for _, sn in snaps if 'tr' in sn), None)
+    first_step = next((ln.split(']')[0] + ']' for ln in lines if ln.startswith('[') and ln[1:2].isdigit()), '')
+    check(first_tr == 0x20 and snaps[0][0] < (pre[0] if pre else 0), f'first menu: FR_TRACE {first_tr} (want 20h, '
+          f'friendly 1 installed) at {first_step}', errs)
+    # (c) FR_ST at the season's end
+    check(st[1] & 7 == 4, f'played {st[1] & 7} (want 4)', errs)
+    check(w_ + d_ + l_ == 4, f'W+D+L {w_}+{d_}+{l_} != 4', errs)
+    check(not st[1] & 8, 'FR_OPEN still set at the season end', errs)
+    check(0x40 in tr_seq, f'FR_TRACE never 40h (closed after 4): {tr_seq}', errs)
+    check(all(f > 0 for f in fees), f'FR_FEE {list(fees)}: a played friendly without a fee', errs)
+    check(len(set(words)) == 4 and 0xFFFF not in words, f'opponents {[hex(w) for w in words]}', errs)
+    # the scores seen (slot 4's tie, its last state before each friendly's result screen is left)
+    res = []
+    for k, i in enumerate(pre[:4]):
+        j = post[k] if k < len(post) else (pre[k + 1] if k + 1 < len(pre) else len(lines))
+        sl = [ln for ln in lines[i:j + 1] if ln.startswith('[fr slot4] ')]
+        if not sl:
+            res.append(None)
+            continue
+        a, b, _, ga, gb = sl[-1].split()[2:7]
+        a, b, ga, gb = int(a, 16), int(b, 16), int(ga), int(gb)
+        mine_a = b == words[k]
+        gf, gc = (ga, gb) if mine_a else (gb, ga)
+        res.append((opp[k], 'H' if mine_a else 'A', gf, gc))
+        check(words[k] in (a, b), f'friendly {k + 1}: slot 4 holds {a:x} v {b:x}, not {opp[k]} ({words[k]:x})', errs)
+        check(bool(mine_a) == bool(home[k]), f'friendly {k + 1}: venue {"home" if mine_a else "away"} != FR_ST home flag {home[k]}', errs)
+    seen = [r for r in res if r]
+    if len(seen) == 4:
+        cw = sum(1 for r in seen if r[2] > r[3]); cd = sum(1 for r in seen if r[2] == r[3]); cl = 4 - cw - cd
+        check((cw, cd, cl) == (w_, d_, l_), f'W/D/L {w_}/{d_}/{l_} != the scores seen {cw}/{cd}/{cl} {seen}', errs)
+    else:
+        check(False, f'scores seen for {len(seen)} friendlies only: {res}', errs)
+    info.append(f'results {res}')
+    # (d) the fee credited: FF_INC's step over each friendly (install k .. the next install / close) = FR_FEE[k]
+    ix = {}
+    for j, sn in snaps:
+        t = sn.get('tr', b'\0')[0]
+        ix.setdefault(t, sn)
+    incs, bals = [], []
+    for k in range(4):
+        a, b = ix.get(0x20 | k), ix.get(0x20 | (k + 1) if k < 3 else 0x40)
+        if not a or not b:
+            check(False, f'friendly {k + 1}: trace {0x20 | k:x} or its next step not logged ({tr_seq})', errs)
+            continue
+        di = struct.unpack('<I', b['inc'])[0] - struct.unpack('<I', a['inc'])[0] if 'inc' in a and 'inc' in b else None
+        db = struct.unpack('<i', b['bal'])[0] - struct.unpack('<i', a['bal'])[0]
+        incs.append(di)
+        bals.append(db)
+        if di is not None:
+            check(di == fees[k], f'friendly {k + 1}: gate receipts +{di} != FR_FEE {fees[k]} ({"home" if home[k] else "away"})', errs)
+        check(any(fees[k] == fr_fee_py(g, bd, home[k]) for bd in range(5)),
+              f'friendly {k + 1}: FR_FEE {fees[k]} is no fr_fee(G {g}, band, {"home" if home[k] else "away"})', errs)
+    info.append(f'gate receipts per friendly {incs}; balance change over each friendly week {bals}; bands '
+                f'{[next((bd for bd in range(5) if fees[k] == fr_fee_py(g, bd, home[k])), None) for k in range(4)]}')
+    # (e) the supercup: once, after friendly 4, never in the fixture list while FR_OPEN
+    scm = [i for i, ln in enumerate(lines) if ln.startswith('[') and 'SUPERCOPPA' in title(ln) and '>- RISULTATO -' in ln]
+    scm = [i for k, i in enumerate(scm) if not k or i - scm[k - 1] > 3]
+    check(len(scm) == 1, f'{len(scm)} SUPERCOPPA match screens (want 1: LAZIO v INTER)', errs)
+    if scm and len(pre) == 4:
+        check(scm[0] > pre[3], 'the supercup played before friendly 4', errs)
+        sst = st_at(scm[0]).get('st', b'')
+        check(sst and not sst[1] & 8, f'the supercup played with FR_OPEN set (FR_ST {sst.hex()})', errs)
+        check(any(x in lines[scm[0]] for x in ('INTER',)), f'supercup not v INTER: {lines[scm[0]][:120]}', errs)
+    open_rows = []
+    for i, ln in enumerate(lines):
+        m = re.match(r'\[slot4row\] step (\d+) week (\d+) .* (\S.*)$', ln)
+        if m and ln.endswith(' ' + scs):
+            sn = st_at(i).get('st', b'')
+            if sn and sn[0] == season0 and sn[1] & 8:
+                open_rows.append(ln[:60])
+    check(not open_rows, f'{scs} in the fixture list while FR_OPEN: {open_rows[:2]}', errs)
+    info.append(f'{lab} weeks {fw}; {scs} weeks {scw}; supercup screen {lines[scm[0]].split("|")[0] if scm else "-"}')
+    return not errs, '; '.join(errs + info) if errs else '; '.join(info) + f'; {msg[:80]}'
 
 
 # the game's extra-time simulation (cseg_2C0D3): the stronger side's margin per |rating difference| (32 rows x 4,

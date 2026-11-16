@@ -12,7 +12,7 @@ import fixroot  # noqa: E402
 from emu import Machine
 
 FIX = os.path.join(os.path.expanduser('~'), 'swos-mod', 'internal', 'hosttest', 'fixtures')
-BUILD = fixroot.fx(os.environ.get('HT_FIX', 'HT20'), 'SWOS')
+BUILD = os.path.join(os.path.expanduser('~'), 'swos-mod', 'c', os.environ.get('HT_FIX', 'HT20'), 'SWOS')   # (HT20: a pinned hand-built fixture, not in the FX root)
 
 
 def test_gp_end_moves():

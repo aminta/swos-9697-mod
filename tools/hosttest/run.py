@@ -14,6 +14,7 @@ if __name__ == '__main__':
     if sys.executable != VENV and os.path.exists(VENV) and not os.environ.get('HOSTTEST_NOVENV'):
         os.execv(VENV, [VENV] + sys.argv)
     sys.path.insert(0, HERE)
+    sys.path.insert(0, os.path.join(HERE, 'tests'))     # (a test module imports its siblings: test_s7pack -> test_globnum)
     sel = sys.argv[sys.argv.index('-k') + 1] if '-k' in sys.argv else ''
     one = sys.argv[sys.argv.index('--one') + 1] if '--one' in sys.argv else None
     bad, n = 0, {'PASS': 0, 'SKIP': 0, 'FAIL': 0}

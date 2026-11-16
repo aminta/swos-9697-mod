@@ -15,8 +15,29 @@ if __name__ == '__main__':
         os.execv(VENV, [VENV] + sys.argv)
     sys.path.insert(0, HERE)
     sel = sys.argv[sys.argv.index('-k') + 1] if '-k' in sys.argv else ''
+    one = sys.argv[sys.argv.index('--one') + 1] if '--one' in sys.argv else None
     bad, n = 0, {'PASS': 0, 'SKIP': 0, 'FAIL': 0}
-    for f in sorted(glob.glob(os.path.join(HERE, 'tests', 'test_*.py'))):
+    files = [one] if one else sorted(glob.glob(os.path.join(HERE, 'tests', 'test_*.py')))
+    if not one and not os.environ.get('HOSTTEST_INPROC'):
+        # 42-fixroot (MC 16/11): ONE PROCESS PER TEST MODULE. In one process a test's side effects leaked into the later ones
+        # (SEASON_PACKS read at import by mkseason + its packs() cache, set by test_seaw0 / drawgate._world: test_cd_dt, globnum,
+        # ri_ida FAILed on it). HOSTTEST_INPROC=1 keeps the old single process (debugging a pollution).
+        import subprocess
+        for f in files:
+            p = subprocess.Popen([sys.executable, os.path.abspath(__file__), '--one', f] + (['-k', sel] if sel else []),
+                                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, errors='replace',
+                                 env=dict(os.environ, HOSTTEST_NOVENV='1'))
+            for line in p.stdout:
+                if line.startswith('hosttest: '):
+                    continue
+                print(line, end='', flush=True)
+                for k in n:
+                    if line.startswith(k + ' '):
+                        n[k] += 1
+            p.wait()
+        print(f"hosttest: {n['PASS']} PASS, {n['SKIP']} SKIP, {n['FAIL']} FAIL")
+        sys.exit(1 if n['FAIL'] else 0)
+    for f in files:
         spec = importlib.util.spec_from_file_location(os.path.basename(f)[:-3], f)
         mod = importlib.util.module_from_spec(spec)
         try:

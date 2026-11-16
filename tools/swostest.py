@@ -1448,7 +1448,9 @@ class Session:
             while ...: scr = s.screen(); s.send('keys ... dump:1')
     """
 
-    def __init__(self, name, exe_dir, cars, keys, timeout=60, shots=0, match=False, timer=False):
+    def __init__(self, name, exe_dir, cars, keys, timeout=60, shots=0, match=False, timer=False, stale_ok=False):
+        if not stale_ok and (why := build_stale(exe_dir)):   # (MC 16/11, rule 0: the ONE place every DOSBox run
+            raise SetupError(why)                       #  passes - a syms build not made from this tree is refused)
         self.rate = TICKS if timer else None           # (timer: SWOS++, keys fed from TimerProc at 70 Hz)
         self.run, self.info = prepare(name, exe_dir, cars, steps_of(keys, self.rate), match, timer)
         timeout = int(timeout * float(os.environ.get('SWOSTEST_TIMEOUT_MUL', 1)))   # (02/11: both Macs' slots full,
@@ -2467,21 +2469,35 @@ def force_check(s):
 _GP_SYMS = {}
 
 
+_TREE_STAMP = []                                    # (the tree this process tests: stamped once, at its first check -
+STAMP_WARNS = []                                    #  an edit during a run does not turn its own builds stale)
+
+
 def build_stale(exe_dir):
-    """(MC 16/11, rule 0) None when exe_dir's build was made from this tree, else why not: a HOSTTEST_SYMS build
-    (<EXE>.syms.json) carries the source stamp patch.py wrote ('_src', tools/srcstamp.py) - missing (a build from
-    before the stamp) or another source = "stale build: rebuild". A build without syms (a release dir) is not judged."""
+    """(MC 16/11, rule 0) None when exe_dir's build was made from this tree, else why not. A HOSTTEST_SYMS build
+    (<EXE>.syms.json) carries the source stamp patch.py wrote ('_src', tools/srcstamp.py): another source = "stale
+    build: rebuild" (Session refuses it: SetupError). No stamp (a build from before srcstamp): a WARN line in the
+    scenario's result (STAMP_WARNS), refused only with SWOSTEST_STAMP_STRICT=1 (the rc suite and every release-gate
+    run: the Integratore's runner). A build without syms (a release dir) is not judged."""
     p = next((os.path.join(exe_dir, x) for x in ('ITALIAN.syms.json', 'ENGLISH.syms.json')
               if os.path.isfile(os.path.join(exe_dir, x))), None)
     if not p:
         return None
     import srcstamp
-    got, want = srcstamp.from_syms(json.load(open(p)).get('_src')), srcstamp.stamp()
-    if srcstamp.same(got, want):
+    if not _TREE_STAMP:
+        _TREE_STAMP.append(srcstamp.stamp())
+    got, want = srcstamp.from_syms(json.load(open(p)).get('_src')), _TREE_STAMP[0]
+    if not want or srcstamp.same(got, want):       # (a tree with no identity - no git, no REMOTE_SRC_TEST: not judged)
         return None
-    return (f'stale build: rebuild {exe_dir} (its source {got["sha"][:10]}{"+dirty" if got["dirty"] else ""}, this tree '
-            f'{want["sha"][:10]}{"+dirty" if want["dirty"] else ""})' if got else
-            f'stale build: rebuild {exe_dir} (no source stamp: built before srcstamp, or not by patch.py)')
+    if not got or not got.get('src'):
+        w = f'unstamped build {exe_dir}: rebuild before the rc'
+        if os.environ.get('SWOSTEST_STAMP_STRICT') == '1':
+            return f'stale build: {w} (SWOSTEST_STAMP_STRICT=1)'
+        if w not in STAMP_WARNS:
+            STAMP_WARNS.append(w)
+        return None
+    return (f'stale build: rebuild {exe_dir} (its source {got["src"]} {got.get("sha", "")[:10]}, this tree {want["src"]} '
+            f'{want.get("sha", "")[:10]})')
 
 
 def _gp_sym(exe_dir, name):
@@ -16630,15 +16646,13 @@ def _wsm_run(tag, b, path, ct, steps, stop=None, save_at=None, load=None, grab=N
     load = a .SEA: CARICA VECCHIA COMPETIZIONE > S6M instead of the picker, CAREERTEAM poked after the load.
     Returns dict(seq = screens' texts, clubs, sea, mid = _wsm_state at the first screen of the second half, end =
     _wsm_state at the end) or a string why not. stale_ok: b is an old build on purpose (a previous release's), its
-    source not this tree's (else build_stale refuses it)."""
-    if not stale_ok and (why := build_stale(b)):
-        return why
+    source not this tree's (else Session's build_stale refuses it)."""
     y = _wsm_syms(b)
     files = {'SETUP.DAT': setup_file(tag, world)}
     if load:
         files[os.path.basename(load)] = load
     out = {'seq': [], 'clubs': [], 'sea': None, 'states': []}
-    with Session(tag, b, files, 'dump:2', 3600) as s:
+    with Session(tag, b, files, 'dump:2', 3600, stale_ok=stale_ok) as s:
         if s.wait().outcome != 'dump':
             return f'{tag}: no first pause ({s.result})'
         exe = os.path.join(s.run, 'SWOS', 'ITALIAN.EXE')
@@ -38204,6 +38218,7 @@ def main(argv):
                 LABEL_STATS.update(rows=0, keyed=0, fallback=set())
                 del CTSD_ERRS[:]
                 del X3_ERRS[:]
+                del STAMP_WARNS[:]
                 X3_STATS.update(sessions=0)
                 del FORCE_ERRS[:]
                 setup = False
@@ -38234,6 +38249,8 @@ def main(argv):
                 if LABEL_STATS['rows']:
                     msg += f" [names: {LABEL_STATS['rows']} rows, {LABEL_STATS['keyed']} keyed" + \
                         (f", fallback {sorted(LABEL_STATS['fallback'])[:6]}" if LABEL_STATS['fallback'] else '') + ']'
+                if STAMP_WARNS:                             # (MC 16/11: an unstamped prebuilt dir - loud, not a FAIL)
+                    msg += ' [WARN ' + '; '.join(STAMP_WARNS[:3]) + ']'
                 if not ok and msg.startswith('START'):      # rare stall at the main menu (cause unknown): retry once
                     print(f'RETRY {n}: {msg}', flush=True)
                     ok, msg = SCENARIOS[n]()

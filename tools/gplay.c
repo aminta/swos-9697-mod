@@ -27,10 +27,7 @@
    (cup_code: GP_CUPW / GP_CUPF, the winner / the other finalist). An extended play-off is played at the season end
    only (playable: no contest). */
 
-typedef unsigned char u8;
-typedef unsigned short u16;
-typedef unsigned int u32;
-typedef signed char s8;
+#include "gpsc.h"                       /* (u8 / u16 / u32 / s8, SC_*, IS_MGR: shared with gplay3.c) */
 
 enum { GT = 32, GD = 16, GN = 64, RESERVE = 0xFE, EXTERNAL = 0xFD };   /* (EXTERNAL, S7: gplay.py's) */   /* (GD: Italy 2026-27 has 14 divisions; GT: Argentina's 30) */
 enum { HOST_LISTED, HOST_BETTER, HOST_DRAWN, HOST_NEUTRAL, HOST_UEFA_FINAL = 0x40, HOST_SKIP_SAME = 0x80 };
@@ -440,7 +437,6 @@ static int glob_club(int d, u16 g) {     /* a global number -> its row of divisi
     return -1;
 }
 
-#define IS_MGR(w) (GP_MGR && (u16)(w) == (u16)GP_MGR)   /* (S6a: GP_MGR 0 = no manager's club, gplay.py gp_mgr) */
 static int mgr_div(void) {              /* the career club's division in GP_IN (this country's), or -1 */
     if (!GP_IN.mgr) return -1;
     for (int d = 0; d < GP_IN.nd && d < GD; d++)
@@ -4721,7 +4717,7 @@ u32 cf_member_c(u32 id, u32 season, u32 cteam) {        /* 2: not ours (the defi
    final), db the stage-title play-offs of the rules SCR_TITLE0 / 1 (MEX); dd the season record's name (REGISTRO GESTIONE: the long name if it fits 144 px, else the short).
    SC_ST +5 = 1: the career club won this season's (SC_ST +3) supercup -> its record line (sc_rline, gp_rlines_c). Only the career club's country's supercup is played: the career club in it -> its tie in slot 4 (as
    a Coppa D tie, kind K_SC); the other semi-final is decided at once (the better placed of last season wins 3 in 5). */
-enum { SC_E = 36, SC_NE = 16, SC_H = 12, SC_EARLY = 0x80 };   /* (entry byte 2: from_season | SC_EARLY) */
+/* (SC_E, SC_NE, SC_H, SC_EARLY, SC_U: gpsc.h) */
 enum { SCR_CHAMP = 1, SCR_SECOND, SCR_CUPW, SCR_CUPF, SCR_THIRD, SCR_FOURTH, SCR_TITLE0, SCR_TITLE1,
        SCR_UCL, SCR_UEL, SCR_UECL };   /* (4.0.6: the game's UEFA holders, the UEFA Super Cup) */
 /* 4.0.6 the UEFA Super Cup (internal/handoff/csup.md): GP_SCT's entry with league file SC_UEFA (world-level), its
@@ -4734,7 +4730,6 @@ enum { SCR_CHAMP = 1, SCR_SECOND, SCR_CUPW, SCR_CUPF, SCR_THIRD, SCR_FOURTH, SCR
    at its own week, after the UEFA tie. The career club not a holder: nothing played or simulated (VINCITORI names
    only the viewed league's rows, so no page could show a foreign winner). */
 enum { SC_UEFA = 0xFF };
-#define SC_U (SC_ST + SC_H + 12 * (SC_NE - 1))
 u8 SC_ST[SC_H + 12 * SC_NE];
 const u32 SC_STSZ = sizeof SC_ST;
 const u8 *GP_SCT;                       /* (the glue: the table, 0 = none) */

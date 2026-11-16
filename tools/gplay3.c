@@ -8,12 +8,7 @@
 #define GP_X3FN static
 #else
 #define GP_X3FN
-typedef unsigned char u8;
-typedef unsigned short u16;
-typedef unsigned int u32;
-enum { SC_NE = 16, SC_H = 12 };
-#define SC_U (SC_ST + SC_H + 12 * (SC_NE - 1))
-#define IS_MGR(w) (GP_MGR && (u16)(w) == (u16)GP_MGR)   /* (as gplay.c's) */
+#include "gpsc.h"                       /* (the types, SC_*, IS_MGR: the one copy gplay.c includes too) */
 extern u8 GP_SEAS;
 extern u16 GP_MGR;
 extern u32 SC_TRACE;

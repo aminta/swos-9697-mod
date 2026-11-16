@@ -1663,6 +1663,9 @@ class Session:
             h = hashlib.md5(f'{pin}:{self.rng_n}'.encode()).digest()
             for at, part in zip(self.rng_at, (h[:3], h[3:6])):
                 self.poke(r.base2 + at, part)
+        if r.outcome == 'dump' and not getattr(self, 'frpage_keep', False) and not getattr(self, '_frpage_busy', False):
+            if fr_page_pass(self):                     # (4.2 friendlies (c): the season-start page passed here, once for
+                r = self.result                        #  every career scenario - MC / Chooser 16/11)
         return r
 
 
@@ -45138,6 +45141,51 @@ def frc_stack(s, v):
     return k, len(d) - k + 64
 
 
+def fr_page_on(s):
+    """The friendlies' season-start page can show in this session's exe (4.2 FRCH linked): its title in any language is
+    in the exe's bytes. Read once per session; False = fr_page_pass costs nothing (FRCH not linked, old builds,
+    SWOS++); True with FRCH linked even without FRND (one screen read per dump: no measurable cost, frpage_smoke)."""
+    if not hasattr(s, '_frpage_on'):
+        s._frpage_on = False
+        try:
+            import frchoose
+            exe = open(os.path.join(s.run, 'SWOS', 'ITALIAN.EXE'), 'rb').read()
+            s._frpage_on = any(t.encode('latin-1') in exe for t in frchoose.TITLE.values())
+        except (ImportError, OSError):
+            pass
+    return s._frpage_on
+
+
+def fr_page_pass(s):
+    """4.2 friendlies (c), one harness step for every career scenario (MC 16/11, agreed with the Chooser): if the
+    screen is the friendlies' season-start page (FRCH: frchoose.TITLE and its FC_NE entries; the club browser's title
+    is PICK + area, never TITLE), leave it the player's default way - the cursor on CONTINUE (FC_E_GO), fire: the
+    engine's automatic pick. Run by Session.send() after every dump unless s.frpage_keep (the scenarios that drive the
+    page: frchoose_*, world_preseason_*); the page only follows the season-start step (a new career, CONTINUA CARRIERA
+    into a new season), never a load. True = a page was passed (the scenario goes on from the next screen)."""
+    if not fr_page_on(s):
+        return False
+    import frchoose
+    d = frchoose.cdefs()
+    titles = set(frchoose.TITLE.values())
+    s._frpage_busy = True
+    try:
+        passed = False
+        for _ in range(3):
+            scr = s.screen()
+            if scr.n != d['FC_NE'] or not scr.raw_texts or scr.raw_texts[0] not in titles:
+                break
+            frc_goto(s, d['FC_E_GO'])
+            s.send('fire dump:3')
+            passed = True
+            s.frpage_n = getattr(s, 'frpage_n', 0) + 1
+        if passed:
+            s.log.append(f'[frpage] passed ({s.frpage_n} so far)')
+        return passed
+    finally:
+        s._frpage_busy = False
+
+
 def frc_goto(s, i, tries=12):
     """the cursor on entry i (one key at a time, re-planned), no fire; the screen"""
     for _ in range(tries):
@@ -45224,6 +45272,7 @@ def frchoose_probe():
                          f'{v["esp"] - v["low"]} B)')
 
     with Session(f'frchoose_probe_{UI}', b, {}, 'dump:2', 600) as s:
+        s.frpage_keep = True                  # (drives the friendlies page itself: no fr_page_pass)
         if s.wait().outcome != 'dump':
             return False, f'no first pause ({s.result})'
         w9697(s)
@@ -45325,6 +45374,36 @@ def frchoose_probe():
 
 
 @scenario
+def frpage_smoke():
+    """4.2 friendlies (c): fr_page_pass, the one harness step that leaves the friendlies' season-start page in every
+    career scenario (Session.send's hook, MC 16/11). On a FRC_PROBE=1 build (the Chooser's test caller shows the page at
+    the season start, world 0's table) the UNCHANGED new_career() path - its last fire still meant for the chairman's
+    note - reaches the career menu with exactly one page passed ([frpage] in the log). FRPAGE_BUILD = another build
+    that shows the page (a FRND + FRCH build); FRPAGE_OFF=1: the same on today's plain build - none passed (FRCH linked
+    there: fr_page_on True, one screen read per dump, 15 s vs 17 s for the whole new career, 16/11)."""
+    errs, notes = [], []
+    off = os.environ.get('FRPAGE_OFF') == '1'
+    b = os.environ.get('FRPAGE_BUILD') or (ui_dir(builds()['it']) if off else
+                                          build(f'frc_probe_{UI}', env={'FRC_PROBE': '1'}, lang=UI))
+    t0 = time.time()
+    with Session(f'frpage_smoke_{UI}{"_off" if off else ""}', b, {}, 'dump:2', 300) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'no first pause ({s.result})'
+        new_career(s, 'ITALIA', 'SERIE A', 'UDINESE', original=True)
+        n = getattr(s, 'frpage_n', 0)
+        scr = s.screen()
+        check(n == (0 if off else 1), f'pages passed {n}, want {0 if off else 1} (fr_page_on {fr_page_on(s)})', errs)
+        for _ in range(3):
+            if 'TRASFERIMENTI' in s.screen().texts():
+                break
+            s.send('fire dump:3')
+        check('TRASFERIMENTI' in s.screen().texts(), f'no career menu after new_career: {s.screen()}', errs)
+        notes.append(f'pages passed {n}, page on {fr_page_on(s)}, {time.time() - t0:.0f} s; after new_career: '
+                     f'{scr.texts()[:4]}')
+    return not errs, '; '.join(errs + notes)
+
+
+@scenario
 def frchoose_outside():
     """4.2 friendlies chooser, MC's proof of the club list hook (chooseTeamsFriendlyMenu's header, chained): outside
     the page nothing changes. (a) An old career save (JUVE2F) loads to the career menu, the page not shown (FC_TRACE
@@ -45335,6 +45414,7 @@ def frchoose_outside():
     on, off = build(f'frc_on_{UI}', lang=UI), build(f'frc_off_{UI}', env={'FRCHOOSE': '0'}, lang=UI)
     fs = frc_sites(on)
     with Session(f'frc_oldsave_{UI}', on, {'JUVE2F.CAR': juve2(True)}, 'dump:2', 120) as s:
+        s.frpage_keep = True                  # (drives the friendlies page itself: no fr_page_pass)
         if s.wait().outcome != 'dump':
             return False, f'old save: no first pause ({s.result})'
         s.send('down down down down down fire dump:2')

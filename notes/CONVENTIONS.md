@@ -211,3 +211,10 @@ new rule. If a rule seems wrong for a case, ask the regia session; don't silentl
     **TC_FLOOR** (MC 16/11): TC_CAP may only ever GROW across versions, never shrink - a build asserts TC_CAP >=
     tcache.TC_FLOOR (159; TC_FLOOR_FP 155 with 'FP'), so a career saved at the floor by an earlier exe loads in every
     later one. A trailer item that breaks it fails the build: its owner finds room elsewhere (never lowers the floor).
+    **1b** (team cache 1b, design 1.4-1.6): EVERY career - 1996-97 included - lives in the big cache (w_switch for a
+    new career, w_setbase for any .CAR; a .SEA keeps the game's). Saves come from the stage in CANONICAL form
+    (selTeamsPtr = the game's cache, careerTeam's competition dwords relative to it): the file is what a game-cache
+    career would write. A load is checked IN THE STAGE before memory is touched (count <= SEL_CAP, the records all
+    there, nothing past the room): a refusal sets TC_LOADERR, processes nothing, and tc_lchk - LoadCareerFile's own
+    call after ProcessCareerFile, so any wrapper of load_trailer is fine - takes the game's failure path. The
+    season-end parking (ws / wl stubs) follows selTeamsPtr == NEWSEL, never the world.

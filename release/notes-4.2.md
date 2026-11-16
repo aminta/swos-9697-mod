@@ -79,6 +79,13 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 - AFC Champions League Elite, AFC Challenge League, CONCACAF Champions Cup, Recopa Sudamericana and CAF Super Cup: the knockout matches your club plays in these cups now decide the cup. Before (since 4.1) the game played them but ignored the results at the end of the season and drew the outcome again, so the winner, next season's title holder and places could differ from what you actually played.
 - A career saved halfway through a knockout round with an earlier version: the round counts when you finish it.
 
+#### Saved careers
+- A career saved with 4.2 loads in 4.2 or later. Older versions (4.1 and before) cannot be trusted to load it: keep playing it with 4.2.
+- Careers saved with older versions still load in 4.2, as before.
+- A damaged or cut-off career file is now refused with the game's own "load failed" message, and the career you have open stays as it was. Before, a file that was too long was cut without a word.
+- A 1996-97 career now has room for 159 teams, as the 2026-27 and 1984-85 worlds do (before: 100). If a career ever needs more, the game stops with TEAM CACHE FULL - PLEASE REPORT instead of damaging the save.
+- 1996-97 season end: after the end-of-season matches the game simulates, every club in your career gets its own squad back (before, only the first 32 did).
+
 #### Decisions of this release
 - Serie C / Serie D exchange (2026-27 world): every season the nine Serie D group winners go up and the Serie C clubs relegated (last of each group + play-out losers) go down, your club included; groups by area, an approximation (the real league redraws the Serie D groups every summer); a move of your club keeps its squad, money and record.
 - Set-piece practice: a practice lasts the attempts chosen (SHOTS: 10 at first; UNLIMITED until ESC) on the half chosen (HALF: RANDOM at first, the match's own random end as before) and then shows its results page (ESC ends it earlier); a practice has no match clock, no presentation screen (competition, teams, stadium), no pre-match screen and no score bar at the restarts. Ordinary matches and friendlies are unchanged.
@@ -90,6 +97,7 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 - Stand-ins from a 4.1 career (Davide, 12/11): a stand-in that reached Serie C is replaced by a real Serie D club at the first load in 4.2, which keeps its points and table position (the alternative, showing the stand-in until the end of the season, was dropped).
 - Serie D, a full group (Davide): the club that moves to a neighbouring group is the one living nearest to the centre of that group, by the real location of the clubs' towns.
 - JUVENTUS's bench keeper is NETO (Davide, 15/11), over the call-ups rule that would pick PINSOGLIO.
+- Saves (Davide, 16/11): a career saved with 4.2 is for 4.2 or later; 4.2 keeps loading every older save. Every career uses the big team cache (159 teams), the 1996-97 one included.
 
 
 ## Italiano
@@ -172,6 +180,13 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 - AFC Champions League Elite, AFC Challenge League, CONCACAF Champions Cup, Recopa Sudamericana e CAF Super Cup: le partite a eliminazione diretta che la tua squadra gioca in queste coppe ora decidono la coppa. Prima (dalla 4.1) il gioco le faceva giocare ma a fine stagione ne ignorava i risultati e rideterminava l'esito, quindi vincitore, detentore della stagione dopo e posti potevano non corrispondere a quello che avevi giocato.
 - Una carriera salvata a metà di un turno a eliminazione diretta con una versione precedente: il turno conta quando lo finisci.
 
+#### Carriere salvate
+- Una carriera salvata con la 4.2 si carica con la 4.2 o versioni successive. Con le versioni precedenti (4.1 e prima) il caricamento non è garantito: continua a giocarla con la 4.2.
+- Le carriere salvate con versioni precedenti si caricano ancora nella 4.2, come prima.
+- Un file di carriera rovinato o troncato ora viene rifiutato con il messaggio di caricamento non riuscito del gioco, e la carriera che hai aperta resta com'era. Prima un file troppo lungo veniva tagliato senza avvisare.
+- Una carriera 1996-97 ora ha posto per 159 squadre, come i mondi 2026-27 e 1984-85 (prima: 100). Se una carriera ne avesse bisogno di più, il gioco si ferma con TEAM CACHE FULL - PLEASE REPORT invece di rovinare il salvataggio.
+- Fine stagione 1996-97: dopo le partite di fine stagione simulate dal gioco ogni squadra della tua carriera riprende la sua rosa (prima solo le prime 32).
+
 #### Decisioni di questa release
 - Scambio Serie C / Serie D (Mondo 2026-27): ogni stagione le nove vincitrici dei gironi di Serie D salgono e le retrocesse dalla Serie C (ultima di ogni girone + perdenti dei play-out) scendono, anche la tua squadra; gironi per zona, un'approssimazione (la Lega vera ricompone i gironi di Serie D ogni estate); un passaggio della tua squadra tiene rosa, soldi e curriculum.
 - Prova dei calci piazzati: una prova dura i tiri scelti (TIRI: all'inizio 10; INFINITI fino a ESC) nella metà campo scelta (META' CAMPO: all'inizio CASUALE, la porta a caso della partita come prima) e poi mostra la sua pagina dei risultati (ESC la chiude prima); in una prova non ci sono cronometro, schermata di presentazione (competizione, squadre, stadio), schermata prepartita né barra del risultato alle riprese del gioco. Le partite normali e le amichevoli restano come prima.
@@ -183,3 +198,4 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 - Squadre riserva di una carriera 4.1 (Davide, 12/11): una riserva arrivata in Serie C viene sostituita da una vera squadra di Serie D al primo caricamento nella 4.2, che tiene punti e posizione in classifica (l'alternativa, tenere la riserva visibile fino a fine stagione, è stata scartata).
 - Serie D, girone pieno (Davide): la squadra che passa a un girone confinante è quella la cui città è più vicina al centro di quel girone, secondo la posizione reale delle città.
 - Il portiere di riserva della JUVENTUS è NETO (Davide, 15/11), al posto di PINSOGLIO che la regola delle convocazioni sceglierebbe.
+- Salvataggi (Davide, 16/11): una carriera salvata con la 4.2 è per la 4.2 o successive; la 4.2 continua a caricare tutti i salvataggi precedenti. Ogni carriera usa la cache squadre grande (159 squadre), anche quella 1996-97.

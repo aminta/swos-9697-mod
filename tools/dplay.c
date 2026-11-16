@@ -359,6 +359,9 @@ static void frec_force(void) {
         frec_set(v, e);
     }
 #endif
+#if DP_FREC == 4
+    v->cup = 0;                         /* (the record's valid bit cleared: what a 4.1 save holds) */
+#endif
 #if DP_FREC == 2
     {
         u32 x = FREC(v);

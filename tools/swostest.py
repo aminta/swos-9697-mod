@@ -32311,7 +32311,7 @@ def world_s3dbl_c20():
             mv = [struct.unpack_from('<HHb', d, k + 4 + 916 + 8 * i) for i in range(min(nmv, 4))]
             mgr = struct.unpack_from('<H', mg[-1], sy['layout.O_MGR'][1])[0]
             ups = [t for _, t, dl in mv if dl == -1]
-            want = {'1': [fl], '2': [teams[s0], teams[s1]], '3': [mgr]}.get(frec, [])
+            want = {'1': [fl], '2': [teams[s0], teams[s1]], '3': [mgr], '4': [t for t in teams if t != res]}.get(frec, [])   # (4: the record cleared after the log copy: any other club of the list, class 2)
             check(kind == 3 and n == 28 and (st[7] & 0x80), f'DPLAY_FREC={frec}: state kind {kind} n {n} cup {st[7]:#x} (a kind-3 state with a valid record)', errs)
             check(len(ups) == 1 and ups[0] in want, f'DPLAY_FREC={frec}: promoted {[hex(t) for t in ups]}, wanted one of {[hex(t) for t in want]} (winner {res:#x}, final loser {fl:#x}, semi losers {teams[s0]:#x} {teams[s1]:#x}, career club {mgr:#x}); moves {mv}', errs)
             info.append(f'DPLAY_FREC={frec}: up {[hex(t) for t in ups]} = {"final loser" if ups and ups[0] == fl else "semi loser" if ups and ups[0] in (teams[s0], teams[s1]) else "career club" if ups and ups[0] == mgr else "?"} (winner {res:#x})')

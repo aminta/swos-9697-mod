@@ -21,7 +21,7 @@ import swreg  # noqa: E402
 MAP_ROWS = [('DRIB1V1', ''), ('DIFF', ''), ('KITS', ''), ('SWEFILE', ''), ('S7SWAP', ''), ('OBJ1MV', ''),
             ('SETPIECE', ''), ('FPORT', ' (test)'), ('S7GEO', ''), ('DIFF2', ''), ('SPX', ''), ('CDKN', ' (test)'),
             ('PRACTICE', ''), ('FPORT2', ' (test)'), ('S3C', ''), ('MKTHOOK', ' (4.3)'), ('MKTLOAD', ' (4.3)'),
-            ('MKTAGE', ' (4.3)'), ('DRP8D', ' (4.3)'), ('SP_METER', ' (test)'), ('DIFF_TC', ' (test)')]
+            ('MKTAGE', ' (4.3)'), ('DRP8D', ' (4.3)'), ('S6', ' (4.3)'), ('SP_METER', ' (test)'), ('DIFF_TC', ' (test)')]
 MAP = '## obj4 map (synthetic)\n\n| band | range | owner | linked |\n|---|---|---|---|\n' + ''.join(
     f'| {n}{c} | x | x | x |\n' for n, c in MAP_ROWS)
 oc.set_map(text=MAP)

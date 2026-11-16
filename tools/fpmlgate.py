@@ -422,7 +422,8 @@ def host_cal():
 
 def data():
     return (os.environ.get('FPML_DATA') or os.environ.get('W2627REL_DATA') or
-            os.path.join(T.MAIN, 'internal', 'world2526', 'world5tm-h3s7')).rstrip('/')
+            os.path.join(T.MAIN, 'internal', 'world2526', 'world5tm-h2')).rstrip('/')   # (fpgate's default; world5tm-h3s7
+    #   does not build on 42-int f534ea9: 'gplay pages full' 0xcc18e > 0xcc000 - FPML_DATA once the row's data is chosen)
 
 
 def has_row(src):

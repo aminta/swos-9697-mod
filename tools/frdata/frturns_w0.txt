@@ -1,0 +1,104 @@
+# frturns: world 0, 76 leagues, from c/REL42i70/SWOS/ENGLISH.EXE
+# country name: F (header first-last) turns | flags | divisions with a native play-off | cups (spans) | continent club cups (spans)
+  0 ALBANIA            F  64 (64-32) turns [56, 58, 60, 62] | - | po [] | cups [[88, 128]] | conti [(64, 128), (88, 96)]
+  1 AUSTRIA            F  56 (56-40) turns [48, 50, 52, 54] | - | po [] | cups [[128, 136]] | conti [(64, 128), (88, 96)]
+  2 BELGIUM            F  56 (56-32) turns [48, 50, 52, 54] | - | po [] | cups [[80, 128]] | conti [(64, 128), (88, 96)]
+  3 BULGARIA           F  56 (56-40) turns [48, 50, 52, 54] | - | po [] | cups [[80, 128]] | conti [(64, 128), (88, 96)]
+  4 CROATIA            F  56 (56-40) turns [48, 50, 52, 54] | - | po [] | cups [[80, 136]] | conti [(64, 128), (88, 96)]
+  5 CYPRUS             F  64 (64-32) turns [56, 58, 60, 62] | - | po [] | cups [[104, 128]] | conti [(64, 128), (88, 96)]
+  6 CZECH REPUBLIC     F  56 (56-40) turns [48, 50, 52, 54] | - | po [] | cups [[72, 136]] | conti [(64, 128), (88, 96)]
+  7 DENMARK            F  56 (56-40) turns [48, 50, 52, 54] | - | po [] | cups [[112, 136]] | conti [(64, 128), (88, 96)]
+  8 ENGLAND            F  56 (56-32) turns [48, 50, 52, 54] | NATIVE+ICUP4 | po [1, 2, 3] | cups [[96, 128], [64, 112]] | conti [(64, 128), (88, 96)]
+ 10 ESTONIA            F  56 (56-40) turns [48, 50, 52, 54] | - | po [] | cups [[128, 136]] | conti [(64, 128), (88, 96)]
+ 11 FAROE ISLANDS      F  24 (24-64) turns [16, 18, 20, 22] | - | po [] | cups [[56, 64]] | conti [(64, 128), (88, 96)]
+ 12 FINLAND            F  24 (24-72) turns [16, 18, 20, 22] | - | po [] | cups [[32, 40]] | conti [(64, 128), (88, 96)]
+ 13 FRANCE             F  56 (56-40) turns [48, 50, 52, 54] | - | po [] | cups [[104, 136]] | conti [(64, 128), (88, 96)]
+ 14 GERMANY            F  56 (56-40) turns [48, 50, 52, 54] | - | po [] | cups [[64, 136]] | conti [(64, 128), (88, 96)]
+ 15 GREECE             F  64 (64-40) turns [56, 58, 60, 62] | - | po [] | cups [[0, 32]] | conti [(64, 128), (88, 96)]
+ 16 HUNGARY            F  56 (56-40) turns [48, 50, 52, 54] | - | po [] | cups [[104, 136]] | conti [(64, 128), (88, 96)]
+ 17 ICELAND            F  32 (32-64) turns [24, 26, 28, 30] | - | po [] | cups [[56, 64]] | conti [(64, 128), (88, 96)]
+ 18 REPUBLIC IRELAND   F  56 (56-24) turns [48, 50, 52, 54] | - | po [] | cups [[112, 128]] | conti [(64, 128), (88, 96)]
+ 19 ISRAEL             F  64 (64-32) turns [56, 58, 60, 62] | - | po [] | cups [[120, 128]] | conti [(64, 128), (88, 96)]
+ 20 ITALY              F  64 (64-32) turns [48, 50, 52, 54] | EARLY | po [] | cups [[56, 128]] | conti [(64, 128), (88, 96)]
+ 21 LATVIA             F  32 (32-64) turns [24, 26, 28, 30] | - | po [] | cups [[56, 64]] | conti [(64, 128), (88, 96)]
+ 22 LITHUANIA          F  56 (56-40) turns [48, 50, 52, 54] | - | po [] | cups [[128, 136]] | conti [(64, 128), (88, 96)]
+ 23 LUXEMBOURG         F  56 (56-40) turns [48, 50, 52, 54] | - | po [] | cups [[120, 136]] | conti [(64, 128), (88, 96)]
+ 24 MALTA              F  64 (64-24) turns [56, 58, 60, 62] | - | po [] | cups [[128, 136]] | conti [(64, 128), (88, 96)]
+ 25 HOLLAND            F  56 (56-32) turns [48, 50, 52, 54] | NATIVE | po [0, 1] | cups [[88, 128]] | conti [(64, 128), (88, 96)]
+ 26 NORTHERN IRELAND   F  64 (64-24) turns [56, 58, 60, 62] | - | po [] | cups [[104, 128]] | conti [(64, 128), (88, 96)]
+ 27 NORWAY             F  24 (24-72) turns [16, 18, 20, 22] | - | po [] | cups [[64, 80]] | conti [(64, 128), (88, 96)]
+ 28 POLAND             F  56 (56-40) turns [48, 50, 52, 54] | - | po [] | cups [[80, 136]] | conti [(64, 128), (88, 96)]
+ 29 PORTUGAL           F  56 (56-40) turns [48, 50, 52, 54] | - | po [] | cups [[96, 136]] | conti [(64, 128), (88, 96)]
+ 30 ROMANIA            F  56 (56-40) turns [48, 50, 52, 54] | - | po [] | cups [[112, 136]] | conti [(64, 128), (88, 96)]
+ 31 RUSSIA             F  16 (16-80) turns [8, 10, 12, 14] | - | po [] | cups [[16, 40]] | conti [(64, 128), (88, 96)]
+ 32 SAN MARINO         F  72 (72-32) turns [56, 58, 60, 62] | EARLY | po [] | cups [[120, 128]] | conti [(64, 128), (88, 96)]
+ 33 SCOTLAND           F  56 (56-32) turns [48, 50, 52, 54] | NATIVE+ICUP4 | po [0, 1] | cups [[96, 128], [56, 72]] | conti [(64, 128), (88, 96)]
+ 34 SLOVENIA           F  56 (56-40) turns [48, 50, 52, 54] | - | po [] | cups [[120, 136]] | conti [(64, 128), (88, 96)]
+ 35 SPAIN              F  64 (64-40) turns [56, 58, 60, 62] | NATIVE | po [0, 1] | cups [[88, 136]] | conti [(64, 128), (88, 96)]
+ 36 SWEDEN             F  24 (24-72) turns [16, 18, 20, 22] | - | po [] | cups [[32, 40]] | conti [(64, 128), (88, 96)]
+ 37 SWITZERLAND        F  48 (48-40) turns [40, 42, 44, 46] | - | po [] | cups [[120, 136]] | conti [(64, 128), (88, 96)]
+ 38 TURKEY             F  56 (56-32) turns [48, 50, 52, 54] | - | po [] | cups [[88, 120]] | conti [(64, 128), (88, 96)]
+ 39 UKRAINE            F  56 (56-40) turns [48, 50, 52, 54] | - | po [] | cups [[120, 136]] | conti [(64, 128), (88, 96)]
+ 40 WALES              F  56 (56-32) turns [48, 50, 52, 54] | - | po [] | cups [[88, 128]] | conti [(64, 128), (88, 96)]
+ 41 YUGOSLAVIA         F  64 (64-40) turns [56, 58, 60, 62] | - | po [] | cups [[80, 128]] | conti [(64, 128), (88, 96)]
+ 42 ALGERIA            F  64 (64-40) turns [56, 58, 60, 62] | - | po [] | cups [[96, 128]] | conti [(64, 128)]
+ 43 ARGENTINA          F  64 (64-32) turns [56, 58, 60, 62] | - | po [] | cups [] | conti [(64, 128), (88, 96)]
+ 44 AUSTRALIA          F  16 (16-80) turns [8, 10, 12, 14] | NATIVE | po [0] | cups [[40, 80]] | conti []
+ 45 BOLIVIA            F  32 (32-88) turns [24, 26, 28, 30] | - | po [] | cups [] | conti [(64, 128), (88, 96)]
+ 46 BRAZIL             F   8 (0-40 -> 8-48) turns [0, 2, 4, 6] | SHIFT | po [] | cups [] | conti [(64, 128), (88, 96)]
+ 47 COSTA RICA         F  56 (56-32) turns [48, 50, 52, 54] | - | po [] | cups [] | conti [(64, 128)]
+ 48 CHILE              F  24 (24-88) turns [16, 18, 20, 22] | - | po [] | cups [] | conti [(64, 128), (88, 96)]
+ 49 COLOMBIA           F  24 (24-88) turns [16, 18, 20, 22] | - | po [] | cups [] | conti [(64, 128), (88, 96)]
+ 50 ECUADOR            F  24 (24-88) turns [16, 18, 20, 22] | - | po [] | cups [] | conti [(64, 128), (88, 96)]
+ 51 EL SALVADOR        F  56 (56-32) turns [48, 50, 52, 54] | - | po [] | cups [] | conti [(64, 128)]
+ 52 EGYPT              F  64 (64-40) turns [56, 58, 60, 62] | - | po [] | cups [[96, 128]] | conti [(64, 128)]
+ 53 MOROCCO            F  64 (64-40) turns [56, 58, 60, 62] | - | po [] | cups [[96, 128]] | conti [(64, 128)]
+ 54 TUNISIA            F  64 (64-40) turns [56, 58, 60, 62] | - | po [] | cups [[96, 128]] | conti [(64, 128)]
+ 55 JAPAN              F  16 (16-80) turns [8, 10, 12, 14] | - | po [] | cups [[48, 56], [88, 96]] | conti [(64, 128)]
+ 56 NIGERIA            F  56 (56-40) turns [48, 50, 52, 54] | - | po [] | cups [[96, 128]] | conti [(64, 128)]
+ 58 CAMEROON           F  56 (56-40) turns [48, 50, 52, 54] | - | po [] | cups [[96, 128]] | conti [(64, 128)]
+ 60 MEXICO             F  56 (56-32) turns [48, 50, 52, 54] | - | po [] | cups [] | conti [(64, 128)]
+ 61 SOUTH KOREA        F  16 (16-80) turns [8, 10, 12, 14] | - | po [] | cups [[96, 128]] | conti [(64, 128)]
+ 62 NEW ZEALAND        F  16 (16-72) turns [8, 10, 12, 14] | NATIVE | po [0] | cups [] | conti []
+ 63 CHINA              F  16 (16-80) turns [8, 10, 12, 14] | - | po [] | cups [[96, 128]] | conti [(64, 128)]
+ 64 PARAGUAY           F  64 (64-32) turns [56, 58, 60, 62] | - | po [] | cups [] | conti [(64, 128), (88, 96)]
+ 65 PERU               F  24 (24-88) turns [16, 18, 20, 22] | - | po [] | cups [] | conti [(64, 128), (88, 96)]
+ 66 SURINAM            F  24 (24-72) turns [16, 18, 20, 22] | - | po [] | cups [] | conti [(64, 128), (88, 96)]
+ 67 TAIWAN             F  64 (64-32) turns [56, 58, 60, 62] | - | po [] | cups [[96, 120]] | conti [(64, 128)]
+ 69 SOUTH AFRICA       F   8 (0-80 -> 8-88) turns [0, 2, 4, 6] | SHIFT | po [] | cups [[56, 80]] | conti [(64, 128)]
+ 71 URUGUAY            F  24 (24-88) turns [16, 18, 20, 22] | NATIVE | po [0, 1] | cups [] | conti [(64, 128), (88, 96)]
+ 73 U.S.A.             F  24 (24-72) turns [16, 18, 20, 22] | - | po [] | cups [] | conti [(64, 128)]
+ 75 INDIA              F   8 (0-24 -> 8-32) turns [0, 2, 4, 6] | SHIFT | po [] | cups [] | conti [(64, 128)]
+ 76 BELARUS            F  56 (56-40) turns [48, 50, 52, 54] | - | po [] | cups [[72, 136]] | conti [(64, 128), (88, 96)]
+ 77 VENEZUELA          F  24 (24-88) turns [16, 18, 20, 22] | - | po [] | cups [] | conti [(64, 128), (88, 96)]
+ 78 SLOVAKIA           F  56 (56-40) turns [48, 50, 52, 54] | - | po [] | cups [[128, 136]] | conti [(64, 128), (88, 96)]
+ 79 GHANA              F  56 (56-40) turns [48, 50, 52, 54] | - | po [] | cups [] | conti [(64, 128)]
+ 86 SAUDI ARABIA       F  64 (64-40) turns [56, 58, 60, 62] | - | po [] | cups [[96, 128]] | conti [(64, 128)]
+ 87 GUATEMALA          F  56 (56-32) turns [48, 50, 52, 54] | - | po [] | cups [[96, 128]] | conti [(64, 128)]
+ 88 HONDURAS           F  56 (56-32) turns [48, 50, 52, 54] | - | po [] | cups [[96, 128]] | conti [(64, 128)]
+# F histogram: 8: 3, 16: 6, 24: 12, 32: 3, 48: 1, 56: 33, 64: 17, 72: 1
+# option A sites (league header byte +3 = first week, +4 = last week):
+#   orig/ENGLISH.EXE         country  46 obj2+0x8231 (file 0x14d031) 0028 -> 0830
+#   orig/ENGLISH.EXE         country  69 obj2+0x835f (file 0x14d15f) 0050 -> 0858
+#   orig/ENGLISH.EXE         country  75 obj2+0x82a7 (file 0x14d0a7) 0018 -> 0820
+#   orig/ITALIAN.EXE         country  46 obj2+0x837b (file 0x14cd7b) 0028 -> 0830
+#   orig/ITALIAN.EXE         country  69 obj2+0x84a9 (file 0x14cea9) 0050 -> 0858
+#   orig/ITALIAN.EXE         country  75 obj2+0x83f1 (file 0x14cdf1) 0018 -> 0820
+#   orig/FRENCH.EXE          country  46 obj2+0x7f0b (file 0x14c90b) 0028 -> 0830
+#   orig/FRENCH.EXE          country  69 obj2+0x8039 (file 0x14ca39) 0050 -> 0858
+#   orig/FRENCH.EXE          country  75 obj2+0x7f81 (file 0x14c981) 0018 -> 0820
+#   orig/GERMAN.EXE          country  46 obj2+0x7d2b (file 0x14c72b) 0028 -> 0830
+#   orig/GERMAN.EXE          country  69 obj2+0x7e59 (file 0x14c859) 0050 -> 0858
+#   orig/GERMAN.EXE          country  75 obj2+0x7da1 (file 0x14c7a1) 0018 -> 0820
+#   orig/gog/ENGLISH.EXE     country  46 obj2+0x8231 (file 0x14d031) 0028 -> 0830
+#   orig/gog/ENGLISH.EXE     country  69 obj2+0x835f (file 0x14d15f) 0050 -> 0858
+#   orig/gog/ENGLISH.EXE     country  75 obj2+0x82a7 (file 0x14d0a7) 0018 -> 0820
+#   orig/gog/ITALIAN.EXE     country  46 obj2+0x837b (file 0x14cd7b) 0028 -> 0830
+#   orig/gog/ITALIAN.EXE     country  69 obj2+0x84a9 (file 0x14cea9) 0050 -> 0858
+#   orig/gog/ITALIAN.EXE     country  75 obj2+0x83f1 (file 0x14cdf1) 0018 -> 0820
+#   orig/gog/FRENCH.EXE      country  46 obj2+0x7f0b (file 0x14c90b) 0028 -> 0830
+#   orig/gog/FRENCH.EXE      country  69 obj2+0x8039 (file 0x14ca39) 0050 -> 0858
+#   orig/gog/FRENCH.EXE      country  75 obj2+0x7f81 (file 0x14c981) 0018 -> 0820
+#   orig/gog/GERMAN.EXE      country  46 obj2+0x7d2b (file 0x14c72b) 0028 -> 0830
+#   orig/gog/GERMAN.EXE      country  69 obj2+0x7e59 (file 0x14c859) 0050 -> 0858
+#   orig/gog/GERMAN.EXE      country  75 obj2+0x7da1 (file 0x14c7a1) 0018 -> 0820

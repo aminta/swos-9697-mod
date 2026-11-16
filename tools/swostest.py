@@ -31541,10 +31541,23 @@ def world_s7sizeforce():
 
 @scenario
 def world_s7redraw_regroup():
+    """S7 redraw: the regroup alone - GPLAY_FORCE=11 (11th: no Serie C play-off, no crossing; 10th enters the play-off,
+    the 21/20 FAIL of 16/11 was the s3dbl two-club promotion, Fable decode). See s7redraw_regroup."""
+    return s7redraw_regroup(os.environ.get('S7RD_FORCE') or '11')
+
+
+@scenario
+def world_s7redraw_regroup_po():
+    """S7 redraw + the Serie C play-off together (MC 16/11: the interaction the rc covers): GPLAY_FORCE=10, the career
+    club in the play-off; with s3dbl's fix (c4240eb) Serie B stays 20. See s7redraw_regroup."""
+    return s7redraw_regroup('10')
+
+
+def s7redraw_regroup(force):
     """S7 redraw (4.2, s7-redraw.md gate 3; Davide 15/11 "regola attuale al 78% e basta"): the career club changes GROUP inside its
     file at a season end - the redraw's own path (CONVENTIONS 14d: not a job change; the row, squad, money and record kept).
     CAMPOBASSO (Serie C girone B; the frozen rule on the real 2026-27 pack moves it to girone C at season 1's end: test_s7redraw_exe
-    on c/HTRD1), GPLAY_FORCE=10 (mid-table: no crossing, the regroup alone); S7_PACK = the release Italy data (world5tm-h3s7r/ita:
+    on c/HTRD1), GPLAY_FORCE = force (11: the regroup alone; 10: with the Serie C play-off); S7_PACK = the release Italy data (world5tm-h3s7r/ita:
     its coordinates). Two seasons (season 1 played and saved; season 2 loaded and played). Checks: season 1's end S7_LOG OK and
     S7RD_LOG both levels OK (status 1), Serie C >= 1 regrouped; selTeamNumber and careerTeamLeague unchanged by the season end
     (same row, same base division); D6CDC 3 (girone B) in season 1, 4 (girone C) in season 2 as loaded and to its end; S7_LD never
@@ -31552,7 +31565,7 @@ def world_s7redraw_regroup():
     import json
     team = os.environ.get('S7RD_TEAM') or 'EUROPA,ITALIA,SERIE C GIRONE B,CAMPOBASSO'
     d0, d1 = (int(x) for x in (os.environ.get('S7RD_DIVS') or '3,4').split(','))
-    env = s7_env({'GPLAY_FORCE': os.environ.get('S7RD_FORCE') or '10'})
+    env = s7_env({'GPLAY_FORCE': force})
     if env is None:
         return True, 'SKIP: S7_PACK (the Italy pack: world5tm-h3s7r/ita for the redraw) or internal world5tm-h2 missing'
     exe = os.environ.get('S7_BUILD') or build('s7redraw', env=env)

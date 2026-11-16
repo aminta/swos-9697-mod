@@ -645,6 +645,10 @@ dp_perm:                                ; lib97 nc_adv: ecx = the next round's c
     mov [DP_PR], eax
     call dp_perm_c                      ; (C: the next round's list into DP_PL, its clubs)
     mov [DP_NC], eax
+    mov dx, [DP_ST + SV_RB + 6]         ; (the Serie C Final Four record, 4.2 S3: rb[6..7] + cup, saved with the state)
+    mov [DP_SAVE + SV_RB + 6], dx
+    mov dl, [DP_ST + SV_KIND + 3]
+    mov [DP_SAVE + SV_KIND + 3], dl
     mov ecx, eax
     mov esi, DP_PL
     mov edi, NCW + 2CDh

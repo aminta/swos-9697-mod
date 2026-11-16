@@ -31492,9 +31492,10 @@ def world_s7sizeforce():
     pk = os.environ.get('S7_PACK') or os.path.join(MAIN, 'internal', 's7pack-real', 'ita')
     os.environ.setdefault('S7_PACK', pk)
     env = s7_env({'S7_SIZEFORCE': os.environ.get('S7SF_LEVEL', '2')})
+    lvl3 = os.environ.get('S7SF_LEVEL') == '3'       # (MC 16/11: the redraw-only force - gate 2 on the final divisions; needs the redraw on)
     if env is None:
         return True, 'SKIP: S7_PACK (the shaped Italy pack) or internal world5tm-h2 missing'
-    exe = os.environ.get('S7_BUILD') or build('s7sizeforce', env=env)
+    exe = os.environ.get('S7_BUILD') or build('s7sizeforce' + ('3' if lvl3 else ''), env=env)
     sy = json.load(open(os.path.join(exe, 'ITALIAN.syms.json')))
     s7 = sy.get('s7swap', {})
     if 'S7_SZ' not in s7:
@@ -31531,7 +31532,10 @@ def world_s7sizeforce():
         r = refused[-1]
         check(r[3] == 0, f'season {season}: S7_LOG ncross {r[3]} (nothing may cross)', errs)
         z = szs[-1] if szs else b''
-        check(len(z) >= 8 and z[0] == 1 and z[1] == 1 and z[4] == 20 and z[3] != 20, f'season {season}: S7_SZ {z.hex()} (want gate 1, kind 1, a division off its 20 / 18)', errs)
+        if lvl3:                                        # (S7SF_LEVEL=3: the redraw's regrouping unbalances a Serie D group: gate 2, 18)
+            check(len(z) >= 8 and z[0] == 2 and z[1] == 1 and z[4] == 18 and z[3] != 18, f'season {season}: S7_SZ {z.hex()} (want gate 2, kind 1, a Serie D group off its 18)', errs)
+        else:
+            check(len(z) >= 8 and z[0] == 1 and z[1] == 1 and z[4] == 20 and z[3] != 20, f'season {season}: S7_SZ {z.hex()} (want gate 1, kind 1, a division off its 20 / 18)', errs)
     return not errs, '; '.join(errs) or f'forced S7_SIZEFORCE: refused at every season end, no trap, season 2 played to its end; S7_LOG / S7_SZ {seen}; {msg[:120]}'
 
 

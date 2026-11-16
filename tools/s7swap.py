@@ -339,7 +339,8 @@ def patch(p, ssyms, rsyms, gsyms, pgsyms, fsyms, risyms):
     sfo, srows = cupd.other_strengths(pk, fb)
     assert sfo == fa and 0 < len(srows) <= 256, ('s7swap: other_strengths', sfo, fa, len(srows))
     flags += (f'-DS7RI_NSTR={len(srows)}',)
-    gobj = cobj.compile_c(SRC_GEO, (), sections=True)    # (4.2 geography: its own band, linked first: s7ri.c's reset of the log is an extern)
+    gobj = cobj.compile_c(SRC_GEO, ('-Oz',), sections=True)    # (4.2 geography: its own band, linked first: s7ri.c's reset of the log is an extern;
+    #  -Oz since the redraw merge: s7rd_rule / s7rd_level + s7trap's s7rd_near in one band, -Os left 88 B, -Oz ~420 B >= the 256 B floor)
     gsy, gend, gbss = cobj.link(p, gobj, swreg.S7GEO_AT, (4, 0), limit=swreg.S7GEO_END - 256, text_obj=4,
                                 roots=['s7geo_ll', 's7rd_near', 'S7GEO_NEIGH', 'S7GEO_ON', 'S7GEO_LOG', 'S7GEO_NLOG', 'S7GEO_BAD', 'S7GEO_XY', 'S7GEO_HAVE',
                                        'S7GEO_FILE', 'S7GEO_BASE', 'S7GEO_IDENT', 's7rd_level', 'S7RD_SEC', 'S7RD_LOG'])

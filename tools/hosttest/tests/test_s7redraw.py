@@ -363,3 +363,38 @@ def test_s7redraw_fallback():
     return not errs, '; '.join(errs[:5]) or ('S7_REDRAW_OFF, the redraw refused (rc -1) and a newer rule version (2) each end the season with '
                                             'the crossers\' place() groups (the same registry), B 20 / C 3 x 20 / D 9 x 18, no ident twice; '
                                             'refused: S7RD_LOG status 2; newer: S7RD_NEWER 1, the version kept')
+
+
+# ---- MC 16/11: gate 2 after the redraw - a regrouping that alone breaks a size is refused (S7_SIZEFORCE=3 build) ----------------------------
+# HT_S7SF3_EXE: the release recipe h3s7r + HOSTTEST_SYMS=1 + S7_SIZEFORCE=3 (MODVER_TAG set, BETA_KEEP=S7_SIZEFORCE): after the redraw a Serie D
+# girone A club is put into group B. The season end must come back S7_SIZE (13) with S7_SZ gate 2, kind 1 (a division's size), a Serie D
+# group off its 18, nothing crossed - and the registry exactly as before the season end (size_refuse keeps every club where it was).
+SF3_EXE = os.environ.get('HT_S7SF3_EXE') or os.path.join(os.path.expanduser('~'), 'swos-mod', 'c', 'HTSF3', 'SWOS', 'ITALIAN.EXE')
+
+
+def test_s7redraw_gate2():
+    if not os.path.exists(SF3_EXE) or not os.path.exists(SF3_EXE[:-4] + '.syms.json'):
+        return True, f'SKIP: {SF3_EXE} (h3s7r + HOSTTEST_SYMS=1 + S7_SIZEFORCE=3) missing'
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import test_s7swap as t7
+    m = t7.M(SF3_EXE)
+    if not struct.unpack('<I', m.rd(m.at('s7swap', 'S7RD_PTR'), 4))[0]:
+        return False, f'{SF3_EXE}: S7RD_PTR 0 (no redraw: the force would not be the redraw\'s)'
+    m.fresh()
+    fs, word, at, rdiv, rows = t7.reg_parse(m.regb())
+    down, up = t7.crossings(fs, m.gb)
+    r0 = m.regb()
+    st, nsw, ncr = _season(m, t7, down, up, t7.SEASON)
+    z = m.rd(m.at('s7swap', 'S7_SZ'), 8)
+    errs = []
+    if st != 13:
+        errs.append(f'status {st} (want 13, S7_SIZE)')
+    if z[0] != 2 or z[1] != 1 or z[4] != 18 or z[3] == 18:
+        errs.append(f'S7_SZ {z.hex()} (want gate 2, kind 1, a Serie D group off its 18)')
+    if ncr:
+        errs.append(f'{ncr} crossed (want 0)')
+    _, w0, _, d0, _ = t7.reg_parse(r0)
+    _, w1, _, d1, _ = t7.reg_parse(m.regb())
+    if (w0, d0) != (w1, d1):
+        errs.append('the registry changed (size_refuse must keep every club where it was)')
+    return not errs, '; '.join(errs) or f'the redraw\'s regrouping unbalanced -> refused: status 13, S7_SZ {z.hex()} (gate 2, kind 1, found {z[3]} want {z[4]}), 0 crossed, registry unchanged'

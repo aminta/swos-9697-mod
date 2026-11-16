@@ -492,7 +492,7 @@ static int32_t run(void *pv) {
         sw[k].a = wd; sw[k].b = SR_REG_NONE; sw[k].on = in;
     }
     S7_RIMV.n = (uint8_t)nri;
-#ifdef S7_SIZEFORCE                     /* (test builds only: world_s7sizeforce) the game's own deltas unbalanced before the check: */
+#if defined(S7_SIZEFORCE) && S7_SIZEFORCE < 3   /* (test builds only: world_s7sizeforce) the game's own deltas unbalanced before the check: */
     slt[glob_of(0, 45)] = -1;           /* a Serie C girone A club pushed into Serie B (B 21 / C-A 19) */
 #if S7_SIZEFORCE >= 2
     slt[glob_of(1, 5)] = 1;             /* and a Serie D girone A club into group B */
@@ -558,6 +558,10 @@ static int32_t run(void *pv) {
                                            groups.redraw_geo seed: per career, per season, spread over consecutive seasons) */
         redraw(0, R, nd, pre, S7_UP, S7_NUP, 1, seed);
         redraw(1, R, nd, pre, S7_LO, S7_NLO, 0, seed);
+#if defined(S7_SIZEFORCE) && S7_SIZEFORCE == 3   /* (test builds only: world_s7sizeforce S7SF_LEVEL=3) the redraw's regrouping alone */
+        for (int32_t i = 0; i < R->nclub; i++)        /* unbalances a size: a Serie D girone A club put into group B AFTER the */
+            if (nd[i] == S7_LO[0]) { nd[i] = S7_LO[1]; break; }   /* redraw - gate 2 must refuse the season (status 13, S7_SZ gate 2) */
+#endif
     }
     if (size_check(slt, nd, 2)) return size_refuse(slt, nri);   /* (gate 2 on the final divisions: the crossings AND the redraw) */
     S7_WLOG.row = (int16_t)wcheck(); S7_WLOG.rc = 0; S7_WLOG.changed = S7_WLOG.cache = S7_WLOG.npair = S7_WLOG.rows = 0;

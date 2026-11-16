@@ -2640,6 +2640,7 @@ def _label_data():
             slot4 |= forms(v.get('names'))
     import dplay                                        # (the career club's Serie B / C play-offs and play-out:
     slot4 |= {n.decode('latin-1') for n in dplay.NAMES}   # dplay's own names, id FEh for the play-out, no pack name)
+    slot4 |= {n for v in FR_NAMES.values() for n in v}   # (4.2 friendlies: the slot-4 label per language, FR_NAMES)
     for po in GPLAY_SCO:                                # (the harness-injected Scottish play-offs, world_gplay*: their
         slot4 |= forms(po['names'])                     # real names - never the raw keys)
     every |= slot4
@@ -25045,6 +25046,633 @@ def world_sc_ger_s1():
     """4.2 supercups-s1: a BAYERN career, season 1 - the German supercup FINALE v DORTMUND (the real 2026 edition,
     week 61) once, no SUPERCOPPA UEFA (Bayern is not in it); slot-4 rows its own label only"""
     return sc_s1('EUROPA,GERMANIA,BUNDESLIGA,BAYERN', [('ger', 61, 'DORTMUND')], absent=('uefa',))
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# 4.2 preseason friendlies (friendlies-split.md, Davide's closed spec 16/11) - scenario SKELETONS against a stub.
+# The engine (gplay, Motore) is not in the tree yet: every scenario raises Skipped until fr_syms() finds it.
+#
+# EVERY ENGINE ASSUMPTION IS IN `FR` BELOW (and in fr_syms / fr_state, which read only FR). Motore: put the real
+# offsets / names / switches here, nothing else in the scenarios should need a change. TODO(engine) = to be given or
+# confirmed by the engine; None = not known yet (with the engine present, a scenario that needs it is a SETUP-ERROR
+# naming the key, never a silent pass).
+#
+# The spec the scenarios assert: every season INCLUDING season 1, 4 friendlies before league week 1 (also with
+# supercups that season); 2 home + 2 away (FR['HOME']); 1 stronger, 2 similar, 1 weaker; opponents foreign and
+# distinct; an appearance fee per match by band; no effect on league / cup records; CARD-RESTORE (the career club's
+# ban bits of cardsInjuries snapshot before a friendly, restored after; injuries may stay); names in 4 languages
+# within the 70 px calendar label; the record line 'Preseason: W-D-L'.
+FR = {
+    # --- presence probes (fr_syms; fr_in_tree) ---
+    'MARK': b'FRSTPTR\0',     # TODO(engine): an obj1 glue block as SC_ST's 'SCSTPTR' (the tag + the dword obj2 offset of
+                              #   FR_ST) - the one probe that also works on a RELEASE exe (no syms.json there)
+    'SYM_ST': 'FR_ST',        # TODO(engine): the gplay symbol of the state in ITALIAN.syms.json (scenario builds)
+    'BAND': 'FRND',           # TODO(engine): the swreg band of the friendlies' code (a key of syms.json when it is there)
+    'SRC': ('gplay_fr.c', 'friendlies.c', 'friendlies.py'),   # TODO(engine): the friendlies' own source file in tools/
+    # --- FR_ST: 12 B in SC_ST's free tail (estimate: season, index 0-4, 4 opponent words, W/D/L) ---
+    'ST_OFF': None,           # TODO(engine): offset of FR_ST inside SC_ST (used when neither MARK nor SYM_ST gives it)
+    'ST_LEN': 12,
+    'ST_SEASON': 0,           # TODO(engine): byte - the season handled (the game's season byte; 0 = an old save, never built)
+    'ST_IDX': 1,              # TODO(engine): byte - friendlies PLAYED this season, 0..4
+    'ST_OPP': 2,              # TODO(engine): 4 words - the opponents' team words in playing order (0 / FFFFh = not picked)
+    'ST_BITS': 10,            # TODO(engine): word - bits 0-3 home flags (bit k: friendly k+1 at home), 4-6 W, 7-9 D, 10-12 L
+    # --- test traces (syms.json 'gplay' symbols of a scenario build; a release exe has none: those checks are reported as
+    #     not made) ---
+    'SYM_TRACE': 'FR_TRACE',  # TODO(engine): byte, obj2 - 1 while a friendly is built in slot 4 (as SC_TRACE; W8485_MIDSAVE)
+    'SYM_STR': 'FR_STR',      # TODO(engine): 5 words - the strength the pick used: the career club's, then the 4 opponents'
+    'SYM_FEE': 'FR_FEE',      # TODO(engine): 4 x i32 - the fee credited after each friendly (the unit of newBalance)
+    'SYM_CARD': 'FR_CARD',    # TODO(engine): byte - ban bits the card-restore undid so far this season (0 = it never had to)
+    # --- test switch (build env, as GPLAY_FORCE / USC_FORCE) ---
+    'FORCE_ENV': 'FR_FORCE',  # TODO(engine): the switch's name; a build made with it has the symbol below
+    'SYM_FORCE': 'FR_FORCEV',
+    'FORCE_RED1': '1',        # TODO(engine): value = a red card to a career-club player of the XI in friendly 1
+    'FORCE_WDL': None,        # TODO(engine): value = forced results W, D, L, W for friendlies 1-4 (the record line's
+                              #   W-D-L asserted exactly: 2-1-1); None = the line is only checked against FR_ST's counts
+    # --- rules / tables ---
+    'HOME': 2,                # spec default 2 home + 2 away (the pick's parameter; TODO(engine): if a scenario build can
+                              #   set another split, its switch)
+    'BAND_MARGIN': None,      # TODO(engine, part b - the pick): 'similar' = |opponent - club| <= this, on FR_STR's scale
+    'FEES': None,             # TODO(engine, part b): {(band, home): fee} band 'stronger' / 'similar' / 'weaker', home bool
+    'BAL_EXACT': True,        # the balance (finance NEWBAL) moves by exactly the fee between a friendly's screen and the
+                              #   next match screen. TODO(engine): False if wages / gate money move in those weeks too
+    'WEEKS': {},              # TODO(engine, part a - research): {'ita': (w1, w2, w3, w4), ...} per season kind, e.g.
+                              #   {'ita': {1: (...), 2: (...)}}; empty = the weeks are reported, only their order is asserted
+    'JANUARY': range(0, 8),   # TODO(engine): a calendar-year league's preseason weeks (8 weeks a month: January = 0..7)
+    'OLD_SEASON2': None,      # TODO(engine): friendlies in the season an old save is ALREADY in (0 or 4); None = 0 or 4
+    'BAN_PLACE': 15,          # the career-club place (0-based) world_preseason_cards gives a 1-match ban: a bench place,
+                              #   so the minimal line-up is not touched
+}
+FR_NAMES = {   # TODO(engine): (match-screen title word, calendar label) per language, as supercups2627.json's names
+    'it': ('AMICHEVOLE', 'AMICHEVOLE'), 'en': ('FRIENDLY', 'FRIENDLY'),
+    'fr': ('AMICAL', 'AMICAL'), 'de': ('TESTSPIEL', 'TESTSPIEL')}
+FR_RECORD = {  # TODO(engine): the record line's label per language ('<label>: W-D-L' on REGISTRO GESTIONE)
+    'it': 'PRECAMPIONATO', 'en': 'PRESEASON', 'fr': 'PRESAISON', 'de': 'VORBEREITUNG'}
+FR_RECORD_PX = 298            # TODO(engine): the record line's bar (ctview's PXMAX until the page's own width is given)
+FR_TICK = '1234'              # CAREER_TICK of every friendlies scenario (FR_TICK env overrides): the draw pinned
+FR_TEAMS = {                  # the careers (FR_TEAM_<KEY> env overrides one)
+    'ita': 'EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA',          # a Coppa D club, no supercup: slot 4 = friendlies, Coppa D
+    'eng': 'EUROPA,INGHILTERRA,PREMIER LEAGUE,ARSENAL',       # FA Community Shield (s1 real, s2 forced) + UEFA SC forced
+    'usc': 'EUROPA,FRANCIA,LIGUE 1,PARIS-SG',                 # season 1: UEFA Super Cup (58) + Trophee des Champions (59)
+    'bra': 'SUDAMERICA,BRASILE,BRASILEIRAO SERIE A,FLAMENGO',  # a calendar-year league
+    'old': 'EUROPA,ITALIA,SERIE A,INTER',                     # world_sc_oldsave's career
+}
+FR_SKIP = '4.2 friendlies: the engine is not in this build (skeleton; fr_syms found no {}) - SKIP until Motore\'s sha'
+
+
+def fr_in_tree():
+    """The friendlies engine is in this checkout's tools (cheap probe before any build): one of FR['SRC'], or the
+    FR_ST glue tag in gplay.py / gplay.c."""
+    t = os.path.join(ROOT, 'tools')
+    if any(os.path.isfile(os.path.join(t, x)) for x in FR['SRC']):
+        return True
+    tag = FR['MARK'].rstrip(b'\0')
+    return any(os.path.isfile(os.path.join(t, x)) and tag in open(os.path.join(t, x), 'rb').read()
+               for x in ('gplay.py', 'gplay.c'))
+
+
+def fr_syms(exe_dir):
+    """THE STUB. None when the build at exe_dir has no friendlies; else what the scenarios need:
+    {'st': obj2 offset of FR_ST, 'trace' / 'str' / 'fee' / 'card': (obj, offset) or None, 'force': the build has the
+    FR_FORCE switch, 'syms': a syms.json was read (False: a release exe - no traces)}.
+    Probes, in order: FR['MARK'] in the exe's obj1 (+8: the obj2 offset, as sc_st); the gplay symbol FR['SYM_ST'] of
+    ITALIAN.syms.json (the band alone is no probe: see below)."""
+    exe = next((os.path.join(exe_dir, x) for x in ('ITALIAN.EXE', 'ENGLISH.EXE')
+                if os.path.isfile(os.path.join(exe_dir, x))), None)
+    if exe is None:
+        return None
+    sp = os.path.splitext(exe)[0] + '.syms.json'
+    sy = json.load(open(sp)) if os.path.isfile(sp) else {}
+    gp = sy.get('gplay', {})
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    from le import LE
+    d1 = LE(open(exe, 'rb').read()).obj_bytes(1)
+    k = d1.find(FR['MARK'])
+    st = None
+    if k >= 0:
+        st = struct.unpack_from('<I', d1, k + len(FR['MARK']))[0]
+    elif FR['SYM_ST'] in gp and gp[FR['SYM_ST']][0] == 2:
+        st = gp[FR['SYM_ST']][1]
+    # (no band-only probe: Shaved's swreg may reserve the FRND band before the engine lands - a reserved band is not
+    #  the feature, and the scenarios would run on a build without it)
+    if st is None:
+        return None
+    at = lambda name: tuple(gp[name][:2]) if name in gp else None
+    return {'st': st, 'trace': at(FR['SYM_TRACE']), 'str': at(FR['SYM_STR']), 'fee': at(FR['SYM_FEE']),
+            'card': at(FR['SYM_CARD']), 'force': FR['SYM_FORCE'] in gp, 'syms': bool(sy)}
+
+
+def fr_state(b):
+    """FR_ST's 12 bytes (FR's layout) -> {'season', 'idx', 'opp': [4 words], 'home': [4 bools], 'w', 'd', 'l'}."""
+    bits = struct.unpack_from('<H', b, FR['ST_BITS'])[0]
+    return {'season': b[FR['ST_SEASON']], 'idx': b[FR['ST_IDX']], 'opp': list(struct.unpack_from('<4H', b, FR['ST_OPP'])),
+            'home': [bool(bits >> k & 1) for k in range(4)], 'w': bits >> 4 & 7, 'd': bits >> 7 & 7, 'l': bits >> 10 & 7}
+
+
+def fr_bands(own, opps, margin):
+    """The strength band of each opponent against the club's own value (FR_STR's scale): 'stronger' (> own + margin),
+    'weaker' (< own - margin), else 'similar'."""
+    return ['stronger' if o > own + margin else 'weaker' if o < own - margin else 'similar' for o in opps]
+
+
+def fr_hx(at):
+    """A W8485_HEX offset key of (obj, offset): plain hex for obj2, 'o<obj>/<hex>' for the others (world8485 hexlog)."""
+    return f'{at[1]:x}' if at[0] == 2 else f'o{at[0]}/{at[1]:x}'
+
+
+def fr_timeline(lines, keys):
+    """A session log in order -> (matches, last): every match screen (title, its line, friendly: the title carries the
+    friendly's name in the exe's language) with the W8485_HEX values of keys {name: hex key} as they stood at it, and
+    the values at the log's end. The values are logged at the harness pauses when they change (hexlog), so 'before a
+    match' = at its screen, 'after it' = at the next match screen (or the end)."""
+    rev = {v: k for k, v in keys.items()}
+    cur, out = {}, []
+    word = FR_NAMES.get(UI, FR_NAMES['it'])[0]
+    for i, ln in enumerate(lines):
+        p = ln.split()
+        if len(p) == 3 and p[0] == 'HEX' and p[1] in rev:
+            try:
+                cur[rev[p[1]]] = bytes.fromhex(p[2])
+            except ValueError:
+                pass
+        elif ln.startswith('[') and '- PARTITA -' in ln and '>- RISULTATO -' in ln:
+            t = re.sub(r'^\[\d+\] ', '', ln.split('|')[0].strip())
+            out.append({'title': t, 'line': ln, 'i': i, 'friendly': word in t.upper(), 'at': dict(cur)})
+    return out, cur
+
+
+def fr_bans(ct):
+    """The ban bits (cardsInjuries bits 0-1, +27 of each 38-byte record from +76) of careerTeam's first 16 players."""
+    return [ct[76 + q * 38 + 27] & 3 for q in range(16)] if ct and len(ct) >= 76 + 16 * 38 else None
+
+
+def fr_name_errs(lang=None):
+    """Width + charset of the friendlies' names in lang (default: every language): the calendar label within
+    complist.CAL_PX (70 px), the title word within VISUAL. COMPETIZ.'s button (VC_PX) and the 34-byte title field, the
+    record label + ': 4-4-4' within FR_RECORD_PX; the font's characters only. Returns the errors (no game run)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import complist
+    errs = []
+    for lg in ([lang] if lang else ['it', 'en', 'fr', 'de']):
+        long_, short = FR_NAMES[lg]
+        rec = f'{FR_RECORD[lg]}: 4-4-4'
+        for what, t, lim in (('calendar label', short, complist.CAL_PX), ('title', long_, complist.VC_PX),
+                             ('record line', rec, FR_RECORD_PX)):
+            odd = set(t) - complist.FONT
+            check(not odd, f'{lg} {what} {t!r}: characters outside the font {sorted(odd)}', errs)
+            check(complist.px(t) <= lim, f'{lg} {what} {t!r}: {complist.px(t)} px > {lim}', errs)
+        check(len(long_) <= complist.TITLE_MAX, f'{lg} title {long_!r}: {len(long_)} > {complist.TITLE_MAX} bytes', errs)
+    return errs
+
+
+def fr_exe(name, env=None, given='FR_BUILD', rel=False):
+    """The build a friendlies scenario runs on and its fr_syms dict - or Skipped while the engine is absent.
+    given: the env var naming a ready exe dir (FR_BUILD: a plain test build; a forced scenario has its own); else,
+    with the engine in the tree (fr_in_tree), build(name) on the World 2026-27 data with the build env `env` (the
+    test switches). rel: a release dir is required (no build here)."""
+    env = env or {}
+    exe = os.environ.get(given)
+    if rel and not exe:
+        raise Skipped(f'{name}: needs a release dir ({given}=c/RELxx/SWOS, or SWOSTEST_BUILD / W8485_BUILD); '
+                      '4.2 friendlies skeleton')
+    if not exe and not fr_in_tree():
+        raise Skipped(FR_SKIP.format(f"source in tools/ ({', '.join(FR['SRC'])} or the {FR['MARK'][:-1].decode()} tag)"))
+    src = world_data()
+    if not os.path.isdir(src):
+        raise Skipped(f'private data {src} missing')
+    if not exe:
+        order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+        exe = build(name, env=dict({'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order])},
+                                   **env), lang=UI)
+    fr = fr_syms(exe)
+    if fr is None:
+        raise Skipped(FR_SKIP.format(f"{FR['MARK'][:-1].decode()} / {FR['SYM_ST']} / {FR['BAND']} in {exe}"))
+    require(not env.get(FR['FORCE_ENV']) or fr['force'] or not fr['syms'],
+            f"{exe}: built with {FR['FORCE_ENV']}={env.get(FR['FORCE_ENV'])} but no {FR['SYM_FORCE']} symbol "
+            f'(the test switch is not in this build)')
+    return exe, fr
+
+
+def fr_sites(exe):
+    """(careerTeam, selTeamNumber, newBalance) obj2 offsets of the build (xtra.sites; finance NEWBAL of the original)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import finance
+    import lepatch
+    import xtra
+    _, _, ct, _, sel = xtra.sites(lepatch.LEPatch(os.path.join(exe, 'ITALIAN.EXE')))
+    nb = finance.find(lepatch.LEPatch(os.path.join(MAIN, 'orig', UI_ORIG)))['NEWBAL'][1]
+    return ct, sel, nb
+
+
+def fr_keys(exe, fr):
+    """{name: W8485_HEX key} + the W8485_HEX string of everything the checks read: FR_ST, selTeamNumber, careerTeam's
+    first 16 records, newBalance, and the build's traces."""
+    ct, sel, nb = fr_sites(exe)
+    spec = {'st': ((2, fr['st']), FR['ST_LEN']), 'sel': ((2, sel), 2), 'ct': ((2, ct), 76 + 16 * 38), 'bal': ((2, nb), 4)}
+    for k, n in (('str', 10), ('fee', 16), ('card', 1), ('trace', 1)):
+        if fr.get(k):
+            spec[k] = (fr[k], n)
+    keys = {k: fr_hx(at) for k, (at, _) in spec.items()}
+    return keys, ','.join(f'{fr_hx(at)}:{n}' for at, n in spec.values())
+
+
+def fr_season(team, exe, fr, runs_tag=1, hook=None, **extra):
+    """One season of a World 2026-27 career at team through sc_season (world8485), every random input pinned: the
+    career's draw (CAREER_TICK = FR_TICK) and both generators at every pause (W8485_RNGSTEP 'fr'); the friendlies'
+    state logged as it changes (fr_keys); hook = a W84_HOOK for the scenario's own pokes. Returns (ok, msg, lines, keys)."""
+    global W84_HOOK
+    keys, hexs = fr_keys(exe, fr)
+    keep = {k: os.environ.get(k) for k in ('CAREER_TICK',)}
+    os.environ['CAREER_TICK'] = os.environ.get('FR_TICK') or FR_TICK
+    env = dict(W8485_BUILD=exe, W8485_RNGSTEP='fr', W8485_RECSHOT='1')
+    env.update(extra)
+    env['W8485_HEX'] = ','.join(filter(None, [hexs, extra.get('W8485_HEX')]))
+    old_hook, W84_HOOK = W84_HOOK, hook
+    try:
+        ok, msg, lines = sc_season(team, env, runs_tag)
+    finally:
+        W84_HOOK = old_hook
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    return ok, msg, lines, keys
+
+
+def fr_next_save(tag, from_run=False):
+    """The career save world8485 wrote in the season just played, copied out of its run dir (the next run reuses the
+    dir): W84A.CAR of run '_1' after a new career's season 1, W84B.CAR of run '_2' after a W8485_FROM season
+    (from_run). None if it is not there."""
+    p = os.path.join(RUNS, w84_tag() + ('_2' if from_run else '_1'), 'SWOS', 'W84B.CAR' if from_run else 'W84A.CAR')
+    if not os.path.exists(p):
+        return None
+    dst = os.path.join(RUNS, f'fr_{tag}.CAR')
+    shutil.copy(p, dst)
+    return dst
+
+
+def fr_check(exe, fr, lines, keys, errs, info, sn, others=(), weeks=None, n_want=4, loaded=None):
+    """The spec's checks on one season's session log (errors prefixed 'season sn'):
+    (1) n_want friendly match screens, each once, ALL before the first league / cup match screen; slot-4 contests of
+        `others` [(title word, calendar label, week)] played once each, AFTER the friendlies and in that order (nobody
+        waits: each at its own week's row);
+    (2) FR_ST at the end: this season, idx 4, W + D + L = 4; opponents picked, DISTINCT, FOREIGN (another team file
+        than the career club's), each one's name on its match screen and its team file in the build's DATA;
+    (3) home / away: FR['HOME'] at home, the rest away (FR_ST's flags; the calendar rows' pairing agrees: home first);
+    (4) strength: 1 stronger, 2 similar, 1 weaker (FR_STR + FR['BAND_MARGIN']);
+    (5) money: the fee of FR['FEES'][(band, home)] credited per match (FR_FEE) and seen on the balance;
+    (6) names: every slot-4 row of the fixture list with its own label (slot4_label_errs), the friendlies' rows on 4
+        weeks that no other slot-4 contest uses (weeks: the expected ones), names within their bars (fr_name_errs);
+    (7) the record line '<label>: W-D-L' = FR_ST's counts; no ban bit changed by a friendly (card-restore, natural).
+    loaded: (matches already played before a save, their opponents) - a reloaded season continues from there.
+    Returns the season's facts {'opp', 'home', 'bands', 'weeks', 'wdl'} for the scenario's own checks."""
+    e0 = len(errs)
+    pre = f'season {sn}: '
+    ms, last = fr_timeline(lines, keys)
+    frs = [m for m in ms if m['friendly']]
+    done0 = loaded[0] if loaded else 0
+    require('st' in last, f'{pre}FR_ST never logged (W8485_HEX {keys.get("st")}): the run did not reach the career')
+    st = fr_state(last['st'])
+    club = struct.unpack('<H', last['sel'])[0] if 'sel' in last else None
+    long_, short = FR_NAMES.get(UI, FR_NAMES['it'])
+    # (1) count and order
+    check(len(frs) == n_want - done0, pre + f'{len(frs)} friendly match screens (want {n_want - done0}): '
+          f'{[m["title"] for m in frs]}', errs)
+    first_other = next((k for k, m in enumerate(ms) if not m['friendly']), len(ms))
+    check(all(m['friendly'] for m in ms[:len(frs)]) and first_other >= len(frs),
+          pre + f'a league / cup / supercup match before the last friendly: {[m["title"] for m in ms[:6]]}', errs)
+    pos = []
+    for word, _, _ in others:
+        hit = [k for k, m in enumerate(ms) if word in m['title'].upper()]
+        check(len(hit) == 1, pre + f'{word}: {len(hit)} match screens (want 1)', errs)
+        pos += hit[:1]
+    check(pos == sorted(pos) and all(p >= len(frs) for p in pos), pre + f'slot-4 order: friendlies, then '
+          f'{[w for w, _, _ in others]} - seen {[m["title"] for m in ms[:len(frs) + len(others) + 1]]}', errs)
+    # (2) state and opponents
+    check(st['season'] != 0 and st['idx'] == n_want and st['w'] + st['d'] + st['l'] == n_want,
+          pre + f'FR_ST at the end {last["st"].hex()}: season {st["season"]}, played {st["idx"]}, '
+          f'W-D-L {st["w"]}-{st["d"]}-{st["l"]}', errs)
+    opp = st['opp'][:n_want]
+    check(all(o not in (0, 0xFFFF) for o in opp) and len(set(opp)) == len(opp),
+          pre + f'opponents not 4 distinct clubs: {[hex(o) for o in opp]}', errs)
+    check(club is not None and all(o & 0xFF != club & 0xFF for o in opp),
+          pre + f'an opponent of the career club\'s own country file: club {club and hex(club)}, {[hex(o) for o in opp]}', errs)
+    names = [team_name(exe, o) for o in opp]
+    check(all(names), pre + f'an opponent\'s team file is not in the build\'s DATA: {list(zip(map(hex, opp), names))}', errs)
+    for k, m in enumerate(frs):
+        nm = names[done0 + k] if done0 + k < len(names) else None
+        check(nm and nm in m['line'], pre + f'friendly {done0 + k + 1}: {nm} not on its match screen: {m["line"][:120]}', errs)
+        check(m['title'].upper().count(long_) == 1 and not set(m['title'].upper()) - _fr_font(),
+              pre + f'friendly {done0 + k + 1}: title {m["title"]!r} (want {long_}, font characters only)', errs)
+    # (3) home / away
+    home = st['home'][:n_want]
+    check(sum(home) == FR['HOME'], pre + f'{sum(home)} friendlies at home, {n_want - sum(home)} away '
+          f'(want {FR["HOME"]} / {n_want - FR["HOME"]}): flags {home}', errs)
+    rows = slot4_rows(lines)
+    fr_rows = {}
+    for _, w, t, lb, _ in rows:
+        if lb == short:
+            fr_rows.setdefault(w, set()).add(t)
+    for w, ts in sorted(fr_rows.items()):
+        for a, b in ts:
+            a, b = int(a, 16), int(b, 16)
+            o = b if a == club else a
+            if club in (a, b) and o in opp:
+                check((a == club) == home[opp.index(o)], pre + f'week {w}: the row {a:x} v {b:x} (home first) against '
+                      f'FR_ST\'s home flag {home[opp.index(o)]} of friendly {opp.index(o) + 1}', errs)
+            else:
+                check(False, pre + f'week {w}: a {short} row without the career club v one of its 4 opponents: {a:x} v {b:x}', errs)
+    # (4) strength bands
+    bands = None
+    if 'str' in last:
+        require(FR['BAND_MARGIN'] is not None, "FR['BAND_MARGIN'] not filled (TODO(engine): the pick's 'similar' margin)")
+        v = struct.unpack('<5H', last['str'])
+        bands = fr_bands(v[0], v[1:1 + n_want], FR['BAND_MARGIN'])
+        check(sorted(bands) == ['similar', 'similar', 'stronger', 'weaker'],
+              pre + f'strength mix {bands} (club {v[0]}, opponents {list(v[1:])}; want 1 stronger, 2 similar, 1 weaker)', errs)
+    else:
+        info.append(pre + 'strength bands NOT checked (no FR_STR trace in this build)')
+    # (5) money
+    if 'fee' in last and bands:
+        require(FR['FEES'] is not None, "FR['FEES'] not filled (TODO(engine): the fee table by band and home / away)")
+        fee = struct.unpack('<4i', last['fee'])
+        want = [FR['FEES'][(bands[k], home[k])] for k in range(n_want)]
+        check(list(fee[:n_want]) == want, pre + f'fees credited {list(fee)} != the table\'s {want} (bands {bands}, home {home})', errs)
+        seq = [m for m in ms if 'bal' in m['at']]
+        for k, m in enumerate(frs):
+            nxt = next((x for x in seq if x['i'] > m['i']), None)
+            b0 = struct.unpack('<i', m['at']['bal'])[0] if 'bal' in m['at'] else None
+            b1 = struct.unpack('<i', (nxt['at'] if nxt else last)['bal'])[0]
+            if b0 is None:
+                continue
+            d = b1 - b0
+            check(d == want[done0 + k] if FR['BAL_EXACT'] else d >= want[done0 + k],
+                  pre + f'friendly {done0 + k + 1}: the balance moved by {d}, the fee is {want[done0 + k]}', errs)
+    else:
+        info.append(pre + 'fees NOT checked (no FR_FEE / FR_STR trace in this build)')
+    # (6) names and weeks
+    fw = sorted(fr_rows)
+    check(len(fw) <= n_want if done0 else len(fw) == n_want, pre + f'{short} rows on weeks {fw} (want {n_want - done0} weeks)', errs)
+    ow = {w: lb for _, lb, w in others}
+    check(not set(fw) & set(ow), pre + f'a friendly shares its week with another slot-4 contest: {fw} v {ow}', errs)
+    if weeks:
+        check(set(fw) <= set(weeks), pre + f'friendly weeks {fw}, expected within {list(weeks)}', errs)
+    errs += [pre + e for e in slot4_label_errs(lines, dict({w: short for w in fw}, **ow))]
+    errs += [pre + e for e in fr_name_errs(UI if UI in FR_NAMES else 'it')]
+    # (7) record line; ban bits untouched by the friendlies
+    rec = next((ln for ln in lines if ln.startswith('[record] ')), '')
+    want_rec = f'{FR_RECORD.get(UI, FR_RECORD["it"])}: {st["w"]}-{st["d"]}-{st["l"]}'
+    check(want_rec in rec.upper(), pre + f'no record line {want_rec!r} on REGISTRO GESTIONE: {rec[:200]}', errs)
+    if frs and not done0:
+        b0 = fr_bans(frs[0]['at'].get('ct'))
+        nxt = ms[len(frs)] if len(ms) > len(frs) else None
+        b1 = fr_bans((nxt['at'] if nxt else last).get('ct'))
+        check(b0 is not None and b0 == b1, pre + f'ban bits before friendly 1 {b0} != at the first league match {b1}', errs)
+    info.append(pre + f'{len(frs)} friendlies v {names[done0:]} (home {home}, bands {bands}, weeks {fw}), '
+                f'W-D-L {st["w"]}-{st["d"]}-{st["l"]}' + (f', then {[w for w, _, _ in others]}' if others else ''))
+    if sn == 1 and len(errs) == e0:
+        info.append(pre + 'league / cup table rows NOT read (TODO(harness): the club\'s row P = 0 after friendly 4); '
+                    'checked: the friendlies\' screens carry their own title only, the season ends')
+    return {'opp': opp, 'home': home, 'bands': bands, 'weeks': fw, 'wdl': (st['w'], st['d'], st['l']), 'names': names}
+
+
+def _fr_font():
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import complist
+    return complist.FONT | set('()/')
+
+
+def fr_two(key, name, env=None, given='FR_BUILD', others=({}, {}), weeks=None, seasons=2, rel=False):
+    """A friendlies career of FR_TEAMS[key] (FR_TEAM_<KEY> overrides) over `seasons` seasons (season 2 from season 1's
+    save), fr_check on each; others[sn - 1] = that season's other slot-4 contests [(title word, label, week)].
+    Season 2's four opponents are reported against season 1's (the 'no repeat if the pool allows' rule is the pick's
+    host test, not asserted here)."""
+    exe, fr = fr_exe(name, env, given, rel)
+    team = os.environ.get(f'FR_TEAM_{key.upper()}') or FR_TEAMS[key]
+    errs, info, facts, car = [], [], [], None
+    for sn in range(1, seasons + 1):
+        extra = {} if sn == 1 else {'W8485_FROM': car}
+        ok, msg, lines, keys = fr_season(team, exe, fr, sn if sn < 3 else 2, **extra)
+        check(ok, f'season {sn}: {msg}', errs)
+        facts.append(fr_check(exe, fr, lines, keys, errs, info, sn, others[sn - 1] if sn <= len(others) else (),
+                              weeks.get(sn) if isinstance(weeks, dict) else weeks))
+        if sn < seasons:
+            car = fr_next_save(f'{name}_s{sn}', from_run=sn > 1)
+            if not ok or car is None:
+                return False, '; '.join(errs + [f'season {sn}: no save for season {sn + 1}'])
+    if len(facts) == 2:
+        info.append(f'season 2 repeats {len(set(facts[0]["opp"]) & set(facts[1]["opp"]))} of season 1\'s opponents')
+    return not errs, '; '.join(errs) or '; '.join(info)
+
+
+def fr_sc(key):
+    """(title word, calendar label) of a supercup in the exe's language (supercups2627.json)."""
+    d = json.load(open(os.path.join(ROOT, 'tools', 'supercups2627.json')))[key]['names']
+    return (d.get(UI) or d['en'])[0].upper(), sc_short(key)
+
+
+@scenario
+def world_preseason():
+    """4.2 friendlies, the natural case at a club WITHOUT a supercup (skeleton: SKIP until the engine): a LIGORNA career
+    (ITA, Serie D: a Coppa D country, slot 4 shared with the Coppa D), World 2026-27, draw pinned (CAREER_TICK 1234,
+    W8485_RNGSTEP), no test switch. Season 1 AND season 2 (from season 1's save), each: 4 slot-4 friendlies, all before
+    league week 1; opponents foreign, distinct, their names on the match screens; exactly 2 home + 2 away; 1 stronger,
+    2 similar, 1 weaker; the fee per match as FR['FEES']; calendar rows named in the exe's language on their own
+    weeks; the record line; no ban bit moved by a friendly; both seasons end (fr_check)"""
+    return fr_two('ita', 'world_preseason', weeks=FR['WEEKS'].get('ita'))
+
+
+@scenario
+def world_preseason_rel():
+    """4.2 friendlies, the release recipe (CONVENTIONS 17a; skeleton: SKIP until the engine): world_preseason's season 1
+    on a RELEASE dir (FR_REL_BUILD, else SWOSTEST_BUILD / W8485_BUILD = c/RELxx/SWOS; W2627REL_DATA = that release's
+    world for the label check): no syms there, so FR_ST comes from the exe's FRSTPTR tag and the trace checks (bands,
+    fees) are reported as not made; asserted: 4 friendlies before league week 1, 2 home + 2 away, opponents foreign,
+    distinct, EACH ONE'S TEAM FILE IN THE RELEASE'S DATA (the pools' TMW files) with its name on the match screen,
+    labels, record line, the season ends. Belongs in the rc suite"""
+    if not os.environ.get('FR_REL_BUILD'):
+        b = os.environ.get('SWOSTEST_BUILD') or os.environ.get('W8485_BUILD')
+        if b:
+            os.environ['FR_REL_BUILD'] = b
+    return fr_two('ita', 'world_preseason_rel', given='FR_REL_BUILD', seasons=1, rel=True, weeks=FR['WEEKS'].get('ita'))
+
+
+@scenario
+def world_preseason_eng():
+    """4.2 friendlies with summer supercups, forced (skeleton: SKIP until the engine): an ARSENAL career on a
+    GPLAY_FORCE=1 + USC_FORCE=1 test build (world_usc's switches: the career club the champion and the Champions
+    League holder at season 1's end). Season 1: 4 friendlies, THEN the FA COMMUNITY SHIELD (the real 2026 edition,
+    week 59) - all 4 fit although the world starts in August; season 2 (from the save): 4 friendlies, THEN the UEFA
+    SUPER CUP (week 58), THEN the FA COMMUNITY SHIELD (week 59): slot-4 order friendlies -> UEFA SC -> national
+    supercup, each on its own week's row (nobody waits), every row with its own label; 2 home + 2 away and the
+    strength mix in both seasons"""
+    u, e = fr_sc('uefa'), fr_sc('eng')
+    return fr_two('eng', 'world_preseason_eng', env={'GPLAY_FORCE': '1', 'USC_FORCE': '1'}, given='FR_F1_BUILD',
+                  others=([e + (59,)], [u + (58,), e + (59,)]), weeks=FR['WEEKS'].get('eng'))
+
+
+@scenario
+def world_preseason_uscs1():
+    """4.2 friendlies in SEASON 1 at a UEFA Super Cup club (MC's addendum 16/11; skeleton: SKIP until the engine): a
+    PARIS-SG career, no test switch (release data: the real 2026 pairs, as world_sc_uefa_s1). Season 1: ALL 4
+    friendlies, THEN the UEFA SUPER CUP v ASTON VILLA (week 58), THEN the TROPHEE DES CHAMPIONS v LENS (week 59), each
+    once and in that order; no friendly on weeks 58 / 59; 2 home + 2 away, 1 stronger / 2 similar / 1 weaker; every
+    slot-4 row with its own label; the season ends. (The club without a supercup is world_preseason.)"""
+    u, f = fr_sc('uefa'), fr_sc('fra')
+    return fr_two('usc', 'world_preseason', others=([u + (58,), f + (59,)],), seasons=1, weeks=FR['WEEKS'].get('fra'))
+
+
+@scenario
+def world_preseason_bra():
+    """4.2 friendlies in a calendar-year league (skeleton: SKIP until the engine): a FLAMENGO career, season 1, no test
+    switch: 4 friendlies before the Brasileirao's first match day, their calendar rows on January weeks
+    (FR['JANUARY']: 8 weeks a month), opponents from outside Brazil (the non-European team files load in slot 4),
+    2 home + 2 away, the strength mix, labels, record line; the season ends"""
+    return fr_two('bra', 'world_preseason', seasons=1, weeks=FR['WEEKS'].get('bra') or FR['JANUARY'])
+
+
+@scenario
+def world_preseason_cards():
+    """4.2 friendlies, CARD-RESTORE both ways, forced (skeleton: SKIP until the engine): a LIGORNA career on an
+    FR_FORCE test build (FR['FORCE_RED1']: a red card to a career-club player in friendly 1), season 1.
+    At the first pause the harness gives the player of place FR['BAN_PLACE'] + 1 a 1-match ban (cardsInjuries bit 0
+    poked in careerTeam: 'a league ban carried into the preseason'). The ban bits of the first 16 (cardsInjuries
+    bits 0-1, read from careerTeam at every match screen): (a) the red card happened and was undone (FR_CARD >= 1)
+    and at league match 1 NO player but the poked one is banned - the friendly's red is not served in the league;
+    (b) the poked ban is still there at every friendly and at league match 1 - no friendly served it - and is gone
+    at league match 2 (the league served it). Never a retry: the card is the switch, the ban is the poke"""
+    exe, fr = fr_exe('world_preseason_cards', env={FR['FORCE_ENV']: FR['FORCE_RED1']}, given='FR_CARDS_BUILD')
+    require(fr['card'] is not None, f"{exe}: no {FR['SYM_CARD']} trace (TODO(engine)): the forced red card cannot be proven")
+    ct, _, _ = fr_sites(exe)
+    q, done = FR['BAN_PLACE'], []
+
+    def hook(s, season, scr):
+        if season == 1 and not done and scr is not None:
+            at = s.result.base2 + ct + 76 + q * 38 + 27
+            was = s.result.read(at, 1)[0]
+            s.poke(at, bytes([was & 0xFC | 1]))
+            s.log.append(f'[fr cards] place {q + 1}: cardsInjuries {was:#04x} -> {was & 0xFC | 1:#04x} (a 1-match ban)')
+            done.append(was)
+
+    ok, msg, lines, keys = fr_season(os.environ.get('FR_TEAM_ITA') or FR_TEAMS['ita'], exe, fr, hook=hook)
+    errs, info = [], []
+    check(ok, msg, errs)
+    require(done, 'the ban poke never ran (no pause in season 1)')
+    ms, last = fr_timeline(lines, keys)
+    frs = [m for m in ms if m['friendly']]
+    lg = [m for m in ms if not m['friendly']]
+    require(len(frs) == 4 and len(lg) >= 2, f'{len(frs)} friendlies and {len(lg)} other matches seen (want 4 and >= 2): '
+            f'the card cases need the natural flow (world_preseason first)')
+    want = [1 if k == q else 0 for k in range(16)]
+    seq = [(f'friendly {k + 1}', fr_bans(m['at'].get('ct'))) for k, m in enumerate(frs)] + \
+          [('league match 1', fr_bans(lg[0]['at'].get('ct')))]
+    require(seq[0][1] == want, f'ban bits at friendly 1 {seq[0][1]} != the poke\'s {want} (a ban from elsewhere, or '
+            f'the poke was overwritten at the season start)')
+    card = last.get('card', b'\0')[0]
+    check(card >= 1, f'(a) {FR["SYM_CARD"]} {card}: the forced red card was never undone (not given, or not restored)', errs)
+    for what, b in seq[1:]:
+        check(b == want, f'{what}: ban bits {b} != {want} ((a) a friendly\'s card carried over, or (b) the league ban '
+              f'served by a friendly)', errs)
+    b2 = fr_bans(lg[1]['at'].get('ct'))
+    check(b2 is not None and b2[q] == 0, f'(b) league match 2: the poked ban of place {q + 1} still there ({b2}) - '
+          f'league match 1 did not serve it', errs)
+    return not errs, '; '.join(errs) or (f'red card forced in friendly 1, undone ({FR["SYM_CARD"]} {card}): nobody banned at '
+                                         f'league match 1 but place {q + 1}; its ban kept through 4 friendlies, served by '
+                                         f'league match 1; {msg[:60]}')
+
+
+@scenario
+def world_preseason_reload():
+    """4.2 friendlies across a save (skeleton: SKIP until the engine): a LIGORNA career saved as soon as a friendly is
+    built in slot 4 (W8485_MIDSAVE on FR_TRACE = 1; without the trace: FR_ST's played count 1 held two pauses), then
+    loaded and played to the season's end: slot 4 still holds the friendly after the load (its buffer carries the
+    name), FR_ST's four opponents are the saved ones, the friendlies before the save + after the load are exactly 4,
+    none twice, in FR_ST's order; the rest of fr_check on the loaded season; the season ends"""
+    exe, fr = fr_exe('world_preseason')
+    team = os.environ.get('FR_TEAM_ITA') or FR_TEAMS['ita']
+    mid = f'{fr["trace"][1]:x}:1:1' if fr['trace'] and fr['trace'][0] == 2 else f'{fr["st"] + FR["ST_IDX"]:x}:1:2'
+    ok, msg, l1, keys = fr_season(team, exe, fr, W8485_MIDSAVE=mid)
+    if not ok:
+        return False, f'season 1 to the built friendly: {msg}'
+    car = os.path.join(RUNS, 'fr_reload_mid.CAR')
+    shutil.copy(msg.split(': ', 1)[1], car)
+    m1, last1 = fr_timeline(l1, keys)
+    require('st' in last1, 'FR_ST not logged before the save')
+    st1 = fr_state(last1['st'])
+    played = [m for m in m1 if m['friendly']]
+    slot4 = SLOT - 0x443
+    ok, msg, l2, keys = fr_season(team, exe, fr, 2, W8485_FROM=car, W8485_HEX=f'{slot4:x}:48')
+    errs, info = [], []
+    check(ok, f'after the load: {msg}', errs)
+    s4 = next((bytes.fromhex(ln.split()[2]) for ln in l2 if ln.startswith(f'HEX {slot4:x} ')), b'')
+    check(FR_NAMES.get(UI, FR_NAMES['it'])[0].encode() in s4.upper(), f'slot 4 after the load: {s4[:40]}', errs)
+    f2 = fr_check(exe, fr, l2, keys, errs, info, 1, loaded=(len(played), st1['opp']), weeks=FR['WEEKS'].get('ita'))
+    check(f2['opp'] == st1['opp'][:4], f'opponents after the load {[hex(o) for o in f2["opp"]]} != the saved '
+          f'{[hex(o) for o in st1["opp"]]}', errs)
+    return not errs, '; '.join(errs) or f'saved with a friendly built ({len(played)} played); ' + '; '.join(info)
+
+
+@scenario
+def world_preseason_oldsave():
+    """4.2 friendlies on an older career (skeleton: SKIP until the engine): season 1 of an INTER career on the 4.1.2
+    release exe (FR_OLD, default c/REL412c/SWOS: no friendlies), its save (the career already in season 2: FR_ST
+    loaded as zeros) played on by this build - season 2: no hang, the season ends, 0 or 4 friendlies (FR['OLD_SEASON2']:
+    TODO(engine) says which; never 1-3, never after a league match) - then season 3 from that season's save: the
+    season start builds the friendlies - 4 before league week 1, the whole fr_check"""
+    exe, fr = fr_exe('world_preseason')
+    old = os.environ.get('FR_OLD') or os.path.join(MAIN, 'c', 'REL412c', 'SWOS')
+    if not os.path.isdir(old):
+        raise Skipped(f'old release {old} missing (FR_OLD)')
+    require(fr_syms(old) is None, f'{old} already has the friendlies: not an old save\'s exe')
+    team = os.environ.get('FR_TEAM_OLD') or FR_TEAMS['old']
+    ok, msg, _ = sc_season(team, dict(W8485_BUILD=old))
+    car = fr_next_save('oldsave_s1')
+    if not ok or car is None:
+        return False, f'old exe, season 1: {msg}'
+    errs, info = [], []
+    ok, msg, l2, keys = fr_season(team, exe, fr, 2, W8485_FROM=car)
+    check(ok, f'season 2 on this build: {msg}', errs)
+    m2, _ = fr_timeline(l2, keys)
+    n2 = sum(m['friendly'] for m in m2)
+    okn = (0, 4) if FR['OLD_SEASON2'] is None else (FR['OLD_SEASON2'],)
+    check(n2 in okn and all(m['friendly'] for m in m2[:n2]), f'season 2 (the old save\'s running season): {n2} '
+          f'friendlies (want {okn}), first screens {[m["title"] for m in m2[:5]]}', errs)
+    car3 = fr_next_save('oldsave_s2', from_run=True)
+    if not ok or car3 is None:
+        return False, '; '.join(errs + ['season 2: no save for season 3'])
+    ok, msg, l3, keys = fr_season(team, exe, fr, 2, W8485_FROM=car3)
+    check(ok, f'season 3: {msg}', errs)
+    fr_check(exe, fr, l3, keys, errs, info, 3, weeks=FR['WEEKS'].get('ita'))
+    return not errs, '; '.join(errs) or f'4.1.2 save: season 2 with {n2} friendlies; ' + '; '.join(info)
+
+
+@scenario
+def world_preseason_names():
+    """4.2 friendlies, the names (skeleton: SKIP until the engine). No game run: AMICHEVOLE / FRIENDLY / AMICAL /
+    TESTSPIEL and the record labels of ALL 4 languages fit their bars (calendar label 70 px, VISUAL. COMPETIZ. button,
+    34-byte title, record line) with the font's characters only (fr_name_errs). In game, the exe's language
+    (SWOSTEST_UI=it|en|fr|de: the gate runs the scenario once per language): a LIGORNA career's season 1 - the 4 match
+    screens' titles, the fixture list's slot-4 rows (label_check: the label read from the game's memory, never another
+    contest's text), VISUAL. COMPETIZ.'s rows and the record line show that language's name, as drawn"""
+    static = fr_name_errs()                     # (the table itself: checked before the Skip too - a wrong name costs
+    if static:                                  # nothing to find today)
+        return False, '; '.join(static)
+    exe, fr = fr_exe('world_preseason')
+    long_, short = FR_NAMES.get(UI, FR_NAMES['it'])
+    raw = open(os.path.join(exe, 'ITALIAN.EXE'), 'rb').read()
+    errs, info = [], []
+    check(long_.encode('latin-1') in raw and short.encode('latin-1') in raw,
+          f'{UI}: {long_!r} / {short!r} not in the exe built for that language', errs)
+    ok, msg, lines, keys = fr_season(os.environ.get('FR_TEAM_ITA') or FR_TEAMS['ita'], exe, fr)
+    check(ok, msg, errs)
+    f = fr_check(exe, fr, lines, keys, errs, info, 1, weeks=FR['WEEKS'].get('ita'))
+    errs += sc_labels(lines, want=long_)        # (the career menu's fixture list shows it; no other contest's text)
+    other = [n for lg, (n, s_) in FR_NAMES.items() if lg != UI and n not in (long_, short)]
+    seen = sorted({n for n in other for ln in lines if ln.startswith('[slot4row] ') and ln.endswith(' ' + n)})
+    check(not seen, f'{UI}: slot-4 rows with another language\'s name {seen}', errs)
+    return not errs, '; '.join(errs) or (f'{UI}: {long_} on 4 match screens, {short} on weeks {f["weeks"]}, record line '
+                                         f'{FR_RECORD.get(UI, FR_RECORD["it"])}: {"-".join(map(str, f["wdl"]))}; 4 languages '
+                                         f'fit their bars, font characters only')
 
 
 # the game's extra-time simulation (cseg_2C0D3): the stronger side's margin per |rating difference| (32 rows x 4,

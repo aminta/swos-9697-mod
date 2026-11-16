@@ -39,7 +39,7 @@ if [ -e $FX/MANIFEST.json ]; then echo "fixtures for $SHA exist: $FX"; else
     || { tail -20 $P/build-it.log; exit 1; }
   test -s $P/SWOS/ITALIAN.syms.json
   echo "$SHA, data ${W:t}, HOSTTEST_SYMS=1 (tools/hosttest/mkfixtures.sh $(date +%F))" >> $P/build-it.log
-  for d in HTO4 HTOMM HTPC2; do cp -a $P $T/$d; done
+  for d in HTO4 HTOMM HTPC2 HTMC; do cp -a $P $T/$d; done      # (HTMC: test_champ / test_cbonus's plain HOSTTEST_SYMS image)
   echo "FX/HTW: $(md5 -q $P/SWOS/ITALIAN.EXE)  $(tail -1 $P/build-it.log)"
 
   # 1b. test_sreg's pair: HTn7rf (SREG_FORCE=1) and HTn7rd (dormant), the release recipe on world5tm-h2 (its own SEASON_PACKS)
@@ -58,8 +58,9 @@ if [ -e $FX/MANIFEST.json ]; then echo "fixtures for $SHA exist: $FX"; else
   done
 
   # 1c. the S7 shaped fixtures (Italy = internal/s7pack-real/ita): the default of the S7 / wsites / bteam / rimoves tests
-  for d in S7W-ws4c S7RI-hs; do
-    zsh tools/hosttest/mkshaped.sh $T/$d > $T/$d.mk.log 2>&1 || { tail -20 $T/$d.mk.log; echo "FAIL: shaped $d"; exit 1; }
+  for d in S7W-ws4c S7RI-hs S7W-p6w; do      # (S7W-p6w: test_s7swap piece 4 / test_bteam_s7, shaped with S7_WSITES_TEST=1)
+    ME=; [ $d = S7W-p6w ] && ME=S7_WSITES_TEST=1
+    MKSHAPED_ENV=$ME zsh tools/hosttest/mkshaped.sh $T/$d > $T/$d.mk.log 2>&1 || { tail -20 $T/$d.mk.log; echo "FAIL: shaped $d"; exit 1; }
     echo "FX/$d: $(md5 -q $T/$d/SWOS/ITALIAN.EXE)  $(tail -1 $T/$d/build-it.log)"
   done
 
@@ -78,7 +79,7 @@ E
   mv $T $FX; trap - EXIT
 fi
 if [ -n "${MKFIX_LEGACY:-}" ]; then
-  for d in HTW HTO4 HTOMM HTPC2 HTn7rf HTn7rd S7W-ws4c S7RI-hs; do rm -rf $C/$d.old; [ -e $C/$d ] && mv $C/$d $C/$d.old; cp -a $FX/$d $C/$d && rm -rf $C/$d.old; done
+  for d in HTW HTO4 HTOMM HTPC2 HTMC HTn7rf HTn7rd S7W-ws4c S7RI-hs S7W-p6w; do rm -rf $C/$d.old; [ -e $C/$d ] && mv $C/$d $C/$d.old; cp -a $FX/$d $C/$d && rm -rf $C/$d.old; done
 fi
 echo "export HOSTTEST_FIXROOT=$FX"
 

@@ -13,6 +13,7 @@ export SEASON_PACKS="ddr-1988-89,italia-1947-48,world-cup-1934,$EU,$(grep ' file
 CLR=($(python3 -c "import sys; sys.path.insert(0, 'tools'); import modver; print(' '.join(getattr(modver, 'BUILD_SWITCHES', modver.TEST_VARS)))") ${(k)parameters[(I)*_FORCE*]})
 for v in $CLR; do unset $v; done
 export HOSTTEST_SYMS=1
+for kv in ${=MKSHAPED_ENV:-}; do export $kv; done      # (test switches this fixture wants, e.g. S7_WSITES_TEST=1)
 mkdir -p $DEST/SWOS/DATA
 rsync -a --exclude DATA --exclude ITALIAN.EXE --exclude ENGLISH.EXE --exclude FRENCH.EXE --exclude GERMAN.EXE $M/c/REL40rc2/SWOS/ $DEST/SWOS/
 cp -p orig/DATA/* $DEST/SWOS/DATA/

@@ -30,11 +30,15 @@ if __name__ == '__main__':
             continue
         for name in sorted(n for n in dir(mod) if n.startswith('test_') and sel in n):
             t = time.time()
-            try:
+            env0 = dict(os.environ)             # (42-fixroot: a test may set SEASON_PACKS & co (test_seaw0, drawgate._world); the next
+            try:                                #  tests in this one process must not see it: cd_dt / globnum / ri_ida FAILed on it)
                 r = getattr(mod, name)()
                 ok, msg = (True, '(asserts)') if r is None else r      # (pytest-style: no exception = PASS; MC 12/11)
             except Exception as e:
                 ok, msg = False, f'{type(e).__name__}: {e}'
+            finally:
+                os.environ.clear()
+                os.environ.update(env0)
             bad += not ok
             st = 'FAIL' if not ok else 'SKIP' if str(msg).startswith('SKIP') else 'PASS'
             n[st] += 1

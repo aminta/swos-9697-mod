@@ -84,7 +84,7 @@ MKTHOOK_END = 0x20A00                   # the last 4.2 band): the CPU market's e
 MKTLOAD_AT = 0x20A00                    # then MKTAGE (Mercato CPU); unlinked in 4.2 (the unlinked bands go last, so a release never
 MKTLOAD_END = 0x21A00                   # carries an empty page for them). DIFF2 0x1A000..0x1A400 + SPX 0x1A400..0x1A800 stay free
 MKTAGE_AT = 0x21A00                     # here for 42-drp / 42-sp (their swreg lines are taken verbatim)
-MKTAGE_END = 0x24000                    # (MC 15/11: 0x20500 -> 0x21500, Mercato measured 0x205FB + floor + h3_team + sweep; +0x800 after TKUI;
+MKTAGE_END = 0x25000                    # (MC 15/11: 0x20500 -> 0x21500, Mercato measured 0x205FB + floor + h3_team + sweep; +0x800 after TKUI;
                                         # 16/11 Mercato: page-aligned end, -0x100 after the tail shift: check_pages wants code in the
                                         # last page, the 256 B floor wants none in a 0x100 tail - both hold only at a page end;
                                         # 16/11 MC: +0x200 behind S6 (now 4.2), the end page-aligned at 0x23000: 0x2D00, room for the H3-cache sweep)
@@ -226,8 +226,8 @@ def patch(p, add_ptr):
 # 4.3 reservations after the last release band; the test-only bands in the test region after SP_METER / DIFF_TC (0x35000).
 # New release bands (official lines): DRP8D (42-drp8d clamp, 451 B), TAKERS (Difficolta's set-piece takers), GAMEPLAY
 # (reserve: the GAMEPLAY page, gameplay-menu-design.md).
-DRP8D_AT = 0x24000                      # 0x300, a 4.3 reservation after MKTAGE, unlinked (MC 15/11: drp8d not in 4.2;
-DRP8D_END = 0x24300                     # SETPIECE took its 0xBD00..0xC000, 160 B left on REL42i64; after MKTAGE's growth)
+DRP8D_AT = 0x25000                      # 0x300, a 4.3 reservation after MKTAGE, unlinked (MC 15/11: drp8d not in 4.2;
+DRP8D_END = 0x25300                     # SETPIECE took its 0xBD00..0xC000, 160 B left on REL42i64; after MKTAGE's growth)
 S6_AT = 0x1DD00                         # 4.2 S6 (16/11 MC: Davide put S6a into 4.2; right after TKUI, before the 4.3 reservations; was 4.3 S6, MC 15/11, Motore 43-s6a): s6sea.c, world SEASONs' picker, its own unit out of
 S6_END = 0x1DF00                        # swe.c (-Oz, 256 B floor; 161 B on the IT release recipe); unlinked until 42-s6a
 # 4.2 POSITION TRAITS (MC 16/11, Davide "nothing moves out of 4.2": internal/handoff/traits-split.md), three owners, release bands at

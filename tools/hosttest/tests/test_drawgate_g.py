@@ -60,12 +60,10 @@ def test_pot_sweep_refuses_illegal():
 
 
 def test_fill_sweep_finds_9b14728():
-    # (MC 15/11: not stale, flaky under load - each sweep gets one logged retry; the case keeps catching its bug)
+    # (MC 16/11: the sweep is deterministic - fixed seeds 7/3/11/19/23/31 - so there is no retry: a result that depends on load is a
+    #  build race, never a pass to hope for. Every native library is compiled into its own mkdtemp dir, nothing shared.)
     _world()
     r0 = drawgate.fill_sweep(['conmebol'], quiet=True)
-    if r0['fails']:                                         # (MC 15/11: flaky under load - one logged retry, the case keeps its teeth)
-        print('RETRY test_fill_sweep_finds_9b14728 (first sweep on this conti.c failed under load):', r0['fails'][:2])
-        r0 = drawgate.fill_sweep(['conmebol'], quiet=True)
     assert not r0['fails'], r0['fails'][:3]
     t = tempfile.mkdtemp()
     old = os.path.join(t, 'conti_pre9b.c')
@@ -74,10 +72,7 @@ def test_fill_sweep_finds_9b14728():
         return
     open(old, 'wb').write(src.stdout)
     r = drawgate.fill_sweep(['conmebol'], L=drawgate.native(old), quiet=True)
-    if not r['fails']:
-        print('RETRY test_fill_sweep_finds_9b14728: the old conti.c found no fail on the first sweep')
-        r = drawgate.fill_sweep(['conmebol'], L=drawgate.native(old), quiet=True)
-    assert r['fails'], 'the fill sweep missed the pre-9b14728 Sud groups refusal (twice)'
+    assert r['fails'], 'the fill sweep missed the pre-9b14728 Sud groups refusal (first sweep)'
     assert any('0x11102' in str(f[4]) or 'refused' in str(f[4]) for f in r['fails']), r['fails'][:3]
 
 

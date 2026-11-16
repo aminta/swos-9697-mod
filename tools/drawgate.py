@@ -635,8 +635,8 @@ def native(conti_c=None):
     import tempfile
     import conti
     if not conti_c:
-        return conti._native()
-    t = tempfile.mkdtemp()
+        return conti._native()                          # (conti._native: its own mkdtemp per call, nothing shared)
+    t = tempfile.mkdtemp()                              # (a unique dir per call and process: concurrent runs never share a build)
     shutil.copy(conti_c, os.path.join(t, 'conti.c'))
     for f in ('conti.h', 'ctdraw.c'):
         shutil.copy(os.path.join(HERE, f), t)

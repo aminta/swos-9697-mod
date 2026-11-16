@@ -43,15 +43,13 @@ SITES = {}                                           # sites(p) of the last care
 B_TFB, TFB_SIZE = 0x31000, 0x2B000
 # The game's team cache g_selectedTeams holds 100 teams (68400 B) and the pseudo registers D0..A6 follow it: a 101st
 # team overwrites them (A0 = a player name -> LoadFile on garbage -> exit to DOS; world 2026-27: an English
-# 2nd-division club's 64-club cup + a 36-club league phase). A big world's cache moves to B_SEL (SEL_N teams, every
+# 2nd-division club's 64-club cup + a 36-club league phase). A big world's cache moves to B_SEL (SEL_CAP teams, every
 # fixup into the old one retargeted, big_sel_buffer); the .CAR keeps its layout (fixed part + N records + trailer), so
 # SaveCareerFile writes it from B_STAGE (fixed part copied before the records) and LoadCareerFile reads it there
 # (trailer.LOADCOPY -> w_loadcopy spreads it). Old saves (N <= 100) load unchanged.
-SEL_CAP, SEL_N = 160, 159        # the cache's memory (160 records) / what a save budgets for (4.2 A1: the trailer's room
-                                 # is checked at 159 records, +684 B for 'EN'; a save with 160 cached drops 'EN' as any
-                                 # save past ROOMV, trailer.EN_SAVE; every save seen caches <= 124)
-SEL_N_FP = 155                   # 4.2 fixture port P5 (MC option A): builds with the EN item 'FP' (fpad.SAVE_SIZE) budget
-                                 # 155 - a save caching 156..160 teams drops 'EN' (as 160 does without it)
+SEL_CAP = 160                    # the cache's memory (160 records): tcache's memory cap; the save budget TC_CAP (159,
+                                 # 155 with 'FP') is computed by trailer.py from the blocks (tcache.py: the rule; every
+                                 # save seen caches <= 124)
 B_SEL, SEL_ROOM = 0x5C000, SEL_CAP * TEAM_SIZE + 0x4000 + 0x280  # (+ the trailer's blocks after the records: the main
                                                                # one + the engine block 'EN': ~14.6 KB in 4.0.1: 0x4000;
                                                                # 4.1 S2b: + 0x280, the two gaps around B_STAGE - B_UQ and
@@ -72,7 +70,7 @@ B_TMD, B_CUPS, B_LISTS = 0, 128 * TEAM_SIZE, 128 * TEAM_SIZE + 3 * 160      # cu
 # The game's team cache g_selectedTeams holds 100 teams (68400 B) and the pseudo registers D0..A6 follow it: a 101st
 # team overwrites them (A3 / D0 garbage -> LoadTeamFile builds data/team.254 -> exit to DOS; world 1984-85: an English
 # club in the FA Cup (64 clubs, 42 of them cup-only) and the UEFA Cup (64) caches ~124 teams at the season end; also
-# FRG, NOR, GRE). Big-world careers use a cache of SEL_N teams at B_SEL (3.3.3, from world-2025-26 4cb687b): the .CAR
+# FRG, NOR, GRE). Big-world careers use a cache of SEL_CAP teams at B_SEL (3.3.3, from world-2025-26 4cb687b): the .CAR
 # keeps its layout (fixed part + N records + trailer), so SaveCareerFile writes it from B_STAGE (fixed part copied
 # before the records) and LoadCareerFile reads it there (trailer.LOADCOPY -> w_loadcopy spreads it). A new career in a
 # big world takes the big cache and its saves carry BIGC (the last dword of the 80-record area, after the W1 block); a
@@ -84,7 +82,7 @@ B_TMD, B_CUPS, B_LISTS = 0, 128 * TEAM_SIZE, 128 * TEAM_SIZE + 3 * 160      # cu
 # the game keeps only its first 32 records (21888 B in DOS memory at dosMemOfs60c00h), the simulated contest reuses
 # the cache, so records 32+ come back as the simulated clubs (a 64-club national cup lost its second half -> the
 # season end's VerifyTeamLoaded on a finalist -> exit to DOS; world 1984-85, 2026-10-10). A big world parks all its
-# records (count word + SEL_N x 684 B) at B_SAVE.
+# records (count word + SEL_CAP x 684 B) at B_SAVE.
 B_SAVE, SAVE_SIZE = 0x16000, 2 + SEL_CAP * TEAM_SIZE
 assert B_LISTS + 224 <= B_SAVE and B_SAVE + SAVE_SIZE <= B_TFB and B_TFB + TFB_SIZE <= B_SEL
 assert B_SEL + SEL_ROOM <= B_STAGE and B_STAGE + 95153 + SEL_ROOM <= B_UQ
@@ -2105,13 +2103,15 @@ def patch(p, worlds, at, nasmcave, comp, ct, cont_rec):
             src_site, len_site = m.start(), m.start(1)
             stubs += [f'ws{k}:', '    mov eax, [SVMEM]', '    pushfd', '    call w_big', '    jz .o',
                       '    mov eax, WSAVE', '.o:', '    popfd', '    ret',
-                      f'wl{k}:', '    mov dword [SVD0], 21888', '    pushfd', '    call w_big', '    jz .o',
+                      f'wl{k}:'] + (['    call [TCV_CS]'] if k else []) + ['    mov dword [SVD0], 21888', '    pushfd', '    call w_big', '    jz .o',
                       '    mov dword [SVD0], 68400', '    push eax', '    mov eax, [SELPTR]', '    cmp eax, NEWSEL',
                       '    pop eax', '    jne .o', f'    mov dword [SVD0], {SEL_CAP * TEAM_SIZE}', '.o:', '    popfd',
                       '    ret']
             bsym.update({'SVMEM': p.target(1, src_site + 1), 'SVD0': p.target(1, len_site + 2)})
             saves.append((src_site, f'ws{k}', len_site, f'wl{k}'))
         bsym['WSAVE'] = (2, b + B_SAVE)
+        stubs += ['align 4', 'TCV_CS: dd TCPH']  # (RestoreSelectedTeams wrote the parked count: tcache's clamp, bound
+        bsym['TCPH'] = (1, 0)                    # by tcache.ref once it is placed in obj3 - never a literal address)
         hs = sel_sites(p, rg['A0'] - 32)
         bsym.update({'SELPTR': (2, hs['selptr']), 'NEWSEL': (2, b + B_SEL)})
         stubs += ['align 4', 'WCLIST: dd ' + ', '.join(f'CL{k}' for k in range(len(s['clist'])))
@@ -2193,6 +2193,9 @@ def patch(p, worlds, at, nasmcave, comp, ct, cont_rec):
     p.put(1, at, code)
     for off, tobj, toff in fix:
         p.add_ptr(1, at + off, tobj, toff)
+    if 'TCV_CS' in labels:
+        import tcache
+        tcache.ref(p, 1, labels['TCV_CS'], 'tc_clamp_sel')
 
     def hook(site, length, label, fixups):
         for f in fixups:
@@ -2869,7 +2872,7 @@ def patch_tails(p, at, nasmcave):
     for k, stub in (('pick', 'sw_pick'), ('init', 'sw_init'), ('load', 'sw_load')):   # (4.2: a SEASON / .SEA is world 0)
         p.branch(1, sea[k], 0xE8, 1, labels[stub])
     print(f"exe: SEASON world 0: SeasonMenu picker obj1+{sea['pick']:#x} -> sw_pick, InitNewSeason obj1+{sea['init']:#x} -> sw_init ({sym['SLT_N'][1]} B table), .SEA load obj1+{sea['load']:#x} -> sw_load")
-    print(f'exe: big world: team cache of {SEL_CAP} (saves budgeted at {SEL_N}) at obj2+{b + B_SEL:#x} (stage obj2+{b + B_STAGE:#x}, mark BIGC)')
+    print(f'exe: big world: team cache of {SEL_CAP} (saves budgeted by trailer.py: tcache TC_CAP) at obj2+{b + B_SEL:#x} (stage obj2+{b + B_STAGE:#x}, mark BIGC)')
     print(f'exe: big world .CAR block W1 ({WBLOCK} B, in the 80-record area) @ obj1+{at:#x}, records moved to obj2+{b:#x}')
     return (at + len(code) + 3) & ~3
 

@@ -149,6 +149,9 @@ def raw_compares(src):
 def test_s6a_mgr0():
     errs = []
     gsrc = open(os.path.join(TOOLS, 'gplay.c')).read()
+    inc = '#include "gpsc.h"'         # (the shared definitions - IS_MGR among them - expanded in place: the mutations
+    assert gsrc.count(inc) == 1         #  and the raw-compare scan see them as gplay.c's own lines)
+    gsrc = gsrc.replace(inc, open(os.path.join(TOOLS, 'gpsc.h')).read())
     d = tempfile.mkdtemp(prefix='s6amgr0')
     L = _lib(d, gsrc, '')
     errs += [f'{w}: {g} != {x}' for w, g, x in _cases(L) if g != x]

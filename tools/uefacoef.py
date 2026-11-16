@@ -77,9 +77,11 @@ uc_g:                                   ; eax = team word (file, ordinal) -> eax
     movzx eax, ah
 %ifdef SPLIT_FILE
     cmp dl, SPLIT_FILE                  ; S7-G (globnum.glob, as worldpool.wp_glob): the split file's ordinals from
-    jne .g                              ; SPLIT_N1 on are in run 2 (in its world's namespace only)
+    jne .g                              ; SPLIT_N1 on are in run 2 (in its world's namespace only; a build with
+%ifdef SPLIT_NS                         ; no namespaces - one world - has no other file of that number and no WCUR)
     cmp byte [WCUR], SPLIT_WORLD
     jne .g
+%endif
     cmp eax, SPLIT_N1
     jb .g
     add eax, SPLIT_B2 - SPLIT_N1
@@ -775,7 +777,11 @@ def patch(p, cave, worlds, sites):
     split = globnum.exe_split()
     if split is not None:                       # (S7-G: a league over two files)
         symbols.update({'SPLIT_WORLD': (0, split[0]), 'SPLIT_FILE': (0, split[1]), 'SPLIT_N1': (0, split[2]),
-                        'SPLIT_B2': (0, split[3]), 'WCUR': (1, cw.LABELS['WCUR'])})
+                        'SPLIT_B2': (0, split[3])})
+        if 'WCUR' in cw.LABELS:                 # (several worlds: careerworld's namespace code, as worldpool)
+            symbols.update({'SPLIT_NS': (0, 1), 'WCUR': (1, cw.LABELS['WCUR'])})
+        else:                                   # (one world: file split[1] is only world split[0]'s - asserted)
+            globnum.split_alone(split[0], split[1])
     code, fix = nasmcave.assemble(ASM, cave, symbols)
     lab = nasmcave.labels(ASM, cave, symbols)
     LABELS.update(lab)

@@ -13,6 +13,7 @@ runs (split()):
 No free numbers enough: refused (raise, with the reason), never a fallback. The exe side: worldpool.wp_glob's chain
 (SetTeamGlobalNumbers' store, SPLIT_* symbols): file B's ordinals from run 1's length go to run 2.
 """
+import os
 import functools
 
 SPLIT_KEY, PARTNER_KEY = 'league_b', 'league'     # (s7pack.py's pack.json 'files' roles)
@@ -168,6 +169,17 @@ def runs_of(pk, f):
         return list(_split_of(pk)[f])
     key = next(k for k, (ff, _) in pk.files.items() if ff == f)
     return [(pk.files[key][1], pk.count.get(key, 0))]
+
+
+def split_alone(w, f):
+    """(4.2 rc, MC 16/11) A build with no country namespaces (careerworld defines no WCUR: one world) may drop the
+    split hooks' world test only if no other pack - another world's, a season pack's - has a team file numbered f:
+    asserted here, with the packs that share it."""
+    import mkseason
+    other = sorted({os.path.basename(pk.path) for pk in mkseason.packs() if pk.world != w
+                    and any(v[0] == f for v in pk.files.values())})
+    assert not other, (f'globnum: split file {f} of world {w} in a build without namespaces (no careerworld WCUR), '
+                       f'but {other} use file {f} too: the split hooks cannot tell them apart')
 
 
 def exe_split():

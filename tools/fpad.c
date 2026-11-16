@@ -94,7 +94,7 @@ static i32 cal_next(i32 o) { return o + (FP_CAL[o + 2] | FP_CAL[o + 3] << 8); }
 static i32 h_league(void *ctx, u16 team, u16 unit)
 {
     (void)ctx;
-    if (team != GP_MGR) return 0;
+    if (!GP_MGR || team != GP_MGR) return 0;   /* (S6a: GP_MGR 0 = no manager's club) */
     for (i32 k = 0, o = 0; k < cal_n(); k++, o = cal_next(o)) {
         if (!(FP_CAL[o + 2] | FP_CAL[o + 3])) break;
         if (FP_CAL[o] == 0 && FP_CAL[o + 1] == unit) return 1;
@@ -128,7 +128,7 @@ static u16 next_unit(u16 unit)          /* the game's next advance after unit, S
 static i32 h_windows(void *ctx, u16 team, u16 (*out)[2], i32 max)
 {
     (void)ctx;
-    if (team != GP_MGR) return 0;
+    if (!GP_MGR || team != GP_MGR) return 0;   /* (S6a: GP_MGR 0 = no manager's club) */
     const u8 c = FP_FMAP[team & 0xFF];
     const u16 d = FP_CDIV[0];       /* (the career club's division now: the game's D6CDC - gplay's GP_IN.mdiv is set
                                        only by gp_setup at the league's end, stale before: world_fport_sd, Serie D) */

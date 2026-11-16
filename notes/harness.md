@@ -250,6 +250,8 @@ original bytes asserted) pokes place = scaled 4 and expected = 0 once (test only
 log). It runs on this checkout (signed ratio) and on ZONE_412 (default 412-zonepos 41d8668: 4.1.2 zones, the original
 ratio); each opinion = _verdict with its exe's rule, and the two must differ (ALTERNA vs NON BUONA).
 
+(4.2 rc, 16/11) The world_split_* builds copy their data (W2627REL_DATA, else the default snapshot) into `internal/swostest/world_split-<key>`, one dir per (snapshot path, its newest file time, SPLITS); it is made under a temp name and renamed, and reused while it exists. Until 16/11 all of them shared one `world_split` dir, emptied and re-copied by every build: two suites at once could build on each other's snapshot (an S7 copy under a single-world build: KeyError 'WCUR'). The dirs pile up, one per snapshot state (~7 MB each): remove old ones by hand, never one that a kept FAIL run's build points to (its builds/world_split-*/log.txt names the data dir).
+
 ## 6. Adding a scenario
 
 1. Write `@scenario def name(): """one-line purpose"""` returning `(ok, message)`.
@@ -572,3 +574,4 @@ the match at all, cc still differs.
 `DIFF_PAD=code,buildup` (REF + a nop band of NEW's obj4 sizes) was equal to REF in every run: code size is not a cause.
 DIFF_SKIP is a comma list matched as a set ('BU' is not 'BUFRAME').
 - Host fixtures (42-fixroot, MC 16/11): `zsh tools/hosttest/mkfixtures.sh` builds every fixture (HTW HTO4 HTOMM HTPC2 HTn7rf HTn7rd S7W-ws4c S7RI-hs) once per tip into c/FX-<sha>/ with a MANIFEST.json and prints `export HOSTTEST_FIXROOT=...`; with it set every test reads that root and a stale / edited fixture FAILs with the manifest message (tools/hosttest/fixroot.py); never rebuild a fixture dir in place.
+- test_ctgame (the long cg_* tests: cg_view ~9 min idle) runs ONE AT A TIME across every suite on this Mac (a file lock, internal/hosttest/.ctgame.lock) with a 20-min timeout (HOSTTEST_LONG_TIMEOUT s): a timeout prints `TIMEOUT test_ctgame (> N s, load average ...)` and is neither a PASS nor a FAIL (the summary shows `N TIMEOUT`, exit 1): rerun it alone on a quiet machine (MC 16/11).

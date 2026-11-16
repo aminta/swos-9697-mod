@@ -203,7 +203,7 @@ st_dead:                                ; UpdateGameTimers' `add [stoppageTimerT
 st_caps:                                ; ST_CAPS (3 caps, base), ST_KD = this match's era: a career by its world
     pushad                              ; byte, else by the first team's file (season / tourney packs), else default
     mov esi, ST_DEF
-    cmp word [GAMETYPE], 4
+    call W_GT             
     jne .file
     mov al, [SLT + WORLD_BYTE_]
     mov edi, ST_WTAB

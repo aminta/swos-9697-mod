@@ -442,7 +442,7 @@ W_YEAR w_year95, 1995
 
 w_noaway:                               ; ZF = 1 in a career of a world from 2021-22 on (UEFA abolished away goals in
     push ebx                            ; 2021-22, and every 2026-27 two-legged round's rule has none: the data's
-    cmp word [GAMETYPE], 4              ; two_legs_2627.json); 1984-85 / 1996-97 keep them (real then)
+    call w_gt                           ; two_legs_2627.json); 1984-85 / 1996-97 keep them (real then)
     jne .away
     call w_rec
     jz .away
@@ -624,7 +624,7 @@ w_tmap:                                 ; eax = team file number (80..85) -> the
     ja .r
     push ebx
     movzx ebx, byte [W_FNAT]            ; (step 2.5: outside a career, the friendly / DIY nationals' world, swe.c;
-    cmp word [GAMETYPE], 4              ; a career: its world byte - stale outside a career)
+    call w_gt                           ; a career: its world byte - stale outside a career)
     jne .f
     movzx ebx, byte [SLT + WORLD_BYTE]
 .f:
@@ -1121,6 +1121,19 @@ w_tcache:                               ; replaces `mov al, [lastLoadedExtNumber
     ret
 WTPHYS: db 0
 W_FNAT: db 0                            ; (swe.c FNAT: 0, or the 1984-85 world for its nationals)
+W_SEAW: db 0                            ; (S6a: s6sea.c s6_sea_pre - the world whose lists the SEASON picker showed, 0)
+
+w_gt:                                   ; S6a (4.3, MC 15/11): the world rules' gate (W_GT, every module's `call W_GT`
+    cmp word [GAMETYPE], 4              ; where it had `cmp word [GAMETYPE], 4` - s6a-audit.md's W sites): ZF = 1 in a
+    je .r                               ; career or a world SEASON (gameType 3 with a world byte), else ZF = 0 - a
+    cmp word [GAMETYPE], 3              ; 1996-97 / STAG. STORICHE season (byte 0: 42-seaw) as before. Registers and
+    jne .r                              ; the other flags' meaning: the sites test ZF only (je / jne / setne)
+    cmp byte [SLT + WORLD_BYTE], 0
+    jne .y
+    or esp, esp                         ; (ZF = 0: esp is never 0)
+    ret
+.y: cmp eax, eax
+.r: ret
 
 w_holders:                              ; replaces `call cseg_92BBF`: in a world the holders get a place of their own
     push ebx                            ; (appended to the list + record), the game replaces a random qualifier
@@ -2110,6 +2123,7 @@ def patch(p, worlds, at, nasmcave, comp, ct, cont_rec):
     ns = NS.get('info')                          # several worlds: a country namespace each (mkseason.ns_emit)
     if ns:
         maxw = max(w['n'] for w in worlds)
+        NS['maxw'] = maxw                        # (S6a: w_loadcopy's WNSB bound)
         bits = bytearray(32 * (maxw + 1))
         for w in worlds:
             for f in ns['files'][w['n']]:
@@ -2255,6 +2269,7 @@ def patch(p, worlds, at, nasmcave, comp, ct, cont_rec):
             p.retarget(1, ref, 1, labels['WCLIST'])
     LABELS.clear()
     LABELS.update(labels)
+    nasmcave.GLOBAL['W_GT'] = (1, labels['w_gt'])    # (S6a: the modules' W sites; careerworld's call w_gt)
     LABELS['big'] = anybig
     LABELS['sites'] = s
     LABELS['end'] = (at + len(code) + 3) & ~3
@@ -2332,8 +2347,22 @@ w_loadcopy:                             ; trailer LOADCOPY: LoadCareerFile read 
     mov edi, CAREER
     mov ecx, FIXED
     call w_copy
-    cmp byte [SWSEA], 0                 ; 4.2 (MC 15/11): a .SEA is a 1996-97 season (no world seasons yet): world 0,
-    je .nsea                            ; whatever byte a 4.2 / 4.1.x save kept from an earlier world career
+    cmp byte [SWSEA], 0                 ; 4.2 (MC 15/11): a .SEA of a 1996-97 season is world 0, whatever byte a 4.2 /
+    je .nsea                            ; 4.1.x save kept from an earlier world career
+%if SEAW_ON
+    movzx eax, byte [SLTW]              ; S6a (4.3): a world SEASON's .SEA keeps its world - its clubs are that world's
+    test eax, eax                       ; (the first record's team file in world w's namespace files, WNSB: disjoint
+    jz .nsea                            ; from the 1996-97 files and the historic season packs' - a stale career byte
+    cmp eax, WNS_MAX                    ; over a 1996-97 / STAG. STORICHE season fails it)
+    ja .w0
+    cmp dword [D1R], FIXED              ; (bytes read: no records -> world 0)
+    jbe .w0
+    movzx ebx, byte [STAGE + FIXED]
+    shl eax, 5
+    bt [WNSBV + eax], ebx
+    jc .nsea
+.w0:
+%endif
     mov word [SLTW], 0                  ; (+ its balance byte: the table keeps summing to 0)
 .nsea:
 %if NS_ON
@@ -2695,6 +2724,20 @@ sw_init:                                ; SeasonMenu's `call InitNewSeason` (4.2
     pop edi
     pop ecx
 .go:
+%if SEAW_ON
+    cmp byte [SWW], 0                   ; S6a (4.3): a world SEASON - the picker showed world SWW's lists (swe.c
+    je .n                               ; s6sea.c s6_sea_pre) and the path left its namespace (a STAG. STORICHE pack from the
+    push eax                            ; same picker leaves the base one: world 0). The world byte + its balance byte
+    mov al, [SWW]                       ; (the tables sum to 0) in someLeaguesTable, as InitCareer's w_load1 - not
+    cmp al, [WCURV]                     ; leaguesTableCopy (UnpackMenu's buffer outside a career season end) -
+    jne .w0                             ; before InitNewSeason: its national cup draws / byes read it (lib97 WORLDB,
+    mov [SLTW], al                      ; historic DRAW_W)
+    neg al
+    mov [SLTW + 1], al
+.w0:
+    pop eax
+.n:
+%endif
     jmp SW_INIT_NEXT
 
 sw_load:                                ; LoadOldCompetitionMenu's .SEA `call j_LoadCareerFile`: w_loadcopy sees SWSEA
@@ -2796,6 +2839,10 @@ def patch_tails(p, at, nasmcave):
     sym['SW_PICK_NEXT'] = p.call_target(1, sea['pick'])
     sym['WCURV'] = (1, LABELS['WCUR']) if 'WCUR' in LABELS else (0, 0)
     sym['WNSBV'] = (1, LABELS['WNSB']) if 'WNSB' in LABELS else (0, 0)
+    import swreg                                 # (S6a: world SEASONs - the picker's world, W_SEAW, s6sea.c sets it)
+    sym['SEAW_ON'] = (0, int(swreg.SEASON_WORLDS and 'W_SEAW' in LABELS and 'WCUR' in LABELS))
+    sym['SWW'] = (1, LABELS['W_SEAW']) if 'W_SEAW' in LABELS else (0, 0)
+    sym['WNS_MAX'] = (0, NS.get('maxw', 0))
     src = TAILS_ASM
     if os.environ.get('DIAG'):                   # diagnostic build: int 3 handler writes DIAG.BIN
         src = f"%define DIAG\n%define DIAG_TICKS {int(os.environ.get('DIAG_TICKS', 364))}\n" + nasmcave.sub(src, '.w:\n    pushad\n    mov esi, TMDBUF', '.w:\n    ' + ('times 5 nop' if os.environ.get('DIAG_NOINST') else 'call diag_install') + '\n    pushad\n    mov esi, TMDBUF')   # (DIAG_NOINST: the same layout, no handlers)

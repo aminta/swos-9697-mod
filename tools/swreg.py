@@ -45,14 +45,14 @@ T3_END = 0xE000                         # CONVENTIONS 23bis); 0xC000 = 42-slow's
 SWEFILE_AT = 0xB000                    # 4.2 the engine's file layer (swefile.c, MC 12/11): obj4 page 18, after Difficolta's
 SWEFILE_END = 0xB500                   # page 15 (0xE000..0xF000) and Panchina's kits (0xF000..0x11000); dormant until a consumer
 S7SWAP_AT = 0x11100                     # 4.2 S7 season-end swap builder (s7swap.c, Shaved; MC 13/11) + the registry library's
-S7SWAP_END = 0x14E00                    # one copy (sr_reg_season, sr_wmap_*: the import in SREG2 calls it here), pages 18-20 (MC 13/11: 0x14000, WSITES with the code);
+S7SWAP_END = 0x15200                    # one copy (sr_reg_season, sr_wmap_*: the import in SREG2 calls it here), pages 18-20 (MC 13/11: 0x14000, WSITES with the code);
 # (MC 13/11: 0x15000, CF_ST + s7_home_word; obj4 0x14000..0x15000 was free; the next free obj4 room starts at 0x15000)
                                         # linked only with a registry shape (sreg.shape(), = GP_S7)
 assert SWEFILE_END <= S7SWAP_AT < S7SWAP_END, 'swreg: SWEFILE_END <= S7SWAP_AT < S7SWAP_END'
-OBJ1MV_AT = 0x14E00                     # 4.2 obj1 relief (MC 13/11, Shaved's census): whole modules moved out of obj1's full
-OBJ1MV_END = 0x16500                    # regions (237 pages frozen): winners.py (the extra pages), then instcheck + shirtedit
+OBJ1MV_AT = 0x15200                     # 4.2 obj1 relief (MC 13/11, Shaved's census): whole modules moved out of obj1's full
+OBJ1MV_END = 0x16900                    # regions (237 pages frozen): winners.py (the extra pages), then instcheck + shirtedit
                                         # (the career cave); linked with the SEASON WINNERS page (worlds + gplay + extra pages)
-OBJ1MV_CC = 0x15A00                     # (step 2: the career cave's shirtedit + instcheck from here; winners below it)
+OBJ1MV_CC = 0x15E00                     # (step 2: the career cave's shirtedit + instcheck from here; winners below it)
 assert OBJ1MV_AT < OBJ1MV_CC < OBJ1MV_END, 'swreg: OBJ1MV_CC inside the band'
 SETPIECE_AT = 0xB500                   # 4.2 set pieces 1+2 (setpieces.py, MC 14/11): the unused half of page 0x16 (no new
 SETPIECE_END = 0xC000                  # page), linked in every build; >= SETPIECE_MIN B left (build check). MC 14/11:
@@ -61,14 +61,14 @@ SETPIECE_MIN = 256                      # (MC 15/11: the release floor, as every
 FPORT_AT = 0x35000                      # 4.2 the fixture port's adapter (P2, Motore; MC 14/11): sr_port.o + port_step + the
 FPORT_END = 0x37000                     # slot-4 window table generated from fport.py, embedded; 2 pages, >= 256 B left at link
                                         # (0x16800..0x17000: Difficolta's SETPIECE, 42-sp, not merged yet)
-S7GEO_AT = 0x16500                      # 4.2 Serie D geography (MC 14/11 room ruling, 42-geo-d): the geography chain's own TU (s7geo.c:
-S7GEO_END = 0x17700                     # code + neighbour table + log + the per-club coordinates), after FPORT; linked only with
+S7GEO_AT = 0x16900                      # 4.2 Serie D geography (MC 14/11 room ruling, 42-geo-d): the geography chain's own TU (s7geo.c:
+S7GEO_END = 0x17B00                     # code + neighbour table + log + the per-club coordinates), after FPORT; linked only with
                                         # GP_S7; >= 256 B left
 CDKN_AT = 0x37000                       # 4.2 S2 knockouts (cdkn.c: the Coppa D's rounds 0-1 by the engine's sr_kn; MC 14/11, 42-cdkn):
 CDKN_END = 0x39000                      # code + const after DIFF2 (0x1A000..0x1A800, 42-drp, not merged yet), >= 256 B left at link;
                                         # its work area in swe.c's .bss (CDKN_WORK), linked only in CD_KN builds
-PRACTICE_AT = 0x18A80                   # 4.2 set-piece practice (Shaved, 42-practice; MC 14/11): the last 4.2 band; unlinked until 42-practice
-PRACTICE_END = 0x19700                  # is merged; 3 KB (MC 15/11, option B: +0x400 for Davide's practice fixes; the 4.3
+PRACTICE_AT = 0x18E80                   # 4.2 set-piece practice (Shaved, 42-practice; MC 14/11): the last 4.2 band; unlinked until 42-practice
+PRACTICE_END = 0x19B00                  # is merged; 3 KB (MC 15/11, option B: +0x400 for Davide's practice fixes; the 4.3
                                         # reservations below +0x400; the release's obj4 ends inside page 0x1D); +0x200 16/11 (MC: Difficolta's
                                         # item 2, the drills' attempts / half selector ~400 B): the release chain S3C..TKUI +0x200 into page 0x1D's tail; +0x100 16/11
                                         # (MC: headroom, item 2 trimmed to 260 B = the floor) and the chain after it +0x100 again
@@ -76,42 +76,43 @@ PRACTICE_END = 0x19700                  # is merged; 3 KB (MC 15/11, option B: +
 FPORT2_AT = 0x39000                     # 4.2 P5 (MC 15/11): the fixture port's save - fpsave.c (sr_port_save / sr_port_load + the
 FPORT2_END = 0x3A000                    # FP item glue), its own link unit; FPORT_ON builds only (test-only), >= 256 B left (release shape);
                                         # right after Shaved's PRACTICE (0x1C800..0x1D400)
-S3C_AT = 0x19700                        # 4.2 S3 step 2 (MC 15/11): cuprule.c, the Serie C play-off's cup place (C.U. 209/A) - ONE implementation, a
-S3C_END = 0x19B00                       # state-free leaf TU called by gplay.c and dplay.c; S3 builds only; >= 256 B left (584 B used). After FPORT2 /
+S3C_AT = 0x19B00                        # 4.2 S3 step 2 (MC 15/11): cuprule.c, the Serie C play-off's cup place (C.U. 209/A) - ONE implementation, a
+S3C_END = 0x19F00                       # state-free leaf TU called by gplay.c and dplay.c; S3 builds only; >= 256 B left (584 B used). After FPORT2 /
                                         # PRACTICE's growth (0x1D000..0x1E400, the Integratore's merges); the 4.3 chain starts at 0x1E800 (MC 15/11)
-MKTHOOK_AT = 0x1D900                    # 4.3 reservations only (MC 14/11: sizes 6 KB + 4 KB + 4 KB, final addresses at 4.3 start, after
-MKTHOOK_END = 0x1F100                   # the last 4.2 band): the CPU market's exe hooks (mkthook.c), then MKTLOAD (the .MKT load half),
-MKTLOAD_AT = 0x1F100                    # then MKTAGE (Mercato CPU); unlinked in 4.2 (the unlinked bands go last, so a release never
-MKTLOAD_END = 0x20100                   # carries an empty page for them). DIFF2 0x1A000..0x1A400 + SPX 0x1A400..0x1A800 stay free
-MKTAGE_AT = 0x20100                     # here for 42-drp / 42-sp (their swreg lines are taken verbatim)
-MKTAGE_END = 0x22000                    # (MC 15/11: 0x20500 -> 0x21500, Mercato measured 0x205FB + floor + h3_team + sweep; +0x800 after TKUI;
+MKTHOOK_AT = 0x20F00                    # 4.3 reservations only (MC 14/11: sizes 6 KB + 4 KB + 4 KB, final addresses at 4.3 start, after
+MKTHOOK_END = 0x22400                   # the last 4.2 band): the CPU market's exe hooks (mkthook.c), then MKTLOAD (the .MKT load half),
+MKTLOAD_AT = 0x22400                    # then MKTAGE (Mercato CPU); unlinked in 4.2 (the unlinked bands go last, so a release never
+MKTLOAD_END = 0x23400                   # carries an empty page for them). DIFF2 0x1A000..0x1A400 + SPX 0x1A400..0x1A800 stay free
+MKTAGE_AT = 0x23400                     # here for 42-drp / 42-sp (their swreg lines are taken verbatim)
+MKTAGE_END = 0x27000                    # (MC 16/11: +0x2000 behind FRND 0x1000 + FRCH 0x1000, page-aligned, 0x3C00; MC 15/11: 0x20500 -> 0x21500, Mercato measured 0x205FB + floor + h3_team + sweep; +0x800 after TKUI;
                                         # 16/11 Mercato: page-aligned end, -0x100 after the tail shift: check_pages wants code in the
-                                        # last page, the 256 B floor wants none in a 0x100 tail - both hold only at a page end)
-GPLX_AT = 0x19E00                       # 4.2 GPLX "gplay overflow" (MC 15/11, obj1-room.md): gplx.c (gplay.c code out of the full
-GPLX_END = 0x1A100                      # gplay pages: the supercups' sc_rule); a RELEASE band, >= 256 B left; temporary address after
+                                        # last page, the 256 B floor wants none in a 0x100 tail - both hold only at a page end;
+                                        # 16/11 MC: +0x200 behind S6 (now 4.2), the end page-aligned at 0x23000: 0x2D00, room for the H3-cache sweep)
+GPLX_AT = 0x1A200                       # 4.2 GPLX "gplay overflow" (MC 15/11, obj1-room.md): gplx.c (gplay.c code out of the full
+GPLX_END = 0x1A500                      # gplay pages: the supercups' sc_rule); a RELEASE band, >= 256 B left; temporary address after
                                         # the MKT reservations and R17 (0x22000..0x22400, Panchina), packed at the rc freeze
-SESTRIP_AT = 0x1A100                    # 4.2 row 32 B1 (MC 15/11): shirtedit's number strip (se_supd / se_sshow / se_soff + buffer +
-SESTRIP_END = 0x1A400                   # verb), out of OBJ1MV (A+B left 32 B there); temporary after Motore's GPLX, packed among
+SESTRIP_AT = 0x1A500                    # 4.2 row 32 B1 (MC 15/11): shirtedit's number strip (se_supd / se_sshow / se_soff + buffer +
+SESTRIP_END = 0x1A800                   # verb), out of OBJ1MV (A+B left 32 B there); temporary after Motore's GPLX, packed among
                                         # the release bands at the rc freeze; >= 256 B left (asserted in shirtedit.patch)
-R17_AT = 0x19B00                        # 4.2 row-17 hint (r17.py, Panchina; MC 15/11): a RELEASE band, 1 KB, floor >= 256 B; this address is
-R17_END = 0x19E00                       # TEMPORARY (right after the MKT size reservations): the rc-freeze packing moves it in among the release bands
-DIFF2_AT = 0x17700                      # 4.2 the difficulty family's overflow band (MC 14/11, after S7GEO 0x19000..0x1A000):
-DIFF2_END = 0x17F00                     # W1's cover role (w1_cov) now, set pieces §4-§5 if SETPIECE runs short; linked
+R17_AT = 0x19F00                        # 4.2 row-17 hint (r17.py, Panchina; MC 15/11): a RELEASE band, 1 KB, floor >= 256 B; this address is
+R17_END = 0x1A200                       # TEMPORARY (right after the MKT size reservations): the rc-freeze packing moves it in among the release bands
+DIFF2_AT = 0x17B00                      # 4.2 the difficulty family's overflow band (MC 14/11, after S7GEO 0x19000..0x1A000):
+DIFF2_END = 0x18300                     # W1's cover role (w1_cov) now, set pieces §4-§5 if SETPIECE runs short; linked
 DIFF2_MIN = 128                         # whenever the OPTIONS rows are; >= DIFF2_MIN B left at link (asserted)
-DIFF2_SPLIT = 0x17B00                   # MC 14/11 split: DIFF2_AT..DIFF2_SPLIT = difficulty's code (link limit DIFF2_SPLIT - 128),
+DIFF2_SPLIT = 0x17F00                   # MC 14/11 split: DIFF2_AT..DIFF2_SPLIT = difficulty's code (link limit DIFF2_SPLIT - 128),
 SPX_AT = DIFF2_SPLIT                    # SPX_AT..SPX_END = setpieces' overflow (its own unit, PC-relative from SPB: ARCADE fouls,
 SPX_END = DIFF2_END                     # the §3 sideways steer, §4 takers); each side >= 128 B left on the release shape
 assert DIFF2_AT < DIFF2_SPLIT == SPX_AT < SPX_END == DIFF2_END, 'swreg: DIFF2 | SPX split (MC 14/11; one block since the 4.2 freeze)'
 S7_ORIG_SZ = 0x2C000                    # 4.2 S7: s7swap.c's ORIG buffers in swe.c's .bss (shaped builds only; MC 13/11):
                                         # the two league files as read (Italy: 102 = 100 records, 144 = 162: 179212 B;
                                         # s7swap.py asserts they fit)
-SREG2_AT = 0x1A400                      # 4.2 N7 piece 4 / 42-s7import (MC 15/11): the old-save import (sreg.py patch_import:
-SREG2_END = 0x1C500                     # sreg2.c + sreg_import.c at -Oz, ~7.5 KB + 256 floor (0x2100 since 16/11: +0x100 at its tail for
+SREG2_AT = 0x1A800                      # 4.2 N7 piece 4 / 42-s7import (MC 15/11): the old-save import (sreg.py patch_import:
+SREG2_END = 0x1C900                     # sreg2.c + sreg_import.c at -Oz, ~7.5 KB + 256 floor (0x2100 since 16/11: +0x100 at its tail for
                                         # s7trap's nearest-group import, 432 B, 52 B left before); was the one page 0xB000..0xC000,
                                         # too small); only in a shaped S7 build. A release map band (obj1-room.md), packed at
                                         # the rc freeze
-TKUI_AT = 0x1C500                       # 4.2 takers UI (MC 15/11, Difficolta): the TIRATORI page, the in-match CHI TIRA, the practice
-TKUI_END = 0x1D900                      # picker; a RELEASE band (0x1400: MC 15/11 +0x800; +0x200 16/11 with PRACTICE, same size, takers A1 playMatchMenu copy 1639 B + A2 TIRATORI
+TKUI_AT = 0x1C900                       # 4.2 takers UI (MC 15/11, Difficolta): the TIRATORI page, the in-match CHI TIRA, the practice
+TKUI_END = 0x1DD00                      # picker; a RELEASE band (0x1400: MC 15/11 +0x800; +0x200 16/11 with PRACTICE, same size, takers A1 playMatchMenu copy 1639 B + A2 TIRATORI
                                         # page ~2 KB) right after SREG2; its linker adds OBJ4_PAGES in ceiling form (-(-swreg.TKUI_END //
                                         # 0x1000) = 0x1E); the 4.3 MKT reservations follow it
 assert UPRIZE2_END <= CONTI4_AT, 'uprize part 2 would cross conti / ST'   # (4.2: bands never cross)
@@ -140,7 +141,9 @@ KITS_AT = 0xF000                        # 4.2 kits (kits.py, Panchina; MC 12/11)
 KITS_END = 0x11100                      # sprite masks on obj4's 16th page (end asserted <= 0x10000), the KEEPKIT table
                                         # (128 x 24 B, zero-filled) on the 17th
 KITS_PAGE16_END = 0x10000               # (code + masks; the 17th: KEEPKIT.DAT's 'KKST' block, table and kk_* code, MC 13/11)
-assert T3_END <= globals().get('DIFF_END', KITS_AT) <= KITS_AT < KITS_PAGE16_END < KITS_END, 'kits: above T3 and the difficulty band'
+KITS_NOX_AT = KITS_END - 0x20            # (4.2, MC 16/11: kitcolors' SEMPRE stubs of a build without the career cave,
+                                        #  written by kits.patch; page 17's KEEPKIT code ends below it)
+assert T3_END <= globals().get('DIFF_END', KITS_AT) <= KITS_AT < KITS_PAGE16_END < KITS_NOX_AT < KITS_END, 'kits: above T3 and the difficulty band'
 DRIB1V1_AT = 0xC000                     # 42-drp (MC 14/11): the PERSONALIZZATO page's code + strings and W1, the 1-v-1
 DRIB1V1_END = 0xC400                    # knob, in MATCH SPEED's parked room (page 13 under NAMEFIT_AT, its link limit);
 assert DRIB1V1_AT == SLOW_AT and DRIB1V1_END == NAMEFIT_AT, 'the 42-drp band = slow\'s room (only with patch.SLOW off)'
@@ -151,6 +154,7 @@ HDR = 32
 REC = 24
 F_BASE, F_NS, F_XTRA = 1, 2, 4
 M_FRIENDLY, M_PRESET, M_SEASON, M_CAREER = 1, 2, 4, 8        # M_FRIENDLY: friendly + the 3 DIY editors (GoGetTeamsForPlay)
+SEASON_WORLDS = True                    # S6a (4.3, MC 15/11): the worlds have SEASON mode (M_SEASON; swe.c swe_sea_pre)
 INFO = {}                               # (the last build's manifest, for the harness / host tests)
 
 
@@ -168,7 +172,8 @@ def worlds():
         stem = mkseason.ns_stem(n)
         if stem != 'team':
             flags |= F_XTRA
-        out.append((n, flags, mkseason.WMENU + n, root['start_year'], M_CAREER | M_FRIENDLY, stem, files, comps))
+        out.append((n, flags, mkseason.WMENU + n, root['start_year'], M_CAREER | M_FRIENDLY | (M_SEASON if SEASON_WORLDS else 0),
+                    stem, files, comps))
     return out
 
 
@@ -225,14 +230,28 @@ def patch(p, add_ptr):
 # 4.3 reservations after the last release band; the test-only bands in the test region after SP_METER / DIFF_TC (0x35000).
 # New release bands (official lines): DRP8D (42-drp8d clamp, 451 B), TAKERS (Difficolta's set-piece takers), GAMEPLAY
 # (reserve: the GAMEPLAY page, gameplay-menu-design.md).
-DRP8D_AT = 0x22000                      # 0x300, a 4.3 reservation after MKTAGE, unlinked (MC 15/11: drp8d not in 4.2;
-DRP8D_END = 0x22300                     # SETPIECE took its 0xBD00..0xC000, 160 B left on REL42i64; after MKTAGE's growth)
-S6_AT = 0x22300                         # 4.3 S6 (MC 15/11, Motore 43-s6a): s6sea.c, world SEASONs' picker, its own unit out of
-S6_END = 0x22500                        # swe.c (-Oz, 256 B floor; 161 B on the IT release recipe); after DRP8D
-TAKERS_AT = 0x17F00                     # 0x500 (~1 KB + floor 256)
-TAKERS_END = 0x18400
-GAMEPLAY_AT = 0x18400                   # 0x680 reserve (MC 15/11: Panchina ~1.1 KB + floor 256; +0x80 15/11, taken from
-GAMEPLAY_END = 0x18A80                  # PRACTICE's start: 480 B free on 42-int 9749ced (used to 0x19220) -> 352 B, floor 256)
+DRP8D_AT = 0x27000                      # 0x300, a 4.3 reservation after MKTAGE, unlinked (MC 15/11: drp8d not in 4.2;
+DRP8D_END = 0x27300                     # SETPIECE took its 0xBD00..0xC000, 160 B left on REL42i64; after MKTAGE's growth)
+S6_AT = 0x1DD00                         # 4.2 S6 (16/11 MC: Davide put S6a into 4.2; right after TKUI, before the 4.3 reservations; was 4.3 S6, MC 15/11, Motore 43-s6a): s6sea.c, world SEASONs' picker, its own unit out of
+S6_END = 0x1DF00                        # swe.c (-Oz, 256 B floor; 161 B on the IT release recipe); unlinked until 42-s6a
+# 4.2 POSITION TRAITS (MC 16/11, Davide "nothing moves out of 4.2": internal/handoff/traits-split.md), three owners, release bands at
+# the 4.2 tail after S6, empty until linked (each linker raises OBJ4_PAGES in ceiling form from its own end: 0x1F once one links):
+TRHD_AT = 0x1DF00                       # Motore: trhead.c - attacking-box headers by HEADING, WHIPPED CROSS, DF header reach (0x800)
+TRHD_END = 0x1E700
+TRRB_AT = 0x1E700                       # Nazionali: trrb.c - RB / LB half out-of-position loss, same side only (0x200)
+TRRB_END = 0x1E900
+TRDR_AT = 0x1E900                       # Difficolta: per-player dribbling on frozen drp6 (0x300); the 4.3 reservations right after it
+TRDR_END = 0x1EC00
+FRND_AT = 0x1EC00                       # Motore (MC 16/11): the preseason friendlies, 0x1000 (Motore's first estimate: frpick.c
+FRND_END = 0x1FC00                      # ~0x880 + the engine part ~0x600; shrink only below 0xC00 measured, MC); after TRDR, empty until linked
+TCACHE_AT = 0x1FC00                     # Shaved (MC 16/11): the team cache bound (tcache.py: the 6 inserts' check, tc_room /
+TCACHE_END = 0x1FF00                    # tc_reserve / tc_clamp / tc_full, TC_HWM), every build; a 4.2 release band; >= 256 B left
+FRCH_AT = 0x1FF00                       # 4.2 the friendlies' player-choice page (MC 16/11 ruling, session Friends Choice): 0x1000
+FRCH_END = 0x20F00                      # reserved, >= 256 B left at link; the 4.3 reservations right after it
+TAKERS_AT = 0x18300                     # 0x500 (~1 KB + floor 256)
+TAKERS_END = 0x18800
+GAMEPLAY_AT = 0x18800                   # 0x680 reserve (MC 15/11: Panchina ~1.1 KB + floor 256; +0x80 15/11, taken from
+GAMEPLAY_END = 0x18E80                  # PRACTICE's start: 480 B free on 42-int 9749ced (used to 0x19220) -> 352 B, floor 256)
 assert (GAMEPLAY_END - GAMEPLAY_AT, PRACTICE_END - PRACTICE_AT) == (0x680, 0xC80) and GAMEPLAY_END == PRACTICE_AT, \
     'swreg: GAMEPLAY 0x680 | PRACTICE 0xC80, adjacent (MC 15/11: GAMEPLAY +0x80 out of PRACTICE; 16/11 PRACTICE +0x200, then +0x100 headroom)'
 assert (S3C_END - S3C_AT, R17_END - R17_AT, GPLX_END - GPLX_AT, SESTRIP_END - SESTRIP_AT, SREG2_END - SREG2_AT) == \
@@ -240,12 +259,20 @@ assert (S3C_END - S3C_AT, R17_END - R17_AT, GPLX_END - GPLX_AT, SESTRIP_END - SE
     'swreg: S3C..SREG2 keep their sizes, moved +0x200 as one block (MC 16/11), between PRACTICE and TKUI'
 assert 0xB000 <= SWEFILE_AT < SWEFILE_END <= SETPIECE_AT < SETPIECE_END <= SLOW_AT, \
     'swreg (4.2 freeze): the 0xB000 page: SWEFILE < SETPIECE, below SLOW'
-assert (TKUI_END - TKUI_AT, -(-TKUI_END // 0x1000)) == (0x1400, 0x1E) and TKUI_END < 0x1E000 and TKUI_END == MKTHOOK_AT, \
-    'swreg: TKUI 0x1400 (MC 15/11 +0x800), its ceiling page 0x1E (16/11: the 4.2 chain from S3C +0x200 into page 0x1D\'s tail, MC), the 4.3 reservations right after it'
+assert (TKUI_END - TKUI_AT, -(-TKUI_END // 0x1000)) == (0x1400, 0x1E) and TKUI_END < 0x1E000 and TKUI_END == S6_AT, \
+    'swreg: TKUI 0x1400 (MC 15/11 +0x800), its ceiling page 0x1E (16/11: the 4.2 chain from S3C +0x200 into page 0x1D\'s tail, MC), then S6'
+assert (S6_END - S6_AT, -(-S6_END // 0x1000)) == (0x200, 0x1E) and S6_END < 0x1E000 and S6_END == TRHD_AT and MKTAGE_END % 0x1000 == 0, \
+    'swreg: S6 0x200 right after TKUI, below 0x1E000 (MC 16/11), then the traits bands; MKTAGE ends page-aligned'
+assert (TRHD_END - TRHD_AT, TRRB_END - TRRB_AT, TRDR_END - TRDR_AT, -(-TRDR_END // 0x1000)) == (0x800, 0x200, 0x300, 0x1F) and \
+    TRHD_END == TRRB_AT and TRRB_END == TRDR_AT and TRDR_END == FRND_AT and FRND_END - FRND_AT == 0x1000 and -(-FRND_END // 0x1000) == 0x20 and FRND_END == TCACHE_AT and \
+    (TCACHE_END - TCACHE_AT, -(-TCACHE_END // 0x1000)) == (0x300, 0x20) and TCACHE_END == FRCH_AT and \
+    (FRCH_END - FRCH_AT, -(-FRCH_END // 0x1000)) == (0x1000, 0x21) and FRCH_END == MKTHOOK_AT, \
+    'swreg: TRHD 0x800 | TRRB 0x200 | TRDR 0x300 | FRND 0x1000 | TCACHE 0x300 | FRCH 0x1000, the 4.2 release tail after S6 (ceiling page 0x1F once the traits link, 0x20 with FRND / TCACHE, 0x21 with FRCH; MC 16/11), the 4.3 reservations after it'
 assert DIFF_END <= KITS_AT < KITS_END <= S7SWAP_AT < S7SWAP_END <= OBJ1MV_AT < OBJ1MV_END <= S7GEO_AT < S7GEO_END <= DIFF2_AT < \
     DIFF2_END <= TAKERS_AT < TAKERS_END <= GAMEPLAY_AT < GAMEPLAY_END <= PRACTICE_AT < PRACTICE_END <= S3C_AT < S3C_END <= \
-    R17_AT < R17_END <= GPLX_AT < GPLX_END <= SESTRIP_AT < SESTRIP_END <= SREG2_AT < SREG2_END <= TKUI_AT < TKUI_END <= MKTHOOK_AT < MKTHOOK_END <= \
-    MKTLOAD_AT < MKTLOAD_END <= MKTAGE_AT < MKTAGE_END <= DRP8D_AT < DRP8D_END <= S6_AT < S6_END < 0x30000, \
+    R17_AT < R17_END <= GPLX_AT < GPLX_END <= SESTRIP_AT < SESTRIP_END <= SREG2_AT < SREG2_END <= TKUI_AT < TKUI_END <= S6_AT < S6_END <= TRHD_AT < TRHD_END <= TRRB_AT < TRRB_END <= TRDR_AT < TRDR_END <= FRND_AT < FRND_END <= \
+    TCACHE_AT < TCACHE_END <= FRCH_AT < FRCH_END <= MKTHOOK_AT < MKTHOOK_END <= \
+    MKTLOAD_AT < MKTLOAD_END <= MKTAGE_AT < MKTAGE_END <= DRP8D_AT < DRP8D_END < 0x30000, \
     'swreg (4.2 freeze): the release bands in map order, then the 4.3 reservations (obj4pack, MC 15/11)'
 assert 0x35000 <= FPORT_AT < FPORT_END <= CDKN_AT < CDKN_END <= FPORT2_AT < FPORT2_END, \
     'swreg (4.2 freeze): the test-only bands after SP_METER (0x30000..0x34000) and DIFF_TC (0x34000..0x35000)'

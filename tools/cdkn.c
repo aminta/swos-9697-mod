@@ -109,7 +109,7 @@ int cdkn_make(const u8 *ord, const u8 *grp, const u16 *key, int n)
         int e = key[i] >> 8;
 #ifdef CDKN_TMGR                        /* (test builds: the career club forced - 1 an arrival: the preliminary; 2 unknown:
                                            the last in the order, a bye to round 1) */
-        if ((u16)(lf | c << 8) == GP_MGR) e = CDKN_TMGR == 1 ? 1 : 0x40;
+        if (GP_MGR && (u16)(lf | c << 8) == GP_MGR) e = CDKN_TMGR == 1 ? 1 : 0x40;   /* (S6a: GP_MGR 0, no manager) */
 #endif
         if (grp[i] >= CDKN_NCTR) return fall(seas, WHY_GEO);
         W->el[c] = 1;

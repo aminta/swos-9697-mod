@@ -487,7 +487,7 @@ def locate(p):
 
 
 WORLD_ASM = r"""
-    cmp word [GAMETYPE], 4              ; a career: its world (the save's byte; stale outside a career)
+    call W_GT                           ; a career: its world (the save's byte; stale outside a career)
     jne .w0
     movzx eax, byte [SLT + WORLD_BYTE_]
     test eax, eax

@@ -4,6 +4,13 @@ These are the mod's settled design rules (Davide's decisions, 2026-10). Every se
 **reuses the shared code named here instead of writing a new variant**, and adds a line here when Davide settles a
 new rule. If a rule seems wrong for a case, ask the regia session; don't silently deviate.
 
+**Rule 0 - general, scalable solutions only (Davide, 2026-11-16, standing rule for ALL SWOS work).** Always choose the
+general, scalable solution that lets the mod extend later at low cost, never a local stopgap that must be reworked
+(e.g. a limit such as the team cache is fixed once at the root, as one mechanism for every world/career with a bound
+check and old-save compatibility, and every feature reuses it). Every design gets a Fable check for scalability
+before coding; the brief and the review say which general mechanism the change uses or adds. In every task check
+with Fable and, where it helps, hand the work to Fable.
+
 ## Screens and text
 1. **Font characters only, everything fits.** Titles and names use only the game font's glyphs and fit their bar:
    35-byte title field; calendar labels ≤ 70 px before the (C)/(F) marker, **both lines** of a two-line cup entry.
@@ -177,6 +184,8 @@ new rule. If a rule seems wrong for a case, ask the regia session; don't silentl
       namefit.py's code + 16 x 24 B row buffers (menu names cut by pixels); 3 obj1 call sites + the scorers' obj2 one = type-8 fixups into obj4;
       slow's link limit is NAMEFIT_AT.
     - 4.2.y T3: obj4 page 14, T3_AT 0xD000 (swreg.T3_AT..T3_END 0xE000; t3.py / t3.c, Mercato CPU; MC 12/11).
+    - 4.2 (MC 16/11): the friendlies chooser page, band FRCH (swreg.FRCH_AT 0x1FF00 .. FRCH_END 0x20F00, frchoose.py):
+      the engine's FRND calls its fixed slot FRCH_AT + 8; its texts are in the band (one language per exe).
     - No obj4 address is ever stored in a save (engine state = 'EN' items, rule 21), so obj4 may grow and move freely.
     - Calls between the game / obj3 and obj4: self-relative fixups (type 8) as rule 23; cobj.link(text_obj=4).
     - The harness finds obj4 by its header (Result.base4: the magic + the self pointer), not by a game pointer.
@@ -195,3 +204,7 @@ new rule. If a rule seems wrong for a case, ask the regia session; don't silentl
     `__asm__` in a Mod C file that the engine's host tests compile (rules-check includes gplay.c; the host suite's cc
     is arm64) goes under `#if defined(__i386__)` with a host stub that keeps the C path working (a DOS call: -1 = no
     file / not found, as 9f33156 / sm_dos). The release objects stay byte-identical (check the exes' md5s).
+    - frchoose.py (4.2, the friendlies chooser): chooseTeamsFriendlyMenu's header (obj2), initFunc AND onReturn (both the
+      game's ChooseTeamsFriendlyInitFinish, a plain retn at its end: no call to retarget) -> fc_lhook (obj4 FRCH) = the
+      previous target (p.target), then the list's colours while the chooser browses (nothing otherwise). A later hook
+      of the club list chains the same way.

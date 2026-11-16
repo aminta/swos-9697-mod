@@ -435,7 +435,9 @@ static int glob_club(int d, u16 g) {     /* a global number -> its row of divisi
     return -1;
 }
 
+#define IS_MGR(w) (GP_MGR && (u16)(w) == (u16)GP_MGR)   /* (S6a: GP_MGR 0 = no manager's club, gplay.py gp_mgr) */
 static int mgr_div(void) {              /* the career club's division in GP_IN (this country's), or -1 */
+    if (!GP_IN.mgr) return -1;
     for (int d = 0; d < GP_IN.nd && d < GD; d++)
         for (int k = 0; k < GP_IN.n[d]; k++) if (GP_IN.t[d][k].team == GP_IN.mgr) return d;
     return -1;
@@ -711,7 +713,9 @@ const u32 F1_SIZE = sizeof(struct f1_state);
 static u16 f1w(const u8 *b) { return b[0] | b[1] << 8; }
 void f1_capture(const u8 *diy, u32 season, u32 mgr) {
     int n = f1w(diy + 0x31), me = 0;
-    if (n < 2 || n > F1N) return;
+    if (!mgr || n < 2 || n > F1N) return;       /* (S6a: mgr 0 = an all-CPU world SEASON - no manager's league, no
+                                           FASE 1 table kept; split's sp_shsel keys no 'SH' either: every league the
+                                           scratch block, as the season end's simulations) */
     for (int i = 0; i < n; i++) if (f1w(diy + 0x12D + 2 * i) == (u16)mgr) me = 1;
     if (!me) return;                            /* (the career's league only: its state is the saved one) */
     int played = 0;                             /* (groups known from day 0 - split's sp_pregroup, the MLS: no */
@@ -1579,6 +1583,9 @@ const u8 *GP_TH;                        /* the country's 'then_build': per play-
 u8 *GP_DIYP;
 u32 GP_K, GP_W, GP_SKIP, GP_RB, GP_ALIVE, GP_LAST;
 u16 GP_MGR;                             /* (the career club: CAREERTEAM, set by the glue before the call) */
+u16 GP_HUM[64];                         /* S6a (c): the human-controlled clubs (gplay.py gp_hum: a career's club; a world
+                                           SEASON's teamControls != 1 clubs, league order), GP_NHUM of them */
+u32 GP_NHUM;
 u16 GP_A, GP_B;
 u8 GP_CID, GP_SEAS, GP_DIV, GP_PT[64], GP_PL[64];
 static const struct gp_dec *stage_dec(int w) {   /* w = stage | division << 2: GP_ST.dec[stage] holds the career
@@ -1750,7 +1757,7 @@ void t2_pre(const u8 *con, u8 *diy, u32 sel) {
             u16 *l = (u16 *)(diy + 0x6D) + gi * m;
             for (int j = 0; j + 1 < m && j < 24; j++) {
                 const u8 *rec = (const u8 *)(*(const u32 *)(diy + l[j] + 0x2B3) + sel);
-                if ((rec[0] | rec[1] << 8) == GP_MGR) {
+                if (IS_MGR(rec[0] | rec[1] << 8)) {
                     u16 x = l[j];
                     for (int k = j; k + 1 < m; k++) l[k] = l[k + 1];
                     l[m - 1] = x;
@@ -2531,6 +2538,33 @@ void gf_hide_c(u8 *cal, u32 cur) {     /* gp_install, after a slot-4 install: th
         e += len;
     }
 }
+u32 gp_hrest_c(u8 *cal, u32 cur, u32 ki) {  /* S6a (A), gp_install after a slot-4 install in a world SEASON: the
+                                           human clubs (GP_HUM) with a match left in ko ki; none -> the
+                                           slot-4 days from the current entry on lose the 'human, no match' flag
+                                           (byte 6 FFh, cseg_8BC06 - cseg_8EC2B counts it, PARTITA's loop hunted
+                                           for a day that never comes) */
+    const struct gp_ko *k = &GP_ST.ko[ki < 2 ? ki : 0];
+    if (k->magic != MAGIC || KT2(k)) return 1;
+    u32 c = 0, last = k->nrs ? k->gt0[k->nrs - 1] : 0;
+    for (u32 h = 0; h < GP_NHUM && h < 64; h++) {  /* (a match left: in the bracket, no tie lost, no tie of the last
+                                           spec round won - a bye into a later round counts: the 3-club Final Four's
+                                           top seed waits for the final, MC 16/11) */
+        int me = kidx(k, GP_HUM[h]), left = me != NOC;
+        for (int t = 0; t < k->ntie && left; t++)
+            if (k->tw[t] != NOC && k->tw[t] != k->tl[t] && (k->tl[t] == me || (k->tw[t] == me && (u32)t >= last))) left = 0;
+        c += left;
+    }
+    if (c) return c;
+    u16 cnt = *(const u16 *)(cal - 4);
+    u8 *e = cal;
+    for (u32 i = 0; i < cnt; i++) {
+        u32 len = *(const u16 *)(e + 2);
+        if (!len) break;
+        if ((u32)(e - cal) >= cur && e[0] == 4 && e[6] == 0xFF) e[6] = 0;
+        e += len;
+    }
+    return 0;
+}
 #ifndef GP_GFREST
 #define GP_GFREST 0                     /* (test builds, GPLAY_GFREST=1: the placeholder shown at once - gf_unhide_c's
                                            path, as when the career club rests in the group's last round) */
@@ -2627,7 +2661,7 @@ u32 gf_step_c(void) {                   /* the calendar advance (slot 3 free): 2
         f[0] = GP_MGR;
     }
     struct gp_ko *fk = &GP_ST.ko[1];
-    if (f[0] != GP_MGR && f[1] != GP_MGR) {     /* (the career club not in it: 4.1.1, the placeholder's day is the
+    if (!IS_MGR(f[0]) && !IS_MGR(f[1])) {       /* (the career club not in it: 4.1.1, the placeholder's day is the
                                            real final, the two finalists, the game's simulated match deciding it -
                                            gp_rec_c -> gf_done, as the career club's own final; before: decided here,
                                            the host winning 3 in 5, and the placeholder's career club v the group's
@@ -2896,7 +2930,7 @@ u32 cd_step_c(void) {
                 for (int sd = 0; sd < 2; sd++) {
                     u16 w = cd_side(f + q, sd);
                     GP_CDS1[2 * q + sd] = w && w != 0xFFFF ? w : 0xFFFF;
-                    me |= w == GP_MGR;
+                    me |= IS_MGR(w);
                 }
             if (me) { CD_ST.round = GP_CDT[1]; return 2; }
         }
@@ -2922,12 +2956,12 @@ u32 cd_step_c(void) {
                 h = ha && !hb ? 1 : !ha && hb ? 0 : below(2);
             }
             CD_ST.home[t] = h;
-            if ((a == GP_MGR || b == GP_MGR) && a && b && a != 0xFFFF && b != 0xFFFF) {   /* the career club's */
+            if ((IS_MGR(a) || IS_MGR(b)) && a && b && a != 0xFFFF && b != 0xFFFF) {   /* the career club's */
                 cd_ko(&GP_ST.ko[0], h ? b : a, h ? a : b, w1, w2, legs);
                 CD_ST.built = 1; CD_ST.bt = t; CD_ST.pad = 1;   /* (pad: the harness's trace) */
                 return 1;
             }
-            if (a == GP_MGR || b == GP_MGR) CD_ST.pad = 0x80 | (a == 0xFFFF || b == 0xFFFF ? 2 : 4);
+            if (IS_MGR(a) || IS_MGR(b)) CD_ST.pad = 0x80 | (a == 0xFFFF || b == 0xFFFF ? 2 : 4);
             int w = GP_CDFIRST ? CDTIE(t)[4] : 0;               /* (the real result, the world's first season) */
             if (!w) w = !a ? 2 : !b ? 1 : cd_sim(a, b, legs, h);   /* (else by strength) */
             CD_ST.res[t] = w;
@@ -3063,12 +3097,25 @@ u32 gp_bdiv_c(void) {
 }
 
 static int kidx(const struct gp_ko *k, u16 team) {
+    if (!team) return NOC;              /* (S6a: GP_MGR 0 = an all-CPU world SEASON - no manager's club; world team
+                                           words are never 0: files 101+) */
     for (int i = 0; i < k->n; i++) if (k->team[i] == team) return i;
     return NOC;
 }
 
 /* lib97 nc_adv (gp_perm): GP_PT = the winners of the round just played in tie order -> GP_PL = the next round's
    list, GP_RB its round byte, GP_SKIP game rounds skipped (a game 3 nobody needs); returns its clubs (0: none) */
+static u32 hum_alive(const struct gp_ko *k) {   /* S6a (c): the human clubs (GP_HUM: a career's one club, a world
+                                           SEASON's teamControls != 1 clubs) in k's bracket, none of its ties lost */
+    u32 c = 0;
+    for (u32 h = 0; h < GP_NHUM && h < 64; h++) {
+        int me = kidx(k, GP_HUM[h]), in = me != NOC;
+        for (int t = 0; t < k->ntie && in; t++)
+            if (k->tw[t] != NOC && k->tl[t] == me && k->tw[t] != me) in = 0;
+        c += in;
+    }
+    return c;
+}
 u32 gp_perm_c(void) {
     struct gp_ko *k = &GP_ST.ko[GP_K];
     GP_ALIVE = 0xFFFFFFFF;
@@ -3082,13 +3129,10 @@ u32 gp_perm_c(void) {
                 k->pw[p] = (GP_KOFORCE == 2) == (k->pa[p] == m) ? k->pa[p] : k->pb[p];
     }
     resolve(k);
-    int me = kidx(k, GP_MGR);           /* the contest's human-clubs count (+4Bh): the game takes 1 off for every
+    GP_ALIVE = hum_alive(k);            /* the contest's human-clubs count (+4Bh): the game takes 1 off for every
                                            match a human club loses (cseg_2ABF0), a series' lost game 1 too -> a
                                            later elimination left it FFFFh, the next round's entry 'still in' (FFh)
-                                           and PARTITA without a match hung (MLS): ours, the club still in the bracket */
-    GP_ALIVE = me != NOC;
-    for (int t = 0; t < k->ntie && GP_ALIVE; t++)
-        if (k->tw[t] != NOC && k->tl[t] == me && k->tw[t] != me) GP_ALIVE = 0;
+                                           and PARTITA without a match hung (MLS): ours */
     GP_SKIP = 0;
     for (;;) {
         if (++g >= k->ngr) return 0;
@@ -3924,14 +3968,14 @@ u32 gp_sack_c(void) {
         && k->ldiv == RESERVE) {        /* (a play-out into the reserve, played: its last round's losers) */
         int r = k->nrs - 1;
         for (int t = k->gt0[r]; t < k->gt0[r + 1]; t++)
-            if (k->tl[t] != NOC && k->team[k->tl[t]] == GP_MGR) return 1;
+            if (k->tl[t] != NOC && IS_MGR(k->team[k->tl[t]])) return 1;
     }
     if ((!GP_RST && !GP_RIT) || !GP_CFB || !GP_LG) return 0;
     const u8 *d = GP_CFB;
     int n = *(const u16 *)(d + 0x31), m = -1, off = 0;
     for (int j = 0; j < n && j < GT; j++) {
         int o = *(const u16 *)(d + 0x6D + 2 * j);
-        if (*(const u16 *)(d + 0x12D + 2 * (o / 0x12)) == GP_MGR) { m = j; off = o; }
+        if (IS_MGR(*(const u16 *)(d + 0x12D + 2 * (o / 0x12)))) { m = j; off = o; }
     }
     if (m < 0) return 0;
     if (GP_FORCE) m = GP_FORCE - 1;
@@ -4752,7 +4796,7 @@ static int usc_step(void) {             /* 4.0.6 the UEFA Super Cup at the advan
         if (c[1] && c[1] == c[0]) c[1] = sc_rule(e, e[9] >> 4);   /* (one club holds both: the Conference League's) */
     }
     if (!c[0] || !c[1] || c[0] == c[1]) { SC_TRACE = 0x92; return 0; }
-    if (c[0] != GP_MGR && c[1] != GP_MGR) { SC_TRACE = 0x94; return 0; }
+    if (!IS_MGR(c[0]) && !IS_MGR(c[1])) { SC_TRACE = 0x94; return 0; }
     sc_ko(&GP_ST.ko[0], e, c[0], c[1], 1);
     SC_U[1] = 1; SC_TRACE = 0x11;
     return 1;
@@ -4800,7 +4844,7 @@ u32 sc_step_c(void) {                   /* the calendar advance: 1 = the career 
     }
     for (int i = 0; i < n; i++) if (!c[i]) { SC_TRACE = 0x82; return 0; }
     int me = -1;
-    for (int i = 0; i < n; i++) if (c[i] == GP_MGR) me = i;
+    for (int i = 0; i < n; i++) if (IS_MGR(c[i])) me = i;
     if (me < 0) { SC_TRACE = 0x84; return 0; }
     if (n == 4) {                       /* (the other semi-final, decided now) */
         int o = me < 2 ? 2 : 0;
@@ -4818,7 +4862,7 @@ u32 sc_step_c(void) {                   /* the calendar advance: 1 = the career 
 static const u8 *sc_entry(void);
 void sc_done(const struct gp_ko *k) {  /* gp_rec_c: the career club's supercup tie decided */
     SC_TRACE |= 0x40;
-    int won = k->tw[0] != NOC && k->team[k->tw[0]] == GP_MGR;
+    int won = k->tw[0] != NOC && IS_MGR(k->team[k->tw[0]]);
     if (usc_live()) {                   /* (4.0.6 the UEFA Super Cup) */
         SC_U[1] = 3; SC_U[2] = (u8)won;
         if (k->tw[0] != NOC) { u16 w = k->team[k->tw[0]]; SC_U[4] = (u8)w; SC_U[5] = (u8)(w >> 8); }

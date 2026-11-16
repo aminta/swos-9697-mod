@@ -99,6 +99,9 @@ new rule. If a rule seems wrong for a case, ask the regia session; don't silentl
     loads silently skipped w_load_tail. Rule: every text rewrite of asm source asserts its pattern count (trailer._sub;
     the shared nasmcave.sub for the other patchers in the upcoming 4.0.1). Any load / save-path change still runs
     career_20seasons (C20_SEASONS>=2) + old-save loads before its sha.
+    The old-save trio = world_winners_oldsave + world_cuplist_mestre + world_s1conti_oldsave, run on a release-recipe build
+    dir, always with career_20seasons C20_SEASONS=2; a change that adds or reads a save item also runs that item's own
+    old-save case (MC 16/11).
 20. obj2's page count is frozen (213 pages in the release build since 4.0): an added obj2 page moves obj2's zero-filled
     tail (careerworld.BSS: the big team cache, the W1 lists, teamsTable...) and 4.0 / 4.0.1 saves played on trap in
     the next season (FindTeamInCache's fatal int 3 at obj1+0x17064: 4.0.2 b2..rc1, CONTROLS' two obj2 pages). obj1 may

@@ -16269,7 +16269,7 @@ def _world_season(tag, setw, path, want):
     SALVA STAGIONE as S6W; run 2: CARICA VECCHIA COMPETIZIONE > S6W, the same byte and competitions."""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import careerworld
-    b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
+    b = ui_dir(os.environ.get('SWOSTEST_BUILD') or builds()['it'])
     slt = cf_slt(b) + careerworld.WORLD_BYTE
     wb = lambda s: tuple(s.result.obj2(slt, 2))       # noqa: E731
     errs, info = [], []
@@ -16333,7 +16333,7 @@ def _world_season_end(tag, setw, path, want, league, cup):
     the start and at FINISCI STAGIONE."""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import careerworld
-    b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
+    b = ui_dir(os.environ.get('SWOSTEST_BUILD') or builds()['it'])
     slt = cf_slt(b) + careerworld.WORLD_BYTE
     wb = lambda s: tuple(s.result.obj2(slt, 2))       # noqa: E731
     errs, titles = [], collections.Counter()
@@ -16404,7 +16404,7 @@ def world_season_vs_career():
     clubs, rounds, round-1 matches - the round the cup starts and the byes) are the same. Italian exe."""
     if os.environ.get('SWOSTEST_UI', 'it') != 'it':
         return True, 'SKIP: Italian exe only (the career path)'
-    b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
+    b = ui_dir(os.environ.get('SWOSTEST_BUILD') or builds()['it'])
     path = ['EUROPA', 'POLONIA', 'RADOMIAK RADOM']
     errs, got = [], {}
 
@@ -16450,7 +16450,7 @@ def world_season_bye():
     pack's bracket (world5 mlt, cup AE): 12 clubs, the last 4 byes - round 1 = the first 8 only; the 4 wait. Without
     the world byte in the SEASON (WORLDB 0) BYE_TAB's world-5 entry would not match and the game would draw the byes."""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
-    b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
+    b = ui_dir(os.environ.get('SWOSTEST_BUILD') or builds()['it'])
     r1 = {'MARSAXLOKK', 'GZIRA UNITED', 'BIRZEBBUGA', 'HIBERNIANS', 'ZABBAR SP', 'BALZAN', 'MOSTA', 'BIRKIRKARA'}
     byes = {'SLIEMA WANDERERS', 'FLORIANA', 'HAMRUN SPARTANS', 'VALLETTA'}
     with Session('world_season_bye', b, {'SETUP.DAT': setup_file('world_season_bye', 0)}, 'dump:2', 1500) as s:
@@ -16679,8 +16679,8 @@ def world_season_41sea():
     """S6a (A) gate 4 (MC 16/11): a .SEA of 4.1.1 (no world SEASON then: a 1996-97 SEASON) loads on this build and
     finishes. EUROPA > MALTA with HAMRUN SPARTANS human on SEA41_BUILD (default c/REL411/SWOS, the 4.1.1 release), saved
     at step SEA41_AT (default 60), CARICA on this build (SWOSTEST_BUILD), fired to FINISCI STAGIONE; CAREERTEAM stays 0"""
-    old = os.environ.get('SEA41_BUILD') or os.path.join(MAIN, 'c', 'REL411', 'SWOS')
-    b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
+    old = ui_dir(os.environ.get('SEA41_BUILD') or os.path.join(MAIN, 'c', 'REL411', 'SWOS'))
+    b = ui_dir(os.environ.get('SWOSTEST_BUILD') or builds()['it'])
     if not os.path.isdir(old):
         return True, f'SKIP: no 4.1.1 build {old}'
     at = int(os.environ.get('SEA41_AT', 60))

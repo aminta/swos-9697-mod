@@ -936,7 +936,7 @@ def patch(p, at, limit, tables, bss_at, area):
     symbols.update({'DP_C0': (1, c0), 'DP_C1': (1, c1), 'DP_C2': (1, c2)})
     code, fix = nasmcave.assemble(asm, glue, symbols)
     lab = nasmcave.labels(asm, glue, symbols)
-    assert c0 >= glue + len(code) and c2 + len(cps[2]) <= limit, hex(c2 + len(cps[2]))
+    assert c0 >= glue + len(code) and c2 + len(cps[2]) <= limit, (hex(c2 + len(cps[2])), hex(limit))
     p.put(1, glue, code)
     for off, tobj, toff in fix:
         cobj.add_ptr(p, glue + off, tobj, toff)

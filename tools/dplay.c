@@ -278,9 +278,14 @@ static int cup_place(int ng) {
    Serie C group set upwards (3 group winners + the play-off's). The list was built at the career club's group end
    (c_lend), when the other groups' tables were simulated early; the final tables can differ, so a club of the list can
    end 1st of its group (promoted by the title) or down in the relegation zone. Eligible = not 1st, not in the last 5 of
-   its group. Order: the final's loser, then the two semi-final losers (better placed first, `better`), then (an old save
-   without the contest's record) the best eligible of the others in the state's list; none: 3 clubs go up, DP_SUBF = 1. */
-u32 DP_SUBN[4];                         /* (test / log) substitutions: final's loser, semi-final loser, state list, none */
+   its group. Order: the final's loser, then the two semi-final losers (better placed first, `better`), then none: 3 clubs go up, DP_SUBF = 1. */
+#ifdef DP_STATS
+u32 DP_SUBN[4];
+#define DP_STAT(i) DP_SUBN[i]++
+#else
+#define DP_STAT(i)
+#endif
+                         /* (test / log) substitutions: final's loser, semi-final loser, state list, none */
 u8 DP_SUBF;                             /* the last season end: 1 = no substitute (3 up) */
 static int c_elig(int c) { return c >= 0 && PL(c) != 0 && PL(c) < DP_IN.n[DIV(c)] - 5; }
 static int club_of(u16 team) {
@@ -294,23 +299,13 @@ static void frec_set(struct dp_save *v, int a, int b, int c, int d) {
     u32 x = a | b << 5 | c << 10 | d << 15;
     v->rb[6] = x & 255; v->rb[7] = x >> 8 & 255; v->cup = 0x80 | (x >> 16 & 15);
 }
-static int promote_sub(int w, int fl, int s1, int s2, int state_fallback) {
-    int c[2], n = 0;
+static int promote_sub(int w, int fl, int s1, int s2) {
     DP_SUBF = 0;
     if (c_elig(w)) return w;
-    if (c_elig(fl) && fl != w) { DP_SUBN[0]++; return fl; }
-    if (c_elig(s1) && s1 != w) c[n++] = s1;
-    if (c_elig(s2) && s2 != w) c[n++] = s2;
-    if (n) { DP_SUBN[1]++; return best_of(c, n); }
-    if (state_fallback) {
-        int b = -1;
-        for (int i = 0; i < DP_ST.n; i++) {
-            int x = club_of(DP_ST.team[i]);
-            if (x != w && c_elig(x) && (b < 0 || better(x, b))) b = x;
-        }
-        if (b >= 0) { DP_SUBN[2]++; return b; }
-    }
-    DP_SUBN[3]++; DP_SUBF = 1;
+    if (c_elig(fl)) { DP_STAT(0); return fl; }
+    if (!c_elig(s1) || (c_elig(s2) && better(s2, s1))) s1 = s2;
+    if (c_elig(s1)) { DP_STAT(1); return s1; }
+    DP_STAT(3); DP_SUBF = 1;
     return -1;
 }
 
@@ -358,23 +353,23 @@ static void serie_c(void) {
         shuffle(w2, 4);
         int f1 = tie(K_FFS, w2[1], w2[0], 2, -1), f2 = tie(K_FFS, w2[3], w2[2], 2, -1);
         int w = tie(K_FFF, f2, f1, 2, -1);
-        int fl = w == f1 ? f2 : f1, sa = f1 == w2[1] ? w2[0] : w2[1], sb = f2 == w2[3] ? w2[2] : w2[3], fb = 0;
+        int fl = w == f1 ? f2 : f1, sa = f1 == w2[1] ? w2[0] : w2[1], sb = f2 == w2[3] ? w2[2] : w2[3];
         for (int g = 1; g <= ng && DP_IN.cpo_win; g++)          /* (played in slot 4: its real winner) */
             for (int k = 0; k < DP_IN.n[g]; k++)
                 if (DP_IN.t[g][k].team == DP_IN.cpo_win) w = g * NT + k;
         if (DP_IN.cpo_win && club_of(DP_IN.cpo_win) == w) {     /* (the real contest's final loser / semi-final losers) */
             const struct dp_save *v = &DP_ST;
-            fl = sa = sb = -1; fb = 1;
+            fl = sa = sb = -1;
             if (v->kind == 3 && FREC_OK(v)) {
                 u32 x = FREC(v);
                 int w0 = x & 31, l0 = x >> 5 & 31, w1 = x >> 10 & 31, l1 = x >> 15 & 31;
                 if (w0 < SN && l0 < SN && w1 < SN && l1 < SN) {
                     int a = club_of(v->team[w0]), b = club_of(v->team[w1]);
-                    fl = a == w ? b : a; sa = club_of(v->team[l0]); sb = club_of(v->team[l1]); fb = 0;
+                    fl = a == w ? b : a; sa = club_of(v->team[l0]); sb = club_of(v->team[l1]);
                 }
             }
         }
-        w = promote_sub(w, fl, sa, sb, fb);
+        w = promote_sub(w, fl, sa, sb);
         if (w >= 0) move(w, -1);
     }
 }

@@ -46,12 +46,26 @@ import nasmcave
 LABELS = {}
 WORK_SZ = 112                           # (swe.c PR_WORK: WK below, then the text buffers BUF - .bss, not band bytes)
 WK = dict(GO=0, KIND=1, DEF=2, ST=3, TMR=4, CY=6, ATK=7, NT=8, NG=10, NFAIL=12, PG=14, NFR=16, HUM=20, LGS=21,
-          RST=22, MAXR=24, STS=26, STN=27, BRS=28, END=29)
+          RST=22, MAXR=24, STS=26, STN=27, BRS=28, SWP=29, END=30, NSEL=30, HALF=31)
+# (item 2, Davide 15/11: NSEL / HALF after END - kept across practices and RIPROVA, the session's settings; .bss 0 =
+#  the defaults: NSEL 0 = 10 attempts, HALF 0 = CASUALE, the match's own random end - Davide 16/11)
 BUF = dict(MTXT=(32, 24), RT=(56, 24), R1=(80, 16), R2=(96, 16))   # (written before each page is shown)
 WAITF, ATTF, SETTLE, CLEAR = 20, 560, 25, 240   # frames of play before forcing; an attempt's 8 s (70 Hz); frames after a
                                                 # stoppage that still count a goal; px from the goal line = cleared (~40 m)
 FKD, FKX, FKORD, PEN_D = (100, 125, 150, 175), (336, 290, 382), 10, 40
 PR_N = 10                               # (Davide 14/11, A + B: a practice ends by itself after 10 attempts; ESC any time)
+NTAB = (10, 20, 50, 0, 5)               # (item 2, Davide 15/11: the attempts selector - index 0 the default, 0 = INFINITO:
+                                        #  only ESC, the game's own way out of a drill, ends it; cycled 10 20 50 INF 5)
+SEL = {       # (item 2: the selectors' texts - attempts NTAB order, then the half: top / bottom / alternating)
+    'it': (('TIRI: 10', 'TIRI: 20', 'TIRI: 50', 'TIRI: INFINITI', 'TIRI: 5'),
+           ("META' CAMPO: CASUALE", "META' CAMPO: ALTA", "META' CAMPO: BASSA", "META' CAMPO: ALTERNATA")),
+    'en': (('SHOTS: 10', 'SHOTS: 20', 'SHOTS: 50', 'SHOTS: UNLIMITED', 'SHOTS: 5'),
+           ('HALF: RANDOM', 'HALF: TOP', 'HALF: BOTTOM', 'HALF: ALTERNATING')),
+    'fr': (('TIRS: 10', 'TIRS: 20', 'TIRS: 50', 'TIRS: ILLIMITES', 'TIRS: 5'),
+           ('MOITIE: AU HASARD', 'MOITIE: HAUTE', 'MOITIE: BASSE', 'MOITIE: ALTERNEE')),
+    'de': (('SCHUESSE: 10', 'SCHUESSE: 20', 'SCHUESSE: 50', 'SCHUESSE: ENDLOS', 'SCHUESSE: 5'),
+           ('HAELFTE: ZUFALL', 'HAELFTE: OBEN', 'HAELFTE: UNTEN', 'HAELFTE: WECHSELND')),
+}
 RES = {'it': ('TIRI ', 'GOL ', 'OK', 'RIPROVA'), 'en': ('SHOTS ', 'GOALS ', 'OK', 'TRY AGAIN'),
        'fr': ('TIRS ', 'BUTS ', 'OK', 'REJOUER'), 'de': ('SCHUESSE ', 'TORE ', 'OK', 'NOCHMAL')}
 RW = 96                                 # (item 6, Davide 15/11: OK and RIPROVA side by side, each RW px wide)  # (the result page: 'TIRI 10', 'GOL 3', OK - the counts drawn up to 3 digits)
@@ -64,29 +78,26 @@ ROWS = {      # TRAINING, FREE KICK, PENALTY, CORNER, ATTACK, DEFENCE, BACK (the
 TITLE = {'it': 'PRATICA', 'en': 'TRAINING', 'fr': 'ENTRAINEMENT', 'de': 'TRAINING'}
 X, W, H, Y0, DY = 52, 200, 15, 40, 22   # the rows (menu coordinates), title at y 12
 R_TRAIN, R_MODE, R_BACK = 1, 5, 6       # entry numbers (0 the title)
+R_NS = 7                                # (item 2: the selectors, entries 7 / 8, drawn on rows 5 / 6 above BACK - row 7)
+DYP = 19                                # (item 2: the PRACTICE page's row step - 8 rows; the result page keeps DY)
 
 ASM = r"""
 pr_open:                                ; squadMenu entry 6 (TRAINING), on select: the practice page
     mov dword [PR_MENU + 12], R_TRAIN_  ; (the default entry: the first row)
 .show:
-    pushad
-    mov esi, S_ATT                      ; the switch's text
-    cmp byte [DEF], 0
-    je .t
-    mov esi, S_DEF
-.t: mov edi, MTXT
-.c: lodsb
-    stosb
-    test al, al
-    jnz .c
-    popad
+    call pr_seltx                       ; (the selectors' and the switch's texts)
     mov byte [GO], 0
     mov dword [A6], PR_MENU
     call SHOW_MENU
     movzx eax, byte [GO]
     cmp al, 80h                         ; the switch: the page again, on its row
-    jne .go
+    jne .g2
     mov dword [PR_MENU + 12], R_MODE_
+    jmp .show
+.g2:call pr_cyc                         ; (item 2: a selector - cycled, the page again on its row)
+    jnc .go
+    add edx, R_NS_
+    mov [PR_MENU + 12], edx
     jmp .show
 .go:
     test eax, eax                       ; BACK (or the menu left otherwise): the squad screen
@@ -107,10 +118,18 @@ pr_open:                                ; squadMenu entry 6 (TRAINING), on selec
     je .x0
     cmp word [KIND - 1 + W_NT_], 0
     je .x0
+    mov dword [PR_RES + 12], 3          ; (OK the default)
+.res:
     mov byte [GO], 0
     call pr_result
     cmp byte [GO], 81h                  ; (item 6: RIPROVA - the same KIND / DEF, the counters from zero)
     je .again
+    mov al, [GO]                        ; (item 2: a selector on the result page - cycled, the page again)
+    call pr_cyc
+    jnc .x0
+    add edx, 5
+    mov [PR_RES + 12], edx
+    jmp .res
 .x0:movzx eax, byte [KIND]              ; (bug 3, Davide 15/11: after a practice the PRACTICE page again, on its row;
     mov byte [KIND], 0                  ;  the training match: the squad screen as before)
     test eax, eax
@@ -120,9 +139,11 @@ pr_open:                                ; squadMenu entry 6 (TRAINING), on selec
     jmp .show
 .x: ret
 
+pr_back:
+    xor eax, eax
 pr_go:                                  ; a row: al = PR_GO; leave the page
     mov [GO], al
-    mov word [EXITM], 1
+    mov byte [EXITM], 1                 ; (g_exitMenu: only 0 / 1 word stores in the game - its high byte 0)
     ret
 pr_r1: mov al, 1
     jmp pr_go
@@ -136,12 +157,57 @@ pr_mode:
     xor byte [DEF], 1
     mov al, 80h
     jmp pr_go
-pr_back:
-    xor eax, eax
-    jmp pr_go
 pr_again:                               ; (item 6: the result page's RIPROVA - the same drill and side again)
     mov al, 81h
     jmp pr_go
+pr_ns:                                  ; (item 2: the attempts selector)
+    mov al, 82h
+    jmp pr_go
+pr_hf:                                  ; (item 2: the half selector)
+    mov al, 83h
+    jmp pr_go
+
+pr_cyc:                                 ; al = GO: 82h attempts / 83h half -> the next value, CF, edx = its
+    mov dl, al                          ;  index (0 / 1: entries R_NS / R_NS + 1 here, 5 / 6 on the result page);
+    sub dl, 82h                         ;  else NC (al kept)
+    cmp dl, 1
+    ja .r
+    movzx edx, dl
+    mov cl, [KIND - 1 + W_NSEL_ + edx]
+    inc cl
+    cmp cl, [LIM + edx]
+    jb .n
+    xor cl, cl
+.n: mov [KIND - 1 + W_NSEL_ + edx], cl
+    stc
+.r: ret
+LIM: db 5, 4
+
+pr_seltx:                               ; the selectors' texts (both pages) from NSEL / HALF, the switch's from DEF
+    movzx ecx, byte [DEF]               ;  (S_ATT, S_DEF back to back; eax ecx edi lost)
+    mov edi, S_ATT
+    call pr_nth
+    mov [MODEP], edi
+    movzx ecx, byte [KIND - 1 + W_NSEL_]
+    mov edi, S_SN0
+    call pr_nth
+    mov [SELN1], edi
+    mov [SELN2], edi
+    movzx ecx, byte [KIND - 1 + W_HALF_]
+    mov edi, S_SH0
+    call pr_nth
+    mov [SELH1], edi
+    mov [SELH2], edi
+    ret
+pr_nth:                                 ; edi = the ecx-th of the 0-terminated strings from edi
+    xor eax, eax
+    jecxz .r
+.l: push ecx
+    or ecx, -1
+    repne scasb
+    pop ecx
+    loop .l
+.r: ret
 
 pr_result:                              ; after a practice: the result page (the kind's name, TIRI n, GOL m, OK)
     pushad
@@ -149,18 +215,13 @@ pr_result:                              ; after a practice: the result page (the
     mov esi, [KTAB + eax * 4 - 4]
     mov edi, RT
     call pr_cpy
-    mov esi, S_SH
+    mov esi, S_SH                       ; (TIRI n, then GOL m: S_GL right after S_SH, NG after NT)
     mov edi, R1
-    call pr_cpy
-    dec edi
-    movzx eax, word [KIND - 1 + W_NT_]
-    call pr_num
-    mov esi, S_GL
+    mov ebp, KIND - 1 + W_NT_
+    call pr_one
     mov edi, R2
-    call pr_cpy
-    dec edi
-    movzx eax, word [KIND - 1 + W_NG_]
-    call pr_num
+    call pr_one
+    call pr_seltx
     popad
     mov dword [A6], PR_RES
     jmp SHOW_MENU                       ; (OK: pr_back, the page left; then the squad screen)
@@ -172,8 +233,15 @@ pr_cpy:                                 ; esi -> edi with its 0; edi past the 0
     jnz pr_cpy
     ret
 
+pr_one:                                 ; esi's text at edi (esi past it), then the word at ebp (ebp += 2)
+    call pr_cpy
+    dec edi
+    movzx eax, word [ebp]
+    inc ebp
+    inc ebp
 pr_num:                                 ; eax (< 1000) in decimal at edi, then a 0
-    mov ecx, 10
+    push 10
+    pop ecx
     xor ebx, ebx
 .d: xor edx, edx
     div ecx
@@ -220,8 +288,8 @@ pr_frame:
     mov ax, [ebp + GS_O]                ; ---- 0 idle. A stopped game (the walk-on ST_STARTING_GAME, a goal's kick-off,
     cmp ax, 100                         ;  a goal kick / throw-in / corner after an attempt): no restart of its own
     je .i0                              ;  (Davide 15/11) - the game live at once and the next set piece forced this
-    cmp ax, 22                          ;  pass (stoppageEventTimer 0); half / full time states (22..): the game's
-    jae .z
+    cmp ax, 23                          ;  pass (stoppageEventTimer 0); half / full time states (23..): the game's
+    jae .z                              ;  (22: our own end swap - item 2 - the walk-on as 21)
     cmp word [ebp + IRF_O], 0           ; (a goal - gameState 0 at once, goalCameraMode 1 - Davide 16/11: its own
     jne .z                              ;  sequence first: the ball rests in the net, the stoppage (breakCameraMode
     cmp word [ebp + RPS_O], 0           ;  -1 / 0 / 1), the auto replay (instantReplayFlag, replayState). Forced
@@ -254,7 +322,21 @@ pr_frame:
     je .a
     xor cl, 1                           ; DEFENCE: the other team
 .a: mov [ebx + W_ATK_], cl
-    mov byte [ebx + W_ST_], 1
+    cmp byte [ebx + W_SWP_], 0          ; (item 2: the attacked half - ATK 0 the top goal, 1 the bottom one - as
+    jne .a1                             ;  chosen: ALTA 0, BASSA 1, ALTERNATA by the attempt (CY's parity); else the
+    mov al, [ebx + W_HALF_]             ;  teams change ends - the game's own half-time swap - once an attempt)
+    dec al                              ; (Davide 16/11: HALF 0 = CASUALE, the default - the match's own random end,
+    js .a1                              ;  no swap; 1 ALTA, 2 BASSA, 3 ALTERNATA)
+    cmp al, 2
+    jb .a0
+    mov al, [ebx + W_CY_]
+    and al, 1
+.a0:cmp al, cl
+    je .a1
+    inc byte [ebx + W_SWP_]
+    call pr_swap
+    jmp .z
+.a1:mov byte [ebx + W_ST_], 1
     mov word [ebx + W_TMR_], 0
 .force:                                 ; ---- 1 forcing
     inc word [ebx + W_TMR_]
@@ -285,6 +367,7 @@ pr_frame:
     inc word [ebx + W_NFAIL_]
     jmp .z
 .got:
+    mov byte [ebx + W_SWP_], 0
     mov byte [ebx + W_ST_], 2
     mov [ebx + W_LGS_], al              ; (the state awarded)
     jmp .t0
@@ -343,8 +426,12 @@ pr_frame:
     jb .x
 .over:
     inc byte [ebx + W_CY_]
-    cmp word [ebx + W_NT_], PR_N_       ; PR_N attempts: the game over (playGame 0, what ESC does, without its
-    jb .z                               ;  abandonment branch): GameLoop's next pass leaves the match
+    movzx eax, byte [ebx + W_NSEL_]     ; the chosen attempts (item 2; NTAB, 0 = INFINITO: only ESC): the game over
+    mov ax, [NTAB + eax * 2]            ;  (playGame 0, what ESC does, without its abandonment branch): GameLoop's
+    test ax, ax                         ;  next pass leaves the match
+    jz .z
+    cmp [ebx + W_NT_], ax
+    jb .z
     mov word [ebp + PLAYG_O], 0
 .z: mov byte [ebx + W_ST_], 0
     mov word [ebx + W_TMR_], 0
@@ -437,6 +524,27 @@ pr_teams:                               ; eax = the attacking team, edx = the de
     xchg eax, edx
 .r: ret
 
+pr_swap:                                ; (item 2) the teams change ends: SetCameraMovingToShowerState, the game's own
+    mov edi, SWAPH                      ;  half-time swap (teamPlayingUp, InitTeamsData, the walk-on - state 22,
+                                        ;  forced at once as 21)
+pr_sv:                                  ; edi = a routine run with the game's 15 pseudo registers D0..A6 saved around
+    lea esi, [ebp + D0_O]               ;  it (we run between two game steps); ebx / ebp kept
+    mov ecx, 15
+.sv:push dword [esi]
+    add esi, 4
+    loop .sv
+    push ebx
+    push ebp
+    call edi
+    pop ebp
+    pop ebx
+    lea esi, [ebp + D0_O + 14 * 4]
+    mov ecx, 15
+.rs:pop dword [esi]
+    sub esi, 4
+    loop .rs
+    ret
+
 pr_poke:                                ; CORNER: the ball past the attacked goal line, wide of the posts
     call pr_teams
     lea esi, [ebp + BALL_O]
@@ -460,11 +568,9 @@ pr_poke:                                ; CORNER: the ball past the attacked goa
     ret
 
 pr_foul:                                ; FREE KICK / PENALTY: a foul on the attackers' FKORD player at the point
-    lea esi, [ebp + D0_O]               ; (the game's 15 pseudo registers D0..A6 saved: we run between two steps)
-    mov ecx, 15
-.sv:push dword [esi]
-    add esi, 4
-    loop .sv
+    mov edi, pr_foul1                   ; (the game's 15 pseudo registers saved around it: pr_sv)
+    jmp pr_sv
+pr_foul1:
     call pr_teams
     mov [ebp + A6_O], edx               ; A6 = the fouling team
     mov cx, [eax + 12h]                 ; the attackers' TeamGeneralInfo.teamNumber
@@ -529,12 +635,7 @@ pr_foul:                                ; FREE KICK / PENALTY: a foul on the att
     mov [edi + 32h], eax
     mov [edi + 36h], eax
     inc byte [ebx + W_BRS_]             ; (the harness: balls reset)
-.r: lea esi, [ebp + D0_O + 14 * 4]
-    mov ecx, 15
-.rs:pop dword [esi]
-    sub esi, 4
-    loop .rs
-    ret
+.r: ret
 """
 
 
@@ -552,7 +653,7 @@ def check_texts():
     from complist import px, font_odd
     bad = []
     for lang in ROWS:
-        for t in texts(lang) + res_texts(lang):
+        for t in texts(lang) + res_texts(lang) + SEL[lang][0] + SEL[lang][1]:
             if px(t) > W - 12 or font_odd(t):
                 bad.append((lang, t, px(t), font_odd(t)))
     bad += [(lang, t, px(t)) for lang in RES for t in RES[lang][2:] if px(t) > RW - 12]
@@ -679,6 +780,20 @@ def find_game(p, a6, ptg):
                 BOTT_O=bott[1], G1_O=g1[1], G2_O=g2[1], SPR0_O=ball[1] - 22 * 0x6E, D0_O=d0[1], A2_O=a2[1],
                 A6_O=a6[1], SET_O=sev[1], GT_O=gt[1], BCM_O=bcm[1], RPS_O=rps[1], IRF_O=irf[1], GCM_O=gcm[1],
                 TESTFOUL=tf[0])
+
+
+def swap_site(p, g):
+    """(item 2) SetCameraMovingToShowerState: mov halfNumber, 2 / neg teamPlayingUp / add teamPlayingUp, 3 / neg
+    teamStarting / add teamStarting, 3 ... mov gameState, ST_CAMERA_GOING_TO_SHOWERS (22) - EndFirstExtraTime opens
+    the same way, its state another: the one with gameState 22 within 0x60 bytes. Its obj1 offset."""
+    d = p.le.obj_bytes(1)
+    m = [x.start() for x in re.finditer(rb'\x66\xc7\x05....\x02\x00\x66\xf7\x1d....\x66\x83\x05....\x03'
+                                        rb'\x66\xf7\x1d....\x66\x83\x05....\x03', d, re.S)]
+    m = [o for o in m if _t(p, o + 12) == _t(p, o + 19) and _t(p, o + 27) == _t(p, o + 34)]
+    gs = [o for o in m if any(d[k:k + 3] == b'\x66\xc7\x05' and _t(p, k + 3) == (2, g['GS_O'])
+                              and d[k + 7:k + 9] == b'\x16\x00' for k in range(o, o + 0x60))]
+    assert len(m) == 2 and len(gs) == 1, ('practice: SetCameraMovingToShowerState', m, gs)
+    return gs[0]
 
 
 def pm_site(p, a6):
@@ -849,15 +964,22 @@ def patch(p, lang):
     tx = texts(lang)
     data = 'align 4\nPR_MENU:\n    dd 0, 0, 0, R_TRAIN_\n'
     data += f'    dw 0, 12, 304, 14\n    dw 4, 17h, 8, 0\n    dd S_T\n    dw 0\n'
-    sels = ('pr_r1', 'pr_r2', 'pr_r3', 'pr_r4', 'pr_mode', 'pr_back')
-    for i in range(6):
-        up = i if i else 0xFF                               # (entry numbers: row i = entry i + 1)
-        dn = i + 2 if i < 5 else 0xFF
-        txt = 'MTXT' if i == 4 else f'S_{i}'
-        col = '0Ch' if i == 5 else '0Bh' if i == 4 else '0Eh'   # (C, Davide 15/11: the switch in its own colour)
-        data += (f'    dw {X}, {Y0 + DY * i}, {W}, {H}, 2\n    db 255, 255, {up}, {dn}\n'
-                 f'    dw 4, {col}, 8, 0\n    dd {txt}\n    dw 13\n    dd {sels[i]}\n    dw 0\n')
+    sels = ('pr_r1', 'pr_r2', 'pr_r3', 'pr_r4', 'pr_mode', 'pr_back', 'pr_ns', 'pr_hf')
+    # (entry i + 1 = sels[i]; rows: entries 1..5 rows 0..4, the selectors 7 / 8 rows 5 / 6, BACK (6) row 7 - item 2)
+    row = (0, 1, 2, 3, 4, 7, 5, 6)
+    nav = {1: (0xFF, 2), 2: (1, 3), 3: (2, 4), 4: (3, 5), 5: (4, 7), 7: (5, 8), 8: (7, 6), 6: (8, 0xFF)}
+    for i in range(8):
+        up, dn = nav[i + 1]
+        txt = 'S_ATT' if i == 4 else f'S_{i}' if i < 6 else ('S_SN0', 'S_SH0')[i - 6]
+        col = '0Ch' if i == 5 else '0Bh' if i in (4, 6, 7) else '0Eh'   # (C, Davide 15/11: the switch in its own colour)
+        lab = ('', 'SELN1: ', 'SELH1: ')[0 if i < 6 else i - 5] if i != 4 else 'MODEP: '
+        data += (f'    dw {X}, {Y0 + DYP * row[i]}, {W}, {H}, 2\n    db 255, 255, {up}, {dn}\n'
+                 f'    dw 4, {col}, 8, 0\n    {lab}dd {txt}\n    dw 13\n    dd {sels[i]}\n    dw 0\n')
     data += '    dw -999\n'
+    sl = SEL[lang]
+    data += ''.join(f'S_SN{k}: db {q(t)}\n' for k, t in enumerate(sl[0]))
+    data += ''.join(f'S_SH{k}: db {q(t)}\n' for k, t in enumerate(sl[1]))   # (pr_nth: the strings back to back)
+    data += 'NTAB: dw ' + ', '.join(str(n) for n in NTAB) + '\n'
     data += f'S_T: db {q(tx[0])}\n' + ''.join(f'S_{i}: db {q(tx[1 + i])}\n' for i in range(4))
     data += f'S_ATT: db {q(tx[5])}\nS_DEF: db {q(tx[6])}\nS_5: db {q(tx[7])}\n'
     rs = RES[lang]
@@ -865,10 +987,15 @@ def patch(p, lang):
     data += '    dw 0, 12, 304, 14\n    dw 4, 17h, 8, 0\n    dd RT\n    dw 0\n'
     for i, b in ((1, 'R1'), (2, 'R2')):
         data += f'    dw {X}, {Y0 + DY * (i - 1)}, {W}, {H}\n    dw 4, 0Eh, 8, 0\n    dd {b}\n    dw 0\n'
-    data += (f'    dw {X}, {Y0 + DY * 3}, {RW}, {H}, 2\n    db 255, 4, 255, 255\n'
+    data += (f'    dw {X}, {Y0 + DY * 3}, {RW}, {H}, 2\n    db 255, 4, 255, 5\n'
              f'    dw 4, 0Ch, 8, 0\n    dd S_OK\n    dw 13\n    dd pr_back\n    dw 0\n'
-             f'    dw {X + W - RW}, {Y0 + DY * 3}, {RW}, {H}, 2\n    db 3, 255, 255, 255\n'
-             f'    dw 4, 0Eh, 8, 0\n    dd S_AG\n    dw 13\n    dd pr_again\n    dw 0\n    dw -999\n')
+             f'    dw {X + W - RW}, {Y0 + DY * 3}, {RW}, {H}, 2\n    db 3, 255, 255, 5\n'
+             f'    dw 4, 0Eh, 8, 0\n    dd S_AG\n    dw 13\n    dd pr_again\n    dw 0\n'
+             # (item 2: the selectors under OK / RIPROVA, entries 5 / 6 - the next practice's attempts and half)
+             f'    dw {X}, {Y0 + DY * 4}, {W}, {H}, 2\n    db 255, 255, 3, 6\n'
+             f'    dw 4, 0Bh, 8, 0\n    SELN2: dd S_SN0\n    dw 13\n    dd pr_ns\n    dw 0\n'
+             f'    dw {X}, {Y0 + DY * 5}, {W}, {H}, 2\n    db 255, 255, 5, 255\n'
+             f'    dw 4, 0Bh, 8, 0\n    SELH2: dd S_SH0\n    dw 13\n    dd pr_hf\n    dw 0\n    dw -999\n')
     data += f'S_SH: db {q(rs[0])}\nS_GL: db {q(rs[1])}\nS_OK: db {q(rs[2])}\nS_AG: db {q(rs[3])}\n'
     data += 'align 4\nKTAB: dd S_1, S_2, S_3\n'
     assert max(len(t) for t in tx[2:5]) < 24 and max(len(t) for t in res_texts(lang)) < 16
@@ -890,14 +1017,16 @@ def patch(p, lang):
     assert FKD == tuple(FKD[0] + (FKD[1] - FKD[0]) * k for k in range(4)) and FKX[0] == 336
     assert work[1] % 4 == 0 and WORK_SZ >= WK['END'], 'practice: PR_WORK (swe.c u8 PR_WORK[WORK_SZ], aligned 4)'
     assert WK['END'] <= min(o for o, _ in BUF.values()) and max(o + n for o, n in BUF.values()) <= WORK_SZ
+    assert WK['NG'] == WK['NT'] + 2, 'practice: pr_one reads NT then NG'
+    assert WK['END'] <= WK['NSEL'] < WK['HALF'] < min(o for o, _ in BUF.values()), 'practice: NSEL / HALF kept (after END)'
     defs = {f'W_{k}_': v for k, v in WK.items()}
-    defs.update(R_TRAIN_=R_TRAIN, R_MODE_=R_MODE, WAITF_=WAITF, ATTF_=ATTF, SETTLE_=SETTLE, CLEAR_=CLEAR,
+    defs.update(R_TRAIN_=R_TRAIN, R_MODE_=R_MODE, R_NS_=R_NS, WAITF_=WAITF, ATTF_=ATTF, SETTLE_=SETTLE, CLEAR_=CLEAR,
                 FKORD_=FKORD, PEN_D_=PEN_D, PR_N_=PR_N, FKD0_=FKD[0], FKD_STEP_=FKD[1] - FKD[0], FKX1_=FKX[1], FKX2_=FKX[2])
     src = ''.join(f'%define {k} {v}\n' for k, v in defs.items()) + ASM + data
     sym = {'A6': u['a6'], 'SHOW_MENU': (1, u['show']), 'EXITM': u['exitm'], 'OLD_SEL': old,
            'GO': (4, work[1]), 'KIND': (4, work[1] + 1), 'DEF': (4, work[1] + 2), 'O2BASE': (2, 0),
            'TESTFOUL': (1, g['TESTFOUL']), 'TVIS': (2, tvis), 'RTIM': (2, rtim), 'INITDS': (1, ids), 'PMMENU': (2, pmmenu), 'STADM': (2, stadm), 'STADSHOW': stshow,
-           'VSM': (2, vsm), 'VSSHOW': vshow,
+           'VSM': (2, vsm), 'VSSHOW': vshow, 'SWAPH': (1, swap_site(p, g)),
            'SHOWMENU': pmshow, 'PNTS': (2, pnts), 'PMT1': (2, pmt1), 'SETBENCH': sbench,
            'KMA': (2, kma), 'KSL': (2, ksl), 'TXTA': (2, txta), 'SETBTN': setbtn,
            **{k: (4, work[1] + o) for k, (o, _) in BUF.items()},

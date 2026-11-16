@@ -10308,6 +10308,50 @@ def practice_rows():
     return practice.texts(UI if UI in practice.ROWS else 'it')
 
 
+def practice_gteams(r):
+    """(diagnosis, RIPROVA) gameTeam1 / gameTeam2 (IT exe: obj2+690376 / +690380) -> the team files' first bytes."""
+    out = []
+    for o in (690376, 690380):
+        a = struct.unpack('<I', r.obj2(o, 4))[0]
+        out.append(f'{a:#x}:{r.read(a, 24)!r}' if 0x1000 < a < MEMSIZE - 64 else f'{a:#x}')
+    g = practice_game()                     # (the in-match teams the match uses: TeamGeneralInfo.inGameTeamPtr)
+    for t in ('TOPT_O', 'BOTT_O'):
+        a = struct.unpack('<I', r.obj2(g[t] + 0x0A, 4))[0]
+        out.append(f'{t} inGame {a:#x} (obj2+{a - r.base2:#x}) ' + (repr(r.read(a + 22, 17).split(b'\0')[0])
+                                                                 if 0x1000 < a < MEMSIZE - 64 else ''))
+    return 'gameTeams ' + ' | '.join(out)
+
+
+def practice_kickoff(s, steps=25):
+    """RIPROVA's kick-off: the match's own in-game teams (TeamGeneralInfo.inGameTeamPtr, top and bottom) are the
+    club's training pair 'X A' / 'X B' in either order. The Result, or None (s.kick_names: the last pair read)."""
+    g = practice_game()
+    for _ in range(steps):
+        r = s.result
+        if r.outcome != 'dump':
+            return None
+        nm = []
+        for t in ('TOPT_O', 'BOTT_O'):
+            a = struct.unpack('<I', r.obj2(g[t] + 0x0A, 4))[0]
+            nm.append(r.read(a + 22, 17).split(b'\0')[0].decode('latin-1') if 0x1000 < a < MEMSIZE - 64 else '')
+        s.kick_names = tuple(nm)
+        a_ = sorted(nm)
+        if a_[0].endswith(' A') and a_[1] == a_[0][:-1] + 'B':
+            return r
+        s.send('fire:0.3 dump:1.5')
+    return None
+
+
+def practice_layout(scr, where, errs):
+    """(item 2) Every visible entry with a text on the 320 x 200 screen, no two overlapping."""
+    bx = [(scr.raw_texts[i], scr.geom[i]) for i, t, inv, dis in scr.entries if not inv and scr.raw_texts[i]]
+    off = [(t, g) for t, g in bx if g[0] < 0 or g[1] < 0 or g[0] + g[2] > 320 or g[1] + g[3] > 200]
+    ov = [(a[0], b[0]) for k, a in enumerate(bx) for b in bx[k + 1:]
+          if a[1][0] < b[1][0] + b[1][2] and b[1][0] < a[1][0] + a[1][2]
+          and a[1][1] < b[1][1] + b[1][3] and b[1][1] < a[1][1] + a[1][3]]
+    check(not off and not ov, f'{where}: entries off the screen {off}, overlapping {ov}', errs)
+
+
 def practice_pick(s, row, errs):
     """On the practice page (TRAINING pressed): press row (0 TRAINING .. 3 CORNER, 4 the switch, 5 BACK). A build
     without the page (no row text shown): True, nothing pressed, when row is 0 (the game was started)."""
@@ -11388,7 +11432,7 @@ def practice_work(r):
     return f
 
 
-def practice_play(kind, side, esc_at=None, again=False, goal=False, handover=False, goaln=None):
+def practice_play(kind, side, esc_at=None, again=False, goal=False, handover=False, goaln=None, sel=None):
     """4.2 set-piece practice, step 2 (the engine, MC 14/11): a World 2026-27 career (PRACTICE_BUILD / BENCH_BUILD: a
     release dir; TRAIN_PATH), SQUADRA -> TRAINING -> (DEFENCE: the switch) -> the kind's row -> the training game:
     the engine forces the set piece again and again (fire pressed throughout: the human takes its own kicks). Gates:
@@ -11403,7 +11447,12 @@ def practice_play(kind, side, esc_at=None, again=False, goal=False, handover=Fal
     keeper vanished after the replay): the first GOALN attempts' balls put in the attacked net just after the kick
     (a poke), then sampled every ~2 frames up to the next kick: the ball stays in the net while the goal's stoppage
     runs (goalCameraMode, breakCameraMode -1 / 0 / 1: before the replay), the replay played, and the defending keeper
-    visible and in his goal in every sample out of the replay until the next kick."""
+    visible and in his goal in every sample out of the replay until the next kick.
+    sel (item 2, Davide 15/11): (attempts presses, half presses) on the PRACTICE page's selectors first (TIRI 10 -> 20
+    -> 50 -> INFINITI -> 5; META' CAMPO ALTA -> BASSA -> ALTERNATA): the game ends after the chosen count (INFINITI:
+    only ESC, esc_at), every award on the chosen half (ALTA the top goal, BASSA the bottom one, ALTERNATA by the
+    attempt: the bottom one on odd ones) - with no sel, the defaults (10, ALTA); the result page shows the selectors
+    with the values chosen and cycles one; both pages' entries on the 320 x 200 screen, none overlapping."""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import lepatch
     import practice
@@ -11415,7 +11464,10 @@ def practice_play(kind, side, esc_at=None, again=False, goal=False, handover=Fal
     path = os.environ.get('TRAIN_PATH', 'EUROPA,ITALIA,SERIE A,ROMA').split(',')
     club = path[-1]
     row, name, _, states = PR_KINDS[kind]
-    want = esc_at or practice.PR_N                     # (Davide 14/11, A + B: the game ends by itself after PR_N; ESC)
+    ns, hf = ((sel[0] % 5, sel[1] % 4) if sel else (0, 0))   # (item 2: the selectors' indices after the presses)
+    lim = practice.NTAB[ns]                             # (0: INFINITI - ESC only)
+    assert lim or esc_at, 'practice_play: INFINITI needs esc_at'
+    want = esc_at or lim                                # (Davide 14/11, A + B: the game ends by itself after PR_N; ESC)
     lang = UI if UI in practice.RES else 'it'
     tx = practice_rows()
     p = lepatch.LEPatch(os.path.join(b, 'ITALIAN.EXE'))
@@ -11446,6 +11498,20 @@ def practice_play(kind, side, esc_at=None, again=False, goal=False, handover=Fal
                 return False, f'{where}: {TRAIN_TXT[UI][k]} not reached ({s.result})'
         if side == 'def' and not practice_pick(s, 4, errs):
             return False, '; '.join(errs)
+        if sel:                                 # (item 2: the selectors pressed, the page shown again on each)
+            sl = practice.SEL[lang]
+            for k, n_ in enumerate(sel):
+                for _ in range(n_):
+                    scr = s.screen()
+                    cur = next((t for t in sl[k] if scr.find(t, exact=True) is not None), None)
+                    if cur is None or press(s, scr, cur, 3) is None:
+                        return False, f'practice page: selector {sl[k]} not shown / pressed ({scr.texts()})'
+            scr = s.screen()
+            t = scr.texts()
+            check(sl[0][ns] in t and sl[1][hf] in t, f'practice page: selectors {t} (want {sl[0][ns]}, {sl[1][hf]})',
+                  errs)
+            practice_layout(scr, 'practice page', errs)
+            s.shot(f'{tag}_page_sel')
         if not practice_pick(s, row, errs):
             return False, '; '.join(errs)
         e = practice_no_prematch(s)
@@ -11624,9 +11690,11 @@ def practice_play(kind, side, esc_at=None, again=False, goal=False, handover=Fal
             check(hum == (0 if human_top else 1), f'{name} #{n_}: HUM {hum} with playerNumbers {pn}', errs)
             att_top = human_top if side == 'att' else not human_top
             check(atk == int(att_top), f'{name} #{n_}: ATK {atk} (the {"top" if att_top else "bottom"} team attacks)', errs)
-            if gs in states and by is not None:   # (the top team attacks the bottom goal, y 769)
-                check((by > 449) == att_top, f'{name} #{n_}: the ball at y {by} at the award (attacked goal '
-                      f'{"bottom" if att_top else "top"})', errs)
+            if gs in states and by is not None and hf:   # (the top team attacks the bottom goal, y 769; item 2: the half
+                bot = hf == 2 or (hf == 3 and cy % 2 == 1)   #  chosen - ALTA top, BASSA bottom, ALTERNATA by CY;
+                                                             #  CASUALE (0, Davide 16/11): the match's own random end
+                check((by > 449) == (atk == 1) == bot, f'{name} #{n_}: the ball at y {by} at the award, ATK {atk} '
+                      f'(want the {"bottom" if bot else "top"} goal: half {hf}, cycle {cy})', errs)
         if kind == 'fk':
             xs = {cy % 3 for *_, cy in awards}
             check(len(xs) >= min(3, len(awards)), f'{name}: the cycle covered x bands {sorted(xs)}', errs)
@@ -11647,8 +11715,8 @@ def practice_play(kind, side, esc_at=None, again=False, goal=False, handover=Fal
         w = practice_work(s.result)
         nt, ng = w['NT'], w['NG']
         if esc_at:
-            check(want <= nt_esc and nt in (nt_esc, nt_esc + 1) and nt < practice.PR_N,
-                  f'{name}: ESC at {nt_esc} attempts, the game ended after {nt} (want {nt_esc} or +1, < {practice.PR_N})',
+            check(want <= nt_esc and nt in (nt_esc, nt_esc + 1) and nt < (lim or 10 ** 6),
+                  f'{name}: ESC at {nt_esc} attempts, the game ended after {nt} (want {nt_esc} or +1, < {lim or "INF"})',
                   errs)
         else:
             check(nt == want, f'{name}: the game ended after {nt} attempts (want exactly {want})', errs)
@@ -11661,14 +11729,32 @@ def practice_play(kind, side, esc_at=None, again=False, goal=False, handover=Fal
         check(scr.selected == 3, f'result page: the cursor on entry {scr.selected} (want 3, OK)', errs)
         info.append(f'result page {res}' + (' (after ESC)' if esc_at else ' (by itself)'))
         check(practice.RES[lang][3] in res, f'result page: no {practice.RES[lang][3]} button ({res})', errs)
+        sl = practice.SEL[lang]                 # (item 2: the selectors under OK / RIPROVA, the values chosen)
+        check(sl[0][ns] in res and sl[1][hf] in res, f'result page: selectors {res} (want {sl[0][ns]}, {sl[1][hf]})',
+              errs)
+        practice_layout(scr, 'result page', errs)
+        if sel:                                 # (one cycle there: the attempts selector -> the next value, the
+            if press(s, scr, sl[0][ns], 3) is None:     #  page again with the cursor on it; then the cursor to OK)
+                errs.append(f'result page: {sl[0][ns]} not pressed')
+            else:
+                scr = s.screen()
+                nx = sl[0][(ns + 1) % 5]
+                check(nx in scr.texts() and scr.selected == 5, f'result page after the selector: {scr.texts()}, '
+                      f'cursor {scr.selected} (want {nx}, 5)', errs)
+                s.shot(f'{tag}_result_cycled')
         if again:                               # (item 6, Davide 15/11: RIPROVA - the same drill and side again,
             if press(s, scr, practice.RES[lang][3], 3) is None:     #  the counters from zero; ESC before an attempt:
                 return False, '; '.join(errs + info + [f'result page: {practice.RES[lang][3]} not pressed'])
             e = practice_no_prematch(s)         #  no result page, the practice page)
             if e:
                 errs.append('RIPROVA: ' + e)
-            if train_kickoff(s, top, bot, True) is None:
-                return False, '; '.join(errs + info + [f'RIPROVA: no kick-off ({s.result})'])
+            if practice_kickoff(s) is None:     # (RIPROVA skips the pre-match screen's team copies that
+                s.shot(f'{tag}_again_noko')     #  train_kickoff reads: the match's own in-game teams instead)
+                if s.result.outcome == 'dump':  # (the post-mortem: both in-match teams' first players)
+                    info.append(f'RIPROVA teams: top {ingame_team(s.result, top)[1][:4]} bottom '
+                                f'{ingame_team(s.result, bot)[1][:4]}; {practice_gteams(s.result)}')
+                return False, '; '.join(errs + info + [f'RIPROVA: no kick-off ({s.result}; names '
+                                                       f'{getattr(s, "kick_names", None)})'])
             if vsbp:
                 check(not vsn, f'RIPROVA: the versus screen drawn {len(vsn)} times (want 0)', errs)
             w = practice_work(s.result)
@@ -12177,6 +12263,106 @@ def practice_pengoal_att():
 def practice_cornergoal_att():
     """practice_play('corner', 'att', goal=True): as practice_fkgoal_att for corners."""
     return practice_play('corner', 'att', goal=True)
+
+
+@scenario
+def practice_pen_sel5_bassa():
+    """practice_play('pen', 'att', sel=(4, 2)): item 2 - TIRI 5, META' CAMPO BASSA: 5 attempts, every penalty at the
+    bottom goal (the teams' ends swapped as needed), the result page's selectors."""
+    return practice_play('pen', 'att', sel=(4, 2))
+
+
+@scenario
+def practice_corner_sel5_alt():
+    """practice_play('corner', 'att', sel=(4, 3)): item 2 - TIRI 5, ALTERNATA: the corners top / bottom in turn."""
+    return practice_play('corner', 'att', sel=(4, 3))
+
+
+@scenario
+def practice_fk_inf_esc():
+    """practice_play('fk', 'def', esc_at=12, sel=(3, 1)): item 2 - TIRI INFINITI + META' CAMPO ALTA (the top goal): no end after 10; ESC (the game's own
+    way out of a drill, no new meaning) at 12 ends it, the result page."""
+    return practice_play('fk', 'def', esc_at=12, sel=(3, 1))
+
+
+@scenario
+def practice_match_guard():
+    """item 2 (MC 16/11): HALF / META' CAMPO uses the game's half-time swap (SetCameraMovingToShowerState) - a guard that
+    a real match is untouched: a friendly HAMBURG v SCHALKE on PRACTICE_BUILD, both random generators pinned at
+    kick-off (GUARD_SEED, default 000000000000), played past half time: halfNumber 1 -> 2 once, teamPlayingUp flipped
+    exactly once and only there, PR_WORK idle all along (KIND 0, engine frames NFR and SWP unchanged). Run it on the
+    control build too and compare the lines (the flow itself may differ with the host's load: the seed is poked at a
+    wall-clock moment, see ega_bench_cursor)."""
+    b = os.environ.get('PRACTICE_BUILD') or os.environ.get('BENCH_BUILD')
+    if not b:
+        return True, 'SKIP: PRACTICE_BUILD not set'
+    seed = bytes.fromhex(os.environ.get('GUARD_SEED', '000000000000'))
+    errs, info, smp = [], [], []
+    o = lepatch_orig()
+    d = o.le.obj_bytes(1)
+    m = [x.start() for x in re.finditer(rb'\x66\xc7\x05....\x02\x00\x66\xf7\x1d....\x66\x83\x05....\x03'
+                                        rb'\x66\xf7\x1d....\x66\x83\x05....\x03', d, re.S)]
+    hn = {o.target(1, k + 3)[1] for k in m}
+    tpu = {o.target(1, k + 12)[1] for k in m}
+    assert len(hn) == 1 and len(tpu) == 1, ('halfNumber / teamPlayingUp', hn, tpu)
+    hn, tpu = hn.pop(), tpu.pop()
+    w16 = lambda r, off: struct.unpack('<h', r.read(r.base2 + off, 2))[0]
+    with Session('practice_match_guard', b, {}, 'dump:3', 600, match=True) as s:
+        s.wait()
+        w9697(s)
+        for t in ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB', 'EUROPA', 'GERMANIA', '1. LIGA', 'HAMBURG'):
+            walk(s, t, 2)
+        s.send('fire dump:2')
+        walk(s, 'SCHALKE', 2)
+        for _ in range(12):
+            scr = s.screen()
+            if scr.selected == 55:
+                s.send('fire dump:4')
+                break
+            s.send(('right' if scr.selected in (56, 57) else 'down') + ' dump:0.5')
+        for _ in range(22):
+            s.send('down dump:0.5')
+            if s.screen().selected == 9:
+                break
+        r = s.send('fire ' + 'fire:3 ' * 30 + 'dump:2')
+        check(r.outcome == 'dump', f'match: {r}', errs)
+        if r.outcome == 'dump':
+            for at, part in zip(rng_sites(os.path.join(s.run, 'SWOS', 'ITALIAN.EXE')), (seed[:3], seed[3:6])):
+                s.poke(r.base2 + at, part)
+            w0 = practice_work(r)
+            check(w0 is not None, 'PR_WORK not found', errs)
+            after = 0
+            for i in range(int(os.environ.get('GUARD_SAMPLES', '400'))):   # (4 s of play a dump: 1 s dumps gave 144 s
+                r = s.send('fire:2 dump:3')       #  of play in 900 - no half time; a long fire: the human keeper lets
+                                                  #  the ball go (keeper_let_go; a 0.1 s tap left him holding it at
+                                                  #  20 mins, the match frozen) and a half-time screen's key)
+                if r.outcome != 'dump':
+                    errs.append(f'sample {i}: {r}')
+                    break
+                if i % 25 == 0:
+                    s.shot(f'guard_{i:03d}')
+                w = practice_work(r) or {}
+                q = (w16(r, hn), w16(r, tpu), w.get('KIND'), w.get('NFR'), w.get('SWP'))
+                if not smp or q != smp[-1][1]:
+                    smp.append((i, q))
+                    if len(smp) > 1 and q[1] != smp[-2][1][1]:
+                        s.shot(f'guard_swap_{len(smp)}')
+                after += q[0] == 2
+                if after >= 5:
+                    break
+            if w0 is not None and smp:
+                halves = [q[0] for _, q in smp]
+                ups = [(i, q[0], q[1]) for k, (i, q) in enumerate(smp) if k == 0 or q[1] != smp[k - 1][1][1]]
+                check(2 in halves, f'half time never reached in {i + 1} samples: {smp[:12]}', errs)
+                check(len(ups) == 2 and ups[1][1] == 2 and ups[1][2] == -ups[0][2] + 3 if len(ups) == 2 else False,
+                      f'teamPlayingUp not flipped exactly once at half time: (sample, halfNumber, teamPlayingUp) {ups}',
+                      errs)
+                bad = [(i, q) for i, q in smp if q[2] != 0 or q[3] != w0['NFR'] or q[4] != w0.get('SWP')]
+                check(not bad, f'PR_WORK not idle in the match (KIND, NFR, SWP) {bad[:6]} (start NFR {w0["NFR"]})',
+                      errs)
+                info.append(f'seed {seed.hex()}: (sample, halfNumber, teamPlayingUp) changes {ups}; PR_WORK idle '
+                            f'(NFR {w0["NFR"]}, SWP {w0.get("SWP")}) over {i + 1} samples')
+    return not errs, '; '.join(errs + info)
 
 
 @scenario

@@ -10,7 +10,8 @@
    opening state (no table, club not in it, no room: the engine's own "no friendlies this season" path).
 
    THE PAGE (entries FC_E_*; frchoose.py builds the packed menu from the same numbers):
-     title; the legend (3 colour boxes in the row above the rows: only the colours painted, CONVENTIONS 5-6);
+     title; the legend (colour boxes in the row above the rows, packed from the left: only the colours painted,
+     CONVENTIONS 5-6 - the three bands and the chosen club's box);
      AUTOMATIC  MIX / EASY / MEDIUM / HARD      LEFT / RIGHT / FIRE: what an empty row is (frcsel.h)
      4 rows:  venue | club | band box | level   FIRE on the venue: the swap (2 home + 2 away stay)
                                                 FIRE on the club: a chosen club -> back to automatic; an automatic
@@ -23,7 +24,11 @@
 
    THE CLUB LIST (the game's chooseTeamsFriendlyMenu while FC_K is a row): fc_list, called after the game built the
    list, paints each listed club by the band it would have in that row; grey = fr_pick would refuse it (picking it
-   anyway shows the reason on the page).
+   anyway shows the reason on the page). The list's legend is the game's own legend row (its entries 1-3 boxes, 4-6
+   texts: COMPUTER / PLAYER-COACH / COACH, which the game hides in a one-club browse): repainted as the bands on the
+   list, packed from the left (grey has no box).
+   COLOURS: the three band colours and the chosen box mean only that on the page; the controls (venue, the AUTOMATIC
+   value, CONTINUE) and the plain boxes use colours of no legend entry (frchoose.py's menu).
 
    The menu is re-unpacked by the game after every nested menu: fc_paint (init, onReturn, after every action) redraws
    everything from the state. DOS/4GW zeroes nothing: frc_choose sets every variable it reads.
@@ -42,14 +47,25 @@ typedef unsigned int u32;
 #define FC_E_ROW    6                   /* 4 x (venue, club, band, level) */
 #define FC_E_MSG    22
 #define FC_E_GO     23
-#define FC_NE       24
+#define FC_E_LEGC   24                  /* the 4th legend box: a chosen club */
+#define FC_NE       25
+
+#define FC_LEG_X    8                   /* the page's legend: the j-th box shown at FC_LEG_X + FC_LEG_DX * j */
+#define FC_LEG_DX   72
+#define FC_LL_BOX   1                   /* chooseTeamsFriendlyMenu's legend row: 3 boxes, then 3 texts */
+#define FC_LL_TEXT  4
+#define FC_LL_X     20                  /* its j-th box at FC_LL_X + FC_LL_DX * j, the text FC_LL_TX after the box's x */
+#define FC_LL_DX    100
+#define FC_LL_TX    25
 
 #define FC_C_STRONG 0x0C                /* orange */
 #define FC_C_SIMIL  0x0D                /* light blue */
 #define FC_C_WEAK   0x0E                /* green */
 #define FC_C_NO     0x02                /* grey: a club fr_pick would refuse */
-#define FC_C_AUTO   0x09                /* a row's club box: automatic / chosen */
+#define FC_C_AUTO   0x09                /* a row's club box: automatic (the plain label colour) / chosen */
 #define FC_C_CHOSEN 0x0A
+#define FC_C_CTRL   0x0B                /* a control that is no band: the venue cells, the AUTOMATIC value */
+#define FC_C_GO     0x08                /* CONTINUE */
 
 #define FC_LIST0    7                   /* chooseTeamsFriendlyMenu: the clubs' entries 7 .. 54 */
 #define FC_LIST1    55
@@ -143,10 +159,16 @@ void fc_paint(void) {                   /* the menu's onInit / onReturn, and aft
         text(e, FC_LV[k]);
         p16(e + 0x1E, fc_col[b]);
     }
-    for (k = 0; k < 3; k++) {
-        u8 *e = ent(FC_E_LEG + k);
+    for (k = 0; k < 4; k++)
+        if (s->club[k] != FR_NONE)
+            used |= 8;
+    for (k = i = 0; k < 4; k++) {       /* the legend: only what is painted, packed from the left */
+        u8 *e = ent(k < 3 ? FC_E_LEG + k : FC_E_LEGC);
         p16(e + 4, !(used >> k & 1));
-        text(e, FC_S_BAND[k]);
+        if (used >> k & 1)
+            p16(e + 0x14, FC_LEG_X + FC_LEG_DX * i++);
+        if (k < 3)
+            text(e, FC_S_BAND[k]);
     }
     text(ent(FC_E_LVL), FC_S_LVL[s->level]);
     text(ent(FC_E_MSG), FC_S_MSG[frc_msg(s->msg)]);
@@ -184,7 +206,7 @@ void fc_picked(void) {                  /* back from the browser: word D0 = FFFF
 }
 
 void fc_list(void) {                    /* after the game built its club list (chooseTeamsFriendlyMenu) */
-    u32 k = FC_K, i;
+    u32 k = FC_K, i, used = 0, b;
     if (k >= 4)
         return;
     for (i = FC_LIST0; i < FC_LIST1; i++) {
@@ -193,7 +215,26 @@ void fc_list(void) {                    /* after the game built its club list (c
         if (e[4] | e[5])                /* (not shown) */
             continue;
         r = PTR(*(u32 *)(e + 0x26) - 5);
-        p16(e + 0x1E, frc_trial(&FC_SEL, k, (u16)(r[0] | r[1] << 8), &band) ? FC_C_NO : fc_col[bidx(band)]);
+        if (frc_trial(&FC_SEL, k, (u16)(r[0] | r[1] << 8), &band)) {
+            p16(e + 0x1E, FC_C_NO);
+            continue;
+        }
+        b = bidx(band);
+        used |= 1u << b;
+        p16(e + 0x1E, fc_col[b]);
+    }
+    for (b = i = 0; b < 3; b++) {       /* the game's legend row as the bands on this list */
+        u8 *e = ent(FC_LL_BOX + b), *t = ent(FC_LL_TEXT + b);
+        u32 hid = !(used >> b & 1), x = FC_LL_X + FC_LL_DX * i;
+        p16(e + 4, hid);
+        p16(t + 4, hid);
+        if (hid)
+            continue;
+        i++;
+        p16(e + 0x14, x);
+        p16(e + 0x1E, fc_col[b]);
+        p16(t + 0x14, x + FC_LL_TX);
+        text(t, FC_S_BAND[b]);
     }
 }
 

@@ -6,7 +6,7 @@ menu, the glue and the link into obj4's FRCH band (CONVENTIONS 23bis; MC 16/11: 
 Band layout: two fixed slots (FRCH_AT: jmp fc_show, the C's way to the glue; FRCH_AT + 8: jmp frc_choose, the ENGINE's
 call target - a fixed address, so FRND links first and needs no symbol of this band), frchoose.c (+ frcsel.c) from
 FRCH_AT + 16, then the glue below (handlers, FC_MENU), the language's strings at
-END - STR_BACK, the C .bss at END - BSS_BACK (written by frc_choose before it is read), the last 256 B free (floor).
+END - STR_BACK, the last 256 B free (floor; the C has no .bss: its variables are initialised data in its bytes).
 The game is touched in ONE place: chooseTeamsFriendlyMenu's header (obj2), whose initFunc and onReturn - both the
 game's ChooseTeamsFriendlyInitFinish, or whatever a module before this one put there: chained - become fc_lhook = the
 old routine, then fc_list (the club list's colours while the page browses for a row; nothing otherwise).
@@ -35,12 +35,14 @@ MSG = {'it': ('', 'SQUADRA NON DISPONIBILE', 'SQUADRA SCELTA DUE VOLTE', 'TROPPE
        'de': ('', 'KLUB NICHT VERFUEGBAR', 'KLUB DOPPELT GEWAEHLT', 'ZU VIELE KLUBS IM SPEICHER',
               'KEINE GEGNER VERFUEGBAR')}
 GO = {'it': 'CONTINUA', 'en': 'CONTINUE', 'fr': 'CONTINUER', 'de': 'WEITER'}     # (the game's own button, rule 2)
+CHO = {'it': 'SCELTA', 'en': 'CHOSEN', 'fr': 'CHOISI', 'de': 'GEWAEHLT'}          # (the legend box of a chosen club)
 PICK = {'it': 'SCEGLI AVVERSARIA', 'en': 'CHOOSE OPPONENT', 'fr': 'CHOISIR ADVERSAIRE', 'de': 'GEGNER WAEHLEN'}
 LANGS = ('it', 'en', 'fr', 'de')
 
 # the page's geometry (x, y, w, h)
 G_TITLE = (0, 0, 304, 14)
-G_LEG = (8, 20, 62, 9)                  # the legend boxes: the row above the rows, top left; + (w + 2) each
+G_LEG = (8, 20, 70, 9)                  # the legend boxes: the row above the rows, top left; + (w + 2) each (the page
+                                        # packs the shown ones from the left: frchoose.c FC_LEG_X / FC_LEG_DX)
 G_LVLL = (8, 36, 110, 11)
 G_LVL = (122, 36, 174, 11)
 G_ROW_Y, G_ROW_DY, G_ROW_H = 54, 16, 11
@@ -51,8 +53,8 @@ G_LV = (276, 20)
 G_MSG = (8, 124, 288, 11)
 G_GO = (112, 144, 80, 15)
 
-STR_BACK = 0x3C0                        # (from the band's end: the strings, 448 B)
-BSS_BACK = 0x200                        # (the .bss, 256 B; then the 256 B floor)
+STR_BACK = 0x2A0                        # (from the band's end: the strings, 416 B, then the 256 B floor)
+BSS_BACK = 0x100                        # (no .bss: the C's variables are initialised data, inside its own bytes)
 OWN_SIZE = 0x1C00                       # the interim band with the pick linked here (FRC_OWN_PICK)
 PROBE_SIZE = 0x1000                     # + the test caller's room (FRC_PROBE: its code, FrcCtx and the embedded table)
 LABELS = {}
@@ -93,12 +95,14 @@ def texts(lang):
     from complist import px, font_odd
     d = cdefs()
     assert d['FRC_LEVELS'] == len(LVL[lang]) == 4 and d['FRC_M_COUNT'] == len(MSG[lang]) == 5, lang
-    alls = (TITLE[lang], LVLL[lang], GO[lang], PICK[lang]) + LVL[lang] + BAND[lang] + VEN[lang] + MSG[lang]
+    assert (d['FC_LEG_X'], d['FC_LEG_DX']) == (G_LEG[0], G_LEG[2] + 2) and G_LEG[0] + 4 * d['FC_LEG_DX'] <= 304
+    alls = (TITLE[lang], LVLL[lang], GO[lang], PICK[lang], CHO[lang]) + LVL[lang] + BAND[lang] + VEN[lang] + MSG[lang]
     for x in alls:
         assert re.fullmatch(r'[A-Z ]*', x) and not font_odd(x), (lang, x)       # (small font: no umlaut bytes, rule 2)
     fit = [(TITLE[lang], 300), (LVLL[lang], G_LVLL[2] - 4), (GO[lang], G_GO[2] - 6), (PICK[lang], 200)]
     fit += [(x, G_LVL[2] - 4) for x in LVL[lang]] + [(x, G_BAND[1] - 4) for x in BAND[lang]]
-    fit += [(x, G_LEG[2] - 2) for x in BAND[lang]] + [(x, G_VEN[1] - 4) for x in VEN[lang]]
+    fit += [(x, G_LEG[2] - 2) for x in BAND[lang] + (CHO[lang],)] + [(x, G_VEN[1] - 4) for x in VEN[lang]]
+    fit += [(x, d['FC_LL_DX'] - d['FC_LL_TX'] - 4) for x in BAND[lang]]         # (the club list's legend texts)
     fit += [(x, G_MSG[2] - 4) for x in MSG[lang]]
     for x, w in fit:
         assert px(x) <= w, (lang, x, px(x), w)
@@ -106,7 +110,7 @@ def texts(lang):
     return {'FC_S_LVL': fixed(LVL[lang], 16), 'FC_S_BAND': fixed(BAND[lang], 12), 'FC_S_VEN': fixed(VEN[lang], 4),
             'FC_S_MSG': fixed(MSG[lang], 40), 'FC_S_TTL': TITLE[lang].encode() + b'\0',
             'FC_S_LVLL': LVLL[lang].encode() + b'\0', 'FC_S_GO': GO[lang].encode() + b'\0',
-            'FC_S_PICK': PICK[lang].encode() + b'\0'}
+            'FC_S_PICK': PICK[lang].encode() + b'\0', 'FC_S_CHO': CHO[lang].encode() + b'\0'}
 
 
 def _fx(x, n):
@@ -302,21 +306,26 @@ def menu(d):
         ent((G_LEG[0] + k * (G_LEG[2] + 2),) + G_LEG[1:], col=(d['FC_C_STRONG'], d['FC_C_SIMIL'], d['FC_C_WEAK'])[k],
             text=f'FC_S_BAND + {12 * k}')
     ent(G_LVLL, col=9, text='FC_S_LVLL')
-    ent(G_LVL, links=(None, None, None, club(0)), col=13, text='FC_S_LVL', sel='fc_hl', mask='0E0h')
+    ent(G_LVL, links=(None, None, None, club(0)), col=d['FC_C_CTRL'], text='FC_S_LVL', sel='fc_hl', mask='0E0h')
     for k in range(4):
         y = G_ROW_Y + G_ROW_DY * k
         up, dn = (lambda f: f(k - 1) if k else d['FC_E_LVL']), (lambda f: f(k + 1) if k < 3 else d['FC_E_GO'])
-        ent((G_VEN[0], y, G_VEN[1], G_ROW_H), links=(None, club(k), up(ven), dn(ven)), col=13, text='FC_S_VEN',
+        ent((G_VEN[0], y, G_VEN[1], G_ROW_H), links=(None, club(k), up(ven), dn(ven)), col=d['FC_C_CTRL'],
+            text='FC_S_VEN',
             sel=f'fc_v{k}')
         ent((G_CLUB[0], y, G_CLUB[1], G_ROW_H), links=(ven(k), None, up(club), dn(club)), col=d['FC_C_AUTO'],
             text=f'FC_NAME + {d["FC_NL"] * k}', sel=f'fc_c{k}')
         ent((G_BAND[0], y, G_BAND[1], G_ROW_H), col=d['FC_C_SIMIL'], text='FC_S_BAND')
         ent((G_LV[0], y, G_LV[1], G_ROW_H), col=d['FC_C_SIMIL'], text=f'FC_LV + {2 * k}')
     ent(G_MSG, text='FC_S_MSG')
-    ent(G_GO, links=(None, None, club(3), None), col=0x0E, text='FC_S_GO', sel='fc_go')
+    ent(G_GO, links=(None, None, club(3), None), col=d['FC_C_GO'], text='FC_S_GO', sel='fc_go')
+    ent((G_LEG[0] + 3 * (G_LEG[2] + 2),) + G_LEG[1:], col=d['FC_C_CHOSEN'], text='FC_S_CHO')
+    ctl = {d['FC_C_CTRL'], d['FC_C_GO'], d['FC_C_AUTO'], 0x17}
+    assert not ctl & {d['FC_C_STRONG'], d['FC_C_SIMIL'], d['FC_C_WEAK'], d['FC_C_NO'], d['FC_C_CHOSEN']}, \
+        'frchoose: a control in a legend colour'
     n = sum(1 for x in L if x == '    dw 0')
-    assert n == d['FC_NE'] and (d['FC_E_LEG'], d['FC_E_LVLL'], d['FC_E_LVL'], E, d['FC_E_MSG'], d['FC_E_GO']) == \
-        (1, 4, 5, 6, 22, 23), (n, d)
+    assert n == d['FC_NE'] and (d['FC_E_LEG'], d['FC_E_LVLL'], d['FC_E_LVL'], E, d['FC_E_MSG'], d['FC_E_GO'],
+                                d['FC_E_LEGC']) == (1, 4, 5, 6, 22, 23, 24), (n, d)
     return '\n'.join(L) + '\n'
 
 
@@ -396,7 +405,7 @@ def patch(p, lang, pick=None):
     obj = cobj.compile_c(os.path.join(here, 'frchoose.c'),
                          ['-Oz', '-fno-zero-initialized-in-bss'] + (['-DFRC_OWN_PICK'] if own else []))
     syms, c_end, bss = cobj.link(p, obj, at0 + 16, (4, bss_at), externs=ext, limit=str_at, text_obj=4)
-    assert bss <= BSS_BACK - 256, ('frchoose .bss', bss)
+    assert bss == 0, ('frchoose .bss', bss)
     # the club browser: the world's wrapper (careerworld's w_buy, as the foreign market) when a world is built
     wbuy = careerworld.LABELS.get('w_buy')
     browse = (1, wbuy) if isinstance(wbuy, int) else (1, careerworld.LABELS['sites']['chooseteams']) \

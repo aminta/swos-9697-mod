@@ -219,8 +219,14 @@ def _page(blob, world, clubs, names, me, page):
                 return f'row {k}: band colour'
             if g.col(D['FC_E_ROW'] + 4 * k + 1) != (D['FC_C_CHOSEN'] if s.club[k] != NONE else D['FC_C_AUTO']):
                 return f'row {k}: club colour'
-        if [g.hidden(D['FC_E_LEG'] + k) for k in range(3)] != [0 if k in used else 1 for k in range(3)]:
+        if any(c != NONE for c in list(s.club)):
+            used.add(3)                                     # (the chosen club's box)
+        leg = [D['FC_E_LEG'] + k for k in range(3)] + [D['FC_E_LEGC']]
+        if [g.hidden(e) for e in leg] != [0 if k in used else 1 for k in range(4)]:
             return 'legend != the colours painted (CONVENTIONS 6)'
+        xs = [struct.unpack_from('<H', g.ent(e), 0x14)[0] for k, e in enumerate(leg) if k in used]
+        if xs != [D['FC_LEG_X'] + D['FC_LEG_DX'] * j for j in range(len(xs))]:
+            return f'legend not packed from the left: {xs}'
         return None
     g = Game(names, script)
     given, ven = g.choose(page.ctx)
@@ -320,7 +326,8 @@ def test_frchoose_list():
         ws = [free[0], b2] + free[1:40]
         fill(g, ws)
         g.l.fc_list()                                       # outside a browse: nothing
-        out['idle'] = all(g.col(L0 + i) == 0x55 for i in range(len(ws)))
+        out['idle'] = all(g.col(i) == 0x55 and g.hidden(i) for i in range(1, L0)) and \
+            all(g.col(L0 + i) == 0x55 for i in range(len(ws)))
         if g.l.fc_club(2) != 1:                             # FIRE on row 2 (automatic): the browser opens
             out['err'] = 'row 2 did not open the browser'
             return
@@ -328,7 +335,7 @@ def test_frchoose_list():
         ref = S.Page(blob, world, me, self2=b2)
         ref.club(0, free[0])
         cols = (D['FC_C_STRONG'], D['FC_C_SIMIL'], D['FC_C_WEAK'])
-        grey = 0
+        grey, seen = 0, set()
         for i, w in enumerate(ws):
             rc, band = ref.trial(2, w)
             want = D['FC_C_NO'] if rc else cols[1 if band == T.SIMILAR else 0 if band in (T.STRONGER, T.FAR_UP) else 2]
@@ -336,18 +343,36 @@ def test_frchoose_list():
             if g.col(L0 + i) != want:
                 out['err'] = f'entry {L0 + i} club {w:#x}: colour {g.col(L0 + i):#x}, want {want:#x} (rc {rc} band {band})'
                 return
+            if not rc:
+                seen.add(cols.index(want))
+        j = 0                                               # the game's legend row = the bands on the list, packed
+        for b in range(3):
+            eb, et = D['FC_LL_BOX'] + b, D['FC_LL_TEXT'] + b
+            x = lambda e: struct.unpack_from('<H', g.ent(e), 0x14)[0]
+            if (g.hidden(eb), g.hidden(et)) != ((0, 0) if b in seen else (1, 1)):
+                out['err'] = f'list legend {b}: hidden {g.hidden(eb)} / {g.hidden(et)}, bands on the list {seen}'
+                return
+            if b in seen:
+                if (g.col(eb), x(eb), x(et)) != (cols[b], D['FC_LL_X'] + D['FC_LL_DX'] * j,
+                                                 D['FC_LL_X'] + D['FC_LL_DX'] * j + D['FC_LL_TX']):
+                    out['err'] = f'list legend {b}: colour {g.col(eb):#x} x {x(eb)} / {x(et)} (shown as {j})'
+                    return
+                j += 1
+        out['leg'] = sorted(seen)
         out['n'], out['grey'] = len(ws), grey
-        out['rest'] = all(g.col(i) == 0x55 for i in list(range(L0)) + list(range(L0 + len(ws), 64)))
+        out['rest'] = all(g.col(i) == 0x55 for i in [0] + list(range(D['FC_LL_TEXT'], L0)) + list(range(L0 + len(ws), 64)))
         struct.pack_into('<I', g.dreg, 0, 0xFFFF)
         g.l.fc_picked()                                     # ESCI
         fill(g, ws)
         g.l.fc_list()
-        out['after'] = all(g.col(L0 + i) == 0x55 for i in range(len(ws)))
+        out['after'] = all(g.col(i) == 0x55 and g.hidden(i) for i in range(1, L0)) and \
+            all(g.col(L0 + i) == 0x55 for i in range(len(ws)))
     g = Game(names, script)
     g.choose(page.ctx)
     if out.get('err'):
         return False, out['err']
     if not (out.get('idle') and out.get('rest') and out.get('after')) or out['grey'] < 2 or L1 != 55:
         return False, f'{out}'
-    return True, f'{out["n"]} listed clubs painted by band ({out["grey"]} grey: chosen elsewhere / B team); nothing ' \
+    return True, f'{out["n"]} listed clubs painted by band ({out["grey"]} grey: chosen elsewhere / B team), the ' \
+                 f'legend row = bands {out["leg"]} packed; nothing ' \
                  f'painted outside a browse'

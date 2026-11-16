@@ -43787,9 +43787,16 @@ def frchoose_probe():
         check(all(r[3] in '12345' and len(r[3]) == 1 for r in rows), f'{tag}: figures {[r[3] for r in rows]}', errs)
         check(all(r[4] == (d['FC_C_AUTO'] if v['club'][k] == 0xFFFF else d['FC_C_CHOSEN']) for k, r in enumerate(rows)),
               f'{tag}: club box colours {[hex(r[4]) for r in rows]} for chosen {v["club"]}', errs)
-        used = {r[2] for r in rows}
-        check(all((scr.entries[d['FC_E_LEG'] + k][2] == 0) == (bands[k] in used) for k in range(3)),
-              f'{tag}: legend boxes shown {[scr.entries[d["FC_E_LEG"] + k][2] == 0 for k in range(3)]}, bands used {used}', errs)
+        used = [bands[k] in {r[2] for r in rows} for k in range(3)] + [any(c != 0xFFFF for c in v['club'])]
+        leg = [d['FC_E_LEG'] + k for k in range(3)] + [d['FC_E_LEGC']]
+        shown = [e for e in leg if not scr.entries[e][2]]
+        check([not scr.entries[e][2] for e in leg] == used, f'{tag}: legend boxes shown '
+              f'{[not scr.entries[e][2] for e in leg]}, painted {used} (bands, chosen)', errs)
+        check([scr.geom[e][0] for e in shown] == [d['FC_LEG_X'] + d['FC_LEG_DX'] * j for j in range(len(shown))] and
+              [scr.raw_texts[e] for e in leg] == list(bands) + [frchoose.CHO[UI]] and
+              [scr.colors[e] for e in leg] == [bcol[x] for x in bands] + [d['FC_C_CHOSEN']],
+              f'{tag}: legend x {[scr.geom[e][0] for e in shown]}, texts {[scr.raw_texts[e] for e in leg]}, colours '
+              f'{[hex(scr.colors[e]) for e in leg]}', errs)
         s.shot(tag)
         notes.append(f'{tag}: level {v["level"]} rows {[r[:4] for r in rows]} msg {scr.raw_texts[d["FC_E_MSG"]]!r}')
         return scr, v, rows
@@ -43839,6 +43846,12 @@ def frchoose_probe():
                if not scr.entries[i][2] and scr.raw_texts[i]]
         ok_cols = set(bcol.values()) | {d['FC_C_NO']}
         check(len(lst) >= 10 and all(c in ok_cols for _, _, c in lst), f'list: colours {[(t, hex(c)) for _, t, c in lst]}', errs)
+        seen = [c in {x for _, _, x in lst} for c in (bcol[x] for x in bands)]      # the list's legend row
+        lb, lt = d['FC_LL_BOX'], d['FC_LL_TEXT']
+        check([not scr.entries[lb + k][2] for k in range(3)] == seen and [not scr.entries[lt + k][2] for k in range(3)] == seen
+              and all(scr.colors[lb + k] == bcol[bands[k]] and scr.raw_texts[lt + k] == bands[k] for k in range(3) if seen[k]),
+              f'list: legend row shown {[not scr.entries[lb + k][2] for k in range(3)]} for the bands listed {seen}: '
+              f'{[(scr.raw_texts[lt + k], hex(scr.colors[lb + k]), scr.geom[lb + k][0]) for k in range(3)]}', errs)
         s.shot('list')
         stack('list', frc_read(s, fs))
         notes.append('list: ' + ' '.join(f'{t}:{c:X}' for _, t, c in lst))

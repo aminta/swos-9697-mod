@@ -288,7 +288,7 @@ def test_wmodes():
     # M3: swe_car_tramp's own pre / post (its calls: pushal; call pre; popal; call the picker; ..; call post): only for
     # SELECT TEAM TO MANAGE (mainbtn mb_d0's check: the title pointer = its string); after it the namespace stays
     import mainbtn
-    _, hdr_s, str_s = mainbtn.choose_sites(o)
+    _, hdr_s, str_s, *_ = mainbtn.choose_sites(o)       # (42-import: + ISTR, TTYPE)
     HDR, STR = ((B1 if x[0] == 1 else B2) + x[1] for x in (hdr_s, str_s))
     cc = [a for a in range(car[0], car[0] + 40) if rd(a, 1) == b'\xe8']
     cpre, cpost = _e8(rd, cc[0]), _e8(rd, cc[2])

@@ -605,6 +605,16 @@ the match at all, cc still differs.
 DIFF_SKIP is a comma list matched as a set ('BU' is not 'BUFRAME').
 - Host fixtures (42-fixroot, MC 16/11): `zsh tools/hosttest/mkfixtures.sh` builds every fixture (HTW HTO4 HTOMM HTPC2 HTn7rf HTn7rd S7W-ws4c S7RI-hs) once per tip into c/FX-<sha>/ with a MANIFEST.json and prints `export HOSTTEST_FIXROOT=...`; with it set every test reads that root and a stale / edited fixture FAILs with the manifest message (tools/hosttest/fixroot.py); never rebuild a fixture dir in place.
 - test_ctgame (the long cg_* tests: cg_view ~9 min idle) runs ONE AT A TIME across every suite on this Mac (a file lock, internal/hosttest/.ctgame.lock) with a 20-min timeout (HOSTTEST_LONG_TIMEOUT s): a timeout prints `TIMEOUT test_ctgame (> N s, load average ...)` and is neither a PASS nor a FAIL (the summary shows `N TIMEOUT`, exit 1): rerun it alone on a quiet machine (MC 16/11).
+- POSITION TRAITS (1)(3) host gates (42-trhead, 16/11; tools/trhead.py, the TRHD band). Builds: the release recipe, IT, `HOSTTEST_SYMS=1`;
+  REF = `TRHD_RUOLI` unset (nothing linked), NEW = `TRHD_RUOLI=0` (the band in, RUOLI NO; the switch byte TR_RU is poked by the
+  tests - it stands in for GP_RUOLI until that is on the integration branch). buildrel.sh clears TRHD_RUOLI (a BUILD_SWITCH).
+  `tools/hosttest/trhd_structural.py REF NEW` (gate D1): byte diff (obj1 = DIST0 / DIST1 + operands to setpieces labels moved by
+  the 5 B call; obj4 = TRHD, SETPIECE / SPX, and TRHD's own new page with the engine's .bss operands moved by it) + differential
+  execution at 13 setpieces sites + DIST0 / DIST1, RUOLI NO equal everywhere, RUOLI SI differs at JZ / FZ / HD / DIST0 / DIST1 only.
+  `tools/hosttest/trhd_check.py NEW` (gate D3): the rules against a Python model (zones, the switch, the header verdict and
+  deltaZ through setpieces' own stubs, the whip bonus with a planted TR_WF, the reach limit) and a substitution through the
+  game's own SubstitutePlayer swap + GetPlayerPointerFromShirtNumber. Teeth: run it with another TR_RST / TR_WZ in the
+  environment than the build's and it must FAIL.
 
 ## GAMEPLAY page: the RUOLI row and GP_RUOLI (Panchina, 2026-11-16)
 The GAMEPLAY page's 7th row is RUOLI (SI / NO, default NO = `gameplay.RUOLI_DEFAULT` 1, the one constant: Davide 16/11;

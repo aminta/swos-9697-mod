@@ -370,55 +370,57 @@ void s7_flush(void)
    rows. A failure REFUSES the season: nothing crosses, every club stays where it is (each league row's delta = its club's
    division now - the row's shipped one), the ri pool moves already made are walked, S7_LOG.status = S7_SIZE and S7_SZ
    says what (the harness reads it; the game does not trap). */
-struct { uint8_t gate, kind, div, found, want, pad[3]; uint16_t ident, row; } S7_SZ DATA = {0};   /* gate 1 = the game's deltas,
-                                           2 = after the crossings; kind: 1 a division's size, 2 an ident twice, 3 a row out of
-                                           its file's divisions; div = the league index, found / want its clubs */
+struct { uint8_t gate, kind, div, found, want; } S7_SZ DATA = {0};   /* gate 1 = the game's deltas, 2 = after the crossings; kind: 1 a division's
+                                           size (div = the league index, found / want its clubs), 2 an ident in two rows (or a row's ident off the registry), 3 a
+                                           club on no division of its file */
 enum { SZ_DIV = 1, SZ_DUP = 2, SZ_PLACE = 3 };
 static int32_t size_check(const int8_t *slt, const uint8_t *nd, int32_t gate)   /* 0 ok; nd NULL: slt's divisions */
 {
     const sr_registry *R = SREG_REG;
-    uint8_t cnt[256], want[256], seen[(SR_REG_CLUBS + 7) / 8];
-    for (int32_t i = 0; i < 256; i++) cnt[i] = want[i] = 0;
-    for (int32_t i = 0; i < (int32_t)sizeof seen; i++) seen[i] = 0;
-    S7_SZ.gate = (uint8_t)gate; S7_SZ.kind = S7_SZ.div = S7_SZ.found = S7_SZ.want = 0; S7_SZ.ident = S7_SZ.row = 0;
+    uint8_t cnt[256];
+    S7_SZ.gate = (uint8_t)gate; S7_SZ.kind = S7_SZ.div = S7_SZ.found = S7_SZ.want = 0;
+    for (int32_t k = 0; k < 256; k++) cnt[k] = 0;
     for (int32_t s = 0; s < 2; s++) {
-        int32_t fi = fi_of(s ? S7_FB : S7_FA);
-        if (fi < 0) return S7_SZ.kind = SZ_PLACE;
-        for (int32_t k = 0; k < R->f[fi].ndiv; k++) want[R->f[fi].div[k]] = (uint8_t)(want[R->f[fi].div[k]] + R->f[fi].size[k]);
+        const int32_t fi = fi_of(s ? S7_FB : S7_FA);
+        const sr_reg_file *f = &R->f[fi];
         for (uint32_t o = 0; o < R->rows[fi]; o++) {
-            int32_t b = base_local(fi, o), id = R->at[fi][o];
-            if (b < 0 || id >= R->nclub) continue;      /* (a pool row: not the league's) */
-            if (seen[id >> 3] >> (id & 7) & 1) { S7_SZ.ident = (uint16_t)id; S7_SZ.row = (uint16_t)o; return S7_SZ.kind = SZ_DUP; }
-            seen[id >> 3] = (uint8_t)(seen[id >> 3] | 1 << (id & 7));
-            int32_t d;
-            if (nd) d = nd[id];
-            else {
-                int32_t loc = b + slt[glob_of(s, o)];
-                if (loc < 0 || loc >= R->f[fi].ndiv) { S7_SZ.row = (uint16_t)o; S7_SZ.ident = (uint16_t)id; return S7_SZ.kind = SZ_PLACE; }
-                d = R->f[fi].div[loc];
-            }
-            if (cnt[d] < 255) cnt[d]++;
+            int32_t k = base_local(fi, o);
+            if (k < 0) continue;                        /* (a pool row: not the league's) */
+            if (R->at[fi][o] >= R->nclub || R->word[R->at[fi][o]] != (uint16_t)(f->file | o << 8)) return S7_SZ.kind = SZ_DUP;   /* (an ident in two rows) */
+            k += slt[glob_of(s, o)];
+            if (nd) cnt[nd[R->at[fi][o]]]++;
+            else if (k < 0 || k >= f->ndiv) return S7_SZ.kind = SZ_PLACE;
+            else cnt[f->div[k]]++;
         }
     }
-    for (int32_t d = 0; d < 256; d++)
-        if (cnt[d] != want[d]) { S7_SZ.div = (uint8_t)d; S7_SZ.found = cnt[d]; S7_SZ.want = want[d]; return S7_SZ.kind = SZ_DIV; }
+    for (int32_t s = 0; s < 2; s++) {
+        const sr_reg_file *f = &R->f[fi_of(s ? S7_FB : S7_FA)];
+        for (int32_t k = 0; k < f->ndiv; k++)
+            if (cnt[f->div[k]] != f->size[k]) {
+                S7_SZ.div = f->div[k]; S7_SZ.found = cnt[f->div[k]]; S7_SZ.want = f->size[k];
+                return S7_SZ.kind = SZ_DIV;
+            }
+    }
     return 0;
 }
-static int32_t size_refuse(int8_t *slt, int32_t nri)
+static void rebase(int8_t *slt, int32_t fa, int32_t fb)    /* every league row's delta = its club's division (rdiv) as its file's local, minus the row's */
 {
-    sr_registry *R = SREG_REG;
-    for (int32_t s = 0; s < 2; s++) {                   /* every club stays: the delta of a row = its club's division - the row's */
-        int32_t fi = fi_of(s ? S7_FB : S7_FA);
-        for (uint32_t o = 0; fi >= 0 && o < R->rows[fi]; o++) {
+    const sr_registry *R = SREG_REG;
+    for (int32_t s = 0; s < 2; s++) {
+        int32_t fi = s ? fb : fa;
+        for (uint32_t o = 0; o < R->rows[fi]; o++) {
             int32_t b = base_local(fi, o);
             if (b < 0) continue;
-            slt[glob_of(s, o)] = 0;
             for (int32_t k = 0; k < R->f[fi].ndiv; k++)
                 if (R->f[fi].div[k] == R->rdiv[fi][o]) slt[glob_of(s, o)] = (int8_t)(k - b);
         }
     }
+}
+static int32_t size_refuse(int8_t *slt, int32_t nri)    /* every club stays (rebase on the unchanged registry), ri's moves walked */
+{
+    rebase(slt, fi_of(S7_FA), fi_of(S7_FB));
     S7_LOG.ncross = 0; S7_LOG.nswap = (uint8_t)nri;
-    if (nri) {                                           /* (ri's moves are in the registry: the saved words follow them) */
+    if (nri) {
         S7_WLOG.row = (int16_t)wcheck(); S7_WLOG.rc = 0; S7_WLOG.changed = S7_WLOG.cache = S7_WLOG.npair = S7_WLOG.rows = 0;
         if (S7_WLOG.row < 0) walk(nri, slt);
         s7_flush();
@@ -512,9 +514,6 @@ static int32_t run(void *pv) {
             order[no++] = (uint16_t)id;
         }
     }
-    for (int32_t k = 0; k < no; k++)                    /* (an ident crossing twice) */
-        for (int32_t j = 0; j < k; j++)
-            if (order[j] == order[k]) { S7_SZ.gate = 2; S7_SZ.kind = SZ_DUP; S7_SZ.ident = order[k]; return size_refuse(slt, nri); }
     if (size_check(slt, nd, 2)) return size_refuse(slt, nri);
     S7_LOG.ncross = (uint8_t)no;
     S7_WLOG.row = (int16_t)wcheck(); S7_WLOG.rc = 0; S7_WLOG.changed = S7_WLOG.cache = S7_WLOG.npair = S7_WLOG.rows = 0;
@@ -526,16 +525,7 @@ static int32_t run(void *pv) {
     c += nri;                           /* (the walk: ri's moves, then the crossings) */
     S7_LOG.nswap = (uint8_t)c;
     s7_flush();
-    /* next season's deltas: every row's division (rdiv, the league's) as its file's local, minus the slot's base */
-    for (int32_t s = 0; s < 2; s++) {
-        int32_t fi = s ? fb : fa;
-        for (uint32_t o = 0; o < R->rows[fi]; o++) {
-            int32_t b = base_local(fi, o);
-            if (b < 0) continue;
-            for (int32_t k = 0; k < R->f[fi].ndiv; k++)
-                if (R->f[fi].div[k] == R->rdiv[fi][o]) slt[glob_of(s, o)] = (int8_t)(k - b);
-        }
-    }
+    rebase(slt, fa, fb);                /* next season's deltas: every row's division (rdiv) as its file's local, minus the slot's base */
     if (walk(c, slt) < 0) return S7_LOG.status = S7_WMAP;      /* (cannot happen: <= S7_NSW swaps, S7_NPR pairs) */
     SREG_FLAGS &= ~(uint32_t)(SR_REGSAVE_PENDING | 0xFF00);    /* (42-s7import: an imported save's PENDING clears at its
                                                                   first S7 season end - n7-p4 §9a.1; IMPORTED stays) */

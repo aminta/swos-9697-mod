@@ -61,6 +61,8 @@ extern int swe_fread(int, void *, unsigned int);
 extern int swe_fclose(int);
 extern u32 fr_cached_asm(u32 word);     /* frnd.py glue: FindTeamInCache (non-trapping), 1 = cached */
 extern const u32 FR_D6BA2;              /* the season's wage bill (cseg_3D204) */
+extern void *const FR_SLOT4;            /* dseg_D8CBA: the game's slot-4 contest (0 = none; InitializeNewSeason zeroes it,
+                                           cseg_8DAC3 / int4_step set it before cseg_3D204: a native slot-4 contest) */
 extern const u16 FR_D6C4E;              /* the season's expected gates of slots 0-3 (cseg_3D204) */
 
 #define KO0 (GP_GST + O_KO)
@@ -129,6 +131,10 @@ void fr_season(u32 self) {              /* InitializeNewSeason's tail: self = th
     FR_ST[0] = (u8)season; FR_ST[1] = 0;
     for (int k = 0; k < 4; k++) *(u16 *)(FR_ST + 2 + 2 * k) = FR_NONE;
     FR_ST[10] = 0; FR_ST[11] = (u8)(lvl >> 8);
+    /* a native slot-4 contest this season (play-offs, NSL...: Friendlies 96-97 16/11): only with an FR_AFTER4 to
+       reinstall it after the 4th friendly; else no friendlies (no FR_OPEN), the native one keeps slot 4 */
+    u32 native = FR_SLOT4 != 0;
+    if (native && !FR_AFTER4) { FR_TRACE_SET(0x86); return; }
     u32 len = fr_slice(FR_CWB);
     if (!len || !self) { FR_TRACE_SET(0x81); return; }
     FrRoom room = { tc_room(), fr_cached, 0 };
@@ -148,7 +154,7 @@ void fr_season(u32 self) {              /* InitializeNewSeason's tail: self = th
     u8 wk[4];
     if (!fr_turns(FR_CAL, wk)) { FR_TRACE_SET(0x83); return; }
     for (int k = 0; k < 4; k++) *(u16 *)(FR_ST + 2 + 2 * k) = out.word[k];
-    u32 fl = (FR_FLAGS(FR_ST) & FR_LEVEL_MASK) | (out.home & 15);   /* (FR_LEVEL as frc_choose left it) */
+    u32 fl = (FR_FLAGS(FR_ST) & FR_LEVEL_MASK) | (out.home & 15) | (native ? FR_NATIVE : 0);   /* (FR_LEVEL as frc_choose left it) */
     FR_ST[10] = (u8)fl; FR_ST[11] = (u8)(fl >> 8);
     FR_ST[1] = FR_OPEN;
     FR_T(FR_FB = out.fb;)

@@ -36,7 +36,7 @@ static int fails;
 u8 GP_GST[16 + 700]; u8 GP_SEAS; u32 GP_WK; u16 GP_MGR; u32 GP_K;
 u8 FR_D1R[28]; static u16 A1T; u8 *FR_A1R = (u8 *)&A1T;
 u16 FR_CALCUR; u8 FR_SEASON, FR_CWB; u8 FR_ST[FR_SZ]; u8 FR_BUF[FR_BUFSZ];
-u32 FR_D6BA2; u16 FR_D6C4E;
+u32 FR_D6BA2; u16 FR_D6C4E; void *FR_SLOT4;
 static int bad_d1, nko, ko_w1, ko_home, ko_away, ko_kind, ko_level, ko_lfile;
 static void mock_ko_one(struct gp_ko *k, u16 h, u16 a, int w1, int w2, int legs, int kind, int level, int lfile,
                         const u8 *nm) {
@@ -134,6 +134,16 @@ int main(int argc, char **argv) {
     CHECK(fr_step() == 0 && !(FR_ST[1] & FR_OPEN) && FR_TRACE == 0x85 && nafter == na + 1 && *(u16 *)KO() == 0, "install_week_refused",
           "trace %x open %d", FR_TRACE, FR_ST[1] & FR_OPEN);
     bad_d1 = 0;
+    /* 9. a native slot-4 contest (D8CBA set at the season start: play-offs, NSL; Friendlies 96-97 16/11):
+       with FR_AFTER4 the friendlies go on, FR_NATIVE set; without it none (trace 0x86, no FR_OPEN) */
+    static u8 nat4; FR_SLOT4 = &nat4; GP_SEAS = FR_SEASON = 11; fr_season(GP_MGR);
+    CHECK(FR_ST[1] == FR_OPEN && FR_TRACE == 0x10 && (FR_FLAGS(FR_ST) & FR_NATIVE), "native_with_after4",
+          "open %d trace %x fl %x", FR_ST[1], FR_TRACE, FR_FLAGS(FR_ST));
+    FR_AFTER4 = 0; GP_SEAS = FR_SEASON = 12; fr_season(GP_MGR);
+    CHECK(FR_ST[0] == 12 && !(FR_ST[1] & FR_OPEN) && FR_TRACE == 0x86, "native_no_after4_none", "open %d trace %x",
+          FR_ST[1], FR_TRACE);
+    FR_SLOT4 = 0; GP_SEAS = FR_SEASON = 13; fr_season(GP_MGR);
+    CHECK(FR_ST[1] == FR_OPEN && !(FR_FLAGS(FR_ST) & FR_NATIVE), "no_native_bit_clear", "fl %x", FR_FLAGS(FR_ST));
     printf("fails %d\n", fails);
     return fails != 0;
 }

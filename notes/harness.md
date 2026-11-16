@@ -536,3 +536,10 @@ the match at all, cc still differs.
 `DIFF_STOPF=n` halts at frame n and diffs obj2 word by word (REF vs NEW): the way to find the next input.
 `DIFF_PAD=code,buildup` (REF + a nop band of NEW's obj4 sizes) was equal to REF in every run: code size is not a cause.
 DIFF_SKIP is a comma list matched as a set ('BU' is not 'BUFRAME').
+
+### S7 season-end size gate (42-s7trap)
+- `S7_LOG` (obj4, s7swap): byte 0 = status (1 OK, 3 STALE, 4 BAD, 5 COUNT, 6 PLACE, **13 SIZE**), 1 season, 2 swaps, 3 crossers. The harness-wide
+  check in `world8485` (every hexlog of an S7 world) fails any run whose status byte 0 is 13 (until 16/11 it read byte 1: it never fired).
+- `S7_SZ` (obj4, 5 bytes): [gate, kind, division, found, want]. Gate 1 = the game's own deltas leave a division off its size, gate 2 = the count after
+  the swaps; kind 1 = division size, kind 2 = an ident in two rows. `world_s7sizeforce` (S7_SIZEFORCE build switch) expects gate 1 kind 1 at every
+  season end (`S7_SIZE_EXPECT`); `test_s7swap` mutants (same club twice -> SIZE gate 2; count off by one -> COUNT) prove the refusals on the host.

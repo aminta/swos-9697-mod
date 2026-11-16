@@ -25099,10 +25099,11 @@ FR = {
                               #   (an all-automatic pick only - given == NULL, as 4.2; given entries keep their slot
                               #   and no fb bit: not checked until a UI exists. A band whose clubs all lack cache room
                               #   has no candidate: fb set, the slot outside its band - Mercato 16/11)
-    'FEES': None,             # (part b, Mercato - PROPOSED 16/11, final after Motore's ok on G): {band: (home %, away %)}
-                              #   of G (FR_G) - proposal far_up 120/50, stronger 100/40, similar 50/20, weaker 30/10,
-                              #   far_down 20/5; fee = floor(G * pct / 100), credited = (min(fee, 1048560) >> 4) << 4
-    'SYM_G': 'FR_G',          # TODO(engine): dword, test builds - G, one home league gate of the career club this season
+    'FEES': {'far_up': (120, 50), 'stronger': (100, 40), 'similar': (50, 20), 'weaker': (30, 10), 'far_down': (20, 5)},
+                              # FINAL 16/11 (Mercato part b, Motore ok; friendlies-pick.md "Fee table"): {band[k] after any
+                              #   fallback: (home %, away %)} of G (FR_G); fee = floor(G * pct / 100) on a u64 product (Python
+                              #   ints: exact), credited = (min(fee, 1048560) >> 4) << 4
+    'SYM_G': 'FR_G',          # TODO(engine): u32, test builds - the G used (cseg_3CB08 with home = away = the career club)
     'BAL_EXACT': True,        # the balance (finance NEWBAL) moves by exactly the fee between a friendly's screen and the
                               #   next match screen. TODO(engine): False if wages / gate money move in those weeks too
     'MIX_RULE': ('tools/frpick.h:34-36 (42-frpick cfbd695): THE "NEAREST BAND" RULE: when the wanted band has no '

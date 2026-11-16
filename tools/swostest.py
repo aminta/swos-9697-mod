@@ -25099,7 +25099,10 @@ FR = {
                               #   (an all-automatic pick only - given == NULL, as 4.2; given entries keep their slot
                               #   and no fb bit: not checked until a UI exists. A band whose clubs all lack cache room
                               #   has no candidate: fb set, the slot outside its band - Mercato 16/11)
-    'FEES': None,             # TODO(engine, part b): {(band, home): fee} band 'stronger' / 'similar' / 'weaker', home bool
+    'FEES': None,             # (part b, Mercato - PROPOSED 16/11, final after Motore's ok on G): {band: (home %, away %)}
+                              #   of G (FR_G) - proposal far_up 120/50, stronger 100/40, similar 50/20, weaker 30/10,
+                              #   far_down 20/5; fee = floor(G * pct / 100), credited = (min(fee, 1048560) >> 4) << 4
+    'SYM_G': 'FR_G',          # TODO(engine): dword, test builds - G, one home league gate of the career club this season
     'BAL_EXACT': True,        # the balance (finance NEWBAL) moves by exactly the fee between a friendly's screen and the
                               #   next match screen. TODO(engine): False if wages / gate money move in those weeks too
     'MIX_RULE': ('tools/frpick.h:34-36 (42-frpick cfbd695): THE "NEAREST BAND" RULE: when the wanted band has no '
@@ -25186,7 +25189,7 @@ def fr_syms(exe_dir):
     if st is None:
         return None
     at = lambda name: tuple(gp[name][:2]) if name in gp else None
-    return {'st': st, 'trace': at(FR['SYM_TRACE']), 'str': at(FR['SYM_STR']), 'fee': at(FR['SYM_FEE']),
+    return {'st': st, 'trace': at(FR['SYM_TRACE']), 'str': at(FR['SYM_STR']), 'fee': at(FR['SYM_FEE']), 'g': at(FR['SYM_G']),
             'card': at(FR['SYM_CARD']), 'fb': at(FR['SYM_FB']), 'force': FR['SYM_FORCE'] in gp, 'syms': bool(sy)}
 
 
@@ -25302,7 +25305,7 @@ def fr_keys(exe, fr):
     first 16 records, newBalance, and the build's traces."""
     ct, sel, nb = fr_sites(exe)
     spec = {'st': ((2, fr['st']), FR['ST_LEN']), 'sel': ((2, sel), 2), 'ct': ((2, ct), 76 + 16 * 38), 'bal': ((2, nb), 4)}
-    for k, n in (('str', 10), ('fee', 16), ('card', 1), ('trace', 1), ('fb', 1)):
+    for k, n in (('str', 10), ('fee', 16), ('card', 1), ('trace', 1), ('fb', 1), ('g', 4)):
         if fr.get(k):
             spec[k] = (fr[k], n)
     keys = {k: fr_hx(at) for k, (at, _) in spec.items()}
@@ -25446,7 +25449,9 @@ def fr_check(exe, fr, lines, keys, errs, info, sn, others=(), weeks=None, n_want
     if 'fee' in last and bands:
         require(FR['FEES'] is not None, "FR['FEES'] not filled (TODO(engine): the fee table by band and home / away)")
         fee = struct.unpack('<4i', last['fee'])
-        want = [FR['FEES'][(bands[k], home[k])] for k in range(n_want)]
+        require('g' in last, 'no FR_G trace in this build (the fee base G)')
+        g = struct.unpack('<I', last['g'])[0]
+        want = [(min(g * FR['FEES'][bands[k]][0 if home[k] else 1] // 100, 1048560) >> 4) << 4 for k in range(n_want)]
         check(list(fee[:n_want]) == want, pre + f'fees credited {list(fee)} != the table\'s {want} (bands {bands}, home {home})', errs)
         seq = [m for m in ms if 'bal' in m['at']]
         for k, m in enumerate(frs):

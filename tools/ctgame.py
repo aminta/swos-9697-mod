@@ -429,6 +429,7 @@ def patch(p, at, scr_at, lang):
     fc = fcnt()                                         # (P4: the world's team files' club counts)
     p.put(3, at, fc)
     fc_at, at = at, (at + len(fc) + 15) & ~15
+    import tcache
     cs = cl['syms']
     ext = {k: cs[k] for k in ('CT_SPEC', 'CT_IN', 'CT_OUT', 'CT_SEG', 'CT_GREC', 'ct_resume')}
     ext.update(CG_TAB=(3, tab_at), CG_SCR=(3, scr_at), CG_NUMSEL=trailer.INFO['NUMSEL'], CG_SLOT3=u['SLOT3'],
@@ -447,6 +448,8 @@ def patch(p, at, scr_at, lang):
     syms, at, bss = cobj.link(p, obj, at, (3, scr_at), externs=ext, text_obj=3)
     c1 = at
     assert bss == 0, ('ctgame.c: no .bss (statics in its data)', bss)
+    tcache.ref(p, *syms['TC_ROOMP'], 'tc_room')        # (tcache's entries through ctgame.c's own pointers)
+    tcache.ref(p, *syms['TC_CLAMPP'], 'tc_clamp')
     at = (at + 15) & ~15
     ls = lp36.LABELS['symbols']
     sym = {'DIYCOPY': ls['DIYCOPY'], 'D0R': u['D0R'], 'A0R': u['A0R'], 'W10EAB5': (2, w1), 'W10EED4': (2, w2),

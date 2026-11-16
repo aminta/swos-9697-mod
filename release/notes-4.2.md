@@ -115,6 +115,9 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 - The page does not show the dates: the friendlies are in the calendar as before.
 - A career saved with an earlier version continues with MIXED. With SWOS++ the page is not shown and the game picks the four (MIXED).
 
+#### Italian version: PAREGGI
+The original Italian game spells "draws" as PARREGGI in the season record (VINCITE ... PARREGGI ... SCON ...), the line a national-team coach sees and that the preseason friendlies now use too. It now reads PAREGGI, in the CD and GOG versions.
+
 #### Decisions of this release
 - Serie C / Serie D exchange (2026-27 world): every season the nine Serie D group winners go up and the Serie C clubs relegated (last of each group + play-out losers) go down, your club included; groups by area, an approximation (the real league redraws the Serie D groups every summer); a move of your club keeps its squad, money and record.
 - Set-piece practice: a practice lasts the attempts chosen (SHOTS: 10 at first; UNLIMITED until ESC) on the half chosen (HALF: RANDOM at first, the match's own random end as before) and then shows its results page (ESC ends it earlier); a practice has no match clock, no presentation screen (competition, teams, stadium), no pre-match screen and no score bar at the restarts. Ordinary matches and friendlies are unchanged.
@@ -246,6 +249,9 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 - L'incasso di ogni amichevole segue la forza reale dell'avversaria, chiunque l'abbia scelta.
 - La pagina non mostra le date: le amichevoli sono nel calendario come prima.
 - Una carriera salvata con una versione precedente prosegue con MISTE. Con SWOS++ la pagina non compare e le quattro le sceglie il gioco (MISTE).
+
+#### Versione italiana: PAREGGI
+Il gioco originale in italiano scrive PARREGGI nel registro della stagione (VINCITE ... PARREGGI ... SCON ...), la riga che vede l'allenatore di una nazionale e che ora usano anche le amichevoli estive. Ora c'è scritto PAREGGI, nelle versioni CD e GOG.
 
 #### Decisioni di questa release
 - Scambio Serie C / Serie D (Mondo 2026-27): ogni stagione le nove vincitrici dei gironi di Serie D salgono e le retrocesse dalla Serie C (ultima di ogni girone + perdenti dei play-out) scendono, anche la tua squadra; gironi per zona, un'approssimazione (la Lega vera ricompone i gironi di Serie D ogni estate); un passaggio della tua squadra tiene rosa, soldi e curriculum.

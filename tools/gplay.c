@@ -27,10 +27,7 @@
    (cup_code: GP_CUPW / GP_CUPF, the winner / the other finalist). An extended play-off is played at the season end
    only (playable: no contest). */
 
-typedef unsigned char u8;
-typedef unsigned short u16;
-typedef unsigned int u32;
-typedef signed char s8;
+#include "gpsc.h"                       /* (u8 / u16 / u32 / s8, SC_*, IS_MGR: shared with gplay3.c) */
 
 enum { GT = 32, GD = 16, GN = 64, RESERVE = 0xFE, EXTERNAL = 0xFD };   /* (EXTERNAL, S7: gplay.py's) */   /* (GD: Italy 2026-27 has 14 divisions; GT: Argentina's 30) */
 enum { HOST_LISTED, HOST_BETTER, HOST_DRAWN, HOST_NEUTRAL, HOST_UEFA_FINAL = 0x40, HOST_SKIP_SAME = 0x80 };
@@ -134,8 +131,13 @@ const u32 GP_LAYOUT[] = { sizeof(struct gp_row), GT, __builtin_offsetof(struct g
                           __builtin_offsetof(struct gp_out, nres), __builtin_offsetof(struct gp_out, res),
                           sizeof(struct gp_res) };
 
-static u32 rng;
-static u32 below(u32 n) {
+#if GP_X3
+#define GP_X3S                          /* (4.2 X3: gplay3.c in obj3 calls it) */
+#else
+#define GP_X3S static
+#endif
+GP_X3S u32 rng;
+GP_X3S u32 below(u32 n) {
     rng = rng * 1103515245u + 12345u;
     return ((rng >> 16) * n) >> 16;
 }
@@ -435,7 +437,6 @@ static int glob_club(int d, u16 g) {     /* a global number -> its row of divisi
     return -1;
 }
 
-#define IS_MGR(w) (GP_MGR && (u16)(w) == (u16)GP_MGR)   /* (S6a: GP_MGR 0 = no manager's club, gplay.py gp_mgr) */
 static int mgr_div(void) {              /* the career club's division in GP_IN (this country's), or -1 */
     if (!GP_IN.mgr) return -1;
     for (int d = 0; d < GP_IN.nd && d < GD; d++)
@@ -2351,11 +2352,29 @@ u32 GP_WK;                              /* (the glue: the current calendar entry
 enum { K_CUPD = 9, CDT = 168, CDP = 41, CD1 = 64 };
 enum { K_SC = 10 };                     /* (4.0.5: a national supercup tie, sc_step_c at the file's end) */
 struct gp_ko;
-void sc_done(const struct gp_ko *k);
+#if GP_X3                               /* 4.2 X3 (MC 16/11, CONVENTIONS 23): sc_done in obj3 (gplay3.c), bound by gplay.py x3_patch */
+#ifndef GP_DATA_SECTION
+#if defined(__MACH__)                   /* (a native host build - mach-o has no ".data" section name; the exe is always ELF) */
+#define GP_DATA_SECTION
+#else
+#define GP_DATA_SECTION __attribute__((section(".data")))
+#endif
+#endif
+void (*GP_SCDONE)(u16 w) GP_DATA_SECTION;
+#define SC_DONE(w) GP_SCDONE(w)
+#else
+static void sc_done(u16 w);
+#define SC_DONE(w) sc_done(w)
+#endif
 static u32 sc_rline(void);              /* (4.0.5: gp_rlines_c's supercup line) */
 static u32 usc_rline(void);             /* (4.0.6: the UEFA Super Cup's) */
 static void rl_put(void);
-int sc_busy(void);                      /* (4.0.5: the slot-4 guard) */   /* (CDP: preliminary ties at most, CDP + 2 x CD1 - 1 <= CDT) */
+int sc_busy(void);                      /* (4.0.5: the slot-4 guard) */
+#if GP_FRND
+int slot4_busy(void);                   /* (4.2: + the friendlies) */
+#else
+#define slot4_busy sc_busy
+#endif   /* (CDP: preliminary ties at most, CDP + 2 x CD1 - 1 <= CDT) */
 struct cd_state { u16 magic; u8 season, round, built, bt, drawn, pad; u8 res[CDT], home[CDT]; u8 sd[4];
                   u8 ent[256];          /* cd_season (the season end): per ordinal of the file, the entry order's key
                                            for the season to come (0 not in Serie D, 1 a new arrival, 2 + places from
@@ -2910,7 +2929,8 @@ static int cd_sim(u16 a, u16 b, int legs, int h) {     /* h: 0 a hosts (the firs
 
 /* the calendar advance: 1 = a tie of the career club built into ko[0] (gp_install it), else 0 */
 u32 cd_step_c(void) {
-    if (sc_busy()) return 0;            /* (4.0.5: an early supercup tie in slot 4: the next advance) */
+    if (slot4_busy()) return 0;         /* (4.0.5: an early supercup tie in slot 4 - 4.2 or the friendlies: the next
+                                           advance) */
     if (!GP_CDT) return 0;
     if (CD_ST.magic != 0x4443 || CD_ST.season != GP_SEAS) {     /* (a new season: the cup from its start) */
         u8 *p = (u8 *)&CD_ST;
@@ -3040,7 +3060,7 @@ static void set_pend(int then, int week) {   /* 'then_build': the next play-off 
 }
 
 u32 gp_build_c(void) {
-    if (sc_busy()) { set_pend(GP_BPIC + 1, GP_WK + 1); return 0; }   /* (4.0.5: an early supercup tie holds slot 4:
+    if (slot4_busy()) { set_pend(GP_BPIC + 1, GP_WK + 1); return 0; }   /* (4.0.5: an early supercup tie holds slot 4:
                                                                      built again at the next advance) */
     ss_set(GP_IN.mgr);
     const u8 *s = po_at(GP_BPIC);
@@ -3175,7 +3195,13 @@ static void ko_copy(struct gp_ko *d, const struct gp_ko *s) {   /* (no memcpy in
 #ifndef GP_PORT
 #define GP_PORT 0                       /* (4.2 fixture port P2 builds: fpad.py; 0 = no byte of it) */
 #endif
-#if GP_PORT
+#ifndef GP_FRND
+#define GP_FRND 0                       /* (4.2 preseason friendlies: frnd.py on(); the engine in obj4 FRND, frstep.c) */
+#endif
+#define GP_HOOK (GP_PORT || GP_FRND)    /* (the slot-4 hooks below: the port's, shared by the friendlies - Fable review +
+                                           MC 16/11: one set, chained in obj4, FRND first) */
+enum { K_FR = 13 };                     /* (a preseason friendly: one match, LV_BETTER, frstep.c) */
+#if GP_HOOK
 #ifndef GP_DATA_SECTION
 #define GP_DATA_SECTION __attribute__((section(".data")))      /* (host tests build gplay.c natively: -DGP_DATA_SECTION=) */
 #endif
@@ -3205,7 +3231,7 @@ void gp_rec_c(void) {
         }
     resolve(k);
     if (k->kind == K_CUPD) { cd_done(k); return; }
-    if (k->kind == K_SC) { sc_done(k); return; }   /* (4.0.5 supercup: a final four's semi -> its final) */
+    if (k->kind == K_SC) { SC_DONE(k->tw[0] != NOC ? k->team[k->tw[0]] : 0); return; }   /* (4.0.5 supercup: a final four's semi -> its final) */
     if (k->kind == K_GF) { gf_done(k); return; }   /* (4.0.5 NZ: the Grand Final) */
 #if GP_PORT
     if (k->kind == K_PORT) { if (GP_PDONE) GP_PDONE(); return; }   /* (K_PORT: the fixture port's tie, fpad.c) */
@@ -3590,9 +3616,9 @@ static int str_ok(const u8 *s) {        /* the start of a name string (the names
     }
     return n >= 2 && !s[n];
 }
-static const u8 *sc_entry(void);
+GP_X3S const u8 *sc_entry(void);
 static const u8 *usc_entry(void);
-static int usc_live(void);
+GP_X3S int usc_live(void);
 void gp_fixload_c(const u32 *nm, u8 *recs, u32 base, u8 *const *slots, u32 phase) {
     if (phase == 0) {
         for (int i = 0; i < 2; i++) {
@@ -4152,7 +4178,7 @@ static const u8 *pg_one(const u8 *t, const s8 *slt, s8 *copy, int run) {
 void pg_season(const u8 *t, const s8 *slt, s8 *copy, int world) {
     for (int k = *t++; k > 0; k--)
         t = pg_one(t, slt, copy, t[0] == world);
-#if GP_PORT
+#if GP_HOOK
     if (GP_PSEAS) GP_PSEAS();           /* (4.2 fixture port: pg_fix, InitializeNewSeason - every career, seasonPlaying
                                            already the new one: fpad.c fp_season arms, the next fp_step inits; MC 14/11:
                                            0 B in pgroups' extra pages) */
@@ -4703,7 +4729,7 @@ u32 cf_member_c(u32 id, u32 season, u32 cteam) {        /* 2: not ours (the defi
    final), db the stage-title play-offs of the rules SCR_TITLE0 / 1 (MEX); dd the season record's name (REGISTRO GESTIONE: the long name if it fits 144 px, else the short).
    SC_ST +5 = 1: the career club won this season's (SC_ST +3) supercup -> its record line (sc_rline, gp_rlines_c). Only the career club's country's supercup is played: the career club in it -> its tie in slot 4 (as
    a Coppa D tie, kind K_SC); the other semi-final is decided at once (the better placed of last season wins 3 in 5). */
-enum { SC_E = 36, SC_NE = 16, SC_H = 12, SC_EARLY = 0x80 };   /* (entry byte 2: from_season | SC_EARLY) */
+/* (SC_E, SC_NE, SC_H, SC_EARLY, SC_U: gpsc.h) */
 enum { SCR_CHAMP = 1, SCR_SECOND, SCR_CUPW, SCR_CUPF, SCR_THIRD, SCR_FOURTH, SCR_TITLE0, SCR_TITLE1,
        SCR_UCL, SCR_UEL, SCR_UECL };   /* (4.0.6: the game's UEFA holders, the UEFA Super Cup) */
 /* 4.0.6 the UEFA Super Cup (internal/handoff/csup.md): GP_SCT's entry with league file SC_UEFA (world-level), its
@@ -4716,7 +4742,6 @@ enum { SCR_CHAMP = 1, SCR_SECOND, SCR_CUPW, SCR_CUPF, SCR_THIRD, SCR_FOURTH, SCR
    at its own week, after the UEFA tie. The career club not a holder: nothing played or simulated (VINCITORI names
    only the viewed league's rows, so no page could show a foreign winner). */
 enum { SC_UEFA = 0xFF };
-#define SC_U (SC_ST + SC_H + 12 * (SC_NE - 1))
 u8 SC_ST[SC_H + 12 * SC_NE];
 const u32 SC_STSZ = sizeof SC_ST;
 const u8 *GP_SCT;                       /* (the glue: the table, 0 = none) */
@@ -4724,7 +4749,7 @@ u32 GP_SCFIRST;                         /* (the glue: the career's first season 
 u32 SC_TRACE;                           /* (the harness: 1 built, 2 final built, 0x81 summer skipped in season 1, 0x82
                                            entrants unknown, 0x84 career club not in it, | 0x40 decided) */
 
-static int sc_rank(u16 w) {                    /* last season's place (top division), 9 = none */
+GP_X3S int sc_rank(u16 w) {                    /* last season's place (top division), 9 = none */
     if (CF_ST.magic != CF_MAGIC || CF_ST.file != (w & 0xFF)) return 9;
     int r = CF_ST.rank[w >> 8];
     return r && r < 32 ? r : 9;
@@ -4753,13 +4778,22 @@ int sc_busy(void) {                     /* 4.0.5: slot 4 holds this season's sup
     return GP_ST.magic == MAGIC && GP_ST.ko[0].magic == MAGIC && GP_ST.ko[0].season == GP_SEAS &&
            GP_ST.ko[0].kind == K_SC && GP_ST.ko[0].tw[0] == NOC;
 }
+#if GP_FRND
+int slot4_busy(void) {                  /* 4.2 friendlies (Convergence 16/11): slot 4 held - this season's supercup tie
+                                           (sc_busy), or the friendlies (FR_OPEN: from the season start to the last one
+                                           decided, between them too), or a friendly being played. sc_busy keeps its
+                                           supercup-only meaning (sc_wline_c's VINCITORI line) */
+    return FR_HELD() || sc_busy() || (GP_ST.magic == MAGIC && GP_ST.ko[0].magic == MAGIC &&
+           GP_ST.ko[0].season == GP_SEAS && GP_ST.ko[0].kind == K_FR && GP_ST.ko[0].tw[0] == NOC);
+}
+#endif
 static const u8 *usc_entry(void) {     /* 4.0.6 the UEFA Super Cup's GP_SCT entry, 0 = none */
     if (!GP_SCT) return 0;
     for (int i = 0; i < GP_SCT[0]; i++)
         if (GP_SCT[1 + SC_E * i] == SC_UEFA) return GP_SCT + 1 + SC_E * i;
     return 0;
 }
-static int usc_live(void) {             /* 4.0.6: slot 4's supercup tie this season is the UEFA Super Cup's */
+GP_X3S int usc_live(void) {             /* 4.0.6: slot 4's supercup tie this season is the UEFA Super Cup's */
     return SC_U[0] == GP_SEAS && SC_U[1] == 1;
 }
 u32 GP_SCROW;                            /* (4.2 supercups-s1: gp_scrow_c's trace - week << 16 | count) */
@@ -4801,7 +4835,7 @@ static int usc_step(void) {             /* 4.0.6 the UEFA Super Cup at the advan
     SC_U[1] = 1; SC_TRACE = 0x11;
     return 1;
 }
-#if GP_PORT
+#if GP_HOOK
 /* 4.2 fixture port (MC 14/11 (b)+(c)): fpad.c (obj4) builds the K_PORT tie itself, through ko_one's pointer; the rest
    - GP_ST, GP_IN, GP_SCT, the pseudo registers - it reads at their symbols, the struct offsets from GP_OFFS (a
    -DGP_OFFSETS compile of this file, fpad.py: no byte of them in the exe) */
@@ -4810,11 +4844,13 @@ void *GP_PAPI[1] GP_DATA_SECTION = { (void *)ko_one };
 #define OF(t, f) __builtin_offsetof(t, f)
 const u16 GP_OFFS[] = { OF(struct gp_state, ko), OF(struct gp_ko, season), OF(struct gp_ko, kind), OF(struct gp_ko, tw),
                         OF(struct gp_ko, team), OF(struct gp_ko, d1), OF(struct gp_ko, d2), OF(struct gp_ko, rs),
-                        OF(struct gp_in, mdiv), MAGIC, NOC, K_PORT, HOST_NEUTRAL, SC_E, SC_UEFA, sizeof(struct gp_ko) };
+                        OF(struct gp_in, mdiv), MAGIC, NOC, K_PORT, HOST_NEUTRAL, SC_E, SC_UEFA, sizeof(struct gp_ko),
+                        OF(struct gp_ko, pts), K_FR, LV_BETTER };   /* (4.2 friendlies: O_PTS - the fee in pts[2], a
+                                           one-tie contest's unused entry -, C_KFR, C_LVBETTER) */
 #endif
 #endif
 u32 sc_step_c(void) {                   /* the calendar advance: 1 = the career club's tie built into ko[0] */
-#if GP_PORT
+#if GP_HOOK
     if (GP_MGR && GP_PSTEP) { u32 r = GP_PSTEP(); if (r) return 1; }   /* (the port first: never "clear" - Q2 / Q3) */
 #endif
     if (!GP_SCT || !GP_MGR) return 0;
@@ -4859,34 +4895,12 @@ u32 sc_step_c(void) {                   /* the calendar advance: 1 = the career 
     SC_TRACE = 1;
     return 1;
 }
-static const u8 *sc_entry(void);
-void sc_done(const struct gp_ko *k) {  /* gp_rec_c: the career club's supercup tie decided */
-    SC_TRACE |= 0x40;
-    int won = k->tw[0] != NOC && IS_MGR(k->team[k->tw[0]]);
-    if (usc_live()) {                   /* (4.0.6 the UEFA Super Cup) */
-        SC_U[1] = 3; SC_U[2] = (u8)won;
-        if (k->tw[0] != NOC) { u16 w = k->team[k->tw[0]]; SC_U[4] = (u8)w; SC_U[5] = (u8)(w >> 8); }
-        return;
-    }
-    if (SC_ST[4] == 1) {
-        SC_ST[4] = won ? 2 : 3;
-        u16 a = k->tw[0] != NOC ? k->team[k->tw[0]] : 0, b = (u16)(SC_ST[6] | SC_ST[7] << 8);
-        if (!won && a && b) {           /* (4.0.5 Davide 29/10: the semi-final lost - the final simulated now, as the
-                                           other semi-final was: the better placed of last season wins 3 in 5, the
-                                           draw seeded by the season and the cup - its winner for VINCITORI) */
-            const u8 *e = sc_entry();
-            int ra = sc_rank(a), rb = sc_rank(b);
-            rng = GP_SEAS * 7919u + (e ? e[1] : 0) + 1;
-            u16 w = below(5) < 3 ? (ra <= rb ? a : b) : (ra <= rb ? b : a);
-            SC_ST[8] = (u8)w; SC_ST[9] = (u8)(w >> 8);
-        }
-    } else {
-        if (won) SC_ST[5] = 1;          /* (the final, or the one match, won: the season record's line) */
-        if (k->tw[0] != NOC) { u16 w = k->team[k->tw[0]]; SC_ST[8] = (u8)w; SC_ST[9] = (u8)(w >> 8); }
-    }                                   /* (4.0.5 Davide 29/10: the winner kept for VINCITORI all season - SC_ST +8,
-                                           header bytes the 'SC' item already saves: slot 4 is reused later) */
-}
-static const u8 *sc_entry(void) {      /* the career club's country's GP_SCT entry, 0 = none */
+GP_X3S const u8 *sc_entry(void);
+#if !GP_X3
+#define GP_X3_INLINE 1
+#include "gplay3.c"
+#endif
+GP_X3S const u8 *sc_entry(void) {      /* the career club's country's GP_SCT entry, 0 = none */
     if (!GP_SCT || !GP_MGR) return 0;
     for (int i = 0; i < GP_SCT[0]; i++)
         if (GP_SCT[1 + SC_E * i] == (GP_MGR & 0xFF)) return GP_SCT + 1 + SC_E * i;

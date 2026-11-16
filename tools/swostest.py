@@ -1448,7 +1448,9 @@ class Session:
             while ...: scr = s.screen(); s.send('keys ... dump:1')
     """
 
-    def __init__(self, name, exe_dir, cars, keys, timeout=60, shots=0, match=False, timer=False):
+    def __init__(self, name, exe_dir, cars, keys, timeout=60, shots=0, match=False, timer=False, stale_ok=False):
+        if not stale_ok and (why := build_stale(exe_dir)):   # (MC 16/11, rule 0: the ONE place every DOSBox run
+            raise SetupError(why)                       #  passes - a syms build not made from this tree is refused)
         self.rate = TICKS if timer else None           # (timer: SWOS++, keys fed from TimerProc at 70 Hz)
         self.run, self.info = prepare(name, exe_dir, cars, steps_of(keys, self.rate), match, timer)
         timeout = int(timeout * float(os.environ.get('SWOSTEST_TIMEOUT_MUL', 1)))   # (02/11: both Macs' slots full,
@@ -1458,6 +1460,7 @@ class Session:
         self.log = []
         self.ctsd = ctsd_syms(exe_dir)
         self.scrow = _gp_sym(exe_dir, 'csyms.GP_SCROW') if os.path.isdir(exe_dir) else None   # (4.2 supercups-s1)
+        self.x3 = (_gp_sym(exe_dir, 'X3.GP_SCDONE'), _gp_sym(exe_dir, 'sc_done')) if os.path.isdir(exe_dir) else (None, None)
         self.ctout = ctout_at(exe_dir)
 
     def __enter__(self):
@@ -1468,6 +1471,10 @@ class Session:
             ctsd_check(self)
         except Exception as e:
             self.log.append(f'ctdraw: counters not read ({type(e).__name__}: {e})')
+        try:                                            # (4.2 gplay3.c, MC 16/11: the obj3 path really bound)
+            x3_check(self)
+        except Exception as e:
+            self.log.append(f'x3: GP_SCDONE not read ({type(e).__name__}: {e})')
         try:
             force_check(self)
         except Exception as e:
@@ -2427,6 +2434,7 @@ def nat_callups(s, limit=120):
 # cups, the original game's contests) -- one of every known name (logged as a fallback). Errors FAIL the scenario.
 LABEL_ERRS, LABEL_STATS = [], {'rows': 0, 'keyed': 0, 'fallback': set()}
 CTSD_ERRS, CTSD_STATS = [], {'sessions': 0, 'n': 0, 'nosyms': 0}
+X3_ERRS, X3_STATS = [], {'sessions': 0}
 _CTSD_SYMS = {}
 FORCE_ERRS, _CTOUT_AT = [], {}                   # (MC 11/11 root fix D: conti.c force_in's error byte, SETUP-ERROR)
 
@@ -2462,6 +2470,37 @@ def force_check(s):
 
 
 _GP_SYMS = {}
+
+
+_TREE_STAMP = []                                    # (the tree this process tests: stamped once, at its first check -
+STAMP_WARNS = []                                    #  an edit during a run does not turn its own builds stale)
+
+
+def build_stale(exe_dir):
+    """(MC 16/11, rule 0) None when exe_dir's build was made from this tree, else why not. A HOSTTEST_SYMS build
+    (<EXE>.syms.json) carries the source stamp patch.py wrote ('_src', tools/srcstamp.py): another source = "stale
+    build: rebuild" (Session refuses it: SetupError). No stamp (a build from before srcstamp): a WARN line in the
+    scenario's result (STAMP_WARNS), refused only with SWOSTEST_STAMP_STRICT=1 (the rc suite and every release-gate
+    run: the Integratore's runner). A build without syms (a release dir) is not judged."""
+    p = next((os.path.join(exe_dir, x) for x in ('ITALIAN.syms.json', 'ENGLISH.syms.json')
+              if os.path.isfile(os.path.join(exe_dir, x))), None)
+    if not p:
+        return None
+    import srcstamp
+    if not _TREE_STAMP:
+        _TREE_STAMP.append(srcstamp.stamp())
+    got, want = srcstamp.from_syms(json.load(open(p)).get('_src')), _TREE_STAMP[0]
+    if not want or srcstamp.same(got, want):       # (a tree with no identity - no git, no REMOTE_SRC_TEST: not judged)
+        return None
+    if not got or not got.get('src'):
+        w = f'unstamped build {exe_dir}: rebuild before the rc'
+        if os.environ.get('SWOSTEST_STAMP_STRICT') == '1':
+            return f'stale build: {w} (SWOSTEST_STAMP_STRICT=1)'
+        if w not in STAMP_WARNS:
+            STAMP_WARNS.append(w)
+        return None
+    return (f'stale build: rebuild {exe_dir} (its source {got["src"]} {got.get("sha", "")[:10]}, this tree {want["src"]} '
+            f'{want.get("sha", "")[:10]})')
 
 
 def _gp_sym(exe_dir, name):
@@ -2534,6 +2573,25 @@ def field_check(s):
         s.log.append(f'field: {x}')
     if bad:
         FIELD_ERRS.append(f'{os.path.basename(s.run)}: {bad[:3]}')
+
+
+def x3_check(s):
+    """(4.2 gplay3.c, MC 16/11) a world build's sc_done lives in obj3, called through the bound dword GP_SCDONE: at the
+    session's last pause the dword must hold sc_done's obj3 address (syms 'X3.GP_SCDONE' / 'sc_done'), else the
+    scenario FAILs (X3_ERRS). Builds without the obj3 path (no syms): nothing checked, nothing claimed."""
+    ptr, fn = getattr(s, 'x3', (None, None))
+    r = s.result
+    if not ptr or not fn or r is None or getattr(r, 'outcome', None) != 'dump' or r.box is None or r.base1 is None:
+        return
+    if fn[0] != 3 or r.base3 is None:
+        X3_ERRS.append(f'{os.path.basename(s.run)}: sc_done at obj{fn[0]} (want obj3) or obj3 base unknown')
+        return
+    got = struct.unpack('<I', bytes(r.read(r.lin(tuple(ptr)), 4)))[0]
+    want = r.lin((3, fn[1]))
+    X3_STATS['sessions'] += 1
+    s.log.append(f'x3: GP_SCDONE = {got:#x}, sc_done obj3+{fn[1]:#x} = {want:#x}')
+    if got != want:
+        X3_ERRS.append(f'{os.path.basename(s.run)}: GP_SCDONE {got:#x} != sc_done obj3+{fn[1]:#x} ({want:#x})')
 
 
 def ctsd_check(s):
@@ -6923,6 +6981,38 @@ def uefa_name():
                   f'{sub or "CD"} {lg}: {x2[first:first + len(name)]!r} at the first copy, not {name!r}', errs)
     check(n > 0, f'no exe in {d}', errs)
     return not errs, '; '.join(errs) or f'{n} exes: the UEFA Cup spelled UEFA, no EUFA left'
+
+
+@scenario
+def typo_fix():
+    """4.2 (Davide 16/11): the original exes' typos fixed in place (typofix.FIXES; IT: the national-team / friendlies
+    record line 'VINCITE %0 PAREGGI %1 SCON %2', the original's PARREGGI). No game run: every exe of the build's dir
+    (SWOSTEST_BUILD; its ../gog too) has no misspelt stem (typofix.FIND) left and the fixed string at the original's
+    first copy, NUL-padded"""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    from le import LE
+    import typofix
+    exes = {'it': 'ITALIAN', 'en': 'ENGLISH', 'fr': 'FRENCH', 'de': 'GERMAN'}
+    d = os.environ.get('SWOSTEST_BUILD')
+    if not d:
+        return True, 'SKIP: SWOSTEST_BUILD (a release dir) needed'
+    errs, n = [], 0
+    for sub in ('', os.path.join('..', 'gog')):
+        for lang, fx in typofix.FIXES.items():
+            exe = os.path.join(d, sub, exes[lang] + '.EXE')
+            if not os.path.isfile(exe):
+                continue
+            n += 1
+            o2 = LE(open(os.path.join(ROOT, 'orig', 'gog' if sub else '', exes[lang] + '.EXE'), 'rb').read()).obj_bytes(2)
+            x2 = LE(open(exe, 'rb').read()).obj_bytes(2)
+            for st in typofix.FIND.get(lang, ()):
+                check(st not in x2, f'{sub or "CD"} {lang}: {st!r} still in obj2 at {x2.find(st):#x}', errs)
+            for old, new in fx:
+                i = o2.find(old + b'\0')
+                want = new + bytes(len(old) + 1 - len(new))
+                check(i >= 0 and x2[i:i + len(want)] == want, f'{sub or "CD"} {lang}: {x2[i:i + len(want)]!r}, not {new!r}', errs)
+    check(n > 0, f'no exe of a fixed language in {d}', errs)
+    return not errs, '; '.join(errs) or f'{n} exes: the typos fixed ({sum(len(v) for v in typofix.FIXES.values())} strings)'
 
 
 @scenario
@@ -16553,19 +16643,20 @@ def _wsm_state(s, y):
             'st': rd('st', y['stn']), 'cd': rd('cd', CD_SIZE)}
 
 
-def _wsm_run(tag, b, path, ct, steps, stop=None, save_at=None, load=None, grab=None, world=0):
+def _wsm_run(tag, b, path, ct, steps, stop=None, save_at=None, load=None, grab=None, world=0, stale_ok=False):
     """One world SEASON (STAGIONE > path, '|' = alternatives; RNG + currentTick pinned) with CAREERTEAM poked to ct
     before the start press and after it (a stale career's club, or 0), fired to FINISCI STAGIONE (or until stop(out)):
     every match by results (VIS. RISULTATI / - RISULTATO -). save_at = a step: SALVA STAGIONE there (S6M) and stop;
     load = a .SEA: CARICA VECCHIA COMPETIZIONE > S6M instead of the picker, CAREERTEAM poked after the load.
     Returns dict(seq = screens' texts, clubs, sea, mid = _wsm_state at the first screen of the second half, end =
-    _wsm_state at the end) or a string why not."""
+    _wsm_state at the end) or a string why not. stale_ok: b is an old build on purpose (a previous release's), its
+    source not this tree's (else Session's build_stale refuses it)."""
     y = _wsm_syms(b)
     files = {'SETUP.DAT': setup_file(tag, world)}
     if load:
         files[os.path.basename(load)] = load
     out = {'seq': [], 'clubs': [], 'sea': None, 'states': []}
-    with Session(tag, b, files, 'dump:2', 3600) as s:
+    with Session(tag, b, files, 'dump:2', 3600, stale_ok=stale_ok) as s:
         if s.wait().outcome != 'dump':
             return f'{tag}: no first pause ({s.result})'
         exe = os.path.join(s.run, 'SWOS', 'ITALIAN.EXE')
@@ -16689,7 +16780,7 @@ def world_season_41sea():
         return True, f'SKIP: no 4.1.1 build {old}'
     at = int(os.environ.get('SEA41_AT', 60))
     p = ['EUROPA', 'MALTA', 'HAMRUN SPARTANS']
-    sv = _wsm_run('sea41_save', old, p, 0, 4000, save_at=at, world=1)   # (4.1.1: the 1996-97 world's SEASON)
+    sv = _wsm_run('sea41_save', old, p, 0, 4000, save_at=at, world=1, stale_ok=True)   # (4.1.1: the 1996-97 world's SEASON)
     if isinstance(sv, str) or not sv['sea']:
         return False, f'4.1.1 .SEA save at step {at}: {sv if isinstance(sv, str) else "no S6M saved"}'
     ld = _wsm_run('sea41_load', b, p, 0, 4000, load=sv['sea'], world=1)
@@ -24211,7 +24302,7 @@ static void setup4(int from, int n, u16 champ, u16 second, u16 cupw, u16 cupf, u
 static void setup(int from, u16 champ, u16 second, u16 cupw, u16 cupf) { setup4(from, 2, champ, second, cupw, cupf, 0x0566); }
 static void decide(int won) {           /* the career club's tie result back (gp_rec_c -> sc_done) */
     kk = GP_ST.ko[0]; kk.tw[0] = won ? (kk.team[0] == GP_MGR ? 0 : 1) : (kk.team[0] == GP_MGR ? 1 : 0);
-    sc_done(&kk); GP_ST.ko[0].tw[0] = kk.tw[0];
+    sc_done(kk.tw[0] != NOC ? kk.team[kk.tw[0]] : 0); GP_ST.ko[0].tw[0] = kk.tw[0];
 }
 static void out(const char *tag, u32 r) {
     printf("%%s %%u %%x %%x %%x %%d\n", tag, r, SC_TRACE, GP_ST.ko[0].team[0], GP_ST.ko[0].team[1], GP_ST.ko[0].kind);
@@ -24332,7 +24423,7 @@ static void setup(int nat, u16 cl, u16 el, u16 ecl) {
 }
 static void decide(int won) {
     kk = GP_ST.ko[0]; kk.tw[0] = won ? (kk.team[0] == GP_MGR ? 0 : 1) : (kk.team[0] == GP_MGR ? 1 : 0);
-    sc_done(&kk); GP_ST.ko[0].tw[0] = kk.tw[0];
+    sc_done(kk.tw[0] != NOC ? kk.team[kk.tw[0]] : 0); GP_ST.ko[0].tw[0] = kk.tw[0];
 }
 static void out(const char *tag, u32 r) {
     printf("%%s %%u %%x %%x %%x %%d\n", tag, r, SC_TRACE, GP_ST.ko[0].team[0], GP_ST.ko[0].team[1], GP_ST.ko[0].kind);
@@ -38841,6 +38932,9 @@ def main(argv):
                 CAL_STATS.update(checks=0, c4=0, c2l=0, c2b=0, c2b_last=None)
                 LABEL_STATS.update(rows=0, keyed=0, fallback=set())
                 del CTSD_ERRS[:]
+                del X3_ERRS[:]
+                del STAMP_WARNS[:]
+                X3_STATS.update(sessions=0)
                 del FORCE_ERRS[:]
                 setup = False
                 del FIELD_ERRS[:]
@@ -38855,6 +38949,10 @@ def main(argv):
                     msg += f" [cal: {CAL_STATS['checks']} checks ({CAL_STATS['c4']} C4 at the menu), 0 violations" + (f", {CAL_STATS['c2l']} league midweek week(s)" if CAL_STATS['c2l'] else '') + (f", {CAL_STATS['c2b']} cup block(s)" if CAL_STATS.get('c2b') else '') + ']'
                 if CTSD_ERRS:                               # (4.2 AFC mode: a refused / out-of-budget group draw -
                     ok, msg = False, f'ctdraw: {CTSD_ERRS[:3]}; ' + msg   # named on a FAIL too: often its cause)
+                if X3_ERRS:                                 # (4.2 gplay3.c: sc_done's obj3 binding wrong)
+                    ok, msg = False, f'x3: {X3_ERRS[:3]}; ' + msg
+                elif X3_STATS['sessions']:
+                    msg += f" [x3: GP_SCDONE -> obj3 sc_done in {X3_STATS['sessions']} session(s)]"
                 if FIELD_ERRS:                              # (root fix C: a club the data cannot give in a round)
                     ok, msg = False, f'field: {FIELD_ERRS[:3]}; ' + msg
                 elif FIELD_STATS['checks']:
@@ -38866,6 +38964,8 @@ def main(argv):
                 if LABEL_STATS['rows']:
                     msg += f" [names: {LABEL_STATS['rows']} rows, {LABEL_STATS['keyed']} keyed" + \
                         (f", fallback {sorted(LABEL_STATS['fallback'])[:6]}" if LABEL_STATS['fallback'] else '') + ']'
+                if STAMP_WARNS:                             # (MC 16/11: an unstamped prebuilt dir - loud, not a FAIL)
+                    msg += ' [WARN ' + '; '.join(STAMP_WARNS[:3]) + ']'
                 if not ok and msg.startswith('START'):      # rare stall at the main menu (cause unknown): retry once
                     print(f'RETRY {n}: {msg}', flush=True)
                     ok, msg = SCENARIOS[n]()

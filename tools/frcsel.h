@@ -27,14 +27,8 @@
 #ifndef FRCSEL_H
 #define FRCSEL_H
 
-#include "frpick.h"
+#include "frnd.h"                       /* the engine's interface (Motore): FrcCtx, FR_LEVEL_*, frc_choose; frpick.h */
 
-#ifndef FRND_H                          /* TEMPORARY until Motore's tools/frnd.h lands (same text, his field order): */
-typedef struct {                        /* the engine's fr_pick arguments + FR_ST                                     */
-    const uint8_t *frss; uint32_t len; uint8_t world; uint16_t self, self2; const uint16_t *avoid;
-    uint32_t navoid; const FrRoom *room; uint32_t season, seed, nhome; uint8_t *frst;
-} FrcCtx;
-#endif
 #if defined(__i386__)                   /* (the exe's layout: frchoose.py's test caller FRC_PROBE writes one by hand) */
 _Static_assert(sizeof(FrcCtx) == 44 && __builtin_offsetof(FrcCtx, world) == 8 && __builtin_offsetof(FrcCtx, self) == 10 &&
                __builtin_offsetof(FrcCtx, self2) == 12 && __builtin_offsetof(FrcCtx, avoid) == 16 &&
@@ -42,16 +36,17 @@ _Static_assert(sizeof(FrcCtx) == 44 && __builtin_offsetof(FrcCtx, world) == 8 &&
                __builtin_offsetof(FrcCtx, nhome) == 36 && __builtin_offsetof(FrcCtx, frst) == 40, "FrcCtx layout");
 #endif
 
-#define FRC_MIX         0               /* level */
-#define FRC_EASY        1
-#define FRC_MEDIUM      2
-#define FRC_HARD        3
+#define FRC_MIX         FR_LEVEL_MIX    /* level: frnd.h's values, one table */
+#define FRC_EASY        FR_LEVEL_EASY
+#define FRC_MEDIUM      FR_LEVEL_MEDIUM
+#define FRC_HARD        FR_LEVEL_HARD
 #define FRC_LEVELS      4
 
 #define FRC_VENUES_AUTO 0xFF
 
 #define FRC_ST_OFF      11              /* FR_ST +10 is a word: bits 14-15 = bits 6-7 of byte +11 */
 #define FRC_ST_SHIFT    6
+_Static_assert(FRC_ST_OFF == 11 && (8 + FRC_ST_SHIFT) == FR_LEVEL_SH && FRC_MIX == 0 && FRC_HARD == 3, "FR_LEVEL bits");
 
 #define FRC_M_NONE      0               /* frc_msg(): the page's message texts */
 #define FRC_M_CLUB      1               /* club not available (not in the table, own club, B team)   */

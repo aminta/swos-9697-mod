@@ -406,6 +406,8 @@ def patch(p, lang, pick=None):
                          ['-Oz', '-fno-zero-initialized-in-bss'] + (['-DFRC_OWN_PICK'] if own else []))
     syms, c_end, bss = cobj.link(p, obj, at0 + 16, (4, bss_at), externs=ext, limit=str_at, text_obj=4)
     assert bss == 0, ('frchoose .bss', bss)
+    assert own == ('fr_pick' in syms and syms['fr_pick'][1] >= at0), 'frchoose: exactly ONE fr_pick in the exe (FRND\'s)'
+    assert own or all(pick[k][0] == 4 and not at0 <= pick[k][1] < end0 for k in ('fr_pick', 'fr_level', 'fr_given'))
     # the club browser: the world's wrapper (careerworld's w_buy, as the foreign market) when a world is built
     wbuy = careerworld.LABELS.get('w_buy')
     browse = (1, wbuy) if isinstance(wbuy, int) else (1, careerworld.LABELS['sites']['chooseteams']) \

@@ -3029,6 +3029,43 @@ def gplx_link(p, gx, syms):
     print(f'exe: gplay overflow (gplx.c) obj4+{swreg.GPLX_AT:#x}..{end:#x} ({end - swreg.GPLX_AT} B of '
           f'{swreg.GPLX_END - swreg.GPLX_AT}, {swreg.GPLX_END - end} B left, floor 256)')
 
+X3_EXT = ('GP_SEAS', 'GP_MGR', 'SC_TRACE', 'SC_ST', 'rng', 'below', 'sc_entry', 'sc_rank', 'usc_live')   # (gplay.c's
+                                                     # symbols gplay3.c reads / calls)
+X3_ROOTS = ['sc_done']
+
+
+def x3_on():
+    """4.2 X3 (MC 16/11, CONVENTIONS 23 - gplay's obj1 pages full after S6a): gplay3.c in obj3, every build with worlds
+    (the supercups' code, as GPLX); the others include it into gplay.c"""
+    return gplx_on()
+
+
+def x3_patch(p, at):
+    """gplay3.c into obj3 at `at` (patch.py's obj3 chain, after gplay.c's link) against gplay.c's symbols; binds
+    gplay.c's dword GP_SCDONE to sc_done (a fixup into obj3, checked by x3_check). Returns the end."""
+    import cobj
+    xl = LABELS['X3']
+    obj = cobj.compile_c(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'gplay3.c'), ['-Oz'], sections=True)
+    xs, end, bss = cobj.link(p, obj, at, (3, at), externs={k: xl[k] for k in X3_EXT}, text_obj=3, roots=X3_ROOTS)
+    assert bss == 0, 'gplay3.c holds no state: no .bss (its state stays gplay.c\'s)'
+    o, a = xl['GP_SCDONE']
+    cobj.add_ptr(p, a, *xs['sc_done'][:2], o)
+    LABELS['X3_AT'] = (3, at, end)
+    LABELS['sc_done'] = xs['sc_done']
+    print(f'exe: gplay3.c (sc_done) obj3+{at:#x}..{end:#x} ({end - at} B)')
+    return end
+
+
+def x3_check(p):
+    """GP_SCDONE's dword holds a fixup to sc_done in obj3, inside gplay3.c's range (patch.py, at the end)."""
+    o, a = LABELS['X3']['GP_SCDONE']
+    t = p.target(o, a)
+    _, at, end = LABELS['X3_AT']
+    assert t == tuple(LABELS['sc_done'][:2]) and t[0] == 3 and at <= t[1] < end, \
+        ('X3: GP_SCDONE not bound to sc_done in obj3', t, LABELS['sc_done'], hex(at), hex(end))
+    return True
+
+
 def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     """tables: mkseason.gplay_tables(). C + glue + specs in obj1 at..limit, the C .bss at obj2 bss_at (BSS_SIZE).
     area: the contest names' string area (the playable play-offs). Returns the end."""
@@ -3089,11 +3126,13 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
                                 f"-DGP_GFIDX={int(os.environ.get('GPLAY_GFIDX') or 0)}",
                                 f"-DGP_GOUT={int(os.environ.get('GPLAY_GOUT') or 0)}",
                                 f"-DGP_PORT={int(__import__('fpad').on())}",   # (4.2 fixture port P2: fpad.py)
+                                f"-DGP_FRND={int(__import__('frnd').on())}",   # (4.2 friendlies: frnd.py, the port's hooks)
                                 f"-DGP_GSON={int(GS_ON[0])}",
                                 f"-DCF_SEED={__import__('cupsf').SEED}",
                                 f"-DGP_S7={gp_s7()}",
                                 f"-DGP_S3SKIP={int(bool(__import__('dplay').s3_b_mask() or __import__('dplay').s3_c_mask()))}",   # (4.2 S3: gplay.c GP_SKIPPO)
                                 f"-DGP_GPLX={int(gplx_on())}",   # (4.2 GPLX: gplx.c in obj4, builds with worlds)
+                                f"-DGP_X3={int(x3_on())}",       # (4.2 X3: gplay3.c in obj3, builds with worlds)
                                 *s7_flags(),
                                 f"-DSM_LANG={['it', 'en', 'fr', 'de'].index(lang)}"]   # (gp_strmap_c's STRMAP41 section)
                                + (['-DHDR_TEST'] if os.environ.get('HDR_TEST') else [])   # (test builds: GROUP n headers)
@@ -3134,6 +3173,9 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
                                 limit=limit)
     if gx:
         gplx_link(p, gx, syms)
+    LABELS.pop('X3', None)
+    if x3_on():                                      # 4.2 X3: gplay3.c's externs + its pointer, for x3_patch (obj3 chain)
+        LABELS['X3'] = {k: syms[k] for k in X3_EXT + ('GP_SCDONE',)}
     global GP_BSS                                    # 4.2 class B (MC 12/11, Motore option a): the room = the measured
     GP_BSS = (bss + 0x200 + 0xFFF) & ~0xFFF          # .bss + 0x200, page-rounded (was 0x6000 + the stage banks' rounding
                                                      # / 0x7000 in patch.py: too small in scenario builds); patch.py adds
@@ -3234,8 +3276,10 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     symbols['CDFORCE_'] = (0, int(os.environ.get('CD_FORCE') or 0))   # (test builds only)
     symbols['FORCE_ON'] = (0, int(bool(force)))
     import fpad
-    symbols['PORT_ON'] = (0, int(fpad.on()))
-    if fpad.on():                                             # (4.2 fixture port P2: gp_rec -> fpad.c fp_leg)
+    import frnd
+    hook_on = fpad.on() or frnd.on()                          # (the slot-4 hooks: the port's, shared by the friendlies)
+    symbols['PORT_ON'] = (0, int(hook_on))
+    if hook_on:                                               # (gp_rec -> GP_PLEG: frstep.c fr_leg, then fpad.c fp_leg)
         symbols['GP_PLEG'] = syms['GP_PLEG']
     import longtable                                          # 4.0 stage titles (table, calendar): the table in area
     stg = longtable.stage_table(lang, b'\0' * 2 + struct.pack('<4HIH', split.ST, split.ST + split.OFF['frozen'],
@@ -3309,6 +3353,10 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     sct = supercup.table(lang, (lambda x: _sadd(area, x) - sacups.STR_BASE) if area else (lambda x: 0)) \
         if mkseason.worlds() else None
     symbols['SC_ON'] = (0, int(bool(sct)))
+    if __import__('frnd').on() and area:                      # 4.2 friendlies: the slot-4 contest's names (ko_one's 8
+        import frtext                                         # bytes: long, short - STR_BASE-relative, as GP_SCT's +20)
+        fl = frtext.LABEL[lang].encode('latin-1')
+        LABELS['FR_NAMEB'] = struct.pack('<II', *(_sadd(area, fl) - sacups.STR_BASE for _ in range(2)))
     scrow_sites = []
     if sct:                                                   # (4.2 supercups-s1: CareerGameListCommon's two cup-row
         d1 = p.le.obj_bytes(1)                                #  `mov word [esi + 4], 0` after `add D3, 16; add D4, 8;
@@ -3492,7 +3540,7 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
                   gp_wn_c=syms['gp_wn_c'], sc_wline_c=syms['sc_wline_c'], GP_WNSRC=syms['GP_WNSRC'], GP_WNFILE=syms['GP_WNFILE'], GP_SEAS=syms['GP_SEAS'],   # (winners.py)
                   WN_ST=syms['WN_ST'], GP_MGR=syms['GP_MGR'])
     LABELS.update({k: syms[k] for k in ('GP_RIPOOL', 'GP_CDSTR', 'GP_S7SNAP', 'GP_GEOCH', 'GP_CDKN') if k in syms})
-    if fpad.on():                                             # (4.2 fixture port P2: fpad.py links fpad.c to these)
+    if fpad.on() or __import__('frnd').on():                  # (fpad.py / frnd.py link fpad.c / frstep.c to these)
         LABELS.update({k: syms[k] for k in ('GP_PAPI', 'GP_PSTEP', 'GP_PDONE', 'GP_PLEG', 'GP_PSEAS', 'GP_WK', 'GP_PMID', 'GP_SCT',
                                             'GP_SEAS', 'GP_K')})
         LABELS.update({k: symbols[k] for k in ('D1R', 'A1R', 'A2R', 'CAL_CUR')}, GP_CFLAGS=gp_cflags)

@@ -409,6 +409,10 @@ def patch_exe(src, dst, remap, lang='it'):
     import s6sea
     if s6sea.on():                                     # 4.2 S6 (MC 16/11): world seasons' band after TKUI (0x1E pages)
         swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, s6sea.page_end() // 0x1000)
+    import frnd
+    if frnd.on():                                      # 4.2 friendlies (frnd.py): FRSS.DAT through the file layer, the
+        swe.SWEFILE = True                             # FRND band's pages
+        swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, (swreg.FRND_END + 0xFFF) // 0x1000)
     import swefile
     if swefile.on():                                   # 4.2 file layer (MC 12/11): page 18, only when linked
         swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, swefile.page_end() // 0x1000)
@@ -424,7 +428,6 @@ def patch_exe(src, dst, remap, lang='it'):
         engine.after_process('fp_load')
         engine.save_item('FP', fpad.SAVE_SIZE, world_only=True)   # P5 (MC option A): the port's queue + the tie in
         engine.before_save('fp_save')                  # progress with the career (fpsave.c fp_save / fpad.c fresh's load)
-        careerworld.SEL_N = careerworld.SEL_N_FP       # (its room: a big world's save budgets 155 teams, not 159)
         swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, (swreg.FPORT2_END + 0xFFF) // 0x1000)   # (P5: fpsave.c's band, MC 15/11)
     OBJ1MV_ON[0] = bool(mkseason.worlds())             # 4.2 OBJ1MV (MC 13/11): every build with worlds (shirtedit +
     if OBJ1MV_ON[0]:                                   # instcheck; the SEASON WINNERS page when fmtpage has it)
@@ -443,7 +446,9 @@ def patch_exe(src, dst, remap, lang='it'):
         swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, -(-swreg.TKUI_END // 0x1000))
     import frchoose                                    # 4.2 friendlies chooser (FRCH band, MC 16/11)
     if frchoose.on():
-        swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, frchoose.page_end() // 0x1000)
+        swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, frchoose.page_end(own=not __import__('frnd').on()) // 0x1000)
+    import tcache                                      # 4.2 team cache bound (MC 16/11): its code in obj3's chain (option A);
+    tcache.register()                                  # here: the load's count check (after_process), the refs reset
     swe.OBJ4_PAGES = sreg.obj4_pages(swe.OBJ4_PAGES)   # (4.2 N7 / 42-s7import: + the old-save import's band, SREG2)
     if lr_tabs:                                        # (the career league's head-to-head block)
         engine.save_item('LR', lrank.LR_SIZE, world_only=True)
@@ -957,8 +962,13 @@ def patch_exe(src, dst, remap, lang='it'):
     if sc_on:                                    # 4.0.6 the UEFA Super Cup: the holders' snapshot at the season end,
         st_end = supercup.patch_usc(p, (st_end + 15) & ~15)   # obj3 after xleft
         assert st_end <= LT3_AT, hex(st_end)
+    if 'X3' in gplay.LABELS:                          # 4.2 X3 (MC 16/11, CONVENTIONS 23): gplay3.c (sc_done), out of gplay's
+        st_end = gplay.x3_patch(p, (st_end + 15) & ~15)      # full obj1 pages, in obj3 after usc_snap
+        assert st_end <= LT3_AT, hex(st_end)
     import stadium                               # 4.0.6 (Davide 02/11): the home club's stadium name (a final: its
     st_end = stadium.patch(p, (st_end + 15) & ~15)           # venue) on the versus screen, in obj3 after usc_snap
+    assert st_end <= LT3_AT, hex(st_end)
+    st_end = tcache.patch(p, (st_end + 15) & ~15)            # 4.2 team cache bound (every build; before ctgame, its caller)
     assert st_end <= LT3_AT, hex(st_end)
     import ctview                                # 4.0.6 COPPE CONTINENTALI (Gianmarco): the other confederations'
     if conti.enabled() and fmtpage.WN and 'CV9_VIS' in gplay.LABELS:   # cups viewed, the obj3 chain's end (<= 0x1800)
@@ -1011,8 +1021,6 @@ def patch_exe(src, dst, remap, lang='it'):
         t3.patch(p, lang, cpurefill)
         st_end = cpurefill.patch(p, (st_end + 15) & ~15, lang)   # obj3 chain's end (Integratore 03/11)
         assert st_end <= LT3_AT, hex(st_end)
-    if frchoose.on():                            # 4.2 friendlies chooser: the page in FRCH (its caller: FRND, Motore)
-        frchoose.patch(p, lang)
     import ffp                                   # 4.0.6 (Marco): financial fair play - the season-start check, the
     st_end = ffp.patch(p, (st_end + 15) & ~15, lang)         # purchase block, the chairman's memo; obj3 chain's end
     assert st_end <= LT3_AT, hex(st_end)
@@ -1106,6 +1114,11 @@ def patch_exe(src, dst, remap, lang='it'):
     import fpad                                  # 4.2 fixture port P2: fpad.c at obj4+FPORT_AT (dormant: nothing)
     import gplay
     fpad.patch(p, swe.LABELS, gplay.LABELS)
+    import frnd                                  # 4.2 friendlies: frstep.c at obj4+FRND_AT, FRND first on the port's hooks
+    frnd.patch(p, swe.LABELS, gplay.LABELS)      # (after fpad: its fp_step / fp_leg chained; dormant: nothing)
+    import frchoose
+    if frchoose.on():                            # 4.2 friendlies chooser: the page in FRCH, AFTER FRND (its fr_pick /
+        frchoose.patch(p, lang, pick=frnd.LABELS if frnd.on() else None)   # fr_level / fr_given: one copy of the pick)
     if sreg_end is not None:
         assert sreg_end <= lrank.LR_AT, ('sreg past LR_AT', hex(sreg_end), hex(lrank.LR_AT))
     if cdkn.on():                                # 4.2 S2 knockouts: the Coppa D's rounds 0-1 by the engine (gplay.c GP_CDKN)
@@ -1127,9 +1140,16 @@ def patch_exe(src, dst, remap, lang='it'):
     p.add_flags(1, 0x2)            # writable: season end rewrites the SA cup team lists in the cave
     split.late(p)                                # split's after-stage routines (engine.after_stage)
     trailer.late(p)                              # the engine block's late addresses (RS_STATE ...)
+    print(f'exe: tcache: {tcache.check(p)} callers bound to its obj3 code')   # (every caller's dword: MC 16/11)
     s7swap.late(p)                               # 4.2 S7: WSITES + their resolved bytes (engine items bound now)
     import uefaname
     print(f'exe: UEFA cup name fixed in {uefaname.patch(p)} strings (the original exes: EUFA)')   # 4.1.2 (Marco)
+    import typofix
+    print(f'exe: the original exe\'s typos fixed in {typofix.patch(p, lang)} strings (typofix.FIXES)')   # 4.2 (Davide: PAREGGI)
+    if 'X3' in gplay.LABELS:
+        gplay.x3_check(p)
+    if __import__('frnd').on():
+        __import__('frnd').check(p)                            # 4.2 friendlies: the season hook, GP_PSTEP / GP_PLEG, fi_gate's dword                        # 4.2 X3: GP_SCDONE bound to gplay3.c's sc_done in obj3
     delta, shift = p.save(dst)
     dd = os.path.join(os.path.dirname(os.path.abspath(dst)), 'DATA')
     if os.path.isdir(dd):                        # (the neutral finals' strings: exact in this exe / its DATA)
@@ -1174,6 +1194,8 @@ def hosttest_syms(dst):
                 d.setdefault('@' + k, [0, v[0]])
         if d:
             out[name] = d
+    import srcstamp                             # (MC 16/11: the source this build was made from - the harness
+    out['_src'] = srcstamp.as_syms(srcstamp.stamp())   #  refuses it for any other tree, swostest build_stale)
     json.dump(out, open(os.path.splitext(dst)[0] + '.syms.json', 'w'), indent=0, sort_keys=True)
     print(f'exe: hosttest symbols {sum(len(v) for v in out.values())} in {len(out)} modules')
 

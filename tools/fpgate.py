@@ -267,6 +267,57 @@ def run_et(tag, extra, want_pens):
     return not errs, '; '.join(errs) or f'legs {legs[:3]}; results {[(e[1], e[4] & 15) for e in res]}; {msg[:60]}'
 
 
+# Q13 probe (Supercoppa Serie C design 16/11, gap G4 / risk R1): one match at L + 1 = 129 (SCHED_Q13C, the chain:
+# three at 129, 130, 131, the second away - rule 5 refuses the 2nd and 3rd at add, sr_port.c:80-81, unless the build
+# has the test-only FPORT_R5OFF, fpad.c h_prev) for CAMPOBASSO (Serie C
+# girone B, ita division 3: the league's last unit L = 128), forced group winner (DPLAY_FORCE 101 + GPLAY_FORCE 1: no
+# play-off of its own). Gap G3 (fport's unconditional [128, END] dplay / play-out windows refuse it at add) bypassed
+# with the test-only FPORT_WINEDIT '-128' (every window starting at 128 dropped from the build's table)
+TEAM_Q13 = os.environ.get('FPGATE_Q13_TEAM') or 'EUROPA,ITALIA,?SERIE C,GIRONE B|SERIE C GIRONE B,CAMPOBASSO'
+SCHED_Q13 = os.environ.get('FPGATE_Q13_SCHED') or '129/129/1/1/0/255/0'
+SCHED_Q13C = '129/129/1/1/0/255/0;130/130/1/1/4/255/0;131/131/1/1/0/255/0'
+L_Q13 = 128
+
+
+def run_q13(tag='fpgate_q13', SCHED_Q13=SCHED_Q13, extra=None):
+    exe, skip = gate_exe(tag, SCHED_Q13, dict(FPORT_WINEDIT='-128', DPLAY_FORCE='101', GPLAY_FORCE='1', **(extra or {})))
+    if skip:
+        return True, skip
+    off, sp = fp_st_at(exe), sym(exe, 'gplay', 'SEASONPLAYING', 2)
+    cal = T.CAL_AT - 4
+    ok, msg, lines = T.sc_season(TEAM_Q13, dict(W8485_BUILD=exe, W8485_HEX=f'{sp:x}:1,o4/{off:x}:{ST_SIZE},{cal:x}:3000'))
+    log = season_log(lines, off)
+    cals = [T.cal_entries(bytes.fromhex(ln.split()[2])) for ln in lines if ln.startswith(f'HEX {cal:x} ')]
+    seas = [bytes.fromhex(ln.split()[2])[0] for ln in lines if ln.startswith(f'HEX {sp:x} ')]
+    open(os.path.join(T.RUNS, f'{tag}.txt'), 'w').write('\n'.join(map(str, log)) + '\n' + '\n'.join(
+        f'CAL {len(c)} entries, slot 0 {[e[1] for e in c if e[0] == 0]}, other {[e for e in c if e[0]]}' for c in cals) + '\n')
+    errs = []
+    T.check(ok, f'season (4: the season end, the next season, its save): {msg}', errs)
+    first = log[:[e[0] for e in log].index('SEASON')] if 'SEASON' in [e[0] for e in log] else log
+    us = [int(x.split('/')[0]) for x in SCHED_Q13.split(';')]
+    adds = [e for e in first if e[0] == 'ADD']
+    T.check([(e[2], e[4] & 255) for e in adds] == [(0, u) for u in us], f'adds {adds} (want rc 0, units {us})', errs)
+    inst = [e for e in first if e[0] == 'INST']
+    T.check([(e[2], e[1], e[4] & 255) for e in inst] == [(1, p, u) for p, u in zip([L_Q13] + us, us)],
+            f'(1) installs {inst} (want one per fixture, each at the advance from the unit before: {L_Q13}, then the previous match)', errs)
+    legs = [e for e in first if e[0] == 'LEG']
+    T.check([e[1] for e in legs] == us, f'(2) legs {legs} (want one per fixture, played at {us})', errs)
+    res = [e for e in first if e[0] == 'RES']
+    T.check([(e[1], e[4] >> 4 & 15, e[3]) for e in res] == [(u, 0, i[3]) for u, i in zip(us, inst)],
+            f'(3) results {res} (want each installed fixture\'s, at {us}, status 0)', errs)
+    bad = [e for e in first if e[0] in ('REFUSED', 'ORPHAN', 'MISSED', 'SIM')]
+    T.check(not bad, f'refused / orphan / missed / simulated {bad}', errs)
+    T.check(len(set(seas)) >= 2, f'(4) seasonPlaying values {seas} (want the next season reached)', errs)
+    lg = [[e[1] for e in c if e[0] == 0] for c in cals if c]
+    T.check(lg and all(x == lg[0] for x in lg) and lg[0][-1] == L_Q13,
+            f'(5) the league\'s calendar days moved: {[x for x in lg if x != lg[0]][:2]} vs {lg[0] if lg else None}', errs)
+    s4 = sorted({e[:2] for c in cals for e in c if e[0] == 4 and e[1] > L_Q13})
+    T.check(all((4, u) in s4 for u in us), f'(1) no slot-4 calendar entry at each of {us} ({s4})', errs)
+    return not errs, '; '.join(errs) or f'adds {adds}, installs {inst}, legs {[(e[1], e[4] & 255, e[4] >> 8) for e in legs]} (unit, home, away goals), ' \
+        f'results {[(e[1], hex(e[3]), e[4] & 15) for e in res]} (unit, id, winner side); league days {len(lg[0])} to {lg[0][-1]}, ' \
+        f'slot-4 entries after L {s4}; seasons {sorted(set(seas))}; {msg[:80]}'
+
+
 def register(mod):
     global T
     T = mod
@@ -284,6 +335,23 @@ def register(mod):
         a fixture between the windows accepted and played, one in the 8th window and one in the last refused at add -
         every window of the division read"""
         return run_sd()
+
+    @sc
+    def world_fport_q13():
+        """Q13 probe (Supercoppa Serie C, gap G4): a K_PORT match at L + 1 = 129, after the career league's last unit
+        128, for CAMPOBASSO forced Serie C group winner (test-only FPORT_WINEDIT '-128' drops the season-end windows:
+        gap G3 bypassed) - installed at the advance from 128, played in slot 4, its result back through fp_done, the
+        season ends and the next one starts, the league's own days untouched"""
+        return run_q13()
+
+    @sc
+    def world_fport_q13_chain():
+        """Q13 probe, the chain: three K_PORT matches at 129, 130, 131 (the Supercoppa's three days), each installed at
+        the advance from the unit before - the calendar's only entries after 128 are the port's own. Rule 5 as it
+        stands refuses the 2nd and 3rd (sr_port.c:80-81: the earlier must end strictly before the later's install
+        advance): this build bypasses it with the test-only FPORT_R5OFF=128 (fpad.c h_prev: past 128 the install unit
+        reported is the fixture's own unit)"""
+        return run_q13('fpgate_q13c', SCHED_Q13C, dict(FPORT_R5OFF=str(L_Q13)))
 
     @sc
     def world_fport_etp():

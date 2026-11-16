@@ -275,6 +275,9 @@ def patch(p, ssyms, gsyms):
     if os.environ.get('FPORT_ETFORCE'):              # (test builds, with BPLACE_FORCE: an e.t. decided 1-0 at home)
         flags.append('-DFP_ETFORCE')
     test = test_entries()
+    if os.environ.get('FPORT_R5OFF'):                # (Q13 probe, test builds: rule 5 off past that unit - fpad.c h_prev)
+        assert test, 'fpad: FPORT_R5OFF is for FPORT_TEST builds only'
+        flags.append(f'-DFP_R5OFF={int(os.environ["FPORT_R5OFF"])}')
     if test:
         flags += ['-DFPORT_TEST', f'-DFP_NTEST_={len(test)}']
         roots += ['FP_TEST', 'FP_NTEST']

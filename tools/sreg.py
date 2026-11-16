@@ -189,11 +189,20 @@ def patch(p, syms_swe):
     for k, nm in enumerate(('sreg_size', 'sreg_save', 'sreg_load', 'sreg_new', 'sreg_build')):
         if k == 4 and import_on():                      # (the absent case: patch_import's sreg_absent, after s7swap)
             continue
+        if k == 2 and s7_load_hook():                   # (the load: s7swap.c's s7_itload - sreg_load, then rdiv from the live table)
+            continue
         cobj.add_ptr(p, fn[1] + 4 * k, *syms[nm], 4)
     print(f'exe: club registry (N7, sreg.c) obj4+{swreg.SREG_AT:#x}..{end:#x} of {lrank.LR_AT:#x}, SREG_DIV '
           f'obj4+{swreg.SREG_DIV_AT:#x}..{swreg.SREG_DIV_AT + ndiv:#x}; SWC1 \'IT\' '
           f'{section_bytes()} B ({rows()} rows{"" if s else ", SREG_FORCE: an empty shape"})')
     return end
+
+
+def s7_load_hook():
+    """A shaped S7 build: swe.c's SREG_FN[2] is s7swap.c's s7_itload (s7swap.patch sets it), which calls sreg_load and then
+    recomputes the registry's rdiv from the live someLeaguesTable (rdiv is not in the save); else sreg_load itself."""
+    import s7swap
+    return bool(shape()) and s7swap.on()
 
 
 def import_on():

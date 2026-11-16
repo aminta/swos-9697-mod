@@ -404,23 +404,32 @@ static int32_t size_check(const int8_t *slt, const uint8_t *nd, int32_t gate)   
     }
     return 0;
 }
-/* Every league row's delta: its club's division (the registry's rdiv) as its file's local, minus the row's - after
-   sr_reg_season only (rdiv is this season's there). live (a refusal): the game's live one instead (someLeaguesTable, S7_SLT:
-   this season's deltas, as played and as loaded from the save - pg_fix runs before InitializeNewSeason's copy-back), so a
-   refusal keeps TODAY's divisions in every season: this season's moves dropped, the past seasons' kept, the loaded state
-   as it is (never 'repaired' to the shipped one). Never rdiv for that: it is not saved (sr_regsave.c), after a load it is
-   each row's SHIPPED division until the next accepted season end (16/11: a refusal in season 2+ of a loaded career sent
-   every club back to its shipped division). */
-static void rebase(int8_t *slt, int32_t live)
+/* The registry's rdiv and the game's division deltas. ONE source of truth for a club's division: the game's own table
+   (someLeaguesTable, S7_SLT: this season's delta per global, saved in the .CAR; leaguesTableCopy = next season's while a
+   season end runs). rdiv is its cache per row (division = the row's shipped one + its delta) and is NOT in the save
+   (sr_regsave.c: sr_reg_load leaves every row's SHIPPED division): rebase(.., 2) rebuilds it from the table after every
+   load (s7_itload) and at every season end's exit (run), so it is never stale - 16/11: a refusal in season 2+ of a loaded
+   career read the shipped rdiv and sent every club back to its shipped division.
+   mode 0: slt from rdiv (after sr_reg_season: next season's deltas - each row's club's division as its file's local, minus
+           the row's);
+   mode 1: slt = the live table (a refusal: TODAY's divisions kept - this season's moves dropped, the past seasons' kept,
+           the loaded state as it is, never 'repaired' to the shipped one);
+   mode 2: rdiv from slt (a row whose delta leaves its file's divisions keeps its rdiv). An all-zero table gives the
+           shipped divisions: the bytes sr_reg_build / sr_reg_load wrote. */
+static void rebase(int8_t *slt, int32_t mode)
 {
-    const sr_registry *R = SREG_REG;
+    sr_registry *R = SREG_REG;
     for (int32_t s = 0; s < 2; s++) {
         int32_t fi = fi_of(s ? S7_FB : S7_FA);
+        if (fi < 0) continue;
         for (uint32_t o = 0; o < R->rows[fi]; o++) {
             int32_t b = base_local(fi, o);
             uint32_t g = glob_of(s, o);
             if (b < 0) continue;
-            if (live) slt[g] = S7_SLT[g];
+            if (mode == 2) {
+                b += slt[g];
+                if (b >= 0 && b < R->f[fi].ndiv) R->rdiv[fi][o] = R->f[fi].div[b];
+            } else if (mode) slt[g] = S7_SLT[g];
             else for (int32_t k = 0; k < R->f[fi].ndiv; k++)
                 if (R->f[fi].div[k] == R->rdiv[fi][o]) slt[g] = (int8_t)(k - b);
         }
@@ -438,7 +447,7 @@ static int32_t size_refuse(int8_t *slt, int32_t nri)    /* every club stays (the
     return S7_LOG.status = S7_SIZE;
 }
 
-static int32_t run(void *pv) {
+static int32_t run0(void *pv) {
     int8_t *slt = ((struct args *)pv)->sltcopy;
     uint8_t *nd = SWE_ARENA_AT + ND_AT;
     uint16_t *order = (uint16_t *)(SWE_ARENA_AT + ORD_AT);
@@ -542,6 +551,29 @@ static int32_t run(void *pv) {
     SREG_FLAGS &= ~(uint32_t)(SR_REGSAVE_PENDING | 0xFF00);    /* (42-s7import: an imported save's PENDING clears at its
                                                                   first S7 season end - n7-p4 §9a.1; IMPORTED stays) */
     return S7_LOG.status = S7_OK;
+}
+
+static int32_t run(void *pv)           /* the season end, then rdiv = the table the game goes on with (leaguesTableCopy as it
+                                           leaves here: an accepted season's - sr_reg_season's own rdiv, the same bytes -, a
+                                           refused one's with the game's in-struct moves, a SIZE refusal's live one) */
+{
+    int32_t r = run0(pv);
+#ifndef S7_NOSWAP
+    if (r != S7_NOREG) rebase(((struct args *)pv)->sltcopy, 2);
+#endif
+    return r;
+}
+
+/* swe.c it_load's SREG_FN[2] (s7swap.py, instead of sreg.c's sreg_load): the registry loaded from the save's 'IT' (or
+   rebuilt from the spec), then rdiv from the live table - loaded before (bt_load, in front of the trailer's after_load).
+   The old-save import (sreg_absent, SREG_FN[4]) needs none: its sr_reg_season sets rdiv = the save's divisions, the ones
+   its converted table gives (test_italy_import). A new career: the spec's registry, the table all zero. */
+int32_t sreg_load(const uint8_t *in, int32_t len);
+int32_t s7_itload(const uint8_t *in, int32_t len)
+{
+    int32_t r = sreg_load(in, len);
+    if (sreg_get()) rebase((int8_t *)S7_SLT, 2);
+    return r;
 }
 
 static int32_t be16(const uint8_t *b) { return b[0] << 8 | b[1]; }

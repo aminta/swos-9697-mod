@@ -30750,7 +30750,7 @@ def world_s7sizeforce():
 
 
 def s7_save_rows(car, packs):
-    """(4.2 S7) {club key: (file, row, global, the signed delta byte of that global in the save)} for every league club of
+    """(4.2 S7) {club key: (file, row, global, the signed delta byte of that global in the save, the row's shipped division)} for every league club of
     the shaped Italy pack (the one with a 'league_b' file in the SEASON_PACKS list `packs`; pool clubs left out). The delta table
     in a save: s7_division_counts' two parts (globals 0..1999 at CAR 0xE8DC, 2000.. in the fixed part's extension). A
     row's delta + its shipped division = the division of the club the registry puts in that row."""
@@ -30774,7 +30774,7 @@ def s7_save_rows(car, packs):
             continue
         fl, i = pk.where[k]
         g = globnum.glob(pk, fl, i)
-        out[k] = (fl, i, g, struct.unpack('b', slt[g:g + 1])[0])
+        out[k] = (fl, i, g, struct.unpack('b', slt[g:g + 1])[0], pk.division[k])
     return out
 
 
@@ -30792,8 +30792,9 @@ def world_s7sizeforce2():
     - W84B's delta of EVERY league row of files 102 / 144 = W84A's (nothing crossed, nothing moved in season 2, season 1's
       promotions / relegations / crossings kept);
     - W84B loaded: selTeamNumber = the word the club crossed to in season 1 and D6CDC = its division as season 2 loaded it
-      (the club that crossed stays in its new division), and the live someLeaguesTable (bigtables SOME) of every league row
-      = W84A's delta.
+      (the club that crossed stays in its new division), the live someLeaguesTable (bigtables SOME) of every league row
+      = W84A's delta, and the registry's rdiv of every league row = its shipped division + that delta (s7_itload, the
+      post-load hook: rdiv is not in the save - before it a loaded registry held the shipped divisions).
     S7_SIZE_EXPECT=1 here only (the harness-wide 'status 13 = FAIL' rule)."""
     import json
     pk = os.environ.get('S7_PACK') or os.path.join(MAIN, 'internal', 's7pack-real', 'ita')
@@ -30804,9 +30805,9 @@ def world_s7sizeforce2():
         return True, 'SKIP: S7_PACK (the shaped Italy pack) or internal world5tm-h2 missing'
     exe = os.environ.get('S7_BUILD') or build('s7sizeforce2', env=env)
     sy = json.load(open(os.path.join(exe, 'ITALIAN.syms.json')))
-    s7, big = sy.get('s7swap', {}), sy.get('bigtables', {})
-    if 'S7_SZ' not in s7 or 'S7_CLOG' not in s7 or big.get('SOME', [0])[0] != 2:
-        return False, f'{exe}: no size gate (S7_SZ) / S7_CLOG / bigtables SOME'
+    s7, big, sr = sy.get('s7swap', {}), sy.get('bigtables', {}), sy.get('sreg', {})
+    if 'S7_SZ' not in s7 or 'S7_CLOG' not in s7 or big.get('SOME', [0])[0] != 2 or 's7_itload' not in s7 or 'SREG_REG' not in sr:
+        return False, f'{exe}: no size gate (S7_SZ) / S7_CLOG / bigtables SOME / s7_itload (the post-load rdiv hook) / SREG_REG'
     lg, sz, cg, sel, some = s7['S7_LOG'][1], s7['S7_SZ'][1], s7['S7_CLOG'][1], s7['S7_SELTEAM'][1], big['SOME'][1]
     team = os.environ.get('S7SF_TEAM', 'EUROPA,ITALIA,SERIE C GIRONE A,UNION BRESCIA')
     keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_RENEW',
@@ -30867,14 +30868,20 @@ def world_s7sizeforce2():
         r = s.result
         w3 = struct.unpack('<HHHH', r.obj2(sel, 8))
         live = {k: struct.unpack('b', bytes(r.obj2(some + v[2], 1)))[0] for k, v in r1.items()}
+        regb = bytes(r.read(struct.unpack('<I', bytes(r.read(r.lin((4, sr['SREG_REG'][1])), 4)))[0], s7reg_dims()[4]))
         s.log.append(f'[season 3 as loaded] selTeamNumber {w3[0]:#x} careerTeamLeague {w3[2]} D6CDC {w3[3]}')
     check(w3[0] == new and w3[3] == sels2[0][3], f'season 2\'s save loaded: selTeamNumber {w3[0]:#x} D6CDC {w3[3]} (want {new:#x} and '
           f'division {sels2[0][3]}: the club that crossed in season 1 stays in its new division)', errs)
     dl = sorted((v[0], v[1], k, v[3], live[k]) for k, v in r1.items() if live[k] != v[3])
     check(not dl, f'season 2\'s save loaded: {len(dl)} league rows\' live deltas are not season 1\'s (file, row, club, season 1, live): {dl[:6]}', errs)
+    _, _, _, rdiv3 = s7reg_parse(regb)
+    fidx = {regb[8 + i * s7reg_dims()[3]]: i for i in range(struct.unpack_from('<i', regb, 0)[0])}
+    dr = sorted((v[0], v[1], k, rdiv3[fidx[v[0]]][v[1]], v[4] + live[k]) for k, v in r1.items() if rdiv3[fidx[v[0]]][v[1]] != v[4] + live[k])
+    check(not dr, f'season 2\'s save loaded: {len(dr)} league rows\' registry rdiv != shipped division + live delta (file, row, club, rdiv, want): '
+          f'{dr[:6]} (the post-load hook s7_itload did not run / rdiv stale)', errs)
     return not errs, '; '.join(errs) or (f'season 1 crossed (18 crossers, the career club {cross[-1][0]:#x} -> {new:#x}; {len(off1)} league rows off '
                                          f'their shipped division); season 2 refused (S7_LOG {st2[-1].hex()}, S7_SZ {z.hex()}), no trap; all '
-                                         f'{len(r1)} league rows\' deltas in season 2\'s save and live after its load = season 1\'s; the career '
+                                         f'{len(r1)} league rows\' deltas in season 2\'s save and live after its load = season 1\'s, the registry\'s rdiv = them; the career '
                                          f'club still {new:#x}, D6CDC {w3[3]}')
 
 

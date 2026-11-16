@@ -396,6 +396,98 @@ def test_s7refuse2():
                                              f'every one of the {len(league)} league rows\' deltas = season 1\'s, sizes kept')
 
 
+def test_s7rdiv_load():
+    """42-s7trap follow-up (MC 16/11, rule 0): the registry's rdiv is never stale. It is not in the save (sr_regsave.c: a
+    load leaves every row's SHIPPED division); swe.c it_load's load call (SREG_FN[2], called here through the exe's own
+    pointer) is s7swap.c's s7_itload in a shaped build: sreg_load, then rdiv from the live someLeaguesTable.
+    - test_s7refuse2's season 1 (9 + 9 crossings, an in-struct pair), the game's copy-back by hand (SOME = SLTCOPY),
+      sreg_save, the registry wiped to the spec's (sreg_build), then the load through SREG_FN[2]: the whole registry =
+      season 1's, byte for byte, and every league row's rdiv = the division its shipped one + its live delta gives;
+    - the mutant (sreg.c's bare sreg_load, the old SREG_FN[2]): rdiv is the shipped one, not season 1's - what the hook
+      is for (the control build's SREG_FN[2] is that: this test FAILs on it);
+    - an all-zero table (a new career saved and loaded): the registry's bytes are the spec's, as before the hook;
+    - a season end that is refused for another reason (COUNT) with in-struct moves in leaguesTableCopy: the game goes on
+      with them, rdiv follows at s7_season's exit (the identity map untouched)."""
+    if not os.path.exists(EXE) or not os.path.exists(EXE[:-4] + '.syms.json'):
+        return True, f'SKIP: {EXE} (a shaped HOSTTEST_SYMS=1 build) missing'
+    sy = json.load(open(EXE[:-4] + '.syms.json'))
+    if 'SREG_FN' not in sy.get('swe', {}) or 'SOME' not in sy.get('bigtables', {}):
+        return False, f'{EXE}: no swe SREG_FN / bigtables SOME (not a shaped build)'
+    m = M(EXE)
+    some = m.at('bigtables', 'SOME')
+    sav = ts.BUF + 0x9000
+    fn = struct.unpack('<I', m.rd(m.at('swe', 'SREG_FN') + 8, 4))[0]
+    errs = []
+    if 's7_itload' not in sy.get('s7swap', {}) or fn != m.at('s7swap', 's7_itload'):
+        errs.append(f'SREG_FN[2] = {fn:#x} is not s7swap\'s s7_itload (sreg_load {m.at("sreg", "sreg_load"):#x}): no rdiv after a load')
+    m.fresh()
+    m.w(some, bytes(2400))
+    r0 = m.regb()
+    fs, word, at, rdiv, rows = reg_parse(r0)
+    n0 = m.call('sreg', 'sreg_save', sav, 0x800, SEASON)
+    it0 = m.rd(sav, n0)
+    down, up = crossings(fs, m.gb)
+    g = lambda o, s=0: glob_of(m.gb[s], o)
+    s1 = bytearray(2400)
+    s1[g(20)], s1[g(40)] = 1, 255
+    st, nsw, ncr, slt1 = run(m, down, up, bytes(s1))
+    if (st, nsw, ncr) != (OK, 9, 18):
+        return False, f'season 1: status {st} swaps {nsw} crossers {ncr} (want {OK}, 9, 18)'
+    reg1 = m.regb()
+    fs1, word1, at1, rdiv1, rows1 = reg_parse(reg1)
+    if rdiv1 == rdiv or word1 == word:
+        return False, 'season 1 left the shipped rdiv / identity map (the test proves nothing)'
+    n = m.call('sreg', 'sreg_save', sav, 0x800, SEASON)
+    it = m.rd(sav, n)
+    sl = lambda b, gg: struct.unpack('b', b[gg:gg + 1])[0]
+
+    def live_bad(rd, tab):                              # league rows whose rdiv != shipped division + the table's delta
+        out = []
+        for fi, f in enumerate(fs1):
+            for o in range(rows1[fi]):
+                b = base_local(f, o)
+                if b >= 0 and rd[fi][o] != f[1][b + sl(tab, glob_of(m.gb[fi], o))]:
+                    out.append((f[0], o, rd[fi][o], f[1][b + sl(tab, glob_of(m.gb[fi], o))]))
+        return out
+    for name, call in (('SREG_FN[2]', lambda: tr._call(m.uc, fn, sav, n)), ('mutant: bare sreg_load', lambda: m.call('sreg', 'sreg_load', sav, n))):
+        m.w(some, slt1)                                 # (InitializeNewSeason's copy-back; a load: bt_load before it_load)
+        m.w(sav, it)
+        m.call('sreg', 'sreg_build')                    # (the registry as another career / the spec left it)
+        if call() != 1:
+            return False, f'{name}: the load of season 1\'s registry did not return 1'
+        rb = m.regb()
+        _, word2, at2, rdiv2, _ = reg_parse(rb)
+        bad = live_bad(rdiv2, slt1)
+        if name.startswith('mutant'):
+            if not bad or rdiv2 != rdiv or (word2, at2) != (word1, at1):
+                errs.append(f'{name}: rdiv {"season 1\'s" if not bad else "neither"} / identity map {"=" if (word2, at2) == (word1, at1) else "!="} '
+                            f'(want the shipped rdiv on season 1\'s map: the stale state the hook repairs)')
+            continue
+        if (word2, at2) != (word1, at1):
+            errs.append(f'{name}: the identity map is not season 1\'s')
+        if bad:
+            errs.append(f'{name}: {len(bad)} league rows\' rdiv != the live division (file, row, rdiv, live): {bad[:4]}')
+        elif rb != reg1:
+            errs.append(f'{name}: the registry differs from season 1\'s outside the league rows\' rdiv')
+    m.w(some, bytes(2400))                              # an all-zero table: the same bytes as the spec's registry
+    m.w(sav, it0)
+    m.call('sreg', 'sreg_build')
+    if tr._call(m.uc, fn, sav, n0) != 1 or m.regb() != r0:
+        errs.append('all-zero table: the loaded registry is not the spec\'s, byte for byte')
+    m.fresh()                                           # refused for another reason: rdiv follows the game's in-struct moves
+    stc, _, _, sltc = run(m, down[:-1], up, bytes(s1))
+    _, wordc, atc, rdivc, _ = reg_parse(m.regb())
+    badc = live_bad(rdivc, sltc)
+    if stc != COUNT or sltc != bytes(s1) or (wordc, atc) != (word, at) or badc or rdivc[0][20] != fs[0][1][2] or rdivc[0][40] != fs[0][1][1]:
+        errs.append(f'COUNT refusal with an in-struct pair: status {stc}, SLTCOPY {"kept" if sltc == bytes(s1) else "changed"}, identity map '
+                    f'{"kept" if (wordc, atc) == (word, at) else "changed"}, rdiv rows 20 / 40 {rdivc[0][20]} / {rdivc[0][40]}, off the table {badc[:3]}')
+    m.w(some, bytes(2400))
+    return not errs, '; '.join(errs[:6]) or (f'SREG_FN[2] = s7_itload: after sreg_save / the load the registry = season 1\'s byte for byte (rdiv of all '
+                                             f'{sum(1 for fi, f in enumerate(fs1) for o in range(rows1[fi]) if base_local(f, o) >= 0)} league rows = the '
+                                             f'live division); bare sreg_load leaves the shipped rdiv; all-zero table = the spec\'s bytes; a COUNT refusal\'s '
+                                             f'in-struct moves reach rdiv')
+
+
 def test_s7stadium():
     """42-s7stad (MC 13/11): stadium.py's st_find keys the versus screen's stadium by the HOME word. After the 9 swaps
     every club of both files is looked up by its current team word (gameTeam1 -> a record in the test buffer):

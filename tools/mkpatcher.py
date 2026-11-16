@@ -199,6 +199,8 @@ def world_entries(data_dir=None):
         names = sorted(set(names) | {'KITFIX.DAT'})          # build's team files changed - the career kit refresh)
     if os.path.exists(os.path.join(data_dir, 'STRMAP41.DAT')):   # (4.2 strmap.py: a 4.1 save's past-season names;
         names = sorted(set(names) | {'STRMAP41.DAT'})              # buildrel.sh writes it once the 4.1 names are pinned)
+    if os.path.exists(os.path.join(data_dir, 'FRSS.DAT')):       # (4.2 frstr.py: the friendlies' strength tables, every
+        names = sorted(set(names) | {'FRSS.DAT'})                  # world; patch_exe writes it, buildrel.sh asserts it)
     names = sorted(set(names) | {n for n in os.listdir(data_dir)      # (4.0.6 stadium.py: the stadium names, one
                                  if re.fullmatch(r'STAD(TEAM|TMW\d)\.DAT', n)})   # file per team-file namespace)
     rows = [(n, None, os.path.relpath(os.path.join(data_dir, n), ROOT), 'DATA/' + n) for n in names

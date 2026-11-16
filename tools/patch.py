@@ -1131,6 +1131,10 @@ def patch_exe(src, dst, remap, lang='it'):
     dd = os.path.join(os.path.dirname(os.path.abspath(dst)), 'DATA')
     if os.path.isdir(dd):                        # (the neutral finals' strings: exact in this exe / its DATA)
         print(f'exe: stadium venues: {stadium.vcheck_exe(dst, lang, dd)} {lang} strings found')
+        import frstr                             # 4.2 friendlies: DATA\\FRSS.DAT, every world's club strengths (frstr.py;
+        fri = frstr.gen(dst, dd, log=lambda t: print('exe: ' + t))   # read from this exe's tables + the DATA beside it)
+        print('exe: friendlies strength table: ' + ('no world\'s team files beside the exe (no FRSS.DAT)' if not fri else
+              'DATA\\FRSS.DAT ' + ', '.join(f'world {w}: {i[0]} files {i[1]} clubs' for w, i in sorted(fri.items()))))
     print(f'exe: fixups +{delta} bytes, data pages moved {shift:#x}, caves used up to obj1+{cave:#x} / +{world:#x}')
     if os.environ.get('HOSTTEST_SYMS'):           # (tools/hosttest: every module's labels, (obj, offset) or obj1
         hosttest_syms(dst)                       # offsets, next to the exe - the exe itself unchanged)

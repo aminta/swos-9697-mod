@@ -438,6 +438,9 @@ def patch_exe(src, dst, remap, lang='it'):
         swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, -(-swreg.R17_END // 0x1000))
     if setpieces.on():                                 # 4.2 takers UI (Shaved 15/11, 42-tkui): the TKUI band
         swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, -(-swreg.TKUI_END // 0x1000))
+    import frchoose                                    # 4.2 friendlies chooser (FRCH band, MC 16/11)
+    if frchoose.on():
+        swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, frchoose.page_end() // 0x1000)
     swe.OBJ4_PAGES = sreg.obj4_pages(swe.OBJ4_PAGES)   # (4.2 N7 / 42-s7import: + the old-save import's band, SREG2)
     if lr_tabs:                                        # (the career league's head-to-head block)
         engine.save_item('LR', lrank.LR_SIZE, world_only=True)
@@ -1005,6 +1008,8 @@ def patch_exe(src, dst, remap, lang='it'):
         t3.patch(p, lang, cpurefill)
         st_end = cpurefill.patch(p, (st_end + 15) & ~15, lang)   # obj3 chain's end (Integratore 03/11)
         assert st_end <= LT3_AT, hex(st_end)
+    if frchoose.on():                            # 4.2 friendlies chooser: the page in FRCH (its caller: FRND, Motore)
+        frchoose.patch(p, lang)
     import ffp                                   # 4.0.6 (Marco): financial fair play - the season-start check, the
     st_end = ffp.patch(p, (st_end + 15) & ~15, lang)         # purchase block, the chairman's memo; obj3 chain's end
     assert st_end <= LT3_AT, hex(st_end)

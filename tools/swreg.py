@@ -84,7 +84,9 @@ MKTHOOK_END = 0x1F100                   # the last 4.2 band): the CPU market's e
 MKTLOAD_AT = 0x1F100                    # then MKTAGE (Mercato CPU); unlinked in 4.2 (the unlinked bands go last, so a release never
 MKTLOAD_END = 0x20100                   # carries an empty page for them). DIFF2 0x1A000..0x1A400 + SPX 0x1A400..0x1A800 stay free
 MKTAGE_AT = 0x20100                     # here for 42-drp / 42-sp (their swreg lines are taken verbatim)
-MKTAGE_END = 0x22100                    # (MC 15/11: 0x20500 -> 0x21500, Mercato measured 0x205FB + floor + h3_team + sweep; +0x800 after TKUI)
+MKTAGE_END = 0x22000                    # (MC 15/11: 0x20500 -> 0x21500, Mercato measured 0x205FB + floor + h3_team + sweep; +0x800 after TKUI;
+                                        # 16/11 Mercato: page-aligned end, -0x100 after the tail shift: check_pages wants code in the
+                                        # last page, the 256 B floor wants none in a 0x100 tail - both hold only at a page end)
 GPLX_AT = 0x19E00                       # 4.2 GPLX "gplay overflow" (MC 15/11, obj1-room.md): gplx.c (gplay.c code out of the full
 GPLX_END = 0x1A100                      # gplay pages: the supercups' sc_rule); a RELEASE band, >= 256 B left; temporary address after
                                         # the MKT reservations and R17 (0x22000..0x22400, Panchina), packed at the rc freeze
@@ -223,10 +225,10 @@ def patch(p, add_ptr):
 # 4.3 reservations after the last release band; the test-only bands in the test region after SP_METER / DIFF_TC (0x35000).
 # New release bands (official lines): DRP8D (42-drp8d clamp, 451 B), TAKERS (Difficolta's set-piece takers), GAMEPLAY
 # (reserve: the GAMEPLAY page, gameplay-menu-design.md).
-DRP8D_AT = 0x22100                      # 0x300, a 4.3 reservation after MKTAGE, unlinked (MC 15/11: drp8d not in 4.2;
-DRP8D_END = 0x22400                     # SETPIECE took its 0xBD00..0xC000, 160 B left on REL42i64; after MKTAGE's growth)
-S6_AT = 0x22400                         # 4.3 S6 (MC 15/11, Motore 43-s6a): s6sea.c, world SEASONs' picker, its own unit out of
-S6_END = 0x22600                        # swe.c (-Oz, 256 B floor; 161 B on the IT release recipe); after DRP8D
+DRP8D_AT = 0x22000                      # 0x300, a 4.3 reservation after MKTAGE, unlinked (MC 15/11: drp8d not in 4.2;
+DRP8D_END = 0x22300                     # SETPIECE took its 0xBD00..0xC000, 160 B left on REL42i64; after MKTAGE's growth)
+S6_AT = 0x22300                         # 4.3 S6 (MC 15/11, Motore 43-s6a): s6sea.c, world SEASONs' picker, its own unit out of
+S6_END = 0x22500                        # swe.c (-Oz, 256 B floor; 161 B on the IT release recipe); after DRP8D
 TAKERS_AT = 0x17F00                     # 0x500 (~1 KB + floor 256)
 TAKERS_END = 0x18400
 GAMEPLAY_AT = 0x18400                   # 0x680 reserve (MC 15/11: Panchina ~1.1 KB + floor 256; +0x80 15/11, taken from

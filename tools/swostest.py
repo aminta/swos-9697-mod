@@ -32104,9 +32104,9 @@ def s7_division_counts(car, src, slt=None):
             os.environ['SEASON_PACKS'] = old
     import bigtables                                # (42-s7trap, MC 16/11: THE HELPER'S SERIE D COUNTS WERE A MEASUREMENT ARTEFACT. The save holds the
     import globnum                                  # table in two parts: globals 0..1999 at CAR 0xE8DC, 2000..LIMIT_CLUBS-1 in the fixed part's 80-record
-    raw = open(car, 'rb').read() if slt is None else b''  # area (bigtables.ext_off(): CAR offset 2 + ext_off). Reading only the first 2000 bytes, with
-    if slt is None:
-        slt = raw[0xE8DC:0xE8DC + 2000] + raw[2 + bigtables.ext_off():2 + bigtables.ext_off() + bigtables.LIMIT_CLUBS - 2000]   # base + row for
+    raw = open(car, 'rb').read()  # area (bigtables.ext_off(): CAR offset 2 + ext_off). Reading only the first 2000 bytes, with
+    ext = raw[2 + bigtables.ext_off():2 + bigtables.ext_off() + bigtables.LIMIT_CLUBS - 2000]   # (the globals 2000..: only in the save)
+    slt = (raw[0xE8DC:0xE8DC + 2000] if slt is None else slt[:2000]) + ext   # base + row for
     c0, c1 = collections.Counter(), collections.Counter()   # file 144's rows 156.. (their globals are the second run, 2283..), it counted other
                                                     # rows' deltas for them: Shaved's 'D G 17 / I 19', 'D A 17 / B 17 / I 20'. The game's live
                                                     # SOME / COPY tables of those runs hold 9 x 18)

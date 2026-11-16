@@ -16549,7 +16549,7 @@ def _wsm_state(s, y):
             'st': rd('st', y['stn']), 'cd': rd('cd', CD_SIZE)}
 
 
-def _wsm_run(tag, b, path, ct, steps, stop=None, save_at=None, load=None):
+def _wsm_run(tag, b, path, ct, steps, stop=None, save_at=None, load=None, grab=None):
     """One world SEASON (STAGIONE > path, '|' = alternatives; RNG + currentTick pinned) with CAREERTEAM poked to ct
     before the start press and after it (a stale career's club, or 0), fired to FINISCI STAGIONE (or until stop(out)):
     every match by results (VIS. RISULTATI / - RISULTATO -). save_at = a step: SALVA STAGIONE there (S6M) and stop;
@@ -16599,6 +16599,8 @@ def _wsm_run(tag, b, path, ct, steps, stop=None, save_at=None, load=None):
             out['seq'].append(t)
             if step % 50 == 0:
                 out['states'].append(_wsm_state(s, y))
+            if grab:                                    # (world_season_ko: GP_ST's kos as they are played)
+                grab(s, y, out, step, t)
             if 'FINISCI STAGIONE' in t or (stop and stop(out)):
                 break
             if save_at is not None and step == save_at:
@@ -16656,6 +16658,160 @@ def _wsm_diff(a, b):
         if k:
             return f'state {k} differs at check {i}'
     return ''
+
+
+WSK_CASES = {   # name: (GPLAY_FORCE build, path, the human club, what) - S6a (A), MC 16/11 gate 2
+    'mlt': ('1', 'EUROPA,MALTA', 'HAMRUN SPARTANS', 'Malta: Final Four / Finalissima (the trap case)'),
+    'nzgf': ('1', 'OCEANIA,NUOVA ZELANDA,NORTHERN LGE|NORTHERN LEAGUE', 'WESTERN SPRINGS',
+             'NZ: Championship + Grand Final'),
+    'po': ('2', 'EUROPA,SCOZIA,SCOTTISH LEAGUE TWO', 'CLYDE', 'Scotland: League One play-off'),
+    'pout': ('16', 'EUROPA,ITALIA,SERIE C,GIRONE A|SERIE C GIRONE A', 'RENATE', 'Serie C girone A: play-out'),
+    'mltout': ('8', 'EUROPA,MALTA', 'HAMRUN SPARTANS', 'Malta: the Final Four WITHOUT the human club (8th): '
+               'the placeholder = the ko\'s first entrant'),
+}
+
+
+@scenario
+def world_season_41sea():
+    """S6a (A) gate 4 (MC 16/11): a .SEA of 4.1.1 (no world SEASON then: a 1996-97 SEASON) loads on this build and
+    finishes. EUROPA > MALTA with HAMRUN SPARTANS human on SEA41_BUILD (default c/REL411/SWOS, the 4.1.1 release), saved
+    at step SEA41_AT (default 60), CARICA on this build (SWOSTEST_BUILD), fired to FINISCI STAGIONE; CAREERTEAM stays 0"""
+    old = os.environ.get('SEA41_BUILD') or os.path.join(MAIN, 'c', 'REL411', 'SWOS')
+    b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
+    if not os.path.isdir(old):
+        return True, f'SKIP: no 4.1.1 build {old}'
+    at = int(os.environ.get('SEA41_AT', 60))
+    p = ['EUROPA', 'MALTA', 'HAMRUN SPARTANS']
+    sv = _wsm_run('sea41_save', old, p, 0, 4000, save_at=at)
+    if isinstance(sv, str) or not sv['sea']:
+        return False, f'4.1.1 .SEA save at step {at}: {sv if isinstance(sv, str) else "no S6M saved"}'
+    ld = _wsm_run('sea41_load', b, p, 0, 4000, load=sv['sea'])
+    if isinstance(ld, str):
+        return False, f'4.1.1 .SEA (step {at}) on this build: {ld}'
+    return True, f'4.1.1 .SEA saved at step {at} ({os.path.getsize(sv["sea"])} B): loaded, FINISCI STAGIONE after ' \
+        f'{len(ld["seq"])} screens'
+
+
+WSK_NEG = {'nzgf', 'po'}   # (MC 16/11: by design - gp_need's Season rule (4.0) builds only kos whose entrants all come
+                           # from the loaded division: NZ's Championship / GF and Scotland's League One play-off mix
+                           # leagues. Negative checks: no ko, no trap, FINISCI STAGIONE)
+
+
+def _wsk_grab(s, y, out, step, t):
+    """every gplay ko seen in GP_ST (magic GK): its fields at the first and the last step it is there. Gate 1 probe
+    (always, step 0): a breakpoint right after gp_install's slot-4 `call cseg_8B2D3` (the first call in gp_install
+    whose target it calls twice: slots 4 and 3) - DIY's count (+31h), its team words (+24Dh) and CAREERTEAM there"""
+    if step == 0 and 'probe' not in out:
+        out['probe'] = []
+        exe = os.path.join(s.run, 'SWOS', 'ITALIAN.EXE')
+        sym = json.load(open(exe[:-4] + '.syms.json'))['gplay']['gp_install'][1]
+        sys.path.insert(0, os.path.join(ROOT, 'tools'))
+        import dplay
+        import lepatch
+        from le import LE
+        o1 = LE(open(exe, 'rb').read()).obj_bytes(1)
+        calls = [(i, i + 5 + int.from_bytes(o1[i + 1:i + 5], 'little', signed=True))
+                 for i in range(sym, sym + 0x300) if o1[i] == 0xE8]
+        tg = [t for _, t in calls]
+        at = next(i for i, t in calls if tg.count(t) == 2) + 5
+        diy = dplay._sites(lepatch.LEPatch(os.path.join(MAIN, 'orig', 'ITALIAN.EXE')))[4]
+
+        def hit(r):
+            n = struct.unpack('<H', bytes(r.obj2(diy + 0x31, 2)))[0]
+            w = list(struct.unpack(f'<{min(n, 24)}H', bytes(r.obj2(diy + 0x24D, 2 * min(n, 24)))))
+            out['probe'].append((n, w, struct.unpack('<H', bytes(r.obj2(y['ct'], 2)))[0]))
+        s.bp(s.result.base1 + at, hit)
+    ct = struct.unpack('<H', bytes(s.result.obj2(y['ct'], 2)))[0]
+    if ct:                                              # (restored after every call: 0 at every screen of a SEASON)
+        out.setdefault('ctbad', []).append((step, ct))
+    st = bytes(s.result.obj2(y['st'], y['stn']))
+    for i in range(2):
+        b = st[GP_STKO + i * GP_KO['size']:]
+        if struct.unpack_from('<H', b, 0)[0] != 0x4B47:
+            continue
+        k = gp_ko(b)
+        key = (i, k['cid'], k['season'])
+        out.setdefault('kos', {}).setdefault(key, {'first': (step, k), 'titles': set()})['last'] = (step, k)
+        if t:
+            out['kos'][key]['titles'].add(t[0])
+
+
+@scenario
+def world_season_ko():
+    """S6a (A), 4.2 (Davide 16/11, MC's gate 2): every ko kind gplay installs, in a world SEASON with ONE human club,
+    forced (GPLAY_FORCE = the human club's place at the league end, GPLAY_KOFORCE=2 = it wins its ties: force, don't
+    retry; RNG pinned): Malta's Final Four / Finalissima (the trap case: VerifyTeamLoaded(0) before the fix), NZ's
+    Championship + Grand Final, Scotland's League One play-off, Serie C girone A's play-out. Each: the ko in GP_ST
+    (gp_ko), every entrant a club (no 0 word), the human club among them, every tie decided, its screens shown,
+    FINISCI STAGIONE reached. Builds: WSK_BUILD<force> (default c/S6AF<force>/SWOS, HOSTTEST_SYMS + the forces);
+    WSK_ONLY=mlt,nzgf,po,pout"""
+    only = os.environ.get('WSK_ONLY', ','.join(WSK_CASES)).split(',')
+    steps = int(os.environ.get('WSM_STEPS', 6000))
+    errs, info = [], []
+    for case in only:
+        force, path, club, what = WSK_CASES[case]
+        b = os.environ.get('WSK_BUILD' + force) or os.path.join(MAIN, 'c', 'S6AF' + force, 'SWOS')
+        if not os.path.exists(os.path.join(b, 'ITALIAN.syms.json')):
+            errs.append(f'{case}: no HOSTTEST_SYMS GPLAY_FORCE={force} build {b}')
+            continue
+        r = _wsm_run(f'wsk_{case}', b, path.split(',') + [club], 0, steps, grab=_wsk_grab)
+        if isinstance(r, str):
+            errs.append(f'{case} ({what}): {r}')
+            continue
+        hum = [w for w, c in r['clubs'] if c != 1]
+        kos = r.get('kos', {})
+        check(len(hum) == 1, f'{case}: human clubs {[hex(w) for w in hum]}', errs)
+        if case in WSK_NEG:
+            check(not kos and not r.get('probe') and not r.get('ctbad'), f'{case} (negative): a ko in a SEASON '
+                  f'({sorted(kos)[:2]}, probe {r.get("probe", [])[:1]}) - a cross-league ko must not be built', errs)
+            info.append(f'{case} (negative, {what}): no ko built, FINISCI STAGIONE after {len(r["seq"])} screens')
+            continue
+        check(bool(kos), f'{case} ({what}): no gplay ko in GP_ST all season ({len(r["seq"])} screens)', errs)
+        mine = 0
+        for (i, cid, se), v in sorted(kos.items()):
+            k = v['last'][1]
+            zero = [j for j, w in enumerate(k['team']) if not w]
+            check(not zero, f'{case}: ko[{i}] cid {cid}: entrant(s) {zero} 0 ({[hex(w) for w in k["team"]]})', errs)
+            und = [j for j in range(k['ntie']) if k['tw'][j] >= k['n'] or k['tl'][j] >= k['n']]
+            check(not und, f'{case}: ko[{i}] cid {cid}: tie(s) {und} undecided at the end', errs)
+            mine += bool(hum) and hum[0] in k['team']
+            info.append(f'{case} ko[{i}] cid {cid}: n {k["n"]} {[hex(w) for w in k["team"]]}, steps '
+                        f'{v["first"][0]}-{v["last"][0]}, screens {sorted(v["titles"])[:3]}')
+        check(not r.get('ctbad'), f'{case}: CAREERTEAM not restored: {r.get("ctbad", [])[:3]}', errs)
+        out_case = case.endswith('out') and case != 'pout'
+        check(mine == 0 if out_case else mine > 0, f'{case}: the human club {hum[0] if hum else 0:#x} in '
+              f'{mine} ko(s)', errs)
+        loaded = {w for w, _ in r['clubs']}
+        kos4 = [v['first'][1] for (i, _, _), v in sorted(kos.items()) if v['first'][1]['slot'] == 4]
+        check(bool(r.get('probe')), f'{case}: the probe never hit (no slot-4 install)', errs)
+        for j, (n, w, ct) in enumerate(r.get('probe', [])):
+            check(n and all(w), f'{case}: after cseg_8B2D3 DIY count {n}, team words {[hex(x) for x in w]}', errs)
+            check(ct in loaded, f'{case}: placeholder CAREERTEAM {ct:#x} not a loaded club (SELTEAMS)', errs)
+            k = kos4[j] if j < len(kos4) else None
+            if k:
+                want = hum[0] if hum and hum[0] in k['team'] else k['team'][0]
+                check(ct == want, f'{case}: placeholder {ct:#x}, want {want:#x} (human in ko: '
+                      f'{bool(hum) and hum[0] in k["team"]})', errs)
+            info.append(f'{case} probe after cseg_8B2D3: DIY count {n}, +24Dh {[hex(x) for x in w]}, CAREERTEAM '
+                        f'{ct:#x}')
+        info.append(f'{case}: {what}: FINISCI STAGIONE after {len(r["seq"])} screens')
+        if case not in os.environ.get('WSK_SAVE', 'mlt').split(',') or not kos:
+            continue
+        at = min(v['first'][0] for v in kos.values()) + 2      # (gate 4: a .SEA saved inside the ko, its state live)
+        sv = _wsm_run(f'wsk_{case}_save', b, path.split(',') + [club], 0, steps, save_at=at)
+        if isinstance(sv, str) or not sv['sea']:
+            errs.append(f'{case}: .SEA save at step {at}: {sv if isinstance(sv, str) else "no S6M saved"}')
+            continue
+        ld = _wsm_run(f'wsk_{case}_load', b, path.split(',') + [club], 0, steps, load=sv['sea'], grab=_wsk_grab)
+        if isinstance(ld, str):
+            errs.append(f'{case}: .SEA reload: {ld}')
+            continue
+        same = ld['seq'][-1] == r['seq'][-1] and ld['end']['st'] == r['end']['st']
+        check(same, f'{case}: .SEA saved at step {at} (in the ko) and reloaded: end {ld["seq"][-1][:6]} vs '
+              f'{r["seq"][-1][:6]}, GP_ST {"=" if ld["end"]["st"] == r["end"]["st"] else "differs"}', errs)
+        check(not ld.get('ctbad'), f'{case}: reload: CAREERTEAM not restored {ld.get("ctbad", [])[:3]}', errs)
+        info.append(f'{case}: .SEA saved in the ko (step {at}) and reloaded: the same end and GP_ST')
+    return not errs, '; '.join(errs or info)
 
 
 WSM_CASES = {   # name: (path, the one-human club's picker steps, what it proves)

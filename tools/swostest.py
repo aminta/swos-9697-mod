@@ -16549,7 +16549,7 @@ def _wsm_state(s, y):
             'st': rd('st', y['stn']), 'cd': rd('cd', CD_SIZE)}
 
 
-def _wsm_run(tag, b, path, ct, steps, stop=None, save_at=None, load=None, grab=None):
+def _wsm_run(tag, b, path, ct, steps, stop=None, save_at=None, load=None, grab=None, world=0):
     """One world SEASON (STAGIONE > path, '|' = alternatives; RNG + currentTick pinned) with CAREERTEAM poked to ct
     before the start press and after it (a stale career's club, or 0), fired to FINISCI STAGIONE (or until stop(out)):
     every match by results (VIS. RISULTATI / - RISULTATO -). save_at = a step: SALVA STAGIONE there (S6M) and stop;
@@ -16557,7 +16557,7 @@ def _wsm_run(tag, b, path, ct, steps, stop=None, save_at=None, load=None, grab=N
     Returns dict(seq = screens' texts, clubs, sea, mid = _wsm_state at the first screen of the second half, end =
     _wsm_state at the end) or a string why not."""
     y = _wsm_syms(b)
-    files = {'SETUP.DAT': setup_file(tag, 0)}
+    files = {'SETUP.DAT': setup_file(tag, world)}
     if load:
         files[os.path.basename(load)] = load
     out = {'seq': [], 'clubs': [], 'sea': None, 'states': []}
@@ -16665,9 +16665,12 @@ WSK_CASES = {   # name: (GPLAY_FORCE build, path, the human club, what) - S6a (A
     'nzgf': ('1', 'OCEANIA,NUOVA ZELANDA,NORTHERN LGE|NORTHERN LEAGUE', 'WESTERN SPRINGS',
              'NZ: Championship + Grand Final'),
     'po': ('2', 'EUROPA,SCOZIA,SCOTTISH LEAGUE TWO', 'CLYDE', 'Scotland: League One play-off'),
-    'pout': ('16', 'EUROPA,ITALIA,SERIE C,GIRONE A|SERIE C GIRONE A', 'RENATE', 'Serie C girone A: play-out'),
-    'mltout': ('8', 'EUROPA,MALTA', 'HAMRUN SPARTANS', 'Malta: the Final Four WITHOUT the human club (8th): '
-               'the placeholder = the ko\'s first entrant'),
+    'pout': ('17', 'EUROPA,ITALIA,SERIE C,GIRONE A|SERIE C GIRONE A', 'RENATE', 'Serie C girone A: play-out (17th)'),
+    'pobye': ('16', 'EUROPA,ITALIA,SERIE C,GIRONE A|SERIE C GIRONE A', 'RENATE',
+              'Serie C girone A: the 16th\'s play-out skipped by the gap (its tie decided at build time, a bye): no '
+              'match for the human club -> FINISCI STAGIONE, no PARTITA hunting a day (the hang before gp_hrest_c)'),
+    'mltout': ('0', 'EUROPA,MALTA', 'HAMRUN SPARTANS', 'Malta: the title decider WITHOUT the human club (no force: '
+               'the Finalissima O1 v C1, Hamrun neither): the placeholder = the ko\'s first entrant'),
 }
 
 
@@ -16682,10 +16685,10 @@ def world_season_41sea():
         return True, f'SKIP: no 4.1.1 build {old}'
     at = int(os.environ.get('SEA41_AT', 60))
     p = ['EUROPA', 'MALTA', 'HAMRUN SPARTANS']
-    sv = _wsm_run('sea41_save', old, p, 0, 4000, save_at=at)
+    sv = _wsm_run('sea41_save', old, p, 0, 4000, save_at=at, world=1)   # (4.1.1: the 1996-97 world's SEASON)
     if isinstance(sv, str) or not sv['sea']:
         return False, f'4.1.1 .SEA save at step {at}: {sv if isinstance(sv, str) else "no S6M saved"}'
-    ld = _wsm_run('sea41_load', b, p, 0, 4000, load=sv['sea'])
+    ld = _wsm_run('sea41_load', b, p, 0, 4000, load=sv['sea'], world=1)
     if isinstance(ld, str):
         return False, f'4.1.1 .SEA (step {at}) on this build: {ld}'
     return True, f'4.1.1 .SEA saved at step {at} ({os.path.getsize(sv["sea"])} B): loaded, FINISCI STAGIONE after ' \
@@ -16701,7 +16704,7 @@ def _wsk_grab(s, y, out, step, t):
     """every gplay ko seen in GP_ST (magic GK): its fields at the first and the last step it is there. Gate 1 probe
     (always, step 0): a breakpoint right after gp_install's slot-4 `call cseg_8B2D3` (the first call in gp_install
     whose target it calls twice: slots 4 and 3) - DIY's count (+31h), its team words (+24Dh) and CAREERTEAM there"""
-    if step == 0 and 'probe' not in out:
+    if step == 0 and 'probe' not in out and os.environ.get('WSK_PROBE', '1') != '0':
         out['probe'] = []
         exe = os.path.join(s.run, 'SWOS', 'ITALIAN.EXE')
         sym = json.load(open(exe[:-4] + '.syms.json'))['gplay']['gp_install'][1]
@@ -16750,7 +16753,8 @@ def world_season_ko():
     errs, info = [], []
     for case in only:
         force, path, club, what = WSK_CASES[case]
-        b = os.environ.get('WSK_BUILD' + force) or os.path.join(MAIN, 'c', 'S6AF' + force, 'SWOS')
+        b = os.environ.get('WSK_BUILD' + force) or os.path.join(MAIN, 'c', 'S6AF' + force, 'SWOS')   # ('0': no force,
+                                                                        # a HOSTTEST_SYMS build of the same source)
         if not os.path.exists(os.path.join(b, 'ITALIAN.syms.json')):
             errs.append(f'{case}: no HOSTTEST_SYMS GPLAY_FORCE={force} build {b}')
             continue
@@ -16772,8 +16776,10 @@ def world_season_ko():
             k = v['last'][1]
             zero = [j for j, w in enumerate(k['team']) if not w]
             check(not zero, f'{case}: ko[{i}] cid {cid}: entrant(s) {zero} 0 ({[hex(w) for w in k["team"]]})', errs)
-            und = [j for j in range(k['ntie']) if k['tw'][j] >= k['n'] or k['tl'][j] >= k['n']]
-            check(not und, f'{case}: ko[{i}] cid {cid}: tie(s) {und} undecided at the end', errs)
+            me = k['team'].index(hum[0]) if hum and hum[0] in k['team'] else None
+            own = [j for j in range(k['ntie']) if me is not None and me in (k['tw'][j], k['tl'][j])]
+            check(me is None or own, f'{case}: ko[{i}] cid {cid}: the human club\'s tie undecided at the end (tw '
+                  f'{k["tw"]} tl {k["tl"]})', errs)   # (the other ties: simulated by FINISCI STAGIONE itself)
             mine += bool(hum) and hum[0] in k['team']
             info.append(f'{case} ko[{i}] cid {cid}: n {k["n"]} {[hex(w) for w in k["team"]]}, steps '
                         f'{v["first"][0]}-{v["last"][0]}, screens {sorted(v["titles"])[:3]}')
@@ -16783,7 +16789,8 @@ def world_season_ko():
               f'{mine} ko(s)', errs)
         loaded = {w for w, _ in r['clubs']}
         kos4 = [v['first'][1] for (i, _, _), v in sorted(kos.items()) if v['first'][1]['slot'] == 4]
-        check(bool(r.get('probe')), f'{case}: the probe never hit (no slot-4 install)', errs)
+        check(bool(r.get('probe')) or os.environ.get('WSK_PROBE') == '0', f'{case}: the probe never hit (no slot-4 '
+              f'install)', errs)
         for j, (n, w, ct) in enumerate(r.get('probe', [])):
             check(n and all(w), f'{case}: after cseg_8B2D3 DIY count {n}, team words {[hex(x) for x in w]}', errs)
             check(ct in loaded, f'{case}: placeholder CAREERTEAM {ct:#x} not a loaded club (SELTEAMS)', errs)

@@ -2465,6 +2465,21 @@ def s3_local():
     return out
 
 
+def s3_npo():
+    """{(world, league file): number of play-offs in that struct's spec} for every pack with ko_playoffs (same walk as s3_local)"""
+    import mkseason
+    out = {}
+    for pk in mkseason.packs():
+        if not (pk.league or {}).get('ko_playoffs') or pk.world is None:
+            continue
+        by = {}
+        for po in pk.po_resolved():
+            by.setdefault(pk.po_local(po)[0], []).append(po.get('key'))
+        for f, keys in by.items():
+            out[(pk.world, f)] = len(keys)
+    return out
+
+
 def table_lines(tables):
     """GP_TAB: per country dd its league struct, db world, dd its spec; a 0 world ends it. Specs after it."""
     import mkseason
@@ -2485,8 +2500,13 @@ def table_lines(tables):
     rows = [loc.get((world, lfile), (0, 0)) for world, lfile, spec in tables]
     for k, v in loc.items():                    # (MC 15/11: a zero pair = skip nothing = the double promotion with no trace)
         assert k in {(w, f) for w, f, _ in tables}, ('S3 skip bits: no GP_TAB row for', k)
-    if loc:
-        import dplay as _d
+    if loc:                                     # (a struct with no Serie B / C play-off keeps its row at (0, 0): the old global masks must
+        import dplay as _d                      # not have skipped anything there either - every global bit lies beyond its play-offs, so
+        npo = s3_npo()                          # England's play-offs in a world with Italian ones behave exactly as before S7)
+        gm = _d.s3_b_mask() | _d.s3_c_mask()
+        for (w, f), m in zip(((w, f) for w, f, _ in tables), rows):
+            if m == (0, 0) and (w, f) in npo:
+                assert gm >> npo[(w, f)] << npo[(w, f)] == gm, ('S3: the global masks reach the play-offs of struct', w, f, npo[(w, f)], hex(gm))
         assert (_d.s3_b_mask() != 0) == any(m[0] for m in rows) and (_d.s3_c_mask() != 0) == any(m[1] for m in rows), rows
     for m in rows:
         lines.append('    dd %d, %d' % m)

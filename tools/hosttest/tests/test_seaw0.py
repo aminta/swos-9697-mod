@@ -85,7 +85,22 @@ def _release_packs():
 
 
 def test_seaw0_collisions():
-    _release_packs()
+    """(The release SEASON_PACKS only for this test: env and the modules imported under it are put back after it - MC
+    16/11, they leaked into later host tests.)"""
+    prev, before = os.environ.get('SEASON_PACKS'), set(sys.modules)
+    try:
+        _release_packs()
+        return _collisions()
+    finally:
+        if prev is None:
+            os.environ.pop('SEASON_PACKS', None)
+        else:
+            os.environ['SEASON_PACKS'] = prev
+        for m in set(sys.modules) - before:
+            del sys.modules[m]
+
+
+def _collisions():
     if not os.environ.get('SEASON_PACKS'):
         return True, f'SKIP: no SEASON_PACKS and no {W5}.txt (the world packs)'
     import mkseason

@@ -40309,6 +40309,130 @@ def sp_corners():
 
 
 
+def trhd_ruoli_env(si):
+    """POSITION TRAITS: the build switches that start a test build with RUOLI SI (True) / NO (False). THE one place:
+    on 42-trhead the band's own constant TRHD_RUOLI; once GP_RUOLI is on the integration branch (Panchina, 42-gameplay2
+    92ed05d) this becomes {'GM_RUOLI_SI': '1'} / {} (or the scenario pokes GM_R = 0 + GP_RUOLI = 1 together)."""
+    return {'TRHD_RUOLI': '1' if si else '0'}
+
+
+@scenario
+def trhd_default():
+    """4.2 POSITION TRAITS gate D2 (trhead-design.md): the default build carries no trait. No DOSBox: a plain build of
+    this tree (no switch) is checked on disk - the TRHD band (swreg.TRHD_AT..TRHD_END) is empty or past obj4's file
+    pages and the three obj1 sites (DIST0, DIST1, HK) hold the original exe's instructions. AFTER the merge with Panchina's RUOLI row (gameplay.gp_ruoli(): the band is then always linked and
+    GP_RUOLI = 0 is the default) this scenario must be completed with the run-time half - a new career and a loaded
+    4.1 save read GP_RUOLI = 0 and the GAMEPLAY page shows RUOLI NO, as gameplay_menu's gpr() does - and its disk half
+    replaced by tools/hosttest/trhd_structural.py REF NEW (NEW = the default build): the scenario FAILs on such a tree
+    until then, on purpose."""
+    lang = os.environ.get('SWOSTEST_UI', 'it')
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import swreg
+    import trhead
+    from lepatch import LEPatch
+    if trhead.gp_ruoli():
+        return False, 'GP_RUOLI is in this tree: complete trhd_default with the run-time checks (its docstring)'
+    b = build('trhd_default', {}, lang=lang)
+    exe = os.path.join(b, 'ITALIAN.EXE')                 # (build(): every language runs as ITALIAN.EXE)
+    errs = []
+    p, o = LEPatch(exe), LEPatch(os.path.join(ROOT, 'orig', UI_ORIG_OF[lang]))
+    s, _ = trhead.find(o)
+    n4 = p.le.obj(4).npages * 0x1000
+    band = bytes(p.get(4, swreg.TRHD_AT, min(n4, swreg.TRHD_END) - swreg.TRHD_AT)) if n4 > swreg.TRHD_AT else b''
+    check(not any(band), f'the TRHD band is not empty ({len(band.rstrip(bytes(1)))} B)', errs)
+    for k, n in (('DIST0', 10), ('DIST1', 10), ('HK', 6)):
+        got, want = bytes(p.get(1, s[k], n)), bytes(o.le.obj_bytes(1)[s[k]:s[k] + n])
+        check(got[:2] == want[:2] and got[6:] == want[6:], f'{k} obj1+{s[k]:#x}: {got.hex()} (original {want.hex()})', errs)
+    return not errs, '; '.join(errs) or f'TRHD band empty, DIST0 / DIST1 / HK original in {exe}'
+
+
+@scenario
+def trhd_whip():
+    """4.2 POSITION TRAITS (2) gate D5 + D10 (trhead-design.md): forced wide kicks with 'back' held. DIFF_TEST=3 +
+    DIFF_TRACE + SP_METER MODE 4 builds (spmeter.py: 192 cases = team x side x direction toward the centre or the goal
+    line x the kicker's forced FILE position RW / LW / M / A - whatever slot the team's 10th man plays in - x 6 spots:
+    inside the wide zone, on its two edges, 1 px outside by x and by depth, the corner spot), CALCI PIAZZATI = TW_SP
+    (default 0 CLASSICI), with RUOLI SI and with RUOLI NO (trhd_ruoli_env; TW_RUOLI = '1,0'). 48 cases a match (the
+    meter's K0B poked 0..3), both sides computer-played, generators pinned, as sp_corners. Each kick is made by the
+    game's own PlayerKickingBall + ApplyBallAfterTouch; tools/tr_whip.py holds the rule: RUOLI SI = the whip (deltaZ
+    TR_WDZ, speed TR_WSP) only for RW / LW inside the zone toward the centre, the game's high ball everywhere else;
+    RUOLI NO = the high ball in all 192. PASS = every case logged in both arms, none failed to force, no entry dropped,
+    no classifier error. Rows in TW_OUT (default the run dir's trhd_whip.jsonl)."""
+    lang = os.environ.get('SWOSTEST_UI', 'it')
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import spmeter
+    import tr_whip
+    assert (tr_whip.WPX, tr_whip.WPA) == tuple(tuple(int(x) for x in re.search(rf'^{n}: dw ([0-9, ]+)', spmeter.ASM, re.M)
+                                                     .group(1).split(',')) for n in ('WPX', 'WPA')), 'tr_whip: spmeter\'s spots'
+    sp = os.environ.get('TW_SP', '0')
+    frames = int(os.environ.get('TW_FRAMES', '13000'))
+    out = os.environ.get('TW_OUT') or os.path.join(RUNS, 'trhd_whip.jsonl')
+    home, away = DIFF_PAIRINGS[os.environ.get('TW_PAIRING', 'eq')]
+    errs, info, rows = [], [], []
+    for ru in [int(x) for x in os.environ.get('TW_RUOLI', '1,0').split(',')]:
+        env = {'DIFF_TEST': '3', 'DIFF_TRACE': '1', 'DIFF_DELAY': '', 'SP_TEST': sp, 'SP_METER': '1', 'SP_METER_MODE': '4',
+               'SP_METER_GAP': '30', 'SP_METER_WIN': '50', 'SP_METER_MAXC': '48', **trhd_ruoli_env(bool(ru))}
+        b = build(f'trhd_whip_r{ru}', env, lang=lang)
+        for part in range(tr_whip.NCASE // 48):
+            tag = f'trhd_whip_r{ru}_{part}'
+            seed = hashlib.md5(f'trhd_whip:{part}'.encode()).digest()[:6]
+            res = dict(ruoli=ru, sp=int(sp), k0=part, seed=seed.hex())
+            with Session(tag, b, {}, 'dump:3', 900, match=True) as s:
+                s.wait()
+                friendly_prematch(s, home, away)
+                blk = diff_block(s.result)
+                mb, lg = sp_meter_block(s.result)
+                if blk is None or mb is None:
+                    errs.append(f'{tag}: no DIFF / SPMT block')
+                    continue
+                s.poke(blk + DIFF_OFF['SEED'], seed + bytes((3, 1)))
+                s.poke(blk + DIFF_OFF['W'], bytes([0, 0]))
+                s.poke(mb + spmeter.OFF['K0B'], bytes([part]))
+                for _ in range(22):
+                    s.send('down dump:0.5')
+                    if s.screen().selected == 9:
+                        break
+                r = s.send('fire dump:2')
+                for _ in range(40):
+                    if r.outcome != 'dump' or struct.unpack('<I', r.read(blk + DIFF_OFF['KICKS'], 4))[0]:
+                        break
+                    r = s.send('fire dump:2')
+                o = spmeter.OFF
+                last, same = -1, 0
+                for _ in range(200):
+                    if r.outcome != 'dump':
+                        break
+                    f = struct.unpack('<I', r.read(blk + DIFF_OFF['FRAMES'], 4))[0]
+                    m = r.read(mb, 52)
+                    if f >= frames or (struct.unpack_from('<H', m, o['NC'])[0] >= 48 and not m[o['ST']]):
+                        break
+                    same = same + 1 if f == last else 0
+                    if same >= 6:
+                        break
+                    last = f
+                    r = s.send('dump:5')
+                if r.outcome == 'dump':
+                    m = r.read(mb, 52)
+                    w = lambda k: struct.unpack_from('<H', m, o[k])[0]
+                    d = lambda k: struct.unpack_from('<I', m, o[k])[0]
+                    ln = d('LN')
+                    res.update(frames=struct.unpack('<I', r.read(blk + DIFF_OFF['FRAMES'], 4))[0], nc=w('NC'), nf=w('NF'),
+                               nfail=w('NFAIL'), ln=ln, drop=d('LDROP'), k0b=m[o['K0B']],
+                               log=r.read(lg, 16 * min(ln, spmeter.LOGMAX)).hex())
+                    s.shot(f'{tag}_end')
+                else:
+                    res['error'] = str(r)
+            open(out, 'a').write(json.dumps(res) + '\n')
+            rows.append(res)
+            check('error' not in res and res['nc'] == 48 and res['k0b'] == part and not res['nfail'] and not res['drop'],
+                  f'{tag}: ' + json.dumps({k: v for k, v in res.items() if k != 'log'}), errs)
+            info.append(f"r{ru}/{part}: {res.get('nc')} cases, log {res.get('ln')}")
+    cerr, summ = tr_whip.classify(rows)
+    errs += cerr
+    return not errs, '; '.join(errs[:8] + info + [json.dumps(summ), f'rows in {out}'])
+
+
+
 
 def main(argv):
     if not argv or argv[0] == 'list':

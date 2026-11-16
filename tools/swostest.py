@@ -24139,8 +24139,8 @@ def sc_season(team, extra, runs_tag=1):
             'W8485_MIDSAVE', 'W8485_FROM', 'W8485_HEX', 'W8485_RECSHOT', 'W8485_RLDBG', 'W8485_FILL', 'W8485_MIDTEXT',
             'W8485_RNGSTEP')
     keep = {k: os.environ.get(k) for k in keys}
-    os.environ.update(W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1',
-                      W8485_ONE='1', **extra)
+    os.environ.update(dict(W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1',
+                           W8485_ONE='1'), **extra)    # (extra may name another world: 4.2 friendlies in 1984-85)
     try:
         ok, msg = world8485()
     finally:
@@ -25095,6 +25095,7 @@ FR = {
     'FEES': None,             # TODO(engine, part b): {(band, home): fee} band 'stronger' / 'similar' / 'weaker', home bool
     'BAL_EXACT': True,        # the balance (finance NEWBAL) moves by exactly the fee between a friendly's screen and the
                               #   next match screen. TODO(engine): False if wages / gate money move in those weeks too
+    'MIX_RULE': None,         # TODO(part b, Mercato): the edge-of-pool fallback's exact text + its file:line, quoted
     'WEEKS': {},              # TODO(engine, part a - research): {'ita': (w1, w2, w3, w4), ...} per season kind, e.g.
                               #   {'ita': {1: (...), 2: (...)}}; empty = the weeks are reported, only their order is asserted
     'JANUARY': range(0, 8),   # TODO(engine): a calendar-year league's preseason weeks (8 weeks a month: January = 0..7)
@@ -25109,13 +25110,29 @@ FR_RECORD = {  # TODO(engine): the record line's label per language ('<label>: W
     'it': 'PRECAMPIONATO', 'en': 'PRESEASON', 'fr': 'PRESAISON', 'de': 'VORBEREITUNG'}
 FR_RECORD_PX = 298            # TODO(engine): the record line's bar (ctview's PXMAX until the page's own width is given)
 FR_TICK = '1234'              # CAREER_TICK of every friendlies scenario (FR_TICK env overrides): the draw pinned
-FR_TEAMS = {                  # the careers (FR_TEAM_<KEY> env overrides one)
+FR_WORLDS = {                 # (Rule 0: one table, every world the friendlies run in) key -> (picker entry, world byte)
+    '2627': ('MONDO 2026-27', '5'),
+    '8485': ('EUROPA 1984-85', '4'),          # its own opponent table, keyed by the world byte (MC 16/11)
+    '9697': ('MONDO 1996-97', None),          # TODO(engine): world byte; reserved - after the general team-cache fix
+}
+FR_TEAMS = {                  # the careers (FR_TEAM_<KEY> env overrides one); a (world key, path) pair = another world
     'ita': 'EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA',          # a Coppa D club, no supercup: slot 4 = friendlies, Coppa D
     'eng': 'EUROPA,INGHILTERRA,PREMIER LEAGUE,ARSENAL',       # FA Community Shield (s1 real, s2 forced) + UEFA SC forced
     'usc': 'EUROPA,FRANCIA,LIGUE 1,PARIS-SG',                 # season 1: UEFA Super Cup (58) + Trophee des Champions (59)
     'bra': 'SUDAMERICA,BRASILE,BRASILEIRAO SERIE A,FLAMENGO',  # a calendar-year league
     'old': 'EUROPA,ITALIA,SERIE A,INTER',                     # world_sc_oldsave's career
+    '8485': ('8485', 'INGHILTERRA,FIRST DIVISION,LIVERPOOL'),  # world8485's default career (Europe 1984-85)
+    '9697': ('9697', 'EUROPA,ITALIA,SERIE A,INTER'),            # (reserved: world_preseason_9697)
 }
+
+
+def fr_team(key):
+    """(path, env of its world) of FR_TEAMS[key]; FR_TEAM_<KEY> overrides the path."""
+    v = FR_TEAMS[key]
+    wk, path = v if isinstance(v, tuple) else ('2627', v)
+    world, wnum = FR_WORLDS[wk]
+    env = {} if wk == '2627' else dict(W8485_WORLD=world, **({'W8485_WNUM': wnum} if wnum else {}))
+    return os.environ.get(f'FR_TEAM_{key.upper()}') or path, env
 FR_SKIP = '4.2 friendlies: the engine is not in this build (skeleton; fr_syms found no {}) - SKIP until Motore\'s sha'
 
 
@@ -25388,6 +25405,8 @@ def fr_check(exe, fr, lines, keys, errs, info, sn, others=(), weeks=None, n_want
         require(FR['BAND_MARGIN'] is not None, "FR['BAND_MARGIN'] not filled (TODO(engine): the pick's 'similar' margin)")
         v = struct.unpack('<5H', last['str'])
         bands = fr_bands(v[0], v[1:1 + n_want], FR['BAND_MARGIN'])
+        # (strict 1 / 2 / 1 until Mercato's part (b) publishes its edge-of-pool fallback ('nearest band'): then FR['MIX_RULE']
+        #  quotes that rule's text + file:line and this check applies exactly it, never a looser one - MC 16/11)
         check(sorted(bands) == ['similar', 'similar', 'stronger', 'weaker'],
               pre + f'strength mix {bands} (club {v[0]}, opponents {list(v[1:])}; want 1 stronger, 2 similar, 1 weaker)', errs)
     else:
@@ -25448,10 +25467,10 @@ def fr_two(key, name, env=None, given='FR_BUILD', others=({}, {}), weeks=None, s
     Season 2's four opponents are reported against season 1's (the 'no repeat if the pool allows' rule is the pick's
     host test, not asserted here)."""
     exe, fr = fr_exe(name, env, given, rel)
-    team = os.environ.get(f'FR_TEAM_{key.upper()}') or FR_TEAMS[key]
+    team, wenv = fr_team(key)
     errs, info, facts, car = [], [], [], None
     for sn in range(1, seasons + 1):
-        extra = {} if sn == 1 else {'W8485_FROM': car}
+        extra = dict(wenv, **({} if sn == 1 else {'W8485_FROM': car}))
         ok, msg, lines, keys = fr_season(team, exe, fr, sn if sn < 3 else 2, **extra)
         check(ok, f'season {sn}: {msg}', errs)
         facts.append(fr_check(exe, fr, lines, keys, errs, info, sn, others[sn - 1] if sn <= len(others) else (),
@@ -25529,6 +25548,33 @@ def world_preseason_bra():
     (FR['JANUARY']: 8 weeks a month), opponents from outside Brazil (the non-European team files load in slot 4),
     2 home + 2 away, the strength mix, labels, record line; the season ends"""
     return fr_two('bra', 'world_preseason', seasons=1, weeks=FR['WEEKS'].get('bra') or FR['JANUARY'])
+
+
+@scenario
+def world_preseason_8485():
+    """4.2 friendlies in the Europe 1984-85 career world (MC 16/11; skeleton: SKIP until the engine): world_preseason's
+    checks (fr_check, both seasons) on world8485's default career (LIVERPOOL), the opponents from the 1984-85 world's own
+    table (the pick keyed by the world byte, 4): foreign, distinct, 2 home + 2 away, 1 / 2 / 1, the fees, the labels"""
+    return fr_two('8485', 'world_preseason_8485', weeks=FR['WEEKS'].get('8485'))
+
+
+FR_9697_SKIP = ('4.2 friendlies in the World 1996-97 (Davide 16/11): reserved - waits for the general team-cache fix '
+                '(Fable design) and the engine\'s 1996-97 path')
+
+
+@scenario
+def world_preseason_9697():
+    """RESERVED (SKIP): 4.2 friendlies in the World 1996-97 career world, world_preseason's checks on FR_TEAMS['9697'];
+    lands with the general team-cache fix (release may go to Sun 22)"""
+    raise Skipped(FR_9697_SKIP)
+
+
+@scenario
+def world_preseason_9697_cachefull():
+    """RESERVED (SKIP): the forced cache-full case - a World 1996-97 career whose team cache is filled to its limit by a
+    test switch before the season start, then the four friendlies' opponents loaded: no eviction of a needed team, no
+    exit (the team-cache fix's own forced case)"""
+    raise Skipped(FR_9697_SKIP)
 
 
 @scenario

@@ -5,7 +5,7 @@
 #include "cupview.h"
 typedef unsigned char u8;
 typedef unsigned short u16;
-_Static_assert(sizeof(void *) != 4 || sizeof(struct cup_view) == 40, "cup_view layout (cupview.h) is shared with gplay.c / dplay.c");
+_Static_assert(sizeof(void *) != 4 || sizeof(struct cup_view) == 36, "cup_view layout (cupview.h) is shared with gplay.c / dplay.c");
 static int cup_out(const struct cup_view *v, int g, int k) {     /* place k (from 0) precluded */
     const struct cv_row *t = v->t[g];
     int n = v->n[g], gap = v->gap[g];
@@ -25,7 +25,7 @@ static int cup_better(const struct cup_view *v, int a, int b) {    /* the 11ths 
     if (x->pts != y->pts) return x->pts > y->pts;
     if (x->won != y->won) return x->won > y->won;
     if (x->gf != y->gf) return x->gf > y->gf;
-    return v->lot[a] < v->lot[b];
+    return (u8)(x->glob * 37 + 11) < (u8)(y->glob * 37 + 11);      /* (the lot: a fixed pseudo-random of the club's global number) */
 }
 int cup_rule(struct cup_view *v) {      /* -> g * 32 + k, or -1 (no group has an 11th); fills og / ok / sg / sfrom */
     int gw, kw, gf, kf, b = -1;

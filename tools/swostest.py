@@ -30783,11 +30783,11 @@ def gplay_cuprule():
 #include "%s"
 #include <stdio.h>
 static struct gp_row T[3][20];
-static int GAPS[3] = { 8, 9, 0 }, LOTS[3];
+static int GAPS[3] = { 8, 9, 0 };
 static int run(int real, int w, int f, int gap, int *sg, int *sf) {
     struct cup_view v;
     v.ng = 3; v.real = real; v.w = w; v.f = f;
-    for (int g = 0; g < 3; g++) { v.t[g] = (const struct cv_row *)T[g]; v.n[g] = 20; v.gap[g] = gap < 0 ? GAPS[g] : gap; v.lot[g] = LOTS[g]; }
+    for (int g = 0; g < 3; g++) { v.t[g] = (const struct cv_row *)T[g]; v.n[g] = 20; v.gap[g] = gap < 0 ? GAPS[g] : gap; }
     int r = cup_rule(&v);
     *sg = v.sg; *sf = v.sfrom;
     return r;
@@ -30840,11 +30840,12 @@ int main(void) {
     CHK("mixed gaps 8/9/0: group 2 (gap 0) k15 precluded -> finalist", 1, TM(2, 15), TM(0, 11), -1, 0, 11, 0, 0)
     CHK("mixed gaps 8/9/0: group 2 (gap 0) k16 precluded -> finalist", 1, TM(2, 16), TM(1, 11), -1, 1, 11, 0, 0)
     for (int g = 0; g < 3; g++) { T[g][10].pts = 50; T[g][10].won = 12; T[g][10].gf = 40; }
-    LOTS[0] = 5; LOTS[1] = 3; LOTS[2] = 7;
+    /* the lot = (u8)(glob * 37 + 11): globs 3 / 1 / 2 -> 122 / 48 / 85: group 1 wins; globs 1 / 2 / 3 -> group 0; equal -> group order */
+    T[0][10].glob = 3; T[1][10].glob = 1; T[2][10].glob = 2;
     CHK("full tie of the best 11th: the lowest lot (group 1)", 0, 0, 0, 8, 1, 10, 0, 0)
-    LOTS[0] = 2; LOTS[1] = 3; LOTS[2] = 7;
+    T[0][10].glob = 1; T[1][10].glob = 2; T[2][10].glob = 3;
     CHK("full tie of the best 11th: the lowest lot (group 0)", 0, 0, 0, 8, 0, 10, 0, 0)
-    LOTS[0] = LOTS[1] = LOTS[2] = 4;
+    T[0][10].glob = T[1][10].glob = T[2][10].glob = 4;
     CHK("full tie, equal lots: group order", 0, 0, 0, 8, 0, 10, 0, 0)
     T[2][10].gf = 41;
     CHK("goals scored still before the lot", 0, 0, 0, 8, 2, 10, 0, 0)

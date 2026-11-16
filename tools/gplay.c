@@ -1194,7 +1194,6 @@ static int cup_code(const u8 *e) {
         v.t[g] = (const struct cv_row *)(d < GP_IN.nd ? GP_IN.t[d] : GP_IN.t[0]);
         v.n[g] = d < GP_IN.nd ? GP_IN.n[d] : 0;
         v.gap[g] = e[3] & 0x7F;         /* (the spec holds one gap for its groups) */
-        v.lot[g] = x_lot(d * GT + 10);
     }
     if ((r = cup_rule(&v)) < 0) return -1;
     if (v.sfrom) { x_sdiv = d0 + v.sg; x_sfrom = v.sfrom; }

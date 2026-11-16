@@ -249,7 +249,7 @@ static int cup_place(int ng) {
     struct cup_view v;
     static const u8 cg[4] = { DP_CG1, DP_CG2, DP_CG3, DP_CG4 };
     v.ng = ng; v.real = 1; v.w = DP_IN.cupw; v.f = DP_IN.cupf;
-    for (int g = 0; g < ng; g++) { v.t[g] = (const struct cv_row *)DP_IN.t[g + 1]; v.n[g] = DP_IN.n[g + 1]; v.gap[g] = cg[g]; v.lot[g] = lot[(g + 1) * NT + 10]; }
+    for (int g = 0; g < ng; g++) { v.t[g] = (const struct cv_row *)DP_IN.t[g + 1]; v.n[g] = DP_IN.n[g + 1]; v.gap[g] = cg[g]; }
     int r = ((int (*)(struct cup_view *))DP_RULEP)(&v);
     sc_g = v.sfrom ? v.sg + 1 : 0; sc_from = v.sfrom;
     return (1 + (r >> 5)) * NT + (r & 31);

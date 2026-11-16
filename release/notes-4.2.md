@@ -70,7 +70,7 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 
 #### World 2026-27 in SEASON mode
 - SEASON can now be played with the World 2026-27 (choose it with the main menu's world selector): pick your club in the career-style picker, each league plays in its own format. The mid-season splits into groups and Italy's Coppa D are played as in a career.
-- In a single season with your club, the play-offs, play-outs and title deciders inside your league are played too, for example Malta's Final Four. If your club is not in one of them, its matches are simulated and the season goes on to FINISCI STAGIONE.
+- In a single season with your club, the play-offs, play-outs and title deciders inside your league are played too, for example Malta's Final Four. If your club is not in one of them, its matches are simulated and the season goes on to FINISH SEASON.
 - Those that bring in clubs from other leagues (for example New Zealand's Grand Final, Scotland's promotion play-off) are played in careers only.
 - A SEASON saved in the World 2026-27 loads back in it, also in the middle of a play-off; a 1996-97 SEASON saved with 4.1 loads and finishes as before.
 

@@ -22,40 +22,37 @@ THE RULE (one for both caches; CONVENTIONS 26):
   The reserve (RESERVE[world], a byte per world) keeps room for a world's late mandatory installs, so an optional
   feature never eats it. Counts written without an insert are checked too (tc_clamp: count > memory cap -> tc_full):
   NUMSEL after a load (an engine after_process callback), ctgame.c's restore, RestoreSelectedTeams (careerworld's wl
-  stub: tc_clamp_sel, the career's cache by SELBASEV). TC_HWM keeps the highest count since the exe started (not saved; the harness reads it).
+  stub: tc_clamp_sel, the career's cache by SELBASEV). TC_HWM keeps the highest count since the exe started, TC_SKIP the optional installs refused (neither saved; the harness
+  reads them). TC_FLOOR: the big cache's save budget never drops below 159 (155 with 'FP') - a build whose trailer grew
+  past it fails (trailer.py), so a career saved by an earlier 4.2.x exe always loads in a later one.
   Adding teams in any new feature: tc_reserve / tc_room first, then the game's loaders. Never a constant.
 
 Hooks (the 6 inserts of the original obj1, all `66 83 05 <NUMSEL> 01`, asserted on p.get() bytes):
   5 sites: the copy-count `mov word [D0], 155h` (9 B) in front of the copy -> `call tc_chk_n` + 4 nops;
   cseg_3283C: the add comes before its copy -> the add (8 B) -> `call tc_chk_add` + 3 nops.
   Each hooked instruction's absolute fixup at +3 is removed first (CONVENTIONS: fixups under overwritten code).
-Band: swreg TCACHE_AT..TCACHE_END (a release band, every build, >= 256 B left); entry table at its start (fixed
-addresses: other modules link to TCACHE_AT + 8 k whatever the patch order).
+Place: obj3's chain (CONVENTIONS 23: mod code in obj3; 23bis: obj4 is the engine's - MC 16/11, option A), every build.
+Callers never use a literal address: each one holds a dword that tcache binds once it is placed (ref(): p.retarget /
+add_ptr to the entry; the trailer's after_process entry through engine.CALL_AT + trailer.late). check() at the end of
+patch_exe asserts every registered dword is bound, non-zero and inside tcache's code. (swreg TCACHE_AT..TCACHE_END stays
+RESERVED, unused, until 4.3 folds it into MKTHOOK.)
 """
 import re
 import struct
 
 import nasmcave
-import swreg
 
-ENTRIES = ('tc_clamp', 'tc_room', 'tc_reserve', 'tc_full', 'tc_clamp_sel')    # TCACHE_AT + 8 k: a jmp each
+ENTRIES = ('tc_clamp', 'tc_room', 'tc_reserve', 'tc_full', 'tc_clamp_sel')    # what callers may bind (ref())
+REFS = []                               # [(obj, off, entry)]: callers' dwords, bound at patch() (or at once after it)
+PLACED = {}                             # entry -> (3, off) once patch() ran
+TC_FLOOR, TC_FLOOR_FP = 159, 155       # the big cache's save budget may never drop below these (trailer.py asserts it; 'FP'
+                                        # builds: the fixture port's item); a later exe must load what an earlier one saved
 RESERVE = {}                            # world -> records kept for its late mandatory installs (builders fill it)
 MSG = 'TEAM CACHE FULL (%03d) - PLEASE REPORT'
 LABELS = {}
 INFO = {}
 
 ASM = r"""
-    jmp near tc_clamp                   ; the entry table (ENTRIES): 8 B each
-    align 8, db 90h
-    jmp near tc_room
-    align 8, db 90h
-    jmp near tc_reserve
-    align 8, db 90h
-    jmp near tc_full
-    align 8, db 90h
-    jmp near tc_clamp_sel
-    align 8, db 90h
-
 tc_cap:                                 ; eax = the memory cap of the cache in use
     mov eax, 100
     cmp dword [SELPTR], NEWSEL
@@ -185,6 +182,10 @@ tc_reserve:                             ; cdecl u32 tc_reserve(const u16 *list, 
     cmp ebp, eax
     setbe al
     movzx eax, al
+    test eax, eax
+    jnz .y
+    inc word [TC_SKIP]                  ; (an optional install refused: the harness reads it)
+.y:
     pop dword [A0]
     pop dword [D1]
     pop dword [D0]
@@ -212,6 +213,7 @@ tc_full:                                ; the stop: text mode, the DOS line, the
     jmp ENDPROG
 
 TC_HWM: dw 0
+TC_SKIP: dw 0                           ; (optional installs refused by tc_reserve since the exe started)
 TC_MSG: db MSG_HEAD
 TC_NUM: db '000', MSG_TAIL, 13, 10, '$'
 TC_RES: RES_BYTES
@@ -255,26 +257,56 @@ def verify_team(p):
     return f, e
 
 
-def entry(name):
-    """(obj, offset) of an entry: fixed, so a module may link to it before patch() runs."""
-    return (4, swreg.TCACHE_AT + 8 * ENTRIES.index(name))
+def ref(p, obj, off, name):
+    """A caller's dword at obj:off (holding a placeholder fixup or none) gets bound to entry `name` - now if tcache is
+    placed, else at patch(). The only way to reach tcache's code (no literal address)."""
+    assert name in ENTRIES, name
+    REFS.append((obj, off, name))
+    if PLACED:
+        _bind(p, obj, off, name)
+
+
+def _bind(p, obj, off, name):
+    t = PLACED[name]
+    try:
+        p.target(obj, off)                      # (a placeholder fixup: retarget it)
+    except AssertionError:
+        p.add_ptr(obj, off, t[0], t[1])         # (a plain 0 dword, e.g. ctgame.c's pointer)
+        return
+    p.retarget(obj, off, t[0], t[1])
+    p.put(obj, off, struct.pack('<I', t[1]))
 
 
 def register():
-    """Before trailer.patch: the load's count check (an engine after_process callback)."""
+    """Before trailer.patch: the load's count check (an engine after_process callback; trailer.late binds it)."""
     import engine
-    engine.CALL_AT['tc_clamp'] = entry('tc_clamp')
+    REFS.clear()
+    PLACED.clear()
+    engine.CALL_AT.pop('tc_clamp', None)
     engine.after_process('tc_clamp')
 
 
-def patch(p):
-    """After trailer.patch (its INFO: NUMSEL, the budgets). Returns the band's end."""
+def check(p):
+    """End of patch_exe: every caller's dword bound to tcache's code (a call through an unbound one would crash)."""
+    import engine
+    lo, hi = INFO['code']
+    for obj, off, name in REFS + [('engine', 0, 'tc_clamp')]:
+        if obj == 'engine':
+            t = engine.CALL_AT.get('tc_clamp')
+        else:
+            t = p.target(obj, off)
+            assert struct.unpack('<I', p.get(obj, off, 4))[0] == (t[1] if t else -1), ('tcache: dword != fixup', obj, hex(off))
+        assert t is not None and t[0] == 3 and lo <= t[1] < hi and t == PLACED[name], ('tcache: unbound', obj, off, name, t)
+    return len(REFS) + 1
+
+
+def patch(p, at):
+    """obj3:at, in obj3's chain after trailer.patch (its INFO: NUMSEL, the budgets). Returns the end."""
     import careerworld
     import trailer
     INFO.clear()
     INFO.update(NUMSEL=trailer.INFO['NUMSEL'], NMAX=trailer.INFO['nmax'], TC_CAP=trailer.INFO['tc_cap'])
     ss, d0 = sites(p)
-    at = swreg.TCACHE_AT
     big = careerworld.BSS[0] is not None
     import mkseason
     worlds = bool(mkseason.worlds())
@@ -295,33 +327,38 @@ def patch(p):
            'RES_BYTES': (0, 'db ' + ', '.join(map(str, res)) if res else 'db 0')}
     if worlds:
         sym.update(SLT=careerworld.SITES['slt'], WORLD_BYTE=(0, careerworld.WORLD_BYTE))
-    code, fix, rel = nasmcave.assemble_obj(ASM, at, sym, 4)
+    while True:                                 # (no pointer across an obj3 page: LE fixups are per page)
+        code, fix, rel = nasmcave.assemble_obj(ASM, at, sym, 3)
+        if all((at + o) % 0x1000 <= 0x1000 - 4 for o, _, _ in fix + rel):
+            break
+        at += 4
     lab = nasmcave.labels(ASM, at, sym)
     end = at + len(code)
-    for k, n in enumerate(ENTRIES):
-        assert lab[n] - at - 8 * k > 0 and code[8 * k] == 0xE9 and \
-            at + 8 * k + 5 + struct.unpack_from('<i', code, 8 * k + 1)[0] == lab[n], ('tcache: entry', n)
-    assert end <= swreg.TCACHE_END - 256, ('tcache: band floor (>= 256 B left)', hex(end))
-    assert p.le.obj(4).npages * 0x1000 >= swreg.TCACHE_END, 'tcache: obj4 pages (patch.py TCACHE line)'
-    assert not any(p.get(4, at, swreg.TCACHE_END - at)), 'tcache: band not free'
-    p.put(4, at, code)
+    assert not any(p.get(3, at, len(code))), 'tcache: obj3 room not free'
+    p.put(3, at, code)
     for o, t_obj, t_off in fix:
-        p.add_ptr(4, at + o, t_obj, t_off)
+        p.add_ptr(3, at + o, t_obj, t_off)
     for o, t_obj, t_off in rel:
-        p.add_rel(4, at + o, t_obj, t_off)
+        p.add_rel(3, at + o, t_obj, t_off)
+    import engine
+    PLACED.clear()
+    PLACED.update({n: (3, lab[n]) for n in ENTRIES})
+    INFO['code'] = (at, end)
+    engine.CALL_AT['tc_clamp'] = PLACED['tc_clamp']  # (trailer.late binds the after_process slot)
+    for obj, off, name in REFS:
+        _bind(p, obj, off, name)
     for kind, off in ss:                        # (the patched bytes: nothing else hooks these instructions)
         n = 9 if kind == 'n' else 8
         want = (b'\x66\xc7\x05' + struct.pack('<I', d0) + b'\x55\x01' if kind == 'n'
                 else b'\x66\x83\x05' + struct.pack('<I', INFO['NUMSEL'][1]) + b'\x01')
         assert bytes(p.get(1, off, n)) == want, ('tcache: site patched by someone else', kind, hex(off))
         p.remove(1, off + 3)
-        p.branch(1, off, 0xE8, 4, lab['tc_chk_n' if kind == 'n' else 'tc_chk_add'], n=n)
+        p.branch(1, off, 0xE8, 3, lab['tc_chk_n' if kind == 'n' else 'tc_chk_add'], n=n)
     LABELS.clear()
-    LABELS.update(lab)                          # (tools/hosttest test_tcache: the labels, the symbols, the numbers)
+    LABELS.update({k: (3, v) for k, v in lab.items()})   # (tools/hosttest test_tcache: the labels, symbols, numbers)
     LABELS['sym'] = {k: sym[k] for k in ('NUMSEL', 'D0', 'D1', 'A0', 'SELPTR', 'SELBASEV', 'NEWSEL', 'FTIC', 'ENDPROG')}
     LABELS['caps'] = {'nmax': INFO['NMAX'], 'tc_cap': INFO['TC_CAP'] or 0, 'sel_cap': careerworld.SEL_CAP,
                       'sites_n': sum(k == 'n' for k, _ in ss), 'sites_add': sum(k == 'add' for k, _ in ss)}
-    print(f'exe: team cache bound (tcache): obj4+{at:#x}..{end:#x} ({len(code)} B, {swreg.TCACHE_END - end} B of the '
-          f'band left); memory caps 100 / {careerworld.SEL_CAP if big else "-"}, save budgets {INFO["NMAX"]} / '
+    print(f'exe: team cache bound (tcache): obj3+{at:#x}..{end:#x} ({len(code)} B); memory caps 100 / {careerworld.SEL_CAP if big else "-"}, save budgets {INFO["NMAX"]} / '
           f'{INFO["TC_CAP"] if big else "-"}; inserts obj1+' + ', '.join(f'{o:#x}{"+" if k == "add" else ""}' for k, o in ss))
     return end

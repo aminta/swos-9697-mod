@@ -484,7 +484,10 @@ def patch(p, cave, items, tails=False):
     tc_cap = None                                 # TC_CAP = the most records with the whole trailer in SEL_ROOM (tcache's
     if careerworld.BSS[0] is not None:            # rule: memory cap SEL_CAP, save budget TC_CAP; 159, 155 with 'FP')
         tc_cap = min(careerworld.SEL_CAP, (careerworld.SEL_ROOM - block - en_block) // TEAM_SIZE)
-        assert tc_cap >= 140, ('big cache save budget', tc_cap, block, en_block, careerworld.SEL_ROOM)
+        import tcache                             # (MC 16/11: a FIXED floor - the cap only ever grows across versions, so a
+        floor = tcache.TC_FLOOR_FP if any(e[0] == 'FP' for e in en) else tcache.TC_FLOOR   # career saved at the floor by
+        assert tc_cap >= floor, (f'TC_CAP {tc_cap} < TC_FLOOR {floor}: a trailer item grew past the big cache\'s save '
+                                 f'room (main {block} + EN {en_block}); find room elsewhere (CONVENTIONS 26)')
         print(f'exe: big cache save room: {careerworld.SEL_ROOM - tc_cap * TEAM_SIZE - block - en_block} B left '
               f'at TC_CAP {tc_cap} teams (main {block}, EN {en_block})')
     defaults = b''.join(p.get(1, off, n) for off, n in items)

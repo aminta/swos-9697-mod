@@ -3,7 +3,7 @@ static image of HT_TC_EXE (else c/HTTC1: a release-recipe exe built with HOSTTES
 are called with NUMSEL / selTeamsPtr / SELBASEV poked; tc_full is seen at its first DOS call (int 10h AX=2), the
 message at int 21h AH=9.
 
-- the 6 inserts: 5 `call tc_chk_n` (+4 nops) and 1 `call tc_chk_add` (+3 nops) in obj1, nothing else calls them;
+- the 6 inserts: 5 `call tc_chk_n` (+4 nops) and 1 `call tc_chk_add` (+3 nops) in obj1 into tcache's obj3 code;
 - tc_chk_n: the game's cache 99 -> D0 = 155h, the high-water mark 100; 100 -> the stop with "TEAM CACHE FULL (100)";
   the big cache (selTeamsPtr = NEWSEL) 159 passes, 160 stops; flags and eax kept;
 - tc_chk_add: 50 -> 51, the HWM not lowered;
@@ -11,7 +11,7 @@ message at int 21h AH=9.
   restored while selTeamsPtr is the game's cache (main menu -> FRIENDLY) passes, the same count on the game's cache stops;
 - tc_room: budget - NUMSEL (the game's cache: trailer nmax; the big one: TC_CAP), never below 0;
 - tc_reserve: the list's clubs not cached, each once, 0xFFFF skipped, vs tc_room; the pseudo registers and
-  ebx / esi / edi / ebp kept."""
+  ebx / esi / edi / ebp kept; TC_SKIP counts the refusal (only it)."""
 import json
 import os
 import struct
@@ -36,7 +36,7 @@ class T:
         self.uc, self.le, self.rd = ts.static_machine(EXE)
         self.uc.mem_map(BUF, 0x20000 * 2)
         sy = json.load(open(EXE[:-4] + '.syms.json'))['tcache']
-        self.lab = {k: v[1] for k, v in sy.items() if not k.startswith(('sym.', 'caps.'))}
+        self.lab = {k: v for k, v in sy.items() if not k.startswith(('sym.', 'caps.'))}
         self.sym = {k[4:]: self.lin(v) for k, v in sy.items() if k.startswith('sym.')}
         self.caps = {k[5:]: v[1] for k, v in sy.items() if k.startswith('caps.')}
         self.big = self.caps['tc_cap'] > 0
@@ -48,7 +48,8 @@ class T:
         return {0: off, 1: tr.B1, 2: tr.B2, 3: tr.B3, 4: tr.B4}[o] + (off if o else 0)
 
     def at(self, name):
-        return tr.B4 + self.lab[name]
+        assert self.lab[name][0] == 3, (name, self.lab[name])      # (tcache's code: obj3, CONVENTIONS 23)
+        return self.lin(self.lab[name])
 
     def _intr(self, uc, intno, data):
         from unicorn.x86_const import UC_X86_REG_EAX, UC_X86_REG_EDX
@@ -183,6 +184,8 @@ def test_tcache():
     lst = BUF + 0x30000
     new = [0x7D01, 0x7D02, 0x7D02, 0xFFFF, words[3]]     # (2 new: 7D01, 7D02 once; FFFF skipped; one cached)
     t.uc.mem_write(lst, b''.join(struct.pack('<H', w) for w in new))
+    sk = t.at('TC_SKIP')
+    t.w16(sk, 0)
     for n, want in ((nm - 2, 1), (nm - 1, 0)):
         t.w16(numsel, n)
         t.w32(t.sym['SELPTR'], BUF)
@@ -195,5 +198,7 @@ def test_tcache():
             [t.u32(a) for a in (d0, t.sym['D1'], t.sym['A0'])] == [0x11111111, 0x22222222, 0x33333333]
         if eax != want or msg or not kept:
             bad.append(f'tc_reserve at {n}: {eax} want {want}, registers kept {kept}')
+    if t.u16(sk) != 1:
+        bad.append(f'TC_SKIP {t.u16(sk)} after one refusal (want 1)')
     notes.append(f'budgets {nm} / {tcap or "-"}, 6 hooks')
     return not bad, '; '.join(bad) if bad else ', '.join(notes)

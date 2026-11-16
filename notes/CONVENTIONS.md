@@ -204,4 +204,10 @@ new rule. If a rule seems wrong for a case, ask the regia session; don't silentl
     feature that adds clubs (friendlies, contest views, supercups, any future loader) first asks tc_reserve(list, n) /
     tc_room() and skips itself cleanly on "no" - never a hand-written count (ctgame.c's 160 is gone). A world whose
     late MANDATORY installs need room sets tcache.RESERVE[world]. A count written without an insert goes through
-    tc_clamp. 21's SEL_N is replaced by TC_CAP (computed, 159; 155 with 'FP').
+    tc_clamp. tcache's code is in obj3 (23 / 23bis: mod code, not the engine's obj4); a caller reaches it ONLY through a
+    dword of its own bound by tcache.ref (careerworld's wl stub, ctgame.c's TC_ROOMP / TC_CLAMPP, the trailer's
+    after_process slot through engine.CALL_AT) - never a literal address; tcache.check fails the build on an unbound
+    one. 21's SEL_N is replaced by TC_CAP (computed per build from the blocks).
+    **TC_FLOOR** (MC 16/11): TC_CAP may only ever GROW across versions, never shrink - a build asserts TC_CAP >=
+    tcache.TC_FLOOR (159; TC_FLOOR_FP 155 with 'FP'), so a career saved at the floor by an earlier exe loads in every
+    later one. A trailer item that breaks it fails the build: its owner finds room elsewhere (never lowers the floor).

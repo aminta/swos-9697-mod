@@ -2090,16 +2090,15 @@ def patch(p, worlds, at, nasmcave, comp, ct, cont_rec):
             src_site, len_site = m.start(), m.start(1)
             stubs += [f'ws{k}:', '    mov eax, [SVMEM]', '    pushfd', '    call w_big', '    jz .o',
                       '    mov eax, WSAVE', '.o:', '    popfd', '    ret',
-                      f'wl{k}:'] + (['    push eax', '    mov eax, TCCLAMP', '    call eax', '    pop eax']
-                                    if k else []) + ['    mov dword [SVD0], 21888', '    pushfd', '    call w_big', '    jz .o',
+                      f'wl{k}:'] + (['    call [TCV_CS]'] if k else []) + ['    mov dword [SVD0], 21888', '    pushfd', '    call w_big', '    jz .o',
                       '    mov dword [SVD0], 68400', '    push eax', '    mov eax, [SELPTR]', '    cmp eax, NEWSEL',
                       '    pop eax', '    jne .o', f'    mov dword [SVD0], {SEL_CAP * TEAM_SIZE}', '.o:', '    popfd',
                       '    ret']
             bsym.update({'SVMEM': p.target(1, src_site + 1), 'SVD0': p.target(1, len_site + 2)})
             saves.append((src_site, f'ws{k}', len_site, f'wl{k}'))
         bsym['WSAVE'] = (2, b + B_SAVE)
-        import tcache                            # (RestoreSelectedTeams wrote the parked count: tcache's clamp)
-        bsym['TCCLAMP'] = tcache.entry('tc_clamp_sel')
+        stubs += ['align 4', 'TCV_CS: dd TCPH']  # (RestoreSelectedTeams wrote the parked count: tcache's clamp, bound
+        bsym['TCPH'] = (1, 0)                    # by tcache.ref once it is placed in obj3 - never a literal address)
         hs = sel_sites(p, rg['A0'] - 32)
         bsym.update({'SELPTR': (2, hs['selptr']), 'NEWSEL': (2, b + B_SEL)})
         stubs += ['align 4', 'WCLIST: dd ' + ', '.join(f'CL{k}' for k in range(len(s['clist'])))
@@ -2180,6 +2179,9 @@ def patch(p, worlds, at, nasmcave, comp, ct, cont_rec):
     p.put(1, at, code)
     for off, tobj, toff in fix:
         p.add_ptr(1, at + off, tobj, toff)
+    if 'TCV_CS' in labels:
+        import tcache
+        tcache.ref(p, 1, labels['TCV_CS'], 'tc_clamp_sel')
 
     def hook(site, length, label, fixups):
         for f in fixups:

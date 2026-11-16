@@ -437,9 +437,8 @@ def patch_exe(src, dst, remap, lang='it'):
         swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, -(-swreg.R17_END // 0x1000))
     if setpieces.on():                                 # 4.2 takers UI (Shaved 15/11, 42-tkui): the TKUI band
         swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, -(-swreg.TKUI_END // 0x1000))
-    import tcache                                      # 4.2 team cache bound (MC 16/11): the TCACHE band, every build;
-    swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, -(-swreg.TCACHE_END // 0x1000))   # the load's count check (after_process)
-    tcache.register()
+    import tcache                                      # 4.2 team cache bound (MC 16/11): its code in obj3's chain (option A);
+    tcache.register()                                  # here: the load's count check (after_process), the refs reset
     swe.OBJ4_PAGES = sreg.obj4_pages(swe.OBJ4_PAGES)   # (4.2 N7 / 42-s7import: + the old-save import's band, SREG2)
     if lr_tabs:                                        # (the career league's head-to-head block)
         engine.save_item('LR', lrank.LR_SIZE, world_only=True)
@@ -586,7 +585,6 @@ def patch_exe(src, dst, remap, lang='it'):
         finals97.structs(p, area, sacups.STR_BASE)
     world, new_career = trailer.patch(p, world, sacups.SAVE_ITEMS[0] + [(base, 32) for base, _ in info['q']]
                                       + arg97.ARG_ITEMS, tails=bigw)
-    tcache.patch(p)                             # 4.2: the 6 inserts' bound check (needs trailer.INFO: NUMSEL, budgets)
     if worlds:
         end = careerworld.late(p, careerworld.LABELS['end'], nasmcave)
         if bigw:
@@ -957,6 +955,8 @@ def patch_exe(src, dst, remap, lang='it'):
     import stadium                               # 4.0.6 (Davide 02/11): the home club's stadium name (a final: its
     st_end = stadium.patch(p, (st_end + 15) & ~15)           # venue) on the versus screen, in obj3 after usc_snap
     assert st_end <= LT3_AT, hex(st_end)
+    st_end = tcache.patch(p, (st_end + 15) & ~15)            # 4.2 team cache bound (every build; before ctgame, its caller)
+    assert st_end <= LT3_AT, hex(st_end)
     import ctview                                # 4.0.6 COPPE CONTINENTALI (Gianmarco): the other confederations'
     if conti.enabled() and fmtpage.WN and 'CV9_VIS' in gplay.LABELS:   # cups viewed, the obj3 chain's end (<= 0x1800)
         st_end = ctview.patch(p, (st_end + 15) & ~15, lang, 0x1000 * OBJ3_PAGES)
@@ -1122,6 +1122,7 @@ def patch_exe(src, dst, remap, lang='it'):
     p.add_flags(1, 0x2)            # writable: season end rewrites the SA cup team lists in the cave
     split.late(p)                                # split's after-stage routines (engine.after_stage)
     trailer.late(p)                              # the engine block's late addresses (RS_STATE ...)
+    print(f'exe: tcache: {tcache.check(p)} callers bound to its obj3 code')   # (every caller's dword: MC 16/11)
     s7swap.late(p)                               # 4.2 S7: WSITES + their resolved bytes (engine items bound now)
     import uefaname
     print(f'exe: UEFA cup name fixed in {uefaname.patch(p)} strings (the original exes: EUFA)')   # 4.1.2 (Marco)

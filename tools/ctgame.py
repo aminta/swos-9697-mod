@@ -435,8 +435,7 @@ def patch(p, at, scr_at, lang):
     ext.update(CG_TAB=(3, tab_at), CG_SCR=(3, scr_at), CG_NUMSEL=trailer.INFO['NUMSEL'], CG_SLOT3=u['SLOT3'],
                CG_GTAB=(3, gtab_at), CG_FCNT=(3, fc_at), CG_CAREER=trailer.INFO['CAREER'], CG_SELBASEV=(1, trailer.INFO['selbasev']),
                CG_WORK=lp36.LABELS['symbols']['DIYCOPY'], CG_DREG=u['D0R'], CG_CAL=u['CAL'],
-               CG_RNTIE=rn_tie(), CG_CTRN=(1, cl['ct_rn']),
-               tc_room=tcache.entry('tc_room'), tc_clamp=tcache.entry('tc_clamp'))
+               CG_RNTIE=rn_tie(), CG_CTRN=(1, cl['ct_rn']))
     flags = ['-fno-zero-initialized-in-bss', f'-DCG_FIXED={trailer.INFO["FIXED"][1]}']
     if os.environ.get('CONTI_CGVIEW'):
         flags.append(f'-DCGVIEW={int(os.environ["CONTI_CGVIEW"])}')
@@ -449,6 +448,8 @@ def patch(p, at, scr_at, lang):
     syms, at, bss = cobj.link(p, obj, at, (3, scr_at), externs=ext, text_obj=3)
     c1 = at
     assert bss == 0, ('ctgame.c: no .bss (statics in its data)', bss)
+    tcache.ref(p, *syms['TC_ROOMP'], 'tc_room')        # (tcache's entries through ctgame.c's own pointers)
+    tcache.ref(p, *syms['TC_CLAMPP'], 'tc_clamp')
     at = (at + 15) & ~15
     ls = lp36.LABELS['symbols']
     sym = {'DIYCOPY': ls['DIYCOPY'], 'D0R': u['D0R'], 'A0R': u['A0R'], 'W10EAB5': (2, w1), 'W10EED4': (2, w2),

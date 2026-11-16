@@ -25092,9 +25092,9 @@ FR = {
     # --- rules / tables ---
     'HOME': 2,                # spec default 2 home + 2 away (the pick's parameter; TODO(engine): if a scenario build can
                               #   set another split, its switch)
-    'BAND_MARGIN': lambda own: max(11, own // 10),   # tools/frpick.h:18 (42-frpick 8d54445, Mercato 16/11): "margin M =
-                              #   max(11, S / 10)"; stronger d > M, similar -M <= d <= M, weaker d < -M (d = opp - S)
-    'SLOT_BANDS': ('weaker', 'similar', 'similar', 'stronger'),   # frpick.h:20 "Play order of the automatic four:
+    'BAND_MARGIN': lambda own: max(11, own // 10),   # tools/frpick.h:23 (42-frpick cfbd695, Mercato 16/11): "margin M =
+                              #   max(11, S / 10), integer division"; bounded bands (fr_bands, frpick.h:23-25), the far ones never wanted
+    'SLOT_BANDS': ('weaker', 'similar', 'similar', 'stronger'),   # frpick.h:28 "Play order of the automatic four:
                               #   weaker, similar, similar, stronger" (slot k = friendly k+1)
                               #   (an all-automatic pick only - given == NULL, as 4.2; given entries keep their slot
                               #   and no fb bit: not checked until a UI exists. A band whose clubs all lack cache room
@@ -25102,12 +25102,12 @@ FR = {
     'FEES': None,             # TODO(engine, part b): {(band, home): fee} band 'stronger' / 'similar' / 'weaker', home bool
     'BAL_EXACT': True,        # the balance (finance NEWBAL) moves by exactly the fee between a friendly's screen and the
                               #   next match screen. TODO(engine): False if wages / gate money move in those weeks too
-    'MIX_RULE': ('tools/frpick.h:25-28 (42-frpick 8d54445): THE "NEAREST BAND" RULE: when the wanted band has no '
-                 'candidate, the slot takes the club nearest to that band\'s edge [...] Such a slot has bit k of '
-                 'FrPick.fb set and band[k] = the band its club really falls in.'),
+    'MIX_RULE': ('tools/frpick.h:34-36 (42-frpick cfbd695): THE "NEAREST BAND" RULE: when the wanted band has no '
+                 'candidate, the slot takes the club nearest to one of that band\'s two edges, from either side [...] '
+                 'Such a slot has bit k of FrPick.fb set and band[k] = the band its club really falls in (far: 3 up / 4 down).'),
                               # fr_check: a slot with fb bit k clear is in SLOT_BANDS[k] exactly; one with it set is
-                              #   OUTSIDE that band (else the bit lies); no FR_FB trace = strict 1 / 2 / 1 by slot
-    'HOME_RULE': 'tools/frpick.h:55-56 (8d54445): the nhome opponents with the lowest strength are played at home (ties: the lower slot first)',
+                              #   OUTSIDE that band, possibly far (else the bit lies); no FR_FB trace = strict by slot
+    'HOME_RULE': 'tools/frpick.h:83-84 (cfbd695): the nhome opponents with the lowest strength are played at home (ties: the lower slot first)',
     'WEEKS': {},              # TODO(engine, part a - research): {'ita': (w1, w2, w3, w4), ...} per season kind, e.g.
                               #   {'ita': {1: (...), 2: (...)}}; empty = the weeks are reported, only their order is asserted
     'JANUARY': range(0, 8),   # TODO(engine): a calendar-year league's preseason weeks (8 weeks a month: January = 0..7)
@@ -25198,9 +25198,14 @@ def fr_state(b):
 
 
 def fr_bands(own, opps, margin):
-    """The strength band of each opponent against the club's own value (FR_STR's scale): 'stronger' (> own + margin),
-    'weaker' (< own - margin), else 'similar'."""
-    return ['stronger' if o > own + margin else 'weaker' if o < own - margin else 'similar' for o in opps]
+    """The strength band of each opponent against the club's own value (FR_STR's scale), bounded (frpick.h:23-25,
+    42-frpick cfbd695, d = opponent - own, M = margin): 'far_down' d < -4M, 'weaker' -4M <= d < -M, 'similar'
+    |d| <= M, 'stronger' M < d <= 4M, 'far_up' d > 4M. The far bands are never wanted (nearest-band rule only)."""
+    def band(o):
+        d = o - own
+        return ('far_down' if d < -4 * margin else 'weaker' if d < -margin else 'similar' if d <= margin
+                else 'stronger' if d <= 4 * margin else 'far_up')
+    return [band(o) for o in opps]
 
 
 def fr_hx(at):

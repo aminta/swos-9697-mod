@@ -30857,6 +30857,38 @@ int main(void) {
 
 
 @scenario
+def dplay_subst_native():
+    """4.2 S3 (MC 16/11): dplay.c's Serie C play-off substitute on the host (tools/dplay_subst_test.c, 20,000 seasons per mode, DP_NOC 0 and 1 -
+    the cup rule's call stubbed): random tables (mode 0: the simulated play-off holds no group winner), the real winner a group's 1st ->
+    the final's loser (1) / the semi-final loser when the final's loser is a group winner too (2) / the old save without a record -> the
+    best eligible club of the state's list (4) / the second-won record bits (5) / an all-ineligible list -> 3 up, DP_SUBF, no crash (6)"""
+    import shutil
+    import subprocess
+    tools = os.path.join(ROOT, 'tools')
+    src = os.path.join(tools, 'dplay_subst_test.c')
+    work = os.path.join(WORK, 'dplay_subst_native')
+    os.makedirs(work, exist_ok=True)
+    out = []
+    for noc in (0, 1):
+        c = open(os.path.join(tools, 'dplay.c')).read()
+        if noc:
+            c = c.replace('int r = ((int (*)(struct cup_view *))DP_RULEP)(&v);', 'int r = 10;')
+        open(os.path.join(work, 'dplay.c'), 'w').write(c)
+        shutil.copy(src, os.path.join(work, 'dplay_subst_test.c'))
+        exe = os.path.join(work, f'dpt{noc}')
+        r = subprocess.run(['cc', '-O1', '-include', 'string.h', '-DDP_STATS', f'-DDP_NOC={noc}', '-I', work, '-I', tools, '-o', exe, os.path.join(work, 'dplay_subst_test.c')],
+                           capture_output=True, text=True)
+        if r.returncode:
+            return False, r.stderr[-300:]
+        for mode in (1, 2, 4, 5, 6) + ((0,) if not noc else ()):
+            p = subprocess.run([exe, '20000', str(mode)], capture_output=True, text=True)
+            out.append(f'NOC{noc} mode {mode}: {p.stdout.strip()}')
+            if p.returncode or not p.stdout.startswith('bad 0 '):
+                return False, '; '.join(out)
+    return True, '; '.join(out)[-700:]
+
+
+@scenario
 def gplay_s3_guard():
     """4.2 S3 step 1 (MC 14/11): levels better_pts / second are accepted only for the play-offs b_po / b_pout of the Italian
     world pack (pack id AND key): another pack with a b_po key, or the Italian pack with another key, or level 'second' in

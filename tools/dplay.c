@@ -247,8 +247,9 @@ static u8 sc_g, sc_from;                /* the scroll: group (1 ..), first place
 static int pm(int g, int p) { return p + (g == sc_g && sc_from && p + 1 >= sc_from); }   /* a listed place -> the real place */
 static int cup_place(int ng) {
     struct cup_view v;
-    v.ng = ng; v.gap = DP_CG1; v.real = 1; v.w = DP_IN.cupw; v.f = DP_IN.cupf;
-    for (int g = 0; g < ng; g++) { v.t[g] = (const struct cv_row *)DP_IN.t[g + 1]; v.n[g] = DP_IN.n[g + 1]; }
+    static const u8 cg[4] = { DP_CG1, DP_CG2, DP_CG3, DP_CG4 };
+    v.ng = ng; v.real = 1; v.w = DP_IN.cupw; v.f = DP_IN.cupf;
+    for (int g = 0; g < ng; g++) { v.t[g] = (const struct cv_row *)DP_IN.t[g + 1]; v.n[g] = DP_IN.n[g + 1]; v.gap[g] = cg[g]; v.lot[g] = lot[(g + 1) * NT + 10]; }
     int r = ((int (*)(struct cup_view *))DP_RULEP)(&v);
     sc_g = v.sfrom ? v.sg + 1 : 0; sc_from = v.sfrom;
     return (1 + (r >> 5)) * NT + (r & 31);
@@ -327,6 +328,41 @@ static NOINL int c_sub(void) {
     return best;
 }
 
+
+#ifndef DP_FREC
+#define DP_FREC 0
+#endif
+#if DP_FREC
+/* test builds (DPLAY_FREC = 1..3, MC 16/11): just before serie_c reads the Final Four record, make the real winner R of the career club's
+   Serie C play-off ineligible (1st of its group in DP_IN: the game's own tables are not touched, the substitute is dplay's):
+   1: R -> 1st of its group; the final's loser goes up. 2: also the final's loser L is ineligible (1st of another group, or last of R's):
+   the best semi-final loser goes up. 3: the career club is made the final's loser (the record is rewritten: the final is R v the
+   career club); R -> 1st of its group: the career club goes up. Without the switch none of this is compiled in. */
+static void swap_rows(int g, int a, int b) { struct dp_row x = DP_IN.t[g][a]; DP_IN.t[g][a] = DP_IN.t[g][b]; DP_IN.t[g][b] = x; }
+static int find_team(u16 team, int *g, int *k) {
+    for (*g = 1; *g <= DP_IN.ng; (*g)++) for (*k = 0; *k < DP_IN.n[*g]; (*k)++) if (DP_IN.t[*g][*k].team == team) return 1;
+    return 0;
+}
+static void frec_force(void) {
+    struct dp_save *v = &DP_ST;
+    int gr, kr, i, ir = -1, ic = -1;
+    if (!DP_IN.cpo_win || v->kind != 3 || !FREC_OK(v) || !find_team(DP_IN.cpo_win, &gr, &kr)) return;
+    for (i = 0; i < v->n; i++) { if (v->team[i] == DP_IN.cpo_win) ir = i; if (v->team[i] == DP_IN.mgr) ic = i; }
+    if (DP_FREC == 3 && ir >= 0 && ic >= 0 && ir != ic) {
+        u8 e[4], j = 0, o[2];
+        for (i = 0; i < v->n && j < 2; i++) if (i != ir && i != ic) o[j++] = i;
+        e[0] = ir; e[1] = o[0]; e[2] = ic; e[3] = o[1];
+        frec_set(v, e);
+    }
+    if (DP_FREC == 2) {                 /* the final's loser: the entrant of the record that is not R */
+        u32 x = FREC(v);
+        int w0 = (x >> (x >> 20 & 1 ? 5 : 0)) & 31, w1 = (x >> (x >> 21 & 1 ? 15 : 10)) & 31, l = w0 == ir ? w1 : w0, gl, kl;
+        if (l < v->n && find_team(v->team[l], &gl, &kl)) swap_rows(gl, kl, gl != gr ? 0 : DP_IN.n[gl] - 1);
+    }
+    swap_rows(gr, kr, 0);
+}
+#endif
+
 static void serie_c(void) {
     int ng = DP_IN.ng, q[8], nq = 0, thirds[4], seconds[4], cup, nr1[5], nr1o[5], w1[5], s2[4], o2[4], w2[4];
     if (ng < 2 || ng > 4) return;
@@ -371,6 +407,9 @@ static void serie_c(void) {
         shuffle(w2, 4);
         int f1 = tie(K_FFS, w2[1], w2[0], 2, -1), f2 = tie(K_FFS, w2[3], w2[2], 2, -1);
         int w = tie(K_FFF, f2, f1, 2, -1);
+#if DP_FREC
+        frec_force();
+#endif
         for (int g = 1; g <= ng && DP_IN.cpo_win; g++)          /* (played in slot 4: its real winner) */
             for (int k = 0; k < DP_IN.n[g]; k++)
                 if (DP_IN.t[g][k].team == DP_IN.cpo_win) {

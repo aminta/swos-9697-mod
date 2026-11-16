@@ -30783,10 +30783,11 @@ def gplay_cuprule():
 #include "%s"
 #include <stdio.h>
 static struct gp_row T[3][20];
+static int GAPS[3] = { 8, 9, 0 }, LOTS[3];
 static int run(int real, int w, int f, int gap, int *sg, int *sf) {
     struct cup_view v;
-    v.ng = 3; v.gap = gap; v.real = real; v.w = w; v.f = f;
-    for (int g = 0; g < 3; g++) { v.t[g] = (const struct cv_row *)T[g]; v.n[g] = 20; }
+    v.ng = 3; v.real = real; v.w = w; v.f = f;
+    for (int g = 0; g < 3; g++) { v.t[g] = (const struct cv_row *)T[g]; v.n[g] = 20; v.gap[g] = gap < 0 ? GAPS[g] : gap; v.lot[g] = LOTS[g]; }
     int r = cup_rule(&v);
     *sg = v.sg; *sf = v.sfrom;
     return r;
@@ -30830,12 +30831,29 @@ int main(void) {
     CHK("Mod: winner 6th -> the 11th", 0, TM(1, 5), 0, 8, 1, 10, 0, 0)
     CHK("Mod: winner 13th -> his place", 0, TM(2, 12), 0, 8, 2, 12, 0, 0)
     CHK("Mod: unknown winner -> the best 11th (group 0)", 0, 0, 0, 8, 0, 10, 0, 0)
-    printf("%%s\n", bad ? "FAILED" : "OK 24 cases");
+    /* (MC 16/11) gap 0 = 'always played': the n-5 / n-4 places are precluded whatever the points; per-group gaps; the lot on a full tie */
+    CHK("gap 0: k15 (n-5) precluded -> finalist", 1, TM(0, 15), TM(0, 11), 0, 0, 11, 0, 0)
+    CHK("gap 0: k16 (n-4) precluded -> finalist", 1, TM(0, 16), TM(0, 11), 0, 0, 11, 0, 0)
+    CHK("gap 0: k14 (n-6) free", 1, TM(0, 14), TM(0, 11), 0, 0, 14, 0, 0)
+    CHK("mixed gaps 8/9/0: group 0 (gap 8) k15 v k18 6 apart: held, precluded -> finalist", 1, TM(0, 15), TM(2, 11), -1, 2, 11, 0, 0)
+    CHK("mixed gaps 8/9/0: group 1 (gap 9) k15 v k18 6 apart: held, precluded -> finalist", 1, TM(1, 15), TM(0, 11), -1, 0, 11, 0, 0)
+    CHK("mixed gaps 8/9/0: group 2 (gap 0) k15 precluded -> finalist", 1, TM(2, 15), TM(0, 11), -1, 0, 11, 0, 0)
+    CHK("mixed gaps 8/9/0: group 2 (gap 0) k16 precluded -> finalist", 1, TM(2, 16), TM(1, 11), -1, 1, 11, 0, 0)
+    for (int g = 0; g < 3; g++) { T[g][10].pts = 50; T[g][10].won = 12; T[g][10].gf = 40; }
+    LOTS[0] = 5; LOTS[1] = 3; LOTS[2] = 7;
+    CHK("full tie of the best 11th: the lowest lot (group 1)", 0, 0, 0, 8, 1, 10, 0, 0)
+    LOTS[0] = 2; LOTS[1] = 3; LOTS[2] = 7;
+    CHK("full tie of the best 11th: the lowest lot (group 0)", 0, 0, 0, 8, 0, 10, 0, 0)
+    LOTS[0] = LOTS[1] = LOTS[2] = 4;
+    CHK("full tie, equal lots: group order", 0, 0, 0, 8, 0, 10, 0, 0)
+    T[2][10].gf = 41;
+    CHK("goals scored still before the lot", 0, 0, 0, 8, 2, 10, 0, 0)
+    printf("%%s\n", bad ? "FAILED" : "OK 35 cases");
     return bad;
 }
 """
     ok, out = gplay_host(test)
-    return ok and out.rstrip().endswith('OK 24 cases'), out[-500:]
+    return ok and out.rstrip().endswith('OK 35 cases'), out[-500:]
 
 
 @scenario

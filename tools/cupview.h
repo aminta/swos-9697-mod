@@ -5,7 +5,9 @@
 struct cv_row { unsigned short team, glob, won, gf, ga, pts; };
 struct cup_view {
     const struct cv_row *t[4];          /* the groups' final tables by group 0 .. ng - 1 */
-    unsigned char n[4], ng, gap, real, pad;
+    unsigned char n[4], ng, real, pad[2];
+    unsigned char gap[4];               /* each group's play-out gap (0 = 'always played': the n-5 / n-4 places are precluded) */
+    unsigned char lot[4];               /* each group's 11th's lot (lower wins): the last tie-break, C.U. 209/A art. 49 'sorteggio' */
     unsigned short w, f;                /* the cup's winner and finalist (team words, 0 unknown) */
     unsigned char og, ok, sg, sfrom;    /* out: the place's group and place (from 0); the scroll: group, first place (1-based, 0 none) */
 };

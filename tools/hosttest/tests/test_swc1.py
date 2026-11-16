@@ -18,6 +18,7 @@ import struct
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import fixroot  # noqa: E402
 import test_registry as tr  # noqa: E402
 
 TOOLS = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -27,7 +28,7 @@ import swe  # noqa: E402
 import trailer  # noqa: E402
 
 HOME = os.path.expanduser('~')
-EXE = os.environ.get('HT_P_EXE') or os.path.join(HOME, 'swos-mod', 'c', 'HTPC2', 'SWOS', 'ITALIAN.EXE')
+EXE = os.environ.get('HT_P_EXE') or fixroot.fx('HTPC2', 'SWOS', 'ITALIAN.EXE')
 GDT_AT, BUF = 0x6000000, 0x6100000
 
 

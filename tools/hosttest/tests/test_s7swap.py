@@ -10,6 +10,9 @@ file 144's 9 up (each Serie D group's first). SLTCOPY = a buffer: no in-struct m
   delta in SLTCOPY = its new local division - the row's shipped one (record +25); deterministic (twice from the
   same start = the same registry and SLTCOPY);
 - an in-struct move (a Serie B club relegated: delta +1 on its global) keeps its row, its rdiv follows;
+- 42-s7trap SIZE ASSERT (S7_LOG status 13, S7_SZ): the game's own deltas leave a division off its declared size (B 21 / C
+  girone B 19; a Serie D group 17 / 19) or an ident sits in two rows: refused, every club stays, both files' deltas reset to
+  'no move', nothing crosses;
 - refused, nothing changed (registry, SLTCOPY): counts unequal (COUNT), a bad snapshot (BAD), last season's stamp on
   one side (STALE), a crosser not on its boundary level (PLACE).
 
@@ -25,13 +28,14 @@ import struct
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import fixroot  # noqa: E402
 import test_registry as tr  # noqa: E402
 import test_sreg as tg  # noqa: E402
 import test_swc1 as ts  # noqa: E402
 
 HOME = os.path.expanduser('~')
-EXE = os.environ.get('HT_S7_EXE') or os.path.join(HOME, 'swos-mod', 'c', 'S7W-ws4c', 'SWOS', 'ITALIAN.EXE')
-OK, STALE, BAD, COUNT, PLACE = 1, 3, 4, 5, 6
+EXE = os.environ.get('HT_S7_EXE') or fixroot.fx('S7W-ws4c', 'SWOS', 'ITALIAN.EXE')
+OK, STALE, BAD, COUNT, PLACE, SIZE = 1, 3, 4, 5, 6, 13
 FA, FB = 102, 144
 SEASON = 7
 SLT_AT = ts.BUF + 0x8000                                # (SLTCOPY stand-in: 2400 bytes in the test buffer)
@@ -230,14 +234,45 @@ def test_s7swap():
     st2, _, _, slt2 = run(m, down, up)
     if st2 != OK or m.regb() != reg1 or slt2 != slt:
         errs.append('not deterministic')
-    m.fresh()                                           # an in-struct move: Serie B's row 20 relegated (+1)
-    s = bytearray(2400)
+    m.fresh()                                           # an in-struct move PAIR: Serie B's row 20 relegated (+1) and Serie C
+    s = bytearray(2400)                                 # girone A's first row (40) promoted (-1): every division keeps its size
     g = glob_of(m.gb[0], 20)
+    g2 = glob_of(m.gb[0], 40)
     s[g] = 1
+    s[g2] = 255
     st3, _, _, slt3 = run(m, down, up, bytes(s))
     fs3, word3, at3, rdiv3, _ = reg_parse(m.regb())
-    if st3 != OK or rdiv3[0][20] != 2 or at3[0][20] != at[0][20] or slt3[g] != 1:
-        errs.append(f'in-struct move: status {st3} rdiv {rdiv3[0][20]} row ident {at3[0][20]}/{at[0][20]} delta {slt3[g]}')
+    if st3 != OK or rdiv3[0][20] != 2 or at3[0][20] != at[0][20] or slt3[g] != 1 or rdiv3[0][40] != 1:
+        errs.append(f'in-struct move pair: status {st3} rdiv {rdiv3[0][20]}/{rdiv3[0][40]} row ident {at3[0][20]}/{at[0][20]} delta {slt3[g]}')
+    # 42-s7trap: SIZE ASSERT. The game's own deltas leave a division off (the Serie C play-off winner promoted twice = B 21 /
+    # C girone B 19: Shaved's CAMPOBASSO runs; a Serie D group 17 / 19 with one move missing): the season is REFUSED, nothing
+    # crosses, every club stays, the deltas of both files are 'no move', S7_LOG.status = SIZE; and a registry with an ident in two rows
+    sz = m.at('s7swap', 'S7_SZ') if 'S7_SZ' in m.sy.get('s7swap', {}) else None      # (None: a build without the gate)
+    d_row = sum(fs[1][2][:3])                           # file 144's 4th group's first row: moves up one division (-1 -> its
+    for name, deltas, dv, found, want_ in (            # neighbour: group 3 of 9 loses a club, group 2 gains one)
+            ('C-B promoted alone (B 21 / C-B 19)', {glob_of(m.gb[0], 60): 254}, fs[0][1][1], 21, 20),
+            ('a Serie D club moved up a group (19 / 17)', {glob_of(m.gb[1], d_row): 255}, fs[1][1][2], 19, 18)):
+        m.fresh()
+        s = bytearray(2400)
+        for gg, v in deltas.items():
+            s[gg] = v
+        stz, nz, nc_, sltz = run(m, down, up, bytes(s))
+        z = m.rd(sz, 8) if sz else bytes(8)
+        regz = m.regb()
+        gate, kind, zdiv, zfound, zwant = z[0], z[1], z[2], z[3], z[4]
+        if stz != SIZE or nc_ != 0 or regz != r0 or any(sltz) or (kind, zdiv, zfound, zwant) != (1, dv, found, want_) \
+                or gate != 1:
+            errs.append(f'SIZE {name}: status {stz} (want {SIZE}), crossers {nc_}, registry {"kept" if regz == r0 else "changed"}, '
+                        f'SLTCOPY {"reset" if not any(sltz) else "kept " + str([i for i, b in enumerate(sltz) if b][:4])}, '
+                        f'S7_SZ gate {gate} kind {kind} div {zdiv} found {zfound} want {zwant}')
+    m.fresh()                                           # an ident in two rows of the registry
+    rb = bytearray(m.regb())
+    at_off = 8 + tg.FILES * tg.FSIZE + 2 * tg.CLUBS
+    rb[at_off + 2:at_off + 4] = rb[at_off:at_off + 2]    # (file 102's row 1 = row 0's ident)
+    m.w(m.reg, bytes(rb))
+    std, _, ncd, sltd = run(m, down, up)
+    if std != SIZE or ncd != 0 or (m.rd(sz, 2)[1] if sz else 0) != 2:
+        errs.append(f'SIZE ident twice: status {std} (want {SIZE}), S7_SZ {m.rd(sz, 8).hex() if sz else None}')
     for name, kw, code in (('COUNT', dict(down=down[:-1]), COUNT), ('BAD', dict(bad=(0, 2)), BAD),
                            ('STALE', dict(sb=SEASON - 1), STALE),
                            ('PLACE', dict(up=up[:-1] + [(glob_of(m.gb[0], 0), FA, 0, 0, 0, 0)]), PLACE)):
@@ -259,7 +294,7 @@ def test_s7swap():
         cold('after sreg_load')
     return not errs, '; '.join(errs[:6]) or (f'9 down + 9 up as 9 registry swaps; down into groups {dn}, sizes kept, '
                                              f'SLTCOPY re-based, deterministic; in-struct move kept its row; refused '
-                                             f'COUNT / BAD / STALE / PLACE with nothing changed; the XTRA word caches cold after the swaps, '
+                                             f'COUNT / BAD / STALE / PLACE with nothing changed; SIZE ASSERT refuses B 21 / C 19, a Serie D 19 / 17 and an ident twice (nothing crosses, deltas reset); the XTRA word caches cold after the swaps, '
                                              f'sreg_new / sreg_build / sreg_load')
 
 
@@ -597,7 +632,7 @@ def test_s7load_pooled():
                                              f'record, {kept} rows exactly as ri_apply left them, ORIG untouched')
 
 
-EXE4 = os.environ.get('HT_S7W_EXE') or os.path.join(HOME, 'swos-mod', 'c', 'S7W-p6w', 'SWOS', 'ITALIAN.EXE')
+EXE4 = os.environ.get('HT_S7W_EXE') or fixroot.fx('S7W-p6w', 'SWOS', 'ITALIAN.EXE')
 CACHE_AT = 0x6300000                                    # (a stand-in team cache: S7_SELBASE -> here)
 S7_WSITE = 9
 

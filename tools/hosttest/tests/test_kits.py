@@ -18,6 +18,7 @@ import sys
 
 TOOLS = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, TOOLS)
+import fixroot  # noqa: E402
 sys.path.insert(0, os.path.join(TOOLS, 'hosttest'))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import kits  # noqa: E402
@@ -25,7 +26,7 @@ import kitmasks  # noqa: E402
 
 HOME = os.path.expanduser('~')
 GAME = os.environ.get('HT_KITS_GAME') or os.path.join(HOME, 'swos-mod', 'c', 'REL40rc2', 'SWOS')
-EXE = os.environ.get('HT_KITS_EXE') or os.path.join(HOME, 'swos-mod', 'c', 'HTO4', 'SWOS', 'ITALIAN.EXE')
+EXE = os.environ.get('HT_KITS_EXE') or fixroot.fx('HTO4', 'SWOS', 'ITALIAN.EXE')
                                                 # (mkfixtures.sh's release-recipe obj4 fixture, rebuilt every run;
                                                 # 13/11: the old default c/K42a predates KEEPKIT's KKST block)
 SCR = 0x4000000                                 # (our fake TeamGames, sprite table and sprites)

@@ -172,6 +172,9 @@ def late(p):
     import gplay
     wsites.CD_FILE[0] = p.get(1, gplay.LABELS['CD_TAB'] + 2, 1)[0] if 'CD_TAB' in gplay.LABELS else None   # (gplay's lf)
     rows = wsites.rows()
+    import re                                           # (MC 15/11: the C table's room = the Python one; rows + WS_END fit)
+    hmax = int(re.search(r'#define WS_MAX\s+(\d+)', open(os.path.join(os.path.dirname(SRC), 'sreg_walk.h')).read()).group(1))
+    assert hmax == wsites.WS_MAX and len(rows) + 1 <= wsites.WS_MAX, ('s7swap: WSITES rows / WS_MAX', len(rows), hmax, wsites.WS_MAX)
     p.put(*LABELS['WSITES'], wsites.table(rows))
     en = trailer.INFO['en_n']
     p.put(*LABELS['S7_ENN'], struct.pack('<I', en))
@@ -314,6 +317,10 @@ def patch(p, ssyms, rsyms, gsyms, pgsyms, fsyms, risyms):
         import modver
         assert modver.is_test()
         flags += (f"-DS7_LDFAIL={int(os.environ['S7_LDFAIL'])}",)
+    if os.environ.get('S7_SIZEFORCE'):                  # (test builds, modver BUILD_SWITCH: s7_season pushes one extra club into a Serie C group (1), and
+        import modver                                   # one into a Serie D group (2) before its size check - world_s7sizeforce)
+        assert modver.is_test()
+        flags += (f"-DS7_SIZEFORCE={int(os.environ['S7_SIZEFORCE'])}",)
     if os.environ.get('S7_NOSWAP'):                     # (test builds: the season end swaps nothing - the control career)
         import modver
         assert modver.is_test()
@@ -334,7 +341,7 @@ def patch(p, ssyms, rsyms, gsyms, pgsyms, fsyms, risyms):
     flags += (f'-DS7RI_NSTR={len(srows)}',)
     gobj = cobj.compile_c(SRC_GEO, (), sections=True)    # (4.2 geography: its own band, linked first: s7ri.c's reset of the log is an extern)
     gsy, gend, gbss = cobj.link(p, gobj, swreg.S7GEO_AT, (4, 0), limit=swreg.S7GEO_END - 256, text_obj=4,
-                                roots=['s7geo_ll', 'S7GEO_NEIGH', 'S7GEO_ON', 'S7GEO_LOG', 'S7GEO_NLOG', 'S7GEO_BAD', 'S7GEO_XY', 'S7GEO_HAVE',
+                                roots=['s7geo_ll', 's7rd_near', 'S7GEO_NEIGH', 'S7GEO_ON', 'S7GEO_LOG', 'S7GEO_NLOG', 'S7GEO_BAD', 'S7GEO_XY', 'S7GEO_HAVE',
                                        'S7GEO_FILE', 'S7GEO_BASE', 'S7GEO_IDENT', 's7rd_level', 'S7RD_SEC', 'S7RD_LOG'])
     assert not gbss, ('s7geo.c: no .bss', gbss)
     ext['S7GEO_NLOG'] = gsy['S7GEO_NLOG'][:2]
@@ -432,6 +439,7 @@ def patch(p, ssyms, rsyms, gsyms, pgsyms, fsyms, risyms):
     LABELS.clear()
     LABELS.update(syms)
     LABELS.update({k: v for k, v in gsy.items() if k.startswith(('S7GEO_', 'S7RD_'))})   # (the S7GEO band's data: the harness's chain log, the redraw's tables / log)
+    LABELS['S7GEO_NEAR'] = gsy['s7rd_near']             # (42-s7trap: sreg2.c's call; not 's7geo_ll' - cdkn.py would start reading that key)
     LABELS.update(WNL)
     if 'st_cur' in stadium.LABELS:
         LABELS.update(ST_FIND=stadium.LABELS['st_find'], ST_GT1=stadium.LABELS['GT1'], ST_TOP=stadium.LABELS['TOP'])

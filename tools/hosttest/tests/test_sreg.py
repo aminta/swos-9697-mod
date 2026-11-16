@@ -29,6 +29,7 @@ import struct
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import fixroot  # noqa: E402
 import test_registry as tr  # noqa: E402
 import test_swc1 as ts  # noqa: E402
 
@@ -38,8 +39,8 @@ import engine  # noqa: E402
 import trailer  # noqa: E402
 
 HOME = os.path.expanduser('~')
-EXE = os.environ.get('HT_N7_EXE') or os.path.join(HOME, 'swos-mod', 'c', 'HTn7rf', 'SWOS', 'ITALIAN.EXE')
-DORM = os.environ.get('HT_N7D_EXE') or os.path.join(HOME, 'swos-mod', 'c', 'HTn7rd', 'SWOS', 'ITALIAN.EXE')
+EXE = os.environ.get('HT_N7_EXE') or fixroot.fx('HTn7rf', 'SWOS', 'ITALIAN.EXE')
+DORM = os.environ.get('HT_N7D_EXE') or fixroot.fx('HTn7rd', 'SWOS', 'ITALIAN.EXE')
 IT, HDR = 0x5449, 20
 _H = open(os.path.join(TOOLS, 'swce', 'swosrules.h')).read()
 FILES, CLUBS, DIVS = (int(re.search(rf'#define {k}\s+(\d+)', _H).group(1)) for k in ('SR_REG_FILES', 'SR_REG_CLUBS',
@@ -710,6 +711,14 @@ def test_sreg_import():
                          (W102(12), W144(5))])
     if (g['n'], g['pend'], g['flags'], g['divs'], g['pairs']) != (0, [I['J']], 1 | 2 | 27 << 8, sdiv, want_pairs):
         errs.append(f"fresh: {g['why']} pend {g['pend']} flags {g['flags']:#x} divs {g['divs']} pairs {g['pairs']}")
+    # 42-s7trap (MESTRE.CAR): 4.1's groups have room where S7's spec put no new club: e2 (spec group 6) is on a slot of group 5
+    # -> group 5 would hold 4 of its 3 and group 6 2 of 3 (the game's check traps on it): J, the pending joiner, goes to group 6
+    sx = list(slot0)
+    sx[12] = 5
+    g = imp(slot=sx)
+    cnt = {d: g['divs'][:14].count(d) for d in (0, 1, 5, 6)}
+    if g['n'] < 0 or cnt != {0: 4, 1: 4, 5: 3, 6: 3} or g['divs'][I['J']] != 6 or g['pend'] != [I['J']]:
+        errs.append(f"over-full pending group: {g['why']} sizes {cnt} (want 3 / 3) J division {g['divs'][I['J']]} pend {g['pend']}")
     # after season ends: b0 down to 5, d0 up to 1, a3 <-> b1 in file 102, RI: p1 (identity 257) on slot 9, d1 off
     maps = [0] * 13
     maps[9] = 257 + 1
@@ -973,6 +982,75 @@ def test_sreg_riimport():
     return not errs, '; '.join(errs) or ('RI season end: maps zero, queue idents (joiner out, p2, d1); relegated twice: '
                                          'queue p1, b3; a stand-in in Serie C substituted (fillers out, it at the tail); init 0 empty; 161 '
                                          'moved byte for byte; deterministic; refused QUEUE / POOLMAP / LAYOUT')
+
+
+def test_sreg_import_near():
+    """42-s7trap (MC 16/11): a PENDING club whose spec Serie D group is full takes the group WITH ROOM nearest by the redraw's own
+    distance (s7geo.c's s7rd_near: anchors = the mean travel points of the group's clubs, s7rd_travel: Sicily travels from Messina,
+    isqrt(16 dlat^2 + 9 dlon^2); ties the lower group), not the first group with room. Shape: file 102 = division 0 (a0 a1), file 144 =
+    groups 5, 6, 7 of two rows. Spec: 5 = J, x0; 6 = y0, z1; 7 = F, z0. The 4.1 save (6 slots): x0 and y0 on group 5 (full), z1 on 6,
+    z0 on 7; J (a joiner) and F (a filler) pending. J is a Sicilian club (3750, 1400 -> Messina): groups 6 (z1 at 4400, 1200: Emilia)
+    and 7 (z0 at 3830, 1580: Calabria) have room: the nearest is 7, the first with room 6. Checks: J on group 7, F (spec 7, full by then) on
+    6, every group at 2; without towns (S7GEO_HAVE 0) J takes the first group with room, 6, and F keeps its spec group 7."""
+    import ctypes
+    import subprocess
+    import tempfile
+    d = tempfile.mkdtemp()
+    src = os.path.join(d, 'n.c')
+    with open(src, 'w') as f:
+        f.write('#define SWOSRULES_HAVE_STDINT\n#include <stdint.h>\n#define DATA\n'
+                f'#include "{TOOLS}/swce/sr_reg.c"\n#include "{TOOLS}/swce/sr_regsave.c"\n'
+                f'#include "{TOOLS}/s7geo.c"\n'
+                'static __attribute__((unused)) const sr_registry *TR;\n'
+                'static __attribute__((unused)) uint32_t t_ident(uint32_t w) { for (int32_t c = 0; c < TR->nclub; c++) if (TR->word[c] == w) return c; return 0xFFFF; }\n'
+                '#define IMP_NEAR(r, n, nd, div, ng, room, c) (TR = (r), S7GEO_IDENT = t_ident, s7rd_near(n, (r)->word, nd, div, ng, room, (r)->word[c]))\n'
+                f'#include "{TOOLS}/sreg_import.c"\n'
+                'uint32_t imp_work_size(void) { return sizeof(sreg_imp_work); }\n'
+                'uint32_t imp_res_size(void) { return sizeof(sreg_imp_res); }\n'
+                'void imp_xy(int32_t id, int32_t la, int32_t lo) { S7GEO_XY[id][0] = (int16_t)la; S7GEO_XY[id][1] = (int16_t)lo; }\n'
+                'void imp_have(int32_t v) { S7GEO_HAVE = (uint8_t)v; }\n')
+    lib = os.path.join(d, 'n.dylib')
+    r = subprocess.run(['cc', '-shared', '-fPIC', '-O1', '-Wall', '-Werror', '-I', os.path.join(TOOLS, 'swce'), '-o', lib, src],
+                       capture_output=True, text=True)
+    if r.returncode:
+        return False, 'cc: ' + r.stderr[-400:]
+    L = ctypes.CDLL(lib)
+    _imp_protos(L)
+    names = ['a0', 'a1', 'J', 'x0', 'y0', 'F', 'z0', 'z1']
+    I = {k: i for i, k in enumerate(names)}
+    sdiv = [0, 0, 5, 5, 6, 7, 7, 6]
+    old = [0, 1, 256, 2, 3, 6, 5, 4]                    # (4.1 slots: a0 a1 x0 y0 z1 z0 = 0..5; J a joiner (pool 0); F a 4.1 row 6, on no slot)
+    slot = [0, 0, 5, 5, 6, 7]                           # (their actual divisions: x0, y0 on 5; z1 on 6; z0 on 7)
+    spec = spec_bytes([(102, [(0, 2)], 0), (144, [(5, 2), (6, 2), (7, 2)], 0)])
+    xy = {'J': (3750, 1400), 'z0': (3830, 1580), 'z1': (4400, 1200), 'x0': (4500, 900), 'y0': (4550, 1000), 'a0': (4000, 1000), 'a1': (4000, 1000),
+          'F': (4300, 1100)}
+
+    def imp(towns):
+        R = ctypes.create_string_buffer(REGSIZE)
+        wk = ctypes.create_string_buffer(L.imp_work_size())
+        res = ctypes.create_string_buffer(L.imp_res_size())
+        sw = (ctypes.c_uint16 * 192)()
+        mp = (ctypes.c_uint16 * 128)()
+        L.imp_have(1 if towns else 0)
+        for k, (a, b) in xy.items():
+            L.imp_xy(I[k], a, b)
+        n = L.sreg_import(R, ctypes.create_string_buffer(spec, len(spec)), 2, bytes(sdiv), len(names),
+                          (ctypes.c_uint16 * len(old))(*old), None, 6, 1, 102, bytes(slot), None, 0, 144, 27, wk, sw, 64, mp, 64, res)
+        nswap, nmap, npend, bad, flags = struct.unpack_from('<iiiiI', res.raw, 0)
+        b = R.raw
+        words = struct.unpack_from(f'<{len(names)}H', b, 8 + FILES * FSIZE)
+        rdiv = 8 + FILES * FSIZE + 2 * CLUBS + FILES * 512
+        divs = [b[rdiv + 256 * {102: 0, 144: 1}[w & 0xFF] + (w >> 8)] for w in words]
+        return n, npend, divs
+    errs = []
+    n, npend, divs = imp(True)
+    if n < 0 or npend != 2 or divs[I['J']] != 7 or divs[I['F']] != 6 or [divs[2:].count(g) for g in (5, 6, 7)] != [2, 2, 2]:
+        errs.append(f'towns: n {n} pend {npend} divisions {dict(zip(names, divs))} (want J 7 = nearest with room, F 6, groups 2 / 2 / 2)')
+    n, npend, divs = imp(False)
+    if n < 0 or divs[I['J']] != 6 or divs[I['F']] != 7 or [divs[2:].count(g) for g in (5, 6, 7)] != [2, 2, 2]:
+        errs.append(f'no towns: n {n} divisions {dict(zip(names, divs))} (want J 6 = the first with room, F 7)')
+    return not errs, '; '.join(errs) or ('J (Sicily) full spec group 5 -> group 7 (nearest with room by s7rd_near: Messina travel point vs the '
+                                         'anchors), F (its spec group now full) 6, groups 2 / 2 / 2; without towns the first group with room (J 6, F keeps 7)')
 
 
 def test_sreg_sltimport():

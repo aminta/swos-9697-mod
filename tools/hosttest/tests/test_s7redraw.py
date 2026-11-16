@@ -284,7 +284,7 @@ def test_s7redraw_saves():
     root = os.path.join(os.path.expanduser('~'), 'swos-mod', 'internal')
     if not os.path.isdir(root):
         return True, 'SKIP: no internal/'
-    n = nit = 0
+    n = nit = nv = 0
     bad = []
     for d, _, fs in os.walk(root):
         for f in fs:
@@ -297,9 +297,12 @@ def test_s7redraw_saves():
                 continue
             fl = _it_flags(b)
             nit += bool(fl)
-            bad += [(os.path.relpath(os.path.join(d, f), root), hex(x)) for x, _ in fl if x & 0xFC]
+            # (bits 2..3 free; bits 4..7 = 0 or the redraw's own version 1 - saves written by redraw builds' runs carry it)
+            bad += [(os.path.relpath(os.path.join(d, f), root), hex(x)) for x, _ in fl if x & 0x0C or (x >> 4) not in (0, 1)]
+            nv += any(x >> 4 == 1 for x, _ in fl)
     assert not bad, (len(bad), bad[:8])
-    return True, f'{n} .CAR saves under internal/, {nit} with a registry section \'IT\': flags bits 2..7 all 0 (the rule version\'s room is free)'
+    return True, (f'{n} .CAR saves under internal/, {nit} with a registry section \'IT\': flags bits 2..3 all 0, bits 4..7 0 or the '
+                  f'redraw\'s version 1 ({nv} saves from redraw runs): no other use of the rule version\'s room')
 
 
 # ---- MC 15/11 conditions 1 + 2: the fallbacks, forced, on the exe -------------------------------------------------------------------------

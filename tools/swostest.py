@@ -4451,6 +4451,20 @@ def zone_colours():
     return not errs, '; '.join(errs + info) if errs else '; '.join(info)
 
 
+S7_SIZE_SEEN = []                           # (42-s7trap: (season, S7_LOG, S7_SZ) hex of every refused S7 season end seen by world8485)
+
+
+def s7_size_offsets(exe):
+    """(obj4 offset of s7swap's S7_LOG, of S7_SZ) from the build's ITALIAN.syms.json, None when the build has no S7 swap / no syms"""
+    try:
+        sy = json.load(open(os.path.join(exe, 'ITALIAN.syms.json'))).get('s7swap', {})
+        if 'S7_LOG' in sy and 'S7_SZ' in sy and sy['S7_LOG'][0] == 4 and sy['S7_SZ'][0] == 4:
+            return sy['S7_LOG'][1], sy['S7_SZ'][1]
+    except (OSError, ValueError):
+        pass
+    return None, None
+
+
 @scenario
 def world8485():
     """Europe 1984-85 world (world 4): new career at Liverpool, two seasons (save, reload, save), checkw1 on both"""
@@ -4463,6 +4477,7 @@ def world8485():
                                       os.environ.get('HT_SNAP_OUT') or os.path.join(RUNS, 'ht_snap'),
                                       int(os.environ.get('HT_SNAP_WEEKMIN', 0)), int(os.environ.get('HT_SNAP_MAX', 12)))[0]
     out, msgs = [], []
+    del S7_SIZE_SEEN[:]
     first = os.environ.get('W8485_FROM')                   # resume from a season-1 save (W84A.CAR)
     if first:
         out, msgs = [first], [f'season 1: from {first}']
@@ -4543,7 +4558,13 @@ def world8485():
                                  else None), []
             sack = sack_site(os.path.join(exe, 'ITALIAN.EXE')) if renew is not None else None
 
+            s7_lg, s7_sz = s7_size_offsets(exe)
+
             def hexlog():                              # W8485_HEX: obj2 offset:bytes (o1/ prefix: obj1, o3/: obj3, o4/),
+                if s7_lg is not None:                  # (42-s7trap, HARNESS-WIDE: every S7 scenario FAILs on a refused season - S7_LOG.status
+                    v = s.result.read(s.result.lin((4, s7_lg)), 8)   # 13 = S7_SIZE - at any logged point; world8485's final check)
+                    if v[0] == 13:                  # (S7_LOG {status, season, nswap, ncross}: byte 0)
+                        S7_SIZE_SEEN.append((season, v.hex(), s.result.read(s.result.lin((4, s7_sz)), 12).hex()))
                 for a in filter(None, os.environ.get('W8485_HEX', '').split(',')):   # logged when they change
                     o, n = a.split(':')
                     if o[:3] in ('o1/', 'o3/', 'o4/'):
@@ -4558,6 +4579,7 @@ def world8485():
             midc = [0]                                 # a career save mid-season once the byte held that long
             midt = (os.environ.get('W8485_MIDTEXT', '').split(':') + [''])[:2] + [None, 0] if season == 1 or first \
                 else ['']                              # (W8485_FROM: its one season, the loaded one)
+            midthen = os.environ.get('W8485_MIDTEXT', '').split(':')[2:3] if len(midt) > 1 else []
 
             def stop(scr):                             # the player's European cup: no same-country tie in rounds 1-2
                 if os.environ.get('W8485_FILLWATCH') and not getattr(stop, 'fill_bad', False):   # (debug: the first
@@ -4623,7 +4645,9 @@ def world8485():
                         tuple(scr.texts()) != midt[2]:         # W8485_MIDTEXT 'text:n': save after the n-th
                     midt[2] = tuple(scr.texts())                # match screen showing that text
                     midt[3] += 1
-                    if midt[3] >= int(midt[1]):
+                    if midt[3] >= int(midt[1]) and midthen:   # ('text:n:then': on to the next match screen showing
+                        midt[:] = [midthen.pop(), 1, midt[2], 0]    # `then` - the n-th one played)
+                    elif midt[3] >= int(midt[1]):
                         mid[:] = ['t', 0, 0]
                         midc[0] = 1
                         return True
@@ -4734,6 +4758,8 @@ def world8485():
         open(os.path.join(RUNS, f'{w84_tag()}_{season}', 'checkw1.txt'), 'w').write(report + '\n')
         if not good:
             return False, '; '.join(msgs) + '\n' + report
+        if S7_SIZE_SEEN and not os.environ.get('S7_SIZE_EXPECT'):     # (S7_SIZE_EXPECT=1: world_s7sizeforce only - its switch build refuses on purpose)
+            return False, f'S7_SIZE: a refused S7 season (S7_LOG.status 13: S7_LOG / S7_SZ {S7_SIZE_SEEN[-1]}): a bug to find, never a pass; ' + '; '.join(msgs)
     return True, '; '.join(msgs)
 
 
@@ -5102,9 +5128,10 @@ def se_goto(s, i):
     return scr
 
 
-def se_box(s, tag, notes, errs):
-    """4.2 (Marco 11/11, shirtbox): the lit number box in shot `tag` is a solid 14 x 8 square (the whole number column)
-    with the number on it in white: no black (the font's shadow, se_unsh) inside, nothing of the box outside."""
+def se_box(s, tag, notes, errs, w=14):
+    """4.2 (Marco 11/11, shirtbox): the lit number box in shot `tag` is a solid w x 8 square (the whole number column:
+    14 px on the team / squad screens, 12 in EDIT CUSTOM TEAMS) with the number on it in white: no black (the font's
+    shadow, se_unsh) inside, nothing of the box outside."""
     from PIL import Image
     im = Image.open(os.path.join(s.run, 'shots', tag + '.png')).convert('RGB')
     G = lambda c: c[2] == 0 and 0x70 < c[1] and c[0] < 0x40     # HL_COLOR 0x0E's greens (the menu's shading)
@@ -5116,8 +5143,8 @@ def se_box(s, tag, notes, errs):
     y0, y1 = min(y for _, y in pts), max(y for _, y in pts)
     inside = [im.getpixel((x, y)) for y in range(y0, y1 + 1) for x in range(x0, x1 + 1)]
     white = sum(c == (255, 255, 255) for c in inside)
-    other = {c for c in inside if c != (255, 255, 255) and not G(c)}
-    check((x1 - x0 + 1, y1 - y0 + 1) == (14, 8), f'{tag}: lit box {x1 - x0 + 1}x{y1 - y0 + 1} at ({x0},{y0}), want 14x8', errs)
+    other = {c for c in inside if c != (255, 255, 255) and not G(c) and c != (68, 161, 0)}   # (a shade in the box too)
+    check((x1 - x0 + 1, y1 - y0 + 1) == (w, 8), f'{tag}: lit box {x1 - x0 + 1}x{y1 - y0 + 1} at ({x0},{y0}), want {w}x8', errs)
     check(white >= 8 and not other, f'{tag}: box pixels white {white}, not green/white {sorted(other)[:4]}', errs)
     notes.append(f'{tag} box ({x0},{y0}) {x1 - x0 + 1}x{y1 - y0 + 1} white {white}')
 
@@ -5803,6 +5830,7 @@ def edteam_right():
         check(s.screen().selected == face, f'RIGHT on the face: selected {s.screen().selected} (face {face}, name {name})',
               errs)
         s.shot('lit')
+        se_box(s, 'lit', notes, errs, w=12)
         s.send('8 8 dump:1')
         s.send('enter dump:1')
         n1 = [r[2] for r in et_team(s)[1]]
@@ -6107,6 +6135,7 @@ def edit_custom_teams():
         s.send('dump:1')
         s.send('right dump:1')
         s.shot('lit')
+        se_box(s, 'lit', notes, errs, w=12)
         before = [r[2] for r in et_team(s)[1]]
         check(len(set(before)) == 16, f'first edit: numbers not unique {before}', errs)
         look_k = et_look(et_team(s)[1][k])
@@ -6124,6 +6153,7 @@ def edit_custom_teams():
             t3 = [r[2] for r in et_team(s)[1]]
             check(t3[k] == 23 and (holder is None or t3[holder] == nw), f'typed 23: {t3} (holder {holder})', errs)
             s.shot('typed23')
+            se_box(s, 'typed23', notes, errs, w=12)
             s.send('esc dump:1')
             t4 = [r[2] for r in et_team(s)[1]]
             check(t4 == before, f'ESC: {t4} != {before}', errs)
@@ -10301,6 +10331,50 @@ def practice_rows():
     return practice.texts(UI if UI in practice.ROWS else 'it')
 
 
+def practice_gteams(r):
+    """(diagnosis, RIPROVA) gameTeam1 / gameTeam2 (IT exe: obj2+690376 / +690380) -> the team files' first bytes."""
+    out = []
+    for o in (690376, 690380):
+        a = struct.unpack('<I', r.obj2(o, 4))[0]
+        out.append(f'{a:#x}:{r.read(a, 24)!r}' if 0x1000 < a < MEMSIZE - 64 else f'{a:#x}')
+    g = practice_game()                     # (the in-match teams the match uses: TeamGeneralInfo.inGameTeamPtr)
+    for t in ('TOPT_O', 'BOTT_O'):
+        a = struct.unpack('<I', r.obj2(g[t] + 0x0A, 4))[0]
+        out.append(f'{t} inGame {a:#x} (obj2+{a - r.base2:#x}) ' + (repr(r.read(a + 22, 17).split(b'\0')[0])
+                                                                 if 0x1000 < a < MEMSIZE - 64 else ''))
+    return 'gameTeams ' + ' | '.join(out)
+
+
+def practice_kickoff(s, steps=25):
+    """RIPROVA's kick-off: the match's own in-game teams (TeamGeneralInfo.inGameTeamPtr, top and bottom) are the
+    club's training pair 'X A' / 'X B' in either order. The Result, or None (s.kick_names: the last pair read)."""
+    g = practice_game()
+    for _ in range(steps):
+        r = s.result
+        if r.outcome != 'dump':
+            return None
+        nm = []
+        for t in ('TOPT_O', 'BOTT_O'):
+            a = struct.unpack('<I', r.obj2(g[t] + 0x0A, 4))[0]
+            nm.append(r.read(a + 22, 17).split(b'\0')[0].decode('latin-1') if 0x1000 < a < MEMSIZE - 64 else '')
+        s.kick_names = tuple(nm)
+        a_ = sorted(nm)
+        if a_[0].endswith(' A') and a_[1] == a_[0][:-1] + 'B':
+            return r
+        s.send('fire:0.3 dump:1.5')
+    return None
+
+
+def practice_layout(scr, where, errs):
+    """(item 2) Every visible entry with a text on the 320 x 200 screen, no two overlapping."""
+    bx = [(scr.raw_texts[i], scr.geom[i]) for i, t, inv, dis in scr.entries if not inv and scr.raw_texts[i]]
+    off = [(t, g) for t, g in bx if g[0] < 0 or g[1] < 0 or g[0] + g[2] > 320 or g[1] + g[3] > 200]
+    ov = [(a[0], b[0]) for k, a in enumerate(bx) for b in bx[k + 1:]
+          if a[1][0] < b[1][0] + b[1][2] and b[1][0] < a[1][0] + a[1][2]
+          and a[1][1] < b[1][1] + b[1][3] and b[1][1] < a[1][1] + a[1][3]]
+    check(not off and not ov, f'{where}: entries off the screen {off}, overlapping {ov}', errs)
+
+
 def practice_pick(s, row, errs):
     """On the practice page (TRAINING pressed): press row (0 TRAINING .. 3 CORNER, 4 the switch, 5 BACK). A build
     without the page (no row text shown): True, nothing pressed, when row is 0 (the game was started)."""
@@ -11239,6 +11313,20 @@ def bench_kick_panel_world():
             os.environ['BENCH_KICKSUB'] = keep
 
 
+def practice_vs_site():
+    """(Davide i62 15/11) The versus screen's breakpoint (obj1 offset of VersusInit's `mov ecx, 100`, after its fade-in:
+    a screen really drawn), from the original exe; PRACTICE_VSBP=0: off. (on, offset); on sets CORE=normal (one
+    process per scenario)."""
+    import lepatch
+    if os.environ.get('PRACTICE_VSBP', '1') != '1':
+        return False, None
+    os.environ['CORE'] = 'normal'
+    vs = [x.start() for x in re.finditer(rb'\xe8....\xe8....\xe8....\xe8....\xb9\x64\x00\x00\x00\x51\xe8',
+                                         lepatch.LEPatch(os.path.join(ROOT, 'orig', ORIG_EXE[UI])).le.obj_bytes(1), re.S)]
+    assert len(vs) == 1, ('VersusInit end', vs)
+    return True, vs[0] + 20
+
+
 @scenario
 def practice_menu():
     """4.2 set-piece practice, step 1 (MC 14/11): a World 2026-27 career (PRACTICE_BUILD / BENCH_BUILD: a release dir;
@@ -11253,9 +11341,13 @@ def practice_menu():
     path = os.environ.get('TRAIN_PATH', 'EUROPA,ITALIA,SERIE A,ROMA').split(',')
     t = practice_rows()
     errs, info = [], []
-    with Session('practice_menu', b, {}, 'dump:2', 900) as s:
+    vsbp, vs = practice_vs_site()
+    vsn = []
+    with Session('practice_menu', b, {}, 'dump:2', 900, match=vsbp) as s:
         if s.wait().outcome != 'dump':
             return False, f'START: no first pause ({s.result})'
+        if vsbp:
+            s.bp(s.result.base1 + vs, lambda q: vsn.append(1))
         for x in ('CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27'):
             if press(s, s.screen(), x) is None:
                 return False, f'new career: {x} not reached ({s.result})'
@@ -11311,6 +11403,21 @@ def practice_menu():
         check({TRAIN_TXT[UI][2], TRAIN_TXT['it'][2]} & set(q.texts()),
               f'TRAINING: no pre-match screen ({", ".join(q.texts())[:120]})', errs)
         info.append('TRAINING -> the training pre-match screen')
+        if vsbp:                                # (MC 15/11: a training match keeps its versus screen, PR_KIND 0)
+            check(not vsn, f'menus: the versus screen drawn {len(vsn)} times before the training match', errs)
+            pl = next((x for x in (TRAIN_TXT[UI][2], TRAIN_TXT['it'][2]) if q.find(x, exact=True) is not None), None)
+            if pl is None or press(s, q, pl, 3) is None:
+                errs.append(f'training: {TRAIN_TXT[UI][2]} not pressed ({s.result})')
+            else:
+                import lepatch
+                lp = lepatch.LEPatch(os.path.join(b, 'ITALIAN.EXE'))     # (as practice_play: the in-match teams)
+                m = re.search(rb'(?:\xc7\x05.{8}){4}\x66\xc7\x05.{4}\xa7\x06', lp.le.obj_bytes(1), re.S)
+                top, bot = lp.target(1, m.start() + 6)[1], lp.target(1, m.start() + 26)[1]
+                if train_kickoff(s, top, bot, True) is None:
+                    errs.append(f'training: no kick-off ({s.result}; names {getattr(s, "kick_names", None)})')
+                else:
+                    check(len(vsn) >= 1, f'training match: the versus screen drawn {len(vsn)} times (want >= 1)', errs)
+                    info.append(f'training match: the versus screen drawn {len(vsn)} times')
     return not errs, '; '.join(errs) or f'UI {UI}: ' + '; '.join(info)
 
 
@@ -11348,7 +11455,7 @@ def practice_work(r):
     return f
 
 
-def practice_play(kind, side, esc_at=None, again=False):
+def practice_play(kind, side, esc_at=None, again=False, goal=False, handover=False, goaln=None, sel=None):
     """4.2 set-piece practice, step 2 (the engine, MC 14/11): a World 2026-27 career (PRACTICE_BUILD / BENCH_BUILD: a
     release dir; TRAIN_PATH), SQUADRA -> TRAINING -> (DEFENCE: the switch) -> the kind's row -> the training game:
     the engine forces the set piece again and again (fire pressed throughout: the human takes its own kicks). Gates:
@@ -11358,7 +11465,17 @@ def practice_play(kind, side, esc_at=None, again=False):
     the CPU one (DEFENCE) and the ball before the kick on that goal's half, the cycle index moving on, the longest
     restart after the first kick <= 8 s (560 frames); then the result page (the kind, TIRI n, GOL m, OK on OK), OK:
     back on the squad screen with PR_KIND 0, the counters kept, and the league match after
-    it: its kick-off reached with the engine idle (PR_WORK's frame count unchanged)."""
+    it: its kick-off reached with the engine idle (PR_WORK's frame count unchanged).
+    goal (Davide 16/11, REL42vs1: after a goal the ball left the net at once - the replay looked like a save - and the
+    keeper vanished after the replay): the first GOALN attempts' balls put in the attacked net just after the kick
+    (a poke), then sampled every ~2 frames up to the next kick: the ball stays in the net while the goal's stoppage
+    runs (goalCameraMode, breakCameraMode -1 / 0 / 1: before the replay), the replay played, and the defending keeper
+    visible and in his goal in every sample out of the replay until the next kick.
+    sel (item 2, Davide 15/11): (attempts presses, half presses) on the PRACTICE page's selectors first (TIRI 10 -> 20
+    -> 50 -> INFINITI -> 5; META' CAMPO ALTA -> BASSA -> ALTERNATA): the game ends after the chosen count (INFINITI:
+    only ESC, esc_at), every award on the chosen half (ALTA the top goal, BASSA the bottom one, ALTERNATA by the
+    attempt: the bottom one on odd ones) - with no sel, the defaults (10, ALTA); the result page shows the selectors
+    with the values chosen and cycles one; both pages' entries on the 320 x 200 screen, none overlapping."""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import lepatch
     import practice
@@ -11370,7 +11487,10 @@ def practice_play(kind, side, esc_at=None, again=False):
     path = os.environ.get('TRAIN_PATH', 'EUROPA,ITALIA,SERIE A,ROMA').split(',')
     club = path[-1]
     row, name, _, states = PR_KINDS[kind]
-    want = esc_at or practice.PR_N                     # (Davide 14/11, A + B: the game ends by itself after PR_N; ESC)
+    ns, hf = ((sel[0] % 5, sel[1] % 4) if sel else (0, 0))   # (item 2: the selectors' indices after the presses)
+    lim = practice.NTAB[ns]                             # (0: INFINITI - ESC only)
+    assert lim or esc_at, 'practice_play: INFINITI needs esc_at'
+    want = esc_at or lim                                # (Davide 14/11, A + B: the game ends by itself after PR_N; ESC)
     lang = UI if UI in practice.RES else 'it'
     tx = practice_rows()
     p = lepatch.LEPatch(os.path.join(b, 'ITALIAN.EXE'))
@@ -11379,9 +11499,15 @@ def practice_play(kind, side, esc_at=None, again=False):
     g = practice_game()
     errs, info = [], []
     tag = f'practice_{kind}_{side}' + ('_esc' if esc_at else '')
+    # (Davide on i62 15/11: the versus screen - PRATICA / the teams / the stadium - still before a practice; PR_WORK's
+    # STS / STN only see the stadium menu: a breakpoint after VersusInit's fade-in counts the screens really drawn)
+    vsbp, vs = practice_vs_site()
+    vsn = []
     with Session(tag, b, {}, 'dump:2', 1500, match=True) as s:
         if s.wait().outcome != 'dump':
             return False, f'START: no first pause ({s.result})'
+        if vsbp:
+            s.bp(s.result.base1 + vs, lambda q: vsn.append(1))
         for x in ('CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27'):
             if press(s, s.screen(), x) is None:
                 return False, f'new career: {x} not reached ({s.result})'
@@ -11395,6 +11521,20 @@ def practice_play(kind, side, esc_at=None, again=False):
                 return False, f'{where}: {TRAIN_TXT[UI][k]} not reached ({s.result})'
         if side == 'def' and not practice_pick(s, 4, errs):
             return False, '; '.join(errs)
+        if sel:                                 # (item 2: the selectors pressed, the page shown again on each)
+            sl = practice.SEL[lang]
+            for k, n_ in enumerate(sel):
+                for _ in range(n_):
+                    scr = s.screen()
+                    cur = next((t for t in sl[k] if scr.find(t, exact=True) is not None), None)
+                    if cur is None or press(s, scr, cur, 3) is None:
+                        return False, f'practice page: selector {sl[k]} not shown / pressed ({scr.texts()})'
+            scr = s.screen()
+            t = scr.texts()
+            check(sl[0][ns] in t and sl[1][hf] in t, f'practice page: selectors {t} (want {sl[0][ns]}, {sl[1][hf]})',
+                  errs)
+            practice_layout(scr, 'practice page', errs)
+            s.shot(f'{tag}_page_sel')
         if not practice_pick(s, row, errs):
             return False, '; '.join(errs)
         e = practice_no_prematch(s)
@@ -11406,6 +11546,9 @@ def practice_play(kind, side, esc_at=None, again=False):
         w = practice_work(s.result)
         if w is None:
             return False, 'PR_WORK not found (no PRWK tag in the PRACTICE band)'
+        if vsbp:
+            check(not vsn, f'kick-off: the versus screen (competition, teams, stadium) drawn {len(vsn)} times before '
+                  'the practice (want 0)', errs)
         if 'STS' in practice.WK:                # (bug 4, Davide 15/11: no stadium / teams / line-ups before a practice)
             check(w['STS'] == 1 and w['STN'] == 0, f'kick-off: the presentation skipped {w["STS"]}, shown {w["STN"]} '
                   '(want 1 / 0)', errs)
@@ -11414,13 +11557,60 @@ def practice_play(kind, side, esc_at=None, again=False):
         awards, shots, clock, ko = {}, 0, 0, 0
         bar, bar_gs = 0, {}                     # (Davide 15/11: no score bar on a practice restart - resultTimer != 0
         hang = 0                                # (item 5, Davide 15/11: after the whistle no ball left in the air)
-        for it in range(int(os.environ.get('PRACTICE_STEPS', '160'))):
-            r = s.send('fire:1 dump:1')
+        gw = None                               # (goal: the watch of the poked attempt - its samples)
+        goals = []                              # (goal: per poked attempt (nt, samples))
+        poked = set()
+        gn = goaln or int(os.environ.get('PRACTICE_GOALN', '2'))
+        w16 = lambda r, o: struct.unpack('<h', r.obj2(o, 2))[0]
+        for it in range(int(os.environ.get('PRACTICE_STEPS', '160')) + (600 * gn if goal else 0)):
+            keys = 'fire:1 dump:1'
+            if gw is not None:                  # (fine steps; fire only once the restart waits on its taker)
+                keys = 'fire:1 dump:1' if w['ST'] == 2 else 'dump:0.1'   # (after the replay: ST 2 = the restart, taken as the main loop)
+            r = s.send(keys)
             if r.outcome != 'dump':
                 errs.append(f'step {it}: {r}')
                 break
             w = practice_work(r)
             gs = struct.unpack('<h', r.obj2(g['GS_O'], 2))[0]
+            if goal and w['ST'] == 3 and w['TMR'] >= 8 and w['NT'] not in poked and len(poked) < gn and gw is None:
+                atk_top = w['ATK'] == 1         # (the top team attacks the bottom goal, y 769)
+                line = 769 if atk_top else 129
+                bo = r.base2 + g['BALL_O']      # (x 336, 4 px past the line, on the ground, still: in the net)
+                s.poke(bo + 0x1E, struct.pack('<ii', 336 << 16, (line + (4 if atk_top else -4)) << 16))
+                s.poke(bo + 0x26, struct.pack('<i', 0))
+                s.poke(bo + 0x2C, struct.pack('<Hiii', 0, 0, 0, 0))   # (speed, deltas 0; the destination = the
+                s.poke(bo + 0x3A, struct.pack('<hh', 336, line + (4 if atk_top else -4)))   #  spot: the kick, 8+
+                poked.add(w['NT'])
+                if os.environ.get('PRACTICE_GOAL_BPLM') and not getattr(s, 'gbplm', 0):   # (diagnosis: who launches
+                    s.gbplm = 1                 #  the ball out of the net - its deltaY's integer byte watched; with
+                    s.box.cmd(f'BPLM {bo + 0x2D:08X}', 0.3)   #  SWOSTEST_BPLM_GO=1 the writer's EIP + stack logged)
+                    s.box.memwatch = True
+                dteam = w16(r, g['BOTT_O' if atk_top else 'TOPT_O'] + 0x12)
+                kp = next(i for i in range(22) if w16(r, g['SPR0_O'] + i * 0x6E) == dteam
+                          and w16(r, g['SPR0_O'] + i * 0x6E + 2) == 1)
+                gw = dict(nt=w['NT'], ng=w['NG'], line=line, kp=kp, smp=[])
+                goals.append(gw)
+                info.append(f'goal watch: attempt {w["NT"]}, ball poked into the net at y {line + (4 if atk_top else -4)}, '
+                            f'keeper sprite {kp} (team {dteam})')
+                continue
+            if gw is not None:
+                kof = g['SPR0_O'] + gw['kp'] * 0x6E
+                gw['smp'].append(dict(st=w['ST'], nt=w['NT'], ng=w['NG'], brs=w.get('BRS', 0), gs=gs, gsp=w16(r, g['GSP_O']),
+                                      bcm=w16(r, g['BCM_O']), gcm=w16(r, g['GCM_O']), irf=w16(r, g['IRF_O']),
+                                      rps=w16(r, g['RPS_O']), bx=w16(r, g['BALL_O'] + 0x20),
+                                      by=w16(r, g['BALL_O'] + 0x24), bz=w16(r, g['BALL_O'] + 0x28),
+                                      kv=w16(r, kof + 0x44), ki=w16(r, kof + 0x46), kx=w16(r, kof + 0x20),
+                                      ky=w16(r, kof + 0x24), kdx=w16(r, kof + 0x3A)))
+                if len(gw['smp']) in (3, 30) or (gw['smp'][-1]['rps'] and not gw['smp'][-2]['rps']):
+                    s.shot(f'{tag}_goal{gw["nt"]}_{len(gw["smp"])}')
+                if getattr(s, 'gbplm', 0) == 1 and len(gw['smp']) >= 12:
+                    s.gbplm = 2                 # (the watch off after the launch: BPDEL * and int 3 back)
+                    s.box.cmd('BPDEL *', 0.3)
+                    s.box.cmd('BPINT 3', 0.2)
+                    s.box.memwatch = False
+                if w['NT'] > gw['nt'] and w['ST'] == 3 or len(gw['smp']) > 600:
+                    gw = None                   # (the next kick taken: the watch over)
+                continue
             clock += struct.unpack('<h', r.obj2(g['TVIS_O'], 2))[0] != 0
             if (w['NT'] or w['ST']) and struct.unpack('<h', r.obj2(g['RTIM_O'], 2))[0] != 0:
                 bar += 1                        #  from the first forcing on; by gameState: a restart or a goal's)
@@ -11441,12 +11631,48 @@ def practice_play(kind, side, esc_at=None, again=False):
                     if struct.unpack('<h', r.obj2(g['GSP_O'], 2))[0] == 102 else prev[2] if prev else None
                 pn = [struct.unpack('<H', r.obj2(g[t] + 4, 2))[0] for t in ('TOPT_O', 'BOTT_O')]
                 awards[w['NT']] = (w['NT'], gs, by, w['ATK'], w['HUM'], pn, w['CY'])
+                if PRACTICE_PROBE and struct.unpack('<h', r.obj2(g['GSP_O'], 2))[0] == 102:
+                    PRACTICE_PROBE[0](s, r, g, w, gs)   # (takers: who walks to the ball, every 102 sample)
                 if shots < 3 and len(awards) > shots:
                     s.shot(f'practice_{kind}_{side}_{shots}')
                     shots += 1
             if w['NT'] >= want and (esc_at or w['ST'] in (0, 1, 3, 4)):
                 break
         awards = list(awards.values())
+        if goal:
+            check(len(goals) >= 1, f'{name}: no goal watched (attempts {w["NT"]})', errs)
+            for gw in goals:
+                sm = gw['smp']
+                inl = lambda q: q['by'] > gw['line'] if gw['line'] > 449 else q['by'] < gw['line']
+                scored = [i for i, q in enumerate(sm) if q['ng'] > gw['ng']]
+                pre = [q for q in sm[scored[0]:] if q['gcm'] and q['bcm'] in (-1, 0, 1) and not q['rps']
+                       and not q['irf']] if scored else []
+                rp = [i for i, q in enumerate(sm) if q['rps']]
+                out = [q for q in pre if not inl(q)]
+                miss = [(i, q['kv'], q['kx'], q['ky'], q['gs'], q['st']) for i, q in enumerate(sm)
+                        if not q['rps'] and not q['irf']
+                        and (not q['kv'] or abs(q['ky'] - gw['line']) > 80 or not 250 <= q['kx'] <= 422)]
+                trace = ' '.join(f'{i}:st{q["st"]}gs{q["gs"]}p{q["gsp"]}b{q["bcm"]}c{q["gcm"]}r{q["rps"]}'
+                                 f'i{q["irf"]}@{q["bx"]},{q["by"]},{q["bz"]}k{q["kv"]}/{q["ki"]}@{q["kx"]},{q["ky"]}'
+                                 for i, q in enumerate(sm[:160]))
+                info.append(f'goal #{gw["nt"]}: {len(sm)} samples, scored at {scored[:1]}, before the replay {len(pre)} '
+                            f'(out of the net {len(out)}), replay samples {len(rp)}; trace {trace}')
+                check(bool(scored), f'{name} goal #{gw["nt"]}: the poked ball did not score', errs)
+                check(bool(pre) and not out, f'{name} goal #{gw["nt"]}: the ball out of the net in {len(out)} of '
+                      f'{len(pre)} samples of the goal\'s stoppage (want in the net, >= 1 sample)', errs)
+                check(bool(rp), f'{name} goal #{gw["nt"]}: no replay sampled (replayState never set)', errs)
+                if scored and rp:               # (Regia 16/11: no ball reset from the goal to the replay's end)
+                    brs = {q['brs'] for q in sm[scored[0]:rp[-1] + 1]}
+                    check(len(brs) == 1, f'{name} goal #{gw["nt"]}: the ball reset during the goal / replay '
+                          f'(BRS {sorted(brs)})', errs)
+                ho = [i for i, q in enumerate(sm) if q['kdx'] >= 800 and not q['rps'] and not q['irf']]
+                info.append(f'goal #{gw["nt"]}: keeper hand-over (destX sentinel >= 800) in {len(ho)} samples')
+                gw['ho'] = len(ho)
+                check(not miss, f'{name} goal #{gw["nt"]}: the keeper missing / out of his goal in {len(miss)} '
+                      f'samples out of the replay (i, visible, x, y, gameState, ST) {miss[:8]}', errs)
+                check(any(q['nt'] > gw['nt'] for q in sm), f'{name} goal #{gw["nt"]}: no next attempt after it', errs)
+            check(not handover or any(gw.get('ho') for gw in goals), f'{name}: no keeper hand-over in any goal\'s '
+                  f'sequence ({len(goals)} goals; MC 16/11: the hand-over + the goal at once)', errs)
         if kind in ('fk', 'pen') and 'BRS' in practice.WK:
             check(hang == 0 and w['BRS'] >= 1, f'{name}: the ball in the air after the whistle in {hang} samples, '
                   f'balls reset {w["BRS"]} (want 0 / >= 1)', errs)
@@ -11479,7 +11705,7 @@ def practice_play(kind, side, esc_at=None, again=False):
                   f'(want none)', errs)
         info.append(f'score bar samples {bar} {bar_gs}')
         check(not ko, f'{name}: a kick-off before the first attempt ({ko} samples in gameState 0)', errs)
-        check(fpa <= practice.ATTF + 240, f'{name}: {fpa} frames an attempt (> ATTF + 240: a slow restart)', errs)
+        check(goal or fpa <= practice.ATTF + 240, f'{name}: {fpa} frames an attempt (> ATTF + 240: a slow restart)', errs)   # (goal: the goals' sequences + replays)
         check(w['CY'] >= min(w['NT'], want) - 1, f'{name}: the cycle index {w["CY"]} after {w["NT"]} attempts', errs)
         for n_, gs, by, atk, hum, pn, cy in awards:
             check(gs in states, f'{name} #{n_}: state {gs} awarded (want {sorted(states)})', errs)
@@ -11487,9 +11713,11 @@ def practice_play(kind, side, esc_at=None, again=False):
             check(hum == (0 if human_top else 1), f'{name} #{n_}: HUM {hum} with playerNumbers {pn}', errs)
             att_top = human_top if side == 'att' else not human_top
             check(atk == int(att_top), f'{name} #{n_}: ATK {atk} (the {"top" if att_top else "bottom"} team attacks)', errs)
-            if gs in states and by is not None:   # (the top team attacks the bottom goal, y 769)
-                check((by > 449) == att_top, f'{name} #{n_}: the ball at y {by} at the award (attacked goal '
-                      f'{"bottom" if att_top else "top"})', errs)
+            if gs in states and by is not None and hf:   # (the top team attacks the bottom goal, y 769; item 2: the half
+                bot = hf == 2 or (hf == 3 and cy % 2 == 1)   #  chosen - ALTA top, BASSA bottom, ALTERNATA by CY;
+                                                             #  CASUALE (0, Davide 16/11): the match's own random end
+                check((by > 449) == (atk == 1) == bot, f'{name} #{n_}: the ball at y {by} at the award, ATK {atk} '
+                      f'(want the {"bottom" if bot else "top"} goal: half {hf}, cycle {cy})', errs)
         if kind == 'fk':
             xs = {cy % 3 for *_, cy in awards}
             check(len(xs) >= min(3, len(awards)), f'{name}: the cycle covered x bands {sorted(xs)}', errs)
@@ -11510,8 +11738,8 @@ def practice_play(kind, side, esc_at=None, again=False):
         w = practice_work(s.result)
         nt, ng = w['NT'], w['NG']
         if esc_at:
-            check(want <= nt_esc and nt in (nt_esc, nt_esc + 1) and nt < practice.PR_N,
-                  f'{name}: ESC at {nt_esc} attempts, the game ended after {nt} (want {nt_esc} or +1, < {practice.PR_N})',
+            check(want <= nt_esc and nt in (nt_esc, nt_esc + 1) and nt < (lim or 10 ** 6),
+                  f'{name}: ESC at {nt_esc} attempts, the game ended after {nt} (want {nt_esc} or +1, < {lim or "INF"})',
                   errs)
         else:
             check(nt == want, f'{name}: the game ended after {nt} attempts (want exactly {want})', errs)
@@ -11524,14 +11752,34 @@ def practice_play(kind, side, esc_at=None, again=False):
         check(scr.selected == 3, f'result page: the cursor on entry {scr.selected} (want 3, OK)', errs)
         info.append(f'result page {res}' + (' (after ESC)' if esc_at else ' (by itself)'))
         check(practice.RES[lang][3] in res, f'result page: no {practice.RES[lang][3]} button ({res})', errs)
+        sl = practice.SEL[lang]                 # (item 2: the selectors under OK / RIPROVA, the values chosen)
+        check(sl[0][ns] in res and sl[1][hf] in res, f'result page: selectors {res} (want {sl[0][ns]}, {sl[1][hf]})',
+              errs)
+        practice_layout(scr, 'result page', errs)
+        if sel:                                 # (one cycle there: the attempts selector -> the next value, the
+            if press(s, scr, sl[0][ns], 3) is None:     #  page again with the cursor on it; then the cursor to OK)
+                errs.append(f'result page: {sl[0][ns]} not pressed')
+            else:
+                scr = s.screen()
+                nx = sl[0][(ns + 1) % 5]
+                check(nx in scr.texts() and scr.selected == 5, f'result page after the selector: {scr.texts()}, '
+                      f'cursor {scr.selected} (want {nx}, 5)', errs)
+                s.shot(f'{tag}_result_cycled')
         if again:                               # (item 6, Davide 15/11: RIPROVA - the same drill and side again,
             if press(s, scr, practice.RES[lang][3], 3) is None:     #  the counters from zero; ESC before an attempt:
                 return False, '; '.join(errs + info + [f'result page: {practice.RES[lang][3]} not pressed'])
             e = practice_no_prematch(s)         #  no result page, the practice page)
             if e:
                 errs.append('RIPROVA: ' + e)
-            if train_kickoff(s, top, bot, True) is None:
-                return False, '; '.join(errs + info + [f'RIPROVA: no kick-off ({s.result})'])
+            if practice_kickoff(s) is None:     # (RIPROVA skips the pre-match screen's team copies that
+                s.shot(f'{tag}_again_noko')     #  train_kickoff reads: the match's own in-game teams instead)
+                if s.result.outcome == 'dump':  # (the post-mortem: both in-match teams' first players)
+                    info.append(f'RIPROVA teams: top {ingame_team(s.result, top)[1][:4]} bottom '
+                                f'{ingame_team(s.result, bot)[1][:4]}; {practice_gteams(s.result)}')
+                return False, '; '.join(errs + info + [f'RIPROVA: no kick-off ({s.result}; names '
+                                                       f'{getattr(s, "kick_names", None)})'])
+            if vsbp:
+                check(not vsn, f'RIPROVA: the versus screen drawn {len(vsn)} times (want 0)', errs)
             w = practice_work(s.result)
             check(w['KIND'] == row and w['DEF'] == (side == 'def') and w['NT'] == 0 and w['STS'] == 1,
                   f'RIPROVA kick-off: PR_KIND {w["KIND"]} DEF {w["DEF"]} NT {w["NT"]} presentation skipped {w["STS"]} '
@@ -11574,6 +11822,8 @@ def practice_play(kind, side, esc_at=None, again=False):
             w = practice_work(s.result)
             if 'STN' in practice.WK:            # (the positive control: the league match keeps its presentation)
                 check(w['STN'] >= 1, f'league match: the presentation shown {w["STN"]} times (want >= 1)', errs)
+            if vsbp:                            # (and its versus screen)
+                check(len(vsn) >= 1, f'league match: the versus screen drawn {len(vsn)} times (want >= 1)', errs)
             check(w['KIND'] == 0 and w['NFR'] == nfr, f'league match: PR_KIND {w["KIND"]}, engine frames {nfr} -> '
                   f'{w["NFR"]} (want idle)', errs)
             info.append('league match after it: engine idle')
@@ -11878,6 +12128,264 @@ for _k in PR_KINDS:
             f.__doc__ = f'practice_play({k!r}, {sd!r}): ' + (practice_play.__doc__ or '').split('\n')[0]
             return f
         scenario(_mk())
+
+
+PRACTICE_PROBE = []            # (practice_takers: a callback on every gameStatePl 102 sample of practice_play)
+
+
+def takers_state(r):
+    """4.2 takers: the TAKERS band's tag 'TAKR' -> (TK_W, TK_LAST, TK_NSW, TK_TAB 18 bytes, TK_SIDE), or None."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import swreg
+    import takers
+    if r.base4 is None:
+        return None
+    band = r.read(r.base4 + swreg.TAKERS_AT, swreg.TAKERS_END - swreg.TAKERS_AT)
+    k = band.find(takers.TAG)
+    if k < 0:
+        return None
+    tkb = k - 4
+    tab = tkb + struct.unpack_from('<I', band, k + 4)[0]
+    return dict(W=band[k + 8], LAST=band[k + 9], NSW=struct.unpack_from('<H', band, k + 10)[0],
+                SIDE=struct.unpack_from('<II', band, tab - 8), TAB=band[tab:tab + 18], TAB_AT=r.base4 + swreg.TAKERS_AT + tab)
+
+
+def practice_takers(kind):
+    """4.2 takers (A), the hook (TAKERS_BUILD: a release dir built with TAKERS_TEST=1 TAKERS_LIST='fk:P;pen:P;cor:P',
+    P a file player index; default practice): practice_play(kind, 'att') with a probe on every gameStatePl 102
+    sample (the ball placed, waiting on the taker): the kicking team's controlled player = the player whose in-match
+    PlayerInfo.playerIndex is the list's pick (when he is on the pitch, ordinals 2..11), TK_NSW moving; the rest of
+    practice_play's gates as they are. TAKERS_EXPECT=orig: the control (TK_W 0 or no list) - the original ordinals
+    (free kicks 9 / 10 / 6, penalty 10, corners 5 / 2) and TK_NSW 0. TAKERS_SIDE=def: the CPU kicks (practice DEFENCE,
+    a build with TK_W 1 and no TAKERS_LIST): the taker = AUTOMATICO, the best SHOOTING outfielder on the pitch (free
+    kicks, penalties) / PASSING (corners), the lower ordinal on a tie, read from the in-match PlayerInfo."""
+    b = os.environ.get('TAKERS_BUILD')
+    if not b or not os.path.isdir(b):
+        return True, 'SKIP: TAKERS_BUILD not set'
+    orig = os.environ.get('TAKERS_EXPECT') == 'orig'
+    side = os.environ.get('TAKERS_SIDE', 'att')
+    near = {4: 5, 5: 2, 6: 9, 7: 9, 8: 9, 9: 10, 10: 6, 11: 6, 12: 6, 14: 10}
+    seen, errs, diag = [], [], []
+
+    def probe(s, r, g, w, gs):
+        t = takers_state(r)
+        kt = g['TOPT_O'] if w['ATK'] else g['BOTT_O']
+        cp = struct.unpack('<I', r.obj2(kt + 0x20, 4))[0]
+        igt = struct.unpack('<I', r.obj2(kt + 0x0A, 4))[0]
+        if not cp or not igt:
+            return
+        ordn = struct.unpack('<H', r.read(cp + 2, 2))[0]
+        pinf = [r.read(igt + 42 + 61 * i, 61) for i in range(11)]
+        pidx = [x[1] for x in pinf]
+        sk = 0x1B if gs in (4, 5) else 0x1C
+        spt = struct.unpack('<I', r.obj2(kt + 0x14, 4))[0]
+        sprs = [struct.unpack('<I', r.read(spt + 4 * i, 4))[0] for i in range(11)]
+        out = [i for i in range(1, 11) if sprs[i] and struct.unpack('<H', r.read(sprs[i] + 0x6C, 2))[0] == 0]
+        best = max(out, key=lambda i: (pinf[i][sk], -i)) + 1 if out else None
+        seen.append((w['NT'], gs, ordn, pidx[ordn - 1] if 1 <= ordn <= 11 else None, t and t['NSW'], t and t['LAST'],
+                     pidx, best))
+        if t and not diag:
+            pn = [struct.unpack('<HH', r.obj2(x + 4, 4)) for x in (g['TOPT_O'], g['BOTT_O'])]
+            igts = [struct.unpack('<I', r.obj2(x + 0x0A, 4))[0] for x in (g['TOPT_O'], g['BOTT_O'])]
+            diag.append(f'TK_W {t["W"]} TK_SIDE {[hex(x) for x in t["SIDE"]]} in-match teams {[hex(x) for x in igts]} '
+                        f'(playerNumber, coach) {pn} TK_TAB {t["TAB"].hex()} kicking {"top" if w["ATK"] else "bottom"}')
+    PRACTICE_PROBE[:] = [probe]
+    old = os.environ.get('PRACTICE_BUILD')
+    os.environ['PRACTICE_BUILD'] = b
+    try:
+        ok, msg = practice_play(kind, side)
+    finally:
+        PRACTICE_PROBE[:] = []
+        if old is None:
+            os.environ.pop('PRACTICE_BUILD', None)
+        else:
+            os.environ['PRACTICE_BUILD'] = old
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import takers
+    last = {}
+    for nt, gs, ordn, pi, nsw, lst, pidx, best in seen:  # (the last 102 sample of each attempt: the taker settled)
+        last[nt] = (gs, ordn, pi, nsw, lst, pidx, best)
+    pick = None
+    lst_env = dict(x.split(':') for x in filter(None, (os.environ.get('TAKERS_LIST') or '').split(';')))
+    role = {'fk': 'fk', 'pen': 'pen', 'corner': 'cor'}[kind]
+    if role in lst_env:
+        pick = [int(x) for x in lst_env[role].split(',') if x != '']
+    check(bool(last), f'takers {kind}: no gameStatePl 102 sample', errs)
+    for nt, (gs, ordn, pi, nsw, lst, pidx, best) in sorted(last.items()):
+        on = [x for x in (pick or []) if x in pidx[1:11]]
+        if side == 'def' and not orig:
+            check(ordn == best, f'takers {kind} #{nt}: state {gs} CPU taker ordinal {ordn} (want AUTOMATICO: {best})',
+                  errs)
+        elif orig or not on:
+            check(ordn == near.get(gs), f'takers {kind} #{nt}: state {gs} taker ordinal {ordn} (want the original '
+                  f'{near.get(gs)}{"" if orig else ", no pick on the pitch"})', errs)
+        else:
+            check(pi == on[0], f'takers {kind} #{nt}: state {gs} taker ordinal {ordn} file index {pi} (want the pick '
+                  f'{on[0]}, ordinal {pidx.index(on[0]) + 1})', errs)
+    nsw = max((v[3] or 0) for v in last.values()) if last else 0
+    swaps = orig is False and (side == 'def' or bool(pick))
+    if side == 'def' and not orig and last and all(v[6] == near.get(v[0]) for v in last.values()):
+        swaps = False                                    # (AUTOMATICO = the original slot every time: no swap)
+    check((nsw > 0) == swaps, f'takers {kind}: TK_NSW {nsw} (want {"> 0" if swaps else "0"})', errs)
+    info = [f'takers {kind}: (attempt, state, ordinal, file index, NSW, LAST) '
+            + ' '.join(f'{nt}:{v[0]}/{v[1]}/{v[2]}/{v[3]}/{v[4]:#x}' for nt, v in sorted(last.items()) if v[4] is not None)]
+    if last:
+        info.append(f'lineup file indexes {next(iter(last.values()))[5]}, AUTOMATICO ordinal per attempt '
+                    f'{[v[6] for _, v in sorted(last.items())]}')
+    return ok and not errs, '; '.join(errs + info + diag + [msg])
+
+
+for _k in ('fk', 'pen', 'corner'):
+    def _mk(k=_k):
+        def f():
+            return practice_takers(k)
+        f.__name__ = f'practice_takers_{k}'
+        f.__doc__ = practice_takers.__doc__
+        return f
+    scenario(_mk())
+
+
+@scenario
+def practice_fkgoal_att():
+    """practice_play('fk', 'att', goal=True): Davide 16/11 (REL42vs1): a free-kick goal - the ball stays in the net
+    until the replay, the replay plays, the keeper visible and in goal until the next kick (ATTACK)."""
+    return practice_play('fk', 'att', goal=True)
+
+
+@scenario
+def practice_fkgoal_handover():
+    """practice_play('fk', 'def', goal=True, handover=True, goaln=4): MC 16/11 - both fixes at once: a free-kick goal
+    whose sequence carries the keeper's hand-over (destX = x +- 1000, the sentinel - UpdatePlayers' goalie destination
+    from freeKickDestX): the ball in the net until the replay, the keeper never teleported off the pitch, visible and in
+    goal; >= 1 goal with the hand-over. DEFENCE: on REL42pg3 the ATTACK free kicks never carried it (6 goals, one per
+    spot, 0 samples), DEFENCE did (14 samples; the control 3c24ea8 FAILs there, keeper at x 1344)."""
+    return practice_play('fk', 'def', goal=True, handover=True, goaln=4)
+
+
+@scenario
+def practice_pengoal_handover():
+    """practice_play('pen', 'att', goal=True, handover=True, goaln=3): as practice_fkgoal_handover for penalties (the
+    keeper's sentinel there on every award)."""
+    return practice_play('pen', 'att', goal=True, handover=True, goaln=3)
+
+
+@scenario
+def practice_fkgoal_def():
+    """practice_play('fk', 'def', goal=True): as practice_fkgoal_att, the CPU's free kicks (DEFENCE)."""
+    return practice_play('fk', 'def', goal=True)
+
+
+@scenario
+def practice_pengoal_att():
+    """practice_play('pen', 'att', goal=True): Regia 16/11 (Davide's PROVA RIGORI videos: the ball back out of the net
+    after a goal, the keeper outside the post) - as practice_fkgoal_att for penalties."""
+    return practice_play('pen', 'att', goal=True)
+
+
+@scenario
+def practice_cornergoal_att():
+    """practice_play('corner', 'att', goal=True): as practice_fkgoal_att for corners."""
+    return practice_play('corner', 'att', goal=True)
+
+
+@scenario
+def practice_pen_sel5_bassa():
+    """practice_play('pen', 'att', sel=(4, 2)): item 2 - TIRI 5, META' CAMPO BASSA: 5 attempts, every penalty at the
+    bottom goal (the teams' ends swapped as needed), the result page's selectors."""
+    return practice_play('pen', 'att', sel=(4, 2))
+
+
+@scenario
+def practice_corner_sel5_alt():
+    """practice_play('corner', 'att', sel=(4, 3)): item 2 - TIRI 5, ALTERNATA: the corners top / bottom in turn."""
+    return practice_play('corner', 'att', sel=(4, 3))
+
+
+@scenario
+def practice_fk_inf_esc():
+    """practice_play('fk', 'def', esc_at=12, sel=(3, 1)): item 2 - TIRI INFINITI + META' CAMPO ALTA (the top goal): no end after 10; ESC (the game's own
+    way out of a drill, no new meaning) at 12 ends it, the result page."""
+    return practice_play('fk', 'def', esc_at=12, sel=(3, 1))
+
+
+@scenario
+def practice_match_guard():
+    """item 2 (MC 16/11): HALF / META' CAMPO uses the game's half-time swap (SetCameraMovingToShowerState) - a guard that
+    a real match is untouched: a friendly HAMBURG v SCHALKE on PRACTICE_BUILD, both random generators pinned at
+    kick-off (GUARD_SEED, default 000000000000), played past half time: halfNumber 1 -> 2 once, teamPlayingUp flipped
+    exactly once and only there, PR_WORK idle all along (KIND 0, engine frames NFR and SWP unchanged). Run it on the
+    control build too and compare the lines (the flow itself may differ with the host's load: the seed is poked at a
+    wall-clock moment, see ega_bench_cursor)."""
+    b = os.environ.get('PRACTICE_BUILD') or os.environ.get('BENCH_BUILD')
+    if not b:
+        return True, 'SKIP: PRACTICE_BUILD not set'
+    seed = bytes.fromhex(os.environ.get('GUARD_SEED', '000000000000'))
+    errs, info, smp = [], [], []
+    o = lepatch_orig()
+    d = o.le.obj_bytes(1)
+    m = [x.start() for x in re.finditer(rb'\x66\xc7\x05....\x02\x00\x66\xf7\x1d....\x66\x83\x05....\x03'
+                                        rb'\x66\xf7\x1d....\x66\x83\x05....\x03', d, re.S)]
+    hn = {o.target(1, k + 3)[1] for k in m}
+    tpu = {o.target(1, k + 12)[1] for k in m}
+    assert len(hn) == 1 and len(tpu) == 1, ('halfNumber / teamPlayingUp', hn, tpu)
+    hn, tpu = hn.pop(), tpu.pop()
+    w16 = lambda r, off: struct.unpack('<h', r.read(r.base2 + off, 2))[0]
+    with Session('practice_match_guard', b, {}, 'dump:3', 600, match=True) as s:
+        s.wait()
+        w9697(s)
+        for t in ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB', 'EUROPA', 'GERMANIA', '1. LIGA', 'HAMBURG'):
+            walk(s, t, 2)
+        s.send('fire dump:2')
+        walk(s, 'SCHALKE', 2)
+        for _ in range(12):
+            scr = s.screen()
+            if scr.selected == 55:
+                s.send('fire dump:4')
+                break
+            s.send(('right' if scr.selected in (56, 57) else 'down') + ' dump:0.5')
+        for _ in range(22):
+            s.send('down dump:0.5')
+            if s.screen().selected == 9:
+                break
+        r = s.send('fire ' + 'fire:3 ' * 30 + 'dump:2')
+        check(r.outcome == 'dump', f'match: {r}', errs)
+        if r.outcome == 'dump':
+            for at, part in zip(rng_sites(os.path.join(s.run, 'SWOS', 'ITALIAN.EXE')), (seed[:3], seed[3:6])):
+                s.poke(r.base2 + at, part)
+            w0 = practice_work(r)
+            check(w0 is not None, 'PR_WORK not found', errs)
+            after = 0
+            for i in range(int(os.environ.get('GUARD_SAMPLES', '400'))):   # (4 s of play a dump: 1 s dumps gave 144 s
+                r = s.send('fire:2 dump:3')       #  of play in 900 - no half time; a long fire: the human keeper lets
+                                                  #  the ball go (keeper_let_go; a 0.1 s tap left him holding it at
+                                                  #  20 mins, the match frozen) and a half-time screen's key)
+                if r.outcome != 'dump':
+                    errs.append(f'sample {i}: {r}')
+                    break
+                if i % 25 == 0:
+                    s.shot(f'guard_{i:03d}')
+                w = practice_work(r) or {}
+                q = (w16(r, hn), w16(r, tpu), w.get('KIND'), w.get('NFR'), w.get('SWP'))
+                if not smp or q != smp[-1][1]:
+                    smp.append((i, q))
+                    if len(smp) > 1 and q[1] != smp[-2][1][1]:
+                        s.shot(f'guard_swap_{len(smp)}')
+                after += q[0] == 2
+                if after >= 5:
+                    break
+            if w0 is not None and smp:
+                halves = [q[0] for _, q in smp]
+                ups = [(i, q[0], q[1]) for k, (i, q) in enumerate(smp) if k == 0 or q[1] != smp[k - 1][1][1]]
+                check(2 in halves, f'half time never reached in {i + 1} samples: {smp[:12]}', errs)
+                check(len(ups) == 2 and ups[1][1] == 2 and ups[1][2] == -ups[0][2] + 3 if len(ups) == 2 else False,
+                      f'teamPlayingUp not flipped exactly once at half time: (sample, halfNumber, teamPlayingUp) {ups}',
+                      errs)
+                bad = [(i, q) for i, q in smp if q[2] != 0 or q[3] != w0['NFR'] or q[4] != w0.get('SWP')]
+                check(not bad, f'PR_WORK not idle in the match (KIND, NFR, SWP) {bad[:6]} (start NFR {w0["NFR"]})',
+                      errs)
+                info.append(f'seed {seed.hex()}: (sample, halfNumber, teamPlayingUp) changes {ups}; PR_WORK idle '
+                            f'(NFR {w0["NFR"]}, SWP {w0.get("SWP")}) over {i + 1} samples')
+    return not errs, '; '.join(errs + info)
 
 
 @scenario
@@ -15467,6 +15975,258 @@ def engine_sea_ns():
         t2 = [t for t in sc.texts() if t] if sc else []
         s.shot('team_2')
         check(t2 == t1, f'(2) team screen {t2[:8]} != {t1[:8]}', errs)
+    return not errs, '; '.join(errs + info)
+
+
+def _season_world0(tag, career):
+    """4.2 (MC 15/11): a world career, then a 1996-97 SEASON in the same run, saved as a .SEA and reloaded in a new
+    run. Before the fix SeasonMenu left the career's world byte (someLeaguesTable[1845]) in the season and its .SEA;
+    the reload took that world's namespace (w_ns_ld / w_loadcopy) and its team files. Default world 1996-97:
+    `career` (the selector path of a CARR. STORICHE club), main menu, WORLD switch to 1996-97, STAGIONE > EUROPA > ITALIA > SERIE A > JUVENTUS,
+    the team screen read (world byte 0), SALVA STAGIONE as SEAW; new run: CARICA VECCHIA COMPETIZIONE > SEAW, world
+    byte 0 and the same team screen (the 1996-97 names). Reference: a clean 1996-97 season (no career; SeasonMenu sets
+    seed 0): the career's season shows the same team screen. The first Coppa Italia screens are listed, not compared
+    (a career before the season moves the draw even with world byte 0); the world draws' (cup id, round size) gate is
+    test_seaw0 on the host (historic DRAWS / lib97 byes need WORLDB = their world: 0 here)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import careerworld
+    b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
+    slt = cf_slt(b) + careerworld.WORLD_BYTE          # (the LIVE table: bigtables moves it out of the .CAR fixed part)
+    errs, info = [], []
+    wb = lambda s: tuple(s.result.obj2(slt, 2))       # noqa: E731  (world byte, balance)
+
+    cups = {}
+
+    def to_team(s, key):                        # the STAGIONE button (right of MODIFICA SQUADRE / ABBANDONA) on the club
+        sea_start(s)                            # list, then on CAMBIA SQUADRE PER ... (the divisions' screen)
+        for _ in range(12):                     # (se_to_playmatch, the first cup round's screen kept: its pairs)
+            scr = s.screen()
+            t = scr.texts()
+            if 'MOD. TATTICA' in t and 'AVVERSARI' in t:
+                return scr
+            if '- PARTITA -' in t:
+                cups.setdefault(key, [x for x in t if x])
+                press(s, scr, '- PARTITA -', 2)
+            elif 'PARTITA' in t:
+                press(s, scr, 'PARTITA', 2)
+            else:
+                s.send('fire dump:2')
+        return None
+
+    def season(s):
+        for t in ('EUROPA', 'ITALIA', 'SERIE A', 'JUVENTUS'):
+            if press(s, s.screen(), t, 2) is None:
+                return f'season: {t} not reached ({s.screen().texts()[:8]})'
+        return None
+    with Session(tag + '0', b, {'SETUP.DAT': setup_file(tag + '0', 1)}, 'dump:2', 600) as s:   # (the reference: a
+        if s.wait().outcome != 'dump':                                                       # clean 1996-97 season,
+            return False, f'(reference) no first pause ({s.result})'                         # SeasonMenu's seed 0)
+        press(s, s.screen(), 'STAGIONE', 2)
+        why = season(s)
+        if why:
+            return False, '(reference) ' + why
+        sc = to_team(s, 'ref')
+        if sc is None:
+            return False, f'(reference) no team screen ({s.screen().texts()[:8]})'
+        t0 = [t for t in sc.texts() if t]
+    with Session(tag, b, {'SETUP.DAT': setup_file(tag, 1)}, 'dump:2', 900) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'no first pause ({s.result})'
+        for t in ('CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE') + career[:1]:
+            if press(s, s.screen(), t, 2) is None:
+                return False, f'{t} not reached ({s.screen().texts()[:8]})'
+        if not pick_career(s, list(career[1:])):
+            return False, f'career {career} not started ({s.screen().texts()[:8]})'
+        for _ in range(3):                      # (the president's letter)
+            if s.screen().find('CONTINUA', exact=True) is None:
+                break
+            press(s, s.screen(), 'CONTINUA', 2)
+        w0 = wb(s)
+        info.append(f'career {career[-1]}: world byte {w0[0]}')
+        check(w0[0] != 0, f'the career set no world byte ({w0})', errs)
+        if not wm_to_main(s):
+            return False, f'no main menu after the career ({s.screen().texts()[:8]})'
+        set_world(s, 1)                         # (the main menu's WORLD switch follows the career: back to 1996-97)
+        press(s, s.screen(), 'STAGIONE', 2)
+        if s.screen().find('CONTINUA', exact=True) is not None:
+            press(s, s.screen(), 'CONTINUA', 2)
+        why = season(s)
+        if why:
+            return False, why
+        sc = to_team(s, 'after')
+        if sc is None:
+            return False, f'(season) no team screen ({s.screen().texts()[:8]})'
+        t1 = [t for t in sc.texts() if t]
+        w1 = wb(s)
+        s.shot('team_1')
+        check(w1 == (0, 0), f'season start: world byte / balance {w1} (want 0, 0)', errs)
+        check(t1 == t0, f'season start: team screen {t1[:8]} != a clean season\'s {t0[:8]}', errs)
+        for _ in range(6):
+            scr = s.screen()
+            if 'SALVA STAGIONE' in scr.texts():
+                break
+            press(s, scr, 'ESCI', 2) or s.send('fire dump:2')
+        press(s, s.screen(), 'SALVA STAGIONE', 2)
+        s.send(name_entry('seaw') + ' dump:3')
+        game = s.result.game
+    saves = [f for f in os.listdir(game) if f.upper().endswith('.SEA')]
+    if not saves:
+        return False, '; '.join(errs + info + [f'no .SEA saved ({sorted(os.listdir(game))})'])
+    files = {'SETUP.DAT': setup_file(tag + '2', 1), saves[0]: os.path.join(game, saves[0])}
+    with Session(tag + '2', b, files, 'dump:3', 600) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'(reload) no first pause ({s.result})'
+        press(s, s.screen(), 'CARICA VECCHIA COMPETIZIONE', 2)
+        if press(s, s.screen(), 'SEAW', 3, exact=False) is None:
+            return False, '; '.join(errs + info + [f'SEAW not listed ({s.screen().texts()[:8]})'])
+        w2 = wb(s)
+        sc = se_to_playmatch(s)
+        t2 = [t for t in sc.texts() if t] if sc else []
+        s.shot('team_2')
+        check(w2 == (0, 0), f'.SEA reloaded: world byte / balance {w2} (want 0, 0)', errs)
+        check(t2 == t1, f'.SEA reloaded: team screen {t2[:10]} != the season\'s {t1[:10]}', errs)
+    if not errs:
+        info.append(f'season start + reload: world byte 0, team screen {t1[:6]}, first Coppa Italia screen '
+                    f'{cups.get("after", [])[5:12]} (a clean season: {cups.get("ref", [])[5:12]}; not compared, the career\'s '
+                    f'state moves the draws)')
+    return not errs, '; '.join(errs + info)
+
+
+@scenario
+def season_world0():
+    """4.2 (MC 15/11, Motore): a 1996-97 SEASON after a World 2026-27 career (RADOMIAK RADOM) is world 0 at its start
+    and after its .SEA reload, with the same team screen (_season_world0)."""
+    return _season_world0('season_world0', ('MONDO 2026-27', 'EUROPA', 'POLONIA', 'RADOMIAK RADOM'))
+
+
+@scenario
+def season_world0_8485():
+    """4.2 (MC 15/11): the same after a Europe 1984-85 career (VOLSUNGUR, Iceland)."""
+    return _season_world0('season_world0_8485', ('EUROPA 1984-85', 'ISLANDA', 'VOLSUNGUR'))
+
+
+def sea_start(s):
+    """A SEASON's club list (and then CAMBIA SQUADRE PER ..., the divisions' screen): the start button, the entry after
+    ABBANDONA in the bottom row (STAGIONE; EN 'PLAY SEASON', not UI_MAP's 'SEASON'), reached right from the row's
+    other buttons, down from the list. Any language: ABBANDONA is UI_MAP's."""
+    for _ in range(3):
+        scr = s.screen()
+        ia = next((i for i, e in enumerate(scr.entries) if ui_it(e[1]) == 'ABBANDONA'), None)
+        if ia is None or 'VISUAL. COMPETIZ.' in scr.texts():   # (the season's menu)
+            return
+        for _ in range(24):
+            sel = s.screen().selected
+            if sel == ia + 1:
+                break
+            s.send(('right' if sel in (ia - 1, ia) else 'down') + ' dump:0.5')
+        s.send('fire dump:3')
+
+
+def _sea_team(s):
+    """1996-97 SEASON from the main menu (default world 1996-97): STAGIONE > EUROPA > ITALIA > SERIE A > JUVENTUS, the
+    STAGIONE button, the team screen before the first match (its texts), or a string why not."""
+    press(s, s.screen(), 'STAGIONE', 2)
+    if s.screen().find('CONTINUA', exact=True) is not None:
+        press(s, s.screen(), 'CONTINUA', 2)
+    for t in ('EUROPA', 'ITALIA', 'SERIE A', 'JUVENTUS'):
+        if press(s, s.screen(), t, 2) is None:
+            return f'season: {t} not reached ({s.screen().texts()[:8]})'
+    sea_start(s)
+    sc = se_to_playmatch(s)
+    return [t for t in sc.texts() if t] if sc else f'season: no team screen ({s.screen().texts()[:8]})'
+
+
+def _save_as(s, button, name):
+    for _ in range(6):
+        scr = s.screen()
+        if button in scr.texts():
+            break
+        press(s, scr, 'ESCI', 2) or s.send('fire dump:2')
+    press(s, s.screen(), button, 2)
+    s.send(name_entry(name) + ' dump:3')
+
+
+def _load(s, name):
+    press(s, s.screen(), 'CARICA VECCHIA COMPETIZIONE', 2)
+    if s.screen().find('CONTINUA', exact=True) is not None:     # (the running competition is dropped: CONTINUA)
+        press(s, s.screen(), 'CONTINUA', 2)
+    return press(s, s.screen(), name, 3, exact=False) is not None
+
+
+@scenario
+def season_then_car():
+    """4.2 (MC 15/11, 42-seaw gate): the team cache across modes in one run, both ways. Run 1: a 1996-97 SEASON
+    (Juventus' team screen; the game's cache, sw_pick), then CARICA VECCHIA COMPETIZIONE > POL2 (a World 2026-27 career,
+    internal/swostest/seaw/POL2.CAR): world byte 5, its career menu screen, saved as CARW. Run 2: CARW loads with byte 5 and the
+    same career menu screen (a stale OLDSEL / NEWSEL saves no records: 0x17064 here); then main menu, WORLD 1996-97, the same
+    SEASON (world byte 0, Juventus' screen), saved as SEAC. Run 3: SEAC loads, byte 0, the same screen."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import careerworld
+    b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
+    slt = cf_slt(b) + careerworld.WORLD_BYTE
+    wb = lambda s: tuple(s.result.obj2(slt, 2))       # noqa: E731
+    car = os.path.join(ROOT, 'internal', 'swostest', 'seaw', 'POL2.CAR')
+    errs, info = [], []
+    with Session('stc1', b, {'SETUP.DAT': setup_file('stc1', 1), 'POL2.CAR': car}, 'dump:2', 900) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'no first pause ({s.result})'
+        if os.environ.get('STC_NOSEASON'):          # (control: POL2 loaded first thing, no SEASON before)
+            t0 = []
+        else:
+            t0 = _sea_team(s)
+            if isinstance(t0, str):
+                return False, t0
+            check(wb(s) == (0, 0), f'(run 1) season: world byte {wb(s)}', errs)
+        if not wm_to_main(s):
+            return False, f'(run 1) no main menu after the season ({s.screen().texts()[:8]})'
+        if not _load(s, 'POL2'):
+            return False, f'(run 1) POL2 not listed ({s.screen().texts()[:8]})'
+        w1 = wb(s)
+        s.send('dump:2')                          # (the career menu's screen: '- PARTITA -' would run DIYLeagueTournament-
+        c1 = [t for t in s.screen().texts() if t]   # Match, whose first byte is the game's own int 3: a harness trap)
+        check(w1[0] == 5 and bool(c1), f'(run 1) POL2 after a SEASON: world byte {w1}, team screen {c1[:8]}', errs)
+        _save_as(s, 'SALVA CARRIERA', 'carw')
+        game = s.result.game
+    saves = [f for f in os.listdir(game) if f.upper().startswith('CARW')]
+    if not saves:
+        return False, '; '.join(errs + [f'no CARW saved ({sorted(os.listdir(game))[:20]})'])
+    with Session('stc2', b, {'SETUP.DAT': setup_file('stc2', 1), saves[0]: os.path.join(game, saves[0])}, 'dump:3',
+                 900) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'(run 2) no first pause ({s.result})'
+        if not _load(s, 'CARW'):
+            return False, '; '.join(errs + [f'(run 2) CARW not listed ({s.screen().texts()[:8]})'])
+        w2 = wb(s)
+        s.send('dump:2')                          # (the career menu's screen: '- PARTITA -' would run DIYLeagueTournament-
+        c2 = [t for t in s.screen().texts() if t]   # Match, whose first byte is the game's own int 3: a harness trap)
+        check(w2[0] == 5 and c2 == c1, f'(run 2) CARW reloaded: world byte {w2}, team screen {c2[:8]} (run 1: {c1[:8]})',
+              errs)
+        if not wm_to_main(s):
+            return False, '; '.join(errs + [f'(run 2) no main menu after the career ({s.screen().texts()[:8]})'])
+        set_world(s, 1)
+        t2 = _sea_team(s)
+        if isinstance(t2, str):
+            return False, '; '.join(errs + ['(run 2) ' + t2])
+        check(wb(s) == (0, 0) and t2 == t0, f'(run 2) season after the loaded career: world byte {wb(s)}, team screen '
+              f'{t2[:8]} (run 1: {t0[:8]})', errs)
+        _save_as(s, 'SALVA STAGIONE', 'seac')
+        game = s.result.game
+    saves = [f for f in os.listdir(game) if f.upper().endswith('.SEA')]
+    if not saves:
+        return False, '; '.join(errs + [f'(run 2) no .SEA saved ({sorted(os.listdir(game))[:20]})'])
+    with Session('stc3', b, {'SETUP.DAT': setup_file('stc3', 1), saves[0]: os.path.join(game, saves[0])}, 'dump:3',
+                 600) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'(run 3) no first pause ({s.result})'
+        if not _load(s, 'SEAC'):
+            return False, '; '.join(errs + [f'(run 3) SEAC not listed ({s.screen().texts()[:8]})'])
+        w3 = wb(s)
+        sc = se_to_playmatch(s)
+        t3 = [t for t in sc.texts() if t] if sc else []
+        check(w3 == (0, 0) and t3 == t0, f'(run 3) SEAC reloaded: world byte {w3}, team screen {t3[:8]}', errs)
+    if not errs:
+        info.append(f'SEASON -> POL2 (byte 5) -> CARW reload -> SEASON (byte 0) -> SEAC reload: team screens equal '
+                    f'({c1[:3]}, {t0[:3]})')
     return not errs, '; '.join(errs + info)
 
 
@@ -23762,6 +24522,183 @@ def conti_holder(tag, env, team, words):
     return not errs, '; '.join(errs + [f'season 2: {seen}'])
 
 
+def conti_komain(tag, env, team, cup, after, then=None):
+    """4.2 (Convergence 15/11, MC): a knockout main round's game contest (the ACL Elite / the Champions Cup: gid 0
+    before, ct_gamein refused its results - since 4.1 conti.c never learned the career club's ties and simulated them
+    at the season end). Season 1, then season 2 from its save, saved again after the match screen `after` (the
+    club's round of 16 played, CONTI_FORCE2 its entry, CONTI_KOWIN its other conti ties): the save's edition (CE)
+    must hold the club's results in that cup - its round of 16 won (the game's own tie got it to `after`)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import conti
+    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    exe = build(f'conti_komain_{tag}', env=dict(env, SEASON_PACKS=','.join(['ddr-1988-89'] + [os.path.join(src, x)
+                for x in order])), branch=os.environ.get('KOMAIN_BRANCH'))   # (KOMAIN_BRANCH: an older commit's
+                                                                            # build - v4.1.2: the fail-before)
+    keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_ONE',
+            'W8485_FROM', 'W8485_TMO', 'W8485_MIDTEXT', 'GP_CALTRACE')
+    keep = {k: os.environ.get(k) for k in keys}
+    errs = []
+    try:
+        for k in keys:
+            os.environ.pop(k, None)
+        os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5',
+                          W8485_K='108+', W8485_NOSACK='1', W8485_TMO='900', GP_CALTRACE='1')
+        ok, msg = world8485()                       # (seasons 1 and 2: the season-1 save W84A)
+        check(ok, f'seasons 1-2: {msg[:300]}', errs)
+        car1 = os.path.join(RUNS, w84_tag() + '_1', 'SWOS', 'W84A.CAR')
+        keep1 = os.path.join(RUNS, w84_tag() + '_s1.CAR')
+        if os.path.exists(car1):
+            shutil.copy(car1, keep1)
+        os.environ.update(W8485_FROM=keep1, W8485_MIDTEXT=after + ':1' + (f':{then}' if then else ''))
+        ok, msg = world8485()                       # (season 2 again, saved after `after`)
+        check(ok and 'mid-season' in msg, f'season 2 to {after}: {msg[:300]}', errs)
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    import contextlib
+    import io
+    with contextlib.redirect_stdout(io.StringIO()):
+        _, _, cups = conti.load(list(conti.CONFS))
+    ci = cups.index(next(c for c in cups if c[1] == cup))
+    car = os.path.join(RUNS, w84_tag() + '_2', 'SWOS', 'W84A.CAR')
+    ed = car_item(car, 'CE', conti.ED_SIZE) if os.path.exists(car) else None
+    check(ed and ed[:2] == b'CE', f'no edition in {car}', errs)
+    f = [tuple(ed[12 + 3 * i:15 + 3 * i]) for i in range(ed[10])] if ed and ed[:2] == b'CE' else []
+    mine = [(r, v) for c, r, v in f if c == ci]
+    if then:                                    # (a super cup's final: the game's own outcome, from its result screen)
+        log = os.path.join(RUNS, w84_tag() + '_2', 'session.log')
+        res = [ln for ln in open(log, errors='replace') if after in ln and '- RISULTATO -' in ln] if os.path.exists(log) else []
+        out = [x.strip() for ln in res[-1:] for x in ln.split('|') if re.search(r'\d+-\d+|VINCE', x)]
+        name = team.split(',')[-1]
+        won = 1 if any('VINCE' in x and name in x for x in out) else 0 if any('VINCE' in x for x in out) else None
+        check(mine, f'{cup}: the final not in the edition (CT_ED.f {f}): never reached conti.c', errs)
+        check(won is None or (mine and mine[-1][1] == won), f'{cup}: the edition {mine} != the game\'s {out}', errs)
+        return not errs, '; '.join(errs) or f'{cup}: CT_ED.f {f}, the cup\'s {mine}, the game\'s {out}'
+    check(mine and mine[0][1] == 1, f'{cup}: the club\'s results not in the edition (CT_ED.f {f}): its game '
+          f'contest\'s round of 16 never reached conti.c', errs)
+    return not errs, '; '.join(errs) or f'{cup}: CT_ED.f {f}, the cup\'s {mine}'
+
+
+@scenario
+def world_conti_komain_acle():
+    """conti_komain: KASHIWA REYSOL forced into the ACL Elite's round of 16 (and the African-Asian tie, won): saved
+    after its quarter-final, the edition holds its round of 16 won"""
+    return conti_komain('acle', {'CONTI_FORCE': 'ic:r2a!', 'CONTI_FORCE2': 'acle:r16', 'CONTI_KOWIN': '1'},
+                        'ASIA,GIAPPONE,J1 LEAGUE,KASHIWA REYSOL', 'acle', 'ELITE QUARTI DI FINALE')
+
+
+@scenario
+def world_conti_komain_ccc():
+    """conti_komain: AMERICA forced into the CONCACAF Champions Cup's round of 16 (and the Derby of the Americas,
+    won): saved after its quarter-final's second leg, the edition holds its round of 16 won"""
+    return conti_komain('ccc', {'CONTI_FORCE': 'ic:r2b!', 'CONTI_FORCE2': 'ccc:r16', 'CONTI_KOWIN': '1'},
+                        'NORDAMERICA,MESSICO,LIGA MX,AMERICA', 'ccc', 'CUP QUARTI DI FINALE RITORNO')
+
+
+def _komain_ed(car, ci):
+    import conti
+    ed = car_item(car, 'CE', conti.ED_SIZE) if os.path.exists(car) else None
+    if not ed or ed[:2] != b'CE':
+        return None, []
+    f = [tuple(ed[12 + 3 * i:15 + 3 * i]) for i in range(ed[10])]
+    return f, [(r, v) for c, r, v in f if c == ci]
+
+
+@scenario
+def world_conti_komain_rec():
+    """conti_komain: FLAMENGO forced into the Recopa Sudamericana final: saved at its next league match, the edition
+    holds the final's result as the game played it (the human's, through ct_gamein - before 4.2 simulated)"""
+    return conti_komain('rec', {'CONTI_FORCE': 'rec:final'}, 'SUDAMERICA,BRASILE,BRASILEIRAO SERIE A,FLAMENGO', 'rec',
+                        'RECOPA SUDAMERICANA FINALE RITORNO', 'BRASILEIRAO')
+
+
+@scenario
+def world_conti_komain_cafsc():
+    """conti_komain: PYRAMIDS forced into the CAF Super Cup (one match, October): saved at its next league match, the
+    edition holds the final's result as the game played it"""
+    return conti_komain('cafsc', {'CONTI_FORCE': 'sc:final'}, 'AFRICA,EGITTO,PYRAMIDS', 'sc', 'CAF SUPER CUP',
+                        'EGITTO')
+
+
+@scenario
+def world_conti_komain_old():
+    """4.2 (MC + Panchina 15/11): an old save MID-EDITION in a knockout-main cup (gid 0): KASHIWA REYSOL's ACL Elite
+    round of 16, saved after its FIRST leg on the 42-int build before the fix (KOMAIN_OLD, default 9e46436 = REL42i59's
+    source), loaded on this build: saved again after its quarter-final (does the round of 16 reach conti.c now - once?),
+    then played on to the season end (no trap, an edition)."""
+    import contextlib
+    import io
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import conti
+    src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-rel40-winnames-1031')
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    env = {'CONTI_FORCE': 'ic:r2a!', 'CONTI_FORCE2': 'acle:r16', 'CONTI_KOWIN': '1',
+           'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order])}
+    old = build('conti_komain_acle', env=env, branch=os.environ.get('KOMAIN_OLD', '9e46436'))
+    fix = build('conti_komain_acle', env=env)
+    keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_ONE',
+            'W8485_FROM', 'W8485_TMO', 'W8485_MIDTEXT', 'GP_CALTRACE')
+    keep = {k: os.environ.get(k) for k in keys}
+    errs, info = [], []
+    with contextlib.redirect_stdout(io.StringIO()):
+        _, _, cups = conti.load(list(conti.CONFS))
+    ci = cups.index(next(c for c in cups if c[1] == 'acle'))
+    car2 = os.path.join(RUNS, w84_tag() + '_2', 'SWOS', 'W84A.CAR')
+    saves = {k: os.path.join(RUNS, w84_tag() + f'_{k}.CAR') for k in ('s1', 'mid_old', 'qf_fix', 'fin_fix', 'end_fix')}
+    try:
+        for k in keys:
+            os.environ.pop(k, None)
+        os.environ.update(W8485_BUILD=old, W8485_WORLD='MONDO 2026-27', W8485_TEAM='ASIA,GIAPPONE,J1 LEAGUE,KASHIWA REYSOL',
+                          W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1', W8485_TMO='900', GP_CALTRACE='1')
+        s1 = os.environ.get('KOMAIN_S1')            # (a season-1 save of the old build, to skip season 1)
+        os.makedirs(RUNS, exist_ok=True)
+        if s1:
+            shutil.copy(s1, saves['s1'])
+        else:
+            os.environ['W8485_ONE'] = '1'
+            ok, msg = world8485()
+            os.environ.pop('W8485_ONE')
+            check(ok, f'old season 1: {msg[:300]}', errs)
+            shutil.copy(os.path.join(RUNS, w84_tag() + '_1', 'SWOS', 'W84A.CAR'), saves['s1'])
+        steps = (('mid_old', old, 's1', 'ELITE OTTAVI DI FINALE ANDATA:1'), ('qf_fix', fix, 'mid_old', 'ELITE QUARTI DI FINALE:1'),
+                 ('fin_fix', fix, 'qf_fix', 'ELITE FINALE:1'), ('end_fix', fix, 'fin_fix', None))
+        for name, exe, frm, mt in steps:
+            if errs:
+                break
+            os.environ.update(W8485_BUILD=exe, W8485_FROM=saves[frm])
+            os.environ.pop('W8485_MIDTEXT', None)
+            if mt:
+                os.environ['W8485_MIDTEXT'] = mt
+            ok, msg = world8485()
+            check(ok and (not mt or 'mid-season' in msg), f'{name}: {msg[:300]}', errs)
+            mine = []
+            if os.path.exists(car2):
+                shutil.copy(car2, saves[name])
+                f, mine = _komain_ed(saves[name], ci)
+                info.append(f'{name}: CT_ED.f {f} acle {mine}')
+            if name == 'qf_fix':                    # (the round of 16 played across the load: in once)
+                check(len(mine) == 1 and mine[0][1] == 1, f'qf_fix: the round of 16 not in once: {mine}', errs)
+            if name == 'fin_fix':                   # (the quarter-final and semi-final after it: in, each once)
+                check(len(mine) == 3 and len({r for r, _ in mine}) == 3, f'fin_fix: acle {mine}', errs)
+            if name == 'end_fix':
+                info.append(f'end_fix: {msg[-200:]}')
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    return not errs, '; '.join(errs + info)
+
+
 @scenario
 def world_conti_bra_sud():
     """4.2 root fix b (Regia 12/11): a natural FLAMENGO career (no CONTI_FORCE) through its first season end. Brazil,
@@ -29536,11 +30473,12 @@ def world_gplay_sd_rest_out():
     return gplay_sd_rest('8')
 
 
-def s7_env(extra=None):
+def s7_env(extra=None, world=None, pack=None):
     """(4.2 S7) SEASON_PACKS of the release world world5tm-h2 with Italy replaced by the shaped pack S7_PACK (two
-    league structs: file 102 Serie A..C, file 144 Serie D) - None when either is missing."""
-    pk = os.environ.get('S7_PACK')
-    w = os.path.join(MAIN, 'internal', 'world2526', 'world5tm-h2')
+    league structs: file 102 Serie A..C, file 144 Serie D) - None when either is missing. world / pack (s7cross's
+    release-data variant, MC 16/11): another world under internal/world2526 and its own Italy pack."""
+    pk = pack or os.environ.get('S7_PACK')
+    w = os.path.join(MAIN, 'internal', 'world2526', world or 'world5tm-h2')
     if not pk or not os.path.isdir(pk) or not os.path.isdir(w):
         return None
     eu = ','.join(sorted(os.path.join(ROOT, 'packs', 'europe-1984-85', d) for d in os.listdir(os.path.join(
@@ -29738,7 +30676,41 @@ def s7pool_checks(sy, hexes, errs):
     return '; ' + ' | '.join(notes) + '; RI_S7_BAD 0'
 
 
-def s7cross(force, team, start_file, ldfail=None):
+S7_REL_WORLD = 'world5tm-h3s7r'           # (s7cross's release-data variant: the 4.2 release world, S7_REL_WORLD overrides)
+S7_PACK_FILES = ('pack.json', 'clubs.csv', 'players.csv', 'import41.csv', 'newpool41.csv', 'cupd.json')
+
+
+def s7pack_is_real(pk):
+    """S7_PACK is internal/s7pack-real/ita, or a copy of it (the same files: a remote host's own path)"""
+    import filecmp
+    real = os.path.join(MAIN, 'internal', 's7pack-real', 'ita')
+    if os.path.realpath(pk) == os.path.realpath(real):
+        return True
+    return os.path.isdir(real) and all(os.path.exists(os.path.join(pk, f)) == os.path.exists(os.path.join(real, f)) and
+                                       (not os.path.exists(os.path.join(real, f)) or
+                                        filecmp.cmp(os.path.join(pk, f), os.path.join(real, f), shallow=False))
+                                       for f in S7_PACK_FILES)
+
+
+def s7cross_env(extra, rel=False):
+    """The s7cross family's build env (MC 16/11). rel: the release-data variant - the 4.2 release world (S7_REL_WORLD,
+    world5tm-h3s7r) with its own Italy (h3s7r/ita: S7_PACK not read), the force a test switch as everywhere (CONVENTIONS
+    force-not-retry); else the h2 test world with S7_PACK, which must be s7pack-real: a wrong pack is refused HERE, at
+    the start, not as a build assert deep in sreg.py ('sreg2: the 4.1 / S7 RI entries of Italy': s7pack-shaved has no
+    pool file / S7 RI entries since 42-s7import; it serves world_s7cross_winners / _x only). An S7_BUILD exe given:
+    no build, no check."""
+    if rel:
+        w = os.environ.get('S7_REL_WORLD') or S7_REL_WORLD
+        return s7_env(extra, world=w, pack=os.path.join(MAIN, 'internal', 'world2526', w, 'ita'))
+    pk = os.environ.get('S7_PACK')
+    if pk and not os.environ.get('S7_BUILD') and not s7pack_is_real(pk):
+        raise SetupError(f's7cross needs s7pack-real: S7_PACK={pk} is not internal/s7pack-real/ita (nor a copy of it) - '
+                         f'the shaved pack builds no SREG2 import (notes/harness.md); use S7_PACK=internal/s7pack-real/ita, '
+                         f'or the release-data variants world_s7cross_up_rel / _down_rel')
+    return s7_env(extra)
+
+
+def s7cross(force, team, start_file, ldfail=None, rel=False):
     """The career club crosses between the two league structs (4.2 S7, s7swap.c option B, MC 13/11): GPLAY_FORCE puts
     it on place `force` of its group at the season end (a Serie C group's last: down; a Serie D group's first: up);
     two seasons (season 1 played, saved; season 2 loaded from that save and played). Checks (S7_LOG / S7_CLOG /
@@ -29753,10 +30725,11 @@ def s7cross(force, team, start_file, ldfail=None):
       native files seen; season 1's NOREG loads before after_new wrote the world are allowed: nothing crossed yet),
       and it applied at least once in season 2."""
     import json
-    env = s7_env(dict({'GPLAY_FORCE': str(force)}, **({'S7_LDFAIL': str(ldfail)} if ldfail else {})))
+    env = s7cross_env(dict({'GPLAY_FORCE': str(force)}, **({'S7_LDFAIL': str(ldfail)} if ldfail else {})), rel)
     if env is None:
-        return True, 'SKIP: S7_PACK (the shaped Italy pack) or internal world5tm-h2 missing'
-    exe = os.environ.get('S7_BUILD') or build('s7cross', env=env)
+        return True, ('SKIP: the release world ' + (os.environ.get('S7_REL_WORLD') or S7_REL_WORLD) + ' (internal/world2526) missing'
+                      if rel else 'SKIP: S7_PACK (the shaped Italy pack) or internal world5tm-h2 missing')
+    exe = os.environ.get('S7_BUILD') or build('s7cross_rel' if rel else 's7cross', env=env)
     sy = json.load(open(os.path.join(exe, 'ITALIAN.syms.json')))
     s7 = sy.get('s7swap', {})
     if 'S7_CLOG' not in s7:
@@ -29766,7 +30739,10 @@ def s7cross(force, team, start_file, ldfail=None):
     cdo = sy.get('gplay', {}).get('CD_ST')
     cdst = cdo[1] if cdo and cdo[0] == 2 and 'cd_season' in sy.get('gplay', {}) else None   # (obj2: plain hex)
     keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
-                                            'W8485_NOSACK', 'W8485_RENEW', 'W8485_HEX', 'W8485_ONE')}
+                                            'W8485_NOSACK', 'W8485_RENEW', 'W8485_HEX', 'W8485_ONE', 'W2627REL_DATA')}
+    if rel:                                             # (the release variant: the menus' names and the result line's
+        os.environ['W2627REL_DATA'] = os.path.join(MAIN, 'internal', 'world2526',   # data from the release world too)
+                                                   os.environ.get('S7_REL_WORLD') or S7_REL_WORLD)
     # (2b, 13/11: W8485_RENEW too - NOSACK stops the sacking but not the season end's contract non-renewal (message 38,
     #  a random draw on a bad verdict): the career moved to another club's word, ALBALONGA 0x6f90, and the season-2
     #  check read it as a crossing gone wrong. Forced, never retried; a non-renewal seen anyway = SETUP-ERROR below)
@@ -29899,6 +30875,13 @@ def world_s7cross_down():
 
 
 @scenario
+def world_s7cross_down_rel():
+    """S7 (4.2, MC 16/11; CONVENTIONS 17a): world_s7cross_down on the RELEASE data (world5tm-h3s7r and its Italy); the
+    same checks (s7cross), the force a test switch"""
+    return s7cross(20, 'EUROPA,ITALIA,SERIE C GIRONE A,UNION BRESCIA', 102, rel=True)
+
+
+@scenario
 def world_s7cross_ldfail():
     """S7 (4.2): world_s7cross_down with the 9th load apply's ORIG read failing (S7_LDFAIL=9, MC 13/11): S7_LD shows
     it (LD_READ: the native files seen on that load) and the next load recovers. (9: calls 1..8 are the new career's
@@ -29923,7 +30906,7 @@ def s7newcareer(loaded):
     after_new."""
     import json
     team = 'EUROPA,ITALIA,SERIE C GIRONE A,UNION BRESCIA'
-    env = s7_env({'GPLAY_FORCE': '20'})
+    env = s7cross_env({'GPLAY_FORCE': '20'})
     if env is None:
         return True, 'SKIP: S7_PACK (the shaped Italy pack) or internal world5tm-h2 missing'
     exe = os.environ.get('S7_BUILD') or build('s7cross', env=env)
@@ -30113,7 +31096,7 @@ def world_s7cross_diff():
     errs, info = [], []
     exes = {}
     for k, x in (('A', {}), ('B', {'S7_NOSWAP': '1'})):
-        env = s7_env(dict({'GPLAY_FORCE': '20'}, **x))
+        env = s7cross_env(dict({'GPLAY_FORCE': '20'}, **x))
         if env is None:
             return True, 'SKIP: S7_PACK (the shaped Italy pack) or internal world5tm-h2 missing'
         exes[k] = build('s7cross', env=env)
@@ -30250,7 +31233,7 @@ def world_s7cross_c20():
     season 1 crosses (OK, 9 swaps); every later season, loaded from the previous save, applies the crossed
     registry at its first load (OK, rows moved) and no S7_LD fails."""
     import json
-    env = s7_env({'GPLAY_FORCE': '20'})
+    env = s7cross_env({'GPLAY_FORCE': '20'})
     if env is None:
         return True, 'SKIP: S7_PACK (the shaped Italy pack) or internal world5tm-h2 missing'
     exe = os.environ.get('S7_BUILD') or build('s7cross', env=env)
@@ -30293,6 +31276,263 @@ def world_s7cross_c20():
         info.append(f'season {season if season == 1 else n}: S7_LOG {logs[-1].hex() if logs else None}, '
                     f'{len(lds)} S7_LD logged')
     return not errs, '; '.join(errs) or f'{msg[:200]}; ' + '; '.join(info)
+
+
+def s7_division_counts(car, src):
+    """4.2 S3 x S7 (MC 15/11): clubs per division of Italy's S7 pack after a season end: the pack's division
+    (pk.division) + the signed delta byte of its global in the save's SLTCOPY (CAR 0xE8DC, one byte per global; the
+    game's own 8-bit sum check is absorbed by the BAL byte, so only membership shows a double move). Returns (before,
+    after) {division: clubs}; 0 = Serie A, 1 = B, 2..4 = the Serie C groups, 5.. = Serie D. src = the world data dir"""
+    import collections
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    eu = sorted(os.path.join(ROOT, 'packs', 'europe-1984-85', d) for d in os.listdir(os.path.join(ROOT, 'packs', 'europe-1984-85'))
+                if os.path.isdir(os.path.join(ROOT, 'packs', 'europe-1984-85', d)))
+    order = [ln.split()[0].lower() for ln in open(src.rstrip('/') + '.txt') if ' file ' in ln]
+    old = os.environ.get('SEASON_PACKS')
+    os.environ['SEASON_PACKS'] = ','.join(['ddr-1988-89', 'italia-1947-48', 'world-cup-1934'] + eu + [os.path.join(src, x) for x in order])
+    try:
+        pk = next(p for p in mkseason_now().packs() if p.meta.get('id') == 'world-2026-27-ita')
+    finally:
+        if old is None:
+            os.environ.pop('SEASON_PACKS')
+        else:
+            os.environ['SEASON_PACKS'] = old
+    import bigtables                                # (42-s7trap, MC 16/11: THE HELPER'S SERIE D COUNTS WERE A MEASUREMENT ARTEFACT. The save holds the
+    import globnum                                  # table in two parts: globals 0..1999 at CAR 0xE8DC, 2000..LIMIT_CLUBS-1 in the fixed part's 80-record
+    raw = open(car, 'rb').read()                    # area (bigtables.ext_off(): CAR offset 2 + ext_off). Reading only the first 2000 bytes, with
+    slt = raw[0xE8DC:0xE8DC + 2000] + raw[2 + bigtables.ext_off():2 + bigtables.ext_off() + bigtables.LIMIT_CLUBS - 2000]   # base + row for
+    c0, c1 = collections.Counter(), collections.Counter()   # file 144's rows 156.. (their globals are the second run, 2283..), it counted other
+                                                    # rows' deltas for them: Shaved's 'D G 17 / I 19', 'D A 17 / B 17 / I 20'. The game's live
+                                                    # SOME / COPY tables of those runs hold 9 x 18)
+    for k in pk.league_clubs:
+        fl, i = pk.where[k]
+        c0[pk.division[k]] += 1
+        g = globnum.glob(pk, fl, i)
+        c1[pk.division[k] + struct.unpack('b', slt[g:g + 1])[0]] += 1
+    return dict(sorted(c0.items())), dict(sorted(c1.items()))
+
+
+@scenario
+def world_s3dbl_fresh():
+    """4.2 BLOCKER (TRENTO double promotion, MC 15/11): a NEW S7 career, the club forced into / winning the Serie C
+    play-off (S3_BUILD = a build with DPLAY_FORCE=105; W2627REL_DATA = the S7 data, default internal/world2526/
+    world5tm-h3s7), one season: after the season end every division of Italy keeps its size (Serie B 20, the Serie C
+    groups 20 each, D 18): a club promoted by both dplay and gplay leaves Serie B at 21 and a C group at 19"""
+    src = (os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-h3s7')).rstrip('/')
+    exe = os.environ.get('S3_BUILD')
+    if not exe or not os.path.isdir(src):
+        return True, f'SKIP: S3_BUILD ({exe}) or the S7 data {src} missing'
+    team = os.environ.get('S3_TEAM', 'EUROPA,ITALIA,SERIE C GIRONE A,TRENTO')
+    keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
+                                            'W8485_NOSACK', 'W8485_ONE', 'W2627REL_DATA')}
+    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+',
+                      W8485_NOSACK='1', W8485_ONE='1', W2627REL_DATA=src)
+    try:
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    errs = []
+    check(ok, msg, errs)
+    car = os.path.join(RUNS, w84_tag() + '_1', 'SWOS', 'W84A.CAR')
+    if not os.path.exists(car):
+        return False, f'{msg}; no season-end save {car}'
+    c0, c1 = s7_division_counts(car, src)
+    top = lambda c: {k: v for k, v in c.items() if k < 5}            # (A, B, the 3 Serie C groups: MC's gate; the Serie D / lower
+    check(top(c0) == top(c1), f'division sizes changed at the season end: before {top(c0)} after {top(c1)}', errs)   # pool
+    #  divisions move with the lower tiers' own pool moves, in the control too)
+    return not errs, '; '.join(errs) or f'{msg[:120]}; division sizes kept {c1}'
+
+
+@scenario
+def world_s3dbl_c20():
+    """4.2 BLOCKER (TRENTO double promotion, MC 15/11): career_20seasons (C20_SEASONS, default 2: a save + reload every
+    season) on a fresh S7 career at TRENTO with the Serie C play-off forced (S3_BUILD = DPLAY_FORCE=105 build) - after
+    EVERY season end Serie A, Serie B and the three Serie C groups hold 20 clubs (pack division + the save's SLTCOPY
+    deltas, s7_division_counts): next season B 20 and C groups 20 each"""
+    src = (os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-h3s7')).rstrip('/')
+    exe = os.environ.get('S3_BUILD')
+    if not exe or not os.path.isdir(src):
+        return True, f'SKIP: S3_BUILD ({exe}) or the S7 data {src} missing'
+    keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'C20_TEAM', 'C20_SEASONS', 'W2627REL_DATA')}
+    os.environ.update(W8485_BUILD=exe, C20_TEAM=os.environ.get('S3_TEAM', 'EUROPA,ITALIA,SERIE C GIRONE A,TRENTO'),
+                      C20_SEASONS=os.environ.get('C20_SEASONS') or '2', W2627REL_DATA=src)
+    try:
+        ok, msg = career_20seasons()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    errs, info = [], []
+    check(ok, f'career_20seasons: {msg[:300]}', errs)
+    n = int(os.environ.get('C20_SEASONS') or 2)
+    for season in range(1, n + 1):
+        car = os.path.join(RUNS, f'c20_after_s{season:02d}.CAR')          # (career_20seasons' copy of every season end's save)
+        if not os.path.exists(car):
+            check(False, f'season {season}: no save {car}', errs)
+            continue
+        c0, c1 = s7_division_counts(car, src)
+        top = {k: v for k, v in c1.items() if k < 5}
+        check(all(v == 20 for v in top.values()) and len(top) == 5, f'season {season}: divisions A, B, C groups {top} (want 20 each)', errs)
+        info.append(f'season {season}: A/B/C {sorted(top.items())}')
+    return not errs, '; '.join(errs) or f'{msg[:120]}; ' + '; '.join(info)
+
+
+def s7_live_counts(run, files=((102, 100), (144, 162))):
+    """4.2 S7 trap (42-s7trap): the game's REAL team-file buffers in a run's last MEMDUMP (no pack, no SLTCOPY: the clubs'
+    league byte, record +25, as LoadTeamFile left it) - {file: [(buffer linear, {league: clubs})]} for each buffer that
+    holds the whole shaped file (its BE count word right before the records). Needs the run's DATA/TMW5.<file> (the
+    shipped record 0's name finds the buffers). Also the trap's own state: obj2's D0 (+0x315b7: clubs counted), D1
+    (+0x315bb: the division asked) and D2 (+0x315bf: the clubs the game expects) - cseg_3283C's check, which traps at
+    obj1+0x22705 (ITALIAN.EXE) when they differ."""
+    import collections
+    path = os.path.join(run, 'MEMDUMP.BIN')
+    mem = open(path, 'rb').read()
+    out = {}
+    for f, n in files:
+        d = open(os.path.join(run, 'SWOS', 'DATA', f'TMW5.{f}'), 'rb').read()
+        nm = d[2 + 5:2 + 22]
+        k = mem.find(nm)
+        while k >= 0:
+            b = k - 5
+            if struct.unpack('>H', mem[b - 2:b])[0] == n:
+                out.setdefault(f, []).append((b, dict(sorted(collections.Counter(
+                    mem[b + i * 684 + 25] for i in range(n)).items()))))
+            k = mem.find(nm, k + 1)
+    return out
+
+
+def s7_trap_state(run):
+    """(D0 counted, D1 division, D2 expected) read from a run's last MEMDUMP.BIN: obj2 found by the exe's own bytes"""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    from le import LE
+    le = LE(open(os.path.join(run, 'SWOS', 'ITALIAN.EXE'), 'rb').read())
+    mem = open(os.path.join(run, 'MEMDUMP.BIN'), 'rb').read()
+    o2 = le.obj_bytes(2)
+    for off in range(0x2000, len(o2) - 64, 0x1000):
+        c = o2[off:off + 48]
+        if len(set(c)) > 8:
+            k = mem.find(c)
+            if k >= 0 and mem.find(c, k + 1) < 0:
+                b2 = k - off
+                return tuple(struct.unpack_from('<H', mem, b2 + o)[0] for o in (0x315b7, 0x315bb, 0x315bf))
+    return None
+
+
+@scenario
+def world_s7trap_c20():
+    """4.2 BLOCKER (S7 season-end trap at obj1+0x22705, 42-s7trap): the release-data S7 world (W2627REL_DATA, default
+    world5tm-h3s7rl3) with the career club (S7TRAP_TEAM, default TRENTO, Serie C girone A) forced into the Serie C
+    play-off (DPLAY_FORCE=105 test build, own build from this checkout) - career_20seasons (S7TRAP_SEASONS, default 2:
+    a save + reload each) must reach its end with no trap. After EVERY season end the REAL state is read: the game's
+    team-file buffers (s7_live_counts: records' league byte) hold B 20 / C 3x20 in file 102 and 9x18 in file 144; a
+    trap reports its own D0 / D1 / D2 (the division the game counted, the clubs found, expected: s7_trap_state)."""
+    src = (os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-h3s7rl3')).rstrip('/')
+    if not os.path.isdir(src):
+        return True, f'SKIP: the S7 data {src} missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    eu = sorted(os.path.join(ROOT, 'packs', 'europe-1984-85', d) for d in os.listdir(os.path.join(ROOT, 'packs', 'europe-1984-85'))
+                if os.path.isdir(os.path.join(ROOT, 'packs', 'europe-1984-85', d)))
+    exe = os.environ.get('S7TRAP_BUILD') or build('s7trap_c20', env={
+        'SEASON_PACKS': ','.join(['ddr-1988-89', 'italia-1947-48', 'world-cup-1934'] + eu + [os.path.join(src, x) for x in order]),
+        'DPLAY_FORCE': os.environ.get('S7TRAP_FORCE', '105'), 'EURO_OPTIONAL': ''}, euro=True)
+    n = int(os.environ.get('S7TRAP_SEASONS') or 2)
+    keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'C20_TEAM', 'C20_SEASONS', 'W2627REL_DATA')}
+    os.environ.update(W8485_BUILD=exe, C20_TEAM=os.environ.get('S7TRAP_TEAM', 'EUROPA,ITALIA,SERIE C GIRONE A,TRENTO'),
+                      C20_SEASONS=str(n), W2627REL_DATA=src)
+    try:
+        ok, msg = career_20seasons()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    errs, info = [], []
+    want = {0: 20, 1: 20, 2: 20, 3: 20, 4: 20}
+    if not ok:
+        import glob as _g
+        dumps = sorted(_g.glob(os.path.join(RUNS, '*', 'MEMDUMP.BIN')), key=os.path.getmtime)[-1:]   # (the run that trapped)
+        for dmp in dumps:
+            run, sfx = os.path.dirname(dmp), os.path.basename(os.path.dirname(dmp))
+            if True:
+                try:
+                    d0, d1, d2 = s7_trap_state(run)
+                    lv = s7_live_counts(run).get(102, [])
+                    info.append(f'{sfx} trap state: counted D0={d0} of division D1={d1}, expected D2={d2}; file 102 buffers {lv}')
+                except Exception as e:                  # noqa: BLE001 (a diagnosis must not hide the FAIL)
+                    info.append(f'{sfx}: {e!r}')
+    check(ok, f'career_20seasons: {msg[:300]}', errs)
+    for season in range(1, n + 1):
+        car = os.path.join(RUNS, f'c20_after_s{season:02d}.CAR')
+        if not os.path.exists(car):
+            continue
+        c0, c1 = s7_division_counts(car, src)
+        top = {k: v for k, v in c1.items() if k < 5}
+        check(all(v == 20 for v in top.values()) and len(top) == 5, f'season {season}: save counts A, B, C groups {top} (want 20 each)', errs)
+        info.append(f'season {season}: save A/B/C {sorted(top.items())}')
+    return not errs, '; '.join(errs + info) or f'{n} seasons, no trap'
+
+
+@scenario
+def world_s7sizeforce():
+    """4.2 S7 size gate, FORCED in the game (42-s7trap follow-up, MC 16/11): a test build (S7_SIZEFORCE=2, a modver BUILD_SWITCH, never in a
+    release build) pushes a club out of a Serie C group into Serie B and a Serie D group A club into group B in s7_season, before the size
+    check. A Malta career (the cheapest that reaches a season end with S7 active: gp_season runs every league), two seasons (the second loaded
+    from the first's save). Expected, at EVERY season end: S7_LOG status 13 (S7_SIZE, nothing crossed: 0 crossers), S7_SZ gate 1 kind 1 (a
+    division's size), the game does not trap (no int 3 at obj1+0x22705: world8485 reaches both season ends and its saves), and the career goes
+    on into season 2 to its end. The harness-wide 'status 13 = FAIL' rule is told by S7_SIZE_EXPECT=1 (set here only); any other S7 run
+    with status 13 FAILs in world8485."""
+    import json
+    pk = os.environ.get('S7_PACK') or os.path.join(MAIN, 'internal', 's7pack-real', 'ita')
+    os.environ.setdefault('S7_PACK', pk)
+    env = s7_env({'S7_SIZEFORCE': os.environ.get('S7SF_LEVEL', '2')})
+    if env is None:
+        return True, 'SKIP: S7_PACK (the shaped Italy pack) or internal world5tm-h2 missing'
+    exe = os.environ.get('S7_BUILD') or build('s7sizeforce', env=env)
+    sy = json.load(open(os.path.join(exe, 'ITALIAN.syms.json')))
+    s7 = sy.get('s7swap', {})
+    if 'S7_SZ' not in s7:
+        return False, f'{exe}: no size gate (S7_SZ)'
+    keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_HEX',
+                                            'W8485_ONE', 'S7_SIZE_EXPECT')}
+    lg, sz = s7['S7_LOG'][1], s7['S7_SZ'][1]
+    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1', S7_SIZE_EXPECT='1',
+                      W8485_TEAM=os.environ.get('S7SF_TEAM', 'EUROPA,MALTA,?MALTESE PREMIER LEAGUE|PREMIER LEAGUE,HAMRUN SPARTANS'),
+                      W8485_HEX=f'o4/{lg:x}:8,o4/{sz:x}:12')
+    os.environ.pop('W8485_ONE', None)
+    try:
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    errs = []
+    check(ok and 'trap' not in msg.lower().replace(RUNS.lower(), ''), f'the career did not go through both season ends (a trap?): {msg[:300]}', errs)
+    seen = {}
+    for season in (1, 2):
+        try:
+            lines = open(os.path.join(RUNS, f'{w84_tag()}_{season}', 'session.log'), errors='replace').read().splitlines()
+        except OSError:
+            continue
+        lgs = [bytes.fromhex(ln.split()[2]) for ln in lines if ln.startswith(f'HEX o4/{lg:x} ') and len(ln.split()) > 2]
+        szs = [bytes.fromhex(ln.split()[2]) for ln in lines if ln.startswith(f'HEX o4/{sz:x} ') and len(ln.split()) > 2]
+        refused = [b for b in lgs if b[0] == 13]
+        seen[season] = (refused[-1].hex() if refused else None, szs[-1].hex() if szs else None)
+        if not check(bool(refused), f'season {season}: no S7_LOG status 13 logged ({[b.hex() for b in lgs]})', errs):
+            continue
+        r = refused[-1]
+        check(r[3] == 0, f'season {season}: S7_LOG ncross {r[3]} (nothing may cross)', errs)
+        z = szs[-1] if szs else b''
+        check(len(z) >= 8 and z[0] == 1 and z[1] == 1 and z[4] == 20 and z[3] != 20, f'season {season}: S7_SZ {z.hex()} (want gate 1, kind 1, a division off its 20 / 18)', errs)
+    return not errs, '; '.join(errs) or f'forced S7_SIZEFORCE: refused at every season end, no trap, season 2 played to its end; S7_LOG / S7_SZ {seen}; {msg[:120]}'
 
 
 @scenario
@@ -30373,6 +31613,13 @@ def world_s7redraw_regroup():
 def world_s7cross_up():
     """S7 (4.2): the career club promoted from Serie D girone A (LIGORNA first) to Serie C, two seasons"""
     return s7cross(1, 'EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA', 144)
+
+
+@scenario
+def world_s7cross_up_rel():
+    """S7 (4.2, MC 16/11; CONVENTIONS 17a): world_s7cross_up on the RELEASE data - the 4.2 release world world5tm-h3s7r
+    and its Italy (not the h2 test world + s7pack-real); the same checks (s7cross), the force a test switch"""
+    return s7cross(1, 'EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA', 144, rel=True)
 
 
 @scenario

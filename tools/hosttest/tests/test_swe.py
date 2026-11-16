@@ -9,11 +9,12 @@ import sys
 
 TOOLS = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, TOOLS)
+import fixroot  # noqa: E402
 import swe  # noqa: E402
 from le import LE  # noqa: E402
 
 HOME = os.path.expanduser('~')
-EXE = os.environ.get('HT_SWE_EXE') or os.path.join(HOME, 'swos-mod', 'c', 'HTO4', 'SWOS', 'ITALIAN.EXE')
+EXE = os.environ.get('HT_SWE_EXE') or fixroot.fx('HTO4', 'SWOS', 'ITALIAN.EXE')
 BASE, STACK, RET = 0x400000, 0x300000, 0x2FF000
 CSTACK = 16384                                                  # (cstack.h CSTACK_SIZE)
 

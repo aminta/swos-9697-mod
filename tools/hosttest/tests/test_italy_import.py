@@ -293,11 +293,20 @@ def _check(S, o, tag):
             continue
         fi = next(i for i, (f, _, _) in enumerate(S['files']) if f == w & 0xFF)
         dv = o['rdiv'][fi][w >> 8]
-        want = divs[c] if c in pend else o['slot'][o['old_word'][c] >> 8] if o['old_word'][c] != NONE else None
+        want = None if c in pend else o['slot'][o['old_word'][c] >> 8] if o['old_word'][c] != NONE else None
         if want is not None and dv != want:
             wrong.append((keys[c], dv, want))
     if wrong:
         errs.append(f'{tag}: registry division != the actual 4.1 one: {wrong[:4]}')
+    # 42-s7trap (MESTRE.CAR trap, cseg_3283C): the game traps at a file load when a division holds other than its declared
+    # clubs. A PENDING club (a joiner / filler, no 4.1 slot) takes its spec division if that group has room, else the nearest
+    # group with room: every division of both files holds exactly its declared rows after the import
+    import collections
+    for fi, (f, dvs, _pool) in enumerate(S['files']):
+        have = collections.Counter(o['rdiv'][fi][r] for r in range(sum(n for _, n in dvs)))
+        bad = {d: (have.get(d, 0), n) for d, n in dvs if have.get(d, 0) != n}
+        if bad:
+            errs.append(f'{tag}: file {f} divisions off their declared size (found, declared): {bad}')
     want_p, want_k = _oracle(S, o)
     if sorted(pend) != want_p or len(pend) != 6:
         errs.append(f'{tag}: pending {[keys[c] for c in sorted(pend)]} (want {[keys[c] for c in want_p]})')

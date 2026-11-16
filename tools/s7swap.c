@@ -184,7 +184,7 @@ struct { uint16_t old, neww; int16_t league, pad; } S7_CLOG DATA = {0};   /* the
 
 /* the result (harness: S7_LOG) */
 enum { S7_OK = 1, S7_NOREG = 2, S7_STALE = 3, S7_BAD = 4, S7_COUNT = 5, S7_PLACE = 6, S7_REG = 7, S7_NOCLUB = 8,
-       S7_WSITE = 9, S7_WMAP = 10, S7_SKIP = 11, S7_RIMV_BAD = 12 };
+       S7_WSITE = 9, S7_WMAP = 10, S7_SKIP = 11, S7_RIMV_BAD = 12, S7_SIZE = 13 };
 struct { uint8_t status, season, nswap, ncross; int32_t rc; } S7_LOG DATA = {0};   /* (the swaps: the arena's SW_AT) */
 
 static int32_t fi_of(uint8_t file) {
@@ -390,6 +390,74 @@ static void redraw(int32_t lvl, const sr_registry *R, uint8_t *nd, const uint8_t
     for (int32_t k = 0; k < n; k++) nd[id[k]] = lv[out[k]];
 }
 
+/* 42-s7trap (S7 season-end trap at obj1+0x22705, Shaved's CAMPOBASSO runs 15/11): SIZE ASSERT. The game checks at every
+   team-file load (cseg_3283C, called from LoadTeamFile's league setup) that each division of the file holds exactly the
+   clubs its competition record declares - D0 counted (the records whose league byte, +25, is the division D1 asked) against
+   D2 expected - and traps (int 3; jmp $) when not. Serie B 21 / Serie C girone B 19 from one double promotion (the Serie C
+   play-off winner moved by both gplay and dplay: a6227d1) took the whole career down at the next season's file load.
+   The registry itself never checked a division's size (sr_reg_season's per-file fill keeps rows, rdiv = nd), so it let the
+   unbalanced deltas through. Now, at EVERY S7 season end (before anything else, on the game's own in-struct deltas, and
+   again on the final divisions after the crossings): each league division of the two files holds exactly its declared
+   rows (the spec's size: Italy B 20, the Serie C groups 20, the 9 Serie D groups 18 = 162) and no club ident sits in two
+   rows. A failure REFUSES the season: nothing crosses, every club stays where it is (each league row's delta = its club's
+   division now - the row's shipped one), the ri pool moves already made are walked, S7_LOG.status = S7_SIZE and S7_SZ
+   says what (the harness reads it; the game does not trap). */
+struct { uint8_t gate, kind, div, found, want, pad[3]; uint16_t ident, row; } S7_SZ DATA = {0};   /* gate 1 = the game's deltas,
+                                           2 = after the crossings; kind: 1 a division's size, 2 an ident twice, 3 a row out of
+                                           its file's divisions; div = the league index, found / want its clubs */
+enum { SZ_DIV = 1, SZ_DUP = 2, SZ_PLACE = 3 };
+static int32_t size_check(const int8_t *slt, const uint8_t *nd, int32_t gate)   /* 0 ok; nd NULL: slt's divisions */
+{
+    const sr_registry *R = SREG_REG;
+    uint8_t cnt[256], want[256], seen[(SR_REG_CLUBS + 7) / 8];
+    for (int32_t i = 0; i < 256; i++) cnt[i] = want[i] = 0;
+    for (int32_t i = 0; i < (int32_t)sizeof seen; i++) seen[i] = 0;
+    S7_SZ.gate = (uint8_t)gate; S7_SZ.kind = S7_SZ.div = S7_SZ.found = S7_SZ.want = 0; S7_SZ.ident = S7_SZ.row = 0;
+    for (int32_t s = 0; s < 2; s++) {
+        int32_t fi = fi_of(s ? S7_FB : S7_FA);
+        if (fi < 0) return S7_SZ.kind = SZ_PLACE;
+        for (int32_t k = 0; k < R->f[fi].ndiv; k++) want[R->f[fi].div[k]] = (uint8_t)(want[R->f[fi].div[k]] + R->f[fi].size[k]);
+        for (uint32_t o = 0; o < R->rows[fi]; o++) {
+            int32_t b = base_local(fi, o), id = R->at[fi][o];
+            if (b < 0 || id >= R->nclub) continue;      /* (a pool row: not the league's) */
+            if (seen[id >> 3] >> (id & 7) & 1) { S7_SZ.ident = (uint16_t)id; S7_SZ.row = (uint16_t)o; return S7_SZ.kind = SZ_DUP; }
+            seen[id >> 3] = (uint8_t)(seen[id >> 3] | 1 << (id & 7));
+            int32_t d;
+            if (nd) d = nd[id];
+            else {
+                int32_t loc = b + slt[glob_of(s, o)];
+                if (loc < 0 || loc >= R->f[fi].ndiv) { S7_SZ.row = (uint16_t)o; S7_SZ.ident = (uint16_t)id; return S7_SZ.kind = SZ_PLACE; }
+                d = R->f[fi].div[loc];
+            }
+            if (cnt[d] < 255) cnt[d]++;
+        }
+    }
+    for (int32_t d = 0; d < 256; d++)
+        if (cnt[d] != want[d]) { S7_SZ.div = (uint8_t)d; S7_SZ.found = cnt[d]; S7_SZ.want = want[d]; return S7_SZ.kind = SZ_DIV; }
+    return 0;
+}
+static int32_t size_refuse(int8_t *slt, int32_t nri)
+{
+    sr_registry *R = SREG_REG;
+    for (int32_t s = 0; s < 2; s++) {                   /* every club stays: the delta of a row = its club's division - the row's */
+        int32_t fi = fi_of(s ? S7_FB : S7_FA);
+        for (uint32_t o = 0; fi >= 0 && o < R->rows[fi]; o++) {
+            int32_t b = base_local(fi, o);
+            if (b < 0) continue;
+            slt[glob_of(s, o)] = 0;
+            for (int32_t k = 0; k < R->f[fi].ndiv; k++)
+                if (R->f[fi].div[k] == R->rdiv[fi][o]) slt[glob_of(s, o)] = (int8_t)(k - b);
+        }
+    }
+    S7_LOG.ncross = 0; S7_LOG.nswap = (uint8_t)nri;
+    if (nri) {                                           /* (ri's moves are in the registry: the saved words follow them) */
+        S7_WLOG.row = (int16_t)wcheck(); S7_WLOG.rc = 0; S7_WLOG.changed = S7_WLOG.cache = S7_WLOG.npair = S7_WLOG.rows = 0;
+        if (S7_WLOG.row < 0) walk(nri, slt);
+        s7_flush();
+    }
+    return S7_LOG.status = S7_SIZE;
+}
+
 static int32_t run(void *pv) {
     int8_t *slt = ((struct args *)pv)->sltcopy;
     uint8_t *nd = SWE_ARENA_AT + ND_AT;
@@ -424,6 +492,13 @@ static int32_t run(void *pv) {
         sw[k].a = wd; sw[k].b = SR_REG_NONE; sw[k].on = in;
     }
     S7_RIMV.n = (uint8_t)nri;
+#ifdef S7_SIZEFORCE                     /* (test builds only: world_s7sizeforce) the game's own deltas unbalanced before the check: */
+    slt[glob_of(0, 45)] = -1;           /* a Serie C girone A club pushed into Serie B (B 21 / C-A 19) */
+#if S7_SIZEFORCE >= 2
+    slt[glob_of(1, 5)] = 1;             /* and a Serie D girone A club into group B */
+#endif
+#endif
+    if (sreg_get() && size_check(slt, 0, 1)) return size_refuse(slt, nri);   /* (the game's own deltas: 42-s7trap) */
     const struct s7x *A = &S7X[0], *B = &S7X[1];
     S7_LOG.season = A->season;
     if (A->file != S7_FA || B->file != S7_FB || !A->season || A->season != B->season) return S7_LOG.status = S7_STALE;
@@ -471,6 +546,9 @@ static int32_t run(void *pv) {
             order[no++] = (uint16_t)id;
         }
     }
+    for (int32_t k = 0; k < no; k++)                    /* (an ident crossing twice) */
+        for (int32_t j = 0; j < k; j++)
+            if (order[j] == order[k]) { S7_SZ.gate = 2; S7_SZ.kind = SZ_DUP; S7_SZ.ident = order[k]; return size_refuse(slt, nri); }
     S7_LOG.ncross = (uint8_t)no;
     uint32_t rver = SREG_FLAGS >> 4 & 0xF;  /* (the rule version this career's groups were drawn with: 'IT' flags bits 4..7, 0 none yet) */
     S7RD_NEWER = (uint8_t)(rver > S7RD_RULE_VER);   /* (MC 15/11: a save from a newer build's rule keeps its groups - no redraw,
@@ -481,6 +559,7 @@ static int32_t run(void *pv) {
         redraw(0, R, nd, pre, S7_UP, S7_NUP, 1, seed);
         redraw(1, R, nd, pre, S7_LO, S7_NLO, 0, seed);
     }
+    if (size_check(slt, nd, 2)) return size_refuse(slt, nri);   /* (gate 2 on the final divisions: the crossings AND the redraw) */
     S7_WLOG.row = (int16_t)wcheck(); S7_WLOG.rc = 0; S7_WLOG.changed = S7_WLOG.cache = S7_WLOG.npair = S7_WLOG.rows = 0;
     if (S7_WLOG.row >= 0) return S7_LOG.status = S7_WSITE;     /* (before the registry changes: nothing done) */
     sr_reg_work *w = (sr_reg_work *)(SWE_ARENA_AT + W_AT);

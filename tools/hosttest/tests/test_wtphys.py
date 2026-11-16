@@ -16,11 +16,12 @@ import struct
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import fixroot  # noqa: E402
 import test_registry as tr  # noqa: E402
 
 HOME = os.path.expanduser('~')
 GDT_AT = 0x6000000
-EXE = os.environ.get('HT_WT_EXE') or os.path.join(HOME, 'swos-mod', 'c', 'HTOMM', 'SWOS', 'ITALIAN.EXE')
+EXE = os.environ.get('HT_WT_EXE') or fixroot.fx('HTOMM', 'SWOS', 'ITALIAN.EXE')
 
 
 def _find(rd, start, n, pat):

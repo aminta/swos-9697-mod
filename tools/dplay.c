@@ -345,20 +345,27 @@ static int find_team(u16 team, int *g, int *k) {
 }
 static void frec_force(void) {
     struct dp_save *v = &DP_ST;
-    int gr, kr, i, ir = -1, ic = -1;
+    int gr, kr, ir = -1;
     if (!DP_IN.cpo_win || v->kind != 3 || !FREC_OK(v) || !find_team(DP_IN.cpo_win, &gr, &kr)) return;
-    for (i = 0; i < v->n; i++) { if (v->team[i] == DP_IN.cpo_win) ir = i; if (v->team[i] == DP_IN.mgr) ic = i; }
-    if (DP_FREC == 3 && ir >= 0 && ic >= 0 && ir != ic) {
-        u8 e[4], j = 0, o[2];
-        for (i = 0; i < v->n && j < 2; i++) if (i != ir && i != ic) o[j++] = i;
+    for (int i = 0; i < v->n; i++) if (v->team[i] == DP_IN.cpo_win) ir = i;
+#if DP_FREC == 3
+    {
+        u8 e[4], o[2], j = 0;
+        int ic = -1;
+        for (int i = 0; i < v->n; i++) if (v->team[i] == DP_IN.mgr) ic = i;
+        if (ir < 0 || ic < 0 || ir == ic) return;
+        for (int i = 0; i < v->n && j < 2; i++) if (i != ir && i != ic) o[j++] = i;
         e[0] = ir; e[1] = o[0]; e[2] = ic; e[3] = o[1];
         frec_set(v, e);
     }
-    if (DP_FREC == 2) {                 /* the final's loser: the entrant of the record that is not R */
+#endif
+#if DP_FREC == 2
+    {
         u32 x = FREC(v);
         int w0 = (x >> (x >> 20 & 1 ? 5 : 0)) & 31, w1 = (x >> (x >> 21 & 1 ? 15 : 10)) & 31, l = w0 == ir ? w1 : w0, gl, kl;
         if (l < v->n && find_team(v->team[l], &gl, &kl)) swap_rows(gl, kl, gl != gr ? 0 : DP_IN.n[gl] - 1);
     }
+#endif
     swap_rows(gr, kr, 0);
 }
 #endif

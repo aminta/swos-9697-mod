@@ -3353,6 +3353,10 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     sct = supercup.table(lang, (lambda x: _sadd(area, x) - sacups.STR_BASE) if area else (lambda x: 0)) \
         if mkseason.worlds() else None
     symbols['SC_ON'] = (0, int(bool(sct)))
+    if __import__('frnd').on() and area:                      # 4.2 friendlies: the slot-4 contest's names (ko_one's 8
+        import frtext                                         # bytes: long, short - STR_BASE-relative, as GP_SCT's +20)
+        fl = frtext.LABEL[lang].encode('latin-1')
+        LABELS['FR_NAMEB'] = struct.pack('<II', *(_sadd(area, fl) - sacups.STR_BASE for _ in range(2)))
     scrow_sites = []
     if sct:                                                   # (4.2 supercups-s1: CareerGameListCommon's two cup-row
         d1 = p.le.obj_bytes(1)                                #  `mov word [esi + 4], 0` after `add D3, 16; add D4, 8;

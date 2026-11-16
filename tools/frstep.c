@@ -53,6 +53,8 @@ u32 (*FR_NSTEP)(void) FR_DATA;          /* the hooks' previous targets (fpad's f
 void (*FR_NLEG)(void) FR_DATA;
 void (*FR_CHOOSE)(const FrcCtx *, uint16_t *, uint8_t *) FR_DATA;   /* the FRCH slot, 0 = no page */
 void (*FR_AFTER4)(void) FR_DATA;        /* fr_after4 (the 1996-97 session's), 0 = none */
+u8 FR_NAMES[8] FR_DATA;                 /* the slot-4 contest's names, long + short STR_BASE-relative (frnd.py: gplay's
+                                           FR_NAMEB, frtext.LABEL) */
 extern u32 tc_room(void);               /* tcache.py */
 extern int swe_fopen_r(const char *);
 extern int swe_fread(int, void *, unsigned int);
@@ -60,7 +62,6 @@ extern int swe_fclose(int);
 extern u32 fr_cached_asm(u32 word);     /* frnd.py glue: FindTeamInCache (non-trapping), 1 = cached */
 extern const u32 FR_D6BA2;              /* the season's wage bill (cseg_3D204) */
 extern const u16 FR_D6C4E;              /* the season's expected gates of slots 0-3 (cseg_3D204) */
-extern const u8 FR_NAMES[8];            /* the slot-4 contest's names (frtext.LABEL, frnd.py) */
 
 #define KO0 (GP_GST + O_KO)
 #define O_FEE (O_PTS + 4)               /* (pts[2]: a one-tie contest's unused entry - the fee >> 4, fi_gate's D7) */
@@ -73,12 +74,17 @@ static u32 fr_g(void) {
     d7 = d ? (d7 >> 4) / d : 0;
     return (d7 & 0xFFFF) << 4;
 }
-#define FR_OPEN 8u                      /* FR_ST +1 bit 3: friendlies of this season still to install / play */
+#ifdef FR_TEST                          /* (test builds, HOSTTEST_SYMS: the harness's reads / given list; none in a release) */
 #define FR_TRACE_SET(x) (FR_TRACE = (u8)(x))
+#define FR_T(x) x
 u8 FR_TRACE;                            /* (the last step: 1x season, 2x install, 3x leg, 4x close; 0x8x why not) */
-u16 FR_GIVENW[4] = { 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF };   /* (test builds: the harness's given list) */
-u32 FR_FEE[4], FR_G;                    /* (test builds: the fees credited, G) */
+u16 FR_GIVENW[4] = { 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF };   /* (the harness's given list: replaces the chooser) */
+u32 FR_FEE[4], FR_G;                    /* (the fees credited, G) */
 u8 FR_FB;
+#else
+#define FR_TRACE_SET(x) ((void)0)
+#define FR_T(x)
+#endif
 
 static int fr_cached(void *ctx, uint16_t w) { (void)ctx; return (int)fr_cached_asm(w); }
 
@@ -129,9 +135,12 @@ void fr_season(u32 self) {              /* InitializeNewSeason's tail: self = th
     u16 given[4] = { FR_NONE, FR_NONE, FR_NONE, FR_NONE };
     u8 venues = 0xFF;
     FrcCtx c = { FR_BUF, len, FR_CWB, (u16)self, FR_NONE, avoid, nav, &room, season, season * 7919u + 0x4652u, 2, FR_ST };
+#ifdef FR_TEST
     if (FR_GIVENW[0] != FR_NONE || FR_GIVENW[1] != FR_NONE || FR_GIVENW[2] != FR_NONE || FR_GIVENW[3] != FR_NONE)
         for (int k = 0; k < 4; k++) given[k] = FR_GIVENW[k];
-    else if (FR_CHOOSE) FR_CHOOSE(&c, given, &venues);
+    else
+#endif
+    if (FR_CHOOSE) FR_CHOOSE(&c, given, &venues);
     FrPick out;
     int rc = fr_pick(FR_BUF, len, FR_CWB, (u16)self, FR_NONE, given, avoid, nav, &room, season, c.seed,
                      venues == 0xFF ? c.nhome : FR_VENUES(venues), &out);
@@ -142,7 +151,7 @@ void fr_season(u32 self) {              /* InitializeNewSeason's tail: self = th
     u32 fl = (FR_FLAGS(FR_ST) & FR_LEVEL_MASK) | (out.home & 15);   /* (FR_LEVEL as frc_choose left it) */
     FR_ST[10] = (u8)fl; FR_ST[11] = (u8)(fl >> 8);
     FR_ST[1] = FR_OPEN;
-    FR_FB = out.fb;
+    FR_T(FR_FB = out.fb;)
     FR_TRACE_SET(0x10);
 }
 
@@ -169,14 +178,14 @@ u32 fr_step(void) {                     /* sc_step_c's head: 1 = a friendly buil
     ((ko_one_fn *)GP_PAPI[0])((struct gp_ko *)KO0, home ? GP_MGR : opp, home ? opp : GP_MGR, w, w, 1, C_KFR,
                              C_LVBETTER, 0xFF, FR_NAMES);
     GP_WK = wk0;
-    if (KO0[O_D1] != w) { fr_close(0x85); return 0; }
+    if (KO0[O_D1] != w) { *(u16 *)KO0 = 0; fr_close(0x85); return 0; }   /* (never half installed: ko[0] dropped) */
     u8 band = 0xFF;                     /* (the band the club falls in, as FrPick.band: not saved - fr_given on the
                                            slice, read again here; no slice / no level: no fee) */
     u32 len = fr_slice(FR_CWB);
     if (len) fr_given(FR_BUF, len, FR_CWB, GP_MGR, FR_NONE, (const u16 *)(FR_ST + 2), (u32)k, 0, &band);
     u32 g = fr_g();
     u32 f = band <= FR_FAR_DOWN ? fr_fee(g, band, home) : 0;
-    FR_G = g; FR_FEE[k] = f;
+    FR_T(FR_G = g; FR_FEE[k] = f;)
     *(u16 *)(KO0 + O_FEE) = (u16)(f >> 4);
     FR_TRACE_SET(0x20 | k);
     return 1;

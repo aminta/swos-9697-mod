@@ -23,6 +23,7 @@ DRIVER = r'''
 #define C_KFR 13
 #define C_LVBETTER 0
 #define FR_BUFSZ 8192
+#define FR_TEST 1
 #include <stdint.h>
 static uint8_t CALB[4 + 256];
 #define FR_CAL (CALB + 4)
@@ -36,14 +37,13 @@ u8 GP_GST[16 + 700]; u8 GP_SEAS; u32 GP_WK; u16 GP_MGR; u32 GP_K;
 u8 FR_D1R[28]; static u16 A1T; u8 *FR_A1R = (u8 *)&A1T;
 u16 FR_CALCUR; u8 FR_SEASON, FR_CWB; u8 FR_ST[FR_SZ]; u8 FR_BUF[FR_BUFSZ];
 u32 FR_D6BA2; u16 FR_D6C4E;
-u8 FR_NAMES[8];
-static int nko, ko_w1, ko_home, ko_away, ko_kind, ko_level, ko_lfile;
+static int bad_d1, nko, ko_w1, ko_home, ko_away, ko_kind, ko_level, ko_lfile;
 static void mock_ko_one(struct gp_ko *k, u16 h, u16 a, int w1, int w2, int legs, int kind, int level, int lfile,
                         const u8 *nm) {
     u8 *b = (u8 *)k; (void)w2; (void)legs; (void)nm;
     nko++; ko_w1 = w1; ko_home = h; ko_away = a; ko_kind = kind; ko_level = level; ko_lfile = lfile;
     *(u16 *)b = C_MAGIC; b[O_SEASON] = GP_SEAS; b[O_KIND] = (u8)kind; b[O_TW] = C_NOC;
-    b[O_D1] = (u8)(w1 > (int)GP_WK ? w1 : (int)GP_WK + 1);
+    b[O_D1] = (u8)(w1 > (int)GP_WK ? w1 : (int)GP_WK + 1) + bad_d1;
 }
 void *GP_PAPI[1] = { (void *)mock_ko_one };
 u32 tc_room(void) { return 50; }
@@ -125,6 +125,15 @@ int main(int argc, char **argv) {
     CHECK(FR_ST[0] == 6 && !(FR_ST[1] & FR_OPEN) && FR_TRACE == 0x81, "no_file", "trace %x", FR_TRACE);
     FILEB = file; FR_CWB = 9; GP_SEAS = FR_SEASON = 7; fr_season(GP_MGR);
     CHECK(!(FR_ST[1] & FR_OPEN) && FR_TRACE == 0x81, "no_world_slice", "trace %x", FR_TRACE);
+    /* 8. every other refusal path leaves FR_OPEN clear (MC 16/11: one host check per path) */
+    FR_CWB = 0; GP_SEAS = FR_SEASON = 8; GP_MGR = 0x7777; fr_season(GP_MGR);   /* (not in the table: FR_NOSELF) */
+    CHECK(FR_ST[0] == 8 && !(FR_ST[1] & FR_OPEN) && FR_TRACE == 0x82, "pick_refused", "trace %x", FR_TRACE);
+    GP_MGR = 0x0001; memset(CALB, 0, sizeof CALB); GP_SEAS = FR_SEASON = 9; fr_season(GP_MGR);   /* (no league day) */
+    CHECK(!(FR_ST[1] & FR_OPEN) && FR_TRACE == 0x83, "no_turns", "trace %x", FR_TRACE);
+    cal(56); GP_SEAS = FR_SEASON = 10; fr_season(GP_MGR); GP_WK = 56; FR_CALCUR = 0; bad_d1 = 1; na = nafter;
+    CHECK(fr_step() == 0 && !(FR_ST[1] & FR_OPEN) && FR_TRACE == 0x85 && nafter == na + 1 && *(u16 *)KO() == 0, "install_week_refused",
+          "trace %x open %d", FR_TRACE, FR_ST[1] & FR_OPEN);
+    bad_d1 = 0;
     printf("fails %d\n", fails);
     return fails != 0;
 }
@@ -149,8 +158,69 @@ def test_frstep():
     r = subprocess.run([exe, dat], capture_output=True, text=True)
     bad = [x for x in r.stdout.split('\n') if x.startswith('FAIL')]
     ok = [x for x in r.stdout.split('\n') if x.startswith('ok ')]
-    return r.returncode == 0 and not bad and len(ok) >= 18, '; '.join(bad) if bad else f'{len(ok)} checks PASS'
+    return r.returncode == 0 and not bad and len(ok) >= 23, '; '.join(bad) if bad else f'{len(ok)} checks PASS'
+
+
+
+def test_frstep_fee_field():
+    """the fee >> 4 lives in ko[0].pts[2] (MC 16/11: FR_ST has no 2 free bytes): every gplay C reader / writer of a
+    contest's pts[] indexes it by a list index (entrants < k->n; a ko_one contest has n = 2), never a constant >= 2 -
+    a new access in another form fails here and must be checked against the friendlies' field"""
+    import re
+    ok_idx = {'a', 'b', 'pa', 'pb', 'i', 'j', '0', '1'}
+    bad = []
+    for f in ('gplay.c', 'gplay3.c', 'gplx.c', 'fpad.c'):
+        src = open(os.path.join(TOOLS, f)).read()
+        for m in re.finditer(r'(?:->|\.)pts\[([^\]]+)\]', src):
+            if m.group(1).strip() not in ok_idx:
+                bad.append(f'{f}:{src.count(chr(10), 0, m.start()) + 1} pts[{m.group(1)}]')
+    return not bad, '; '.join(bad) if bad else 'every pts[] access by a list index (a, b, pa, pb, i, j, 0, 1)'
+
+
+GPMAIN = r"""#include <stdio.h>
+#include "%s"
+u8 GP_SEAS;
+static u8 tab[1 + SC_E];
+int main(void) {
+    GP_SEAS = 5; GP_MGR = 0x0166; tab[0] = 1; tab[1] = 0x66; GP_SCT = tab;
+    SC_ST[3] = GP_SEAS; SC_ST[4] = 0;   /* (the career club's supercup this season, its tie not built yet) */
+    u8 *fr = SC_ST + SC_H + 12 * FR_E;
+    printf("a %%u %%d %%d\n", sc_wline_c(), slot4_busy(), sc_busy());
+    fr[0] = GP_SEAS; fr[1] = FR_OPEN;  /* (the friendlies hold slot 4) */
+    printf("b %%u %%d %%d\n", sc_wline_c(), slot4_busy(), sc_busy());
+    fr[1] = 0; GP_ST.magic = GP_ST.ko[0].magic = MAGIC; GP_ST.ko[0].season = GP_SEAS; GP_ST.ko[0].kind = K_FR;
+    GP_ST.ko[0].tw[0] = NOC;           /* (a friendly being played) */
+    printf("c %%u %%d %%d\n", sc_wline_c(), slot4_busy(), sc_busy());
+    fr[0] = GP_SEAS - 1; fr[1] = FR_OPEN; GP_ST.ko[0].magic = 0;   /* (last season's FR_ST: holds nothing) */
+    printf("d %%d\n", slot4_busy());
+    return 0;
+}
+"""
+
+
+def test_frstep_slot4_busy():
+    """Convergence 16/11: sc_busy keeps its supercup-only meaning (sc_wline_c's VINCITORI line: a supercup pending
+    and the friendlies holding slot 4 -> still no line), slot4_busy = FR_OPEN this season, or sc_busy, or an undecided
+    K_FR in ko[0] (the two slot guards). gplay.c built natively with GP_FRND=1 (as sc_rules)"""
+    d = tempfile.mkdtemp(prefix='frs4')
+    open(os.path.join(d, 't.c'), 'w').write(GPMAIN % os.path.join(TOOLS, 'gplay.c'))
+    r = subprocess.run(['clang', '-w', '-DSS_NB=1', '-DGP_FRND=1', '-c', 't.c', '-o', 't.o'], cwd=d, capture_output=True,
+                       text=True)
+    if r.returncode:
+        return False, 'clang: ' + r.stderr[-500:]
+    und = [x.strip().lstrip('_') for x in subprocess.run(['nm', '-u', 't.o'], cwd=d, capture_output=True,
+                                                          text=True).stdout.split()]
+    open(os.path.join(d, 's.c'), 'w').write(''.join(f'char {x}[65536];\n' for x in und
+                                                     if x and not x.startswith(('printf', 'memcpy', 'memset', 'dyld', '__'))))
+    r = subprocess.run(['clang', '-w', 't.o', 's.c', '-o', 't'], cwd=d, capture_output=True, text=True)
+    if r.returncode:
+        return False, 'link: ' + r.stderr[-500:]
+    got = {ln.split()[0]: ln.split()[1:] for ln in subprocess.run(['./t'], cwd=d, capture_output=True,
+                                                                 text=True).stdout.splitlines()}
+    want = {'a': ['0', '0', '0'], 'b': ['0', '1', '0'], 'c': ['0', '1', '0'], 'd': ['0']}
+    bad = [f'{k} {got.get(k)} != {v}' for k, v in want.items() if got.get(k) != v]
+    return not bad, '; '.join(bad) or 'pending supercup + FR_OPEN: no VINCITORI line, slot 4 held; a K_FR in play held; last season\'s FR_ST nothing'
 
 
 if __name__ == '__main__':
-    print(test_frstep())
+    print(test_frstep(), test_frstep_fee_field(), test_frstep_slot4_busy())

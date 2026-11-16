@@ -2369,7 +2369,12 @@ static void sc_done(u16 w);
 static u32 sc_rline(void);              /* (4.0.5: gp_rlines_c's supercup line) */
 static u32 usc_rline(void);             /* (4.0.6: the UEFA Super Cup's) */
 static void rl_put(void);
-int sc_busy(void);                      /* (4.0.5: the slot-4 guard) */   /* (CDP: preliminary ties at most, CDP + 2 x CD1 - 1 <= CDT) */
+int sc_busy(void);                      /* (4.0.5: the slot-4 guard) */
+#if GP_FRND
+int slot4_busy(void);                   /* (4.2: + the friendlies) */
+#else
+#define slot4_busy sc_busy
+#endif   /* (CDP: preliminary ties at most, CDP + 2 x CD1 - 1 <= CDT) */
 struct cd_state { u16 magic; u8 season, round, built, bt, drawn, pad; u8 res[CDT], home[CDT]; u8 sd[4];
                   u8 ent[256];          /* cd_season (the season end): per ordinal of the file, the entry order's key
                                            for the season to come (0 not in Serie D, 1 a new arrival, 2 + places from
@@ -2924,7 +2929,8 @@ static int cd_sim(u16 a, u16 b, int legs, int h) {     /* h: 0 a hosts (the firs
 
 /* the calendar advance: 1 = a tie of the career club built into ko[0] (gp_install it), else 0 */
 u32 cd_step_c(void) {
-    if (sc_busy()) return 0;            /* (4.0.5: an early supercup tie in slot 4: the next advance) */
+    if (slot4_busy()) return 0;         /* (4.0.5: an early supercup tie in slot 4 - 4.2 or the friendlies: the next
+                                           advance) */
     if (!GP_CDT) return 0;
     if (CD_ST.magic != 0x4443 || CD_ST.season != GP_SEAS) {     /* (a new season: the cup from its start) */
         u8 *p = (u8 *)&CD_ST;
@@ -3054,7 +3060,7 @@ static void set_pend(int then, int week) {   /* 'then_build': the next play-off 
 }
 
 u32 gp_build_c(void) {
-    if (sc_busy()) { set_pend(GP_BPIC + 1, GP_WK + 1); return 0; }   /* (4.0.5: an early supercup tie holds slot 4:
+    if (slot4_busy()) { set_pend(GP_BPIC + 1, GP_WK + 1); return 0; }   /* (4.0.5: an early supercup tie holds slot 4:
                                                                      built again at the next advance) */
     ss_set(GP_IN.mgr);
     const u8 *s = po_at(GP_BPIC);
@@ -4769,14 +4775,18 @@ static int sc_free(void) {              /* slot 4 not holding a contest of this 
 }
 int sc_busy(void) {                     /* 4.0.5: slot 4 holds this season's supercup tie, not played yet (built early:
                                            another slot-4 builder waits) */
-#if GP_FRND
-    const u8 *fr = SC_ST + SC_H + 12 * 14;   /* (4.2 friendlies: FR_ST, gpsc.h - FR_OPEN (+1 bit 3) holds slot 4 from
-                                           the season start to the last friendly decided, between them too) */
-    if (fr[0] == GP_SEAS && (fr[1] & 8)) return 1;
-#endif
     return GP_ST.magic == MAGIC && GP_ST.ko[0].magic == MAGIC && GP_ST.ko[0].season == GP_SEAS &&
-           (GP_ST.ko[0].kind == K_SC || (GP_FRND && GP_ST.ko[0].kind == K_FR)) && GP_ST.ko[0].tw[0] == NOC;
+           GP_ST.ko[0].kind == K_SC && GP_ST.ko[0].tw[0] == NOC;
 }
+#if GP_FRND
+int slot4_busy(void) {                  /* 4.2 friendlies (Convergence 16/11): slot 4 held - this season's supercup tie
+                                           (sc_busy), or the friendlies (FR_OPEN: from the season start to the last one
+                                           decided, between them too), or a friendly being played. sc_busy keeps its
+                                           supercup-only meaning (sc_wline_c's VINCITORI line) */
+    return FR_HELD() || sc_busy() || (GP_ST.magic == MAGIC && GP_ST.ko[0].magic == MAGIC &&
+           GP_ST.ko[0].season == GP_SEAS && GP_ST.ko[0].kind == K_FR && GP_ST.ko[0].tw[0] == NOC);
+}
+#endif
 static const u8 *usc_entry(void) {     /* 4.0.6 the UEFA Super Cup's GP_SCT entry, 0 = none */
     if (!GP_SCT) return 0;
     for (int i = 0; i < GP_SCT[0]; i++)

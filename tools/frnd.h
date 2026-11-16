@@ -3,7 +3,8 @@
 
    FR_ST = SC_ST entry FR_E (12 B, gplay.c, saved with SC_ST: engine item 'SC'; agreed with Nazionali 16/11):
      +0  db the season handled (the game's season byte), 0 = none (an old save: that season has no friendlies)
-     +1  db bits 0-2 = friendlies played (0..4); bits 3-7 spare (ask Motore first)
+     +1  db bits 0-2 = friendlies played (0..4); bit 3 FR_OPEN (slot 4 held, fr_season .. fr_close: gplay
+            slot4_busy); bits 4-7 spare (ask Motore first)
      +2  dw x 4 the opponents' team words, in play order (next season's avoid list)
      +10 dw bits 0-3 home flags (bit k = friendly k at home), bits 4-12 W/D/L counts (3 bits each),
             bit 13 NATIVE (reserved), bits 14-15 FR_LEVEL (written only by frc_choose; kept across the season rewrite)
@@ -19,7 +20,10 @@
 #define FRND_H
 #include "frpick.h"
 
+#ifndef FR_E                            /* (gpsc.h has the same two: one meaning) */
 #define FR_E            14              /* SC_ST entry index of FR_ST (SC_U = entry 15, the UEFA Super Cup) */
+#define FR_OPEN         8u              /* FR_ST +1 bit 3: slot 4 held for the friendlies (fr_season .. fr_close) */
+#endif
 #define FR_SZ           12
 #define FR_NPLAYED(st)  ((st)[1] & 7u)
 #define FR_FLAGS(st)    ((uint32_t)(st)[10] | (uint32_t)(st)[11] << 8)

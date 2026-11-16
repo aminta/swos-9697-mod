@@ -25081,6 +25081,7 @@ FR = {
     'SYM_TRACE': 'FR_TRACE',  # TODO(engine): byte, obj2 - 1 while a friendly is built in slot 4 (as SC_TRACE; W8485_MIDSAVE)
     'SYM_STR': 'FR_STR',      # TODO(engine): 5 words - the strength the pick used: the career club's, then the 4 opponents'
     'SYM_FEE': 'FR_FEE',      # TODO(engine): 4 x i32 - the fee credited after each friendly (the unit of newBalance)
+    'SYM_FB': 'FR_FB',        # TODO(engine): byte - FrPick.fb of the pick (bit k: slot k took the nearest-band fallback)
     'SYM_CARD': 'FR_CARD',    # TODO(engine): byte - ban bits the card-restore undid so far this season (0 = it never had to)
     # --- test switch (build env, as GPLAY_FORCE / USC_FORCE) ---
     'FORCE_ENV': 'FR_FORCE',  # TODO(engine): the switch's name; a build made with it has the symbol below
@@ -25091,11 +25092,19 @@ FR = {
     # --- rules / tables ---
     'HOME': 2,                # spec default 2 home + 2 away (the pick's parameter; TODO(engine): if a scenario build can
                               #   set another split, its switch)
-    'BAND_MARGIN': None,      # TODO(engine, part b - the pick): 'similar' = |opponent - club| <= this, on FR_STR's scale
+    'BAND_MARGIN': lambda own: max(11, own // 10),   # tools/frpick.h:18 (42-frpick 8d54445, Mercato 16/11): "margin M =
+                              #   max(11, S / 10)"; stronger d > M, similar -M <= d <= M, weaker d < -M (d = opp - S)
+    'SLOT_BANDS': ('weaker', 'similar', 'similar', 'stronger'),   # frpick.h:20 "Play order of the automatic four:
+                              #   weaker, similar, similar, stronger" (slot k = friendly k+1)
     'FEES': None,             # TODO(engine, part b): {(band, home): fee} band 'stronger' / 'similar' / 'weaker', home bool
     'BAL_EXACT': True,        # the balance (finance NEWBAL) moves by exactly the fee between a friendly's screen and the
                               #   next match screen. TODO(engine): False if wages / gate money move in those weeks too
-    'MIX_RULE': None,         # TODO(part b, Mercato): the edge-of-pool fallback's exact text + its file:line, quoted
+    'MIX_RULE': ('tools/frpick.h:25-28 (42-frpick 8d54445): THE "NEAREST BAND" RULE: when the wanted band has no '
+                 'candidate, the slot takes the club nearest to that band\'s edge [...] Such a slot has bit k of '
+                 'FrPick.fb set and band[k] = the band its club really falls in.'),
+                              # fr_check: a slot with fb bit k clear is in SLOT_BANDS[k] exactly; one with it set is
+                              #   OUTSIDE that band (else the bit lies); no FR_FB trace = strict 1 / 2 / 1 by slot
+    'HOME_RULE': 'tools/frpick.h:55-56 (8d54445): the nhome opponents with the lowest strength are played at home (ties: the lower slot first)',
     'WEEKS': {},              # TODO(engine, part a - research): {'ita': (w1, w2, w3, w4), ...} per season kind, e.g.
                               #   {'ita': {1: (...), 2: (...)}}; empty = the weeks are reported, only their order is asserted
     'JANUARY': range(0, 8),   # TODO(engine): a calendar-year league's preseason weeks (8 weeks a month: January = 0..7)
@@ -25175,7 +25184,7 @@ def fr_syms(exe_dir):
         return None
     at = lambda name: tuple(gp[name][:2]) if name in gp else None
     return {'st': st, 'trace': at(FR['SYM_TRACE']), 'str': at(FR['SYM_STR']), 'fee': at(FR['SYM_FEE']),
-            'card': at(FR['SYM_CARD']), 'force': FR['SYM_FORCE'] in gp, 'syms': bool(sy)}
+            'card': at(FR['SYM_CARD']), 'fb': at(FR['SYM_FB']), 'force': FR['SYM_FORCE'] in gp, 'syms': bool(sy)}
 
 
 def fr_state(b):
@@ -25285,7 +25294,7 @@ def fr_keys(exe, fr):
     first 16 records, newBalance, and the build's traces."""
     ct, sel, nb = fr_sites(exe)
     spec = {'st': ((2, fr['st']), FR['ST_LEN']), 'sel': ((2, sel), 2), 'ct': ((2, ct), 76 + 16 * 38), 'bal': ((2, nb), 4)}
-    for k, n in (('str', 10), ('fee', 16), ('card', 1), ('trace', 1)):
+    for k, n in (('str', 10), ('fee', 16), ('card', 1), ('trace', 1), ('fb', 1)):
         if fr.get(k):
             spec[k] = (fr[k], n)
     keys = {k: fr_hx(at) for k, (at, _) in spec.items()}
@@ -25402,13 +25411,27 @@ def fr_check(exe, fr, lines, keys, errs, info, sn, others=(), weeks=None, n_want
     # (4) strength bands
     bands = None
     if 'str' in last:
-        require(FR['BAND_MARGIN'] is not None, "FR['BAND_MARGIN'] not filled (TODO(engine): the pick's 'similar' margin)")
+        require(FR['BAND_MARGIN'] is not None, "FR['BAND_MARGIN'] not filled (the pick's 'similar' margin)")
         v = struct.unpack('<5H', last['str'])
-        bands = fr_bands(v[0], v[1:1 + n_want], FR['BAND_MARGIN'])
-        # (strict 1 / 2 / 1 until Mercato's part (b) publishes its edge-of-pool fallback ('nearest band'): then FR['MIX_RULE']
-        #  quotes that rule's text + file:line and this check applies exactly it, never a looser one - MC 16/11)
-        check(sorted(bands) == ['similar', 'similar', 'stronger', 'weaker'],
-              pre + f'strength mix {bands} (club {v[0]}, opponents {list(v[1:])}; want 1 stronger, 2 similar, 1 weaker)', errs)
+        m = FR['BAND_MARGIN'](v[0]) if callable(FR['BAND_MARGIN']) else FR['BAND_MARGIN']
+        bands = fr_bands(v[0], v[1:1 + n_want], m)
+        fbv = last['fb'][0] if 'fb' in last else None
+        # (FR['MIX_RULE'], quoted from frpick.h, exactly: a slot keeps its wanted band unless its fb bit is set; a set
+        #  bit is only valid outside that band. No FR_FB trace: strict 1 / 2 / 1 by slot - MC 16/11)
+        for k in range(n_want):
+            want = FR['SLOT_BANDS'][k]
+            if fbv is not None and fbv >> k & 1:
+                check(bands[k] != want, pre + f'friendly {k + 1}: FR_FB bit {k} set (nearest-band fallback) but the '
+                      f'opponent {v[1 + k]} is IN the wanted band {want} (club {v[0]}, margin {m})', errs)
+            else:
+                check(bands[k] == want, pre + f'friendly {k + 1}: opponent {v[1 + k]} is {bands[k]}, want {want} (club '
+                      f'{v[0]}, margin {m}; FR_FB {"absent" if fbv is None else hex(fbv)})', errs)
+        if fbv:
+            info.append(pre + f'nearest-band fallback on slots {[k for k in range(n_want) if fbv >> k & 1]} (bands {bands})')
+        # (FR['HOME_RULE']: the HOME weakest at home, ties the lower slot first)
+        hw = sorted(range(n_want), key=lambda k: (v[1 + k], k))[:FR['HOME']]
+        check([k in hw for k in range(n_want)] == list(home[:n_want]), pre + f'home flags {list(home[:n_want])}: want the '
+              f'{FR["HOME"]} weakest at home, slots {sorted(hw)} (opponents {list(v[1:])})', errs)
     else:
         info.append(pre + 'strength bands NOT checked (no FR_STR trace in this build)')
     # (5) money

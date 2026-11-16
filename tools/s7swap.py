@@ -314,6 +314,10 @@ def patch(p, ssyms, rsyms, gsyms, pgsyms, fsyms, risyms):
         import modver
         assert modver.is_test()
         flags += (f"-DS7_LDFAIL={int(os.environ['S7_LDFAIL'])}",)
+    if os.environ.get('S7_SIZEFORCE'):                  # (test builds, modver BUILD_SWITCH: s7_season pushes one extra club into a Serie C group (1), and
+        import modver                                   # one into a Serie D group (2) before its size check - world_s7sizeforce)
+        assert modver.is_test()
+        flags += (f"-DS7_SIZEFORCE={int(os.environ['S7_SIZEFORCE'])}",)
     if os.environ.get('S7_NOSWAP'):                     # (test builds: the season end swaps nothing - the control career)
         import modver
         assert modver.is_test()

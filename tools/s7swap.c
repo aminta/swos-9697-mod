@@ -458,6 +458,12 @@ static int32_t run(void *pv) {
         sw[k].a = wd; sw[k].b = SR_REG_NONE; sw[k].on = in;
     }
     S7_RIMV.n = (uint8_t)nri;
+#ifdef S7_SIZEFORCE                     /* (test builds only: world_s7sizeforce) the game's own deltas unbalanced before the check: */
+    slt[glob_of(0, 45)] = -1;           /* a Serie C girone A club pushed into Serie B (B 21 / C-A 19) */
+#if S7_SIZEFORCE >= 2
+    slt[glob_of(1, 5)] = 1;             /* and a Serie D girone A club into group B */
+#endif
+#endif
     if (sreg_get() && size_check(slt, 0, 1)) return size_refuse(slt, nri);   /* (the game's own deltas: 42-s7trap) */
     const struct s7x *A = &S7X[0], *B = &S7X[1];
     S7_LOG.season = A->season;

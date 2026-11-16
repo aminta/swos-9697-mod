@@ -293,7 +293,9 @@ def test_frcsel_swap():
 
 
 def test_frcsel_trial():
-    """frc_trial (the club list's colours and grey entries) = what frc_set_club would do, without changing the state"""
+    """frc_trial (the club list's colours and grey entries: fr_given) = what frc_set_club would do with the club -
+    the same refusal, the same band - without changing the state (only FR_NOPOOL, the automatic rows' failure, is
+    the real change's alone)"""
     rnd = random.Random(6)
     n = ref = 0
     for i in range(120):
@@ -311,7 +313,8 @@ def test_frcsel_trial():
                 return False, f'case {i}: frc_trial changed the state'
             keep = ctypes.string_at(ctypes.byref(p.s), ctypes.sizeof(p.s))
             rc2 = p.club(k, w)
-            if rc != rc2 or (not rc and (p.s.out.word[k] != w or p.s.out.band[k] != band)):
+            if (rc != rc2 and not (rc == 0 and rc2 == T.NOPOOL)) or \
+                    (not rc2 and (p.s.out.word[k] != w or p.s.out.band[k] != band)):
                 return False, f'case {i}: trial {rc} band {band}, set {rc2} band {p.s.out.band[k]}'
             ctypes.memmove(ctypes.byref(p.s), keep, len(keep))
             n += 1

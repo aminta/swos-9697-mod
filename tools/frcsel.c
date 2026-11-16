@@ -2,7 +2,11 @@
    Details the header leaves open:
    - a refusal code = fr_pick's return code (FR_NOSELF .. FR_NOPOOL: -1 .. -3) or, for FR_GIVEN, 16 + the first
      non-zero why[] (so 16 + FR_E_*: 15 .. 9); frc_msg() is the one decoder.
-   - frc_trial never changes the state; band = the band the club would have in that slot.
+   - frc_trial never changes the state; it is fr_given (the pick's own given-list check for one entry, no automatic
+     fill: MC 16/11, the ONLY per-club query of the page) for `word` in slot k among the page's other rows; band =
+     fr_given's (the club's band also when it is refused, 0xFF when it is no club). The rows after k are asked too
+     (fr_pick reports a duplicate / a full cache on the LATER entry): 0 = fr_pick would accept the whole given list
+     (the automatic rows can still fail: FR_NOPOOL, told by the real change).
    - a level outside 0..3 in FR_ST cannot happen (2 bits). */
 #include "frcsel.h"
 
@@ -92,16 +96,19 @@ int frc_swap_venue(FrcSel *s, uint32_t k)
 
 int frc_trial(const FrcSel *s, uint32_t k, uint16_t word, uint8_t *band)
 {
+    const FrcCtx *c = s->c;
     uint16_t given[4];
-    FrPick out;
+    uint32_t j;
+    uint8_t b2;
     int rc;
     k &= 3;
     frc_given(s, given);
     given[k] = word;
-    rc = frc_pick(s, given, &out);
-    if (!rc)
-        *band = out.band[k];
-    return rc;
+    rc = fr_given(c->frss, c->len, c->world, c->self, c->self2, given, k, c->room, band);
+    for (j = k + 1; !rc && j < 4; j++)                  /* (a later row's club refused because of this one: the same
+                                                           club there, or no room left for it) */
+        rc = fr_given(c->frss, c->len, c->world, c->self, c->self2, given, j, c->room, &b2);
+    return rc ? 16 + rc : 0;
 }
 
 void frc_result(const FrcSel *s, uint16_t given[4], uint8_t *venues)

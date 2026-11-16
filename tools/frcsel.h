@@ -67,7 +67,7 @@ int frc_init(FrcSel *s, const FrcCtx *c);               /* fr_pick's return code
 int frc_set_level(FrcSel *s, int dir);                  /* dir +1 / -1 (wraps); every setter: 0 or the refusal */
 int frc_set_club(FrcSel *s, uint32_t k, uint16_t word); /* FR_NONE clears slot k */
 int frc_swap_venue(FrcSel *s, uint32_t k);
-int frc_trial(const FrcSel *s, uint32_t k, uint16_t word, uint8_t *band);   /* would `word` in slot k be accepted? */
+int frc_trial(const FrcSel *s, uint32_t k, uint16_t word, uint8_t *band);   /* fr_given for `word` in slot k */
 void frc_result(const FrcSel *s, uint16_t given[4], uint8_t *venues);       /* + the level into FR_ST          */
 int frc_msg(int code);                                  /* a refusal code -> FRC_M_* */
 

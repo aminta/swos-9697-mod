@@ -277,7 +277,7 @@ def test_frchoose_exe_object():
         und = set(subprocess.run(['nm', '-u', o], capture_output=True, text=True).stdout.split())
         und -= {'U'}
         want = {'DREG', 'SWOSPP', 'MENU', 'GTP', 'FC_SHOW', 'FC_S_LVL', 'FC_S_BAND', 'FC_S_VEN', 'FC_S_MSG'}
-        want |= set() if own else {'fr_pick', 'fr_level'}
+        want |= set() if own else {'fr_pick', 'fr_level', 'fr_given'}
         if und != want:
             return False, f'own={own}: undefined {sorted(und ^ want)}'
         su = o[:-2] + '.su'

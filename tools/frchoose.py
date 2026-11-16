@@ -281,7 +281,7 @@ def patch(p, lang, pick=None):
     ext = {'DREG': (2, s['D0']), 'SWOSPP': s['swospp'], 'MENU': s['menu'], 'GTP': (1, s['gtp'])}
     ext.update({k: sym_s[k] for k in ('FC_S_LVL', 'FC_S_BAND', 'FC_S_VEN', 'FC_S_MSG')})
     if not own:
-        ext.update(fr_pick=pick['fr_pick'], fr_level=pick['fr_level'])
+        ext.update({k: pick[k] for k in ('fr_pick', 'fr_level', 'fr_given')})
     # FC_SHOW is the glue's, laid after the C: its address is known only after the link - the C calls it through a
     # fixed slot at the band's start (jmp near fc_show), as takers' band-start table
     ext['FC_SHOW'] = (4, at0)
@@ -323,6 +323,8 @@ def patch(p, lang, pick=None):
     for o in (s['hdr'], s['hdr'] + 4):                                          # the club list's hook (chained)
         p.remove(2, o)
         p.add_ptr(2, o, 4, lab['fc_lhook'])
+        assert p.target(2, o) == (4, lab['fc_lhook']) and \
+            struct.unpack('<I', p.get(2, o, 4))[0] == lab['fc_lhook'], 'frchoose: the club list hook (MC 16/11)'
     LABELS.clear()
     LABELS.update(syms, **{k: (4, v) for k, v in lab.items()}, AT=(4, at0), END=(4, end0), OWN=own,
                   LIST_PREV=prev, HDR=(2, s['hdr']))

@@ -2467,6 +2467,23 @@ def force_check(s):
 _GP_SYMS = {}
 
 
+def build_stale(exe_dir):
+    """(MC 16/11, rule 0) None when exe_dir's build was made from this tree, else why not: a HOSTTEST_SYMS build
+    (<EXE>.syms.json) carries the source stamp patch.py wrote ('_src', tools/srcstamp.py) - missing (a build from
+    before the stamp) or another source = "stale build: rebuild". A build without syms (a release dir) is not judged."""
+    p = next((os.path.join(exe_dir, x) for x in ('ITALIAN.syms.json', 'ENGLISH.syms.json')
+              if os.path.isfile(os.path.join(exe_dir, x))), None)
+    if not p:
+        return None
+    import srcstamp
+    got, want = srcstamp.from_syms(json.load(open(p)).get('_src')), srcstamp.stamp()
+    if srcstamp.same(got, want):
+        return None
+    return (f'stale build: rebuild {exe_dir} (its source {got["sha"][:10]}{"+dirty" if got["dirty"] else ""}, this tree '
+            f'{want["sha"][:10]}{"+dirty" if want["dirty"] else ""})' if got else
+            f'stale build: rebuild {exe_dir} (no source stamp: built before srcstamp, or not by patch.py)')
+
+
 def _gp_sym(exe_dir, name):
     """[obj, offset] of a gplay symbol from the exe dir's ITALIAN.syms.json (scenario builds), or None."""
     if exe_dir not in _GP_SYMS:
@@ -16606,13 +16623,16 @@ def _wsm_state(s, y):
             'st': rd('st', y['stn']), 'cd': rd('cd', CD_SIZE)}
 
 
-def _wsm_run(tag, b, path, ct, steps, stop=None, save_at=None, load=None, grab=None, world=0):
+def _wsm_run(tag, b, path, ct, steps, stop=None, save_at=None, load=None, grab=None, world=0, stale_ok=False):
     """One world SEASON (STAGIONE > path, '|' = alternatives; RNG + currentTick pinned) with CAREERTEAM poked to ct
     before the start press and after it (a stale career's club, or 0), fired to FINISCI STAGIONE (or until stop(out)):
     every match by results (VIS. RISULTATI / - RISULTATO -). save_at = a step: SALVA STAGIONE there (S6M) and stop;
     load = a .SEA: CARICA VECCHIA COMPETIZIONE > S6M instead of the picker, CAREERTEAM poked after the load.
     Returns dict(seq = screens' texts, clubs, sea, mid = _wsm_state at the first screen of the second half, end =
-    _wsm_state at the end) or a string why not."""
+    _wsm_state at the end) or a string why not. stale_ok: b is an old build on purpose (a previous release's), its
+    source not this tree's (else build_stale refuses it)."""
+    if not stale_ok and (why := build_stale(b)):
+        return why
     y = _wsm_syms(b)
     files = {'SETUP.DAT': setup_file(tag, world)}
     if load:
@@ -16742,7 +16762,7 @@ def world_season_41sea():
         return True, f'SKIP: no 4.1.1 build {old}'
     at = int(os.environ.get('SEA41_AT', 60))
     p = ['EUROPA', 'MALTA', 'HAMRUN SPARTANS']
-    sv = _wsm_run('sea41_save', old, p, 0, 4000, save_at=at, world=1)   # (4.1.1: the 1996-97 world's SEASON)
+    sv = _wsm_run('sea41_save', old, p, 0, 4000, save_at=at, world=1, stale_ok=True)   # (4.1.1: the 1996-97 world's SEASON)
     if isinstance(sv, str) or not sv['sea']:
         return False, f'4.1.1 .SEA save at step {at}: {sv if isinstance(sv, str) else "no S6M saved"}'
     ld = _wsm_run('sea41_load', b, p, 0, 4000, load=sv['sea'], world=1)

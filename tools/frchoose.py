@@ -54,6 +54,7 @@ G_GO = (112, 144, 80, 15)
 STR_BACK = 0x3C0                        # (from the band's end: the strings, 448 B)
 BSS_BACK = 0x200                        # (the .bss, 256 B; then the 256 B floor)
 OWN_SIZE = 0x1C00                       # the interim band with the pick linked here (FRC_OWN_PICK)
+PROBE_SIZE = 0x1000                     # + the test caller's room (FRC_PROBE: its code, FrcCtx and the embedded table)
 LABELS = {}
 
 
@@ -61,11 +62,16 @@ def on():
     return os.environ.get('FRCHOOSE', '1') != '0'
 
 
+def probing():
+    """FRC_PROBE=1 (test builds of this branch alone): a season-start caller of frc_choose, PROBE below"""
+    return os.environ.get('FRC_PROBE', '0') != '0'
+
+
 def band(own):
-    """(FRCH_AT, FRCH_END): swreg's once Shaved's commit is in; the interim band of a build with its own pick"""
+    """(FRCH_AT, FRCH_END): swreg's; the interim band of a build with its own pick (+ the probe's room)"""
     import swreg
-    at = getattr(swreg, 'FRCH_AT', 0x1FF00)
-    return at, (at + OWN_SIZE if own else getattr(swreg, 'FRCH_END', at + 0x1000))
+    assert own or not probing(), 'FRC_PROBE: only without FRND (the engine is the caller there)'
+    return swreg.FRCH_AT, (swreg.FRCH_AT + OWN_SIZE + (PROBE_SIZE if probing() else 0) if own else swreg.FRCH_END)
 
 
 def page_end(own=True):
@@ -190,6 +196,88 @@ FC_ENTRIES
 """
 
 
+# TEST ONLY (FRC_PROBE=1, a build without FRND): the engine's season-start call as friendlies-a-interface.md words it,
+# so the page can be run in the game before Motore's fr_season exists. InitializeNewSeason's `call cseg_3D204` (the
+# call after cseg_5DEB9, ffp.find's 'season' + 5; E8 kept, chained on whatever is there) becomes fc_probe: the old
+# call first, the game's D0..A6 saved and put back (as ffp's ff_season), then frc_choose(ctx, given, venues) through
+# the engine's slot. ctx: world 0's table (tools/frdata/frstr_w0.bin, embedded), self = selTeamNumber, no B team, no
+# avoid list, room NULL, season / seed 0, nhome 2, a scratch FR_ST. Before the call the stack below esp is filled
+# with A5h down to the C runtime's _STACKLOW: the harness reads the low-water mark with the page / the club list open.
+# 'FCPB' descriptor: FCP_ESP (esp at the fill), FCP_DONE (returns of frc_choose), _STACKLOW's address, then given[4],
+# venues, FR_ST (16 B).
+PROBE = r"""
+fc_probe:
+    call FCP_PREV
+    pushad
+    push es
+    push ds
+    pop es
+    cld
+    mov [FCP_ESP], esp
+    mov edi, [STACKLOW]
+    mov ecx, esp
+    sub ecx, 64
+    sub ecx, edi
+    jbe .f
+    mov al, 0A5h
+    rep stosb
+.f: mov esi, REGS
+    mov edi, FCP_REGS
+    mov ecx, 15
+    rep movsd
+    mov ax, [SELTEAM]
+    mov [FCP_CTX + 10], ax
+    mov dword [FCP_GIVEN], -1
+    mov dword [FCP_GIVEN + 4], -1
+    mov byte [FCP_VEN], 0FFh
+    push FCP_VEN
+    push FCP_GIVEN
+    push FCP_CTX
+    call FRC_SLOT
+    add esp, 12
+    inc dword [FCP_DONE]
+    mov esi, FCP_REGS
+    mov edi, REGS
+    mov ecx, 15
+    rep movsd
+    pop es
+    popad
+    ret
+
+align 4
+    db 'FCPB'
+FCP_ESP: dd 0
+FCP_DONE: dd 0
+    dd STACKLOW
+FCP_GIVEN: dw 0, 0, 0, 0
+FCP_VEN: dd 0
+FCP_FRST: times 16 db 0
+FCP_REGS: times 15 dd 0
+FCP_CTX:                                ; FrcCtx (frnd.h; frcsel.h asserts these offsets)
+    dd FCP_BLOB, FCP_BLOB_LEN           ; +0 frss, +4 len
+    dw 0, 0, 0FFFFh, 0                  ; +8 world 0, +10 self, +12 self2 (none)
+    dd 0, 0, 0                          ; +16 avoid, +20 navoid, +24 room
+    dd 0, 0, 2                          ; +28 season, +32 seed, +36 nhome
+    dd FCP_FRST                         ; +40 frst
+FCP_BLOB:
+FCP_BLOB_DB
+"""
+
+
+def probe_sites(p):
+    """the probe's call site (1, off), _STACKLOW, selTeamNumber"""
+    import careerworld
+    import ffp
+    d1 = p.le.obj_bytes(1)
+    site = ffp.find(p)['season'] + 5
+    assert d1[site] == 0xE8 and p.get(1, site, 1) == b'\xE8', 'frchoose probe: InitializeNewSeason call cseg_3D204'
+    m = list(re.finditer(rb'\x89\xe0\x2b\x05.{4}\xc3', d1, re.S))       # stackavail_: mov eax, esp; sub eax, _STACKLOW
+    assert len(m) == 1, ('stackavail_', len(m))
+    sel = (careerworld.SITES.get('nc') or {}).get('selteam')
+    assert sel and sel[0] == 2, ('frchoose probe: selTeamNumber (careerworld.SITES)', sel)
+    return site, p.target(1, m[0].start() + 4), sel
+
+
 def menu(d):
     """FC_MENU's entries (nasm lines) in frchoose.c's order: FC_E_*"""
     E = d['FC_E_ROW']
@@ -262,6 +350,24 @@ def sites(p):
                 drawmenu=drawmenu, gtp=gtp, hdr=hdr[0], ctfif=fx[hdr[0]])
 
 
+def _probe(p, src, at, sym, s):
+    """the glue with PROBE appended, assembled again: (code, fix, rel, labels); the call site kept for patch()"""
+    import nasmcave
+    site, low, sel = probe_sites(p)
+    rt = p.rel_target(1, site + 1)                          # (a module before this one may have hooked the call)
+    prev = rt if rt else (1, site + 5 + struct.unpack('<i', p.get(1, site + 1, 4))[0])
+    here = os.path.dirname(os.path.abspath(__file__))
+    blob = open(os.path.join(here, 'frdata', 'frstr_w0.bin'), 'rb').read()
+    assert blob[:4] == b'FRSS' and len(blob) < PROBE_SIZE - 0x100, len(blob)
+    db = ''.join('    db ' + ', '.join(str(x) for x in blob[i:i + 32]) + '\n' for i in range(0, len(blob), 32))
+    src = src + nasmcave.sub(PROBE, 'FCP_BLOB_DB\n', db)
+    src = f'%define FCP_BLOB_LEN {len(blob)}\n' + src
+    sym.update(FCP_PREV=prev, STACKLOW=low, SELTEAM=sel, REGS=(2, s['D0']))
+    code, fix, rel = nasmcave.assemble_obj(src, at, sym, 4)
+    LABELS['PROBE_SITE'] = site
+    return code, fix, rel, nasmcave.labels(src, at, sym)
+
+
 def patch(p, lang, pick=None):
     """frchoose.c + the glue + the strings into FRCH; the club list's hook. pick = FRND's fr_pick / fr_level symbols
     (None: the interim own copy). Returns the code's end."""
@@ -310,8 +416,11 @@ def patch(p, lang, pick=None):
               'FC_K', 'FC_LV'):
         sym[k.upper()] = syms[k]
     at = (c_end + 15) & ~15
+    sym['FRC_SLOT'] = (4, at0 + 8)
     code, fix, rel = nasmcave.assemble_obj(src, at, sym, 4)
     lab = nasmcave.labels(src, at, sym)
+    if probing():
+        code, fix, rel, lab = _probe(p, src, at, sym, s)
     end = at + len(code)
     assert end <= str_at, ('frchoose: code + glue past the strings', hex(end), hex(str_at))
     assert not any(p.get(4, at, len(code)))
@@ -330,6 +439,8 @@ def patch(p, lang, pick=None):
         p.add_ptr(2, o, 4, lab['fc_lhook'])
         assert p.target(2, o) == (4, lab['fc_lhook']) and \
             struct.unpack('<I', p.get(2, o, 4))[0] == lab['fc_lhook'], 'frchoose: the club list hook (MC 16/11)'
+    if probing():
+        p.branch(1, LABELS.pop('PROBE_SITE'), 0xE8, 4, lab['fc_probe'])
     LABELS.clear()
     LABELS.update(syms, **{k: (4, v) for k, v in lab.items()}, AT=(4, at0), END=(4, end0), OWN=own, FRC_CHOOSE_SLOT=(4, at0 + 8),
                   LIST_PREV=prev, HDR=(2, s['hdr']))

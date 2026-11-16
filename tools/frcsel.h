@@ -35,6 +35,12 @@ typedef struct {                        /* the engine's fr_pick arguments + FR_S
     uint32_t navoid; const FrRoom *room; uint32_t season, seed, nhome; uint8_t *frst;
 } FrcCtx;
 #endif
+#if defined(__i386__)                   /* (the exe's layout: frchoose.py's test caller FRC_PROBE writes one by hand) */
+_Static_assert(sizeof(FrcCtx) == 44 && __builtin_offsetof(FrcCtx, world) == 8 && __builtin_offsetof(FrcCtx, self) == 10 &&
+               __builtin_offsetof(FrcCtx, self2) == 12 && __builtin_offsetof(FrcCtx, avoid) == 16 &&
+               __builtin_offsetof(FrcCtx, room) == 24 && __builtin_offsetof(FrcCtx, season) == 28 &&
+               __builtin_offsetof(FrcCtx, nhome) == 36 && __builtin_offsetof(FrcCtx, frst) == 40, "FrcCtx layout");
+#endif
 
 #define FRC_MIX         0               /* level */
 #define FRC_EASY        1

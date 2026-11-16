@@ -36316,7 +36316,7 @@ def world_ns():
 
 
 
-def new_career(s, country, league, team, continent='EUROPA', original=False):
+def new_career(s, country, league, team, continent='EUROPA', original=False, note=True):
     """Main menu -> CARRIERA -> SCEGLI SQUADRA -> continent -> country -> league -> team -> the
     chairman's note -> career menu. original=True: the 1996-97 CARRIERA (career_entry) even where the green
     CARRIERA 2026-27 button exists - else a plain 'CARRIERA' takes the green one on such builds (the callers that
@@ -36347,7 +36347,8 @@ def new_career(s, country, league, team, continent='EUROPA', original=False):
         scr = s.screen()
         team = next(i for i, t, inv, _ in scr.entries if t and not inv and i and scr.path(i) is not None)
     walk(s, team, 3)
-    s.send('fire dump:3')
+    if note:                                    # (note=False: stop on what the season start shows first - 4.2: the
+        s.send('fire dump:3')                   #  friendlies' chooser page, then the chairman's note)
 
 
 def league_table(r, base, n):
@@ -43679,6 +43680,213 @@ def gk_gloves_dark():
         s.shot('gloves_dark')
         kits_check('glv_dark', s, kb, sgp, 1 if gw == 0 else 0, errs, info)
     return not errs, '; '.join(errs + info)
+
+
+def frc_sites(exe_dir):
+    """4.2 friendlies chooser (frchoose.py) in a built exe: {'pg': (4, off) of the page's descriptor after 'FCPG' (5
+    dwords, linear once loaded: FC_SEL, FC_TRACE, FC_NAME, FC_K, FC_MENU), 'pb': the test caller's after 'FCPB'
+    (FRC_PROBE builds: FCP_ESP, FCP_DONE, _STACKLOW's address, given[4], venues dword, FR_ST 16 B) or None}"""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lepatch
+    p = lepatch.LEPatch(os.path.join(exe_dir, 'ITALIAN.EXE'))
+    d4 = bytes(p.get(4, 0, 0x1000 * p.le.obj(4).npages))
+    require(d4.count(b'FCPG') == 1, f'frc_sites: {d4.count(b"FCPG")} FCPG descriptors in {exe_dir}')
+    return {'pg': (4, d4.index(b'FCPG') + 4), 'pb': (4, d4.index(b'FCPB') + 4) if d4.count(b'FCPB') == 1 else None}
+
+
+def frc_read(s, fs):
+    """the page's state from the paused game: FC_TRACE, FC_K, FrcSel (club[4], level, venues, msg, out: word[4], home,
+    fb, band[4]); with the test caller: done, given[4], venues byte, FR_ST, esp, stacklow (linear)"""
+    r = s.result
+    sel, tr, _, kk, menu = struct.unpack('<5I', bytes(r.read(r.lin(fs['pg']), 20)))
+    d = bytes(r.read(sel, 34))
+    v = {'trace': r.read(tr, 1)[0], 'k': struct.unpack('<I', bytes(r.read(kk, 4)))[0], 'menu': menu,
+         'club': struct.unpack_from('<4H', d, 4), 'level': d[12], 'venues': d[13],
+         'msg': struct.unpack_from('<b', d, 14)[0], 'word': struct.unpack_from('<4H', d, 16), 'home': d[24],
+         'fb': d[25], 'band': tuple(d[26:30])}
+    if fs['pb']:
+        b = bytes(r.read(r.lin(fs['pb']), 40))
+        esp, done, lowp = struct.unpack_from('<3I', b, 0)
+        v.update(esp=esp, done=done, low=struct.unpack('<I', bytes(r.read(lowp, 4)))[0],
+                 given=struct.unpack_from('<4H', b, 12), ven=b[20], frst=b[24:40])
+    return v
+
+
+def frc_stack(s, v):
+    """(free, used): bytes of the game's stack never written since the test caller's A5h fill (_STACKLOW up to the
+    lowest byte that is no longer A5h), and the bytes used below the caller's esp (None: the fill was not made)"""
+    lo, top = v['low'], v['esp'] - 64
+    if not (0 < lo < top and top - lo < 0x10000):
+        return None, None
+    d = bytes(s.result.box.dump(lo, top - lo))
+    k = next((i for i, x in enumerate(d) if x != 0xA5), len(d))
+    return k, len(d) - k + 64
+
+
+def frc_goto(s, i, tries=12):
+    """the cursor on entry i (one key at a time, re-planned), no fire; the screen"""
+    for _ in range(tries):
+        scr = s.screen()
+        if scr.selected == i:
+            return scr
+        p = scr.path(i)
+        require(p, f'frc_goto: no path to {i} from {scr.selected} ({scr})')
+        s.send(p[0] + ' dump:0.5')
+    raise SetupError(f'frc_goto: entry {i} not reached ({s.screen()})')
+
+
+def frc_rows(scr, e0=6):
+    """the page's 4 rows as drawn: [(venue, club, band, figure, club box colour, band box colour)]"""
+    return [(scr.raw_texts[e0 + 4 * k], scr.raw_texts[e0 + 4 * k + 1], scr.raw_texts[e0 + 4 * k + 2],
+             scr.raw_texts[e0 + 4 * k + 3], scr.colors[e0 + 4 * k + 1], scr.colors[e0 + 4 * k + 2]) for k in range(4)]
+
+
+@scenario
+def frchoose_probe():
+    """4.2 friendlies chooser (frchoose.py), the season-start probe before the engine's hook exists: a FRC_PROBE=1
+    build (the test caller in place of InitializeNewSeason's `call cseg_3D204`, world 0's table embedded). A new
+    1996-97 career (UDINESE): the page is shown before the chairman's note (FC_TRACE bit 0, title, AUTOMATIC row,
+    4 rows with club / venue 2 + 2 / band / figure 1-5, the cursor on CONTINUE); RIGHT on the level row (the next
+    level's text, the rows repainted) and LEFT back; FIRE on row 1's venue (still 2 + 2, the row flipped); FIRE on row
+    1's club -> the game's club browser under the page's title, EUROPA > GERMANIA > 1. LIGA: every listed club in a
+    band colour or grey, one accepted club fired -> back on the page, the row shows it as chosen; row 2's browser left
+    by ESCI: the row unchanged; CONTINUE -> frc_choose returned once with given[0] = the club, the others automatic,
+    the venues' mask, the level's bits in FR_ST; then the chairman's note and the career menu. The stack's low-water
+    mark (A5h fill from _STACKLOW) on the page and with the club list open: at least FRC_STACK_MIN (512) B never
+    touched. Screenshots: page, level, list, chosen."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import frchoose
+    errs, notes = [], []
+    b = build(f'frc_probe_{UI}', env={'FRC_PROBE': '1'}, lang=UI)
+    fs = frc_sites(b)
+    require(fs['pb'], 'frchoose_probe: the build has no test caller (FCPB)')
+    d = frchoose.cdefs()
+    E, LVL, GO = d['FC_E_ROW'], d['FC_E_LVL'], d['FC_E_GO']
+    ven, bands = frchoose.VEN[UI], frchoose.BAND[UI]
+    bcol = {bands[0]: d['FC_C_STRONG'], bands[1]: d['FC_C_SIMIL'], bands[2]: d['FC_C_WEAK']}
+    smin = int(os.environ.get('FRC_STACK_MIN', '512'))
+
+    def page(tag, level=None):
+        """the page's common oracles; (screen, state, rows) or None"""
+        scr, v = s.screen(), frc_read(s, fs)
+        if not check(scr.n == d['FC_NE'] and scr.raw_texts[0] == frchoose.TITLE[UI],
+                     f'{tag}: not the page: {scr.n} entries, {scr}', errs):
+            return None
+        rows = frc_rows(scr, E)
+        check(v['trace'] & 1, f'{tag}: FC_TRACE {v["trace"]:#x}: bit 0 clear', errs)
+        check(scr.raw_texts[d['FC_E_LVLL']] == frchoose.LVLL[UI] and scr.raw_texts[GO] == frchoose.GO[UI],
+              f'{tag}: labels {scr.raw_texts[d["FC_E_LVLL"]]!r} / {scr.raw_texts[GO]!r}', errs)
+        if level is not None:
+            check(v['level'] == level and scr.raw_texts[LVL] == frchoose.LVL[UI][level],
+                  f'{tag}: level {v["level"]} drawn {scr.raw_texts[LVL]!r}, expected {level} {frchoose.LVL[UI][level]!r}', errs)
+        check(all(r[1] for r in rows) and len({r[1] for r in rows}) == 4, f'{tag}: the rows\' clubs {rows}', errs)
+        check(sorted(r[0] for r in rows) == sorted(ven * 2), f'{tag}: venues not 2 + 2: {[r[0] for r in rows]}', errs)
+        check(all(r[0] == ven[0 if v['home'] >> k & 1 else 1] for k, r in enumerate(rows)),
+              f'{tag}: venues drawn {[r[0] for r in rows]} against home mask {v["home"]:#x}', errs)
+        check(all(r[2] in bcol and r[5] == bcol[r[2]] for r in rows), f'{tag}: band boxes {rows}', errs)
+        check(all(r[3] in '12345' and len(r[3]) == 1 for r in rows), f'{tag}: figures {[r[3] for r in rows]}', errs)
+        check(all(r[4] == (d['FC_C_AUTO'] if v['club'][k] == 0xFFFF else d['FC_C_CHOSEN']) for k, r in enumerate(rows)),
+              f'{tag}: club box colours {[hex(r[4]) for r in rows]} for chosen {v["club"]}', errs)
+        used = {r[2] for r in rows}
+        check(all((scr.entries[d['FC_E_LEG'] + k][2] == 0) == (bands[k] in used) for k in range(3)),
+              f'{tag}: legend boxes shown {[scr.entries[d["FC_E_LEG"] + k][2] == 0 for k in range(3)]}, bands used {used}', errs)
+        s.shot(tag)
+        notes.append(f'{tag}: level {v["level"]} rows {[r[:4] for r in rows]} msg {scr.raw_texts[d["FC_E_MSG"]]!r}')
+        return scr, v, rows
+
+    def stack(tag, v):
+        free, used = frc_stack(s, v)
+        if check(free is not None, f'{tag}: no stack fill (esp {v["esp"]:#x}, _STACKLOW {v["low"]:#x})', errs):
+            check(free >= smin, f'{tag}: only {free} B of the stack never touched (< {smin})', errs)
+            notes.append(f'{tag}: stack {free} B never touched, {used} B used below the caller (room at the call '
+                         f'{v["esp"] - v["low"]} B)')
+
+    with Session(f'frchoose_probe_{UI}', b, {}, 'dump:2', 600) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'no first pause ({s.result})'
+        w9697(s)
+        new_career(s, 'ITALIA', 'SERIE A', 'UDINESE', original=True, note=False)
+        got = page('page', 0)
+        if not got:
+            return False, '; '.join(errs)
+        scr, v0, rows0 = got
+        check(scr.selected == GO, f'page: the cursor on {scr.selected}, not CONTINUE ({GO})', errs)
+        check(v0['done'] == 0 and v0['k'] == 4, f'page: done {v0["done"]}, FC_K {v0["k"]}', errs)
+        stack('page', v0)
+        # the level row
+        frc_goto(s, LVL)
+        s.send('right dump:1')
+        got = page('level', 1)
+        s.send('left dump:1')
+        got = page('level_back', 0)
+        check(got and got[2] == rows0, f'level_back: rows {got and got[2]} differ from the opening {rows0}', errs)
+        # the venue swap
+        frc_goto(s, E)
+        s.send('fire dump:1')
+        got = page('venue', 0)
+        check(got and got[2][0][0] != rows0[0][0] and got[1]['venues'] != 0xFF,
+              f'venue: row 1 {got and got[2][0][0]!r} (was {rows0[0][0]!r}), mask {got and got[1]["venues"]:#x}', errs)
+        # the club browser from row 1
+        frc_goto(s, E + 1)
+        s.send('fire dump:3')
+        scr = s.screen()
+        check(frchoose.PICK[UI] in scr.raw_texts, f'browser: no page title {frchoose.PICK[UI]!r}: {scr}', errs)
+        check(frc_read(s, fs)['k'] == 0, f'browser: FC_K {frc_read(s, fs)["k"]}', errs)
+        for t in ('EUROPA', 'GERMANIA', '1. LIGA'):
+            walk(s, t, 3)
+        scr = s.screen()
+        lst = [(i, scr.raw_texts[i], scr.colors[i]) for i in range(d['FC_LIST0'], min(d['FC_LIST1'], scr.n))
+               if not scr.entries[i][2] and scr.raw_texts[i]]
+        ok_cols = set(bcol.values()) | {d['FC_C_NO']}
+        check(len(lst) >= 10 and all(c in ok_cols for _, _, c in lst), f'list: colours {[(t, hex(c)) for _, t, c in lst]}', errs)
+        s.shot('list')
+        stack('list', frc_read(s, fs))
+        notes.append('list: ' + ' '.join(f'{t}:{c:X}' for _, t, c in lst))
+        pick = next(((i, t) for i, t, c in lst if c != d['FC_C_NO']), None)
+        if check(pick, 'list: no accepted club in 1. LIGA', errs):
+            walk(s, pick[0], 3)
+            for _ in range(3):                      # (the game's dialog may ask to confirm: logged, then fired)
+                if s.screen().raw_texts[:1] == [frchoose.TITLE[UI]]:
+                    break
+                notes.append(f'after the pick: {s.screen()}')
+                s.send('fire dump:3')
+            got = page('chosen', 0)
+            if got:
+                check(got[2][0][1] == pick[1] and got[1]['club'][0] != 0xFFFF and got[1]['word'][0] == got[1]['club'][0]
+                      and got[1]['k'] == 4, f'chosen: row 1 {got[2][0]} for {pick[1]!r}, state {got[1]}', errs)
+                check(got[1]['msg'] == 0 and not got[0].raw_texts[d['FC_E_MSG']], f'chosen: message '
+                      f'{got[0].raw_texts[d["FC_E_MSG"]]!r} ({got[1]["msg"]})', errs)
+                rows1 = got[2]
+                # row 2's browser left by ESCI
+                frc_goto(s, E + 5)
+                s.send('fire dump:3')
+                walk(s, 'ESCI', 3)
+                got = page('esci', 0)
+                check(got and got[2] == rows1 and got[1]['k'] == 4, f'esci: rows {got and got[2]} (were {rows1})', errs)
+                stack('esci', frc_read(s, fs))
+        # CONTINUE
+        scr = s.screen()
+        if scr.raw_texts[:1] == [frchoose.TITLE[UI]]:
+            vp = frc_read(s, fs)
+            frc_goto(s, GO)
+            s.send('fire dump:3')
+            v = frc_read(s, fs)
+            scr = s.screen()
+            check(v['done'] == 1, f'continue: frc_choose returned {v["done"]} times; screen {scr}', errs)
+            check(v['given'] == vp['club'] and v['ven'] == vp['venues'] and v['frst'][11] >> 6 == vp['level'],
+                  f'continue: given {v["given"]} venues {v["ven"]:#x} FR_ST {v["frst"].hex()} for the page\'s '
+                  f'{vp["club"]} / {vp["venues"]:#x} / level {vp["level"]}', errs)
+            notes.append(f'continue: given {[hex(x) for x in v["given"]]} venues {v["ven"]:#x}; then {scr.texts()[:6]}')
+            s.shot('after')
+            for _ in range(3):
+                if 'TRASFERIMENTI' in s.screen().texts():
+                    break
+                s.send('fire dump:3')
+            check('TRASFERIMENTI' in s.screen().texts(), f'no career menu after the page: {s.screen()}', errs)
+            stack('career', frc_read(s, fs))
+        else:
+            errs.append(f'not on the page before CONTINUE: {scr}')
+    return not errs, '; '.join(errs + notes)
 
 
 if __name__ == '__main__':

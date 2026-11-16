@@ -476,7 +476,23 @@ def prepare(name, exe_dir, cars, steps, match=False, timer=False):
         open(os.path.join(game, 'SETUP.DAT'), 'wb').write(setup_dat())
     if not os.path.exists(os.path.join(game, 'ITALIAN.EXE')):      # e.g. an English SWOS++ bundle
         shutil.copy(os.path.join(game, 'ENGLISH.EXE'), os.path.join(game, 'ITALIAN.EXE'))
+    if UI != 'it' and not os.environ.get('SWOSTEST_UI_ANYEXE'):   # (MC 16/11: scenarios that read SWOSTEST_BUILD raw
+        lg = exe_lang(os.path.join(game, 'ITALIAN.EXE'))          # ran the IT exe under SWOSTEST_UI=en and PASSed)
+        assert lg == UI, (f'SWOSTEST_UI={UI} but the exe launched is {lg or "of no known language"} '
+                          f'({exe_dir}): the scenario must take its build through ui_build')
     return run, test_exe(os.path.join(game, 'ITALIAN.EXE'), steps, match, timer)
+
+
+# The exe's language by a menu text only that language's exe has (the original's LOAD OLD COMPETITION item, each exe:
+# 1 copy, CD and GOG). SWOSTEST_UI_ANYEXE=1: a scenario that runs another language's exe on purpose.
+LANG_SIG = {'it': b'CARICA VECCHIA COMPETIZIONE', 'en': b'LOAD OLD COMPETITION', 'fr': b'CHARGER UNE ANCIENNE COMPETITION',
+            'de': b'ALTEN WETTBEWERB LADEN'}
+
+
+def exe_lang(path):
+    data = open(path, 'rb').read()
+    hit = [k for k, v in LANG_SIG.items() if v in data]
+    return hit[0] if len(hit) == 1 else None
 
 
 SCAN = {'fire': 0x1D, 'up': 0x48, 'down': 0x50, 'left': 0x4B, 'right': 0x4D, 'esc': 0x01, 'enter': 0x1C,

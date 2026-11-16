@@ -106,6 +106,9 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 - Friendlies give no league points and count for no table or cup. The season's friendlies record (won, drawn, lost) is kept apart from your competitive results.
 - On the page where you choose the opponents, the figure from 1 to 5 next to a club is the same for everybody (which fifth of the world's clubs it is in, 5 = the strongest fifth), while the colour compares that club with yours (stronger, similar or weaker), as the page's legend shows; a club you have picked gets a colour of its own.
 
+#### Italian version: PAREGGI
+The original Italian game spells "draws" as PARREGGI in the season record (VINCITE ... PARREGGI ... SCON ...), the line a national-team coach sees and that the preseason friendlies now use too. It now reads PAREGGI, in the CD and GOG versions.
+
 #### Decisions of this release
 - Serie C / Serie D exchange (2026-27 world): every season the nine Serie D group winners go up and the Serie C clubs relegated (last of each group + play-out losers) go down, your club included; groups by area, an approximation (the real league redraws the Serie D groups every summer); a move of your club keeps its squad, money and record.
 - Set-piece practice: a practice lasts the attempts chosen (SHOTS: 10 at first; UNLIMITED until ESC) on the half chosen (HALF: RANDOM at first, the match's own random end as before) and then shows its results page (ESC ends it earlier); a practice has no match clock, no presentation screen (competition, teams, stadium), no pre-match screen and no score bar at the restarts. Ordinary matches and friendlies are unchanged.
@@ -227,6 +230,9 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 - Fair play finanziario: questi soldi contano come incassi da stadio, come ogni altro incasso. Nel calcio vero è lo stesso: la UEFA conta tra i ricavi rilevanti gli incassi da stadio di tutte le partite di un club (UEFA Club Licensing and Financial Sustainability Regulations, edizione 2025, allegato J.2.1 a).
 - Le amichevoli non danno punti e non contano per nessuna classifica o coppa. Il bilancio delle amichevoli della stagione (vinte, pareggiate, perse) è tenuto a parte dai risultati ufficiali.
 - Nella pagina in cui scegli le avversarie il numero da 1 a 5 accanto a una squadra è uguale per tutti (in quale quinto delle squadre del mondo si trova, 5 = il quinto più forte), mentre il colore confronta quella squadra con la tua (più forte, simile o più debole), come spiega la legenda della pagina; una squadra che hai già scelto ha un colore suo.
+
+#### Versione italiana: PAREGGI
+Il gioco originale in italiano scrive PARREGGI nel registro della stagione (VINCITE ... PARREGGI ... SCON ...), la riga che vede l'allenatore di una nazionale e che ora usano anche le amichevoli estive. Ora c'è scritto PAREGGI, nelle versioni CD e GOG.
 
 #### Decisioni di questa release
 - Scambio Serie C / Serie D (Mondo 2026-27): ogni stagione le nove vincitrici dei gironi di Serie D salgono e le retrocesse dalla Serie C (ultima di ogni girone + perdenti dei play-out) scendono, anche la tua squadra; gironi per zona, un'approssimazione (la Lega vera ricompone i gironi di Serie D ogni estate); un passaggio della tua squadra tiene rosa, soldi e curriculum.

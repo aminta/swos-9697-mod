@@ -6922,6 +6922,38 @@ def uefa_name():
 
 
 @scenario
+def typo_fix():
+    """4.2 (Davide 16/11): the original exes' typos fixed in place (typofix.FIXES; IT: the national-team / friendlies
+    record line 'VINCITE %0 PAREGGI %1 SCON %2', the original's PARREGGI). No game run: every exe of the build's dir
+    (SWOSTEST_BUILD; its ../gog too) has no misspelt stem (typofix.FIND) left and the fixed string at the original's
+    first copy, NUL-padded"""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    from le import LE
+    import typofix
+    exes = {'it': 'ITALIAN', 'en': 'ENGLISH', 'fr': 'FRENCH', 'de': 'GERMAN'}
+    d = os.environ.get('SWOSTEST_BUILD')
+    if not d:
+        return True, 'SKIP: SWOSTEST_BUILD (a release dir) needed'
+    errs, n = [], 0
+    for sub in ('', os.path.join('..', 'gog')):
+        for lang, fx in typofix.FIXES.items():
+            exe = os.path.join(d, sub, exes[lang] + '.EXE')
+            if not os.path.isfile(exe):
+                continue
+            n += 1
+            o2 = LE(open(os.path.join(ROOT, 'orig', 'gog' if sub else '', exes[lang] + '.EXE'), 'rb').read()).obj_bytes(2)
+            x2 = LE(open(exe, 'rb').read()).obj_bytes(2)
+            for st in typofix.FIND.get(lang, ()):
+                check(st not in x2, f'{sub or "CD"} {lang}: {st!r} still in obj2 at {x2.find(st):#x}', errs)
+            for old, new in fx:
+                i = o2.find(old + b'\0')
+                want = new + bytes(len(old) + 1 - len(new))
+                check(i >= 0 and x2[i:i + len(want)] == want, f'{sub or "CD"} {lang}: {x2[i:i + len(want)]!r}, not {new!r}', errs)
+    check(n > 0, f'no exe of a fixed language in {d}', errs)
+    return not errs, '; '.join(errs) or f'{n} exes: the typos fixed ({sum(len(v) for v in typofix.FIXES.values())} strings)'
+
+
+@scenario
 def names_fit():
     """4.0 names the game can show (complist.check_titles, no game run): every title '<country> <long name>' of the
     build's packs (SEASON_PACKS) fits the game's 35-byte field (longer, it overwrote the long-name pointer: Argentina's

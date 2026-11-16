@@ -69,7 +69,8 @@ typedef unsigned int u32;
 
 #define FC_LIST0    7                   /* chooseTeamsFriendlyMenu: the clubs' entries 7 .. 54 */
 #define FC_LIST1    55
-#define FC_NL       20                  /* a name's bytes (the team record's name: 17 B at +5, NUL-ended) */
+#define FC_NL       20                  /* a name's bytes here */
+#define FC_NREC     17                  /* the team record's name field at +5 (NUL-ended unless all 17 are used) */
 
 extern u8 DREG[];                       /* the game's D0..D7, A0..A6 (60 B) */
 extern u8 SWOSPP;                       /* 0FFh = no SWOS++ */
@@ -139,7 +140,7 @@ void fc_paint(void) {                   /* the menu's onInit / onReturn, and aft
         u8 *e = ent(FC_E_ROW + 4 * k);
         if (FC_NW[k] != w) {
             const u8 *r = team(w);
-            for (i = 0; i < FC_NL - 1 && r && r[5 + i]; i++)
+            for (i = 0; i < FC_NREC && r && r[5 + i]; i++)
                 FC_NAME[k][i] = (char)r[5 + i];
             FC_NAME[k][i] = 0;
             FC_NW[k] = (u16)w;

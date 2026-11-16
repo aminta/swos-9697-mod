@@ -172,6 +172,106 @@ def test_frchoose_menu_layout():
     return True, f'{NE} entries, {len(sel)} selectable, no overlap, legend top left'
 
 
+def test_frchoose_menu_bytes():
+    """the packed menu as nasm assembles it, decoded record by record as the game's UnpackMenu reads it (dw x, y, w, h;
+    then dw type: 2 = 4 link bytes, 4 = dw colour, 8 = dw flags + dd text, 13 = dd handler, 14 = dw mask + dd handler;
+    dw 0 ends the entry, dw -999 the menu): 25 well-formed entries, the level row the one type-14 entry (mask 0E0h =
+    FIRE / LEFT / RIGHT), every other selectable entry type 13, colours and distinct texts as frchoose.c numbers them"""
+    syms = {'FC_S_TTL': 0x100000, 'FC_S_LVLL': 0x100100, 'FC_S_LVL': 0x100200, 'FC_S_BAND': 0x100300,
+            'FC_S_VEN': 0x100400, 'FC_S_MSG': 0x100500, 'FC_S_GO': 0x100600, 'FC_S_CHO': 0x100700,
+            'FC_NAME': 0x200000, 'FC_LV': 0x200100, 'fc_hl': 0x300000, 'fc_go': 0x300100}
+    syms.update({f'fc_v{k}': 0x300200 + k for k in range(4)})
+    syms.update({f'fc_c{k}': 0x300300 + k for k in range(4)})
+    asm, out = os.path.join(_TMP, 'menu.asm'), os.path.join(_TMP, 'menu.bin')
+    open(asm, 'w').write('bits 32\n' + ''.join(f'%define {k} {v:#x}\n' for k, v in syms.items()) + frchoose.menu(D)
+                         + '    dw -999\n')
+    r = subprocess.run(['nasm', '-f', 'bin', '-o', out, asm], capture_output=True, text=True)
+    if r.returncode:
+        return False, r.stderr[-300:]
+    b, o, ents = open(out, 'rb').read(), 0, []
+    size = {2: 4, 4: 2, 8: 6, 13: 4, 14: 6}
+    while struct.unpack_from('<h', b, o)[0] != -999:
+        e = {'box': struct.unpack_from('<4h', b, o)}
+        o += 8
+        while True:
+            t = struct.unpack_from('<H', b, o)[0]
+            o += 2
+            if t == 0:
+                break
+            if t not in size or t in e:
+                return False, f'entry {len(ents)}: record type {t} (unknown or twice)'
+            e[t] = b[o:o + size[t]]
+            o += size[t]
+        ents.append(e)
+    if o + 2 != len(b) or len(ents) != NE:
+        return False, f'{len(ents)} entries, {len(b) - o - 2} stray bytes'
+    E, GO, LV = D['FC_E_ROW'], D['FC_E_GO'], D['FC_E_LVL']
+    t14 = [i for i, e in enumerate(ents) if 14 in e]
+    if t14 != [LV] or struct.unpack('<HI', ents[LV][14]) != (0xE0, syms['fc_hl']):
+        return False, f'type 14 entries {t14}: {ents[LV].get(14)}'
+    want = {GO: syms['fc_go']}
+    want.update({E + 4 * k: syms[f'fc_v{k}'] for k in range(4)})
+    want.update({E + 4 * k + 1: syms[f'fc_c{k}'] for k in range(4)})
+    got = {i: struct.unpack('<I', e[13])[0] for i, e in enumerate(ents) if 13 in e}
+    if got != want or {i for i, e in enumerate(ents) if 2 in e} != set(want) | {LV}:
+        return False, f'type 13 handlers {got}'
+    col = lambda i: struct.unpack('<H', ents[i][4])[0] if 4 in ents[i] else None
+    txt = lambda i: struct.unpack('<HI', ents[i][8])[1] if 8 in ents[i] else None
+    leg = [D['FC_E_LEG'] + k for k in range(3)] + [D['FC_E_LEGC']]
+    if [col(i) for i in leg] != [D['FC_C_STRONG'], D['FC_C_SIMIL'], D['FC_C_WEAK'], D['FC_C_CHOSEN']] or \
+            (col(LV), col(GO), col(E), col(0)) != (D['FC_C_CTRL'], D['FC_C_GO'], D['FC_C_CTRL'], 0x17):
+        return False, f'colours {[col(i) for i in range(NE)]}'
+    if [txt(E + 4 * k + 1) for k in range(4)] != [syms['FC_NAME'] + D['FC_NL'] * k for k in range(4)] or \
+            [txt(E + 4 * k + 3) for k in range(4)] != [syms['FC_LV'] + 2 * k for k in range(4)] or \
+            any(txt(i) is None for i in range(NE)):
+        return False, f'texts {[txt(i) for i in range(NE)]}'
+    return True, f'{NE} entries decoded as UnpackMenu reads them ({len(b)} B), 1 type-14 row (mask 0E0h), ' \
+                 f'{len(want)} type-13 handlers'
+
+
+def test_frchoose_twice():
+    """two season starts in one process: the first page sets EASY and a chosen club; the second opens on the level
+    FR_ST remembers (EASY), no chosen club, every name painted again (FC_NW reset), FC_TRACE 1, and hands back 4
+    automatic slots of that level; a club whose record uses all 17 bytes of the name field (no NUL inside it) is
+    drawn as those 17 characters, nothing of the bytes after the field"""
+    blob, world, clubs, names, me, page = setup(7)
+    if page.rc:
+        return False, f'reference page refused {page.rc}'
+    long = 'ABCDEFGHIJKLMNOPQ'
+    out = {}
+
+    def first(g):
+        s = g.sel
+        g.fire_level()
+        free = [w for w in clubs if w not in list(s.out.word) and w != me]
+        out['picked'] = g.pick(1, free[0]) and s.club[1] == free[0]
+        out['w'] = free[0]
+        out['name'] = (ctypes.c_char * D['FC_NL'] * 4).in_dll(g.l, 'FC_NAME')[1].value
+
+    def second(g):
+        s = g.sel
+        nm = (ctypes.c_char * D['FC_NL'] * 4).in_dll(g.l, 'FC_NAME')
+        out['lvl2'], out['club2'] = s.level, list(s.club)
+        out['names2'] = [nm[k].value.decode() == names[s.out.word[k]] for k in range(4)]
+    g = Game(names, first)
+    for w in clubs:                                         # every record: a 17-character name, then non-zero bytes
+        if w != me:
+            names[w] = long[:17 - 4] + f'{w:04X}'
+            g.recs[w][5:5 + 17] = names[w].encode()
+            g.recs[w][22:26] = b'ZZZZ'
+    r1 = g.choose(page.ctx)
+    g.script = second
+    r2 = g.choose(page.ctx)
+    if not out.get('picked') or out['name'].decode() != names[out['w']] or len(out['name']) != 17:
+        return False, f'first page: {out}'
+    if r1[0][1] != out['w'] or g.shown != 2 or g.trace() != 1:
+        return False, f'first result {r1}, shown {g.shown}, trace {g.trace()}'
+    if out['lvl2'] != S.EASY or out['club2'] != [NONE] * 4 or not all(out['names2']) or r2[0] != [S.FILL[S.EASY]] * 4:
+        return False, f'second page: {out}, result {r2}'
+    return True, f'second season start: level remembered (EASY), no chosen club, names repainted; 17-character ' \
+                 f'names drawn whole ({out["name"].decode()})'
+
+
 def test_frchoose_page():
     """frc_choose shows the page once; what it paints is the state: 4 club names, the band box's colour, the 1-5
     figure = fr_level, the legend = only the colours painted; the level row, the browser's club, a duplicate (the

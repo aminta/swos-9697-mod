@@ -37729,44 +37729,6 @@ def drp_setp():
 
 
 @scenario
-def gameplay_dump():
-    """TEMP (Panchina): hex of two unpacked menu entries (OPTIONS NB+1 and the page's first value row)"""
-    sys.path.insert(0, os.path.join(ROOT, 'tools'))
-    import difficulty as dfm
-    import zones
-    import lepatch
-    NB = dfm.NB
-    b = build(f'gameplay_menu_{UI}', {}, lang=UI)
-    p = lepatch.LEPatch(os.path.join(ROOT, 'orig', UI_ORIG))
-    mo = zones._current_menu(p)
-    out = []
-    with Session(f'gameplay_dump_{UI}', b, {}, 'dump:3', 300) as s:
-        s.wait()
-        scr = walk(s, 'OPZIONI', 2)
-        base = s.result.lin(mo)
-        out.append('opt15 ' + s.result.read(base + 0x16 + 16 * 0x38, 0x38).hex())
-        out.append('optNB1 ' + s.result.read(base + 0x16 + (NB + 1) * 0x38, 0x38).hex())
-        gm_select(s, NB + 1)
-        s.send('fire dump:1')
-        out.append('gmw ' + s.result.read(s.result.lin((4, __import__('swreg').GAMEPLAY_AT + 0x12)), 2).hex())
-        out.append('pagev0 ' + s.result.read(base + 0x16 + 7 * 0x38, 0x38).hex())
-        out.append('pageback ' + s.result.read(base + 0x16 + 13 * 0x38, 0x38).hex())
-    return True, ' | '.join(out)
-
-
-def gm_select(s, i, tries=40):
-    """Move the cursor to entry i (no fire); returns the screen."""
-    for _ in range(tries):
-        scr = s.screen()
-        if scr.selected == i:
-            return scr
-        p = scr.path(i)
-        assert p, f'no path to entry {i} from {scr.selected}'
-        s.send(p[0] + ' dump:0.5')
-    raise AssertionError(f'entry {i} not reached')
-
-
-@scenario
 def gameplay_menu():
     """4.2 GAMEPLAY (gameplay.py, Panchina; MC 15/11 input rules): OPTIONS has ONE mod row GAMEPLAY (entries NB / NB+1 = 20 / 21,
     22 entries, the six old rows gone), the 9 rows at PITCH from TOP above QUIT TO DOS, texts in their boxes. Keys: on the row LEFT /

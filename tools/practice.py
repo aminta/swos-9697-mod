@@ -18,7 +18,9 @@ whole game steps - no match code in flight; the routine is a bare ret, SWOS++ ho
 which returns at once unless PR_KIND != 0 inside the training game (g_trainingGame): practice off = the same match.
 pr_frame's state machine (PR_WORK +3 ST, +4 TMR frames in the state):
 - 0 idle: WAITF frames of live play (gameStatePl = gameState = ST_GAME_IN_PROGRESS) -> pick the side: the human team
-  (TeamGeneralInfo.playerNumber != 0, top first) attacks (ATTACK) or the other one (DEFENCE);
+  (TeamGeneralInfo.playerNumber != 0, top first) attacks (ATTACK) or the other one (DEFENCE); a stopped game is
+  forced at once, except a goal's own sequence (Davide 16/11): goalCameraMode until the stoppage's breakCameraMode
+  2 (the ball at rest in the net), then the auto replay (instantReplayFlag / replayState) - the game's own replay;
 - 1 forcing: FREE KICK / PENALTY: once, a foul through the game's own TestFoulForPenaltyAndFreeKick (A6 = the
   defending team, A2 = the attacking team's ordinal-10 player put at the foul point; the 15 pseudo registers saved
   around it): free kicks cycle x 336 / 290 / 382 (CENTRE, the two side bands) x 100 / 125 / 150 / 175 px from the goal
@@ -220,6 +222,15 @@ pr_frame:
     je .i0                              ;  (Davide 15/11) - the game live at once and the next set piece forced this
     cmp ax, 22                          ;  pass (stoppageEventTimer 0); half / full time states (22..): the game's
     jae .z
+    cmp word [ebp + IRF_O], 0           ; (a goal - gameState 0 at once, goalCameraMode 1 - Davide 16/11: its own
+    jne .z                              ;  sequence first: the ball rests in the net, the stoppage (breakCameraMode
+    cmp word [ebp + RPS_O], 0           ;  -1 / 0 / 1), the auto replay (instantReplayFlag, replayState). Forced
+    jne .z                              ;  before, the foul's stoppage replayed the goal - the ball out of the net
+    cmp word [ebp + GCM_O], 0           ;  at once, a 'save' - and the keeper went missing after it)
+    je .i1
+    cmp word [ebp + BCM_O], 2
+    jl .z
+.i1:
     mov word [ebp + SET_O], 0
     mov ax, 100
     mov [ebp + GSP_O], ax
@@ -348,9 +359,13 @@ pr_tele:                                ; the restart's formation at once: every
     cmp ax, 1
     ja .n
     mov ax, [esi + 3Ah]                 ; (x / y: integer parts = destX / destY)
+    cmp ax, 800                         ; (a destination off the pitch - the hand-over's keeper gets destX = x +
+    jae .n                              ;  1000, a sentinel, not a place: left to the game; teleported, the keeper
+    mov dx, [esi + 3Ch]                 ;  vanished after a goal's replay until the restart, Davide 16/11)
+    cmp dx, 1000
+    jae .n
     mov [esi + 20h], ax
-    mov ax, [esi + 3Ch]
-    mov [esi + 24h], ax
+    mov [esi + 24h], dx
 .n: add esi, 6Eh
     loop .l
     ret
@@ -649,11 +664,21 @@ def find_game(p, a6, ptg):
     gsec = _t(p, rt[0] + 3)
     gt = (2, gsec[1] + 2)
     assert _t(p, rt[0] + 11) in (None, gt), ('practice: gameTime', _t(p, rt[0] + 11), gt)
-    for v in (gtr, _t(p, m[0] + 1), gsp, ball, ltp, topt, bott, gstate, g1, g2, sev, gt, bcm):
+    # GameLoop: mov ax, [replayState] / or / jz @@main_game_action / call FadeOutToBlack / cmp [loadCrowdChantSampleFlag],
+    # 1 / jnz; then its @@check_for_instant_replay: call HandleInstantReplayStateSwitch / mov instantReplayFlag, 0 /
+    # mov goalCameraMode, 0 / call Flip (the goal's sequence: pr_frame's idle waits for it - Davide 16/11)
+    rs = [x.start() for x in re.finditer(rb'\x66\xa1....\x66\x0b\xc0\x74.\xe8....\x66\x83\x3d....\x01\x75', d, re.S)]
+    assert len(rs) == 1, ('practice: GameLoop replayState', rs)
+    ir = [x.start() for x in re.finditer(rb'\xe8....\x66\xc7\x05....\x00\x00\x66\xc7\x05....\x00\x00\xe8', d, re.S)]
+    ir = [o for o in ir if rs[0] < o < rs[0] + 0x200]
+    assert len(ir) == 1, ('practice: GameLoop instantReplayFlag / goalCameraMode', ir)
+    rps, irf, gcm = _t(p, rs[0] + 2), _t(p, ir[0] + 8), _t(p, ir[0] + 17)
+    for v in (gtr, _t(p, m[0] + 1), gsp, ball, ltp, topt, bott, gstate, g1, g2, sev, gt, bcm, rps, irf, gcm):
         assert v and v[0] == 2, ('practice: an obj2 variable', v)
     return dict(GTR_O=gtr[1], GSP_O=gsp[1], GS_O=gstate[1], BALL_O=ball[1], LTP_O=ltp[1], TOPT_O=topt[1],
                 BOTT_O=bott[1], G1_O=g1[1], G2_O=g2[1], SPR0_O=ball[1] - 22 * 0x6E, D0_O=d0[1], A2_O=a2[1],
-                A6_O=a6[1], SET_O=sev[1], GT_O=gt[1], BCM_O=bcm[1], TESTFOUL=tf[0])
+                A6_O=a6[1], SET_O=sev[1], GT_O=gt[1], BCM_O=bcm[1], RPS_O=rps[1], IRF_O=irf[1], GCM_O=gcm[1],
+                TESTFOUL=tf[0])
 
 
 def pm_site(p, a6):

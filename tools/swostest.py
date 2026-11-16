@@ -11388,7 +11388,7 @@ def practice_work(r):
     return f
 
 
-def practice_play(kind, side, esc_at=None, again=False):
+def practice_play(kind, side, esc_at=None, again=False, goal=False):
     """4.2 set-piece practice, step 2 (the engine, MC 14/11): a World 2026-27 career (PRACTICE_BUILD / BENCH_BUILD: a
     release dir; TRAIN_PATH), SQUADRA -> TRAINING -> (DEFENCE: the switch) -> the kind's row -> the training game:
     the engine forces the set piece again and again (fire pressed throughout: the human takes its own kicks). Gates:
@@ -11398,7 +11398,12 @@ def practice_play(kind, side, esc_at=None, again=False):
     the CPU one (DEFENCE) and the ball before the kick on that goal's half, the cycle index moving on, the longest
     restart after the first kick <= 8 s (560 frames); then the result page (the kind, TIRI n, GOL m, OK on OK), OK:
     back on the squad screen with PR_KIND 0, the counters kept, and the league match after
-    it: its kick-off reached with the engine idle (PR_WORK's frame count unchanged)."""
+    it: its kick-off reached with the engine idle (PR_WORK's frame count unchanged).
+    goal (Davide 16/11, REL42vs1: after a goal the ball left the net at once - the replay looked like a save - and the
+    keeper vanished after the replay): the first GOALN attempts' balls put in the attacked net just after the kick
+    (a poke), then sampled every ~2 frames up to the next kick: the ball stays in the net while the goal's stoppage
+    runs (goalCameraMode, breakCameraMode -1 / 0 / 1: before the replay), the replay played, and the defending keeper
+    visible and in his goal in every sample out of the replay until the next kick."""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import lepatch
     import practice
@@ -11463,13 +11468,60 @@ def practice_play(kind, side, esc_at=None, again=False):
         awards, shots, clock, ko = {}, 0, 0, 0
         bar, bar_gs = 0, {}                     # (Davide 15/11: no score bar on a practice restart - resultTimer != 0
         hang = 0                                # (item 5, Davide 15/11: after the whistle no ball left in the air)
-        for it in range(int(os.environ.get('PRACTICE_STEPS', '160'))):
-            r = s.send('fire:1 dump:1')
+        gw = None                               # (goal: the watch of the poked attempt - its samples)
+        goals = []                              # (goal: per poked attempt (nt, samples))
+        poked = set()
+        gn = int(os.environ.get('PRACTICE_GOALN', '2'))
+        w16 = lambda r, o: struct.unpack('<h', r.obj2(o, 2))[0]
+        for it in range(int(os.environ.get('PRACTICE_STEPS', '160')) + (600 * gn if goal else 0)):
+            keys = 'fire:1 dump:1'
+            if gw is not None:                  # (fine steps; fire only once the restart waits on its taker)
+                keys = 'fire:1 dump:1' if w['ST'] == 2 else 'dump:0.1'   # (after the replay: ST 2 = the restart, taken as the main loop)
+            r = s.send(keys)
             if r.outcome != 'dump':
                 errs.append(f'step {it}: {r}')
                 break
             w = practice_work(r)
             gs = struct.unpack('<h', r.obj2(g['GS_O'], 2))[0]
+            if goal and w['ST'] == 3 and w['TMR'] >= 8 and w['NT'] not in poked and len(poked) < gn and gw is None:
+                atk_top = w['ATK'] == 1         # (the top team attacks the bottom goal, y 769)
+                line = 769 if atk_top else 129
+                bo = r.base2 + g['BALL_O']      # (x 336, 4 px past the line, on the ground, still: in the net)
+                s.poke(bo + 0x1E, struct.pack('<ii', 336 << 16, (line + (4 if atk_top else -4)) << 16))
+                s.poke(bo + 0x26, struct.pack('<i', 0))
+                s.poke(bo + 0x2C, struct.pack('<Hiii', 0, 0, 0, 0))   # (speed, deltas 0; the destination = the
+                s.poke(bo + 0x3A, struct.pack('<hh', 336, line + (4 if atk_top else -4)))   #  spot: the kick, 8+
+                poked.add(w['NT'])
+                if os.environ.get('PRACTICE_GOAL_BPLM') and not getattr(s, 'gbplm', 0):   # (diagnosis: who launches
+                    s.gbplm = 1                 #  the ball out of the net - its deltaY's integer byte watched; with
+                    s.box.cmd(f'BPLM {bo + 0x2D:08X}', 0.3)   #  SWOSTEST_BPLM_GO=1 the writer's EIP + stack logged)
+                    s.box.memwatch = True
+                dteam = w16(r, g['BOTT_O' if atk_top else 'TOPT_O'] + 0x12)
+                kp = next(i for i in range(22) if w16(r, g['SPR0_O'] + i * 0x6E) == dteam
+                          and w16(r, g['SPR0_O'] + i * 0x6E + 2) == 1)
+                gw = dict(nt=w['NT'], ng=w['NG'], line=line, kp=kp, smp=[])
+                goals.append(gw)
+                info.append(f'goal watch: attempt {w["NT"]}, ball poked into the net at y {line + (4 if atk_top else -4)}, '
+                            f'keeper sprite {kp} (team {dteam})')
+                continue
+            if gw is not None:
+                kof = g['SPR0_O'] + gw['kp'] * 0x6E
+                gw['smp'].append(dict(st=w['ST'], nt=w['NT'], ng=w['NG'], brs=w.get('BRS', 0), gs=gs, gsp=w16(r, g['GSP_O']),
+                                      bcm=w16(r, g['BCM_O']), gcm=w16(r, g['GCM_O']), irf=w16(r, g['IRF_O']),
+                                      rps=w16(r, g['RPS_O']), bx=w16(r, g['BALL_O'] + 0x20),
+                                      by=w16(r, g['BALL_O'] + 0x24), bz=w16(r, g['BALL_O'] + 0x28),
+                                      kv=w16(r, kof + 0x44), ki=w16(r, kof + 0x46), kx=w16(r, kof + 0x20),
+                                      ky=w16(r, kof + 0x24)))
+                if len(gw['smp']) in (3, 30) or (gw['smp'][-1]['rps'] and not gw['smp'][-2]['rps']):
+                    s.shot(f'{tag}_goal{gw["nt"]}_{len(gw["smp"])}')
+                if getattr(s, 'gbplm', 0) == 1 and len(gw['smp']) >= 12:
+                    s.gbplm = 2                 # (the watch off after the launch: BPDEL * and int 3 back)
+                    s.box.cmd('BPDEL *', 0.3)
+                    s.box.cmd('BPINT 3', 0.2)
+                    s.box.memwatch = False
+                if w['NT'] > gw['nt'] and w['ST'] == 3 or len(gw['smp']) > 600:
+                    gw = None                   # (the next kick taken: the watch over)
+                continue
             clock += struct.unpack('<h', r.obj2(g['TVIS_O'], 2))[0] != 0
             if (w['NT'] or w['ST']) and struct.unpack('<h', r.obj2(g['RTIM_O'], 2))[0] != 0:
                 bar += 1                        #  from the first forcing on; by gameState: a restart or a goal's)
@@ -11498,6 +11550,35 @@ def practice_play(kind, side, esc_at=None, again=False):
             if w['NT'] >= want and (esc_at or w['ST'] in (0, 1, 3, 4)):
                 break
         awards = list(awards.values())
+        if goal:
+            check(len(goals) >= 1, f'{name}: no goal watched (attempts {w["NT"]})', errs)
+            for gw in goals:
+                sm = gw['smp']
+                inl = lambda q: q['by'] > gw['line'] if gw['line'] > 449 else q['by'] < gw['line']
+                scored = [i for i, q in enumerate(sm) if q['ng'] > gw['ng']]
+                pre = [q for q in sm[scored[0]:] if q['gcm'] and q['bcm'] in (-1, 0, 1) and not q['rps']
+                       and not q['irf']] if scored else []
+                rp = [i for i, q in enumerate(sm) if q['rps']]
+                out = [q for q in pre if not inl(q)]
+                miss = [(i, q['kv'], q['kx'], q['ky'], q['gs'], q['st']) for i, q in enumerate(sm)
+                        if not q['rps'] and not q['irf']
+                        and (not q['kv'] or abs(q['ky'] - gw['line']) > 80 or not 250 <= q['kx'] <= 422)]
+                trace = ' '.join(f'{i}:st{q["st"]}gs{q["gs"]}p{q["gsp"]}b{q["bcm"]}c{q["gcm"]}r{q["rps"]}'
+                                 f'i{q["irf"]}@{q["bx"]},{q["by"]},{q["bz"]}k{q["kv"]}/{q["ki"]}@{q["kx"]},{q["ky"]}'
+                                 for i, q in enumerate(sm[:160]))
+                info.append(f'goal #{gw["nt"]}: {len(sm)} samples, scored at {scored[:1]}, before the replay {len(pre)} '
+                            f'(out of the net {len(out)}), replay samples {len(rp)}; trace {trace}')
+                check(bool(scored), f'{name} goal #{gw["nt"]}: the poked ball did not score', errs)
+                check(bool(pre) and not out, f'{name} goal #{gw["nt"]}: the ball out of the net in {len(out)} of '
+                      f'{len(pre)} samples of the goal\'s stoppage (want in the net, >= 1 sample)', errs)
+                check(bool(rp), f'{name} goal #{gw["nt"]}: no replay sampled (replayState never set)', errs)
+                if scored and rp:               # (Regia 16/11: no ball reset from the goal to the replay's end)
+                    brs = {q['brs'] for q in sm[scored[0]:rp[-1] + 1]}
+                    check(len(brs) == 1, f'{name} goal #{gw["nt"]}: the ball reset during the goal / replay '
+                          f'(BRS {sorted(brs)})', errs)
+                check(not miss, f'{name} goal #{gw["nt"]}: the keeper missing / out of his goal in {len(miss)} '
+                      f'samples out of the replay (i, visible, x, y, gameState, ST) {miss[:8]}', errs)
+                check(any(q['nt'] > gw['nt'] for q in sm), f'{name} goal #{gw["nt"]}: no next attempt after it', errs)
         if kind in ('fk', 'pen') and 'BRS' in practice.WK:
             check(hang == 0 and w['BRS'] >= 1, f'{name}: the ball in the air after the whistle in {hang} samples, '
                   f'balls reset {w["BRS"]} (want 0 / >= 1)', errs)
@@ -11530,7 +11611,7 @@ def practice_play(kind, side, esc_at=None, again=False):
                   f'(want none)', errs)
         info.append(f'score bar samples {bar} {bar_gs}')
         check(not ko, f'{name}: a kick-off before the first attempt ({ko} samples in gameState 0)', errs)
-        check(fpa <= practice.ATTF + 240, f'{name}: {fpa} frames an attempt (> ATTF + 240: a slow restart)', errs)
+        check(goal or fpa <= practice.ATTF + 240, f'{name}: {fpa} frames an attempt (> ATTF + 240: a slow restart)', errs)   # (goal: the goals' sequences + replays)
         check(w['CY'] >= min(w['NT'], want) - 1, f'{name}: the cycle index {w["CY"]} after {w["NT"]} attempts', errs)
         for n_, gs, by, atk, hum, pn, cy in awards:
             check(gs in states, f'{name} #{n_}: state {gs} awarded (want {sorted(states)})', errs)
@@ -12048,6 +12129,32 @@ for _k in ('fk', 'pen', 'corner'):
         f.__doc__ = practice_takers.__doc__
         return f
     scenario(_mk())
+
+
+@scenario
+def practice_fkgoal_att():
+    """practice_play('fk', 'att', goal=True): Davide 16/11 (REL42vs1): a free-kick goal - the ball stays in the net
+    until the replay, the replay plays, the keeper visible and in goal until the next kick (ATTACK)."""
+    return practice_play('fk', 'att', goal=True)
+
+
+@scenario
+def practice_fkgoal_def():
+    """practice_play('fk', 'def', goal=True): as practice_fkgoal_att, the CPU's free kicks (DEFENCE)."""
+    return practice_play('fk', 'def', goal=True)
+
+
+@scenario
+def practice_pengoal_att():
+    """practice_play('pen', 'att', goal=True): Regia 16/11 (Davide's PROVA RIGORI videos: the ball back out of the net
+    after a goal, the keeper outside the post) - as practice_fkgoal_att for penalties."""
+    return practice_play('pen', 'att', goal=True)
+
+
+@scenario
+def practice_cornergoal_att():
+    """practice_play('corner', 'att', goal=True): as practice_fkgoal_att for corners."""
+    return practice_play('corner', 'att', goal=True)
 
 
 @scenario

@@ -278,7 +278,9 @@ static int cup_place(int ng) {
    Serie C group set upwards (3 group winners + the play-off's). The list was built at the career club's group end
    (c_lend), when the other groups' tables were simulated early; the final tables can differ, so a club of the list can
    end 1st of its group (promoted by the title) or down in the relegation zone. Eligible = not 1st, not in the last 5 of
-   its group. Order: the final's loser, then the two semi-final losers (better placed first, `better`), then none: 3 clubs go up, DP_SUBF = 1. */
+   its group. Order: the final's loser, then the two semi-final losers (better placed first, `better`), then (an old save past round 5, no record) the best eligible of the others in the state's list; none: 3 clubs go up, DP_SUBF = 1.
+   Eligible = not 1st of its group and not in the last 5 of it on the final tables (a little stricter than 'relegated or in a lost
+   play-out place', harmless). */
 #ifdef DP_STATS
 u32 DP_SUBN[4];
 #define DP_STAT(i) DP_SUBN[i]++
@@ -287,24 +289,30 @@ u32 DP_SUBN[4];
 #endif
                          /* (test / log) substitutions: final's loser, semi-final loser, state list, none */
 u8 DP_SUBF;                             /* the last season end: 1 = no substitute (3 up) */
-static int c_elig(int c) { return c >= 0 && PL(c) != 0 && PL(c) < DP_IN.n[DIV(c)] - 5; }
-static int club_of(u16 team) {
+#define NOINL __attribute__((noinline))
+static NOINL int c_elig(int c) { return c >= 0 && PL(c) != 0 && PL(c) < DP_IN.n[DIV(c)] - 5; }
+static NOINL int club_of(u16 team) {
     for (int g = 1; g <= DP_IN.ng; g++) for (int k = 0; k < DP_IN.n[g]; k++) if (DP_IN.t[g][k].team == team) return g * NT + k;
     return -1;
 }
 /* the contest record (rb[6..7] + cup's low bits, cup bit 7 = valid): four 5-bit state indices */
 #define FREC_OK(v) ((v)->cup & 0x80)
 #define FREC(v) ((u32)(v)->rb[6] | (u32)(v)->rb[7] << 8 | (u32)((v)->cup & 15) << 16)
-static void frec_set(struct dp_save *v, int a, int b, int c, int d) {
+static NOINL void frec_set(struct dp_save *v, int a, int b, int c, int d) {
     u32 x = a | b << 5 | c << 10 | d << 15;
     v->rb[6] = x & 255; v->rb[7] = x >> 8 & 255; v->cup = 0x80 | (x >> 16 & 15);
 }
-static int promote_sub(int w, int fl, int s1, int s2) {
+static NOINL int promote_sub(int w, int fl, int s1, int s2, int fb) {
     DP_SUBF = 0;
     if (c_elig(w)) return w;
     if (c_elig(fl)) { DP_STAT(0); return fl; }
     if (!c_elig(s1) || (c_elig(s2) && better(s2, s1))) s1 = s2;
     if (c_elig(s1)) { DP_STAT(1); return s1; }
+    for (int i = 0, b = -1, x; fb && i < DP_ST.n; i++) {       /* (an old save past round 5, no record: the best eligible of the list) */
+        x = club_of(DP_ST.team[i]);
+        if (x != w && c_elig(x) && (b < 0 || better(x, b))) b = x;
+        if (i == DP_ST.n - 1 && b >= 0) { DP_STAT(2); return b; }
+    }
     DP_STAT(3); DP_SUBF = 1;
     return -1;
 }
@@ -353,23 +361,23 @@ static void serie_c(void) {
         shuffle(w2, 4);
         int f1 = tie(K_FFS, w2[1], w2[0], 2, -1), f2 = tie(K_FFS, w2[3], w2[2], 2, -1);
         int w = tie(K_FFF, f2, f1, 2, -1);
-        int fl = w == f1 ? f2 : f1, sa = f1 == w2[1] ? w2[0] : w2[1], sb = f2 == w2[3] ? w2[2] : w2[3];
+        int fl = w == f1 ? f2 : f1, sa = f1 == w2[1] ? w2[0] : w2[1], sb = f2 == w2[3] ? w2[2] : w2[3], fb = 0;
         for (int g = 1; g <= ng && DP_IN.cpo_win; g++)          /* (played in slot 4: its real winner) */
             for (int k = 0; k < DP_IN.n[g]; k++)
                 if (DP_IN.t[g][k].team == DP_IN.cpo_win) w = g * NT + k;
         if (DP_IN.cpo_win && club_of(DP_IN.cpo_win) == w) {     /* (the real contest's final loser / semi-final losers) */
             const struct dp_save *v = &DP_ST;
-            fl = sa = sb = -1;
+            fl = sa = sb = -1; fb = 1;
             if (v->kind == 3 && FREC_OK(v)) {
                 u32 x = FREC(v);
                 int w0 = x & 31, l0 = x >> 5 & 31, w1 = x >> 10 & 31, l1 = x >> 15 & 31;
                 if (w0 < SN && l0 < SN && w1 < SN && l1 < SN) {
                     int a = club_of(v->team[w0]), b = club_of(v->team[w1]);
-                    fl = a == w ? b : a; sa = club_of(v->team[l0]); sb = club_of(v->team[l1]);
+                    fl = a == w ? b : a; sa = club_of(v->team[l0]); sb = club_of(v->team[l1]); fb = 0;
                 }
             }
         }
-        w = promote_sub(w, fl, sa, sb);
+        w = promote_sub(w, fl, sa, sb, fb);
         if (w >= 0) move(w, -1);
     }
 }

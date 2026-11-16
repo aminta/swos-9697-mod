@@ -37728,6 +37728,18 @@ def drp_setp():
     return not errs, '; '.join(errs + info)
 
 
+def gm_select(s, i, tries=40):
+    """Move the cursor to entry i (no fire); returns the screen."""
+    for _ in range(tries):
+        scr = s.screen()
+        if scr.selected == i:
+            return scr
+        p = scr.path(i)
+        assert p, f'no path to entry {i} from {scr.selected}'
+        s.send(p[0] + ' dump:0.5')
+    raise AssertionError(f'entry {i} not reached')
+
+
 @scenario
 def gameplay_menu():
     """4.2 GAMEPLAY (gameplay.py, Panchina; MC 15/11 input rules): OPTIONS has ONE mod row GAMEPLAY (entries NB / NB+1 = 20 / 21,

@@ -22,8 +22,8 @@
    (ties: the lower slot), so the four stay 2 home + 2 away; the mask then stays as swapped while clubs change.
 
    THE REMEMBERED LEVEL: FR_ST +10 bits 14-15 (the high byte's bits 6-7), read by frc_init and written by frc_result;
-   0 = FRC_MIX = what a save without the bits reads. (Bit meanings: friendlies-a-interface.md; not frozen until
-   Davide's answer on the default - FRC_ST_* below is the one place.) */
+   0 = FRC_MIX = what a save without the bits reads. FROZEN (Davide via MC, 16/11): the default is the 1 / 2 / 1 mix; 0 MIX, 1 EASY,
+   2 MEDIUM, 3 HARD = frnd.h's FR_LEVEL_*; FRC_ST_* below is the one place on this side. */
 #ifndef FRCSEL_H
 #define FRCSEL_H
 

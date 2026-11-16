@@ -1353,3 +1353,61 @@ def test_frpick_given_check_real():
         msgs.append(f'world {world}: {n} lists ({seen[("pick", OK)]} accepted, {seen["home"]} with a club of self\'s '
                     f'country), codes ' + ' '.join(f'{e}: {seen.get(e, 0)}' for e in (0, -1, -2, -3, -4, -6)))
     return True, 'fr_given == fr_pick | ' + ' | '.join(msgs)
+
+
+def test_frpick_fallback_real():
+    """THE "NEAREST BAND" RULE as an everyday case (1996-97 session, 16/11: the price-floor squads have nobody weaker):
+    on every committed world table, EVERY club as self with the defaults (given / avoid / room NULL, nhome 2, one
+    seed) -> FR_OK; fb is set exactly on the slots whose wanted band has no club left in the pool, and such a slot's
+    club is at the smallest fallback distance of the pool. The pool and the distances are recomputed here from the
+    table (sorted strengths of the other countries, the earlier slots' clubs taken out), not by ref()."""
+    import bisect
+    import glob
+    fs = sorted(glob.glob(os.path.join(TOOLS, 'frdata', 'frstr_w*.bin')))
+    if not fs:
+        return True, 'SKIP: no tools/frdata/frstr_w*.bin'
+    seed, msgs = 0x4652, []
+    for p in fs:
+        blob = open(p, 'rb').read()
+        tab = rparse(blob)
+        if tab is None:
+            return True, f'SKIP: {os.path.basename(p)} is not a v2 blob this pick accepts'
+        world = tab[0][0]
+        clubs, info = rtable(tab, world)
+        abroad = {}                                     # country -> the sorted strengths of every other country's clubs
+        for c0 in {c for _, _, c in clubs}:
+            abroad[c0] = sorted(s for _, s, c in clubs if c != c0)
+        need = {WEAKER: 0, SIMILAR: 0, STRONGER: 0}
+        for self_, S, sc in clubs:
+            if info.get(self_) != (S, sc):
+                continue
+            M = max(11, S // 10)
+            rc, ws, home, fb, bands, why = cpick(blob, world, self_, avoid=None, navoid_null=0, seed=seed, season=1)
+            if rc != OK or any(why) or len(set(ws)) != 4 or bin(home).count('1') != 2:
+                return False, f'world {world} self {self_:#x} (S {S}): {rc} {ws} home {home:#x} why {why}'
+            pool = abroad[sc]
+            used = set()
+            for k, want in enumerate((WEAKER, SIMILAR, SIMILAR, STRONGER)):
+                lo, hi = {WEAKER: (S - 4 * M, S - M - 1), SIMILAR: (S - M, S + M), STRONGER: (S + M + 1, S + 4 * M)}[want]
+                a, b = bisect.bisect_left(pool, lo), bisect.bisect_right(pool, hi)
+                near = pool[max(0, a - 4):min(len(pool), b + 4)] if b - a <= 3 else [lo]     # (3 at most are taken out)
+                if b - a <= 3:
+                    for w in ws[:k]:                    # the earlier slots' clubs are not in the pool any more
+                        near.remove(info[w][0]) if info[w][0] in near else None
+                if not near:
+                    return False, f'world {world} self {self_:#x}: no club left for slot {k}'
+                dist = min(0 if lo <= s <= hi else lo - s if s < lo else s - hi for s in near)
+                s = info[ws[k]][0]
+                mine = 0 if lo <= s <= hi else lo - s if s < lo else s - hi
+                if info[ws[k]][1] == sc or bool(fb >> k & 1) != (dist > 0) or mine != dist:
+                    return False, f'world {world} self {self_:#x} (S {S}, M {M}) slot {k}: club {ws[k]:#x} strength {s} at ' \
+                                  f'distance {mine}, the pool\'s smallest {dist}, fb {fb:#x}'
+                if bands[k] != rband(s - S, M) or (dist == 0) != (bands[k] == want):
+                    return False, f'world {world} self {self_:#x} slot {k}: band {bands[k]} for strength {s}'
+                if dist and want not in used:
+                    need[want] += 1
+                    used.add(want)
+        n = len(clubs)
+        msgs.append(f'world {world}: {n} clubs as self, all FR_OK; the fallback for weaker {need[WEAKER]} '
+                    f'({100 * need[WEAKER] / n:.1f} %), similar {need[SIMILAR]}, stronger {need[STRONGER]}')
+    return True, ' | '.join(msgs)

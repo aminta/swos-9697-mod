@@ -1458,6 +1458,7 @@ class Session:
         self.log = []
         self.ctsd = ctsd_syms(exe_dir)
         self.scrow = _gp_sym(exe_dir, 'csyms.GP_SCROW') if os.path.isdir(exe_dir) else None   # (4.2 supercups-s1)
+        self.x3 = (_gp_sym(exe_dir, 'X3.GP_SCDONE'), _gp_sym(exe_dir, 'sc_done')) if os.path.isdir(exe_dir) else (None, None)
         self.ctout = ctout_at(exe_dir)
 
     def __enter__(self):
@@ -1468,6 +1469,10 @@ class Session:
             ctsd_check(self)
         except Exception as e:
             self.log.append(f'ctdraw: counters not read ({type(e).__name__}: {e})')
+        try:                                            # (4.2 gplay3.c, MC 16/11: the obj3 path really bound)
+            x3_check(self)
+        except Exception as e:
+            self.log.append(f'x3: GP_SCDONE not read ({type(e).__name__}: {e})')
         try:
             force_check(self)
         except Exception as e:
@@ -2424,6 +2429,7 @@ def nat_callups(s, limit=120):
 # cups, the original game's contests) -- one of every known name (logged as a fallback). Errors FAIL the scenario.
 LABEL_ERRS, LABEL_STATS = [], {'rows': 0, 'keyed': 0, 'fallback': set()}
 CTSD_ERRS, CTSD_STATS = [], {'sessions': 0, 'n': 0, 'nosyms': 0}
+X3_ERRS, X3_STATS = [], {'sessions': 0}
 _CTSD_SYMS = {}
 FORCE_ERRS, _CTOUT_AT = [], {}                   # (MC 11/11 root fix D: conti.c force_in's error byte, SETUP-ERROR)
 
@@ -2531,6 +2537,25 @@ def field_check(s):
         s.log.append(f'field: {x}')
     if bad:
         FIELD_ERRS.append(f'{os.path.basename(s.run)}: {bad[:3]}')
+
+
+def x3_check(s):
+    """(4.2 gplay3.c, MC 16/11) a world build's sc_done lives in obj3, called through the bound dword GP_SCDONE: at the
+    session's last pause the dword must hold sc_done's obj3 address (syms 'X3.GP_SCDONE' / 'sc_done'), else the
+    scenario FAILs (X3_ERRS). Builds without the obj3 path (no syms): nothing checked, nothing claimed."""
+    ptr, fn = getattr(s, 'x3', (None, None))
+    r = s.result
+    if not ptr or not fn or r is None or getattr(r, 'outcome', None) != 'dump' or r.box is None or r.base1 is None:
+        return
+    if fn[0] != 3 or r.base3 is None:
+        X3_ERRS.append(f'{os.path.basename(s.run)}: sc_done at obj{fn[0]} (want obj3) or obj3 base unknown')
+        return
+    got = struct.unpack('<I', bytes(r.read(r.lin(tuple(ptr)), 4)))[0]
+    want = r.lin((3, fn[1]))
+    X3_STATS['sessions'] += 1
+    s.log.append(f'x3: GP_SCDONE = {got:#x}, sc_done obj3+{fn[1]:#x} = {want:#x}')
+    if got != want:
+        X3_ERRS.append(f'{os.path.basename(s.run)}: GP_SCDONE {got:#x} != sc_done obj3+{fn[1]:#x} ({want:#x})')
 
 
 def ctsd_check(s):
@@ -38158,6 +38183,8 @@ def main(argv):
                 CAL_STATS.update(checks=0, c4=0, c2l=0, c2b=0, c2b_last=None)
                 LABEL_STATS.update(rows=0, keyed=0, fallback=set())
                 del CTSD_ERRS[:]
+                del X3_ERRS[:]
+                X3_STATS.update(sessions=0)
                 del FORCE_ERRS[:]
                 setup = False
                 del FIELD_ERRS[:]
@@ -38172,6 +38199,10 @@ def main(argv):
                     msg += f" [cal: {CAL_STATS['checks']} checks ({CAL_STATS['c4']} C4 at the menu), 0 violations" + (f", {CAL_STATS['c2l']} league midweek week(s)" if CAL_STATS['c2l'] else '') + (f", {CAL_STATS['c2b']} cup block(s)" if CAL_STATS.get('c2b') else '') + ']'
                 if CTSD_ERRS:                               # (4.2 AFC mode: a refused / out-of-budget group draw -
                     ok, msg = False, f'ctdraw: {CTSD_ERRS[:3]}; ' + msg   # named on a FAIL too: often its cause)
+                if X3_ERRS:                                 # (4.2 gplay3.c: sc_done's obj3 binding wrong)
+                    ok, msg = False, f'x3: {X3_ERRS[:3]}; ' + msg
+                elif X3_STATS['sessions']:
+                    msg += f" [x3: GP_SCDONE -> obj3 sc_done in {X3_STATS['sessions']} session(s)]"
                 if FIELD_ERRS:                              # (root fix C: a club the data cannot give in a round)
                     ok, msg = False, f'field: {FIELD_ERRS[:3]}; ' + msg
                 elif FIELD_STATS['checks']:

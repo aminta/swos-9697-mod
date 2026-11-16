@@ -3,12 +3,31 @@ the row table, the strings (4 languages, font-safe) and the save item's constant
 the GAMEPLAY reserve of obj4pack, 0x400, after Shaved's commit is in 42-int).
 
 OPTIONS gets ONE row GAMEPLAY (ORIGINALE / PERSONALIZZATO; FIRE on PERSONALIZZATO opens the page). The page holds the mod's
-match-play switches as a TABLE of rows, each with a 'present' flag: a row that is not in yet (TIRATORI, RUOLI: after the
-freeze) is simply absent - no empty line, no placeholder text; adding one later = one table entry + its module's mask hook,
+match-play switches as a TABLE of rows, each with a 'present' flag: a row that is not in yet (TIRATORI; RUOLI is in
+since 16/11, below) is simply absent - no empty line, no placeholder text; adding one later = one table entry + its module's mask hook,
 inside the reserve (asserted: room for 2 more rows).
 ORIGINALE is a MASK applied at kick-off (every switch acts as its original value; the sub-values are kept). GM_W, the engine
 item 'GM' (1 B): 0 = PERSONALIZZATO (default, today's defaults), 1 = ORIGINALE; a save without GM loads PERSONALIZZATO.
-SWOS++: the row is hidden and everything original (as every other row of ours)."""
+SWOS++: the row is hidden and everything original (as every other row of ours).
+
+RUOLI (Marco's position traits; internal/handoff/traits-split.md) is the page's 7th row: SI / NO, default SI. Every traits piece
+reads ONE byte, GP_RUOLI = obj4 + swreg.GAMEPLAY_AT + GP_RUOLI_OFF (gp_ruoli() gives the (obj, offset) pair):
+    1 = RUOLI SI and GAMEPLAY PERSONALIZZATO: the traits apply;   0 = RUOLI NO or GAMEPLAY ORIGINALE: today's game, exactly.
+A consumer tests `cmp byte [GP_RUOLI], 0` (asm: GP_RUOLI in its symbols, one absolute fixup per site, none from obj4 code that
+reaches it PC-relative from its own band base) or `*(const unsigned char *)GP_RUOLI` (C) and does the original thing on 0; it
+never reads GM_R / GM_W itself. The byte is kept in step by this module at every change (the page's row, the OPTIONS row,
+PREDEFINITI, a career load, a new career); it is 1 at the program's start (the defaults). It does NOT know about SWOS++ or
+training games: a stub that must stay original there keeps its own `cmp byte [SWOSPP], 0FFh` / TRG gate, as every stub of ours.
+The user's choice is the word GM_R (0 SI / 1 NO), kept while ORIGINALE (GP_RUOLI is then 0: nothing to park), saved with the
+career as bit 7 of the GM item's byte 2 (the first parked byte, whose values are 0 / 1): the item stays 5 B, the save format does
+not change, and a save without the bit (4.1, an earlier 4.2 beta) loads RUOLI SI.
+Room: the band had 257 B free with six rows (IT; the floor is 256) and the row costs ~180 B (58 B of page image, the rest
+tables + code), so with the row the PAGE IMAGE (data only: the packed menu + RUOLI's string table, 550 B) lives in obj3, in the
+chain right after gkinj (the CPU rows' tables are there already; reached through GM3, the band's one obj3 base: no new fixup).
+The band then keeps the code, the strings and the fill table (~1.05 KB, ~600 B free).
+GM_NOROLES=1 (a build switch, cleared by buildrel.sh): the row absent, the image in the band, the exe byte for byte the one
+before the row existed."""
+import os
 import re
 import struct
 
@@ -32,7 +51,7 @@ YESNO = {'it': ('SI', 'NO'), 'en': ('YES', 'NO'), 'fr': ('OUI', 'NON'), 'de': ('
 PRACTICE = {'it': 'GAMEPLAY: ORIGINALE', 'en': 'GAMEPLAY: ORIGINAL', 'fr': 'GAMEPLAY: ORIGINAL', 'de': 'SPIELWEISE: ORIGINAL'}
 LEG = {'it': 'SINISTRA/DESTRA CAMBIA FUOCO: AVANTI', 'en': 'LEFT/RIGHT CHANGE FIRE: NEXT',
        'fr': 'GAUCHE/DROITE CHANGE FEU: SUITE', 'de': 'LINKS/RECHTS AENDERT FEUER: WEITER'}
-# rows not in yet (after the freeze: takers, Marco's traits) - their texts are ready, the 'present' flag off
+# takers: not in yet (its texts are ready, the 'present' flag off); RUOLI (Marco's traits): in, GM_NOROLES takes it out
 TAKERS = {'it': 'TIRATORI', 'en': 'TAKERS', 'fr': 'TIREURS', 'de': 'SCHUETZEN'}
 TAKERS_V = {'it': ('AUTOMATICI', 'SCELTI'), 'en': ('AUTO', 'CHOSEN'), 'fr': ('AUTO', 'CHOISIS'), 'de': ('AUTO', 'GEWAEHLT')}
 ROLES = {'it': 'RUOLI', 'en': 'ROLES', 'fr': 'ROLES', 'de': 'ROLLEN'}      # (Marco's position traits; fr / de to be confirmed)
@@ -46,7 +65,7 @@ ROWS = (
     ('cpucards', True, cpucards.LABEL, YESNO, 'cpucards'),
     ('cpuinj', True, cpucards.LABEL_I, YESNO, 'cpucards'),
     ('gkinj', True, gkinj.LABEL, YESNO, 'gkinj'),
-    ('roles', False, ROLES, YESNO, 'traits'),
+    ('roles', not os.environ.get('GM_NOROLES'), ROLES, YESNO, 'traits'),   # (no mask hook: GP_RUOLI, see the module's text)
 )
 PAGE_MAX_ROWS = len(difficulty.DP_ROWS)  # the dribbling page's 8 rows: the same page code (title, rows, legend, PREDEFINITI / INDIETRO)
 
@@ -61,7 +80,7 @@ def page(lang):
 
 
 difficulty._font_guard(LABEL, VALUES, TITLE, YESNO, PRACTICE, LEG, TAKERS, TAKERS_V, ROLES)
-assert len(present()) + 2 <= PAGE_MAX_ROWS, 'gameplay: no room for takers + roles on the page'
+assert len(ROWS) <= PAGE_MAX_ROWS, 'gameplay: no room for takers + roles on the page'
 assert len({r[0] for r in ROWS}) == len(ROWS)
 assert all(set(r[2]) == set(r[3]) == {'it', 'en', 'fr', 'de'} for r in ROWS), 'gameplay: a row misses a language'
 assert all(len(VALUES[k]) == 2 and VALUES[k][GM_PERSONALIZZATO] and VALUES[k][GM_ORIGINALE] for k in LABEL)
@@ -76,15 +95,30 @@ def on():
 #      start, label differences are assemble-time constants): the only fixups are the obj2 / obj3 bases and the two obj1 calls.
 #      The page is built in the band from a byte image (the packed menu, its pointers zero) + a fill table at each opening.
 GM_W_OFF, GM_U_OFF, GM_SH_OFF, GM3_OFF = 0x12, 0x14, 0x1A, 0x1F   # the data's offsets in the band (asserted at the build; the harness reads them)
+GM_R_OFF, GP_RUOLI_OFF = 0x17, 0x19     # RUOLI: the row's word (0 SI / 1 NO) and THE byte the traits pieces read (1 = traits on)
+GM_R_BIT = 0x80                         # (the save: bit 7 of the item's byte 2 = GM_U[0])
+
+
+def roles():
+    return any(r[0] == 'roles' for r in present())
+
+
+def gp_ruoli():
+    """(obj, offset) of GP_RUOLI: one byte, 1 = RUOLI SI and GAMEPLAY PERSONALIZZATO, else 0 (the module's text: how to read it)."""
+    import swreg
+    assert roles(), 'gameplay: GP_RUOLI needs the RUOLI row (GM_NOROLES set?)'
+    return 4, swreg.GAMEPLAY_AT + GP_RUOLI_OFF
 GM_Y, GM_DY, GM_BACK_X, GM_RESET_X, GM_BACK_Y, GM_LEG_Y = difficulty.DP_Y, difficulty.DP_DY, difficulty.DP_BACK_X, \
     difficulty.DP_RESET_X, difficulty.DP_BACK_Y, difficulty.DP_LEG_Y
 
 
-def _rows(sdf, ssp, scc, sgk):
-    """the page's 6 rows: (label, table) as (kind, offset): kind 0 = obj4 offset, 1 = obj3 offset. Their handler is gm_pg."""
+def _rows(sdf, ssp, scc, sgk, own=None, tab_ru=0):
+    """the page's rows: (label, table) as (kind, offset): kind 0 = obj4 offset, 1 = obj3 offset. Their handler is gm_pg.
+    own: the band's own labels (RUOLI's label; None = the probe pass, its place not known yet); tab_ru: RUOLI's string table (obj3)."""
     d, s = sdf, ssp
+    ru = [((0, own['S_RUL'] if own else 0), (1, tab_ru))] if roles() else []
     return [((0, d['S_LBL']), (0, d['TAB_D'])), ((0, d['S_RLBL']), (0, d['TAB_R'])), ((0, s['S_PLBL']), (0, s['TAB_P'])),
-            ((1, scc['S_LR']), (1, scc['TAB_R'])), ((1, scc['S_LI']), (1, scc['TAB_I'])), ((1, sgk['S_LG']), (1, sgk['TAB_G']))]
+            ((1, scc['S_LR']), (1, scc['TAB_R'])), ((1, scc['S_LI']), (1, scc['TAB_I'])), ((1, sgk['S_LG']), (1, sgk['TAB_G']))] + ru
 
 
 def menu_image(rows, fill_for):
@@ -141,7 +175,12 @@ gm_chk:                                 ; +5  (the kick-off masks: ZF = 1 PERSON
     ret
 GM_W: dw 0                              ; +0Ah  the item 'GM': 0 PERSONALIZZATO / 1 ORIGINALE (a word: the string table's variable)
 GM_U: db 0, 0, 0                        ;       the user's CPU cards / injuries / keeper injuries while ORIGINALE
+%if ROLES                               ;       (RUOLI saved in bit 7 of the first: gm_rs)
+GM_R: dw 0                              ; +17h  RUOLI, the row's word: 0 SI (default) / 1 NO - the user's choice, kept while ORIGINALE
+GP_RUOLI: db 1                          ; +19h  THE traits switch: 1 = RUOLI SI and PERSONALIZZATO, else 0 (gm_rs keeps it)
+%else
     db 0, 0, 0
+%endif
 GM_SH: dd 0
     db 0                          ; the session's copy (a new career zeroes the item)
 GM3: dd GM3S                            ; obj3's base (cpucards / gkinj: CC_W, CC_I, GI_W, their session copies)
@@ -182,6 +221,9 @@ gm_keep:                                ; ebp = the band: the item -> the sessio
     ret
 gm_load:                                ; after a career load (engine, pushad around): the save's state is the session's
     call gm_base
+%if ROLES
+    call gm_ru
+%endif
     jmp gm_keep
 gm_new:                                 ; after a new career's defaults (the item zeroed): the session's state back
     call gm_base
@@ -189,6 +231,22 @@ gm_new:                                 ; after a new career's defaults (the ite
     mov [ebp + GMO_W], eax
     mov al, [ebp + GMO_SH + 4]
     mov [ebp + GMO_W + 4], al
+%if ROLES
+gm_ru:                                  ; ebp = the band: the item's RUOLI bit -> GM_R (a load, a new career), then gm_rs
+    movzx eax, byte [ebp + GMO_U]
+    shr eax, 7
+    mov [ebp + GMO_R], ax
+gm_rs:                                  ; ebp = the band: GM_R -> the item's bit (and the session copy's);
+    mov al, [ebp + GMO_R]               ;  GP_RUOLI = 1 when GM_W = 0 (PERSONALIZZATO) and GM_R = 0 (SI), else 0. eax used
+    shl al, 7
+    and byte [ebp + GMO_U], 7Fh
+    or al, [ebp + GMO_U]
+    mov [ebp + GMO_U], al
+    mov [ebp + GMO_SH + 2], al
+    mov al, [ebp + GMO_W]
+    or al, [ebp + GMO_R]
+    setz byte [ebp + GMO_GP]
+%endif
     ret
 
 gm_var:                                 ; esi = a GM_RT entry: ebx = the variable's address (obj4: band-relative, obj3: + GM3)
@@ -200,7 +258,10 @@ gm_var:                                 ; esi = a GM_RT entry: ebx = the variabl
 .o: add ebx, [ebp + GMO_3]
     ret
 
-gm_sync:                                ; the save byte (df_pack) + the CPU rows' session copies
+gm_sync:                                ; the save byte (df_pack) + the CPU rows' session copies (+ RUOLI: gm_rs)
+%if ROLES
+    call gm_rs
+%endif
     call DF_PACK
     mov ecx, [ebp + GMO_3]
     mov eax, [ecx + CC_W_O]
@@ -220,6 +281,9 @@ gm_apply:                               ; ebp = the band, ax = the new GM_W (0 /
     cmp word [ebp + GMO_W], 0
     jne .p
     movzx edx, byte [edi]               ; PERSONALIZZATO: the parked value back
+%if ROLES
+    and edx, 1                          ; (bit 7 of the first parked byte = RUOLI)
+%endif
     mov [ebx], dx
     jmp .n
 .p: mov dl, [ebx]                       ; ORIGINALE: parked, the word = 1 (OFF: the original game)
@@ -245,7 +309,13 @@ gm_tog:                                 ; the OPTIONS row: LEFT / RIGHT toggle P
     call gm_apply
     pop ebp
     jmp gm_dri
-.p: lea eax, [ebp + GM_MENU - GMB0]
+.p:
+%if ROLES
+    mov eax, [ebp + GMO_3]              ; (with RUOLI the page image is in obj3)
+    add eax, GM_IMG_O
+%else
+    lea eax, [ebp + GM_MENU - GMB0]
+%endif
     mov [ecx + A6_O], eax               ; the page (OPTIONS comes back unpacked: df_ret re-adds its row)
     call gm_fill
     call SP_TABG                        ; (CALCI PIAZZATI's table pointers)
@@ -292,7 +362,11 @@ gm_pg:                                  ; the page's value rows (mask 0E0h, as t
 
 gm_fill:                                ; the page's pointers (ebp = the band)
     mov edx, [ebp + GMO_3]
+%if ROLES
+    lea edi, [edx + GM_IMG_O]
+%else
     lea edi, [ebp + GM_MENU - GMB0]
+%endif
     lea esi, [ebp + GM_FT - GMB0]
     mov ecx, GM_NFT
 .l: movzx eax, word [esi]
@@ -306,12 +380,22 @@ gm_fill:                                ; the page's pointers (ebp = the band)
 .s: mov [edi + eax], ebx
     add esi, 6
     loop .l
+%if ROLES
+    lea edi, [edx + GM_IMG_O + GM_H0]
+%else
     lea edi, [ebp + GM_MENU - GMB0 + GM_H0] ; the value rows' fire / LEFT / RIGHT handler: gm_pg
+%endif
     lea eax, [ebp + gm_pg - GMB0]
     mov ecx, GM_N
 .h: mov [edi], eax
     add edi, GM_VSTRIDE
     loop .h
+%if ROLES
+    mov eax, [edx + CC_TABR_O + 6]      ; RUOLI's string table (after the image; its word: the fill table): the CPU rows' two
+    mov [edx + GM_IMG_O + GM_TABRU + 6], eax    ; value strings (obj3 TAB_R: the game's own)
+    mov eax, [edx + CC_TABR_O + 10]
+    mov [edx + GM_IMG_O + GM_TABRU + 10], eax
+%endif
     ret
 
 gm_reset:                               ; PREDEFINITI: every switch back to its default (while ORIGINALE: the parked values)
@@ -320,7 +404,7 @@ gm_reset:                               ; PREDEFINITI: every switch back to its 
     cmp word [ebp + GMO_W], 0
     jne .p
     lea esi, [ebp + GM_RT - GMB0]
-    mov ecx, 6
+    mov ecx, GM_N
 .l: call gm_var
     mov word [ebx], 0
     add esi, 6
@@ -361,16 +445,23 @@ TAB_GM: dd 0
 
 def _src(lang, rows, ft, h0, stride):
     db = lambda x: ', '.join(str(c) for c in x.encode('latin-1') + b'\0')
-    src = f'%define GM_H0 {h0}\n%define GM_VSTRIDE {stride}\n%define GMO_W {GM_W_OFF}\n%define GMO_U {GM_U_OFF}\n%define GMO_SH {GM_SH_OFF}\n%define GMO_3 {GM3_OFF}\n%define GM_NFT {len(ft)}\n%define GM_N {len(rows)}\n%define GM_V0 {len(rows) + 1}\n' + ASM
+    src = f'%define GM_H0 {h0}\n%define GM_VSTRIDE {stride}\n%define GMO_W {GM_W_OFF}\n%define GMO_U {GM_U_OFF}\n%define GMO_SH {GM_SH_OFF}\n%define GMO_3 {GM3_OFF}\n%define ROLES {int(roles())}\n%define GMO_R {GM_R_OFF}\n%define GMO_GP {GP_RUOLI_OFF}\n%define GM_NFT {len(ft)}\n%define GM_N {len(rows)}\n%define GM_V0 {len(rows) + 1}\n' + ASM
     src += f'S_GLBL: db {db(LABEL[lang])}\nS_GV0: db {db(VALUES[lang][0])}\nS_GV1: db {db(VALUES[lang][1])}\n'
     src += ('GM_RT:\n    dd DF_W - GMB0\n    db 2, 0\n    dd DF_DR - GMB0\n    db 2, 0\n    dd SP_W - GMB0\n    db 2, 0\n'
             '    dd CC_W_O\n    db 1, 1\n    dd CC_I_O\n    db 1, 1\n    dd GI_W_O\n    db 1, 1\n')
+    if roles():
+        src += f'    dd GM_R - GMB0\n    db 1, 0\nS_RUL: db {db(ROLES[lang])}\n'
     src += f'S_GT: db {db(TITLE[lang])}\nS_GLG: db {db(LEG[lang])}\nGM_FT:\n'
     return src, db
 
 
-def patch(p, lang):
-    """The GAMEPLAY band: after difficulty.patch and setpieces.patch (their labels), before the engine items are bound."""
+TAB_RU_SIZE = 14                        # (a string table: dd the word, dw the first index, dd the two strings)
+
+
+def patch(p, lang, at3=None):
+    """The GAMEPLAY band: after difficulty.patch and setpieces.patch (their labels), before the engine items are bound.
+    at3: the obj3 chain's next free place (the page image goes there with the RUOLI row). Returns the obj3 end when it used
+    obj3, else None."""
     if not on():
         return None
     import controls
@@ -381,32 +472,51 @@ def patch(p, lang):
     assert dfl.get('df_add') and spl.get('sp_tabg'), 'gameplay: after difficulty + setpieces'
     at = swreg.GAMEPLAY_AT
     rows = _rows(dfl, spl, cc.LABELS, gk.LABELS)
-    assert [r[0] for r in present()] == ['difficulty', 'dribbling', 'setpieces', 'cpucards', 'cpuinj', 'gkinj']
+    assert [r[0] for r in present()] == ['difficulty', 'dribbling', 'setpieces', 'cpucards', 'cpuinj', 'gkinj'] + ['roles'] * roles()
+    if roles():
+        from complist import px
+        assert px(ROLES[lang]) <= 138 and re.fullmatch(r'[A-Z ]+', ROLES[lang]), ('gameplay: the RUOLI label (the row box, as cpucards)', ROLES[lang])
     syms = df.SYMS
     for k in ('A6_', 'A5_', 'MENU_', 'D7_'):
         assert syms[k][0] == 2, ('gameplay: obj2 variable', k, syms[k])
     # pass 1: the label offsets (the page image's own strings: the band's labels), then the image
     base = {'GM3S': (3, 0), 'GMO_2': (4, spl['SPB']), 'DRAWITEM': syms['DRAWITEM'], 'SHOW_MENU': syms['SHOW_MENU'],
             'A6_O': (0, syms['A6_'][1]), 'A5_O': (0, syms['A5_'][1]), 'D7_O': (0, syms['D7_'][1]), 'MENU_O': (0, syms['MENU_'][1]),
-            'CC_W_O': (0, cc.LABELS['CC_W']), 'CC_I_O': (0, cc.LABELS['CC_I']), 'CC_SH_O': (0, cc.LABELS['CC_SH']),
+            'CC_W_O': (0, cc.LABELS['CC_W']), 'CC_I_O': (0, cc.LABELS['CC_I']), 'CC_SH_O': (0, cc.LABELS['CC_SH']), 'CC_TABR_O': (0, cc.LABELS['TAB_R']),
             'GI_W_O': (0, gk.LABELS['GI_W']), 'GI_SH_O': (0, gk.LABELS['GI_SH']),
             'DF_W': (4, dfl['DF_W']), 'DF_DR': (4, dfl['DF_DR']), 'SP_W': (4, spl['SP_W']), 'DF_PACK': (4, spl['df_pack']),
             'SP_TABG': (4, spl['sp_tabg']), 'DP_FALL': (4, dfl['dp_fall']), 'DP_MENU': (4, dfl['DP_MENU'])}
     img_probe, ft_probe, h0, stride = menu_image(rows, lambda n: (0, 0))
-    src0, db = _src(lang, rows, ft_probe, h0, stride)
-    ftsrc = ''.join(f'    dw {o | (k << 15)}\n    dd 0\n' for o, k, _ in ft_probe)
-    lab0 = nasmcave.labels(src0 + ftsrc + 'GM_MENU:\n    times %d db 0\n' % len(img_probe), at, base)
+    ext = roles()                       # (the image + RUOLI's table in obj3, their fill entries after the image's)
+    if ext:
+        assert at3 is not None and at3 % 16 == 0, 'gameplay: the RUOLI row needs its obj3 place (patch.py: the chain after gkinj)'
+        base['GM_IMG_O'] = (0, at3)
+        ft_x = [(len(img_probe), 0, 0)]
+    else:
+        ft_x = []
+    src0, db = _src(lang, rows, ft_probe + ft_x, h0, stride)
+    src0 = f'%define GM_TABRU {len(img_probe)}\n' + src0
+    ftsrc = ''.join(f'    dw {o | (k << 15)}\n    dd 0\n' for o, k, _ in ft_probe + ft_x)
+    tail = lambda im: '' if ext else 'GM_MENU:\n    ' + im + '\n'
+    lab0 = nasmcave.labels(src0 + ftsrc + tail('times %d db 0' % len(img_probe)), at, base)
     own = {'S_GT': lab0['S_GT'], 'S_GLG': lab0['S_GLG'], 'S_BK': dfl['S_BK'], 'S_RS': dfl['S_RS'], 'dp_back': dfl['dp_back'],
            'gm_reset': lab0['gm_reset'], 'gm_pg': lab0['gm_pg']}
+    rows = _rows(dfl, spl, cc.LABELS, gk.LABELS, lab0, (at3 or 0) + len(img_probe))
     img, ft, h0, stride = menu_image(rows, lambda n: (0, own[n]))
-    assert [(o, k) for o, k, _ in ft] == [(o, k) for o, k, _ in ft_probe]
+    assert len(img) == len(img_probe) and [(o, k) for o, k, _ in ft] == [(o, k) for o, k, _ in ft_probe]
+    if ext:
+        ft = ft + [(len(img), 0, lab0['GM_R'])]                # (RUOLI's table: its word; the two strings: gm_fill)
     ftsrc = ''.join(f'    dw {o | (k << 15)}\n    dd {(t - at) if k == 0 else t}\n' for o, k, t in ft)
-    src = src0 + ftsrc + 'GM_MENU:\n    db ' + ', '.join(map(str, img)) + '\n'
+    src = src0 + ftsrc + tail('db ' + ', '.join(map(str, img)))
     code, fix, rel = nasmcave.assemble_obj(src, at, base, 4)
     lab = nasmcave.labels(src, at, base)
     assert all(lab[k] == v for k, v in lab0.items() if k in lab and k != 'GM_MENU'), 'gameplay: labels moved between passes'
     assert (lab['GM_W'] - at, lab['GM_U'] - at, lab['GM_SH'] - at, lab['GM3'] - at) == (GM_W_OFF, GM_U_OFF, GM_SH_OFF, GM3_OFF), \
         ('gameplay: data offsets (the harness reads them)', hex(lab['GM_W'] - at), hex(lab['GM_U'] - at), hex(lab['GM_SH'] - at))
+    if roles():
+        assert (lab['GM_R'] - at, lab['GP_RUOLI'] - at) == (GM_R_OFF, GP_RUOLI_OFF) and (4, lab['GP_RUOLI']) == gp_ruoli(), \
+            ('gameplay: GM_R / GP_RUOLI offsets (the traits pieces read GP_RUOLI there)', hex(lab['GM_R'] - at), hex(lab['GP_RUOLI'] - at))
+        assert code[GP_RUOLI_OFF] == 1 and code[GM_R_OFF:GM_R_OFF + 2] == b'\0\0', 'gameplay: RUOLI starts SI, GP_RUOLI 1'
     assert lab['gm_chk'] == at + 5, ('gameplay: gm_chk is the jump table slot 2', hex(lab['gm_chk']))
     assert len(fix) == 1 and len(rel) == 2, ('gameplay: fixups (GM3, DRAWITEM, SHOW_MENU only: 3 records)', fix, rel)
     left = swreg.GAMEPLAY_END - at - len(code)
@@ -414,6 +524,11 @@ def patch(p, lang):
     assert p.le.obj(4).npages * 0x1000 >= swreg.GAMEPLAY_END, 'gameplay: obj4 pages'
     assert not any(p.get(4, at, swreg.GAMEPLAY_END - at)), 'gameplay: band not free'
     p.put(4, at, code)
+    end3 = None
+    if ext:
+        end3 = at3 + len(img) + TAB_RU_SIZE
+        assert not any(p.get(3, at3, end3 - at3)), 'gameplay: obj3 place not free'
+        p.put(3, at3, img + bytes(TAB_RU_SIZE))
     for o, t_obj, t_off in fix:
         p.add_ptr(4, at + o, t_obj, t_off)
     for o, t_obj, t_off in rel:
@@ -423,8 +538,11 @@ def patch(p, lang):
     engine.CALL_AT['gm_new'] = (4, lab['gm_new'])
     LABELS.clear()
     LABELS.update(lab)
-    print(f'exe: GAMEPLAY band obj4+{at:#x}: {len(code)} B, {left} B left (page image {len(img)} B)')
-    return at + len(code)
+    if ext:
+        LABELS.update(GM_IMG3=at3, GM_TABRU3=at3 + len(img))        # (obj3 offsets: the hosttest reads them)
+    print(f'exe: GAMEPLAY band obj4+{at:#x}: {len(code)} B, {left} B left (page image {len(img)} B' +
+          (f' + RUOLI table in obj3+{at3:#x}..{end3:#x}; GP_RUOLI obj4+{lab["GP_RUOLI"]:#x})' if ext else ')'))
+    return end3
 
 
 LABELS = {}

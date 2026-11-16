@@ -30,6 +30,7 @@ BUILD_SWITCHES = TEST_VARS + (                     # 4.0.6: every switch a test 
     # clears EURO_OPTIONAL, so the release recipe always keeps patch.py's euro assert)
 TEST_VARS += ('JOYNAME_FAKE',)                     # 4.2 joyname: the harness's stick flags (own lines: 42-drp's
 BUILD_SWITCHES += ('JOYNAME_FAKE',)                # DIFF_* edits above cherry-pick without a conflict)
+BUILD_SWITCHES += ('GM_NOROLES',)                  # 4.2 GAMEPLAY: the page without its RUOLI row (gameplay.py; the structural-OFF build)
 
 
 def is_test():

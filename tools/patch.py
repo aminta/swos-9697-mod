@@ -996,7 +996,7 @@ def patch_exe(src, dst, remap, lang='it'):
     import takers                                # 4.2 set-piece takers (A)(B)(C): the TAKERS band (after setpieces' SPB)
     takers.patch(p, lang)
     import gameplay                              # 4.2 GAMEPLAY: the page + the row's handlers (after difficulty / setpieces)
-    gameplay.patch(p, lang)
+    st_end = gameplay.patch(p, lang, (st_end + 15) & ~15) or st_end   # (with the RUOLI row: the page image in obj3, the chain's end)
     import spmeter                               # (M3 corner meter: SP_METER test builds only, after difficulty's df_frame)
     spmeter.patch(p, lang)
     assert not difficulty.LABELS.get('df_add') or setpieces.LABELS.get('sp_add') or setpieces.LABELS.get('sp_tabg'), \

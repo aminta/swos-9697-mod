@@ -541,3 +541,29 @@ the match at all, cc still differs.
 DIFF_SKIP is a comma list matched as a set ('BU' is not 'BUFRAME').
 - Host fixtures (42-fixroot, MC 16/11): `zsh tools/hosttest/mkfixtures.sh` builds every fixture (HTW HTO4 HTOMM HTPC2 HTn7rf HTn7rd S7W-ws4c S7RI-hs) once per tip into c/FX-<sha>/ with a MANIFEST.json and prints `export HOSTTEST_FIXROOT=...`; with it set every test reads that root and a stale / edited fixture FAILs with the manifest message (tools/hosttest/fixroot.py); never rebuild a fixture dir in place.
 - test_ctgame (the long cg_* tests: cg_view ~9 min idle) runs ONE AT A TIME across every suite on this Mac (a file lock, internal/hosttest/.ctgame.lock) with a 20-min timeout (HOSTTEST_LONG_TIMEOUT s): a timeout prints `TIMEOUT test_ctgame (> N s, load average ...)` and is neither a PASS nor a FAIL (the summary shows `N TIMEOUT`, exit 1): rerun it alone on a quiet machine (MC 16/11).
+
+## GAMEPLAY page: the RUOLI row and GP_RUOLI (Panchina, 2026-11-16)
+The GAMEPLAY page's 7th row is RUOLI (SI / NO, default SI; gameplay.py, `gameplay.roles()`). Every position-traits piece
+(traits-split.md) reads ONE byte and nothing else:
+- **GP_RUOLI** = `gameplay.gp_ruoli()` = `(4, swreg.GAMEPLAY_AT + gameplay.GP_RUOLI_OFF)` (obj4, band offset 0x19; in a
+  HOSTTEST_SYMS build: `syms['gameplay']['GP_RUOLI']`). 1 = RUOLI SI and GAMEPLAY PERSONALIZZATO; 0 = RUOLI NO or
+  GAMEPLAY ORIGINALE (= today's game exactly). 1 at the program's start.
+- A consumer: asm `cmp byte [GP_RUOLI], 0` / `je <the original instructions>` with `'GP_RUOLI': gameplay.gp_ruoli()` in
+  its nasmcave symbols (one absolute fixup per read; obj4 code that has its band base in a register reaches it with no
+  fixup: `[ebp + GP_RUOLI - BAND0]`); C `*(const unsigned char *)GP_RUOLI`. Never read GM_R (the row's word, band + 0x17:
+  0 SI / 1 NO) or GM_W for this.
+- It does not know about SWOS++ or training games: a stub that must be original there keeps its own SWOSPP / TRG gate.
+- The harness: read / poke the byte at `base4 + swreg.GAMEPLAY_AT + gameplay.GP_RUOLI_OFF` (a poke forces the traits on or
+  off for a match: nothing rewrites it until the page's rows, the OPTIONS row, PREDEFINITI, a load or a new career run).
+  To set it as a player would: poke GM_R and GM_W (band + 0x12) and let a load / the row do the rest, or just poke the byte.
+- Save: bit 7 of the GM item's byte 2 (gameplay.GM_R_BIT; the item stays 5 B). The scenarios that read the 3 parked bytes
+  (gameplay_swap `u`) see the bit there when RUOLI is NO.
+- With the row the page image (packed menu + RUOLI's string table) is in obj3 (`syms['gameplay']['GM_IMG3']`), after gkinj.
+- Structural OFF: `GM_NOROLES=1` (a modver BUILD_SWITCH, cleared by buildrel.sh) builds the page without the row - the exe
+  byte-identical to the one before the row existed (8 exes cmp'd on the release recipe, 16/11).
+- Host tests (no DOSBox): `HT_GAMEPLAY_EXE=c/<a HOSTTEST_SYMS build>/SWOS/ITALIAN.EXE python3 tools/hosttest/run.py -k
+  gp_ruoli` (+ `-k roles_row`, `-k page_image`): the start values, RUOLI x GAMEPLAY by the page row and the OPTIONS row,
+  the save bit through gm_load / gm_new, the row's keys (gm_pg), the image gm_fill builds. Default exe c/HTO4 (SKIP until
+  mkfixtures rebuilds it with the row).
+- DOSBox: gameplay_menu has the RUOLI keys + the swap checks (NR = the present rows); written under the 16/11 DOSBox hold,
+  first run pending.

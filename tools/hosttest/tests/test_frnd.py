@@ -76,7 +76,9 @@ def test_frnd_fee():
     pct = {STRONGER: (100, 40), SIMILAR: (50, 20), WEAKER: (30, 10), FAR_UP: (120, 50), FAR_DOWN: (20, 5)}
     n = 0
     for opt, L in libs().items():
-        for g in (0, 1, 15, 16, 999, 123457, 873813, 1048560, 5000000, 0xFFFFFFFF):
+        for g in (0, 1, 15, 16, 999, 123457, 873813, 1048560, 5000000, 0xFFFFFFFF,
+                  # the exact clamp (no u64 divide): edges of 0x1400000, the 5% cap point, 32-bit overflow of g * 120
+                  20971199, 20971200, 20971201, 0x13FFFFF, 0x1400000, 0x1400001, 35791394, 35791395, 0x80000000):
             for b, (h, a) in pct.items():
                 for home, p in ((1, h), (0, a)):
                     want = min(g * p // 100, 1048560) & ~15
@@ -87,7 +89,7 @@ def test_frnd_fee():
         if L.fr_fee(100000, 5, 1) or L.fr_fee(100000, 0xFF, 0):
             return False, f'{opt}: a band > 4 pays'
     return True, f'{n} cases: Mercato\'s table (120/50, 100/40, 50/20, 30/10, 20/5), floor, cap 1 048 560, ' \
-                 '16-rounding, no 32-bit overflow (G 0xFFFFFFFF), band > 4 = 0'
+                 '16-rounding, no 32-bit overflow (G 0xFFFFFFFF, clamp edges 0x1400000 / 5% cap / g*120 wrap), band > 4 = 0'
 
 
 def test_frnd_result():

@@ -66,7 +66,10 @@ static const uint8_t FR_PCT[5][2] = { { 100, 40 }, { 50, 20 }, { 30, 10 }, { 120
 /* the credited fee (fi_gate's D7 << 4): floor(G * pct / 100), capped, rounded down to 16 */
 uint32_t fr_fee(uint32_t g, uint32_t band, uint32_t home) {
     if (band > 4) return 0;
-    uint64_t f = (uint64_t)g * FR_PCT[band][home ? 0 : 1] / 100;
+    /* no 64-bit divide in the exe (no libgcc): any g >= 0x1400000 gives >= the cap even at 5%, and
+       0x1400000 * 120 < 2^32, so clamping g first is exact for every input */
+    if (g > 0x1400000u) g = 0x1400000u;
+    uint32_t f = g * FR_PCT[band][home ? 0 : 1] / 100;
     if (f > FR_FEE_CAP) f = FR_FEE_CAP;
     return (uint32_t)f & ~15u;
 }

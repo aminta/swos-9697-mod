@@ -77,10 +77,10 @@ static u32 fr_g(void) {
 #ifdef FR_TEST                          /* (test builds, HOSTTEST_SYMS: the harness's reads / given list; none in a release) */
 #define FR_TRACE_SET(x) (FR_TRACE = (u8)(x))
 #define FR_T(x) x
-u8 FR_TRACE;                            /* (the last step: 1x season, 2x install, 3x leg, 4x close; 0x8x why not) */
-u16 FR_GIVENW[4] = { 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF };   /* (the harness's given list: replaces the chooser) */
-u32 FR_FEE[4], FR_G;                    /* (the fees credited, G) */
-u8 FR_FB;
+FR_DATA u8 FR_TRACE;                          /* (the last step: 1x season, 2x install, 3x leg, 4x close; 0x8x why not) */
+FR_DATA u16 FR_GIVENW[4] = { 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF };   /* (the harness's given list: replaces the chooser) */
+FR_DATA u32 FR_FEE[4]; FR_DATA u32 FR_G;                  /* (the fees credited, G) */
+FR_DATA u8 FR_FB;
 #else
 #define FR_TRACE_SET(x) ((void)0)
 #define FR_T(x)

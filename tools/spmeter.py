@@ -56,6 +56,8 @@ spm_frame:                              ; difficulty's df_frame calls this once 
     mov ax, [esi + 28h]
     mov [edx + 4], ax
     call spm_watch
+    cmp byte [dword ebp + MODE - SPB], 3
+    je spm_census
     mov al, [dword ebp + ST - SPB]
     cmp al, 1
     je .forcing
@@ -186,6 +188,73 @@ spm_frame:                              ; difficulty's df_frame calls this once 
     movsw
     ret
 
+; ---- MODE 3 (traits measure, Mercato 16/11): no forcing. A touch (entry 15: the toucher's file position) opens /
+;      extends a window of SM_WIN frames when the ball is in a wide band near a goal line (x <= CX0 or >= CX1, within
+;      CYW px of either goal line: wider than Marco's zones, the classifier cuts them); any touch inside a window is
+;      logged too. In a window the ball's height level is logged on each change upward (entry 12 / 13 / 14 = z over
+;      10 / 18 / 30 px: drive / normal / high ball peaks), plus the watched changes (gameState, goals, headers).
+spm_ctouch:                             ; esi = the toucher's sprite, edx -> this frame's ball
+    mov ax, [edx]
+    cmp ax, CX0
+    jbe .x
+    cmp ax, CX1
+    jb .in
+.x: mov ax, [edx + 2]
+    cmp ax, 129 + CYW
+    jbe .o
+    cmp ax, 769 - CYW
+    jb .in
+.o: mov eax, [dword ebp + DF_FRAMES - SPB]
+    mov [dword ebp + T0 - SPB], eax
+    mov byte [dword ebp + ST - SPB], 3
+    inc word [dword ebp + NF - SPB]
+    jmp .l
+.in:cmp byte [dword ebp + ST - SPB], 0
+    je .r
+.l: mov byte [dword ebp + FK - SPB], 0  ; (the height level restarts at each touch)
+    mov al, 15
+    call spm_log
+.r: ret
+spm_census:
+    cmp byte [dword ebp + ST - SPB], 0
+    je .done
+    mov ax, [dword ebp + CURB + 4 - SPB]
+    xor ecx, ecx
+    cmp ax, 10
+    jle .lv
+    inc ecx
+    cmp ax, 18
+    jle .lv
+    inc ecx
+    cmp ax, 30
+    jle .lv
+    inc ecx
+.lv:cmp cl, [dword ebp + FK - SPB]
+    jbe .st
+    lea eax, [ecx + 11]
+    push ecx
+    xor esi, esi
+    lea edx, [dword ebp + CURB - SPB]
+    call spm_log
+    pop ecx
+.st:mov [dword ebp + FK - SPB], cl
+    mov eax, [dword ebp + DF_FRAMES - SPB]
+    sub eax, [dword ebp + T0 - SPB]
+    movzx ecx, word [dword ebp + WIN - SPB]
+    cmp eax, ecx
+    jb .done
+    mov byte [dword ebp + ST - SPB], 0
+    mov al, 6
+    xor esi, esi
+    lea edx, [dword ebp + CURB - SPB]
+    call spm_log
+.done:
+    cld
+    lea esi, [dword ebp + CURB - SPB]
+    lea edi, [dword ebp + PREVB - SPB]
+    movsd
+    movsw
+    ret
 ; ---- MODE 1: a foul on the attacking team's FKORD player, put at FKX[k / 4 % 3], FKD[k % 4 >> ...] px from the goal
 ;      line: kick k = NC; bit 0 = the goal (0 top: topTeamData fouls), (k >> 1) % 4 = the distance, (k >> 3) % 3 = x.
 ;      The game's pseudo registers are saved around the call (we run at the frame's end).
@@ -303,7 +372,11 @@ spm_watch:
     mov [dword ebp + PLPP - SPB], esi
     test esi, esi
     jz .w3
-    mov al, 3
+    cmp byte [dword ebp + MODE - SPB], 3
+    jne .w2l
+    call spm_ctouch
+    jmp .w3
+.w2l:mov al, 3
     call spm_logw
 .w3:mov esi, [edi + LKP_O]              ; lastKeeperPlayed
     cmp esi, [dword ebp + PLKP - SPB]
@@ -386,6 +459,27 @@ spm_log:
     mov [ebx + 5], cx
     mov cl, [esi + 0Ch]                 ; Sprite.playerState
     mov [ebx + 7], cl
+    cmp al, 15                          ; (MODE 3 touch: the toucher's FILE position instead, bit 7 = topTeamData)
+    jne .p
+    push eax
+    lea eax, [edi + TOPT_O]
+    mov cx, [esi]
+    cmp cx, [eax + 12h]                 ; (Sprite.teamNumber = TeamGeneralInfo.teamNumber)
+    mov ch, 80h
+    je .tt
+    lea eax, [edi + BOTT_O]
+    xor ch, ch
+.tt:movzx ecx, cx
+    push ecx
+    movzx ecx, byte [esi + 2]           ; (inGameTeamPtr + (ordinal - 1) x 61: the record, +2Eh = position)
+    dec ecx
+    imul ecx, ecx, 61
+    add ecx, [eax + 0Ah]
+    mov al, [ecx + 2Eh]
+    pop ecx
+    or al, ch
+    mov [ebx + 7], al
+    pop eax
     jmp .p
 .ns:mov cl, [dword ebp + NC - SPB]      ; (no sprite: the corner index in the ordinal byte)
     mov [ebx + 5], ch
@@ -420,7 +514,7 @@ LDROP: dd 0                             ; +24 entries dropped (log full)
 GAP: dw SM_GAP                          ; +28 frames of play between two corners
 WIN: dw SM_WIN                          ; +30 frames of play logged after the corner kick
 MAXC: dw SM_MAXC                        ; +32 corners per match
-MODE: db SM_MODE                        ; +34 0 corners, 1 free kicks (spm_foul)
+MODE: db SM_MODE                        ; +34 0 corners, 1 free kicks (spm_foul), 2 census of fouls, 3 traits touch census
 FKORD: db 10                            ; +35 MODE 1: the fouled attacker's ordinal (he is put at the foul point)
 FKD: dw 100, 125, 150, 175              ; +36 MODE 1: px from the goal line (the wall zone 87..202)
 FKX: dw 336, 290, 382                   ; +44 MODE 1: x (CENTER, LEFT3 / RIGHT1 side bands)
@@ -524,7 +618,8 @@ def patch(p, lang):
            'SM_MODE': (0, iv('SP_METER_MODE', 0)), 'DF_FRAMES': (4, df.LABELS['DF_FRAMES']),
            'LOG_AT': (0, LOG_AT), 'LOGMAX': (0, LOGMAX), 'SM_GAP': (0, iv('SP_METER_GAP', 120)),
            'SM_WIN': (0, iv('SP_METER_WIN', 420)), 'SM_MAXC': (0, iv('SP_METER_MAXC', 200)),
-           'SM_SH': (0, iv('SP_METER_SH', 0xFF)), 'SHO': (0, _sho(p))}
+           'SM_SH': (0, iv('SP_METER_SH', 0xFF)), 'SHO': (0, _sho(p)),
+           'CX0': (0, iv('SP_METER_CX0', 190)), 'CX1': (0, iv('SP_METER_CX1', 481)), 'CYW': (0, iv('SP_METER_CYW', 240))}
     code, fix, rel = nasmcave.assemble_obj(ASM, SPM_AT, sym, 4)
     lab = nasmcave.labels(ASM, SPM_AT, sym)
     assert lab['spm_frame'] == SPM_AT, 'spm_frame first (difficulty calls SPM_AT)'

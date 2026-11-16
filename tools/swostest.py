@@ -40300,7 +40300,8 @@ def sp_corners():
                 else:
                     res['error'] = str(r)
             open(out, 'a').write(json.dumps(res) + '\n')
-            check('error' not in res and res['frames'] >= frames and res['nc'] > 0 and not res['nfail']
+            census = extra.get('SP_METER_MODE') == '3'   # (traits touch census, Mercato 16/11: no corners forced)
+            check('error' not in res and res['frames'] >= frames and (res['nc'] > 0 or census) and not res['nfail']
                   and not res['drop'], f'{tag}: ' + json.dumps({k: v for k, v in res.items() if k != 'log'}), errs)
             info.append(f"{pr}/{k}: corners {res.get('nc')} (forced {res.get('nf')}, failed {res.get('nfail')}), "
                         f"log {res.get('ln')}")

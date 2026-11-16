@@ -954,6 +954,9 @@ def patch_exe(src, dst, remap, lang='it'):
     if sc_on:                                    # 4.0.6 the UEFA Super Cup: the holders' snapshot at the season end,
         st_end = supercup.patch_usc(p, (st_end + 15) & ~15)   # obj3 after xleft
         assert st_end <= LT3_AT, hex(st_end)
+    if 'X3' in gplay.LABELS:                          # 4.2 X3 (MC 16/11, CONVENTIONS 23): gplay3.c (sc_done), out of gplay's
+        st_end = gplay.x3_patch(p, (st_end + 15) & ~15)      # full obj1 pages, in obj3 after usc_snap
+        assert st_end <= LT3_AT, hex(st_end)
     import stadium                               # 4.0.6 (Davide 02/11): the home club's stadium name (a final: its
     st_end = stadium.patch(p, (st_end + 15) & ~15)           # venue) on the versus screen, in obj3 after usc_snap
     assert st_end <= LT3_AT, hex(st_end)
@@ -1127,6 +1130,8 @@ def patch_exe(src, dst, remap, lang='it'):
     print(f'exe: UEFA cup name fixed in {uefaname.patch(p)} strings (the original exes: EUFA)')   # 4.1.2 (Marco)
     import typofix
     print(f'exe: the original exe\'s typos fixed in {typofix.patch(p, lang)} strings (typofix.FIXES)')   # 4.2 (Davide: PAREGGI)
+    if 'X3' in gplay.LABELS:
+        gplay.x3_check(p)                        # 4.2 X3: GP_SCDONE bound to gplay3.c's sc_done in obj3
     delta, shift = p.save(dst)
     dd = os.path.join(os.path.dirname(os.path.abspath(dst)), 'DATA')
     if os.path.isdir(dd):                        # (the neutral finals' strings: exact in this exe / its DATA)

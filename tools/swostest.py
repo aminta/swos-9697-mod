@@ -24239,7 +24239,7 @@ static void setup4(int from, int n, u16 champ, u16 second, u16 cupw, u16 cupf, u
 static void setup(int from, u16 champ, u16 second, u16 cupw, u16 cupf) { setup4(from, 2, champ, second, cupw, cupf, 0x0566); }
 static void decide(int won) {           /* the career club's tie result back (gp_rec_c -> sc_done) */
     kk = GP_ST.ko[0]; kk.tw[0] = won ? (kk.team[0] == GP_MGR ? 0 : 1) : (kk.team[0] == GP_MGR ? 1 : 0);
-    sc_done(&kk); GP_ST.ko[0].tw[0] = kk.tw[0];
+    sc_done(kk.tw[0] != NOC ? kk.team[kk.tw[0]] : 0); GP_ST.ko[0].tw[0] = kk.tw[0];
 }
 static void out(const char *tag, u32 r) {
     printf("%%s %%u %%x %%x %%x %%d\n", tag, r, SC_TRACE, GP_ST.ko[0].team[0], GP_ST.ko[0].team[1], GP_ST.ko[0].kind);
@@ -24360,7 +24360,7 @@ static void setup(int nat, u16 cl, u16 el, u16 ecl) {
 }
 static void decide(int won) {
     kk = GP_ST.ko[0]; kk.tw[0] = won ? (kk.team[0] == GP_MGR ? 0 : 1) : (kk.team[0] == GP_MGR ? 1 : 0);
-    sc_done(&kk); GP_ST.ko[0].tw[0] = kk.tw[0];
+    sc_done(kk.tw[0] != NOC ? kk.team[kk.tw[0]] : 0); GP_ST.ko[0].tw[0] = kk.tw[0];
 }
 static void out(const char *tag, u32 r) {
     printf("%%s %%u %%x %%x %%x %%d\n", tag, r, SC_TRACE, GP_ST.ko[0].team[0], GP_ST.ko[0].team[1], GP_ST.ko[0].kind);

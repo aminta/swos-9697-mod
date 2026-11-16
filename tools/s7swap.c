@@ -173,6 +173,7 @@ struct s7wres { uint32_t ptr, len; };   /* (S7_WRES: the arena's WR_AT, resolved
 extern const uint32_t S7_ENI[];         /* trailer's EN_ITEMS: per engine item {ptr, size, id | flags << 16} */
 uint32_t S7_ENN DATA = 0;               /* their count (s7swap.py) */
 extern uint8_t S7_CFB[];                /* careerFileBuffer (obj2: the .CAR fixed part) */
+extern const int8_t S7_SLT[];           /* someLeaguesTable (bigtables SOME, obj2): this season's delta per global number */
 uint32_t S7_CFBLEN DATA = 0;            /* its fixed part's bytes (trailer FIXED) */
 extern uint16_t S7_NUMSEL;              /* trailer: the cache's records (obj2) */
 extern uint8_t *S7_SELBASE;             /* trailer SELBASEV: -> the cache's first record (obj1 dword) */
@@ -367,8 +368,8 @@ void s7_flush(void)
    unbalanced deltas through. Now, at EVERY S7 season end (before anything else, on the game's own in-struct deltas, and
    again on the final divisions after the crossings): each league division of the two files holds exactly its declared
    rows (the spec's size: Italy B 20, the Serie C groups 20, the 9 Serie D groups 18 = 162) and no club ident sits in two
-   rows. A failure REFUSES the season: nothing crosses, every club stays where it is (each league row's delta = its club's
-   division now - the row's shipped one), the ri pool moves already made are walked, S7_LOG.status = S7_SIZE and S7_SZ
+   rows. A failure REFUSES the season: nothing crosses, every club stays where it is TODAY (each league row's delta = the game's
+   live one, someLeaguesTable: size_refuse), the ri pool moves already made are walked, S7_LOG.status = S7_SIZE and S7_SZ
    says what (the harness reads it; the game does not trap). */
 struct { uint8_t gate, kind, div, found, want; } S7_SZ DATA = {0};   /* gate 1 = the game's deltas, 2 = after the crossings; kind: 1 a division's
                                            size (div = the league index, found / want its clubs), 2 an ident in two rows (or a row's ident off the registry), 3 a
@@ -403,22 +404,31 @@ static int32_t size_check(const int8_t *slt, const uint8_t *nd, int32_t gate)   
     }
     return 0;
 }
-static void rebase(int8_t *slt, int32_t fa, int32_t fb)    /* every league row's delta = its club's division (rdiv) as its file's local, minus the row's */
+/* Every league row's delta: its club's division (the registry's rdiv) as its file's local, minus the row's - after
+   sr_reg_season only (rdiv is this season's there). live (a refusal): the game's live one instead (someLeaguesTable, S7_SLT:
+   this season's deltas, as played and as loaded from the save - pg_fix runs before InitializeNewSeason's copy-back), so a
+   refusal keeps TODAY's divisions in every season: this season's moves dropped, the past seasons' kept, the loaded state
+   as it is (never 'repaired' to the shipped one). Never rdiv for that: it is not saved (sr_regsave.c), after a load it is
+   each row's SHIPPED division until the next accepted season end (16/11: a refusal in season 2+ of a loaded career sent
+   every club back to its shipped division). */
+static void rebase(int8_t *slt, int32_t live)
 {
     const sr_registry *R = SREG_REG;
     for (int32_t s = 0; s < 2; s++) {
-        int32_t fi = s ? fb : fa;
+        int32_t fi = fi_of(s ? S7_FB : S7_FA);
         for (uint32_t o = 0; o < R->rows[fi]; o++) {
             int32_t b = base_local(fi, o);
+            uint32_t g = glob_of(s, o);
             if (b < 0) continue;
-            for (int32_t k = 0; k < R->f[fi].ndiv; k++)
-                if (R->f[fi].div[k] == R->rdiv[fi][o]) slt[glob_of(s, o)] = (int8_t)(k - b);
+            if (live) slt[g] = S7_SLT[g];
+            else for (int32_t k = 0; k < R->f[fi].ndiv; k++)
+                if (R->f[fi].div[k] == R->rdiv[fi][o]) slt[g] = (int8_t)(k - b);
         }
     }
 }
-static int32_t size_refuse(int8_t *slt, int32_t nri)    /* every club stays (rebase on the unchanged registry), ri's moves walked */
+static int32_t size_refuse(int8_t *slt, int32_t nri)    /* every club stays (the live deltas back), ri's moves walked */
 {
-    rebase(slt, fi_of(S7_FA), fi_of(S7_FB));
+    rebase(slt, 1);
     S7_LOG.ncross = 0; S7_LOG.nswap = (uint8_t)nri;
     if (nri) {
         S7_WLOG.row = (int16_t)wcheck(); S7_WLOG.rc = 0; S7_WLOG.changed = S7_WLOG.cache = S7_WLOG.npair = S7_WLOG.rows = 0;
@@ -461,10 +471,12 @@ static int32_t run(void *pv) {
     }
     S7_RIMV.n = (uint8_t)nri;
 #ifdef S7_SIZEFORCE                     /* (test builds only: world_s7sizeforce) the game's own deltas unbalanced before the check: */
-    slt[glob_of(0, 45)] = -1;           /* a Serie C girone A club pushed into Serie B (B 21 / C-A 19) */
-#if S7_SIZEFORCE >= 2
-    slt[glob_of(1, 5)] = 1;             /* and a Serie D girone A club into group B */
+    if (S7X[0].season >= (S7_SIZEFORCE >> 8)) {   /* (bits 8..: only from that season stamp on - world_s7sizeforce2: season 2) */
+        slt[glob_of(0, 45)]--;          /* file 102's row 45 (Serie C girone A as shipped) one division up (B 21 / C-A 19) */
+#if (S7_SIZEFORCE & 15) >= 2
+        slt[glob_of(1, 5)]++;           /* and file 144's row 5 (Serie D girone A) one group down */
 #endif
+    }
 #endif
     if (sreg_get() && size_check(slt, 0, 1)) return size_refuse(slt, nri);   /* (the game's own deltas: 42-s7trap) */
     const struct s7x *A = &S7X[0], *B = &S7X[1];
@@ -525,7 +537,7 @@ static int32_t run(void *pv) {
     c += nri;                           /* (the walk: ri's moves, then the crossings) */
     S7_LOG.nswap = (uint8_t)c;
     s7_flush();
-    rebase(slt, fa, fb);                /* next season's deltas: every row's division (rdiv) as its file's local, minus the slot's base */
+    rebase(slt, 0);                     /* next season's deltas: every row's division (rdiv) as its file's local, minus the slot's base */
     if (walk(c, slt) < 0) return S7_LOG.status = S7_WMAP;      /* (cannot happen: <= S7_NSW swaps, S7_NPR pairs) */
     SREG_FLAGS &= ~(uint32_t)(SR_REGSAVE_PENDING | 0xFF00);    /* (42-s7import: an imported save's PENDING clears at its
                                                                   first S7 season end - n7-p4 §9a.1; IMPORTED stays) */

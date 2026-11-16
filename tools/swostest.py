@@ -30749,6 +30749,135 @@ def world_s7sizeforce():
     return not errs, '; '.join(errs) or f'forced S7_SIZEFORCE: refused at every season end, no trap, season 2 played to its end; S7_LOG / S7_SZ {seen}; {msg[:120]}'
 
 
+def s7_save_rows(car, packs):
+    """(4.2 S7) {club key: (file, row, global, the signed delta byte of that global in the save)} for every league club of
+    the shaped Italy pack (the one with a 'league_b' file in the SEASON_PACKS list `packs`; pool clubs left out). The delta table
+    in a save: s7_division_counts' two parts (globals 0..1999 at CAR 0xE8DC, 2000.. in the fixed part's extension). A
+    row's delta + its shipped division = the division of the club the registry puts in that row."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    old = os.environ.get('SEASON_PACKS')
+    os.environ['SEASON_PACKS'] = packs
+    try:
+        pk = next(p for p in mkseason_now().packs() if 'league_b' in p.meta.get('files', {}))
+    finally:
+        if old is None:
+            os.environ.pop('SEASON_PACKS')
+        else:
+            os.environ['SEASON_PACKS'] = old
+    import bigtables
+    import globnum
+    raw = open(car, 'rb').read()
+    slt = raw[0xE8DC:0xE8DC + 2000] + raw[2 + bigtables.ext_off():2 + bigtables.ext_off() + bigtables.LIMIT_CLUBS - 2000]
+    out = {}
+    for k in pk.league_clubs:
+        if k in pk.reserve_clubs:
+            continue
+        fl, i = pk.where[k]
+        g = globnum.glob(pk, fl, i)
+        out[k] = (fl, i, g, struct.unpack('b', slt[g:g + 1])[0])
+    return out
+
+
+@scenario
+def world_s7sizeforce2():
+    """4.2 S7 size gate: a refusal in a SECOND season keeps TODAY's divisions (42-s7trap, 16/11: Shaved's tc1a-g4ctl
+    decode - a refused season 2 sent every club back to its shipped division, CAMPOBASSO in girone B again). A test build
+    (GPLAY_FORCE=20 + S7_SIZEFORCE = 2 | 128 << 8: level 2, bits 8.. = only from that season stamp on - the snapshot's
+    stamp, seasonPlaying + 1: 127 in the 2026-27 world's first season, 128 in its second; S7SF_FROM to change - so season
+    1 is a normal one), UNION BRESCIA (Serie C girone A, forced last: world_s7cross_down's
+    career), world8485's two seasons, then the season-2 save loaded once more:
+    - season 1: S7_LOG OK with 18 crossers, the career club crossed 102 -> 144 (S7_CLOG), its save (W84A) has league rows
+      off their shipped division (else the run proves nothing);
+    - season 2 (loaded from W84A): S7_LOG status 13, 0 crossers, S7_SZ gate 1; no trap, the season-2 save W84B made;
+    - W84B's delta of EVERY league row of files 102 / 144 = W84A's (nothing crossed, nothing moved in season 2, season 1's
+      promotions / relegations / crossings kept);
+    - W84B loaded: selTeamNumber = the word the club crossed to in season 1 and D6CDC = its division as season 2 loaded it
+      (the club that crossed stays in its new division), and the live someLeaguesTable (bigtables SOME) of every league row
+      = W84A's delta.
+    S7_SIZE_EXPECT=1 here only (the harness-wide 'status 13 = FAIL' rule)."""
+    import json
+    pk = os.environ.get('S7_PACK') or os.path.join(MAIN, 'internal', 's7pack-real', 'ita')
+    os.environ.setdefault('S7_PACK', pk)
+    frm = int(os.environ.get('S7SF_FROM', '128'))
+    env = s7_env({'GPLAY_FORCE': '20', 'S7_SIZEFORCE': str(int(os.environ.get('S7SF_LEVEL', '2')) | frm << 8)})
+    if env is None:
+        return True, 'SKIP: S7_PACK (the shaped Italy pack) or internal world5tm-h2 missing'
+    exe = os.environ.get('S7_BUILD') or build('s7sizeforce2', env=env)
+    sy = json.load(open(os.path.join(exe, 'ITALIAN.syms.json')))
+    s7, big = sy.get('s7swap', {}), sy.get('bigtables', {})
+    if 'S7_SZ' not in s7 or 'S7_CLOG' not in s7 or big.get('SOME', [0])[0] != 2:
+        return False, f'{exe}: no size gate (S7_SZ) / S7_CLOG / bigtables SOME'
+    lg, sz, cg, sel, some = s7['S7_LOG'][1], s7['S7_SZ'][1], s7['S7_CLOG'][1], s7['S7_SELTEAM'][1], big['SOME'][1]
+    team = os.environ.get('S7SF_TEAM', 'EUROPA,ITALIA,SERIE C GIRONE A,UNION BRESCIA')
+    keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_RENEW',
+                                            'W8485_HEX', 'W8485_ONE', 'S7_SIZE_EXPECT')}
+    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1', W8485_RENEW='1',
+                      S7_SIZE_EXPECT='1', W8485_TEAM=team, W8485_HEX=f'o4/{lg:x}:8,o4/{sz:x}:12,o4/{cg:x}:6,{sel:x}:8')
+    os.environ.pop('W8485_ONE', None)
+    try:
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    errs = []
+    check(ok, f'the career did not go through both season ends (a trap?): {msg[:300]}', errs)
+    hexes = []
+    for season in (1, 2):
+        f = os.path.join(RUNS, f'{w84_tag()}_{season}', 'session.log')
+        lines = open(f, errors='replace').read().splitlines() if os.path.exists(f) else []
+        if any(ln.startswith('[job]') and 'RINNOVARVI IL CONTRATTO' in ln for ln in lines):
+            raise SetupError(f'season {season}: the contract was not renewed (W8485_RENEW did not hold) - the career left {team}')
+        hexes.append([(ln.split()[1], bytes.fromhex(ln.split()[2])) for ln in lines if ln.startswith('HEX ') and len(ln.split()) > 2])
+    get = lambda s_, k: [b for o, b in hexes[s_] if o == k]
+    st1 = [b for b in get(0, f'o4/{lg:x}') if b[0] not in (0, 2)]
+    if st1 and st1[-1][0] == 1 and st1[-1][1] != frm - 1:   # (the switch's season: not a game FAIL)
+        raise SetupError(f'season 1\'s stamp is {st1[-1][1]}, the switch acts from {frm}: set S7SF_FROM={st1[-1][1] + 1} (and no S7_BUILD)')
+    check(bool(st1) and st1[-1][0] == 1 and st1[-1][3] == 18, f'season 1: S7_LOG {[b.hex() for b in st1[-3:]]} (want status 1, 18 crossers: '
+          f'the switch must not act in season 1)', errs)
+    cross = [c for c in (struct.unpack('<HHh', b) for b in get(0, f'o4/{cg:x}')) if c[1]]
+    new = cross[-1][1] if cross else None
+    check(bool(cross) and cross[-1][0] & 0xFF == 102 and new & 0xFF == 144,
+          f'season 1: the career club did not cross 102 -> 144 (S7_CLOG {[(hex(a), hex(b)) for a, b, _ in cross[-3:]]})', errs)
+    st2 = [b for b in get(1, f'o4/{lg:x}') if b[0] not in (0, 2)]
+    z = (get(1, f'o4/{sz:x}') or [b''])[-1]
+    check(bool(st2) and st2[-1][0] == 13 and st2[-1][3] == 0 and len(z) >= 5 and z[0] == 1,
+          f'season 2: S7_LOG {[b.hex() for b in st2[-3:]]}, S7_SZ {z.hex()} (want status 13, 0 crossers, gate 1)', errs)
+    cross2 = [c for c in (struct.unpack('<HHh', b) for b in get(1, f'o4/{cg:x}')) if c[1] and c[0] == new]
+    check(not cross2, f'season 2 (refused): the career club crossed again {[(hex(a), hex(b)) for a, b, _ in cross2]}', errs)
+    sels2 = [x for x in (struct.unpack('<HHHH', b) for b in get(1, f'{sel:x}')) if x[0] not in (0, 0xFFFF)]
+    check(bool(sels2) and sels2[0][0] == new and sels2[0][3] <= 8,
+          f'season 2 as loaded: selTeamNumber / D6CDC {[(hex(a), d) for a, _, _, d in sels2[:3]]} (want {new and hex(new)}, a Serie D group 0..8)', errs)
+    cars = [os.path.join(RUNS, f'{w84_tag()}_{k + 1}', 'SWOS', f'W84{"AB"[k]}.CAR') for k in (0, 1)]
+    if errs or not all(os.path.exists(c) for c in cars):
+        return False, '; '.join(errs) or f'no saves {cars}'
+    r1, r2 = (s7_save_rows(c, env['SEASON_PACKS']) for c in cars)
+    off1 = sorted(k for k, v in r1.items() if v[3])
+    check(len(off1) >= 2, f'season 1\'s save: {len(off1)} league rows off their shipped division (the run proves nothing)', errs)
+    diff = sorted((v[0], v[1], k, v[3], r2[k][3]) for k, v in r1.items() if r2[k][3] != v[3])
+    check(not diff, f'season 2\'s save: {len(diff)} of {len(r1)} league rows\' deltas are not season 1\'s (file, row, club, season 1, season 2): '
+          f'{diff[:6]}; rows back at 0 (the shipped division): {sum(1 for d in diff if d[4] == 0)}', errs)
+    live = {}
+    with Session('world_s7sizeforce2_load', exe, {'W84A.CAR': cars[1]}, 'dump:2', 300) as s:   # (W84B as the first save: LOAD1)
+        if s.wait().outcome != 'dump':
+            return False, f'START: no first pause ({s.result})'
+        s.send(LOAD1 + ' dump:3')
+        r = s.result
+        w3 = struct.unpack('<HHHH', r.obj2(sel, 8))
+        live = {k: struct.unpack('b', bytes(r.obj2(some + v[2], 1)))[0] for k, v in r1.items()}
+        s.log.append(f'[season 3 as loaded] selTeamNumber {w3[0]:#x} careerTeamLeague {w3[2]} D6CDC {w3[3]}')
+    check(w3[0] == new and w3[3] == sels2[0][3], f'season 2\'s save loaded: selTeamNumber {w3[0]:#x} D6CDC {w3[3]} (want {new:#x} and '
+          f'division {sels2[0][3]}: the club that crossed in season 1 stays in its new division)', errs)
+    dl = sorted((v[0], v[1], k, v[3], live[k]) for k, v in r1.items() if live[k] != v[3])
+    check(not dl, f'season 2\'s save loaded: {len(dl)} league rows\' live deltas are not season 1\'s (file, row, club, season 1, live): {dl[:6]}', errs)
+    return not errs, '; '.join(errs) or (f'season 1 crossed (18 crossers, the career club {cross[-1][0]:#x} -> {new:#x}; {len(off1)} league rows off '
+                                         f'their shipped division); season 2 refused (S7_LOG {st2[-1].hex()}, S7_SZ {z.hex()}), no trap; all '
+                                         f'{len(r1)} league rows\' deltas in season 2\'s save and live after its load = season 1\'s; the career '
+                                         f'club still {new:#x}, D6CDC {w3[3]}')
+
+
 @scenario
 def world_s7cross_up():
     """S7 (4.2): the career club promoted from Serie D girone A (LIGORNA first) to Serie C, two seasons"""

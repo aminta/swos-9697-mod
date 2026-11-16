@@ -302,6 +302,9 @@ def patch(p, ssyms, rsyms, gsyms, pgsyms, fsyms, risyms):
     import trailer
     ext.update({'S7_NUMSEL': trailer.INFO['NUMSEL'], 'S7_SELBASE': (1, trailer.INFO['selbasev']),
                 'S7_ENI': (1, trailer.INFO['en_items']), 'S7_CFB': trailer.INFO['CAREER']})
+    import bigtables
+    assert bigtables.ON[0] and 'SOME' in bigtables.LABELS, 's7swap: someLeaguesTable not moved (bigtables)'
+    ext['S7_SLT'] = bigtables.LABELS['SOME']             # (someLeaguesTable, live: size_refuse - a refusal keeps today's divisions)
     import careerworld
     import dplay
     import gplay
@@ -315,7 +318,7 @@ def patch(p, ssyms, rsyms, gsyms, pgsyms, fsyms, risyms):
         assert modver.is_test()
         flags += (f"-DS7_LDFAIL={int(os.environ['S7_LDFAIL'])}",)
     if os.environ.get('S7_SIZEFORCE'):                  # (test builds, modver BUILD_SWITCH: s7_season pushes one extra club into a Serie C group (1), and
-        import modver                                   # one into a Serie D group (2) before its size check - world_s7sizeforce)
+        import modver                                   # one into a Serie D group (2) before its size check - world_s7sizeforce; bits 8..: only from that season stamp on - world_s7sizeforce2)
         assert modver.is_test()
         flags += (f"-DS7_SIZEFORCE={int(os.environ['S7_SIZEFORCE'])}",)
     if os.environ.get('S7_NOSWAP'):                     # (test builds: the season end swaps nothing - the control career)

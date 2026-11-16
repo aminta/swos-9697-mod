@@ -151,6 +151,17 @@ FEE_PARA = 4
 FEES = {'far up': (120, 50), 'stronger': (100, 40), 'similar': (50, 20), 'weaker': (30, 10), 'far down': (20, 5)}
 
 
+def on():
+    """The friendlies' engine (FRND, Motore) is linked in this build. Its data ship only with it (data after engine:
+    DATA\\FRSS.DAT, patch_exe, and the FORMAT page, write_new_teams): the switch is Motore's tools/frnd.py on(), the
+    module that links FRND - no such module, off. One predicate for both, so neither can ship alone."""
+    try:
+        import frnd
+    except ImportError:
+        return False
+    return bool(frnd.on())
+
+
 def format_items(worlds):
     """fmtgame.EXTRA entries: the friendlies' FORMAT page in every world given (id None = any contest of that name)."""
     texts = {l: {'prose': list(FORMAT[l]), 'tail': []} for l in LANGS}

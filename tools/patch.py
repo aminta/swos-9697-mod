@@ -1126,10 +1126,13 @@ def patch_exe(src, dst, remap, lang='it'):
     dd = os.path.join(os.path.dirname(os.path.abspath(dst)), 'DATA')
     if os.path.isdir(dd):                        # (the neutral finals' strings: exact in this exe / its DATA)
         print(f'exe: stadium venues: {stadium.vcheck_exe(dst, lang, dd)} {lang} strings found')
-        import frstr                             # 4.2 friendlies: DATA\\FRSS.DAT, every world's club strengths (frstr.py;
-        fri = frstr.gen(dst, dd, log=lambda t: print('exe: ' + t))   # read from this exe's tables + the DATA beside it)
-        print('exe: friendlies strength table: ' + ('no world\'s team files beside the exe (no FRSS.DAT)' if not fri else
-              'DATA\\FRSS.DAT ' + ', '.join(f'world {w}: {i[0]} files {i[1]} clubs' for w, i in sorted(fri.items()))))
+        import frstr, frtext                     # 4.2 friendlies: DATA\\FRSS.DAT, every world's club strengths (frstr.py;
+        if frtext.on():                          # read from this exe's tables + the DATA beside it) - only with FRND linked
+            fri = frstr.gen(dst, dd, log=lambda t: print('exe: ' + t))
+            print('exe: friendlies strength table: ' + ('no world\'s team files beside the exe (no FRSS.DAT)' if not fri else
+                  'DATA\\FRSS.DAT ' + ', '.join(f'world {w}: {i[0]} files {i[1]} clubs' for w, i in sorted(fri.items()))))
+        else:
+            print('exe: friendlies strength table: FRND not linked (no FRSS.DAT)')
     print(f'exe: fixups +{delta} bytes, data pages moved {shift:#x}, caves used up to obj1+{cave:#x} / +{world:#x}')
     if os.environ.get('HOSTTEST_SYMS'):           # (tools/hosttest: every module's labels, (obj, offset) or obj1
         hosttest_syms(dst)                       # offsets, next to the exe - the exe itself unchanged)
@@ -1298,7 +1301,8 @@ def write_new_teams(src_dir, dst_dir):
     import fmtgame                                    # 5.0 / 4.0: the FORMAT page's texts (fmtpage.py), per world
     items = [x for e in mkseason.ENABLED for x in fmtgame.from_pack(e if os.sep in e else os.path.join(mkseason.PACKS, e))] + fmtgame.world_items() + fmtgame.conti_items() + fmtgame.EXTRA
     import frtext                                     # 4.2 friendlies: their FORMAT page, world 0 + the build's career worlds
-    items += frtext.format_items([0] + sorted({w['n'] for w in mkseason.world_defs()} - {0}))
+    if frtext.on():                                   # (only with FRND linked: the slot-4 contest named LABEL)
+        items += frtext.format_items([0] + sorted({w['n'] for w in mkseason.world_defs()} - {0}))
     for name, k in fmtgame.write(dst_dir, items):
         print(f'{name}: FORMAT pages of {k} competitions')
     import zones                                      # 4.0: the league tables' zone colours, per world

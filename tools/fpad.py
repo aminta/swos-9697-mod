@@ -100,6 +100,46 @@ def test_entries():
     return out
 
 
+ML_FORCE_MAX = 8                    # (fpml.h: FP_MLF[8][4])
+
+
+def ml_force():
+    """FPML_FORCE (test builds, the mini-league harness - tools/fpmlgate.py): 'md:hg:ag,...' (matchday 1.., the
+    instance FP_MLT row 1) or 'id:md:hg:ag' -> [(id, md 0-based as sr_match.md, hg, ag)]: fpml.h's FP_MLF rows. A row
+    forces THE match of that matchday whoever plays it: a simulated one (fp_ml_sim) and the career club's own
+    (fp_leg's goals, FPORT_TEST builds). At most ML_FORCE_MAX rows, one per (id, md), goals 0..9."""
+    out = []
+    for e in filter(None, (os.environ.get('FPML_FORCE') or '').split(',')):
+        x = [int(t, 0) for t in e.split(':')]
+        x = [1] + x if len(x) == 3 else x
+        assert len(x) == 4 and 1 <= x[0] <= 255 and 1 <= x[1] <= 6 and 0 <= x[2] <= 9 and 0 <= x[3] <= 9, \
+            ('fpad: FPML_FORCE entry (md:hg:ag or id:md:hg:ag)', e)
+        out.append((x[0], x[1] - 1, x[2], x[3]))
+    assert len(out) <= ML_FORCE_MAX and len({r[:2] for r in out}) == len(out), ('fpad: FPML_FORCE rows', out)
+    return out
+
+
+def ml_seed():
+    """FPML_SEED (test builds): the md1 draw's seed forced (fpml.h FP_MLSEED; 0 / unset = the game's own)"""
+    v = int(os.environ.get('FPML_SEED') or '0', 0)
+    assert 0 <= v <= 0xFFFFFFFF, ('fpad: FPML_SEED', v)
+    return v
+
+
+def ml_test_flags():
+    """the compile flags of FPML_FORCE / FPML_SEED ([] without them: the release shape) for EVERY unit that defines or
+    reads fpml.h's test switches (fpad.c; lane 1's producer unit takes the same list): the table and the seed as
+    initialisers, nothing put after the link -
+        u8 FP_MLF[8][4] FP_DATA = FP_MLF_INIT;  u32 FP_MLSEED FP_DATA = FP_MLSEED_INIT;   (under FPORT_TEST)
+    -DFPORT_TEST itself is added by the caller (patch(), with FP_NTEST_)."""
+    rows, seed = ml_force(), ml_seed()
+    if not rows and not seed:
+        return []
+    assert on(), 'fpad: FPML_FORCE / FPML_SEED need the port (FPORT=1, a test build)'
+    rows = rows or [(0, 0, 0, 0)]
+    return ['-DFP_MLF_INIT={' + ','.join('{%d,%d,%d,%d}' % r for r in rows) + '}', f'-DFP_MLSEED_INIT={seed:#x}u']
+
+
 def _hdr_define(name):
     s = open(os.path.join(HERE, 'swce', 'swosrules.h')).read()
     i = s.index(f'#define {name} ')
@@ -275,8 +315,9 @@ def patch(p, ssyms, gsyms):
     if os.environ.get('FPORT_ETFORCE'):              # (test builds, with BPLACE_FORCE: an e.t. decided 1-0 at home)
         flags.append('-DFP_ETFORCE')
     test = test_entries()
-    if test:
-        flags += ['-DFPORT_TEST', f'-DFP_NTEST_={len(test)}']
+    mlt = ml_test_flags()                            # (lane 3: FPML_FORCE / FPML_SEED - an FPORT_TEST build without
+    if test or mlt:                                  #  probe fixtures: FP_NTEST stays 0, test_add adds nothing)
+        flags += ['-DFPORT_TEST', f'-DFP_NTEST_={max(1, len(test))}'] + mlt
         roots += ['FP_TEST', 'FP_NTEST']
     obj = rel if flags == list(rel_flags) else cobj.compile_c(SRC, tuple(flags), sections=True)
     syms, end, bss = cobj.link(p, obj, swreg.FPORT_AT, (4, 0), externs=ext, limit=swreg.FPORT_END, text_obj=4,

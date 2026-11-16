@@ -32198,7 +32198,7 @@ def world_s3dbl_c20():
     keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'C20_TEAM', 'C20_SEASONS', 'W2627REL_DATA', 'W8485_HEX', 'W8485_FROM',
                                             'W8485_ONE', 'SWOSTEST_TAG', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK')}
     team = os.environ.get('S3_TEAM', 'EUROPA,ITALIA,SERIE C GIRONE A,TRENTO')
-    os.environ.update(W8485_BUILD=exe, C20_TEAM=team, C20_SEASONS='2', W2627REL_DATA=src, W8485_HEX='c6000:2000,315b7:4,315bf:4')   # (+ the two counters the game's division-count trap compares, obj1+0x22705)
+    os.environ.update(W8485_BUILD=exe, C20_TEAM=team, C20_SEASONS='2', W2627REL_DATA=src, W8485_HEX='c6000:2000,315b7:4,315bf:4' + (',1ec684:5bc' if os.environ.get('S3_FREC') else ''))   # (+ DP_IN for the DPLAY_FREC check; the two counters the game's division-count trap compares, obj1+0x22705)
     errs, info = [], []
     try:
         ok, msg = career_20seasons()
@@ -32255,6 +32255,34 @@ def world_s3dbl_c20():
             info.append(f'after load: A/B/C {sorted(top(a1).values())}; season 3 end A/B/C {sorted(top(z1).values())}')
         else:
             check(False, 'season 3: no nonzero live table logged after the load', errs)
+    frec = os.environ.get('S3_FREC')
+    if frec:                                          # (MC 16/11) DPLAY_FREC test hook: the club that went up at the season-1 end, by mode
+        sy = json.load(open(os.path.join(exe, 'ITALIAN.syms.json')))['dplay']
+        d = open(os.path.join(RUNS, 'c20_after_s01.CAR'), 'rb').read()
+        k = d.find(b'DPLG')
+        l1 = os.path.join(RUNS, 'world_s3dbl_c20_w84_1', 'session.log')
+        mg = [bytes.fromhex(ln.split()[2]) for ln in open(l1, errors='replace') if ln.startswith('HEX 1ec684 ')] if os.path.exists(l1) else []
+        if k < 0 or not mg:
+            check(False, f'DPLAY_FREC={frec}: no dplay log (DPLG) in the season-1 save or no DP_IN dump in {l1}', errs)
+        else:
+            st = d[k + 4:k + 4 + 912]
+            kind, n = st[4], st[5]
+            teams = struct.unpack_from('<28H', st, 8)
+            res = struct.unpack_from('<H', st, 2)[0]
+            rb = st[sy['layout.SV_RB'][1]:][:8]
+            x = rb[6] | rb[7] << 8 | (st[7] & 63) << 16
+            e = [x >> (5 * i) & 31 for i in range(4)]
+            d0, d1 = x >> 20 & 1, x >> 21 & 1
+            w0, w1, s0, s1 = e[d0], e[2 + d1], e[1 - d0], e[3 - d1]
+            fl = teams[w1] if teams[w0] == res else teams[w0]
+            nmv = d[k + 4 + 912]
+            mv = [struct.unpack_from('<HHb', d, k + 4 + 916 + 8 * i) for i in range(min(nmv, 4))]
+            mgr = struct.unpack_from('<H', mg[-1], sy['layout.O_MGR'][1])[0]
+            ups = [t for _, t, dl in mv if dl == -1]
+            want = {'1': [fl], '2': [teams[s0], teams[s1]], '3': [mgr]}.get(frec, [])
+            check(kind == 3 and n == 28 and (st[7] & 0x80), f'DPLAY_FREC={frec}: state kind {kind} n {n} cup {st[7]:#x} (a kind-3 state with a valid record)', errs)
+            check(len(ups) == 1 and ups[0] in want, f'DPLAY_FREC={frec}: promoted {[hex(t) for t in ups]}, wanted one of {[hex(t) for t in want]} (winner {res:#x}, final loser {fl:#x}, semi losers {teams[s0]:#x} {teams[s1]:#x}, career club {mgr:#x}); moves {mv}', errs)
+            info.append(f'DPLAY_FREC={frec}: up {[hex(t) for t in ups]} = {"final loser" if ups and ups[0] == fl else "semi loser" if ups and ups[0] in (teams[s0], teams[s1]) else "career club" if ups and ups[0] == mgr else "?"} (winner {res:#x})')
     return not errs, '; '.join(errs) or f'{msg[:100]}; ' + '; '.join(info)
 
 

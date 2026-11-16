@@ -30562,6 +30562,102 @@ def world_s3dbl_c20():
     return not errs, '; '.join(errs) or f'{msg[:120]}; ' + '; '.join(info)
 
 
+def s7_live_counts(run, files=((102, 100), (144, 162))):
+    """4.2 S7 trap (42-s7trap): the game's REAL team-file buffers in a run's last MEMDUMP (no pack, no SLTCOPY: the clubs'
+    league byte, record +25, as LoadTeamFile left it) - {file: [(buffer linear, {league: clubs})]} for each buffer that
+    holds the whole shaped file (its BE count word right before the records). Needs the run's DATA/TMW5.<file> (the
+    shipped record 0's name finds the buffers). Also the trap's own state: obj2's D0 (+0x315b7: clubs counted), D1
+    (+0x315bb: the division asked) and D2 (+0x315bf: the clubs the game expects) - cseg_3283C's check, which traps at
+    obj1+0x22705 (ITALIAN.EXE) when they differ."""
+    import collections
+    path = os.path.join(run, 'MEMDUMP.BIN')
+    mem = open(path, 'rb').read()
+    out = {}
+    for f, n in files:
+        d = open(os.path.join(run, 'SWOS', 'DATA', f'TMW5.{f}'), 'rb').read()
+        nm = d[2 + 5:2 + 22]
+        k = mem.find(nm)
+        while k >= 0:
+            b = k - 5
+            if struct.unpack('>H', mem[b - 2:b])[0] == n:
+                out.setdefault(f, []).append((b, dict(sorted(collections.Counter(
+                    mem[b + i * 684 + 25] for i in range(n)).items()))))
+            k = mem.find(nm, k + 1)
+    return out
+
+
+def s7_trap_state(run):
+    """(D0 counted, D1 division, D2 expected) read from a run's last MEMDUMP.BIN: obj2 found by the exe's own bytes"""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    from le import LE
+    le = LE(open(os.path.join(run, 'SWOS', 'ITALIAN.EXE'), 'rb').read())
+    mem = open(os.path.join(run, 'MEMDUMP.BIN'), 'rb').read()
+    o2 = le.obj_bytes(2)
+    for off in range(0x2000, len(o2) - 64, 0x1000):
+        c = o2[off:off + 48]
+        if len(set(c)) > 8:
+            k = mem.find(c)
+            if k >= 0 and mem.find(c, k + 1) < 0:
+                b2 = k - off
+                return tuple(struct.unpack_from('<H', mem, b2 + o)[0] for o in (0x315b7, 0x315bb, 0x315bf))
+    return None
+
+
+@scenario
+def world_s7trap_c20():
+    """4.2 BLOCKER (S7 season-end trap at obj1+0x22705, 42-s7trap): the release-data S7 world (W2627REL_DATA, default
+    world5tm-h3s7rl3) with the career club (S7TRAP_TEAM, default TRENTO, Serie C girone A) forced into the Serie C
+    play-off (DPLAY_FORCE=105 test build, own build from this checkout) - career_20seasons (S7TRAP_SEASONS, default 2:
+    a save + reload each) must reach its end with no trap. After EVERY season end the REAL state is read: the game's
+    team-file buffers (s7_live_counts: records' league byte) hold B 20 / C 3x20 in file 102 and 9x18 in file 144; a
+    trap reports its own D0 / D1 / D2 (the division the game counted, the clubs found, expected: s7_trap_state)."""
+    src = (os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-h3s7rl3')).rstrip('/')
+    if not os.path.isdir(src):
+        return True, f'SKIP: the S7 data {src} missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    eu = sorted(os.path.join(ROOT, 'packs', 'europe-1984-85', d) for d in os.listdir(os.path.join(ROOT, 'packs', 'europe-1984-85'))
+                if os.path.isdir(os.path.join(ROOT, 'packs', 'europe-1984-85', d)))
+    exe = os.environ.get('S7TRAP_BUILD') or build('s7trap_c20', env={
+        'SEASON_PACKS': ','.join(['ddr-1988-89', 'italia-1947-48', 'world-cup-1934'] + eu + [os.path.join(src, x) for x in order]),
+        'DPLAY_FORCE': os.environ.get('S7TRAP_FORCE', '105'), 'EURO_OPTIONAL': ''}, euro=True)
+    n = int(os.environ.get('S7TRAP_SEASONS') or 2)
+    keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'C20_TEAM', 'C20_SEASONS', 'W2627REL_DATA')}
+    os.environ.update(W8485_BUILD=exe, C20_TEAM=os.environ.get('S7TRAP_TEAM', 'EUROPA,ITALIA,SERIE C GIRONE A,TRENTO'),
+                      C20_SEASONS=str(n), W2627REL_DATA=src)
+    try:
+        ok, msg = career_20seasons()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    errs, info = [], []
+    want = {0: 20, 1: 20, 2: 20, 3: 20, 4: 20}
+    if not ok:
+        import glob as _g
+        dumps = sorted(_g.glob(os.path.join(RUNS, '*', 'MEMDUMP.BIN')), key=os.path.getmtime)[-1:]   # (the run that trapped)
+        for dmp in dumps:
+            run, sfx = os.path.dirname(dmp), os.path.basename(os.path.dirname(dmp))
+            if True:
+                try:
+                    d0, d1, d2 = s7_trap_state(run)
+                    lv = s7_live_counts(run).get(102, [])
+                    info.append(f'{sfx} trap state: counted D0={d0} of division D1={d1}, expected D2={d2}; file 102 buffers {lv}')
+                except Exception as e:                  # noqa: BLE001 (a diagnosis must not hide the FAIL)
+                    info.append(f'{sfx}: {e!r}')
+    check(ok, f'career_20seasons: {msg[:300]}', errs)
+    for season in range(1, n + 1):
+        car = os.path.join(RUNS, f'c20_after_s{season:02d}.CAR')
+        if not os.path.exists(car):
+            continue
+        c0, c1 = s7_division_counts(car, src)
+        top = {k: v for k, v in c1.items() if k < 5}
+        check(all(v == 20 for v in top.values()) and len(top) == 5, f'season {season}: save counts A, B, C groups {top} (want 20 each)', errs)
+        info.append(f'season {season}: save A/B/C {sorted(top.items())}')
+    return not errs, '; '.join(errs + info) or f'{n} seasons, no trap'
+
+
 @scenario
 def world_s7cross_up():
     """S7 (4.2): the career club promoted from Serie D girone A (LIGORNA first) to Serie C, two seasons"""

@@ -290,31 +290,41 @@ u32 DP_SUBN[4];
                          /* (test / log) substitutions: final's loser, semi-final loser, state list, none */
 u8 DP_SUBF;                             /* the last season end: 1 = no substitute (3 up) */
 #define NOINL __attribute__((noinline))
-static NOINL int c_elig(int c) { return c >= 0 && PL(c) != 0 && PL(c) < DP_IN.n[DIV(c)] - 5; }
-static NOINL int club_of(u16 team) {
-    for (int g = 1; g <= DP_IN.ng; g++) for (int k = 0; k < DP_IN.n[g]; k++) if (DP_IN.t[g][k].team == team) return g * NT + k;
+static int c_elig(int g, int k) { return k > 0 && k < DP_IN.n[g] - 5; }
+static int club_of(u16 team) {         /* the ELIGIBLE club of a team number (c_elig), -1 otherwise */
+    for (int g = 1; g <= DP_IN.ng; g++)
+        for (int k = 1; k < DP_IN.n[g] - 5; k++) if (DP_IN.t[g][k].team == team) return g * NT + k;
     return -1;
 }
 /* the contest record (rb[6..7] + cup's low bits, cup bit 7 = valid): four 5-bit state indices */
 #define FREC_OK(v) ((v)->cup & 0x80)
-#define FREC(v) ((u32)(v)->rb[6] | (u32)(v)->rb[7] << 8 | (u32)((v)->cup & 15) << 16)
-static NOINL void frec_set(struct dp_save *v, int a, int b, int c, int d) {
-    u32 x = a | b << 5 | c << 10 | d << 15;
+#define FREC(v) ((u32)(v)->rb[6] | (u32)(v)->rb[7] << 8 | (u32)((v)->cup & 63) << 16)
+static void frec_set(struct dp_save *v, const u8 *e) {   /* the Final Four's four clubs, tie by tie (a bit 20 / 21 later: the second of a tie won) */
+    u32 x = e[0] | e[1] << 5 | e[2] << 10 | e[3] << 15;
     v->rb[6] = x & 255; v->rb[7] = x >> 8 & 255; v->cup = 0x80 | (x >> 16 & 15);
 }
-static NOINL int promote_sub(int w, int fl, int s1, int s2, int fb) {
-    DP_SUBF = 0;
-    if (c_elig(w)) return w;
-    if (c_elig(fl)) { DP_STAT(0); return fl; }
-    if (!c_elig(s1) || (c_elig(s2) && better(s2, s1))) s1 = s2;
-    if (c_elig(s1)) { DP_STAT(1); return s1; }
-    for (int i = 0, b = -1, x; fb && i < DP_ST.n; i++) {       /* (an old save past round 5, no record: the best eligible of the list) */
-        x = club_of(DP_ST.team[i]);
-        if (x != w && c_elig(x) && (b < 0 || better(x, b))) b = x;
-        if (i == DP_ST.n - 1 && b >= 0) { DP_STAT(2); return b; }
+/* the substitute for a play-off winner (team DP_IN.cpo_win, club w) that the final tables do not allow: over the state's list,
+   class 0 = the final's loser, 1 = the semi-final losers, 2 = any other club of the list (no record: an old save), the
+   better placed first inside a class; -1 = none */
+static NOINL int c_sub(void) {
+    const struct dp_save *v = &DP_ST;
+    u32 x = FREC_OK(v) ? FREC(v) : ~0u;
+    u8 cls[32];
+    int best = -1, bk = 9;
+    for (int i = 0; i < 32; i++) cls[i] = 2;
+    for (int p = 0; p < 2; p++) {       /* the record: pair p = the clubs x >> 10p and x >> 10p + 5, bit 20 + p = the second won */
+        int a = (x >> 10 * p) & 31, b = (x >> (10 * p + 5)) & 31, d = (x >> (20 + p)) & 1;
+        cls[d ? a : b] = 1;             /* the semi-final loser */
+        cls[d ? b : a] = 3;             /* the final's entrant: 0 if the other final entrant won (below) */
     }
-    DP_STAT(3); DP_SUBF = 1;
-    return -1;
+    for (int i = 0; i < SN; i++) if (cls[i] == 3) cls[i] = v->team[i] == DP_IN.cpo_win ? 4 : 0;
+    for (int i = 0; i < v->n; i++) {
+        int c = club_of(v->team[i]), k = cls[i];
+        if (c < 0 || k > bk || (k == bk && !better(c, best))) continue;
+        best = c; bk = k;
+    }
+    DP_STAT(best < 0 ? 3 : bk);
+    return best;
 }
 
 static void serie_c(void) {
@@ -361,23 +371,13 @@ static void serie_c(void) {
         shuffle(w2, 4);
         int f1 = tie(K_FFS, w2[1], w2[0], 2, -1), f2 = tie(K_FFS, w2[3], w2[2], 2, -1);
         int w = tie(K_FFF, f2, f1, 2, -1);
-        int fl = w == f1 ? f2 : f1, sa = f1 == w2[1] ? w2[0] : w2[1], sb = f2 == w2[3] ? w2[2] : w2[3], fb = 0;
         for (int g = 1; g <= ng && DP_IN.cpo_win; g++)          /* (played in slot 4: its real winner) */
             for (int k = 0; k < DP_IN.n[g]; k++)
-                if (DP_IN.t[g][k].team == DP_IN.cpo_win) w = g * NT + k;
-        if (DP_IN.cpo_win && club_of(DP_IN.cpo_win) == w) {     /* (the real contest's final loser / semi-final losers) */
-            const struct dp_save *v = &DP_ST;
-            fl = sa = sb = -1; fb = 1;
-            if (v->kind == 3 && FREC_OK(v)) {
-                u32 x = FREC(v);
-                int w0 = x & 31, l0 = x >> 5 & 31, w1 = x >> 10 & 31, l1 = x >> 15 & 31;
-                if (w0 < SN && l0 < SN && w1 < SN && l1 < SN) {
-                    int a = club_of(v->team[w0]), b = club_of(v->team[w1]);
-                    fl = a == w ? b : a; sa = club_of(v->team[l0]); sb = club_of(v->team[l1]); fb = 0;
+                if (DP_IN.t[g][k].team == DP_IN.cpo_win) {
+                    w = g * NT + k;
+                    if (!c_elig(g, k)) w = c_sub();
                 }
-            }
-        }
-        w = promote_sub(w, fl, sa, sb, fb);
+        DP_SUBF = w < 0;
         if (w >= 0) move(w, -1);
     }
 }
@@ -637,18 +637,14 @@ u32 dp_perm_c(void) {
     }
     if (DP_PR == 4 || DP_PR == 5) {     /* Final Four: free draw, then the final */
         int n = DP_PR == 4 ? 4 : 2;
-        if (DP_PR == 5) {               /* the semi-finals' winners in tie order: the record = (winner, loser) x 2 */
-            u32 x = FREC_OK(v) ? FREC(v) : 0;
-            int e[4] = { x & 31, x >> 5 & 31, x >> 10 & 31, x >> 15 & 31 };
-            if (FREC_OK(v) && (t[0] == e[0] || t[0] == e[1]) && (t[1] == e[2] || t[1] == e[3]))
-                frec_set(v, t[0], t[0] == e[0] ? e[1] : e[0], t[1], t[1] == e[2] ? e[3] : e[2]);
-            else
-                v->cup = 0;
+        if (DP_PR == 5 && FREC_OK(v)) {  /* the semi-finals' winners in tie order: which of each pair won */
+            u32 x = FREC(v);
+            v->cup |= (t[0] == (x >> 5 & 31) ? 16 : 0) | (t[1] == (x >> 15 & 31) ? 32 : 0);
         }
         for (int i = 0; i < n; i++) DP_PL[i] = t[i];
         if (n == 4) {
             sshuffle(DP_PL, 4);
-            frec_set(v, DP_PL[0], DP_PL[1], DP_PL[2], DP_PL[3]);        /* (the pairs: ties 0 and 1) */
+            frec_set(v, DP_PL);                                         /* (the pairs: ties 0 and 1) */
         }
         return n;
     }

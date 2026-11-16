@@ -204,7 +204,7 @@ static u8 EV[NCUP][NRD][NE];            /* 1 = came through an earlier round ('v
 static u8 EK[NCUP][NRD][NE];            /* side for D_CROSS (0 = this cup's, 1 = another's) and its rank key */
 static u8 EN[NCUP][NRD];
 static u8 taken[NC + 1];                /* the access pass: the club already has a place (this edition) */
-static u8 own[NC + 1];                  /* a holder whose league place in that cup (+1) is its own (CAF) */
+static u16 own[NC + 1];                 /* a holder defending cup c (bit c): its league place in that cup is its own (CAF IV.5) */
 
 static void enter(int c, int r, int club, int via, int side) {
     if (!club || r >= nrd[c] || EN[c][r] >= NE) return;
@@ -262,8 +262,9 @@ static void access(void) {
                 CT_IN.club[k - 1].str = CT_ST.hold[s].str; CT_IN.club[k - 1].pts = CT_ST.hold[s].pts;
             }
         }
-        if (k) { enter(e[1], e[2] & 0x1F, k, 0, e[3]); taken[k] = 1; if (e[2] & 0x80) own[k] = e[1] + 1; }
-        /* (a holder may hold places in two cups: the Recopa; own[]: CAF, its league place in the cup is its own) */
+        if (k) { enter(e[1], e[2] & 0x1F, k, 0, e[3]); taken[k] = 1; if ((e[2] & 0x80) && e[0] == e[1]) own[k] |= 1 << e[1]; }
+        /* (a holder may hold places in two cups: the Recopa; own[]: CAF, the holder defending a cup - the CL holder in the CL, the
+           CC holder in the CC, not the Super Cup entry a holder also has: a bit per cup, so one never erases the other) */
     }
     /* (test builds, CONTI_FORCE / CONTI_FORCE2 - MC 11/11 root fix D: the career club is held out of the access,
        so its own league places pass down the table as the game does for a club already in; it takes a place in the
@@ -283,7 +284,18 @@ static void access(void) {
         else if (k == C_AP) club = CT_IN.ap[a];
         else if (k == C_CL) club = CT_IN.cl[a];
         else if (k >= 2 && k <= NL) club = CT_IN.league[a][k - 1];
-        if (club && taken[club] && own[club] == c + 1) { own[club] = 0; continue; }   /* (the holder's own place) */
+        if (club && taken[club] && (own[club] & 1 << c)) { own[club] &= ~(1 << c); continue; }   /* (the holder's own place) */
+        if (!club || !taken[club] || !(own[club] & 1 << c)) {       /* CAF art. IV.5 (CL and CC): an association engages at most 2 clubs,
+                                                                       and the holder defending the cup is one of them: when the holder
+                                                                       is not on one of the earlier places it takes the association's
+                                                                       LAST place - the lowest qualifier drops */
+            int last = 1, hk = 0;
+            for (int j = i + 1; j < nacc; j++) if (acc[4 * j] == a && acc[4 * j + 1] == c) last = 0;
+            if (last)
+                for (int h = 1; h <= CT_IN.nclub; h++)
+                    if (own[h] & 1 << c && assoc(h) == a) hk = h;
+            if (hk) { own[hk] &= ~(1 << c); continue; }
+        }
         if (club && taken[club]) club = 0;          /* already in: the place passes down the table */
         if (!club) club = next_club(a);   /* (the place passes to the association's next-ranked club not yet in -
                                              CONMEBOL Reglamento Sudamericana: a vacant place goes to the next club of

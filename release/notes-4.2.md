@@ -65,6 +65,9 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 #### SEASON after a career in another world
 - A 1996-97 SEASON started after a career in World 2026-27 or Europe 1984-85 (in the same game, without quitting) kept that career's world in the background. Its national cups could get that world's fixed pairs (for example the Coppa Italia), and a SEASON saved this way loaded back in the other world. A SEASON is now always 1996-97. A SEASON saved this way with 4.1.2 or earlier now loads as a 1996-97 SEASON; the cup pairs it had already drawn stay as they are.
 
+#### African club cups: the holder's place
+- CAF Champions League and Confederation Cup (article IV.5 of the CAF regulations): an association never has more than two clubs in the same cup, and the holder defending its title is one of them. If the holder is not already on one of its association's places, it takes the association's last place and the lowest qualifier drops (an association with a single place sends only the holder). Before, a holder could bring its association an extra club. A holder that is also the national champion (or cup winner) of the other cup defends in that one and its place there goes to the next club, as before.
+
 #### Shirt numbers: keypad digits and taken numbers
 - While a shirt-number box is lit (the team screen before a match, the squad screen), the digits of the numeric keypad now type the number like the digits above the letters. Everywhere else the keypad moves the cursor as before.
 - UP / DOWN in the box now go through every number from 1 to 99, one at a time, taken ones included. When you stop on a number another player already wears, the coach's line at the bottom of the screen shows who wears it, for example '7 A. DI LIVIO SWAP'. Leave the box any way except ESC and the two players swap numbers; ESC puts your number back as it was. Typing a number works as before. In EDIT CUSTOM TEAMS UP / DOWN still skip the taken numbers.
@@ -147,6 +150,9 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 
 #### STAGIONE dopo una carriera in un altro mondo
 - Una STAGIONE 1996-97 iniziata dopo una carriera nel Mondo 2026-27 o in Europa 1984-85 (nella stessa partita, senza uscire dal gioco) si teneva dietro il mondo di quella carriera. Le sue coppe nazionali potevano avere gli accoppiamenti fissi di quel mondo (per esempio la Coppa Italia), e una STAGIONE salvata così si ricaricava nell'altro mondo. Ora una STAGIONE è sempre 1996-97. Una STAGIONE salvata così con la 4.1.2 o prima ora si carica come STAGIONE 1996-97; gli accoppiamenti di coppa già sorteggiati restano come sono.
+
+#### Coppe africane per club: il posto del detentore
+- CAF Champions League e Confederation Cup (articolo IV.5 del regolamento CAF): una federazione non ha mai più di due squadre nella stessa coppa e il detentore che difende il titolo è una di queste. Se il detentore non è già su uno dei posti della sua federazione, prende l'ultimo posto della federazione e la qualificata più bassa resta fuori (una federazione con un solo posto manda solo il detentore). Prima un detentore poteva portare alla sua federazione una squadra in più. Un detentore che è anche campione nazionale (o vincitore della coppa) dell'altra competizione difende il titolo in quella e il suo posto lì passa alla squadra successiva, come prima.
 
 #### Numeri di maglia: tastierino numerico e numeri occupati
 - Quando il riquadro del numero di maglia è acceso (schermata della squadra prima della partita, schermata della rosa), le cifre del tastierino numerico ora scrivono il numero come quelle sopra le lettere. Altrove il tastierino muove il cursore come prima.

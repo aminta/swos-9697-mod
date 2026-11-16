@@ -980,7 +980,29 @@ gp_install:                             ; GP_BUILT (gp_lend_c): each ko built in
     call gf_hide_c
     add esp, 8
     pop es
-    popad
+    cmp word [GAMETYPE], 4              ; S6a (A): a world SEASON's ko with its human club(s) but no match of theirs
+    je .hr                              ; in it (a tie decided at build time - Serie C's play-out gap: the 16th safe,
+    call gp_hum                         ; the 17th v 18th played): the game counted them (+4Bh), so its days got the
+    push es                             ; 'human, no match' flag (byte 6 FFh, cseg_8BC06) and PARTITA's loop
+    push ds                             ; (cseg_8E3DA) ran past the calendar's end looking for their day - a hang.
+    pop es                              ; As gp_gf's real final without the career club: +4Bh 0, the flags 0 (gp_hrest_c)
+    cld                                 ; -> FINISCI STAGIONE simulates it. Careers: unchanged (gp_need builds a
+    mov eax, esi                        ; career's ko only with the club's own tie in it)
+    sub eax, GP_ST + ST_KO
+    xor edx, edx
+    mov ecx, KO_SIZE
+    div ecx
+    push eax
+    movzx eax, word [CAL_CUR]
+    push eax
+    push dword CAL
+    call gp_hrest_c
+    add esp, 12
+    pop es
+    test eax, eax
+    jnz .hr
+    mov word [SLOT4 + 4Bh], 0
+.hr:popad
     jmp .n
 .s3:
     pushad                              ; slot 3: its clubs from the contest's list (cseg_8B2D3 D0 = 3, D2 = 0)
@@ -3204,7 +3226,7 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     symbols['ADDJOB'] = (1, addjob)
     symbols.update({k: syms[k] for k in ('GP_CFB', 'GP_LG', 'GP_RST', 'GP_RIT', 'GP_SEL', 'GP_MGR', 'GP_WORLD', 'GP_SLT',
                                          'gp_sack_c', 'gp_forcecfb', 'gp_pwin_c', 'gp_rlines_c', 'GP_RLN', 'GP_RLC', 'GP_RLPOULE', 'GP_REC', 'GP_CMB', 'gp_adv_c', 'GP_ADVWK', 'GP_WK', 'GP_TH', 'GP_RN',
-                                         'gp_defer_c', 't2_force', 'gf_step_c', 'gf_drop_c', 'gf_place_c', 'gf_hide_c', 'gf_unhide_c', 'gf_anchor_c', 'GP_S3', 'GP_S3B', 'GP_GFT', 'cd_step_c', 'sc_step_c', 'gp_scrow_c', 'sc_rlines_c', 'GP_SCT', 'GP_SCFIRST', 'SC_ST', 'SC_TRACE', 'cd_fixload_c', 'gp_scal_c', 'gp_repoint_c', 'gp_fixload_c', 'gp_strmap_c', 'CD_ST', 'GP_CDT', 'GP_CDNM', 'GP_CDD',
+                                         'gp_defer_c', 't2_force', 'gf_step_c', 'gf_drop_c', 'gf_place_c', 'gf_hide_c', 'gp_hrest_c', 'gf_unhide_c', 'gf_anchor_c', 'GP_S3', 'GP_S3B', 'GP_GFT', 'cd_step_c', 'sc_step_c', 'gp_scrow_c', 'sc_rlines_c', 'GP_SCT', 'GP_SCFIRST', 'SC_ST', 'SC_TRACE', 'cd_fixload_c', 'gp_scal_c', 'gp_repoint_c', 'gp_fixload_c', 'gp_strmap_c', 'CD_ST', 'GP_CDT', 'GP_CDNM', 'GP_CDD',
                                          'GP_CDFIRST')})
     symbols['CD_MEMBER'] = syms['cd_member_c']
     symbols['GP_CDS1'] = syms['GP_CDS1']

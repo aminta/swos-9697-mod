@@ -2538,6 +2538,31 @@ void gf_hide_c(u8 *cal, u32 cur) {     /* gp_install, after a slot-4 install: th
         e += len;
     }
 }
+u32 gp_hrest_c(u8 *cal, u32 cur, u32 ki) {  /* S6a (A), gp_install after a slot-4 install in a world SEASON: the
+                                           human clubs (GP_HUM) with a match in ko ki's current game; none -> the
+                                           slot-4 days from the current entry on lose the 'human, no match' flag
+                                           (byte 6 FFh, cseg_8BC06 - cseg_8EC2B counts it, PARTITA's loop hunted
+                                           for a day that never comes) */
+    const struct gp_ko *k = &GP_ST.ko[ki < 2 ? ki : 0];
+    if (k->magic != MAGIC || KT2(k)) return 1;
+    int g = k->gcur, p0 = k->gp0[g], np = k->gp0[g + 1] - p0;
+    u32 c = 0;
+    for (u32 h = 0; h < GP_NHUM && h < 64; h++) {
+        int me = kidx(k, GP_HUM[h]);
+        for (int p = p0; p < p0 + np && me != NOC; p++)
+            if (k->pa[p] == me || k->pb[p] == me) { c++; break; }
+    }
+    if (c) return c;
+    u16 cnt = *(const u16 *)(cal - 4);
+    u8 *e = cal;
+    for (u32 i = 0; i < cnt; i++) {
+        u32 len = *(const u16 *)(e + 2);
+        if (!len) break;
+        if ((u32)(e - cal) >= cur && e[0] == 4 && e[6] == 0xFF) e[6] = 0;
+        e += len;
+    }
+    return 0;
+}
 #ifndef GP_GFREST
 #define GP_GFREST 0                     /* (test builds, GPLAY_GFREST=1: the placeholder shown at once - gf_unhide_c's
                                            path, as when the career club rests in the group's last round) */

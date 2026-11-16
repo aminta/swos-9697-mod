@@ -30158,11 +30158,12 @@ def world_gplay_sd_rest_out():
     return gplay_sd_rest('8')
 
 
-def s7_env(extra=None):
+def s7_env(extra=None, world=None, pack=None):
     """(4.2 S7) SEASON_PACKS of the release world world5tm-h2 with Italy replaced by the shaped pack S7_PACK (two
-    league structs: file 102 Serie A..C, file 144 Serie D) - None when either is missing."""
-    pk = os.environ.get('S7_PACK')
-    w = os.path.join(MAIN, 'internal', 'world2526', 'world5tm-h2')
+    league structs: file 102 Serie A..C, file 144 Serie D) - None when either is missing. world / pack (s7cross's
+    release-data variant, MC 16/11): another world under internal/world2526 and its own Italy pack."""
+    pk = pack or os.environ.get('S7_PACK')
+    w = os.path.join(MAIN, 'internal', 'world2526', world or 'world5tm-h2')
     if not pk or not os.path.isdir(pk) or not os.path.isdir(w):
         return None
     eu = ','.join(sorted(os.path.join(ROOT, 'packs', 'europe-1984-85', d) for d in os.listdir(os.path.join(
@@ -30360,7 +30361,41 @@ def s7pool_checks(sy, hexes, errs):
     return '; ' + ' | '.join(notes) + '; RI_S7_BAD 0'
 
 
-def s7cross(force, team, start_file, ldfail=None):
+S7_REL_WORLD = 'world5tm-h3s7r'           # (s7cross's release-data variant: the 4.2 release world, S7_REL_WORLD overrides)
+S7_PACK_FILES = ('pack.json', 'clubs.csv', 'players.csv', 'import41.csv', 'newpool41.csv', 'cupd.json')
+
+
+def s7pack_is_real(pk):
+    """S7_PACK is internal/s7pack-real/ita, or a copy of it (the same files: a remote host's own path)"""
+    import filecmp
+    real = os.path.join(MAIN, 'internal', 's7pack-real', 'ita')
+    if os.path.realpath(pk) == os.path.realpath(real):
+        return True
+    return os.path.isdir(real) and all(os.path.exists(os.path.join(pk, f)) == os.path.exists(os.path.join(real, f)) and
+                                       (not os.path.exists(os.path.join(real, f)) or
+                                        filecmp.cmp(os.path.join(pk, f), os.path.join(real, f), shallow=False))
+                                       for f in S7_PACK_FILES)
+
+
+def s7cross_env(extra, rel=False):
+    """The s7cross family's build env (MC 16/11). rel: the release-data variant - the 4.2 release world (S7_REL_WORLD,
+    world5tm-h3s7r) with its own Italy (h3s7r/ita: S7_PACK not read), the force a test switch as everywhere (CONVENTIONS
+    force-not-retry); else the h2 test world with S7_PACK, which must be s7pack-real: a wrong pack is refused HERE, at
+    the start, not as a build assert deep in sreg.py ('sreg2: the 4.1 / S7 RI entries of Italy': s7pack-shaved has no
+    pool file / S7 RI entries since 42-s7import; it serves world_s7cross_winners / _x only). An S7_BUILD exe given:
+    no build, no check."""
+    if rel:
+        w = os.environ.get('S7_REL_WORLD') or S7_REL_WORLD
+        return s7_env(extra, world=w, pack=os.path.join(MAIN, 'internal', 'world2526', w, 'ita'))
+    pk = os.environ.get('S7_PACK')
+    if pk and not os.environ.get('S7_BUILD') and not s7pack_is_real(pk):
+        raise SetupError(f's7cross needs s7pack-real: S7_PACK={pk} is not internal/s7pack-real/ita (nor a copy of it) - '
+                         f'the shaved pack builds no SREG2 import (notes/harness.md); use S7_PACK=internal/s7pack-real/ita, '
+                         f'or the release-data variants world_s7cross_up_rel / _down_rel')
+    return s7_env(extra)
+
+
+def s7cross(force, team, start_file, ldfail=None, rel=False):
     """The career club crosses between the two league structs (4.2 S7, s7swap.c option B, MC 13/11): GPLAY_FORCE puts
     it on place `force` of its group at the season end (a Serie C group's last: down; a Serie D group's first: up);
     two seasons (season 1 played, saved; season 2 loaded from that save and played). Checks (S7_LOG / S7_CLOG /
@@ -30375,10 +30410,11 @@ def s7cross(force, team, start_file, ldfail=None):
       native files seen; season 1's NOREG loads before after_new wrote the world are allowed: nothing crossed yet),
       and it applied at least once in season 2."""
     import json
-    env = s7_env(dict({'GPLAY_FORCE': str(force)}, **({'S7_LDFAIL': str(ldfail)} if ldfail else {})))
+    env = s7cross_env(dict({'GPLAY_FORCE': str(force)}, **({'S7_LDFAIL': str(ldfail)} if ldfail else {})), rel)
     if env is None:
-        return True, 'SKIP: S7_PACK (the shaped Italy pack) or internal world5tm-h2 missing'
-    exe = os.environ.get('S7_BUILD') or build('s7cross', env=env)
+        return True, ('SKIP: the release world ' + (os.environ.get('S7_REL_WORLD') or S7_REL_WORLD) + ' (internal/world2526) missing'
+                      if rel else 'SKIP: S7_PACK (the shaped Italy pack) or internal world5tm-h2 missing')
+    exe = os.environ.get('S7_BUILD') or build('s7cross_rel' if rel else 's7cross', env=env)
     sy = json.load(open(os.path.join(exe, 'ITALIAN.syms.json')))
     s7 = sy.get('s7swap', {})
     if 'S7_CLOG' not in s7:
@@ -30388,7 +30424,10 @@ def s7cross(force, team, start_file, ldfail=None):
     cdo = sy.get('gplay', {}).get('CD_ST')
     cdst = cdo[1] if cdo and cdo[0] == 2 and 'cd_season' in sy.get('gplay', {}) else None   # (obj2: plain hex)
     keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
-                                            'W8485_NOSACK', 'W8485_RENEW', 'W8485_HEX', 'W8485_ONE')}
+                                            'W8485_NOSACK', 'W8485_RENEW', 'W8485_HEX', 'W8485_ONE', 'W2627REL_DATA')}
+    if rel:                                             # (the release variant: the menus' names and the result line's
+        os.environ['W2627REL_DATA'] = os.path.join(MAIN, 'internal', 'world2526',   # data from the release world too)
+                                                   os.environ.get('S7_REL_WORLD') or S7_REL_WORLD)
     # (2b, 13/11: W8485_RENEW too - NOSACK stops the sacking but not the season end's contract non-renewal (message 38,
     #  a random draw on a bad verdict): the career moved to another club's word, ALBALONGA 0x6f90, and the season-2
     #  check read it as a crossing gone wrong. Forced, never retried; a non-renewal seen anyway = SETUP-ERROR below)
@@ -30521,6 +30560,13 @@ def world_s7cross_down():
 
 
 @scenario
+def world_s7cross_down_rel():
+    """S7 (4.2, MC 16/11; CONVENTIONS 17a): world_s7cross_down on the RELEASE data (world5tm-h3s7r and its Italy); the
+    same checks (s7cross), the force a test switch"""
+    return s7cross(20, 'EUROPA,ITALIA,SERIE C GIRONE A,UNION BRESCIA', 102, rel=True)
+
+
+@scenario
 def world_s7cross_ldfail():
     """S7 (4.2): world_s7cross_down with the 9th load apply's ORIG read failing (S7_LDFAIL=9, MC 13/11): S7_LD shows
     it (LD_READ: the native files seen on that load) and the next load recovers. (9: calls 1..8 are the new career's
@@ -30545,7 +30591,7 @@ def s7newcareer(loaded):
     after_new."""
     import json
     team = 'EUROPA,ITALIA,SERIE C GIRONE A,UNION BRESCIA'
-    env = s7_env({'GPLAY_FORCE': '20'})
+    env = s7cross_env({'GPLAY_FORCE': '20'})
     if env is None:
         return True, 'SKIP: S7_PACK (the shaped Italy pack) or internal world5tm-h2 missing'
     exe = os.environ.get('S7_BUILD') or build('s7cross', env=env)
@@ -30735,7 +30781,7 @@ def world_s7cross_diff():
     errs, info = [], []
     exes = {}
     for k, x in (('A', {}), ('B', {'S7_NOSWAP': '1'})):
-        env = s7_env(dict({'GPLAY_FORCE': '20'}, **x))
+        env = s7cross_env(dict({'GPLAY_FORCE': '20'}, **x))
         if env is None:
             return True, 'SKIP: S7_PACK (the shaped Italy pack) or internal world5tm-h2 missing'
         exes[k] = build('s7cross', env=env)
@@ -30872,7 +30918,7 @@ def world_s7cross_c20():
     season 1 crosses (OK, 9 swaps); every later season, loaded from the previous save, applies the crossed
     registry at its first load (OK, rows moved) and no S7_LD fails."""
     import json
-    env = s7_env({'GPLAY_FORCE': '20'})
+    env = s7cross_env({'GPLAY_FORCE': '20'})
     if env is None:
         return True, 'SKIP: S7_PACK (the shaped Italy pack) or internal world5tm-h2 missing'
     exe = os.environ.get('S7_BUILD') or build('s7cross', env=env)
@@ -31122,6 +31168,13 @@ def world_s7trap_c20():
 def world_s7cross_up():
     """S7 (4.2): the career club promoted from Serie D girone A (LIGORNA first) to Serie C, two seasons"""
     return s7cross(1, 'EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA', 144)
+
+
+@scenario
+def world_s7cross_up_rel():
+    """S7 (4.2, MC 16/11; CONVENTIONS 17a): world_s7cross_up on the RELEASE data - the 4.2 release world world5tm-h3s7r
+    and its Italy (not the h2 test world + s7pack-real); the same checks (s7cross), the force a test switch"""
+    return s7cross(1, 'EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA', 144, rel=True)
 
 
 @scenario

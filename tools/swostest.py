@@ -43837,7 +43837,8 @@ def frchoose_probe():
         frc_goto(s, E + 1)
         s.send('fire dump:3')
         scr = s.screen()
-        check(frchoose.PICK[UI] in scr.raw_texts, f'browser: no page title {frchoose.PICK[UI]!r}: {scr}', errs)
+        check(scr.raw_texts[0].startswith(frchoose.PICK[UI] + ' - '), f'browser: title {scr.raw_texts[0]!r}, not '
+              f'{frchoose.PICK[UI]!r} + the area: {scr}', errs)
         check(frc_read(s, fs)['k'] == 0, f'browser: FC_K {frc_read(s, fs)["k"]}', errs)
         for t in ('EUROPA', 'GERMANIA', '1. LIGA'):
             walk(s, t, 3)
@@ -43873,7 +43874,13 @@ def frchoose_probe():
                 # row 2's browser left by ESCI
                 frc_goto(s, E + 5)
                 s.send('fire dump:3')
-                walk(s, 'ESCI', 3)
+                for _ in range(12):                 # (the browser's first screen: ABBANDONA, below the continents -
+                    scr = s.screen()                #  links through hidden entries, which the game skips itself)
+                    if scr.selected is not None and scr.entries[scr.selected][1] == 'ABBANDONA':
+                        break
+                    s.send('down dump:0.5')
+                require(scr.entries[scr.selected][1] == 'ABBANDONA', f'esci: ABBANDONA not reached ({scr})')
+                s.send('fire dump:3')
                 got = page('esci', 0)
                 check(got and got[2] == rows1 and got[1]['k'] == 4, f'esci: rows {got and got[2]} (were {rows1})', errs)
                 stack('esci', frc_read(s, fs))
@@ -43899,6 +43906,52 @@ def frchoose_probe():
             stack('career', frc_read(s, fs))
         else:
             errs.append(f'not on the page before CONTINUE: {scr}')
+    return not errs, '; '.join(errs + notes)
+
+
+@scenario
+def frchoose_outside():
+    """4.2 friendlies chooser, MC's proof of the club list hook (chooseTeamsFriendlyMenu's header, chained): outside
+    the page nothing changes. (a) An old career save (JUVE2F) loads to the career menu, the page not shown (FC_TRACE
+    0, FC_K 4). (b) A FRIENDLY from the main menu (1996-97: SQUADRE CLUB > EUROPA > GERMANIA > 1. LIGA, HAMBURG then
+    the next club): the club list before and after each pick - every entry's text, colour, visibility and box - is
+    the same in this build and in a FRCHOOSE=0 build of the same checkout (no band, the header untouched)."""
+    errs, notes = [], []
+    on, off = build(f'frc_on_{UI}', lang=UI), build(f'frc_off_{UI}', env={'FRCHOOSE': '0'}, lang=UI)
+    fs = frc_sites(on)
+    with Session(f'frc_oldsave_{UI}', on, {'JUVE2F.CAR': juve2(True)}, 'dump:2', 120) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'old save: no first pause ({s.result})'
+        s.send('down down down down down fire dump:2')
+        s.send('fire dump:3')
+        v = frc_read(s, fs)
+        check('TRASFERIMENTI' in s.screen().texts(), f'old save: no career menu after the load {s.screen()}', errs)
+        check(v['trace'] == 0 and v['k'] == 4, f'old save: FC_TRACE {v["trace"]:#x} FC_K {v["k"]}', errs)
+        notes.append(f'old save: career menu, FC_TRACE {v["trace"]} FC_K {v["k"]}')
+    snaps = {}
+    for tag, b in (('on', on), ('off', off)):
+        with Session(f'frc_friendly_{tag}_{UI}', b, {}, 'dump:2', 300) as s:
+            if s.wait().outcome != 'dump':
+                return False, f'friendly {tag}: no first pause ({s.result})'
+            w9697(s)
+            for t in ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB', 'EUROPA', 'GERMANIA', '1. LIGA'):
+                walk(s, t, 2)
+            snap = lambda scr: [(scr.raw[i], scr.colors[i], scr.entries[i][2], scr.entries[i][3], scr.geom[i])
+                                for i in range(scr.n)]
+            scr = s.screen()
+            require(scr.find('HAMBURG', exact=True) is not None, f'friendly {tag}: no HAMBURG in the list ({scr})')
+            out = [snap(scr)]
+            other = next(t for i, t, inv, _ in scr.entries if 7 <= i < 55 and t and not inv and t != 'HAMBURG')
+            for t in ('HAMBURG', other):
+                walk(s, t, 2)
+                out.append(snap(s.screen()))
+            s.shot('list')
+            snaps[tag] = out
+    for k, (a, b) in enumerate(zip(snaps['on'], snaps['off'])):
+        diff = [(i, x, y) for i, (x, y) in enumerate(zip(a, b)) if x != y]
+        check(len(a) == len(b) and not diff, f'friendly list, step {k}: {len(diff)} entries differ from the '
+              f'FRCHOOSE=0 build, first {diff[:3]}', errs)
+    notes.append(f'friendly: {[len(x) for x in snaps["on"]]} entries x 3 screens identical to the FRCHOOSE=0 build')
     return not errs, '; '.join(errs + notes)
 
 

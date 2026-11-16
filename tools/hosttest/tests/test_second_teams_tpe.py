@@ -52,6 +52,45 @@ def test_engine_tables_and_rules():
         assert 19 <= n <= 23, (d, n)                    # (17 before Taiwan: IT 4, ES 2, DE 2, NL 4, PT 3, NZ 2 + the 2 Taiwanese)
 
 
+def test_promotion_playoff():
+    """Taiwan Div. 2 2nd v TFPL 7th (CTFA 2025/26 TFPL regulations Art. 4.6 / 7.3 / 8: the Div. 2 champion goes up directly, the TFPL
+    8th down directly, the 7th and the runner-up play ONE match at the TFPL 7th's ground (7.3.2), 2 x 15 min extra time, then penalties
+    (8.1, 8.5); a licence-less runner-up is replaced by the next eligible club = the reserve rule, Art. 27.2.2-3). The data: the live
+    dirs once tpe-fix-20261116/REAPPLY.txt has run, and always the patched copies kept next to it."""
+    import json
+    import mkseason
+    sys.path.insert(0, os.path.join(MAIN, 'internal', 'world2526'))
+    import formats_data
+    po = formats_data.KO['TPE']
+    assert len(po) == 1 and po[0]['entrants'] == [[0, 7], [1, 2]] and po[0]['kind'] == 'promotion'
+    assert po[0]['rounds'] == [formats_data.R([[0, 1]], 1, 'listed')] and (po[0]['winner_div'], po[0]['loser_div']) == (0, 1)
+    assert formats_data.DIRECT['TPE'] == {0: (0, 1), 1: (1, 0)}
+    import shutil
+    import tempfile
+    fix = os.path.join(MAIN, 'internal', 'world2526', 'tpe-fix-20261116', 'patched')
+    dirs = []
+    for n in (sorted(os.listdir(fix)) if os.path.isdir(fix) else []):        # (the patched clubs.csv + pack.json over the live tpe dir)
+        live = os.path.join(MAIN, 'internal', 'world2526', n, 'tpe')
+        if os.path.isdir(live):
+            t = os.path.join(tempfile.mkdtemp(), 'tpe')
+            shutil.copytree(live, t)
+            for f in ('clubs.csv', 'pack.json'):
+                shutil.copy(os.path.join(fix, n, f), t)
+            dirs.append(t)
+    dirs += [os.path.join(d, 'tpe') for d in DATA
+             if any(c.get('ko_playoffs') for c in json.load(open(os.path.join(d, 'tpe', 'pack.json')))['competitions'])]
+    assert dirs, 'no patched Taiwan data'
+    for d in dirs:
+        pk = mkseason.Pack(d)
+        lg = pk.league
+        assert [{k: v for k, v in x.items() if k != 'names'} for x in lg['ko_playoffs']] == \
+            [{k: v for k, v in x.items() if k != 'names'} for x in po], d     # (names: shortened by the font guard on load)
+        assert lg['ko_playoffs'][0]['rounds'][0]['level'] == 'et_pens'      # (Art. 8.1 / 8.5: extra time, then penalties)
+        assert [(x['promoted'], x['relegated']) for x in lg['divisions']] == [(0, 1), (1, 0)], d
+        assert [x['teams'] for x in lg['divisions']] == [8, 7], d
+        pk._balance(lg['divisions'])                  # (each level keeps its size: the play-off swaps one club each way)
+
+
 if __name__ == '__main__':
     for k, f in list(globals().items()):
         if k.startswith('test_'):

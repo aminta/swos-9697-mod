@@ -16508,6 +16508,37 @@ def _wsm_clubs(s, sel, nsel):
     return [(d[684 * i] | d[684 * i + 1] << 8, d[684 * i + 4]) for i in range(min(n, 400))]
 
 
+def _wsm_heal(s, y, mask=0xE3):
+    """The human club's 16 (SELTEAMS records with teamControls != 1: 76 + 38 q, cardsInjuries at +27) made available
+    again in every copy of their records (as heal_first16, by name): a SEASON's injury / suspension hides VIS.
+    RISULTATI and a 17-player squad (Malta) leaves the line-up fixer no fit stand-in (probe_mlt4/5: the keeper hurt in
+    week 1, the bench keeper in, his old place unfillable). Done at the same screen in every run: the runs stay
+    comparable. The names healed."""
+    r = s.result
+    n = struct.unpack('<H', bytes(r.obj2(y['nsel'], 2)))[0]
+    ptr = struct.unpack('<I', bytes(r.obj2(y['sel'], 4)))[0]
+    o2 = r.read(r.base2, 0x300000)
+    healed = []
+    for i in range(min(n, 400)):
+        rec = bytes(r.read(ptr + 684 * i, 684))
+        if rec[4] == 1:
+            continue
+        for q in range(16):
+            p = 76 + 38 * q
+            if not rec[p + 27] & mask:
+                continue
+            nm = rec[p + 3:p + 25].split(b'\0')[0]
+            s.poke(ptr + 684 * i + p + 27, bytes((rec[p + 27] & ~mask & 0xFF,)))
+            pl = rec[p:p + 38]
+            for m_ in re.finditer(re.escape(nm) + b'\0', o2):   # (only a copy of the whole 38-byte record, the
+                h = m_.start() - 3                                #  cardsInjuries byte apart: a name elsewhere - a
+                c = o2[h:h + 38]                                  #  scorers' list - is not poked; probe_mlt6 trapped)
+                if h >= 0 and len(c) == 38 and c[:27] == pl[:27] and c[28:] == pl[28:]:
+                    s.poke(r.base2 + h + 27, bytes((c[27] & ~mask & 0xFF,)))
+            healed.append(nm.decode('latin-1'))
+    return healed
+
+
 def _wsm_state(s, y):
     """the manager-dependent state now: GP_MGR, split's 'SH' block (66 B: key + block), F1_ST (FASE 1), GP_ST (the
     play-offs / GF: gp_adv's), CD_ST (Coppa D)"""
@@ -16563,6 +16594,8 @@ def _wsm_run(tag, b, path, ct, steps, stop=None, save_at=None, load=None):
                 return f'{tag}: step {step}: {s.result}'
             sc = s.screen()
             t = [x for x in sc.texts() if x]
+            if not out['seq'] or out['seq'][-1][:1] != t[:1]:
+                s.log.append(f'[wsm] step {step}: {t[:10]}')
             out['seq'].append(t)
             if step % 50 == 0:
                 out['states'].append(_wsm_state(s, y))
@@ -16577,17 +16610,39 @@ def _wsm_run(tag, b, path, ct, steps, stop=None, save_at=None, load=None):
             w = next((x for x in ('VIS. RISULTATI', '- RISULTATO -') if x in t), None)
             if w:
                 press(s, sc, w, 1) or s.send('fire dump:1')
+            elif 'MOD. TATTICA' in t and 'AVVERSARI' in t:     # (the human club's squad screen without VIS.
+                h = _wsm_heal(s, y)                             # RISULTATI: its 16 healed, ESCI and back - the
+                s.log.append(f'[wsm] step {step}: healed {h}: ESCI')   # screen is drawn again with the button)
+                press(s, s.screen(), 'ESCI', 1) or s.send('fire dump:1')
             else:
                 s.send('fire dump:1')
         else:
-            return f'{tag}: no FINISCI STAGIONE after {steps} steps ({out["seq"][-1][:8] if out["seq"] else ""})'
+            last = collections.Counter(x[0] if x else '?' for x in out['seq'][-200:])
+            return (f'{tag}: no FINISCI STAGIONE after {steps} steps ({out["seq"][-1][:12] if out["seq"] else ""}; '
+                    f'the last 200 screens by title {last.most_common(6)})')
         out['end'] = _wsm_state(s, y)
     return out
 
 
+_WSM_ROUNDS = {'QUARTI', 'OTTAVI', 'SEDICESIMI', 'SEMI', 'QUARTER', 'QUARTERS', 'EIGHTH', 'ROUND', 'DE', 'VIERTEL',
+               'ACHTEL', 'HALB'}
+
+
 def _wsm_gf(seq):
-    """(step, title) of every screen whose title is a final's (GRAND FINAL / ... FINAL(E)): the GF day as seen"""
-    return [(i, t[0]) for i, t in enumerate(seq) if t and ('GRAND' in t[0] or t[0].rstrip('E').endswith(' FINAL'))]
+    """(step, title) of every screen whose title is a final's: GRAND FINAL, FINAL FOUR, FINALISSIMA or a title
+    ending in FINAL / FINALE whose word before is no earlier round's (QUARTI FINALE, SEMIFINALE: not a final - MC
+    16/11, the Chatham Cup's quarter-finals counted); a draw (SORTEGGIO / DRAW) never"""
+    out = []
+    for i, t in enumerate(seq):
+        if not t or not t[0]:
+            continue
+        w = t[0].split()
+        if 'SORTEGGIO' in w or 'DRAW' in w:
+            continue
+        if 'GRAND' in w or 'FINALISSIMA' in w or ' FINAL FOUR' in t[0] or \
+                (w[-1] in ('FINAL', 'FINALE') and len(w) > 1 and w[-2] not in _WSM_ROUNDS):
+            out.append((i, t[0]))
+    return out
 
 
 def _wsm_diff(a, b):
@@ -16604,7 +16659,7 @@ def _wsm_diff(a, b):
 
 
 WSM_CASES = {   # name: (path, the one-human club's picker steps, what it proves)
-    'gf': ('OCEANIA,NUOVA ZELANDA', 'NORTHERN LGE|NORTHERN LEAGUE,WESTERN SPRINGS', 'NZ: Championship + Grand Final'),
+    'gf': ('OCEANIA,NUOVA ZELANDA,NORTHERN LGE|NORTHERN LEAGUE', 'WESTERN SPRINGS', 'NZ: Championship + Grand Final'),
     'split': ('EUROPA,MALTA', 'HAMRUN SPARTANS', 'Malta: split stages - SH / FASE 1'),
 }
 

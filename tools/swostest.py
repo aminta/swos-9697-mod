@@ -4451,6 +4451,20 @@ def zone_colours():
     return not errs, '; '.join(errs + info) if errs else '; '.join(info)
 
 
+S7_SIZE_SEEN = []                           # (42-s7trap: (season, S7_LOG, S7_SZ) hex of every refused S7 season end seen by world8485)
+
+
+def s7_size_offsets(exe):
+    """(obj4 offset of s7swap's S7_LOG, of S7_SZ) from the build's ITALIAN.syms.json, None when the build has no S7 swap / no syms"""
+    try:
+        sy = json.load(open(os.path.join(exe, 'ITALIAN.syms.json'))).get('s7swap', {})
+        if 'S7_LOG' in sy and 'S7_SZ' in sy and sy['S7_LOG'][0] == 4 and sy['S7_SZ'][0] == 4:
+            return sy['S7_LOG'][1], sy['S7_SZ'][1]
+    except (OSError, ValueError):
+        pass
+    return None, None
+
+
 @scenario
 def world8485():
     """Europe 1984-85 world (world 4): new career at Liverpool, two seasons (save, reload, save), checkw1 on both"""
@@ -4463,6 +4477,7 @@ def world8485():
                                       os.environ.get('HT_SNAP_OUT') or os.path.join(RUNS, 'ht_snap'),
                                       int(os.environ.get('HT_SNAP_WEEKMIN', 0)), int(os.environ.get('HT_SNAP_MAX', 12)))[0]
     out, msgs = [], []
+    del S7_SIZE_SEEN[:]
     first = os.environ.get('W8485_FROM')                   # resume from a season-1 save (W84A.CAR)
     if first:
         out, msgs = [first], [f'season 1: from {first}']
@@ -4543,7 +4558,13 @@ def world8485():
                                  else None), []
             sack = sack_site(os.path.join(exe, 'ITALIAN.EXE')) if renew is not None else None
 
+            s7_lg, s7_sz = s7_size_offsets(exe)
+
             def hexlog():                              # W8485_HEX: obj2 offset:bytes (o1/ prefix: obj1, o3/: obj3, o4/),
+                if s7_lg is not None:                  # (42-s7trap, HARNESS-WIDE: every S7 scenario FAILs on a refused season - S7_LOG.status
+                    v = s.result.read(s.result.lin((4, s7_lg)), 8)   # 13 = S7_SIZE - at any logged point; world8485's final check)
+                    if v[1] == 13:
+                        S7_SIZE_SEEN.append((season, v.hex(), s.result.read(s.result.lin((4, s7_sz)), 12).hex()))
                 for a in filter(None, os.environ.get('W8485_HEX', '').split(',')):   # logged when they change
                     o, n = a.split(':')
                     if o[:3] in ('o1/', 'o3/', 'o4/'):
@@ -4734,6 +4755,8 @@ def world8485():
         open(os.path.join(RUNS, f'{w84_tag()}_{season}', 'checkw1.txt'), 'w').write(report + '\n')
         if not good:
             return False, '; '.join(msgs) + '\n' + report
+        if S7_SIZE_SEEN:
+            return False, f'S7_SIZE: a refused S7 season (S7_LOG.status 13: S7_LOG / S7_SZ {S7_SIZE_SEEN[-1]}): a bug to find, never a pass; ' + '; '.join(msgs)
     return True, '; '.join(msgs)
 
 
@@ -30481,13 +30504,18 @@ def s7_division_counts(car, src):
             os.environ.pop('SEASON_PACKS')
         else:
             os.environ['SEASON_PACKS'] = old
-    slt = open(car, 'rb').read()[0xE8DC:0xE8DC + 2000]
-    base = {ff: b for fk, (ff, b) in pk.files.items()}
-    c0, c1 = collections.Counter(), collections.Counter()
+    import bigtables                                # (42-s7trap, MC 16/11: THE HELPER'S SERIE D COUNTS WERE A MEASUREMENT ARTEFACT. The save holds the
+    import globnum                                  # table in two parts: globals 0..1999 at CAR 0xE8DC, 2000..LIMIT_CLUBS-1 in the fixed part's 80-record
+    raw = open(car, 'rb').read()                    # area (bigtables.ext_off(): CAR offset 2 + ext_off). Reading only the first 2000 bytes, with
+    slt = raw[0xE8DC:0xE8DC + 2000] + raw[2 + bigtables.ext_off():2 + bigtables.ext_off() + bigtables.LIMIT_CLUBS - 2000]   # base + row for
+    c0, c1 = collections.Counter(), collections.Counter()   # file 144's rows 156.. (their globals are the second run, 2283..), it counted other
+                                                    # rows' deltas for them: Shaved's 'D G 17 / I 19', 'D A 17 / B 17 / I 20'. The game's live
+                                                    # SOME / COPY tables of those runs hold 9 x 18)
     for k in pk.league_clubs:
         fl, i = pk.where[k]
         c0[pk.division[k]] += 1
-        c1[pk.division[k] + struct.unpack('b', slt[base[fl] + i:base[fl] + i + 1])[0]] += 1
+        g = globnum.glob(pk, fl, i)
+        c1[pk.division[k] + struct.unpack('b', slt[g:g + 1])[0]] += 1
     return dict(sorted(c0.items())), dict(sorted(c1.items()))
 
 

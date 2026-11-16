@@ -116,3 +116,61 @@ int32_t s7geochain(const uint8_t *c, int32_t rs, int32_t nc, int32_t fl, int32_t
     }
     return 1;                                               /* (girone a lost a club to its neighbour: a seat for the arrival) */
 }
+
+/* 42-s7trap (MC 16/11): the redraw's own distance, for the old-save import's pending clubs (sreg_import.c). The three helpers below
+   are 42-redrawc's s7rd_travel / s7rd_centroid / rd_isqrt VERBATIM (the redraw is not in 42-int yet: the merge keeps one copy), plus
+   s7rd_near, the import's one call: the group, among those with room, whose anchor is nearest to a club's travel point by the redraw's
+   distance isqrt(16 dlat^2 + 9 dlon^2) (42-redrawc's w->d[][]); ties the lower group. */
+static int32_t rd_isqrt(uint32_t x)                         /* floor(sqrt(x)), math.isqrt */
+{
+    uint32_t r = 0, b = 1u << 30;
+    while (b > x) b >>= 2;
+    while (b) {
+        if (x >= r + b) { x -= r + b; r = (r >> 1) + b; } else r >>= 1;
+        b >>= 2;
+    }
+    return (int32_t)r;
+}
+
+void s7rd_travel(int32_t *la, int32_t *lo)                 /* the oracle's travel(): an island club travels from its mainland port */
+{
+    if (*la >= 3880 && *la <= 4140 && *lo >= 800 && *lo <= 990) { *la = 4209; *lo = 1180; return; }      /* Sardinia: Civitavecchia */
+    if (*la >= 3650 && *la <= 3840 && *lo >= 1230 && *lo <= 1570) { *la = 3819; *lo = 1557; }           /* Sicily: the Messina strait */
+}
+
+/* the anchors: the integer mean (floor, Italy's coordinates are positive) of last season's members' travel points per group */
+void s7rd_centroid(int32_t n, const int16_t *la, const int16_t *lo, const uint8_t *grp, int32_t ng, int32_t *ala, int32_t *alo)
+{
+    int32_t c[9];
+    for (int32_t g = 0; g < ng; g++) { ala[g] = alo[g] = 0; c[g] = 0; }
+    for (int32_t i = 0; i < n; i++) if (grp[i] < ng) { ala[grp[i]] += la[i]; alo[grp[i]] += lo[i]; c[grp[i]]++; }
+    for (int32_t g = 0; g < ng; g++) if (c[g]) { ala[g] /= c[g]; alo[g] /= c[g]; }
+}
+
+/* The old-save import's pick: among the groups in the bitmask room (bit k = group k, div[k] its division byte, ng <= 9), the one whose
+   anchor - the mean of the travel points of the clubs c < n with nd[c] == div[k] (the import holds its pending clubs at 0xFF meanwhile) that
+   have a town - is nearest to club cw's travel point by the redraw's distance; ties the lower group; the club without a town, or no group
+   in room with a member: the lowest group in room (room != 0). word[c] = club c's team word (its registry row). */
+int32_t s7rd_near(int32_t n, const uint16_t *word, const uint8_t *nd, const uint8_t *div, int32_t ng, uint32_t room, int32_t cw)
+{
+    int16_t ta[168], to[168], a16, b16;
+    uint8_t gr[168];
+    int32_t ala[9], alo[9], a, b, m = 0, best = -1, bd = 0;
+    if (ng > 9) return -1;
+    if (!s7geo_ll((uint32_t)cw, &a16, &b16)) return __builtin_ctz(room);
+    for (int32_t c = 0, k; c < n && m < 168; c++) {
+        for (k = 0; k < ng && div[k] != nd[c]; k++) {}
+        if (k == ng || !s7geo_ll(word[c], &ta[m], &to[m])) continue;
+        a = ta[m]; b = to[m]; s7rd_travel(&a, &b);
+        ta[m] = (int16_t)a; to[m] = (int16_t)b; gr[m++] = (uint8_t)k;
+    }
+    s7rd_centroid(m, ta, to, gr, ng, ala, alo);
+    a = a16; b = b16; s7rd_travel(&a, &b);
+    for (int32_t g = 0; g < ng; g++) {
+        if (!(room >> g & 1) || !ala[g]) continue;
+        int32_t da = a - ala[g], db = b - alo[g];
+        da = rd_isqrt((uint32_t)(16 * da * da + 9 * db * db));
+        if (best < 0 || da < bd) { best = g; bd = da; }
+    }
+    return best >= 0 ? best : __builtin_ctz(room);
+}

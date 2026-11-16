@@ -73,6 +73,9 @@ int32_t sreg_old_words(const uint16_t *old_ord, int32_t n, const uint16_t *maps,
    pending idents in ident order); or a refusal SREG_IMP_* with res->bad = the club's ident (SREG_IMP_LOST: 0x8000 |
    the slot; the caller shows the club key, CONVENTIONS 14a) -- r then holds the spec's registry, nothing to apply.
    Deterministic: the same inputs give the same registry, swaps, map and res (w's and r's old bytes never read). */
+#ifndef IMP_NEAR                                /* (hosts without the towns: none -> the first group with room) */
+#define IMP_NEAR(r, n, nd, div, ng, room, c) __builtin_ctz(room)
+#endif
 #define SREG_PEND_MAX 16
 enum { SREG_IMP_ARGS = -1, SREG_IMP_SPEC = -2, SREG_IMP_MAP = -3, SREG_IMP_LOST = -4, SREG_IMP_DIV = -5,
        SREG_IMP_PEND = -7, SREG_IMP_BALANCE = -8, SREG_IMP_ROOM = -9, SREG_IMP_WMAP = -10,
@@ -186,21 +189,29 @@ int32_t sreg_import(sr_registry *r, const sr_reg_file *spec, int32_t nf, const u
         for (int32_t j = i; j > 0 && res->pend[j - 1] > res->pend[j]; j--) {
             const uint16_t t = res->pend[j]; res->pend[j] = res->pend[j - 1]; res->pend[j - 1] = t;
         }
-    {   /* 42-s7trap (the MESTRE.CAR trap at obj1+0x22705, cseg_3283C): a PENDING club went to its spec division whatever room that
-           group had. 4.1's Serie D groups (156 clubs: six of 17, three of 18) take S7's six new clubs where THEY have room, not
-           where the S7 spec put them (group A got four = 21 clubs, B two = 19, C / E / G / H stayed 17), and the game's check
-           (a division's clubs = the competition's declared count, 18) traps at the first file load. A pending club whose
-           division of ri_file is over its declared size takes the first division of that file with room (ident order);
-           every other club stays as the save has it. */
+    {   /* 42-s7trap (the MESTRE.CAR trap at obj1+0x22705, cseg_3283C; MC 16/11 policy): a PENDING club went to its spec division whatever
+           room that group had. 4.1's Serie D groups (156 clubs: six of 17, three of 18) take S7's six new clubs where THEY have room, not
+           where the S7 spec put them (group A got four = 21 clubs, B two = 19, C / E / G / H stayed 17), and the game's check (a division's
+           clubs = the competition's declared count, 18) traps at the first file load. Now, in ident order (the pending list is sorted):
+           a pending club of ri_file keeps its SPEC group when it has room (the save's own clubs counted first), else it takes the group
+           with room NEAREST by the redraw's own distance (IMP_NEAR = s7geo.c's s7rd_near: its anchor, the mean of that group's
+           members' travel points, against the club's travel point; ties the lower group; no town for it / no member: the first
+           group with room). Every other club stays as the save has it. */
         const sr_reg_file *rf = &r->f[fr];
         int32_t cnt[SR_DIVS];
+        uint8_t sd[SREG_PEND_MAX];
+        for (int32_t q = 0; q < res->npend; q++) { sd[q] = w->nd[res->pend[q]]; w->nd[res->pend[q]] = SR_REG_OUT; }   /* (held off: not counted) */
         for (int32_t k = 0; k < rf->ndiv; k++)
             for (int32_t c = (cnt[k] = 0); c < n; c++) cnt[k] += w->nd[c] == rf->div[k];
         for (int32_t q = 0, k, j; q < res->npend; q++) {
             const int32_t c = res->pend[q];
-            for (k = 0; k < rf->ndiv && rf->div[k] != w->nd[c]; k++) {}
-            for (j = 0; k < rf->ndiv && cnt[k] > rf->size[k] && j < rf->ndiv && cnt[j] >= rf->size[j]; j++) {}
-            if (k < rf->ndiv && j < rf->ndiv && cnt[k] > rf->size[k]) { cnt[k]--; cnt[j]++; w->nd[c] = rf->div[j]; }
+            uint32_t room = 0;
+            for (k = 0; k < rf->ndiv && rf->div[k] != sd[q]; k++) {}
+            w->nd[c] = sd[q];                                               /* (not of ri_file, or its spec group has room: as the spec has it) */
+            if (k == rf->ndiv || cnt[k] < rf->size[k]) { cnt[k]++; continue; }
+            for (j = 0; j < rf->ndiv; j++) room |= (uint32_t)(cnt[j] < rf->size[j]) << j;
+            j = room ? IMP_NEAR(r, n, w->nd, rf->div, rf->ndiv, room, c) : k;
+            cnt[j]++; w->nd[c] = rf->div[j];
         }
     }
     for (int32_t i = 0; i < r->nfiles; i++) {           /* each file's comings and goings (sr_reg_season's -1, named) */
@@ -459,14 +470,14 @@ int32_t sreg_slt_import(const sr_registry *r, const uint16_t *old_word, int32_t 
     for (int32_t c = 0; c < n; c++) {
         if (r->word[c] == SR_REG_NONE) continue;
         const int32_t old = old_word[c] != SR_REG_NONE, gn = gl_glob(new_gl, r->word[c]), go = old ? gl_glob(old_gl, old_word[c]) : 0;
-        if (old && (go < 0 || gn < 0)) { *bad = c; return SREG_SLT_GLOB; }
         /* 42-s7trap: a PENDING club (no 4.1 slot) is no longer held at 0 = its row's shipped group: its delta takes it to its
            registry division (sreg_import put it where its group has room, sizes = the declared ones); held at 0 it counted in the
            group of the row it sits on and the game's own check trapped at the first file load (MESTRE.CAR: A 21 / B 19 / C, E,
            G, H 17). Its spec division = its row's: the delta is 0 as before. */
-        const int32_t div = old ? old_base[c] + (int8_t)old_slt[go] : gn < 0 ? -1 : r->rdiv[imp_spec_file(r, c)][r->word[c] >> 8],
+        const int32_t div = old ? old_base[c] + (int8_t)old_slt[go] : r->rdiv[imp_spec_file(r, c)][r->word[c] >> 8],
                       d = div - new_base[c];
-        if (div < 0 || div >= ndiv || d < -128 || d > 127) { if (old) { *bad = c; return SREG_SLT_DELTA; } continue; }
+        if (gn < 0 || go < 0) { if (!old) continue; *bad = c; return SREG_SLT_GLOB; }
+        if (div < 0 || div >= ndiv || d < -128 || d > 127) { if (!old) continue; *bad = c; return SREG_SLT_DELTA; }
         new_slt[gn] = (uint8_t)(d & 0xFF);
         moved += old;
     }

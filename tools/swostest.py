@@ -32309,7 +32309,7 @@ def world_s3dbl_c20():
             fl = teams[w1] if teams[w0] == res else teams[w0]
             nmv = d[k + 4 + 912]
             mv = [struct.unpack_from('<HHb', d, k + 4 + 916 + 8 * i) for i in range(min(nmv, 4))]
-            mgr = struct.unpack_from('<H', mg[-1], sy['layout.O_MGR'][1])[0]
+            mgr = max(struct.unpack_from('<H', m, sy['layout.O_MGR'][1])[0] for m in mg) or int(os.environ.get('S3_MGR') or 0, 0)   # (the session-boundary dumps may hold 0: DP_IN.mgr is set at the league end; S3_MGR = the career club's team word, e.g. 0x3d66 for CAMPOBASSO C-B in h3s7r)
             ups = [t for _, t, dl in mv if dl == -1]
             want = {'1': [fl], '2': [teams[s0], teams[s1]], '3': [mgr], '4': [t for t in teams if t != res]}.get(frec, [])   # (4: the record cleared after the log copy: any other club of the list, class 2)
             check(kind == 3 and n == 28 and (st[7] & 0x80), f'DPLAY_FREC={frec}: state kind {kind} n {n} cup {st[7]:#x} (a kind-3 state with a valid record)', errs)

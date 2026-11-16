@@ -51,7 +51,7 @@ G_GO = (112, 144, 80, 15)
 
 STR_BACK = 0x3C0                        # (from the band's end: the strings, 448 B)
 BSS_BACK = 0x200                        # (the .bss, 256 B; then the 256 B floor)
-OWN_SIZE = 0x1800                       # the interim band with the pick linked here (FRC_OWN_PICK)
+OWN_SIZE = 0x1C00                       # the interim band with the pick linked here (FRC_OWN_PICK)
 LABELS = {}
 
 

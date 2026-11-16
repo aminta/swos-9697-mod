@@ -250,6 +250,8 @@ original bytes asserted) pokes place = scaled 4 and expected = 0 once (test only
 log). It runs on this checkout (signed ratio) and on ZONE_412 (default 412-zonepos 41d8668: 4.1.2 zones, the original
 ratio); each opinion = _verdict with its exe's rule, and the two must differ (ALTERNA vs NON BUONA).
 
+(4.2 rc, 16/11) The world_split_* builds copy their data (W2627REL_DATA, else the default snapshot) into `internal/swostest/world_split-<key>`, one dir per (snapshot path, its newest file time, SPLITS); it is made under a temp name and renamed, and reused while it exists. Until 16/11 all of them shared one `world_split` dir, emptied and re-copied by every build: two suites at once could build on each other's snapshot (an S7 copy under a single-world build: KeyError 'WCUR'). The dirs pile up, one per snapshot state (~7 MB each): remove old ones by hand, never one that a kept FAIL run's build points to (its builds/world_split-*/log.txt names the data dir).
+
 ## 6. Adding a scenario
 
 1. Write `@scenario def name(): """one-line purpose"""` returning `(ok, message)`.

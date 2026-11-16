@@ -72,9 +72,11 @@ wp_glob:                                ; SetTeamGlobalNumbers' store (replaces 
 .s:
 %endif
 %ifdef SPLIT_FILE
+%ifdef SPLIT_NS
     cmp byte [WCUR], SPLIT_WORLD        ; S7-G (globnum.split): the split file's rows from SPLIT_N1 on take run 2
     jne .w                              ; (only in its world's namespace: another world's file of that number
-    cmp byte [esi], SPLIT_FILE          ; keeps its one base)
+%endif                                  ; keeps its one base; a build with no namespaces - one world - has no
+    cmp byte [esi], SPLIT_FILE          ; other file of that number, careerworld defines no WCUR)
     jne .w
     cmp byte [esi+1], SPLIT_N1
     jb .w
@@ -197,7 +199,12 @@ def patch(p, cave, nasmcave, pools, glob=None, split=None):
     if split is not None:
         sw, sf, n1, b2 = split
         src = f'%define SPLIT_FILE {sf}\n%define SPLIT_WORLD {sw}\n%define SPLIT_N1 {n1}\n%define SPLIT_B2 {b2}\n' + src
-        symbols['WCUR'] = (1, careerworld.LABELS['WCUR'])
+        if 'WCUR' in careerworld.LABELS:          # (several worlds: careerworld's namespace code, as its WCURV)
+            src = '%define SPLIT_NS\n' + src
+            symbols['WCUR'] = (1, careerworld.LABELS['WCUR'])
+        else:                                     # (one world: no namespace, file sf is only world sw's - asserted)
+            import globnum
+            globnum.split_alone(sw, sf)
     hook = glob is not None or split is not None
     if hook:
         src = '%define WP_GLOB\n' + src

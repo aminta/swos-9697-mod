@@ -6,7 +6,7 @@
      +1  db bits 0-2 = friendlies played (0..4); bits 3-7 spare (ask Motore first)
      +2  dw x 4 the opponents' team words, in play order (next season's avoid list)
      +10 dw bits 0-3 home flags (bit k = friendly k at home), bits 4-12 W/D/L counts (3 bits each),
-            bit 13 NATIVE (reserved), bits 14-15 FR_MODE (written only by frc_choose; kept across the season rewrite)
+            bit 13 NATIVE (reserved), bits 14-15 FR_LEVEL (written only by frc_choose; kept across the season rewrite)
 
    The season-start step (the tail of InitializeNewSeason, careers only, never on a load):
      given = 4 x FR_NONE, venues = 0xFF;
@@ -24,13 +24,14 @@
 #define FR_NPLAYED(st)  ((st)[1] & 7u)
 #define FR_FLAGS(st)    ((uint32_t)(st)[10] | (uint32_t)(st)[11] << 8)
 #define FR_NATIVE       (1u << 13)
-#define FR_MODE_SH      14
-#define FR_MODE_MASK    (3u << FR_MODE_SH)
-#define FR_MODE_MEDIUM  0               /* AUTOMATIC, the 1/2/1 mix (old saves read 0) */
-#define FR_MODE_EASY    1
-#define FR_MODE_HARD    2
-#define FR_MODE_CHOSEN  3
-#define FR_MODE(st)     ((FR_FLAGS(st) & FR_MODE_MASK) >> FR_MODE_SH)
+#define FR_LEVEL_SH     14              /* bits 14-15: the chooser page's level for its empty slots; written only by
+                                           frc_choose (through ctx->frst, during the call); the engine keeps them */
+#define FR_LEVEL_MASK   (3u << FR_LEVEL_SH)
+#define FR_LEVEL_MIX    0               /* the 1/2/1 mix: old saves, builds without the page */
+#define FR_LEVEL_EASY   1
+#define FR_LEVEL_MEDIUM 2
+#define FR_LEVEL_HARD   3
+#define FR_LEVEL(st)    ((FR_FLAGS(st) & FR_LEVEL_MASK) >> FR_LEVEL_SH)
 
 typedef struct {
     const uint8_t *frss;                /* the current world's FRSS v2 slice (read from FRSS.DAT at the season start) */
@@ -41,7 +42,7 @@ typedef struct {
     uint32_t navoid;
     const FrRoom *room;                 /* the team cache's room, or NULL */
     uint32_t season, seed, nhome;       /* nhome: the engine's default (2) */
-    uint8_t *frst;                      /* FR_ST: frc_choose writes +10 bits 14-15 only */
+    uint8_t *frst;                      /* FR_ST: frc_choose writes +10 bits 14-15 only, during the call */
 } FrcCtx;
 
 /* The chooser page (FRCH band, weak: absent = skipped, given stays 4 x FR_NONE, venues 0xFF). cdecl. *venues: 0xFF =

@@ -47,3 +47,24 @@ def test_frtext_fees_match_handoff():
                            'far down': (20, 5)}
     assert sum((frtext.FEES['weaker'][0], frtext.FEES['similar'][0], frtext.FEES['similar'][1],
                 frtext.FEES['stronger'][1])) == 140          # an all-automatic season
+
+
+def test_frtext_on_follows_frnd():
+    """Data after engine (Convergence 16/11): FRSS.DAT (patch_exe) and the FORMAT page (write_new_teams) ship only with
+    FRND linked - frtext.on() = Motore's frnd.on(), off without a frnd module; both build sites ask frtext.on()."""
+    import types
+    saved = sys.modules.pop('frnd', None)
+    try:
+        sys.modules['frnd'] = None                        # (no module: import fails -> off)
+        assert frtext.on() is False
+        for v in (False, True):
+            sys.modules['frnd'] = types.SimpleNamespace(on=lambda v=v: v)
+            assert frtext.on() is v
+    finally:
+        sys.modules.pop('frnd', None)
+        if saved is not None:
+            sys.modules['frnd'] = saved
+    src = open(os.path.join(TOOLS, 'patch.py')).read()
+    for site in ('fri = frstr.gen(', 'items += frtext.format_items('):
+        i = src.index(site)
+        assert 'if frtext.on():' in src[src.rindex('\n', 0, src.rindex('\n', 0, i)):i], site

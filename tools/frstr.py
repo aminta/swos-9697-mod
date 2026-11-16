@@ -344,13 +344,20 @@ def build_stems():
     return {w: 'TEAM' if w == 0 else mk.ns_stem(w).upper() for w in build_worlds()}
 
 
-def check(build):
+def check(build, frnd=None):
     """the release recipe's ASSERT: (ok, text) - build/SWOS/DATA/FRSS.DAT is there, holds every world of the build
     (0 + its packs' career worlds), every team word with a strength is a named record of the build's team files as
-    they are now (verify_words) and the file equals a fresh gen() from the build's ENGLISH.EXE + DATA"""
+    they are now (verify_words) and the file equals a fresh gen() from the build's ENGLISH.EXE + DATA. Without FRND linked
+    (frtext.on(); frnd True / False overrides it: the host test's `check --frnd` / `--no-frnd`) the build must have NO
+    FRSS.DAT (data after engine)"""
     import tempfile
     data = os.path.join(build, 'SWOS', 'DATA')
     f = os.path.join(data, FILE_NAME)
+    import frtext
+    if not (frtext.on() if frnd is None else frnd):                         # (data after engine: no FRND linked, no FRSS.DAT - patch_exe's own gate)
+        if os.path.isfile(f):
+            return False, f'{f} in a build without FRND (frtext.on() off): a file nothing reads'
+        return True, 'FRND not linked: no FRSS.DAT (data after engine)'
     if not os.path.isfile(f):
         return False, f'no {f}'
     b = open(f, 'rb').read()
@@ -399,7 +406,7 @@ def main(argv):
             print(f'frstr: {FILE_NAME} {os.path.getsize(os.path.join(data, FILE_NAME))} B: '
                   + ', '.join(f'world {w}: {i[0]} files {i[1]} clubs {i[2]} B' for w, i in sorted(info.items())))
             return 0
-        ok, txt = check(build)
+        ok, txt = check(build, True if '--frnd' in argv else False if '--no-frnd' in argv else None)
         print(('FRSS OK: ' if ok else 'FRSS FAIL: ') + txt)
         return 0 if ok else 1
     if argv[:1] == ['packs']:                       # (the host test's read of the country rule's input)

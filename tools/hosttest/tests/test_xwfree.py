@@ -22,6 +22,7 @@ import sys
 
 TOOLS = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, TOOLS)
+import fixroot  # noqa: E402
 ROOT = os.path.dirname(TOOLS)
 M = os.path.expanduser('~/swos-mod')
 FIRST = 101                                     # (the 1996-97 game's files are 0..100)
@@ -62,7 +63,7 @@ def free_files(data):
 
 
 def test_xw_free_files():
-    build = os.environ.get('HT_XWFREE_BUILD', os.path.join(M, 'c', 'HTW', 'SWOS'))
+    build = os.environ.get('HT_XWFREE_BUILD', fixroot.fx('HTW', 'SWOS'))
     data = os.path.join(build, 'DATA')
     if not os.path.isdir(data):
         return True, f'SKIP: no build {build}'

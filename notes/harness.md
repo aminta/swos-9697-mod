@@ -537,3 +537,4 @@ the match at all, cc still differs.
 `DIFF_STOPF=n` halts at frame n and diffs obj2 word by word (REF vs NEW): the way to find the next input.
 `DIFF_PAD=code,buildup` (REF + a nop band of NEW's obj4 sizes) was equal to REF in every run: code size is not a cause.
 DIFF_SKIP is a comma list matched as a set ('BU' is not 'BUFRAME').
+- Host fixtures (42-fixroot, MC 16/11): `zsh tools/hosttest/mkfixtures.sh` builds every fixture (HTW HTO4 HTOMM HTPC2 HTn7rf HTn7rd S7W-ws4c S7RI-hs) once per tip into c/FX-<sha>/ with a MANIFEST.json and prints `export HOSTTEST_FIXROOT=...`; with it set every test reads that root and a stale / edited fixture FAILs with the manifest message (tools/hosttest/fixroot.py); never rebuild a fixture dir in place.

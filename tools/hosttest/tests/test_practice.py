@@ -15,10 +15,11 @@ import sys
 
 TOOLS = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, TOOLS)
+import fixroot  # noqa: E402
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 HOME = os.path.expanduser('~')
-EXE = os.environ.get('HT_PRACTICE_EXE') or os.path.join(HOME, 'swos-mod', 'c', 'HTO4', 'SWOS', 'ITALIAN.EXE')
+EXE = os.environ.get('HT_PRACTICE_EXE') or fixroot.fx('HTO4', 'SWOS', 'ITALIAN.EXE')
 ORIG = os.path.join(HOME, 'swos-mod', 'orig', 'ITALIAN.EXE')
 B1, B2, B4 = 0x100000, 0x400000, 0x1000000
 STACK, RET, MEM = 0x3F0000, 0x3E0000, 0x4000000

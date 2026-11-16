@@ -19,11 +19,12 @@ import struct
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import fixroot  # noqa: E402
 import test_champ as tc  # noqa: E402
 import test_registry as tr  # noqa: E402
 
 HOME = os.path.expanduser('~')
-EXE = os.environ.get('HT_CBONUS_EXE') or os.path.join(HOME, 'swos-mod', 'c', 'HTW', 'SWOS', 'ITALIAN.EXE')
+EXE = os.environ.get('HT_CBONUS_EXE') or fixroot.fx('HTW', 'SWOS', 'ITALIAN.EXE')
 ORIG = os.path.join(HOME, 'swos-mod', 'orig', 'ITALIAN.EXE')
 KIND = {0: 0, 1: 2, 2: 1}                       # uprize.c's tier -> the game's D8CBE kind (0 CC, 2 UEFA, 1 CWC)
 

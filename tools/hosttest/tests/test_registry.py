@@ -16,12 +16,13 @@ import sys
 
 TOOLS = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, TOOLS)
+import fixroot  # noqa: E402
 sys.path.insert(0, os.path.join(TOOLS, 'hosttest'))
 import swe  # noqa: E402
 import swreg  # noqa: E402
 
 HOME = os.path.expanduser('~')
-EXE = os.environ.get('HT_REG_EXE') or os.path.join(HOME, 'swos-mod', 'c', 'HTW', 'SWOS', 'ITALIAN.EXE')
+EXE = os.environ.get('HT_REG_EXE') or fixroot.fx('HTW', 'SWOS', 'ITALIAN.EXE')
 ORIG = os.environ.get('HT_REG_ORIG') or os.path.join(HOME, 'swos-mod', 'orig', 'ITALIAN.EXE')   # (the same language / edition)
 B1, B2, B3, B4 = 0x1000000, 0x2000000, 0x2C00000, 0x3000000
 STACK, RET = 0x5000000, 0x4FF0000

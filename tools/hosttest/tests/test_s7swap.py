@@ -28,12 +28,13 @@ import struct
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import fixroot  # noqa: E402
 import test_registry as tr  # noqa: E402
 import test_sreg as tg  # noqa: E402
 import test_swc1 as ts  # noqa: E402
 
 HOME = os.path.expanduser('~')
-EXE = os.environ.get('HT_S7_EXE') or os.path.join(HOME, 'swos-mod', 'c', 'S7W-ws4c', 'SWOS', 'ITALIAN.EXE')
+EXE = os.environ.get('HT_S7_EXE') or fixroot.fx('S7W-ws4c', 'SWOS', 'ITALIAN.EXE')
 OK, STALE, BAD, COUNT, PLACE, SIZE = 1, 3, 4, 5, 6, 13
 FA, FB = 102, 144
 SEASON = 7
@@ -629,7 +630,7 @@ def test_s7load_pooled():
                                              f'record, {kept} rows exactly as ri_apply left them, ORIG untouched')
 
 
-EXE4 = os.environ.get('HT_S7W_EXE') or os.path.join(HOME, 'swos-mod', 'c', 'S7W-p6w', 'SWOS', 'ITALIAN.EXE')
+EXE4 = os.environ.get('HT_S7W_EXE') or fixroot.fx('S7W-p6w', 'SWOS', 'ITALIAN.EXE')
 CACHE_AT = 0x6300000                                    # (a stand-in team cache: S7_SELBASE -> here)
 S7_WSITE = 9
 

@@ -29,6 +29,7 @@ import struct
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import fixroot  # noqa: E402
 import test_registry as tr  # noqa: E402
 import test_swc1 as ts  # noqa: E402
 
@@ -38,8 +39,8 @@ import engine  # noqa: E402
 import trailer  # noqa: E402
 
 HOME = os.path.expanduser('~')
-EXE = os.environ.get('HT_N7_EXE') or os.path.join(HOME, 'swos-mod', 'c', 'HTn7rf', 'SWOS', 'ITALIAN.EXE')
-DORM = os.environ.get('HT_N7D_EXE') or os.path.join(HOME, 'swos-mod', 'c', 'HTn7rd', 'SWOS', 'ITALIAN.EXE')
+EXE = os.environ.get('HT_N7_EXE') or fixroot.fx('HTn7rf', 'SWOS', 'ITALIAN.EXE')
+DORM = os.environ.get('HT_N7D_EXE') or fixroot.fx('HTn7rd', 'SWOS', 'ITALIAN.EXE')
 IT, HDR = 0x5449, 20
 _H = open(os.path.join(TOOLS, 'swce', 'swosrules.h')).read()
 FILES, CLUBS, DIVS = (int(re.search(rf'#define {k}\s+(\d+)', _H).group(1)) for k in ('SR_REG_FILES', 'SR_REG_CLUBS',

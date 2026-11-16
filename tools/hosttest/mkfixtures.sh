@@ -9,6 +9,9 @@
 #      <name>-<key> dirs unused for 3 days; a symlink it cannot). One gone comes back from its archive on
 #      /Volumes/Backup1/swos-mod-runs (sha1 in ARCHIVED.txt checked) - the snapshots run that build's code, a rebuild
 #      would not match them. A build no archive has: an error only if a test reads its fixture dir.
+#   42-fixroot (MC 16/11): 1, 1b and the S7 shaped fixtures (S7W-ws4c, S7RI-hs; tools/hosttest/mkshaped.sh) are built into ONE new
+#      dir c/FX-<tip sha>/ with a MANIFEST.json (md5s); nothing is rebuilt in place. `export HOSTTEST_FIXROOT=c/FX-<sha>` (printed)
+#      makes every test read it (tools/hosttest/fixroot.py checks the manifest; a stale or edited fixture FAILs).
 # Never c/SWOS (shared). Run from the checkout root; no DOSBox.
 set -eu
 cd "$(git rev-parse --show-toplevel)"
@@ -21,38 +24,64 @@ CLR=($(python3 -c "import sys; sys.path.insert(0, 'tools'); import modver; print
 for v in $CLR; do unset $v; done
 export HOSTTEST_SYMS=1
 
-T=$C/HTfix.$$
-trap 'rm -rf $T' EXIT
-mkdir -p $T/SWOS/DATA
-rsync -a --exclude DATA --exclude ITALIAN.EXE --exclude ENGLISH.EXE --exclude FRENCH.EXE --exclude GERMAN.EXE $C/REL40rc2/SWOS/ $T/SWOS/
-cp -p orig/DATA/* $T/SWOS/DATA/
-python3 $M/internal/release-tools/bfull.py orig/ITALIAN.EXE $T/SWOS/ITALIAN.EXE it $T/SWOS/DATA > $T/build-it.log 2>&1 \
-  || { tail -20 $T/build-it.log; exit 1; }
-test -s $T/SWOS/ITALIAN.syms.json
-echo "$(git rev-parse --short HEAD), data ${W:t}, HOSTTEST_SYMS=1 (tools/hosttest/mkfixtures.sh $(date +%F))" >> $T/build-it.log
-for d in HTW HTO4 HTOMM HTPC2; do
-  rm -rf $C/$d.old; [ -e $C/$d ] && mv $C/$d $C/$d.old
-  cp -a $T $C/$d && rm -rf $C/$d.old
-  echo "c/$d: $(md5 -q $C/$d/SWOS/ITALIAN.EXE)  $(tail -1 $C/$d/build-it.log)"
-done
+# 42-fixroot (MC 16/11): every fixture goes into ONE new dir c/FX-<tip sha>/ (never rebuilt in place: another session's
+# mkfixtures cannot change what a running suite reads), with a MANIFEST.json of md5s (tools/hosttest/fixroot.py checks it).
+# The tests read it through `export HOSTTEST_FIXROOT=c/FX-<sha>` (printed at the end); MKFIX_LEGACY=1 also refreshes the old
+# in-place c/HT* dirs for sessions that still read them.
+SHA=$(git rev-parse --short HEAD); [ -n "$(git status --porcelain --untracked-files=no)" ] && SHA=$SHA-d$(date +%H%M%S)
+FX=$C/FX-$SHA
+if [ -e $FX/MANIFEST.json ]; then echo "fixtures for $SHA exist: $FX"; else
+  T=$FX.tmp.$$; trap 'rm -rf $T' EXIT; mkdir -p $T
+  P=$T/HTW; mkdir -p $P/SWOS/DATA
+  rsync -a --exclude DATA --exclude ITALIAN.EXE --exclude ENGLISH.EXE --exclude FRENCH.EXE --exclude GERMAN.EXE $C/REL40rc2/SWOS/ $P/SWOS/
+  cp -p orig/DATA/* $P/SWOS/DATA/
+  python3 $M/internal/release-tools/bfull.py orig/ITALIAN.EXE $P/SWOS/ITALIAN.EXE it $P/SWOS/DATA > $P/build-it.log 2>&1 \
+    || { tail -20 $P/build-it.log; exit 1; }
+  test -s $P/SWOS/ITALIAN.syms.json
+  echo "$SHA, data ${W:t}, HOSTTEST_SYMS=1 (tools/hosttest/mkfixtures.sh $(date +%F))" >> $P/build-it.log
+  for d in HTO4 HTOMM HTPC2 HTMC; do cp -a $P $T/$d; done      # (HTMC: test_champ / test_cbonus's plain HOSTTEST_SYMS image)
+  echo "FX/HTW: $(md5 -q $P/SWOS/ITALIAN.EXE)  $(tail -1 $P/build-it.log)"
 
-# 1b. test_sreg's pair (42-fixn7, MC 13/11): c/HTn7rf (SREG_FORCE=1) and c/HTn7rd (dormant), HOSTTEST_SYMS=1, the release
-#     recipe on world5tm-h2 (its own SEASON_PACKS); hand-built before, stale after 42-swcnew (a FAIL on the old exes)
-W2=$M/internal/world2526/world5tm-h2
-P2="ddr-1988-89,italia-1947-48,world-cup-1934,$EU,$(grep ' file ' $W2.txt | awk -v w=$W2 '{print w"/"tolower($1)}' | paste -sd, -)"
-for d in HTn7rf HTn7rd; do
-  N=$C/HTfix7.$$; rm -rf $N; mkdir -p $N/SWOS/DATA
-  rsync -a --exclude DATA --exclude ITALIAN.EXE --exclude ENGLISH.EXE --exclude FRENCH.EXE --exclude GERMAN.EXE $C/REL40rc2/SWOS/ $N/SWOS/
-  cp -p orig/DATA/* $N/SWOS/DATA/
-  F=(); [ $d = HTn7rf ] && F=(SREG_FORCE=1)
-  env SEASON_PACKS=$P2 $F python3 $M/internal/release-tools/bfull.py orig/ITALIAN.EXE $N/SWOS/ITALIAN.EXE it $N/SWOS/DATA \
-    > $N/build-it.log 2>&1 || { tail -20 $N/build-it.log; rm -rf $N; exit 1; }
-  test -s $N/SWOS/ITALIAN.syms.json
-  echo "$(git rev-parse --short HEAD), data ${W2:t}, HOSTTEST_SYMS=1 ${F[*]} (tools/hosttest/mkfixtures.sh $(date +%F))" >> $N/build-it.log
-  rm -rf $C/$d.old; [ -e $C/$d ] && mv $C/$d $C/$d.old
-  mv $N $C/$d && rm -rf $C/$d.old
-  echo "c/$d: $(md5 -q $C/$d/SWOS/ITALIAN.EXE)  $(tail -1 $C/$d/build-it.log)"
-done
+  # 1b. test_sreg's pair: HTn7rf (SREG_FORCE=1) and HTn7rd (dormant), the release recipe on world5tm-h2 (its own SEASON_PACKS)
+  W2=$M/internal/world2526/world5tm-h2
+  P2="ddr-1988-89,italia-1947-48,world-cup-1934,$EU,$(grep ' file ' $W2.txt | awk -v w=$W2 '{print w"/"tolower($1)}' | paste -sd, -)"
+  for d in HTn7rf HTn7rd; do
+    N=$T/$d; mkdir -p $N/SWOS/DATA
+    rsync -a --exclude DATA --exclude ITALIAN.EXE --exclude ENGLISH.EXE --exclude FRENCH.EXE --exclude GERMAN.EXE $C/REL40rc2/SWOS/ $N/SWOS/
+    cp -p orig/DATA/* $N/SWOS/DATA/
+    F=(); [ $d = HTn7rf ] && F=(SREG_FORCE=1)
+    env SEASON_PACKS=$P2 $F python3 $M/internal/release-tools/bfull.py orig/ITALIAN.EXE $N/SWOS/ITALIAN.EXE it $N/SWOS/DATA \
+      > $N/build-it.log 2>&1 || { tail -20 $N/build-it.log; exit 1; }
+    test -s $N/SWOS/ITALIAN.syms.json
+    echo "$SHA, data ${W2:t}, HOSTTEST_SYMS=1 ${F[*]} (tools/hosttest/mkfixtures.sh $(date +%F))" >> $N/build-it.log
+    echo "FX/$d: $(md5 -q $N/SWOS/ITALIAN.EXE)  $(tail -1 $N/build-it.log)"
+  done
+
+  # 1c. the S7 shaped fixtures (Italy = internal/s7pack-real/ita): the default of the S7 / wsites / bteam / rimoves tests
+  for d in S7W-ws4c S7RI-hs S7W-p6w; do      # (S7W-p6w: test_s7swap piece 4 / test_bteam_s7, shaped with S7_WSITES_TEST=1)
+    ME=; [ $d = S7W-p6w ] && ME=S7_WSITES_TEST=1
+    MKSHAPED_ENV=$ME zsh tools/hosttest/mkshaped.sh $T/$d > $T/$d.mk.log 2>&1 || { tail -20 $T/$d.mk.log; echo "FAIL: shaped $d"; exit 1; }
+    echo "FX/$d: $(md5 -q $T/$d/SWOS/ITALIAN.EXE)  $(tail -1 $T/$d/build-it.log)"
+  done
+
+  python3 - $T <<'E'
+import hashlib, json, os, sys
+r = sys.argv[1]
+man = {}
+for d in sorted(os.listdir(r)):
+    p = os.path.join(r, d)
+    if os.path.isdir(p):
+        man[d] = {rel: hashlib.md5(open(os.path.join(p, rel), 'rb').read()).hexdigest()
+                  for rel in ('SWOS/ITALIAN.EXE', 'SWOS/ITALIAN.syms.json') if os.path.isfile(os.path.join(p, rel))}
+json.dump(man, open(os.path.join(r, 'MANIFEST.json'), 'w'), indent=1, sort_keys=True)
+E
+  rm -f $T/*.mk.log
+  mv $T $FX; trap - EXIT
+fi
+if [ -n "${MKFIX_LEGACY:-}" ]; then
+  for d in HTW HTO4 HTOMM HTPC2 HTMC HTn7rf HTn7rd S7W-ws4c S7RI-hs S7W-p6w; do rm -rf $C/$d.old; [ -e $C/$d ] && mv $C/$d $C/$d.old; cp -a $FX/$d $C/$d && rm -rf $C/$d.old; done
+fi
+echo "export HOSTTEST_FIXROOT=$FX"
 
 A=/Volumes/Backup1/swos-mod-runs
 python3 - $M $A $PWD/tools/hosttest/tests <<'E'

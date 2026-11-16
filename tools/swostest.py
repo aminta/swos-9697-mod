@@ -3216,6 +3216,13 @@ def ui_build(b):
     return d
 
 
+
+def ui_dir(b):
+    """(MC 16/11) A build dir from the environment (SWOSTEST_BUILD, W8485_BUILD, *_BUILD) through ui_build, so that
+    SWOSTEST_UI=en/fr/de runs that language's exe; None / '' / an .EXE file path as they are."""
+    return ui_build(os.path.realpath(b)) if b and os.path.isdir(b) else b
+
+
 POKE_SYNC = 8                                         # Session.poke: SMs between sync reads
 POKE_MAX = 0x4000                                     # Session.poke: bytes in one call
 SAVES = os.path.join(MAIN, 'c', 'SWOS')               # read-only source of the reference saves (copied per run)
@@ -3722,7 +3729,7 @@ def season4748():
 def w84_lowprice():
     """3.3.4 (Daniele): a 1984-85 career at Volsungur (Iceland), whose 16 players are all worth the minimum: the team
     screen divided by the average player price (0) and the game stopped (DOS/4GW divide error); avgprice.py"""
-    exe = os.environ.get('W8485_BUILD') or builds()['it']       # (as world8485: builds/w8485 is a stale build)
+    exe = ui_dir(os.environ.get('W8485_BUILD') or builds()['it'])       # (as world8485: builds/w8485 is a stale build)
     with Session('w84_lowprice', exe, {}, 'dump:2', 240) as s:
         if s.wait().outcome != 'dump':
             return False, f'START: no first pause ({s.result})'
@@ -3821,7 +3828,7 @@ def w84_record():
     """3.3.6: REGISTRO GESTIONE in a 1984-85 career shows the world's seasons (FillManagementRecordInfo added 1996 to
     the season number: '1998/99' in the career's third season). W84B_MREC.CAR (world8485's W84B: Darlington, season
     1986/87) loaded: the record's season line is 1986/87 (careerworld w_mrec)"""
-    exe = (os.environ.get('W8485_BUILD') or builds()['it'])   # (builds/w8485: a stale shared dir)
+    exe = ui_dir(os.environ.get('W8485_BUILD') or builds()['it'])   # (builds/w8485: a stale shared dir)
     car = cache_path('W84B_MREC.CAR', exe)                   # (root fix E: keyed by the build's exe + data)
     if not os.path.exists(car):
         keys = ('W8485_BUILD', 'W8485_TEAM', 'W8485_FROM', 'W8485_ONE', 'W8485_WORLD')     # (made again by this exe: a
@@ -3902,7 +3909,7 @@ def main_button():
     1984-85, and with 2026-27 EUROPE > ITALY > SERIE A > INTER starts that world's career (2026/27)."""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import mainbtn
-    cases = [(UI, os.environ.get('MAINBTN_BUILD') or os.environ.get('SWOSTEST_BUILD'), 'CARRIERA', 'SCEGLI SQUADRA',
+    cases = [(UI, ui_dir(os.environ.get('MAINBTN_BUILD') or os.environ.get('SWOSTEST_BUILD')), 'CARRIERA', 'SCEGLI SQUADRA',
               'MONDO 2026-27', 'EUROPA 1984-85', ['EUROPA', 'ITALIA', 'SERIE A', 'INTER'], 'CAMP. 2026/27')]
     if UI == 'it':                                      # (SWOSTEST_UI=en / fr / de: the first case, read back in Italian)
         cases.append(('en', os.environ.get('MAINBTN_EN'), 'CAREER', 'CHOOSE TEAM', 'WORLD 2026-27', 'EUROPE 1984-85',
@@ -4006,7 +4013,7 @@ def coach_nat():
     becomes ENG there; a TGA coach starts the World 2026-27's INTER career.
     4.0.6 (careerworld NAT_TODAY): the renamed nations' codes show today's letters under MONDO: 2026-27 and in its
     career (SRB CZE MKD COD SWZ, in the list too), the exe's own (YUG TCH MAC ZAI SWA) under 1996-97"""
-    b = os.environ.get('COACHNAT_BUILD') or os.environ.get('SWOSTEST_BUILD')
+    b = ui_dir(os.environ.get('COACHNAT_BUILD') or os.environ.get('SWOSTEST_BUILD'))
     if not b:
         return True, 'SKIP: COACHNAT_BUILD (a full 2026-27 build) not set'
     era = {'it': {'YUG', 'RFT', 'URS', 'RDT'}, 'en': {'YUG', 'FRG', 'URS', 'GDR'}, 'fr': {'YUG', 'RFA', 'URS', 'RDA'},
@@ -4159,7 +4166,7 @@ def zones_bq_season():
     ended (valid in the next), and it stays set through the save and reload (never 0 again); the world's other B
     teams are set too (gplay's tables hold every country)
     (ZBSKIP_BUILD / SWOSTEST_BUILD: a release dir)"""
-    b = os.environ.get('ZBSKIP_BUILD') or os.environ.get('SWOSTEST_BUILD') or builds()['it']
+    b = ui_dir(os.environ.get('ZBSKIP_BUILD') or os.environ.get('SWOSTEST_BUILD') or builds()['it'])
     zi = zb_info(b)
     if not zi:
         return True, f'SKIP: {b}: no SEC_BQ line in its build.log'
@@ -4220,7 +4227,7 @@ def zones_bskip():
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import lepatch
     import mkseason
-    b = os.environ.get('ZBSKIP_BUILD') or os.environ.get('SWOSTEST_BUILD') or builds()['it']
+    b = ui_dir(os.environ.get('ZBSKIP_BUILD') or os.environ.get('SWOSTEST_BUILD') or builds()['it'])
     src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-403c6')
     sel = mkseason._hook_sites(lepatch.LEPatch(os.path.join(ROOT, 'orig', 'ITALIAN.EXE')))[3]
     # (country, league, club; up, play-off places; the B teams in the top: placed 1st and 3rd)
@@ -4367,7 +4374,7 @@ def zone_colours():
     blue (Champions Cup), 2-5 green (UEFA Cup), 20-22 gray, the others plain (pixels of the stats columns); the legend
     CAMP / UEFA / RETR on the header line; STAT > FORMULA > back (the FORMAT page shares the zones' file buffer): the
     same colours again"""
-    b = (os.environ.get('W8485_BUILD') or builds()['it'])   # (builds/w8485: a stale shared dir)
+    b = ui_dir(os.environ.get('W8485_BUILD') or builds()['it'])   # (builds/w8485: a stale shared dir)
     want = ['lb'] + ['gr'] * 4 + ['pl'] * 14 + ['gy'] * 3
     errs, info = [], []
     with Session('zone_colours', b, {}, 'dump:2', 600) as s:
@@ -4484,7 +4491,7 @@ def s7_size_offsets(exe):
 @scenario
 def world8485():
     """Europe 1984-85 world (world 4): new career at Liverpool, two seasons (save, reload, save), checkw1 on both"""
-    exe = os.environ.get('W8485_BUILD') or builds()['it']       # (builds/w8485 was a stale 3.0-era build)
+    exe = ui_dir(os.environ.get('W8485_BUILD') or builds()['it'])       # (builds/w8485 was a stale 3.0-era build)
     global W84_HOOK
     if os.environ.get('HT_SNAP_LABELS') and W84_HOOK is None:  # tools/hosttest fixtures from ANY world8485 run: a
         sys.path.insert(0, os.path.join(ROOT, 'tools', 'hosttest'))   # breakpoint at each label (the exe's
@@ -4912,7 +4919,7 @@ def world8485_nat():
     """Europe 1984-85 world, national teams (England's job by the debug switch; saves W84NAT / W84NAT3 made once per
     build): the real Euro 88 qualifying groups and Euro 88's 8 (host + 7 group winners); with the season index poked
     to the next cycle, the Italia 90 qualifying draw (host out) and its 24 (holder, host, 13 European, direct)"""
-    exe = os.environ.get('W8485_BUILD') or builds()['it']       # (builds/w8485 was a stale 3.0-era build)
+    exe = ui_dir(os.environ.get('W8485_BUILD') or builds()['it'])       # (builds/w8485 was a stale 3.0-era build)
     off, names = nat_offsets(os.path.join(exe, 'ITALIAN.EXE')), nat_names(exe)
     nm = lambda ws: [names.get(w, hex(w)) for w in ws]
     errs, notes = [], []
@@ -6939,7 +6946,7 @@ def careers_list():
         name = (name.get('it') or name.get('*') or next(iter(name.values()))) if isinstance(name, dict) else name
         if name.upper() != cur:                    # (World 2026-27: the green entry next to the box)
             want.append(name.upper())
-    b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
+    b = ui_dir(os.environ.get('SWOSTEST_BUILD') or builds()['it'])
     with Session('careers_list', b, {'SETUP.DAT': setup_file('careers_list', 1)}, 'dump:3', 300) as s:
         if s.wait().outcome != 'dump':
             return False, f'no first pause ({s.result})'
@@ -7693,7 +7700,7 @@ def subs_names14():
 def subs_list_run(tag, names=None):
     """subs_numbers' run: HAMBURG numbered SUBS_NUMS (and named `names`), the bench list opened at the kick-off."""
     geom = ((208, 211), 219) if names else ((196, 208), 210)
-    b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
+    b = ui_dir(os.environ.get('SWOSTEST_BUILD') or builds()['it'])
     d = bytearray(open(os.path.join(b, 'DATA', 'TEAM.014') if os.path.exists(os.path.join(b, 'DATA', 'TEAM.014'))
                        else os.path.join(MAIN, 'orig', 'DATA', 'TEAM.014'), 'rb').read())
     for t in range(struct.unpack('>H', d[:2])[0]):
@@ -7771,7 +7778,7 @@ def bench_mem():
     to its end and the menus reached: the pattern must still be there at every pause (nothing writes there)."""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import lepatch
-    b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
+    b = ui_dir(os.environ.get('SWOSTEST_BUILD') or builds()['it'])
     p = lepatch.LEPatch(os.path.join(b, 'ITALIAN.EXE'))
     c = p.le.obj_bytes(1)
     if any(re.search(rb'\x66\x83\x3d....\x00\x74.\x66\xa1....(?:\x66\x83\xf8\x0f|\xeb)', p.le.obj_bytes(o), re.S)
@@ -12690,7 +12697,7 @@ def scorers_int():
     car = os.environ.get('SCORERS_CAR') or os.path.join(MAIN, 'internal', 'reports', 'luigi-4.0.1', 'PROVA.CAR')
     if not os.path.exists(car):
         return True, f'SKIP: {car} missing'
-    b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
+    b = ui_dir(os.environ.get('SWOSTEST_BUILD') or builds()['it'])
     errs, info = [], []
     with Session('scorers_int', b, {'W84A.CAR': car}, 'dump:2', 300, 1) as s:
         if s.wait().outcome != 'dump':
@@ -12710,7 +12717,7 @@ def scorers_int_world():
     """scorers_int on a World 2026-27 career's own season (SCORERS_TEAM, default NAPOLI: Serie A + the Champions
     League): season 1 played (world8485, results only) and saved at its end (W8485_SAVE_END), then loaded and the
     CAPO CANNONIERI NAZIONALE checked as scorers_int (SWOSTEST_BUILD)."""
-    b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
+    b = ui_dir(os.environ.get('SWOSTEST_BUILD') or builds()['it'])
     keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_ONE',
             'W8485_SAVE_END')
     keep = {k: os.environ.get(k) for k in keys}
@@ -15330,7 +15337,7 @@ def engine_obj4():
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import swe
     from le import LE
-    b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
+    b = ui_dir(os.environ.get('SWOSTEST_BUILD') or builds()['it'])
     exe = os.path.join(b, 'ITALIAN.EXE')
     le = LE(open(exe, 'rb').read())
     if len(le.objs) < 4:
@@ -15629,7 +15636,7 @@ def engine_wmodes():
     errs, info = [], []
     hist = 'CARR. STORICHE'                      # (the careers' box label: STORICO's until Davide's texts)
     files = {'SETUP.DAT': setup_file('engine_wmodes', 0)}     # (the default World 2026-27: a fresh install's)
-    ex, xf, kw = wm_build('engine_wmodes', os.environ.get('SWOSTEST_BUILD') or builds()['it'])
+    ex, xf, kw = wm_build('engine_wmodes', ui_dir(os.environ.get('SWOSTEST_BUILD') or builds()['it']))
     with Session('engine_wmodes', ex, {**files, **xf}, 'dump:3', 400, **kw) as s:
         if s.wait().outcome != 'dump':
             return False, f'no first pause ({s.result})'
@@ -15728,7 +15735,7 @@ def engine_wmodes_play_run():
     a time, PRESS_FIRE 'fire up:0.05', the raw fires held - wm_fire / spp_fire_held; 4.1 MC 06/11). Any SWOSTEST_UI:
     the menus' own names (UI_MAP). The post-match REPLAY / ESCI screen is no menu of the game's (n 0): wait, then down +
     fire = ESCI, as a player; the main menu after it."""
-    b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
+    b = ui_dir(os.environ.get('SWOSTEST_BUILD') or builds()['it'])
     runs = [('dos4gw', b, {})]
     if UI == 'en' and os.environ.get('WMPLAY_SPP'):   # (the SWOS++ run: its picker walk is not yet SWOS++-safe -
         sys.path.insert(0, os.path.join(ROOT, 'tools'))    #  empty first screen under the timer feed; 4.0.6 queue)
@@ -15844,7 +15851,7 @@ def engine_wmodes_nat():
         walk(s, 'EUROPA', 2)
         return s.screen()
 
-    with Session('engine_wmodes_nat', os.environ.get('SWOSTEST_BUILD') or builds()['it'], files, 'dump:3', 600) as s:
+    with Session('engine_wmodes_nat', ui_dir(os.environ.get('SWOSTEST_BUILD') or builds()['it']), files, 'dump:3', 600) as s:
         if s.wait().outcome != 'dump':
             return False, f'no first pause ({s.result})'
         seen = []
@@ -15935,7 +15942,7 @@ def engine_sea_ns():
     same team screen as (1) (no 2026-27 names / nationalities over the season's teams)."""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import swreg
-    b = nop_league_int3('engine_sea_ns', os.environ.get('SWOSTEST_BUILD') or builds()['it'])
+    b = nop_league_int3('engine_sea_ns', ui_dir(os.environ.get('SWOSTEST_BUILD') or builds()['it']))
     errs, info = [], []
 
     def reg(s):
@@ -16006,7 +16013,7 @@ def _season_world0(tag, career):
     test_seaw0 on the host (historic DRAWS / lib97 byes need WORLDB = their world: 0 here)."""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import careerworld
-    b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
+    b = ui_dir(os.environ.get('SWOSTEST_BUILD') or builds()['it'])
     slt = cf_slt(b) + careerworld.WORLD_BYTE          # (the LIVE table: bigtables moves it out of the .CAR fixed part)
     errs, info = [], []
     wb = lambda s: tuple(s.result.obj2(slt, 2))       # noqa: E731  (world byte, balance)
@@ -16178,7 +16185,7 @@ def season_then_car():
     SEASON (world byte 0, Juventus' screen), saved as SEAC. Run 3: SEAC loads, byte 0, the same screen."""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import careerworld
-    b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
+    b = ui_dir(os.environ.get('SWOSTEST_BUILD') or builds()['it'])
     slt = cf_slt(b) + careerworld.WORLD_BYTE
     wb = lambda s: tuple(s.result.obj2(slt, 2))       # noqa: E731
     car = os.path.join(ROOT, 'internal', 'swostest', 'seaw', 'POL2.CAR')
@@ -16260,7 +16267,7 @@ def engine_avail():
     wc34 = {'en': 'WORLD CUP 1934', 'fr': 'COUPE DU MONDE 1934', 'de': 'WM 1934'}.get(UI, 'COPPA MONDIALE 1934')
     box = {'preset': ('COMP. PREDEFINITA', 'TORNEI STORICI', wc34),                  # (the pack's name per language)
            'season': ('STAGIONE', 'STAG. STORICHE', 'ITALIA 1947-48')}
-    with Session('engine_avail', os.environ.get('SWOSTEST_BUILD') or builds()['it'], files, 'dump:3', 900) as s:
+    with Session('engine_avail', ui_dir(os.environ.get('SWOSTEST_BUILD') or builds()['it']), files, 'dump:3', 900) as s:
         if s.wait().outcome != 'dump':
             return False, f'no first pause ({s.result})'
         for w, wn in ((0, '2026-27'), (2, '1984-85'), (1, '1996-97')):
@@ -16371,7 +16378,7 @@ def engine_avail_esci():
     INTER - LAZIO reaches its pre-match screen, the DIY cup's club list opens (EUROPA). The message rows as engine_avail (av_rows_ok)."""
     errs, info = [], []
     files = {'SETUP.DAT': setup_file('engine_avail_esci', 0)}
-    with Session('engine_avail_esci', os.environ.get('SWOSTEST_BUILD') or builds()['it'], files, 'dump:3', 600) as s:
+    with Session('engine_avail_esci', ui_dir(os.environ.get('SWOSTEST_BUILD') or builds()['it']), files, 'dump:3', 600) as s:
         if s.wait().outcome != 'dump':
             return False, f'no first pause ({s.result})'
         set_world(s, 0)
@@ -16461,7 +16468,7 @@ def engine_avail_diy():
     N84: the cup menu names EAST GERMANY and WEST GERMANY, and the match's pre-match screen shows them - never a 1996-97
     nation (CROATIA): the cached file of the other world is not taken (careerworld w_tcache / WTPHYS)."""
     errs, info = [], []
-    b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
+    b = ui_dir(os.environ.get('SWOSTEST_BUILD') or builds()['it'])
     en = json.load(open(os.path.join(ROOT, 'tools', 'swostest_lang.json')))['en']
     has = lambda tx, n: n in tx or en.get(n, n) in tx
     natl = ('NAZIONALI', 'SQUADRE NAZIONALI', 'SQUADRE NAZ.', 'NATIONAL TEAMS', 'EQUIPES NATIONALES', 'NATIONALMANNSCHAFTEN')
@@ -16579,7 +16586,7 @@ def engine_omm():
     game's top list (EUROPA, no 2026-27 title); the file is not written (byte-identical after the run). The same exe
     with the byte 0 and +105 = 0: the switch shown, the line drawn, the 2026-27 message (the saved default kept)."""
     errs, info = [], []
-    b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
+    b = ui_dir(os.environ.get('SWOSTEST_BUILD') or builds()['it'])
     on = omm_exe(b, 'engine_omm')
     base = setup_dat(0)
     for k, (case, setup) in enumerate((('fresh 105 B', base[:105]), ('2026-27 saved', base),
@@ -16694,7 +16701,7 @@ def engine_pre_ns():
     old .PRE loaded by this build."""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import swreg
-    b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
+    b = ui_dir(os.environ.get('SWOSTEST_BUILD') or builds()['it'])
     wc34 = {'en': 'WORLD CUP 1934', 'fr': 'COUPE DU MONDE 1934', 'de': 'WM 1934'}.get(UI, 'COPPA MONDIALE 1934')
     errs, info = [], []
 
@@ -16779,7 +16786,7 @@ def engine_wmodes_next():
     orig = {'en': 'ORIGINAL CUSTOM TEAMS', 'fr': 'EQUIPES PERS. ORIG'}.get(UI, 'SQUADRE ORIGINALI')   # (DE: its umlaut,
     paths = {'preset': ['COMP. PREDEFINITA'], 'edit': ['MODIFICA SQUADRE', 'SQUADRE CLUB', orig], 'season': ['STAGIONE'],   # no text)
              'career': ['CARRIERA', 'SCEGLI SQUADRA']}
-    with Session('engine_wmodes_next', os.environ.get('SWOSTEST_BUILD') or builds()['it'], files, 'dump:3', 900) as s:
+    with Session('engine_wmodes_next', ui_dir(os.environ.get('SWOSTEST_BUILD') or builds()['it']), files, 'dump:3', 900) as s:
         if s.wait().outcome != 'dump':
             return False, f'no first pause ({s.result})'
         r = s.result
@@ -16858,7 +16865,7 @@ def engine_wmodes_def():
         t, w = sc.raw_texts[0], sc.geom[0][2]
         ok = (t == lock) == want and (not want or (complist.px(t) <= w and set(t) <= complist.FONT))
         check(ok, f'{tag}: title {t!r} ({complist.px(t)} px, bar {w}), the lock line wanted {want}', errs)
-    b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
+    b = ui_dir(os.environ.get('SWOSTEST_BUILD') or builds()['it'])
 
     def colour(sc, t):
         i = sc.find(t, exact=True)
@@ -16943,7 +16950,7 @@ def engine_wmodes_car():
     errs, info = [], []
     hist, cur = 'CARR. STORICHE', 'MONDO 2026-27'
     lock = swe.LOCK_LINE[UI if UI in swe.LOCK_LINE else 'it']
-    b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
+    b = ui_dir(os.environ.get('SWOSTEST_BUILD') or builds()['it'])
     cases = [(0, ('EUROPA',), ['EUROPA', 'ITALIA', 'SERIE A', 'INTER'], ('INTER', '2026/27'), 5),
              (1, ('AFRICA', 'EUROPA'), ['EUROPA', 'ITALIA', 'SERIE A', 'INTER'], ('INTER', '1996/97'), 'base'),
              (2, ('ISLANDA',), ['ISLANDA', 'VOLSUNGUR'], ('VOLSUNGUR', '1984/85'), 'base')]
@@ -16993,7 +17000,7 @@ def world_ns_hist():
     import swreg
     errs, info = [], []
     hist = 'CARR. STORICHE'
-    b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
+    b = ui_dir(os.environ.get('SWOSTEST_BUILD') or builds()['it'])
     cases = [('friendly', ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB')),
              ('diy', ('COMPET. PERSONAL.', 'COPPA', 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB'))]
     for tag, path in cases:
@@ -17045,7 +17052,7 @@ def world_ns_contest():
     import swe
     errs, info = [], []
     hist, w0 = 'CARR. STORICHE', 'MONDO 1996-97'
-    b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
+    b = ui_dir(os.environ.get('SWOSTEST_BUILD') or builds()['it'])
     yr = swe.W0_YEAR.decode('latin-1')
 
     def seq(s, path):
@@ -17154,7 +17161,7 @@ def engine_wmodes_diy():
     import swreg
     errs, info = [], []
     hist = 'CARR. STORICHE'                      # (the careers' box label: STORICO's until Davide's texts)
-    b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
+    b = ui_dir(os.environ.get('SWOSTEST_BUILD') or builds()['it'])
 
     def hdr(s):
         r = s.result
@@ -19536,7 +19543,7 @@ def squad_order_xtra():
     1984-85 world (no XTRA: the game's own reserves) as the control."""
     from le import LE
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
-    exe = os.environ.get('W8485_BUILD') or builds()['it']
+    exe = ui_dir(os.environ.get('W8485_BUILD') or builds()['it'])
     d1 = LE(open(os.path.join(exe, 'ITALIAN.EXE'), 'rb').read()).obj_bytes(1)
     m = re.search(rb'\xc7\x05(.{4})(.{4})\x66\xa1(.{4})\x66\xa3.{4}\x66\x83\x2d.{4}\x01\x8b\x35\1.{0,40}?\xcc\xeb\xfe',
                   d1, re.S)                     # cseg_639F9's lookup: A6 = the order, careerNumPlayers, int 3; jmp $
@@ -19576,7 +19583,7 @@ def career_20seasons():
     keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_ONE',
             'W8485_FROM', 'SWOSTEST_TAG')
     keep = {k: os.environ.get(k) for k in keys}
-    exe = os.environ.get('W8485_BUILD') or builds()['it']
+    exe = ui_dir(os.environ.get('W8485_BUILD') or builds()['it'])
     times, notes, car = [], [], None
     try:
         os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5',
@@ -22451,7 +22458,7 @@ def world_winners_league():
     it played in (CN_ST, written at the season end: 'SLOVENIA PRVA LIGA'; poked to 'SLOVENIA 2. SNL' - a club that
     changed division sees last season's own league)
     (release-like build: SWOSTEST_BUILD)"""
-    b = os.environ.get('SWOSTEST_BUILD')
+    b = ui_dir(os.environ.get('SWOSTEST_BUILD'))
     if not b:
         return True, 'SKIP: SWOSTEST_BUILD (a full 2026-27 build) not set'
     errs, info = [], []
@@ -23705,6 +23712,7 @@ def team_choice_colours():
     fails on 4.0.2 b3 (ASTI / CHISOLA / CELLE VARAZZE; buy: BIELLESE / GOZZANO / VALENZANA MADO)."""
     exe = os.environ.get('TEAMCOL_BUILD') or next((d for d in (os.environ.get('SWOSTEST_BUILD'), os.environ.get('W8485_BUILD'))
                                                    if d and os.path.exists(os.path.join(d, 'DATA', 'TMW5.102'))), None)
+    exe = ui_dir(exe)
     if not exe:
         return True, 'SKIP: no release dir (TEAMCOL_BUILD, or SWOSTEST_BUILD / W8485_BUILD with DATA\\TMW5.102)'
     errs, info = [], []
@@ -26818,7 +26826,7 @@ def world_strmap():
     heuristic). Then saved (ESCI -> SALVA CARRIERA): someLeaguesTable[1842] = 1, [1843] = FFh, the table's sum 0.
     STM_EXPECT=old: the same save on a copy of the build without STRMAP41.DAT (the control) - the moved lines lose
     their 4.1 name (10/11: the heuristic clears FINAL FOUR PREMIER LGE's line, the record shows nothing)."""
-    exe = os.environ.get('STM_BUILD') or os.environ.get('SWOSTEST_BUILD')   # (Gate B 42: the build under test - a
+    exe = ui_dir(os.environ.get('STM_BUILD') or os.environ.get('SWOSTEST_BUILD'))   # (Gate B 42: the build under test - a
     if not exe:                                         # release-recipe dir: the world data + DATA/STRMAP41.DAT)
         return True, 'SKIP: world_strmap needs a release-recipe build (SWOSTEST_BUILD, or STM_BUILD): a 4.1 world career'
     car = os.environ.get('STM_CAR') or os.path.join(MAIN, 'internal', 'swostest', 'suite-41rc3-L1', f'cgg_s2_A_{UI}.CAR')
@@ -28765,7 +28773,7 @@ def title_deadend():
     the keys move as the game's own links (never back onto entry 0, always a visible entry with a link).
     TITLENAV_BUILD / SWOSTEST_BUILD: a release dir; TITLENAV_BASE: an exe without the fix (expects the dead end)."""
     import struct
-    b = os.environ.get('TITLENAV_BUILD') or os.environ.get('SWOSTEST_BUILD')
+    b = ui_dir(os.environ.get('TITLENAV_BUILD') or os.environ.get('SWOSTEST_BUILD'))
     if not b:
         src = os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-403c19')
         if not os.path.isdir(src):
@@ -33764,7 +33772,7 @@ def world_cup_prefix():
             ('w2627', os.environ.get('GPLAY_BUILD') or build('world_cup_prefix', env=env),
              ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27', 'EUROPA', 'ITALIA', 'SERIE A', 'INTER'],
              'UEFA CHAMPIONS LEAGUE'),
-            ('w8485', os.environ.get('W8485_BUILD') or builds()['it'],
+            ('w8485', ui_dir(os.environ.get('W8485_BUILD') or builds()['it']),
              ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'EUROPA 1984-85', 'INGHILTERRA', 'FIRST DIVISION',
               'LIVERPOOL'], 'COPPA CAMPIONI EUROPEA')):
         with Session('cup_prefix_' + tag, exe, {}, 'dump:2', 900) as s:
@@ -39696,7 +39704,7 @@ def xtra_gk_clone():
     record's name field: one copy = no clone), the save reloaded and the squad read again."""
     import lepatch
     import xtra
-    exe = os.environ.get('SWOSTEST_BUILD') or builds()['it']
+    exe = ui_dir(os.environ.get('SWOSTEST_BUILD') or builds()['it'])
     me = os.environ.get('XGK_CLUB', 'TRIESTINA')
     seller = os.environ.get('XGK_SELLER', 'SANDONA')
     bidx = int(os.environ.get('XGK_IDX', 16))
@@ -40009,7 +40017,7 @@ def match_names14():
     import lepatch
     import namespr
     from PIL import Image
-    b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
+    b = ui_dir(os.environ.get('SWOSTEST_BUILD') or builds()['it'])
     src = os.path.join(b, 'DATA', 'TEAM.014')
     d = bytearray(open(src if os.path.exists(src) else os.path.join(MAIN, 'orig', 'DATA', 'TEAM.014'), 'rb').read())
     for t in range(struct.unpack('>H', d[:2])[0]):
@@ -40473,7 +40481,7 @@ def match_scorer14():
     import namespr
     if os.environ.get('SWOSPP_BUILD'):
         return True, 'SKIP: no SWOS++ variant (the same GoalScored; match_names14 SWOS++ covers the names)'
-    b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
+    b = ui_dir(os.environ.get('SWOSTEST_BUILD') or builds()['it'])
     src = os.path.join(b, 'DATA', 'TEAM.014')
     d = bytearray(open(src if os.path.exists(src) else os.path.join(MAIN, 'orig', 'DATA', 'TEAM.014'), 'rb').read())
     for t in range(struct.unpack('>H', d[:2])[0]):
@@ -40707,7 +40715,7 @@ def stoppage_time():
     kick-off ST_PH 0 and the game's clock (45: the second half, 90: extra time). Pictures: runs/stoppage_time_*/clock_*.png and
     shots/<mode>_<tag>.png (vga: the screen; /H's planar screen can't be read back - its sprite is)."""
     from PIL import Image
-    b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
+    b = ui_dir(os.environ.get('SWOSTEST_BUILD') or builds()['it'])
     si = stoppage_sites(b)
     if si is None:
         return False, 'no stoppage module in the exe'
@@ -41005,6 +41013,18 @@ def stoppage_time():
 def modver_shots():
     """4.0.5 modver.py: the main menu's 'MOD <version>' line in the 4 exes (each run as the game), the low-memory
     (half / EGA) start, and the main menu under SWOS++ (English): runs/modver_shots*/shots/main.png"""
+    prev = os.environ.get('SWOSTEST_UI_ANYEXE')
+    os.environ['SWOSTEST_UI_ANYEXE'] = '1'              # (MC 16/11: it runs each language's exe on purpose)
+    try:
+        return _modver_shots()
+    finally:
+        if prev is None:
+            os.environ.pop('SWOSTEST_UI_ANYEXE', None)
+        else:
+            os.environ['SWOSTEST_UI_ANYEXE'] = prev
+
+
+def _modver_shots():
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
     out = os.path.join(WORK, 'builds-x', 'modver')
@@ -41076,7 +41096,7 @@ def poke_stress():
     video memory's middle (A0000 + 16000, the paused frame: restored after), one 1 KB poke (64 SMs, synced every
     POKE_SYNC), then 3 pokes of 640 B (40 SMs each) back to back, each read back by poke itself; the 1 KB read in one
     dump = every byte landed; the original 4 KB put back in one poke (256 SMs); one more dump = the debugger answers"""
-    b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
+    b = ui_dir(os.environ.get('SWOSTEST_BUILD') or builds()['it'])
     errs, info = [], []
     at = 0xA0000 + 16000
     with Session('poke_stress', b, {}, 'dump:3', 200) as s:
@@ -41182,7 +41202,7 @@ def modver_line():
     its box is clear of the entries (it is not: LOAD OLD COMPETITION at y 182)."""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import modver
-    b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
+    b = ui_dir(os.environ.get('SWOSTEST_BUILD') or builds()['it'])
     want = modver_want(b)
     errs, info = [], []
     exe = open(os.path.join(b, 'ITALIAN.EXE'), 'rb').read()
@@ -41220,7 +41240,7 @@ def stage_zones_data():
     bits 6-7: ARG Zona A / B 1-8 - shown when the stage table has group headers)"""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import zones
-    b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
+    b = ui_dir(os.environ.get('SWOSTEST_BUILD') or builds()['it'])
     f = os.path.join(b, 'DATA', 'ZONIT5.DAT')
     if not os.path.exists(f):
         return True, f'SKIP: {f} missing'
@@ -41249,7 +41269,7 @@ def career_homefirst():
     home and away): the list's last drawn row (its entries are reused row after row) read by position - an away (F)
     row, CHIVAS C AMERICA: the home club on the left; (C) rows AMERICA on the left; every row in the picture
     career_list (the played rows' scores home first); PROSS. PARTITA shown (next_match)"""
-    b = os.environ.get('SWOSTEST_BUILD') or builds()['it']
+    b = ui_dir(os.environ.get('SWOSTEST_BUILD') or builds()['it'])
     car = os.environ.get('HF_CAR') or os.path.join(MAIN, 'internal', 'reports', 'mex-apertura', 'MEX.CAR')
     club = os.environ.get('HF_CLUB', 'AMERICA')
     if not os.path.exists(car):

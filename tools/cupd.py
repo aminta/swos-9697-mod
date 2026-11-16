@@ -56,6 +56,8 @@ def compile_table(d, word):
         legs = r.get('legs', 1)
         draw = r.get('pairing') == 'draw'
         n = len(ms) if ri < 2 else nprev // 2       # (rounds 0-1: as listed, byes entering at 1; then halving)
+        assert not draw or n <= 2, (f"cup_d: round {ri} ({r.get('name')}) drawn with {n} ties - gplay.c draws at most 2 "
+                                    f"(cd_side reads CD_ST.sd[4]: a 3rd tie would read past it)")
         first, used = len(ties), set()
         for m in ms:
             for side in ('home', 'away'):

@@ -2332,6 +2332,10 @@ w_loadcopy:                             ; trailer LOADCOPY: LoadCareerFile read 
     mov edi, CAREER
     mov ecx, FIXED
     call w_copy
+    cmp byte [SWSEA], 0                 ; 4.2 (MC 15/11): a .SEA is a 1996-97 season (no world seasons yet): world 0,
+    je .nsea                            ; whatever byte a 4.2 / 4.1.x save kept from an earlier world career
+    mov word [SLTW], 0                  ; (+ its balance byte: the table keeps summing to 0)
+.nsea:
 %if NS_ON
     mov al, [SLTW]                      ; several worlds: the save's namespace again (w_ns_ld ran before this copy,
     call W_NS_SET                       ; on the previous career's world byte)
@@ -2669,6 +2673,36 @@ WI: dd 0
 WPTR: dd 0
 WPAIR: dd 0
 VAROFFS: VAROFF_WORDS
+
+sw_pick:                                ; SeasonMenu's picker call (after CONTINUA: the game in memory is given up; swe's
+    mov dword [SELBASEV], OLDSEL        ; swe_sea_tramp chains in front): a SEASON uses the game's team cache. A
+    mov dword [ROOMV], OLDROOM          ; big-cache career (big world, or upgraded) left SELBASEV on the big one: the
+    mov dword [SELPTR], OLDSEL          ; picker's and the season's teams went there and a world-0 .SEA (plain save)
+    jmp SW_PICK_NEXT                    ; wrote the empty game's cache - reload: FindTeamInCache int 3. (A fresh start
+                                        ; has these values; the picker keeps its choice in the cache: reset before it.)
+
+sw_init:                                ; SeasonMenu's `call InitNewSeason` (4.2, MC 15/11): a SEASON is world 0. After a
+    cmp byte [SLTW], 0                  ; world career someLeaguesTable still holds that world: its byte and the division
+    je .go                              ; deltas of its clubs (worlds reuse global numbers 0..), which only InitCareer
+    push ecx                            ; clears - with the byte alone set to 0 the season traps (0x17064). The whole
+    push edi                            ; table cleared, as a fresh start has it (a 1996-97 game, byte 0: unchanged).
+    mov edi, SLTB                       ; (byte loop: no string instructions, ES may differ from DS; leaguesTableCopy
+    mov ecx, SLT_N                      ; not touched: outside a career season end it is UnpackMenu's buffer)
+.z: mov byte [edi], 0
+    inc edi
+    dec ecx
+    jnz .z
+    pop edi
+    pop ecx
+.go:
+    jmp SW_INIT_NEXT
+
+sw_load:                                ; LoadOldCompetitionMenu's .SEA `call j_LoadCareerFile`: w_loadcopy sees SWSEA
+    mov byte [SWSEA], 1
+    call SW_LOAD_NEXT
+    mov byte [SWSEA], 0                 ; (mov keeps LoadCareerFile's ZF: the caller's jnz)
+    ret
+SWSEA: db 0
 '''
 
 
@@ -2696,6 +2730,23 @@ def sel_sites(p, d0):
     mmi = m.start()
     return {'old': old, 'selptr': selptr, 'ctick': ctick, 'ctn': ctn, 'pcf': pcf, 'cmenu': cmenu, 'mmi': mmi,
             'fix': {pcf: (pcf + 2, pcf + 6), cmenu: (cmenu + 2,), mmi: (mmi + 3,)}}
+
+
+def sea_sites(p, regs):
+    """4.2 (MC 15/11): SeasonMenu's `mov word [D1], ax; call InitNewSeason; mov [A6], offset contestMenu` (after
+    `mov word [D0], 3; call CareerInitVars`) and LoadOldCompetitionMenu's .SEA load `push [A0]; call j_LoadCareerFile;
+    pop [A0]; jnz` (j_: a jmp to LoadCareerFile, which the .CAR branch right after calls directly). obj1 call offsets."""
+    d1 = p.le.obj_bytes(1)
+    d0, a0, a6 = regs['D0R'], regs['A0R'], regs['A6R']
+    pk = lambda x: re.escape(struct.pack('<I', x))
+    tgt = lambda c: c + 5 + struct.unpack_from('<i', d1, c + 1)[0]
+    ini = [m.start(1) - 1 for m in re.finditer(rb'\x66\xa3' + pk(d0 + 4) + rb'\xe8(.{4})\xc7\x05' + pk(a6), d1, re.S)
+           if d1.rfind(b'\x66\xc7\x05' + struct.pack('<I', d0) + b'\x03\x00\xe8', m.start() - 0x30, m.start()) >= 0]
+    calls = [(m.start() + 6, tgt(m.start() + 6)) for m in re.finditer(
+        rb'\xff\x35' + pk(a0) + rb'\xe8.{4}\x8f\x05' + pk(a0) + rb'(\x75|\x0f\x85)', d1, re.S)]
+    ld = [c for c, t in calls if d1[t] == 0xE9 and any(0 < c2 - c < 0x40 and t2 == tgt(t) for c2, t2 in calls)]
+    assert len(ini) == 1 and len(ld) == 1, ('SeasonMenu InitNewSeason / .SEA load sites', ini, ld)
+    return {'init': ini[0], 'load': ld[0]}
 
 
 def patch_tails(p, at, nasmcave):
@@ -2736,6 +2787,13 @@ def patch_tails(p, at, nasmcave):
     sym['NS_ON'] = (0, int('w_ns_set' in LABELS))
     sym['W_NS_SET'] = (1, LABELS['w_ns_set']) if 'w_ns_set' in LABELS else (0, 0)
     sym['SLTW'] = (s['slt'][0], s['slt'][1] + WORLD_BYTE)
+    sea = sea_sites(p, s['regs'])
+    import bigtables                             # (the live table: bigtables' moved copy, limit_all() bytes, else the game's 2000)
+    sym['SLTB'], sym['SLT_N'] = s['slt'], (0, bigtables.limit_all() if bigtables.MOVED else 2000)
+    import historic                              # (the season selector's picker call: historic.patch found it, swe chains later)
+    sea['pick'] = historic.CALLS[1]
+    sym['SW_INIT_NEXT'], sym['SW_LOAD_NEXT'] = p.call_target(1, sea['init']), p.call_target(1, sea['load'])
+    sym['SW_PICK_NEXT'] = p.call_target(1, sea['pick'])
     sym['WCURV'] = (1, LABELS['WCUR']) if 'WCUR' in LABELS else (0, 0)
     sym['WNSBV'] = (1, LABELS['WNSB']) if 'WNSB' in LABELS else (0, 0)
     src = TAILS_ASM
@@ -2761,6 +2819,9 @@ def patch_tails(p, at, nasmcave):
     assert bytes(p.get(1, mmc, 5)) == orig[mmc:mmc + 5], 'another module patched SWOSMainMenuInit\'s first call'
     p.put(1, mmc, b'\xe8' + struct.pack('<i', labels['w_mmi'] - (mmc + 5)))   # (the mov stays the game's / SWOS++'s)
     p.retarget(1, LABELS['w_switch_dd'], 1, labels['w_switch'])
+    for k, stub in (('pick', 'sw_pick'), ('init', 'sw_init'), ('load', 'sw_load')):   # (4.2: a SEASON / .SEA is world 0)
+        p.branch(1, sea[k], 0xE8, 1, labels[stub])
+    print(f"exe: SEASON world 0: SeasonMenu picker obj1+{sea['pick']:#x} -> sw_pick, InitNewSeason obj1+{sea['init']:#x} -> sw_init ({sym['SLT_N'][1]} B table), .SEA load obj1+{sea['load']:#x} -> sw_load")
     print(f'exe: big world: team cache of {SEL_CAP} (saves budgeted at {SEL_N}) at obj2+{b + B_SEL:#x} (stage obj2+{b + B_STAGE:#x}, mark BIGC)')
     print(f'exe: big world .CAR block W1 ({WBLOCK} B, in the 80-record area) @ obj1+{at:#x}, records moved to obj2+{b:#x}')
     return (at + len(code) + 3) & ~3

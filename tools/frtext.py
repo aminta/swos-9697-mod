@@ -17,6 +17,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import complist
 import fmtgame
 import fmtpage
+import typofix
 
 LANGS = ('it', 'en', 'fr', 'de')
 EXE = {'it': 'ITALIAN.EXE', 'en': 'ENGLISH.EXE', 'fr': 'FRENCH.EXE', 'de': 'GERMAN.EXE'}
@@ -33,13 +34,12 @@ LABEL_NATIVE_DE = 'FREUND-SP'
 REC_NAME = {'it': 'AMICHEVOLI', 'en': 'FRIENDLIES', 'fr': 'MAT. AMICAUX', 'de': 'TESTSPIELE'}
 REC_NAME_NATIVE_DE = 'FREUND-SP'
 REC_LINE = {                             # the exe's own string, byte for byte (%0 won, %1 drawn, %2 lost: FR_ST +10
-    'it': 'VINCITE %0 PARREGGI %1 SCON %2',     # bits 4-12, 3 bits each, 0 .. 4)
+    'it': 'VINCITE %0 PAREGGI %1 SCON %2',      # bits 4-12, 3 bits each, 0 .. 4; IT: as the patched exe has it -
+                                                #  typofix.py fixes the original's PARREGGI in place, Davide 16/11)
     'en': 'WON %0  DRAWN %1  LOST %2',
     'fr': 'GAGNES %0 NULS %1  PERDUS %2',
     'de': 'SIEG %0  UNENT %1  VERL %2',
 }
-REC_LINE_ALT = {'it': 'VINTE %0  PARI %1  PERSE %2'}   # (the Italian exe's own string has a typo, PARREGGI: an
-#                                                         option for Davide, a new string instead of the game's)
 REC_NONE = '-'                           # no friendly played yet (the game's own aDash)
 
 CAL_PX = complist.CAL_PX                 # 70: the career calendar's label
@@ -191,8 +191,6 @@ def rows():
     for l in LANGS:
         out.append(('record line', l, REC_LINE[l], complist.px(rec_worst(REC_LINE[l])), REC_PX,
                     'season record, column 2'))
-    for l, s in REC_LINE_ALT.items():
-        out.append(('record line (option)', l, s, complist.px(rec_worst(s)), REC_PX, 'season record, column 2'))
     return out
 
 
@@ -215,7 +213,8 @@ def check(orig=None):
     if orig and all(os.path.exists(os.path.join(orig, e)) for e in EXE.values()):
         for l in LANGS:
             d = open(os.path.join(orig, EXE[l]), 'rb').read()
-            assert d.count(REC_LINE[l].encode() + b'\0') == 1, f'{l}: the record line is not the exe\'s own string'
+            src = next((o for o, f in typofix.FIXES.get(l, ()) if f == REC_LINE[l].encode()), REC_LINE[l].encode())
+            assert d.count(src + b'\0') == 1, f'{l}: the record line is not the exe\'s own string (typofix: as patched)'
             for s in ((LABEL[l], REC_NAME[l]) if l != 'de' else (LABEL_NATIVE_DE,)):
                 assert b'\0' + s.encode() + b'\0' in d, f'{l}: {s} is not the exe\'s own word'
             n += 1

@@ -1125,6 +1125,8 @@ def patch_exe(src, dst, remap, lang='it'):
     s7swap.late(p)                               # 4.2 S7: WSITES + their resolved bytes (engine items bound now)
     import uefaname
     print(f'exe: UEFA cup name fixed in {uefaname.patch(p)} strings (the original exes: EUFA)')   # 4.1.2 (Marco)
+    import typofix
+    print(f'exe: the original exe\'s typos fixed in {typofix.patch(p, lang)} strings (typofix.FIXES)')   # 4.2 (Davide: PAREGGI)
     delta, shift = p.save(dst)
     dd = os.path.join(os.path.dirname(os.path.abspath(dst)), 'DATA')
     if os.path.isdir(dd):                        # (the neutral finals' strings: exact in this exe / its DATA)

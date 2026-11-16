@@ -21,12 +21,30 @@ import drawgate  # noqa: E402
 FIELD = os.path.expanduser('~/swos-mod/internal/swostest/runs-acl2h-field/world_conti_hold_rec_w84_2')
 
 
+def _env_restored(f):
+    """drawgate.world_spec() sets SEASON_PACKS when it is unset: put the environment back after the test, so it
+    does not leak into the later host tests of the same process (MC 16/11)"""
+    def w(*a, **k):
+        prev = os.environ.get('SEASON_PACKS')
+        try:
+            return f(*a, **k)
+        finally:
+            if prev is None:
+                os.environ.pop('SEASON_PACKS', None)
+            else:
+                os.environ['SEASON_PACKS'] = prev
+    w.__name__ = f.__name__
+    w.__doc__ = f.__doc__
+    return w
+
+
 def _world():
     drawgate.world_spec()
     import conti
     return conti
 
 
+@_env_restored
 def test_compositions():
     rnd = random.Random(1)
     asb = bytes([1] * 4 + [2] * 3 + [3] * 3 + [4] * 6)      # (16 clubs, 4 pots of 4)
@@ -43,6 +61,7 @@ def test_compositions():
         assert any(sum(1 for i in o[:4] if asb[i] == a) == min(4, n) for o in cs), a
 
 
+@_env_restored
 def test_pot_sweep_refuses_illegal():
     conti = _world()
     L = drawgate.native()
@@ -59,6 +78,7 @@ def test_pot_sweep_refuses_illegal():
     del conti
 
 
+@_env_restored
 def test_fill_sweep_finds_9b14728():
     # (MC 16/11: the sweep is deterministic - fixed seeds 7/3/11/19/23/31 - so there is no retry: a result that depends on load is a
     #  build race, never a pass to hope for. Every native library is compiled into its own mkdtemp dir, nothing shared.)
@@ -76,6 +96,7 @@ def test_fill_sweep_finds_9b14728():
     assert any('0x11102' in str(f[4]) or 'refused' in str(f[4]) for f in r['fails']), r['fails'][:3]
 
 
+@_env_restored
 def test_field_hold_rec_dump():
     if not os.path.isdir(os.path.join(FIELD, 'ctsd_dump')):
         return                                              # (private run dir)

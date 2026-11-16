@@ -31549,11 +31549,13 @@ def world_s7redraw_regroup():
 @scenario
 def world_s7redraw_regroup_po():
     """S7 redraw + the Serie C play-off together (MC 16/11: the interaction the rc covers): GPLAY_FORCE=10, the career
-    club in the play-off; with s3dbl's fix (c4240eb) Serie B stays 20. See s7redraw_regroup."""
-    return s7redraw_regroup('10')
+    club in the play-off; with s3dbl's fix (c4240eb) Serie B stays 20. DPLAY_KOFORCE=1 (Nazionali 0d26c7e, 42-s3dbl): the
+    club loses every tie of its Serie C play-off, so it stays in Serie C and the regroup still moves it (girone 3 -> 4).
+    See s7redraw_regroup."""
+    return s7redraw_regroup('10', {'DPLAY_KOFORCE': '1'})
 
 
-def s7redraw_regroup(force):
+def s7redraw_regroup(force, extra=None):
     """S7 redraw (4.2, s7-redraw.md gate 3; Davide 15/11 "regola attuale al 78% e basta"): the career club changes GROUP inside its
     file at a season end - the redraw's own path (CONVENTIONS 14d: not a job change; the row, squad, money and record kept).
     CAMPOBASSO (Serie C girone B; the frozen rule on the real 2026-27 pack moves it to girone C at season 1's end: test_s7redraw_exe
@@ -31565,7 +31567,7 @@ def s7redraw_regroup(force):
     import json
     team = os.environ.get('S7RD_TEAM') or 'EUROPA,ITALIA,SERIE C GIRONE B,CAMPOBASSO'
     d0, d1 = (int(x) for x in (os.environ.get('S7RD_DIVS') or '3,4').split(','))
-    env = s7_env({'GPLAY_FORCE': force})
+    env = s7_env({'GPLAY_FORCE': force, **(extra or {})})
     if env is None:
         return True, 'SKIP: S7_PACK (the Italy pack: world5tm-h3s7r/ita for the redraw) or internal world5tm-h2 missing'
     exe = os.environ.get('S7_BUILD') or build('s7redraw', env=env)

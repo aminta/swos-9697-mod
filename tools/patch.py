@@ -1297,6 +1297,8 @@ def write_new_teams(src_dir, dst_dir):
     print(f'purple clubs: TEAM.{", ".join("%03d" % n for n in purple.VANILLA_FILES)} recoloured')
     import fmtgame                                    # 5.0 / 4.0: the FORMAT page's texts (fmtpage.py), per world
     items = [x for e in mkseason.ENABLED for x in fmtgame.from_pack(e if os.sep in e else os.path.join(mkseason.PACKS, e))] + fmtgame.world_items() + fmtgame.conti_items() + fmtgame.EXTRA
+    import frtext                                     # 4.2 friendlies: their FORMAT page, world 0 + the build's career worlds
+    items += frtext.format_items([0] + sorted({w['n'] for w in mkseason.world_defs()} - {0}))
     for name, k in fmtgame.write(dst_dir, items):
         print(f'{name}: FORMAT pages of {k} competitions')
     import zones                                      # 4.0: the league tables' zone colours, per world

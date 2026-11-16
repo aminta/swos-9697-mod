@@ -335,7 +335,7 @@ static NOINL int c_sub(void) {
 #if DP_FREC
 /* test builds (DPLAY_FREC = 1..3, MC 16/11): just before serie_c reads the Final Four record, make the real winner R of the career club's
    Serie C play-off ineligible (1st of its group in DP_IN: the game's own tables are not touched, the substitute is dplay's):
-   1: R -> 1st of its group; the final's loser goes up. 2: also the final's loser L is ineligible (1st of another group, or last of R's):
+   1: R -> 1st of its group; the final's loser goes up. 2: also the final's loser L is ineligible (taken out of the tables):
    the best semi-final loser goes up. 3: the career club is made the final's loser (the record is rewritten: the final is R v the
    career club); R -> 1st of its group: the career club goes up. Without the switch none of this is compiled in. */
 static void swap_rows(int g, int a, int b) { struct dp_row x = DP_IN.t[g][a]; DP_IN.t[g][a] = DP_IN.t[g][b]; DP_IN.t[g][b] = x; }
@@ -353,7 +353,7 @@ static void frec_force(void) {
         u8 e[4], o[2], j = 0;
         int ic = -1;
         for (int i = 0; i < v->n; i++) if (v->team[i] == DP_IN.mgr) ic = i;
-        if (ir < 0 || ic < 0 || ir == ic) return;
+        if (ic < 0 || ir == ic) return;
         for (int i = 0; i < v->n && j < 2; i++) if (i != ir && i != ic) o[j++] = i;
         e[0] = ir; e[1] = o[0]; e[2] = ic; e[3] = o[1];
         frec_set(v, e);
@@ -363,7 +363,7 @@ static void frec_force(void) {
     {
         u32 x = FREC(v);
         int w0 = (x >> (x >> 20 & 1 ? 5 : 0)) & 31, w1 = (x >> (x >> 21 & 1 ? 15 : 10)) & 31, l = w0 == ir ? w1 : w0, gl, kl;
-        if (l < v->n && find_team(v->team[l], &gl, &kl)) swap_rows(gl, kl, gl != gr ? 0 : DP_IN.n[gl] - 1);
+        if (find_team(v->team[l], &gl, &kl)) DP_IN.t[gl][kl].team = 0xFFFE;       /* (not in the tables: not eligible) */
     }
 #endif
     (void)ir;

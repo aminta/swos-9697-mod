@@ -11388,7 +11388,7 @@ def practice_work(r):
     return f
 
 
-def practice_play(kind, side, esc_at=None, again=False, goal=False):
+def practice_play(kind, side, esc_at=None, again=False, goal=False, handover=False, goaln=None):
     """4.2 set-piece practice, step 2 (the engine, MC 14/11): a World 2026-27 career (PRACTICE_BUILD / BENCH_BUILD: a
     release dir; TRAIN_PATH), SQUADRA -> TRAINING -> (DEFENCE: the switch) -> the kind's row -> the training game:
     the engine forces the set piece again and again (fire pressed throughout: the human takes its own kicks). Gates:
@@ -11471,7 +11471,7 @@ def practice_play(kind, side, esc_at=None, again=False, goal=False):
         gw = None                               # (goal: the watch of the poked attempt - its samples)
         goals = []                              # (goal: per poked attempt (nt, samples))
         poked = set()
-        gn = int(os.environ.get('PRACTICE_GOALN', '2'))
+        gn = goaln or int(os.environ.get('PRACTICE_GOALN', '2'))
         w16 = lambda r, o: struct.unpack('<h', r.obj2(o, 2))[0]
         for it in range(int(os.environ.get('PRACTICE_STEPS', '160')) + (600 * gn if goal else 0)):
             keys = 'fire:1 dump:1'
@@ -11511,7 +11511,7 @@ def practice_play(kind, side, esc_at=None, again=False, goal=False):
                                       rps=w16(r, g['RPS_O']), bx=w16(r, g['BALL_O'] + 0x20),
                                       by=w16(r, g['BALL_O'] + 0x24), bz=w16(r, g['BALL_O'] + 0x28),
                                       kv=w16(r, kof + 0x44), ki=w16(r, kof + 0x46), kx=w16(r, kof + 0x20),
-                                      ky=w16(r, kof + 0x24)))
+                                      ky=w16(r, kof + 0x24), kdx=w16(r, kof + 0x3A)))
                 if len(gw['smp']) in (3, 30) or (gw['smp'][-1]['rps'] and not gw['smp'][-2]['rps']):
                     s.shot(f'{tag}_goal{gw["nt"]}_{len(gw["smp"])}')
                 if getattr(s, 'gbplm', 0) == 1 and len(gw['smp']) >= 12:
@@ -11576,9 +11576,14 @@ def practice_play(kind, side, esc_at=None, again=False, goal=False):
                     brs = {q['brs'] for q in sm[scored[0]:rp[-1] + 1]}
                     check(len(brs) == 1, f'{name} goal #{gw["nt"]}: the ball reset during the goal / replay '
                           f'(BRS {sorted(brs)})', errs)
+                ho = [i for i, q in enumerate(sm) if q['kdx'] >= 800 and not q['rps'] and not q['irf']]
+                info.append(f'goal #{gw["nt"]}: keeper hand-over (destX sentinel >= 800) in {len(ho)} samples')
+                gw['ho'] = len(ho)
                 check(not miss, f'{name} goal #{gw["nt"]}: the keeper missing / out of his goal in {len(miss)} '
                       f'samples out of the replay (i, visible, x, y, gameState, ST) {miss[:8]}', errs)
                 check(any(q['nt'] > gw['nt'] for q in sm), f'{name} goal #{gw["nt"]}: no next attempt after it', errs)
+            check(not handover or any(gw.get('ho') for gw in goals), f'{name}: no keeper hand-over in any goal\'s '
+                  f'sequence ({len(goals)} goals; MC 16/11: the hand-over + the goal at once)', errs)
         if kind in ('fk', 'pen') and 'BRS' in practice.WK:
             check(hang == 0 and w['BRS'] >= 1, f'{name}: the ball in the air after the whistle in {hang} samples, '
                   f'balls reset {w["BRS"]} (want 0 / >= 1)', errs)
@@ -12136,6 +12141,23 @@ def practice_fkgoal_att():
     """practice_play('fk', 'att', goal=True): Davide 16/11 (REL42vs1): a free-kick goal - the ball stays in the net
     until the replay, the replay plays, the keeper visible and in goal until the next kick (ATTACK)."""
     return practice_play('fk', 'att', goal=True)
+
+
+@scenario
+def practice_fkgoal_handover():
+    """practice_play('fk', 'def', goal=True, handover=True, goaln=4): MC 16/11 - both fixes at once: a free-kick goal
+    whose sequence carries the keeper's hand-over (destX = x +- 1000, the sentinel - UpdatePlayers' goalie destination
+    from freeKickDestX): the ball in the net until the replay, the keeper never teleported off the pitch, visible and in
+    goal; >= 1 goal with the hand-over. DEFENCE: on REL42pg3 the ATTACK free kicks never carried it (6 goals, one per
+    spot, 0 samples), DEFENCE did (14 samples; the control 3c24ea8 FAILs there, keeper at x 1344)."""
+    return practice_play('fk', 'def', goal=True, handover=True, goaln=4)
+
+
+@scenario
+def practice_pengoal_handover():
+    """practice_play('pen', 'att', goal=True, handover=True, goaln=3): as practice_fkgoal_handover for penalties (the
+    keeper's sentinel there on every award)."""
+    return practice_play('pen', 'att', goal=True, handover=True, goaln=3)
 
 
 @scenario

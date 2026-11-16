@@ -430,6 +430,6 @@ def patch(p, ssyms, rsyms, gsyms, pgsyms, fsyms, risyms):
         LABELS['ST_CUR'] = stadium.LABELS['st_cur']    # (world_s7cross_*: the versus screen's current / home word pair)
     LABELS.update({k: ext[k] for k in ('S7_NUMSEL', 'S7_SELBASE', 'S7_CFB', 'S7_ENI', 'S7_SELTEAM', 'S7_CTLEAGUE', 'S7_CTEAM')})   # (host tests)
     print(f'exe: S7 swap builder (s7swap.c) obj4+{swreg.S7SWAP_AT:#x}..{end:#x} of {swreg.S7SWAP_END:#x}: structs '
-          f'{fa} / {fb}, boundary levels {up} / {lo}, globals {gb}, {len(area)} idents (homes {hr}); S7_LOG obj4+{syms["S7_LOG"][1]:#x}; load apply: {names[0]} / {names[1]} '
+          f'{fa} / {fb}, boundary levels {up} / {lo}, globals {gb}, {len(area)} idents (homes {hr}); S7_LOG obj4+{syms["S7_LOG"][1]:#x}; S7_SZ obj4+{syms["S7_SZ"][1]:#x}; load apply: {names[0]} / {names[1]} '
           f'({nrec[fa]} / {nrec[fb]} records) in S7_ORIG, S7_LD obj4+{syms["S7_LD"][1]:#x}')
     return end

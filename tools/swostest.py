@@ -4462,6 +4462,13 @@ def s7_size_offsets(exe):
             return sy['S7_LOG'][1], sy['S7_SZ'][1]
     except (OSError, ValueError):
         pass
+    try:                                           # (a RELEASE build has no syms.json: its build.log, next to SWOS/, names both -
+        for ln in open(os.path.join(os.path.dirname(os.path.normpath(exe)), 'build.log'), errors='replace'):   # MC 16/11)
+            m = re.search(r'S7_LOG obj4\+(0x[0-9a-f]+); S7_SZ obj4\+(0x[0-9a-f]+);', ln)
+            if m:
+                return int(m.group(1), 16), int(m.group(2), 16)
+    except OSError:
+        pass
     return None, None
 
 

@@ -337,7 +337,7 @@ def patch(p, ssyms, rsyms, gsyms, pgsyms, fsyms, risyms):
     flags += (f'-DS7RI_NSTR={len(srows)}',)
     gobj = cobj.compile_c(SRC_GEO, (), sections=True)    # (4.2 geography: its own band, linked first: s7ri.c's reset of the log is an extern)
     gsy, gend, gbss = cobj.link(p, gobj, swreg.S7GEO_AT, (4, 0), limit=swreg.S7GEO_END - 256, text_obj=4,
-                                roots=['s7geochain', 's7geo_ll', 'S7GEO_NEIGH', 'S7GEO_ON', 'S7GEO_LOG', 'S7GEO_NLOG', 'S7GEO_BAD', 'S7GEO_XY', 'S7GEO_HAVE',
+                                roots=['s7geochain', 's7geo_ll', 's7rd_near', 'S7GEO_NEIGH', 'S7GEO_ON', 'S7GEO_LOG', 'S7GEO_NLOG', 'S7GEO_BAD', 'S7GEO_XY', 'S7GEO_HAVE',
                                        'S7GEO_FILE', 'S7GEO_BASE', 'S7GEO_IDENT'])
     assert not gbss, ('s7geo.c: no .bss', gbss)
     ext['S7GEO_NLOG'] = gsy['S7GEO_NLOG'][:2]
@@ -422,6 +422,7 @@ def patch(p, ssyms, rsyms, gsyms, pgsyms, fsyms, risyms):
     LABELS.clear()
     LABELS.update(syms)
     LABELS.update({k: v for k, v in gsy.items() if k.startswith('S7GEO_')})   # (the S7GEO band's data: the harness's chain log)
+    LABELS['S7GEO_NEAR'] = gsy['s7rd_near']             # (42-s7trap: sreg2.c's call; not 's7geo_ll' - cdkn.py would start reading that key)
     LABELS.update(WNL)
     if 'st_cur' in stadium.LABELS:
         LABELS.update(ST_FIND=stadium.LABELS['st_find'], ST_GT1=stadium.LABELS['GT1'], ST_TOP=stadium.LABELS['TOP'])

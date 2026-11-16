@@ -25,6 +25,9 @@ typedef unsigned int uint32_t;
 typedef int int32_t;
 #include "swce/swosrules.h"                     /* (prototypes only: sr_reg_build / check from sreg.c, sr_reg_season /
                                                    sr_wmap_import from s7swap.c - the library's one copy each) */
+/* 42-s7trap: the redraw's own distance for a pending club whose spec group is full (s7geo.c in the S7GEO band) */
+extern int32_t s7rd_near(int32_t n, const uint16_t *word, const uint8_t *nd, const uint8_t *div, int32_t ng, uint32_t room, int32_t cw);
+#define IMP_NEAR(r, n, nd, div, ng, room, c) s7rd_near(n, (r)->word, nd, div, ng, room, (r)->word[c])
 #include "sreg_import.c"
 
 #define DATA __attribute__((section(".data")))

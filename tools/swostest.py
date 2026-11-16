@@ -4451,6 +4451,20 @@ def zone_colours():
     return not errs, '; '.join(errs + info) if errs else '; '.join(info)
 
 
+S7_SIZE_SEEN = []                           # (42-s7trap: (season, S7_LOG, S7_SZ) hex of every refused S7 season end seen by world8485)
+
+
+def s7_size_offsets(exe):
+    """(obj4 offset of s7swap's S7_LOG, of S7_SZ) from the build's ITALIAN.syms.json, None when the build has no S7 swap / no syms"""
+    try:
+        sy = json.load(open(os.path.join(exe, 'ITALIAN.syms.json'))).get('s7swap', {})
+        if 'S7_LOG' in sy and 'S7_SZ' in sy and sy['S7_LOG'][0] == 4 and sy['S7_SZ'][0] == 4:
+            return sy['S7_LOG'][1], sy['S7_SZ'][1]
+    except (OSError, ValueError):
+        pass
+    return None, None
+
+
 @scenario
 def world8485():
     """Europe 1984-85 world (world 4): new career at Liverpool, two seasons (save, reload, save), checkw1 on both"""
@@ -4463,6 +4477,7 @@ def world8485():
                                       os.environ.get('HT_SNAP_OUT') or os.path.join(RUNS, 'ht_snap'),
                                       int(os.environ.get('HT_SNAP_WEEKMIN', 0)), int(os.environ.get('HT_SNAP_MAX', 12)))[0]
     out, msgs = [], []
+    del S7_SIZE_SEEN[:]
     first = os.environ.get('W8485_FROM')                   # resume from a season-1 save (W84A.CAR)
     if first:
         out, msgs = [first], [f'season 1: from {first}']
@@ -4543,7 +4558,13 @@ def world8485():
                                  else None), []
             sack = sack_site(os.path.join(exe, 'ITALIAN.EXE')) if renew is not None else None
 
+            s7_lg, s7_sz = s7_size_offsets(exe)
+
             def hexlog():                              # W8485_HEX: obj2 offset:bytes (o1/ prefix: obj1, o3/: obj3, o4/),
+                if s7_lg is not None:                  # (42-s7trap, HARNESS-WIDE: every S7 scenario FAILs on a refused season - S7_LOG.status
+                    v = s.result.read(s.result.lin((4, s7_lg)), 8)   # 13 = S7_SIZE - at any logged point; world8485's final check)
+                    if v[1] == 13:
+                        S7_SIZE_SEEN.append((season, v.hex(), s.result.read(s.result.lin((4, s7_sz)), 12).hex()))
                 for a in filter(None, os.environ.get('W8485_HEX', '').split(',')):   # logged when they change
                     o, n = a.split(':')
                     if o[:3] in ('o1/', 'o3/', 'o4/'):
@@ -4737,6 +4758,8 @@ def world8485():
         open(os.path.join(RUNS, f'{w84_tag()}_{season}', 'checkw1.txt'), 'w').write(report + '\n')
         if not good:
             return False, '; '.join(msgs) + '\n' + report
+        if S7_SIZE_SEEN:
+            return False, f'S7_SIZE: a refused S7 season (S7_LOG.status 13: S7_LOG / S7_SZ {S7_SIZE_SEEN[-1]}): a bug to find, never a pass; ' + '; '.join(msgs)
     return True, '; '.join(msgs)
 
 
@@ -30892,6 +30915,207 @@ def world_s7cross_c20():
         info.append(f'season {season if season == 1 else n}: S7_LOG {logs[-1].hex() if logs else None}, '
                     f'{len(lds)} S7_LD logged')
     return not errs, '; '.join(errs) or f'{msg[:200]}; ' + '; '.join(info)
+
+
+def s7_division_counts(car, src):
+    """4.2 S3 x S7 (MC 15/11): clubs per division of Italy's S7 pack after a season end: the pack's division
+    (pk.division) + the signed delta byte of its global in the save's SLTCOPY (CAR 0xE8DC, one byte per global; the
+    game's own 8-bit sum check is absorbed by the BAL byte, so only membership shows a double move). Returns (before,
+    after) {division: clubs}; 0 = Serie A, 1 = B, 2..4 = the Serie C groups, 5.. = Serie D. src = the world data dir"""
+    import collections
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    eu = sorted(os.path.join(ROOT, 'packs', 'europe-1984-85', d) for d in os.listdir(os.path.join(ROOT, 'packs', 'europe-1984-85'))
+                if os.path.isdir(os.path.join(ROOT, 'packs', 'europe-1984-85', d)))
+    order = [ln.split()[0].lower() for ln in open(src.rstrip('/') + '.txt') if ' file ' in ln]
+    old = os.environ.get('SEASON_PACKS')
+    os.environ['SEASON_PACKS'] = ','.join(['ddr-1988-89', 'italia-1947-48', 'world-cup-1934'] + eu + [os.path.join(src, x) for x in order])
+    try:
+        pk = next(p for p in mkseason_now().packs() if p.meta.get('id') == 'world-2026-27-ita')
+    finally:
+        if old is None:
+            os.environ.pop('SEASON_PACKS')
+        else:
+            os.environ['SEASON_PACKS'] = old
+    import bigtables                                # (42-s7trap, MC 16/11: THE HELPER'S SERIE D COUNTS WERE A MEASUREMENT ARTEFACT. The save holds the
+    import globnum                                  # table in two parts: globals 0..1999 at CAR 0xE8DC, 2000..LIMIT_CLUBS-1 in the fixed part's 80-record
+    raw = open(car, 'rb').read()                    # area (bigtables.ext_off(): CAR offset 2 + ext_off). Reading only the first 2000 bytes, with
+    slt = raw[0xE8DC:0xE8DC + 2000] + raw[2 + bigtables.ext_off():2 + bigtables.ext_off() + bigtables.LIMIT_CLUBS - 2000]   # base + row for
+    c0, c1 = collections.Counter(), collections.Counter()   # file 144's rows 156.. (their globals are the second run, 2283..), it counted other
+                                                    # rows' deltas for them: Shaved's 'D G 17 / I 19', 'D A 17 / B 17 / I 20'. The game's live
+                                                    # SOME / COPY tables of those runs hold 9 x 18)
+    for k in pk.league_clubs:
+        fl, i = pk.where[k]
+        c0[pk.division[k]] += 1
+        g = globnum.glob(pk, fl, i)
+        c1[pk.division[k] + struct.unpack('b', slt[g:g + 1])[0]] += 1
+    return dict(sorted(c0.items())), dict(sorted(c1.items()))
+
+
+@scenario
+def world_s3dbl_fresh():
+    """4.2 BLOCKER (TRENTO double promotion, MC 15/11): a NEW S7 career, the club forced into / winning the Serie C
+    play-off (S3_BUILD = a build with DPLAY_FORCE=105; W2627REL_DATA = the S7 data, default internal/world2526/
+    world5tm-h3s7), one season: after the season end every division of Italy keeps its size (Serie B 20, the Serie C
+    groups 20 each, D 18): a club promoted by both dplay and gplay leaves Serie B at 21 and a C group at 19"""
+    src = (os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-h3s7')).rstrip('/')
+    exe = os.environ.get('S3_BUILD')
+    if not exe or not os.path.isdir(src):
+        return True, f'SKIP: S3_BUILD ({exe}) or the S7 data {src} missing'
+    team = os.environ.get('S3_TEAM', 'EUROPA,ITALIA,SERIE C GIRONE A,TRENTO')
+    keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K',
+                                            'W8485_NOSACK', 'W8485_ONE', 'W2627REL_DATA')}
+    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+',
+                      W8485_NOSACK='1', W8485_ONE='1', W2627REL_DATA=src)
+    try:
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    errs = []
+    check(ok, msg, errs)
+    car = os.path.join(RUNS, w84_tag() + '_1', 'SWOS', 'W84A.CAR')
+    if not os.path.exists(car):
+        return False, f'{msg}; no season-end save {car}'
+    c0, c1 = s7_division_counts(car, src)
+    top = lambda c: {k: v for k, v in c.items() if k < 5}            # (A, B, the 3 Serie C groups: MC's gate; the Serie D / lower
+    check(top(c0) == top(c1), f'division sizes changed at the season end: before {top(c0)} after {top(c1)}', errs)   # pool
+    #  divisions move with the lower tiers' own pool moves, in the control too)
+    return not errs, '; '.join(errs) or f'{msg[:120]}; division sizes kept {c1}'
+
+
+@scenario
+def world_s3dbl_c20():
+    """4.2 BLOCKER (TRENTO double promotion, MC 15/11): career_20seasons (C20_SEASONS, default 2: a save + reload every
+    season) on a fresh S7 career at TRENTO with the Serie C play-off forced (S3_BUILD = DPLAY_FORCE=105 build) - after
+    EVERY season end Serie A, Serie B and the three Serie C groups hold 20 clubs (pack division + the save's SLTCOPY
+    deltas, s7_division_counts): next season B 20 and C groups 20 each"""
+    src = (os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-h3s7')).rstrip('/')
+    exe = os.environ.get('S3_BUILD')
+    if not exe or not os.path.isdir(src):
+        return True, f'SKIP: S3_BUILD ({exe}) or the S7 data {src} missing'
+    keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'C20_TEAM', 'C20_SEASONS', 'W2627REL_DATA')}
+    os.environ.update(W8485_BUILD=exe, C20_TEAM=os.environ.get('S3_TEAM', 'EUROPA,ITALIA,SERIE C GIRONE A,TRENTO'),
+                      C20_SEASONS=os.environ.get('C20_SEASONS') or '2', W2627REL_DATA=src)
+    try:
+        ok, msg = career_20seasons()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    errs, info = [], []
+    check(ok, f'career_20seasons: {msg[:300]}', errs)
+    n = int(os.environ.get('C20_SEASONS') or 2)
+    for season in range(1, n + 1):
+        car = os.path.join(RUNS, f'c20_after_s{season:02d}.CAR')          # (career_20seasons' copy of every season end's save)
+        if not os.path.exists(car):
+            check(False, f'season {season}: no save {car}', errs)
+            continue
+        c0, c1 = s7_division_counts(car, src)
+        top = {k: v for k, v in c1.items() if k < 5}
+        check(all(v == 20 for v in top.values()) and len(top) == 5, f'season {season}: divisions A, B, C groups {top} (want 20 each)', errs)
+        info.append(f'season {season}: A/B/C {sorted(top.items())}')
+    return not errs, '; '.join(errs) or f'{msg[:120]}; ' + '; '.join(info)
+
+
+def s7_live_counts(run, files=((102, 100), (144, 162))):
+    """4.2 S7 trap (42-s7trap): the game's REAL team-file buffers in a run's last MEMDUMP (no pack, no SLTCOPY: the clubs'
+    league byte, record +25, as LoadTeamFile left it) - {file: [(buffer linear, {league: clubs})]} for each buffer that
+    holds the whole shaped file (its BE count word right before the records). Needs the run's DATA/TMW5.<file> (the
+    shipped record 0's name finds the buffers). Also the trap's own state: obj2's D0 (+0x315b7: clubs counted), D1
+    (+0x315bb: the division asked) and D2 (+0x315bf: the clubs the game expects) - cseg_3283C's check, which traps at
+    obj1+0x22705 (ITALIAN.EXE) when they differ."""
+    import collections
+    path = os.path.join(run, 'MEMDUMP.BIN')
+    mem = open(path, 'rb').read()
+    out = {}
+    for f, n in files:
+        d = open(os.path.join(run, 'SWOS', 'DATA', f'TMW5.{f}'), 'rb').read()
+        nm = d[2 + 5:2 + 22]
+        k = mem.find(nm)
+        while k >= 0:
+            b = k - 5
+            if struct.unpack('>H', mem[b - 2:b])[0] == n:
+                out.setdefault(f, []).append((b, dict(sorted(collections.Counter(
+                    mem[b + i * 684 + 25] for i in range(n)).items()))))
+            k = mem.find(nm, k + 1)
+    return out
+
+
+def s7_trap_state(run):
+    """(D0 counted, D1 division, D2 expected) read from a run's last MEMDUMP.BIN: obj2 found by the exe's own bytes"""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    from le import LE
+    le = LE(open(os.path.join(run, 'SWOS', 'ITALIAN.EXE'), 'rb').read())
+    mem = open(os.path.join(run, 'MEMDUMP.BIN'), 'rb').read()
+    o2 = le.obj_bytes(2)
+    for off in range(0x2000, len(o2) - 64, 0x1000):
+        c = o2[off:off + 48]
+        if len(set(c)) > 8:
+            k = mem.find(c)
+            if k >= 0 and mem.find(c, k + 1) < 0:
+                b2 = k - off
+                return tuple(struct.unpack_from('<H', mem, b2 + o)[0] for o in (0x315b7, 0x315bb, 0x315bf))
+    return None
+
+
+@scenario
+def world_s7trap_c20():
+    """4.2 BLOCKER (S7 season-end trap at obj1+0x22705, 42-s7trap): the release-data S7 world (W2627REL_DATA, default
+    world5tm-h3s7rl3) with the career club (S7TRAP_TEAM, default TRENTO, Serie C girone A) forced into the Serie C
+    play-off (DPLAY_FORCE=105 test build, own build from this checkout) - career_20seasons (S7TRAP_SEASONS, default 2:
+    a save + reload each) must reach its end with no trap. After EVERY season end the REAL state is read: the game's
+    team-file buffers (s7_live_counts: records' league byte) hold B 20 / C 3x20 in file 102 and 9x18 in file 144; a
+    trap reports its own D0 / D1 / D2 (the division the game counted, the clubs found, expected: s7_trap_state)."""
+    src = (os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-h3s7rl3')).rstrip('/')
+    if not os.path.isdir(src):
+        return True, f'SKIP: the S7 data {src} missing'
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    eu = sorted(os.path.join(ROOT, 'packs', 'europe-1984-85', d) for d in os.listdir(os.path.join(ROOT, 'packs', 'europe-1984-85'))
+                if os.path.isdir(os.path.join(ROOT, 'packs', 'europe-1984-85', d)))
+    exe = os.environ.get('S7TRAP_BUILD') or build('s7trap_c20', env={
+        'SEASON_PACKS': ','.join(['ddr-1988-89', 'italia-1947-48', 'world-cup-1934'] + eu + [os.path.join(src, x) for x in order]),
+        'DPLAY_FORCE': os.environ.get('S7TRAP_FORCE', '105'), 'EURO_OPTIONAL': ''}, euro=True)
+    n = int(os.environ.get('S7TRAP_SEASONS') or 2)
+    keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'C20_TEAM', 'C20_SEASONS', 'W2627REL_DATA')}
+    os.environ.update(W8485_BUILD=exe, C20_TEAM=os.environ.get('S7TRAP_TEAM', 'EUROPA,ITALIA,SERIE C GIRONE A,TRENTO'),
+                      C20_SEASONS=str(n), W2627REL_DATA=src)
+    try:
+        ok, msg = career_20seasons()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    errs, info = [], []
+    want = {0: 20, 1: 20, 2: 20, 3: 20, 4: 20}
+    if not ok:
+        import glob as _g
+        dumps = sorted(_g.glob(os.path.join(RUNS, '*', 'MEMDUMP.BIN')), key=os.path.getmtime)[-1:]   # (the run that trapped)
+        for dmp in dumps:
+            run, sfx = os.path.dirname(dmp), os.path.basename(os.path.dirname(dmp))
+            if True:
+                try:
+                    d0, d1, d2 = s7_trap_state(run)
+                    lv = s7_live_counts(run).get(102, [])
+                    info.append(f'{sfx} trap state: counted D0={d0} of division D1={d1}, expected D2={d2}; file 102 buffers {lv}')
+                except Exception as e:                  # noqa: BLE001 (a diagnosis must not hide the FAIL)
+                    info.append(f'{sfx}: {e!r}')
+    check(ok, f'career_20seasons: {msg[:300]}', errs)
+    for season in range(1, n + 1):
+        car = os.path.join(RUNS, f'c20_after_s{season:02d}.CAR')
+        if not os.path.exists(car):
+            continue
+        c0, c1 = s7_division_counts(car, src)
+        top = {k: v for k, v in c1.items() if k < 5}
+        check(all(v == 20 for v in top.values()) and len(top) == 5, f'season {season}: save counts A, B, C groups {top} (want 20 each)', errs)
+        info.append(f'season {season}: save A/B/C {sorted(top.items())}')
+    return not errs, '; '.join(errs + info) or f'{n} seasons, no trap'
 
 
 @scenario

@@ -263,6 +263,7 @@ def patch_import(p, syms_swe, s7l):
                 'IMP_COMPTAB': (2, comp),
                 'IMP_DIY': (sel[0], sel[1] + 0x8820)})        # (IDA DF4F6 competitionFileBuffer - D6CD6)
     ext.update({k: s7l[k] for k in ('S7_AREG', 'S7_CLOG', 's7_imp_walk', 's7_flush', 'sr_reg_season', 'sr_wmap_import')})
+    ext['s7rd_near'] = s7l['S7GEO_NEAR']
     # (Panchina 15/11) the selTeamNumber-relative variables are the game's own in THIS exe (CD / GOG, every language): each
     # address is the target of obj1 code fixups (ProcessCareerFile / InitializeNewSeason / cseg_8F1F2 read them)
     import collections

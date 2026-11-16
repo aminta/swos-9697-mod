@@ -12,6 +12,7 @@ with worlds 0 / 4 / 5 and the 1996-97 world entry (WMENU + 0). No snapshot.
 - the 1996-97 entry: 200 lists 6 proxies whose records equal the game's continents 80..85 byte for byte (pointers too);
 - DIY: a contest with a career world saves the game's file + 'WM' 1 world; one of 1996-97 clubs alone, the game's file
   only; loading reads the world back, and reads 0 from a file without the block, or of another size."""
+import json
 import os
 import struct
 import sys
@@ -127,11 +128,23 @@ def test_wmodes():
     pre, post = _e8(rd, cs[0]), _e8(rd, cs[2])
     into4 = [a for a in range(B1, B1 + sizes[0] - 5) if rd(a, 1) == b'\xe8' and B4 <= _e8(rd, a) < B4 + swreg.REG_AT]
     nstr = [_e8(rd, a) for a in into4 if a - B1 not in (site,) + tuple(c for c, _ in calls)]
-    car = [t for t in nstr if rd(t, 2) == b'\x60\xe8']       # (M3: the career's team choice, swe_car_tramp)
-    av = [t for t in nstr if t not in car and rd(t + 1, 3) != b'\x0f\xb6\xc0']   # (step 2.5: the preset / season
-    nstr = [t for t in nstr if t not in car and t not in av]                     # selectors' tramps, -DAV builds)
-    if len(nstr) != 1 or len(car) != 1 or len(av) not in (0, 2):
-        return False, f'obj1 calls into obj4: {[hex(a - B1) for a in into4]} (the picker, DIY save / load, w_ns_menu)'
+    sy = json.load(open(os.path.splitext(exe)[0] + '.syms.json'))   # (the build's own names of its obj4 targets - the
+    name4 = {B4 + v[1]: k for d in sy.values() if isinstance(d, dict)  #  source of truth, not the tramps' byte shapes:
+             for k, v in d.items() if isinstance(v, list) and len(v) == 2 and v[0] == 4}   # S6a's s6_sea_tramp)
+    nm = [name4.get(t, '?') for t in nstr]
+    car = [t for t, n in zip(nstr, nm) if n == 'swe_car_tramp']   # (M3: the career's team choice)
+    av = [t for t, n in zip(nstr, nm) if n in ('swe_pre_tramp', 'swe_sea_tramp', 's6_sea_tramp')]   # (step 2.5: the
+    nstr = [t for t, n in zip(nstr, nm) if n == 'swe_ns_tramp']   #  preset / season selectors' tramps, -DAV builds)
+    s6t = sy.get('s6sea', {}).get('s6_sea_tramp')   # (S6a: SeasonMenu's picker call re-pointed to s6sea.c's tramp, in
+    if s6t and len(av) == 1:                        #  the S6 band past REG_AT - exactly one obj1 call reaches it)
+        s6c = [a for a in range(B1, B1 + sizes[0] - 5) if rd(a, 1) == b'\xe8' and _e8(rd, a) == B4 + s6t[1]]
+        if len(s6c) != 1:
+            return False, f'S6a: obj1 calls into s6_sea_tramp {[hex(a - B1) for a in s6c]} (want 1: SeasonMenu\'s picker)'
+        av.append(B4 + s6t[1])
+        nm.append('s6_sea_tramp')
+    if len(nstr) != 1 or len(car) != 1 or len(av) not in (0, 2) or len(nm) != 2 + len(av):
+        return False, (f'obj1 calls into obj4: {[hex(a - B1) for a in into4]} -> {nm} (the picker, DIY save / load, '
+                       f'w_ns_menu; want swe_ns_tramp, swe_car_tramp + the two selectors or none)')
     ns = _e8(rd, nstr[0] + 4 + 1)
     import re
     import sacups                                 # (careerworld's gametype site: the career menu's `cmp [g_gameType], 4`)

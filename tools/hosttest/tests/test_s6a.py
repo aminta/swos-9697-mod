@@ -23,7 +23,10 @@ C = {('gplay', 'gp_notin'), ('gplay', 'cf_a6'), ('gplay', 'cf_mem'), ('gplay', '
      ('careerworld', 'w_dok'), ('careerworld', 'w_se'), ('gplay', 'gp_mrec'), ('gplay', 'gp_sack'), ('gplay', '.e'),
      ('gplay', 'gp_sc'), ('gplay', 'gp_scgl'), ('gplay', 'vc5_lay'), ('gplay', '.e8'), ('kitcolors', 'km_mode'),
      ('kitcolors', 'km_keep'), ('kits', 'kk_club'), ('kits', 'kk_rec'), ('quietend', 'qe_call'), ('winners', '.close'),
-     ('winners', '.x')}
+     ('winners', '.x'),
+     ('gplay', '.free'), ('gplay', '.t')}   # (S6a (A), 4.2: gp_install's slot-4 CAREERTEAM swap and gp_hrest_c - a career
+     # keeps the original path (careerTeam, no flag reset); the other branch is a world SEASON's own (proof:
+     # swostest world_season_ko 6/6, world_title_mlt / _ita))
 LAB = re.compile(r'^(\.?[A-Za-z_][\w.]*):')
 
 

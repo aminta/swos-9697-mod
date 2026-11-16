@@ -13,12 +13,13 @@ import struct
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import fixroot  # noqa: E402
 import test_s7swap as t7  # noqa: E402
 import test_registry as tr  # noqa: E402
 import test_swc1 as ts  # noqa: E402
 
 HOME = os.path.expanduser('~')
-EXE = os.environ.get('HT_BT_EXE') or os.path.join(HOME, 'swos-mod', 'c', 'S7W-ws4c', 'SWOS', 'ITALIAN.EXE')
+EXE = os.environ.get('HT_BT_EXE') or fixroot.fx('S7W-ws4c', 'SWOS', 'ITALIAN.EXE')
 
 
 def test_bteam_s7():

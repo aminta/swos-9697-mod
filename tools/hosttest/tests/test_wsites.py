@@ -25,12 +25,13 @@ import sys
 import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import fixroot  # noqa: E402
 TOOLS = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
 sys.path.insert(0, TOOLS)
 import wsites  # noqa: E402
 
 HOME = os.path.expanduser('~')
-EXE = os.environ.get('HT_WS_EXE') or os.path.join(HOME, 'swos-mod', 'c', 'S7W-ws4c', 'SWOS', 'ITALIAN.EXE')
+EXE = os.environ.get('HT_WS_EXE') or fixroot.fx('S7W-ws4c', 'SWOS', 'ITALIAN.EXE')
 
 PROBE = r'''
 typedef unsigned char u8; typedef unsigned short u16; typedef unsigned int u32; typedef signed char s8;

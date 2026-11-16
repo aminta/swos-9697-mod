@@ -19,10 +19,11 @@ import struct
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import fixroot  # noqa: E402
 import test_s7swap as t7  # noqa: E402
 
 HOME = os.path.expanduser('~')
-EXE = os.environ.get('HT_S7RI_EXE') or os.path.join(HOME, 'swos-mod', 'c', 'S7RI-hs', 'SWOS', 'ITALIAN.EXE')
+EXE = os.environ.get('HT_S7RI_EXE') or fixroot.fx('S7RI-hs', 'SWOS', 'ITALIAN.EXE')
 NONE = 0xFFFF
 RIMV_BAD = 12
 

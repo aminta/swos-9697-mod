@@ -15,10 +15,11 @@ import struct
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import fixroot  # noqa: E402
 import test_registry as tr  # noqa: E402
 
 HOME = os.path.expanduser('~')
-EXE = os.environ.get('HT_CHAMP_EXE') or os.path.join(HOME, 'swos-mod', 'c', 'HTMC', 'SWOS', 'ITALIAN.EXE')
+EXE = os.environ.get('HT_CHAMP_EXE') or fixroot.fx('HTMC', 'SWOS', 'ITALIAN.EXE')
 REC = 684
 
 

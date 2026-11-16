@@ -19,7 +19,15 @@ if __name__ == '__main__':
     for f in sorted(glob.glob(os.path.join(HERE, 'tests', 'test_*.py'))):
         spec = importlib.util.spec_from_file_location(os.path.basename(f)[:-3], f)
         mod = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(mod)
+        try:
+            spec.loader.exec_module(mod)
+        except Exception as e:      # (42-fixroot: a stale / edited fixture (manifest mismatch) fails its module, not the run)
+            if sel and sel not in os.path.basename(f):
+                continue
+            bad += 1
+            n['FAIL'] += 1
+            print(f"FAIL {os.path.basename(f)[:-3]} (0.00 s) {type(e).__name__}: {e}")
+            continue
         for name in sorted(n for n in dir(mod) if n.startswith('test_') and sel in n):
             t = time.time()
             try:

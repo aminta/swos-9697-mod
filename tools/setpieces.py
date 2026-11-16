@@ -644,7 +644,11 @@ sp_kick:
     mov word [ebp + FK_N - SPB], 0
     mov byte [ebp + FK_ST - SPB], 1
 .d: popad
-.x: mov eax, [ebp]
+.x:
+%if TRHD_ON
+    call near TRH + 10                  ; (tr_kick: POSITION TRAITS (2), the kick's record; registers and flags kept)
+%endif
+    mov eax, [ebp]
     mov eax, [eax + KDZ_O]
     pop ebp
     ret

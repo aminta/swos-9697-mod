@@ -3189,7 +3189,13 @@ static void ko_copy(struct gp_ko *d, const struct gp_ko *s) {   /* (no memcpy in
 #ifndef GP_PORT
 #define GP_PORT 0                       /* (4.2 fixture port P2 builds: fpad.py; 0 = no byte of it) */
 #endif
-#if GP_PORT
+#ifndef GP_FRND
+#define GP_FRND 0                       /* (4.2 preseason friendlies: frnd.py on(); the engine in obj4 FRND, frstep.c) */
+#endif
+#define GP_HOOK (GP_PORT || GP_FRND)    /* (the slot-4 hooks below: the port's, shared by the friendlies - Fable review +
+                                           MC 16/11: one set, chained in obj4, FRND first) */
+enum { K_FR = 13 };                     /* (a preseason friendly: one match, LV_BETTER, frstep.c) */
+#if GP_HOOK
 #ifndef GP_DATA_SECTION
 #define GP_DATA_SECTION __attribute__((section(".data")))      /* (host tests build gplay.c natively: -DGP_DATA_SECTION=) */
 #endif
@@ -4166,7 +4172,7 @@ static const u8 *pg_one(const u8 *t, const s8 *slt, s8 *copy, int run) {
 void pg_season(const u8 *t, const s8 *slt, s8 *copy, int world) {
     for (int k = *t++; k > 0; k--)
         t = pg_one(t, slt, copy, t[0] == world);
-#if GP_PORT
+#if GP_HOOK
     if (GP_PSEAS) GP_PSEAS();           /* (4.2 fixture port: pg_fix, InitializeNewSeason - every career, seasonPlaying
                                            already the new one: fpad.c fp_season arms, the next fp_step inits; MC 14/11:
                                            0 B in pgroups' extra pages) */
@@ -4763,8 +4769,13 @@ static int sc_free(void) {              /* slot 4 not holding a contest of this 
 }
 int sc_busy(void) {                     /* 4.0.5: slot 4 holds this season's supercup tie, not played yet (built early:
                                            another slot-4 builder waits) */
+#if GP_FRND
+    const u8 *fr = SC_ST + SC_H + 12 * 14;   /* (4.2 friendlies: FR_ST, gpsc.h - FR_OPEN (+1 bit 3) holds slot 4 from
+                                           the season start to the last friendly decided, between them too) */
+    if (fr[0] == GP_SEAS && (fr[1] & 8)) return 1;
+#endif
     return GP_ST.magic == MAGIC && GP_ST.ko[0].magic == MAGIC && GP_ST.ko[0].season == GP_SEAS &&
-           GP_ST.ko[0].kind == K_SC && GP_ST.ko[0].tw[0] == NOC;
+           (GP_ST.ko[0].kind == K_SC || (GP_FRND && GP_ST.ko[0].kind == K_FR)) && GP_ST.ko[0].tw[0] == NOC;
 }
 static const u8 *usc_entry(void) {     /* 4.0.6 the UEFA Super Cup's GP_SCT entry, 0 = none */
     if (!GP_SCT) return 0;
@@ -4814,7 +4825,7 @@ static int usc_step(void) {             /* 4.0.6 the UEFA Super Cup at the advan
     SC_U[1] = 1; SC_TRACE = 0x11;
     return 1;
 }
-#if GP_PORT
+#if GP_HOOK
 /* 4.2 fixture port (MC 14/11 (b)+(c)): fpad.c (obj4) builds the K_PORT tie itself, through ko_one's pointer; the rest
    - GP_ST, GP_IN, GP_SCT, the pseudo registers - it reads at their symbols, the struct offsets from GP_OFFS (a
    -DGP_OFFSETS compile of this file, fpad.py: no byte of them in the exe) */
@@ -4823,11 +4834,13 @@ void *GP_PAPI[1] GP_DATA_SECTION = { (void *)ko_one };
 #define OF(t, f) __builtin_offsetof(t, f)
 const u16 GP_OFFS[] = { OF(struct gp_state, ko), OF(struct gp_ko, season), OF(struct gp_ko, kind), OF(struct gp_ko, tw),
                         OF(struct gp_ko, team), OF(struct gp_ko, d1), OF(struct gp_ko, d2), OF(struct gp_ko, rs),
-                        OF(struct gp_in, mdiv), MAGIC, NOC, K_PORT, HOST_NEUTRAL, SC_E, SC_UEFA, sizeof(struct gp_ko) };
+                        OF(struct gp_in, mdiv), MAGIC, NOC, K_PORT, HOST_NEUTRAL, SC_E, SC_UEFA, sizeof(struct gp_ko),
+                        OF(struct gp_ko, pts), K_FR, LV_BETTER };   /* (4.2 friendlies: O_PTS - the fee in pts[2], a
+                                           one-tie contest's unused entry -, C_KFR, C_LVBETTER) */
 #endif
 #endif
 u32 sc_step_c(void) {                   /* the calendar advance: 1 = the career club's tie built into ko[0] */
-#if GP_PORT
+#if GP_HOOK
     if (GP_MGR && GP_PSTEP) { u32 r = GP_PSTEP(); if (r) return 1; }   /* (the port first: never "clear" - Q2 / Q3) */
 #endif
     if (!GP_SCT || !GP_MGR) return 0;

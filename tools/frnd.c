@@ -14,10 +14,14 @@
    week, +2 dw length (0 = the end), +6 db the league day's matches (slot 0: > 0 = a played day).
    F = the first slot-0 entry with +6 > 0; E = F & ~1; while an entry BLOCKS the window [E-8, E-1]: E = the earliest
    such entry's week & ~1. An entry blocks when it is in the window and it is not a continental slot-3 entry, or its
-   week is one of the turns E-8, E-6, E-4, E-2 (a UEFA Q1 club keeps 48/50/52/54 between its odd-week legs).
+   week is one of the turns E-8, E-6, E-4, E-2 (a UEFA Q1 club keeps 48/50/52/54 between its odd-week legs); a
+   slot-4 entry never blocks (the friendlies' own rows, a native contest they are installed over, a supercup held back
+   by FR_OPEN until friendly 4: the same turns at every advance and after a load).
    out[k] = E - 8 + 2k; turns below 0 dropped (out[k] = 0xFF). Returns the turns kept (0 = no league day found). */
 static int fr_blocks(const uint8_t *e, int lo) {
     int w = e[1];
+    if (e[0] == 4) return 0;            /* (slot 4: the friendlies' own - the turns are recomputed from the calendar
+                                           after their installs, and a native slot-4 contest is installed over) */
     if (w < lo || w > lo + 7) return 0;
     return e[0] != 3 || !((w - lo) & 1);
 }

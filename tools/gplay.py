@@ -3126,6 +3126,7 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
                                 f"-DGP_GFIDX={int(os.environ.get('GPLAY_GFIDX') or 0)}",
                                 f"-DGP_GOUT={int(os.environ.get('GPLAY_GOUT') or 0)}",
                                 f"-DGP_PORT={int(__import__('fpad').on())}",   # (4.2 fixture port P2: fpad.py)
+                                f"-DGP_FRND={int(__import__('frnd').on())}",   # (4.2 friendlies: frnd.py, the port's hooks)
                                 f"-DGP_GSON={int(GS_ON[0])}",
                                 f"-DCF_SEED={__import__('cupsf').SEED}",
                                 f"-DGP_S7={gp_s7()}",
@@ -3275,8 +3276,10 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     symbols['CDFORCE_'] = (0, int(os.environ.get('CD_FORCE') or 0))   # (test builds only)
     symbols['FORCE_ON'] = (0, int(bool(force)))
     import fpad
-    symbols['PORT_ON'] = (0, int(fpad.on()))
-    if fpad.on():                                             # (4.2 fixture port P2: gp_rec -> fpad.c fp_leg)
+    import frnd
+    hook_on = fpad.on() or frnd.on()                          # (the slot-4 hooks: the port's, shared by the friendlies)
+    symbols['PORT_ON'] = (0, int(hook_on))
+    if hook_on:                                               # (gp_rec -> GP_PLEG: frstep.c fr_leg, then fpad.c fp_leg)
         symbols['GP_PLEG'] = syms['GP_PLEG']
     import longtable                                          # 4.0 stage titles (table, calendar): the table in area
     stg = longtable.stage_table(lang, b'\0' * 2 + struct.pack('<4HIH', split.ST, split.ST + split.OFF['frozen'],
@@ -3533,7 +3536,7 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
                   gp_wn_c=syms['gp_wn_c'], sc_wline_c=syms['sc_wline_c'], GP_WNSRC=syms['GP_WNSRC'], GP_WNFILE=syms['GP_WNFILE'], GP_SEAS=syms['GP_SEAS'],   # (winners.py)
                   WN_ST=syms['WN_ST'], GP_MGR=syms['GP_MGR'])
     LABELS.update({k: syms[k] for k in ('GP_RIPOOL', 'GP_CDSTR', 'GP_S7SNAP', 'GP_GEOCH', 'GP_CDKN') if k in syms})
-    if fpad.on():                                             # (4.2 fixture port P2: fpad.py links fpad.c to these)
+    if fpad.on() or __import__('frnd').on():                  # (fpad.py / frnd.py link fpad.c / frstep.c to these)
         LABELS.update({k: syms[k] for k in ('GP_PAPI', 'GP_PSTEP', 'GP_PDONE', 'GP_PLEG', 'GP_PSEAS', 'GP_WK', 'GP_PMID', 'GP_SCT',
                                             'GP_SEAS', 'GP_K')})
         LABELS.update({k: symbols[k] for k in ('D1R', 'A1R', 'A2R', 'CAL_CUR')}, GP_CFLAGS=gp_cflags)

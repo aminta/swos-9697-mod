@@ -1470,7 +1470,7 @@ def patch(p, at, area, lang, pack_dirs, bss, bss_len, world=None):
         src += RANK_ASM
     src = nasmcave.sub(src, 'SEASON_TEST\n', '    mov bl, [SEASONP]\n    cmp bl, [edi + EFLAG_ + 1]\n    je .r\n    mov bh, 1\n'
                       if world and EU_SEASON1_ONLY else '')
-    src = nasmcave.sub(src, 'WORLD_BYTE\n', '''    cmp word [GAMETYPE], 4
+    src = nasmcave.sub(src, 'WORLD_BYTE\n', '''    call W_GT             
     jne .w
     mov bl, [SLT + 1845]
 .w:

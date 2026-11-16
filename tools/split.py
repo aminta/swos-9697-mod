@@ -85,11 +85,12 @@ sp_init:                                ; replaces `call cseg_2653B` at the end 
 .clean:
     mov esi, [A5]
     mov ah, [esi + 2]                   ; the struct's team file
-    xor al, al                          ; a season (one division, one year: 4.0) -> world 0, the original one
-    cmp word [GAMETYPE], 3
-    je .w
-    cmp word [GAMETYPE], 4              ; a career: its world byte
+    xor al, al                          ; a career or a season: the world byte (a 1996-97 season's is 0, 42-seaw;
+    cmp word [GAMETYPE], 3              ; a world SEASON's its world, S6a), else no split league
+    je .s
+    cmp word [GAMETYPE], 4
     jne .x
+.s:
     mov al, [SLT + WORLD_BYTE]
 .w:
     mov dl, [sp_div]
@@ -291,7 +292,7 @@ sp_entry_at:                            ; (esi = a league buffer: sp_migrate's D
     cmp [edx + 3], al
     jne .n
     xor al, al                          ; (the world: a career's byte, else world 0)
-    cmp word [GAMETYPE], 4
+    call W_GT             
     jne .w
     mov al, [SLT + WORLD_BYTE]
 .w: cmp [edx], al
@@ -482,7 +483,8 @@ sp_freeze:                              ; esi = DIY, edx = entry, eax = stage, e
     push ds
     pop es
     cld
-    movzx eax, word [F1_TEAM]
+    call GP_MGRF                        ; (S6a: the manager's club - gplay gp_mgr: a world SEASON's own, never a
+    movzx eax, ax                       ; stale CAREERTEAM)
     push eax
     movzx eax, byte [F1_SEAS]
     push eax
@@ -1206,6 +1208,12 @@ sp_shp: dd sp_shx                       ; the block in use (sp_shsel)
 sp_sh:  times 66 db 0                   ; engine item 'SH': the career league's key (team file, division) + its block
 sp_shx: times 64 db 0                   ; any other league's block (the season end's simulation)
 
+%if MGR_OWN
+sp_mgr:                                 ; (no gplay gp_mgr in this build: the career club)
+    mov ax, [CAREERTEAM]
+    ret
+%endif
+
 sp_shsel:                               ; edx = an entry -> [sp_shp]: the career league's block or the scratch one
     push eax                            ; (gplay's GP_SHB[0] / [1]: 'SH', the scratch - gp_keep)
     mov eax, sp_shx
@@ -1220,7 +1228,7 @@ sp_shsel:                               ; edx = an entry -> [sp_shp]: the career
     push edx                            ; sp_migrate's key already matches)
     mov esi, DIY
     movzx edx, word [esi + 31h]
-    mov ax, [CAREERTEAM]
+    call GP_MGRF                        ; (S6a: gplay gp_mgr, the manager's club; 0: none)
     test ax, ax
     jz .nt
 .ct:
@@ -1329,7 +1337,7 @@ zp_entry:                               ; esi = a league buffer -> edx = its ent
     cmp [edx + 3], al
     jne .n
     xor al, al
-    cmp word [GAMETYPE], 4
+    call W_GT             
     jne .w
     mov al, [SLT + WORLD_BYTE]
 .w: cmp [edx], al
@@ -1942,6 +1950,9 @@ def pair_table(p, s, n):
     return [(raw[2 * i], raw[2 * i + 1]) for i in range(n * (n - 1) // 2)]
 
 
+LABELS = {}                                         # (the last build's labels, obj1 offsets: hosttest symbols)
+
+
 def patch(p, cave, nasmcave, splits):
     """splits: [(world, team file, division, clubs, spec)]. Returns the cave end (nothing without splits)."""
     import careerworld
@@ -1983,7 +1994,12 @@ def patch(p, cave, nasmcave, splits):
     f1 = gplay.LABELS.get('f1_capture')             # 4.0.5 the FASE 1 page's capture (gplay.c)
     sym.update(F1_ON=(0, int(bool(f1))))
     if f1:
-        sym.update(F1CAP=f1, F1_TEAM=gplay.LABELS['CAREERTEAM'], F1_SEAS=gplay.LABELS['SEASONPLAYING'])
+        sym.update(F1CAP=f1, F1_SEAS=gplay.LABELS['SEASONPLAYING'])
+    if gplay.LABELS.get('gp_mgr'):                  # S6a (MC 15/11 (c)): the manager's club, gplay's gp_mgr
+        sym.update(GP_MGRF=(1, gplay.LABELS['gp_mgr']), MGR_OWN=(0, 0))
+    else:
+        sym['MGR_OWN'] = (0, 1)
+        src = nasmcave.sub(src, 'call GP_MGRF', 'call sp_mgr', 2)
     if gplay.LABELS.get('GP_SHB'):                  # (4.0.1: gp_keep reads the 'keep' table from the block in use)
         sym['GP_SHB'] = gplay.LABELS['GP_SHB']
         src = nasmcave.sub(src, '    SHB_SET\n', '    mov dword [GP_SHB], sp_sh\n    mov dword [GP_SHB + 4], sp_shx\n')
@@ -2008,6 +2024,8 @@ def patch(p, cave, nasmcave, splits):
     cave = (cave + 3) & ~3
     code, fix = nasmcave.assemble(src, cave, sym)
     lab = nasmcave.labels(src, cave, sym)
+    LABELS.clear()                                  # (HOSTTEST_SYMS: obj1 offsets; test_s6a_careerteam)
+    LABELS.update(lab)
     LATE[:] = [(name, lab['SP_CB'] + off, lab['sp_nostage']) for name, off in late]
     code_ = code
     MXH[:] = [cave + i for i in range(len(code_) - 4) if code_[i] == 0xE8 and

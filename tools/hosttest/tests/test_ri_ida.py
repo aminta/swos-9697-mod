@@ -73,7 +73,9 @@ def test_ri_ida():
             errs.append('dormant ida_bytes changed')
         nos7 = lambda s: re.sub(r'%if S7_(ON|XTRA)\n.*?%endif\n', '', s, flags=re.S)   # (S7's blocks: off when
                                                 # dormant; S7_XTRA = S7 + XTRA: ri_home, MC 13/11)
-        if om['_asm'](1) != nos7(ripool._asm(1)) or om['_asm'](3) != nos7(ripool._asm(3)):
+        wgt = lambda s: s.replace('call W_GT                     ', 'cmp word [GAMETYPE], 4        ')   # (S6a 16/11:
+                                                # the career tests became `call W_GT` - same flags in a career; a W site)
+        if om['_asm'](1) != wgt(nos7(ripool._asm(1))) or om['_asm'](3) != wgt(nos7(ripool._asm(3))):
             errs.append('dormant asm changed')
     if ripool.ida_two([one]) or not ripool.ida_two([split, one]):
         errs.append('ida_two')

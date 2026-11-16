@@ -154,6 +154,7 @@ HDR = 32
 REC = 24
 F_BASE, F_NS, F_XTRA = 1, 2, 4
 M_FRIENDLY, M_PRESET, M_SEASON, M_CAREER = 1, 2, 4, 8        # M_FRIENDLY: friendly + the 3 DIY editors (GoGetTeamsForPlay)
+SEASON_WORLDS = True                    # S6a (4.3, MC 15/11): the worlds have SEASON mode (M_SEASON; swe.c swe_sea_pre)
 INFO = {}                               # (the last build's manifest, for the harness / host tests)
 
 
@@ -171,7 +172,8 @@ def worlds():
         stem = mkseason.ns_stem(n)
         if stem != 'team':
             flags |= F_XTRA
-        out.append((n, flags, mkseason.WMENU + n, root['start_year'], M_CAREER | M_FRIENDLY, stem, files, comps))
+        out.append((n, flags, mkseason.WMENU + n, root['start_year'], M_CAREER | M_FRIENDLY | (M_SEASON if SEASON_WORLDS else 0),
+                    stem, files, comps))
     return out
 
 

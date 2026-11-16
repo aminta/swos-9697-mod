@@ -108,7 +108,7 @@ sd_site:                                ; jmp from cseg_2BE12 (mov al, [D1]; cbw
     mov al, [D1R]
     cbw
     mov [D1R], ax
-    cmp word [GAMETYPE], 4              ; a career (the world byte is stale outside one)
+    call W_GT                           ; a career (the world byte is stale outside one)
     jne .game
     call W_LPW                          ; ZF = 1: a league-phase world (World 2026-27)
     jne .game

@@ -66,7 +66,13 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 - Malta: when the title is decided by a play-off (the Finalissima or the Final Four), the champion is now always the club that won that play-off's final. Before, the game could crown a different club at the end of the season.
 
 #### SEASON after a career in another world
-- A 1996-97 SEASON started after a career in World 2026-27 or Europe 1984-85 (in the same game, without quitting) kept that career's world in the background. Its national cups could get that world's fixed pairs (for example the Coppa Italia), and a SEASON saved this way loaded back in the other world. A SEASON is now always 1996-97. A SEASON saved this way with 4.1.2 or earlier now loads as a 1996-97 SEASON; the cup pairs it had already drawn stay as they are.
+- A 1996-97 SEASON started after a career in World 2026-27 or Europe 1984-85 (in the same game, without quitting) kept that career's world in the background. Its national cups could get that world's fixed pairs (for example the Coppa Italia), and a SEASON saved this way loaded back in the other world. A SEASON now plays the world chosen with the main menu's world selector, never a career's world left in the background. A SEASON saved this way with 4.1.2 or earlier now loads as a 1996-97 SEASON; the cup pairs it had already drawn stay as they are.
+
+#### World 2026-27 in SEASON mode
+- SEASON can now be played with the World 2026-27 (choose it with the main menu's world selector): pick your club in the career-style picker, each league plays in its own format. The mid-season splits into groups and Italy's Coppa D are played as in a career.
+- In a single season with your club, the play-offs, play-outs and title deciders inside your league are played too, for example Malta's Final Four. If your club is not in one of them, its matches are simulated and the season goes on to FINISCI STAGIONE.
+- Those that bring in clubs from other leagues (for example New Zealand's Grand Final, Scotland's promotion play-off) are played in careers only.
+- A SEASON saved in the World 2026-27 loads back in it, also in the middle of a play-off; a 1996-97 SEASON saved with 4.1 loads and finishes as before.
 
 #### African club cups: the holder's place
 - CAF Champions League and Confederation Cup (article IV.5 of the CAF regulations): an association never has more than two clubs in the same cup, and the holder defending its title is one of them. If the holder is not already on one of its association's places, it takes the association's last place and the lowest qualifier drops (an association with a single place sends only the holder). Before, a holder could bring its association an extra club. A holder that is also the national champion (or cup winner) of the other cup defends in that one and its place there goes to the next club, as before.
@@ -89,6 +95,7 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 - REALISTIC free kicks follow real-football rates (league average around 6-7% of direct free kicks scored, the best specialists 10-15%: Opta). The taker's SHOOTING decides how often the computer's free kick is on target; a miss goes over the bar or hits the wall.
 - Stand-ins from a 4.1 career (Davide, 12/11): a stand-in that reached Serie C is replaced by a real Serie D club at the first load in 4.2, which keeps its points and table position (the alternative, showing the stand-in until the end of the season, was dropped).
 - Serie D, a full group (Davide): the club that moves to a neighbouring group is the one living nearest to the centre of that group, by the real location of the clubs' towns.
+- World 2026-27 SEASON (Davide, 16/11): the play-offs, play-outs and title deciders inside your league are played; those that bring in clubs from other leagues only in careers.
 - JUVENTUS's bench keeper is NETO (Davide, 15/11), over the call-ups rule that would pick PINSOGLIO.
 
 
@@ -159,7 +166,13 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 - Malta: quando il titolo si decide con uno spareggio (la Finalissima o la Final Four), il campione ora è sempre la squadra che ha vinto la finale di quello spareggio. Prima il gioco poteva incoronare un'altra squadra a fine stagione.
 
 #### STAGIONE dopo una carriera in un altro mondo
-- Una STAGIONE 1996-97 iniziata dopo una carriera nel Mondo 2026-27 o in Europa 1984-85 (nella stessa partita, senza uscire dal gioco) si teneva dietro il mondo di quella carriera. Le sue coppe nazionali potevano avere gli accoppiamenti fissi di quel mondo (per esempio la Coppa Italia), e una STAGIONE salvata così si ricaricava nell'altro mondo. Ora una STAGIONE è sempre 1996-97. Una STAGIONE salvata così con la 4.1.2 o prima ora si carica come STAGIONE 1996-97; gli accoppiamenti di coppa già sorteggiati restano come sono.
+- Una STAGIONE 1996-97 iniziata dopo una carriera nel Mondo 2026-27 o in Europa 1984-85 (nella stessa partita, senza uscire dal gioco) si teneva dietro il mondo di quella carriera. Le sue coppe nazionali potevano avere gli accoppiamenti fissi di quel mondo (per esempio la Coppa Italia), e una STAGIONE salvata così si ricaricava nell'altro mondo. Ora una STAGIONE gioca il mondo scelto con il selettore dei mondi del menu principale, mai il mondo di una carriera rimasto dietro. Una STAGIONE salvata così con la 4.1.2 o prima ora si carica come STAGIONE 1996-97; gli accoppiamenti di coppa già sorteggiati restano come sono.
+
+#### Il Mondo 2026-27 in modalità STAGIONE
+- La STAGIONE ora si può giocare con il Mondo 2026-27 (sceglilo con il selettore dei mondi del menu principale): scegli la tua squadra nella schermata di scelta della carriera, ogni campionato si gioca nel suo formato. Le divisioni in gironi a metà stagione e la Coppa D italiana si giocano come in carriera.
+- In una stagione singola con la tua squadra si giocano anche i play-off, i play-out e gli spareggi per il titolo dentro il tuo campionato, per esempio la Final Four di Malta. Se la tua squadra non ne fa parte, le partite vengono simulate e la stagione arriva a FINISCI STAGIONE.
+- Quelli che coinvolgono squadre di altri campionati (per esempio la Grand Final della Nuova Zelanda, i play-off promozione scozzesi) si giocano solo in carriera.
+- Una STAGIONE salvata nel Mondo 2026-27 si ricarica nel suo mondo, anche a metà di un play-off; una STAGIONE 1996-97 salvata con la 4.1 si carica e si chiude come prima.
 
 #### Coppe africane per club: il posto del detentore
 - CAF Champions League e Confederation Cup (articolo IV.5 del regolamento CAF): una federazione non ha mai più di due squadre nella stessa coppa e il detentore che difende il titolo è una di queste. Se il detentore non è già su uno dei posti della sua federazione, prende l'ultimo posto della federazione e la qualificata più bassa resta fuori (una federazione con un solo posto manda solo il detentore). Prima un detentore poteva portare alla sua federazione una squadra in più. Un detentore che è anche campione nazionale (o vincitore della coppa) dell'altra competizione difende il titolo in quella e il suo posto lì passa alla squadra successiva, come prima.
@@ -182,4 +195,5 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 - Le punizioni REALISTICHE seguono le percentuali del calcio reale (media di campionato circa 6-7% delle punizioni dirette segnate, i migliori specialisti 10-15%: Opta). Il TIRO del battitore decide quanto spesso la punizione del computer va in porta; se sbaglia, va sopra la traversa o sulla barriera.
 - Squadre riserva di una carriera 4.1 (Davide, 12/11): una riserva arrivata in Serie C viene sostituita da una vera squadra di Serie D al primo caricamento nella 4.2, che tiene punti e posizione in classifica (l'alternativa, tenere la riserva visibile fino a fine stagione, è stata scartata).
 - Serie D, girone pieno (Davide): la squadra che passa a un girone confinante è quella la cui città è più vicina al centro di quel girone, secondo la posizione reale delle città.
+- STAGIONE nel Mondo 2026-27 (Davide, 16/11): si giocano play-off, play-out e spareggi per il titolo dentro il tuo campionato; quelli con squadre di altri campionati solo in carriera.
 - Il portiere di riserva della JUVENTUS è NETO (Davide, 15/11), al posto di PINSOGLIO che la regola delle convocazioni sceglierebbe.

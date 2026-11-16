@@ -39,7 +39,7 @@ SAVE_OFF = [None]               # this build's save_at (wsites.check_layout: the
 
 ASM = '''
 dp_find:                                ; edx = a league struct -> esi = its DP_TAB entry in the running world, or ZF = 1
-    cmp word [GAMETYPE], 4              ; (careers only: a season's someLeaguesTable may hold an old career's world)
+    call W_GT                           ; (careers only: a season's someLeaguesTable may hold an old career's world)
     jne .no
     mov al, [SLT + WORLD_BYTE]          ; (by the struct's address: a world's leagues all have one contest id)
     mov esi, DP_TAB

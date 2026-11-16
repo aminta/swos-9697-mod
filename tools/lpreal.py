@@ -84,7 +84,7 @@ def file_names():
 ASM = r"""
 lr_draw:                                ; replaces lp_start's `call lp_mkdraw`
     pushad
-    cmp word [GAMETYPE], 4
+    call W_GT             
     jne .draw
     call W_REC
     jz .draw

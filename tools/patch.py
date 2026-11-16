@@ -406,6 +406,9 @@ def patch_exe(src, dst, remap, lang='it'):
     import s7swap
     if s7swap.on():                                    # 4.2 S7: s7_load reads the two league files (the file layer)
         swe.SWEFILE = True
+    import s6sea
+    if s6sea.on():                                     # 4.2 S6 (MC 16/11): world seasons' band after TKUI (0x1E pages)
+        swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, s6sea.page_end() // 0x1000)
     import swefile
     if swefile.on():                                   # 4.2 file layer (MC 12/11): page 18, only when linked
         swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, swefile.page_end() // 0x1000)

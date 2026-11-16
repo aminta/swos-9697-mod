@@ -490,10 +490,10 @@ gp_after:                               ; 4.0 after a career load (arg97's arg_l
     div ecx
     mov ebp, [GP_NMT + eax * 4]
 .nm:
-    mov ax, [CAREERTEAM]                ; 4.0.5 (phase 0: a one-tie contest's names - the Coppa D's, a supercup's -
+    call gp_mgr                          ; 4.0.5 (phase 0: a one-tie contest's names - the Coppa D's, a supercup's -
     mov [GP_MGR], ax                    ; from this exe's tables: the career club, the tables as gp_adv sets them)
 %if CD_ON
-    cmp word [GAMETYPE], 4
+    call W_GT             
     jne .ncd
     mov al, [SLT + WORLD_BYTE]
     cmp al, [CD_TAB]
@@ -559,6 +559,64 @@ gp_repoint:                             ; 4.0 after a career load (gp_after): th
     call gp_repoint_c
     add esp, 20
     pop es
+    ret
+
+gp_mgr:                                 ; S6a (c, MC 15/11): ax = the manager's club, the anchor of GP_MGR / GP_IN.mgr:
+    cmp word [GAMETYPE], 4              ; a career's CAREERTEAM (as before); any other mode - a world SEASON - the
+    jne .s                              ; first human-controlled club (teamControls != 1) of the season's clubs
+    mov ax, [CAREERTEAM]                ; (SELTEAMS, the league's own order: the game's own data, kept in a .SEA),
+    ret                                 ; 0 when every club is the computer's. Never CAREERTEAM outside a career:
+.s: push ecx                            ; a SEASON after a career left it stale (test_s6a_careerteam, the (c)
+    push esi                            ; proof world_season_mgr)
+    xor eax, eax
+    mov esi, [SELTEAMS]
+    movzx ecx, word [NUMSEL]
+.l: test ecx, ecx
+    jz .r
+    cmp byte [esi + 4], 1
+    jne .h
+    add esi, 684
+    dec ecx
+    jmp .l
+.h: mov ax, [esi]
+.r: pop esi
+    pop ecx
+    ret
+
+gp_hum:                                 ; S6a (c, MC 15/11): GP_HUM / GP_NHUM = the human-controlled clubs (gp_perm_c's
+    push ecx                            ; +4Bh count): a career's club (gp_mgr), a world SEASON's teamControls != 1
+    push esi                            ; clubs of SELTEAMS (league order, at most 64); eax trashed
+    push edi
+    mov edi, GP_HUM
+    cmp word [GAMETYPE], 4
+    jne .s
+    call gp_mgr
+    mov [edi], ax
+    xor ecx, ecx
+    test ax, ax
+    setnz cl
+    jmp .w
+.s: xor ecx, ecx
+    mov esi, [SELTEAMS]
+    movzx eax, word [NUMSEL]
+.l: test eax, eax
+    jz .w
+    cmp byte [esi + 4], 1
+    je .n
+    cmp ecx, 64
+    jae .n
+    push eax
+    mov ax, [esi]
+    mov [edi + ecx * 2], ax
+    pop eax
+    inc ecx
+.n: add esi, 684
+    dec eax
+    jmp .l
+.w: mov [GP_NHUM], ecx
+    pop edi
+    pop esi
+    pop ecx
     ret
 
 gp_c:                                   ; eax = a C function: called with es = ds, cld (C may use string ops)
@@ -648,7 +706,7 @@ gp_setup:                               ; ZF = 0 if the career league (D8CAA) is
     pop eax
     mov ebp, CFB
     call gp_rows
-    mov ax, [CAREERTEAM]
+    call gp_mgr          
     mov [GP_IN + O_MGR], ax
     movzx eax, word [CAL_CUR]           ; the week of the match day just played (its calendar entry +1)
     movzx eax, byte [CAL + eax + 1]
@@ -739,7 +797,7 @@ gp_s3busy:                              ; 4.0.5 NZ: ZF = 0 when the career calen
 
 gp_s3due:                               ; 4.0.5 NZ (gp_adv): a slot-3 ko waiting (t2_defer) and slot 3 free -> its
     pushad                              ; weeks from now on (t2_due), installed
-    cmp word [GAMETYPE], 4
+    call W_GT             
     jne .x
     push dword 0                        ; (any waiting: ko 0 / 1)
     call t2_waiting
@@ -763,14 +821,14 @@ gp_s3due:                               ; 4.0.5 NZ (gp_adv): a slot-3 ko waiting
 
 gp_gf:                                  ; 4.0.5 NZ (gp_adv): a type-2 group contest of ours waiting for its Grand
     pushad                              ; Final (gplay.c gf_step_c), slot 3 free -> the final built into slot 4 (ko[1])
-    cmp word [GAMETYPE], 4
+    call W_GT             
     jne .x
     call gp_s3busy
     jnz .x
     mov dword [GP_S3], DIY              ; (the group's last day: the event just done, still in the working DIY)
     mov eax, [SLOTS_ + 12]              ; (rc17: or slot 3's own buffer, written back - after a match played for
     mov [GP_S3B], eax                   ; real; gf_step_c takes the one holding the whole group played)
-    mov ax, [CAREERTEAM]
+    call gp_mgr          
     mov [GP_MGR], ax
     mov eax, gf_step_c
     call gp_c
@@ -841,7 +899,7 @@ gp_install:                             ; GP_BUILT (gp_lend_c): each ko built in
     test ebx, ebx                       ; (the group, ko[0]: a Grand Final's placeholder as the career club's day
     jnz .n                              ; after slot 3's last one - gplay.c gf_anchor_c)
     pushad
-    mov ax, [CAREERTEAM]
+    call gp_mgr          
     mov [GP_MGR], ax
     push es
     push ds
@@ -879,11 +937,26 @@ gp_install:                             ; GP_BUILT (gp_lend_c): each ko built in
     mov word [D0R], 4
     mov word [D1R], 0
     mov word [D2R], 0
-    pushad
+    push word [CAREERTEAM]              ; S6a (A, 4.2, Davide 16/11): cseg_8B2D3's slot-4 branch writes careerTeam
+    cmp word [GAMETYPE], 4              ; into the new contest's team words (cseg_8B44A, one per entrant) and checks
+    je .ct                              ; them loaded (0x17281 -> VerifyTeamLoaded) before .t below writes the real
+    call gp_mgr                         ; clubs: a career's club passes, a world SEASON's careerTeam 0 trapped (Malta's
+    movzx ecx, byte [esi + KO_N]        ; Final Four). In a SEASON, for this call only: the season's human club when
+    xor ebx, ebx                        ; it is in the ko, else the ko's first entrant (a loaded club); restored after
+.cm:cmp ebx, ecx
+    jae .c0
+    cmp ax, [esi + KO_TEAM + ebx * 2]
+    je .cs
+    inc ebx
+    jmp .cm
+.c0:mov ax, [esi + KO_TEAM]
+.cs:mov [CAREERTEAM], ax
+.ct:pushad
     call C8B2D3
     mov al, 4                           ; (no replay days: a level tie is decided by gp_draw / its level)
     call CAL_NOREPLAY
     popad
+    pop word [CAREERTEAM]
     movzx ecx, byte [esi + KO_N]
     xor ebx, ebx
 .t:
@@ -907,7 +980,29 @@ gp_install:                             ; GP_BUILT (gp_lend_c): each ko built in
     call gf_hide_c
     add esp, 8
     pop es
-    popad
+    cmp word [GAMETYPE], 4              ; S6a (A): a world SEASON's ko with its human club(s) but no match of theirs
+    je .hr                              ; in it (a tie decided at build time - Serie C's play-out gap: the 16th safe,
+    call gp_hum                         ; the 17th v 18th played): the game counted them (+4Bh), so its days got the
+    push es                             ; 'human, no match' flag (byte 6 FFh, cseg_8BC06) and PARTITA's loop
+    push ds                             ; (cseg_8E3DA) ran past the calendar's end looking for their day - a hang.
+    pop es                              ; As gp_gf's real final without the career club: +4Bh 0, the flags 0 (gp_hrest_c)
+    cld                                 ; -> FINISCI STAGIONE simulates it. Careers: unchanged (gp_need builds a
+    mov eax, esi                        ; career's ko only with the club's own tie in it)
+    sub eax, GP_ST + ST_KO
+    xor edx, edx
+    mov ecx, KO_SIZE
+    div ecx
+    push eax
+    movzx eax, word [CAL_CUR]
+    push eax
+    push dword CAL
+    call gp_hrest_c
+    add esp, 12
+    pop es
+    test eax, eax
+    jnz .hr
+    mov word [SLOT4 + 4Bh], 0
+.hr:popad
     jmp .n
 .s3:
     pushad                              ; slot 3: its clubs from the contest's list (cseg_8B2D3 D0 = 3, D2 = 0)
@@ -919,7 +1014,7 @@ gp_install:                             ; GP_BUILT (gp_lend_c): each ko built in
     call C8B2D3
     mov al, 3                           ; (no replay days)
     call CAL_NOREPLAY
-    mov ax, [CAREERTEAM]                ; 4.0.5 NZ: a group contest with a Grand Final - its placeholder final in
+    call gp_mgr                          ; 4.0.5 NZ: a group contest with a Grand Final - its placeholder final in
     mov [GP_MGR], ax                    ; slot 4 after the group (gf_place_c: ko[1], installed by this loop next)
     mov eax, gf_place_c
     call gp_c
@@ -1182,8 +1277,9 @@ gp_perm:                                ; lib97 nc_adv's slot (NC_DPP; dplay's d
     mov ecx, 64
     rep movsb
     pop es
-    mov ax, [CAREERTEAM]
+    call gp_mgr
     mov [GP_MGR], ax
+    call gp_hum
     mov eax, gp_perm_c
     call gp_c
     mov [GP_NC], eax
@@ -1318,7 +1414,7 @@ gp_mrec:                                ; replaces ManagementRecordMenu's `call 
     ret
 
 gp_rl:                                  ; the season record's extra lines (gp_sack, gp_mrec; career only): GP_MGR,
-    mov ax, [CAREERTEAM]                ; GP_SEAS, the career league's names (GP_NM, GP_CMB), the record (GP_REC),
+    call gp_mgr                          ; GP_SEAS, the career league's names (GP_NM, GP_CMB), the record (GP_REC),
     mov [GP_MGR], ax                    ; gplay.c gp_rlines_c; ZF = 1 when the league is none of ours
     mov al, [SEASONPLAYING]
     mov [GP_SEAS], al
@@ -1555,7 +1651,7 @@ gp_adv:                                 ; replaces the 4 `call cseg_8EA82` (the 
     popad
 %if CD_ON
     mov dword [GP_CDT], 0               ; the Coppa Italia Serie D (cd_step_c): a career in its world
-    cmp word [GAMETYPE], 4
+    call W_GT             
     jne .ncd
     mov al, [SLT + WORLD_BYTE]
     cmp al, [CD_TAB]
@@ -1564,7 +1660,7 @@ gp_adv:                                 ; replaces the 4 `call cseg_8EA82` (the 
     mov dword [GP_CDNM], CD_NM
     mov dword [GP_CDD], CD_DT
     mov dword [GP_SLT], SLT             ; (later seasons: the season's Serie D clubs)
-    mov ax, [CAREERTEAM]
+    call gp_mgr          
     mov [GP_MGR], ax
     mov dword [GP_CDFIRST], 0           ; (the world's first season: the real results)
     pushad
@@ -1677,7 +1773,7 @@ GP_RITP: dd 0                           ; (ripool's RI_TAB: link_reserve, or 0)
 ASM = '''
 gp_find:                                ; edx = a league struct -> esi = its GP_TAB entry in the running world, or ZF = 1
     xor eax, eax                        ; (a season or any other mode: world 0, the original one)
-    cmp word [GAMETYPE], 4
+    call W_GT             
     jne .w
     mov al, [SLT + WORLD_BYTE]          ; (a career: its world)
 .w:
@@ -1821,7 +1917,7 @@ gp_end:                                 ; replaces `call cseg_9228D` (after dpla
     je .clr
     dec ecx
     jns .c
-    mov ax, [CAREERTEAM]                ; (GPLAY_FORCE test builds)
+    call gp_mgr                          ; (GPLAY_FORCE test builds)
     mov [GP_IN + O_MGR], ax
     mov al, [SEASONPLAYING]
     mov [GP_SEAS], al
@@ -1864,7 +1960,13 @@ gp_end:                                 ; replaces `call cseg_9228D` (after dpla
     mov dl, [esi + 4]
     add [SLTCOPY + eax], dl
     mov ax, [esi + 2]
-    cmp ax, [CAREERTEAM]
+    push edx                            ; (S6a: the manager's club, gp_mgr)
+    push eax
+    call gp_mgr
+    mov dx, ax
+    pop eax
+    cmp ax, dx
+    pop edx
     jne .nm
     test dl, dl
     js .up
@@ -1907,7 +2009,7 @@ t2_gend1:
     jmp T2_NEXT1
 t2_body:                                ; gplay.c t2_pre: in our contests the B teams that may never qualify go to
     pushad                              ; the end of their group's sorted list
-    mov ax, [CAREERTEAM]                ; (GPLAY_GOUT test builds: the career club)
+    call gp_mgr                          ; (GPLAY_GOUT test builds: the career club)
     mov [GP_MGR], ax
     push es
     push ds
@@ -2093,7 +2195,7 @@ gp_vc2:                                 ; 4.0.1: the same for slot 2 (`mov eax, 
 
 gp_cup12:                               ; 4.0: InitNewSeason's `call cseg_8B2D3` of slots 1 / 2 (the country's cup and
     pushad                              ; league cup): a Coppa Italia Serie D club gets neither (cd_member_c), the slot
-    cmp word [GAMETYPE], 4              ; cleared (Davide's Schio: COPPA ITALIA / C. IT SERIE C rows never played)
+    call W_GT                           ; cleared (Davide's Schio: COPPA ITALIA / C. IT SERIE C rows never played)
     jne .game
     cmp word [D0R], 2                   ; (4.0 A: slot 1 stays the COPPA ITALIA - the game plays it through the
     jne .game                           ; calendar and the season end needs its winner; slot 2 becomes the Coppa D's)
@@ -3050,7 +3152,7 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     lay.update(zip(keys, struct.unpack(f'<{len(keys)}I', p.get(1, syms['GP_LAYOUT2'][1], 4 * len(keys)))))
     assert lay['ST_SIZE'] == GP_ST_SIZE, lay['ST_SIZE']             # (engine.save_item('GP'): patch.py)
     import mkseason
-    sel = mkseason._hook_sites(p)[3]
+    sel, numsel = mkseason._hook_sites(p)[3:5]
     d2 = p.le.obj_bytes(2)
     lo = d2.find(mkseason.AU_CUP_SIG)                       # the contests' header: the game's Australian cup's
     assert lo >= 0 and d2.count(mkseason.AU_CUP_SIG) == 1
@@ -3081,7 +3183,7 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
         symbols['GP_SKIPPO'] = syms['GP_SKIPPO']
         symbols['DPSAVE'] = (2, _dp.LABELS['save'])
     symbols.update({k: syms[k] for k in ('GP_SSB', 'GP_IN', 'GP_OUT', 'gp_season', 'gp_champ', 'gp_keep', 'GP_ST', 'GP_LOG', 'GP_NM', 'GP_DIYP', 'GP_K',
-                                         'GP_W', 'GP_SKIP', 'GP_RB', 'GP_ALIVE', 'GP_LAST', 'GP_A', 'GP_B', 'GP_CID', 'GP_SEAS', 'GP_DIV',
+                                         'GP_W', 'GP_SKIP', 'GP_RB', 'GP_ALIVE', 'GP_HUM', 'GP_NHUM', 'GP_LAST', 'GP_A', 'GP_B', 'GP_CID', 'GP_SEAS', 'GP_DIV',
                                          'GP_PT', 'GP_PL', 'gp_need', 'gp_simkeep', 'gp_need_pre', 'gp_simkeep_pre', 'gp_pre_c', 'GP_PRE', 'gp_restore', 'gp_lend_c', 'gp_ours_c',
                                          'gp_perm_c', 'gp_bdiv_c', 'gp_rec_c', 'gp_draw_c', 'gp_played_c', 'gp_end_c',
                                          'gp_build_c', 'GP_BPIC', 'sec_post')})
@@ -3091,7 +3193,7 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     symbols.update({'A0R': (2, r['A0']), 'A1R': (2, r['A0'] + 4), 'A2R': (2, r['A0'] + 8),
                     'A4R': (2, r['A0'] + 16), 'D7R': (2, r['D7']), 'D0R': (2, r['A0'] - 32), 'D1R': (2, r['A0'] - 28),
                     'D2R': (2, r['A0'] - 24), 'SLT': s['slt'], 'SLTCOPY': s['sltcopy'],
-                    'WORLD_BYTE': (0, careerworld.WORLD_BYTE), 'DIY': (2, diy), 'NCW': (2, diy), 'SELTEAMS': (2, sel),
+                    'WORLD_BYTE': (0, careerworld.WORLD_BYTE), 'DIY': (2, diy), 'NCW': (2, diy), 'SELTEAMS': (2, sel), 'NUMSEL': (2, numsel),
                     'SP_ST': (0, split.ST), 'SP_MAGIC': (0, split.MAGIC),
                     'CAREERTEAM': (2, ct), 'ANIM_REL': (2, rel), 'ANIM_PRO': (2, pro),
                     'GP_CAP_NEXT': (1, tgt(cap)), 'GP_END_NEXT': (1, tgt(end_site)),
@@ -3124,7 +3226,7 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     symbols['ADDJOB'] = (1, addjob)
     symbols.update({k: syms[k] for k in ('GP_CFB', 'GP_LG', 'GP_RST', 'GP_RIT', 'GP_SEL', 'GP_MGR', 'GP_WORLD', 'GP_SLT',
                                          'gp_sack_c', 'gp_forcecfb', 'gp_pwin_c', 'gp_rlines_c', 'GP_RLN', 'GP_RLC', 'GP_RLPOULE', 'GP_REC', 'GP_CMB', 'gp_adv_c', 'GP_ADVWK', 'GP_WK', 'GP_TH', 'GP_RN',
-                                         'gp_defer_c', 't2_force', 'gf_step_c', 'gf_drop_c', 'gf_place_c', 'gf_hide_c', 'gf_unhide_c', 'gf_anchor_c', 'GP_S3', 'GP_S3B', 'GP_GFT', 'cd_step_c', 'sc_step_c', 'gp_scrow_c', 'sc_rlines_c', 'GP_SCT', 'GP_SCFIRST', 'SC_ST', 'SC_TRACE', 'cd_fixload_c', 'gp_scal_c', 'gp_repoint_c', 'gp_fixload_c', 'gp_strmap_c', 'CD_ST', 'GP_CDT', 'GP_CDNM', 'GP_CDD',
+                                         'gp_defer_c', 't2_force', 'gf_step_c', 'gf_drop_c', 'gf_place_c', 'gf_hide_c', 'gp_hrest_c', 'gf_unhide_c', 'gf_anchor_c', 'GP_S3', 'GP_S3B', 'GP_GFT', 'cd_step_c', 'sc_step_c', 'gp_scrow_c', 'sc_rlines_c', 'GP_SCT', 'GP_SCFIRST', 'SC_ST', 'SC_TRACE', 'cd_fixload_c', 'gp_scal_c', 'gp_repoint_c', 'gp_fixload_c', 'gp_strmap_c', 'CD_ST', 'GP_CDT', 'GP_CDNM', 'GP_CDD',
                                          'GP_CDFIRST')})
     symbols['CD_MEMBER'] = syms['cd_member_c']
     symbols['GP_CDS1'] = syms['GP_CDS1']

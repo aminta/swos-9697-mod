@@ -2,8 +2,9 @@
 - TC_CAP x 684 + main block + 'EN' block <= SEL_ROOM for every build flavour: every `exe: .CAR trailer` line of the
   release's build.log (4 CD + 4 GOG + SWOS++) and of the host-test fixture root's logs; the 'FP' flavour (fixture port,
   fpad.SAVE_SIZE) also by arithmetic on top of the release's blocks. Design: TC_CAP = min(SEL_CAP, (SEL_ROOM - main -
-  EN) // 684) = 159 (155 with 'FP'); until careerworld has TC_CAP (step 1b) the budget constants SEL_N / SEL_N_FP stand
-  in and test_tc_cap_const SKIPs.
+  EN) // 684), computed per build by trailer.py (team cache 1a, 03ee3a8+) and logged as `exe: big cache save room: X B
+  left at TC_CAP N teams (main M, EN E)`; it never drops below tcache.TC_FLOOR 159 (TC_FLOOR_FP 155 with 'FP'): the
+  cap only grows across versions (MC 16/11).
 - the game's 6 insert sites (design 1.3's table): in ref/swos.asm by text and in the exes by bytes (`add word
   [g_numSelectedTeams], 1` with its copy-count `mov word [D0], 341` within 0x60 B: before, after for cseg_3283C)."""
 import glob
@@ -15,11 +16,13 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 sys.path.insert(0, os.path.dirname(__file__))
 import careerworld  # noqa: E402
+import tcache  # noqa: E402
 import tcaudit as T  # noqa: E402
 import tc_rel  # noqa: E402
 
 REF = os.path.join(os.path.expanduser('~'), 'swos-mod', 'ref', 'swos.asm')
 TRAILER = re.compile(r"exe: \.CAR trailer \w\w \((\d+) B(?: \+ engine block EN (\d+) B: ([^;)]*))?")
+CAPLINE = re.compile(r'exe: big cache save room: (-?\d+) B left at TC_CAP (\d+) teams \(main (\d+), EN (\d+)\)')
 TEAM = 684
 
 
@@ -41,20 +44,34 @@ def flavours():
     return out
 
 
-def cap_for(fp):
-    tc = getattr(careerworld, 'TC_CAP', None)
-    if tc is None:
-        return careerworld.SEL_N_FP if fp else 159
-    if callable(tc):
-        return tc(fp)
-    if isinstance(tc, dict):
-        return tc['FP' if fp else '']
-    return getattr(careerworld, 'TC_CAP_FP', tc) if fp else tc
+def cap_for(main, en):
+    """trailer.py's TC_CAP for these blocks (team cache 1a)"""
+    return min(careerworld.SEL_CAP, (careerworld.SEL_ROOM - main - en) // TEAM)
+
+
+def floor_for(fp):
+    return tcache.TC_FLOOR_FP if fp else tcache.TC_FLOOR
+
+
+def logged():
+    """{(main, EN): {TC_CAP logged}} from the same logs as flavours()"""
+    import fixroot
+    rel, _, _, sd = tc_rel.release()
+    logs = [os.path.join(d, 'build.log') for d in {rel, sd} if d]
+    r = fixroot.root()
+    if r != fixroot.LEGACY:
+        logs += sorted(glob.glob(os.path.join(r, '*', 'build.log')) + glob.glob(os.path.join(r, '*.log')))
+    out = {}
+    for f in logs:
+        if os.path.exists(f):
+            for m in CAPLINE.finditer(open(f, errors='replace').read()):
+                out.setdefault((int(m[3]), int(m[4])), set()).add(int(m[2]))
+    return out
 
 
 def test_tc_cap_arith():
-    assert (careerworld.SEL_CAP, careerworld.SEL_ROOM) == (160, 160 * TEAM + 0x4280) and careerworld.SEL_N_FP == 155
-    assert careerworld.SEL_N in (159, 155), careerworld.SEL_N      # (patch.py sets SEL_N_FP in a build with 'FP')
+    assert (careerworld.SEL_CAP, careerworld.SEL_ROOM) == (160, 160 * TEAM + 0x4280)
+    assert (tcache.TC_FLOOR, tcache.TC_FLOOR_FP) == (159, 155), (tcache.TC_FLOOR, tcache.TC_FLOOR_FP)
     assert careerworld.B_SEL + careerworld.SEL_ROOM <= careerworld.B_STAGE
     assert careerworld.B_STAGE + T.FIXED + careerworld.SEL_ROOM <= careerworld.B_UQ      # the stage holds a whole file
     assert careerworld.SAVE_SIZE == 2 + careerworld.SEL_CAP * TEAM                       # the season-end parking
@@ -64,32 +81,33 @@ def test_tc_cap_arith():
     import fpad
     errs, msg = [], []
     for (main, en, fp), where in sorted(fl.items()):
-        cap = cap_for(fp)
+        cap = cap_for(main, en)
         left = careerworld.SEL_ROOM - cap * TEAM - main - en
-        formula = min(careerworld.SEL_CAP, (careerworld.SEL_ROOM - main - en) // TEAM)
-        msg.append(f"main {main} + EN {en}{' (FP)' if fp else ''}: {cap} teams, {left} B left, formula {formula} ({len(where)} exes)")
-        if left < 0 or cap > formula:
-            errs.append(f'{where[0]}: {cap} x 684 + {main} + {en} > SEL_ROOM {careerworld.SEL_ROOM}')
-        if not fp:                                  # the same build with the fixture port's item: 155
+        msg.append(f"main {main} + EN {en}{' (FP)' if fp else ''}: TC_CAP {cap}, {left} B left ({len(where)} exes)")
+        if left < 0 or cap < floor_for(fp):
+            errs.append(f'{where[0]}: TC_CAP {cap} (main {main} + EN {en}) below TC_FLOOR {floor_for(fp)} or no room')
+        if not fp:                                  # the same build with the fixture port's item: >= 155
             en_fp = en + 4 + fpad.SAVE_SIZE
-            if cap_for(True) * TEAM + main + en_fp > careerworld.SEL_ROOM:
-                errs.append(f'{where[0]} + FP ({fpad.SAVE_SIZE} B): {cap_for(True)} x 684 + {main} + {en_fp} > SEL_ROOM')
-            msg[-1] += f'; + FP: {cap_for(True)} teams, {careerworld.SEL_ROOM - cap_for(True) * TEAM - main - en_fp} B left'
+            cfp = cap_for(main, en_fp)
+            if cfp < tcache.TC_FLOOR_FP:
+                errs.append(f'{where[0]} + FP ({fpad.SAVE_SIZE} B): TC_CAP {cfp} < TC_FLOOR_FP {tcache.TC_FLOOR_FP}')
+            msg[-1] += f'; + FP: TC_CAP {cfp}, {careerworld.SEL_ROOM - cfp * TEAM - main - en_fp} B left'
     assert not errs, '; '.join(errs)
     return True, ' | '.join(msg)
 
 
 def test_tc_cap_const():
-    if getattr(careerworld, 'TC_CAP', None) is None:
-        return True, 'SKIP: careerworld.TC_CAP does not exist yet (step 1b); test_tc_cap_arith asserts 159 / 155 (FP) from SEL_N / SEL_N_FP'
-    fl = flavours()
-    if not fl:
-        return True, 'SKIP: no build.log with a .CAR trailer line'
-    for (main, en, fp), where in fl.items():
-        formula = min(careerworld.SEL_CAP, (careerworld.SEL_ROOM - main - en) // TEAM)
-        assert cap_for(fp) <= formula, (where[0], cap_for(fp), formula)
-    assert cap_for(False) == 159 and cap_for(True) == 155, (cap_for(False), cap_for(True))
-    return True, f'TC_CAP {cap_for(False)} / {cap_for(True)} (FP) within the formula in {len(fl)} flavours'
+    """the TC_CAP each build logged = the formula on its blocks, >= the floor"""
+    lg = logged()
+    if not lg:
+        return True, 'SKIP: no build.log with a TC_CAP line (a build from before team cache 1a)'
+    errs = []
+    for (main, en), caps in lg.items():
+        want = cap_for(main, en)
+        if caps != {want} or want < tcache.TC_FLOOR_FP:
+            errs.append(f'main {main} + EN {en}: logged {sorted(caps)}, formula {want}')
+    assert not errs, '; '.join(errs)
+    return True, 'TC_CAP ' + ', '.join(f'{sorted(c)} (main {m} + EN {e})' for (m, e), c in sorted(lg.items()))
 
 
 # design 1.3: (procedure, ref line of the add, where its copy-count mov is)

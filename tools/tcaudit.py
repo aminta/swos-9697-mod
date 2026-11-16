@@ -512,7 +512,8 @@ def fixup_kind(le, L, sobj, soff, toff, obytes):
     pre = obytes[max(0, soff - 12):soff]
     ptr = lambda k: fx.get((sobj, soff - k)) in ((2, L['selptr']), (1, L['selbasev']) if L['selbasev'] is not None else None)
     which = 'OLDSEL' if old <= toff < old + OLD_ROOM else 'NEWSEL'
-    if toff in (old, new) and sobj == 1:        # the constants of careerworld's stubs (and the game's ProcessCareerFile)
+    if toff in (old, new) and sobj in (1, 3):   # the constants of careerworld's stubs (and the game's ProcessCareerFile);
+                                                # obj3: tcache.py's tc_cap / tc_clamp_sel (cmp dword [selTeamsPtr / SELBASEV], NEWSEL)
         if pre[-6:-4] == b'\xc7\x05' and ptr(4):
             return f'mov dword [selTeamsPtr / SELBASEV], {which}'
         if pre[-6:-4] == b'\x81\x3d' and ptr(4):

@@ -2,7 +2,7 @@
 tc_rel.release()): every LE fixup whose target is inside the game's cache [OLDSEL, + 68400) or the big one [NEWSEL,
 + SEL_ROOM) must be on the whitelist (tcaudit.fixup_kind):
   - selTeamsPtr's initial value (obj2 data) and SELBASEV's default (trailer.py `SELBASEV: dd SELBUF`, obj1 data);
-  - the OLDSEL / NEWSEL constants of careerworld's stubs: mov / cmp dword [selTeamsPtr | SELBASEV], X; cmp eax, X;
+  - the OLDSEL / NEWSEL constants of careerworld's stubs (obj1) and tcache.py (obj3): mov / cmp dword [selTeamsPtr | SELBASEV], X; cmp eax, X;
     mov esi / edi, NEWSEL (w_save_tail's copy source) - the cache's first byte only;
   - swe.c's DIY code (obj4 below swreg.REG_AT): diy_size and the 'WM' block after a DIY file's records, OLDSEL + 0..4;
   - the END of the fixed part: ctgame.c's hash of careerFileBuffer runs an index from -95153, so the compiler's base is

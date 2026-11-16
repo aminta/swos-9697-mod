@@ -4214,6 +4214,7 @@ def zones_bskip():
              ('GER', 'EUROPA', 'GERMANIA', '3. LIGA', 'ROT-WEISS ESSEN', 2, 1, b, src),
              ('POR', 'EUROPA', 'PORTOGALLO', 'LIGA PORTUGAL 2', 'UNIAO TORREENSE', 2, 1, b, src),
              ('NED', 'EUROPA', 'OLANDA', 'EERSTE DIVISIE', 'DE GRAAFSCHAP', 2, 6, b, src),
+             ('TPE', 'ASIA', 'TAIWAN', 'SECONDA DIVISIONE|TFL DIV. 2|TAIWAN FOOTBALL LEAGUE DIV. 2', 'WAN ISLAND', 1, 0, b, src),   # (4.2: Taiwan's two reserve sides, CTFA Art. 27.2.3; Div 2: 1 up, the Div 2 - TFPL play-off is not in the world's data)
              ('NZL', 'OCEANIA', 'NUOVA ZELANDA', 'NORTHERN LGE|NORTHERN LEAGUE', 'WESTERN SPRINGS', 2, 2, nzb, nzs)]
     only = os.environ.get('ZBSKIP_ONLY')
     errs, info = [], []
@@ -4226,7 +4227,7 @@ def zones_bskip():
             s.wait()
             for t in ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27', cont, country, league, club]:
                 if all(press(s, s.screen(), x, 3) is None for x in t.split('|')):
-                    errs.append(f'{code}: {t} not reached')
+                    errs.append(f'{code}: {t} not reached ({", ".join(s.screen().texts())[:200]})')
                     break
             else:
                 s.send('fire dump:3')

@@ -1185,7 +1185,7 @@ def patch(p):
     ksym = {**{k: v for k, v in sym.items() if k not in kk_names}, 'KS': (4, lab['KS']), 'KT_CODE': (4, lab['KT_CODE'])}
     kcode, kfix, krel = nasmcave.assemble_obj(KK_ASM, kat, ksym, 4)
     assert nasmcave.labels(KK_ASM, kat, ksym) == klab
-    assert kat + len(kcode) <= swreg.KITS_END, ('kits: KEEPKIT code past page 17', hex(kat + len(kcode)))
+    assert kat + len(kcode) <= swreg.KITS_NOX_AT, ('kits: KEEPKIT code past page 17 (KITS_NOX_AT)', hex(kat + len(kcode)))
     lab.update(klab)
     end = at + len(code)
     page = swreg.KITS_PAGE16_END
@@ -1202,6 +1202,13 @@ def patch(p):
     kp = kk_page()                                      # (4.2 KEEPKIT.DAT: page 17)
     assert k17 + len(kp) <= swreg.KITS_END and p.le.obj(4).npages * 0x1000 >= swreg.KITS_END, 'kits: page 17'
     assert not any(p.get(4, k17, swreg.KITS_END - k17)), 'kits: page 17 not free'
+    if kc.get('nox'):                                   # (4.2: kitcolors' SEMPRE stubs, no career cave: page 17's tail)
+        ncode, nfix, nrel = kc['nox']
+        p.put(4, swreg.KITS_NOX_AT, ncode)
+        for o, t_obj, t_off in nfix:
+            p.add_ptr(4, swreg.KITS_NOX_AT + o, t_obj, t_off)
+        for o, t_obj, t_off in nrel:
+            p.add_rel(4, swreg.KITS_NOX_AT + o, t_obj, t_off)
     p.put(4, k17, kp)
     p.put(4, kat, kcode)
     for o, t_obj, t_off in kfix:
@@ -1227,6 +1234,6 @@ def patch(p):
     print(f'exe: kits (K2 keepers, R1 referee{"" if w27 else " - no swe_match_w27: always black"}): obj4+{at:#x}..'
           f'{end:#x} ({len(code)} B, masks {len(ms) + 2 * len(moff)} B; page 16 margin {page - end} B), KEEPKIT.DAT '
           f'table obj4+{k17:#x}..{k17 + len(kp):#x} ({KK_N} x {KK_} B) + code ..{kat + len(kcode):#x} '
-          f'({swreg.KITS_END - kat - len(kcode)} B left), '
+          f'({swreg.KITS_NOX_AT - kat - len(kcode)} B left), '
           f'ChainFont call obj1+{s["CF_AT"]:#x}, keeper loops ' + ', '.join(f'{v:#x}' for v in s['LOOPS'].values()))
     return end

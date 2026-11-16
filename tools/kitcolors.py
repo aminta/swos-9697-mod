@@ -204,17 +204,18 @@ km_keep:                                ; 4.0.5 SEMPRE: the career club's two ki
 
 """
 
-KITS_ASM = r"""
-%ifdef NOX                              ; (4.0.5: a build without the career cave - no career world, a test build -
-KM_MODE:                                ; has no SEMPRE: entry 23 hidden, nothing kept)
-    mov dword [D0], 23
-    call CALC
-    mov esi, [A0]
+NOX_ASM = r"""
+KM_MODE:                                ; (4.0.5: a build without the career cave - no career world, a test build -
+    mov dword [D0], 23                  ; has no SEMPRE: entry 23 hidden, nothing kept. 4.2 (MC 16/11): these stubs
+    call CALC                           ; live in obj4's KITS band (swreg.KITS_NOX_AT, written by kits.patch), so the
+    mov esi, [A0]                       ; arg cave holds the same KITS code with or without the career cave)
     mov word [esi + 4], 1
 KM_KEEP:
 KM_ALWAYS_FN:
     ret
-%endif
+"""
+
+KITS_ASM = r"""
 km_open:                                ; fire on the KITS button (playMatchMenu entry 68)
     pushad
     db 0Fh, 1Fh, 44h, 0, 0xc1           ; (4.2: the editor opens on the team's kits)
@@ -837,11 +838,16 @@ def button(p, at, lang, area, extra=None):
            'MEASURE': (1, measure), 'SIMS': sims, 'KM_ALWAYS': (2, base + 2),
            'TXT_MATCH': (2, base + off['match']), 'TXT_ALWAYS': (2, base + off['always']), **_career_syms(p)}
     src = KITS_ASM
-    if xat is None:                                     # (no career cave: no SEMPRE, the stubs in the KITS code)
-        src = '%define NOX\n' + KITS_ASM
+    nox = None
+    if xat is None:                                     # (no career cave: no SEMPRE, the stubs in obj4's KITS band,
+        import swreg                                    #  kits.patch writes them: obj4 has no pages yet here)
+        nox = nasmcave.assemble_obj(NOX_ASM, swreg.KITS_NOX_AT, sym, 4)       # (before sym names its labels)
+        nlab = nasmcave.labels(NOX_ASM, swreg.KITS_NOX_AT, sym)
+        sym.update({k: (4, nlab[k]) for k in ('KM_ALWAYS_FN', 'KM_KEEP', 'KM_MODE')})
+        assert swreg.KITS_NOX_AT + len(nox[0]) <= swreg.KITS_END, ('kitcolors: NOX stubs past KITS_END', len(nox[0]))
     else:
         sym.update(KM_ALWAYS_FN=(1, xat), KM_KEEP=(1, xat + 5), KM_MODE=(1, xat + 10))
-    code, fix = nasmcave.assemble(src, at, sym)
+    code, fix, rel = nasmcave.assemble_obj(src, at, sym, 1)
     lab = nasmcave.labels(src, at, sym)
     if xat is not None:
         lab['KM_ALWAYS_FN'] = xat
@@ -853,7 +859,8 @@ def button(p, at, lang, area, extra=None):
         for o, t_obj, t_off in xfix:
             p.add_ptr(1, xat + o, t_obj, t_off)
         extra[0] = xat + len(xcode)
-    INFO.update(find_slot=lab['find_slot'], slots=(2, base + 4), xat=xat)   # (4.0.6 kittrain.py: training's A / B)
+    INFO.update(find_slot=lab['find_slot'], slots=(2, base + 4), xat=xat)
+    INFO['nox'] = nox                               # (4.2: (code, fix, rel) at swreg.KITS_NOX_AT, or None)   # (4.0.6 kittrain.py: training's A / B)
     INFO.update(kg_sites={k: at + kg_site(code, v) for k, v in KG_SITES.items()},
                 sym=dict({k: v for k, v in sym.items()
                           if k in ('D0', 'A0', 'CALC', 'EDIT_TEAM', 'SLOTS', 'KM_TEAM', 'KM_ALWAYS', 'DRAW_MENU',
@@ -866,11 +873,15 @@ def button(p, at, lang, area, extra=None):
     p.put(1, at, code)
     for o, t_obj, t_off in fix:
         p.add_ptr(1, at + o, t_obj, t_off)
+    for o, t_obj, t_off in rel:                     # (4.2: the NOX stubs' calls into obj4)
+        p.add_rel(1, at + o, t_obj, t_off)
     for o, t_obj, t in ptrs:
         if t == '@gk':                              # (4.2: entry 24's select function, kits.py's kg_gk in obj4)
             INFO['gk_sel'] = base + o
             continue
-        if isinstance(t, str):
+        if isinstance(t, str) and t_obj == 1 and t not in lab:
+            t_obj, t = sym[t]                       # (4.2: SEMPRE's select, the NOX stub in obj4)
+        elif isinstance(t, str):
             t = lab[t] if t_obj == 1 else base + off[t]
         p.add_ptr(2, base + o, t_obj, t)
     for o, t_obj, t in pptrs:

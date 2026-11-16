@@ -16,8 +16,27 @@ LEGACY = os.path.join(os.path.expanduser('~'), 'swos-mod', 'c')
 _ok = set()
 
 
+def _auto():
+    """HOSTTEST_FIXROOT unset: the newest c/FX-<this checkout's sha>* that mkfixtures.sh built for this tip, else the legacy root."""
+    import glob
+    import subprocess
+    try:
+        here = os.path.dirname(os.path.abspath(__file__))
+        sha = subprocess.run(['git', '-C', here, 'rev-parse', '--short', 'HEAD'], capture_output=True, text=True).stdout.strip()
+    except Exception:
+        return None
+    c = sorted((p for p in glob.glob(os.path.join(LEGACY, 'FX-' + sha + '*')) if os.path.exists(os.path.join(p, 'MANIFEST.json'))),
+               key=os.path.getmtime) if sha else []
+    return c[-1] if c else None
+
+
 def root():
-    return os.environ.get('HOSTTEST_FIXROOT') or LEGACY
+    r = os.environ.get('HOSTTEST_FIXROOT')
+    if not r:
+        r = _auto()
+        if r:
+            os.environ['HOSTTEST_FIXROOT'] = r      # (child processes and fx() see the same root; `mkfixtures.sh; run.py` just works)
+    return r or LEGACY
 
 
 def md5(p):

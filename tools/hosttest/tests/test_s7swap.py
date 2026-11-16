@@ -270,6 +270,18 @@ def test_s7swap():
     std, _, ncd, sltd = run(m, down, up)
     if std != SIZE or ncd != 0 or (m.rd(sz, 2)[1] if sz else 0) != 2:
         errs.append(f'SIZE ident twice: status {std} (want {SIZE}), S7_SZ {m.rd(sz, 8).hex() if sz else None}')
+    # MC 16/11 host mutants of the crossing list: refused (any refusal status), nothing crosses, registry and SLTCOPY kept
+    for name, dd, want_st in (('(a) the same club twice in the crossing list', down[:1] + down[:1] + down[2:], SIZE),
+                              ('(c) a count off by one (one crossing too many)', down + down[:1], COUNT),
+                              ('(c) a count off by one (one crossing too few)', down[:-1], COUNT)):
+        m.fresh()
+        stm, _, ncm, sltm = run(m, dd, up)
+        z = m.rd(sz, 8).hex() if sz else None
+        if want_st == SIZE and sz and m.rd(sz, 2)[0] != 2:       # (S7_SZ gate 2: the count after the swaps, kind 1 = division size)
+            errs.append(f'mutant {name}: S7_SZ {z} does not say gate 2')
+        if stm != want_st or ncm != 0 or m.regb() != r0 or any(sltm):
+            errs.append(f'mutant {name}: status {stm} (want {want_st}), crossers {ncm}, registry '
+                        f'{"kept" if m.regb() == r0 else "changed"}, SLTCOPY {"reset" if not any(sltm) else "touched"}, S7_SZ {z}')
     for name, kw, code in (('COUNT', dict(down=down[:-1]), COUNT), ('BAD', dict(bad=(0, 2)), BAD),
                            ('STALE', dict(sb=SEASON - 1), STALE),
                            ('PLACE', dict(up=up[:-1] + [(glob_of(m.gb[0], 0), FA, 0, 0, 0, 0)]), PLACE)):

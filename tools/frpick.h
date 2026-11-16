@@ -80,6 +80,14 @@
    4 and each non-empty slot covers at most one, so the uncovered bands are never fewer than the empty slots).
    last-season avoid does not apply to a chosen club.
 
+   THE GIVEN CHECK (fr_given): the page's per-club check, with EXACTLY fr_pick's given-list rules (one internal
+   routine serves both). fr_given(.., given, k, room, &band) checks entry k (0..3) in the context of the other
+   entries: FR_BADBLOB / FR_NOSELF as fr_pick; otherwise 0, or the FR_E_* code fr_pick would put in why[k] - same
+   order, same codes, the room spent in slot order by the earlier accepted clubs that are not cached. *band = the
+   band the club falls in (also for a refused club that exists; 0xFF for FR_E_NOCLUB), the pinned band for FR_AUTO;
+   an empty slot (0xFFFF) returns 0 with *band = 0xFF. No automatic fill, no venues (FR_E_VENUE is fr_pick's): with
+   a room, one index lookup and at most one cached() call per entry 0..k; without one, entry k only.
+
    THE VENUES (after the list is final): the nhome opponents with the lowest strength are played at home (ties: the
    lower slot first), the others away; bit k of out->home = friendly k at home. nhome 5 .. 0xFF -> 4. Default 2
    (2H / 2A). VENUES AS GIVEN: nhome = FR_VENUES(mask) = 0x100 | mask (any nhome >= 0x100; only bits 0-3 are read):
@@ -156,6 +164,9 @@ typedef struct {
 int fr_pick(const uint8_t *frss, uint32_t len, uint8_t world, uint16_t self, uint16_t self2,
             const uint16_t *given, const uint16_t *avoid, uint32_t navoid, const FrRoom *room,
             uint32_t season, uint32_t seed, uint32_t nhome, FrPick *out);
+
+int fr_given(const uint8_t *frss, uint32_t len, uint8_t world, uint16_t self, uint16_t self2,
+             const uint16_t *given, uint32_t k, const FrRoom *room, uint8_t *band);  /* 0, FR_E_*, BADBLOB / NOSELF */
 
 uint32_t fr_level(const uint8_t *frss, uint32_t len, uint8_t world, uint16_t word);     /* 1 .. 5, 0 = no level */
 

@@ -59,6 +59,9 @@ def lib(opt='-O2'):
         l.fr_pick.argtypes = [ctypes.c_char_p, ctypes.c_uint32, ctypes.c_uint8, ctypes.c_uint16, ctypes.c_uint16,
                               ctypes.c_void_p, ctypes.c_void_p, ctypes.c_uint32, ctypes.c_void_p, ctypes.c_uint32,
                               ctypes.c_uint32, ctypes.c_uint32, ctypes.POINTER(FrPick)]
+        l.fr_given.restype = ctypes.c_int
+        l.fr_given.argtypes = [ctypes.c_char_p, ctypes.c_uint32, ctypes.c_uint8, ctypes.c_uint16, ctypes.c_uint16,
+                               ctypes.c_void_p, ctypes.c_uint32, ctypes.c_void_p, ctypes.POINTER(ctypes.c_uint8)]
         l.fr_level.restype = ctypes.c_uint32
         l.fr_level.argtypes = [ctypes.c_char_p, ctypes.c_uint32, ctypes.c_uint8, ctypes.c_uint16]
         l.fr_test_band.restype = ctypes.c_uint32            # (FRPICK_TEST only: the C's own band function)
@@ -86,6 +89,49 @@ def cpick(blob, world, self_, self2=NONE, given=None, avoid=(), room=None, cache
     rc = lib(opt).fr_pick(blob, len(blob), world, self_, self2, g, a, navoid, ctypes.byref(r) if r else None,
                           season & M32, seed & M32, nhome, ctypes.byref(out))
     return rc, list(out.word), out.home, out.fb, list(out.band), list(out.why)
+
+
+def cgiven(blob, world, self_, self2, given, k, room=None, cached=(), calls=None, opt='-O2'):
+    """fr_given -> (code, band)"""
+    g = (ctypes.c_uint16 * 4)(*given) if given is not None else None
+    r = None
+    if room is not None:
+        def cb(ctx, w):
+            if calls is not None:
+                calls.append(w)
+            return 1 if w in cached else 0
+        r = FrRoom(room, CACHED(cb), None)
+    band = ctypes.c_uint8(0x5A)
+    rc = lib(opt).fr_given(blob, len(blob), world, self_, self2, g, k, ctypes.byref(r) if r else None, ctypes.byref(band))
+    return rc, band.value
+
+
+def given_vs_pick(a):
+    """fr_given for every k against fr_pick on the same list (THE GIVEN CHECK): None, or what differs. a = cpick's
+    arguments (the venues left at the default: FR_E_VENUE is fr_pick's only)"""
+    a = {k: v for k, v in a.items() if k in ('blob', 'world', 'self_', 'self2', 'given', 'room', 'cached')}
+    rc, ws, home, fb, bands, why = cpick(**a)
+    g = a.get('given') or [NONE] * 4
+    for k in range(4):
+        calls = []
+        e, band = cgiven(a['blob'], a['world'], a['self_'], a.get('self2', NONE), a.get('given'), k, a.get('room'),
+                         a.get('cached', ()), calls)
+        if rc in (BADBLOB, NOSELF):
+            if (e, band) != (rc, 0xFF):
+                return f'k {k}: fr_given {e} band {band}, fr_pick {rc}'
+            continue
+        if e != (why[k] if rc == GIVEN else 0):
+            return f'k {k}: fr_given {e}, fr_pick {rc} why {why}'
+        pin = pin_of(g[k])
+        if g[k] == NONE and band != 0xFF or pin is not None and band != pin:
+            return f'k {k}: band {band} for {g[k]:#x}'
+        if rc == OK and g[k] != NONE and pin is None and band != bands[k]:
+            return f'k {k}: band {band}, fr_pick band {bands[k]}'
+        if e == E_NOCLUB and band != 0xFF or e in (E_SELF, E_BTEAM, E_DUP, E_ROOM) and band > 4:
+            return f'k {k}: code {e} band {band}'
+        if len(calls) > k + 1 or (a.get('room') is None and calls) or any(calls.count(w) > g[:k + 1].count(w) for w in calls):
+            return f'k {k}: cached() calls {calls}'
+    return None
 
 
 # ---- the table ----
@@ -350,10 +396,14 @@ def test_frpick_random_vs_reference():
         for w in set(calls):
             if calls.count(w) > auto + g.count(w):
                 return False, f'case {i}: cached({w:#x}) called {calls.count(w)} times, {auto} automatic slots'
+        d = given_vs_pick(a)
+        if d:
+            return False, f'case {i}: fr_given: {d} ({ {k: v for k, v in a.items() if k != "blob"} })'
         codes[r[0]] = codes.get(r[0], 0) + 1
     if min(codes.get(k, 0) for k in (OK, NOSELF, NOPOOL, GIVEN)) < 10:
         return False, f'the random cases do not reach every code: {codes}'
-    return True, f'{CASES} random tables: C == reference; codes {dict(sorted(codes.items()))}'
+    return True, f'{CASES} random tables: fr_pick == reference, fr_level == reference, fr_given == fr_pick for every k; ' \
+                 f'codes {dict(sorted(codes.items()))}'
 
 
 def test_frpick_det():
@@ -923,6 +973,126 @@ def _exe_object():
     return sizes, su, relocs, b
 
 
+class Exe386:
+    """the exe-flag object's .text run in Unicorn (it has no relocation): fr_pick / fr_given / fr_level called cdecl,
+    the lowest stack byte written = the real stack use (frames + pushed arguments + return addresses, the entry's
+    return address included; the cached() stub's own frame is not ours)"""
+    TEXT, BLOB, DATA, STUB, TOP = 0x100000, 0x200000, 0x300000, 0x400000, 0x600000
+
+    def __init__(self):
+        from unicorn import Uc, UC_ARCH_X86, UC_MODE_32, UC_HOOK_MEM_WRITE
+        from unicorn import x86_const as X
+        self.X = X
+        sizes, su, relocs, b = _exe_object()
+        assert not relocs
+        shoff = struct.unpack_from('<I', b, 0x20)[0]
+        entsz, num, strndx = struct.unpack_from('<HHH', b, 0x2E)
+        sh = [struct.unpack_from('<10I', b, shoff + i * entsz) for i in range(num)]
+        names = [b[sh[strndx][4] + s[0]:].split(b'\0')[0].decode() for s in sh]
+        ti = names.index('.text')
+        sym = sh[names.index('.symtab')]
+        self.sym = {}
+        for i in range(sym[5] // 16):
+            nm, val, sz, info, oth, shndx = struct.unpack_from('<IIIBBH', b, sym[4] + 16 * i)
+            if shndx == ti:
+                self.sym[b[sh[sym[6]][4] + nm:].split(b'\0')[0].decode()] = val
+        self.uc = uc = Uc(UC_ARCH_X86, UC_MODE_32)
+        uc.mem_map(0x100000, 0x500000)
+        uc.mem_write(self.TEXT, b[sh[ti][4]:sh[ti][4] + sh[ti][5]])
+        uc.mem_write(self.STUB, b'\x31\xc0\xc3' + b'\x90' * 13 + b'\x31\xc0\x40\xc3' + b'\x90' * 12 + b'\xf4')
+        self.low = self.TOP
+        uc.hook_add(UC_HOOK_MEM_WRITE, self._w, begin=0x500000, end=self.TOP)
+
+    def _w(self, uc, access, addr, size, value, data):
+        self.low = min(self.low, addr)
+
+    def call(self, name, *args):
+        """-> (eax, stack bytes used)"""
+        X, uc = self.X, self.uc
+        esp = self.TOP - 0x100
+        uc.mem_write(esp, struct.pack(f'<{len(args) + 1}I', self.STUB + 0x20, *[a & M32 for a in args]))
+        uc.reg_write(X.UC_X86_REG_ESP, esp)
+        self.low = esp
+        uc.emu_start(self.TEXT + self.sym[name], self.STUB + 0x20, count=20000000)
+        assert uc.reg_read(X.UC_X86_REG_EIP) == self.STUB + 0x20
+        return uc.reg_read(X.UC_X86_REG_EAX), esp + 4 - self.low
+
+    def pick(self, blob, world, self_, self2=NONE, given=None, avoid=(), room=None, all_cached=False, season=0, seed=0,
+             nhome=2, **_):
+        uc, D = self.uc, self.DATA
+        uc.mem_write(self.BLOB, blob)
+        uc.mem_write(D, struct.pack('<4H', *(given or [0] * 4)) + struct.pack(f'<{len(avoid or ()) + 1}H', 0, *(avoid or ())))
+        uc.mem_write(D + 0x100, struct.pack('<3I', room or 0, self.STUB + (0x10 if all_cached else 0), 0))
+        uc.mem_write(D + 0x200, b'\xA5' * 18)
+        rc, used = self.call('fr_pick', self.BLOB, len(blob), world, self_, self2, D if given is not None else 0,
+                             D + 10 if avoid is not None else 0, len(avoid or ()), D + 0x100 if room is not None else 0,
+                             season, seed, nhome, D + 0x200)
+        o = bytes(uc.mem_read(D + 0x200, 18))
+        w = list(struct.unpack_from('<4H', o))
+        return (rc - (1 << 32 if rc >> 31 else 0), w, o[8], o[9], list(o[10:14]),
+                list(struct.unpack_from('<4b', o, 14))), used
+
+    def given(self, blob, world, self_, self2, given, k, room=None, all_cached=False):
+        uc, D = self.uc, self.DATA
+        uc.mem_write(self.BLOB, blob)
+        uc.mem_write(D, struct.pack('<4H', *(given or [0] * 4)))
+        uc.mem_write(D + 0x100, struct.pack('<3I', room or 0, self.STUB + (0x10 if all_cached else 0), 0))
+        uc.mem_write(D + 0x200, b'\x5A')
+        rc, used = self.call('fr_given', self.BLOB, len(blob), world, self_, self2, D if given is not None else 0, k,
+                             D + 0x100 if room is not None else 0, D + 0x200)
+        return (rc - (1 << 32 if rc >> 31 else 0), uc.mem_read(D + 0x200, 1)[0]), used
+
+    def level(self, blob, world, w):
+        self.uc.mem_write(self.BLOB, blob)
+        return self.call('fr_level', self.BLOB, len(blob), world, w)
+
+
+def test_frpick_exe_run():
+    """the object built with the exe flags (i486, -Oz) EXECUTED in Unicorn: the same results as the native build, and
+    the stack it really uses < 256 B (Motore's condition), on random tables and on the committed world tables"""
+    try:
+        exe = Exe386()
+    except ImportError as e:
+        return True, f'SKIP: no Unicorn ({e})'
+    rng = random.Random(0x386)
+    worst = {'fr_pick': 0, 'fr_given': 0, 'fr_level': 0}
+    cases = [rand_case(rng) for _ in range(max(200, CASES // 5))]
+    import glob
+    for p in sorted(glob.glob(os.path.join(TOOLS, 'frdata', 'frstr_w*.bin'))):
+        blob = open(p, 'rb').read()
+        tab = rparse(blob)
+        if tab is None:
+            continue
+        live = sorted(rtable(tab, tab[0][0])[1])
+        for i in range(6):
+            g = [rng.choice([NONE, NONE, AUTO(rng.randint(0, 2)), rng.choice(live)]) for _ in range(4)]
+            cases.append(dict(blob=blob, world=tab[0][0], self_=rng.choice(live), self2=NONE, given=g if i % 3 else None,
+                              avoid=rng.sample(live, 4), room=rng.choice([None, 0, 2, 4]), cached=(), seed=i, season=i, nhome=2))
+    for i, a in enumerate(cases):
+        allc = bool(i & 1)
+        live = {word(fl, o) for w, fl, c, st in (rparse(a['blob']) or []) for o in range(len(st))}
+        a = dict(a, cached=live | set(range(0x10000)) if allc else set())
+        r, used = exe.pick(all_cached=allc, **a)
+        n = cpick(**a)
+        if not (r == n if n[0] == OK else (r[0], r[5]) == (n[0], n[5])):
+            return False, f'case {i}: the i486 object {r} != the native build {n}'
+        worst['fr_pick'] = max(worst['fr_pick'], used)
+        for k in range(4):
+            r, used = exe.given(a['blob'], a['world'], a['self_'], a['self2'], a['given'], k, a['room'], allc)
+            n = cgiven(a['blob'], a['world'], a['self_'], a['self2'], a['given'], k, a['room'], a['cached'])
+            if r != n:
+                return False, f'case {i}: fr_given({k}) i486 {r} != native {n}'
+            worst['fr_given'] = max(worst['fr_given'], used)
+        for w in (a['self_'], rng.randint(0, 0xFFFF)):
+            r, used = exe.level(a['blob'], a['world'], w)
+            if r != lib().fr_level(a['blob'], len(a['blob']), a['world'], w):
+                return False, f'case {i}: fr_level({w:#x}) i486 {r} != native'
+            worst['fr_level'] = max(worst['fr_level'], used)
+    if max(worst.values()) >= 256:
+        return False, f'stack used {worst}: 256 B or more'
+    return True, f'{len(cases)} cases: i486 -Oz object == native build; stack really used (return address in) {worst} < 256'
+
+
 def test_frpick_exe_object():
     """Motore's conditions on the object linked in FRND: built with the exe flags (-Oz), no data, no undefined symbol
     (no libc, no exe address), stack < 256 B"""
@@ -934,15 +1104,16 @@ def test_frpick_exe_object():
     for sym in (b'memset', b'memcpy', b'__', b'fr_test'):
         if sym in obj:
             return False, f'the object names {sym.decode()}'
-    if text > 2300:                                         # (2181 B on 16/11 with fr_level, FR_AUTO, FR_VENUES)
-        return False, f'.text {text} B: over the 2300 B this test allows (tell Motore before raising it)'
+    if text > 2400:                                         # (2306 B on 16/11 with fr_given / fr_level / FR_AUTO)
+        return False, f'.text {text} B: over the 2400 B this test allows (tell Motore before raising it)'
     if su is None or 'fr_pick' not in su:
         return True, f'SKIP: no -fstack-usage output from this clang (.text {text} .data {data} .rodata {ro})'
-    leaf = max([v for k, v in su.items() if k not in ('fr_pick', 'fr_level')] or [0])
-    deep = max(su['fr_pick'], su.get('fr_level', 0)) + leaf + 8         # + a callee's frame + the call
+    # (frames only: pushed arguments and return addresses are not in -fstack-usage; the stack really used is measured
+    #  by test_frpick_exe_run, which runs this object)
+    deep = su['fr_pick'] + su.get('fr_auto', 0) + 24
     if deep >= 256:
-        return False, f'stack {su}: {deep} B'
-    return True, f'-Oz exe flags: .text {text} B, .data {data} B, .rodata {ro} B, 0 relocations; stack {su} (< 256)'
+        return False, f'stack {su}: fr_pick + fr_auto + a call = {deep} B'
+    return True, f'-Oz exe flags: .text {text} B, .data {data} B, .rodata {ro} B, 0 relocations; frames {su}'
 
 
 def test_frpick_pinned():
@@ -1129,3 +1300,114 @@ def test_frpick_real_bands():
         msgs.append(f'world {world}: {len(clubs)} clubs, {len(vals)} strengths ({pairs} pairs), M {max(11, vals[0] // 10)}'
                     f'..{max(11, vals[-1] // 10)}; ' + '; '.join(smp))
     return True, 'bands disjoint, complete, ordered | ' + ' | '.join(msgs)
+
+
+def test_frpick_given_check_real():
+    """THE GIVEN CHECK on every committed world table: fr_given(k) == fr_pick's why[k] / band[k] on a few hundred given
+    lists per world (valid clubs, clubs of self's country, self / self2, duplicates, FR_AUTO, junk; with and without a
+    room)"""
+    import glob
+    fs = sorted(glob.glob(os.path.join(TOOLS, 'frdata', 'frstr_w*.bin')))
+    if not fs:
+        return True, 'SKIP: no tools/frdata/frstr_w*.bin'
+    n = int(os.environ.get('HT_FRPICK_GIVEN') or 300)
+    msgs = []
+    for p in fs:
+        blob = open(p, 'rb').read()
+        tab = rparse(blob)
+        if tab is None:
+            return True, f'SKIP: {os.path.basename(p)} is not a v2 blob this pick accepts'
+        world = tab[0][0]
+        clubs, info = rtable(tab, world)
+        live = sorted(info)
+        by_c = {}
+        for w in live:
+            by_c.setdefault(info[w][1], []).append(w)
+        rng = random.Random(0x61 + world)
+        seen = {}
+        for i in range(n):
+            self_ = rng.choice(live)
+            mates = by_c[info[self_][1]]
+            self2 = rng.choice([NONE, rng.choice(mates), rng.choice(live)])
+            good = [NONE, AUTO(rng.randint(0, 2))] + [rng.choice(live) for _ in range(3)] + [rng.choice(mates)]
+            bad = [self_, self2, word(rng.choice(live) & 0xFF, 255), rng.choice([0xF3FF, 0x00FF, rng.randint(0, 0xFFFF)])]
+            g = [rng.choice(good + bad if i % 2 else good) for _ in range(4)]
+            if i % 2 and rng.random() < .4:
+                g[rng.randint(1, 3)] = g[0]
+            a = dict(blob=blob, world=world, self_=self_, self2=self2, given=g)
+            if rng.random() < .5:
+                a['room'] = rng.randint(0, 3)
+                a['cached'] = set(rng.sample(live, len(live) // rng.choice([2, 10, 50])))
+            d = given_vs_pick(a)
+            if d:
+                return False, f'world {world} list {i}: {d} (self {self_:#x} self2 {self2:#x} given {[hex(x) for x in g]})'
+            r = cpick(**a)
+            seen[('pick', r[0])] = seen.get(('pick', r[0]), 0) + 1
+            for e in (r[5] if r[0] == GIVEN else [0] * 4):
+                seen[e] = seen.get(e, 0) + 1
+            if r[0] == OK and any(info[w][1] == info[self_][1] for w in r[1]):
+                seen['home'] = seen.get('home', 0) + 1
+        if any(seen.get(e, 0) < 5 for e in (0, E_NOCLUB, E_SELF, E_BTEAM, E_DUP, E_ROOM, 'home', ('pick', OK))) \
+                or E_HOME in seen:
+            return False, f'world {world}: the lists do not reach every case: {seen}'
+        msgs.append(f'world {world}: {n} lists ({seen[("pick", OK)]} accepted, {seen["home"]} with a club of self\'s '
+                    f'country), codes ' + ' '.join(f'{e}: {seen.get(e, 0)}' for e in (0, -1, -2, -3, -4, -6)))
+    return True, 'fr_given == fr_pick | ' + ' | '.join(msgs)
+
+
+def test_frpick_fallback_real():
+    """THE "NEAREST BAND" RULE as an everyday case (1996-97 session, 16/11: the price-floor squads have nobody weaker):
+    on every committed world table, EVERY club as self with the defaults (given / avoid / room NULL, nhome 2, one
+    seed) -> FR_OK; fb is set exactly on the slots whose wanted band has no club left in the pool, and such a slot's
+    club is at the smallest fallback distance of the pool. The pool and the distances are recomputed here from the
+    table (sorted strengths of the other countries, the earlier slots' clubs taken out), not by ref()."""
+    import bisect
+    import glob
+    fs = sorted(glob.glob(os.path.join(TOOLS, 'frdata', 'frstr_w*.bin')))
+    if not fs:
+        return True, 'SKIP: no tools/frdata/frstr_w*.bin'
+    seed, msgs = 0x4652, []
+    for p in fs:
+        blob = open(p, 'rb').read()
+        tab = rparse(blob)
+        if tab is None:
+            return True, f'SKIP: {os.path.basename(p)} is not a v2 blob this pick accepts'
+        world = tab[0][0]
+        clubs, info = rtable(tab, world)
+        abroad = {}                                     # country -> the sorted strengths of every other country's clubs
+        for c0 in {c for _, _, c in clubs}:
+            abroad[c0] = sorted(s for _, s, c in clubs if c != c0)
+        need = {WEAKER: 0, SIMILAR: 0, STRONGER: 0}
+        for self_, S, sc in clubs:
+            if info.get(self_) != (S, sc):
+                continue
+            M = max(11, S // 10)
+            rc, ws, home, fb, bands, why = cpick(blob, world, self_, avoid=None, navoid_null=0, seed=seed, season=1)
+            if rc != OK or any(why) or len(set(ws)) != 4 or bin(home).count('1') != 2:
+                return False, f'world {world} self {self_:#x} (S {S}): {rc} {ws} home {home:#x} why {why}'
+            pool = abroad[sc]
+            used = set()
+            for k, want in enumerate((WEAKER, SIMILAR, SIMILAR, STRONGER)):
+                lo, hi = {WEAKER: (S - 4 * M, S - M - 1), SIMILAR: (S - M, S + M), STRONGER: (S + M + 1, S + 4 * M)}[want]
+                a, b = bisect.bisect_left(pool, lo), bisect.bisect_right(pool, hi)
+                near = pool[max(0, a - 4):min(len(pool), b + 4)] if b - a <= 3 else [lo]     # (3 at most are taken out)
+                if b - a <= 3:
+                    for w in ws[:k]:                    # the earlier slots' clubs are not in the pool any more
+                        near.remove(info[w][0]) if info[w][0] in near else None
+                if not near:
+                    return False, f'world {world} self {self_:#x}: no club left for slot {k}'
+                dist = min(0 if lo <= s <= hi else lo - s if s < lo else s - hi for s in near)
+                s = info[ws[k]][0]
+                mine = 0 if lo <= s <= hi else lo - s if s < lo else s - hi
+                if info[ws[k]][1] == sc or bool(fb >> k & 1) != (dist > 0) or mine != dist:
+                    return False, f'world {world} self {self_:#x} (S {S}, M {M}) slot {k}: club {ws[k]:#x} strength {s} at ' \
+                                  f'distance {mine}, the pool\'s smallest {dist}, fb {fb:#x}'
+                if bands[k] != rband(s - S, M) or (dist == 0) != (bands[k] == want):
+                    return False, f'world {world} self {self_:#x} slot {k}: band {bands[k]} for strength {s}'
+                if dist and want not in used:
+                    need[want] += 1
+                    used.add(want)
+        n = len(clubs)
+        msgs.append(f'world {world}: {n} clubs as self, all FR_OK; the fallback for weaker {need[WEAKER]} '
+                    f'({100 * need[WEAKER] / n:.1f} %), similar {need[SIMILAR]}, stronger {need[STRONGER]}')
+    return True, ' | '.join(msgs)

@@ -22,6 +22,15 @@
    - venues as given: any nhome >= 0x100 -> mask = nhome & 0xF, checked right after the given list (so before
      FR_NOPOOL): 2 bits set, or FR_GIVEN with FR_E_VENUE x 4.
    - fr_level: no cap is coded - b counts strengths strictly below the club's own, so b <= n - 1 and 5 * b / n <= 4.
+   - fr_given: k must be 0..3. With a room it walks the entries 0..k (one index lookup and at most one cached() call
+     each: k + 1 lookups, <= k + 1 calls); without a room entry k only (one lookup, no call). *band: 0xFF for an
+     empty slot and for FR_E_NOCLUB; the pinned band for FR_AUTO; the club's band otherwise - also when the club is
+     refused (FR_E_SELF / BTEAM / DUP / ROOM: the page can still colour it). It knows nothing of the venues
+     (FR_E_VENUE is fr_pick's only).
+   - stack: fr_pick keeps the state (FrCtx) and calls the phases - fr_open, fr_entry per given entry, fr_auto per
+     automatic slot (noinline) - so their frames do not add up. Deepest path fr_pick -> fr_auto -> cached(): 240 B
+     with the exe flags at -Oz, return addresses and pushed arguments included (measured by test_frpick_exe_run,
+     which executes the object; < 256 asserted there).
    - FRPICK_TEST (host test builds only, never the exe object): fr_test_band exports fr_band.
    - uncovered bands: need = {1 stronger, 2 similar, 1 weaker}; each valid given club / pinned slot takes one off its
      band's need (when one is left; a far club takes none, and its band[k] is FR_FAR_UP / FR_FAR_DOWN with fb 0).
@@ -32,7 +41,8 @@
      filled = every given club (of any slot) + the automatic slots filled before it.
    - the key is compared as (distance << 2 | avoid << 1 | country, hash); a full tie (a 32-bit hash collision) keeps
      the first club in table order (index order, then ordinal).
-   - hash: slot = the slot's index 0..3 in the four; uint32 operations only (see fr_hash).
+   - hash: slot = the slot's index 0..3 in the four; uint32 operations only (see fr_hash; seed and season are mixed
+     once per call).
    - room: an automatic pass calls cached() only while no room is left, and only for a club that would become the
      best so far (a non-cached one is skipped); with room left the pass calls nothing and the chosen club is asked
      once after the pass (not cached: one unit of room spent).
@@ -42,9 +52,10 @@
 #define RD16(p) ((uint32_t)(p)[0] | (uint32_t)(p)[1] << 8)
 #define CNT(e)  ((((uint32_t)(e)[2] - 1) & 0xFF) + 1)         /* the count byte: 0 = 256 clubs */
 
-static uint32_t fr_hash(uint32_t seed, uint32_t season, uint32_t slot, uint32_t word)
+/* mix = seed ^ season * 0x9E3779B1 (made once per call, in fr_pick) */
+static uint32_t fr_hash(uint32_t mix, uint32_t slot, uint32_t word)
 {
-    uint32_t h = seed ^ (season * 0x9E3779B1u) ^ ((slot << 16 | word) * 0x85EBCA6Bu);
+    uint32_t h = mix ^ ((slot << 16 | word) * 0x85EBCA6Bu);
     h ^= h >> 16;
     h *= 0x7FEB352Du;
     h ^= h >> 15;
@@ -96,77 +107,209 @@ static uint32_t fr_band(int32_t d, int32_t m)
          : d < -4 * m ? FR_FAR_DOWN : d < -m ? FR_WEAKER : FR_SIMILAR;
 }
 
+/* the state shared by the phases (in fr_pick's / fr_given's frame; the phases are separate functions so that their
+   frames do not add up: the stack condition) */
+typedef struct {
+    const uint8_t *frss;
+    const uint16_t *given;
+    const FrRoom *room;
+    uint32_t world, self, self2;
+    uint32_t left;                      /* the room left */
+    uint32_t s, c;                      /* fr_entry: the club's strength (0: no club) and country */
+    int32_t S, M;                       /* self's strength, the margin */
+} FrG;
+
+typedef struct {
+    FrG g;
+    const uint16_t *avoid;
+    uint32_t navoid, mix, sc, filled;       /* mix: seed and season, see fr_hash */
+    FrPick *out;
+    uint16_t str[4];
+    uint8_t ctry[4];
+} FrCtx;
+
+/* the blob and self: 0, FR_BADBLOB or FR_NOSELF; *sc = self's country */
+static int fr_open(FrG *g, const uint8_t *frss, uint32_t len, uint32_t world, uint32_t self, uint32_t self2,
+                   const uint16_t *given, const FrRoom *room, uint32_t *sc)
+{
+    if (!fr_check(frss, len))
+        return FR_BADBLOB;
+    g->frss = frss;
+    g->given = given;
+    g->room = room;
+    g->world = world;
+    g->self = self;
+    g->self2 = self2;
+    g->left = room ? room->room : 0;
+    g->S = (int32_t)fr_find(frss, world, self, sc);
+    if (!g->S)
+        return FR_NOSELF;
+    g->M = g->S < 110 ? 11 : g->S / 10;
+    return 0;
+}
+
+/* THE GIVEN CHECK of entry k, shared by fr_pick and fr_given (so the two cannot drift). FR_G_EMPTY: 0xFFFF;
+   FR_G_PIN + band: FR_AUTO(band); 0: a club accepted; < 0: its FR_E_* code. g->s = the club's strength (0: no club),
+   g->c its country. g->left = the room left, spent here by an accepted club that is not cached: the caller walks
+   the entries in slot order. */
+#define FR_G_EMPTY  1
+#define FR_G_PIN    2
+
+static int fr_entry(FrG *g, uint32_t k)
+{
+    uint32_t w = g->given ? g->given[k] : FR_NONE, j;
+    int e = 0;
+
+    g->s = 0;
+    if (w == FR_NONE)
+        return FR_G_EMPTY;
+    if ((w & 0xFF) == 0xFF && (j = (w >> 8) - 0xF0) < 3)
+        return (int)(FR_G_PIN + j);
+    g->s = fr_find(g->frss, g->world, w, &g->c);
+    for (j = 0; j < k; j++)
+        if (g->given[j] == w)
+            e = FR_E_DUP;
+    if (!g->s)
+        return FR_E_NOCLUB;
+    if (w == g->self)
+        return FR_E_SELF;
+    if (w == g->self2)
+        return FR_E_BTEAM;
+    if (!e && g->room && !g->room->cached(g->room->ctx, (uint16_t)w)) {
+        if (!g->left)
+            return FR_E_ROOM;
+        g->left--;
+    }
+    return e;
+}
+
+int fr_given(const uint8_t *frss, uint32_t len, uint8_t world, uint16_t self, uint16_t self2,
+             const uint16_t *given, uint32_t k, const FrRoom *room, uint8_t *band)
+{
+    FrG g;
+    uint32_t j;
+    int e;
+
+    *band = 0xFF;
+    e = fr_open(&g, frss, len, world, self, self2, given, room, &j);
+    if (e)
+        return e;
+    for (j = room ? 0 : k; j <= k; j++)         /* (the earlier entries matter for the room only) */
+        e = fr_entry(&g, j);
+    if (e > 0) {
+        if (e >= FR_G_PIN)
+            *band = (uint8_t)(e - FR_G_PIN);
+        return 0;
+    }
+    if (g.s)
+        *band = (uint8_t)fr_band((int32_t)g.s - g.S, g.M);
+    return e;
+}
+
+/* one automatic slot: the pass over the table for slot k, wanted band wb; 0, or FR_NOPOOL. noinline: its frame must
+   not join fr_pick's (the stack condition; test_frpick_exe_run measures it) */
+__attribute__((noinline)) static int fr_auto(FrCtx *x, uint32_t k, uint32_t wb)
+{
+    const uint8_t *frss = x->g.frss, *e = frss + 8, *v;
+    const FrRoom *room = x->g.room;
+    uint32_t nb = RD16(frss + 6), i, j, c, best = 0xFFFFFFFFu, besth = 0, bw = 0, bs = 0, bc = 0;
+    const int32_t M = x->g.M;
+
+    for (i = 0; i < nb; i++, e += 6) {
+        if (e[0] != x->g.world || e[3] == x->sc)
+            continue;
+        v = frss + 8 + 6 * nb + 2 * RD16(e + 4);
+        for (c = 0; c < CNT(e); c++, v += 2) {
+            uint32_t w = e[1] | c << 8, key = 0, h;
+            int32_t s = (int32_t)RD16(v), d = s - x->g.S;
+
+            if (!s || w == x->g.self || w == x->g.self2)
+                continue;
+            for (j = 0; j < 4; j++)
+                if (x->filled >> j & 1) {
+                    if (x->out->word[j] == w)
+                        goto next;
+                    if (x->ctry[j] == e[3])
+                        key = 1;
+                }
+            for (j = 0; j < x->navoid; j++)
+                if (x->avoid[j] == w)
+                    key |= 2;
+            if (fr_band(d, M) != wb) {
+                if (wb == FR_STRONGER)
+                    d = d > M ? d - 4 * M : M + 1 - d;
+                else if (wb == FR_WEAKER)
+                    d = d < -M ? -4 * M - d : d + M + 1;
+                else
+                    d = (d < 0 ? -d : d) - M;
+                key |= (uint32_t)d << 2;
+            }
+            h = fr_hash(x->mix, k, w);
+            if (key > best || (key == best && h >= besth))
+                continue;
+            if (room && !x->g.left && !room->cached(room->ctx, (uint16_t)w))
+                continue;
+            best = key, besth = h, bw = w, bs = (uint32_t)s, bc = e[3];
+        next:;
+        }
+    }
+    if (best == 0xFFFFFFFFu)
+        return FR_NOPOOL;
+    if (room && x->g.left && !room->cached(room->ctx, (uint16_t)bw))
+        x->g.left--;
+    x->out->word[k] = (uint16_t)bw;
+    x->str[k] = (uint16_t)bs;
+    x->ctry[k] = (uint8_t)bc;
+    x->filled |= 1u << k;
+    x->out->band[k] = (uint8_t)fr_band((int32_t)bs - x->g.S, M);
+    if (best >> 2)
+        x->out->fb |= (uint8_t)(1u << k);
+    return 0;
+}
+
 int fr_pick(const uint8_t *frss, uint32_t len, uint8_t world, uint16_t self, uint16_t self2,
             const uint16_t *given, const uint16_t *avoid, uint32_t navoid, const FrRoom *room,
             uint32_t season, uint32_t seed, uint32_t nhome, FrPick *out)
 {
-    uint32_t nb, i, j, k, left, filled, sc, c;
-    int32_t S, M;
-    uint16_t str[4];
-    uint8_t ctry[4], need[3], want[4];
-    int rc;
+    FrCtx x;
+    uint32_t i, j, k;
+    uint8_t need[3], want[4];
+    int rc, e;
 
     for (i = 0; i < sizeof *out; i++)
         ((uint8_t *)out)[i] = 0;
-
-    if (!fr_check(frss, len))
-        return FR_BADBLOB;
-    nb = RD16(frss + 6);
-    S = (int32_t)fr_find(frss, world, self, &sc);
-    if (!S)
-        return FR_NOSELF;
-    M = S / 10;
-    if (M < 11)
-        M = 11;
-    left = room ? room->room : 0;
-    if (!avoid)
-        navoid = 0;
+    rc = fr_open(&x.g, frss, len, world, self, self2, given, room, &x.sc);
+    if (rc)
+        return rc;
+    x.avoid = avoid;
+    x.navoid = avoid ? navoid : 0;
+    x.mix = seed ^ season * 0x9E3779B1u;
+    x.out = out;
+    x.filled = 0;
     need[FR_STRONGER] = need[FR_WEAKER] = 1;
     need[FR_SIMILAR] = 2;
 
     /* the given list */
-    for (k = 0, filled = 0, rc = FR_OK; k < 4; k++) {
-        uint32_t w = given ? given[k] : FR_NONE, s;
-        int e = 0;
-
+    for (k = 0; k < 4; k++) {
+        e = fr_entry(&x.g, k);
         want[k] = 0xFF;
-        if (w == FR_NONE)
+        if (e == FR_G_EMPTY)
             continue;
-        if ((w & 0xFF) == 0xFF && (j = (w >> 8) - 0xF0) < 3) {      /* FR_AUTO(band): a pinned automatic slot */
+        if (e >= FR_G_PIN) {                                        /* FR_AUTO(band): a pinned automatic slot */
+            j = (uint32_t)e - FR_G_PIN;
             want[k] = (uint8_t)j;
-            if (need[j])
-                need[j]--;
-            continue;
-        }
-        s = fr_find(frss, world, w, &c);
-        for (j = 0; j < k; j++)
-            if (given[j] == w)
-                e = FR_E_DUP;
-        if (!s)
-            e = FR_E_NOCLUB;
-        else if (w == self)
-            e = FR_E_SELF;
-        else if (w == self2)
-            e = FR_E_BTEAM;
-        else if (e)
-            ;
-        else if (room && !room->cached(room->ctx, (uint16_t)w)) {
-            if (left)
-                left--;
-            else
-                e = FR_E_ROOM;
-        }
-        if (e) {
+        } else if (e) {
             out->why[k] = (int8_t)e;
             rc = FR_GIVEN;
             continue;
+        } else {
+            out->word[k] = given[k];
+            x.str[k] = (uint16_t)x.g.s;
+            x.ctry[k] = (uint8_t)x.g.c;
+            x.filled |= 1u << k;
+            j = fr_band((int32_t)x.g.s - x.g.S, x.g.M);
+            out->band[k] = (uint8_t)j;
         }
-        out->word[k] = (uint16_t)w;
-        str[k] = (uint16_t)s;
-        ctry[k] = (uint8_t)c;
-        filled |= 1u << k;
-        j = fr_band((int32_t)s - S, M);
-        out->band[k] = (uint8_t)j;
         if (j < 3 && need[j])
             need[j]--;
     }
@@ -180,75 +323,25 @@ int fr_pick(const uint8_t *frss, uint32_t len, uint8_t world, uint16_t self, uin
 
     /* the uncovered bands of the empty slots: similar, similar, weaker, stronger (as many as the empty slots) */
     for (k = 0, j = 0; k < 4; k++)
-        j += !(filled >> k & 1) && want[k] == 0xFF;
+        j += !(x.filled >> k & 1) && want[k] == 0xFF;
     if (need[FR_SIMILAR] > j)
         need[FR_SIMILAR] = (uint8_t)j;
     j -= need[FR_SIMILAR];
     if (need[FR_WEAKER] > j)
         need[FR_WEAKER] = (uint8_t)j;
 
-    /* the automatic slots: one pass over the table each */
+    /* the automatic slots, in ascending order: one pass over the table each */
     for (k = 0; k < 4; k++) {
-        uint32_t wb, best = 0xFFFFFFFFu, besth = 0, bw = 0, bs = 0, bc = 0;
-        const uint8_t *e = frss + 8, *v;
-
-        if (filled >> k & 1)
+        if (x.filled >> k & 1)
             continue;
-        wb = want[k];
-        if (wb == 0xFF) {               /* an empty slot: the next uncovered band, weakest first (none left: similar) */
-            wb = need[FR_WEAKER] ? FR_WEAKER : need[FR_SIMILAR] || !need[FR_STRONGER] ? FR_SIMILAR : FR_STRONGER;
-            if (need[wb])
-                need[wb]--;
+        j = want[k];
+        if (j == 0xFF) {                /* an empty slot: the next uncovered band, weakest first (none left: similar) */
+            j = need[FR_WEAKER] ? FR_WEAKER : need[FR_SIMILAR] || !need[FR_STRONGER] ? FR_SIMILAR : FR_STRONGER;
+            if (need[j])
+                need[j]--;
         }
-        for (i = 0; i < nb; i++, e += 6) {
-            if (e[0] != world || e[3] == sc)
-                continue;
-            v = frss + 8 + 6 * nb + 2 * RD16(e + 4);
-            for (c = 0; c < CNT(e); c++, v += 2) {
-                uint32_t w = e[1] | c << 8, key = 0, h;
-                int32_t s = (int32_t)RD16(v), d = s - S;
-
-                if (!s || w == self || w == self2)
-                    continue;
-                for (j = 0; j < 4; j++)
-                    if (filled >> j & 1) {
-                        if (out->word[j] == w)
-                            goto next;
-                        if (ctry[j] == e[3])
-                            key = 1;
-                    }
-                for (j = 0; j < navoid; j++)
-                    if (avoid[j] == w)
-                        key |= 2;
-                if (fr_band(d, M) != wb) {
-                    if (wb == FR_STRONGER)
-                        d = d > M ? d - 4 * M : M + 1 - d;
-                    else if (wb == FR_WEAKER)
-                        d = d < -M ? -4 * M - d : d + M + 1;
-                    else
-                        d = (d < 0 ? -d : d) - M;
-                    key |= (uint32_t)d << 2;
-                }
-                h = fr_hash(seed, season, k, w);
-                if (key > best || (key == best && h >= besth))
-                    continue;
-                if (room && !left && !room->cached(room->ctx, (uint16_t)w))
-                    continue;
-                best = key, besth = h, bw = w, bs = (uint32_t)s, bc = e[3];
-            next:;
-            }
-        }
-        if (best == 0xFFFFFFFFu)
+        if (fr_auto(&x, k, j))
             return FR_NOPOOL;
-        if (room && left && !room->cached(room->ctx, (uint16_t)bw))
-            left--;
-        out->word[k] = (uint16_t)bw;
-        str[k] = (uint16_t)bs;
-        ctry[k] = (uint8_t)bc;
-        filled |= 1u << k;
-        out->band[k] = (uint8_t)fr_band((int32_t)bs - S, M);
-        if (best >> 2)
-            out->fb |= (uint8_t)(1u << k);
     }
 
     /* the venues: as given (FR_VENUES), or the nhome weakest at home (ties: the lower slot first) */
@@ -258,7 +351,7 @@ int fr_pick(const uint8_t *frss, uint32_t len, uint8_t world, uint16_t self, uin
     }
     for (k = 0; k < 4; k++) {
         for (j = 0, i = 0; j < 4; j++)
-            i += str[j] < str[k] || (str[j] == str[k] && j < k);
+            i += x.str[j] < x.str[k] || (x.str[j] == x.str[k] && j < k);
         if (i < nhome)
             out->home |= (uint8_t)(1u << k);
     }

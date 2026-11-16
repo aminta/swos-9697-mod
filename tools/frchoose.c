@@ -80,6 +80,8 @@ static void p16(u8 *p, u32 v) { p[0] = (u8)v; p[1] = (u8)(v >> 8); }
 static void p32(u8 *p, u32 v) { p16(p, v); p16(p + 2, v >> 16); }
 
 #if defined(__i386__)                   /* (the exe; the host tests' cc has no x86 asm: no game there) */
+#define P32(p) ((u32)(p))                /* the game's pointers are 32-bit */
+#define PTR(v) ((const u8 *)(v))
 static u8 *ent(u32 k) { return MENU + 0x16 + 0x38 * k; }   /* the shown (unpacked) menu's entry k */
 static const u8 *team(u32 w) {          /* club w's record: the cache, the career's pool, else its team file (the
                                            game's routine does not report a miss: w is a club of the pick's table) */
@@ -87,7 +89,7 @@ static const u8 *team(u32 w) {          /* club w's record: the cache, the caree
     const u8 *r;
     D(0) = w;
     __asm__ volatile("pushal\n\tcall GTP\n\tpopal" : : : "memory", "cc");
-    r = (const u8 *)A(0);
+    r = PTR(A(0));
     D(0) = d0; A(0) = a0;
     return r;
 }
@@ -99,6 +101,9 @@ void fc_host_show(void);
 static u8 *ent(u32 k) { return fc_host_ent(k); }
 static const u8 *team(u32 w) { return fc_host_team(w); }
 static void show(void) { fc_host_show(); }
+const u8 *fc_host_ptr(u32 v);           /* (a 64-bit host: the pointer whose low 32 bits are v) */
+#define P32(p) ((u32)(unsigned long)(p))
+#define PTR(v) fc_host_ptr(v)
 #endif
 
 static u32 bidx(u32 band) {             /* a band -> its legend box: 0 stronger, 1 similar, 2 weaker */
@@ -107,7 +112,7 @@ static u32 bidx(u32 band) {             /* a band -> its legend box: 0 stronger,
 
 static const u8 fc_col[3] = { FC_C_STRONG, FC_C_SIMIL, FC_C_WEAK };
 
-static void text(u8 *e, const char *s) { p32(e + 0x26, (u32)s); }
+static void text(u8 *e, const char *s) { p32(e + 0x26, P32(s)); }
 
 void fc_paint(void) {                   /* the menu's onInit / onReturn, and after every action */
     const FrcSel *s = &FC_SEL;
@@ -172,7 +177,7 @@ void fc_picked(void) {                  /* back from the browser: word D0 = FFFF
     u32 k = FC_K;
     FC_K = 4;
     if (k < 4 && (u16)D(0) != 0xFFFF && A(0)) {
-        const u8 *r = (const u8 *)A(0);
+        const u8 *r = PTR(A(0));
         frc_set_club(&FC_SEL, k, (u16)(r[0] | r[1] << 8));
     }
     fc_paint();
@@ -187,7 +192,7 @@ void fc_list(void) {                    /* after the game built its club list (c
         const u8 *r;
         if (e[4] | e[5])                /* (not shown) */
             continue;
-        r = (const u8 *)(*(u32 *)(e + 0x26)) - 5;
+        r = PTR(*(u32 *)(e + 0x26) - 5);
         p16(e + 0x1E, frc_trial(&FC_SEL, k, (u16)(r[0] | r[1] << 8), &band) ? FC_C_NO : fc_col[bidx(band)]);
     }
 }

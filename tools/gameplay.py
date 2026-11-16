@@ -10,17 +10,23 @@ ORIGINALE is a MASK applied at kick-off (every switch acts as its original value
 item 'GM' (1 B): 0 = PERSONALIZZATO (default, today's defaults), 1 = ORIGINALE; a save without GM loads PERSONALIZZATO.
 SWOS++: the row is hidden and everything original (as every other row of ours).
 
-RUOLI (Marco's position traits; internal/handoff/traits-split.md) is the page's 7th row: SI / NO, default SI. Every traits piece
+RUOLI (Marco's position traits; internal/handoff/traits-split.md) is the page's 7th row: SI / NO, default NO (RUOLI_DEFAULT,
+the ONE constant: Davide 16/11 - the traits are off until the player switches them on; it may become SI later). Every traits piece
 reads ONE byte, GP_RUOLI = obj4 + swreg.GAMEPLAY_AT + GP_RUOLI_OFF (gp_ruoli() gives the (obj, offset) pair):
     1 = RUOLI SI and GAMEPLAY PERSONALIZZATO: the traits apply;   0 = RUOLI NO or GAMEPLAY ORIGINALE: today's game, exactly.
 A consumer tests `cmp byte [GP_RUOLI], 0` (asm: GP_RUOLI in its symbols, one absolute fixup per site, none from obj4 code that
 reaches it PC-relative from its own band base) or `*(const unsigned char *)GP_RUOLI` (C) and does the original thing on 0; it
 never reads GM_R / GM_W itself. The byte is kept in step by this module at every change (the page's row, the OPTIONS row,
-PREDEFINITI, a career load, a new career); it is 1 at the program's start (the defaults). It does NOT know about SWOS++ or
-training games: a stub that must stay original there keeps its own `cmp byte [SWOSPP], 0FFh` / TRG gate, as every stub of ours.
+PREDEFINITI, a career load, a new career); it is 0 at the program's start (RUOLI_DEFAULT = NO; a GM_RUOLI_SI=1 TEST build starts
+with SI / 1, see RUOLI_START).
+GP_RUOLI HAS NO SWOS++ GATE AND NO TRAINING-GAME GATE: it is the row's state and nothing else (under SWOS++ the row is hidden and
+the byte keeps its start value or a loaded career's). EACH CONSUMER KEEPS ITS OWN gates - `cmp byte [SWOSPP], 0FFh` and the
+training-game word (TRG) - in front of its GP_RUOLI test, as every stub of ours does.
 The user's choice is the word GM_R (0 SI / 1 NO), kept while ORIGINALE (GP_RUOLI is then 0: nothing to park), saved with the
-career as bit 7 of the GM item's byte 2 (the first parked byte, whose values are 0 / 1): the item stays 5 B, the save format does
-not change, and a save without the bit (4.1, an earlier 4.2 beta) loads RUOLI SI.
+career as bit 7 of the GM item's byte 2 (the first parked byte, whose values are 0 / 1): set = SI, clear = NO, absolutely
+(never relative to RUOLI_DEFAULT). The item stays 5 B, the save format does not change, and a save without the bit or the item
+(4.1, an earlier 4.2 beta) loads RUOLI NO = the original game. A new career keeps the session's choice (the session copy), which
+at the program's start is the default.
 Room: the band had 257 B free with six rows (IT; the floor is 256) and the row costs ~180 B (58 B of page image, the rest
 tables + code), so with the row the PAGE IMAGE (data only: the packed menu + RUOLI's string table, 550 B) lives in obj3, in the
 chain right after gkinj (the CPU rows' tables are there already; reached through GM3, the band's one obj3 base: no new fixup).
@@ -96,7 +102,16 @@ def on():
 #      The page is built in the band from a byte image (the packed menu, its pointers zero) + a fill table at each opening.
 GM_W_OFF, GM_U_OFF, GM_SH_OFF, GM3_OFF = 0x12, 0x14, 0x1A, 0x1F   # the data's offsets in the band (asserted at the build; the harness reads them)
 GM_R_OFF, GP_RUOLI_OFF = 0x17, 0x19     # RUOLI: the row's word (0 SI / 1 NO) and THE byte the traits pieces read (1 = traits on)
-GM_R_BIT = 0x80                         # (the save: bit 7 of the item's byte 2 = GM_U[0])
+RUOLI_DEFAULT = 1                       # THE default of the row (0 SI / 1 NO; Davide 16/11: NO, the traits are switched on by the player):
+                                        # the program's start (GM_R, GP_RUOLI = 1 - it, the item's / session copy's bit) and PREDEFINITI.
+                                        # NOT the saves: their bit is absolute (MC 16/11: set = SI, clear = NO in every version, so a
+                                        # change of this constant never flips a career; a save without the bit / the item = NO).
+assert RUOLI_DEFAULT in (0, 1)
+RUOLI_START = 0 if os.environ.get('GM_RUOLI_SI') else RUOLI_DEFAULT    # GM_RUOLI_SI=1 (a TEST build switch, modver TEST_VARS: 'MOD .. TEST',
+                                        # cleared by buildrel.sh): the program STARTS with RUOLI SI (GM_R 0, GP_RUOLI 1, the item's /
+                                        # session copy's bit set, so the first new career keeps it) - for the traits pieces' gates.
+                                        # Nothing else changes: PREDEFINITI still gives RUOLI_DEFAULT, the saved bit stays absolute.
+GM_R_BIT = 0x80                         # (the save: bit 7 of the item's byte 2 = GM_U[0]; set = RUOLI SI)
 
 
 def roles():
@@ -174,15 +189,16 @@ gm_chk:                                 ; +5  (the kick-off masks: ZF = 1 PERSON
     pop ebp
     ret
 GM_W: dw 0                              ; +0Ah  the item 'GM': 0 PERSONALIZZATO / 1 ORIGINALE (a word: the string table's variable)
-GM_U: db 0, 0, 0                        ;       the user's CPU cards / injuries / keeper injuries while ORIGINALE
-%if ROLES                               ;       (RUOLI saved in bit 7 of the first: gm_rs)
-GM_R: dw 0                              ; +17h  RUOLI, the row's word: 0 SI (default) / 1 NO - the user's choice, kept while ORIGINALE
-GP_RUOLI: db 1                          ; +19h  THE traits switch: 1 = RUOLI SI and PERSONALIZZATO, else 0 (gm_rs keeps it)
+%if ROLES                               ;       the user's CPU cards / injuries / keeper injuries while ORIGINALE
+GM_U: db (1 - RU_START) << 7, 0, 0      ;       (RUOLI saved in bit 7 of the first, set = SI: gm_rs; here the start value's)
+GM_R: dw RU_START                       ; +17h  RUOLI, the row's word: 0 SI / 1 NO (starts at RU_START = RUOLI_DEFAULT; a GM_RUOLI_SI test build: 0) - the user's choice, kept while ORIGINALE
+GP_RUOLI: db 1 - RU_START               ; +19h  THE traits switch: 1 = RUOLI SI and PERSONALIZZATO, else 0 (gm_rs keeps it)
 %else
+GM_U: db 0, 0, 0
     db 0, 0, 0
 %endif
-GM_SH: dd 0
-    db 0                          ; the session's copy (a new career zeroes the item)
+GM_SH: dd (ROLES * (1 - RU_START)) << 23 ; the session's copy (a new career zeroes the item); its RUOLI bit as GM_U's
+    db 0
 GM3: dd GM3S                            ; obj3's base (cpucards / gkinj: CC_W, CC_I, GI_W, their session copies)
 
 gm_dri:                                 ; (one rel32 fixup each into the game: every call / jump goes through these)
@@ -233,11 +249,13 @@ gm_new:                                 ; after a new career's defaults (the ite
     mov [ebp + GMO_W + 4], al
 %if ROLES
 gm_ru:                                  ; ebp = the band: the item's RUOLI bit -> GM_R (a load, a new career), then gm_rs
-    movzx eax, byte [ebp + GMO_U]
-    shr eax, 7
+    movzx eax, byte [ebp + GMO_U]       ;  (the bit is ABSOLUTE, whatever RU_DEF: set = SI, clear = NO; a zeroed item - an
+    shr eax, 7                          ;   older save - is NO, the original game)
+    xor eax, 1
     mov [ebp + GMO_R], ax
-gm_rs:                                  ; ebp = the band: GM_R -> the item's bit (and the session copy's);
+gm_rs:                                  ; ebp = the band: GM_R -> the item's bit (set = SI; and the session copy's);
     mov al, [ebp + GMO_R]               ;  GP_RUOLI = 1 when GM_W = 0 (PERSONALIZZATO) and GM_R = 0 (SI), else 0. eax used
+    xor al, 1
     shl al, 7
     and byte [ebp + GMO_U], 7Fh
     or al, [ebp + GMO_U]
@@ -412,7 +430,11 @@ gm_reset:                               ; PREDEFINITI: every switch back to its 
     jmp .k
 .p: xor eax, eax
     mov [ebp + GMO_U], eax
-.k: call gm_sync
+.k:
+%if ROLES && RU_DEF
+    mov word [ebp + GMO_R], RU_DEF      ; (RUOLI's default is not 0: both paths above left it 0; gm_sync sets the bit)
+%endif
+    call gm_sync
     call gm_keep
     mov edx, [ebp + GMO_2 - GMB0]       ; the rows redrawn (as dp_reset: A5 = the entry, DrawMenuItem)
     mov eax, [edx + MENU_O + 0Ch]
@@ -445,7 +467,7 @@ TAB_GM: dd 0
 
 def _src(lang, rows, ft, h0, stride):
     db = lambda x: ', '.join(str(c) for c in x.encode('latin-1') + b'\0')
-    src = f'%define GM_H0 {h0}\n%define GM_VSTRIDE {stride}\n%define GMO_W {GM_W_OFF}\n%define GMO_U {GM_U_OFF}\n%define GMO_SH {GM_SH_OFF}\n%define GMO_3 {GM3_OFF}\n%define ROLES {int(roles())}\n%define GMO_R {GM_R_OFF}\n%define GMO_GP {GP_RUOLI_OFF}\n%define GM_NFT {len(ft)}\n%define GM_N {len(rows)}\n%define GM_V0 {len(rows) + 1}\n' + ASM
+    src = f'%define GM_H0 {h0}\n%define GM_VSTRIDE {stride}\n%define GMO_W {GM_W_OFF}\n%define GMO_U {GM_U_OFF}\n%define GMO_SH {GM_SH_OFF}\n%define GMO_3 {GM3_OFF}\n%define ROLES {int(roles())}\n%define RU_DEF {RUOLI_DEFAULT}\n%define RU_START {RUOLI_START}\n%define GMO_R {GM_R_OFF}\n%define GMO_GP {GP_RUOLI_OFF}\n%define GM_NFT {len(ft)}\n%define GM_N {len(rows)}\n%define GM_V0 {len(rows) + 1}\n' + ASM
     src += f'S_GLBL: db {db(LABEL[lang])}\nS_GV0: db {db(VALUES[lang][0])}\nS_GV1: db {db(VALUES[lang][1])}\n'
     src += ('GM_RT:\n    dd DF_W - GMB0\n    db 2, 0\n    dd DF_DR - GMB0\n    db 2, 0\n    dd SP_W - GMB0\n    db 2, 0\n'
             '    dd CC_W_O\n    db 1, 1\n    dd CC_I_O\n    db 1, 1\n    dd GI_W_O\n    db 1, 1\n')
@@ -516,7 +538,12 @@ def patch(p, lang, at3=None):
     if roles():
         assert (lab['GM_R'] - at, lab['GP_RUOLI'] - at) == (GM_R_OFF, GP_RUOLI_OFF) and (4, lab['GP_RUOLI']) == gp_ruoli(), \
             ('gameplay: GM_R / GP_RUOLI offsets (the traits pieces read GP_RUOLI there)', hex(lab['GM_R'] - at), hex(lab['GP_RUOLI'] - at))
-        assert code[GP_RUOLI_OFF] == 1 and code[GM_R_OFF:GM_R_OFF + 2] == b'\0\0', 'gameplay: RUOLI starts SI, GP_RUOLI 1'
+        assert code[GP_RUOLI_OFF] == 1 - RUOLI_START and code[GM_R_OFF:GM_R_OFF + 2] == bytes([RUOLI_START, 0]) and \
+            code[GM_U_OFF] == code[GM_SH_OFF + 2] == (1 - RUOLI_START) * GM_R_BIT, 'gameplay: RUOLI starts at RUOLI_START (word, GP_RUOLI, the item / session bit)'
+        if RUOLI_START != RUOLI_DEFAULT:
+            import modver
+            assert modver.is_test(), 'gameplay: GM_RUOLI_SI is a TEST build switch'
+            print('exe: TEST build: GM_RUOLI_SI - the program starts with RUOLI SI (GP_RUOLI 1); the default stays ' + ('NO' if RUOLI_DEFAULT else 'SI'))
     assert lab['gm_chk'] == at + 5, ('gameplay: gm_chk is the jump table slot 2', hex(lab['gm_chk']))
     assert len(fix) == 1 and len(rel) == 2, ('gameplay: fixups (GM3, DRAWITEM, SHOW_MENU only: 3 records)', fix, rel)
     left = swreg.GAMEPLAY_END - at - len(code)

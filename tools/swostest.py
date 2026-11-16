@@ -37749,9 +37749,10 @@ def gameplay_menu():
     opens the page (16 entries). The swap is lossless (non-default CC_I, 3 round trips, ESC = INDIETRO between). The page, as the
     DRIBBLING page: LEFT / RIGHT = the previous / next value clamped, FIRE = the next value wrapping; DRIBBLING reaching
     PERSONALIZZATO opens its page, ESC comes back; ESC leaves a page (INDIETRO); PREDEFINITI zeroes. SWOSTEST_UI it.
-    RUOLI (the last row, gameplay.roles(); the page then has 7 rows, 18 entries): its keys move GM_R 0 / 1 and GP_RUOLI 1 / 0
-    with it, ORIGINALE gives GP_RUOLI 0 and PERSONALIZZATO gives it back, PREDEFINITI = SI (the same logic in Unicorn:
-    hosttest test_gameplay; the RUOLI part of this scenario was written under the DOSBox hold of 16/11, first run pending)."""
+    RUOLI (the last row, gameplay.roles(); the page then has 7 rows, 18 entries): it starts at gameplay.RUOLI_DEFAULT (NO:
+    GM_R 1, GP_RUOLI 0), its keys move GM_R 0 / 1 and GP_RUOLI 1 / 0 with it, it is left on SI: ORIGINALE gives GP_RUOLI 0 and
+    PERSONALIZZATO gives it back, PREDEFINITI = the default again (the same logic in Unicorn: hosttest test_gameplay; the RUOLI
+    part of this scenario was written under the DOSBox hold of 16/11, first run pending)."""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import difficulty as dfm
     import gameplay as gm
@@ -37822,13 +37823,15 @@ def gameplay_menu():
         if gm.roles():                                                         # RUOLI, the last row: SI (0) / NO (1)
             gm_select(s, V0 + NR - 1)
             ru = [gpr()]
-            for k in ('right', 'right', 'fire', 'fire', 'left', 'right'):
+            for k in ('left', 'left', 'right', 'right', 'fire', 'fire'):
                 key(k)
                 ru.append(gpr())
-            check(ru == [(0, 1), (1, 0), (1, 0), (0, 1), (1, 0), (0, 1), (1, 0)], f'RUOLI keys (GM_R, GP_RUOLI) {ru}', errs)
+            rd0 = (gm.RUOLI_DEFAULT, 1 - gm.RUOLI_DEFAULT)                     # (the program's start: the default, NO = (1, 0))
+            check(ru == [rd0, (0, 1), (0, 1), (1, 0), (1, 0), (0, 1), (1, 0)], f'RUOLI keys (GM_R, GP_RUOLI) {ru} (start {rd0})', errs)
             sc = s.screen()
             check(sc.find(gm.ROLES[UI], exact=True) is not None, f'the page has no {gm.ROLES[UI]!r} row', errs)
-            key('left')                                                        # (SI again)
+            key('left')                                                        # (left on SI: the swap trips below must keep it)
+            check(gpr() == (0, 1), f'RUOLI SI: (GM_R, GP_RUOLI) {gpr()}', errs)
         # DRIBBLING: RIGHT, RIGHT reaches PERSONALIZZATO: its page opens, ESC = INDIETRO comes back to this page
         gm_select(s, V0 + 1)
         key('right')
@@ -37871,7 +37874,7 @@ def gameplay_menu():
             if s.screen().n != NB + 2:
                 gm_select(s, 2 * NR + 1)
                 key('fire')
-        want = [('orig', 1, (1, 1), bytes((0, 1))), ('pers', 0, (0, 1), 2 * NR + 4)] * 3
+        want = [('orig', 1, (1, 1), bytes((gm.GM_R_BIT if gm.roles() else 0, 1))), ('pers', 0, (0, 1), 2 * NR + 4)] * 3   # (RUOLI SI: bit 7 of the first parked byte)
         check(trips == want, f'swap round trips {trips} (want {want})', errs)
         # PREDEFINITI zeroes the switches
         gm_select(s, NB + 1)
@@ -37879,6 +37882,9 @@ def gameplay_menu():
         gm_select(s, 2 * NR + 2)
         key('fire')
         check(rw()[:2] == (0, 0) and rdw() == 0 and rdr() == 0 and gv() == 0, f'PREDEFINITI: CC {rw()}, DF_W {rdw()}, DF_DR {rdr()}', errs)
+        if gm.roles():
+            check(gpr() == (gm.RUOLI_DEFAULT, 1 - gm.RUOLI_DEFAULT),
+                  f'PREDEFINITI: (GM_R, GP_RUOLI) {gpr()} (want the default {(gm.RUOLI_DEFAULT, 1 - gm.RUOLI_DEFAULT)}; it was SI)', errs)
         s.shot('gameplay_page_reset')
         gm_select(s, 2 * NR + 1)
         key('fire')

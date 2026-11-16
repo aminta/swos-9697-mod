@@ -543,27 +543,40 @@ DIFF_SKIP is a comma list matched as a set ('BU' is not 'BUFRAME').
 - test_ctgame (the long cg_* tests: cg_view ~9 min idle) runs ONE AT A TIME across every suite on this Mac (a file lock, internal/hosttest/.ctgame.lock) with a 20-min timeout (HOSTTEST_LONG_TIMEOUT s): a timeout prints `TIMEOUT test_ctgame (> N s, load average ...)` and is neither a PASS nor a FAIL (the summary shows `N TIMEOUT`, exit 1): rerun it alone on a quiet machine (MC 16/11).
 
 ## GAMEPLAY page: the RUOLI row and GP_RUOLI (Panchina, 2026-11-16)
-The GAMEPLAY page's 7th row is RUOLI (SI / NO, default SI; gameplay.py, `gameplay.roles()`). Every position-traits piece
+The GAMEPLAY page's 7th row is RUOLI (SI / NO, default NO = `gameplay.RUOLI_DEFAULT` 1, the one constant: Davide 16/11;
+gameplay.py, `gameplay.roles()`). Every position-traits piece
 (traits-split.md) reads ONE byte and nothing else:
 - **GP_RUOLI** = `gameplay.gp_ruoli()` = `(4, swreg.GAMEPLAY_AT + gameplay.GP_RUOLI_OFF)` (obj4, band offset 0x19; in a
   HOSTTEST_SYMS build: `syms['gameplay']['GP_RUOLI']`). 1 = RUOLI SI and GAMEPLAY PERSONALIZZATO; 0 = RUOLI NO or
-  GAMEPLAY ORIGINALE (= today's game exactly). 1 at the program's start.
+  GAMEPLAY ORIGINALE (= today's game exactly). 0 at the program's start (RUOLI NO; GM_R starts 1) and after PREDEFINITI:
+  a test of a traits piece must switch it on (poke the byte to 1, or GM_R to 0 + a row / load).
 - A consumer: asm `cmp byte [GP_RUOLI], 0` / `je <the original instructions>` with `'GP_RUOLI': gameplay.gp_ruoli()` in
   its nasmcave symbols (one absolute fixup per read; obj4 code that has its band base in a register reaches it with no
   fixup: `[ebp + GP_RUOLI - BAND0]`); C `*(const unsigned char *)GP_RUOLI`. Never read GM_R (the row's word, band + 0x17:
   0 SI / 1 NO) or GM_W for this.
-- It does not know about SWOS++ or training games: a stub that must be original there keeps its own SWOSPP / TRG gate.
+- GP_RUOLI has NO SWOS++ gate and NO training-game gate (it is the row's state only): every consumer keeps its own
+  `cmp byte [SWOSPP], 0FFh` and training-game (TRG) tests in front of its GP_RUOLI test.
+- A consumer's scenario switches the traits on in one of two ways: (a) the build env **`GM_RUOLI_SI=1`** (a test build
+  switch: modver TEST_VARS + BUILD_SWITCHES, 'MOD .. TEST', cleared by buildrel.sh) - the program starts with RUOLI SI
+  (GM_R 0, GP_RUOLI 1, the session's bit set: a new career keeps it); nothing else changes (PREDEFINITI still gives the
+  default NO, an old save still loads NO, the saved bit stays absolute); (b) at run time, poke GM_R = 0 (word, band + 0x17)
+  AND GP_RUOLI = 1 (band + 0x19) - both, so the row shows what the byte says; after a career load poke again (the load
+  sets them from the save). Its control run: the same build / session with GP_RUOLI 0.
 - The harness: read / poke the byte at `base4 + swreg.GAMEPLAY_AT + gameplay.GP_RUOLI_OFF` (a poke forces the traits on or
   off for a match: nothing rewrites it until the page's rows, the OPTIONS row, PREDEFINITI, a load or a new career run).
   To set it as a player would: poke GM_R and GM_W (band + 0x12) and let a load / the row do the rest, or just poke the byte.
-- Save: bit 7 of the GM item's byte 2 (gameplay.GM_R_BIT; the item stays 5 B). The scenarios that read the 3 parked bytes
-  (gameplay_swap `u`) see the bit there when RUOLI is NO.
+- Save: bit 7 of the GM item's byte 2 (gameplay.GM_R_BIT; the item stays 5 B), ABSOLUTE (MC 16/11): set = SI, clear = NO,
+  whatever RUOLI_DEFAULT is - a save keeps its RUOLI if the default changes; a save without the bit or the item loads NO.
+  The scenarios that read the 3 parked bytes (gameplay_swap `u`, gameplay_menu's trips) see 0x80 there when RUOLI is SI.
+  A new career keeps the session's choice (the session copy; at the program's start = the default).
 - With the row the page image (packed menu + RUOLI's string table) is in obj3 (`syms['gameplay']['GM_IMG3']`), after gkinj.
 - Structural OFF: `GM_NOROLES=1` (a modver BUILD_SWITCH, cleared by buildrel.sh) builds the page without the row - the exe
   byte-identical to the one before the row existed (8 exes cmp'd on the release recipe, 16/11).
 - Host tests (no DOSBox): `HT_GAMEPLAY_EXE=c/<a HOSTTEST_SYMS build>/SWOS/ITALIAN.EXE python3 tools/hosttest/run.py -k
   gp_ruoli` (+ `-k roles_row`, `-k page_image`): the start values, RUOLI x GAMEPLAY by the page row and the OPTIONS row,
-  the save bit through gm_load / gm_new, the row's keys (gm_pg), the image gm_fill builds. Default exe c/HTO4 (SKIP until
+  the save bit through gm_load / gm_new (a zeroed item = NO), the row's keys (gm_pg), PREDEFINITI (-k predefiniti), the
+  image gm_fill builds; `-k default_change` loads this build's saves into an exe built with the other RUOLI_DEFAULT
+  (`HT_GAMEPLAY_EXE_ALT`, default c/REL42rud0: an IT exe of the release recipe with RUOLI_DEFAULT = 0). Default exe c/HTO4 (SKIP until
   mkfixtures rebuilds it with the row).
 - DOSBox: gameplay_menu has the RUOLI keys + the swap checks (NR = the present rows); written under the 16/11 DOSBox hold,
   first run pending.

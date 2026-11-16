@@ -451,9 +451,10 @@ def load(confs, files=None, words=None, s1=None, rank_out=False):
                 b[23] = 1
             out += bytes(b)
         body += bytes((len(rounds), 0, 0, 0)) + out
-        mj = main_round(c, size)                        # (the exe's group contest of this cup: conti's group-end hook)
-        gids.append(IDS[ci] if not c.get('stepladder') and rounds[mj]['kind'] in ('groups', 'league_stage')
-                    and ci < len(IDS) else 0)
+        gids.append(IDS[ci] if not c.get('stepladder') and ci < len(IDS) else 0)   # the exe's contest of this cup
+                                                # (ct_gamein, the group-end hooks). 4.2: a knockout main round too -
+                                                # the ACL Elite / Challenge League, the Champions Cup, the Recopa / Super Cups:
+                                                # before, gid 0 and ct_gamein refused the game's results (since 4.1)
         if s1 is not None:                              # season 1 (the build): data's real entrants as fixed clubs
             for (cf, ck, rk), ws in s1.items():
                 if (cf, ck) != (conf, c['key']):

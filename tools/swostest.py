@@ -32230,7 +32230,7 @@ def world_s3dbl_c20():
     keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'C20_TEAM', 'C20_SEASONS', 'W2627REL_DATA', 'W8485_HEX', 'W8485_FROM',
                                             'W8485_ONE', 'SWOSTEST_TAG', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK')}
     team = os.environ.get('S3_TEAM', 'EUROPA,ITALIA,SERIE C GIRONE A,TRENTO')
-    os.environ.update(W8485_BUILD=exe, C20_TEAM=team, C20_SEASONS='2', W2627REL_DATA=src, W8485_HEX='c6000:2000,315b7:4,315bf:4' + (',1ec684:5bc' if os.environ.get('S3_FREC') else ''))   # (+ DP_IN for the DPLAY_FREC check; the two counters the game's division-count trap compares, obj1+0x22705)
+    os.environ.update(W8485_BUILD=exe, C20_TEAM=team, C20_SEASONS='2', W2627REL_DATA=src, W8485_HEX='c6000:2000,315b7:4,315bf:4' + (',1ec684:1468' if os.environ.get('S3_FREC') else ''))   # (+ DP_IN for the DPLAY_FREC check; the two counters the game's division-count trap compares, obj1+0x22705)
     errs, info = [], []
     try:
         ok, msg = career_20seasons()

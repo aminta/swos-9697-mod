@@ -38021,6 +38021,56 @@ def gameplay_swap():
 
 
 @scenario
+def gameplay_practice_header():
+    """4.2 GAMEPLAY ORIGINALE in PRACTICE (Panchina; design gameplay-menu-design.md section 4): the practice page's title reads
+    the squad screen's button name (PRACTICE_BUILD: a release dir, TRAIN_PATH) while GM_W is 0 (PERSONALIZZATO), and
+    '<title> - GAMEPLAY: ORIGINALE' (gameplay.PRACTICE, the exe's language, SWOSTEST_UI) while GM_W is 1 (ORIGINALE: the practice
+    plays the classic set pieces); back to the plain title when GM_W goes 0 again. The page is opened three times."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import gameplay as gm
+    import swreg
+    b = os.environ.get('PRACTICE_BUILD') or os.environ.get('BENCH_BUILD')
+    if not b or not os.path.isdir(b):
+        return True, 'SKIP: PRACTICE_BUILD not set'
+    b = ui_build(os.path.realpath(b))
+    path = os.environ.get('TRAIN_PATH', 'EUROPA,ITALIA,SERIE A,ROMA').split(',')
+    t = practice_rows()
+    errs, info = [], []
+    with Session('gameplay_practice_header', b, {}, 'dump:2', 900) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'START: no first pause ({s.result})'
+        gmw = s.result.lin((4, swreg.GAMEPLAY_AT + gm.GM_W_OFF))
+        for x in ('CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', 'MONDO 2026-27'):
+            if press(s, s.screen(), x) is None:
+                return False, f'new career: {x} not reached ({s.result})'
+        if not pick_career(s, path):
+            return False, f'new career: {path} not reached ({s.result})'
+        s.send('fire dump:2')
+
+        def to_label(k):
+            scr = s.screen()
+            lab = next((x for x in {TRAIN_TXT[UI][k], TRAIN_TXT['it'][k]} if scr.find(x, exact=True) is not None), None)
+            return lab is not None and press(s, scr, lab, 3) is not None
+        if not to_label(0):
+            return False, 'career menu: SQUADRA not reached'
+        want_g = f'{t[0]} - {gm.PRACTICE[UI]}'
+        for n, gv in enumerate((0, 1, 0)):
+            s.poke(gmw, struct.pack('<H', gv))
+            if not to_label(1):
+                return False, f'squad screen ({n}): TRAINING not reached'
+            tx = s.screen().texts()
+            if gv:
+                check(want_g in tx and t[0] not in tx, f'GM_W 1: title {[x for x in tx if t[0] in x]} (want {want_g!r})', errs)
+                s.shot('practice_header_original')
+            else:
+                check(t[0] in tx and want_g not in tx, f'GM_W 0 (open {n}): title {[x for x in tx if t[0] in x]} (want {t[0]!r})', errs)
+            if not practice_pick(s, 5, errs):                   # BACK
+                return False, '; '.join(errs)
+        info.append(f'title {t[0]!r} / {want_g!r} / {t[0]!r}')
+    return not errs, '; '.join(errs) or f'UI {UI}: ' + '; '.join(info)
+
+
+@scenario
 def diff_menu():
     """42-diff: the OPTIONS rows DIFFICULTY (entries NB / NB+1) and DRIBBLING (NB+2 / NB+3) under the bottom row (NB = 26:
     gkinj's, MATCH SPEED out since 13/11; 28 with slow) (difficulty.py, DIFF_TEST build): NB+6 entries (CALCI PIAZZATI NB+4 / NB+5: sp_menu), the NROWS rows at PITCH from y TOP, HEIGHT high, the last ending above

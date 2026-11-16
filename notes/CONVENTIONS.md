@@ -4,6 +4,13 @@ These are the mod's settled design rules (Davide's decisions, 2026-10). Every se
 **reuses the shared code named here instead of writing a new variant**, and adds a line here when Davide settles a
 new rule. If a rule seems wrong for a case, ask the regia session; don't silently deviate.
 
+**Rule 0 - general, scalable solutions only (Davide, 2026-11-16, standing rule for ALL SWOS work).** Always choose the
+general, scalable solution that lets the mod extend later at low cost, never a local stopgap that must be reworked
+(e.g. a limit such as the team cache is fixed once at the root, as one mechanism for every world/career with a bound
+check and old-save compatibility, and every feature reuses it). Every design gets a Fable check for scalability
+before coding; the brief and the review say which general mechanism the change uses or adds. In every task check
+with Fable and, where it helps, hand the work to Fable.
+
 ## Screens and text
 1. **Font characters only, everything fits.** Titles and names use only the game font's glyphs and fit their bar:
    35-byte title field; calendar labels ≤ 70 px before the (C)/(F) marker, **both lines** of a two-line cup entry.

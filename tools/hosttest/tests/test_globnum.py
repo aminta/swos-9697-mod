@@ -140,12 +140,16 @@ def _stub():
     from unicorn.x86_const import UC_X86_REG_EAX, UC_X86_REG_ESP
     A0, WCUR, REC = 0x8000, 0x8010, 0x9000
     base = {'A0': A0, 'POOLG': 2282, 'POOL_FILE': 190}
-    split = {'WCUR': WCUR, 'SPLIT_FILE': 144, 'SPLIT_WORLD': 5, 'SPLIT_N1': 156, 'SPLIT_B2': 2283}
+    split = {'WCUR': WCUR, 'SPLIT_FILE': 144, 'SPLIT_WORLD': 5, 'SPLIT_N1': 156, 'SPLIT_B2': 2283,
+             'SPLIT_NS': 1}     # (42-wcur d446f58: worldpool defines SPLIT_NS with WCUR - the world test exists only then)
     old = bytes.fromhex('8b35' + struct.pack('<I', A0).hex() + '803ebe7504' + '66b8ea08' + '66894602c3')
     plain = _asm(base)
     if plain != old:
         return False, f'wp_glob without SPLIT_*: {plain.hex()} != the 4.1 stub {old.hex()}'
     code = _asm({**base, **split})
+    alone = {k: v for k, v in split.items() if k not in ('WCUR', 'SPLIT_NS')}
+    code1 = _asm({**base, **alone})     # (a single-world build: no WCUR, no world test - globnum.split_alone asserts
+                                        # at build time that no other world's pack has file SPLIT_FILE)
     cases = [(5, 190, 3, 77, 2282), (5, 144, 0, 192, 192), (5, 144, 155, 347, 347), (5, 144, 156, 348, 2283),
              (5, 144, 161, 353, 2288), (4, 144, 160, 1100, 1100), (5, 102, 200, 292, 292)]
     bad = []
@@ -163,4 +167,17 @@ def _stub():
         got = struct.unpack('<H', bytes(u.mem_read(REC + 2, 2)))[0]
         if got != want:
             bad.append(f'world {w} file {f} ord {o}: {got} != {want}')
-    return not bad, '; '.join(bad) or f'wp_glob: 4.1 bytes without SPLIT_*, {len(cases)} cases in Unicorn'
+    for o, want in ((155, 347), (156, 2283)):        # single-world: the split applies without reading a world byte
+        u = Uc(UC_ARCH_X86, UC_MODE_32)
+        u.mem_map(0, 0x10000)
+        u.mem_write(0x1000, code1)
+        u.mem_write(A0, struct.pack('<I', REC))
+        u.mem_write(REC, bytes((144, o, 0, 0)))
+        u.mem_write(0xF000, struct.pack('<I', 0xFFF0))
+        u.reg_write(UC_X86_REG_ESP, 0xF000)
+        u.reg_write(UC_X86_REG_EAX, 0x5A5A0000 | (192 + o))
+        u.emu_start(0x1000, 0xFFF0)
+        got = struct.unpack('<H', bytes(u.mem_read(REC + 2, 2)))[0]
+        if got != want:
+            bad.append(f'single-world file 144 ord {o}: {got} != {want}')
+    return not bad, '; '.join(bad) or f'wp_glob: 4.1 bytes without SPLIT_*, {len(cases)} cases + 2 single-world in Unicorn'

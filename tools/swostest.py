@@ -4563,7 +4563,7 @@ def world8485():
             def hexlog():                              # W8485_HEX: obj2 offset:bytes (o1/ prefix: obj1, o3/: obj3, o4/),
                 if s7_lg is not None:                  # (42-s7trap, HARNESS-WIDE: every S7 scenario FAILs on a refused season - S7_LOG.status
                     v = s.result.read(s.result.lin((4, s7_lg)), 8)   # 13 = S7_SIZE - at any logged point; world8485's final check)
-                    if v[1] == 13:
+                    if v[0] == 13:                  # (S7_LOG {status, season, nswap, ncross}: byte 0)
                         S7_SIZE_SEEN.append((season, v.hex(), s.result.read(s.result.lin((4, s7_sz)), 12).hex()))
                 for a in filter(None, os.environ.get('W8485_HEX', '').split(',')):   # logged when they change
                     o, n = a.split(':')
@@ -4758,7 +4758,7 @@ def world8485():
         open(os.path.join(RUNS, f'{w84_tag()}_{season}', 'checkw1.txt'), 'w').write(report + '\n')
         if not good:
             return False, '; '.join(msgs) + '\n' + report
-        if S7_SIZE_SEEN:
+        if S7_SIZE_SEEN and not os.environ.get('S7_SIZE_EXPECT'):     # (S7_SIZE_EXPECT=1: world_s7sizeforce only - its switch build refuses on purpose)
             return False, f'S7_SIZE: a refused S7 season (S7_LOG.status 13: S7_LOG / S7_SZ {S7_SIZE_SEEN[-1]}): a bug to find, never a pass; ' + '; '.join(msgs)
     return True, '; '.join(msgs)
 
@@ -31162,6 +31162,62 @@ def world_s7trap_c20():
         check(all(v == 20 for v in top.values()) and len(top) == 5, f'season {season}: save counts A, B, C groups {top} (want 20 each)', errs)
         info.append(f'season {season}: save A/B/C {sorted(top.items())}')
     return not errs, '; '.join(errs + info) or f'{n} seasons, no trap'
+
+
+@scenario
+def world_s7sizeforce():
+    """4.2 S7 size gate, FORCED in the game (42-s7trap follow-up, MC 16/11): a test build (S7_SIZEFORCE=2, a modver BUILD_SWITCH, never in a
+    release build) pushes a club out of a Serie C group into Serie B and a Serie D group A club into group B in s7_season, before the size
+    check. A Malta career (the cheapest that reaches a season end with S7 active: gp_season runs every league), two seasons (the second loaded
+    from the first's save). Expected, at EVERY season end: S7_LOG status 13 (S7_SIZE, nothing crossed: 0 crossers), S7_SZ gate 1 kind 1 (a
+    division's size), the game does not trap (no int 3 at obj1+0x22705: world8485 reaches both season ends and its saves), and the career goes
+    on into season 2 to its end. The harness-wide 'status 13 = FAIL' rule is told by S7_SIZE_EXPECT=1 (set here only); any other S7 run
+    with status 13 FAILs in world8485."""
+    import json
+    pk = os.environ.get('S7_PACK') or os.path.join(MAIN, 'internal', 's7pack-real', 'ita')
+    os.environ.setdefault('S7_PACK', pk)
+    env = s7_env({'S7_SIZEFORCE': os.environ.get('S7SF_LEVEL', '2')})
+    if env is None:
+        return True, 'SKIP: S7_PACK (the shaped Italy pack) or internal world5tm-h2 missing'
+    exe = os.environ.get('S7_BUILD') or build('s7sizeforce', env=env)
+    sy = json.load(open(os.path.join(exe, 'ITALIAN.syms.json')))
+    s7 = sy.get('s7swap', {})
+    if 'S7_SZ' not in s7:
+        return False, f'{exe}: no size gate (S7_SZ)'
+    keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_HEX',
+                                            'W8485_ONE', 'S7_SIZE_EXPECT')}
+    lg, sz = s7['S7_LOG'][1], s7['S7_SZ'][1]
+    os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1', S7_SIZE_EXPECT='1',
+                      W8485_TEAM=os.environ.get('S7SF_TEAM', 'EUROPA,MALTA,?MALTESE PREMIER LEAGUE|PREMIER LEAGUE,HAMRUN SPARTANS'),
+                      W8485_HEX=f'o4/{lg:x}:8,o4/{sz:x}:12')
+    os.environ.pop('W8485_ONE', None)
+    try:
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    errs = []
+    check(ok and 'trap' not in msg.lower().replace(RUNS.lower(), ''), f'the career did not go through both season ends (a trap?): {msg[:300]}', errs)
+    seen = {}
+    for season in (1, 2):
+        try:
+            lines = open(os.path.join(RUNS, f'{w84_tag()}_{season}', 'session.log'), errors='replace').read().splitlines()
+        except OSError:
+            continue
+        lgs = [bytes.fromhex(ln.split()[2]) for ln in lines if ln.startswith(f'HEX o4/{lg:x} ') and len(ln.split()) > 2]
+        szs = [bytes.fromhex(ln.split()[2]) for ln in lines if ln.startswith(f'HEX o4/{sz:x} ') and len(ln.split()) > 2]
+        refused = [b for b in lgs if b[0] == 13]
+        seen[season] = (refused[-1].hex() if refused else None, szs[-1].hex() if szs else None)
+        if not check(bool(refused), f'season {season}: no S7_LOG status 13 logged ({[b.hex() for b in lgs]})', errs):
+            continue
+        r = refused[-1]
+        check(r[3] == 0, f'season {season}: S7_LOG ncross {r[3]} (nothing may cross)', errs)
+        z = szs[-1] if szs else b''
+        check(len(z) >= 8 and z[0] == 1 and z[1] == 1 and z[4] == 20 and z[3] != 20, f'season {season}: S7_SZ {z.hex()} (want gate 1, kind 1, a division off its 20 / 18)', errs)
+    return not errs, '; '.join(errs) or f'forced S7_SIZEFORCE: refused at every season end, no trap, season 2 played to its end; S7_LOG / S7_SZ {seen}; {msg[:120]}'
 
 
 @scenario

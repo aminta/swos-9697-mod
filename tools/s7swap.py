@@ -172,6 +172,9 @@ def late(p):
     import gplay
     wsites.CD_FILE[0] = p.get(1, gplay.LABELS['CD_TAB'] + 2, 1)[0] if 'CD_TAB' in gplay.LABELS else None   # (gplay's lf)
     rows = wsites.rows()
+    import re                                           # (MC 15/11: the C table's room = the Python one; rows + WS_END fit)
+    hmax = int(re.search(r'#define WS_MAX\s+(\d+)', open(os.path.join(os.path.dirname(SRC), 'sreg_walk.h')).read()).group(1))
+    assert hmax == wsites.WS_MAX and len(rows) + 1 <= wsites.WS_MAX, ('s7swap: WSITES rows / WS_MAX', len(rows), hmax, wsites.WS_MAX)
     p.put(*LABELS['WSITES'], wsites.table(rows))
     en = trailer.INFO['en_n']
     p.put(*LABELS['S7_ENN'], struct.pack('<I', en))

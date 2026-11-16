@@ -106,6 +106,10 @@ CT_READS = {   # S6a (c), MC 15/11: GP_MGR / GP_IN.mgr and split's 'SH' block + 
     ('uefaq', 'SYMS.W_QON'): (2, 'C'), ('uprize', 'up_ko'): (1, 'C'), ('uprize', 'up_lp'): (1, 'C'),
     ('uprize', 'up_res'): (2, 'C'), ('winners', 'WN_FN'): (5, 'C'), ('xbrowse', 'vs_init'): (1, 'C'),
     ('xbrowse', 'xs_tail'): (1, 'C'),
+    # S6a (A), 4.2 (Davide 16/11): gp_install's slot-4 cseg_8B2D3 call - push / poke / pop of CAREERTEAM around it,
+    # the poke only when GAMETYPE != 4 (a world SEASON: its human club in the ko, else the ko's first entrant), so
+    # the game's placeholder team words are a loaded club; a career's value never changes. Proof: world_season_ko
+    ('gplay', 'gp_install'): (3, 'C'),
 }
 
 

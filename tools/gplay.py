@@ -937,11 +937,26 @@ gp_install:                             ; GP_BUILT (gp_lend_c): each ko built in
     mov word [D0R], 4
     mov word [D1R], 0
     mov word [D2R], 0
-    pushad
+    push word [CAREERTEAM]              ; S6a (A, 4.2, Davide 16/11): cseg_8B2D3's slot-4 branch writes careerTeam
+    cmp word [GAMETYPE], 4              ; into the new contest's team words (cseg_8B44A, one per entrant) and checks
+    je .ct                              ; them loaded (0x17281 -> VerifyTeamLoaded) before .t below writes the real
+    call gp_mgr                         ; clubs: a career's club passes, a world SEASON's careerTeam 0 trapped (Malta's
+    movzx ecx, byte [esi + KO_N]        ; Final Four). In a SEASON, for this call only: the season's human club when
+    xor ebx, ebx                        ; it is in the ko, else the ko's first entrant (a loaded club); restored after
+.cm:cmp ebx, ecx
+    jae .c0
+    cmp ax, [esi + KO_TEAM + ebx * 2]
+    je .cs
+    inc ebx
+    jmp .cm
+.c0:mov ax, [esi + KO_TEAM]
+.cs:mov [CAREERTEAM], ax
+.ct:pushad
     call C8B2D3
     mov al, 4                           ; (no replay days: a level tie is decided by gp_draw / its level)
     call CAL_NOREPLAY
     popad
+    pop word [CAREERTEAM]
     movzx ecx, byte [esi + KO_N]
     xor ebx, ebx
 .t:

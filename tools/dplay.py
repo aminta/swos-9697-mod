@@ -886,6 +886,7 @@ def patch(p, at, limit, tables, bss_at, area):
     cg = cgaps()                                             # (4.2: each group's play-out gap, as gp_season reads it)
     obj = cobj.compile_c(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'dplay.c'),
                          [f'-DDP_FORCE={force}'] + ([f'-DDP_CUPWF={cupw}'] if cupw else []) + ([f'-DDP_CUPFF={int(os.environ["DPLAY_CUPF"])}'] if os.environ.get('DPLAY_CUPF') else [])
+                         + ([f'-DDP_FREC={int(os.environ["DPLAY_FREC"])}'] if int(os.environ.get('DPLAY_FREC') or 0) else [])    # (test builds, MC 16/11)
                          + (['-DDP_NOB=1'] if s3_b_mask() else [])
                          + (['-DDP_NOC=1'] if s3_c_mask() else [])          # (4.2 S3: Serie B on gplay; else the 42-int object)
                          + [f'-DDP_CG{g + 1}={v}' for g, v in enumerate(cg)])

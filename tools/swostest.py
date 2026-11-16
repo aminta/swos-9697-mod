@@ -32110,11 +32110,15 @@ def s7_division_counts(car, src, slt=None):
     c0, c1 = collections.Counter(), collections.Counter()   # file 144's rows 156.. (their globals are the second run, 2283..), it counted other
                                                     # rows' deltas for them: Shaved's 'D G 17 / I 19', 'D A 17 / B 17 / I 20'. The game's live
                                                     # SOME / COPY tables of those runs hold 9 x 18)
+    s7_division_counts.moved = []                          # (club, global, division before, after: the clubs the season end moved)
     for k in pk.league_clubs:
         fl, i = pk.where[k]
         c0[pk.division[k]] += 1
         g = globnum.glob(pk, fl, i)
-        c1[pk.division[k] + struct.unpack('b', slt[g:g + 1])[0]] += 1
+        d = struct.unpack('b', slt[g:g + 1])[0]
+        c1[pk.division[k] + d] += 1
+        if d:
+            s7_division_counts.moved.append((k, g, pk.division[k], pk.division[k] + d))
     return dict(sorted(c0.items())), dict(sorted(c1.items()))
 
 

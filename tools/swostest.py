@@ -30817,10 +30817,11 @@ def gplay_cuprule():
 #include "%s"
 #include <stdio.h>
 static struct gp_row T[3][20];
+static int GAPS[3] = { 8, 9, 0 };
 static int run(int real, int w, int f, int gap, int *sg, int *sf) {
     struct cup_view v;
-    v.ng = 3; v.gap = gap; v.real = real; v.w = w; v.f = f;
-    for (int g = 0; g < 3; g++) { v.t[g] = (const struct cv_row *)T[g]; v.n[g] = 20; }
+    v.ng = 3; v.real = real; v.w = w; v.f = f;
+    for (int g = 0; g < 3; g++) { v.t[g] = (const struct cv_row *)T[g]; v.n[g] = 20; v.gap[g] = gap < 0 ? GAPS[g] : gap; }
     int r = cup_rule(&v);
     *sg = v.sg; *sf = v.sfrom;
     return r;
@@ -30864,12 +30865,62 @@ int main(void) {
     CHK("Mod: winner 6th -> the 11th", 0, TM(1, 5), 0, 8, 1, 10, 0, 0)
     CHK("Mod: winner 13th -> his place", 0, TM(2, 12), 0, 8, 2, 12, 0, 0)
     CHK("Mod: unknown winner -> the best 11th (group 0)", 0, 0, 0, 8, 0, 10, 0, 0)
-    printf("%%s\n", bad ? "FAILED" : "OK 24 cases");
+    /* (MC 16/11) gap 0 = 'always played': the n-5 / n-4 places are precluded whatever the points; per-group gaps; the lot on a full tie */
+    CHK("gap 0: k15 (n-5) precluded -> finalist", 1, TM(0, 15), TM(0, 11), 0, 0, 11, 0, 0)
+    CHK("gap 0: k16 (n-4) precluded -> finalist", 1, TM(0, 16), TM(0, 11), 0, 0, 11, 0, 0)
+    CHK("gap 0: k14 (n-6) free", 1, TM(0, 14), TM(0, 11), 0, 0, 14, 0, 0)
+    CHK("mixed gaps 8/9/0: group 0 (gap 8) k15 v k18 6 apart: held, precluded -> finalist", 1, TM(0, 15), TM(2, 11), -1, 2, 11, 0, 0)
+    CHK("mixed gaps 8/9/0: group 1 (gap 9) k15 v k18 6 apart: held, precluded -> finalist", 1, TM(1, 15), TM(0, 11), -1, 0, 11, 0, 0)
+    CHK("mixed gaps 8/9/0: group 2 (gap 0) k15 precluded -> finalist", 1, TM(2, 15), TM(0, 11), -1, 0, 11, 0, 0)
+    CHK("mixed gaps 8/9/0: group 2 (gap 0) k16 precluded -> finalist", 1, TM(2, 16), TM(1, 11), -1, 1, 11, 0, 0)
+    for (int g = 0; g < 3; g++) { T[g][10].pts = 50; T[g][10].won = 12; T[g][10].gf = 40; }
+    /* the lot = (u8)(glob * 37 + 11): globs 3 / 1 / 2 -> 122 / 48 / 85: group 1 wins; globs 1 / 2 / 3 -> group 0; equal -> group order */
+    T[0][10].glob = 3; T[1][10].glob = 1; T[2][10].glob = 2;
+    CHK("full tie of the best 11th: the lowest lot (group 1)", 0, 0, 0, 8, 1, 10, 0, 0)
+    T[0][10].glob = 1; T[1][10].glob = 2; T[2][10].glob = 3;
+    CHK("full tie of the best 11th: the lowest lot (group 0)", 0, 0, 0, 8, 0, 10, 0, 0)
+    T[0][10].glob = T[1][10].glob = T[2][10].glob = 4;
+    CHK("full tie, equal lots: group order", 0, 0, 0, 8, 0, 10, 0, 0)
+    T[2][10].gf = 41;
+    CHK("goals scored still before the lot", 0, 0, 0, 8, 2, 10, 0, 0)
+    printf("%%s\n", bad ? "FAILED" : "OK 35 cases");
     return bad;
 }
 """
     ok, out = gplay_host(test)
-    return ok and out.rstrip().endswith('OK 24 cases'), out[-500:]
+    return ok and out.rstrip().endswith('OK 35 cases'), out[-500:]
+
+
+@scenario
+def dplay_subst_native():
+    """4.2 S3 (MC 16/11): dplay.c's Serie C play-off substitute on the host (tools/dplay_subst_test.c, 20,000 seasons per mode, DP_NOC 0 and 1 -
+    the cup rule's call stubbed): random tables (mode 0: the simulated play-off holds no group winner), the real winner a group's 1st ->
+    the final's loser (1) / the semi-final loser when the final's loser is a group winner too (2) / the old save without a record -> the
+    best eligible club of the state's list (4) / the second-won record bits (5) / an all-ineligible list -> 3 up, DP_SUBF, no crash (6)"""
+    import shutil
+    import subprocess
+    tools = os.path.join(ROOT, 'tools')
+    src = os.path.join(tools, 'dplay_subst_test.c')
+    work = os.path.join(WORK, 'dplay_subst_native')
+    os.makedirs(work, exist_ok=True)
+    out = []
+    for noc in (0, 1):
+        c = open(os.path.join(tools, 'dplay.c')).read()
+        if noc:
+            c = c.replace('int r = ((int (*)(struct cup_view *))DP_RULEP)(&v);', 'int r = 10;')
+        open(os.path.join(work, 'dplay.c'), 'w').write(c)
+        shutil.copy(src, os.path.join(work, 'dplay_subst_test.c'))
+        exe = os.path.join(work, f'dpt{noc}')
+        r = subprocess.run(['cc', '-O1', '-include', 'string.h', '-DDP_STATS', f'-DDP_NOC={noc}', '-I', work, '-I', tools, '-o', exe, os.path.join(work, 'dplay_subst_test.c')],
+                           capture_output=True, text=True)
+        if r.returncode:
+            return False, r.stderr[-300:]
+        for mode in (1, 2, 4, 5, 6) + ((0,) if not noc else ()):
+            p = subprocess.run([exe, '20000', str(mode)], capture_output=True, text=True)
+            out.append(f'NOC{noc} mode {mode}: {p.stdout.strip()}')
+            if p.returncode or not p.stdout.startswith('bad 0 '):
+                return False, '; '.join(out)
+    return True, '; '.join(out)[-700:]
 
 
 @scenario
@@ -32117,7 +32168,7 @@ def world_s7cross_c20():
     return not errs, '; '.join(errs) or f'{msg[:200]}; ' + '; '.join(info)
 
 
-def s7_division_counts(car, src):
+def s7_division_counts(car, src, slt=None):
     """4.2 S3 x S7 (MC 15/11): clubs per division of Italy's S7 pack after a season end: the pack's division
     (pk.division) + the signed delta byte of its global in the save's SLTCOPY (CAR 0xE8DC, one byte per global; the
     game's own 8-bit sum check is absorbed by the BAL byte, so only membership shows a double move). Returns (before,
@@ -32138,16 +32189,21 @@ def s7_division_counts(car, src):
             os.environ['SEASON_PACKS'] = old
     import bigtables                                # (42-s7trap, MC 16/11: THE HELPER'S SERIE D COUNTS WERE A MEASUREMENT ARTEFACT. The save holds the
     import globnum                                  # table in two parts: globals 0..1999 at CAR 0xE8DC, 2000..LIMIT_CLUBS-1 in the fixed part's 80-record
-    raw = open(car, 'rb').read()                    # area (bigtables.ext_off(): CAR offset 2 + ext_off). Reading only the first 2000 bytes, with
-    slt = raw[0xE8DC:0xE8DC + 2000] + raw[2 + bigtables.ext_off():2 + bigtables.ext_off() + bigtables.LIMIT_CLUBS - 2000]   # base + row for
+    raw = open(car, 'rb').read()  # area (bigtables.ext_off(): CAR offset 2 + ext_off). Reading only the first 2000 bytes, with
+    ext = raw[2 + bigtables.ext_off():2 + bigtables.ext_off() + bigtables.LIMIT_CLUBS - 2000]   # (the globals 2000..: only in the save)
+    slt = (raw[0xE8DC:0xE8DC + 2000] if slt is None else slt[:2000]) + ext   # base + row for
     c0, c1 = collections.Counter(), collections.Counter()   # file 144's rows 156.. (their globals are the second run, 2283..), it counted other
                                                     # rows' deltas for them: Shaved's 'D G 17 / I 19', 'D A 17 / B 17 / I 20'. The game's live
                                                     # SOME / COPY tables of those runs hold 9 x 18)
+    s7_division_counts.moved = []                          # (club, global, division before, after: the clubs the season end moved)
     for k in pk.league_clubs:
         fl, i = pk.where[k]
         c0[pk.division[k]] += 1
         g = globnum.glob(pk, fl, i)
-        c1[pk.division[k] + struct.unpack('b', slt[g:g + 1])[0]] += 1
+        d = struct.unpack('b', slt[g:g + 1])[0]
+        c1[pk.division[k] + d] += 1
+        if d:
+            s7_division_counts.moved.append((k, g, pk.division[k], pk.division[k] + d))
     return dict(sorted(c0.items())), dict(sorted(c1.items()))
 
 
@@ -32186,40 +32242,115 @@ def world_s3dbl_fresh():
     return not errs, '; '.join(errs) or f'{msg[:120]}; division sizes kept {c1}'
 
 
+def s7_live_slt(log, addr='c6000'):
+    """the someLeaguesTable (obj2 0xC6000, 2000 bytes: W8485_HEX) values a session logged, in order (world8485 logs a HEX when it changes)"""
+    return [bytes.fromhex(ln.split()[2]) for ln in open(log, errors='replace') if ln.startswith(f'HEX {addr} ') and len(ln.split()) > 2]
+
+
 @scenario
 def world_s3dbl_c20():
     """4.2 BLOCKER (TRENTO double promotion, MC 15/11): career_20seasons (C20_SEASONS, default 2: a save + reload every
-    season) on a fresh S7 career at TRENTO with the Serie C play-off forced (S3_BUILD = DPLAY_FORCE=105 build) - after
-    EVERY season end Serie A, Serie B and the three Serie C groups hold 20 clubs (pack division + the save's SLTCOPY
-    deltas, s7_division_counts): next season B 20 and C groups 20 each"""
+    season) on a fresh S7 career at TRENTO with the Serie C play-off forced (S3_BUILD = DPLAY_FORCE=105 build). After
+    EVERY season end Serie A, Serie B and the three Serie C groups hold 20 clubs (pack division + deltas, s7_division_counts),
+    read BOTH from the save's SLTCOPY and from the LIVE someLeaguesTable right after the season-2 end (W8485_HEX
+    c6000:2000, the last value of that session): live and saved must agree (a disagreement is a finding); then the
+    season-2 save is loaded (a third session, W8485_FROM) and the table right after the load must give the same counts.
+    The Serie D groups (divisions 5..13, 18 clubs each in the data) are reported, and asserted equal between the live
+    table and the save; their SIZES move by the lower tiers' pool moves (clubs outside the pack's own league files),
+    which this membership model cannot see"""
     src = (os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-h3s7')).rstrip('/')
     exe = os.environ.get('S3_BUILD')
     if not exe or not os.path.isdir(src):
         return True, f'SKIP: S3_BUILD ({exe}) or the S7 data {src} missing'
-    keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'C20_TEAM', 'C20_SEASONS', 'W2627REL_DATA')}
-    os.environ.update(W8485_BUILD=exe, C20_TEAM=os.environ.get('S3_TEAM', 'EUROPA,ITALIA,SERIE C GIRONE A,TRENTO'),
-                      C20_SEASONS=os.environ.get('C20_SEASONS') or '2', W2627REL_DATA=src)
+    keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'C20_TEAM', 'C20_SEASONS', 'W2627REL_DATA', 'W8485_HEX', 'W8485_FROM',
+                                            'W8485_ONE', 'SWOSTEST_TAG', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK')}
+    team = os.environ.get('S3_TEAM', 'EUROPA,ITALIA,SERIE C GIRONE A,TRENTO')
+    os.environ.update(W8485_BUILD=exe, C20_TEAM=team, C20_SEASONS='2', W2627REL_DATA=src, W8485_HEX='c6000:2000,315b7:4,315bf:4' + (',1ec684:1468' if os.environ.get('S3_FREC') else ''))   # (+ DP_IN for the DPLAY_FREC check; the two counters the game's division-count trap compares, obj1+0x22705)
+    errs, info = [], []
     try:
         ok, msg = career_20seasons()
+        check(ok, f'career_20seasons: {msg[:300]}', errs)
+        car2 = os.path.join(RUNS, 'c20_after_s02.CAR')
+        c3 = None
+        l2 = os.path.join(RUNS, 'world_s3dbl_c20_w84_2', 'session.log')       # (the third session reuses run dir _2: keep season 2's log)
+        if os.path.exists(l2):
+            import shutil
+            shutil.copy(l2, os.path.join(RUNS, 'c20_s2_session.log'))
+        if os.path.exists(car2):                          # (the third session: load the season-2 save, its first table = after the load)
+            os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+',
+                              W8485_NOSACK='1', W8485_FROM=car2, SWOSTEST_TAG='_c20load')
+            os.environ.pop('W8485_ONE', None)
+            ok3, msg3 = world8485()
+            check(ok3, f'season 3 (load of the season-2 save): {msg3[:200]}', errs)
+            c3 = os.path.join(RUNS, w84_tag() + '_2', 'session.log')
     finally:
         for k, v in keep.items():
             if v is None:
                 os.environ.pop(k, None)
             else:
                 os.environ[k] = v
-    errs, info = [], []
-    check(ok, f'career_20seasons: {msg[:300]}', errs)
-    n = int(os.environ.get('C20_SEASONS') or 2)
-    for season in range(1, n + 1):
-        car = os.path.join(RUNS, f'c20_after_s{season:02d}.CAR')          # (career_20seasons' copy of every season end's save)
+    def top(c):
+        return {k: v for k, v in c.items() if k < 5}
+    def dgrp(c):
+        return {k: v for k, v in c.items() if k >= 5}
+    for season in (1, 2):
+        car = os.path.join(RUNS, f'c20_after_s{season:02d}.CAR')
         if not os.path.exists(car):
             check(False, f'season {season}: no save {car}', errs)
             continue
         c0, c1 = s7_division_counts(car, src)
-        top = {k: v for k, v in c1.items() if k < 5}
-        check(all(v == 20 for v in top.values()) and len(top) == 5, f'season {season}: divisions A, B, C groups {top} (want 20 each)', errs)
-        info.append(f'season {season}: A/B/C {sorted(top.items())}')
-    return not errs, '; '.join(errs) or f'{msg[:120]}; ' + '; '.join(info)
+        check(len(top(c1)) == 5 and all(v == 20 for v in top(c1).values()), f'season {season}: save A/B/C groups {top(c1)} (want 20 each)', errs)
+        info.append(f'season {season} save: A/B/C {sorted(top(c1).values())}, D groups {sorted(dgrp(c1).values())}')
+        if season == 2:                                   # live table of the season-2 session (_2 = the last session of the loop)
+            lg = os.path.join(RUNS, 'c20_s2_session.log')
+            live = s7_live_slt(lg) if os.path.exists(lg) else []
+            if not live:
+                check(False, f'season 2: no live someLeaguesTable logged ({lg})', errs)
+            else:
+                l0, l1 = s7_division_counts(car, src, slt=live[-1])
+                check(top(l1) == top(c1) and dgrp(l1) == dgrp(c1), f'season 2: LIVE table {top(l1)} {dgrp(l1)} != save {top(c1)} {dgrp(c1)}', errs)
+                check(live[-1] == open(car, 'rb').read()[0xE8DC:0xE8DC + 2000], 'season 2: live someLeaguesTable bytes != the save\'s SLTCOPY', errs)
+                info.append(f'season 2 live: A/B/C {sorted(top(l1).values())}')
+    if c3 and os.path.exists(c3):
+        vals = [v for v in s7_live_slt(c3) if any(v)]
+        if vals:
+            a0, a1 = s7_division_counts(os.path.join(RUNS, 'c20_after_s02.CAR'), src, slt=vals[0])
+            b0, b1 = s7_division_counts(os.path.join(RUNS, 'c20_after_s02.CAR'), src)
+            check(a1 == b1, f'after the load of the season-2 save: counts {a1} != the save\'s {b1}', errs)
+            z0, z1 = s7_division_counts(os.path.join(RUNS, 'c20_after_s02.CAR'), src, slt=vals[-1])
+            check(len(top(z1)) == 5 and all(v == 20 for v in top(z1).values()), f'season 3 end: live A/B/C groups {top(z1)} (want 20 each)', errs)
+            info.append(f'after load: A/B/C {sorted(top(a1).values())}; season 3 end A/B/C {sorted(top(z1).values())}')
+        else:
+            check(False, 'season 3: no nonzero live table logged after the load', errs)
+    frec = os.environ.get('S3_FREC')
+    if frec:                                          # (MC 16/11) DPLAY_FREC test hook: the club that went up at the season-1 end, by mode
+        sy = json.load(open(os.path.join(exe, 'ITALIAN.syms.json')))['dplay']
+        d = open(os.path.join(RUNS, 'c20_after_s01.CAR'), 'rb').read()
+        k = d.find(b'DPLG')
+        l1 = os.path.join(RUNS, 'world_s3dbl_c20_w84_1', 'session.log')
+        mg = [bytes.fromhex(ln.split()[2]) for ln in open(l1, errors='replace') if ln.startswith('HEX 1ec684 ')] if os.path.exists(l1) else []
+        if k < 0 or not mg:
+            check(False, f'DPLAY_FREC={frec}: no dplay log (DPLG) in the season-1 save or no DP_IN dump in {l1}', errs)
+        else:
+            st = d[k + 4:k + 4 + 912]
+            kind, n = st[4], st[5]
+            teams = struct.unpack_from('<28H', st, 8)
+            res = struct.unpack_from('<H', st, 2)[0]
+            rb = st[sy['layout.SV_RB'][1]:][:8]
+            x = rb[6] | rb[7] << 8 | (st[7] & 63) << 16
+            e = [x >> (5 * i) & 31 for i in range(4)]
+            d0, d1 = x >> 20 & 1, x >> 21 & 1
+            w0, w1, s0, s1 = e[d0], e[2 + d1], e[1 - d0], e[3 - d1]
+            fl = teams[w1] if teams[w0] == res else teams[w0]
+            nmv = d[k + 4 + 912]
+            mv = [struct.unpack_from('<HHb', d, k + 4 + 916 + 8 * i) for i in range(min(nmv, 4))]
+            mgr = max(struct.unpack_from('<H', m, sy['layout.O_MGR'][1])[0] for m in mg) or int(os.environ.get('S3_MGR') or 0, 0)   # (the session-boundary dumps may hold 0: DP_IN.mgr is set at the league end; S3_MGR = the career club's team word, e.g. 0x3d66 for CAMPOBASSO C-B in h3s7r)
+            ups = [t for _, t, dl in mv if dl == -1]
+            want = {'1': [fl], '2': [teams[s0], teams[s1]], '3': [mgr], '4': [t for t in teams if t != res]}.get(frec, [])   # (4: the record cleared after the log copy: any other club of the list, class 2)
+            check(kind == 3 and n == 28 and (st[7] & 0x80), f'DPLAY_FREC={frec}: state kind {kind} n {n} cup {st[7]:#x} (a kind-3 state with a valid record)', errs)
+            check(len(ups) == 1 and ups[0] in want, f'DPLAY_FREC={frec}: promoted {[hex(t) for t in ups]}, wanted one of {[hex(t) for t in want]} (winner {res:#x}, final loser {fl:#x}, semi losers {teams[s0]:#x} {teams[s1]:#x}, career club {mgr:#x}); moves {mv}', errs)
+            info.append(f'DPLAY_FREC={frec}: up {[hex(t) for t in ups]} = {"final loser" if ups and ups[0] == fl else "semi loser" if ups and ups[0] in (teams[s0], teams[s1]) else "career club" if ups and ups[0] == mgr else "?"} (winner {res:#x})')
+    return not errs, '; '.join(errs) or f'{msg[:100]}; ' + '; '.join(info)
 
 
 def s7_live_counts(run, files=((102, 100), (144, 162))):

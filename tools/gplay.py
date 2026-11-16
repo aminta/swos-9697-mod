@@ -1796,10 +1796,33 @@ gp_find:                                ; edx = a league struct -> esi = its GP_
     ret
 
 %if S3SKIP
+gp_s3loc:                               ; (4.2 S3, S7: a league struct's spec numbers its play-offs LOCALLY - the skip bits are per spec: GP_S3T row, the
+    push eax                            ; GP_TAB row of GP_IN's spec) out: edx = its (maskB, maskC) pair, 0 = no row
+    push esi
+    mov eax, [GP_IN + O_SPEC]
+    mov esi, GP_TAB
+    mov edx, GP_S3T
+.l: cmp dword [esi], 0
+    je .no
+    cmp [esi + 5], eax
+    je .y
+    add esi, 9
+    add edx, 8
+    jmp .l
+.no:
+    xor edx, edx
+.y: pop esi
+    pop eax
+    ret
+
 gp_s3pre:                               ; (4.2 S3, MC 15/11: the VINCITORI preview runs gp_season before dplay's dp_end has set DP_BHOLD / DP_CHOLD: the
     push eax                            ; skip mask comes from dplay's saved state itself - a Serie B (kind 1, 2) / Serie C (kind 3) play-off that
     push ecx                            ; dplay runs THIS season is dplay's: the preview lists no gplay line for it. gp_season clears the mask)
+    push edx
     xor ecx, ecx
+    call gp_s3loc
+    test edx, edx
+    jz .w
     cmp word [DPSAVE], 5044h
     jne .w
     mov al, [SEASONPLAYING]
@@ -1809,16 +1832,17 @@ gp_s3pre:                               ; (4.2 S3, MC 15/11: the VINCITORI previ
 %if S3MB
     cmp al, 3
     jae .c
-    mov ecx, S3MB
+    mov ecx, [edx]
     jmp .w
 .c:
 %endif
 %if S3MC
     cmp al, 3
     jne .w
-    mov ecx, S3MC
+    mov ecx, [edx + 4]
 %endif
 .w: mov [GP_SKIPPO], ecx
+    pop edx
     pop ecx
     pop eax
     ret
@@ -1925,18 +1949,22 @@ gp_end:                                 ; replaces `call cseg_9228D` (after dpla
     call gp_c
 %if S3SKIP
     xor eax, eax                        ; (4.2 S3: the play-offs dplay finished this season end - a Serie B phase of an old save,
+    call gp_s3loc                       ; (S7: the bits are this struct's spec's local indexes: GP_S3T)
+    test edx, edx
+    jz .nsx
 %if S3MB                                ; the career club's Serie C play-off: gp_season skips them once - transient, gp_season
     cmp byte [DP_BHOLD], 0              ; clears it)
     je .nsk
-    or eax, S3MB
+    or eax, [edx]
 .nsk:
 %endif
 %if S3MC
     cmp byte [DP_CHOLD], 0
     je .nsc
-    or eax, S3MC
+    or eax, [edx + 4]
 .nsc:
 %endif
+.nsx:
     mov [GP_SKIPPO], eax
 %if S3MC
     mov ax, [DPIN_CUPW]                 ; (the Coppa Italia Serie C's winner and finalist for c_po's cup place, the dplay-captured ones)
@@ -2416,6 +2444,42 @@ def _name(names, lang, key):
     return [x.encode('latin-1') for x in (v if isinstance(v, list) else [v, v])]
 
 
+def s3_local():
+    """4.2 S3 / S7: {(world, league file): (b mask, c mask)} - the bits of 'b_po' + 'b_pout' / 'c_po' as each league struct's
+    spec numbers its play-offs (S7 shapes: one spec per struct, local indexes; mkseason.gplay's by[f] order)."""
+    import mkseason
+    out = {}
+    for pk in mkseason.packs():
+        lg = pk.league or {}
+        if not lg.get('ko_playoffs') or pk.world is None:
+            continue
+        by = {}
+        for po in pk.po_resolved():
+            f, lp, ext = pk.po_local(po)
+            by.setdefault(f, []).append(po.get('key'))
+        for f, keys in by.items():
+            mb = sum(1 << keys.index(k) for k in ('b_po', 'b_pout') if k in keys)
+            mc = 1 << keys.index('c_po') if 'c_po' in keys else 0
+            if mb or mc:                        # (a struct with no Serie B / C play-off - England's, in a world whose other countries
+                out[(pk.world, f)] = (mb, mc)     # are not S7-shaped - needs no skip bits: its row stays (0, 0) = skip nothing, as before S3)
+    return out
+
+
+def s3_npo():
+    """{(world, league file): number of play-offs in that struct's spec} for every pack with ko_playoffs (same walk as s3_local)"""
+    import mkseason
+    out = {}
+    for pk in mkseason.packs():
+        if not (pk.league or {}).get('ko_playoffs') or pk.world is None:
+            continue
+        by = {}
+        for po in pk.po_resolved():
+            by.setdefault(pk.po_local(po)[0], []).append(po.get('key'))
+        for f, keys in by.items():
+            out[(pk.world, f)] = len(keys)
+    return out
+
+
 def table_lines(tables):
     """GP_TAB: per country dd its league struct, db world, dd its spec; a 0 world ends it. Specs after it."""
     import mkseason
@@ -2431,6 +2495,21 @@ def table_lines(tables):
         if not isinstance(lfile, tuple):        # (world 0's: no league-phase world, no UEFA qualifiers)
             lines.append(f'    db {lfile}\n    dd GPS{i}')
     lines.append('    db 0FFh')
+    lines.append('GP_S3T:')                   # (4.2 S3 / S7: per GP_TAB row the Serie B / Serie C play-offs' LOCAL skip bits in its spec)
+    loc = s3_local()
+    rows = [loc.get((world, lfile), (0, 0)) for world, lfile, spec in tables]
+    for k, v in loc.items():                    # (MC 15/11: a zero pair = skip nothing = the double promotion with no trace)
+        assert k in {(w, f) for w, f, _ in tables}, ('S3 skip bits: no GP_TAB row for', k)
+    if loc:                                     # (a struct with no Serie B / C play-off keeps its row at (0, 0): the old global masks must
+        import dplay as _d                      # not have skipped anything there either - every global bit lies beyond its play-offs, so
+        npo = s3_npo()                          # England's play-offs in a world with Italian ones behave exactly as before S7)
+        gm = _d.s3_b_mask() | _d.s3_c_mask()
+        for (w, f), m in zip(((w, f) for w, f, _ in tables), rows):
+            if m == (0, 0) and (w, f) in npo:
+                assert gm >> npo[(w, f)] << npo[(w, f)] == gm, ('S3: the global masks reach the play-offs of struct', w, f, npo[(w, f)], hex(gm))
+        assert (_d.s3_b_mask() != 0) == any(m[0] for m in rows) and (_d.s3_c_mask() != 0) == any(m[1] for m in rows), rows
+    for m in rows:
+        lines.append('    dd %d, %d' % m)
     for i, (_, _, spec) in enumerate(tables):
         lines.append(f'GPS{i}: db ' + ', '.join(str(b) for b in spec))
     return '\n'.join(lines), syms

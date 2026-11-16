@@ -19190,19 +19190,32 @@ def split_build():
     import json
     if os.environ.get('SPLIT_BUILD'):
         return os.environ['SPLIT_BUILD']
-    src = os.environ.get('W2627REL_DATA') or world_data()   # (the rc's
-    w = os.path.join(WORK, 'world_split')                                                            # data: run sets it)
-    shutil.rmtree(w, ignore_errors=True)
-    shutil.copytree(src, os.path.join(w, 'world5tm'))
-    for c, _, sp in SPLITS.values():
-        f = os.path.join(w, 'world5tm', c, 'pack.json')
-        d = json.load(open(f))
-        lg = next(x for x in d['competitions'] if x['type'] == 'league')
-        tgt = lg['divisions'][0] if 'divisions' in lg else lg
-        tgt['split'] = {k: v for k, v in sp.items() if k != '_games'}
-        if '_games' in sp:
-            tgt['games'] = sp['_games']
-        json.dump(d, open(f, 'w'), indent=1, ensure_ascii=False)
+    src = os.environ.get('W2627REL_DATA') or world_data()   # (the rc's data: run sets it)
+    # (4.2 rc, Motore 16/11: one shared WORK/world_split, rmtree'd and re-copied by every call, mixed two snapshots
+    # when two suites built at once - an S7 two-file copy under a single-world build: careerworld's KeyError 'WCUR'.
+    # Now a dir per (snapshot, its newest mtime, SPLITS), made under a temp name and renamed; never removed while
+    # another run may read it, reused when it exists.)
+    newest = max(os.path.getmtime(os.path.join(r, f)) for r, _, fs in os.walk(src) for f in fs + ['.'])
+    key = hashlib.md5(json.dumps([os.path.realpath(src), newest, sorted(SPLITS.items())], default=str).encode())
+    w = os.path.join(WORK, 'world_split-' + key.hexdigest()[:10])
+    if not os.path.isfile(os.path.join(w, 'DONE')):
+        tmp = f'{w}.{os.getpid()}'
+        shutil.rmtree(tmp, ignore_errors=True)
+        shutil.copytree(src, os.path.join(tmp, 'world5tm'))
+        for c, _, sp in SPLITS.values():
+            f = os.path.join(tmp, 'world5tm', c, 'pack.json')
+            d = json.load(open(f))
+            lg = next(x for x in d['competitions'] if x['type'] == 'league')
+            tgt = lg['divisions'][0] if 'divisions' in lg else lg
+            tgt['split'] = {k: v for k, v in sp.items() if k != '_games'}
+            if '_games' in sp:
+                tgt['games'] = sp['_games']
+            json.dump(d, open(f, 'w'), indent=1, ensure_ascii=False)
+        open(os.path.join(tmp, 'DONE'), 'w').close()
+        try:
+            os.rename(tmp, w)
+        except OSError:                                # (a parallel run made it first: the same content)
+            shutil.rmtree(tmp, ignore_errors=True)
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
     return build('world_split', env={'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(w, 'world5tm', x)
                                                                                 for x in order])})

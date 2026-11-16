@@ -243,7 +243,7 @@ def patch(p, ssyms, gsyms):
     # (-Oz, MC 15/11 room: fpad.c + fpsave.c only - cobj's -Os for every other unit; the port runs once per calendar
     #  step, size over speed: FPORT ~1.7 KB, FPORT2 ~0.35 KB smaller than at -Os, engine 52301fb)
     flags = ['-Oz'] + [f'-D{k}={v}' for k, v in offs.items()] + [f'-DFP_ST_SZ={ST_SIZE}', f'-DFP_SAVE_SZ={SAVE_SIZE}', f'-DFP_SAVE_HDR={SAVE_HDR}', f'-DFP_HASH={fp_hash():#x}u', f'-DFP_WORLD={world()}', f'-DFP_NDIV_={max(1, len(fdiv) // 4)}', f'-DFP_NSET_={max(1, len(fset))}']
-    roots = ['fp_step', 'fp_leg', 'fp_et', 'fp_done', 'fp_new', 'fp_load', 'fp_season', 'FP_FMAP', 'FP_DIV', 'FP_SET', 'FP_NDIV']
+    roots = ['fp_step', 'fp_leg', 'fp_et', 'fp_done', 'fp_new', 'fp_load', 'fp_season', 'FP_FMAP', 'FP_DIV', 'FP_SET', 'FP_NDIV', 'FP_NAMES']   # (FP_NAMES: lane 2's fpmlv.patch binds it)
     import collections
     import swefile
 

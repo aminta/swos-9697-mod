@@ -248,15 +248,18 @@ static const u8 *sct_entry(u8 key)      /* GP_SCT's entry for a country (the car
         if (GP_SCT[1 + C_SCE * i] == key) return GP_SCT + 1 + C_SCE * i;
     return 0;
 }
+const u8 *(*FP_NAMES)(u32 match_id) FP_DATA;   /* fpmlv.py binds it to fpv_calnames (obj3); 0 = no views in this build */
 static u32 install(const sr_port_fixture *f)   /* slot 4's contest for the fixture: 1 built, 0 slot busy */
 {
     if (ko_this() && KB(O_TW) == C_NOC) return 0;   /* (gplay's sc_free: this season's contest still to decide) */
-    const u8 *nm = GP_MGR ? sct_entry((u8)GP_MGR) : 0;   /* (no names of the fixture's own yet - P6: the supercup
+    const u8 *own = FP_NAMES ? FP_NAMES(f->match_id) : 0;   /* (P6, lane 2: a mini-league fixture's own names - fpmlv.c
+                                           fpv_calnames, 8 bytes as the supercup entry's +20; 0 = not one, or no views) */
+    const u8 *nm = own || !GP_MGR ? 0 : sct_entry((u8)GP_MGR);   /* (the others: no names of their own yet - the supercup
                                            entry's calendar names or none; ko_one copies 8 bytes: never a null pointer) */
-    if (!nm) nm = sct_entry(C_SCUEFA);
+    if (!own && !nm) nm = sct_entry(C_SCUEFA);
     static const u8 zero[8];
     ((ko_one_fn *)GP_PAPI[0])((struct gp_ko *)KO0, f->home, f->away, f->unit1, f->unit2, f->legs, C_KPORT, f->level,
-                             f->lfile, nm ? nm + 20 : zero);
+                             f->lfile, own ? own : nm ? nm + 20 : zero);
     if (f->neutral) KO0[O_RS + 2] = C_NEUTRAL;
     FP_G90[0] = FP_G90[1] = FP_G90_NONE;   /* (guard 2: a capture only from this tie's own matches) */
     FP_ST.pad[0] = 0;

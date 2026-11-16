@@ -933,6 +933,10 @@ def win_lines(comp, div, k, cc='', tfile=None, s7=None):
         for nm, src, tail in po:
             for lang in LANGS:
                 lines[lang].append((_wn_fit({'*': [nm.decode()]}, lang, ' - ' + WN[lang][tail] if tail else ''), src))
+    import fpmlv                                # 4.2 mini-leagues (the Supercoppa Serie C; fpmlv.py): the line of every
+    for nm, src in fpmlv.win_sources(comp, k):  # division with an entrant - 'N' + id + '00' (builds with the port only)
+        for lang in LANGS:
+            lines[lang].append((_wn_fit(nm, lang), src))
     if not lines['it']:
         return {}
     sp = div.get('split')

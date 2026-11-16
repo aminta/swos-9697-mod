@@ -36,7 +36,10 @@
    THE ROOM (MC 16/11, section 1's tc_room / tc_reserve): with room != NULL the pick loads at most room->room clubs
    that room->cached() says are not in the team cache (cached clubs cost nothing). An automatic slot skips a club
    that would not fit and takes the next candidate by the key above; a given club that does not fit is refused
-   (FR_E_ROOM). room == NULL: no limit.
+   (FR_E_ROOM). room == NULL: no limit. Unit: one team record in the team cache per club not yet cached; a pick adds
+   at most 4 (its four clubs; a club already cached adds 0 and is never counted twice). cached is a plain cdecl C
+   function pointer (Motore's gplay shim wraps FindTeamInCache; frpick never calls an exe address), called at most
+   once per candidate per slot pass and never with room == NULL (agreed with Motore 16/11).
 
    THE GIVEN LIST (open for a player's choice, MC 16/11; not approved as UI): given[k] = a club the player chose for
    slot k, 0xFFFF = empty; given == NULL is exactly 4 x 0xFFFF. Each given entry is checked in this order:

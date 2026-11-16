@@ -421,7 +421,6 @@ def patch_exe(src, dst, remap, lang='it'):
         engine.after_process('fp_load')
         engine.save_item('FP', fpad.SAVE_SIZE, world_only=True)   # P5 (MC option A): the port's queue + the tie in
         engine.before_save('fp_save')                  # progress with the career (fpsave.c fp_save / fpad.c fresh's load)
-        careerworld.SEL_N = careerworld.SEL_N_FP       # (its room: a big world's save budgets 155 teams, not 159)
         swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, (swreg.FPORT2_END + 0xFFF) // 0x1000)   # (P5: fpsave.c's band, MC 15/11)
     OBJ1MV_ON[0] = bool(mkseason.worlds())             # 4.2 OBJ1MV (MC 13/11): every build with worlds (shirtedit +
     if OBJ1MV_ON[0]:                                   # instcheck; the SEASON WINNERS page when fmtpage has it)
@@ -438,6 +437,9 @@ def patch_exe(src, dst, remap, lang='it'):
         swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, -(-swreg.R17_END // 0x1000))
     if setpieces.on():                                 # 4.2 takers UI (Shaved 15/11, 42-tkui): the TKUI band
         swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, -(-swreg.TKUI_END // 0x1000))
+    import tcache                                      # 4.2 team cache bound (MC 16/11): the TCACHE band, every build;
+    swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, -(-swreg.TCACHE_END // 0x1000))   # the load's count check (after_process)
+    tcache.register()
     swe.OBJ4_PAGES = sreg.obj4_pages(swe.OBJ4_PAGES)   # (4.2 N7 / 42-s7import: + the old-save import's band, SREG2)
     if lr_tabs:                                        # (the career league's head-to-head block)
         engine.save_item('LR', lrank.LR_SIZE, world_only=True)
@@ -584,6 +586,7 @@ def patch_exe(src, dst, remap, lang='it'):
         finals97.structs(p, area, sacups.STR_BASE)
     world, new_career = trailer.patch(p, world, sacups.SAVE_ITEMS[0] + [(base, 32) for base, _ in info['q']]
                                       + arg97.ARG_ITEMS, tails=bigw)
+    tcache.patch(p)                             # 4.2: the 6 inserts' bound check (needs trailer.INFO: NUMSEL, budgets)
     if worlds:
         end = careerworld.late(p, careerworld.LABELS['end'], nasmcave)
         if bigw:

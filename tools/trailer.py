@@ -480,12 +480,13 @@ def patch(p, cave, items, tails=False):
     nmax = (SELECTED_ROOM - block - en_block0) // TEAM_SIZE  # save_trailer writes 'EN' only if N*684 + all <= 68400
     assert en_block < 0x10000 and nmax >= 80, (block, en_block0, nmax)  # (the main block alone: N <= 98; EN in the
                                                   # normal cache matters for world-0 careers; a world's: its big cache)
-    import careerworld                            # a big world's cache (its own SELBASEV / ROOMV): all of it at SEL_N
-    if careerworld.BSS[0] is not None:            # (4.2 A1: SEL_N 159 of SEL_CAP 160; a 160-team save drops 'EN')
-        assert careerworld.SEL_N * TEAM_SIZE + block + en_block <= careerworld.SEL_ROOM, \
-            ('big cache room', careerworld.SEL_N, block, en_block, careerworld.SEL_ROOM)
-        print(f'exe: big cache save room: {careerworld.SEL_ROOM - careerworld.SEL_N * TEAM_SIZE - block - en_block} B left '
-              f'at {careerworld.SEL_N} teams (main {block}, EN {en_block})')
+    import careerworld                            # a big world's cache (its own SELBASEV / ROOMV): the save budget
+    tc_cap = None                                 # TC_CAP = the most records with the whole trailer in SEL_ROOM (tcache's
+    if careerworld.BSS[0] is not None:            # rule: memory cap SEL_CAP, save budget TC_CAP; 159, 155 with 'FP')
+        tc_cap = min(careerworld.SEL_CAP, (careerworld.SEL_ROOM - block - en_block) // TEAM_SIZE)
+        assert tc_cap >= 140, ('big cache save budget', tc_cap, block, en_block, careerworld.SEL_ROOM)
+        print(f'exe: big cache save room: {careerworld.SEL_ROOM - tc_cap * TEAM_SIZE - block - en_block} B left '
+              f'at TC_CAP {tc_cap} teams (main {block}, EN {en_block})')
     defaults = b''.join(p.get(1, off, n) for off, n in items)
     bal = -(sa.MARK3 & 0xff) - (sa.MARK3 >> 8) & 0xff
     symbols = {'NUMSEL': (2, numsel), 'CAREER': (2, career), 'D1': (2, dreg1), 'WRITEFILE': (1, writefile),
@@ -586,7 +587,7 @@ def patch(p, cave, items, tails=False):
                                          'MARK', 'SELBUF')})
     INFO.update(load_a1=load_a1, roomv=labels['ROOMV'], loadcopy=labels['LOADCOPY'], selbasev=labels['SELBASEV'],
                 cg_guardp=labels['CG_GUARDP'], items=list(items), en_found=labels['EN_FOUND'],
-                en_items=labels['EN_ITEMS'], en_n=len(enr))   # (4.2 S7: s7swap.c resolves WSITES rows by them)
+                en_items=labels['EN_ITEMS'], en_n=len(enr), nmax=nmax, tc_cap=tc_cap)   # (4.2 S7: s7swap.c resolves WSITES rows by them)
     if tails:
         INFO['tails'] = (labels['SAVE_TAIL'], labels['LOAD_TAIL'])
     INFO['EN'] = [(n, iid, sz) for n, iid, sz, _, _ in en]
@@ -598,8 +599,8 @@ def patch(p, cave, items, tails=False):
           + (f'; after load / new: {", ".join(n for n, _ in cbs[:symbols["EN_NB"][1]])}' if cbs else '')
           + (f'; before save: {", ".join(n for n, _ in bss)}' if bss else '')
           + (f'; load-only: {", ".join(n for n, *_ in enr[len(en):])}' if len(enr) > len(en) else '')
-          + (f'; big cache room left {careerworld.SEL_ROOM - careerworld.SEL_N * TEAM_SIZE - block - en_block} B'
-             if careerworld.BSS[0] is not None else '') + f') @ obj1+{cave:#x}, '
+          + (f'; big cache room left {careerworld.SEL_ROOM - tc_cap * TEAM_SIZE - block - en_block} B at {tc_cap}'
+             if tc_cap is not None else '') + f') @ obj1+{cave:#x}, '
           f'SaveCareerFile call obj1+{save_call:#x}, '
           f'LoadCareerFile call obj1+{load_call:#x}')
     return (cave + len(code) + 3) & ~3, labels['new_career_defaults']

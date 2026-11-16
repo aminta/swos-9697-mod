@@ -37,7 +37,12 @@ u8 CG_FCNT[288];
 static void cg_nat0(const u8 *st, u8 *buf) { (void)st; (void)buf; }
 void (*CG_NAT)(const u8 *, u8 *) = cg_nat0;
 #define CG_NUMSEL (CG_NUMSEL_[0])
+static u32 tc_room(void) { return CG_NUMSEL < 159 ? 159u - CG_NUMSEL : 0; }
+static void tc_clamp(void) { }
 #else
+u32 tc_room(void);                      /* tcache.py: the records an optional feature may add (the one rule: budget -
+                                           count - the world's reserve) */
+void tc_clamp(void);                    /* tcache.py: count > the cache's memory cap -> the game's stop */
 extern const u8 CG_TAB[];
 extern u8 CG_SCR[];
 extern u16 CG_NUMSEL;                   /* g_numSelectedTeams */
@@ -51,7 +56,6 @@ extern const u8 CG_FCNT[];              /* P4: each team file's last club ordina
                                            file has no end: the game hangs) */
 #endif
 
-#define SEL_CAP 160                     /* (careerworld SEL_N: a World 2026-27 career's team cache) */
 #define CG_BUF 0x0000                   /* the contest (B52h: a type-2's) */
 #define CG_ST 0x0B60                    /* its struct (<= 0x100) */
 #define CG_SAVE 0x0C60                  /* the game's work area while the glue runs (B52h) */
@@ -151,7 +155,7 @@ u32 cg_build(u32 c, u32 r, s32 t, u32 week) {
     u32 n = mkstruct((int)c, (int)r, t, week, st);
     if (!n) return 0;
     u32 k = st[1] == 1 ? st[10] : st[15];              /* (its clubs: type 1 [0Ah], type 2 [0Fh]) */
-    if (CG_NUMSEL + k > SEL_CAP) { CG_ERR = E_CACHE; return 0; }   /* (each club at most once more) */
+    if (k > tc_room()) { CG_ERR = E_CACHE; return 0; }   /* (each club at most once more; tcache's rule) */
     for (int i = 0; i < g_nw; i++) {                   /* (P4: every club in a team file of the world) */
         u32 w = w16(st + n - 2 * (u32)g_nw + 2 * (u32)i);
         if (w != 0xFFFF && (!(CG_FCNT[256 + ((w & 0xFF) >> 3)] >> (w & 7) & 1) || (w >> 8) > CG_FCNT[w & 0xFF])) {
@@ -444,6 +448,7 @@ static void keep(int out) {             /* the kept ranges <-> CG_KEEP */
 
 static void close_(int regs) {
     CG_NUMSEL = (u16)CG_G[1];
+    tc_clamp();                         /* (a count written without an insert: tcache) */
     copy(CG_WORK, CG_SCR + CG_WSAVE, 0xB52);
     if (regs) copy(CG_DREG, CG_SCR + CG_DSAVE, 60);
     keep(0);

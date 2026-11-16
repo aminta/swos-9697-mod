@@ -429,12 +429,14 @@ def patch(p, at, scr_at, lang):
     fc = fcnt()                                         # (P4: the world's team files' club counts)
     p.put(3, at, fc)
     fc_at, at = at, (at + len(fc) + 15) & ~15
+    import tcache
     cs = cl['syms']
     ext = {k: cs[k] for k in ('CT_SPEC', 'CT_IN', 'CT_OUT', 'CT_SEG', 'CT_GREC', 'ct_resume')}
     ext.update(CG_TAB=(3, tab_at), CG_SCR=(3, scr_at), CG_NUMSEL=trailer.INFO['NUMSEL'], CG_SLOT3=u['SLOT3'],
                CG_GTAB=(3, gtab_at), CG_FCNT=(3, fc_at), CG_CAREER=trailer.INFO['CAREER'], CG_SELBASEV=(1, trailer.INFO['selbasev']),
                CG_WORK=lp36.LABELS['symbols']['DIYCOPY'], CG_DREG=u['D0R'], CG_CAL=u['CAL'],
-               CG_RNTIE=rn_tie(), CG_CTRN=(1, cl['ct_rn']))
+               CG_RNTIE=rn_tie(), CG_CTRN=(1, cl['ct_rn']),
+               tc_room=tcache.entry('tc_room'), tc_clamp=tcache.entry('tc_clamp'))
     flags = ['-fno-zero-initialized-in-bss', f'-DCG_FIXED={trailer.INFO["FIXED"][1]}']
     if os.environ.get('CONTI_CGVIEW'):
         flags.append(f'-DCGVIEW={int(os.environ["CONTI_CGVIEW"])}')

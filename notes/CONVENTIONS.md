@@ -195,3 +195,13 @@ new rule. If a rule seems wrong for a case, ask the regia session; don't silentl
     `__asm__` in a Mod C file that the engine's host tests compile (rules-check includes gplay.c; the host suite's cc
     is arm64) goes under `#if defined(__i386__)` with a host stub that keeps the C path working (a DOS call: -1 = no
     file / not found, as 9f33156 / sm_dos). The release objects stay byte-identical (check the exes' md5s).
+
+26. **Adding teams to the team cache: tc_room / tc_reserve / TC_CAP, never a constant** (MC 16/11, team cache 1a,
+    tools/tcache.py). One rule for both caches (the game's 100 records, the big cache's careerworld.SEL_CAP): a
+    MEMORY CAP that stops the game ("TEAM CACHE FULL (n) - PLEASE REPORT") instead of overwriting what follows the
+    cache, and a SAVE BUDGET (trailer.py: nmax for the game's cache, TC_CAP for the big one) = the most records with
+    which the whole trailer still fits the save. The game's 6 inserts are hooked (the memory cap); every OPTIONAL
+    feature that adds clubs (friendlies, contest views, supercups, any future loader) first asks tc_reserve(list, n) /
+    tc_room() and skips itself cleanly on "no" - never a hand-written count (ctgame.c's 160 is gone). A world whose
+    late MANDATORY installs need room sets tcache.RESERVE[world]. A count written without an insert goes through
+    tc_clamp. 21's SEL_N is replaced by TC_CAP (computed, 159; 155 with 'FP').

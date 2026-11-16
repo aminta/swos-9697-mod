@@ -8,15 +8,21 @@ With RUOLI SI (and not SWOS++ / a plain training game: tr_live, the conditions o
     by (2)) counts TR_WHB more deltaZ down and TR_WHS more ball speed.
 (3) a file defender (TR_DMASK: position 3) in his OWN box reaches the ball for a header from further: the contact
     limit ballDistance <= 64 (8 px, squared) becomes 64 + TR_RST x HEADING (HEADING 7: 10.95 px).
-(2) the whipped cross: NOT in yet (MC codes tr_kick / tr_hk after the usage measure, internal/handoff/trhead-measure.md:
-    side-agnostic, no CPU after-touch stub); its two jump-table slots are reserved (a bare ret).
-RUOLI NO: tr_hdown tail-answers setpieces' sp_on and tr_dist does the original compare: today's exe behaviour.
+(2) the whipped cross (side-agnostic: whoever plays it, human or computer): a kick (PlayerKickingBall) by a file RW /
+    LW (position 4 / 5) with the BALL in the wide attacking zone, the kicker facing the pitch's centre line (direction
+    1..3 from the left half, 5..7 from the right) and no setpieces free kick in flight (FK_ST 0: under CALCI PIAZZATI
+    CLASSICI wide free kicks and corners whip too) is armed by tr_kick (TR_ZK); if that kick's after-touch is 'back'
+    (the game's high kick, ApplyBallAfterTouch at spinTimer 4), tr_hk makes it the whip: deltaZ TR_WDZ, speed TR_WSP
+    in place of kHighKickDeltaZ / kHighKickBallSpeed (the game's own x 0.75 / x 0.875 follows), and the whip goes live
+    for tr_head (TR_WF / TR_WK / TR_WT). Everyone and everywhere else: the high ball as it was.
+RUOLI NO: tr_hdown tail-answers setpieces' sp_on, tr_dist does the original compare, tr_kick does nothing and tr_hk
+gives the original speed: today's exe behaviour.
 
 Shape: asm (nasmcave), obj4 swreg.TRHD_AT..TRHD_END, no fixup of its own (obj2's base = setpieces' SPB dword, read
 PC-relative; ebp = SPB everywhere, from setpieces' sp_base). A jump table at TRHD_AT + 5 x slot (JT): setpieces' header
-stubs call slots 0 / 1 (`%if TRHD_ON`, its only edit); this module hooks the two obj1 distance compares (DIST0 the
-static header, DIST1 the jump header: `mov esi, A1` / `cmp [esi + ballDistance], 64`, 10 B, then `ja` - one fixup
-dropped, one call added each).
+stubs call slots 0 / 1 and sp_kick slot 2 (`%if TRHD_ON`, its only edits); this module hooks three obj1 sites, one
+fixup dropped and one call added each: the two distance compares (DIST0 the static header, DIST1 the jump header:
+`mov esi, A1` / `cmp [esi + ballDistance], 64`, 10 B, then `ja`) and HK (`mov ax, kHighKickBallSpeed`, 6 B).
 
 The switch: until GP_RUOLI lands on the integration branch (Panchina, gameplay.gp_ruoli()), a branch-only build
 constant TRHD_RUOLI=0 / 1 = the start value of the band's own byte TR_RU (unset = nothing linked: today's exe, byte for
@@ -25,9 +31,10 @@ byte). tr_live reads the switch in ONE place (the RU_REF define): the swap to GP
 Zones (tr_zone; d = the man's distance from his OWN goal line: y - 129 for the top structure's team, 769 - y for the
 bottom's - topTeamData defends the top goal in both halves, the clubs swap inside the structures):
   bit 0 own box (d 0..87, x 193..478), bit 1 attacking box (d 553..640, x 193..478), bit 2 the wide attacking zone
-  (d >= 640 - TR_WZ, x <= 183 or >= 488: Marco's zones 16 / 20 and 1 / 5), bit 3 the left half (x < 336).
+  (d >= 640 - TR_WZ, x <= 183 or >= 488: Marco's zones 16 / 20 and 1 / 5; no far bound, a corner's ball is on or
+  just past the line), bit 3 the left half (x < 336).
 
-Test switches (modver TEST_VARS): TR_HMASK, TR_DMASK, TR_RST, TR_WHB, TR_WHS, TR_WZ.
+Test switches (modver TEST_VARS): TR_HMASK, TR_DMASK, TR_RST, TR_WHB, TR_WHS, TR_WZ, TR_WDZ, TR_WSP.
 Host tests: tools/hosttest/trhd_check.py (the rules against a Python model), trhd_structural.py (RUOLI NO = REF).
 """
 import os
@@ -39,7 +46,6 @@ import nasmcave
 TAG = b'TRHD'
 POS = 0x2E                               # PlayerInfoHeader.position (file byte >> 5: 0 GK 1 RB 2 LB 3 D 4 RW 5 LW 6 M 7 A)
 JT = ('tr_hdown', 'tr_head', 'tr_kick', 'tr_hk', 'tr_dist', 'tr_live', 'tr_rec', 'tr_zone')
-RESERVED = ('tr_kick', 'tr_hk')          # (2): slots kept, a bare ret until MC's go
 GOAL_TOP, GOAL_BOT, BOX_X0, BOX_X1, BOX_D, WIDE_X0, WIDE_X1, MID_X = 129, 769, 193, 478, 87, 183, 488, 336
 
 
@@ -50,7 +56,8 @@ def _iv(k, d):
 
 def knobs():
     return dict(HMASK=_iv('TR_HMASK', 0xFE), DMASK=_iv('TR_DMASK', 1 << 3), RST=_iv('TR_RST', 8),
-                WHB=_iv('TR_WHB', 0x800), WHS=_iv('TR_WHS', 256), WZ=_iv('TR_WZ', 160))
+                WHB=_iv('TR_WHB', 0x800), WHS=_iv('TR_WHS', 256), WZ=_iv('TR_WZ', 160),
+                WDZ=_iv('TR_WDZ', 0x10000), WSP=_iv('TR_WSP', 4096))
 
 
 def gp_ruoli():
@@ -81,22 +88,22 @@ def on():
 
 
 ASM = r"""
-; ---- the jump table (slot n at TRAT + 5 n; the reserved slots of (2) answer with a bare ret)
+; ---- the jump table (slot n at TRAT + 5 n)
 tr_hdownj: jmp near tr_hdown           ; +0   setpieces: sp_jz / sp_fz / sp_head instead of sp_on
 tr_headj:  jmp near tr_head            ; +5   setpieces: sp_head, after the HEADING placement
-tr_kickj:  jmp near tr_none            ; +10  (2) reserved: the kick's record (PlayerKickingBall, setpieces' sp_kick)
-tr_hkj:    jmp near tr_none            ; +15  (2) reserved: the 'back' after-touch's speed (obj1 HK)
+tr_kickj:  jmp near tr_kick            ; +10  setpieces: sp_kick's end (PlayerKickingBall)
+tr_hkj:    jmp near tr_hk              ; +15  obj1 HK (the 'back' after-touch's speed)
 tr_distj:  jmp near tr_dist            ; +20  obj1 DIST0 / DIST1
 tr_livej:  jmp near tr_live            ; +25  the helpers, for a later trait (ebp = SPB: setpieces' sp_base)
 tr_recj:   jmp near tr_rec             ; +30
 tr_zonej:  jmp near tr_zone            ; +35
-tr_none:   ret
 
     db 'TRHD'
 TR_RU: db RU_START                      ; the switch's stand-in until GP_RUOLI (RU_REF): 1 = RUOLI SI
+TR_ZK: db 0                             ; (2) 1 = the last kick may whip (tr_kick), until its after-touch or the next kick
 TR_WF: db 0                             ; (2) 1 = a whipped cross is live
 TR_WK: dw 0                             ; (2) its tick (currentGameTick)
-TR_WT: dd 0                             ; (2) its team (TeamGeneralInfo)
+TR_WT: dd 0                             ; (2) the armed kick's / the whip's team (TeamGeneralInfo)
 TR_HM: dd HMASK                         ; (1) file positions that head down in the attacking box (bit = position)
 TR_DM: dd DMASK                         ; (3) file positions with the own-box reach
 
@@ -150,14 +157,14 @@ tr_zone:
     cmp ecx, MID_X
     jge .r
     or al, 8
-.r: cmp edx, 640
-    jg .o
-    cmp ecx, BOX_X0
+.r: cmp ecx, BOX_X0
     jl .w
     cmp ecx, BOX_X1
     jg .w
     test edx, edx
     js .o
+    cmp edx, 640
+    jg .o
     cmp edx, BOX_D
     jg .a
     or al, 1
@@ -241,6 +248,74 @@ tr_head:
 .x: popfd
     ret
 
+; ---- (2) the kick's record (setpieces' sp_kick, at its end: ebp = SPB, A1 = the kicker, A6 = his team, FK_ST already
+;      set for this kick). Traits on: the old record and any live whip end; TR_ZK = 1 for a file RW / LW with the ball
+;      in the wide attacking zone, facing the centre line, no setpieces free kick. Every register and the flags kept.
+tr_kick:
+    pushfd
+    call tr_live
+    jz .x
+    pushad
+    mov word [dword ebp + TR_ZK - SPB_], 0  ; (TR_ZK and TR_WF)
+    cmp byte [dword ebp + FK_ST_ - SPB_], 0
+    jne .n
+    mov ebx, [ebp]
+    mov esi, [ebx + A1_O]
+    mov edi, [ebx + A6T_O]
+    call tr_rec
+    mov al, [eax + POS]
+    sub al, 4
+    cmp al, 1
+    ja .n
+    lea esi, [ebx + BALL_O]
+    call tr_zone
+    test al, 4
+    jz .n
+    movzx edx, word [edi + 38h]         ; controlledPlDirection = the kicker's direction (0 up, clockwise)
+    and edx, 7
+    test al, 8
+    jz .r
+    dec edx                             ; from the left half: 1 / 2 / 3 (toward +x)
+    jmp .c
+.r: sub edx, 5                          ; from the right half: 5 / 6 / 7
+.c: cmp edx, 2
+    ja .n
+    mov byte [dword ebp + TR_ZK - SPB_], 1
+    mov [dword ebp + TR_WT - SPB_], edi
+.n: popad
+.x: popfd
+    ret
+
+; ---- (2) the 'back' after-touch's speed (replaces `mov ax, kHighKickBallSpeed` in ApplyBallAfterTouch; the ball's
+;      deltaZ = kHighKickDeltaZ is stored just before, A6 = the kicking team): an armed kick of that team -> the ball's
+;      deltaZ = WDZ, ax = WSP, the whip live from this tick. ax out, every other register and the flags kept.
+tr_hk:
+    push ebp
+    pushfd
+    call near SP_BASE_
+    push ecx
+    mov ecx, [ebp]
+    mov ax, [ecx + KHS_O]
+    call tr_live
+    jz .x
+    cmp byte [dword ebp + TR_ZK - SPB_], 0
+    je .x
+    mov byte [dword ebp + TR_ZK - SPB_], 0
+    push edx
+    mov edx, [ecx + A6T_O]
+    cmp edx, [dword ebp + TR_WT - SPB_]
+    jne .n
+    mov dword [ecx + BALL_O + DZO], WDZ
+    mov ax, WSP
+    mov byte [dword ebp + TR_WF - SPB_], 1
+    mov dx, [ecx + CGT_O]
+    mov [dword ebp + TR_WK - SPB_], dx
+.n: pop edx
+.x: pop ecx
+    popfd
+    pop ebp
+    ret
+
 ; ---- (3) the header contact distance (replaces `mov esi, A1` / `cmp [esi + ballDistance], 64`, then `ja`): a TR_DM
 ;      position in his own box: 64 + RST x HEADING (0..7). esi = A1 and the compare's flags out, every other register kept.
 tr_dist:
@@ -289,8 +364,8 @@ tr_dist:
 
 
 def find(p):
-    """DIST0 / DIST1 (obj1, from setpieces' CEIL sites: the distance compare is 33 B above each ceiling) and the top
-    team's structure (obj2: the lower of the two `cmp A6, offset <team>` operands, 0x91 apart)."""
+    """DIST0 / DIST1 (obj1, from setpieces' CEIL sites: the distance compare is 33 B above each ceiling), HK (obj1:
+    ApplyBallAfterTouch's `mov ax, kHighKickBallSpeed`, after the kHighKickDeltaZ store) and the top team's structure (obj2: the lower of the two `cmp A6, offset <team>` operands, 0x91 apart)."""
     import difficulty as df
     import setpieces as sp
     s, c = sp.FOUND.get(id(p)) or sp.find(p)
@@ -304,6 +379,13 @@ def find(p):
         assert d[o:o + 2] == b'\x8b\x35' and t(o + 2) == a1 and d[o + 6:o + 12] == b'\x83\x7e\x4a\x40\x0f\x87', \
             (k, d[o:o + 16].hex())
         out[k] = o
+    o2 = p.le.obj_bytes(2)
+    val = lambda o, f: struct.unpack_from(f, o2, t(o)[1])[0] if t(o) and t(o)[0] == 2 else None
+    hk = [m.start() for m in re.finditer(rb'\xa1....\x8b\x35....\x89\x46\x36\x66\xa1....\x8b\x35....\x66\x89\x46\x2c', d, re.S)
+          if val(m.start() + 1, '<I') == 0x20000 and val(m.start() + 16, '<H') == 2688]
+    assert len(hk) == 1, ('ApplyBallAfterTouch: kHighKickDeltaZ / kHighKickBallSpeed', hk)
+    out['HK'] = hk[0] + 14
+    khs = t(out['HK'] + 2)[1]
     tg = {}
     for m in re.finditer(rb'\x81\x3d', d):
         o = m.start()
@@ -311,7 +393,7 @@ def find(p):
             tg[t(o + 6)[1]] = tg.get(t(o + 6)[1], 0) + 1
     pair = [x for x in tg if x + 0x91 in tg and tg[x] >= 8 and tg[x + 0x91] >= 8]
     assert len(pair) == 1, ('topTeamData / bottomTeamData', {hex(k): v for k, v in tg.items()})
-    return out, dict(TOP_O=pair[0])
+    return out, dict(TOP_O=pair[0], KHS_O=khs)
 
 
 def _sym(p):
@@ -323,8 +405,9 @@ def _sym(p):
     L = sp.LABELS
     k = knobs()
     assert not k['HMASK'] & ~0xFE and not k['DMASK'] & ~0xFE, 'TR_HMASK / TR_DMASK: outfield positions 1..7'
-    assert 0 < k['WZ'] <= 320 and 0 <= k['RST'] <= 64, k
-    sym = {**{n: (0, spc[n]) for n in ('A1_O', 'A6T_O', 'CGT_O', 'DZO', 'HDO')}, 'TOP_O': (0, c['TOP_O']),
+    assert 0 < k['WZ'] <= 320 and 0 <= k['RST'] <= 64 and 0 < k['WDZ'] <= 0x20000 and 0 < k['WSP'] <= 0x7FFF, k
+    sym = {**{n: (0, spc[n]) for n in ('A1_O', 'A6T_O', 'CGT_O', 'DZO', 'HDO', 'BALL_O')}, 'TOP_O': (0, c['TOP_O']),
+           'KHS_O': (0, c['KHS_O']), 'WDZ': (0, k['WDZ']), 'WSP': (0, k['WSP']),
            'TRG_O': (0, df.SYMS['TRG'][1]), 'POS': (0, POS), 'RU_START': (0, ruoli()),
            **{n + '_': (4, L[n]) for n in ('SPB', 'SP_OK', 'PR_D', 'SP_W', 'FK_ST')},
            'SP_ON_': (4, L['sp_on']), 'SP_BASE_': (4, L['sp_base']),
@@ -348,8 +431,6 @@ def patch(p, lang):
     lab = nasmcave.labels(ASM, at, sym)
     assert not fix and not rel, ('TRHD: no fixups (obj2 through setpieces\' SPB)', fix, rel)
     assert [lab[n + 'j'] for n in JT] == [at + 5 * i for i in range(len(JT))], 'TRHD: the jump table'
-    assert code[5 * len(JT)] == 0xC3 and all(lab[n + 'j'] + 5 + struct.unpack_from('<i', code, 5 * JT.index(n) + 1)[0]
-                                              == lab['tr_none'] for n in RESERVED), 'TRHD: (2)\'s reserved slots'
     left = swreg.TRHD_END - at - len(code)
     assert left >= 256, ('TRHD: floor 256 B', len(code))
     assert p.le.obj(4).npages * 0x1000 >= swreg.TRHD_END, 'TRHD: obj4 pages (patch.py)'
@@ -360,13 +441,18 @@ def patch(p, lang):
         g = p.get(1, o, 12)                             # (the bytes as patched so far: nobody else hooks this compare)
         assert g[:2] == b'\x8b\x35' and g[6:12] == b'\x83\x7e\x4a\x40\x0f\x87', (k, bytes(g).hex())
         df._hook(p, o, 10, 10, lab['tr_dist'])
+    o = s['HK']
+    g = p.get(1, o, 6)
+    assert g[:2] == b'\x66\xa1' and df._t(p, o + 2) == (2, sym['KHS_O'][1]), ('HK', bytes(g).hex())
+    df._hook(p, o, 6, 6, lab['tr_hk'])
     LABELS.clear()
     LABELS.update(lab)
     SYMS.clear()
     SYMS.update({k: (1, v) for k, v in s.items()})
     SYMS['TOP'] = (2, sym['TOP_O'][1])
-    print(f'exe: position traits (1)(3) (TRHD_RUOLI={ruoli()}): code obj4+{at:#x} ({len(code)} B, {left} B left), '
-          f'2 obj1 sites (DIST0 {s["DIST0"]:#x}, DIST1 {s["DIST1"]:#x}); setpieces\' header stubs ask tr_hdown')
+    print(f'exe: position traits (1)-(3) (TRHD_RUOLI={ruoli()}): code obj4+{at:#x} ({len(code)} B, {left} B left), '
+          f'3 obj1 sites (DIST0 {s["DIST0"]:#x}, DIST1 {s["DIST1"]:#x}, HK {s["HK"]:#x}); setpieces\' header stubs ask '
+          f'tr_hdown, sp_kick calls tr_kick')
     return at + len(code)
 
 

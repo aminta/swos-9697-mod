@@ -41,8 +41,8 @@ BUILD_SWITCHES += ('SWE_BSS_SHIFT',)                # DIFF_* edits above cherry-
 BUILD_SWITCHES += ('GM_NOROLES',)                  # 4.2 GAMEPLAY: the page without its RUOLI row (gameplay.py; the structural-OFF build)
 TEST_VARS += ('GM_RUOLI_SI',)                      # 4.2 GAMEPLAY: a test build that starts with RUOLI SI (GP_RUOLI 1; gameplay.RUOLI_START)
 BUILD_SWITCHES += ('GM_RUOLI_SI',)
-TEST_VARS += ('TR_HMASK', 'TR_DMASK', 'TR_RST', 'TR_WHB', 'TR_WHS', 'TR_WZ')   # 4.2 POSITION TRAITS (1)-(3): trhead.py's knobs
-BUILD_SWITCHES += ('TR_HMASK', 'TR_DMASK', 'TR_RST', 'TR_WHB', 'TR_WHS', 'TR_WZ',
+TEST_VARS += ('TR_HMASK', 'TR_DMASK', 'TR_RST', 'TR_WHB', 'TR_WHS', 'TR_WZ', 'TR_WDZ', 'TR_WSP')   # 4.2 POSITION TRAITS (1)-(3): trhead.py's knobs
+BUILD_SWITCHES += ('TR_HMASK', 'TR_DMASK', 'TR_RST', 'TR_WHB', 'TR_WHS', 'TR_WZ', 'TR_WDZ', 'TR_WSP',
                    'TRHD_RUOLI')                    # (TRHD_RUOLI: the band's switch until GP_RUOLI lands - a build switch, not a test one)
 
 

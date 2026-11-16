@@ -66,7 +66,13 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 - Malta: when the title is decided by a play-off (the Finalissima or the Final Four), the champion is now always the club that won that play-off's final. Before, the game could crown a different club at the end of the season.
 
 #### SEASON after a career in another world
-- A 1996-97 SEASON started after a career in World 2026-27 or Europe 1984-85 (in the same game, without quitting) kept that career's world in the background. Its national cups could get that world's fixed pairs (for example the Coppa Italia), and a SEASON saved this way loaded back in the other world. A SEASON is now always 1996-97. A SEASON saved this way with 4.1.2 or earlier now loads as a 1996-97 SEASON; the cup pairs it had already drawn stay as they are.
+- A 1996-97 SEASON started after a career in World 2026-27 or Europe 1984-85 (in the same game, without quitting) kept that career's world in the background. Its national cups could get that world's fixed pairs (for example the Coppa Italia), and a SEASON saved this way loaded back in the other world. A SEASON now plays the world chosen with the main menu's world selector, never a career's world left in the background. A SEASON saved this way with 4.1.2 or earlier now loads as a 1996-97 SEASON; the cup pairs it had already drawn stay as they are.
+
+#### World 2026-27 in SEASON mode
+- SEASON can now be played with the World 2026-27 (choose it with the main menu's world selector): pick your club in the career-style picker, each league plays in its own format. The mid-season splits into groups and Italy's Coppa D are played as in a career.
+- In a single season with your club, the play-offs, play-outs and title deciders inside your league are played too, for example Malta's Final Four. If your club is not in one of them, its matches are simulated and the season goes on to FINISH SEASON.
+- Those that bring in clubs from other leagues (for example New Zealand's Grand Final, Scotland's promotion play-off) are played in careers only.
+- A SEASON saved in the World 2026-27 loads back in it, also in the middle of a play-off; a 1996-97 SEASON saved with 4.1 loads and finishes as before.
 
 #### African club cups: the holder's place
 - CAF Champions League and Confederation Cup (article IV.5 of the CAF regulations): an association never has more than two clubs in the same cup, and the holder defending its title is one of them. If the holder is not already on one of its association's places, it takes the association's last place and the lowest qualifier drops (an association with a single place sends only the holder). Before, a holder could bring its association an extra club. A holder that is also the national champion (or cup winner) of the other cup defends in that one and its place there goes to the next club, as before.
@@ -89,6 +95,27 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 - AFC Champions League Elite, AFC Challenge League, CONCACAF Champions Cup, Recopa Sudamericana and CAF Super Cup: the knockout matches your club plays in these cups now decide the cup. Before (since 4.1) the game played them but ignored the results at the end of the season and drew the outcome again, so the winner, next season's title holder and places could differ from what you actually played.
 - A career saved halfway through a knockout round with an earlier version: the round counts when you finish it.
 
+#### Preseason friendlies: who you play and what they pay
+- Career: the four preseason friendlies are played against clubs picked by strength: one stronger than your club, two of similar strength and one weaker. The clubs the game picks are always foreign. A page at the start of the season lets you choose the opponents yourself; leave it alone and the game picks them.
+- How strength is measured: a club's strength is the value of its best eleven players. "Similar" means within about 10% of your own club's strength; "stronger" and "weaker" mean between 10% and 40% away (for the very smallest clubs these steps have a fixed minimum, so they are a little wider). Clubs further away than that are not picked: a giant against a village side is not a preseason test.
+- The game looks for four clubs from four different countries, never your own B team, never the same club twice, and not the four you met the summer before (as long as there are others to pick).
+- When no club is that much stronger or weaker than yours, the game takes the nearest one in strength. The strongest clubs in the world, with nobody above them, meet the strongest club available. The weakest clubs, with nobody below them, get the weakest club available as their easier opponent: a club of their own level.
+- Two friendlies are at home and two away: you host the two weakest of your four opponents and travel to the two strongest.
+- Every friendly pays. The fee is a percentage of the gate of one of your home league matches that season:
+
+| The opponent, compared with your club | At home (you keep the gate) | Away (appearance fee) |
+|---|---|---|
+| Much stronger (more than 40% above) | 120% | 50% |
+| Stronger | 100% | 40% |
+| Similar | 50% | 20% |
+| Weaker | 30% | 10% |
+| Much weaker (more than 40% below) | 20% | 5% |
+
+- With the game's own four opponents a summer normally brings 140% of a home league gate: at home against the weaker club (30%) and one of the similar ones (50%), away at the other similar one (20%) and at the stronger one (40%). Much stronger and much weaker clubs only come up when you choose them yourself or when no nearer club exists. The fee always follows what the opponent really is.
+- Financial fair play: the fees count as gate income, like every other gate. Real football does the same: UEFA counts the gate receipts of all of a club's matches as relevant income (UEFA Club Licensing and Financial Sustainability Regulations, Edition 2025, Annex J.2.1 a).
+- Friendlies give no league points and count for no table or cup. The season's friendlies record (won, drawn, lost) is kept apart from your competitive results.
+- On the page where you choose the opponents, the figure from 1 to 5 next to a club is the same for everybody (which fifth of the world's clubs it is in, 5 = the strongest fifth), while the colour compares that club with yours (stronger, similar or weaker), as the page's legend shows; a club you have picked gets a colour of its own.
+
 #### Decisions of this release
 - Preseason friendlies, the choice page (Davide, 16/11): the game's pick for the rows left to it starts as MIXED (one stronger, two similar, one weaker); EASY / MEDIUM / HARD make the four weaker / similar / stronger, and the setting is remembered from season to season; a club chosen by the player can go in any row, may be of the player's own country and lasts one summer; the venues stay two at home and two away; careers saved before 4.2 continue with MIXED.
 - Serie C / Serie D exchange (2026-27 world): every season the nine Serie D group winners go up and the Serie C clubs relegated (last of each group + play-out losers) go down, your club included; groups by area, an approximation (the real league redraws the Serie D groups every summer); a move of your club keeps its squad, money and record.
@@ -100,7 +127,9 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 - REALISTIC free kicks follow real-football rates (league average around 6-7% of direct free kicks scored, the best specialists 10-15%: Opta). The taker's SHOOTING decides how often the computer's free kick is on target; a miss goes over the bar or hits the wall.
 - Stand-ins from a 4.1 career (Davide, 12/11): a stand-in that reached Serie C is replaced by a real Serie D club at the first load in 4.2, which keeps its points and table position (the alternative, showing the stand-in until the end of the season, was dropped).
 - Serie D, a full group (Davide): the club that moves to a neighbouring group is the one living nearest to the centre of that group, by the real location of the clubs' towns.
+- World 2026-27 SEASON (Davide, 16/11): the play-offs, play-outs and title deciders inside your league are played; those that bring in clubs from other leagues only in careers.
 - JUVENTUS's bench keeper is NETO (Davide, 15/11), over the call-ups rule that would pick PINSOGLIO.
+- Preseason friendlies, opponents and fees (Davide, 16/11): the game's opponents are foreign clubs, one stronger, two similar and one weaker than yours by the value of the best eleven players; when no such club exists, the nearest in strength; two at home (the two weakest) and two away; fees by the table above (a share of a home league gate, by how strong the opponent really is), counted as gate income for financial fair play (UEFA Club Licensing and Financial Sustainability Regulations, Edition 2025, Annex J.2.1 a); a club you choose yourself may also be from your own country.
 
 
 ## Italiano
@@ -170,7 +199,13 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 - Malta: quando il titolo si decide con uno spareggio (la Finalissima o la Final Four), il campione ora è sempre la squadra che ha vinto la finale di quello spareggio. Prima il gioco poteva incoronare un'altra squadra a fine stagione.
 
 #### STAGIONE dopo una carriera in un altro mondo
-- Una STAGIONE 1996-97 iniziata dopo una carriera nel Mondo 2026-27 o in Europa 1984-85 (nella stessa partita, senza uscire dal gioco) si teneva dietro il mondo di quella carriera. Le sue coppe nazionali potevano avere gli accoppiamenti fissi di quel mondo (per esempio la Coppa Italia), e una STAGIONE salvata così si ricaricava nell'altro mondo. Ora una STAGIONE è sempre 1996-97. Una STAGIONE salvata così con la 4.1.2 o prima ora si carica come STAGIONE 1996-97; gli accoppiamenti di coppa già sorteggiati restano come sono.
+- Una STAGIONE 1996-97 iniziata dopo una carriera nel Mondo 2026-27 o in Europa 1984-85 (nella stessa partita, senza uscire dal gioco) si teneva dietro il mondo di quella carriera. Le sue coppe nazionali potevano avere gli accoppiamenti fissi di quel mondo (per esempio la Coppa Italia), e una STAGIONE salvata così si ricaricava nell'altro mondo. Ora una STAGIONE gioca il mondo scelto con il selettore dei mondi del menu principale, mai il mondo di una carriera rimasto dietro. Una STAGIONE salvata così con la 4.1.2 o prima ora si carica come STAGIONE 1996-97; gli accoppiamenti di coppa già sorteggiati restano come sono.
+
+#### Il Mondo 2026-27 in modalità STAGIONE
+- La STAGIONE ora si può giocare con il Mondo 2026-27 (sceglilo con il selettore dei mondi del menu principale): scegli la tua squadra nella schermata di scelta della carriera, ogni campionato si gioca nel suo formato. Le divisioni in gironi a metà stagione e la Coppa D italiana si giocano come in carriera.
+- In una stagione singola con la tua squadra si giocano anche i play-off, i play-out e gli spareggi per il titolo dentro il tuo campionato, per esempio la Final Four di Malta. Se la tua squadra non ne fa parte, le partite vengono simulate e la stagione arriva a FINISCI STAGIONE.
+- Quelli che coinvolgono squadre di altri campionati (per esempio la Grand Final della Nuova Zelanda, i play-off promozione scozzesi) si giocano solo in carriera.
+- Una STAGIONE salvata nel Mondo 2026-27 si ricarica nel suo mondo, anche a metà di un play-off; una STAGIONE 1996-97 salvata con la 4.1 si carica e si chiude come prima.
 
 #### Coppe africane per club: il posto del detentore
 - CAF Champions League e Confederation Cup (articolo IV.5 del regolamento CAF): una federazione non ha mai più di due squadre nella stessa coppa e il detentore che difende il titolo è una di queste. Se il detentore non è già su uno dei posti della sua federazione, prende l'ultimo posto della federazione e la qualificata più bassa resta fuori (una federazione con un solo posto manda solo il detentore). Prima un detentore poteva portare alla sua federazione una squadra in più. Un detentore che è anche campione nazionale (o vincitore della coppa) dell'altra competizione difende il titolo in quella e il suo posto lì passa alla squadra successiva, come prima.
@@ -193,6 +228,27 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 - AFC Champions League Elite, AFC Challenge League, CONCACAF Champions Cup, Recopa Sudamericana e CAF Super Cup: le partite a eliminazione diretta che la tua squadra gioca in queste coppe ora decidono la coppa. Prima (dalla 4.1) il gioco le faceva giocare ma a fine stagione ne ignorava i risultati e rideterminava l'esito, quindi vincitore, detentore della stagione dopo e posti potevano non corrispondere a quello che avevi giocato.
 - Una carriera salvata a metà di un turno a eliminazione diretta con una versione precedente: il turno conta quando lo finisci.
 
+#### Amichevoli estive: contro chi giochi e quanto rendono
+- Carriera: le quattro amichevoli estive si giocano contro squadre scelte in base alla forza: una più forte della tua, due di forza simile e una più debole. Le squadre scelte dal gioco sono sempre straniere. All'inizio della stagione una pagina ti permette di scegliere tu le avversarie; se non tocchi nulla le sceglie il gioco.
+- Come si misura la forza: la forza di una squadra è il valore dei suoi undici giocatori migliori. "Simile" vuol dire entro il 10% circa della forza della tua squadra; "più forte" e "più debole" vogliono dire tra il 10% e il 40% di distanza (per le squadre più piccole in assoluto questi scalini hanno un minimo fisso, quindi sono un po' più larghi). Le squadre più lontane non vengono scelte: una grande contro una squadra di paese non è un test estivo.
+- Il gioco cerca quattro squadre di quattro paesi diversi, mai la tua squadra B, mai due volte la stessa, e non le quattro dell'estate precedente (finché ce ne sono altre da scegliere).
+- Quando nessuna squadra è così più forte o più debole della tua, il gioco prende la più vicina per forza. Le squadre più forti del mondo, che non hanno nessuno sopra, affrontano la più forte disponibile. Le squadre più deboli, che non hanno nessuno sotto, trovano come avversaria facile la più debole disponibile: una squadra del loro stesso livello.
+- Due amichevoli si giocano in casa e due in trasferta: ricevi le due avversarie più deboli delle quattro e vai in casa delle due più forti.
+- Ogni amichevole porta soldi. La cifra è una percentuale dell'incasso di una tua partita di campionato in casa di quella stagione:
+
+| L'avversaria, rispetto alla tua squadra | In casa (tieni l'incasso) | In trasferta (ingaggio) |
+|---|---|---|
+| Molto più forte (oltre il 40% in più) | 120% | 50% |
+| Più forte | 100% | 40% |
+| Simile | 50% | 20% |
+| Più debole | 30% | 10% |
+| Molto più debole (oltre il 40% in meno) | 20% | 5% |
+
+- Con le quattro avversarie scelte dal gioco un'estate porta di norma il 140% di un incasso di campionato in casa: in casa contro la più debole (30%) e una delle simili (50%), in trasferta dall'altra simile (20%) e dalla più forte (40%). Le squadre molto più forti e molto più deboli arrivano solo se le scegli tu o se non ce n'è una più vicina. La cifra segue sempre quello che l'avversaria è davvero.
+- Fair play finanziario: questi soldi contano come incassi da stadio, come ogni altro incasso. Nel calcio vero è lo stesso: la UEFA conta tra i ricavi rilevanti gli incassi da stadio di tutte le partite di un club (UEFA Club Licensing and Financial Sustainability Regulations, edizione 2025, allegato J.2.1 a).
+- Le amichevoli non danno punti e non contano per nessuna classifica o coppa. Il bilancio delle amichevoli della stagione (vinte, pareggiate, perse) è tenuto a parte dai risultati ufficiali.
+- Nella pagina in cui scegli le avversarie il numero da 1 a 5 accanto a una squadra è uguale per tutti (in quale quinto delle squadre del mondo si trova, 5 = il quinto più forte), mentre il colore confronta quella squadra con la tua (più forte, simile o più debole), come spiega la legenda della pagina; una squadra che hai già scelto ha un colore suo.
+
 #### Decisioni di questa release
 - Amichevoli estive, la pagina di scelta (Davide, 16/11): la scelta del gioco per le righe lasciate a lui parte da MISTE (una più forte, due simili, una più debole); FACILI / MEDIE / DIFFICILI rendono le quattro più deboli / simili / più forti, e l'impostazione viene ricordata di stagione in stagione; una squadra scelta dal giocatore può stare in qualsiasi riga, può essere del suo stesso paese e vale per una sola estate; le sedi restano due in casa e due fuori; le carriere salvate prima della 4.2 proseguono con MISTE.
 - Scambio Serie C / Serie D (Mondo 2026-27): ogni stagione le nove vincitrici dei gironi di Serie D salgono e le retrocesse dalla Serie C (ultima di ogni girone + perdenti dei play-out) scendono, anche la tua squadra; gironi per zona, un'approssimazione (la Lega vera ricompone i gironi di Serie D ogni estate); un passaggio della tua squadra tiene rosa, soldi e curriculum.
@@ -204,4 +260,6 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 - Le punizioni REALISTICHE seguono le percentuali del calcio reale (media di campionato circa 6-7% delle punizioni dirette segnate, i migliori specialisti 10-15%: Opta). Il TIRO del battitore decide quanto spesso la punizione del computer va in porta; se sbaglia, va sopra la traversa o sulla barriera.
 - Squadre riserva di una carriera 4.1 (Davide, 12/11): una riserva arrivata in Serie C viene sostituita da una vera squadra di Serie D al primo caricamento nella 4.2, che tiene punti e posizione in classifica (l'alternativa, tenere la riserva visibile fino a fine stagione, è stata scartata).
 - Serie D, girone pieno (Davide): la squadra che passa a un girone confinante è quella la cui città è più vicina al centro di quel girone, secondo la posizione reale delle città.
+- STAGIONE nel Mondo 2026-27 (Davide, 16/11): si giocano play-off, play-out e spareggi per il titolo dentro il tuo campionato; quelli con squadre di altri campionati solo in carriera.
 - Il portiere di riserva della JUVENTUS è NETO (Davide, 15/11), al posto di PINSOGLIO che la regola delle convocazioni sceglierebbe.
+- Amichevoli estive, avversarie e incassi (Davide, 16/11): le avversarie scelte dal gioco sono squadre straniere, una più forte, due simili e una più debole della tua per valore degli undici giocatori migliori; se una squadra così non esiste, la più vicina per forza; due in casa (le due più deboli) e due in trasferta; cifre della tabella qui sopra (una quota di un incasso di campionato in casa, secondo quanto è forte davvero l'avversaria), contate come incassi da stadio per il fair play finanziario (UEFA Club Licensing and Financial Sustainability Regulations, edizione 2025, allegato J.2.1 a); una squadra scelta da te può essere anche del tuo paese.

@@ -326,7 +326,8 @@ def test_frss_check_words():
     strength > 0 in FRSS.DAT is a named record with bytes 0 / 1 = file / ordinal in the build's team files -> no
     finding on the build; on a copy of the build's DATA with ONE record removed (TMW5.102's last, LICATA), with a
     blanked name, with a wrong ordinal byte or with a file gone, the words are named; and `frstr.py check` itself
-    answers FRSS OK (rc 0) on the good copy, FRSS FAIL (rc 1) on the copy with the record removed"""
+    answers FRSS OK (rc 0) on the good copy, FRSS FAIL (rc 1) on the copy with the record removed (both --frnd); without
+    FRND (--no-frnd) the file is a FAIL, no file OK (data after engine)"""
     import shutil
     import subprocess
     import tempfile
@@ -346,9 +347,10 @@ def test_frss_check_words():
                 shutil.copy(os.path.join(src, n), os.path.join(dd, n))
         shutil.copy(os.path.join(BUILD, 'SWOS', 'ENGLISH.EXE'), os.path.join(t, 'SWOS', 'ENGLISH.EXE'))
         open(os.path.join(dd, 'FRSS.DAT'), 'wb').write(b)
-        run = lambda: subprocess.run([sys.executable, os.path.join(TOOLS, 'frstr.py'), 'check', t], cwd=MAIN,
-                                     env=dict(os.environ, SEASON_PACKS=sp), capture_output=True, text=True)
+        run = lambda sw='--frnd': subprocess.run([sys.executable, os.path.join(TOOLS, 'frstr.py'), 'check', t, sw], cwd=MAIN,
+                                                 env=dict(os.environ, SEASON_PACKS=sp), capture_output=True, text=True)
         r0 = run()
+        rx = run('--no-frnd')                   # (data after engine: the file in a build without FRND is a FAIL)
         f = os.path.join(dd, 'TMW5.102')
         good = open(f, 'rb').read()
         cases = {'removed': (b'\x00\xff' + good[2:2 + 684 * 255], ['TMW5.102 ordinal 255']),
@@ -365,10 +367,14 @@ def test_frss_check_words():
         r1 = run()
         os.remove(f)
         gone = frstr.verify_words(b, dd, stems)
+        os.remove(os.path.join(dd, 'FRSS.DAT'))
+        ry = run('--no-frnd')                   # (no FRND, no file: OK)
     ok = r0.returncode == 0 and r0.stdout.strip().splitlines()[-1].startswith('FRSS OK') \
         and r1.returncode == 1 and r1.stdout.strip().splitlines()[-1].startswith('FRSS FAIL') \
-        and 'TMW5.102 ordinal 255' in r1.stdout and len(gone) == 256 and nfound == 56
-    return ok, f'build clean; check: good copy rc {r0.returncode}, one record removed rc {r1.returncode} ' \
+        and 'TMW5.102 ordinal 255' in r1.stdout and len(gone) == 256 and nfound == 56 \
+        and rx.returncode == 1 and 'without FRND' in rx.stdout and ry.returncode == 0 and 'FRND not linked' in ry.stdout
+    return ok, f'build clean; check: good copy rc {r0.returncode}, one record removed rc {r1.returncode}, ' \
+               f'no FRND: file rc {rx.returncode} / none rc {ry.returncode} ' \
                f'({r1.stdout.strip().splitlines()[-1][:120] if r1.stdout.strip() else r1.stderr[-200:]})'
 
 

@@ -143,7 +143,7 @@ bn_free:                                ; slot ebx of the managed club: keep his
 bn_world:                               ; ZF clear = a career in a squad-number world
     push eax
     push esi
-    cmp word [GAMETYPE], 4
+    call W_GT             
     jne .no
     mov al, [SLT + WORLD_BYTE]
     mov esi, BN_TAB

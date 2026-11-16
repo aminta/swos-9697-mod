@@ -16,8 +16,13 @@ import tempfile
 SHIFT = 0x01000000
 
 
+GLOBAL = {}                                            # symbols every module's source may use (S6a: W_GT,
+                                                       # careerworld's world-rule gate), unless its own table has them
+
+
 def _nasm(src, org, symbols, bases, obj=1):
     head = [f'bits 32', f'org {org + bases[obj]:#x}']
+    symbols = {**{k: v for k, v in GLOBAL.items() if k in src}, **symbols}
     for name, (obj, off) in symbols.items():
         if obj == 0:                                   # plain constant / text
             head.append(f'%define {name} {off}')
@@ -95,6 +100,7 @@ def labels(src, org, symbols):
     """Addresses (obj1 offsets) of the global labels in src, from a nasm map file."""
     import re
     head = ['bits 32', f'org {org:#x}']
+    symbols = {**{k: v for k, v in GLOBAL.items() if k in src}, **symbols}
     for name, (obj, off) in symbols.items():
         head.append(f'%define {name} {off}' if obj == 0 else f'%define {name} {off:#x}')
     with tempfile.TemporaryDirectory() as t:

@@ -217,12 +217,12 @@ ri_load:                                ; replaces `call SetLoadedTeamsGlobalNum
 %if S7_ON
     mov dword [RI_S7SRC], TEAMBUF       ; (S7: the file as read; a pooled file's: its ORIG copy, set below)
 %endif
-    cmp word [GAMETYPE], 4              ; a career
+    call W_GT                           ; a career
     jne .x
 {''.join(load)}
 .x:
 %if S7_ON
-    cmp word [GAMETYPE], 4              ; S7 (shaped league): s7swap.c s7_load gives the two league files' rows their
+    call W_GT                           ; S7 (shaped league): s7swap.c s7_load gives the two league files' rows their
     jne .y                              ; registry clubs' records (cdecl: the buffer, the file read)
     cmp dword [S7_LPTR], 0
     je .y

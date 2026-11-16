@@ -211,7 +211,7 @@ wn_load:                                ; FOUND = 1 with the competition's WIN t
     pushad                              ; after its pages' entries: the header's second word)
     mov byte [FOUND], 0
     mov edi, FNAME + FN_BASE_           ; data/fmtxx + the career's world number + .dat
-    cmp word [GAMETYPE], 4
+    call W_GT             
     jne .w0
     movzx eax, byte [SLT + WORLD_BYTE_]
     test eax, eax

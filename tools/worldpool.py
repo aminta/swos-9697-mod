@@ -25,7 +25,7 @@ wp_load:                                ; LoadPoolplyrDat start (replaces mov ax
     push ebx
     push esi
     xor ebx, ebx
-    cmp word [GAMETYPE], 4
+    call W_GT             
     jne .chosen
     mov bl, [SLT + WORLD_BYTE]
     mov esi, WP_TAB

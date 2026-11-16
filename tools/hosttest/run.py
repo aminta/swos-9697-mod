@@ -24,10 +24,30 @@ if __name__ == '__main__':
         # (SEASON_PACKS read at import by mkseason + its packs() cache, set by test_seaw0 / drawgate._world: test_cd_dt, globnum,
         # ri_ida FAILed on it). HOSTTEST_INPROC=1 keeps the old single process (debugging a pollution).
         import subprocess
-        for f in files:
+        import fcntl
+        import threading
+        n['TIMEOUT'] = 0
+        LONG = ('test_ctgame',)         # (MC 16/11: test_ctgame* run ONE AT A TIME across every suite on this Mac (a file lock), 20 min
+        for f in files:                 #  timeout reported as TIMEOUT with the load average, never as a FAIL or a PASS)
+            long_ = os.path.basename(f)[:-3] in LONG
+            lock = None
+            if long_:
+                os.makedirs(os.path.join(os.path.expanduser('~'), 'swos-mod', 'internal', 'hosttest'), exist_ok=True)
+                lock = open(os.path.join(os.path.expanduser('~'), 'swos-mod', 'internal', 'hosttest', '.ctgame.lock'), 'w')
+                t0 = time.time()
+                fcntl.flock(lock, fcntl.LOCK_EX)
+                if time.time() - t0 > 1:
+                    print(f'(test_ctgame: waited {time.time() - t0:.0f} s for the cross-suite lock)', flush=True)
             p = subprocess.Popen([sys.executable, os.path.abspath(__file__), '--one', f] + (['-k', sel] if sel else []),
                                  stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, errors='replace',
                                  env=dict(os.environ, HOSTTEST_NOVENV='1'))
+            timed = []
+            if long_:
+                def _kill(p=p, timed=timed):
+                    timed.append(1)
+                    p.kill()
+                tm = threading.Timer(float(os.environ.get('HOSTTEST_LONG_TIMEOUT', 1200)), _kill)
+                tm.start()
             for line in p.stdout:
                 if line.startswith('hosttest: '):
                     continue
@@ -36,8 +56,16 @@ if __name__ == '__main__':
                     if line.startswith(k + ' '):
                         n[k] += 1
             p.wait()
-        print(f"hosttest: {n['PASS']} PASS, {n['SKIP']} SKIP, {n['FAIL']} FAIL")
-        sys.exit(1 if n['FAIL'] else 0)
+            if long_:
+                tm.cancel()
+                if timed:
+                    n['TIMEOUT'] += 1
+                    print(f"TIMEOUT {os.path.basename(f)[:-3]} (> {os.environ.get('HOSTTEST_LONG_TIMEOUT', 1200)} s, load average {os.getloadavg()[0]:.1f} {os.getloadavg()[1]:.1f} {os.getloadavg()[2]:.1f}): "
+                          'not a PASS, not a FAIL: rerun it alone on a quiet machine', flush=True)
+                fcntl.flock(lock, fcntl.LOCK_UN)
+                lock.close()
+        print(f"hosttest: {n['PASS']} PASS, {n['SKIP']} SKIP, {n['FAIL']} FAIL" + (f", {n['TIMEOUT']} TIMEOUT" if n['TIMEOUT'] else ''))
+        sys.exit(1 if n['FAIL'] or n['TIMEOUT'] else 0)
     for f in files:
         spec = importlib.util.spec_from_file_location(os.path.basename(f)[:-3], f)
         mod = importlib.util.module_from_spec(spec)

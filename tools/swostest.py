@@ -32083,7 +32083,7 @@ def world_s7cross_c20():
     return not errs, '; '.join(errs) or f'{msg[:200]}; ' + '; '.join(info)
 
 
-def s7_division_counts(car, src):
+def s7_division_counts(car, src, slt=None):
     """4.2 S3 x S7 (MC 15/11): clubs per division of Italy's S7 pack after a season end: the pack's division
     (pk.division) + the signed delta byte of its global in the save's SLTCOPY (CAR 0xE8DC, one byte per global; the
     game's own 8-bit sum check is absorbed by the BAL byte, so only membership shows a double move). Returns (before,
@@ -32104,8 +32104,9 @@ def s7_division_counts(car, src):
             os.environ['SEASON_PACKS'] = old
     import bigtables                                # (42-s7trap, MC 16/11: THE HELPER'S SERIE D COUNTS WERE A MEASUREMENT ARTEFACT. The save holds the
     import globnum                                  # table in two parts: globals 0..1999 at CAR 0xE8DC, 2000..LIMIT_CLUBS-1 in the fixed part's 80-record
-    raw = open(car, 'rb').read()                    # area (bigtables.ext_off(): CAR offset 2 + ext_off). Reading only the first 2000 bytes, with
-    slt = raw[0xE8DC:0xE8DC + 2000] + raw[2 + bigtables.ext_off():2 + bigtables.ext_off() + bigtables.LIMIT_CLUBS - 2000]   # base + row for
+    raw = open(car, 'rb').read() if slt is None else b''  # area (bigtables.ext_off(): CAR offset 2 + ext_off). Reading only the first 2000 bytes, with
+    if slt is None:
+        slt = raw[0xE8DC:0xE8DC + 2000] + raw[2 + bigtables.ext_off():2 + bigtables.ext_off() + bigtables.LIMIT_CLUBS - 2000]   # base + row for
     c0, c1 = collections.Counter(), collections.Counter()   # file 144's rows 156.. (their globals are the second run, 2283..), it counted other
                                                     # rows' deltas for them: Shaved's 'D G 17 / I 19', 'D A 17 / B 17 / I 20'. The game's live
                                                     # SOME / COPY tables of those runs hold 9 x 18)
@@ -32152,40 +32153,87 @@ def world_s3dbl_fresh():
     return not errs, '; '.join(errs) or f'{msg[:120]}; division sizes kept {c1}'
 
 
+def s7_live_slt(log, addr='c6000'):
+    """the someLeaguesTable (obj2 0xC6000, 2000 bytes: W8485_HEX) values a session logged, in order (world8485 logs a HEX when it changes)"""
+    return [bytes.fromhex(ln.split()[2]) for ln in open(log, errors='replace') if ln.startswith(f'HEX {addr} ') and len(ln.split()) > 2]
+
+
 @scenario
 def world_s3dbl_c20():
     """4.2 BLOCKER (TRENTO double promotion, MC 15/11): career_20seasons (C20_SEASONS, default 2: a save + reload every
-    season) on a fresh S7 career at TRENTO with the Serie C play-off forced (S3_BUILD = DPLAY_FORCE=105 build) - after
-    EVERY season end Serie A, Serie B and the three Serie C groups hold 20 clubs (pack division + the save's SLTCOPY
-    deltas, s7_division_counts): next season B 20 and C groups 20 each"""
+    season) on a fresh S7 career at TRENTO with the Serie C play-off forced (S3_BUILD = DPLAY_FORCE=105 build). After
+    EVERY season end Serie A, Serie B and the three Serie C groups hold 20 clubs (pack division + deltas, s7_division_counts),
+    read BOTH from the save's SLTCOPY and from the LIVE someLeaguesTable right after the season-2 end (W8485_HEX
+    c6000:2000, the last value of that session): live and saved must agree (a disagreement is a finding); then the
+    season-2 save is loaded (a third session, W8485_FROM) and the table right after the load must give the same counts.
+    The Serie D groups (divisions 5..13, 18 clubs each in the data) are reported, and asserted equal between the live
+    table and the save; their SIZES move by the lower tiers' pool moves (clubs outside the pack's own league files),
+    which this membership model cannot see"""
     src = (os.environ.get('W2627REL_DATA') or os.path.join(MAIN, 'internal', 'world2526', 'world5tm-h3s7')).rstrip('/')
     exe = os.environ.get('S3_BUILD')
     if not exe or not os.path.isdir(src):
         return True, f'SKIP: S3_BUILD ({exe}) or the S7 data {src} missing'
-    keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'C20_TEAM', 'C20_SEASONS', 'W2627REL_DATA')}
-    os.environ.update(W8485_BUILD=exe, C20_TEAM=os.environ.get('S3_TEAM', 'EUROPA,ITALIA,SERIE C GIRONE A,TRENTO'),
-                      C20_SEASONS=os.environ.get('C20_SEASONS') or '2', W2627REL_DATA=src)
+    keep = {k: os.environ.get(k) for k in ('W8485_BUILD', 'C20_TEAM', 'C20_SEASONS', 'W2627REL_DATA', 'W8485_HEX', 'W8485_FROM',
+                                            'W8485_ONE', 'SWOSTEST_TAG', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK')}
+    team = os.environ.get('S3_TEAM', 'EUROPA,ITALIA,SERIE C GIRONE A,TRENTO')
+    os.environ.update(W8485_BUILD=exe, C20_TEAM=team, C20_SEASONS='2', W2627REL_DATA=src, W8485_HEX='c6000:2000,315b7:4,315bf:4')   # (+ the two counters the game's division-count trap compares, obj1+0x22705)
+    errs, info = [], []
     try:
         ok, msg = career_20seasons()
+        check(ok, f'career_20seasons: {msg[:300]}', errs)
+        car2 = os.path.join(RUNS, 'c20_after_s02.CAR')
+        c3 = None
+        l2 = os.path.join(RUNS, 'world_s3dbl_c20_w84_2', 'session.log')       # (the third session reuses run dir _2: keep season 2's log)
+        if os.path.exists(l2):
+            import shutil
+            shutil.copy(l2, os.path.join(RUNS, 'c20_s2_session.log'))
+        if os.path.exists(car2):                          # (the third session: load the season-2 save, its first table = after the load)
+            os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+',
+                              W8485_NOSACK='1', W8485_FROM=car2, SWOSTEST_TAG='_c20load')
+            os.environ.pop('W8485_ONE', None)
+            ok3, msg3 = world8485()
+            check(ok3, f'season 3 (load of the season-2 save): {msg3[:200]}', errs)
+            c3 = os.path.join(RUNS, w84_tag() + '_2', 'session.log')
     finally:
         for k, v in keep.items():
             if v is None:
                 os.environ.pop(k, None)
             else:
                 os.environ[k] = v
-    errs, info = [], []
-    check(ok, f'career_20seasons: {msg[:300]}', errs)
-    n = int(os.environ.get('C20_SEASONS') or 2)
-    for season in range(1, n + 1):
-        car = os.path.join(RUNS, f'c20_after_s{season:02d}.CAR')          # (career_20seasons' copy of every season end's save)
+    def top(c):
+        return {k: v for k, v in c.items() if k < 5}
+    def dgrp(c):
+        return {k: v for k, v in c.items() if k >= 5}
+    for season in (1, 2):
+        car = os.path.join(RUNS, f'c20_after_s{season:02d}.CAR')
         if not os.path.exists(car):
             check(False, f'season {season}: no save {car}', errs)
             continue
         c0, c1 = s7_division_counts(car, src)
-        top = {k: v for k, v in c1.items() if k < 5}
-        check(all(v == 20 for v in top.values()) and len(top) == 5, f'season {season}: divisions A, B, C groups {top} (want 20 each)', errs)
-        info.append(f'season {season}: A/B/C {sorted(top.items())}')
-    return not errs, '; '.join(errs) or f'{msg[:120]}; ' + '; '.join(info)
+        check(len(top(c1)) == 5 and all(v == 20 for v in top(c1).values()), f'season {season}: save A/B/C groups {top(c1)} (want 20 each)', errs)
+        info.append(f'season {season} save: A/B/C {sorted(top(c1).values())}, D groups {sorted(dgrp(c1).values())}')
+        if season == 2:                                   # live table of the season-2 session (_2 = the last session of the loop)
+            lg = os.path.join(RUNS, 'c20_s2_session.log')
+            live = s7_live_slt(lg) if os.path.exists(lg) else []
+            if not live:
+                check(False, f'season 2: no live someLeaguesTable logged ({lg})', errs)
+            else:
+                l0, l1 = s7_division_counts(car, src, slt=live[-1])
+                check(top(l1) == top(c1) and dgrp(l1) == dgrp(c1), f'season 2: LIVE table {top(l1)} {dgrp(l1)} != save {top(c1)} {dgrp(c1)}', errs)
+                check(live[-1] == open(car, 'rb').read()[0xE8DC:0xE8DC + 2000], 'season 2: live someLeaguesTable bytes != the save\'s SLTCOPY', errs)
+                info.append(f'season 2 live: A/B/C {sorted(top(l1).values())}')
+    if c3 and os.path.exists(c3):
+        vals = [v for v in s7_live_slt(c3) if any(v)]
+        if vals:
+            a0, a1 = s7_division_counts(None, src, slt=vals[0])
+            b0, b1 = s7_division_counts(os.path.join(RUNS, 'c20_after_s02.CAR'), src)
+            check(a1 == b1, f'after the load of the season-2 save: counts {a1} != the save\'s {b1}', errs)
+            z0, z1 = s7_division_counts(None, src, slt=vals[-1])
+            check(len(top(z1)) == 5 and all(v == 20 for v in top(z1).values()), f'season 3 end: live A/B/C groups {top(z1)} (want 20 each)', errs)
+            info.append(f'after load: A/B/C {sorted(top(a1).values())}; season 3 end A/B/C {sorted(top(z1).values())}')
+        else:
+            check(False, 'season 3: no nonzero live table logged after the load', errs)
+    return not errs, '; '.join(errs) or f'{msg[:100]}; ' + '; '.join(info)
 
 
 def s7_live_counts(run, files=((102, 100), (144, 162))):

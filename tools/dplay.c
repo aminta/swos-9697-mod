@@ -366,6 +366,7 @@ static void frec_force(void) {
         if (l < v->n && find_team(v->team[l], &gl, &kl)) swap_rows(gl, kl, gl != gr ? 0 : DP_IN.n[gl] - 1);
     }
 #endif
+    (void)ir;
     swap_rows(gr, kr, 0);
 }
 #endif

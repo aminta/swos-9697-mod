@@ -84,6 +84,15 @@ with Fable and, where it helps, hand the work to Fable.
     invented and no squad is written back to a club record. Only the club's place changes: selTeamNumber,
     careerTeamLeague and careerTeam's own bytes (word, global number, league), as a team record in memory has them;
     the new season then takes its league from the club's new team file, as natively.
+14e. **Continental cups: the world's associations come from ONE function** (MC + Davide 16/11, 42-ctworld). Team files
+    are a per-world namespace and the conti spec carries the World 2026-27's map: conti.c `ct_wassoc(a)` (the league
+    file of association a in the ACTIVE world, CT_W = the save's world byte; 0 = not in this world) is the only place
+    that says which associations a world has. ct_country / ct_go (the feed of CT_IN) and ct_wcups (a cup none of whose
+    associations is in the world plays no edition, every confederation; a holders' cup follows the cups that feed it)
+    go through it; never compare a team file with `afile` directly when an edition is MADE (a saved edition
+    replays as made: assoc_of), never test a world number. The later item (the
+    cups in every world with that world's clubs) changes this function only. A group round (ED_S editions) with fewer clubs than
+    groups is not a stage and is not played: it never reaches the refused-draw path (14a stays for real fields).
 
 ## Tests
 15. Result-dependent cases are **forced** (pokes / *_FORCE / CONTI_GPLACE ...), never re-run hoping. Test switches

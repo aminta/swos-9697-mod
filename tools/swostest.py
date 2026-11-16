@@ -25096,6 +25096,9 @@ FR = {
                               #   max(11, S / 10)"; stronger d > M, similar -M <= d <= M, weaker d < -M (d = opp - S)
     'SLOT_BANDS': ('weaker', 'similar', 'similar', 'stronger'),   # frpick.h:20 "Play order of the automatic four:
                               #   weaker, similar, similar, stronger" (slot k = friendly k+1)
+                              #   (an all-automatic pick only - given == NULL, as 4.2; given entries keep their slot
+                              #   and no fb bit: not checked until a UI exists. A band whose clubs all lack cache room
+                              #   has no candidate: fb set, the slot outside its band - Mercato 16/11)
     'FEES': None,             # TODO(engine, part b): {(band, home): fee} band 'stronger' / 'similar' / 'weaker', home bool
     'BAL_EXACT': True,        # the balance (finance NEWBAL) moves by exactly the fee between a friendly's screen and the
                               #   next match screen. TODO(engine): False if wages / gate money move in those weeks too

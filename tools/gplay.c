@@ -2539,18 +2539,20 @@ void gf_hide_c(u8 *cal, u32 cur) {     /* gp_install, after a slot-4 install: th
     }
 }
 u32 gp_hrest_c(u8 *cal, u32 cur, u32 ki) {  /* S6a (A), gp_install after a slot-4 install in a world SEASON: the
-                                           human clubs (GP_HUM) with a match in ko ki's current game; none -> the
+                                           human clubs (GP_HUM) with a match left in ko ki; none -> the
                                            slot-4 days from the current entry on lose the 'human, no match' flag
                                            (byte 6 FFh, cseg_8BC06 - cseg_8EC2B counts it, PARTITA's loop hunted
                                            for a day that never comes) */
     const struct gp_ko *k = &GP_ST.ko[ki < 2 ? ki : 0];
     if (k->magic != MAGIC || KT2(k)) return 1;
-    int g = k->gcur, p0 = k->gp0[g], np = k->gp0[g + 1] - p0;
-    u32 c = 0;
-    for (u32 h = 0; h < GP_NHUM && h < 64; h++) {
-        int me = kidx(k, GP_HUM[h]);
-        for (int p = p0; p < p0 + np && me != NOC; p++)
-            if (k->pa[p] == me || k->pb[p] == me) { c++; break; }
+    u32 c = 0, last = k->nrs ? k->gt0[k->nrs - 1] : 0;
+    for (u32 h = 0; h < GP_NHUM && h < 64; h++) {  /* (a match left: in the bracket, no tie lost, no tie of the last
+                                           spec round won - a bye into a later round counts: the 3-club Final Four's
+                                           top seed waits for the final, MC 16/11) */
+        int me = kidx(k, GP_HUM[h]), left = me != NOC;
+        for (int t = 0; t < k->ntie && left; t++)
+            if (k->tw[t] != NOC && k->tw[t] != k->tl[t] && (k->tl[t] == me || (k->tw[t] == me && (u32)t >= last))) left = 0;
+        c += left;
     }
     if (c) return c;
     u16 cnt = *(const u16 *)(cal - 4);

@@ -1,4 +1,4 @@
-"""trhd_check.py: POSITION TRAITS (1) + (3) (the TRHD band, tools/trhead.py) against a Python model, on the host
+"""trhd_check.py: POSITION TRAITS (1) - (3) (the TRHD band, tools/trhead.py) against a Python model, on the host
 (Unicorn on the relocated exe, no DOSBox; the prereg rule table D3 of internal/handoff/trhead-design.md).
 
   internal/hosttest/.venv/bin/python tools/hosttest/trhd_check.py BUILD_DIR
@@ -14,6 +14,12 @@ stand-in of GP_RUOLI) is poked: every case runs with RUOLI NO and SI.
   deltaZ, then the HEADING placement, and the whipped-cross bonus (TR_WF / TR_WT / TR_WK planted: (2) is not in yet);
 - a substitution (t_sub): the game's own SubstitutePlayer record swap and GetPlayerPointerFromShirtNumber, then tr_rec /
   tr_dist: the on-pitch substitute's file position is the one read;
+- (2) tr_kick: the armed flag TR_ZK / TR_WT for RUOLI x file position 0..7 + 0xFF x both teams x every direction 0..7 x
+  the BALL on every edge of the wide zone +-1 px (and a corner's spot, on and past the line) x FK_ST 0 / 1 / 2; the old
+  record and a live whip cleared; registers and flags kept. Through setpieces' own sp_kick too: play, a corner and a
+  wide free kick under CALCI PIAZZATI CLASSICI (armed) and NUOVI (a wall-zone free kick: FK_ST 1, not armed);
+- (2) tr_hk: ax = TR_WSP and the ball's deltaZ = TR_WDZ only for an armed kick of A6's team with the traits live, else
+  kHighKickBallSpeed and the deltaZ untouched; TR_WF / TR_WK set; the chain kick -> after-touch -> sp_head's bonus;
 - tr_dist: esi = A1 and the compare's CF / ZF (the game's `ja`) for the limit 64 + TR_RST x HEADING of a TR_DM
   position in his own box, 64 for everyone else; ballDistance around every limit.
 """
@@ -45,21 +51,19 @@ def zone(x, y, top, wz):
     """The model: the zone bits of (x, y) for the team of the top (True) / bottom structure."""
     d = y - tr.GOAL_TOP if top else tr.GOAL_BOT - y
     b = 8 if x < tr.MID_X else 0
-    if d > 640:
-        return b
     if tr.BOX_X0 <= x <= tr.BOX_X1:
         if 0 <= d <= tr.BOX_D:
             b |= 1
-        elif d >= 640 - tr.BOX_D:
+        elif 640 - tr.BOX_D <= d <= 640:
             b |= 2
-    elif (x <= tr.WIDE_X0 or x >= tr.WIDE_X1) and d >= 640 - wz:
+    elif (x <= tr.WIDE_X0 or x >= tr.WIDE_X1) and d >= 640 - wz:      # (no far bound: a corner's ball)
         b |= 4
     return b
 
 
 def ys(wz):
     e = set()
-    for v in (0, tr.BOX_D, 640 - tr.BOX_D, 640 - wz, 640, 320):
+    for v in (0, tr.BOX_D, 640 - tr.BOX_D, 640 - wz, 640, 320, 650):
         for top in (True, False):
             for k in (-1, 0, 1):
                 e.add(tr.GOAL_TOP + v + k if top else tr.GOAL_BOT - v - k)
@@ -88,7 +92,8 @@ class T:
         tab = struct.pack('<16H', *(61 * i for i in range(16)))      # (tr_rec's x 61 = the game's own table,
         assert bytes(self.img[2]).count(tab) == 1, 'inGameTeamPlayerOffsets: 16 words 61 x i, once in obj2'   # every slot)
         self.allowed = tuple((B4 + lo, B4 + hi) for lo, hi in ((swreg.TRHD_AT, swreg.TRHD_END),
-                                                               (swreg.SETPIECE_AT, swreg.SETPIECE_END)))
+                                                               (swreg.SETPIECE_AT, swreg.SETPIECE_END),
+                                                               (swreg.SPX_AT, swreg.SPX_END)))
         self.n = self.bad = 0
         self.first = []
 
@@ -237,6 +242,118 @@ class T:
                              and all(st[r] == v[r] for r in ('ebx', 'ecx', 'edx', 'edi', 'ebp')),
                              'sp_head', kind, ru, spw, top, pos, hd, whip, x, y, hex(dz), hex(wdz), spd, wsp, wf, wwf, err)
 
+    def t_kick(self):
+        c, k = self.c, self.k
+        spb, ball = B4 + self.S['SPB'], B2 + c['BALL_O']
+        wz = k['WZ']
+        xs = (60, 81, 182, 183, 184, 335, 336, 487, 488, 489, 590, 600)
+        ds_ = (640 - wz - 1, 640 - wz, 640 - wz + 1, 600, 640, 646)
+
+        def one(m, ru, fk, top, pos, dr, x, d, why):
+            team, rec = self.place(m, top, 300, 400, pos)          # (the kicker's own sprite: mid-pitch, never read)
+            y = tr.GOAL_TOP + d if top else tr.GOAL_BOT - d
+            m.w16(ball + 0x20, x)
+            m.w16(ball + 0x24, y)
+            m.w16(team + 0x38, dr)
+            m.w8(B4 + self.S['FK_ST'], fk)
+            m.w8(B4 + self.L['TR_ZK'], 1)
+            m.w8(B4 + self.L['TR_WF'], 1)
+            m.w32(B4 + self.L['TR_WT'], 0x5A5A5A5A)
+            st, v, err = self.call(m, self.L['tr_kick'], dict(ebp=spb))
+            zk, wf = m.read(B4 + self.L['TR_ZK'], 1)[0], m.read(B4 + self.L['TR_WF'], 1)[0]
+            wt = struct.unpack('<I', m.read(B4 + self.L['TR_WT'], 4))[0]
+            inward = (1 <= dr <= 3) if x < tr.MID_X else (5 <= dr <= 7)
+            arm = bool(ru and not fk and pos in (4, 5) and (x <= tr.WIDE_X0 or x >= tr.WIDE_X1) and d >= 640 - wz and inward)
+            want = (1, 0, team) if arm else (0, 0, 0x5A5A5A5A) if ru else (1, 1, 0x5A5A5A5A)
+            self.chk(not err and (zk, wf, wt) == want and st['flags'] == 0x202 & ds.FLAGS
+                     and all(st[r] == v[r] for r, _ in ds.GPR), 'tr_kick', why, ru, fk, top, pos, dr, x, d, (zk, wf, hex(wt)), want, err)
+        for ru in (0, 1):
+            m = self.mach('kick', ru, 1)
+            for top, pos, dr, x, d in itertools.product((True, False), (4, 5, 3, 6, 7, 0xFF), range(8), xs, ds_):
+                one(m, ru, 0, top, pos, dr, x, d, 'grid')
+            for top, pos, dr, fk in itertools.product((True, False), range(8), range(8), (0, 1, 2)):
+                one(m, ru, fk, top, pos, dr, 120, 600, 'positions x FK_ST')
+                one(m, ru, fk, top, pos, dr, 560, 640, 'positions x FK_ST')
+        m = self.mach('kick-live', 1, 0)                           # (SWOS++: nothing, the old record stays)
+        one(m, 0, 0, True, 4, 2, 120, 600, 'SWOS++')
+        # through setpieces' sp_kick: (CALCI PIAZZATI, gameStatePl, gameState, d) -> FK_ST by setpieces, then tr_kick
+        for spw, gsp, gs, d, x, dr in itertools.product((0, 1, 2), (100, 101), (9, 3), (100, 640, 560), (120, 560), (2, 6)):
+            for top in (True, False):
+                m = self.mach('spk', 1, 1, 0, None, spw)
+                team, rec = self.place(m, top, x, 400, 4)
+                y = tr.GOAL_TOP + d if top else tr.GOAL_BOT - d
+                m.w16(ball + 0x20, x)
+                m.w16(ball + 0x24, y)
+                m.w16(team + 0x38, dr)
+                m.w16(B2 + c['GSP_O'], gsp)
+                m.w16(B2 + c['GS_O'], gs)
+                m.w16(team + 4, 1)
+                st, v, err = self.call(m, self.S['sp_kick'])
+                fk = m.read(B4 + self.S['FK_ST'], 1)[0]
+                zk = m.read(B4 + self.L['TR_ZK'], 1)[0]
+                line = min(y - 129, 769 - y)                        # (setpieces' wall zone: 87..202 px from the nearer line)
+                wfk = 1 if spw and gsp != 100 and 6 <= gs <= 12 and 87 <= line <= 202 else 0
+                inward = (1 <= dr <= 3) if x < tr.MID_X else (5 <= dr <= 7)
+                arm = int(not wfk and d >= 640 - wz and inward)
+                kdz = struct.unpack_from('<I', self.img[2], c['KDZ_O'])[0]
+                self.chk(not err and fk == wfk and zk == arm and st['eax'] == kdz, 'sp_kick -> tr_kick', spw, gsp, gs, d, x, dr,
+                         top, fk, wfk, zk, arm, err)
+
+    def t_hk(self):
+        c, k = self.c, self.k
+        ball = B2 + c['BALL_O']
+        _, c2 = tr.find(LEPatch(os.path.join(HERE, '..', '..', 'orig', 'ITALIAN.EXE')))
+        khs = struct.unpack_from('<H', self.img[2], c2['KHS_O'])[0]
+        assert khs == 2688, khs
+        for ru, ok, zk, mine, top in itertools.product((0, 1), (0, 1), (0, 1), (0, 1), (True, False)):
+            m = self.mach('hk', ru, ok)
+            team = self.top if top else self.bot
+            m.w32(B2 + c['A6T_O'], team)
+            m.w32(ball + c['DZO'], 0x20000)
+            m.w16(B2 + c['CGT_O'], 4321)
+            m.w8(B4 + self.L['TR_ZK'], zk)
+            m.w8(B4 + self.L['TR_WF'], 0)
+            m.w16(B4 + self.L['TR_WK'], 7)
+            m.w32(B4 + self.L['TR_WT'], team if mine else team ^ 0x91)
+            st, v, err = self.call(m, self.L['tr_hk'])
+            live = bool(ru and ok)
+            whip = live and zk and mine
+            got = (st['eax'] & 0xFFFF, struct.unpack('<I', m.read(ball + c['DZO'], 4))[0], m.read(B4 + self.L['TR_ZK'], 1)[0],
+                   m.read(B4 + self.L['TR_WF'], 1)[0], struct.unpack('<H', m.read(B4 + self.L['TR_WK'], 2))[0])
+            want = (k['WSP'], k['WDZ'], 0, 1, 4321) if whip else (khs, 0x20000, 0 if live else zk, 0, 7)
+            self.chk(not err and got == want and st['eax'] >> 16 == v['eax'] >> 16 and st['flags'] == 0x202 & ds.FLAGS
+                     and all(st[r] == v[r] for r in ('ebx', 'ecx', 'edx', 'esi', 'edi', 'ebp')),
+                     'tr_hk', ru, ok, zk, mine, top, [hex(g) for g in got], [hex(w) for w in want], err)
+        # the chain: a winger's kick from the zone (sp_kick) -> 'back' (tr_hk) -> a team-mate's header in the box 40
+        # ticks later (sp_jz, sp_head): the whip's bonus; the other team's header: none
+        sk = self.spk
+        for top, same in itertools.product((True, False), (True, False)):
+            m = self.mach('chain', 1, 1)
+            team, rec = self.place(m, top, 120, 400, 4)
+            m.w16(ball + 0x20, 120)
+            m.w16(ball + 0x24, tr.GOAL_TOP + 600 if top else tr.GOAL_BOT - 600)
+            m.w16(team + 0x38, 2)
+            m.w16(B2 + c['GSP_O'], 100)
+            m.w16(B2 + c['CGT_O'], 1000)
+            e1 = self.call(m, self.S['sp_kick'])[2]
+            st, v, e2 = self.call(m, self.L['tr_hk'])
+            m.w16(B2 + c['CGT_O'], 1040)
+            ht = team if same else (self.bot if top else self.top)
+            htop = top if same else not top
+            hteam, hrec = self.place(m, htop, 336, tr.GOAL_TOP + 600 if htop else tr.GOAL_BOT - 600, 7, 5, 9)
+            m.w32(B2 + c['A2_O'], ball)
+            m.w32(B2 + c['A4_O'], hrec)
+            m.w16(ball + 0x2C, 2000)
+            st2, v2, e3 = self.call(m, self.S['sp_jz'])
+            m.w32(ball + c['DZO'], st2['eax'])
+            e4 = self.call(m, self.S['sp_head'])[2]
+            dz = struct.unpack('<I', m.read(ball + c['DZO'], 4))[0]
+            spd = struct.unpack('<H', m.read(ball + 0x2C, 2))[0]
+            base = (sk['JZ'] - 5 * sk['JST']) & 0xFFFFFFFF
+            want = ((base - k['WHB']) & 0xFFFFFFFF, 2000 + k['WHS']) if same else (base, 2000)
+            self.chk(not (e1 or e2 or e3 or e4) and st['eax'] & 0xFFFF == k['WSP'] and (dz, spd) == want,
+                     'chain', top, same, hex(st['eax']), hex(dz), spd, [hex(w) for w in want], e1, e2, e3, e4)
+
     def t_sub(self):
         """A substitution, by the game's own code: SubstitutePlayer's record swap (from `mov A0, offset
         inGameTeamPlayerOffsets` to the end of its 61-byte loop; D6 = the bench slot, D7 = the pitch slot) on a team of
@@ -331,7 +448,7 @@ class T:
 def main(build):
     t = T(build)
     out = []
-    for name in ('t_zone', 't_live', 't_hdown', 't_header', 't_dist', 't_sub'):
+    for name in ('t_zone', 't_live', 't_hdown', 't_header', 't_dist', 't_kick', 't_hk', 't_sub'):
         n0, b0 = t.n, t.bad
         getattr(t, name)()
         out.append(f'{name[2:]} {t.n - n0} cases, {t.bad - b0} different')

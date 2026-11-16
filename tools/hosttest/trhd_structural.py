@@ -1,21 +1,23 @@
-"""POSITION TRAITS (1) + (3): RUOLI NO = the exe without the traits, proved on the host (prereg gate D1 of
+"""POSITION TRAITS (1) - (3): RUOLI NO = the exe without the traits, proved on the host (prereg gate D1 of
 internal/handoff/trhead-design.md; the 42-sp method, sp_structural.py / diff_structural.py).
 
   internal/hosttest/.venv/bin/python tools/hosttest/trhd_structural.py REF_BUILD NEW_BUILD [--trials N] [--out NAME]
 
 REF_BUILD = this tree with TRHD_RUOLI unset (nothing linked), NEW_BUILD = TRHD_RUOLI=0 (the band in, RUOLI NO); both
 HOSTTEST_SYMS=1, same recipe otherwise.
-1. Byte diff. obj1: only the two distance compares (DIST0 / DIST1: `call tr_dist` + 5 nops) and operands aimed at a
-   setpieces label that moved (the SETPIECE band grows by the one `call tr_head`: the same label by name in both
+1. Byte diff. obj1: only the two distance compares (DIST0 / DIST1: `call tr_dist` + 5 nops), HK (`call tr_hk` + nop) and
+   operands aimed at a
+   setpieces label that moved (the SETPIECE band grows by `call tr_head` and `call tr_kick`: the same label by name in both
    builds). obj4: the TRHD band (empty in REF), the SETPIECE band (its three header stubs call tr_hdown, sp_head calls
-   tr_head: checked at the labels; + 5 B), its SPX overflow band (same length: displacements
+   tr_head, sp_kick calls tr_kick: checked at the labels; + 10 B), its SPX overflow band (same length: displacements
    to the moved labels), operands aimed at a moved setpieces label, and - when TRHD_END is past
    REF's last obj4 page - the band's own new page(s) with the operands into the engine's .bss above them moved by
    that size (as SPX in sp_structural). Nothing else.
-2. Differential execution (Unicorn): every setpieces site with a plain end (13) + DIST0 / DIST1, random registers and
+2. Differential execution (Unicorn): every setpieces site with a plain end (13) + DIST0 / DIST1 / HK, random registers and
    flags, match states near the rules' thresholds, CALCI PIAZZATI 0 / 1 / 2, SWOS++ and training flags random:
    REF's region vs NEW's with TR_RU = 0 (RUOLI NO): registers, flags, ESP / EIP, calls out, every byte written (obj4
-   state compared by label name). Control: TR_RU = 1 must differ at JZ, FZ, HD, DIST0, DIST1 and nowhere else.
+   state compared by label name; an armed kick TR_ZK planted in NEW). Control: TR_RU = 1 must differ at JZ, FZ, HD, KD
+   (tr_kick's own record), HK, DIST0, DIST1 and nowhere else.
 Writes internal/swostest/outcome-gate/NAME.md."""
 import argparse
 import json
@@ -40,7 +42,7 @@ B1, B2, B3, B4 = ds.B1, ds.B2, ds.B3, ds.B4
 SPR_ROOM = (swreg.SETPIECE_AT, swreg.SETPIECE_END)
 TR_ROOM = (swreg.TRHD_AT, swreg.TRHD_END)
 PLAIN = [h for h in sp.HOOKS if h[0] not in ('FB', 'FT', 'AF')]     # (those three leave through their own branches)
-MUST = ('JZ', 'FZ', 'HD', 'DIST0', 'DIST1')
+MUST = ('JZ', 'FZ', 'HD', 'KD', 'HK', 'DIST0', 'DIST1')   # (KD: tr_kick writes the band's own record only)
 
 
 def name_of(off, lab):
@@ -67,7 +69,8 @@ def main():
     s, c = sp.find(p)
     ts, tc = tr.find(p)
     top = B2 + tc['TOP_O']
-    hooks = [(k, s[k], n, l) for k, n, l in PLAIN] + [(k, ts[k], 10, 'tr_dist') for k in ('DIST0', 'DIST1')]
+    hooks = [(k, s[k], n, l) for k, n, l in PLAIN] + [(k, ts[k], 10, 'tr_dist') for k in ('DIST0', 'DIST1')] + \
+        [('HK', ts['HK'], 6, 'tr_hk')]
     ri, ni = ds.images(ref_exe), ds.images(new_exe)
     L = [f'# POSITION TRAITS (1)(3): RUOLI NO = no traits, structural: {a.out}', '', f'REF `{ref_exe}`  ',
          f'NEW `{new_exe}` (TRHD_RUOLI=0)', '', '## 1. Byte diff', '']
@@ -110,13 +113,13 @@ def main():
         diff = [i for i in range(len(x)) if x[i] != y[i]] if x != y else []
         cover = set()
         if obj == 1:
-            for k in ('DIST0', 'DIST1'):
+            for k, n, l in (('DIST0', 10, 'tr_dist'), ('DIST1', 10, 'tr_dist'), ('HK', 6, 'tr_hk')):
                 o = ts[k]
-                want = b'\xe8' + struct.pack('<i', B4 + tl['tr_dist'] - (B1 + o + 5)) + b'\x90' * 5
-                g = bytes(y[o:o + 10]) == want
+                want = b'\xe8' + struct.pack('<i', B4 + tl[l] - (B1 + o + 5)) + b'\x90' * (n - 5)
+                g = bytes(y[o:o + n]) == want
                 ok_b &= g
-                cover |= set(range(o, o + 10))
-                L.append(f'- obj1 {k} {o:#x}+10: `{bytes(x[o:o + 10]).hex()}` -> `{bytes(y[o:o + 10]).hex()}` '
+                cover |= set(range(o, o + n))
+                L.append(f'- obj1 {k} {o:#x}+{n}: `{bytes(x[o:o + n]).hex()}` -> `{bytes(y[o:o + n]).hex()}` '
                          f'({"ok" if g else "WRONG"})')
         elif obj == 4:
             cover = set(range(*SPR_ROOM)) | set(range(*TR_ROOM)) | set(range(swreg.SPX_AT, swreg.SPX_END))
@@ -133,16 +136,18 @@ def main():
                     x[rs[st_] + 1] == 0xE8 and rs[st_] + 6 + struct.unpack_from('<i', x, rs[st_] + 2)[0] == rs['sp_on']
             hd = [o for o in range(ns['sp_head'], ns['sp_head'] + 80) if y[o] == 0xE8 and
                   o + 5 + struct.unpack_from('<i', y, o + 1)[0] == tl['tr_headj']]
-            moved = {k for k in rs if k in ns and ns[k] - rs[k] not in (0, 5)}
+            kk = [o for o in range(ns['sp_kick'], ns['sp_grav']) if y[o] == 0xE8 and
+                  o + 5 + struct.unpack_from('<i', y, o + 1)[0] == tl['tr_kickj']]
+            moved = {k for k in rs if k in ns and ns[k] - rs[k] not in (0, 5, 10)}
             xr, xn = (bytes(z[swreg.SPX_AT:swreg.SPX_END]) for z in (x, y))
             xd = sum(1 for i in range(len(xr)) if xr[i] != xn[i])
-            g = un - ur == 5 and all(calls.values()) and len(hd) == 1 and not moved and \
+            g = un - ur == 10 and all(calls.values()) and len(hd) == 1 and len(kk) == 1 and not moved and \
                 len(xr.rstrip(bytes(1))) == len(xn.rstrip(bytes(1)))
             L.append(f'- obj4 SPX band (setpieces\' overflow: its displacements from SPB to the moved labels): same '
                      f'length {len(xr.rstrip(bytes(1)))} B, {xd} bytes differ')
             ok_b &= g
             L.append(f'- obj4 SETPIECE band: {ur} -> {un} B used (+{un - ur}); sp_jz / sp_fz / sp_head call tr_hdown '
-                     f'(sp_on in REF): {calls}; `call tr_head` in sp_head: {len(hd)}; labels moved by 0 or 5 only: '
+                     f'(sp_on in REF): {calls}; `call tr_head` in sp_head: {len(hd)}; `call tr_kick` in sp_kick: {len(kk)}; labels moved by 0 / 5 / 10 only: '
                      f'{not moved} ({"ok" if g else "WRONG"})')
         stray = ds.ranges([i for i in diff if i not in cover])
         base = {1: B1, 2: B2, 3: B3, 4: B4}[obj]
@@ -163,8 +168,8 @@ def main():
         m.w32(B2 + c['A2_O'], ball)
         m.w16(ball + c['ZO'], r.randrange(0, 30))
         m.w32(ball + c['DZO'], r.choice((kn['JZ'] & 0xFFFFFFFF, kn['FZ'], 0xA000, r.getrandbits(32))))
-        m.w16(ball + 0x20, r.randrange(100, 600))
-        m.w16(ball + 0x24, r.randrange(120, 780))
+        m.w16(ball + 0x20, r.choice((r.randrange(100, 600), r.randrange(81, 184), r.randrange(488, 591))))
+        m.w16(ball + 0x24, r.choice((r.randrange(120, 780), r.randrange(129, 289), r.randrange(609, 770))))
         m.w16(ball + 0x2C, r.randrange(0, 4000))
         m.w16(ball + 0x1E, r.getrandbits(16))
         m.w32(ball + 0x32, r.randrange(-0x30000, 0x30000) & 0xFFFFFFFF)
@@ -187,7 +192,7 @@ def main():
         m.w16(tm + 0x38, r.randrange(0, 8))
         m.w16(tm + 0x76, r.choice((0, 3, 9, 0xFFFF)))
         m.w32(tm + 0x0A, pl + 0x1000)
-        m.w8(rec + tr.POS, r.choice((3, 3, 7, r.randrange(0, 8), 0xFF)))
+        m.w8(rec + tr.POS, r.choice((3, 3, 7, 4, 5, 4, r.randrange(0, 8), 0xFF)))
         m.w8(rec + c['HDO'], r.choice((r.randrange(0, 8), 7)))
         m.w8(rec + c['HDO'] - 1, r.randrange(0, 8))
         m.w32(B2 + c['A4_O'], rec)
@@ -226,6 +231,10 @@ def main():
             prep(m, lab, r, ru)
             m.writes.clear()
         ms[1].w8(B4 + tl['TR_RU'], ru)
+        r2 = random.Random(seed + 'tr')                 # (the band's own record: an armed kick of A6's team or the other)
+        tm_ = struct.unpack('<I', ms[1].read(B2 + c['A6T_O'], 4))[0]
+        ms[1].w8(B4 + tl['TR_ZK'], r2.choice((0, 1, 1)))
+        ms[1].w32(B4 + tl['TR_WT'], r2.choice((tm_, tm_, tm_ ^ 0x91)))
         ms[1].writes.clear()
         start, end = B1 + o, B1 + o + ln
         out = []
@@ -272,7 +281,7 @@ def main():
     ok_c = all((table[(h[0], 'RUOLI SI (control)')][0] > 0) == (h[0] in MUST) for h in hooks)
     L += ['', '## 2. Differential execution: differing trials / trials', '',
           'CALCI PIAZZATI 0 / 1 / 2, the header at random places (half inside a box\'s width, a third in each box\'s '
-          'depth), file position 3 / 7 / random, HEADING 0..7, ballDistance 40..130 a third of the time; RUOLI NO also '
+          'depth), file position 3 / 7 / 4 / 5 / random, the ball in a wide zone a third of the time, an armed kick planted, HEADING 0..7, ballDistance 40..130 a third of the time; RUOLI NO also '
           'with the SWOS++ / training flags. Control: RUOLI SI must differ at ' + ', '.join(MUST) + ' only.', '',
           '| site | obj1 | len | stub | ' + ' | '.join(m[0] for m in modes) + ' |', '|---|---|---|---|---|---|']
     for k, o, n, l in hooks:
@@ -281,7 +290,7 @@ def main():
         L.append(f'| {k} | {o:#x} | {n} | {l} | ' + ' | '.join(cells) + ' |')
     v = ok_b and ok_e and ok_c
     L += ['', f'- byte diff: {"ok" if ok_b else "FAIL"}; RUOLI NO: {"every site equal in every trial" if ok_e else "FAIL"}; '
-          f'control: {"only the five traits sites differ" if ok_c else "UNEXPECTED"}.', '',
+          f'control: {"only the seven traits sites differ" if ok_c else "UNEXPECTED"}.', '',
           f'Verdict: **{"PASS" if v else "FAIL"}**', '']
     d = os.path.expanduser('~/swos-mod/internal/swostest/outcome-gate')
     open(os.path.join(d, a.out + '.md'), 'w').write('\n'.join(L))

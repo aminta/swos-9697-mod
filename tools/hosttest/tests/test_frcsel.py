@@ -284,11 +284,12 @@ def test_frcsel_swap():
             n += 1
     # an engine nhome that is not 2: nothing to pair with -> no change
     blob, world, clubs = table(random.Random(5))
-    p = Page(blob, world, clubs[0], nhome=4)
-    if not p.rc:
-        st = p.state()
-        if p.swap(1) or p.state() != st:
-            return False, 'nhome 4: a swap must change nothing'
+    for nh in (1, 3, 4):
+        p = Page(blob, world, clubs[0], nhome=nh)
+        if not p.rc:
+            st = p.state()
+            if any(p.swap(k) for k in range(4)) or p.state() != st or p.s.msg:
+                return False, f'nhome {nh}: a swap must change nothing'
     return True, f'{n} swaps: nearest slot of the other venue, always 2 + 2, kept across later changes'
 
 

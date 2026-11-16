@@ -53,7 +53,7 @@ typedef unsigned int u32;
 
 #define FC_LIST0    7                   /* chooseTeamsFriendlyMenu: the clubs' entries 7 .. 54 */
 #define FC_LIST1    55
-#define FC_NL       20                  /* a name's bytes (the team record's name field is 19 + NUL at most) */
+#define FC_NL       20                  /* a name's bytes (the team record's name: 17 B at +5, NUL-ended) */
 
 extern u8 DREG[];                       /* the game's D0..D7, A0..A6 (60 B) */
 extern u8 SWOSPP;                       /* 0FFh = no SWOS++ */

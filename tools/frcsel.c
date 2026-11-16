@@ -81,6 +81,8 @@ int frc_swap_venue(FrcSel *s, uint32_t k)
     FrcSel n = *s;
     uint32_t home = s->out.home & 15, d, j;
     k &= 3;
+    if (home != 3 && home != 5 && home != 6 && home != 9 && home != 10 && home != 12)
+        return 0;                                       /* not 2 + 2 (the engine's nhome is not 2): no swap */
     for (d = 1; d < 4; d++) {
         j = k - d;                                      /* the lower slot first */
         if (j >= 4 || !((home >> j ^ home >> k) & 1)) {
@@ -91,7 +93,7 @@ int frc_swap_venue(FrcSel *s, uint32_t k)
         n.venues = (uint8_t)(home ^ 1u << k ^ 1u << j);
         return frc_try(s, &n);
     }
-    return 0;                                           /* not 2 + 2 (nhome of the engine is not 2): nothing to swap */
+    return 0;
 }
 
 int frc_trial(const FrcSel *s, uint32_t k, uint16_t word, uint8_t *band)

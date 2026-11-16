@@ -3,12 +3,14 @@ tools/frchoose.c (the page) and tools/frcsel.h (its state over fr_pick). This fi
 menu, the glue and the link into obj4's FRCH band (CONVENTIONS 23bis; MC 16/11: swreg.FRCH_AT 0x1FF00 .. FRCH_END
 0x20F00, patch.py raises swe.OBJ4_PAGES).
 
-Band layout: frchoose.c (+ frcsel.c) from FRCH_AT, then the glue below (handlers, FC_MENU), the language's strings at
+Band layout: two fixed slots (FRCH_AT: jmp fc_show, the C's way to the glue; FRCH_AT + 8: jmp frc_choose, the ENGINE's
+call target - a fixed address, so FRND links first and needs no symbol of this band), frchoose.c (+ frcsel.c) from
+FRCH_AT + 16, then the glue below (handlers, FC_MENU), the language's strings at
 END - STR_BACK, the C .bss at END - BSS_BACK (written by frc_choose before it is read), the last 256 B free (floor).
 The game is touched in ONE place: chooseTeamsFriendlyMenu's header (obj2), whose initFunc and onReturn - both the
 game's ChooseTeamsFriendlyInitFinish, or whatever a module before this one put there: chained - become fc_lhook = the
 old routine, then fc_list (the club list's colours while the page browses for a row; nothing otherwise).
-The engine (Motore's FRND) calls frc_choose (LABELS['frc_choose']); without this band it skips the call.
+The engine (Motore's FRND) calls (4, FRCH_AT + 8) = LABELS['FRC_CHOOSE_SLOT']; without this band it skips the call.
 SWOS++: frc_choose returns at once (no page, the plain automatic pick). No obj4 address goes into a save.
 
 Until FRND is on this branch the pick is linked HERE too (FRC_OWN_PICK, a bigger interim band in the 4.3 reservation's
@@ -32,7 +34,7 @@ MSG = {'it': ('', 'SQUADRA NON DISPONIBILE', 'SQUADRA SCELTA DUE VOLTE', 'TROPPE
               'AUCUN ADVERSAIRE DISPONIBLE'),
        'de': ('', 'KLUB NICHT VERFUEGBAR', 'KLUB DOPPELT GEWAEHLT', 'ZU VIELE KLUBS IM SPEICHER',
               'KEINE GEGNER VERFUEGBAR')}
-GO = {'it': 'AVANTI', 'en': 'CONTINUE', 'fr': 'SUITE', 'de': 'WEITER'}
+GO = {'it': 'CONTINUA', 'en': 'CONTINUE', 'fr': 'CONTINUER', 'de': 'WEITER'}     # (the game's own button, rule 2)
 PICK = {'it': 'SCEGLI AVVERSARIA', 'en': 'CHOOSE OPPONENT', 'fr': 'CHOISIR ADVERSAIRE', 'de': 'GEGNER WAEHLEN'}
 LANGS = ('it', 'en', 'fr', 'de')
 
@@ -287,7 +289,7 @@ def patch(p, lang, pick=None):
     ext['FC_SHOW'] = (4, at0)
     obj = cobj.compile_c(os.path.join(here, 'frchoose.c'),
                          ['-Oz', '-fno-zero-initialized-in-bss'] + (['-DFRC_OWN_PICK'] if own else []))
-    syms, c_end, bss = cobj.link(p, obj, at0 + 8, (4, bss_at), externs=ext, limit=str_at, text_obj=4)
+    syms, c_end, bss = cobj.link(p, obj, at0 + 16, (4, bss_at), externs=ext, limit=str_at, text_obj=4)
     assert bss <= BSS_BACK - 256, ('frchoose .bss', bss)
     # the club browser: the world's wrapper (careerworld's w_buy, as the foreign market) when a world is built
     wbuy = careerworld.LABELS.get('w_buy')
@@ -319,17 +321,20 @@ def patch(p, lang, pick=None):
     for o, t_obj, t_off in rel:
         p.add_rel(4, at + o, t_obj, t_off)
     p.put(4, str_at, bytes(strs))
-    p.put(4, at0, b'\xE9' + struct.pack('<i', lab['fc_show'] - (at0 + 5)))      # the band-start slot: jmp fc_show
+    p.put(4, at0, b'\xE9' + struct.pack('<i', lab['fc_show'] - (at0 + 5)))      # the band-start slots: jmp fc_show,
+    p.put(4, at0 + 8, b'\xE9' + struct.pack('<i', syms['frc_choose'][1] - (at0 + 13)))   # +8 jmp frc_choose (the engine's
+    assert syms['frc_choose'][0] == 4                   # call target: FRND links BEFORE this band - it gives the pick's
+                                                        # symbols - and calls (4, FRCH_AT + 8), a fixed address)
     for o in (s['hdr'], s['hdr'] + 4):                                          # the club list's hook (chained)
         p.remove(2, o)
         p.add_ptr(2, o, 4, lab['fc_lhook'])
         assert p.target(2, o) == (4, lab['fc_lhook']) and \
             struct.unpack('<I', p.get(2, o, 4))[0] == lab['fc_lhook'], 'frchoose: the club list hook (MC 16/11)'
     LABELS.clear()
-    LABELS.update(syms, **{k: (4, v) for k, v in lab.items()}, AT=(4, at0), END=(4, end0), OWN=own,
+    LABELS.update(syms, **{k: (4, v) for k, v in lab.items()}, AT=(4, at0), END=(4, end0), OWN=own, FRC_CHOOSE_SLOT=(4, at0 + 8),
                   LIST_PREV=prev, HDR=(2, s['hdr']))
     print(f'exe: friendlies chooser (FRCH{" interim, own pick" if own else ""}): obj4+{at0:#x}..{end:#x} (C '
-          f'{c_end - at0 - 8} B, glue + menu {len(code)}), strings +{str_at - at0:#x} ({len(strs)} B), .bss '
+          f'{c_end - at0 - 16} B, glue + menu {len(code)}), strings +{str_at - at0:#x} ({len(strs)} B), .bss '
           f'+{bss_at - at0:#x} ({bss} B), {end0 - 256 - max(end, 0):#x}.. left {str_at - end} B before the strings; '
           f'club list hook obj2+{s["hdr"]:#x} (was {prev[0]}:{prev[1]:#x})')
     return end

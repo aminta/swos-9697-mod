@@ -710,6 +710,14 @@ def test_sreg_import():
                          (W102(12), W144(5))])
     if (g['n'], g['pend'], g['flags'], g['divs'], g['pairs']) != (0, [I['J']], 1 | 2 | 27 << 8, sdiv, want_pairs):
         errs.append(f"fresh: {g['why']} pend {g['pend']} flags {g['flags']:#x} divs {g['divs']} pairs {g['pairs']}")
+    # 42-s7trap (MESTRE.CAR): 4.1's groups have room where S7's spec put no new club: e2 (spec group 6) is on a slot of group 5
+    # -> group 5 would hold 4 of its 3 and group 6 2 of 3 (the game's check traps on it): J, the pending joiner, goes to group 6
+    sx = list(slot0)
+    sx[12] = 5
+    g = imp(slot=sx)
+    cnt = {d: g['divs'][:14].count(d) for d in (0, 1, 5, 6)}
+    if g['n'] < 0 or cnt != {0: 4, 1: 4, 5: 3, 6: 3} or g['divs'][I['J']] != 6 or g['pend'] != [I['J']]:
+        errs.append(f"over-full pending group: {g['why']} sizes {cnt} (want 3 / 3) J division {g['divs'][I['J']]} pend {g['pend']}")
     # after season ends: b0 down to 5, d0 up to 1, a3 <-> b1 in file 102, RI: p1 (identity 257) on slot 9, d1 off
     maps = [0] * 13
     maps[9] = 257 + 1

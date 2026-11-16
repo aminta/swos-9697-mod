@@ -1,4 +1,4 @@
-"""S6a (4.3, MC 15/11): world SEASONs' picker (s6sea.c), its own obj4 band swreg.S6_AT..S6_END after DRP8D; swe.c keeps
+"""S6a (4.2, MC 16/11; was 4.3): world SEASONs' picker (s6sea.c), its own obj4 band swreg.S6_AT..S6_END after TKUI; swe.c keeps
 the picker's mode rules only. Linked when the registry gives worlds M_SEASON (swreg.SEASON_WORLDS) and the build has
 worlds; historic.CALLS[1] (SeasonMenu's picker call) is re-pointed from swe.c's swe_sea_tramp to s6_sea_tramp."""
 import os

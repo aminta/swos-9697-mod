@@ -1,4 +1,4 @@
-/* S6a (4.3, MC 15/11): SEASON under a default world whose registry record has M_SEASON - its own unit in obj4's S6
+/* S6a (4.2, MC 16/11; was 4.3): SEASON under a default world whose registry record has M_SEASON - its own unit in obj4's S6
    band (swreg.S6_AT..S6_END, linked by s6sea.py), swe.c keeps only the picker's mode rules (M_SEASON = one club, no
    STORICO, the STAG. STORICHE box) and exports what this unit reads.
 

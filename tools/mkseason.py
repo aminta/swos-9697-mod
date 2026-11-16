@@ -1853,6 +1853,8 @@ SECOND_RULES = {          # league 'second_teams': {'rules': code} -> (top level
     'ger': (2, False),    # never to the 2. Bundesliga; no relegation play-off
     'ned': (1, False),    # never to the Eredivisie; no play-offs
     'por': (0xFF, False), # never into the first team's division; no play-off (Davide 2026-10-18)
+    'tpe': (0xFF, False), # Taiwan: a B team may not be promoted nor play the promotion play-off (CTFA 2025/26 TFPL regulations, Art. 27.2.3):
+                          # never into the first team's division, the place passes to the next eligible club by ranking
     'nzl': (0xFF, False), # the A-League reserves: no move, never a qualifier by place (the Championship: fixed
 }                         # entrants {"club": key}, never in the Grand Final)
 

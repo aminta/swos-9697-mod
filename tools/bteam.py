@@ -46,6 +46,7 @@ RULES = {
     'por': (4, 23, True, (('1/7', '1/9'), ('2/1+1', '2/2+1'))),
     'aus': (0, 23, False, (('24/6', '15/9'), ('12/1+1', '8/2+1'))),
     'nzl': (0, 23, False, (('24/6', '15/9'), ('12/1+1', '8/2+1'))),
+    'tpe': (0xFF, 23, True, (('1/7', '1/9'), ('2/1+1', '2/2+1'))),   # Taiwan: the reserves' over-age and window rules are not in the sources read (CTFA Art. 27 covers promotion only): no cap, European windows - declared
 }
 RULE_IDS = list(RULES)
 MAX_MATCH = 4                   # (1) at most 4 called up for one match

@@ -77,6 +77,9 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 - AFC Champions League Elite, AFC Challenge League, CONCACAF Champions Cup, Recopa Sudamericana and CAF Super Cup: the knockout matches your club plays in these cups now decide the cup. Before (since 4.1) the game played them but ignored the results at the end of the season and drew the outcome again, so the winner, next season's title holder and places could differ from what you actually played.
 - A career saved halfway through a knockout round with an earlier version: the round counts when you finish it.
 
+#### Taiwan's reserve teams
+- In the Taiwan Football Premier League world, the two reserve teams of Division 2 (Athletic Club Taipei Reserves and Taichung Rock Reserves) now follow the league's own rule (CTFA regulations 2025/26, article 27): a reserve team can never be promoted to the Premier League, and it does not play the promotion play-off either. If one of them finishes in a promotion place, the place goes to the next club in the table. Both still play the President FA Cup, as they do in real life. What the regulations say when a first team is relegated (its reserve team leaves Division 2 the next season) is not in the game: the reserve team stays. Their age and transfer-window rules are not in the sources I could read: no age limit, European windows.
+
 #### Decisions of this release
 - Serie C / Serie D exchange (2026-27 world): every season the nine Serie D group winners go up and the Serie C clubs relegated (last of each group + play-out losers) go down, your club included; groups by area, an approximation (the real league redraws the Serie D groups every summer); a move of your club keeps its squad, money and record.
 - Set-piece practice: a practice lasts 10 attempts and then shows its results page (ESC ends it earlier); a practice has no match clock, no presentation screen (competition, teams, stadium), no pre-match screen and no score bar at the restarts. Ordinary matches and friendlies are unchanged.
@@ -88,7 +91,7 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 - Stand-ins from a 4.1 career (Davide, 12/11): a stand-in that reached Serie C is replaced by a real Serie D club at the first load in 4.2, which keeps its points and table position (the alternative, showing the stand-in until the end of the season, was dropped).
 - Serie D, a full group (Davide): the club that moves to a neighbouring group is the one living nearest to the centre of that group, by the real location of the clubs' towns.
 - JUVENTUS's bench keeper is NETO (Davide, 15/11), over the call-ups rule that would pick PINSOGLIO.
-
+- Second teams, Taiwan: Athletic Club Taipei Reserves and Taichung Rock Reserves never go up into the Premier League nor play the promotion play-off (CTFA 2025/26 regulations, art. 27.2.3); the place passes to the next club; they keep the President FA Cup; art. 27.2.4 (a reserve team withdraws when its first team is relegated) is not modelled.
 
 ## Italiano
 
@@ -168,6 +171,9 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 - AFC Champions League Elite, AFC Challenge League, CONCACAF Champions Cup, Recopa Sudamericana e CAF Super Cup: le partite a eliminazione diretta che la tua squadra gioca in queste coppe ora decidono la coppa. Prima (dalla 4.1) il gioco le faceva giocare ma a fine stagione ne ignorava i risultati e rideterminava l'esito, quindi vincitore, detentore della stagione dopo e posti potevano non corrispondere a quello che avevi giocato.
 - Una carriera salvata a metà di un turno a eliminazione diretta con una versione precedente: il turno conta quando lo finisci.
 
+#### Le squadre di riserva di Taiwan
+- Nel mondo della Taiwan Football Premier League, le due squadre di riserva della Division 2 (Athletic Club Taipei Reserves e Taichung Rock Reserves) ora seguono la regola della lega (regolamento CTFA 2025/26, articolo 27): una squadra di riserva non può mai salire in Premier League e non gioca nemmeno lo spareggio promozione. Se una di loro chiude in zona promozione, il posto passa alla squadra successiva in classifica. Giocano comunque la President FA Cup, come nella realtà. Quello che il regolamento dice quando una prima squadra retrocede (la sua riserva lascia la Division 2 l'anno dopo) nel gioco non c'è: la riserva resta. Le regole su età e finestre di mercato non sono nelle fonti che ho potuto leggere: nessun limite di età, finestre europee.
+
 #### Decisioni di questa release
 - Scambio Serie C / Serie D (Mondo 2026-27): ogni stagione le nove vincitrici dei gironi di Serie D salgono e le retrocesse dalla Serie C (ultima di ogni girone + perdenti dei play-out) scendono, anche la tua squadra; gironi per zona, un'approssimazione (la Lega vera ricompone i gironi di Serie D ogni estate); un passaggio della tua squadra tiene rosa, soldi e curriculum.
 - Prova dei calci piazzati: una prova dura 10 tentativi e poi mostra la sua pagina dei risultati (ESC la chiude prima); in una prova non ci sono cronometro, schermata di presentazione (competizione, squadre, stadio), schermata prepartita né barra del risultato alle riprese del gioco. Le partite normali e le amichevoli restano come prima.
@@ -179,3 +185,4 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 - Squadre riserva di una carriera 4.1 (Davide, 12/11): una riserva arrivata in Serie C viene sostituita da una vera squadra di Serie D al primo caricamento nella 4.2, che tiene punti e posizione in classifica (l'alternativa, tenere la riserva visibile fino a fine stagione, è stata scartata).
 - Serie D, girone pieno (Davide): la squadra che passa a un girone confinante è quella la cui città è più vicina al centro di quel girone, secondo la posizione reale delle città.
 - Il portiere di riserva della JUVENTUS è NETO (Davide, 15/11), al posto di PINSOGLIO che la regola delle convocazioni sceglierebbe.
+- Seconde squadre, Taiwan: Athletic Club Taipei Reserves e Taichung Rock Reserves non salgono mai in Premier League né giocano lo spareggio promozione (regolamento CTFA 2025/26, art. 27.2.3); il posto passa alla squadra successiva; restano nella President FA Cup; l'art. 27.2.4 (la riserva si ritira se la prima squadra retrocede) non è modellato.

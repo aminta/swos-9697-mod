@@ -32229,10 +32229,10 @@ def world_s3dbl_c20():
     if c3 and os.path.exists(c3):
         vals = [v for v in s7_live_slt(c3) if any(v)]
         if vals:
-            a0, a1 = s7_division_counts(None, src, slt=vals[0])
+            a0, a1 = s7_division_counts(os.path.join(RUNS, 'c20_after_s02.CAR'), src, slt=vals[0])
             b0, b1 = s7_division_counts(os.path.join(RUNS, 'c20_after_s02.CAR'), src)
             check(a1 == b1, f'after the load of the season-2 save: counts {a1} != the save\'s {b1}', errs)
-            z0, z1 = s7_division_counts(None, src, slt=vals[-1])
+            z0, z1 = s7_division_counts(os.path.join(RUNS, 'c20_after_s02.CAR'), src, slt=vals[-1])
             check(len(top(z1)) == 5 and all(v == 20 for v in top(z1).values()), f'season 3 end: live A/B/C groups {top(z1)} (want 20 each)', errs)
             info.append(f'after load: A/B/C {sorted(top(a1).values())}; season 3 end A/B/C {sorted(top(z1).values())}')
         else:

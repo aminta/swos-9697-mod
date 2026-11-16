@@ -195,6 +195,17 @@ def test_practice_off_sites():
     tm = practice.time_site(o)[0]
     rb, rtim = practice.rbar_site(o)
     band = (B4 + swreg.PRACTICE_AT, B4 + swreg.PRACTICE_END)
+    # (MC 16/11: a fixture built with an older swreg - HTO4 10:39, PRACTICE 0x18A80 before 7946671's +0x400 - runs its
+    #  pr_time below today's band and read as 'code differs'. The call's own target must lie in today's band, else the
+    #  fixture is stale: say so, never compare.)
+    pe = lepatch.LEPatch(EXE)
+    try:
+        tgt = pe.target(1, tm + 1) if pe.get(1, tm, 1) == b"\xe8" else None
+    except Exception:
+        tgt = None
+    if tgt is None or tgt[0] != 4 or not swreg.PRACTICE_AT <= tgt[1] < swreg.PRACTICE_END:
+        return False, (f'stale fixture: {EXE} UpdateTime obj1+{tm:#x} calls {tgt and (tgt[0], hex(tgt[1]))}, outside '
+                       f'swreg PRACTICE {swreg.PRACTICE_AT:#x}..{swreg.PRACTICE_END:#x} - regenerate (mkfixtures.sh)')
     errs, info = [], []
     for name, site, n, rf in (('ShowPlayMatchMenu', pm, 15, REF), ('UpdateTime', tm, 14, REF),
                               ('restart score bar', rb, 9, REF_RBAR)):

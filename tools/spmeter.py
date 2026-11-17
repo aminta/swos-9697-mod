@@ -26,8 +26,9 @@ import struct
 
 import nasmcave
 
-SPM_AT = 0x30000                         # (MC 14/11: the high test region 0x30000.., clear of every live 4.2 band)
-SPM_END = 0x34000
+import swreg as _swreg                   # (MC 17/11: the band is swreg's SP_METER)
+SPM_AT = _swreg.SP_METER_AT                         # (MC 14/11: the high test region 0x30000.., clear of every live 4.2 band)
+SPM_END = _swreg.SP_METER_END
 LOG_AT = 0x1000                         # (from SPM_AT: 3 pages = 768 entries of 16 B)
 LOGMAX = (SPM_END - SPM_AT - LOG_AT) // 16
 TAG = b'SPMT'

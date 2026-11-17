@@ -11,6 +11,7 @@ TOOLS = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__
 sys.path.insert(0, TOOLS)
 import fixroot  # noqa: E402
 import swe  # noqa: E402
+import swreg  # noqa: E402
 from le import LE  # noqa: E402
 
 HOME = os.path.expanduser('~')
@@ -59,8 +60,11 @@ def test_swe_init():
         errs.append(f'swe_init returned {rv}, header v{ver}')
     if st != 1:
         errs.append(f'SWE_STATE {st}')
-    if bss_n != o.vsize - file_n:
-        errs.append(f'.bss {bss_n:#x} != the tail {o.vsize - file_n:#x}')
+    bss_at = o.vsize - bss_n                                          # (4.2 bssat, MC 17/11: swe.c's .bss sits at a FIXED
+    if bss_at < swreg.BSS_AT or bss_at % 0x1000 or bss_at < file_n or not bss_at <= a0 < a1 <= o.vsize:   # swreg.BSS_AT
+        errs.append(f'.bss {bss_n:#x}: from obj4+{bss_at:#x} to vsize {o.vsize:#x} - not at BSS_AT {swreg.BSS_AT:#x} '
+                    f'(+ a page-aligned test shift) above the file pages {file_n:#x} holding the arena '
+                    f'{a0:#x}..{a1:#x}')                              # (+ SWE_BSS_SHIFT), the file pages end at the highest
     if any(mem[a0:a1]):
         errs.append(f'arena not zeroed: {sum(1 for x in mem[a0:a1] if x)} bytes')
     if mem[o.vsize:size] != b'\xBB' * (size - o.vsize):

@@ -225,8 +225,19 @@ class LEPatch:
         for off in (0x70, 0x78):                     # (empty) import tables
             struct.pack_into('<I', out, h + off, end - h)
         struct.pack_into('<I', out, h + 0x80, new_data)
+        assert le_padding(out) == new_data - end >= LE_FLOOR, ('LE padding', le_padding(out), new_data - end)
         open(path, 'wb').write(out)
         return delta, shift
+
+
+def le_padding(data):
+    """(4.2, MC 17/11: THE one LE padding measure - build.log, gates, the merge log) the bytes between the end of the
+    fixup records (fixup record table + the fixup page table's last entry) and the data pages. save() asserts it
+    >= LE_FLOOR (else the data pages move down ALIGN-aligned: the realign)."""
+    h = struct.unpack_from('<I', data, 0x3c)[0]
+    u = lambda off: struct.unpack_from('<I', data, h + off)[0]
+    end = h + u(0x6c) + struct.unpack_from('<I', data, h + u(0x68) + 4 * u(0x14))[0]
+    return u(0x80) - end
 
 
 def add_object(data, flags=0x2047):

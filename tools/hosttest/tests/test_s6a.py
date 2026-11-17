@@ -104,15 +104,24 @@ CT_READS = {   # S6a (c), MC 15/11: GP_MGR / GP_IN.mgr and split's 'SH' block + 
     ('difficulty', 'SYMS.PREV_RET'): (4, 'C'), ('dplay', 'dp_end'): (1, 'C'), ('dplay', 'dp_lend'): (1, 'C'),
     ('gplay', 'cf_a6'): (1, 'C'), ('gplay', 'cf_mem'): (1, 'C'), ('gplay', 'gp_cdmem'): (1, 'C'),
     ('gplay', 'gp_mgr'): (1, 'C'), ('gplay', 'gp_notin'): (1, 'C'), ('gplay', 'gp_sack'): (1, 'C'),
-    ('gplay', 'gp_sc'): (1, 'C'), ('lrank', 'lr_res'): (1, 'C'), ('shirtnum', 'SPRIDX'): (2, 'C'),
+    ('gplay', 'gp_sc'): (1, 'C'), ('lrank', 'lr_res'): (1, 'C'),
     ('t3', 't3_go'): (1, 'C'), ('t3', 't3_list'): (1, 'C'), ('t3', 't3_sign'): (1, 'C'),
-    ('uefaq', 'SYMS.W_QON'): (2, 'C'), ('uprize', 'up_ko'): (1, 'C'), ('uprize', 'up_lp'): (1, 'C'),
+    ('uprize', 'up_ko'): (1, 'C'), ('uprize', 'up_lp'): (1, 'C'),
     ('uprize', 'up_res'): (2, 'C'), ('winners', 'WN_FN'): (5, 'C'), ('xbrowse', 'vs_init'): (1, 'C'),
     ('xbrowse', 'xs_tail'): (1, 'C'),
     # S6a (A), 4.2 (Davide 16/11): gp_install's slot-4 cseg_8B2D3 call - push / poke / pop of CAREERTEAM around it,
     # the poke only when GAMETYPE != 4 (a world SEASON: its human club in the ko, else the ko's first entrant), so
     # the game's placeholder team words are a loaded club; a career's value never changes. Proof: world_season_ko
     ('gplay', 'gp_install'): (3, 'C'),
+    # MC 17/11 (Shaved, tc1b / tc1c): careerTeam's ADDRESS as a constant in the career file's own save / load and the squad
+    # numbers - never "who manages": all C. w_loadcopy 2 (since d54bd67, 3.3.3: a .CAR's competition dwords that are
+    # careerTeam - selTeamsPtr re-based on the cache; LoadCareerFile only) and benchnum BN_TEAMS 2 (3.2.5: careerTeam's
+    # record in the renumbering table, copies of PlayMatchMenuSwapPlayers' compare; bn_world: careers in squad-number
+    # worlds) are NOT new: the nearest-label scan put them on uefaq SYMS.W_QON / shirtnum SPRIDX (constants, not code)
+    # until tc1b exported the tails labels and benchnum its own. w_save_tail 1 is new (a346737): the inverse of w_loadcopy
+    # on SaveCareerFile (the canonical file: careerTeam - NEWSEL -> careerTeam - OLDSEL).
+    ('careerworld', 'tails.w_save_tail'): (1, 'C'), ('careerworld', 'tails.w_loadcopy'): (2, 'C'),
+    ('benchnum', 'BN_TEAMS'): (2, 'C'),
 }
 
 

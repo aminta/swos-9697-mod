@@ -17,9 +17,8 @@ MAIN = os.path.join(os.path.expanduser('~'), 'swos-mod')
 sys.path.insert(0, os.path.join(CHECKOUT, 'tools'))
 import srcstamp  # noqa: E402
 
-ALLOW = {'internal/swostest/cobj': 'the compile cache: keyed by the C source content, an output not an input',
-         'c/SWOS/DATA/TEAM.020': 'KNOWN IMPURITY (17/11): a build reads the previous tools/patch.py build output c/SWOS/DATA/TEAM.020; '
-                                 'owner to find the reader and remove it'}
+ALLOW = {'internal/swostest/cobj': 'the compile cache: keyed by the C source content, an output not an input'}
+# (c/SWOS/DATA/TEAM.020 gone, MC 17/11: sacups.team_index reads the TEAM.020 this run's patch_teams wrote, patch.TEAM020_OUT)
 
 TRACE = r'''
 import sys, os, shutil, tempfile

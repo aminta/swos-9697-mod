@@ -80,8 +80,11 @@ def teams(lst, n=16):
 
 
 def team_index(fileno, name):
-    import os
-    d = open(os.path.join(os.path.dirname(__file__), '../c/SWOS/DATA/TEAM.%03d' % fileno), 'rb').read()
+    """the club's index in the TEAM.020 this build wrote (patch.patch_teams: C1/C2 added, indexes moved). MC 17/11: never
+    c/SWOS/DATA - the previous run's output, absent in a clean checkout."""
+    import patch
+    assert fileno == 20 and patch.TEAM020_OUT[0], ('sacups.team_index: TEAM.020 of this build (patch_teams first)', fileno)
+    d = open(patch.TEAM020_OUT[0], 'rb').read()
     names = [d[2 + i * 684 + 5:2 + i * 684 + 22].split(b'\0')[0].decode('latin1') for i in range(struct.unpack('>H', d[:2])[0])]
     return names.index(name)
 

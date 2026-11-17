@@ -66,6 +66,10 @@ SETPIECE_MIN = 256                      # (MC 15/11: the release floor, as every
 S7GEO_AT = 0x16900                      # 4.2 Serie D geography (MC 14/11 room ruling, 42-geo-d): the geography chain's own TU (s7geo.c:
 S7GEO_END = 0x17B00                     # code + neighbour table + log + the per-club coordinates), after FPORT; linked only with
                                         # GP_S7; >= 256 B left
+SP_METER_AT = 0x30000                   # (MC 17/11: the obj4 map's two test bands, one source here - spmeter.SPM_AT / SPM_END and
+SP_METER_END = 0x34000                  # difficulty.TCX_AT read them) Difficolta's M3 corner meter (SP_METER builds only)
+DIFF_TC_AT = 0x34000                    # Difficolta's DIFF_TC counters' page (DIFF_TC / DIFF_TRACE builds only)
+DIFF_TC_END = 0x35000
 CDKN_AT = 0x37000                       # 4.2 S2 knockouts (cdkn.c: the Coppa D's rounds 0-1 by the engine's sr_kn; MC 14/11, 42-cdkn):
 CDKN_END = 0x39000                      # code + const after DIFF2 (0x1A000..0x1A800, 42-drp, not merged yet), >= 256 B left at link;
                                         # its work area in swe.c's .bss (CDKN_WORK), linked only in CD_KN builds
@@ -270,6 +274,10 @@ FRND_END = 0x20100                      # the old TCACHE band 0x1FC00..0x1FF00 f
                                         # friendlies' fr_after4 ~100 B); >= 256 B left at link
 FRCH_AT = 0x20100                       # 4.2 the friendlies' player-choice page (MC 16/11 ruling, session Friends Choice): 0x1000
 FRCH_END = 0x21100                      # reserved, >= 256 B left at link; the 4.3 reservations right after it
+FRCH_OWN_SIZE = 0x1C00                  # (MC 17/11: FRCH's ends are DATA here, read by frchoose and patch.py, never code obj4check
+FRCH_PROBE_SIZE = 0x1000                # evaluates) a build WITHOUT FRND (FRND=0, test builds) links its own pick: the interim
+FRCH_OWN_END = 0x21D00                  # band FRCH_AT + FRCH_OWN_SIZE; + FRCH_PROBE_SIZE with the season-start probe (FRC_PROBE=1,
+FRCH_PROBE_END = 0x22D00                # test only). With FRND linked (every release build): FRCH_END.
 TAKERS_AT = 0x18300                     # 0x500 (~1 KB + floor 256)
 TAKERS_END = 0x18800
 GAMEPLAY_AT = 0x18800                   # 0x680 reserve (MC 15/11: Panchina ~1.1 KB + floor 256; +0x80 15/11, taken from
@@ -287,7 +295,8 @@ assert (S6_END - S6_AT, -(-S6_END // 0x1000)) == (0x200, 0x1E) and S6_END < 0x1E
     'swreg: S6 0x200 right after TKUI, below 0x1E000 (MC 16/11), then the traits bands; MKTAGE ends page-aligned'
 assert (TRHD_END - TRHD_AT, TRRB_END - TRRB_AT, TRDR_END - TRDR_AT, -(-TRDR_END // 0x1000)) == (0x500, 0x500, 0x300, 0x1F) and \
     TRHD_END == TRRB_AT and TRRB_END == TRDR_AT and TRDR_END == FRND_AT and FRND_END - FRND_AT == 0x1500 and -(-FRND_END // 0x1000) == 0x21 and FRND_END == FRCH_AT and \
-    (FRCH_END - FRCH_AT, -(-FRCH_END // 0x1000)) == (0x1000, 0x22) and FRCH_END == DRP8D_AT and MKTHOOK_END - MKTHOOK_AT == 0x1300 and \
+    (FRCH_END - FRCH_AT, -(-FRCH_END // 0x1000)) == (0x1000, 0x22) and FRCH_OWN_END == FRCH_AT + FRCH_OWN_SIZE and \
+    FRCH_PROBE_END == FRCH_OWN_END + FRCH_PROBE_SIZE and FRCH_END == DRP8D_AT and MKTHOOK_END - MKTHOOK_AT == 0x1300 and \
     (DRP8D_END - DRP8D_AT, FPORT_END - FPORT_AT, FPORT2_END - FPORT2_AT) == (0x400, 0x2000, 0x1200) and FPML_END == MKTHOOK_AT and \
     MKTAGE_END % 0x1000 == 0, \
     'swreg: TRHD 0x500 | TRRB 0x500 | TRDR 0x300 | FRND 0x1500 (TCACHE folded in, MKTHOOK -0x200) | FRCH 0x1000 | MKTHOOK 0x1300, the 4.2 release tail after S6 (ceiling page 0x1F once the traits link, 0x21 with FRND, 0x22 with FRCH; MC 16/11), the 4.3 reservations after it'
@@ -297,14 +306,14 @@ assert DIFF_END <= KITS_AT < KITS_END <= S7SWAP_AT < S7SWAP_END <= OBJ1MV_AT < O
     FRCH_AT < FRCH_END <= DRP8D_AT < DRP8D_END <= FPORT_AT < FPORT_END <= FPORT2_AT < FPORT2_END <= FPML_AT < FPML_END <= \
     MKTHOOK_AT < MKTHOOK_END <= MKTLOAD_AT < MKTLOAD_END <= MKTAGE_AT < MKTAGE_END <= TEST_REGION, \
     'swreg (4.2 freeze): the release bands in map order, then the 4.3 reservations (obj4pack, MC 15/11)'
-assert 0x35000 <= CDKN_AT < CDKN_END, \
+assert TEST_REGION == SP_METER_AT < SP_METER_END == DIFF_TC_AT < DIFF_TC_END <= CDKN_AT < CDKN_END, \
     'swreg (4.2 freeze): the test-only bands after SP_METER (0x30000..0x34000) and DIFF_TC (0x34000..0x35000)'
 # --- band classes (MC 17/11, rule 0: the zero-page rule structural) -------------------------------------------------------
 # every NAME_AT / NAME_END pair is an obj4 band of one class: 'release' (linked in a release exe, or a release reserve),
 # '4.3' (a reservation, unlinked in 4.2) or 'test' (test-only builds). Release bands end before any 4.3 band starts, 4.3
 # bands before the test region: a release obj4 never carries a reservation's all-zero page (obj4check (a)).
 BAND_CLASS_43 = ('MKTHOOK', 'MKTLOAD', 'MKTAGE')
-BAND_CLASS_TEST = ('CDKN',)
+BAND_CLASS_TEST = ('CDKN', 'SP_METER', 'DIFF_TC')
 def bands():
     g = globals()
     return sorted((g[n], g[n[:-3] + '_END'], n[:-3]) for n in g if n.endswith('_AT') and isinstance(g[n], int) and

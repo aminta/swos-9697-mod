@@ -394,7 +394,7 @@ def patch_exe(src, dst, remap, lang='it'):
     swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, (swreg.KITS_END + 0xFFF) // 0x1000)   # 4.2 kits (MC 12/11): page 16 + KEEPKIT's 17th
     if os.environ.get('DIFF_TC') and os.environ.get('DIFF_TRACE'):    # (DIFF_TC test builds: the counters' page)
         import difficulty as _df
-        swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, _df.TCX_AT // 0x1000 + 1)
+        swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, -(-swreg.DIFF_TC_END // 0x1000))   # (swreg data, MC 17/11)
     swe.SWEFILE = True                                 # (4.2 KEEPKIT.DAT, kits.py: the engine's file layer, page 18)
     if xtra_on:                                        # 4.2.y T3 PRIMAVERA (MC 12/11, 23bis): its own page, the 14th
                                                        # (the pages between stay zero)
@@ -409,7 +409,7 @@ def patch_exe(src, dst, remap, lang='it'):
         swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, (swreg.SETPIECE_END + 0xFFF) // 0x1000, (swreg.SPX_END + 0xFFF) // 0x1000)
     import spmeter
     if spmeter.on():                                   # 4.2 set pieces M3: the corner meter, test builds only (SP_METER)
-        swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, spmeter.SPM_END // 0x1000)
+        swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, swreg.SP_METER_END // 0x1000)   # (swreg data, MC 17/11)
     import s7swap
     if s7swap.on():                                    # 4.2 S7: s7_load reads the two league files (the file layer)
         swe.SWEFILE = True
@@ -453,7 +453,8 @@ def patch_exe(src, dst, remap, lang='it'):
         swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, -(-swreg.TKUI_END // 0x1000))
     import frchoose                                    # 4.2 friendlies chooser (FRCH band, MC 16/11)
     if frchoose.on():
-        swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, frchoose.page_end(own=not __import__('frnd').on()) // 0x1000)
+        fr_end = swreg.FRCH_END if __import__('frnd').on() else frchoose.band(True)[1]   # (swreg data, MC 17/11)
+        swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, -(-fr_end // 0x1000))
     import tcache                                      # 4.2 team cache bound (MC 16/11): its code in obj3's chain (option A);
     tcache.register()                                  # here: the load's count check (after_process), the refs reset
     swe.OBJ4_PAGES = sreg.obj4_pages(swe.OBJ4_PAGES)   # (4.2 N7 / 42-s7import: + the old-save import's band, SREG2)
@@ -1183,6 +1184,8 @@ def patch_exe(src, dst, remap, lang='it'):
         cut = [n for a, b, n in _sr.bands() if a < hi4 and b > lo] if k else []
         print(f'exe: obj4 file pages {n4} -> {n4 - k} (highest linked byte obj4+{p.hi.get(4, 0):#x}; '
               f'bands in the dropped pages, none linked: {", ".join(cut) or "none"})')
+    print(f'exe: LE padding {_lp.le_padding(raw)} B (lepatch.le_padding, floor {_lp.LE_FLOOR}; data pages +{shift:#x} vs the original exe, '
+          f'+{_lp.ALIGN:#x} per realign)')   # (MC 17/11: the one measure, final exe)
     dd = os.path.join(os.path.dirname(os.path.abspath(dst)), 'DATA')
     if os.path.isdir(dd):                        # (the neutral finals' strings: exact in this exe / its DATA)
         print(f'exe: stadium venues: {stadium.vcheck_exe(dst, lang, dd)} {lang} strings found')
@@ -1249,6 +1252,9 @@ def team_fix(data, header=True):
     return blond.faces(purple.recolor(data, header)[0], header)[0]
 
 
+TEAM020_OUT = [None]
+
+
 def patch_teams(src, dst):
     d = open(src, 'rb').read()
     n = struct.unpack('>H', d[:2])[0]
@@ -1270,6 +1276,7 @@ def patch_teams(src, dst):
     counts = [sum(1 for r in out if r[25] == lg) for lg in range(4)]
     assert counts == [18, 20, 18, 18] and len(out) <= 93, counts
     open(dst, 'wb').write(team_fix(struct.pack('>H', len(out)) + b''.join(out)))   # 3.3.0: purple clubs
+    TEAM020_OUT[0] = dst                         # (MC 17/11: the TEAM.020 THIS run wrote - sacups reads it, never c/SWOS's)
     print(f'TEAM.020: {len(out)} teams, A/B/C1/C2 = {counts}')
     new_idx = {r[5:22]: i for i, r in enumerate(out)}
     return {i: new_idx[r[5:22]] for i, r in enumerate(recs) if r[5:22] in new_idx}

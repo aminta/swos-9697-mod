@@ -451,6 +451,9 @@ def patch_exe(src, dst, remap, lang='it'):
         swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, -(-swreg.R17_END // 0x1000))
     if setpieces.on():                                 # 4.2 takers UI (Shaved 15/11, 42-tkui): the TKUI band
         swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, -(-swreg.TKUI_END // 0x1000))
+    import frchoose                                    # 4.2 friendlies chooser (FRCH band, MC 16/11)
+    if frchoose.on():
+        swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, frchoose.page_end(own=not __import__('frnd').on()) // 0x1000)
     import tcache                                      # 4.2 team cache bound (MC 16/11): its code in obj3's chain (option A);
     tcache.register()                                  # here: the load's count check (after_process), the refs reset
     swe.OBJ4_PAGES = sreg.obj4_pages(swe.OBJ4_PAGES)   # (4.2 N7 / 42-s7import: + the old-save import's band, SREG2)
@@ -1123,6 +1126,10 @@ def patch_exe(src, dst, remap, lang='it'):
     fpad.patch(p, swe.LABELS, gplay.LABELS)
     import frnd                                  # 4.2 friendlies: frstep.c at obj4+FRND_AT, FRND first on the port's hooks
     frnd.patch(p, swe.LABELS, gplay.LABELS)      # (after fpad: its fp_step / fp_leg chained; dormant: nothing)
+    import frchoose
+    if frchoose.on() and (frnd.LABELS or not frnd.on()):   # 4.2 friendlies chooser: the page in FRCH, AFTER FRND (its
+        frchoose.patch(p, lang, pick=frnd.LABELS or None)  # fr_pick / fr_level / fr_given: one copy of the pick; FRND off:
+                                                           # the interim own pick; FRND dormant (no gplay): no caller, no page)
     import gphooks                               # 4.2 (MC 17/11): every gplay hook chain wired once, one fixup per site
     if gphooks.REG:
         print(f'exe: gplay hooks: {gphooks.summary()}')

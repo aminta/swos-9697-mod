@@ -1666,6 +1666,9 @@ class Session:
             h = hashlib.md5(f'{pin}:{self.rng_n}'.encode()).digest()
             for at, part in zip(self.rng_at, (h[:3], h[3:6])):
                 self.poke(r.base2 + at, part)
+        if r.outcome == 'dump' and not getattr(self, 'frpage_keep', False) and not getattr(self, '_frpage_busy', False):
+            if fr_page_pass(self):                     # (4.2 friendlies (c): the season-start page passed here, once for
+                r = self.result                        #  every career scenario - MC / Chooser 16/11)
         return r
 
 
@@ -2719,6 +2722,7 @@ def _label_data():
             slot4 |= forms(v.get('names'))
     import dplay                                        # (the career club's Serie B / C play-offs and play-out:
     slot4 |= {n.decode('latin-1') for n in dplay.NAMES}   # dplay's own names, id FEh for the play-out, no pack name)
+    slot4 |= {n for v in FR_NAMES.values() for n in v}   # (4.2 friendlies: the slot-4 label per language, FR_NAMES)
     import frtext                                       # (4.2 friendlies, FRND builds: the slot-4 contest's name)
     slot4 |= forms({**frtext.LABEL, 'de2': frtext.LABEL_NATIVE_DE})
     for po in GPLAY_SCO:                                # (the harness-injected Scottish play-offs, world_gplay*: their
@@ -24983,8 +24987,8 @@ def sc_season(team, extra, runs_tag=1):
             'W8485_MIDSAVE', 'W8485_FROM', 'W8485_HEX', 'W8485_RECSHOT', 'W8485_RLDBG', 'W8485_FILL', 'W8485_MIDTEXT',
             'W8485_RNGSTEP')
     keep = {k: os.environ.get(k) for k in keys}
-    os.environ.update(W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1',
-                      W8485_ONE='1', **extra)
+    os.environ.update(dict(W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5', W8485_K='108+', W8485_NOSACK='1',
+                           W8485_ONE='1'), **extra)    # (extra may name another world: 4.2 friendlies in 1984-85)
     try:
         ok, msg = world8485()
     finally:
@@ -25892,21 +25896,712 @@ def world_sc_ger_s1():
     return sc_s1('EUROPA,GERMANIA,BUNDESLIGA,BAYERN', [('ger', 61, 'DORTMUND')], absent=('uefa',))
 
 
-def fr_syms(exe):
-    """4.2 friendlies (FRND): {name: (obj, offset)} of frnd.py's labels from the exe dir's ITALIAN.syms.json (a
-    HOSTTEST_SYMS=1 build: FR_ST in obj2, FR_TRACE / FR_FEE / FR_G / FR_FB / FR_GIVENW in obj4's FRND band) + finance's
-    NEWBAL (obj2) and FF_INC (obj3: the season's gate receipts, fi_gate's sum); None without frnd."""
-    p = next((os.path.join(exe, x) for x in ('ITALIAN.syms.json', 'ENGLISH.syms.json')
-              if os.path.isfile(os.path.join(exe, x))), None)
+# ---------------------------------------------------------------------------------------------------------------------
+# 4.2 preseason friendlies (friendlies-split.md, Davide's closed spec 16/11) - scenario SKELETONS against a stub.
+# Written before the engine was in the tree: every scenario raises Skipped until fr_syms() (ONE function, below,
+# with the engine's reader) finds the friendlies in the build.
+#
+# EVERY ENGINE ASSUMPTION IS IN `FR` BELOW (and in fr_syms / fr_state, which read only FR). Motore: put the real
+# offsets / names / switches here, nothing else in the scenarios should need a change. TODO(engine) = to be given or
+# confirmed by the engine; None = not known yet (with the engine present, a scenario that needs it is a SETUP-ERROR
+# naming the key, never a silent pass).
+#
+# The spec the scenarios assert: every season INCLUDING season 1, 4 friendlies before league week 1 (also with
+# supercups that season); 2 home + 2 away (FR['HOME']); 1 stronger, 2 similar, 1 weaker; opponents foreign and
+# distinct; an appearance fee per match by band; no effect on league / cup records; CARD-RESTORE (the career club's
+# ban bits of cardsInjuries snapshot before a friendly, restored after; injuries may stay); names in 4 languages
+# within the 70 px calendar label; the record line 'Preseason: W-D-L'.
+FR = {
+    # --- presence probes (fr_syms; fr_in_tree) ---
+    'MARK': b'FRSTPTR\0',     # TODO(engine): an obj1 glue block as SC_ST's 'SCSTPTR' (the tag + the dword obj2 offset of
+                              #   FR_ST) - the one probe that also works on a RELEASE exe (no syms.json there)
+    'SYM_ST': 'FR_ST',        # TODO(engine): the gplay symbol of the state in ITALIAN.syms.json (scenario builds)
+    'BAND': 'FRND',           # TODO(engine): the swreg band of the friendlies' code (a key of syms.json when it is there)
+    'SRC': ('gplay_fr.c', 'friendlies.c', 'friendlies.py'),   # TODO(engine): the friendlies' own source file in tools/
+    # --- FR_ST: 12 B in SC_ST's free tail (estimate: season, index 0-4, 4 opponent words, W/D/L) ---
+    'ST_OFF': None,           # TODO(engine): offset of FR_ST inside SC_ST (used when neither MARK nor SYM_ST gives it)
+    'ST_LEN': 12,
+    'ST_SEASON': 0,           # TODO(engine): byte - the season handled (the game's season byte; 0 = an old save, never built)
+    'ST_IDX': 1,              # TODO(engine): byte - friendlies PLAYED this season, 0..4
+    'ST_OPP': 2,              # TODO(engine): 4 words - the opponents' team words in playing order (0 / FFFFh = not picked)
+    'ST_BITS': 10,            # TODO(engine): word - bits 0-3 home flags (bit k: friendly k+1 at home), 4-6 W, 7-9 D, 10-12 L
+    # --- test traces (syms.json 'gplay' symbols of a scenario build; a release exe has none: those checks are reported as
+    #     not made) ---
+    'SYM_TRACE': 'FR_TRACE',  # TODO(engine): byte, obj2 - 1 while a friendly is built in slot 4 (as SC_TRACE; W8485_MIDSAVE)
+    'SYM_STR': 'FR_STR',      # TODO(engine): 5 words - the strength the pick used: the career club's, then the 4 opponents'
+    'SYM_FEE': 'FR_FEE',      # TODO(engine): 4 x i32 - the fee credited after each friendly (the unit of newBalance)
+    'SYM_FB': 'FR_FB',        # TODO(engine): byte - FrPick.fb of the pick (bit k: slot k took the nearest-band fallback)
+    'SYM_CARD': 'FR_CARD',    # TODO(engine): byte - ban bits the card-restore undid so far this season (0 = it never had to)
+    # --- test switch (build env, as GPLAY_FORCE / USC_FORCE) ---
+    'FORCE_ENV': 'FR_FORCE',  # TODO(engine): the switch's name; a build made with it has the symbol below
+    'SYM_FORCE': 'FR_FORCEV',
+    'FORCE_RED1': '1',        # TODO(engine): value = a red card to a career-club player of the XI in friendly 1
+    'FORCE_WDL': None,        # TODO(engine): value = forced results W, D, L, W for friendlies 1-4 (the record line's
+                              #   W-D-L asserted exactly: 2-1-1); None = the line is only checked against FR_ST's counts
+    # --- rules / tables ---
+    'HOME': 2,                # spec default 2 home + 2 away (the pick's parameter; TODO(engine): if a scenario build can
+                              #   set another split, its switch)
+    'BAND_MARGIN': lambda own: max(11, own // 10),   # tools/frpick.h:23 (42-frpick cfbd695, Mercato 16/11): "margin M =
+                              #   max(11, S / 10), integer division"; bounded bands (fr_bands, frpick.h:23-25), the far ones never wanted
+    'SLOT_BANDS': ('weaker', 'similar', 'similar', 'stronger'),   # frpick.h:28 "Play order of the automatic four:
+                              #   weaker, similar, similar, stronger" (slot k = friendly k+1)
+                              #   (an all-automatic pick only - given == NULL, as 4.2; given entries keep their slot
+                              #   and no fb bit: not checked until a UI exists. A band whose clubs all lack cache room
+                              #   has no candidate: fb set, the slot outside its band - Mercato 16/11)
+    'FEES': {'far_up': (120, 50), 'stronger': (100, 40), 'similar': (50, 20), 'weaker': (30, 10), 'far_down': (20, 5)},
+                              # FINAL 16/11 (Mercato part b, Motore ok; friendlies-pick.md "Fee table"): {band[k] after any
+                              #   fallback: (home %, away %)} of G (FR_G); fee = floor(G * pct / 100) on a u64 product (Python
+                              #   ints: exact), credited = (min(fee, 1048560) >> 4) << 4
+    'SYM_G': 'FR_G',          # TODO(engine): u32, test builds - the G used (cseg_3CB08 with home = away = the career club)
+    'BAL_EXACT': True,        # the balance (finance NEWBAL) moves by exactly the fee between a friendly's screen and the
+                              #   next match screen. TODO(engine): False if wages / gate money move in those weeks too
+    'MIX_RULE': ('tools/frpick.h:34-36 (42-frpick cfbd695): THE "NEAREST BAND" RULE: when the wanted band has no '
+                 'candidate, the slot takes the club nearest to one of that band\'s two edges, from either side [...] '
+                 'Such a slot has bit k of FrPick.fb set and band[k] = the band its club really falls in (far: 3 up / 4 down).'),
+                              # fr_check: a slot with fb bit k clear is in SLOT_BANDS[k] exactly; one with it set is
+                              #   OUTSIDE that band, possibly far (else the bit lies); no FR_FB trace = strict by slot
+    'HOME_RULE': 'tools/frpick.h:83-84 (cfbd695): the nhome opponents with the lowest strength are played at home (ties: the lower slot first)',
+    'WEEKS': {},              # TODO(engine, part a - research): {'ita': (w1, w2, w3, w4), ...} per season kind, e.g.
+                              #   {'ita': {1: (...), 2: (...)}}; empty = the weeks are reported, only their order is asserted
+    'JANUARY': range(0, 8),   # TODO(engine): a calendar-year league's preseason weeks (8 weeks a month: January = 0..7)
+    'OLD_SEASON2': None,      # TODO(engine): friendlies in the season an old save is ALREADY in (0 or 4); None = 0 or 4
+    'BAN_PLACE': 15,          # the career-club place (0-based) world_preseason_cards gives a 1-match ban: a bench place,
+                              #   so the minimal line-up is not touched
+}
+FR_NAMES = {   # TODO(engine): (match-screen title word, calendar label) per language, as supercups2627.json's names
+    'it': ('AMICHEVOLE', 'AMICHEVOLE'), 'en': ('FRIENDLY', 'FRIENDLY'),
+    'fr': ('AMICAL', 'AMICAL'), 'de': ('TESTSPIEL', 'TESTSPIEL')}
+FR_RECORD = {  # TODO(engine): the record line's label per language ('<label>: W-D-L' on REGISTRO GESTIONE)
+    'it': 'PRECAMPIONATO', 'en': 'PRESEASON', 'fr': 'PRESAISON', 'de': 'VORBEREITUNG'}
+FR_RECORD_PX = 298            # TODO(engine): the record line's bar (ctview's PXMAX until the page's own width is given)
+FR_TICK = '1234'              # CAREER_TICK of every friendlies scenario (FR_TICK env overrides): the draw pinned
+FR_WORLDS = {                 # (Rule 0: one table, every world the friendlies run in) key -> (picker entry, world byte)
+    '2627': ('MONDO 2026-27', '5'),
+    '8485': ('EUROPA 1984-85', '4'),          # its own opponent table, keyed by the world byte (MC 16/11)
+    '9697': ('MONDO 1996-97', None),          # TODO(engine): world byte; reserved - after the general team-cache fix
+}
+FR_TEAMS = {                  # the careers (FR_TEAM_<KEY> env overrides one); a (world key, path) pair = another world
+    'ita': 'EUROPA,ITALIA,SERIE D GIRONE A,LIGORNA',          # a Coppa D club, no supercup: slot 4 = friendlies, Coppa D
+    'eng': 'EUROPA,INGHILTERRA,PREMIER LEAGUE,ARSENAL',       # FA Community Shield (s1 real, s2 forced) + UEFA SC forced
+    'usc': 'EUROPA,FRANCIA,LIGUE 1,PARIS-SG',                 # season 1: UEFA Super Cup (58) + Trophee des Champions (59)
+    'bra': 'SUDAMERICA,BRASILE,BRASILEIRAO SERIE A,FLAMENGO',  # a calendar-year league
+    'old': 'EUROPA,ITALIA,SERIE A,INTER',                     # world_sc_oldsave's career
+    '8485': ('8485', 'INGHILTERRA,FIRST DIVISION,LIVERPOOL'),  # world8485's default career (Europe 1984-85)
+    '9697': ('9697', 'EUROPA,ITALIA,SERIE A,INTER'),            # (reserved: world_preseason_9697)
+}
+
+
+def fr_team(key):
+    """(path, env of its world) of FR_TEAMS[key]; FR_TEAM_<KEY> overrides the path."""
+    v = FR_TEAMS[key]
+    wk, path = v if isinstance(v, tuple) else ('2627', v)
+    world, wnum = FR_WORLDS[wk]
+    env = {} if wk == '2627' else dict(W8485_WORLD=world, **({'W8485_WNUM': wnum} if wnum else {}))
+    return os.environ.get(f'FR_TEAM_{key.upper()}') or path, env
+FR_SKIP = '4.2 friendlies: the engine is not in this build (skeleton; fr_syms found no {}) - SKIP until Motore\'s sha'
+
+
+def fr_in_tree():
+    """The friendlies engine is in this checkout's tools (cheap probe before any build): one of FR['SRC'], or the
+    FR_ST glue tag in gplay.py / gplay.c."""
+    t = os.path.join(ROOT, 'tools')
+    if any(os.path.isfile(os.path.join(t, x)) for x in FR['SRC']):
+        return True
+    tag = FR['MARK'].rstrip(b'\0')
+    return any(os.path.isfile(os.path.join(t, x)) and tag in open(os.path.join(t, x), 'rb').read()
+               for x in ('gplay.py', 'gplay.c'))
+
+
+def fr_state(b):
+    """FR_ST's 12 bytes (FR's layout) -> {'season', 'idx', 'opp': [4 words], 'home': [4 bools], 'w', 'd', 'l'}."""
+    bits = struct.unpack_from('<H', b, FR['ST_BITS'])[0]
+    return {'season': b[FR['ST_SEASON']], 'idx': b[FR['ST_IDX']], 'opp': list(struct.unpack_from('<4H', b, FR['ST_OPP'])),
+            'home': [bool(bits >> k & 1) for k in range(4)], 'w': bits >> 4 & 7, 'd': bits >> 7 & 7, 'l': bits >> 10 & 7}
+
+
+def fr_bands(own, opps, margin):
+    """The strength band of each opponent against the club's own value (FR_STR's scale), bounded (frpick.h:23-25,
+    42-frpick cfbd695, d = opponent - own, M = margin): 'far_down' d < -4M, 'weaker' -4M <= d < -M, 'similar'
+    |d| <= M, 'stronger' M < d <= 4M, 'far_up' d > 4M. The far bands are never wanted (nearest-band rule only)."""
+    def band(o):
+        d = o - own
+        return ('far_down' if d < -4 * margin else 'weaker' if d < -margin else 'similar' if d <= margin
+                else 'stronger' if d <= 4 * margin else 'far_up')
+    return [band(o) for o in opps]
+
+
+def fr_hx(at):
+    """A W8485_HEX offset key of (obj, offset): plain hex for obj2, 'o<obj>/<hex>' for the others (world8485 hexlog)."""
+    return f'{at[1]:x}' if at[0] == 2 else f'o{at[0]}/{at[1]:x}'
+
+
+def fr_timeline(lines, keys):
+    """A session log in order -> (matches, last): every match screen (title, its line, friendly: the title carries the
+    friendly's name in the exe's language) with the W8485_HEX values of keys {name: hex key} as they stood at it, and
+    the values at the log's end. The values are logged at the harness pauses when they change (hexlog), so 'before a
+    match' = at its screen, 'after it' = at the next match screen (or the end)."""
+    rev = {v: k for k, v in keys.items()}
+    cur, out = {}, []
+    word = FR_NAMES.get(UI, FR_NAMES['it'])[0]
+    for i, ln in enumerate(lines):
+        p = ln.split()
+        if len(p) == 3 and p[0] == 'HEX' and p[1] in rev:
+            try:
+                cur[rev[p[1]]] = bytes.fromhex(p[2])
+            except ValueError:
+                pass
+        elif ln.startswith('[') and '- PARTITA -' in ln and '>- RISULTATO -' in ln:
+            t = re.sub(r'^\[\d+\] ', '', ln.split('|')[0].strip())
+            out.append({'title': t, 'line': ln, 'i': i, 'friendly': word in t.upper(), 'at': dict(cur)})
+    return out, cur
+
+
+def fr_bans(ct):
+    """The ban bits (cardsInjuries bits 0-1, +27 of each 38-byte record from +76) of careerTeam's first 16 players."""
+    return [ct[76 + q * 38 + 27] & 3 for q in range(16)] if ct and len(ct) >= 76 + 16 * 38 else None
+
+
+def fr_name_errs(lang=None):
+    """Width + charset of the friendlies' names in lang (default: every language): the calendar label within
+    complist.CAL_PX (70 px), the title word within VISUAL. COMPETIZ.'s button (VC_PX) and the 34-byte title field, the
+    record label + ': 4-4-4' within FR_RECORD_PX; the font's characters only. Returns the errors (no game run)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import complist
+    errs = []
+    for lg in ([lang] if lang else ['it', 'en', 'fr', 'de']):
+        long_, short = FR_NAMES[lg]
+        rec = f'{FR_RECORD[lg]}: 4-4-4'
+        for what, t, lim in (('calendar label', short, complist.CAL_PX), ('title', long_, complist.VC_PX),
+                             ('record line', rec, FR_RECORD_PX)):
+            odd = set(t) - complist.FONT
+            check(not odd, f'{lg} {what} {t!r}: characters outside the font {sorted(odd)}', errs)
+            check(complist.px(t) <= lim, f'{lg} {what} {t!r}: {complist.px(t)} px > {lim}', errs)
+        check(len(long_) <= complist.TITLE_MAX, f'{lg} title {long_!r}: {len(long_)} > {complist.TITLE_MAX} bytes', errs)
+    return errs
+
+
+def fr_exe(name, env=None, given='FR_BUILD', rel=False):
+    """The build a friendlies scenario runs on and its fr_syms dict - or Skipped while the engine is absent.
+    given: the env var naming a ready exe dir (FR_BUILD: a plain test build; a forced scenario has its own); else,
+    with the engine in the tree (fr_in_tree), build(name) on the World 2026-27 data with the build env `env` (the
+    test switches). rel: a release dir is required (no build here)."""
+    env = env or {}
+    exe = os.environ.get(given)
+    if rel and not exe:
+        raise Skipped(f'{name}: needs a release dir ({given}=c/RELxx/SWOS, or SWOSTEST_BUILD / W8485_BUILD); '
+                      '4.2 friendlies skeleton')
+    if not exe and not fr_in_tree():
+        raise Skipped(FR_SKIP.format(f"source in tools/ ({', '.join(FR['SRC'])} or the {FR['MARK'][:-1].decode()} tag)"))
+    src = world_data()
+    if not os.path.isdir(src):
+        raise Skipped(f'private data {src} missing')
+    if not exe:
+        order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+        exe = build(name, env=dict({'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order])},
+                                   **env), lang=UI)
+    fr = fr_syms(exe)
+    if fr is None:
+        raise Skipped(FR_SKIP.format(f"{FR['MARK'][:-1].decode()} / {FR['SYM_ST']} / {FR['BAND']} in {exe}"))
+    require(not env.get(FR['FORCE_ENV']) or fr['force'] or not fr['syms'],
+            f"{exe}: built with {FR['FORCE_ENV']}={env.get(FR['FORCE_ENV'])} but no {FR['SYM_FORCE']} symbol "
+            f'(the test switch is not in this build)')
+    return exe, fr
+
+
+def fr_career_sites(exe):
+    """(careerTeam, selTeamNumber, newBalance) obj2 offsets of the build (xtra.sites; finance NEWBAL of the original)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import finance
+    import lepatch
+    import xtra
+    _, _, ct, _, sel = xtra.sites(lepatch.LEPatch(os.path.join(exe, 'ITALIAN.EXE')))
+    nb = finance.find(lepatch.LEPatch(os.path.join(MAIN, 'orig', UI_ORIG)))['NEWBAL'][1]
+    return ct, sel, nb
+
+
+def fr_keys(exe, fr):
+    """{name: W8485_HEX key} + the W8485_HEX string of everything the checks read: FR_ST, selTeamNumber, careerTeam's
+    first 16 records, newBalance, and the build's traces."""
+    ct, sel, nb = fr_career_sites(exe)
+    spec = {'st': ((2, fr['st']), FR['ST_LEN']), 'sel': ((2, sel), 2), 'ct': ((2, ct), 76 + 16 * 38), 'bal': ((2, nb), 4)}
+    for k, n in (('str', 10), ('fee', 16), ('card', 1), ('trace', 1), ('fb', 1), ('g', 4)):
+        if fr.get(k):
+            spec[k] = (fr[k], n)
+    keys = {k: fr_hx(at) for k, (at, _) in spec.items()}
+    return keys, ','.join(f'{fr_hx(at)}:{n}' for at, n in spec.values())
+
+
+def fr_season(team, exe, fr, runs_tag=1, hook=None, **extra):
+    """One season of a World 2026-27 career at team through sc_season (world8485), every random input pinned: the
+    career's draw (CAREER_TICK = FR_TICK) and both generators at every pause (W8485_RNGSTEP 'fr'); the friendlies'
+    state logged as it changes (fr_keys); hook = a W84_HOOK for the scenario's own pokes. Returns (ok, msg, lines, keys)."""
+    global W84_HOOK
+    keys, hexs = fr_keys(exe, fr)
+    keep = {k: os.environ.get(k) for k in ('CAREER_TICK',)}
+    os.environ['CAREER_TICK'] = os.environ.get('FR_TICK') or FR_TICK
+    env = dict(W8485_BUILD=exe, W8485_RNGSTEP='fr', W8485_RECSHOT='1')
+    env.update(extra)
+    env['W8485_HEX'] = ','.join(filter(None, [hexs, extra.get('W8485_HEX')]))
+    old_hook, W84_HOOK = W84_HOOK, hook
+    try:
+        ok, msg, lines = sc_season(team, env, runs_tag)
+    finally:
+        W84_HOOK = old_hook
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    return ok, msg, lines, keys
+
+
+def fr_next_save(tag, from_run=False):
+    """The career save world8485 wrote in the season just played, copied out of its run dir (the next run reuses the
+    dir): W84A.CAR of run '_1' after a new career's season 1, W84B.CAR of run '_2' after a W8485_FROM season
+    (from_run). None if it is not there."""
+    p = os.path.join(RUNS, w84_tag() + ('_2' if from_run else '_1'), 'SWOS', 'W84B.CAR' if from_run else 'W84A.CAR')
+    if not os.path.exists(p):
+        return None
+    dst = os.path.join(RUNS, f'fr_{tag}.CAR')
+    shutil.copy(p, dst)
+    return dst
+
+
+def fr_check(exe, fr, lines, keys, errs, info, sn, others=(), weeks=None, n_want=4, loaded=None):
+    """The spec's checks on one season's session log (errors prefixed 'season sn'):
+    (1) n_want friendly match screens, each once, ALL before the first league / cup match screen; slot-4 contests of
+        `others` [(title word, calendar label, week)] played once each, AFTER the friendlies and in that order (nobody
+        waits: each at its own week's row);
+    (2) FR_ST at the end: this season, idx 4, W + D + L = 4; opponents picked, DISTINCT, FOREIGN (another team file
+        than the career club's), each one's name on its match screen and its team file in the build's DATA;
+    (3) home / away: FR['HOME'] at home, the rest away (FR_ST's flags; the calendar rows' pairing agrees: home first);
+    (4) strength: 1 stronger, 2 similar, 1 weaker (FR_STR + FR['BAND_MARGIN']);
+    (5) money: the fee of FR['FEES'][(band, home)] credited per match (FR_FEE) and seen on the balance;
+    (6) names: every slot-4 row of the fixture list with its own label (slot4_label_errs), the friendlies' rows on 4
+        weeks that no other slot-4 contest uses (weeks: the expected ones), names within their bars (fr_name_errs);
+    (7) the record line '<label>: W-D-L' = FR_ST's counts; no ban bit changed by a friendly (card-restore, natural).
+    loaded: (matches already played before a save, their opponents) - a reloaded season continues from there.
+    Returns the season's facts {'opp', 'home', 'bands', 'weeks', 'wdl'} for the scenario's own checks."""
+    e0 = len(errs)
+    pre = f'season {sn}: '
+    ms, last = fr_timeline(lines, keys)
+    frs = [m for m in ms if m['friendly']]
+    done0 = loaded[0] if loaded else 0
+    require('st' in last, f'{pre}FR_ST never logged (W8485_HEX {keys.get("st")}): the run did not reach the career')
+    st = fr_state(last['st'])
+    club = struct.unpack('<H', last['sel'])[0] if 'sel' in last else None
+    long_, short = FR_NAMES.get(UI, FR_NAMES['it'])
+    # (1) count and order
+    check(len(frs) == n_want - done0, pre + f'{len(frs)} friendly match screens (want {n_want - done0}): '
+          f'{[m["title"] for m in frs]}', errs)
+    first_other = next((k for k, m in enumerate(ms) if not m['friendly']), len(ms))
+    check(all(m['friendly'] for m in ms[:len(frs)]) and first_other >= len(frs),
+          pre + f'a league / cup / supercup match before the last friendly: {[m["title"] for m in ms[:6]]}', errs)
+    pos = []
+    for word, _, _ in others:
+        hit = [k for k, m in enumerate(ms) if word in m['title'].upper()]
+        check(len(hit) == 1, pre + f'{word}: {len(hit)} match screens (want 1)', errs)
+        pos += hit[:1]
+    check(pos == sorted(pos) and all(p >= len(frs) for p in pos), pre + f'slot-4 order: friendlies, then '
+          f'{[w for w, _, _ in others]} - seen {[m["title"] for m in ms[:len(frs) + len(others) + 1]]}', errs)
+    # (2) state and opponents
+    check(st['season'] != 0 and st['idx'] == n_want and st['w'] + st['d'] + st['l'] == n_want,
+          pre + f'FR_ST at the end {last["st"].hex()}: season {st["season"]}, played {st["idx"]}, '
+          f'W-D-L {st["w"]}-{st["d"]}-{st["l"]}', errs)
+    opp = st['opp'][:n_want]
+    check(all(o not in (0, 0xFFFF) for o in opp) and len(set(opp)) == len(opp),
+          pre + f'opponents not 4 distinct clubs: {[hex(o) for o in opp]}', errs)
+    check(club is not None and all(o & 0xFF != club & 0xFF for o in opp),
+          pre + f'an opponent of the career club\'s own country file: club {club and hex(club)}, {[hex(o) for o in opp]}', errs)
+    names = [team_name(exe, o) for o in opp]
+    check(all(names), pre + f'an opponent\'s team file is not in the build\'s DATA: {list(zip(map(hex, opp), names))}', errs)
+    for k, m in enumerate(frs):
+        nm = names[done0 + k] if done0 + k < len(names) else None
+        check(nm and nm in m['line'], pre + f'friendly {done0 + k + 1}: {nm} not on its match screen: {m["line"][:120]}', errs)
+        check(m['title'].upper().count(long_) == 1 and not set(m['title'].upper()) - _fr_font(),
+              pre + f'friendly {done0 + k + 1}: title {m["title"]!r} (want {long_}, font characters only)', errs)
+    # (3) home / away
+    home = st['home'][:n_want]
+    check(sum(home) == FR['HOME'], pre + f'{sum(home)} friendlies at home, {n_want - sum(home)} away '
+          f'(want {FR["HOME"]} / {n_want - FR["HOME"]}): flags {home}', errs)
+    rows = slot4_rows(lines)
+    fr_rows = {}
+    for _, w, t, lb, _ in rows:
+        if lb == short:
+            fr_rows.setdefault(w, set()).add(t)
+    for w, ts in sorted(fr_rows.items()):
+        for a, b in ts:
+            a, b = int(a, 16), int(b, 16)
+            o = b if a == club else a
+            if club in (a, b) and o in opp:
+                check((a == club) == home[opp.index(o)], pre + f'week {w}: the row {a:x} v {b:x} (home first) against '
+                      f'FR_ST\'s home flag {home[opp.index(o)]} of friendly {opp.index(o) + 1}', errs)
+            else:
+                check(False, pre + f'week {w}: a {short} row without the career club v one of its 4 opponents: {a:x} v {b:x}', errs)
+    # (4) strength bands
+    bands = None
+    if 'str' in last:
+        require(FR['BAND_MARGIN'] is not None, "FR['BAND_MARGIN'] not filled (the pick's 'similar' margin)")
+        v = struct.unpack('<5H', last['str'])
+        m = FR['BAND_MARGIN'](v[0]) if callable(FR['BAND_MARGIN']) else FR['BAND_MARGIN']
+        bands = fr_bands(v[0], v[1:1 + n_want], m)
+        fbv = last['fb'][0] if 'fb' in last else None
+        # (FR['MIX_RULE'], quoted from frpick.h, exactly: a slot keeps its wanted band unless its fb bit is set; a set
+        #  bit is only valid outside that band. No FR_FB trace: strict 1 / 2 / 1 by slot - MC 16/11)
+        for k in range(n_want):
+            want = FR['SLOT_BANDS'][k]
+            if fbv is not None and fbv >> k & 1:
+                check(bands[k] != want, pre + f'friendly {k + 1}: FR_FB bit {k} set (nearest-band fallback) but the '
+                      f'opponent {v[1 + k]} is IN the wanted band {want} (club {v[0]}, margin {m})', errs)
+            else:
+                check(bands[k] == want, pre + f'friendly {k + 1}: opponent {v[1 + k]} is {bands[k]}, want {want} (club '
+                      f'{v[0]}, margin {m}; FR_FB {"absent" if fbv is None else hex(fbv)})', errs)
+        if fbv:
+            info.append(pre + f'nearest-band fallback on slots {[k for k in range(n_want) if fbv >> k & 1]} (bands {bands})')
+        # (FR['HOME_RULE']: the HOME weakest at home, ties the lower slot first)
+        hw = sorted(range(n_want), key=lambda k: (v[1 + k], k))[:FR['HOME']]
+        check([k in hw for k in range(n_want)] == list(home[:n_want]), pre + f'home flags {list(home[:n_want])}: want the '
+              f'{FR["HOME"]} weakest at home, slots {sorted(hw)} (opponents {list(v[1:])})', errs)
+    else:
+        info.append(pre + 'strength bands NOT checked (no FR_STR trace in this build)')
+    # (5) money
+    if 'fee' in last and bands:
+        require(FR['FEES'] is not None, "FR['FEES'] not filled (TODO(engine): the fee table by band and home / away)")
+        fee = struct.unpack('<4i', last['fee'])
+        require('g' in last, 'no FR_G trace in this build (the fee base G)')
+        g = struct.unpack('<I', last['g'])[0]
+        want = [(min(g * FR['FEES'][bands[k]][0 if home[k] else 1] // 100, 1048560) >> 4) << 4 for k in range(n_want)]
+        check(list(fee[:n_want]) == want, pre + f'fees credited {list(fee)} != the table\'s {want} (bands {bands}, home {home})', errs)
+        seq = [m for m in ms if 'bal' in m['at']]
+        for k, m in enumerate(frs):
+            nxt = next((x for x in seq if x['i'] > m['i']), None)
+            b0 = struct.unpack('<i', m['at']['bal'])[0] if 'bal' in m['at'] else None
+            b1 = struct.unpack('<i', (nxt['at'] if nxt else last)['bal'])[0]
+            if b0 is None:
+                continue
+            d = b1 - b0
+            check(d == want[done0 + k] if FR['BAL_EXACT'] else d >= want[done0 + k],
+                  pre + f'friendly {done0 + k + 1}: the balance moved by {d}, the fee is {want[done0 + k]}', errs)
+    else:
+        info.append(pre + 'fees NOT checked (no FR_FEE / FR_STR trace in this build)')
+    # (6) names and weeks
+    fw = sorted(fr_rows)
+    check(len(fw) <= n_want if done0 else len(fw) == n_want, pre + f'{short} rows on weeks {fw} (want {n_want - done0} weeks)', errs)
+    ow = {w: lb for _, lb, w in others}
+    check(not set(fw) & set(ow), pre + f'a friendly shares its week with another slot-4 contest: {fw} v {ow}', errs)
+    if weeks:
+        check(set(fw) <= set(weeks), pre + f'friendly weeks {fw}, expected within {list(weeks)}', errs)
+    errs += [pre + e for e in slot4_label_errs(lines, dict({w: short for w in fw}, **ow))]
+    errs += [pre + e for e in fr_name_errs(UI if UI in FR_NAMES else 'it')]
+    # (7) record line; ban bits untouched by the friendlies
+    rec = next((ln for ln in lines if ln.startswith('[record] ')), '')
+    want_rec = f'{FR_RECORD.get(UI, FR_RECORD["it"])}: {st["w"]}-{st["d"]}-{st["l"]}'
+    check(want_rec in rec.upper(), pre + f'no record line {want_rec!r} on REGISTRO GESTIONE: {rec[:200]}', errs)
+    if frs and not done0:
+        b0 = fr_bans(frs[0]['at'].get('ct'))
+        nxt = ms[len(frs)] if len(ms) > len(frs) else None
+        b1 = fr_bans((nxt['at'] if nxt else last).get('ct'))
+        check(b0 is not None and b0 == b1, pre + f'ban bits before friendly 1 {b0} != at the first league match {b1}', errs)
+    info.append(pre + f'{len(frs)} friendlies v {names[done0:]} (home {home}, bands {bands}, weeks {fw}), '
+                f'W-D-L {st["w"]}-{st["d"]}-{st["l"]}' + (f', then {[w for w, _, _ in others]}' if others else ''))
+    if sn == 1 and len(errs) == e0:
+        info.append(pre + 'league / cup table rows NOT read (TODO(harness): the club\'s row P = 0 after friendly 4); '
+                    'checked: the friendlies\' screens carry their own title only, the season ends')
+    return {'opp': opp, 'home': home, 'bands': bands, 'weeks': fw, 'wdl': (st['w'], st['d'], st['l']), 'names': names}
+
+
+def _fr_font():
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import complist
+    return complist.FONT | set('()/')
+
+
+def fr_two(key, name, env=None, given='FR_BUILD', others=({}, {}), weeks=None, seasons=2, rel=False):
+    """A friendlies career of FR_TEAMS[key] (FR_TEAM_<KEY> overrides) over `seasons` seasons (season 2 from season 1's
+    save), fr_check on each; others[sn - 1] = that season's other slot-4 contests [(title word, label, week)].
+    Season 2's four opponents are reported against season 1's (the 'no repeat if the pool allows' rule is the pick's
+    host test, not asserted here)."""
+    exe, fr = fr_exe(name, env, given, rel)
+    team, wenv = fr_team(key)
+    errs, info, facts, car = [], [], [], None
+    for sn in range(1, seasons + 1):
+        extra = dict(wenv, **({} if sn == 1 else {'W8485_FROM': car}))
+        ok, msg, lines, keys = fr_season(team, exe, fr, sn if sn < 3 else 2, **extra)
+        check(ok, f'season {sn}: {msg}', errs)
+        facts.append(fr_check(exe, fr, lines, keys, errs, info, sn, others[sn - 1] if sn <= len(others) else (),
+                              weeks.get(sn) if isinstance(weeks, dict) else weeks))
+        if sn < seasons:
+            car = fr_next_save(f'{name}_s{sn}', from_run=sn > 1)
+            if not ok or car is None:
+                return False, '; '.join(errs + [f'season {sn}: no save for season {sn + 1}'])
+    if len(facts) == 2:
+        info.append(f'season 2 repeats {len(set(facts[0]["opp"]) & set(facts[1]["opp"]))} of season 1\'s opponents')
+    return not errs, '; '.join(errs) or '; '.join(info)
+
+
+def fr_sc(key):
+    """(title word, calendar label) of a supercup in the exe's language (supercups2627.json)."""
+    d = json.load(open(os.path.join(ROOT, 'tools', 'supercups2627.json')))[key]['names']
+    return (d.get(UI) or d['en'])[0].upper(), sc_short(key)
+
+
+@scenario
+def world_preseason():
+    """4.2 friendlies, the natural case at a club WITHOUT a supercup (skeleton: SKIP until the engine): a LIGORNA career
+    (ITA, Serie D: a Coppa D country, slot 4 shared with the Coppa D), World 2026-27, draw pinned (CAREER_TICK 1234,
+    W8485_RNGSTEP), no test switch. Season 1 AND season 2 (from season 1's save), each: 4 slot-4 friendlies, all before
+    league week 1; opponents foreign, distinct, their names on the match screens; exactly 2 home + 2 away; 1 stronger,
+    2 similar, 1 weaker; the fee per match as FR['FEES']; calendar rows named in the exe's language on their own
+    weeks; the record line; no ban bit moved by a friendly; both seasons end (fr_check)"""
+    return fr_two('ita', 'world_preseason', weeks=FR['WEEKS'].get('ita'))
+
+
+@scenario
+def world_preseason_rel():
+    """4.2 friendlies, the release recipe (CONVENTIONS 17a; skeleton: SKIP until the engine): world_preseason's season 1
+    on a RELEASE dir (FR_REL_BUILD, else SWOSTEST_BUILD / W8485_BUILD = c/RELxx/SWOS; W2627REL_DATA = that release's
+    world for the label check): no syms there, so FR_ST comes from the exe's FRSTPTR tag and the trace checks (bands,
+    fees) are reported as not made; asserted: 4 friendlies before league week 1, 2 home + 2 away, opponents foreign,
+    distinct, EACH ONE'S TEAM FILE IN THE RELEASE'S DATA (the pools' TMW files) with its name on the match screen,
+    labels, record line, the season ends. Belongs in the rc suite"""
+    if not os.environ.get('FR_REL_BUILD'):
+        b = os.environ.get('SWOSTEST_BUILD') or os.environ.get('W8485_BUILD')
+        if b:
+            os.environ['FR_REL_BUILD'] = b
+    return fr_two('ita', 'world_preseason_rel', given='FR_REL_BUILD', seasons=1, rel=True, weeks=FR['WEEKS'].get('ita'))
+
+
+@scenario
+def world_preseason_eng():
+    """4.2 friendlies with summer supercups, forced (skeleton: SKIP until the engine): an ARSENAL career on a
+    GPLAY_FORCE=1 + USC_FORCE=1 test build (world_usc's switches: the career club the champion and the Champions
+    League holder at season 1's end). Season 1: 4 friendlies, THEN the FA COMMUNITY SHIELD (the real 2026 edition,
+    week 59) - all 4 fit although the world starts in August; season 2 (from the save): 4 friendlies, THEN the UEFA
+    SUPER CUP (week 58), THEN the FA COMMUNITY SHIELD (week 59): slot-4 order friendlies -> UEFA SC -> national
+    supercup, each on its own week's row (nobody waits), every row with its own label; 2 home + 2 away and the
+    strength mix in both seasons"""
+    u, e = fr_sc('uefa'), fr_sc('eng')
+    return fr_two('eng', 'world_preseason_eng', env={'GPLAY_FORCE': '1', 'USC_FORCE': '1'}, given='FR_F1_BUILD',
+                  others=([e + (59,)], [u + (58,), e + (59,)]), weeks=FR['WEEKS'].get('eng'))
+
+
+@scenario
+def world_preseason_uscs1():
+    """4.2 friendlies in SEASON 1 at a UEFA Super Cup club (MC's addendum 16/11; skeleton: SKIP until the engine): a
+    PARIS-SG career, no test switch (release data: the real 2026 pairs, as world_sc_uefa_s1). Season 1: ALL 4
+    friendlies, THEN the UEFA SUPER CUP v ASTON VILLA (week 58), THEN the TROPHEE DES CHAMPIONS v LENS (week 59), each
+    once and in that order; no friendly on weeks 58 / 59; 2 home + 2 away, 1 stronger / 2 similar / 1 weaker; every
+    slot-4 row with its own label; the season ends. (The club without a supercup is world_preseason.)"""
+    u, f = fr_sc('uefa'), fr_sc('fra')
+    return fr_two('usc', 'world_preseason', others=([u + (58,), f + (59,)],), seasons=1, weeks=FR['WEEKS'].get('fra'))
+
+
+@scenario
+def world_preseason_bra():
+    """4.2 friendlies in a calendar-year league (skeleton: SKIP until the engine): a FLAMENGO career, season 1, no test
+    switch: 4 friendlies before the Brasileirao's first match day, their calendar rows on January weeks
+    (FR['JANUARY']: 8 weeks a month), opponents from outside Brazil (the non-European team files load in slot 4),
+    2 home + 2 away, the strength mix, labels, record line; the season ends"""
+    return fr_two('bra', 'world_preseason', seasons=1, weeks=FR['WEEKS'].get('bra') or FR['JANUARY'])
+
+
+@scenario
+def world_preseason_8485():
+    """4.2 friendlies in the Europe 1984-85 career world (MC 16/11; skeleton: SKIP until the engine): world_preseason's
+    checks (fr_check, both seasons) on world8485's default career (LIVERPOOL), the opponents from the 1984-85 world's own
+    table (the pick keyed by the world byte, 4): foreign, distinct, 2 home + 2 away, 1 / 2 / 1, the fees, the labels"""
+    return fr_two('8485', 'world_preseason_8485', weeks=FR['WEEKS'].get('8485'))
+
+
+FR_9697_SKIP = ('4.2 friendlies in the World 1996-97 (Davide 16/11): reserved - waits for the general team-cache fix '
+                '(Fable design) and the engine\'s 1996-97 path')
+
+
+@scenario
+def world_preseason_9697():
+    """RESERVED (SKIP): 4.2 friendlies in the World 1996-97 career world, world_preseason's checks on FR_TEAMS['9697'];
+    lands with the general team-cache fix (release may go to Sun 22)"""
+    raise Skipped(FR_9697_SKIP)
+
+
+@scenario
+def world_preseason_9697_cachefull():
+    """RESERVED (SKIP): the forced cache-full case - a World 1996-97 career whose team cache is filled to its limit by a
+    test switch before the season start, then the four friendlies' opponents loaded: no eviction of a needed team, no
+    exit (the team-cache fix's own forced case)"""
+    raise Skipped(FR_9697_SKIP)
+
+
+@scenario
+def world_preseason_cards():
+    """4.2 friendlies, CARD-RESTORE both ways, forced (skeleton: SKIP until the engine): a LIGORNA career on an
+    FR_FORCE test build (FR['FORCE_RED1']: a red card to a career-club player in friendly 1), season 1.
+    At the first pause the harness gives the player of place FR['BAN_PLACE'] + 1 a 1-match ban (cardsInjuries bit 0
+    poked in careerTeam: 'a league ban carried into the preseason'). The ban bits of the first 16 (cardsInjuries
+    bits 0-1, read from careerTeam at every match screen): (a) the red card happened and was undone (FR_CARD >= 1)
+    and at league match 1 NO player but the poked one is banned - the friendly's red is not served in the league;
+    (b) the poked ban is still there at every friendly and at league match 1 - no friendly served it - and is gone
+    at league match 2 (the league served it). Never a retry: the card is the switch, the ban is the poke"""
+    exe, fr = fr_exe('world_preseason_cards', env={FR['FORCE_ENV']: FR['FORCE_RED1']}, given='FR_CARDS_BUILD')
+    require(fr['card'] is not None, f"{exe}: no {FR['SYM_CARD']} trace (TODO(engine)): the forced red card cannot be proven")
+    ct, _, _ = fr_career_sites(exe)
+    q, done = FR['BAN_PLACE'], []
+
+    def hook(s, season, scr):
+        if season == 1 and not done and scr is not None:
+            at = s.result.base2 + ct + 76 + q * 38 + 27
+            was = s.result.read(at, 1)[0]
+            s.poke(at, bytes([was & 0xFC | 1]))
+            s.log.append(f'[fr cards] place {q + 1}: cardsInjuries {was:#04x} -> {was & 0xFC | 1:#04x} (a 1-match ban)')
+            done.append(was)
+
+    ok, msg, lines, keys = fr_season(os.environ.get('FR_TEAM_ITA') or FR_TEAMS['ita'], exe, fr, hook=hook)
+    errs, info = [], []
+    check(ok, msg, errs)
+    require(done, 'the ban poke never ran (no pause in season 1)')
+    ms, last = fr_timeline(lines, keys)
+    frs = [m for m in ms if m['friendly']]
+    lg = [m for m in ms if not m['friendly']]
+    require(len(frs) == 4 and len(lg) >= 2, f'{len(frs)} friendlies and {len(lg)} other matches seen (want 4 and >= 2): '
+            f'the card cases need the natural flow (world_preseason first)')
+    want = [1 if k == q else 0 for k in range(16)]
+    seq = [(f'friendly {k + 1}', fr_bans(m['at'].get('ct'))) for k, m in enumerate(frs)] + \
+          [('league match 1', fr_bans(lg[0]['at'].get('ct')))]
+    require(seq[0][1] == want, f'ban bits at friendly 1 {seq[0][1]} != the poke\'s {want} (a ban from elsewhere, or '
+            f'the poke was overwritten at the season start)')
+    card = last.get('card', b'\0')[0]
+    check(card >= 1, f'(a) {FR["SYM_CARD"]} {card}: the forced red card was never undone (not given, or not restored)', errs)
+    for what, b in seq[1:]:
+        check(b == want, f'{what}: ban bits {b} != {want} ((a) a friendly\'s card carried over, or (b) the league ban '
+              f'served by a friendly)', errs)
+    b2 = fr_bans(lg[1]['at'].get('ct'))
+    check(b2 is not None and b2[q] == 0, f'(b) league match 2: the poked ban of place {q + 1} still there ({b2}) - '
+          f'league match 1 did not serve it', errs)
+    return not errs, '; '.join(errs) or (f'red card forced in friendly 1, undone ({FR["SYM_CARD"]} {card}): nobody banned at '
+                                         f'league match 1 but place {q + 1}; its ban kept through 4 friendlies, served by '
+                                         f'league match 1; {msg[:60]}')
+
+
+@scenario
+def world_preseason_reload():
+    """4.2 friendlies across a save (skeleton: SKIP until the engine): a LIGORNA career saved as soon as a friendly is
+    built in slot 4 (W8485_MIDSAVE on FR_TRACE = 1; without the trace: FR_ST's played count 1 held two pauses), then
+    loaded and played to the season's end: slot 4 still holds the friendly after the load (its buffer carries the
+    name), FR_ST's four opponents are the saved ones, the friendlies before the save + after the load are exactly 4,
+    none twice, in FR_ST's order; the rest of fr_check on the loaded season; the season ends"""
+    exe, fr = fr_exe('world_preseason')
+    team = os.environ.get('FR_TEAM_ITA') or FR_TEAMS['ita']
+    mid = f'{fr["trace"][1]:x}:1:1' if fr['trace'] and fr['trace'][0] == 2 else f'{fr["st"] + FR["ST_IDX"]:x}:1:2'
+    ok, msg, l1, keys = fr_season(team, exe, fr, W8485_MIDSAVE=mid)
+    if not ok:
+        return False, f'season 1 to the built friendly: {msg}'
+    car = os.path.join(RUNS, 'fr_reload_mid.CAR')
+    shutil.copy(msg.split(': ', 1)[1], car)
+    m1, last1 = fr_timeline(l1, keys)
+    require('st' in last1, 'FR_ST not logged before the save')
+    st1 = fr_state(last1['st'])
+    played = [m for m in m1 if m['friendly']]
+    slot4 = SLOT - 0x443
+    ok, msg, l2, keys = fr_season(team, exe, fr, 2, W8485_FROM=car, W8485_HEX=f'{slot4:x}:48')
+    errs, info = [], []
+    check(ok, f'after the load: {msg}', errs)
+    s4 = next((bytes.fromhex(ln.split()[2]) for ln in l2 if ln.startswith(f'HEX {slot4:x} ')), b'')
+    check(FR_NAMES.get(UI, FR_NAMES['it'])[0].encode() in s4.upper(), f'slot 4 after the load: {s4[:40]}', errs)
+    f2 = fr_check(exe, fr, l2, keys, errs, info, 1, loaded=(len(played), st1['opp']), weeks=FR['WEEKS'].get('ita'))
+    check(f2['opp'] == st1['opp'][:4], f'opponents after the load {[hex(o) for o in f2["opp"]]} != the saved '
+          f'{[hex(o) for o in st1["opp"]]}', errs)
+    return not errs, '; '.join(errs) or f'saved with a friendly built ({len(played)} played); ' + '; '.join(info)
+
+
+@scenario
+def world_preseason_oldsave():
+    """4.2 friendlies on an older career (skeleton: SKIP until the engine): season 1 of an INTER career on the 4.1.2
+    release exe (FR_OLD, default c/REL412c/SWOS: no friendlies), its save (the career already in season 2: FR_ST
+    loaded as zeros) played on by this build - season 2: no hang, the season ends, 0 or 4 friendlies (FR['OLD_SEASON2']:
+    TODO(engine) says which; never 1-3, never after a league match) - then season 3 from that season's save: the
+    season start builds the friendlies - 4 before league week 1, the whole fr_check"""
+    exe, fr = fr_exe('world_preseason')
+    old = os.environ.get('FR_OLD') or os.path.join(MAIN, 'c', 'REL412c', 'SWOS')
+    if not os.path.isdir(old):
+        raise Skipped(f'old release {old} missing (FR_OLD)')
+    require(fr_syms(old) is None, f'{old} already has the friendlies: not an old save\'s exe')
+    team = os.environ.get('FR_TEAM_OLD') or FR_TEAMS['old']
+    ok, msg, _ = sc_season(team, dict(W8485_BUILD=old))
+    car = fr_next_save('oldsave_s1')
+    if not ok or car is None:
+        return False, f'old exe, season 1: {msg}'
+    errs, info = [], []
+    ok, msg, l2, keys = fr_season(team, exe, fr, 2, W8485_FROM=car)
+    check(ok, f'season 2 on this build: {msg}', errs)
+    m2, _ = fr_timeline(l2, keys)
+    n2 = sum(m['friendly'] for m in m2)
+    okn = (0, 4) if FR['OLD_SEASON2'] is None else (FR['OLD_SEASON2'],)
+    check(n2 in okn and all(m['friendly'] for m in m2[:n2]), f'season 2 (the old save\'s running season): {n2} '
+          f'friendlies (want {okn}), first screens {[m["title"] for m in m2[:5]]}', errs)
+    car3 = fr_next_save('oldsave_s2', from_run=True)
+    if not ok or car3 is None:
+        return False, '; '.join(errs + ['season 2: no save for season 3'])
+    ok, msg, l3, keys = fr_season(team, exe, fr, 2, W8485_FROM=car3)
+    check(ok, f'season 3: {msg}', errs)
+    fr_check(exe, fr, l3, keys, errs, info, 3, weeks=FR['WEEKS'].get('ita'))
+    return not errs, '; '.join(errs) or f'4.1.2 save: season 2 with {n2} friendlies; ' + '; '.join(info)
+
+
+@scenario
+def world_preseason_names():
+    """4.2 friendlies, the names (skeleton: SKIP until the engine). No game run: AMICHEVOLE / FRIENDLY / AMICAL /
+    TESTSPIEL and the record labels of ALL 4 languages fit their bars (calendar label 70 px, VISUAL. COMPETIZ. button,
+    34-byte title, record line) with the font's characters only (fr_name_errs). In game, the exe's language
+    (SWOSTEST_UI=it|en|fr|de: the gate runs the scenario once per language): a LIGORNA career's season 1 - the 4 match
+    screens' titles, the fixture list's slot-4 rows (label_check: the label read from the game's memory, never another
+    contest's text), VISUAL. COMPETIZ.'s rows and the record line show that language's name, as drawn"""
+    static = fr_name_errs()                     # (the table itself: checked before the Skip too - a wrong name costs
+    if static:                                  # nothing to find today)
+        return False, '; '.join(static)
+    exe, fr = fr_exe('world_preseason')
+    long_, short = FR_NAMES.get(UI, FR_NAMES['it'])
+    raw = open(os.path.join(exe, 'ITALIAN.EXE'), 'rb').read()
+    errs, info = [], []
+    check(long_.encode('latin-1') in raw and short.encode('latin-1') in raw,
+          f'{UI}: {long_!r} / {short!r} not in the exe built for that language', errs)
+    ok, msg, lines, keys = fr_season(os.environ.get('FR_TEAM_ITA') or FR_TEAMS['ita'], exe, fr)
+    check(ok, msg, errs)
+    f = fr_check(exe, fr, lines, keys, errs, info, 1, weeks=FR['WEEKS'].get('ita'))
+    errs += sc_labels(lines, want=long_)        # (the career menu's fixture list shows it; no other contest's text)
+    other = [n for lg, (n, s_) in FR_NAMES.items() if lg != UI and n not in (long_, short)]
+    seen = sorted({n for n in other for ln in lines if ln.startswith('[slot4row] ') and ln.endswith(' ' + n)})
+    check(not seen, f'{UI}: slot-4 rows with another language\'s name {seen}', errs)
+    return not errs, '; '.join(errs) or (f'{UI}: {long_} on 4 match screens, {short} on weeks {f["weeks"]}, record line '
+                                         f'{FR_RECORD.get(UI, FR_RECORD["it"])}: {"-".join(map(str, f["wdl"]))}; 4 languages '
+                                         f'fit their bars, font characters only')
+
+
+def fr_syms(exe_dir):
+    """4.2 friendlies (FRND), the ONE reader of a build's friendlies symbols (MC 17/11: the skeleton's stub and the
+    engine's reader were two functions of this name). None: the build at exe_dir has no friendlies test symbols (no
+    ITALIAN / ENGLISH .syms.json, or no 'frnd' module with FR_TRACE in it - an exe without FRND, or a release exe).
+    Else one dict with both views:
+      - the engine's names: {name: (obj, offset)} of every frnd.py label (FR_ST in obj2; FR_TRACE / FR_FEE / FR_G /
+        FR_FB / FR_GIVENW / FR_CHOOSE ... in obj4's FRND band) + finance's NEWBAL (obj2) and FF_INC (obj3: the season's
+        gate receipts, fi_gate's sum);
+      - the scenarios' keys (the FR table's names): 'st' = FR_ST's obj2 offset, 'trace' / 'str' / 'fee' / 'g' / 'card' /
+        'fb' = (obj, offset) or None when the engine has no such trace, 'force' = the build has FR['SYM_FORCE'],
+        'syms' = True."""
+    p = next((os.path.join(exe_dir, x) for x in ('ITALIAN.syms.json', 'ENGLISH.syms.json')
+              if os.path.isfile(os.path.join(exe_dir, x))), None)
     d = json.load(open(p)) if p else {}
     f = d.get('frnd')
-    if not f or 'FR_TRACE' not in f:
+    if not f or 'FR_TRACE' not in f or FR['SYM_ST'] not in f:
         return None
     out = {k: tuple(v) for k, v in f.items()}
+    assert out[FR['SYM_ST']][0] == 2, ('fr_syms: FR_ST not in obj2', out[FR['SYM_ST']])
     out['NEWBAL'] = (2, f['FR_D6BA2'][1] - 0x3A)   # (finance.py: D6B9E = b9a + 4, NEWBAL = b9a - 32h; FR_D6BA2 = D6B9E + 4)
     ff = d.get('finance', {}).get('FF_INC')
     if ff:
         out['FF_INC'] = (3, ff[1])                  # (finance.py's FF_ST block in obj3: ffp.py sym[k] = (3, LABELS[k]))
+    at = lambda name: tuple(f[name][:2]) if name in f else None
+    out.update(st=out[FR['SYM_ST']][1], trace=at(FR['SYM_TRACE']), str=at(FR['SYM_STR']), fee=at(FR['SYM_FEE']),
+               g=at(FR['SYM_G']), card=at(FR['SYM_CARD']), fb=at(FR['SYM_FB']), force=FR['SYM_FORCE'] in f, syms=True)
     return out
 
 
@@ -37709,7 +38404,7 @@ def world_ns():
 
 
 
-def new_career(s, country, league, team, continent='EUROPA', original=False):
+def new_career(s, country, league, team, continent='EUROPA', original=False, note=True):
     """Main menu -> CARRIERA -> SCEGLI SQUADRA -> continent -> country -> league -> team -> the
     chairman's note -> career menu. original=True: the 1996-97 CARRIERA (career_entry) even where the green
     CARRIERA 2026-27 button exists - else a plain 'CARRIERA' takes the green one on such builds (the callers that
@@ -37740,7 +38435,8 @@ def new_career(s, country, league, team, continent='EUROPA', original=False):
         scr = s.screen()
         team = next(i for i, t, inv, _ in scr.entries if t and not inv and i and scr.path(i) is not None)
     walk(s, team, 3)
-    s.send('fire dump:3')
+    if note:                                    # (note=False: stop on what the season start shows first - 4.2: the
+        s.send('fire dump:3')                   #  friendlies' chooser page, then the chairman's note)
 
 
 def league_table(r, base, n):
@@ -45081,6 +45777,445 @@ def gk_gloves_dark():
         s.shot('gloves_dark')
         kits_check('glv_dark', s, kb, sgp, 1 if gw == 0 else 0, errs, info)
     return not errs, '; '.join(errs + info)
+
+
+def frc_sites(exe_dir):
+    """4.2 friendlies chooser (frchoose.py) in a built exe: {'pg': (4, off) of the page's descriptor after 'FCPG' (5
+    dwords, linear once loaded: FC_SEL, FC_TRACE, FC_NAME, FC_K, FC_MENU), 'pb': the test caller's after 'FCPB'
+    (FRC_PROBE builds: FCP_ESP, FCP_DONE, _STACKLOW's address, given[4], venues dword, FR_ST 16 B) or None}"""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import lepatch
+    p = lepatch.LEPatch(os.path.join(exe_dir, 'ITALIAN.EXE'))
+    d4 = bytes(p.get(4, 0, 0x1000 * p.le.obj(4).npages))
+    require(d4.count(b'FCPG') == 1, f'frc_sites: {d4.count(b"FCPG")} FCPG descriptors in {exe_dir}')
+    return {'pg': (4, d4.index(b'FCPG') + 4), 'pb': (4, d4.index(b'FCPB') + 4) if d4.count(b'FCPB') == 1 else None}
+
+
+def frc_read(s, fs):
+    """the page's state from the paused game: FC_TRACE, FC_K, FrcSel (club[4], level, venues, msg, out: word[4], home,
+    fb, band[4]); with the test caller: done, given[4], venues byte, FR_ST, esp, stacklow (linear)"""
+    r = s.result
+    sel, tr, _, kk, menu = struct.unpack('<5I', bytes(r.read(r.lin(fs['pg']), 20)))
+    d = bytes(r.read(sel, 34))
+    v = {'trace': r.read(tr, 1)[0], 'k': struct.unpack('<I', bytes(r.read(kk, 4)))[0], 'menu': menu,
+         'club': struct.unpack_from('<4H', d, 4), 'level': d[12], 'venues': d[13],
+         'msg': struct.unpack_from('<b', d, 14)[0], 'word': struct.unpack_from('<4H', d, 16), 'home': d[24],
+         'fb': d[25], 'band': tuple(d[26:30])}
+    if fs['pb']:
+        b = bytes(r.read(r.lin(fs['pb']), 40))
+        esp, done, lowp = struct.unpack_from('<3I', b, 0)
+        v.update(esp=esp, done=done, low=struct.unpack('<I', bytes(r.read(lowp, 4)))[0],
+                 given=struct.unpack_from('<4H', b, 12), ven=b[20], frst=b[24:40])
+    return v
+
+
+def frc_stack(s, v):
+    """(free, used): bytes of the game's stack never written since the test caller's A5h fill (_STACKLOW up to the
+    lowest byte that is no longer A5h), and the bytes used below the caller's esp (None: the fill was not made)"""
+    lo, top = v['low'], v['esp'] - 64
+    if not (0 < lo < top and top - lo < 0x10000):
+        return None, None
+    d = bytes(s.result.box.dump(lo, top - lo))
+    k = next((i for i, x in enumerate(d) if x != 0xA5), len(d))
+    return k, len(d) - k + 64
+
+
+def fr_page_on(s):
+    """The friendlies' season-start page can show in this session's exe (4.2 FRCH linked): its title in any language is
+    in the exe's bytes. Read once per session; False = fr_page_pass costs nothing (FRCH not linked, old builds,
+    SWOS++); True with FRCH linked even without FRND (one screen read per dump: no measurable cost, frpage_smoke)."""
+    if not hasattr(s, '_frpage_on'):
+        s._frpage_on = False
+        try:
+            import frchoose
+            exe = open(os.path.join(s.run, 'SWOS', 'ITALIAN.EXE'), 'rb').read()
+            s._frpage_on = any(t.encode('latin-1') in exe for t in frchoose.TITLE.values())
+        except (ImportError, OSError):
+            pass
+    return s._frpage_on
+
+
+def fr_page_pass(s):
+    """4.2 friendlies (c), one harness step for every career scenario (MC 16/11, agreed with the Chooser): if the
+    screen is the friendlies' season-start page (FRCH: frchoose.TITLE and its FC_NE entries; the club browser's title
+    is PICK + area, never TITLE), leave it the player's default way - the cursor on CONTINUE (FC_E_GO), fire: the
+    engine's automatic pick. Run by Session.send() after every dump unless s.frpage_keep (the scenarios that drive the
+    page: frchoose_*, world_preseason_*); the page only follows the season-start step (a new career, CONTINUA CARRIERA
+    into a new season), never a load. True = a page was passed (the scenario goes on from the next screen)."""
+    if not fr_page_on(s):
+        return False
+    import frchoose
+    d = frchoose.cdefs()
+    titles = set(frchoose.TITLE.values())
+    s._frpage_busy = True
+    try:
+        passed = False
+        for _ in range(3):
+            scr = s.screen()
+            if scr.n != d['FC_NE'] or not scr.raw_texts or scr.raw_texts[0] not in titles:
+                break
+            frc_goto(s, d['FC_E_GO'])
+            s.send('fire dump:3')
+            passed = True
+            s.frpage_n = getattr(s, 'frpage_n', 0) + 1
+        if passed:
+            s.log.append(f'[frpage] passed ({s.frpage_n} so far)')
+        return passed
+    finally:
+        s._frpage_busy = False
+
+
+def frc_goto(s, i, tries=12):
+    """the cursor on entry i (one key at a time, re-planned), no fire; the screen"""
+    for _ in range(tries):
+        scr = s.screen()
+        if scr.selected == i:
+            return scr
+        p = scr.path(i)
+        require(p, f'frc_goto: no path to {i} from {scr.selected} ({scr})')
+        s.send(p[0] + ' dump:0.5')
+    raise SetupError(f'frc_goto: entry {i} not reached ({s.screen()})')
+
+
+def frc_rows(scr, e0=6):
+    """the page's 4 rows as drawn: [(venue, club, band, figure, club box colour, band box colour)]"""
+    return [(scr.raw_texts[e0 + 4 * k], scr.raw_texts[e0 + 4 * k + 1], scr.raw_texts[e0 + 4 * k + 2],
+             scr.raw_texts[e0 + 4 * k + 3], scr.colors[e0 + 4 * k + 1], scr.colors[e0 + 4 * k + 2]) for k in range(4)]
+
+
+@scenario
+def frchoose_probe():
+    """4.2 friendlies chooser (frchoose.py), the season-start probe before the engine's hook exists: a FRC_PROBE=1
+    build (the test caller in place of InitializeNewSeason's `call cseg_3D204`, world 0's table embedded). A new
+    1996-97 career (UDINESE): the page is shown before the chairman's note (FC_TRACE bit 0, title, AUTOMATIC row,
+    4 rows with club / venue 2 + 2 / band / figure 1-5, the cursor on CONTINUE); RIGHT on the level row (the next
+    level's text, the rows repainted) and LEFT back; FIRE on row 1's venue (still 2 + 2, the row flipped); FIRE on row
+    1's club -> the game's club browser under the page's title, EUROPA > GERMANIA > 1. LIGA: every listed club in a
+    band colour or grey, one accepted club fired -> back on the page, the row shows it as chosen; row 2's browser left
+    by ESCI: the row unchanged; CONTINUE -> frc_choose returned once with given[0] = the club, the others automatic,
+    the venues' mask, the level's bits in FR_ST; then the chairman's note and the career menu. The stack's low-water
+    mark (A5h fill from _STACKLOW) on the page and with the club list open: at least FRC_STACK_MIN (512) B never
+    touched. Screenshots: page, level, list, chosen."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import frchoose
+    errs, notes = [], []
+    b = build(f'frc_probe_{UI}', env={'FRC_PROBE': '1'}, lang=UI)
+    fs = frc_sites(b)
+    require(fs['pb'], 'frchoose_probe: the build has no test caller (FCPB)')
+    d = frchoose.cdefs()
+    E, LVL, GO = d['FC_E_ROW'], d['FC_E_LVL'], d['FC_E_GO']
+    ven, bands = frchoose.VEN[UI], frchoose.BAND[UI]
+    bcol = {bands[0]: d['FC_C_STRONG'], bands[1]: d['FC_C_SIMIL'], bands[2]: d['FC_C_WEAK']}
+    smin = int(os.environ.get('FRC_STACK_MIN', '512'))
+
+    def page(tag, level=None):
+        """the page's common oracles; (screen, state, rows) or None"""
+        scr, v = s.screen(), frc_read(s, fs)
+        if not check(scr.n == d['FC_NE'] and scr.raw_texts[0] == frchoose.TITLE[UI],
+                     f'{tag}: not the page: {scr.n} entries, {scr}', errs):
+            return None
+        rows = frc_rows(scr, E)
+        check(v['trace'] & 1, f'{tag}: FC_TRACE {v["trace"]:#x}: bit 0 clear', errs)
+        check(scr.raw_texts[d['FC_E_LVLL']] == frchoose.LVLL[UI] and scr.raw_texts[GO] == frchoose.GO[UI],
+              f'{tag}: labels {scr.raw_texts[d["FC_E_LVLL"]]!r} / {scr.raw_texts[GO]!r}', errs)
+        if level is not None:
+            check(v['level'] == level and scr.raw_texts[LVL] == frchoose.LVL[UI][level],
+                  f'{tag}: level {v["level"]} drawn {scr.raw_texts[LVL]!r}, expected {level} {frchoose.LVL[UI][level]!r}', errs)
+        check(all(r[1] for r in rows) and len({r[1] for r in rows}) == 4, f'{tag}: the rows\' clubs {rows}', errs)
+        check(sorted(r[0] for r in rows) == sorted(ven * 2), f'{tag}: venues not 2 + 2: {[r[0] for r in rows]}', errs)
+        check(all(r[0] == ven[0 if v['home'] >> k & 1 else 1] for k, r in enumerate(rows)),
+              f'{tag}: venues drawn {[r[0] for r in rows]} against home mask {v["home"]:#x}', errs)
+        check(all(r[2] in bcol and r[5] == bcol[r[2]] for r in rows), f'{tag}: band boxes {rows}', errs)
+        check(all(r[3] in '12345' and len(r[3]) == 1 for r in rows), f'{tag}: figures {[r[3] for r in rows]}', errs)
+        check(all(r[4] == (d['FC_C_AUTO'] if v['club'][k] == 0xFFFF else d['FC_C_CHOSEN']) for k, r in enumerate(rows)),
+              f'{tag}: club box colours {[hex(r[4]) for r in rows]} for chosen {v["club"]}', errs)
+        used = [bands[k] in {r[2] for r in rows} for k in range(3)] + [any(c != 0xFFFF for c in v['club'])]
+        leg = [d['FC_E_LEG'] + k for k in range(3)] + [d['FC_E_LEGC']]
+        shown = [e for e in leg if not scr.entries[e][2]]
+        check([not scr.entries[e][2] for e in leg] == used, f'{tag}: legend boxes shown '
+              f'{[not scr.entries[e][2] for e in leg]}, painted {used} (bands, chosen)', errs)
+        check([scr.geom[e][0] for e in shown] == [d['FC_LEG_X'] + d['FC_LEG_DX'] * j for j in range(len(shown))] and
+              [scr.raw_texts[e] for e in leg] == list(bands) + [frchoose.CHO[UI]] and
+              [scr.colors[e] for e in leg] == [bcol[x] for x in bands] + [d['FC_C_CHOSEN']],
+              f'{tag}: legend x {[scr.geom[e][0] for e in shown]}, texts {[scr.raw_texts[e] for e in leg]}, colours '
+              f'{[hex(scr.colors[e]) for e in leg]}', errs)
+        s.shot(tag)
+        notes.append(f'{tag}: level {v["level"]} rows {[r[:4] for r in rows]} msg {scr.raw_texts[d["FC_E_MSG"]]!r}')
+        return scr, v, rows
+
+    def stack(tag, v):
+        free, used = frc_stack(s, v)
+        if check(free is not None, f'{tag}: no stack fill (esp {v["esp"]:#x}, _STACKLOW {v["low"]:#x})', errs):
+            check(free >= smin, f'{tag}: only {free} B of the stack never touched (< {smin})', errs)
+            notes.append(f'{tag}: stack {free} B never touched, {used} B used below the caller (room at the call '
+                         f'{v["esp"] - v["low"]} B)')
+
+    with Session(f'frchoose_probe_{UI}', b, {}, 'dump:2', 600) as s:
+        s.frpage_keep = True                  # (drives the friendlies page itself: no fr_page_pass)
+        if s.wait().outcome != 'dump':
+            return False, f'no first pause ({s.result})'
+        w9697(s)
+        new_career(s, 'ITALIA', 'SERIE A', 'UDINESE', original=True, note=False)
+        got = page('page', 0)
+        if not got:
+            return False, '; '.join(errs)
+        scr, v0, rows0 = got
+        check(scr.selected == GO, f'page: the cursor on {scr.selected}, not CONTINUE ({GO})', errs)
+        check(v0['done'] == 0 and v0['k'] == 4, f'page: done {v0["done"]}, FC_K {v0["k"]}', errs)
+        stack('page', v0)
+        # the level row
+        frc_goto(s, LVL)
+        s.send('right dump:1')
+        got = page('level', 1)
+        s.send('left dump:1')
+        got = page('level_back', 0)
+        check(got and got[2] == rows0, f'level_back: rows {got and got[2]} differ from the opening {rows0}', errs)
+        # the venue swap
+        frc_goto(s, E)
+        s.send('fire dump:1')
+        got = page('venue', 0)
+        check(got and got[2][0][0] != rows0[0][0] and got[1]['venues'] != 0xFF,
+              f'venue: row 1 {got and got[2][0][0]!r} (was {rows0[0][0]!r}), mask {got and got[1]["venues"]:#x}', errs)
+        # the club browser from row 1
+        frc_goto(s, E + 1)
+        s.send('fire dump:3')
+        scr = s.screen()
+        check(scr.raw_texts[0].startswith(frchoose.PICK[UI] + ' - '), f'browser: title {scr.raw_texts[0]!r}, not '
+              f'{frchoose.PICK[UI]!r} + the area: {scr}', errs)
+        check(frc_read(s, fs)['k'] == 0, f'browser: FC_K {frc_read(s, fs)["k"]}', errs)
+        for t in ('EUROPA', 'GERMANIA', '1. LIGA'):
+            walk(s, t, 3)
+        scr = s.screen()
+        lst = [(i, scr.raw_texts[i], scr.colors[i]) for i in range(d['FC_LIST0'], min(d['FC_LIST1'], scr.n))
+               if not scr.entries[i][2] and scr.raw_texts[i]]
+        ok_cols = set(bcol.values()) | {d['FC_C_NO']}
+        check(len(lst) >= 10 and all(c in ok_cols for _, _, c in lst), f'list: colours {[(t, hex(c)) for _, t, c in lst]}', errs)
+        seen = [c in {x for _, _, x in lst} for c in (bcol[x] for x in bands)]      # the list's legend row
+        lb, lt = d['FC_LL_BOX'], d['FC_LL_TEXT']
+        check([not scr.entries[lb + k][2] for k in range(3)] == seen and [not scr.entries[lt + k][2] for k in range(3)] == seen
+              and all(scr.colors[lb + k] == bcol[bands[k]] and scr.raw_texts[lt + k] == bands[k] for k in range(3) if seen[k]),
+              f'list: legend row shown {[not scr.entries[lb + k][2] for k in range(3)]} for the bands listed {seen}: '
+              f'{[(scr.raw_texts[lt + k], hex(scr.colors[lb + k]), scr.geom[lb + k][0]) for k in range(3)]}', errs)
+        s.shot('list')
+        stack('list', frc_read(s, fs))
+        notes.append('list: ' + ' '.join(f'{t}:{c:X}' for _, t, c in lst))
+        pick = next(((i, t) for i, t, c in lst if c != d['FC_C_NO']), None)
+        if check(pick, 'list: no accepted club in 1. LIGA', errs):
+            walk(s, pick[0], 3)
+            for _ in range(3):                      # (the game's dialog may ask to confirm: logged, then fired)
+                if s.screen().raw_texts[:1] == [frchoose.TITLE[UI]]:
+                    break
+                notes.append(f'after the pick: {s.screen()}')
+                s.send('fire dump:3')
+            got = page('chosen', 0)
+            if got:
+                check(got[2][0][1] == pick[1] and got[1]['club'][0] != 0xFFFF and got[1]['word'][0] == got[1]['club'][0]
+                      and got[1]['k'] == 4, f'chosen: row 1 {got[2][0]} for {pick[1]!r}, state {got[1]}', errs)
+                check(got[1]['msg'] == 0 and not got[0].raw_texts[d['FC_E_MSG']], f'chosen: message '
+                      f'{got[0].raw_texts[d["FC_E_MSG"]]!r} ({got[1]["msg"]})', errs)
+                rows1 = got[2]
+                # row 2's browser left by ESCI
+                frc_goto(s, E + 5)
+                s.send('fire dump:3')
+                for _ in range(12):                 # (the browser's first screen: ABBANDONA, below the continents -
+                    scr = s.screen()                #  links through hidden entries, which the game skips itself)
+                    if scr.selected is not None and scr.entries[scr.selected][1] == 'ABBANDONA':
+                        break
+                    s.send('down dump:0.5')
+                require(scr.entries[scr.selected][1] == 'ABBANDONA', f'esci: ABBANDONA not reached ({scr})')
+                s.send('fire dump:3')
+                got = page('esci', 0)
+                check(got and got[2] == rows1 and got[1]['k'] == 4, f'esci: rows {got and got[2]} (were {rows1})', errs)
+                stack('esci', frc_read(s, fs))
+        # CONTINUE
+        scr = s.screen()
+        if scr.raw_texts[:1] == [frchoose.TITLE[UI]]:
+            vp = frc_read(s, fs)
+            frc_goto(s, GO)
+            s.send('fire dump:3')
+            v = frc_read(s, fs)
+            scr = s.screen()
+            check(v['done'] == 1, f'continue: frc_choose returned {v["done"]} times; screen {scr}', errs)
+            check(v['given'] == vp['club'] and v['ven'] == vp['venues'] and v['frst'][11] >> 6 == vp['level'],
+                  f'continue: given {v["given"]} venues {v["ven"]:#x} FR_ST {v["frst"].hex()} for the page\'s '
+                  f'{vp["club"]} / {vp["venues"]:#x} / level {vp["level"]}', errs)
+            notes.append(f'continue: given {[hex(x) for x in v["given"]]} venues {v["ven"]:#x}; then {scr.texts()[:6]}')
+            s.shot('after')
+            for _ in range(3):
+                if 'TRASFERIMENTI' in s.screen().texts():
+                    break
+                s.send('fire dump:3')
+            check('TRASFERIMENTI' in s.screen().texts(), f'no career menu after the page: {s.screen()}', errs)
+            stack('career', frc_read(s, fs))
+        else:
+            errs.append(f'not on the page before CONTINUE: {scr}')
+    return not errs, '; '.join(errs + notes)
+
+
+def frc_world_build(tag='frc_engine'):
+    """the World 2026-27 exe with the friendlies engine and the chooser page (FRND=1 FRCHOOSE=1, test symbols), as
+    world_friendlies' build + the page; FRC_BUILD = a prebuilt dir. None: the private world data is missing."""
+    if os.environ.get('FRC_BUILD'):
+        return os.environ['FRC_BUILD']
+    src = world_data()
+    if not os.path.isdir(src):
+        return None
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    return build(f'{tag}_{UI}', env={'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]),
+                                     'FRND': '1', 'FRCHOOSE': '1', 'HOSTTEST_SYMS': '1'}, lang=UI)
+
+
+@scenario
+def frchoose_engine():
+    """4.2 friendlies chooser S1, on the REAL engine (FRND + FRCH in a World 2026-27 build): a new career (LAZIO) -
+    the page is shown at the season start by the engine's hook (title, 4 rows with 4 clubs, venues 2 + 2, the cursor on
+    CONTINUE, FR_ST not written yet for this season); RIGHT on AUTOMATIC until the last level (HARD): the text and the
+    rows follow; CONTINUE -> FR_ST: this season, 0 played, FR_OPEN set, the four words and the home flags = the page's
+    last preview, FR_LEVEL = 3 (the engine's installing fr_pick agrees with the page's preview: one pick); then the
+    career menu, where the engine has built friendly 1 (FR_TRACE 2xh, no failure code 8xh). Screenshots: page, hard."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import frchoose
+    errs, notes = [], []
+    b = frc_world_build()
+    if b is None:
+        return True, 'SKIP: private World 2026-27 data missing'
+    fs, sy = frc_sites(b), fr_syms(b)
+    require(sy and 'FR_ST' in sy, f'frchoose_engine: no frnd test symbols in {b} (FRND=1 HOSTTEST_SYMS=1 build)')
+    d = frchoose.cdefs()
+    E, LVL, GO = d['FC_E_ROW'], d['FC_E_LVL'], d['FC_E_GO']
+    ven = frchoose.VEN[UI]
+    rd = lambda a, n: bytes(s.result.read(s.result.lin(a), n))
+    with Session(f'frchoose_engine_{UI}', b, {}, 'dump:2', 600) as s:
+        s.frpage_keep = True                  # (drives the friendlies page itself: no fr_page_pass)
+        if s.wait().outcome != 'dump':
+            return False, f'no first pause ({s.result})'
+        set_world(s, 0)                       # (the main menu's world switch on the World 2026-27, as world8485)
+        new_career(s, 'ITALIA', 'SERIE A', 'LAZIO', note=False)
+        scr = s.screen()
+        if not check(scr.n == d['FC_NE'] and scr.raw_texts[0] == frchoose.TITLE[UI],
+                     f'page: not the friendlies page after the new career: {scr}', errs):
+            ch = rd(sy['FR_CHOOSE'], 4).hex() if 'FR_CHOOSE' in sy else '?'    # (why: the engine's and the page's traces)
+            return False, '; '.join(errs) + (f' [FR_ST {rd(sy["FR_ST"], 12).hex()}, FR_TRACE {rd(sy["FR_TRACE"], 1)[0]:02x}, '
+                                             f'FR_CHOOSE {ch}, FC_TRACE {frc_read(s, fs)["trace"]:#x}, slot '
+                                             f'{rd((4, fs["pg"][1] - 4 - 0), 4)!r}]')
+        v, rows, st0 = frc_read(s, fs), frc_rows(scr, E), rd(sy['FR_ST'], 12)
+        check(scr.selected == GO, f'page: the cursor on {scr.selected}, not CONTINUE ({GO})', errs)
+        check(v['level'] == 0 and scr.raw_texts[LVL] == frchoose.LVL[UI][0], f'page: level {v["level"]} '
+              f'{scr.raw_texts[LVL]!r}, want 0 (a new career: FR_ST {st0.hex()})', errs)
+        check(all(r[1] for r in rows) and len({r[1] for r in rows}) == 4 and len(set(v['word'])) == 4 and
+              0xFFFF not in v['word'], f'page: rows {rows}, words {v["word"]}', errs)
+        check(sorted(r[0] for r in rows) == sorted(ven * 2), f'page: venues not 2 + 2: {[r[0] for r in rows]}', errs)
+        check(not st0[1] & 8, f'page: FR_OPEN already set while the page is shown (FR_ST {st0.hex()})', errs)
+        s.shot('page')
+        notes.append(f'page: {[r[:4] for r in rows]}')
+        frc_goto(s, LVL)
+        for k in range(1, 4):                 # MIX -> EASY -> MEDIUM -> HARD
+            s.send('right dump:1')
+            scr, v = s.screen(), frc_read(s, fs)
+            check(v['level'] == k and scr.raw_texts[LVL] == frchoose.LVL[UI][k],
+                  f'level {k}: state {v["level"]}, drawn {scr.raw_texts[LVL]!r}', errs)
+        rows = frc_rows(scr, E)
+        check(len({r[1] for r in rows}) == 4 and v['msg'] == 0, f'hard: rows {rows}, message {v["msg"]}', errs)
+        s.shot('hard')
+        notes.append(f'hard: {[r[:4] for r in rows]} fb {v["fb"]:#x}')
+        vp = v
+        frc_goto(s, GO)
+        s.send('fire dump:3')
+        st, tr = rd(sy['FR_ST'], 12), rd(sy['FR_TRACE'], 1)[0]
+        words, fl = struct.unpack_from('<4H', st, 2), st[10] | st[11] << 8
+        check(st[0] != 0 and st[1] & 7 == 0 and st[1] & 8, f'continue: FR_ST {st.hex()}: want this season, 0 played, '
+              f'FR_OPEN (trace {tr:02x})', errs)
+        check(words == vp['word'] and fl & 15 == vp['home'], f'continue: the engine installed {[hex(w) for w in words]} '
+              f'home {fl & 15:#x}, the page previewed {[hex(w) for w in vp["word"]]} home {vp["home"]:#x}', errs)
+        check(fl >> 14 == 3, f'continue: FR_LEVEL {fl >> 14} in FR_ST {st.hex()}, want 3 (HARD)', errs)
+        for _ in range(4):
+            if 'TRASFERIMENTI' in s.screen().texts():
+                break
+            s.send('fire dump:3')
+        check('TRASFERIMENTI' in s.screen().texts(), f'no career menu after the page: {s.screen()}', errs)
+        st2, tr2 = rd(sy['FR_ST'], 12), rd(sy['FR_TRACE'], 1)[0]
+        check(tr2 & 0xF0 == 0x20, f'menu: FR_TRACE {tr2:02x}: friendly 1 not built at the first menu (2xh)', errs)
+        check(st2[2:10] == st[2:10] and st2[1] & 8, f'menu: FR_ST {st2.hex()} (after CONTINUE {st.hex()})', errs)
+        notes.append(f'FR_ST {st2.hex()}, trace {tr:02x} -> {tr2:02x}, opponents '
+                     f'{[team_name(b, w) or hex(w) for w in words]}')
+    return not errs, '; '.join(errs + notes)
+
+
+@scenario
+def frpage_smoke():
+    """4.2 friendlies (c): fr_page_pass, the one harness step that leaves the friendlies' season-start page in every
+    career scenario (Session.send's hook, MC 16/11). On a FRC_PROBE=1 build (the Chooser's test caller shows the page at
+    the season start, world 0's table) the UNCHANGED new_career() path - its last fire still meant for the chairman's
+    note - reaches the career menu with exactly one page passed ([frpage] in the log). FRPAGE_BUILD = another build
+    that shows the page (a FRND + FRCH build); FRPAGE_OFF=1: the same on today's plain build - none passed (FRCH linked
+    there: fr_page_on True, one screen read per dump, 15 s vs 17 s for the whole new career, 16/11)."""
+    errs, notes = [], []
+    off = os.environ.get('FRPAGE_OFF') == '1'
+    b = os.environ.get('FRPAGE_BUILD') or (ui_dir(builds()['it']) if off else
+                                          build(f'frc_probe_{UI}', env={'FRC_PROBE': '1'}, lang=UI))
+    t0 = time.time()
+    with Session(f'frpage_smoke_{UI}{"_off" if off else ""}', b, {}, 'dump:2', 300) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'no first pause ({s.result})'
+        new_career(s, 'ITALIA', 'SERIE A', 'UDINESE', original=True)
+        n = getattr(s, 'frpage_n', 0)
+        scr = s.screen()
+        check(n == (0 if off else 1), f'pages passed {n}, want {0 if off else 1} (fr_page_on {fr_page_on(s)})', errs)
+        for _ in range(3):
+            if 'TRASFERIMENTI' in s.screen().texts():
+                break
+            s.send('fire dump:3')
+        check('TRASFERIMENTI' in s.screen().texts(), f'no career menu after new_career: {s.screen()}', errs)
+        notes.append(f'pages passed {n}, page on {fr_page_on(s)}, {time.time() - t0:.0f} s; after new_career: '
+                     f'{scr.texts()[:4]}')
+    return not errs, '; '.join(errs + notes)
+
+
+@scenario
+def frchoose_outside():
+    """4.2 friendlies chooser, MC's proof of the club list hook (chooseTeamsFriendlyMenu's header, chained): outside
+    the page nothing changes. (a) An old career save (JUVE2F) loads to the career menu, the page not shown (FC_TRACE
+    0, FC_K 4). (b) A FRIENDLY from the main menu (1996-97: SQUADRE CLUB > EUROPA > GERMANIA > 1. LIGA, HAMBURG then
+    the next club): the club list before and after each pick - every entry's text, colour, visibility and box - is
+    the same in this build and in a FRCHOOSE=0 build of the same checkout (no band, the header untouched)."""
+    errs, notes = [], []
+    on, off = build(f'frc_on_{UI}', lang=UI), build(f'frc_off_{UI}', env={'FRCHOOSE': '0'}, lang=UI)
+    fs = frc_sites(on)
+    with Session(f'frc_oldsave_{UI}', on, {'JUVE2F.CAR': juve2(True)}, 'dump:2', 120) as s:
+        s.frpage_keep = True                  # (drives the friendlies page itself: no fr_page_pass)
+        if s.wait().outcome != 'dump':
+            return False, f'old save: no first pause ({s.result})'
+        s.send('down down down down down fire dump:2')
+        s.send('fire dump:3')
+        v = frc_read(s, fs)
+        check('TRASFERIMENTI' in s.screen().texts(), f'old save: no career menu after the load {s.screen()}', errs)
+        check(v['trace'] == 0 and v['k'] == 4, f'old save: FC_TRACE {v["trace"]:#x} FC_K {v["k"]}', errs)
+        notes.append(f'old save: career menu, FC_TRACE {v["trace"]} FC_K {v["k"]}')
+    snaps = {}
+    for tag, b in (('on', on), ('off', off)):
+        with Session(f'frc_friendly_{tag}_{UI}', b, {}, 'dump:2', 300) as s:
+            if s.wait().outcome != 'dump':
+                return False, f'friendly {tag}: no first pause ({s.result})'
+            w9697(s)
+            for t in ('AMICHEVOLE', 'OK', 'SCEGLI SQUADRE', 'SQUADRE CLUB', 'EUROPA', 'GERMANIA', '1. LIGA'):
+                walk(s, t, 2)
+            snap = lambda scr: [(scr.raw[i], scr.colors[i], scr.entries[i][2], scr.entries[i][3], scr.geom[i])
+                                for i in range(scr.n)]
+            scr = s.screen()
+            require(scr.find('HAMBURG', exact=True) is not None, f'friendly {tag}: no HAMBURG in the list ({scr})')
+            out = [snap(scr)]
+            other = next(t for i, t, inv, _ in scr.entries if 7 <= i < 55 and t and not inv and t != 'HAMBURG')
+            for t in ('HAMBURG', other):
+                walk(s, t, 2)
+                out.append(snap(s.screen()))
+            s.shot('list')
+            snaps[tag] = out
+    for k, (a, b) in enumerate(zip(snaps['on'], snaps['off'])):
+        diff = [(i, x, y) for i, (x, y) in enumerate(zip(a, b)) if x != y]
+        check(len(a) == len(b) and not diff, f'friendly list, step {k}: {len(diff)} entries differ from the '
+              f'FRCHOOSE=0 build, first {diff[:3]}', errs)
+    notes.append(f'friendly: {[len(x) for x in snaps["on"]]} entries x 3 screens identical to the FRCHOOSE=0 build')
+    return not errs, '; '.join(errs + notes)
 
 
 def tc_load_once(exe, car, tag, ts):

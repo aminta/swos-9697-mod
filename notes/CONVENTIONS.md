@@ -198,6 +198,8 @@ with Fable and, where it helps, hand the work to Fable.
       namefit.py's code + 16 x 24 B row buffers (menu names cut by pixels); 3 obj1 call sites + the scorers' obj2 one = type-8 fixups into obj4;
       slow's link limit is NAMEFIT_AT.
     - 4.2.y T3: obj4 page 14, T3_AT 0xD000 (swreg.T3_AT..T3_END 0xE000; t3.py / t3.c, Mercato CPU; MC 12/11).
+    - 4.2 (MC 16/11): the friendlies chooser page, band FRCH (swreg.FRCH_AT 0x1FF00 .. FRCH_END 0x20F00, frchoose.py):
+      the engine's FRND calls its fixed slot FRCH_AT + 8; its texts are in the band (one language per exe).
     - No obj4 address is ever stored in a save (engine state = 'EN' items, rule 21), so obj4 may grow and move freely.
     - Calls between the game / obj3 and obj4: self-relative fixups (type 8) as rule 23; cobj.link(text_obj=4).
     - The harness finds obj4 by its header (Result.base4: the magic + the self pointer), not by a game pointer.
@@ -216,6 +218,10 @@ with Fable and, where it helps, hand the work to Fable.
     `__asm__` in a Mod C file that the engine's host tests compile (rules-check includes gplay.c; the host suite's cc
     is arm64) goes under `#if defined(__i386__)` with a host stub that keeps the C path working (a DOS call: -1 = no
     file / not found, as 9f33156 / sm_dos). The release objects stay byte-identical (check the exes' md5s).
+    - frchoose.py (4.2, the friendlies chooser): chooseTeamsFriendlyMenu's header (obj2), initFunc AND onReturn (both the
+      game's ChooseTeamsFriendlyInitFinish, a plain retn at its end: no call to retarget) -> fc_lhook (obj4 FRCH) = the
+      previous target (p.target), then the list's colours while the chooser browses (nothing otherwise). A later hook
+      of the club list chains the same way.
 
 26. **Adding teams to the team cache: tc_room / tc_reserve / TC_CAP, never a constant** (MC 16/11, team cache 1a,
     tools/tcache.py). One rule for both caches (the game's 100 records, the big cache's careerworld.SEL_CAP): a

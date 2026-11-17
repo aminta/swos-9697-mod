@@ -507,6 +507,40 @@ last round, never before the plain week's pick; shots ctc_<s1|s2|end>_<k>, ctc_w
   `S7_PACK=internal/s7pack-real/ita`, the release shape; the shaved pack stays only for host tests that read its
   clubs / groups (its import41.csv / newpool41.csv were trimmed to its 262 clubs on 15/11).
 
+## Preseason friendlies (4.2 friendlies, skeleton: SKIP until the engine)
+
+Scenario skeletons written 16/11 against a stub, before the gplay engine (Motore, target Tue 17): one contiguous block
+in `tools/swostest.py` (next to the world_sc_* scenarios). **Every engine assumption is in the `FR` dict at the top of
+the block** (FR_ST's layout in SC_ST's tail, the `FRSTPTR` exe tag, the traces FR_TRACE / FR_STR / FR_FEE / FR_CARD,
+the switch FR_FORCE, the fee table, the band margin, the weeks), plus `FR_NAMES` / `FR_RECORD` (4 languages): the
+real offsets drop in there. `fr_syms(exe_dir)` is the stub: None = no friendlies in the build -> `Skipped`; before any
+build `fr_in_tree()` looks for the engine's source, so today no scenario builds or starts DOSBox. With the engine
+present, an FR key still None is a SETUP-ERROR naming it. Every run: CAREER_TICK = FR_TICK (1234) and
+W8485_RNGSTEP 'fr' (draw and generators pinned), minimal line-up, no retry. Builds: FR_BUILD (plain), FR_F1_BUILD
+(GPLAY_FORCE=1 + USC_FORCE=1), FR_CARDS_BUILD (FR_FORCE), FR_REL_BUILD (a release dir); careers: FR_TEAM_ITA / _ENG /
+_USC / _BRA / _OLD. `fr_check` = the common checks of one season: 4 friendly match screens, all before the first
+league / cup match; opponents distinct, foreign (another team file), named on their screens, their files in DATA;
+exactly 2 home + 2 away (FR_ST's flags = the calendar rows' pairing); 1 stronger / 2 similar / 1 weaker (FR_STR);
+the fee per match (FR_FEE = the table, and on the balance); every slot-4 row with its own label
+(slot4_label_errs), names within their bars with font characters only; the record line; no ban bit moved.
+Gate: these + career_20seasons with C20_SEASONS=2 (load-hook rule: unchanged, it is part of the friendlies' gate) +
+the regressions world_sc_* / world_usc / gplay_cupd*.
+
+| scenario | what it checks | time |
+|---|---|---|
+| world_preseason | (4.2 friendlies, skeleton: SKIP until the engine) the natural case at a club without a supercup: LIGORNA (ITA Serie D, slot 4 shared with the Coppa D), no test switch; season 1 AND season 2 (from the save): fr_check on both | 2 seasons |
+| world_preseason_uscs1 | (4.2 friendlies, skeleton: SKIP until the engine) season 1 at a UEFA Super Cup club (MC's addendum): PARIS-SG, no switch (the real 2026 pairs): all 4 friendlies, THEN the UEFA Super Cup (week 58), THEN the Trophee des Champions (59), each once; no friendly on those weeks; fr_check | 1 season |
+| world_preseason_eng | (4.2 friendlies, skeleton: SKIP until the engine) ARSENAL on GPLAY_FORCE=1 + USC_FORCE=1 (world_usc's switches): season 1 = 4 friendlies then the Community Shield (59); season 2 = 4 friendlies, UEFA Super Cup (58), Shield (59): slot-4 order, nobody waits, every row its own label; fr_check on both | 2 seasons |
+| world_preseason_bra | (4.2 friendlies, skeleton: SKIP until the engine) a calendar-year league: FLAMENGO, season 1, the friendlies' rows on January weeks (FR['JANUARY']), opponents from outside Brazil (non-European files in slot 4); fr_check | 1 season |
+| world_preseason_8485 | (4.2 friendlies, skeleton: SKIP until the engine) the Europe 1984-85 career world (FR_WORLDS '8485', world byte 4; its own opponent table keyed by the world byte): world8485's default career LIVERPOOL, fr_check on both seasons | 2 seasons |
+| world_preseason_9697 / _9697_cachefull | (4.2 friendlies, RESERVED: SKIP until the general team-cache fix) the World 1996-97 career world (FR_WORLDS '9697'); _cachefull = the team cache filled to its limit by a test switch before the season start, then the friendlies' opponents loaded (no eviction of a needed team, no exit) | - |
+(The 1 / 2 / 1 strength mix is checked strictly until Mercato's part (b) publishes its edge-of-pool fallback; then FR['MIX_RULE'] quotes that rule and fr_check applies exactly it.)
+| world_preseason_cards | (4.2 friendlies, skeleton: SKIP until the engine) card-restore both ways, forced: an FR_FORCE build (a red card in friendly 1) + a 1-match ban poked into careerTeam's place 16 at the first pause; cardsInjuries bits 0-1 of the first 16 read at every match screen: the red was undone (FR_CARD >= 1), nobody else banned at league match 1; the poked ban kept through the 4 friendlies and served by league match 1 | 1 season |
+| world_preseason_reload | (4.2 friendlies, skeleton: SKIP until the engine) saved with a friendly built in slot 4 (W8485_MIDSAVE on FR_TRACE), loaded: slot 4 still holds it, the same 4 opponents, 4 friendlies in all, none twice; fr_check on the loaded season | ~1 season |
+| world_preseason_oldsave | (4.2 friendlies, skeleton: SKIP until the engine) an INTER career's season 1 on the 4.1.2 exe (FR_OLD, c/REL412c/SWOS); this build plays its season 2 (0 or 4 friendlies: FR['OLD_SEASON2']; no hang) and season 3 from that save: 4 friendlies before league week 1, fr_check | 3 seasons |
+| world_preseason_names | (4.2 friendlies, skeleton: SKIP until the engine) no game run: all 4 languages' names fit their bars (calendar label 70 px, VISUAL. COMPETIZ. button, 34-byte title, record line), font characters only; in game, per SWOSTEST_UI (run it 4 times: it, en, fr, de): the match titles, slot-4 rows, fixture list and record line in that language, no other language's name | 1 season per language |
+| world_preseason_rel | (4.2 friendlies, skeleton: SKIP until the engine) the release recipe (CONVENTIONS 17a), its own name: world_preseason's season 1 on a release dir (FR_REL_BUILD, else SWOSTEST_BUILD / W8485_BUILD; W2627REL_DATA = the release's world): FR_ST from the exe's FRSTPTR tag (no syms: bands and fees reported as not checked), every opponent's team file in the release's DATA (pools); rc suite | 1 season |
+
 ## Full-match frame traces (42-diff, 2026-11-13)
 `diff_trace` (DIFF_TRACE builds) compares a 13000-frame match hash every 2048 frames (DIFF_CKSH) between REF (kick-off
 hook only) and NEW. What the game reads from real time, and how the trace build pins it:

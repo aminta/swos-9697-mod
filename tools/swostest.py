@@ -26146,6 +26146,123 @@ def st_at_tr(t, snaps):
     """world_friendlies: FR_ST of the first snapshot whose FR_TRACE is t (None if never logged)"""
     return next((sn['st'] for _, sn in snaps if 'tr' in sn and sn['tr'][0] == t and 'st' in sn), None)
 
+
+@scenario
+def world_friendlies_nofrnd():
+    """4.2 friendlies, MC gate (7): a career saved by a FRND exe in the middle of the friendlies (friendly 1 played,
+    friendly 2 installed: FR_OPEN set, ko[0] a live K_FR tie in slot 4), then loaded by an exe WITHOUT FRND (NF_BUILD:
+    the merge base before the friendlies, e.g. 42-gpx3all 2e53911, a HOSTTEST_SYMS build) and played to the season's
+    end. Part 1: LAZIO, MONDO 2026-27, on the FRND test build (FR_BUILD) - W8485_MIDSAVE on FR_ST[1] = 09h (played 1,
+    FR_OPEN) seen twice: the menu after friendly 2's install (FR_TRACE 21h); the .CAR kept as RUNS/fr_nofrnd_mid.CAR.
+    Part 2 on the old exe (W8485_FROM; its dir cloned without syms - an older tree on purpose, its symbols read here):
+    (a) the season ends (no crash, no stuck screen), no slot-4 tie played twice; (b) what the pending K_FR tie does
+    (its match / result screens, title, rows): reported, never blocking; (c) the season's gate receipts (FF_INC) and
+    balance over the friendly weeks: no step equal to a saved FR_FEE (fi_gate has no FR chain there); (d) the old
+    exe's bytes at the FR_ST place (SC_ST + 180) never change after the load; (e) the SUPERCOPPA ITALIANA played once."""
+    src = world_data()
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    exe, old = os.environ.get('FR_BUILD'), os.environ.get('NF_BUILD')
+    if not exe or not old:
+        return True, 'SKIP: FR_BUILD (a FRND=1 HOSTTEST_SYMS=1 build of this tree) and NF_BUILD (a no-FRND HOSTTEST_SYMS build) needed'
+    sy = fr_syms(exe)
+    if sy is None:
+        return False, f'no frnd test symbols in {exe}'
+    osy = json.load(open(os.path.join(old, 'ITALIAN.syms.json')))
+    if osy.get('frnd'):
+        return False, f'NF_BUILD {old} has FRND linked'
+    hexarg = lambda a, n: (f'{a[1]:x}' if a[0] == 2 else f'o{a[0]}/{a[1]:x}') + f':{n}'
+    errs, info = [], []
+    # part 1: the mid-friendlies save on the FRND exe
+    k1 = {'st': (sy['FR_ST'], 12), 'tr': (sy['FR_TRACE'], 1), 'fee': (sy['FR_FEE'], 16)}
+    ok, msg, l1 = sc_season('EUROPA,ITALIA,SERIE A,LAZIO', dict(
+        W8485_BUILD=exe, W8485_MIDSAVE=f'{sy["FR_ST"][1] + 1:x}:9:2', W8485_HEX=','.join(hexarg(a, n) for a, n in k1.values())))
+    if not ok or 'saved mid-season' not in msg:
+        return False, f'part 1 (FRND exe): no mid-friendlies save: {msg[:300]}'
+    mid = os.path.join(RUNS, 'fr_nofrnd_mid.CAR')
+    shutil.copy(msg.split(': ', 1)[1], mid)
+    last = {}
+    for ln in l1:
+        if ln.startswith('HEX '):
+            _, o, v = ln.split()
+            last[o] = bytes.fromhex(v)
+    st1 = last.get(hexarg(sy['FR_ST'], 12).split(':')[0], b'')
+    tr1 = last.get(hexarg(sy['FR_TRACE'], 1).split(':')[0], b'\0')[0]
+    fees = struct.unpack('<4I', last.get(hexarg(sy['FR_FEE'], 16).split(':')[0], bytes(16)))
+    check(len(st1) == 12 and st1[1] == 9 and tr1 == 0x21, f'part 1: saved with FR_ST {st1.hex()} FR_TRACE {tr1:02x} '
+          '(want played 1 + FR_OPEN, friendly 2 installed: 21h)', errs)
+    s4 = [ln for ln in l1 if ln.startswith('[slot4row] ')]
+    info.append(f'saved: FR_ST {st1.hex()}, FR_TRACE {tr1:02x}, FR_FEE {list(fees)}, last slot-4 rows {s4[-2:]}')
+    # part 2: the old exe (no syms in its run copy: an older tree by design - build_stale judges syms builds only)
+    nf = os.path.join(RUNS, 'nf_exe')
+    shutil.rmtree(nf, ignore_errors=True)
+    shutil.copytree(old, nf, symlinks=True, ignore=shutil.ignore_patterns('*.syms.json'))
+    osc = osy['gplay']['SC_ST']
+    k2 = {'fst': ((osc[0], osc[1] + 180), 12), 'bal': (tuple(osy.get('uprize', {}).get('NEWBAL') or sy['NEWBAL']), 4)}
+    ffi = osy.get('finance', {}).get('FF_INC')
+    if ffi:
+        k2['inc'] = ((3, ffi[1]), 4)
+    name_of = {hexarg(a, n).split(':')[0]: k for k, (a, n) in k2.items()}
+    ok2, msg2, l2 = sc_season('EUROPA,ITALIA,SERIE A,LAZIO', dict(W8485_BUILD=nf, W8485_FROM=mid,
+                                                                W8485_HEX=','.join(hexarg(a, n) for a, n in k2.values())), 2)
+    check(ok2, f'(a) the old exe from the save: {msg2[:300]}', errs)
+    cur, snaps = {}, []
+    for i, ln in enumerate(l2):
+        if ln.startswith('HEX '):
+            _, o, v = ln.split()
+            if o in name_of:
+                cur[name_of[o]] = bytes.fromhex(v)
+                snaps.append((i, dict(cur)))
+    at = lambda i: next((sn for j, sn in reversed(snaps) if j <= i), {})
+    title = lambda ln: re.sub(r'^\[\d+\] ', '', ln.split('|')[0]).rstrip()
+    scr_ = [(i, ln) for i, ln in enumerate(l2) if ln.startswith('[') and '>- RISULTATO -' in ln]
+    scr_ = [(i, ln) for k, (i, ln) in enumerate(scr_) if not k or i - scr_[k - 1][0] > 3]
+    teams = lambda ln: tuple(x.strip() for x in ln.split('|')[10:13])
+    non_league = [(i, title(ln), teams(ln)) for i, ln in scr_ if not title(ln).startswith('SERIE A')]
+    seen = {}
+    for i, t, tm in non_league:
+        seen.setdefault((t, tm), []).append(i)
+    dup = {k: v for k, v in seen.items() if len(v) > 1}
+    check(not dup, f'(a) a tie played twice: {list(dup)[:3]}', errs)
+    # (b) the pending K_FR tie: what the old exe shows for slot 4 at the friendly weeks
+    rows = slot4_rows(l2)
+    fw = sorted({w for _, w, _, lb, _ in slot4_rows(l1) if lb == frtext_label()})
+    r4 = sorted({(w, lb) for _, w, _, lb, _ in rows})
+    first = non_league[0] if non_league else None
+    info.append(f'(b) old exe: first non-league match {first}; slot-4 rows {r4[:8]}; all non-league matches '
+                f'{[(t, tm[1:]) for _, t, tm in non_league][:8]}')
+    lab = frtext_label()
+    fr_m = [(i, t, tm) for i, t, tm in non_league if lab in t]
+    # (c) money: FF_INC / balance over each friendly-labelled match on the old exe; no step = a saved fee
+    steps = []
+    for i, t, tm in fr_m:
+        a = at(i - 1)
+        j = next((j for j, ln in enumerate(l2) if j > i and ln.startswith('[') and '- RISULTATO -' not in ln
+                  and 'PARTITA' in ln and 'TRASFERIMENTI' in ln), len(l2) - 1)   # (back at the career menu)
+        b = at(j)
+        di = struct.unpack('<I', b['inc'])[0] - struct.unpack('<I', a['inc'])[0] if 'inc' in a and 'inc' in b else None
+        db = struct.unpack('<i', b['bal'])[0] - struct.unpack('<i', a['bal'])[0] if 'bal' in a and 'bal' in b else None
+        steps.append((t, tm[1:], di, db))
+        check(di is None or di not in [f for f in fees if f], f'(c) gate receipts +{di} over {t} = a saved FR_FEE {list(fees)}', errs)
+        check(db is None or db not in [f for f in fees if f], f'(c) balance +{db} over {t} = a saved FR_FEE {list(fees)}', errs)
+    info.append(f'(c) over the {lab} matches on the old exe (title, teams, gate receipts step, balance step): {steps}; '
+                f'saved FR_FEE {list(fees)}')
+    # (d) the FR_ST place untouched after the load
+    vals = sorted({sn['fst'].hex() for _, sn in snaps if 'fst' in sn})
+    check(len(vals) <= 1, f'(d) the old exe changed the bytes at SC_ST + 180: {vals[:4]}', errs)
+    info.append(f'(d) old exe SC_ST+180: {vals} (saved FR_ST {st1.hex()})')
+    # (e) the supercup
+    scm = sc_matches(l2)
+    check(len(scm) == 1, f'(e) supercup matches {scm}', errs)
+    info.append(f'(e) {scm}; friendly weeks {fw}')
+    return not errs, '; '.join(errs + info) if errs else '; '.join(info) + f'; {msg2[:120]}'
+
+
+def frtext_label():
+    import frtext
+    return frtext.LABEL[UI]
+
+
 # the game's extra-time simulation (cseg_2C0D3): the stronger side's margin per |rating difference| (32 rows x 4,
 # picked by Rand2 & 3) - zeroed by world_sc_tur so a level tie stays level after extra time and goes to penalties
 ET_MARGINS = bytes([0] * 19 + [1, 0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1]

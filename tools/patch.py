@@ -810,7 +810,7 @@ def patch_exe(src, dst, remap, lang='it'):
     else:
         cos = longtable.patch(p, cos, area, lang)                # 4.0: tables over 24 clubs scroll (ARG / MLS 30: no drawing past the screen)
     if cos_pg:
-        assert cos <= hist2 + h2 + 0x1000 * lpb, hex(cos)
+        assert cos <= hist2 + h2 + 0x1000 * lpb, (hex(cos), "the cosmetics chain past its room", hex(hist2 + h2 + 0x1000 * lpb))
     else:
         world = cos
     if xtra_pg:                                                  # extended career squads (packs with "extra";

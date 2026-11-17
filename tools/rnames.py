@@ -93,6 +93,44 @@ CT_NEW = {
 }
 CT_IDX = {}                             # (conti cup index, round index) -> name index (conti's ct_prep table)
 
+# 4.2 (Davide 17/11, title B): a mini-league's matchdays (the fixture port's stage, fpad.py 'mini_leagues': the
+# Supercoppa Serie C) - '<contest> GIORNATA n', never the game's FINALE for a one-tie slot-4 contest. One name per
+# matchday (long = medium, short): fpad.c's install writes ML_I + the fixture's matchday into gplay's GP_ST.rn[0]
+# (gp_rname gives it to rn_round). The calendar's forms are ML_CAL's ('GIORN. 1': with the widest leg in 70 px).
+ML_NAMES = {'it': ('GIORNATA %d', 'G.%d'), 'en': ('MATCHDAY %d', 'MD%d'), 'fr': ('JOURNEE %d', 'J%d'),
+            'de': ('%d. SPIELTAG', 'ST%d')}
+ML_CAL = {'it': 'GIORN. %d', 'en': 'MATCHD. %d', 'fr': 'JOURN. %d', 'de': '%d. ST.'}
+
+
+def ml_names(lang, days):
+    """[(long, medium, short)] of a mini-league's matchdays 1..days in lang."""
+    lo, sh = ML_NAMES[lang]
+    return [(lo % d, lo % d, sh % d) for d in range(1, days + 1)]
+
+
+def ml_days():
+    """The matchdays the build's mini-leagues need names for (0: none, or a build without the fixture port)."""
+    import fpad
+    return max([len(r['units']) for _pk, _lg, r in fpad.ml_rows()] or [0]) if fpad.on() else 0
+
+
+def ml_contests(lang):
+    """[(pack id, the mini-league's long name in lang, its matchdays, the pack's country button)] of the build's rows
+    (check_titles)."""
+    import fpad
+    import fpmlv
+    if not fpad.on():
+        return []
+    return [(pk.meta.get('id'), fpmlv._pick(r.get('names') or fpmlv.NAMES[r['key']], lang)[0], len(r['units']),
+             ((pk.meta.get('button_names') or {}).get(lang) or pk.meta.get('button') or '').upper())
+            for pk, _lg, r in fpad.ml_rows()]
+
+
+def ml_title(lang, name, day, country=''):
+    """A mini-league fixture's match-screen title: '[<country> ]<name> GIORNATA <day>' (the game puts the country
+    first, as for every contest of a pack; the harness's wanted text)."""
+    return f"{country} {name} {ML_NAMES[lang][0] % day}".strip()
+
 # 4.0: the career calendar's round line (CareerGameListCommon: the medium name + ' ' + the leg) fits the 70 px
 # before the (C) / (F) marker (Davide): the legs shortened (FR ALLER / RETOUR, DE HINSP / RKSPL, EN LEG 1 / 2 were
 # too wide) and the medium names that do not fit with the widest leg get a calendar form (CAL_MED, else cut)
@@ -136,6 +174,8 @@ def cal_med(lang, med):
         return ''
     room = complist.CAL_PX - 3 - max(complist.px(x) for x in CAL_LEGS[lang])
     m = med if complist.px(med) <= room else CAL_MED[lang].get(med)
+    if m is None:                       # (4.2 a mini-league's matchday: ML_CAL's form)
+        m = next((ML_CAL[lang] % d for d in range(1, 7) if ML_NAMES[lang][0] % d == med), None)
     assert m and complist.px(m) <= room, (lang, med, m, room)
     complist.cal_label(m + ' ' + max(CAL_LEGS[lang], key=complist.px), f'rnames {lang}')   # (with its widest leg)
     return m
@@ -733,7 +773,7 @@ def check_titles(p, lang, legpx):
     the worlds' European cups, the continental cups (conti)."""
     import complist
     import mkseason
-    meds = [m for _, m, _ in NAMES[lang]] + _native_medium(p)
+    meds = [m for _, m, _ in NAMES[lang] + ml_names(lang, ml_days())] + _native_medium(p)
     bad = [m for m in meds if set(m) - complist.FONT]
     medpx = max(complist.px(m) for m in meds)
     names = []
@@ -754,6 +794,14 @@ def check_titles(p, lang, legpx):
         f = conti._read(conf, 'format')
         for c in (f or {}).get('cups', []):
             names.append((conf, (c['names'].get(lang) or c['names']['en'])[0].upper()[:30]))
+    for who, nm, days, country in ml_contests(lang):   # 4.2 a mini-league's titles: '<country> <name> GIORNATA n', each
+        for d, (_lo, _m, sh) in enumerate(ml_names(lang, days), 1):     # one exactly, with the country the game puts first
+            t = ml_title(lang, nm, d, country)
+            if t != ' '.join(t.split()) or set(t + sh) - complist.FONT:
+                bad.append(f'{who}: {t!r} (not the font, or a leading / trailing / double space)')
+            elif complist.px(t) > PXMAX:
+                bad.append(f'{who}: {t!r} {complist.px(t)} > {PXMAX} px')
+        names.append((who, nm))                 # (and against the widest medium round name, as every contest)
     for who, nm in names:
         if nm != ' '.join(nm.split()):
             bad.append(f'{who}: {nm!r} (a leading, trailing or double space)')
@@ -816,6 +864,12 @@ def patch(p, at, limit, lang, area, lp_ids, numbered):
     assert all(4 * k in ptrs for k in range(N_OLD)) and all(48 + 4 * k in ptrs for k in range(N_OLD)), sorted(ptrs)
     names, ctmap = _ct_names(lang)
     LABELS.pop('FR_I', None)
+    LABELS.pop('ML_I', None)
+    if ml_days():                               # 4.2 the mini-leagues' matchdays (title B): ML_I + the matchday
+        LABELS['ML_I'] = N_OLD + len(names)
+        LABELS['ML_DAYS'] = ml_days()
+        names += ml_names(lang, ml_days())
+        assert len(names) + N_OLD < 256
     asm = ASM
     import frtext
     if frtext.on():                             # 4.2 (Davide 17/11): the preseason friendly has no round name - its
@@ -825,7 +879,15 @@ def patch(p, at, limit, lang, area, lp_ids, numbered):
         asm = nasmcave.sub(asm, RN_HEAD, RN_HEAD_FR)    # (every world, not only league-phase ones: gplay gp_rfr)
         asm += 'align 4\nRN_FRP: dd 0                            ; (gplay.gp_rfr, or 0)\n'
         assert len(names) + N_OLD < 256
-    new = [[area.add(nm[t].encode('latin1') + b'\0') for nm in names] for t in range(3)]
+    mls = {}                                    # (4.2 the matchdays' strings: one copy each, in the area's page tails)
+
+    def _str(k, s):
+        if 'ML_I' not in LABELS or k < LABELS['ML_I'] - N_OLD or k >= LABELS['ML_I'] - N_OLD + LABELS['ML_DAYS']:
+            return area.add(s.encode('latin1') + b'\0')
+        if s not in mls:
+            mls[s] = area.add_tail(s.encode('latin1') + b'\0')
+        return mls[s]
+    new = [[_str(k, nm[t]) for k, nm in enumerate(names)] for t in range(3)]
     tab = (at + 3) & ~3
     n = N_OLD + len(names)
     for t in range(3):
@@ -845,7 +907,8 @@ def patch(p, at, limit, lang, area, lp_ids, numbered):
             med = d2[o:o + 40].split(b'\0')[0].decode('latin1').rstrip('*')
         else:
             med = names[k - N_OLD][1]
-        p.add_ptr(1, cal + 4 * k, 2, area.add(cal_med(lang, med).encode('latin1') + b'\0'))
+        p.add_ptr(1, cal + 4 * k, 2, _str(k - N_OLD, cal_med(lang, med)) if k >= N_OLD else
+                  area.add(cal_med(lang, med).encode('latin1') + b'\0'))
     for f in fx:                                # every reference to the old tables -> ours (the medium table's: the
         t = (f[4] - base) // 48                 # calendar's, CareerGameListCommon)
         p.retarget(1, f[1], 1, cal if t == 1 else tab + 4 * n * t)

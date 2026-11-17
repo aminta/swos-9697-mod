@@ -106,6 +106,17 @@ LABELS = {
 }
 KEYS = ('cl', 'el', 'conf', 'cc', 'uefa', 'up', 'po', 'out', 'down', 'lib', 'sud', 'ccc', 'acle', 'acl2', 'cafcl', 'cafcc', 'ofc',
         'next')
+ML_KEY = 'win'                    # 4.2 a mini-league's table view (fpmlv.py: longtable's mode fpmlv.VIEW_MODE): its 1st
+for _l in LABELS:               # place's legend label VINCE / WINS / VAINQ / SIEG - KEYS' index len(KEYS), only in a
+    LABELS[_l][ML_KEY] = __import__('fpmlv').LEGEND[_l]   # build with such a view (leg_keys(): no byte elsewhere)
+
+
+def leg_keys():
+    """The legend label keys of this build: KEYS, + ML_KEY in a build with a mini-league's table view."""
+    import fpmlv
+    return KEYS + ((ML_KEY,) if fpmlv.on() else ())
+
+
 LEG_COLOUR = {}                 # (a legend box's colour code when not the zone's own: none - the Conference's
                                 # dark blue is a plain box like the others, no inner frame: Davide 2026-10-22)
 
@@ -345,6 +356,10 @@ def pack_zones(d, lang, lp=False, rank=None, detail=None):
             for t, srng in stage_zones(dv, po, i):      # 4.0.5: an earlier stage's final table (STAT > its entry):
                 out.append((world, stage_key(_title(m, lang, complist._nm(dv['name'], lang)), t), srng, 'stage', 0,
                             None, ['po_title'] * len(srng)))  # its own play-off places, keyed title + stage
+            import fpmlv                                # 4.2 a mini-league's table view from this division's table
+            if fpmlv.on() and any(e[0] == i for r in comp.get('mini_leagues') or [] for e in r['entrants']):
+                out.append((world, stage_key(_title(m, lang, complist._nm(dv['name'], lang)), fpmlv.ML_T),
+                            [(1, 1, fpmlv.ZONE)], 'ml', 0, None, [ML_KEY]))   # (the 1st place: the stage's winner)
     return out
 
 
@@ -478,7 +493,7 @@ def eu_places(rank):
 
 BSKIP = 0x40                    # 4.0.6 a range's colour byte | BSKIP: its places count the clubs that may qualify only:
 BSKIP_PO = 0x20                 # promotion (B teams that may not go up skipped); | BSKIP_PO: any other qualifying place
-NOT_QUAL = ('down', 'out', 'po_down')   # (a play-off, title, cup: also the B teams without play-offs); none: relegation,
+NOT_QUAL = ('down', 'out', 'po_down', ML_KEY)   # (a play-off, title, cup: also the B teams without play-offs); none: relegation,
 UP_WHY = ('up',)                # play-outs (every club counts)
 
 
@@ -615,7 +630,7 @@ def continental_all(m):
 
 
 WHY_LAB = {'next': 'next', 'up': 'up', 'po_up': 'po', 'po_title': 'po', 'po_liguilla': 'po', 'po_place': 'po', 'po_eu': 'po', 'po_down': 'out', 'out': 'out',
-           'down': 'down', 'cc': 'cc', 'uefa': 'uefa'}
+           'down': 'down', 'cc': 'cc', 'uefa': 'uefa', ML_KEY: ML_KEY}
 
 
 def legend(rng, kind, why=None):
@@ -650,7 +665,7 @@ def blob(rows):
             e += bytes([a, z, c])
         e += b'\0' * (1 + NAME + 1 + 3 * RANGES - len(e)) + bytes([len(leg)])
         for c, k in leg:
-            e += bytes([LEG_COLOUR.get(c, c), KEYS.index(k)])
+            e += bytes([LEG_COLOUR.get(c, c), leg_keys().index(k)])
         e += b'\0' * (EFLAG - len(e)) + bytes([1 if kind == 'lp' else 0, year % 256, code])
         if any(r[0] & 0x80 for r in rng):              # 4.0 group headers: their legend (+GLEG: n, (colour, label))
             assert len(e) == GLEG, len(e)
@@ -1454,7 +1469,7 @@ def patch(p, at, area, lang, pack_dirs, bss, bss_len, world=None):
     zent = area.add(bytes(ENTRY_PAD))
     zfile = area.add(FILE[lang] + bytes(12))
     L = LABELS[lang]
-    labs = area.add(b''.join(L[k].encode('latin-1')[:LEG_TXT - 1].ljust(LEG_TXT, b'\0') for k in KEYS))
+    labs = area.add(b''.join(L[k].encode('latin-1')[:LEG_TXT - 1].ljust(LEG_TXT, b'\0') for k in leg_keys()))
     legbuf = area.add(bytes(LEG * LEG_TXT))
     menu_new, menu_ref = _menu_copy(p, area, legbuf)
     cur_menu = _current_menu(p)

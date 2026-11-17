@@ -11,13 +11,20 @@ enum { FPV_ML_KIND = 0x4D4C };          /* a mini-league fixture's match_id >> 1
 struct fpv_tab {                        /* fpmlv.py table(): put after the link (plain data, never const) */
     u8 nname, nrec;                     /* entries of nm[] / rec[] in use */
     u8 zone;                            /* the 1st place's row colour (zones.py LIGHT_BLUE 0Dh) */
-    u8 pad;
+    u8 rnd;                             /* rnames' index of the 1st matchday's round name (ML_I; 0 = none: the game's) */
     char leg[8];                        /* its legend label (<= 5 characters, NUL-ended): VINCE / WINS / VAINQ / SIEG */
     u32 nm[FPV_NN][2];                  /* fp_mlrow.name -> the long name (the slot's title after the country), the calendar
                                            label; STR_BASE-relative, the 8 bytes gplay's ko_one copies */
     u32 rec[FPV_NR];                    /* fp_mlrow.rec -> the management record's line (STR_BASE-relative), 0 = none */
     u32 ttl[FPV_NN];                    /* fp_mlrow.name -> the table view's title (STR_BASE-relative) */
+    u8 ndays, pad[3];                   /* the matchdays rnd names (rnd .. rnd + ndays - 1) */
+    u8 vflags[FPV_NN];                  /* fp_mlrow.name -> its table view's flags (FPV_VF_*): the view's own, per row */
+    u8 vcid[FPV_NN];                    /* fp_mlrow.name -> the contest id (the table struct's +2Dh) of the league whose
+                                           table screen opens the view; 0 = any table with one of its clubs */
 };
+enum { FPV_VF_NOSTAT = 1 };             /* the view has no STAT button (MC 17/11: per view, table-driven) */
+enum { FPV_TF = 24 };                   /* a stand-in TeamFile's bytes (fpv_rows): +0 file, +1 ordinal, +2 team word,
+                                           +4 controls (1 = computer; 0 = unused), +5 name[17], NUL */
 
 struct fpv_trow {                       /* a row of the table view, in rank order */
     u16 team;                           /* the club's team word (fp_ml.club[]) */
@@ -34,4 +41,12 @@ const u8 *fpv_calnames(u32 match_id);   /* a mini-league fixture's 8 name bytes 
 i32 fpv_table(u32 i, struct fpv_trow out[4]);   /* instance i's table: the rows written (0 = none: no instance, an old save) */
 u32 fpv_title(u32 i);                   /* instance i's view title (STR_BASE-relative), 0 = none */
 const char *fpv_legend(void);           /* the 1st place's legend label */
+u32 fpv_round(u32 match_id);            /* FP_RND's target: a mini-league fixture's round name (rnames index), 0 = not one */
+u32 fpv_view(const u8 *diy, u32 *title);    /* the table view of the league table `diy` (the game's table struct): 0 = none
+                                           now, else 100h | its FPV_VF_* flags, *title = its title (STR_BASE-relative) */
+u32 fpv_rows(const u8 *diy, u8 *rows, u16 *ord, const u8 *sel, u8 *tf);   /* that view's rows in the game's table layout
+                                           (gplay.c GP_OV_ROWS / GP_OV_ORD: 18 B a row, +0 its TeamFile's offset from
+                                           sel, +4 played won drawn lost for against points): the rows written, 0 = no
+                                           view. A club that is not a row of diy gets a stand-in TeamFile in tf (4 x
+                                           FPV_TF; its name is the caller's to fill - controls 1 marks it) */
 #endif

@@ -343,6 +343,8 @@ static const u8 *sct_entry(u8 key)      /* GP_SCT's entry for a country (the car
     return 0;
 }
 const u8 *(*FP_NAMES)(u32 match_id) FP_DATA;   /* fpmlv.py binds it to fpv_calnames (obj3); 0 = no views in this build */
+u32 (*FP_RND)(u32 match_id) FP_DATA;    /* fpmlv.py binds it to fpv_round (obj3): the fixture's round name, an rnames index
+                                           (a mini-league's matchday: 'SUPERCOPPA SERIE C GIORNATA 2'); 0 = the game's own */
 static u32 install(const sr_port_fixture *f)   /* slot 4's contest for the fixture: 1 built, 0 slot busy */
 {
     if (ko_this() && KB(O_TW) == C_NOC) return 0;   /* (gplay's sc_free: this season's contest still to decide) */
@@ -355,6 +357,8 @@ static u32 install(const sr_port_fixture *f)   /* slot 4's contest for the fixtu
     ((ko_one_fn *)GP_PAPI[0])((struct gp_ko *)KO0, f->home, f->away, f->unit1, f->unit2, f->legs, C_KPORT, f->level,
                              f->lfile, own ? own : nm ? nm + 20 : zero);
     if (f->neutral) KO0[O_RS + 2] = C_NEUTRAL;
+    GP_GST[O_RN] = (u8)(FP_RND ? FP_RND(f->match_id) : 0);   /* (gp_rname: ko[0]'s game round 0 - the tie's only one; ko_one
+                                           leaves the last contest's there) */
     FP_G90[0] = FP_G90[1] = FP_G90_NONE;   /* (guard 2: a capture only from this tie's own matches) */
     FP_ST.pad[0] = 0;
     return 1;

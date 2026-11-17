@@ -264,7 +264,8 @@ def vendored():
 
 OFFS = ('O_KO', 'O_SEASON', 'O_KIND', 'O_TW', 'O_TEAM', 'O_D1', 'O_D2', 'O_RS', 'O_MDIV', 'C_MAGIC', 'C_NOC', 'C_KPORT',
         'C_NEUTRAL', 'C_SCE', 'C_SCUEFA', 'KO_SIZE', 'O_INN', 'O_INT', 'O_INMGR', 'C_GD', 'C_GT', 'C_ROW', 'O_RPTS', 'O_INSIM', 'C_SDX',
-        'O_PTS', 'C_KFR', 'C_LVBETTER')   # (the last 3: frstep.c)
+        'O_PTS', 'C_KFR', 'C_LVBETTER',   # (these 3: frstep.c)
+        'O_RN')                           # (GP_ST.rn: install's round name of a mini-league fixture, title B)
 
 
 def gp_offsets(cflags):
@@ -366,7 +367,7 @@ def patch(p, ssyms, gsyms):
     # (-Oz, MC 15/11 room: fpad.c + fpsave.c only - cobj's -Os for every other unit; the port runs once per calendar
     #  step, size over speed: FPORT ~1.7 KB, FPORT2 ~0.35 KB smaller than at -Os, engine 52301fb)
     flags = ['-Oz'] + [f'-D{k}={v}' for k, v in offs.items()] + [f'-DFP_ST_SZ={ST_SIZE}', f'-DFP_SAVE_SZ={SAVE_SIZE}', f'-DFP_SAVE_HDR={SAVE_HDR}', f'-DFP_ML_SZ={ML_N * ML_SIZE}', f'-DFP_HASH={fp_hash():#x}u', f'-DFP_WORLD={world()}', f'-DFP_NDIV_={max(1, len(fdiv) // 4)}', f'-DFP_NSET_={max(1, len(fset))}']
-    roots = ['fp_step', 'fp_leg', 'fp_et', 'fp_done', 'fp_new', 'fp_load', 'fp_season', 'FP_FMAP', 'FP_DIV', 'FP_SET', 'FP_NDIV', 'FP_NAMES',
+    roots = ['fp_step', 'fp_leg', 'fp_et', 'fp_done', 'fp_new', 'fp_load', 'fp_season', 'FP_FMAP', 'FP_DIV', 'FP_SET', 'FP_NDIV', 'FP_NAMES', 'FP_RND',
              'fp_log', 'fp_wake', 'fp_ml_add', 'FP_MLRES', 'FP_MLBUSY', 'FP_MLLOAD']   # (fpml.c's side: linked below)   # (FP_NAMES: lane 2's fpmlv.patch binds it)
     import collections
     import swefile

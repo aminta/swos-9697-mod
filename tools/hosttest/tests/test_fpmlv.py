@@ -102,6 +102,36 @@ int main(void)
     printf("names ml=%d other=%d badrow=%d badname=", fpv_calnames(0x4D4C1E01) == (const u8 *)FPV_TAB.nm[0],
            fpv_calnames(0x7E001E00) != 0, fpv_calnames(0x4D4C1E11) != 0);
     MLT[0].name = 2; printf("%d\n", fpv_calnames(0x4D4C1E01) != 0);
+    /* title B: a fixture's round name = rnames' index of its matchday */
+    MLT[0].name = 0; FPV_TAB.rnd = 40; FPV_TAB.ndays = 3;
+    printf("round %u %u %u past=%u other=%u", fpv_round(0x4D4C1E00), fpv_round(0x4D4C1E01), fpv_round(0x4D4C1E02),
+           fpv_round(0x4D4C1E03), fpv_round(0x7E001E00));
+    FPV_TAB.rnd = 0; printf(" none=%u\n", fpv_round(0x4D4C1E01));
+    /* the table view (screen 1): a 20-club table holding the club 0B45 (row 7, its TeamFile at sel + 1234h) */
+    static u8 diy[0x2B3 + 18 * 20], buf[16 + 4 * FPV_TF], rows[4 * 18];
+    u16 ord[4] = { 9, 9, 9, 9 };
+    u32 ttl = 0;
+    diy[0x31] = 20;
+    for (int q = 0; q < 20; q++) { diy[0x12D + 2 * q] = (u8)q; diy[0x12D + 2 * q + 1] = 0x77; }
+    diy[0x12D + 14] = 0x45; diy[0x12D + 15] = 0x0B; diy[0x2B3 + 18 * 7] = 0x34; diy[0x2B3 + 18 * 7 + 1] = 0x12;
+    FPV_TAB.vflags[0] = FPV_VF_NOSTAT;
+    printf("view %X ttl=%X", fpv_view(diy, &ttl), ttl);
+    FPV_TAB.vflags[0] = 0; printf(" stat=%X", fpv_view(diy, &ttl));
+    FPV_TAB.vcid[0] = 0xCB; printf(" othercid=%X", fpv_view(diy, &ttl));    /* another contest's struct with the club */
+    diy[0x2D] = 0xCB; printf(" cid=%X\n", fpv_view(diy, &ttl));
+    memset(buf, 0xEE, sizeof buf);
+    n = (int)fpv_rows(diy, rows, ord, buf, buf + 16);
+    printf("rows n=%d\n", n);
+    for (int k = 0; k < 4; k++) {
+        const u8 *x = rows + 18 * k, *f = buf + 16 + FPV_TF * k;
+        printf("vrow %d off=%X fig=%d %d %d %d %d %d %d ord=%u tf=%02X%02X ctl=%u nm=%c\n", k,
+               x[0] | x[1] << 8 | x[2] << 16 | (unsigned)x[3] << 24, x[4], x[6], x[8], x[10], x[12], x[14],
+               (short)(x[16] | x[17] << 8), ord[k], f[1], f[0], f[4], f[5] ? f[5] : '-');
+    }
+    diy[0x12D + 14] = 0; ttl = 7;                               /* a table without a club of the stage: no view */
+    printf("noclub view=%X ttl=%u rows=%u\n", fpv_view(diy, &ttl), ttl, fpv_rows(diy, rows, ord, buf, buf + 16));
+    diy[0x12D + 14] = 0x45; GP_SEAS = 31;                       /* the next season: last season's instance is no view */
+    printf("next view=%X rows=%u\n", fpv_view(diy, &ttl), fpv_rows(diy, rows, ord, buf, buf + 16));
     return 0;
 }
 '''
@@ -130,6 +160,15 @@ next-stale wn=FFFE run=0000 rl0=0 rl1=0 wnn=3 fl=1/0
 full wn=0A45 run=0000 rl0=13107 rl1=0 wnn=40 fl=0/0
 marker wn=0A45 run=0000 rl0=13107 rl1=0 wnn=1 fl=0/0
 names ml=1 other=0 badrow=0 badname=0
+round 40 41 42 past=0 other=0 none=0
+view 101 ttl=4444 stat=100 othercid=0 cid=100
+rows n=3
+vrow 0 off=10 fig=2 2 0 0 3 0 6 ord=0 tf=0A45 ctl=1 nm=?
+vrow 1 off=28 fig=2 0 1 1 1 2 1 ord=18 tf=0C45 ctl=1 nm=?
+vrow 2 off=1234 fig=2 0 1 1 1 3 1 ord=36 tf=0000 ctl=0 nm=-
+vrow 3 off=0 fig=0 0 0 0 0 0 0 ord=9 tf=0000 ctl=0 nm=-
+noclub view=0 ttl=7 rows=0
+next view=0 rows=0
 '''
 
 
@@ -170,7 +209,10 @@ def test_fpmlv_strings():
                 pool.append(b)
             return 0x100 + pool.index(b)
         tab = fpmlv.table(COMP, lang, off, COUNTRY[lang])
-        nn, nr, zone, _, leg = struct.unpack_from('<4B8s', tab)
+        nn, nr, zone, rnd0, leg = struct.unpack_from('<4B8s', tab)
+        tail = tab[12 + 8 * fpmlv.NN + 4 * fpmlv.NR + 4 * fpmlv.NN:]
+        if rnd0 != 0 or tail != bytes(4) + bytes([fpmlv.VF_NOSTAT]) + bytes(fpmlv.NN - 1) + bytes(fpmlv.NN):
+            bad.append(f'{lang}: rnd {rnd0} / tail {tail.hex()} (no rnames index on the host; the view: no STAT)')
         nm = struct.unpack_from('<II', tab, 12)
         rec, = struct.unpack_from('<I', tab, 12 + 8 * fpmlv.NN)
         ttl, = struct.unpack_from('<I', tab, 12 + 8 * fpmlv.NN + 4 * fpmlv.NR)
@@ -213,8 +255,43 @@ def test_fpmlv_strings():
             bad.append('win_sources in a build without the port')
     finally:
         fpmlv.on = on
-    if fpmlv.format_item(ROW, COUNTRY) is not None:
-        bad.append('format_item without prose')
+    if fpmlv.vflags(dict(ROW, view={'stat': True})) != 0 or fpmlv.vflags(ROW) != fpmlv.VF_NOSTAT:
+        bad.append('vflags: "view": {"stat": true} keeps STAT, the default hides it')
+    import rnames                                           # title B: the round names and the exact titles
+    want_t = {'it': 'SUPERCOPPA SERIE C GIORNATA %d', 'en': 'SUPERCOPPA SERIE C MATCHDAY %d',
+              'fr': 'SUPERCOPPA SERIE C JOURNEE %d', 'de': 'SUPERCOPPA SERIE C %d. SPIELTAG'}
+    for lang in fpmlv.LANGS:
+        for d, (lo, med, sh) in enumerate(rnames.ml_names(lang, 3), 1):
+            t = f"{fpmlv.names(ROW, lang, COUNTRY[lang])[3]} {lo}"
+            cm = rnames.cal_med(lang, med)
+            full = rnames.ml_title(lang, fpmlv.names(ROW, lang, COUNTRY[lang])[3], d, COUNTRY[lang])   # (as on screen)
+            if full != f'{COUNTRY[lang]} {t}' or complist.px(full) > rnames.PXMAX:
+                bad.append(f'{lang}: {full!r} {complist.px(full)} px')
+            if t != want_t[lang] % d or complist.px(t) > rnames.PXMAX or set(t + sh + cm) - set(complist.FONT) or \
+                    complist.px(cm + ' ' + max(rnames.CAL_LEGS[lang], key=complist.px)) > complist.CAL_PX:
+                bad.append(f'{lang}: match title {t!r} {complist.px(t)} px / calendar form {cm!r}')
+    wid = {lang: max(complist.px(want_t[lang] % d) for d in (1, 2, 3)) for lang in fpmlv.LANGS}
+    if wid != {'it': 154, 'en': 158, 'fr': 152, 'de': 156}:
+        bad.append(f'match title widths {wid} (the decision sheet: 154 / 158 / 152 / 156 px)')
+    it = fpmlv.format_item(ROW, COUNTRY)                    # the FORMAT page: Davide's text (fpmlv_prose.json)
+    if it is None or set(it[1]) != set(fpmlv.LANGS) or any(len(v) != 3 for v in it[1].values()):
+        bad.append('format_item: no prose / not 3 paragraphs in 4 languages')
+    try:
+        pl = fpmlv.prose_check()
+    except AssertionError as e:
+        pl = {}
+        bad.append(f'prose_check: {e}')
+    import fmtgame
+    up = {lang: ' '.join(fmtgame.ascii_up(x, lang) for x in (it[1][lang] if it else [])) for lang in fpmlv.LANGS}
+    for lang, words in (('it', ('3 PUNTI', 'SUPPLEMENTARI', 'RIGORI', 'DIFFERENZA RETI', 'TRASFERTA', 'SORTEGGIO', 'TRE GIORNATE A MAGGIO')),
+                        ('en', ('3 POINTS', 'EXTRA TIME', 'PENALTIES', 'GOAL DIFFERENCE', 'AWAY', 'LOTS', 'THREE MATCHDAYS IN MAY')),
+                        ('fr', ('3 POINTS', 'PROLONGATION', 'TIRS AU BUT', 'DIFFERENCE DE BUTS', "L'EXTERIEUR", 'TIRAGE AU SORT', 'TROIS JOURNEES EN MAI')),
+                        ('de', ('3 PUNKTE', 'VERLAENGERUNG', 'ELFMETERSCHIESSEN', 'TORDIFFERENZ', 'AUSWAERTSTORE', 'LOS', 'DREI SPIELTAGEN IM MAI'))):
+        miss = [w for w in words if w not in up[lang]]
+        if miss:
+            bad.append(f'prose {lang}: the decisions\' words missing: {miss}')
+        if any(w in up[lang] for w in ('DOMENIC', 'SUNDAY', 'DIMANCHE', 'SONNTAG', 'PRIMA DEI PLAY', 'BEFORE THE PLAY')):
+            bad.append(f'prose {lang}: a weekday / "before the play-offs" (the sheet removed them)')
     prose = fpmlv.PROSE
     try:
         fpmlv.PROSE = {'supercoppa_c': {lang: ['X'] for lang in fpmlv.LANGS}}
@@ -224,7 +301,8 @@ def test_fpmlv_strings():
     finally:
         fpmlv.PROSE = prose
     return not bad, '; '.join(bad) or '4 languages: ' + ', '.join(f'{k} {v[1]} / {v[4]}' for k, v in got.items()) + \
-        '; title, label, record, legend within their bars; WINNERS N100 for divisions 2-4; FORMAT hook empty'
+        f'; title, label, record, legend within their bars; WINNERS N100 for divisions 2-4; match titles {wid} px <= ' \
+        f'{rnames.PXMAX}; FORMAT prose lines {dict((k[1], v) for k, v in pl.items())}'
 
 
 def test_fpmlv_winners_asm():
@@ -252,11 +330,30 @@ def test_fpmlv_winners_asm():
     return True, f'5 anchors once each; the call sequence assembles ({n - 5} B + the dword)'
 
 
+def test_fpmlv_glue_asm():
+    """The table view's glue (fpmlv.GLUE, with longtable's ZSTAGE) assembles against dummy symbols; its size."""
+    import fpmlv
+    import longtable
+    import nasmcave
+    names = ('FPV_VIEW', 'FPV_ROWS', 'DIY_', 'STRB_', 'SELTEAMS', 'WN_DISK', 'OV_ON', 'OV_FLAG', 'MENU_', 'GP_OV_ORD',
+             'GP_OV_ROWS', 'GP_OV_N', 'GP_OV_ANNUAL', 'ZSKEY', 'ZSTG', 'PREV_INIT', 'FP_ST9', 'EXIT_FN')
+    sym = {k: (2, 0x1000 + 0x100 * i) for i, k in enumerate(names)}
+    sym.update({'TF_': (0, fpmlv.TF), 'VF_NOSTAT_': (0, fpmlv.VF_NOSTAT), 'STAT_E_': (0, fpmlv.STAT_E), 'ZNAME_': (0, 41), 'MLV_': (0, fpmlv.VIEW_MODE)})
+    src = fpmlv.GLUE.replace('ZSTAGE\n', longtable.ZSTAGE_ASM)
+    try:
+        code, _fix, _rel = nasmcave.assemble_obj(src, 0x400, sym, 3)
+        lab = nasmcave.labels(src, 0x400, sym)
+    except Exception as e:
+        return False, f'nasm: {str(e)[-300:]}'
+    ok = {'fv_title', 'fv_show', 'fv_stinit', 'fv_sel9', 'FV_TF'} <= set(lab) and len(code) <= 0x220 and fpmlv.ML_T == -1 and fpmlv.VIEW_MODE == 3
+    return ok, f'{len(code)} B (code {lab["FV_T"] - 0x400} B + 4 stand-in TeamFiles {4 * fpmlv.TF} B); labels {sorted(k for k in lab if k[0] == "f")}'
+
+
 def test_fpmlv_size():
     import fpmlv
     try:
         end = fpmlv.size()
     except Exception as e:                                  # (no cross clang / cobj cache on this machine)
         return True, f'SKIP: dry link not possible here ({type(e).__name__}: {str(e)[:120]})'
-    ok = end + fpmlv.SLACK <= fpmlv.RESERVE
+    ok = end + 0x220 + fpmlv.SLACK <= fpmlv.RESERVE         # (+ the view glue, test_fpmlv_glue_asm: <= 544 B)
     return ok, f'fpmlv.c {end} B at -Oz (code + FPV_TAB {fpmlv.TAB_SIZE} B) of RESERVE {fpmlv.RESERVE} B, {fpmlv.RESERVE - end} B left'

@@ -651,6 +651,121 @@ def check_pages(exe, car, tag, fin, o, errs, entrant):
             f"the career club {'won' if mine else 'did not win'} it ({o['record'][-1:]})", errs)
 
 
+def country():
+    """the Italian pack's button in the harness's language (the match titles' first word)"""
+    m = json.load(open(os.path.join(data(), 'ita', 'pack.json'), encoding='utf-8'))
+    return ((m.get('button_names') or {}).get(T.UI) or m.get('button') or '').upper()
+
+
+def check_titles(lines, errs, mds):
+    """title B (Davide 17/11): every match / result screen of the stage is titled '<country> SUPERCOPPA SERIE C GIORNATA
+    n' (EN MATCHDAY n, FR JOURNEE n, DE n. SPIELTAG) - exactly, within the 302-px bar, no FINALE - and the career
+    club's matchdays mds (0..) are the ones seen. Returns the titles seen."""
+    import re
+    sys.path.insert(0, HERE)
+    import complist
+    import rnames
+    want = {rnames.ml_title(T.UI, NAME, k + 1, country()): k for k in range(3)}
+    head = lambda ln: (re.match(r'\[\d+\] (.*?) ?$', ln.split('|')[0]) or re.match('()', '')).group(1)
+    seen = sorted({head(ln) for ln in lines if ln.startswith('[') and NAME in ln.split('|')[0] and
+                   ('- PARTITA -' in ln or '- RISULTATO -' in ln)})
+    T.check(all(t in want and complist.px(t) <= rnames.PXMAX for t in seen),
+            f'match titles {seen}: want only {sorted(want)} (<= {rnames.PXMAX} px)', errs)
+    T.check(sorted(want[t] for t in seen if t in want) == sorted(mds),
+            f'match titles {seen}: the career club plays matchdays {[k + 1 for k in mds]}', errs)
+    return seen
+
+
+def run_view():
+    """screen 1 (Davide 17/11): the mid-stage save of world_supc_save23 (shape rest: md1 0 v 2 0-0 simulated, md2
+    CAMPOBASSO 2-1 at home, its md3 pending) LOADED on the stage's build; VISUAL. COMPETIZ. > the career league: its
+    own table with STAT; STAT > SUPERCOPPA SERIE C: the game's table screen titled SUPERCOPPA SERIE C with the stage's
+    3 rows in the model's order (the figures in gplay's view rows, the two clubs of other groups named from their team
+    files), row 1 light blue, the legend VINCE alone, NO STAT entry (the view's flag), the cursor on ESCI; ESCI and
+    the league again: its own table and title, STAT back."""
+    skip = gate()
+    if skip:
+        return True, skip
+    seed, force = shape('rest')
+    exe = ml_exe('rest', 1, seed, force)
+    j = json.load(open(os.path.join(exe, 'ITALIAN.syms.json')))
+    need = {k: (j.get(m) or {}).get(k) for m, k in (('gplay', 'GP_OV_ROWS'), ('gplay', 'GP_OV_N'), ('fpmlv', 'FV_TF'))}
+    if not all(need.values()):
+        return True, f'SKIP: the build has no table view ({[k for k, v in need.items() if not v]}: lane 2b not in this checkout)'
+    car = os.environ.get('FPML_VIEW_CAR')               # (a mid-stage save made elsewhere on the same data)
+    if car:
+        live = open(car + '.ml', 'rb').read() if os.path.exists(car + '.ml') else car_ml(car)[3][0]
+    else:
+        car, live = mid_save(exe, 'save23', 16 + 6 + 3, 1)
+        if not car:
+            return False, live
+    sv = ml_decode(live)
+    ms = [(m[1], m[2], m[4], m[5]) for m in sv['m'][:3] if m[3]]
+    model = table(ms, sv['seed'])
+    sys.path.insert(0, HERE)
+    import fpmlv
+    import zones
+    errs, info = [], []
+    rd = lambda s, a, n: s.result.read(s.result.lin((a[0], a[1])), n)
+    with T.Session('supc_view', exe, {'W84A.CAR': car}, 'dump:2', 300) as s:
+        s.wait()
+        s.send(T.LOAD1 + ' dump:3')
+        T.walk(s, s.screen().find('VISUAL. COMPETIZ.', exact=True), 3)
+        T.walk(s, 1, 3)                                 # the career league's table
+        lg = s.screen()
+        s.shot('league_table')
+        ltitle = lg.entries[0][1]
+        T.check(lg.find('STAT', exact=True) is not None, f"the league's table {ltitle!r}: no STAT entry", errs)
+        if lg.find('STAT', exact=True) is None:
+            return False, '; '.join(errs)
+        T.walk(s, lg.find('STAT', exact=True), 3)
+        st = s.screen()
+        s.shot('stat_menu')
+        e = next((x for x in st.entries if x[1] == NAME and not x[2]), None)
+        T.check(e is not None, f"STAT has no {NAME} entry: {[x[1] for x in st.entries if not x[2]]}", errs)
+        if e is None:
+            return False, '; '.join(errs)
+        T.walk(s, e[0], 3)
+        rows, v = T.zone_rows(s, 'supc_table', 3)
+        vis = [x[1] for x in v.entries if not x[2]]
+        leg = [x[1] for x in v.entries[-zones.LEG:] if not x[2]]
+        T.check(v.entries[0][1] == NAME, f'the view title {v.entries[0][1]!r}, want {NAME!r}', errs)
+        T.check(v.find('STAT', exact=True) is None, f'the view shows STAT (its flag hides it): {vis}', errs)
+        T.check(v.entries[v.selected][1] == 'ESCI', f'the cursor on {v.entries[v.selected][1]!r}, want ESCI', errs)
+        T.check(leg == [fpmlv.LEGEND[T.UI]], f'legend {leg}, want [{fpmlv.LEGEND[T.UI]}]', errs)
+        T.check([z for _, z in rows] == ['lb', 'pl', 'pl'], f'row colours {[z for _, z in rows]} (1st light blue)', errs)
+        n = struct.unpack('<I', rd(s, need['GP_OV_N'], 4))[0]
+        raw = rd(s, need['GP_OV_ROWS'], 18 * 3)
+        tf = rd(s, need['FV_TF'], 4 * fpmlv.TF)
+        T.check(n == 3, f'the view has {n} rows, want 3', errs)
+        got = []
+        for k, r in enumerate(model):
+            f = tf[fpmlv.TF * k:fpmlv.TF * (k + 1)]
+            pl, w, d, l, gf, ga, pts = struct.unpack_from('<7h', raw, 18 * k + 4)
+            team = sv['club'][r['club']]
+            mine = r['club'] == ME
+            got.append((team, pl, w, d, l, gf, ga, pts))
+            won = sum(1 for h, a, hg, ag in ms if (h == r['club'] and hg > ag) or (a == r['club'] and ag > hg))
+            drew = sum(1 for h, a, hg, ag in ms if r['club'] in (h, a) and hg == ag)
+            T.check((pl, w, d, l, gf, pts) == (r['pl'], won, drew, r['pl'] - won - drew, r['gf'], r['pts']) and gf - ga == r['gd'],
+                    f'row {k + 1}: {(pl, w, d, l, gf, ga, pts)}, the model {r}', errs)
+            if mine:                                    # (the career club: its own TeamFile, no stand-in)
+                T.check(f[4] == 0, f'row {k + 1} (the career club): a stand-in TeamFile {f.hex()}', errs)
+            else:
+                name = f[5:22].split(b'\0')[0].decode('latin-1')
+                T.check(f[4] == 1 and f[0] | f[1] << 8 == team and name == T.team_name(exe, team),
+                        f'row {k + 1}: stand-in {f.hex()} name {name!r}, want {team:#x} {T.team_name(exe, team)!r}', errs)
+        info.append(f'{NAME}: {n} rows {got}, legend {leg}, colours {[z for _, z in rows]}, no STAT, cursor on ESCI')
+        T.walk(s, v.find('ESCI', exact=True), 3)
+        T.walk(s, 1, 3)                                 # the league again: its own table, STAT back
+        lg2 = s.screen()
+        s.shot('league_again')
+        T.check(lg2.entries[0][1] == ltitle and lg2.find('STAT', exact=True) is not None,
+                f"the league again: title {lg2.entries[0][1]!r} (was {ltitle!r}), STAT {lg2.find('STAT', exact=True)}", errs)
+        info.append(f'{ltitle}: STAT there before and after')
+    return not errs, '; '.join(errs or info)
+
+
 def run_fresh(tag, place, seed, force, entrant=True, pages=True):
     """a new career's season on the stage's build: check_stage + check_pages"""
     skip = gate()
@@ -663,12 +778,14 @@ def run_fresh(tag, place, seed, force, entrant=True, pages=True):
     o, errs = observe(lines, A), []
     T.check(ok, f'season: {msg[:300]}', errs)
     fin = check_stage(o, errs, seed, force, ME if entrant else None)
+    seen = []
     if entrant:
         errs += T.sc_labels(lines, LABEL)
+        seen = check_titles(lines, errs, [k for k in range(3) if ME in stage(seed, force)[0][k][1:3]] if force else [])
     if pages:
         check_pages(exe, end_save(), tag, fin, o, errs, entrant)
     open(os.path.join(T.RUNS, f'supc_{tag}.txt'), 'w').write('\n'.join(map(str, o['log'] + o['mls'][-1:])) + '\n')
-    return not errs, '; '.join(errs) or summary(fin, o) + f'; {msg[:60]}'
+    return not errs, '; '.join(errs) or summary(fin, o) + (f'; match titles {seen}' if seen else '') + f'; {msg[:60]}'
 
 
 def summary(fin, o):
@@ -1051,6 +1168,13 @@ def register(mod):
         away won: slot-4 ties at 129 and 131 only, the table by points before goal difference, the winner, the
         WINNERS line and the management record's line (the career club won), the fixture list's name"""
         return run_fresh('home_win', 1, *shape('home_win'))
+
+    @sc
+    def world_supc_view():
+        """Supercoppa Serie C, CLASSIFICA = screen 1: the mid-stage save loaded, the league's table > STAT > SUPERCOPPA
+        SERIE C = the game's table screen with the stage's 3 rows, the VINCE legend, the 1st row light blue and NO STAT
+        entry; the league's own table keeps STAT"""
+        return run_view()
 
     @sc
     def world_supc_draw():

@@ -126,3 +126,67 @@ u32 fpv_title(u32 i)
 }
 
 const char *fpv_legend(void) { return FPV_TAB.leg; }
+
+u32 fpv_round(u32 match_id)
+{
+    const u32 md = match_id & 0xF;
+    return match_id >> 16 == FPV_ML_KIND && FPV_TAB.rnd && md < FPV_TAB.ndays ? FPV_TAB.rnd + md : 0;
+}
+
+/* The table VIEW (Davide 17/11: screen 1 - the game's own table screen with the stage's rows; longtable lt_ov's mode
+   3, opened from STAT of a league table that holds one of the stage's clubs). The game's table struct: +31h its
+   clubs, +12Dh their team words, +2B3h their 18-byte rows. */
+static u32 w16(const u8 *b) { return b[0] | b[1] << 8; }
+static i32 diy_row(const u8 *diy, u32 team)     /* the club's row in the table, -1 = not one */
+{
+    u32 n = w16(diy + 0x31);
+    if (n > 64) n = 64;
+    for (u32 q = 0; q < n; q++)
+        if (w16(diy + 0x12D + 2 * q) == team) return (i32)q;
+    return -1;
+}
+static i32 view_of(const u8 *diy)       /* this season's instance with a club of the table, -1 = none */
+{
+    for (u32 i = 0; i < FP_ML_N; i++) {
+        const struct fp_ml *ml = ml_at(i);
+        if (!ml || ml->season != GP_SEAS) continue;
+        for (u32 k = 0; k < ml->n; k++)
+            if (diy_row(diy, ml->club[k]) >= 0) return (i32)i;
+    }
+    return -1;
+}
+
+u32 fpv_view(const u8 *diy, u32 *title)
+{
+    const i32 i = view_of(diy);
+    const struct fp_mlrow *r = i < 0 ? 0 : fp_ml_row(fp_ml_get((u32)i)->id);
+    const u32 t = r ? fpv_title((u32)i) : 0;
+    if (!t || (FPV_TAB.vcid[r->name] && FPV_TAB.vcid[r->name] != diy[0x2D])) return 0;
+    *title = t;
+    return 0x100 | FPV_TAB.vflags[r->name];
+}
+
+u32 fpv_rows(const u8 *diy, u8 *rows, u16 *ord, const u8 *sel, u8 *tf)
+{
+    struct fpv_trow t[4];
+    const i32 i = view_of(diy);
+    const u32 n = i < 0 ? 0 : (u32)fpv_table((u32)i, t);
+    for (u32 k = 0; k < 4; k++) {
+        u8 *f = tf + FPV_TF * k, *x = rows + 18 * k;
+        for (u32 j = 0; j < FPV_TF; j++) f[j] = 0;
+        if (k >= n) continue;
+        const i32 q = diy_row(diy, t[k].team);
+        u32 off = (u32)((const u8 *)f - sel);   /* (a row names its club by its TeamFile: selTeamsPtr + this) */
+        if (q >= 0) {
+            const u8 *o = diy + 0x2B3 + 18 * q;
+            off = o[0] | o[1] << 8 | (u32)o[2] << 16 | (u32)o[3] << 24;
+        } else {
+            f[0] = (u8)t[k].team; f[1] = (u8)(t[k].team >> 8); f[2] = f[0]; f[3] = f[1]; f[4] = 1; f[5] = '?';
+        }
+        const u16 v[7] = { t[k].pl, t[k].w, t[k].d, t[k].l, t[k].gf, t[k].ga, (u16)t[k].pts };
+        x[0] = (u8)off; x[1] = (u8)(off >> 8); x[2] = (u8)(off >> 16); x[3] = (u8)(off >> 24);
+        for (u32 j = 0; j < 7; j++) { x[4 + 2 * j] = (u8)v[j]; x[5 + 2 * j] = (u8)(v[j] >> 8); }
+        ord[k] = (u16)(18 * k);
+    }
+    return n;
+}

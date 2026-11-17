@@ -220,6 +220,7 @@ CAREER_END = [None]                # the career cave's end after its code (4.0.1
 
 
 def patch_exe(src, dst, remap, lang='it'):
+    __import__('gphooks').reset()                # (4.2: the gplay hook registry, per exe)
     CAREER_END[0] = None
     LT_SPACE.clear()
     LR_ROOM.clear()
@@ -1117,8 +1118,12 @@ def patch_exe(src, dst, remap, lang='it'):
         mbn = mpk.meta.get('button_names') or {}
         fpmlv.patch(p, mlg, lang, area, (mbn.get(lang) or mpk.meta.get('button') or '').upper(), fpad.LABELS,
                     gplay.LABELS, fpad.LABELS['FP_MLDONE'], winners.LABELS.get('WN_MLP'))
-        import cobj                              # (the management record's line: gplay.c gp_rlines_c's hook -> fpv_rline_c)
-        cobj.add_ptr(p, gplay.LABELS['GP_PRLINE'][1], *fpmlv.LABELS['fpv_rline_c'][:2], gplay.LABELS['GP_PRLINE'][0])
+        import gphooks                           # (the management record's line: gplay.c gp_rlines_c's hook -> fpv_rline_c,
+        gphooks.register('GP_PRLINE', 'nazionali', fpmlv.LABELS['fpv_rline_c'][:2])   # no next dword: the chain's end)
+    import gphooks                               # 4.2 (MC 17/11): every gplay hook chain wired once, one fixup per site
+    if gphooks.REG:
+        print(f'exe: gplay hooks: {gphooks.summary()}')
+    gphooks.link(p, gplay.LABELS)
     if sreg_end is not None:
         assert sreg_end <= lrank.LR_AT, ('sreg past LR_AT', hex(sreg_end), hex(lrank.LR_AT))
     if cdkn.on():                                # 4.2 S2 knockouts: the Coppa D's rounds 0-1 by the engine (gplay.c GP_CDKN)
@@ -1148,6 +1153,7 @@ def patch_exe(src, dst, remap, lang='it'):
     print(f'exe: the original exe\'s typos fixed in {typofix.patch(p, lang)} strings (typofix.FIXES)')   # 4.2 (Davide: PAREGGI)
     if 'X3' in gplay.LABELS:
         gplay.x3_check(p)                        # 4.2 X3: GP_SCDONE bound to gplay3.c's sc_done in obj3
+    __import__('gphooks').check(p)               # 4.2: every gplay hook site still leads to what gphooks.link wired
     delta, shift = p.save(dst)
     dd = os.path.join(os.path.dirname(os.path.abspath(dst)), 'DATA')
     if os.path.isdir(dd):                        # (the neutral finals' strings: exact in this exe / its DATA)

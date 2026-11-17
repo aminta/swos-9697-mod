@@ -36,6 +36,11 @@ struct fp_mlrow FP_MLT[FP_MLN_] FP_DATA;        /* fpad.py puts the rows after t
 u8 FP_MLTF[FP_MLN_] FP_DATA;                    /* each row's league team file (whose season end decides it) */
 u16 FP_MLN FP_DATA;
 void (*FP_MLDONE)(const struct fp_ml *) FP_DATA;   /* lane 2 (fpmlv.py binds fpv_done) */
+/* gplay's hook chains (tools/gphooks.py, MC 17/11): this module's next dwords - each hook does its work, then always
+   passes the call on (0 = the chain's end) */
+void (*FP_NLEND)(void) FP_DATA;
+void (*FP_NEND)(void) FP_DATA;
+void (*FP_NNEED)(void) FP_DATA;
 
 #ifndef GP_GIN_HOST
 extern u8 GP_GIN[];                             /* gplay.c GP_IN (obj2): nd, n[], t[][], sim[] at fpad.py's gp_offsets */
@@ -225,6 +230,7 @@ static i32 resolve(const struct fp_mlrow *r, u32 i, u16 *club, i32 *me)
 /* GP_PNEED (gp_need_pre's head): the divisions to simulate now - the other entrants' of a row whose entrant place the
    career club holds - appended to GP_IN.sim[] (after the club's own play-offs' divisions; gp_need_pre counts them
    as theirs: always kept). Returns the mask it wanted. */
+void fp_ml_open(u32 at_end);
 u32 fp_ml_need(void)
 {
     u32 mask = 0;
@@ -244,6 +250,11 @@ u32 fp_ml_need(void)
     for (u32 d = 0; d < C_GD && ns < C_SDX; d++)
         if ((mask & ~have) >> d & 1 && !in_n(d)) sim[ns++] = (u8)d;   /* (a table already in GP_IN - the club's own: not again) */
     return mask;
+}
+/* the hooks' entries (gphooks chains: the work, then the next module) */
+void fp_ml_hneed(void) { fp_ml_need(); if (FP_NNEED) FP_NNEED(); }
+void fp_ml_lend(void) { fp_ml_open(0); if (FP_NLEND) FP_NLEND(); }
+void fp_ml_end(void) { fp_ml_open(1); if (FP_NEND) FP_NEND();
 }
 
 void fp_ml_open(u32 at_end)

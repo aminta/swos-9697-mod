@@ -280,7 +280,7 @@ assert DIFF_END <= KITS_AT < KITS_END <= S7SWAP_AT < S7SWAP_END <= OBJ1MV_AT < O
 # places 0x35000 / 0x39000). Until then nothing else may use these names' literals.
 FPORT_AT, FPORT_END = 0x27500, 0x29500      # fpad.c (0x2000)
 FPORT2_AT, FPORT2_END = 0x29500, 0x2A700    # fpsave.c (0x1200)
-FPML_AT, FPML_END = 0x2A700, 0x2C000        # fpml.c: 0x1900 = the measured release shape (6029 B, 17/11) + the 256 B floor, rounded to
+FPML_AT, FPML_END = 0x2A700, 0x2C100        # fpml.c: 0x1A00 (17/11 09:30: + the gphooks next dwords / entries); was 0x1900 = the measured release shape (6029 B, 17/11) + the 256 B floor, rounded to
                                             # 0x100 - 0x100 MORE than the provisional 0x1800 (0x2BF00), reported to Shaved / MC
 assert DRP8D_END <= FPORT_AT < FPORT_END == FPORT2_AT < FPORT2_END == FPML_AT < FPML_END < 0x30000, \
     'swreg TEMP-BANDS: FPORT | FPORT2 | FPML adjacent after the 4.3 reservations, below the test region'

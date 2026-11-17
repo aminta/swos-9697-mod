@@ -3308,10 +3308,12 @@ u8 GP_PREI;
 /* 4.2 the fixture port's league-end / season-end hooks (fpml.c, the mini-league producer; bound by fpad.py, 0 = none):
    GP_PNEED - gp_need_pre's head: the divisions a stage opening at the career league's last day needs simulated now and
    kept are appended to GP_IN.sim[] by the hook itself (obj4: no byte of that here - obj1's room), as the club's own
-   play-offs' (before GP_PREI); GP_PLEND(0) - gp_pre_c's head: the career league over, those tables in GP_IN (the
-   club's own table after gp_force); GP_PLEND(1) - gp_end_c's head: the season end, after gp_season, every table final */
+   play-offs' (before GP_PREI); GP_PLEND - gp_pre_c's head: the career league over, those tables in GP_IN (the
+   club's own table after gp_force); GP_PEND - gp_end_c's head: the season end, after gp_season, every table final.
+   Every hook dword is wired by tools/gphooks.py (MC 17/11: the one registry, a chain per hook), never by a module. */
 void (*GP_PNEED)(void) __attribute__((section(".data")));
-void (*GP_PLEND)(u32) __attribute__((section(".data")));
+void (*GP_PLEND)(void) __attribute__((section(".data")));
+void (*GP_PEND)(void) __attribute__((section(".data")));
 #endif
 __attribute__((minsize)) u32 gp_need_pre(void) {
     int ns = 0, lim = GP_GSON ? SDX : SD;
@@ -3361,7 +3363,7 @@ __attribute__((minsize)) void gp_simkeep_pre(void) {
 __attribute__((minsize)) void gp_pre_c(void) {
     if (GP_IN.gtype != 4 || !GP_IN.spec) return;
 #if GP_PORT
-    if (GP_PLEND) GP_PLEND(0);          /* (the port: a stage of the league's end opens - fpml.c fp_ml_open) */
+    if (GP_PLEND) GP_PLEND();           /* (the port: a stage of the league's end opens - fpml.c fp_ml_lend) */
 #endif
     if (WN_ST.magic != WN_MAGIC || (u8)(WN_ST.season + 1) != GP_SEAS) {   /* (no last season: an empty one that
                                                    no reader takes for the last season) */
@@ -3384,7 +3386,7 @@ __attribute__((minsize)) void gp_pre_c(void) {
 void gp_end_c(void) {                   /* after gp_season: the log, the state void */
     const u8 *s = (const u8 *)&GP_ST.ko[0];
 #if GP_PORT
-    if (GP_PLEND) GP_PLEND(1);          /* (the port: a stage not played is decided now, its trophies written -
+    if (GP_PEND) GP_PEND();             /* (the port: a stage not played is decided now, its trophies written -
                                            fpml.c fp_ml_open(1), after gp_season and before the S7 swap) */
 #endif
     u8 *d = (u8 *)&GP_LOG.ko;

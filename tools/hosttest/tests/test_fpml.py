@@ -108,14 +108,14 @@ int main(int argc, char **argv)
     printf("need=%X", fp_ml_need());
     printf(" sim=%d,%d,%d\n", GP_GIN[O_INSIM], GP_GIN[O_INSIM + 1], GP_GIN[O_INSIM + 2]);
     tables(0x45);
-    fp_ml_open(0);
+    fp_ml_lend();
     show("A");
     fp_ml_open(0);                              /* (a second league-end call: nothing) */
     for (int n = 0; n < nadd; n++) play(n);
     show("B");
     printf("busy=%u,%u\n", fp_ml_busy(GP_MGR), fp_ml_busy(0x1234));
-    fp_ml_open(1);
-    fp_ml_open(1);
+    fp_ml_end();
+    fp_ml_end();
     show("C");
     sr_srow rows[4];
     const int rc = fp_ml_table(fp_ml_get(0), rows);

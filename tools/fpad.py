@@ -415,7 +415,8 @@ def patch(p, ssyms, gsyms):
     mlt, mlf = ml_table()
     nrow = len(mlt) // MLROW_SIZE
     roots3 = ['fp_ml_open', 'fp_ml_need', 'fp_ml_result', 'fp_ml_busy', 'fp_ml_loaded', 'fp_ml_sim', 'fp_ml_table',
-              'fp_ml_get', 'fp_ml_row', 'FP_MLT', 'FP_MLTF', 'FP_MLN', 'FP_MLDONE']
+              'fp_ml_get', 'fp_ml_row', 'FP_MLT', 'FP_MLTF', 'FP_MLN', 'FP_MLDONE', 'fp_ml_hneed', 'fp_ml_lend', 'fp_ml_end',
+              'FP_NNEED', 'FP_NLEND', 'FP_NEND']
     ext3 = {k: ext[k] for k in ('FP_ST', 'FP_ML', 'FP_SEASON', 'FP_CWB', 'GP_GIN', 'GP_SEAS', 'GP_MGR')}
     ext3.update({k: syms[k] for k in ('fp_log', 'fp_wake', 'fp_ml_add')})
     rel3_flags = tuple(rel_flags) + (f'-DFP_MLN_={max(1, nrow)}',)
@@ -434,8 +435,10 @@ def patch(p, ssyms, gsyms):
     p.put(*syms3['FP_MLN'], struct.pack('<H', nrow))
     for hook, f in (('FP_MLRES', 'fp_ml_result'), ('FP_MLBUSY', 'fp_ml_busy'), ('FP_MLLOAD', 'fp_ml_loaded')):
         cobj.add_ptr(p, syms[hook][1], *syms3[f], syms[hook][0])
-    for hook, f in (('GP_PNEED', 'fp_ml_need'), ('GP_PLEND', 'fp_ml_open')):
-        cobj.add_ptr(p, gsyms[hook][1], *syms3[f], gsyms[hook][0])
+    import gphooks                      # (gplay's hooks: registered, wired by patch.py's gphooks.link - slot 'nazionali')
+    for hook, f, nx in (('GP_PNEED', 'fp_ml_hneed', 'FP_NNEED'), ('GP_PLEND', 'fp_ml_lend', 'FP_NLEND'),
+                        ('GP_PEND', 'fp_ml_end', 'FP_NEND')):
+        gphooks.register(hook, 'nazionali', syms3[f], syms3[nx])
     syms = dict(syms, **syms3)
     p.put(*syms['FP_FMAP'], fmap)
     p.put(*syms['FP_DIV'], fdiv)
@@ -444,8 +447,9 @@ def patch(p, ssyms, gsyms):
     if test:
         p.put(*syms['FP_TEST'], b''.join(bytes(e) for e in test))
         p.put(*syms['FP_NTEST'], struct.pack('<H', len(test)))
+    import gphooks                      # (4.2 MC 17/11: the one hook registry - fpad ends every chain it is in)
     for hook, f in (('GP_PSTEP', 'fp_step'), ('GP_PDONE', 'fp_done'), ('GP_PLEG', 'fp_leg'), ('GP_PSEAS', 'fp_season')):
-        cobj.add_ptr(p, gsyms[hook][1], *syms[f], gsyms[hook][0])   # (GP_PSEAS: pg_season's end, pg_fix - MC 14/11)
+        gphooks.register(hook, 'fpad', syms[f])   # (GP_PSEAS: pg_season's end, pg_fix - MC 14/11)
     for o in ets:                                       # (cseg_2AE97's extra time -> fp_et, chained)
         p.branch(1, o, 0xE8, *syms['fp_et'])
     engine.CALL_AT['fp_new'] = syms['fp_new']

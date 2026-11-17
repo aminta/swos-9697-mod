@@ -4693,7 +4693,8 @@ def world8485():
                         s.poke(s.result.base2 + int(po, 16), bytes.fromhex(pv))
                         poked.add(('if', k))
                         s.log.append(f'POKEIF {po} {pv}')
-                if mid[0] and s.result.obj2(int(mid[0], 16), 1)[0] == int(mid[1], 0):
+                if mid[0] and (s.result.read(s.result.lin((int(mid[0][1]), int(mid[0][3:], 16))), 1) if mid[0][:3] in ('o1/', 'o3/', 'o4/')   # (o4/: an obj4
+                               else s.result.obj2(int(mid[0], 16), 1))[0] == int(mid[1], 0):   # byte, as W8485_HEX - fpmlgate's FP_ML)
                     midc[0] += 1
                     if midc[0] >= int(mid[2]):
                         return True
@@ -44142,6 +44143,7 @@ def sell_offers():
 
 __import__('zonetest').register(sys.modules[__name__])   # 4.1.2 zone positions (tools/zonetest.py)
 __import__('fpgate').register(sys.modules[__name__])   # 4.2 fixture port P2 gate (tools/fpgate.py, Motore)
+__import__('fpmlgate').register(sys.modules[__name__])   # 4.2 Supercoppa Serie C: the mini-league (tools/fpmlgate.py, lane 3: fpml_host_*, world_supc_*)
 __import__('tacgate').register(sys.modules[__name__])   # 4.2 club tactics + real Serie A/B line-ups (tools/tacgate.py, Motore)
 
 

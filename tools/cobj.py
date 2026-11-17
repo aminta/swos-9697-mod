@@ -174,6 +174,8 @@ def link(p, obj, text_at, bss_at, externs=None, limit=None, text_obj=1, roots=No
     for s in syms:
         if s is not None and s[3] == 1 and s[2]:   # STB_GLOBAL
             out[s[2]] = s[:2]
+    if bss and hasattr(p, 'mark'):                  # (4.2, MC 17/11) a .bss inside an object's linked bytes: part of its file
+        p.mark(bss_at[0], bss_at[1] + bss)          # pages (LEPatch.mark: swe.c's arena at BSS_AT excepted)
     return out, at, bss
 
 

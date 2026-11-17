@@ -137,9 +137,13 @@ def patch(p, ssyms, gsyms):
     # the hooks: FRND first, what they held before (fpad's) chained through FR_NSTEP / FR_NLEG
     for hook, f, nxt in (('GP_PSTEP', 'fr_step', 'FR_NSTEP'), ('GP_PLEG', 'fr_leg', 'FR_NLEG')):
         prev = p.target(*gsyms[hook]) if any(p.get(*gsyms[hook], 4)) else None
-        if prev:
-            cobj.add_ptr(p, syms[nxt][1], *prev, syms[nxt][0])
-        cobj.add_ptr(p, gsyms[hook][1], *syms[f], gsyms[hook][0])
+        if prev:                        # (FPORT=1: fpad's pointer and its fixup sit in the slot - retargeted, never added
+            cobj.add_ptr(p, syms[nxt][1], *prev, syms[nxt][0])        #  twice: Shaved 17/11, lepatch's add_ptr assert)
+            p.retarget(gsyms[hook][0], gsyms[hook][1], *syms[f])
+            p.put(gsyms[hook][0], gsyms[hook][1], struct.pack('<I', syms[f][1]))
+            assert p.target(*gsyms[hook]) == syms[f], ('frnd: hook not retargeted', hook)
+        else:
+            cobj.add_ptr(p, gsyms[hook][1], *syms[f], gsyms[hook][0])
     assert 'GP_PROW' in gsyms, 'frnd: gplay without GP_PROW (gp_scrow_c\'s hook, GP_FRND)'
     cobj.add_ptr(p, gsyms['GP_PROW'][1], *syms['fr_row'], gsyms['GP_PROW'][0])   # (played friendlies' rows keep their name)
     cobj.add_ptr(p, finance.LABELS['FI_FRGATE'], *syms['fr_gate'], 3)

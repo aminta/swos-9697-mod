@@ -148,6 +148,20 @@ DRIB1V1_AT = 0xC000                     # 42-drp (MC 14/11): the PERSONALIZZATO 
 DRIB1V1_END = 0xC400                    # knob, in MATCH SPEED's parked room (page 13 under NAMEFIT_AT, its link limit);
 assert DRIB1V1_AT == SLOW_AT and DRIB1V1_END == NAMEFIT_AT, 'the 42-drp band = slow\'s room (only with patch.SLOW off)'
 assert (NAMEFIT_AT, TRIAL_AT, BOX_AT) == (0xC400, 0xC800, 0xCF00), 'page 13 bands unchanged (MC 14/11)'
+# --- obj3 / obj1 layout (4.2 x3all, MC 16/11, Motore's names; NOT obj4 bands: no NAME_AT / NAME_END pairs here -
+# obj4check / obj4pack take every such pair as an obj4 band) ---
+OBJ3_MAX_PAGES = 48                     # the ONE limit of obj3's file pages (was the literal 32: patch.OBJ3_ARENA, buildrel.sh).
+                                        # 32 was a convention, not a format limit: LE page-table entries are 4 B (no 5-bit index),
+                                        # obj1 (237) / obj2 (213 pages) use the same lepatch / le / DOS/4GW paths, obj4's base
+                                        # follows obj3's end (lepatch.set_base_after), the harness reads base3 at run time,
+                                        # hosttest maps B3..B4 = 4 MB (diff_structural asserts no overlap)
+OBJ3_LT = 0xE000                        # PINNED: obj3's chain 0..OBJ3_LT, the longtable page OBJ3_LT..OBJ3_LT + 0x1000
+OBJ3_GP3 = (0xF000, 0x1F000)            # the GP3 band, obj3 pages 16-31: ALL of gplay.c (code + .rodata + .data), linked by the
+OBJ3_GP3_FLOOR = 512                    # x3all move (until then OBJ3_PAGES 15: unused); >= OBJ3_GP3_FLOOR B left
+OBJ1FREE_PAGES = 13                     # the last 13 of gplay's obj1 pages, FREE in place once gplay.c leaves obj1 (obj1 is not
+                                        # shifted; patch.py prints the band and asserts it all-zero; a claim goes through MC)
+assert OBJ3_LT % 0x1000 == 0 and OBJ3_GP3[0] == OBJ3_LT + 0x1000 and OBJ3_GP3[1] - OBJ3_GP3[0] == 0x10000 and \
+    OBJ3_GP3[1] // 0x1000 <= OBJ3_MAX_PAGES and OBJ3_GP3_FLOOR >= 256, 'swreg: obj3 layout (MC 16/11 x3all)'
 MAGIC = b'SWRG'
 VERSION = 2
 HDR = 32

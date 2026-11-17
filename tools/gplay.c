@@ -4895,7 +4895,7 @@ const u16 GP_OFFS[] = { OF(struct gp_state, ko), OF(struct gp_ko, season), OF(st
                         OF(struct gp_ko, team), OF(struct gp_ko, d1), OF(struct gp_ko, d2), OF(struct gp_ko, rs),
                         OF(struct gp_in, mdiv), MAGIC, NOC, K_PORT, HOST_NEUTRAL, SC_E, SC_UEFA, sizeof(struct gp_ko),
                         OF(struct gp_in, n), OF(struct gp_in, t), OF(struct gp_in, mgr), GD, GT, sizeof(struct gp_row),
-                        OF(struct gp_row, pts), OF(struct gp_in, sim), SDX };
+                        OF(struct gp_row, pts), OF(struct gp_in, sim), SDX,
                         OF(struct gp_ko, pts), K_FR, LV_BETTER };   /* (4.2 friendlies: O_PTS - the fee in pts[2], a
                                            one-tie contest's unused entry -, C_KFR, C_LVBETTER) */
 #endif

@@ -2007,7 +2007,7 @@ def patch(p, cave, nasmcave, splits):
         src = nasmcave.sub(src, '    SHB_SET\n', '')
     if zoned:                                   # 4.1.2 zone positions (ZP_ASM)
         zs = zp_sites(p)
-        stw = gplay.LABELS.get('csyms', {}).get('gp_stwins_c')
+        stw = gplay.entry('gp_stwins_c')                # (x3all: gplay.c's function through its obj1 thunk)
         sym.update(ZD3=(2, zs['D3']), ZA5=(2, zs['A5']), ZA6=(2, zs['A6']), ZSEL=(2, zs['SEL']), ZP_STW_ON=(0, int(bool(stw))))
         if stw:
             sym['ZP_STW'] = stw

@@ -114,6 +114,13 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 #### Italian version: PAREGGI
 The original Italian game spells "draws" as PARREGGI in the season record (VINCITE ... PARREGGI ... SCON ...), the line a national-team coach sees and that the preseason friendlies now use too. It now reads PAREGGI, in the CD and GOG versions.
 
+#### Saved careers
+- A career saved with 4.2 loads in 4.2 or later. Older versions (4.1 and before) cannot be trusted to load it: keep playing it with 4.2.
+- Careers saved with older versions still load in 4.2, as before.
+- A damaged or cut-off career file is now refused with the game's own "load failed" message, and the career you have open stays as it was. Before, a file that was too long was cut without a word.
+- A 1996-97 career now has room for 159 teams, as the 2026-27 and 1984-85 worlds do (before: 100). If a career ever needs more, the game stops with TEAM CACHE FULL - PLEASE REPORT instead of damaging the save.
+- 1996-97 season end: after the end-of-season matches the game simulates, every club in your career gets its own squad back (before, only the first 32 did).
+
 #### Decisions of this release
 - Serie C / Serie D exchange (2026-27 world): every season the nine Serie D group winners go up and the Serie C clubs relegated (last of each group + play-out losers) go down, your club included; groups by area, an approximation (the real league redraws the Serie D groups every summer); a move of your club keeps its squad, money and record.
 - Set-piece practice: a practice lasts the attempts chosen (SHOTS: 10 at first; UNLIMITED until ESC) on the half chosen (HALF: RANDOM at first, the match's own random end as before) and then shows its results page (ESC ends it earlier); a practice has no match clock, no presentation screen (competition, teams, stadium), no pre-match screen and no score bar at the restarts. Ordinary matches and friendlies are unchanged.
@@ -128,6 +135,7 @@ The original Italian game spells "draws" as PARREGGI in the season record (VINCI
 - JUVENTUS's bench keeper is NETO (Davide, 15/11), over the call-ups rule that would pick PINSOGLIO.
 - Preseason friendlies, opponents and fees (Davide, 16/11): the game's opponents are foreign clubs, one stronger, two similar and one weaker than yours by the value of the best eleven players; when no such club exists, the nearest in strength; two at home (the two weakest) and two away; fees by the table above (a share of a home league gate, by how strong the opponent really is), counted as gate income for financial fair play (UEFA Club Licensing and Financial Sustainability Regulations, Edition 2025, Annex J.2.1 a); a club you choose yourself may also be from your own country.
 - Preseason friendlies, the name on screen (Davide, 17/11): the word for friendly alone, with no round name, in all four languages; the super cups keep their FINAL / SEMI-FINAL.
+- Saves (Davide, 16/11): a career saved with 4.2 is for 4.2 or later; 4.2 keeps loading every older save. Every career uses the big team cache (159 teams), the 1996-97 one included.
 
 
 ## Italiano
@@ -245,6 +253,13 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 #### Versione italiana: PAREGGI
 Il gioco originale in italiano scrive PARREGGI nel registro della stagione (VINCITE ... PARREGGI ... SCON ...), la riga che vede l'allenatore di una nazionale e che ora usano anche le amichevoli estive. Ora c'è scritto PAREGGI, nelle versioni CD e GOG.
 
+#### Carriere salvate
+- Una carriera salvata con la 4.2 si carica con la 4.2 o versioni successive. Con le versioni precedenti (4.1 e prima) il caricamento non è garantito: continua a giocarla con la 4.2.
+- Le carriere salvate con versioni precedenti si caricano ancora nella 4.2, come prima.
+- Un file di carriera rovinato o troncato ora viene rifiutato con il messaggio di caricamento non riuscito del gioco, e la carriera che hai aperta resta com'era. Prima un file troppo lungo veniva tagliato senza avvisare.
+- Una carriera 1996-97 ora ha posto per 159 squadre, come i mondi 2026-27 e 1984-85 (prima: 100). Se una carriera ne avesse bisogno di più, il gioco si ferma con TEAM CACHE FULL - PLEASE REPORT invece di rovinare il salvataggio.
+- Fine stagione 1996-97: dopo le partite di fine stagione simulate dal gioco ogni squadra della tua carriera riprende la sua rosa (prima solo le prime 32).
+
 #### Decisioni di questa release
 - Scambio Serie C / Serie D (Mondo 2026-27): ogni stagione le nove vincitrici dei gironi di Serie D salgono e le retrocesse dalla Serie C (ultima di ogni girone + perdenti dei play-out) scendono, anche la tua squadra; gironi per zona, un'approssimazione (la Lega vera ricompone i gironi di Serie D ogni estate); un passaggio della tua squadra tiene rosa, soldi e curriculum.
 - Prova dei calci piazzati: una prova dura i tiri scelti (TIRI: all'inizio 10; INFINITI fino a ESC) nella metà campo scelta (META' CAMPO: all'inizio CASUALE, la porta a caso della partita come prima) e poi mostra la sua pagina dei risultati (ESC la chiude prima); in una prova non ci sono cronometro, schermata di presentazione (competizione, squadre, stadio), schermata prepartita né barra del risultato alle riprese del gioco. Le partite normali e le amichevoli restano come prima.
@@ -260,3 +275,4 @@ Il gioco originale in italiano scrive PARREGGI nel registro della stagione (VINC
 - Amichevoli estive, avversarie e incassi (Davide, 16/11): le avversarie scelte dal gioco sono squadre straniere, una più forte, due simili e una più debole della tua per valore degli undici giocatori migliori; se una squadra così non esiste, la più vicina per forza; due in casa (le due più deboli) e due in trasferta; cifre della tabella qui sopra (una quota di un incasso di campionato in casa, secondo quanto è forte davvero l'avversaria), contate come incassi da stadio per il fair play finanziario (UEFA Club Licensing and Financial Sustainability Regulations, edizione 2025, allegato J.2.1 a); una squadra scelta da te può essere anche del tuo paese.
 - Amichevoli estive, il nome sullo schermo (Davide, 17/11): solo la parola amichevole, senza il nome del turno, in tutte e quattro le lingue; le supercoppe tengono FINALE / SEMIFINALE.
 - Play-off di Serie C: se la vincitrice del play-off ha già vinto il proprio girone, la promozione va alla finalista sconfitta.
+- Salvataggi (Davide, 16/11): una carriera salvata con la 4.2 è per la 4.2 o successive; la 4.2 continua a caricare tutti i salvataggi precedenti. Ogni carriera usa la cache squadre grande (159 squadre), anche quella 1996-97.

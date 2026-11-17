@@ -47,8 +47,8 @@ VIEW_MODE = 3                           # longtable / fmtpage OV_FLAG: a mini-le
 ML_T = VIEW_MODE - 4                    # its zone key's table number (zones.stage_key: 80h + t, as lt_ov's ZSTAGE)
 STAT_E = 9                              # DIY_leagueTournamentMenu's STATS entry (ESCI the next one)
 TF = 24                                 # fpmlv.h FPV_TF
-RESERVE = 0x8C0                         # obj3 room claimed by reserve() (the release shape's size + slack, asserted by patch())
-SLACK = 64
+RESERVE = 0x980                         # obj3 room claimed by reserve() (the release shape's size + slack, asserted by patch())
+SLACK = 256                              # (MC 17/11: the 256 B floor of every band)
 ROOTS = ['fpv_done', 'fpv_wn_c', 'fpv_rline_c', 'fpv_calnames', 'fpv_table', 'fpv_title', 'fpv_legend', 'FPV_TAB',
          'fpv_round', 'fpv_view', 'fpv_rows']
 EXT_ML = ('fp_ml_get', 'fp_ml_row', 'fp_ml_table')      # lane 1's (fpml.h), from fpad.LABELS
@@ -84,12 +84,22 @@ def on():
     return fpad.on()
 
 
+ML_MAXCLUBS = 22                        # rows the game's table screen lays out without scrolling (longtable.ROWS)
+
+
 def rows(comp):
     """The league competition's mini-league rows, checked."""
     out = comp.get('mini_leagues') or []
     assert len(out) <= min(NN, NR, 9), ('mini_leagues: at most', min(NN, NR), len(out))   # (9: one digit in 'N<id>00')
     for r in out:
         assert r.get('key') and (r.get('names') or r['key'] in NAMES), ('mini_leagues: a row without key / names', r)
+    if out:                                             # (MC 17/11: no silent behaviour: the view keeps the table screen's layout, which scrolls
+        big = [(d.get('names') or {}).get('*', ['?'])[0] for d in comp.get('divisions') or []      # past 22 rows and has group headers)
+               if int(d.get('teams') or 0) > ML_MAXCLUBS]
+        assert not big, ('mini_leagues: a league with a division of more than', ML_MAXCLUBS,
+                         'clubs keeps its scroll arrows in the mini-league view (not supported: parked); divisions', big)
+        assert not (comp.get('groups') or any(st.get('groups') for st in comp.get('stages') or [])), \
+            'mini_leagues: a league with group headers keeps its header rows in the mini-league view (not supported: parked)'
     return out
 
 
@@ -452,7 +462,7 @@ def patch(p, comp, lang, area, country, fsyms, gsyms, mldone, wn_mlp=None):
     assert not bss, 'fpmlv.c: no .bss (its state is the FP item\'s and WN_ST)'
     cend = end
     end = glue(p, end, syms, at + RESERVE)
-    assert at + RESERVE - end >= SLACK, ('fpmlv: under 64 B left of its obj3 room', hex(end))
+    assert at + RESERVE - end >= SLACK, ('fpmlv: under 256 B left of its obj3 room', hex(end))
     p.put(*syms['FPV_TAB'], table(comp, lang, lambda x: gplay._sadd(area, x) - sacups.STR_BASE, country))
     cobj.add_ptr(p, mldone[1], *syms['fpv_done'][:2], mldone[0])
     if wn_mlp:

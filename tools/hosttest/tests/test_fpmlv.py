@@ -357,3 +357,30 @@ def test_fpmlv_size():
         return True, f'SKIP: dry link not possible here ({type(e).__name__}: {str(e)[:120]})'
     ok = end + 0x220 + fpmlv.SLACK <= fpmlv.RESERVE         # (+ the view glue, test_fpmlv_glue_asm: <= 544 B)
     return ok, f'fpmlv.c {end} B at -Oz (code + FPV_TAB {fpmlv.TAB_SIZE} B) of RESERVE {fpmlv.RESERVE} B, {fpmlv.RESERVE - end} B left'
+
+
+def test_fpmlv_rows_refused():
+    """MC 17/11: a mini_leagues row in a league with a division of more than 22 clubs, or with group headers, is REFUSED by the pack
+    validator (no silent behaviour); the Italian-shaped row passes."""
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
+    import fpmlv
+    row = {'key': 'k', 'names': {'*': ['SUPERCOPPA SERIE C', 'SUPERCOPPA C']}}
+
+    def comp(**kw):
+        return dict({'divisions': [{'teams': 20}, {'teams': 20}], 'mini_leagues': [row]}, **kw)
+    errs = []
+    if fpmlv.rows(comp()) != [row]:
+        errs.append('a normal league row was not accepted')
+    if fpmlv.rows({'divisions': [{'teams': 40}]}) != []:
+        errs.append('a league with no mini-league row must pass whatever its size')
+    for bad, what in ((comp(divisions=[{'teams': 20}, {'teams': 23}]), 'more than'),
+                      (comp(groups=[{'title': 'A'}]), 'group headers'),
+                      (comp(stages=[{'groups': [{'title': 'A'}]}]), 'group headers')):
+        try:
+            fpmlv.rows(bad)
+        except AssertionError as e:
+            if what not in str(e):
+                errs.append(f'wrong message for {what}: {e}')
+        else:
+            errs.append(f'not refused: {what}')
+    return not errs, '; '.join(errs) or 'a league with a division over 22 clubs or with group headers is refused; the normal row passes'

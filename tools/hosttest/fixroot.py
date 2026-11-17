@@ -11,6 +11,7 @@ runner turns that into a FAIL naming the fixture (a stale or edited fixture neve
 import hashlib
 import json
 import os
+import sys
 
 LEGACY = os.path.join(os.path.expanduser('~'), 'swos-mod', 'c')
 _ok = set()
@@ -84,16 +85,40 @@ def build_dir(env_names, fixture='HTW'):
     return fx(fixture, 'SWOS')
 
 
+def _stamp_of(rel_swos):
+    """the source stamp buildrel.sh wrote next to a release dir (c/RELxx/SRC_STAMP.json), or None"""
+    try:
+        return json.load(open(os.path.join(os.path.dirname(rel_swos.rstrip(os.sep)), 'SRC_STAMP.json')))
+    except (OSError, ValueError):
+        return None
+
+
 def release_dir(env_names=('HOSTTEST_REL',)):
-    """A 4-exe release dir: the first set of env_names, else the NEWEST c/REL42*/SWOS with its 4 exes (the release the rc runner
-    just built; set HOSTTEST_REL to pin it). None when there is none (callers FAIL through need())."""
+    """The 4-exe release dir BUILT FROM THE TIP UNDER TEST: the c/REL42*/SWOS whose SRC_STAMP.json (buildrel.sh, srcstamp.stamp: the
+    one source identity) equals this checkout's stamp. No "newest by mtime" guess (MC 17/11). HOSTTEST_REL pins one (the rc
+    runner exports it) and must match too. Returns the dir; raises RuntimeError (the runner's FAIL) when the pinned dir does
+    not match or no dir matches."""
     import glob
+    here = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..')
+    sys.path.insert(0, os.path.join(here, 'tools'))
+    import srcstamp
+    want = srcstamp.stamp(os.path.abspath(here))
+    if not want:
+        raise RuntimeError('release_dir: this tree has no source identity (no git, no REMOTE_SRC_TEST)')
     for n in env_names:
-        if os.environ.get(n):
-            return os.environ[n]
-    c = [p for p in glob.glob(os.path.join(LEGACY, 'REL42*', 'SWOS'))
-         if all(os.path.isfile(os.path.join(p, x + '.EXE')) for x in ('ITALIAN', 'ENGLISH', 'FRENCH', 'GERMAN'))]
-    return max(c, key=os.path.getmtime) if c else None
+        d = os.environ.get(n)
+        if d:
+            got = _stamp_of(d)
+            if not got or not srcstamp.same(got, want):
+                raise RuntimeError(f'release_dir: {d} was built from {got and got.get("src")} not from this tree {want["src"]} '
+                                   '(rebuild it with buildrel.sh from this checkout, or unset the pin)')
+            return d
+    for p in sorted(glob.glob(os.path.join(LEGACY, 'REL42*', 'SWOS')), key=os.path.getmtime, reverse=True):
+        got = _stamp_of(p)
+        if got and srcstamp.same(got, want):
+            return p
+    raise RuntimeError(f'release_dir: no c/REL42*/SWOS carries the stamp of this tree ({want["src"]}): build one with buildrel.sh '
+                       'from this checkout (it writes SRC_STAMP.json), then set HOSTTEST_REL')
 
 
 def need(path, what, *files):

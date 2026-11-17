@@ -12,11 +12,16 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, '..'))
 import fixroot  # noqa: E402
 
-# old builds read ON PURPOSE (a reference to diff against; the owner re-points them when the reference changes)
-REFERENCE = {'REL40rc2': 'test_kits (4.0 kit reference)', 'REL41rc3': 'test_italy_import (4.1 data)',
-             'RELpr5': 'test_practice (practice reference exe)', 'REL42i53': 'test_practice (Shaved: off-sites reference)',
-             'REL42i70': 'test_frdata (Motore: friendlies data release dir)', 'REL42x5383': 'test_zbis_golden (golden)',
-             'REL42strmap-ht': 'test_strmap (rebuilt per tip by the gate script; owner Shaved: move into mkfixtures)'}
+# old builds read ON PURPOSE: GOLDEN references ("golden output of X, must not change"; MC 17/11). A reference without a reason
+# written by its owner follows the current build. Owners: write the reason in place of 'owner: ...'.
+REFERENCE = {'REL40rc2': 'test_kits: golden 4.0 kit output (owner: write the reason)',
+             'REL41rc3': 'test_italy_import: golden 4.1 data (owner: write the reason)',
+             'REL42i70': 'test_frdata: friendlies data release dir (owner Motore: reason or follow the current build)',
+             'REL42x5383': 'test_zbis_golden: golden (owner: write the reason)'}
+# NOT valid references (MC 17/11): they must follow the current build; the owner converts them, then this entry goes
+PENDING = {'RELpr5': 'test_practice REF (Difficolta: stale for today\'s PRACTICE band, e1f9ce9)',
+           'REL42i53': 'test_practice off-sites / RBAR REF (Difficolta: stale, e1f9ce9; ask which old-vs-new pair it needs)',
+           'REL42strmap-ht': 'test_strmap: rebuilt per tip by the gate script; goes into mkfixtures (Shaved)'}
 
 
 def test_no_fixed_default_dirs():
@@ -28,10 +33,10 @@ def test_no_fixed_default_dirs():
             if line.lstrip().startswith('#') or 'join(' not in line:   # (path joins only: 'c', 'file' in a dict is not a dir)
                 continue
             for m in re.finditer(r"'c', '([A-Za-z0-9_.-]+)'", line):
-                if m.group(1) not in REFERENCE and not m.group(1).startswith('FX-'):
+                if m.group(1) not in REFERENCE and m.group(1) not in PENDING and not m.group(1).startswith('FX-'):
                     bad.append(f'{f}:{i} {m.group(1)}')
     assert not bad, bad
-    return True, f'no test defaults to a fixed c/<dir> except the {len(REFERENCE)} named references'
+    return True, f'no test defaults to a fixed c/<dir> except {len(REFERENCE)} named golden references and {len(PENDING)} PENDING conversions ({', '.join(PENDING)})'
 
 
 def test_need_fails_loudly():
@@ -59,3 +64,37 @@ def test_build_dir_defaults():
         if keep:
             os.environ['HT_ZZ_BUILD'] = keep
     return True, 'build_dir: env first, else the current fixture HTW'
+
+
+def test_release_dir_matches_the_tip():
+    import json
+    sys.path.insert(0, os.path.join(HERE, '..', '..'))
+    import srcstamp
+    want = srcstamp.stamp(os.path.abspath(os.path.join(HERE, '..', '..', '..')))
+    keep = os.environ.pop('HOSTTEST_REL', None)
+    try:
+        d = tempfile.mkdtemp()
+        sw = os.path.join(d, 'REL42zz', 'SWOS')
+        os.makedirs(sw)
+        json.dump(want, open(os.path.join(d, 'REL42zz', 'SRC_STAMP.json'), 'w'))
+        os.environ['HOSTTEST_REL'] = sw
+        assert fixroot.release_dir() == sw
+        json.dump({'src': '0' * 16, 'sha': 'x'}, open(os.path.join(d, 'REL42zz', 'SRC_STAMP.json'), 'w'))
+        try:
+            fixroot.release_dir()
+        except RuntimeError as e:
+            assert 'not from this tree' in str(e), str(e)
+        else:
+            raise AssertionError('a release dir built from another tree was accepted')
+        os.remove(os.path.join(d, 'REL42zz', 'SRC_STAMP.json'))
+        try:
+            fixroot.release_dir()
+        except RuntimeError:
+            pass
+        else:
+            raise AssertionError('a release dir with no stamp was accepted')
+    finally:
+        os.environ.pop('HOSTTEST_REL', None)
+        if keep:
+            os.environ['HOSTTEST_REL'] = keep
+    return True, 'release_dir: a pinned dir must carry this tree\'s stamp (another stamp / none: RuntimeError)'

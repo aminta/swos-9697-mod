@@ -41,6 +41,7 @@ u8 S7_ORIG[S7_ORIG_SZ] __attribute__((aligned(16)));
 u8 FP_PORT[FPORT_ON] __attribute__((aligned(16)));
 u8 FP_ST[FP_ST_SZ] __attribute__((aligned(4)));
 u8 FP_SAVE[FP_SAVE_SZ] __attribute__((aligned(4)));    /* P5: the EN item 'FP' (fpad.c fp_save / its load) */
+u8 FP_ML[FP_ML_SZ] __attribute__((aligned(4)));        /* the port's mini-league instances (fpml.h struct fp_ml x FP_ML_N; fpml.c) */
 #endif
 #ifdef FRND_BUF                         /* 4.2 friendlies (frnd.py): the world's FRSS.DAT slice, read at the season start and
                                            at each friendly's install (frstep.c fr_slice); not teamFileBuffer (MC) */

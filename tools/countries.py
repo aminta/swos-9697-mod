@@ -51,7 +51,7 @@ class Obj2Area:
             off = (off + 0xfff) & ~0xfff        # several pages (career worlds): pointers must not straddle a page
             if off - self.at >= 16:
                 self.gaps.append([self.at, off])
-        assert off + len(data) <= self.end, 'obj2 area full'
+        assert off + len(data) <= self.end, f'obj2 area full ({off + len(data) - self.end} B over; page tails free: {[g[1] - g[0] for g in self.gaps]})'
         self.p.put(2, off, data)
         self.at = off + len(data)
         return off

@@ -35,7 +35,9 @@ def _add(p, off, tobj, toff, objn=1):
 GS = {h: (3, 0x100 + 4 * i) for i, h in enumerate(gphooks.HOOKS)}
 MODS = {    # module: {hook: has a next dword}
     'frnd': {'GP_PSTEP': True, 'GP_PLEG': True, 'GP_PROW': True},
-    'nazionali': {'GP_PSTEP': True, 'GP_PLEG': True},
+    'nazionali': {'GP_PSTEP': True, 'GP_PLEG': True,     # (+ the Supercoppa C's producer, fpml.c / fpmlv.c, 17/11: NEED /
+                  'GP_PNEED': True, 'GP_PLEND': True, 'GP_PEND': True,   # LEND / END work then ALWAYS call their next;
+                  'GP_PRLINE': False},                   # RLINE = lane 2's fpv_rline_c, no next dword: last in its chain)
     'supercoppa': {'GP_PLEND': True, 'GP_PEND': True, 'GP_PSTEP': True},
     'fpad': {'GP_PSTEP': False, 'GP_PDONE': False, 'GP_PLEG': False, 'GP_PSEAS': False},
 }
@@ -57,7 +59,7 @@ def _call(p, h, slot, active, order):
     m = next(mm for mm in MODS for hh in MODS[mm] if _fn(mm, hh) == tgt)
     order.append(m)
     nxt = _nx(m, h) if MODS[m][h] else None
-    if h == 'GP_PLEG' or h in ('GP_PDONE', 'GP_PSEAS', 'GP_PEND', 'GP_PLEND'):
+    if h == 'GP_PLEG' or h in ('GP_PDONE', 'GP_PSEAS', 'GP_PEND', 'GP_PLEND', 'GP_PNEED'):
         return _call(p, h, nxt, active, order) if nxt else 0
     if m in active:
         return ord(m[0])
@@ -85,7 +87,7 @@ def test_gphooks():
                 for act in inh:                 # (each module acting alone: the chain stops there for STEP / ROW)
                     order = []
                     r = _call(p, h, GS[h], {act}, order)
-                    stops = h in ('GP_PSTEP', 'GP_PROW')
+                    stops = h in ('GP_PSTEP', 'GP_PROW', 'GP_PRLINE')
                     wo = inh[:inh.index(act) + 1] if stops else inh
                     wr = ord(act[0]) if stops else 0
                     if order != wo or r != wr:
@@ -108,8 +110,39 @@ def test_gphooks():
     finally:
         del gphooks.ORDER['zz_test']
         gphooks.reset()
+    # GP_PRLINE: 'nazionali' has no next dword there - alone it links, a later module (supercoppa 30) is refused
+    for later, ok in ((None, True), ('supercoppa', False), ('fpad', False)):
+        gphooks.reset()
+        gphooks.register('GP_PRLINE', 'nazionali', _fn('nazionali', 'GP_PRLINE'))
+        if later:
+            gphooks.register('GP_PRLINE', later, (4, 0xA000))
+        try:
+            gphooks.link(FakeP(), GS, add_ptr=_add)
+            linked = True
+        except AssertionError:
+            linked = False
+        gphooks.reset()
+        if linked != ok:
+            return False, f'GP_PRLINE nazionali (terminal) + {later}: linked {linked}, want {ok}'
+    # an earlier module with a next dword (frnd 10) before the terminal one: frnd -> nazionali, both called when frnd passes
+    gphooks.register('GP_PRLINE', 'frnd', (4, 0xB000), (4, 0xB800))
+    gphooks.register('GP_PRLINE', 'nazionali', _fn('nazionali', 'GP_PRLINE'))
+    p = FakeP()
+    got = gphooks.link(p, GS, add_ptr=_add)
+    gphooks.reset()
+    if got != {'GP_PRLINE': ['frnd', 'nazionali']} or p.target(4, 0xB800) != _fn('nazionali', 'GP_PRLINE'):
+        return False, f'GP_PRLINE frnd + nazionali: {got}'
+    # a hook outside the table / a module without an ORDER: refused at register (nobody writes a dword on the side)
+    for hook, mod in (('GP_PXXX', 'nazionali'), ('GP_PNEED', 'nobody')):
+        try:
+            gphooks.register(hook, mod, (4, 0xC000))
+            gphooks.reset()
+            return False, f'register({hook}, {mod}) accepted'
+        except AssertionError:
+            pass
     return True, f'{n} hook chains over every combination of {", ".join(MODS)} (incl. none): call order by ORDER, ' \
-                 'one fixup per site, STEP / ROW stop at the module that acts, LEG / DONE / SEAS reach every module'
+                 'one fixup per site, STEP / ROW / RLINE stop at the module that acts, LEG / DONE / SEAS / NEED / LEND / END reach every '\
+                 'module; GP_PRLINE ends at nazionali (a later module refused)'
 
 
 if __name__ == '__main__':

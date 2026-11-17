@@ -15,7 +15,9 @@ RECORDED = {'346d040': {'sr_port.c': '18480217430b3587b45d99cdffb8ea7a820ab3c8',
             '1522654': {'sr_port.c': '2ab9a865aa0495ef082cc0e35a342f3a02795814',     # SR_PORT_WINDOWS 24 (MC 14/11)
                         'swosrules.h': '369abc7a9fff6747f8b0ed5e61c567272365003a'},
             '52301fb': {'sr_port.c': '26ac4d5fc4506455a054ddaf19511bc4fc0ff67a',     # e42-consol: portrev 45be9e5 (MC 15/11:
-                        'swosrules.h': '12c988109b494c62191b11096a0efd85d1289350'}}   # PLAYED skip rules 1 / 6, revalidate_all)
+                        'swosrules.h': '12c988109b494c62191b11096a0efd85d1289350'},   # PLAYED skip rules 1 / 6, revalidate_all)
+            '05eea45': {'sr_port.c': '2cb44ba6d54b8e0cf1a2d8ecb3759ab38446b0e7',     # port42: G1 (LV_NONE, winner 2, version 1), G5 (rule 5 and
+                        'swosrules.h': '449d7e4cb9f9c5b6e078b5e5336e2f9e31ab9a65'}}   # PLAYED fixtures), with minilg42 8db2263 (sr_mini_sched)
 
 
 def _sha1(b):

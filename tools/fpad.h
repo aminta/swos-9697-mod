@@ -31,7 +31,12 @@ struct fp_sv {
     u16 leg[2][4], et[2], pens[2];      /* FP_ST's tie in progress */
 };
 typedef char fp_sv_size_is[sizeof(struct fp_sv) == FP_SAVE_HDR ? 1 : -1];
-enum { FP_STAG = 0x31535046, FP_SAVE_VER = 1 };
+enum { FP_STAG = 0x31535046, FP_SAVE_VER = 2 };          /* (ver 2, the Supercoppa Serie C: the ML block between the header and
+                                                             sr_port's bytes; a ver-1 item - FPORT test builds only - loads as none) */
+/* FP item v2 (design supercoppa-c-design-20261116.md (c)): +36 the ML block - u16 tag 'ML', u8 version 1, u8 count, u32 0,
+   then FP_ML_N x 56 B (fpml.h struct fp_ml) -, +156 sr_port_save's bytes. An older save reads zero: no instance. */
+enum { FP_MLTAG = 0x4C4D, FP_MLVER = 1, FP_SV_ML = FP_SAVE_HDR, FP_SV_PORT = FP_SAVE_HDR + 8 + FP_ML_SZ };
+extern u8 FP_ML[FP_ML_SZ];              /* swe.c .bss: struct fp_ml x FP_ML_N */
 
 extern struct fp_st FP_ST;              /* swe.c .bss */
 extern sr_port FP_PORT;                 /* swe.c .bss */

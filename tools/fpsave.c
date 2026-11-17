@@ -27,8 +27,12 @@ void fp_save(void)                      /* engine.before_save: a career save */
     if (FP_ST.magic == FP_ARM) return;  /* (armed, not yet stepped: FP_SAVE still holds what the load read - a save
                                            right after a load keeps the queue; a new career's / season's: as cleared) */
     h->tag = FP_STAG; h->ver = FP_SAVE_VER; h->season = FP_SEASON; h->len = 0;
+    u8 *m = FP_SAVE + FP_SV_ML;         /* (v2: the ML block - written whole or as none, count 0) */
+    for (u32 i = 0; i < 8; i++) m[i] = 0;
     if (FP_CWB != FP_WORLD || !valid()) return;
-    const i32 n = sr_port_save(&FP_PORT, FP_SAVE + FP_SAVE_HDR, FP_SAVE_SZ - FP_SAVE_HDR);
+    m[0] = (u8)FP_MLTAG; m[1] = FP_MLTAG >> 8; m[2] = FP_MLVER; m[3] = FP_ML_SZ / 56;
+    for (u32 i = 0; i < FP_ML_SZ; i++) m[8 + i] = FP_ML[i];
+    const i32 n = sr_port_save(&FP_PORT, FP_SAVE + FP_SV_PORT, FP_SAVE_SZ - FP_SV_PORT);
     if (n <= 0) return;                 /* (never a half section: len 0 = none; fpad.py asserts SAVE_SIZE fits 48) */
     h->len = (u16)n; h->nleg = FP_ST.nleg; h->bad = FP_ST.pad[0];
     for (u32 i = 0; i < 2; i++) {
@@ -43,14 +47,25 @@ void fps_reset(void)                    /* a new career / season, or a load with
     FP_ST.tadded = 0; FP_ST.nleg = 0; FP_ST.pad[0] = 0; GP_PMID = 0;
 }
 
+static void ml_load(void)               /* the ML block of a v2 item of this season -> FP_ML (zeroed by fpad.c fresh); a bad
+                                           tag / version / count: none (the port's own section unaffected). The instances'
+                                           content is checked by fpml.c (fp_ml_loaded: sr_mini_sched on the held list) */
+{
+    const struct fp_sv *h = (const struct fp_sv *)FP_SAVE;
+    const u8 *m = FP_SAVE + FP_SV_ML;
+    if (h->tag != FP_STAG || h->ver != FP_SAVE_VER || h->season != FP_SEASON) return;
+    if ((m[0] | m[1] << 8) != FP_MLTAG || m[2] != FP_MLVER || m[3] != FP_ML_SZ / 56) return;
+    for (u32 i = 0; i < FP_ML_SZ; i++) FP_ML[i] = m[8 + i];
+}
+
 static i32 fp_load_item(void)          /* the fixtures loaded (>= 1; FP_ST's tie and GP_PMID the saved ones), 0 none
                                            (an older save / no port saved), or the refusal (< 0) */
 {
     const struct fp_sv *h = (const struct fp_sv *)FP_SAVE;
     if (h->tag != FP_STAG || h->len == 0) return 0;
-    if (h->ver != FP_SAVE_VER || h->season != FP_SEASON || h->len > FP_SAVE_SZ - FP_SAVE_HDR || h->nleg > 2)
-        return SR_PORT_E_SAVE;
-    const i32 rc = sr_port_load(&FP_PORT, FP_SAVE + FP_SAVE_HDR, h->len, FP_HASH);
+    if (h->ver != FP_SAVE_VER || h->season != FP_SEASON || h->len > FP_SAVE_SZ - FP_SV_PORT || h->nleg > 2)
+        return SR_PORT_E_SAVE;          /* (a ver-1 item, test builds': refused whole - its sr_port section is version 0) */
+    const i32 rc = sr_port_load(&FP_PORT, FP_SAVE + FP_SV_PORT, h->len, FP_HASH);
     if (rc) return rc < 0 ? rc : SR_PORT_E_SAVE;
     /* slot 4 cross-check (plan: a mismatch = refusal): pending = an undecided K_PORT tie of this season in ko[0] with
        the fixture's sides; no pending = none there and no leg played */
@@ -77,5 +92,6 @@ i32 fps_load(void)                      /* fp_load_item(); none or refused: an e
 {
     const i32 got = fp_load_item();
     if (got <= 0) fps_reset();
+    ml_load();
     return got;
 }

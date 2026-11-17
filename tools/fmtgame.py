@@ -933,6 +933,10 @@ def win_lines(comp, div, k, cc='', tfile=None, s7=None):
         for nm, src, tail in po:
             for lang in LANGS:
                 lines[lang].append((_wn_fit({'*': [nm.decode()]}, lang, ' - ' + WN[lang][tail] if tail else ''), src))
+    import fpmlv                                # 4.2 mini-leagues (the Supercoppa Serie C; fpmlv.py): the line of every
+    for nm, src in fpmlv.win_sources(comp, k):  # division with an entrant - 'N' + id + '00' (builds with the port only)
+        for lang in LANGS:
+            lines[lang].append((_wn_fit(nm, lang), src))
     if not lines['it']:
         return {}
     sp = div.get('split')
@@ -1095,6 +1099,11 @@ def from_pack(d):
                     if wl:
                         out.append((world, cid, titles, {'win': wl}))
                     k += 1
+            import fpmlv                        # 4.2 a mini-league's own page (the Supercoppa Serie C: fpmlv.PROSE),
+            for r in (fpmlv.rows(comp) if fpmlv.on() else []):   # keyed by its slot-4 contest's title, any contest id
+                it = fpmlv.format_item(r, {lang: title(lang, '').strip() for lang in LANGS})
+                if it:
+                    out.append((world, None, it[0], {lang: {'prose': it[1][lang], 'tail': []} for lang in LANGS}))
         elif comp['type'] == 'cup':
             side = os.path.join(d, 'complist.json')     # (the converter's facts: the real cup as TM lists it)
             info = (json.load(open(side)) if os.path.exists(side) else {}).get(comp['key'], {})

@@ -3157,14 +3157,6 @@ X3ALL_FLOOR = __import__('swreg').OBJ3_GP3_FLOOR   # 4.2 x3all (MC / Shaved 16/1
 GLUE_FLOOR = 256            # ... and gplay's obj1 pages (asm glue + specs only) >= this many, in every build
 BOUND = __import__('bound').Table('gplay')   # (MC 16/11: the bound-dword generator tcache uses, tools/bound.py - the glue's
                             # GP_CT slots and gplay.c's GP_SCDONE are its slots; bound_check before save)
-CT_EXPORT = ('pg_season', 'pg_place', 'rs_season', 'gp_stage', 'gp_overall', 'f1_capture', 'f1_valid', 'f1_auto',
-             'f1_build', 'ap_mask', 'ap_next', 'ap_label', 'ap_build', 'gp_stitle_c', 'gp_hplan_c', 'gp_hlabel_c',
-             'ri_season', 'ri_apply', 'ri_cache', 'cd_season', 'gp_wn_c', 'sc_wline_c', 'gp_stwins_c')
-                            # (the C functions other modules' code calls - pgroups, ripool, split, fmtpage, longtable,
-                            # winners ...: LABELS[name] = an obj1 thunk, as their code expects; patch() fails on a C
-                            # function exported in LABELS without one. The C addresses: LABELS['csyms'])
-
-
 def _c_funcs(obj):
     """the names of the global functions of a cobj.compile_c object (ELF STT_FUNC)"""
     import cobj
@@ -3180,33 +3172,41 @@ def _c_funcs(obj):
     return out
 
 
-def ct_asm(asm, symbols, syms, room):
+def ct_asm(asm, symbols, syms, room, funcs):
     """4.2 x3all: the glue's calls into gplay.c (room = (obj, at, end), not obj1) go through one table of bound dwords,
-    GP_CT: `call NAME` / `jmp NAME` -> `call [GPCT_NAME]`, NAME any glue symbol inside the C room; GPCT_NAME: dd 0,
-    a slot of the bound-dword table (BOUND: patch() places the C symbols and refs every slot; bound_check). CT_EXPORT entries also get a thunk gpx_NAME: jmp
-    [GPCT_NAME] - the address other modules call. Any other reference stays as written: an absolute one becomes a
-    fixup, a relative one fails the build (nasmcave.assemble: no rel32 out of obj1). -> (asm, [names])"""
+    GP_CT. The table is GENERATED from the object's own symbol table (MC 17/11: nothing hand-listed): one slot
+    GPCT_NAME: dd 0 per global function of gplay.c (funcs = _c_funcs(obj), sorted) - a slot of the bound-dword table
+    (BOUND: patch() places the C symbols and refs every slot; bound_check) - and, from the same set, one obj1 thunk
+    gpx_NAME: jmp [GPCT_NAME] per function: the address other modules' code calls (entry(); LABELS[name]).
+    In the glue `call NAME` / `jmp NAME` -> `call [GPCT_FN]`, NAME any glue symbol that is a function's address in the
+    room (FN = the function's own name: an alias such as CD_MEMBER uses its function's slot). Any other reference stays
+    as written: an absolute one becomes a fixup, a relative one fails the build (nasmcave.assemble: no rel32 out of
+    obj1). -> (asm, [names])"""
     import re
     o, a, e = room
-    inroom = {k for k, v in symbols.items() if v[0] == o and a <= v[1] < e}
-    used = []
+    names = sorted(k for k in funcs if k in syms)
+    assert names and all(syms[k][0] == o and a <= syms[k][1] < e for k in names), 'gplay: a C function outside its room'
+    byaddr = {tuple(syms[k][:2]): k for k in names}
+    assert len(byaddr) == len(names), 'gplay: two C functions at one address'
 
     def rep(m):
-        if m.group(3) not in inroom:
-            return m.group(0)
-        if m.group(3) not in used:
-            used.append(m.group(3))
-        return f'{m.group(1)}{m.group(2)}[GPCT_{m.group(3)}]'
+        fn = byaddr.get(tuple(symbols[m.group(3)][:2])) if m.group(3) in symbols else None
+        return f'{m.group(1)}{m.group(2)}[GPCT_{fn}]' if fn else m.group(0)
     asm = re.sub(r'\b(call|jmp)([ \t]+)([A-Za-z_]\w*)\b(?![ \t]*[\[+:])', rep, asm)
-    exp = [k for k in CT_EXPORT if k in syms]
-    for k in exp:
+    for k in names:                                  # (the table's entries by their own names, for BOUND.place)
         assert k not in symbols or tuple(symbols[k][:2]) == tuple(syms[k][:2]), k
         symbols[k] = syms[k]
-        if k not in used:
-            used.append(k)
-    asm += '\nalign 4, db 0\nGP_CT:\n' + ''.join(f'GPCT_{k}: dd 0\n' for k in used)   # (plain 0: BOUND.ref binds each)
-    asm += ''.join(f'gpx_{k}:\n    jmp [GPCT_{k}]\n' for k in exp)
-    return asm, used
+    asm += '\nalign 4, db 0\nGP_CT:\n' + ''.join(f'GPCT_{k}: dd 0\n' for k in names)   # (plain 0: BOUND.ref binds each)
+    asm += ''.join(f'gpx_{k}:\n    jmp [GPCT_{k}]\n' for k in names)
+    return asm, names
+
+
+def entry(name):
+    """(obj, offset) where another module's code calls gplay.c's function `name`: its obj1 thunk when gplay.c is out of
+    obj1 (x3all), else the function itself; None when the build's gplay.c has no such function."""
+    if 'X3ALL' in LABELS and name in LABELS['X3ALL']['ct']:
+        return (1, LABELS[f'gpx_{name}'])
+    return LABELS.get('csyms', {}).get(name)
 
 
 def patch(p, at, limit, tables, bss_at, area=None, lang='it', c_room=None):
@@ -3564,7 +3564,7 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it', c_room=None):
     glue = (cend + 15) & ~15
     ct_names = []
     if c_room is not None:
-        asm, ct_names = ct_asm(asm, symbols, syms, (c_room[0], c_room[1], c_end))
+        asm, ct_names = ct_asm(asm, symbols, syms, (c_room[0], c_room[1], c_end), _c_funcs(obj))
     code, fix = nasmcave.assemble(asm, glue, symbols)
     lab = nasmcave.labels(asm, glue, symbols)
     assert glue + len(code) <= limit, ('gplay pages full', hex(glue + len(code)), hex(limit))
@@ -3707,13 +3707,10 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it', c_room=None):
                   RI_RULE=syms['RI_RULE'], cd_season=syms['cd_season'],
                   gp_wn_c=syms['gp_wn_c'], sc_wline_c=syms['sc_wline_c'], GP_WNSRC=syms['GP_WNSRC'], GP_WNFILE=syms['GP_WNFILE'], GP_SEAS=syms['GP_SEAS'],   # (winners.py)
                   WN_ST=syms['WN_ST'], GP_MGR=syms['GP_MGR'])
-    if c_room is not None:                             # (x3all: the C entries other modules' code calls - their
-        for k in CT_EXPORT:                            #  obj1 thunk `jmp [GP_CT entry]`; the C address: csyms)
-            if k in syms:
-                LABELS[k] = (1, lab[f'gpx_{k}'])
-        cf = _c_funcs(obj)
-        bad = sorted(k for k, v in LABELS.items() if k in cf and isinstance(v, tuple) and tuple(v[:2]) == tuple(syms[k][:2]))
-        assert not bad, ('gplay x3all: C functions exported in LABELS without a thunk (add them to CT_EXPORT)', bad)
+    if c_room is not None:                             # (x3all: every C function exported in LABELS -> its obj1
+        for k in ct_names:                             #  thunk, what other modules' code calls; generated: the
+            if isinstance(LABELS.get(k), tuple) and tuple(LABELS[k][:2]) == tuple(syms[k][:2]):   # table's own set.
+                LABELS[k] = (1, lab[f'gpx_{k}'])       #  The C address: LABELS['csyms'][name])
     LABELS.update({k: syms[k] for k in ('GP_RIPOOL', 'GP_CDSTR', 'GP_S7SNAP', 'GP_GEOCH', 'GP_CDKN') if k in syms})
     if fpad.on():                                             # (4.2 fixture port P2: fpad.py links fpad.c to these)
         LABELS.update({k: syms[k] for k in ('GP_PAPI', 'GP_PSTEP', 'GP_PDONE', 'GP_PLEG', 'GP_PSEAS', 'GP_WK', 'GP_PMID', 'GP_SCT',

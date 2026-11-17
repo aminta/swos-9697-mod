@@ -2078,6 +2078,21 @@ FR_RNAME = '''
     stc
     ret
 .nfr:'''
+GP_RFR = '''
+gp_rfr:                                 ; 4.2 FRND (rnames RN_FRP, rn_round's head in every world, a contest id FEh):
+    cmp word [GP_ST + ST_KO], 4B47h     ; ko[0] a preseason friendly of this season -> CF = 1, al = FR_I (the empty
+    jne .no                             ; round name), else CF = 0; every register but al and the flags kept
+    push ebx
+    mov bl, [SEASONPLAYING]
+    cmp [GP_ST + ST_KO + KO_SEAS], bl
+    jne .nb
+FR_PART
+.nb:
+    pop ebx
+.no:
+    clc
+    ret
+'''
 CDS1_ID = 0xEF                          # 4.0: the Coppa D's slot-2 knockout (conti.IDS' last, unused there)
 
 
@@ -3497,6 +3512,8 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
         symbols['FR_I'] = (0, fr_i)
     cd_src += nasmcave.sub(nasmcave.sub(GP_RNAME, 'CD_PART', CD_RNAME if cds else ''), 'FR_PART\n',
                            FR_RNAME + '\n' if fr_i is not None else '')
+    if fr_i is not None:                                      # (rnames' RN_FRP: a friendly's title in every world)
+        cd_src += GP_RFR.replace('FR_PART\n', FR_RNAME + '\n')
     asm_main = ASM
     if cft:                                                   # (cupsf: every league division's final places)
         asm_main = nasmcave.sub(asm_main, '    call GP_CAP_NEXT\n    pushad\n    mov edx, [A4R]\n    call gp_find\n',
@@ -3584,6 +3601,8 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
             p.add_ptr(1, rnames.LABELS['RN_CDP'], 1, lab['gp_rname'])
             if 'GP_CALDP' in lab and rnames.LABELS.get('RN_CALD'):
                 p.add_ptr(1, lab['GP_CALDP'], 1, rnames.LABELS['RN_CALD'])
+        if 'gp_rfr' in lab and rnames.LABELS.get('RN_FRP'):   # (4.2 FRND: the friendly's empty round name, any world)
+            p.add_ptr(1, rnames.LABELS['RN_FRP'], 1, lab['gp_rfr'])
         for a in adv_calls:                                  # (the calendar advance: 'then_build')
             assert p.get(1, a, 5) == p.le.obj_bytes(1)[a:a + 5], f'obj1+{a:#x} already hooked'
             p.put(1, a + 1, struct.pack('<i', lab['gp_adv'] - (a + 5)))

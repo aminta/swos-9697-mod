@@ -618,6 +618,27 @@ FR_NONE = ('', '', '')                  # 4.2: the friendly's round (FRND builds
 RN_TRIM_END = '''.e:
     mov [A1R], edi
 '''
+RN_HEAD = '''    push eax
+    push ebx
+    call W_LPW                          ; (a league-phase world only)
+'''
+RN_HEAD_FR = '''    push eax
+    push ebx
+    mov al, [DIY + 2Dh]                 ; 4.2 FRND: a slot-4 contest (id FEh) in ANY world - gplay's gp_rfr: a preseason
+    test al, al                         ; friendly -> CF = 1, al = FR_I (no round name), else CF = 0
+    jnz .fr0
+    mov al, [DIYCOPY + 2Dh]
+.fr0:
+    cmp al, 0FEh
+    jne .fr1
+    cmp dword [RN_FRP], 0
+    je .fr1
+    call [RN_FRP]
+    jc .set
+.fr1:
+    mov eax, [esp + 4]                  ; (eax as the caller gave it)
+    call W_LPW                          ; (a league-phase world only)
+'''
 RN_TRIM_END_FR = '''.e:
     cmp edi, ebx                        ; (4.2 FRND: a trailing space dropped too - the title '<name> ' + the
     je .e1                              ; friendly's empty round name)
@@ -801,6 +822,8 @@ def patch(p, at, limit, lang, area, lp_ids, numbered):
         names.append(FR_NONE)                   # match title just the label ('AMICHEVOLE', not 'AMICHEVOLE FINALE'):
         LABELS['FR_I'] = N_OLD + len(names) - 1 # gplay's gp_rname gives this empty entry for a K_FR ko[0]; the space
         asm = nasmcave.sub(asm, RN_TRIM_END, RN_TRIM_END_FR)   # before it goes (rn_trim: a trailing space dropped)
+        asm = nasmcave.sub(asm, RN_HEAD, RN_HEAD_FR)    # (every world, not only league-phase ones: gplay gp_rfr)
+        asm += 'align 4\nRN_FRP: dd 0                            ; (gplay.gp_rfr, or 0)\n'
         assert len(names) + N_OLD < 256
     new = [[area.add(nm[t].encode('latin1') + b'\0') for nm in names] for t in range(3)]
     tab = (at + 3) & ~3
@@ -877,6 +900,9 @@ def patch(p, at, limit, lang, area, lp_ids, numbered):
     LABELS['RN_CDP'] = lab['RN_CDP']
     LABELS['RN_TIE'] = lab['RN_TIE']
     LABELS['RN_CALD'] = lab['RN_CALD']
+    LABELS.pop('RN_FRP', None)
+    if 'RN_FRP' in lab:
+        LABELS['RN_FRP'] = lab['RN_FRP']
     print(f'exe: round names: tables obj2+{base:#x} -> obj1+{tab:#x} ({n} x 3, {len(fx)} references), rn_round '
           f'obj1+{lab["rn_round"]:#x}, UEFA cups {[hex(x) for x in lp_ids]}, numbered {len(numbered)}')
     return code_at + len(code)

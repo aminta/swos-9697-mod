@@ -243,10 +243,10 @@ def hooks(p, at):
     save_call = m[0].end() - 1
     nxt = save_call + 5 + struct.unpack('<i', bytes(p.get(1, save_call + 1, 4)))[0]
     lc = p.target(1, trailer.INFO['loadcopy'])[1]              # w_loadcopy (careerworld.patch_tails)
-    cur = bytes(p.get(1, lc, 0x40))
-    k = cur.index(b'\xe8')                                     # its first call: w_copy (stage -> fixed part)
-    w_copy = lc + k + 5 + struct.unpack_from('<i', cur, k + 1)[0]
-    assert w_copy == careerworld.LABELS['w_copy'], (hex(w_copy), hex(careerworld.LABELS['w_copy']))
+    cur = bytes(p.get(1, lc, 0x100))
+    w_copy = careerworld.LABELS['w_copy']                      # its first call to w_copy (stage -> fixed part; 4.2 team
+    k = next(k for k in range(len(cur) - 5) if cur[k] == 0xE8  # cache 1b: after the stage checks, which call nothing)
+             and lc + k + 5 + struct.unpack_from('<i', cur, k + 1)[0] == w_copy)
     tmd = careerworld.LABELS['sites']['tmd']
     sym = {'NEWT': SITES['new'], 'OLDT': SITES['old'], 'EXT': (2, tmd + ext_off()), 'LIMIT': (0, LIMIT),
            'W_BIG': (1, careerworld.LABELS['w_big']), 'W_COPY': (1, w_copy)}

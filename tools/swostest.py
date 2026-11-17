@@ -4579,6 +4579,9 @@ def world8485():
             if season == 1:
                 team = os.environ.get('W8485_TEAM', 'INGHILTERRA,FIRST DIVISION,LIVERPOOL').split(',')
                 path = ['CARRIERA', 'SCEGLI SQUADRA', 'CARR. STORICHE', os.environ.get('W8485_WORLD', 'EUROPA 1984-85')] + team
+                if os.environ.get('W8485_WORLD') == '1996-97':   # (team cache 1b: a 1996-97 career - the main menu's
+                    set_world(s, 1)                              # world switch on the original game first)
+                    path = ['CARRIERA', 'SCEGLI SQUADRA'] + team
                 if os.environ.get('W8485_WORLD') == 'MONDO 2026-27':   # (W-modes M3: the team choice lists the main
                     try:                                    # menu's world itself, STORICO only the other ones - the
                         set_world(s, 0)                     # switch on 2026-27, then its continents at once)
@@ -20396,13 +20399,17 @@ def career_20seasons():
     team = os.environ.get('C20_TEAM', 'EUROPA,MALTA,?MALTESE PREMIER LEAGUE|PREMIER LEAGUE,HAMRUN SPARTANS')
     n = int(os.environ.get('C20_SEASONS', 20))
     keys = ('W8485_BUILD', 'W8485_WORLD', 'W8485_TEAM', 'W8485_WNUM', 'W8485_K', 'W8485_NOSACK', 'W8485_ONE',
-            'W8485_FROM', 'SWOSTEST_TAG')
+            'W8485_FROM', 'SWOSTEST_TAG', 'W8485_SMALL')
     keep = {k: os.environ.get(k) for k in keys}
     exe = ui_dir(os.environ.get('W8485_BUILD') or builds()['it'])
     times, notes, car = [], [], None
     try:
-        os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5',
-                          W8485_K='108+', W8485_NOSACK='1')
+        if os.environ.get('C20_WORLD') == '1996-97':   # (team cache 1b gate 2: a 1996-97 career in the big cache; its
+            os.environ.update(W8485_BUILD=exe, W8485_WORLD='1996-97', W8485_TEAM=os.environ.get(   # save has no W1
+                'C20_TEAM', '?EUROPA,ITALIA,?SERIE A,JUVENTUS'), W8485_SMALL='1', W8485_NOSACK='1')   # block: SMALL)
+        else:
+            os.environ.update(W8485_BUILD=exe, W8485_WORLD='MONDO 2026-27', W8485_TEAM=team, W8485_WNUM='5',
+                              W8485_K='108+', W8485_NOSACK='1')
         for season in range(1, n + 1):
             os.environ['SWOSTEST_TAG'] = f'_c20s{season:02d}'
             if season == 1:
@@ -44614,6 +44621,117 @@ def gk_gloves_dark():
         s.shot('gloves_dark')
         kits_check('glv_dark', s, kb, sgp, 1 if gw == 0 else 0, errs, info)
     return not errs, '; '.join(errs + info)
+
+
+def tc_load_once(exe, car, tag, ts):
+    """(alive, TC_LOADERR, screen texts): a fresh session, CARICA, car (as W84A.CAR), the load; the file's md5 on disk after"""
+    import hashlib
+    with Session(tag, exe, {'W84A.CAR': car}, 'dump:2', 180) as s:
+        if s.wait().outcome != 'dump':
+            return False, None, [], None
+        s.send('down down down down down fire dump:2')
+        r = s.send('fire dump:3')
+        alive = r.outcome == 'dump'
+        e = s.result.read(s.result.lin(tuple(ts['TC_LOADERR'])), 1)[0] if alive else None
+        texts = s.screen().texts() if alive else []
+        s.shot(tag)
+        for _ in range(3):
+            r = s.send('fire dump:2')
+        alive = alive and r.outcome == 'dump'
+        disk = hashlib.md5(open(os.path.join(RUNS, tag, 'SWOS', 'W84A.CAR'), 'rb').read()).hexdigest()
+    return alive, e, texts, disk
+
+
+def tc_oldsave(car, env=None):
+    """4.2 team cache 1b gate (1) (MC 16/11): an old save (written by an exe without 1b) on TCLE_BUILD / SWOSTEST_BUILD:
+    loaded and played on to its season's end (world8485 W8485_FROM: every week, checkw1, the season-end save), then
+    that new save loaded again (TC_LOADERR 0, the game alive)"""
+    exe = ui_dir(os.environ.get('TCLE_BUILD') or builds()['it'])
+    sy = json.load(open(os.path.join(exe, 'ITALIAN.syms.json')))
+    ts = {k[5:]: v for k, v in sy.get('careerworld', {}).items() if k.startswith('tsym.')}
+    if 'TC_LOADERR' not in ts:
+        return False, f'{exe}: no team cache 1b (tsym.TC_LOADERR not in the syms: HOSTTEST_SYMS=1 build)'
+    if not os.path.exists(car):
+        return False, f'no save {car}'
+    keys = ('W8485_BUILD', 'W8485_FROM', 'W8485_NOSACK', 'W8485_SMALL', 'W8485_WNUM', 'W8485_K')
+    keep = {k: os.environ.get(k) for k in keys}
+    for k in keys:
+        os.environ.pop(k, None)
+    os.environ.update(W8485_BUILD=exe, W8485_FROM=car, W8485_NOSACK='1', **(env or {}))
+    try:
+        ok, msg = world8485()
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    errs = []
+    check(ok, msg, errs)
+    new = os.path.join(RUNS, w84_tag() + '_2', 'SWOS', 'W84B.CAR')
+    if not os.path.exists(new):
+        return False, f'{msg[:200]}; no season-end save {new}'
+    alive, e, texts, _ = tc_load_once(exe, new, os.environ.get('SWOSTEST_SCENARIO', 'tc_oldsave') + '_reload', ts)
+    check(alive and e == 0, f'the new save reloaded: alive {alive}, TC_LOADERR {e}', errs)
+    return not errs, '; '.join(errs) or f'{msg[:300]}; reloaded (TC_LOADERR 0)'
+
+
+@scenario
+def tc_oldsave_w0():
+    """1b gate (1): a 1996-97 career (JUVE2F: JUVE2.CAR, Juventus 1997/98, game cache) - see tc_oldsave"""
+    return tc_oldsave(os.environ.get('TCOS_W0') or juve2(True), {'W8485_SMALL': '1'})   # (JUVE2 with E092F fixed)
+
+
+@scenario
+def tc_oldsave_w4():
+    """1b gate (1): a Europe 1984-85 career saved by 3.3.6 (internal/oldsaves/v3.3.6_W8485_LIVERPOOL_s1.CAR) - see tc_oldsave"""
+    return tc_oldsave(os.environ.get('TCOS_W4') or os.path.join(MAIN, 'internal', 'oldsaves', 'v3.3.6_W8485_LIVERPOOL_s1.CAR'),
+                      {'W8485_WNUM': '4'})
+
+
+@scenario
+def tc_oldsave_w5():
+    """1b gate (1): a World 2026-27 career (internal/reports/enzo-dup-20261102/ENZO.CAR, big cache) - see tc_oldsave"""
+    return tc_oldsave(os.environ.get('TCOS_W5') or os.path.join(MAIN, 'internal', 'reports', 'enzo-dup-20261102', 'ENZO.CAR'),
+                      {'W8485_WNUM': '5', 'W8485_K': '108+'})
+
+
+@scenario
+def tc_loaderr():
+    """4.2 team cache 1b gate (3) (MC 16/11): a .CAR refused in the stage. From a real save (TCLE_CAR, default Davide's
+    PHILA.CAR) three broken files: 'short' (one byte less than its records), 'ncap' (the count word 161 > SEL_CAP),
+    'long' (8 B past the fixed part + SEL_ROOM: inside the stage's 15 B slack, so the read itself stays in the buffer).
+    Each loaded from CARICA: no crash, TC_LOADERR = 1 / 3 / 2, the game's failure path (the career menu not entered),
+    the file on disk byte-identical. Control: the file unchanged loads (TC_LOADERR 0). TCLE_BUILD / SWOSTEST_BUILD."""
+    import hashlib
+    exe = ui_dir(os.environ.get('TCLE_BUILD') or builds()['it'])
+    sy = json.load(open(os.path.join(exe, 'ITALIAN.syms.json')))
+    ts = {k[5:]: v for k, v in sy.get('careerworld', {}).items() if k.startswith('tsym.')}
+    if 'TC_LOADERR' not in ts:
+        return False, f'{exe}: no team cache 1b (careerworld tsym.TC_LOADERR not in the syms: HOSTTEST_SYMS=1 build)'
+    fixed, room, cap = ts['FIXED'][1], ts['SEL_ROOM'][1], ts['SEL_CAP'][1]
+    car = os.environ.get('TCLE_CAR') or os.path.join(MAIN, 'internal', 'davide-mister-20261021', 'PHILA.CAR')
+    d = open(car, 'rb').read()
+    n = struct.unpack_from('<H', d, 0x173AF)[0]
+    work = os.path.join(RUNS, 'tc_loaderr_files')
+    os.makedirs(work, exist_ok=True)
+    cases = [('ok', d, 0),
+             ('short', d[:fixed + n * 684 - 1], 1),
+             ('ncap', d[:0x173AF] + struct.pack('<H', cap + 1) + d[0x173B1:], 3),
+             ('long', d + bytes(fixed + room + 8 - len(d)), 2)]
+    errs, info = [], []
+    for name, data, want in cases:
+        src = os.path.join(work, name + '.CAR')
+        open(src, 'wb').write(data)
+        md5 = hashlib.md5(data).hexdigest()
+        alive, e, texts, disk = tc_load_once(exe, src, 'tc_loaderr_' + name, ts)
+        check(alive, f'{name}: the game did not survive the load', errs)
+        check(e == want, f'{name}: TC_LOADERR {e} (want {want})', errs)
+        check(disk == md5, f'{name}: the file on disk changed', errs)
+        if want:
+            check(not any('CONTINUA' in t or 'FINE STAGIONE' in t for t in texts), f'{name}: the career menu was entered: {texts[:6]}', errs)
+        info.append(f'{name} {len(data)} B -> {e}')
+    return not errs, '; '.join(errs) or f'N {n}, ' + ', '.join(info)
 
 
 if __name__ == '__main__':

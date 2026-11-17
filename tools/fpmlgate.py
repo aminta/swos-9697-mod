@@ -518,7 +518,7 @@ def observe(lines, A, inst=0):
     sp = [b[0] for b in vals(lines, A['sp'])] if A['sp'] else []
     log = st_log(lines, A['st']) if A['st'] else []
     cut = next((i for i, e in enumerate(log) if e[0] == 'SEASON' and i), None)      # (the next season's init: not this stage's)
-    return dict(mls=mls, log=log[:cut], cals=[T.cal_entries(b) for b in vals(lines, A['cal'])],
+    return dict(mls=mls, log=log[:cut], wiped=cut is not None, cals=[T.cal_entries(b) for b in vals(lines, A['cal'])],
                 mgr=next((x for x in reversed(mgr) if x and x != 0xFFFF), None), stk=min(stk) if stk else None, sp=sp,
                 record=[ln for ln in lines if ln.startswith('[record]')])
 
@@ -579,11 +579,16 @@ def check_stage(o, errs, seed=None, force=None, me=None, played=None, fresh=True
     codes = [e[0] for e in log]
     bad = [e for e in log if e[0] in ('REFUSED', 'ORPHAN')]
     T.check(not bad, f'refused / orphan {bad}', errs)
-    if me is None:      # (lane 1, 17/11: a stage decided at the season end - fp_ml_open(1) in gp_end_c - logs after the
-        #                  season's last read; the next season's init clears FP_ST's log: at most once each, 0 seen is fine -
-        #                  the instance itself, kept across the new season, is the proof: state 2, 3 played, flags bit 0)
-        T.check(codes.count('MLDONE') <= 1 and codes.count('MLOPEN') <= 1,
-                f"log: MLOPEN x{codes.count('MLOPEN')}, MLDONE x{codes.count('MLDONE')} (want at most 1 each) in {codes}", errs)
+    if me is None:      # (17/11, decoded on the kept run dirs runs-supc-l1b-world_supc_oldsave[-rerun]: a stage decided at
+        #                  the season end - fp_ml_open(1) in gp_end_c - logs MLOPEN / MLDONE after the season's last read,
+        #                  and the next season's init (fpad.c arm(FL_SEASON): nlog = 0) wipes FP_ST's log before the next
+        #                  one: 'exactly 1' was never observable there. Never 2; 0 ONLY when the wipe itself was read (the
+        #                  next season's SEASON entry) - then the kept instance is the proof: state 2, 3 played, flags bit 0)
+        n_o, n_d = codes.count('MLOPEN'), codes.count('MLDONE')
+        T.check(n_d == 1 or (n_d == 0 and o.get('wiped')), f"log: MLDONE x{n_d} (want 1, or 0 with the next season's "
+                f"init read after it: wiped {o.get('wiped')}) in {codes}", errs)
+        T.check(n_o <= 1 and (n_o == 1 or not fresh or o.get('wiped')), f"log: MLOPEN x{n_o} (want 1, or 0 with the log "
+                f"wiped by the next season's init / a loaded run) in {codes}", errs)
     else:
         T.check(codes.count('MLDONE') == 1 and (codes.count('MLOPEN') == 1 or not fresh),
                 f"log: MLOPEN x{codes.count('MLOPEN')}, MLDONE x{codes.count('MLDONE')} (want 1 each) in {codes}", errs)

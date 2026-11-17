@@ -3262,6 +3262,11 @@ u32 gp_draw_c(void) {
     const struct gp_ko *k = &GP_ST.ko[GP_K];
     int a = kidx(k, GP_A), b = kidx(k, GP_B);
     if (KT2(k)) return 0xFFFFFFFF;      /* (a type-2 contest: the game's rules) */
+#if GP_PORT
+    if (k->kind == K_PORT && !k->rs[0][3]) return 0x10;   /* (a port fixture with no decider - a mini-league match: the
+                                           draw stands, fpad.c reads the score; result flag 10h keeps bplace's 'better
+                                           placed goes through' line off its result) */
+#endif
     return a != NOC && b != NOC && kbetter(k, b, a);
 }
 

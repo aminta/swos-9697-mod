@@ -25898,7 +25898,8 @@ def world_sc_ger_s1():
 
 # ---------------------------------------------------------------------------------------------------------------------
 # 4.2 preseason friendlies (friendlies-split.md, Davide's closed spec 16/11) - scenario SKELETONS against a stub.
-# The engine (gplay, Motore) is not in the tree yet: every scenario raises Skipped until fr_syms() finds it.
+# Written before the engine was in the tree: every scenario raises Skipped until fr_syms() (ONE function, below,
+# with the engine's reader) finds the friendlies in the build.
 #
 # EVERY ENGINE ASSUMPTION IS IN `FR` BELOW (and in fr_syms / fr_state, which read only FR). Motore: put the real
 # offsets / names / switches here, nothing else in the scenarios should need a change. TODO(engine) = to be given or
@@ -26011,37 +26012,6 @@ def fr_in_tree():
                for x in ('gplay.py', 'gplay.c'))
 
 
-def fr_syms(exe_dir):
-    """THE STUB. None when the build at exe_dir has no friendlies; else what the scenarios need:
-    {'st': obj2 offset of FR_ST, 'trace' / 'str' / 'fee' / 'card': (obj, offset) or None, 'force': the build has the
-    FR_FORCE switch, 'syms': a syms.json was read (False: a release exe - no traces)}.
-    Probes, in order: FR['MARK'] in the exe's obj1 (+8: the obj2 offset, as sc_st); the gplay symbol FR['SYM_ST'] of
-    ITALIAN.syms.json (the band alone is no probe: see below)."""
-    exe = next((os.path.join(exe_dir, x) for x in ('ITALIAN.EXE', 'ENGLISH.EXE')
-                if os.path.isfile(os.path.join(exe_dir, x))), None)
-    if exe is None:
-        return None
-    sp = os.path.splitext(exe)[0] + '.syms.json'
-    sy = json.load(open(sp)) if os.path.isfile(sp) else {}
-    gp = sy.get('gplay', {})
-    sys.path.insert(0, os.path.join(ROOT, 'tools'))
-    from le import LE
-    d1 = LE(open(exe, 'rb').read()).obj_bytes(1)
-    k = d1.find(FR['MARK'])
-    st = None
-    if k >= 0:
-        st = struct.unpack_from('<I', d1, k + len(FR['MARK']))[0]
-    elif FR['SYM_ST'] in gp and gp[FR['SYM_ST']][0] == 2:
-        st = gp[FR['SYM_ST']][1]
-    # (no band-only probe: Shaved's swreg may reserve the FRND band before the engine lands - a reserved band is not
-    #  the feature, and the scenarios would run on a build without it)
-    if st is None:
-        return None
-    at = lambda name: tuple(gp[name][:2]) if name in gp else None
-    return {'st': st, 'trace': at(FR['SYM_TRACE']), 'str': at(FR['SYM_STR']), 'fee': at(FR['SYM_FEE']), 'g': at(FR['SYM_G']),
-            'card': at(FR['SYM_CARD']), 'fb': at(FR['SYM_FB']), 'force': FR['SYM_FORCE'] in gp, 'syms': bool(sy)}
-
-
 def fr_state(b):
     """FR_ST's 12 bytes (FR's layout) -> {'season', 'idx', 'opp': [4 words], 'home': [4 bools], 'w', 'd', 'l'}."""
     bits = struct.unpack_from('<H', b, FR['ST_BITS'])[0]
@@ -26138,7 +26108,7 @@ def fr_exe(name, env=None, given='FR_BUILD', rel=False):
     return exe, fr
 
 
-def fr_sites(exe):
+def fr_career_sites(exe):
     """(careerTeam, selTeamNumber, newBalance) obj2 offsets of the build (xtra.sites; finance NEWBAL of the original)."""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import finance
@@ -26152,7 +26122,7 @@ def fr_sites(exe):
 def fr_keys(exe, fr):
     """{name: W8485_HEX key} + the W8485_HEX string of everything the checks read: FR_ST, selTeamNumber, careerTeam's
     first 16 records, newBalance, and the build's traces."""
-    ct, sel, nb = fr_sites(exe)
+    ct, sel, nb = fr_career_sites(exe)
     spec = {'st': ((2, fr['st']), FR['ST_LEN']), 'sel': ((2, sel), 2), 'ct': ((2, ct), 76 + 16 * 38), 'bal': ((2, nb), 4)}
     for k, n in (('str', 10), ('fee', 16), ('card', 1), ('trace', 1), ('fb', 1), ('g', 4)):
         if fr.get(k):
@@ -26474,7 +26444,7 @@ def world_preseason_cards():
     at league match 2 (the league served it). Never a retry: the card is the switch, the ban is the poke"""
     exe, fr = fr_exe('world_preseason_cards', env={FR['FORCE_ENV']: FR['FORCE_RED1']}, given='FR_CARDS_BUILD')
     require(fr['card'] is not None, f"{exe}: no {FR['SYM_CARD']} trace (TODO(engine)): the forced red card cannot be proven")
-    ct, _, _ = fr_sites(exe)
+    ct, _, _ = fr_career_sites(exe)
     q, done = FR['BAN_PLACE'], []
 
     def hook(s, season, scr):
@@ -26606,21 +26576,32 @@ def world_preseason_names():
                                          f'fit their bars, font characters only')
 
 
-def fr_syms(exe):
-    """4.2 friendlies (FRND): {name: (obj, offset)} of frnd.py's labels from the exe dir's ITALIAN.syms.json (a
-    HOSTTEST_SYMS=1 build: FR_ST in obj2, FR_TRACE / FR_FEE / FR_G / FR_FB / FR_GIVENW in obj4's FRND band) + finance's
-    NEWBAL (obj2) and FF_INC (obj3: the season's gate receipts, fi_gate's sum); None without frnd."""
-    p = next((os.path.join(exe, x) for x in ('ITALIAN.syms.json', 'ENGLISH.syms.json')
-              if os.path.isfile(os.path.join(exe, x))), None)
+def fr_syms(exe_dir):
+    """4.2 friendlies (FRND), the ONE reader of a build's friendlies symbols (MC 17/11: the skeleton's stub and the
+    engine's reader were two functions of this name). None: the build at exe_dir has no friendlies test symbols (no
+    ITALIAN / ENGLISH .syms.json, or no 'frnd' module with FR_TRACE in it - an exe without FRND, or a release exe).
+    Else one dict with both views:
+      - the engine's names: {name: (obj, offset)} of every frnd.py label (FR_ST in obj2; FR_TRACE / FR_FEE / FR_G /
+        FR_FB / FR_GIVENW / FR_CHOOSE ... in obj4's FRND band) + finance's NEWBAL (obj2) and FF_INC (obj3: the season's
+        gate receipts, fi_gate's sum);
+      - the scenarios' keys (the FR table's names): 'st' = FR_ST's obj2 offset, 'trace' / 'str' / 'fee' / 'g' / 'card' /
+        'fb' = (obj, offset) or None when the engine has no such trace, 'force' = the build has FR['SYM_FORCE'],
+        'syms' = True."""
+    p = next((os.path.join(exe_dir, x) for x in ('ITALIAN.syms.json', 'ENGLISH.syms.json')
+              if os.path.isfile(os.path.join(exe_dir, x))), None)
     d = json.load(open(p)) if p else {}
     f = d.get('frnd')
-    if not f or 'FR_TRACE' not in f:
+    if not f or 'FR_TRACE' not in f or FR['SYM_ST'] not in f:
         return None
     out = {k: tuple(v) for k, v in f.items()}
+    assert out[FR['SYM_ST']][0] == 2, ('fr_syms: FR_ST not in obj2', out[FR['SYM_ST']])
     out['NEWBAL'] = (2, f['FR_D6BA2'][1] - 0x3A)   # (finance.py: D6B9E = b9a + 4, NEWBAL = b9a - 32h; FR_D6BA2 = D6B9E + 4)
     ff = d.get('finance', {}).get('FF_INC')
     if ff:
         out['FF_INC'] = (3, ff[1])                  # (finance.py's FF_ST block in obj3: ffp.py sym[k] = (3, LABELS[k]))
+    at = lambda name: tuple(f[name][:2]) if name in f else None
+    out.update(st=out[FR['SYM_ST']][1], trace=at(FR['SYM_TRACE']), str=at(FR['SYM_STR']), fee=at(FR['SYM_FEE']),
+               g=at(FR['SYM_G']), card=at(FR['SYM_CARD']), fb=at(FR['SYM_FB']), force=FR['SYM_FORCE'] in f, syms=True)
     return out
 
 

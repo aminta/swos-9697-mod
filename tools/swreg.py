@@ -25,6 +25,11 @@ id WMENU + 0 (mkseason: the 1996-97 game's entry in their STORICO box). Presets 
 import struct
 
 REG_AT = 0x1800                         # obj4: swe.c's code + data below it, the manifest up to the object end
+TEST_REGION = 0x30000                   # obj4 test-only bands from here: SP_METER 0x30000..0x34000, DIFF_TC 0x34000..0x35000 (+0x200 in
+                                        # DIFF_TC / DIFF_D8DBG builds), CDKN; the release bands and the 4.3 reservations end below it
+BSS_AT = 0x40000                        # swe.c's .bss (MC 16/11): FIXED above every band, test bands included, so neither a release-tail
+                                        # growth nor a test band moves it again (it moved with OBJ4_PAGES until 4.2: TRRB / TRDR / FRND /
+                                        # FRCH each +0x1000); swe.py links it here, obj4's vsize = BSS_AT + .bss (zero-filled, no file pages)
 OBJ4_END = 0x2000                       # (the registry's end; swe.OBJ4_PAGES pages: 4.1 has a 3rd)
 UESUM_AT = 0x2000                       # 4.1 S2a: uesum.c's page in obj4 (stays here in 4.2: usmenu took 0x3000)
 USMENU_AT = 0x3000                      # 4.1 RC2: usmenu's page, the 4th (RIEPILOGO's phase menu; Regia / MC 09/11)
@@ -58,9 +63,6 @@ SETPIECE_AT = 0xB500                   # 4.2 set pieces 1+2 (setpieces.py, MC 14
 SETPIECE_END = 0xC000                  # page), linked in every build; >= SETPIECE_MIN B left (build check). MC 14/11:
                                         # +0x400 in place for set pieces §3-§5 (0x16C00 -> 0x17000), same SPB base
 SETPIECE_MIN = 256                      # (MC 15/11: the release floor, as every band)
-FPORT_AT = 0x35000                      # 4.2 the fixture port's adapter (P2, Motore; MC 14/11): sr_port.o + port_step + the
-FPORT_END = 0x37000                     # slot-4 window table generated from fport.py, embedded; 2 pages, >= 256 B left at link
-                                        # (0x16800..0x17000: Difficolta's SETPIECE, 42-sp, not merged yet)
 S7GEO_AT = 0x16900                      # 4.2 Serie D geography (MC 14/11 room ruling, 42-geo-d): the geography chain's own TU (s7geo.c:
 S7GEO_END = 0x17B00                     # code + neighbour table + log + the per-club coordinates), after FPORT; linked only with
                                         # GP_S7; >= 256 B left
@@ -73,18 +75,15 @@ PRACTICE_END = 0x19B00                  # is merged; 3 KB (MC 15/11, option B: +
                                         # item 2, the drills' attempts / half selector ~400 B): the release chain S3C..TKUI +0x200 into page 0x1D's tail; +0x100 16/11
                                         # (MC: headroom, item 2 trimmed to 260 B = the floor) and the chain after it +0x100 again
                                         # (TKUI ends 0x1D700, OBJ4_PAGES still 0x1E), the 4.3 reservations +0x200 (unlinked)
-FPORT2_AT = 0x39000                     # 4.2 P5 (MC 15/11): the fixture port's save - fpsave.c (sr_port_save / sr_port_load + the
-FPORT2_END = 0x3A000                    # FP item glue), its own link unit; FPORT_ON builds only (test-only), >= 256 B left (release shape);
-                                        # right after Shaved's PRACTICE (0x1C800..0x1D400)
 S3C_AT = 0x19B00                        # 4.2 S3 step 2 (MC 15/11): cuprule.c, the Serie C play-off's cup place (C.U. 209/A) - ONE implementation, a
 S3C_END = 0x19F00                       # state-free leaf TU called by gplay.c and dplay.c; S3 builds only; >= 256 B left (584 B used). After FPORT2 /
                                         # PRACTICE's growth (0x1D000..0x1E400, the Integratore's merges); the 4.3 chain starts at 0x1E800 (MC 15/11)
-MKTHOOK_AT = 0x21100                    # 4.3 reservations only (MC 14/11: sizes 6 KB + 4 KB + 4 KB; MKTHOOK 0x1300 from 16/11 (Mercato 4289 B + floor), final addresses at 4.3 start, after
-MKTHOOK_END = 0x22400                   # the last 4.2 band): the CPU market's exe hooks (mkthook.c), then MKTLOAD (the .MKT load half),
-MKTLOAD_AT = 0x22400                    # then MKTAGE (Mercato CPU); unlinked in 4.2 (the unlinked bands go last, so a release never
-MKTLOAD_END = 0x23400                   # carries an empty page for them). DIFF2 0x1A000..0x1A400 + SPX 0x1A400..0x1A800 stay free
-MKTAGE_AT = 0x23400                     # here for 42-drp / 42-sp (their swreg lines are taken verbatim)
-MKTAGE_END = 0x27000                    # (MC 16/11: +0x2000 behind FRND 0x1000 + FRCH 0x1000, page-aligned, 0x3C00; MC 15/11: 0x20500 -> 0x21500, Mercato measured 0x205FB + floor + h3_team + sweep; +0x800 after TKUI;
+MKTHOOK_AT = 0x26100                    # 4.3 reservations only (MC 14/11: sizes 6 KB + 4 KB + 4 KB; MKTHOOK 0x1300 from 16/11 (Mercato 4289 B + floor), final addresses at 4.3 start, after
+MKTHOOK_END = 0x27400                   # the last 4.2 band): the CPU market's exe hooks (mkthook.c), then MKTLOAD (the .MKT load half),
+MKTLOAD_AT = 0x27400                    # then MKTAGE (Mercato CPU); unlinked in 4.2 (the unlinked bands go last, so a release never
+MKTLOAD_END = 0x28400                   # carries an empty page for them). DIFF2 0x1A000..0x1A400 + SPX 0x1A400..0x1A800 stay free
+MKTAGE_AT = 0x28400                     # here for 42-drp / 42-sp (their swreg lines are taken verbatim)
+MKTAGE_END = 0x2D000                    # (42-bssat 17/11: FPML measured 0x1A00 -> the 4.3 block +0x200, then DRP8D 0x400 -0x100; its end kept page-aligned: 0x4C00, never shrinks; MC 17/11: after the 4.2 release tail DRP8D..FPML, the end page-aligned, 0x3D00; MC 16/11: +0x2000 behind FRND 0x1000 + FRCH 0x1000, page-aligned, 0x3C00; MC 15/11: 0x20500 -> 0x21500, Mercato measured 0x205FB + floor + h3_team + sweep; +0x800 after TKUI;
                                         # 16/11 Mercato: page-aligned end, -0x100 after the tail shift: check_pages wants code in the
                                         # last page, the 256 B floor wants none in a 0x100 tail - both hold only at a page end;
                                         # 16/11 MC: +0x200 behind S6 (now 4.2), the end page-aligned at 0x23000: 0x2D00, room for the H3-cache sweep)
@@ -117,9 +116,9 @@ TKUI_END = 0x1DD00                      # picker; a RELEASE band (0x1400: MC 15/
                                         # 0x1000) = 0x1E); the 4.3 MKT reservations follow it
 assert UPRIZE2_END <= CONTI4_AT, 'uprize part 2 would cross conti / ST'   # (4.2: bands never cross)
 assert CONTI4_END <= ST_AT, 'conti data would cross ST'
-NAMEFIT_AT = 0xC400                     # 4.2 names-fit (namefit.py, Marco (b) step 2: menu names by pixels; MC 12/11): page 13
-NAMEFIT_END = 0xC800                    # between slow (its link limit NAMEFIT_AT) and trial; code + 16 x 24 B row buffers
-TRIAL_AT = 0xC800                       # 4.2.x trial players T1+T2 (trial.py's code, out of obj3: MC 12/11, REL42i13 IT obj3
+NAMEFIT_AT = 0xC500                     # 4.2 names-fit (namefit.py, Marco (b) step 2: menu names by pixels; MC 12/11): page 13
+NAMEFIT_END = 0xC900                    # between slow (its link limit NAMEFIT_AT) and trial; code + 16 x 24 B row buffers
+TRIAL_AT = 0xC900                       # 4.2.x trial players T1+T2 (trial.py's code, out of obj3: MC 12/11, REL42i13 IT obj3
 TRIAL_END = 0xCF00                      # 112 B): page 13 between slow (SLOW_AT, link limit TRIAL_AT) and the shirtbox (BOX_AT)
 BOX_AT = 0xCF00                         # 4.2 shirtbox (Marco's lit number box, shirtedit se_unsh): obj4's 13th page top,
 BOX_END = 0xD000                        # slow's page (SLOW_AT 0xC000, its code below BOX_AT); Mercato CPU's T3 from 0xD000 (MC 12/11)
@@ -128,8 +127,9 @@ assert SLOW_AT < NAMEFIT_AT < NAMEFIT_END <= TRIAL_AT < TRIAL_END <= BOX_AT < BO
 assert SLOW_END <= T3_AT < T3_END, 'page 14: T3 above page 13'
 DIFF_AT = 0xE000                        # 42-diff (difficulty + DRIBBLING, difficulty.py + buildup.py): obj4's whole
 DIFF_END = 0xF000                       # page 15 (MC 12/11, option a; a future CT page goes to 0xF000+). Split:
-BU_AT = 0xEC00                          # difficulty 0xE000..BU_AT, the build-up v1 BU_AT..DIFF_END. The build FAILs
-BU_END = DIFF_END                       # when the release shape leaves under DIFF_MARGIN B of the page. (4.2 42-drp: 0xE900 -> 0xEC00, the PERSONALIZZATO page)
+BU_AT = 0xEC80                          # difficulty 0xE000..BU_AT, the build-up v1 BU_AT..DIFF_END. The build FAILs
+BU_END = DIFF_END                       # when the release shape leaves under DIFF_MARGIN B of the page. (4.2 42-drp: 0xE900 -> 0xEC00, the PERSONALIZZATO page;
+                                        # 42-bssat, MC 17/11: 0xEC80 - h3s7rl3 worst IT: difficulty 0xB24 + 256 -> 348 B left, build-up 620 B + 256 -> 276 B left)
 DIFF_MARGIN = 512
 assert T3_END <= DIFF_AT < BU_AT < BU_END == DIFF_END <= 0x10000, 'page 15: T3 < difficulty < build-up'
 SREG_AT = 0x5100                        # 4.2 N7: the club registry's code + data (sreg.py, sreg.c), after ST, under
@@ -145,9 +145,9 @@ KITS_NOX_AT = KITS_END - 0x20            # (4.2, MC 16/11: kitcolors' SEMPRE stu
                                         #  written by kits.patch; page 17's KEEPKIT code ends below it)
 assert T3_END <= globals().get('DIFF_END', KITS_AT) <= KITS_AT < KITS_PAGE16_END < KITS_NOX_AT < KITS_END, 'kits: above T3 and the difficulty band'
 DRIB1V1_AT = 0xC000                     # 42-drp (MC 14/11): the PERSONALIZZATO page's code + strings and W1, the 1-v-1
-DRIB1V1_END = 0xC400                    # knob, in MATCH SPEED's parked room (page 13 under NAMEFIT_AT, its link limit);
+DRIB1V1_END = 0xC500                    # knob, in MATCH SPEED's parked room (page 13 under NAMEFIT_AT, its link limit);
 assert DRIB1V1_AT == SLOW_AT and DRIB1V1_END == NAMEFIT_AT, 'the 42-drp band = slow\'s room (only with patch.SLOW off)'
-assert (NAMEFIT_AT, TRIAL_AT, BOX_AT) == (0xC400, 0xC800, 0xCF00), 'page 13 bands unchanged (MC 14/11)'
+assert (NAMEFIT_AT, TRIAL_AT, BOX_AT) == (0xC500, 0xC900, 0xCF00), 'page 13 bands (MC 14/11; 42-bssat MC 17/11: DRIB1V1 0x500 = h3s7rl3 worst IT 0x3C0 + 256, NAMEFIT moved up whole, TRIAL starts 0x100 later - 929 B left)'
 # --- obj3 / obj1 layout (4.2 x3all, MC 16/11, Motore's names; NOT obj4 bands: no NAME_AT / NAME_END pairs here -
 # obj4check / obj4pack take every such pair as an obj4 band) ---
 OBJ3_MAX_PAGES = 48                     # the ONE limit of obj3's file pages (was the literal 32: patch.OBJ3_ARENA, buildrel.sh).
@@ -244,15 +244,23 @@ def patch(p, add_ptr):
 # 4.3 reservations after the last release band; the test-only bands in the test region after SP_METER / DIFF_TC (0x35000).
 # New release bands (official lines): DRP8D (42-drp8d clamp, 451 B), TAKERS (Difficolta's set-piece takers), GAMEPLAY
 # (reserve: the GAMEPLAY page, gameplay-menu-design.md).
-DRP8D_AT = 0x27000                      # 0x300, a 4.3 reservation after MKTAGE, unlinked (MC 15/11: drp8d not in 4.2;
-DRP8D_END = 0x27300                     # SETPIECE took its 0xBD00..0xC000, 160 B left on REL42i64; after MKTAGE's growth)
+# 4.2 release tail after FRCH (MC 17/11, option X: the release bands BEFORE the 4.3 reservations, so a release obj4 never
+# carries an all-zero reservation page - obj4check (a); BAND_CLASS below makes the order an assert):
+DRP8D_AT = 0x21100                      # Difficolta: drp8d's clamp (w1_ip reverted 17/11: 623 B + floor = 879 -> 0x400, was 0x500; MC 16/11: 0x500;
+DRP8D_END = 0x21500                     # was a 0x300 4.3 reservation at 0x27000)
+FPORT_AT = 0x21500                      # 4.2 the fixture port's adapter (P2; Supercoppa Serie C in 4.2, MC 16/11: a release band): sr_port.o +
+FPORT_END = 0x23500                     # port_step + the slot-4 window table + the minilg scheduler; 0x2000 (Nazionali: 6072 B used today)
+FPORT2_AT = 0x23500                     # the fixture port's save: fpsave.c (sr_port_save / sr_port_load + the FP item glue), its own link
+FPORT2_END = 0x24700                    # unit; 0x1200 (3429 B used + FP v2 growth + floor; MC 16/11)
+FPML_AT = 0x24700                       # the Supercoppa Serie C mini-league: sr_stage closure + producer (Nazionali; 0x1800 PROVISIONAL,
+FPML_END = 0x26100                      # 0x1A00: Nazionali 17/11 measured 6197 B + floor -> 459 B left; final = measured + 256, only the tail after it moves - never BSS_AT)
 S6_AT = 0x1DD00                         # 4.2 S6 (16/11 MC: Davide put S6a into 4.2; right after TKUI, before the 4.3 reservations; was 4.3 S6, MC 15/11, Motore 43-s6a): s6sea.c, world SEASONs' picker, its own unit out of
 S6_END = 0x1DF00                        # swe.c (-Oz, 256 B floor; 161 B on the IT release recipe); unlinked until 42-s6a
 # 4.2 POSITION TRAITS (MC 16/11, Davide "nothing moves out of 4.2": internal/handoff/traits-split.md), three owners, release bands at
 # the 4.2 tail after S6, empty until linked (each linker raises OBJ4_PAGES in ceiling form from its own end: 0x1F once one links):
-TRHD_AT = 0x1DF00                       # Mercato: trhead.py (asm) - attacking-box headers by HEADING, WHIPPED CROSS, DF header reach (0x700: 733 B + floor, MC 16/11)
-TRHD_END = 0x1E600
-TRRB_AT = 0x1E600                       # Nazionali: trrb.c - RB / LB half out-of-position loss, same side only (0x300: 478 B + floor, MC 16/11)
+TRHD_AT = 0x1DF00                       # Mercato: trhead.py (asm) - attacking-box headers by HEADING, WHIPPED CROSS, DF header reach (0x500: 733 B + 256 floor = 989, MC 17/11)
+TRHD_END = 0x1E400
+TRRB_AT = 0x1E400                       # Nazionali: trrb.c - RB / LB half out-of-position loss, same side only (0x500: families() in the exe for edited tactics, MC 17/11)
 TRRB_END = 0x1E900
 TRDR_AT = 0x1E900                       # Difficolta: per-player dribbling on frozen drp6 (0x300); the 4.3 reservations right after it
 TRDR_END = 0x1EC00
@@ -277,15 +285,39 @@ assert (TKUI_END - TKUI_AT, -(-TKUI_END // 0x1000)) == (0x1400, 0x1E) and TKUI_E
     'swreg: TKUI 0x1400 (MC 15/11 +0x800), its ceiling page 0x1E (16/11: the 4.2 chain from S3C +0x200 into page 0x1D\'s tail, MC), then S6'
 assert (S6_END - S6_AT, -(-S6_END // 0x1000)) == (0x200, 0x1E) and S6_END < 0x1E000 and S6_END == TRHD_AT and MKTAGE_END % 0x1000 == 0, \
     'swreg: S6 0x200 right after TKUI, below 0x1E000 (MC 16/11), then the traits bands; MKTAGE ends page-aligned'
-assert (TRHD_END - TRHD_AT, TRRB_END - TRRB_AT, TRDR_END - TRDR_AT, -(-TRDR_END // 0x1000)) == (0x700, 0x300, 0x300, 0x1F) and \
+assert (TRHD_END - TRHD_AT, TRRB_END - TRRB_AT, TRDR_END - TRDR_AT, -(-TRDR_END // 0x1000)) == (0x500, 0x500, 0x300, 0x1F) and \
     TRHD_END == TRRB_AT and TRRB_END == TRDR_AT and TRDR_END == FRND_AT and FRND_END - FRND_AT == 0x1500 and -(-FRND_END // 0x1000) == 0x21 and FRND_END == FRCH_AT and \
-    (FRCH_END - FRCH_AT, -(-FRCH_END // 0x1000)) == (0x1000, 0x22) and FRCH_END == MKTHOOK_AT and MKTHOOK_END - MKTHOOK_AT == 0x1300, \
-    'swreg: TRHD 0x700 | TRRB 0x300 | TRDR 0x300 | FRND 0x1500 (TCACHE folded in, MKTHOOK -0x200) | FRCH 0x1000 | MKTHOOK 0x1300, the 4.2 release tail after S6 (ceiling page 0x1F once the traits link, 0x21 with FRND, 0x22 with FRCH; MC 16/11), the 4.3 reservations after it'
+    (FRCH_END - FRCH_AT, -(-FRCH_END // 0x1000)) == (0x1000, 0x22) and FRCH_END == DRP8D_AT and MKTHOOK_END - MKTHOOK_AT == 0x1300 and \
+    (DRP8D_END - DRP8D_AT, FPORT_END - FPORT_AT, FPORT2_END - FPORT2_AT) == (0x400, 0x2000, 0x1200) and FPML_END == MKTHOOK_AT and \
+    MKTAGE_END % 0x1000 == 0, \
+    'swreg: TRHD 0x500 | TRRB 0x500 | TRDR 0x300 | FRND 0x1500 (TCACHE folded in, MKTHOOK -0x200) | FRCH 0x1000 | MKTHOOK 0x1300, the 4.2 release tail after S6 (ceiling page 0x1F once the traits link, 0x21 with FRND, 0x22 with FRCH; MC 16/11), the 4.3 reservations after it'
 assert DIFF_END <= KITS_AT < KITS_END <= S7SWAP_AT < S7SWAP_END <= OBJ1MV_AT < OBJ1MV_END <= S7GEO_AT < S7GEO_END <= DIFF2_AT < \
     DIFF2_END <= TAKERS_AT < TAKERS_END <= GAMEPLAY_AT < GAMEPLAY_END <= PRACTICE_AT < PRACTICE_END <= S3C_AT < S3C_END <= \
     R17_AT < R17_END <= GPLX_AT < GPLX_END <= SESTRIP_AT < SESTRIP_END <= SREG2_AT < SREG2_END <= TKUI_AT < TKUI_END <= S6_AT < S6_END <= TRHD_AT < TRHD_END <= TRRB_AT < TRRB_END <= TRDR_AT < TRDR_END <= FRND_AT < FRND_END <= \
-    FRCH_AT < FRCH_END <= MKTHOOK_AT < MKTHOOK_END <= \
-    MKTLOAD_AT < MKTLOAD_END <= MKTAGE_AT < MKTAGE_END <= DRP8D_AT < DRP8D_END < 0x30000, \
+    FRCH_AT < FRCH_END <= DRP8D_AT < DRP8D_END <= FPORT_AT < FPORT_END <= FPORT2_AT < FPORT2_END <= FPML_AT < FPML_END <= \
+    MKTHOOK_AT < MKTHOOK_END <= MKTLOAD_AT < MKTLOAD_END <= MKTAGE_AT < MKTAGE_END <= TEST_REGION, \
     'swreg (4.2 freeze): the release bands in map order, then the 4.3 reservations (obj4pack, MC 15/11)'
-assert 0x35000 <= FPORT_AT < FPORT_END <= CDKN_AT < CDKN_END <= FPORT2_AT < FPORT2_END, \
+assert 0x35000 <= CDKN_AT < CDKN_END, \
     'swreg (4.2 freeze): the test-only bands after SP_METER (0x30000..0x34000) and DIFF_TC (0x34000..0x35000)'
+# --- band classes (MC 17/11, rule 0: the zero-page rule structural) -------------------------------------------------------
+# every NAME_AT / NAME_END pair is an obj4 band of one class: 'release' (linked in a release exe, or a release reserve),
+# '4.3' (a reservation, unlinked in 4.2) or 'test' (test-only builds). Release bands end before any 4.3 band starts, 4.3
+# bands before the test region: a release obj4 never carries a reservation's all-zero page (obj4check (a)).
+BAND_CLASS_43 = ('MKTHOOK', 'MKTLOAD', 'MKTAGE')
+BAND_CLASS_TEST = ('CDKN',)
+def bands():
+    g = globals()
+    return sorted((g[n], g[n[:-3] + '_END'], n[:-3]) for n in g if n.endswith('_AT') and isinstance(g[n], int) and
+                  isinstance(g.get(n[:-3] + '_END'), int))
+def band_class(name):
+    return '4.3' if name in BAND_CLASS_43 else 'test' if name in BAND_CLASS_TEST else 'release'
+_b = bands()
+_rel = [b for b in _b if band_class(b[2]) == 'release']
+_res = [b for b in _b if band_class(b[2]) == '4.3']
+_tst = [b for b in _b if band_class(b[2]) == 'test']
+assert max(e for _, e, _ in _rel) <= min(a for a, _, _ in _res) and max(e for _, e, _ in _res) <= TEST_REGION <= \
+    min(a for a, _, _ in _tst) and max(e for _, e, _ in _b) <= BSS_AT and BSS_AT % 0x1000 == 0, \
+    ('swreg: release bands < 4.3 reservations < the test region < BSS_AT (MC 17/11)',
+     max(_rel, key=lambda b: b[1]), min(_res), max(_res, key=lambda b: b[1]), min(_tst))
+del _b, _rel, _res, _tst
+

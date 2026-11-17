@@ -5,8 +5,9 @@ import os
 
 
 def on():
-    """FRND=1 builds only until the engine's gates pass (then every career world)"""
-    return os.environ.get('FRND') == '1'
+    """4.2 release feature (MC 17/11, the engine's gates passed): ON by default; FRND=0 is the explicit opt-out (a test
+    build switch, like the others). buildrel.sh fails a release build that has no FRND / no FRSS.DAT."""
+    return os.environ.get('FRND') != '0'
 
 import re
 import struct

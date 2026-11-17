@@ -154,6 +154,14 @@ int main(int argc, char **argv) {
           FR_ST[1], FR_TRACE);
     FR_SLOT4 = 0; GP_SEAS = FR_SEASON = 13; fr_season(GP_MGR);
     CHECK(FR_ST[1] == FR_OPEN && !(FR_FLAGS(FR_ST) & FR_NATIVE), "no_native_bit_clear", "fl %x", FR_FLAGS(FR_ST));
+    /* 10. (MC 17/11) FR_OPEN live but the world has no slice (a poked / foreign FR_ST): fr_step closes it (87h),
+       installs nothing and chains to the next step */
+    FR_AFTER4 = after4; FR_CWB = 9; GP_WK = 56; FR_CALCUR = 0; nko = 0; KO()[O_SEASON] = 0;
+    { int nn = nnext, na2 = nafter; u32 r = fr_step();
+      CHECK(r == 0 && nko == 0 && !(FR_ST[1] & FR_OPEN) && FR_TRACE == 0x87 && nnext == nn + 1 && nafter == na2 + 1,
+            "no_slice_closes", "r %u nko %d open %d trace %x next %d after %d", r, nko, FR_ST[1] & FR_OPEN, FR_TRACE,
+            nnext - nn, nafter - na2); }
+    FR_CWB = 0;
     printf("fails %d\n", fails);
     return fails != 0;
 }

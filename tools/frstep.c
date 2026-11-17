@@ -173,6 +173,8 @@ u32 fr_step(void) {                     /* sc_step_c's head: 1 = a friendly buil
     if (FR_ST[0] != FR_SEASON || !(FR_ST[1] & FR_OPEN) || !GP_MGR) return FR_NSTEP ? FR_NSTEP() : 0;
     const int live = *(const u16 *)GP_GST == C_MAGIC && *(const u16 *)KO0 == C_MAGIC && KO0[O_SEASON] == GP_SEAS;
     if (live && KO0[O_KIND] == C_KFR && KO0[O_TW] == C_NOC) return 0;   /* (a friendly being played: slot 4 held) */
+    if (!fr_slice(FR_CWB)) { fr_close(0x87); return FR_NSTEP ? FR_NSTEP() : 0; }   /* (MC 17/11: FR_OPEN in a world with no
+                                           FRSS slice - a poked / foreign FR_ST: closed, never installed) */
     u8 wk[4];
     u32 kept = fr_turns(FR_CAL, wk);
     int k = fr_first(wk) + FR_NPLAYED(FR_ST);

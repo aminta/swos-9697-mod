@@ -139,19 +139,49 @@ def test_tc_sites_asm():
 
 
 def test_tc_sites_exe():
+    """the 6 insert sites: the game's bytes in orig/; in every tcache build (release, SWOS++) ALL 6 hooked (MC 17/11) -
+    the 5 copy-count movs -> `call tc_chk_n` + 4 nops (the add kept), cseg_3283C's add -> `call tc_chk_add` + 3 nops
+    (its mov 8 B after kept); an exe with some sites hooked and others not = FAIL"""
     rel, exes, spp, _ = tc_rel.release()
-    paths = tc_rel.originals() + exes + spp
+    orig = tc_rel.originals()
+    paths = orig + exes + spp
     if not paths:
         return True, 'SKIP: no exes (orig/, c/REL42*)'
     from le import LE
     want = [-63, -63, 8, -73, -73, -70]             # the mov's distance from the add, in code order (every language)
+    nhook = 0
     for p in paths:
         L = T.exe_layout(LE(p))
-        s = T.insert_sites(L)
-        assert len(s) == 6 and [d for _, d in s] == want, (os.path.relpath(p, tc_rel.C), [(hex(a), d) for a, d in s])
-        assert all(abs(d) < 0x60 for _, d in s)
-        # none of the 6 sites (add + its mov) carries a patch's fixup-less jump: the bytes are the game's
-        d1 = L['d1']
-        assert all(d1[a:a + 3] == b'\x66\x83\x05' and d1[a + d:a + d + 3] == b'\x66\xc7\x05' for a, d in s)
-    return True, (f'6 sites, unpatched, in {len(tc_rel.originals())} original + {len(exes)} release + {len(spp)} SWOS++ exes '
-                  f'(SWOS++ patches at run time: its own loader is not seen here)')
+        s, d1, fx = T.insert_sites(L), L['d1'], L['fx']
+        name = os.path.relpath(p, tc_rel.C)
+        if all(d is not None for _, d in s):        # the game's form
+            assert p not in exes + spp or not tcache_on(p), (name, 'a tcache build with the 6 sites unhooked')
+            assert len(s) == 6 and [d for _, d in s] == want, (name, [(hex(a), d) for a, d in s])
+            assert all(d1[a:a + 3] == b'\x66\x83\x05' and d1[a + d:a + d + 3] == b'\x66\xc7\x05' for a, d in s)
+            continue
+        assert p not in orig, (name, 'orig/ with a hooked site')
+        wn = [w for w in want if w != 8]            # the 5 'n' sites: add kept, its mov hooked
+        assert len(s) == 5 and all(d is None for _, d in s), (name, 'not all 6 hooked', [(hex(a), d) for a, d in s])
+        movs = [a + w for (a, _), w in zip(s, wn)]
+        tn = {fx.get((1, m + 1)) for m in movs}
+        assert all(d1[m] == 0xE8 and d1[m + 5:m + 9] == b'\x90' * 4 for m in movs) and len(tn) == 1 and None not in tn, \
+            (name, 'tc_chk_n sites', [(hex(m), d1[m:m + 9].hex()) for m in movs], tn)
+        add = [j - 8 for j in range(movs[1], movs[2]) if d1[j:j + 3] == b'\x66\xc7\x05' and fx.get((1, j + 3)) == (2, L['d0'])
+               and d1[j + 7:j + 9] == b'\x55\x01' and d1[j - 8] == 0xE8 and d1[j - 3:j] == b'\x90' * 3]
+        assert len(add) == 1, (name, 'cseg_3283C: hooked add (call + 3 nops, its mov 8 B after) between sites 2 and 4', add)
+        ta = fx.get((1, add[0] + 1))
+        assert ta and ta[0] == next(iter(tn))[0] and ta != next(iter(tn)), (name, 'tc_chk_add target', ta, tn)
+        nhook += 1
+    return True, (f'6 sites: the game\'s bytes in {len(orig)} original exes, all 6 hooked (5 tc_chk_n + tc_chk_add) in '
+                  f'{nhook} exes ({len(exes)} release + {len(spp)} SWOS++)')
+
+
+def tcache_on(p):
+    """the nearest build.log above the exe says the team cache is bound (`exe: team cache bound (tcache)`)"""
+    d = os.path.dirname(p)
+    for _ in range(3):
+        log = os.path.join(d, 'build.log')
+        if os.path.exists(log):
+            return 'team cache bound (tcache)' in open(log, errors='replace').read()
+        d = os.path.dirname(d)
+    return False

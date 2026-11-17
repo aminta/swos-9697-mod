@@ -2430,6 +2430,9 @@ def nat_callups(s, limit=120):
 # cups, the original game's contests) -- one of every known name (logged as a fallback). Errors FAIL the scenario.
 LABEL_ERRS, LABEL_STATS = [], {'rows': 0, 'keyed': 0, 'fallback': set()}
 CTSD_ERRS, CTSD_STATS = [], {'sessions': 0, 'n': 0, 'nosyms': 0}
+CTSD_NEED = {'world_conti_q1q2', 'world_conti_drop_lib', 'world_conti_drop_acl', 'world_conti_drop_acl_add'}
+# (MC 17/11) scenarios whose verdict needs ctdraw's counters (CT_SDRAW_ERR / HIT): on a build without them (no
+# HOSTTEST_SYMS syms, no CT_SYMS) a PASS proves nothing -> INCONCLUSIVE (exit 1, like a FAIL; not re-run). CTSD_NEED=a,b adds more
 X3_ERRS, X3_STATS = [], {'sessions': 0}
 _CTSD_SYMS = {}
 FORCE_ERRS, _CTOUT_AT = [], {}                   # (MC 11/11 root fix D: conti.c force_in's error byte, SETUP-ERROR)
@@ -39561,6 +39564,10 @@ def main(argv):
                 at = [f'{os.path.basename(x.filename)}:{x.lineno} {x.name}' for x in traceback.extract_tb(e.__traceback__)][-3:]
                 ok, msg = False, f'exception {type(e).__name__}: {e} (at {" < ".join(reversed(at))})'
             res = 'SETUP-ERROR' if FORCE_ERRS or setup else 'PASS' if ok else 'FAIL'   # (root fix D: the force's
+            if res == 'PASS' and n in CTSD_NEED | set(filter(None, os.environ.get('CTSD_NEED', '').split(','))) \
+                    and not CTSD_STATS['sessions']:          # (MC 17/11: its counters never read - no verdict)
+                res, msg = 'INCONCLUSIVE', f"no ctdraw counters read ({CTSD_STATS['nosyms']} session(s) without syms: a " \
+                    f"HOSTTEST_SYMS=1 build or CT_SYMS=<dir>); was PASS: " + msg
             if FORCE_ERRS:                                                                # set-up, not the game)
                 msg = f'force: {FORCE_ERRS[:3]}; was {"PASS" if ok else "FAIL"}: ' + msg
             if res == 'FAIL' and not os.environ.get('SWOSTEST_RERUN') and not os.environ.get('SWOSTEST_NO_RERUN'):
@@ -39576,7 +39583,7 @@ def main(argv):
                     res, msg = 'FLAKY', f'FAILed in the batch, PASSed alone ({RUNS.rstrip("/")}-rerun): ' + msg
                 elif last:
                     msg += f' [alone: {last[-1][:160]}]'
-            bad += res in ('FAIL', 'SETUP-ERROR')
+            bad += res in ('FAIL', 'SETUP-ERROR', 'INCONCLUSIVE')
             flaky += res == 'FLAKY'
             if PICKED or DATA_USED:                        # (root fix F: the data and the clubs derived from it)
                 msg += ' [data: ' + ', '.join(f'{v}={k}' for k, v in DATA_USED.items()) + \
@@ -46218,15 +46225,18 @@ def frchoose_outside():
     return not errs, '; '.join(errs + notes)
 
 
-def tc_load_once(exe, car, tag, ts):
-    """(alive, TC_LOADERR, screen texts): a fresh session, CARICA, car (as W84A.CAR), the load; the file's md5 on disk after"""
+def tc_load_once(exe, car, tag, ts, uq=None):
+    """(alive, TC_LOADERR, screen texts, md5 on disk[, B_UQ kept]): a fresh session, CARICA, car (as W84A.CAR), the load;
+    the file's md5 on disk after. uq = n: also whether the first n bytes after the stage (careerworld B_UQ) were kept"""
     import hashlib
     with Session(tag, exe, {'W84A.CAR': car}, 'dump:2', 180) as s:
         if s.wait().outcome != 'dump':
-            return False, None, [], None
+            return (False, None, [], None) + ((None,) if uq else ())
         s.send('down down down down down fire dump:2')
+        u0 = bytes(s.result.read(s.result.lin(tuple(ts['UQBUF'])), uq)) if uq else None
         r = s.send('fire dump:3')
         alive = r.outcome == 'dump'
+        kept = (bytes(s.result.read(s.result.lin(tuple(ts['UQBUF'])), uq)) == u0) if uq and alive else None
         e = s.result.read(s.result.lin(tuple(ts['TC_LOADERR'])), 1)[0] if alive else None
         texts = s.screen().texts() if alive else []
         s.shot(tag)
@@ -46234,7 +46244,7 @@ def tc_load_once(exe, car, tag, ts):
             r = s.send('fire dump:2')
         alive = alive and r.outcome == 'dump'
         disk = hashlib.md5(open(os.path.join(RUNS, tag, 'SWOS', 'W84A.CAR'), 'rb').read()).hexdigest()
-    return alive, e, texts, disk
+    return (alive, e, texts, disk) + ((kept,) if uq else ())
 
 
 def tc_oldsave(car, env=None):
@@ -46295,7 +46305,8 @@ def tc_oldsave_w5():
 def tc_loaderr():
     """4.2 team cache 1b gate (3) (MC 16/11): a .CAR refused in the stage. From a real save (TCLE_CAR, default Davide's
     PHILA.CAR) three broken files: 'short' (one byte less than its records), 'ncap' (the count word 161 > SEL_CAP),
-    'long' (8 B past the fixed part + SEL_ROOM: inside the stage's 15 B slack, so the read itself stays in the buffer).
+    'long' (8 B past the fixed part + SEL_ROOM: inside the stage's 15 B slack, so the read itself stays in the buffer),
+    'huge' (4 KB past it, 1b+: w_lsize refuses it before LoadFile - not read - so B_UQ's first 4 KB are byte-identical).
     Each loaded from CARICA: no crash, TC_LOADERR = 1 / 3 / 2, the game's failure path (the career menu not entered),
     the file on disk byte-identical. Control: the file unchanged loads (TC_LOADERR 0). TCLE_BUILD / SWOSTEST_BUILD."""
     import hashlib
@@ -46313,13 +46324,20 @@ def tc_loaderr():
     cases = [('ok', d, 0),
              ('short', d[:fixed + n * 684 - 1], 1),
              ('ncap', d[:0x173AF] + struct.pack('<H', cap + 1) + d[0x173B1:], 3),
-             ('long', d + bytes(fixed + room + 8 - len(d)), 2)]
+             ('long', d + bytes(fixed + room + 8 - len(d)), 2),
+             ('huge', d + b'\xa5' * (fixed + room + 4096 - len(d)), 2)]   # (1b+: past the stage's slack - not read at all; 0xA5: an overrun into B_UQ would show)
     errs, info = [], []
     for name, data, want in cases:
         src = os.path.join(work, name + '.CAR')
         open(src, 'wb').write(data)
         md5 = hashlib.md5(data).hexdigest()
-        alive, e, texts, disk = tc_load_once(exe, src, 'tc_loaderr_' + name, ts)
+        if name == 'huge' and 'UQBUF' not in ts:
+            errs.append(f'{exe}: no UQBUF in the syms (team cache 1b+ build)')
+            continue
+        r = tc_load_once(exe, src, 'tc_loaderr_' + name, ts, 4096 if name == 'huge' else None)
+        alive, e, texts, disk = r[:4]
+        if name == 'huge':
+            check(r[4] is True, f'huge: the 4 KB after the stage (B_UQ) changed by the load: {r[4]}', errs)
         check(alive, f'{name}: the game did not survive the load', errs)
         check(e == want, f'{name}: TC_LOADERR {e} (want {want})', errs)
         check(disk == md5, f'{name}: the file on disk changed', errs)

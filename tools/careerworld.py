@@ -2366,6 +2366,9 @@ w_loadcopy:                             ; trailer LOADCOPY: LoadCareerFile read 
     pushad                              ; to careerFileBuffer, the records + trailer to the career's cache
     cmp byte [SWSEA], 0                 ; 4.2 team cache 1b (design 1.5): a .CAR is checked IN THE STAGE before memory
     jne .ok                             ; is touched (a .SEA: as before) - its count <= SEL_CAP, the file holds its
+    mov byte [TC_LOADERR], 2            ; (1b+: w_lsize found it longer than the stage before LoadFile: not read, the
+    cmp byte [TC_LONG], 0               ;  stage holds nothing of it)
+    jne .bad
     movzx ebx, word [STAGE + 173AFh]    ; records, and no more than the cache's room after them (before: a long file
     mov byte [TC_LOADERR], 3            ; was cut silently at ROOMV). A refusal: TC_LOADERR, nothing copied,
     cmp ebx, SEL_CAP                    ; load_trailer returns to LoadCareerFile's failure path
@@ -2745,6 +2748,41 @@ sw_load:                                ; LoadOldCompetitionMenu's .SEA `call j_
     mov byte [SWSEA], 0                 ; (mov keeps LoadCareerFile's ZF: the caller's jnz)
     ret
 SWSEA: db 0
+TC_LONG: db 0
+
+w_lsize:                                ; trailer LSIZE (4.2 team cache 1b+, MC 16/11): before LoadCareerFile's LoadFile,
+    pushad                              ; a .CAR (not a .SEA) longer than the stage (FIXED + SEL_ROOM) -> TC_LONG, CF:
+    mov byte [TC_LONG], 0               ; it is not read (it would run past the stage into B_UQ). The size from DOS
+    cmp byte [SWSEA], 0                 ; (open, seek to the end, close); a failed open: as before (LoadFile's path)
+    jne .no
+    mov edx, [A0R]
+    mov ax, 3D00h
+    int 21h
+    jc .no
+    movzx ebx, ax
+    mov ax, 4202h
+    xor ecx, ecx
+    xor edx, edx
+    int 21h
+    setc cl
+    movzx eax, ax
+    shl edx, 16
+    or edx, eax
+    mov esi, edx
+    mov ah, 3Eh
+    int 21h
+    test cl, cl
+    jnz .no
+    cmp esi, FIXED + SEL_ROOM
+    jbe .no
+    mov byte [TC_LONG], 1
+    popad
+    stc
+    ret
+.no:
+    popad
+    clc
+    ret
 '''
 
 
@@ -2818,8 +2856,8 @@ def patch_tails(p, at, nasmcave):
     assert orig[mmc] == 0xe8, orig[mmc:mmc + 5].hex()
     sym['MMIX'] = (1, mmc + 5 + struct.unpack_from('<i', orig, mmc + 1)[0])
     sym.update({'WTMD': (2, b + B_TMD), 'WCC': (2, b + B_CUPS), 'WCWC': (2, b + B_CUPS + 160),
-                'WUEFA': (2, b + B_CUPS + 320), 'STAGE': (2, b + B_STAGE), 'NEWSEL': (2, b + B_SEL),
-                'SEL_ROOM': (0, SEL_ROOM), 'SEL_CAP': (0, SEL_CAP), 'A1R': (2, A0 + 4), 'OLDSEL': (2, hs['old']), 'OLDROOM': (0, 68400),
+                'WUEFA': (2, b + B_CUPS + 320), 'STAGE': (2, b + B_STAGE), 'NEWSEL': (2, b + B_SEL), 'UQBUF': (2, b + B_UQ),
+                'SEL_ROOM': (0, SEL_ROOM), 'SEL_CAP': (0, SEL_CAP), 'A1R': (2, A0 + 4), 'A0R': (2, A0), 'OLDSEL': (2, hs['old']), 'OLDROOM': (0, 68400),
                 'SELPTR': (2, hs['selptr']), 'CTICK': (2, hs['ctick']), 'CTN': (2, hs['ctn']),
                 'SELBASEV': (1, t['selbasev']), 'ROOMV': (1, t['roomv']), 'TC_LOADERR': (1, t['tc_loaderr']), 'WSEL': (1, LABELS['WSEL']),
                 'WMAP': (1, LABELS['WMAP']), 'WTAB': (1, LABELS['WTAB']), 'REC': (0, REC),
@@ -2856,9 +2894,10 @@ def patch_tails(p, at, nasmcave):
     p.retarget(1, save_dd, 1, labels['w_save_tail'])
     p.retarget(1, load_dd, 1, labels['w_load_tail'])
     p.retarget(1, t['loadcopy'], 1, labels['w_loadcopy'])    # (.CAR read into the stage, then spread: 3.3.3)
-    LABELS['tails'] = {k: labels[k] for k in ('w_loadcopy', 'w_save_tail', 'w_setbase', 'w_switch', 'SWSEA')}   # (hosttest:
+    p.retarget(1, t['lsize'], 1, labels['w_lsize'])          # (1b+: a .CAR longer than the stage not read)
+    LABELS['tails'] = {k: labels[k] for k in ('w_loadcopy', 'w_save_tail', 'w_setbase', 'w_switch', 'SWSEA', 'w_lsize', 'TC_LONG')}   # (hosttest:
     LABELS['tsym'] = {k: sym[k] for k in ('STAGE', 'NEWSEL', 'OLDSEL', 'CAREER', 'D1R', 'A1R', 'TC_LOADERR', 'WRITEFILE', 'WSAVE', 'SVMEM',   # test_tc1b)
-                                          'SELBASEV', 'ROOMV', 'SELPTR', 'FIXED', 'SEL_ROOM', 'SEL_CAP') if k in sym}
+                                          'SELBASEV', 'ROOMV', 'SELPTR', 'FIXED', 'SEL_ROOM', 'SEL_CAP', 'UQBUF') if k in sym}
     assert p.target(1, t['load_a1']) == t['CAREER'], p.target(1, t['load_a1'])
     p.retarget(1, t['load_a1'], 2, b + B_STAGE)
     for at_, n_, stub in ((hs['pcf'], 10, 'w_pcf'), (hs['cmenu'], 6, 'w_cmenu')):

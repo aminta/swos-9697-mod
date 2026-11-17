@@ -151,12 +151,11 @@ def careerteam_reads(build):
 def test_s6a_careerteam():
     """MC 15/11 item 2: the mod's CAREERTEAM reads in the built exe = CT_READS (no new read, no W site's without a
     proof entry)"""
-    build = os.environ.get('HT_S6_SYMS') or os.path.join(os.path.expanduser('~'), 'swos-mod', 'c', 'HTW', 'SWOS')
-    if not os.path.exists(os.path.join(build, 'ITALIAN.syms.json')):
-        return True, f'SKIP: no HOSTTEST_SYMS build {build}'
+    import fixroot
+    build = fixroot.need(fixroot.build_dir('HT_S6_SYMS'), 'test_s6a_careerteam', 'ITALIAN.syms.json')
     import json
     if not {'split', 'ctview'} <= set(json.load(open(os.path.join(build, 'ITALIAN.syms.json')))):
-        return True, f'SKIP: {build} predates split / ctview labels (rebuild: tools/hosttest/mkfixtures.sh)'
+        raise RuntimeError(f'{build} predates split / ctview labels (rebuild: tools/hosttest/mkfixtures.sh)')
     got = careerteam_reads(build)
     bad = [f'{m}.{lb}: {n} CAREERTEAM read(s), listed {CT_READS.get((m, lb), (0,))[0]} - a new read: C by default, '
            f'W only with a proof (CT_READS)' for (m, lb), n in sorted(got.items()) if n > CT_READS.get((m, lb), (0,))[0]]

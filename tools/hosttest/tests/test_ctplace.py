@@ -16,8 +16,8 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-os.environ.setdefault('HT_LRANK_BUILD', os.environ.get('HT_CT_BUILD') or os.path.join(os.path.expanduser('~'),
-                                                                                       'swos-mod', 'c', 'S1R', 'SWOS'))
+import fixroot                                          # noqa: E402
+os.environ.setdefault('HT_LRANK_BUILD', fixroot.build_dir(('HT_CT_BUILD', 'HT_LRANK_BUILD')))   # (the current fixture, MC 17/11)
 import test_lrank as tl                                 # noqa: E402
 
 N = int(os.environ.get('HT_CT_SHAPES') or 600)
@@ -50,8 +50,7 @@ def shape(rnd, k):
 
 
 def test_ctplace_differential():
-    if not os.path.exists(os.path.join(tl.BUILD, 'ITALIAN.syms.json')):
-        return True, f'SKIP: no build at {tl.BUILD}'
+    fixroot.need(tl.BUILD, 'test_ctplace_differential', 'ITALIAN.syms.json')
     import json
     sys.path.insert(0, tl.TOOLS)
     import conti
@@ -59,7 +58,7 @@ def test_ctplace_differential():
     allsyms = json.load(open(os.path.join(tl.BUILD, 'ITALIAN.syms.json')))
     cs = allsyms['conti'].get('syms.CT_SDRAW') or allsyms['conti'].get('SYMS.CT_SDRAW')
     if not cs:                                  # (an older build without ctdraw's CT_SDRAW, e.g. the old c/S1R: MC 12/11)
-        return True, f'SKIP: {tl.BUILD} has no CT_SDRAW (a build before ctdraw; set HT_LRANK_BUILD to a current one)'
+        raise RuntimeError(f'{tl.BUILD} has no CT_SDRAW (a build before ctdraw; set HT_CT_BUILD to a current one)')
     ptr = struct.unpack('<I', x.rd(x.base[cs[0]] + cs[1], 4))[0]
     bad = []
     if ptr != x.lin('ct_place'):

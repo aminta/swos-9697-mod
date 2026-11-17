@@ -71,3 +71,37 @@ def fx(name, *parts):
     if os.environ.get('HOSTTEST_FIXROOT'):
         verify(r, name)
     return os.path.join(r, name, *parts)
+
+
+def build_dir(env_names, fixture='HTW'):
+    """The build a test reads: the first set of env_names (an explicit choice), else the CURRENT tip's fixture dir (never a
+    fixed c/<old> dir: MC 17/11, stale defaults silently SKIPped). Returns a path; does not check it exists (see need())."""
+    if isinstance(env_names, str):
+        env_names = (env_names,)
+    for n in env_names:
+        if os.environ.get(n):
+            return os.environ[n]
+    return fx(fixture, 'SWOS')
+
+
+def release_dir(env_names=('HOSTTEST_REL',)):
+    """A 4-exe release dir: the first set of env_names, else the NEWEST c/REL42*/SWOS with its 4 exes (the release the rc runner
+    just built; set HOSTTEST_REL to pin it). None when there is none (callers FAIL through need())."""
+    import glob
+    for n in env_names:
+        if os.environ.get(n):
+            return os.environ[n]
+    c = [p for p in glob.glob(os.path.join(LEGACY, 'REL42*', 'SWOS'))
+         if all(os.path.isfile(os.path.join(p, x + '.EXE')) for x in ('ITALIAN', 'ENGLISH', 'FRENCH', 'GERMAN'))]
+    return max(c, key=os.path.getmtime) if c else None
+
+
+def need(path, what, *files):
+    """RuntimeError (the runner turns it into a FAIL) when the build/dir a test needs is missing or lacks `files`: a missing
+    input is never a silent SKIP (MC 17/11)."""
+    if not path or not os.path.isdir(path):
+        raise RuntimeError(f'{what}: no build at {path} (set the *_BUILD / HOSTTEST_REL env, or run tools/hosttest/mkfixtures.sh)')
+    for f in files:
+        if not os.path.exists(os.path.join(path, f)):
+            raise RuntimeError(f'{what}: {path} lacks {f} (rebuild: tools/hosttest/mkfixtures.sh)')
+    return path

@@ -20,7 +20,9 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import test_lrank as tl                                 # noqa: E402
 
-BUILD = os.environ.get('HT_T3_BUILD') or os.path.join(os.path.expanduser('~'), 'swos-mod', 'c', 'T3h', 'SWOS')
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
+import fixroot  # noqa: E402
+BUILD = fixroot.build_dir('HT_T3_BUILD')           # (the current fixture, never a fixed c/<old> dir: MC 17/11)
 
 FIRST = ['MARCO', 'LUCA', 'PAOLO', 'ANDREA', 'DAVIDE', 'SIMONE', 'MATTEO', 'NICOLA']
 LAST = ['ROSSI', 'BIANCHI', 'VERDI', 'NERI', 'GALLI', 'CONTI', 'RICCI', 'MARINO']
@@ -69,8 +71,7 @@ def setup(x, e, rnd):
 
 
 def test_t3_preview():
-    if not os.path.exists(os.path.join(BUILD, 'ITALIAN.syms.json')):
-        return True, f'SKIP: no build at {BUILD}'
+    fixroot.need(BUILD, 'test_t3_preview', 'ITALIAN.syms.json')
     old, tl.BUILD = tl.BUILD, BUILD                     # (test_lrank's Exe loads tl.BUILD)
     try:
         x = tl.Exe()

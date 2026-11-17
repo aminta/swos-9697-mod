@@ -71,9 +71,9 @@ def _scenarios():
 
 
 def test_uiguard_scenarios():
-    b = os.environ.get('UIGUARD_BUILD') or os.path.join(MAIN, 'c', 'HTW', 'SWOS')
-    if not all(os.path.isfile(os.path.join(b, x + '.EXE')) for x in ('ITALIAN', 'ENGLISH', 'FRENCH', 'GERMAN')):
-        return True, f'SKIP: UIGUARD_BUILD {b}: not a 4-exe release dir'
+    import fixroot
+    b = fixroot.need(fixroot.release_dir(('UIGUARD_BUILD', 'HOSTTEST_REL')), 'test_uiguard_scenarios',
+                     *(x + '.EXE' for x in ('ITALIAN', 'ENGLISH', 'FRENCH', 'GERMAN')))   # (a 4-exe release dir: the newest REL42*)
     only = [x for x in os.environ.get('UIGUARD_ONLY', '').split(',') if x]
     names = [n for n in _scenarios() if not only or n in only]
     py = '/opt/homebrew/bin/python3' if os.path.exists('/opt/homebrew/bin/python3') else sys.executable

@@ -22,7 +22,9 @@ import tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 TOOLS = os.path.join(HERE, '..', '..')
-BUILD = os.environ.get('HT_LRANK_BUILD') or os.path.join(os.path.expanduser('~'), 'swos-mod', 'c', 'S1R', 'SWOS')
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
+import fixroot  # noqa: E402
+BUILD = fixroot.build_dir('HT_LRANK_BUILD')       # (the current fixture, never a fixed c/<old> dir: MC 17/11)
 SEASONS = int(os.environ.get('HT_LRANK_SEASONS') or 300)
 
 
@@ -178,8 +180,7 @@ def order(x, ud, n):
 
 
 def test_lrank_differential():
-    if not os.path.exists(os.path.join(BUILD, 'ITALIAN.syms.json')):
-        return True, f'SKIP: no build at {BUILD}'
+    fixroot.need(BUILD, 'test_lrank', 'ITALIAN.syms.json')
     x, lib, rnd = Exe(), native(), random.Random(1926)
     blk = x.lin('LR_BLK')
     stats = dict(seasons=0, sort=0, void_differs=0, notours=0, partial=0)

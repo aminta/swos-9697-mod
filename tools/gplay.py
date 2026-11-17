@@ -3622,6 +3622,7 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     if fpad.on() or __import__('frnd').on():                  # (fpad.py / frnd.py link fpad.c / frstep.c to these)
         LABELS.update({k: syms[k] for k in ('GP_PAPI', 'GP_PSTEP', 'GP_PDONE', 'GP_PLEG', 'GP_PSEAS', 'GP_WK', 'GP_PMID', 'GP_SCT',
                                             'GP_SEAS', 'GP_K')})
+        LABELS.update({k: syms[k] for k in ('GP_PROW',) if k in syms})   # (4.2 friendlies: gp_scrow_c's hook)
         LABELS.update({k: symbols[k] for k in ('D1R', 'A1R', 'A2R', 'CAL_CUR')}, GP_CFLAGS=gp_cflags)
         LABELS['SC_ON'] = bool(sct)   # (GP_S7: s7swap.py points them at s7ri.c's s7ri_pool / s7ri_cdstr)
     LABELS.update({k: symbols[k] for k in ('VC_VIEW', 'VC_CALC') if k in symbols})   # (4.0.6 P3: ctview's rounds menu)

@@ -197,6 +197,18 @@ u32 fr_step(void) {                     /* sc_step_c's head: 1 = a friendly buil
     return 1;
 }
 
+u32 fr_row(const u8 *row) {             /* gp_scrow_c's head (GP_PROW): a slot-4 fixture-list row at a played friendly's week
+                                           this season -> the friendly's short name (STR_BASE-relative); 0 = not one */
+    if (!row || row[0] != 4 || FR_ST[0] != FR_SEASON) return 0;
+    u32 n = FR_NPLAYED(FR_ST);
+    if (!n) return 0;
+    u8 wk[4];
+    if (!fr_turns(FR_CAL, wk)) return 0;
+    for (int k = fr_first(wk), m = 0; k < 4 && m < (int)n; k++, m++)
+        if (wk[k] == row[1]) return *(const u32 *)(FR_NAMES + 4);
+    return 0;
+}
+
 void fr_leg(void) {                     /* gp_rec, every match of ours */
     if (GP_K == 0 && FR_ST[0] == FR_SEASON && *(const u16 *)KO0 == C_MAGIC && KO0[O_KIND] == C_KFR &&
         KO0[O_SEASON] == GP_SEAS) {

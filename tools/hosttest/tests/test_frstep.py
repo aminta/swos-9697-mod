@@ -106,6 +106,11 @@ int main(int argc, char **argv) {
           "open %d after %d next %d", FR_ST[1] & FR_OPEN, nafter, nnext);
     fr_step();
     CHECK(nafter == 1 && nnext == 2, "after4_once", "after %d next %d", nafter, nnext);
+    /* 4b. fr_row (gp_scrow_c's hook): the 4 played weeks' slot-4 rows keep the short name; other weeks / slots 0 */
+    *(u32 *)(FR_NAMES + 4) = 0x1234;
+    { u8 r[2] = { 4, 48 }; u32 a = fr_row(r); r[1] = 54; u32 b = fr_row(r); r[1] = 56; u32 c = fr_row(r);
+      r[0] = 3; r[1] = 50; u32 d = fr_row(r);
+      CHECK(a == 0x1234 && b == 0x1234 && c == 0 && d == 0, "row_label", "%x %x %x %x", a, b, c, d); }
     /* 5. next season: last season's four avoided, the level bits kept; an old save (season mismatch): nothing */
     u16 last[4]; memcpy(last, FR_ST + 2, 8);
     FR_ST[11] |= 0x80;                  /* (FR_LEVEL HARD... bit 15 as frc_choose would leave it) */

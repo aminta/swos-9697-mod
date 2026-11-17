@@ -3214,6 +3214,10 @@ void (*GP_PDONE)(void) GP_DATA_SECTION;                         /* gp_rec_c: ko[
 void (*GP_PLEG)(void) GP_DATA_SECTION;                          /* gp_rec: every match of ours (fp_leg: K_PORT ones) */
 void (*GP_PSEAS)(void) GP_DATA_SECTION;                         /* pg_season's end: a new season (fp_season) */
 u8 GP_PMID;                             /* (.bss, obj2: fpad.c's legs played of the K_PORT tie - the gate's mid-tie save) */
+#if GP_FRND
+u32 (*GP_PROW)(const u8 *) GP_DATA_SECTION;                     /* gp_scrow_c's head (frnd fr_row): a played friendly's
+                                                                   slot-4 row keeps the friendly's short name, 0 = not one */
+#endif
 #endif
 void gp_rec_c(void) {
     struct gp_ko *k = &GP_ST.ko[GP_K];
@@ -4802,6 +4806,10 @@ u32 gp_scrow_c(const u8 *row) {        /* 4.2 supercups-s1 (MC 15/11): the fixtu
                                            played UEFA Super Cup (its week, the career club's tie decided: SC_U +4 the
                                            winner) - its short name (STR_BASE-relative), not the label of the national
                                            supercup slot 4 holds now; 0 = the slot's label */
+#if GP_FRND
+    if (GP_PROW) { u32 r = GP_PROW(row); if (r) return r; }   /* (4.2 friendlies: their weeks keep AMICHEVOLE after slot 4
+                                                               moves on to the supercup) */
+#endif
     const u8 *e = usc_entry();
     if (!e || !row || row[0] != 4 || row[1] != e[3]) return 0;
     if (SC_U[0] != GP_SEAS || SC_U[1] != 3 || !(SC_U[4] | SC_U[5])) return 0;

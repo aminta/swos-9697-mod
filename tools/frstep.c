@@ -83,6 +83,7 @@ FR_DATA u8 FR_TRACE;                          /* (the last step: 1x season, 2x i
 FR_DATA u16 FR_GIVENW[4] = { 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF };   /* (the harness's given list: replaces the chooser) */
 FR_DATA u32 FR_FEE[4]; FR_DATA u32 FR_G;                  /* (the fees credited, G) */
 FR_DATA u8 FR_FB;
+FR_DATA u8 FR_ROWC;                           /* (bit k: friendly k's fixture row relabelled by fr_row after the close) */
 #else
 #define FR_TRACE_SET(x) ((void)0)
 #define FR_T(x)
@@ -205,7 +206,10 @@ u32 fr_row(const u8 *row) {             /* gp_scrow_c's head (GP_PROW): a slot-4
     u8 wk[4];
     if (!fr_turns(FR_CAL, wk)) return 0;
     for (int k = fr_first(wk), m = 0; k < 4 && m < (int)n; k++, m++)
-        if (wk[k] == row[1]) return *(const u32 *)(FR_NAMES + 4);
+        if (wk[k] == row[1]) {
+            FR_T(if (!(FR_ST[1] & FR_OPEN)) FR_ROWC |= (u8)(1u << k);)
+            return *(const u32 *)(FR_NAMES + 4);
+        }
     return 0;
 }
 

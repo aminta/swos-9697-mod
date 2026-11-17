@@ -2070,6 +2070,14 @@ CD_RNAME = '''
     stc
     ret
 .ncd:'''
+FR_RNAME = '''
+    cmp byte [GP_ST + ST_KO + 6], 13    ; (gp_ko.kind: K_FR) 4.2 a preseason friendly (Davide 17/11): no round name -
+    jne .nfr                            ; rnames' empty FR_I entry ('AMICHEVOLE', not 'AMICHEVOLE FINALE')
+    mov al, FR_I
+    pop ebx
+    stc
+    ret
+.nfr:'''
 CDS1_ID = 0xEF                          # 4.0: the Coppa D's slot-2 knockout (conti.IDS' last, unused there)
 
 
@@ -2343,6 +2351,7 @@ gp_rname:                               ; rnames' rn_round (an FE contest, RN_CD
     jne .nb
     cmp byte [GP_ST + ST_KO + KO_SLOT], 0
     je .nb
+FR_PART
 CD_PART
     cmp byte [GP_ST + ST_KO + KO_SLOT], 3   ; 4.0.5 a group contest of ours (the game's type 2 in slot 3: the Poule
     jne .k4                             ; Scudetto): its stages are the game's D0 (0 the groups, then the knockout
@@ -3482,7 +3491,12 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
         cd_src += CF_ASM + 'CF_DATA: db ' + ', '.join(str(b) for b in cft) + '\n'
         symbols.update({'CF_TABP': syms['CF_TAB'], 'CF_LIST': syms['cf_list_c'], 'CF_MEMBER': syms['cf_member_c'],
                         'CF_CAP': syms['cf_cap_c']})
-    cd_src += nasmcave.sub(GP_RNAME, 'CD_PART', CD_RNAME if cds else '')
+    import rnames as _rn                                      # (4.2 friendlies: rnames.FR_I only in FRND builds)
+    fr_i = _rn.LABELS.get('FR_I')
+    if fr_i is not None:
+        symbols['FR_I'] = (0, fr_i)
+    cd_src += nasmcave.sub(nasmcave.sub(GP_RNAME, 'CD_PART', CD_RNAME if cds else ''), 'FR_PART\n',
+                           FR_RNAME + '\n' if fr_i is not None else '')
     asm_main = ASM
     if cft:                                                   # (cupsf: every league division's final places)
         asm_main = nasmcave.sub(asm_main, '    call GP_CAP_NEXT\n    pushad\n    mov edx, [A4R]\n    call gp_find\n',

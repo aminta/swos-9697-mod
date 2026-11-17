@@ -110,7 +110,9 @@ int main(int argc, char **argv) {
     *(u32 *)(FR_NAMES + 4) = 0x1234;
     { u8 r[2] = { 4, 48 }; u32 a = fr_row(r); r[1] = 54; u32 b = fr_row(r); r[1] = 56; u32 c = fr_row(r);
       r[0] = 3; r[1] = 50; u32 d = fr_row(r);
-      CHECK(a == 0x1234 && b == 0x1234 && c == 0 && d == 0, "row_label", "%x %x %x %x", a, b, c, d); }
+      CHECK(a == 0x1234 && b == 0x1234 && c == 0 && d == 0, "row_label", "%x %x %x %x", a, b, c, d);
+      /* (FR_TEST: FR_ROWC bit k = friendly k's row relabelled after the close - weeks 48 / 54 = friendlies 1 / 4) */
+      CHECK(FR_ROWC == 0x09, "row_relabel_trace", "FR_ROWC %x", FR_ROWC); }
     /* 5. next season: last season's four avoided, the level bits kept; an old save (season mismatch): nothing */
     u16 last[4]; memcpy(last, FR_ST + 2, 8);
     FR_ST[11] |= 0x80;                  /* (FR_LEVEL HARD... bit 15 as frc_choose would leave it) */

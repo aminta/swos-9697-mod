@@ -25939,6 +25939,8 @@ def world_friendlies():
             'bal': (sy['NEWBAL'], 4)}
     if 'FF_INC' in sy:
         keys['inc'] = (sy['FF_INC'], 4)
+    if 'FR_ROWC' in sy:                          # (fr_row's relabels after the close: bit k = friendly k's row)
+        keys['rowc'] = (sy['FR_ROWC'], 1)
     hexarg = lambda a, n: (f'{a[1]:x}' if a[0] == 2 else f'o{a[0]}/{a[1]:x}') + f':{n}'
     name_of = {hexarg(a, n).split(':')[0]: k for k, (a, n) in keys.items()}
     sp = split.sites(lepatch.LEPatch(os.path.join(MAIN, 'orig', 'ITALIAN.EXE')))['SLOTS']
@@ -25946,6 +25948,15 @@ def world_friendlies():
     def hook(s, season, scr):                    # slot 4's tie (team a, team b, score word) when it changes
         if scr is None:
             return
+        if not getattr(hook, 'shot_done', 0) and scr.find('VISUAL. COMPETIZ.', exact=True) is not None:
+            try:                                 # (Davide's tour: the career menu's fixture list once the four are
+                fs = bytes(s.result.obj2(sy['FR_ST'][1], 2)) if sy['FR_ST'][0] == 2 else b''   # played - their rows
+                if len(fs) == 2 and fs[1] & 7 == 4 and not fs[1] & 8:                         # AMICHEVOLE)
+                    s.shot('fr_fixtures')
+                    s.log.append('[fr shot] fr_fixtures')
+                    hook.shot_done = 1
+            except Exception:
+                pass
         lin = struct.unpack('<I', s.result.obj2(sp + 16, 4))[0]
         if not lin:
             return
@@ -25960,6 +25971,7 @@ def world_friendlies():
             s.log.append(f'[fr slot4] {v}')
 
     W84_HOOK = hook
+    hook.shot_done = 0
     try:
         ok, msg, lines = sc_season('EUROPA,ITALIA,SERIE A,LAZIO', dict(
             W8485_BUILD=exe, W8485_HEX=','.join(hexarg(a, n) for a, n in keys.values())))
@@ -26001,9 +26013,32 @@ def world_friendlies():
     check(not other, f'slot-4 rows with another label: {other[:4]}', errs)
     check(len(fw) == 4 and all(fw[k + 1] - fw[k] == 2 for k in range(3)), f'{lab} rows at weeks {fw} (want 4, 2 apart)', errs)
     scw = sorted({w for _, w, _, lb, _ in rows if lb == scs})
-    check(not set(scw) & set(fw), f'{scs} rows at friendly weeks {scw}', errs)
+    # (a') the played friendlies' rows after the close: the header is the supercup's then ([slot4row] reads the slot's
+    # header label), gp_scrow_c -> fr_row relabels each such row AMICHEVOLE as drawn - FR_ROWC bit k (test builds)
+    rowc = fin.get('rowc', b'\0')[0] if 'rowc' in fin else None
+    closed_fw = set()
+    for i, ln in enumerate(lines):
+        m = re.match(r'\[slot4row\] step (\d+) week (\d+) ', ln)
+        if m and int(m.group(2)) in fw:
+            sn = st_at(i).get('st', b'')
+            if sn and sn[0] == season0 and not sn[1] & 8:
+                closed_fw.add(int(m.group(2)))
+    check(rowc is not None, 'no FR_ROWC logged (a FRND=1 HOSTTEST_SYMS=1 build of this commit is needed)', errs)
+    if rowc is not None:
+        miss = [w for w in sorted(closed_fw) if not rowc >> fw.index(w) & 1]
+        check(not miss, f'friendly rows drawn after the close but not relabelled by fr_row: weeks {miss} '
+              f'(FR_ROWC {rowc:02x})', errs)
+    sc_own = sorted(set(scw) - set(fw))
+    check(sc_own == [93] and all(lb == scs for _, w, _, lb, _ in rows if w == 93),
+          f'{scs} row weeks {sc_own} (want its own week 93 only, still {scs})', errs)
     # (b) the friendlies played: the match screens, their result screens, the first at the first menu
     title = lambda ln: ln.split('|')[0]
+    # (Davide 17/11) the friendly's match title is the label alone - no round name ('AMICHEVOLE', not 'AMICHEVOLE
+    # FINALE'), no trailing space: the screen text between '[step] ' and ' | ', exactly
+    shown = lambda ln: (re.match(r'\[\d+\] (.*) $', title(ln)) or re.match(r'(.*)', '')).group(1)
+    fr_titles = sorted({shown(ln) for ln in lines if ln.startswith('[') and lab in title(ln) and
+                        ('- RISULTATO -' in ln or '- PARTITA -' in ln)})
+    check(fr_titles == [lab], f'friendly match titles {fr_titles} (want exactly [{lab!r}])', errs)
     pre = [i for i, ln in enumerate(lines) if ln.startswith('[') and lab in title(ln) and '>- RISULTATO -' in ln]
     post = [i for i, ln in enumerate(lines) if ln.startswith('[') and lab in title(ln) and '- RISULTATO -(inv)' in ln
             and '>ESCI' in ln]
@@ -26086,14 +26121,22 @@ def world_friendlies():
         sst = st_at(scm[0]).get('st', b'')
         check(sst and not sst[1] & 8, f'the supercup played with FR_OPEN set (FR_ST {sst.hex()})', errs)
         check(any(x in lines[scm[0]] for x in ('INTER',)), f'supercup not v INTER: {lines[scm[0]][:120]}', errs)
+    if scm:                                     # (other contests unchanged: the supercup keeps its round name)
+        scl = json.load(open(os.path.join(ROOT, 'tools', 'supercups2627.json')))['ita']['names']
+        scl = (scl.get(UI) or scl['en'])[0].upper()
+        sct = shown(lines[scm[0]])
+        check(sct == 'ITALIA ' + scl + ' FINALE' if UI == 'it' else (scl + ' ' in sct and not sct.endswith(scl)),
+              f'supercup title {sct!r} (want [country] {scl} + its round name, as before)', errs)
     open_rows = []
     for i, ln in enumerate(lines):
         m = re.match(r'\[slot4row\] step (\d+) week (\d+) .* (\S.*)$', ln)
-        if m and ln.endswith(' ' + scs):
+        if m and ln.endswith(' ' + scs) and int(m.group(2)) not in fw:   # (a friendly week's row: (a') above)
             sn = st_at(i).get('st', b'')
             if sn and sn[0] == season0 and sn[1] & 8:
                 open_rows.append(ln[:60])
     check(not open_rows, f'{scs} in the fixture list while FR_OPEN: {open_rows[:2]}', errs)
+    info.append(f'friendly titles {fr_titles}; FR_ROWC {rowc if rowc is None else f"{rowc:02x}"} (rows after the close '
+                f'{sorted(closed_fw)}); fixture shot {"fr_fixtures" if hook.shot_done else "-"}')
     info.append(f'{lab} weeks {fw}; {scs} weeks {scw}; supercup screen {lines[scm[0]].split("|")[0] if scm else "-"}')
     return not errs, '; '.join(errs + info) if errs else '; '.join(info) + f'; {msg[:80]}'
 

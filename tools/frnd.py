@@ -108,10 +108,10 @@ def patch(p, ssyms, gsyms):
     assert p.call_target(1, site) == f3d, ('frnd: InitializeNewSeason\'s call cseg_3D204 already hooked', p.call_target(1, site))
     roots = ['fr_season', 'fr_step', 'fr_row', 'fr_leg', 'fr_gate', 'fr_pick', 'fr_given', 'fr_level', 'FR_NSTEP', 'FR_NLEG',
              'FR_CHOOSE', 'FR_AFTER4', 'FR_NAMES']
-    test = os.environ.get('HOSTTEST_SYMS') == '1'     # (test builds: FR_TRACE, FR_GIVENW, FR_FEE, FR_G, FR_FB)
+    test = os.environ.get('HOSTTEST_SYMS') == '1'     # (test builds: FR_TRACE, FR_GIVENW, FR_FEE, FR_G, FR_FB, FR_ROWC)
     if test:
         flags.append('-DFR_TEST')
-        roots += ['FR_TRACE', 'FR_GIVENW', 'FR_FEE', 'FR_G', 'FR_FB']
+        roots += ['FR_TRACE', 'FR_GIVENW', 'FR_FEE', 'FR_G', 'FR_FB', 'FR_ROWC']
     obj = cobj.compile_c(SRC, tuple(flags), sections=True)
     # (the glue first, its labels as the C's externs: its size from a dry assembly at the band's start)
     at = swreg.FRND_AT

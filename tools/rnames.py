@@ -132,6 +132,8 @@ CAL_MED = {
 def cal_med(lang, med):
     """The calendar form of a medium round name: it and ' ' + the widest leg within 70 px, font characters only."""
     import complist
+    if med == '':                       # (4.2 FR_NONE: the friendly's empty round name, never with a leg)
+        return ''
     room = complist.CAL_PX - 3 - max(complist.px(x) for x in CAL_LEGS[lang])
     m = med if complist.px(med) <= room else CAL_MED[lang].get(med)
     assert m and complist.px(m) <= room, (lang, med, m, room)
@@ -612,6 +614,21 @@ RN_LPIDS: LPID_BYTES
 RN_NUMB: NUMB_BYTES
 '''
 
+FR_NONE = ('', '', '')                  # 4.2: the friendly's round (FRND builds only: frtext.on())
+RN_TRIM_END = '''.e:
+    mov [A1R], edi
+'''
+RN_TRIM_END_FR = '''.e:
+    cmp edi, ebx                        ; (4.2 FRND: a trailing space dropped too - the title '<name> ' + the
+    je .e1                              ; friendly's empty round name)
+    cmp byte [edi - 1], ' '
+    jne .e1
+    dec edi
+    mov byte [edi], 0
+.e1:
+    mov [A1R], edi
+'''
+
 
 def _title_sites(p, r):
     """cseg_45D92 (a cup round's title): its `call cseg_284AB`, its two `call cseg_28049` (each followed by `call
@@ -777,6 +794,14 @@ def patch(p, at, limit, lang, area, lp_ids, numbered):
             ptrs[f[1] - base] = f[4]
     assert all(4 * k in ptrs for k in range(N_OLD)) and all(48 + 4 * k in ptrs for k in range(N_OLD)), sorted(ptrs)
     names, ctmap = _ct_names(lang)
+    LABELS.pop('FR_I', None)
+    asm = ASM
+    import frtext
+    if frtext.on():                             # 4.2 (Davide 17/11): the preseason friendly has no round name - its
+        names.append(FR_NONE)                   # match title just the label ('AMICHEVOLE', not 'AMICHEVOLE FINALE'):
+        LABELS['FR_I'] = N_OLD + len(names) - 1 # gplay's gp_rname gives this empty entry for a K_FR ko[0]; the space
+        asm = nasmcave.sub(asm, RN_TRIM_END, RN_TRIM_END_FR)   # before it goes (rn_trim: a trailing space dropped)
+        assert len(names) + N_OLD < 256
     new = [[area.add(nm[t].encode('latin1') + b'\0') for nm in names] for t in range(3)]
     tab = (at + 3) & ~3
     n = N_OLD + len(names)
@@ -831,8 +856,8 @@ def patch(p, at, limit, lang, area, lp_ids, numbered):
     sym['STRCOPY'] = (1, tc + 5 + struct.unpack('<i', bytes(p.get(1, tc + 1, 4)))[0])
     sym.update({'QID_LO': (0, min(uefaq.QIDS)), 'QID_HI': (0, max(uefaq.QIDS)), 'C28049': (1, c28049), 'C284AB': (1, c284ab), 'MEDTAB': (1, tab + 4 * n), 'CALTAB': (1, cal), 'A0R': (2, a0),
                 'A1R': (2, a0 + 4)})
-    code, fix = nasmcave.assemble(ASM, code_at, sym)
-    lab = nasmcave.labels(ASM, code_at, sym)
+    code, fix = nasmcave.assemble(asm, code_at, sym)
+    lab = nasmcave.labels(asm, code_at, sym)
     assert code_at + len(code) <= limit, hex(code_at + len(code))
     p.put(1, code_at, code)
     for off, tobj, toff in fix:

@@ -42,6 +42,8 @@ class LEPatch:
             assert p == stop
         self.old_end = le.fix_rec_tab + struct.unpack_from('<I', d, le.fix_page_tab + le.npages * 4)[0]
         self.rel_sites = set()                       # (objn, off) of the self-relative fixups added (add_rel): put() guard
+        self.hi = {}                                 # objn -> the highest byte end ever put() (zero data included): the
+                                                     # object's LINKED end (trim_tail, MC 17/11: never a band END)
 
     @staticmethod
     def _rec_len(d, p):
@@ -56,7 +58,17 @@ class LEPatch:
         return n
 
     # --- object data -------------------------------------------------------
+    def mark(self, objn, end):
+        """(4.2, MC 17/11) a linked area with no put() bytes (a C module's .bss in its band) still counts as linked:
+        trim_tail keeps its pages. swe.c's arena (obj4 at swreg.BSS_AT and above, zeroed by swe_init) does not."""
+        import swreg
+        if objn == 4 and end > swreg.BSS_AT:
+            return
+        self.hi[objn] = max(self.hi.get(objn, 0), end)
+
     def put(self, objn, off, data):
+        if len(data):
+            self.hi[objn] = max(self.hi.get(objn, 0), off + len(data))
         if self.rel_sites:                           # (4.0.6) never overwrite a cross-object rel32 without remove() first:
             hit = [(objn, o) for o in range(off - 3, off + len(data)) if (objn, o) in self.rel_sites]   # its bytes are
             assert not hit, ('put over a self-relative fixup', objn, hex(off), hit)   # the loader's, not a target
@@ -300,3 +312,55 @@ def add_object_page(data, objn):
     for i, o in enumerate(objs):
         struct.pack_into('<6I', d, obj_tab + 24 * i, *o)
     return bytes(d)
+
+
+def trim_tail(data, objn, keep):
+    """(4.2, MC 17/11) Drop the trailing file pages of objn - the LAST object, whose pages are the file's last physical
+    pages (add_object_page appends them) - beyond `keep` pages: only pages with no byte and no fixup record go. The
+    object's vsize (its .bss above BSS_AT) is unchanged; the page map and fixup page table lose their entries (the
+    data pages keep their file offset: the freed 8 B per page join the padding before them). -> (new bytes, pages dropped)."""
+    d = bytearray(data)
+    h = struct.unpack_from('<I', d, 0x3c)[0]
+    u = lambda off: struct.unpack_from('<I', d, h + off)[0]
+    setu = lambda off, v: struct.pack_into('<I', d, h + off, v)
+    npages, psize, last = u(0x14), u(0x28), u(0x2c)
+    assert len(d) == u(0x80) + (npages - 1) * psize + last, 'unexpected data after the pages'
+    obj_tab, nobj = h + u(0x40), u(0x44)
+    assert objn == nobj, 'trim_tail: only the last object'
+    e = obj_tab + 24 * (objn - 1)
+    vsize, base, flags, pidx, onp, _ = struct.unpack_from('<6I', d, e)
+    assert pidx - 1 + onp == npages, 'trim_tail: the object\'s pages are not the last logical pages'
+    pm = h + u(0x48)
+    fpt = h + u(0x68)
+    k = 0
+    while onp - k > keep:
+        lg = npages - 1 - k                              # 0-based logical page
+        phys = int.from_bytes(d[pm + 4 * lg:pm + 4 * lg + 3], 'big')
+        if phys != lg + 1:                               # (the object's pages in file order, the last ones physically)
+            break
+        a = u(0x80) + lg * psize
+        f0, f1 = struct.unpack_from('<2I', d, fpt + 4 * lg)
+        if any(d[a:a + psize]) or f1 != f0:
+            break
+        k += 1
+    if not k:
+        return bytes(d), 0
+    data_pages = u(0x80)
+    cut = npages - k
+    del d[u(0x80) + cut * psize:]                        # the pages themselves (the file's tail)
+    del d[fpt + 4 * (cut + 1):fpt + 4 * (npages + 1)]   # fixup page table: N + 1 entries -> cut + 1 (all equal: no records)
+    del d[pm + 4 * cut:pm + 4 * npages]                  # page map entries
+    for off in (0x48, 0x50, 0x58, 0x5c, 0x68, 0x6c, 0x70, 0x78):
+        v = u(off)
+        if v and h + v > pm + 4 * cut:
+            setu(off, v - 4 * k - (4 * k if h + v > fpt else 0))
+    setu(0x38, u(0x38) - 4 * k)                          # loader section: the page map
+    setu(0x30, u(0x30) - 4 * k)                          # fixup section: the fixup page table
+    pad = 8 * k
+    new_dp = u(0x80) - pad                               # (the tables shrank by 8k: refill the padding, data stays put)
+    d[new_dp:new_dp] = bytes(pad)
+    assert u(0x80) == data_pages
+    setu(0x14, cut)
+    setu(0x2c, psize)
+    struct.pack_into('<6I', d, e, vsize, base, flags, pidx, onp - k, 0)
+    return bytes(d), k

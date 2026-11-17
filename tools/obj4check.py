@@ -182,8 +182,10 @@ def check_obj4(o4, bl, extents=(), allow=(), items=()):
             continue
         if used is None:
             continue                                # (not linked in this build)
-        if e > size:
-            fails.append(f'(b) band {n} {a:#x}..{e:#x} crosses OBJ4_PAGES ({size // PAGE:#x} pages, end {size:#x})')
+        if used > size:                         # (MC 17/11: the file ends at the highest LINKED byte, so a band's free
+            fails.append(f'(b) band {n} {a:#x}..{e:#x} used to {used:#x}, past the file pages ({size:#x})')   # tail
+        elif e > size:                          # past the file pages is the norm - only its used part must be inside)
+            infos.append(f'(b) band {n} {a:#x}..{e:#x}: file pages end at {size:#x} (its free tail in the vsize)')
         fl = 128 if n in FLOOR_128 else FLOOR
         if free < fl and n not in map_bands():
             infos.append(f'(b) band {n} {a:#x}..{e:#x}: {free} B free (not an obj4-map band: no floor, info)')

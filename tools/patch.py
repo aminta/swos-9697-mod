@@ -226,6 +226,7 @@ CAREER_END = [None]                # the career cave's end after its code (4.0.1
 
 
 def patch_exe(src, dst, remap, lang='it'):
+    __import__('gphooks').reset()                # (4.2: the gplay hook registry, per exe)
     CAREER_END[0] = None
     LT_SPACE.clear()
     LR_ROOM.clear()
@@ -415,6 +416,10 @@ def patch_exe(src, dst, remap, lang='it'):
     import s6sea
     if s6sea.on():                                     # 4.2 S6 (MC 16/11): world seasons' band after TKUI (0x1E pages)
         swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, s6sea.page_end() // 0x1000)
+    import frnd
+    if frnd.on():                                      # 4.2 friendlies (frnd.py): FRSS.DAT through the file layer, the
+        swe.SWEFILE = True                             # FRND band's pages
+        swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, (swreg.FRND_END + 0xFFF) // 0x1000)
     import swefile
     if swefile.on():                                   # 4.2 file layer (MC 12/11): page 18, only when linked
         swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, swefile.page_end() // 0x1000)
@@ -1116,6 +1121,12 @@ def patch_exe(src, dst, remap, lang='it'):
     import fpad                                  # 4.2 fixture port P2: fpad.c at obj4+FPORT_AT (dormant: nothing)
     import gplay
     fpad.patch(p, swe.LABELS, gplay.LABELS)
+    import frnd                                  # 4.2 friendlies: frstep.c at obj4+FRND_AT, FRND first on the port's hooks
+    frnd.patch(p, swe.LABELS, gplay.LABELS)      # (after fpad: its fp_step / fp_leg chained; dormant: nothing)
+    import gphooks                               # 4.2 (MC 17/11): every gplay hook chain wired once, one fixup per site
+    if gphooks.REG:
+        print(f'exe: gplay hooks: {gphooks.summary()}')
+    gphooks.link(p, gplay.LABELS)
     if sreg_end is not None:
         assert sreg_end <= lrank.LR_AT, ('sreg past LR_AT', hex(sreg_end), hex(lrank.LR_AT))
     if cdkn.on():                                # 4.2 S2 knockouts: the Coppa D's rounds 0-1 by the engine (gplay.c GP_CDKN)
@@ -1149,6 +1160,9 @@ def patch_exe(src, dst, remap, lang='it'):
         f0, f1 = OBJ1FREE                        # (MC 16/11: the pages gplay.c left, free IN PLACE - obj1 not shifted)
         assert not any(p.get(1, f0, f1 - f0)), ('OBJ1FREE: not free', hex(f0), hex(f1))
         print(f'exe: OBJ1FREE obj1+{f0:#x}..{f1:#x}: {f1 - f0} B free in place ({(f1 - f0) // 0x1000} pages, swreg.OBJ1FREE_PAGES)')
+    __import__('gphooks').check(p)               # 4.2: every gplay hook site still leads to what gphooks.link wired
+    if __import__('frnd').on():
+        __import__('frnd').check(p)              # 4.2 friendlies: the season hook, GP_PSTEP / GP_PLEG, fi_gate's dword
     delta, shift = p.save(dst)
     dd = os.path.join(os.path.dirname(os.path.abspath(dst)), 'DATA')
     if os.path.isdir(dd):                        # (the neutral finals' strings: exact in this exe / its DATA)

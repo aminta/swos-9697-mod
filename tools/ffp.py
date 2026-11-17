@@ -487,6 +487,7 @@ def patch(p, at, lang):
     engine.CALL_AT['ff_new'] = (3, lab['ff_new'])
     LABELS.clear()
     LABELS.update(lab)
+    LABELS['SEASON_SITE'] = s['season']                 # (frnd.py: InitializeNewSeason's call cseg_3D204 = this + 5)
     print(f'exe: financial fair play (W/I > {sym["LIMIT_"][1]} %: purchases blocked + fine; memo {px(l1.replace("%a", ""))}/'
           f'{px(l2.replace("%b", ""))} px): code obj3+{at:#x} ({len(code)} B), state FF_ST obj3+{finance.LABELS["FF_ST"]:#x}, sites obj1+{s["buy"]:#x} / +{s["season"]:#x}')
     return at + len(code)

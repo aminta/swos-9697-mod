@@ -921,8 +921,15 @@ def run_sim():
 
 def run_off():
     """the structural OFF (builds only, no DOSBox): this checkout built on a copy of the data WITHOUT the mini_leagues
-    row = the reference commit (FPML_OFF_REF, default 42-int) on the same copy - ITALIAN.EXE and every DATA file
-    byte-identical, without the port and with it (FPORT=1 FPORT_TEST=<fpgate's schedule A>)"""
+    row against the reference commit (FPML_OFF_REF, default 42-int) on the same copy.
+    plain (no row, no switch): ITALIAN.EXE and every DATA file byte-identical - without a row there is no byte of
+    the port, the producer or the views in the build.
+    fport (FPORT=1 FPORT_TEST=<fpgate's schedule A>, no row): the DATA files identical; the exe CANNOT be (17/11,
+    measured on lane1b b1bccf3 vs 5f5501e: obj4 45 pages vs 58 - the port's bands moved into the release tail, the FP
+    item is v2, fpad.c has level NONE / the live windows / the ML calls, FPML and fpmlv link with zero rows): lane
+    3's 'identical with the port' was written before lane 1 existed. Checked instead: the build links and FP_MLN
+    (the producer's row count, read from the exe) is 0 - no stage can ever open; the port's behaviour without a
+    row is fpgate's world_fport_* scenarios' job."""
     import filecmp
     import shutil
     src = data()
@@ -953,19 +960,51 @@ def run_off():
     for tag, extra in (('plain', {}), ('fport', {'FPORT': '1', 'FPORT_TEST': fpgate.SCHED_A})):
         env = dict({'SEASON_PACKS': packs(off)}, **extra)
         a, b = T.build('supc_off_' + tag, env=env), T.build('supc_offref_' + tag, env=env, branch=ref)
-        files = ['ITALIAN.EXE'] + sorted(os.path.join('DATA', x) for x in os.listdir(os.path.join(b, 'DATA')))
+        files = ([] if extra else ['ITALIAN.EXE']) + sorted(os.path.join('DATA', x) for x in os.listdir(os.path.join(b, 'DATA')))
         diff = [f for f in files if not os.path.exists(os.path.join(a, f)) or
                 not filecmp.cmp(os.path.join(a, f), os.path.join(b, f), shallow=False)]
         extra_f = sorted(set(os.listdir(os.path.join(a, 'DATA'))) - set(os.listdir(os.path.join(b, 'DATA'))))
         T.check(not diff and not extra_f, f'{tag}: differs from {ref} in {diff[:6]}, new files {extra_f[:6]}', errs)
         info.append(f'{tag}: {len(files)} files identical to {ref}')
+        if extra:                                       # (the port linked without a row: no producer row in the exe)
+            from le import LE
+            A = addrs(a)
+            mln = (json.load(open(os.path.join(a, 'ITALIAN.syms.json'))).get('fpad') or {}).get('FP_MLN')
+            exe = os.path.join(a, 'ITALIAN.EXE')
+            n = None
+            if mln:
+                o = LE(exe).file_off(mln[0], mln[1])
+                n = struct.unpack_from('<H', open(exe, 'rb').read(), o)[0]
+            T.check(n == 0 and A['ml'] and A['st'], f'{tag}: FP_MLN {n} (want 0: no row, no stage), FP_ML {A["ml"]}, FP_ST {A["st"]}', errs)
+            info.append(f'the port linked with FP_MLN 0 (its exe differs from {ref} by design: bands, FP item v2)')
     return not errs, '; '.join(errs) or '; '.join(info) + ('' if has_row(src) else f' (the data {os.path.basename(src)} has no row yet)')
 
 
 def register(mod):
     global T
     T = mod
-    sc = mod.scenario
+
+    def sc(f):
+        # (17/11, world_supc_rest / _loss FAIL 'contest names: SUPERCOPPA C not a slot-4 contest name' with FPML_DATA
+        #  alone: the harness's label data and result line read world_data() = W2627REL_DATA, not FPML_DATA. A
+        #  world_supc_* scenario runs with W2627REL_DATA = its own data() - one data dir for the build, the names and
+        #  the result line -, restored after it)
+        if not f.__name__.startswith('world_supc_'):
+            return mod.scenario(f)
+        import functools
+
+        @functools.wraps(f)
+        def run():
+            old = os.environ.get('W2627REL_DATA')
+            os.environ['W2627REL_DATA'] = data()
+            try:
+                return f()
+            finally:
+                if old is None:
+                    os.environ.pop('W2627REL_DATA', None)
+                else:
+                    os.environ['W2627REL_DATA'] = old
+        return mod.scenario(run)
 
     @sc
     def fpml_host_sched():

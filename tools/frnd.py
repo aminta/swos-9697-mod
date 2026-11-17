@@ -78,8 +78,13 @@ def patch(p, ssyms, gsyms):
     import swreg
     import tcache
     import careerworld
-    for k in ('GP_PAPI', 'GP_PSTEP', 'GP_PLEG', 'GP_WK', 'GP_MGR', 'GP_ST', 'GP_SEAS', 'GP_K', 'D1R', 'A1R', 'CAL_CUR',
-              'GP_CFLAGS', 'FR_NAMEB', 'SC_ST', 'CAL', 'SEASONPLAYING', 'gp_mgr'):
+    need = ('GP_PAPI', 'GP_PSTEP', 'GP_PLEG', 'GP_WK', 'GP_MGR', 'GP_ST', 'GP_SEAS', 'GP_K', 'D1R', 'A1R', 'CAL_CUR',
+            'GP_CFLAGS', 'FR_NAMEB', 'SC_ST', 'CAL', 'SEASONPLAYING', 'gp_mgr')
+    if 'GP_PAPI' not in gsyms:          # (a build without gplay - no World 2026-27 packs: no fixture port, friendlies
+        LABELS.clear()                  #  dormant, Chooser 16/11; fi_gate's FI_FRGATE stays 0 = skipped)
+        print('exe: friendlies dormant (no gplay fixture port in this build)')
+        return None
+    for k in need:
         assert k in gsyms, ('frnd: gplay without', k)
     assert 'FR_BUF' in ssyms, 'frnd: swe.c without FR_BUF (swe.py -DFRND_BUF)'
     assert sacups.COMP_SLOTS[0] is not None, 'frnd: sacups without dseg_D8CAA (COMP_SLOTS)'
@@ -115,9 +120,9 @@ def patch(p, ssyms, gsyms):
     code0, _, _ = nasmcave.assemble_obj(ASM, at, gsym, 4)
     c_at = (at + len(code0) + 15) & ~15
     ext['fr_cached_asm'] = (4, nasmcave.labels(ASM, at, gsym)['fr_cached_asm'])
-    syms, end, bss = cobj.link(p, obj, c_at, (4, 0), externs=ext, limit=int(os.environ.get('FRND_END_TEST') or str(swreg.FRND_END), 0), text_obj=4, roots=roots)
+    syms, end, bss = cobj.link(p, obj, c_at, (4, 0), externs=ext, limit=swreg.FRND_END, text_obj=4, roots=roots)
     assert not bss, ('frstep.c: no .bss in the band (FR_BUF is swe.c\'s)', bss)
-    left = int(os.environ.get('FRND_END_TEST') or str(swreg.FRND_END), 0) - end   # (FRND_END_TEST: until Shaved's 0x1400 fold lands)
+    left = swreg.FRND_END - end         # (the band from swreg only: MC 16/11, no test override)
     assert left >= SLACK, ('frnd: the FRND band has under 256 B left - stop and report to MC', left)
     gsym['fr_season'] = syms['fr_season']
     code, fix, rel = nasmcave.assemble_obj(ASM, at, gsym, 4)
@@ -153,6 +158,8 @@ def patch(p, ssyms, gsyms):
 
 def check(p):
     """(patch.py, at the end) the season hook, the two gplay hooks and fi_gate's dword still lead here"""
+    if not LABELS:                      # (dormant: nothing linked)
+        return
     import finance
     import gplay
     g = gplay.LABELS

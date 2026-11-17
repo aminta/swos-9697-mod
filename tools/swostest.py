@@ -25927,7 +25927,7 @@ def world_friendlies():
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
     exe = os.environ.get('FR_BUILD') or build('world_friendlies', env={
         'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'FRND': '1',
-        'HOSTTEST_SYMS': '1', 'FRND_END_TEST': '0x20000'}, lang=UI)
+        'HOSTTEST_SYMS': '1'}, lang=UI)
     sy = fr_syms(exe)
     if sy is None:
         return False, f'no frnd test symbols (FR_TRACE) in {exe}: a FRND=1 HOSTTEST_SYMS=1 build is needed'

@@ -68,14 +68,16 @@ SLOW = False               # 4.2 MATCH SPEED (slow.py) PARKED (Davide 13/11 via 
                            # env var can turn it on in a release. PERS2 imports it (one switch for both builds).
 ITALY_BASE = 1850          # free global numbers: ~1794..1999
 OBJ1_NEW_VSIZE = 0xa6000     # + five added pages (lepatch.add_object_page)
-OBJ3_ARENA = 0x20000         # 4.0.6 obj3 (mod code after obj2, CONVENTIONS 23): its file pages (mod pages, then the C
+OBJ3_ARENA = 0x1000 * __import__('swreg').OBJ3_MAX_PAGES   # (0x20000 = 32 pages until 4.2 x3all, MC 16/11)
+                             # 4.0.6 obj3 (mod code after obj2, CONVENTIONS 23): its file pages (mod pages, then the C
                              # engine's code, PLAN §19 step O) stay below this; the engine arena + spec buffer go here,
                              # zero-filled (vsize only, the engine zeroes it: DOS/4GW does not)
 OBJ3_PAGES = 15              # (15 from 4.2, MC 14/11: >= 256 B obj3 room per language, asserted below) obj3+0: benchx (the long benches), code + data; then (4.0.6) kittrain, squadnum, mk_keep,
                              # oppl, cpucards, whitehair, finance, kbd2, stoppage, xleft, usc_snap (bteam, then ctview:
                              # the COPPE CONTINENTALI view, <= 0x1200; then option C's builder, ctgame; then gkinj, s1, bteam, cpurefill, ffp, edteam (the chain's end); 13 for every branch, the Integratore 03/11; 14 from 4.0.6 I10p: keytext (after kbfirst) + edteam (after ffp), 04/11); the LAST page (LT3_AT): zones' ring +
                              # bskip, longtable, mainbtn in a build with gplay (patched before the chain: gplay's room)
-LT3_AT = 0x1000 * OBJ3_PAGES - 0x1000
+LT3_AT = __import__('swreg').OBJ3_LT   # (0xE000, PINNED - 4.2 x3all: was 0x1000 * OBJ3_PAGES - 0x1000)
+assert LT3_AT + 0x1000 == __import__('swreg').OBJ3_GP3[0] and 0x1000 * OBJ3_PAGES <= OBJ3_ARENA
 SA_CAVE = 0xa1000            # first added page: South American cups
 WORLD_CAVE = 0xa2000         # second added page: new countries, CAF cups (Roadmap 2)
 NZ_CAVE = 0xa4000            # fourth added page (2.1): NSSL shoot-out (the world cave may grow into page 3)

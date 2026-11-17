@@ -46071,6 +46071,91 @@ def frchoose_probe():
     return not errs, '; '.join(errs + notes)
 
 
+def frc_world_build(tag='frc_engine'):
+    """the World 2026-27 exe with the friendlies engine and the chooser page (FRND=1 FRCHOOSE=1, test symbols), as
+    world_friendlies' build + the page; FRC_BUILD = a prebuilt dir. None: the private world data is missing."""
+    if os.environ.get('FRC_BUILD'):
+        return os.environ['FRC_BUILD']
+    src = world_data()
+    if not os.path.isdir(src):
+        return None
+    order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
+    return build(f'{tag}_{UI}', env={'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]),
+                                     'FRND': '1', 'FRCHOOSE': '1', 'HOSTTEST_SYMS': '1'}, lang=UI)
+
+
+@scenario
+def frchoose_engine():
+    """4.2 friendlies chooser S1, on the REAL engine (FRND + FRCH in a World 2026-27 build): a new career (LAZIO) -
+    the page is shown at the season start by the engine's hook (title, 4 rows with 4 clubs, venues 2 + 2, the cursor on
+    CONTINUE, FR_ST not written yet for this season); RIGHT on AUTOMATIC until the last level (HARD): the text and the
+    rows follow; CONTINUE -> FR_ST: this season, 0 played, FR_OPEN set, the four words and the home flags = the page's
+    last preview, FR_LEVEL = 3 (the engine's installing fr_pick agrees with the page's preview: one pick); then the
+    career menu, where the engine has built friendly 1 (FR_TRACE 2xh, no failure code 8xh). Screenshots: page, hard."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import frchoose
+    errs, notes = [], []
+    b = frc_world_build()
+    if b is None:
+        return True, 'SKIP: private World 2026-27 data missing'
+    fs, sy = frc_sites(b), fr_syms(b)
+    require(sy and 'FR_ST' in sy, f'frchoose_engine: no frnd test symbols in {b} (FRND=1 HOSTTEST_SYMS=1 build)')
+    d = frchoose.cdefs()
+    E, LVL, GO = d['FC_E_ROW'], d['FC_E_LVL'], d['FC_E_GO']
+    ven = frchoose.VEN[UI]
+    rd = lambda a, n: bytes(s.result.read(s.result.lin(a), n))
+    with Session(f'frchoose_engine_{UI}', b, {}, 'dump:2', 600) as s:
+        s.frpage_keep = True                  # (drives the friendlies page itself: no fr_page_pass)
+        if s.wait().outcome != 'dump':
+            return False, f'no first pause ({s.result})'
+        new_career(s, 'ITALIA', 'SERIE A', 'LAZIO', note=False)
+        scr = s.screen()
+        if not check(scr.n == d['FC_NE'] and scr.raw_texts[0] == frchoose.TITLE[UI],
+                     f'page: not the friendlies page after the new career: {scr}', errs):
+            return False, '; '.join(errs)
+        v, rows, st0 = frc_read(s, fs), frc_rows(scr, E), rd(sy['FR_ST'], 12)
+        check(scr.selected == GO, f'page: the cursor on {scr.selected}, not CONTINUE ({GO})', errs)
+        check(v['level'] == 0 and scr.raw_texts[LVL] == frchoose.LVL[UI][0], f'page: level {v["level"]} '
+              f'{scr.raw_texts[LVL]!r}, want 0 (a new career: FR_ST {st0.hex()})', errs)
+        check(all(r[1] for r in rows) and len({r[1] for r in rows}) == 4 and len(set(v['word'])) == 4 and
+              0xFFFF not in v['word'], f'page: rows {rows}, words {v["word"]}', errs)
+        check(sorted(r[0] for r in rows) == sorted(ven * 2), f'page: venues not 2 + 2: {[r[0] for r in rows]}', errs)
+        check(not st0[1] & 8, f'page: FR_OPEN already set while the page is shown (FR_ST {st0.hex()})', errs)
+        s.shot('page')
+        notes.append(f'page: {[r[:4] for r in rows]}')
+        frc_goto(s, LVL)
+        for k in range(1, 4):                 # MIX -> EASY -> MEDIUM -> HARD
+            s.send('right dump:1')
+            scr, v = s.screen(), frc_read(s, fs)
+            check(v['level'] == k and scr.raw_texts[LVL] == frchoose.LVL[UI][k],
+                  f'level {k}: state {v["level"]}, drawn {scr.raw_texts[LVL]!r}', errs)
+        rows = frc_rows(scr, E)
+        check(len({r[1] for r in rows}) == 4 and v['msg'] == 0, f'hard: rows {rows}, message {v["msg"]}', errs)
+        s.shot('hard')
+        notes.append(f'hard: {[r[:4] for r in rows]} fb {v["fb"]:#x}')
+        vp = v
+        frc_goto(s, GO)
+        s.send('fire dump:3')
+        st, tr = rd(sy['FR_ST'], 12), rd(sy['FR_TRACE'], 1)[0]
+        words, fl = struct.unpack_from('<4H', st, 2), st[10] | st[11] << 8
+        check(st[0] != 0 and st[1] & 7 == 0 and st[1] & 8, f'continue: FR_ST {st.hex()}: want this season, 0 played, '
+              f'FR_OPEN (trace {tr:02x})', errs)
+        check(words == vp['word'] and fl & 15 == vp['home'], f'continue: the engine installed {[hex(w) for w in words]} '
+              f'home {fl & 15:#x}, the page previewed {[hex(w) for w in vp["word"]]} home {vp["home"]:#x}', errs)
+        check(fl >> 14 == 3, f'continue: FR_LEVEL {fl >> 14} in FR_ST {st.hex()}, want 3 (HARD)', errs)
+        for _ in range(4):
+            if 'TRASFERIMENTI' in s.screen().texts():
+                break
+            s.send('fire dump:3')
+        check('TRASFERIMENTI' in s.screen().texts(), f'no career menu after the page: {s.screen()}', errs)
+        st2, tr2 = rd(sy['FR_ST'], 12), rd(sy['FR_TRACE'], 1)[0]
+        check(tr2 & 0xF0 == 0x20, f'menu: FR_TRACE {tr2:02x}: friendly 1 not built at the first menu (2xh)', errs)
+        check(st2[2:10] == st[2:10] and st2[1] & 8, f'menu: FR_ST {st2.hex()} (after CONTINUE {st.hex()})', errs)
+        notes.append(f'FR_ST {st2.hex()}, trace {tr:02x} -> {tr2:02x}, opponents '
+                     f'{[team_name(b, w) or hex(w) for w in words]}')
+    return not errs, '; '.join(errs + notes)
+
+
 @scenario
 def frpage_smoke():
     """4.2 friendlies (c): fr_page_pass, the one harness step that leaves the friendlies' season-start page in every

@@ -25,23 +25,55 @@ HARNESS = ('tools/hosttest/', 'tools/swostest.py')   # (MC 17/11: files that nev
                                                      #  missing here only costs a rebuild - the safe direction; owners extend the list)
 TREE_DIRS = ('tools', 'packs')          # (a tree without its own .git: the build's inputs remote_run.sh copies - notes/
                                         #  is copied too but never read by a build)
+# Every root a build READS (MC 17/11: "the stamp covers every file the build actually reads"). Derived from a traced build
+# (an audit hook on open() through patch_exe, tests/test_stamp_roots.py repeats the trace and FAILs on a read outside these
+# roots): tools/ and packs/ (the code and the packs), orig/ (the original game: its top-level files, DATA, gog, swos2020 -
+# not the ISO / old patchers), internal/conti, nsl9697, mls97, drawgate (the data the converters read) and
+# internal/world2526/formats. NOT stamped, on purpose: internal/world2526/<data> (the per-build world data: buildrel.sh puts
+# its name and content hash in SRC_STAMP.json 'data'), internal/swostest/cobj (a compile cache keyed by content), c/ (output).
+STAMP_ROOTS = ('tools', 'packs', 'orig/DATA', 'orig/gog', 'orig/swos2020', 'internal/conti', 'internal/nsl9697',
+               'internal/mls97', 'internal/drawgate', 'internal/world2526/formats')
+STAMP_TOP = ('orig',)                   # (+ the plain files directly in these dirs, not their subdirs)
+
+
+def _inputs(root):
+    """(relative path, absolute path) of every build-input file, sorted, the harness and caches out"""
+    out = []
+    for d in STAMP_ROOTS:
+        for dp, dn, fn in os.walk(os.path.join(root, d)):
+            dn[:] = sorted(x for x in dn if x != '__pycache__')
+            for f in fn:
+                q = os.path.join(dp, f)
+                out.append((os.path.relpath(q, root), q))
+    for d in STAMP_TOP:
+        top = os.path.join(root, d)
+        if os.path.isdir(top):
+            out += [(os.path.join(d, f), os.path.join(top, f)) for f in os.listdir(top) if os.path.isfile(os.path.join(top, f))]
+    return sorted((r, q) for r, q in out if not r.endswith('.pyc') and not any(r.startswith(x) for x in HARNESS))
 
 
 def _files(root):
-    """a tree that is not its own git checkout (an rsync'd copy; remote_run's ~/wt/<name>): every file under
-    TREE_DIRS, by relative path - name + NUL + bytes (17/11, Difficolta: its identity used to be the env alone)"""
+    """the identity of every build input under STAMP_ROOTS (a git checkout and a plain copy alike): relative path + NUL +
+    bytes, sorted. 17/11 Difficolta: it used to be the env alone; MC 17/11: the content of the inputs, not HEAD."""
     h = hashlib.sha1(b'tree\n')
-    for d in TREE_DIRS:
-        for dp, dn, fn in os.walk(os.path.join(root, d)):
-            dn[:] = sorted(x for x in dn if x != '__pycache__')
-            for f in sorted(fn):
-                q = os.path.join(dp, f)
-                rel = os.path.relpath(q, root)
-                if rel.endswith('.pyc') or any(rel.startswith(x) for x in HARNESS):
-                    continue
-                h.update(os.path.relpath(q, root).encode() + b'\0')
-                if os.path.isfile(q):
-                    h.update(open(q, 'rb').read())
+    for rel, q in _inputs(root):
+        h.update(rel.encode() + b'\0')
+        if os.path.isfile(q):
+            h.update(open(q, 'rb').read())
+    return h.hexdigest()[:16]
+
+
+def data_id(path):
+    """content hash of a per-build world data dir (internal/world2526/<data>) + its <data>.txt: the one input the stamp
+    does not cover because the build is told which one (buildrel.sh writes it into SRC_STAMP.json 'data')"""
+    h = hashlib.sha1(b'data\n')
+    for dp, dn, fn in os.walk(path):
+        dn[:] = sorted(dn)
+        for f in sorted(fn):
+            q = os.path.join(dp, f)
+            h.update(os.path.relpath(q, path).encode() + b'\0' + open(q, 'rb').read())
+    if os.path.isfile(path + '.txt'):
+        h.update(open(path + '.txt', 'rb').read())
     return h.hexdigest()[:16]
 
 

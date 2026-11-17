@@ -1188,11 +1188,12 @@ extern int cup_rule(struct cup_view *v);
 static int cup_code(const u8 *e) {
     struct cup_view v;
     int d0 = e[1], ng = e[2], r;
-    v.ng = ng < 4 ? ng : 4; v.gap = e[3] & 0x7F; v.real = e[3] >> 7; v.w = GP_CUPW; v.f = GP_CUPF;
+    v.ng = ng < 4 ? ng : 4; v.real = e[3] >> 7; v.w = GP_CUPW; v.f = GP_CUPF;
     for (int g = 0; g < v.ng; g++) {
         int d = d0 + g;
         v.t[g] = (const struct cv_row *)(d < GP_IN.nd ? GP_IN.t[d] : GP_IN.t[0]);
         v.n[g] = d < GP_IN.nd ? GP_IN.n[d] : 0;
+        v.gap[g] = e[3] & 0x7F;         /* (the spec holds one gap for its groups) */
     }
     if ((r = cup_rule(&v)) < 0) return -1;
     if (v.sfrom) { x_sdiv = d0 + v.sg; x_sfrom = v.sfrom; }
@@ -1204,8 +1205,8 @@ static int cup_out(int d, int k, int gap) {     /* place k (from 0) precluded */
     int n = GP_IN.n[d];
     if (k <= 2) return 1;
     if (n < 6 || k < n - 5) return 0;
-    if (k == n - 5) return t[n - 5].pts - t[n - 2].pts < gap;
-    if (k == n - 4) return t[n - 4].pts - t[n - 3].pts < gap;
+    if (k == n - 5) return !gap || t[n - 5].pts - t[n - 2].pts < gap;
+    if (k == n - 4) return !gap || t[n - 4].pts - t[n - 3].pts < gap;
     return 1;
 }
 static int cup_find(int d0, int ng, u16 team, int *d, int *k) {

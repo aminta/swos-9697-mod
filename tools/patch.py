@@ -453,7 +453,8 @@ def patch_exe(src, dst, remap, lang='it'):
         swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, -(-swreg.TKUI_END // 0x1000))
     import frchoose                                    # 4.2 friendlies chooser (FRCH band, MC 16/11)
     if frchoose.on():
-        swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, frchoose.page_end(own=not __import__('frnd').on()) // 0x1000)
+        fr_end = swreg.FRCH_END if __import__('frnd').on() else frchoose.band(True)[1]   # (swreg data, MC 17/11)
+        swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, -(-fr_end // 0x1000))
     import tcache                                      # 4.2 team cache bound (MC 16/11): its code in obj3's chain (option A);
     tcache.register()                                  # here: the load's count check (after_process), the refs reset
     swe.OBJ4_PAGES = sreg.obj4_pages(swe.OBJ4_PAGES)   # (4.2 N7 / 42-s7import: + the old-save import's band, SREG2)
@@ -1183,6 +1184,8 @@ def patch_exe(src, dst, remap, lang='it'):
         cut = [n for a, b, n in _sr.bands() if a < hi4 and b > lo] if k else []
         print(f'exe: obj4 file pages {n4} -> {n4 - k} (highest linked byte obj4+{p.hi.get(4, 0):#x}; '
               f'bands in the dropped pages, none linked: {", ".join(cut) or "none"})')
+    print(f'exe: LE padding {_lp.le_padding(raw)} B (lepatch.le_padding, floor {_lp.LE_FLOOR}; data pages +{shift:#x} vs the original exe, '
+          f'+{_lp.ALIGN:#x} per realign)')   # (MC 17/11: the one measure, final exe)
     dd = os.path.join(os.path.dirname(os.path.abspath(dst)), 'DATA')
     if os.path.isdir(dd):                        # (the neutral finals' strings: exact in this exe / its DATA)
         print(f'exe: stadium venues: {stadium.vcheck_exe(dst, lang, dd)} {lang} strings found')

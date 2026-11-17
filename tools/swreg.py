@@ -270,6 +270,10 @@ FRND_END = 0x20100                      # the old TCACHE band 0x1FC00..0x1FF00 f
                                         # friendlies' fr_after4 ~100 B); >= 256 B left at link
 FRCH_AT = 0x20100                       # 4.2 the friendlies' player-choice page (MC 16/11 ruling, session Friends Choice): 0x1000
 FRCH_END = 0x21100                      # reserved, >= 256 B left at link; the 4.3 reservations right after it
+FRCH_OWN_SIZE = 0x1C00                  # (MC 17/11: FRCH's ends are DATA here, read by frchoose and patch.py, never code obj4check
+FRCH_PROBE_SIZE = 0x1000                # evaluates) a build WITHOUT FRND (FRND=0, test builds) links its own pick: the interim
+FRCH_OWN_END = 0x21D00                  # band FRCH_AT + FRCH_OWN_SIZE; + FRCH_PROBE_SIZE with the season-start probe (FRC_PROBE=1,
+FRCH_PROBE_END = 0x22D00                # test only). With FRND linked (every release build): FRCH_END.
 TAKERS_AT = 0x18300                     # 0x500 (~1 KB + floor 256)
 TAKERS_END = 0x18800
 GAMEPLAY_AT = 0x18800                   # 0x680 reserve (MC 15/11: Panchina ~1.1 KB + floor 256; +0x80 15/11, taken from
@@ -287,7 +291,8 @@ assert (S6_END - S6_AT, -(-S6_END // 0x1000)) == (0x200, 0x1E) and S6_END < 0x1E
     'swreg: S6 0x200 right after TKUI, below 0x1E000 (MC 16/11), then the traits bands; MKTAGE ends page-aligned'
 assert (TRHD_END - TRHD_AT, TRRB_END - TRRB_AT, TRDR_END - TRDR_AT, -(-TRDR_END // 0x1000)) == (0x500, 0x500, 0x300, 0x1F) and \
     TRHD_END == TRRB_AT and TRRB_END == TRDR_AT and TRDR_END == FRND_AT and FRND_END - FRND_AT == 0x1500 and -(-FRND_END // 0x1000) == 0x21 and FRND_END == FRCH_AT and \
-    (FRCH_END - FRCH_AT, -(-FRCH_END // 0x1000)) == (0x1000, 0x22) and FRCH_END == DRP8D_AT and MKTHOOK_END - MKTHOOK_AT == 0x1300 and \
+    (FRCH_END - FRCH_AT, -(-FRCH_END // 0x1000)) == (0x1000, 0x22) and FRCH_OWN_END == FRCH_AT + FRCH_OWN_SIZE and \
+    FRCH_PROBE_END == FRCH_OWN_END + FRCH_PROBE_SIZE and FRCH_END == DRP8D_AT and MKTHOOK_END - MKTHOOK_AT == 0x1300 and \
     (DRP8D_END - DRP8D_AT, FPORT_END - FPORT_AT, FPORT2_END - FPORT2_AT) == (0x400, 0x2000, 0x1200) and FPML_END == MKTHOOK_AT and \
     MKTAGE_END % 0x1000 == 0, \
     'swreg: TRHD 0x500 | TRRB 0x500 | TRDR 0x300 | FRND 0x1500 (TCACHE folded in, MKTHOOK -0x200) | FRCH 0x1000 | MKTHOOK 0x1300, the 4.2 release tail after S6 (ceiling page 0x1F once the traits link, 0x21 with FRND, 0x22 with FRCH; MC 16/11), the 4.3 reservations after it'

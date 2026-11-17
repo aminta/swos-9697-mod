@@ -55,8 +55,9 @@ G_GO = (112, 144, 80, 15)
 
 STR_BACK = 0x2A0                        # (from the band's end: the strings, 416 B, then the 256 B floor)
 BSS_BACK = 0x100                        # (no .bss: the C's variables are initialised data, inside its own bytes)
-OWN_SIZE = 0x1C00                       # the interim band with the pick linked here (FRC_OWN_PICK)
-PROBE_SIZE = 0x1000                     # + the test caller's room (FRC_PROBE: its code, FrcCtx and the embedded table)
+import swreg as _swreg                  # (MC 17/11: the sizes and ends are swreg DATA - FRCH_OWN_* / FRCH_PROBE_*)
+OWN_SIZE = _swreg.FRCH_OWN_SIZE         # the interim band with the pick linked here (FRC_OWN_PICK)
+PROBE_SIZE = _swreg.FRCH_PROBE_SIZE     # + the test caller's room (FRC_PROBE: its code, FrcCtx and the embedded table)
 LABELS = {}
 
 
@@ -73,11 +74,7 @@ def band(own):
     """(FRCH_AT, FRCH_END): swreg's; the interim band of a build with its own pick (+ the probe's room)"""
     import swreg
     assert own or not probing(), 'FRC_PROBE: only without FRND (the engine is the caller there)'
-    return swreg.FRCH_AT, (swreg.FRCH_AT + OWN_SIZE + (PROBE_SIZE if probing() else 0) if own else swreg.FRCH_END)
-
-
-def page_end(own=True):
-    return (band(own)[1] + 0xFFF) & ~0xFFF
+    return swreg.FRCH_AT, ((swreg.FRCH_PROBE_END if probing() else swreg.FRCH_OWN_END) if own else swreg.FRCH_END)
 
 
 def cdefs():

@@ -306,6 +306,9 @@ def team_vars(p, swaps, a0):
     return out, sorted(cur)
 
 
+LABELS = {}
+
+
 def patch(p, cave, nasmcave, worlds):
     """worlds: the world numbers with squad numbers (may be empty: 4.0.2's edited teams use the same hooks). Returns the
     cave end."""
@@ -325,6 +328,8 @@ def patch(p, cave, nasmcave, worlds):
     lab = nasmcave.labels(src, cave, sym)
     assert not any(p.get(1, cave, len(code)))
     p.put(1, cave, code)
+    LABELS.update({k: (1, lab[k]) for k in ('bn_bench', 'bn_swap', 'bn_buy', 'bn_new', 'BN_TEAMS')})   # (hosttest syms:
+    # S6a test_s6a_careerteam - BN_TEAMS' careerTeam entries are its own reads, not the label before it, MC 17/11)
     for off, tobj, toff in fix:
         p.add_ptr(1, cave + off, tobj, toff)
     for site, label in [(bench, 'bn_bench')] + [(x, 'bn_swap') for x in swaps]:

@@ -45899,7 +45899,7 @@ def frchoose_probe():
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import frchoose
     errs, notes = [], []
-    b = build(f'frc_probe_{UI}', env={'FRC_PROBE': '1'}, lang=UI)
+    b = build(f'frc_probe_{UI}', env={'FRC_PROBE': '1', 'FRND': '0'}, lang=UI)
     fs = frc_sites(b)
     require(fs['pb'], 'frchoose_probe: the build has no test caller (FCPB)')
     d = frchoose.cdefs()
@@ -46152,7 +46152,7 @@ def frpage_smoke():
     errs, notes = [], []
     off = os.environ.get('FRPAGE_OFF') == '1'
     b = os.environ.get('FRPAGE_BUILD') or (ui_dir(builds()['it']) if off else
-                                          build(f'frc_probe_{UI}', env={'FRC_PROBE': '1'}, lang=UI))
+                                          build(f'frc_probe_{UI}', env={'FRC_PROBE': '1', 'FRND': '0'}, lang=UI))
     t0 = time.time()
     with Session(f'frpage_smoke_{UI}{"_off" if off else ""}', b, {}, 'dump:2', 300) as s:
         if s.wait().outcome != 'dump':
@@ -46179,7 +46179,7 @@ def frchoose_outside():
     the next club): the club list before and after each pick - every entry's text, colour, visibility and box - is
     the same in this build and in a FRCHOOSE=0 build of the same checkout (no band, the header untouched)."""
     errs, notes = [], []
-    on, off = build(f'frc_on_{UI}', lang=UI), build(f'frc_off_{UI}', env={'FRCHOOSE': '0'}, lang=UI)
+    on, off = build(f'frc_on_{UI}', env={'FRND': '0'}, lang=UI), build(f'frc_off_{UI}', env={'FRCHOOSE': '0', 'FRND': '0'}, lang=UI)   # (FRND=0: the chooser without the engine, as before FRND became the default)
     fs = frc_sites(on)
     with Session(f'frc_oldsave_{UI}', on, {'JUVE2F.CAR': juve2(True)}, 'dump:2', 120) as s:
         s.frpage_keep = True                  # (drives the friendlies page itself: no fr_page_pass)

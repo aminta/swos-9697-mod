@@ -579,8 +579,14 @@ def check_stage(o, errs, seed=None, force=None, me=None, played=None, fresh=True
     codes = [e[0] for e in log]
     bad = [e for e in log if e[0] in ('REFUSED', 'ORPHAN')]
     T.check(not bad, f'refused / orphan {bad}', errs)
-    T.check(codes.count('MLDONE') == 1 and (codes.count('MLOPEN') == 1 or not fresh),
-            f"log: MLOPEN x{codes.count('MLOPEN')}, MLDONE x{codes.count('MLDONE')} (want 1 each) in {codes}", errs)
+    if me is None:      # (lane 1, 17/11: a stage decided at the season end - fp_ml_open(1) in gp_end_c - logs after the
+        #                  season's last read; the next season's init clears FP_ST's log: at most once each, 0 seen is fine -
+        #                  the instance itself, kept across the new season, is the proof: state 2, 3 played, flags bit 0)
+        T.check(codes.count('MLDONE') <= 1 and codes.count('MLOPEN') <= 1,
+                f"log: MLOPEN x{codes.count('MLOPEN')}, MLDONE x{codes.count('MLDONE')} (want at most 1 each) in {codes}", errs)
+    else:
+        T.check(codes.count('MLDONE') == 1 and (codes.count('MLOPEN') == 1 or not fresh),
+                f"log: MLOPEN x{codes.count('MLOPEN')}, MLDONE x{codes.count('MLDONE')} (want 1 each) in {codes}", errs)
     lates = sorted({(e[0], e[1]) for c in o['cals'] for e in c if e[1] > L_UNIT})
     inst = [e for e in log if e[0] == 'INST']
     if me is None:

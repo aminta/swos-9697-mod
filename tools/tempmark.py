@@ -4,7 +4,7 @@ A temporary patch is a block of the Mod's source that stands in for somebody els
 final band registration ...). Its lines carry the literal TEMP-<NAME> in the source, and the module that puts the
 block into a build declares it AT BUILD TIME, when (and only when) the block really goes into the exe being linked:
 
-    tempmark.temp_marker('G1', 'tools/swce/sr_port.c: SR_PORT_LV_NONE until Convergence\'s sha')   # e.g. in fpad.patch
+    tempmark.temp_marker('BANDS')       # e.g. in fpad.patch: tools/swreg.py's TEMP-BANDS block is in this link
 
 patch.py calls reset() at the start of every exe and check() after the last module has linked, before the save:
 - a release build (is_release) with any marker registered: REFUSED (SystemExit, no exe written);
@@ -23,11 +23,6 @@ import os
 
 # name -> (the file that holds the TEMP-<NAME> block, what replaces it)
 KNOWN = {
-    'G1': ('swce/sr_port.c', 'engine: SR_PORT_LV_NONE (legs 1), sr_port_winner 2 on a level score, SR_PORT_VERSION 1 - '
-                             'Convergence\'s sha (SWCE_SHA) replaces the hand patch'),
-    'G5': ('swce/sr_port.c', 'engine: sr_port rule 5 < -> <= - Convergence\'s sha'),
-    'MINILG': ('swce/sr_stage.c', 'engine: minilg 19ee37a\'s sr_mini_sched / SR_SCHED_* hand-applied on 52301fb - the '
-                                  'engine\'s real sha (test_fpad_vendor FAILs until then)'),
     'BANDS': ('swreg.py', 'obj4 bands FPORT / FPORT2 / FPML - Shaved\'s BSS_AT fold registers the final ones'),
 }
 MARKS = {}              # name -> where / why, for the exe being built

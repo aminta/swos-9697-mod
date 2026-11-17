@@ -268,8 +268,8 @@ def run_et(tag, extra, want_pens):
 
 
 # Q13 probe (Supercoppa Serie C design 16/11, gap G4 / risk R1): one match at L + 1 = 129 (SCHED_Q13C, the chain:
-# three at 129, 130, 131, the second away - rule 5 refuses the 2nd and 3rd at add, sr_port.c:80-81, unless the build
-# has the test-only FPORT_R5OFF, fpad.c h_prev) for CAMPOBASSO (Serie C
+# three at 129, 130, 131, the second away - each added when the previous one's result is in, test-only FPORT_SEQ, fpad.c
+# h_done: rule 5 of engine 05eea45 accepts a tie next to a PLAYED one and still refuses two pending adjacent ones) for CAMPOBASSO (Serie C
 # girone B, ita division 3: the league's last unit L = 128), forced group winner (DPLAY_FORCE 101 + GPLAY_FORCE 1: no
 # play-off of its own). Gap G3 (fport's unconditional [128, END] dplay / play-out windows refuse it at add) bypassed
 # with the test-only FPORT_WINEDIT '-128' (every window starting at 128 dropped from the build's table)
@@ -347,11 +347,10 @@ def register(mod):
     @sc
     def world_fport_q13_chain():
         """Q13 probe, the chain: three K_PORT matches at 129, 130, 131 (the Supercoppa's three days), each installed at
-        the advance from the unit before - the calendar's only entries after 128 are the port's own. Rule 5 as it
-        stands refuses the 2nd and 3rd (sr_port.c:80-81: the earlier must end strictly before the later's install
-        advance): this build bypasses it with the test-only FPORT_R5OFF=128 (fpad.c h_prev: past 128 the install unit
-        reported is the fixture's own unit)"""
-        return run_q13('fpgate_q13c', SCHED_Q13C, dict(FPORT_R5OFF=str(L_Q13)))
+        the advance from the unit before - the calendar's only entries after 128 are the port's own. No rule-5 bypass
+        (engine 05eea45, G5): each match is added when the previous one's result is in (test-only FPORT_SEQ=1, as a
+        producer does) - a tie next to a PLAYED one is accepted"""
+        return run_q13('fpgate_q13c', SCHED_Q13C, dict(FPORT_SEQ='1'))
 
     @sc
     def world_fport_etp():

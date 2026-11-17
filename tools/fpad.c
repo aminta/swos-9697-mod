@@ -128,12 +128,6 @@ static i32 h_league(void *ctx, u16 team, u16 unit)
 static i32 h_prev(void *ctx, u16 unit)  /* the game's advance before unit: the latest calendar week below it */
 {
     (void)ctx;
-#ifdef FP_R5OFF                         /* (Q13 probe, test builds only - FPORT_R5OFF=L: past L the install unit reported is
-                                           the fixture's own, so rule 5 (sr_port.c check: the earlier fixture must end
-                                           strictly before the later's install advance) accepts port fixtures on
-                                           consecutive post-season units; never in a release shape) */
-    if (unit > FP_R5OFF) return unit;
-#endif
     i32 best = -1;
     for (i32 k = 0, o = 0; k < cal_n(); k++, o = cal_next(o)) {
         if (!(FP_CAL[o + 2] | FP_CAL[o + 3])) break;
@@ -224,10 +218,18 @@ static i32 h_sim(void *ctx, const sr_port_fixture *f, sr_port_result *r)
     return 0;
 }
 
+#ifdef FP_TSEQ
+static void test_one(u32 i);
+#endif
 static void h_done(void *ctx, const sr_port_fixture *f, const sr_port_result *r)
 {
     (void)ctx;                          /* (P2: the log; the producers' outcomes - P4 conti, P7 trophies - by kind) */
     flog(FL_RES, f->kind, (u16)f->match_id, (u16)(r->winner | r->status << 4 | f->kind << 8));
+#ifdef FP_TSEQ                          /* (Q13 chain, test builds - FPORT_SEQ=1: the probe's next entry is added when the
+                                           previous one's result is in, as a producer does; rule 5 accepts a tie next
+                                           to a PLAYED one, never two pending adjacent ones - engine 05eea45) */
+    if (f->kind == 0xFE && FP_ST.tadded && FP_ST.tadded < FP_NTEST) test_one(FP_ST.tadded++);
+#endif
     if (f->kind == FP_K_ML && FP_MLRES) FP_MLRES(f, r);   /* (the mini-league: its match scored, the next one queued) */
 }
 
@@ -292,11 +294,20 @@ i32 fp_ml_add(u32 match_id, u16 home, u16 away, u32 off)
 }
 
 #ifdef FPORT_TEST
+static void test_one(u32 i);
 static void test_add(void)              /* the probe's entries as port fixtures (unit1, unit2, legs, level, flags, opp,
                                            file): flags 1 neutral, 4 the career club away */
 {
-    FP_ST.tadded = 1;
-    for (u32 i = 0; i < FP_NTEST; i++) {
+    FP_ST.tadded = 1;                   /* (FP_TSEQ: the count of entries added - the first now, the rest from h_done) */
+#ifdef FP_TSEQ
+    if (FP_NTEST) test_one(0);
+#else
+    for (u32 i = 0; i < FP_NTEST; i++) test_one(i);
+#endif
+}
+static void test_one(u32 i)
+{
+    {
         const u8 *e = FP_TEST[i];
         const int me = GP_MGR >> 8, o = e[5] != 0xFF ? e[5] : (me ? 0 : 1);
         const u16 opp = (u16)((e[6] ? e[6] : GP_MGR & 0xFF) | o << 8);

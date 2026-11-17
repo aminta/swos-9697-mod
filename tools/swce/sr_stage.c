@@ -286,8 +286,6 @@ i32 sr_rr_table(i32 n, const sr_match *m, i32 nm, i32 win, i32 draw, i32 loss, c
 }
 
 /* ---- a mini-league's schedule (sr_mini_sched) ---- */
-/* TEMP-MINILG (Mod lane 1, 17/11): this block + swosrules.h's SR_SCHED_* lines = minilg 19ee37a hand-applied on 52301fb,
-   SWCE_SHA unchanged - the engine's real sha replaces them (tools/tempmark.py: a release build refuses the marker) */
 
 static void put(sr_match *x, i32 md, i32 home, i32 away)
 {

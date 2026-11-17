@@ -1068,12 +1068,14 @@ int32_t sr_split_entry(const sr_split_spec *sp, const uint8_t *table, int32_t nt
 #define SR_PORT_SIZE   2368         /* sizeof(sr_port), asserted below: the exe budgets it (obj4 block / own page,
                                        never gplay's .bss) */
 #define SR_PORT_NONE   0xFFFF       /* no club, no unit */
-#define SR_PORT_VERSION 1           /* TEMP-G1 (Mod lane 1, 17/11): 0 -> 1, the FP section of a release (was: 0 = draft) */
+#define SR_PORT_VERSION 1           /* the FP section: 1 = LV_NONE (a one-leg draw, winner 2); 0 = the draft before
+                                       it, still read (it can hold no LV_NONE fixture) */
 #define SR_PORT_TEAM(file, ord) ((uint16_t)((file) | (ord) << 8))   /* a team word: the registry file | ordinal << 8 */
 /* level: what settles a tie still level -- only the slot-4 contest byte's (the Mod's gplay.c LV_* values, checked by
  * tests/rules/port_lv.sh against a Mod checkout): extra time then penalties / penalties / extra time then the
- * listed (home) side / away goals then e.t. + penalties / away goals then the listed side. */
-enum { SR_PORT_LV_NONE = 0 /* TEMP-G1: no decider, a level score stands (legs 1) */, SR_PORT_LV_ET_PENS = 1, SR_PORT_LV_ET_BETTER = 2, SR_PORT_LV_PENS = 3, SR_PORT_LV_AWAY_PENS = 4,
+ * listed (home) side / away goals then e.t. + penalties / away goals then the listed side. NONE (one leg only): nothing,
+ * a level score is a draw (winner 2; a friendly, a league-style match). */
+enum { SR_PORT_LV_NONE = 0, SR_PORT_LV_ET_PENS = 1, SR_PORT_LV_ET_BETTER = 2, SR_PORT_LV_PENS = 3, SR_PORT_LV_AWAY_PENS = 4,
        SR_PORT_LV_AWAY_BETTER = 5 };
 enum { SR_PORT_F_CAREER_HOME = 1, SR_PORT_F_REPLAY = 2, SR_PORT_F_FRIENDLY = 4 };
 typedef struct {                    /* 32 B, the doc's SwcFixture */
@@ -1086,7 +1088,8 @@ typedef struct {                    /* 32 B, the doc's SwcFixture */
 typedef struct {                    /* 16 B, the doc's SwcPortResult: each leg as played (that leg's home first) */
     uint32_t match_id;
     uint8_t  g90[2], g90b[2], get[2], pens[2], cards[2];   /* get / pens: 0xFF none */
-    uint8_t  status, winner;        /* status 0 played, 1 / 2 forfeit home / away; winner 0 home (the fixture's), 1 away */
+    uint8_t  status, winner;        /* status 0 played, 1 / 2 forfeit home / away; winner 0 home (the fixture's), 1 away,
+                                       2 a draw (LV_NONE only) */
 } sr_port_result;
 enum { SR_PORT_QUEUED, SR_PORT_INSTALLED, SR_PORT_PLAYED };
 typedef struct {
@@ -1095,8 +1098,9 @@ typedef struct {
     void     (*done)(void *ctx, const sr_port_fixture *f, const sr_port_result *r);  /* the producer's outcome */
     int32_t  (*prev_unit)(void *ctx, uint16_t unit);    /* the game's advance before unit (its calendar skips units:
                                        56 57 58 59 61 63 ...), -1 none; NULL: every unit (unit - 1). Rule 5: a club's
-                                       next fixture is installed there, so the one before must end strictly earlier
-                                       (no slot clear: the next install overwrites slot 4, probe Q2 / Q3) */
+                                       next fixture is installed there, so the one before, if not PLAYED, must end
+                                       strictly earlier (no slot clear: the next install overwrites slot 4, probe
+                                       Q2 / Q3); a PLAYED one holds slot 4 no more */
     int32_t  (*slot4_windows)(void *ctx, uint16_t team, uint16_t (*out)[2], int32_t max);   /* rule 6: the slot-4
                                        windows [B, E] the exe's own users reserve for team's division (B: the unit whose
                                        advance builds the contest, E: its last match; dplay / gp_lend at the season
@@ -1162,10 +1166,11 @@ int32_t sr_port_revalidate_all(const sr_port *p, const sr_port_host *h, int32_t 
 int32_t sr_port_result_in(sr_port *p, const sr_port_host *h, const sr_port_result *r);
 /* The career club changes (a job taken): the pending fixture is simulated (sim) and done, then the new club. */
 int32_t sr_port_club_change(sr_port *p, const sr_port_host *h, uint16_t career);
-/* The engine's reading of a result: 0 / 1 the winner, -1 not decided by the level (or inconsistent). */
+/* The engine's reading of a result: 0 / 1 the winner, 2 a draw (LV_NONE's level score), -1 not decided by the level
+ * (or inconsistent). */
 int32_t sr_port_winner(const sr_port_fixture *f, const sr_port_result *r);
 /* The FP section (SWC1): little-endian, no pointers; its length (sr_port_save_size(p)); load: 0, SR_PORT_E_SAVE a
- * version other than SR_PORT_VERSION, a pack hash not the given one, a bad length or a state the rules refuse. */
+ * version other than SR_PORT_VERSION or 0 (0: no LV_NONE fixture), a pack hash not the given one, a bad length or a state the rules refuse. */
 int32_t sr_port_save_size(const sr_port *p);
 int32_t sr_port_save(const sr_port *p, uint8_t *out, int32_t max);
 int32_t sr_port_load(sr_port *p, const uint8_t *in, int32_t len, uint32_t pack_hash);

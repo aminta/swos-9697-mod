@@ -343,9 +343,6 @@ def patch(p, ssyms, gsyms):
         o, a = ssyms[k]
         assert o == 4 and a >= band and a + n <= vsize, ('fpad: swe.c .bss', k, hex(a), hex(band), hex(vsize))
     import tempmark                     # (MC 17/11: the temporary patches this link carries - a release build refuses them)
-    tempmark.temp_marker('G1')          # tools/swce/sr_port.c + swosrules.h (fpad.c includes them)
-    tempmark.temp_marker('G5')          # tools/swce/sr_port.c rule 5
-    tempmark.temp_marker('MINILG')      # tools/swce/sr_stage.c sr_mini_sched (fpml.c includes it)
     tempmark.temp_marker('BANDS')       # tools/swreg.py FPORT / FPORT2 / FPML
     fmap, rows, bad = window_table()
     assert rows, ('fpad: no slot-4 windows for world', world())
@@ -404,9 +401,9 @@ def patch(p, ssyms, gsyms):
     if os.environ.get('FPORT_ETFORCE'):              # (test builds, with BPLACE_FORCE: an e.t. decided 1-0 at home)
         flags.append('-DFP_ETFORCE')
     test = test_entries()
-    if os.environ.get('FPORT_R5OFF'):                # (Q13 probe, test builds: rule 5 off past that unit - fpad.c h_prev)
-        assert test, 'fpad: FPORT_R5OFF is for FPORT_TEST builds only'
-        flags.append(f'-DFP_R5OFF={int(os.environ["FPORT_R5OFF"])}')
+    if os.environ.get('FPORT_SEQ'):                  # (Q13 chain, test builds: each probe entry added after the previous
+        assert test, 'fpad: FPORT_SEQ is for FPORT_TEST builds only'   # one's result - fpad.c h_done / test_one)
+        flags.append('-DFP_TSEQ')
     mlt = ml_test_flags()                            # (lane 3: FPML_FORCE / FPML_SEED - an FPORT_TEST build without
     if test or mlt:                                  #  probe fixtures: FP_NTEST stays 0, test_add adds nothing)
         flags += ['-DFPORT_TEST', f'-DFP_NTEST_={max(1, len(test))}'] + mlt

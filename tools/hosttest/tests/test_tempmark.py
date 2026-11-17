@@ -30,7 +30,8 @@ def _refused(env):
 
 
 def test_tempmark_release_refused():
-    saved = dict(tempmark.MARKS)
+    saved, known = dict(tempmark.MARKS), dict(tempmark.KNOWN)
+    tempmark.KNOWN['ZZTEST'] = ('test', 'a second marker, for this test only')
     try:
         n = 0
         for env, rel in ENVS:
@@ -39,7 +40,7 @@ def test_tempmark_release_refused():
             tempmark.reset()                    # no marker: every build passes
             if _refused(env) or tempmark.check(env) != []:
                 return False, f'{env}: refused without a marker'
-            for names in (('G1',), ('BANDS', 'G5')):
+            for names in (('BANDS',), ('BANDS', 'ZZTEST')):
                 tempmark.reset()
                 for x in names:
                     tempmark.temp_marker(x)
@@ -53,13 +54,15 @@ def test_tempmark_release_refused():
         except AssertionError:
             pass
         lines = []
-        tempmark.temp_marker('G1')
+        tempmark.temp_marker('BANDS')
         tempmark.check({'HOSTTEST_SYMS': '1'}, log=lines.append)
-        if len(lines) != 1 or 'TEMP-G1' not in lines[0]:
+        if len(lines) != 1 or 'TEMP-BANDS' not in lines[0]:
             return False, f'a test build with a marker logs {lines}'
         return True, f'{n} builds: a release / RC with a marker refused, the same without one passes; test, ' \
                      'HOSTTEST_SYMS and beta builds pass and name their markers'
     finally:
+        tempmark.KNOWN.clear()
+        tempmark.KNOWN.update(known)
         tempmark.MARKS.clear()
         tempmark.MARKS.update(saved)
 

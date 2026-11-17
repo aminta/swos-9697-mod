@@ -425,6 +425,7 @@ def patch_exe(src, dst, remap, lang='it'):
         engine.save_item('FP', fpad.SAVE_SIZE, world_only=True)   # P5 (MC option A): the port's queue + the tie in
         engine.before_save('fp_save')                  # progress with the career (fpsave.c fp_save / fpad.c fresh's load)
         swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, (swreg.FPORT2_END + 0xFFF) // 0x1000)   # (P5: fpsave.c's band, MC 15/11)
+        swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, (swreg.FPML_END + 0xFFF) // 0x1000)     # (fpml.c: the mini-league producer)
     OBJ1MV_ON[0] = bool(mkseason.worlds())             # 4.2 OBJ1MV (MC 13/11): every build with worlds (shirtedit +
     if OBJ1MV_ON[0]:                                   # instcheck; the SEASON WINNERS page when fmtpage has it)
         swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, (swreg.OBJ1MV_END + 0xFFF) // 0x1000)   # (its band's pages, out of obj1)
@@ -975,6 +976,10 @@ def patch_exe(src, dst, remap, lang='it'):
         cg_bss = 0
     import gkinj                                 # 4.0.6 (Davide): goalkeeper injuries after a match (an OPTIONS row,
     st_end = gkinj.patch(p, (st_end + 15) & ~15, lang)       # ON by default), the obj3 chain's end
+    import fpmlv                                 # 4.2 mini-leagues (the Supercoppa Serie C): the views' room in obj3's
+    if fpmlv.on():                               # chain (linked after fpad.patch: lane 1's fp_ml_* are known only then)
+        st_end = fpmlv.reserve(p, (st_end + 15) & ~15)
+        assert st_end <= LT3_AT, hex(st_end)
     import slow                                  # 4.2 EXPERIMENTAL (Davide 12/11): MATCH SPEED 100/90/80/70 % (an OPTIONS
     if SLOW:                                     # row after gkinj's; GameLoop's @@flip_it; SPEED.CFG), obj4 page 13 -
         slow.patch(p, lang)                      # PARKED 13/11 (SLOW = False): nothing of it linked, asserted
@@ -1106,7 +1111,12 @@ def patch_exe(src, dst, remap, lang='it'):
         sreg.patch_import(p, swe.LABELS, s7swap.LABELS)  # 42-s7import: the old-save import (SREG2, SREG_FN[4])
     import fpad                                  # 4.2 fixture port P2: fpad.c at obj4+FPORT_AT (dormant: nothing)
     import gplay
-    fpad.patch(p, swe.LABELS, gplay.LABELS)
+    if fpad.patch(p, swe.LABELS, gplay.LABELS) is not None and fpad.ml_rows():   # 4.2 mini-leagues: lane 2's views and
+        import winners                           # trophies (fpmlv.c, obj3) against the producer just linked - FP_MLDONE,
+        mpk, mlg, _row = fpad.ml_rows()[0]       # the fixtures' calendar names, the WINNERS source 'N'
+        mbn = mpk.meta.get('button_names') or {}
+        fpmlv.patch(p, mlg, lang, area, (mbn.get(lang) or mpk.meta.get('button') or '').upper(), fpad.LABELS,
+                    gplay.LABELS, fpad.LABELS['FP_MLDONE'], winners.LABELS.get('WN_MLP'))
     if sreg_end is not None:
         assert sreg_end <= lrank.LR_AT, ('sreg past LR_AT', hex(sreg_end), hex(lrank.LR_AT))
     if cdkn.on():                                # 4.2 S2 knockouts: the Coppa D's rounds 0-1 by the engine (gplay.c GP_CDKN)

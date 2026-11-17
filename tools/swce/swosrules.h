@@ -643,6 +643,23 @@ typedef struct { uint8_t md, home, away, played, hg, ag; } sr_match;
  * 2..SR_STAGE_CLUBS, legs outside 1..4, or room short. */
 int32_t sr_rr_calendar(int32_t n, int32_t legs, sr_match *out, int32_t room);
 
+/* A mini-league's schedule policy (a round robin played one matchday at a time):
+ * SR_SCHED_FIXED: sr_rr_calendar's, all known at once.
+ * SR_SCHED_WINNER_RESTS: 3 clubs, one leg (the Supercoppa Serie C's triangular, it.wiki "Supercoppa Serie C", the
+ * format since 2015): matchday 1 drawn -- the club that rests and which of the other two plays away; matchday 2: md1's
+ * winner rests (on a draw, md1's away side), so md1's resting club plays the other one (the loser, or md1's home side);
+ * matchday 3: the pair left. Home: each club hosts once -- md2 at md1's away side when it plays md2 (md1 won at
+ * home), else at md1's resting club; md3 at the club of its pair that has not hosted (the 2019, 2021-2026 editions'
+ * fixtures: 2021 and 2023 had md1 won at home; the source names only md1's away side, so this is ours). */
+enum { SR_SCHED_FIXED = 0, SR_SCHED_WINNER_RESTS = 1 };
+
+/* The matches of a mini-league known so far: m[0 .. have) are the ones the caller holds (as this call wrote them,
+ * with their scores once played), the call appends the matches the results now decide and returns the new count.
+ * FIXED: the whole sr_rr_calendar (have 0, or all of it: then only its count is checked). WINNER_RESTS (n 3,
+ * legs 1): md1 alone (drawn from the seed), then md2 and md3 together once md1 is played. Returns -1: bad n / legs / policy, room short, m[0 .. have) not what the
+ * policy wrote (a club or matchday changed: a corrupt save). */
+int32_t sr_mini_sched(int32_t n, int32_t legs, uint8_t policy, uint32_t seed, sr_match *m, int32_t have, int32_t room);
+
 /* A table's row: the club (0 .. n-1) and its record from the played matches. */
 typedef struct { uint8_t club, pad; int16_t pts; uint16_t pl, w, d, l, gf, ga, aw, agf; } sr_srow;
 
@@ -1051,12 +1068,12 @@ int32_t sr_split_entry(const sr_split_spec *sp, const uint8_t *table, int32_t nt
 #define SR_PORT_SIZE   2368         /* sizeof(sr_port), asserted below: the exe budgets it (obj4 block / own page,
                                        never gplay's .bss) */
 #define SR_PORT_NONE   0xFFFF       /* no club, no unit */
-#define SR_PORT_VERSION 0           /* the FP section: 0 = draft (a release build must not read it) */
+#define SR_PORT_VERSION 1           /* TEMP-G1 (Mod lane 1, 17/11): 0 -> 1, the FP section of a release (was: 0 = draft) */
 #define SR_PORT_TEAM(file, ord) ((uint16_t)((file) | (ord) << 8))   /* a team word: the registry file | ordinal << 8 */
 /* level: what settles a tie still level -- only the slot-4 contest byte's (the Mod's gplay.c LV_* values, checked by
  * tests/rules/port_lv.sh against a Mod checkout): extra time then penalties / penalties / extra time then the
  * listed (home) side / away goals then e.t. + penalties / away goals then the listed side. */
-enum { SR_PORT_LV_ET_PENS = 1, SR_PORT_LV_ET_BETTER = 2, SR_PORT_LV_PENS = 3, SR_PORT_LV_AWAY_PENS = 4,
+enum { SR_PORT_LV_NONE = 0 /* TEMP-G1: no decider, a level score stands (legs 1) */, SR_PORT_LV_ET_PENS = 1, SR_PORT_LV_ET_BETTER = 2, SR_PORT_LV_PENS = 3, SR_PORT_LV_AWAY_PENS = 4,
        SR_PORT_LV_AWAY_BETTER = 5 };
 enum { SR_PORT_F_CAREER_HOME = 1, SR_PORT_F_REPLAY = 2, SR_PORT_F_FRIENDLY = 4 };
 typedef struct {                    /* 32 B, the doc's SwcFixture */

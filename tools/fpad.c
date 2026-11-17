@@ -42,7 +42,14 @@ extern u8 FP_CAL[];                     /* obj2: the career calendar (count word
 
 enum { FP_NREV = 4 };                   /* (REVAL: failing fixtures logged one by one, at most) */
 enum { FL_ADD = 1, FL_INST, FL_RES, FL_REFUSED, FL_MISSED, FL_REVAL, FL_SIM, FL_ORPHAN, FL_NEW, FL_LOAD, FL_SEASON,
-       FL_LEG, FL_LEGX, FL_PLOAD };      /* (FL_LEGX: the leg's e.t. (id) and penalties (y), home | away << 8, FFFFh none) */
+       FL_LEG, FL_LEGX, FL_PLOAD, FL_MLOPEN, FL_MLSIM, FL_MLADD, FL_MLDONE };   /* (15..18: fpml.c's, the mini-league) */
+enum { FP_K_ML = 0x4D, FP_ML_KIND = 0x4D4C };   /* a mini-league fixture: its kind, its match_id >> 16 (| season << 8 | (id - 1) << 4 | md) */
+/* fpml.c (the mini-league producer, its own unit in obj4's FPML band; linked after this one): its entries, bound by
+   fpad.py - 0 in a build without it */
+void (*FP_MLRES)(const sr_port_fixture *, const sr_port_result *) __attribute__((section(".data")));   /* fp_ml_result */
+u32 (*FP_MLBUSY)(u16 team) __attribute__((section(".data")));     /* fp_ml_busy: the club is in a running mini-league stage */
+void (*FP_MLLOAD)(void) __attribute__((section(".data")));        /* fp_ml_loaded: the instances a load / reset left, checked */
+      /* (FL_LEGX: the leg's e.t. (id) and penalties (y), home | away << 8, FFFFh none) */
                                          /* (FL_PLOAD, P5: the FP item at a load - rc the fixtures loaded / 0 none / < 0 refused, y the tie's legs played) */
 /* (FP_ST, struct fp_st, FP_MAGIC / FP_ARM: fpad.h) */
 
@@ -59,6 +66,22 @@ u8 FP_DIV[FP_NDIV_][4] FP_DATA;         /* country, division, its window list's 
 u8 FP_SET[FP_NSET_] FP_DATA;            /* window lists: n, then n x (B, E) - E FFh = none */
 u16 FP_NDIV FP_DATA;
 #ifdef FPORT_TEST
+#ifndef FP_MLF_INIT
+#define FP_MLF_INIT {{0}}
+#define FP_MLSEED_INIT 0
+#endif
+u8 FP_MLF[8][4] FP_DATA = FP_MLF_INIT;  /* (lane 3, fpml.h: forced scores (id, md, hg, ag) of the mini-league's matches) */
+u32 FP_MLSEED FP_DATA = FP_MLSEED_INIT;
+static int ml_forced(u32 match_id, u8 *g)   /* a forced row for that mini-league match: its goals, home first */
+{
+    if (match_id >> 16 != FP_ML_KIND) return 0;
+    for (u32 i = 0; i < 8; i++)
+        if (FP_MLF[i][0] == (match_id >> 4 & 0xF) + 1 && FP_MLF[i][1] == (match_id & 0xF)) {
+            g[0] = FP_MLF[i][2]; g[1] = FP_MLF[i][3];
+            return 1;
+        }
+    return 0;
+}
 u8 FP_TEST[FP_NTEST_][7] FP_DATA;   /* (test builds: the probe's entries, fpad.test_entries' form) */
 u16 FP_NTEST FP_DATA;
 /* MC 14/11 (SR_PORT_WINDOWS 24: reserved()'s window buffer +32 B): the least free game stack seen at fp_step's entry
@@ -142,14 +165,32 @@ static i32 h_windows(void *ctx, u16 team, u16 (*out)[2], i32 max)
     for (u32 i = 0; i < FP_NDIV; i++)
         if (FP_DIV[i][0] == c && FP_DIV[i][1] == d) {
             const u8 *w = FP_SET + (FP_DIV[i][2] | FP_DIV[i][3] << 8);
-            for (i32 k = 0; k < w[0] && n < max; k++, n++) {
-                out[n][0] = w[1 + 2 * k];
-                out[n][1] = w[2 + 2 * k] == 0xFF ? SR_PORT_NONE : w[2 + 2 * k];
+            /* G3, the live condition (CONVENTIONS: the general rule, no competition named): a club in a running
+               mini-league stage is not in its division's season-end play-offs - the windows open to the season's end
+               (E none: fport's dplay / play-off / play-out ones, [L, END]) are off for it */
+            const u32 busy = FP_MLBUSY ? FP_MLBUSY(team) : 0;
+            for (i32 k = 0; k < w[0]; k++) {
+                if (busy && w[2 + 2 * k] == 0xFF) continue;
+                if (n < max) {
+                    out[n][0] = w[1 + 2 * k];
+                    out[n][1] = w[2 + 2 * k] == 0xFF ? SR_PORT_NONE : w[2 + 2 * k];
+                }
+                n++;                    /* (the true count: past max the engine refuses - fpad.py asserts <= max) */
             }
-            n = w[0];                   /* (the true count: past max the engine refuses - fpad.py asserts <= max) */
             break;
         }
     return n;
+}
+
+/* the league's last unit L: the latest slot-0 entry of the career calendar (0 = none) */
+static u16 last_league(void)
+{
+    u16 best = 0;
+    for (i32 k = 0, o = 0; k < cal_n(); k++, o = cal_next(o)) {
+        if (!(FP_CAL[o + 2] | FP_CAL[o + 3])) break;
+        if (FP_CAL[o] == 0 && FP_CAL[o + 1] > best) best = FP_CAL[o + 1];
+    }
+    return best;
 }
 
 /* a fixture without the career club: a result from the match id (no running generator), decided by its level */
@@ -169,12 +210,16 @@ static i32 h_sim(void *ctx, const sr_port_fixture *f, sr_port_result *r)
         r->g90b[0] = (u8)(h >> 8 & 3); r->g90b[1] = (u8)(h >> 12 & 3);
         a += r->g90b[1]; b += r->g90b[0];
         if (a == b) { r->g90b[0]++; b++; }
-    } else if (a == b && f->level) {    /* (one match level: penalties) */
+    }
+#ifdef FPORT_TEST
+    if (ml_forced(f->match_id, r->g90)) { a = r->g90[0]; b = r->g90[1]; }   /* (FP_MLF: whoever plays it) */
+#endif
+    if (f->legs != 2 && a == b && f->level) {    /* (one match level: penalties) */
         r->get[0] = r->get[1] = 0;
         r->pens[0] = (u8)(4 + (h >> 20 & 1)); r->pens[1] = (u8)(4 + !(h >> 20 & 1));
         a += r->pens[0]; b += r->pens[1];
     }
-    r->winner = a > b ? 0 : 1;
+    r->winner = a > b ? 0 : a < b || f->level ? 1 : 2;   /* (level NONE: a level score stands, winner 2) */
     flog(FL_SIM, 0, (u16)f->match_id, (u16)(r->g90[0] | r->g90[1] << 4 | r->winner << 8));
     return 0;
 }
@@ -183,6 +228,7 @@ static void h_done(void *ctx, const sr_port_fixture *f, const sr_port_result *r)
 {
     (void)ctx;                          /* (P2: the log; the producers' outcomes - P4 conti, P7 trophies - by kind) */
     flog(FL_RES, f->kind, (u16)f->match_id, (u16)(r->winner | r->status << 4 | f->kind << 8));
+    if (f->kind == FP_K_ML && FP_MLRES) FP_MLRES(f, r);   /* (the mini-league: its match scored, the next one queued) */
 }
 
 static const sr_port_host HOST = { h_league, h_sim, h_done, h_prev, h_windows, 0 };
@@ -212,6 +258,34 @@ static void fresh(void)
         FP_ST.tadded = got > 0;         /* (FPORT_TEST: the loaded queue holds the test fixtures already) */
     } else
         fps_reset();
+    if (FP_MLLOAD) FP_MLLOAD();         /* (fpml.c: FP_ML as the load / the reset left it, checked) */
+}
+
+/* ---- fpml.c's side of the port (the mini-league producer: obj4 FPML, linked after this unit) ---- */
+void fp_log(u32 code, i32 rc, u32 id, u32 y) { flog((u8)code, rc, (u16)id, (u16)y); }
+u32 fp_wake(void)                       /* the port usable now: 1 (an armed one initialised first, as fp_step would) */
+{
+    if (FP_CWB != FP_WORLD) return 0;
+    if (FP_ST.magic == FP_ARM) { GP_WK = FP_CAL[FP_CALCUR + 1]; fresh(); }
+    return (u32)valid();
+}
+/* one match of a mini-league as a port fixture: the career club's, one leg, level NONE, at L + off; 0 queued (or
+   already there), else the rule's code */
+i32 fp_ml_add(u32 match_id, u16 home, u16 away, u32 off)
+{
+    for (i32 j = 0; j < FP_PORT.n; j++)
+        if (FP_PORT.f[j].match_id == match_id) return 0;
+    sr_port_fixture f;
+    volatile u8 *b = (volatile u8 *)&f;
+    for (u32 j = 0; j < sizeof f; j++) b[j] = 0;
+    f.match_id = match_id;
+    f.unit1 = f.unit2 = (u16)(last_league() + off);
+    f.legs = 1; f.level = SR_PORT_LV_NONE;
+    f.home = home; f.away = away;
+    f.lfile = (u8)GP_MGR; f.kind = FP_K_ML; f.prev_id = 0xFFFF; f.comp_id = 0xFFFF; f.label_id = 0xFFFF;
+    const i32 rc = sr_port_add(&FP_PORT, &HOST, &f);
+    flog(FL_MLADD, rc, (u16)match_id, (u16)(f.unit1 | f.unit2 << 8));
+    return rc;
 }
 
 #ifdef FPORT_TEST
@@ -363,6 +437,13 @@ void fp_leg(void)
     for (u32 j = 0; j < 7; j++) d[j] = *(const u16 *)(FP_D1R + 4 * j);
     const u16 ha = *(const u16 *)FP_A1R, aw = *(const u16 *)FP_A2R;
     const u32 i = FP_ST.nleg < 2 ? FP_ST.nleg : 1;
+#ifdef FPORT_TEST
+    {                                   /* (FP_MLF: a forced mini-league match, the career club's own - its goals as the
+                                           port reads them, home first; test builds only) */
+        u8 g[2];
+        if (FP_PORT.pending && ml_forced(FP_PORT.pending, g)) { d[0] = g[0]; d[1] = g[1]; d[6] = 0; }
+    }
+#endif
     const int et = d[6] & 4, pens = d[6] & 8;   /* (D7: 4 e.t. played, 8 penalties; D1 / D2 the total, e.t. included) */
     if (et && (FP_G90[0] == FP_G90_NONE || FP_G90[1] == FP_G90_NONE)) {   /* (guard 2: e.t. with no capture - never a
                                            total minus a stale 90 minutes: the leg refused, logged) */
@@ -419,6 +500,9 @@ void fp_done(void)
     r.pens[1] = FP_ST.pens[1] == 0xFFFF ? 0xFF : (u8)FP_ST.pens[1];
     r.status = 0;
     r.winner = o[2] == 0xFF ? 0 : (u8)o[2];
+    if (f->level == SR_PORT_LV_NONE)    /* (no decider: the winner is the score's - gplay's level 0 names the listed
+                                           side on a level one; 2 = level, it stands) */
+        r.winner = r.g90[0] > r.g90[1] ? 0 : r.g90[0] < r.g90[1] ? 1 : 2;
     const i32 rc = sr_port_result_in(&FP_PORT, &HOST, &r);
     if (rc) flog(FL_REFUSED, rc, (u16)f->match_id, (u16)(r.winner | FP_ST.nleg << 4));   /* (never overridden) */
     FP_ST.nleg = 0;

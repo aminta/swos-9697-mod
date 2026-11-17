@@ -2,8 +2,14 @@
 engine's sr_port (tools/swce/sr_port.c, vendored: SWCE_SHA) and gplay's slot 4, linked at obj4 + swreg.FPORT_AT.
 
 Dormant unless on(): no byte of it (gplay.c GP_PORT 0, swe.c without FPORT_ON, nothing linked - the dormant proof:
-objects identical to 42-int). Until a producer (P4 conti, the Supercoppa Serie C consumer) exists, on() is a test
-switch: FPORT=1 (test builds only, modver.is_test), FPORT_TEST: the probe's GPLAY_PROBE entries queued as fixtures.
+objects identical to 42-int). on(): a build with a PRODUCER - a career pack of world() whose league declares
+'mini_leagues' (ml_rows(): the Supercoppa Serie C, the Italian 2026-27 pack's one row; release builds too) - or the
+test switch FPORT=1 (test builds only, modver.is_test; FPORT_TEST: the probe's GPLAY_PROBE entries queued as fixtures).
+
+The mini-league producer (fpml.c, its own unit in obj4's FPML band, linked here after fpad.c; interface tools/fpml.h):
+FP_MLT = the rows compiled by ml_table() (ids / names / record flags numbered by fpmlv.indices), gplay's hooks
+GP_PNEED / GP_PLEND / GP_PEND and fpad.c's FP_MLRES / FP_MLBUSY / FP_MLLOAD bound to it; lane 2's views (fpmlv.c) are
+linked by patch.py right after (fpmlv.patch: FP_MLDONE, the calendar names, the WINNERS source).
 
 The slot-4 windows (rule 6) are a static table built here from fport.windows(): FP_DIV (country, division, set) and
 FP_SET (the distinct window lists, units as bytes), FP_FMAP[team file] = country; a conditional window (cond 'entrant' / 'alive') counts as on - the superset (a
@@ -19,8 +25,15 @@ ST_SIZE = 4 + 4 + 16 + 8 + 4 + 8 * 48   # (fpad.c struct fp_st: magic, season..n
 SLACK = 256                         # (the band's room left at least - MC: stop and report under it)
 # P5 (MC option A): the EN item 'FP' = a 36-B header ('FPS1', season, the tie in progress: legs played, their goals, e.t.,
 # penalties - FP_ST's, not in sr_port) + sr_port_save's bytes, at most 20 + SR_PORT_MAX x (33 + 16) (all played)
-SAVE_HDR, SAVE_VERSION = 36, 1
-SAVE_SIZE = SAVE_HDR + 20 + 48 * (33 + 16)
+# v2 (the Supercoppa Serie C, design (c)): + the ML block between them - 8 B ('ML', version 1, count, 0) + ML_N x 56 B
+SAVE_HDR, SAVE_VERSION = 36, 2
+ML_N, ML_SIZE, MLROW_SIZE = 2, 56, 34       # (fpml.h FP_ML_N, struct fp_ml, struct fp_mlrow)
+SAVE_SIZE = SAVE_HDR + 8 + ML_N * ML_SIZE + 20 + 48 * (33 + 16)     # 2528 B
+SRC3 = os.path.join(HERE, 'fpml.c')         # the mini-league producer (obj4 FPML)
+ML_POLICY = {'fixed': 0, 'winner_rests': 1}                         # (swosrules.h SR_SCHED_*)
+ML_TB = {'points': 1, 'goal_difference': 2, 'goals_for': 3, 'goals_against': 4, 'wins': 5, 'away_wins': 6,
+         'away_goals_for': 7, 'h2h_points': 8, 'h2h_goal_difference': 9, 'h2h_goals_for': 10, 'h2h_away_goals': 11,
+         'draw_lots': 16}                                           # (swosrules.h SR_TB_*: asserted in ml_table)
 
 
 def fp_hash():
@@ -29,14 +42,80 @@ def fp_hash():
     import zlib
     return zlib.crc32(struct.pack('<BHHB', world(), PORT_SIZE, 48, SAVE_VERSION)) & 0xFFFFFFFF
 LABELS = {}
+SIZES = {}                          # (the last patch()'s linked sizes: band -> (used, left), BSS)
+
+
+_ROWS = {}
+
+
+def ml_rows():
+    """[(pack, league competition, row)] - the 'mini_leagues' rows of the build's career packs of world(), in pack
+    order (row i = FP_MLT[i], instance i); memoised on SEASON_PACKS"""
+    k = (os.environ.get('SEASON_PACKS'), world())
+    if k not in _ROWS:
+        import fport
+        import mkseason
+        out = []
+        for pk in mkseason.packs():
+            if pk.kind != 'career' or pk.world != world():
+                continue
+            lg = fport._league(pk.meta)
+            out += [(pk, lg, r) for r in (lg or {}).get('mini_leagues') or []]
+        _ROWS[k] = out
+    return _ROWS[k]
 
 
 def on():
-    if not os.environ.get('FPORT'):
+    """the port is in the build: a producer's (a mini_leagues row - release builds too), or FPORT=1 (a test build)"""
+    if os.environ.get('FPORT') == '0':       # (a build without it, whatever its data)
         return False
+    if not os.environ.get('FPORT'):
+        return bool(ml_rows())
     import modver
-    assert modver.is_test(), 'FPORT: test builds only until a producer (P4 / the Supercoppa Serie C consumer) exists'
+    assert modver.is_test(), 'FPORT=1: test builds only (a release build has the port through its mini_leagues row)'
     return True
+
+
+def ml_table():
+    """(FP_MLT bytes: struct fp_mlrow per row, FP_MLTF bytes: each row's league team file). One row:
+    {"key", "entrants": [[div, place], ...] (2..4), "schedule": "winner_rests" | "fixed", "legs": 1,
+     "points": [win, draw, loss], "tiebreak": [names after the points], "units": [offset from L per matchday]}.
+    The limits (design (b)): n <= 4, at most 6 matches, entrants only [div, place], rows <= ML_N, every row of ONE
+    pack's league (fpmlv numbers ids / names / record lines per competition)."""
+    import fport
+    import fpmlv
+    rows = ml_rows()
+    assert len(rows) <= ML_N, ('fpad: mini_leagues rows past FP_ML_N', len(rows))
+    assert len({id(lg) for _pk, lg, _r in rows}) <= 1, "fpad: mini_leagues in two packs (fpmlv numbers one competition's)"
+    hdr = open(os.path.join(HERE, 'swce', 'swosrules.h')).read()
+    enum = [x.strip() for x in hdr[hdr.index('enum { SR_TB_END = 0'):].split('}')[0].split('{')[1].replace('= 0', '').split(',')]
+    assert all(enum[v] == 'SR_TB_' + k.upper() for k, v in ML_TB.items()), 'fpad: ML_TB against swosrules.h SR_TB_*'
+    out, files = bytearray(), bytearray()
+    idx = fpmlv.indices(rows[0][1]) if rows else []
+    for (pk, lg, r), (rid, name, rec, flags) in zip(rows, idx):
+        what = ('fpad: mini_leagues row', pk.meta.get('id'), r.get('key'))
+        ent, legs, pol = r['entrants'], int(r.get('legs', 1)), ML_POLICY[r.get('schedule', 'fixed')]
+        n = len(ent)
+        nm = legs * n * (n - 1) // 2
+        assert 2 <= n <= 4 and nm <= 6 and all(isinstance(e, list) and len(e) == 2 and 0 <= e[0] < 16 and 1 <= e[1] <= 32
+                                               for e in ent), what + ('entrants [div, place], n <= 4, <= 6 matches', ent)
+        assert pol != 1 or (n == 3 and legs == 1), what + ('winner_rests: 3 clubs, one leg',)
+        pts = [int(x) for x in r.get('points', [3, 1, 0])]
+        tb = [ML_TB['points']] + [ML_TB[x] for x in r.get('tiebreak', ['goal_difference', 'goals_for', 'draw_lots'])]
+        assert len(pts) == 3 and all(0 <= x < 256 for x in pts) and len(tb) <= 5, what + ('points x3, tiebreak <= 4', pts, tb)
+        off = [int(x) for x in r['units']]
+        days = 3 if pol == 1 else legs * (n - 1 + n % 2)
+        assert len(off) == days <= 6 and all(1 <= x < 100 for x in off) and off == sorted(set(off)), \
+            what + ('units: one rising offset from L per matchday', off, days)
+        assert lg.get('ko_playoffs'), what + ('its league needs a gplay spec (ko_playoffs): the league-end hooks run '
+                                              'in GP_TAB countries only',)
+        ent4 = [tuple(e) for e in ent] + [(0, 0)] * (4 - n)
+        b = struct.pack('<4B3BB6s', rid, n, legs, pol, *pts, len(tb), bytes(tb + [0] * (6 - len(tb))))
+        b += b''.join(bytes(e) for e in ent4) + bytes(off + [0] * (6 - len(off))) + bytes((name, rec, flags, 0, 0, 0))
+        assert len(b) == MLROW_SIZE
+        out += b
+        files.append(pk.files['league'][0])
+    return bytes(out), bytes(files)
 
 
 def world():
@@ -184,7 +263,7 @@ def vendored():
 
 
 OFFS = ('O_KO', 'O_SEASON', 'O_KIND', 'O_TW', 'O_TEAM', 'O_D1', 'O_D2', 'O_RS', 'O_MDIV', 'C_MAGIC', 'C_NOC', 'C_KPORT',
-        'C_NEUTRAL', 'C_SCE', 'C_SCUEFA', 'KO_SIZE')
+        'C_NEUTRAL', 'C_SCE', 'C_SCUEFA', 'KO_SIZE', 'O_INN', 'O_INT', 'O_INMGR', 'C_GD', 'C_GT', 'C_ROW', 'O_RPTS')
 
 
 def gp_offsets(cflags):
@@ -256,7 +335,10 @@ def patch(p, ssyms, gsyms):
     obj_tab = p.le.hdr + struct.unpack_from('<I', p.out, p.le.hdr + 0x40)[0]
     vsize = struct.unpack_from('<I', p.out, obj_tab + 3 * 24)[0]   # (obj4's vsize as swe.py set it: p.set_vsize)
     assert _hdr_define('SR_PORT_MAX') == 48, ('fpad: SR_PORT_MAX (SAVE_SIZE)', _hdr_define('SR_PORT_MAX'))
-    for k, n in (('FP_PORT', PORT_SIZE), ('FP_ST', ST_SIZE), ('FP_SAVE', SAVE_SIZE)):   # (swe.c's .bss: past every obj4 band, inside the vsize)
+    assert 'FP_ML' in ssyms and 'GP_PNEED' in gsyms, 'fpad: swe.c / gplay.c without the mini-league state / hooks'
+    assert p.le.obj(4).npages * 0x1000 >= swreg.FPML_END, 'fpad: obj4 pages for FPML (patch.py)'
+    assert not any(p.get(4, swreg.FPML_AT, swreg.FPML_END - swreg.FPML_AT)), 'fpad: obj4+FPML_AT not free'
+    for k, n in (('FP_PORT', PORT_SIZE), ('FP_ST', ST_SIZE), ('FP_SAVE', SAVE_SIZE), ('FP_ML', ML_N * ML_SIZE)):   # (swe.c's .bss: past every obj4 band, inside the vsize)
         o, a = ssyms[k]
         assert o == 4 and a >= band and a + n <= vsize, ('fpad: swe.c .bss', k, hex(a), hex(band), hex(vsize))
     fmap, rows, bad = window_table()
@@ -268,7 +350,7 @@ def patch(p, ssyms, gsyms):
     fdiv, fset = pack_windows(rows)
     ext = {'GP_PAPI': gsyms['GP_PAPI'], 'GP_WK': gsyms['GP_WK'], 'GP_MGR': gsyms['GP_MGR'],
            'FP_SEASON': gsyms['SEASONPLAYING'], 'FP_CAL': gsyms['CAL'], 'FP_PORT': ssyms['FP_PORT'], 'FP_ST': ssyms['FP_ST'],
-           'FP_SAVE': ssyms['FP_SAVE'],
+           'FP_SAVE': ssyms['FP_SAVE'], 'FP_ML': ssyms['FP_ML'],
            'FP_CWB': (so, soff + careerworld.WORLD_BYTE), 'GP_GST': gsyms['GP_ST'], 'GP_GIN': gsyms['GP_IN'],
            'FP_D1R': gsyms['D1R'], 'FP_A1R': gsyms['A1R'], 'FP_A2R': gsyms['A2R'],
            'FP_CALCUR': gsyms['CAL_CUR'], **{k: gsyms[k] for k in ('GP_SEAS', 'GP_K', 'GP_SCT', 'GP_PMID')}}
@@ -282,8 +364,9 @@ def patch(p, ssyms, gsyms):
     offs = gp_offsets(gsyms['GP_CFLAGS'])
     # (-Oz, MC 15/11 room: fpad.c + fpsave.c only - cobj's -Os for every other unit; the port runs once per calendar
     #  step, size over speed: FPORT ~1.7 KB, FPORT2 ~0.35 KB smaller than at -Os, engine 52301fb)
-    flags = ['-Oz'] + [f'-D{k}={v}' for k, v in offs.items()] + [f'-DFP_ST_SZ={ST_SIZE}', f'-DFP_SAVE_SZ={SAVE_SIZE}', f'-DFP_SAVE_HDR={SAVE_HDR}', f'-DFP_HASH={fp_hash():#x}u', f'-DFP_WORLD={world()}', f'-DFP_NDIV_={max(1, len(fdiv) // 4)}', f'-DFP_NSET_={max(1, len(fset))}']
-    roots = ['fp_step', 'fp_leg', 'fp_et', 'fp_done', 'fp_new', 'fp_load', 'fp_season', 'FP_FMAP', 'FP_DIV', 'FP_SET', 'FP_NDIV', 'FP_NAMES']   # (FP_NAMES: lane 2's fpmlv.patch binds it)
+    flags = ['-Oz'] + [f'-D{k}={v}' for k, v in offs.items()] + [f'-DFP_ST_SZ={ST_SIZE}', f'-DFP_SAVE_SZ={SAVE_SIZE}', f'-DFP_SAVE_HDR={SAVE_HDR}', f'-DFP_ML_SZ={ML_N * ML_SIZE}', f'-DFP_HASH={fp_hash():#x}u', f'-DFP_WORLD={world()}', f'-DFP_NDIV_={max(1, len(fdiv) // 4)}', f'-DFP_NSET_={max(1, len(fset))}']
+    roots = ['fp_step', 'fp_leg', 'fp_et', 'fp_done', 'fp_new', 'fp_load', 'fp_season', 'FP_FMAP', 'FP_DIV', 'FP_SET', 'FP_NDIV', 'FP_NAMES',
+             'fp_log', 'fp_wake', 'fp_ml_add', 'FP_MLRES', 'FP_MLBUSY', 'FP_MLLOAD']   # (fpml.c's side: linked below)   # (FP_NAMES: lane 2's fpmlv.patch binds it)
     import collections
     import swefile
 
@@ -296,7 +379,7 @@ def patch(p, ssyms, gsyms):
         def _record(self, *a):
             return None
     # P5 (MC 15/11): fpsave.c first, its own unit at FPORT2 (no fpad.c symbol in it); the same flags (no test code in it)
-    ext2 = {k: ext[k] for k in ('FP_PORT', 'FP_ST', 'FP_SAVE', 'FP_SEASON', 'FP_CWB', 'GP_GST', 'GP_SEAS', 'GP_PMID', 'GP_WK', 'GP_MGR')}
+    ext2 = {k: ext[k] for k in ('FP_PORT', 'FP_ST', 'FP_SAVE', 'FP_ML', 'FP_SEASON', 'FP_CWB', 'GP_GST', 'GP_SEAS', 'GP_PMID', 'GP_WK', 'GP_MGR')}
     obj2 = cobj.compile_c(SRC2, tuple(flags), sections=True)
     _, end2, _ = cobj.link(_Dry(), obj2, swreg.FPORT2_AT, (4, 0), externs=ext2, limit=swreg.FPORT2_END,
                            text_obj=4, roots=['fp_save', 'fps_load', 'fps_reset'])     # (dry: the release shape's end)
@@ -321,12 +404,39 @@ def patch(p, ssyms, gsyms):
     mlt = ml_test_flags()                            # (lane 3: FPML_FORCE / FPML_SEED - an FPORT_TEST build without
     if test or mlt:                                  #  probe fixtures: FP_NTEST stays 0, test_add adds nothing)
         flags += ['-DFPORT_TEST', f'-DFP_NTEST_={max(1, len(test))}'] + mlt
-        roots += ['FP_TEST', 'FP_NTEST']
+        roots += ['FP_TEST', 'FP_NTEST', 'FP_MLF', 'FP_MLSEED', 'FP_STKFREE']
     obj = rel if flags == list(rel_flags) else cobj.compile_c(SRC, tuple(flags), sections=True)
     syms, end, bss = cobj.link(p, obj, swreg.FPORT_AT, (4, 0), externs=ext, limit=swreg.FPORT_END, text_obj=4,
                                roots=roots)             # (a test build's own code: within the band only)
     assert not bss, ('fpad.c: no .bss (it would land on swe.c\'s)', bss)
     assert flags != list(rel_flags) or end == rel_end
+    # the mini-league producer (fpml.c + the engine's sr_stage closure), obj4 FPML: the release shape first (dry), then
+    # this build's (FPORT_TEST: FP_MLF / FP_MLSEED / the stack probe, fpad.c's)
+    mlt, mlf = ml_table()
+    nrow = len(mlt) // MLROW_SIZE
+    roots3 = ['fp_ml_open', 'fp_ml_need', 'fp_ml_result', 'fp_ml_busy', 'fp_ml_loaded', 'fp_ml_sim', 'fp_ml_table',
+              'fp_ml_get', 'fp_ml_row', 'FP_MLT', 'FP_MLTF', 'FP_MLN', 'FP_MLDONE']
+    ext3 = {k: ext[k] for k in ('FP_ST', 'FP_ML', 'FP_SEASON', 'FP_CWB', 'GP_GIN', 'GP_SEAS', 'GP_MGR')}
+    ext3.update({k: syms[k] for k in ('fp_log', 'fp_wake', 'fp_ml_add')})
+    rel3_flags = tuple(rel_flags) + (f'-DFP_MLN_={max(1, nrow)}',)
+    rel3 = cobj.compile_c(SRC3, rel3_flags, sections=True)
+    _, rel3_end, _ = cobj.link(_Dry(), rel3, swreg.FPML_AT, (4, 0), externs=ext3, limit=swreg.FPML_END, text_obj=4, roots=roots3)
+    left3 = swreg.FPML_END - rel3_end
+    assert left3 >= SLACK, ('fpad: the FPML band has under 256 B left (release shape) - stop and report to MC', left3)
+    flags3 = rel3_flags + (('-DFPORT_TEST',) + tuple(mlt_ for mlt_ in ml_test_flags()) if '-DFPORT_TEST' in flags else ())
+    if flags3 != rel3_flags:
+        ext3.update({k: syms[k] for k in ('FP_MLF', 'FP_MLSEED', 'FP_STKFREE')}, FP_STKLOWP=ext['FP_STKLOWP'])
+    obj3 = rel3 if flags3 == rel3_flags else cobj.compile_c(SRC3, flags3, sections=True)
+    syms3, end3, bss3 = cobj.link(p, obj3, swreg.FPML_AT, (4, 0), externs=ext3, limit=swreg.FPML_END, text_obj=4, roots=roots3)
+    assert not bss3, ('fpml.c: no .bss (its state is swe.c\'s FP_ML)', bss3)
+    p.put(*syms3['FP_MLT'], mlt or bytes(MLROW_SIZE))
+    p.put(*syms3['FP_MLTF'], mlf or b'\xff')
+    p.put(*syms3['FP_MLN'], struct.pack('<H', nrow))
+    for hook, f in (('FP_MLRES', 'fp_ml_result'), ('FP_MLBUSY', 'fp_ml_busy'), ('FP_MLLOAD', 'fp_ml_loaded')):
+        cobj.add_ptr(p, syms[hook][1], *syms3[f], syms[hook][0])
+    for hook, f in (('GP_PNEED', 'fp_ml_need'), ('GP_PLEND', 'fp_ml_open'), ('GP_PEND', 'fp_ml_open')):
+        cobj.add_ptr(p, gsyms[hook][1], *syms3[f], gsyms[hook][0])
+    syms = dict(syms, **syms3)
     p.put(*syms['FP_FMAP'], fmap)
     p.put(*syms['FP_DIV'], fdiv)
     p.put(*syms['FP_SET'], fset)
@@ -343,7 +453,13 @@ def patch(p, ssyms, gsyms):
     engine.CALL_AT['fp_save'] = syms2['fp_save']       # P5: engine.before_save (fpsave.c), the FP item at swe.c's FP_SAVE
     engine.ITEM_AT['FP'] = ssyms['FP_SAVE']
     LABELS.update(syms)
-    LABELS['FP_PORT'], LABELS['FP_ST'] = ssyms['FP_PORT'], ssyms['FP_ST']
+    LABELS['FP_PORT'], LABELS['FP_ST'], LABELS['FP_ML'] = ssyms['FP_PORT'], ssyms['FP_ST'], ssyms['FP_ML']
+    bss_all = PORT_SIZE + ST_SIZE + SAVE_SIZE + ML_N * ML_SIZE
+    SIZES.update(FPORT=(rel_end - swreg.FPORT_AT, left), FPORT2=(end2 - swreg.FPORT2_AT, left2),
+                 FPML=(rel3_end - swreg.FPML_AT, left3), BSS=bss_all, test=(end - swreg.FPORT_AT, end3 - swreg.FPML_AT))
+    print(f'exe: mini-league producer (fpml.c) obj4+{swreg.FPML_AT:#x}..{rel3_end:#x} of {swreg.FPML_END:#x} ({left3} B left, '
+          f'release shape' + (f'; this test build to {end3:#x}' if end3 != rel3_end else '') + f'), {nrow} row(s); the port\'s .bss '
+          f'(swe.c) {bss_all} B: FP_PORT {PORT_SIZE} + FP_ST {ST_SIZE} + FP_SAVE {SAVE_SIZE} + FP_ML {ML_N * ML_SIZE}')
     print(f'exe: fixture port (fpad.c) obj4+{swreg.FPORT_AT:#x}..{rel_end:#x} of {swreg.FPORT_END:#x} ({left} B left, '
           f'release shape' + (f'; this test build to {end:#x}, {swreg.FPORT_END - end} B left' if end != rel_end else '') + '), '
           f'{len(rows)} slot-4 windows ({len(fdiv) // 4} divisions, {len(fset)} B of sets), {256 - fmap.count(255)} league files'
@@ -351,5 +467,6 @@ def patch(p, ssyms, gsyms):
           + f'; FP save (fpsave.c) obj4+{swreg.FPORT2_AT:#x}..{end2:#x} of {swreg.FPORT2_END:#x} ({left2} B left)')
     if os.environ.get('FPAD_BANDS'):                    # (the bands' report on stderr: a build's stdout is captured)
         print(f'FPAD_BANDS FPORT end {rel_end:#x} ({left} B left){"" if end == rel_end else f", test build {end:#x}"}; '
-              f'FPORT2 end {end2:#x} ({left2} B left); obj4 pages {swe.OBJ4_PAGES}', file=__import__('sys').stderr)
+              f'FPORT2 end {end2:#x} ({left2} B left); FPML end {rel3_end:#x} ({left3} B left); .bss {bss_all} B; '
+              f'obj4 pages {swe.OBJ4_PAGES}', file=__import__('sys').stderr)
     return end

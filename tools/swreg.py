@@ -274,5 +274,15 @@ assert DIFF_END <= KITS_AT < KITS_END <= S7SWAP_AT < S7SWAP_END <= OBJ1MV_AT < O
     TCACHE_AT < TCACHE_END <= FRCH_AT < FRCH_END <= MKTHOOK_AT < MKTHOOK_END <= \
     MKTLOAD_AT < MKTLOAD_END <= MKTAGE_AT < MKTAGE_END <= DRP8D_AT < DRP8D_END < 0x30000, \
     'swreg (4.2 freeze): the release bands in map order, then the 4.3 reservations (obj4pack, MC 15/11)'
-assert 0x35000 <= FPORT_AT < FPORT_END <= CDKN_AT < CDKN_END <= FPORT2_AT < FPORT2_END, \
+# >>> TEMP-BANDS (Supercoppa Serie C lane 1, 17/11): the fixture port as RELEASE bands in the release tail - FPORT,
+# FPORT2 and the new FPML (fpml.c, the mini-league producer + the engine's sr_stage closure). Shaved registers the final
+# bands in his BSS_AT commit: his fold REPLACES this whole block (and the FPORT / FPORT2 lines above, the old test-only
+# places 0x35000 / 0x39000). Until then nothing else may use these names' literals.
+FPORT_AT, FPORT_END = 0x27500, 0x29500      # fpad.c (0x2000)
+FPORT2_AT, FPORT2_END = 0x29500, 0x2A700    # fpsave.c (0x1200)
+FPML_AT, FPML_END = 0x2A700, 0x2BF00        # fpml.c (0x1800 provisional: final = measured end + 256, rounded to 0x100)
+assert DRP8D_END <= FPORT_AT < FPORT_END == FPORT2_AT < FPORT2_END == FPML_AT < FPML_END < 0x30000, \
+    'swreg TEMP-BANDS: FPORT | FPORT2 | FPML adjacent after the 4.3 reservations, below the test region'
+# <<< TEMP-BANDS
+assert 0x35000 <= CDKN_AT < CDKN_END, \
     'swreg (4.2 freeze): the test-only bands after SP_METER (0x30000..0x34000) and DIFF_TC (0x34000..0x35000)'

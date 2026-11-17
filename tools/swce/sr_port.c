@@ -64,7 +64,8 @@ static int32_t check(const sr_port_fixture *f, int32_t n, int32_t from, const ui
         const sr_port_fixture *x = &f[i];
         int32_t e = 0;
         if (x->legs != 1 && x->legs != 2) e = SR_PORT_E_R3;
-        else if (x->level < SR_PORT_LV_ET_PENS || x->level > SR_PORT_LV_AWAY_BETTER ||
+        else if (x->level > SR_PORT_LV_AWAY_BETTER || (x->level == SR_PORT_LV_NONE && x->legs != 1) ||   /* TEMP-G1 (Mod lane 1, 17/11: level NONE = a
+                                               one-leg fixture that may end level; Convergence's engine sha replaces it) */
                  (x->legs == 1 && (x->level == SR_PORT_LV_AWAY_PENS || x->level == SR_PORT_LV_AWAY_BETTER)))
             e = SR_PORT_E_LEVEL;            /* (away goals need two legs) */
         else if (!x->match_id || ((x->flags & SR_PORT_F_REPLAY) && !x->prev_id)) e = SR_PORT_E_ID;
@@ -77,7 +78,8 @@ static int32_t check(const sr_port_fixture *f, int32_t n, int32_t from, const ui
         for (int32_t j = 0; !e && j < i; j++) {
             const sr_port_fixture *y = &f[j];
             if (y->match_id == x->match_id) e = SR_PORT_E_ID;
-            else if (shares(x, y) && !(y->unit2 < inst(h, x->unit1) || x->unit2 < inst(h, y->unit1)))
+            else if (shares(x, y) && !(y->unit2 <= inst(h, x->unit1) || x->unit2 <= inst(h, y->unit1)))   /* TEMP-G5 (Mod lane 1,
+                                               17/11, q13-probe: '<' -> '<=', the advance from a unit runs after its matches) */
                 e = SR_PORT_E_R5;           /* (the later one is installed over slot 4 at the advance before it: the
                                                earlier ends strictly before that; any club's, a job change keeps it) */
         }
@@ -140,6 +142,7 @@ int32_t sr_port_winner(const sr_port_fixture *f, const sr_port_result *r)
     if (!two && (r->g90b[0] || r->g90b[1])) return -1;
     if ((r->get[0] == NOGOAL) != (r->get[1] == NOGOAL) || (r->pens[0] == NOGOAL) != (r->pens[1] == NOGOAL)) return -1;
     if (a != b) return et || pens ? -1 : a < b;                     /* (decided in 90': nothing after) */
+    if (lv == SR_PORT_LV_NONE) return et || pens ? -1 : 2;          /* TEMP-G1: level NONE, a level score stands - winner 2 */
     if (away && r->g90b[1] != r->g90[1])                            /* (away goals: side 0's in leg 2, side 1's in 1) */
         return et || pens ? -1 : r->g90b[1] < r->g90[1];
     if (lv == SR_PORT_LV_ET_PENS || lv == SR_PORT_LV_ET_BETTER || lv == SR_PORT_LV_AWAY_PENS) {

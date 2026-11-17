@@ -205,6 +205,7 @@ static u8 EK[NCUP][NRD][NE];            /* side for D_CROSS (0 = this cup's, 1 =
 static u8 EN[NCUP][NRD];
 static u8 taken[NC + 1];                /* the access pass: the club already has a place (this edition) */
 static u16 own[NC + 1];                 /* a holder defending cup c (bit c): its league place in that cup is its own (CAF IV.5) */
+static u16 hdk[NCUP];                   /* the club defending cup c under CAF IV.5 (0 none): never cleared in the access (IV.4) */
 
 static void enter(int c, int r, int club, int via, int side) {
     if (!club || r >= nrd[c] || EN[c][r] >= NE) return;
@@ -227,8 +228,33 @@ static int next_club(int a) {          /* the best league club of association a 
     }
     return 0;
 }
+static int acc_assoc(int j) {           /* access entry j's association (a guest's place: its club's, -1 none this season) */
+    const u8 *e = acc + 4 * j;
+    if (e[0] != 0xFE) return e[0];
+    int g = e[3] < ngu ? GI[e[3]] : 0;
+    return g ? assoc(g) : -1;
+}
+static int holder_last(int i, int a, int c) {
+    /* CAF art. IV.5 (CL and CC): an association engages at most 2 clubs and the holder defending the cup is one of them:
+       a holder not on one of its association's earlier places takes the association's LAST place (access entry i) - the
+       lowest qualifier drops. The same for a guest association's listed places. 1: place i is the holder's */
+    for (int j = i + 1; j < nacc; j++) if (acc[4 * j + 1] == c && acc_assoc(j) == a) return 0;
+    int hk = 0;
+    for (int h = 1; h <= CT_IN.nclub; h++) if (own[h] & 1 << c && assoc(h) == a) hk = h;
+    if (hk) own[hk] &= ~(1 << c);
+    return hk != 0;
+}
+static int defends(int club, int c) {   /* CAF art. IV.4: the club defends another cup (its title), not this place */
+    for (int d = 0; d < NCUP; d++) if (d != c && hdk[d] == club) return 1;
+    return 0;
+}
+static int entered(int c, int club) {   /* the club already has an entry in cup c (any round) */
+    for (int r = 0; r < nrd[c]; r++) for (int i = 0; i < EN[c][r]; i++) if (E[c][r][i] == club) return 1;
+    return 0;
+}
 static void access(void) {
     for (int c = 0; c <= NC; c++) taken[c] = own[c] = 0;
+    for (int c = 0; c < NCUP; c++) hdk[c] = 0;
     for (int g = 0; g < ngu && g < 256; g++) {       /* the guests: clubs of their own every season (no table) */
         const u8 *e = gu + 8 * g;
         GI[g] = 0;
@@ -262,7 +288,7 @@ static void access(void) {
                 CT_IN.club[k - 1].str = CT_ST.hold[s].str; CT_IN.club[k - 1].pts = CT_ST.hold[s].pts;
             }
         }
-        if (k) { enter(e[1], e[2] & 0x1F, k, 0, e[3]); taken[k] = 1; if ((e[2] & 0x80) && e[0] == e[1]) own[k] |= 1 << e[1]; }
+        if (k) { enter(e[1], e[2] & 0x1F, k, 0, e[3]); taken[k] = 1; if ((e[2] & 0x80) && e[0] == e[1]) { own[k] |= 1 << e[1]; hdk[e[1]] = k; } }
         /* (a holder may hold places in two cups: the Recopa; own[]: CAF, the holder defending a cup - the CL holder in the CL, the
            CC holder in the CC, not the Super Cup entry a holder also has: a bit per cup, so one never erases the other) */
     }
@@ -275,8 +301,14 @@ static void access(void) {
         int a = e[0], c = e[1], r = e[2], k = e[3], club = 0;
         if (a == 0xFE) {                /* a guest's place (its real access, data's list): k = the guest */
             club = k < ngu ? GI[k] : 0;
-            if (club) { enter(c, r, club, 0, 0); taken[club] = 1; }   /* (a listed club may hold two places:
-                                                                            season 1's stand-in holders, the Recopa) */
+            if (!club) continue;
+            if (own[club] & 1 << c) { own[club] &= ~(1 << c); continue; }   /* (the holder's own place, as a league place:
+                                                                                CAF IV.5 - never a second entry) */
+            if (defends(club, c) || entered(c, club)) continue;   /* (CAF IV.4: it defends the other cup, this place stays
+                                                                     empty - a guest has no table to pass it down; a holder
+                                                                     of another rule: one entry per cup) */
+            if (holder_last(i, assoc(club), c)) continue;           /* (CAF IV.5: the holder takes the last place) */
+            enter(c, r, club, 0, 0); taken[club] = 1;   /* (a listed club may hold places in two cups: the Recopa) */
             continue;
         }
         if (k == 0) club = CT_IN.league[a][0];
@@ -285,17 +317,7 @@ static void access(void) {
         else if (k == C_CL) club = CT_IN.cl[a];
         else if (k >= 2 && k <= NL) club = CT_IN.league[a][k - 1];
         if (club && taken[club] && (own[club] & 1 << c)) { own[club] &= ~(1 << c); continue; }   /* (the holder's own place) */
-        if (!club || !taken[club] || !(own[club] & 1 << c)) {       /* CAF art. IV.5 (CL and CC): an association engages at most 2 clubs,
-                                                                       and the holder defending the cup is one of them: when the holder
-                                                                       is not on one of the earlier places it takes the association's
-                                                                       LAST place - the lowest qualifier drops */
-            int last = 1, hk = 0;
-            for (int j = i + 1; j < nacc; j++) if (acc[4 * j] == a && acc[4 * j + 1] == c) last = 0;
-            if (last)
-                for (int h = 1; h <= CT_IN.nclub; h++)
-                    if (own[h] & 1 << c && assoc(h) == a) hk = h;
-            if (hk) { own[hk] &= ~(1 << c); continue; }
-        }
+        if (holder_last(i, a, c)) continue;          /* CAF art. IV.5 */
         if (club && taken[club]) club = 0;          /* already in: the place passes down the table */
         if (!club) club = next_club(a);   /* (the place passes to the association's next-ranked club not yet in -
                                              CONMEBOL Reglamento Sudamericana: a vacant place goes to the next club of

@@ -221,6 +221,7 @@ CAREER_END = [None]                # the career cave's end after its code (4.0.1
 
 def patch_exe(src, dst, remap, lang='it'):
     __import__('gphooks').reset()                # (4.2: the gplay hook registry, per exe)
+    __import__('tempmark').reset()               # (MC 17/11: the TEMP markers of this exe)
     CAREER_END[0] = None
     LT_SPACE.clear()
     LR_ROOM.clear()
@@ -1162,6 +1163,7 @@ def patch_exe(src, dst, remap, lang='it'):
     __import__('gphooks').check(p)               # 4.2: every gplay hook site still leads to what gphooks.link wired
     if __import__('frnd').on():
         __import__('frnd').check(p)              # 4.2 friendlies: the season hook, GP_PSTEP / GP_PLEG, fi_gate's dword
+    __import__('tempmark').check()               # MC 17/11: a release build with a TEMP-* block linked is REFUSED here
     delta, shift = p.save(dst)
     dd = os.path.join(os.path.dirname(os.path.abspath(dst)), 'DATA')
     if os.path.isdir(dd):                        # (the neutral finals' strings: exact in this exe / its DATA)

@@ -342,6 +342,11 @@ def patch(p, ssyms, gsyms):
     for k, n in (('FP_PORT', PORT_SIZE), ('FP_ST', ST_SIZE), ('FP_SAVE', SAVE_SIZE), ('FP_ML', ML_N * ML_SIZE)):   # (swe.c's .bss: past every obj4 band, inside the vsize)
         o, a = ssyms[k]
         assert o == 4 and a >= band and a + n <= vsize, ('fpad: swe.c .bss', k, hex(a), hex(band), hex(vsize))
+    import tempmark                     # (MC 17/11: the temporary patches this link carries - a release build refuses them)
+    tempmark.temp_marker('G1')          # tools/swce/sr_port.c + swosrules.h (fpad.c includes them)
+    tempmark.temp_marker('G5')          # tools/swce/sr_port.c rule 5
+    tempmark.temp_marker('MINILG')      # tools/swce/sr_stage.c sr_mini_sched (fpml.c includes it)
+    tempmark.temp_marker('BANDS')       # tools/swreg.py FPORT / FPORT2 / FPML
     fmap, rows, bad = window_table()
     assert rows, ('fpad: no slot-4 windows for world', world())
     import careerworld

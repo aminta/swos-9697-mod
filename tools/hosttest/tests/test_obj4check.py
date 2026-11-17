@@ -1,7 +1,8 @@
 """obj4check (tools/obj4check.py, MC 15/11: the 4.2 rc freeze's obj4 release-shape checker) on synthetic obj4 images
 built from this checkout's swreg bands - a clean release shape PASSes, and each control is caught:
 - (a) a planted all-zero page (and an --allow'ed one only reported);
-- (b) a band overflow: PRACTICE filled to 100 B under its end (floor 256), and a linked band past OBJ4_PAGES;
+- (b) a band overflow: PRACTICE filled to 100 B under its end (floor 256), and a linked extent past the file pages (a band
+  past them is only info: the file ends at the highest linked byte, MC 17/11);
 - (b) a log extent (a zero-filled table the build reports) counts as used;
 - (c) a test-only band (CDKN) and a 4.3 reservation (MKTHOOK) with bytes in a release exe;
 - the nested band rule (SLOW owns up to NAMEFIT), the log parser per exe ('OK <path>' sections, '... zero' skipped);
@@ -94,13 +95,16 @@ def test_obj4check_control_overflow():
     o[a:e - 100] = b'\x90' * (e - 100 - a)
     f, _, _ = oc.check_obj4(o, BL)
     assert any(x.startswith('(b) band PRACTICE') and '100 B free' in x for x in f), f
-    o2 = clean()[:(a // 0x1000 + 1) * 0x1000]           # (OBJ4_PAGES cut inside PRACTICE)
-    f2, _, _ = oc.check_obj4(o2, BL)
-    assert any('PRACTICE' in x and 'crosses OBJ4_PAGES' in x for x in f2), f2
+    cut = (a // 0x1000 + 1) * 0x1000                    # (MC 17/11: the file ends at the highest LINKED byte - a band past
+    o2 = clean()[:cut]                                  # the file pages is the norm, only its USED end must be inside)
+    f2, i2, _ = oc.check_obj4(o2, BL)
+    assert not any('PRACTICE' in x for x in f2) and any('band PRACTICE' in x and 'file pages end at' in x for x in i2), (f2, i2)
+    f2, _, _ = oc.check_obj4(o2, BL, extents=[(a, cut + 0x40)])   # (a linked table the log reports, past the file pages)
+    assert any(x.startswith('(b) band PRACTICE') and 'past the file pages' in x for x in f2), f2
     o3 = clean()
     f3, _, _ = oc.check_obj4(o3, BL, extents=[(B['KITS'][0], B['KITS'][1] - 64)])
     assert any(x.startswith('(b) band KITS') and '64 B free' in x for x in f3), f3
-    return True, 'PRACTICE 100 B free caught, PRACTICE past OBJ4_PAGES caught, a log extent counted (KITS 64 B)'
+    return True, 'PRACTICE 100 B free caught, a band past the file end info only, a linked extent past it caught, a log extent counted (KITS 64 B)'
 
 
 def test_obj4check_control_test_only():

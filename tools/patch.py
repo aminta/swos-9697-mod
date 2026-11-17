@@ -1171,6 +1171,18 @@ def patch_exe(src, dst, remap, lang='it'):
     if __import__('frnd').on():
         __import__('frnd').check(p)              # 4.2 friendlies: the season hook, GP_PSTEP / GP_PLEG, fi_gate's dword
     delta, shift = p.save(dst)
+    import le as _le, lepatch as _lp, swreg as _sr   # 4.2 (MC 17/11): obj4's file pages end at its highest LINKED byte
+    raw = open(dst, 'rb').read()                  # (put() or a C .bss: LEPatch.hi), never at a band END; vsize unchanged
+    _l = _le.LE(dst)
+    if len(_l.objs) == 4:
+        n4, keep = _l.obj(4).npages, -(-p.hi.get(4, 0) // 0x1000)
+        raw, k = _lp.trim_tail(raw, 4, keep)
+        if k:
+            open(dst, 'wb').write(raw)
+        lo, hi4 = (n4 - k) * 0x1000, n4 * 0x1000
+        cut = [n for a, b, n in _sr.bands() if a < hi4 and b > lo] if k else []
+        print(f'exe: obj4 file pages {n4} -> {n4 - k} (highest linked byte obj4+{p.hi.get(4, 0):#x}; '
+              f'bands in the dropped pages, none linked: {", ".join(cut) or "none"})')
     dd = os.path.join(os.path.dirname(os.path.abspath(dst)), 'DATA')
     if os.path.isdir(dd):                        # (the neutral finals' strings: exact in this exe / its DATA)
         print(f'exe: stadium venues: {stadium.vcheck_exe(dst, lang, dd)} {lang} strings found')

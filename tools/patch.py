@@ -410,6 +410,10 @@ def patch_exe(src, dst, remap, lang='it'):
     import s6sea
     if s6sea.on():                                     # 4.2 S6 (MC 16/11): world seasons' band after TKUI (0x1E pages)
         swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, s6sea.page_end() // 0x1000)
+    import frnd
+    if frnd.on():                                      # 4.2 friendlies (frnd.py): FRSS.DAT through the file layer, the
+        swe.SWEFILE = True                             # FRND band's pages
+        swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, (swreg.FRND_END + 0xFFF) // 0x1000)
     import swefile
     if swefile.on():                                   # 4.2 file layer (MC 12/11): page 18, only when linked
         swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, swefile.page_end() // 0x1000)
@@ -1120,6 +1124,8 @@ def patch_exe(src, dst, remap, lang='it'):
                     gplay.LABELS, fpad.LABELS['FP_MLDONE'], winners.LABELS.get('WN_MLP'))
         import gphooks                           # (the management record's line: gplay.c gp_rlines_c's hook -> fpv_rline_c,
         gphooks.register('GP_PRLINE', 'nazionali', fpmlv.LABELS['fpv_rline_c'][:2])   # no next dword: the chain's end)
+    import frnd                                  # 4.2 friendlies: frstep.c at obj4+FRND_AT, FRND first on the port's hooks
+    frnd.patch(p, swe.LABELS, gplay.LABELS)      # (after fpad: its fp_step / fp_leg chained; dormant: nothing)
     import gphooks                               # 4.2 (MC 17/11): every gplay hook chain wired once, one fixup per site
     if gphooks.REG:
         print(f'exe: gplay hooks: {gphooks.summary()}')
@@ -1154,6 +1160,8 @@ def patch_exe(src, dst, remap, lang='it'):
     if 'X3' in gplay.LABELS:
         gplay.x3_check(p)                        # 4.2 X3: GP_SCDONE bound to gplay3.c's sc_done in obj3
     __import__('gphooks').check(p)               # 4.2: every gplay hook site still leads to what gphooks.link wired
+    if __import__('frnd').on():
+        __import__('frnd').check(p)              # 4.2 friendlies: the season hook, GP_PSTEP / GP_PLEG, fi_gate's dword
     delta, shift = p.save(dst)
     dd = os.path.join(os.path.dirname(os.path.abspath(dst)), 'DATA')
     if os.path.isdir(dd):                        # (the neutral finals' strings: exact in this exe / its DATA)
@@ -1198,6 +1206,8 @@ def hosttest_syms(dst):
                 d.setdefault('@' + k, [0, v[0]])
         if d:
             out[name] = d
+    import srcstamp                             # (MC 16/11: the source this build was made from - the harness
+    out['_src'] = srcstamp.as_syms(srcstamp.stamp())   #  refuses it for any other tree, swostest build_stale)
     json.dump(out, open(os.path.splitext(dst)[0] + '.syms.json', 'w'), indent=0, sort_keys=True)
     print(f'exe: hosttest symbols {sum(len(v) for v in out.values())} in {len(out)} modules')
 

@@ -96,6 +96,7 @@ fi_charge:                              ; replaces `add word [C1750DA], 1` in cs
 
 fi_gate:                                ; replaces `and dword [D7], 0FFFFh` (cseg_3C4CE's gate receipts, a jump target)
 GATE_FORCE
+FR_GATE
     cmp dword [D7], 0FFFFh
     jle .and
     mov dword [D7], 0FFFFh              ; saturated, not wrapped
@@ -107,6 +108,7 @@ GATE_FORCE
     add [FF_INC], eax
     pop eax
     jmp GATE_BACK
+FR_GATE_DD
 
 fi_old:                                 ; replaces `mov eax, [NEWBAL]; mov [OLDBAL], eax` (both statement period starts:
     mov eax, [NEWBAL]                   ; the season's, cseg_4DD58, and the match day's, cseg_4E148, with the rows'
@@ -252,6 +254,24 @@ def levels(lang):
     return out
 
 
+FR_GATE = r"""
+    cmp dword [FI_FRGATE], 0            ; (4.2 friendlies, frnd.py: frstep.c fr_gate(D7) - slot 4's friendly: its fee >> 4)
+    je .fr
+    pushad
+    push es
+    push ds
+    pop es
+    cld
+    push dword [D7]
+    call [FI_FRGATE]
+    add esp, 4
+    mov [D7], eax
+    pop es
+    popad
+.fr:"""
+FR_GATE_DD = 'FI_FRGATE: dd 0'
+
+
 def patch(p, at, lang):
     """Code + tables at obj3:at; returns the end."""
     import sacups
@@ -276,6 +296,9 @@ def patch(p, at, lang):
                 'MAXDIV_': (0, MAXDIV), 'NBASE_': (0, len(BASE)), 'WAGE_MUL_': (0, WAGE_MUL), 'WAGE_DIV_': (0, WAGE_DIV)})
     force = os.environ.get('FIN_GATE_FORCE')              # (test builds only: every gate forced over the 16 bits)
     src = nasmcave.sub(ASM, 'GATE_FORCE', '    mov dword [D7], 12345h' if force else '')
+    import frnd                                           # 4.2 friendlies: a friendly's fee instead of the slot-4 'final'
+    src = nasmcave.sub(src, 'FR_GATE_DD', FR_GATE_DD if frnd.on() else '')   # (frstep.c fr_gate; FI_FRGATE bound by
+    src = nasmcave.sub(src, '\nFR_GATE\n', '\n' + (FR_GATE if frnd.on() else '') + '\n')   # frnd.py)
     src = nasmcave.sub(nasmcave.sub(src, 'BASE_DD', 'dd ' + ', '.join(str(b) for b in BASE)),
                        'LV_DB', '\n    '.join(rows))
     src = nasmcave.sub(src, 'ROW_DB', 'db ' + ', '.join(str(c) for c in ROW[lang].encode('ascii') + b'\0'))

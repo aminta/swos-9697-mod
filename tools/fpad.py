@@ -263,7 +263,8 @@ def vendored():
 
 
 OFFS = ('O_KO', 'O_SEASON', 'O_KIND', 'O_TW', 'O_TEAM', 'O_D1', 'O_D2', 'O_RS', 'O_MDIV', 'C_MAGIC', 'C_NOC', 'C_KPORT',
-        'C_NEUTRAL', 'C_SCE', 'C_SCUEFA', 'KO_SIZE', 'O_INN', 'O_INT', 'O_INMGR', 'C_GD', 'C_GT', 'C_ROW', 'O_RPTS', 'O_INSIM', 'C_SDX')
+        'C_NEUTRAL', 'C_SCE', 'C_SCUEFA', 'KO_SIZE', 'O_INN', 'O_INT', 'O_INMGR', 'C_GD', 'C_GT', 'C_ROW', 'O_RPTS', 'O_INSIM', 'C_SDX',
+        'O_PTS', 'C_KFR', 'C_LVBETTER')   # (the last 3: frstep.c)
 
 
 def gp_offsets(cflags):

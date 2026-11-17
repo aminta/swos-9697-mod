@@ -34,8 +34,8 @@ Hooks (the 6 inserts of the original obj1, all `66 83 05 <NUMSEL> 01`, asserted 
 Place: obj3's chain (CONVENTIONS 23: mod code in obj3; 23bis: obj4 is the engine's - MC 16/11, option A), every build.
 Callers never use a literal address: each one holds a dword that tcache binds once it is placed (ref(): p.retarget /
 add_ptr to the entry; the trailer's after_process entry through engine.CALL_AT + trailer.late). check() at the end of
-patch_exe asserts every registered dword is bound, non-zero and inside tcache's code. (swreg TCACHE_AT..TCACHE_END stays
-RESERVED, unused, until 4.3 folds it into MKTHOOK.)
+patch_exe asserts every registered dword is bound, non-zero and inside tcache's code. (The old swreg band for it,
+obj4+0x1FC00..0x1FF00, was never used: folded into FRND, MC 16/11.)
 """
 import re
 import struct

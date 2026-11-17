@@ -247,8 +247,9 @@ static u8 sc_g, sc_from;                /* the scroll: group (1 ..), first place
 static int pm(int g, int p) { return p + (g == sc_g && sc_from && p + 1 >= sc_from); }   /* a listed place -> the real place */
 static int cup_place(int ng) {
     struct cup_view v;
-    v.ng = ng; v.gap = DP_CG1; v.real = 1; v.w = DP_IN.cupw; v.f = DP_IN.cupf;
-    for (int g = 0; g < ng; g++) { v.t[g] = (const struct cv_row *)DP_IN.t[g + 1]; v.n[g] = DP_IN.n[g + 1]; }
+    static const u8 cg[4] = { DP_CG1, DP_CG2, DP_CG3, DP_CG4 };
+    v.ng = ng; v.real = 1; v.w = DP_IN.cupw; v.f = DP_IN.cupf;
+    for (int g = 0; g < ng; g++) { v.t[g] = (const struct cv_row *)DP_IN.t[g + 1]; v.n[g] = DP_IN.n[g + 1]; v.gap[g] = cg[g]; }
     int r = ((int (*)(struct cup_view *))DP_RULEP)(&v);
     sc_g = v.sfrom ? v.sg + 1 : 0; sc_from = v.sfrom;
     return (1 + (r >> 5)) * NT + (r & 31);
@@ -272,6 +273,105 @@ static int cup_place(int ng) {
     return best_of(e, ng);
 }
 
+#endif
+
+/* Serie C play-off winner already promoted by the table (4.2 S3, MC 16/11): the place goes on. Exactly 4 clubs leave a
+   Serie C group set upwards (3 group winners + the play-off's). The list was built at the career club's group end
+   (c_lend), when the other groups' tables were simulated early; the final tables can differ, so a club of the list can
+   end 1st of its group (promoted by the title) or down in the relegation zone. Eligible = not 1st, not in the last 5 of
+   its group. Order: the final's loser, then the two semi-final losers (better placed first, `better`), then (an old save past round 5, no record) the best eligible of the others in the state's list; none: 3 clubs go up, DP_SUBF = 1.
+   Eligible = not 1st of its group and not in the last 5 of it on the final tables (a little stricter than 'relegated or in a lost
+   play-out place', harmless). */
+#ifdef DP_STATS
+u32 DP_SUBN[4];
+#define DP_STAT(i) DP_SUBN[i]++
+#else
+#define DP_STAT(i)
+#endif
+                         /* (test / log) substitutions: final's loser, semi-final loser, state list, none */
+u8 DP_SUBF;                             /* the last season end: 1 = no substitute (3 up) */
+#define NOINL __attribute__((noinline))
+static int c_elig(int g, int k) { return k > 0 && k < DP_IN.n[g] - 5; }
+static int club_of(u16 team) {         /* the ELIGIBLE club of a team number (c_elig), -1 otherwise */
+    for (int g = 1; g <= DP_IN.ng; g++)
+        for (int k = 1; k < DP_IN.n[g] - 5; k++) if (DP_IN.t[g][k].team == team) return g * NT + k;
+    return -1;
+}
+/* the contest record (rb[6..7] + cup's low bits, cup bit 7 = valid): four 5-bit state indices */
+#define FREC_OK(v) ((v)->cup & 0x80)
+#define FREC(v) ((u32)(v)->rb[6] | (u32)(v)->rb[7] << 8 | (u32)((v)->cup & 63) << 16)
+static void frec_set(struct dp_save *v, const u8 *e) {   /* the Final Four's four clubs, tie by tie (a bit 20 / 21 later: the second of a tie won) */
+    u32 x = e[0] | e[1] << 5 | e[2] << 10 | e[3] << 15;
+    v->rb[6] = x & 255; v->rb[7] = x >> 8 & 255; v->cup = 0x80 | (x >> 16 & 15);
+}
+/* the substitute for a play-off winner (team DP_IN.cpo_win, club w) that the final tables do not allow: over the state's list,
+   class 0 = the final's loser, 1 = the semi-final losers, 2 = any other club of the list (no record: an old save), the
+   better placed first inside a class; -1 = none */
+static NOINL int c_sub(void) {
+    const struct dp_save *v = &DP_ST;
+    u32 x = FREC_OK(v) ? FREC(v) : ~0u;
+    u8 cls[32];
+    int best = -1, bk = 9;
+    for (int i = 0; i < 32; i++) cls[i] = 2;
+    for (int p = 0; p < 2; p++) {       /* the record: pair p = the clubs x >> 10p and x >> 10p + 5, bit 20 + p = the second won */
+        int a = (x >> 10 * p) & 31, b = (x >> (10 * p + 5)) & 31, d = (x >> (20 + p)) & 1;
+        cls[d ? a : b] = 1;             /* the semi-final loser */
+        cls[d ? b : a] = 3;             /* the final's entrant: 0 if the other final entrant won (below) */
+    }
+    for (int i = 0; i < SN; i++) if (cls[i] == 3) cls[i] = v->team[i] == DP_IN.cpo_win ? 4 : 0;
+    for (int i = 0; i < v->n; i++) {
+        int c = club_of(v->team[i]), k = cls[i];
+        if (c < 0 || k > bk || (k == bk && !better(c, best))) continue;
+        best = c; bk = k;
+    }
+    DP_STAT(best < 0 ? 3 : bk);
+    return best;
+}
+
+
+#ifndef DP_FREC
+#define DP_FREC 0
+#endif
+#if DP_FREC
+/* test builds (DPLAY_FREC = 1..3, MC 16/11): just before serie_c reads the Final Four record, make the real winner R of the career club's
+   Serie C play-off ineligible (1st of its group in DP_IN: the game's own tables are not touched, the substitute is dplay's):
+   1: R -> 1st of its group; the final's loser goes up. 2: also the final's loser L is ineligible (taken out of the tables):
+   the best semi-final loser goes up. 3: the career club is made the final's loser (the record is rewritten: the final is R v the
+   career club); R -> 1st of its group: the career club goes up. Without the switch none of this is compiled in. */
+static void swap_rows(int g, int a, int b) { struct dp_row x = DP_IN.t[g][a]; DP_IN.t[g][a] = DP_IN.t[g][b]; DP_IN.t[g][b] = x; }
+static int find_team(u16 team, int *g, int *k) {
+    for (*g = 1; *g <= DP_IN.ng; (*g)++) for (*k = 0; *k < DP_IN.n[*g]; (*k)++) if (DP_IN.t[*g][*k].team == team) return 1;
+    return 0;
+}
+static void frec_force(void) {
+    struct dp_save *v = &DP_ST;
+    int gr, kr, ir = -1;
+    if (!DP_IN.cpo_win || v->kind != 3 || !FREC_OK(v) || !find_team(DP_IN.cpo_win, &gr, &kr)) return;
+    for (int i = 0; i < v->n; i++) if (v->team[i] == DP_IN.cpo_win) ir = i;
+#if DP_FREC == 3
+    {
+        u8 e[4], o[2], j = 0;
+        int ic = -1;
+        for (int i = 0; i < v->n; i++) if (v->team[i] == DP_IN.mgr) ic = i;
+        if (ic < 0 || ir == ic) return;
+        for (int i = 0; i < v->n && j < 2; i++) if (i != ir && i != ic) o[j++] = i;
+        e[0] = ir; e[1] = o[0]; e[2] = ic; e[3] = o[1];
+        frec_set(v, e);
+    }
+#endif
+#if DP_FREC == 4
+    v->cup = 0;                         /* (the record's valid bit cleared: what a 4.1 save holds) */
+#endif
+#if DP_FREC == 2
+    {
+        u32 x = FREC(v);
+        int w0 = (x >> (x >> 20 & 1 ? 5 : 0)) & 31, w1 = (x >> (x >> 21 & 1 ? 15 : 10)) & 31, l = w0 == ir ? w1 : w0, gl, kl;
+        if (find_team(v->team[l], &gl, &kl)) DP_IN.t[gl][kl].team = 0xFFFE;       /* (not in the tables: not eligible) */
+    }
+#endif
+    (void)ir;
+    swap_rows(gr, kr, 0);
+}
 #endif
 
 static void serie_c(void) {
@@ -318,10 +418,17 @@ static void serie_c(void) {
         shuffle(w2, 4);
         int f1 = tie(K_FFS, w2[1], w2[0], 2, -1), f2 = tie(K_FFS, w2[3], w2[2], 2, -1);
         int w = tie(K_FFF, f2, f1, 2, -1);
+#if DP_FREC
+        frec_force();
+#endif
         for (int g = 1; g <= ng && DP_IN.cpo_win; g++)          /* (played in slot 4: its real winner) */
             for (int k = 0; k < DP_IN.n[g]; k++)
-                if (DP_IN.t[g][k].team == DP_IN.cpo_win) w = g * NT + k;
-        move(w, -1);
+                if (DP_IN.t[g][k].team == DP_IN.cpo_win) {
+                    w = g * NT + k;
+                    if (!c_elig(g, k)) w = c_sub();
+                }
+        DP_SUBF = w < 0;
+        if (w >= 0) move(w, -1);
     }
 }
 
@@ -485,7 +592,7 @@ static void c_lend(void) {
 #endif
         if (p == 2) { v->place[i] = cup % NT; v->group[i++] = cup / NT; }
     }
-    v->kind = 3; v->n = SN; v->cup = 24;
+    v->kind = 3; v->n = SN; v->cup = 0;                 /* (cup's place is always 24; the byte now holds the final-four record) */
     for (int k = 0; k < SN; k++) {
         const struct dp_row *r = &DP_IN.t[v->group[k]][v->place[k]];
         v->team[k] = r->team; v->pts[k] = r->pts; v->won[k] = r->won; v->gf[k] = r->gf; v->prio[k] = v->place[k];
@@ -567,7 +674,7 @@ u32 dp_perm_c(void) {
     if (DP_PR == 2) {                   /* national round 1: seeds = the 3rds, the cup winner, the best qualifier */
         u8 q[6], s[5], o[5]; int b = 0, k = 0;
         for (int i = 0; i < 6; i++) { q[i] = t[i]; if (sbetter(q[i], q[b])) b = i; }
-        s[0] = 21; s[1] = 22; s[2] = 23; s[3] = v->cup; s[4] = q[b];
+        s[0] = 21; s[1] = 22; s[2] = 23; s[3] = 24; s[4] = q[b];
         for (int i = 0; i < 6; i++) if (i != b) o[k++] = q[i];
         return seeded_round(s, 5, o);
     }
@@ -580,8 +687,15 @@ u32 dp_perm_c(void) {
     }
     if (DP_PR == 4 || DP_PR == 5) {     /* Final Four: free draw, then the final */
         int n = DP_PR == 4 ? 4 : 2;
+        if (DP_PR == 5 && FREC_OK(v)) {  /* the semi-finals' winners in tie order: which of each pair won */
+            u32 x = FREC(v);
+            v->cup |= (t[0] == (x >> 5 & 31) ? 16 : 0) | (t[1] == (x >> 15 & 31) ? 32 : 0);
+        }
         for (int i = 0; i < n; i++) DP_PL[i] = t[i];
-        if (n == 4) sshuffle(DP_PL, 4);
+        if (n == 4) {
+            sshuffle(DP_PL, 4);
+            frec_set(v, DP_PL);                                         /* (the pairs: ties 0 and 1) */
+        }
         return n;
     }
     return 0;

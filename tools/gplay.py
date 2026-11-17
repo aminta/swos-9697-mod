@@ -1796,10 +1796,33 @@ gp_find:                                ; edx = a league struct -> esi = its GP_
     ret
 
 %if S3SKIP
+gp_s3loc:                               ; (4.2 S3, S7: a league struct's spec numbers its play-offs LOCALLY - the skip bits are per spec: GP_S3T row, the
+    push eax                            ; GP_TAB row of GP_IN's spec) out: edx = its (maskB, maskC) pair, 0 = no row
+    push esi
+    mov eax, [GP_IN + O_SPEC]
+    mov esi, GP_TAB
+    mov edx, GP_S3T
+.l: cmp dword [esi], 0
+    je .no
+    cmp [esi + 5], eax
+    je .y
+    add esi, 9
+    add edx, 8
+    jmp .l
+.no:
+    xor edx, edx
+.y: pop esi
+    pop eax
+    ret
+
 gp_s3pre:                               ; (4.2 S3, MC 15/11: the VINCITORI preview runs gp_season before dplay's dp_end has set DP_BHOLD / DP_CHOLD: the
     push eax                            ; skip mask comes from dplay's saved state itself - a Serie B (kind 1, 2) / Serie C (kind 3) play-off that
     push ecx                            ; dplay runs THIS season is dplay's: the preview lists no gplay line for it. gp_season clears the mask)
+    push edx
     xor ecx, ecx
+    call gp_s3loc
+    test edx, edx
+    jz .w
     cmp word [DPSAVE], 5044h
     jne .w
     mov al, [SEASONPLAYING]
@@ -1809,16 +1832,17 @@ gp_s3pre:                               ; (4.2 S3, MC 15/11: the VINCITORI previ
 %if S3MB
     cmp al, 3
     jae .c
-    mov ecx, S3MB
+    mov ecx, [edx]
     jmp .w
 .c:
 %endif
 %if S3MC
     cmp al, 3
     jne .w
-    mov ecx, S3MC
+    mov ecx, [edx + 4]
 %endif
 .w: mov [GP_SKIPPO], ecx
+    pop edx
     pop ecx
     pop eax
     ret
@@ -1925,18 +1949,22 @@ gp_end:                                 ; replaces `call cseg_9228D` (after dpla
     call gp_c
 %if S3SKIP
     xor eax, eax                        ; (4.2 S3: the play-offs dplay finished this season end - a Serie B phase of an old save,
+    call gp_s3loc                       ; (S7: the bits are this struct's spec's local indexes: GP_S3T)
+    test edx, edx
+    jz .nsx
 %if S3MB                                ; the career club's Serie C play-off: gp_season skips them once - transient, gp_season
     cmp byte [DP_BHOLD], 0              ; clears it)
     je .nsk
-    or eax, S3MB
+    or eax, [edx]
 .nsk:
 %endif
 %if S3MC
     cmp byte [DP_CHOLD], 0
     je .nsc
-    or eax, S3MC
+    or eax, [edx + 4]
 .nsc:
 %endif
+.nsx:
     mov [GP_SKIPPO], eax
 %if S3MC
     mov ax, [DPIN_CUPW]                 ; (the Coppa Italia Serie C's winner and finalist for c_po's cup place, the dplay-captured ones)
@@ -2042,6 +2070,29 @@ CD_RNAME = '''
     stc
     ret
 .ncd:'''
+FR_RNAME = '''
+    cmp byte [GP_ST + ST_KO + 6], 13    ; (gp_ko.kind: K_FR) 4.2 a preseason friendly (Davide 17/11): no round name -
+    jne .nfr                            ; rnames' empty FR_I entry ('AMICHEVOLE', not 'AMICHEVOLE FINALE')
+    mov al, FR_I
+    pop ebx
+    stc
+    ret
+.nfr:'''
+GP_RFR = '''
+gp_rfr:                                 ; 4.2 FRND (rnames RN_FRP, rn_round's head in every world, a contest id FEh):
+    cmp word [GP_ST + ST_KO], 4B47h     ; ko[0] a preseason friendly of this season -> CF = 1, al = FR_I (the empty
+    jne .no                             ; round name), else CF = 0; every register but al and the flags kept
+    push ebx
+    mov bl, [SEASONPLAYING]
+    cmp [GP_ST + ST_KO + KO_SEAS], bl
+    jne .nb
+FR_PART
+.nb:
+    pop ebx
+.no:
+    clc
+    ret
+'''
 CDS1_ID = 0xEF                          # 4.0: the Coppa D's slot-2 knockout (conti.IDS' last, unused there)
 
 
@@ -2315,6 +2366,7 @@ gp_rname:                               ; rnames' rn_round (an FE contest, RN_CD
     jne .nb
     cmp byte [GP_ST + ST_KO + KO_SLOT], 0
     je .nb
+FR_PART
 CD_PART
     cmp byte [GP_ST + ST_KO + KO_SLOT], 3   ; 4.0.5 a group contest of ours (the game's type 2 in slot 3: the Poule
     jne .k4                             ; Scudetto): its stages are the game's D0 (0 the groups, then the knockout
@@ -2416,6 +2468,42 @@ def _name(names, lang, key):
     return [x.encode('latin-1') for x in (v if isinstance(v, list) else [v, v])]
 
 
+def s3_local():
+    """4.2 S3 / S7: {(world, league file): (b mask, c mask)} - the bits of 'b_po' + 'b_pout' / 'c_po' as each league struct's
+    spec numbers its play-offs (S7 shapes: one spec per struct, local indexes; mkseason.gplay's by[f] order)."""
+    import mkseason
+    out = {}
+    for pk in mkseason.packs():
+        lg = pk.league or {}
+        if not lg.get('ko_playoffs') or pk.world is None:
+            continue
+        by = {}
+        for po in pk.po_resolved():
+            f, lp, ext = pk.po_local(po)
+            by.setdefault(f, []).append(po.get('key'))
+        for f, keys in by.items():
+            mb = sum(1 << keys.index(k) for k in ('b_po', 'b_pout') if k in keys)
+            mc = 1 << keys.index('c_po') if 'c_po' in keys else 0
+            if mb or mc:                        # (a struct with no Serie B / C play-off - England's, in a world whose other countries
+                out[(pk.world, f)] = (mb, mc)     # are not S7-shaped - needs no skip bits: its row stays (0, 0) = skip nothing, as before S3)
+    return out
+
+
+def s3_npo():
+    """{(world, league file): number of play-offs in that struct's spec} for every pack with ko_playoffs (same walk as s3_local)"""
+    import mkseason
+    out = {}
+    for pk in mkseason.packs():
+        if not (pk.league or {}).get('ko_playoffs') or pk.world is None:
+            continue
+        by = {}
+        for po in pk.po_resolved():
+            by.setdefault(pk.po_local(po)[0], []).append(po.get('key'))
+        for f, keys in by.items():
+            out[(pk.world, f)] = len(keys)
+    return out
+
+
 def table_lines(tables):
     """GP_TAB: per country dd its league struct, db world, dd its spec; a 0 world ends it. Specs after it."""
     import mkseason
@@ -2431,6 +2519,21 @@ def table_lines(tables):
         if not isinstance(lfile, tuple):        # (world 0's: no league-phase world, no UEFA qualifiers)
             lines.append(f'    db {lfile}\n    dd GPS{i}')
     lines.append('    db 0FFh')
+    lines.append('GP_S3T:')                   # (4.2 S3 / S7: per GP_TAB row the Serie B / Serie C play-offs' LOCAL skip bits in its spec)
+    loc = s3_local()
+    rows = [loc.get((world, lfile), (0, 0)) for world, lfile, spec in tables]
+    for k, v in loc.items():                    # (MC 15/11: a zero pair = skip nothing = the double promotion with no trace)
+        assert k in {(w, f) for w, f, _ in tables}, ('S3 skip bits: no GP_TAB row for', k)
+    if loc:                                     # (a struct with no Serie B / C play-off keeps its row at (0, 0): the old global masks must
+        import dplay as _d                      # not have skipped anything there either - every global bit lies beyond its play-offs, so
+        npo = s3_npo()                          # England's play-offs in a world with Italian ones behave exactly as before S7)
+        gm = _d.s3_b_mask() | _d.s3_c_mask()
+        for (w, f), m in zip(((w, f) for w, f, _ in tables), rows):
+            if m == (0, 0) and (w, f) in npo:
+                assert gm >> npo[(w, f)] << npo[(w, f)] == gm, ('S3: the global masks reach the play-offs of struct', w, f, npo[(w, f)], hex(gm))
+        assert (_d.s3_b_mask() != 0) == any(m[0] for m in rows) and (_d.s3_c_mask() != 0) == any(m[1] for m in rows), rows
+    for m in rows:
+        lines.append('    dd %d, %d' % m)
     for i, (_, _, spec) in enumerate(tables):
         lines.append(f'GPS{i}: db ' + ', '.join(str(b) for b in spec))
     return '\n'.join(lines), syms
@@ -3126,6 +3229,7 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
                                 f"-DGP_GFIDX={int(os.environ.get('GPLAY_GFIDX') or 0)}",
                                 f"-DGP_GOUT={int(os.environ.get('GPLAY_GOUT') or 0)}",
                                 f"-DGP_PORT={int(__import__('fpad').on())}",   # (4.2 fixture port P2: fpad.py)
+                                f"-DGP_FRND={int(__import__('frnd').on())}",   # (4.2 friendlies: frnd.py, the port's hooks)
                                 f"-DGP_GSON={int(GS_ON[0])}",
                                 f"-DCF_SEED={__import__('cupsf').SEED}",
                                 f"-DGP_S7={gp_s7()}",
@@ -3275,8 +3379,10 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     symbols['CDFORCE_'] = (0, int(os.environ.get('CD_FORCE') or 0))   # (test builds only)
     symbols['FORCE_ON'] = (0, int(bool(force)))
     import fpad
-    symbols['PORT_ON'] = (0, int(fpad.on()))
-    if fpad.on():                                             # (4.2 fixture port P2: gp_rec -> fpad.c fp_leg)
+    import frnd
+    hook_on = fpad.on() or frnd.on()                          # (the slot-4 hooks: the port's, shared by the friendlies)
+    symbols['PORT_ON'] = (0, int(hook_on))
+    if hook_on:                                               # (gp_rec -> GP_PLEG: frstep.c fr_leg, then fpad.c fp_leg)
         symbols['GP_PLEG'] = syms['GP_PLEG']
     import longtable                                          # 4.0 stage titles (table, calendar): the table in area
     stg = longtable.stage_table(lang, b'\0' * 2 + struct.pack('<4HIH', split.ST, split.ST + split.OFF['frozen'],
@@ -3350,6 +3456,10 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     sct = supercup.table(lang, (lambda x: _sadd(area, x) - sacups.STR_BASE) if area else (lambda x: 0)) \
         if mkseason.worlds() else None
     symbols['SC_ON'] = (0, int(bool(sct)))
+    if __import__('frnd').on() and area:                      # 4.2 friendlies: the slot-4 contest's names (ko_one's 8
+        import frtext                                         # bytes: long, short - STR_BASE-relative, as GP_SCT's +20)
+        fl = frtext.LABEL[lang].encode('latin-1')
+        LABELS['FR_NAMEB'] = struct.pack('<II', *(_sadd(area, fl) - sacups.STR_BASE for _ in range(2)))
     scrow_sites = []
     if sct:                                                   # (4.2 supercups-s1: CareerGameListCommon's two cup-row
         d1 = p.le.obj_bytes(1)                                #  `mov word [esi + 4], 0` after `add D3, 16; add D4, 8;
@@ -3396,7 +3506,14 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
         cd_src += CF_ASM + 'CF_DATA: db ' + ', '.join(str(b) for b in cft) + '\n'
         symbols.update({'CF_TABP': syms['CF_TAB'], 'CF_LIST': syms['cf_list_c'], 'CF_MEMBER': syms['cf_member_c'],
                         'CF_CAP': syms['cf_cap_c']})
-    cd_src += nasmcave.sub(GP_RNAME, 'CD_PART', CD_RNAME if cds else '')
+    import rnames as _rn                                      # (4.2 friendlies: rnames.FR_I only in FRND builds)
+    fr_i = _rn.LABELS.get('FR_I')
+    if fr_i is not None:
+        symbols['FR_I'] = (0, fr_i)
+    cd_src += nasmcave.sub(nasmcave.sub(GP_RNAME, 'CD_PART', CD_RNAME if cds else ''), 'FR_PART\n',
+                           FR_RNAME + '\n' if fr_i is not None else '')
+    if fr_i is not None:                                      # (rnames' RN_FRP: a friendly's title in every world)
+        cd_src += GP_RFR.replace('FR_PART\n', FR_RNAME + '\n')
     asm_main = ASM
     if cft:                                                   # (cupsf: every league division's final places)
         asm_main = nasmcave.sub(asm_main, '    call GP_CAP_NEXT\n    pushad\n    mov edx, [A4R]\n    call gp_find\n',
@@ -3484,6 +3601,8 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
             p.add_ptr(1, rnames.LABELS['RN_CDP'], 1, lab['gp_rname'])
             if 'GP_CALDP' in lab and rnames.LABELS.get('RN_CALD'):
                 p.add_ptr(1, lab['GP_CALDP'], 1, rnames.LABELS['RN_CALD'])
+        if 'gp_rfr' in lab and rnames.LABELS.get('RN_FRP'):   # (4.2 FRND: the friendly's empty round name, any world)
+            p.add_ptr(1, rnames.LABELS['RN_FRP'], 1, lab['gp_rfr'])
         for a in adv_calls:                                  # (the calendar advance: 'then_build')
             assert p.get(1, a, 5) == p.le.obj_bytes(1)[a:a + 5], f'obj1+{a:#x} already hooked'
             p.put(1, a + 1, struct.pack('<i', lab['gp_adv'] - (a + 5)))
@@ -3533,9 +3652,10 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
                   gp_wn_c=syms['gp_wn_c'], sc_wline_c=syms['sc_wline_c'], GP_WNSRC=syms['GP_WNSRC'], GP_WNFILE=syms['GP_WNFILE'], GP_SEAS=syms['GP_SEAS'],   # (winners.py)
                   WN_ST=syms['WN_ST'], GP_MGR=syms['GP_MGR'])
     LABELS.update({k: syms[k] for k in ('GP_RIPOOL', 'GP_CDSTR', 'GP_S7SNAP', 'GP_GEOCH', 'GP_CDKN') if k in syms})
-    if fpad.on():                                             # (4.2 fixture port P2: fpad.py links fpad.c to these)
+    if fpad.on() or __import__('frnd').on():                  # (fpad.py / frnd.py link fpad.c / frstep.c to these)
         LABELS.update({k: syms[k] for k in ('GP_PAPI', 'GP_PSTEP', 'GP_PDONE', 'GP_PLEG', 'GP_PSEAS', 'GP_WK', 'GP_PMID', 'GP_SCT',
                                             'GP_SEAS', 'GP_K', 'GP_PNEED', 'GP_PLEND', 'GP_PEND', 'GP_PRLINE')})   # (fpml.c's hooks)
+        LABELS.update({k: syms[k] for k in ('GP_PROW',) if k in syms})   # (4.2 friendlies: gp_scrow_c's hook)
         LABELS.update({k: symbols[k] for k in ('D1R', 'A1R', 'A2R', 'CAL_CUR')}, GP_CFLAGS=gp_cflags)
         LABELS['SC_ON'] = bool(sct)   # (GP_S7: s7swap.py points them at s7ri.c's s7ri_pool / s7ri_cdstr)
     LABELS.update({k: symbols[k] for k in ('VC_VIEW', 'VC_CALC') if k in symbols})   # (4.0.6 P3: ctview's rounds menu)

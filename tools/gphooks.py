@@ -1,7 +1,8 @@
 """4.2 gplay hook registry (MC 17/11, rule 0): ONE mechanism for every module that hooks gplay.c's hook dwords.
 
 gplay.c exposes function-pointer dwords (GP_PSTEP sc_step_c's head, GP_PLEG gp_rec, GP_PDONE, GP_PSEAS, GP_PROW
-gp_scrow_c's head, and the Supercoppa C's GP_PLEND / GP_PEND when its build has them). Any number of modules may hook
+gp_scrow_c's head, and the Supercoppa C's GP_PNEED gp_need_pre's head / GP_PLEND gp_pre_c's head / GP_PEND gp_end_c's
+head / GP_PRLINE gp_rlines_c's record line when its build has them). Any number of modules may hook
 the same dword. Each module registers, during its own patch, the function it puts there and, if it can pass the call
 on, the address of its own "next" dword. link() then wires the chain once, at link time, in the declared ORDER:
 
@@ -16,21 +17,22 @@ chain: it may only be the last one registered for that hook (asserted). No modul
     gphooks.check(p)                                                          # patch.py, before save
 
 Call semantics (each module's C): a STEP-like hook returns non-zero when it acted, else returns its next's result
-(or 0); a LEG-like (void) hook does its work and always calls its next; a ROW-like hook returns its value or its
-next's. tools/hosttest/tests/test_gphooks.py links every combination and checks the order and the returns.
+(or 0); a LEG-like (void) hook (LEG / DONE / SEAS / NEED / LEND / END) does its work and always calls its next; a
+ROW-like hook (ROW / RLINE) returns its value or its next's. tools/hosttest/tests/test_gphooks.py links every combination and checks the order and the returns.
 """
 import struct
 
 # the declared chain order per module (lower = called first). A new module adds its line here, nowhere else.
 ORDER = {
     'frnd': 10,         # 4.2 preseason friendlies (frstep.c): before the season's other slot-4 contests
-    'nazionali': 20,    # 5.0 lane 1 (session Nazionali exe)
+    'nazionali': 20,    # session Nazionali exe: the Supercoppa C's producer (fpml.c GP_PNEED / GP_PLEND / GP_PEND, each with
+                        # a next dword; fpmlv.c GP_PRLINE, no next = the end of that chain), 5.0 lane 1
     'supercoppa': 30,   # the Supercoppa C (GP_PLEND / GP_PEND)
     'fpad': 90,         # the fixture port's adapter (fpad.c): the end of every chain it is in
 }
 HOOKS = ('GP_PSTEP', 'GP_PDONE', 'GP_PLEG', 'GP_PSEAS', 'GP_PROW', 'GP_PLEND', 'GP_PEND',
-         'GP_PNEED', 'GP_PRLINE')    # (lane 1, Supercoppa C 17/11: gp_need_pre's head - the divisions a league-end stage
-                                     #  needs simulated; gp_rlines_c - the port's record lines. Both through the registry too)
+         'GP_PNEED', 'GP_PRLINE')    # (Supercoppa C 17/11: NEED - the divisions a league-end stage needs simulated, LEG-like;
+                                     #  RLINE - the port's k-th record line, ROW-like)
 
 REG = {}                # hook -> [(module, target (obj, off), next (obj, off) or None)]
 LINKED = {}             # hook -> [(site (obj, off), target (obj, off))]: what link() wrote, for check()

@@ -1188,11 +1188,12 @@ extern int cup_rule(struct cup_view *v);
 static int cup_code(const u8 *e) {
     struct cup_view v;
     int d0 = e[1], ng = e[2], r;
-    v.ng = ng < 4 ? ng : 4; v.gap = e[3] & 0x7F; v.real = e[3] >> 7; v.w = GP_CUPW; v.f = GP_CUPF;
+    v.ng = ng < 4 ? ng : 4; v.real = e[3] >> 7; v.w = GP_CUPW; v.f = GP_CUPF;
     for (int g = 0; g < v.ng; g++) {
         int d = d0 + g;
         v.t[g] = (const struct cv_row *)(d < GP_IN.nd ? GP_IN.t[d] : GP_IN.t[0]);
         v.n[g] = d < GP_IN.nd ? GP_IN.n[d] : 0;
+        v.gap[g] = e[3] & 0x7F;         /* (the spec holds one gap for its groups) */
     }
     if ((r = cup_rule(&v)) < 0) return -1;
     if (v.sfrom) { x_sdiv = d0 + v.sg; x_sfrom = v.sfrom; }
@@ -1204,8 +1205,8 @@ static int cup_out(int d, int k, int gap) {     /* place k (from 0) precluded */
     int n = GP_IN.n[d];
     if (k <= 2) return 1;
     if (n < 6 || k < n - 5) return 0;
-    if (k == n - 5) return t[n - 5].pts - t[n - 2].pts < gap;
-    if (k == n - 4) return t[n - 4].pts - t[n - 3].pts < gap;
+    if (k == n - 5) return !gap || t[n - 5].pts - t[n - 2].pts < gap;
+    if (k == n - 4) return !gap || t[n - 4].pts - t[n - 3].pts < gap;
     return 1;
 }
 static int cup_find(int d0, int ng, u16 team, int *d, int *k) {
@@ -2374,7 +2375,12 @@ static void port_rlines(void);
 #endif
 static u32 usc_rline(void);             /* (4.0.6: the UEFA Super Cup's) */
 static void rl_put(void);
-int sc_busy(void);                      /* (4.0.5: the slot-4 guard) */   /* (CDP: preliminary ties at most, CDP + 2 x CD1 - 1 <= CDT) */
+int sc_busy(void);                      /* (4.0.5: the slot-4 guard) */
+#if GP_FRND
+int slot4_busy(void);                   /* (4.2: + the friendlies) */
+#else
+#define slot4_busy sc_busy
+#endif   /* (CDP: preliminary ties at most, CDP + 2 x CD1 - 1 <= CDT) */
 struct cd_state { u16 magic; u8 season, round, built, bt, drawn, pad; u8 res[CDT], home[CDT]; u8 sd[4];
                   u8 ent[256];          /* cd_season (the season end): per ordinal of the file, the entry order's key
                                            for the season to come (0 not in Serie D, 1 a new arrival, 2 + places from
@@ -2929,7 +2935,8 @@ static int cd_sim(u16 a, u16 b, int legs, int h) {     /* h: 0 a hosts (the firs
 
 /* the calendar advance: 1 = a tie of the career club built into ko[0] (gp_install it), else 0 */
 u32 cd_step_c(void) {
-    if (sc_busy()) return 0;            /* (4.0.5: an early supercup tie in slot 4: the next advance) */
+    if (slot4_busy()) return 0;         /* (4.0.5: an early supercup tie in slot 4 - 4.2 or the friendlies: the next
+                                           advance) */
     if (!GP_CDT) return 0;
     if (CD_ST.magic != 0x4443 || CD_ST.season != GP_SEAS) {     /* (a new season: the cup from its start) */
         u8 *p = (u8 *)&CD_ST;
@@ -3059,7 +3066,7 @@ static void set_pend(int then, int week) {   /* 'then_build': the next play-off 
 }
 
 u32 gp_build_c(void) {
-    if (sc_busy()) { set_pend(GP_BPIC + 1, GP_WK + 1); return 0; }   /* (4.0.5: an early supercup tie holds slot 4:
+    if (slot4_busy()) { set_pend(GP_BPIC + 1, GP_WK + 1); return 0; }   /* (4.0.5: an early supercup tie holds slot 4:
                                                                      built again at the next advance) */
     ss_set(GP_IN.mgr);
     const u8 *s = po_at(GP_BPIC);
@@ -3194,7 +3201,13 @@ static void ko_copy(struct gp_ko *d, const struct gp_ko *s) {   /* (no memcpy in
 #ifndef GP_PORT
 #define GP_PORT 0                       /* (4.2 fixture port P2 builds: fpad.py; 0 = no byte of it) */
 #endif
-#if GP_PORT
+#ifndef GP_FRND
+#define GP_FRND 0                       /* (4.2 preseason friendlies: frnd.py on(); the engine in obj4 FRND, frstep.c) */
+#endif
+#define GP_HOOK (GP_PORT || GP_FRND)    /* (the slot-4 hooks below: the port's, shared by the friendlies - Fable review +
+                                           MC 16/11: one set, chained in obj4, FRND first) */
+enum { K_FR = 13 };                     /* (a preseason friendly: one match, LV_BETTER, frstep.c) */
+#if GP_HOOK
 #ifndef GP_DATA_SECTION
 #define GP_DATA_SECTION __attribute__((section(".data")))      /* (host tests build gplay.c natively: -DGP_DATA_SECTION=) */
 #endif
@@ -3206,6 +3219,10 @@ void (*GP_PDONE)(void) GP_DATA_SECTION;                         /* gp_rec_c: ko[
 void (*GP_PLEG)(void) GP_DATA_SECTION;                          /* gp_rec: every match of ours (fp_leg: K_PORT ones) */
 void (*GP_PSEAS)(void) GP_DATA_SECTION;                         /* pg_season's end: a new season (fp_season) */
 u8 GP_PMID;                             /* (.bss, obj2: fpad.c's legs played of the K_PORT tie - the gate's mid-tie save) */
+#if GP_FRND
+u32 (*GP_PROW)(const u8 *) GP_DATA_SECTION;                     /* gp_scrow_c's head (frnd fr_row): a played friendly's
+                                                                   slot-4 row keeps the friendly's short name, 0 = not one */
+#endif
 #endif
 void gp_rec_c(void) {
     struct gp_ko *k = &GP_ST.ko[GP_K];
@@ -4206,7 +4223,7 @@ static const u8 *pg_one(const u8 *t, const s8 *slt, s8 *copy, int run) {
 void pg_season(const u8 *t, const s8 *slt, s8 *copy, int world) {
     for (int k = *t++; k > 0; k--)
         t = pg_one(t, slt, copy, t[0] == world);
-#if GP_PORT
+#if GP_HOOK
     if (GP_PSEAS) GP_PSEAS();           /* (4.2 fixture port: pg_fix, InitializeNewSeason - every career, seasonPlaying
                                            already the new one: fpad.c fp_season arms, the next fp_step inits; MC 14/11:
                                            0 B in pgroups' extra pages) */
@@ -4806,6 +4823,15 @@ int sc_busy(void) {                     /* 4.0.5: slot 4 holds this season's sup
     return GP_ST.magic == MAGIC && GP_ST.ko[0].magic == MAGIC && GP_ST.ko[0].season == GP_SEAS &&
            GP_ST.ko[0].kind == K_SC && GP_ST.ko[0].tw[0] == NOC;
 }
+#if GP_FRND
+int slot4_busy(void) {                  /* 4.2 friendlies (Convergence 16/11): slot 4 held - this season's supercup tie
+                                           (sc_busy), or the friendlies (FR_OPEN: from the season start to the last one
+                                           decided, between them too), or a friendly being played. sc_busy keeps its
+                                           supercup-only meaning (sc_wline_c's VINCITORI line) */
+    return FR_HELD() || sc_busy() || (GP_ST.magic == MAGIC && GP_ST.ko[0].magic == MAGIC &&
+           GP_ST.ko[0].season == GP_SEAS && GP_ST.ko[0].kind == K_FR && GP_ST.ko[0].tw[0] == NOC);
+}
+#endif
 static const u8 *usc_entry(void) {     /* 4.0.6 the UEFA Super Cup's GP_SCT entry, 0 = none */
     if (!GP_SCT) return 0;
     for (int i = 0; i < GP_SCT[0]; i++)
@@ -4820,6 +4846,10 @@ u32 gp_scrow_c(const u8 *row) {        /* 4.2 supercups-s1 (MC 15/11): the fixtu
                                            played UEFA Super Cup (its week, the career club's tie decided: SC_U +4 the
                                            winner) - its short name (STR_BASE-relative), not the label of the national
                                            supercup slot 4 holds now; 0 = the slot's label */
+#if GP_FRND
+    if (GP_PROW) { u32 r = GP_PROW(row); if (r) return r; }   /* (4.2 friendlies: their weeks keep AMICHEVOLE after slot 4
+                                                               moves on to the supercup) */
+#endif
     const u8 *e = usc_entry();
     if (!e || !row || row[0] != 4 || row[1] != e[3]) return 0;
     if (SC_U[0] != GP_SEAS || SC_U[1] != 3 || !(SC_U[4] | SC_U[5])) return 0;
@@ -4854,7 +4884,7 @@ static int usc_step(void) {             /* 4.0.6 the UEFA Super Cup at the advan
     SC_U[1] = 1; SC_TRACE = 0x11;
     return 1;
 }
-#if GP_PORT
+#if GP_HOOK
 /* 4.2 fixture port (MC 14/11 (b)+(c)): fpad.c (obj4) builds the K_PORT tie itself, through ko_one's pointer; the rest
    - GP_ST, GP_IN, GP_SCT, the pseudo registers - it reads at their symbols, the struct offsets from GP_OFFS (a
    -DGP_OFFSETS compile of this file, fpad.py: no byte of them in the exe) */
@@ -4866,10 +4896,12 @@ const u16 GP_OFFS[] = { OF(struct gp_state, ko), OF(struct gp_ko, season), OF(st
                         OF(struct gp_in, mdiv), MAGIC, NOC, K_PORT, HOST_NEUTRAL, SC_E, SC_UEFA, sizeof(struct gp_ko),
                         OF(struct gp_in, n), OF(struct gp_in, t), OF(struct gp_in, mgr), GD, GT, sizeof(struct gp_row),
                         OF(struct gp_row, pts), OF(struct gp_in, sim), SDX };
+                        OF(struct gp_ko, pts), K_FR, LV_BETTER };   /* (4.2 friendlies: O_PTS - the fee in pts[2], a
+                                           one-tie contest's unused entry -, C_KFR, C_LVBETTER) */
 #endif
 #endif
 u32 sc_step_c(void) {                   /* the calendar advance: 1 = the career club's tie built into ko[0] */
-#if GP_PORT
+#if GP_HOOK
     if (GP_MGR && GP_PSTEP) { u32 r = GP_PSTEP(); if (r) return 1; }   /* (the port first: never "clear" - Q2 / Q3) */
 #endif
     if (!GP_SCT || !GP_MGR) return 0;

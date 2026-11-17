@@ -132,6 +132,8 @@ CAL_MED = {
 def cal_med(lang, med):
     """The calendar form of a medium round name: it and ' ' + the widest leg within 70 px, font characters only."""
     import complist
+    if med == '':                       # (4.2 FR_NONE: the friendly's empty round name, never with a leg)
+        return ''
     room = complist.CAL_PX - 3 - max(complist.px(x) for x in CAL_LEGS[lang])
     m = med if complist.px(med) <= room else CAL_MED[lang].get(med)
     assert m and complist.px(m) <= room, (lang, med, m, room)
@@ -612,6 +614,42 @@ RN_LPIDS: LPID_BYTES
 RN_NUMB: NUMB_BYTES
 '''
 
+FR_NONE = ('', '', '')                  # 4.2: the friendly's round (FRND builds only: frtext.on())
+RN_TRIM_END = '''.e:
+    mov [A1R], edi
+'''
+RN_HEAD = '''    push eax
+    push ebx
+    call W_LPW                          ; (a league-phase world only)
+'''
+RN_HEAD_FR = '''    push eax
+    push ebx
+    mov al, [DIY + 2Dh]                 ; 4.2 FRND: a slot-4 contest (id FEh) in ANY world - gplay's gp_rfr: a preseason
+    test al, al                         ; friendly -> CF = 1, al = FR_I (no round name), else CF = 0
+    jnz .fr0
+    mov al, [DIYCOPY + 2Dh]
+.fr0:
+    cmp al, 0FEh
+    jne .fr1
+    cmp dword [RN_FRP], 0
+    je .fr1
+    call [RN_FRP]
+    jc .set
+.fr1:
+    mov eax, [esp + 4]                  ; (eax as the caller gave it)
+    call W_LPW                          ; (a league-phase world only)
+'''
+RN_TRIM_END_FR = '''.e:
+    cmp edi, ebx                        ; (4.2 FRND: a trailing space dropped too - the title '<name> ' + the
+    je .e1                              ; friendly's empty round name)
+    cmp byte [edi - 1], ' '
+    jne .e1
+    dec edi
+    mov byte [edi], 0
+.e1:
+    mov [A1R], edi
+'''
+
 
 def _title_sites(p, r):
     """cseg_45D92 (a cup round's title): its `call cseg_284AB`, its two `call cseg_28049` (each followed by `call
@@ -777,6 +815,16 @@ def patch(p, at, limit, lang, area, lp_ids, numbered):
             ptrs[f[1] - base] = f[4]
     assert all(4 * k in ptrs for k in range(N_OLD)) and all(48 + 4 * k in ptrs for k in range(N_OLD)), sorted(ptrs)
     names, ctmap = _ct_names(lang)
+    LABELS.pop('FR_I', None)
+    asm = ASM
+    import frtext
+    if frtext.on():                             # 4.2 (Davide 17/11): the preseason friendly has no round name - its
+        names.append(FR_NONE)                   # match title just the label ('AMICHEVOLE', not 'AMICHEVOLE FINALE'):
+        LABELS['FR_I'] = N_OLD + len(names) - 1 # gplay's gp_rname gives this empty entry for a K_FR ko[0]; the space
+        asm = nasmcave.sub(asm, RN_TRIM_END, RN_TRIM_END_FR)   # before it goes (rn_trim: a trailing space dropped)
+        asm = nasmcave.sub(asm, RN_HEAD, RN_HEAD_FR)    # (every world, not only league-phase ones: gplay gp_rfr)
+        asm += 'align 4\nRN_FRP: dd 0                            ; (gplay.gp_rfr, or 0)\n'
+        assert len(names) + N_OLD < 256
     new = [[area.add(nm[t].encode('latin1') + b'\0') for nm in names] for t in range(3)]
     tab = (at + 3) & ~3
     n = N_OLD + len(names)
@@ -831,8 +879,8 @@ def patch(p, at, limit, lang, area, lp_ids, numbered):
     sym['STRCOPY'] = (1, tc + 5 + struct.unpack('<i', bytes(p.get(1, tc + 1, 4)))[0])
     sym.update({'QID_LO': (0, min(uefaq.QIDS)), 'QID_HI': (0, max(uefaq.QIDS)), 'C28049': (1, c28049), 'C284AB': (1, c284ab), 'MEDTAB': (1, tab + 4 * n), 'CALTAB': (1, cal), 'A0R': (2, a0),
                 'A1R': (2, a0 + 4)})
-    code, fix = nasmcave.assemble(ASM, code_at, sym)
-    lab = nasmcave.labels(ASM, code_at, sym)
+    code, fix = nasmcave.assemble(asm, code_at, sym)
+    lab = nasmcave.labels(asm, code_at, sym)
     assert code_at + len(code) <= limit, hex(code_at + len(code))
     p.put(1, code_at, code)
     for off, tobj, toff in fix:
@@ -852,6 +900,9 @@ def patch(p, at, limit, lang, area, lp_ids, numbered):
     LABELS['RN_CDP'] = lab['RN_CDP']
     LABELS['RN_TIE'] = lab['RN_TIE']
     LABELS['RN_CALD'] = lab['RN_CALD']
+    LABELS.pop('RN_FRP', None)
+    if 'RN_FRP' in lab:
+        LABELS['RN_FRP'] = lab['RN_FRP']
     print(f'exe: round names: tables obj2+{base:#x} -> obj1+{tab:#x} ({n} x 3, {len(fx)} references), rn_round '
           f'obj1+{lab["rn_round"]:#x}, UEFA cups {[hex(x) for x in lp_ids]}, numbered {len(numbered)}')
     return code_at + len(code)

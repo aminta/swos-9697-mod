@@ -218,3 +218,17 @@ with Fable and, where it helps, hand the work to Fable.
     **TC_FLOOR** (MC 16/11): TC_CAP may only ever GROW across versions, never shrink - a build asserts TC_CAP >=
     tcache.TC_FLOOR (159; TC_FLOOR_FP 155 with 'FP'), so a career saved at the floor by an earlier exe loads in every
     later one. A trailer item that breaks it fails the build: its owner finds room elsewhere (never lowers the floor).
+27. **Mini-league stages on the fixture port: one pack row, no competition in the code** (Supercoppa Serie C, 17/11;
+    notes/4.2-supercoppa-c.md). A small round robin among clubs taken from final tables is ONE row of the league
+    competition's `mini_leagues` in pack.json (entrants `[division, place]`, `schedule`, `points`, `tiebreak`, `units` =
+    offsets from the league's last unit); fpad.py compiles it into FP_MLT and fpml.c (obj4 FPML) runs it with the
+    engine's sr_mini_sched / sr_rr_table. Nothing in C names a division, a file or a club. Rules that follow:
+    (a) an entrant of a mini-league is NOT in its division's season-end play-offs: while its stage runs, the slot-4
+    windows open to the season's end (fport's `[L, END]` dplay / play-off / play-out windows) are off for that club
+    (fpad.c h_windows asks fpml.c fp_ml_busy) - never a per-competition exception; a row whose entrant place can reach
+    a play-off is a data error. (b) The port is in a build when the data has a producer (a `mini_leagues` row) or
+    FPORT=1 (test builds); a build without either holds no byte of it. (c) The career club's matches are port
+    fixtures (level NONE: a level score stands), one at a time, the next one queued only after the result; every other
+    match is scored by the producer; a stage with no instance at the season end (the career club not an entrant, an
+    older save) is opened, simulated and closed there. (d) State = the FP item's ML block (v2: 'ML', version 1, 2 x 56 B
+    at +36); a new mini-league = a new row (a third instance = +56 B: a new FP item version).

@@ -1117,6 +1117,8 @@ def patch_exe(src, dst, remap, lang='it'):
         mbn = mpk.meta.get('button_names') or {}
         fpmlv.patch(p, mlg, lang, area, (mbn.get(lang) or mpk.meta.get('button') or '').upper(), fpad.LABELS,
                     gplay.LABELS, fpad.LABELS['FP_MLDONE'], winners.LABELS.get('WN_MLP'))
+        import cobj                              # (the management record's line: gplay.c gp_rlines_c's hook -> fpv_rline_c)
+        cobj.add_ptr(p, gplay.LABELS['GP_PRLINE'][1], *fpmlv.LABELS['fpv_rline_c'][:2], gplay.LABELS['GP_PRLINE'][0])
     if sreg_end is not None:
         assert sreg_end <= lrank.LR_AT, ('sreg past LR_AT', hex(sreg_end), hex(lrank.LR_AT))
     if cdkn.on():                                # 4.2 S2 knockouts: the Coppa D's rounds 0-1 by the engine (gplay.c GP_CDKN)

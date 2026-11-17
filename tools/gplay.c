@@ -2367,6 +2367,11 @@ static void sc_done(u16 w);
 #define SC_DONE(w) sc_done(w)
 #endif
 static u32 sc_rline(void);              /* (4.0.5: gp_rlines_c's supercup line) */
+#if GP_PORT
+u32 (*GP_PRLINE)(u32 k) __attribute__((section(".data")));   /* (4.2 the port's trophies: the k-th record line the career club
+                                           won this season, STR_BASE-relative, 0 = no more - fpmlv.c fpv_rline_c; 0 = none bound) */
+static void port_rlines(void);
+#endif
 static u32 usc_rline(void);             /* (4.0.6: the UEFA Super Cup's) */
 static void rl_put(void);
 int sc_busy(void);                      /* (4.0.5: the slot-4 guard) */   /* (CDP: preliminary ties at most, CDP + 2 x CD1 - 1 <= CDT) */
@@ -3894,6 +3899,9 @@ u32 gp_rlines_c(void) {
     if (kr) rl_add(kn, kr);
     { u32 sn = sc_rline(); if (sn) rl_add(sn, 1); }   /* (4.0.5: a national supercup won) */
     { u32 sn = usc_rline(); if (sn) rl_add(sn, 1); }  /* (4.0.6: the UEFA Super Cup won) */
+#if GP_PORT
+    port_rlines();                      /* (4.2: the port's mini-leagues won - the Supercoppa Serie C) */
+#endif
     rl_put();
     return rl_n;
 }
@@ -3918,6 +3926,12 @@ u32 gp_stwins_c(u32 mgr) {
     if (live && kstage >= 0 && club_res(k, (u16)mgr) == 1) n++;
     return n;
 }
+#if GP_PORT
+static void port_rlines(void) {
+    u32 sn;
+    for (u32 k = 0; GP_PRLINE && k < 2 && (sn = GP_PRLINE(k)); k++) rl_add(sn, 1);
+}
+#endif
 u32 sc_rlines_c(void) {                 /* 4.0.5 (gp_rl, a league with no gplay play-offs: LaLiga, Serie A): only a
                                            national supercup won */
     rl_n = rl_w = 0;

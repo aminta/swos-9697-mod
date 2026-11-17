@@ -26263,6 +26263,79 @@ def frtext_label():
     return frtext.LABEL[UI]
 
 
+@scenario
+def world_friendlies_dormant():
+    """4.2 friendlies, merge gate (MC 17/11): a world with NO FRSS slice never gets a friendly, even from a live FR_ST.
+    On the FRND test build (FR_BUILD) cloned into the run dir with DATA\\FRSS.DAT's World 2026-27 index entry renamed
+    (world byte -> EEh: the career's world has no slice, the other worlds keep theirs - as a historic / other career
+    world), a LAZIO career, MONDO 2026-27: fr_season finds no slice (FR_ST left as it is); at the first menu a LIVE
+    FR_ST is poked (W8485_POKEIF: this season 7Eh, played 1 + FR_OPEN, 4 valid team words, home flags 05h) - friendly 2
+    due at its turn. Checks: no friendly installed (no AMICHEVOLE row or match screen, FR_TRACE never 2xh), fr_step
+    closes it (FR_TRACE 87h, FR_OPEN clear, played still 1), no fee (FR_FEE all 0), the season ends."""
+    src = world_data()
+    if not os.path.isdir(src):
+        return True, f'SKIP: private data {src} missing'
+    exe = os.environ.get('FR_BUILD')
+    if not exe:
+        return True, 'SKIP: FR_BUILD (a FRND=1 HOSTTEST_SYMS=1 build of this tree) needed'
+    sy = fr_syms(exe)
+    if sy is None:
+        return False, f'no frnd test symbols in {exe}'
+    d = os.path.join(RUNS, 'frdormant_exe')
+    shutil.rmtree(d, ignore_errors=True)
+    shutil.copytree(exe, d, symlinks=True)
+    fp = os.path.join(d, 'DATA', 'FRSS.DAT')
+    b = bytearray(open(fp, 'rb').read())
+    if b[:4] != b'FRSD' or b[4] != 1:
+        return False, f'FRSS.DAT header {bytes(b[:8])}'
+    w5 = [i for i in range(b[5]) if b[8 + 12 * i] == 5]
+    if len(w5) != 1:
+        return False, f'FRSS.DAT: world 5 entries {w5} of {[b[8 + 12 * i] for i in range(b[5])]}'
+    b[8 + 12 * w5[0]] = 0xEE
+    os.remove(fp)                                   # (a fresh file: never write through a clone / link)
+    open(fp, 'wb').write(b)
+    hexarg = lambda a, n: (f'{a[1]:x}' if a[0] == 2 else f'o{a[0]}/{a[1]:x}') + f':{n}'
+    keys = {'st': (sy['FR_ST'], 12), 'tr': (sy['FR_TRACE'], 1), 'fee': (sy['FR_FEE'], 16), 'bal': (sy['NEWBAL'], 4)}
+    if 'FF_INC' in sy:
+        keys['inc'] = (sy['FF_INC'], 4)
+    name_of = {hexarg(a, n).split(':')[0]: k for k, (a, n) in keys.items()}
+    live = '7e09ac14b404690f650c0500'           # (season 7Eh, played 1 + FR_OPEN, NEW ENGLAND, AL-ITTIHAD, two more, home 05h)
+    fst = sy['FR_ST'][1]
+    ok, msg, lines = sc_season('EUROPA,ITALIA,SERIE A,LAZIO', dict(
+        W8485_BUILD=d, W8485_HEX=','.join(hexarg(a, n) for a, n in keys.values()),
+        W8485_POKEIF=f'{fst + 1:x}:00:{fst:x}:{live}'))
+    os.environ.pop('W8485_POKEIF', None)       # (not in sc_season's restored keys)
+    errs, info = [], []
+    check(ok, f'season: {msg[:300]}', errs)
+    pk = [ln for ln in lines if ln.startswith('POKEIF')]
+    check(len(pk) == 1, f'the live FR_ST poke: {pk}', errs)
+    cur, snaps = {}, []
+    for i, ln in enumerate(lines):
+        if ln.startswith('HEX '):
+            _, o, v = ln.split()
+            if o in name_of:
+                cur[name_of[o]] = bytes.fromhex(v)
+                snaps.append((i, dict(cur)))
+    trace = [sn['tr'][0] for _, sn in snaps if 'tr' in sn]
+    tr_seq = [t for k, t in enumerate(trace) if not k or t != trace[k - 1]]
+    sts = [sn['st'] for _, sn in snaps if 'st' in sn]
+    fin = next((s_ for s_ in reversed(sts) if s_[0] == 0x7E), b'')
+    lab = frtext_label()
+    rows = [r for r in slot4_rows(lines) if r[3] == lab]
+    scr_ = [ln[:80] for ln in lines if ln.startswith('[') and lab in ln.split('|')[0] and '- RISULTATO -' in ln]
+    check(any(s_.hex() == live for s_ in sts), f'the poked FR_ST never seen live: {[s_.hex() for s_ in sts][:4]}', errs)
+    check(not rows and not scr_, f'a friendly installed: rows {rows[:2]}, screens {scr_[:2]}', errs)
+    check(not any(0x20 <= t <= 0x2F for t in tr_seq), f'FR_TRACE shows an install: {[hex(t) for t in tr_seq]}', errs)
+    check(0x87 in tr_seq, f'FR_TRACE never 87h (closed: no slice): {[hex(t) for t in tr_seq]}', errs)
+    check(len(fin) == 12 and not fin[1] & 8 and fin[1] & 7 == 1, f'FR_ST at the end {fin.hex()} (want FR_OPEN clear, played 1)', errs)
+    fees = struct.unpack('<4I', snaps[-1][1].get('fee', bytes(16))) if snaps else (0,) * 4
+    check(not any(fees), f'FR_FEE {list(fees)}: a fee', errs)
+    inc = [struct.unpack('<I', sn['inc'])[0] for _, sn in snaps if 'inc' in sn]
+    info.append(f'trace {" ".join(f"{t:02x}" for t in tr_seq)}; FR_ST end {fin.hex()}; FR_FEE {list(fees)}; '
+                f'gate receipts {inc[:1]}..{inc[-1:]}; {lab} rows {len(rows)}, screens {len(scr_)}')
+    return not errs, '; '.join(errs + info) if errs else '; '.join(info) + f'; {msg[:100]}'
+
+
 # the game's extra-time simulation (cseg_2C0D3): the stronger side's margin per |rating difference| (32 rows x 4,
 # picked by Rand2 & 3) - zeroed by world_sc_tur so a level tie stays level after extra time and goes to penalties
 ET_MARGINS = bytes([0] * 19 + [1, 0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1]

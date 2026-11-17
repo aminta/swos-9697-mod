@@ -104,6 +104,7 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 - With the game's own four opponents a summer normally brings 140% of a home league gate: at home against the weaker club (30%) and one of the similar ones (50%), away at the other similar one (20%) and at the stronger one (40%). Much stronger and much weaker clubs only come up when you choose them yourself or when no nearer club exists. The fee always follows what the opponent really is.
 - Financial fair play: the fees count as gate income, like every other gate. Real football does the same: UEFA counts the gate receipts of all of a club's matches as relevant income (UEFA Club Licensing and Financial Sustainability Regulations, Edition 2025, Annex J.2.1 a).
 - Friendlies give no league points and count for no table or cup. The season's friendlies record (won, drawn, lost) is kept apart from your competitive results.
+- A friendly is just a friendly: its match screens and your calendar show "FRIENDLY" alone (AMICHEVOLE, AMICAL, TESTSPIEL in the other languages), no longer "FRIENDLY FINAL".
 - On the page where you choose the opponents, the figure from 1 to 5 next to a club is the same for everybody (which fifth of the world's clubs it is in, 5 = the strongest fifth), while the colour compares that club with yours (stronger, similar or weaker), as the page's legend shows; a club you have picked gets a colour of its own.
 
 #### Italian version: PAREGGI
@@ -122,6 +123,7 @@ The original Italian game spells "draws" as PARREGGI in the season record (VINCI
 - World 2026-27 SEASON (Davide, 16/11): the play-offs, play-outs and title deciders inside your league are played; those that bring in clubs from other leagues only in careers.
 - JUVENTUS's bench keeper is NETO (Davide, 15/11), over the call-ups rule that would pick PINSOGLIO.
 - Preseason friendlies, opponents and fees (Davide, 16/11): the game's opponents are foreign clubs, one stronger, two similar and one weaker than yours by the value of the best eleven players; when no such club exists, the nearest in strength; two at home (the two weakest) and two away; fees by the table above (a share of a home league gate, by how strong the opponent really is), counted as gate income for financial fair play (UEFA Club Licensing and Financial Sustainability Regulations, Edition 2025, Annex J.2.1 a); a club you choose yourself may also be from your own country.
+- Preseason friendlies, the name on screen (Davide, 17/11): the word for friendly alone, with no round name, in all four languages; the super cups keep their FINAL / SEMI-FINAL.
 
 
 ## Italiano
@@ -229,6 +231,7 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 - Con le quattro avversarie scelte dal gioco un'estate porta di norma il 140% di un incasso di campionato in casa: in casa contro la più debole (30%) e una delle simili (50%), in trasferta dall'altra simile (20%) e dalla più forte (40%). Le squadre molto più forti e molto più deboli arrivano solo se le scegli tu o se non ce n'è una più vicina. La cifra segue sempre quello che l'avversaria è davvero.
 - Fair play finanziario: questi soldi contano come incassi da stadio, come ogni altro incasso. Nel calcio vero è lo stesso: la UEFA conta tra i ricavi rilevanti gli incassi da stadio di tutte le partite di un club (UEFA Club Licensing and Financial Sustainability Regulations, edizione 2025, allegato J.2.1 a).
 - Le amichevoli non danno punti e non contano per nessuna classifica o coppa. Il bilancio delle amichevoli della stagione (vinte, pareggiate, perse) è tenuto a parte dai risultati ufficiali.
+- Un'amichevole è solo un'amichevole: le schermate della partita e il tuo calendario mostrano solo "AMICHEVOLE" (FRIENDLY, AMICAL, TESTSPIEL nelle altre lingue), non più "AMICHEVOLE FINALE".
 - Nella pagina in cui scegli le avversarie il numero da 1 a 5 accanto a una squadra è uguale per tutti (in quale quinto delle squadre del mondo si trova, 5 = il quinto più forte), mentre il colore confronta quella squadra con la tua (più forte, simile o più debole), come spiega la legenda della pagina; una squadra che hai già scelto ha un colore suo.
 
 #### Versione italiana: PAREGGI
@@ -247,4 +250,5 @@ Il gioco originale in italiano scrive PARREGGI nel registro della stagione (VINC
 - STAGIONE nel Mondo 2026-27 (Davide, 16/11): si giocano play-off, play-out e spareggi per il titolo dentro il tuo campionato; quelli con squadre di altri campionati solo in carriera.
 - Il portiere di riserva della JUVENTUS è NETO (Davide, 15/11), al posto di PINSOGLIO che la regola delle convocazioni sceglierebbe.
 - Amichevoli estive, avversarie e incassi (Davide, 16/11): le avversarie scelte dal gioco sono squadre straniere, una più forte, due simili e una più debole della tua per valore degli undici giocatori migliori; se una squadra così non esiste, la più vicina per forza; due in casa (le due più deboli) e due in trasferta; cifre della tabella qui sopra (una quota di un incasso di campionato in casa, secondo quanto è forte davvero l'avversaria), contate come incassi da stadio per il fair play finanziario (UEFA Club Licensing and Financial Sustainability Regulations, edizione 2025, allegato J.2.1 a); una squadra scelta da te può essere anche del tuo paese.
+- Amichevoli estive, il nome sullo schermo (Davide, 17/11): solo la parola amichevole, senza il nome del turno, in tutte e quattro le lingue; le supercoppe tengono FINALE / SEMIFINALE.
 - Play-off di Serie C: se la vincitrice del play-off ha già vinto il proprio girone, la promozione va alla finalista sconfitta.

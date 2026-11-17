@@ -32,6 +32,8 @@ TEST_VARS += ('JOYNAME_FAKE',)                     # 4.2 joyname: the harness's 
 BUILD_SWITCHES += ('JOYNAME_FAKE',)                # DIFF_* edits above cherry-pick without a conflict)
 TEST_VARS += ('FPML_FORCE', 'FPML_SEED')           # 4.2 Supercoppa Serie C (lane 3, tools/fpmlgate.py): the mini-league's
 BUILD_SWITCHES += ('FPML_FORCE', 'FPML_SEED')      # forced scores and md1 draw seed (fpad.ml_test_flags; own lines)
+TEST_VARS += ('SWE_BSS_SHIFT',)                   # 4.2 BSS_AT gate (a): swe.c's .bss at BSS_AT + this (test builds only)
+BUILD_SWITCHES += ('SWE_BSS_SHIFT',)                # DIFF_* edits above cherry-pick without a conflict)
 
 
 def is_test():

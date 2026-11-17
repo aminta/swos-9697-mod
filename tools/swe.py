@@ -280,8 +280,15 @@ def patch(p):
     import careerworld
     import swreg
     assert len(p.le.objs) == 4 and p.le.obj(4).npages == OBJ4_PAGES, 'obj4 not added (patch.py)'
-    room = 0x1000 * OBJ4_PAGES                      # (4.1: a 3rd page above the registry's end, uesum's -
-    assert room == p.le.obj(4).npages * 0x1000 and swreg.REG_AT < swreg.OBJ4_END <= swreg.UESUM_AT < room   # swreg.UESUM_AT)
+    pages = 0x1000 * OBJ4_PAGES                     # (4.1: a 3rd page above the registry's end, uesum's -
+    assert pages == p.le.obj(4).npages * 0x1000 and swreg.REG_AT < swreg.OBJ4_END <= swreg.UESUM_AT < pages   # swreg.UESUM_AT)
+    room = swreg.BSS_AT                             # 4.2 (MC 16/11): swe.c's .bss at a FIXED obj4 offset above every band (test
+    shift = int(os.environ.get('SWE_BSS_SHIFT') or '0', 0)          # (test builds only: bss_at_saves' second build)
+    if shift:
+        import modver
+        assert modver.is_test() and shift % 0x1000 == 0, ('SWE_BSS_SHIFT: a test switch, page-aligned', shift)
+        room += shift
+    assert pages <= room and room % 0x1000 == 0, ('swe: obj4 file pages past BSS_AT', hex(pages), hex(room))   # ones too)
     site = pick_site(p)
     pick = p.call_target(1, site)                   # (chained: the picker call as earlier patches left it)
     ns = 'w_ns_set' in careerworld.LABELS and careerworld.NS.get('info')
@@ -401,7 +408,7 @@ def patch(p):
         p.retarget(2, cs, *syms['swe_cstart'])
         p.put(2, cs, struct.pack('<I', syms['swe_cstart'][1]))
         cobj.add_ptr(p, syms['SWE_CSTART'][1], prev[0], prev[1], 4)
-    p.set_vsize(4, room + bss, bss=bss)
+    p.set_vsize(4, room + bss, bss=room + bss - pages)    # (the zero-filled tail: the unused pages up to BSS_AT + .bss)
     p.set_base_after(4)
     LABELS.clear()
     LABELS.update({k: v for k, v in syms.items()})

@@ -4,7 +4,7 @@ A temporary patch is a block of the Mod's source that stands in for somebody els
 final band registration ...). Its lines carry the literal TEMP-<NAME> in the source, and the module that puts the
 block into a build declares it AT BUILD TIME, when (and only when) the block really goes into the exe being linked:
 
-    tempmark.temp_marker('BANDS')       # e.g. in fpad.patch: tools/swreg.py's TEMP-BANDS block is in this link
+    tempmark.temp_marker('G1')          # e.g. in fpad.patch, while tools/swce/sr_port.c carried a TEMP-G1 hand patch
 
 patch.py calls reset() at the start of every exe and check() after the last module has linked, before the save:
 - a release build (is_release) with any marker registered: REFUSED (SystemExit, no exe written);
@@ -23,7 +23,7 @@ import os
 
 # name -> (the file that holds the TEMP-<NAME> block, what replaces it)
 KNOWN = {
-    'BANDS': ('swreg.py', 'obj4 bands FPORT / FPORT2 / FPML - Shaved\'s BSS_AT fold registers the final ones'),
+    # (none today, 17/11: G1 / G5 / MINILG went with the engine's 05eea45, BANDS with Shaved's 42-bssat 4cfb493)
 }
 MARKS = {}              # name -> where / why, for the exe being built
 

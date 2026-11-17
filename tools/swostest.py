@@ -224,13 +224,22 @@ def build_key(src, env=None, extra=b''):
     *_PACKS / *_HOOK one and env's own, values merged as the build sees them; SEASON_PACKS' packs with their files'
     times) and extra. Two sessions get one dir only for the same build."""
     git = lambda *a: subprocess.run(['git', '-C', src] + list(a), capture_output=True).stdout
-    h = hashlib.sha256(git('rev-parse', 'HEAD'))
-    h.update(git('diff', 'HEAD', '--binary'))
-    for f in sorted(git('ls-files', '--others', '--exclude-standard', 'tools').decode(errors='replace').split()):
-        try:
-            h.update(f.encode() + open(os.path.join(src, f), 'rb').read())
-        except OSError:
-            pass
+    top = git('rev-parse', '--show-toplevel').decode(errors='replace').strip()
+    if top and os.path.realpath(top) == os.path.realpath(src):
+        h = hashlib.sha256(git('rev-parse', 'HEAD'))
+        h.update(git('diff', 'HEAD', '--binary'))
+        for f in sorted(git('ls-files', '--others', '--exclude-standard', 'tools').decode(errors='replace').split()):
+            try:
+                h.update(f.encode() + open(os.path.join(src, f), 'rb').read())
+            except OSError:
+                pass
+    else:                                               # (17/11, Difficolta: a tree that is not its own git checkout -
+        h = hashlib.sha256(b'tree')                     #  an rsync'd copy, remote_run's ~/wt/<name> of one - had a key
+        for dp, dn, fn in sorted(os.walk(os.path.join(src, 'tools'))):   # from the env alone: another tree's exe of
+            dn[:] = sorted(d for d in dn if d != '__pycache__')          # the same env was reused. Hash its tools/.
+            for f in sorted(fn):
+                q = os.path.join(dp, f)
+                h.update(os.path.relpath(q, src).encode() + b'\0' + open(q, 'rb').read())
     full = dict(os.environ, **(env or {}))
     keys = _build_vars() | set(env or {}) | {k for k in full if re.search(r'_(FORCE|TEST|DATA|PACKS|HOOK)$', k)}
     for k in sorted(keys):
@@ -38575,7 +38584,7 @@ def diff_ab():
                             t24 = struct.unpack('<24I', r.read(blk + 188, 96))     # (the cover role, 14/11)
                             res['eng'] = [list(t24[4 * z:4 * z + 4]) for z in range(3)]   # [zone][0, 1, 2, 3+]
                             res['poss'] = [list(t24[12 + 4 * d:16 + 4 * d]) for d in range(3)]   # [distinct][most]
-                            pb = r.read(r.base4 + swreg.DRIB1V1_AT, 0x400)    # (42-drp W1's acts: its 'W1TC' block)
+                            pb = r.read(r.base4 + swreg.DRIB1V1_AT, swreg.DRIB1V1_END - swreg.DRIB1V1_AT)    # (42-drp W1's acts: its 'W1TC' block)
                             kw = pb.find(b'W1TC')
                             if kw >= 0:
                                 res['w1'] = list(struct.unpack_from('<5I', pb, kw + 4))
@@ -45127,6 +45136,72 @@ def tc_loaderr():
             check(not any('CONTINUA' in t or 'FINE STAGIONE' in t for t in texts), f'{name}: the career menu was entered: {texts[:6]}', errs)
         info.append(f'{name} {len(data)} B -> {e}')
     return not errs, '; '.join(errs) or f'N {n}, ' + ', '.join(info)
+
+
+def bss_play_save(exe, car, tag, env):
+    """(path or None, note): world8485 from car (W8485_FROM) on exe, the random generators re-pinned at every pause
+    (W8485_RNGSTEP: the same play on any build), saved mid-season after the 2nd match result screen (W8485_MIDTEXT)"""
+    keys = ('W8485_BUILD', 'W8485_FROM', 'W8485_NOSACK', 'W8485_SMALL', 'W8485_WNUM', 'W8485_K', 'W8485_RNGSTEP',
+            'W8485_MIDTEXT', 'W8485_MIDSAVE', 'W8485_ONE', 'SWOSTEST_SCENARIO')
+    keep = {k: os.environ.get(k) for k in keys}
+    for k in keys:
+        os.environ.pop(k, None)
+    os.environ.update(W8485_BUILD=exe, W8485_FROM=car, W8485_NOSACK='1', W8485_RNGSTEP='bssat',
+                      W8485_MIDTEXT=os.environ.get('BSSAT_MIDTEXT') or 'RISULTATO:2', SWOSTEST_SCENARIO=tag, **env)
+    try:
+        ok, msg = world8485()
+        path = msg.split('saved mid-season: ', 1)[1].split()[0] if 'saved mid-season: ' in msg else ''
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    saved = os.path.exists(path) and 'saved mid-season' in msg
+    return (path if saved else None), msg[:200]
+
+
+@scenario
+def bss_at_saves():
+    """4.2 BSS_AT gate (a) (MC 16/11-17/11): no obj4 linear address in a save. The same saves (JUVE2 1996-97, the 3.3.6
+    1984-85 LIVERPOOL, ENZO 2026-27) played on two builds whose swe.c .bss differs by SWE_BSS_SHIFT (BSSAT_BUILDS=A,B: B =
+    A's recipe + SWE_BSS_SHIFT=0x1000) - the same play (W8485_RNGSTEP), saved after the 2nd match result screen: the two
+    W84A.CAR of each save byte-identical. A stored .bss pointer would differ by the shift (reported: offset, both dwords)."""
+    bl = (os.environ.get('BSSAT_BUILDS') or '').split(',')
+    if len(bl) != 2:
+        return True, 'SKIP: BSSAT_BUILDS=A,B (two builds, the second with SWE_BSS_SHIFT)'
+    j2 = os.environ.get('BSSAT_W0') or os.path.join(MAIN, 'internal', 'swostest', 'saves', 'JUVE2.CAR')   # (a season-end
+    # save plays nothing under W8485_FROM: BSSAT_W0 = a 1996-97 career at a season's start)
+    cars = [(j2, {'W8485_SMALL': '1'}),
+            (os.path.join(MAIN, 'internal', 'oldsaves', 'v3.3.6_W8485_LIVERPOOL_s1.CAR'), {'W8485_WNUM': '4'}),
+            (os.path.join(MAIN, 'internal', 'reports', 'enzo-dup-20261102', 'ENZO.CAR'), {'W8485_WNUM': '5', 'W8485_K': '108+'})]
+    only = os.environ.get('BSSAT_ONLY')
+    errs, notes = [], []
+    for car, env in cars:
+        tag = os.path.splitext(os.path.basename(car))[0].lower()[:10]
+        if only and not any(o in tag for o in only.split(',')):
+            continue
+        if not os.path.exists(car):
+            errs.append(f'no save {car}')
+            continue
+        out = []
+        for k, b in zip('ab', bl):
+            path, note = bss_play_save(ui_dir(b), car, f'bss_at_{tag}_{k}', env)
+            out.append(open(path, 'rb').read() if path else None)
+            if not path:
+                errs.append(f'{tag} build {k}: no mid-season save ({note})')
+        if None in out:
+            continue
+        a, b2 = out
+        if a == b2:
+            notes.append(f'{tag} {len(a)} B identical')
+            continue
+        diff = [i for i in range(min(len(a), len(b2))) if a[i] != b2[i]]
+        dw = sorted({i & ~3 for i in diff})[:8]
+        errs.append(f'{tag}: W84A.CAR differs ({len(a)} / {len(b2)} B, {len(diff)} bytes; dwords ' +
+                    ', '.join(f'+{o:#x} {struct.unpack_from("<I", a, o)[0]:#x}/{struct.unpack_from("<I", b2, o)[0]:#x}'
+                              for o in dw if o + 4 <= min(len(a), len(b2))) + ')')
+    return not errs, '; '.join(errs) or ', '.join(notes)
 
 
 if __name__ == '__main__':

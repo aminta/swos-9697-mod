@@ -1,9 +1,9 @@
 """The source stamp of a build (MC 16/11, rule 0: a harness never silently tests a prebuilt exe older than its tree).
 
-stamp(root) = {'src': the source identity, 'sha': git HEAD or ''} (stamp()'s docstring: the one definition). 'src' is the very hash remote_run.sh passes to the
-server as REMOTE_SRC_TEST (shasum, first 16 hex, of: git rev-parse HEAD, git diff HEAD --binary, then each untracked
-file under tools/ as its name + newline + its bytes) - so a build stamped here matches the same tree on
-MacMiniM1Server, whose copy has no .git (there the identity comes from REMOTE_SRC_TEST). No git and no REMOTE_SRC_TEST:
+stamp(root) = {'src': the source identity, 'sha': git HEAD or '' (informational)} (stamp()'s docstring: the one definition). 'src' (MC 17/11) is
+a CONTENT hash of the BUILD INPUTS: every file under tools/ (minus HARNESS: tools/hosttest/, tools/swostest.py) and packs/, by
+relative name + bytes, the same in a git checkout and in a plain copy - so a harness-only commit or an empty commit never
+changes it, and the server's copy (no .git) computes the same value; REMOTE_SRC_TEST still wins when set. No git and no REMOTE_SRC_TEST:
 None (the tree cannot be identified: nothing is judged).
 
 patch.py writes it into a HOSTTEST_SYMS build's <EXE>.syms.json as '_src' in the file's [obj, value] shape with obj -1
@@ -20,6 +20,9 @@ def _git(root, *a):
     return subprocess.run(['git', '-C', root, *a], capture_output=True, check=True).stdout
 
 
+HARNESS = ('tools/hosttest/', 'tools/swostest.py')   # (MC 17/11: files that never go into an exe or its DATA: a commit that touches only
+                                                     #  these keeps the stamp, so it never invalidates a release dir / a build. A harness file
+                                                     #  missing here only costs a rebuild - the safe direction; owners extend the list)
 TREE_DIRS = ('tools', 'packs')          # (a tree without its own .git: the build's inputs remote_run.sh copies - notes/
                                         #  is copied too but never read by a build)
 
@@ -33,6 +36,9 @@ def _files(root):
             dn[:] = sorted(x for x in dn if x != '__pycache__')
             for f in sorted(fn):
                 q = os.path.join(dp, f)
+                rel = os.path.relpath(q, root)
+                if rel.endswith('.pyc') or any(rel.startswith(x) for x in HARNESS):
+                    continue
                 h.update(os.path.relpath(q, root).encode() + b'\0')
                 if os.path.isfile(q):
                     h.update(open(q, 'rb').read())
@@ -41,22 +47,15 @@ def _files(root):
 
 def stamp(root=ROOT):
     """ONE definition of 'which sources built this exe' (MC 17/11, rule 0: build_key, patch.py's '_src', remote_run.sh's
-    REMOTE_SRC_TEST and snapshot.py all use it). Its own git checkout: HEAD + diff + untracked tools/ files. Not its own
-    checkout (no .git, or a copy that sits inside another repo): REMOTE_SRC_TEST when set (the server's copy of a tree
-    stamped on this Mac), else the files under TREE_DIRS."""
+    REMOTE_SRC_TEST and snapshot.py all use it). The content of the build inputs (_files: tools/ minus HARNESS, packs/) in a git
+    checkout and in a copy alike; 'sha' = HEAD when it is a checkout. A copy with REMOTE_SRC_TEST set: that value wins (the server's
+    copy of a tree stamped on this Mac)."""
     try:
         top = _git(root, 'rev-parse', '--show-toplevel').decode().strip()
     except (OSError, subprocess.CalledProcessError):
         top = ''
     if top and os.path.realpath(top) == os.path.realpath(root):
-        head = _git(root, 'rev-parse', 'HEAD')
-        h = hashlib.sha1(head + _git(root, 'diff', 'HEAD', '--binary'))
-        for f in _git(root, 'ls-files', '--others', '--exclude-standard', 'tools').decode().split('\n'):
-            if f:                       # (as remote_run.sh's printf + cat: the name always, the bytes if a file)
-                h.update(f.encode() + b'\n')
-                if os.path.isfile(os.path.join(root, f)):
-                    h.update(open(os.path.join(root, f), 'rb').read())
-        return {'src': h.hexdigest()[:16], 'sha': head.decode().strip()}
+        return {'src': _files(root), 'sha': _git(root, 'rev-parse', 'HEAD').decode().strip()}   # ('sha': informational only)
     src = os.environ.get('REMOTE_SRC_TEST')
     if src:
         return {'src': src, 'sha': ''}

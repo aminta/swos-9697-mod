@@ -16,7 +16,12 @@ import fixroot  # noqa: E402
 # written by its owner follows the current build. Owners: write the reason in place of 'owner: ...'.
 REFERENCE = {'REL40rc2': 'test_kits: golden 4.0 kit output (owner: write the reason)',
              'REL41rc3': 'test_italy_import: golden 4.1 data (owner: write the reason)',
-             'REL42i70': 'test_frdata: friendlies data release dir (owner Motore: reason or follow the current build)',
+             # (Motore 17/11) test_frdata: the committed friendlies tables tools/frdata/ (frstr_w0/w4/w5.bin, frturns_w0) were generated
+             # from REL42i70's exes + DATA; regenerating them from that same build must give the committed bytes (frstr / frturns
+             # determinism + the pinned FRSS slices). A newer build legitimately differs (team data / skills change), so this must
+             # not follow the current build. If REL42i70 is removed the test SKIPs (HT_F9697_BUILD): regenerate the tables from a new
+             # release build and re-pin them, as a deliberate data change.
+             'REL42i70': 'test_frdata: golden - the committed tools/frdata tables were generated from this build (Motore)',
              'REL42x5383': 'test_zbis_golden: golden (owner: write the reason)'}
 # NOT valid references (MC 17/11): they must follow the current build; the owner converts them, then this entry goes
 PENDING = {'RELpr5': 'test_practice REF (Difficolta: stale for today\'s PRACTICE band, e1f9ce9)',

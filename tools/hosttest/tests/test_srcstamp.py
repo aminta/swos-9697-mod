@@ -67,16 +67,42 @@ def test_remote_src_wins():
             os.environ['REMOTE_SRC_TEST'] = old
 
 
-def test_git_checkout_unchanged():
-    """this checkout: the git identity remote_run.sh computes on this Mac (HEAD + diff + untracked tools/)"""
+def test_stamp_is_the_build_inputs():
+    """MC 17/11: the stamp identifies what goes into the exes + DATA (tools/ minus the harness, packs/), by CONTENT: a commit that
+    only touches the harness (tools/hosttest/, tools/swostest.py) or only moves HEAD keeps it; a build input changes it; a git
+    checkout and a plain copy of the same files agree (so remote_run's server copy needs no second formula)."""
     import srcstamp
-    root = os.path.abspath(os.path.join(TOOLS, '..'))
-    if subprocess.run(['git', '-C', root, 'rev-parse', '--show-toplevel'], capture_output=True, text=True).stdout.strip() \
-            != os.path.realpath(root):
-        return True, 'SKIP: not run from a git checkout'
-    st = srcstamp.stamp(root)
-    sh = subprocess.run(['bash', '-c', 'git rev-parse HEAD && git diff HEAD --binary && git ls-files --others '
-                         '--exclude-standard tools | while read f; do printf "%s\\n" "$f"; cat "$f"; done'],
-                        cwd=root, capture_output=True).stdout
-    want = hashlib.sha1(sh).hexdigest()[:16]
-    return st['src'] == want, f'git stamp {st["src"]} vs remote_run.sh formula {want}'
+    old = _noremote()
+    try:
+        with tempfile.TemporaryDirectory() as t:
+            g = _copy(os.path.join(t, 'g'), '{"n": 1}')
+            os.makedirs(os.path.join(g, 'tools', 'hosttest'))
+            open(os.path.join(g, 'tools', 'hosttest', 'run.py'), 'w').write('# harness\n')
+            open(os.path.join(g, 'tools', 'swostest.py'), 'w').write('# harness\n')
+            run = lambda *a: subprocess.run(['git', '-C', g, '-c', 'user.name=t', '-c', 'user.email=t@t', *a], capture_output=True, check=True)
+            run('init', '-q')
+            run('add', '-A')
+            run('commit', '-q', '-m', 'one')
+            s0 = srcstamp.stamp(g)
+            cp = os.path.join(t, 'copy')                      # a plain copy: no .git (the server's ~/wt/<name>)
+            shutil.copytree(os.path.join(g, 'tools'), os.path.join(cp, 'tools'))
+            shutil.copytree(os.path.join(g, 'packs'), os.path.join(cp, 'packs'))
+            if srcstamp.stamp(cp)['src'] != s0['src']:
+                return False, f'a git checkout and a copy of the same files differ: {s0["src"]} vs {srcstamp.stamp(cp)["src"]}'
+            open(os.path.join(g, 'tools', 'hosttest', 'run.py'), 'a').write('# more harness\n')
+            open(os.path.join(g, 'tools', 'swostest.py'), 'a').write('# more harness\n')
+            run('commit', '-q', '-a', '-m', 'harness only')
+            run('commit', '-q', '--allow-empty', '-m', 'moves HEAD')
+            s1 = srcstamp.stamp(g)
+            if s1['src'] != s0['src']:
+                return False, f'a harness-only commit / an empty commit changed the stamp: {s0["src"]} -> {s1["src"]}'
+            if s1['sha'] == s0['sha']:
+                return False, 'the informational sha did not follow HEAD'
+            open(os.path.join(g, 'tools', 'patch_stub.py'), 'a').write('# a build input\n')
+            s2 = srcstamp.stamp(g)
+            if s2['src'] == s0['src']:
+                return False, 'an uncommitted build-input change kept the stamp'
+            return True, f'harness-only + empty commits keep {s0["src"]}; a build input -> {s2["src"]}; git checkout == plain copy'
+    finally:
+        if old is not None:
+            os.environ['REMOTE_SRC_TEST'] = old

@@ -26269,8 +26269,8 @@ def world_friendlies_dormant():
     On the FRND test build (FR_BUILD) cloned into the run dir with DATA\\FRSS.DAT's World 2026-27 index entry renamed
     (world byte -> EEh: the career's world has no slice, the other worlds keep theirs - as a historic / other career
     world), a LAZIO career, MONDO 2026-27: fr_season finds no slice (FR_ST left as it is); at the first menu a LIVE
-    FR_ST is poked (W8485_POKEIF: this season 7Eh, played 1 + FR_OPEN, 4 valid team words, home flags 05h) - friendly 2
-    due at its turn. Checks: no friendly installed (no AMICHEVOLE row or match screen, FR_TRACE never 2xh), fr_step
+    FR_ST is poked (W8485_POKEIF at the chairman's note, the first pause, before the first menu's fr_step: this season
+    7Eh, played 0 + FR_OPEN, 4 valid team words, home flags 05h) - friendly 1 due at the first menu, as in a FRSS world. Checks: no friendly installed (no AMICHEVOLE row or match screen, FR_TRACE never 2xh), fr_step
     closes it (FR_TRACE 87h, FR_OPEN clear, played still 1), no fee (FR_FEE all 0), the season ends."""
     src = world_data()
     if not os.path.isdir(src):
@@ -26299,7 +26299,7 @@ def world_friendlies_dormant():
     if 'FF_INC' in sy:
         keys['inc'] = (sy['FF_INC'], 4)
     name_of = {hexarg(a, n).split(':')[0]: k for k, (a, n) in keys.items()}
-    live = '7e09ac14b404690f650c0500'           # (season 7Eh, played 1 + FR_OPEN, NEW ENGLAND, AL-ITTIHAD, two more, home 05h)
+    live = '7e08ac14b404690f650c0500'           # (season 7Eh, played 0 + FR_OPEN, NEW ENGLAND, AL-ITTIHAD, two more, home 05h)
     fst = sy['FR_ST'][1]
     ok, msg, lines = sc_season('EUROPA,ITALIA,SERIE A,LAZIO', dict(
         W8485_BUILD=d, W8485_HEX=','.join(hexarg(a, n) for a, n in keys.values()),
@@ -26308,7 +26308,7 @@ def world_friendlies_dormant():
     errs, info = [], []
     check(ok, f'season: {msg[:300]}', errs)
     pk = [ln for ln in lines if ln.startswith('POKEIF')]
-    check(len(pk) == 1, f'the live FR_ST poke: {pk}', errs)
+    check(len(pk) == 1 and pk[0].endswith(' ' + live), f'the live FR_ST poke: {pk}', errs)
     cur, snaps = {}, []
     for i, ln in enumerate(lines):
         if ln.startswith('HEX '):
@@ -26323,11 +26323,10 @@ def world_friendlies_dormant():
     lab = frtext_label()
     rows = [r for r in slot4_rows(lines) if r[3] == lab]
     scr_ = [ln[:80] for ln in lines if ln.startswith('[') and lab in ln.split('|')[0] and '- RISULTATO -' in ln]
-    check(any(s_.hex() == live for s_ in sts), f'the poked FR_ST never seen live: {[s_.hex() for s_ in sts][:4]}', errs)
     check(not rows and not scr_, f'a friendly installed: rows {rows[:2]}, screens {scr_[:2]}', errs)
     check(not any(0x20 <= t <= 0x2F for t in tr_seq), f'FR_TRACE shows an install: {[hex(t) for t in tr_seq]}', errs)
     check(0x87 in tr_seq, f'FR_TRACE never 87h (closed: no slice): {[hex(t) for t in tr_seq]}', errs)
-    check(len(fin) == 12 and not fin[1] & 8 and fin[1] & 7 == 1, f'FR_ST at the end {fin.hex()} (want FR_OPEN clear, played 1)', errs)
+    check(len(fin) == 12 and not fin[1] & 8 and fin[1] & 7 == 0, f'FR_ST at the end {fin.hex()} (want FR_OPEN clear, played 0)', errs)
     fees = struct.unpack('<4I', snaps[-1][1].get('fee', bytes(16))) if snaps else (0,) * 4
     check(not any(fees), f'FR_FEE {list(fees)}: a fee', errs)
     inc = [struct.unpack('<I', sn['inc'])[0] for _, sn in snaps if 'inc' in sn]

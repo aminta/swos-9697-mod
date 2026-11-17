@@ -39,7 +39,8 @@ if [ -e $FX/MANIFEST.json ]; then echo "fixtures for $SHA exist: $FX"; else
     || { tail -20 $P/build-it.log; exit 1; }
   test -s $P/SWOS/ITALIAN.syms.json
   echo "$SHA, data ${W:t}, HOSTTEST_SYMS=1 (tools/hosttest/mkfixtures.sh $(date +%F))" >> $P/build-it.log
-  for d in HTO4 HTOMM HTPC2 HTMC; do cp -a $P $T/$d; done      # (HTMC: test_champ / test_cbonus's plain HOSTTEST_SYMS image)
+  for d in HTO4 HTOMM HTPC2 HTMC HTTC1; do cp -a $P $T/$d; done   # (HTMC: test_champ / test_cbonus's plain HOSTTEST_SYMS image;
+  # HTTC1: test_tc1b / test_tcache - the release recipe + HOSTTEST_SYMS, a big world: careerworld's tails, TC_LOADERR)
   echo "FX/HTW: $(md5 -q $P/SWOS/ITALIAN.EXE)  $(tail -1 $P/build-it.log)"
 
   # 1b. test_sreg's pair: HTn7rf (SREG_FORCE=1) and HTn7rd (dormant), the release recipe on world5tm-h2 (its own SEASON_PACKS)
@@ -79,7 +80,7 @@ E
   mv $T $FX; trap - EXIT
 fi
 if [ -n "${MKFIX_LEGACY:-}" ]; then
-  for d in HTW HTO4 HTOMM HTPC2 HTMC HTn7rf HTn7rd S7W-ws4c S7RI-hs S7W-p6w; do rm -rf $C/$d.old; [ -e $C/$d ] && mv $C/$d $C/$d.old; cp -a $FX/$d $C/$d && rm -rf $C/$d.old; done
+  for d in HTW HTO4 HTOMM HTPC2 HTMC HTTC1 HTn7rf HTn7rd S7W-ws4c S7RI-hs S7W-p6w; do rm -rf $C/$d.old; [ -e $C/$d ] && mv $C/$d $C/$d.old; cp -a $FX/$d $C/$d && rm -rf $C/$d.old; done
 fi
 echo "export HOSTTEST_FIXROOT=$FX"
 

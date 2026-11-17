@@ -123,6 +123,46 @@ def test_tc1b():
         bad.append(f'w_loadcopy .SEA: TC_LOADERR {e}, SELBASEV {base:#x} (want the game\'s cache, no check)')
     m.w8(sea, 0)
 
+    # 1b+ (MC 16/11): w_lsize - the .CAR's size from DOS before LoadFile (int 21h emulated: open / seek end / close);
+    # longer than FIXED + SEL_ROOM -> TC_LONG + CF, the stage not read; w_loadcopy then refuses it (2) untouched
+    if 'w_lsize' in m.code:
+        from unicorn import UC_HOOK_INTR
+        from unicorn.x86_const import UC_X86_REG_EAX, UC_X86_REG_EDX, UC_X86_REG_EFLAGS
+        size = [0]
+        calls = []
+
+        def intr(u, n, _):
+            ah = (u.reg_read(UC_X86_REG_EAX) >> 8) & 0xff
+            calls.append(ah)
+            fl = u.reg_read(UC_X86_REG_EFLAGS) & ~1
+            if ah == 0x42:
+                u.reg_write(UC_X86_REG_EAX, size[0] & 0xffff)
+                u.reg_write(UC_X86_REG_EDX, size[0] >> 16)
+            elif ah == 0x3D:
+                u.reg_write(UC_X86_REG_EAX, 7)
+            u.reg_write(UC_X86_REG_EFLAGS, fl)
+        h = m.uc.hook_add(UC_HOOK_INTR, intr)
+        tl = tr.B1 + m.code['TC_LONG'][1]
+        for n_, is_sea, want in ((fixed + selroom, 0, 0), (fixed + selroom + 1, 0, 1), (fixed + selroom + 4096, 0, 1),
+                                 (fixed + selroom + 4096, 1, 0)):
+            size[0] = n_
+            del calls[:]
+            m.w8(sea, is_sea)
+            m.w8(tl, 0xEE)
+            _, fl = m.call('w_lsize')
+            if (m.rd(tl, 1)[0], fl & 1) != ((want, want) if not is_sea else (0, 0)) or (not is_sea and calls != [0x3D, 0x42, 0x3E]):
+                bad.append(f'w_lsize size {n_} .SEA {is_sea}: TC_LONG {m.rd(tl, 1)[0]} CF {fl & 1} (want {want}), int 21h {calls}')
+        m.uc.hook_del(h)
+        m.w8(sea, 0)
+        m.w8(tl, 1)                             # w_loadcopy after a too long file: 2, nothing copied (the stage stale)
+        e, c0, base = load(10, fixed + 10 * 684 + 948)
+        if (e, c0, base) != (2, 0xAA, old):
+            bad.append(f'w_loadcopy after TC_LONG: TC_LOADERR {e} (want 2), careerFileBuffer[0] {c0:#x}, SELBASEV {base:#x}')
+        m.w8(tl, 0)
+        notes.append('w_lsize 4 cases + TC_LONG refusal')
+    else:
+        bad.append('no w_lsize (team cache 1b+: the length check before LoadFile)')
+
     # the refusal: load_trailer processes nothing; tc_lchk (LoadCareerFile's call after it, in its own frame) takes the
     # game's failure path
     o1 = m.rd(tr.B1, m.le.obj(1).vsize)

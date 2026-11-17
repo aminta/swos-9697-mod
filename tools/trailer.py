@@ -296,6 +296,19 @@ set_mark:                               ; 'S3' + balance: the table still adds u
 lt_ret:
     ret
 
+lt_clc:
+    clc
+    ret
+
+tc_lfile:                               ; 4.2 team cache 1b+ (MC 16/11): replaces LoadCareerFile's `call LoadFile`. LSIZE
+    call [LSIZE]                        ; (careerworld w_lsize, a big world) CF = the .CAR is longer than the stage: it is
+    jc .long                            ; not read at all (LoadFile would run past the stage into B_UQ) - w_loadcopy then
+    jmp LOADFILE                        ; refuses it (TC_LOADERR 2, the same failure path)
+.long:
+    mov word [LFD0], 0                  ; (as LoadFile's success: D0 = 0, ZF = 1 for the caller's jnz)
+    xor ax, ax
+    ret
+
 tc_lchk:                                ; 4.2 team cache 1b: replaces LoadCareerFile's call after ProcessCareerFile (its
     cmp byte [TC_LOADERR], 0            ; own frame, whatever wraps load_trailer: arg97's arg_load): a refused file ->
     jne .f                              ; the game's failure path (its load-error message, `mov ax, 1; or ax, ax; ret`:
@@ -307,6 +320,7 @@ align 4
 ROOMV: dd ROOM                          ; room for the records + this block (careerworld: a big world's cache)
 SELBASEV: dd SELBUF                     ; the career's team cache (careerworld: a league-phase world's is bigger)
 LOADCOPY: dd lt_ret
+LSIZE: dd lt_clc
 TC_LOADERR: db 0, 0, 0, 0                ; (careerworld w_loadcopy: 1 = the save refused, 2 = too long, 3 = N over the cap)
 CG_GUARDP: dd 0                         ; (ctgame.patch: cg_guard, option C's view)
 
@@ -472,6 +486,9 @@ def patch(p, cave, items, tails=False):
     assert d1[m[0].end() - 7] == 0x75, d1[m[0].end() - 7:m[0].end()].hex()
     lfail = m[0].end() - 5 + struct.unpack('<b', d1[m[0].end() - 6:m[0].end() - 5])[0]
     assert b'\x66\xb8\x01\x00\x66\x0b\xc0\xc3' in d1[lfail:lfail + 48], d1[lfail:lfail + 48].hex()
+    lfcall = m[0].start() + 10                             # (its `call LoadFile`: tc_lfile, team cache 1b+)
+    assert d1[lfcall] == 0xE8, d1[lfcall:lfcall + 5].hex()
+    loadfile = lfcall + 5 + struct.unpack_from('<i', d1, lfcall + 1)[0]
     lsucc = m[0].end()                                     # (the call right after ProcessCareerFile's: tc_lchk)
     assert d1[lsucc] == 0xE8 and d1[lsucc + 5:lsucc + 15] == b'\x66\xc7\x05' + d1[lsucc + 8:lsucc + 12] + b'\x00\x00\x66', \
         d1[lsucc:lsucc + 16].hex()
@@ -516,6 +533,7 @@ def patch(p, cave, items, tails=False):
     defaults = b''.join(p.get(1, off, n) for off, n in items)
     bal = -(sa.MARK3 & 0xff) - (sa.MARK3 >> 8) & 0xff
     symbols = {'NUMSEL': (2, numsel), 'CAREER': (2, career), 'D1': (2, dreg1), 'WRITEFILE': (1, writefile),
+               'LOADFILE': (1, loadfile), 'LFD0': (2, dreg1 - 4),
                'SELBUF': (2, numsel + 2),
                'PROCESS': (1, process), 'LFAIL': (1, lfail), 'LSUCC_X': (1, lsucc_x), 'MARK': (0, MARK), 'S2': (0, S2), 'SA': (0, SA),
                'TEAM_SIZE': (0, TEAM_SIZE), 'ROOM': (0, SELECTED_ROOM), 'BLOCK': (0, block),
@@ -607,13 +625,15 @@ def patch(p, cave, items, tails=False):
     p.put(1, load_call + 1, struct.pack('<i', labels['load_trailer'] - (load_call + 5)))
     assert bytes(p.get(1, lsucc, 5)) == d1[lsucc:lsucc + 5], 'LoadCareerFile call after ProcessCareerFile already hooked'
     p.put(1, lsucc + 1, struct.pack('<i', labels['tc_lchk'] - (lsucc + 5)))     # (team cache 1b: a refused file fails there)
+    assert bytes(p.get(1, lfcall, 5)) == d1[lfcall:lfcall + 5], 'LoadCareerFile call LoadFile already hooked'
+    p.put(1, lfcall + 1, struct.pack('<i', labels['tc_lfile'] - (lfcall + 5)))  # (team cache 1b+: a too long file not read)
     LABELS.clear()
-    LABELS.update({k: (0, labels[k]) for k in ('save_trailer', 'load_trailer', 'tc_lchk', 'en_read', 'en_finish', 'EN_FOUND',
+    LABELS.update({k: (0, labels[k]) for k in ('save_trailer', 'load_trailer', 'tc_lchk', 'tc_lfile', 'en_read', 'en_finish', 'EN_FOUND',
                                                 'ROOMV')})
     INFO.clear()
     INFO.update({k: symbols[k] for k in ('NUMSEL', 'CAREER', 'D1', 'WRITEFILE', 'PROCESS', 'BLOCK', 'FIXED', 'ROOM',
                                          'MARK', 'SELBUF')})
-    INFO.update(load_a1=load_a1, roomv=labels['ROOMV'], tc_loaderr=labels['TC_LOADERR'], loadcopy=labels['LOADCOPY'], selbasev=labels['SELBASEV'],
+    INFO.update(load_a1=load_a1, roomv=labels['ROOMV'], tc_loaderr=labels['TC_LOADERR'], loadcopy=labels['LOADCOPY'], lsize=labels['LSIZE'], selbasev=labels['SELBASEV'],
                 cg_guardp=labels['CG_GUARDP'], items=list(items), en_found=labels['EN_FOUND'],
                 en_items=labels['EN_ITEMS'], en_n=len(enr), nmax=nmax, tc_cap=tc_cap)   # (4.2 S7: s7swap.c resolves WSITES rows by them)
     if tails:

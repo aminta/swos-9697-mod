@@ -25997,7 +25997,7 @@ def world_friendlies():
     rows = slot4_rows(lines)
     fw = sorted({w for _, w, _, lb, _ in rows if lb == lab})
     other = sorted({(w, lb) for _, w, _, lb, _ in rows if lb not in (lab, scs)})
-    errs += sc_labels(lines, lab)
+    errs += sc_labels(lines)                     # (no stray contest name; the AMICHEVOLE rows: the [slot4row] lines below)
     check(not other, f'slot-4 rows with another label: {other[:4]}', errs)
     check(len(fw) == 4 and all(fw[k + 1] - fw[k] == 2 for k in range(3)), f'{lab} rows at weeks {fw} (want 4, 2 apart)', errs)
     scw = sorted({w for _, w, _, lb, _ in rows if lb == scs})
@@ -26014,10 +26014,9 @@ def world_friendlies():
     check(len(post) >= 4, f'{len(post)} {lab} result screens (want 4)', errs)
     check(pre and (not others or pre[0] < others[0]), f'friendly 1 not before every other match (first other '
           f'{lines[others[0]][:80] if others else "-"})', errs)
-    first_tr = next((sn['tr'][0] for _, sn in snaps if 'tr' in sn), None)
-    first_step = next((ln.split(']')[0] + ']' for ln in lines if ln.startswith('[') and ln[1:2].isdigit()), '')
-    check(first_tr == 0x20 and snaps[0][0] < (pre[0] if pre else 0), f'first menu: FR_TRACE {first_tr} (want 20h, '
-          f'friendly 1 installed) at {first_step}', errs)
+    r1 = next((r for r in rows if r[0] == 1), None)   # (the first career menu, step 1: friendly 1 already in its row,
+    check(r1 is not None and r1[3] == lab and fw and r1[1] == fw[0] and (pre and pre[0] > 0),   # the current week)
+          f'first menu: slot-4 row {r1} (want step 1, {lab} at week {fw[:1]})', errs)
     # (c) FR_ST at the season's end
     check(st[1] & 7 == 4, f'played {st[1] & 7} (want 4)', errs)
     check(w_ + d_ + l_ == 4, f'W+D+L {w_}+{d_}+{l_} != 4', errs)
@@ -26044,8 +26043,18 @@ def world_friendlies():
     if len(seen) == 4:
         cw = sum(1 for r in seen if r[2] > r[3]); cd = sum(1 for r in seen if r[2] == r[3]); cl = 4 - cw - cd
         check((cw, cd, cl) == (w_, d_, l_), f'W/D/L {w_}/{d_}/{l_} != the scores seen {cw}/{cd}/{cl} {seen}', errs)
-    else:
-        check(False, f'scores seen for {len(seen)} friendlies only: {res}', errs)
+    else:                                       # (the menu hook reads slot 4 before each match only - the next friendly
+        wdl = []                                #  replaces the tie at the advance: each leg's FR_ST step adds exactly one W/D/L)
+        for k in range(4):
+            a_, b_ = st_at_tr(0x30 | k, snaps), st_at_tr(0x20 | k, snaps)
+            if a_ and b_:
+                fa, fb = a_[10] | a_[11] << 8, b_[10] | b_[11] << 8
+                d = [(fa >> sh & 7) - (fb >> sh & 7) for sh in (4, 7, 10)]
+                wdl.append('WDL'[d.index(1)] if sorted(d) == [0, 0, 1] else f'?{d}')
+            else:
+                wdl.append(None)
+        check(all(x in ('W', 'D', 'L') for x in wdl), f'per-leg W/D/L steps {wdl} (FR_ST before / after each leg)', errs)
+        info.append(f'per-leg {wdl}')
     info.append(f'results {res}')
     # (d) the fee credited: FF_INC's step over each friendly (install k .. the next install / close) = FR_FEE[k]
     ix = {}
@@ -26088,6 +26097,11 @@ def world_friendlies():
     info.append(f'{lab} weeks {fw}; {scs} weeks {scw}; supercup screen {lines[scm[0]].split("|")[0] if scm else "-"}')
     return not errs, '; '.join(errs + info) if errs else '; '.join(info) + f'; {msg[:80]}'
 
+
+
+def st_at_tr(t, snaps):
+    """world_friendlies: FR_ST of the first snapshot whose FR_TRACE is t (None if never logged)"""
+    return next((sn['st'] for _, sn in snaps if 'tr' in sn and sn['tr'][0] == t and 'st' in sn), None)
 
 # the game's extra-time simulation (cseg_2C0D3): the stronger side's margin per |rating difference| (32 rows x 4,
 # picked by Rand2 & 3) - zeroed by world_sc_tur so a level tie stays level after extra time and goes to penalties

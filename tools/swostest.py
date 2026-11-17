@@ -224,13 +224,22 @@ def build_key(src, env=None, extra=b''):
     *_PACKS / *_HOOK one and env's own, values merged as the build sees them; SEASON_PACKS' packs with their files'
     times) and extra. Two sessions get one dir only for the same build."""
     git = lambda *a: subprocess.run(['git', '-C', src] + list(a), capture_output=True).stdout
-    h = hashlib.sha256(git('rev-parse', 'HEAD'))
-    h.update(git('diff', 'HEAD', '--binary'))
-    for f in sorted(git('ls-files', '--others', '--exclude-standard', 'tools').decode(errors='replace').split()):
-        try:
-            h.update(f.encode() + open(os.path.join(src, f), 'rb').read())
-        except OSError:
-            pass
+    top = git('rev-parse', '--show-toplevel').decode(errors='replace').strip()
+    if top and os.path.realpath(top) == os.path.realpath(src):
+        h = hashlib.sha256(git('rev-parse', 'HEAD'))
+        h.update(git('diff', 'HEAD', '--binary'))
+        for f in sorted(git('ls-files', '--others', '--exclude-standard', 'tools').decode(errors='replace').split()):
+            try:
+                h.update(f.encode() + open(os.path.join(src, f), 'rb').read())
+            except OSError:
+                pass
+    else:                                               # (17/11, Difficolta: a tree that is not its own git checkout -
+        h = hashlib.sha256(b'tree')                     #  an rsync'd copy, remote_run's ~/wt/<name> of one - had a key
+        for dp, dn, fn in sorted(os.walk(os.path.join(src, 'tools'))):   # from the env alone: another tree's exe of
+            dn[:] = sorted(d for d in dn if d != '__pycache__')          # the same env was reused. Hash its tools/.
+            for f in sorted(fn):
+                q = os.path.join(dp, f)
+                h.update(os.path.relpath(q, src).encode() + b'\0' + open(q, 'rb').read())
     full = dict(os.environ, **(env or {}))
     keys = _build_vars() | set(env or {}) | {k for k in full if re.search(r'_(FORCE|TEST|DATA|PACKS|HOOK)$', k)}
     for k in sorted(keys):

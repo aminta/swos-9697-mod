@@ -35,7 +35,7 @@ DRIVER = r'''
 #define FP_DATA
 #define FPORT_TEST
 #define GP_GIN_HOST
-static unsigned char GP_GIN[O_INT + C_GD * C_GT * C_ROW];
+static unsigned char GP_GIN[O_INT + C_GD * C_GT * C_ROW + 16];
 #define IN GP_GIN
 #include "fpml.c"
 u8 FP_ML[FP_ML_SZ]; struct fp_st FP_ST; const u8 FP_SEASON = 30, FP_CWB = 5, GP_SEAS = 30; u16 GP_MGR;
@@ -103,7 +103,11 @@ int main(int argc, char **argv)
     }
     if (mode == 1) refuse = 1;                  /* the port refuses every fixture: simulated */
     if (mode == 2) { tables(0x46); fp_ml_open(0); fp_ml_open(1); show("X"); tables(0x45); }   /* another country's tables */
-    printf("need=%X\n", fp_ml_need());
+    memset(GP_GIN + O_INSIM, 255, 9);
+    for (int d = 0; d < 5; d++) if (d != (me >= 0 ? 2 + me : 2)) GP_GIN[O_INN + d] = 0;   /* (the league's end: the career club's table only) */
+    printf("need=%X", fp_ml_need());
+    printf(" sim=%d,%d,%d\n", GP_GIN[O_INSIM], GP_GIN[O_INSIM + 1], GP_GIN[O_INSIM + 2]);
+    tables(0x45);
     fp_ml_open(0);
     show("A");
     fp_ml_open(0);                              /* (a second league-end call: nothing) */
@@ -128,7 +132,7 @@ def _build(t):
     exe = os.path.join(t, 'drv')
     r = subprocess.run(['cc', '-std=gnu11', '-Wall', '-O1', '-I', TOOLS, '-DFP_ST_SZ=420', '-DFP_SAVE_SZ=2528',
                         '-DFP_SAVE_HDR=36', '-DFP_ML_SZ=112', '-DFP_HASH=1u', '-DFP_WORLD=5', '-DO_INN=4', '-DO_INT=22',
-                        '-DO_INMGR=0', '-DC_GD=16', '-DC_GT=32', '-DC_ROW=12', '-DO_RPTS=10', drv, '-o', exe], capture_output=True, text=True)
+                        '-DO_INMGR=0', '-DC_GD=16', '-DC_GT=32', '-DC_ROW=12', '-DO_RPTS=10', '-DO_INSIM=6170', '-DC_SDX=9', '-DC_NOC=255', drv, '-o', exe], capture_output=True, text=True)
     return exe, r
 
 
@@ -186,7 +190,8 @@ def test_fpml_stage():
                 assert fx == want, ('port fixtures (md, home, away, off, queued when played)', fx, want)
                 nadd = len(mine) if mode == 0 else (len([m for m in ms if me in m[1:3]]) if me >= 0 else 0)
                 assert f'open=1 sim={3 - len(mine)} add={nadd} done=1 cb=3' in d['table'], ('log', d['table'])
-                assert d['need'] == ('need=1C' if me >= 0 else 'need=0'), d['need']
+                oth = [str(x) for x in (2, 3, 4) if x != 2 + me] + ['255']
+                assert d['need'] == (f"need=1C sim={','.join(oth)}" if me >= 0 else 'need=0 sim=255,255,255'), d['need']
                 if me >= 0:
                     assert d['A0']['st'] == ('2' if mode == 1 else '1') and d['A0']['have'] in ('1', '3'), ('after the league end', d['A0'])
                     assert d['B0']['st'] == '2', ('after the played matches', d['B0'])

@@ -3535,7 +3535,7 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     LABELS.update({k: syms[k] for k in ('GP_RIPOOL', 'GP_CDSTR', 'GP_S7SNAP', 'GP_GEOCH', 'GP_CDKN') if k in syms})
     if fpad.on():                                             # (4.2 fixture port P2: fpad.py links fpad.c to these)
         LABELS.update({k: syms[k] for k in ('GP_PAPI', 'GP_PSTEP', 'GP_PDONE', 'GP_PLEG', 'GP_PSEAS', 'GP_WK', 'GP_PMID', 'GP_SCT',
-                                            'GP_SEAS', 'GP_K', 'GP_PNEED', 'GP_PLEND', 'GP_PEND', 'GP_PRLINE')})   # (fpml.c's hooks)
+                                            'GP_SEAS', 'GP_K', 'GP_PNEED', 'GP_PLEND', 'GP_PRLINE')})   # (fpml.c's hooks)
         LABELS.update({k: symbols[k] for k in ('D1R', 'A1R', 'A2R', 'CAL_CUR')}, GP_CFLAGS=gp_cflags)
         LABELS['SC_ON'] = bool(sct)   # (GP_S7: s7swap.py points them at s7ri.c's s7ri_pool / s7ri_cdstr)
     LABELS.update({k: symbols[k] for k in ('VC_VIEW', 'VC_CALC') if k in symbols})   # (4.0.6 P3: ctview's rounds menu)

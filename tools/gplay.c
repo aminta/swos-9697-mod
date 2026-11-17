@@ -3301,15 +3301,18 @@ void gp_played_c(void) {
 u8 GP_PREI;
 #if GP_PORT
 /* 4.2 the fixture port's league-end / season-end hooks (fpml.c, the mini-league producer; bound by fpad.py, 0 = none):
-   GP_PNEED - gp_need_pre: the divisions (a mask) a stage opening at the career league's last day needs simulated now
-   and kept, as the club's own play-offs'; GP_PLEND - gp_pre_c's head: the career league over, those tables in GP_IN
-   (the club's own table after gp_force); GP_PEND - gp_end_c's head: the season end, after gp_season, every table final */
-u32 (*GP_PNEED)(void) __attribute__((section(".data")));
+   GP_PNEED - gp_need_pre's head: the divisions a stage opening at the career league's last day needs simulated now and
+   kept are appended to GP_IN.sim[] by the hook itself (obj4: no byte of that here - obj1's room), as the club's own
+   play-offs' (before GP_PREI); GP_PLEND(0) - gp_pre_c's head: the career league over, those tables in GP_IN (the
+   club's own table after gp_force); GP_PLEND(1) - gp_end_c's head: the season end, after gp_season, every table final */
+void (*GP_PNEED)(void) __attribute__((section(".data")));
 void (*GP_PLEND)(u32) __attribute__((section(".data")));
-void (*GP_PEND)(u32) __attribute__((section(".data")));
 #endif
 __attribute__((minsize)) u32 gp_need_pre(void) {
     int ns = 0, lim = GP_GSON ? SDX : SD;
+#if GP_PORT
+    if (GP_PNEED) GP_PNEED();                   /* (the port's stage: its entrants' divisions into sim[], always kept) */
+#endif
     u32 have = 1u << GP_IN.mdiv;                /* (divisions with a table: the career club's, the ones in sim[]) */
     while (ns < SDX && GP_IN.sim[ns] != NOC) have |= 1u << GP_IN.sim[ns++];
     GP_PREI = (u8)ns;
@@ -3319,13 +3322,6 @@ __attribute__((minsize)) u32 gp_need_pre(void) {
         GP_ST.ko[0].magic = GP_ST.ko[1].magic = 0;
         GP_ST.pend = 0; GP_ST.s3wait = 0;
     }
-#if GP_PORT
-    if (GP_PNEED) {                             /* (the port's stage: its entrants' divisions first, always kept) */
-        for (u32 x = GP_PNEED() & ~have, d = 0; x && ns < SDX; d++, x >>= 1)
-            if (x & 1) { GP_IN.sim[ns++] = (u8)d; have |= 1u << d; }
-        GP_PREI = (u8)ns;
-    }
-#endif
     for (int pass = 0; pass < 4; pass++)
         for (int pi = 0; ; pi++) {
             const u8 *s = po_at(pi), *e = s ? ents_of(s) : 0;
@@ -3383,7 +3379,7 @@ __attribute__((minsize)) void gp_pre_c(void) {
 void gp_end_c(void) {                   /* after gp_season: the log, the state void */
     const u8 *s = (const u8 *)&GP_ST.ko[0];
 #if GP_PORT
-    if (GP_PEND) GP_PEND(1);            /* (the port: a stage not played is decided now, its trophies written -
+    if (GP_PLEND) GP_PLEND(1);          /* (the port: a stage not played is decided now, its trophies written -
                                            fpml.c fp_ml_open(1), after gp_season and before the S7 swap) */
 #endif
     u8 *d = (u8 *)&GP_LOG.ko;
@@ -4862,7 +4858,7 @@ const u16 GP_OFFS[] = { OF(struct gp_state, ko), OF(struct gp_ko, season), OF(st
                         OF(struct gp_ko, team), OF(struct gp_ko, d1), OF(struct gp_ko, d2), OF(struct gp_ko, rs),
                         OF(struct gp_in, mdiv), MAGIC, NOC, K_PORT, HOST_NEUTRAL, SC_E, SC_UEFA, sizeof(struct gp_ko),
                         OF(struct gp_in, n), OF(struct gp_in, t), OF(struct gp_in, mgr), GD, GT, sizeof(struct gp_row),
-                        OF(struct gp_row, pts) };
+                        OF(struct gp_row, pts), OF(struct gp_in, sim), SDX };
 #endif
 #endif
 u32 sc_step_c(void) {                   /* the calendar advance: 1 = the career club's tie built into ko[0] */

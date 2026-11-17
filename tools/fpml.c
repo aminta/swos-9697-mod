@@ -38,7 +38,7 @@ u16 FP_MLN FP_DATA;
 void (*FP_MLDONE)(const struct fp_ml *) FP_DATA;   /* lane 2 (fpmlv.py binds fpv_done) */
 
 #ifndef GP_GIN_HOST
-extern const u8 GP_GIN[];                       /* gplay.c GP_IN (obj2): nd, n[], t[][] at fpad.py's gp_offsets */
+extern u8 GP_GIN[];                             /* gplay.c GP_IN (obj2): nd, n[], t[][], sim[] at fpad.py's gp_offsets */
 #endif
 extern const u8 GP_SEAS;                        /* gplay.c: the season */
 extern u16 GP_MGR;                              /* gplay.c: the career club's team word */
@@ -222,7 +222,9 @@ static i32 resolve(const struct fp_mlrow *r, u32 i, u16 *club, i32 *me)
     return 1;
 }
 
-/* GP_PNEED: the divisions to simulate now - the other entrants' of a row whose entrant place the career club holds */
+/* GP_PNEED (gp_need_pre's head): the divisions to simulate now - the other entrants' of a row whose entrant place the
+   career club holds - appended to GP_IN.sim[] (after the club's own play-offs' divisions; gp_need_pre counts them
+   as theirs: always kept). Returns the mask it wanted. */
 u32 fp_ml_need(void)
 {
     u32 mask = 0;
@@ -236,6 +238,11 @@ u32 fp_ml_need(void)
         }
         if (mine) mask |= m;
     }
+    u8 *sim = GP_GIN + O_INSIM;
+    u32 ns = 0, have = 0;
+    while (ns < C_SDX && sim[ns] != C_NOC) have |= 1u << sim[ns++];
+    for (u32 d = 0; d < C_GD && ns < C_SDX; d++)
+        if ((mask & ~have) >> d & 1 && !in_n(d)) sim[ns++] = (u8)d;   /* (a table already in GP_IN - the club's own: not again) */
     return mask;
 }
 

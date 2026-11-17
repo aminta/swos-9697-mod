@@ -263,7 +263,7 @@ def vendored():
 
 
 OFFS = ('O_KO', 'O_SEASON', 'O_KIND', 'O_TW', 'O_TEAM', 'O_D1', 'O_D2', 'O_RS', 'O_MDIV', 'C_MAGIC', 'C_NOC', 'C_KPORT',
-        'C_NEUTRAL', 'C_SCE', 'C_SCUEFA', 'KO_SIZE', 'O_INN', 'O_INT', 'O_INMGR', 'C_GD', 'C_GT', 'C_ROW', 'O_RPTS')
+        'C_NEUTRAL', 'C_SCE', 'C_SCUEFA', 'KO_SIZE', 'O_INN', 'O_INT', 'O_INMGR', 'C_GD', 'C_GT', 'C_ROW', 'O_RPTS', 'O_INSIM', 'C_SDX')
 
 
 def gp_offsets(cflags):
@@ -434,7 +434,7 @@ def patch(p, ssyms, gsyms):
     p.put(*syms3['FP_MLN'], struct.pack('<H', nrow))
     for hook, f in (('FP_MLRES', 'fp_ml_result'), ('FP_MLBUSY', 'fp_ml_busy'), ('FP_MLLOAD', 'fp_ml_loaded')):
         cobj.add_ptr(p, syms[hook][1], *syms3[f], syms[hook][0])
-    for hook, f in (('GP_PNEED', 'fp_ml_need'), ('GP_PLEND', 'fp_ml_open'), ('GP_PEND', 'fp_ml_open')):
+    for hook, f in (('GP_PNEED', 'fp_ml_need'), ('GP_PLEND', 'fp_ml_open')):
         cobj.add_ptr(p, gsyms[hook][1], *syms3[f], gsyms[hook][0])
     syms = dict(syms, **syms3)
     p.put(*syms['FP_FMAP'], fmap)

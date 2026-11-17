@@ -51,6 +51,7 @@ extern u8 FR_BUF[];                     /* swe.c .bss: the world's FRSS slice (F
 #endif
 u32 (*FR_NSTEP)(void) FR_DATA;          /* the hooks' previous targets (fpad's fp_step / fp_leg, or 0) */
 void (*FR_NLEG)(void) FR_DATA;
+u32 (*FR_NROW)(const u8 *) FR_DATA;     /* (gphooks: GP_PROW's next module, 0 = none) */
 void (*FR_CHOOSE)(const FrcCtx *, uint16_t *, uint8_t *) FR_DATA;   /* the FRCH slot, 0 = no page */
 void (*FR_AFTER4)(void) FR_DATA;        /* fr_after4 (the 1996-97 session's), 0 = none */
 u8 FR_NAMES[8] FR_DATA;                 /* the slot-4 contest's names, long + short STR_BASE-relative (frnd.py: gplay's
@@ -198,7 +199,7 @@ u32 fr_step(void) {                     /* sc_step_c's head: 1 = a friendly buil
     return 1;
 }
 
-u32 fr_row(const u8 *row) {             /* gp_scrow_c's head (GP_PROW): a slot-4 fixture-list row at a played friendly's week
+static u32 fr_row1(const u8 *row) {             /* gp_scrow_c's head (GP_PROW): a slot-4 fixture-list row at a played friendly's week
                                            this season -> the friendly's short name (STR_BASE-relative); 0 = not one */
     if (!row || row[0] != 4 || FR_ST[0] != FR_SEASON) return 0;
     u32 n = FR_NPLAYED(FR_ST);
@@ -211,6 +212,11 @@ u32 fr_row(const u8 *row) {             /* gp_scrow_c's head (GP_PROW): a slot-4
             return *(const u32 *)(FR_NAMES + 4);
         }
     return 0;
+}
+
+u32 fr_row(const u8 *row) {             /* GP_PROW (gphooks): ours, else the next module's */
+    u32 r = fr_row1(row);
+    return r ? r : FR_NROW ? FR_NROW(row) : 0;
 }
 
 void fr_leg(void) {                     /* gp_rec, every match of ours */

@@ -65,6 +65,7 @@ static void play(int gf, int ga, int home) {   /* a friendly's match: gp_rec -> 
     fr_leg(); KO()[O_TW] = 0;
     GP_WK = KO()[O_D1]; FR_CALCUR = 8;
 }
+static u32 next_row(const u8 *r) { (void)r; return 0x777; }
 int main(int argc, char **argv) {
     static u8 file[16384]; FILE *f = fopen(argv[1], "rb"); FILEN = (u32)fread(file, 1, sizeof file, f); fclose(f);
     FILEB = file;
@@ -113,6 +114,8 @@ int main(int argc, char **argv) {
       CHECK(a == 0x1234 && b == 0x1234 && c == 0 && d == 0, "row_label", "%x %x %x %x", a, b, c, d);
       /* (FR_TEST: FR_ROWC bit k = friendly k's row relabelled after the close - weeks 48 / 54 = friendlies 1 / 4) */
       CHECK(FR_ROWC == 0x09, "row_relabel_trace", "FR_ROWC %x", FR_ROWC); }
+    { u8 r[2] = { 4, 56 }; FR_NROW = (void *)next_row; u32 a = fr_row(r); r[1] = 48; u32 b = fr_row(r); FR_NROW = 0;   /* (gphooks) */
+      CHECK(a == 0x777 && b == 0x1234, "row_chain", "next %x ours %x", a, b); }
     /* 5. next season: last season's four avoided, the level bits kept; an old save (season mismatch): nothing */
     u16 last[4]; memcpy(last, FR_ST + 2, 8);
     FR_ST[11] |= 0x80;                  /* (FR_LEVEL HARD... bit 15 as frc_choose would leave it) */

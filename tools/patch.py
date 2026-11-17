@@ -220,6 +220,7 @@ CAREER_END = [None]                # the career cave's end after its code (4.0.1
 
 
 def patch_exe(src, dst, remap, lang='it'):
+    __import__('gphooks').reset()                # (4.2: the gplay hook registry, per exe)
     CAREER_END[0] = None
     LT_SPACE.clear()
     LR_ROOM.clear()
@@ -1113,6 +1114,10 @@ def patch_exe(src, dst, remap, lang='it'):
     fpad.patch(p, swe.LABELS, gplay.LABELS)
     import frnd                                  # 4.2 friendlies: frstep.c at obj4+FRND_AT, FRND first on the port's hooks
     frnd.patch(p, swe.LABELS, gplay.LABELS)      # (after fpad: its fp_step / fp_leg chained; dormant: nothing)
+    import gphooks                               # 4.2 (MC 17/11): every gplay hook chain wired once, one fixup per site
+    if gphooks.REG:
+        print(f'exe: gplay hooks: {gphooks.summary()}')
+    gphooks.link(p, gplay.LABELS)
     if sreg_end is not None:
         assert sreg_end <= lrank.LR_AT, ('sreg past LR_AT', hex(sreg_end), hex(lrank.LR_AT))
     if cdkn.on():                                # 4.2 S2 knockouts: the Coppa D's rounds 0-1 by the engine (gplay.c GP_CDKN)
@@ -1142,6 +1147,7 @@ def patch_exe(src, dst, remap, lang='it'):
     print(f'exe: the original exe\'s typos fixed in {typofix.patch(p, lang)} strings (typofix.FIXES)')   # 4.2 (Davide: PAREGGI)
     if 'X3' in gplay.LABELS:
         gplay.x3_check(p)
+    __import__('gphooks').check(p)               # 4.2: every gplay hook site still leads to what gphooks.link wired
     if __import__('frnd').on():
         __import__('frnd').check(p)                            # 4.2 friendlies: the season hook, GP_PSTEP / GP_PLEG, fi_gate's dword                        # 4.2 X3: GP_SCDONE bound to gplay3.c's sc_done in obj3
     delta, shift = p.save(dst)

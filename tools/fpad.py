@@ -290,8 +290,9 @@ def patch(p, ssyms, gsyms):
     if test:
         p.put(*syms['FP_TEST'], b''.join(bytes(e) for e in test))
         p.put(*syms['FP_NTEST'], struct.pack('<H', len(test)))
+    import gphooks                      # (4.2 MC 17/11: the one hook registry - fpad ends every chain it is in)
     for hook, f in (('GP_PSTEP', 'fp_step'), ('GP_PDONE', 'fp_done'), ('GP_PLEG', 'fp_leg'), ('GP_PSEAS', 'fp_season')):
-        cobj.add_ptr(p, gsyms[hook][1], *syms[f], gsyms[hook][0])   # (GP_PSEAS: pg_season's end, pg_fix - MC 14/11)
+        gphooks.register(hook, 'fpad', syms[f])   # (GP_PSEAS: pg_season's end, pg_fix - MC 14/11)
     for o in ets:                                       # (cseg_2AE97's extra time -> fp_et, chained)
         p.branch(1, o, 0xE8, *syms['fp_et'])
     engine.CALL_AT['fp_new'] = syms['fp_new']

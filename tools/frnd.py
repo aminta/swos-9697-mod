@@ -106,7 +106,7 @@ def patch(p, ssyms, gsyms):
            'tc_room': tcache.LABELS['tc_room'], **{k: swefile.LABELS[k] for k in ('swe_fopen_r', 'swe_fread', 'swe_fclose')}}
     site, f3d = call_site(p)
     assert p.call_target(1, site) == f3d, ('frnd: InitializeNewSeason\'s call cseg_3D204 already hooked', p.call_target(1, site))
-    roots = ['fr_season', 'fr_step', 'fr_row', 'fr_leg', 'fr_gate', 'fr_pick', 'fr_given', 'fr_level', 'FR_NSTEP', 'FR_NLEG',
+    roots = ['fr_season', 'fr_step', 'fr_row', 'fr_leg', 'fr_gate', 'fr_pick', 'fr_given', 'fr_level', 'FR_NSTEP', 'FR_NLEG', 'FR_NROW',
              'FR_CHOOSE', 'FR_AFTER4', 'FR_NAMES']
     test = os.environ.get('HOSTTEST_SYMS') == '1'     # (test builds: FR_TRACE, FR_GIVENW, FR_FEE, FR_G, FR_FB, FR_ROWC)
     if test:
@@ -134,18 +134,11 @@ def patch(p, ssyms, gsyms):
         p.add_rel(4, at + o, t_obj, t_off)
     lab = nasmcave.labels(ASM, at, gsym)
     p.put(*syms['FR_NAMES'], gsyms['FR_NAMEB'])
-    # the hooks: FRND first, what they held before (fpad's) chained through FR_NSTEP / FR_NLEG
-    for hook, f, nxt in (('GP_PSTEP', 'fr_step', 'FR_NSTEP'), ('GP_PLEG', 'fr_leg', 'FR_NLEG')):
-        prev = p.target(*gsyms[hook]) if any(p.get(*gsyms[hook], 4)) else None
-        if prev:                        # (FPORT=1: fpad's pointer and its fixup sit in the slot - retargeted, never added
-            cobj.add_ptr(p, syms[nxt][1], *prev, syms[nxt][0])        #  twice: Shaved 17/11, lepatch's add_ptr assert)
-            p.retarget(gsyms[hook][0], gsyms[hook][1], *syms[f])
-            p.put(gsyms[hook][0], gsyms[hook][1], struct.pack('<I', syms[f][1]))
-            assert p.target(*gsyms[hook]) == syms[f], ('frnd: hook not retargeted', hook)
-        else:
-            cobj.add_ptr(p, gsyms[hook][1], *syms[f], gsyms[hook][0])
+    # the hooks (gphooks, MC 17/11): FRND first in every chain, the next module through FR_NSTEP / FR_NLEG / FR_NROW
+    import gphooks
     assert 'GP_PROW' in gsyms, 'frnd: gplay without GP_PROW (gp_scrow_c\'s hook, GP_FRND)'
-    cobj.add_ptr(p, gsyms['GP_PROW'][1], *syms['fr_row'], gsyms['GP_PROW'][0])   # (played friendlies' rows keep their name)
+    for hook, f, nxt in (('GP_PSTEP', 'fr_step', 'FR_NSTEP'), ('GP_PLEG', 'fr_leg', 'FR_NLEG'), ('GP_PROW', 'fr_row', 'FR_NROW')):
+        gphooks.register(hook, 'frnd', syms[f], syms[nxt])
     cobj.add_ptr(p, finance.LABELS['FI_FRGATE'], *syms['fr_gate'], 3)
     try:
         import frchoose
@@ -170,6 +163,4 @@ def check(p):
     import gplay
     g = gplay.LABELS
     assert p.call_target(1, LABELS['site']) == LABELS['fr_seasg'], 'frnd: season hook'
-    assert p.target(*g['GP_PSTEP']) == LABELS['fr_step'] and p.target(*g['GP_PLEG']) == LABELS['fr_leg'], 'frnd: hooks'
     assert p.target(3, finance.LABELS['FI_FRGATE']) == LABELS['fr_gate'], 'frnd: fi_gate'
-    assert p.target(*g['GP_PROW']) == LABELS['fr_row'], 'frnd: GP_PROW'

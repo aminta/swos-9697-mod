@@ -40,11 +40,13 @@ obj4+0x1FC00..0x1FF00, was never used: folded into FRND, MC 16/11.)
 import re
 import struct
 
+import bound
 import nasmcave
 
 ENTRIES = ('tc_clamp', 'tc_room', 'tc_reserve', 'tc_full', 'tc_clamp_sel')    # what callers may bind (ref())
-REFS = []                               # [(obj, off, entry)]: callers' dwords, bound at patch() (or at once after it)
-PLACED = {}                             # entry -> (3, off) once patch() ran
+TABLE = bound.Table('tcache', ENTRIES)  # (4.2 x3all, MC 16/11: the shared bound-dword generator, tools/bound.py - gplay's too)
+REFS = TABLE.refs                       # [(obj, off, entry)]: callers' dwords, bound at patch() (or at once after it)
+PLACED = TABLE.placed                   # entry -> (3, off) once patch() ran
 TC_FLOOR, TC_FLOOR_FP = 159, 155       # the big cache's save budget may never drop below these (trailer.py asserts it; 'FP'
                                         # builds: the fixture port's item); a later exe must load what an earlier one saved
 RESERVE = {}                            # world -> records kept for its late mandatory installs (builders fill it)
@@ -260,28 +262,17 @@ def verify_team(p):
 def ref(p, obj, off, name):
     """A caller's dword at obj:off (holding a placeholder fixup or none) gets bound to entry `name` - now if tcache is
     placed, else at patch(). The only way to reach tcache's code (no literal address)."""
-    assert name in ENTRIES, name
-    REFS.append((obj, off, name))
-    if PLACED:
-        _bind(p, obj, off, name)
+    TABLE.ref(p, obj, off, name)
 
 
 def _bind(p, obj, off, name):
-    t = PLACED[name]
-    try:
-        p.target(obj, off)                      # (a placeholder fixup: retarget it)
-    except AssertionError:
-        p.add_ptr(obj, off, t[0], t[1])         # (a plain 0 dword, e.g. ctgame.c's pointer)
-        return
-    p.retarget(obj, off, t[0], t[1])
-    p.put(obj, off, struct.pack('<I', t[1]))
+    TABLE.bind(p, obj, off, name)               # (a placeholder fixup retargeted, or a plain 0 dword, e.g. ctgame.c's pointer)
 
 
 def register():
     """Before trailer.patch: the load's count check (an engine after_process callback; trailer.late binds it)."""
     import engine
-    REFS.clear()
-    PLACED.clear()
+    TABLE.reset()
     engine.CALL_AT.pop('tc_clamp', None)
     engine.after_process('tc_clamp')
 
@@ -290,14 +281,10 @@ def check(p):
     """End of patch_exe: every caller's dword bound to tcache's code (a call through an unbound one would crash)."""
     import engine
     lo, hi = INFO['code']
-    for obj, off, name in REFS + [('engine', 0, 'tc_clamp')]:
-        if obj == 'engine':
-            t = engine.CALL_AT.get('tc_clamp')
-        else:
-            t = p.target(obj, off)
-            assert struct.unpack('<I', p.get(obj, off, 4))[0] == (t[1] if t else -1), ('tcache: dword != fixup', obj, hex(off))
-        assert t is not None and t[0] == 3 and lo <= t[1] < hi and t == PLACED[name], ('tcache: unbound', obj, off, name, t)
-    return len(REFS) + 1
+    n = TABLE.check(p)                          # (every caller's dword: its fixup, its bytes, inside tcache's code)
+    t = engine.CALL_AT.get('tc_clamp')
+    assert t is not None and t[0] == 3 and lo <= t[1] < hi and t == PLACED['tc_clamp'], ('tcache: unbound', 'engine', t)
+    return n + 1
 
 
 def patch(p, at):
@@ -341,12 +328,9 @@ def patch(p, at):
     for o, t_obj, t_off in rel:
         p.add_rel(3, at + o, t_obj, t_off)
     import engine
-    PLACED.clear()
-    PLACED.update({n: (3, lab[n]) for n in ENTRIES})
     INFO['code'] = (at, end)
+    TABLE.place(p, {n: (3, lab[n]) for n in ENTRIES}, (3, at, end), clear=True)   # (binds every registered dword)
     engine.CALL_AT['tc_clamp'] = PLACED['tc_clamp']  # (trailer.late binds the after_process slot)
-    for obj, off, name in REFS:
-        _bind(p, obj, off, name)
     for kind, off in ss:                        # (the patched bytes: nothing else hooks these instructions)
         n = 9 if kind == 'n' else 8
         want = (b'\x66\xc7\x05' + struct.pack('<I', d0) + b'\x55\x01' if kind == 'n'

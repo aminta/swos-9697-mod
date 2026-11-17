@@ -4,7 +4,7 @@
                                        [--scenario NAME] [--week-min W] [--every N]
 
 Runs a World 2026-27 career (world8485; --car: one season from that save) on BUILD_DIR (a build made with
-HOSTTEST_SYMS=1: its ITALIAN.syms.json), a breakpoint at the label's entry (obj1); at each hit the whole linear memory
+HOSTTEST_SYMS=1: its ITALIAN.syms.json), a breakpoint at the label's entry (in the label's own object: obj1, obj3 or obj4, from the symbols); at each hit the whole linear memory
 (MEMDUMP, 32 MB) -> OUT_DIR/<n>.bin and <n>.json (obj bases, the hit's EIP, the build, the label). Up to --max hits per label."""
 import argparse
 import json
@@ -32,11 +32,13 @@ def make_hook(T, build, label, out, week_min=0, max_=12, every=1):
     labs = []
     for lab in label.split(','):
         obj, off = sym(sy, lab)
-        assert obj in (0, 1), (lab, obj)                 # (a code label: obj1)
-        labs.append((lab, off))
+        assert obj in (0, 1, 3, 4), (lab, obj)           # (a code label's object comes from the build's symbols - its link
+        labs.append((lab, off, obj or 1))                #  map - never assumed: obj1 (a bare asm label: 0), obj3 (benchx,
+                                                         #  gplay.c since 4.2 x3all: gplay.csyms.<function>), obj4 (the
+                                                         #  engine and its bands); obj2 is data: no breakpoint there)
     cal, cur = sym(sy, 'uefaq.SYMS.CAL'), sym(sy, 'uefaq.SYMS.CAL_CUR')
     os.makedirs(out, exist_ok=True)
-    st = {'n': 0, 'armed': False, 'per': {lab: 0 for lab, _ in labs}, 'hits': {lab: 0 for lab, _ in labs}}   # (max_: per label)
+    st = {'n': 0, 'armed': False, 'per': {lab: 0 for lab, *_ in labs}, 'hits': {lab: 0 for lab, *_ in labs}}   # (max_: per label)
 
     def hook(s, season, scr):
         if st['armed'] or scr is None:
@@ -68,10 +70,10 @@ def make_hook(T, build, label, out, week_min=0, max_=12, every=1):
                 s.box.watch.clear()
                 s.box.cmd('BPDEL *', 0.3)
                 s.box.cmd('BPINT 3', 0.2)
-        for lab, off in labs:
-            s.bp(base1 + off, lambda r, lab=lab: hit(r, lab))
+        for lab, off, obj in labs:
+            s.bp(s.result.lin((obj, off)), lambda r, lab=lab: hit(r, lab))   # (Result.lin: each object's own base)
     hook.at_load = True
-    hook.pre_load = any(lab.startswith('trailer.load') for lab, _ in labs)   # (armed before the load's key)
+    hook.pre_load = any(lab.startswith('trailer.load') for lab, *_ in labs)   # (armed before the load's key)
     return hook, st
 
 

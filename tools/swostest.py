@@ -1461,6 +1461,7 @@ class Session:
         self.ctsd = ctsd_syms(exe_dir)
         self.scrow = _gp_sym(exe_dir, 'csyms.GP_SCROW') if os.path.isdir(exe_dir) else None   # (4.2 supercups-s1)
         self.x3 = (_gp_sym(exe_dir, 'X3.GP_SCDONE'), _gp_sym(exe_dir, 'sc_done')) if os.path.isdir(exe_dir) else (None, None)
+        self.x3all = _gp_sym(exe_dir, 'X3ALL_CT') if os.path.isdir(exe_dir) else None   # (4.2 x3all: the glue's bound dwords)
         self.ctout = ctout_at(exe_dir)
 
     def __enter__(self):
@@ -2589,6 +2590,14 @@ def x3_check(s):
     s.log.append(f'x3: GP_SCDONE = {got:#x}, sc_done obj3+{fn[1]:#x} = {want:#x}')
     if got != want:
         X3_ERRS.append(f'{os.path.basename(s.run)}: GP_SCDONE {got:#x} != sc_done obj3+{fn[1]:#x} ({want:#x})')
+    ct = getattr(s, 'x3all', None)                      # (4.2 x3all: ALL of gplay.c in obj3 -
+    if ct:                                              #  every bound dword of the obj1 glue points into obj3 at run time)
+        bad = [(slot, off) for slot, off in ct
+               if struct.unpack('<I', bytes(r.read(r.base1 + slot, 4)))[0] != r.base3 + off]
+        X3_STATS['ct'] = X3_STATS.get('ct', 0) + len(ct)
+        s.log.append(f'x3all: {len(ct)} GP_CT dwords, {len(bad)} not bound (obj3 base {r.base3:#x})')
+        if bad:
+            X3_ERRS.append(f'{os.path.basename(s.run)}: x3all GP_CT not bound: {[(hex(a), hex(b)) for a, b in bad[:3]]}')
 
 
 def ctsd_check(s):
@@ -38357,7 +38366,7 @@ def main(argv):
                 del CTSD_ERRS[:]
                 del X3_ERRS[:]
                 del STAMP_WARNS[:]
-                X3_STATS.update(sessions=0)
+                X3_STATS.update(sessions=0, ct=0)
                 del FORCE_ERRS[:]
                 setup = False
                 del FIELD_ERRS[:]
@@ -38375,7 +38384,7 @@ def main(argv):
                 if X3_ERRS:                                 # (4.2 gplay3.c: sc_done's obj3 binding wrong)
                     ok, msg = False, f'x3: {X3_ERRS[:3]}; ' + msg
                 elif X3_STATS['sessions']:
-                    msg += f" [x3: GP_SCDONE -> obj3 sc_done in {X3_STATS['sessions']} session(s)]"
+                    msg += f" [x3: GP_SCDONE -> obj3 sc_done in {X3_STATS['sessions']} session(s)" + (f", x3all {X3_STATS['ct']} GP_CT dwords bound" if X3_STATS.get('ct') else '') + ']'
                 if FIELD_ERRS:                              # (root fix C: a club the data cannot give in a round)
                     ok, msg = False, f'field: {FIELD_ERRS[:3]}; ' + msg
                 elif FIELD_STATS['checks']:

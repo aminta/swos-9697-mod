@@ -105,6 +105,12 @@ static i32 h_league(void *ctx, u16 team, u16 unit)
 static i32 h_prev(void *ctx, u16 unit)  /* the game's advance before unit: the latest calendar week below it */
 {
     (void)ctx;
+#ifdef FP_R5OFF                         /* (Q13 probe, test builds only - FPORT_R5OFF=L: past L the install unit reported is
+                                           the fixture's own, so rule 5 (sr_port.c check: the earlier fixture must end
+                                           strictly before the later's install advance) accepts port fixtures on
+                                           consecutive post-season units; never in a release shape) */
+    if (unit > FP_R5OFF) return unit;
+#endif
     i32 best = -1;
     for (i32 k = 0, o = 0; k < cal_n(); k++, o = cal_next(o)) {
         if (!(FP_CAL[o + 2] | FP_CAL[o + 3])) break;

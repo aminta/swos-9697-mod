@@ -46108,11 +46108,15 @@ def frchoose_engine():
         s.frpage_keep = True                  # (drives the friendlies page itself: no fr_page_pass)
         if s.wait().outcome != 'dump':
             return False, f'no first pause ({s.result})'
+        set_world(s, 0)                       # (the main menu's world switch on the World 2026-27, as world8485)
         new_career(s, 'ITALIA', 'SERIE A', 'LAZIO', note=False)
         scr = s.screen()
         if not check(scr.n == d['FC_NE'] and scr.raw_texts[0] == frchoose.TITLE[UI],
                      f'page: not the friendlies page after the new career: {scr}', errs):
-            return False, '; '.join(errs)
+            ch = rd(sy['FR_CHOOSE'], 4).hex() if 'FR_CHOOSE' in sy else '?'    # (why: the engine's and the page's traces)
+            return False, '; '.join(errs) + (f' [FR_ST {rd(sy["FR_ST"], 12).hex()}, FR_TRACE {rd(sy["FR_TRACE"], 1)[0]:02x}, '
+                                             f'FR_CHOOSE {ch}, FC_TRACE {frc_read(s, fs)["trace"]:#x}, slot '
+                                             f'{rd((4, fs["pg"][1] - 4 - 0), 4)!r}]')
         v, rows, st0 = frc_read(s, fs), frc_rows(scr, E), rd(sy['FR_ST'], 12)
         check(scr.selected == GO, f'page: the cursor on {scr.selected}, not CONTINUE ({GO})', errs)
         check(v['level'] == 0 and scr.raw_texts[LVL] == frchoose.LVL[UI][0], f'page: level {v["level"]} '

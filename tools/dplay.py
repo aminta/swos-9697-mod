@@ -645,6 +645,10 @@ dp_perm:                                ; lib97 nc_adv: ecx = the next round's c
     mov [DP_PR], eax
     call dp_perm_c                      ; (C: the next round's list into DP_PL, its clubs)
     mov [DP_NC], eax
+    mov dx, [DP_ST + SV_RB + 6]         ; (the Serie C Final Four record, 4.2 S3: rb[6..7] + cup, saved with the state)
+    mov [DP_SAVE + SV_RB + 6], dx
+    mov dl, [DP_ST + SV_KIND + 3]
+    mov [DP_SAVE + SV_KIND + 3], dl
     mov ecx, eax
     mov esi, DP_PL
     mov edi, NCW + 2CDh
@@ -882,6 +886,7 @@ def patch(p, at, limit, tables, bss_at, area):
     cg = cgaps()                                             # (4.2: each group's play-out gap, as gp_season reads it)
     obj = cobj.compile_c(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'dplay.c'),
                          [f'-DDP_FORCE={force}'] + ([f'-DDP_CUPWF={cupw}'] if cupw else []) + ([f'-DDP_CUPFF={int(os.environ["DPLAY_CUPF"])}'] if os.environ.get('DPLAY_CUPF') else [])
+                         + ([f'-DDP_FREC={int(os.environ["DPLAY_FREC"])}'] if int(os.environ.get('DPLAY_FREC') or 0) else [])    # (test builds, MC 16/11)
                          + (['-DDP_NOB=1'] if s3_b_mask() else [])
                          + (['-DDP_NOC=1'] if s3_c_mask() else [])          # (4.2 S3: Serie B on gplay; else the 42-int object)
                          + [f'-DDP_CG{g + 1}={v}' for g, v in enumerate(cg)])
@@ -932,7 +937,7 @@ def patch(p, at, limit, tables, bss_at, area):
     symbols.update({'DP_C0': (1, c0), 'DP_C1': (1, c1), 'DP_C2': (1, c2)})
     code, fix = nasmcave.assemble(asm, glue, symbols)
     lab = nasmcave.labels(asm, glue, symbols)
-    assert c0 >= glue + len(code) and c2 + len(cps[2]) <= limit, hex(c2 + len(cps[2]))
+    assert c0 >= glue + len(code) and c2 + len(cps[2]) <= limit, (hex(c2 + len(cps[2])), hex(limit))
     p.put(1, glue, code)
     for off, tobj, toff in fix:
         cobj.add_ptr(p, glue + off, tobj, toff)

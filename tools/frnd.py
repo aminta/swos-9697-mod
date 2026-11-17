@@ -78,10 +78,16 @@ def patch(p, ssyms, gsyms):
     import swreg
     import tcache
     import careerworld
-    for k in ('GP_PAPI', 'GP_PSTEP', 'GP_PLEG', 'GP_WK', 'GP_MGR', 'GP_ST', 'GP_SEAS', 'GP_K', 'D1R', 'A1R', 'CAL_CUR',
-              'GP_CFLAGS', 'FR_NAMEB', 'SC_ST', 'CAL', 'SEASONPLAYING', 'gp_mgr'):
+    need = ('GP_PAPI', 'GP_PSTEP', 'GP_PLEG', 'GP_WK', 'GP_MGR', 'GP_ST', 'GP_SEAS', 'GP_K', 'D1R', 'A1R', 'CAL_CUR',
+            'GP_CFLAGS', 'FR_NAMEB', 'SC_ST', 'CAL', 'SEASONPLAYING', 'gp_mgr')
+    if 'GP_PAPI' not in gsyms:          # (a build without gplay - no World 2026-27 packs: no fixture port, friendlies
+        LABELS.clear()                  #  dormant, Chooser 16/11; fi_gate's FI_FRGATE stays 0 = skipped)
+        print('exe: friendlies dormant (no gplay fixture port in this build)')
+        return None
+    for k in need:
         assert k in gsyms, ('frnd: gplay without', k)
     assert 'FR_BUF' in ssyms, 'frnd: swe.c without FR_BUF (swe.py -DFRND_BUF)'
+    assert sacups.COMP_SLOTS[0] is not None, 'frnd: sacups without dseg_D8CAA (COMP_SLOTS)'
     assert 'FI_FRGATE' in finance.LABELS, 'frnd: finance.py without the FR_GATE chain'
     assert not any(p.get(4, swreg.FRND_AT, swreg.FRND_END - swreg.FRND_AT)), 'frnd: obj4+FRND_AT not free'
     off = fpad.gp_offsets(gsyms['GP_CFLAGS'])
@@ -96,16 +102,16 @@ def patch(p, ssyms, gsyms):
            'GP_MGR': gsyms['GP_MGR'], 'GP_K': gsyms['GP_K'], 'FR_D1R': gsyms['D1R'], 'FR_A1R': gsyms['A1R'],
            'FR_CAL': cal, 'FR_CALCUR': gsyms['CAL_CUR'], 'FR_SEASON': gsyms['SEASONPLAYING'],
            'FR_CWB': (so, soff + careerworld.WORLD_BYTE), 'FR_ST': (sct[0], sct[1] + 180), 'FR_BUF': ssyms['FR_BUF'],
-           'FR_D6BA2': (2, fs['D6B9E'][1] + 4), 'FR_D6C4E': (2, fs['D6B9E'][1] + 0xB0),
+           'FR_SLOT4': (2, sacups.COMP_SLOTS[0] + 16), 'FR_D6BA2': (2, fs['D6B9E'][1] + 4), 'FR_D6C4E': (2, fs['D6B9E'][1] + 0xB0),
            'tc_room': tcache.LABELS['tc_room'], **{k: swefile.LABELS[k] for k in ('swe_fopen_r', 'swe_fread', 'swe_fclose')}}
     site, f3d = call_site(p)
     assert p.call_target(1, site) == f3d, ('frnd: InitializeNewSeason\'s call cseg_3D204 already hooked', p.call_target(1, site))
-    roots = ['fr_season', 'fr_step', 'fr_leg', 'fr_gate', 'fr_pick', 'fr_given', 'fr_level', 'FR_NSTEP', 'FR_NLEG',
+    roots = ['fr_season', 'fr_step', 'fr_row', 'fr_leg', 'fr_gate', 'fr_pick', 'fr_given', 'fr_level', 'FR_NSTEP', 'FR_NLEG', 'FR_NROW',
              'FR_CHOOSE', 'FR_AFTER4', 'FR_NAMES']
-    test = os.environ.get('HOSTTEST_SYMS') == '1'     # (test builds: FR_TRACE, FR_GIVENW, FR_FEE, FR_G, FR_FB)
+    test = os.environ.get('HOSTTEST_SYMS') == '1'     # (test builds: FR_TRACE, FR_GIVENW, FR_FEE, FR_G, FR_FB, FR_ROWC)
     if test:
         flags.append('-DFR_TEST')
-        roots += ['FR_TRACE', 'FR_GIVENW', 'FR_FEE', 'FR_G', 'FR_FB']
+        roots += ['FR_TRACE', 'FR_GIVENW', 'FR_FEE', 'FR_G', 'FR_FB', 'FR_ROWC']
     obj = cobj.compile_c(SRC, tuple(flags), sections=True)
     # (the glue first, its labels as the C's externs: its size from a dry assembly at the band's start)
     at = swreg.FRND_AT
@@ -114,9 +120,9 @@ def patch(p, ssyms, gsyms):
     code0, _, _ = nasmcave.assemble_obj(ASM, at, gsym, 4)
     c_at = (at + len(code0) + 15) & ~15
     ext['fr_cached_asm'] = (4, nasmcave.labels(ASM, at, gsym)['fr_cached_asm'])
-    syms, end, bss = cobj.link(p, obj, c_at, (4, 0), externs=ext, limit=int(os.environ.get('FRND_END_TEST') or str(swreg.FRND_END), 0), text_obj=4, roots=roots)
+    syms, end, bss = cobj.link(p, obj, c_at, (4, 0), externs=ext, limit=swreg.FRND_END, text_obj=4, roots=roots)
     assert not bss, ('frstep.c: no .bss in the band (FR_BUF is swe.c\'s)', bss)
-    left = int(os.environ.get('FRND_END_TEST') or str(swreg.FRND_END), 0) - end   # (FRND_END_TEST: until Shaved's 0x1400 fold lands)
+    left = swreg.FRND_END - end         # (the band from swreg only: MC 16/11, no test override)
     assert left >= SLACK, ('frnd: the FRND band has under 256 B left - stop and report to MC', left)
     gsym['fr_season'] = syms['fr_season']
     code, fix, rel = nasmcave.assemble_obj(ASM, at, gsym, 4)
@@ -128,12 +134,11 @@ def patch(p, ssyms, gsyms):
         p.add_rel(4, at + o, t_obj, t_off)
     lab = nasmcave.labels(ASM, at, gsym)
     p.put(*syms['FR_NAMES'], gsyms['FR_NAMEB'])
-    # the hooks: FRND first, what they held before (fpad's) chained through FR_NSTEP / FR_NLEG
-    for hook, f, nxt in (('GP_PSTEP', 'fr_step', 'FR_NSTEP'), ('GP_PLEG', 'fr_leg', 'FR_NLEG')):
-        prev = p.target(*gsyms[hook]) if any(p.get(*gsyms[hook], 4)) else None
-        if prev:
-            cobj.add_ptr(p, syms[nxt][1], *prev, syms[nxt][0])
-        cobj.add_ptr(p, gsyms[hook][1], *syms[f], gsyms[hook][0])
+    # the hooks (gphooks, MC 17/11): FRND first in every chain, the next module through FR_NSTEP / FR_NLEG / FR_NROW
+    import gphooks
+    assert 'GP_PROW' in gsyms, 'frnd: gplay without GP_PROW (gp_scrow_c\'s hook, GP_FRND)'
+    for hook, f, nxt in (('GP_PSTEP', 'fr_step', 'FR_NSTEP'), ('GP_PLEG', 'fr_leg', 'FR_NLEG'), ('GP_PROW', 'fr_row', 'FR_NROW')):
+        gphooks.register(hook, 'frnd', syms[f], syms[nxt])
     cobj.add_ptr(p, finance.LABELS['FI_FRGATE'], *syms['fr_gate'], 3)
     try:
         import frchoose
@@ -152,9 +157,10 @@ def patch(p, ssyms, gsyms):
 
 def check(p):
     """(patch.py, at the end) the season hook, the two gplay hooks and fi_gate's dword still lead here"""
+    if not LABELS:                      # (dormant: nothing linked)
+        return
     import finance
     import gplay
     g = gplay.LABELS
     assert p.call_target(1, LABELS['site']) == LABELS['fr_seasg'], 'frnd: season hook'
-    assert p.target(*g['GP_PSTEP']) == LABELS['fr_step'] and p.target(*g['GP_PLEG']) == LABELS['fr_leg'], 'frnd: hooks'
     assert p.target(3, finance.LABELS['FI_FRGATE']) == LABELS['fr_gate'], 'frnd: fi_gate'

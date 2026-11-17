@@ -1796,10 +1796,33 @@ gp_find:                                ; edx = a league struct -> esi = its GP_
     ret
 
 %if S3SKIP
+gp_s3loc:                               ; (4.2 S3, S7: a league struct's spec numbers its play-offs LOCALLY - the skip bits are per spec: GP_S3T row, the
+    push eax                            ; GP_TAB row of GP_IN's spec) out: edx = its (maskB, maskC) pair, 0 = no row
+    push esi
+    mov eax, [GP_IN + O_SPEC]
+    mov esi, GP_TAB
+    mov edx, GP_S3T
+.l: cmp dword [esi], 0
+    je .no
+    cmp [esi + 5], eax
+    je .y
+    add esi, 9
+    add edx, 8
+    jmp .l
+.no:
+    xor edx, edx
+.y: pop esi
+    pop eax
+    ret
+
 gp_s3pre:                               ; (4.2 S3, MC 15/11: the VINCITORI preview runs gp_season before dplay's dp_end has set DP_BHOLD / DP_CHOLD: the
     push eax                            ; skip mask comes from dplay's saved state itself - a Serie B (kind 1, 2) / Serie C (kind 3) play-off that
     push ecx                            ; dplay runs THIS season is dplay's: the preview lists no gplay line for it. gp_season clears the mask)
+    push edx
     xor ecx, ecx
+    call gp_s3loc
+    test edx, edx
+    jz .w
     cmp word [DPSAVE], 5044h
     jne .w
     mov al, [SEASONPLAYING]
@@ -1809,16 +1832,17 @@ gp_s3pre:                               ; (4.2 S3, MC 15/11: the VINCITORI previ
 %if S3MB
     cmp al, 3
     jae .c
-    mov ecx, S3MB
+    mov ecx, [edx]
     jmp .w
 .c:
 %endif
 %if S3MC
     cmp al, 3
     jne .w
-    mov ecx, S3MC
+    mov ecx, [edx + 4]
 %endif
 .w: mov [GP_SKIPPO], ecx
+    pop edx
     pop ecx
     pop eax
     ret
@@ -1925,18 +1949,22 @@ gp_end:                                 ; replaces `call cseg_9228D` (after dpla
     call gp_c
 %if S3SKIP
     xor eax, eax                        ; (4.2 S3: the play-offs dplay finished this season end - a Serie B phase of an old save,
+    call gp_s3loc                       ; (S7: the bits are this struct's spec's local indexes: GP_S3T)
+    test edx, edx
+    jz .nsx
 %if S3MB                                ; the career club's Serie C play-off: gp_season skips them once - transient, gp_season
     cmp byte [DP_BHOLD], 0              ; clears it)
     je .nsk
-    or eax, S3MB
+    or eax, [edx]
 .nsk:
 %endif
 %if S3MC
     cmp byte [DP_CHOLD], 0
     je .nsc
-    or eax, S3MC
+    or eax, [edx + 4]
 .nsc:
 %endif
+.nsx:
     mov [GP_SKIPPO], eax
 %if S3MC
     mov ax, [DPIN_CUPW]                 ; (the Coppa Italia Serie C's winner and finalist for c_po's cup place, the dplay-captured ones)
@@ -2042,6 +2070,29 @@ CD_RNAME = '''
     stc
     ret
 .ncd:'''
+FR_RNAME = '''
+    cmp byte [GP_ST + ST_KO + 6], 13    ; (gp_ko.kind: K_FR) 4.2 a preseason friendly (Davide 17/11): no round name -
+    jne .nfr                            ; rnames' empty FR_I entry ('AMICHEVOLE', not 'AMICHEVOLE FINALE')
+    mov al, FR_I
+    pop ebx
+    stc
+    ret
+.nfr:'''
+GP_RFR = '''
+gp_rfr:                                 ; 4.2 FRND (rnames RN_FRP, rn_round's head in every world, a contest id FEh):
+    cmp word [GP_ST + ST_KO], 4B47h     ; ko[0] a preseason friendly of this season -> CF = 1, al = FR_I (the empty
+    jne .no                             ; round name), else CF = 0; every register but al and the flags kept
+    push ebx
+    mov bl, [SEASONPLAYING]
+    cmp [GP_ST + ST_KO + KO_SEAS], bl
+    jne .nb
+FR_PART
+.nb:
+    pop ebx
+.no:
+    clc
+    ret
+'''
 CDS1_ID = 0xEF                          # 4.0: the Coppa D's slot-2 knockout (conti.IDS' last, unused there)
 
 
@@ -2315,6 +2366,7 @@ gp_rname:                               ; rnames' rn_round (an FE contest, RN_CD
     jne .nb
     cmp byte [GP_ST + ST_KO + KO_SLOT], 0
     je .nb
+FR_PART
 CD_PART
     cmp byte [GP_ST + ST_KO + KO_SLOT], 3   ; 4.0.5 a group contest of ours (the game's type 2 in slot 3: the Poule
     jne .k4                             ; Scudetto): its stages are the game's D0 (0 the groups, then the knockout
@@ -2416,6 +2468,42 @@ def _name(names, lang, key):
     return [x.encode('latin-1') for x in (v if isinstance(v, list) else [v, v])]
 
 
+def s3_local():
+    """4.2 S3 / S7: {(world, league file): (b mask, c mask)} - the bits of 'b_po' + 'b_pout' / 'c_po' as each league struct's
+    spec numbers its play-offs (S7 shapes: one spec per struct, local indexes; mkseason.gplay's by[f] order)."""
+    import mkseason
+    out = {}
+    for pk in mkseason.packs():
+        lg = pk.league or {}
+        if not lg.get('ko_playoffs') or pk.world is None:
+            continue
+        by = {}
+        for po in pk.po_resolved():
+            f, lp, ext = pk.po_local(po)
+            by.setdefault(f, []).append(po.get('key'))
+        for f, keys in by.items():
+            mb = sum(1 << keys.index(k) for k in ('b_po', 'b_pout') if k in keys)
+            mc = 1 << keys.index('c_po') if 'c_po' in keys else 0
+            if mb or mc:                        # (a struct with no Serie B / C play-off - England's, in a world whose other countries
+                out[(pk.world, f)] = (mb, mc)     # are not S7-shaped - needs no skip bits: its row stays (0, 0) = skip nothing, as before S3)
+    return out
+
+
+def s3_npo():
+    """{(world, league file): number of play-offs in that struct's spec} for every pack with ko_playoffs (same walk as s3_local)"""
+    import mkseason
+    out = {}
+    for pk in mkseason.packs():
+        if not (pk.league or {}).get('ko_playoffs') or pk.world is None:
+            continue
+        by = {}
+        for po in pk.po_resolved():
+            by.setdefault(pk.po_local(po)[0], []).append(po.get('key'))
+        for f, keys in by.items():
+            out[(pk.world, f)] = len(keys)
+    return out
+
+
 def table_lines(tables):
     """GP_TAB: per country dd its league struct, db world, dd its spec; a 0 world ends it. Specs after it."""
     import mkseason
@@ -2431,6 +2519,21 @@ def table_lines(tables):
         if not isinstance(lfile, tuple):        # (world 0's: no league-phase world, no UEFA qualifiers)
             lines.append(f'    db {lfile}\n    dd GPS{i}')
     lines.append('    db 0FFh')
+    lines.append('GP_S3T:')                   # (4.2 S3 / S7: per GP_TAB row the Serie B / Serie C play-offs' LOCAL skip bits in its spec)
+    loc = s3_local()
+    rows = [loc.get((world, lfile), (0, 0)) for world, lfile, spec in tables]
+    for k, v in loc.items():                    # (MC 15/11: a zero pair = skip nothing = the double promotion with no trace)
+        assert k in {(w, f) for w, f, _ in tables}, ('S3 skip bits: no GP_TAB row for', k)
+    if loc:                                     # (a struct with no Serie B / C play-off keeps its row at (0, 0): the old global masks must
+        import dplay as _d                      # not have skipped anything there either - every global bit lies beyond its play-offs, so
+        npo = s3_npo()                          # England's play-offs in a world with Italian ones behave exactly as before S7)
+        gm = _d.s3_b_mask() | _d.s3_c_mask()
+        for (w, f), m in zip(((w, f) for w, f, _ in tables), rows):
+            if m == (0, 0) and (w, f) in npo:
+                assert gm >> npo[(w, f)] << npo[(w, f)] == gm, ('S3: the global masks reach the play-offs of struct', w, f, npo[(w, f)], hex(gm))
+        assert (_d.s3_b_mask() != 0) == any(m[0] for m in rows) and (_d.s3_c_mask() != 0) == any(m[1] for m in rows), rows
+    for m in rows:
+        lines.append('    dd %d, %d' % m)
     for i, (_, _, spec) in enumerate(tables):
         lines.append(f'GPS{i}: db ' + ', '.join(str(b) for b in spec))
     return '\n'.join(lines), syms
@@ -3042,32 +3145,99 @@ def x3_on():
 
 def x3_patch(p, at):
     """gplay3.c into obj3 at `at` (patch.py's obj3 chain, after gplay.c's link) against gplay.c's symbols; binds
-    gplay.c's dword GP_SCDONE to sc_done (a fixup into obj3, checked by x3_check). Returns the end."""
+    gplay.c's dword GP_SCDONE to sc_done (a slot of the bound-dword table BOUND, checked by bound_check). Returns the end."""
     import cobj
     xl = LABELS['X3']
     obj = cobj.compile_c(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'gplay3.c'), ['-Oz'], sections=True)
     xs, end, bss = cobj.link(p, obj, at, (3, at), externs={k: xl[k] for k in X3_EXT}, text_obj=3, roots=X3_ROOTS)
     assert bss == 0, 'gplay3.c holds no state: no .bss (its state stays gplay.c\'s)'
-    o, a = xl['GP_SCDONE']
-    cobj.add_ptr(p, a, *xs['sc_done'][:2], o)
+    BOUND.place(p, {'sc_done': xs['sc_done'][:2]}, (3, at, end))   # (x3all: gplay.c's dword GP_SCDONE, registered by
+                                                                  #  patch(), is bound here - the one bound-dword table)
     LABELS['X3_AT'] = (3, at, end)
     LABELS['sc_done'] = xs['sc_done']
     print(f'exe: gplay3.c (sc_done) obj3+{at:#x}..{end:#x} ({end - at} B)')
     return end
 
 
-def x3_check(p):
-    """GP_SCDONE's dword holds a fixup to sc_done in obj3, inside gplay3.c's range (patch.py, at the end)."""
-    o, a = LABELS['X3']['GP_SCDONE']
-    t = p.target(o, a)
-    _, at, end = LABELS['X3_AT']
-    assert t == tuple(LABELS['sc_done'][:2]) and t[0] == 3 and at <= t[1] < end, \
-        ('X3: GP_SCDONE not bound to sc_done in obj3', t, LABELS['sc_done'], hex(at), hex(end))
-    return True
+def bound_check(p):
+    """patch.py, before save (x3all, MC 16/11: ONE check for the one table): every bound dword of gplay - the glue's
+    GP_CT slots -> gplay.c inside its room (obj3's GP3 band), gplay.c's GP_SCDONE -> gplay3.c's sc_done inside
+    gplay3.c's range - holds a fixup to its entry, inside that entry's room; the C room keeps its floor.
+    -> (slots, the C room's free bytes)"""
+    n = BOUND.check(p)
+    if 'X3' in LABELS:                               # (GP_SCDONE is one of the slots - not just "no slot failed")
+        assert (*LABELS['X3']['GP_SCDONE'], 'sc_done') in BOUND.refs and 'sc_done' in BOUND.placed, 'gplay: GP_SCDONE not registered'
+    x = LABELS.get('X3ALL')
+    left = None
+    if x:
+        o, a, e = x['room']
+        left = x['limit'] - e
+        assert o == 3 and left >= X3ALL_FLOOR, ('x3all: gplay.c room', x['room'], hex(x['limit']))
+        assert sum(1 for r in BOUND.refs if r[0] == 1) == len(x['ct']) > 0, 'x3all: GP_CT slots'
+    return n, left
 
 
-def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
-    """tables: mkseason.gplay_tables(). C + glue + specs in obj1 at..limit, the C .bss at obj2 bss_at (BSS_SIZE).
+X3ALL_FLOOR = __import__('swreg').OBJ3_GP3_FLOOR   # 4.2 x3all (MC / Shaved 16/11): gplay.c's room (swreg.OBJ3_GP3, obj3) keeps >= 512 B
+GLUE_FLOOR = 256            # ... and gplay's obj1 pages (asm glue + specs only) >= this many, in every build
+BOUND = __import__('bound').Table('gplay')   # (MC 16/11: the bound-dword generator tcache uses, tools/bound.py - the glue's
+                            # GP_CT slots and gplay.c's GP_SCDONE are its slots; bound_check before save)
+def _c_funcs(obj):
+    """the names of the global functions of a cobj.compile_c object (ELF STT_FUNC)"""
+    import cobj
+    secs = cobj._elf(obj)
+    symtab = next(x for x in secs if x['type'] == 2)
+    strtab = secs[symtab['link']]
+    out = set()
+    for k in range(symtab['size'] // 16):
+        name, _, _, info, _, shndx = struct.unpack_from('<IIIBBH', obj, symtab['offset'] + 16 * k)
+        if info >> 4 == 1 and info & 15 == 2 and shndx:
+            a = strtab['offset'] + name
+            out.add(obj[a:obj.index(b'\0', a)].decode())
+    return out
+
+
+def ct_asm(asm, symbols, syms, room, funcs):
+    """4.2 x3all: the glue's calls into gplay.c (room = (obj, at, end), not obj1) go through one table of bound dwords,
+    GP_CT. The table is GENERATED from the object's own symbol table (MC 17/11: nothing hand-listed): one slot
+    GPCT_NAME: dd 0 per global function of gplay.c (funcs = _c_funcs(obj), sorted) - a slot of the bound-dword table
+    (BOUND: patch() places the C symbols and refs every slot; bound_check) - and, from the same set, one obj1 thunk
+    gpx_NAME: jmp [GPCT_NAME] per function: the address other modules' code calls (entry(); LABELS[name]).
+    In the glue `call NAME` / `jmp NAME` -> `call [GPCT_FN]`, NAME any glue symbol that is a function's address in the
+    room (FN = the function's own name: an alias such as CD_MEMBER uses its function's slot). Any other reference stays
+    as written: an absolute one becomes a fixup, a relative one fails the build (nasmcave.assemble: no rel32 out of
+    obj1). -> (asm, [names])"""
+    import re
+    o, a, e = room
+    names = sorted(k for k in funcs if k in syms)
+    assert names and all(syms[k][0] == o and a <= syms[k][1] < e for k in names), 'gplay: a C function outside its room'
+    byaddr = {tuple(syms[k][:2]): k for k in names}
+    assert len(byaddr) == len(names), 'gplay: two C functions at one address'
+
+    def rep(m):
+        fn = byaddr.get(tuple(symbols[m.group(3)][:2])) if m.group(3) in symbols else None
+        return f'{m.group(1)}{m.group(2)}[GPCT_{fn}]' if fn else m.group(0)
+    asm = re.sub(r'\b(call|jmp)([ \t]+)([A-Za-z_]\w*)\b(?![ \t]*[\[+:])', rep, asm)
+    for k in names:                                  # (the table's entries by their own names, for BOUND.place)
+        assert k not in symbols or tuple(symbols[k][:2]) == tuple(syms[k][:2]), k
+        symbols[k] = syms[k]
+    asm += '\nalign 4, db 0\nGP_CT:\n' + ''.join(f'GPCT_{k}: dd 0\n' for k in names)   # (plain 0: BOUND.ref binds each)
+    asm += ''.join(f'gpx_{k}:\n    jmp [GPCT_{k}]\n' for k in names)
+    return asm, names
+
+
+def entry(name):
+    """(obj, offset) where another module's code calls gplay.c's function `name`: its obj1 thunk when gplay.c is out of
+    obj1 (x3all), else the function itself; None when the build's gplay.c has no such function."""
+    if 'X3ALL' in LABELS and name in LABELS['X3ALL']['ct']:
+        return (1, LABELS[f'gpx_{name}'])
+    return LABELS.get('csyms', {}).get(name)
+
+
+def patch(p, at, limit, tables, bss_at, area=None, lang='it', c_room=None):
+    """tables: mkseason.gplay_tables(). Glue + specs in obj1 at..limit, the C .bss at obj2 bss_at (BSS_SIZE).
+    c_room = (obj, at, end): gplay.c's code + .rodata + .data go there (4.2 x3all: patch.py's GP3 band in obj3), the
+    obj1 pages hold only the asm glue, which calls the C through the bound dwords GP_CT (bound_check). c_room None: the C
+    in obj1 before the glue, as before x3all (no exe build uses it).
     area: the contest names' string area (the playable play-offs). Returns the end."""
     import bigtables
     import careerworld
@@ -3162,7 +3332,10 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
               f'{swreg.S3C_END - rend} B left, floor 256)')
         LABELS['S3C_RULE'] = rsyms['cup_rule']
     gx = gplx_dry() if gplx_on() else None           # 4.2 GPLX (MC 15/11): gplx.c's addresses first (a dry link)
-    syms, cend, bss = cobj.link(p, obj, at, (2, bss_at), externs={**s3_ext, **(gx[1] if gx else {}), 'GP_PROM_TAB': (1, prom_at), 'SEC_TAB': (1, sec_at),
+    BOUND.reset()
+    if c_room is not None:                           # 4.2 x3all: the whole C translation unit out of obj1
+        assert not any(p.get(c_room[0], c_room[1], c_room[2] - c_room[1])), ('gplay: the C room is not free', c_room)
+    syms, cend, bss = cobj.link(p, obj, at if c_room is None else c_room[1], (2, bss_at), externs={**s3_ext, **(gx[1] if gx else {}), 'GP_PROM_TAB': (1, prom_at), 'SEC_TAB': (1, sec_at),
                                                                    **({'GP_SSF': (1, ssf_at),
                                                                        'GP_CAREERW': (2, sacups.SEL_ADDR[0])}
                                                                       if ssf_at else {}),
@@ -3170,12 +3343,19 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
                                                                    'SEC_SLT': careerworld.SITES['slt'],
                                                                    'SEC_COPY': careerworld.SITES['sltcopy'],
                                                                    'GP_HLT': (2, hlt), 'GP_SEASP': uesum.season_var(p)},
-                                limit=limit)
+                                **(dict(limit=limit) if c_room is None else
+                                   dict(limit=c_room[2] - X3ALL_FLOOR, text_obj=c_room[0])))
+    c_end = cend                                     # (the C's end in its own object)
+    if c_room is not None:
+        cend = at                                    # (obj1: the glue right after the tables)
+        print(f'exe: gplay.c obj{c_room[0]}+{c_room[1]:#x}..{c_end:#x} ({c_end - c_room[1]} B of {c_room[2] - c_room[1]}, '
+              f'{c_room[2] - c_end} B left, floor {X3ALL_FLOOR})')
     if gx:
         gplx_link(p, gx, syms)
     LABELS.pop('X3', None)
     if x3_on():                                      # 4.2 X3: gplay3.c's externs + its pointer, for x3_patch (obj3 chain)
         LABELS['X3'] = {k: syms[k] for k in X3_EXT + ('GP_SCDONE',)}
+        BOUND.ref(p, *syms['GP_SCDONE'][:2], 'sc_done')   # (bound when x3_patch places sc_done; bound_check)
     global GP_BSS                                    # 4.2 class B (MC 12/11, Motore option a): the room = the measured
     GP_BSS = (bss + 0x200 + 0xFFF) & ~0xFFF          # .bss + 0x200, page-rounded (was 0x6000 + the stage banks' rounding
                                                      # / 0x7000 in patch.py: too small in scenario builds); patch.py adds
@@ -3188,10 +3368,10 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
         f'leagues leaves too little. Scenario builds: set W2627REL_DATA to the current snapshot (world5tm-h2, '
         f'notes/harness.md); a release build: patch.py\'s GP_BSS base must grow (MC 11/11)')
     keys = ('RSZ', 'GT_N', 'O_N', 'O_T', 'O_SPEC', 'O_MV', 'MSZ', 'GD_N')
-    lay = dict(zip(keys, struct.unpack(f'<{len(keys)}I', p.get(1, syms['GP_LAYOUT'][1], 4 * len(keys)))))
+    lay = dict(zip(keys, struct.unpack(f'<{len(keys)}I', p.get(*syms['GP_LAYOUT'], 4 * len(keys)))))
     keys = ('O_MGR', 'O_WEEK', 'O_MDIV', 'O_GT', 'O_SIM', 'KO_SIZE', 'ST_KO', 'KO_SEAS', 'KO_CID', 'KO_N', 'KO_TEAM',
             'KO_BYE', 'KO_CON', 'ST_SIZE', 'LOG_SIZE', 'KO_SLOT', 'ST_RN', 'KO_GCUR')
-    lay.update(zip(keys, struct.unpack(f'<{len(keys)}I', p.get(1, syms['GP_LAYOUT2'][1], 4 * len(keys)))))
+    lay.update(zip(keys, struct.unpack(f'<{len(keys)}I', p.get(*syms['GP_LAYOUT2'], 4 * len(keys)))))
     assert lay['ST_SIZE'] == GP_ST_SIZE, lay['ST_SIZE']             # (engine.save_item('GP'): patch.py)
     import mkseason
     sel, numsel = mkseason._hook_sites(p)[3:5]
@@ -3403,7 +3583,14 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
         cd_src += CF_ASM + 'CF_DATA: db ' + ', '.join(str(b) for b in cft) + '\n'
         symbols.update({'CF_TABP': syms['CF_TAB'], 'CF_LIST': syms['cf_list_c'], 'CF_MEMBER': syms['cf_member_c'],
                         'CF_CAP': syms['cf_cap_c']})
-    cd_src += nasmcave.sub(GP_RNAME, 'CD_PART', CD_RNAME if cds else '')
+    import rnames as _rn                                      # (4.2 friendlies: rnames.FR_I only in FRND builds)
+    fr_i = _rn.LABELS.get('FR_I')
+    if fr_i is not None:
+        symbols['FR_I'] = (0, fr_i)
+    cd_src += nasmcave.sub(nasmcave.sub(GP_RNAME, 'CD_PART', CD_RNAME if cds else ''), 'FR_PART\n',
+                           FR_RNAME + '\n' if fr_i is not None else '')
+    if fr_i is not None:                                      # (rnames' RN_FRP: a friendly's title in every world)
+        cd_src += GP_RFR.replace('FR_PART\n', FR_RNAME + '\n')
     asm_main = ASM
     if cft:                                                   # (cupsf: every league division's final places)
         asm_main = nasmcave.sub(asm_main, '    call GP_CAP_NEXT\n    pushad\n    mov edx, [A4R]\n    call gp_find\n',
@@ -3413,16 +3600,28 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     asm = (nasmcave.sub(asm_main, 'jmp GP_REC_NEXT', 'jmp GP_REC_NEXT' if rec_dp else 'jmp gp_recmov') + tab_src + '\n'
            + names_lines(tables, area, lang) + '\n' + stubs + cd_src)
     glue = (cend + 15) & ~15
+    ct_names = []
+    if c_room is not None:
+        asm, ct_names = ct_asm(asm, symbols, syms, (c_room[0], c_room[1], c_end), _c_funcs(obj))
     code, fix = nasmcave.assemble(asm, glue, symbols)
     lab = nasmcave.labels(asm, glue, symbols)
     assert glue + len(code) <= limit, ('gplay pages full', hex(glue + len(code)), hex(limit))
     print(f'exe: gplay glue end {glue + len(code):#x} (limit {limit:#x})')
+    if c_room is not None:                           # (MC 16/11: the obj1 pages hold only glue, >= GLUE_FLOOR B free in
+        free = limit - (glue + len(code))            #  EVERY build - buildrel.sh sums this line up over the 8 exes)
+        print(f'exe: gplay glue obj1+{glue:#x}..{glue + len(code):#x}: {free} B free (floor {GLUE_FLOOR}), '
+              f'{len(ct_names)} C entries bound (GP_CT)')
+        assert free >= GLUE_FLOOR, ('gplay glue: under the floor', free, GLUE_FLOOR)
     p.put(1, glue, code)
     import engine
     for name in after:
         engine.CALL_AT[name] = (1, lab[f'ba_{name}'])         # (split.late binds the stage's callback to it)
     for off, tobj, toff in fix:
         cobj.add_ptr(p, glue + off, tobj, toff)
+    if c_room is not None:                           # (x3all: the glue's slots -> their C symbols, placed in the C room)
+        BOUND.place(p, {k: symbols[k][:2] for k in ct_names}, (c_room[0], c_room[1], c_end))
+        for k in ct_names:
+            BOUND.ref(p, 1, lab[f'GPCT_{k}'], k)
     if cds and not os.environ.get('NO_CUP12'):               # InitNewSeason's slot-1 / slot-2 installs -> gp_cup12 (NO_CUP12: test builds)
         d1o = p.le.obj_bytes(1)
         d0 = struct.pack('<I', r['A0'] - 32)
@@ -3491,6 +3690,8 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
             p.add_ptr(1, rnames.LABELS['RN_CDP'], 1, lab['gp_rname'])
             if 'GP_CALDP' in lab and rnames.LABELS.get('RN_CALD'):
                 p.add_ptr(1, lab['GP_CALDP'], 1, rnames.LABELS['RN_CALD'])
+        if 'gp_rfr' in lab and rnames.LABELS.get('RN_FRP'):   # (4.2 FRND: the friendly's empty round name, any world)
+            p.add_ptr(1, rnames.LABELS['RN_FRP'], 1, lab['gp_rfr'])
         for a in adv_calls:                                  # (the calendar advance: 'then_build')
             assert p.get(1, a, 5) == p.le.obj_bytes(1)[a:a + 5], f'obj1+{a:#x} already hooked'
             p.put(1, a + 1, struct.pack('<i', lab['gp_adv'] - (a + 5)))
@@ -3514,13 +3715,20 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
     import uefaq
     if uefaq.LABELS.get('UQ_EPP') and tables:              # a league-phase world: its European play-offs (uefaq.c ep_run)
         p.add_ptr(1, uefaq.LABELS['UQ_EPP'], 1, lab['GP_EPT'])
-    assert struct.unpack('<I', p.get(1, syms['RS_STATE_SIZE'][1], 4))[0] == RS_SIZE   # (the engine block's 'RS')
+    assert struct.unpack('<I', p.get(*syms['RS_STATE_SIZE'], 4))[0] == RS_SIZE   # (the engine block's 'RS')
     import ripool
-    assert struct.unpack('<I', p.get(1, syms['RI_STATE_SIZE'][1], 4))[0] == ripool.RI_SIZE   # (the engine block's 'RI')
+    assert struct.unpack('<I', p.get(*syms['RI_STATE_SIZE'], 4))[0] == ripool.RI_SIZE   # (the engine block's 'RI')
     kolay = dict(zip(('st_ko', 'size', 'slot', 'ntie', 'tw', 'tl', 'team', 'n'),
-                     struct.unpack('<8I', p.get(1, syms['GP_KOLAY'][1], 32))))   # (4.0's gp_build glue: GP_ST.ko[0])
+                     struct.unpack('<8I', p.get(*syms['GP_KOLAY'], 32))))   # (4.0's gp_build glue: GP_ST.ko[0])
     LABELS.update(CAL=(2, ps['cal']), CAL_CUR=(2, ps['cal_cur']))   # (4.0.6 ctview: the career calendar's week)
     LABELS['csyms'] = dict(syms)                       # (every C symbol: tools/hosttest's ITALIAN.syms.json)
+    LABELS.pop('X3ALL', None)
+    LABELS.pop('X3ALL_CT', None)
+    if c_room is not None:                             # (bound_check: the room; the harness: each slot and its C symbol)
+        LABELS['X3ALL'] = {'room': (c_room[0], c_room[1], c_end), 'limit': c_room[2],
+                           'ct': {k: ((1, lab[f'GPCT_{k}']), tuple(symbols[k][:2])) for k in ct_names}}
+        LABELS['X3ALL_CT'] = [[lab[f'GPCT_{k}'], symbols[k][1]] for k in ct_names]   # (the harness's x3_check: every
+                                                       # GP_CT dword at run time = obj3's base + its C symbol)
     import cobj as _cobj                                # 4.2 (Regia 13/11, perf): gp_repoint_c's slot 2 / 3 candidates
     import careerworld                                  # (+ the career worlds' euro templates W<n>_CC / _CWC / _UEFA:
     cwt = sorted(k for k in careerworld.LABELS if re.fullmatch(r'W\d+_(CC|CWC|UEFA)', k))   # their static long names,
@@ -3539,18 +3747,23 @@ def patch(p, at, limit, tables, bss_at, area=None, lang='it'):
                   RI_RULE=syms['RI_RULE'], cd_season=syms['cd_season'],
                   gp_wn_c=syms['gp_wn_c'], sc_wline_c=syms['sc_wline_c'], GP_WNSRC=syms['GP_WNSRC'], GP_WNFILE=syms['GP_WNFILE'], GP_SEAS=syms['GP_SEAS'],   # (winners.py)
                   WN_ST=syms['WN_ST'], GP_MGR=syms['GP_MGR'])
+    if c_room is not None:                             # (x3all: every C function exported in LABELS -> its obj1
+        for k in ct_names:                             #  thunk, what other modules' code calls; generated: the
+            if isinstance(LABELS.get(k), tuple) and tuple(LABELS[k][:2]) == tuple(syms[k][:2]):   # table's own set.
+                LABELS[k] = (1, lab[f'gpx_{k}'])       #  The C address: LABELS['csyms'][name])
     LABELS.update({k: syms[k] for k in ('GP_RIPOOL', 'GP_CDSTR', 'GP_S7SNAP', 'GP_GEOCH', 'GP_CDKN') if k in syms})
     if fpad.on() or __import__('frnd').on():                  # (fpad.py / frnd.py link fpad.c / frstep.c to these)
         LABELS.update({k: syms[k] for k in ('GP_PAPI', 'GP_PSTEP', 'GP_PDONE', 'GP_PLEG', 'GP_PSEAS', 'GP_WK', 'GP_PMID', 'GP_SCT',
                                             'GP_SEAS', 'GP_K')})
+        LABELS.update({k: syms[k] for k in ('GP_PROW',) if k in syms})   # (4.2 friendlies: gp_scrow_c's hook)
         LABELS.update({k: symbols[k] for k in ('D1R', 'A1R', 'A2R', 'CAL_CUR')}, GP_CFLAGS=gp_cflags)
         LABELS['SC_ON'] = bool(sct)   # (GP_S7: s7swap.py points them at s7ri.c's s7ri_pool / s7ri_cdstr)
     LABELS.update({k: symbols[k] for k in ('VC_VIEW', 'VC_CALC') if k in symbols})   # (4.0.6 P3: ctview's rounds menu)
-    assert struct.unpack('<I', p.get(1, syms['WN_SIZE'][1], 4))[0] == WN_SIZE   # (the engine block's 'WN')
-    assert struct.unpack('<I', p.get(1, syms['F1_SIZE'][1], 4))[0] == F1_SIZE   # (the engine block's 'F1')
+    assert struct.unpack('<I', p.get(*syms['WN_SIZE'], 4))[0] == WN_SIZE   # (the engine block's 'WN')
+    assert struct.unpack('<I', p.get(*syms['F1_SIZE'], 4))[0] == F1_SIZE   # (the engine block's 'F1')
     if cds:
-        assert struct.unpack('<I', p.get(1, syms['CD_STSZ'][1], 4))[0] == CD_SIZE   # (the engine block's 'CD')
-    print(f"exe: knockout play-offs (gplay): {len(tables)} countries, C obj1+{at:#x}..{cend:#x}, glue ..{glue + len(code):#x}, "
+        assert struct.unpack('<I', p.get(*syms['CD_STSZ'], 4))[0] == CD_SIZE   # (the engine block's 'CD')
+    print(f"exe: knockout play-offs (gplay): {len(tables)} countries, C obj{1 if c_room is None else c_room[0]}+{at if c_room is None else c_room[1]:#x}..{c_end:#x}, glue ..{glue + len(code):#x}, "
           f"GP_IN obj2+{syms['GP_IN'][1]:#x}, state GP_ST obj2+{syms['GP_ST'][1]:#x} ({lay['ST_SIZE']} B), "
           f"log obj2+{syms['GP_LOG'][1]:#x}, .bss {bss:#x}")
     if 'GP_EXT' in syms:                        # (S7, shaped builds: the season-end swap builder's input)

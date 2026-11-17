@@ -106,6 +106,7 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 - Friendlies give no league points and count for no table or cup. The season's friendlies record (won, drawn, lost) is kept apart from your competitive results.
 - **Choosing the opponents yourself:**
 - Career: at the start of every season, before the chairman's note, the page PRESEASON FRIENDLIES shows the four summer friendlies the game has picked for you. Each row has the venue (H home, A away), the opponent, whether that club is STRONGER, EVEN or WEAKER than yours (the word and the colour of its box) and a figure from 1 to 5. CONTINUE accepts the four as they are: if you touch nothing, the game's choice stands.
+- A friendly is just a friendly: its match screens and your calendar show "FRIENDLY" alone (AMICHEVOLE, AMICAL, TESTSPIEL in the other languages), no longer "FRIENDLY FINAL".
 - On the page where you choose the opponents, the figure from 1 to 5 next to a club is the same for everybody (which fifth of the world's clubs it is in, 5 = the strongest fifth), while the colour compares that club with yours (stronger, similar or weaker), as the page's legend shows; a club you have picked gets a colour of its own.
 - AUTOMATIC says what the game picks for the rows you leave to it: MIXED (one stronger, two similar, one weaker: the setting you start with), EASY (four weaker clubs), MEDIUM (four similar clubs) or HARD (four stronger clubs). LEFT, RIGHT or FIRE change it. The game remembers your setting for the following seasons.
 - FIRE on an opponent opens the game's club list under the title CHOOSE OPPONENT: any club can be picked for that row, also one of your own country. In the list every club has the colour it would have against your club, with the legend above the list; a grey club cannot be picked (your own club, your B team, a club already in another row). When a choice cannot be accepted the page says why and nothing changes. FIRE on a club you chose gives the row back to the game.
@@ -117,6 +118,13 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 
 #### Italian version: PAREGGI
 The original Italian game spells "draws" as PARREGGI in the season record (VINCITE ... PARREGGI ... SCON ...), the line a national-team coach sees and that the preseason friendlies now use too. It now reads PAREGGI, in the CD and GOG versions.
+
+#### Saved careers
+- A career saved with 4.2 loads in 4.2 or later. Older versions (4.1 and before) cannot be trusted to load it: keep playing it with 4.2.
+- Careers saved with older versions still load in 4.2, as before.
+- A damaged or cut-off career file is now refused with the game's own "load failed" message, and the career you have open stays as it was. Before, a file that was too long was cut without a word.
+- A 1996-97 career now has room for 159 teams, as the 2026-27 and 1984-85 worlds do (before: 100). If a career ever needs more, the game stops with TEAM CACHE FULL - PLEASE REPORT instead of damaging the save.
+- 1996-97 season end: after the end-of-season matches the game simulates, every club in your career gets its own squad back (before, only the first 32 did).
 
 #### Decisions of this release
 - Serie C / Serie D exchange (2026-27 world): every season the nine Serie D group winners go up and the Serie C clubs relegated (last of each group + play-out losers) go down, your club included; groups by area, an approximation (the real league redraws the Serie D groups every summer); a move of your club keeps its squad, money and record.
@@ -132,6 +140,8 @@ The original Italian game spells "draws" as PARREGGI in the season record (VINCI
 - JUVENTUS's bench keeper is NETO (Davide, 15/11), over the call-ups rule that would pick PINSOGLIO.
 - Preseason friendlies, opponents and fees (Davide, 16/11): the game's opponents are foreign clubs, one stronger, two similar and one weaker than yours by the value of the best eleven players; when no such club exists, the nearest in strength; two at home (the two weakest) and two away; fees by the table above (a share of a home league gate, by how strong the opponent really is), counted as gate income for financial fair play (UEFA Club Licensing and Financial Sustainability Regulations, Edition 2025, Annex J.2.1 a); a club you choose yourself may also be from your own country.
 - Preseason friendlies, the choice page (Davide, 16/11): the game's pick for the rows left to it starts as MIXED (one stronger, two similar, one weaker); EASY / MEDIUM / HARD make the four weaker / similar / stronger, and the setting is remembered from season to season; a club chosen by the player can go in any row, may be of the player's own country and lasts one summer; the venues stay two at home and two away; careers saved before 4.2 continue with MIXED.
+- Preseason friendlies, the name on screen (Davide, 17/11): the word for friendly alone, with no round name, in all four languages; the super cups keep their FINAL / SEMI-FINAL.
+- Saves (Davide, 16/11): a career saved with 4.2 is for 4.2 or later; 4.2 keeps loading every older save. Every career uses the big team cache (159 teams), the 1996-97 one included.
 
 
 ## Italiano
@@ -241,6 +251,7 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 - Le amichevoli non danno punti e non contano per nessuna classifica o coppa. Il bilancio delle amichevoli della stagione (vinte, pareggiate, perse) è tenuto a parte dai risultati ufficiali.
 - **Scegliere tu le avversarie:**
 - Carriera: all'inizio di ogni stagione, prima della nota del presidente, la pagina AMICHEVOLI ESTIVE mostra le quattro amichevoli estive scelte dal gioco. Ogni riga ha la sede (C casa, F fuori), l'avversaria, se quella squadra è SUPERIORE, PARI o INFERIORE alla tua (la parola e il colore del riquadro) e una cifra da 1 a 5. CONTINUA accetta le quattro così come sono: se non tocchi nulla, vale la scelta del gioco.
+- Un'amichevole è solo un'amichevole: le schermate della partita e il tuo calendario mostrano solo "AMICHEVOLE" (FRIENDLY, AMICAL, TESTSPIEL nelle altre lingue), non più "AMICHEVOLE FINALE".
 - Nella pagina in cui scegli le avversarie il numero da 1 a 5 accanto a una squadra è uguale per tutti (in quale quinto delle squadre del mondo si trova, 5 = il quinto più forte), mentre il colore confronta quella squadra con la tua (più forte, simile o più debole), come spiega la legenda della pagina; una squadra che hai già scelto ha un colore suo.
 - AUTOMATICHE dice che cosa sceglie il gioco per le righe che lasci a lui: MISTE (una più forte, due simili, una più debole: l'impostazione di partenza), FACILI (quattro squadre più deboli), MEDIE (quattro simili) o DIFFICILI (quattro più forti). SINISTRA, DESTRA o FUOCO la cambiano. Il gioco ricorda l'impostazione per le stagioni successive.
 - FUOCO su un'avversaria apre l'elenco delle squadre del gioco con il titolo SCEGLI AVVERSARIA: per quella riga si può prendere qualsiasi squadra, anche del tuo paese. Nell'elenco ogni squadra ha il colore che avrebbe contro la tua, con la legenda sopra l'elenco; una squadra grigia non si può scegliere (la tua squadra, la tua squadra B, una squadra già presente in un'altra riga). Quando una scelta non può essere accettata la pagina dice perché e non cambia nulla. FUOCO su una squadra scelta da te restituisce la riga al gioco.
@@ -252,6 +263,13 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 
 #### Versione italiana: PAREGGI
 Il gioco originale in italiano scrive PARREGGI nel registro della stagione (VINCITE ... PARREGGI ... SCON ...), la riga che vede l'allenatore di una nazionale e che ora usano anche le amichevoli estive. Ora c'è scritto PAREGGI, nelle versioni CD e GOG.
+
+#### Carriere salvate
+- Una carriera salvata con la 4.2 si carica con la 4.2 o versioni successive. Con le versioni precedenti (4.1 e prima) il caricamento non è garantito: continua a giocarla con la 4.2.
+- Le carriere salvate con versioni precedenti si caricano ancora nella 4.2, come prima.
+- Un file di carriera rovinato o troncato ora viene rifiutato con il messaggio di caricamento non riuscito del gioco, e la carriera che hai aperta resta com'era. Prima un file troppo lungo veniva tagliato senza avvisare.
+- Una carriera 1996-97 ora ha posto per 159 squadre, come i mondi 2026-27 e 1984-85 (prima: 100). Se una carriera ne avesse bisogno di più, il gioco si ferma con TEAM CACHE FULL - PLEASE REPORT invece di rovinare il salvataggio.
+- Fine stagione 1996-97: dopo le partite di fine stagione simulate dal gioco ogni squadra della tua carriera riprende la sua rosa (prima solo le prime 32).
 
 #### Decisioni di questa release
 - Scambio Serie C / Serie D (Mondo 2026-27): ogni stagione le nove vincitrici dei gironi di Serie D salgono e le retrocesse dalla Serie C (ultima di ogni girone + perdenti dei play-out) scendono, anche la tua squadra; gironi per zona, un'approssimazione (la Lega vera ricompone i gironi di Serie D ogni estate); un passaggio della tua squadra tiene rosa, soldi e curriculum.
@@ -267,3 +285,6 @@ Il gioco originale in italiano scrive PARREGGI nel registro della stagione (VINC
 - Il portiere di riserva della JUVENTUS è NETO (Davide, 15/11), al posto di PINSOGLIO che la regola delle convocazioni sceglierebbe.
 - Amichevoli estive, avversarie e incassi (Davide, 16/11): le avversarie scelte dal gioco sono squadre straniere, una più forte, due simili e una più debole della tua per valore degli undici giocatori migliori; se una squadra così non esiste, la più vicina per forza; due in casa (le due più deboli) e due in trasferta; cifre della tabella qui sopra (una quota di un incasso di campionato in casa, secondo quanto è forte davvero l'avversaria), contate come incassi da stadio per il fair play finanziario (UEFA Club Licensing and Financial Sustainability Regulations, edizione 2025, allegato J.2.1 a); una squadra scelta da te può essere anche del tuo paese.
 - Amichevoli estive, la pagina di scelta (Davide, 16/11): la scelta del gioco per le righe lasciate a lui parte da MISTE (una più forte, due simili, una più debole); FACILI / MEDIE / DIFFICILI rendono le quattro più deboli / simili / più forti, e l'impostazione viene ricordata di stagione in stagione; una squadra scelta dal giocatore può stare in qualsiasi riga, può essere del suo stesso paese e vale per una sola estate; le sedi restano due in casa e due fuori; le carriere salvate prima della 4.2 proseguono con MISTE.
+- Amichevoli estive, il nome sullo schermo (Davide, 17/11): solo la parola amichevole, senza il nome del turno, in tutte e quattro le lingue; le supercoppe tengono FINALE / SEMIFINALE.
+- Play-off di Serie C: se la vincitrice del play-off ha già vinto il proprio girone, la promozione va alla finalista sconfitta.
+- Salvataggi (Davide, 16/11): una carriera salvata con la 4.2 è per la 4.2 o successive; la 4.2 continua a caricare tutti i salvataggi precedenti. Ogni carriera usa la cache squadre grande (159 squadre), anche quella 1996-97.

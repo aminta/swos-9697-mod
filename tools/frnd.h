@@ -7,7 +7,7 @@
             slot4_busy); bits 4-7 spare (ask Motore first)
      +2  dw x 4 the opponents' team words, in play order (next season's avoid list)
      +10 dw bits 0-3 home flags (bit k = friendly k at home), bits 4-12 W/D/L counts (3 bits each),
-            bit 13 NATIVE (reserved), bits 14-15 FR_LEVEL (written only by frc_choose; kept across the season rewrite)
+            bit 13 NATIVE (fr_season: the game's slot-4 contest D8CBA was set at the season start; FR_AFTER4 reinstalls it), bits 14-15 FR_LEVEL (written only by frc_choose; kept across the season rewrite)
 
    The season-start step (the tail of InitializeNewSeason, careers only, never on a load):
      given = 4 x FR_NONE, venues = 0xFF;

@@ -508,6 +508,7 @@ def exe_layout(le):
 def fixup_kind(le, L, sobj, soff, toff, obytes):
     """The whitelist (design 1.8 leg 1): the name of the allowed use of a fixup into a cache, or None (a violation).
     obytes = the source object's bytes."""
+    import careerworld                          # (B_SEL / B_STAGE: the stage's selTeamsPtr, team cache 1b)
     fx, old, new = L['fx'], L['old'], L['new']
     pre = obytes[max(0, soff - 12):soff]
     ptr = lambda k: fx.get((sobj, soff - k)) in ((2, L['selptr']), (1, L['selbasev']) if L['selbasev'] is not None else None)
@@ -522,6 +523,11 @@ def fixup_kind(le, L, sobj, soff, toff, obytes):
             return f'cmp eax, {which}'
         if pre[-1:] in (b'\xbe', b'\xbf') and which == 'NEWSEL':
             return 'mov esi / edi, NEWSEL (the save from the stage: records + trailer)'
+        if sobj == 1 and pre[-6:-4] == b'\xc7\x05' and toff == old and \
+                fx.get((1, soff - 4)) == (2, new - careerworld.B_SEL + careerworld.B_STAGE + 0x1739C):
+            return "mov dword [the stage's selTeamsPtr], OLDSEL (team cache 1b: the canonical save)"
+        if sobj == 1 and pre[-2:] in (b'\x81\xea', b'\x81\xeb'):
+            return 'sub edx / ebx, NEWSEL / OLDSEL (team cache 1b: the canonical save, careerTeam - the cache)'
     if toff == old:
         if (sobj, soff) == (2, L['selptr']):
             return "selTeamsPtr's initial value"

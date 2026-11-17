@@ -36,7 +36,7 @@ static int fails;
 u8 GP_GST[16 + 700]; u8 GP_SEAS; u32 GP_WK; u16 GP_MGR; u32 GP_K;
 u8 FR_D1R[28]; static u16 A1T; u8 *FR_A1R = (u8 *)&A1T;
 u16 FR_CALCUR; u8 FR_SEASON, FR_CWB; u8 FR_ST[FR_SZ]; u8 FR_BUF[FR_BUFSZ];
-u32 FR_D6BA2; u16 FR_D6C4E;
+u32 FR_D6BA2; u16 FR_D6C4E; void *FR_SLOT4;
 static int bad_d1, nko, ko_w1, ko_home, ko_away, ko_kind, ko_level, ko_lfile;
 static void mock_ko_one(struct gp_ko *k, u16 h, u16 a, int w1, int w2, int legs, int kind, int level, int lfile,
                         const u8 *nm) {
@@ -65,6 +65,7 @@ static void play(int gf, int ga, int home) {   /* a friendly's match: gp_rec -> 
     fr_leg(); KO()[O_TW] = 0;
     GP_WK = KO()[O_D1]; FR_CALCUR = 8;
 }
+static u32 next_row(const u8 *r) { (void)r; return 0x777; }
 int main(int argc, char **argv) {
     static u8 file[16384]; FILE *f = fopen(argv[1], "rb"); FILEN = (u32)fread(file, 1, sizeof file, f); fclose(f);
     FILEB = file;
@@ -106,6 +107,15 @@ int main(int argc, char **argv) {
           "open %d after %d next %d", FR_ST[1] & FR_OPEN, nafter, nnext);
     fr_step();
     CHECK(nafter == 1 && nnext == 2, "after4_once", "after %d next %d", nafter, nnext);
+    /* 4b. fr_row (gp_scrow_c's hook): the 4 played weeks' slot-4 rows keep the short name; other weeks / slots 0 */
+    *(u32 *)(FR_NAMES + 4) = 0x1234;
+    { u8 r[2] = { 4, 48 }; u32 a = fr_row(r); r[1] = 54; u32 b = fr_row(r); r[1] = 56; u32 c = fr_row(r);
+      r[0] = 3; r[1] = 50; u32 d = fr_row(r);
+      CHECK(a == 0x1234 && b == 0x1234 && c == 0 && d == 0, "row_label", "%x %x %x %x", a, b, c, d);
+      /* (FR_TEST: FR_ROWC bit k = friendly k's row relabelled after the close - weeks 48 / 54 = friendlies 1 / 4) */
+      CHECK(FR_ROWC == 0x09, "row_relabel_trace", "FR_ROWC %x", FR_ROWC); }
+    { u8 r[2] = { 4, 56 }; FR_NROW = (void *)next_row; u32 a = fr_row(r); r[1] = 48; u32 b = fr_row(r); FR_NROW = 0;   /* (gphooks) */
+      CHECK(a == 0x777 && b == 0x1234, "row_chain", "next %x ours %x", a, b); }
     /* 5. next season: last season's four avoided, the level bits kept; an old save (season mismatch): nothing */
     u16 last[4]; memcpy(last, FR_ST + 2, 8);
     FR_ST[11] |= 0x80;                  /* (FR_LEVEL HARD... bit 15 as frc_choose would leave it) */
@@ -134,6 +144,24 @@ int main(int argc, char **argv) {
     CHECK(fr_step() == 0 && !(FR_ST[1] & FR_OPEN) && FR_TRACE == 0x85 && nafter == na + 1 && *(u16 *)KO() == 0, "install_week_refused",
           "trace %x open %d", FR_TRACE, FR_ST[1] & FR_OPEN);
     bad_d1 = 0;
+    /* 9. a native slot-4 contest (D8CBA set at the season start: play-offs, NSL; Friendlies 96-97 16/11):
+       with FR_AFTER4 the friendlies go on, FR_NATIVE set; without it none (trace 0x86, no FR_OPEN) */
+    static u8 nat4; FR_SLOT4 = &nat4; GP_SEAS = FR_SEASON = 11; fr_season(GP_MGR);
+    CHECK(FR_ST[1] == FR_OPEN && FR_TRACE == 0x10 && (FR_FLAGS(FR_ST) & FR_NATIVE), "native_with_after4",
+          "open %d trace %x fl %x", FR_ST[1], FR_TRACE, FR_FLAGS(FR_ST));
+    FR_AFTER4 = 0; GP_SEAS = FR_SEASON = 12; fr_season(GP_MGR);
+    CHECK(FR_ST[0] == 12 && !(FR_ST[1] & FR_OPEN) && FR_TRACE == 0x86, "native_no_after4_none", "open %d trace %x",
+          FR_ST[1], FR_TRACE);
+    FR_SLOT4 = 0; GP_SEAS = FR_SEASON = 13; fr_season(GP_MGR);
+    CHECK(FR_ST[1] == FR_OPEN && !(FR_FLAGS(FR_ST) & FR_NATIVE), "no_native_bit_clear", "fl %x", FR_FLAGS(FR_ST));
+    /* 10. (MC 17/11) FR_OPEN live but the world has no slice (a poked / foreign FR_ST): fr_step closes it (87h),
+       installs nothing and chains to the next step */
+    FR_AFTER4 = after4; FR_CWB = 9; GP_WK = 56; FR_CALCUR = 0; nko = 0; KO()[O_SEASON] = 0;
+    { int nn = nnext, na2 = nafter; u32 r = fr_step();
+      CHECK(r == 0 && nko == 0 && !(FR_ST[1] & FR_OPEN) && FR_TRACE == 0x87 && nnext == nn + 1 && nafter == na2 + 1,
+            "no_slice_closes", "r %u nko %d open %d trace %x next %d after %d", r, nko, FR_ST[1] & FR_OPEN, FR_TRACE,
+            nnext - nn, nafter - na2); }
+    FR_CWB = 0;
     printf("fails %d\n", fails);
     return fails != 0;
 }

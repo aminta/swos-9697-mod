@@ -58,8 +58,12 @@ GPR = (('eax', UC_X86_REG_EAX), ('ebx', UC_X86_REG_EBX), ('ecx', UC_X86_REG_ECX)
 FLAGS = 0x8D5                            # CF PF AF ZF SF OF
 SP_COVER = []                                       # (set pieces' obj1 hook regions, when NEW links them)
 ROOMS = ((swreg.DRIB1V1_AT, swreg.DRIB1V1_END), (swreg.DIFF_AT, swreg.DIFF_END), (swreg.DIFF2_AT, swreg.DIFF2_END))
+ROOMS += ((swreg.DRP8D_AT, swreg.DRP8D_END),          # (birilli 16/11: drp8d's clamp band, since 42-drp8d; the
+          (swreg.TAKERS_AT, swreg.TAKERS_END))        #  takers engine df_kick calls, 42-int since a45f8d4: NEW's own code)
 HOOKS = (('KICK', 10, 'df_kick'), ('SC', 13, 'df_scale'), ('GK', 11, 'df_gk'), ('PS', 10, 'df_pass'),
          ('GL', 8, 'df_goal'), ('SL', 7, 'df_slide'), ('TU', 6, 'df_turn'), ('CAR', 37, 'df_carrier'))
+ROOMS += ((swreg.GAMEPLAY_AT, swreg.GAMEPLAY_END),)  # (4.2 GAMEPLAY: df_kick's GM_CHK - ZF out, eax kept - is NEW's own code:
+                                                    #  run it, never stub it as an external call; MC 16/11, the TAKERS precedent)
 
 
 def lin(sym):

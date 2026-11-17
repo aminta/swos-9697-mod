@@ -68,14 +68,19 @@ SLOW = False               # 4.2 MATCH SPEED (slow.py) PARKED (Davide 13/11 via 
                            # env var can turn it on in a release. PERS2 imports it (one switch for both builds).
 ITALY_BASE = 1850          # free global numbers: ~1794..1999
 OBJ1_NEW_VSIZE = 0xa6000     # + five added pages (lepatch.add_object_page)
-OBJ3_ARENA = 0x20000         # 4.0.6 obj3 (mod code after obj2, CONVENTIONS 23): its file pages (mod pages, then the C
+OBJ3_ARENA = 0x1000 * __import__('swreg').OBJ3_MAX_PAGES   # (0x20000 = 32 pages until 4.2 x3all, MC 16/11)
+                             # 4.0.6 obj3 (mod code after obj2, CONVENTIONS 23): its file pages (mod pages, then the C
                              # engine's code, PLAN §19 step O) stay below this; the engine arena + spec buffer go here,
                              # zero-filled (vsize only, the engine zeroes it: DOS/4GW does not)
-OBJ3_PAGES = 15              # (15 from 4.2, MC 14/11: >= 256 B obj3 room per language, asserted below) obj3+0: benchx (the long benches), code + data; then (4.0.6) kittrain, squadnum, mk_keep,
+OBJ3_PAGES = __import__('swreg').OBJ3_GP3[1] // 0x1000   # (31 = 15 + the GP3 band's 16, 4.2 x3all; 15 from 4.2, MC 14/11: >= 256 B obj3 room per language, asserted below) obj3+0: benchx (the long benches), code + data; then (4.0.6) kittrain, squadnum, mk_keep,
                              # oppl, cpucards, whitehair, finance, kbd2, stoppage, xleft, usc_snap (bteam, then ctview:
                              # the COPPE CONTINENTALI view, <= 0x1200; then option C's builder, ctgame; then gkinj, s1, bteam, cpurefill, ffp, edteam (the chain's end); 13 for every branch, the Integratore 03/11; 14 from 4.0.6 I10p: keytext (after kbfirst) + edteam (after ffp), 04/11); the LAST page (LT3_AT): zones' ring +
                              # bskip, longtable, mainbtn in a build with gplay (patched before the chain: gplay's room)
-LT3_AT = 0x1000 * OBJ3_PAGES - 0x1000
+LT3_AT = __import__('swreg').OBJ3_LT   # (0xE000, PINNED - 4.2 x3all: was 0x1000 * OBJ3_PAGES - 0x1000)
+assert LT3_AT + 0x1000 == __import__('swreg').OBJ3_GP3[0] and 0x1000 * OBJ3_PAGES <= OBJ3_ARENA
+GP3_AT, GP3_END = __import__('swreg').OBJ3_GP3   # (4.2 x3all: the GP3 band after the longtable page: gplay.c; ctgame's scratch
+                             # CG_BSS, vsize only, follows at 0x1000 * OBJ3_PAGES - Shaved's condition-2 exception, MC 16/11)
+assert GP3_END == 0x1000 * OBJ3_PAGES
 SA_CAVE = 0xa1000            # first added page: South American cups
 WORLD_CAVE = 0xa2000         # second added page: new countries, CAF cups (Roadmap 2)
 NZ_CAVE = 0xa4000            # fourth added page (2.1): NSSL shoot-out (the world cave may grow into page 3)
@@ -206,6 +211,7 @@ def cave_pages():
 
 
 LT_SPACE = []
+OBJ1FREE = []                                   # [start, end) in obj1 (4.2 x3all: swreg.OBJ1FREE_PAGES of gplay's pages)
 OBJ1MV_ON = [False]                             # 4.2: modules moved out of obj1 to obj4 swreg.OBJ1MV_AT (MC 13/11)
 R17_ON = [False]                                 # 4.2 row-17 hint (r17.py): career-world builds
 OBJ1MV_NEXT = [None]                            # (the band's next free offset)
@@ -220,6 +226,7 @@ CAREER_END = [None]                # the career cave's end after its code (4.0.1
 
 
 def patch_exe(src, dst, remap, lang='it'):
+    __import__('gphooks').reset()                # (4.2: the gplay hook registry, per exe)
     CAREER_END[0] = None
     LT_SPACE.clear()
     LR_ROOM.clear()
@@ -659,8 +666,11 @@ def patch_exe(src, dst, remap, lang='it'):
     if gp_on:                                   # knockout play-offs (C, tools/gplay.c; chained after dplay's hooks)
         import gplay                            # and the parallel groups' season-end fix (pg_season, pgroups.py)
         gp_at = hist2 + h2 + 0x1000 * (lpb - cos_pg - gplay.GP_PAGES - xpg - ri_pg)
-        gp_end = gplay.patch(p, gp_at, gp_at + 0x1000 * gplay.GP_PAGES, gp_tabs, careerworld.BSS[0] + careerworld.BSS_SIZE, area, lang)
-        LT_SPACE[:] = [(gp_end + 15) & ~15, gp_at + 0x1000 * gplay.GP_PAGES]   # (4.0: longtable's code after gplay's)
+        gl_end = gp_at + 0x1000 * (gplay.GP_PAGES - __import__('swreg').OBJ1FREE_PAGES)   # (4.2 x3all: gplay's obj1 pages = the glue's, then
+        OBJ1FREE[:] = [gl_end, gp_at + 0x1000 * gplay.GP_PAGES]            #  swreg's OBJ1FREE band, free in place)
+        gp_end = gplay.patch(p, gp_at, gl_end, gp_tabs, careerworld.BSS[0] + careerworld.BSS_SIZE, area, lang,
+                             c_room=(3, GP3_AT, GP3_END))        # (4.2 x3all: gplay.c in obj3's GP3 band)
+        LT_SPACE[:] = [(gp_end + 15) & ~15, gl_end]              # (4.0: longtable's code after gplay's)
         if rs_tabs:
             engine.ITEM_AT['RS'] = gplay.LABELS['RS_STATE']
         if ri_tabs:
@@ -1117,8 +1127,13 @@ def patch_exe(src, dst, remap, lang='it'):
     import frnd                                  # 4.2 friendlies: frstep.c at obj4+FRND_AT, FRND first on the port's hooks
     frnd.patch(p, swe.LABELS, gplay.LABELS)      # (after fpad: its fp_step / fp_leg chained; dormant: nothing)
     import frchoose
-    if frchoose.on():                            # 4.2 friendlies chooser: the page in FRCH, AFTER FRND (its fr_pick /
-        frchoose.patch(p, lang, pick=frnd.LABELS if frnd.on() else None)   # fr_level / fr_given: one copy of the pick)
+    if frchoose.on() and (frnd.LABELS or not frnd.on()):   # 4.2 friendlies chooser: the page in FRCH, AFTER FRND (its
+        frchoose.patch(p, lang, pick=frnd.LABELS or None)  # fr_pick / fr_level / fr_given: one copy of the pick; FRND off:
+                                                           # the interim own pick; FRND dormant (no gplay): no caller, no page)
+    import gphooks                               # 4.2 (MC 17/11): every gplay hook chain wired once, one fixup per site
+    if gphooks.REG:
+        print(f'exe: gplay hooks: {gphooks.summary()}')
+    gphooks.link(p, gplay.LABELS)
     if sreg_end is not None:
         assert sreg_end <= lrank.LR_AT, ('sreg past LR_AT', hex(sreg_end), hex(lrank.LR_AT))
     if cdkn.on():                                # 4.2 S2 knockouts: the Coppa D's rounds 0-1 by the engine (gplay.c GP_CDKN)
@@ -1146,10 +1161,15 @@ def patch_exe(src, dst, remap, lang='it'):
     print(f'exe: UEFA cup name fixed in {uefaname.patch(p)} strings (the original exes: EUFA)')   # 4.1.2 (Marco)
     import typofix
     print(f'exe: the original exe\'s typos fixed in {typofix.patch(p, lang)} strings (typofix.FIXES)')   # 4.2 (Davide: PAREGGI)
-    if 'X3' in gplay.LABELS:
-        gplay.x3_check(p)
+    if gp_on:                                    # 4.2 x3all: gplay's ONE bound-dword table (the glue's GP_CT -> gplay.c in obj3's
+        gn, gleft = gplay.bound_check(p)         # GP3 band, gplay.c's GP_SCDONE -> gplay3.c's sc_done), every slot bound in its room
+        print(f'exe: gplay bound dwords: {gn} slots bound (GP_CT -> gplay.c obj3+{GP3_AT:#x}..{GP3_END:#x}, {gleft} B left; GP_SCDONE -> sc_done)')
+        f0, f1 = OBJ1FREE                        # (MC 16/11: the pages gplay.c left, free IN PLACE - obj1 not shifted)
+        assert not any(p.get(1, f0, f1 - f0)), ('OBJ1FREE: not free', hex(f0), hex(f1))
+        print(f'exe: OBJ1FREE obj1+{f0:#x}..{f1:#x}: {f1 - f0} B free in place ({(f1 - f0) // 0x1000} pages, swreg.OBJ1FREE_PAGES)')
+    __import__('gphooks').check(p)               # 4.2: every gplay hook site still leads to what gphooks.link wired
     if __import__('frnd').on():
-        __import__('frnd').check(p)                            # 4.2 friendlies: the season hook, GP_PSTEP / GP_PLEG, fi_gate's dword                        # 4.2 X3: GP_SCDONE bound to gplay3.c's sc_done in obj3
+        __import__('frnd').check(p)              # 4.2 friendlies: the season hook, GP_PSTEP / GP_PLEG, fi_gate's dword
     delta, shift = p.save(dst)
     dd = os.path.join(os.path.dirname(os.path.abspath(dst)), 'DATA')
     if os.path.isdir(dd):                        # (the neutral finals' strings: exact in this exe / its DATA)
@@ -1186,6 +1206,8 @@ def hosttest_syms(dst):
         for k, v in items:
             if isinstance(v, int) and not isinstance(v, bool):
                 d[k] = [0, v]                   # (a bare int: an obj1 offset for asm labels; check per use)
+            elif k == 'X3ALL_CT' and name == 'gplay':   # (4.2 x3all: [[GP_CT slot (obj1), C symbol (obj3)], ...])
+                d[k] = [list(x) for x in v]
             elif isinstance(v, tuple) and len(v) == 2 and all(isinstance(x, int) for x in v):
                 d[k] = list(v)
         for k in dir(mod):                       # module constants: TIE = [obj1 offset], ...

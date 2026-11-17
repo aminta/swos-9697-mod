@@ -1286,7 +1286,8 @@ TD_DB: db 0
 TC_VX: db 0, 1, 1, 1, 0, -1, -1, -1
 TC_VY: db -1, -1, 0, 1, 1, 1, 0, -1
 """
-TCX_AT = 0x34000                         # (DIFF_TC test builds only: never linked otherwise; MC 14/11 high test region, after SP_METER 0x30000..0x34000)
+import swreg as _swreg                   # (MC 17/11: the band is swreg's DIFF_TC)
+TCX_AT = _swreg.DIFF_TC_AT                         # (DIFF_TC test builds only: never linked otherwise; MC 14/11 high test region, after SP_METER 0x30000..0x34000)
 
 
 ASM_D2 = r"""

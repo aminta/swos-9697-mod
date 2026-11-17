@@ -66,6 +66,10 @@ SETPIECE_MIN = 256                      # (MC 15/11: the release floor, as every
 S7GEO_AT = 0x16900                      # 4.2 Serie D geography (MC 14/11 room ruling, 42-geo-d): the geography chain's own TU (s7geo.c:
 S7GEO_END = 0x17B00                     # code + neighbour table + log + the per-club coordinates), after FPORT; linked only with
                                         # GP_S7; >= 256 B left
+SP_METER_AT = 0x30000                   # (MC 17/11: the obj4 map's two test bands, one source here - spmeter.SPM_AT / SPM_END and
+SP_METER_END = 0x34000                  # difficulty.TCX_AT read them) Difficolta's M3 corner meter (SP_METER builds only)
+DIFF_TC_AT = 0x34000                    # Difficolta's DIFF_TC counters' page (DIFF_TC / DIFF_TRACE builds only)
+DIFF_TC_END = 0x35000
 CDKN_AT = 0x37000                       # 4.2 S2 knockouts (cdkn.c: the Coppa D's rounds 0-1 by the engine's sr_kn; MC 14/11, 42-cdkn):
 CDKN_END = 0x39000                      # code + const after DIFF2 (0x1A000..0x1A800, 42-drp, not merged yet), >= 256 B left at link;
                                         # its work area in swe.c's .bss (CDKN_WORK), linked only in CD_KN builds
@@ -302,14 +306,14 @@ assert DIFF_END <= KITS_AT < KITS_END <= S7SWAP_AT < S7SWAP_END <= OBJ1MV_AT < O
     FRCH_AT < FRCH_END <= DRP8D_AT < DRP8D_END <= FPORT_AT < FPORT_END <= FPORT2_AT < FPORT2_END <= FPML_AT < FPML_END <= \
     MKTHOOK_AT < MKTHOOK_END <= MKTLOAD_AT < MKTLOAD_END <= MKTAGE_AT < MKTAGE_END <= TEST_REGION, \
     'swreg (4.2 freeze): the release bands in map order, then the 4.3 reservations (obj4pack, MC 15/11)'
-assert 0x35000 <= CDKN_AT < CDKN_END, \
+assert TEST_REGION == SP_METER_AT < SP_METER_END == DIFF_TC_AT < DIFF_TC_END <= CDKN_AT < CDKN_END, \
     'swreg (4.2 freeze): the test-only bands after SP_METER (0x30000..0x34000) and DIFF_TC (0x34000..0x35000)'
 # --- band classes (MC 17/11, rule 0: the zero-page rule structural) -------------------------------------------------------
 # every NAME_AT / NAME_END pair is an obj4 band of one class: 'release' (linked in a release exe, or a release reserve),
 # '4.3' (a reservation, unlinked in 4.2) or 'test' (test-only builds). Release bands end before any 4.3 band starts, 4.3
 # bands before the test region: a release obj4 never carries a reservation's all-zero page (obj4check (a)).
 BAND_CLASS_43 = ('MKTHOOK', 'MKTLOAD', 'MKTAGE')
-BAND_CLASS_TEST = ('CDKN',)
+BAND_CLASS_TEST = ('CDKN', 'SP_METER', 'DIFF_TC')
 def bands():
     g = globals()
     return sorted((g[n], g[n[:-3] + '_END'], n[:-3]) for n in g if n.endswith('_AT') and isinstance(g[n], int) and

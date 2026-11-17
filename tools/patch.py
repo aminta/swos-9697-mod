@@ -394,7 +394,7 @@ def patch_exe(src, dst, remap, lang='it'):
     swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, (swreg.KITS_END + 0xFFF) // 0x1000)   # 4.2 kits (MC 12/11): page 16 + KEEPKIT's 17th
     if os.environ.get('DIFF_TC') and os.environ.get('DIFF_TRACE'):    # (DIFF_TC test builds: the counters' page)
         import difficulty as _df
-        swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, _df.TCX_AT // 0x1000 + 1)
+        swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, -(-swreg.DIFF_TC_END // 0x1000))   # (swreg data, MC 17/11)
     swe.SWEFILE = True                                 # (4.2 KEEPKIT.DAT, kits.py: the engine's file layer, page 18)
     if xtra_on:                                        # 4.2.y T3 PRIMAVERA (MC 12/11, 23bis): its own page, the 14th
                                                        # (the pages between stay zero)
@@ -409,7 +409,7 @@ def patch_exe(src, dst, remap, lang='it'):
         swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, (swreg.SETPIECE_END + 0xFFF) // 0x1000, (swreg.SPX_END + 0xFFF) // 0x1000)
     import spmeter
     if spmeter.on():                                   # 4.2 set pieces M3: the corner meter, test builds only (SP_METER)
-        swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, spmeter.SPM_END // 0x1000)
+        swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, swreg.SP_METER_END // 0x1000)   # (swreg data, MC 17/11)
     import s7swap
     if s7swap.on():                                    # 4.2 S7: s7_load reads the two league files (the file layer)
         swe.SWEFILE = True

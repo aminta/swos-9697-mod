@@ -30,6 +30,7 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 T = None
 NAME = 'SUPERCOPPA SERIE C'
+LABEL = 'SUPERCOPPA C'                      # (the fixture list's row: lane 2's calendar label, fpmlv.NAMES - 70 px)
 TEAM = os.environ.get('FPML_TEAM') or 'EUROPA,ITALIA,SERIE C GIRONE B,CAMPOBASSO'
 ME = int(os.environ.get('FPML_ME') or 1)    # (the career club's index in fp_ml.club[]: the entrants in FP_MLT.ent order,
 #   divisions 2, 3, 4 = groups A, B, C; CAMPOBASSO = group B)
@@ -652,7 +653,7 @@ def run_fresh(tag, place, seed, force, entrant=True, pages=True):
     T.check(ok, f'season: {msg[:300]}', errs)
     fin = check_stage(o, errs, seed, force, ME if entrant else None)
     if entrant:
-        errs += T.sc_labels(lines, NAME)
+        errs += T.sc_labels(lines, LABEL)
     if pages:
         check_pages(exe, end_save(), tag, fin, o, errs, entrant)
     open(os.path.join(T.RUNS, f'supc_{tag}.txt'), 'w').write('\n'.join(map(str, o['log'] + o['mls'][-1:])) + '\n')

@@ -252,6 +252,9 @@ static void fresh(void)
     FP_ST.magic = FP_MAGIC; FP_ST.season = FP_SEASON; FP_ST.nlog = 0;
     FP_ST.loaded = why == FL_LOAD;      /* (MC 2a: revalidate before the first poll) */
     flog(why, 0, 0, FP_SEASON);          /* (y: the season initialised - the gate checks it is the one played) */
+    if (why != FL_SEASON)               /* (the mini-league instances: none in a new career, the save's after a load - fpsave.c
+                                           ml_load; a new season keeps the last one's, decided: its season byte says so) */
+        for (u32 i = 0; i < FP_ML_SZ; i++) FP_ML[i] = 0;
     if (why == FL_LOAD) {               /* (P5: the FP item - fpsave.c; none or refused: an empty port, as fps_reset) */
         const i32 got = fps_load();
         flog(FL_PLOAD, got, 0, (u16)FP_ST.nleg);

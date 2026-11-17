@@ -3383,7 +3383,7 @@ __attribute__((minsize)) void gp_pre_c(void) {
 void gp_end_c(void) {                   /* after gp_season: the log, the state void */
     const u8 *s = (const u8 *)&GP_ST.ko[0];
 #if GP_PORT
-    if (GP_PEND && GP_IN.gtype == 4) GP_PEND(1);   /* (the port: a stage not played is decided now, its trophies written -
+    if (GP_PEND) GP_PEND(1);            /* (the port: a stage not played is decided now, its trophies written -
                                            fpml.c fp_ml_open(1), after gp_season and before the S7 swap) */
 #endif
     u8 *d = (u8 *)&GP_LOG.ko;

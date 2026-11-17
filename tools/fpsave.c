@@ -45,10 +45,9 @@ void fps_reset(void)                    /* a new career / season, or a load with
 {
     sr_port_init(&FP_PORT, GP_MGR, (u16)GP_WK, SR_PORT_NONE, FP_HASH);   /* (s4first NONE: the host's windows) */
     FP_ST.tadded = 0; FP_ST.nleg = 0; FP_ST.pad[0] = 0; GP_PMID = 0;
-    for (u32 i = 0; i < FP_ML_SZ; i++) FP_ML[i] = 0;   /* (no mini-league instance: a new career / season, an older save) */
 }
 
-static void ml_load(void)               /* the ML block of a v2 item of this season -> FP_ML (after fps_reset's zero); a bad
+static void ml_load(void)               /* the ML block of a v2 item of this season -> FP_ML (zeroed by fpad.c fresh); a bad
                                            tag / version / count: none (the port's own section unaffected). The instances'
                                            content is checked by fpml.c (fp_ml_loaded: sr_mini_sched on the held list) */
 {
@@ -93,7 +92,6 @@ i32 fps_load(void)                      /* fp_load_item(); none or refused: an e
 {
     const i32 got = fp_load_item();
     if (got <= 0) fps_reset();
-    else for (u32 i = 0; i < FP_ML_SZ; i++) FP_ML[i] = 0;
     ml_load();
     return got;
 }

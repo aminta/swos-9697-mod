@@ -1252,6 +1252,9 @@ def team_fix(data, header=True):
     return blond.faces(purple.recolor(data, header)[0], header)[0]
 
 
+TEAM020_OUT = [None]
+
+
 def patch_teams(src, dst):
     d = open(src, 'rb').read()
     n = struct.unpack('>H', d[:2])[0]
@@ -1273,6 +1276,7 @@ def patch_teams(src, dst):
     counts = [sum(1 for r in out if r[25] == lg) for lg in range(4)]
     assert counts == [18, 20, 18, 18] and len(out) <= 93, counts
     open(dst, 'wb').write(team_fix(struct.pack('>H', len(out)) + b''.join(out)))   # 3.3.0: purple clubs
+    TEAM020_OUT[0] = dst                         # (MC 17/11: the TEAM.020 THIS run wrote - sacups reads it, never c/SWOS's)
     print(f'TEAM.020: {len(out)} teams, A/B/C1/C2 = {counts}')
     new_idx = {r[5:22]: i for i, r in enumerate(out)}
     return {i: new_idx[r[5:22]] for i, r in enumerate(recs) if r[5:22] in new_idx}

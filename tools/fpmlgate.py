@@ -457,6 +457,9 @@ def packs(src):
 def ml_exe(tag, place, seed=0, force=None, src=None):
     """an FPORT=1 build of data() with the career club forced to `place` of its group and the stage's switches"""
     env = {'SEASON_PACKS': packs(src or data()), 'FPORT': '1', 'GPLAY_FORCE': str(place), 'DPLAY_FORCE': str(100 + place)}
+    if os.environ.get('FPML_TWIN') == 'noport':     # (the C5 red twin: the same build with the port compiled out; no
+        env['FPORT'] = '0'                           #  seed / force, they need the port - fpad.ml_test_flags asserts)
+        return T.build('supc_' + tag + '_noport', env=env)
     if seed:
         env['FPML_SEED'] = f'{seed:#x}'
     if force:
@@ -526,8 +529,10 @@ def observe(lines, A, inst=0):
 def season(exe, extra=None, runs_tag=1, team=None):
     """one sc_season with the stage's reads: (ok, msg, lines, A) - A None = the build has no FP_ML (SKIP)"""
     A = addrs(exe)
-    if not A['ml'] or not A['st']:
-        return True, 'SKIP: the build has no FP_ML / FP_ST label (no producer linked, or not an FPORT build)', [], None
+    if not A['ml'] or not A['st']:          # (C5 canary, MC 19/11: every caller passed gate() - producer in the checkout,
+        #  mini_leagues row in the data - so a build without the labels is a port NOT LINKED, never a SKIP: a SKIP counts
+        #  as PASS in a canary and would hide an exe without the adapter; red twin FPML_TWIN=noport)
+        return False, 'the build has no FP_ML / FP_ST label: the fixture port is not linked (gate passed)', [], None
     ok, msg, lines = T.sc_season(team or TEAM, dict(W8485_BUILD=exe, W8485_HEX=hexspec(A), W8485_RECSHOT='1',
                                                     **(extra or {})), runs_tag)
     return ok, msg, lines, A
@@ -776,7 +781,7 @@ def run_fresh(tag, place, seed, force, entrant=True, pages=True):
     exe = ml_exe(tag, place, seed, force)
     ok, msg, lines, A = season(exe)
     if A is None:
-        return True, msg
+        return ok, msg
     o, errs = observe(lines, A), []
     T.check(ok, f'season: {msg[:300]}', errs)
     fin = check_stage(o, errs, seed, force, ME if entrant else None)
@@ -1036,7 +1041,7 @@ def run_sim():
     exe = ml_exe('sim', 12)
     ok, msg, lines, A = season(exe)
     if A is None:
-        return True, msg
+        return ok, msg
     o, errs = observe(lines, A), []
     T.check(ok, f'season: {msg[:300]}', errs)
     fin = check_stage(o, errs, None, None, None)
@@ -1174,6 +1179,8 @@ def register(mod):
         return host_cal()
 
     @sc
+    @__import__('probe').red_twin(env={'FPML_TWIN': 'noport'}, why='the same build with FPORT=0: the fixture port compiled out (C5)',
+                                  expect=r'fixture port is not linked')
     def world_supc_home_win():
         """Supercoppa Serie C: CAMPOBASSO wins group B (forced), md1 at home won 1-0, rests md2 (simulated 5-0), md3
         away won: slot-4 ties at 129 and 131 only, the table by points before goal difference, the winner, the

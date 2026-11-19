@@ -37,7 +37,7 @@ ME = int(os.environ.get('FPML_ME') or 1)    # (the career club's index in fp_ml.
 L_UNIT, OFF = 128, (1, 2, 3)                # (the league's last unit; the row's "units": 129, 130, 131)
 PTS = (3, 1, 0)
 ML_SIZE, ML_N, ML_AT = 56, 2, 36            # (struct fp_ml; FP_ML_N; the ML block's offset in the FP item)
-ST_SIZE, MAGIC = 420, 0x50504631            # (fpad.ST_SIZE; FP_MAGIC)
+ST_SIZE, MAGIC, FP_ARM = 420, 0x50504631, 0x4D524146            # (fpad.ST_SIZE; FP_MAGIC)
 FL = {1: 'ADD', 2: 'INST', 3: 'RES', 4: 'REFUSED', 5: 'MISSED', 6: 'REVAL', 7: 'SIM', 8: 'ORPHAN', 9: 'NEW', 10: 'LOAD',
       11: 'SEASON', 12: 'LEG', 13: 'LEGX', 14: 'PLOAD', 15: 'MLOPEN', 16: 'MLSIM', 17: 'MLADD', 18: 'MLDONE'}
 SLOT_PORT = 4                               # (the calendar entries' slot byte of gplay's ko[0])
@@ -497,9 +497,9 @@ def st_log(lines, a):
     out, last = [], []
     for b in vals(lines, a):
         magic, _s, _ld, _t, nlog = struct.unpack_from('<IBBBB', b, 0)
-        if magic != MAGIC:
-            continue
-        e = []
+        if magic not in (MAGIC, FP_ARM):    # (FP_ARM: pg_season's end re-arms the state but keeps the season's log until the
+            continue                        #  next fresh(): a sample taken then holds the season-end entries - 19/11, decoded on
+        e = []                              #  runs-supc-final2/world_supc_sim: [NEW, MLOPEN, MLSIM x3, MLDONE] under 'FARM')
         for i in range(min(nlog, 48)):
             c, u, rc, _x, mid, y = struct.unpack_from('<BBbBHH', b, 36 + 8 * i)
             e.append((FL.get(c, c), u, rc, mid, y))
@@ -994,23 +994,32 @@ def run_c20():
     for s in range(1, n + 1):
         car = os.path.join(T.RUNS, f'c20_after_s{s:02d}.CAR')
         blk = car_ml(car) if os.path.exists(car) else None
-        if not blk or blk[0] != 0x4C4D or blk[1] != 1 or not blk[3][0][0]:
+        armed = blk is not None and blk[0] == 0 and blk[1] == 0 and not blk[3][0][0]   # (19/11, decoded: the save is taken after the
+        #   new season's init - FP_ST is FP_ARM then and the FP item is written all zero, by design: the season's instance is
+        #   done, its result lives in WINNERS. The instance is then proven from the run dir's samples alone)
+        if not blk or (not armed and (blk[0] != 0x4C4D or blk[1] != 1 or not blk[3][0][0])):
             errs.append(f'season {s}: the save\'s ML block {blk and (hex(blk[0]), blk[1], blk[2])} (want ML, 1, an instance)')
             continue
-        sv = ml_decode(blk[3][0])
-        T.check(sv['state'] == 2 and sv['have'] == 3 and sv['flags'] & 1 and sv['seed'] == seed,
-                f"season {s}: saved instance state {sv['state']} have {sv['have']} flags {sv['flags']} seed {sv['seed']:#x}", errs)
-        seasons.add(sv['season'])
+        sv = None if armed else ml_decode(blk[3][0])
+        if sv:
+            T.check(sv['state'] == 2 and sv['have'] == 3 and sv['flags'] & 1 and sv['seed'] == seed,
+                    f"season {s}: saved instance state {sv['state']} have {sv['have']} flags {sv['flags']} seed {sv['seed']:#x}", errs)
+            seasons.add(sv['season'])
         if s in (1, n):                                 # (the run dirs kept: season 1's, the last one's)
             p = os.path.join(T.RUNS, T.w84_tag() + ('_1' if s == 1 else '_2'), 'session.log')
             lines = open(p, errors='replace').read().splitlines() if os.path.exists(p) else []
             o, e2 = observe(lines, A), []
-            if s > 1:                                   # (the loaded season: last season's instance first, then this one's)
+            if s > 1 and sv:                            # (the loaded season: last season's instance first, then this one's)
                 o['mls'] = [m for m in o['mls'] if m['season'] == sv['season']]
             fin = check_stage(o, e2, seed, force, ME if s == 1 else None, fresh=s == 1, late=False)
-            T.check(fin is not None and fin['raw'] == sv['raw'], f'the save\'s instance is not the season\'s last one', e2)
+            if sv:
+                T.check(fin is not None and fin['raw'] == sv['raw'], f'the save\'s instance is not the season\'s last one', e2)
+            elif fin is not None:
+                seasons.add(fin['season'])
+                T.check(fin['state'] == 2 and fin['have'] == 3 and fin['flags'] & 1 and fin['seed'] == seed,
+                        f"season {s}: observed instance state {fin['state']} have {fin['have']} flags {fin['flags']} seed {fin['seed']:#x}", e2)
             errs += [f'season {s}: {x}' for x in e2]
-            info.append(f'season {s}: {summary(fin, o)}')
+            info.append(f'season {s}: {summary(fin, o)}' + (' (armed save)' if armed else ''))
     T.check(len(seasons) == n, f'season bytes {sorted(seasons)} over {n} seasons (one instance per season)', errs)
     return not errs, '; '.join(errs) or '; '.join(info) + f'; {msg[:80]}'
 

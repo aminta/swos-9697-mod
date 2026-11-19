@@ -591,6 +591,7 @@ def patch_exe(src, dst, remap, lang='it'):
         info['structs'] += cq
         info['kinds'] += ck
     info['new_career_ptr'] = world              # dword filled below: sacups is assembled before the trailer code
+    info['ic_worlds'] = conti.ic_worlds() if ct_pg else set()   # 4.2: the worlds whose Intercontinental conti plays
     world += 4
     cave = sacups.patch(p, pool, SA_CAVE, info)
     arg97.late(p)                               # 2.1: Argentina aggregate table before sacups' qualifiers

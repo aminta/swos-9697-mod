@@ -493,6 +493,9 @@ def patch(p, lang, at3=None):
     import swreg
     df, sp, cc, gk = difficulty, setpieces, cpucards, gkinj
     dfl, spl = df.LABELS, sp.LABELS
+    if df.trace():                               # (DIFF_TRACE builds have no PERSONALIZZATO page - difficulty dp_asm page=False -:
+        dfl = {**{n: dfl['DF_W'] for n in ('DP_MENU', 'dp_fall', 'S_BK', 'S_RS', 'dp_back')}, **dfl}   # as setpieces: at DF_W,
+                                                 #  never reached - a traced match never opens OPTIONS)
     assert dfl.get('df_add') and spl.get('sp_tabg'), 'gameplay: after difficulty + setpieces'
     at = swreg.GAMEPLAY_AT
     rows = _rows(dfl, spl, cc.LABELS, gk.LABELS)

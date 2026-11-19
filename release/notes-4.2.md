@@ -53,6 +53,7 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 #### Dribbling
 - New OPTIONS row DRIBBLING: CLASSIC (the original game), NEW or CUSTOM. With NEW your ball carrier slows down less, the ball stays closer to his feet on sharp turns and you keep the ball a moment longer after winning it; the computer slides in less often, never slides while you dribble inside its own penalty area, its second man holds back further and it needs a moment longer to win the ball back after losing it to a strong tackle.
 - CUSTOM opens a page where you set each of these yourself, from the classic game (left) to more help (right), plus CPU DEFENDERS (CHASE as today; WAIT: they stay between you and the goal instead of chasing from behind; COVER and ONE AT A TIME: one man presses and a team-mate covers behind him) and CPU BUILD UP. DEFAULTS puts back the NEW values.
+- In short: CPU defenders press and cover more (fewer 'skittles' standing still near you), but they still don't tackle more often: that comes in 4.3.
 - These settings only apply while the ball is in play: free kicks, corners, throw-ins, goal kicks and kick-offs keep the original game's behaviour.
 
 #### Set pieces
@@ -220,6 +221,7 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 #### Dribbling
 - Nuova riga in OPZIONI, DRIBBLING: CLASSICO (il gioco originale), NUOVO o PERSONALIZZATO. Con NUOVO il tuo portatore di palla rallenta meno, la palla resta più vicina al piede nei cambi di direzione e dopo averla conquistata la tieni un attimo in più; il computer entra in scivolata meno spesso, non scivola mai mentre dribbli dentro la sua area, il secondo uomo resta più indietro e dopo aver perso palla su un contrasto forte ci mette un attimo in più a riprenderla.
 - PERSONALIZZATO apre una pagina dove regoli tu ognuna di queste voci, dal gioco classico (a sinistra) a più aiuto (a destra), più DIFENSORI CPU (INSEGUONO come oggi; ASPETTANO: restano tra te e la porta invece di rincorrerti da dietro; COPERTURA e UNO ALLA VOLTA: uno pressa e un compagno copre alle sue spalle) e COSTRUZIONE CPU. PREDEFINITI rimette i valori di NUOVO.
+- In breve: i difensori CPU pressano e coprono di più (meno 'birilli' fermi vicino a te), ma non entrano in contrasto più spesso: quello arriva con la 4.3.
 - Queste regolazioni valgono solo a palla in gioco: punizioni, calci d'angolo, rimesse laterali, rinvii dal fondo e calci d'inizio restano come nel gioco originale.
 
 #### Calci piazzati

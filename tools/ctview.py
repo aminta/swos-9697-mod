@@ -134,7 +134,22 @@ def table(lang, confs, files=None, words=None):
     for a, ci in acc:
         if a < len(assocs) and aconf[a] == 0xFF:
             aconf[a] = cnum[cups[ci][0]]
-    afile = [0 if a.startswith('g:') else (files or {}).get(a, 100 + i) & 0xFF for i, a in enumerate(assocs)]
+    # (4.2 ctworld: cv_confs finds the career club's confederation by its team file in this byte table - no room for
+    #  conti's u16 + 0xFFFF in obj3. An association with no league in the build - a guest, no pack - gets a byte that
+    #  NO team file of the build's world uses, so no club's file can match it: display order only, never the old 0 /
+    #  100 + index, which are real files)
+    if files:
+        import mkseason
+        import guests
+        used = set(files.values()) | set(guests.FILES.values()) | {guests.POOL}
+        for pk in mkseason.packs():
+            if pk.meta.get('id', '').startswith('world-2026-27-'):
+                used |= {v[0] for v in pk.files.values()}       # (each list's (file, ...): its team file)
+        none = next(f for f in range(255, -1, -1) if f not in used)     # (StopIteration: all 256 files used)
+        afile = [files.get(a, none) if not a.startswith('g:') else none for a in assocs]
+        assert all(0 <= f <= 255 for f in afile), afile
+    else:
+        afile = [0 if a.startswith('g:') else 100 + i for i, a in enumerate(assocs)]
     strs, body = bytearray(), []
     pool = {}
 

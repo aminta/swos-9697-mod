@@ -46,6 +46,23 @@ def _world():
     return _C['w']
 
 
+def _afile_at(spec):
+    """the offset of the spec's per-association file block (u16 each, 0xFFFF none) and na"""
+    p = 4
+    for _ in range(spec[0]):
+        p += 4 + spec[p] * 24
+    p += 2 + 4 * struct.unpack_from('<H', spec, p)[0]
+    return p + 1 + 4 * spec[p], spec[1]
+
+
+def _base_spec(spec):
+    """the spec as BASE's conti.c reads it: a byte per association's file (0xFFFF -> its 0, 'no league'), no world
+    byte at the end - the only two differences of the format"""
+    o, na = _afile_at(spec)
+    af = struct.unpack_from(f'<{na}H', spec, o)
+    return spec[:o] + bytes(0 if f == 0xFFFF else f for f in af) + spec[o + 2 * na:-1]
+
+
 def _base_lib():
     """conti.c of BASE compiled natively (git), or None"""
     if 'b' not in _C:
@@ -202,7 +219,7 @@ def test_control_base_refuses():
     spec, assocs, cups, files = w
     res = []
     for fs in (W0, W4):
-        r = Run(B, spec[:-1])                           # (BASE's spec: without the world byte)
+        r = Run(B, _base_spec(spec))                           # (BASE's spec: without the world byte)
         r.holders(_first_holders(assocs, files))
         r.season(fs, 0, mgr=fs[0] | 5 << 8)
         res.append((r.u32('CT_SDRAW_ERR'), r.u32('CT_SDRAW_N')))
@@ -218,7 +235,7 @@ def test_world_2627_identical_to_base():
     n = diff = 0
     for mgr, world in ((files['arg'] | 4 << 8, 5), (files['jpn'] | 9 << 8, 5), (files['rsa'] | 1 << 8, 0xFF),
                        (files['ita'] | 3 << 8, 5), (0, 5)):
-        a, b = Run(_new_lib(), spec, world), Run(B, spec[:-1])
+        a, b = Run(_new_lib(), spec, world), Run(B, _base_spec(spec))
         seq = []
         for r in (a, b):
             st = []
@@ -249,7 +266,7 @@ def _wfile_at(spec):
     acc = [tuple(spec[p + 2 + 4 * i:p + 6 + 4 * i]) for i in range(nacc)]
     p += 2 + 4 * nacc
     hol = [tuple(spec[p + 1 + 4 * i:p + 5 + 4 * i]) for i in range(spec[p])]
-    p += 1 + 4 * spec[p] + na
+    p += 1 + 4 * spec[p] + 2 * na                       # (the associations' files: u16 each)
     p += 2 + 4 * struct.unpack_from('<H', spec, p)[0]
     p += 2 + 8 * struct.unpack_from('<H', spec, p)[0]
     return p + na, acc, hol
@@ -306,7 +323,7 @@ def test_no_stage_is_not_a_refusal():
     wf, acc, hol = _wfile_at(spec)
     skip = {files[assocs[a]] for a, c, _, _ in acc if cups[c][0] == 'conmebol' and a != 0xFE}
     res = []
-    for L, sp in ((_new_lib(), spec), (_base_lib(), spec[:-1])):
+    for L, sp in ((_new_lib(), spec), (_base_lib(), _base_spec(spec))):
         if L is None:
             res.append(None)
             continue
@@ -329,7 +346,7 @@ def test_old_edition_of_world_0_replays_then_sleeps():
     if not w or not B:
         return True, 'SKIP: world data or the base commit missing'
     spec, assocs, cups, files = w
-    b = Run(B, spec[:-1])
+    b = Run(B, _base_spec(spec))
     ctypes.c_ubyte.in_dll(B, 'CT_NOS').value = 1
     try:
         b.holders(_first_holders(assocs, files))
@@ -353,6 +370,77 @@ def test_old_edition_of_world_0_replays_then_sleeps():
     ok = same and played and not e1 and not a.u32('CT_SDRAW_ERR') and not any(any(x) for x in ne) and not held
     return ok, (f'old edition: {played} cups replayed, CT_OUT {"==" if same else "!="} BASE, ERR {e1:#x}; next season end: '
                 f'entrants {sum(map(sum, ne))}, holders {held}, ERR {a.u32("CT_SDRAW_ERR"):#x}')
+
+
+def _feed_one(r, f, s=0):
+    """one country (team file f) through ct_table / ct_begin / ct_country, no ct_go: -> CT_IN's (nclub, leagues set)"""
+    table = [f | i << 8 for i in range(1, 19)]          # (ordinals 1..: team word 0 is 'no club' to ct_country)
+    diy = bytearray(0x12D + 2 * 18 + 2)
+    struct.pack_into('<H', diy, 0x31, 18)
+    for i, w in enumerate(table):
+        struct.pack_into('<H', diy, 0x6D + 2 * i, 18 * i)
+        struct.pack_into('<H', diy, 0x12D + 2 * i, w)
+    stand = bytearray(9 * REC)
+    for i, w in enumerate(table[:9]):
+        struct.pack_into('<H', stand, i * REC, w)
+    cuprec = bytearray(REC)
+    struct.pack_into('<H', cuprec, 0, table[3])
+    db, sb, cb = (ctypes.create_string_buffer(bytes(x), len(x)) for x in (diy, stand, cuprec))
+    r.L.ct_table(db)
+    r.L.ct_begin()
+    r.L.ct_country(sb, cb)
+    ib = r.mem('CT_IN')
+    NA, NL = r.lay[14], r.lay[15]
+    lg = [a for a in range(NA) if struct.unpack_from('<H', ib, r.lay[3] + 2 * NL * a)[0]]
+    return struct.unpack_from('<H', ib, 4)[0], lg
+
+
+def test_file_0_is_a_real_file():
+    """TEAM.000 (the 1996-97 Albania): 'no league' is 0xFFFF in the spec, -1 in ct_wassoc, never 0. World 0: a file-0
+    champion, a file-0 career club and a file-0 club of a saved edition map to NO association (BASE filed the
+    champion under a guest association, whose file byte was 0); no refusal. In the spec's own world too."""
+    w, B = _world(), _base_lib()
+    if not w:
+        return True, 'SKIP: private conti / world data missing'
+    spec, assocs, cups, files = w
+    o, na = _afile_at(spec)
+    af = struct.unpack_from(f'<{na}H', spec, o)
+    bad = []
+    if any(f == 0 for f in af) or not any(f == 0xFFFF for f in af) or \
+            [f for a, f in zip(assocs, af) if a.startswith('g:') and f != 0xFFFF]:
+        bad.append('spec: a guest association with a file / a file 0 entry')
+    out = []
+    for world in (0, 0xFF):
+        r = Run(_new_lib(), spec, world)
+        n, lg = _feed_one(r, 0)
+        r.L.ct_go(0 | 7 << 8, 99, 0 | 2 << 8)           # (the career club and the UEFA holder: file 0 too)
+        ib = r.mem('CT_IN')
+        mgr = struct.unpack_from('<H', ib, 6)[0]
+        if n or lg or mgr or r.u32('CT_SDRAW_ERR'):
+            bad.append(f'world {world:#x}: champion of file 0 -> {n} clubs, leagues {[assocs[a] for a in lg]}, career '
+                       f'club index {mgr}, ERR {r.u32("CT_SDRAW_ERR"):#x}')
+        # a saved edition with file-0 clubs: one in a cup's round, one a reserve, one the career club
+        ed = bytearray(r.size['CT_ED'])
+        struct.pack_into('<HHIHBB', ed, 0, 0x4543, 3, 77, 0 | 3 << 8, 0, 2 | 4)   # ('CE', 3 entries, mgr file 0; ED_G2 | ED_R)
+        for i, (wd, cr) in enumerate(((0 | 1 << 8, 0x10), (0 | 2 << 8, 0xFF), (0 | 3 << 8, 0x10))):
+            struct.pack_into('<HBH', ed, 60 + 5 * i, wd, cr, 100)
+        ctypes.memmove((ctypes.c_ubyte * len(ed)).in_dll(r.L, 'CT_ED'), bytes(ed), len(ed))
+        r.L.ct_resume()
+        ib = r.mem('CT_IN')
+        n2 = struct.unpack_from('<H', ib, 4)[0]
+        asc = [ib[r.lay[7] + 12 * i + 2] for i in range(n2)]
+        if n2 != 3 or asc != [0xFD] * 3 or r.u32('CT_SDRAW_ERR') or r.mem('CT_ED') != bytes(ed):
+            bad.append(f'world {world:#x}: saved edition, file-0 clubs -> associations {[hex(x) for x in asc]}, '
+                       f'ERR {r.u32("CT_SDRAW_ERR"):#x}, CT_ED {"kept" if r.mem("CT_ED") == bytes(ed) else "CHANGED"}')
+        out.append(f'world {world:#x}: champion / career club / saved clubs of file 0 -> no association')
+    ctl = ''
+    if B:
+        rb = Run(B, _base_spec(spec))
+        n, lg = _feed_one(rb, 0)
+        ctl = f'; BASE filed them under {[assocs[a] for a in lg]} ({n} clubs)'
+        if not lg or not all(assocs[a].startswith('g:') for a in lg):
+            bad.append('control: BASE did not file file 0 under a guest association' + ctl)
+    return not bad, '; '.join(bad) or ', '.join(out) + ctl
 
 
 if __name__ == '__main__':

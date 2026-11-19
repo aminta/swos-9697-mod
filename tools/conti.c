@@ -76,7 +76,11 @@ static const u8 *hol;                   /* holders: src cup (0xFF: the UEFA Cham
                                            dst round | 0x80 own place | 0x40 even / 0x20 odd editions only, its slot */
 static u16 g_uefa;                      /* the UEFA Champions League holder's team word (ct_go) */
 static u8 nhol;
-static const u8 *afile;                 /* each association's league team file */
+static const u8 *afile;                 /* each association's league team file: a u16, 0xFFFF = no league in this
+                                           build's world (a guest association, one with no pack) - a team file is
+                                           0..255 and every value is a real one (TEAM.000: the 1996-97 Albania), so
+                                           'none' cannot be a byte. Read through AFILE only */
+#define AFILE(a) (afile[2 * (a)] | afile[2 * (a) + 1] << 8)   /* (0xFFFF: none) */
 static const u8 *rk;                    /* ranking: team word, points (u16 each) */
 static const u8 *gu;                    /* guests (clubs of associations not in the world): word, assoc, -, str */
 static u16 ngu;
@@ -103,7 +107,7 @@ static void parse(void) {
     hol = p + 1;
     p += 1 + 4 * nhol;
     afile = p;
-    p += na;
+    p += 2 * na;
     nrk = p[0] | p[1] << 8;
     rk = p + 2;
     p += 2 + 4 * nrk;
@@ -129,19 +133,21 @@ static void parse(void) {
 
 /* --- the world (4.2 ctworld) ------------------------------------------------------------------------------------------
    ct_wassoc: THE one answer to "which associations does the active world have": association a's league team file in
-   the active world (CT_W), 0 = the world has no such association. Team files are a per-world namespace (file 109:
+   the active world (CT_W), -1 = the world has no such association. Team files are a per-world namespace (file 109:
    Turkey in 2026-27, Belgium in 1984-85) and the spec carries one world's map (afile, wfile: 2026-27's, world sw):
    in any other world no association is present. Everything that turns a team file into an association at a season
    end (ct_country, ct_go) or asks whether a cup has clubs (ct_wcups) goes through here. LATER (after 4.2, Davide
    16/11: the cups in every world with that world's clubs): the spec gets a map per world and only this function
-   changes - it reads the active world's. A guest association (afile 0) has no league in any world. */
+   changes - it reads the active world's. -1 = none: never 0, a real file; callers compare the result with a
+   file (`ct_wassoc(a) == (word & 0xFF)`) or test `>= 0`, never its truth. */
 static int ct_wassoc(int a) {
-    if (a >= na || !afile[a]) return 0;
+    int f = a < na ? AFILE(a) : 0xFFFF;
+    if (f > 0xFF) return -1;
     if (sw != 0xFF) {
-        if (CT_W != 0xFF && CT_W != sw) return 0;
-        if (!(wfile[afile[a] >> 3] & 1 << (afile[a] & 7))) return 0;
+        if (CT_W != 0xFF && CT_W != sw) return -1;
+        if (!(wfile[f >> 3] & 1 << (f & 7))) return -1;
     }
-    return afile[a];
+    return f;
 }
 /* con[]: the cups that play the edition being made. A cup with league places plays when the world has at least one
    of their associations (guest clubs alone never make an edition: they stand next to a world's own leagues); a cup
@@ -156,7 +162,7 @@ static void ct_wcups(void) {
         if (e[1] >= NCUP) continue;
         if (e[0] == 0xFE) { if (!lg[e[1]]) lg[e[1]] = 2; continue; }
         lg[e[1]] = 1;
-        if (ct_wassoc(e[0])) con[e[1]] = 1;
+        if (ct_wassoc(e[0]) >= 0) con[e[1]] = 1;
     }
     for (int c = 0; c < ncup; c++) if (lg[c] == 2) con[c] = 1;
     for (int again = 1; again; ) {
@@ -931,9 +937,9 @@ void ct_country(const u8 *stand, const u8 *cuprec) {
     u16 champ = stand[0] | stand[1] << 8;
     if (!champ || champ == 0xFFFF) return;
     int a = -1;
-    for (int i = 0; i < na; i++) if (ct_wassoc(i) && ct_wassoc(i) == (champ & 0xFF)) a = i;
+    for (int i = 0; i < na; i++) if (ct_wassoc(i) == (champ & 0xFF)) a = i;
                                         /* (4.2 ctworld: the ACTIVE world's associations - before, the 2026-27 files
-                                           in any world, and file 0, the 1996-97 Albania, as the guests' 0) */
+                                           in any world, and file 0, the 1996-97 Albania, as the guests' old 0) */
     if (a < 0) return;
     u32 last = 0;
     int n = ntab, ci = -1;
@@ -971,7 +977,7 @@ void ct_go(u32 manager, u32 seed, u32 uefa) {
                                                                career club below them: as its association's weakest) */
         parse();
         for (int a = 0; a < na; a++)
-            if (ct_wassoc(a) && ct_wassoc(a) == (int)(manager & 0xFF)) {
+            if (ct_wassoc(a) == (int)(manager & 0xFF)) {
                 u32 s = 0;
                 int k = 0;
                 while (k < NL && CT_IN.league[a][k]) k++;
@@ -1017,7 +1023,7 @@ static void ed_add(int x, int cr, int side) {
 static int assoc_of(u16 id) {           /* a team word's association: its file's, else a guest's, else none (0xFD) */
                                         /* (run(): a SAVED edition's clubs - it replays as it was made, in the
                                            spec's files; the world gate, ct_wassoc, acts when an edition is made) */
-    for (int a = 0; a < na; a++) if (afile[a] && afile[a] == (id & 0xFF)) return a;
+    for (int a = 0; a < na; a++) if (AFILE(a) == (id & 0xFF)) return a;
     for (int g = 0; g < ngu; g++) if ((gu[8 * g] | gu[8 * g + 1] << 8) == id) return gu[8 * g + 2];
     return 0xFD;
 }

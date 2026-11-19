@@ -521,10 +521,12 @@ def load(confs, files=None, words=None, s1=None, rank_out=False):
     spec = bytes((len(cups), len(assocs)) + force) + body
     spec += struct.pack('<H', len(access)) + b''.join(bytes(x) for x in access)
     spec += bytes((len(holders),)) + b''.join(bytes(x) for x in holders)     # (src, dst, round | flags, slot)
-    # (4.2 ctworld: a game build - files given - writes 0, 'no league in this build', for an association with no pack;
-    #  before, the tests' 100 + index: a phantom file that could be a European league's, 101..160. conti.c ct_wassoc)
-    spec += bytes(0 if a.startswith('g:') else (files.get(a, 0) if files else 100 + i) & 0xFF
-                  for i, a in enumerate(assocs))
+    # 4.2 ctworld: each association's league team file as a u16, 0xFFFF = no league in this build's world (a guest
+    # association, one with no pack; before, a byte: 0 for guests - but TEAM.000 is a real file - and the tests'
+    # 100 + index for a missing pack, a phantom that could be a European league's). conti.c AFILE / ct_wassoc
+    af = [0xFFFF if a.startswith('g:') else (files.get(a, 0xFFFF) if files else 100 + i) for i, a in enumerate(assocs)]
+    assert all(f == 0xFFFF or 0 <= f <= 255 for f in af), ('conti: a team file is 0..255', af)
+    spec += struct.pack(f'<{len(af)}H', *af)
     rank = {}
     for conf in confs:
         rank.update(ranking(_read(conf, 'access'), words))

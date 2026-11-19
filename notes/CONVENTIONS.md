@@ -86,13 +86,18 @@ with Fable and, where it helps, hand the work to Fable.
     the new season then takes its league from the club's new team file, as natively.
 14e. **Continental cups: the world's associations come from ONE function** (MC + Davide 16/11, 42-ctworld). Team files
     are a per-world namespace and the conti spec carries the World 2026-27's map: conti.c `ct_wassoc(a)` (the league
-    file of association a in the ACTIVE world, CT_W = the save's world byte; 0 = not in this world) is the only place
+    file of association a in the ACTIVE world, CT_W = the save's world byte; -1 = not in this world) is the only place
     that says which associations a world has. ct_country / ct_go (the feed of CT_IN) and ct_wcups (a cup none of whose
     associations is in the world plays no edition, every confederation; a holders' cup follows the cups that feed it)
     go through it; never compare a team file with `afile` directly when an edition is MADE (a saved edition
     replays as made: assoc_of), never test a world number. The later item (the
     cups in every world with that world's clubs) changes this function only. A group round (ED_S editions) with fewer clubs than
     groups is not a stage and is not played: it never reaches the refused-draw path (14a stays for real fields).
+    **"None" is never a team-file value**: team files are 0..255 and every one is real (TEAM.000 = the 1996-97 Albania,
+    team.255 exists in the 2026-27 data), so the spec's per-association file is a u16 with 0xFFFF = no league in this
+    build's world (guests, an association with no pack; the build asserts real files <= 255) and ct_wassoc returns
+    -1. Callers compare with the file (`ct_wassoc(a) == (word & 0xFF)`) or test `>= 0`, never truthiness. ctview's
+    byte table (no room for a u16 in obj3) uses a byte no team file of the build's world has.
 
 ## Tests
 15. Result-dependent cases are **forced** (pokes / *_FORCE / CONTI_GPLACE ...), never re-run hoping. Test switches

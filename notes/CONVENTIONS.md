@@ -97,6 +97,9 @@ with Fable and, where it helps, hand the work to Fable.
     season ends, saves) must be exercised on the RELEASE recipe (buildrel.sh exes + release DATA), not only on
     scenario-built test exes; a scenario that builds its own exe gets a release-exe variant (SWOSTEST_BUILD = c/RELxx).
     A new data file / pool / pseudo file number needs a test that loads it through every engine path that can.
+17b. **Content-keyed caches are not build inputs** (MC 19/11): the source stamp (tools/srcstamp.py STAMP_ROOTS)
+    covers every file a build reads except the caches named by the hash of stamped inputs (srcstamp.CONTENT_CACHES:
+    internal/swostest/cobj, internal/drawgate); a new cache goes in that list, never in STAMP_ROOTS.
 
 ## Known engine pitfalls
 18. (Under investigation, not a rule yet) The game's type-2 group contest hung with New Zealand's single 11-club group;

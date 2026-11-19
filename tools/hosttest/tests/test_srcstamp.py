@@ -106,3 +106,32 @@ def test_stamp_is_the_build_inputs():
     finally:
         if old is not None:
             os.environ['REMOTE_SRC_TEST'] = old
+
+
+def test_content_cache_not_stamped():
+    """MC 19/11: a new file in a content-keyed cache (internal/drawgate/<key>.json) leaves stamp() unchanged; red twin: with
+    the old STAMP_ROOTS (internal/drawgate stamped) the same file changes it."""
+    import srcstamp
+    old = _noremote()
+    try:
+        with tempfile.TemporaryDirectory() as t:
+            a = _copy(os.path.join(t, 'a'), '{"n": 1}')
+            dg = os.path.join(a, 'internal', 'drawgate')
+            os.makedirs(dg)
+            open(os.path.join(dg, 'k0.json'), 'w').write('{"result": "PASS"}')
+            s0 = srcstamp.stamp(a)['src']
+            open(os.path.join(dg, 'x.json'), 'w').write('{"result": "PASS", "dummy": 1}')
+            s1 = srcstamp.stamp(a)['src']
+            keep = srcstamp.STAMP_ROOTS
+            try:
+                srcstamp.STAMP_ROOTS = keep + ('internal/drawgate',)
+                r0 = srcstamp.stamp(a)['src']
+                os.remove(os.path.join(dg, 'x.json'))
+                r1 = srcstamp.stamp(a)['src']
+            finally:
+                srcstamp.STAMP_ROOTS = keep
+            return (s0 == s1 and r0 != r1 and 'internal/drawgate' in srcstamp.CONTENT_CACHES,
+                    f'cache file added: {s0} -> {s1} (want equal); red twin, drawgate stamped: {r1} -> {r0} (want different)')
+    finally:
+        if old is not None:
+            os.environ['REMOTE_SRC_TEST'] = old

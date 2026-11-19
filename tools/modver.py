@@ -36,6 +36,9 @@ TEST_VARS += ('FPML_FORCE', 'FPML_SEED')           # 4.2 Supercoppa Serie C (lan
 BUILD_SWITCHES += ('FPML_FORCE', 'FPML_SEED')      # forced scores and md1 draw seed (fpad.ml_test_flags; own lines)
 TEST_VARS += ('SWE_BSS_SHIFT',)                   # 4.2 BSS_AT gate (a): swe.c's .bss at BSS_AT + this (test builds only)
 BUILD_SWITCHES += ('SWE_BSS_SHIFT',)                # DIFF_* edits above cherry-pick without a conflict)
+BUILD_SWITCHES += ('GM_NOROLES',)                  # 4.2 GAMEPLAY: the page without its RUOLI row (gameplay.py; the structural-OFF build)
+TEST_VARS += ('GM_RUOLI_SI',)                      # 4.2 GAMEPLAY: a test build that starts with RUOLI SI (GP_RUOLI 1; gameplay.RUOLI_START)
+BUILD_SWITCHES += ('GM_RUOLI_SI',)
 
 
 def is_test():

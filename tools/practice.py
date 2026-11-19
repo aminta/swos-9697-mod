@@ -85,6 +85,13 @@ ASM = r"""
 pr_open:                                ; squadMenu entry 6 (TRAINING), on select: the practice page
     mov dword [PR_MENU + 12], R_TRAIN_  ; (the default entry: the first row)
 .show:
+    pushad
+    mov eax, S_T                        ; 4.2 GAMEPLAY ORIGINALE: the title says so (gameplay.PRACTICE, Davide 15/11): the
+    cmp word [GM_W], 0                  ;  practice then plays the classic set pieces whatever the OPTIONS say
+    je .ti
+    mov eax, S_TG
+.ti: mov [PR_MENU + 32], eax            ;  (the title entry's text pointer, after the 16-byte menu header and 16 bytes of entry)
+    popad
     call pr_seltx                       ; (the selectors' and the switch's texts)
     mov byte [GO], 0
     mov dword [A6], PR_MENU
@@ -980,7 +987,8 @@ def patch(p, lang):
     data += ''.join(f'S_SN{k}: db {q(t)}\n' for k, t in enumerate(sl[0]))
     data += ''.join(f'S_SH{k}: db {q(t)}\n' for k, t in enumerate(sl[1]))   # (pr_nth: the strings back to back)
     data += 'NTAB: dw ' + ', '.join(str(n) for n in NTAB) + '\n'
-    data += f'S_T: db {q(tx[0])}\n' + ''.join(f'S_{i}: db {q(tx[1 + i])}\n' for i in range(4))
+    import gameplay
+    data += f'S_T: db {q(tx[0])}\nS_TG: db {q(tx[0] + " - " + gameplay.PRACTICE[lang])}\n' + ''.join(f'S_{i}: db {q(tx[1 + i])}\n' for i in range(4))
     data += f'S_ATT: db {q(tx[5])}\nS_DEF: db {q(tx[6])}\nS_5: db {q(tx[7])}\n'
     rs = RES[lang]
     data += 'align 4\nPR_RES:\n    dd 0, 0, 0, 3\n'                     # (the result page: its OK row the default)
@@ -1024,7 +1032,7 @@ def patch(p, lang):
                 FKORD_=FKORD, PEN_D_=PEN_D, PR_N_=PR_N, FKD0_=FKD[0], FKD_STEP_=FKD[1] - FKD[0], FKX1_=FKX[1], FKX2_=FKX[2])
     src = ''.join(f'%define {k} {v}\n' for k, v in defs.items()) + ASM + data
     sym = {'A6': u['a6'], 'SHOW_MENU': (1, u['show']), 'EXITM': u['exitm'], 'OLD_SEL': old,
-           'GO': (4, work[1]), 'KIND': (4, work[1] + 1), 'DEF': (4, work[1] + 2), 'O2BASE': (2, 0),
+           'GM_W': (4, swreg.GAMEPLAY_AT + __import__('gameplay').GM_W_OFF), 'GO': (4, work[1]), 'KIND': (4, work[1] + 1), 'DEF': (4, work[1] + 2), 'O2BASE': (2, 0),
            'TESTFOUL': (1, g['TESTFOUL']), 'TVIS': (2, tvis), 'RTIM': (2, rtim), 'INITDS': (1, ids), 'PMMENU': (2, pmmenu), 'STADM': (2, stadm), 'STADSHOW': stshow,
            'VSM': (2, vsm), 'VSSHOW': vshow, 'SWAPH': (1, swap_site(p, g)),
            'SHOWMENU': pmshow, 'PNTS': (2, pnts), 'PMT1': (2, pmt1), 'SETBENCH': sbench,

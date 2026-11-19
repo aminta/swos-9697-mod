@@ -36,6 +36,9 @@ cc_init:                                ; OPTIONS' init: the previous one (contr
 cc_ret:                                 ; (and on return to OPTIONS: the menu is unpacked again)
     call PREV_RET
 cc_add:
+%if GMODE
+    ret                                 ; (4.2 GAMEPLAY: the rows live on the GAMEPLAY page, gameplay.py)
+%else
     pushad
     cmp byte [SWOSPP], 0FFh             ; SWOS++ running: no rows
     jne .x
@@ -77,6 +80,7 @@ cc_add:
     add dword [ebx + 12h], 4 * 38h
 .x: popad
     ret
+%endif
 
 cc_tog_r:                               ; a value (fire), as ChangeChairmanScenes; both words to the session copy
     mov eax, CC_W
@@ -490,7 +494,8 @@ def patch(p, at, lang):
     for x in (label, label_i):
         assert px(x) <= 138 and re.fullmatch(r'[A-Z ]+', x), x
     db = lambda x: ', '.join(str(b) for b in x.encode() + b'\0')
-    src = ASM + f'S_LR: db {db(label)}\nS_LI: db {db(label_i)}\n'
+    import gameplay
+    src = f'%define GMODE {int(gameplay.on())}\n' + ASM + f'S_LR: db {db(label)}\nS_LI: db {db(label_i)}\n'
     import sacups
     import trailer
     b = find_b(p)

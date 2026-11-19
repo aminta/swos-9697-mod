@@ -50,6 +50,11 @@ SP_ROW = True                           # (setpieces.py, MC 14/11: the CALCI PIA
 if SP_ROW:                              #  OPTIONS rows are in - the SETPIECE band linked; 14 rows: 9 px, 8 high)
     assert not SLOW_ROW, 'CALCI PIAZZATI + MATCH SPEED: 15 rows'
     PITCH, HEIGHT, KMAX = 9, 8, 13
+GMODE = True                            # (4.2 GAMEPLAY, Davide 15/11: ONE OPTIONS row GAMEPLAY replaces the six mod rows; gameplay.py)
+TOPS = TOP                              # the source rows' first y (the game's 8 rows start at TOPS, SRCP apart)
+if GMODE:                               # the game's 8 rows + GAMEPLAY: NB = 20 (controls' 4 entries included), 9 rows at PITCH
+    NB, BR, SRCP, KMAX = 20, 15, 12, 8
+    TOPS, TOP, PITCH, HEIGHT = 54, 50, 11, 10
 NROWS = KMAX + 1
 LVMAP = (3, 1, 5, 2, 4)                 # DF_W -> level
 #              L1      L2      L3      L4      L5
@@ -181,6 +186,10 @@ df_kick:
     jne .s
     cmp word [TRG], 0                   ; a training game
     jne .s
+%if GMODE
+    call GM_CHK                         ; GAMEPLAY ORIGINALE: no difficulty (ZF = 0; gameplay.py keeps eax)
+    jne .s
+%endif
     mov ax, [DF_W]
     cmp ax, 4
     ja .z
@@ -197,6 +206,10 @@ df_kick:
 %endif                                  ;  original unless it is a practice: PR_WORK's KIND, Shaved 14/11)
     cmp word [TRG], 0
     jne .d
+%if GMODE
+    call GM_CHK                         ; GAMEPLAY ORIGINALE: classic dribbling
+    jne .d
+%endif
     mov ax, [DF_DR]
     cmp ax, 2                           ; (2 = PERSONALIZZATO: the page's values, dp_build)
     jbe .d
@@ -589,6 +602,68 @@ df_init:
 df_ret:
     call PREV_RET
 df_add:
+%if GMODE
+    pushad
+    cmp byte [SWOSPP], 0FFh             ; SWOS++ running: no row (the options stay off there: df_kick)
+    jne .x
+    mov ebx, MENU_
+    cmp word [ebx + 10h], NB            ; (the game's own 20 entries incl. controls', nothing after them)
+    jne .x
+    lea eax, [ebx + 16h + NB * 38h]
+    cmp [ebx + 12h], eax
+    jne .x
+    mov edi, eax                        ; entries NB / NB+1 = a copy of the bottom row (BR / BR+1)
+    lea esi, [ebx + 16h + BR * 38h]
+    mov ecx, 2 * 38h
+    rep movsb
+    mov edi, eax
+    mov word [edi + 2], NB
+    mov word [edi + 38h + 2], NB + 1
+    movzx ecx, byte [ebx + 16h + (BR + 1) * 38h + 0Bh]   ; (BR+1's down - now NB+1's)
+    mov byte [edi + 38h + 0Ah], BR + 1  ; BR+1 -> NB+1 -> what was below BR+1
+    mov [edi + 38h + 0Bh], cl
+    mov byte [edi + 38h + 12h], BR + 1
+    mov [edi + 38h + 13h], cl
+    mov byte [ebx + 16h + (BR + 1) * 38h + 0Bh], NB + 1
+    mov byte [ebx + 16h + (BR + 1) * 38h + 13h], NB + 1
+    cmp cl, 0FFh
+    je .n
+    imul ecx, ecx, 38h
+    lea ecx, [ebx + 16h + ecx]
+    cmp byte [ecx + 0Ah], BR + 1
+    jne .u
+    mov byte [ecx + 0Ah], NB + 1
+.u: cmp byte [ecx + 12h], BR + 1
+    jne .n
+    mov byte [ecx + 12h], NB + 1
+.n: mov word [ebx + 10h], NB + 2
+    add dword [ebx + 12h], 2 * 38h
+    call GM_ROW                         ; (gameplay.py: label text, value table, fire handler; edi = entry NB)
+    add word [edi + 16h], SRCP          ; (a copy of the bottom row's y: one source row below it)
+    add word [edi + 38h + 16h], SRCP
+    lea esi, [ebx + 16h]                ; every row at the source pitch SRCP -> y TOP + PITCH * k, HEIGHT high
+    mov ecx, NB + 2
+.c: cmp word [esi + 18h], 140
+    jne .cn
+    movzx eax, word [esi + 16h]
+    sub eax, TOPS
+    jb .cn
+    cmp eax, KMAX * SRCP
+    ja .cn
+    xor edx, edx
+    mov edi, SRCP
+    div edi
+    test edx, edx
+    jnz .cn
+    imul eax, eax, PITCH
+    add eax, TOP
+    mov [esi + 16h], ax
+    mov word [esi + 1Ah], HEIGHT
+.cn: add esi, 38h
+    loop .c
+.x: popad
+    ret
+%else
     pushad
     cmp byte [SWOSPP], 0FFh             ; SWOS++ running: no rows (both options stay off there: df_kick)
     jne .x
@@ -668,6 +743,7 @@ df_add:
     loop .c
 .x: popad
     ret
+%endif
 
 %if SP == 0                             ; (with CALCI PIAZZATI: df_tog / df_rtog / df_pack in setpieces.py's band, MC
                                         ;  14/11 - page 15's margin)
@@ -2125,6 +2201,7 @@ def patch(p, lang):
     assert not trace() or modver.is_test(), 'DIFF_TRACE: test builds only'
     s, sym = find(p)
     sym['SWOSPP'] = controls.locate(p)['SWOSPP']
+    sym['GM_ROW'], sym['GM_CHK'] = (4, swreg.GAMEPLAY_AT), (4, swreg.GAMEPLAY_AT + 5)   # (gameplay.py's jump table)
     g = gkinj.find(p)
     sym['TRG'] = g['TRG']
     tr = trace()
@@ -2225,7 +2302,7 @@ def patch(p, lang):
     sym['SPM_ENTRY'] = (4, spmeter.SPM_AT)
     bf = bu and 'BUFRAME' not in skips
     src = (f'%define BUF {int(bf)}\n%define CKSH {int(os.environ.get("DIFF_CKSH", "11"))}\n%define STKZ {int(os.environ.get("DIFF_STKZ", "0") or 0)}\n%define DELAY {int(os.environ.get("DIFF_DELAY", "0") or 0)}\n%define STOPF {int(os.environ.get("DIFF_STOPF", "0"))}\n%define BU {int(bu)}\n%define DIFF_FORCE {int(force)}\n%define ROW {int(row)}\n%define DIFF_TRACE {int(tr)}\n%define SPM {int(bool(tr and os.environ.get("SP_METER")))}\n%define TC {int(bool(tr and os.environ.get("DIFF_TC")))}\n%define DF_START {start_w()}\n%define DR_START {start_dr()}\n'
-           f'%define SP {int(SP_ROW and row)}\n%define TOP {TOP}\n%define PITCH {PITCH}\n%define HEIGHT {HEIGHT}\n%define NB {NB}\n%define BR {BR}\n%define SRCP {SRCP}\n%define KMAX {KMAX}\n' + ASM
+           f'%define GMODE {int(GMODE and row)}\n%define SP {int(SP_ROW and row)}\n%define TOP {TOP}\n%define TOPS {TOPS}\n%define PITCH {PITCH}\n%define HEIGHT {HEIGHT}\n%define NB {NB}\n%define BR {BR}\n%define SRCP {SRCP}\n%define KMAX {KMAX}\n' + ASM
            + (ASM_ROW if row else '') + (ASM_T if tr else '') + data_asm() + strs)
     if SP_ROW and row:                                  # (setpieces.py's band: its labels from a first pass)
         import setpieces

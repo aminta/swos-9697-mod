@@ -206,11 +206,17 @@ sp_on:
 sp_set:                                 ; (df_kick, past its SWOS++ / training gates)
     push ebp
     call sp_base
+    mov byte [ebp + SP_OK - SPB], 0
+%if GMODE
+    call GM_CHK                         ; GAMEPLAY ORIGINALE: the classic set pieces (SP_OK stays 0)
+    jne .x
+%endif
     mov byte [ebp + SP_OK - SPB], 1
-    pop ebp
+.x: pop ebp
     jmp TKE                             ; (4.2 takers: tk_kick, the TAKERS band's entry - its own ret)
 
 ; ---- DIFFICULTY's OPTIONS handlers and the save item's pack, moved here from page 15 (MC 14/11), PC-relative
+%if GMODE == 0                          ; (4.2 GAMEPLAY: the rows' own handlers are gone - the page's gm_pg changes the variables)
 df_tog:                                 ; DIFFICULTY (fire): NORMAL -> HARD -> EASY -> NORMAL (L2 / L4: back to NORMAL)
     push ebp
     call sp_base
@@ -259,6 +265,7 @@ sp_tog:                                 ; CALCI PIAZZATI (fire): CLASSICI -> REA
     mov word [ebp + SP_W - SPB], 0
 .s: pop ebp
     jmp df_draw
+%endif
 df_pack:                                ; DF_SV = DF_SH = DIFFICULTY | DRIBBLING << 4 | CALCI PIAZZATI << 6 (bits 6-7)
     push eax
     push ebp
@@ -297,6 +304,7 @@ sp_unp:                                 ; (CALCI PIAZZATI = bits 6-7 of al: 3 ->
 
 ; ---- in ebx = the OPTIONS menu, entries NB..NB+3 in (df_add, before its layout loop): NB+4 / NB+5 = copies of
 ;      NB+2 / NB+3 (DRIBBLING) one row lower; NB+3 -> NB+5 -> what was below NB+3 (EXIT TO DOS)
+%if GMODE == 0
 sp_add:
     pushad
     call sp_base
@@ -344,6 +352,26 @@ sp_add:
 .n: add word [ebx + 10h], 2
     add dword [ebx + 12h], 2 * 38h
     popad
+    ret
+%endif
+
+sp_tabg:                                ; (gameplay.py, GAMEPLAY page opens) the CALCI PIAZZATI table's pointers (as sp_add did)
+    push ebp
+    push eax
+    push ecx
+    call sp_base
+    lea eax, [ebp + TAB_P - SPB]
+    lea ecx, [ebp + SP_W - SPB]         ; (the string table: the word, then the three strings)
+    mov [eax], ecx
+    lea ecx, [ebp + S_P0 - SPB]
+    mov [eax + 6], ecx
+    lea ecx, [ebp + S_P1 - SPB]
+    mov [eax + 10], ecx
+    lea ecx, [ebp + S_P2 - SPB]
+    mov [eax + 14], ecx
+    pop ecx
+    pop eax
+    pop ebp
     ret
 
 ; ---- headers go down (replaces `mov eax, kBallJumpHeaderDeltaZ` / `mov eax, kFlyingHeaderBallDeltaZ`)
@@ -952,7 +980,8 @@ FROM_DF = ('df_tog', 'df_rtog', 'df_pack', 'sp_add', 'sp_set')     # (difficulty
 
 def _src(lang):
     db = lambda x: ', '.join(str(ch) for ch in x.encode() + b'\0')
-    return ASM + f'S_PLBL: db {db(LABEL[lang])}\n' + ''.join(f'S_P{i}: db {db(t)}\n' for i, t in enumerate(VALUES[lang]))
+    import difficulty as _df
+    return f'%define GMODE {int(_df.GMODE and _df.knobs())}\n' + ASM + f'S_PLBL: db {db(LABEL[lang])}\n' + ''.join(f'S_P{i}: db {db(t)}\n' for i, t in enumerate(VALUES[lang]))
 
 
 def _sym(p, start, df_lab, df_sym):
@@ -963,7 +992,7 @@ def _sym(p, start, df_lab, df_sym):
     k = knobs()
     return {**{n: (0, v) for n, v in c.items()}, 'O2BASE': (2, 0), 'SP_START': (0, start),
             'NB': (0, df.NB), 'SRCP': (0, df.SRCP), 'TRG_O': (0, df_sym['TRG'][1]), 'A6_O': (0, df_sym['A6_'][1]),
-            'DRAWITEM': df_sym['DRAWITEM'], 'SHOW_MENU': df_sym['SHOW_MENU'],
+            'GM_CHK': (4, __import__('swreg').GAMEPLAY_AT + 5), 'DRAWITEM': df_sym['DRAWITEM'], 'SHOW_MENU': df_sym['SHOW_MENU'],
             **{n.upper() if n.islower() else n: (4, df_lab[n] if n in df_lab or not df.trace() else df_lab['DF_W'])
                for n in ('DF_W', 'DF_DR', 'DF_SV', 'DF_SH', 'DP_MENU', 'dp_fall', 'df_load', 'df_new')},
             # (DIFF_TRACE builds have no PERSONALIZZATO page - dp_asm page=False -: DP_MENU / dp_fall point at DF_W,
@@ -1008,7 +1037,7 @@ def patch(p, lang):
     code, fix, rel = nasmcave.assemble_obj(src, at, sym, 4)
     lab = nasmcave.labels(src, at, sym)
     assert all(lab[k] == v for k, v in PASS1.items()), 'setpieces: labels moved since pass 1'
-    assert len(fix) == 1 and len(rel) == 2, ('setpieces: SPB + DRAWITEM / SHOW_MENU only', fix, rel)
+    assert len(fix) == 1 and len(rel) == (0 if df.GMODE else 2), ('setpieces: SPB (+ DRAWITEM / SHOW_MENU without GAMEPLAY) only', fix, rel)
     from complist import px
     for t in (LABEL[lang],) + VALUES[lang]:
         assert px(t) <= 138 and re.fullmatch(r"[A-Z ']+", t), t

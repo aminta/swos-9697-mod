@@ -49,6 +49,9 @@ gk_init:                                ; OPTIONS' init: the previous one (cpuca
 gk_ret:                                 ; (and on return to OPTIONS)
     call PREV_RET
 gk_add:
+%if GMODE
+    ret                                 ; (4.2 GAMEPLAY: the row lives on the GAMEPLAY page, gameplay.py)
+%else
     pushad
     cmp byte [SWOSPP], 0FFh             ; SWOS++ running: no row
     jne .x
@@ -78,6 +81,7 @@ gk_add:
     add dword [ebx + 12h], 2 * 38h
 .x: popad
     ret
+%endif
 
 gk_tog:                                 ; the value (fire): toggled, to the session copy too
     xor word [GI_W], 1
@@ -281,7 +285,8 @@ def patch(p, at, lang):
     force = {'': 0, '1': 1, '1m': 3, '2m': 2}[os.environ.get('GKINJ_FORCE', '')]
     lv1 = LVL2 if force == 2 else LVL1
     db = lambda x: ', '.join(str(c) for c in x.encode() + b'\0')
-    src = f'%define FORCE {force}\n%define ODDS {ODDS}\n%define LVL1 {lv1:#x}\n%define LVL2 {LVL2:#x}\n' + ASM \
+    import gameplay
+    src = f'%define GMODE {int(gameplay.on())}\n%define FORCE {force}\n%define ODDS {ODDS}\n%define LVL1 {lv1:#x}\n%define LVL2 {LVL2:#x}\n' + ASM \
         + f'S_LG: db {db(label)}\n'
     regs = sacups.regs(d)
     d0 = regs['D7'] - 28

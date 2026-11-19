@@ -40532,7 +40532,7 @@ def trhd_whip():
     assert (tr_whip.WPX, tr_whip.WPA) == tuple(tuple(int(x) for x in re.search(rf'^{n}: dw ([0-9, ]+)', spmeter.ASM, re.M)
                                                      .group(1).split(',')) for n in ('WPX', 'WPA')), 'tr_whip: spmeter\'s spots'
     sp = os.environ.get('TW_SP', '0')
-    frames = int(os.environ.get('TW_FRAMES', '13000'))
+    frames = int(os.environ.get('TW_FRAMES', '18000'))
     out = os.environ.get('TW_OUT') or os.path.join(RUNS, 'trhd_whip.jsonl')
     home, away = DIFF_PAIRINGS[os.environ.get('TW_PAIRING', 'eq')]
     errs, info, rows = [], [], []

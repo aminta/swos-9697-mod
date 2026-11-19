@@ -673,3 +673,28 @@ gameplay.py, `gameplay.roles()`). Every position-traits piece
   for every league row (the post-load hook in the game), selTeamNumber / D6CDC as season 2 loaded them.
   `S7_PACK=~/swos-mod/internal/s7pack-real/ita SWOSTEST_RUNS=<own dir> python3 tools/swostest.py run world_s7sizeforce2`
   A load-path change (s7_itload): before its sha goes on also career_20seasons C20_SEASONS=2 on the shaped build and the old-save trio.
+
+## Taiwan's promotion play-off (42-tpe, 2026-11-19)
+
+`world_tpe_po_stay` / `_swap` / `_reserve` / `_skip` (tpe_po): one season of a World 2026-27 career in Taiwan on a
+self-built test exe (the release pack set + W2627TPE_DATA, default the private world5tm-h3s7rl3-tpetest: Taiwan's pack
+with the `tfpl_po` play-off; SKIP without it).
+- _stay / _swap: MING CHUAN UNIV forced 7th of the TFPL (GPLAY_FORCE=7), its one match at home won (GPLAY_KOFORCE=2) /
+  lost (1).
+- _skip: the reserve skip PLAYED - a test copy of Taiwan's pack (WORK/tpe_po_flag) with five of the seven Div. 2 clubs
+  flagged second_of, WAN ISLAND forced last (GPLAY_FORCE=7): the 2nd eligible club, it plays the play-off away and
+  wins (KOFORCE=2); the only other eligible club goes up directly.
+- _reserve: the real data, TAIPEI RESERVES forced 2nd of Div. 2: nothing in slot 4, it stays; the direct place goes
+  to the first eligible club. A play-off the career club is not in is simulated and keeps NO contest in GP_LOG
+  (ko empty, pl_pi 0): only its moves tell its winner - hence _skip.
+Checked from GP_ST / GP_LOG, GP_IN.t (HOSTTEST_SYMS) and the next season's save: the two entrants (the TFPL 7th listed
+first = home, the 2nd ELIGIBLE Div. 2 club), one tie, one leg, host 0, level 1 (e.t. + penalties), the play-off's
+moves (GP_LOG holds only these; the direct movers are the game's own: the save), no reserve side in the play-off or
+moved up. The save's division table is read in two parts (Taiwan's globals are past 2000: bigtables.ext_off(), as
+s7_division_counts). Names, under SWOSTEST_UI = it / en / fr / de (the build is that language's): the career menu's
+fixture row = the pack's short name and the match screen's title = TAIWAN + the long name + the round, read from the
+session's screens (label_check's fixed obj2 offsets are the Italian exe's: no [slot4row] lines in the other
+languages). Never give these a release dir (forced scenarios self-build); TPE_BUILD = a ready test build,
+TPE_RECHECK=1 reads a kept run dir again without a game run (scenario development only; any edit of the tree changes
+the build key, so a recheck needs TPE_BUILD).
+

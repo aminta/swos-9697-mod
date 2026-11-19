@@ -28,8 +28,8 @@ BUILD_SWITCHES = TEST_VARS + (                     # 4.0.6: every switch a test 
     'TAILZERO_FILL_TEST', 'TAILZERO_FILL3_TEST', 'SIMDRAW_G0', 'SIMDRAW_G1', 'SIMDRAW_K', 'SIMDRAW_D0', 'SIMDRAW_D1', 'XTRA_HOOK',
     'AFTER_PROCESS_PROBE', 'QUIETEND_OFF', 'SELLA_N', 'SELLA_MARGIN', 'SELLA_OFF', 'EURO_OPTIONAL', 'DRIBBLE_TEST', 'DIFF_TEST', 'DIFF_FORCE', 'DIFF_TRACE', 'DIFF_DRIB', 'DIFF_BU', 'DIFF_CKSH', 'DIFF_SKIP', 'DIFF_PAD', 'DIFF_STOPF', 'DIFF_STKZ', 'DIFF_MARGIN_BETA', 'DIFF_TC', 'DIFF_W1SH', 'DIFF_W1COV', 'DIFF_W1SH2', 'DIFF_W1DET', 'DIFF_W1NBR', 'DIFF_W1NBD', 'DIFF_HUMAN', 'DIFF_DELAY', 'SP_TEST', 'SP_JZ', 'SP_JST', 'SP_FZ', 'SP_CEIL', 'SP_BAND', 'SP_CPU', 'SP_SKIP', 'SP_METER', 'SP_METER_GAP', 'SP_METER_WIN', 'SP_METER_MAXC', 'SP_METER_MODE', 'SP_METER_SH', 'SP_FKT', 'SP_BLO', 'SP_FKW', 'SP_FKC', 'SP_FKMAX', 'SP_FKMIN', 'SP_FKWALL', 'SP_FKCLR', 'SP_FKW2', 'SP_FKC2', 'SP_AFP', 'SP_AFD0', 'SP_AFD1', 'SP_AFX0', 'SP_AFX1', 'SP_FKXI', 'SP_FKXC', 'TAKERS_TEST', 'TAKERS_LIST')   # (4.1: buildrel
     # clears EURO_OPTIONAL, so the release recipe always keeps patch.py's euro assert)
-TEST_VARS += ('JOYNAME_FAKE',)                     # 4.2 joyname: the harness's stick flags (own lines: 42-drp's
-BUILD_SWITCHES += ('JOYNAME_FAKE',)
+TEST_VARS += ('JOYNAME_FAKE', 'FRND_TEST')                     # 4.2 joyname: the harness's stick flags (own lines: 42-drp's
+BUILD_SWITCHES += ('JOYNAME_FAKE', 'FRND_TEST')   # (FRND_TEST: frnd.py's FR_TEST trace, MC 19/11)
 TEST_VARS += ('SWE_BSS_SHIFT',)                   # 4.2 BSS_AT gate (a): swe.c's .bss at BSS_AT + this (test builds only)
 BUILD_SWITCHES += ('SWE_BSS_SHIFT',)                # DIFF_* edits above cherry-pick without a conflict)
 

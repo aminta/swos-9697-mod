@@ -7,8 +7,12 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 
 ### What's new
 
-#### Serie D placement
-- Serie D: clubs promoted into Serie D now join the Serie D group of their own area. When that group is already full, one of its clubs moves over to a neighbouring group to make room. It's never your club, and no club moves more than once a season, just as the league does with clubs near the border between two groups.
+#### Serie C and Serie D groups drawn again every summer
+- 2026-27 world: from the end of your first season, the Serie C groups (3 of 20 clubs) and the Serie D groups (9 of 18) are drawn again every summer, after promotions and relegations, as the leagues really do. The rule is geography: every club goes to the group whose clubs live nearest to it, every group keeps its size, and a club that is already in a fitting group stays there. Your first season keeps the real 2026-27 groups.
+- Your club can change group too (for example from Serie C group B to group C). It stays the same career: same squad, same money, same record. Only the group changes.
+- Serie C second teams (JUVENTUS NG, ATALANTA U23, INTER U23, and MILAN FUTURO if it goes up): Lega Pro rules: never two in the same group; the mod draws a new group for each one every summer, and your career always gets the same draw.
+- How close to reality: the leagues draw their groups by geography but publish no formula, and they move some clubs on the border between two groups back and forth from one summer to the next. Given the real 2025-26 groups, the mod's rule puts 92% of the Serie C clubs and 78% of the Serie D clubs in their real 2026-27 group (the same rule on the summer before: 75% in Serie D).
+- If the groups can't be drawn (it should never happen), the season ends the old way: a club coming down or going up joins the group of its own area.
 
 #### Your 4.1 career in 4.2's new Italy
 - A career saved in 4.1 loads in 4.2: nothing is lost and no message appears. Serie D now has 9 groups of 18 clubs (162 clubs).
@@ -33,7 +37,7 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 #### Promotion and relegation between Serie C and Serie D
 - 2026-27 world: Serie C and Serie D now exchange clubs at the end of every season, as in real Italian football. The nine Serie D group winners go up to Serie C; the clubs relegated from Serie C (the last club of each group and the play-out losers) go down to Serie D. That includes your club: win your Serie D group and next season you play in Serie C; go down from Serie C and you play in Serie D.
 - When your club moves between the two, it is still the same career: your whole squad, your money and your record stay with you. Only the league changes.
-- Not exact: the real league redraws the Serie D groups every summer. The mod keeps its groups: a club coming down from Serie C joins the Serie D group of its own area (see Serie D placement), and a club going up joins the Serie C group of its area.
+- Then both leagues draw their groups again (see "Serie C and Serie D groups drawn again every summer").
 
 #### Winners page after a move between Serie C and Serie D
 - Winners page (VINCITORI): the last-season page now also works when your club has just moved between Serie C and Serie D (promotion or relegation across the two files), and it now exists for a career in Serie D itself: it names the winner of the division your club played in last season.
@@ -154,7 +158,8 @@ The original Italian game spells "draws" as PARREGGI in the season record (VINCI
 
 
 #### Decisions of this release
-- Serie C / Serie D exchange (2026-27 world): every season the nine Serie D group winners go up and the Serie C clubs relegated (last of each group + play-out losers) go down, your club included; groups by area, an approximation (the real league redraws the Serie D groups every summer); a move of your club keeps its squad, money and record.
+- Serie C / Serie D exchange (2026-27 world): every season the nine Serie D group winners go up and the Serie C clubs relegated (last of each group + play-out losers) go down, your club included; then both leagues' groups drawn again (next decision); a move of your club keeps its squad, money and record.
+- Serie C and Serie D groups drawn again every summer (Davide 15/11, "regola attuale al 78% e basta"): one fixed geographic rule for both leagues (each club to the nearest group, sizes kept, a club in a fitting group stays), from the end of season 1; no hand-made exceptions for single clubs. Measured on the real groups: Serie C 92%, Serie D 78% of the clubs in their real 2026-27 group (75% on the summer before). Serie C second teams: never two in a group, a new group every summer, the group drawn (the same draw for a given career). If the draw can't be made the clubs keep the old placement by area.
 - Set-piece practice: a practice lasts the attempts chosen (SHOTS: 10 at first; UNLIMITED until ESC) on the half chosen (HALF: RANDOM at first, the match's own random end as before) and then shows its results page (ESC ends it earlier); a practice has no match clock, no presentation screen (competition, teams, stadium), no pre-match screen and no score bar at the restarts. Ordinary matches and friendlies are unchanged.
 - Shirt numbers: UP / DOWN stop on taken numbers and show who wears them; leaving the box swaps the numbers, ESC undoes; keypad digits type only while the box is lit; EDIT CUSTOM TEAMS keeps skipping taken numbers.
 - Intercontinental Cup: one owner per world. 1996-97: the mod's Intercontinental (Champions Cup winner v Libertadores winner), season 1 JUVENTUS v the 1996 Libertadores winner as before; 2026-27: only the world's own (the continental holders); historic worlds: none in season 1, then their Champions Cup winner v the Libertadores winner. With a league cup it is played in the play-off slot, so it waits for a season without play-offs.
@@ -184,8 +189,12 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 
 ### Novità
 
-#### Collocazione in Serie D
-- Serie D: le squadre promosse in Serie D ora entrano nel girone della loro zona. Se quel girone è già pieno, una delle sue squadre passa a un girone confinante per fare posto. Non è mai la tua squadra e nessuna squadra viene spostata più di una volta a stagione, come fa la Lega con le squadre al confine tra due gironi.
+#### Gironi di Serie C e Serie D rifatti ogni estate
+- Mondo 2026-27: dalla fine della tua prima stagione, i gironi di Serie C (3 da 20 squadre) e di Serie D (9 da 18) vengono rifatti ogni estate, dopo promozioni e retrocessioni, come fanno davvero le leghe. La regola è la geografia: ogni squadra va nel girone le cui squadre abitano più vicine, ogni girone resta della sua misura e una squadra che è già in un girone adatto ci resta. La prima stagione tiene i gironi veri 2026-27.
+- Anche la tua squadra può cambiare girone (per esempio dal girone B al girone C di Serie C). La carriera resta la stessa: stessa rosa, stessi soldi, stesso curriculum. Cambia solo il girone.
+- Seconde squadre di Serie C (JUVENTUS NG, ATALANTA U23, INTER U23, e MILAN FUTURO se sale): come dice il regolamento della Lega Pro, mai due nello stesso girone; la mod sorteggia ogni estate un girone nuovo per ciascuna, e la tua carriera ha sempre lo stesso sorteggio.
+- Quanto è vicino alla realtà: le leghe fanno i gironi per geografia ma non pubblicano una formula, e spostano avanti e indietro da un'estate all'altra alcune squadre al confine tra due gironi. Partendo dai gironi veri 2025-26, la regola della mod mette nel loro girone vero 2026-27 il 92% delle squadre di Serie C e il 78% di quelle di Serie D (la stessa regola sull'estate prima: 75% in Serie D).
+- Se i gironi non si possono rifare (non dovrebbe succedere mai), la stagione finisce come prima: una squadra che scende o sale entra nel girone della sua zona.
 
 #### La tua carriera 4.1 nella nuova Italia della 4.2
 - Una carriera salvata con la 4.1 si carica nella 4.2: non si perde niente e non compare nessun messaggio. La Serie D ora ha 9 gironi da 18 squadre (162 squadre).
@@ -210,7 +219,7 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 #### Promozioni e retrocessioni tra Serie C e Serie D
 - Mondo 2026-27: Serie C e Serie D ora si scambiano le squadre alla fine di ogni stagione, come nel calcio vero. Le nove vincitrici dei gironi di Serie D salgono in Serie C; le retrocesse dalla Serie C (l'ultima di ogni girone e le perdenti dei play-out) scendono in Serie D. Vale anche per la tua squadra: vinci il tuo girone di Serie D e la stagione dopo giochi in Serie C; retrocedi dalla Serie C e giochi in Serie D.
 - Quando la tua squadra passa da una all'altra, la carriera resta la stessa: tutta la rosa, i soldi e il tuo curriculum restano con te. Cambia solo il campionato.
-- Non esatto: la Lega vera ricompone i gironi di Serie D ogni estate. La mod tiene i suoi gironi: una squadra che scende dalla Serie C entra nel girone di Serie D della sua zona (vedi la collocazione in Serie D), e una squadra che sale entra nel girone di Serie C della sua zona.
+- Poi i gironi di entrambi i campionati vengono rifatti (vedi "Gironi di Serie C e Serie D rifatti ogni estate").
 
 #### Pagina dei vincitori dopo un passaggio tra Serie C e Serie D
 - Pagina dei vincitori: la pagina della stagione scorsa funziona anche quando il tuo club è appena passato tra Serie C e Serie D (promozione o retrocessione), e ora c'è anche per una carriera in Serie D: indica il vincitore del campionato in cui il tuo club ha giocato la stagione scorsa.
@@ -332,7 +341,8 @@ Il gioco originale in italiano scrive PARREGGI nel registro della stagione (VINC
 
 #### Decisioni di questa release
 - Coppa Intercontinentale: una sola per mondo. 1996-97: quella del mod (vincitrice della Coppa Campioni contro vincitrice della Libertadores), nella prima stagione JUVENTUS contro la vincitrice della Libertadores 1996 come prima; 2026-27: solo quella del mondo (le detentrici continentali); mondi storici: nessuna nella prima stagione, poi la vincitrice della loro Coppa Campioni contro quella della Libertadores. Con una coppa di lega si gioca nello spazio dei play-off, quindi solo in una stagione senza play-off.
-- Scambio Serie C / Serie D (Mondo 2026-27): ogni stagione le nove vincitrici dei gironi di Serie D salgono e le retrocesse dalla Serie C (ultima di ogni girone + perdenti dei play-out) scendono, anche la tua squadra; gironi per zona, un'approssimazione (la Lega vera ricompone i gironi di Serie D ogni estate); un passaggio della tua squadra tiene rosa, soldi e curriculum.
+- Scambio Serie C / Serie D (Mondo 2026-27): ogni stagione le nove vincitrici dei gironi di Serie D salgono e le retrocesse dalla Serie C (ultima di ogni girone + perdenti dei play-out) scendono, anche la tua squadra; poi i gironi dei due campionati vengono rifatti (decisione seguente); un passaggio della tua squadra tiene rosa, soldi e curriculum.
+- Gironi di Serie C e Serie D rifatti ogni estate (Davide 15/11, "regola attuale al 78% e basta"): una sola regola geografica fissa per i due campionati (ogni squadra nel girone più vicino, misure dei gironi tenute, una squadra in un girone adatto ci resta), dalla fine della stagione 1; nessuna eccezione fatta a mano per singole squadre. Misurata sui gironi veri: Serie C 92%, Serie D 78% delle squadre nel loro girone vero 2026-27 (75% sull'estate prima). Seconde squadre di Serie C: mai due in un girone, un girone nuovo ogni estate, il girone sorteggiato (lo stesso sorteggio per una data carriera). Se i gironi non si possono rifare le squadre tengono la vecchia collocazione per zona.
 - Prova dei calci piazzati: una prova dura i tiri scelti (TIRI: all'inizio 10; INFINITI fino a ESC) nella metà campo scelta (META' CAMPO: all'inizio CASUALE, la porta a caso della partita come prima) e poi mostra la sua pagina dei risultati (ESC la chiude prima); in una prova non ci sono cronometro, schermata di presentazione (competizione, squadre, stadio), schermata prepartita né barra del risultato alle riprese del gioco. Le partite normali e le amichevoli restano come prima.
 - Numeri di maglia: SU / GIÙ si fermano anche sui numeri occupati e mostrano chi li porta; uscendo dal riquadro i numeri si scambiano, ESC annulla; le cifre del tastierino scrivono solo con il riquadro acceso; MODIFICA SQUADRE continua a saltare i numeri occupati.
 - (every gameplay or market decision of 4.2 goes here and in the README, EN + IT: Davide 15/11, rc gate item)

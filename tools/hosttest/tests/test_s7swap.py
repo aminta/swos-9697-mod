@@ -176,6 +176,8 @@ def test_s7swap():
         return False, f'{EXE}: no s7swap (not a shaped build)'
     m = M(EXE)
     errs = []
+    if 'S7RD_PTR' in m.sy['s7swap']:                    # (4.2 redraw builds: this test is the crossers' place() rule - the redraw's
+        m.w(m.at('s7swap', 'S7RD_PTR'), bytes(4))       #  fallback / S7_REDRAW_OFF; test_s7redraw_exe tests the redraw itself)
     m.fresh()
     r0 = m.regb()
     fs, word, at, rdiv, rows = reg_parse(r0)

@@ -33,7 +33,7 @@ sr_reg_file SREG_SPEC[SR_REG_FILES] DATA = {{0}};
 extern const uint8_t SREG_DIV[];        /* obj4+swreg.SREG_DIV_AT, SR_REG_CLUBS bytes (MC 10/11: outside the band) */
 extern const uint8_t SREG_SWC1[];       /* swe.c's SWC1 (sreg.py): the header's world byte (u16) at +2 */
 uint32_t SREG_WORLD DATA = 0;           /* sreg.py: the shape's world byte (its pack's 'world'); 0 = none */
-uint32_t SREG_FLAGS DATA = 0;           /* IMPORTED 1 | PENDING 2 | the pending import's season << 8 (u16 in 'IT') */
+uint32_t SREG_FLAGS DATA = 0;           /* IMPORTED 1 | PENDING 2 | S7 redraw rule version << 4 (s7swap.c) | the pending import's season << 8 (u16 in 'IT') */
 sr_registry *SREG_REG DATA = 0;         /* sreg.py: -> the engine arena (swe.c SWE_ARENA_AT) */
 int32_t SREG_LAST DATA = 0;             /* the last sreg_load's result (1 / 0 / -1; harness) */
 void (*SREG_CHG)(void) DATA = 0;        /* S7 (s7swap.py: -> s7_flush): called when the registry may change - a load,

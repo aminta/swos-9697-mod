@@ -342,16 +342,17 @@ def patch(p, ssyms, rsyms, gsyms, pgsyms, fsyms, risyms):
     sfo, srows = cupd.other_strengths(pk, fb)
     assert sfo == fa and 0 < len(srows) <= 256, ('s7swap: other_strengths', sfo, fa, len(srows))
     flags += (f'-DS7RI_NSTR={len(srows)}',)
-    gobj = cobj.compile_c(SRC_GEO, (), sections=True)    # (4.2 geography: its own band, linked first: s7ri.c's reset of the log is an extern)
+    gobj = cobj.compile_c(SRC_GEO, ('-Oz',), sections=True)    # (4.2 geography: its own band, linked first: s7ri.c's reset of the log is an extern;
+    #  -Oz since the redraw merge: s7rd_rule / s7rd_level + s7trap's s7rd_near in one band, -Os left 88 B, -Oz ~420 B >= the 256 B floor)
     gsy, gend, gbss = cobj.link(p, gobj, swreg.S7GEO_AT, (4, 0), limit=swreg.S7GEO_END - 256, text_obj=4,
-                                roots=['s7geochain', 's7geo_ll', 's7rd_near', 'S7GEO_NEIGH', 'S7GEO_ON', 'S7GEO_LOG', 'S7GEO_NLOG', 'S7GEO_BAD', 'S7GEO_XY', 'S7GEO_HAVE',
-                                       'S7GEO_FILE', 'S7GEO_BASE', 'S7GEO_IDENT'])
+                                roots=['s7geo_ll', 's7rd_near', 'S7GEO_NEIGH', 'S7GEO_ON', 'S7GEO_LOG', 'S7GEO_NLOG', 'S7GEO_BAD', 'S7GEO_XY', 'S7GEO_HAVE',
+                                       'S7GEO_FILE', 'S7GEO_BASE', 'S7GEO_IDENT', 's7rd_level', 'S7RD_SEC', 'S7RD_LOG'])
     assert not gbss, ('s7geo.c: no .bss', gbss)
     ext['S7GEO_NLOG'] = gsy['S7GEO_NLOG'][:2]
     obj = cobj.compile_c(SRC, flags, sections=True)
     syms, end, bss = cobj.link(p, obj, swreg.S7SWAP_AT, (4, 0), externs=ext, limit=swreg.S7SWAP_END, text_obj=4,
                                roots=['s7_season', 's7_itload', 's7_load', 's7_home_word', 's7_ident', 's7_poolk', 's7ri_pool', 's7ri_cdstr', 'S7RI_STR', 'S7RI_STRF', 's7_snap', 'S7_DIR', 'S7_NDIR', 'RI_MOVES', 'RI_NMOVES', 'RI_S7_BAD', 'RI_HINTN', 'RI_HINTMAP', 'RI_FRESH', 'S7_POOL0', 'S7_NPOOL', 'S7_RIPOOL', 'S7_RSNAME', 'S7_RIMV', 's7_flush', 'S7_HRUN', 'S7_FNV', 'S7_WLOG', 'S7_CLOG', 'WSITES', 'WS_KEYS', 'S7_ENN', 'S7_CFBLEN', 'S7_NAME', 'S7_OAT', 'S7_ONREC', 'S7_LD', 'S7_FA', 'S7_FB', 'S7_NUP', 'S7_NLO', 'S7_UP', 'S7_LO', 'S7_GB',
-                                      'S7_AREA', 'S7_LOG', 's7_imp_walk', 'S7_AREG'] + LIB)
+                                      'S7_AREA', 'S7_LOG', 's7_imp_walk', 'S7_AREG', 'S7RD_PTR'] + LIB)
     assert not bss, ('s7swap.c: no .bss (it would land on swe.c\'s)', bss)
     p.put(*syms['S7_FA'], bytes((fa,)))
     p.put(*syms['S7RI_STRF'], struct.pack('<H', sfo))
@@ -402,11 +403,24 @@ def patch(p, ssyms, rsyms, gsyms, pgsyms, fsyms, risyms):
         assert len(xy) <= NID, ('s7swap: coordinates past S7_NID', len(xy))
         p.put(*gsy['S7GEO_XY'], b''.join(struct.pack('<hh', *v) for v in xy))
         p.put(*gsy['S7GEO_HAVE'], b'\x01')
+    # 4.2 S7 redraw (s7-redraw.md; Davide 15/11): the second teams per ident (clubs.csv second_of), the rule's pointer. Off only under
+    # the test switch S7_REDRAW_OFF (the crossers' place() groups, the pre-redraw control) and in a pack without coordinates.
+    rows = list(pk.clubs.values())
+    sec = bytearray((NID + 7) // 8)
+    for i, r in enumerate(rows):
+        if (r.get('second_of') or '').strip():
+            sec[i >> 3] |= 1 << (i & 7)
+    p.put(*gsy['S7RD_SEC'], bytes(sec))
+    if xy is not None and not os.environ.get('S7_REDRAW_OFF'):
+        cobj.add_ptr(p, syms['S7RD_PTR'][1], *gsy['s7rd_level'][:2], 4)
+    print(f"exe: S7 redraw {'OFF (S7_REDRAW_OFF)' if os.environ.get('S7_REDRAW_OFF') else 'on' if xy is not None else 'OFF (no coordinates)'}: "
+          f"s7rd_level obj4+{gsy['s7rd_level'][1]:#x}, {sum(bin(b).count('1') for b in sec)} second teams; S7GEO band obj4+{swreg.S7GEO_AT:#x}..{gend:#x} "
+          f"({swreg.S7GEO_END - gend} B left, floor 256)")
     for k, f in (('GP_RIPOOL', 's7ri_pool'), ('GP_CDSTR', 's7ri_cdstr'), ('GP_S7SNAP', 's7_snap')):   # (gplay.c's two S7 hooks -> s7ri.c, Panchina's:
         assert k in gplay.LABELS, ('s7swap: gplay.c without', k)       # MC ruling (b), S7-only logic in obj4)
         cobj.add_ptr(p, gplay.LABELS[k][1], *syms[f], gplay.LABELS[k][0])
     assert 'GP_GEOCH' in gplay.LABELS, 's7swap: gplay.c without GP_GEOCH'     # (4.2 geography: gplay.c's pg_one hook -> the S7GEO band)
-    cobj.add_ptr(p, gplay.LABELS['GP_GEOCH'][1], *gsy['s7geochain'][:2], gplay.LABELS['GP_GEOCH'][0])
+    # (4.2 S7 redraw: GP_GEOCH stays 0 - the chain movers are removed, s7-redraw.md 3; pg_one's own placement, then the redraw)
     import stadium
     if 'st_hptr' in stadium.LABELS:                     # (st_find: a crossed club's stadium by its home word, obj3)
         cobj.add_ptr(p, stadium.LABELS['st_hptr'][1], *syms['s7_home_word'], stadium.LABELS['st_hptr'][0])
@@ -431,7 +445,7 @@ def patch(p, ssyms, rsyms, gsyms, pgsyms, fsyms, risyms):
         WNL = {}
     LABELS.clear()
     LABELS.update(syms)
-    LABELS.update({k: v for k, v in gsy.items() if k.startswith('S7GEO_')})   # (the S7GEO band's data: the harness's chain log)
+    LABELS.update({k: v for k, v in gsy.items() if k.startswith(('S7GEO_', 'S7RD_'))})   # (the S7GEO band's data: the harness's chain log, the redraw's tables / log)
     LABELS['S7GEO_NEAR'] = gsy['s7rd_near']             # (42-s7trap: sreg2.c's call; not 's7geo_ll' - cdkn.py would start reading that key)
     LABELS.update(WNL)
     if 'st_cur' in stadium.LABELS:

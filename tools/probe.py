@@ -91,6 +91,37 @@ def red_twin(env=None, prepare=None, why='', id='t1'):
     return deco
 
 
+MAIN = os.path.expanduser('~/swos-mod')
+
+
+def rel(name, sub='SWOS'):
+    """A frozen historical release dir under c/ (a red twin's build: the defect is known to be in it)."""
+    return os.path.join(MAIN, 'c', name, sub)
+
+
+def en_copy(src):
+    """prepare() helper: an English-UI copy of release dir `src` (its ITALIAN.EXE = its ENGLISH.EXE, as SWOS++ wants),
+    made once under internal/swostest/probe-twins/en/<release>; returns its path."""
+    import shutil
+    dst = os.path.join(MAIN, 'internal', 'swostest', 'probe-twins', 'en', os.path.basename(os.path.dirname(src.rstrip('/'))))
+    ok = os.path.join(dst, '.ok')
+    if not os.path.isfile(ok):
+        tmp = f'{dst}.{os.getpid()}'
+        shutil.rmtree(tmp, ignore_errors=True)
+        shutil.copytree(src, tmp, symlinks=False)
+        shutil.copy(os.path.join(src, 'ENGLISH.EXE'), os.path.join(tmp, 'ITALIAN.EXE'))
+        open(os.path.join(tmp, '.ok'), 'w').write(src)
+        shutil.rmtree(dst, ignore_errors=True)
+        os.replace(tmp, dst)
+    return dst
+
+
+def twin_on(var):
+    """In a twin's own process, the twin's fixture switch `var` is set (fixture twins: the scenario breaks its own
+    input, e.g. one save byte, to prove the check sees it). Never true in a normal run."""
+    return in_twin() and os.environ.get(var, '') not in ('', '0')
+
+
 def strict():
     return os.environ.get('SWOSTEST_PROBE', '').lower() == 'strict'
 

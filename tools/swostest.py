@@ -6842,11 +6842,17 @@ def save_devname():
 
 
 @scenario
+@probe.red_twin(env={'ROUNDTRIP_TWIN': '1'}, why='fixture: one byte of the second save flipped (a save that does not round-trip)')
 def roundtrip():
     """Load/save round trip: JUVE2F loaded + saved from the main menu (ROUNDT1), reloaded + saved (ROUNDT2) = ROUNDT1"""
     err, x1, x2 = two_saves('roundtrip', builds()['it'], juve2(True))
     if err:
         return False, err
+    if probe.twin_on('ROUNDTRIP_TWIN'):                 # (red twin: a second save that does not round-trip)
+        d_ = bytearray(open(x2, 'rb').read())
+        d_[len(d_) // 2] ^= 0xFF
+        x2 = x2 + '.twin'
+        open(x2, 'wb').write(d_)
     n, info = ndiff(x1, x2), car_info(x2)
     return n == 0 and info['sum'] == 0, f'save 1 vs 2: {n} bytes differ, table sum {info["sum"]}'
 
@@ -17965,6 +17971,7 @@ def world_ns_hist():
 
 
 @scenario
+@probe.red_twin(env={'SWOSTEST_BUILD': probe.rel('REL41dry')}, why="4.1 dry run (Davide's MiSTer 41dry): INTER shown (SCOZIA), no '96-97' continent buttons")
 def world_ns_contest():
     """4.1 (MC 06/11, Davide's MiSTer 41dry), default World 2026-27 (fresh SETUP.DAT), the exe's language (SWOSTEST_UI):
     (a), every SWOSTEST_UI: friendly > SQUADRE CLUB > CARR. STORICHE > MONDO 1996-97: its continent buttons read '<continent> 96-97'
@@ -18336,6 +18343,7 @@ def swospp_menu():
 
 
 @scenario
+@probe.red_twin(env={'SWOSPP_BENCH_TWIN': '1'}, why='fixture: the first SWOS++ run-time site counted as a mod change (an overlap)')
 def swospp_bench():
     """(Panchina, 4.0.5 regression) SWOS++ vs the mod's code changes: SWOSPP_BUILD (a dir whose ITALIAN.EXE is a modded ENGLISH exe,
     the release recipe) + tools/swospp.py + LOADER.BIN / SWOSPP.BIN; at the main menu obj1 in memory is compared with
@@ -18383,6 +18391,8 @@ def swospp_bench():
                     mask[k] = 1
         pp_ = [i for i in range(n) if not mask[i] and mem[i] != exe[i]]
         mod = [i for i in range(n) if exe[i] != o0[i]]
+        if probe.twin_on('SWOSPP_BENCH_TWIN') and pp_:   # (red twin: an overlap the check must see)
+            mod = sorted(set(mod) | {pp_[0]})
 
         def ranges(xs):
             out_ = []
@@ -18930,6 +18940,7 @@ def ega_flag(exe):
 
 
 @scenario
+@probe.red_twin(prepare=lambda: {'SWOSTEST_BUILD': probe.en_copy(probe.rel('REL40'))}, why='4.0 English: the bank in pounds, no euro')
 def euro_swospp():
     """4.1 RC3 euro under SWOS++ 1.9.2.2 (Regia 09/11; English only: SWOS++ installs on ENGLISH.EXE): SWOSTEST_BUILD
     = the English release dir (its ITALIAN.EXE = ENGLISH.EXE), SWOS++ installed on a copy (tools/swospp.py, LOADER.BIN /
@@ -20512,6 +20523,7 @@ def squad_order_xtra():
 
 
 @scenario
+@probe.red_twin(env={'C20_TWIN_CUT': '1'}, why='fixture: season 1 save cut in half before the reload (the season-end save path broken)')
 def career_20seasons():
     """Release check (Davide, 4.0): a World 2026-27 career through 20 seasons, the most a career allows (an old mod
     froze at the 7th): season 1 new, then each season from the previous one's save (world8485 with W8485_FROM: load,
@@ -20557,6 +20569,9 @@ def career_20seasons():
                 return False, f'season {season}: no save {nxt}; times {times}'
             car = os.path.join(RUNS, f'c20_after_s{season:02d}.CAR')
             shutil.copy(nxt, car)
+            if probe.twin_on('C20_TWIN_CUT'):              # (red twin: the season's save cut in half)
+                d_ = open(car, 'rb').read()
+                open(car, 'wb').write(d_[:len(d_) // 2])
     finally:
         for k, v in keep.items():
             if v is None:
@@ -23715,6 +23730,7 @@ def world_winners_dplay():
 
 
 @scenario
+@probe.red_twin(env={'WINNERS_W27': probe.rel('REL40')}, why="4.0: no 'WN' item, no VINCITORI page of last season")
 def world_winners_oldsave():
     """4.0.1 'WN' and a 4.0 save: Davide's rc7 career PHILA.CAR (internal/davide-mister-20261021: PHILADELPHIA, no 'WN'
     item - zeroed at the load) on a release-like build (WINNERS_W27, else the W2627REL_DATA packs, no test switch)
@@ -24159,6 +24175,7 @@ def foreign_buy(exe, mode, market='STRANIERO'):
 
 
 @scenario
+@probe.red_twin(env={'FOREIGNBUY_BUILD': probe.rel('REL40rc12')}, why='4.0 rc12: POOL05 team file 190 missing, exit to DOS (Davide 22/10)')
 def world_foreign_buy():
     """A foreign-market purchase in the World 2026-27 career on a RELEASE exe (FOREIGNBUY_BUILD, or the suite's SWOSTEST_BUILD / W8485_BUILD = c/RELxx/
     SWOS; a harness test build has no worldpool, so it proves nothing): the first listed player, whose POOL05 team file
@@ -24881,6 +24898,7 @@ def release_groupb_titles():
 
 
 @scenario
+@probe.red_twin(env={'CUPLIST_REL': probe.rel('REL405rc7')}, why="4.0.5 rc7 (the save's own build): no gp_notin rule 11")
 def world_cuplist_mestre():
     """Davide's MESTRE.CAR (rc7, internal/davide-mister-20261021: MESTRE, Serie D) on a release-recipe build
     (CUPLIST_REL: a buildrel.sh dir) played on to its season's end and into the next season (world8485 from it):
@@ -27693,6 +27711,7 @@ def world_s1conti():
 
 
 @scenario
+@probe.red_twin(env={'WINNERS_W27': probe.rel('REL405')}, why="4.0.5: no ct_load1 (old saves get no 'CE' edition), no COPPE CONTINENTALI")
 def world_s1conti_oldsave():
     """4.0.6 B2 M3 (Davide: old saves built at load): Davide's rc7 season-1 career PHILA.CAR (no 'CE', no 'CT') on a
     release-like build (world_winners_oldsave's recipe) gets season 1's edition at the load (conti.c ct_load1): CT_ED
@@ -27735,6 +27754,7 @@ def world_s1conti_oldsave():
 
 
 @scenario
+@probe.red_twin(env={'CV_BUILD': probe.rel('REL405')}, why='4.0.5: no COPPE CONTINENTALI view (ctview / ctgame are 4.0.6)')
 def world_cgame_view():
     """4.0.6 option C P3: COPPE CONTINENTALI's rounds menu -> the round in the game's own competition screen (ctgame
     cg_view: knockout legs + aggregate + pens / away goals, group tables + fixtures, as at the career's week). On

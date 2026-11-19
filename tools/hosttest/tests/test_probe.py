@@ -181,3 +181,20 @@ def test_swostest_index():
     miss = [s for c in probe.CANARIES for s in c['scenarios'] if s not in names]
     ok = not errs and not miss and len(rows) == want
     return ok, f'{len(rows)} scenarios ({want} @scenario), bad lines {errs[:3]}, missing canaries {miss}'
+
+
+def test_canary_twins():
+    """Every canary scenario declares a red twin; every build dir a twin names (env values that are paths) exists."""
+    import swostest  # noqa: F401  (registers the twins)
+    errs = []
+    for c in probe.CANARIES:
+        for s in c['scenarios']:
+            t = probe.TWINS.get(s)
+            if not t:
+                errs.append(f'{c["id"]} {s}: no twin')
+                continue
+            for k, v in t['env'].items():
+                if isinstance(v, str) and v.startswith('/') and not os.path.isfile(os.path.join(v, 'ITALIAN.EXE')):
+                    errs.append(f'{s}: {k}={v} has no ITALIAN.EXE')
+    n = sum(len(c['scenarios']) for c in probe.CANARIES)
+    return not errs, '; '.join(errs) or f'{n} canary scenarios, all with a twin, twin dirs present'

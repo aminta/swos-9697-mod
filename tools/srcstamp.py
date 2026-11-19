@@ -28,11 +28,19 @@ TREE_DIRS = ('tools', 'packs')          # (a tree without its own .git: the buil
 # Every root a build READS (MC 17/11: "the stamp covers every file the build actually reads"). Derived from a traced build
 # (an audit hook on open() through patch_exe, tests/test_stamp_roots.py repeats the trace and FAILs on a read outside these
 # roots): tools/ and packs/ (the code and the packs), orig/ (the original game: its top-level files, DATA, gog, swos2020 -
-# not the ISO / old patchers), internal/conti, nsl9697, mls97, drawgate (the data the converters read) and
-# internal/world2526/formats. NOT stamped, on purpose: internal/world2526/<data> (the per-build world data: buildrel.sh puts
-# its name and content hash in SRC_STAMP.json 'data'), internal/swostest/cobj (a compile cache keyed by content), c/ (output).
+# not the ISO / old patchers), internal/conti, nsl9697, mls97 (the data the converters read) and internal/world2526/formats.
+# NOT stamped, on purpose: internal/world2526/<data> (the per-build world data: buildrel.sh puts its name and content hash in
+# SRC_STAMP.json 'data'), the CONTENT_CACHES below, c/ (output).
 STAMP_ROOTS = ('tools', 'packs', 'orig/DATA', 'orig/gog', 'orig/swos2020', 'internal/conti', 'internal/nsl9697',
-               'internal/mls97', 'internal/drawgate', 'internal/world2526/formats')
+               'internal/mls97', 'internal/world2526/formats')
+# Content-keyed caches are not build inputs (MC 19/11): a file there is named by the hash of inputs that are all stamped
+# already, so it cannot change a build's output - only spare a recomputation. Stamping one made every cache write (a harness
+# conti run writing internal/drawgate/<key>.json) turn the release dir 'stale' for the next local run.
+CONTENT_CACHES = {'internal/swostest/cobj': 'the compile cache, keyed by the C source content + flags',
+                  'internal/drawgate': 'a gate-result cache keyed by content (drawgate.key: the rounds + the draw code + '
+                                       'cobj flags + drawgate.py, all stamped)'}
+assert not any(r == c or r.startswith(c + '/') or c.startswith(r + '/') for r in STAMP_ROOTS for c in CONTENT_CACHES), \
+    'srcstamp: a content-keyed cache inside a stamped root'
 STAMP_TOP = ('orig',)                   # (+ the plain files directly in these dirs, not their subdirs)
 
 

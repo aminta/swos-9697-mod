@@ -17,7 +17,8 @@ MAIN = os.path.join(os.path.expanduser('~'), 'swos-mod')
 sys.path.insert(0, os.path.join(CHECKOUT, 'tools'))
 import srcstamp  # noqa: E402
 
-ALLOW = {'internal/swostest/cobj': 'the compile cache: keyed by the C source content, an output not an input'}
+ALLOW = dict(srcstamp.CONTENT_CACHES)      # (MC 19/11: the content-keyed caches, an explicit named list - srcstamp's own;
+                                           #  not a looser root check: any other internal/ read outside the roots still FAILs)
 # (c/SWOS/DATA/TEAM.020 gone, MC 17/11: sacups.team_index reads the TEAM.020 this run's patch_teams wrote, patch.TEAM020_OUT)
 
 TRACE = r'''
@@ -54,6 +55,39 @@ def _data_name():
     raise RuntimeError('no release data to trace with (set HT_STAMP_DATA=<name under internal/world2526>)')
 
 
+def classify(read, w):
+    """(reads outside the stamp, not the data dir, not ALLOW; how many reads were stamped inputs)"""
+    stamped = {os.path.realpath(q) for _, q in srcstamp._inputs(CHECKOUT)}
+    allow = [os.path.realpath(os.path.join(MAIN, k)) for k in ALLOW]
+    wreal = os.path.realpath(w)
+    bad, n_stamped = [], 0
+    for p in read:
+        if not p.startswith(MAIN + os.sep) or p.startswith(CHECKOUT + os.sep):
+            continue                                    # (python's own files, temp dirs, this checkout: tools/ + packs/ are stamped)
+        if p in stamped:
+            n_stamped += 1
+        elif p.startswith(wreal + os.sep) or p == wreal + '.txt' or any(p == a or p.startswith(a + os.sep) for a in allow):
+            continue
+        else:
+            bad.append(os.path.relpath(p, MAIN))
+    return bad, n_stamped
+
+
+def test_cache_reads_allowed_stray_reads_fail():
+    """MC 19/11: a read under a content-keyed cache (internal/drawgate, internal/swostest/cobj) is allowed by name; red twin:
+    a read in another internal/ dir that is neither a stamped root nor in that list still FAILs."""
+    w = os.path.join(MAIN, 'internal', 'world2526', 'no-such-data')
+    ok = [os.path.join(MAIN, 'internal', 'drawgate', '0' * 16 + '.json'),
+          os.path.join(MAIN, 'internal', 'swostest', 'cobj', 'x.o')]
+    stray = [os.path.join(MAIN, 'internal', 'stampdg-red-twin', 'x.json'),
+             os.path.join(MAIN, 'internal', 'swostest', 'runs', 'x.json')]
+    b_ok, _ = classify([os.path.realpath(p) for p in ok], w)
+    b_st, _ = classify([os.path.realpath(p) for p in stray], w)
+    want = sorted(os.path.relpath(os.path.realpath(p), MAIN) for p in stray)
+    return (not b_ok and sorted(b_st) == want,
+            f'cache reads flagged {b_ok} (want none); stray reads flagged {sorted(b_st)} (want {want})')
+
+
 def test_stamp_covers_every_build_read():
     name = _data_name()
     w = os.path.join(MAIN, 'internal', 'world2526', name)
@@ -70,19 +104,7 @@ def test_stamp_covers_every_build_read():
         raise RuntimeError('the traced build failed: ' + (r.stderr.strip().splitlines() or ['?'])[-1][:200])
     read = open(out).read().split('\n')
     os.remove(out)
-    stamped = {os.path.realpath(q) for _, q in srcstamp._inputs(CHECKOUT)}
-    allow = [os.path.realpath(os.path.join(MAIN, k)) for k in ALLOW]
-    wreal = os.path.realpath(w)
-    bad, n_stamped = [], 0
-    for p in read:
-        if not p.startswith(MAIN + os.sep) or p.startswith(CHECKOUT + os.sep):
-            continue                                    # (python's own files, temp dirs, this checkout: tools/ + packs/ are stamped)
-        if p in stamped:
-            n_stamped += 1
-        elif p.startswith(wreal + os.sep) or p == wreal + '.txt' or any(p == a or p.startswith(a + os.sep) for a in allow):
-            continue
-        else:
-            bad.append(os.path.relpath(p, MAIN))
+    bad, n_stamped = classify(read, w)
     assert not bad, ('a build reads files the stamp does not cover - add their root to srcstamp.STAMP_ROOTS (or to ALLOW here, '
                      'with the reason): ' + ', '.join(sorted(bad)[:12]) + (' ...' if len(bad) > 12 else ''))
     # (a stamped file in checkout paths counted: tools/ and packs/ by the HARNESS-free walk)

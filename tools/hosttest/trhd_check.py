@@ -99,7 +99,7 @@ class T:
 
     def mach(self, seed, ru=1, ok=1, trg=0, pr=None, spw=0):
         m = ds.Mach(self.img, seed)
-        m.w8(B4 + self.L['TR_RU'], ru)
+        m.w8(B4 + self.L.get('RU', self.L['TR_RU']), ru)
         m.w8(B4 + self.S['SP_OK'], ok)
         m.w16(B4 + self.S['SP_W'], spw)
         m.w16(B2 + self.trg, trg)

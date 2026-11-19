@@ -60,27 +60,40 @@ def knobs():
                 WDZ=_iv('TR_WDZ', 0x10000), WSP=_iv('TR_WSP', 4096))
 
 
-def gp_ruoli():
-    """(obj, offset) of the integration branch's GP_RUOLI byte, None until it is there."""
+def _gameplay():
+    """The integration branch's gameplay module when it has GP_RUOLI (gameplay.gp_ruoli), else None."""
     try:
         import gameplay
     except ImportError:
         return None
-    f = getattr(gameplay, 'gp_ruoli', None)
-    return f() if f else None
+    return gameplay if getattr(gameplay, 'gp_ruoli', None) else None
+
+
+def gp_ruoli():
+    """(obj, offset) of GP_RUOLI when THIS build links it (the GAMEPLAY band on, with its RUOLI row), else None."""
+    g = _gameplay()
+    if g is None or not g.on() or not g.roles():
+        return None
+    return g.gp_ruoli()
 
 
 def ruoli():
-    """TRHD_RUOLI: None (unset: nothing linked) / 0 (linked, RUOLI NO) / 1 (RUOLI SI). Branch-only: refused once
-    GP_RUOLI is there (MC 16/11: one switch, never its own)."""
+    """TRHD_RUOLI: None (unset: nothing linked) / 0 (linked, RUOLI NO) / 1 (RUOLI SI). Branch-only: refused in a tree
+    that has GP_RUOLI (MC 16/11: one switch, never its own; the gates start RUOLI SI with gameplay's GM_RUOLI_SI)."""
     v = os.environ.get('TRHD_RUOLI')
     assert v in (None, '', '0', '1'), 'TRHD_RUOLI=0 (RUOLI NO) / 1 (RUOLI SI)'
-    assert not (v and gp_ruoli()), 'TRHD_RUOLI: GP_RUOLI has landed - drop TRHD_RUOLI, read the byte (RU_REF, on())'
+    assert not (v and _gameplay()), 'TRHD_RUOLI: this tree has GP_RUOLI - the switch is OPTIONS -> GAMEPLAY -> RUOLI (GM_RUOLI_SI=1 for a test build)'
     return int(v) if v else None
 
 
 def on():
-    if ruoli() is None:
+    """The traits are linked: with GP_RUOLI in the tree, whenever this build links GP_RUOLI (the GAMEPLAY band with its
+    RUOLI row: every release build; GM_NOROLES = not linked; TRHD_NOLINK=1, a test build switch = not linked: the
+    structural gate's REF); before it, only with TRHD_RUOLI set."""
+    if _gameplay() is not None:
+        if gp_ruoli() is None or os.environ.get('TRHD_NOLINK'):
+            return False
+    elif ruoli() is None:
         return False
     import setpieces
     assert setpieces.on(), 'trhead: needs the SETPIECE band (its header stubs call the TRHD jump table)'
@@ -99,7 +112,7 @@ tr_recj:   jmp near tr_rec             ; +30
 tr_zonej:  jmp near tr_zone            ; +35
 
     db 'TRHD'
-TR_RU: db RU_START                      ; the switch's stand-in until GP_RUOLI (RU_REF): 1 = RUOLI SI
+TR_RU: db RU_START                      ; the switch's stand-in in a tree without GP_RUOLI (RU_REF): 1 = RUOLI SI; 0 with GP_RUOLI
 TR_ZK: db 0                             ; (2) 1 = the last kick may whip (tr_kick), until its after-touch or the next kick
 TR_WF: db 0                             ; (2) 1 = a whipped cross is live
 TR_WK: dw 0                             ; (2) its tick (currentGameTick)
@@ -107,7 +120,7 @@ TR_WT: dd 0                             ; (2) the armed kick's / the whip's team
 TR_HM: dd HMASK                         ; (1) file positions that head down in the attacking box (bit = position)
 TR_DM: dd DMASK                         ; (3) file positions with the own-box reach
 
-%define RU_REF dword ebp + TR_RU - SPB_ ; THE switch read (GP_RUOLI: dword ebp + GP_RUOLI_ - SPB_)
+%define RU_REF RU_SRC                 ; THE switch read: GP_RUOLI (dword ebp + GP_RUOLI_ - SPB_), else TR_RU
 
 ; ---- ebp = SPB. ZF = 1: the traits are off (RUOLI NO; SWOS++; a training game that is no practice - sp_on's own
 ;      reads, through setpieces' labels). Every register kept.
@@ -410,14 +423,21 @@ def _sym(p):
     assert 0 < k['WZ'] <= 320 and 0 <= k['RST'] <= 64 and 0 < k['WDZ'] <= 0x20000 and 0 < k['WSP'] <= 0x7FFF, k
     sym = {**{n: (0, spc[n]) for n in ('A1_O', 'A6T_O', 'CGT_O', 'DZO', 'HDO', 'BALL_O')}, 'TOP_O': (0, c['TOP_O']),
            'KHS_O': (0, c['KHS_O']), 'WDZ': (0, k['WDZ']), 'WSP': (0, k['WSP']),
-           'TRG_O': (0, df.SYMS['TRG'][1]), 'POS': (0, POS), 'RU_START': (0, ruoli()),
+           'TRG_O': (0, df.SYMS['TRG'][1]), 'POS': (0, POS), 'RU_START': (0, ruoli() or 0),
            **{n + '_': (4, L[n]) for n in ('SPB', 'SP_OK', 'PR_D', 'SP_W', 'FK_ST')},
-           'SP_ON_': (4, L['sp_on']), 'SP_BASE_': (4, L['sp_base']),
+           'SP_ON_': (4, L['sp_on']), **({'GP_RUOLI_': gp_ruoli()} if gp_ruoli() else {}), 'SP_BASE_': (4, L['sp_base']),
            'HMASK': (0, k['HMASK']), 'DMASK': (0, k['DMASK']), 'RST': (0, k['RST']), 'WHB': (0, k['WHB']),
            'WHS': (0, k['WHS']), 'WZ': (0, k['WZ']),
            **{n: (0, v) for n, v in dict(GOAL_TOP=GOAL_TOP, GOAL_BOT=GOAL_BOT, BOX_X0=BOX_X0, BOX_X1=BOX_X1, BOX_D=BOX_D,
                                          WIDE_X0=WIDE_X0, WIDE_X1=WIDE_X1, MID_X=MID_X).items()}}
     return s, sym
+
+
+def asm_src():
+    """ASM with RU_SRC: GP_RUOLI's byte (obj4, PC-relative to SPB like every other band read) when linked, else TR_RU."""
+    gp = gp_ruoli()
+    src = 'dword ebp + GP_RUOLI_ - SPB_' if gp else 'dword ebp + TR_RU - SPB_'
+    return f'%define RU_SRC {src}\n' + ASM
 
 
 def patch(p, lang):
@@ -429,8 +449,9 @@ def patch(p, lang):
     assert sp.LABELS.get('sp_on'), 'trhead: after setpieces.patch'
     at = swreg.TRHD_AT
     s, sym = _sym(p)
-    code, fix, rel = nasmcave.assemble_obj(ASM, at, sym, 4)
-    lab = nasmcave.labels(ASM, at, sym)
+    asm = asm_src()
+    code, fix, rel = nasmcave.assemble_obj(asm, at, sym, 4)
+    lab = nasmcave.labels(asm, at, sym)
     assert not fix and not rel, ('TRHD: no fixups (obj2 through setpieces\' SPB)', fix, rel)
     assert [lab[n + 'j'] for n in JT] == [at + 5 * i for i in range(len(JT))], 'TRHD: the jump table'
     left = swreg.TRHD_END - at - len(code)
@@ -449,10 +470,12 @@ def patch(p, lang):
     df._hook(p, o, 6, 6, lab['tr_hk'])
     LABELS.clear()
     LABELS.update(lab)
+    gp = gp_ruoli()
+    LABELS['RU'] = gp[1] if gp else lab['TR_RU']       # (obj4: THE switch byte the code reads - hosttests poke it)
     SYMS.clear()
     SYMS.update({k: (1, v) for k, v in s.items()})
     SYMS['TOP'] = (2, sym['TOP_O'][1])
-    print(f'exe: position traits (1)-(3) (TRHD_RUOLI={ruoli()}): code obj4+{at:#x} ({len(code)} B, {left} B left), '
+    print(f'exe: position traits (1)-(3) ({'GP_RUOLI' if gp_ruoli() else 'TRHD_RUOLI=' + str(ruoli())}): code obj4+{at:#x} ({len(code)} B, {left} B left), '
           f'3 obj1 sites (DIST0 {s["DIST0"]:#x}, DIST1 {s["DIST1"]:#x}, HK {s["HK"]:#x}); setpieces\' header stubs ask '
           f'tr_hdown, sp_kick calls tr_kick')
     return at + len(code)

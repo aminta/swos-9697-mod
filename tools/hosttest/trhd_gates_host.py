@@ -87,7 +87,7 @@ def main(build):
 
     def mach(ru, spw, k):
         m = ds.Mach(img, f'g{mode}{ru}{spw}')
-        m.w8(B4 + L['TR_RU'], ru)
+        m.w8(B4 + L.get('RU', L['TR_RU']), ru)
         m.w8(B4 + S['SP_OK'], 1)
         m.w16(B4 + S['SP_W'], spw)
         m.w32(B4 + S['PR_D'], 0)

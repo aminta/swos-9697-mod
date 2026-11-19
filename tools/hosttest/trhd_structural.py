@@ -60,7 +60,7 @@ def main():
     a = ap.parse_args()
     ref_exe, new_exe = os.path.join(a.ref, 'ITALIAN.EXE'), os.path.join(a.new, 'ITALIAN.EXE')
     rj, nj = (json.load(open(os.path.join(b, 'ITALIAN.syms.json'))) for b in (a.ref, a.new))
-    assert 'trhead' not in rj and 'trhead' in nj, 'REF = TRHD_RUOLI unset, NEW = TRHD_RUOLI=0 (HOSTTEST_SYMS=1 both)'
+    assert 'trhead' not in rj and 'trhead' in nj, 'REF = TRHD_RUOLI unset (with GP_RUOLI: TRHD_NOLINK=1), NEW = TRHD_RUOLI=0 (with GP_RUOLI: a plain build; HOSTTEST_SYMS=1 both)'
     rs, ns = ({k: v[1] for k, v in j['setpieces'].items() if '.' not in k} for j in (rj, nj))
     tl = {k: v[1] for k, v in nj['trhead'].items() if '.' not in k}
     trg = nj['difficulty']['SYMS.TRG'][1]
@@ -230,7 +230,7 @@ def main():
             r.setstate(st0)
             prep(m, lab, r, ru)
             m.writes.clear()
-        ms[1].w8(B4 + tl['TR_RU'], ru)
+        ms[1].w8(B4 + tl.get('RU', tl['TR_RU']), ru)
         r2 = random.Random(seed + 'tr')                 # (the band's own record: an armed kick of A6's team or the other)
         tm_ = struct.unpack('<I', ms[1].read(B2 + c['A6T_O'], 4))[0]
         ms[1].w8(B4 + tl['TR_ZK'], r2.choice((0, 1, 1)))

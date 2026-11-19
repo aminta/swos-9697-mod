@@ -40311,21 +40311,26 @@ def sp_corners():
 
 def trhd_ruoli_env(si):
     """POSITION TRAITS: the build switches that start a test build with RUOLI SI (True) / NO (False). With
-    trhd_ruoli_read THE one place of the switch: on 42-trhead the band's own constant TRHD_RUOLI; once GP_RUOLI is on
-    the integration branch (Panchina, 42-gameplay2 92ed05d) this becomes {'GM_RUOLI_SI': '1'} / {} (or the scenario
-    pokes GM_R = 0 + GP_RUOLI = 1 together)."""
+    trhd_ruoli_read THE one place of the switch: in a tree with GP_RUOLI (gameplay.py, 42-gameplay2) gameplay's test
+    switch GM_RUOLI_SI=1 (the program starts with GM_R 0 + GP_RUOLI 1) / nothing (RUOLI_DEFAULT: NO); before it the
+    TRHD band's own constant TRHD_RUOLI."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import trhead
+    if trhead._gameplay() is not None:
+        return {'GM_RUOLI_SI': '1'} if si else {}
     return {'TRHD_RUOLI': '1' if si else '0'}
 
 
 def trhd_ruoli_read(r):
-    """The traits' switch as the running exe holds it (1 = RUOLI SI), None when it is not there. Today the TRHD band's
-    TR_RU (the byte after its 'TRHD' tag); with GP_RUOLI in the tree: the byte at obj4 + gameplay.gp_ruoli()[1]."""
+    """The traits' switch as the running exe holds it (1 = RUOLI SI), None when it is not there. In a tree with
+    GP_RUOLI: the byte at obj4 + GAMEPLAY_AT + GP_RUOLI_OFF (the tree's constant: the harness process's own switches
+    do not decide it); before it the TRHD band's TR_RU (the byte after its 'TRHD' tag)."""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import swreg
     import trhead
-    gp = trhead.gp_ruoli()
-    if gp:
-        return r.read(r.base4 + gp[1], 1)[0]
+    g = trhead._gameplay()
+    if g is not None:
+        return r.read(r.base4 + swreg.GAMEPLAY_AT + g.GP_RUOLI_OFF, 1)[0]
     band = r.read(r.base4 + swreg.TRHD_AT, 0x80)
     k = band.find(trhead.TAG)
     return band[k + 4] if k >= 0 else None
@@ -40482,11 +40487,12 @@ def trhd_default():
     import swreg
     import trhead
     from lepatch import LEPatch
-    gp = trhead.gp_ruoli()
+    gp = trhead._gameplay() is not None
     errs, info = [], []
     b0 = build('trhd_default', {}, lang=lang)
-    if not gp:
-        exe = os.path.join(b0, 'ITALIAN.EXE')                # (build(): every language runs as ITALIAN.EXE)
+    if True:                                                 # (with GP_RUOLI the band is linked in every build: the
+        bd = build('trhd_default_nolink', {'TRHD_NOLINK': '1'}, lang=lang) if gp else b0   # disk half on TRHD_NOLINK)
+        exe = os.path.join(bd, 'ITALIAN.EXE')                # (build(): every language runs as ITALIAN.EXE)
         p, o = LEPatch(exe), LEPatch(os.path.join(ROOT, 'orig', UI_ORIG_OF[lang]))
         s, _ = trhead.find(o)
         n4 = p.le.obj(4).npages * 0x1000
@@ -40495,9 +40501,12 @@ def trhd_default():
         for k, n in (('DIST0', 10), ('DIST1', 10), ('HK', 6)):
             got, want = bytes(p.get(1, s[k], n)), bytes(o.le.obj_bytes(1)[s[k]:s[k] + n])
             check(got[:2] == want[:2] and got[6:] == want[6:], f'{k} obj1+{s[k]:#x}: {got.hex()} (original {want.hex()})', errs)
-        info.append('disk: TRHD band empty, DIST0 / DIST1 / HK original')
-    else:
-        info.append('GP_RUOLI in the tree: run trhd_structural.py for the disk half; new-career / 4.1-save reads still TO ADD')
+        info.append(f"disk{' (TRHD_NOLINK)' if gp else ''}: TRHD band empty, DIST0 / DIST1 / HK original")
+    if gp:
+        p0 = LEPatch(os.path.join(b0, 'ITALIAN.EXE'))
+        check(bytes(p0.get(4, swreg.TRHD_AT, 0x80)).find(trhead.TAG) >= 0, 'the default build has no TRHD band', errs)
+        info.append('GP_RUOLI: band linked in the default build (structural = trhd_structural.py NOLINK NEW); '
+                    'new career / 4.1 save = gameplay\'s RUOLI tests')
     home, away = DIFF_PAIRINGS['eq']
     for name, env, want in (('default', {}, 0 if gp else None), ('no', trhd_ruoli_env(False), 0), ('si', trhd_ruoli_env(True), 1)):
         b = b0 if not env else build(f'trhd_default_{name}', env, lang=lang)

@@ -59,7 +59,7 @@ def main(build):
     for ru in (1, 0):
         for k in range(tr_whip.NCASE):
             m = ds.Mach(img, f'whip{ru}')
-            m.w8(B4 + L['TR_RU'], ru)
+            m.w8(B4 + L.get('RU', L['TR_RU']), ru)
             m.w8(B4 + S['SP_OK'], 1)
             m.w16(B4 + S['SP_W'], 0)
             m.w32(B4 + S['PR_D'], 0)

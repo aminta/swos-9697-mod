@@ -87,3 +87,23 @@ def test_uisyms_red_twin_old_body_fails():
     assert errs == ['ITALIAN.syms.json is not ENGLISH.syms.json'], errs
     errs = run(lambda T, b: check_copy(T, b, old_ui_build(T, b)), en_syms=False)
     assert errs == ['Italian symbols left beside the English exe'], errs
+
+
+def test_uisyms_symlinked_dst_not_written_through():
+    """the copy's ITALIAN.syms.json a symlink to a file X: after ui_syms X is unchanged, dst a regular file = own"""
+    def fn(T, b):
+        d = T.ui_build(b)
+        x = os.path.join(T.WORK, 'X.syms.json')
+        open(x, 'wb').write(b'{"x": 3}')
+        dst = os.path.join(d, 'ITALIAN.syms.json')
+        os.remove(dst)
+        os.symlink(x, dst)
+        T.ui_syms(b, d)
+        errs = []
+        if open(x, 'rb').read() != b'{"x": 3}':
+            errs.append('written through the symlink into X')
+        if os.path.islink(dst) or md5(dst) != md5(os.path.join(b, 'ENGLISH.syms.json')):
+            errs.append('dst not a regular copy of ENGLISH.syms.json')
+        return errs
+    errs = run(fn)
+    assert not errs, errs

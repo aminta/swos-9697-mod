@@ -572,7 +572,7 @@ static int32_t run0(void *pv) {
     }
     for (int32_t k = 0; k < no; k++)                    /* (an ident crossing twice: order[], not the registry rows that */
         for (int32_t j = 0; j < k; j++)                 /*  size_check's SZ_DUP sees - MC 19/11, both kept) */
-            if (order[j] == order[k]) { S7_SZ.gate = 2; S7_SZ.kind = SZ_DUP; S7_SZ.ident = order[k]; return size_refuse(slt, nri); }
+            if (order[j] == order[k]) { S7_SZ.gate = 2; S7_SZ.kind = SZ_DUP; S7_SZ.div = S7_SZ.found = S7_SZ.want = 0; return size_refuse(slt, nri); }
     if (size_check(slt, nd, 2)) return size_refuse(slt, nri);
     S7_LOG.ncross = (uint8_t)no;
     uint32_t rver = SREG_FLAGS >> 4 & 0xF;  /* (the rule version this career's groups were drawn with: 'IT' flags bits 4..7, 0 none yet) */

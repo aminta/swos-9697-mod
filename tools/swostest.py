@@ -3289,13 +3289,31 @@ def ui_build(b):
         shutil.rmtree(tmp, ignore_errors=True)
         shutil.copytree(b, tmp, symlinks=True)
         shutil.copyfile(src, os.path.join(tmp, 'ITALIAN.EXE'))
+        ui_syms(b, tmp)
         shutil.rmtree(d, ignore_errors=True)
         try:
             os.rename(tmp, d)
         except OSError:                                # (a parallel run made it first)
             shutil.rmtree(tmp, ignore_errors=True)
+    else:
+        ui_syms(b, d)                                  # (a copy made before 42-uisyms: its syms put right too)
     print(f'harness: SWOSTEST_UI={UI}: {b} -> {d} (ITALIAN.EXE = {UI_ORIG})', file=sys.stderr)
     return d
+
+
+def ui_syms(b, d):
+    """(42-uisyms, MC 19/11) the UI copy d of build dir b: a HOSTTEST_SYMS build's symbols go with the exe - d's
+    ITALIAN.syms.json = b's <UI_ORIG stem>.syms.json (else the x3 / GP_SCDONE / GP_CT checks read the Italian
+    addresses under the English exe and FAIL: 43-stars stars_editor EN x3, 19/11). No such file but an
+    ITALIAN.syms.json in b: none in d (never the Italian symbols beside a foreign exe; a scenario that needs them
+    then stops on the missing file instead of reading wrong addresses). A dir without syms: nothing to do."""
+    own = os.path.join(b, UI_ORIG[:-4] + '.syms.json')
+    dst = os.path.join(d, 'ITALIAN.syms.json')
+    if os.path.isfile(own):
+        if not (os.path.isfile(dst) and open(dst, 'rb').read() == open(own, 'rb').read()):
+            shutil.copyfile(own, dst)
+    elif os.path.lexists(dst):
+        os.remove(dst)
 
 
 

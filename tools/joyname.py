@@ -59,6 +59,7 @@ FAKE_
     cmp word [CTL], 1                   ; KEYBOARD ONLY: no stick
     je .out
     call JOY1
+JCLR_
     movzx eax, word [PL1CF]
 .have:
     test byte [KCF], 0Fh                ; a held keyboard direction: the stick's directions ignored
@@ -213,7 +214,17 @@ jn_cnt:  db 0
 JNMARK_
 jn_fake: dw 0
 """
-FAKE = """    movzx eax, word [ebp + jn_fake - jn_b]   ; (JOYNAME_FAKE test build: the harness's flags, 8000h | flags)
+JCLR = """    xor ecx, ecx                        ; 4.2 (Davide's MiSTer 19/11): with a fire button down Joy1SetStatus returns
+                                        ;  cl = 5 / 6 (its fire-bit shift); ecx is D1's code: the FIRE that opened the
+                                        ;  field, still held (not armed: .out), typed char 05h every loop
+"""
+FAKE = """    call JOY1                           ; (JOYNAME_FAKE: the real stick read runs too)
+    movzx eax, word [ebp + jn_fake - jn_b]   ; (JOYNAME_FAKE test build: the harness's flags, 8000h | flags)
+    test al, 20h                        ; (a fire button down: Joy1SetStatus leaves cl = 5 - DOSBox has no pad,
+    jz .nf                              ;  so the fake fire does what the port's would)
+    mov cl, 5
+.nf:
+JCLR_
     btr eax, 15
     jc .have
 """
@@ -259,7 +270,9 @@ def patch(p, at, lang):
     assert set(names) - {' '} <= complist.FONT and set(SAVE) - {'_'} <= complist.FONT, (lang, names)
     fake = bool(os.environ.get('JOYNAME_FAKE'))
     db = lambda t: ', '.join(str(ord(ch)) for ch in t)
-    src = nasmcave.sub(nasmcave.sub(ASM, 'FAKE_', FAKE if fake else ''), 'JNMARK_', '    db "JNFAKE"' if fake else '') + f'jn_names: db {db(names)}\njn_save: db {db(SAVE)}\n'
+    src = nasmcave.sub(nasmcave.sub(ASM, 'FAKE_', FAKE if fake else ''), 'JNMARK_', '    db "JNFAKE"' if fake else '')
+    clr = '' if os.environ.get('JOYNAME_NOCLR') else JCLR        # (JOYNAME_NOCLR: test builds only, the red twin)
+    src = nasmcave.sub(src, 'JCLR_', clr, 2 if fake else 1) + f'jn_names: db {db(names)}\njn_save: db {db(SAVE)}\n'
     sym = dict(v, FILT=filt, REP1_=(0, JN_REP1), REP2_=(0, JN_REP2), LONG_=(0, JN_LONG), NNAMES_=(0, len(names)),
                NSAVE_=(0, len(SAVE)))
     code, fix, rel = nasmcave.assemble_obj(src, at, sym, 3)

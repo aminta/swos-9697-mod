@@ -7,7 +7,10 @@ The build: HT_JOY_BUILD (default: the current fixture, HOSTTEST_SYMS=1).
   on through the deletes, the 2nd-3rd delete ended in ESC and the edit was lost); FIRE alone held JN_LONG loops: ESC;
 - DOWN at the name's end (cursor on the terminator) = BACKSPACE (8), no chord; held = repeated; on an empty name:
   nothing; the keyboard's DOWN arrow the same; UP at the end appends 'A' (up to 4.1 DOWN appended too);
-- DOWN on a character still cycles it (A -> space)."""
+- DOWN on a character still cycles it (A -> space);
+- 4.2 (Davide's MiSTer 19/11): the Joy1SetStatus stub leaves cl = 5 with FIRE down, as the game's does: no loop of
+  any stick pattern hands the game a code other than ESC / BACKSPACE / ENTER / cursor left / right (up to then: the
+  FIRE that opened the field, still held, typed char 05h every loop; red twin: a JOYNAME_NOCLR build)."""
 import json
 import os
 import struct
@@ -31,10 +34,14 @@ class J:
         self.e = test_lrank.Exe()
         self.s = json.load(open(os.path.join(BUILD, 'ITALIAN.syms.json')))['joyname']
         from unicorn import UC_HOOK_CODE
-        from unicorn.x86_const import UC_X86_REG_ESP, UC_X86_REG_EIP
+        from unicorn.x86_const import UC_X86_REG_ESP, UC_X86_REG_EIP, UC_X86_REG_ECX
         stubs = {self.lin('FILT'), self.lin('JOY1')}
+        joy1 = self.lin('JOY1')
 
         def hook(uc, addr, size, _):
+            if addr == joy1 and self.r16('PL1CF') & FIRE:   # (a fire button down: Joy1SetStatus returns with cl =
+                ecx = uc.reg_read(UC_X86_REG_ECX)              #  5 / 6, its fire-bit shift `add cl, 5`; Davide's
+                uc.reg_write(UC_X86_REG_ECX, (ecx & ~0xFF) | 5)   #  MiSTer 19/11: 05h typed)
             if addr in stubs:
                 sp = uc.reg_read(UC_X86_REG_ESP)
                 uc.reg_write(UC_X86_REG_ESP, sp + 4)
@@ -144,3 +151,24 @@ def test_joyname_up_appends_down_cycles():
     assert j.loop(DOWN) == 0 and j.name() == 'VIERI ', repr(j.name())
     assert j.loop(0) == 0
     assert j.loop(RIGHT) == 22                           # (the game's cursor right: onto the terminator)
+
+
+def test_joyname_stick_frames_type_nothing():
+    """idle, held and tapped stick patterns (Joy1SetStatus's cl = 5 left behind): only ESC / BS / ENTER / 21 / 22,
+    the name built only from the picker's characters"""
+    import joyname
+    import keytext
+    ok = set((joyname.NAMES + keytext.NEW).encode())
+    j = J()
+    j.field('ANDREA MAZZANTINI')
+    codes = [j.loop(FIRE) for _ in range(6)]             # (the FIRE that opened the field, still held: not armed)
+    assert j.name() == 'ANDREA MAZZANTINI' and not any(codes), (codes, j.name())
+    codes.append(j.loop(0))                              # (released: armed)
+    for pat in ([FIRE, 0], [FIRE | LEFT, FIRE, 0]):      # (a FIRE tap = ENTER; FIRE + LEFT = BS)
+        codes += [j.loop(f) for f in pat]
+    for pat in ([0] * 6, [UP, 0, RIGHT, 0, UP, UP, 0], [RIGHT] * 8 + [0], [DOWN, 0] * 2, [UP] * 20 + [0], [0] * 6):
+        codes += [j.loop(f) for f in pat]
+    bad = [c for c in codes if c not in (0, ESC, BS, ENTER, 21, 22)]
+    assert not bad, ('codes handed to InputText', sorted(set(bad)), codes)
+    name = j.e.rd(j.lin('BUF'), 24).split(b'\0')[0]
+    assert set(name) <= ok, name

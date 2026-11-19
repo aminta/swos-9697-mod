@@ -30,6 +30,8 @@ BUILD_SWITCHES = TEST_VARS + (                     # 4.0.6: every switch a test 
     # clears EURO_OPTIONAL, so the release recipe always keeps patch.py's euro assert)
 TEST_VARS += ('JOYNAME_FAKE',)                     # 4.2 joyname: the harness's stick flags (own lines: 42-drp's
 BUILD_SWITCHES += ('JOYNAME_FAKE',)
+TEST_VARS += ('JOYNAME_NOCLR',)                    # 4.2 joyname: no ecx clear after Joy1SetStatus (the 05h red twin)
+BUILD_SWITCHES += ('JOYNAME_NOCLR',)
 TEST_VARS += ('SWE_BSS_SHIFT',)                   # 4.2 BSS_AT gate (a): swe.c's .bss at BSS_AT + this (test builds only)
 BUILD_SWITCHES += ('SWE_BSS_SHIFT',)                # DIFF_* edits above cherry-pick without a conflict)
 

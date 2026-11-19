@@ -5855,8 +5855,23 @@ def joy_names():
     (5) row 153: 3 FIRE + LEFT deletes with FIRE held longer than the long count, released, a FIRE tap: 3 letters gone
         (up to 4.1 the 2nd delete ended in ESC); (6) DOWN, DOWN at the end, FIRE: 2 letters gone (no chord);
     (7) the keyboard's DOWN arrow at the end + ENTER: 1 letter gone.
+    4.2 (Davide's MiSTer 19/11: 05h bytes appended): the FAKE build calls the real Joy1SetStatus too and, with the fake
+    FIRE down, leaves cl = 5 as the pad's fire does; (0) the FIRE that opened the field held 1 s, released, a FIRE tap:
+    the name unchanged; after every step the whole 23-byte name field holds font characters or 0 only (no 05h, stale tails
+    included); (8) the keyboard types 'X' + ENTER: the name + 'X'; OK + SAVE: CUSTOMS.EDT's record = the edited name,
+    every other byte of the team = the edited team in memory, all 16 name fields clean. Red twin: JOYNAME_NOCLR=1
+    (no ecx clear after the stick read) FAILs.
     The rest of the editor's typing is the game's (edteam_right, keytext scenarios)."""
-    exe = build('joyname' + ('' if UI == 'it' else '_' + UI), env={'JOYNAME_FAKE': '1'}, lang=UI)
+    env = {'JOYNAME_FAKE': '1', **({'JOYNAME_NOCLR': '1'} if os.environ.get('JOYNAME_NOCLR') else {})}
+    exe = build('joyname' + ('' if UI == 'it' else '_' + UI) + ('_noclr' if 'JOYNAME_NOCLR' in env else ''), env=env,
+                lang=UI)
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import joyname, keytext
+    okb = set((joyname.NAMES + keytext.NEW).encode()) | {0}
+
+    def clean(rec, what):                               # the whole name field: font characters or 0 only
+        bad = sorted({b for b in rec[3:26] if b not in okb})
+        check(not bad, f'{what}: name field {bytes(rec[3:26])!r} holds bytes {[hex(b) for b in bad]}', errs)
     from le import LE
     o3 = LE(open(os.path.join(exe, 'ITALIAN.EXE'), 'rb').read()).obj_bytes(3)
     mk = o3.find(b'JNFAKE')
@@ -5880,12 +5895,23 @@ def joy_names():
             se_goto(s, 39 + k)
             s.send('fire dump:2')
             stick(0)                                    # (released: the picker armed)
+        se_goto(s, 39 + k)                              # (0) the FIRE that opened the field still held (a pad on
+        s.send('fire dump:0.2')                         #  the MiSTer, 19/11: 05h typed every loop), then a FIRE tap
+        stick(JN_FIRE, 1)
+        stick(0, 0.5)
+        stick(JN_FIRE)
+        stick(0, 2)
+        off()
+        n00 = name()
+        clean(et_team(s)[1][k], '(0)')
+        check(n00 == n0, f'(0) FIRE held at the open, then a FIRE tap: {n0!r} -> {n00!r}', errs)
         open_()
         for f in (JN_UP, 0, JN_UP, 0, JN_RIGHT, 0, JN_UP, 0, JN_DOWN, 0, JN_FIRE, 0):
             stick(f)
         stick(0, 2)
         off()
         n1 = name()
+        clean(et_team(s)[1][k], '(1)')
         check(n1 == n0 + 'B', f'(1) UP, UP, RIGHT, UP, DOWN, FIRE: {n0!r} -> {n1!r} (want {n0 + "B"!r})', errs)
         s.shot('joy1')
         open_()
@@ -5895,12 +5921,14 @@ def joy_names():
         stick(0, 2)
         off()
         n2 = name()
+        clean(et_team(s)[1][k], '(2)')
         check(n2 == n1, f'(2) FIRE + LEFT, UP, long FIRE (cancel): {n1!r} -> {n2!r}', errs)
         se_goto(s, 39 + k)                              # (3) the keyboard's UP arrow, no stick
         s.send('fire dump:2')
         s.send('up dump:1')
         s.send('enter dump:2')
         n3 = name()
+        clean(et_team(s)[1][k], '(3)')
         check(n3 == n1 + 'A', f'(3) keyboard UP + ENTER: {n1!r} -> {n3!r} (want {n1 + "A"!r})', errs)
         open_()                                         # (4) a held UP repeats
         stick(JN_UP, 8)
@@ -5909,6 +5937,7 @@ def joy_names():
         buf = s.screen()
         s.send('esc dump:2')
         n4 = name()
+        clean(et_team(s)[1][k], '(4)')
         check(n4 == n3, f'(4) held UP then ESC: {n3!r} -> {n4!r}', errs)
         open_()                                         # (5) row 153: 3 deletes with FIRE held > the long count
         stick(JN_FIRE, 0.5)
@@ -5920,6 +5949,7 @@ def joy_names():
         stick(0, 2)                                     # (a FIRE tap: confirm)
         off()
         n5 = name()
+        clean(et_team(s)[1][k], '(5)')
         check(n5 == n3[:-3], f'(5) 3 x FIRE + LEFT with FIRE held, then FIRE: {n3!r} -> {n5!r} (want {n3[:-3]!r})', errs)
         open_()                                         # (6) row 153: DOWN at the end = delete, no chord
         for f in (JN_DOWN, 0, JN_DOWN, 0, JN_FIRE, 0):
@@ -5927,14 +5957,55 @@ def joy_names():
         stick(0, 2)
         off()
         n6 = name()
+        clean(et_team(s)[1][k], '(6)')
         check(n6 == n5[:-2], f'(6) DOWN, DOWN at the end, FIRE: {n5!r} -> {n6!r} (want {n5[:-2]!r})', errs)
         se_goto(s, 39 + k)                              # (7) the keyboard's DOWN arrow at the end, no stick
         s.send('fire dump:2')
         s.send('down dump:1')
         s.send('enter dump:2')
         n7 = name()
+        clean(et_team(s)[1][k], '(7)')
         check(n7 == n6[:-1], f'(7) keyboard DOWN + ENTER: {n6!r} -> {n7!r} (want {n6[:-1]!r})', errs)
-        notes.append(f'{n0!r} -> {n1!r} (1) -> {n2!r} (2) -> {n3!r} (3) -> {n5!r} (5) -> {n6!r} (6) -> {n7!r} (7); held UP shown {[t for t in buf.texts() if t.startswith(n3)][:1]}')
+        se_goto(s, 39 + k)                              # (8) the keyboard types a letter
+        s.send('fire dump:2')
+        s.send('x dump:1')                          # (x: the same key in every layout)
+        s.send('enter dump:2')
+        n8 = name()
+        clean(et_team(s)[1][k], '(8)')
+        check(n8 == n7 + 'X', f'(8) keyboard X + ENTER: {n7!r} -> {n8!r} (want {n7 + "X"!r})', errs)
+        notes.append(f'{n0!r} -> {n1!r} (1) -> {n2!r} (2) -> {n3!r} (3) -> {n5!r} (5) -> {n6!r} (6) -> {n7!r} (7) -> '
+                     f'{n8!r} (8); held UP shown {[t for t in buf.texts() if t.startswith(n3)][:1]}')
+        final = bytes(et_team(s)[0])
+        et_off_face(s)
+        se_goto(s, 21)
+        press(s, s.screen(), 21, 3)                     # OK, then the save prompt (as edit_custom_teams)
+        for _ in range(8):
+            scr = s.screen()
+            t = scr.texts()
+            sv = next((x for x in t if x.startswith(('SALVA', 'SAVE', 'SAUV', 'ENREG', 'SPEICH'))), None)
+            if sv and len(t) < 8:
+                press(s, scr, sv, 3)
+                break
+            if scr.find('ESCI') is not None:
+                press(s, scr, 'ESCI', 2)
+            else:
+                s.send('esc dump:2')
+        else:
+            errs.append(f'no save prompt ({s.screen()})')
+        game = s.result.game
+    path = os.path.join(game, 'CUSTOMS.EDT')
+    d = open(path, 'rb').read() if os.path.exists(path) else b''
+    slot = next((2 + i * 684 for i in range((len(d) - 2) // 684) if d[2 + i * 684 + 5:2 + i * 684 + 22].split(b'\0')[0]
+                 == team.encode()), None)
+    check(slot is not None and d[slot:slot + 684] == final, f'CUSTOMS.EDT {team} != the edited team ({len(d)} B, '
+          f'slot {slot})', errs)
+    if slot is not None:
+        sv = d[slot:slot + 684]
+        check(sv[76 + 38 * k + 3:76 + 38 * k + 26].split(b'\0')[0] == n8.encode(), f'CUSTOMS.EDT row {k} name '
+              f'{sv[76 + 38 * k + 3:76 + 38 * k + 26]!r} != {n8!r}', errs)
+        for i in range(16):
+            clean(sv[76 + 38 * i:76 + 38 * i + 38], f'CUSTOMS.EDT row {i}')
+        notes.append(f'CUSTOMS.EDT row {k}: {sv[76 + 38 * k + 3:76 + 38 * k + 26]!r}')
     return not errs, '; '.join(errs + notes)
 
 

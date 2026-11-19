@@ -5851,7 +5851,10 @@ def joy_names():
         trailing space trimmed);
     (2) reopened: FIRE + LEFT = the 'B' deleted, UP = 'A', a long FIRE = cancelled: the name + 'B' kept;
     (3) reopened with no stick: the keyboard's UP arrow appends 'A', ENTER: the name + 'BA';
-    (4) a held UP repeats: 'A', then B, C ... (more than 2 letters after a long hold), ESC: unchanged.
+    (4) a held UP repeats: 'A', then B, C ... (more than 2 letters after a long hold), ESC: unchanged;
+    (5) row 153: 3 FIRE + LEFT deletes with FIRE held longer than the long count, released, a FIRE tap: 3 letters gone
+        (up to 4.1 the 2nd delete ended in ESC); (6) DOWN, DOWN at the end, FIRE: 2 letters gone (no chord);
+    (7) the keyboard's DOWN arrow at the end + ENTER: 1 letter gone.
     The rest of the editor's typing is the game's (edteam_right, keytext scenarios)."""
     exe = build('joyname' + ('' if UI == 'it' else '_' + UI), env={'JOYNAME_FAKE': '1'}, lang=UI)
     from le import LE
@@ -5907,7 +5910,31 @@ def joy_names():
         s.send('esc dump:2')
         n4 = name()
         check(n4 == n3, f'(4) held UP then ESC: {n3!r} -> {n4!r}', errs)
-        notes.append(f'{n0!r} -> {n1!r} (1) -> {n2!r} (2) -> {n3!r} (3); held UP shown {[t for t in buf.texts() if t.startswith(n3)][:1]}')
+        open_()                                         # (5) row 153: 3 deletes with FIRE held > the long count
+        stick(JN_FIRE, 0.5)
+        for _ in range(3):
+            stick(JN_FIRE | JN_LEFT, 1)
+            stick(JN_FIRE, 1)
+        stick(0, 1)                                     # (released after a delete: no confirm)
+        stick(JN_FIRE)
+        stick(0, 2)                                     # (a FIRE tap: confirm)
+        off()
+        n5 = name()
+        check(n5 == n3[:-3], f'(5) 3 x FIRE + LEFT with FIRE held, then FIRE: {n3!r} -> {n5!r} (want {n3[:-3]!r})', errs)
+        open_()                                         # (6) row 153: DOWN at the end = delete, no chord
+        for f in (JN_DOWN, 0, JN_DOWN, 0, JN_FIRE, 0):
+            stick(f)
+        stick(0, 2)
+        off()
+        n6 = name()
+        check(n6 == n5[:-2], f'(6) DOWN, DOWN at the end, FIRE: {n5!r} -> {n6!r} (want {n5[:-2]!r})', errs)
+        se_goto(s, 39 + k)                              # (7) the keyboard's DOWN arrow at the end, no stick
+        s.send('fire dump:2')
+        s.send('down dump:1')
+        s.send('enter dump:2')
+        n7 = name()
+        check(n7 == n6[:-1], f'(7) keyboard DOWN + ENTER: {n6!r} -> {n7!r} (want {n6[:-1]!r})', errs)
+        notes.append(f'{n0!r} -> {n1!r} (1) -> {n2!r} (2) -> {n3!r} (3) -> {n5!r} (5) -> {n6!r} (6) -> {n7!r} (7); held UP shown {[t for t in buf.texts() if t.startswith(n3)][:1]}')
     return not errs, '; '.join(errs + notes)
 
 

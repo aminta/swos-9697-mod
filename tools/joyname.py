@@ -5,11 +5,13 @@ EDIT CUSTOM TEAMS, the career's name, DIY competition names, the save and tactic
 An arcade letter picker inside that loop, at its `call FilterKeys` (jn_filt chains to what was there):
 - UP / DOWN: the character right of the cursor cycles through the field's characters (names: space, A..Z, 0..9 and
   the punctuation keytext types; the save dialog - g_allowExtraCharsFlag - A..Z, 0..9, - and _); at the end of the name
-  (cursor on the terminator) the first UP / DOWN appends a character, while the name is shorter than the field;
-  held: repeats after JN_REP1 loops, then every JN_REP2;
+  (cursor on the terminator) UP appends a character, while the name is shorter than the field, and DOWN deletes the
+  last one (as BACKSPACE: no chord, for touch overlays and arrows-only pads; 4.2 row 153); held: repeats after JN_REP1
+  loops, then every JN_REP2;
 - LEFT / RIGHT: the cursor (the game's own 21 / 22);
 - FIRE: released = the name confirmed (as ENTER), trailing spaces trimmed; held JN_LONG loops = cancelled (as ESC);
-  FIRE held + LEFT = delete left of the cursor (as BACKSPACE). The FIRE that opened the field counts only once
+  FIRE held + LEFT = delete left of the cursor (as BACKSPACE); a direction held with FIRE restarts the long count
+  (row 153: several deletes with FIRE held never end in a cancel). The FIRE that opened the field counts only once
   released (no instant confirm).
 - The keyboard's UP / DOWN arrows cycle the same way (a pad mapped to the arrows: RetroArch / DOSBox Pure's
   keyboard mapping); everything typed works as before. The stick is read (Joy1SetStatus) only when the controls are not
@@ -77,7 +79,10 @@ FAKE_
     cmp byte [edi], 1
     jne .fh
     mov word [edi], 2                   ; (jn_fire 2, jn_ft 0)
-.fh:inc byte [edi + 1]
+.fh:test bl, bl                         ; 4.2 (row 153): long = FIRE held with no direction - a direction held with
+    jz .fi                              ;  FIRE (FIRE + LEFT deletes) restarts the count, so deletes never end in ESC
+    mov byte [edi + 1], 0
+.fi:inc byte [edi + 1]
     cmp byte [edi + 1], LONG_
     mov cl, 1                           ; long FIRE: cancel (ESC)
     jae .out
@@ -162,14 +167,21 @@ jn_cyc:                                 ; eax = +1 / -1: the character at the cu
 .set:
     cmp byte [esi], 0
     jne .find
+    test eax, eax                       ; 4.2 (row 153): DOWN at the end = delete the last character (BACKSPACE), no
+    jns .app                            ;  chord (touch overlays, arrows-only pads); held = repeat; UP appends
+    xor ecx, ecx
+    cmp esi, BUF
+    je .r0
+    mov cl, 8
+.r0:ret
+.app:
     push ecx
     call jn_end                         ; at the end: append one, if the field has room
     pop ecx
     sub edi, BUF
     cmp di, [D7]                        ; (D7 = the field's length - 1)
     jae .r
-    mov word [esi], 20h                 ; (a space, 0: names UP 'A' / DOWN the last; file names: not in their set,
-                                        ;  UP the first / DOWN the last)
+    mov word [esi], 20h                 ; (a space, 0: names UP 'A'; file names: not in their set, UP the first)
 .find:
     mov bl, [esi]
     xor edi, edi
@@ -259,7 +271,9 @@ def patch(p, at, lang):
     for o, t_obj, t_off in rel:
         p.add_rel(3, at + o, t_obj, t_off)
     p.branch(1, site, 0xE8, 3, lab['jn_filt'], 5)
-    LABELS.update(lab)
+    LABELS.clear()                              # (HOSTTEST_SYMS: obj3 labels + the game's sites; test_joyname)
+    LABELS.update({k: (3, o) for k, o in lab.items() if isinstance(o, int)})
+    LABELS.update({k: tuple(x) for k, x in sym.items() if isinstance(x, tuple) and len(x) == 2 and x[0] in (1, 2, 3, 4)})
     print(f'exe: joystick names (joyname, {len(names)} name chars, {len(SAVE)} file chars{", JOYNAME_FAKE" if fake else ""}): '
           f'code obj3+{at:#x} ({len(code)} B), site InputTextKeyLoop FilterKeys call obj1+{site:#x} -> {filt}')
     return at + len(code)

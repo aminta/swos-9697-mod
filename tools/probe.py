@@ -276,6 +276,8 @@ def run_one_twin(name, fn, t, cmd, cache_dir, runs, tree_key=''):
     else:
         tail = (last[-1] if last else (r.stdout.strip().splitlines() or r.stderr.strip().splitlines() or ['no output'])[-1])
         return 'twin-not-run', f'red twin {t["id"]} gave no FAIL/PASS: {tail[:160]}'
+    if state == 'twin-wrong':               # (a FAIL for another reason may be a setup problem, not a property of the build)
+        return state, detail
     try:                                    # (FAIL and PASS are a property of this build key: cached; anything else is not)
         os.makedirs(cache_dir, exist_ok=True)
         tmp = cf + f'.{os.getpid()}'

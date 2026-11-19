@@ -121,6 +121,7 @@ Rare events are **forced** and slow parts are **done once and saved**:
 | world_roundtrip | world 3 (31 countries, 128 European records): two saves identical, W1 block, cups 32/32/64 | ~25 s |
 | euro_draws | season end 1997/98 → 1998/99: Champions Cup holder rule, no same-country ties in rounds 1-2 | ~60 s |
 | italy_advance | mid-season 1998/99 save → results loop with substitutions → new season → CC list | ~3 min |
+| chairman_sack | 42-nosack: the game's own sacking with `Session(nosack=False)`: JUVEFIX3, the chairman's state poked to a poor result (board expects place -100, warning stage 5, timer 0; `chairman_offs`) → SEI LICENZIATO note → LA TUA CARRIERA E' FINITA + OFFERTE LAVORO → job taken, SACK1.CAR saved. Red twin `CHAIRMAN_SACK_RED=1` (nosack on): must FAIL | ~1 min |
 | world8485 | Europe 1984-85: new career at Liverpool, 2 seasons (save, reload, save), checkw1 on both | ~6 min |
 | world8485_nat | coach nationalities (YUG/FRG/URS/GDR in the menu); England's job (forced); call-ups at home (the world's English divisions) and abroad (the world's 32 countries); real Euro 88 qualifying groups; a national career saved mid-qualifying and reloaded (groups intact); Euro 88 = West Germany + the 7 group winners, the 8-team finals played; next cycle: Italia 90 draw (host out), the 24 (holder, host, 13 European, real others), the World Cup played, its winner becomes the holder; an East German coach gets the GDR job, squad "EAST GERMANY", call-ups from the DDR-Oberliga clubs | ~14 min (first run on a build) / ~8 min |
 | classic_wc34 | 3.2 tourney pack: World Cup 1934 in CLASSIC TOURNEYS: round 1 = ties.csv, every later tie = the winners of two adjacent ties (also after replays), coin tosses, third place, final | ~30 s |
@@ -259,6 +260,9 @@ ratio); each opinion = _verdict with its exe's rule, and the two must differ (AL
    make it once in a helper and cache it like `nat_offer_save`.
 3. Use `Session(...)`, `press`, `advance`, `next_season_save`; force rare events with `poke` (find the variable's
    address by a byte pattern in the exe, not a fixed offset).
+   Every `Session` pins the chairman's no-sacking word (dseg_D6B62, `nosack_pin`) by default, so a career never
+   ends on the game's own sacking by chance; opt out with `Session(..., nosack=False)` (or `SWOSTEST_NOSACK=0` for a
+   run) only to test the sacking itself (`chairman_sack`). The mod's gp_sack is another path and stays on.
 4. Check with `check(cond, message, errs)`; put what you saw in the message: the report is the evidence.
    A PRECONDITION of the scenario (its data, a club it picks, a forced set-up, a menu path it assumes) is
    `require(cond, message)`, never `check`: unmet, it raises SetupError and the result is SETUP-ERROR - the scenario

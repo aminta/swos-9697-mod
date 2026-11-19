@@ -3594,6 +3594,55 @@ def italy_advance():
     return not errs, f"{msg}; {'; '.join(errs) or 'ok'}; next CC {sorted(lst)} (Juventus 20,32 {'in' if (20, 32) in lst else 'out'})"
 
 
+
+def chairman_offs(exe):
+    """obj2 offsets of the chairman's league-position state next to nosack_off's dseg_D6B62 (the same dseg block):
+    dseg_D6B58 (the warning stage: 6 = sacked, cseg_3CCF0), dseg_D6B5C (the matches left before the next warning) and
+    dseg_D6C50 (the place the board expects: GetMoreExpensiveTeamsCount at the season start)."""
+    o = nosack_off(exe)
+    return {k: o + a - 0xD6B62 for k, a in (('stage', 0xD6B58), ('timer', 0xD6B5C), ('expect', 0xD6C50))}
+
+
+@scenario
+def chairman_sack():
+    """(42-nosack, MC 17/11) the game's own sacking still works with Session(nosack=False): JUVEFIX3 (Juventus
+    1998/99 mid-season), the chairman's state forced to a poor result (no retry): the board expects place -100
+    (dseg_D6C50), warning stage 5, timer 0 -> the next match day's check (cseg_3CCF0) reaches stage 6 = YOURE_SACKED.
+    Expect: the board's note 'SEI LICENZIATO', then the career menu with LA TUA CARRIERA E' FINITA and OFFERTE LAVORO
+    selectable, a job offer taken (next_season_save) and the new season saved with a valid checksum. Red twin:
+    CHAIRMAN_SACK_RED=1 runs the same with nosack on - no note within the same steps -> FAIL."""
+    exe = builds()['it']
+    red = os.environ.get('CHAIRMAN_SACK_RED') == '1'
+    car = os.path.join(SAVES, 'JUVEFIX3.CAR')
+    with Session('chairman_sack' + ('_red' if red else ''), exe, {'JUVEFIX3.CAR': car}, 'dump:2', 300,
+                 nosack=red) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'START: no first pause ({s.result})'
+        s.send('down down down down down fire dump:2')
+        s.send('fire dump:2')
+        o, b = chairman_offs(os.path.join(exe, 'ITALIAN.EXE')), s.result.base2
+        s.poke(b + o['expect'], struct.pack('<h', -100))
+        s.poke(b + o['stage'], struct.pack('<h', 5))
+        s.poke(b + o['timer'], b'\0\0')
+        ok, msg = advance(s, lambda scr: 'SEI LICENZIATO' in str(scr), 60)
+        if not ok:
+            return False, f'no sacking note: {msg}'
+        s.shot('sacked')
+        press(s, s.screen(), 'CONTINUA', wait=3) or s.send('fire dump:3')
+        scr = s.screen()
+        over = any(t == "LA TUA CARRIERA E' FINITA" for _, t, _, _ in scr.entries)   # (a label: invisible to find)
+        j = scr.find('OFFERTE LAVORO', exact=True)
+        if not over or j is None or scr.entries[j][3]:
+            return False, f'{msg}; after the note (career over {over}, OFFERTE LAVORO {j}): {scr}'
+        path = next_season_save(s, 'SACK1')
+        if not path.endswith('.CAR'):
+            return False, f'{msg}; sacked; {path}'
+    info = car_info(path)
+    if info['sum'] != 0:
+        return False, f'{msg}; sacked; SACK1.CAR sum {info["sum"]}'
+    return True, f'sacked after {msg}; career over screen, job offer taken, SACK1.CAR saved (sum 0)'
+
+
 SLOT = 0x1A22C            # player's European slot buffer dseg_DA0E2 (DIY layout), IT obj2 offset in a0f38ad5 builds
 HOLDERS = 0xC058B         # CC / CWC / UEFA holder team numbers (words, FFFF none), set at the season end, not saved
 

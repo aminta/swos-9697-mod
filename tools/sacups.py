@@ -224,6 +224,25 @@ def patch(p, pool, cave, caf):
 SA_SLOT_BASE = 3
 MARK3_GLOBAL, MARK3 = 1847, 0x3353   # 1.2: someLeaguesTable[1847..1849] = 'S3' + balance byte: "this career is set up"
 TABLES = [None]          # (someLeaguesTable, leaguesTableCopy) obj2 offsets
+LABELS = {}              # (HOSTTEST_SYMS: career_hooks' symbols and Intercontinental labels, (obj, offset))
+INT_TABLES = [None]      # 4.2 (own, s1) of the last patch: per world, sacups plays its Intercontinental / season-1 pair
+
+
+def int_worlds(ic_worlds, juve_arg):
+    """4.2 one owner per competition per world (backlog-42 row 154): per career world (the save's world byte, 0 =
+    1996-97), own = 1 when sacups' int_step / int4_step play its Intercontinental, 0 where another module does
+    (ic_worlds: conti, a stepladder cup in the world's confederation data); s1 = season 1's holder pair as a dword
+    (1996-97: the INTERCONTINENTAL clubs, the build's DEFAULT_BYTES; a world: none, 0xFFFF 0xFFFF - before 4.2 every
+    world got 1996-97's pair, and the club at JUVENTUS' index an Intercontinental). One extra entry (own, none) for a
+    world byte out of the table."""
+    import mkseason
+    n = max([0] + list(mkseason.worlds()) + list(ic_worlds)) + 1
+    own = [0 if w in ic_worlds else 1 for w in range(n)] + [1]
+    none = 0xFFFFFFFF
+    s1 = [struct.unpack('<I', bytes(juve_arg))[0]] + [none] * n
+    return own, s1
+
+
 TABLE_RAW = [None]       # someLeaguesTable's own place (the .CAR fixed part's; a big world's table moved: bigtables)
 SAVE_ITEMS = [None]      # [(obj1 offset, size)] of the SA lists + Intercontinental pair, saved by trailer.py
 SAVED_GLOBAL = 1740      # 1.0/1.1 saves: someLeaguesTable[1740..1842]: 'S2' + 3 lists + Intercontinental pair + balance byte
@@ -431,6 +450,8 @@ int_step:                               ; Intercontinental Cup in slot 2 for las
     cmp dword [PLAYER_CUP2], 0          ; slot 2 (league cup) free: Italy, all SA countries...
     jne .ret
     mov byte [SLOT2 + 2Dh], 0
+    call int_own                        ; 4.2: another module plays this world's Intercontinental (conti, 2026-27)
+    jz .ret
     mov ax, [SEL]
     cmp [INTLIST], ax                   ; Champions Cup / Libertadores winner of last season
     je .play_int
@@ -458,8 +479,12 @@ int_step:                               ; Intercontinental Cup in slot 2 for las
 
 ; InitializeNewSeason, replaces "call cseg_8DAC3" (slot 4 = the division's play-offs): countries with a
 ; league cup have no free slot 2, so the Intercontinental goes to slot 4 when the division has no play-offs.
-; cseg_8B2D3 only builds placeholder teams in slot 4 (play-offs get theirs at the league's end, cseg_8ECAE):
-; build the cup as slot 2 (league cup parked in slot 4's buffer), then swap the two buffers.
+; 4.2: built AS slot 4 (cseg_8B2D3, D0 = 4), as dplay builds a division play-off: the buffer's +2Bh = 4, so the days
+; cseg_8BF89 / cseg_8C21C write carry slot 4 and the game plays them. (Up to 4.1 it was built as slot 2 and the two
+; buffers swapped: the days kept slot 2 - the league cup's -, the Intercontinental was never played; Friendlies
+; f97_intprobe.) D0 = 4 lists placeholders (the career club, cseg_8B44A): cseg_8ECAE's tail then puts the two clubs
+; in (LIST4, 32E15), saves the slot and copies the league's substitution rules. Re-runnable: frnat fr_after4 calls this
+; again after gp_calold(4) and dseg_D8CBA cleared (the single entry: this call site).
 int4_step:
     call CSEG_8DAC3
     cmp dword [SLOT4_CUP], 0            ; play-offs in slot 4
@@ -467,44 +492,52 @@ int4_step:
     mov byte [SLOT4 + 2Dh], 0           ; forget last season's slot-4 contest (checked on load)
     cmp dword [PLAYER_CUP2], INT        ; already in slot 2
     je .ret
+    call int_own                        ; another module plays this world's Intercontinental
+    jz .ret
     mov ax, [SEL]
     cmp [INTLIST], ax
     je .play_int
     cmp [INTLIST + 2], ax
     jne .ret
 .play_int:
-    push dword [PLAYER_CUP2]
-    mov esi, SLOT2
-    mov edi, SLOT4
-    mov ecx, SLOT_SIZE
-    call copy
     mov dword [A0], INT
-    mov word [D0], 2
+    mov word [D0], 4
     mov word [D1], 0
     mov word [D2], 0
-    call CSEG_8B2D3
-    mov esi, SLOT2                      ; Intercontinental -> slot 4, league cup back in slot 2
-    mov edi, SLOT4
-    mov ecx, SLOT_SIZE
-.swap:
-    mov al, [esi]
-    mov ah, [edi]
-    mov [edi], al
-    mov [esi], ah
-    inc esi
-    inc edi
-    dec ecx
-    jnz .swap
-    mov word [SLOT4 + 2Bh], 4           ; slot number (cseg_8B2D3)
-    mov ax, [LEAGUE_SUBS]               ; substitution rules of the league, as cseg_8ECAE does for play-offs
-    mov [SLOT4 + 3Dh], ax
-    mov ax, [LEAGUE_SUBS + 2]
-    mov [SLOT4 + 3Fh], ax
-    mov ax, [LEAGUE_SUBS + 4]
-    mov [SLOT4 + 41h], ax
-    pop dword [PLAYER_CUP2]
+    call CSEG_8B2D3                     ; dseg_D8CBA = INT, slot 4's buffer, its days as slot 4
+    mov eax, [INTLIST]                  ; the two clubs, list order (CC holder, Libertadores holder)
+    mov [LIST4], eax
+    mov dword [A4], SLOT4
+    mov word [D7], 0                    ; (the tail starts with dec D7; jns loop: no play-off contest loop)
+    push word [NOSACK]                  ; the tail sets dseg_D6B62 = 1 (play-offs: no sacking) - not for a whole season
+    pushad
+    call PO_TAIL
+    popad
+    pop word [NOSACK]
     mov dword [SLOT4_CUP], INT
 .ret:
+    ret
+
+; 4.2 one owner per competition per world: ebx = the career's world (INT_NW: a world out of the table)
+int_world:
+;INT_WORLD
+    cmp ebx, INT_NW
+    jb .r
+    mov ebx, INT_NW
+.r:
+    ret
+
+int_own:                                ; ZF = 1 when sacups does not play this world's Intercontinental
+    push ebx
+    call int_world
+    cmp byte [INT_OWN + ebx], 0
+    pop ebx
+    ret
+
+sa_int_new:                             ; engine after_new (a new career's defaults): season 1's holders of its world
+    call int_world                      ; (1996-97: JUVENTUS / ARG; a world: none unless its data names them)
+    mov eax, [INT_S1 + 4 * ebx]
+    mov [INTLIST], eax
     ret
 
 ; cseg_8ECAE (league end: play-off teams into slot 4), replaces "cmp dword [D8CBA],0; jz out"
@@ -637,6 +670,18 @@ def career_hooks(p, cups, cave, cups_all=None, caf=None):
     assert d1[k + 6:k + 8] == b'\x66\xa1' and struct.unpack_from('<I', d1, k + 8)[0] == league_subs + 2
     c8dac3 = done + 5 + struct.unpack_from('<i', d1, done + 1)[0]
     assert d1[done] == 0xe8
+    # 4.2 int4_step: cseg_8ECAE's tail (dec D7; jns loop; push D7 - entered with D7 = 0, as dplay), its team list
+    # (mov [A5], offset dseg_114EE4 at po + 23) and the no-sacking flag it sets (mov [dseg_D6B62], 1; mov ax, [DF533])
+    assert struct.unpack_from('<I', d1, po + 25)[0] == a0 + 20
+    list4 = struct.unpack_from('<I', d1, po + 29)[0]
+    body = d1[po:po + 0x280]
+    m = list(re.finditer(rb'\x66\xff\x0d' + re.escape(struct.pack('<I', d7)) + rb'\x0f\x89.{4}\xff\x35' +
+                         re.escape(struct.pack('<I', d7)), body, re.S))
+    assert len(m) == 1, m
+    po_tail = po + m[0].start()
+    m = list(re.finditer(rb'\x66\xc7\x05(.{4})\x01\x00\x66\xa1', body[po_tail - po:], re.S))
+    assert len(m) == 1, m
+    nosack = struct.unpack('<I', m[0].group(1))[0]
 
     symbols = {'PLAYER_CUP': (2, player_cup), 'SLOT1': (2, slot1), 'SEL': (2, sel), 'A0': (2, a0), 'D0': (2, d0),
                'D1': (2, d1v), 'D2': (2, d2), 'D7': (2, d7), 'E092F': (2, e092f), 'LIB': (1, lib), 'SUP': (1, sup),
@@ -648,7 +693,8 @@ def career_hooks(p, cups, cave, cups_all=None, caf=None):
                'DEFAULT_BYTES': (0, 'db ' + ', '.join(str(b) for b in defaults)),
                'SLOT4_CUP': (2, slot4_cup), 'SLOT4': (2, slot4), 'SLOT_SIZE': (0, 0x443), 'LEAGUE_SUBS': (2, league_subs),
                'CSEG_8DAC3': (1, c8dac3), 'PLAYOFF_OUT': (1, po_out), 'PLAYOFF_CONT': (1, po + 13),
-               'DONE': (1, done), 'LOAD_OUT': (1, load_out), 'LOAD_CONT': (1, load0 + 10), 'LOAD_MAP': (1, load_map)}
+               'DONE': (1, done), 'LOAD_OUT': (1, load_out), 'LOAD_CONT': (1, load0 + 10), 'LOAD_MAP': (1, load_map),
+               'LIST4': (2, list4), 'A4': (2, a0 + 16), 'PO_TAIL': (1, po_tail), 'NOSACK': (2, nosack)}
     chain, load_map_lines = [], []
     for k, off in enumerate(caf['structs']):
         symbols[f'XCUP{k}'] = (1, off)
@@ -666,6 +712,17 @@ def career_hooks(p, cups, cave, cups_all=None, caf=None):
     SAVE_ITEMS[0] = [(lib + 47, 2 * LIB_N), (sup + 27, 32), (con + 27, 32), (cups_all[3] + 24, 4)]   # Lib, Sup, CON, INT pair
     asm = nasmcave.sub(CAREER_ASM, ';EXTRA_CHAIN', '\n'.join(chain))
     asm = nasmcave.sub(asm, ';EXTRA_LOAD', '\n'.join(load_map_lines))
+    own, s1 = int_worlds(caf.get('ic_worlds', ()), defaults[-4:])
+    import careerworld
+    if careerworld.SITES.get('slt'):            # (mkseason.patch ran: the career's world byte, someLeaguesTable[1845])
+        so, soff = careerworld.SITES['slt']
+        symbols['INT_WB'] = (so, soff + careerworld.WORLD_BYTE)
+        asm = nasmcave.sub(asm, ';INT_WORLD', '    movzx ebx, byte [INT_WB]')
+    else:
+        asm = nasmcave.sub(asm, ';INT_WORLD', '    xor ebx, ebx')
+    symbols['INT_NW'] = (0, len(own) - 1)
+    asm += ('\nINT_OWN: db ' + ', '.join(map(str, own)) + '\nalign 4\nINT_S1: dd ' +
+            ', '.join(str(x) for x in s1) + '\n')
     code, fix = nasmcave.assemble(asm, cave, symbols)
     labels = nasmcave.labels(asm, cave, symbols)
     LISTS_OUT[0] = labels['lists_out']
@@ -679,6 +736,17 @@ def career_hooks(p, cups, cave, cups_all=None, caf=None):
     hook(p, load0, 10, load0 + 3, labels['load_slot1'])
     hook(p, load, 12, load + 3, labels['load_slot3'])
     p.put(1, done + 1, struct.pack('<i', labels['int4_step'] - (done + 5)))    # call cseg_8DAC3 -> int4_step
+    import engine
+    engine.CALL_AT['sa_int_new'] = (1, labels['sa_int_new'])
+    engine.after_new('sa_int_new')              # (trailer.patch, assembled after us, calls it)
+    INT_TABLES[0] = (own, s1)
+    LABELS.clear()                              # (HOSTTEST_SYMS: test_intworld runs int_step / int4_step / sa_int_new)
+    LABELS.update({k: v for k, v in symbols.items() if isinstance(v, tuple) and v[0] in (1, 2) and isinstance(v[1], int)})
+    LABELS.update({k: (1, labels[k]) for k in ('int_step', 'int4_step', 'int_own', 'int_world', 'sa_int_new', 'INT_OWN',
+                                               'INT_S1')})
+    LABELS['INT_NW'] = (0, len(own) - 1)
+    print('exe: Intercontinental owner per world (sacups 1 / other 0): ' + ' '.join(f'{w}:{o}' for w, o in enumerate(own[:-1]))
+          + f'; season-1 pair world 0 {s1[0]:#010x}, others none')
     hook(p, po, 13, po + 2, labels['playoffs'])
     print(f'exe: Intercontinental slot 4: call obj1+{done:#x} -> int4_step, play-offs obj1+{po:#x} (slot4 buf obj2+{slot4:#x}, '
           f'league subs obj2+{league_subs:#x})')

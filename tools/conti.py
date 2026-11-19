@@ -273,6 +273,17 @@ def _places(key):
 IC_KEYS = {'cafcl': ('caf', 'cl')}       # (the Intercontinental's access file: holders by cup key)
 
 
+def ic_worlds():
+    """4.2 (backlog-42 row 154, one owner per competition per world): the career worlds whose Intercontinental conti
+    plays - a stepladder cup in the built confederations' data, the worlds of the World 2026-27 packs (_world_maps'
+    rule). sacups' int_step / int4_step do not run there."""
+    if not any(c.get('stepladder') for conf in ready() for c in (_read(conf, 'format') or {}).get('cups', [])):
+        return set()
+    import mkseason
+    return {n for n, pks in mkseason.worlds().items()
+            if any(pk.meta.get('id', '').startswith('world-2026-27-') for pk in pks)}
+
+
 def _cup_index(index, key):
     if key in IC_KEYS and IC_KEYS[key] in index:
         return index[IC_KEYS[key]]

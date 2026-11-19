@@ -2,7 +2,9 @@
 
   internal/hosttest/.venv/bin/python tools/hosttest/sp_structural.py REF_BUILD NEW_BUILD [--trials N] [--out NAME]
 
-REF_BUILD = this tree without SP_TEST, NEW_BUILD = SP_TEST=0 (the stubs in, CALCI PIAZZATI = CLASSICI).
+REF_BUILD = this tree with SP_SKIP=JZ,FZ,HD,CEIL0,CEIL1,BAND,GKA0,GKA1,CPU,FB,FT,KD,GR,AT,BLO,AF (every set-piece site
+unhooked: since difficulty ships, 6618d4f, a build without SP_TEST has the hooks too), NEW_BUILD = SP_TEST=0 (the stubs
+in, CALCI PIAZZATI = CLASSICI).
 1. Byte diff: obj1 changes only at the hook regions (11 + §3's KD / GR / AT / BLO) (`call stub` + nops; FB / FT keep their branches, re-aimed),
    obj4 only in the SETPIECE band, nothing else.
 2. Differential execution (Unicorn): every site, random states, REF's original instructions vs NEW's call + stub, with
@@ -498,7 +500,10 @@ def af_check(ni, lab, c, trg):
                                 m.w16(B4 + lab['SP_W'], mode)
                                 m.w8(B4 + lab['SP_OK'], 1)
                                 m.w16(B2 + trg[1], trn)
-                                m.w32(B4 + lab['FK_R'], 0x9E3779B9 * (n + 1) & 0xFFFFFFFF)
+                                prd = struct.unpack('<i', bytes(m.read(B4 + lab['PR_D'], 4)))[0]
+                                if prd:                 # (20/11: the practice gate, sp_on's PR_D - KIND 0 = no practice:
+                                    m.w8(B4 + lab['SPB'] + prd, 0)   #  a training game stays original; the host's
+                                m.w32(B4 + lab['FK_R'], 0x9E3779B9 * (n + 1) & 0xFFFFFFFF)   #  byte was arbitrary)
                                 m.w32(B2 + c['A1_O'], pl)
                                 m.w16(pl + c['TKS'], ts)
                                 m.w32(B2 + c['A2_O'], pl + 0x100)

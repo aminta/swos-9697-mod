@@ -333,7 +333,7 @@ def patch(p):
         flags += (f'-DCDKN_WORK_SZ={cdkn.WORK_SZ}',)
     import fpad
     if fpad.on():                                   # 4.2 fixture port P2: fpad.c's state (FP_PORT, FP_ST) in .bss
-        flags += (f'-DFPORT_ON={fpad.PORT_SIZE}', f'-DFP_ST_SZ={fpad.ST_SIZE}', f'-DFP_SAVE_SZ={fpad.SAVE_SIZE}')
+        flags += (f'-DFPORT_ON={fpad.PORT_SIZE}', f'-DFP_ST_SZ={fpad.ST_SIZE}', f'-DFP_SAVE_SZ={fpad.SAVE_SIZE}', f'-DFP_ML_SZ={fpad.ML_N * fpad.ML_SIZE}')
     import frnd
     if frnd.on():                                   # 4.2 friendlies: frstep.c's FRSS slice buffer (FR_BUF)
         flags += (f'-DFRND_BUF={frnd.BUFSZ}',)

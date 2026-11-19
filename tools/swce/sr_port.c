@@ -64,9 +64,10 @@ static int32_t check(const sr_port_fixture *f, int32_t n, int32_t from, const ui
         const sr_port_fixture *x = &f[i];
         int32_t e = 0;
         if (x->legs != 1 && x->legs != 2) e = SR_PORT_E_R3;
-        else if (x->level < SR_PORT_LV_ET_PENS || x->level > SR_PORT_LV_AWAY_BETTER ||
-                 (x->legs == 1 && (x->level == SR_PORT_LV_AWAY_PENS || x->level == SR_PORT_LV_AWAY_BETTER)))
-            e = SR_PORT_E_LEVEL;            /* (away goals need two legs) */
+        else if (x->level > SR_PORT_LV_AWAY_BETTER ||
+                 (x->legs == 1 && (x->level == SR_PORT_LV_AWAY_PENS || x->level == SR_PORT_LV_AWAY_BETTER)) ||
+                 (x->legs == 2 && x->level == SR_PORT_LV_NONE))
+            e = SR_PORT_E_LEVEL;            /* (away goals need two legs; a draw only in one leg) */
         else if (!x->match_id || ((x->flags & SR_PORT_F_REPLAY) && !x->prev_id)) e = SR_PORT_E_ID;
         else if (x->neutral && x->legs != 1) e = SR_PORT_E_R3;
         else if (x->home == SR_PORT_NONE || x->away == SR_PORT_NONE || x->home == x->away) e = SR_PORT_E_R4;
@@ -77,9 +78,20 @@ static int32_t check(const sr_port_fixture *f, int32_t n, int32_t from, const ui
         for (int32_t j = 0; !e && j < i; j++) {
             const sr_port_fixture *y = &f[j];
             if (y->match_id == x->match_id) e = SR_PORT_E_ID;
-            else if (shares(x, y) && !(y->unit2 < inst(h, x->unit1) || x->unit2 < inst(h, y->unit1)))
-                e = SR_PORT_E_R5;           /* (the later one is installed over slot 4 at the advance before it: the
-                                               earlier ends strictly before that; any club's, a job change keeps it) */
+            else if (shares(x, y)) {      /* rule 5, what it protects: slot 4 holds ONE unplayed port fixture (no
+                                               slot clear: the next install overwrites it, probe Q2 / Q3), and a club
+                                               plays one fixture at a time. Two UNPLAYED fixtures sharing a club: the
+                                               earlier ends strictly before the later one's install advance (any
+                                               club's, a job change keeps it). A PLAYED one needs slot 4 no more (its
+                                               result is in; what is left there the next install overwrites): only
+                                               the spans must not meet -- a producer adding the next tie after the
+                                               previous result (lane 1's 129 / 130 / 131 chain) is accepted, a tie at
+                                               or before a played one's units is not */
+                const int pl = !live || (state && state[j] == SR_PORT_PLAYED);
+                if (!(y->unit2 < (pl ? (int32_t)x->unit1 : inst(h, x->unit1)) ||
+                      x->unit2 < (pl ? (int32_t)y->unit1 : inst(h, y->unit1))))
+                    e = SR_PORT_E_R5;
+            }
         }
         if (!e && live && h && h->league_plays)
             for (int32_t s = 0; s < 2 && !e; s++)
@@ -140,6 +152,7 @@ int32_t sr_port_winner(const sr_port_fixture *f, const sr_port_result *r)
     if (!two && (r->g90b[0] || r->g90b[1])) return -1;
     if ((r->get[0] == NOGOAL) != (r->get[1] == NOGOAL) || (r->pens[0] == NOGOAL) != (r->pens[1] == NOGOAL)) return -1;
     if (a != b) return et || pens ? -1 : a < b;                     /* (decided in 90': nothing after) */
+    if (lv == SR_PORT_LV_NONE) return et || pens || two ? -1 : 2;   /* (one leg, level: a draw, nothing after) */
     if (away && r->g90b[1] != r->g90[1])                            /* (away goals: side 0's in leg 2, side 1's in 1) */
         return et || pens ? -1 : r->g90b[1] < r->g90[1];
     if (lv == SR_PORT_LV_ET_PENS || lv == SR_PORT_LV_ET_BETTER || lv == SR_PORT_LV_AWAY_PENS) {
@@ -303,7 +316,8 @@ static int32_t load(sr_port *p, const uint8_t *in, int32_t len, uint32_t pack_ha
 {
     if (!in || len < 20) return SR_PORT_E_SAVE;
     const u16 n = r16(in + 2);
-    if (r16(in) != SR_PORT_VERSION || n > SR_PORT_MAX || r32(in + 4) != pack_hash || r16(in + 18)) return SR_PORT_E_SAVE;
+    const u16 ver = r16(in);
+    if ((ver != SR_PORT_VERSION && ver != 0) || n > SR_PORT_MAX || r32(in + 4) != pack_hash || r16(in + 18)) return SR_PORT_E_SAVE;
     sr_port_init(p, r16(in + 14), r16(in + 12), r16(in + 16), pack_hash);
     const u8 *i8 = in + 20, *end = in + len;
     int32_t installed = 0;
@@ -314,6 +328,7 @@ static int32_t load(sr_port *p, const uint8_t *in, int32_t len, uint32_t pack_ha
         f->label_id = r16(i8 + 10); f->home = r16(i8 + 12); f->away = r16(i8 + 14);
         f->legs = i8[16]; f->level = i8[17]; f->neutral = i8[18]; f->kind = i8[19]; f->lfile = i8[20]; f->flags = i8[21];
         f->prev_id = r16(i8 + 22);
+        if (ver == 0 && f->level == SR_PORT_LV_NONE) return SR_PORT_E_SAVE;    /* (v0: no draw level) */
         for (int32_t k = 0; k < 8; k++) f->names[k] = i8[24 + k];
         p->state[i] = i8[32]; i8 += 33;
         if (p->state[i] > SR_PORT_PLAYED) return SR_PORT_E_SAVE;

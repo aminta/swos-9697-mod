@@ -2368,6 +2368,11 @@ static void sc_done(u16 w);
 #define SC_DONE(w) sc_done(w)
 #endif
 static u32 sc_rline(void);              /* (4.0.5: gp_rlines_c's supercup line) */
+#if GP_PORT
+u32 (*GP_PRLINE)(u32 k) __attribute__((section(".data")));   /* (4.2 the port's trophies: the k-th record line the career club
+                                           won this season, STR_BASE-relative, 0 = no more - fpmlv.c fpv_rline_c; 0 = none bound) */
+static void port_rlines(void);
+#endif
 static u32 usc_rline(void);             /* (4.0.6: the UEFA Super Cup's) */
 static void rl_put(void);
 int sc_busy(void);                      /* (4.0.5: the slot-4 guard) */
@@ -3274,6 +3279,11 @@ u32 gp_draw_c(void) {
     const struct gp_ko *k = &GP_ST.ko[GP_K];
     int a = kidx(k, GP_A), b = kidx(k, GP_B);
     if (KT2(k)) return 0xFFFFFFFF;      /* (a type-2 contest: the game's rules) */
+#if GP_PORT
+    if (k->kind == K_PORT && !k->rs[0][3]) return 0x10;   /* (a port fixture with no decider - a mini-league match: the
+                                           draw stands, fpad.c reads the score; result flag 10h keeps bplace's 'better
+                                           placed goes through' line off its result) */
+#endif
     return a != NOC && b != NOC && kbetter(k, b, a);
 }
 
@@ -3311,8 +3321,22 @@ void gp_played_c(void) {
    other titles, the other play-offs with one, the rest; one whose divisions do not all fit is left to the season end. GP_PREI = the first
    appended (gp_simkeep_pre). Returns 1 if the preview may run. */
 u8 GP_PREI;
+#if GP_PORT
+/* 4.2 the fixture port's league-end / season-end hooks (fpml.c, the mini-league producer; bound by fpad.py, 0 = none):
+   GP_PNEED - gp_need_pre's head: the divisions a stage opening at the career league's last day needs simulated now and
+   kept are appended to GP_IN.sim[] by the hook itself (obj4: no byte of that here - obj1's room), as the club's own
+   play-offs' (before GP_PREI); GP_PLEND - gp_pre_c's head: the career league over, those tables in GP_IN (the
+   club's own table after gp_force); GP_PEND - gp_end_c's head: the season end, after gp_season, every table final.
+   Every hook dword is wired by tools/gphooks.py (MC 17/11: the one registry, a chain per hook), never by a module. */
+void (*GP_PNEED)(void) __attribute__((section(".data")));
+void (*GP_PLEND)(void) __attribute__((section(".data")));
+void (*GP_PEND)(void) __attribute__((section(".data")));
+#endif
 __attribute__((minsize)) u32 gp_need_pre(void) {
     int ns = 0, lim = GP_GSON ? SDX : SD;
+#if GP_PORT
+    if (GP_PNEED) GP_PNEED();                   /* (the port's stage: its entrants' divisions into sim[], always kept) */
+#endif
     u32 have = 1u << GP_IN.mdiv;                /* (divisions with a table: the career club's, the ones in sim[]) */
     while (ns < SDX && GP_IN.sim[ns] != NOC) have |= 1u << GP_IN.sim[ns++];
     GP_PREI = (u8)ns;
@@ -3355,6 +3379,9 @@ __attribute__((minsize)) void gp_simkeep_pre(void) {
    winners into WN_ST after a marker; no move applied, the state as it was (GP_OUT void) */
 __attribute__((minsize)) void gp_pre_c(void) {
     if (GP_IN.gtype != 4 || !GP_IN.spec) return;
+#if GP_PORT
+    if (GP_PLEND) GP_PLEND();           /* (the port: a stage of the league's end opens - fpml.c fp_ml_lend) */
+#endif
     if (WN_ST.magic != WN_MAGIC || (u8)(WN_ST.season + 1) != GP_SEAS) {   /* (no last season: an empty one that
                                                    no reader takes for the last season) */
         WN_ST.magic = WN_MAGIC; WN_ST.season = GP_SEAS ^ 0x80; WN_ST.n = 0;
@@ -3375,6 +3402,10 @@ __attribute__((minsize)) void gp_pre_c(void) {
 
 void gp_end_c(void) {                   /* after gp_season: the log, the state void */
     const u8 *s = (const u8 *)&GP_ST.ko[0];
+#if GP_PORT
+    if (GP_PEND) GP_PEND();             /* (the port: a stage not played is decided now, its trophies written -
+                                           fpml.c fp_ml_open(1), after gp_season and before the S7 swap) */
+#endif
     u8 *d = (u8 *)&GP_LOG.ko;
     if (GP_ST.magic == MAGIC || GP_IN.pl_pi) {   /* (the career club's play-off only: rc18's `|| GP_OUT.nres` let
                                            every later country's season end overwrite the harness's log) */
@@ -3888,6 +3919,9 @@ u32 gp_rlines_c(void) {
     if (kr) rl_add(kn, kr);
     { u32 sn = sc_rline(); if (sn) rl_add(sn, 1); }   /* (4.0.5: a national supercup won) */
     { u32 sn = usc_rline(); if (sn) rl_add(sn, 1); }  /* (4.0.6: the UEFA Super Cup won) */
+#if GP_PORT
+    port_rlines();                      /* (4.2: the port's mini-leagues won - the Supercoppa Serie C) */
+#endif
     rl_put();
     return rl_n;
 }
@@ -3912,6 +3946,12 @@ u32 gp_stwins_c(u32 mgr) {
     if (live && kstage >= 0 && club_res(k, (u16)mgr) == 1) n++;
     return n;
 }
+#if GP_PORT
+static void port_rlines(void) {
+    u32 sn;
+    for (u32 k = 0; GP_PRLINE && k < 2 && (sn = GP_PRLINE(k)); k++) rl_add(sn, 1);
+}
+#endif
 u32 sc_rlines_c(void) {                 /* 4.0.5 (gp_rl, a league with no gplay play-offs: LaLiga, Serie A): only a
                                            national supercup won */
     rl_n = rl_w = 0;
@@ -4854,8 +4894,11 @@ void *GP_PAPI[1] GP_DATA_SECTION = { (void *)ko_one };
 const u16 GP_OFFS[] = { OF(struct gp_state, ko), OF(struct gp_ko, season), OF(struct gp_ko, kind), OF(struct gp_ko, tw),
                         OF(struct gp_ko, team), OF(struct gp_ko, d1), OF(struct gp_ko, d2), OF(struct gp_ko, rs),
                         OF(struct gp_in, mdiv), MAGIC, NOC, K_PORT, HOST_NEUTRAL, SC_E, SC_UEFA, sizeof(struct gp_ko),
-                        OF(struct gp_ko, pts), K_FR, LV_BETTER };   /* (4.2 friendlies: O_PTS - the fee in pts[2], a
-                                           one-tie contest's unused entry -, C_KFR, C_LVBETTER) */
+                        OF(struct gp_in, n), OF(struct gp_in, t), OF(struct gp_in, mgr), GD, GT, sizeof(struct gp_row),
+                        OF(struct gp_row, pts), OF(struct gp_in, sim), SDX,
+                        OF(struct gp_ko, pts), K_FR, LV_BETTER, OF(struct gp_state, rn) };   /* (4.2 friendlies: O_PTS - the fee in pts[2], a
+                                           one-tie contest's unused entry -, C_KFR, C_LVBETTER; O_RN: fpad.c's install
+                                           names a mini-league fixture's round - its matchday) */
 #endif
 #endif
 u32 sc_step_c(void) {                   /* the calendar advance: 1 = the career club's tie built into ko[0] */

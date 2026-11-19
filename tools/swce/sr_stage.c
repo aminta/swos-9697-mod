@@ -285,6 +285,48 @@ i32 sr_rr_table(i32 n, const sr_match *m, i32 nm, i32 win, i32 draw, i32 loss, c
     return n;
 }
 
+/* ---- a mini-league's schedule (sr_mini_sched) ---- */
+
+static void put(sr_match *x, i32 md, i32 home, i32 away)
+{
+    x->md = (u8)md; x->home = (u8)home; x->away = (u8)away; x->played = x->hg = x->ag = 0;
+}
+
+static int same(const sr_match *a, const sr_match *b)
+{
+    return a->md == b->md && a->home == b->home && a->away == b->away;
+}
+
+i32 sr_mini_sched(i32 n, i32 legs, u8 policy, u32 seed, sr_match *m, i32 have, i32 room)
+{
+    if (have < 0 || !m) return -1;
+    if (policy == SR_SCHED_FIXED) {                             /* (no copy on the stack: the DOS build's frames) */
+        if (n < 2 || n > N || legs < 1 || legs > 4) return -1;
+        const i32 k = legs * (n * (n - 1) / 2);
+        if (have) return have == k ? k : -1;
+        return sr_rr_calendar(n, legs, m, room);
+    }
+    if (policy != SR_SCHED_WINNER_RESTS || n != 3 || legs != 1 || room < 3 || (have != 0 && have != 1 && have != 3))
+        return -1;
+    const i32 rest = (i32)(mix(seed, 0x7E570000u) % 3u);         /* md1: the club that rests */
+    const i32 o1 = (rest + 1) % 3, o2 = (rest + 2) % 3;
+    const int sw = (int)(mix(seed, 0x40BE0000u) & 1u);
+    sr_match d1;
+    put(&d1, 0, sw ? o2 : o1, sw ? o1 : o2);
+    if (!have) { put(&m[0], 0, d1.home, d1.away); return 1; }   /* (field by field: no memcpy call) */
+    if (!same(&m[0], &d1)) return -1;
+    if (!m[0].played) { if (have != 1) return -1; return 1; }
+    const i32 r2 = m[0].hg > m[0].ag ? m[0].home : m[0].away;   /* md2's resting club: md1's winner, on a draw its away side */
+    const i32 other = r2 == m[0].home ? m[0].away : m[0].home;
+    sr_match d2, d3;                                            /* each club hosts once: md1's away side, if it plays */
+    const i32 h2 = other == m[0].away ? other : rest;           /* md2, hosts it; else md1's resting club. md3: the one */
+    put(&d2, 1, h2, h2 == rest ? other : rest);                 /* of its pair that has not hosted yet */
+    put(&d3, 2, h2 == rest ? r2 : rest, h2 == rest ? rest : r2);
+    if (have == 3) return same(&m[1], &d2) && same(&m[2], &d3) ? 3 : -1;
+    put(&m[1], 1, d2.home, d2.away); put(&m[2], 2, d3.home, d3.away);
+    return 3;
+}
+
 /* ---- knockouts ---- */
 
 i32 sr_ko_left(i32 entrants, const sr_round_size *r, i32 nr)

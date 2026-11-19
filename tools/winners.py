@@ -840,6 +840,18 @@ def patch(p, at, lang, sites):
                 'INC_BYTES': (0, 'db ' + ', '.join(str(b) for b in inc + b'\0'))})
     src = nasmcave.sub(ASM, """    cmp byte [ebx], 0                   ; (dummy: replaced below)
     ret""", GP_CALL)
+    import fpmlv                                       # 4.2 mini-leagues (the Supercoppa Serie C; fpmlv.py): a WIN line's
+    if fpmlv.on():                                     # source 'N' id '00' -> fpmlv.c fpv_wn_c (obj3) through the dword
+        src = nasmcave.sub(src, GP_CALL, nasmcave.sub(GP_CALL, '    call GP_WN_C\n', fpmlv.WN_ASM_CALL))   # wn_mlp (bound by
+        src = nasmcave.sub(src, ".nf:\n    pop edx\n",   # fpmlv.patch, after fpad's link; unbound: no line). Builds
+                           ".nf:\n    pop edx\n    cmp bl, 'N'                         ; (a winner of another group: its team "
+                           "file's name)\n    je .dk\n")                              # without the port: byte-identical
+        le = ("    cmp al, 'E'                         ; (4.0.5 the fallback line: last season's 1st of the career club's level)\n"
+              "    je .lle\n")
+        src = nasmcave.sub(src, le, le + "    cmp al, 'N'                         ; (4.2 'N' id: WN_ST's entry 'N' id - fpv_done's)\n"
+                                         "    je .mln\n")
+        src = nasmcave.sub(src, '.hex2:\n', ".mln:\n    lodsb\n    sub al, '0'\n    mov bh, al\n    mov bl, 'N'\n    jmp .lc\n.hex2:\n")
+        src = nasmcave.sub(src, "WN_KEY: db 1, 'H', '0000'\n", "WN_KEY: db 1, 'H', '0000'\nwn_mlp: dd 0\n")
     src = nasmcave.sub(src, 'STPOS_CALL\n', '    call FP_STPOS\n' if 'FP_STPOS' in sym else '')
     import dplay
     dpon = 'DP_ST' in dplay.LABELS
@@ -868,6 +880,8 @@ def patch(p, at, lang, sites):
     LABELS.clear()
     LABELS['wn_disk'] = (4, lab['wn_disk'])
     LABELS['WN_FN'] = (4, lab['WN_FN'])            # (S7: s7swap.py turns its entry into ripool's ri_wnhome)
+    if 'wn_mlp' in lab:
+        LABELS['WN_MLP'] = (4, lab['wn_mlp'])      # (4.2: fpmlv.patch binds it to fpv_wn_c)
     print(f'exe: SEASON WINNERS page: entry obj2+{wn["sel"]:#x}, code obj4+{at:#x} ({len(code)} B, '
           f'{len(crel)} rel32 into obj1)')
     return at + len(code)

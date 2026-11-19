@@ -227,6 +227,7 @@ CAREER_END = [None]                # the career cave's end after its code (4.0.1
 
 def patch_exe(src, dst, remap, lang='it'):
     __import__('gphooks').reset()                # (4.2: the gplay hook registry, per exe)
+    __import__('tempmark').reset()               # (MC 17/11: the TEMP markers of this exe)
     CAREER_END[0] = None
     LT_SPACE.clear()
     LR_ROOM.clear()
@@ -436,6 +437,7 @@ def patch_exe(src, dst, remap, lang='it'):
         engine.save_item('FP', fpad.SAVE_SIZE, world_only=True)   # P5 (MC option A): the port's queue + the tie in
         engine.before_save('fp_save')                  # progress with the career (fpsave.c fp_save / fpad.c fresh's load)
         swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, (swreg.FPORT2_END + 0xFFF) // 0x1000)   # (P5: fpsave.c's band, MC 15/11)
+        swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, (swreg.FPML_END + 0xFFF) // 0x1000)     # (fpml.c: the mini-league producer)
     OBJ1MV_ON[0] = bool(mkseason.worlds())             # 4.2 OBJ1MV (MC 13/11): every build with worlds (shirtedit +
     if OBJ1MV_ON[0]:                                   # instcheck; the SEASON WINNERS page when fmtpage has it)
         swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, (swreg.OBJ1MV_END + 0xFFF) // 0x1000)   # (its band's pages, out of obj1)
@@ -813,7 +815,7 @@ def patch_exe(src, dst, remap, lang='it'):
     else:
         cos = longtable.patch(p, cos, area, lang)                # 4.0: tables over 24 clubs scroll (ARG / MLS 30: no drawing past the screen)
     if cos_pg:
-        assert cos <= hist2 + h2 + 0x1000 * lpb, hex(cos)
+        assert cos <= hist2 + h2 + 0x1000 * lpb, (hex(cos), "the cosmetics chain past its room", hex(hist2 + h2 + 0x1000 * lpb))
     else:
         world = cos
     if xtra_pg:                                                  # extended career squads (packs with "extra";
@@ -994,6 +996,10 @@ def patch_exe(src, dst, remap, lang='it'):
         cg_bss = 0
     import gkinj                                 # 4.0.6 (Davide): goalkeeper injuries after a match (an OPTIONS row,
     st_end = gkinj.patch(p, (st_end + 15) & ~15, lang)       # ON by default), the obj3 chain's end
+    import fpmlv                                 # 4.2 mini-leagues (the Supercoppa Serie C): the views' room in obj3's
+    if fpmlv.on():                               # chain (linked after fpad.patch: lane 1's fp_ml_* are known only then)
+        st_end = fpmlv.reserve(p, (st_end + 15) & ~15)
+        assert st_end <= LT3_AT, hex(st_end)
     import slow                                  # 4.2 EXPERIMENTAL (Davide 12/11): MATCH SPEED 100/90/80/70 % (an OPTIONS
     if SLOW:                                     # row after gkinj's; GameLoop's @@flip_it; SPEED.CFG), obj4 page 13 -
         slow.patch(p, lang)                      # PARKED 13/11 (SLOW = False): nothing of it linked, asserted
@@ -1125,7 +1131,14 @@ def patch_exe(src, dst, remap, lang='it'):
         sreg.patch_import(p, swe.LABELS, s7swap.LABELS)  # 42-s7import: the old-save import (SREG2, SREG_FN[4])
     import fpad                                  # 4.2 fixture port P2: fpad.c at obj4+FPORT_AT (dormant: nothing)
     import gplay
-    fpad.patch(p, swe.LABELS, gplay.LABELS)
+    if fpad.patch(p, swe.LABELS, gplay.LABELS) is not None and fpad.ml_rows():   # 4.2 mini-leagues: lane 2's views and
+        import winners                           # trophies (fpmlv.c, obj3) against the producer just linked - FP_MLDONE,
+        mpk, mlg, _row = fpad.ml_rows()[0]       # the fixtures' calendar names, the WINNERS source 'N'
+        mbn = mpk.meta.get('button_names') or {}
+        fpmlv.patch(p, mlg, lang, area, (mbn.get(lang) or mpk.meta.get('button') or '').upper(), fpad.LABELS,
+                    gplay.LABELS, fpad.LABELS['FP_MLDONE'], winners.LABELS.get('WN_MLP'))
+        import gphooks                           # (the management record's line: gplay.c gp_rlines_c's hook -> fpv_rline_c,
+        gphooks.register('GP_PRLINE', 'nazionali', fpmlv.LABELS['fpv_rline_c'][:2])   # no next dword: the chain's end)
     import frnd                                  # 4.2 friendlies: frstep.c at obj4+FRND_AT, FRND first on the port's hooks
     frnd.patch(p, swe.LABELS, gplay.LABELS)      # (after fpad: its fp_step / fp_leg chained; dormant: nothing)
     import frchoose
@@ -1172,6 +1185,7 @@ def patch_exe(src, dst, remap, lang='it'):
     __import__('gphooks').check(p)               # 4.2: every gplay hook site still leads to what gphooks.link wired
     if __import__('frnd').on():
         __import__('frnd').check(p)              # 4.2 friendlies: the season hook, GP_PSTEP / GP_PLEG, fi_gate's dword
+    __import__('tempmark').check()               # MC 17/11: a release build with a TEMP-* block linked is REFUSED here
     delta, shift = p.save(dst)
     import le as _le, lepatch as _lp, swreg as _sr   # 4.2 (MC 17/11): obj4's file pages end at its highest LINKED byte
     raw = open(dst, 'rb').read()                  # (put() or a C .bss: LEPatch.hi), never at a band END; vsize unchanged

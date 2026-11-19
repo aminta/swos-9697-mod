@@ -39,6 +39,9 @@ TEXTS = {
 
 F1_TEXTS = {'it': (b'FASE 1', b'GRUPPI'), 'en': (b'PHASE 1', b'GROUPS'), 'fr': (b'PHASE 1', b'GROUPES'),   # 4.0.5
             'de': (b'PHASE 1', b'GRUPPEN')}
+ML = {}                         # 4.2 (fpmlv.py's table view, entry 9 when no earlier stage has it): 'init' the statistics
+                                # menu's onInit pointer (obj2; its onReturn at + 4), 'sel9' entry 9's select pointer
+                                # (obj2), 'st9' fp_st9 (obj1), 'exit' the menu's EXIT function - no byte of ours here
 OV = {}                         # 4.0 (longtable.py): the overall-table flag's obj2 offset ('flag')
 WN = {}                         # 4.0.1 (winners.py): the SEASON WINNERS entry's pointers and the page's symbols
 WN_COLOUR = 15                  # the WINNERS page's winner lines: text colour 15, yellow (stringFlags & 0Fh; titles 0: white)
@@ -587,6 +590,7 @@ def patch(p, at, lang, area, bss, world=None, wn=False):
               select=(1, 'fp_st8'))
         entry(tail, sm_at + len(sm), 92, 165, 120, 15, nav=(-1, -1, 8, 10 if sm_on else 4), color=0x0E, text=(2, 'ov'),
               select=(1, 'fp_st9'))
+        st9sel = sm_at + len(sm) + len(tail) - 6         # (its select pointer, as wsel)
     if sm_on:                                            # 4.1 RIEPILOGO: ctview points its select at its summary and
         entry(tail, sm_at + len(sm), 92, 165, 120, 15, nav=(-1, -1, 9, 4), color=0x0E, text=(2, 'ov'),
               select=(1, 'fp_open'))                     # wraps the menu's onInit (shown / placed there); its text
@@ -661,6 +665,10 @@ def patch(p, at, lang, area, bss, world=None, wn=False):
     p.put(1, at, code)
     for o, t_obj, t_off in cfix:
         p.add_ptr(1, at + o, t_obj, t_off)
+    ML.clear()
+    if ap:
+        assert any(o == st9sel and t == 'fp_st9' for o, _, t in ptrs), 'entry 9 select'
+        ML.update(init=base + sm_at, sel9=base + st9sel, st9=(1, lab['fp_st9']), exit=exit_fn[0])
     for o, t_obj, t in ptrs:
         if isinstance(t, str):
             t = lab[t] if t_obj == 1 else base + off[t]

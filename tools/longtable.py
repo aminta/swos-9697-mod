@@ -38,6 +38,18 @@ lt_d3:                                  ; esi = the table shown (OnRestore's; no
 %if OV_
     call lt_ov
 %endif
+%if ML_
+    cmp byte [OV_FLAG], MLV_            ; 4.2 a mini-league's table view (lt_ov: fpmlv's fv_show): its own rows, no
+    jne .nml                            ; group headers
+    cmp byte [OV_ON], 1
+    jne .nml
+%if HDR_
+    mov dword [GP_HON], 0
+%endif
+    mov ax, [GP_OV_N]
+    jmp .s
+.nml:
+%endif
     mov ax, [esi + 51h]
     cmp word [esi + 4Fh], 1
     jne .s
@@ -99,6 +111,16 @@ lt_d5:
 %endif
     movzx eax, word [esi + 51h]
     mov [LT_END], ax
+%if ML_
+    cmp byte [OV_FLAG], MLV_            ; 4.2 a mini-league's table view: its rows from the first, no window
+    jne .nml
+    cmp byte [OV_ON], 1
+    jne .nml
+    mov eax, [GP_OV_N]
+    mov [LT_END], ax
+    jmp .x
+.nml:
+%endif
     cmp word [esi + 4Fh], 1
     jne .x
 %if HDR_
@@ -292,6 +314,19 @@ ZSTAGE
     jmp .x
 .noap:
 %endif
+%if ML_
+    cmp byte [OV_FLAG], MLV_            ; 4.2 a mini-league's table view (STAT > its entry, fmtpage fp_st9): fpmlv's
+    jne .noml                           ; fv_show (LT_MLP, bound by fpmlv.patch) - CF = 1 / unbound: no view, the table
+    mov eax, [LT_MLP]
+    test eax, eax
+    jz .mlo
+    call eax
+    jnc .x
+.mlo:
+    mov byte [OV_FLAG], 0
+    jmp .x
+.noml:
+%endif
     cmp byte [OV_FLAG], 0
     je .x
     cmp word [esi + 4Fh], 1
@@ -441,6 +476,9 @@ lt_row:                                 ; the row loop's `mov esi, A6 / movzx eb
 %endif
 
 align 4
+%if ML_
+LT_MLP: dd 0                            ; (fpmlv.py's fv_show, or 0)
+%endif
 LT_TAB: dd 0
 align 2
 LT_END: dw 0
@@ -554,6 +592,9 @@ def patch(p, at, area=None, lang='it', obj=1):
     if f1:
         sym.update({'F1AUTO': gplay.LABELS['f1_auto'], 'F1BUILD': f1, 'F1_SEAS': gplay.LABELS['SEASONPLAYING'],
                     'F1_TITLE': (2, area.add(F1_TITLES[lang] + b'\0'))})
+    import fpmlv                                            # 4.2 a mini-league's table view (fpmlv.py: mode VIEW_MODE)
+    ml = bool(ov and fpmlv.on())
+    sym.update({'ML_': (0, int(ml)), 'MLV_': (0, fpmlv.VIEW_MODE)})
     ap = ov and stg and gplay.LABELS.get('ap_build')        # 4.0.5 the earlier stages' tables (gplay.c ap_*)
     sym['AP_'] = (0, int(bool(ap)))
     if ap:
@@ -596,6 +637,9 @@ def patch(p, at, area=None, lang='it', obj=1):
     if hdr or ov:
         hook(row, 13, 'lt_row', (2, 9))
     LABELS.update(lab)
+    LABELS['LT_OBJ'] = obj
+    if not ml:
+        LABELS.pop('LT_MLP', None)
     print(f'exe: league tables over {ROWS} clubs scroll ({ROWS} rows shown; OnRestore obj1+{h1:#x}, row loop '
           f'obj1+{h2:#x} / {h3:#x}, ScrollDown obj1+{h4:#x}; code obj{obj}+{at:#x}, {len(code)} B' +
           (f'; overall tables: Init obj1+{init:#x}, Apertura {apn()} days)' if ov else

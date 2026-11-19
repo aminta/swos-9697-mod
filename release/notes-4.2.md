@@ -41,6 +41,12 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 #### Winners page: last season's winner of Serie B / Serie C
 - Winners page (VINCITORI): in the 2026-27 world the last-season page now names the right winner of Serie B and Serie C (and of Serie D when the winner has since moved up). Before, a winner who had left the division could show the name of an unrelated club, or the page was missing altogether in Serie C. It now reads the names from the 2026-27 world's own clubs.
 
+#### Serie C Supercup
+- New competition in the 2026-27 world: the SUPERCOPPA SERIE C. The winners of Serie C groups A, B and C play a three-club mini-league in May, right after the last league day: a draw decides who rests first, the winner of the first match rests on the second day, and the last day pairs the two clubs that have not met. 3 points for a win, 1 for a draw, no extra time or penalties; level clubs are separated by goal difference, goals scored, away goals, then by lot. Win your Serie C group and you play your two matches; otherwise the three matches are played for you at the end of the season. The winner is on the WINNERS page.
+- Each match is titled SUPERCOPPA SERIE C MATCHDAY 1, 2 or 3. While the Supercup is on, the table of your Serie C group has a new entry under STATS, SUPERCOPPA SERIE C: the three clubs' table, the leader in light blue (legend: WINS). The FORMAT page explains the rules.
+- The points and the tie-break order are the official ones (Lega Pro, Comunicato Ufficiale 94/DIV of 27 April 2026). "A draw stays a draw, no extra time or penalties" is our choice: the official text we could read does not mention extra time.
+- A career saved with 4.1 loads as before; the Supercup of the season in progress is decided by the game at the season's end.
+
 #### Difficulty
 - New OPTIONS row DIFFICULTY: EASY, NORMAL or HARD. NORMAL is the original game. The level only changes a computer team playing against you: on EASY its players are 80% as good, its goalkeeper is 2 points weaker and its passes go astray more often; on HARD its players are 10% better, its goalkeeper 2 points stronger and its passes more accurate. Two humans, computer against computer, training games, SWOS++ and simulated results always play the original game.
 
@@ -190,6 +196,12 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 
 #### Pagina dei vincitori: il vincitore della stagione scorsa di Serie B / Serie C
 - Pagina dei vincitori: nel mondo 2026-27 la pagina della stagione scorsa indica il vincitore giusto di Serie B e Serie C (e di Serie D quando il vincitore è nel frattempo salito). Prima, un vincitore che aveva lasciato la categoria poteva mostrare il nome di un club qualunque, oppure in Serie C la pagina mancava del tutto. Ora i nomi vengono letti dai club del mondo 2026-27.
+
+#### Supercoppa Serie C
+- Nuova competizione nel mondo 2026-27: la SUPERCOPPA SERIE C. Le vincitrici dei gironi A, B e C di Serie C giocano un triangolare a maggio, subito dopo l'ultima giornata: un sorteggio decide chi riposa per prima, chi vince la prima partita riposa nella seconda giornata, e nell'ultima si affrontano le due squadre che non si sono ancora incontrate. 3 punti per la vittoria, 1 per il pari, niente supplementari né rigori; a pari punti decidono differenza reti, gol segnati, gol in trasferta e poi il sorteggio. Se vinci il tuo girone di Serie C giochi le tue due partite; altrimenti le tre partite vengono giocate al posto tuo a fine stagione. Il vincitore è nella pagina VINCITORI.
+- Ogni partita si intitola SUPERCOPPA SERIE C GIORNATA 1, 2 o 3. Mentre la Supercoppa è in corso, nella classifica del tuo girone di Serie C c'è una nuova voce sotto STAT, SUPERCOPPA SERIE C: la classifica delle tre squadre, la prima in azzurro (legenda: VINCE). La pagina FORMULA spiega le regole.
+- I punti e l'ordine degli spareggi sono quelli ufficiali (Lega Pro, Comunicato Ufficiale 94/DIV del 27 aprile 2026). "Un pari resta pari, niente supplementari né rigori" è una nostra scelta: il testo ufficiale che abbiamo potuto leggere non parla di supplementari.
+- Una carriera salvata con la 4.1 si carica come prima; la Supercoppa della stagione in corso viene decisa dal gioco a fine stagione.
 
 #### Difficoltà
 - Nuova riga in OPZIONI, DIFFICOLTÀ: FACILE, NORMALE o DIFFICILE. NORMALE è il gioco originale. Il livello cambia solo una squadra del computer che gioca contro di te: a FACILE i suoi giocatori valgono l'80%, il portiere ha 2 punti in meno e i passaggi sbagliano più spesso; a DIFFICILE i giocatori sono migliori del 10%, il portiere ha 2 punti in più e i passaggi sono più precisi. Due giocatori umani, computer contro computer, allenamenti, SWOS++ e risultati simulati restano sempre il gioco originale.

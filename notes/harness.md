@@ -119,7 +119,7 @@ Rare events are **forced** and slow parts are **done once and saved**:
 | roundtrip | load/save/reload/save of a career: byte-identical | ~20 s |
 | juve2_trap | known old save (E092F): the season end must not trap | ~8 s |
 | world_roundtrip | world 3 (31 countries, 128 European records): two saves identical, W1 block, cups 32/32/64 | ~25 s |
-| euro_draws | season end 1997/98 → 1998/99: Champions Cup holder rule, no same-country ties in rounds 1-2 | ~60 s |
+| euro_draws | season end 1997/98 → 1998/99: Champions Cup holder rule, no same-country ties in rounds 1-2, both read from the cup's slot right after each draw (club in or out); the round-2 screen is info only ("screen not shown (club out)"). Red twin `EURO_DRAWS_RED=1`: round 2's first tie poked to the same team twice → FAIL | ~70 s |
 | italy_advance | mid-season 1998/99 save → results loop with substitutions → new season → CC list | ~3 min |
 | chairman_sack | 42-nosack: the game's own sacking with `Session(nosack=False)`: JUVEFIX3, the chairman's state poked to a poor result (board expects place -100, warning stage 5, timer 0; `chairman_offs`) → SEI LICENZIATO note → LA TUA CARRIERA E' FINITA + OFFERTE LAVORO → job taken, SACK1.CAR saved. Red twin `CHAIRMAN_SACK_RED=1` (nosack on): must FAIL | ~1 min |
 | world8485 | Europe 1984-85: new career at Liverpool, 2 seasons (save, reload, save), checkw1 on both | ~6 min |

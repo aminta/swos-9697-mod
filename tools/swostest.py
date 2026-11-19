@@ -3707,7 +3707,9 @@ def slot_ties(r, n):
 @scenario
 def euro_draws():
     """JUVE2F 1997/98 end -> 1998/99: CC holder rule (next CC list) and no same-country ties in rounds 1-2 of the
-    player's CWC/UEFA (euro9697-nodorby; obj2 offsets of build a0f38ad5)"""
+    player's CWC/UEFA (euro9697-nodorby; obj2 offsets of build a0f38ad5). Both rounds read from the cup's slot after
+    its draw (club in or out); the round-2 screen is info only. Red twin EURO_DRAWS_RED=1: round 2's first tie poked
+    to the same team twice -> FAIL"""
     if it_only('euro_draws'):
         return it_only('euro_draws')
     with Session('euro_draws', builds()['it'], {'JUVE2F.CAR': juve2(True)}, 'dump:2', 180) as s:
@@ -3731,24 +3733,38 @@ def euro_draws():
         if cc != 0xFFFF:
             check((cc & 0xFF, cc >> 8) in lst, f'CC holder {cc & 0xFF},{cc >> 8} not in the new CC list', errs)
             notes.append(f'holder country {cc & 0xFF} x{sum(f == cc & 0xFF for f, o in lst)} in the CC list')
-        seen = {}
+        seen, shown = {}, set()
+        red = os.environ.get('EURO_DRAWS_RED') == '1'
 
         def stop(scr):
             rnd, cid, ties = slot_ties(s.result, 16)
             title = scr.entries[0][1] if scr.entries else ''
             check('EUFA' not in title, f'title {title!r}: the original EUFA spelling (4.1.2: UEFA)', errs)
             r2 = 'SECONDO TURNO' in title and ('UEFA' if cid == 2 else 'COPPE') in title   # that cup's round-2 screen
-            if cid in (1, 2) and ((rnd == 0 and 0 not in seen and any(a or b for a, b in ties)) or (r2 and 1 not in seen)):
-                k = 0 if rnd == 0 and not r2 else 1
-                n = 16 if k == 0 else 8
+            if r2:
+                shown.add(1)
+            if cid not in (1, 2):
+                return False
+            # (MC 18/11, option b) the ties come from the cup's slot right after its draw, whether the club is still
+            # in the cup or not: round 1 = rnd 0 with ties, round 2 = rnd 1 with ties (the draw week passed). The
+            # round-2 screen is only an extra when the club is in that round
+            for k, n in ((0, 16), (1, 8)):
+                if k in seen or rnd != k or not any(a or b for a, b in ties[:n]):
+                    continue
+                if red and k == 1:                     # red twin: a tie poked to the same team twice
+                    s.poke(s.result.base2 + SLOT + 0x2CD + 1, bytes([s.result.obj2(SLOT + 0x2CD, 1)[0]]))
+                    s.send('dump:0.5')
+                    rnd, cid, ties = slot_ties(s.result, 16)
                 seen[k] = ties[:n]
                 same = [j for j, (a, b) in enumerate(ties[:n]) if a == b]
                 check(not same, f'round {k + 1} ({"CWC" if cid == 1 else "UEFA"}): same-country ties {same} '
-                      f'{[ties[j] for j in same]} (screen: {title.strip()})', errs)
+                      f'{[ties[j] for j in same]} (slot; screen: {title.strip() or "-"})', errs)
             return 1 in seen
         ok, msg = advance(s, stop)
         if not ok:
             return False, f"advance: {msg}; {'; '.join(errs + notes)}"
+        notes.append('round 2: screen shown' if 1 in shown else 'round 2: screen not shown (club out) - info')
+        notes.append(f'slot ties r1 {seen.get(0)} r2 {seen.get(1)}')
         hits = {f'obj1+{o:X}': n for o, n in getattr(s, 'bp_hits', {}).items()}
     return not errs, f"{msg}; {'; '.join(errs) or 'ok'}; {'; '.join(notes)}; rounds checked {sorted(seen)}; bp hits {hits}"
 

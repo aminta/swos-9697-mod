@@ -601,6 +601,8 @@ def flag_liveness(img1, start, live='CPAZSO', max_n=80, fn=None):
             budget[0] -= 1
             if budget[0] < 0:
                 return ('UNKNOWN', 'walk budget (600 instructions)'), path
+            if not B1 <= a < B1 + len(img1):          # (20/11: a jmp / call out of obj1 - another mod's obj4 band
+                return ('UNKNOWN', f'{a:#x}: outside obj1'), path   #  since the BSS_AT relayout: not walked, as an indirect branch)
             m, ops, n = disasm_one(img1, a)
             path.append(f'{a:#x} {m} {ops}')
             nxt = a + n

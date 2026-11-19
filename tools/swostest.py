@@ -3309,6 +3309,8 @@ def ui_syms(b, d):
     then stops on the missing file instead of reading wrong addresses). A dir without syms: nothing to do."""
     own = os.path.join(b, UI_ORIG[:-4] + '.syms.json')
     dst = os.path.join(d, 'ITALIAN.syms.json')
+    if os.path.islink(dst):                            # (copytree(symlinks=True): a copy would write THROUGH it into
+        os.remove(dst)                                 #  the source file - MC 19/11, as the exe-symlink rule)
     if os.path.isfile(own):
         if not (os.path.isfile(dst) and open(dst, 'rb').read() == open(own, 'rb').read()):
             shutil.copyfile(own, dst)

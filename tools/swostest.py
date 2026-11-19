@@ -38966,9 +38966,9 @@ def gameplay_presets():
     rows, PERSONALIZZATO with its default steps), poked on the pre-match screen as diff_match does. Played with a FIRE
     each poll (half-time / stoppages wait for a key). The match clock = the game's gameTime (obj2, found on the
     original by UpdateTime's `cmp gameTime, 45'`; bytes +1..+3 = hundreds, tens, units). PASS = every match's clock
-    reaches 90' and the post-match screen comes (entries again) within GP_POLLS (400) polls of dump:5, and the clock
-    never stands still for GP_STALL (12) polls before 90' (a hung gameplay hook). Shot gp_end_<i> if a match does
-    not end."""
+    reaches 90' (full time) within GP_POLLS (400) polls of dump:5 and never stands still for GP_STALL (12) polls
+    before it (a hung gameplay hook). (After full time a FIRE only replays the highlights, their clock from 0 again:
+    first dev run 19/11.) Shot gp_end_<i> if a match does not end."""
     b = ui_dir(os.environ.get('SWOSTEST_BUILD'))
     if not b or not os.path.isfile(os.path.join(b or '', 'ITALIAN.EXE')):
         return True, 'SKIP: no release dir (SWOSTEST_BUILD)'
@@ -39020,9 +39020,8 @@ def gameplay_presets():
                 else:
                     still = 0
                 last, top = m, max(top, m)
-                texts = [e[1] for e in s.screen().entries if e[1] and not e[2]]
-                if top >= 90 and texts:
-                    end = texts[:4]
+                if top >= 90:                               # (full time; FIRE after it only replays the highlights,
+                    end = f'90\' at poll {n}'                #  whose clock starts again from 0)
                     break
                 r = s.send('fire dump:5')
             if end is None:

@@ -70,7 +70,7 @@ CANARIES = [
     dict(id='C6', what='A continental group draw and its page', proves='the draw in the exe; the VIEW port',
          scenarios=['world_cgame_view'], env='CV_BUILD=<rel>'),
     dict(id='C7', what='A full match with each GAMEPLAY preset', proves='gameplay hooks never hang; frame counter',
-         scenarios=[], gap='no preset match scenario on 42-int (diff_trace / drp_setp use DIFF_TRACE test builds)'),
+         scenarios=['gameplay_presets'], env='SWOSTEST_BUILD=<rel> (IT; 3 friendlies, ~160 s)'),
     dict(id='C8', what='SWOS++ smoke on the English exe', proves='the obj1 limit; timing',
          scenarios=['euro_swospp', 'swospp_bench'], env='SWOSTEST_UI=en, an English-UI copy of the release dir'),
     dict(id='C9', what='Patcher output byte-equal + the Node directory test (no DOSBox)', proves='what players install',

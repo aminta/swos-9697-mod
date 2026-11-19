@@ -32886,6 +32886,9 @@ def s7_env(extra=None, world=None, pack=None):
     """(4.2 S7) SEASON_PACKS of the release world world5tm-h2 with Italy replaced by the shaped pack S7_PACK (two
     league structs: file 102 Serie A..C, file 144 Serie D) - None when either is missing. world / pack (s7cross's
     release-data variant, MC 16/11): another world under internal/world2526 and its own Italy pack."""
+    if not world and os.environ.get('S7_WORLD'):      # (19/11 Integratore: the S7 gates on the rc data - S7_WORLD=<a world under
+        world = os.environ['S7_WORLD']               #  internal/world2526> with its own Italy; S7_PACK not read then)
+        pack = pack or os.path.join(MAIN, 'internal', 'world2526', world, 'ita')
     pk = pack or os.environ.get('S7_PACK')
     w = os.path.join(MAIN, 'internal', 'world2526', world or 'world5tm-h2')
     if not pk or not os.path.isdir(pk) or not os.path.isdir(w):

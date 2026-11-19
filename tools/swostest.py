@@ -10508,7 +10508,8 @@ def practice_pick(s, row, errs):
         errs.append(f'practice page not shown ({", ".join(scr.texts())[:120]})')
         return False
     lab = t[1 + row] if row < 4 else (t[5] if t[5] in scr.texts() else t[6]) if row == 4 else t[7]
-    if press(s, scr, lab, 3) is None:
+    lab = ui_it(lab)                    # (as Screen shows it: FR QUITTER / DE ENDE - the BACK row since the 19/11 labels - are
+    if press(s, scr, lab, 3) is None:   #  the game's own EXIT words, which UI_MAP reads back as ESCI)
         errs.append(f'practice page: {lab} not reached ({s.result})')
         return False
     return True
@@ -11491,7 +11492,7 @@ def practice_menu():
                 return None
             scr = s.screen()
             tx = scr.texts()
-            miss = [x for x in (t[0],) + t[1:5] + (t[7],) if x not in tx] + ([] if {t[5], t[6]} & set(tx) else ['switch'])
+            miss = [x for x in (t[0],) + t[1:5] + (t[7],) if ui_it(x) not in tx] + ([] if {t[5], t[6]} & set(tx) else ['switch'])   # (ui_it: BACK = UI_MAP's ESCI in FR / DE)
             check(not miss, f'page ({n}): missing {miss} ({", ".join(tx)[:140]})', errs)
             return scr
         scr = open_page(1)
@@ -38245,7 +38246,7 @@ def diff_dp_page(s, pg, blk, errs):
     fit = lambda t, j: check(px(t) <= pg.geom[j][2] - 2 and not font_odd(t),
                              f'{t!r}: {px(t)} px in {pg.geom[j][2]}, odd {font_odd(t)}', errs)
     for j, t in ((0, dfm.DP_TITLE[UI]), (bk, dfm.DP_BACK[UI]), (rs, dfm.DP_RESET[UI]), (lg, dfm.DP_LEG[UI])):
-        check(pg.entries[j][1] == t, f'entry {j}: {pg.entries[j][1]!r} (want {t!r})', errs)
+        check(pg.entries[j][1] == ui_it(t), f'entry {j}: {pg.entries[j][1]!r} (want {ui_it(t)!r})', errs)   # (FR QUITTER / DE ENDE read back as ESCI)
         fit(t, j)
     for i, row in enumerate(dfm.DP_ROWS):
         check(pg.entries[1 + i][1] == row[0][li], f'label {i}: {pg.entries[1 + i][1]!r}', errs)

@@ -127,7 +127,7 @@ The original Italian game spells "draws" as PARREGGI in the season record (VINCI
 - 1996-97 season end: after the end-of-season matches the game simulates, every club in your career gets its own squad back (before, only the first 32 did).
 
 #### Intercontinental Cup
-- English and Scottish clubs: when your club won the Champions Cup and plays in a country with a league cup, the Intercontinental in December is now really played. Before, it showed in the fixture list but the match never came.
+- English clubs: when your club won the Champions Cup and plays in a country with a league cup, the Intercontinental in December is now really played. Before, it showed in the fixture list but the match never came. In a division with end-of-season play-offs (Scotland's Premier Division) the play-offs keep that place, so there is no Intercontinental that season.
 - 2026-27 world and the historic worlds: no more Intercontinental out of nowhere in the first season. Before, the club in your file at Juventus' place got a December match against the 1996-97 Libertadores winner. In the 2026-27 world the Intercontinental is the one of the world's continental cups (holders of every confederation); in the historic worlds it starts from the second season, between that world's Champions Cup winner and the Libertadores winner.
 
 #### Decisions of this release
@@ -277,7 +277,7 @@ Il gioco originale in italiano scrive PARREGGI nel registro della stagione (VINC
 - Fine stagione 1996-97: dopo le partite di fine stagione simulate dal gioco ogni squadra della tua carriera riprende la sua rosa (prima solo le prime 32).
 
 #### Coppa Intercontinentale
-- Club inglesi e scozzesi: se il tuo club ha vinto la Coppa Campioni e gioca in un paese con la coppa di lega, l'Intercontinentale di dicembre ora si gioca davvero. Prima compariva nel calendario ma la partita non arrivava mai.
+- Club inglesi: se il tuo club ha vinto la Coppa Campioni e gioca in un paese con la coppa di lega, l'Intercontinentale di dicembre ora si gioca davvero. Prima compariva nel calendario ma la partita non arrivava mai. In una divisione con i play-off di fine stagione (la Premier Division scozzese) quel posto resta ai play-off, quindi quella stagione niente Intercontinentale.
 - Mondo 2026-27 e mondi storici: niente più Intercontinentale dal nulla nella prima stagione. Prima il club che nel tuo file stava al posto della Juventus si trovava a dicembre una partita contro la vincitrice della Libertadores 1996-97. Nel Mondo 2026-27 l'Intercontinentale è quella delle coppe continentali del mondo (le detentrici di ogni confederazione); nei mondi storici parte dalla seconda stagione, fra la vincitrice della Coppa Campioni di quel mondo e quella della Libertadores.
 
 #### Decisioni di questa release

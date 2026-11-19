@@ -1803,8 +1803,8 @@ def squad_rows(s, scr, tag):
     Unavailable = red row background (x=100) or red pixels in the face/icon column (x 2-11): red card / injury."""
     from PIL import Image
     rx = row_x(scr)
-    rows = sorted((g[1], i) for i, g in enumerate(scr.geom)
-                  if g[0] == rx and (g[2], g[3]) in SQ_WH and not scr.entries[i][1])   # drawn rows, not text copies
+    rows = sorted((g[1], i) for i, g in enumerate(scr.geom)     # drawn rows, not text copies; not the hidden ones
+                  if g[0] == rx and (g[2], g[3]) in SQ_WH and not scr.entries[i][1] and not scr.entries[i][2])
     dx = rx - 25                                         # (the ENGLISH exe's layout: 6 px to the right)
     s.shot(tag)
     im = Image.open(os.path.join(s.run, 'shots', tag + '.png')).convert('RGB')
@@ -1855,7 +1855,15 @@ def row_entries(scr):
     """The 17 squad rows' entries, top to bottom (no screenshot: the drawn rows' geometry)."""
     rx = row_x(scr)
     return [i for _, i in sorted((g[1], i) for i, g in enumerate(scr.geom)
-                                 if g[0] == rx and (g[2], g[3]) in SQ_WH and not scr.entries[i][1])]
+                                 if g[0] == rx and (g[2], g[3]) in SQ_WH and not scr.entries[i][1] and not scr.entries[i][2])]
+
+
+def sq_ok(rows):
+    """A squad screen's row list: 11 starters + a bench of 1..5 + the reserve row (13..17 rows). MC 19/11 (Shaved's
+    row-154 gate, the INTERCONTINENTALE: a bench of 3 = 15 drawn rows; the two unused rows are hidden entries, which the
+    harness counted - its '17th row' was a hidden one: 'no face entry for the 17th row'). A long bench (benchx) is still
+    17 rows: rows 12..16 are its window."""
+    return 13 <= len(rows) <= 17
 
 
 def to_entry(s, i, tries=24):
@@ -1897,7 +1905,7 @@ def window_home(s, tries=40):
     """The long bench's window back to the top, so that rows 12..16 are places 12..16 again: FIRE on the box (4.0.6,
     Marco: only the box moves it, one place on, back to the top after the last; the name rows never scroll). True
     with no window (the game's bench of 5); False if the squad screen is not there."""
-    if len(row_entries(s.screen())) != 17:
+    if not sq_ok(row_entries(s.screen())):
         return False
     for _ in range(tries):
         w = bx_window(s)
@@ -2088,7 +2096,7 @@ def substitute(s, scr, tries=40, full=False):
             if seen and name == seen[0][0]:
                 break
             rows2 = squad_rows(s, c2, f'sq{len(s.log):03d}')
-            if len(rows2) != 17:                        # not the squad screen any more (a message, a shot
+            if not sq_ok(rows2):                        # not the squad screen any more (a message, a shot
                 break                                   # that failed): stop cycling, the caller looks again
             seen.append((name, role, value, not rows2[-1][1]))
             press(s, c2, face, wait=1)
@@ -2111,7 +2119,7 @@ def substitute(s, scr, tries=40, full=False):
         window_home(s)                                  # (long bench: rows 12..16 = places 12..16 for the reads)
         cur = s.screen()
         rows = squad_rows(s, cur, f'sq{len(s.log):03d}')
-        if len(rows) != 17:
+        if not sq_ok(rows):
             return f'squad screen: {len(rows)} rows'
         reserve = rows[-1][0]
         ry = cur.geom[reserve][1]
@@ -2124,7 +2132,7 @@ def substitute(s, scr, tries=40, full=False):
             s.gk_swap = False
             s.log.append('[subs] slot 1: the first keeper back')
             continue
-        pool = cycle(face, ry) if subs or any(un for _, un in rows[:16]) else []
+        pool = cycle(face, ry) if subs or any(un for _, un in rows[:-1]) else []
         back = next(((k, st) for k, (st, _) in sorted(subs.items()) if k not in out_now
                      and any(n == st and fit for n, _, _, fit in pool) and not rows[k][1]), None)
         if back is None:                                # restore also over an unavailable stand-in
@@ -2139,7 +2147,7 @@ def substitute(s, scr, tries=40, full=False):
             continue
         for k in [k for k, st in list(subs.items()) if not any(n == st[0] for n, _, _, _ in pool)]:
             del subs[k]                                 # the starter left the squad (sold, the game's changes)
-        bad = [k for k, (i, un) in enumerate(rows[:16]) if un]
+        bad = [k for k, (i, un) in enumerate(rows[:-1]) if un]
         if not bad and not match_ok(cur) and not vis_ok(s):
             bad = no_red_bad(s)                         # no goalkeeper in goal (the game's own squad changes), an
             if bad == LINEUP_REFUSED:                   # unmarked suspended player (memory), or the game's refusal
@@ -2212,7 +2220,7 @@ def keeper_from_reserves(s, cur, rows, tries=40):
     for _ in range(tries):
         c2 = s.screen()
         rows2 = squad_rows(s, c2, f'sq{len(s.log):03d}')
-        if len(rows2) != 17:
+        if not sq_ok(rows2):
             return f'squad screen: {len(rows2)} rows'
         name, role, _ = reserve_info(c2, ry)
         if role == 'G' and not rows2[-1][1]:
@@ -2244,9 +2252,9 @@ def substitute_min(s, tries=40):
         window_home(s)                                  # (long bench: rows 12..16 = places 12..16 for the reads)
         cur = s.screen()
         rows = squad_rows(s, cur, f'sq{len(s.log):03d}')
-        if len(rows) != 17:
+        if not sq_ok(rows):
             return f'squad screen: {len(rows)} rows'
-        bad = [k for k, (i, un) in enumerate(rows[:16]) if un]
+        bad = [k for k, (i, un) in enumerate(rows[:-1]) if un]
         if not bad and not match_ok(cur):
             if vis_ok(s):                               # (only not redrawn yet)
                 s.lineup_esc = 0
@@ -2290,7 +2298,7 @@ def substitute_min(s, tries=40):
                 return f'squad screen: {s.result}'
             c2 = s.screen()
             rows2 = squad_rows(s, c2, f'sq{len(s.log):03d}')
-            if len(rows2) != 17:
+            if not sq_ok(rows2):
                 break
             name, role, value = reserve_info(c2, ry)
             if name == first:                           # (every reserve seen once)
@@ -2327,8 +2335,8 @@ def fallback_full(s, tries, why):
         window_home(s)                                  # to the bench, a fit bench player (rows 12-16) in his place
         cur = s.screen()
         rows = squad_rows(s, cur, f'sq{len(s.log):03d}')
-        if len(rows) == 17:
-            fitb = [k for k in range(11, 16) if not rows[k][1]]
+        if sq_ok(rows):
+            fitb = [k for k in range(11, len(rows) - 1) if not rows[k][1]]
             for k in [k for k in range(11) if rows[k][1]]:
                 if not fitb:
                     break

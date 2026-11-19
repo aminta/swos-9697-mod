@@ -12,6 +12,11 @@ subbed-off keeper (a later option) is one more slot to roll. A simulated result 
 human's VIEW RESULT) - after its cseg_903B1 (chained after cpucards' cb_903), the keeper = the team's line-up slot 0
 (currentMatchPlayers for the career club, the file's order at +3Ch for any other). Never a keeper whose record already
 has an injury level (20h included).
+Not rolled while dseg_E0052 = 1 (4.2 gkview, Frank 19/11): the loaders cseg_3ABB2 / 3ACAB / 3ADAE regenerate a contest
+the player is not in on every view (ViewWorldMenu -> cseg_3AA17), Rand2 seeded by contest and season - our own
+xorshift is not, so a roll there made every view different; the season-end simulations of the other divisions /
+countries (cseg_91D4D -> cseg_3ABB2) set it too and roll no keeper either. GKVIEW_OFF=1 (test builds): no skip, harness gk_view's
+red twin.
 
 Who: human teams always (row ON); a computer team only in a season or a career and when INFORTUNI ALLA CPU is ON too
 (cpucards' CC_I = 0: the CPU's injuries are then kept and counted down by cpucards step B, cb_day - on the calendar days
@@ -41,6 +46,7 @@ LABEL = {'it': 'INFORTUNI PORTIERI', 'en': 'GOALKEEPER INJURIES', 'fr': 'BLESSUR
 ODDS = 25                               # 1 in 25 per team per match
 LVL1, LVL2 = 0x40, 0x60                 # out of the next match / the next two (the harness measures them)
 TAG = b'GKIJ'
+SYMS = {}                               # (hosttest_syms: dseg_E0052 + our labels)
 
 ASM = r"""
 gk_init:                                ; OPTIONS' init: the previous one (cpucards), then our row
@@ -210,6 +216,10 @@ gk_903:                                 ; replaces CalculateViewResult's `call c
     mov esi, [esp + 32]
     cmp word [TRG], 0
     jne .x
+%if GKVIEW
+    cmp word [SIMV], 0                  ; (4.2 gkview: dseg_E0052 = 1 - a contest regenerated on the fly or simulated
+    jne .x                              ;  at a season end, cseg_3ABB2 / 3ACAB / 3ADAE: no roll - a view re-rolled it)
+%endif
     movzx eax, byte [esi + 3Ch]         ; (line-up slot 0: the file's order, the career club's currentMatchPlayers)
     cmp esi, CAREER
     jne .r
@@ -259,9 +269,13 @@ def find(p):
     rng = [m.start() for m in re.finditer(rb'\xa0....\xa2....\x66\x81\x25....\xff\x00\x75.\x80\x05....\x01\xa0', d, re.S)]
     rng = [p.target(1, o + 1) for o in rng if p.target(1, o + 23) == (2, p.target(1, o + 1)[1] + 1)]
     assert len(rng) == 2, rng                            # (Rand / Rand2's states: seed, randXorIndex, randXorKey)
+    sv = {p.target(1, x.start() + 3) for x in re.finditer(         # (dseg_E0052, the loaders' simulation flag:
+        rb'\x66\xc7\x05.{4}\x01\x00\x66\xa1.{4}\x66\x0b\xc0\x75.\x66\xa1.{4}\x66\x0b\xc0\x75.\x66\xc7\x05.{4}\x01\x00',
+        d, re.S)}                                        #  cseg_3ABB2 / 3ADAE's first mov - careerworld's e0052)
+    assert len(sv) == 1, ('dseg_E0052', sv)
     return dict(UPI=upi, calls=calls, RNG1=rng[0], RNG2=rng[1], GETPLAYER=rel(upi + gp[0] + 6, 5), TRG=p.target(1, b['F903'] + 2),
                 CAREER=p.target(1, c6 + 22), CMPL=p.target(1, c6 + 38), calls903=b['calls903'],
-                GT=p.target(1, b['F903'] + gt[0] + 3))
+                GT=p.target(1, b['F903'] + gt[0] + 3), SIMV=sv.pop())
 
 
 def patch(p, at, lang):
@@ -286,7 +300,11 @@ def patch(p, at, lang):
     lv1 = LVL2 if force == 2 else LVL1
     db = lambda x: ', '.join(str(c) for c in x.encode() + b'\0')
     import gameplay
-    src = f'%define GMODE {int(gameplay.on())}\n%define FORCE {force}\n%define ODDS {ODDS}\n%define LVL1 {lv1:#x}\n%define LVL2 {LVL2:#x}\n' + ASM \
+    gkview = 0 if os.environ.get('GKVIEW_OFF') == '1' else 1     # (test builds only: the red twin of gk_view)
+    if not gkview:
+        import modver
+        assert modver.is_test(), 'GKVIEW_OFF is a test switch (modver.TEST_VARS)'
+    src = f'%define GKVIEW {gkview}\n%define GMODE {int(gameplay.on())}\n%define FORCE {force}\n%define ODDS {ODDS}\n%define LVL1 {lv1:#x}\n%define LVL2 {LVL2:#x}\n' + ASM \
         + f'S_LG: db {db(label)}\n'
     regs = sacups.regs(d)
     d0 = regs['D7'] - 28
@@ -300,7 +318,7 @@ def patch(p, at, lang):
            'A0_': (2, regs['A0']), 'A1_': (2, regs['A0'] + 4), 'A2_': (2, regs['A0'] + 8), 'D0_': (2, d0),
            'D1_': (2, d0 + 4), 'UPI': tu[0], 'GETPLAYER': (1, s['GETPLAYER']), 'TRG': s['TRG'], 'F903': tg[0],
            'CAREER': s['CAREER'], 'CMPL': s['CMPL'], 'GT': s['GT'],
-           'RNG1': s['RNG1'], 'RNG2': s['RNG2']}
+           'RNG1': s['RNG1'], 'RNG2': s['RNG2'], 'SIMV': s['SIMV']}
     code, fix, rel = nasmcave.assemble_obj(src, at, sym, 3)
     lab = nasmcave.labels(src, at, sym)
     assert not any(p.get(3, at, len(code)))
@@ -316,6 +334,7 @@ def patch(p, at, lang):
     for k, l in ((0, 'gk_init'), (4, 'gk_ret')):
         p.retarget(2, hdr + k, 3, lab[l])
         p.put(2, hdr + k, struct.pack('<I', lab[l]))
+    SYMS.update(SIMV=s['SIMV'], gk_903=(3, lab['gk_903']), GK_TAG=(3, lab['GK_TAG']))
     engine.ITEM_AT['GI'] = (3, lab['GI_W'])
     engine.CALL_AT['gk_load'] = (3, lab['gk_load'])
     engine.CALL_AT['gk_new'] = (3, lab['gk_new'])

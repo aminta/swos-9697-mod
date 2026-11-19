@@ -3673,6 +3673,103 @@ def euro_draws():
     return not errs, f"{msg}; {'; '.join(errs) or 'ok'}; {'; '.join(notes)}; rounds checked {sorted(seen)}; bp hits {hits}"
 
 
+
+def gkv_vis(scr):
+    return [t for _, t, inv, _ in scr.entries if t and not inv]
+
+
+def gkv_home(s):
+    """Back to the career menu (VISUALIZZA MONDO + TRASFERIMENTI shown)."""
+    for _ in range(10):
+        if {'VISUALIZZA MONDO', 'TRASFERIMENTI'} <= set(s.screen().texts()):
+            return True
+        x = [t for _, t, _, _ in s.screen().entries]
+        b = next((b for b in ('ESCI', 'ABBANDONA', 'CONTINUA', 'OK') if b in x), None)
+        if b:
+            press(s, s.screen(), b, 3)
+        else:
+            s.send('escape dump:2')
+    return False
+
+
+def gkv_view(s, path, tag):
+    """From the career menu along path (texts; an int = that entry of the list after its title): md5 of the view's
+    rows 0..184 (the button strip's highlight blinks), or an error string. No RNG pin needed: the regeneration seeds
+    Rand2 itself (Randomize2's word write resets seed2 and randXorIndex2)."""
+    import hashlib
+    from PIL import Image
+    for t in path:
+        if isinstance(t, int):
+            x = [e for e in gkv_vis(s.screen()) if e not in ('ESCI', 'ABBANDONA', 'VISUAL. SQUADRE SELEZ.')][1:]
+            t = x[t]
+        if press(s, s.screen(), t, 3) is None:
+            return f'not reached {t!r}: {s.screen()}'
+    s.shot(tag)
+    png = os.path.join(s.box.run, 'shots', tag + '.png')
+    return hashlib.md5(Image.open(png).convert('RGB').crop((0, 0, 320, 185)).tobytes()).hexdigest()[:12]
+
+
+GKV_LEAGUE = ['VISUALIZZA MONDO', 'EUROPA', 'GERMANIA', 0]       # GERMANIA 1. LIGA
+GKV_CUP = ['VISUALIZZA MONDO', 'EUROPA', 'GERMANIA', -1]         # D.F.B. POKAL (its semifinal in this save)
+
+
+def gkv_run(name, exe, n_league, gi_off=False):
+    """JUVE2F's 1997/98 career menu; the league view n_league times, the cup view twice: their hashes."""
+    with Session(name, exe, {'JUVE2F.CAR': juve2(True)}, 'dump:2', 600) as s:
+        require(s.wait().outcome == 'dump', f'START: no first pause ({s.result})')
+        s.send('down down down down down fire dump:2')
+        s.send('fire dump:2')
+        for _ in range(12):
+            if gkv_home(s):
+                break
+            s.send('fire dump:2')
+        require(gkv_home(s), f'no career menu: {s.screen()}')
+        if gi_off:                                      # INFORTUNI PORTIERI OFF: GI_W (obj3 'GKIJ' + 20) = 1
+            m = s.box.dump(s.result.base2, 0x400000)
+            i = m.find(b'GKIJ')
+            require(i >= 0, 'no GKIJ block')
+            s.poke(s.result.base2 + i + 20, b'\x01\x00')
+        out = {'league': [], 'cup': [], 'rolls': []}
+
+        def counts():                                   # (GK_ROLLS, GK_HITS: the obj3 'GKIJ' block)
+            m = s.box.dump(s.result.base2, 0x400000)
+            i = m.find(b'GKIJ')
+            return struct.unpack_from('<2I', m, i + 4) if i >= 0 else None
+        for k, path, n in (('league', GKV_LEAGUE, n_league), ('cup', GKV_CUP, 2)):
+            for j in range(n):
+                require(gkv_home(s), f'no career menu before {k} {j}: {s.screen()}')
+                out['rolls'].append(counts())
+                out[k].append(gkv_view(s, path, f'{k}{j}'))
+        require(gkv_home(s), f'no career menu at the end: {s.screen()}')
+        out['rolls'].append(counts())
+        return out
+
+
+@scenario
+def gk_view():
+    """(4.2 gkview, Frank 19/11) a contest the player is not in is regenerated on every view (cseg_3AA17 ->
+    cseg_3ABB2 / 3ACAB, Rand2 seeded by contest and season, the original game's way): JUVE2F, GERMANIA 1. LIGA viewed
+    3 times and its D.F.B. POKAL twice: every view the same hash, and the league = the
+    same build with INFORTUNI PORTIERI OFF (gk_903 rolls no keeper with dseg_E0052 = 1); GK_ROLLS / GK_HITS logged at
+    every view (unchanged = no roll). Red twin GK_VIEW_RED=1: a GKVIEW_OFF=1 build (no skip; the real odds - a
+    GKINJ_FORCE build hits every roll, so every view is alike) -> 'views differ' FAIL."""
+    if it_only('gk_view'):
+        return it_only('gk_view')
+    red = os.environ.get('GK_VIEW_RED') == '1'
+    exe = build('gk_view_red', env={'GKVIEW_OFF': '1'}) if red else builds()['it']   # (no GKINJ_FORCE: a roll
+    # that always hits makes every view alike - 101 rolls / 101 hits a view, the same hashes; the real 1-in-25 odds
+    # are what moves a view)
+    on = gkv_run('gk_view' + ('_red' if red else ''), exe, 3)
+    errs = []
+    check(len(set(on['league'])) == 1, f"league views differ: {on['league']}", errs)
+    check(len(set(on['cup'])) == 1, f"cup views differ: {on['cup']}", errs)
+    if not red and not errs:
+        off = gkv_run('gk_view_gioff', exe, 1, gi_off=True)
+        check(off['league'][0] == on['league'][0], f"league {on['league'][0]} != INFORTUNI PORTIERI OFF {off['league'][0]}",
+              errs)
+    return not errs, f"{'; '.join(errs) or 'ok'}; league {on['league']}; cup {on['cup']}; GK rolls/hits {on['rolls']}"
+
+
 def rng_sites(exe):
     """obj2 offsets of the game's two random generators' states, 3 bytes each (seed, randXorIndex, randXorKey; Rand
     and Rand2: `mov al, [seed]; mov [D0], al; and word [D0], 0FFh; jnz; add byte [randXorIndex], 1; mov al,

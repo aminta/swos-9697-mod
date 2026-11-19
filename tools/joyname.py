@@ -5,11 +5,13 @@ EDIT CUSTOM TEAMS, the career's name, DIY competition names, the save and tactic
 An arcade letter picker inside that loop, at its `call FilterKeys` (jn_filt chains to what was there):
 - UP / DOWN: the character right of the cursor cycles through the field's characters (names: space, A..Z, 0..9 and
   the punctuation keytext types; the save dialog - g_allowExtraCharsFlag - A..Z, 0..9, - and _); at the end of the name
-  (cursor on the terminator) the first UP / DOWN appends a character, while the name is shorter than the field;
-  held: repeats after JN_REP1 loops, then every JN_REP2;
+  (cursor on the terminator) UP appends a character, while the name is shorter than the field, and DOWN deletes the
+  last one (as BACKSPACE: no chord, for touch overlays and arrows-only pads; 4.2 row 153); held: repeats after JN_REP1
+  loops, then every JN_REP2;
 - LEFT / RIGHT: the cursor (the game's own 21 / 22);
 - FIRE: released = the name confirmed (as ENTER), trailing spaces trimmed; held JN_LONG loops = cancelled (as ESC);
-  FIRE held + LEFT = delete left of the cursor (as BACKSPACE). The FIRE that opened the field counts only once
+  FIRE held + LEFT = delete left of the cursor (as BACKSPACE); a direction held with FIRE restarts the long count
+  (row 153: several deletes with FIRE held never end in a cancel). The FIRE that opened the field counts only once
   released (no instant confirm).
 - The keyboard's UP / DOWN arrows cycle the same way (a pad mapped to the arrows: RetroArch / DOSBox Pure's
   keyboard mapping); everything typed works as before. The stick is read (Joy1SetStatus) only when the controls are not
@@ -57,6 +59,7 @@ FAKE_
     cmp word [CTL], 1                   ; KEYBOARD ONLY: no stick
     je .out
     call JOY1
+JCLR_
     movzx eax, word [PL1CF]
 .have:
     test byte [KCF], 0Fh                ; a held keyboard direction: the stick's directions ignored
@@ -77,7 +80,10 @@ FAKE_
     cmp byte [edi], 1
     jne .fh
     mov word [edi], 2                   ; (jn_fire 2, jn_ft 0)
-.fh:inc byte [edi + 1]
+.fh:test bl, bl                         ; 4.2 (row 153): long = FIRE held with no direction - a direction held with
+    jz .fi                              ;  FIRE (FIRE + LEFT deletes) restarts the count, so deletes never end in ESC
+    mov byte [edi + 1], 0
+.fi:inc byte [edi + 1]
     cmp byte [edi + 1], LONG_
     mov cl, 1                           ; long FIRE: cancel (ESC)
     jae .out
@@ -162,14 +168,21 @@ jn_cyc:                                 ; eax = +1 / -1: the character at the cu
 .set:
     cmp byte [esi], 0
     jne .find
+    test eax, eax                       ; 4.2 (row 153): DOWN at the end = delete the last character (BACKSPACE), no
+    jns .app                            ;  chord (touch overlays, arrows-only pads); held = repeat; UP appends
+    xor ecx, ecx
+    cmp esi, BUF
+    je .r0
+    mov cl, 8
+.r0:ret
+.app:
     push ecx
     call jn_end                         ; at the end: append one, if the field has room
     pop ecx
     sub edi, BUF
     cmp di, [D7]                        ; (D7 = the field's length - 1)
     jae .r
-    mov word [esi], 20h                 ; (a space, 0: names UP 'A' / DOWN the last; file names: not in their set,
-                                        ;  UP the first / DOWN the last)
+    mov word [esi], 20h                 ; (a space, 0: names UP 'A'; file names: not in their set, UP the first)
 .find:
     mov bl, [esi]
     xor edi, edi
@@ -201,7 +214,17 @@ jn_cnt:  db 0
 JNMARK_
 jn_fake: dw 0
 """
-FAKE = """    movzx eax, word [ebp + jn_fake - jn_b]   ; (JOYNAME_FAKE test build: the harness's flags, 8000h | flags)
+JCLR = """    xor ecx, ecx                        ; 4.2 (Davide's MiSTer 19/11): with a fire button down Joy1SetStatus returns
+                                        ;  cl = 5 / 6 (its fire-bit shift); ecx is D1's code: the FIRE that opened the
+                                        ;  field, still held (not armed: .out), typed char 05h every loop
+"""
+FAKE = """    call JOY1                           ; (JOYNAME_FAKE: the real stick read runs too)
+    movzx eax, word [ebp + jn_fake - jn_b]   ; (JOYNAME_FAKE test build: the harness's flags, 8000h | flags)
+    test al, 20h                        ; (a fire button down: Joy1SetStatus leaves cl = 5 - DOSBox has no pad,
+    jz .nf                              ;  so the fake fire does what the port's would)
+    mov cl, 5
+.nf:
+JCLR_
     btr eax, 15
     jc .have
 """
@@ -247,7 +270,9 @@ def patch(p, at, lang):
     assert set(names) - {' '} <= complist.FONT and set(SAVE) - {'_'} <= complist.FONT, (lang, names)
     fake = bool(os.environ.get('JOYNAME_FAKE'))
     db = lambda t: ', '.join(str(ord(ch)) for ch in t)
-    src = nasmcave.sub(nasmcave.sub(ASM, 'FAKE_', FAKE if fake else ''), 'JNMARK_', '    db "JNFAKE"' if fake else '') + f'jn_names: db {db(names)}\njn_save: db {db(SAVE)}\n'
+    src = nasmcave.sub(nasmcave.sub(ASM, 'FAKE_', FAKE if fake else ''), 'JNMARK_', '    db "JNFAKE"' if fake else '')
+    clr = '' if os.environ.get('JOYNAME_NOCLR') else JCLR        # (JOYNAME_NOCLR: test builds only, the red twin)
+    src = nasmcave.sub(src, 'JCLR_', clr, 2 if fake else 1) + f'jn_names: db {db(names)}\njn_save: db {db(SAVE)}\n'
     sym = dict(v, FILT=filt, REP1_=(0, JN_REP1), REP2_=(0, JN_REP2), LONG_=(0, JN_LONG), NNAMES_=(0, len(names)),
                NSAVE_=(0, len(SAVE)))
     code, fix, rel = nasmcave.assemble_obj(src, at, sym, 3)
@@ -259,7 +284,9 @@ def patch(p, at, lang):
     for o, t_obj, t_off in rel:
         p.add_rel(3, at + o, t_obj, t_off)
     p.branch(1, site, 0xE8, 3, lab['jn_filt'], 5)
-    LABELS.update(lab)
+    LABELS.clear()                              # (HOSTTEST_SYMS: obj3 labels + the game's sites; test_joyname)
+    LABELS.update({k: (3, o) for k, o in lab.items() if isinstance(o, int)})
+    LABELS.update({k: tuple(x) for k, x in sym.items() if isinstance(x, tuple) and len(x) == 2 and x[0] in (1, 2, 3, 4)})
     print(f'exe: joystick names (joyname, {len(names)} name chars, {len(SAVE)} file chars{", JOYNAME_FAKE" if fake else ""}): '
           f'code obj3+{at:#x} ({len(code)} B), site InputTextKeyLoop FilterKeys call obj1+{site:#x} -> {filt}')
     return at + len(code)

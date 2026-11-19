@@ -105,6 +105,8 @@ timed=false
 
 Then map the d-pad with the DOSBox mapper (Ctrl+F1 in DOSBox; in DOSBox-X: Main > Mapper editor): bind joystick 1 Y- up, Y+ down, X- left, X+ right (Add, press the d-pad direction, Save). In DOSBox-X, if you play with the keyboard only, set joysticktype=none (DOSBox-X invents a joystick when none is plugged in). To calibrate it yourself: the game's DOS installer INSTALL.EXE (on the CD) > Configure > Control > Calibrate Joystick, or SETUP.EXE, a Windows 3.x program in the game folder, on Windows. The English version with SWOS++ also adds a joystick calibration.
 
+**Names with the joystick (4.2).** Every name the game asks for can be written with the stick alone: UP / DOWN change the letter, at the end of the name UP adds one and DOWN deletes the last, LEFT / RIGHT move, FIRE confirms; FIRE + LEFT deletes left of the cursor, FIRE held alone cancels.
+
 The patcher ships only differences and checks every file before and after patching: an original copy of the game is required. It works with both the original CD and the GOG version (from 1.0.1).
 
 **Upgrading (2.5.1):** you do not need to go back to the originals. Drop the executable and `DATA\TEAM.020` you have now (modified by any earlier release, 1.0 to 4.0, CD or GOG): the patcher recognises them and brings them to the latest version, or tells you they are already up to date. Saves are never touched.
@@ -232,6 +234,8 @@ timed=false
 ```
 
 Poi associa la croce direzionale con il mapper di DOSBox (Ctrl+F1 in DOSBox; in DOSBox-X: Main > Mapper editor): associa joystick 1 Y- su, Y+ giù, X- sinistra, X+ destra (Add, premi la direzione della croce, Save). In DOSBox-X, se giochi solo con la tastiera, imposta joysticktype=none (DOSBox-X si inventa un joystick quando non ce n'è nessuno collegato). Per calibrarlo da te: l'installatore DOS del gioco, INSTALL.EXE (sul CD) > Configure > Control > Calibrate Joystick, oppure SETUP.EXE, un programma Windows 3.x nella cartella del gioco, su Windows. La versione inglese con SWOS++ aggiunge anche una calibrazione del joystick.
+
+**Nomi con il joystick (4.2).** Ogni nome che il gioco chiede si può scrivere solo con lo stick: SU / GIÙ cambiano la lettera, alla fine del nome SU ne aggiunge una e GIÙ cancella l'ultima, SINISTRA / DESTRA spostano, FUOCO conferma; FUOCO + SINISTRA cancella a sinistra del cursore, FUOCO tenuto premuto da solo annulla.
 
 **Aggiornamento (2.5.1):** non serve tornare agli originali. Trascina l'exe e `DATA\TEAM.020` che hai ora (modificati da una qualsiasi versione precedente, dalla 1.0 alla 4.0, CD o GOG): il patcher li riconosce e li porta all'ultima versione, oppure ti dice che sono già aggiornati. I salvataggi non vengono mai toccati.
 

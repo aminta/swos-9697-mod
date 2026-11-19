@@ -30,6 +30,8 @@ BUILD_SWITCHES = TEST_VARS + (                     # 4.0.6: every switch a test 
     # clears EURO_OPTIONAL, so the release recipe always keeps patch.py's euro assert)
 TEST_VARS += ('JOYNAME_FAKE',)                     # 4.2 joyname: the harness's stick flags (own lines: 42-drp's
 BUILD_SWITCHES += ('JOYNAME_FAKE',)                # DIFF_* edits above cherry-pick without a conflict)
+TEST_VARS += ('JOYNAME_NOCLR',)                    # 4.2 joyname: no ecx clear after Joy1SetStatus (the 05h red twin)
+BUILD_SWITCHES += ('JOYNAME_NOCLR',)
 TEST_VARS += ('FPML_FORCE', 'FPML_SEED')           # 4.2 Supercoppa Serie C (lane 3, tools/fpmlgate.py): the mini-league's
 BUILD_SWITCHES += ('FPML_FORCE', 'FPML_SEED')      # forced scores and md1 draw seed (fpad.ml_test_flags; own lines)
 TEST_VARS += ('SWE_BSS_SHIFT',)                   # 4.2 BSS_AT gate (a): swe.c's .bss at BSS_AT + this (test builds only)

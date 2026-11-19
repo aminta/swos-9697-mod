@@ -26,8 +26,8 @@ import struct
 
 import nasmcave
 
-LABEL = {'it': 'ROSSI ALLA CPU', 'en': 'CPU RED CARDS', 'fr': 'ROUGES A LA CPU', 'de': 'ROTE KARTEN CPU'}
-LABEL_I = {'it': 'INFORTUNI ALLA CPU', 'en': 'CPU INJURIES', 'fr': 'BLESSURES A LA CPU', 'de': 'VERLETZUNGEN CPU'}
+LABEL = {'it': 'ROSSI ALLA CPU', 'en': 'CPU RED CARDS', 'fr': 'CARTONS ROUGES CPU', 'de': 'ROTE KARTEN CPU'}
+LABEL_I = {'it': 'INFORTUNI ALLA CPU', 'en': 'CPU INJURIES', 'fr': 'BLESSURES CPU', 'de': 'VERLETZUNGEN CPU'}
 
 ASM = r"""
 cc_init:                                ; OPTIONS' init: the previous one (controls), then our rows

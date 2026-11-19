@@ -52,15 +52,17 @@ GM_PERSONALIZZATO, GM_ORIGINALE = 0, 1
 LABEL = {'it': 'GAMEPLAY', 'en': 'GAMEPLAY', 'fr': 'GAMEPLAY', 'de': 'SPIELWEISE'}
 VALUES = {'it': ('PERSONALIZZATO', 'ORIGINALE'), 'en': ('CUSTOM', 'ORIGINAL'),          # (value 0 first = GM_W's 0)
           'fr': ('PERSONNALISE', 'ORIGINAL'), 'de': ('INDIVIDUELL', 'ORIGINAL')}
-TITLE = {'it': 'GAMEPLAY PERSONALIZZATO', 'en': 'CUSTOM GAMEPLAY', 'fr': 'GAMEPLAY PERSONNALISE', 'de': 'INDIVIDUELLE SPIELWEISE'}
-YESNO = {'it': ('SI', 'NO'), 'en': ('YES', 'NO'), 'fr': ('OUI', 'NON'), 'de': ('JA', 'NEIN')}     # (the CPU rows: 0 = SI, today's default)
+TITLE = {'it': 'GAMEPLAY PERSONALIZZATO', 'en': 'CUSTOM GAMEPLAY', 'fr': 'GAMEPLAY PERSONNALISE', 'de': 'SPIELWEISE INDIVIDUELL'}
+YESNO = {'it': ('SI', 'NO'), 'en': ('YES', 'NO'), 'fr': ('ACTIVE', 'DESACTIVE'), 'de': ('EIN', 'AUS')}   # (0 = the first word. NOMINAL: the exe's
+#  YES / NO rows - CPU cards, CPU injuries, keeper injuries, RUOLI - draw the game's OWN two switch strings, read from its OPTIONS menu by
+#  cpucards.strings(); this table only names them for page() and the tests. fr / de = the game's switch words, Regia's audit 19/11)
 PRACTICE = {'it': 'GAMEPLAY: ORIGINALE', 'en': 'GAMEPLAY: ORIGINAL', 'fr': 'GAMEPLAY: ORIGINAL', 'de': 'SPIELWEISE: ORIGINAL'}
 LEG = {'it': 'SINISTRA/DESTRA CAMBIA FUOCO: AVANTI', 'en': 'LEFT/RIGHT CHANGE FIRE: NEXT',
-       'fr': 'GAUCHE/DROITE CHANGE FEU: SUITE', 'de': 'LINKS/RECHTS AENDERT FEUER: WEITER'}
+       'fr': 'GAUCHE/DROITE: CHANGER  FEU: SUIVANT', 'de': 'LINKS/RECHTS: AENDERN  FEUER: WEITER'}
 # takers: not in yet (its texts are ready, the 'present' flag off); RUOLI (Marco's traits): in, GM_NOROLES takes it out
 TAKERS = {'it': 'TIRATORI', 'en': 'TAKERS', 'fr': 'TIREURS', 'de': 'SCHUETZEN'}
 TAKERS_V = {'it': ('AUTOMATICI', 'SCELTI'), 'en': ('AUTO', 'CHOSEN'), 'fr': ('AUTO', 'CHOISIS'), 'de': ('AUTO', 'GEWAEHLT')}
-ROLES = {'it': 'RUOLI', 'en': 'ROLES', 'fr': 'ROLES', 'de': 'ROLLEN'}      # (Marco's position traits; fr / de to be confirmed)
+ROLES = {'it': 'RUOLI', 'en': 'ROLES', 'fr': 'APTITUDES PAR POSTE', 'de': 'SPIELERTYPEN'}      # (Marco's position traits; fr / de: Regia's audit 19/11)
 
 # the page's rows in order: (key, present, label, values, module whose mask hook reads GM_W at kick-off)
 ROWS = (

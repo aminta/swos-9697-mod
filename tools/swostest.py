@@ -1445,7 +1445,8 @@ class Session:
             while ...: scr = s.screen(); s.send('keys ... dump:1')
     """
 
-    def __init__(self, name, exe_dir, cars, keys, timeout=60, shots=0, match=False, timer=False, stale_ok=False):
+    def __init__(self, name, exe_dir, cars, keys, timeout=60, shots=0, match=False, timer=False, stale_ok=False,
+                 nosack=None):
         if not stale_ok and (why := build_stale(exe_dir)):   # (MC 16/11, rule 0: the ONE place every DOSBox run
             raise SetupError(why)                       #  passes - a syms build not made from this tree is refused)
         self.rate = TICKS if timer else None           # (timer: SWOS++, keys fed from TimerProc at 70 Hz)
@@ -1460,6 +1461,14 @@ class Session:
         self.x3 = (_gp_sym(exe_dir, 'X3.GP_SCDONE'), _gp_sym(exe_dir, 'sc_done')) if os.path.isdir(exe_dir) else (None, None)
         self.x3all = _gp_sym(exe_dir, 'X3ALL_CT') if os.path.isdir(exe_dir) else None   # (4.2 x3all: the glue's bound dwords)
         self.ctout = ctout_at(exe_dir)
+        # (MC 17/11, rule 0: the chairman's no-sacking word in EVERY session by default - a career scenario never ends
+        #  on the game's own sacking by chance (euro_draws pinned: Juventus sacked at the 1999 end, the career-over
+        #  screen looped). Opt-out: nosack=False, or SWOSTEST_NOSACK=0 for a run. The mod's own sacking (gplay
+        #  gp_sack, the reserve) is another path and stays on)
+        self.nosack = (os.environ.get('SWOSTEST_NOSACK', '1') != '0') if nosack is None else bool(nosack)
+        x = os.path.join(self.run, 'SWOS', 'ITALIAN.EXE')   # (the exe this run plays, else the build's)
+        self.nosack_exe = x if os.path.exists(x) else os.path.join(exe_dir, 'ITALIAN.EXE')
+        self.nosack_at = None
 
     def __enter__(self):
         return self
@@ -1662,6 +1671,8 @@ class Session:
         b.stat('send', t)
         self.log.append(keys)
         r = self.wait()
+        if r.outcome == 'dump' and self.nosack:
+            nosack_pin(self)
         pin = getattr(self, 'rng_pin', None)          # (opt-in, a scenario's s.rng_pin = text, s.rng_at = rng_sites(exe):
         if pin and r.outcome == 'dump':                # the generators re-pinned at every pause, as W8485_RNGSTEP -
             self.rng_n = getattr(self, 'rng_n', 0) + 1  # CareerMenu reseeds Rand from currentTick on every entry)
@@ -3613,6 +3624,55 @@ def italy_advance():
     return not errs, f"{msg}; {'; '.join(errs) or 'ok'}; next CC {sorted(lst)} (Juventus 20,32 {'in' if (20, 32) in lst else 'out'})"
 
 
+
+def chairman_offs(exe):
+    """obj2 offsets of the chairman's league-position state next to nosack_off's dseg_D6B62 (the same dseg block):
+    dseg_D6B58 (the warning stage: 6 = sacked, cseg_3CCF0), dseg_D6B5C (the matches left before the next warning) and
+    dseg_D6C50 (the place the board expects: GetMoreExpensiveTeamsCount at the season start)."""
+    o = nosack_off(exe)
+    return {k: o + a - 0xD6B62 for k, a in (('stage', 0xD6B58), ('timer', 0xD6B5C), ('expect', 0xD6C50))}
+
+
+@scenario
+def chairman_sack():
+    """(42-nosack, MC 17/11) the game's own sacking still works with Session(nosack=False): JUVEFIX3 (Juventus
+    1998/99 mid-season), the chairman's state forced to a poor result (no retry): the board expects place -100
+    (dseg_D6C50), warning stage 5, timer 0 -> the next match day's check (cseg_3CCF0) reaches stage 6 = YOURE_SACKED.
+    Expect: the board's note 'SEI LICENZIATO', then the career menu with LA TUA CARRIERA E' FINITA and OFFERTE LAVORO
+    selectable, a job offer taken (next_season_save) and the new season saved with a valid checksum. Red twin:
+    CHAIRMAN_SACK_RED=1 runs the same with nosack on - no note within the same steps -> FAIL."""
+    exe = builds()['it']
+    red = os.environ.get('CHAIRMAN_SACK_RED') == '1'
+    car = os.path.join(SAVES, 'JUVEFIX3.CAR')
+    with Session('chairman_sack' + ('_red' if red else ''), exe, {'JUVEFIX3.CAR': car}, 'dump:2', 300,
+                 nosack=red) as s:
+        if s.wait().outcome != 'dump':
+            return False, f'START: no first pause ({s.result})'
+        s.send('down down down down down fire dump:2')
+        s.send('fire dump:2')
+        o, b = chairman_offs(os.path.join(exe, 'ITALIAN.EXE')), s.result.base2
+        s.poke(b + o['expect'], struct.pack('<h', -100))
+        s.poke(b + o['stage'], struct.pack('<h', 5))
+        s.poke(b + o['timer'], b'\0\0')
+        ok, msg = advance(s, lambda scr: 'SEI LICENZIATO' in str(scr), 60)
+        if not ok:
+            return False, f'no sacking note: {msg}'
+        s.shot('sacked')
+        press(s, s.screen(), 'CONTINUA', wait=3) or s.send('fire dump:3')
+        scr = s.screen()
+        over = any(t == "LA TUA CARRIERA E' FINITA" for _, t, _, _ in scr.entries)   # (a label: invisible to find)
+        j = scr.find('OFFERTE LAVORO', exact=True)
+        if not over or j is None or scr.entries[j][3]:
+            return False, f'{msg}; after the note (career over {over}, OFFERTE LAVORO {j}): {scr}'
+        path = next_season_save(s, 'SACK1')
+        if not path.endswith('.CAR'):
+            return False, f'{msg}; sacked; {path}'
+    info = car_info(path)
+    if info['sum'] != 0:
+        return False, f'{msg}; sacked; SACK1.CAR sum {info["sum"]}'
+    return True, f'sacked after {msg}; career over screen, job offer taken, SACK1.CAR saved (sum 0)'
+
+
 SLOT = 0x1A22C            # player's European slot buffer dseg_DA0E2 (DIY layout), IT obj2 offset in a0f38ad5 builds
 HOLDERS = 0xC058B         # CC / CWC / UEFA holder team numbers (words, FFFF none), set at the season end, not saved
 
@@ -3710,6 +3770,30 @@ def rng_sites(exe):
             out.append(sd)
     assert len(out) == 2, out
     return out
+
+
+NOSACK_CACHE = {}
+
+
+def nosack_pin(s):
+    """Session's default (MC 17/11): at a pause, the chairman's no-sacking word (dseg_D6B62, nosack_off; every season
+    start clears it) set to 1 when it is not - one read a pause, a poke only after a season start. An exe without the
+    pattern: off for the session, logged once (never a FAIL)."""
+    if s.nosack_at is None:
+        try:
+            st = os.stat(s.nosack_exe)
+            key = (s.nosack_exe, st.st_mtime_ns, st.st_size)
+            if key not in NOSACK_CACHE:
+                NOSACK_CACHE[key] = nosack_off(s.nosack_exe)
+            s.nosack_at = NOSACK_CACHE[key]
+        except (OSError, AssertionError, ValueError) as e:
+            s.nosack_at = False
+            s.log.append(f'nosack: no switch in {s.nosack_exe} ({type(e).__name__}: {e}) - sacking left on')
+    if s.nosack_at is False or s.result is None or s.result.base2 is None:
+        return
+    at = s.result.base2 + s.nosack_at
+    if bytes(s.result.read(at, 2)) != b'\x01\x00':
+        s.poke(at, b'\x01\x00')
 
 
 def nosack_off(exe):

@@ -45457,25 +45457,30 @@ def gk_inj():
             s.wait()
             s.rng_at, s.rng_pin = rng_sites(os.path.join(b, 'ITALIAN.EXE')), f'gk_inj:{mode}'   # (MC 05/11: the career's
             if mode == '1m':                            # draw pinned - the roll count depends on the day's other ties)
+                import gameplay as gm, difficulty as dfm          # (4.2: the row is on the GAMEPLAY page, not on OPTIONS)
+                NB, NR = dfm.NB, len(gm.present())
                 scr = walk(s, 'OPZIONI', 2)
-                lab, lab_r = scr.find(label, exact=True), scr.find(cpucards_label(), exact=True)
-                import slow                         # (4.2 slow: +2 entries)
-                check(lab == 24 and lab_r == 20 and scr.n == 26 + 2 * (scr.find(slow.LABEL[UI], exact=True) is not None), f'OPTIONS: {label} at {lab}, red cards at {lab_r}, '
-                      f'{scr.n} entries', errs)
-                if lab == 24:
-                    g = {e[0]: scr.geom[j] for j, e in enumerate(scr.entries)}
-                    check(g[24][1] >= 15 and g[24][1] + g[24][3] <= g[20][1] and g[25][1] == g[24][1],
-                          f'OPTIONS rows: 24 {g[24]}, 25 {g[25]}, 20 {g[20]}', errs)
-                    check(px(label) <= g[24][2] and set(label) <= set(SMALL_W) | {' '}, f'{label!r}: '
-                          f'{px(label)} px in {g[24][2]}', errs)
+                check(scr.find(label, exact=True) is None and scr.n == NB + 2 and scr.find(gm.LABEL[UI], exact=True) == NB,
+                      f'OPTIONS: {label} still on it or no {gm.LABEL[UI]} at {NB} ({scr.n} entries)', errs)
+                gm_select(s, NB + 1)
+                s.send('fire dump:1')                   # (GM_W 0 = PERSONALIZZATO: FIRE opens the page)
+                pg = s.screen()
+                lab = pg.find(label, exact=True)
+                gi_row = [r[0] for r in gm.present()].index('gkinj')
+                want_i = NR + 1 + gi_row                 # (the value entry; the label is entry 1 + row)
+                check(pg.n == 2 * NR + 4 and lab == 1 + gi_row, f'GAMEPLAY page: {label} at {lab} (want {1 + gi_row}), '
+                      f'{pg.n} entries', errs)
                 s.shot('options')
                 w = [gk_read(s, gk)[4:]]
                 for _ in range(2):
-                    walk(s, 25, 2)
+                    gm_select(s, want_i)
+                    s.send('fire dump:1')
                     w.append(gk_read(s, gk)[4:])
                     if len(w) == 2:
                         s.shot('options_off')
-                check(w == [(0, 0), (1, 1), (0, 0)], f'OPTIONS toggles (GI_W, GI_SH): {w}', errs)
+                check(w == [(0, 0), (1, 1), (0, 0)], f'GAMEPLAY toggles (GI_W, GI_SH): {w}', errs)
+                gm_select(s, 2 * NR + 1)                # (INDIETRO, then OPTIONS' ESCI)
+                s.send('fire dump:1')
                 press(s, s.screen(), 'ESCI', 2) or walk(s, 18, 2)
             if mode == 'off':
                 s.poke(s.result.lin(gk) + 16, b'\x01\x00\x01\x00')

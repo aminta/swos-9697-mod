@@ -48,6 +48,10 @@ Not one fixed formula for everybody: each league plays the season the way its ow
   Portugal, the Netherlands (the 16th), **Brazil's Serie B** (2 up + 3rd v 6th / 4th v 5th), **Turkey's 1. Lig** (2
   up, the 3rd straight into the final, 4th v 7th and 5th v 6th, neutral final), Austria, Bulgaria, the Czech
   Republic, Denmark, Northern Ireland, Romania, Wales and San Marino; **Japan's J2** with its 3rd-6th play-offs.
+- **Taiwan's promotion play-off** (from 4.2): the Division 2 runner-up v the Premier League 7th, a single match at
+  the 7th's ground, extra time and then penalties, as in the CTFA rules for 2025/26 (not the 2022 text with sudden
+  death). The Division 2 champion goes up and the Premier League's 8th goes down directly. A reserve team never
+  takes part: the next club in the table takes its place.
 - **European play-offs**: the winner takes the country's last Conference League place (Denmark 4th v 7th at the
   4th's ground; Austria, the qualification group's 1st v 2nd, the winner v the championship group's 5th over two
   legs; the Netherlands 5th-8th; Wales 2nd-7th; Northern Ireland 3rd-7th; Romania; San Marino ...).
@@ -744,6 +748,10 @@ Non una formula uguale per tutti: ogni campionato gioca la stagione come l'ha sc
   4ª-5ª), **la 1. Lig turca** (2 promosse, la 3ª direttamente in finale, 4ª-7ª e 5ª-6ª, finale in campo neutro),
   Austria, Bulgaria, Repubblica Ceca, Danimarca, Irlanda del Nord, Romania, Galles e San Marino; **la J2 giapponese**
   con i suoi play-off dalla 3ª alla 6ª.
+- **Lo spareggio promozione di Taiwan** (dalla 4.2): la seconda della Division 2 contro la settima della Premier
+  League, gara unica sul campo della settima, tempi supplementari e poi rigori, come nelle regole CTFA 2025/26 (non
+  il testo del 2022 con la morte improvvisa). La prima della Division 2 sale e l'ottava della Premier League scende
+  direttamente. Una squadra di riserva non partecipa mai: il suo posto passa alla squadra successiva in classifica.
 - **Play-off europei**: chi vince prende l'ultimo posto in Conference League del paese (Danimarca 4ª contro 7ª in casa
   della 4ª; Austria, 1ª contro 2ª del gruppo di qualificazione, la vincente contro la 5ª del gruppo per il titolo,
   andata e ritorno; Olanda dalla 5ª all'8ª; Galles dalla 2ª alla 7ª; Irlanda del Nord dalla 3ª alla 7ª; Romania; San

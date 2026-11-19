@@ -537,3 +537,17 @@ the match at all, cc still differs.
 `DIFF_STOPF=n` halts at frame n and diffs obj2 word by word (REF vs NEW): the way to find the next input.
 `DIFF_PAD=code,buildup` (REF + a nop band of NEW's obj4 sizes) was equal to REF in every run: code size is not a cause.
 DIFF_SKIP is a comma list matched as a set ('BU' is not 'BUFRAME').
+
+## Taiwan's promotion play-off (42-tpe, 2026-11-19)
+
+`world_tpe_po_stay` / `_swap` / `_reserve` (tpe_po): one season of a World 2026-27 career in Taiwan on a self-built
+test exe (release pack set + W2627TPE_DATA, default the private world5tm-h3s7rl3-tpetest: Taiwan's pack with the
+`tfpl_po` play-off; SKIP without it). _stay / _swap: MING CHUAN UNIV forced 7th of the TFPL (GPLAY_FORCE=7), its one
+match at home won (GPLAY_KOFORCE=2) / lost (1). _reserve: TAIPEI RESERVES forced 2nd of Div. 2 (GPLAY_FORCE=2): the
+next eligible club plays the (simulated) play-off. Checked from GP_ST / GP_LOG, GP_IN.t (HOSTTEST_SYMS) and the next
+season's save: the two entrants (TFPL 7th listed first = home, the 2nd ELIGIBLE Div. 2 club), one tie, one leg,
+level 1 (e.t. + penalties), the play-off's moves, the direct movers, no reserve side in the play-off or moved up, and
+the calendar label = the pack's short name in SWOSTEST_UI's language (run it under it / en / fr / de). The save's
+division table is read in two parts (Taiwan's globals are past 2000: bigtables.ext_off(), as s7_division_counts).
+Never give these a release dir (forced scenarios self-build); TPE_BUILD = a ready test build, TPE_RECHECK=1 reads a
+kept run dir again without a game run (scenario development only).

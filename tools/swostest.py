@@ -26209,8 +26209,8 @@ def fr_exe(name, env=None, given='FR_BUILD', rel=False):
         raise Skipped(f'private data {src} missing')
     if not exe:
         order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
-        exe = build(name, env=dict({'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order])},
-                                   **env), lang=UI)
+        exe = build(name, env=dict({'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]),
+                                    'FRND_TEST': '1'}, **env), lang=UI)   # (FR_TEST's trace: its own switch, MC 19/11)
     fr = fr_syms(exe)
     if fr is None:
         raise Skipped(FR_SKIP.format(f"{FR['MARK'][:-1].decode()} / {FR['SYM_ST']} / {FR['BAND']} in {exe}"))
@@ -26745,10 +26745,10 @@ def world_friendlies():
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
     exe = os.environ.get('FR_BUILD') or build('world_friendlies', env={
         'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]), 'FRND': '1',
-        'HOSTTEST_SYMS': '1'}, lang=UI)
+        'HOSTTEST_SYMS': '1', 'FRND_TEST': '1'}, lang=UI)
     sy = fr_syms(exe)
     if sy is None:
-        return False, f'no frnd test symbols (FR_TRACE) in {exe}: a FRND=1 HOSTTEST_SYMS=1 build is needed'
+        return False, f'no frnd test symbols (FR_TRACE) in {exe}: a FRND=1 FRND_TEST=1 HOSTTEST_SYMS=1 build is needed'
     import frtext
     import lepatch
     import split
@@ -26841,7 +26841,7 @@ def world_friendlies():
             sn = st_at(i).get('st', b'')
             if sn and sn[0] == season0 and not sn[1] & 8:
                 closed_fw.add(int(m.group(2)))
-    check(rowc is not None, 'no FR_ROWC logged (a FRND=1 HOSTTEST_SYMS=1 build of this commit is needed)', errs)
+    check(rowc is not None, 'no FR_ROWC logged (a FRND=1 FRND_TEST=1 HOSTTEST_SYMS=1 build of this commit is needed)', errs)
     if rowc is not None:
         miss = [w for w in sorted(closed_fw) if not rowc >> fw.index(w) & 1]
         check(not miss, f'friendly rows drawn after the close but not relabelled by fr_row: weeks {miss} '
@@ -26982,7 +26982,7 @@ def world_friendlies_nofrnd():
         return True, f'SKIP: private data {src} missing'
     exe, old = os.environ.get('FR_BUILD'), os.environ.get('NF_BUILD')
     if not exe or not old:
-        return True, 'SKIP: FR_BUILD (a FRND=1 HOSTTEST_SYMS=1 build of this tree) and NF_BUILD (a no-FRND HOSTTEST_SYMS build) needed'
+        return True, 'SKIP: FR_BUILD (a FRND=1 FRND_TEST=1 HOSTTEST_SYMS=1 build of this tree) and NF_BUILD (a no-FRND HOSTTEST_SYMS build) needed'
     sy = fr_syms(exe)
     if sy is None:
         return False, f'no frnd test symbols in {exe}'
@@ -27095,7 +27095,7 @@ def world_friendlies_dormant():
         return True, f'SKIP: private data {src} missing'
     exe = os.environ.get('FR_BUILD')
     if not exe:
-        return True, 'SKIP: FR_BUILD (a FRND=1 HOSTTEST_SYMS=1 build of this tree) needed'
+        return True, 'SKIP: FR_BUILD (a FRND=1 FRND_TEST=1 HOSTTEST_SYMS=1 build of this tree) needed'
     sy = fr_syms(exe)
     if sy is None:
         return False, f'no frnd test symbols in {exe}'
@@ -46669,7 +46669,7 @@ def frc_world_build(tag='frc_engine'):
         return None
     order = [ln.split()[0].lower() for ln in open(src + '.txt') if ' file ' in ln]
     return build(f'{tag}_{UI}', env={'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x) for x in order]),
-                                     'FRND': '1', 'FRCHOOSE': '1', 'HOSTTEST_SYMS': '1'}, lang=UI)
+                                     'FRND': '1', 'FRCHOOSE': '1', 'HOSTTEST_SYMS': '1', 'FRND_TEST': '1'}, lang=UI)
 
 
 @scenario

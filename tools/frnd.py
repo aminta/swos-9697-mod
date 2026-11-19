@@ -109,7 +109,9 @@ def patch(p, ssyms, gsyms):
     assert p.call_target(1, site) == f3d, ('frnd: InitializeNewSeason\'s call cseg_3D204 already hooked', p.call_target(1, site))
     roots = ['fr_season', 'fr_step', 'fr_row', 'fr_leg', 'fr_gate', 'fr_pick', 'fr_given', 'fr_level', 'FR_NSTEP', 'FR_NLEG', 'FR_NROW',
              'FR_CHOOSE', 'FR_AFTER4', 'FR_NAMES']
-    test = os.environ.get('HOSTTEST_SYMS') == '1'     # (test builds: FR_TRACE, FR_GIVENW, FR_FEE, FR_G, FR_FB, FR_ROWC)
+    test = os.environ.get('FRND_TEST') == '1'         # (the friendlies scenarios' builds: FR_TRACE, FR_GIVENW, FR_FEE, FR_G, FR_FB,
+                                                    #  FR_ROWC. Its own TEST_VAR, never HOSTTEST_SYMS: a syms build = the release
+                                                    #  bytes + labels beside them; MC 19/11, hosttest test_syms_bytes)
     if test:
         flags.append('-DFR_TEST')
         roots += ['FR_TRACE', 'FR_GIVENW', 'FR_FEE', 'FR_G', 'FR_FB', 'FR_ROWC']

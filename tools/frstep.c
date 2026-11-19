@@ -77,7 +77,7 @@ static u32 fr_g(void) {
     d7 = d ? (d7 >> 4) / d : 0;
     return (d7 & 0xFFFF) << 4;
 }
-#ifdef FR_TEST                          /* (test builds, HOSTTEST_SYMS: the harness's reads / given list; none in a release) */
+#ifdef FR_TEST                          /* (FRND_TEST=1 builds only: the harness's reads / given list; none in a release) */
 #define FR_TRACE_SET(x) (FR_TRACE = (u8)(x))
 #define FR_T(x) x
 FR_DATA u8 FR_TRACE;                          /* (the last step: 1x season, 2x install, 3x leg, 4x close; 0x8x why not) */

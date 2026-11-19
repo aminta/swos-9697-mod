@@ -15054,15 +15054,19 @@ def options_gap():
         for k in range(2):
             press(s, s.screen(), 'OPZIONI', 2)
             r, menu = s.result, s.info['menu']
-            n = s.screen().n                    # (4.2 slow.py: 28 entries, the 12 rows 10 high at an 11 px pitch)
+            import difficulty as dfm                    # (4.2 GMODE: 22 entries - the game's 8 rows + GAMEPLAY re-laid by
+            sc0 = s.screen()                            #  difficulty.py at PITCH from TOP, HEIGHT high; their geometry is
+            n = sc0.n                                   #  gameplay_menu's: here the rows' layout, the gaps as notes, the buttons)
             e = {i: ct_entry(r, menu, i) for i in range(n)}
-            rows = [i for i in e if i not in (0, 17, 18, 19) and e[i][5] == (10 if n == 28 else 11)]
-            top = min(e[i][3] for i in rows)
-            bot = max(e[i][3] + e[i][5] for i in rows)
+            g = {x[0]: sc0.geom[j] for j, x in enumerate(sc0.entries)}
+            rows = sorted({g[i][1] for i in g if g[i][2] == 140 and dfm.TOP <= g[i][1] <= 160})
+            top = min(g[i][1] for i in g if i not in (0, 17, 18, 19))
+            bot = max(g[i][1] + g[i][3] for i in g if i not in (0, 17, 18, 19))
             gaps = (top - (e[0][3] + e[0][5]), e[17][3] - bot)
             btn = tuple(e[i][3] for i in (17, 19, 18))
-            check(len(rows) == (24 if n == 28 else 22) and gaps == (3, 2) and btn == (controls.QUIT_Y, controls.BTN_Y, 185),
-                  f'pass {k}: {len(rows)} rows, gaps {gaps}, EXIT TO DOS / CONTROLS / EXIT y {btn}', errs)
+            check(n == dfm.NB + 2 and rows == [dfm.TOP + dfm.PITCH * j for j in range(dfm.NROWS)] and min(gaps) >= 2
+                  and btn == (controls.QUIT_Y, controls.BTN_Y, 185),
+                  f'pass {k}: {n} entries, rows {rows}, gaps {gaps}, EXIT TO DOS / CONTROLS / EXIT y {btn}', errs)
             notes.append(f'pass {k}: gaps {gaps}, buttons {btn}')
             s.shot(f'options_{k}')
             if k == 0:                                  # COMANDI and back (ANNULLA)
@@ -39396,6 +39400,22 @@ def gm_select(s, i, tries=40):
     raise AssertionError(f'entry {i} not reached')
 
 
+def gp_open(s):
+    """4.2 (GMODE): from the OPTIONS screen, open the GAMEPLAY page (the mod rows live there, not on OPTIONS): select the
+    GAMEPLAY value entry NB + 1 and FIRE (GM_W 0 = PERSONALIZZATO opens it); returns the page's screen. Value entry of a
+    row = gp_val(key)."""
+    import difficulty as dfm
+    gm_select(s, dfm.NB + 1)
+    s.send('fire dump:1')
+    return s.screen()
+
+
+def gp_val(key):
+    """Entry index of a GAMEPLAY page row's value (labels 1..NR, values NR + 1 + row; gameplay.present() order)."""
+    import gameplay as gm
+    return len(gm.present()) + 1 + [r[0] for r in gm.present()].index(key)
+
+
 @scenario
 def gameplay_menu():
     """4.2 GAMEPLAY (gameplay.py, Panchina; MC 15/11 input rules): OPTIONS has ONE mod row GAMEPLAY (entries NB / NB+1 = 20 / 21,
@@ -39742,51 +39762,49 @@ def diff_menu():
     with Session(f'diff_menu_{UI}', b, {}, 'dump:3', 300) as s:
         s.wait()
         scr = walk(s, 'OPZIONI', 2)
+        import gameplay as gm                           # (4.2 GMODE: OPTIONS = the GAMEPLAY row; the rows' geometry is gameplay_menu's)
+        NR = len(gm.present())
         blk = diff_block(s.result)
         rdw = lambda: struct.unpack('<H', s.result.read(blk + DIFF_OFF['W'], 2))[0]
-        lab = scr.find(label, exact=True)
         rdr = lambda: struct.unpack('<H', s.result.read(blk + DIFF_OFF['DR'], 2))[0]
         rsv = lambda: s.result.read(blk + DIFF_OFF['SV'], 1)[0]
-        lab2 = scr.find(dfm.DRLABEL[UI], exact=True)
-        check(lab2 == NB + 2, f'OPTIONS: {dfm.DRLABEL[UI]} at {lab2}', errs)
-        check(lab == NB and scr.n == NB + 6 and blk is not None and rdw() == 0,   # (+ CALCI PIAZZATI NB+4 / NB+5: sp_menu)
-              f'OPTIONS: {label} at {lab}, {scr.n} entries, DF_W {rdw() if blk else None}', errs)
-        if lab == NB:
-            g = {e[0]: scr.geom[j] for j, e in enumerate(scr.entries)}
-            rows = sorted({g[k][1] for k in g if g[k][2] == 140 and dfm.TOP <= g[k][1] <= 160})
-            quit_y = min(g[k][1] for k in g if g[k][1] > rows[-1] and k not in range(NB, NB + 6))
-            check(rows == [dfm.TOP + dfm.PITCH * k for k in range(dfm.NROWS)] and g[NB][1] == rows[-3] and g[NB + 1][1] == rows[-3]
-                  and g[NB + 2][1] == rows[-2] and g[NB + 3][1] == rows[-2]
-                  and all(g[k][3] == dfm.HEIGHT for k in g if g[k][2] == 140 and g[k][1] in rows)
-                  and rows[-1] + dfm.HEIGHT < quit_y, f'OPTIONS rows {rows}, {NB} {g[NB]}, {NB + 1} {g[NB + 1]}, below {quit_y}', errs)
-            for t in (label, dfm.DRLABEL[UI]) + dfm.VALUES[UI] + dfm.DRVALUES[UI]:
-                check(px(t) <= g[NB][2] - 2 and set(t) <= set(SMALL_W) | {' '}, f'{t!r}: {px(t)} px in {g[NB][2]}', errs)
-            notes.append(f'rows {rows[0]}..{rows[-1]} (+{dfm.HEIGHT}), EXIT TO DOS at {quit_y}')
+        check(scr.find(gm.LABEL[UI], exact=True) == NB and scr.n == NB + 2 and blk is not None and rdw() == 0
+              and scr.find(label, exact=True) is None and scr.find(dfm.DRLABEL[UI], exact=True) is None,
+              f'OPTIONS: {gm.LABEL[UI]} at {scr.find(gm.LABEL[UI], exact=True)}, {scr.n} entries, old rows '
+              f'{scr.find(label, exact=True)} / {scr.find(dfm.DRLABEL[UI], exact=True)}, DF_W {rdw() if blk else None}', errs)
+        pg = gp_open(s)
+        lab, lab2 = pg.find(label, exact=True), pg.find(dfm.DRLABEL[UI], exact=True)
+        check(pg.n == 2 * NR + 4 and lab == 1 and lab2 == 2, f'GAMEPLAY page: {pg.n} entries, {label} at {lab}, '
+              f'{dfm.DRLABEL[UI]} at {lab2}', errs)
+        for t_ in (label, dfm.DRLABEL[UI]) + dfm.VALUES[UI] + dfm.DRVALUES[UI]:
+            check(px(t_) <= pg.geom[gp_val('difficulty')][2] - 2 and set(t_) <= set(SMALL_W) | {' '}, f'{t_!r}: {px(t_)} px', errs)
+        V_D, V_R = gp_val('difficulty'), gp_val('dribbling')
         s.shot('options_diff_0')
         w = []
         for n in range(3):
-            walk(s, NB + 1, 2)
+            walk(s, V_D, 2)
             w.append(rdw())
             s.shot(f'options_diff_{n + 1}')
-        check(w == [2, 1, 0], f'toggles (DF_W): {w} (want 2, 1, 0 = HARD, EASY, NORMAL)', errs)
-        walk(s, NB + 1, 2)                                  # HARD, then DRIBBLING NEW: the save byte 0x12
+        check(w == [1, 2, 0], f'toggles (DF_W): {w} (want 1, 2, 0 = EASY, HARD, NORMAL: FIRE = the next value, wrapping)', errs)
+        walk(s, V_D, 2)                                     # EASY, HARD: then DRIBBLING NEW: the save byte 0x12
+        walk(s, V_D, 2)
         dr = []
-        walk(s, NB + 3, 2)
+        walk(s, V_R, 2)
         dr.append((rdr(), rsv()))
         s.shot('options_drib_1')
-        pg = walk(s, NB + 3, 2)                             # CUSTOM (0x22): the PERSONALIZZATO page opens
+        pg = walk(s, V_R, 2)                                # CUSTOM (0x22): the PERSONALIZZATO page opens
         dr.append((rdr(), rsv()))
         check(dr == [(1, 0x12), (2, 0x22)], f'DRIBBLING toggles (DF_DR, DF_SV): {dr} (want (1, 0x12), (2, 0x22))', errs)
         notes.append(diff_dp_page(s, pg, blk, errs))
         sc = s.screen()
-        check(sc.n == NB + 6 and rdr() == 2, f'back in OPTIONS: {sc.n} entries, DF_DR {rdr()}', errs)   # (the reader
+        check(sc.n == 2 * NR + 4 and rdr() == 2, f'back on the GAMEPLAY page: {sc.n} entries, DF_DR {rdr()}', errs)   # (the reader
         # leaves string-table entries' texts empty: the values are checked in memory, the texts on the shots)
         s.shot('options_drib_2')
-        walk(s, NB + 3, 2)
+        walk(s, V_R, 2)
         dr.append((rdr(), rsv()))
         check(dr[-1] == (0, 0x02), f'DRIBBLING CUSTOM -> CLASSIC: {dr[-1]} (want (0, 0x02))', errs)
-        walk(s, NB + 3, 2)                                  # NEW, CUSTOM again: the page keeps the session's values
-        pg = walk(s, NB + 3, 2)                             # (row 0 one step on; dp_fall wrote the texts at the open)
+        walk(s, V_R, 2)                                     # NEW, CUSTOM again: the page keeps the session's values
+        pg = walk(s, V_R, 2)                                # (row 0 one step on; dp_fall wrote the texts at the open)
         nr = len(dfm.DP_ROWS)
         stx = lambda i, st: f'{st}/{len(dfm.DP_ROWS[i][4]) - 1}'
         want0 = stx(0, dfm.DP_DEFAULT[0] + 1)
@@ -39795,7 +39813,7 @@ def diff_menu():
               f'page reopened: {[e[1] for e in pg.entries[nr + 1:nr + 1 + dfm.DP_NNUM]]} (row 0 {want0!r})', errs)
         s.shot('drp_page_3')
         walk(s, 2 * nr + 1, 2)
-        walk(s, NB + 3, 2)
+        walk(s, V_R, 2)
         dr.append((rdr(), rsv()))
         check(dr[-1] == (0, 0x02), f'DRIBBLING back to CLASSIC: {dr[-1]}', errs)
         notes.append(f'toggles {w}, dribbling {dr}')
@@ -39814,8 +39832,6 @@ def sp_menu():
     import setpieces as spm
     import swreg
     NB = dfm.NB
-    PITCH, HEIGHT, NROWS = dfm.PITCH, dfm.HEIGHT, dfm.NROWS
-    assert (PITCH, HEIGHT, NROWS) == (9, 8, 14), 'difficulty.SP_ROW\'s layout'
     from complist import px, SMALL_W
     errs, notes = [], []
     b = build(f'sp_menu_{UI}', {'DIFF_TEST': '3'}, lang=UI)
@@ -39833,35 +39849,32 @@ def sp_menu():
         rsp = lambda: struct.unpack('<H', s.result.read(spb + 8, 2))[0]
         rsv = lambda: s.result.read(blk + DIFF_OFF['SV'], 1)[0]
         rdw = lambda: struct.unpack('<H', s.result.read(blk + DIFF_OFF['W'], 2))[0]
-        lab = scr.find(spm.LABEL[UI], exact=True)
-        check(lab == NB + 4 and scr.n == NB + 6 and rsp() == 0 and scr.find(dfm.DRLABEL[UI], exact=True) == NB + 2,
-              f'OPTIONS: {spm.LABEL[UI]} at {lab}, {scr.n} entries, SP_W {rsp()}', errs)
-        if lab == NB + 4:
-            g = {e[0]: scr.geom[j] for j, e in enumerate(scr.entries)}
-            rows = sorted({g[k][1] for k in g if g[k][2] == 140 and dfm.TOP <= g[k][1] <= 160})
-            quit_y = min(g[k][1] for k in g if g[k][1] > rows[-1] and k not in range(NB, NB + 6))
-            check(rows == [dfm.TOP + PITCH * k for k in range(NROWS)]
-                  and [g[NB + i][1] for i in range(6)] == [rows[-3]] * 2 + [rows[-2]] * 2 + [rows[-1]] * 2
-                  and all(g[k][3] == HEIGHT for k in g if g[k][2] == 140 and g[k][1] in rows)
-                  and rows[-1] + HEIGHT < quit_y, f'OPTIONS rows {rows}, {[g[NB + i] for i in range(6)]}, below {quit_y}',
-                  errs)
-            for t in (spm.LABEL[UI],) + spm.VALUES[UI]:
-                check(px(t) <= g[NB + 4][2] - 2 and set(t) <= set(SMALL_W) | {' '}, f'{t!r}: {px(t)} px in {g[NB + 4][2]}',
-                      errs)
-            notes.append(f'rows {rows[0]}..{rows[-1]} (+{HEIGHT}), EXIT TO DOS at {quit_y}')
+        import gameplay as gm                           # (4.2 GMODE: the row is on the GAMEPLAY page, the geometry is gameplay_menu's)
+        NR = len(gm.present())
+        check(scr.find(gm.LABEL[UI], exact=True) == NB and scr.n == NB + 2 and rsp() == 0
+              and scr.find(spm.LABEL[UI], exact=True) is None and scr.find(dfm.DRLABEL[UI], exact=True) is None,
+              f'OPTIONS: {gm.LABEL[UI]} at {scr.find(gm.LABEL[UI], exact=True)}, {scr.n} entries, SP_W {rsp()}, '
+              f'old rows {scr.find(spm.LABEL[UI], exact=True)} / {scr.find(dfm.DRLABEL[UI], exact=True)}', errs)
+        pg = gp_open(s)
+        lab = pg.find(spm.LABEL[UI], exact=True)
+        check(pg.n == 2 * NR + 4 and lab == 1 + [r[0] for r in gm.present()].index('setpieces'),
+              f'GAMEPLAY page: {spm.LABEL[UI]} at {lab}, {pg.n} entries', errs)
+        for t_ in (spm.LABEL[UI],) + spm.VALUES[UI]:
+            check(px(t_) <= pg.geom[gp_val('setpieces')][2] - 2 and set(t_) <= set(SMALL_W) | {' '}, f'{t_!r}: {px(t_)} px', errs)
+        V_D, V_S = gp_val('difficulty'), gp_val('setpieces')
         s.shot('options_sp_0')
         seen = []
-        walk(s, NB + 5, 2)
+        walk(s, V_S, 2)
         seen.append((rsp(), rsv()))
         s.shot('options_sp_1')
-        walk(s, NB + 1, 2)                              # DIFFICULTY -> HARD: bit 6 kept (df_pack)
+        walk(s, V_D, 2)                                 # DIFFICULTY -> EASY, HARD: bit 6 kept (df_pack)
+        walk(s, V_D, 2)
         seen.append((rdw(), rsv()))
-        walk(s, NB + 1, 2)
-        walk(s, NB + 1, 2)                              # (EASY, NORMAL)
-        walk(s, NB + 5, 2)                              # (REALISTICI -> ARCADE: bits 6-7 = 2)
+        walk(s, V_D, 2)                                 # (NORMAL)
+        walk(s, V_S, 2)                                 # (REALISTICI -> ARCADE: bits 6-7 = 2)
         seen.append((rsp(), rsv()))
         s.shot('options_sp_arcade')
-        walk(s, NB + 5, 2)                              # (ARCADE -> CLASSICI)
+        walk(s, V_S, 2)                                 # (ARCADE -> CLASSICI)
         seen.append((rsp(), rsv()))
         check(seen == [(1, 0x40), (2, 0x42), (2, 0x80), (0, 0x00)], f'CALCI PIAZZATI toggles (SP_W / DF_W, DF_SV): '
               f'{seen} (want (1, 0x40), (2, 0x42), (2, 0x80), (0, 0x00))', errs)
@@ -39971,10 +39984,11 @@ def diff_beta():
         if blk is None:
             return False, '; '.join(errs)
         bb = s.result.read(blk, 32)
-        check(scr.find(dfm.LABEL[UI], exact=True) == dfm.NB and scr.find(dfm.DRLABEL[UI], exact=True) == dfm.NB + 2
-              and scr.n == dfm.NB + 6,
-              f'OPTIONS: {dfm.LABEL[UI]} / {dfm.DRLABEL[UI]} at {scr.find(dfm.LABEL[UI], exact=True)} / '
-              f'{scr.find(dfm.DRLABEL[UI], exact=True)}, {scr.n} entries', errs)
+        import gameplay as gm                      # (4.2 GMODE: OPTIONS has the one GAMEPLAY row, DIFFICULTY / DRIBBLING are on its page)
+        check(scr.find(gm.LABEL[UI], exact=True) == dfm.NB and scr.n == dfm.NB + 2
+              and scr.find(dfm.LABEL[UI], exact=True) is None and scr.find(dfm.DRLABEL[UI], exact=True) is None,
+              f'OPTIONS: {gm.LABEL[UI]} at {scr.find(gm.LABEL[UI], exact=True)}, {scr.n} entries, old rows '
+              f'{scr.find(dfm.LABEL[UI], exact=True)} / {scr.find(dfm.DRLABEL[UI], exact=True)}', errs)
         check(bb[DIFF_OFF['W']] == 0 and bb[DIFF_OFF['DR']] == 0, f'start DF_W {bb[4]} DF_DR {bb[28]} (want 0 0)', errs)
         s.shot('beta_options')
     with Session(f'diff_beta_m_{UI}', b, {}, 'dump:3', 900, match=True) as s:
@@ -44430,26 +44444,30 @@ def cpu_cards():
             with Session(f'cpu_cards_{tag}', b, {}, 'dump:3', 900, match=True) as s:
                 s.wait()
                 if mode == 'red' and on:
+                    import gameplay as gm, difficulty as dfm      # (4.2: the CPU rows are on the GAMEPLAY page, not on OPTIONS)
+                    NB, NR = dfm.NB, len(gm.present())
+                    keys = [r[0] for r in gm.present()]
                     scr = walk(s, 'OPZIONI', 2)
-                    lab = scr.find(label, exact=True)
-                    lab_i = scr.find(cpucards.LABEL_I[UI], exact=True)
-                    import gkinj                     # (4.0.6 gkinj: its row's two entries 24 / 25 after ours)
-                    import slow                      # (4.2 slow: MATCH SPEED's two entries 26 / 27 after gkinj's)
-                    n_opt = 24 + 2 * (scr.find(gkinj.LABEL[UI], exact=True) is not None) \
-                        + 2 * (scr.find(slow.LABEL[UI], exact=True) is not None)
-                    check(lab == 20 and lab_i == 22 and scr.n == n_opt, f'OPTIONS: {label} at {lab}, '
-                          f'{cpucards.LABEL_I[UI]} at {lab_i}, {scr.n} entries', errs)
+                    check(scr.find(label, exact=True) is None and scr.n == NB + 2 and scr.find(gm.LABEL[UI], exact=True) == NB,
+                          f'OPTIONS: {label} still on it or no {gm.LABEL[UI]} at {NB} ({scr.n} entries)', errs)
+                    pg = gp_open(s)
+                    lab = pg.find(label, exact=True)
+                    lab_i = pg.find(cpucards.LABEL_I[UI], exact=True)
+                    check(pg.n == 2 * NR + 4 and lab == 1 + keys.index('cpucards') and lab_i == 1 + keys.index('cpuinj'),
+                          f'GAMEPLAY page: {label} at {lab}, {cpucards.LABEL_I[UI]} at {lab_i}, {pg.n} entries', errs)
                     s.shot('options')
                     rw = lambda: struct.unpack('<HHHH', s.result.read(s.result.lin(cc), 8))   # CC_W, CC_I, the session copy
                     w = [rw()]
-                    for e in (21, 23, 21, 23):
+                    for e in (gp_val('cpucards'), gp_val('cpuinj'), gp_val('cpucards'), gp_val('cpuinj')):
                         walk(s, e, 2)
                         w.append(rw())
                         if len(w) == 3:
                             s.shot('options_off')
                     check(w == [(0, 0, 0, 0), (1, 0, 1, 0), (1, 1, 1, 1), (0, 1, 0, 1), (0, 0, 0, 0)],
-                          f'OPTIONS toggles (CC_W, CC_I, copies): {w}', errs)
-                    notes.append(f'OPTIONS {label} / {cpucards.LABEL_I[UI]}: toggles ok' if not errs else '')
+                          f'GAMEPLAY toggles (CC_W, CC_I, copies): {w}', errs)
+                    notes.append(f'GAMEPLAY {label} / {cpucards.LABEL_I[UI]}: toggles ok' if not errs else '')
+                    gm_select(s, 2 * NR + 1)                    # (INDIETRO, then OPTIONS' ESCI)
+                    s.send('fire dump:1')
                     press(s, s.screen(), 'ESCI', 2) or walk(s, 18, 2)
                 if not on:                                   # (CC_W, CC_I, CC_SH: the session's copy too - a new
                     s.poke(s.result.lin(cc), b'\x01\x00\x00\x00\x01\x00\x00\x00')   # career takes it)

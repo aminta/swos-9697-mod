@@ -14,6 +14,8 @@ import tempfile
 
 TOOLS = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
 sys.path.insert(0, TOOLS)
+sys.path.insert(0, os.path.join(TOOLS, 'hosttest'))
+import fixroot  # noqa: E402
 GOLD = os.path.join(TOOLS, 's7redraw_golden.json')
 _LIB = {}
 
@@ -110,7 +112,7 @@ def test_s7redraw_controls():
 # registry's division of every club of both levels == the oracle's, byte for byte; sizes 20 / 18; no club twice / lost; twice = same.
 # Cases: season 1 end (career club = a Serie C club), the same with two other career clubs (the seed: the second teams' draw), a
 # 3-season chain (each season's crossers picked from the registry as it stands: the redraw's own groups become the next last season).
-RD_EXE = os.environ.get('HT_S7RD_EXE') or os.path.join(os.path.expanduser('~'), 'swos-mod', 'c', 'HTRD1', 'SWOS', 'ITALIAN.EXE')
+RD_EXE = os.environ.get('HT_S7RD_EXE') or fixroot.fx('HTRD1', 'SWOS', 'ITALIAN.EXE')
 
 
 def _sec_csv():
@@ -369,7 +371,7 @@ def test_s7redraw_fallback():
 # HT_S7SF3_EXE: the release recipe h3s7r + HOSTTEST_SYMS=1 + S7_SIZEFORCE=3 (MODVER_TAG set, BETA_KEEP=S7_SIZEFORCE): after the redraw a Serie D
 # girone A club is put into group B. The season end must come back S7_SIZE (13) with S7_SZ gate 2, kind 1 (a division's size), a Serie D
 # group off its 18, nothing crossed - and the registry exactly as before the season end (size_refuse keeps every club where it was).
-SF3_EXE = os.environ.get('HT_S7SF3_EXE') or os.path.join(os.path.expanduser('~'), 'swos-mod', 'c', 'HTSF3', 'SWOS', 'ITALIAN.EXE')
+SF3_EXE = os.environ.get('HT_S7SF3_EXE') or fixroot.fx('HTSF3', 'SWOS', 'ITALIAN.EXE')
 
 
 def test_s7redraw_gate2():

@@ -413,6 +413,9 @@ def patch_exe(src, dst, remap, lang='it'):
     import setpieces
     if setpieces.on():                                 # 4.2 set pieces (MC 14/11): the SETPIECE band, page 0x16 (no new page)
         swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, (swreg.SETPIECE_END + 0xFFF) // 0x1000, (swreg.SPX_END + 0xFFF) // 0x1000)
+    import trhead
+    if trhead.on():                                    # 4.2 POSITION TRAITS (1)-(3): the TRHD band (TRHD_RUOLI until GP_RUOLI)
+        swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, -(-swreg.TRHD_END // 0x1000))
     import spmeter
     if spmeter.on():                                   # 4.2 set pieces M3: the corner meter, test builds only (SP_METER)
         swe.OBJ4_PAGES = max(swe.OBJ4_PAGES, swreg.SP_METER_END // 0x1000)   # (swreg data, MC 17/11)
@@ -1022,6 +1025,8 @@ def patch_exe(src, dst, remap, lang='it'):
     takers.patch(p, lang)
     import gameplay                              # 4.2 GAMEPLAY: the page + the row's handlers (after difficulty / setpieces)
     st_end = gameplay.patch(p, lang, (st_end + 15) & ~15) or st_end   # (with the RUOLI row: the page image in obj3, the chain's end)
+    import trhead                                # 4.2 POSITION TRAITS (1)-(3): the TRHD band + the two header distance
+    trhead.patch(p, lang)                        # compares (after setpieces: its labels and CEIL sites)
     import spmeter                               # (M3 corner meter: SP_METER test builds only, after difficulty's df_frame)
     spmeter.patch(p, lang)
     assert not difficulty.LABELS.get('df_add') or setpieces.LABELS.get('sp_add') or setpieces.LABELS.get('sp_tabg'), \

@@ -203,6 +203,12 @@ sp_on:
 .x: pop ecx
     ret
 
+%if TRHD_ON                             ; POSITION TRAITS (1) (trhead.py): "does this header go down?" is the TRHD
+%define sp_hon TRH                      ;  band's tr_hdown (jump-table slot 0; RUOLI NO: its tail jump to sp_on)
+%else
+%define sp_hon sp_on
+%endif
+
 sp_set:                                 ; (df_kick, past its SWOS++ / training gates)
     push ebp
     call sp_base
@@ -377,7 +383,7 @@ sp_tabg:                                ; (gameplay.py, GAMEPLAY page opens) the
 ; ---- headers go down (replaces `mov eax, kBallJumpHeaderDeltaZ` / `mov eax, kFlyingHeaderBallDeltaZ`)
 sp_jz:
     push ebp
-    call sp_on                         ; (ebp = SPB, ZF; only mov / push / pop until the jz)
+    call sp_hon                        ; (ebp = SPB, ZF; only mov / push / pop until the jz)
     mov eax, [ebp]
     mov eax, [eax + KJZ_O]
     jz .x
@@ -387,7 +393,7 @@ sp_jz:
     ret
 sp_fz:
     push ebp
-    call sp_on                         ; (ebp = SPB, ZF; only mov / push / pop until the jz)
+    call sp_hon                        ; (ebp = SPB, ZF; only mov / push / pop until the jz)
     mov eax, [ebp]
     mov eax, [eax + KFZ_O]
     jz .x
@@ -400,7 +406,7 @@ sp_fz:
 ;      deltaZ is set): a jump header's ball deltaZ = JZ_NEW - heading x JZ_STEP
 sp_head:
     push ebp
-    call sp_on                         ; (ebp = SPB, ZF; only mov / push / pop until the jz)
+    call sp_hon                        ; (ebp = SPB, ZF; only mov / push / pop until the jz)
     mov esi, [ebp]
     mov esi, [esi + A4_O]
     mov al, [esi + HDO]
@@ -415,6 +421,9 @@ sp_head:
     and ecx, 7
     imul ecx, ecx, JZ_STEP
     sub [ebx + DZO], ecx
+%if TRHD_ON
+    call near TRH + 5                   ; (tr_head: the whipped cross's header, ebx = the ball)
+%endif
 .y: pop ecx
     pop ebx
 .x: pop ebp
@@ -635,7 +644,11 @@ sp_kick:
     mov word [ebp + FK_N - SPB], 0
     mov byte [ebp + FK_ST - SPB], 1
 .d: popad
-.x: mov eax, [ebp]
+.x:
+%if TRHD_ON
+    call near TRH + 10                  ; (tr_kick: POSITION TRAITS (2), the kick's record; registers and flags kept)
+%endif
+    mov eax, [ebp]
     mov eax, [eax + KDZ_O]
     pop ebp
     ret
@@ -1001,7 +1014,7 @@ def _sym(p, start, df_lab, df_sym):
             'CEIL_NEW': (0, k['CEIL']), 'BAND_NEW': (0, k['BAND']), 'CPU_NEW': (0, k['CPU']),
             'FK_T': (0, k['FKT']), 'BLO_NEW': (0, k['BLO']), 'FK_C': (0, k['FKC']), 'FK_C2': (0, k['FKC2']), 'FK_MAX': (0, k['FKMAX']),
             'AF_P': (0, k['AFP']), 'AF_D0': (0, k['AFD0']), 'AF_D1': (0, k['AFD1']), 'AF_X0': (0, k['AFX0']),
-            'AF_X1': (0, k['AFX1']), 'FK_XI': (0, k['FKXI']), 'FK_XC': (0, k['FKXC']), 'FK_XC2': (0, k['FKXC2']), 'FK_XI2': (0, k['FKXI2']), 'FK_XMS': (0, k['FKXMS']), 'FK_TZM': (0, k['FKTZM']), 'FK_ZMS': (0, k['FKZMS']), 'SPXE': (4, __import__('swreg').SPX_AT), 'TKE': (4, __import__('swreg').TAKERS_AT), 'TKL': (4, __import__('swreg').TKUI_AT), 'TKL_ON': (0, 1),
+            'AF_X1': (0, k['AFX1']), 'FK_XI': (0, k['FKXI']), 'FK_XC': (0, k['FKXC']), 'FK_XC2': (0, k['FKXC2']), 'FK_XI2': (0, k['FKXI2']), 'FK_XMS': (0, k['FKXMS']), 'FK_TZM': (0, k['FKTZM']), 'FK_ZMS': (0, k['FKZMS']), 'SPXE': (4, __import__('swreg').SPX_AT), 'TKE': (4, __import__('swreg').TAKERS_AT), 'TKL': (4, __import__('swreg').TKUI_AT), 'TKL_ON': (0, 1), 'TRHD_ON': (0, int(__import__('trhead').on())), 'TRH': (4, __import__('swreg').TRHD_AT),
             'FK_MIN': (0, k['FKMIN'] & 0xFFFFFFFF), 'FK_WALL': (0, k['FKWALL']), 'FK_CLR': (0, k['FKCLR']),
             **{f'FKW{i}': (0, w) for i, w in enumerate(k['FKW'])}, **{f'FKX{i}': (0, w) for i, w in enumerate(k['FKW2'])}, **{f'FKA{i}': (0, w) for i, w in enumerate(k['FKA2'])}, **{f'FKR{i}': (0, w) for i, w in enumerate(k['FKR'])}}, s
 

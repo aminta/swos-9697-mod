@@ -40513,11 +40513,312 @@ def sp_corners():
                 else:
                     res['error'] = str(r)
             open(out, 'a').write(json.dumps(res) + '\n')
-            check('error' not in res and res['frames'] >= frames and res['nc'] > 0 and not res['nfail']
+            census = extra.get('SP_METER_MODE') == '3'   # (traits touch census, Mercato 16/11: no corners forced)
+            check('error' not in res and res['frames'] >= frames and (res['nc'] > 0 or census) and not res['nfail']
                   and not res['drop'], f'{tag}: ' + json.dumps({k: v for k, v in res.items() if k != 'log'}), errs)
             info.append(f"{pr}/{k}: corners {res.get('nc')} (forced {res.get('nf')}, failed {res.get('nfail')}), "
                         f"log {res.get('ln')}")
     return not errs, '; '.join(errs[:6] + info + [f'rows in {out}'])
+
+
+
+def trhd_ruoli_env(si):
+    """POSITION TRAITS: the build switches that start a test build with RUOLI SI (True) / NO (False). With
+    trhd_ruoli_read THE one place of the switch: in a tree with GP_RUOLI (gameplay.py, 42-gameplay2) gameplay's test
+    switch GM_RUOLI_SI=1 (the program starts with GM_R 0 + GP_RUOLI 1) / nothing (RUOLI_DEFAULT: NO); before it the
+    TRHD band's own constant TRHD_RUOLI."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import trhead
+    if trhead._gameplay() is not None:
+        return {'GM_RUOLI_SI': '1'} if si else {}
+    return {'TRHD_RUOLI': '1' if si else '0'}
+
+
+def trhd_ruoli_read(r):
+    """The traits' switch as the running exe holds it (1 = RUOLI SI), None when it is not there. In a tree with
+    GP_RUOLI: the byte at obj4 + GAMEPLAY_AT + GP_RUOLI_OFF (the tree's constant: the harness process's own switches
+    do not decide it); before it the TRHD band's TR_RU (the byte after its 'TRHD' tag)."""
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import swreg
+    import trhead
+    g = trhead._gameplay()
+    if g is not None:
+        return r.read(r.base4 + swreg.GAMEPLAY_AT + g.GP_RUOLI_OFF, 1)[0]
+    band = r.read(r.base4 + swreg.TRHD_AT, 0x80)
+    k = band.find(trhead.TAG)
+    return band[k + 4] if k >= 0 else None
+
+
+def trhd_meter_match(tag, b, seed, frames, done, home, away, poke=None):
+    """One computer-v-computer friendly on a DIFF_TRACE + SP_METER build (sp_corners' recipe: generators pinned by
+    seed, no key after the kick-off), played until done(block bytes) or `frames`. -> the result row (meter counters,
+    its log as hex) or {'error': ...}."""
+    import spmeter
+    res = dict(seed=seed.hex())
+    with Session(tag, b, {}, 'dump:3', 900, match=True) as s:
+        s.wait()
+        friendly_prematch(s, home, away)
+        blk = diff_block(s.result)
+        mb, lg = sp_meter_block(s.result)
+        if blk is None or mb is None:
+            return dict(res, error='no DIFF / SPMT block')
+        s.poke(blk + DIFF_OFF['SEED'], seed + bytes((3, 1)))
+        s.poke(blk + DIFF_OFF['W'], bytes([0, 0]))
+        for off, val in (poke or {}).items():
+            s.poke(mb + spmeter.OFF[off], val)
+        res['ruoli_read'] = trhd_ruoli_read(s.result)
+        for _ in range(22):
+            s.send('down dump:0.5')
+            if s.screen().selected == 9:
+                break
+        r = s.send('fire dump:2')
+        for _ in range(40):
+            if r.outcome != 'dump' or struct.unpack('<I', r.read(blk + DIFF_OFF['KICKS'], 4))[0]:
+                break
+            r = s.send('fire dump:2')
+        o = spmeter.OFF
+        last, same = -1, 0
+        for _ in range(200):
+            if r.outcome != 'dump':
+                break
+            f = struct.unpack('<I', r.read(blk + DIFF_OFF['FRAMES'], 4))[0]
+            if f >= frames or done(r.read(mb, 52)):
+                break
+            same = same + 1 if f == last else 0
+            if same >= 6:
+                break
+            last = f
+            r = s.send('dump:5')
+        if r.outcome != 'dump':
+            return dict(res, error=str(r))
+        m = r.read(mb, 52)
+        w = lambda k: struct.unpack_from('<H', m, o[k])[0]
+        d = lambda k: struct.unpack_from('<I', m, o[k])[0]
+        ln = d('LN')
+        res.update(frames=struct.unpack('<I', r.read(blk + DIFF_OFF['FRAMES'], 4))[0], nc=w('NC'), nf=w('NF'),
+                   nfail=w('NFAIL'), ln=ln, drop=d('LDROP'), log=r.read(lg, 16 * min(ln, spmeter.LOGMAX)).hex())
+        s.shot(f'{tag}_end')
+    return res
+
+
+def trhd_asm_table(name, n):
+    """spmeter's table `name` (db / dw list) as a tuple: the classifiers' copies are asserted against the build's."""
+    import spmeter
+    return tuple(int(x) for x in re.search(rf'^{name}: d[bw] ([0-9, ]+)', spmeter.ASM, re.M).group(1).split(','))[:n]
+
+
+@scenario
+def trhd_headers():
+    """4.2 POSITION TRAITS (1) gate D4 (trhead-design.md): the header-direction meter by box. DIFF_TEST=3 + DIFF_TRACE +
+    SP_METER MODE 5 builds (spmeter.py: 240 forced jump headers through the game's own PlayerHittingJumpHeader = team x
+    straight / lob x the header's forced FILE position A / D / M / RW x 5 spots - his attacking box, its corner edge,
+    1 px outside by depth and by width, his own box - x HEADING 0 / 3 / 7), one match an arm, four arms: RUOLI SI / NO
+    (trhd_ruoli_env) x CALCI PIAZZATI CLASSICI / NUOVI (SP_TEST 0 / 1); TH_ARMS = 'ruoli:sp,...'. tools/tr_gate.py
+    holds the rule (the ball's deltaZ right after the header): RUOLI SI = down by HEADING in the attacking box only,
+    the original elsewhere, under both CALCI PIAZZATI; RUOLI NO = the original (CLASSICI) / down everywhere (NUOVI: the
+    42-sp numbers); the lob header never changes. PASS = 240 cases logged in every arm, none failed / dropped, the
+    switch read in the running exe = the arm's, no classifier error. Rows in TH_OUT (default the run dir's
+    trhd_headers.jsonl)."""
+    lang = os.environ.get('SWOSTEST_UI', 'it')
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import tr_gate
+    assert (tr_gate.H5P, tr_gate.H5V, tr_gate.H5X, tr_gate.H5A) == tuple(trhd_asm_table(n, k) for n, k in
+                                                                         (('H5P', 4), ('H5V', 3), ('H5X', 5), ('H5A', 5))), 'tr_gate: MODE 5 tables'
+    frames = int(os.environ.get('TH_FRAMES', '13000'))
+    out = os.environ.get('TH_OUT') or os.path.join(RUNS, 'trhd_headers.jsonl')
+    home, away = DIFF_PAIRINGS[os.environ.get('TH_PAIRING', 'eq')]
+    errs, info, rows = [], [], []
+    for ru, sp in [tuple(int(v) for v in x.split(':')) for x in os.environ.get('TH_ARMS', '1:0,1:1,0:0,0:1').split(',')]:
+        env = {'DIFF_TEST': '3', 'DIFF_TRACE': '1', 'DIFF_DELAY': '', 'SP_TEST': str(sp), 'SP_METER': '1', 'SP_METER_MODE': '5',
+               'SP_METER_GAP': '20', 'SP_METER_MAXC': str(tr_gate.NH), **trhd_ruoli_env(bool(ru))}
+        b = build(f'trhd_headers_r{ru}s{sp}', env, lang=lang)
+        tag = f'trhd_headers_r{ru}s{sp}'
+        res = dict(ruoli=ru, sp=sp, **trhd_meter_match(tag, b, hashlib.md5(b'trhd_headers').digest()[:6], frames,
+                                                         lambda m: struct.unpack_from('<H', m, 6)[0] >= tr_gate.NH, home, away))
+        open(out, 'a').write(json.dumps(res) + '\n')
+        rows.append(res)
+        check('error' not in res and res.get('nc') == tr_gate.NH and not res.get('nfail') and not res.get('drop')
+              and res.get('ruoli_read') == ru, f'{tag}: ' + json.dumps({k: v for k, v in res.items() if k != 'log'}), errs)
+        info.append(f"r{ru}/cp{sp}: {res.get('nc')} headers")
+    cerr, summ = tr_gate.classify_headers(rows)
+    errs += cerr
+    return not errs, '; '.join(errs[:8] + info + [json.dumps(summ), f'rows in {out}'])
+
+
+@scenario
+def trhd_reach():
+    """4.2 POSITION TRAITS (3) gate D6 + D10 (trhead-design.md): the header reach. DIFF_TEST=3 + DIFF_TRACE + SP_METER
+    MODE 6 builds (spmeter.py: 96 cases = team x the man's forced FILE position D / A / RB / M - whatever slot the
+    team's 10th man plays in - x HEADING 0 / 7 x inside / outside his own box x the ball pinned 7 / 10 / 12 px from him:
+    the game's own PlayerAttemptingJumpHeader, then its UpdatePlayers decides the contact), one match with RUOLI SI and
+    one with NO (trhd_ruoli_env; TR_RUOLI = '1,0'), CALCI PIAZZATI = TR_SP (0). tools/tr_gate.py holds the rule: 7 px
+    always headed, 12 px never, 10 px only with RUOLI SI by a file D with HEADING 7 inside his own box (34 headers of
+    96 with SI, 32 with NO). A case where another player touched the pinned ball first is not measured = FAIL (rerun
+    with another TR_SEED). PASS = 96 cases logged in both arms, none failed / dropped, the switch read = the arm's, no
+    classifier error. Rows in TR_OUT (default the run dir's trhd_reach.jsonl)."""
+    lang = os.environ.get('SWOSTEST_UI', 'it')
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import tr_gate
+    assert (tr_gate.R6P, tr_gate.R6R, tr_gate.R6A) == tuple(trhd_asm_table(n, k) for n, k in (('R6P', 4), ('R6R', 3), ('R6A', 2))),         'tr_gate: MODE 6 tables'
+    sp = os.environ.get('TR_SP', '0')
+    frames = int(os.environ.get('TR_FRAMES', '13000'))
+    out = os.environ.get('TR_OUT') or os.path.join(RUNS, 'trhd_reach.jsonl')
+    home, away = DIFF_PAIRINGS[os.environ.get('TR_PAIRING', 'eq')]
+    seed = hashlib.md5(('trhd_reach' + os.environ.get('TR_SEED', '')).encode()).digest()[:6]
+    errs, info, rows = [], [], []
+    for ru in [int(x) for x in os.environ.get('TR_RUOLI', '1,0').split(',')]:
+        env = {'DIFF_TEST': '3', 'DIFF_TRACE': '1', 'DIFF_DELAY': '', 'SP_TEST': sp, 'SP_METER': '1', 'SP_METER_MODE': '6',
+               'SP_METER_GAP': '30', 'SP_METER_WIN': '24', 'SP_METER_MAXC': str(tr_gate.NR), **trhd_ruoli_env(bool(ru))}
+        b = build(f'trhd_reach_r{ru}', env, lang=lang)
+        tag = f'trhd_reach_r{ru}'
+        res = dict(ruoli=ru, sp=int(sp), **trhd_meter_match(tag, b, seed, frames,
+                                                            lambda m: struct.unpack_from('<H', m, 6)[0] >= tr_gate.NR and not m[4],
+                                                            home, away))
+        open(out, 'a').write(json.dumps(res) + '\n')
+        rows.append(res)
+        check('error' not in res and res.get('nc') == tr_gate.NR and not res.get('nfail') and not res.get('drop')
+              and res.get('ruoli_read') == ru, f'{tag}: ' + json.dumps({k: v for k, v in res.items() if k != 'log'}), errs)
+        info.append(f"r{ru}: {res.get('nc')} cases")
+    cerr, summ = tr_gate.classify_reach(rows)
+    errs += cerr
+    return not errs, '; '.join(errs[:8] + info + [json.dumps(summ), f'rows in {out}'])
+
+
+@scenario
+def trhd_default():
+    """4.2 POSITION TRAITS gate D2 (trhead-design.md): the default is no trait, and the switch is what the build says.
+    Disk half (no DOSBox): a plain build of this tree (no switch) - the TRHD band (swreg.TRHD_AT..TRHD_END) is empty or
+    past obj4's file pages and the three obj1 sites (DIST0, DIST1, HK) hold the original exe's instructions. Run-time
+    half: the switch read in a RUNNING game (trhd_ruoli_read, at a friendly's pre-match screen and again after the
+    kick-off): the default build -> None (no band) today; a RUOLI NO build (trhd_ruoli_env(False)) -> 0; a RUOLI SI
+    build -> 1. With GP_RUOLI in the tree (gameplay.gp_ruoli(): the band always linked, the default build reads 0) the
+    disk half is replaced by tools/hosttest/trhd_structural.py REF NEW (NEW = the default build) and the default run
+    must read 0 - on a new career and a loaded 4.1 save too (gameplay_menu's careers: to add here then; the scenario
+    says so in its result until it is done)."""
+    lang = os.environ.get('SWOSTEST_UI', 'it')
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import swreg
+    import trhead
+    from lepatch import LEPatch
+    gp = trhead._gameplay() is not None
+    errs, info = [], []
+    b0 = build('trhd_default', {}, lang=lang)
+    if True:                                                 # (with GP_RUOLI the band is linked in every build: the
+        bd = build('trhd_default_nolink', {'TRHD_NOLINK': '1'}, lang=lang) if gp else b0   # disk half on TRHD_NOLINK)
+        exe = os.path.join(bd, 'ITALIAN.EXE')                # (build(): every language runs as ITALIAN.EXE)
+        p, o = LEPatch(exe), LEPatch(os.path.join(ROOT, 'orig', UI_ORIG_OF[lang]))
+        s, _ = trhead.find(o)
+        n4 = p.le.obj(4).npages * 0x1000
+        band = bytes(p.get(4, swreg.TRHD_AT, min(n4, swreg.TRHD_END) - swreg.TRHD_AT)) if n4 > swreg.TRHD_AT else b''
+        check(not any(band), f'the TRHD band is not empty ({len(band.rstrip(bytes(1)))} B)', errs)
+        for k, n in (('DIST0', 10), ('DIST1', 10), ('HK', 6)):
+            got, want = bytes(p.get(1, s[k], n)), bytes(o.le.obj_bytes(1)[s[k]:s[k] + n])
+            check(got[:2] == want[:2] and got[6:] == want[6:], f'{k} obj1+{s[k]:#x}: {got.hex()} (original {want.hex()})', errs)
+        info.append(f"disk{' (TRHD_NOLINK)' if gp else ''}: TRHD band empty, DIST0 / DIST1 / HK original")
+    if gp:
+        p0 = LEPatch(os.path.join(b0, 'ITALIAN.EXE'))
+        check(bytes(p0.get(4, swreg.TRHD_AT, 0x80)).find(trhead.TAG) >= 0, 'the default build has no TRHD band', errs)
+        info.append('GP_RUOLI: band linked in the default build (structural = trhd_structural.py NOLINK NEW); '
+                    'new career / 4.1 save = gameplay\'s RUOLI tests')
+    home, away = DIFF_PAIRINGS['eq']
+    for name, env, want in (('default', {}, 0 if gp else None), ('no', trhd_ruoli_env(False), 0), ('si', trhd_ruoli_env(True), 1)):
+        b = b0 if not env else build(f'trhd_default_{name}', env, lang=lang)
+        with Session(f'trhd_default_{name}', b, {}, 'dump:3', 300, match=True) as s:
+            s.wait()
+            friendly_prematch(s, home, away)
+            pre = trhd_ruoli_read(s.result)
+            r = s.send('fire dump:6')                        # (the match starts: the switch is not a kick-off's to change)
+            post = trhd_ruoli_read(r) if r.outcome == 'dump' else 'no dump'
+            s.shot(f'trhd_default_{name}')
+        check((pre, post) == (want, want), f'{name} build: the switch read {pre} at the pre-match, {post} in the match (want {want})', errs)
+        info.append(f'{name}: {pre} / {post}')
+    return not errs, '; '.join(errs + info)
+
+
+@scenario
+def trhd_whip():
+    """4.2 POSITION TRAITS (2) gate D5 + D10 (trhead-design.md): forced wide kicks with 'back' held. DIFF_TEST=3 +
+    DIFF_TRACE + SP_METER MODE 4 builds (spmeter.py: 192 cases = team x side x direction toward the centre or the goal
+    line x the kicker's forced FILE position RW / LW / M / A - whatever slot the team's 10th man plays in - x 6 spots:
+    inside the wide zone, on its two edges, 1 px outside by x and by depth, the corner spot), CALCI PIAZZATI = TW_SP
+    (default 0 CLASSICI), with RUOLI SI and with RUOLI NO (trhd_ruoli_env; TW_RUOLI = '1,0'). 48 cases a match (the
+    meter's K0B poked 0..3), both sides computer-played, generators pinned, as sp_corners. Each kick is made by the
+    game's own PlayerKickingBall + ApplyBallAfterTouch; tools/tr_whip.py holds the rule: RUOLI SI = the whip (deltaZ
+    TR_WDZ, speed TR_WSP) only for RW / LW inside the zone toward the centre, the game's high ball everywhere else;
+    RUOLI NO = the high ball in all 192. PASS = every case logged in both arms, none failed to force, no entry dropped,
+    no classifier error. Rows in TW_OUT (default the run dir's trhd_whip.jsonl)."""
+    lang = os.environ.get('SWOSTEST_UI', 'it')
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    import spmeter
+    import tr_whip
+    assert (tr_whip.WPX, tr_whip.WPA) == tuple(tuple(int(x) for x in re.search(rf'^{n}: dw ([0-9, ]+)', spmeter.ASM, re.M)
+                                                     .group(1).split(',')) for n in ('WPX', 'WPA')), 'tr_whip: spmeter\'s spots'
+    sp = os.environ.get('TW_SP', '0')
+    frames = int(os.environ.get('TW_FRAMES', '18000'))
+    out = os.environ.get('TW_OUT') or os.path.join(RUNS, 'trhd_whip.jsonl')
+    home, away = DIFF_PAIRINGS[os.environ.get('TW_PAIRING', 'eq')]
+    errs, info, rows = [], [], []
+    for ru in [int(x) for x in os.environ.get('TW_RUOLI', '1,0').split(',')]:
+        env = {'DIFF_TEST': '3', 'DIFF_TRACE': '1', 'DIFF_DELAY': '', 'SP_TEST': sp, 'SP_METER': '1', 'SP_METER_MODE': '4',
+               'SP_METER_GAP': '30', 'SP_METER_WIN': '50', 'SP_METER_MAXC': '48', **trhd_ruoli_env(bool(ru))}
+        b = build(f'trhd_whip_r{ru}', env, lang=lang)
+        for part in range(tr_whip.NCASE // 48):
+            tag = f'trhd_whip_r{ru}_{part}'
+            seed = hashlib.md5(f'trhd_whip:{part}'.encode()).digest()[:6]
+            res = dict(ruoli=ru, sp=int(sp), k0=part, seed=seed.hex())
+            with Session(tag, b, {}, 'dump:3', 900, match=True) as s:
+                s.wait()
+                friendly_prematch(s, home, away)
+                blk = diff_block(s.result)
+                mb, lg = sp_meter_block(s.result)
+                if blk is None or mb is None:
+                    errs.append(f'{tag}: no DIFF / SPMT block')
+                    continue
+                s.poke(blk + DIFF_OFF['SEED'], seed + bytes((3, 1)))
+                s.poke(blk + DIFF_OFF['W'], bytes([0, 0]))
+                s.poke(mb + spmeter.OFF['K0B'], bytes([part]))
+                for _ in range(22):
+                    s.send('down dump:0.5')
+                    if s.screen().selected == 9:
+                        break
+                r = s.send('fire dump:2')
+                for _ in range(40):
+                    if r.outcome != 'dump' or struct.unpack('<I', r.read(blk + DIFF_OFF['KICKS'], 4))[0]:
+                        break
+                    r = s.send('fire dump:2')
+                o = spmeter.OFF
+                last, same = -1, 0
+                for _ in range(200):
+                    if r.outcome != 'dump':
+                        break
+                    f = struct.unpack('<I', r.read(blk + DIFF_OFF['FRAMES'], 4))[0]
+                    m = r.read(mb, 52)
+                    if f >= frames or (struct.unpack_from('<H', m, o['NC'])[0] >= 48 and not m[o['ST']]):
+                        break
+                    same = same + 1 if f == last else 0
+                    if same >= 6:
+                        break
+                    last = f
+                    r = s.send('dump:5')
+                if r.outcome == 'dump':
+                    m = r.read(mb, 52)
+                    w = lambda k: struct.unpack_from('<H', m, o[k])[0]
+                    d = lambda k: struct.unpack_from('<I', m, o[k])[0]
+                    ln = d('LN')
+                    res.update(frames=struct.unpack('<I', r.read(blk + DIFF_OFF['FRAMES'], 4))[0], nc=w('NC'), nf=w('NF'),
+                               nfail=w('NFAIL'), ln=ln, drop=d('LDROP'), k0b=m[o['K0B']],
+                               log=r.read(lg, 16 * min(ln, spmeter.LOGMAX)).hex())
+                    s.shot(f'{tag}_end')
+                else:
+                    res['error'] = str(r)
+            open(out, 'a').write(json.dumps(res) + '\n')
+            rows.append(res)
+            check('error' not in res and res['nc'] == 48 and res['k0b'] == part and not res['nfail'] and not res['drop'],
+                  f'{tag}: ' + json.dumps({k: v for k, v in res.items() if k != 'log'}), errs)
+            info.append(f"r{ru}/{part}: {res.get('nc')} cases, log {res.get('ln')}")
+    cerr, summ = tr_whip.classify(rows)
+    errs += cerr
+    return not errs, '; '.join(errs[:8] + info + [json.dumps(summ), f'rows in {out}'])
 
 
 

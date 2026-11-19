@@ -34,7 +34,7 @@ LOGMAX = (SPM_END - SPM_AT - LOG_AT) // 16
 TAG = b'SPMT'
 # the block's fields, from the tag (the harness reads / pokes them)
 OFF = dict(ST=4, FK=5, NC=6, NF=8, NFAIL=10, T0=12, LAST=16, LN=20, LDROP=24, GAP=28, WIN=30, MAXC=32, MODE=34,
-           FKORD=35, FKD=36, FKX=44, FKSH=50)
+           FKORD=35, FKD=36, FKX=44, FKSH=50, K0B=51)
 
 
 def on():
@@ -56,6 +56,17 @@ spm_frame:                              ; difficulty's df_frame calls this once 
     mov ax, [esi + 28h]
     mov [edx + 4], ax
     call spm_watch
+    cmp byte [dword ebp + MODE - SPB], 3
+    je spm_census
+%if SM_MODE == 4
+    jmp spm_whip
+%endif
+%if SM_MODE == 5
+    jmp spm_hdr
+%endif
+%if SM_MODE == 6
+    jmp spm_rch
+%endif
     mov al, [dword ebp + ST - SPB]
     cmp al, 1
     je .forcing
@@ -186,6 +197,661 @@ spm_frame:                              ; difficulty's df_frame calls this once 
     movsw
     ret
 
+; ---- MODE 3 (traits measure, Mercato 16/11): no forcing. A touch (entry 15: the toucher's file position) opens /
+;      extends a window of SM_WIN frames when the ball is in a wide band near a goal line (x <= CX0 or >= CX1, within
+;      CYW px of either goal line: wider than Marco's zones, the classifier cuts them); any touch inside a window is
+;      logged too. In a window the ball's height level is logged on each change upward (entry 12 / 13 / 14 = z over
+;      10 / 18 / 30 px: drive / normal / high ball peaks), plus the watched changes (gameState, goals, headers).
+spm_ctouch:                             ; esi = the toucher's sprite, edx -> this frame's ball
+    mov ax, [edx]
+    cmp ax, CX0
+    jbe .x
+    cmp ax, CX1
+    jb .in
+.x: mov ax, [edx + 2]
+    cmp ax, 129 + CYW
+    jbe .o
+    cmp ax, 769 - CYW
+    jb .in
+.o: mov eax, [dword ebp + DF_FRAMES - SPB]
+    mov [dword ebp + T0 - SPB], eax
+    mov byte [dword ebp + ST - SPB], 3
+    inc word [dword ebp + NF - SPB]
+    jmp .l
+.in:cmp byte [dword ebp + ST - SPB], 0
+    je .r
+.l: mov byte [dword ebp + FK - SPB], 0  ; (the height level restarts at each touch)
+    mov al, 15
+    call spm_log
+.r: ret
+spm_census:
+    cmp byte [dword ebp + ST - SPB], 0
+    je .done
+    mov ax, [dword ebp + CURB + 4 - SPB]
+    xor ecx, ecx
+    cmp ax, 10
+    jle .lv
+    inc ecx
+    cmp ax, 18
+    jle .lv
+    inc ecx
+    cmp ax, 30
+    jle .lv
+    inc ecx
+.lv:cmp cl, [dword ebp + FK - SPB]
+    jbe .st
+    lea eax, [ecx + 11]
+    push ecx
+    xor esi, esi
+    lea edx, [dword ebp + CURB - SPB]
+    call spm_log
+    pop ecx
+.st:mov [dword ebp + FK - SPB], cl
+    mov eax, [dword ebp + DF_FRAMES - SPB]
+    sub eax, [dword ebp + T0 - SPB]
+    movzx ecx, word [dword ebp + WIN - SPB]
+    cmp eax, ecx
+    jb .done
+    mov byte [dword ebp + ST - SPB], 0
+    mov al, 6
+    xor esi, esi
+    lea edx, [dword ebp + CURB - SPB]
+    call spm_log
+.done:
+    cld
+    lea esi, [dword ebp + CURB - SPB]
+    lea edi, [dword ebp + PREVB - SPB]
+    movsd
+    movsw
+    ret
+%if SM_MODE == 4
+; ---- MODE 4 (POSITION TRAITS (2), the whipped cross's gate D5; tools/trhead.py, tools/tr_whip.py): forced wide kicks
+;      with 'back' held, through the game's own code. Case k = NC + 48 x K0B (0..191; the harness pokes K0B 0..3, 48
+;      cases a match): bit 0 the team (0 the top structure's: it attacks the bottom goal), bit 1 the side (0 left),
+;      bit 2 the kick's direction (1 toward the centre line: 2 / 6; 0 toward the goal line: 4 / 0), bits 3-4 the
+;      kicker's forced FILE position (4 RW, 5 LW, 6 M, 7 A), k >> 5 the spot (WPX: x from the left touchline side,
+;      mirrored on the right; WPA: px from the attacked goal line). When play is live and the gap is over: the team's
+;      FKORD man and the ball are put on the spot, his record's position forced, PlayerKickingBall called (A1, A6),
+;      then ApplyBallAfterTouch 5 times with currentAllowedDirection = the kick's direction + 4 ('back': at spinTimer
+;      4 the game's high-kick branch). Entry 17: [frame w][17][k][position][direction][ordinal][team bit][ball deltaZ
+;      d][ball speed w][0 w]. Then a window of SM_WIN frames (the watched changes logged as ever); entry 18 at its
+;      end: the ball's x / y and the highest z seen. A man not found: entry 10, NFAIL.
+spm_whip:
+    cmp byte [dword ebp + ST - SPB], 2
+    je .window
+    cmp word [edi + GSP_O], 100
+    jne .done
+    cmp word [edi + GS_O], 100
+    jne .done
+    mov eax, [dword ebp + DF_FRAMES - SPB]
+    sub eax, [dword ebp + LAST - SPB]
+    movzx ecx, word [dword ebp + GAP - SPB]
+    cmp eax, ecx
+    jb .done
+    mov ax, [dword ebp + NC - SPB]
+    cmp ax, [dword ebp + MAXC - SPB]
+    jae .done
+    inc word [dword ebp + NF - SPB]
+    mov byte [dword ebp + FK - SPB], 0
+    call spm_wkick
+    cmp byte [dword ebp + FK - SPB], 0
+    jne .ok
+    inc word [dword ebp + NFAIL - SPB]
+    mov al, 10
+    xor esi, esi
+    lea edx, [dword ebp + CURB - SPB]
+    call spm_log
+    inc word [dword ebp + NC - SPB]
+    mov eax, [dword ebp + DF_FRAMES - SPB]
+    mov [dword ebp + LAST - SPB], eax
+    jmp .done
+.ok:mov byte [dword ebp + ST - SPB], 2
+    mov eax, [dword ebp + DF_FRAMES - SPB]
+    mov [dword ebp + T0 - SPB], eax
+    mov word [dword ebp + WMX + 4 - SPB], 0
+    jmp .done
+.window:
+    mov ax, [dword ebp + CURB + 4 - SPB]
+    cmp ax, [dword ebp + WMX + 4 - SPB]
+    jle .nz
+    mov [dword ebp + WMX + 4 - SPB], ax
+.nz:mov eax, [dword ebp + DF_FRAMES - SPB]
+    sub eax, [dword ebp + T0 - SPB]
+    movzx ecx, word [dword ebp + WIN - SPB]
+    cmp eax, ecx
+    jb .done
+    mov ax, [dword ebp + CURB - SPB]
+    mov [dword ebp + WMX - SPB], ax
+    mov ax, [dword ebp + CURB + 2 - SPB]
+    mov [dword ebp + WMX + 2 - SPB], ax
+    mov al, 18
+    xor esi, esi
+    lea edx, [dword ebp + WMX - SPB]
+    call spm_log
+    inc word [dword ebp + NC - SPB]
+    mov byte [dword ebp + ST - SPB], 0
+    mov eax, [dword ebp + DF_FRAMES - SPB]
+    mov [dword ebp + LAST - SPB], eax
+.done:
+    cld
+    lea esi, [dword ebp + CURB - SPB]
+    lea edi, [dword ebp + PREVB - SPB]
+    movsd
+    movsw
+    ret
+
+spm_wkick:                              ; edi = obj2's base, ebp = SPB; FK = 1 when the kick was made
+    pushad
+    lea esi, [edi + D0_O]
+    lea ebx, [dword ebp + RSAVE - SPB]
+    mov ecx, 15
+.sv:mov eax, [esi]
+    mov [ebx], eax
+    add esi, 4
+    add ebx, 4
+    loop .sv
+    movzx ecx, word [dword ebp + NC - SPB]
+    movzx eax, byte [dword ebp + K0B - SPB]
+    imul eax, eax, 48
+    add ecx, eax                        ; ecx = k
+    lea edx, [edi + TOPT_O]
+    test cl, 1
+    jz .t
+    lea edx, [edi + BOTT_O]
+.t: mov bx, [edx + 12h]                 ; the team's number: its FKORD man
+    lea esi, [edi + SPR0_O]
+    mov eax, 22
+.f: cmp [esi], bx
+    jne .fn
+    mov bl, [dword ebp + FKORD - SPB]
+    cmp [esi + 2], bl
+    je .ff
+    mov bx, [edx + 12h]
+.fn:add esi, 6Eh
+    dec eax
+    jnz .f
+    jmp .r
+.ff:movzx eax, byte [dword ebp + FKORD - SPB]   ; his record: the forced file position
+    dec eax
+    imul eax, eax, 61
+    add eax, [edx + 0Ah]
+    mov ebx, ecx
+    shr ebx, 3
+    and ebx, 3
+    add ebx, 4
+    mov [eax + 2Eh], bl
+    mov [dword ebp + WK + 1 - SPB], bl
+    mov [dword ebp + WK - SPB], cl
+    mov eax, ecx
+    shr eax, 5                          ; the spot
+    movzx ebx, word [dword ebp + WPX - SPB + eax * 2]
+    test cl, 2
+    jz .l
+    neg ebx
+    add ebx, 671
+.l: movzx eax, word [dword ebp + WPA - SPB + eax * 2]
+    test cl, 1
+    jz .tp
+    add eax, 129                        ; the bottom structure's team attacks the top goal
+    jmp .y
+.tp:neg eax
+    add eax, 769
+.y: shl ebx, 16
+    shl eax, 16
+    mov [esi + 1Eh], ebx
+    mov [esi + 22h], eax
+    push edi
+    lea edi, [edi + BALL_O]
+    mov [edi + 1Eh], ebx
+    mov [edi + 22h], eax
+    xor eax, eax
+    mov [edi + 26h], eax
+    mov [edi + 2Ch], ax
+    mov [edi + 2Eh], eax
+    mov [edi + 32h], eax
+    mov [edi + 36h], eax
+    pop edi
+    test cl, 4                          ; the direction
+    jz .gl
+    mov eax, 2
+    test cl, 2
+    jz .d
+    mov eax, 6
+    jmp .d
+.gl:mov eax, 4
+    test cl, 1
+    jz .d
+    xor eax, eax
+.d: mov [esi + 2Ah], ax
+    mov [dword ebp + WK + 2 - SPB], al
+    mov al, [esi + 2]
+    mov [dword ebp + WK + 3 - SPB], al
+    mov al, cl
+    and al, 1
+    mov [dword ebp + WK + 4 - SPB], al
+    mov eax, [edx]                      ; the opponents' goalkeeperSavedCommentTimer >= 0: the after-touch is open
+    mov word [eax + 4Ch], 0
+    mov [edi + D0_O + 36], esi          ; A1 = the kicker
+    mov [edi + A6_O], edx
+    push ebp
+    push edi
+    push edx
+    call near PKB
+    pop edx
+    pop edi
+    pop ebp
+    mov ecx, 5
+.a: movzx eax, byte [dword ebp + WK + 2 - SPB]
+    add eax, 4
+    and eax, 7
+    mov [edx + 2Ch], ax                 ; currentAllowedDirection = 'back'
+    mov [edi + A6_O], edx
+    push ebp
+    push edi
+    push edx
+    push ecx
+    call near ABAT
+    pop ecx
+    pop edx
+    pop edi
+    pop ebp
+    loop .a
+    mov ecx, [dword ebp + LN - SPB]      ; entry 17
+    cmp ecx, LOGMAX
+    jb .lg
+    inc dword [dword ebp + LDROP - SPB]
+    jmp .k
+.lg:inc dword [dword ebp + LN - SPB]
+    shl ecx, 4
+    lea ebx, [dword ebp + LOG - SPB]
+    add ebx, ecx
+    mov ax, [dword ebp + DF_FRAMES - SPB]
+    mov [ebx], ax
+    mov byte [ebx + 2], 17
+    mov al, [dword ebp + WK - SPB]
+    mov [ebx + 3], al
+    mov eax, [dword ebp + WK + 1 - SPB]
+    mov [ebx + 4], eax
+    mov eax, [edi + BALL_O + 36h]
+    mov [ebx + 8], eax
+    mov ax, [edi + BALL_O + 2Ch]
+    mov [ebx + 12], ax
+    mov word [ebx + 14], 0
+.k: mov byte [dword ebp + FK - SPB], 1
+.r: lea esi, [dword ebp + RSAVE - SPB]
+    lea ebx, [edi + D0_O]
+    mov ecx, 15
+.rs:mov eax, [esi]
+    mov [ebx], eax
+    add esi, 4
+    add ebx, 4
+    loop .rs
+    popad
+    ret
+WPX: dw 120, 183, 184, 120, 81, 150     ; the spots: x (left side; the right side's = 671 - x)
+WPA: dw 40, 160, 40, 161, 0, 100        ;            px from the attacked goal line (the zone: <= TR_WZ 160)
+WK: db 0, 0, 0, 0, 0, 0, 0, 0           ; this case: k, position, direction, ordinal, team bit
+WMX: dw 0, 0, 0                         ; the window's last ball x / y, its highest z
+%endif
+
+%if SM_MODE == 5 || SM_MODE == 6
+; ---- MODES 5 / 6 (POSITION TRAITS (1) / (3), gates D4 / D6; tools/trhead.py, tools/tr_gate.py): shared pieces.
+;      spm_man: edi = obj2's base, ebp = SPB, cl bit 0 = the team (0 the top structure's) -> edx = its TeamGeneralInfo,
+;      esi = its FKORD man's sprite (ZF = 1: none), eax = his record (inGameTeamPtr + (ordinal - 1) x 61)
+spm_man:
+    lea edx, [edi + TOPT_O]
+    test cl, 1
+    jz .t
+    lea edx, [edi + BOTT_O]
+.t: push ecx
+    lea esi, [edi + SPR0_O]
+    mov ecx, 22
+.f: mov ax, [edx + 12h]
+    cmp [esi], ax
+    jne .n
+    mov al, [dword ebp + FKORD - SPB]
+    cmp [esi + 2], al
+    je .ff
+.n: add esi, 6Eh
+    loop .f
+    xor esi, esi
+    jmp .x
+.ff:movzx eax, byte [dword ebp + FKORD - SPB]
+    dec eax
+    imul eax, eax, 61
+    add eax, [edx + 0Ah]
+.x: pop ecx
+    test esi, esi
+    ret
+spm_rsave:                              ; the game's pseudo registers around a call of ours (as spm_foul)
+    lea esi, [edi + D0_O]
+    lea ebx, [dword ebp + RSAVE - SPB]
+    jmp spm_rcp
+spm_rrest:
+    lea esi, [dword ebp + RSAVE - SPB]
+    lea ebx, [edi + D0_O]
+spm_rcp:
+    mov ecx, 15
+.c: mov eax, [esi]
+    mov [ebx], eax
+    add esi, 4
+    add ebx, 4
+    loop .c
+    ret
+spm_idle:                               ; ZF = 1: play is live, the gap is over, cases are left
+    cmp word [edi + GSP_O], 100
+    jne .x
+    cmp word [edi + GS_O], 100
+    jne .x
+    mov eax, [dword ebp + DF_FRAMES - SPB]
+    sub eax, [dword ebp + LAST - SPB]
+    movzx ecx, word [dword ebp + GAP - SPB]
+    cmp eax, ecx
+    jb .n
+    mov ax, [dword ebp + NC - SPB]
+    cmp ax, [dword ebp + MAXC - SPB]
+    jae .n
+    cmp eax, eax
+    ret
+.n: test esp, esp
+.x: ret
+spm_l5:                                 ; a 16-byte entry: al = type, then WK's 5 bytes, eax' = [WK + 8] d, [WK + 12] w
+    push ecx
+    push ebx
+    mov ecx, [dword ebp + LN - SPB]
+    cmp ecx, LOGMAX
+    jb .ok
+    inc dword [dword ebp + LDROP - SPB]
+    jmp .x
+.ok:inc dword [dword ebp + LN - SPB]
+    shl ecx, 4
+    lea ebx, [dword ebp + LOG - SPB]
+    add ebx, ecx
+    mov cx, [dword ebp + DF_FRAMES - SPB]
+    mov [ebx], cx
+    mov [ebx + 2], al
+    mov ecx, [dword ebp + WK - SPB]
+    mov [ebx + 3], ecx
+    mov cl, [dword ebp + WK + 4 - SPB]
+    mov [ebx + 7], cl
+    mov ecx, [dword ebp + WK + 8 - SPB]
+    mov [ebx + 8], ecx
+    mov ecx, [dword ebp + WK + 12 - SPB]
+    mov [ebx + 12], ecx
+.x: pop ebx
+    pop ecx
+    ret
+spm_cend:                               ; a case's end: the next one, the gap from now; then the frame's end
+    inc word [dword ebp + NC - SPB]
+    mov byte [dword ebp + ST - SPB], 0
+    mov eax, [dword ebp + DF_FRAMES - SPB]
+    mov [dword ebp + LAST - SPB], eax
+spm_fend:
+    cld
+    lea esi, [dword ebp + CURB - SPB]
+    lea edi, [dword ebp + PREVB - SPB]
+    movsd
+    movsw
+    ret
+WK: times 16 db 0                       ; this case: k, position, HEADING, [3], [4]; +8 a dword, +12 a dword for the entry
+WXY: dw 0, 0                            ; MODE 6: the man's pinned x / y
+WSPR: dd 0                              ; MODE 6: his sprite
+%endif
+
+%if SM_MODE == 5
+; ---- MODE 5 (gate D4, the header-direction meter by box): forced jump headers through the game's own
+;      PlayerHittingJumpHeader, no window. Case k = NC (0..239): bit 0 the team, bit 1 the header (0 straight: the
+;      stick the way he faces; 1 lob: the stick back), bits 2-3 the forced FILE position (H5P: A D M RW), k >> 4 =
+;      spot + 5 x HEADING index (H5X / H5A: x, px from the goal line his team ATTACKS - the attacking box, its corner
+;      edge, 1 px outside by depth and by width, his own box; H5V: HEADING 0 / 3 / 7). The team's FKORD man and the
+;      ball (z 12) on the spot, his record's position and HEADING forced, facing the attacked goal, a live whip of
+;      the TRHD band cleared (TRWF). Entry 19: [k][position][HEADING][ordinal][team bit][ball deltaZ d][ball speed w].
+spm_hdr:
+    call spm_idle
+    jnz spm_fend
+    inc word [dword ebp + NF - SPB]
+    mov byte [dword ebp + FK - SPB], 0
+    pushad
+    call spm_rsave
+    movzx ecx, word [dword ebp + NC - SPB]
+    call spm_man
+    jz .r
+    mov [dword ebp + WK - SPB], cl
+    mov ebx, ecx
+    shr ebx, 2
+    and ebx, 3
+    mov bl, [dword ebp + H5P - SPB + ebx]
+    mov [eax + 2Eh], bl
+    mov [dword ebp + WK + 1 - SPB], bl
+    push eax
+    push edx
+    mov eax, ecx
+    shr eax, 4
+    xor edx, edx
+    mov ebx, 5
+    div ebx                             ; eax = the HEADING index, edx = the spot
+    mov bl, [dword ebp + H5V - SPB + eax]
+    mov [dword ebp + WK + 2 - SPB], bl
+    mov ebx, edx
+    pop edx
+    pop eax
+    push ebx
+    mov bl, [dword ebp + WK + 2 - SPB]
+    mov [eax + SHO + 1], bl             ; HEADING
+    pop ebx
+    movzx eax, word [dword ebp + H5X - SPB + ebx * 2]
+    movzx ebx, word [dword ebp + H5A - SPB + ebx * 2]
+    test cl, 1
+    jz .tp
+    add ebx, 129                        ; the bottom structure's team attacks the top goal
+    jmp .y
+.tp:neg ebx
+    add ebx, 769
+.y: shl eax, 16
+    shl ebx, 16
+    mov [esi + 1Eh], eax
+    mov [esi + 22h], ebx
+    push edi
+    lea edi, [edi + BALL_O]
+    mov [edi + 1Eh], eax
+    mov [edi + 22h], ebx
+    mov dword [edi + 26h], 12 << 16
+    xor eax, eax
+    mov [edi + 2Ch], ax
+    mov [edi + 2Eh], eax
+    mov [edi + 32h], eax
+    mov [edi + 36h], eax
+    pop edi
+    mov eax, 4                          ; he faces the goal his team attacks
+    test cl, 1
+    jz .d
+    xor eax, eax
+.d: mov [esi + 2Ah], ax
+    mov word [esi + 2Ch], 1024
+    test cl, 2
+    jz .s
+    add eax, 4                          ; the lob header: the stick back
+    and eax, 7
+.s: mov [edx + 2Ch], ax                 ; currentAllowedDirection
+    mov al, [esi + 2]
+    mov [dword ebp + WK + 3 - SPB], al
+    mov al, cl
+    and al, 1
+    mov [dword ebp + WK + 4 - SPB], al
+%if TRWF_ON
+    mov byte [dword ebp + TRWF - SPB], 0
+%endif
+    mov [edi + D0_O + 36], esi          ; A1 = the header's man
+    mov [edi + A6_O], edx
+    push ebp
+    push edi
+    call near PHJH
+    pop edi
+    pop ebp
+    mov eax, [edi + BALL_O + 36h]
+    mov [dword ebp + WK + 8 - SPB], eax
+    movzx eax, word [edi + BALL_O + 2Ch]
+    mov [dword ebp + WK + 12 - SPB], eax
+    mov al, 19
+    call spm_l5
+    mov byte [dword ebp + FK - SPB], 1
+.r: call spm_rrest
+    popad
+    cmp byte [dword ebp + FK - SPB], 0
+    jne spm_cend
+    inc word [dword ebp + NFAIL - SPB]
+    mov al, 10
+    xor esi, esi
+    lea edx, [dword ebp + CURB - SPB]
+    call spm_log
+    jmp spm_cend
+H5P: db 7, 3, 6, 4
+H5V: db 0, 3, 7
+align 2
+H5X: dw 336, 193, 336, 192, 336
+H5A: dw 40, 87, 88, 40, 600
+%endif
+
+%if SM_MODE == 6
+; ---- MODE 6 (gate D6, the header reach): a forced jump at a pinned ball, the contact left to the game's own
+;      UpdatePlayers. Case k = NC (0..95): bit 0 the team, bits 1-2 the forced FILE position (R6P: D A RB M), bit 3
+;      HEADING (0 / 7), k >> 4 = the distance index + 3 x spot (R6R: the ball 7 / 10 / 12 px from the man; R6A: he is
+;      60 / 100 px from his OWN goal line, x 230: inside / outside his own box). The team's FKORD man on the spot, his
+;      record forced, the game's PlayerAttemptingJumpHeader (the jump: playerDownTimer 55, the contact is tested while
+;      it is >= 42), lastPlayerPlayed = 0; then every frame the ball (z 13, still) and the man's place are pinned again
+;      until lastPlayerPlayed is set (he headed it: 1; someone else: 2) or SM_WIN frames passed (0).
+;      Entry 20: [k][position][HEADING][distance][result][ball deltaZ d][frames w].
+spm_rch:
+    cmp byte [dword ebp + ST - SPB], 2
+    je .window
+    call spm_idle
+    jnz spm_fend
+    inc word [dword ebp + NF - SPB]
+    mov byte [dword ebp + FK - SPB], 0
+    pushad
+    call spm_rsave
+    movzx ecx, word [dword ebp + NC - SPB]
+    call spm_man
+    jz .r
+    mov [dword ebp + WSPR - SPB], esi
+    mov [dword ebp + WK - SPB], cl
+    mov ebx, ecx
+    shr ebx, 1
+    and ebx, 3
+    mov bl, [dword ebp + R6P - SPB + ebx]
+    mov [eax + 2Eh], bl
+    mov [dword ebp + WK + 1 - SPB], bl
+    xor ebx, ebx
+    test cl, 8
+    jz .h
+    mov bl, 7
+.h: mov [eax + SHO + 1], bl
+    mov [dword ebp + WK + 2 - SPB], bl
+    push edx
+    mov eax, ecx
+    shr eax, 4
+    xor edx, edx
+    mov ebx, 3
+    div ebx                             ; eax = the spot, edx = the distance index
+    mov bl, [dword ebp + R6R - SPB + edx]
+    mov [dword ebp + WK + 3 - SPB], bl
+    movzx ebx, word [dword ebp + R6A - SPB + eax * 2]
+    pop edx
+    test cl, 1
+    jnz .bt
+    add ebx, 129                        ; the top structure's team: its own goal is the top one
+    jmp .y
+.bt:neg ebx
+    add ebx, 769
+.y: mov word [dword ebp + WXY - SPB], 230
+    mov [dword ebp + WXY + 2 - SPB], bx
+    mov dword [esi + 1Eh], 230 << 16
+    shl ebx, 16
+    mov [esi + 22h], ebx
+    mov dword [edi + D0_O], 2           ; D0 = the jump's direction: toward the ball (+x)
+    mov [edi + D0_O + 36], esi
+    mov [edi + A6_O], edx
+    push ebp
+    push edi
+    call near PAJH
+    pop edi
+    pop ebp
+    mov dword [edi + LPP_O], 0
+    call .pin
+    mov byte [dword ebp + FK - SPB], 1
+.r: call spm_rrest
+    popad
+    cmp byte [dword ebp + FK - SPB], 0
+    jne .go
+    inc word [dword ebp + NFAIL - SPB]
+    mov al, 10
+    xor esi, esi
+    lea edx, [dword ebp + CURB - SPB]
+    call spm_log
+    jmp spm_cend
+.go:mov byte [dword ebp + ST - SPB], 2
+    mov eax, [dword ebp + DF_FRAMES - SPB]
+    mov [dword ebp + T0 - SPB], eax
+    jmp spm_fend
+.window:
+    xor ebx, ebx
+    mov eax, [edi + LPP_O]
+    test eax, eax
+    jz .w
+    inc ebx
+    cmp eax, [dword ebp + WSPR - SPB]
+    je .e
+    inc ebx
+    jmp .e
+.w: mov eax, [dword ebp + DF_FRAMES - SPB]
+    sub eax, [dword ebp + T0 - SPB]
+    movzx ecx, word [dword ebp + WIN - SPB]
+    cmp eax, ecx
+    jae .e
+    call .pin
+    jmp spm_fend
+.e: mov [dword ebp + WK + 4 - SPB], bl
+    mov eax, [edi + BALL_O + 36h]
+    mov [dword ebp + WK + 8 - SPB], eax
+    mov eax, [dword ebp + DF_FRAMES - SPB]
+    sub eax, [dword ebp + T0 - SPB]
+    mov [dword ebp + WK + 12 - SPB], eax
+    mov al, 20
+    call spm_l5
+    jmp spm_cend
+.pin:                                   ; the ball r px from the man (+x), z 13, still; the man on his spot
+    push eax
+    push ebx
+    push esi
+    movzx eax, word [dword ebp + WXY - SPB]
+    movzx ebx, word [dword ebp + WXY + 2 - SPB]
+    mov esi, [dword ebp + WSPR - SPB]
+    shl eax, 16
+    shl ebx, 16
+    mov [esi + 1Eh], eax
+    mov [esi + 22h], ebx
+    movzx esi, byte [dword ebp + WK + 3 - SPB]
+    shl esi, 16
+    add eax, esi
+    lea esi, [edi + BALL_O]
+    mov [esi + 1Eh], eax
+    mov [esi + 22h], ebx
+    mov dword [esi + 26h], 13 << 16
+    xor eax, eax
+    mov [esi + 2Ch], ax
+    mov [esi + 2Eh], eax
+    mov [esi + 32h], eax
+    mov [esi + 36h], eax
+    pop esi
+    pop ebx
+    pop eax
+    ret
+R6P: db 3, 7, 1, 6
+R6R: db 7, 10, 12
+align 2
+R6A: dw 60, 100
+%endif
+
 ; ---- MODE 1: a foul on the attacking team's FKORD player, put at FKX[k / 4 % 3], FKD[k % 4 >> ...] px from the goal
 ;      line: kick k = NC; bit 0 = the goal (0 top: topTeamData fouls), (k >> 1) % 4 = the distance, (k >> 3) % 3 = x.
 ;      The game's pseudo registers are saved around the call (we run at the frame's end).
@@ -303,7 +969,11 @@ spm_watch:
     mov [dword ebp + PLPP - SPB], esi
     test esi, esi
     jz .w3
-    mov al, 3
+    cmp byte [dword ebp + MODE - SPB], 3
+    jne .w2l
+    call spm_ctouch
+    jmp .w3
+.w2l:mov al, 3
     call spm_logw
 .w3:mov esi, [edi + LKP_O]              ; lastKeeperPlayed
     cmp esi, [dword ebp + PLKP - SPB]
@@ -386,6 +1056,27 @@ spm_log:
     mov [ebx + 5], cx
     mov cl, [esi + 0Ch]                 ; Sprite.playerState
     mov [ebx + 7], cl
+    cmp al, 15                          ; (MODE 3 touch: the toucher's FILE position instead, bit 7 = topTeamData)
+    jne .p
+    push eax
+    lea eax, [edi + TOPT_O]
+    mov cx, [esi]
+    cmp cx, [eax + 12h]                 ; (Sprite.teamNumber = TeamGeneralInfo.teamNumber)
+    mov ch, 80h
+    je .tt
+    lea eax, [edi + BOTT_O]
+    xor ch, ch
+.tt:movzx ecx, cx
+    push ecx
+    movzx ecx, byte [esi + 2]           ; (inGameTeamPtr + (ordinal - 1) x 61: the record, +2Eh = position)
+    dec ecx
+    imul ecx, ecx, 61
+    add ecx, [eax + 0Ah]
+    mov al, [ecx + 2Eh]
+    pop ecx
+    or al, ch
+    mov [ebx + 7], al
+    pop eax
     jmp .p
 .ns:mov cl, [dword ebp + NC - SPB]      ; (no sprite: the corner index in the ordinal byte)
     mov [ebx + 5], ch
@@ -420,11 +1111,12 @@ LDROP: dd 0                             ; +24 entries dropped (log full)
 GAP: dw SM_GAP                          ; +28 frames of play between two corners
 WIN: dw SM_WIN                          ; +30 frames of play logged after the corner kick
 MAXC: dw SM_MAXC                        ; +32 corners per match
-MODE: db SM_MODE                        ; +34 0 corners, 1 free kicks (spm_foul)
+MODE: db SM_MODE                        ; +34 0 corners, 1 free kicks (spm_foul), 2 census of fouls, 3 traits touch census, 4 forced wide kicks, 5 forced headers, 6 forced header reach
 FKORD: db 10                            ; +35 MODE 1: the fouled attacker's ordinal (he is put at the foul point)
 FKD: dw 100, 125, 150, 175              ; +36 MODE 1: px from the goal line (the wall zone 87..202)
 FKX: dw 336, 290, 382                   ; +44 MODE 1: x (CENTER, LEFT3 / RIGHT1 side bands)
 FKSH: db SM_SH                          ; +50 MODE 1: the attackers' SHOOTING (0..7), 0FFh = their own
+K0B: db 0                               ; +51 MODE 4: the first case of this match / 48 (in the old alignment gap)
 align 4
 RSAVE: times 15 dd 0
 PGS: dw 0FFFFh
@@ -503,6 +1195,9 @@ def find(p):
                 A2_O=sym['D0_'][1] + 4 * 10, A6_O=sym['A6_'][1], TESTFOUL=tf[0])
 
 
+SITES5 = {}                              # (MODES 5 / 6: PHJH / PAJH obj1 offsets, for the host pre-check)
+
+
 def _sho(p):
     """SHOOTING's offset in the in-game player record: just before HEADING (PlayerHittingJumpHeader's operand)."""
     import setpieces
@@ -524,11 +1219,41 @@ def patch(p, lang):
            'SM_MODE': (0, iv('SP_METER_MODE', 0)), 'DF_FRAMES': (4, df.LABELS['DF_FRAMES']),
            'LOG_AT': (0, LOG_AT), 'LOGMAX': (0, LOGMAX), 'SM_GAP': (0, iv('SP_METER_GAP', 120)),
            'SM_WIN': (0, iv('SP_METER_WIN', 420)), 'SM_MAXC': (0, iv('SP_METER_MAXC', 200)),
-           'SM_SH': (0, iv('SP_METER_SH', 0xFF)), 'SHO': (0, _sho(p))}
+           'SM_SH': (0, iv('SP_METER_SH', 0xFF)), 'SHO': (0, _sho(p)),
+           'CX0': (0, iv('SP_METER_CX0', 190)), 'CX1': (0, iv('SP_METER_CX1', 481)), 'CYW': (0, iv('SP_METER_CYW', 240))}
+    whip = sym['SM_MODE'][1] == 4
+    if whip:                                            # (MODE 4: the game's PlayerKickingBall and ApplyBallAfterTouch,
+        import setpieces                                #  from setpieces' sites: KD = PlayerKickingBall + 0E7h, AT = the
+        ss = (setpieces.FOUND.get(id(p)) or setpieces.find(p))[0]   # after-touch's first instruction)
+        pkb = ss['KD'] - 0xE7
+        d1 = p.le.obj_bytes(1)
+        assert d1[pkb:pkb + 3] == b'\x66\xc7\x05' and d1[pkb + 7:pkb + 9] == b'\0\0', \
+            ('PlayerKickingBall: mov stateGoal, 0', d1[pkb:pkb + 9].hex())
+        sym.update(PKB=(1, pkb), ABAT=(1, ss['AT']))
+    mode = sym['SM_MODE'][1]
+    if mode in (5, 6):                                  # (MODES 5 / 6: the game's PlayerHittingJumpHeader - its head above
+        import setpieces                                #  setpieces' JZ site - / PlayerAttemptingJumpHeader, by its bytes)
+        import trhead
+        ss = (setpieces.FOUND.get(id(p)) or setpieces.find(p))[0]
+        d1 = p.le.obj_bytes(1)
+        a1, a6, d0 = (2, c['D0_O'] + 36), (2, c['A6_O']), (2, c['D0_O'])
+        ph = [ss['JZ'] - 0x80 + x.start() for x in re.finditer(rb'\x8b\x35....\x66\xc7\x86\x80\x00\x00\x00\x00\x00',
+                                                              d1[ss['JZ'] - 0x80:ss['JZ']], re.S)]
+        ph = [o for o in ph if _t(p, o + 2) == a6]
+        assert len(ph) == 1, ('PlayerHittingJumpHeader', ph)
+        pa = [x.start() for x in re.finditer(rb'\x8b\x35....\x66\xc7\x46\x62\x00\x00\x66\xa1....\x8b\x35....\x66\x89\x46\x2a', d1, re.S)]
+        pa = [o for o in pa if _t(p, o + 2) == a1 and _t(p, o + 14) == d0 and 0 < ph[0] - o < 0x100]   # (the routine just above
+                                                        #  PlayerHittingJumpHeader; the static header's attempt starts alike)
+        assert len(pa) == 1, ('PlayerAttemptingJumpHeader', pa)
+        wf = trhead.LABELS.get('TR_WF')
+        sym.update(PHJH=(1, ph[0]), PAJH=(1, pa[0]), TRWF_ON=(0, int(wf is not None)), TRWF=(4, wf or 0))
+        SITES5.clear()
+        SITES5.update(PHJH=ph[0], PAJH=pa[0])
     code, fix, rel = nasmcave.assemble_obj(ASM, SPM_AT, sym, 4)
     lab = nasmcave.labels(ASM, SPM_AT, sym)
     assert lab['spm_frame'] == SPM_AT, 'spm_frame first (difficulty calls SPM_AT)'
-    assert len(fix) == 1 and len(rel) == 1, ('spmeter: SPB + the TestFoul call only', fix, rel)
+    assert len(fix) == 1 and len(rel) == (3 if whip else 2 if mode in (5, 6) else 1), \
+        ('spmeter: SPB + the TestFoul call only (MODE 4: + PlayerKickingBall, ApplyBallAfterTouch; 5 / 6: + one header routine)', fix, rel)
     assert SPM_AT + len(code) <= SPM_AT + LOG_AT, 'spmeter: code + block under the log'
     p.put(4, SPM_AT, code)
     for o, t_obj, t_off in fix:

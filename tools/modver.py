@@ -41,6 +41,11 @@ BUILD_SWITCHES += ('SWE_BSS_SHIFT',)                # DIFF_* edits above cherry-
 BUILD_SWITCHES += ('GM_NOROLES',)                  # 4.2 GAMEPLAY: the page without its RUOLI row (gameplay.py; the structural-OFF build)
 TEST_VARS += ('GM_RUOLI_SI',)                      # 4.2 GAMEPLAY: a test build that starts with RUOLI SI (GP_RUOLI 1; gameplay.RUOLI_START)
 BUILD_SWITCHES += ('GM_RUOLI_SI',)
+TEST_VARS += ('TR_HMASK', 'TR_DMASK', 'TR_RST', 'TR_WHB', 'TR_WHS', 'TR_WZ', 'TR_WDZ', 'TR_WSP')   # 4.2 POSITION TRAITS (1)-(3): trhead.py's knobs
+BUILD_SWITCHES += ('TR_HMASK', 'TR_DMASK', 'TR_RST', 'TR_WHB', 'TR_WHS', 'TR_WZ', 'TR_WDZ', 'TR_WSP',
+                   'TRHD_RUOLI', 'TRHD_NOLINK')     # (TRHD_RUOLI: the band's switch in a tree without GP_RUOLI; TRHD_NOLINK:
+                                                    # the band not linked in a GP_RUOLI tree, trhd_structural's REF; build
+                                                    # switches, not test ones - as GM_NOROLES the version line stays the release's)
 
 
 def is_test():

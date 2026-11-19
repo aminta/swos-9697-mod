@@ -20,7 +20,7 @@ def _git(root, *a):
     return subprocess.run(['git', '-C', root, *a], capture_output=True, check=True).stdout
 
 
-HARNESS = ('tools/hosttest/', 'tools/swostest.py')   # (MC 17/11: files that never go into an exe or its DATA: a commit that touches only
+HARNESS = ('tools/hosttest/', 'tools/swostest.py', 'tools/probe.py', 'tools/swostest_index.py')   # (+ PROBE 19/11)   # (MC 17/11: files that never go into an exe or its DATA: a commit that touches only
                                                      #  these keeps the stamp, so it never invalidates a release dir / a build. A harness file
                                                      #  missing here only costs a rebuild - the safe direction; owners extend the list)
 TREE_DIRS = ('tools', 'packs')          # (a tree without its own .git: the build's inputs remote_run.sh copies - notes/

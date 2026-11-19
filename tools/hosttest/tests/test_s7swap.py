@@ -11,8 +11,10 @@ file 144's 9 up (each Serie D group's first). SLTCOPY = a buffer: no in-struct m
   same start = the same registry and SLTCOPY);
 - an in-struct move (a Serie B club relegated: delta +1 on its global) keeps its row, its rdiv follows;
 - 42-s7trap SIZE ASSERT (S7_LOG status 13, S7_SZ): the game's own deltas leave a division off its declared size (B 21 / C
-  girone B 19; a Serie D group 17 / 19) or an ident sits in two rows: refused, every club stays, both files' deltas reset to
-  'no move', nothing crosses;
+  girone B 19; a Serie D group 17 / 19) or an ident sits in two rows: refused, every club stays, both files' deltas back to
+  the live ones (someLeaguesTable: 'no move' in this first season), nothing crosses;
+- test_s7refuse2: a refusal in a SECOND season (gate 1 / gate 2, same session / after a registry save + load) keeps season
+  1's result - the live deltas (someLeaguesTable), not the registry's rdiv (shipped again after a load);
 - refused, nothing changed (registry, SLTCOPY): counts unequal (COUNT), a bad snapshot (BAD), last season's stamp on
   one side (STALE), a crosser not on its boundary level (PLACE).
 
@@ -271,6 +273,18 @@ def test_s7swap():
     std, _, ncd, sltd = run(m, down, up)
     if std != SIZE or ncd != 0 or (m.rd(sz, 2)[1] if sz else 0) != 2:
         errs.append(f'SIZE ident twice: status {std} (want {SIZE}), S7_SZ {m.rd(sz, 8).hex() if sz else None}')
+    # MC 16/11 host mutants of the crossing list: refused (any refusal status), nothing crosses, registry and SLTCOPY kept
+    for name, dd, want_st in (('(a) the same club twice in the crossing list', down[:1] + down[:1] + down[2:], SIZE),
+                              ('(c) a count off by one (one crossing too many)', down + down[:1], COUNT),
+                              ('(c) a count off by one (one crossing too few)', down[:-1], COUNT)):
+        m.fresh()
+        stm, _, ncm, sltm = run(m, dd, up)
+        z = m.rd(sz, 8).hex() if sz else None
+        if want_st == SIZE and sz and m.rd(sz, 2)[0] != 2:       # (S7_SZ gate 2: the counts after the crossings)
+            errs.append(f'mutant {name}: S7_SZ {z} does not say gate 2')
+        if stm != want_st or ncm != 0 or m.regb() != r0 or any(sltm):
+            errs.append(f'mutant {name}: status {stm} (want {want_st}), crossers {ncm}, registry '
+                        f'{"kept" if m.regb() == r0 else "changed"}, SLTCOPY {"reset" if not any(sltm) else "touched"}, S7_SZ {z}')
     for name, kw, code in (('COUNT', dict(down=down[:-1]), COUNT), ('BAD', dict(bad=(0, 2)), BAD),
                            ('STALE', dict(sb=SEASON - 1), STALE),
                            ('PLACE', dict(up=up[:-1] + [(glob_of(m.gb[0], 0), FA, 0, 0, 0, 0)]), PLACE)):
@@ -294,6 +308,185 @@ def test_s7swap():
                                              f'SLTCOPY re-based, deterministic; in-struct move kept its row; refused '
                                              f'COUNT / BAD / STALE / PLACE with nothing changed; SIZE ASSERT refuses B 21 / C 19, a Serie D 19 / 17 and an ident twice (nothing crosses, deltas reset); the XTRA word caches cold after the swaps, '
                                              f'sreg_new / sreg_build / sreg_load')
+
+
+def test_s7refuse2():
+    """42-s7trap (16/11, Shaved's tc1a-g4ctl decode: CAMPOBASSO back in girone B): a refusal in a SECOND season keeps TODAY's
+    divisions. Season 1 runs normally - the 9 + 9 crossings and an in-struct pair (Serie B's row 20 down, Serie C girone
+    A's row 40 up) - so the registry and the deltas differ from the shipped ones; the game's part is done by hand:
+    someLeaguesTable (bigtables SOME, the live deltas) = season 1's SLTCOPY (InitializeNewSeason's copy-back). Then season 2
+    is refused (S7_LOG status 13), each case from the same state and both in the session that played season 1 and after a
+    save + load of the registry (sreg_save / sreg_load: rdiv is not in the save, a load leaves each row's SHIPPED division):
+    - gate 1: the game's own deltas unbalanced (a Serie C girone B club promoted alone: B 21 / C-B 19), next to a balanced
+      in-struct pair of this season (rows 21 / 41);
+    - gate 2: the same club twice in the crossing list, next to the same balanced pair.
+    Want: the registry's identity map (word / at) = season 1's, every league row's delta in SLTCOPY = season 1's (this
+    season's moves dropped, the past kept), and the divisions those deltas give = season 1's (each at its size)."""
+    if not os.path.exists(EXE) or not os.path.exists(EXE[:-4] + '.syms.json'):
+        return True, f'SKIP: {EXE} (a shaped HOSTTEST_SYMS=1 build) missing'
+    sy = json.load(open(EXE[:-4] + '.syms.json'))
+    if 'S7_SZ' not in sy.get('s7swap', {}) or 'SOME' not in sy.get('bigtables', {}):
+        return False, f'{EXE}: no S7_SZ / bigtables SOME (not a shaped build with the size gate)'
+    m = M(EXE)
+    some = m.at('bigtables', 'SOME')
+    sz = m.at('s7swap', 'S7_SZ')
+    sav = ts.BUF + 0x9000
+    errs = []
+    m.fresh()
+    m.w(some, bytes(2400))
+    fs, word, at, rdiv, rows = reg_parse(m.regb())
+    down, up = crossings(fs, m.gb)
+    g = lambda o, s=0: glob_of(m.gb[s], o)
+    s1 = bytearray(2400)
+    s1[g(20)], s1[g(40)] = 1, 255
+    st, nsw, ncr, slt1 = run(m, down, up, bytes(s1))
+    if (st, nsw, ncr) != (OK, 9, 18):
+        return False, f'season 1: status {st} swaps {nsw} crossers {ncr} (want {OK}, 9, 18)'
+    reg1 = m.regb()
+    fs1, word1, at1, rdiv1, rows1 = reg_parse(reg1)
+    league = [(fi, o, glob_of(m.gb[fi], o)) for fi, f in enumerate(fs1) for o in range(rows1[fi]) if base_local(f, o) >= 0]
+    nz = sum(1 for _, _, gg in league if slt1[gg])
+    if nz < 2 or not slt1[g(20)] or word1 == word:
+        return False, f'season 1 left {nz} league deltas / the identity map unchanged (want the swaps and the in-struct pair)'
+    n = m.call('sreg', 'sreg_save', sav, 0x800, SEASON)
+    if not 0 < n <= 0x800:
+        return False, f'sreg_save {n}'
+    it = m.rd(sav, n)
+    down2, up2 = crossings(fs1, m.gb)                   # (season 2's crossers: the clubs now in those rows)
+    pair = {g(21): 1, g(41): 255}                       # this season's balanced in-struct pair: dropped by a refusal
+    cases = (('gate 1 (C-B promoted alone: B 21 / C-B 19)', {**pair, g(60): 255}, down2, 1),
+             ('gate 2 (the same club twice in the crossing list)', pair, down2[:1] + down2[:1] + down2[2:], 2))
+    for load in (0, 1):
+        for name, deltas, dd, gate in cases:
+            m.w(m.reg, reg1)                            # season 1's end state
+            m.w(some, slt1)
+            if load:
+                m.w(sav, it)
+                if m.call('sreg', 'sreg_load', sav, n) != 1:
+                    return False, 'sreg_load of season 1\'s registry: not 1'
+                if m.regb()[:len(reg1)] == reg1:
+                    errs.append('the loaded registry still has season 1\'s rdiv (the test no longer reproduces a load)')
+            s2 = bytearray(slt1)
+            for gg, v in deltas.items():
+                s2[gg] = (struct.unpack('b', s2[gg:gg + 1])[0] + struct.unpack('b', bytes([v]))[0]) & 0xFF
+            st2, _, nc2, slt2 = run(m, dd, up2, bytes(s2), sa=SEASON + 1, sb=SEASON + 1)
+            z = m.rd(sz, 5)
+            what = f'season 2 {name}, {"after a load" if load else "same session"}'
+            if st2 != SIZE or nc2 != 0 or z[0] != gate:
+                errs.append(f'{what}: status {st2} (want {SIZE}), crossers {nc2}, S7_SZ {z.hex()} (want gate {gate})')
+                continue
+            _, word2, at2, _, _ = reg_parse(m.regb())
+            if word2 != word1 or at2 != at1:
+                errs.append(f'{what}: the registry\'s identity map changed')
+            bad = [(fs1[fi][0], o, struct.unpack('b', slt2[gg:gg + 1])[0], struct.unpack('b', slt1[gg:gg + 1])[0])
+                   for fi, o, gg in league if slt2[gg] != slt1[gg]]
+            if bad:
+                errs.append(f'{what}: {len(bad)} league rows\' deltas are not season 1\'s (file, row, got, want): {bad[:4]}')
+            cnt = {}
+            for fi, o, gg in league:
+                loc = base_local(fs1[fi], o) + struct.unpack('b', slt2[gg:gg + 1])[0]
+                d = fs1[fi][1][loc] if 0 <= loc < len(fs1[fi][1]) else -1
+                cnt[d] = cnt.get(d, 0) + 1
+                if d != rdiv1[fi][o] and not bad:
+                    errs.append(f'{what}: file {fs1[fi][0]} row {o} on division {d}, season 1 left it on {rdiv1[fi][o]}')
+            if not bad and cnt != {d: k for f in fs1 for d, k in zip(f[1], f[2])}:
+                errs.append(f'{what}: division sizes {cnt}')
+    m.w(some, bytes(2400))
+    return not errs, '; '.join(errs[:6]) or (f'season 1: 9 swaps + an in-struct pair ({nz} league deltas off 0); season 2 refused '
+                                             f'(gate 1 and gate 2, same session and after sreg_save / sreg_load): identity map and '
+                                             f'every one of the {len(league)} league rows\' deltas = season 1\'s, sizes kept')
+
+
+def test_s7rdiv_load():
+    """42-s7trap follow-up (MC 16/11, rule 0): the registry's rdiv is never stale. It is not in the save (sr_regsave.c: a
+    load leaves every row's SHIPPED division); swe.c it_load's load call (SREG_FN[2], called here through the exe's own
+    pointer) is s7swap.c's s7_itload in a shaped build: sreg_load, then rdiv from the live someLeaguesTable.
+    - test_s7refuse2's season 1 (9 + 9 crossings, an in-struct pair), the game's copy-back by hand (SOME = SLTCOPY),
+      sreg_save, the registry wiped to the spec's (sreg_build), then the load through SREG_FN[2]: the whole registry =
+      season 1's, byte for byte, and every league row's rdiv = the division its shipped one + its live delta gives;
+    - the mutant (sreg.c's bare sreg_load, the old SREG_FN[2]): rdiv is the shipped one, not season 1's - what the hook
+      is for (the control build's SREG_FN[2] is that: this test FAILs on it);
+    - an all-zero table (a new career saved and loaded): the registry's bytes are the spec's, as before the hook;
+    - a season end that is refused for another reason (COUNT) with in-struct moves in leaguesTableCopy: the game goes on
+      with them, rdiv follows at s7_season's exit (the identity map untouched)."""
+    if not os.path.exists(EXE) or not os.path.exists(EXE[:-4] + '.syms.json'):
+        return True, f'SKIP: {EXE} (a shaped HOSTTEST_SYMS=1 build) missing'
+    sy = json.load(open(EXE[:-4] + '.syms.json'))
+    if 'SREG_FN' not in sy.get('swe', {}) or 'SOME' not in sy.get('bigtables', {}):
+        return False, f'{EXE}: no swe SREG_FN / bigtables SOME (not a shaped build)'
+    m = M(EXE)
+    some = m.at('bigtables', 'SOME')
+    sav = ts.BUF + 0x9000
+    fn = struct.unpack('<I', m.rd(m.at('swe', 'SREG_FN') + 8, 4))[0]
+    errs = []
+    if 's7_itload' not in sy.get('s7swap', {}) or fn != m.at('s7swap', 's7_itload'):
+        errs.append(f'SREG_FN[2] = {fn:#x} is not s7swap\'s s7_itload (sreg_load {m.at("sreg", "sreg_load"):#x}): no rdiv after a load')
+    m.fresh()
+    m.w(some, bytes(2400))
+    r0 = m.regb()
+    fs, word, at, rdiv, rows = reg_parse(r0)
+    n0 = m.call('sreg', 'sreg_save', sav, 0x800, SEASON)
+    it0 = m.rd(sav, n0)
+    down, up = crossings(fs, m.gb)
+    g = lambda o, s=0: glob_of(m.gb[s], o)
+    s1 = bytearray(2400)
+    s1[g(20)], s1[g(40)] = 1, 255
+    st, nsw, ncr, slt1 = run(m, down, up, bytes(s1))
+    if (st, nsw, ncr) != (OK, 9, 18):
+        return False, f'season 1: status {st} swaps {nsw} crossers {ncr} (want {OK}, 9, 18)'
+    reg1 = m.regb()
+    fs1, word1, at1, rdiv1, rows1 = reg_parse(reg1)
+    if rdiv1 == rdiv or word1 == word:
+        return False, 'season 1 left the shipped rdiv / identity map (the test proves nothing)'
+    n = m.call('sreg', 'sreg_save', sav, 0x800, SEASON)
+    it = m.rd(sav, n)
+    sl = lambda b, gg: struct.unpack('b', b[gg:gg + 1])[0]
+
+    def live_bad(rd, tab):                              # league rows whose rdiv != shipped division + the table's delta
+        out = []
+        for fi, f in enumerate(fs1):
+            for o in range(rows1[fi]):
+                b = base_local(f, o)
+                if b >= 0 and rd[fi][o] != f[1][b + sl(tab, glob_of(m.gb[fi], o))]:
+                    out.append((f[0], o, rd[fi][o], f[1][b + sl(tab, glob_of(m.gb[fi], o))]))
+        return out
+    for name, call in (('SREG_FN[2]', lambda: tr._call(m.uc, fn, sav, n)), ('mutant: bare sreg_load', lambda: m.call('sreg', 'sreg_load', sav, n))):
+        m.w(some, slt1)                                 # (InitializeNewSeason's copy-back; a load: bt_load before it_load)
+        m.w(sav, it)
+        m.call('sreg', 'sreg_build')                    # (the registry as another career / the spec left it)
+        if call() != 1:
+            return False, f'{name}: the load of season 1\'s registry did not return 1'
+        rb = m.regb()
+        _, word2, at2, rdiv2, _ = reg_parse(rb)
+        bad = live_bad(rdiv2, slt1)
+        if name.startswith('mutant'):
+            if not bad or rdiv2 != rdiv or (word2, at2) != (word1, at1):
+                errs.append(f'{name}: rdiv {"season 1\'s" if not bad else "neither"} / identity map {"=" if (word2, at2) == (word1, at1) else "!="} '
+                            f'(want the shipped rdiv on season 1\'s map: the stale state the hook repairs)')
+            continue
+        if (word2, at2) != (word1, at1):
+            errs.append(f'{name}: the identity map is not season 1\'s')
+        if bad:
+            errs.append(f'{name}: {len(bad)} league rows\' rdiv != the live division (file, row, rdiv, live): {bad[:4]}')
+        elif rb != reg1:
+            errs.append(f'{name}: the registry differs from season 1\'s outside the league rows\' rdiv')
+    m.w(some, bytes(2400))                              # an all-zero table: the same bytes as the spec's registry
+    m.w(sav, it0)
+    m.call('sreg', 'sreg_build')
+    if tr._call(m.uc, fn, sav, n0) != 1 or m.regb() != r0:
+        errs.append('all-zero table: the loaded registry is not the spec\'s, byte for byte')
+    m.fresh()                                           # refused for another reason: rdiv follows the game's in-struct moves
+    stc, _, _, sltc = run(m, down[:-1], up, bytes(s1))
+    _, wordc, atc, rdivc, _ = reg_parse(m.regb())
+    badc = live_bad(rdivc, sltc)
+    if stc != COUNT or sltc != bytes(s1) or (wordc, atc) != (word, at) or badc or rdivc[0][20] != fs[0][1][2] or rdivc[0][40] != fs[0][1][1]:
+        errs.append(f'COUNT refusal with an in-struct pair: status {stc}, SLTCOPY {"kept" if sltc == bytes(s1) else "changed"}, identity map '
+                    f'{"kept" if (wordc, atc) == (word, at) else "changed"}, rdiv rows 20 / 40 {rdivc[0][20]} / {rdivc[0][40]}, off the table {badc[:3]}')
+    m.w(some, bytes(2400))
+    return not errs, '; '.join(errs[:6]) or (f'SREG_FN[2] = s7_itload: after sreg_save / the load the registry = season 1\'s byte for byte (rdiv of all '
+                                             f'{sum(1 for fi, f in enumerate(fs1) for o in range(rows1[fi]) if base_local(f, o) >= 0)} league rows = the '
+                                             f'live division); bare sreg_load leaves the shipped rdiv; all-zero table = the spec\'s bytes; a COUNT refusal\'s '
+                                             f'in-struct moves reach rdiv')
 
 
 def test_s7stadium():

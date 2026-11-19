@@ -644,3 +644,32 @@ gameplay.py, `gameplay.roles()`). Every position-traits piece
   mkfixtures rebuilds it with the row).
 - DOSBox: gameplay_menu has the RUOLI keys + the swap checks (NR = the present rows); written under the 16/11 DOSBox hold,
   first run pending.
+
+### S7 season-end size gate (42-s7trap)
+- `S7_LOG` (obj4, s7swap): byte 0 = status (1 OK, 3 STALE, 4 BAD, 5 COUNT, 6 PLACE, **13 SIZE**), 1 season, 2 swaps, 3 crossers. The harness-wide
+  check in `world8485` (every hexlog of an S7 world) fails any run whose status byte 0 is 13 (until 16/11 it read byte 1: it never fired).
+- `S7_SZ` (obj4, 5 bytes): [gate, kind, division, found, want]. Gate 1 = the game's own deltas leave a division off its size, gate 2 = the counts after
+  the crossings; kind 1 = division size, kind 2 = an ident in two rows. `world_s7sizeforce` (S7_SIZEFORCE build switch) expects gate 1 kind 1 at every
+  season end (`S7_SIZE_EXPECT`); `test_s7swap` mutants (same club twice -> SIZE gate 2; count off by one -> COUNT) prove the refusals on the host.
+- ONE source of truth for a club's division: the game's own table (someLeaguesTable, bigtables SOME / s7swap's `S7_SLT`: this season's delta
+  per global, in the .CAR; leaguesTableCopy = next season's while a season end runs). The registry's `rdiv` is only its cache per row (the row's
+  shipped division + its delta) and is NOT in the save (sr_regsave.c: sr_reg_load leaves the SHIPPED divisions). s7swap.c rebase(.., 2) rebuilds
+  it from the table (a) after every load - swe.c it_load's `SREG_FN[2]` is `s7_itload` in a shaped build (sreg_load, then rdiv from the live
+  table; sreg.py s7_load_hook / s7swap.py) - and (b) at every s7_season exit, from leaguesTableCopy (accepted, refused, SIZE alike). An all-zero
+  table gives the shipped divisions (the bytes of before). The old-save import needs no hook: its sr_reg_season sets rdiv = the save's divisions.
+- A refusal keeps TODAY's divisions, in every season (16/11): nothing crosses and nothing moves this season, the past seasons' moves stay. Each
+  league row's delta in leaguesTableCopy is set back to the LIVE one (the truth itself, not the cache: rebase(.., 1)); gate 1 too: the loaded
+  state is kept as it is, never 'repaired' to the shipped one. Before the fix a refused season 2+ of a loaded career put every club back on its
+  shipped division (Shaved's tc1a-g4ctl: CAMPOBASSO in girone B again, file-102 deltas all 0): size_refuse read the stale rdiv.
+- `test_s7rdiv_load` (host): season 1 with crossings, sreg_save, the registry wiped, the load through the exe's own SREG_FN[2]: the registry =
+  season 1's byte for byte, every league row's rdiv = the live division; the mutant (bare sreg_load) leaves the shipped rdiv; all-zero table =
+  the spec's bytes; a COUNT refusal's in-struct moves reach rdiv. FAILs on any build before the hook (c/S7W-szlog, c/S7RF2 = 5a226f5).
+- `test_s7refuse2` (host): season 1 with the 9 + 9 crossings and an in-struct pair, then season 2 refused at gate 1 and at gate 2, in the same
+  session and after sreg_save / sreg_load: identity map and every league row's delta = season 1's. Its control (c/S7W-szlog, before the fix)
+  FAILs only after the load: 16 rows back at delta 0.
+- `world_s7sizeforce2` (DOSBox): `S7_SIZEFORCE` bits 8.. = act only from that season stamp on (the snapshot's stamp = seasonPlaying + 1: 127 in
+  the 2026-27 world's first season, so 2 | 128 << 8 = level 2 from season 2; `S7SF_FROM`). UNION BRESCIA + GPLAY_FORCE=20 crosses 102 -> 144 in season 1, season 2 (loaded) is refused, its save is loaded again: every league
+  row's delta in W84B.CAR and live after the load = W84A.CAR's (`s7_save_rows`), the loaded registry's rdiv = shipped division + live delta
+  for every league row (the post-load hook in the game), selTeamNumber / D6CDC as season 2 loaded them.
+  `S7_PACK=~/swos-mod/internal/s7pack-real/ita SWOSTEST_RUNS=<own dir> python3 tools/swostest.py run world_s7sizeforce2`
+  A load-path change (s7_itload): before its sha goes on also career_20seasons C20_SEASONS=2 on the shaped build and the old-save trio.

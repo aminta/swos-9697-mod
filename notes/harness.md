@@ -339,6 +339,36 @@ or a SETUP-ERROR, 3 = only FLAKY, 0 = all PASS. `SWOSTEST_NO_RERUN=1`: no re-run
     the objects to the server. `REMOTE_PREBUILD=0` skips it (then the server builds from its own copies, as before).
     A build made after a scenario's first game start is not pre-built: it gets the warning above.
 
+## PROBE: verdicts, red twins, canaries, the scenario index (plan 5.1, 2026-11-19)
+
+**Verdict.** The final word the runner prints on a scenario's line. There are five, plus SKIP and BUILT, which are not verdicts:
+- `PASS`: the check ran and saw what it needs.
+- `FAIL`: the game is wrong. A FAIL is re-run once, alone, in a fresh process. If it PASSes there, the verdict is `FLAKY`.
+- `SETUP-ERROR`: a precondition of the scenario failed, not the game.
+- `PROBE-ERROR`: the check itself cannot be trusted.
+- `FLAKY`: the harness, the host or the run order, never the game (exit code 3).
+
+A scenario that returns `(True, 'SKIP...')` now prints `SKIP`, never `PASS`. 240 scenarios did this before.
+
+**Red twin** (rule R4). A variant on which the check must FAIL: a mutant build, a fixture or an environment. You declare
+it under `@scenario` with `@probe.red_twin(env={...}, prepare=fn, why='...')`. The runner runs the twin first, in its own
+process with run dirs `RUNS-twin`. The twin's result is cached under `internal/swostest/probe-twins/`. The cache key
+covers the scenario's source, the twin, `build_key(ROOT)` and the identity of every `*_BUILD` / `*_DATA` dir. If the
+twin PASSes, or gives no verdict, the scenario's verdict is `PROBE-ERROR`.
+`SWOSTEST_PROBE=strict` turns a scenario without a twin into `PROBE-ERROR` and a SKIP into `SETUP-ERROR`; the canary run
+of an rc uses it once the twins exist. `SWOSTEST_TWIN=off` (developing a scenario) skips twins; `=force` ignores the cache.
+
+**Canaries.** The release's 12 DOSBox checks (plan 6.3) are listed in `tools/probe.py` (`CANARIES`).
+`python3 tools/probe.py canaries` prints each one with its scenarios, its environment, its twin state and its gaps.
+
+**Scenario index.** Use the index instead of grepping `swostest.py`:
+`python3 tools/swostest_index.py WORD...` prints one row per scenario: name, line, canary, twin, the env vars it needs,
+`self-build`, and the first line of its doc. `-show NAME` prints that one function. The index is generated from the AST
+and cached by the file's md5, so it is never stale and never committed.
+
+**Verdict file.** `python3 tools/probe.py summary FILE...` prints the counts per verdict and the non-PASS lines, 20 lines at
+most. `suite_split.sh` ends with it.
+
 ## Breaking a busy game (Session.sample)
 
 The harness pauses only at the in-exe stub's int 3 (the game asking for a key). A game that runs on without asking -

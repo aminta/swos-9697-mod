@@ -49,6 +49,8 @@ if os.environ.get('W2627REL_DATA') and os.sep not in os.environ['W2627REL_DATA']
         not os.path.isdir(os.environ['W2627REL_DATA']):  # (root fix F: a bare snapshot name, as the gates write it -
     os.environ['W2627REL_DATA'] = os.path.join(MAIN, 'internal', 'world2526', os.environ['W2627REL_DATA'])   # world5tm-h2)
 WORK = os.path.join(MAIN, 'internal', 'swostest')
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import probe                                          # (PROBE, MC 19/11: verdicts, red twins, canaries - tools/probe.py)
 RUNS = os.environ.get('SWOSTEST_RUNS') or os.path.join(WORK, 'runs')   # run dirs (another one = a parallel suite)
 
 
@@ -39505,6 +39507,14 @@ def main(argv):
             t = time.time()
             setup = False
             os.environ['SWOSTEST_SCENARIO'] = n
+            # PROBE (plan 5.1, R4): the red twin first - its own process, cached by build key; in the twin's process
+            # its env instead. No twin: tagged (strict mode: PROBE-ERROR). tools/probe.py
+            twin = ('none', '')
+            if probe.in_twin():
+                probe.apply_twin_env(n)
+            elif n in probe.TWINS and not os.environ.get('SWOSTEST_RERUN') and n in SCENARIOS:
+                twin = probe.run_twin(n, SCENARIOS[n], [sys.executable, os.path.abspath(__file__), 'run', n],
+                                      os.path.join(WORK, 'probe-twins'), RUNS, build_key(ROOT))
             try:
                 BUILDS_USED.clear()
                 DATA_USED.clear()
@@ -39555,7 +39565,9 @@ def main(argv):
                 print(f'BUILT {n} ({time.time() - t:.0f} s)', flush=True)
                 continue
             except Skipped as e:
-                print(f'SKIP {n} ({time.time() - t:.0f} s) {e}', flush=True)
+                res, msg = probe.verdict('SKIP', str(e))       # (strict mode: SETUP-ERROR)
+                print(f'{res} {n} ({time.time() - t:.0f} s) {msg}', flush=True)
+                bad += res != 'SKIP'
                 continue
             except SetupError as e:                        # (root fix A: a precondition, not the game)
                 ok, msg, setup = False, f'setup: {e}', True
@@ -39564,6 +39576,8 @@ def main(argv):
                 at = [f'{os.path.basename(x.filename)}:{x.lineno} {x.name}' for x in traceback.extract_tb(e.__traceback__)][-3:]
                 ok, msg = False, f'exception {type(e).__name__}: {e} (at {" < ".join(reversed(at))})'
             res = 'SETUP-ERROR' if FORCE_ERRS or setup else 'PASS' if ok else 'FAIL'   # (root fix D: the force's
+            if res == 'PASS' and probe.SKIP_MSG.match(msg):  # (PROBE 19/11: (True, 'SKIP...') was printed PASS - 240
+                res = 'SKIP'                                  #  scenarios; a SKIP is never a PASS, MC 14/11 + 17/11)
             if res == 'PASS' and n in CTSD_NEED | set(filter(None, os.environ.get('CTSD_NEED', '').split(','))) \
                     and not CTSD_STATS['sessions']:          # (MC 17/11: its counters never read - no verdict)
                 res, msg = 'INCONCLUSIVE', f"no ctdraw counters read ({CTSD_STATS['nosyms']} session(s) without syms: a " \
@@ -39578,12 +39592,13 @@ def main(argv):
                 print(f'RERUN {n} alone: {msg[:200]}', flush=True)
                 rr = subprocess.run([sys.executable, os.path.abspath(__file__), 'run', n], capture_output=True, text=True,
                                     env=dict(os.environ, SWOSTEST_RERUN='1', SWOSTEST_RUNS=RUNS.rstrip('/') + '-rerun'))
-                last = [ln for ln in rr.stdout.splitlines() if re.match(r'(PASS|FAIL|SETUP-ERROR) ', ln)]
+                last = [ln for ln in rr.stdout.splitlines() if probe.LINE.match(ln)]
                 if last and last[-1].startswith('PASS '):
                     res, msg = 'FLAKY', f'FAILed in the batch, PASSed alone ({RUNS.rstrip("/")}-rerun): ' + msg
                 elif last:
                     msg += f' [alone: {last[-1][:160]}]'
-            bad += res in ('FAIL', 'SETUP-ERROR', 'INCONCLUSIVE')
+            res, msg = probe.verdict(res, msg, *twin)        # (R4: twin PASSed / not run / strict no-twin -> PROBE-ERROR;
+            bad += res in ('FAIL', 'SETUP-ERROR', 'PROBE-ERROR')   #  INCONCLUSIVE -> PROBE-ERROR; strict SKIP -> SETUP-ERROR)
             flaky += res == 'FLAKY'
             if PICKED or DATA_USED:                        # (root fix F: the data and the clubs derived from it)
                 msg += ' [data: ' + ', '.join(f'{v}={k}' for k, v in DATA_USED.items()) + \

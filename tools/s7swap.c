@@ -367,6 +367,7 @@ void s7_flush(void)
 }
 
 uint8_t S7RD_NEWER DATA = 0;            /* 1: the last season end met a newer rule version (no redraw; host tests / harness) */
+uint8_t S7RD_BIG DATA = 0;              /* 1: the last season end had nclub > SR_REG_CLUBS (no redraw; MC 19/11) */
 #define S7RD_RULE_VER 1u              /* (the frozen rule: 42-redraw 31db319, STAY 540, isqrt((4 dlat)^2 + (3 dlon)^2), integer Hungarian) */
 /* the redraw (s7geo.c's s7rd_level, obj4+S7GEO; s7swap.py sets it; 0: no redraw, the crossers' place() groups stay) */
 int32_t (*S7RD_PTR)(int32_t, int32_t, const uint16_t *, const uint8_t *, int32_t, int32_t, const uint16_t *, const uint8_t *, int32_t,
@@ -569,12 +570,17 @@ static int32_t run0(void *pv) {
             order[no++] = (uint16_t)id;
         }
     }
+    for (int32_t k = 0; k < no; k++)                    /* (an ident crossing twice: order[], not the registry rows that */
+        for (int32_t j = 0; j < k; j++)                 /*  size_check's SZ_DUP sees - MC 19/11, both kept) */
+            if (order[j] == order[k]) { S7_SZ.gate = 2; S7_SZ.kind = SZ_DUP; S7_SZ.ident = order[k]; return size_refuse(slt, nri); }
     if (size_check(slt, nd, 2)) return size_refuse(slt, nri);
     S7_LOG.ncross = (uint8_t)no;
     uint32_t rver = SREG_FLAGS >> 4 & 0xF;  /* (the rule version this career's groups were drawn with: 'IT' flags bits 4..7, 0 none yet) */
     S7RD_NEWER = (uint8_t)(rver > S7RD_RULE_VER);   /* (MC 15/11: a save from a newer build's rule keeps its groups - no redraw,
                                                        the crossers' place() only, the version kept - never a crash) */
-    if (S7RD_PTR && !S7RD_NEWER) {      /* 4.2 redraw: Serie C (the upper boundary level, second teams constrained) and Serie D */
+    S7RD_BIG = (uint8_t)(R->nclub > SR_REG_CLUBS);  /* (MC 19/11: pre[] holds SR_REG_CLUBS clubs, redraw() reads nclub: more = no
+                                                       redraw, the crossers' place() groups, logged here - never read past pre[]) */
+    if (S7RD_PTR && !S7RD_NEWER && !S7RD_BIG) {      /* 4.2 redraw: Serie C (the upper boundary level, second teams constrained) and Serie D */
         uint32_t seed = (uint32_t)S7_SELTEAM * 2654435761u ^ (uint32_t)A->season * 0x9E3779B9u;   /* (MC 15/11, the engine's
                                            groups.redraw_geo seed: per career, per season, spread over consecutive seasons) */
         redraw(0, R, nd, pre, S7_UP, S7_NUP, 1, seed);

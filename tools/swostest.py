@@ -6842,7 +6842,7 @@ def save_devname():
 
 
 @scenario
-@probe.red_twin(env={'ROUNDTRIP_TWIN': '1'}, why='fixture: one byte of the second save flipped (a save that does not round-trip)')
+@probe.red_twin(env={'ROUNDTRIP_TWIN': '1'}, why='fixture: one byte of the second save flipped (a save that does not round-trip)', expect=r'bytes differ')
 def roundtrip():
     """Load/save round trip: JUVE2F loaded + saved from the main menu (ROUNDT1), reloaded + saved (ROUNDT2) = ROUNDT1"""
     err, x1, x2 = two_saves('roundtrip', builds()['it'], juve2(True))
@@ -17971,7 +17971,7 @@ def world_ns_hist():
 
 
 @scenario
-@probe.red_twin(env={'SWOSTEST_BUILD': probe.rel('REL41dry')}, why="4.1 dry run (Davide's MiSTer 41dry): INTER shown (SCOZIA), no '96-97' continent buttons")
+@probe.red_twin(env={'SWOSTEST_BUILD': probe.rel('REL41dry')}, why="4.1 dry run (Davide's MiSTer 41dry): INTER shown (SCOZIA), no '96-97' continent buttons", expect=r'96-97 not on screen|SCOZIA')
 def world_ns_contest():
     """4.1 (MC 06/11, Davide's MiSTer 41dry), default World 2026-27 (fresh SETUP.DAT), the exe's language (SWOSTEST_UI):
     (a), every SWOSTEST_UI: friendly > SQUADRE CLUB > CARR. STORICHE > MONDO 1996-97: its continent buttons read '<continent> 96-97'
@@ -18343,7 +18343,7 @@ def swospp_menu():
 
 
 @scenario
-@probe.red_twin(env={'SWOSPP_BENCH_TWIN': '1'}, why='fixture: the first SWOS++ run-time site counted as a mod change (an overlap)')
+@probe.red_twin(env={'SWOSPP_BENCH_TWIN': '1'}, why='fixture: the first SWOS++ run-time site counted as a mod change (an overlap)', expect=r'overlap mod changes')
 def swospp_bench():
     """(Panchina, 4.0.5 regression) SWOS++ vs the mod's code changes: SWOSPP_BUILD (a dir whose ITALIAN.EXE is a modded ENGLISH exe,
     the release recipe) + tools/swospp.py + LOADER.BIN / SWOSPP.BIN; at the main menu obj1 in memory is compared with
@@ -18940,7 +18940,8 @@ def ega_flag(exe):
 
 
 @scenario
-@probe.red_twin(prepare=lambda: {'SWOSTEST_BUILD': probe.en_copy(probe.rel('REL40'))}, why='4.0 English: the bank in pounds, no euro')
+@probe.red_twin(env={'EURO_TWIN': '1'}, expect=r'spp_transfers.*(euro|pound) letters',
+                why='fixture: the euro screen judged by the historic rule (pound wanted): 4.0 EN cannot run it (no WCUR read)')
 def euro_swospp():
     """4.1 RC3 euro under SWOS++ 1.9.2.2 (Regia 09/11; English only: SWOS++ installs on ENGLISH.EXE): SWOSTEST_BUILD
     = the English release dir (its ITALIAN.EXE = ENGLISH.EXE), SWOS++ installed on a copy (tools/swospp.py, LOADER.BIN /
@@ -18983,7 +18984,7 @@ def euro_swospp():
             ns = euro_wcur(s)
             check(ns == 5, f'the career is not World 2026-27\'s (WCUR {ns})', errs)
             info.append(f'WCUR {ns}')
-            euro_look(s, 'spp_transfers', new, old, seen, errs)
+            euro_look(s, 'spp_transfers', new, old, seen, errs, euro_on=not probe.twin_on('EURO_TWIN'))
             check('spp_transfers' in seen, f'no money entry on TRASFERIMENTI ({s.screen().texts()[:6]})', errs)
     finally:
         SLOW_FIRE, HOLD, SPP_FIRE_HOLD, WALK_SPP = 0, hold0, 0, False
@@ -20523,7 +20524,7 @@ def squad_order_xtra():
 
 
 @scenario
-@probe.red_twin(env={'C20_TWIN_CUT': '1'}, why='fixture: season 1 save cut in half before the reload (the season-end save path broken)')
+@probe.red_twin(env={'C20_TWIN_CUT': '1'}, why='fixture: season 1 save cut in half before the reload (the season-end save path broken)', expect=r'season 2 of')
 def career_20seasons():
     """Release check (Davide, 4.0): a World 2026-27 career through 20 seasons, the most a career allows (an old mod
     froze at the 7th): season 1 new, then each season from the previous one's save (world8485 with W8485_FROM: load,
@@ -23730,7 +23731,7 @@ def world_winners_dplay():
 
 
 @scenario
-@probe.red_twin(env={'WINNERS_W27': probe.rel('REL40')}, why="4.0: no 'WN' item, no VINCITORI page of last season")
+@probe.red_twin(env={'WINNERS_W27': probe.rel('REL40')}, why="4.0: no 'WN' item, no VINCITORI page of last season", expect=r'no conti holders|VINCITORI|WN')
 def world_winners_oldsave():
     """4.0.1 'WN' and a 4.0 save: Davide's rc7 career PHILA.CAR (internal/davide-mister-20261021: PHILADELPHIA, no 'WN'
     item - zeroed at the load) on a release-like build (WINNERS_W27, else the W2627REL_DATA packs, no test switch)
@@ -24175,7 +24176,7 @@ def foreign_buy(exe, mode, market='STRANIERO'):
 
 
 @scenario
-@probe.red_twin(env={'FOREIGNBUY_BUILD': probe.rel('REL40rc12')}, why='4.0 rc12: POOL05 team file 190 missing, exit to DOS (Davide 22/10)')
+@probe.red_twin(env={'FOREIGNBUY_BUILD': probe.rel('REL40rc12')}, why='4.0 rc12: POOL05 team file 190 missing, exit to DOS (Davide 22/10)', expect=r'exited at the pick')
 def world_foreign_buy():
     """A foreign-market purchase in the World 2026-27 career on a RELEASE exe (FOREIGNBUY_BUILD, or the suite's SWOSTEST_BUILD / W8485_BUILD = c/RELxx/
     SWOS; a harness test build has no worldpool, so it proves nothing): the first listed player, whose POOL05 team file
@@ -24898,7 +24899,8 @@ def release_groupb_titles():
 
 
 @scenario
-@probe.red_twin(env={'CUPLIST_REL': probe.rel('REL405rc7')}, why="4.0.5 rc7 (the save's own build): no gp_notin rule 11")
+@probe.red_twin(env={'CUPLIST_TWIN': '1'}, expect=r'not its own',
+                why="fixture: the club's own league counted as a cup it is not in (old builds trap on the rc7 save: 4.0 rc2 at obj1+0x17064)")
 def world_cuplist_mestre():
     """Davide's MESTRE.CAR (rc7, internal/davide-mister-20261021: MESTRE, Serie D) on a release-recipe build
     (CUPLIST_REL: a buildrel.sh dir) played on to its season's end and into the next season (world8485 from it):
@@ -24928,7 +24930,9 @@ def world_cuplist_mestre():
         head = [e[1] for e in s.screen().entries if e[1] and not e[2]][:4]
         walk(s, s.screen().find('VISUAL. COMPETIZ.', exact=True), 3)
         vc = [e[1] for e in s.screen().entries if e[1] and not e[2]]
-    bad = [x for x in ('ITALIA COPPA ITALIA', 'ITALIA COPPA ITALIA SERIE C') if x in vc]
+    notin = ('ITALIA COPPA ITALIA', 'ITALIA COPPA ITALIA SERIE C') + \
+        tuple(x for x in vc if 'SERIE D' in x)[:1 if probe.twin_on('CUPLIST_TWIN') else 0]   # (red twin: its own league)
+    bad = [x for x in notin if x in vc]
     return not bad, f'{msg[:100]}; next season {head}: competitions {vc}' + (f'; not its own: {bad}' if bad else '')
 
 
@@ -27711,7 +27715,7 @@ def world_s1conti():
 
 
 @scenario
-@probe.red_twin(env={'WINNERS_W27': probe.rel('REL405')}, why="4.0.5: no ct_load1 (old saves get no 'CE' edition), no COPPE CONTINENTALI")
+@probe.red_twin(env={'WINNERS_W27': probe.rel('REL405')}, why="4.0.5: no ct_load1 (old saves get no 'CE' edition), no COPPE CONTINENTALI", expect=r'ctview not in the build|CE|CT_ED')
 def world_s1conti_oldsave():
     """4.0.6 B2 M3 (Davide: old saves built at load): Davide's rc7 season-1 career PHILA.CAR (no 'CE', no 'CT') on a
     release-like build (world_winners_oldsave's recipe) gets season 1's edition at the load (conti.c ct_load1): CT_ED
@@ -27754,7 +27758,7 @@ def world_s1conti_oldsave():
 
 
 @scenario
-@probe.red_twin(env={'CV_BUILD': probe.rel('REL405')}, why='4.0.5: no COPPE CONTINENTALI view (ctview / ctgame are 4.0.6)')
+@probe.red_twin(env={'CV_BUILD': probe.rel('REL405')}, why='4.0.5: no COPPE CONTINENTALI view (ctview / ctgame are 4.0.6)', expect=r'ctview not in the build|CVTR')
 def world_cgame_view():
     """4.0.6 option C P3: COPPE CONTINENTALI's rounds menu -> the round in the game's own competition screen (ctgame
     cg_view: knockout legs + aggregate + pens / away goals, group tables + fixtures, as at the career's week). On
@@ -38950,6 +38954,83 @@ def diff_block(r):
     while k >= 0 and k % 4:
         k = pg.find(b'DIFF', k + 1)
     return b4 + swreg.DIFF_AT + k if k >= 0 else None
+
+
+@scenario
+@probe.red_twin(env={'GP_TWIN': '1'}, expect=r'clock stall',
+                why='fixture: the match clock read stops after 20 polls (a hung gameplay hook) - the stall check must see it')
+def gameplay_presets():
+    """Canary C7 (MC 19/11, plan 6.3): a full friendly with every value of the GAMEPLAY rows on a RELEASE dir
+    (SWOSTEST_BUILD; no self-build): match i has DIFFICOLTA' (DF_W, difficulty's 'DIFF' block +4), DRIBBLING (DF_DR,
+    +28) and CALCI PIAZZATI (SP_W, setpieces' 'SETP' tag +4) all at value i (0 / 1 / 2: every value of the three
+    rows, PERSONALIZZATO with its default steps), poked on the pre-match screen as diff_match does. Played with a FIRE
+    each poll (half-time / stoppages wait for a key). The match clock = the game's gameTime (obj2, found on the
+    original by UpdateTime's `cmp gameTime, 45'`; bytes +1..+3 = hundreds, tens, units). PASS = every match's clock
+    reaches 90' and the post-match screen comes (entries again) within GP_POLLS (400) polls of dump:5, and the clock
+    never stands still for GP_STALL (12) polls before 90' (a hung gameplay hook). Shot gp_end_<i> if a match does
+    not end."""
+    b = ui_dir(os.environ.get('SWOSTEST_BUILD'))
+    if not b or not os.path.isfile(os.path.join(b or '', 'ITALIAN.EXE')):
+        return True, 'SKIP: no release dir (SWOSTEST_BUILD)'
+    import lepatch
+    import swreg
+    o = lepatch.LEPatch(os.path.join(ROOT, 'orig', UI_ORIG))
+    gt = o.target(1, re.search(rb'\x81\x3d....\x00\x00\x04\x05\x75', o.le.obj_bytes(1), re.S).start() + 2)[1]
+    polls, stall_max = int(os.environ.get('GP_POLLS', 400)), int(os.environ.get('GP_STALL', 12))
+    errs, notes = [], []
+
+    def minute(r):
+        t = r.read(r.base2 + gt, 4)
+        return t[1] * 100 + t[2] * 10 + t[3]
+    for i in range(3):
+        t0 = time.time()
+        with Session(f'gameplay_presets_{i}', b, {}, 'dump:3', 900, match=True) as s:
+            s.wait()
+            friendly_prematch(s, 'HAMBURG', 'SCHALKE')
+            r = s.result
+            blk = diff_block(r)
+            pg = r.read(r.base4 + swreg.SETPIECE_AT, swreg.SETPIECE_END - swreg.SETPIECE_AT) if r.base4 else b''
+            k = pg.find(b'SETP')
+            if blk is None or k < 0:
+                errs.append(f'match {i}: no DIFF block / SETP tag in obj4 (blk {blk}, SETP {k}): not a 4.2 release?')
+                break
+            s.poke(blk + 4, struct.pack('<H', i))
+            s.poke(blk + 28, struct.pack('<H', i))
+            s.poke(r.base4 + swreg.SETPIECE_AT + k + 4, struct.pack('<H', i))
+            got = (struct.unpack('<H', r.read(blk + 4, 2))[0], struct.unpack('<H', r.read(blk + 28, 2))[0],
+                   struct.unpack('<H', r.read(r.base4 + swreg.SETPIECE_AT + k + 4, 2))[0])
+            for _ in range(22):
+                s.send('down dump:0.5')
+                if s.screen().selected == 9:
+                    break
+            r = s.send('fire dump:2')
+            last, still, top, end, n, trace = None, 0, 0, None, 0, []
+            for n in range(polls):
+                if r.outcome != 'dump':
+                    errs.append(f'match {i}: {r.outcome} after {n} polls at {top}\' ({r})')
+                    break
+                m = 0 if probe.twin_on('GP_TWIN') and n > 20 else minute(r)   # (red twin: a clock that stops)
+                if n % 25 == 0:
+                    trace.append(m)
+                if top and m == last and top < 90:
+                    still += 1
+                    if still >= stall_max:
+                        errs.append(f'match {i}: clock stall at {m}\' ({still} polls, poll {n})')
+                        break
+                else:
+                    still = 0
+                last, top = m, max(top, m)
+                texts = [e[1] for e in s.screen().entries if e[1] and not e[2]]
+                if top >= 90 and texts:
+                    end = texts[:4]
+                    break
+                r = s.send('fire dump:5')
+            if end is None:
+                s.shot(f'gp_end_{i}')
+                if not any(e.startswith(f'match {i}:') for e in errs):
+                    errs.append(f'match {i}: no end within {polls} polls (clock {top}\')')
+            notes.append(f'{i}: DF_W/DF_DR/SP_W {got}, {n} polls, {time.time() - t0:.0f} s, clock {trace}->{top}, end {end}')
+    return not errs, '; '.join(errs + notes)
 
 
 def diff_bu_block(r):

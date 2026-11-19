@@ -24,7 +24,8 @@ Declaring a twin, in tools/swostest.py:
   env      variables set in the twin's process ('@NAME' = the value of $NAME in the runner, so the rc can pass the
            twin's dir: TWIN_BUILD=c/REL42x-twin);
   prepare  optional callable run IN the twin's process before the scenario; returns more env (it may build a mutant);
-  why      one line: the defect the twin carries.
+  why      one line: the defect the twin carries;
+  expect   regex its FAIL line must match (the check saw THAT defect; a trap or a harness exception is 'twin-wrong').
 
 Environment:
   SWOSTEST_PROBE=strict   no twin = PROBE-ERROR, SKIP = SETUP-ERROR (the canary run of an rc, from Fri 20/11 twins)
@@ -73,7 +74,9 @@ CANARIES = [
     dict(id='C8', what='SWOS++ smoke on the English exe', proves='the obj1 limit; timing',
          scenarios=['euro_swospp', 'swospp_bench'], env='SWOSTEST_UI=en, an English-UI copy of the release dir'),
     dict(id='C9', what='Patcher output byte-equal + the Node directory test (no DOSBox)', proves='what players install',
-         scenarios=[], run='node internal/release-tools/patcher_node_test40.js', gap='check the script is current for 4.2'),
+         scenarios=[], run='node internal/release-tools/patcher_node_test40.js R=c/<rel>/ <inputs as rc42.sh>',
+         twin='the same with R = the previous release dir (c/REL412a/): output md5 FAIL lines, exit 1 (MC 19/11: the '
+              "script is generic over the page's PATCHES, current for 4.2)"),
     dict(id='C10', what='MiSTer disk boot (Davide, by hand)', proves='real hardware', scenarios=[],
          run='by hand: IT + FR or DE exe'),
     dict(id='C11', what='NT match in a FIFA window with the dual job', proves='the squad swap and its state', scenarios=[],
@@ -83,10 +86,11 @@ CANARIES = [
 ]
 
 
-def red_twin(env=None, prepare=None, why='', id='t1'):
-    """Declare the scenario's red twin (see the module doc). Put it UNDER @scenario."""
+def red_twin(env=None, prepare=None, why='', id='t1', expect=''):
+    """Declare the scenario's red twin (see the module doc). Put it UNDER @scenario. expect = a regex the twin's FAIL
+    message must match: a FAIL for another reason (a trap, a harness exception) proves nothing -> 'twin-wrong'."""
     def deco(fn):
-        TWINS[fn.__name__] = dict(env=dict(env or {}), prepare=prepare, why=why, id=id)
+        TWINS[fn.__name__] = dict(env=dict(env or {}), prepare=prepare, why=why, id=id, expect=expect)
         return fn
     return deco
 
@@ -154,7 +158,7 @@ def twin_key(name, fn, twin, tree_key='', environ=None):
     (swostest.build_key: sources + build env) and the identity of every prebuilt dir the runner points at."""
     env = os.environ if environ is None else environ
     h = hashlib.sha256()
-    for part in (name, twin['id'], repr(sorted(twin['env'].items())), twin['why'], _src(fn),
+    for part in (name, twin['id'], repr(sorted(twin['env'].items())), twin['why'], twin.get('expect', ''), _src(fn),
                  _src(twin['prepare']) if twin['prepare'] else '', tree_key):
         h.update(part.encode() + b'\0')
     for k in sorted(env):
@@ -190,8 +194,8 @@ def apply_twin_env(name):
 
 def run_twin(name, fn, cmd, cache_dir, runs, tree_key=''):
     """Run (or read from the cache) the red twin of scenario `name`. cmd = argv running ONE scenario in a fresh
-    process (swostest.py run NAME). Returns (state, detail): state 'proven' | 'twin-passed' | 'twin-not-run' | 'none'
-    | 'off'."""
+    process (swostest.py run NAME). Returns (state, detail): state 'proven' | 'twin-passed' | 'twin-wrong' (FAILed,
+    not matching `expect`) | 'twin-not-run' | 'none' | 'off'."""
     t = TWINS.get(name)
     mode = os.environ.get('SWOSTEST_TWIN', '')
     if not t:
@@ -215,7 +219,10 @@ def run_twin(name, fn, cmd, cache_dir, runs, tree_key=''):
                                 SWOSTEST_RUNS=runs.rstrip('/') + '-twin'))
     last = [ln for ln in r.stdout.splitlines() if LINE.match(ln) and LINE.match(ln).group(2) == name]
     v = LINE.match(last[-1]).group(1) if last else None
-    if v == 'FAIL':
+    if v == 'FAIL' and t.get('expect') and not re.search(t['expect'], last[-1]):
+        state, detail = 'twin-wrong', (f'red twin {t["id"]} FAILed for another reason (want /{t["expect"]}/): '
+                                       f'{last[-1][:200]}')
+    elif v == 'FAIL':
         state, detail = 'proven', f'red twin {t["id"]} FAILs as it must ({t["why"]}; {time.time() - t0:.0f} s)'
     elif v == 'PASS':
         state, detail = 'twin-passed', f'red twin {t["id"]} PASSed ({t["why"]}): the check cannot see that defect'
@@ -234,7 +241,10 @@ def run_twin(name, fn, cmd, cache_dir, runs, tree_key=''):
 
 
 def verdict(res, msg, twin_state='none', twin_detail=''):
-    """The final verdict from the scenario's own result and its twin's state (R4)."""
+    """The final verdict from the scenario's own result and its twin's state (R4). In a twin's own process the
+    scenario's result is the twin's outcome as it is (no strict mode, no tag): the parent judges it."""
+    if in_twin():
+        return res, msg + ' [twin]'
     if res in ('SKIP', 'BUILT'):
         if res == 'SKIP' and strict():
             return 'SETUP-ERROR', 'SKIP in strict mode (a canary never SKIPs): ' + msg
@@ -245,7 +255,7 @@ def verdict(res, msg, twin_state='none', twin_detail=''):
         return res, msg + (f' [probe: {twin_detail}]' if twin_detail else '')
     if twin_state == 'proven':
         return res, msg + f' [probe: {twin_detail}]'
-    if twin_state in ('twin-passed', 'twin-not-run'):
+    if twin_state in ('twin-passed', 'twin-not-run', 'twin-wrong'):
         return 'PROBE-ERROR', f'{twin_detail}; was {res}: ' + msg
     if strict():
         return 'PROBE-ERROR', f'no red twin (R4, SWOSTEST_PROBE=strict); was {res}: ' + msg
@@ -273,13 +283,13 @@ def summary(paths, limit=20):
 
 def main(argv):
     if argv[:1] == ['canaries']:
-        import swostest_index                       # (twin state from the AST: no 46 k-line import)
+        import swostest_index                       # (twin state from the cached index)
         rows = {r['name']: r for r in swostest_index.index()}
         for c in CANARIES:
             sc = ', '.join(f"{s}:{rows[s]['line'] if s in rows else 'MISSING'}{' twin' if rows.get(s, {}).get('twin') else ' no-twin'}"
                            for s in c['scenarios']) or c.get('run') or 'NONE'
             print(f"{c['id']:4} {c['what']}{' [from ' + c['from'] + ']' if c.get('from') else ''}: {sc}")
-            for k in ('env', 'gap'):
+            for k in ('env', 'twin', 'gap'):
                 if c.get(k):
                     print(f"       {k}: {c[k]}")
         return 0

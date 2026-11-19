@@ -50,7 +50,10 @@ def test_probe_verdicts():
             got = probe.verdict(*a)[0]
             if got != want:
                 errs.append(f'strict {a} -> {got}, want {want}')
-    return not errs, '; '.join(errs) or f'{len(cases) + 5} verdict cases'
+    with _env(SWOSTEST_PROBE='strict', SWOSTEST_TWIN='t1'):
+        if probe.verdict('FAIL', 'm')[0] != 'FAIL' or probe.verdict('PASS', 'm')[0] != 'PASS':
+            errs.append('in a twin process strict mode changed the twin outcome')
+    return not errs, '; '.join(errs) or f'{len(cases) + 7} verdict cases'
 
 
 FAKE = r'''import os, sys
@@ -105,6 +108,17 @@ def test_probe_twin_runner():
             st, det = probe.run_twin('fake_sc', fn, cmd, cache, runs)
             if st != 'twin-not-run':
                 errs.append(f'SKIPping twin: {st} {det}')
+        probe.TWINS['fake_sc']['expect'] = r'hook gone'                 # (a FAIL for another reason: twin-wrong)
+        with _env(FAKE_COUNT=count, FAKE_TWIN_DIR=d, FAKE_VERDICT='FAIL', SWOSTEST_TWIN='force'):
+            st, det = probe.run_twin('fake_sc', fn, cmd, cache, runs)
+            if st != 'twin-wrong' or probe.verdict('PASS', 'm', st, det)[0] != 'PROBE-ERROR':
+                errs.append(f'expect not matched: {st} {det}')
+        probe.TWINS['fake_sc']['expect'] = r'twin=t1'
+        with _env(FAKE_COUNT=count, FAKE_TWIN_DIR=d, FAKE_VERDICT='FAIL', SWOSTEST_TWIN='force'):
+            st, det = probe.run_twin('fake_sc', fn, cmd, cache, runs)
+            if st != 'proven':
+                errs.append(f'expect matched: {st} {det}')
+        probe.TWINS['fake_sc']['expect'] = ''
         # the key moves with the scenario source and with a prebuilt dir's identity
         t = probe.TWINS['fake_sc']
         k1 = probe.twin_key('fake_sc', fn, t, 'tree', {})
@@ -120,7 +134,7 @@ def test_probe_twin_runner():
         if 'twin=t1' not in line or 'norerun=1' not in line or f'b={d}' not in line:
             errs.append(f'twin env not passed: {line[:200]}')
         probe.TWINS.pop('fake_sc', None)
-    return not errs, '; '.join(errs) or 'none / @VAR missing / proven / cached / force / off / passed / not-run / keys'
+    return not errs, '; '.join(errs) or 'none / @VAR missing / proven / cached / force / off / passed / not-run / wrong / expect / keys'
 
 
 def test_probe_runner_wiring():
@@ -171,20 +185,29 @@ def test_probe_runner_wiring():
 
 
 def test_swostest_index():
-    """The generated index: every @scenario, each row's line = its `def`, every canary scenario exists."""
+    """The generated index: one row per scenario the runner knows (swostest.SCENARIOS, registered modules and
+    generated ones included), each row's line = a `def` in its file, every canary scenario exists."""
+    import swostest
     import swostest_index
     rows = swostest_index.build_index()
-    src = open(swostest_index.SRC, encoding='utf-8', errors='replace').read().splitlines()
-    errs = [r['name'] for r in rows if not src[r['line'] - 1].startswith(f"def {r['name']}(")]
+    root = os.path.dirname(TOOLS)
+    src = {}
+    bad = []
+    for r in rows:
+        ls = src.setdefault(r['file'], open(os.path.join(root, r['file']), encoding='utf-8', errors='replace').read().splitlines())
+        if not ls[r['line'] - 1].lstrip().startswith('def '):
+            bad.append(r['name'])
     names = {r['name'] for r in rows}
-    want = sum(1 for i, ln in enumerate(src) if ln == '@scenario')
     miss = [s for c in probe.CANARIES for s in c['scenarios'] if s not in names]
-    ok = not errs and not miss and len(rows) == want
-    return ok, f'{len(rows)} scenarios ({want} @scenario), bad lines {errs[:3]}, missing canaries {miss}'
+    lost = sorted(set(swostest.SCENARIOS) - names)
+    files = sorted({r['file'] for r in rows})
+    ok = not bad and not miss and not lost and len(rows) == len(swostest.SCENARIOS)
+    return ok, f'{len(rows)} scenarios in {files}, bad lines {bad[:3]}, missing canaries {miss}, not indexed {lost[:5]}'
 
 
 def test_canary_twins():
-    """Every canary scenario declares a red twin; every build dir a twin names (env values that are paths) exists."""
+    """Every canary scenario declares a red twin with an `expect` (the FAIL must name the defect); every build dir a
+    twin names (env values that are paths) exists."""
     import swostest  # noqa: F401  (registers the twins)
     errs = []
     for c in probe.CANARIES:
@@ -193,8 +216,10 @@ def test_canary_twins():
             if not t:
                 errs.append(f'{c["id"]} {s}: no twin')
                 continue
+            if not t.get('expect'):
+                errs.append(f'{s}: twin without expect')
             for k, v in t['env'].items():
                 if isinstance(v, str) and v.startswith('/') and not os.path.isfile(os.path.join(v, 'ITALIAN.EXE')):
                     errs.append(f'{s}: {k}={v} has no ITALIAN.EXE')
     n = sum(len(c['scenarios']) for c in probe.CANARIES)
-    return not errs, '; '.join(errs) or f'{n} canary scenarios, all with a twin, twin dirs present'
+    return not errs, '; '.join(errs) or f'{n} canary scenarios, all with a twin + expect, twin dirs present'

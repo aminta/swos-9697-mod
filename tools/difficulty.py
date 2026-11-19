@@ -93,15 +93,15 @@ def _prog(lo, step, n):
 
 #        (label it, en, fr, de)                                                block field size  raw values (step 0 = CLASSICO)
 DP_ROWS = (
-    (('VELOCITA CON PALLA', 'SPEED WITH BALL', 'VITESSE AVEC BALLE', 'TEMPO AM BALL'), 'U', 0, 2, _prog(4, -1, 5)),        # K4
-    (('PALLA INCOLLATA', 'BALL CLOSE ON TURNS', 'BALLE COLLEE', 'BALLNAH BEIM HAKEN'), 'U', 6, 2, _prog(256, -8, 11)),   # K10
-    (('PROTEZIONE PALLA', 'BALL SHIELDING', 'PROTECTION BALLE', 'BALLSCHUTZ'), 'U', 2, 2, _prog(12, 1, 13)),            # K9w
-    (('MENO SCIVOLATE CPU', 'FEWER CPU SLIDES', 'MOINS TACLES CPU', 'WENIGER GRAETSCHEN'), 'O', 16, 4, _prog(200, -10, 16)),  # K5
-    (('MENO RADDOPPI CPU', 'LESS CPU DOUBLING', 'MOINS DE DOUBLEMENTS', 'CPU DOPPELT WENIGER'), 'O', 12, 4,
+    (('VELOCITA CON PALLA', 'SPEED WITH BALL', 'VITESSE AVEC BALLON', 'TEMPO AM BALL'), 'U', 0, 2, _prog(4, -1, 5)),        # K4
+    (('PALLA INCOLLATA', 'BALL CLOSE ON TURNS', 'BALLON COLLE AU PIED', 'ENGE BALLFUEHRUNG'), 'U', 6, 2, _prog(256, -8, 11)),   # K10
+    (('PROTEZIONE PALLA', 'BALL SHIELDING', 'PROTECTION DU BALLON', 'BALL ABSCHIRMEN'), 'U', 2, 2, _prog(12, 1, 13)),            # K9w
+    (('MENO SCIVOLATE CPU', 'FEWER CPU SLIDES', 'MOINS DE TACLES CPU', 'WENIGER CPU GRAETSCHEN'), 'O', 16, 4, _prog(200, -10, 16)),  # K5
+    (('MENO RADDOPPI CPU', 'LESS CPU DOUBLING', 'MOINS PRISES A DEUX CPU', 'WENIGER DOPPELN CPU'), 'O', 12, 4,
      _prog(3200, 400, 16)),                                                                                          # K8
-    (('CPU LENTA A RIPRENDERE', 'CPU WIN BACK DELAY', 'DELAI REPRISE CPU', 'CPU WARTET LAENGER'), 'O', 4, 2,
+    (('CPU LENTA A RIPRENDERE', 'CPU WIN BACK DELAY', 'CPU LENTE A RECUPERER', 'CPU WARTET LAENGER'), 'O', 4, 2,
      _prog(12, 1, 13)),                                                                                              # K9l
-    (('AREA SENZA SCIVOLATE', 'NO SLIDES IN BOX', 'SURFACE SANS TACLE', 'STRAFRAUM SCHUTZ'), 'O', 8, 2, (16, 0)),  # K11
+    (('AREA SENZA SCIVOLATE', 'NO SLIDES IN BOX', 'SURFACE SANS TACLES', 'STRAFRAUM OHNE GRAETSCHE'), 'O', 8, 2, (16, 0)),  # K11
     (('DIFENSORI CPU', 'CPU DEFENDERS', 'DEFENSEURS CPU', 'CPU VERTEIDIGER'), 'O', 20, 2, (0, 1, 2, 3)),         # W1 1-v-1
     (('COSTRUZIONE CPU', 'CPU BUILD UP', 'CONSTRUCTION CPU', 'CPU AUFBAU'), None, 0, 0, (1, 0)),            # MIX
 )
@@ -115,10 +115,10 @@ _PCT = {0: lambda v: 100 * (32 - v) / 28, 6: lambda v: 100 * v / 256, 2: lambda 
 DP_PCT = tuple(tuple(int(_PCT[r[2]](v) + 0.5) for v in r[4]) for r in DP_ROWS[:DP_NNUM])   # (the shown %)
 DP_TITLE = {'it': 'DRIBBLING PERSONALIZZATO', 'en': 'CUSTOM DRIBBLING', 'fr': 'DRIBBLE PERSONNALISE',
             'de': 'DRIBBLING INDIVIDUELL'}
-DP_BACK = {'it': 'INDIETRO', 'en': 'BACK', 'fr': 'RETOUR', 'de': 'ZURUECK'}
-DP_RESET = {'it': 'PREDEFINITI', 'en': 'DEFAULTS', 'fr': 'PAR DEFAUT', 'de': 'STANDARD'}   # (every row: DRIBBLING NEW's value)
+DP_BACK = {'it': 'INDIETRO', 'en': 'BACK', 'fr': 'QUITTER', 'de': 'ENDE'}
+DP_RESET = {'it': 'PREDEFINITI', 'en': 'DEFAULTS', 'fr': 'PREDEFINIS', 'de': 'STANDARD'}   # (every row: DRIBBLING NEW's value)
 DP_LEG = {'it': "SINISTRA: CLASSICO  DESTRA: PIU' AIUTO", 'en': 'LEFT: CLASSIC  RIGHT: MORE HELP',   # (no '=': not a
-          'fr': 'GAUCHE: CLASSIQUE  DROITE: PLUS D AIDE', 'de': 'LINKS: KLASSISCH  RECHTS: MEHR HILFE'}  #  glyph, 14/11;
+          'fr': "GAUCHE: CLASSIQUE  DROITE: PLUS D'AIDE", 'de': 'LINKS: KLASSISCH  RECHTS: MEHR HILFE'}  #  glyph, 14/11;
 #  no digits: the font's 0 reads as an O, Davide 15/11)
 assert not any(ch.isdigit() for t in DP_LEG.values() for ch in t), DP_LEG
 _FOFF = {0: 'k', 2: 'lockw', 4: 'lockl', 6: 'turn', 8: 'box', 12: 'hold', 16: 'slide', 20: 'wait'}

@@ -584,7 +584,9 @@ def check_stage(o, errs, seed=None, force=None, me=None, played=None, fresh=True
         #                  and the next season's init (fpad.c arm(FL_SEASON): nlog = 0) wipes FP_ST's log before the next
         #                  one: 'exactly 1' was never observable there. Never 2; 0 ONLY when the wipe itself was read (the
         #                  next season's SEASON entry) - then the kept instance is the proof: state 2, 3 played, flags bit 0)
-        n_o, n_d = codes.count('MLOPEN'), codes.count('MLDONE')
+        n_o, n_d = sum(1 for e in log if e[0] == 'MLOPEN' and e[2] >= 0), codes.count('MLDONE')   # (rc < 0 = fp_ml_loaded's open
+        #  of a CORRUPT save's block (n=11 garbage, logged by the load path), discarded and redrawn at the stage: not a second instance
+        #  - 19/11, decoded on runs-supc-final3/world_supc_oldsave_w84_2: MLOPEN(-1, n 11) ... MLOPEN(1, n 3) MLSIM x3 MLDONE)
         T.check(n_d == 1 or (n_d == 0 and o.get('wiped')), f"log: MLDONE x{n_d} (want 1, or 0 with the next season's "
                 f"init read after it: wiped {o.get('wiped')}) in {codes}", errs)
         T.check(n_o <= 1 and (n_o == 1 or not fresh or o.get('wiped')), f"log: MLOPEN x{n_o} (want 1, or 0 with the log "

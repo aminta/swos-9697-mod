@@ -483,3 +483,41 @@ def patch(p, lang):
 
 LABELS = {}
 SYMS = {}                                # (hosttest: DIST0 / DIST1 obj1, the top team's structure obj2)
+
+
+RELEASE_EXES = ('SWOS/ITALIAN.EXE', 'SWOS/ENGLISH.EXE', 'SWOS/FRENCH.EXE', 'SWOS/GERMAN.EXE',
+                'gog/ITALIAN.EXE', 'gog/ENGLISH.EXE', 'gog/FRENCH.EXE', 'gog/GERMAN.EXE')
+
+
+def band_linked(exe):
+    """True when the exe carries the TRHD band (its 'TRHD' tag after the jump table: patch() writes the band only
+    together with its three obj1 sites and setpieces' calls, all asserted at the build)."""
+    import swreg
+    from lepatch import LEPatch
+    p = LEPatch(exe)
+    if p.le.obj(4) is None or p.le.obj(4).npages * 0x1000 < swreg.TRHD_END:
+        return False
+    band = bytes(p.get(4, swreg.TRHD_AT, 0x80))
+    return band[:5 * len(JT):5] == b'\xe9' * len(JT) and band.find(TAG) == 5 * len(JT)
+
+
+def relcheck(rel):
+    """MC 19/11, the release guard: in a tree with GP_RUOLI every release exe of REL (c/RELxx) has the traits linked
+    (TRHD_NOLINK / GM_NOROLES are test REFs, never a release). -> (ok, line)."""
+    if _gameplay() is None:
+        return True, 'TRHD: not checked (a tree without GP_RUOLI)'
+    exes = [e for e in RELEASE_EXES if os.path.exists(os.path.join(rel, e))]
+    bad = [e for e in exes if not band_linked(os.path.join(rel, e))]
+    if not exes:
+        return False, f'TRHD FAIL: no release exe in {rel}'
+    return (not bad, f'TRHD OK: position traits linked in {len(exes)} exes' if not bad else
+            'TRHD FAIL: position traits NOT linked (TRHD_NOLINK / GM_NOROLES build?) in ' + ', '.join(bad))
+
+
+if __name__ == '__main__':
+    import sys
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    assert len(sys.argv) == 3 and sys.argv[1] == 'check', 'python3 tools/trhead.py check c/RELxx'
+    ok, line = relcheck(sys.argv[2])
+    print(line)
+    sys.exit(0 if ok else 1)

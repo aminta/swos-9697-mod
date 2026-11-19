@@ -25,12 +25,20 @@ Declaring a twin, in tools/swostest.py:
            twin's dir: TWIN_BUILD=c/REL42x-twin);
   prepare  optional callable run IN the twin's process before the scenario; returns more env (it may build a mutant);
   why      one line: the defect the twin carries;
-  expect   regex its FAIL line must match (the check saw THAT defect; a trap or a harness exception is 'twin-wrong').
+  expect   regex its FAIL line must match (the check saw THAT defect; a trap or a harness exception is 'twin-wrong');
+  id       't1' by default. A scenario may stack several @probe.red_twin lines, one per id ('t1' a fixture twin on
+           the CURRENT build: one value the check reads is broken, so the FAIL comes from the check itself; 't2' a
+           historical build, which may only prove the feature is absent there). TWINS[name] is the list, in source
+           order; the runner runs each in its own process (run dirs RUNS-twin, RUNS-twin-t2, ...), caches each under
+           its id, and ALL must FAIL with their own `expect`: one that PASSes / FAILs otherwise / gives no verdict
+           makes the scenario PROBE-ERROR (the others are still run and named in the detail).
 
 Environment:
   SWOSTEST_PROBE=strict   no twin = PROBE-ERROR, SKIP = SETUP-ERROR (the canary run of an rc, from Fri 20/11 twins)
   SWOSTEST_TWIN=off       do not run twins (scenario development); =force: ignore the cache
-  (internal) SWOSTEST_TWIN=<id> marks the twin's own process
+  (internal) SWOSTEST_TWIN=<id> marks the twin's own process (by hand: SWOSTEST_TWIN=t1 SWOSTEST_NO_RERUN=1 ... run
+           NAME runs that twin alone; an id the scenario does not declare is refused);
+           SWOSTEST_TWIN_OF=<the runner's RUNS dir> is set by the runner in a twin's process (inputs kept there)
 
 CLI:
   python3 tools/probe.py canaries            the 12 canaries, their scenarios and twin state
@@ -90,9 +98,23 @@ def red_twin(env=None, prepare=None, why='', id='t1', expect=''):
     """Declare the scenario's red twin (see the module doc). Put it UNDER @scenario. expect = a regex the twin's FAIL
     message must match: a FAIL for another reason (a trap, a harness exception) proves nothing -> 'twin-wrong'."""
     def deco(fn):
-        TWINS[fn.__name__] = dict(env=dict(env or {}), prepare=prepare, why=why, id=id, expect=expect)
-        return fn
+        ts = TWINS.setdefault(fn.__name__, [])
+        if any(t['id'] == id for t in ts):
+            raise ValueError(f'{fn.__name__}: two red twins with id {id!r} (one twin per id: give the second id=\'t2\')')
+        ts.insert(0, dict(env=dict(env or {}), prepare=prepare, why=why, id=id, expect=expect))   # (decorators apply
+        return fn                                                                                 #  bottom-up: source order)
     return deco
+
+
+def twins(name):
+    """The scenario's red twins, in source order ([] = none)."""
+    return list(TWINS.get(name) or [])
+
+
+def twin(name, id=None):
+    """The twin of `name` with that id (default: the id of this twin process, SWOSTEST_TWIN), or None."""
+    id = os.environ.get('SWOSTEST_TWIN', '') if id is None else id
+    return next((t for t in twins(name) if t['id'] == id), None)
 
 
 MAIN = os.path.expanduser('~/swos-mod')
@@ -124,6 +146,12 @@ def twin_on(var):
     """In a twin's own process, the twin's fixture switch `var` is set (fixture twins: the scenario breaks its own
     input, e.g. one save byte, to prove the check sees it). Never true in a normal run."""
     return in_twin() and os.environ.get(var, '') not in ('', '0')
+
+
+def parent_runs():
+    """In a twin's own process: the RUNS dir of the runner that started it (an input the scenario keeps in RUNS, e.g.
+    a save made by an earlier scenario, is there, not in the twin's own run dir); None elsewhere."""
+    return os.environ.get('SWOSTEST_TWIN_OF') if in_twin() else None
 
 
 def strict():
@@ -183,9 +211,12 @@ def _expand(env):
 
 def apply_twin_env(name):
     """In the twin's own process: set the twin's env (+ prepare()'s). Called by the runner before the scenario."""
-    t = TWINS.get(name)
-    if not t:
+    if not twins(name):
         return
+    t = twin(name)
+    if not t:                               # (a twin process without its fault would PASS: refuse it)
+        sys.exit(f"{name}: no red twin with id {os.environ.get('SWOSTEST_TWIN')!r} (declared: "
+                 f"{', '.join(x['id'] for x in twins(name))})")
     env, _ = _expand(t['env'])
     os.environ.update(env)
     if t['prepare']:
@@ -193,15 +224,31 @@ def apply_twin_env(name):
 
 
 def run_twin(name, fn, cmd, cache_dir, runs, tree_key=''):
-    """Run (or read from the cache) the red twin of scenario `name`. cmd = argv running ONE scenario in a fresh
-    process (swostest.py run NAME). Returns (state, detail): state 'proven' | 'twin-passed' | 'twin-wrong' (FAILed,
-    not matching `expect`) | 'twin-not-run' | 'none' | 'off'."""
-    t = TWINS.get(name)
-    mode = os.environ.get('SWOSTEST_TWIN', '')
-    if not t:
+    """Run (or read from the cache) the red twins of scenario `name`, each under its own id. cmd = argv running ONE
+    scenario in a fresh process (swostest.py run NAME). Returns (state, detail): state 'proven' (EVERY twin FAILs with
+    its expect) | 'twin-passed' | 'twin-wrong' (FAILed, not matching `expect`) | 'twin-not-run' | 'none' | 'off'.
+    With several twins all are run; the state is the worst one (passed > wrong > not-run), the detail names each."""
+    ts = twins(name)
+    if not ts:
         return 'none', ''
-    if mode == 'off':
+    if os.environ.get('SWOSTEST_TWIN', '') == 'off':
         return 'off', 'twins off (SWOSTEST_TWIN=off)'
+    got = [run_one_twin(name, fn, t, cmd, cache_dir, runs, tree_key) for t in ts]
+    state = next((w for w in ('twin-passed', 'twin-wrong', 'twin-not-run') if any(st == w for st, _ in got)), 'proven')
+    if len(got) == 1:
+        return got[0]
+    return state, '; '.join(d for st, d in got if state == 'proven' or st != 'proven') + \
+        (f' ({sum(st == "proven" for st, _ in got)} of {len(got)} twins proven)' if state != 'proven' else '')
+
+
+def twin_runs(runs, id):
+    """A twin's own run dir: RUNS-twin for 't1' (as before), RUNS-twin-<id> for the others (each FAIL's dirs kept)."""
+    return runs.rstrip('/') + ('-twin' if id == 't1' else f'-twin-{id}')
+
+
+def run_one_twin(name, fn, t, cmd, cache_dir, runs, tree_key=''):
+    """One twin `t` of scenario `name`: its cache entry (per id and key) or a run in a fresh process."""
+    mode = os.environ.get('SWOSTEST_TWIN', '')
     env, missing = _expand(t['env'])
     if missing:
         return 'twin-not-run', f'twin {t["id"]}: runner env lacks {", ".join(missing)}'
@@ -216,7 +263,7 @@ def run_twin(name, fn, cmd, cache_dir, runs, tree_key=''):
     t0 = time.time()
     r = subprocess.run(cmd, capture_output=True, text=True,
                        env=dict(os.environ, **env, SWOSTEST_TWIN=t['id'], SWOSTEST_NO_RERUN='1',
-                                SWOSTEST_RUNS=runs.rstrip('/') + '-twin'))
+                                SWOSTEST_RUNS=twin_runs(runs, t['id']), SWOSTEST_TWIN_OF=runs))
     last = [ln for ln in r.stdout.splitlines() if LINE.match(ln) and LINE.match(ln).group(2) == name]
     v = LINE.match(last[-1]).group(1) if last else None
     if v == 'FAIL' and t.get('expect') and not re.search(t['expect'], last[-1]):

@@ -23731,7 +23731,10 @@ def world_winners_dplay():
 
 
 @scenario
-@probe.red_twin(env={'WINNERS_W27': probe.rel('REL40')}, why="4.0: no 'WN' item, no VINCITORI page of last season", expect=r'no conti holders|VINCITORI|WN')
+@probe.red_twin(env={'WINNERS_TWIN': '1'}, why="fixture: the second page's title read as this season's (not 'VINCITORI <last season>:')",
+                expect=r"\(\d+ s\) second page title 'VINCITORI (\d{4}-\d\d):' is not 'VINCITORI (?!\1)\d{4}-\d\d:'; season 1: ")
+@probe.red_twin(env={'WINNERS_W27': probe.rel('REL40')}, why="4.0: no 'WN' item, no VINCITORI page of last season", id='t2',
+                expect=r'no conti holders|VINCITORI|WN')
 def world_winners_oldsave():
     """4.0.1 'WN' and a 4.0 save: Davide's rc7 career PHILA.CAR (internal/davide-mister-20261021: PHILADELPHIA, no 'WN'
     item - zeroed at the load) on a release-like build (WINNERS_W27, else the W2627REL_DATA packs, no test switch)
@@ -23779,10 +23782,17 @@ def world_winners_oldsave():
     last = [x.strip() for x in more[0]] if more else []
     got = winner_blocks(last)
     got.pop(last[0][:-1] if last else '', None)
-    ok = e is not None and not e[2] and last[:1] and last[0].startswith('VINCITORI ') and \
-        list(got) == ["SUPPORTERS' SHIELD", 'PLAYOFF - MLS CUP', 'CAMPIONE EASTERN CONFERENCE',
-                      'CAMPIONE WESTERN CONFERENCE'] and all(v and v not in ('DA GIOCARE', 'IN CORSO') for v in got.values())
-    return bool(ok), f'{msg[:120]}; page {title!r} {[x for x in lines if x]}; last season {last[:1]} {got}'
+    t2 = last[0] if last else None                      # (the second page's title: 'VINCITORI <last season>:' = the
+    m = re.match(r'VINCITORI (\d{4})-(\d\d)$', (title or '').strip())   # page's own season - 1, PROBE 19/11: it was
+    want = f'VINCITORI {int(m.group(1)) - 1}-{(int(m.group(2)) - 1) % 100:02d}:' if m else None   # 'VINCITORI ' + anything)
+    if probe.twin_on('WINNERS_TWIN') and title:         # (red twin: the title read wrong - this season's)
+        t2 = title.strip() + ':'
+    errs = []
+    check(e is not None and not e[2], f'no VINCITORI entry in STAT ({e})', errs)
+    check(want is not None and t2 == want, f'second page title {t2!r} is not {want!r}', errs)
+    check(list(got) == ["SUPPORTERS' SHIELD", 'PLAYOFF - MLS CUP', 'CAMPIONE EASTERN CONFERENCE', 'CAMPIONE WESTERN CONFERENCE']
+          and all(v and v not in ('DA GIOCARE', 'IN CORSO') for v in got.values()), 'last season\'s four titles not all there / decided', errs)
+    return not errs, '; '.join(errs + [f'{msg[:120]}; page {title!r} {[x for x in lines if x]}; last season {last[:1]} {got}'])
 
 
 @scenario
@@ -27715,7 +27725,10 @@ def world_s1conti():
 
 
 @scenario
-@probe.red_twin(env={'WINNERS_W27': probe.rel('REL405')}, why="4.0.5: no ct_load1 (old saves get no 'CE' edition), no COPPE CONTINENTALI", expect=r'ctview not in the build|CE|CT_ED')
+@probe.red_twin(env={'S1CONTI_TWIN': '1'}, why="fixture: the 'CE' edition's season-1 bit (CT_ED byte 11, bit 0) read as clear",
+                expect=r'\(\d+ s\) old save: no season-1 edition at the load \(CT_ED 4345[0-9a-f]{19}[02468ace]\) \[')
+@probe.red_twin(env={'WINNERS_W27': probe.rel('REL405')}, why="4.0.5: no ct_load1 (old saves get no 'CE' edition), no COPPE CONTINENTALI", id='t2',
+                expect=r'ctview not in the build|CE|CT_ED')
 def world_s1conti_oldsave():
     """4.0.6 B2 M3 (Davide: old saves built at load): Davide's rc7 season-1 career PHILA.CAR (no 'CE', no 'CT') on a
     release-like build (world_winners_oldsave's recipe) gets season 1's edition at the load (conti.c ct_load1): CT_ED
@@ -27751,6 +27764,8 @@ def world_s1conti_oldsave():
         g1 = ctc_confs(s, 'old', errs, d1)              #  4.1 cdirect: a round in progress opened on its view)
         check(g1, 'old save: no rounds menu', errs)
     ed = eds[0]
+    if probe.twin_on('S1CONTI_TWIN'):                   # (red twin: the edition read without its season-1 bit)
+        ed = ed[:11] + bytes([ed[11] & ~1 & 0xFF]) + ed[12:]
     ne, mgr = struct.unpack_from('<H', ed, 2)[0], struct.unpack_from('<H', ed, 8)[0]
     check(ed[:2] == b'CE' and ed[11] & 3 == 3 and ne > 100,   # (built at the load: the 4.0.6 goals model too)
           f'old save: no season-1 edition at the load (CT_ED {ed[:12].hex()})', errs)
@@ -27758,7 +27773,10 @@ def world_s1conti_oldsave():
 
 
 @scenario
-@probe.red_twin(env={'CV_BUILD': probe.rel('REL405')}, why='4.0.5: no COPPE CONTINENTALI view (ctview / ctgame are 4.0.6)', expect=r'ctview not in the build|CVTR')
+@probe.red_twin(env={'CGV_TWIN': '1'}, why='fixture: one CT_ED byte read changed after the first round\'s view (a view that writes the conti state)',
+                expect=r'\(\d+ s\) [^;]*: CT_SEG / CT_ED changed by the view \[')
+@probe.red_twin(env={'CV_BUILD': probe.rel('REL405')}, why='4.0.5: no COPPE CONTINENTALI view (ctview / ctgame are 4.0.6)', id='t2',
+                expect=r'ctview not in the build|CVTR')
 def world_cgame_view():
     """4.0.6 option C P3: COPPE CONTINENTALI's rounds menu -> the round in the game's own competition screen (ctgame
     cg_view: knockout legs + aggregate + pens / away goals, group tables + fixtures, as at the career's week). On
@@ -27779,6 +27797,8 @@ def world_cgame_view():
         exe = build('world_contiview', env={'SEASON_PACKS': ','.join(['ddr-1988-89'] + [os.path.join(src, x)
                                                                                           for x in order])}, lang=UI)
     s2 = os.environ.get('CV_S2') or os.path.join(RUNS, f'cv_s2_{UI}.CAR')
+    if not os.path.exists(s2) and probe.parent_runs():  # (a red twin's process: its RUNS is its own dir, the save
+        s2 = os.path.join(probe.parent_runs(), f'cv_s2_{UI}.CAR')   # world_contiview made is in the runner's)
     if not os.path.exists(s2):
         return False, f'no season-2 save {s2} (run world_contiview first)'
     tr = cv_trace(exe)
@@ -27862,6 +27882,8 @@ def world_cgame_view():
                 sc = s.screen()
                 gwalk(s, 'ABBANDONA' if sc.find('ABBANDONA', exact=True) is not None else 'ESCI', 3)
 
+        twin_hit = []
+
         def rounds(tag, conf):                          # (a rounds menu on screen: every round opened and back)
             sc = s.screen()
             s.shot(f'{tag}_rounds')
@@ -27931,6 +27953,9 @@ def world_cgame_view():
                 s.log.append(f'[cgv] back: {s.screen()} nav {s.screen().nav[1:4]}')
                 s.shot(f'{tag}_{j}_back')
                 b1 = st()
+                if probe.twin_on('CGV_TWIN') and not twin_hit:   # (red twin: one CT_ED byte read changed, once)
+                    b1 = (b1[0], b1[1][:100] + bytes([b1[1][100] ^ 1]) + b1[1][101:])
+                    twin_hit.append(f'{conf} {label}')
                 check(b0 == b1, f'{conf} {label}: CT_SEG / CT_ED changed by the view', errs)
                 opened.append(label)
             return opened

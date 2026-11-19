@@ -249,7 +249,9 @@ tr_head:
     ret
 
 ; ---- (2) the kick's record (setpieces' sp_kick, at its end: ebp = SPB, A1 = the kicker, A6 = his team, FK_ST already
-;      set for this kick). Traits on: the old record and any live whip end; TR_ZK = 1 for a file RW / LW with the ball
+;      set for this kick on sp_on's path; with setpieces off (sp_kick's `jz .x`) it keeps the last kick's value, so a
+;      stale non-zero FK_ST can only drop a record, never invent one - Difficolta's review 19/11). Traits on: the old
+;      record and any live whip end; TR_ZK = 1 for a file RW / LW with the ball
 ;      in the wide attacking zone, facing the centre line, no setpieces free kick. Every register and the flags kept.
 tr_kick:
     pushfd

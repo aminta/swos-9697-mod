@@ -4449,8 +4449,11 @@ def zb_info(b):
     """4.0.6 a release build's SEC_BQ (obj2 offset) and ZB rows [(team word, SEC index, flags)] from its build.log
     (zones.bskip_patch's line; ZBSKIP_LOG: that file, e.g. for remote_run), or None"""
     lg = os.environ.get('ZBSKIP_LOG') or os.path.join(os.path.dirname(b.rstrip('/')), 'build.log')
-    m = re.search(r'SEC_BQ obj2\+(0x[0-9a-f]+); SEASONP obj2\+(0x[0-9a-f]+); ZB ([0-9a-f: ]+)\)', open(lg).read()) \
-        if os.path.exists(lg) else None
+    txt = open(lg).read() if os.path.exists(lg) else ''
+    exe = {'it': 'ITALIAN', 'en': 'ENGLISH', 'fr': 'FRENCH', 'de': 'GERMAN'}[UI]   # (42-zbskip: a release build.log has
+    blk = re.search(rf'(?:^|\nOK [^\n]*\n)((?:(?!\nOK )[\s\S])*?)\nOK [^\n]*/SWOS/{exe}\.EXE\n', txt)   # one block per
+    rx = r'SEC_BQ obj2\+(0x[0-9a-f]+); SEASONP obj2\+(0x[0-9a-f]+); ZB ([0-9a-f: ]+)\)'          # exe, 'OK <exe>' last:
+    m = (re.search(rx, blk.group(1)) if blk else None) or re.search(rx, txt)   # the UI language's offsets, else the first)
     if not m:
         return None
     return int(m.group(1), 16), [tuple(int(x, 16) if k == 0 else int(x) for k, x in enumerate(e.split(':')))

@@ -30,6 +30,22 @@ import trailer  # noqa: E402
 HOME = os.path.expanduser('~')
 EXE = os.environ.get('HT_P_EXE') or fixroot.fx('HTPC2', 'SWOS', 'ITALIAN.EXE')
 GDT_AT, BUF = 0x6000000, 0x6100000
+SAVE_WIN = 0x100        # save_trailer's prologue: one 13 B call stub per engine.before_save (4.2: tk_save, swe_st_save, fp_save
+                        # - the third moved ROOMV's cmp past 0x80, MC 20/11 rc1); NUMSEL / SELBASEV / ROOMV are the first matches
+
+
+def swc1_size(sy, rd):
+    """THIS build's SWC1 size, from its EN_ITEMS entry (dd addr, size, id | flags): 32 + the club registry's section 'IT'
+    when the build is shaped (sreg.section_bytes; the rc data: 344 B, 262 rows) - never swe.SWC1_SIZE, the module default
+    patch.py overwrites at build time (MC 20/11 rc1)"""
+    en_read = tr.B1 + sy['trailer']['en_read'][1]
+    code = rd(en_read, 0x60)
+    en_n = _disp(rd, en_read, 0x60, b'\x81\xf9') if b'\x81\xf9' in code else code[code.find(b'\x83\xf9') + 2]
+    entries, sid = _disp(rd, en_read, 0x60, b'\xba'), engine.item_id('SWC1')
+    got = [struct.unpack('<III', rd(entries + 12 * i, 12)) for i in range(en_n)]
+    hit = [sz for _, sz, f in got if f & 0xFFFF == sid]
+    assert len(hit) == 1, f'SWC1 in EN_ITEMS: {len(hit)} entries'
+    return hit[0]
 
 
 def static_machine(exe):
@@ -58,11 +74,11 @@ def static_machine(exe):
 
 
 def _disp(rd, start, n, pat, k=0):
-    """the dword after the k-th `pat` in [start, start + n)"""
-    code, i = rd(start, n), -1
+    """the dword after the k-th `pat` in [start, start + n) (the dword itself may end past n)"""
+    code, i = rd(start, n + 4), -1
     for _ in range(k + 1):
         i = code.find(pat, i + 1)
-        assert i >= 0, f'{pat.hex()} #{k} not in {start:#x}+{n}'
+        assert 0 <= i < n, f'{pat.hex()} #{k} not in {start:#x}+{n}'
     return struct.unpack_from('<I', code, i + len(pat))[0]
 
 
@@ -103,13 +119,13 @@ def test_swc1():
     save, en_read, en_finish = (at('trailer', k) for k in ('save_trailer', 'en_read', 'en_finish'))
     swc1, loaded, st_load = at('swe', 'SWC1'), at('swe', 'SWC1_LOADED'), at('swe', 'swe_st_load')
     imp = at('swe', 'SWE_IMP') if 'SWE_IMP' in sy['swe'] else None
-    size = swe.SWC1_SIZE
+    size = swc1_size(sy, rd)
     uc.mem_map(BUF, 0x40000)
     # save_trailer's variables, from its code (trailer.ASM)
     code = rd(save, 0x400)
-    numsel = _disp(rd, save, 0x80, b'\x0f\xb7\x05')               # movzx eax, word [NUMSEL]
-    selbase = _disp(rd, save, 0x80, b'\x03\x3d')                  # add edi, [SELBASEV]
-    roomv = _disp(rd, save, 0x80, b'\x3b\x05')                    # cmp eax, [ROOMV]
+    numsel = _disp(rd, save, SAVE_WIN, b'\x0f\xb7\x05')               # movzx eax, word [NUMSEL]
+    selbase = _disp(rd, save, SAVE_WIN, b'\x03\x3d')                  # add edi, [SELBASEV]
+    roomv = _disp(rd, save, SAVE_WIN, b'\x3b\x05')                    # cmp eax, [ROOMV]
     d1 = _disp(rd, save, 0x200, b'\x81\x05')                      # add dword [D1], BLOCK
     guard = _guard(rd, save)                                      # mov eax, [CG_GUARDP] (exactly one)
     out = code.find(b'\x61\xff\x25')                              # .skip: popad, jmp [SAVE_TAIL] (a big world)
@@ -130,7 +146,7 @@ def test_swc1():
     uc.mem_write(d1, b'\0' * 4)
     uc.mem_write(cwb, b'\x05')
     uc.mem_write(sea, b'\x7e')                                     # (2026: 126)
-    uc.mem_write(swc1, bytes(range(1, size + 1)))
+    uc.mem_write(swc1, bytes(i & 0xFF for i in range(1, size + 1)))
     _run(uc, save, save + out + 1)
     n = struct.unpack('<I', rd(d1, 4))[0]
     blk = rd(BUF, n)
@@ -146,7 +162,7 @@ def test_swc1():
         p += 4 + ln
     sid = engine.item_id('SWC1')
     s = items.get(sid)
-    want = struct.pack('<HH', 1, 5) + bytes(range(5, 9)) + struct.pack('<H', 126) + bytes(range(11, size + 1))
+    want = struct.pack('<HH', 1, 5) + bytes(range(5, 9)) + struct.pack('<H', 126) + bytes(i & 0xFF for i in range(11, size + 1))
     if s != want:
         errs.append(f'saved SWC1 {s.hex() if s else None} (want version 1, world 5, season 126, the rest as in memory)')
     if gt is None:
@@ -200,7 +216,7 @@ def test_swc1():
         _run(uc, st_load, tr.RET)
         return rd(swc1, size), struct.unpack('<I', rd(loaded, 4))[0], rd(ccat, 4) if ccat else None, pr
 
-    cur = struct.pack('<HH', 1, 4) + bytes(range(10, 10 + size - 4))
+    cur = struct.pack('<HH', 1, 4) + bytes(i & 0xFF for i in range(10, 10 + size - 4))
     got, ver, _, _ = load([(sid, cur)])
     if got != cur or ver != 1:
         errs.append(f'this build\'s SWC1: loaded {got.hex()} version {ver}')
@@ -253,7 +269,7 @@ def test_swc1_sections():
     uc, le, rd = static_machine(EXE)
     at = lambda k: tr.B4 + sy['swe'][k][1]
     swc1, find, add = at('SWC1'), at('swc1_find'), at('swc1_add')
-    size, hdr = swe.SWC1_SIZE, 20
+    size, hdr = swc1_size(sy, rd), 20
     uc.mem_map(BUF, 0x1000)
     lenp = BUF
     stray = []
@@ -281,15 +297,16 @@ def test_swc1_sections():
     want = struct.pack('<HH', 0x4141, 4) + bytes(4) + b'\0\0'
     if got != hdr + 4 or rd(swc1 + hdr, 10) != want or f(0x4141) != (hdr + 4, 4):
         errs.append(f'add 4: at {got}, {rd(swc1 + hdr, 10).hex()}, find {f(0x4141)}')
-    if a(0x4242, 3) is not None:                                         # (28 + 4 + 3 > 32)
+    if a(0x4242, size - 32 + 1) is not None:                             # (28 + 4 + n > size: one byte past)
         errs.append('a section past the item added')
-    got = a(0x4343, 0)                                                   # (exactly to the end: no marker room)
-    if got != size or f(0x4343) != (size, 0) or f(0x4141) != (hdr + 4, 4):
-        errs.append(f'add 0 at the end: {got}, find {f(0x4343)}')
+    got = a(0x4343, size - 32)                                           # (exactly to the end: no marker room; the
+    if got != 32 or f(0x4343) != (32, size - 32) or f(0x4141) != (hdr + 4, 4):   # 32 B build: add 0 at 32)
+        errs.append(f'add {size - 32} to the end: {got}, find {f(0x4343)}')
     for tag, body, found in (
             ('length past the item', struct.pack('<HH', 7, 0xFFFF), {7: None}),
-            ('chain overrun', struct.pack('<HH', 1, 2) + b'ab' + struct.pack('<HH', 2, 0x10), {1: (hdr + 4, 2), 2: None}),
-            ('no end marker', struct.pack('<HH', 3, 8) + b'x' * 8, {3: (hdr + 4, 8), 9: None})):
+            ('chain overrun', struct.pack('<HH', 1, 2) + b'ab' + struct.pack('<HH', 2, size), {1: (hdr + 4, 2), 2: None}),
+            ('no end marker', struct.pack('<HH', 3, size - hdr - 4) + b'x' * (size - hdr - 4),
+             {3: (hdr + 4, size - hdr - 4), 9: None})):
         state(body)
         for i, w in found.items():
             if f(i) != w:
@@ -344,9 +361,14 @@ def test_ledger():
         p += 4 + ln
     ids = {engine.item_id(n): n for n in rows}
     errs = [f'item {iid:#06x} ({ln} B) saved, no ledger row' for iid, ln in saved.items() if iid not in ids]
+    it = re.search(r'^\| SWC1:IT \| 0 dormant / (\d+) shaped \|', open(LEDGER).read(), re.M)   # (SWC1's section 'IT': SWC1
+    grow = {'SWC1': (0, int(it.group(1)) if it else 0)}           # = its row + 0 dormant / + the shaped size, MC 20/11 rc1)
     errs += [f'{ids[iid]}: saved {ln} B, ledger {rows[ids[iid]]}' for iid, ln in saved.items()
-             if iid in ids and rows[ids[iid]] != ln]
-    errs += [f'{n}: ledger row, not saved' for n in rows if engine.item_id(n) not in saved]
+             if iid in ids and ln not in [rows[ids[iid]] + g for g in grow.get(ids[iid], (0,))]]
+    linked = {'FP': 'FP_SAVE' in sy.get('swe', {})}               # (rows of a link-conditional item: FP only when the build
+    errs += [f'{n}: ledger row, not saved' for n in rows          #  links the fixture port - its .bss FP_SAVE; MC 20/11 rc1)
+             if engine.item_id(n) not in saved and linked.get(n, True)]
+    errs += [f'{n}: saved, but the build does not link it' for n, on in linked.items() if not on and engine.item_id(n) in saved]
     log = os.path.join(os.path.dirname(os.path.dirname(EXE)), 'build-it.log')
     room = re.findall(r'big cache room left (-?\d+) B', open(log).read()) if os.path.exists(log) else []
     if room and int(room[-1]) < 0:

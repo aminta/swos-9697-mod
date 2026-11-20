@@ -41,9 +41,6 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 #### Winners page after a move between Serie C and Serie D
 - Winners page (VINCITORI): the last-season page now also works when your club has just moved between Serie C and Serie D (promotion or relegation across the two files), and it now exists for a career in Serie D itself: it names the winner of the division your club played in last season.
 
-#### Winners page: last season's winner of Serie B / Serie C
-- Winners page (VINCITORI): in the 2026-27 world the last-season page now names the right winner of Serie B and Serie C (and of Serie D when the winner has since moved up). Before, a winner who had left the division could show the name of an unrelated club, or the page was missing altogether in Serie C. It now reads the names from the 2026-27 world's own clubs.
-
 #### Serie C Supercup
 - New competition in the 2026-27 world: the SUPERCOPPA SERIE C. The winners of Serie C groups A, B and C play a three-club mini-league in May, right after the last league day: a draw decides who rests first, the winner of the first match rests on the second day, and the last day pairs the two clubs that have not met. 3 points for a win, 1 for a draw, no extra time or penalties; level clubs are separated by goal difference, goals scored, away goals, then by lot. Win your Serie C group and you play your two matches; otherwise the three matches are played for you at the end of the season. The winner is on the WINNERS page.
 - Each match is titled SUPERCOPPA SERIE C MATCHDAY 1, 2 or 3. While the Supercup is on, the table of your Serie C group has a new entry under STATS, SUPERCOPPA SERIE C: the three clubs' table, the leader in light blue (legend: WINS). The FORMAT page explains the rules.
@@ -87,20 +84,11 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 - With SET PIECES on REALISTIC or ARCADE every header already goes down; with ROLES on YES only the headers in the opponents' box do, the others go up and away again as in the original game.
 - ROLES on NO, GAMEPLAY on ORIGINAL, SWOS++ and training games always play the original game. Set-piece practice uses the traits as a match would.
 
-#### Malta's title decider
-- Malta: when the title is decided by a play-off (the Finalissima or the Final Four), the champion is now always the club that won that play-off's final. Before, the game could crown a different club at the end of the season.
-
-#### SEASON after a career in another world
-- A 1996-97 SEASON started after a career in World 2026-27 or Europe 1984-85 (in the same game, without quitting) kept that career's world in the background. Its national cups could get that world's fixed pairs (for example the Coppa Italia), and a SEASON saved this way loaded back in the other world. A SEASON now plays the world chosen with the main menu's world selector, never a career's world left in the background. A SEASON saved this way with 4.1.2 or earlier now loads as a 1996-97 SEASON; the cup pairs it had already drawn stay as they are.
-
 #### World 2026-27 in SEASON mode
 - SEASON can now be played with the World 2026-27 (choose it with the main menu's world selector): pick your club in the career-style picker, each league plays in its own format. The mid-season splits into groups and Italy's Coppa D are played as in a career.
 - In a single season with your club, the play-offs, play-outs and title deciders inside your league are played too, for example Malta's Final Four. If your club is not in one of them, its matches are simulated and the season goes on to FINISH SEASON.
 - Those that bring in clubs from other leagues (for example New Zealand's Grand Final, Scotland's promotion play-off) are played in careers only.
 - A SEASON saved in the World 2026-27 comes back in it, also in the middle of a play-off.
-
-#### African club cups: the holder's place
-- CAF Champions League and Confederation Cup (article IV.5 of the CAF regulations): an association never has more than two clubs in the same cup, and the holder defending its title is one of them. If the holder is not already on one of its association's places, it takes the association's last place and the lowest qualifier drops (an association with a single place sends only the holder). Before, a holder could bring its association an extra club. A holder that is also the national champion (or cup winner) of the other cup defends in that one and its place there goes to the next club, as before. The same now holds for the African clubs that are not in the world's leagues (Simba, TP Mazembe, Al Hilal and the others): when one of them wins a cup, the next season it defends the title once, not also through its usual place, and its country still sends at most two clubs. If it wins the Confederation Cup while also qualified for the Champions League, it defends the Confederation Cup and its Champions League place stays empty.
 
 #### Shirt numbers: keypad digits and taken numbers
 - While a shirt-number box is lit (the team screen before a match, the squad screen), the digits of the numeric keypad now type the number like the digits above the letters. Everywhere else the keypad moves the cursor as before.
@@ -108,15 +96,6 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 
 #### Names with the joystick
 - Every name the game asks for (players, teams and coaches in EDIT CUSTOM TEAMS, your career name, competition names, save and tactic files) can now be written with the joystick or a pad alone, handy on Android and touch screens. UP / DOWN change the letter under the cursor; at the end of the name UP adds a letter and DOWN deletes the last one (hold to repeat); LEFT / RIGHT move the cursor; FIRE confirms. FIRE held with LEFT deletes the letter left of the cursor, and you can delete as many as you like while holding FIRE. A long press of FIRE alone cancels the edit. The keyboard works as before; its UP / DOWN arrows do the same as the stick.
-
-#### Continental cups: your knockout results now count
-- AFC Champions League Elite, AFC Challenge League, CONCACAF Champions Cup, Recopa Sudamericana and CAF Super Cup: the knockout matches your club plays in these cups now decide the cup. Before (since 4.1) the game played them but ignored the results at the end of the season and drew the outcome again, so the winner, next season's title holder and places could differ from what you actually played.
-- A career saved halfway through a knockout round with an earlier version: the round counts when you finish it.
-
-#### Continental cups: only where their leagues are
-- The club cups of the other confederations (Copa Libertadores and Sudamericana, the AFC, CAF, CONCACAF and OFC cups, the Intercontinental Cup) are played only for the confederations whose leagues are in the world of your career. Today that means the World 2026-27.
-- In the 1996-97 and Europe 1984-85 worlds these cups are not played. They were never shown there; before, the game still ran them out of sight at the end of each season with clubs that do not belong to those worlds, and one of their draws could fail. The 1996-97 world keeps its own Copa Libertadores, Supercopa, Copa CONMEBOL and Intercontinental Cup as before.
-- Planned for a later release: these cups in every world, played by that world's own clubs.
 
 #### Preseason friendlies: who you play, what they pay, and choosing them yourself
 - Career: the four preseason friendlies are played against clubs picked by strength: one stronger than your club, two of similar strength and one weaker. The clubs the game picks are always foreign. A page at the start of the season lets you choose the opponents yourself; leave it alone and the game picks them.
@@ -149,11 +128,39 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 - The page does not show the dates: the friendlies are in the calendar.
 - In a career saved with an earlier version, the choice is MIXED. With SWOS++ the page is not shown and the game picks the four (MIXED).
 
-#### Italian version: PAREGGI
-The original Italian game spells "draws" as PARREGGI in the season record (VINCITE ... PARREGGI ... SCON ...), the line a national-team coach sees and that the preseason friendlies now use too. It now reads PAREGGI, in the CD and GOG versions.
+#### Taiwan's promotion play-off
+- Taiwan (World 2026-27) now has its promotion play-off: the runner-up of Division 2 plays the 7th of the Premier League in a single match at the 7th's ground; if it is level after 90 minutes there is extra time, then penalties. The winner plays in the Premier League the next season. The Division 2 champion still goes up directly and the Premier League's 8th still goes down directly. These are the CTFA rules for 2025/26 (not the 2022 text, which had sudden death). A reserve team never takes part: if one finishes first or second in Division 2, the next club in the table takes its place. If your club is one of the two, you play the match yourself.
 
 #### Saved careers
 - A career saved with 4.2 loads in 4.2 or later. Older versions (4.1 and before) cannot be trusted to load it: keep playing it with 4.2.
+
+### Fixes
+
+#### Winners page: last season's winner of Serie B / Serie C
+- Winners page (VINCITORI): in the 2026-27 world the last-season page now names the right winner of Serie B and Serie C (and of Serie D when the winner has since moved up). Before, a winner who had left the division could show the name of an unrelated club, or the page was missing altogether in Serie C. It now reads the names from the 2026-27 world's own clubs.
+
+#### Malta's title decider
+- Malta: when the title is decided by a play-off (the Finalissima or the Final Four), the champion is now always the club that won that play-off's final. Before, the game could crown a different club at the end of the season.
+
+#### SEASON after a career in another world
+- A 1996-97 SEASON started after a career in World 2026-27 or Europe 1984-85 (in the same game, without quitting) kept that career's world in the background. Its national cups could get that world's fixed pairs (for example the Coppa Italia), and a SEASON saved this way loaded back in the other world. A SEASON now plays the world chosen with the main menu's world selector, never a career's world left in the background. A SEASON saved this way with 4.1.2 or earlier now loads as a 1996-97 SEASON; the cup pairs it had already drawn stay as they are.
+
+#### African club cups: the holder's place
+- CAF Champions League and Confederation Cup (article IV.5 of the CAF regulations): an association never has more than two clubs in the same cup, and the holder defending its title is one of them. If the holder is not already on one of its association's places, it takes the association's last place and the lowest qualifier drops (an association with a single place sends only the holder). Before, a holder could bring its association an extra club. A holder that is also the national champion (or cup winner) of the other cup defends in that one and its place there goes to the next club, as before. The same now holds for the African clubs that are not in the world's leagues (Simba, TP Mazembe, Al Hilal and the others): when one of them wins a cup, the next season it defends the title once, not also through its usual place, and its country still sends at most two clubs. If it wins the Confederation Cup while also qualified for the Champions League, it defends the Confederation Cup and its Champions League place stays empty.
+
+#### Continental cups: your knockout results now count
+- AFC Champions League Elite, AFC Challenge League, CONCACAF Champions Cup, Recopa Sudamericana and CAF Super Cup: the knockout matches your club plays in these cups now decide the cup. Before (since 4.1) the game played them but ignored the results at the end of the season and drew the outcome again, so the winner, next season's title holder and places could differ from what you actually played.
+- A career saved halfway through a knockout round with an earlier version: the round counts when you finish it.
+
+#### Continental cups: only where their leagues are
+- The club cups of the other confederations (Copa Libertadores and Sudamericana, the AFC, CAF, CONCACAF and OFC cups, the Intercontinental Cup) are played only for the confederations whose leagues are in the world of your career. Today that means the World 2026-27.
+- In the 1996-97 and Europe 1984-85 worlds these cups are not played. They were never shown there; before, the game still ran them out of sight at the end of each season with clubs that do not belong to those worlds, and one of their draws could fail. The 1996-97 world keeps its own Copa Libertadores, Supercopa, Copa CONMEBOL and Intercontinental Cup as before.
+- Planned for a later release: these cups in every world, played by that world's own clubs.
+
+#### Italian version: PAREGGI
+The original Italian game spells "draws" as PARREGGI in the season record (VINCITE ... PARREGGI ... SCON ...), the line a national-team coach sees and that the preseason friendlies now use too. It now reads PAREGGI, in the CD and GOG versions.
+
+#### Saved career files
 - A damaged or cut-off career file is now refused with the game's own "load failed" message, and the career you have open stays as it was. Before, a file that was too long was cut without a word.
 - A 1996-97 career now has room for 159 teams, as the 2026-27 and 1984-85 worlds do (before: 100). If a career ever needs more, the game stops with TEAM CACHE FULL - PLEASE REPORT instead of damaging the save.
 - 1996-97 season end: after the end-of-season matches the game simulates, every club in your career gets its own squad back (before, only the first 32 did).
@@ -161,12 +168,9 @@ The original Italian game spells "draws" as PARREGGI in the season record (VINCI
 #### Intercontinental Cup
 - English clubs: when your club won the Champions Cup and plays in a country with a league cup, the Intercontinental in December is now really played. Before, it showed in the fixture list but the match never came. In a division with end-of-season play-offs (Scotland's Premier Division) the play-offs keep that place, so there is no Intercontinental that season.
 - 2026-27 world and the historic worlds: no more Intercontinental out of nowhere in the first season. Before, the club in your file at Juventus' place got a December match against the 1996-97 Libertadores winner. In the 2026-27 world the Intercontinental is the one of the world's continental cups (holders of every confederation); in the historic worlds it starts from the second season, between that world's Champions Cup winner and the Libertadores winner.
+
 #### Taiwan's reserve teams
 - In the Taiwan Football Premier League world, the two reserve teams of Division 2 (Athletic Club Taipei Reserves and Taichung Rock Reserves) now follow the league's own rule (CTFA regulations 2025/26, article 27): a reserve team can never be promoted to the Premier League, and it does not play the promotion play-off either. If one of them finishes in a promotion place, the place goes to the next club in the table. Both still play the President FA Cup, as they do in real life. What the regulations say when a first team is relegated (its reserve team leaves Division 2 the next season) is not in the game: the reserve team stays. Their age and transfer-window rules are not in the sources I could read: no age limit, European windows.
-
-#### Taiwan's promotion play-off
-- Taiwan (World 2026-27) now has its promotion play-off: the runner-up of Division 2 plays the 7th of the Premier League in a single match at the 7th's ground; if it is level after 90 minutes there is extra time, then penalties. The winner plays in the Premier League the next season. The Division 2 champion still goes up directly and the Premier League's 8th still goes down directly. These are the CTFA rules for 2025/26 (not the 2022 text, which had sudden death). A reserve team never takes part: if one finishes first or second in Division 2, the next club in the table takes its place. If your club is one of the two, you play the match yourself.
-
 
 #### Decisions of this release
 - Serie C and Serie D groups drawn again every summer (Davide 15/11, "regola attuale al 78% e basta"): one fixed geographic rule for both leagues (each club to the nearest group, sizes kept, a club in a fitting group stays), from the end of season 1; no hand-made exceptions for single clubs. Measured on the real groups: Serie C 92%, Serie D 78% of the clubs in their real 2026-27 group (75% on the summer before). Serie C second teams: never two in a group, a new group every summer, the group drawn (the same draw for a given career). If the draw can't be made the clubs keep the old placement by area.
@@ -191,7 +195,6 @@ The original Italian game spells "draws" as PARREGGI in the season record (VINCI
 - GAMEPLAY original / custom (Davide 15/11): one OPTIONS row replaces the six match-play rows of the mod; ORIGINAL makes each option act as its original value at the kick-off without changing what you set (the CPU cards, CPU injuries and goalkeeper injuries are parked and restored), CUSTOM is the default with the settings of 4.1; the CPU cards and injuries and the goalkeeper injuries are part of it because they change results; SWOS++ keeps the original rules, as before. Takers and position roles will be rows of the same page.
 - Taiwan, promotion play-off: Division 2 runner-up v Premier League 7th, one match at the 7th's ground, extra time and penalties (CTFA 2025/26 regulations, not the 2022 sudden-death text); the champion goes up and the 8th goes down directly; a reserve team never takes part, the next club takes its place.
 - Second teams, Taiwan: Athletic Club Taipei Reserves and Taichung Rock Reserves never go up into the Premier League nor play the promotion play-off (CTFA 2025/26 regulations, art. 27.2.3); the place passes to the next club; they keep the President FA Cup; art. 27.2.4 (a reserve team withdraws when its first team is relegated) is not modelled. The reserves' other rules are not in the sources we read (the CTFA's Art. 27 covers promotion only): we declare no over-age cap and the European transfer windows for them.
-
 
 ## Italiano
 
@@ -234,9 +237,6 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 
 #### Pagina dei vincitori dopo un passaggio tra Serie C e Serie D
 - Pagina dei vincitori: la pagina della stagione scorsa funziona anche quando il tuo club è appena passato tra Serie C e Serie D (promozione o retrocessione), e ora c'è anche per una carriera in Serie D: indica il vincitore del campionato in cui il tuo club ha giocato la stagione scorsa.
-
-#### Pagina dei vincitori: il vincitore della stagione scorsa di Serie B / Serie C
-- Pagina dei vincitori: nel mondo 2026-27 la pagina della stagione scorsa indica il vincitore giusto di Serie B e Serie C (e di Serie D quando il vincitore è nel frattempo salito). Prima, un vincitore che aveva lasciato la categoria poteva mostrare il nome di un club qualunque, oppure in Serie C la pagina mancava del tutto. Ora i nomi vengono letti dai club del mondo 2026-27.
 
 #### Supercoppa Serie C
 - Nuova competizione nel mondo 2026-27: la SUPERCOPPA SERIE C. Le vincitrici dei gironi A, B e C di Serie C giocano un triangolare a maggio, subito dopo l'ultima giornata: un sorteggio decide chi riposa per prima, chi vince la prima partita riposa nella seconda giornata, e nell'ultima si affrontano le due squadre che non si sono ancora incontrate. 3 punti per la vittoria, 1 per il pari, niente supplementari né rigori; a pari punti decidono differenza reti, gol segnati, gol in trasferta e poi il sorteggio. Se vinci il tuo girone di Serie C giochi le tue due partite; altrimenti le tre partite vengono giocate al posto tuo a fine stagione. Il vincitore è nella pagina VINCITORI.
@@ -281,20 +281,11 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 - Con CALCI PIAZZATI su REALISTICI o ARCADE tutti i colpi di testa vanno già verso il basso; con RUOLI su SI lo fanno solo quelli nell'area avversaria, gli altri tornano in alto e lontano come nel gioco originale.
 - Con RUOLI su NO, GAMEPLAY su ORIGINALE, SWOS++ e le partitelle di allenamento si gioca sempre il gioco originale. La prova dei calci piazzati usa le abilità come una partita.
 
-#### Spareggio per il titolo a Malta
-- Malta: quando il titolo si decide con uno spareggio (la Finalissima o la Final Four), il campione ora è sempre la squadra che ha vinto la finale di quello spareggio. Prima il gioco poteva incoronare un'altra squadra a fine stagione.
-
-#### STAGIONE dopo una carriera in un altro mondo
-- Una STAGIONE 1996-97 iniziata dopo una carriera nel Mondo 2026-27 o in Europa 1984-85 (nella stessa partita, senza uscire dal gioco) si teneva dietro il mondo di quella carriera. Le sue coppe nazionali potevano avere gli accoppiamenti fissi di quel mondo (per esempio la Coppa Italia), e una STAGIONE salvata così si ricaricava nell'altro mondo. Ora una STAGIONE gioca il mondo scelto con il selettore dei mondi del menu principale, mai il mondo di una carriera rimasto dietro. Una STAGIONE salvata così con la 4.1.2 o prima ora si carica come STAGIONE 1996-97; gli accoppiamenti di coppa già sorteggiati restano come sono.
-
 #### Il Mondo 2026-27 in modalità STAGIONE
 - La STAGIONE ora si può giocare con il Mondo 2026-27 (sceglilo con il selettore dei mondi del menu principale): scegli la tua squadra nella schermata di scelta della carriera, ogni campionato si gioca nel suo formato. Le divisioni in gironi a metà stagione e la Coppa D italiana si giocano come in carriera.
 - In una stagione singola con la tua squadra si giocano anche i play-off, i play-out e gli spareggi per il titolo dentro il tuo campionato, per esempio la Final Four di Malta. Se la tua squadra non ne fa parte, le partite vengono simulate e la stagione arriva a FINISCI STAGIONE.
 - Quelli che coinvolgono squadre di altri campionati (per esempio la Grand Final della Nuova Zelanda, i play-off promozione scozzesi) si giocano solo in carriera.
 - Una STAGIONE salvata nel Mondo 2026-27 si ricarica nel suo mondo, anche a metà di un play-off.
-
-#### Coppe africane per club: il posto del detentore
-- CAF Champions League e Confederation Cup (articolo IV.5 del regolamento CAF): una federazione non ha mai più di due squadre nella stessa coppa e il detentore che difende il titolo è una di queste. Se il detentore non è già su uno dei posti della sua federazione, prende l'ultimo posto della federazione e la qualificata più bassa resta fuori (una federazione con un solo posto manda solo il detentore). Prima un detentore poteva portare alla sua federazione una squadra in più. Un detentore che è anche campione nazionale (o vincitore della coppa) dell'altra competizione difende il titolo in quella e il suo posto lì passa alla squadra successiva, come prima. Ora vale lo stesso per le squadre africane che non sono nei campionati del mondo (Simba, TP Mazembe, Al Hilal e le altre): quando una di loro vince una coppa, la stagione dopo difende il titolo una volta sola, non anche con il suo solito posto, e il suo paese manda comunque al massimo due squadre. Se vince la Confederation Cup ed è qualificata anche alla Champions League, difende la Confederation Cup e il suo posto in Champions League resta vuoto.
 
 #### Numeri di maglia: tastierino numerico e numeri occupati
 - Quando il riquadro del numero di maglia è acceso (schermata della squadra prima della partita, schermata della rosa), le cifre del tastierino numerico ora scrivono il numero come quelle sopra le lettere. Altrove il tastierino muove il cursore come prima.
@@ -302,15 +293,6 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 
 #### Nomi con il joystick
 - Ogni nome che il gioco chiede (giocatori, squadre e allenatori in EDIT CUSTOM TEAMS, il nome della carriera, i nomi delle competizioni, i file di salvataggio e delle tattiche) ora si può scrivere anche solo con il joystick o il pad, comodo su Android e sugli schermi touch. SU / GIÙ cambiano la lettera sotto il cursore; alla fine del nome SU aggiunge una lettera e GIÙ cancella l'ultima (tieni premuto per ripetere); SINISTRA / DESTRA spostano il cursore; FUOCO conferma. FUOCO tenuto premuto insieme a SINISTRA cancella la lettera a sinistra del cursore, e puoi cancellarne quante vuoi tenendo FUOCO. Una pressione lunga di FUOCO da solo annulla la modifica. La tastiera funziona come prima; le sue frecce SU / GIÙ fanno lo stesso dello stick.
-
-#### Coppe continentali: ora contano i tuoi risultati a eliminazione diretta
-- AFC Champions League Elite, AFC Challenge League, CONCACAF Champions Cup, Recopa Sudamericana e CAF Super Cup: le partite a eliminazione diretta che la tua squadra gioca in queste coppe ora decidono la coppa. Prima (dalla 4.1) il gioco le faceva giocare ma a fine stagione ne ignorava i risultati e rideterminava l'esito, quindi vincitore, detentore della stagione dopo e posti potevano non corrispondere a quello che avevi giocato.
-- Una carriera salvata a metà di un turno a eliminazione diretta con una versione precedente: il turno conta quando lo finisci.
-
-#### Coppe continentali: solo dove ci sono i loro campionati
-- Le coppe per club delle altre confederazioni (Copa Libertadores e Sudamericana, le coppe AFC, CAF, CONCACAF e OFC, la Coppa Intercontinentale) si giocano solo per le confederazioni i cui campionati sono nel mondo della tua carriera. Oggi vuol dire il Mondo 2026-27.
-- Nei mondi 1996-97 ed Europa 1984-85 queste coppe non si giocano. Lì non sono mai state mostrate; prima il gioco le faceva comunque girare di nascosto a ogni fine stagione con squadre che non appartengono a quei mondi, e uno dei loro sorteggi poteva fallire. Il mondo 1996-97 tiene come prima la sua Copa Libertadores, la Supercopa, la Copa CONMEBOL e la Coppa Intercontinentale.
-- In programma per una prossima versione: queste coppe in ogni mondo, giocate dalle squadre di quel mondo.
 
 #### Amichevoli estive: contro chi giochi, quanto rendono e come sceglierle tu
 - Carriera: le quattro amichevoli estive si giocano contro squadre scelte in base alla forza: una più forte della tua, due di forza simile e una più debole. Le squadre scelte dal gioco sono sempre straniere. All'inizio della stagione una pagina ti permette di scegliere tu le avversarie; se non tocchi nulla le sceglie il gioco.
@@ -343,11 +325,39 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 - La pagina non mostra le date: le amichevoli sono nel calendario.
 - In una carriera salvata con una versione precedente, la scelta è MISTE. Con SWOS++ la pagina non compare e le quattro le sceglie il gioco (MISTE).
 
-#### Versione italiana: PAREGGI
-Il gioco originale in italiano scrive PARREGGI nel registro della stagione (VINCITE ... PARREGGI ... SCON ...), la riga che vede l'allenatore di una nazionale e che ora usano anche le amichevoli estive. Ora c'è scritto PAREGGI, nelle versioni CD e GOG.
+#### Lo spareggio promozione di Taiwan
+- Taiwan (Mondo 2026-27) ora ha il suo spareggio promozione: la seconda della Division 2 gioca contro la settima della Premier League in gara unica sul campo della settima; in caso di parità dopo 90 minuti ci sono i tempi supplementari e poi i rigori. Chi vince gioca in Premier League la stagione dopo. La prima della Division 2 sale sempre direttamente e l'ottava della Premier League scende sempre direttamente. Sono le regole CTFA 2025/26 (non il testo del 2022, che prevedeva la morte improvvisa). Una squadra di riserva non partecipa mai: se chiude prima o seconda in Division 2, il suo posto passa alla squadra successiva in classifica. Se la tua squadra è una delle due, la partita la giochi tu.
 
 #### Carriere salvate
 - Una carriera salvata con la 4.2 si carica con la 4.2 o versioni successive. Con le versioni precedenti (4.1 e prima) il caricamento non è garantito: continua a giocarla con la 4.2.
+
+### Correzioni
+
+#### Pagina dei vincitori: il vincitore della stagione scorsa di Serie B / Serie C
+- Pagina dei vincitori: nel mondo 2026-27 la pagina della stagione scorsa indica il vincitore giusto di Serie B e Serie C (e di Serie D quando il vincitore è nel frattempo salito). Prima, un vincitore che aveva lasciato la categoria poteva mostrare il nome di un club qualunque, oppure in Serie C la pagina mancava del tutto. Ora i nomi vengono letti dai club del mondo 2026-27.
+
+#### Spareggio per il titolo a Malta
+- Malta: quando il titolo si decide con uno spareggio (la Finalissima o la Final Four), il campione ora è sempre la squadra che ha vinto la finale di quello spareggio. Prima il gioco poteva incoronare un'altra squadra a fine stagione.
+
+#### STAGIONE dopo una carriera in un altro mondo
+- Una STAGIONE 1996-97 iniziata dopo una carriera nel Mondo 2026-27 o in Europa 1984-85 (nella stessa partita, senza uscire dal gioco) si teneva dietro il mondo di quella carriera. Le sue coppe nazionali potevano avere gli accoppiamenti fissi di quel mondo (per esempio la Coppa Italia), e una STAGIONE salvata così si ricaricava nell'altro mondo. Ora una STAGIONE gioca il mondo scelto con il selettore dei mondi del menu principale, mai il mondo di una carriera rimasto dietro. Una STAGIONE salvata così con la 4.1.2 o prima ora si carica come STAGIONE 1996-97; gli accoppiamenti di coppa già sorteggiati restano come sono.
+
+#### Coppe africane per club: il posto del detentore
+- CAF Champions League e Confederation Cup (articolo IV.5 del regolamento CAF): una federazione non ha mai più di due squadre nella stessa coppa e il detentore che difende il titolo è una di queste. Se il detentore non è già su uno dei posti della sua federazione, prende l'ultimo posto della federazione e la qualificata più bassa resta fuori (una federazione con un solo posto manda solo il detentore). Prima un detentore poteva portare alla sua federazione una squadra in più. Un detentore che è anche campione nazionale (o vincitore della coppa) dell'altra competizione difende il titolo in quella e il suo posto lì passa alla squadra successiva, come prima. Ora vale lo stesso per le squadre africane che non sono nei campionati del mondo (Simba, TP Mazembe, Al Hilal e le altre): quando una di loro vince una coppa, la stagione dopo difende il titolo una volta sola, non anche con il suo solito posto, e il suo paese manda comunque al massimo due squadre. Se vince la Confederation Cup ed è qualificata anche alla Champions League, difende la Confederation Cup e il suo posto in Champions League resta vuoto.
+
+#### Coppe continentali: ora contano i tuoi risultati a eliminazione diretta
+- AFC Champions League Elite, AFC Challenge League, CONCACAF Champions Cup, Recopa Sudamericana e CAF Super Cup: le partite a eliminazione diretta che la tua squadra gioca in queste coppe ora decidono la coppa. Prima (dalla 4.1) il gioco le faceva giocare ma a fine stagione ne ignorava i risultati e rideterminava l'esito, quindi vincitore, detentore della stagione dopo e posti potevano non corrispondere a quello che avevi giocato.
+- Una carriera salvata a metà di un turno a eliminazione diretta con una versione precedente: il turno conta quando lo finisci.
+
+#### Coppe continentali: solo dove ci sono i loro campionati
+- Le coppe per club delle altre confederazioni (Copa Libertadores e Sudamericana, le coppe AFC, CAF, CONCACAF e OFC, la Coppa Intercontinentale) si giocano solo per le confederazioni i cui campionati sono nel mondo della tua carriera. Oggi vuol dire il Mondo 2026-27.
+- Nei mondi 1996-97 ed Europa 1984-85 queste coppe non si giocano. Lì non sono mai state mostrate; prima il gioco le faceva comunque girare di nascosto a ogni fine stagione con squadre che non appartengono a quei mondi, e uno dei loro sorteggi poteva fallire. Il mondo 1996-97 tiene come prima la sua Copa Libertadores, la Supercopa, la Copa CONMEBOL e la Coppa Intercontinentale.
+- In programma per una prossima versione: queste coppe in ogni mondo, giocate dalle squadre di quel mondo.
+
+#### Versione italiana: PAREGGI
+Il gioco originale in italiano scrive PARREGGI nel registro della stagione (VINCITE ... PARREGGI ... SCON ...), la riga che vede l'allenatore di una nazionale e che ora usano anche le amichevoli estive. Ora c'è scritto PAREGGI, nelle versioni CD e GOG.
+
+#### File delle carriere salvate
 - Un file di carriera rovinato o troncato ora viene rifiutato con il messaggio di caricamento non riuscito del gioco, e la carriera che hai aperta resta com'era. Prima un file troppo lungo veniva tagliato senza avvisare.
 - Una carriera 1996-97 ora ha posto per 159 squadre, come i mondi 2026-27 e 1984-85 (prima: 100). Se una carriera ne avesse bisogno di più, il gioco si ferma con TEAM CACHE FULL - PLEASE REPORT invece di rovinare il salvataggio.
 - Fine stagione 1996-97: dopo le partite di fine stagione simulate dal gioco ogni squadra della tua carriera riprende la sua rosa (prima solo le prime 32).
@@ -355,12 +365,9 @@ Il gioco originale in italiano scrive PARREGGI nel registro della stagione (VINC
 #### Coppa Intercontinentale
 - Club inglesi: se il tuo club ha vinto la Coppa Campioni e gioca in un paese con la coppa di lega, l'Intercontinentale di dicembre ora si gioca davvero. Prima compariva nel calendario ma la partita non arrivava mai. In una divisione con i play-off di fine stagione (la Premier Division scozzese) quel posto resta ai play-off, quindi quella stagione niente Intercontinentale.
 - Mondo 2026-27 e mondi storici: niente più Intercontinentale dal nulla nella prima stagione. Prima il club che nel tuo file stava al posto della Juventus si trovava a dicembre una partita contro la vincitrice della Libertadores 1996-97. Nel Mondo 2026-27 l'Intercontinentale è quella delle coppe continentali del mondo (le detentrici di ogni confederazione); nei mondi storici parte dalla seconda stagione, fra la vincitrice della Coppa Campioni di quel mondo e quella della Libertadores.
+
 #### Le squadre di riserva di Taiwan
 - Nel mondo della Taiwan Football Premier League, le due squadre di riserva della Division 2 (Athletic Club Taipei Reserves e Taichung Rock Reserves) ora seguono la regola della lega (regolamento CTFA 2025/26, articolo 27): una squadra di riserva non può mai salire in Premier League e non gioca nemmeno lo spareggio promozione. Se una di loro chiude in zona promozione, il posto passa alla squadra successiva in classifica. Giocano comunque la President FA Cup, come nella realtà. Quello che il regolamento dice quando una prima squadra retrocede (la sua riserva lascia la Division 2 l'anno dopo) nel gioco non c'è: la riserva resta. Le regole su età e finestre di mercato non sono nelle fonti che ho potuto leggere: nessun limite di età, finestre europee.
-
-#### Lo spareggio promozione di Taiwan
-- Taiwan (Mondo 2026-27) ora ha il suo spareggio promozione: la seconda della Division 2 gioca contro la settima della Premier League in gara unica sul campo della settima; in caso di parità dopo 90 minuti ci sono i tempi supplementari e poi i rigori. Chi vince gioca in Premier League la stagione dopo. La prima della Division 2 sale sempre direttamente e l'ottava della Premier League scende sempre direttamente. Sono le regole CTFA 2025/26 (non il testo del 2022, che prevedeva la morte improvvisa). Una squadra di riserva non partecipa mai: se chiude prima o seconda in Division 2, il suo posto passa alla squadra successiva in classifica. Se la tua squadra è una delle due, la partita la giochi tu.
-
 
 #### Decisioni di questa release
 - Coppa Intercontinentale: una sola per mondo. 1996-97: quella del mod (vincitrice della Coppa Campioni contro vincitrice della Libertadores), nella prima stagione JUVENTUS contro la vincitrice della Libertadores 1996 come prima; 2026-27: solo quella del mondo (le detentrici continentali); mondi storici: nessuna nella prima stagione, poi la vincitrice della loro Coppa Campioni contro quella della Libertadores. Con una coppa di lega si gioca nello spazio dei play-off, quindi solo in una stagione senza play-off.

@@ -12,7 +12,7 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 - Your 4.1 career keeps working: the 6 clubs that were missing join Serie D when you load it (see "Your 4.1 career in 4.2's new Italy").
 
 #### Serie C and Serie D groups drawn again every summer
-- 2026-27 world: from the end of your first season, the Serie C groups (3 of 20 clubs) and the Serie D groups (9 of 18) are drawn again every summer, after promotions and relegations, as the leagues really do. The rule is geography: every club goes to the group whose clubs live nearest to it, every group keeps its size, and a club that is already in a fitting group stays there. Your first season keeps the real 2026-27 groups.
+- 2026-27 world: from the end of your first season, the Serie C groups (3 of 20 clubs) and the Serie D groups (9 of 18) are drawn again every summer, as the leagues really do. The rule is geography: every club goes to the group whose clubs live nearest to it, every group keeps its size, and a club that is already in a fitting group stays there. Your first season keeps the real 2026-27 groups.
 - Your club can change group too (for example from Serie C group B to group C). It stays the same career: same squad, same money, same record. Only the group changes.
 - Serie C second teams (JUVENTUS NG, ATALANTA U23, INTER U23, and MILAN FUTURO if it goes up): Lega Pro rules: never two in the same group; the mod draws a new group for each one every summer, and your career always gets the same draw.
 - How close to reality: the leagues draw their groups by geography but publish no formula, and they move some clubs on the border between two groups back and forth from one summer to the next. Given the real 2025-26 groups, the mod's rule puts 92% of the Serie C clubs and 78% of the Serie D clubs in their real 2026-27 group (the same rule on the summer before: 75% in Serie D).
@@ -37,11 +37,6 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 
 #### Player prices from the market value
 - 2026-27 world: a player's price now follows his real market value (Transfermarkt) and nothing else. A young player worth a lot costs more than a veteran near the end of his career, whatever his club. Skills are exactly as before, and prices across the world keep the same range as before.
-
-#### Promotion and relegation between Serie C and Serie D
-- 2026-27 world: Serie C and Serie D now exchange clubs at the end of every season, as in real Italian football. The nine Serie D group winners go up to Serie C; the clubs relegated from Serie C (the last club of each group and the play-out losers) go down to Serie D. That includes your club: win your Serie D group and next season you play in Serie C; go down from Serie C and you play in Serie D.
-- When your club moves between the two, it is still the same career: your whole squad, your money and your record stay with you. Only the league changes.
-- Then both leagues draw their groups again (see "Serie C and Serie D groups drawn again every summer").
 
 #### Winners page after a move between Serie C and Serie D
 - Winners page (VINCITORI): the last-season page now also works when your club has just moved between Serie C and Serie D (promotion or relegation across the two files), and it now exists for a career in Serie D itself: it names the winner of the division your club played in last season.
@@ -102,7 +97,7 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 - SEASON can now be played with the World 2026-27 (choose it with the main menu's world selector): pick your club in the career-style picker, each league plays in its own format. The mid-season splits into groups and Italy's Coppa D are played as in a career.
 - In a single season with your club, the play-offs, play-outs and title deciders inside your league are played too, for example Malta's Final Four. If your club is not in one of them, its matches are simulated and the season goes on to FINISH SEASON.
 - Those that bring in clubs from other leagues (for example New Zealand's Grand Final, Scotland's promotion play-off) are played in careers only.
-- A SEASON saved in the World 2026-27 loads back in it, also in the middle of a play-off; a 1996-97 SEASON saved with 4.1 loads and finishes as before.
+- A SEASON saved in the World 2026-27 loads back in it, also in the middle of a play-off.
 
 #### African club cups: the holder's place
 - CAF Champions League and Confederation Cup (article IV.5 of the CAF regulations): an association never has more than two clubs in the same cup, and the holder defending its title is one of them. If the holder is not already on one of its association's places, it takes the association's last place and the lowest qualifier drops (an association with a single place sends only the holder). Before, a holder could bring its association an extra club. A holder that is also the national champion (or cup winner) of the other cup defends in that one and its place there goes to the next club, as before. The same now holds for the African clubs that are not in the world's leagues (Simba, TP Mazembe, Al Hilal and the others): when one of them wins a cup, the next season it defends the title once, not also through its usual place, and its country still sends at most two clubs. If it wins the Confederation Cup while also qualified for the Champions League, it defends the Confederation Cup and its Champions League place stays empty.
@@ -119,9 +114,8 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 - A career saved halfway through a knockout round with an earlier version: the round counts when you finish it.
 
 #### Continental cups: only where their leagues are
-- The club cups of the other confederations (Copa Libertadores and Sudamericana, the AFC, CAF, CONCACAF and OFC cups, the Intercontinental Cup) are played only for the confederations whose leagues are in the world of your career. Today that means the World 2026-27, where nothing changes.
+- The club cups of the other confederations (Copa Libertadores and Sudamericana, the AFC, CAF, CONCACAF and OFC cups, the Intercontinental Cup) are played only for the confederations whose leagues are in the world of your career. Today that means the World 2026-27.
 - In the 1996-97 and Europe 1984-85 worlds these cups are not played. They were never shown there; before, the game still ran them out of sight at the end of each season with clubs that do not belong to those worlds, and one of their draws could fail. The 1996-97 world keeps its own Copa Libertadores, Supercopa, Copa CONMEBOL and Intercontinental Cup as before.
-- A career saved with an earlier version loads and goes on as before.
 - Planned for a later release: these cups in every world, played by that world's own clubs.
 
 #### Preseason friendlies: who you play, what they pay, and choosing them yourself
@@ -160,7 +154,6 @@ The original Italian game spells "draws" as PARREGGI in the season record (VINCI
 
 #### Saved careers
 - A career saved with 4.2 loads in 4.2 or later. Older versions (4.1 and before) cannot be trusted to load it: keep playing it with 4.2.
-- Careers saved with older versions still load in 4.2, as before.
 - A damaged or cut-off career file is now refused with the game's own "load failed" message, and the career you have open stays as it was. Before, a file that was too long was cut without a word.
 - A 1996-97 career now has room for 159 teams, as the 2026-27 and 1984-85 worlds do (before: 100). If a career ever needs more, the game stops with TEAM CACHE FULL - PLEASE REPORT instead of damaging the save.
 - 1996-97 season end: after the end-of-season matches the game simulates, every club in your career gets its own squad back (before, only the first 32 did).
@@ -176,7 +169,6 @@ The original Italian game spells "draws" as PARREGGI in the season record (VINCI
 
 
 #### Decisions of this release
-- Serie C / Serie D exchange (2026-27 world): every season the nine Serie D group winners go up and the Serie C clubs relegated (last of each group + play-out losers) go down, your club included; then both leagues' groups drawn again (next decision); a move of your club keeps its squad, money and record.
 - Serie C and Serie D groups drawn again every summer (Davide 15/11, "regola attuale al 78% e basta"): one fixed geographic rule for both leagues (each club to the nearest group, sizes kept, a club in a fitting group stays), from the end of season 1; no hand-made exceptions for single clubs. Measured on the real groups: Serie C 92%, Serie D 78% of the clubs in their real 2026-27 group (75% on the summer before). Serie C second teams: never two in a group, a new group every summer, the group drawn (the same draw for a given career). If the draw can't be made the clubs keep the old placement by area.
 - Set-piece practice: a practice lasts the attempts chosen (SHOTS: 10 at first; UNLIMITED until ESC) on the half chosen (HALF: RANDOM at first, the match's own random end as before) and then shows its results page (ESC ends it earlier); a practice has no match clock, no presentation screen (competition, teams, stadium), no pre-match screen and no score bar at the restarts. Ordinary matches and friendlies are unchanged.
 - Shirt numbers: UP / DOWN stop on taken numbers and show who wears them; leaving the box swaps the numbers, ESC undoes; keypad digits type only while the box is lit; EDIT CUSTOM TEAMS keeps skipping taken numbers.
@@ -214,7 +206,7 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 - La tua carriera 4.1 continua a funzionare: le 6 squadre che mancavano entrano in Serie D quando la carichi (vedi "La tua carriera 4.1 nella nuova Italia della 4.2").
 
 #### Gironi di Serie C e Serie D rifatti ogni estate
-- Mondo 2026-27: dalla fine della tua prima stagione, i gironi di Serie C (3 da 20 squadre) e di Serie D (9 da 18) vengono rifatti ogni estate, dopo promozioni e retrocessioni, come fanno davvero le leghe. La regola è la geografia: ogni squadra va nel girone le cui squadre abitano più vicine, ogni girone resta della sua misura e una squadra che è già in un girone adatto ci resta. La prima stagione tiene i gironi veri 2026-27.
+- Mondo 2026-27: dalla fine della tua prima stagione, i gironi di Serie C (3 da 20 squadre) e di Serie D (9 da 18) vengono rifatti ogni estate, come fanno davvero le leghe. La regola è la geografia: ogni squadra va nel girone le cui squadre abitano più vicine, ogni girone resta della sua misura e una squadra che è già in un girone adatto ci resta. La prima stagione tiene i gironi veri 2026-27.
 - Anche la tua squadra può cambiare girone (per esempio dal girone B al girone C di Serie C). La carriera resta la stessa: stessa rosa, stessi soldi, stesso curriculum. Cambia solo il girone.
 - Seconde squadre di Serie C (JUVENTUS NG, ATALANTA U23, INTER U23, e MILAN FUTURO se sale): come dice il regolamento della Lega Pro, mai due nello stesso girone; la mod sorteggia ogni estate un girone nuovo per ciascuna, e la tua carriera ha sempre lo stesso sorteggio.
 - Quanto è vicino alla realtà: le leghe fanno i gironi per geografia ma non pubblicano una formula, e spostano avanti e indietro da un'estate all'altra alcune squadre al confine tra due gironi. Partendo dai gironi veri 2025-26, la regola della mod mette nel loro girone vero 2026-27 il 92% delle squadre di Serie C e il 78% di quelle di Serie D (la stessa regola sull'estate prima: 75% in Serie D).
@@ -239,11 +231,6 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 
 #### Prezzi dei giocatori dal valore di mercato
 - Mondo 2026-27: il prezzo di un giocatore ora segue solo il suo valore di mercato reale (Transfermarkt). Un giovane che vale molto costa più di un veterano a fine carriera, qualunque sia la sua squadra. Le abilità sono esattamente quelle di prima, e i prezzi nel mondo restano nella stessa fascia di prima.
-
-#### Promozioni e retrocessioni tra Serie C e Serie D
-- Mondo 2026-27: Serie C e Serie D ora si scambiano le squadre alla fine di ogni stagione, come nel calcio vero. Le nove vincitrici dei gironi di Serie D salgono in Serie C; le retrocesse dalla Serie C (l'ultima di ogni girone e le perdenti dei play-out) scendono in Serie D. Vale anche per la tua squadra: vinci il tuo girone di Serie D e la stagione dopo giochi in Serie C; retrocedi dalla Serie C e giochi in Serie D.
-- Quando la tua squadra passa da una all'altra, la carriera resta la stessa: tutta la rosa, i soldi e il tuo curriculum restano con te. Cambia solo il campionato.
-- Poi i gironi di entrambi i campionati vengono rifatti (vedi "Gironi di Serie C e Serie D rifatti ogni estate").
 
 #### Pagina dei vincitori dopo un passaggio tra Serie C e Serie D
 - Pagina dei vincitori: la pagina della stagione scorsa funziona anche quando il tuo club è appena passato tra Serie C e Serie D (promozione o retrocessione), e ora c'è anche per una carriera in Serie D: indica il vincitore del campionato in cui il tuo club ha giocato la stagione scorsa.
@@ -304,7 +291,7 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 - La STAGIONE ora si può giocare con il Mondo 2026-27 (sceglilo con il selettore dei mondi del menu principale): scegli la tua squadra nella schermata di scelta della carriera, ogni campionato si gioca nel suo formato. Le divisioni in gironi a metà stagione e la Coppa D italiana si giocano come in carriera.
 - In una stagione singola con la tua squadra si giocano anche i play-off, i play-out e gli spareggi per il titolo dentro il tuo campionato, per esempio la Final Four di Malta. Se la tua squadra non ne fa parte, le partite vengono simulate e la stagione arriva a FINISCI STAGIONE.
 - Quelli che coinvolgono squadre di altri campionati (per esempio la Grand Final della Nuova Zelanda, i play-off promozione scozzesi) si giocano solo in carriera.
-- Una STAGIONE salvata nel Mondo 2026-27 si ricarica nel suo mondo, anche a metà di un play-off; una STAGIONE 1996-97 salvata con la 4.1 si carica e si chiude come prima.
+- Una STAGIONE salvata nel Mondo 2026-27 si ricarica nel suo mondo, anche a metà di un play-off.
 
 #### Coppe africane per club: il posto del detentore
 - CAF Champions League e Confederation Cup (articolo IV.5 del regolamento CAF): una federazione non ha mai più di due squadre nella stessa coppa e il detentore che difende il titolo è una di queste. Se il detentore non è già su uno dei posti della sua federazione, prende l'ultimo posto della federazione e la qualificata più bassa resta fuori (una federazione con un solo posto manda solo il detentore). Prima un detentore poteva portare alla sua federazione una squadra in più. Un detentore che è anche campione nazionale (o vincitore della coppa) dell'altra competizione difende il titolo in quella e il suo posto lì passa alla squadra successiva, come prima. Ora vale lo stesso per le squadre africane che non sono nei campionati del mondo (Simba, TP Mazembe, Al Hilal e le altre): quando una di loro vince una coppa, la stagione dopo difende il titolo una volta sola, non anche con il suo solito posto, e il suo paese manda comunque al massimo due squadre. Se vince la Confederation Cup ed è qualificata anche alla Champions League, difende la Confederation Cup e il suo posto in Champions League resta vuoto.
@@ -321,9 +308,8 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 - Una carriera salvata a metà di un turno a eliminazione diretta con una versione precedente: il turno conta quando lo finisci.
 
 #### Coppe continentali: solo dove ci sono i loro campionati
-- Le coppe per club delle altre confederazioni (Copa Libertadores e Sudamericana, le coppe AFC, CAF, CONCACAF e OFC, la Coppa Intercontinentale) si giocano solo per le confederazioni i cui campionati sono nel mondo della tua carriera. Oggi vuol dire il Mondo 2026-27, dove non cambia nulla.
+- Le coppe per club delle altre confederazioni (Copa Libertadores e Sudamericana, le coppe AFC, CAF, CONCACAF e OFC, la Coppa Intercontinentale) si giocano solo per le confederazioni i cui campionati sono nel mondo della tua carriera. Oggi vuol dire il Mondo 2026-27.
 - Nei mondi 1996-97 ed Europa 1984-85 queste coppe non si giocano. Lì non sono mai state mostrate; prima il gioco le faceva comunque girare di nascosto a ogni fine stagione con squadre che non appartengono a quei mondi, e uno dei loro sorteggi poteva fallire. Il mondo 1996-97 tiene come prima la sua Copa Libertadores, la Supercopa, la Copa CONMEBOL e la Coppa Intercontinentale.
-- Una carriera salvata con una versione precedente si carica e prosegue come prima.
 - In programma per una prossima versione: queste coppe in ogni mondo, giocate dalle squadre di quel mondo.
 
 #### Amichevoli estive: contro chi giochi, quanto rendono e come sceglierle tu
@@ -362,7 +348,6 @@ Il gioco originale in italiano scrive PARREGGI nel registro della stagione (VINC
 
 #### Carriere salvate
 - Una carriera salvata con la 4.2 si carica con la 4.2 o versioni successive. Con le versioni precedenti (4.1 e prima) il caricamento non è garantito: continua a giocarla con la 4.2.
-- Le carriere salvate con versioni precedenti si caricano ancora nella 4.2, come prima.
 - Un file di carriera rovinato o troncato ora viene rifiutato con il messaggio di caricamento non riuscito del gioco, e la carriera che hai aperta resta com'era. Prima un file troppo lungo veniva tagliato senza avvisare.
 - Una carriera 1996-97 ora ha posto per 159 squadre, come i mondi 2026-27 e 1984-85 (prima: 100). Se una carriera ne avesse bisogno di più, il gioco si ferma con TEAM CACHE FULL - PLEASE REPORT invece di rovinare il salvataggio.
 - Fine stagione 1996-97: dopo le partite di fine stagione simulate dal gioco ogni squadra della tua carriera riprende la sua rosa (prima solo le prime 32).
@@ -379,7 +364,6 @@ Il gioco originale in italiano scrive PARREGGI nel registro della stagione (VINC
 
 #### Decisioni di questa release
 - Coppa Intercontinentale: una sola per mondo. 1996-97: quella del mod (vincitrice della Coppa Campioni contro vincitrice della Libertadores), nella prima stagione JUVENTUS contro la vincitrice della Libertadores 1996 come prima; 2026-27: solo quella del mondo (le detentrici continentali); mondi storici: nessuna nella prima stagione, poi la vincitrice della loro Coppa Campioni contro quella della Libertadores. Con una coppa di lega si gioca nello spazio dei play-off, quindi solo in una stagione senza play-off.
-- Scambio Serie C / Serie D (Mondo 2026-27): ogni stagione le nove vincitrici dei gironi di Serie D salgono e le retrocesse dalla Serie C (ultima di ogni girone + perdenti dei play-out) scendono, anche la tua squadra; poi i gironi dei due campionati vengono rifatti (decisione seguente); un passaggio della tua squadra tiene rosa, soldi e curriculum.
 - Gironi di Serie C e Serie D rifatti ogni estate (Davide 15/11, "regola attuale al 78% e basta"): una sola regola geografica fissa per i due campionati (ogni squadra nel girone più vicino, misure dei gironi tenute, una squadra in un girone adatto ci resta), dalla fine della stagione 1; nessuna eccezione fatta a mano per singole squadre. Misurata sui gironi veri: Serie C 92%, Serie D 78% delle squadre nel loro girone vero 2026-27 (75% sull'estate prima). Seconde squadre di Serie C: mai due in un girone, un girone nuovo ogni estate, il girone sorteggiato (lo stesso sorteggio per una data carriera). Se i gironi non si possono rifare le squadre tengono la vecchia collocazione per zona.
 - Prova dei calci piazzati: una prova dura i tiri scelti (TIRI: all'inizio 10; INFINITI fino a ESC) nella metà campo scelta (META' CAMPO: all'inizio CASUALE, la porta a caso della partita come prima) e poi mostra la sua pagina dei risultati (ESC la chiude prima); in una prova non ci sono cronometro, schermata di presentazione (competizione, squadre, stadio), schermata prepartita né barra del risultato alle riprese del gioco. Le partite normali e le amichevoli restano come prima.
 - Numeri di maglia: SU / GIÙ si fermano anche sui numeri occupati e mostrano chi li porta; uscendo dal riquadro i numeri si scambiano, ESC annulla; le cifre del tastierino scrivono solo con il riquadro acceso; MODIFICA SQUADRE continua a saltare i numeri occupati.

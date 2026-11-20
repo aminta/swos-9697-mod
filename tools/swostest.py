@@ -4513,7 +4513,40 @@ def zones_bq_season():
     return not errs, '; '.join(errs + [f'ESP B {vals} of {[x.hex() for x in seq]}; season byte {seas}'])
 
 
+ZBSKIP_GOLD = {   # (MC 20/11: literal rows per world data, one letter a row: l PROM light blue, g P.OFF green, p plain)
+    # world5tm-403c19 (4.1.2's release data, suite-g412c-zx 12/11): one Segunda B team in the top rows (placed 1st)
+    'world5tm-403c19': {'ESP': 'pllggggppp', 'ESP BQ=1': 'llpggggppp', 'GER': 'plplgpp', 'POR': 'plplgpp',
+                        'NED': 'plplggggggpp'},
+    # world5tm-h3s7rl3-supc (the 4.2 rc data): two Segunda B teams (1st, 3rd); BQ=1 = zones.py 4.0.6 rule: the B team
+    # that may go up takes PROM but never counts for the P.OFF places -> 1-2 PROM, 3-4 plain, 5-8 P.OFF (20/11, Shaved);
+    # TPE: Div 2's play-off row since tpe_po cf5e8af (19/11): the 2nd eligible club green
+    'world5tm-h3s7rl3-supc': {'ESP': 'plplggggpp', 'ESP BQ=1': 'llppggggpp', 'GER': 'plplgpp', 'POR': 'plplgpp',
+                              'NED': 'plplggggggpp', 'TPE': 'plpgpp'},
+}
+
+
+def zb_want(m, up, po, brows, bq_up=()):
+    """The zone rows zones.py's zb_eff / zb_rng give (the second, rule-derived assertion; the literal golden is the
+    first): rows `brows` are B teams - each may not qualify, unless in bq_up (SEC_BQ 1: may go up, still no play-off).
+    PROM: the place less the B rows above that may not go up, in 1..up; P.OFF: the place less every B row above, in
+    up+1..up+po."""
+    out = []
+    for k in range(m):
+        p1 = k + 1 - sum(1 for j in brows if j < k and j not in bq_up)
+        p2 = k + 1 - sum(1 for j in brows if j < k)
+        b = k in brows
+        if (not b or k in bq_up) and 1 <= p1 <= up:
+            out.append('lb')
+        elif not b and up < p2 <= up + po:
+            out.append('gr')
+        else:
+            out.append('pl')
+    return out
+
+
 @scenario
+@probe.red_twin(env={'ZBSKIP_TWIN': '1'}, why="fixture: the B team at 1st poked as 'may NOT go up' (SEC_BQ 2) while the "
+                "expectation is the SEC_BQ 1 one", expect=r'ESP SEC_BQ 1: rows')
 def zones_bskip():
     """4.0.6 qualifying places skip the B teams that may not qualify (zones.py zb_eff / zb_rng, SEC_TAB without play-offs:
     REAL SOCIEDAD B, STUTTGART II / HOFFENHEIM II, PORTO B / BENFICA B / SPORTING B, the Jong (U21) sides): a new
@@ -4522,7 +4555,9 @@ def zones_bskip():
     after them move up (SEGUNDA: 2nd and 4th PROM light blue, 5th-8th P.OFF green, 9th plain) - a test poke, nothing
     saved (ZBSKIP_BUILD / SWOSTEST_BUILD: a release dir); ZBSKIP_NZ_BUILD (a build of the NZ Championship snapshot):
     the NORTHERN LEAGUE with AUCKLAND FC RES 1st (the A-League reserves: the Championship's places by the others; the
-    Championship's own table, 1st-2nd to the Grand Final, the same zn_col path)"""
+    Championship's own table, 1st-2nd to the Grand Final, the same zn_col path). 42-zbskip (MC / Regia 20/11): rows
+    checked against ZBSKIP_GOLD (literal, per world data) AND zb_want (the rule, any number of B rows); SWOSTEST_UI
+    en / fr / de: the table read at that language's DIY."""
     sys.path.insert(0, os.path.join(ROOT, 'tools'))
     import lepatch
     import mkseason
@@ -4536,10 +4571,14 @@ def zones_bskip():
              ('GER', 'EUROPA', 'GERMANIA', '3. LIGA', 'ROT-WEISS ESSEN', 2, 1, b, src),
              ('POR', 'EUROPA', 'PORTOGALLO', 'LIGA PORTUGAL 2', 'UNIAO TORREENSE', 2, 1, b, src),
              ('NED', 'EUROPA', 'OLANDA', 'EERSTE DIVISIE', 'DE GRAAFSCHAP', 2, 6, b, src),
-             ('TPE', 'ASIA', 'TAIWAN', 'SECONDA DIVISIONE|TFL DIV. 2|TAIWAN FOOTBALL LEAGUE DIV. 2', 'WAN ISLAND', 1, 0, b, src),   # (4.2: Taiwan's two reserve sides, CTFA Art. 27.2.3; Div 2: 1 up, the Div 2 - TFPL play-off is not in the world's data)
+             ('TPE', 'ASIA', 'TAIWAN', 'SECONDA DIVISIONE|TFL DIV. 2|TAIWAN FOOTBALL LEAGUE DIV. 2|2ND DIVISION', 'WAN ISLAND', 1, 1, b, src),   # (4.2: Taiwan's two reserve sides, CTFA Art. 27.2.3; Div 2: 1 up, the Div 2 - TFPL play-off is not in the world's data)
              ('NZL', 'OCEANIA', 'NUOVA ZELANDA', 'NORTHERN LGE|NORTHERN LEAGUE', 'WESTERN SPRINGS', 2, 2, nzb, nzs)]
     only = os.environ.get('ZBSKIP_ONLY')
     errs, info = [], []
+    gold = ZBSKIP_GOLD.get(os.path.basename(src.rstrip('/')))
+    if gold is None:
+        errs.append(f'no ZBSKIP_GOLD rows for the data {os.path.basename(src)} (add them, with a source note)')
+    lit = lambda rows: ''.join(z[0] for z in rows)
     for code, cont, country, league, club, up, po, b, src in cases:
         if (only and code not in only.split(',')) or not b:
             continue
@@ -4555,9 +4594,9 @@ def zones_bskip():
                 s.send('fire dump:3')
                 walk(s, s.screen().find('VISUAL. COMPETIZ.', exact=True), 3)
                 walk(s, 1, 3)
-                zones_force_played(s, 'it', errs, f'{code} {league}')
+                zones_force_played(s, UI, errs, f'{code} {league}')
                 r = s.send('dump:1')
-                diy = diy_lin(s)
+                diy = diy_lin(s, UI)
                 n = struct.unpack('<H', r.read(diy + 0x31, 2))[0]
                 lst = list(struct.unpack(f'<{n}H', r.read(diy + 0x6D, 2 * n)))
                 base = struct.unpack('<I', r.read(r.base2 + sel, 4))[0]
@@ -4576,28 +4615,26 @@ def zones_bskip():
                     m = 2 + up + po + 2
                     rows, _ = zone_rows(s, f'zbskip_{code.lower()}', m)
                     got = [z for _, z in rows]
-                    want, q = [], 0
-                    for k in range(m):
-                        if k in tops[:len(order)]:
-                            want.append('pl')
-                            continue
-                        q += 1
-                        want.append('lb' if q <= up else 'gr' if q <= up + po else 'pl')
-                    check(got == want, f'{code}: rows {got} (want {want})', errs)
-                    info.append(f"{code} {''.join(z[0] for z in got)}")
+                    want = zb_want(m, up, po, tops[:len(order)])
+                    check(got == want, f'{code}: rows {got} (want by the rule {want})', errs)
+                    g = (gold or {}).get(code)
+                    check(g is not None and lit(got) == g, f'{code}: rows {lit(got)} (golden {g})', errs)
+                    info.append(f"{code} {lit(got)}")
                     bq = zb_info(b)                    # 4.0.6 gplay's season-end value (SEC_BQ): the first B team
                     if code == 'ESP' and bq:           # may go up -> its row PROM, the play-off places still
                         off, zb, sp = bq               # without it (no play-offs): 1-2 PROM, 3rd plain, 4-7 P.OFF
                         i = next(i for w, i, f in zb if w == w0)   # (stamped last season: valid)
                         r = s.send('dump:1')
                         s.poke(r.base2 + off, [(r.obj2(sp, 1)[0] - 1) & 0xFF])
-                        s.poke(r.base2 + off + 1 + i, [1])
+                        s.poke(r.base2 + off + 1 + i, [2 if probe.twin_on('ZBSKIP_TWIN') else 1])   # (twin: may not)
                         s.send('dump:1')
                         rows, _ = zone_rows(s, f'zbskip_{code.lower()}_bq', m)
                         got = [z for _, z in rows]
-                        want = ['lb', 'lb', 'pl'] + ['gr'] * po + ['pl'] * (m - 3 - po)
-                        check(got == want, f'{code} SEC_BQ 1: rows {got} (want {want})', errs)
-                        info.append(f"{code} BQ=1 {''.join(z[0] for z in got)}")
+                        want = zb_want(m, up, po, tops[:len(order)], bq_up=(tops[0],))
+                        g = (gold or {}).get(code + ' BQ=1')
+                        check(got == want and g is not None and lit(got) == g,
+                              f'{code} SEC_BQ 1: rows {got} (want by the rule {want}, golden {g})', errs)
+                        info.append(f"{code} BQ=1 {lit(got)}")
     return not errs, '; '.join(errs + info)
 
 

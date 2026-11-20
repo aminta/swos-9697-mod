@@ -9,7 +9,7 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 
 #### Serie D complete: all 162 clubs
 - 2026-27 world: Serie D now has all its real clubs: 9 groups of 18, 162 clubs, exactly like the real 2026-27 league. In 4.1 the game could hold only 156 of them (one team file holds 256 clubs at most); 4.2 spreads Serie D over two team files, so no club is missing any more.
-- Your 4.1 career keeps working: the 6 clubs that were missing join Serie D when you load it (see "Your 4.1 career in 4.2's new Italy").
+- In a 4.1 career, the 6 clubs that were missing join Serie D when you load it (see "Serie D in a 4.1 career").
 
 #### Serie C and Serie D groups drawn again every summer
 - 2026-27 world: from the end of your first season, the Serie C groups (3 of 20 clubs) and the Serie D groups (9 of 18) are drawn again every summer, as the leagues really do. The rule is geography: every club goes to the group whose clubs live nearest to it, every group keeps its size, and a club that is already in a fitting group stays there. Your first season keeps the real 2026-27 groups.
@@ -18,8 +18,8 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 - How close to reality: the leagues draw their groups by geography but publish no formula, and they move some clubs on the border between two groups back and forth from one summer to the next. Given the real 2025-26 groups, the mod's rule puts 92% of the Serie C clubs and 78% of the Serie D clubs in their real 2026-27 group (the same rule on the summer before: 75% in Serie D).
 - If the groups can't be drawn (it should never happen), the season ends the old way: a club coming down or going up joins the group of its own area.
 
-#### Your 4.1 career in 4.2's new Italy
-- A career saved in 4.1 loads in 4.2: nothing is lost and no message appears. Serie D now has 9 groups of 18 clubs (162 clubs).
+#### Serie D in a 4.1 career
+- Serie D now has 9 groups of 18 clubs (162 clubs).
 - The 6 new places go first to the 6 clubs that join Serie D in 2026-27, if your career has not already brought them in. Otherwise they go to the clubs relegated out of Serie D during your career, in the order the game would have brought them back. These clubs enter their group at the start of the next season.
 - Rare case: the game used provisional clubs (a "stand-in") to fill a Serie D place when a club dropped out of the pyramid. If a stand-in reached Serie C in your 4.1 career, a real Serie D club replaces it the first time you load the save in 4.2, and keeps the stand-in's points and table position.
 - Serie D, a 4.1 save imported into 4.2: if a club's Serie D group is full, it plays the rest of that season in the nearest group with room; from the next season the yearly redraw places everyone.
@@ -48,7 +48,7 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 - New competition in the 2026-27 world: the SUPERCOPPA SERIE C. The winners of Serie C groups A, B and C play a three-club mini-league in May, right after the last league day: a draw decides who rests first, the winner of the first match rests on the second day, and the last day pairs the two clubs that have not met. 3 points for a win, 1 for a draw, no extra time or penalties; level clubs are separated by goal difference, goals scored, away goals, then by lot. Win your Serie C group and you play your two matches; otherwise the three matches are played for you at the end of the season. The winner is on the WINNERS page.
 - Each match is titled SUPERCOPPA SERIE C MATCHDAY 1, 2 or 3. While the Supercup is on, the table of your Serie C group has a new entry under STATS, SUPERCOPPA SERIE C: the three clubs' table, the leader in light blue (legend: WINS). The FORMAT page explains the rules.
 - The points and the tie-break order are the official ones (Lega Pro, Comunicato Ufficiale 94/DIV of 27 April 2026). "A draw stays a draw, no extra time or penalties" is our choice: the official text we could read does not mention extra time.
-- A career saved with 4.1 loads as before; the Supercup of the season in progress is decided by the game at the season's end.
+- In a 4.1 career, the game decides the Supercup of the season in progress at the season's end.
 
 #### Difficulty
 - New OPTIONS row DIFFICULTY: EASY, NORMAL or HARD. NORMAL is the original game. The level only changes a computer team playing against you: on EASY its players are 80% as good, its goalkeeper is 2 points weaker and its passes go astray more often; on HARD its players are 10% better, its goalkeeper 2 points stronger and its passes more accurate. Two humans, computer against computer, training games, SWOS++ and simulated results always play the original game.
@@ -68,8 +68,8 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 #### GAMEPLAY: original or custom
 - OPTIONS has one new row, GAMEPLAY, in place of the separate rows of the mod's match-play options (CPU red cards, CPU injuries, goalkeeper injuries, difficulty, dribbling and set pieces). ORIGINAL plays the 1996-97 game: every one of those options acts as its original setting, and what you chose is not forgotten. CUSTOM is the default, with the settings you had before (CPU cards and injuries ON, NORMAL, CLASSIC, CLASSIC set pieces). On the row, LEFT / RIGHT switch between ORIGINAL and CUSTOM; FIRE on CUSTOM opens the GAMEPLAY page, FIRE on ORIGINAL switches to CUSTOM.
 - On the page every option is a row: LEFT / RIGHT change its value (stopping at the first and the last), FIRE moves it on (and wraps); DRIBBLING on CUSTOM opens its own page, and BACK returns here. DEFAULTS puts every row back to its start value; BACK leaves the page.
-- The page has a new row, ROLES: the switch for the position traits asked by Marco (what a player does best according to where he plays). The traits are off by default (NO: the original game); to switch them on go to OPTIONS -> GAMEPLAY CUSTOM -> ROLES YES. With ROLES on NO, or with GAMEPLAY on ORIGINAL, they never apply. A career remembers your choice, and a career saved before this row existed loads with NO.
-- Going to ORIGINAL and back restores your choices exactly. A career saved with ORIGINAL loads as ORIGINAL; a career saved by an earlier version loads as CUSTOM with the options it had.
+- The page has a new row, ROLES: the switch for the position traits asked by Marco (what a player does best according to where he plays). The traits are off by default (NO: the original game); to switch them on go to OPTIONS -> GAMEPLAY CUSTOM -> ROLES YES. With ROLES on NO, or with GAMEPLAY on ORIGINAL, they never apply. A career remembers your choice, and in a career saved before this row existed, ROLES is NO.
+- Going to ORIGINAL and back restores your choices exactly. A career saved with ORIGINAL stays on ORIGINAL; in a career saved with an earlier version, GAMEPLAY is CUSTOM with the options it had.
 - Set-piece practice follows the same switch: with ORIGINAL its page title reads "TRAINING - GAMEPLAY: ORIGINAL" (the name of the button, in your language) and the practice plays the classic set pieces.
 
 #### Set-piece practice
@@ -97,7 +97,7 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 - SEASON can now be played with the World 2026-27 (choose it with the main menu's world selector): pick your club in the career-style picker, each league plays in its own format. The mid-season splits into groups and Italy's Coppa D are played as in a career.
 - In a single season with your club, the play-offs, play-outs and title deciders inside your league are played too, for example Malta's Final Four. If your club is not in one of them, its matches are simulated and the season goes on to FINISH SEASON.
 - Those that bring in clubs from other leagues (for example New Zealand's Grand Final, Scotland's promotion play-off) are played in careers only.
-- A SEASON saved in the World 2026-27 loads back in it, also in the middle of a play-off.
+- A SEASON saved in the World 2026-27 comes back in it, also in the middle of a play-off.
 
 #### African club cups: the holder's place
 - CAF Champions League and Confederation Cup (article IV.5 of the CAF regulations): an association never has more than two clubs in the same cup, and the holder defending its title is one of them. If the holder is not already on one of its association's places, it takes the association's last place and the lowest qualifier drops (an association with a single place sends only the holder). Before, a holder could bring its association an extra club. A holder that is also the national champion (or cup winner) of the other cup defends in that one and its place there goes to the next club, as before. The same now holds for the African clubs that are not in the world's leagues (Simba, TP Mazembe, Al Hilal and the others): when one of them wins a cup, the next season it defends the title once, not also through its usual place, and its country still sends at most two clubs. If it wins the Confederation Cup while also qualified for the Champions League, it defends the Confederation Cup and its Champions League place stays empty.
@@ -146,8 +146,8 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 - A club you chose is marked by its own colour (CHOSEN in the legend). The clubs you choose last one summer: the next season starts again from the game's four.
 - FIRE on H or A swaps that friendly's venue with the nearest friendly of the other venue, so there are always two at home and two away.
 - The fee of every friendly follows how strong the opponent really is, whoever picked it.
-- The page does not show the dates: the friendlies are in the calendar as before.
-- A career saved with an earlier version continues with MIXED. With SWOS++ the page is not shown and the game picks the four (MIXED).
+- The page does not show the dates: the friendlies are in the calendar.
+- In a career saved with an earlier version, the choice is MIXED. With SWOS++ the page is not shown and the game picks the four (MIXED).
 
 #### Italian version: PAREGGI
 The original Italian game spells "draws" as PARREGGI in the season record (VINCITE ... PARREGGI ... SCON ...), the line a national-team coach sees and that the preseason friendlies now use too. It now reads PAREGGI, in the CD and GOG versions.
@@ -203,7 +203,7 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 
 #### Serie D completa: tutte le 162 squadre
 - Mondo 2026-27: la Serie D ora ha tutte le sue squadre vere: 9 gironi da 18, 162 squadre, esattamente come il campionato vero 2026-27. Nella 4.1 il gioco ne poteva tenere solo 156 (un file di squadre ne contiene al massimo 256); la 4.2 divide la Serie D su due file di squadre, così non manca più nessuna squadra.
-- La tua carriera 4.1 continua a funzionare: le 6 squadre che mancavano entrano in Serie D quando la carichi (vedi "La tua carriera 4.1 nella nuova Italia della 4.2").
+- In una carriera 4.1, le 6 squadre che mancavano entrano in Serie D quando la carichi (vedi "La Serie D in una carriera 4.1").
 
 #### Gironi di Serie C e Serie D rifatti ogni estate
 - Mondo 2026-27: dalla fine della tua prima stagione, i gironi di Serie C (3 da 20 squadre) e di Serie D (9 da 18) vengono rifatti ogni estate, come fanno davvero le leghe. La regola è la geografia: ogni squadra va nel girone le cui squadre abitano più vicine, ogni girone resta della sua misura e una squadra che è già in un girone adatto ci resta. La prima stagione tiene i gironi veri 2026-27.
@@ -212,8 +212,8 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 - Quanto è vicino alla realtà: le leghe fanno i gironi per geografia ma non pubblicano una formula, e spostano avanti e indietro da un'estate all'altra alcune squadre al confine tra due gironi. Partendo dai gironi veri 2025-26, la regola della mod mette nel loro girone vero 2026-27 il 92% delle squadre di Serie C e il 78% di quelle di Serie D (la stessa regola sull'estate prima: 75% in Serie D).
 - Se i gironi non si possono rifare (non dovrebbe succedere mai), la stagione finisce come prima: una squadra che scende o sale entra nel girone della sua zona.
 
-#### La tua carriera 4.1 nella nuova Italia della 4.2
-- Una carriera salvata con la 4.1 si carica nella 4.2: non si perde niente e non compare nessun messaggio. La Serie D ora ha 9 gironi da 18 squadre (162 squadre).
+#### La Serie D in una carriera 4.1
+- La Serie D ora ha 9 gironi da 18 squadre (162 squadre).
 - I 6 posti nuovi vanno prima alle 6 squadre che entrano in Serie D nel 2026-27, se la tua carriera non le ha già fatte entrare. Altrimenti vanno alle squadre retrocesse dalla Serie D nella tua carriera, nell'ordine in cui il gioco le avrebbe riportate su. Queste squadre entrano nel loro girone all'inizio della stagione successiva.
 - Caso raro: il gioco usava squadre provvisorie (una "squadra riserva") per riempire un posto in Serie D quando una squadra usciva dalla piramide. Se una riserva è arrivata in Serie C nella tua carriera 4.1, al primo caricamento nella 4.2 viene sostituita da una vera squadra di Serie D, che tiene i punti e la posizione in classifica della riserva.
 - Serie D, un salvataggio 4.1 importato nella 4.2: se il girone di Serie D di una squadra è pieno, gioca il resto di quella stagione nel girone più vicino con posto libero; dalla stagione successiva il sorteggio annuale dei gironi sistema tutti.
@@ -242,7 +242,7 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 - Nuova competizione nel mondo 2026-27: la SUPERCOPPA SERIE C. Le vincitrici dei gironi A, B e C di Serie C giocano un triangolare a maggio, subito dopo l'ultima giornata: un sorteggio decide chi riposa per prima, chi vince la prima partita riposa nella seconda giornata, e nell'ultima si affrontano le due squadre che non si sono ancora incontrate. 3 punti per la vittoria, 1 per il pari, niente supplementari né rigori; a pari punti decidono differenza reti, gol segnati, gol in trasferta e poi il sorteggio. Se vinci il tuo girone di Serie C giochi le tue due partite; altrimenti le tre partite vengono giocate al posto tuo a fine stagione. Il vincitore è nella pagina VINCITORI.
 - Ogni partita si intitola SUPERCOPPA SERIE C GIORNATA 1, 2 o 3. Mentre la Supercoppa è in corso, nella classifica del tuo girone di Serie C c'è una nuova voce sotto STAT, SUPERCOPPA SERIE C: la classifica delle tre squadre, la prima in azzurro (legenda: VINCE). La pagina FORMULA spiega le regole.
 - I punti e l'ordine degli spareggi sono quelli ufficiali (Lega Pro, Comunicato Ufficiale 94/DIV del 27 aprile 2026). "Un pari resta pari, niente supplementari né rigori" è una nostra scelta: il testo ufficiale che abbiamo potuto leggere non parla di supplementari.
-- Una carriera salvata con la 4.1 si carica come prima; la Supercoppa della stagione in corso viene decisa dal gioco a fine stagione.
+- In una carriera 4.1, la Supercoppa della stagione in corso viene decisa dal gioco a fine stagione.
 
 #### Difficoltà
 - Nuova riga in OPZIONI, DIFFICOLTÀ: FACILE, NORMALE o DIFFICILE. NORMALE è il gioco originale. Il livello cambia solo una squadra del computer che gioca contro di te: a FACILE i suoi giocatori valgono l'80%, il portiere ha 2 punti in meno e i passaggi sbagliano più spesso; a DIFFICILE i giocatori sono migliori del 10%, il portiere ha 2 punti in più e i passaggi sono più precisi. Due giocatori umani, computer contro computer, allenamenti, SWOS++ e risultati simulati restano sempre il gioco originale.
@@ -262,8 +262,8 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 #### GAMEPLAY: originale o personalizzato
 - Nelle OPZIONI c'è una nuova riga, GAMEPLAY, al posto delle righe separate delle opzioni di gioco della mod (rossi alla CPU, infortuni alla CPU, infortuni portieri, difficoltà, dribbling e calci piazzati). ORIGINALE gioca il gioco del 1996-97: ognuna di quelle opzioni vale come nel gioco originale, e quello che avevi scelto non si perde. PERSONALIZZATO è il valore di partenza, con le impostazioni di prima (rossi e infortuni alla CPU attivi, NORMALE, CLASSICO, calci piazzati CLASSICI). Sulla riga, SINISTRA / DESTRA passano da ORIGINALE a PERSONALIZZATO; FUOCO su PERSONALIZZATO apre la pagina GAMEPLAY, FUOCO su ORIGINALE torna a PERSONALIZZATO.
 - Nella pagina ogni opzione è una riga: SINISTRA / DESTRA cambiano il valore (si fermano al primo e all'ultimo), FUOCO lo fa avanzare (e riparte dal primo); DRIBBLING su PERSONALIZZATO apre la sua pagina, e INDIETRO torna qui. PREDEFINITI rimette ogni riga al valore di partenza; INDIETRO esce dalla pagina.
-- Nella pagina c'è una nuova riga, RUOLI: l'interruttore delle caratteristiche di ruolo chieste da Marco (quello che un giocatore fa meglio secondo dove gioca). Le caratteristiche sono spente alla partenza (NO: il gioco originale); per accenderle vai in OPZIONI -> GAMEPLAY PERSONALIZZATO -> RUOLI SI. Con RUOLI su NO, o con GAMEPLAY su ORIGINALE, non valgono mai. La carriera ricorda la tua scelta, e una carriera salvata prima che la riga esistesse si carica con NO.
-- Passare a ORIGINALE e tornare indietro ridà esattamente le tue scelte. Una carriera salvata con ORIGINALE si carica come ORIGINALE; una carriera salvata da una versione precedente si carica come PERSONALIZZATO con le opzioni che aveva.
+- Nella pagina c'è una nuova riga, RUOLI: l'interruttore delle caratteristiche di ruolo chieste da Marco (quello che un giocatore fa meglio secondo dove gioca). Le caratteristiche sono spente alla partenza (NO: il gioco originale); per accenderle vai in OPZIONI -> GAMEPLAY PERSONALIZZATO -> RUOLI SI. Con RUOLI su NO, o con GAMEPLAY su ORIGINALE, non valgono mai. La carriera ricorda la tua scelta, e in una carriera salvata prima che la riga esistesse, RUOLI è NO.
+- Passare a ORIGINALE e tornare indietro ridà esattamente le tue scelte. Una carriera salvata con ORIGINALE resta su ORIGINALE; in una carriera salvata con una versione precedente, GAMEPLAY è PERSONALIZZATO con le opzioni che aveva.
 - La prova dei calci piazzati segue lo stesso interruttore: con ORIGINALE il titolo della sua pagina diventa "PRATICA - GAMEPLAY: ORIGINALE" (il nome del pulsante, nella tua lingua) e la prova usa i calci piazzati classici.
 
 #### Prova dei calci piazzati
@@ -340,8 +340,8 @@ DRAFT - not final: sections by feature in plain player language; owners add thei
 - Una squadra scelta da te ha un colore suo (SCELTA nella legenda). Le squadre che scegli valgono per una sola estate: la stagione dopo si riparte dalle quattro del gioco.
 - FUOCO su C o F scambia la sede di quell'amichevole con l'amichevole più vicina dell'altra sede, quindi restano sempre due in casa e due fuori.
 - L'incasso di ogni amichevole segue la forza reale dell'avversaria, chiunque l'abbia scelta.
-- La pagina non mostra le date: le amichevoli sono nel calendario come prima.
-- Una carriera salvata con una versione precedente prosegue con MISTE. Con SWOS++ la pagina non compare e le quattro le sceglie il gioco (MISTE).
+- La pagina non mostra le date: le amichevoli sono nel calendario.
+- In una carriera salvata con una versione precedente, la scelta è MISTE. Con SWOS++ la pagina non compare e le quattro le sceglie il gioco (MISTE).
 
 #### Versione italiana: PAREGGI
 Il gioco originale in italiano scrive PARREGGI nel registro della stagione (VINCITE ... PARREGGI ... SCON ...), la riga che vede l'allenatore di una nazionale e che ora usano anche le amichevoli estive. Ora c'è scritto PAREGGI, nelle versioni CD e GOG.
